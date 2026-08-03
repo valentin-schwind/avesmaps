@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/terrain-factor.php';
+require_once __DIR__ . '/terrain-calibration.php';
 require_once __DIR__ . '/terrain-read.php';
 require_once __DIR__ . '/water-areas.php';
 
@@ -56,7 +57,7 @@ const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
 // water test is inert and the two synthetic-bridge builders below behave exactly as they did before
 // V13 -- which is also what the callers that have no business with water get (the Verlauf-Sync in
 // api/_internal/wiki/path-verlauf.php, and the diagnostics).
-function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $request, array $terrain = [], array $water = []): array {
+function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $request, array $terrain = [], array $water = [], float $passNormalizer = 1.0): array {
     $graph = [];
     $locations = [];
     foreach (is_array($networkData['locations'] ?? null) ? $networkData['locations'] : [] as $location) {
@@ -93,7 +94,7 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
     foreach (is_array($networkData['paths'] ?? null) ? $networkData['paths'] : [] as $path) {
         if (!is_array($path)) continue;
         $pathIndex++;
-        avesmapsAddClientCompatiblePathConnection($graph, $locations, $locationCoordinateIndex, $locationCellIndex, $path, $pathIndex, $request, $terrain);
+        avesmapsAddClientCompatiblePathConnection($graph, $locations, $locationCoordinateIndex, $locationCellIndex, $path, $pathIndex, $request, $terrain, $passNormalizer);
     }
 
     // Sea-bound location names come from the RAW paths (before the domain filter drops Seewege), so a
@@ -118,7 +119,7 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
     ];
 }
 
-function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locations, array $locationCoordinateIndex, array $locationCellIndex, array $path, int $pathIndex, array $request, array $terrain = []): void {
+function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locations, array $locationCoordinateIndex, array $locationCellIndex, array $path, int $pathIndex, array $request, array $terrain = [], float $passNormalizer = 1.0): void {
     $coordinates = avesmapsReadRoutePathLineCoordinates($path['geometry'] ?? null);
     if ($coordinates === []) return;
 
@@ -169,7 +170,7 @@ function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locatio
 
     // No interior node -> single edge over the whole path (unchanged behaviour, no regression).
     if (count($nodeVertices) <= 2) {
-        avesmapsAddClientCompatiblePathSliceConnection($graph, $startNode, $endNode, $coordinates, $routeType, $transportOption, (float) $speed, $clientPathId, $path, $pathTerrain, 0, $coordinateCount - 1);
+        avesmapsAddClientCompatiblePathSliceConnection($graph, $startNode, $endNode, $coordinates, $routeType, $transportOption, (float) $speed, $clientPathId, $path, $pathTerrain, 0, $coordinateCount - 1, $passNormalizer);
         return;
     }
 
@@ -182,7 +183,7 @@ function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locatio
         if ((string) $fromVertex['location']['name'] === (string) $toVertex['location']['name']) continue;
         $sliceCoordinates = array_slice($coordinates, $fromVertex['index'], $toVertex['index'] - $fromVertex['index'] + 1);
         if (count($sliceCoordinates) < 2) continue;
-        avesmapsAddClientCompatiblePathSliceConnection($graph, $fromVertex['location'], $toVertex['location'], $sliceCoordinates, $routeType, $transportOption, (float) $speed, $clientPathId . '#' . $segmentIndex, $path, $pathTerrain, (int) $fromVertex['index'], (int) $toVertex['index']);
+        avesmapsAddClientCompatiblePathSliceConnection($graph, $fromVertex['location'], $toVertex['location'], $sliceCoordinates, $routeType, $transportOption, (float) $speed, $clientPathId . '#' . $segmentIndex, $path, $pathTerrain, (int) $fromVertex['index'], (int) $toVertex['index'], $passNormalizer);
     }
 }
 
@@ -376,7 +377,7 @@ function avesmapsRouteSplitTerrainProfile(?array $profile, int $segmentIndex, fl
     return [$first === [] ? null : $first, $second === [] ? null : $second];
 }
 
-function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fromNode, array $toNode, array $coordinates, string $routeType, string $transportOption, float $speed, string $connectionId, array $path, ?array $pathTerrain = null, int $fromVertexIndex = 0, int $toVertexIndex = 0): void {
+function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fromNode, array $toNode, array $coordinates, string $routeType, string $transportOption, float $speed, string $connectionId, array $path, ?array $pathTerrain = null, int $fromVertexIndex = 0, int $toVertexIndex = 0, float $passNormalizer = 1.0): void {
     $distance = avesmapsCalculateClientRouteCoordinateDistance($coordinates);
     // V11: the slice's OWN climb and fall, summed from ITS segments of profile_json -- never the
     // parent way's average. `profile_json` holds one [ascent, descent] pair per stored segment of
@@ -408,10 +409,23 @@ function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fr
     // 🔴 Each direction pays for ITS climb and ITS steep descent. Reversing swaps BOTH pairs -- with the
     // Leistungskilometer it is no longer enough to swap ascent and descent, because „steep" is a
     // property of the ground and changes sides with the traveller.
+    // 🔴 AND THE GEBIRGSPASS NORMALISER SITS HERE, inside the „there IS a profile" branch and
+    // nowhere else. S. 123 says a pass's path-type factor already contains the climb, so the slope
+    // must not brake it a second time; the normaliser takes that second brake back out. An
+    // unmeasured pass never reaches this line -- its slice is null, the connection stays untouched,
+    // and it keeps exactly today's timing instead of being handed a discount for missing data.
     $forwardFactor = $sliceTerrain === null ? 1.0
-        : avesmapsTerrainLeistungsFactor($sliceTerrain['ascent'], $sliceTerrain['steep_descent'], $distance);
+        : avesmapsTerrainNormalizePassFactor(
+            avesmapsTerrainLeistungsFactor($sliceTerrain['ascent'], $sliceTerrain['steep_descent'], $distance),
+            $routeType,
+            $passNormalizer
+        );
     $reverseFactor = $sliceTerrain === null ? 1.0
-        : avesmapsTerrainLeistungsFactor($sliceTerrain['descent'], $sliceTerrain['steep_ascent'], $distance);
+        : avesmapsTerrainNormalizePassFactor(
+            avesmapsTerrainLeistungsFactor($sliceTerrain['descent'], $sliceTerrain['steep_ascent'], $distance),
+            $routeType,
+            $passNormalizer
+        );
     if ($sliceTerrain !== null) {
         // Carried so the waypoint anchor can cut it; only present when there IS a profile.
         $connection['terrain_profile'] = $sliceTerrain['profile'];

@@ -41,8 +41,9 @@ declare(strict_types=1);
 //    anyone clicking anything -- so the result names the old value beside the new one and carries
 //    the `map_revision` it was born under.
 //
-// ⚠️ INERT. This computes, stores and reports. It changes NO travel time, and nothing in the router
-// reads `calibration_json`. That stays true until the owner has decided on the curve and the mⱼ.
+// ⚠️ NO LONGER FULLY INERT (2026-08-03). `c` and the per-subtype means are still report-only, but
+// ONE number out of this file now reaches the router: the Gebirgspass normaliser below. Everything
+// else here still only computes, stores and reports.
 
 require_once __DIR__ . '/terrain-factor.php';
 
@@ -52,6 +53,70 @@ const AVESMAPS_TERRAIN_CALIBRATION_TARGET_MILES = 30.0;
 
 // The reference set G. One subtype, deliberately: it is the ×1,0 category.
 const AVESMAPS_TERRAIN_CALIBRATION_REFERENCE_SUBTYPE = 'Strasse';
+
+// ── The Gebirgspass normaliser (owner decision 2026-08-03) ────────────────────────────────────
+//
+// 🔴 THE RULE IT REPAIRS, verbatim from Geographia Aventurica S. 123:
+//    „Da für Gebirgslandschaften bereits die Beeinträchtigungen durch Anstiege und Gefälle
+//     berücksichtigt sind, ist die Tagesleistung nicht noch einmal zu modifizieren."
+// The path-type factor of a pass (0,4) ALREADY contains the climb. Our slope layer put a second
+// brake on top of it, so a measured pass ran up to 55 % slower than the rule allows. Measured on
+// live routes: Greifenfurt-Lowangen took 20,07 days where the rule gives 17,37.
+//
+// F_alpha(s) = 1 + alpha * ( F(s) / normaliser - 1 )
+//
+// 💣 THE NORMALISER IS `relative_to_reference`, NOT `mean_factor`. It pairs with the calibration we
+// actually built: `c` = 30 x mean_G is the MEAN calibration, and its partner is the pass/G RATIO
+// (1,281 as measured). Point calibration (level road = 30) would pair with mean_pass itself
+// (1,323). Crossing the two makes passes 3,3 % too fast -- the one mistake this comment exists for.
+const AVESMAPS_TERRAIN_PASS_SUBTYPE = 'Gebirgspass';
+
+// alpha = 1: full redistribution. The AVERAGE measured pass lands on the source's factor, a
+// measured flat pass is faster than average and a steep one slower -- the terrain layer keeps
+// meaning something. alpha = 0 would flatten every pass to the bare path-type factor.
+const AVESMAPS_TERRAIN_PASS_ALPHA = 1.0;
+
+/**
+ * PURE: the divisor for a Gebirgspass slope factor, read out of a stored calibration.
+ *
+ * 💣 READ, NEVER COMPUTED. No implicit recalculation while routing -- the value is whatever the
+ * last deliberate profile run measured, and a moved `map_revision` is REPORTED (`terrain.stale`),
+ * not repaired behind the traveller's back.
+ *
+ * Returns 1.0 -- an exact no-op -- when there is no calibration, no pass row, or a value outside
+ * the plausible band. That failure mode is deliberate: without a measurement the honest thing is
+ * today's behaviour, not a guessed correction.
+ */
+function avesmapsTerrainPassNormalizer(?array $calibration): float
+{
+    $raw = $calibration['by_subtype'][AVESMAPS_TERRAIN_PASS_SUBTYPE]['relative_to_reference'] ?? null;
+    if (!is_numeric($raw)) {
+        return 1.0;
+    }
+    $value = (float) $raw;
+
+    // A pass is slower than a road, never faster, and never by more than the factor cap. Anything
+    // outside says the calibration is broken, and a broken calibration must not move travel times.
+    return ($value >= 1.0 && $value <= AVESMAPS_TERRAIN_FACTOR_MAX) ? $value : 1.0;
+}
+
+/**
+ * PURE: apply the normaliser to ONE slope factor.
+ *
+ * 💣 ONLY CALL THIS WHERE A PROFILE EXISTS (owner decision C, 2026-08-03). An unmeasured pass has
+ * no factor at all, and dividing its implicit 1,0 would hand it a 22 % discount for never having
+ * been surveyed -- fastest exactly where we know least. Measured: 44 % of the pass mileage in a
+ * live sample has no profile, so this is the common case, not the corner one. The caller enforces
+ * it structurally by only reaching this line inside the `$sliceTerrain !== null` branch.
+ */
+function avesmapsTerrainNormalizePassFactor(float $factor, string $routeType, float $normalizer): float
+{
+    if ($routeType !== AVESMAPS_TERRAIN_PASS_SUBTYPE || $normalizer <= 0.0) {
+        return $factor;
+    }
+
+    return 1.0 + AVESMAPS_TERRAIN_PASS_ALPHA * ($factor / $normalizer - 1.0);
+}
 
 /**
  * PURE: chord lengths of a LineString's pieces, in map units.

@@ -198,11 +198,18 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	$terrainMatched = avesmapsRouteCountTerrainMatches($routeNetworkData['paths'] ?? [], $terrain);
 	// Only asked when terrain is on -- with the switch off there is nothing whose currency matters.
 	$terrainStale = $terrainEnabled && avesmapsRouteTerrainStale($routePdo);
+	// The ONE number the router reads out of the calibration (S. 123: a pass's path-type factor
+	// already contains the climb, so the slope must not brake it twice). Read, never computed --
+	// one indexed single-row select on the PDO that is already open. Without a calibration it comes
+	// back as 1.0 and the whole normalisation is an exact no-op.
+	$passNormalizer = $terrainEnabled
+		? avesmapsTerrainPassNormalizer(avesmapsTerrainCalibrationRead($routePdo))
+		: 1.0;
 	// V13: open water, so a synthetic Querfeldein bridge cannot be built across the sea. Same PDO as
 	// terrain above -- no extra connection. Without a PDO this stays empty and V13 is simply inert,
 	// which is the designed failure mode (spec §4.1), not a silent hole.
 	$water = $routePdo instanceof PDO ? avesmapsLoadRouteWater($config, $routePdo) : [];
-	$clientGraph = avesmapsBuildClientCompatibleRouteGraph($routeNetworkData, $request, $terrain, $water);
+	$clientGraph = avesmapsBuildClientCompatibleRouteGraph($routeNetworkData, $request, $terrain, $water, $passNormalizer);
 
 	// V14 „Hierher reisen": either endpoint may be an arbitrary map point. It becomes a NODE with one
 	// cross-country edge to the nearest graph node, and everything below this line stays untouched --
@@ -351,6 +358,12 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 					// this flag is the only thing that makes „warum ist der Pass noch schnell?"
 					// answerable. Without it the staleness rule is a claim, not a behaviour.
 					'stale' => $terrainStale,
+					// 🔴 The divisor that takes the Gebirgspass double brake back out (S. 123).
+					// 1.0 means „no calibration read" and is an exact no-op -- reported, because
+					// otherwise „warum ist der Pass immer noch langsam?" has no answer. Read
+					// together with `stale`: a stale calibration is still APPLIED (refusing it
+					// would put the double brake back), it just says so.
+					'pass_normalizer' => $passNormalizer,
 					// 🔴 THE NUMBER NOBODY COULD NAME. The instruction's first draft cited „3.331
 					// Profilzeilen" as evidence that rasters exist -- but those are `path_terrain`
 					// rows, the ways' cache, and say nothing about stored height rasters. One
