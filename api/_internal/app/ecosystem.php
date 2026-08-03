@@ -3153,3 +3153,138 @@ function avesmapsEcosystemClimateRebuildBands(PDO $pdo, int $userId): bool
 
     return $changed;
 }
+
+// ---- Klimazonen: die drei Aktionen -----------------------------------------------------------------
+
+/**
+ * Was der Karten-Editor beim Betreten der Ebene holt. Saet nebenbei, falls noch nichts da ist.
+ *
+ * 💣 DASS DAS HIER SAET, ist Absicht und der Grund, warum die Saat nicht in EnsureTables steht: dieser
+ * Weg laeuft im Schreib-Dispatcher, kann also die Revision heben. EnsureTables kann das nicht, und ein
+ * dort angelegter Bestand kaeme bei jedem warmen Client als 304 zurueck.
+ */
+function avesmapsEcosystemClimateGet(PDO $pdo, int $userId): array
+{
+    $changed = avesmapsEcosystemClimateEnsure($pdo, $userId);
+
+    return [
+        'dividers' => avesmapsEcosystemClimateReadDividers($pdo),
+        'zones' => avesmapsEcosystemClimateZones($pdo),
+        'revision' => $changed ? avesmapsNextEcosystemRevision($pdo) : avesmapsReadEcosystemRevision($pdo),
+    ];
+}
+
+/**
+ * Eine Trennlinie speichern. Prueft die Linie fuer sich, danach die Reihenfolge im Verbund, leitet die
+ * Baender ab und hebt die Revision.
+ *
+ * 🔴 Die Reihenfolge wird gegen den SCHON GESPEICHERTEN Verbund geprueft, mit der neuen Linie an ihrem
+ * Platz -- nicht gegen das, was der Client mitschickt. Der Client klemmt beim Ziehen an den Nachbarn,
+ * aber ein zweiter Editor kann die Nachbarlinie inzwischen verschoben haben; nur der Server sieht
+ * beide Bewegungen.
+ */
+function avesmapsEcosystemClimateSaveDivider(PDO $pdo, array $payload, int $userId): array
+{
+    // Vor dem beginTransaction: ein ALTER innerhalb einer Transaktion committet sie still.
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $seq = filter_var($payload['seq'] ?? null, FILTER_VALIDATE_INT);
+    if ($seq === false || $seq < 1) {
+        throw new InvalidArgumentException('seq must be the 1-based index of the divider.');
+    }
+    $expectedRevision = avesmapsEcosystemReadExpectedRevision($payload['expected_revision'] ?? null);
+    $geometry = avesmapsClimateNormalizeDivider($payload['geometry_geojson'] ?? $payload['geometry'] ?? null);
+
+    $pdo->beginTransaction();
+    try {
+        $statement = $pdo->prepare(
+            'SELECT seq, geometry_geojson, revision FROM ecosystem_climate_divider WHERE seq = :seq FOR UPDATE'
+        );
+        $statement->execute(['seq' => $seq]);
+        $row = $statement->fetch();
+        if (!is_array($row)) {
+            throw new InvalidArgumentException("There is no divider with seq {$seq}.");
+        }
+        if ((int) $row['revision'] !== $expectedRevision) {
+            throw new AvesmapsConflictException(
+                'Diese Trennlinie wurde inzwischen geaendert. Bitte neu laden.'
+            );
+        }
+
+        $before = ['geometry' => json_decode((string) $row['geometry_geojson'], true, 512, JSON_THROW_ON_ERROR)];
+
+        $dividers = avesmapsEcosystemClimateReadDividers($pdo);
+        foreach ($dividers as $index => $divider) {
+            if ($divider['seq'] === $seq) {
+                $dividers[$index]['geometry'] = $geometry;
+            }
+        }
+        avesmapsClimateAssertOrder(array_column($dividers, 'geometry'));
+
+        $update = $pdo->prepare(
+            'UPDATE ecosystem_climate_divider
+                SET geometry_geojson = :geometry, revision = revision + 1, updated_by = :user_id
+              WHERE seq = :seq'
+        );
+        $update->execute([
+            'geometry' => json_encode($geometry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+            'user_id' => $userId > 0 ? $userId : null,
+            'seq' => $seq,
+        ]);
+
+        avesmapsEcosystemClimateRebuildBands($pdo, $userId);
+        // Protokolliert, aber NICHT ruecknehmbar: avesmapsEcosystemCanUndoAction kennt diese Aktion
+        // bewusst nicht (Entwurf §11). „Zurueck" gibt es als eigene Aktion fuer alle Linien gemeinsam.
+        avesmapsEcosystemWriteAuditLog(
+            $pdo,
+            'update_climate_divider',
+            $userId,
+            null,
+            null,
+            $before,
+            ['seq' => $seq, 'geometry' => $geometry]
+        );
+        $revision = avesmapsNextEcosystemRevision($pdo);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return ['dividers' => avesmapsEcosystemClimateReadDividers($pdo), 'revision' => $revision];
+}
+
+/**
+ * Alle Trennlinien zurueck auf die gleichmaessige Startaufteilung.
+ */
+function avesmapsEcosystemClimateReset(PDO $pdo, int $userId): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $count = max(0, count(avesmapsEcosystemClimateZones($pdo)) - 1);
+    $pdo->beginTransaction();
+    try {
+        $before = ['dividers' => avesmapsEcosystemClimateReadDividers($pdo)];
+        $pdo->exec('DELETE FROM ecosystem_climate_divider');
+        $insert = $pdo->prepare(
+            'INSERT INTO ecosystem_climate_divider (seq, geometry_geojson, updated_by)
+             VALUES (:seq, :geometry, :user_id)'
+        );
+        foreach (avesmapsClimateDefaultDividers($count) as $index => $divider) {
+            $insert->execute([
+                'seq' => $index + 1,
+                'geometry' => json_encode($divider, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+                'user_id' => $userId > 0 ? $userId : null,
+            ]);
+        }
+        avesmapsEcosystemClimateRebuildBands($pdo, $userId);
+        avesmapsEcosystemWriteAuditLog($pdo, 'reset_climate_dividers', $userId, null, null, $before, []);
+        $revision = avesmapsNextEcosystemRevision($pdo);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return ['dividers' => avesmapsEcosystemClimateReadDividers($pdo), 'revision' => $revision];
+}

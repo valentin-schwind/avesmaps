@@ -124,6 +124,15 @@ try {
         // V11 §7.1: „Geländeabhängiges Reisen: AN/AUS". AN = for everyone.
         'terrain_travel_set' => avesmapsTerrainTravelSet($pdo, (bool) ($payload['enabled'] ?? false)),
         'terrain_travel_status' => avesmapsTerrainTravelStatus($pdo),
+        // Klimazonen (Owner 2026-08-03). Die sechs Trennlinien sind die Wahrheit; die sieben Baender
+        // entstehen daraus bei jedem Speichern. Es gibt bewusst KEIN climate_delete: wie viele Linien
+        // es gibt, folgt aus wie vielen Zonen es gibt.
+        //
+        // 💣 `climate_get` SAET. Das gehoert hierher und nicht in die DDL-Selbstheilung -- die hebt die
+        // Revision nicht, und ein dort angelegter Bestand kaeme bei jedem warmen Client als 304 an.
+        'climate_get' => avesmapsEcosystemClimateGet($pdo, $userId),
+        'climate_save_divider' => avesmapsEcosystemClimateSaveDivider($pdo, $payload, $userId),
+        'climate_reset' => avesmapsEcosystemClimateReset($pdo, $userId),
         default => avesmapsErrorResponse(400, 'invalid_action', 'Unknown action.'),
     };
 

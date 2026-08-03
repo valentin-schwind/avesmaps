@@ -41,7 +41,12 @@ require_once __DIR__ . '/../_internal/app/ecosystem.php';
 // the bump a warm client keeps the old body through a 304, reads no flag, and computes the way
 // assignment for the sea and the continent as well. Measured: that is 90 % of the whole run, for
 // rows whose only statement is "this route runs through Aventurien".
-const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 5;
+// 6 (2026-08-03): die vierte Ebene `klima`. Die FORM aendert sich nicht -- ein Klimaband ist eine
+// Flaeche wie jede andere --, aber ein warmer Client bekaeme ueber 304 einen Bestand ohne die neuen
+// Baender und zeigte einen leeren Reiter „Klimazonen", waehrend der Server sie laengst hat. Das ist
+// derselbe Fall, den Version 4 schon einmal teuer gelernt hat: eine WERTaenderung braucht den Hub
+// genauso wie eine Formaenderung, weil der ETag aus Revision und dieser Zahl gesaet wird.
+const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 6;
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
