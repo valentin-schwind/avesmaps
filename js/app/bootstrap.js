@@ -51,6 +51,14 @@ map.createPane("ecosystemPane");
 map.createPane("ecosystemPaneDerographisch");
 map.createPane("ecosystemPaneVegetation");
 map.createPane("ecosystemPaneTopographie");
+// 💣 DIESE ZWEI ZEILEN SIND PFLICHT, NICHT KOSMETIK. `getPane` weiter unten LEGT NICHTS AN -- es liefert
+// `undefined` fuer eine Pane, die hier fehlt, und das folgende `.style.zIndex` wirft. bootstrap.js ist
+// ein flaches Skript ohne try/catch, also ist ab dieser Zeile ALLES tot: Zoom-Control, setMaxBounds,
+// die Zoom-Handler -- und der Editor. Am 2026-08-03 genau so passiert; das gemeldete Symptom war „das
+// Editorpanel ist verschwunden", also fuenfzig Zeilen weiter unten. Bewacht von
+// js/app/__tests__/bootstrap-panes.test.js.
+map.createPane("ecosystemPaneKlima");
+map.createPane("ecosystemPaneKlimaLines");
 map.createPane("mapDecorationsPane");
 map.createPane("roadsOutlinePane");
 map.createPane("roadsPane");
