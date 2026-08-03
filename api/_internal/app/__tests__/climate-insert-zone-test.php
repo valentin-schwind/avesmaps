@@ -117,16 +117,22 @@ assert(count(array_diff(array_keys($nachher), array_keys($vorher))) === 1, 'exac
 $wuestenkante = json_decode($vorher['subtropisch']['geo'], true)['coordinates'];
 $neueLinie = json_decode($nachher['trockene_subtropen']['geo'], true)['coordinates'];
 
-// 🪤 Die OBERkante ist hier eine Gerade, keine angehobene Kopie -- die Wuestenkante hat eine Blase, und
-// deren parallel angehobene Kopie schneidet ihr eigenes Original (in climate-zones-test.php als reine
-// Rechnung nachgestellt). Der zweite Weg legt dann eine Gerade in den freien Streifen.
-$hoechsteWueste = max(array_column($wuestenkante, 1));
-$tiefsteObere = min(array_column(json_decode($vorher['subtropen_winterfeucht']['geo'], true)['coordinates'], 1));
-foreach ($neueLinie as [$unusedX, $y]) {
-    assert($y > $hoechsteWueste, 'the new line runs entirely above the desert edge');
-    assert($y < $tiefsteObere, 'and entirely below its upper neighbour');
+// 🪤 Hier stand ein Vergleich gegen das GLOBALE Maximum der Wuestenkante. Genau dieser Trugschluss hat
+// den ersten Bau am Livebestand umgeworfen: dort liegt die tiefste Stelle der oberen Linie 74,5
+// Einheiten unter der hoechsten der unteren, und trotzdem ist an jeder Stelle x Platz. Geprueft wird
+// deshalb PRO x -- und das ist auch die Bedingung, die einen Schnitt ausschliesst.
+$obereKante = json_decode($vorher['subtropen_winterfeucht']['geo'], true)['coordinates'];
+foreach ([0.0, 100.0, 250.0, 430.0, 520.0, 660.0, 800.0, 1024.0] as $x) {
+    $neu = avesmapsClimateEnvelopeAt($neueLinie, $x, false);
+    $unten = avesmapsClimateEnvelopeAt($wuestenkante, $x, true);
+    $oben = avesmapsClimateEnvelopeAt($obereKante, $x, false);
+    assert($neu !== null && $unten !== null && $neu > $unten,
+        sprintf('at x = %.0f the new line runs above the desert edge', $x));
+    assert($oben === null || $neu < $oben,
+        sprintf('and below its upper neighbour at x = %.0f', $x));
 }
-assert(!avesmapsClimatePolylinesCross($neueLinie, $wuestenkante), 'and it crosses neither of them');
+assert(!avesmapsClimatePolylinesCross($neueLinie, $wuestenkante), 'and it crosses the desert edge nowhere');
+assert(!avesmapsClimatePolylinesCross($neueLinie, $obereKante), 'nor its upper neighbour');
 
 // ---- Die Reihenfolge stimmt, und der Verbund ist gueltig --------------------------------------------
 

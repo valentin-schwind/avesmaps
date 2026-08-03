@@ -333,12 +333,56 @@ $mitBlase = climateTestLine([[0, 380], [300, 375], [520, 330], [430, 300], [660,
 $darueber = climateTestLine([[0, 505], [1024, 495]]);
 $eingeschoben = avesmapsClimateInsertedDividerAbove($mitBlase, $darueber, 45.0);
 assert($eingeschoben !== null, 'a bubble still gets a band above it');
-assert(count($eingeschoben['coordinates']) === 2, 'and it is a straight line, because the parallel copy would self-cross');
-$hoechsteBlase = max(array_column($mitBlase['coordinates'], 1));
-assert($eingeschoben['coordinates'][0][1] > $hoechsteBlase, 'the straight line clears the whole bubble');
+// 🪤 Hier stand „und es ist eine Gerade". Das war die Zusicherung an einen frueheren Rueckfall, der
+// global rechnete -- und genau daran ist der Bau am Livebestand gescheitert. Geprueft gehoert, was die
+// Bedingung IST: nirgends ein Schnitt, und an jeder Stelle x oberhalb der unteren Grenze.
 assert(!avesmapsClimatePolylinesCross($eingeschoben['coordinates'], $mitBlase['coordinates']),
-    'and crosses it nowhere');
+    'the inserted line crosses the bubble nowhere');
+assert(!avesmapsClimatePolylinesCross($eingeschoben['coordinates'], $darueber['coordinates']),
+    'and its upper neighbour neither');
+foreach ([0.0, 120.0, 380.0, 470.0, 600.0, 900.0, 1024.0] as $x) {
+    $neu = avesmapsClimateEnvelopeAt($eingeschoben['coordinates'], $x, false);
+    $unter = avesmapsClimateEnvelopeAt($mitBlase['coordinates'], $x, true);
+    assert($neu !== null && $unter !== null && $neu > $unter,
+        sprintf('at x = %.0f the inserted line runs above everything the bubble has there', $x));
+}
 avesmapsClimateAssertOrder([$darueber, $eingeschoben, $mitBlase]);
+
+// 💣 DIE ZWEI TRUGSCHLUESSE, an denen der erste Bau gescheitert ist -- beide am Livebestand gemessen
+// (2026-08-03) und hier als Form nachgestellt:
+//
+//   (1) SENKRECHTE STUECKE. Eine senkrecht verschobene Senkrechte liegt auf sich selbst, also meldet
+//       der Schnitttest zu Recht eine Beruehrung -- bei JEDEM Versatz, bis 0,1 hinunter. Die
+//       Parallelkopie ist damit fuer eine von Hand gezogene Grenze faktisch nie brauchbar.
+//   (2) GLOBAL STATT PRO x. Die tiefste Stelle der oberen Linie lag 74,5 Einheiten UNTER der hoechsten
+//       der unteren -- ein waagerechter freier Streifen existiert also nicht. Trotzdem ist an JEDER
+//       Stelle x reichlich Platz: die beiden Extreme liegen gar nicht uebereinander.
+//
+// Beides muss der Einschub aushalten, sonst gibt es fuer eine echte Karte nie ein neues Band.
+$mitSenkrechten = climateTestLine([
+    [0, 300], [200, 300], [200, 420], [260, 420], [260, 300], [600, 300], [600, 480], [660, 480],
+    [660, 300], [1024, 300],
+]);
+$darueberWellig = climateTestLine([[0, 560], [300, 560], [420, 410], [520, 410], [640, 560], [1024, 560]]);
+// Global gibt es keinen Streifen -- genau die Lage, die den ersten Bau umwarf.
+assert(min(array_column($darueberWellig['coordinates'], 1)) < max(array_column($mitSenkrechten['coordinates'], 1)),
+    'the fixture really does interleave globally, as the live stock does');
+
+$dazwischen = avesmapsClimateInsertedDividerAbove($mitSenkrechten, $darueberWellig, 45.0);
+assert($dazwischen !== null, 'vertical stretches and interleaving envelopes still leave room -- per x, there is plenty');
+assert(!avesmapsClimatePolylinesCross($dazwischen['coordinates'], $mitSenkrechten['coordinates']),
+    'the inserted line crosses the lower neighbour nowhere');
+assert(!avesmapsClimatePolylinesCross($dazwischen['coordinates'], $darueberWellig['coordinates']),
+    'and the upper one neither');
+assert(!avesmapsClimatePolylineSelfIntersects($dazwischen['coordinates']), 'and it is simple');
+avesmapsClimateAssertOrder([$darueberWellig, $dazwischen, $mitSenkrechten]);
+assert(count($dazwischen['coordinates']) <= AVESMAPS_CLIMATE_MAX_POINTS,
+    'and it stays well under the point cap despite the fine sampling: ' . count($dazwischen['coordinates']));
+
+// Es folgt der unteren Grenze, wo Platz ist -- ueber der Senkrechten sitzt es hoeher als daneben.
+$hoeheUeberSpitze = avesmapsClimateEnvelopeAt($dazwischen['coordinates'], 230.0, true);
+$hoeheDaneben = avesmapsClimateEnvelopeAt($dazwischen['coordinates'], 50.0, true);
+assert($hoeheUeberSpitze > $hoeheDaneben, 'the band follows the lower edge instead of cutting straight across');
 
 // Ohne obere Nachbarin gilt der Kartenrand.
 $obenFrei = avesmapsClimateInsertedDividerAbove($unten, null, 60.0);

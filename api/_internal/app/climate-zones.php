@@ -396,35 +396,121 @@ function avesmapsClimateInsertedDividerAbove(array $below, ?array $above, float 
         return $kandidat;
     }
 
-    // 💣 ZWEITER WEG, und er ist nicht selten: eine Linie mit BLASE kreuzt ihre eigene angehobene Kopie.
-    // Am Testbestand nachgerechnet -- die Blase um die Wueste Khôm laeuft nach links zurueck, und die
-    // Kopie schneidet dabei den steilen Abstieg des Originals. Kein Versatz der Welt behebt das, weil
-    // der Schnitt mit dem Versatz nur wandert.
+    // 💣 ZWEITER WEG, und am Livebestand ist er der NORMALFALL, nicht die Ausnahme. Zwei Messungen an
+    // den echten Klimagrenzen (2026-08-03):
+    //   * Die Parallelkopie kreuzt ihr Original bei JEDEM Versatz, bis 0,1 hinunter. Ursache sind die
+    //     nahezu senkrechten Stuecke der Wuestenkante -- eine senkrecht verschobene Senkrechte liegt
+    //     auf sich selbst, und das zaehlt (zu Recht) als Beruehrung.
+    //   * Ein waagerechter freier Streifen existiert nicht: die tiefste Stelle der oberen Linie liegt
+    //     74,5 Einheiten UNTER der hoechsten Stelle der unteren. Global verglichen ist da kein Platz.
     //
-    // Dann eine GERADE im freien Streifen zwischen beiden Nachbarn. Sie kann per Bauart keine der
-    // beiden schneiden: die untere liegt vollstaendig darunter, die obere vollstaendig darueber. Das
-    // Band ist damit ueber der Blase dicker als an den Raendern -- was richtig ist, denn seine
-    // UNTERKANTE ist und bleibt die vorhandene Grenze, und genau die soll der Auftrag erhalten.
-    $untenMax = AVESMAPS_CLIMATE_MIN_XY;
-    foreach ($below['coordinates'] as [$unusedX, $y]) {
-        $untenMax = max($untenMax, $y);
-    }
-    $obenMin = AVESMAPS_CLIMATE_MAX_XY;
-    if ($above !== null) {
-        $obenMin = AVESMAPS_CLIMATE_MAX_XY;
-        foreach ($above['coordinates'] as [$unusedX, $y]) {
-            $obenMin = min($obenMin, $y);
+    // 🔴 Beides sind Trugschluesse derselben Art: global gerechnet, wo es PRO x gerechnet gehoert. An
+    // jeder einzelnen Stelle x ist reichlich Platz -- die Enge entsteht nur, wenn man die tiefste Stelle
+    // der einen mit der hoechsten der anderen vergleicht, die gar nicht uebereinander liegen.
+    return avesmapsClimateEnvelopeLineBetween($below, $above, $wanted);
+}
+
+/**
+ * Das hoechste y, das die Linie an der Stelle x erreicht -- oder null, wenn sie dort nicht liegt.
+ *
+ * Ueber ALLE Strecken, die x ueberspannen: bei einem Ueberhang sind das mehrere, und dann zaehlt die
+ * oberste. Genau das macht die Rechnung gegen einen Ueberhang ueberhaupt erst richtig.
+ *
+ * @param list<array{0: float, 1: float}> $coordinates
+ */
+function avesmapsClimateEnvelopeAt(array $coordinates, float $x, bool $highest): ?float
+{
+    $treffer = null;
+    for ($index = 0; $index < count($coordinates) - 1; $index++) {
+        [$ax, $ay] = $coordinates[$index];
+        [$bx, $by] = $coordinates[$index + 1];
+        if ($x < min($ax, $bx) - 1e-9 || $x > max($ax, $bx) + 1e-9) {
+            continue;
+        }
+        // Eine senkrechte Strecke liegt mit BEIDEN Enden auf diesem x.
+        $kandidaten = abs($bx - $ax) < 1e-9 ? [$ay, $by] : [$ay + ($x - $ax) / ($bx - $ax) * ($by - $ay)];
+        foreach ($kandidaten as $y) {
+            $treffer = $treffer === null ? $y : ($highest ? max($treffer, $y) : min($treffer, $y));
         }
     }
-    if ($obenMin - $untenMax < AVESMAPS_CLIMATE_MIN_GAP * 2) {
+
+    return $treffer;
+}
+
+// Wie fein zwischen den Knickstellen abgetastet wird. 128 Schritte auf 1024 Einheiten sind 8 Einheiten
+// -- fein genug, dass zwischen zwei Proben keine Spitze der Huellkurve verlorengeht, und grob genug,
+// dass die neue Linie weit unter der Punktobergrenze bleibt.
+const AVESMAPS_CLIMATE_ENVELOPE_STEPS = 128;
+
+/**
+ * Eine Linie, die an JEDER Stelle x zwischen den beiden Nachbarn liegt.
+ *
+ * 🔴 DAS IST DIE GARANTIE: liegt die neue Linie an jedem x echt oberhalb von allem, was die untere dort
+ * hat, kann sie sie nicht schneiden -- ein Schnitt hiesse, irgendwo darunter zu sein. Dasselbe nach
+ * oben. Deshalb wird die obere Huellkurve der unteren und die untere Huellkurve der oberen gebildet und
+ * dazwischen gefaedelt; bei einem Ueberhang zaehlt an jedem x die oberste bzw. unterste Lage.
+ *
+ * Abgetastet wird an allen Knickstellen BEIDER Linien plus einem festen Raster -- die Huellkurve kann
+ * ihre Spitze auch zwischen zwei Knickstellen haben, naemlich dort, wo zwei Zweige einander ueberholen.
+ *
+ * @return array{type: string, coordinates: list<array{0: float, 1: float}>}|null
+ */
+function avesmapsClimateEnvelopeLineBetween(array $below, ?array $above, float $wanted): ?array
+{
+    $stellen = [];
+    foreach ($below['coordinates'] as [$x, $unusedY]) {
+        $stellen[] = $x;
+    }
+    foreach ($above['coordinates'] ?? [] as [$x, $unusedY]) {
+        $stellen[] = $x;
+    }
+    for ($step = 0; $step <= AVESMAPS_CLIMATE_ENVELOPE_STEPS; $step++) {
+        $stellen[] = AVESMAPS_CLIMATE_MAX_XY * $step / AVESMAPS_CLIMATE_ENVELOPE_STEPS;
+    }
+    $stellen = array_values(array_unique(array_map(static fn(float $x): float => round($x, 3), $stellen)));
+    sort($stellen);
+
+    $punkte = [];
+    foreach ($stellen as $x) {
+        $unten = avesmapsClimateEnvelopeAt($below['coordinates'], $x, true);
+        $oben = $above === null ? AVESMAPS_CLIMATE_MAX_XY : avesmapsClimateEnvelopeAt($above['coordinates'], $x, false);
+        // Beide Linien laufen von Rand zu Rand, also gibt es an jedem x einen Treffer. Fehlt er doch,
+        // ist etwas anderes kaputt -- dann lieber abbrechen als raten.
+        if ($unten === null || $oben === null) {
+            return null;
+        }
+        if ($oben - $unten < AVESMAPS_CLIMATE_MIN_GAP * 2) {
+            return null;
+        }
+        $y = min($unten + $wanted, $oben - AVESMAPS_CLIMATE_MIN_GAP);
+        $punkte[] = [$x, max($y, $unten + AVESMAPS_CLIMATE_MIN_GAP)];
+    }
+
+    // Geradenstuecke zusammenfassen: aus 130 Proben werden so ein paar Dutzend Punkte, und die Linie
+    // laesst sich danach von Hand bearbeiten, ohne dass man sich durch Stuetzstellen wuehlt.
+    $verdichtet = [$punkte[0]];
+    for ($index = 1; $index < count($punkte) - 1; $index++) {
+        [$ax, $ay] = $verdichtet[count($verdichtet) - 1];
+        [$bx, $by] = $punkte[$index];
+        [$cx, $cy] = $punkte[$index + 1];
+        $erwartet = $cx - $ax < 1e-9 ? $by : $ay + ($bx - $ax) / ($cx - $ax) * ($cy - $ay);
+        if (abs($by - $erwartet) > 0.25) {
+            $verdichtet[] = $punkte[$index];
+        }
+    }
+    $verdichtet[] = $punkte[count($punkte) - 1];
+
+    $linie = avesmapsClimateNormalizeDivider(['type' => 'LineString', 'coordinates' => $verdichtet]);
+
+    // Gurt und Hosentraeger: die Garantie oben ist ein Beweis, dieser Test ist der Beleg.
+    if (avesmapsClimatePolylinesCross($linie['coordinates'], $below['coordinates'])) {
         return null;
     }
-    $hoehe = min($untenMax + $wanted, $obenMin - AVESMAPS_CLIMATE_MIN_GAP);
-    $hoehe = max($hoehe, $untenMax + AVESMAPS_CLIMATE_MIN_GAP);
+    if ($above !== null && avesmapsClimatePolylinesCross($linie['coordinates'], $above['coordinates'])) {
+        return null;
+    }
 
-    return avesmapsClimateNormalizeDivider(['type' => 'LineString', 'coordinates' => [
-        [AVESMAPS_CLIMATE_MIN_XY, $hoehe], [AVESMAPS_CLIMATE_MAX_XY, $hoehe],
-    ]]);
+    return $linie;
 }
 
 /**
