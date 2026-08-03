@@ -351,6 +351,11 @@ function settlementWikiInfoboxMarkup(location, sourceMarkup = "", opts) {
 	if (typeof buildLoreMarkup === "function" && typeof avesmapsLorePlaceRefFromLocation === "function") {
 		rows += buildLoreMarkup(avesmapsLorePlaceRefFromLocation(location));
 	}
+	// „Klimazone" DIREKT unter Flora (Owner 2026-08-03). Anders als die Lore-Zeilen darüber ist sie
+	// synchron da: die Zone reist im Kartenpayload mit, es gibt nichts nachzuladen.
+	if (typeof avesmapsClimateRowForKey === "function") {
+		rows += avesmapsClimateRowForKey(location.climateZone);
+	}
 
 	// Kein Kopf/Name/Art hier — der Popup-Kopf zeigt Name + Größe bereits (sonst Dopplung/Strich).
 	// Quellen-Zeile: der Aufrufer (buildLocationMarkerPopupHtml) reicht die fertige

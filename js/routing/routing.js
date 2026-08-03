@@ -99,6 +99,10 @@ const prepareLocationData = (data) => {
 				// Political context line (resolved server-side in map-features.php): {kind,name,type,
 				// territory_public_id} or absent. Rendered under the settlement type in the infobox.
 				political: feature.properties.political || null,
+				// Klimazone (serverseitig aus den sieben Bändern bestimmt, api/_internal/app/
+				// climate-membership.php): EIN Schlüssel, denn ein Punkt liegt in genau einem Band.
+				// Der Anzeigename steht einmal im Payload-Vokabular, nicht 4.650-mal hier.
+				climateZone: String(feature.properties.climate_zone || ""),
 				coat: feature.properties.coat || null,
 				// Eigene Editor-Bilder (Owner) -- ueberschreiben das generische Header-Bild; Lightbox im Infopanel.
 				images: Array.isArray(feature.properties.images) ? feature.properties.images : [],
@@ -418,6 +422,12 @@ routeDataRequest
 		window.avesmapsInSettlementPlaces = (data && Array.isArray(data.in_settlement_places))
 			? data.in_settlement_places
 			: [];
+		// Die sieben Klimazonen-Namen (Nord nach Süd) aus dem Payload. 🔴 MUSS VOR prepareLocationData
+		// und prepareLabelData stehen: beide bauen ihre Popups sofort, und ein Ort trägt nur den
+		// SCHLÜSSEL seiner Zone -- ohne das Vokabular bliebe seine Zeile beim ersten Aufbau leer.
+		if (typeof avesmapsClimateSetVocabulary === "function") {
+			avesmapsClimateSetVocabulary((data && data.climate_zones) || []);
+		}
 		prepareLocationData(data);
 		preparePowerlineData(data);
 		// LOAD-BEARING ORDER: labels BEFORE paths. preparePathData pre-builds every way popup

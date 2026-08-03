@@ -2260,6 +2260,10 @@
 		     durchquert. MUSS nach ecosystem-naming.js stehen (ruft ecosystemRegionDisplayName und
 		     isEcosystemRegionAutoName) und VOR path-rendering.js und route-plan.js, die beide seine
 		     Zeile einsetzen. -->
+		<!-- Die Zeile „Klimazone" in der Infobox. VOR path-landscapes: dessen Weg-Popup ruft den
+		     Zeilenbauer auf, und Ort- wie Regionen-Popup tun dasselbe. Alle Aufrufe sind
+		     typeof-geschützt, die Reihenfolge ist trotzdem die ehrliche. -->
+		<script src="js/map-features/map-features-climate-row.js"></script>
 		<script src="js/map-features/map-features-path-landscapes.js"></script>
 		<script src="js/map-features/map-features-ecosystem-geometry.js"></script>
 		<!-- Reine Geometrie-Rechnerei (vereinigen/ausschneiden/schneiden/zerschneiden/herauslösen/

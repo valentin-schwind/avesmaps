@@ -722,6 +722,9 @@ window.AVESMAPS_I18N_EN = {
 	"infobox.state": "State",
 	"infobox.inhabitants": "Inhabitants",
 	"infobox.vegetation": "Vegetation",
+	// The row under Flora. Only the LABEL is translated -- the seven zone names are domain content
+	// and stay German, like every other type name in this house (AGENTS.md §2, §8).
+	"infobox.climateZone": "Climate zone",
 	"infobox.description": "Description",
 
 	"infobox.currency": "Currency",

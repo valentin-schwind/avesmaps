@@ -35,6 +35,10 @@ function normalizeLabelFeature(feature) {
 		// Region -- `ecosystem_region.label_public_id` kann nur eines halten und bezeichnet weiterhin
 		// das PRIMÄRE, also das, welches der Regionsdialog verwaltet.
 		ecosystemRegionPublicId: String(properties.ecosystem_region_public_id || ""),
+		// Klimazonen der Region, ANTEILIG: [[schlüssel, anteil], ...], größter Anteil zuerst. Eine
+		// Fläche kann über zwei Bänder laufen -- anders als ein Ort, der genau in einem liegt.
+		// Serverseitig aus dem gespeicherten Verschnitt („Zugehörigkeit rechnen"), nicht neu gerechnet.
+		climateZones: Array.isArray(properties.climate_zones) ? properties.climate_zones : null,
 		otherSource: readFeatureOtherSource(properties),
 		// A berggipfel carries its own height, in Schritt (V8). 🔴 `null` means NOT RECORDED and is
 		// not the same as 0 -- the height field falls back to a placeholder for the former and takes
@@ -363,6 +367,11 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 			titles: typeof avesmapsLoreTitleFromUrl === "function" ? avesmapsLoreTitleFromUrl(wiki.wiki_url || "") : "",
 			name: name,
 		});
+	}
+	// „Klimazone" DIREKT unter Flora (Owner 2026-08-03) -- dieselbe Zeile, derselbe Bauer wie am Ort
+	// und am Weg. Sie steht synchron im Payload; ohne Wiki-Zeilen darüber trägt sie die Box allein.
+	if (typeof avesmapsClimateRowForShares === "function") {
+		rows += avesmapsClimateRowForShares(label.climateZones);
 	}
 	// Multi-source system: ONE source line covers the wiki credit line that used to render
 	// unconditionally here -- rendered synchronously from the map-features payload
