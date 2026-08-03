@@ -541,7 +541,11 @@
    es nicht mehr, seit die Gruppe einklappbar ist. Die Regel bleibt trotzdem richtig: #overview ist
    selbst ein gerahmtes Feld, und eine Linie gleich hinter seinem Rahmen liest sich als Fehler,
    nicht als Gliederung (Owner 2026-07-30). */
-#overview .route-plan-legs__title:first-child {
+/* 💣 DIREKTES Kind, nicht irgendein Nachfahre. Als Nachfahren-Selektor traf die Regel auch die
+   Ueberschrift „Reisekosten", weil die das erste Kind IHRES Kastens ist -- und nahm ihr genau den
+   Trenner, der sie von der letzten Etappe abheben soll (live gesehen 2026-08-03). Gemeint war immer
+   nur die eine Ueberschrift ganz oben im Plan. */
+#overview > .route-plan-legs__title:first-child {
 	margin-top: 0;
 	padding-top: 0;
 	border-top: 0;
@@ -1343,7 +1347,13 @@
 	z-index: 0;
 	pointer-events: none;
 }
-/* Die letzte Etappe endet an ihrer Perle -- eine Linie ins Leere sähe aus wie eine fehlende Zeile. */
-.route-plan-entry--chained:last-child::after {
+/* Die letzte Etappe endet an ihrer Perle -- eine Linie ins Leere sähe aus wie eine fehlende Zeile.
+   💣 `:last-child` ALLEIN REICHT NICHT MEHR, seit die Reisekosten unter der Etappenliste stehen: die
+   letzte Etappe ist dann nicht mehr das letzte Kind, ihre Perlenkette lief in den Kostenblock hinein
+   und liess ihn wie eine weitere Etappe aussehen (live gesehen 2026-08-03). Die zweite Regel fragt
+   nach dem, was wirklich gemeint ist -- keine Etappe mehr danach -- und haelt auch, wenn spaeter noch
+   etwas unter die Liste kommt. Die erste bleibt als Rueckfall fuer Browser ohne `:has()`. */
+.route-plan-entry--chained:last-child::after,
+.route-plan-entry--chained:not(:has(~ .route-plan-entry--chained))::after {
 	content: none;
 }
