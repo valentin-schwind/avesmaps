@@ -255,6 +255,15 @@
 	display: grid;
 	gap: 11px;
 	padding: 5px 8px 8px;
+	/* 💣 Ohne diese Zeile ist die Gruppe 5 px BREITER als ihr eigener Rahmen. Als Grid-Item hat der
+	   Koerper `min-width: auto` = min-content, und die laengste Optionszeile („Unterbringung" samt
+	   Auswahlfeld) misst mehr als die 328 px Innenraum -- also dehnt sie die Spalte, und Kopf wie
+	   Koerper ragen rechts hinaus. Unsichtbar, solange dort nichts sass; seit im Kopf ein ⓘ steht,
+	   stand es 6 px weiter rechts als das ⓘ der Transportmittel eine Zeile darueber.
+	   ⚠️ Gemessen 2026-08-03: die Panelhoehe bleibt bei 188 px und keine Zeile bricht um -- das ist
+	   die Bedingung, unter der hier ueberhaupt etwas geaendert werden darf (siehe die Hoehenregel
+	   bei .route-planner-options-panel select weiter unten). */
+	min-width: 0;
 }
 
 /* 💣 Ohne diese Zeile bleibt der Koerper sichtbar: `display: grid` daruber schlaegt die
