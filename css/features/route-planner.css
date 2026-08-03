@@ -931,6 +931,12 @@
 	margin: 0;
 	font: inherit;
 	font-weight: 700;
+	/* 💣 Ein <button> bringt vom Browser `text-align: center` mit, und `font: inherit` holt das NICHT
+	   zurueck -- die Ausrichtung steckt nicht in der font-Kurzform. Solange der Name in eine Zeile
+	   passt, ist der Knopf so breit wie sein Text und man sieht nichts; sobald er umbricht
+	   („Reichslandstraße von Havena nach Abilacht"), steht er zentriert mitten im linksbuendigen
+	   Fliesstext. `inherit` statt `left`, damit er der Zeile folgt, in der er gerade steht. */
+	text-align: inherit;
 	color: var(--color-link);
 	text-decoration: none;
 	cursor: pointer;
@@ -1340,6 +1346,8 @@
 	padding: 0;
 	margin: 0;
 	font: inherit;
+	/* Wie beim Ort/Weg daneben: der <button>-Default zentriert, sobald der Name umbricht. */
+	text-align: inherit;
 	color: var(--color-link);
 	text-decoration: none;
 	cursor: pointer;
