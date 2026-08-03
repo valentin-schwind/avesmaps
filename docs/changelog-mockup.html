@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Changelog – Mockup (Abstimmung, 2026-08-03)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, Absicht: docs/-Datei, per file:// geoeffnet. Geladen werden die ECHTEN
+     Stylesheets — das Mockup zeigt die tatsaechliche Designsprache, nicht meine Auslegung davon. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/legal-dialog.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   NUR das Neue. Vorschlag fuer css/components/changelog-dialog.css.
+   Kein hartkodierter Farbwert, kein hartkodierter Radius (AGENTS.md §12).
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ---- Mockup-Rahmen (faellt beim Bau weg) -------------------------------------------------- */
+body {
+	margin: 0;
+	padding: 28px 20px 60px;
+	background: var(--color-page-bg);
+	color: var(--color-text);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-body);
+}
+.mock-wrap { max-width: 1180px; margin: 0 auto; }
+.mock-lead { max-width: 720px; margin: 0 auto 30px; }
+.mock-lead h1 { margin: 0 0 6px; font-size: 22px; color: var(--color-text-strong); }
+.mock-lead p { margin: 0 0 8px; color: var(--color-text-muted); line-height: 1.5; }
+.mock-cols { display: flex; flex-wrap: wrap; gap: 26px; align-items: flex-start; justify-content: center; }
+.mock-col { flex: 1 1 480px; max-width: 560px; }
+.mock-caption {
+	margin: 0 0 10px;
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+.mock-note {
+	margin: 10px 0 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	line-height: 1.5;
+}
+
+/* ═══ 1. Der neue Eintrag im „Hinweise“-Dialog ══════════════════════════════════════════════
+   Zwillingsbox zur Discord-Box, direkt darunter: gleiche Karte, gleiche Masse, gleicher
+   Gold-Lead. Kein neues Bauteil — .legal-dialog__discord bekommt einen Geschwister-Modifier. */
+.legal-dialog__content p.legal-dialog__changelog {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 8px;
+	margin: -8px 0 18px 0;       /* rueckt an die Discord-Box heran, ein Paar statt zwei Kaesten */
+	padding: 10px 12px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text);
+}
+.legal-dialog__content p.legal-dialog__changelog > strong:first-child {
+	color: var(--color-accent-strong);
+}
+/* Interner Link: KEIN ↗ (das gehoert externen Zielen) und darum auch kein target=_blank. */
+.changelog-open {
+	border: 0;
+	padding: 0;
+	background: none;
+	color: var(--color-link);
+	font: inherit;
+	cursor: pointer;
+	text-align: left;
+}
+.changelog-open:hover { color: var(--color-link-hover); }
+
+/* ═══ 2. Der Changelog-Dialog ═══════════════════════════════════════════════════════════════ */
+.changelog-dialog {
+	width: min(680px, 100%);
+	max-height: min(80vh, 760px);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	padding: 16px 18px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-dialog);
+	color: var(--color-text);
+}
+.changelog-dialog__header {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 4px;
+}
+.changelog-dialog__header h2 { margin: 0; font-size: var(--font-size-title); }
+.changelog-dialog__close {
+	border: none;
+	background: transparent;
+	color: var(--color-button-border);
+	cursor: pointer;
+	font-size: 28px;
+	line-height: 1;
+	padding: 0;
+}
+.changelog-dialog__intro {
+	flex: 0 0 auto;
+	margin: 0 0 12px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: 1.5;
+}
+.changelog-dialog__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+
+/* ---- Monatsband: gruppiert, ohne dass ein Kasten dafuer noetig waere ----------------------- */
+.changelog-month {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	margin: 18px 0 10px;
+	padding: 6px 0 6px;
+	background: var(--color-panel);   /* deckt die durchlaufende Perlenkette beim Scrollen ab */
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-subhead);
+	font-weight: var(--font-weight-bold);
+}
+.changelog-month:first-child { margin-top: 0; }
+
+/* ---- Ein Eintrag: Datum links, Erzaehlung rechts, Perlenkette dazwischen ------------------- */
+.changelog-entry {
+	position: relative;
+	display: grid;
+	grid-template-columns: 78px 1fr;
+	gap: 0 18px;
+	padding: 0 0 16px 0;
+}
+.changelog-entry__date {
+	padding-top: 1px;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	text-align: right;
+	white-space: nowrap;
+}
+/* Die Perle sitzt auf der Linie zwischen den Spalten — dieselbe Geste wie die Etappenkette
+   im Reiseplan, damit der Verlauf ohne ein einziges Rahmenkaestchen lesbar wird. */
+.changelog-entry::before {
+	content: "";
+	position: absolute;
+	left: 87px;
+	top: 4px;
+	width: 9px;
+	height: 9px;
+	border: 1px solid var(--color-panel);
+	border-radius: 50%;   /* eine Perle ist rund — Form, kein Radiuswert */
+	background: var(--color-accent);
+}
+.changelog-entry::after {
+	content: "";
+	position: absolute;
+	left: 91px;
+	top: 13px;
+	bottom: -4px;
+	width: 1px;
+	background: var(--color-divider);
+}
+.changelog-entry:last-child::after { display: none; }
+
+.changelog-entry__body { padding-left: 14px; }
+.changelog-entry__title {
+	margin: 0 0 3px;
+	color: var(--color-text-strong);
+	font-size: var(--font-size-reading);
+	font-weight: var(--font-weight-bold);
+	line-height: 1.3;
+}
+.changelog-entry__text {
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: 1.5;
+	hyphens: auto;
+}
+.changelog-entry__tag {
+	display: inline-block;
+	margin: 6px 0 0;
+	padding: 1px 7px;
+	border: 1px solid var(--color-pill-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-pill);
+	color: var(--color-pill-text);
+	font-size: var(--font-size-caption);
+}
+
+.changelog-dialog__foot {
+	flex: 0 0 auto;
+	margin: 6px 0 0;
+	padding-top: 10px;
+	border-top: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	line-height: 1.5;
+}
+
+/* ---- Handy: Datum ueber den Text, Kette faellt weg ---------------------------------------- */
+@media (max-width: 520px) {
+	.changelog-entry { grid-template-columns: 1fr; gap: 2px; }
+	.changelog-entry__date { text-align: left; }
+	.changelog-entry__body { padding-left: 0; }
+	.changelog-entry::before,
+	.changelog-entry::after { display: none; }
+}
+
+/* ---- Die geplante Tabelle (nur Mockup-Beiwerk) -------------------------------------------- */
+.mock-schema {
+	margin-top: 26px;
+	padding: 14px 16px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+}
+.mock-schema h3 { margin: 0 0 8px; font-size: var(--font-size-subhead); color: var(--color-accent-strong); }
+.mock-schema table { width: 100%; border-collapse: collapse; font-size: var(--font-size-caption); }
+.mock-schema th, .mock-schema td {
+	padding: 4px 8px 4px 0;
+	border-bottom: 1px solid var(--color-divider);
+	text-align: left;
+	vertical-align: top;
+}
+.mock-schema th { color: var(--color-text-strong); }
+.mock-schema td:first-child { white-space: nowrap; color: var(--color-text-strong); }
+.mock-schema td { color: var(--color-text-muted); }
+.mock-schema p { margin: 10px 0 0; color: var(--color-text-muted); font-size: var(--font-size-caption); line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="mock-wrap">
+
+	<div class="mock-lead">
+		<h1>Changelog — Entwurf zur Abstimmung</h1>
+		<p>Links: der neue Eintrag im „Hinweise“-Dialog, als Zwillingsbox direkt unter Discord.
+		   Rechts: das Fenster, das sich dahinter öffnet. Beide auf den echten Tokens, hell und dunkel.</p>
+		<p>Die Einträge unten sind aus <strong>4.655 Commits</strong> destilliert (22.04. – 03.08.2026) —
+		   41 Meilensteine, neueste zuerst. Hier noch fest im HTML; im Bau kommen sie aus der Tabelle.</p>
+	</div>
+
+	<div class="mock-cols">
+
+		<!-- ═══════════════ SPALTE 1: Wo es hängt ═══════════════ -->
+		<div class="mock-col">
+			<p class="mock-caption">1 · Im „Hinweise“-Dialog, ganz oben</p>
+
+			<div class="legal-dialog">
+				<div class="legal-dialog__header">
+					<h2>Hinweise</h2>
+					<button class="legal-dialog__close" type="button" aria-label="Schließen">×</button>
+				</div>
+				<div class="legal-dialog__scroll">
+					<div class="legal-dialog__badge">
+						<span>Nicht-kommerzielles Fanprojekt</span>
+					</div>
+					<div class="legal-dialog__content">
+						<p class="legal-dialog__discord"><strong>Discord.</strong> <span>Fragen, Feedback oder einfach mitreden? Komm in die Avesmaps-Community auf Discord:</span> <a href="https://discord.gg/BSHEEpn6UX" target="_blank" rel="noopener noreferrer">discord.gg/BSHEEpn6UX</a></p>
+
+						<!-- ↓↓↓ NEU ↓↓↓ -->
+						<p class="legal-dialog__changelog"><strong>Was ist neu?</strong> <span>Avesmaps wächst ständig. Die wichtigsten Schritte seit dem Start stehen im</span> <button type="button" class="changelog-open">Änderungsverlauf</button></p>
+						<!-- ↑↑↑ NEU ↑↑↑ -->
+
+						<h3 class="legal-dialog__group">Projekt und rechtlicher Status</h3>
+						<p><strong>Fanprojekt.</strong> <span>Avesmaps ist ein privates, offenes und nicht-kommerzielles Fanprojekt von Valentin Schwind. Avesmaps ist keine offizielle Publikation zu Das Schwarze Auge …</span></p>
+						<p><strong>Betreiber/Impressum.</strong> <span>Entwicklung, Gestaltung, Programmierung und Betrieb erfolgen durch Valentin Schwind …</span></p>
+					</div>
+				</div>
+			</div>
+
+			<p class="mock-note"><strong>Warum eine zweite Box statt einer Zeile:</strong> die Discord-Box ist
+			   die einzige Karte im ganzen Dialog. Eine zweite daneben macht daraus ein Paar
+			   („mitreden“ / „nachlesen“) — eine Textzeile darunter wäre optisch schon Fließtext.
+			   Kein neues Bauteil: dieselben Maße, dieselbe Karte, nur ein anderer Modifier.</p>
+
+			<div class="mock-schema">
+				<h3>Und darunter die Tabelle</h3>
+				<table>
+					<tr><th>Spalte</th><th>wofür</th></tr>
+					<tr><td>id</td><td>Schlüssel</td></tr>
+					<tr><td>entry_date</td><td>DATE — die 1. Spalte, sortiert und gruppiert danach</td></tr>
+					<tr><td>title</td><td>die Überschrift („Hierher reisen“)</td></tr>
+					<tr><td>body</td><td>der Absatz darunter, für normale Leser</td></tr>
+					<tr><td>category</td><td>karte · routenplaner · inhalte · community</td></tr>
+					<tr><td>is_published</td><td>Entwurf oder sichtbar</td></tr>
+					<tr><td>sort_order</td><td>Reihenfolge innerhalb eines Tages</td></tr>
+					<tr><td>source_ref</td><td>Commit-SHA oder Datumsspanne — damit die Routine weiß, wo sie stehengeblieben ist</td></tr>
+					<tr><td>created_at / updated_at</td><td>Pflegestand</td></tr>
+				</table>
+				<p>Gelesen öffentlich über <code>GET /api/app/changelog.php</code>, geschrieben von der
+				   Routine <em>„Avesmaps feature updates“</em>: sie liest die Commits seit
+				   <code>source_ref</code>, schreibt neue Einträge und rührt bestehende nicht an.</p>
+			</div>
+		</div>
+
+		<!-- ═══════════════ SPALTE 2: Der Dialog ═══════════════ -->
+		<div class="mock-col">
+			<p class="mock-caption">2 · Der Änderungsverlauf</p>
+
+			<div class="changelog-dialog" role="dialog" aria-modal="true" aria-labelledby="cl-title">
+				<div class="changelog-dialog__header">
+					<h2 id="cl-title">Änderungsverlauf</h2>
+					<button class="changelog-dialog__close" type="button" aria-label="Schließen">×</button>
+				</div>
+				<p class="changelog-dialog__intro">Was sich auf Avesmaps getan hat, seit die Karte im April 2026 online ging — die größeren Schritte, das Kleingedruckte lassen wir weg.</p>
+
+				<div class="changelog-dialog__scroll">
+
+					<h3 class="changelog-month">August 2026</h3>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">3. August</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Ein Kalender für die Reise</p>
+							<p class="changelog-entry__text">Der Routenplaner fragt jetzt, wann ihr aufbrecht — Tag und aventurischer Monat. Jede Etappe nennt ihr Datum, der Plan nennt Abreise und Ankunft. Und die Jahreszeit rechnet mit: im Firun ist der Boden schwerer als im Efferd, manche Pässe sind im Winter gar nicht begehbar.</p>
+							<span class="changelog-entry__tag">Routenplaner</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">3. August</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Klimazonen</p>
+							<p class="changelog-entry__text">Von den Ewigen Eisfeldern bis in die Tropen liegen jetzt acht Klimazonen über der Karte. Orte, Landschaften und Wege sagen in ihrer Infobox, in welcher sie liegen.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">3. August</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Was die Reise kostet</p>
+							<p class="changelog-entry__text">Unter den Etappen steht, was unterwegs zusammenkommt — je nachdem, wie viele reisen und ob sie im Freien schlafen, auf dem Strohsack oder im eigenen Zimmer.</p>
+							<span class="changelog-entry__tag">Routenplaner</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">2. August</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Die Suche findet mehr</p>
+							<p class="changelog-entry__text">Mehrere Wörter dürfen jetzt in verschiedene Felder treffen — „schänke imdal“ findet die Schänke in Imdal. Neu durchsucht werden außerdem die Kartensammlung, die Abenteuer und die Vorkommen: ein Treffer springt dorthin, wo das Abenteuer beginnt oder wo die Pflanze wächst.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">1. August</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Hierher reisen</p>
+							<p class="changelog-entry__text">Ein Rechtsklick auf irgendeinen Punkt der Karte — auch mitten im Nirgendwo — und der Planer legt eine Route bis genau dorthin. Das letzte Stück geht querfeldein, sucht sich seinen Weg ums Wasser herum und lässt die Kutsche stehen, wo keine Kutsche fährt.</p>
+							<span class="changelog-entry__tag">Routenplaner</span>
+						</div>
+					</div>
+
+					<h3 class="changelog-month">Juli 2026</h3>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">30. Juli</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Berge kosten Zeit</p>
+							<p class="changelog-entry__text">Für jeden Weg ist hinterlegt, wie viel er steigt und wie viel er fällt. Eine Etappe über einen Gebirgspass dauert jetzt länger als dieselbe Strecke im Flachland — und der Plan sagt euch, warum.</p>
+							<span class="changelog-entry__tag">Routenplaner</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">29. Juli</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Wodurch die Reise führt</p>
+							<p class="changelog-entry__text">Jede Etappe nennt die Landschaften, durch die sie läuft — Wald, Steppe, Wüste, Moor. Die Namen sind angeklickt und führen auf die Karte.</p>
+							<span class="changelog-entry__tag">Routenplaner</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">26. Juli</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Die Landschaften</p>
+							<p class="changelog-entry__text">Eine neue Ebene, in drei Schichten: was wächst (Wald, Steppe, Wüste), wie das Land geformt ist (Gebirge, Hügel, Küste) und wie es großräumig heißt (Inseln, Kontinente). Gezeichnet wird sie im Editor mit Pinsel, Radierer und exakten Ecken — und die Berge tragen ihre Höhe in Schritt.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">21. Juli</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Natur und Waren</p>
+							<p class="changelog-entry__text">Was wächst hier, was lebt hier, was wird hier gehandelt? Regionen und Orte zeigen ihre Pflanzen, Tiere und Handelswaren — zusammengetragen aus Wiki Aventurica.</p>
+							<span class="changelog-entry__tag">Inhalte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">16. Juli</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Die Kartensammlung</p>
+							<p class="changelog-entry__text">Stadtpläne, Regionalkarten, Schlachtpläne: zu vielen Orten gibt es Karten, und Avesmaps sagt euch, wo ihr sie findet. Mit Vorschaubild, Maßstab, Verlag — und einem Spoiler-Schleier über allem, was eine Spielrunde verderben könnte.</p>
+							<span class="changelog-entry__tag">Inhalte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">13. Juli</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Bilder zu den Orten</p>
+							<p class="changelog-entry__text">Städte und Regionen bekommen ein Kopfbild und eine kleine Galerie. Wir zeigen nur, was gemeinfrei oder eigens erzeugt ist — Scans aus Publikationen und fremde Fanart bleiben draußen.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">12. Juli</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Abenteuer</p>
+							<p class="changelog-entry__text">Welche DSA-Abenteuer spielen in diesem Ort? Die Infobox zeigt sie mit Cover, Edition und Verlagslink. Wer sich nichts verraten lassen will, lässt den Spoiler-Schalter zu — und wer mag, sieht die Questroute eines Abenteuers auf der Karte.</p>
+							<span class="changelog-entry__tag">Inhalte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">11. Juli</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Ein neues Gesicht</p>
+							<p class="changelog-entry__text">Alle Fenster, Panels und Dialoge sprechen ab jetzt dieselbe Sprache: warme Brauntöne, Pergament, Wappengold — und kein Blau mehr. Dazu ein Umschalter zwischen hell und dunkel, oben rechts.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">10. Juli</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Das Infopanel</p>
+							<p class="changelog-entry__text">Statt kleiner Popups, die sich gegenseitig verdecken, klappt rechts eine Seitenleiste auf. Sie hat Platz für Wappen, Bild, Beschreibung, Quellen — und merkt sich, wo ihr auf eurer Route gerade seid.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">8. Juli</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Woher wir das wissen</p>
+							<p class="changelog-entry__text">Jede Angabe darf ihre Quelle nennen — Wiki-Artikel, Publikation mit Seitenzahl, oder eine eigene. Die Publikationen zieht Avesmaps automatisch aus dem Wiki und verlinkt sie, wo es sie zu kaufen gibt.</p>
+							<span class="changelog-entry__tag">Inhalte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">6. Juli</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Ein Bot auf dem Discord</p>
+							<p class="changelog-entry__text">Fehler, Ideen und Fragen lassen sich mit <code>/bug</code> direkt im Discord melden. Der Bot legt daraus einen nummerierten Fall an, und wir arbeiten ihn ab.</p>
+							<span class="changelog-entry__tag">Community</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">5. Juli</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Flüsse haben eine Richtung</p>
+							<p class="changelog-entry__text">Flussabwärts kommt ihr schneller voran als flussaufwärts. Avesmaps kennt für jeden Fluss seine Fließrichtung und rechnet sie in die Reisezeit ein — der Plan sagt bei jeder Etappe, welche der beiden es ist.</p>
+							<span class="changelog-entry__tag">Routenplaner</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">5. Juli</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Reisestunden statt Rastzeiten</p>
+							<p class="changelog-entry__text">Ihr sagt, wie viele Stunden am Tag ihr unterwegs seid — den Rest rechnet der Planer. Entfernungen stehen jetzt in Meilen, wie es sich für Aventurien gehört.</p>
+							<span class="changelog-entry__tag">Routenplaner</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">1. Juli</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Weiche Übergänge</p>
+							<p class="changelog-entry__text">Ortsmarken und Beschriftungen blenden beim Zoomen ein und aus, statt zu springen. Oben läuft ein schmaler Ladebalken, solange die Karte noch nachlädt.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<h3 class="changelog-month">Juni 2026</h3>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">29. Juni</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Schreibt uns</p>
+							<p class="changelog-entry__text">Ein Kontaktformular direkt in den Hinweisen. Die Hinweise selbst sind in Themengruppen sortiert — Projekt, Lizenzen, Datenquellen, Technik, Datenschutz — und nennen offen, woher unsere Daten kommen.</p>
+							<span class="changelog-entry__tag">Community</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">14. Juni</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Avesmaps auf Englisch</p>
+							<p class="changelog-entry__text">Die Oberfläche gibt es auf Englisch. Deutsch bleibt die Sprache des Hauses; Aventurien und seine Namen werden nicht übersetzt.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">12. Juni</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Umstrittene Gebiete</p>
+							<p class="changelog-entry__text">Wo zwei Reiche dasselbe Land beanspruchen, liegt eine Schraffur — und die Infobox nennt beide Parteien.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">10. Juni</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Magiersicht</p>
+							<p class="changelog-entry__text">Im Kraftlinien-Modus verblasst die Karte ins Graue, Straßen und Grenzen treten zurück — und nur die Ley-Knoten leuchten noch.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">9. Juni</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Namen an den Grenzen</p>
+							<p class="changelog-entry__text">Herrschaftsgebiete schreiben ihren Namen an der eigenen Grenze entlang, und zwei Nachbarn stellen sich gegenüber. Alle Beschriftungen sind nun in die Landschaft eingebettet statt daraufgelegt.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">8. Juni</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Neue Ortsmarken</p>
+							<p class="changelog-entry__text">Von der Metropole bis zum Dorf eine einheitliche Formenfamilie mit Goldakzent, Stätten als Raute. Sie wachsen und schrumpfen sauber mit dem Zoom — und die Karte läuft dabei spürbar flüssiger.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">7. Juni</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Bewertungen und Kurzlinks</p>
+							<p class="changelog-entry__text">Orte lassen sich mit Sternen bewerten und kurz kommentieren. Und jede Route, jede Ansicht wird zu einem kurzen Link statt zu einer endlosen Adresszeile — teilbar in einer Zeile Chat.</p>
+							<span class="changelog-entry__tag">Community</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">6. Juni</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Wappen, Regionen, Flüsse und Straßen aus dem Wiki</p>
+							<p class="changelog-entry__text">Der Abgleich mit Wiki Aventurica erfasst jetzt auch Landschaften, Flüsse, Straßen, Bauwerke und Wappen. Herrschaftsgebiete und Orte tragen ihr Wappen — nur, wenn dessen Lizenz das zulässt.</p>
+							<span class="changelog-entry__tag">Inhalte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">4. Juni</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Die politische Ansicht geht live</p>
+							<p class="changelog-entry__text">Zum ersten Mal für alle sichtbar: Reiche, Grafschaften und Baronien auf der Karte. Die Maus hebt ein Gebiet hervor, ein Klick öffnet seine Infobox, ein Doppelklick zoomt hinein.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">2. Juni</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Die Karte lädt schneller</p>
+							<p class="changelog-entry__text">Die Kartendaten kommen komprimiert und werden im Browser behalten — wer wiederkommt, wartet nicht noch einmal.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<h3 class="changelog-month">Mai 2026</h3>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">29. Mai</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Reiche zeichnen ihre eigenen Grenzen</p>
+							<p class="changelog-entry__text">Wer alle Baronien eines Reichs kennt, kennt auch dessen Außengrenze — Avesmaps rechnet sie sich jetzt selbst aus. Beim Hineinzoomen wandert die Füllung die Hierarchie hinunter: erst das Reich, dann die Grafschaft, dann die Baronie.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">25. Mai</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Wegfindung auch auf dem Server</p>
+							<p class="changelog-entry__text">Routen werden nicht mehr nur im Browser gerechnet. Damit hat Avesmaps eine offene Schnittstelle, über die auch andere Werkzeuge Strecken abfragen können.</p>
+							<span class="changelog-entry__tag">Routenplaner</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">19. Mai</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Abgleich mit Wiki Aventurica</p>
+							<p class="changelog-entry__text">Ein Werkzeug liest Wiki Aventurica und schlägt vor, was auf der Karte fehlt oder abweicht. Übernommen wird nichts automatisch — jeder Vorschlag geht durch eine Prüfung von Hand.</p>
+							<span class="changelog-entry__tag">Inhalte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">15. Mai</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Herrschaftsgebiete</p>
+							<p class="changelog-entry__text">Der Anfang der politischen Ebene: Reiche, Grafschaften und Baronien mit ihrer Hierarchie — und mit ihrem Zeitraum, gemessen in Jahren nach Bosparans Fall.</p>
+							<span class="changelog-entry__tag">Inhalte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">14. Mai</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Kompass und Maßstab</p>
+							<p class="changelog-entry__text">Die Karte bekommt ihren Zierrat: ein Kompass in der Ecke und ein Maßstabsband, beide mitwachsend mit dem Zoom.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">13. Mai</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Die Suche</p>
+							<p class="changelog-entry__text">Ein Suchfeld, das Orte, Wege und Regionen findet und direkt hinspringt.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">9. Mai</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Die Kraftlinien</p>
+							<p class="changelog-entry__text">Das Nodix-Netz zieht als eigene Ebene über Aventurien: leuchtende Linien zwischen den Kraftknoten, die leise wabern.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">8. Mai</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Wege bekommen Kurven und Namen</p>
+							<p class="changelog-entry__text">Straßen und Flüsse werden weich gezeichnet statt eckig, und ihr Name läuft an der Linie entlang.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">7. Mai</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Eine eigene Kartenoptik</p>
+							<p class="changelog-entry__text">Statt einer gescannten Vorlage entsteht ein eigener Kachelsatz: gezeichnete Landschaft, eigene Farben, eigene Beschriftungen — die Karte, die ihr heute seht.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">6. Mai</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Die Karte wird bearbeitbar</p>
+							<p class="changelog-entry__text">Ein geschützter Editorbereich: Orte anlegen und verschieben, Kreuzungen setzen, Wege zeichnen, Beschriftungen platzieren. Ab hier wächst Aventurien nicht mehr durch Dateien, sondern durch Menschen.</p>
+							<span class="changelog-entry__tag">Community</span>
+						</div>
+					</div>
+
+					<h3 class="changelog-month">April 2026</h3>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">24. April</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Ihr könnt uns Orte melden</p>
+							<p class="changelog-entry__text">Wer einen fehlenden oder falsch gesetzten Ort findet, meldet ihn direkt auf der Karte. Wir schauen ihn uns an, bevor er erscheint.</p>
+							<span class="changelog-entry__tag">Community</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">23. April</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Zu Fuß, zu Pferd, zu Schiff</p>
+							<p class="changelog-entry__text">Für jede Etappe lässt sich das Reisemittel wählen — und jeder Ort bekommt ein Fenster mit Beschreibung und einem Link ins Wiki Aventurica.</p>
+							<span class="changelog-entry__tag">Routenplaner</span>
+						</div>
+					</div>
+
+					<div class="changelog-entry">
+						<div class="changelog-entry__date">22. April</div>
+						<div class="changelog-entry__body">
+							<p class="changelog-entry__title">Avesmaps geht online</p>
+							<p class="changelog-entry__text">Die erste Fassung: eine Karte von Aventurien im Browser und ein Planer, der zwischen zwei Orten den Weg sucht. Klein, statisch, aber die Idee stand.</p>
+							<span class="changelog-entry__tag">Karte</span>
+						</div>
+					</div>
+
+				</div>
+
+				<p class="changelog-dialog__foot">Avesmaps ist ein Fanprojekt und wird laufend weitergebaut. Ideen und Fehler gern auf unserem Discord.</p>
+			</div>
+
+			<p class="mock-note"><strong>Warum diese Form:</strong> Datum links, Erzählung rechts, dazwischen
+			   dieselbe Perlenkette, die im Reiseplan die Etappen verbindet — der Verlauf ist eine Reise
+			   durch die Zeit. Getrennt wird durch Linie und Überschrift, nicht durch Kästchen
+			   (Designsprache §12). Das Monatsband bleibt beim Scrollen oben stehen. Auf dem Handy
+			   fällt die Kette weg und das Datum rutscht über den Text.</p>
+		</div>
+
+	</div>
+</div>
+</body>
+</html>

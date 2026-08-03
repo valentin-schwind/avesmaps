@@ -90,8 +90,12 @@
 	content: " ↗";
 }
 
-/* Discord call-to-action reads as its own callout card, not body prose. */
-.legal-dialog__content p.legal-dialog__discord {
+/* Discord- und Changelog-Aufruf lesen sich als eigene Karte, nicht als Fliesstext -- und als PAAR:
+   "mitreden" und "nachlesen" stehen direkt untereinander, in derselben Bauart. Deshalb eine
+   gemeinsame Regel statt zweier gleichlautender: eine dritte Karte kaeme sonst irgendwann leicht
+   anders heraus. */
+.legal-dialog__content p.legal-dialog__discord,
+.legal-dialog__content p.legal-dialog__changelog {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: baseline;
@@ -104,8 +108,34 @@
 	color: var(--color-text);
 }
 
-.legal-dialog__content p.legal-dialog__discord > strong:first-child {
+/* Die zweite Karte rueckt an die erste heran: 18px Abstand haetten zwei Kaesten ergeben, 6px
+   ergeben ein Paar. Der Abstand NACH UNTEN (zur ersten Ueberschrift) bleibt der volle. */
+.legal-dialog__content p.legal-dialog__discord + p.legal-dialog__changelog {
+	margin-top: -12px;
+}
+
+.legal-dialog__content p.legal-dialog__discord > strong:first-child,
+.legal-dialog__content p.legal-dialog__changelog > strong:first-child {
 	color: var(--color-accent-strong);
+}
+
+/* Der Verlauf liegt auf DIESER Seite -- also ein Knopf, der wie ein Link aussieht, und kein <a>:
+   ein <a target="_blank"> bekaeme aus der Regel oben das nachgestellte ↗, das externen Zielen
+   vorbehalten ist, und ein <a href="#"> haengte einen toten Anker in die Adresszeile. */
+.legal-dialog__content .legal-dialog__changelog-open {
+	border: 0;
+	padding: 0;
+	background: none;
+	color: var(--color-link);
+	font: inherit;
+	cursor: pointer;
+	text-align: left;
+	text-decoration: none;
+}
+
+.legal-dialog__content .legal-dialog__changelog-open:hover,
+.legal-dialog__content .legal-dialog__changelog-open:focus-visible {
+	color: var(--color-link-hover);
 }
 
 .legal-dialog__group {

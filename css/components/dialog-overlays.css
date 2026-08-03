@@ -4,6 +4,7 @@ body.modal-dialog-open {
 }
 
 #legal-overlay[hidden],
+#changelog-overlay[hidden],
 #spotlight-search-overlay[hidden],
 #political-territory-editor-overlay[hidden],
 #location-report-overlay[hidden],
@@ -30,6 +31,7 @@ body.modal-dialog-open {
 }
 
 #legal-overlay,
+#changelog-overlay,
 #location-report-overlay,
 #location-edit-overlay,
 #wiki-sync-resolve-overlay,
@@ -91,6 +93,10 @@ body.modal-dialog-open {
 	z-index: 1250;
 }
 
+/* #changelog-overlay steht bewusst HIER und nicht bei #legal-overlay (1200): es wird AUS den
+   Hinweisen heraus geöffnet und muss über ihnen liegen, sonst öffnet sich der Verlauf hinter dem
+   Fenster, das ihn aufgerufen hat. */
+#changelog-overlay,
 #location-edit-overlay,
 #wiki-sync-resolve-overlay,
 #wiki-sync-dump-credentials-overlay,

@@ -1,0 +1,219 @@
+/* Der Änderungsverlauf — erreichbar aus dem Hinweise-Dialog, direkt unter der Discord-Karte.
+   Markup: index.html (#changelog-overlay), Verhalten: js/app/changelog-dialog.js,
+   Daten: GET /api/app/changelog.php.
+
+   Die Hülle (fixed, Scrim, z-index) kommt aus css/components/dialog-overlays.css, wo die ID in
+   allen DREI Selektorlisten steht — ohne die wäre es kein Fenster, sondern ein Block im
+   Dokumentfluss. Verschiebbar wird es ohne eigenes Zutun: role="dialog" + eine Kopfzeile auf
+   "__header" genügen js/ui/dialog-drag.js. */
+
+.changelog-dialog {
+	width: min(680px, 100%);
+	max-height: min(80vh, 760px);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	padding: 16px 18px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-dialog);
+	color: var(--color-text);
+}
+
+.changelog-dialog:focus {
+	outline: none;
+}
+
+.changelog-dialog__header {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 4px;
+}
+
+.changelog-dialog__header h2 {
+	margin: 0;
+	font-size: var(--font-size-title);
+}
+
+.changelog-dialog__close {
+	border: none;
+	background: transparent;
+	color: var(--color-button-border);
+	cursor: pointer;
+	font-size: 28px;
+	line-height: 1;
+	padding: 0;
+}
+
+.changelog-dialog__intro {
+	flex: 0 0 auto;
+	margin: 0 0 12px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: 1.5;
+}
+
+.changelog-dialog__scroll {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	/* 💣 Ohne das steht der frisch geöffnete Verlauf ganz UNTEN, beim ältesten Eintrag. Der Kasten
+	   zeigt erst „Lade …", dann ersetzen ihn 42 Einträge — und das Scroll-Anchoring des Browsers
+	   hält dabei den bisher sichtbaren Inhalt fest und scrollt um dessen Höhe mit. Bei einer Liste,
+	   die neueste zuerst zeigt, ist das die exakte Umkehrung des Zwecks. js/app/changelog-dialog.js
+	   setzt zusätzlich scrollTop = 0 beim Öffnen -- der Gürtel zu diesem Hosenträger, denn beim
+	   zweiten Öffnen soll der Verlauf ebenfalls wieder oben anfangen. */
+	overflow-anchor: none;
+}
+
+/* ---- Monatsband: gruppiert durch Überschrift und Abstand, nicht durch einen Kasten ------------
+   Es bleibt beim Scrollen oben stehen, damit man bei 42 Einträgen nie rätselt, in welchem Monat
+   man gerade liest. Der eigene Hintergrund ist dafür nötig: darunter läuft die Perlenkette durch. */
+.changelog-month {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	margin: 18px 0 10px;
+	padding: 6px 0;
+	background: var(--color-panel);
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-subhead);
+	font-weight: var(--font-weight-bold);
+}
+
+.changelog-month:first-child {
+	margin-top: 0;
+}
+
+/* ---- Ein Eintrag: Datum links, Erzählung rechts, Perlenkette dazwischen -----------------------
+   Dieselbe Geste wie die Etappenkette im Reiseplan — der Verlauf IST eine Reise durch die Zeit.
+   Die Perle sitzt auf der Linie zwischen den Spalten (78px Datumsspalte + halber 18px-Abstand). */
+.changelog-entry {
+	position: relative;
+	display: grid;
+	grid-template-columns: 78px 1fr;
+	gap: 0 18px;
+	padding: 0 0 16px 0;
+}
+
+.changelog-entry__date {
+	padding-top: 1px;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	text-align: right;
+	white-space: nowrap;
+}
+
+.changelog-entry::before {
+	content: "";
+	position: absolute;
+	left: 87px;
+	top: 4px;
+	width: 9px;
+	height: 9px;
+	/* Eine Perle ist rund: 50 % ist hier die FORM, kein hartkodierter Radiuswert. */
+	border-radius: 50%;
+	border: 1px solid var(--color-panel);
+	background: var(--color-accent);
+}
+
+.changelog-entry::after {
+	content: "";
+	position: absolute;
+	left: 91px;
+	top: 13px;
+	bottom: -4px;
+	width: 1px;
+	background: var(--color-divider);
+}
+
+.changelog-entry:last-child::after {
+	display: none;
+}
+
+.changelog-entry__body {
+	padding-left: 14px;
+}
+
+.changelog-entry__title {
+	margin: 0 0 3px;
+	color: var(--color-text-strong);
+	font-size: var(--font-size-reading);
+	font-weight: var(--font-weight-bold);
+	line-height: 1.3;
+}
+
+.changelog-entry__text {
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: 1.5;
+	hyphens: auto;
+}
+
+.changelog-entry__tag {
+	display: inline-block;
+	margin: 6px 0 0;
+	padding: 1px 7px;
+	border: 1px solid var(--color-pill-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-pill);
+	color: var(--color-pill-text);
+	font-size: var(--font-size-caption);
+}
+
+.changelog-dialog__status {
+	margin: 0;
+	padding: 18px 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	text-align: center;
+}
+
+.changelog-dialog__foot {
+	flex: 0 0 auto;
+	margin: 6px 0 0;
+	padding-top: 10px;
+	border-top: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	line-height: 1.5;
+}
+
+.changelog-dialog__foot a {
+	color: var(--color-link);
+}
+
+.changelog-dialog__foot a[target="_blank"]::after {
+	content: " ↗";
+}
+
+/* ---- Handy: Datum über den Text, Kette fällt weg ---------------------------------------------
+   78px für das Datum plus 18px Abstand sind auf einem schmalen Schirm ein Drittel der Breite —
+   der Fließtext bliebe als Schlucht übrig. */
+@media (max-width: 520px) {
+	.changelog-entry {
+		grid-template-columns: 1fr;
+		gap: 2px;
+	}
+
+	.changelog-entry__date {
+		text-align: left;
+	}
+
+	.changelog-entry__body {
+		padding-left: 0;
+	}
+
+	.changelog-entry::before,
+	.changelog-entry::after {
+		display: none;
+	}
+}

@@ -2126,6 +2126,8 @@
 				</div>
 				<div class="legal-dialog__content">
 						<p class="legal-dialog__discord"><strong data-i18n="legal.discord.lead">Discord.</strong> <span data-i18n="legal.discord.body">Fragen, Feedback oder einfach mitreden? Komm in die Avesmaps-Community auf Discord:</span> <a href="https://discord.gg/BSHEEpn6UX" target="_blank" rel="noopener noreferrer">discord.gg/BSHEEpn6UX</a></p>
+						<!-- Zwilling der Discord-Karte: „mitreden“ und „nachlesen“ stehen als Paar. Der Knopf sieht aus wie ein Link, ist aber keiner — das Ziel liegt auf DIESER Seite (Begründung in css/components/legal-dialog.css). Fenster + Liste: js/app/changelog-dialog.js. -->
+						<p class="legal-dialog__changelog"><strong data-i18n="changelog.callout.lead">Was ist neu?</strong> <span data-i18n="changelog.callout.body">Avesmaps wächst ständig. Die wichtigsten Schritte seit dem Start stehen im</span> <button type="button" id="changelog-open" class="legal-dialog__changelog-open" aria-haspopup="dialog" aria-controls="changelog-dialog" data-i18n="changelog.callout.link">Änderungsverlauf</button></p>
 						<h3 class="legal-dialog__group" data-i18n="legal.group.project">Projekt und rechtlicher Status</h3>
 						<p> <strong data-i18n="legal.fanproject.lead">Fanprojekt.</strong> <span data-i18n="legal.fanproject.body">Avesmaps ist ein privates, offenes und nicht-kommerzielles Fanprojekt von Valentin Schwind. Avesmaps ist keine offizielle Publikation zu Das Schwarze Auge und steht in keiner offiziellen Verbindung zu Ulisses Spiele, der Ulisses Medien & Spiel Distribution GmbH oder anderen Rechteinhabern. Die auf dieser Website enthaltenen Informationen zu Das Schwarze Auge, Aventurien und Dere sind inoffiziell, können unvollständig oder fehlerhaft sein und können offiziellen Publikationen widersprechen.</span> </p>
 						<p><strong data-i18n="legal.responsible.lead">Betreiber/Impressum.</strong> <span data-i18n="legal.responsible.body">Entwicklung, Gestaltung, Programmierung und Betrieb erfolgen durch Valentin Schwind (c/o Nobelstr. 10, D-70569 Stuttgart); bei der Programmierung wird Claude Code eingesetzt. Verantwortlich für die redaktionelle Pflege der Mapinhalte ist Thomas Braun.</span></p>
@@ -2181,6 +2183,24 @@
 			</div>
 		</div>
 
+		<!-- Der Änderungsverlauf. Aufgerufen aus den Hinweisen (#changelog-open), liegt aber als
+		     eigenes Overlay daneben statt darin: ein Fenster im Fenster erbte dessen Scroll-Kasten
+		     und liesse sich nicht verschieben. Die Hülle (fixed, Scrim, z-index 1260 — ÜBER den
+		     Hinweisen mit 1200) kommt aus css/components/dialog-overlays.css, wo die ID in allen
+		     DREI Selektorlisten steht; ohne die wäre es ein Block im Dokumentfluss, kein Fenster.
+		     Die Liste baut js/app/changelog-dialog.js beim ersten Öffnen aus /api/app/changelog.php. -->
+		<div id="changelog-overlay" hidden>
+			<div id="changelog-dialog" class="changelog-dialog" role="dialog" aria-modal="true" aria-labelledby="changelog-title" tabindex="-1">
+				<div class="changelog-dialog__header">
+					<h2 id="changelog-title" data-i18n="changelog.title">Änderungsverlauf</h2>
+					<button id="changelog-close" class="changelog-dialog__close" type="button" aria-label="Änderungsverlauf schließen" data-i18n-aria-label="changelog.closeAria">×</button>
+				</div>
+				<p class="changelog-dialog__intro" data-i18n="changelog.intro">Was sich auf Avesmaps getan hat, seit die Karte im April 2026 online ging — die größeren Schritte, das Kleingedruckte lassen wir weg.</p>
+				<div id="changelog-list" class="changelog-dialog__scroll"></div>
+				<p class="changelog-dialog__foot" data-i18n="changelog.foot">Avesmaps ist ein Fanprojekt und wird laufend weitergebaut. Ideen und Fehler gern auf unserem Discord.</p>
+			</div>
+		</div>
+
 		<script src="js/app/runtime-state.js"></script>
 		<script src="js/routing/route-priority-queue.js"></script>
 		<!-- Vor config.js: VISUAL_LINE_CATMULL_ROM_CONFIG uebernimmt samples/tension von hier, damit
@@ -2197,6 +2217,8 @@
 		<script src="js/app/i18n.js"></script>
 		<script src="js/app/link-status.js"></script>
 		<script src="js/app/legal-contact-form.js"></script>
+		<!-- Nach i18n.js: das Modul fragt window.tr/avesmapsActiveLang für Monatsnamen und Rubriken ab. -->
+		<script src="js/app/changelog-dialog.js"></script>
 		<script src="js/app/utils.js"></script>
 		<!-- Der geteilte Trichter (auch von den Editor-iframes geladen). Vor review-wiki-sync.js,
 		     das ihn beim Auswerten verdrahtet. Ohne Abhängigkeiten. -->

@@ -727,6 +727,25 @@ window.AVESMAPS_I18N_EN = {
 	"legal.sources.tech": "Technology.",
 	"legal.changes.lead": "Changes.",
 	"legal.changes.body": "These notices may be adjusted in the event of technical, legal or content-related changes to the project.",
+
+	// --- changelog ("Änderungsverlauf") -----------------------------------------------------------
+	// Only the CHROME is translated. The entries themselves come from the database in German and stay
+	// German: they are project history, not interface -- the same rule that keeps Aventurien's own
+	// names untranslated (AGENTS.md §8).
+	"changelog.callout.lead": "What's new?",
+	"changelog.callout.body": "Avesmaps keeps growing. The milestones since launch are listed in the",
+	"changelog.callout.link": "changelog",
+	"changelog.title": "Changelog",
+	"changelog.closeAria": "Close changelog",
+	"changelog.intro": "What has happened on Avesmaps since the map went online in April 2026 — the bigger steps; we'll spare you the fine print.",
+	"changelog.foot": "Avesmaps is a fan project and is being built on continuously. Ideas and bugs are welcome on our Discord.",
+	"changelog.loading": "Loading …",
+	"changelog.empty": "Nothing here yet.",
+	"changelog.error": "The changelog could not be loaded.",
+	"changelog.category.karte": "Map",
+	"changelog.category.routenplaner": "Route planner",
+	"changelog.category.inhalte": "Content",
+	"changelog.category.community": "Community",
 	"waypoint.searchPlaceholder": "Search location...",
 	"legal.wikiSync.lead": "Data synchronization.",
 	"legal.wikiSync.body": "Part of the content — in particular territories, locations, regions and coats of arms — is regularly synchronized internally with Wiki Aventurica. The information found there, such as names, hierarchies, validity periods or coat-of-arms references, is first collected in staging tables, editorially reviewed and only selectively adopted into the map, corrected or supplemented. No automatic, unverified synchronization takes place, and Avesmaps makes no claim to be identical with the current state of Wiki Aventurica. In particular, many of the short descriptions and facts shown in the infoboxes (territories, regions, locations) come from the Wiki Aventurica; the relevant article is linked directly in the infobox (“More here”). The rights to these texts remain with their authors and are governed by the licence stated on the Wiki Aventurica.",
