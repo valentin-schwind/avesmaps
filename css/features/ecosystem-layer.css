@@ -1175,8 +1175,24 @@
 	--eco-contour: 0;
 }
 
+/* 🔴 KONTUR NUR BEIM BEARBEITEN (Owner 2026-08-03). Die aktive Ebene füllt, aber sie zeichnet ihre
+   Kante NICHT mehr von sich aus. Der Owner hat es an den Klimazonen gesehen, die von Anfang an keine
+   haben, und wollte es überall: „bei ‚Alle' und im Landschaftsmodul im Nutzerfront die Konturen
+   ausblenden — nicht im Editmodus bei den Regionen."
+
+   Der Grund ist derselbe wie bei den Bändern: eine Kante ist eine ARBEITS-Auskunft („bis hierher geht
+   die Fläche, die ich gerade ziehe"). Wer nur schaut, liest die Landschaft an der Farbe, und ein Netz
+   aus Rändern über der halben Karte macht daraus eine technische Zeichnung. */
 .ecosystem-pane--active {
 	--eco-fill: 0.6;
+	--eco-contour: 0;
+}
+
+/* Und hier kommt sie zurück: EINE Ebene, im Editiermodus. „Alle" ist ausdrücklich ausgenommen -- dort
+   liegen vier Ebenen übereinander, und genau deren Ränder waren das Netz.
+   🪤 Drei Klassen plus :not schlagen die Regel darüber (eine). Die Klasse `--editable` setzt
+   syncEcosystemPaneStates aus IS_EDIT_MODE. */
+.ecosystem-pane--active.ecosystem-pane--editable:not(.ecosystem-pane--showall) {
 	--eco-contour: 0.7;
 }
 
@@ -1272,9 +1288,40 @@
    Die ANGEKLICKTE Fläche ist NICHT ausgenommen -- anders als oben. Ein Klimaband lässt sich zwar
    anklicken (die Infobox sagt, welche Zone das ist), aber es lässt sich nicht bearbeiten; es aus der
    Menge hervorzuheben hätte also nichts, worauf es hinweisen könnte. */
+/* 0,30 statt 0,18 (Owner 2026-08-03: „die farben/transparenzen der klimazonen etwas stärker"). Bei 0,18
+   war die Polare Zone auf den hellen Kacheln praktisch nicht zu sehen; die Töne selbst sind im selben
+   Zug eine Stufe kräftiger geworden (css/base/tokens.css). Es bleibt deutlich unter der Füllung der
+   gezeichneten Ebenen (0,6) -- ein Band deckt die Karte in voller Breite und darf sie nicht zumachen. */
 .ecosystem-pane--klima.ecosystem-pane--active > svg path.leaflet-interactive {
-	fill-opacity: 0.18;
+	fill-opacity: 0.3;
 	stroke-opacity: 0;
+}
+
+/* ---- In „Alle" nimmt sich die Klima-Ebene ganz zurück (Owner 2026-08-03) -------------------------
+   🔴 UND SIE NIMMT KEINE KLICKS MEHR. Das ist der wichtigere Teil: ein Klimaband ist exakt so breit
+   wie die Karte, und seine Pane liegt über allen dreien. In „Alle" verschluckte es damit JEDEN Klick,
+   der einem Wald, einem See oder einem Gebirge darunter galt -- die Ebene, in der man Überlappungen
+   ansehen will, wurde zu der, in der man nichts mehr treffen kann.
+
+   🪤 Die Stapelreihenfolge hilft hier nicht. Sie sortiert innerhalb EINER Pane (gross unten, klein
+   oben); Klima hat seine eigene Pane mit höherem z-index und liegt deshalb immer oben.
+
+   Anklickbar bleibt ein Band also nur, wenn die Klimazonen die GEWÄHLTE Ebene sind -- im Editiermodus
+   wie im Frontend. Das ist genau der Fall, in dem ein Klick darauf etwas bedeutet.
+
+   🪤 `.leaflet-pane` gehört in den Selektor, aus demselben Grund wie bei der ruhenden Ebene weiter
+   oben: Leaflet setzt `pointer-events: auto` auf `.leaflet-interactive` (css/third-party/leaflet.css),
+   und dagegen verliert eine einzelne Klasse. Vier Klassen gewinnen.
+
+   10 % statt 30 % (Owner): in „Alle" geht es um die Überlappungen der gezeichneten Ebenen, und sieben
+   kartenbreite Bänder darüber färben sonst alles ein. */
+.ecosystem-pane--klima.ecosystem-pane--active.ecosystem-pane--showall > svg path.leaflet-interactive {
+	fill-opacity: 0.1;
+}
+
+.leaflet-pane.ecosystem-pane--klima.ecosystem-pane--showall > svg path.leaflet-interactive {
+	pointer-events: none;
+	cursor: default;
 }
 
 /* ---- Unterflächen-Auswahl (Owner 2026-07-27) -------------------------------------------------------
@@ -1370,9 +1417,14 @@
 /* Der Zonenname am Westrand seines Bandes. Kein Karten-Label: er gehoert zur Ebene und verschwindet
    mit ihr, laeuft also auch nicht durch die Kollisionsaufloesung und konkurriert mit nichts.
    Klickdurchlaessig, damit er den Klick auf die Linie darunter nicht schluckt. */
+/* Der Marker sitzt EXAKT auf der Westkante (x = 0) -- dort hat das Band genau zwei Ringecken, deren
+   Mitte die Bandmitte ist, und das rechnet sich ohne Schätzung. Der Abstand zum Kartenrand ist deshalb
+   ein PIXELmaß hier und keine Karteneinheit: er soll beim Zoomen gleich bleiben. */
 .ecosystem-climate-name {
 	pointer-events: none;
 	white-space: nowrap;
+	padding-left: var(--space-12);
 	font-size: var(--font-size-small);
+	font-weight: var(--font-weight-bold);
 	color: var(--color-ecosystem-klima-label);
 }

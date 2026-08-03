@@ -76,6 +76,30 @@ assert(context.climateInsertionIndex(bent, 1024) === 2, "exactly on the right en
 	assert(index >= 1 && index <= bent.length - 1, `insertion index for x=${x} stays inside the edges`);
 });
 
+// ---- wo der Zonenname sitzt (2026-08-03) -----------------------------------------------------------
+// 🔴 Aus der FLÄCHE gerechnet, nicht aus den Trennlinien: die Namen stehen auch im Frontend, und dort
+// gibt es die Trennlinien nicht -- sie kommen vom Editor-Endpunkt. Ein Band beginnt und endet auf dem
+// Kartenrand, sein Ring hat bei x = 0 deshalb genau zwei Ecken; deren Mitte ist die Bandmitte.
+
+const band = { type: "Polygon", coordinates: [[[0, 900], [1024, 880], [1024, 700], [0, 700], [0, 900]]] };
+assert(JSON.stringify(context.climateAreaWestEdgeSpan(band)) === JSON.stringify({ min: 700, max: 900 }),
+	"the west edge span comes from the two ring corners at x = 0");
+
+// 🪤 Eine SCHRÄGE Südgrenze darf das Ergebnis nicht verschieben -- genau deshalb wird an der Westkante
+// gemessen und nicht über `bounds`, dessen Mitte hier 790 statt 800 wäre.
+const schraeg = { type: "Polygon", coordinates: [[[0, 900], [1024, 880], [1024, 600], [0, 700], [0, 900]]] };
+assert(JSON.stringify(context.climateAreaWestEdgeSpan(schraeg)) === JSON.stringify({ min: 700, max: 900 }),
+	"a slanted southern boundary does not move the label");
+
+const multi = { type: "MultiPolygon", coordinates: [[[[0, 500], [1024, 500], [1024, 400], [0, 400], [0, 500]]]] };
+assert(JSON.stringify(context.climateAreaWestEdgeSpan(multi)) === JSON.stringify({ min: 400, max: 500 }),
+	"a MultiPolygon works the same way");
+
+// Kein Punkt auf der Westkante: dann lieber kein Name als einer an geratener Stelle.
+const abseits = { type: "Polygon", coordinates: [[[300, 500], [700, 500], [700, 400], [300, 400], [300, 500]]] };
+assert(context.climateAreaWestEdgeSpan(abseits) === null, "an area that never touches the west edge gets no label");
+assert(context.climateAreaWestEdgeSpan(undefined) === null, "and neither does a missing geometry");
+
 if (failures > 0) {
 	console.error(`ecosystem-climate.test: ${failures} failure(s)`);
 	process.exit(1);
