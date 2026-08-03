@@ -67,9 +67,13 @@
          stehen. „Alle" zeigt die ganze Vereinigung. -->
     <div class="avm-tabs" id="ecoTabs">
       <button type="button" class="avm-tab is-active" data-kind="" data-i18n="ecosystem.kind.all">Alle</button>
-      <button type="button" class="avm-tab" data-kind="derographisch" data-i18n="ecosystem.kind.derographisch">Derographische Region</button>
+      <button type="button" class="avm-tab" data-kind="derographisch" data-i18n="ecosystem.kind.derographisch">Derographie</button>
       <button type="button" class="avm-tab" data-kind="vegetation" data-i18n="ecosystem.kind.vegetation">Vegetation</button>
       <button type="button" class="avm-tab" data-kind="topographie" data-i18n="ecosystem.kind.topographie">Topographie</button>
+      <!-- Die vierte Ebene. Der Filter „Art" braucht dafür keine Zeile: er leitet seine Werte aus den
+           geladenen Regionen ab und bietet die sieben Zonen damit von selbst an, sobald dieser Reiter
+           gewählt ist. -->
+      <button type="button" class="avm-tab" data-kind="klima" data-i18n="ecosystem.kind.klima">Klimazonen</button>
     </div>
     <div class="avm-col__bar">
       <input type="search" id="ecoSearch" placeholder="Region suchen …" aria-label="Regionen durchsuchen" data-i18n-placeholder="ecosystem.editor.searchPlaceholder" data-i18n-aria-label="ecosystem.editor.searchAria">
@@ -1221,7 +1225,7 @@ function rowByKey(key) { return rows.find((row) => row.key === key) || null; }
 
 function percent(share) { return (share * 100).toFixed(1).replace(".", ",") + " %"; }
 
-const KIND_LABEL = { derographisch: "Derographische Region", vegetation: "Vegetation", topographie: "Topographie" };
+const KIND_LABEL = { derographisch: "Derographie", vegetation: "Vegetation", topographie: "Topographie", klima: "Klimazonen" };
 
 // ---- Editing a region (Name · Auto-Name · Art · Wiki-Zuweisung) -------------------------------
 // The server side already existed: `update_region` takes name / region_type / kind / wiki_url and is
@@ -1253,6 +1257,12 @@ function regionEditBlock(region) {
 	// hidden, and the field stays writable.
 	const wikiOwns = String(region.wiki_url || "") !== "";
 	const areaCount = Number(region.area_count || 0);
+	// 🔴 Eine Klimazone ist ABGELEITET (2026-08-03): ihre Fläche entsteht aus den Trennlinien auf der
+	// Karte, und ihre ART ist die Wahrheit darüber, welche der sieben Zonen das ist. Beides ist hier
+	// festgestellt; Name und Wiki-Artikel bleiben normal bearbeitbar. Der Server verweigert das andere
+	// ohnehin (avesmapsClimateAssertNotDerived) -- diese Zeile sorgt nur dafür, dass der Editor es gar
+	// nicht erst versucht.
+	const abgeleitet = String(region.kind || "") === "klima";
 	const options = ['<option value="">— ohne Art —</option>'].concat(typesOfKind(region.kind).map((type) =>
 		'<option value="' + esc(type.type_key) + '"' + (type.type_key === String(region.region_type || "") ? " selected" : "") + ">" + esc(type.label) + "</option>"));
 
@@ -1263,7 +1273,9 @@ function regionEditBlock(region) {
 		+ '<div class="k">Name</div><div><input type="text" data-f="name" value="' + esc(region.name) + '"' + (auto ? " readonly" : "") + "></div>"
 		+ '<div class="k">Auto-Name</div><div><label class="dt-check"><input type="checkbox" data-f="auto"' + (auto ? " checked" : "") + (wikiOwns ? " disabled" : "") + ">"
 		+ "<span>" + (wikiOwns ? "die Wiki-Landschaft besitzt den Namen" : "interner Griff — ein Leser sieht die Art") + "</span></label></div>"
-		+ '<div class="k">Art</div><div><select data-f="type">' + options.join("") + "</select></div>"
+		+ '<div class="k">Art</div><div><select data-f="type"' + (abgeleitet ? " disabled" : "") + ">" + options.join("") + "</select>"
+		+ (abgeleitet ? '<div class="pl-hint">Die Fläche dieser Zone entsteht aus den Trennlinien auf der Karte (Landschaften → Klimazonen). Art und Umriss lassen sich hier nicht ändern.</div>' : "")
+		+ "</div>"
 		+ '<div class="k">Wiki-Artikel</div><div><input type="url" data-f="wiki" placeholder="https://de.wiki-aventurica.de/wiki/…" value="' + esc(region.wiki_url || "") + '">'
 		+ '<div class="pl-hint">' + (region.wiki_region_key ? "Schlüssel <b>" + esc(region.wiki_region_key) + "</b> — vom Server aus der URL abgeleitet" : "ohne Wiki-Eintrag — ein gültiger Zustand") + "</div></div>"
 		+ "</div>"

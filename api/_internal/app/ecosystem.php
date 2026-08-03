@@ -1846,6 +1846,22 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     }
 
     $effectiveKind = $fields['kind'] ?? (string) $before['kind'];
+    // 🔴 Bei einer Klimazone stehen EBENE UND ART fest (2026-08-03). Name und Wiki-Artikel darf der
+    // Editor ändern -- das ist die Region wie jede andere. Die ART aber sagt, WELCHE der sieben Zonen
+    // das ist, und daran hängt, welche Trennlinien ihr Band begrenzen: zwei Regionen derselben Art
+    // liessen eine Zone ohne Fläche zurück, und ein Ebenenwechsel nähme ihr die Ableitung ganz weg.
+    //
+    // 💣 Der Riegel gehört HIERHER und nicht nur an das `disabled` im Editor-Formular: ein deaktiviertes
+    // Feld verhindert das Verstellen, nicht das Senden.
+    if (avesmapsClimateIsDerivedKind((string) $before['kind']) || avesmapsClimateIsDerivedKind($effectiveKind)) {
+        if (array_key_exists('kind', $fields) && $fields['kind'] !== (string) $before['kind']) {
+            throw new InvalidArgumentException('The layer of a climate zone cannot be changed.');
+        }
+        if (array_key_exists('region_type', $fields)
+            && (string) ($fields['region_type'] ?? '') !== (string) ($before['region_type'] ?? '')) {
+            throw new InvalidArgumentException('The kind of a climate zone cannot be changed -- it says which of the seven zones this is.');
+        }
+    }
     // Two ways to end up with a mismatched pair: change the type, or change the kind under an existing
     // type. Both are checked, so `wald` can never sit on a topographie region.
     $effectiveType = array_key_exists('region_type', $fields)
