@@ -100,6 +100,10 @@ let locationData = [],
 	// die Weg-public_ids braucht (V10 „Führt durch"), braucht die Liste dazu -- genau wie
 	// currentRoutePlanEntries selbst existiert, weil der Popup-Bauer den Plan-Zustand braucht.
 	currentRouteSegments = [],
+	// Die Knotennamen derselben Route. Zusammen mit currentRouteSegments ist es genau das Paar, aus
+	// dem showRoutePlan() den Plan baut -- gecacht, damit eine reine ANZEIGE-Aenderung (der
+	// Reisebeginn) neu zeichnen kann, ohne den Router noch einmal laufen zu lassen.
+	currentRouteNames = [],
 	activeRoutePlanEntryIndex = null,
 	graphData = null,
 	locationConnectivityIndex = null,

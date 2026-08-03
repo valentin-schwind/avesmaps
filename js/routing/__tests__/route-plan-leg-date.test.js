@@ -65,6 +65,13 @@ global.isCrossingLocation = () => false;
 const placeNames = ["Aran", "Beran", "Ceran", "Deran", "Eran"];
 global.locationData = placeNames.map((name, index) => ({ name, coordinates: [0, index * 30] }));
 global.selectedLocations = [];
+// Der Routen-Zustand aus js/app/runtime-state.js. Er wird hier gesetzt und nicht dem Zufall
+// ueberlassen: `showRoutePlan` SCHREIBT die drei, `redrawRoutePlan` LIEST sie -- ohne Deklaration
+// haette der Lesezugriff geworfen statt die Regel zu pruefen.
+global.currentRoutePlanEntries = [];
+global.currentRouteSegments = [];
+global.currentRouteNames = [];
+global.activeRoutePlanEntryIndex = null;
 
 // ---- jQuery-Rand: sammelt, was showRoutePlan schreibt ---------------------------------------------
 let appended = [];
@@ -177,5 +184,43 @@ assert.ok(
 	legsNameless.some((markup) => markup.includes("Namenloser Tag")),
 	`eine Etappe muss in den Namenlosen Tagen liegen:\n${legsNameless.join("\n---\n")}`
 );
+
+// ---- Den Reisebeginn NACHTRAEGLICH waehlen ---------------------------------------------------------
+// 🔴 Der Nutzerpfad, der vorher ins Leere lief: Route steht, DANN waehlt jemand den Monat. Ohne
+// Neuzeichnen passiert nichts -- das Datum erscheint erst, wenn die Route aus anderem Anlass neu
+// gebaut wird, und wer nur den Monat setzt, haelt das Feature fuer kaputt.
+travelStartMonthValue = "";
+travelStartDayValue = "1";
+global.getPlannerRestHoursPerDay = () => 12;
+showRoutePlan(routeNames, segments);
+assert.ok(!appended.join("").includes("__date"), "Vorbedingung: ohne Reisebeginn steht kein Datum da");
+
+travelStartMonthValue = "firun";
+travelStartDayValue = "25";
+redrawRoutePlan();
+const afterPick = appended.slice();
+assert.strictEqual(afterPick.length, 4, `nach dem Neuzeichnen wieder vier Etappen, nicht ${afterPick.length}`);
+assert.ok(
+	afterPick[0].includes("25.–27. Firun"),
+	`nach der Monatswahl muss das Datum ohne Routenneubau dastehen:\n${afterPick[0]}`
+);
+
+// ... und wieder abwaehlen raeumt es weg, statt ein totes Datum stehenzulassen.
+travelStartMonthValue = "";
+redrawRoutePlan();
+assert.ok(!appended.join("").includes("__date"), "'Ohne Jahreszeit' nimmt das Datum wieder heraus");
+
+// ---- Ohne Route tut das Neuzeichnen nichts ----------------------------------------------------------
+// 💣 Der Handler haengt am Panel und feuert auch, wenn noch gar keine Route existiert (und beim
+// Anwenden eines geteilten Links, bevor die Route gebaut ist). Er darf dort nicht werfen.
+const savedNames = currentRouteNames;
+const savedSegments = currentRouteSegments;
+currentRouteNames = [];
+currentRouteSegments = [];
+appended = [];
+assert.doesNotThrow(() => redrawRoutePlan(), "ohne Route darf das Neuzeichnen nicht werfen");
+assert.strictEqual(appended.length, 0, "ohne Route wird auch nichts gezeichnet");
+currentRouteNames = savedNames;
+currentRouteSegments = savedSegments;
 
 console.log("route-plan-leg-date.test.js: all assertions passed");

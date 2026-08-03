@@ -927,6 +927,7 @@ function showRoutePlan(routeNames, segments) {
 	const routeDesc = routePlanViewModel.routeDescription;
 	currentRoutePlanEntries = planEntries;
 	currentRouteSegments = segments;
+	currentRouteNames = routeNames;
 	// V10: EIN Abruf fuer die ganze Route, hier und nicht im Markup. Das Zeichnen einer Route ist
 	// eine Nutzeraktion, die genau einmal stattfindet -- 45 Etappen kosten eine Anfrage, und jede
 	// danach geoeffnete Etappen-Infobox kostet keine mehr. (Der Weg-Infobox-Container geht dagegen
@@ -1038,6 +1039,39 @@ function showRoutePlan(routeNames, segments) {
 		${planEntries.length ? `<div class="route-plan-legs__title">${tr("planner.legs.heading", "Reiseetappen")}</div>` : ""}
 	`);
 	$overview.find(".route-plan-summary").on("click", zoomToCurrentRoute);
+}
+
+/**
+ * Den stehenden Reiseplan noch einmal zeichnen, ohne die Route neu zu suchen.
+ *
+ * Fuer Einstellungen, die nur die ANZEIGE betreffen -- heute der Reisebeginn: das Datum jeder
+ * Etappe und die Ankunft haengen daran, die gewaehlte Route selbst nicht. Ein voller Neubau liefe
+ * dafuer durch Dijkstra oder ueber POST /api/route/, und das fuer eine Zahl, die schon feststeht.
+ *
+ * ⭐ Billig, weil beide Zutaten schon dastehen: `buildRouteResult` rechnet nur die Etappen der
+ * BEKANNTEN Segmente nach, und `avesmapsPathLandscapesEnsure` findet seine Wege im Zwischenspeicher
+ * und fragt den Server nicht noch einmal.
+ *
+ * 💣 Tut nichts, solange keine Route steht. Der Ausloeser haengt am Panel und feuert auch, bevor
+ * ueberhaupt eine Route gesucht wurde -- und beim Anwenden eines geteilten Links.
+ */
+function redrawRoutePlan() {
+	if (!Array.isArray(currentRouteSegments) || !currentRouteSegments.length) {
+		return;
+	}
+	const activeIndex = activeRoutePlanEntryIndex;
+	showRoutePlan(currentRouteNames || [], currentRouteSegments);
+	// 💣 Die angeklickte Etappe ueberlebt das Neuzeichnen nur auf der KARTE: deren Layer baut
+	// showRoutePlan nicht neu, die Zeilen darunter schon -- ohne diese Zeilen leuchtet die Etappe
+	// weiter auf der Karte, waehrend die Liste keine mehr markiert hat. Nur die Klasse zurueck, NICHT
+	// selectRoutePlanEntry(): das faerbte auch die Layer um und baute die Etappen-Infobox neu, was
+	// beides schon steht.
+	if (activeIndex !== null && activeIndex !== undefined) {
+		activeRoutePlanEntryIndex = activeIndex;
+		document.querySelectorAll(".route-plan-entry[data-route-entry-index]").forEach((element) => {
+			element.classList.toggle("is-active", Number(element.dataset.routeEntryIndex) === activeIndex);
+		});
+	}
 }
 
 // Traegt diese Landschaftsflaeche eine Beschriftung auf unserer Karte? Nur dann wird ihr Name in der

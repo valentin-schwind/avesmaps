@@ -77,10 +77,27 @@ function enhanceRoutePlannerOptionPanel() {
 			const syncStartDayState = () => {
 				startDay.disabled = !startMonth.value;
 			};
-			startMonth.addEventListener("change", syncStartDayState);
+			// 💣 Der Reisebeginn aendert die ANZEIGE eines stehenden Plans, nicht die Route -- also neu
+			// ZEICHNEN, nicht neu suchen (redrawRoutePlan, js/routing/route-plan.js). Ohne diese Zeile
+			// waehlt jemand den Monat und es passiert sichtbar nichts: Etappendatum und Ankunft kamen
+			// erst, wenn die Route aus anderem Anlass neu gebaut wurde.
+			const refreshPlan = () => {
+				if (typeof redrawRoutePlan === "function") {
+					redrawRoutePlan();
+				}
+			};
+			const onStartChanged = () => {
+				syncStartDayState();
+				refreshPlan();
+			};
+			startMonth.addEventListener("change", onStartChanged);
+			// Der Tag nur bei `change`, nicht bei `input`: ein <input type=number> feuert sonst bei
+			// jedem Tastendruck, und „25" liefe ueber die Zwischenstufe „2".
+			startDay.addEventListener("change", refreshPlan);
 			// Ein geteilter Link setzt den Monat per .val(), also ohne `change`. Dasselbe Signal, das
-			// schon die eingeklappte Kopfzeile nachzieht (map-features-layer-state.js).
-			document.addEventListener("avesmaps:planner-state-applied", syncStartDayState);
+			// schon die eingeklappte Kopfzeile nachzieht (map-features-layer-state.js). Steht dann noch
+			// keine Route, tut das Neuzeichnen von sich aus nichts.
+			document.addEventListener("avesmaps:planner-state-applied", onStartChanged);
 			syncStartDayState();
 		}
 	};
