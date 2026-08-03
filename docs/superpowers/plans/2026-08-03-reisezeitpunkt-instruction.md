@@ -134,6 +134,33 @@ vorher. 💣 Server- und Client-Engine gegeneinander prüfen, nicht nur eine
 
 ## Phase 3 — Sperrzeiten als Wegdaten
 
+> **Entschieden und im Kern gebaut, 2026-08-03** (`api/_internal/routing/transport-season.php` +
+> `js/routing/transport-season.js`, 156 Fälle paritätsgeprüft). Was unten in den Punkten 1–3 steht,
+> ist damit überholt — kein eigener Abschnitt neben den Transportmitteln:
+>
+> - **Erlaubt und wann sind EINE Frage.** Jeder Haken in „Erlaubte Transportmittel" bekommt ein
+>   optionales Fenster. Nicht angehakt = nie · angehakt ohne Fenster = ganzjährig (jeder Weg heute)
+>   · angehakt mit Fenster = saisonal. Ein ganzjähriges Verbot („nicht für Karren") braucht damit
+>   keinen eigenen Schalter — der Haken kann das längst.
+> - **Gespeichert wird die Gangbarkeit, nicht die Sperre** — so formuliert es die Quelle, und wer
+>   abschreibt macht keinen Übersetzungsfehler. Der Preis: die Fenster laufen über den Jahreswechsel,
+>   die Sperren nicht. (Das Beispiel in Entwurf §4.4 ist falsch: Mitte Hesinde → Mitte Phex liegt
+>   mitten im Jahr. **Keine** der zehn belegten Sperren wechselt das Jahr, fünf der Fenster tun es.)
+> - **Gepflegt wird am Wiki-Weg, geschrieben an jedes seiner Segmente.** Gemessen am Bestand: ein
+>   Pass ist eine Kette (Schattenpass 12 Segmente, Kabashpforte 11, Raschtulsweg 9, Roterzpass 4),
+>   und **alle** tragen einen Wiki-Weg — während 113 der 187 Passsegmente nur einen Auto-Namen
+>   haben. Pro Segment gepflegt hinterlässt ein vergessenes Segment ein Loch, durch das der Router
+>   fährt. Der Router liest weiter die Kante und bleibt unangetastet.
+> - 💣 **Die Sichtbarkeitsregel „nur bei Gebirgspass/Seeweg/Flussweg" schlägt fehl.** Raschtulsweg
+>   (Straße + Weg) und Arvepass (Straße) haben **kein einziges** `Gebirgspass`-Segment — ausgerechnet
+>   zwei, die die Quelle namentlich nennt. Die Bedingung gehört an `wiki_path.art === 'Pass'`.
+> - **Der Arvepass bekommt gar keinen Eintrag.** „Kaum passierbar" erledigt der Bodenabzug schon:
+>   0,4 − 0,2 sind +100 % Reisezeit. Gerechnet statt behauptet, und der Router darf selbst wählen.
+>
+> **Offen:** der Schreibweg (`api/edit/map/paths-editor.php`, Aggregation über `wiki_path.wiki_key`)
+> und die Zeitspalte in beiden Editoren.
+
+
 1. Felder in den `properties` des Wegs, analog `allowed_transports`: von-Monat/-Tag,
    bis-Monat/-Tag, Art der Sperrung, Quellenvermerk. Über den Jahreswechsel zulässig.
 2. Sichtbar **nur** bei `Gebirgspass`, `Seeweg`, `Flussweg` (Entwurf §2.4 — die Quelle nennt
