@@ -1175,8 +1175,24 @@
 	--eco-contour: 0;
 }
 
+/* 🔴 KONTUR NUR BEIM BEARBEITEN (Owner 2026-08-03). Die aktive Ebene füllt, aber sie zeichnet ihre
+   Kante NICHT mehr von sich aus. Der Owner hat es an den Klimazonen gesehen, die von Anfang an keine
+   haben, und wollte es überall: „bei ‚Alle' und im Landschaftsmodul im Nutzerfront die Konturen
+   ausblenden — nicht im Editmodus bei den Regionen."
+
+   Der Grund ist derselbe wie bei den Bändern: eine Kante ist eine ARBEITS-Auskunft („bis hierher geht
+   die Fläche, die ich gerade ziehe"). Wer nur schaut, liest die Landschaft an der Farbe, und ein Netz
+   aus Rändern über der halben Karte macht daraus eine technische Zeichnung. */
 .ecosystem-pane--active {
 	--eco-fill: 0.6;
+	--eco-contour: 0;
+}
+
+/* Und hier kommt sie zurück: EINE Ebene, im Editiermodus. „Alle" ist ausdrücklich ausgenommen -- dort
+   liegen vier Ebenen übereinander, und genau deren Ränder waren das Netz.
+   🪤 Drei Klassen plus :not schlagen die Regel darüber (eine). Die Klasse `--editable` setzt
+   syncEcosystemPaneStates aus IS_EDIT_MODE. */
+.ecosystem-pane--active.ecosystem-pane--editable:not(.ecosystem-pane--showall) {
 	--eco-contour: 0.7;
 }
 
@@ -1272,8 +1288,12 @@
    Die ANGEKLICKTE Fläche ist NICHT ausgenommen -- anders als oben. Ein Klimaband lässt sich zwar
    anklicken (die Infobox sagt, welche Zone das ist), aber es lässt sich nicht bearbeiten; es aus der
    Menge hervorzuheben hätte also nichts, worauf es hinweisen könnte. */
+/* 0,30 statt 0,18 (Owner 2026-08-03: „die farben/transparenzen der klimazonen etwas stärker"). Bei 0,18
+   war die Polare Zone auf den hellen Kacheln praktisch nicht zu sehen; die Töne selbst sind im selben
+   Zug eine Stufe kräftiger geworden (css/base/tokens.css). Es bleibt deutlich unter der Füllung der
+   gezeichneten Ebenen (0,6) -- ein Band deckt die Karte in voller Breite und darf sie nicht zumachen. */
 .ecosystem-pane--klima.ecosystem-pane--active > svg path.leaflet-interactive {
-	fill-opacity: 0.18;
+	fill-opacity: 0.3;
 	stroke-opacity: 0;
 }
 
@@ -1370,9 +1390,14 @@
 /* Der Zonenname am Westrand seines Bandes. Kein Karten-Label: er gehoert zur Ebene und verschwindet
    mit ihr, laeuft also auch nicht durch die Kollisionsaufloesung und konkurriert mit nichts.
    Klickdurchlaessig, damit er den Klick auf die Linie darunter nicht schluckt. */
+/* Der Marker sitzt EXAKT auf der Westkante (x = 0) -- dort hat das Band genau zwei Ringecken, deren
+   Mitte die Bandmitte ist, und das rechnet sich ohne Schätzung. Der Abstand zum Kartenrand ist deshalb
+   ein PIXELmaß hier und keine Karteneinheit: er soll beim Zoomen gleich bleiben. */
 .ecosystem-climate-name {
 	pointer-events: none;
 	white-space: nowrap;
+	padding-left: var(--space-12);
 	font-size: var(--font-size-small);
+	font-weight: var(--font-weight-bold);
 	color: var(--color-ecosystem-klima-label);
 }

@@ -234,14 +234,18 @@
 	   aus -- dieselbe Falle, die bei `insel` 251 Flächen zu Gebirgen gemacht hätte.
 	   Die kühlen Töne sind dieselbe bewusste Ausnahme von „kein Blau" wie See und Meer darüber:
 	   gemalte KARTENDATEN, nicht UI-Chrom (§12). Gepinnt, sie liegen auf den immer hellen Kacheln. */
-	--color-ecosystem-klima: #c9cf9b;                       /* fallback -- the middle of the ramp */
-	--color-ecosystem-klima-polar: #e6eef3;                 /* polar, near-white ice */
-	--color-ecosystem-klima-subpolar: #bcd3dc;              /* subpolar, pale ice blue */
-	--color-ecosystem-klima-boreal: #8fb6b4;                /* boreal, cold teal */
-	--color-ecosystem-klima-gemaessigt: #c9cf9b;            /* temperate, neutral pale olive */
-	--color-ecosystem-klima-subtropen-winterfeucht: #e0c274; /* winter-wet subtropics, warm gold */
-	--color-ecosystem-klima-subtropisch: #dd9c55;           /* subtropical, orange ochre */
-	--color-ecosystem-klima-tropisch: #cc6f45;              /* tropical, warm terracotta */
+	   Owner 2026-08-03, zweiter Durchgang: „etwas stärker". Die ganze Rampe eine Stufe kräftiger, und
+	   das kalte Ende am deutlichsten -- #e6eef3 war auf den hellen Kacheln bei jeder Deckkraft fast
+	   unsichtbar, was die Polare Zone praktisch unbeschriftet liess. Die Reihenfolge kalt→warm und der
+	   neutrale Ton in der Mitte bleiben; nur der Kontrast zwischen benachbarten Zonen wächst. */
+	--color-ecosystem-klima: #bfc888;                       /* fallback -- the middle of the ramp */
+	--color-ecosystem-klima-polar: #cfe0eb;                 /* polar, pale ice */
+	--color-ecosystem-klima-subpolar: #a2c3d1;              /* subpolar, ice blue */
+	--color-ecosystem-klima-boreal: #7aada9;                /* boreal, cold teal */
+	--color-ecosystem-klima-gemaessigt: #bfc888;            /* temperate, neutral olive */
+	--color-ecosystem-klima-subtropen-winterfeucht: #dcb857; /* winter-wet subtropics, warm gold */
+	--color-ecosystem-klima-subtropisch: #d98f3c;           /* subtropical, orange ochre */
+	--color-ecosystem-klima-tropisch: #c65e2e;              /* tropical, warm terracotta */
 	/* Die Trennlinie selbst und der Zonenname. Ein neutrales Dunkel, das auf allen sieben Tönen sitzt --
 	   dieselbe Begründung wie beim topographischen Konturton: wo eine Zone aufhört, ist genau die
 	   Auskunft dieser Ebene, und die darf ihre Farbe nicht je Zone wechseln. */

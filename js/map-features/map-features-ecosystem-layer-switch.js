@@ -83,6 +83,16 @@ function syncEcosystemPaneStates() {
 		// Eigene Klasse für „Alle", statt es aus „alle drei sind aktiv" zu erraten: das CSS braucht den
 		// Modus, um die derographischen Flächen dort zurückzunehmen (siehe ecosystem-layer.css).
 		pane.classList.toggle("ecosystem-pane--showall", showAll);
+		// Owner 2026-08-03: die Konturen gehören dem BEARBEITEN, nicht dem Ansehen. Der Zustand sitzt
+		// hier an der Pane wie jeder andere -- das CSS entscheidet daraus, ob eine Kante gezeichnet wird
+		// (Deckkraft-Matrix in css/features/ecosystem-layer.css).
+		//
+		// 🪤 IS_EDIT_MODE, nicht IS_ECOSYSTEM_ENABLED. Das zweite sagt nur, ob die EBENE angeboten wird
+		// -- ein angemeldeter Admin sieht sie seit 2026-08-01 auch auf der normalen Karte, und genau
+		// dort soll die Kontur weg. Die Zeichenwege fragen dasselbe Flag (context-action,
+		// territory-import), diese Klasse ist also keine zweite Definition von „ich bearbeite gerade".
+		pane.classList.toggle("ecosystem-pane--editable",
+			typeof IS_EDIT_MODE !== "undefined" && Boolean(IS_EDIT_MODE));
 	});
 
 	// Owner 2026-07-26: Karten-Labels benennen die DEROGRAPHISCHE Ebene. Beim Zeichnen von Vegetation

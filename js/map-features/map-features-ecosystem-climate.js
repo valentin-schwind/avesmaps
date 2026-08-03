@@ -18,11 +18,10 @@ const CLIMATE_MAX_XY = 1024;
 // Server sieht beide Bewegungen.
 const CLIMATE_MIN_GAP = 1;
 
-// Wo der Zonenname sitzt: ein Stück vom Westrand herein, damit er nicht am Kartenrand klebt.
-const CLIMATE_NAME_ANCHOR_X = 40;
-
-// Unter dieser Bandhöhe wird der Name weggelassen. Ein Name, der über seine eigene Zone hinausragt,
-// beschriftet die Nachbarzone mit.
+// Unter dieser Bandhöhe (Karteneinheiten) wird der Name weggelassen. Ein Name, der über seine eigene
+// Zone hinausragt, beschriftet die Nachbarzone mit.
+// Der ABSTAND zum Kartenrand steht dagegen im CSS (`.ecosystem-climate-name`, padding-left): er ist ein
+// Pixelmaß und soll beim Zoomen nicht mitwachsen.
 const CLIMATE_NAME_MIN_HEIGHT = 8;
 
 // ---- reine Rechnerei (unit-getestet, js/map-features/__tests__/ecosystem-climate.test.js) ----------
@@ -92,13 +91,21 @@ function climateSay(message, tone) {
 	}
 }
 
-// Drei Tore, wie überall in dieser Ebene: der Modus, die gewählte Ebene, und der Edit-Modus. Das dritte
-// ist hier zwingend -- Bänder ANSEHEN darf jeder Admin, Grenzen ZIEHEN nur im Editiermodus. Dieselbe
-// zusätzliche Bedingung tragen die Zeichenwege (context-action, territory-import).
-function isClimateEditorActive() {
+// 🔴 ZWEI Fragen, nicht eine (Owner 2026-08-03: „die labels auch im frontend anzeigen").
+//
+//   SICHTBAR   = Modus + gewählte Ebene. Dann werden die ZONENNAMEN gezeichnet -- sie sind die Auskunft
+//                der Ebene, und ohne sie ist ein farbiges Band eine Farbe ohne Aussage.
+//   BEARBEITBAR = zusätzlich IS_EDIT_MODE. Erst dann kommen Trennlinien und Griffe dazu.
+//
+// Die Trennung ist der ganze Punkt: im Frontend soll man die Zonen LESEN, nicht ihre Konstruktion
+// sehen. Dieselbe Linie, an der auch die Konturen hängen (ecosystem-pane--editable im Layer-Switch).
+function isClimateLayerVisible() {
 	return typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
-		&& typeof getActiveEcosystemLayerKind === "function" && getActiveEcosystemLayerKind() === "klima"
-		&& typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE;
+		&& typeof getActiveEcosystemLayerKind === "function" && getActiveEcosystemLayerKind() === "klima";
+}
+
+function isClimateEditorActive() {
+	return isClimateLayerVisible() && typeof IS_EDIT_MODE !== "undefined" && Boolean(IS_EDIT_MODE);
 }
 
 function climateNeighbourCoordinates(dividerIndex, offset) {
@@ -183,29 +190,67 @@ function drawClimateHandle(divider, dividerIndex, pointIndex) {
 	climateHandleLayers.push(handle);
 }
 
+// Wo sitzt der Name eines Bandes? An seiner WESTKANTE, mittig zwischen oberer und unterer Grenze.
+//
+// 🔴 Aus der FLÄCHE gerechnet, nicht aus den Trennlinien. Die Namen sollen auch im Frontend stehen, und
+// dort gibt es die Trennlinien nicht: sie kommen vom Editor-Endpunkt. Die Bänder dagegen reisen im
+// öffentlichen Flächen-Payload, mitsamt ihrem Regionsnamen -- also ist die Fläche die richtige Quelle.
+//
+// Die Rechnung ist exakt statt geschätzt: ein Band beginnt und endet auf dem Kartenrand, sein Ring hat
+// bei x = 0 deshalb GENAU zwei Ecken (oben links und unten links). Deren Mitte ist die Bandmitte an der
+// Westkante. Ein `bounds`-Mittelwert wäre bei einer schrägen Grenze daneben.
+function climateAreaWestEdgeSpan(geometry) {
+	const parts = geometry?.type === "MultiPolygon" ? geometry.coordinates : [geometry?.coordinates];
+	let min = null;
+	let max = null;
+	(parts || []).forEach((polygon) => {
+		(polygon?.[0] || []).forEach((position) => {
+			if (Math.abs(Number(position?.[0]) - CLIMATE_MIN_XY) > 0.5) {
+				return;
+			}
+			const y = Number(position[1]);
+			if (!Number.isFinite(y)) {
+				return;
+			}
+			min = min === null ? y : Math.min(min, y);
+			max = max === null ? y : Math.max(max, y);
+		});
+	});
+	return min === null ? null : { min, max };
+}
+
 // Der Zonenname am Westrand seines Bandes.
 //
 // 🔴 KEIN map_features-Label. Ein echtes Karten-Label bräuchte einen neuen Subtyp in der Allowlist,
 // liefe durch die Kollisionsauflösung und stünde auf der normalen Karte -- wo eine „Tropische Zone"
 // mit echter Geographie um Platz konkurrierte. Der Name gehört zur Ebene und verschwindet mit ihr.
 function drawClimateZoneNames() {
-	const dividerCount = (climateDividers || []).length;
-	climateZones.forEach((zone, zoneIndex) => {
-		const north = zoneIndex === 0 ? null : climateNeighbourCoordinates(zoneIndex - 1, 0);
-		const south = zoneIndex >= dividerCount ? null : climateNeighbourCoordinates(zoneIndex, 0);
-		const top = north ? climateYAtX(north, CLIMATE_NAME_ANCHOR_X) : CLIMATE_MAX_XY;
-		const bottom = south ? climateYAtX(south, CLIMATE_NAME_ANCHOR_X) : CLIMATE_MIN_XY;
-		if (top - bottom < CLIMATE_NAME_MIN_HEIGHT) {
+	if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+		return;
+	}
+	const escape = typeof escapeHtml === "function" ? escapeHtml : ((value) => String(value));
+	ecosystemLayers.forEach((layer) => {
+		const area = layer?._ecosystemArea;
+		if (!area || area.kind !== "klima") {
 			return;
 		}
-		const escape = typeof escapeHtml === "function" ? escapeHtml : ((value) => String(value));
-		const marker = L.marker([(top + bottom) / 2, CLIMATE_NAME_ANCHOR_X], {
+		const span = climateAreaWestEdgeSpan(area.geometry);
+		// Kein Rand getroffen (kann nur ein Fremdkörper in dieser Ebene sein) oder das Band ist zu
+		// dünn: dann lieber kein Name als einer, der in die Nachbarzone ragt und sie mitbeschriftet.
+		if (!span || span.max - span.min < CLIMATE_NAME_MIN_HEIGHT) {
+			return;
+		}
+		const name = String(area.region_name || "").trim();
+		if (name === "") {
+			return;
+		}
+		const marker = L.marker([(span.min + span.max) / 2, CLIMATE_MIN_XY], {
 			pane: "ecosystemPaneKlimaLines",
 			interactive: false,
 			keyboard: false,
 			icon: L.divIcon({
 				className: "ecosystem-climate-name",
-				html: `<span>${escape(zone.label)}</span>`,
+				html: `<span>${escape(name)}</span>`,
 				iconSize: null,
 			}),
 		}).addTo(map);
@@ -215,7 +260,17 @@ function drawClimateZoneNames() {
 
 function drawClimateOverlay() {
 	clearClimateOverlay();
-	if (typeof map === "undefined" || !map || !Array.isArray(climateDividers)) {
+	if (typeof map === "undefined" || !map || !isClimateLayerVisible()) {
+		return;
+	}
+
+	// Die NAMEN immer, sobald die Ebene sichtbar ist -- auch ohne Editiermodus. Sie hängen an den
+	// geladenen Flächen, nicht an den Trennlinien, und brauchen deshalb keinen Editor-Aufruf.
+	drawClimateZoneNames();
+
+	// Trennlinien und Griffe NUR im Editiermodus. Im Frontend soll man die Zonen lesen, nicht ihre
+	// Konstruktion sehen -- dieselbe Linie, an der auch die Konturen hängen.
+	if (!isClimateEditorActive() || !Array.isArray(climateDividers)) {
 		return;
 	}
 
@@ -232,7 +287,6 @@ function drawClimateOverlay() {
 			drawClimateHandle(divider, dividerIndex, pointIndex);
 		});
 	});
-	drawClimateZoneNames();
 }
 
 // ---- Gesten ----------------------------------------------------------------------------------------
@@ -343,18 +397,22 @@ async function saveClimateDivider(dividerIndex) {
 // sich damit bei jeder anderen Lage selbst ab -- es braucht keinen zweiten Aufräumweg.
 
 function syncEcosystemClimateEditor() {
-	if (!isClimateEditorActive()) {
+	if (!isClimateLayerVisible()) {
 		clearClimateOverlay();
 		return;
 	}
-	if (climateDividers === null) {
+	// 🪤 IMMER zuerst zeichnen, auch wenn gleich noch geladen wird. Die Namen hängen an den Flächen und
+	// sind sofort da; sie auf die Antwort des Editor-Endpunkts warten zu lassen hiesse, sie im Frontend
+	// gar nicht zu zeigen -- dort wird er nie gerufen.
+	drawClimateOverlay();
+
+	// Die Trennlinien braucht nur der Editiermodus, und nur dort wird der Endpunkt gerufen.
+	if (isClimateEditorActive() && climateDividers === null && !climateLoading) {
 		void loadClimateDividers().catch((error) => {
 			console.warn("Klimazonen konnten nicht geladen werden:", error);
 			climateDividers = null;
 		});
-		return;
 	}
-	drawClimateOverlay();
 }
 
 window.AvesmapsEcosystemClimate = { sync: syncEcosystemClimateEditor };
@@ -362,5 +420,8 @@ window.AvesmapsEcosystemClimate = { sync: syncEcosystemClimateEditor };
 // Node-Export für die Einheitentests (Hausmuster, wie map-features-ecosystem-boolean.js). Im Browser
 // existiert `module` nicht, dort bleiben die Funktionen schlicht global.
 if (typeof module !== "undefined" && module.exports) {
-	module.exports = { climateYAtX, climateClampVertexY, climateClampVertexX, climateInsertionIndex };
+	module.exports = {
+		climateYAtX, climateClampVertexY, climateClampVertexX, climateInsertionIndex,
+		climateAreaWestEdgeSpan,
+	};
 }

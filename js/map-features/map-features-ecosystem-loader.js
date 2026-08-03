@@ -247,6 +247,12 @@ function applyEcosystemAreaPayload(payload) {
 	if (typeof syncEcosystemLabelMuting === "function") {
 		syncEcosystemLabelMuting();
 	}
+
+	// Die Zonennamen der Klimazonen hängen an genau dieser Registry: sie werden aus der FLÄCHE gerechnet
+	// (Westkante, Bandmitte), nicht aus den Trennlinien -- nur so stehen sie auch im Frontend, wo der
+	// Editor-Endpunkt nie gerufen wird. Nach jedem Nachladen kann sich also geändert haben, welche Bänder
+	// da sind und wo sie liegen; ohne diesen Aufruf bliebe ein frisch abgeleitetes Band namenlos.
+	window.AvesmapsEcosystemClimate?.sync?.();
 }
 
 async function loadEcosystemAreas() {
