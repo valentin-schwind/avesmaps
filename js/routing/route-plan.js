@@ -1108,12 +1108,12 @@ function renderRoutePlanTravelCosts() {
 	$overview.find(".route-plan-costs").remove();
 	$overview.append(`
 		<div class="route-plan-costs">
-			<div class="route-plan-legs__title">${tr("planner.cost.heading", "Reisekosten")}</div>
+			<div class="route-plan-legs__title">${tr("planner.cost.heading", "Reisekosten je Person")}</div>
 			<div class="route-plan-summary__time">
 				${result.rows.map(routePlanTravelCostRowMarkup).join("")}
 				<div class="route-plan-summary__rule"></div>
 				<div class="route-plan-summary__row route-plan-summary__row--total" data-route-cost-total>
-					<span class="route-plan-summary__label">${tr("planner.cost.total", "Summe je Person")}</span>
+					<span class="route-plan-summary__label">${tr("planner.cost.total", "Summe")}</span>
 					<span class="route-plan-summary__value">${bordersPending ? `<span class="route-plan-cost__pending">…</span>` : escapeHtml(formatAventurianMoney(sum))}</span>
 					<span class="route-plan-summary__note">${escapeHtml(complete || bordersPending ? partyNote : tr("planner.cost.total.withoutTolls", "{party} — ohne Zölle", { party: partyNote }))}</span>
 				</div>

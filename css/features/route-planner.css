@@ -1206,6 +1206,16 @@
 .route-plan-costs {
 	display: block;
 }
+/* 💣 DEUTSCHE KOMPOSITA MUESSEN BRECHEN DUERFEN. „Bett im Gemeinschaftszimmer" steht in der dritten
+   Spalte, und die ist `minmax(0, 1fr)` -- schmal. Ein einzelnes langes Wort passt dort nicht und
+   schiebt ohne diese Zeile das ganze Raster breiter, worauf #overview (overflow-x: auto) einen
+   waagerechten Rollbalken zeigt und den Text am Rand abschneidet (live gesehen 2026-08-03).
+   `anywhere`, nicht `break-word`: nur `anywhere` zaehlt beim Ermitteln der Mindestbreite mit und
+   verhindert damit, dass die Spalte ueberhaupt erst zu breit angesetzt wird.
+   Gemessen bei 329 px Panelbreite -- der echten. */
+.route-plan-costs .route-plan-summary__note {
+	overflow-wrap: anywhere;
+}
 /* Die Zollzeile wird nachgetragen, sobald die Herrschaftsgebiete geladen sind. Bis dahin steht hier
    ein leiser Platzhalter -- KEIN Nullwert, der eine zollfreie Reise behaupten wuerde. */
 .route-plan-cost__pending {
