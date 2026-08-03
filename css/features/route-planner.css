@@ -1239,6 +1239,21 @@
 .route-plan-costs {
 	display: block;
 }
+/* Die Kostentabelle laeuft ueber die VOLLE Breite ihrer Trenner (Owner 2026-08-04) -- Ueberschrift,
+   Tabelle und Quellzeile stehen damit auf einer Kante statt die Tabelle 6 px eingerueckt.
+   💣 Die Seitenluft kommt nicht von hier, sondern aus review-panel.css: dort setzt
+   `.route-plan-summary__time { padding: 0 6px 2px }` dieselbe Klasse, die auch die Reiseuebersicht
+   ganz oben benutzt. Deshalb hier nur fuer den Kostenblock zuruecknehmen und nicht dort loeschen --
+   sonst ruecken Distanz, Reisezeit und Rastzeit gleich mit aus. */
+.route-plan-costs .route-plan-summary__time {
+	padding-left: 0;
+	padding-right: 0;
+}
+/* Die gemeinsame Titelregel gibt 1 px nach unten -- unter einer Ueberschrift, die ueber einer
+   Tabelle steht, klebt das. */
+.route-plan-costs .route-plan-legs__title {
+	margin-bottom: 7px;
+}
 /* 💣 DEUTSCHE KOMPOSITA MUESSEN BRECHEN DUERFEN. „Bett im Gemeinschaftszimmer" steht in der dritten
    Spalte, und die ist `minmax(0, 1fr)` -- schmal. Ein einzelnes langes Wort passt dort nicht und
    schiebt ohne diese Zeile das ganze Raster breiter, worauf #overview (overflow-x: auto) einen
