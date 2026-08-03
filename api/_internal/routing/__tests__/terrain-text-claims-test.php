@@ -176,21 +176,47 @@ $readJs = static function (string $relative) use ($jsRoot): string {
 terrainClaimNear(2.0, AVESMAPS_PATH_FLOW_FACTOR_DEFAULT, 'upstream default = the source ratio (S. 129: Kahn 20/40, Segler 30/60)');
 terrainClaimNear(3.0, AVESMAPS_PATH_FLOW_FACTOR_MAX, 'upstream ceiling = the „bis zum 3-fachen" of the dialog');
 
-// The river speeds carry the source's day performance at the 12-hour travel day of S. 129 (Kahn 40,
-// Segler 60 downstream). TIME_SCALE_FACTOR is read from js/config.js because the SERVER never
-// applies it -- it is a display multiplier on the client (route-plan.js) and only the two together
-// produce the number a traveller sees.
+// Every entry of the speed table is a day performance in disguise. TIME_SCALE_FACTOR is read from
+// js/config.js because the SERVER never applies it -- it is a display multiplier on the client
+// (route-plan.js) and only the two together produce the number a traveller sees.
 $configSource = $readJs('config.js');
 assert((bool) preg_match('/const TIME_SCALE_FACTOR = ([0-9.]+);/', $configSource, $timeScaleMatch), 'TIME_SCALE_FACTOR readable from config.js');
 $timeScale = (float) $timeScaleMatch[1];
-$riverDayPerformance = static fn(float $speed): float => $speed / $timeScale * 12.0;
-foreach ([['riverBarge', 40.0], ['riverSailer', 60.0]] as [$mode, $expectedDay]) {
-    $actualDay = $riverDayPerformance((float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$mode]['Flussweg']);
+$dayPerformance = static fn(float $speed, float $hours): float => $speed / $timeScale * $hours;
+
+// Land: the source's day performance x mean_G, the measured mean slope factor of our roads. The
+// factor exists only to cancel our own slope layer -- the source's road factor is a flat 1,0.
+const AVESMAPS_TEST_MEAN_G = 1.032;
+foreach ([['groupFoot', 30.0], ['lightWalker', 40.0], ['groupHorse', 35.0], ['lightRider', 50.0],
+          ['caravan', 30.0], ['horseCarriage', 50.0]] as [$mode, $sourceDay]) {
+    $actualDay = $dayPerformance((float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$mode]['Strasse'], 12.0);
     assert(
-        abs($actualDay / $expectedDay - 1.0) < 0.01,
-        $mode . ' downstream must hit the source\'s ' . $expectedDay . ' miles/day at a 12-hour travel day -- is ' . round($actualDay, 2)
+        abs($actualDay / ($sourceDay * AVESMAPS_TEST_MEAN_G) - 1.0) < 0.01,
+        $mode . ' must travel ' . round($sourceDay * AVESMAPS_TEST_MEAN_G, 1) . ' miles/day on a level road '
+        . '(source ' . $sourceDay . ' x mean_G) -- is ' . round($actualDay, 2)
     );
 }
+
+// Water carries no terrain, so the source number stands unchanged -- but with the hours ITS OWN row
+// names (S. 129/131). 💣 The 24-hour day belongs to the Schnellsegler alone; the Lastensegler's row
+// is 120 at 12 h and the Galeere's 70 at 8, and both are coastal ships that anchor at night.
+foreach ([['riverBarge', 'Flussweg', 12.0, 40.0], ['riverSailer', 'Flussweg', 12.0, 60.0],
+          ['cargoShip', 'Seeweg', 12.0, 120.0], ['galley', 'Seeweg', 12.0, 70.0],
+          ['fastShip', 'Seeweg', 24.0, 250.0]] as [$mode, $subtype, $hours, $expectedDay]) {
+    $actualDay = $dayPerformance((float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$mode][$subtype], $hours);
+    assert(
+        abs($actualDay / $expectedDay - 1.0) < 0.01,
+        $mode . ' must hit the source\'s ' . $expectedDay . ' miles/day at ' . $hours . ' h -- is ' . round($actualDay, 2)
+    );
+}
+
+// The rest exemption is keyed on the TRANSPORT, not on Seeweg -- the sentence in the dialog says so.
+$restSourceEarly = $readJs('routing/route-result.js');
+assert(
+    str_contains($restSourceEarly, '=== "fastShip"'),
+    'route-result.js: the no-rest exemption must name fastShip. Keying it on Seeweg hands the '
+    . '24-hour day to the Lastensegler and the Galeere, whose rows are 120 @ 12 h and 70 @ 8 h.'
+);
 
 // „auf Karrenwegen und Pässen nur halbe Geschwindigkeit" (S. 123). Measured RELATIVE to Strasse, so
 // the assertion survives a future rescaling of the whole table and still catches an un-halving:
@@ -205,24 +231,25 @@ foreach ([['Weg', 0.8 * 0.5], ['Gebirgspass', 0.4 * 0.5]] as [$subtype, $expecte
     );
 }
 
-// restRule's „nur auf offener See wird durchgefahren" IS this one condition. Seeweg alone travels
-// around the clock; Flussweg sat beside it until 2026-08-02 and made every river 2,52x the source.
+// 💣 Flussweg must never return to a no-rest list: rivers rest (S. 129), and putting them back made
+// every river 2,52x the source's day performance for as long as it stood.
 $restSource = $readJs('routing/route-result.js');
-assert(str_contains($restSource, 'entry.type !== "Seeweg"'), 'route-result.js: the no-rest rule must name Seeweg and nothing else');
-assert(!str_contains($restSource, '"Seeweg", "Flussweg"'), 'route-result.js: Flussweg is back in the no-rest list -- rivers rest (S. 129), only the sea does not (S. 131)');
+assert(!str_contains($restSource, '"Seeweg", "Flussweg"'), 'route-result.js: Flussweg is back in the no-rest list -- rivers rest (S. 129)');
 
 $waterNeedles = [
     'DE' => [
         'in der Regel das 2-fache, bei starker Strömung bis zum 3-fachen',
-        'Das gilt an Land und auf Flüssen — nur auf offener See wird durchgefahren',
-        // seaNote is deliberately unchanged: per hour we are SLOWER than the source, and its
-        // 24-hour operation is documented (S. 131: Schnellsegler 250, Kurier-Dromone 200).
-        'Auf offener See wird Tag und Nacht durchgesegelt',
+        'Das gilt an Land, auf Flüssen und auch für Lastensegler und Galeere',
+        'nur der Schnellsegler</b> fährt rund um die Uhr',
+        'Nur der Schnellsegler fährt bei bekannter Strecke Tag und Nacht durch',
+        'Lastensegler und Galeere gehen nachts vor Anker',
     ],
     'EN' => [
         'as a rule twice the duration, and up to 3 times in strong currents',
-        'This applies on land and on rivers — only on the open sea',
-        'On the open sea, travel continues day and night',
+        'This applies on land, on rivers, and to the cargo sailer and the galley as well',
+        'only the fast sailer</b> runs around the clock',
+        'Only the fast sailer runs day and night on a known route',
+        'The cargo sailer and the galley anchor at night',
     ],
 ];
 

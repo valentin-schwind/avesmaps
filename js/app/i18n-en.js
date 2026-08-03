@@ -17,7 +17,7 @@ window.AVESMAPS_I18N_EN = {
 	// V12, edit mode only.
 	"planner.showRouteSpeed": "Speed",
 	"planner.showRouteSpeed.title": "Arrows along the planned route: short and red-brown where terrain or current slow you down, long and green where you gain. The length shows the deviation from the way type's base speed, not the absolute speed.",
-	"planner.travelHours.title": "Travel hours per day on land and on rivers; the rest of the day is spent resting. On the open sea, travel continues around the clock. 24 = travel without rest.",
+	"planner.travelHours.title": "Travel hours per day; the rest of the day is spent resting. Applies to every mode except the fast sailer, which runs around the clock. 24 = travel without rest.",
 	"planner.travelHoursSuffix": "travel hours per day",
 	// Kopfzeile der eingeklappten Einstellgruppen. Die uebrigen Bestandteile der
 	// Zusammenfassung liest sie aus dem gerenderten Markup und ist damit ohne eigene
@@ -41,12 +41,12 @@ window.AVESMAPS_I18N_EN = {
 	"planner.transport.land.aria": "Land transport",
 	"planner.transport.river.aria": "River transport",
 	"planner.transport.sea.aria": "Sea transport",
-	"planner.transport.opt.caravan": "Caravan (3.5 mph)",
-	"planner.transport.opt.groupFoot": "Group on foot (4 mph)",
-	"planner.transport.opt.lightWalker": "On foot, light luggage (5 mph)",
-	"planner.transport.opt.horseCarriage": "Horse carriage (5.5 mph)",
-	"planner.transport.opt.groupHorse": "Group on horseback (6.5 mph)",
-	"planner.transport.opt.lightRider": "Rider, light luggage (8 mph)",
+	"planner.transport.opt.caravan": "Caravan (3.07 mph)",
+	"planner.transport.opt.groupFoot": "Group on foot (3.07 mph)",
+	"planner.transport.opt.lightWalker": "On foot, light luggage (4.09 mph)",
+	"planner.transport.opt.horseCarriage": "Horse carriage (5.12 mph)",
+	"planner.transport.opt.groupHorse": "Group on horseback (3.58 mph)",
+	"planner.transport.opt.lightRider": "Rider, light luggage (5.12 mph)",
 	"planner.transport.opt.riverSailer": "River sailer",
 	"planner.transport.opt.riverBarge": "River barge",
 	"planner.transport.opt.cargoShip": "Cargo sailer",
@@ -742,8 +742,8 @@ window.AVESMAPS_I18N_EN = {
 	"transport.speedInfo.riverTravel": "River travel",
 	"transport.speedInfo.riverNote": "Downstream, with the current, you travel at full speed. Upstream, against the current, the same distance takes longer — as a rule twice the duration, and up to 3 times in strong currents.",
 	"transport.speedInfo.seaTravel": "Sea travel",
-	"transport.speedInfo.seaNote": "On the open sea, travel continues day and night — no rest time is needed.",
-	"transport.speedInfo.restRule": "<b>Rest.</b> By default you travel 12 hours a day and rest 12 hours (adjustable in the planner). This applies on land and on rivers — only on the open sea does travel continue without stopping.",
+	"transport.speedInfo.seaNote": "Only the fast sailer runs day and night on a known route — no rest time is needed for it. The cargo sailer and the galley anchor at night and rest like travellers on land.",
+	"transport.speedInfo.restRule": "<b>Rest.</b> By default you travel 12 hours a day and rest 12 hours (adjustable in the planner). This applies on land, on rivers, and to the cargo sailer and the galley as well — <b>only the fast sailer</b> runs around the clock.",
 	"transport.speedInfo.crossCountryRule": "<b>Cross-country.</b> If there is no real path between two places, the route cuts straight across the terrain. This is slow (1.25–2.5&nbsp;miles/h), so the calculation itself prefers large detours over proper roads and trails.",
 	// V11. "Schritt" stays (see the note above on the DSA unit of length). The numbers are the curve
 	// itself, not a paraphrase: 300 Schritt of climb per mile is a gradient of 0,1 and the factor is

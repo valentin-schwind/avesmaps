@@ -700,7 +700,11 @@ function buildRoutePlanEntries(routeNames, segments) {
 			aggregateEntry.segmentLabel = formatRoutePlanLabels(aggregateEntry.segmentLabelSet || new Set());
 			delete aggregateEntry.segmentLabelSet;
 			delete aggregateEntry.aggregateKey;
-			delete aggregateEntry.transport;
+			// 💣 `transport` BLEIBT AM EINTRAG. Es wurde hier gelöscht, solange es nur die Wasser-
+			// Etappen gruppierte -- seit die Rastregel am Transportmittel hängt (route-result.js:
+			// nur der Schnellsegler fährt durch), ist es die EINZIGE Stelle, an der die Etappe noch
+			// weiß, welches Schiff sie fährt. Ohne diese Zeile fiel `resolveRouteStepTransport` auf
+			// den Wegtyp „Seeweg" zurück und jedes Schiff bekam wieder den 24-Stunden-Tag.
 			entries.push(aggregateEntry);
 			aggregateEntry = null;
 		}

@@ -37,13 +37,19 @@ $request = ['optimize' => 'fastest', 'transports' => ['land' => 'groupFoot', 'sy
     'enabled_transports' => ['land' => true, 'river' => true, 'sea' => true]];
 
 // Eine Strasse aus einer Punktfolge -- Laenge und Zeit kommen aus der Geometrie, wie im echten Graphen.
-$roadAlong = static function (array &$graph, string $from, string $to, array $points): void {
+// 💣 DIE FIXTURE-STRASSE FOLGT DER TEMPOTABELLE. Ob der Umweg-Auslöser rechnet oder abkürzt,
+// entscheidet allein das VERHÄLTNIS zwischen Straße und Querfeldein -- und das Querfeldein liest der
+// Router aus derselben Tabelle. Eine feste 4,0 hier hätte bei der Quellen-Eichung am 2026-08-03 das
+// Verhältnis von 3,2 auf 4,2 verschoben, und der Fall „gerechnet und doch verloren" wäre still in
+// den Nachbarzweig `cannot_win` gerutscht, ohne je rot zu werden.
+$roadSpeed = (float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['groupFoot']['Strasse'];
+$roadAlong = static function (array &$graph, string $from, string $to, array $points) use ($roadSpeed): void {
     $length = 0.0;
     for ($i = 1; $i < count($points); $i++) {
         $length += hypot($points[$i][0] - $points[$i - 1][0], $points[$i][1] - $points[$i - 1][1]);
     }
     $connection = [
-        'distance' => $length, 'time' => $length / 4.0, 'route_type' => 'Strasse',
+        'distance' => $length, 'time' => $length / $roadSpeed, 'route_type' => 'Strasse',
         'transport_option' => 'groupFoot', 'id' => 'path-' . $from . $to, 'from' => $from, 'to' => $to,
         'geometry' => ['type' => 'LineString', 'coordinates' => $points],
     ];
@@ -187,7 +193,10 @@ $report = avesmapsMaybeOfferOffroadDetour($clientGraph, $request, [], null, $rou
 assert($report['triggered'] === true, 'die Schwelle ist ueberschritten: ' . $report['ratio']);
 assert($report['offered'] === false, 'angeboten wird nichts');
 assert($report['reason'] === 'cannot_win', 'und zwar ohne zu rechnen: ' . $report['reason']);
-assert(abs($report['best_possible_cost_units'] - 8.0) < 1e-9,
+// 💣 NICHT die Zahl hinschreiben. Das Querfeldein-Tempo steht in der Tempotabelle und hat sich mit
+// der Quellen-Eichung schon einmal geändert; ein festes „8,0" hier prüfte danach nur noch sich selbst.
+$querSpeed = (float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['groupFoot']['Querfeldein'];
+assert(abs($report['best_possible_cost_units'] - 10.0 / $querSpeed) < 1e-9,
     'die Bestzeit steht in der Antwort: ' . $report['best_possible_cost_units']);
 
 // 🔴 DER BEWEIS, DASS WIRKLICH NICHTS GERECHNET WURDE. Bei `slower` traegt der Bericht den
@@ -218,7 +227,7 @@ assert($report['best_possible_cost_units'] < $report['graph_cost_units'],
 // der Suche. Dieser Fall bleibt teuer, und das ist der Preis dafuer, keinen gewinnenden Querweg
 // abzuschneiden.
 $graph = ['A' => [], 'B' => []];
-$roadAlong($graph, 'A', 'B', [[0.0, 0.0], [0.0, 12.0], [10.0, 12.0], [10.0, 0.0]]);   // 34 -> Zeit 8,5
+$roadAlong($graph, 'A', 'B', [[0.0, 0.0], [0.0, 12.0], [10.0, 12.0], [10.0, 0.0]]);   // 34 Einheiten
 $clientGraph = ['graph' => $graph, 'statistics' => []];
 $route = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
 

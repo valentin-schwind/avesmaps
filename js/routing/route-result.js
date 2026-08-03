@@ -44,13 +44,20 @@ function buildRouteSteps(routeNames, segments, options = {}) {
 
 	return planEntries.map((entry) => {
 		let restTime = 0;
-		// 💣 ONLY Seeweg travels around the clock, and that is a source statement, not a convenience.
-		// S. 131 documents the 24-hour passage for sea ships (Schnellsegler 250 miles, Kurier-Dromone
-		// 200). S. 129 says the opposite for rivers: the travel day is 12 hours and only pirates or
-		// couriers run downstream at night. Flussweg sat in this list until 2026-08-02 and made every
-		// river 2,52x the source's day performance -- the speeds in SPEED_TABLE were right all along,
-		// the day they were multiplied by was not.
-		if (includeRests && entry.type !== "Seeweg") {
+		// 💣 THE NIGHT PASSAGE BELONGS TO A SHIP, NOT TO THE SEA. S. 131 grants it by name to exactly
+		// two vessels -- the Schnellsegler (250 miles) and the Kurier-Dromone (200, which we do not
+		// model) -- and calls it a special case with conditions. The Lastensegler's own row is 120
+		// miles at 12 hours and the Galeere's is 70 at 8; both are coastal ships, of which the same
+		// page says they „ankern gewöhnlich nachts oder laufen einen Hafen an".
+		//
+		// This condition was keyed on the PATH TYPE until 2026-08-03 and handed the 24-hour day to
+		// every ship afloat: the Lastensegler ran 201,7 miles/day against a source row of 120, the
+		// Galeere 181,5 against 70. Only the Schnellsegler happened to land right (242 against 250),
+		// which is what made the error look like none. Same shape as the river bug it followed --
+		// right per hour, wrong per day.
+		const exemptFromRest = entry.type === "Seeweg"
+			&& resolveRouteStepTransport(entry, entry.type) === "fastShip";
+		if (includeRests && !exemptFromRest) {
 			const days = entry.travelTime / travelPerDay;
 			const totalSegmentHours = days * 24;
 			restTime = totalSegmentHours - entry.travelTime;

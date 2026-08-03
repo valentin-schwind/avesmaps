@@ -1954,16 +1954,16 @@
 				>
 				<div class="transport-select-with-icon transport-icon-select">
 					<select id="landTransport" class="transportOptionSelect transport-native-select" aria-label="Land-Transportmittel" data-i18n-aria-label="planner.transport.land.aria">
-						<option value="caravan" data-i18n="planner.transport.opt.caravan">Karawane (3.5 Meilen/h)</option>
-						<option value="groupFoot" selected data-i18n="planner.transport.opt.groupFoot">Reisegruppe zu Fuß (4 Meilen/h)</option>
-						<option value="lightWalker" data-i18n="planner.transport.opt.lightWalker">Zu Fuß mit leichtem Gepäck (5 Meilen/h)</option>
-						<option value="horseCarriage" data-i18n="planner.transport.opt.horseCarriage">Pferdekutsche (5.5 Meilen/h)</option>
-						<option value="groupHorse" data-i18n="planner.transport.opt.groupHorse">Reisegruppe zu Pferd (6.5 Meilen/h)</option>
-						<option value="lightRider" data-i18n="planner.transport.opt.lightRider">Reiter zu Pferd mit leichtem Gepäck (8 Meilen/h)</option>
+						<option value="caravan" data-i18n="planner.transport.opt.caravan">Karawane (3,07 Meilen/h)</option>
+						<option value="groupFoot" selected data-i18n="planner.transport.opt.groupFoot">Reisegruppe zu Fuß (3,07 Meilen/h)</option>
+						<option value="lightWalker" data-i18n="planner.transport.opt.lightWalker">Zu Fuß mit leichtem Gepäck (4,09 Meilen/h)</option>
+						<option value="horseCarriage" data-i18n="planner.transport.opt.horseCarriage">Pferdekutsche (5,12 Meilen/h)</option>
+						<option value="groupHorse" data-i18n="planner.transport.opt.groupHorse">Reisegruppe zu Pferd (3,58 Meilen/h)</option>
+						<option value="lightRider" data-i18n="planner.transport.opt.lightRider">Reiter zu Pferd mit leichtem Gepäck (5,12 Meilen/h)</option>
 					</select>
 					<button type="button" id="landTransportButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="landTransportMenu">
 						<img id="landTransportIcon" class="transport-option-inline-icon" src="icons/Reisegruppe.webp" data-source-src="icons/Reisegruppe.webp" alt="" />
-						<span id="landTransportLabel" class="transport-combobox__label">Reisegruppe zu Fuß (4 Meilen/h)</span>
+						<span id="landTransportLabel" class="transport-combobox__label">Reisegruppe zu Fuß (3,07 Meilen/h)</span>
 					</button>
 					<div id="landTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Land-Transportmittel" hidden></div>
 				</div>
@@ -2018,7 +2018,7 @@
 				</label>
 			</div>
 			<div>
-				<label title="Reisestunden pro Tag an Land und auf Flüssen; der Rest des Tages ist Rast. Auf offener See wird durchgefahren. 24 = ohne Rast durchreisen." data-i18n-title="planner.travelHours.title">
+				<label title="Reisestunden pro Tag; der Rest des Tages ist Rast. Gilt für alle Reisearten außer dem Schnellsegler, der rund um die Uhr fährt. 24 = ohne Rast durchreisen." data-i18n-title="planner.travelHours.title">
 					<input type="number" id="travelHoursPerDay" value="12.0" min="0.5" max="24" step="0.5" style="width: 56px" /> <span data-i18n="planner.travelHoursSuffix">Reisestunden pro Tag</span>
 				</label>
 			</div>

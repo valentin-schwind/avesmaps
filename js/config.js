@@ -76,31 +76,46 @@ const PATH_ENDPOINT_SNAP_DISTANCE_PX = 18;
 // (api/_internal/routing/client-graph.php) and WP_SPEEDS (js/pages/wege-editor-model.js, land only).
 // Changing one without the others makes wege-editor-model.test.js red -- that is its job.
 //
-// 💣 THE RIVER VALUES ARE PER 12-HOUR DAY, NOT PER 24. They were once built from the source's day
-// performances at ITS hour count (8 h) and then travelled 24 h, because Flussweg sat in the no-rest
-// list -- 2,52x the source. S. 129 states the 12-hour travel day outright and lets only pirates and
-// couriers run at night, so the rest rule now covers rivers (route-result.js) and these values carry
-// the source's own arithmetic: Flusskahn 4,0 / 1,19 x 12 h = 40,3 miles/day (source 40), Flusssegler
-// 6,0 -> 60,5 (source 60). The handbook works the same example: 100 miles downstream = 2,5 days.
-// ⚠️ Sea is NOT affected and must not be "fixed" to match: per hour we are 9-16 % SLOWER than the
-// source, and its 24-hour operation is documented (Schnellsegler 250, Kurier-Dromone 200).
+// 💣 EVERY VALUE IS A DAY PERFORMANCE IN DISGUISE, and that is the whole construction:
+//
+//     value = source miles/day x mean_G x TIME_SCALE_FACTOR / travel hours
+//
+// The source (S. 123, 129, 131) states day performances, never speeds. `mean_G` = 1,032 is the
+// measured mean slope factor over our roads (the „Eichung", path_terrain_stamp) and exists ONLY to
+// cancel our own slope layer, which the source does not have -- its road factor is a flat 1,0. So a
+// group on foot travels 3,07 / 1,19 x 12 h = 31,0 miles/day on a LEVEL road, and the terrain brings
+// the average over real roads back to the source's 30. Each transport carries its own source value:
+// foot 30 · Wanderer 40 · beritten 35 · Reiter 50 · Karawane 30 · Kutsche 50.
+//
+// ⚠️ „Reisegruppe zu Pferd" is 35 by the S. 123 TABLE and „kaum mehr als 40" in the S. 118 prose.
+// The table wins -- a rules calculation follows the tabulated value, and the source's own worked
+// examples do too. Changing it to 40 is defensible but is then OUR choice, not the source's.
+//
+// 💣 TRAVEL HOURS ARE NOT UNIFORM, and the divisor above depends on the transport:
+//   land, river, Lastensegler, Galeere -> 12 h (S. 129/131 state the 12-hour travel day)
+//   Schnellsegler                      -> 24 h, the ONE ship the source grants a night passage
+//                                         (S. 131: 250 miles; the Kurier-Dromone's 200 we do not model)
+// The exemption lives in route-result.js and is keyed on the TRANSPORT, not on Seeweg -- a galley
+// hugs the coast and „ankert gewöhnlich nachts" (S. 131) just like a slow cargo sailer.
+// Express modes are deliberately unmodelled throughout (Eilmarsch, Botenreiter, Eilkutsche,
+// eilgeruderte Galeere 100) -- the Schnellsegler is the single exception, by owner decision.
 //
 // 💣 THE CARRIAGE IS HALVED ON Weg AND Gebirgspass, and that is a RULE, not a slope. S. 123: „auf
 // Karrenwegen und Pässen nur halbe Geschwindigkeit". „Karrenweg" is our `Weg` -- the source lists
 // „Weg/Karrenweg" as one category at factor 0,8 and calls the carriage „riskant" there. Result
 // against Strasse: Weg 0,409 (source 0,8 x 0,5) and Gebirgspass 0,182 (source 0,4 x 0,5).
 const SPEED_TABLE = {
-	groupFoot: { Reichsstrasse: 4.5, Strasse: 4.0, Weg: 3.5, Pfad: 3.0, Gebirgspass: 1.5, Wuestenpfad: 2.5, Querfeldein: 1.25 },
-	lightWalker: { Reichsstrasse: 5.5, Strasse: 5.0, Weg: 4.5, Pfad: 4.0, Gebirgspass: 2.0, Wuestenpfad: 3.5, Querfeldein: 1.7 },
-	groupHorse: { Reichsstrasse: 7.0, Strasse: 6.5, Weg: 5.5, Pfad: 4.5, Gebirgspass: 2.5, Wuestenpfad: 3.0, Querfeldein: 2.1 },
-	lightRider: { Reichsstrasse: 8.5, Strasse: 8.0, Weg: 7.0, Pfad: 6.0, Gebirgspass: 3.0, Wuestenpfad: 4.0, Querfeldein: 2.5 },
-	caravan: { Reichsstrasse: 4.0, Strasse: 3.5, Weg: 3.0, Pfad: 2.5, Gebirgspass: 1.5, Wuestenpfad: 2.0, Querfeldein: 1.25 },
+	groupFoot: { Reichsstrasse: 3.45, Strasse: 3.07, Weg: 2.69, Pfad: 2.3, Gebirgspass: 1.15, Wuestenpfad: 1.92, Querfeldein: 0.96 },
+	lightWalker: { Reichsstrasse: 4.5, Strasse: 4.09, Weg: 3.68, Pfad: 3.27, Gebirgspass: 1.64, Wuestenpfad: 2.86, Querfeldein: 1.39 },
+	groupHorse: { Reichsstrasse: 3.86, Strasse: 3.58, Weg: 3.03, Pfad: 2.48, Gebirgspass: 1.38, Wuestenpfad: 1.65, Querfeldein: 1.16 },
+	lightRider: { Reichsstrasse: 5.44, Strasse: 5.12, Weg: 4.48, Pfad: 3.84, Gebirgspass: 1.92, Wuestenpfad: 2.56, Querfeldein: 1.6 },
+	caravan: { Reichsstrasse: 3.51, Strasse: 3.07, Weg: 2.63, Pfad: 2.19, Gebirgspass: 1.32, Wuestenpfad: 1.75, Querfeldein: 1.1 },
 	riverSailer: { Flussweg: 6.0 },
 	riverBarge: { Flussweg: 4.0 },
-	cargoShip: { Seeweg: 10.0 },
-	fastShip: { Seeweg: 12.0 },
-	galley: { Seeweg: 9.0 },
-	horseCarriage: { Reichsstrasse: 6.0, Strasse: 5.5, Weg: 2.25, Pfad: 3.0, Gebirgspass: 1.0, Wuestenpfad: 3.0, Querfeldein: 1.7 },
+	cargoShip: { Seeweg: 11.9 },
+	fastShip: { Seeweg: 12.4 },
+	galley: { Seeweg: 6.94 },
+	horseCarriage: { Reichsstrasse: 5.59, Strasse: 5.12, Weg: 2.09, Pfad: 2.79, Gebirgspass: 0.93, Wuestenpfad: 2.79, Querfeldein: 1.58 },
 };
 
 const ROUTE_ICON_PATHS = {

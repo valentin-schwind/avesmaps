@@ -68,10 +68,10 @@ global.SYNTHETIC_ROUTE_TYPE = "Querfeldein";
 
 load("js/app/i18n.js");
 global.tr = global.window.tr;
-// Das Transportmittel entscheidet der Planer; hier wird je Wegart das passende festgelegt, damit
-// `buildRoutePlanEntries` die Zeile trifft, um die es geht.
-const TRANSPORT_BY_TYPE = { Flussweg: "riverBarge", Seeweg: "cargoShip", Weg: "groupFoot" };
-global.getTransportOption = (type) => TRANSPORT_BY_TYPE[type] || "groupFoot";
+// Das Transportmittel entscheidet der Planer; der Test stellt es je Fall selbst ein, weil die
+// Rastregel seit 2026-08-03 daran hängt und nicht mehr am Wegtyp.
+let chosenTransport = { Flussweg: "riverBarge", Seeweg: "cargoShip", Weg: "groupFoot" };
+global.getTransportOption = (type) => chosenTransport[type] || "groupFoot";
 load("js/routing/route-node.js");
 load("js/routing/route-plan.js");
 load("js/routing/route-result.js");
@@ -82,7 +82,10 @@ assert.ok(SPEED_TABLE && SPEED_TABLE.riverBarge, "ohne die echte Tempotabelle eb
 // ---- 1. die Rastregel -----------------------------------------------------------------------------
 // Eine Etappe von 1 Karteneinheit = 3 Meilen der jeweiligen Wegart, mit 12 Reisestunden pro Tag
 // (die Voreinstellung des Planers: 12 Reise, 8 Schlaf, 4 Lager).
-const stepFor = (type) => {
+const stepFor = (type, transport) => {
+	if (transport) {
+		chosenTransport = Object.assign({}, chosenTransport, { [type]: transport });
+	}
 	const steps = buildRouteSteps(["A", "B"], [{
 		geometry: { type: "LineString", coordinates: [[0, 0], [1, 0]] },
 		properties: { feature_subtype: type, public_id: "s1" },
@@ -90,26 +93,28 @@ const stepFor = (type) => {
 	assert.strictEqual(steps.length, 1, `eine Etappe erwartet für ${type}`);
 	return steps[0];
 };
+const restsLikeItTravels = (step, what) => {
+	assert.ok(step.travel_time > 0, `${what}: die Etappe hat überhaupt eine Reisezeit`);
+	assert.ok(
+		Math.abs(step.rest_time - step.travel_time) < 1e-12,
+		`${what}: bei 12 Reisestunden muss die Rast so lang sein wie die Reise — ist ${step.rest_time}`
+	);
+};
 
-const river = stepFor("Flussweg");
-assert.ok(river.travel_time > 0, "die Flussetappe hat überhaupt eine Reisezeit");
-// 🔴 DAS IST DER TEST. Vor der Reparatur war rest_time hier 0 und der Fluss fuhr rund um die Uhr.
-assert.ok(
-	Math.abs(river.rest_time - river.travel_time) < 1e-12,
-	"bei 12 Reisestunden rastet die Flussetappe genauso lange, wie sie reist — sie tat es bis 2026-08-02 gar nicht"
-);
+// 🔴 DAS IST DER TEST. Vor dem 2026-08-02 rastete der Fluss gar nicht.
+restsLikeItTravels(stepFor("Flussweg", "riverBarge"), "Flusskahn");
+restsLikeItTravels(stepFor("Weg", "groupFoot"), "Gruppe zu Fuß");
 
-const sea = stepFor("Seeweg");
-assert.ok(sea.travel_time > 0, "die Seeetappe hat eine Reisezeit");
-// ⚠️ Und die See bleibt ausgenommen: S. 131 belegt die 24-Stunden-Fahrt (Schnellsegler 250 Meilen,
-// Kurier-Dromone 200), pro Stunde sind wir dort ohnehin langsamer als die Quelle.
-assert.strictEqual(sea.rest_time, 0, "auf offener See fällt weiterhin keine Rast an");
+// 🔴 UND DAS IST DER ZWEITE. Bis zum 2026-08-03 hing die Ausnahme am WEGTYP, also bekam jedes Schiff
+// den 24-Stunden-Tag. S. 131 gibt ihn namentlich nur dem Schnellsegler (250 Meilen) und der
+// Kurier-Dromone (200, die wir nicht führen); der Lastensegler steht dort mit 120 bei 12 Stunden,
+// die Galeere mit 70 bei 8 — beides Küstenschiffe, die „gewöhnlich nachts vor Anker gehen".
+restsLikeItTravels(stepFor("Seeweg", "cargoShip"), "Lastensegler");
+restsLikeItTravels(stepFor("Seeweg", "galley"), "Galeere");
 
-const land = stepFor("Weg");
-assert.ok(
-	Math.abs(land.rest_time - land.travel_time) < 1e-12,
-	"an Land ist die Rast unverändert"
-);
+const fastSailer = stepFor("Seeweg", "fastShip");
+assert.ok(fastSailer.travel_time > 0, "der Schnellsegler hat eine Reisezeit");
+assert.strictEqual(fastSailer.rest_time, 0, "nur der Schnellsegler fährt rund um die Uhr");
 
 // Ohne Rast im Planer (24 Reisestunden) rastet auch der Fluss nicht — der Schalter bleibt ein Schalter.
 const noRest = buildRouteSteps(["A", "B"], [{
@@ -118,14 +123,48 @@ const noRest = buildRouteSteps(["A", "B"], [{
 }], { includeRests: false, restHoursPerDay: 0 });
 assert.strictEqual(noRest[0].rest_time, 0, "ohne Rastwunsch rastet die Flussetappe nicht");
 
-// ---- 2. die Tagesleistung der Quelle ----------------------------------------------------------------
-// S. 129: Flusskahn stromab 40 Meilen/Tag, Flusssegler 60 — bei dem 12-Stunden-Reisetag, den
-// dieselbe Seite ausdrücklich als Rechengröße nennt.
-const milesPerDay = (mode) => (SPEED_TABLE[mode].Flussweg / TIME_SCALE_FACTOR) * 12;
-[["riverBarge", 40], ["riverSailer", 60]].forEach(([mode, expected]) => {
+// ---- 2. die Tagesleistung der Quelle, für JEDES Reisemittel ------------------------------------------
+//
+// 🔴 DER KERN DER GANZEN TABELLE. Die Quelle nennt nirgends eine Geschwindigkeit, immer nur eine
+// Tagesleistung. Jeder Eintrag oben ist also eine Tagesleistung, geteilt durch die Reisestunden und
+// mal den versteckten Zeitfaktor. Wer einen Wert „glattzieht", bricht genau diese Zuordnung — und
+// sie ist der einzige Grund, warum die Zahlen so krumm sind.
+//
+// mean_G = 1,032 ist der gemessene mittlere Steigungsfaktor unserer Straßen (die Eichung). Er steht
+// NUR bei den Landmitteln, weil er allein unsere eigene Steigungsebene ausgleicht: auf einer Straße
+// kennt die Quelle keine Steigung, ihr Straßenfaktor ist glatt 1,0. Wasser trägt gar kein Gelände,
+// dort steht die Quellenzahl unverändert.
+const MEAN_G = 1.032;
+const dayPerformance = (mode, subtype, hours) => (SPEED_TABLE[mode][subtype] / TIME_SCALE_FACTOR) * hours;
+
+// Land: Quellenwert x mean_G, gemessen auf der ebenen Straße (S. 123).
+[["groupFoot", 30], ["lightWalker", 40], ["groupHorse", 35], ["lightRider", 50],
+	["caravan", 30], ["horseCarriage", 50]].forEach(([mode, sourceDay]) => {
+	const actual = dayPerformance(mode, "Strasse", 12);
 	assert.ok(
-		Math.abs(milesPerDay(mode) / expected - 1) < 0.01,
-		`${mode} stromab muss die ${expected} Meilen/Tag der Quelle treffen — sind ${milesPerDay(mode).toFixed(2)}`
+		Math.abs(actual / (sourceDay * MEAN_G) - 1) < 0.01,
+		`${mode} muss auf ebener Straße ${(sourceDay * MEAN_G).toFixed(1)} Meilen/Tag leisten `
+		+ `(Quelle ${sourceDay} x mean_G) — sind ${actual.toFixed(2)}`
+	);
+});
+
+// ⚠️ „Reisegruppe zu Pferd" steht in der Quelle doppelt: 35 in der Tabelle S. 123, „kaum mehr als
+// 40" im Fließtext S. 118. Hier gilt die Tabelle. Wird das je auf 40 geändert, ist das UNSERE
+// Entscheidung und gehört kommentiert — nicht stillschweigend in die Zahl.
+assert.ok(
+	Math.abs(dayPerformance("groupHorse", "Strasse", 12) / (35 * MEAN_G) - 1) < 0.01,
+	"die berittene Gruppe folgt dem Tabellenwert 35, nicht dem Fließtext 40"
+);
+
+// Wasser: Quellenzahl unverändert, aber mit den Stunden, die IHRE Zeile nennt (S. 129/131).
+[["riverBarge", "Flussweg", 12, 40], ["riverSailer", "Flussweg", 12, 60],
+	["cargoShip", "Seeweg", 12, 120], ["galley", "Seeweg", 12, 70],
+	// Das einzige Schiff mit einer 24-Stunden-Zeile — und deshalb das einzige ohne Rast.
+	["fastShip", "Seeweg", 24, 250]].forEach(([mode, subtype, hours, sourceDay]) => {
+	const actual = dayPerformance(mode, subtype, hours);
+	assert.ok(
+		Math.abs(actual / sourceDay - 1) < 0.01,
+		`${mode} muss bei ${hours} h die ${sourceDay} Meilen/Tag der Quelle treffen — sind ${actual.toFixed(2)}`
 	);
 });
 

@@ -41,9 +41,15 @@ $land = avesmapsPrepareRouteAreas([$square(0.0, 0.0, 100.0, 100.0)]);
 $water = avesmapsPrepareRouteAreas([$square(40.0, 40.0, 60.0, 60.0)]);
 $locations = [$place('A', 5.0, 10.0), $place('B', 25.0, 10.0), $place('B2', 30.0, 10.0), $place('C', 45.0, 10.0)];
 
-$road = static function (string $from, string $to, float $distance): array {
+// 💣 DIE FIXTURE-STRASSE FOLGT DER TEMPOTABELLE, sie schreibt sie nicht ab. Worauf dieser Test
+// hinauswill -- welchen Ausstieg eine Reise wählt -- entscheidet allein das VERHÄLTNIS zwischen
+// Straße und Querfeldein. Stand hier eine feste 4,0, während der Router sein Querfeldein aus der
+// Tabelle liest, dann verschob die Quellen-Eichung am 2026-08-03 dieses Verhältnis von 3,2 auf 4,2
+// und beide Reisen stiegen plötzlich am selben Knoten aus -- der Fall prüfte nichts mehr.
+$roadSpeed = (float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['groupFoot']['Strasse'];
+$road = static function (string $from, string $to, float $distance) use ($roadSpeed): array {
     return [
-        'distance' => $distance, 'time' => $distance / 4.0, 'route_type' => 'Strasse',
+        'distance' => $distance, 'time' => $distance / $roadSpeed, 'route_type' => 'Strasse',
         'transport_option' => 'groupFoot', 'id' => 'path-' . $from . $to, 'from' => $from, 'to' => $to,
         'geometry' => ['type' => 'LineString', 'coordinates' => [[0.0, 10.0], [100.0, 10.0]]],
     ];
@@ -99,12 +105,14 @@ $airLine = hypot(26.0 - 25.0, 16.0 - 10.0);
 assert($last['distance'] >= $airLine - 1e-9, 'the leg is at least the air line');
 assert($last['distance'] < $airLine * 2.0, 'and nowhere near a x25 surcharge: ' . $last['distance']);
 
-// 💣 AND ITS COST IS IN THE GRAPH'S UNIT. A road edge in this same graph carries
-// `time = distance / 4.0`; the cross-country leg carries `distance / 1.25` on level ground. Same
-// convention, so Dijkstra compares like with like -- see the note in offroad-grid.php.
+// 💣 AND ITS COST IS IN THE GRAPH'S UNIT. Both edges price Strecke/Tempo -- the road one from the
+// fixture, the cross-country one from the ROUTER. Same convention, so Dijkstra compares like with
+// like; see the note in offroad-grid.php.
+// ⚠️ Both speeds are READ, never typed: they changed with the source calibration on 2026-08-03.
+$offroadSpeed = (float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['groupFoot']['Querfeldein'];
 $roadLeg = $segments[0];
-assert(abs($roadLeg['time'] - $roadLeg['distance'] / 4.0) < 1e-9, 'the road edge prices Strecke/Tempo');
-assert(abs($last['time'] - $last['distance'] / 1.25) < 1e-9, 'and so does the cross-country leg');
+assert(abs($roadLeg['time'] - $roadLeg['distance'] / $roadSpeed) < 1e-9, 'the road edge prices Strecke/Tempo');
+assert(abs($last['time'] - $last['distance'] / $offroadSpeed) < 1e-9, 'and so does the cross-country leg');
 
 // The diagnostic segment the API ships carries the flag through.
 $diagnostic = avesmapsBuildClientRouteDiagnosticSegments($segments);

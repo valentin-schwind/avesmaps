@@ -106,10 +106,10 @@
 			'</div><div class="tsi-wnote">' + tr("transport.speedInfo.riverNote", "Flussabwärts, mit der Strömung, geht es mit voller Geschwindigkeit. Flussaufwärts, gegen die Strömung, dauert dieselbe Strecke länger — in der Regel das 2-fache, bei starker Strömung bis zum 3-fachen der Zeit.") + '</div></div>' +
 			'<div class="tsi-wcard"><div class="tsi-wtitle">' + iconImg("icons/meerweg.webp") + esc(tr("transport.speedInfo.seaTravel", "Meerreise")) + '</div><div class="tsi-wmodes">' +
 			waterModes(SEA_MODES, "seaTransport", "Seeweg") +
-			'</div><div class="tsi-wnote">' + tr("transport.speedInfo.seaNote", "Auf offener See wird Tag und Nacht durchgesegelt — hier fällt keine Rastzeit an.") + '</div></div>' +
+			'</div><div class="tsi-wnote">' + tr("transport.speedInfo.seaNote", "Nur der Schnellsegler fährt bei bekannter Strecke Tag und Nacht durch — für ihn fällt keine Rastzeit an. Lastensegler und Galeere gehen nachts vor Anker und rasten wie an Land.") + '</div></div>' +
 			"</div>" +
 			'<div class="tsi-rules">' +
-			'<div class="tsi-rule">' + iconImg("icons/Rast.webp") + "<div>" + tr("transport.speedInfo.restRule", "<b>Rast.</b> Standardmäßig reist du 12 Stunden am Tag und rastest 12 Stunden (im Planer einstellbar). Das gilt an Land und auf Flüssen — nur auf offener See wird durchgefahren.") + "</div></div>" +
+			'<div class="tsi-rule">' + iconImg("icons/Rast.webp") + "<div>" + tr("transport.speedInfo.restRule", "<b>Rast.</b> Standardmäßig reist du 12 Stunden am Tag und rastest 12 Stunden (im Planer einstellbar). Das gilt an Land, auf Flüssen und auch für Lastensegler und Galeere — <b>nur der Schnellsegler</b> fährt rund um die Uhr.") + "</div></div>" +
 			'<div class="tsi-rule">' + iconImg("icons/Querfeldein.webp") + "<div>" + tr("transport.speedInfo.crossCountryRule", "<b>Querfeldein.</b> Fehlt zwischen zwei Orten ein echter Weg, schlägt sich die Route per Luftlinie durchs Gelände. Das ist zäh (1,25–2,5&nbsp;Meilen/h), darum bevorzugt die Berechnung selbst große Umwege über richtige Straßen und Pfade.") + "</div></div>" +
 			// V11. Spans both columns (.tsi-rule--wide): it is the longest of the three, and letting it
 			// run full width keeps the block at two rows instead of three.
