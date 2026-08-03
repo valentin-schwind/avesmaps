@@ -49,7 +49,7 @@ const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
     'riverBarge' => ['Flussweg' => 4.0],
     'cargoShip' => ['Seeweg' => 11.9],
     'fastShip' => ['Seeweg' => 12.4],
-    'galley' => ['Seeweg' => 6.94],
+    'galley' => ['Seeweg' => 9.92],
 ];
 
 // $water (V13) is the prepared open-water structure from avesmapsLoadRouteWater(). Empty means the

@@ -201,7 +201,7 @@ foreach ([['groupFoot', 30.0], ['lightWalker', 40.0], ['groupHorse', 35.0], ['li
 // names (S. 129/131). 💣 The 24-hour day belongs to the Schnellsegler alone; the Lastensegler's row
 // is 120 at 12 h and the Galeere's 70 at 8, and both are coastal ships that anchor at night.
 foreach ([['riverBarge', 'Flussweg', 12.0, 40.0], ['riverSailer', 'Flussweg', 12.0, 60.0],
-          ['cargoShip', 'Seeweg', 12.0, 120.0], ['galley', 'Seeweg', 12.0, 70.0],
+          ['cargoShip', 'Seeweg', 12.0, 120.0], ['galley', 'Seeweg', 12.0, 100.0],
           ['fastShip', 'Seeweg', 24.0, 250.0]] as [$mode, $subtype, $hours, $expectedDay]) {
     $actualDay = $dayPerformance((float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$mode][$subtype], $hours);
     assert(

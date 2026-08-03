@@ -97,8 +97,16 @@ const PATH_ENDPOINT_SNAP_DISTANCE_PX = 18;
 //                                         (S. 131: 250 miles; the Kurier-Dromone's 200 we do not model)
 // The exemption lives in route-result.js and is keyed on the TRANSPORT, not on Seeweg -- a galley
 // hugs the coast and „ankert gewöhnlich nachts" (S. 131) just like a slow cargo sailer.
-// Express modes are deliberately unmodelled throughout (Eilmarsch, Botenreiter, Eilkutsche,
-// eilgeruderte Galeere 100) -- the Schnellsegler is the single exception, by owner decision.
+//
+// ⭐ EACH SHIP TAKES THE SOURCE ROW WHOSE HOURS ARE OURS. That is why the Galeere carries 100 and
+// not 70: S. 131 gives it three rows -- 70 at 8 rowing hours, 100 at 12, 200 at 24 with shift
+// changes -- and they are one straight line at ~8,3 miles per rowing hour. Our travel day IS 12
+// hours, so the 12-hour row is the matching one. It shipped as 70 for a few hours on 2026-08-03,
+// which was the 8-hour row stretched over a 12-hour day: right at the default, wrong the moment a
+// traveller changed the hours. With 9,92 the galley now tracks all three rows at once (8 h -> 66,7
+// against 70; 12 h -> 100; 24 h -> 200, the Dromone).
+// Express modes stay unmodelled elsewhere (Eilmarsch, Botenreiter, Eilkutsche) -- but „eilgerudert"
+// is not a mode here, it is simply what 12 hours of rowing is called.
 //
 // 💣 THE CARRIAGE IS HALVED ON Weg AND Gebirgspass, and that is a RULE, not a slope. S. 123: „auf
 // Karrenwegen und Pässen nur halbe Geschwindigkeit". „Karrenweg" is our `Weg` -- the source lists
@@ -114,7 +122,7 @@ const SPEED_TABLE = {
 	riverBarge: { Flussweg: 4.0 },
 	cargoShip: { Seeweg: 11.9 },
 	fastShip: { Seeweg: 12.4 },
-	galley: { Seeweg: 6.94 },
+	galley: { Seeweg: 9.92 },
 	horseCarriage: { Reichsstrasse: 5.59, Strasse: 5.12, Weg: 2.09, Pfad: 2.79, Gebirgspass: 0.93, Wuestenpfad: 2.79, Querfeldein: 1.58 },
 };
 

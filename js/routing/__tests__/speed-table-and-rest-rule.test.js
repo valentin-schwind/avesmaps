@@ -158,13 +158,26 @@ assert.ok(
 
 // Wasser: Quellenzahl unverändert, aber mit den Stunden, die IHRE Zeile nennt (S. 129/131).
 [["riverBarge", "Flussweg", 12, 40], ["riverSailer", "Flussweg", 12, 60],
-	["cargoShip", "Seeweg", 12, 120], ["galley", "Seeweg", 12, 70],
+	["cargoShip", "Seeweg", 12, 120], ["galley", "Seeweg", 12, 100],
 	// Das einzige Schiff mit einer 24-Stunden-Zeile — und deshalb das einzige ohne Rast.
 	["fastShip", "Seeweg", 24, 250]].forEach(([mode, subtype, hours, sourceDay]) => {
 	const actual = dayPerformance(mode, subtype, hours);
 	assert.ok(
 		Math.abs(actual / sourceDay - 1) < 0.01,
 		`${mode} muss bei ${hours} h die ${sourceDay} Meilen/Tag der Quelle treffen — sind ${actual.toFixed(2)}`
+	);
+});
+
+// ⭐ DIE GALEERE IST DER PRÜFSTEIN DER GANZEN KONSTRUKTION. Die Quelle gibt ihr als einzigem Mittel
+// DREI Zeilen mit verschiedenen Stundenzahlen (S. 131: 70 bei 8 Ruderstunden, 100 bei 12, 200 bei 24
+// mit Wechselschichten) — und sie liegen auf einer Geraden. Trägt unser Eintrag wirklich eine
+// Geschwindigkeit und keine verkleidete Tagesleistung, dann trifft er alle drei. Mit dem 8-Stunden-
+// Wert (70), der am 2026-08-03 kurz drinstand, stimmte nur die mittlere Zeile.
+[[8, 70, 0.05], [12, 100, 0.01], [24, 200, 0.01]].forEach(([hours, sourceDay, tolerance]) => {
+	const actual = dayPerformance("galley", "Seeweg", hours);
+	assert.ok(
+		Math.abs(actual / sourceDay - 1) < tolerance,
+		`die Galeere muss bei ${hours} Ruderstunden auf ${sourceDay} Meilen kommen — sind ${actual.toFixed(1)}`
 	);
 });
 
