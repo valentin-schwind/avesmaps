@@ -1,31 +1,31 @@
 # Reisegeschwindigkeiten und Wegtypen — die Quellenlage
 
-> ## 🔴 KORREKTUR 2026-08-02 — §7.2 war bei den Wasserwegen falsch
+> ## ✅ STAND 2026-08-03 — die Abweichungen aus §7.2 sind gebaut
 >
-> Dieses Dokument behauptete, wir seien auf Flüssen **und Meeren** 1,7- bis 2,5-fach zu schnell.
-> Das trifft nur auf Flüsse zu. Die Rechnung verglich unsere 24-Stunden-Fahrt mit den
-> 12-Stunden-Tagesleistungen der Quelle und maß damit die Tageslänge, nicht das Tempo.
+> Dieses Dokument hatte zwei Fassungen: die erste hielt Fluss **und** Meer für zu schnell, die
+> zweite (2026-08-02) nahm das fürs Meer zurück. Beide beschrieben einen Zustand, den es seit
+> `3dc64753` und `d9d7ab39` nicht mehr gibt. **§7.2 ist deshalb keine Mängelliste mehr, sondern
+> ein Vorher-Nachher.**
 >
-> **Sauber getrennt, pro Stunde:**
+> | Paket | Commit | Wirkung |
+> |---|---|---|
+> | P1 Fluss | `3dc64753` | 12-Stunden-Reisetag statt 24; Kahn 100,8 → 40,3 Meilen/Tag |
+> | P2 Strömung | `3dc64753` | Vorgabe 1,5 → **2,0**, wie die Quelle sie durchgehend nennt |
+> | P3 Kutsche | `3dc64753` | halbe Geschwindigkeit auf `Weg` und `Gebirgspass` (S. 123) |
+> | Niveau, Land + See | `d9d7ab39` | **jedes** Reisemittel trägt seine eigene Tagesleistung aus der Quelle |
+> | Galeere | `4c417814` | 100 statt 70 — unsere Zeile ist die mit 12 Ruderstunden, nicht die mit 8 |
+> | Pass | `aa7ac68d` | die Steigung bremst einen Gebirgspass nicht mehr ein zweites Mal |
 >
-> | | Quelle | Avesmaps | |
-> |---|---|---|---|
-> | Lastensegler | 10,0 M/h (120 ÷ 12 h) | **8,4** | wir sind 16 % **langsamer** |
-> | Flusskahn stromab | 3,33 M/h (40 ÷ 12 h) | **4,2** | wir sind 26 % **schneller** |
+> ⭐ **Die See blieb dabei richtig** — die Korrektur vom 02.08. gilt unverändert: pro Stunde waren
+> wir dort nie zu schnell. Was `d9d7ab39` an der See änderte, ist etwas anderes: die Nachtfahrt
+> gehört einem **Schiff**, nicht dem Wegtyp. Nur der Schnellsegler fährt durch, Lastensegler und
+> Galeere ankern und rasten wie an Land.
 >
-> **See: kein Fehler.** Die Quelle nennt zwar 12 Stunden als Grundlage der 120/140 Meilen, schreibt
-> das nächtliche Ankern aber ausdrücklich der *Küstennähe* zu und nennt für durchgefahrene
-> Schnellsegler 250 Meilen. Ein generelles Nachtfahrverbot für Seeschiffe steht dort **nicht**.
-> Unsere höhere Tagesleistung kommt allein vom Durchfahren, und das ist gedeckt.
->
-> **Fluss: Fehler bestätigt, doppelt.** Pro Stunde 26 % zu schnell, und wir fahren nachts, was die
-> Quelle wörtlich ausschließt (S. 129: der 12-Stunden-Reisetag, und nur Piraten oder Kurierboote
-> ziehen nachts stromab).
->
-> Damit ist auch die Aussage über `seaNote` zurückzunehmen: der Dialogsatz widerspricht der Quelle
-> nicht. Für Flüsse gilt der Einwand unverändert.
+> ⚠️ **Was hier steht, ist gemessen, nicht erinnert** — und genau deshalb muss es mitwandern. Am
+> 2026-08-03 wurde der behobene Fehler ein zweites Mal gemeldet, weil dieses Dokument noch die
+> alten Zahlen trug. Wer die `SPEED_TABLE` anfasst, zieht §7.2 mit.
 
-> **Stand:** 2026-08-02. **Quelle:** *Geographia Aventurica*, Fanpro/Fantasy Productions 2003,
+> **Stand:** 2026-08-03. **Quelle:** *Geographia Aventurica*, Fanpro/Fantasy Productions 2003,
 > ISBN 3-89064-291-8, Kapitel „Weg und Steg in Aventurien", **S. 113–132**. Alle Seitenangaben
 > beziehen sich auf diese Ausgabe.
 >
@@ -177,61 +177,97 @@ Peraine bis Ende Boron"). ⚠️ Saisonale Sperrung modelliert Avesmaps überhau
 
 ### 7.1 Was übereinstimmt
 
-**Die Wegtyp-Verhältnisse.** Gemessen über alle sechs Landtransportmittel, normiert auf Straße = 1,0:
+**Die Wegtyp-Verhältnisse.** Gemessen am 2026-08-03 über die fünf Landtransportmittel **ohne die
+Kutsche**, normiert auf Straße = 1,0:
 
 | | Avesmaps | Quelle |
 |---|---|---|
-| Reichsstraße | 1,100 | 1,1 |
+| Reichsstraße | 1,102 | 1,1 |
 | Straße | 1,000 | 1,0 |
-| Weg | 0,862 | 0,8 |
-| Pfad | 0,709 | 0,8 |
-| Gebirgspass | 0,388 | 0,4 |
+| Weg | 0,871 | 0,8 |
+| Pfad | 0,741 | 0,8 |
+| Gebirgspass | 0,393 | 0,4 |
 
 Die `SPEED_TABLE` ist damit erkennbar aus dieser Tabelle gebaut — was bis 2026-08-01 nirgends
-dokumentiert war.
+dokumentiert war. `d9d7ab39` hat jede Zeile **als Ganzes** skaliert, die Verhältnisse also nicht
+angetastet.
 
-**Die Kutschenverbote.** „Nicht auf Pfaden oder querfeldein, nicht in Wüste oder Eisgebieten" ist
-seit `b4e43404` abgebildet und durch die Quelle wörtlich gedeckt.
+⚠️ **Die Kutsche ist bewusst ausgenommen.** Seit `3dc64753` trägt sie auf `Weg` und `Gebirgspass`
+die Halbierung von S. 123 — dort steht eine **Regel** über ein Fahrzeug, keine Eigenschaft des
+Wegtyps. Mittelt man sie mit ein, sinken die beiden Werte auf 0,794 und 0,358, und die Tabelle
+scheint von der Quelle abzuweichen, obwohl sie ihr genauer folgt als vorher.
 
-### 7.2 Was abweicht
+**Die Kutschenregeln, vollständig.** „Nicht auf Pfaden oder querfeldein, nicht in Wüste oder
+Eisgebieten" ist seit `b4e43404` abgebildet, die Halbierung „auf Karrenwegen und Pässen" seit
+`3dc64753`. Gemessen gegen die Straße ergibt das 0,409 auf `Weg` und 0,182 auf `Gebirgspass` —
+die Wegtyp-Faktoren 0,8 und 0,4 der Quelle, jeweils halbiert.
 
-| Befund | Quelle | Avesmaps | Verhältnis |
+**Die Tagesleistungen.** Seit `d9d7ab39` trägt jedes Reisemittel seine eigene Zahl aus S. 123 /
+129 / 131 statt einer gemeinsamen Skalierung — siehe die Tabelle in §7.2.
+
+### 7.2 Was abwich — und was heute dasteht
+
+Gemessen am 2026-08-03 gegen den ausgelieferten Stand. Die Landwerte gelten auf **ebener**
+Straße: sie tragen den Faktor `mean_G` = 1,032, der unsere eigene Steigungsebene herausrechnet —
+über echte Straßen bringt das Gelände sie auf den Wert der Quelle zurück. Die Quelle hat keine
+Steigung je Weg, ihr Straßenfaktor ist glatt 1,0.
+
+| Reisemittel | Quelle | vorher | heute |
 |---|---|---|---|
-| Reisegruppe zu Fuß, Straße | 30 M/Tag | 40,3 | **1,34×** |
-| Wanderer leicht | 40 | 50,4 | 1,26× |
-| Reisegruppe beritten | 35 | 65,5 | **1,87×** |
-| Einzelreiter leicht | 50 | 80,7 | 1,61× |
-| Karawane | 30 | 35,3 | 1,18× |
-| Kutsche | 50 | 55,5 | 1,11× |
-| Flusskahn stromab | 40 | 100,8 | **2,52×** |
-| Flusssegler stromab | 60 | 151,3 | **2,52×** |
-| Lastensegler | 120 | 201,7 | 1,68× |
-| Schnellsegler | 140 | 242,0 | 1,73× |
+| Reisegruppe zu Fuß | 30 M/Tag | 40,3 | **31,0** |
+| Wanderer leicht | 40 | 50,4 | **41,2** |
+| Reisegruppe beritten | 35 | 65,5 | **36,1** |
+| Einzelreiter leicht | 50 | 80,7 | **51,6** |
+| Karawane | 30 | 35,3 | **31,0** |
+| Kutsche | 50 | 55,5 | **51,6** |
+| Flusskahn stromab | 40 | 100,8 | **40,3** |
+| Flusssegler stromab | 60 | 151,3 | **60,5** |
+| Lastensegler | 120 | 201,7 | **120,0** |
+| Galeere, 12 h | 100 | 181,5 | **100,0** |
+| Schnellsegler, 24 h | 250 | 242,0 | **250,1** |
 
-*(Avesmaps-Werte: `SPEED_TABLE` ÷ `TIME_SCALE_FACTOR` 1,19 × 12 Reisestunden an Land bzw. 24 auf
-dem Wasser.)*
+💣 **Jeder Wert der `SPEED_TABLE` ist eine verkleidete Tagesleistung.** Das ist die ganze
+Konstruktion:
 
-💣 **Die Wasserwerte sind rekonstruierbar falsch skaliert.** Die rohen Tabellenwerte treffen die
-Quelle exakt, wenn man sie mit der Stundenzahl der Quelle multipliziert: Flusskahn 5,0 × **8 h** =
-40 ✓ · Flusssegler 7,5 × **8 h** = 60 ✓ · Lastensegler 10,0 × **12 h** = 120 ✓ · Schnellsegler 12,0
-× 12 h = 144 ≈ 140 ✓. Die Tabelle wurde also aus den Tagesleistungen der Quelle abgeleitet — und
-dann lässt der Router auf dem Wasser **24 Stunden** fahren, weil dort keine Rast anfällt. Damit
-verdoppelt bis verdreifacht sich, was einmal richtig war.
+```
+Wert = Tagesleistung der Quelle × mean_G × TIME_SCALE_FACTOR ÷ Reisestunden
+```
 
-💣 **Der Strömungsfaktor ist zu milde.** Unser Vorgabewert ist **1,5** (geklemmt auf 1,0…3,0), die
-Quelle liefert durchgehend **2,0** bis 2,14.
+Wer dort eine Zahl anfasst, ohne diese Gleichung mitzurechnen, verschiebt eine Regelgröße.
 
-💣 **Und `seaNote` widerspricht der Quelle.** Der Dialog sagt: *„Auf offener See wird Tag und Nacht
-durchgesegelt — hier fällt keine Rastzeit an."* Die Quelle nennt 12 Stunden als Reisetag, behandelt
-24-Stunden-Fahrt als Sonderfall mit Bedingungen und schreibt, dass Schiffe üblicherweise nachts vor
-Anker gehen.
+💣 **Die Reisestunden sind nicht einheitlich.** Land, Fluss, Lastensegler und Galeere rechnen mit
+12 h, der Schnellsegler als einziger mit 24. Die Ausnahme hängt am **Reisemittel**, nicht am
+Wegtyp (`js/routing/route-result.js`) — eine Galeere fährt Seeweg und ankert trotzdem. Solange
+die Regel am Wegtyp hing, bekamen alle drei Seeschiffe den 24-Stunden-Tag; dass der
+Schnellsegler dabei zufällig richtig lag (242 gegen 250), ist der Grund, warum es niemandem
+auffiel.
+
+⭐ **Jedes Schiff nimmt die Quellenzeile, deren Stunden unsere sind.** Die Galeere steht auf
+S. 131 dreimal — 70 bei 8 Ruderstunden, 100 bei 12, 200 bei 24 mit Wechselschichten. Unser
+Reisetag hat 12, also gilt die mittlere Zeile. Sie stand am 2026-08-03 für ein paar Stunden auf
+70; das war die 8-Stunden-Zeile über einen 12-Stunden-Tag gestreckt und ging schief, sobald
+jemand die Stunden verstellte.
+
+⚠️ **„Reisegruppe zu Pferd" folgt der Tabelle S. 123 (35), nicht dem Fließtext S. 118** („kaum
+mehr als 40"). Die Quelle widerspricht sich hier und löst es nie auf; eine Regelrechnung folgt
+dem tabellierten Wert, wie es die Rechenbeispiele der Quelle auch tun. Beritten ist dadurch nur
+16 % schneller als zu Fuß. Das ist das Regelwerk, kein Fehler — und eine Änderung auf 40 wäre
+**unsere** Entscheidung, nicht die der Quelle.
+
+Gesichert durch `js/routing/__tests__/speed-table-and-rest-rule.test.js`: der Test bindet alle
+elf Reisemittel an die Zahlen der Quelle und die drei Spiegel der Tabelle aneinander (`js/config.js`,
+`api/_internal/routing/client-graph.php`, `js/pages/wege-editor-model.js`).
 
 ### 7.3 Was uns ganz fehlt
 
-Kutsche auf Karrenwegen und Pässen nur halbe Geschwindigkeit · „Reittiere müssen geführt werden" auf
-den mit \* markierten Geländearten · Wetter- und Bodenmodifikatoren · Eilmarsch · saisonale
-Passsperrung · die Untergrenze 0,05 für den Gesamtmodifikator · Reichs- und Landstraßen sind von
-aufgeweichtem Boden ausgenommen.
+„Reittiere müssen geführt werden" auf den mit \* markierten Geländearten · Wetter- und
+Bodenmodifikatoren · Eilmarsch · die Untergrenze 0,05 für den Gesamtmodifikator · Reichs- und
+Landstraßen sind von aufgeweichtem Boden ausgenommen.
+
+⭐ Die **saisonale Passsperrung** hat seit `b3310d83` ihre Mechanik: jeder Haken „erlaubt" trägt
+ein optionales Zeitfenster, in der Formulierung der Quelle („gangbar von — bis"). ⚠️ Gepflegt ist
+noch keines — alle Wege tragen heute kein Fenster und gelten damit als ganzjährig gangbar. Die
+Gangbarkeitszeiträume von S. 115 stehen also bereit, sind aber noch nicht eingetragen.
 
 ---
 
