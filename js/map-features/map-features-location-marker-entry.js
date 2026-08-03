@@ -3,6 +3,44 @@
  * This file contains only function declarations and no top-level execution.
  */
 
+// Die Typzeile der Infobox: was fuer ein Ort ist das?
+//
+// Drei Stufen, absichtlich in dieser Reihenfolge:
+//   1. location.placeKind  -- die vom Editor gesetzte Ortsart ("Brücke", "Oase", ...). Eigener
+//      Wert schlaegt Wiki, dieselbe Vorrangregel wie bei Wappen und Abenteuer-Covern: jemand hat
+//      hier bewusst hingeschaut, das Wiki hat nur abgeleitet.
+//   2. wikiSettlement.building_type -- der aus dem Wiki gecrawlte Bauwerkstyp (Festung/Turm/…).
+//   3. locationTypeLabel -- die Ortsgroesse, also „Dorf" oder „Besondere Bauwerke/Stätten".
+//
+// „(Ruine)" haengt hinten dran, wenn die Wiki-Siedlung als Ruine gilt -- Ruine ist bei uns ein
+// eigenes Merkmal, keine Art. ⚠️ Absichtlich UNVERAENDERT gegenueber dem Stand vor 2026-08-03:
+// der Zusatz haengt nur an einer Art (Stufe 1 oder 2), nie an der blossen Ortsgroesse, und er
+// liest nur wikiSettlement.is_ruined, nicht das eigene is_ruined des Kartenpunkts. Beides waere
+// vertretbar zu aendern -- aber nicht nebenbei in einem Commit, der die Typzeile umbaut.
+//
+// PURE: nimmt das location-Objekt, gibt einen String zurueck. Stand bis 2026-08-03 zweimal
+// wortgleich inline (schwebende Box + Popup) -- die dritte Stufe waere die dritte Kopie gewesen.
+function locationTypeLabelForDisplay(location) {
+	if (!location) {
+		return "";
+	}
+	const wikiSettlement = location.wikiSettlement;
+	const placeKind = String(location.placeKind || "").trim();
+	let label = String(location.locationTypeLabel || "");
+	let carriesAKind = false;
+	if (placeKind) {
+		label = placeKind;
+		carriesAKind = true;
+	} else if (wikiSettlement && wikiSettlement.building_type) {
+		label = String(wikiSettlement.building_type);
+		carriesAKind = true;
+	}
+	if (carriesAKind && wikiSettlement && wikiSettlement.is_ruined && !/ruine/i.test(label)) {
+		label += " (Ruine)";
+	}
+	return label;
+}
+
 // Baut den HTML-Inhalt des Marker-Popups (frisch erzeugbar, damit der Route-Button
 // "hinzufügen"/"entfernen" den aktuellen Routenzustand widerspiegelt).
 function buildLocationMarkerPopupHtml(markerEntry, opts) {
@@ -42,14 +80,8 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 	const coatIconMarkup = floating
 		? (typeof settlementRealisticIconMarkup === "function" ? settlementRealisticIconMarkup(markerEntry.locationType, markerEntry.location.locationTypeLabel) : "")
 		: (typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "");
-	// Bauwerke: genauer Typ (Festung/Turm/…) als Unterüberschrift statt „Besondere Bauwerke/Stätten".
-	let typeLabel = markerEntry.location.locationTypeLabel;
-	if (wikiSettlement && wikiSettlement.building_type) {
-		typeLabel = String(wikiSettlement.building_type);
-		if (wikiSettlement.is_ruined && !/ruine/i.test(typeLabel)) {
-			typeLabel += " (Ruine)";
-		}
-	}
+	// Ortsart statt blosser Ortsgroesse als Unterüberschrift (Editor-Wert > Wiki > Groesse).
+	const typeLabel = locationTypeLabelForDisplay(markerEntry.location);
 	// Community-Bewertungen (Durchschnitt + letzte Bewertungen) ganz unten; wird beim Öffnen async geladen.
 	const reviewsSlot = markerEntry.publicId
 		? `<div class="location-reviews"${floating ? " data-reviews-compact=\"1\"" : ""} data-reviews-public-id="${escapeHtml(markerEntry.publicId)}" data-reviews-name="${escapeHtml(markerEntry.name)}"></div>`
@@ -139,14 +171,7 @@ function buildSlimLocationPopupHtml(markerEntry) {
 		return buildLocationMarkerPopupHtml(markerEntry);
 	}
 	const location = markerEntry.location;
-	const wikiSettlement = location.wikiSettlement;
-	let typeLabel = location.locationTypeLabel;
-	if (wikiSettlement && wikiSettlement.building_type) {
-		typeLabel = String(wikiSettlement.building_type);
-		if (wikiSettlement.is_ruined && !/ruine/i.test(typeLabel)) {
-			typeLabel += " (Ruine)";
-		}
-	}
+	const typeLabel = locationTypeLabelForDisplay(location);
 	const coatIconMarkup = typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(location.coat) : "";
 	const sourceMarkup = typeof renderFeatureSourceLine === "function"
 		? renderFeatureSourceLine("settlement", markerEntry.publicId, location.wikiUrl, "location-popup__wiki-link")

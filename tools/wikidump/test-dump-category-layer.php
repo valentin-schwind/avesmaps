@@ -484,14 +484,22 @@ $check(
     'mirrors avesmapsWikiSettlementCrawlBuildings (settlements.php:929-962) verbatim root category'
 );
 sort($buildingMemberFetcherCalls);
-$expectedTypes = AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES;
+// The expectation applies the SAME linear-infrastructure filter the fetcher applies (step 3 of
+// its docblock). It did not have to before 2026-08-03, because the legacy list happened to
+// contain none of the excluded names; the place_kind catalogue then added Mauer/Damm/Deich/
+// Kanalisation/Aequadukt, which ARE real "Bauwerk nach Art" subcats but are not map points.
+// Spelling it out here is the point: this asserts what the fetcher does, not what the list holds.
+$expectedTypes = array_values(array_filter(
+    AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES,
+    static fn(string $t): bool => !avesmapsWikiSettlementIsExcludedBuildingType($t)
+));
 $expectedTypes[] = 'Wasserburg';
 sort($expectedTypes);
 $check(
-    '(e3) building-type outer fetch walks legacy list + live subcat, no PDO upsert reached',
+    '(e3) building-type outer fetch walks legacy list + live subcat, minus linear infrastructure, no PDO upsert reached',
     $expectedTypes,
     $buildingMemberFetcherCalls,
-    'legacy fallback list (settlements.php:67-69) + live subcat "Wasserburg", union, deduped -- stops before avesmapsWikiSettlementUpsertBuildingRow'
+    'legacy fallback list (place-kinds.php) + live subcat "Wasserburg", union, deduped, Strasse/Mauer/... dropped -- stops before avesmapsWikiSettlementUpsertBuildingRow'
 );
 
 // ===========================================================================

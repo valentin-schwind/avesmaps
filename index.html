@@ -542,14 +542,14 @@
 						     prominent tab spot that "🚨 Syncen" used to occupy. Syncen + the "Letzte
 						     Sync" indicator move into the editor's own toolbar (see
 						     html/wiki-sync-settlement-editor.html #seSyncen / #seSyncedInfo). -->
-						<button type="button" id="settlement-editor-open" class="wiki-sync-panel__start" title="Öffnet den Siedlungseditor (enthält jetzt auch Syncen + Zuletzt gesynct)."><span class="t1">Siedlungen bearbeiten</span><span id="settlement-editor-synced" class="wiki-sync-panel__summary" hidden></span></button>
+						<button type="button" id="settlement-editor-open" class="wiki-sync-panel__start" title="Öffnet den Ortseditor (enthält jetzt auch Syncen + Zuletzt gesynct)."><span class="t1">Orte bearbeiten</span><span id="settlement-editor-synced" class="wiki-sync-panel__summary" hidden></span></button>
 					</div>
 					<!-- Kept hidden, NOT removed: startWikiSyncKindSync/renderWikiSyncKindProgress/
 					     refreshWikiSyncKindSyncedStatus (js/review/review-wiki-sync.js) still target
 					     these exact ids and must never null-deref. The visible trigger now lives in
 					     the editor toolbar and calls window.parent.startWikiSyncKindSync("settlement"). -->
 					<div class="wiki-sync-panel__actions" hidden>
-						<button id="wiki-sync-sync-settlement" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Siedlungen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🚨 Syncen</button>
+						<button id="wiki-sync-sync-settlement" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Orte aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🚨 Syncen</button>
 					</div>
 					<span id="wiki-sync-locations-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
 						<!-- Die Konfliktloesung stand hier (Accordion im Siedlungen-Reiter) und ist nach
@@ -562,7 +562,7 @@
 
 						<div class="wiki-sync-locations-section">
 							<div class="wiki-sync-panel__filter wiki-sync-locations-filterbar">
-								<input id="settlement-list-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Siedlung suchen ..." aria-label="Siedlungen durchsuchen" />
+								<input id="settlement-list-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Ort suchen ..." aria-label="Orte durchsuchen" />
 								<div class="type-filter"><button type="button" id="settlement-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="settlement-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="settlement-type-filter-menu"></div></div><div class="type-filter__section type-filter__section--sub" id="settlement-scope-filter-section"><div class="type-filter__section-title">↳ Lage (nur Bauwerke)</div><div id="settlement-scope-filter-menu"></div></div><div class="type-filter__section type-filter__section--sub" id="settlement-building-type-filter-section"><div class="type-filter__section-title">↳ Art (nur Bauwerke)</div><div id="settlement-building-type-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="settlement-continent-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="settlement-source-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Wappen</div><div id="settlement-coat-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Bilder</div><div id="settlement-image-filter-menu"></div></div></div></div>
 							</div>
 							<div id="settlement-list" class="review-panel__list wikisync-itemlist"></div>
@@ -1143,8 +1143,8 @@
 		<div id="location-edit-overlay" hidden>
 			<div id="location-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="location-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
-					<h2 id="location-edit-title">Siedlung bearbeiten</h2>
-					<button id="location-edit-close" class="location-report-dialog__close" type="button" aria-label="Siedlungsbearbeitung schließen">×</button>
+					<h2 id="location-edit-title">Ort bearbeiten</h2>
+					<button id="location-edit-close" class="location-report-dialog__close" type="button" aria-label="Ortsbearbeitung schließen">×</button>
 				</div>
 				<form id="location-edit-form" class="location-report-form" novalidate>
 					<input id="location-edit-public-id" name="public_id" type="hidden" />
@@ -1161,7 +1161,7 @@
 							<span>Ortsname *</span>
 							<div class="location-edit-fieldrow">
 								<input id="location-edit-name" name="name" type="text" maxlength="160" required />
-								<button type="button" id="location-edit-wiki-sync-name" class="location-edit-wiki-mini" disabled title="Ortsname aus der verbundenen Wiki-Siedlung übernehmen" aria-label="Ortsname aus Wiki übernehmen">↻</button>
+								<button type="button" id="location-edit-wiki-sync-name" class="location-edit-wiki-mini" disabled title="Ortsname aus dem verbundenen Wiki-Ort übernehmen" aria-label="Ortsname aus Wiki übernehmen">↻</button>
 							</div>
 						</label>
 						<label class="location-report-form__field">
@@ -1175,16 +1175,24 @@
 									<option value="metropole">Metropole</option>
 									<option value="gebaeude">Besondere Bauwerke/Stätten</option>
 								</select>
-								<button type="button" id="location-edit-wiki-sync-size" class="location-edit-wiki-mini" disabled title="Ortsgröße aus der verbundenen Wiki-Siedlung übernehmen" aria-label="Ortsgröße aus Wiki übernehmen">↻</button>
+								<button type="button" id="location-edit-wiki-sync-size" class="location-edit-wiki-mini" disabled title="Ortsgröße aus dem verbundenen Wiki-Ort übernehmen" aria-label="Ortsgröße aus Wiki übernehmen">↻</button>
 							</div>
+						</label>
+						<!-- Ortsart: die zweite Achse. Die Ortsgröße darüber entscheidet, WIE der Punkt gezeichnet wird
+						     (Radius, Symbol, ab welchem Zoom das Label kommt); dieses Feld sagt, WAS er ist. Optional --
+						     leer ist ein gültiger Zustand. Vorschläge kommen aus dem Wiki-Katalog, nach gemessener
+						     Häufigkeit sortiert (js/ui/place-kind-autocomplete.js). -->
+						<label class="location-report-form__field">
+							<span>Art</span>
+							<input id="location-edit-place-kind" name="place_kind" type="search" maxlength="120" autocomplete="off" placeholder="z. B. Brücke – leer lassen, wenn unbekannt" />
 						</label>
 					</div>
 					<input id="location-edit-description" name="description" type="hidden" value="" />
 					<input id="location-edit-wiki-url" name="wiki_url" type="hidden" value="" />
-					<div class="label-edit-section"><div class="label-edit-section-title">Wiki-Siedlung</div>
+					<div class="label-edit-section"><div class="label-edit-section-title">Wiki-Ort</div>
 						<div class="label-wiki-reference" id="settlement-wiki-reference">
 							<div class="label-wiki-reference__head">
-								<span class="label-wiki-reference__title">Siedlung aus dem Wiki</span>
+								<span class="label-wiki-reference__title">Ort aus dem Wiki</span>
 								<span class="label-wiki-reference__buttons">
 									<button type="button" id="settlement-wiki-assign" class="location-report-form__button location-report-form__button--secondary">Zuweisen</button>
 									<button type="button" id="settlement-wiki-remove" class="location-report-form__button location-report-form__button--secondary" hidden>Entfernen</button>
@@ -1192,7 +1200,7 @@
 							</div>
 							<div id="settlement-wiki-reference-list" class="label-wiki-reference__list"></div>
 							<div id="settlement-wiki-picker" class="label-wiki-picker" hidden>
-								<input id="settlement-wiki-picker-filter" type="search" placeholder="Siedlung suchen ..." autocomplete="off" aria-label="Wiki-Siedlung suchen" />
+								<input id="settlement-wiki-picker-filter" type="search" placeholder="Ort suchen ..." autocomplete="off" aria-label="Wiki-Ort suchen" />
 								<div id="settlement-wiki-picker-list" class="label-wiki-picker-list"></div>
 								<p id="settlement-wiki-picker-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 							</div>
@@ -2129,6 +2137,7 @@
 		<script src="js/territory/territory-derived-geometry-save-order.js"></script>
 		<script src="js/ui/source-autocomplete.js"></script>
 		<script src="js/ui/settlement-autocomplete.js"></script>
+		<script src="js/ui/place-kind-autocomplete.js"></script>
 		<script src="js/review/review-feature-sources.js"></script>
 		<script src="js/review/review-core.js"></script>
 		<script src="js/review/review-status.js"></script>

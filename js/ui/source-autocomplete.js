@@ -126,7 +126,12 @@ function attachTypeahead(inputEl, opts) {
   }
   const options = opts || {};
   const doc = inputEl.ownerDocument || document;
-  const minChars = Number(options.minChars) > 0 ? Number(options.minChars) : SOURCE_AUTOCOMPLETE_MIN_CHARS;
+  // >= 0, nicht > 0: mit "> 0" liesse sich eine ausdrueckliche 0 gar nicht ausdruecken -- sie sah
+  // aus wie "nicht angegeben" und fiel auf 2 zurueck. Genau 0 braucht der Ortsart-Typeahead: dort
+  // soll ein leeres Feld die GANZE (kurze, feste) Liste zeigen, statt zwei Zeichen zu verlangen.
+  const minChars = (options.minChars === undefined || options.minChars === null || !Number.isFinite(Number(options.minChars)))
+    ? SOURCE_AUTOCOMPLETE_MIN_CHARS
+    : Math.max(0, Number(options.minChars));
   const debounceMs = Number(options.debounceMs) >= 0 ? Number(options.debounceMs) : SOURCE_AUTOCOMPLETE_DEBOUNCE_MS;
 
   const box = doc.createElement("div");
@@ -297,6 +302,13 @@ function attachTypeahead(inputEl, opts) {
 
   inputEl.addEventListener("input", onInput);
   inputEl.addEventListener("keydown", onKeyDown);
+  // Nur bei minChars === 0: dann ist die Liste kurz und FEST, und ein leeres Feld soll sie beim
+  // Hineinklicken zeigen -- "was steht ueberhaupt zur Wahl?" ist dort die haeufigste Frage.
+  // Bei jedem anderen Aufrufer (Quellensuche u. a.) waere das eine Anfrage ohne Suchbegriff
+  // gegen einen offenen Katalog, also bleibt es dort aus.
+  if (minChars === 0) {
+    inputEl.addEventListener("focus", onInput);
+  }
   box.addEventListener("mousedown", onBoxMouseDown);
   doc.addEventListener("mousedown", onDocMouseDown);
   // capture: catches scrolling of any ancestor panel, not just the document.
@@ -312,6 +324,7 @@ function attachTypeahead(inputEl, opts) {
     }
     inputEl.removeEventListener("input", onInput);
     inputEl.removeEventListener("keydown", onKeyDown);
+    inputEl.removeEventListener("focus", onInput);
     box.removeEventListener("mousedown", onBoxMouseDown);
     doc.removeEventListener("mousedown", onDocMouseDown);
     doc.removeEventListener("scroll", onReposition, true);

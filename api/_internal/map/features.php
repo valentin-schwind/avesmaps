@@ -10,6 +10,9 @@ declare(strict_types=1);
 // and the const/class are resolved at call time.
 
 require_once __DIR__ . '/../wiki/path-naming.php';
+// Ortsarten-Katalog (properties.place_kind). Bewusst die kleine Konstantendatei, NICHT
+// wiki/settlements.php -- die ist gross, zieht place-scope + coat-display nach und macht DDL.
+require_once __DIR__ . '/../wiki/place-kinds.php';
 
 function avesmapsReadMapFeaturePublicId(mixed $value): string {
     $publicId = avesmapsNormalizeSingleLine((string) $value, 36);
@@ -1259,6 +1262,14 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
         $properties['settlement_class_label'] = avesmapsLocationSubtypeLabel($subtype);
         $properties['is_nodix'] = avesmapsReadBoolean($payload['is_nodix'] ?? false);
         $properties['is_ruined'] = avesmapsReadBoolean($payload['is_ruined'] ?? false);
+        // Ortsart ("Brücke", "Oase", ...) -- beschreibt den Ort, aendert NICHT seine Darstellung.
+        // Absent = leer: das Feld ist optional, und "leer" ist eine gueltige Antwort, kein Fehlen.
+        $placeKind = avesmapsNormalizePlaceKind((string) ($payload['place_kind'] ?? ''));
+        if ($placeKind === '') {
+            unset($properties['place_kind']);
+        } else {
+            $properties['place_kind'] = $placeKind;
+        }
         if ($description === '') {
             unset($properties['description']);
         } else {
@@ -1339,6 +1350,12 @@ function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): arra
         'is_nodix' => avesmapsReadBoolean($payload['is_nodix'] ?? false),
         'is_ruined' => avesmapsReadBoolean($payload['is_ruined'] ?? false),
     ];
+    // Ortsart -- siehe avesmapsUpdatePointFeatureDetails. Nur setzen, wenn wirklich eine kam:
+    // ein leerer Schluessel im JSON waere eine Behauptung ("keine Art"), die niemand getroffen hat.
+    $placeKind = avesmapsNormalizePlaceKind((string) ($payload['place_kind'] ?? ''));
+    if ($placeKind !== '') {
+        $properties['place_kind'] = $placeKind;
+    }
     if ($description !== '') {
         $properties['description'] = $description;
     }
@@ -2787,6 +2804,8 @@ function avesmapsBuildPointFeatureResponse(string $publicId, string $name, strin
         'other_source' => $properties['other_source'] ?? null,
         'is_nodix' => !empty($properties['is_nodix']),
         'is_ruined' => !empty($properties['is_ruined']),
+        // Ortsart -- der Editor liest sie hier zurueck, um das Feld beim Oeffnen zu fuellen.
+        'place_kind' => (string) ($properties['place_kind'] ?? ''),
         'lat' => $lat,
         'lng' => $lng,
         'revision' => $revision,

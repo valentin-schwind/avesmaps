@@ -243,6 +243,9 @@ function applyFeatureResponseToMarker(markerEntry, feature) {
 		images: feature.images !== undefined ? feature.images : (markerEntry.location.images || []),
 		isNodix: Boolean(feature.is_nodix),
 		isRuined: Boolean(feature.is_ruined),
+		// Ortsart. Die Antwort trägt sie IMMER (auch leer), also darf sie hier bedingungslos
+		// gewinnen -- sonst liesse sich eine geleerte Art am Marker nie wieder loswerden.
+		placeKind: String(feature.place_kind || ""),
 		revision: Number(feature.revision) || markerEntry.location.revision || null,
 	};
 	const locationIndex = locationData.indexOf(previousLocation);
@@ -342,6 +345,7 @@ function addCreatedLocationMarker(feature, { openPopup = true } = {}) {
 		images: feature.images || [],
 		isNodix: Boolean(feature.is_nodix),
 		isRuined: Boolean(feature.is_ruined),
+		placeKind: String(feature.place_kind || ""),
 		revision: Number(feature.revision) || null,
 	};
 	locationData.push(location);

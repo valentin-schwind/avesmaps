@@ -70,30 +70,12 @@ function avesmapsWikiSettlementClassLabel(string $class): string {
     return (string) ($labels[$class] ?? 'Siedlung');
 }
 
-// Bauwerks-Typ-Liste (Legacy-Fallback), EINE Quelle der Wahrheit. Bisher inline in
-// avesmapsWikiSettlementCrawlBuildings/BuildingTypes dupliziert; hierher gezogen, damit der
-// Dump-Bauwerks-Handler (Pass B) denselben Typ-Katalog gegen literale [[Kategorie:]]-Links matcht
-// (der Online-Crawl ergaenzt diese Liste zur Laufzeit noch um die Subkategorien von „Bauwerk nach
-// Art"; der Dump hat keine Kategorie-Enumeration -> literale Kategorie + Art als Quelle).
-// 🔴 DIE REIHENFOLGE IST TRAGEND. avesmapsWikiDumpCategoryAssembleBuildingMap behält den ERSTEN
-// Typ, der einen Titel beansprucht (dump-category-layer.php) -- eine spezifische Art muss also vor
-// ihrer Sammelkategorie stehen, sonst wird jeder Steinkreis als „Kultstätte" abgelegt und der
-// eigene Eintrag ist tote Zeile. Dieselbe Liste speist beide Wege: den (heute aufruferlosen)
-// Online-Crawl und die lebende Dump-Phase `online_building_map`.
-const AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES = [
-    'Festung', 'Festungsruine', 'Historische Festung', 'Tempel', 'Turm', 'Ruine', 'Palast', 'Kloster', 'Leuchtturm',
-    // Kult- und Höhlenstätten (Owner 2026-07-28, aus dem Abgleich der derographischen Listen).
-    // Zuerst die feinen Arten -- Steinkreis, Hexentanzplatz, Heiligtum, Schrein, Toteninsel und
-    // Borbarad-Kultstätte sind im Wiki Unterkategorien von „Kultstätte", „Pforte des Grauens" eine
-    // von „Unheiligtum". „Tempel" steht schon oben und behält damit seine Seiten wie bisher.
-    'Steinkreis', 'Hexentanzplatz', 'Heiligtum', 'Schrein', 'Toteninsel', 'Borbarad-Kultstätte', 'Pforte des Grauens',
-    // dann die Sammelkategorien
-    'Kultstätte', 'Unheiligtum',
-    // und die überschneidungsfreien. „Dungeon" ist kein Wiki-Begriff: dort gibt es nur Höhle und
-    // Grotte, und die bleiben getrennt (Owner-Entscheid), damit jede Art heißt wie ihre Kategorie.
-    'Höhle', 'Grotte', 'Sphärenruptur', 'Drachenhort', 'Feentor',
-    'Bauwerk',
-];
+// Der Ortsarten-Katalog (AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES + die place_kind-Helfer)
+// stand bis 2026-08-03 hier. Er ist in place-kinds.php gezogen, weil der KARTEN-Schreibpfad
+// (map/features.php) ihn ebenfalls braucht und diese Datei nicht laden darf: sie ist gross, zieht
+// place-scope + coat-display nach und macht DDL. Der Inhalt der Liste und ihre tragende
+// Reihenfolge sind unveraendert uebernommen -- siehe den Kommentar dort.
+require_once __DIR__ . '/place-kinds.php';
 
 // Erster bekannter Bauwerkstyp aus einer Kategorienliste (Vergleich case-insensitiv gegen die
 // Legacy-Typen). Liefert den KANONISCHEN Typnamen aus der Liste (nicht die Roh-Kategorie), '' wenn
@@ -1076,13 +1058,10 @@ function avesmapsWikiSettlementBuildingTypes(PDO $pdo): array {
     return ['ok' => true, 'types' => array_values($types)];
 }
 
-// Wege/lineare Infrastruktur, die NICHT als Siedlung/Staette gelistet wird (Strassen laufen ueber den
-// Wege-WikiSync). Vergleich gefaltet (Kleinschreibung + ss/ae/oe/ue), damit z. B. „Straße" matcht.
-function avesmapsWikiSettlementIsExcludedBuildingType(string $type): bool {
-    static $excluded = ['strasse', 'reichsstrasse', 'mauer', 'damm', 'deich', 'kanalisation', 'aequadukt'];
-    $folded = str_replace(['ß', 'ä', 'ö', 'ü'], ['ss', 'ae', 'oe', 'ue'], mb_strtolower(trim($type), 'UTF-8'));
-    return in_array($folded, $excluded, true);
-}
+// avesmapsWikiSettlementIsExcludedBuildingType() ist am 2026-08-03 nach place-kinds.php gezogen
+// (unveraendert, gleicher Name, gleiche Liste). Grund: sie beantwortet „ist dieser Name ueberhaupt
+// ein PUNKT?" -- dieselbe Frage, die das Editor-Feld „Art" stellt. Sie stand hier, wurde aber von
+// dump-category-layer.php ohnehin schon ueber diese Datei hinweg mitbenutzt.
 
 // Gechunkter Bauwerks-Crawl (Schritt 2): crawlt EINEN Typ — direkte Mitglieder + 1 Ebene
 // Unterkategorien (Tiefe 1) -> fängt z. B. Burgen unter Festung\Wasserburg\Motte\Trollburg, die der

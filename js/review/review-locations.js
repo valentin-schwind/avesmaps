@@ -521,6 +521,9 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 		? (isCrossingConversion ? pendingCrossingConversionIsNodix : Boolean(location.isNodix))
 		: Boolean(presetIsNodix);
 	document.getElementById("location-edit-is-ruined").checked = Boolean(location.isRuined);
+	// Ortsart -- leer ist ein gueltiger Zustand; das Feld bleibt dann einfach leer.
+	document.getElementById("location-edit-place-kind").value = String(location.placeKind || "");
+	mountLocationEditPlaceKindAutocomplete();
 	if (typeof renderSettlementWikiReference === "function") {
 		renderSettlementWikiReference();
 	}
@@ -590,6 +593,27 @@ function mountLocationEditNameAutocomplete() {
 				renderSettlementWikiReference();
 			}
 		},
+	});
+}
+
+// Ortsart-Typeahead ans Feld „Art" hängen (js/ui/place-kind-autocomplete.js). Anders als der
+// Ortsname-Typeahead gilt er für ANLEGEN UND BEARBEITEN: eine Art nachzutragen ist der häufigere
+// Fall, weil die Bestandsorte alle noch keine haben.
+//
+// Vor jedem Mount abhängen: attachTypeahead bindet je Aufruf eigene Listener und legt eine eigene
+// Box an document.body -- ohne das stapeln sich beide bei jedem Öffnen des Dialogs.
+function mountLocationEditPlaceKindAutocomplete() {
+	if (typeof locationEditPlaceKindAutocompleteDetach === "function") {
+		locationEditPlaceKindAutocompleteDetach();
+		locationEditPlaceKindAutocompleteDetach = null;
+	}
+	const kindInput = document.getElementById("location-edit-place-kind");
+	if (!kindInput || typeof attachPlaceKindAutocomplete !== "function") {
+		return;
+	}
+	locationEditPlaceKindAutocompleteDetach = attachPlaceKindAutocomplete(kindInput, {
+		escape: escapeHtml,
+		tr: typeof tr === "function" ? tr : undefined,
 	});
 }
 
@@ -670,6 +694,10 @@ function buildLocationEditPayload(formElement) {
 		wiki_url: String(formData.get("wiki_url") || "").trim(),
 		is_nodix: formData.get("is_nodix") === "on",
 		is_ruined: formData.get("is_ruined") === "on",
+		// Ortsart. IMMER mitsenden, auch leer -- update_point loescht properties.place_kind nur,
+		// wenn ein leerer Wert ankommt. Weglassen hiesse "nicht geaendert", und dann liesse sich
+		// eine einmal gesetzte Art nie wieder entfernen.
+		place_kind: String(formData.get("place_kind") || "").trim(),
 	};
 
 	if (action === "create_point") {

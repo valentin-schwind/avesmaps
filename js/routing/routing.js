@@ -92,6 +92,10 @@ const prepareLocationData = (data) => {
 				wikiUrl: readFeatureWikiUrl(feature.properties),
 				otherSource: readFeatureOtherSource(feature.properties),
 				wikiSettlement: feature.properties.wiki_settlement || null,
+				// Ortsart, vom Editor gesetzt ("Brücke", "Oase", ...). Beschreibt den Ort; sie
+				// aendert seine Darstellung NICHT -- nur die Typzeile der Infobox (siehe
+				// locationTypeLabelForDisplay in map-features-location-marker-entry.js).
+				placeKind: String(feature.properties.place_kind || ""),
 				// Political context line (resolved server-side in map-features.php): {kind,name,type,
 				// territory_public_id} or absent. Rendered under the settlement type in the infobox.
 				political: feature.properties.political || null,

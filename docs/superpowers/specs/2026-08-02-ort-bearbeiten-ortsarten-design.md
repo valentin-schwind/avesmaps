@@ -51,7 +51,7 @@ einer normalen durchsuchbaren Auswahl.
 |---|---|---|
 | Kontextmenü sagt bereits **„Neuer Ort“** | [index.html:251](../../../index.html) | Der Einstiegspunkt ist schon richtig benannt. Nur der Dialog dahinter sagt „Siedlung“. |
 | `building_type` (VARCHAR(120)) in `wiki_sync_pages` | [settlements.php:130](../../../api/_internal/wiki/settlements.php) | Genau dieses Feld, aber nur für `settlement_class='gebaeude'` und nur vom Crawl gefüllt — nie vom Editor. |
-| `AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES` (24 Einträge) | [settlements.php:83](../../../api/_internal/wiki/settlements.php) | Ausdrücklich „EINE Quelle der Wahrheit“ für den Typkatalog. Speist Online-Crawl **und** Dump-Phase. |
+| `AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES` (24 Einträge) | [place-kinds.php](../../../api/_internal/wiki/place-kinds.php) (bis 2026-08-03 in `settlements.php`) | Ausdrücklich „EINE Quelle der Wahrheit“ für den Typkatalog. Speist Online-Crawl **und** Dump-Phase. |
 | `building_type` reist im Karten-Payload mit | [map-features.php:457](../../../api/app/map-features.php) | Als `properties.wiki_settlement.building_type`. |
 | Infobox ersetzt „Besondere Bauwerke/Stätten“ schon durch den genauen Typ | [marker-entry.js:47](../../../js/map-features/map-features-location-marker-entry.js) und `:144` | Die Anzeigestrecke existiert bereits — sie greift nur, wenn der Punkt an einer Wiki-Seite hängt. |
 | `building_type` ist schon ein Unterfilter der Ortsliste | [review-settlement-list.js:311](../../../js/review/review-settlement-list.js) | Inklusive „ohne Art“ als eigene, bewusst sichtbare Antwort. |
@@ -120,7 +120,7 @@ Drei Namen fehlen in der Editor-Liste, aus drei verschiedenen Gründen:
 | `Bauwerk` | **ja** (der Crawl braucht ihn) | Die Sammelkategorie ohne Aussage — identisch mit „leer lassen“. |
 | `Straße` (143) | **nein**, wird gar nicht erst aufgenommen | Ist ein **Weg**, kein Punkt. Gehört in `PATH_SUBTYPE_KEYS`, nicht hierher. |
 
-Katalog 90 Einträge − 2 versteckte = **88 wählbare Arten**.
+Katalog 90 Einträge − 2 versteckte − 5 lineare = **83 wählbare Arten** (gemessen, §4).
 
 ### 2.5 Was NICHT Teil dieses Entwurfs ist
 
@@ -227,9 +227,9 @@ Verdrahtet über den **vorhandenen** `attachTypeahead()` aus
 Berührt: `js/review/review-locations.js` (Feld beim Öffnen füllen, in `resetLocationEditForm`
 leeren), `js/review/review-editor-submit.js` (Wert mitsenden).
 
-> 💣 Der Typeahead legt seine Box an `document.body` und positioniert absolut. Im Ortsdialog
-> (Overlay) ist das die richtige Wahl — aber die z-index-Leiter aus `css/base/tokens.css` muss
-> die Box **über** das Overlay heben, sonst liegt die Liste dahinter.
+> ✅ **Geprüft, keine Änderung nötig.** Der Typeahead legt seine Box an `document.body`. Die
+> z-index-Leiter trägt das bereits: `--z-autocomplete` = 1600 gegen 1260 des Dialog-Overlays,
+> und `elementFromPoint` auf der offenen Liste trifft die Liste, nicht das Overlay.
 
 ### 3.6 Umbenennung „Siedlung“ → „Ort“
 
@@ -285,7 +285,7 @@ Der Dateiname `wiki-sync-settlement-editor.html` bleibt: er wird dynamisch gelad
 
 **Nach dem Deploy (einzelne Proben, keine Schleifen — STRATO):**
 
-- `GET /api/app/place-kinds.php` antwortet `ok: true` mit 88 Einträgen, `Festung` oben.
+- `GET /api/app/place-kinds.php` antwortet `ok: true` mit 83 Einträgen, `Festung` oben.
 - Ein bestehender Bauwerks-Punkt mit Wiki-Bindung zeigt seinen `building_type` unverändert.
 
 ---
@@ -294,8 +294,43 @@ Der Dateiname `wiki-sync-settlement-editor.html` bleibt: er wird dynamisch gelad
 
 - Der Dialog heißt „Ort bearbeiten“, der WikiSync-Knopf „Orte bearbeiten“, und in beiden
   Dateien steht kein nutzersichtbares „Siedlung“ mehr, das einen Ort meint.
-- Ein Editor kann beim Anlegen **und** beim Bearbeiten eine Art aus 88 Werten filtern und
+- Ein Editor kann beim Anlegen **und** beim Bearbeiten eine Art aus 83 Werten filtern und
   wählen, oder das Feld leer lassen.
 - Die gewählte Art steht in der Infobox, im Verlauf und in der Ortsliste.
 - Karte, Marker, Labels, Ebenen-Schalter und URL-Parameter sind nachweislich unverändert.
 - Kein Bestandsartikel wurde vom Dump umklassifiziert (Test aus §4).
+
+---
+
+## 6. Nachtrag aus der Umsetzung (2026-08-03)
+
+Vier Dinge kamen beim Bauen anders als hier geplant. Sie stehen hier, nicht als stille Abweichung
+im Code.
+
+**(a) Der Katalog zog in eine eigene Datei.** Geplant war, ihn in `wiki/settlements.php` stehen zu
+lassen. Das geht nicht: der Karten-Schreibpfad (`map/features.php`) braucht ihn ebenfalls, und
+`settlements.php` ist gross, zieht `place-scope` + `coat-display` nach und macht DDL. Der Katalog
+und die reinen Helfer liegen jetzt in **`api/_internal/wiki/place-kinds.php`**; `settlements.php`
+`require_once`t sie. Inhalt und tragende Reihenfolge sind unveraendert uebernommen.
+
+**(b) Es gab schon einen Ausschluss — und er ist jetzt der einzige.**
+`avesmapsWikiSettlementIsExcludedBuildingType()` entscheidet seit jeher, dass Straße, Mauer, Damm,
+Deich, Kanalisation und Äquadukt *lineare Infrastruktur* sind und kein Ort. Die Editor-Liste
+benutzt sie mit, statt die Frage ein zweites Mal zu beantworten. Deshalb **83 statt 88** wählbare
+Arten: Mauer/Damm/Deich/Kanalisation/Äquadukt stehen sehr wohl im Katalog (sie *sind*
+Unterkategorien von „Bauwerk nach Art“, der Katalog spiegelt das Wiki ehrlich) — dass sie kein
+wählbarer Ort sind, sagt eine Stelle, für alle. Die Funktion ist mit nach `place-kinds.php`
+gezogen, ohne eine Zeile zu ändern.
+
+**(c) `attachTypeahead` konnte `minChars: 0` gar nicht ausdrücken.** Der Wächter lautete
+`Number(options.minChars) > 0 ? ... : 2` — eine ausdrückliche 0 sah aus wie „nicht angegeben“
+und fiel auf 2 zurück, das leere Feld blieb stumm. Behoben, und zusätzlich öffnet die Liste
+jetzt **bei `focus`**, aber nur wenn `minChars === 0` — bei jedem anderen Aufrufer (Quellensuche)
+wäre das eine Anfrage ohne Suchbegriff gegen einen offenen Katalog.
+
+**(d) Die doppelte Typzeile ist eine Funktion geworden.** Die Vorrangregel stand zweimal wortgleich
+inline (schwebende Box + Popup); die dritte Stufe wäre die dritte Kopie gewesen. Jetzt
+`locationTypeLabelForDisplay(location)` mit eigenem Test.
+⚠️ Die „(Ruine)“-Regel ist dabei **bewusst unverändert** geblieben: der Zusatz hängt nur an
+einer Art, nie an der blossen Ortsgrösse, und liest nur `wikiSettlement.is_ruined`, nicht das
+eigene `is_ruined` des Kartenpunkts. Beides wäre vertretbar zu ändern — aber nicht nebenbei.

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Avesmaps – Siedlungen bearbeiten</title>
+<title>Avesmaps – Orte bearbeiten</title>
 <script>
   /* Resolve light/dark exactly like the parent app (js/app/theme-toggle.js): an explicit saved choice
      wins, otherwise follow the browser/OS scheme (prefers-color-scheme). Runs before the stylesheet
@@ -277,13 +277,13 @@
          background + leftmost. Moved in from the tab's prominent spot (index.html
          #wiki-sync-sync-settlement, now hidden there); triggers the SAME parent-window sync
          machinery via window.parent.startWikiSyncKindSync("settlement") -- see review-wiki-sync.js. -->
-    <button class="btn2 primary" id="seSyncen" title="Übernimmt die Siedlungen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen)."><span class="t1">🚨 Syncen</span><span class="t2" id="seSyncedInfo">Letzte Sync: wird geladen…</span></button>
-    <button class="btn2 primary" id="seAssign" title="Ordnet alle Siedlungen ihrem Territorium per Ray-Cast zu"><span class="t1">Siedlungen zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
+    <button class="btn2 primary" id="seSyncen" title="Übernimmt die Orte aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen)."><span class="t1">🚨 Syncen</span><span class="t2" id="seSyncedInfo">Letzte Sync: wird geladen…</span></button>
+    <button class="btn2 primary" id="seAssign" title="Ordnet alle Orte ihrem Territorium per Ray-Cast zu"><span class="t1">Orte zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
     <button class="btn2" id="seFilterMap" title="Zeigt auf der Live-Karte nur die aktuelle Auswahl"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
-    <button class="btn2" id="seLocalizeCoats" title="Drei Schritte in einem: prüft die Wappen-Lizenzen im Wiki neu (nur die bisher unbekannten – sichtbare Wappen bleiben sichtbar), überträgt die gemeinfreien auf die Siedlungen und lädt ihre Bilder dann auf den Avesmaps-Server (verkleinert, max. 512px). Nur gemeinfrei, nur von Wiki Aventurica. Eigene Uploads werden nie angefasst. Läuft in Schüben."><span class="t1">Wappen lokalisieren</span><span class="t2">gemeinfrei laden</span></button>
-    <button class="btn2" id="seImagesToggle" aria-pressed="false" title="Globaler Schalter: blendet ALLE Siedlungsbilder im öffentlichen Frontend aus. Der Editor zeigt sie weiter."><span class="t1" id="seImagesToggleLabel">Bilder: An</span><span class="t2">im Frontend</span></button>
-    <button class="btn2" id="seCoatsToggle" aria-pressed="false" title="Globaler Schalter: ersetzt ALLE Siedlungswappen im öffentlichen Frontend. Der Kopf der Infobox zeigt dann wieder das Siedlungs-Icon. Der Editor zeigt die Wappen weiter."><span class="t1" id="seCoatsToggleLabel">Wappen: An</span><span class="t2">im Frontend</span></button>
-    <button class="btn2" id="seLinkCheck" title="Prüft NUR die Quellen-Links der Siedlungen auf Erreichbarkeit. Abenteuer, Karten und Territoriums-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="seLinkCheckInfo">Quellen der Siedlungen</span></button>
+    <button class="btn2" id="seLocalizeCoats" title="Drei Schritte in einem: prüft die Wappen-Lizenzen im Wiki neu (nur die bisher unbekannten – sichtbare Wappen bleiben sichtbar), überträgt die gemeinfreien auf die Orte und lädt ihre Bilder dann auf den Avesmaps-Server (verkleinert, max. 512px). Nur gemeinfrei, nur von Wiki Aventurica. Eigene Uploads werden nie angefasst. Läuft in Schüben."><span class="t1">Wappen lokalisieren</span><span class="t2">gemeinfrei laden</span></button>
+    <button class="btn2" id="seImagesToggle" aria-pressed="false" title="Globaler Schalter: blendet ALLE Ortsbilder im öffentlichen Frontend aus. Der Editor zeigt sie weiter."><span class="t1" id="seImagesToggleLabel">Bilder: An</span><span class="t2">im Frontend</span></button>
+    <button class="btn2" id="seCoatsToggle" aria-pressed="false" title="Globaler Schalter: ersetzt ALLE Ortswappen im öffentlichen Frontend. Der Kopf der Infobox zeigt dann wieder das Orts-Icon. Der Editor zeigt die Wappen weiter."><span class="t1" id="seCoatsToggleLabel">Wappen: An</span><span class="t2">im Frontend</span></button>
+    <button class="btn2" id="seLinkCheck" title="Prüft NUR die Quellen-Links der Orte auf Erreichbarkeit. Abenteuer, Karten und Territoriums-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="seLinkCheckInfo">Quellen der Orte</span></button>
   </div>
 </header>
 
@@ -310,7 +310,7 @@
   </div>
   <div class="col" id="seMid">
     <div class="colhead">
-      <h2 class="listhead">Siedlungen</h2>
+      <h2 class="listhead">Orte</h2>
       <div id="seListTabs"></div>
       <div class="bar" id="seListFilters"></div>
       <div id="seTreeBypassHint" hidden>Baum-Auswahl links ist ausgeblendet, solange „Nicht zugeordnet" aktiv ist.</div>
@@ -321,7 +321,7 @@
     <div class="colhead">
       <h2 class="listhead">Eigenschaften &amp; Overrides</h2>
     </div>
-    <div id="seDetailBody"><div class="dt-empty">In der Mitte eine Siedlung anklicken, um Details zu sehen.</div></div>
+    <div id="seDetailBody"><div class="dt-empty">In der Mitte einen Ort anklicken, um Details zu sehen.</div></div>
   </div>
 </div>
 <div id="seWappenDialog" class="modal" hidden>
@@ -341,8 +341,8 @@
 <input type="file" id="seImageFile" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
 <div id="seAssignDialog" class="modal" hidden>
   <div class="modal-box wide">
-    <div class="modal-title">Siedlungen zuordnen</div>
-    <div class="modal-sub" id="seAssignSub">Ray-Cast über alle Siedlungen (global) — Vorschau, noch keine Änderung.</div>
+    <div class="modal-title">Orte zuordnen</div>
+    <div class="modal-sub" id="seAssignSub">Ray-Cast über alle Orte (global) — Vorschau, noch keine Änderung.</div>
     <div id="seAssignBody"></div>
     <div class="modal-error" id="seAssignError" hidden></div>
     <div class="modal-actions" id="seAssignActions"></div>
@@ -1218,7 +1218,7 @@ async function renderSettlementDetail(publicId) {
 	const body = $("seDetailBody");
 	if (!body) return;
 	if (!publicId) {
-		body.innerHTML = `<div class="dt-empty">In der Mitte eine Siedlung anklicken, um Details zu sehen.</div>`;
+		body.innerHTML = `<div class="dt-empty">In der Mitte einen Ort anklicken, um Details zu sehen.</div>`;
 		return;
 	}
 	const token = ++settlementDetailLoadToken;
@@ -1485,7 +1485,7 @@ function buildWikiSourceGroupHtml(detail) {
 	const ws = props.wiki_settlement || null;
 	const wikiSettlementUrl = (ws && ws.wiki_url) || "";
 	const wikiRow = wikiSettlementUrl
-		? buildDetailFieldRow("Wiki-Siedlung", `<a class="dt-link" href="${settlementEscape(wikiSettlementUrl)}" target="_blank" rel="noopener">${settlementEscape(detail.name || "Wiki-Seite")} ↗</a>`, "Wiki")
+		? buildDetailFieldRow("Wiki-Ort", `<a class="dt-link" href="${settlementEscape(wikiSettlementUrl)}" target="_blank" rel="noopener">${settlementEscape(detail.name || "Wiki-Seite")} ↗</a>`, "Wiki")
 		: "";
 	if (!wikiRow) return "";
 	return `<div class="dt-grp">Wiki-Verknüpfung</div><div class="dt-grid">${wikiRow}</div>`;
@@ -1988,7 +1988,7 @@ function setAssignButtonBusy(busy, label) {
 	if (!btn) return;
 	btn.disabled = busy;
 	const t1 = btn.querySelector(".t1");
-	if (t1) t1.textContent = busy ? (label || "Berechne Zuordnung…") : "Siedlungen zuordnen";
+	if (t1) t1.textContent = busy ? (label || "Berechne Zuordnung…") : "Orte zuordnen";
 }
 
 function openAssignDialog() {
@@ -2103,7 +2103,7 @@ async function runAssignApply() {
 	try {
 		const result = await engine.apply(seAssignLastSummary.pairs, { confirm: "apply" });
 		const applied = (result && Number(result.applied)) || 0;
-		if (body) body.innerHTML = `<div class="dt-empty">${settlementEscape(applied)} Siedlungen zugeordnet.</div>`;
+		if (body) body.innerHTML = `<div class="dt-empty">${settlementEscape(applied)} Orte zugeordnet.</div>`;
 		if (actions) actions.innerHTML = `<button class="primary" id="seAssignDone">Schließen</button>`;
 		$("seAssignDone")?.addEventListener("click", closeAssignDialog);
 		setStatusText("Bereit.");
@@ -2275,7 +2275,7 @@ async function handleSeLinkCheckClick() {
 		}
 	} catch (error) {
 		setStatusText("Linkprüfung fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
-		if (infoEl) infoEl.textContent = "Quellen der Siedlungen";
+		if (infoEl) infoEl.textContent = "Quellen der Orte";
 	} finally {
 		setSeLinkCheckBusy(false);
 	}
@@ -2393,7 +2393,7 @@ function renderMapFilterButtonState() {
 	if (t1) t1.textContent = seMapFilterOn ? "Alles anzeigen" : "Nur Auswahl anzeigen";
 	btn.classList.toggle("is-active", seMapFilterOn);
 	btn.title = seMapFilterOn
-		? "Zeigt auf der Live-Karte wieder alle Siedlungen"
+		? "Zeigt auf der Live-Karte wieder alle Orte"
 		: "Zeigt auf der Live-Karte nur die aktuelle Auswahl";
 }
 
@@ -2406,7 +2406,7 @@ function toggleMapFilter() {
 	if (seMapFilterOn) {
 		engine.clearMapFilter();
 		seMapFilterOn = false;
-		setStatusText("Karte zeigt wieder alle Siedlungen.");
+		setStatusText("Karte zeigt wieder alle Orte.");
 	} else {
 		const ids = seCurrentFilteredPublicIds();
 		// setMapFilter returns false if it refused (map not ready / not in edit mode); don't flip the
@@ -2417,8 +2417,8 @@ function toggleMapFilter() {
 		}
 		seMapFilterOn = true;
 		setStatusText(ids.length
-			? `Karte auf ${ids.length} Siedlung${ids.length === 1 ? "" : "en"} der Auswahl gefiltert — auf allen Zoomstufen sichtbar, bis „Alles anzeigen“. (Verdeckt der Editor die Karte, kurz schließen.)`
-			: "Die aktuelle Auswahl enthält keine platzierten Siedlungen (nur „Fehlt“/Wiki-only) — die Karte zeigt daher keine. Filter/Tab wechseln.");
+			? `Karte auf ${ids.length} Ort${ids.length === 1 ? "" : "e"} der Auswahl gefiltert — auf allen Zoomstufen sichtbar, bis „Alles anzeigen“. (Verdeckt der Editor die Karte, kurz schließen.)`
+			: "Die aktuelle Auswahl enthält keine platzierten Orte (nur „Fehlt“/Wiki-only) — die Karte zeigt daher keine. Filter/Tab wechseln.");
 	}
 	renderMapFilterButtonState();
 }
@@ -2446,7 +2446,7 @@ async function toggleSettlementImagesEnabled() {
 		const payload = await response.json().catch(() => null);
 		if (!response.ok || !payload || payload.ok !== true) throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
 		setImagesToggleState(typeof payload.images_enabled === "boolean" ? payload.images_enabled : next);
-		setStatusText(next ? "Siedlungsbilder im Frontend aktiviert." : "Siedlungsbilder im Frontend deaktiviert (Editor zeigt sie weiter).");
+		setStatusText(next ? "Ortsbilder im Frontend aktiviert." : "Ortsbilder im Frontend deaktiviert (Editor zeigt sie weiter).");
 	} catch (error) {
 		setStatusText("Bilder-Schalter fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
 	} finally {
@@ -2478,7 +2478,7 @@ async function toggleSettlementCoatsEnabled() {
 		const payload = await response.json().catch(() => null);
 		if (!response.ok || !payload || payload.ok !== true) throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
 		setCoatsToggleState(typeof payload.coats_enabled === "boolean" ? payload.coats_enabled : next);
-		setStatusText(next ? "Siedlungswappen im Frontend aktiviert." : "Siedlungswappen im Frontend deaktiviert (Editor zeigt sie weiter).");
+		setStatusText(next ? "Ortswappen im Frontend aktiviert." : "Ortswappen im Frontend deaktiviert (Editor zeigt sie weiter).");
 	} catch (error) {
 		setStatusText("Wappen-Schalter fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
 	} finally {
@@ -2715,7 +2715,7 @@ async function loadSettlementItems() {
 			list.innerHTML = "";
 			const errorEl = document.createElement("div");
 			errorEl.className = "se-error";
-			errorEl.textContent = "Siedlungen konnten nicht geladen werden: " + (error && error.message ? error.message : String(error));
+			errorEl.textContent = "Orte konnten nicht geladen werden: " + (error && error.message ? error.message : String(error));
 			list.appendChild(errorEl);
 		}
 	}
