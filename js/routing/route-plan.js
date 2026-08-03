@@ -448,7 +448,7 @@ function buildRouteLegPopupHtml(entry) {
 	rows += row(tr("planner.leg.from", "von"), entry.startName);
 	rows += row(tr("planner.leg.to", "bis"), entry.endName);
 	rows += row(tr("planner.summary.distance", "Distanz"), `${formatDecimalNumber(Number(entry.distance) || 0, 2)} ${tr("planner.unit.miles", "Meilen")}${flowWord}`);
-	rows += row(tr("planner.summary.travelTime", "Reisezeit"), `${formatDecimalNumber(hours, 2)} ${tr("planner.unit.hours", "Stunden")} (${formatDecimalNumber(hours / 24, 2)} ${tr("planner.unit.days", "Tage")})`);
+	rows += row(tr("planner.summary.travelTime", "Reisezeit"), `${formatDecimalNumber(hours, 1)} ${tr("planner.unit.hours", "Stunden")} (${formatDecimalNumber(hours / 24, 2)} ${tr("planner.unit.days", "Tage")})`);
 	// V11 „Auf und ab": climb and fall of this leg, in Schritt. It is what the travel time above was
 	// actually computed from, so it belongs directly beneath it.
 	//
@@ -974,7 +974,7 @@ function showRoutePlan(routeNames, segments) {
 			(${formatDecimalNumber(entry.distance, 2)} ${tr("planner.unit.miles", "Meilen")}${flowWord})
 			${tr("planner.leg.from", "von")} ${startMarkup}
 			${tr("planner.leg.to", "bis")} ${endMarkup}
-			${tr("planner.leg.in", "in")} ${formatDecimalNumber(entry.travelTime, 2)} ${tr("planner.unit.hours", "Stunden")} (${formatDecimalNumber(entry.travelTime / 24, 2)} ${tr("planner.unit.days", "Tage")})
+			${tr("planner.leg.in", "in")} ${formatDecimalNumber(entry.travelTime, 1)} ${tr("planner.unit.hours", "Stunden")} (${formatDecimalNumber(entry.travelTime / 24, 2)} ${tr("planner.unit.days", "Tage")})
 			<span class="route-plan-entry__landscapes" data-route-landscapes-index="${entryIndex}"></span>${routeEntryTerrainNote(entry, segments)}
 			</div>
 		`);
