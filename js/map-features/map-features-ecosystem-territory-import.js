@@ -582,7 +582,11 @@
 			return;
 		}
 
-		const kinds = typeof ECOSYSTEM_KINDS !== "undefined" ? ECOSYSTEM_KINDS : [DEFAULT_IMPORT_KIND];
+		// 🔴 Abgeleitete Ebenen fallen raus (2026-08-03): eine Klimazone entsteht aus ihren Trennlinien,
+		// eine hineinkopierte Territoriengrenze waere beim naechsten Ableiten wieder weg. Der Server
+		// lehnt sie ohnehin ab (avesmapsClimateAssertNotDerived) -- hier steht sie erst gar nicht drin.
+		const kinds = (typeof ECOSYSTEM_KINDS !== "undefined" ? ECOSYSTEM_KINDS : [DEFAULT_IMPORT_KIND])
+			.filter((kind) => typeof isDerivedEcosystemKind !== "function" || !isDerivedEcosystemKind(kind));
 		kindSelect.innerHTML = "";
 		kinds.forEach((kind) => {
 			const kindLabel = (typeof ECOSYSTEM_KIND_LABELS !== "undefined" && ECOSYSTEM_KIND_LABELS?.[kind]) || String(kind);

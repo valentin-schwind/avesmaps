@@ -3,6 +3,12 @@ const assert = require("assert");
 // "Senden an ..." is one IIFE; the four helpers below are the ones that carry a decision. Everything
 // else in that file is DOM wiring and two POSTs, which need a document, a live map and a database and
 // are verified in the browser instead (plan, global rule 7).
+// 🪤 VOR dem require von -transfer.js: die Datei fragt `isDerivedEcosystemKind` als blanke Globale ab
+// (im Browser liefert sie -rendering.js). Ohne diese Zeile wäre der typeof-Wächter dort immer falsch
+// und der Klima-Riegel liefe im Test ins Leere, während er im Browser greift -- ein Test, der genau
+// das Gegenteil dessen beweist, was passiert.
+global.isDerivedEcosystemKind = require("../map-features-ecosystem-rendering.js").isDerivedEcosystemKind;
+
 const {
 	ecosystemTransferTargetKinds,
 	ecosystemTransferPlan,
@@ -173,6 +179,27 @@ assert.ok(success.includes("Farindel"), "names the target region");
 assert.ok(
 	formatEcosystemTransferSuccess("Topographie", "  ").includes("Ohne Namen"),
 	"a region without a name still produces a sentence"
+);
+
+// ---- Klimazonen sind weder Quelle noch Ziel (2026-08-03) --------------------------------------------
+// Ein abgeleitetes Band laesst sich nicht in eine andere Ebene schicken, und in ein abgeleitetes Band
+// laesst sich nichts hineinschicken -- beides waere eine Flaeche, von der die Trennlinien nichts wissen.
+
+const KINDS_MIT_KLIMA = ["derographisch", "vegetation", "topographie", "klima"];
+
+assert.ok(
+	!ecosystemTransferTargetKinds("vegetation", KINDS_MIT_KLIMA).includes("klima"),
+	"klima is never offered as a transfer target"
+);
+assert.deepStrictEqual(
+	ecosystemTransferTargetKinds("vegetation", KINDS_MIT_KLIMA),
+	["topographie", "derographisch"],
+	"and the remaining order is the one the twin rule above decided"
+);
+assert.deepStrictEqual(
+	ecosystemTransferTargetKinds("klima", KINDS_MIT_KLIMA),
+	[],
+	"a climate band cannot be sent anywhere"
 );
 
 console.log("ecosystem-transfer.test.js: all assertions passed");

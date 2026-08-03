@@ -75,8 +75,17 @@
 		if (!Array.isArray(kinds) || !kinds.includes(source)) {
 			return [];
 		}
+		// 🔴 Eine ABGELEITETE Ebene ist weder Quelle noch Ziel (2026-08-03). Ein Klimaband entsteht aus
+		// seinen Trennlinien: wegzuschicken gäbe es nichts, was dort nicht beim nächsten Ableiten wieder
+		// stünde, und eine hineingeschobene fremde Fläche wäre beim nächsten Ableiten weg oder doppelt.
+		// Der Riegel, der zählt, steht auf dem Server (avesmapsClimateAssertNotDerived); dieser hier
+		// verhindert nur, dass der Dialog ein Ziel anbietet, das gleich darauf abgelehnt würde.
+		const abgeleitet = (kind) => typeof isDerivedEcosystemKind === "function" && isDerivedEcosystemKind(kind);
+		if (abgeleitet(source)) {
+			return [];
+		}
 
-		const others = kinds.filter((kind) => kind !== source);
+		const others = kinds.filter((kind) => kind !== source && !abgeleitet(kind));
 		const twin = ECOSYSTEM_TRANSFER_TWIN[source];
 
 		return twin && others.includes(twin) ? [twin, ...others.filter((kind) => kind !== twin)] : others;

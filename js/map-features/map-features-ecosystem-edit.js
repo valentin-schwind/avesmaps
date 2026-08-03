@@ -921,6 +921,14 @@ function openEcosystemGeometryEdit(publicId) {
 	if (!layer || !area?.geometry || !Number.isFinite(revision) || revision < 1) {
 		return;
 	}
+	// 🔴 Ein Klimaband hat keine Ecken, die man ziehen dürfte (2026-08-03): seine Kante IST die
+	// Trennlinie, und die wird in ihrer eigenen Ebene bearbeitet
+	// (map-features-ecosystem-climate.js). Ein Eckzug hier wäre die zweite Wahrheit über dieselbe
+	// Grenze -- und beim nächsten Ableiten stillschweigend wieder weg. Der Server lehnt den Save
+	// ohnehin ab; ohne diesen Riegel bekäme der Editor Griffe, deren jeder Zug in einen Fehler läuft.
+	if (typeof isDerivedEcosystemKind === "function" && isDerivedEcosystemKind(area.kind)) {
+		return;
+	}
 
 	const geometry = JSON.parse(JSON.stringify(area.geometry));
 	activeEcosystemGeometryEdit = {

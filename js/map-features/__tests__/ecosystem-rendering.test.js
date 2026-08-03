@@ -14,8 +14,11 @@ const {
 // ------------------------------------------------------------------------ DIALOGTITEL ---
 // Owner 2026-07-28, wörtlich: „Vegetations-Label bearbeiten", „Derographie-Label bearbeiten",
 // „Topographie-Label bearbeiten" -- und dasselbe mit „-Fläche". Das sind SEINE Wörter, keine aus
-// ECOSYSTEM_KIND_LABELS abgeleiteten: dort heisst die Ebene „Derographische Region", und
-// „Derographische Region-Label" wäre kein Deutsch.
+// ECOSYSTEM_KIND_LABELS abgeleiteten: dort hiess die Ebene „Derographische Region", und
+// „Derographische Region-Label" wäre kein Deutsch gewesen.
+// 🪤 Seit 2026-08-03 sagen beide Tabellen „Derographie" -- die Umbenennung hat die Anzeige an das
+// angeglichen, was die Fenstertitel längst sagten. Die ZWEI Tabellen bleiben trotzdem getrennt: sie
+// fallen bei `vegetation` (Substantiv „Vegetation", Bestimmungswort „Vegetations-") weiter auseinander.
 assert.strictEqual(ecosystemDialogTitle("vegetation", "label"), "Vegetations-Label bearbeiten");
 assert.strictEqual(ecosystemDialogTitle("derographisch", "label"), "Derographie-Label bearbeiten");
 assert.strictEqual(ecosystemDialogTitle("topographie", "label"), "Topographie-Label bearbeiten");
@@ -67,7 +70,9 @@ assert.strictEqual(
 // Eine Fläche ohne Namen ist ein gültiger Zustand und braucht trotzdem einen Zettel.
 assert.strictEqual(
 	formatEcosystemAreaTooltip({ kind: "derographisch", region_area_count: 2, region_label_count: 0 }),
-	"Ohne Namen (Derographische Region)"
+	// 2026-08-03: „Derographie" statt „Derographische Region" (Owner, um im Umschalter Platz für die
+	// vierte Kachel zu gewinnen). Der SCHLÜSSEL `derographisch` ist unverändert -- nur die Beschriftung.
+	"Ohne Namen (Derographie)"
 );
 
 // Weder Art noch Ebene: nur der Name, ohne leere Klammer.

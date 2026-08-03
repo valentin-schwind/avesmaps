@@ -591,6 +591,19 @@
 		if (typeof setSelectedEcosystemArea === "function") {
 			setSelectedEcosystemArea(publicId);
 		}
+
+		// 🔴 Auf einem ABGELEITETEN Band gibt es nichts zu vereinigen, zerschneiden, vereinfachen,
+		// senden oder löschen (2026-08-03): eine Klimazone entsteht aus ihren Trennlinien, und jedes
+		// dieser Verben liefe serverseitig in ein 400 (avesmapsClimateAssertNotDerived).
+		//
+		// Das Menü wird deshalb GAR NICHT geöffnet, statt es mit lauter ausgegrauten Einträgen zu
+		// zeigen -- ein Menü, in dem nichts geht, ist eine Frage ohne Antwort. Die Auswahl oben bleibt
+		// aber bestehen: die weisse Kontur und der Zettel sagen weiterhin, welche Zone getroffen wurde,
+		// und das ist die einzige Auskunft, die ein Rechtsklick hier überhaupt zu geben hat.
+		const kind = String(area?.kind || "");
+		if (typeof isDerivedEcosystemKind === "function" && isDerivedEcosystemKind(kind)) {
+			return;
+		}
 		// A map menu left open from an earlier right-click on empty map would otherwise sit next to this
 		// one. #region-context-menu is deliberately NOT closed from here -- that is a political file
 		// (global rule 1), and this menu is above it in the z-ladder anyway.
