@@ -2460,6 +2460,12 @@
 		<!-- Vor routing.js: dort haengt der Kontextmenue-Handler, der travelToMapPoint aufruft. -->
 		<script src="js/routing/route-travel-here.js"></script>
 		<script src="js/routing/routing.js"></script>
+		<!-- Das Reisemodell (Steigungsfaktor + Grundtempi) und sein Zeichner. Beide gehoeren dem
+		     Wege-Editor UND diesem Frontend: der ⓘ-Dialog „Transportmittel" zeigt damit genau die
+		     Kurven, nach denen die Route rechnet. wege-editor-model.js ist absichtlich DOM- und
+		     fetch-frei gebaut und laesst sich deshalb hier mitladen. -->
+		<script src="js/pages/wege-editor-model.js"></script>
+		<script src="js/routing/travel-model-curves.js"></script>
 		<script src="js/routing/transport-speed-info.js"></script>
 		<!-- NACH season-ground.js, route-costs.js, route-plan-calendar.js und route-graph-routing.js:
 		     der Dialog liest deren Tabellen. Er tut es erst beim Oeffnen, die Reihenfolge ist

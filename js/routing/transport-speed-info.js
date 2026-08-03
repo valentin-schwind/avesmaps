@@ -133,7 +133,12 @@
 			// own first example, verified live: the Koschberge leg climbs 668,98 Schritt over 2,799
 			// miles = 239 Schritt per mile = a 23,9 % gradient = factor 2,195 = „2 statt 4,5 Meilen/h".
 			// factor = 1 + 5 * gradient, so: 100 Schritt/mile -> 1,5 · 200 -> 2,0 · 600 -> the 4,0 cap.
-			'<div class="tsi-rule tsi-rule--wide">' + iconImg(pathIcon("Gebirgspass")) + "<div>" + tr("transport.speedInfo.slopeRule", "<b>Steigung.</b> Es zählt die <em>Steilheit in Prozent</em>, nicht der Höhenunterschied. Gerechnet wird in <b>Leistungskilometern</b>, wie es Wanderer für Bergtouren tun: je 100 Schritt Aufstieg kostet eine Meile zusätzlich, je 150 Schritt Abstieg ebenso — Gefälle unter 20 % aber gar nichts (diese Schwelle folgt Langmuirs Zusatz zu Naismiths Wanderregel), und <b>schneller als die Ebene wird es nie</b>. So dauert eine Etappe bei <b>5 % Steigung die Hälfte länger, bei 10 % doppelt so lang, bei 20 % dreifach, ab 30 % vierfach</b> — mehr nicht. Über den Koschberge-Pass (24 %) wird aus einer Reichsstraße rund 1,3 statt 4,5 Meilen/h. Auf Flüssen und Meeren zählt kein Gelände, dort entscheidet die Strömung; wo keine Höhen erfasst sind, allein der Wegtyp. ⚠️ Die 20-%-Schwelle gilt je Teilstück, nicht im Etappenmittel — echtes Gelände ist nicht glatt, eine Etappe kann darum etwas langsamer sein als die Faustregel vermuten lässt.") + "</div></div>" +
+			// Der Knopf haengt HINTER dem Uebersetzungsstring, nicht darin: so bleibt der lange
+			// Regeltext ein reiner Satz und die Beschriftung des Knopfes ein eigener Schluessel.
+			'<div class="tsi-rule tsi-rule--wide">' + iconImg(pathIcon("Gebirgspass")) + "<div>" + tr("transport.speedInfo.slopeRule", "<b>Steigung.</b> Es zählt die <em>Steilheit in Prozent</em>, nicht der Höhenunterschied. Gerechnet wird in <b>Leistungskilometern</b>, wie es Wanderer für Bergtouren tun: je 100 Schritt Aufstieg kostet eine Meile zusätzlich, je 150 Schritt Abstieg ebenso — Gefälle unter 20 % aber gar nichts (diese Schwelle folgt Langmuirs Zusatz zu Naismiths Wanderregel), und <b>schneller als die Ebene wird es nie</b>. So dauert eine Etappe bei <b>5 % Steigung die Hälfte länger, bei 10 % doppelt so lang, bei 20 % dreifach, ab 30 % vierfach</b> — mehr nicht. Über den Koschberge-Pass (24 %) wird aus einer Reichsstraße rund 1,3 statt 4,5 Meilen/h. Auf Flüssen und Meeren zählt kein Gelände, dort entscheidet die Strömung; wo keine Höhen erfasst sind, allein der Wegtyp. ⚠️ Die 20-%-Schwelle gilt je Teilstück, nicht im Etappenmittel — echtes Gelände ist nicht glatt, eine Etappe kann darum etwas langsamer sein als die Faustregel vermuten lässt.")
+			+ ' <button type="button" class="tsi-curveslink" id="tsi-curves-btn">'
+			+ esc(tr("transport.speedInfo.curvesButton", "Die Kurven ansehen")) + "</button>"
+			+ "</div></div>" +
 			"</div>" +
 			sourcesLine() +
 			"</div></div>"
@@ -163,10 +168,76 @@
 
 	let overlay = null;
 	let lastFocus = null;
+	let curvesOverlay = null;
 
+	// 💣 EIN Escape-Handler fuer ZWEI Fenster. Das Kurvenfenster liegt ueber diesem hier; Escape
+	// muss das oberste schliessen und das darunter stehen lassen. Zwei unabhaengige Handler haetten
+	// beide zugleich geschlossen -- der Leser waere nach einem Blick auf die Kurven wieder auf der
+	// Karte gelandet statt bei der Regel, von der er kam.
 	function onKey(e) {
-		if (e.key === "Escape") {
-			close();
+		if (e.key !== "Escape") {
+			return;
+		}
+		if (curvesOverlay && !curvesOverlay.hidden) {
+			closeCurves();
+			return;
+		}
+		close();
+	}
+
+	/* Das Reisemodell als Kurven -- dasselbe Bild, das der Wege-Editor unter „Funktionen anzeigen"
+	 * zeigt, gezeichnet von js/routing/travel-model-curves.js aus js/pages/wege-editor-model.js.
+	 *
+	 * ⚠️ OHNE den Kalibrierungsteil des Editors: der schreibt ueber alle Wegprofile und ist nichts,
+	 * was ein Leser der Karte ausloesen darf (Owner 2026-08-03). Gezeigt wird das Modell, nicht der
+	 * Hebel daran.
+	 */
+	function curvesHtml() {
+		return '<div class="tsi-dialog tsi-curves-dialog" role="dialog" aria-modal="true" aria-labelledby="tsi-curves-title">'
+			+ '<div class="tsi-head"><span class="tsi-i" aria-hidden="true">ⓘ</span>'
+			+ '<h2 id="tsi-curves-title">' + esc(tr("transport.speedInfo.curvesTitle", "Das Reisemodell, wie es gerade rechnet")) + "</h2>"
+			+ '<button type="button" class="tsi-close" aria-label="' + esc(tr("transport.speedInfo.closeAria", "Schließen")) + '">✕</button></div>'
+			+ '<div class="tsi-body"><div id="tsi-curves-host"></div></div></div>';
+	}
+
+	function closeCurves() {
+		if (!curvesOverlay) {
+			return;
+		}
+		curvesOverlay.hidden = true;
+		const trigger = document.getElementById("tsi-curves-btn");
+		if (trigger) {
+			trigger.focus();
+		}
+	}
+
+	function openCurves() {
+		if (typeof avesmapsRenderTravelModelCurves !== "function") {
+			return;
+		}
+		if (!curvesOverlay) {
+			const node = document.createElement("div");
+			node.className = "tsi-overlay tsi-overlay--curves";
+			node.innerHTML = curvesHtml();
+			node.addEventListener("click", function (event) {
+				if (event.target === node) {
+					closeCurves();
+				}
+			});
+			const closeButton = node.querySelector(".tsi-close");
+			if (closeButton) {
+				closeButton.addEventListener("click", closeCurves);
+			}
+			document.body.appendChild(node);
+			curvesOverlay = node;
+		}
+		curvesOverlay.hidden = false;
+		// Bei jedem Oeffnen neu zeichnen: die Auswahl der Reihen soll frisch stehen, und das Bild
+		// kostet nichts -- es ist reines SVG aus einer Tabelle, kein Abruf.
+		avesmapsRenderTravelModelCurves(curvesOverlay.querySelector("#tsi-curves-host"));
+		const focusTarget = curvesOverlay.querySelector(".tsi-close");
+		if (focusTarget) {
+			focusTarget.focus();
 		}
 	}
 
@@ -174,6 +245,8 @@
 		if (!overlay) {
 			return;
 		}
+		// Das Kurvenfenster liegt darueber und darf nicht allein zurueckbleiben.
+		closeCurves();
 		overlay.hidden = true;
 		document.removeEventListener("keydown", onKey);
 		if (lastFocus && typeof lastFocus.focus === "function") {
@@ -194,6 +267,10 @@
 			const closeBtn = overlay.querySelector(".tsi-close");
 			if (closeBtn) {
 				closeBtn.addEventListener("click", close);
+			}
+			const curvesBtn = overlay.querySelector("#tsi-curves-btn");
+			if (curvesBtn) {
+				curvesBtn.addEventListener("click", openCurves);
 			}
 			document.body.appendChild(overlay);
 		}

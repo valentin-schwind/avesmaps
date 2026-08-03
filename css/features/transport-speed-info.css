@@ -293,6 +293,34 @@
    dialog's own stylesheet. Work titles in the text colour, the note beneath them muted.
    In the travel-options dialog it sits at the foot of the shorter column, not under the grid:
    there it fills space the layout has anyway (see route-options-info.js). */
+/* „Die Kurven ansehen" im Steigungsabsatz. Ein <button>, kein <a>: es geht nirgendwo hin, es
+   öffnet ein Fenster auf derselben Seite -- deshalb auch kein ↗. Sieht trotzdem aus wie ein Link,
+   goldbraun wie jeder Link im Haus, hier mit Unterstreichung, weil er mitten im Fließtext steht
+   und sich sonst nicht vom Fettdruck ringsum abhebt. */
+.tsi-curveslink {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--color-link);
+	font: inherit;
+	text-decoration: underline;
+	cursor: pointer;
+}
+.tsi-curveslink:hover,
+.tsi-curveslink:focus-visible {
+	color: var(--color-link-hover);
+}
+
+/* Das Kurvenfenster ist breiter als seine beiden Geschwister: es trägt vier Kacheln nebeneinander
+   (css/features/travel-model-curves.css), und schmaler bricht das Raster auf zwei Spalten um. */
+.tsi-curves-dialog {
+	max-width: 1180px;
+}
+/* Es liegt ÜBER dem Transportmittel-Dialog, nicht daneben. */
+.tsi-overlay--curves {
+	z-index: calc(var(--z-modal) + 1);
+}
+
 .tsi-sources {
 	margin-top: var(--space-12);
 	padding-top: var(--space-8);

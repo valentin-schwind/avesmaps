@@ -35,6 +35,8 @@
 <link rel="stylesheet" href="/css/base/tokens.css">
 <link rel="stylesheet" href="/css/components/editor-page.css">
 <link rel="stylesheet" href="/css/pages/wege-editor.css">
+<!-- Die Diagramm-Regeln teilt diese Seite mit dem oeffentlichen ⓘ-Dialog „Transportmittel". -->
+<link rel="stylesheet" href="/css/features/travel-model-curves.css">
 </head>
 <!-- ⚠️ `avm-editor-body` is not decoration: the shared body/button/input rules live in
      css/components/editor-page.css and are scoped to this class, because that file is loaded by
@@ -117,6 +119,10 @@
      browser side, mirroring api/_internal/routing/terrain-factor.php line for line. Unit-tested
      (js/pages/__tests__/wege-editor-model.test.js), which is why it is its own file and not inline. -->
 <script src="/js/pages/wege-editor-model.js"></script>
+<!-- NACH wege-editor-model.js (liest dessen WP_SPEEDS/WP_LAND_TYPES/wpFactorForGradientPercent)
+     und VOR wege-editor.js: dort ruft renderFunctions() den Zeichner auf. Dieselbe Datei haengt
+     im Frontend am ⓘ-Dialog „Transportmittel" -- ein Zeichner, ein Bild. -->
+<script src="/js/routing/travel-model-curves.js"></script>
 <!-- VOR wege-editor.js: liefert TRAVEL_CALENDAR_MONTHS, die eine Wahrheit ueber das aventurische
      Jahr. Die Datei rechnet nur und haengt an nichts. -->
 <script src="/js/routing/travel-calendar.js"></script>

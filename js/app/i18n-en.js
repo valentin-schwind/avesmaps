@@ -882,6 +882,8 @@ window.AVESMAPS_I18N_EN = {
 	"transport.speedInfo.buttonAria": "Explain the modes of transport",
 	"transport.speedInfo.buttonTitle": "How fast which mode of transport is on which way type",
 	// Werktitel bleibt deutsch (AGENTS §2/§8).
+	"transport.speedInfo.curvesButton": "See the curves",
+	"transport.speedInfo.curvesTitle": "The travel model, as it computes right now",
 	"transport.speedInfo.sources.lead": "Based on",
 	"transport.speedInfo.sources.note": "Speeds, terrain types, river and sea travel are in it; the slope rule is not — it follows <a href=\"https://en.wikipedia.org/wiki/Naismith%27s_rule\" target=\"_blank\" rel=\"noopener noreferrer\">Naismith's rule ↗</a> with <a href=\"https://en.wikipedia.org/wiki/Naismith%27s_rule#Langmuir_corrections\" target=\"_blank\" rel=\"noopener noreferrer\">Langmuir's corrections ↗</a>, a way of reckoning mountain walks, because the Geographia explicitly carries no figures for it.",
 	"transport.speedInfo.closeAria": "Close",

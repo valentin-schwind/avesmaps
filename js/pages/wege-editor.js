@@ -977,27 +977,13 @@
 	}
 
 	// ── „Funktionen anzeigen“ ─────────────────────────────────────────────────────────────────
-
-	function seriesLine(index) { return "wp-line wp-line--" + (index + 1); }
-
-	// 🔴 EINE Geometrie für ALLE acht Kacheln. Die sieben Geschwindigkeitsbilder und die
-	// Faktorkurve teilen sich viewBox und Achsenlage, sonst hätte eine Zelle ein anderes
-	// Seitenverhältnis und die Reihe stünde schief. Deshalb hier oben und nicht in einer der
-	// beiden Zeichenfunktionen.
-	var SMALL_X0 = 32, SMALL_X1 = 228, SMALL_Y0 = 12, SMALL_Y1 = 100, SMALL_VMAX = 9;
-	// 💣 DER UNTERSTE WERT DER y-ACHSE STEHT ÜBER DER ACHSE, nicht darunter. Darunter stieß seine
-	// Textbox mit dem „−45" der x-Achse zusammen -- in allen acht Bildern, gemessen an den
-	// gerenderten getBBox()-Rechtecken, nicht beim Lesen des Codes zu sehen.
-	var SMALL_BASE_TICK_Y = SMALL_Y1 - 2;
-	// Und die Achsenbeschriftung oben braucht y = 10: bei 9 ragte ihre Box 0,5 px über die
-	// viewBox-Oberkante hinaus und wurde dort beschnitten.
-	var SMALL_LABEL_Y = 10;
-	function smallX(gradientPercent) {
-		return SMALL_X0 + ((gradientPercent + 45) / 90) * (SMALL_X1 - SMALL_X0);
-	}
-	function smallY(milesPerHour) {
-		return SMALL_Y1 - (milesPerHour / SMALL_VMAX) * (SMALL_Y1 - SMALL_Y0);
-	}
+	//
+	// 🔴 DIE KURVEN ZEICHNET js/routing/travel-model-curves.js, nicht diese Datei. Sie zogen am
+	// 2026-08-03 dorthin, weil sie seither auch im öffentlichen ⓘ-Dialog „Transportmittel" stehen;
+	// zwei Zeichner wären zwei Bilder, die nach dem nächsten Feinschliff auseinanderlaufen.
+	//
+	// ⚠️ Hier bleibt allein die KALIBRIERUNG. Sie schreibt über alle Wegprofile und gehört damit in
+	// den Editor -- das Frontend zeigt das Modell, aber eicht es nicht (Owner 2026-08-03).
 
 	function renderFunctions() {
 		var host = $("wpFnBody");
@@ -1005,50 +991,17 @@
 		host.innerHTML = ""
 			+ "<section>"
 			+ "<h3>Meilen pro Stunde über Neigung — je Wegtyp und Transportmittel</h3>"
-			+ '<div class="wp-controls" id="wpFnControls"><span class="wp-controls__label">Transportmittel</span></div>'
-			+ '<div class="wp-controls__note" id="wpFnNote" role="status" aria-live="polite" hidden></div>'
-			+ '<div class="wp-legend" id="wpFnLegend"></div>'
-			+ '<div class="wp-small" id="wpFnSmall"></div>'
-			+ "<p>⚠️ <b>Alle sieben Geschwindigkeitsbilder haben dieselbe Form</b> — das ist die Aussage, "
-			+ "nicht ein Zeichenfehler: der Zeitfaktor kennt heute <b>kein Transportmittel</b>, nur Land "
-			+ "gegen Wasser. Eine Kutsche und ein Fußgänger bekommen bei 30 % Steigung beide den Faktor "
-			+ "4,0; unterschiedlich ist allein die Grundgeschwindigkeit, also die Höhe der Kurve. Die "
-			+ "<b>achte Kachel</b> zeigt genau diesen gemeinsamen Faktor.<br>"
-			+ "<b>Fluss- und Seewege fehlen mit Absicht:</b> für sie gilt der Steigungsfaktor gar nicht.</p>"
-			+ "<p>Leistungsmeilen = Meilen + Aufstieg/100 + Abstieg über 20 % Gefälle/150; Faktor = "
-			+ "Leistungsmeilen ÷ Meilen. Deckel 4,0, kein Boden — das Modell addiert nur nicht-negative "
-			+ "Terme, unter 1,0 kann es nicht fallen. Die senkrechte rote Linie bei −20 % ist ein "
-			+ "<b>echter Sprung</b>: die Schwelle entscheidet je Abtastschritt, und darüber zählt der "
-			+ "ganze Abstieg des Schritts.</p>"
+			+ '<div id="wpFnCurves"></div>'
 			+ "</section>"
 			+ '<section><div class="wp-fn__head"><h3>Hinweis zur Kalibrierung</h3>'
 			+ '<button type="button" id="wpFnCalibrate" title="Startet den vollständigen Profillauf über alle Landwege. Die Eichung fährt darin mit — allein kann sie nicht laufen.">Jetzt kalibrieren</button>'
 			+ "</div>" + calibrationExplainer() + calibrationBlock() + "</section>";
 
-		var controls = $("wpFnControls");
-		Object.keys(WP_SPEEDS).forEach(function (key) {
-			var label = document.createElement("label");
-			var input = document.createElement("input");
-			input.type = "checkbox";
-			input.value = key;
-			input.checked = state.series.indexOf(key) !== -1;
-			input.addEventListener("change", function () {
-				var chosen = Array.prototype.slice
-					.call(controls.querySelectorAll("input:checked"))
-					.map(function (i) { return i.value; });
-				if (chosen.length > WP_MAX_SERIES) {
-					input.checked = false;
-					showNote("Vier Reihen sind das Maximum — eine fünfte bekäme keinen eigenen Farbton, "
-						+ "sondern einen erfundenen. Erst eine abwählen.");
-					return;
-				}
-				showNote("");
-				state.series = chosen;
-				drawSmallMultiples();
-			});
-			label.appendChild(input);
-			label.appendChild(document.createTextNode(" " + WP_SPEEDS[key].label));
-			controls.appendChild(label);
+		// Die Auswahl der Reihen lebt weiter in `state`: nach einem Kalibrierlauf baut sich dieser
+		// Dialog neu auf, und ohne den Rückkanal stünde dann wieder die Voreinstellung da.
+		avesmapsRenderTravelModelCurves($("wpFnCurves"), {
+			series: state.series,
+			onSeriesChange: function (chosen) { state.series = chosen; },
 		});
 
 		// EIN Rechner, zwei Auslöser: dieser Knopf ruft denselben Lauf wie die Menüband-Kachel und
@@ -1070,112 +1023,6 @@
 					});
 			});
 		}
-
-		drawSmallMultiples();
-	}
-
-	function showNote(text) {
-		var box = $("wpFnNote");
-		if (!box) { return; }
-		box.textContent = text;
-		box.hidden = text === "";
-	}
-
-	function drawSmallMultiples() {
-		var legend = $("wpFnLegend");
-		var host = $("wpFnSmall");
-		if (!legend || !host) { return; }
-
-		legend.innerHTML = state.series.map(function (key, index) {
-			return '<span><svg viewBox="0 0 22 8" aria-hidden="true"><line class="' + seriesLine(index)
-				+ '" x1="1" y1="4" x2="21" y2="4"></line></svg>' + escapeHtml(WP_SPEEDS[key].label) + "</span>";
-		}).join("");
-
-		// −20 kommt ZWEIMAL vor: die Kante an der Gefälleschwelle ist echt und darf nicht
-		// weggeglättet werden.
-		var stops = [-45, -35, -25, -20.001, -20, -10, 0, 5, 10, 15, 20, 25, 30, 37, 45];
-
-		var pictures = WP_LAND_TYPES.map(function (type) {
-			var lines = state.series.map(function (key, index) {
-				var v0 = WP_SPEEDS[key][type.key];
-				var points = stops.map(function (s) {
-					return smallX(s).toFixed(1) + "," + smallY(v0 / wpFactorForGradientPercent(s)).toFixed(1);
-				}).join(" ");
-				return '<polyline class="' + seriesLine(index) + '" points="' + points + '"></polyline>';
-			}).join("");
-			var level = state.series.map(function (key) {
-				return num(WP_SPEEDS[key][type.key], 1);
-			}).join(" · ");
-			return '<div class="wp-chart"><div class="wp-chart__title"><b>' + escapeHtml(type.label)
-				+ "</b> · eben " + level + " Meilen/h</div>"
-				+ '<svg viewBox="0 0 240 118" role="img" aria-label="Meilen pro Stunde über der Neigung, '
-				+ escapeHtml(type.label) + '">'
-				+ '<line class="wp-grid" x1="' + SMALL_X0 + '" y1="' + smallY(8) + '" x2="' + SMALL_X1 + '" y2="' + smallY(8) + '"></line>'
-				+ '<line class="wp-grid" x1="' + SMALL_X0 + '" y1="' + smallY(4) + '" x2="' + SMALL_X1 + '" y2="' + smallY(4) + '"></line>'
-				+ '<line class="wp-cap" x1="' + smallX(0).toFixed(1) + '" y1="' + SMALL_Y0 + '" x2="' + smallX(0).toFixed(1) + '" y2="' + SMALL_Y1 + '"></line>'
-				+ lines
-				+ '<line class="wp-axis" x1="' + SMALL_X0 + '" y1="' + SMALL_Y1 + '" x2="' + SMALL_X1 + '" y2="' + SMALL_Y1 + '"></line>'
-				+ '<line class="wp-axis" x1="' + SMALL_X0 + '" y1="' + SMALL_Y0 + '" x2="' + SMALL_X0 + '" y2="' + SMALL_Y1 + '"></line>'
-				+ '<text class="wp-tick" x="16" y="' + (smallY(8) + 3) + '">8</text>'
-				+ '<text class="wp-tick" x="16" y="' + (smallY(4) + 3) + '">4</text>'
-				+ '<text class="wp-tick" x="16" y="' + SMALL_BASE_TICK_Y + '">0</text>'
-				+ '<text class="wp-tick" x="20" y="112">−45</text>'
-				+ '<text class="wp-tick" x="' + (smallX(0) - 4).toFixed(1) + '" y="112">0</text>'
-				+ '<text class="wp-tick" x="212" y="112">+45</text>'
-				+ '<text class="wp-axis-label" x="' + SMALL_X0 + '" y="' + SMALL_LABEL_Y + '">Meilen/h</text>'
-				+ "</svg></div>";
-		});
-
-		// Die achte Kachel: sieben Wegtypen + der Faktor selbst füllen das 4er-Raster genau aus.
-		pictures.push(factorChart());
-		host.innerHTML = pictures.join("");
-	}
-
-	/**
-	 * Die Faktorkurve als ACHTE Kachel (Owner 2026-08-02) -- sieben Wegtypen plus diese ergeben
-	 * genau 4 × 2.
-	 *
-	 * 🔴 GLEICHE viewBox-GEOMETRIE wie die sieben Geschwindigkeitsbilder (SMALL_*). Ein anderes
-	 * Seitenverhältnis in einer Zelle würde die Reihe brechen -- und diese Kachel steht neben den
-	 * anderen, nicht über ihnen. Beschriftet wird deshalb sparsam: 4,0 / 2,0 / 1,0 und die drei
-	 * Eckwerte der x-Achse. Was sonst noch dazugehört, steht im Text unter dem Raster.
-	 */
-	function factorChart() {
-		function py(f) { return SMALL_Y1 - ((f - 1) / 3) * (SMALL_Y1 - SMALL_Y0); }
-		var edge = smallX(-20);
-		var top = py(wpFactorForGradientPercent(-20.001));
-		return '<div class="wp-chart wp-chart--factor">'
-			+ '<div class="wp-chart__title"><b>Zeitfaktor</b> · die Grundlage aller Bilder daneben</div>'
-			+ '<svg viewBox="0 0 240 118" role="img" aria-label="Zeitfaktor über der Neigung">'
-			+ '<line class="wp-grid" x1="' + SMALL_X0 + '" y1="' + py(4) + '" x2="' + SMALL_X1 + '" y2="' + py(4) + '"></line>'
-			+ '<line class="wp-grid" x1="' + SMALL_X0 + '" y1="' + py(2) + '" x2="' + SMALL_X1 + '" y2="' + py(2) + '"></line>'
-			+ '<line class="wp-cap" x1="' + smallX(0).toFixed(1) + '" y1="' + SMALL_Y0 + '" x2="' + smallX(0).toFixed(1) + '" y2="' + SMALL_Y1 + '"></line>'
-			// Gefälle: Gerade von −45 % bis zur Schwelle
-			+ '<polyline class="wp-line wp-line--1" points="' + smallX(-45).toFixed(1) + "," + py(wpFactorForGradientPercent(-45)).toFixed(1)
-			+ " " + edge.toFixed(1) + "," + top.toFixed(1) + '"></polyline>'
-			// 💣 Die Kante bei 20 % Gefälle ist ein echter SPRUNG, keine Rampe -- die Schwelle
-			// entscheidet je Abtastschritt, und darüber zählt der ganze Abstieg des Schritts.
-			+ '<line class="wp-edge" x1="' + edge.toFixed(1) + '" y1="' + top.toFixed(1)
-			+ '" x2="' + edge.toFixed(1) + '" y2="' + py(1).toFixed(1) + '"></line>'
-			// Flach bis 0, dann Steigung bis zum Deckel
-			+ '<polyline class="wp-line wp-line--1" points="' + edge.toFixed(1) + "," + py(1).toFixed(1)
-			+ " " + smallX(0).toFixed(1) + "," + py(1).toFixed(1)
-			+ " " + smallX(30).toFixed(1) + "," + py(4).toFixed(1)
-			+ " " + smallX(45).toFixed(1) + "," + py(4).toFixed(1) + '"></polyline>'
-			+ '<line class="wp-axis" x1="' + SMALL_X0 + '" y1="' + SMALL_Y1 + '" x2="' + SMALL_X1 + '" y2="' + SMALL_Y1 + '"></line>'
-			+ '<line class="wp-axis" x1="' + SMALL_X0 + '" y1="' + SMALL_Y0 + '" x2="' + SMALL_X0 + '" y2="' + SMALL_Y1 + '"></line>'
-			// Einstellig wie in den sieben Bildern daneben („8 / 4 / 0"): „4,0" wäre breiter und
-			// stiesse unten mit der x-Beschriftung zusammen. Die Achse heisst „Faktor", da liest
-			// niemand die 4 als Meilen.
-			+ '<text class="wp-tick" x="16" y="' + (py(4) + 3).toFixed(1) + '">4</text>'
-			+ '<text class="wp-tick" x="16" y="' + (py(2) + 3).toFixed(1) + '">2</text>'
-			+ '<text class="wp-tick" x="16" y="' + SMALL_BASE_TICK_Y + '">1</text>'
-			+ '<text class="wp-tick" x="20" y="112">−45</text>'
-			+ '<text class="wp-tick" x="' + (smallX(0) - 4).toFixed(1) + '" y="112">0</text>'
-			+ '<text class="wp-tick" x="212" y="112">+45</text>'
-			+ '<text class="wp-note" x="' + (edge + 3).toFixed(1) + '" y="' + (py(1) - 4).toFixed(1) + '">Kante 20 %</text>'
-			+ '<text class="wp-axis-label" x="' + SMALL_X0 + '" y="' + SMALL_LABEL_Y + '">Faktor</text>'
-			+ "</svg></div>";
 	}
 
 	/**

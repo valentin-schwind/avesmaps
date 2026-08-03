@@ -89,52 +89,15 @@
 
 .wp-scale button.is-active:hover { background: var(--color-button-hover); }
 
-.wp-chart {
-	margin: 0 0 var(--space-8);
-	padding: var(--space-4);
-	background: var(--color-panel-soft);
-	border: 1px solid var(--color-border);
-	border-radius: 6px;
-}
+/* 🔴 DIE DIAGRAMM-REGELN STEHEN IN css/features/travel-model-curves.css. Sie zogen am 2026-08-03
+   dorthin, als das Kurvenbild einen zweiten Leser bekam (der oeffentliche ⓘ-Dialog
+   „Transportmittel"); diese Seite laedt beide Dateien. Betroffen: .wp-chart, .wp-grid, .wp-axis,
+   .wp-tick, .wp-axis-label, .wp-note, .wp-cap, .wp-edge, .wp-line*, .wp-legend, .wp-controls*,
+   .wp-small, .wp-chart--factor. Hier bleibt nur, was ALLEIN dieser Seite gehoert. */
 
-.wp-chart svg { display: block; width: 100%; height: auto; }
-.wp-chart__title { margin-bottom: var(--space-2); font-size: var(--font-size-caption); color: var(--color-text-muted); }
-.wp-chart__title b { color: var(--color-text-strong); font-weight: var(--font-weight-bold); }
-
-/* Recessive grid and axes -- the curve is the loudest thing in the picture. */
-.wp-grid { stroke: var(--color-border); stroke-width: 1; }
-.wp-axis { stroke: var(--color-text-muted); stroke-width: 1; }
-.wp-tick { fill: var(--color-text-muted); font-size: 9px; }
-.wp-axis-label { fill: var(--color-text-muted); font-size: 9px; font-style: italic; }
-.wp-note { fill: var(--color-text-muted); font-size: 9px; }
+/* Nur die Verteilungs- und Profilbilder dieser Seite, nicht die Modellkurven. */
 .wp-fill { fill: var(--color-active-wash); stroke: none; }
 .wp-dot { fill: var(--color-accent-strong); }
-.wp-cap { stroke: var(--color-text-muted); stroke-width: 1; stroke-dasharray: 2 4; }
-
-/* The 20 % descent edge is a real jump in the model, not a drawing artefact -- it gets the danger
-   tone because it is the one place the curve is discontinuous. */
-.wp-edge { stroke: var(--color-danger); stroke-width: 2; stroke-dasharray: 3 3; fill: none; }
-
-/* 🔴 COLOUR **AND** STROKE PATTERN. The second encoding is mandatory, not styling: see the note on
-   --color-chart-* in tokens.css. Four series, four patterns, fixed order. */
-.wp-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.wp-line--1 { stroke: var(--color-chart-1); }
-.wp-line--2 { stroke: var(--color-chart-2); stroke-dasharray: 6 3; }
-.wp-line--3 { stroke: var(--color-chart-3); stroke-dasharray: 2 3; }
-.wp-line--4 { stroke: var(--color-chart-4); stroke-dasharray: 9 3 2 3; }
-
-/* The legend sits BELOW/ABOVE the picture, never inside it: inside, it grows into the curve as the
-   series count rises. It carries colour and pattern, i.e. exactly what distinguishes the lines. */
-.wp-legend {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--space-4) var(--space-12);
-	font-size: var(--font-size-caption);
-	color: var(--color-text-muted);
-}
-
-.wp-legend span { display: inline-flex; align-items: center; gap: var(--space-4); }
-.wp-legend svg { flex: 0 0 auto; width: 22px; height: 8px; }
 
 .wp-facts { display: grid; grid-template-columns: 1fr auto; gap: 1px var(--space-8); font-size: var(--font-size-body); }
 .wp-facts dt { color: var(--color-text-muted); }
@@ -202,66 +165,8 @@
 
 .wp-fn p { margin: var(--space-6) 0 0; font-size: var(--font-size-caption); color: var(--color-text-muted); line-height: var(--leading-normal); }
 
-/* Filters in ONE row above the pictures, never between them. */
-.wp-controls {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--space-4) var(--space-10);
-	margin-bottom: var(--space-8);
-	padding: var(--space-6) var(--space-8);
-	background: var(--color-panel-soft);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-md);
-}
-
-.wp-controls__label { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); color: var(--color-text-muted); }
-.wp-controls label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-body); cursor: pointer; }
-
-/* On --color-panel-soft the warning tone wears its -soft-text step, not --color-warning. */
-.wp-controls__note {
-	margin: calc(-1 * var(--space-4)) 0 var(--space-8);
-	padding: var(--space-4) var(--space-8);
-	background: var(--color-warning-soft);
-	border: 1px solid var(--color-warning-soft-border);
-	border-radius: var(--radius-md);
-	color: var(--color-warning-soft-text);
-	font-size: var(--font-size-caption);
-}
-
-.wp-controls__note[hidden] { display: none; }
-
-/* Small multiples: FOUR per row (owner 2026-08-02). Grid tracks, not flex -- same reason as the
-   three columns (Spec §3.2): a border box cannot shrink below its own padding, grid tracks do not
-   care.
-   ⭐ Four is not arbitrary: there are seven land way types plus the factor curve itself, so the
-   grid comes out as exactly 4 × 2 with no gap at the end.
-   Fixed rather than `auto-fit`: the pictures are compared ACROSS rows („is the pass curve the same
-   shape as the road's?"), and a reflowing column count moves a picture to a different position
-   every time the window changes width. */
-.wp-small {
-	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: var(--space-8);
-	margin-top: var(--space-8);
-}
-
-.wp-small .wp-chart { margin: 0; }
-
-/* Stepping down keeps whole rows: 4 → 2 → 1, never 3, so the pairing „road above, path below"
-   survives a narrower window. */
-@media (max-width: 1100px) {
-	.wp-small { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@media (max-width: 560px) {
-	.wp-small { grid-template-columns: minmax(0, 1fr); }
-}
-
-/* 🔴 The factor curve is the EIGHTH tile, not a picture of its own (owner 2026-08-02). It is drawn
-   in the same viewBox geometry as the seven speed pictures, so all eight tiles are the same size
-   and the same shape -- a different aspect ratio in one cell would break the row. */
-.wp-chart--factor { border-color: var(--color-border-strong); }
+/* .wp-controls*, .wp-small und .wp-chart--factor stehen jetzt in
+   css/features/travel-model-curves.css -- siehe den Hinweis weiter oben. */
 
 /* Distribution: one 100 % row per way type. A SEQUENTIAL ramp (one hue, light to dark) because the
    classes are ordered -- never the categorical palette, never a rainbow. */
