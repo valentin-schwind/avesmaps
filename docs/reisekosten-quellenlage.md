@@ -644,6 +644,21 @@ Spanne: eine einzelne Dukatenzahl behauptet eine Genauigkeit, die die Quelle nic
 Die frühere Aussage dieses Dokuments, Übernachtungen kosteten „50 Dukaten", war falsch
 geschätzt; sie ist in §3.4 korrigiert.
 
+### 8.2a Wie es gebaut wurde: eine Eingabe, alles je Person
+
+Owner-Entscheid 2026-08-03, nach dem Mockup: **es gibt genau eine neue Eingabe.**
+
+- **„Unterbringung"** in den *Reiseoptionen* (vormals „Routenoptionen"): im Freien /
+  Strohsack / Bett im Gemeinschaftszimmer / Einzelzimmer. Sie setzt Bett, Verpflegung und
+  die Zollveranlagung gemeinsam.
+- **Keine Gruppengröße.** Gerechnet wird immer **je Person**. Ein Feld dafür wäre eine
+  Eingabe für eine Multiplikation, die der Spielleiter ohnehin im Kopf macht — und es zöge
+  sofort die nächste nach sich (wie viele Reittiere? wie viele Räder fürs Fährgeld?).
+- **Kein Reittier-Feld.** Das Tier folgt aus dem Landtransportmittel: „Reisegruppe zu
+  Pferd" heißt ein Pferd je Person, zu Fuß keines.
+
+Die Zahlen in §8.2 sind entsprechend je Person zu lesen.
+
 ### 8.3 Drei Annahmen, die noch entschieden gehören
 
 1. **Die Flussetappe wird als gekaufte Passage gerechnet.** Der Planer wählt „Flusssegler";

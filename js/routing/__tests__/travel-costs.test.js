@@ -39,7 +39,7 @@ global.TRAVEL_COST_RIVER_UPSTREAM_FACTOR = TRAVEL_COST_RIVER_UPSTREAM_FACTOR;
 global.TRAVEL_COST_SHELTER_BY_SUBTYPE = TRAVEL_COST_SHELTER_BY_SUBTYPE;
 global.TRAVEL_COST_MOUNTS_PER_TRAVELLER = TRAVEL_COST_MOUNTS_PER_TRAVELLER;`);
 global.DISTANCE_SCALING_FACTOR = 3;
-global.DEFAULT_PLANNER_STATE = { lodging: "bett", travellers: 4, restHours: 12 };
+global.DEFAULT_PLANNER_STATE = { lodging: "bett", restHours: 12 };
 
 // Der echte Zahlenformatierer und der echte Muenzformatierer aus utils.js.
 const utilsSource = fs.readFileSync(path.join(__dirname, "..", "..", "app", "utils.js"), "utf8");
@@ -60,7 +60,6 @@ vm.runInThisContext(exportFunction(utilsSource, "formatDecimalNumber"));
 vm.runInThisContext(exportFunction(utilsSource, "formatAventurianMoney"));
 
 global.getPlannerLodging = () => "bett";
-global.getPlannerTravellerCount = () => 4;
 global.getPlannerTravelHoursPerDay = () => 12;
 global.getTransportOption = () => "groupHorse";
 global.POLITICAL_TERRITORIES_API_URL = "";
@@ -106,8 +105,9 @@ assert.match(unavailableToll.note, /nicht ermittelbar/);
 
 const known = buildTravelCostRows(entries, summary, { stateBorders: 4 });
 const knownToll = known.rows.find((row) => row.key === "tolls");
-// 4 Grenzen × 1 Dukat (Soeldner-Veranlagung bei „bett") × 4 Reisende = 1.600 Heller
-assert.strictEqual(knownToll.heller, 1600, "vier Grenzen, vier Reisende, Soeldnersatz");
+// 💣 JE PERSON. 4 Grenzen × 1 Dukat (Soeldner-Veranlagung bei „bett") = 400 Heller -- eine
+// Gruppengroesse gibt es bewusst nicht, sie waere ein Feld fuer eine Kopfrechnung.
+assert.strictEqual(knownToll.heller, 400, "vier Grenzen zum Soeldnersatz, je Person");
 assert.match(knownToll.note, /4 Landesgrenzen/);
 
 // ---------------------------------------------------------------------------------------------

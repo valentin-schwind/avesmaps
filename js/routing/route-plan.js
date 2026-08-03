@@ -1098,9 +1098,12 @@ function renderRoutePlanTravelCosts() {
 	// Teilsumme und sagen im Vermerk dazu, was fehlt.
 	const bordersPending = currentRouteStateBorders === null;
 	const complete = known.length === result.rows.length;
+	// Gerechnet wird immer je Person -- die Zahl der Reisenden ist bewusst keine Eingabe.
 	const partyNote = result.mounts > 0
-		? tr("planner.cost.party.mounted", "{p} Reisende, {m} Reittiere", { p: formatDecimalNumber(result.travellers, 0), m: formatDecimalNumber(result.mounts, 0) })
-		: tr("planner.cost.party", "{p} Reisende", { p: formatDecimalNumber(result.travellers, 0) });
+		? tr("planner.cost.party.mounted", "{n} Nächte, {d} Reisetage, mit Reittier", {
+			n: formatDecimalNumber(result.nightCount, 0), d: formatDecimalNumber(result.dayCount, 0) })
+		: tr("planner.cost.party", "{n} Nächte, {d} Reisetage", {
+			n: formatDecimalNumber(result.nightCount, 0), d: formatDecimalNumber(result.dayCount, 0) });
 
 	$overview.find(".route-plan-costs").remove();
 	$overview.append(`
@@ -1110,7 +1113,7 @@ function renderRoutePlanTravelCosts() {
 				${result.rows.map(routePlanTravelCostRowMarkup).join("")}
 				<div class="route-plan-summary__rule"></div>
 				<div class="route-plan-summary__row route-plan-summary__row--total" data-route-cost-total>
-					<span class="route-plan-summary__label">${tr("planner.cost.total", "Summe")}</span>
+					<span class="route-plan-summary__label">${tr("planner.cost.total", "Summe je Person")}</span>
 					<span class="route-plan-summary__value">${bordersPending ? `<span class="route-plan-cost__pending">…</span>` : escapeHtml(formatAventurianMoney(sum))}</span>
 					<span class="route-plan-summary__note">${escapeHtml(complete || bordersPending ? partyNote : tr("planner.cost.total.withoutTolls", "{party} — ohne Zölle", { party: partyNote }))}</span>
 				</div>

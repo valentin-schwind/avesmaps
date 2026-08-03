@@ -638,9 +638,9 @@ const DEFAULT_PLANNER_STATE = {
 	pathType: "fastest",
 	minimizeTransfers: false,
 	restHours: 12,
-	// Reisekosten-Optionen. „bett" ist die Mitte der vier Stufen, 4 Reisende die uebliche Gruppe.
+	// Reisekosten: „bett" ist die Mitte der vier Stufen. Eine Gruppengroesse gibt es NICHT --
+	// gerechnet wird immer je Person (Owner 2026-08-03).
 	lodging: "bett",
-	travellers: 4,
 	// Reisebeginn. Leerer Monat = „Ohne Jahreszeit — kein Einfluss", und das ist die Vorgabe, nicht
 	// nur Bequemlichkeit: POST /api/route/ ist der stabile oeffentliche Vertrag, und ein geteilter
 	// Link muss beim Empfaenger dieselbe Zahl zeigen wie beim Absender.

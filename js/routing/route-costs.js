@@ -225,11 +225,11 @@ function avesmapsCountRouteStateBorders(segments, territories) {
 	return crossings;
 }
 
-/** Reittiere der Gruppe: keine Eingabe, sondern eine Folge des Landtransportmittels. */
-function avesmapsTravelCostMountCount(travellers) {
+/** Reittiere JE PERSON: keine Eingabe, sondern eine Folge des Landtransportmittels (0 oder 1). */
+function avesmapsTravelCostMountCount() {
 	const transport = typeof getTransportOption === "function" ? getTransportOption("Strasse") : "";
 	const perTraveller = TRAVEL_COST_MOUNTS_PER_TRAVELLER[transport];
-	return travellers * (Number.isFinite(perTraveller) ? perTraveller : 0);
+	return Number.isFinite(perTraveller) ? perTraveller : 0;
 }
 
 /**
@@ -269,14 +269,19 @@ function avesmapsTravelCostNightKinds(planEntries, nightCount, lodgingKey) {
 }
 
 /**
- * Die Kostenzeilen. `stateBorders` darf null sein -- dann steht die Zollzeile als „wird geladen"
- * da und wird nachgetragen, sobald die Herrschaftsgebiete da sind.
+ * Die Kostenzeilen, immer JE PERSON.
+ *
+ * 💣 Es gibt bewusst KEINE Gruppengroesse. Sie waere ein Eingabefeld fuer eine Multiplikation, die
+ * der Spielleiter ohnehin im Kopf macht -- und sie zoege sofort die naechste nach sich (wie viele
+ * Reittiere? wie viele Raeder fuers Faehrgeld?). Owner 2026-08-03.
+ *
+ * `stateBorders` darf null sein -- dann steht die Zollzeile als „wird geladen" da und wird
+ * nachgetragen, sobald die Herrschaftsgebiete da sind.
  */
 function buildTravelCostRows(planEntries, summary, options = {}) {
 	const lodgingKey = options.lodging || getPlannerLodging();
 	const lodging = TRAVEL_COST_LODGING[lodgingKey] || TRAVEL_COST_LODGING.bett;
-	const travellers = Number.isFinite(options.travellers) ? options.travellers : getPlannerTravellerCount();
-	const mounts = avesmapsTravelCostMountCount(travellers);
+	const mounts = avesmapsTravelCostMountCount();
 	const totalHours = Number(summary?.totalHours) || 0;
 	const nightCount = Math.max(0, Math.floor(totalHours / 24));
 	const dayCount = Math.max(1, Math.ceil(totalHours / 24));
@@ -304,7 +309,7 @@ function buildTravelCostRows(planEntries, summary, options = {}) {
 	rows.push({
 		key: "lodging",
 		label: tr("planner.cost.lodging", "Übernachtung"),
-		heller: lodging.bed * innNights * travellers,
+		heller: lodging.bed * innNights,
 		note: innNights
 			? tr("planner.cost.lodging.note", "{n} × {what}", {
 				n: formatDecimalNumber(innNights, 0),
@@ -316,7 +321,7 @@ function buildTravelCostRows(planEntries, summary, options = {}) {
 	rows.push({
 		key: "food",
 		label: tr("planner.cost.food", "Verpflegung"),
-		heller: lodging.food * dayCount * travellers,
+		heller: lodging.food * dayCount,
 		note: tr("planner.cost.food.note", "{n} Reisetage", { n: formatDecimalNumber(dayCount, 0) }),
 	});
 
@@ -325,13 +330,16 @@ function buildTravelCostRows(planEntries, summary, options = {}) {
 		const stabling = lodging.stableNight === null
 			? lodging.feedPerWeek * (dayCount / 7) * mounts
 			: lodging.stableNight * innNights * mounts;
+		// Je Person genau EIN Tier -- deshalb ohne Zahl. Ein „{n} Tiere" ergaebe hier immer „1 Tiere".
 		rows.push({
 			key: "mounts",
-			label: tr("planner.cost.mounts", "Reittiere"),
+			label: tr("planner.cost.mounts", "Reittier"),
 			heller: stabling + shoes,
 			note: lodging.stableNight === null
-				? tr("planner.cost.mounts.own", "{n} Tiere, eigenes Futter und Hufbeschlag", { n: formatDecimalNumber(mounts, 0) })
-				: tr("planner.cost.mounts.stable", "{n} Tiere im Stall und Hufbeschlag", { n: formatDecimalNumber(mounts, 0) }),
+				? tr("planner.cost.mounts.own", "eigenes Futter, dazu Hufbeschlag")
+				: tr("planner.cost.mounts.stable", "{n} × Stall mit Futter, dazu Hufbeschlag", {
+					n: formatDecimalNumber(innNights, 0),
+				}),
 		});
 	}
 
@@ -349,7 +357,7 @@ function buildTravelCostRows(planEntries, summary, options = {}) {
 	rows.push({
 		key: "tolls",
 		label: tr("planner.cost.tolls", "Zölle"),
-		heller: bordersKnown ? lodging.tollPerson * stateBorders * travellers : null,
+		heller: bordersKnown ? lodging.tollPerson * stateBorders : null,
 		note: bordersKnown
 			? tr("planner.cost.tolls.note", "{n} Landesgrenzen, {how}", {
 				n: formatDecimalNumber(stateBorders, 0),
@@ -371,14 +379,13 @@ function buildTravelCostRows(planEntries, summary, options = {}) {
 		rows.push({
 			key: "river",
 			label: tr("planner.cost.river", "Flusspassage"),
-			heller: passengerHeller * travellers + mountHeller * mounts,
+			heller: passengerHeller + mountHeller * mounts,
 			note: tr("planner.cost.river.note", "{n} Meilen", { n: formatDecimalNumber(riverMiles, 1) }),
 		});
 	}
 
 	return {
 		rows,
-		travellers,
 		mounts,
 		nightCount,
 		dayCount,

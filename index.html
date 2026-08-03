@@ -2070,8 +2070,10 @@
 					</select>
 				</label>
 			</div>
-			<!-- Reisekosten: die beiden EINZIGEN Eingaben. Die Reittiere sind keine dritte -- sie folgen
-			     aus dem Landtransportmittel (TRAVEL_COST_MOUNTS_PER_TRAVELLER). Die Stufen sind die
+			<!-- Reisekosten: die EINZIGE Eingabe. Gerechnet wird immer JE PERSON (Owner 2026-08-03) --
+			     eine Gruppengroesse waere ein Eingabefeld fuer eine Multiplikation, die der Spielleiter
+			     ohnehin im Kopf macht. Das Reittier folgt aus dem Landtransportmittel
+			     (TRAVEL_COST_MOUNTS_PER_TRAVELLER), ist also auch keine Eingabe. Die Stufen sind die
 			     Zeilen der Preistabelle im DSA5-Regelwerk S. 382, gebuendelt; „im Freien" kostet nichts
 			     und ist ausdruecklich eine WAHL, nicht nur der Notfall ohne Herberge. -->
 			<div>
@@ -2082,11 +2084,6 @@
 						<option value="bett" selected data-i18n="planner.lodging.bett">Bett im Gemeinschaftszimmer</option>
 						<option value="zimmer" data-i18n="planner.lodging.zimmer">Einzelzimmer</option>
 					</select>
-				</label>
-			</div>
-			<div>
-				<label title="Zahl der Reisenden. Reittiere ergeben sich aus dem Transportmittel und werden nicht eigens eingegeben." data-i18n-title="planner.travellers.title">
-					<span data-i18n="planner.travellersLabel">Reisende:</span> <input type="number" id="travelTravellers" value="4" min="1" max="99" step="1" style="width: 56px" />
 				</label>
 			</div>
 			<div id="overview" data-i18n="planner.overview.default">Wegpunkte und Dauer der Reise werden hier angezeigt.</div>

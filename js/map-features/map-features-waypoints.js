@@ -25,9 +25,8 @@ function enhanceRoutePlannerOptionPanel() {
 		// 💣 EINE NEUE OPTIONSZEILE IM MARKUP LANDET NICHT VON SELBST IN DER GRUPPE. Der Kasten
 		// „Reiseoptionen" entsteht erst hier, aus DIESER Liste -- wer eine Zeile in index.html
 		// ergaenzt und sie hier vergisst, sieht sie live unter dem Kasten stehen statt darin.
-		// (Genau so passiert mit Unterbringung und Reisende, live gesehen am 2026-08-03.)
+		// (Genau so passiert mit der Unterbringung, live gesehen am 2026-08-03.)
 		const travelLodging = document.getElementById("travelLodging");
-		const travelTravellers = document.getElementById("travelTravellers");
 		// 💣 Durch ein Set, nicht nur durch filter(Boolean): seit „Umsteigen minimieren" in der Radio-Zeile
 		// sitzt (eine Zeile gespart, Owner 2026-07-30) liefern fastestPath und minimizeTransfers DASSELBE
 		// div -- ohne die Entdopplung wanderte es zweimal in den Panel-Aufbau.
@@ -36,11 +35,10 @@ function enhanceRoutePlannerOptionPanel() {
 			minimizeTransfers?.closest("div"),
 			travelHoursPerDay?.closest("div"),
 			// Nicht in der Pflichtpruefung unten: fehlt die Zeile, soll der Rest der Gruppe trotzdem
-			// entstehen -- sie ist eine Einstellung, keine Voraussetzung. Gilt auch fuer die beiden
-			// Kostenzeilen darunter.
+			// entstehen -- sie ist eine Einstellung, keine Voraussetzung. Gilt auch fuer die
+			// Unterbringung darunter.
 			travelStartMonth?.closest("div"),
 			travelLodging?.closest("div"),
-			travelTravellers?.closest("div"),
 		].filter(Boolean))];
 
 		if (!fastestPath || !shortestPath || !minimizeTransfers || !travelHoursPerDay || !uniqueOptionRows.length) {

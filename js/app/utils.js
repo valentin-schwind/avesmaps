@@ -299,19 +299,11 @@ function getPlannerRestHoursPerDay() {
 }
 
 // --- Reisekosten-Optionen -------------------------------------------------------------------
-// Beide lesen aus dem Optionsfeld und fallen auf DEFAULT_PLANNER_STATE zurueck, damit die
-// Kostenrechnung auch laeuft, bevor das Markup da ist (Testseiten, frueher Aufruf).
+// Liest aus dem Optionsfeld und faellt auf DEFAULT_PLANNER_STATE zurueck, damit die Kostenrechnung
+// auch laeuft, bevor das Markup da ist (Testseiten, frueher Aufruf).
 function getPlannerLodging() {
 	const value = String($("#travelLodging").val() || "").trim();
 	return TRAVEL_COST_LODGING_KEYS.includes(value) ? value : DEFAULT_PLANNER_STATE.lodging;
-}
-
-function getPlannerTravellerCount() {
-	const parsed = Number.parseInt($("#travelTravellers").val(), 10);
-	if (!Number.isFinite(parsed)) {
-		return DEFAULT_PLANNER_STATE.travellers;
-	}
-	return Math.min(99, Math.max(1, parsed));
 }
 
 // Geld in aventurischer Muenzschreibweise: „3 D 4 S 8 H".
