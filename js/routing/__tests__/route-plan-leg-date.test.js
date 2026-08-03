@@ -185,6 +185,25 @@ assert.ok(
 	`eine Etappe muss in den Namenlosen Tagen liegen:\n${legsNameless.join("\n---\n")}`
 );
 
+// ---- Die Ankunftszeile passt in ihre Spalte ---------------------------------------------------------
+// 💣 Die Notizspalte ist 64 px breit (live gemessen 2026-08-03): „Sommer · 42,3 Tage unterwegs"
+// braucht 158 und brach DREIzeilig um, mitten im Begriff („42,3 Tage / unterwegs"). Auch gekuerzt auf
+// „Sommer · 42,3 Tage" waeren es noch 102. Es bleibt die Jahreszeit -- die Tage stehen vier Zeilen
+// tiefer als „Gesamte Reisezeit" ohnehin da, das war eine Dopplung und keine Herleitung.
+travelStartMonthValue = "firun";
+travelStartDayValue = "25";
+global.getPlannerRestHoursPerDay = () => 12;
+const summaryMarkup = routePlanCalendarSummaryMarkup(
+	buildRoutePlanEntries(routeNames, segments),
+	2
+);
+const arrivalNote = summaryMarkup.slice(summaryMarkup.lastIndexOf("route-plan-summary__note"));
+assert.ok(/Winter/.test(arrivalNote), `die Ankunft nennt ihre Jahreszeit:\n${arrivalNote}`);
+assert.ok(
+	!/Tage/.test(arrivalNote),
+	`die Tage gehoeren nicht in die 64-px-Spalte, sie stehen schon in „Gesamte Reisezeit":\n${arrivalNote}`
+);
+
 // ---- Den Reisebeginn NACHTRAEGLICH waehlen ---------------------------------------------------------
 // 🔴 Der Nutzerpfad, der vorher ins Leere lief: Route steht, DANN waehlt jemand den Monat. Ohne
 // Neuzeichnen passiert nichts -- das Datum erscheint erst, wenn die Route aus anderem Anlass neu

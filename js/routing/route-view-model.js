@@ -31,6 +31,8 @@ function buildRoutePlanViewModel(routeResult, routeNames, routeLocations = []) {
 		distance: Number(step.distance) || 0,
 		travelTime: Number(step.travel_time) || 0,
 		restTime: Number(step.rest_time) || 0,
+		// Der Bodenabzug dieser Etappe -- die zweite der beiden Feldlisten, siehe `offroad` darueber.
+		seasonGround: step.season_ground || null,
 		segmentIndexes: Array.isArray(step.segment_ids) ? step.segment_ids : [],
 		entryIndex: index,
 	}));

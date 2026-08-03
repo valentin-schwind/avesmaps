@@ -131,7 +131,12 @@ function routePlanCalendarSummaryMarkup(entries, calendarFactor) {
 		sommer: tr("planner.season.summer", "Sommer"),
 		herbst: tr("planner.season.autumn", "Herbst"),
 	};
-	const note = `${seasonLabels[calendar.season] || ""} · ${tr("planner.summary.underway", "{n} Tage unterwegs", { n: formatDecimalNumber(calendar.days, 1) })}`;
+	// 💣 NUR die Jahreszeit. Die Notizspalte ist 64 px breit (gemessen 2026-08-03, Panel 350 px):
+	// „Sommer · 42,3 Tage unterwegs" braucht 158 und brach DREIzeilig um, mitten im Begriff
+	// („42,3 Tage / unterwegs"); auch „Sommer · 42,3 Tage" waeren noch 102. Die laengste Jahreszeit
+	// misst 44 und passt. Verloren geht nichts: die Tage stehen vier Zeilen tiefer bei „Gesamte
+	// Reisezeit" -- in der Spalte war es eine Dopplung, keine Herleitung.
+	const note = seasonLabels[calendar.season] || "";
 	return routeSummaryRowMarkup(tr("planner.summary.departure", "Abreise"), calendar.departureLabel, "")
 		+ routeSummaryRowMarkup(tr("planner.summary.arrival", "Ankunft"), calendar.arrivalLabel, note);
 }
@@ -146,12 +151,40 @@ function routePlanCalendarSummaryMarkup(entries, calendarFactor) {
  * @param {object|null} calendar Rueckgabe von routePlanCalendar(), einmal je Plan gerechnet
  * @param {number} index Index der Etappe in derselben Liste
  */
-function routePlanCalendarLegMarkup(calendar, index) {
+function routePlanCalendarLegMarkup(calendar, index, entry) {
 	const leg = calendar && Array.isArray(calendar.legs) ? calendar.legs[index] : null;
 	if (!leg || !leg.label) {
 		return "";
 	}
-	return `<span class="route-plan-entry__date">${leg.label}</span>`;
+	return `<span class="route-plan-entry__date">${leg.label}${routePlanSeasonGroundNote(entry)}</span>`;
+}
+
+/* Die Bodenzustaende der Quelle, benannt. Schluessel sind Domaeneninhalt (season-ground.js), die
+   Beschriftungen sind Oberflaeche und gehen darum durch tr(). */
+const ROUTE_PLAN_GROUND_LABELS = {
+	aufgeweicht: ["planner.ground.soft", "aufgeweichter Boden"],
+	tauboden: ["planner.ground.thaw", "Tauboden"],
+	schnee_leicht: ["planner.ground.snowLight", "leichter Schnee"],
+	tiefschnee: ["planner.ground.snowDeep", "Tiefschnee"],
+	eis: ["planner.ground.ice", "Eis"],
+};
+
+/**
+ * „ · leichter Schnee +14 %" -- warum diese Etappe laenger dauert als bei trockenem Boden.
+ *
+ * ⭐ Steht beim DATUM, nicht bei den Stunden: der Abzug haengt an der Jahreszeit, die Jahreszeit am
+ * Datum. Zusammen sind sie ein Gedanke („Ende Firun, und da liegt Schnee"), auseinandergerissen
+ * zwei Zahlen ohne Bezug. Leer, wo die Jahreszeit nichts tut -- „+0 %" waere Laerm.
+ */
+function routePlanSeasonGroundNote(entry) {
+	const ground = entry && entry.seasonGround;
+	if (!ground || !ROUTE_PLAN_GROUND_LABELS[ground.condition]) {
+		return "";
+	}
+	const [key, fallback] = ROUTE_PLAN_GROUND_LABELS[ground.condition];
+	// 💣 Der Prozentwert ist die ZEIT, nicht das Tempo: halbes Tempo ist +100 % Zeit, nicht -50 %.
+	// seasonGroundReport rechnet das schon um (timePercent), hier wird es nur noch gerundet.
+	return ` · ${tr(key, fallback)} +${formatDecimalNumber(ground.timePercent, 0)}&nbsp;%`;
 }
 
 if (typeof module !== "undefined" && module.exports) {

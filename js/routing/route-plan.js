@@ -911,10 +911,14 @@ function routeSummaryRowMarkup(label, value, derivation, extraClass = "") {
 function showRoutePlan(routeNames, segments) {
 	const $overview = $("#overview").empty();
 	const restPerDay = getPlannerRestHoursPerDay();
+	// Der Reisebeginn wandert in die Etappenrechnung: dort traegt der Bodenabzug der Jahreszeit auf
+	// die Reisezeit (route-season-ground.js). Ohne gewaehlten Monat ist er null und nichts aendert sich.
+	const departure = typeof routePlanDepartureFromPanel === "function" ? routePlanDepartureFromPanel() : null;
 	const routeResult = buildRouteResult(selectedLocations, routeNames, segments, {
 		includeRests: getPlannerRestHoursPerDay() > 0,
 		restHoursPerDay: restPerDay,
 		optimize: $('input[name="pathType"]:checked').val() === "shortest" ? "shortest" : "fastest",
+		departure: departure,
 	});
 	const routePlanViewModel = buildRoutePlanViewModel(routeResult, routeNames, selectedLocations);
 	const planEntries = routePlanViewModel.planEntries;
@@ -935,7 +939,20 @@ function showRoutePlan(routeNames, segments) {
 	if (typeof avesmapsPathLandscapesEnsure === "function") {
 		const routePathIds = planEntries.flatMap((entry) => routeEntryPathIds(entry, segments));
 		if (routePathIds.length) {
+			// 💣 Die Klimazone einer Etappe steht in DIESER Ablage, und der Bodenabzug braucht sie --
+			// beim ersten Zeichnen ist sie aber noch unterwegs. Fehlte eben noch ein Weg UND ist ein
+			// Reisebeginn gesetzt, wird nach dem Eintreffen einmal neu gezeichnet, damit der Abzug
+			// nicht bis zur naechsten Routenaenderung ausbleibt.
+			//
+			// ⚠️ Die Bedingung „fehlte etwas" ist die Abbruchbedingung: ohne sie riefe der zweite
+			// Durchgang wieder ensure(), faende alles vor, zeichnete wieder neu -- endlos.
+			const store = typeof avesmapsPathLandscapesStore !== "undefined" ? avesmapsPathLandscapesStore : null;
+			const wasMissing = !store || routePathIds.some((pathId) => pathId && !store.paths[pathId]);
 			void avesmapsPathLandscapesEnsure(routePathIds).then(() => {
+				if (wasMissing && departure) {
+					redrawRoutePlan();
+					return;
+				}
 				fillRoutePlanLandscapes(planEntries, segments);
 			});
 		}
@@ -982,7 +999,7 @@ function showRoutePlan(routeNames, segments) {
 			${tr("planner.leg.to", "bis")} ${endMarkup}
 			${tr("planner.leg.in", "in")} ${formatDecimalNumber(entry.travelTime, 1)} ${tr("planner.unit.hours", "Stunden")} (${formatDecimalNumber(entry.travelTime / 24, 2)} ${tr("planner.unit.days", "Tage")})
 			<span class="route-plan-entry__landscapes" data-route-landscapes-index="${entryIndex}"></span>${routeEntryTerrainNote(entry, segments)}
-			${routePlanCalendarLegMarkup(routeCalendar, entryIndex)}
+			${routePlanCalendarLegMarkup(routeCalendar, entryIndex, entry)}
 			</div>
 		`);
 	});

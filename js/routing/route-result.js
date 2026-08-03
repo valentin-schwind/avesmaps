@@ -40,7 +40,12 @@ function buildRouteSteps(routeNames, segments, options = {}) {
 	const includeRests = Boolean(options.includeRests);
 	const restHoursPerDay = Number.isFinite(Number(options.restHoursPerDay)) ? Number(options.restHoursPerDay) : 10;
 	const travelPerDay = Math.max(24 - restHoursPerDay, 0.5);
-	const planEntries = buildRoutePlanEntries(routeNames, segments);
+	// Der Bodenabzug des Reisebeginns greift HIER, vor der Rastrechnung: dadurch waechst die Rast mit
+	// der verlaengerten Reisezeit, und jede Summe darueber zieht von selbst nach. Ohne Reisebeginn
+	// (options.departure fehlt) bleibt jede Zahl, wie sie war.
+	const planEntries = typeof applyRouteSeasonGround === "function"
+		? applyRouteSeasonGround(buildRoutePlanEntries(routeNames, segments), segments, options.departure, travelPerDay)
+		: buildRoutePlanEntries(routeNames, segments);
 
 	return planEntries.map((entry) => {
 		let restTime = 0;
@@ -80,6 +85,10 @@ function buildRouteSteps(routeNames, segments, options = {}) {
 			distance: entry.distance,
 			travel_time: entry.travelTime,
 			rest_time: restTime,
+			// Der Bodenabzug dieser Etappe (Zustand, Abzug, Faktor) -- oder gar nicht, wo die
+			// Jahreszeit nichts tut. 💣 Wie `offroad` daneben muss auch dieses Feld durch BEIDE
+			// Feldlisten (hier und route-view-model.js), sonst kommt es lautlos nie an.
+			season_ground: entry.seasonGround || null,
 			segment_ids: entry.segmentIndexes || [],
 		};
 	});
