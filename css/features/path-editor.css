@@ -34,7 +34,7 @@
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	flex: 1 1 170px;
+	flex: 1 1 150px;
 	min-width: 0;
 	font-size: 13px;
 }
@@ -47,25 +47,37 @@
 .path-season {
 	display: flex;
 	align-items: center;
-	gap: 4px;
+	gap: 3px;
 	flex: 0 0 auto;
 }
 
+/* 💣 FESTE Breiten und `min-width: 0`, keine Mindestbreiten. Der Dialog ist nur `min(560px, …)`
+   breit (`#path-edit-dialog` in css/components/region-sync.css), der Zeile bleiben davon 538,7 px.
+   Mit inhaltsbreiten Waehlern („ganzjährig" ist der laengste Eintrag) wurde der Zeitteil 331 px
+   breit und die Felder rutschten unter den Namen; jetzt sind es 287,5 px, Umbruchschwelle
+   150 + 287,5 + 8 = 445,5 px -- 93 px Reserve, 78 selbst mit Scrollbalken. Ohne `min-width: 0`
+   haelt ein Flex-Kind seine Inhaltsbreite und ignoriert jede Angabe hier.
+   ⚠️ Wer das nachmisst, muss es am ECHTEN Dialog tun: eine Buehne von 700 px winkt es durch. */
 #path-edit-transport-options .path-season__field {
 	padding: 4px 6px;
 	font-size: 12px;
+	min-width: 0;
+	/* Ohne das rechnen die Zahlenfelder content-box: aus `flex: 0 0 40px` wurden gemessen 53,3 px
+	   (40 + 12 Polsterung + 2 Rahmen). Die Breiten unten sollen heissen, was sie sagen. */
+	box-sizing: border-box;
 }
 
 #path-edit-transport-options .path-season__day {
-	width: 44px;
+	flex: 0 0 40px;
+	width: auto;
 }
 
 #path-edit-transport-options .path-season__from-month {
-	min-width: 104px;
+	flex: 0 0 96px;
 }
 
 #path-edit-transport-options .path-season__to-month {
-	min-width: 92px;
+	flex: 0 0 84px;
 }
 
 #path-edit-transport-options .path-season__field:disabled {
