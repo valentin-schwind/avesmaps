@@ -100,6 +100,17 @@ function climateSay(message, tone) {
 // Die Trennung ist der ganze Punkt: im Frontend soll man die Zonen LESEN, nicht ihre Konstruktion
 // sehen. Dieselbe Linie, an der auch die Konturen hängen (ecosystem-pane--editable im Layer-Switch).
 function isClimateLayerVisible() {
+	// 🪤 „Alle" ist ausdrücklich AUSGENOMMEN (Owner 2026-08-03). Dort nimmt sich die Klima-Ebene ganz
+	// zurück -- 10 % Füllung, klickdurchlässig --, weil es in „Alle" um die Überlappungen der
+	// gezeichneten Ebenen geht; sieben Zonennamen quer darüber wären dann Beiwerk.
+	//
+	// 💣 Ohne diese Zeile hinge es am GEMERKTEN Ebenenwert: „Alle" lässt ihn stehen, also wären die
+	// Namen mal da und mal nicht, je nachdem was zuletzt gewählt war. Das ist kein Zustand, den man
+	// erklären kann.
+	if (typeof isEcosystemShowAllLayers === "function" && isEcosystemShowAllLayers()) {
+		return false;
+	}
+
 	return typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
 		&& typeof getActiveEcosystemLayerKind === "function" && getActiveEcosystemLayerKind() === "klima";
 }

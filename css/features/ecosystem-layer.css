@@ -1297,6 +1297,33 @@
 	stroke-opacity: 0;
 }
 
+/* ---- In „Alle" nimmt sich die Klima-Ebene ganz zurück (Owner 2026-08-03) -------------------------
+   🔴 UND SIE NIMMT KEINE KLICKS MEHR. Das ist der wichtigere Teil: ein Klimaband ist exakt so breit
+   wie die Karte, und seine Pane liegt über allen dreien. In „Alle" verschluckte es damit JEDEN Klick,
+   der einem Wald, einem See oder einem Gebirge darunter galt -- die Ebene, in der man Überlappungen
+   ansehen will, wurde zu der, in der man nichts mehr treffen kann.
+
+   🪤 Die Stapelreihenfolge hilft hier nicht. Sie sortiert innerhalb EINER Pane (gross unten, klein
+   oben); Klima hat seine eigene Pane mit höherem z-index und liegt deshalb immer oben.
+
+   Anklickbar bleibt ein Band also nur, wenn die Klimazonen die GEWÄHLTE Ebene sind -- im Editiermodus
+   wie im Frontend. Das ist genau der Fall, in dem ein Klick darauf etwas bedeutet.
+
+   🪤 `.leaflet-pane` gehört in den Selektor, aus demselben Grund wie bei der ruhenden Ebene weiter
+   oben: Leaflet setzt `pointer-events: auto` auf `.leaflet-interactive` (css/third-party/leaflet.css),
+   und dagegen verliert eine einzelne Klasse. Vier Klassen gewinnen.
+
+   10 % statt 30 % (Owner): in „Alle" geht es um die Überlappungen der gezeichneten Ebenen, und sieben
+   kartenbreite Bänder darüber färben sonst alles ein. */
+.ecosystem-pane--klima.ecosystem-pane--active.ecosystem-pane--showall > svg path.leaflet-interactive {
+	fill-opacity: 0.1;
+}
+
+.leaflet-pane.ecosystem-pane--klima.ecosystem-pane--showall > svg path.leaflet-interactive {
+	pointer-events: none;
+	cursor: default;
+}
+
 /* ---- Unterflächen-Auswahl (Owner 2026-07-27) -------------------------------------------------------
    Eine mehrteilige Fläche ist EIN Leaflet-Pfad; ihre Unterflächen lassen sich deshalb nicht einzeln
    einfärben. Für die Auswahl werden sie darum kurzzeitig als eigene, NICHT anklickbare Umrisse
