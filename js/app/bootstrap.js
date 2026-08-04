@@ -313,6 +313,10 @@ if (IS_EDIT_MODE) {
     document.getElementById("mapStyleControl")?.removeAttribute("hidden");
     document.getElementById("mapStyleSelect").value = activeMapStyle;
     document.querySelector('.map-context-menu__group[data-context-action="add-here"]')?.removeAttribute("hidden");
+    // Die Gruppe „Prüfen" -- Ueberschrift und Raster. Ohne sie stuende hier ein leerer Trenner,
+    // deshalb haengen beide am Bearbeiten-Modus und nicht an den einzelnen Haken darin.
+    document.getElementById("editorChecksTitle")?.removeAttribute("hidden");
+    document.getElementById("editorChecks")?.removeAttribute("hidden");
     document.getElementById("toggleCrossingsControl")?.removeAttribute("hidden");
     document.getElementById("toggleCrossings")?.removeAttribute("disabled");
     document.getElementById("toggleUnconnectedControl")?.removeAttribute("hidden");

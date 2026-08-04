@@ -1932,13 +1932,25 @@
 					<label id="toggleTerritoryBordersControl" hidden><input type="checkbox" id="toggleTerritoryBorders" checked /> Grenzen</label>
 					<label id="toggleRiversControl" hidden><input type="checkbox" id="toggleRivers" /> Flüsse</label>
 					<label id="toggleSeaPathsControl" hidden><input type="checkbox" id="toggleSeaPaths" /> Seewege</label>
+				</div>
+				<!-- Die Pruef-Haekchen gibt es nur im Bearbeiten-Modus, und sie tun etwas anderes als die
+				     fuenf darueber: die sagen, was die Karte ZEIGT, diese sagen, was an ihr NICHT STIMMT.
+				     Bis dahin standen alle zehn in derselben Flow-Zeile und sahen gleich wichtig aus.
+				     Jetzt: eigene Gruppe mit Trenner + Mini-Ueberschrift (AGENTS.md §12) und ein festes
+				     Zweispalten-Raster -- der Flow-Umbruch brach die Liste an zufaelligen Stellen um.
+				     💣 Die Reihenfolge im DOM IST die Reihenfolge auf dem Schirm (Raster fuellt zeilenweise)
+				     und damit auch die Tab-Reihenfolge -- wer hier umsortiert, sortiert alles drei um.
+				     Ueberschrift und Raster hebt js/app/bootstrap.js auf, die Haken einzeln (eines haengt
+				     zusaetzlich am Landschaftsmodul). -->
+				<p id="editorChecksTitle" class="display-options__group-title" hidden>Prüfen</p>
+				<div id="editorChecks" class="display-options__grid" hidden>
 					<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" /> Kreuzungen</label>
-					<label id="toggleUnconnectedControl" hidden><input type="checkbox" id="toggleUnconnected" /> Unverbunden</label>
-					<label id="toggleSparseCrossingsControl" hidden><input type="checkbox" id="toggleSparseCrossings" /> Kreuzungen ≤ 2 Wege</label>
 					<label id="toggleNodixControl" hidden><input type="checkbox" id="toggleNodix" /> Nodices</label>
+					<label id="toggleUnconnectedControl" hidden><input type="checkbox" id="toggleUnconnected" /> Unverbunden</label>
 					<!-- Blendet Beschriftungen aus, an denen KEINE Landschaftsfläche hängt: beim Nacharbeiten
 					     der Regionen ist genau das die Restliste. -->
 					<label id="toggleLabelsWithRegionControl" hidden><input type="checkbox" id="toggleLabelsWithRegion" /> nur Labels mit Region</label>
+					<label id="toggleSparseCrossingsControl" hidden><input type="checkbox" id="toggleSparseCrossings" /> Kreuzungen ≤ 2 Wege</label>
 				</div>
 				<label id="mapStyleControl" class="display-options__row display-options__select-row" hidden
 					>Mapstil

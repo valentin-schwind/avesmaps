@@ -679,6 +679,67 @@
 	gap: 5px 8px;
 }
 
+/* Die Pruef-Haekchen des Bearbeiten-Modus stehen im festen Zweispalter, nicht im Flow-Umbruch:
+   der brach die Liste an zufaelligen Stellen um, und die zweite Spalte fing in jeder Zeile
+   woanders an. Zehn gleich aussehende Haken in einem Topf lasen sich als eine Liste, obwohl
+   fuenf davon die Karte zeigen und fuenf zeigen, was an ihr nicht stimmt (Owner 2026-08-04).
+   Die fuenf Besucher-Haken darueber bleiben bewusst im Flow: als kurze Woerter packen sie sich
+   dort in ein bis zwei Zeilen (je nachdem, ob das Panel gerade scrollt), im Zweispalter waeren
+   es immer drei. Das Panel ist ohnehin knapp -- mit offenem Reiseplan bleiben unten wenige
+   Pixel --, und dieselbe Struktur, die den Pruef-Haken hilft, kostet oben nur Hoehe.
+   💣 `label[hidden]` braucht sein eigenes `display: none`: die Regel darunter setzt `display: flex`
+   und ueberstimmt sonst das UA-Stylesheet. Die Haken starten alle `hidden`, es waeren also
+   ausgerechnet die, die niemand sehen darf, die dann sichtbar waeren. */
+.display-options__grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	align-items: center;
+	gap: 5px 8px;
+}
+
+.display-options__grid[hidden] {
+	display: none !important;
+}
+
+.display-options__grid label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	min-height: auto;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	color: var(--color-text);
+	font-size: 12px;
+	line-height: 1.25;
+}
+
+.display-options__grid label[hidden] {
+	display: none !important;
+}
+
+/* Trenner plus Mini-Ueberschrift ueber der Gruppe -- dieselbe Klammer, die der Reiseplan fuer
+   seine Etappenliste benutzt, damit im Panel nicht zwei Sorten Ueberschrift stehen. Nicht
+   full-bleed: der Trenner gliedert INNERHALB der Anzeige-Gruppe, deren eigene Linie unten
+   laeuft ueber die volle Breite und bleibt dadurch die staerkere von beiden. */
+.display-options__group-title {
+	margin: 6px 0 1px;
+	padding-top: 7px;
+	border-top: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	line-height: 1.15;
+	text-transform: uppercase;
+}
+
+.display-options__group-title[hidden] {
+	display: none !important;
+}
+
 .display-options__row--wrap label,
 .transport-filter-label {
 	min-height: auto;
