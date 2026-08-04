@@ -219,3 +219,31 @@
 	font-size: 14px;
 	font-weight: 700;
 }
+
+/* ── Zielauswahl bei booleschen Geometrieoperationen ────────────────────────────────────────
+   Solange „Von anderem ausschneiden" & Co. auf ihr Ziel warten, greift die Maus nur noch die
+   KONTUR, nicht die Fläche. Vorher gewann immer das oberste DOM-Element: lag die eigene Quelle
+   oben, war jede Fläche darunter unerreichbar und der Klick endete in „Bitte eine andere Fläche
+   wählen" -- ohne Weg nach unten.
+   💣 Es müssen ALLE Füllungen durchlässig werden, nicht nur die der Quelle. Sonst fängt einfach
+   die nächste Schicht den Klick ab und dasselbe Problem steht eine Ebene tiefer.
+   💣 In SVG ist die Trefferzone die GEZEICHNETE Strichbreite; eine unsichtbare Extrabreite gibt es
+   nicht. Der Rand wird deshalb dicker, solange die Operation läuft -- zugleich der sichtbare
+   Hinweis, dass jetzt auf Grenzen gezeigt wird (deckt sich mit AGENTS.md §12: eine Kontur gehört
+   dem Bearbeiten). `pointer-events: stroke` trifft die Strichzone auch bei `stroke: none`, randlose
+   Flächen bleiben also erreichbar.
+   Drei Klassen + zwei Elemente schlagen die Leaflet-Regel `.leaflet-pane > svg
+   path.leaflet-interactive` (gleiche Spezifität wäre reihenfolgeabhängig). */
+.leaflet-pane.regions-pane--pick-outline {
+	--region-pick-outline-width: 6;
+}
+
+.leaflet-pane.regions-pane--pick-outline > svg path.leaflet-interactive:not(.region-operation-source) {
+	pointer-events: stroke;
+	stroke-width: var(--region-pick-outline-width);
+}
+
+/* Die Quellfläche ist nie ihr eigenes Ziel -> ganz aus der Maus nehmen, Fläche UND Kontur. */
+.leaflet-pane.regions-pane--pick-outline > svg path.region-operation-source {
+	pointer-events: none;
+}

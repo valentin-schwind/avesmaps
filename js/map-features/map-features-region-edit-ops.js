@@ -14,7 +14,7 @@ function startPendingRegionOperation(operation, sourceRegion, sourceLayer = null
 	pendingRegionOperation = { operation, sourceRegion, sourceLayer: sourceLayer || sourceRegion.layer || null };
 	clearRegionGeometryEdit();
 	syncRegionOperationChip();
-	showFeedbackToast("Nächstes Herrschaftsgebiet anklicken.", "info");
+	showFeedbackToast("Kontur des Zielgebiets anklicken.", "info");
 }
 
 function startPendingRegionSplit(sourceRegion, sourceLayer = null) {
