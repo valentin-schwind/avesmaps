@@ -18,6 +18,11 @@
 </head>
 <body>
 	<div class="app-container">
+		<!-- Read-only banner, shown while ANOTHER editor holds the territory tree. It sits inside
+		     .app-container on purpose: territory-editor-inline-host.js copies exactly that element
+		     into the map page, so this one line serves both the embedded editor and this standalone
+		     page. Filled by applyPoliticalTerritoryClaim (js/territory/territory-editor-link.js). -->
+		<div id="territoryClaimBanner" class="territory-claim-banner" hidden role="status"><span class="territory-claim-banner__icon" aria-hidden="true">&#128274;</span><span class="territory-claim-banner__text"></span></div>
 		<main>
 			<section class="status-grid">
 				<div class="stat"><div class="label">Status</div><div id="statusValue" class="value">Bereit</div></div>

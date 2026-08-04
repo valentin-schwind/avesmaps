@@ -1404,3 +1404,26 @@ input[type="color"] {
 	color: var(--color-accent-strong);
 	line-height: var(--leading-snug);
 }
+
+/* Read-only banner: another editor holds the territory tree right now.
+   Amber status tone from the shared tokens -- no literal colours, no blue (AGENTS.md §12).
+   The tokens are the -soft trio, which is the pale tinted surface meant for exactly this: a
+   standing notice, not an alarm. */
+.territory-claim-banner {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	padding: var(--space-6) var(--space-10);
+	border-bottom: 1px solid var(--color-warning-soft-border);
+	background: var(--color-warning-soft);
+	color: var(--color-warning-soft-text);
+	font-size: var(--font-size-small);
+}
+
+.territory-claim-banner[hidden] {
+	display: none;
+}
+
+.territory-claim-banner__icon {
+	flex: 0 0 auto;
+}
