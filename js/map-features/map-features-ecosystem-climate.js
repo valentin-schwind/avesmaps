@@ -180,9 +180,80 @@ function climateNeighbourCoordinates(dividerIndex, offset) {
 	return neighbour ? neighbour.geometry.coordinates : null;
 }
 
+// ---- Hervorhebung einer Zone -----------------------------------------------------------------------
+// Owner 2026-08-04: ein Klick auf den NAMEN hebt sein Band von der leisen auf eine kräftige Füllung,
+// ein Klick woanders nimmt sie zurück.
+//
+// 🔴 DER NAME IST DAS EINZIGE ZIEL, und das ist keine Bequemlichkeit. Ein Klimaband ist exakt so breit
+// wie die Karte und liegt über allen anderen Ebenen; in „Alle" nimmt es deshalb ausdrücklich KEINE
+// Klicks an (Regel in ecosystem-layer.css), sonst verschluckte es jeden Klick, der einem Wald oder
+// einem See darunter galt. Ein Wort am Kartenrand verschluckt nichts -- deshalb hängt die Geste dort.
+//
+// Gemerkt wird die REGION, nicht die Fläche: eine Zone hat heute genau eine Fläche, aber die Zone ist
+// das, was der Name meint. Käme je eine zweite Fläche dazu, leuchtete die Zone weiter als Ganzes.
+let highlightedClimateRegionId = "";
+
+// PUR (und deshalb prüfbar): gehört diese Fläche zur hervorgehobenen Zone?
+function shouldHighlightClimateArea(area, regionPublicId) {
+	if (!area || String(area.kind || "") !== "klima" || !regionPublicId) {
+		return false;
+	}
+
+	return String(area.region_public_id || "") === String(regionPublicId);
+}
+
+// Zustand als Klasse am <path>, Werte im CSS -- dieselbe Bauart wie applyEcosystemSelectionClass
+// (map-features-ecosystem-rendering.js). Ein zweiter Satz Zahlen im JavaScript wäre die zweite Wahrheit
+// über dieselbe Deckkraft.
+function applyClimateHighlightClass(layer) {
+	const element = typeof layer?.getElement === "function" ? layer.getElement() : null;
+	if (!element) {
+		return;
+	}
+	element.classList.toggle(
+		"ecosystem-climate-area--highlight",
+		shouldHighlightClimateArea(layer._ecosystemArea, highlightedClimateRegionId)
+	);
+}
+
+function applyClimateHighlight() {
+	if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+		return;
+	}
+	ecosystemLayers.forEach(applyClimateHighlightClass);
+}
+
+function setHighlightedClimateRegion(regionPublicId) {
+	const next = String(regionPublicId || "");
+	if (next === highlightedClimateRegionId) {
+		return;
+	}
+	highlightedClimateRegionId = next;
+	applyClimateHighlight();
+}
+
+// 💣 EIN Zuhörer, im DOKUMENT und in der EINFANGPHASE. Nicht `map.on("click")`: der feuert nicht, wenn
+// der Klick einen Ort, einen Weg oder ein Popup trifft -- die Hervorhebung bliebe dann stehen, während
+// nebenan eine Infobox aufgeht. In der Einfangphase läuft dieser Zuhörer VOR Leaflets eigenem Handler;
+// trifft der Klick den Namen selbst, hält er sich heraus und der Marker setzt die Zone gleich neu.
+if (typeof document !== "undefined" && !document.__avesmapsClimateHighlightBound) {
+	document.__avesmapsClimateHighlightBound = true;
+	document.addEventListener("click", (event) => {
+		const onName = event.target && typeof event.target.closest === "function"
+			&& event.target.closest(".ecosystem-climate-name");
+		if (!onName) {
+			setHighlightedClimateRegion("");
+		}
+	}, true);
+}
+
 // ---- Zeichnen --------------------------------------------------------------------------------------
 
 function clearClimateOverlay() {
+	// 🪤 Die Hervorhebung sitzt an der FLÄCHE, nicht am Namen -- sie verschwindet also nicht mit den
+	// Namensmarkern. Wer die Ebene wechselt, liesse sonst ein kräftig gefärbtes Band zurück, dessen
+	// Beschriftung weg ist und das niemand mehr loswird.
+	setHighlightedClimateRegion("");
 	[...climateLineLayers, ...climateHandleLayers, ...climateNameLayers].forEach((layer) => {
 		if (typeof map !== "undefined" && map && map.hasLayer(layer)) {
 			map.removeLayer(layer);
@@ -326,7 +397,8 @@ function drawClimateZoneNames() {
 			}
 			const marker = L.marker([(span.min + span.max) / 2, x], {
 				pane: "ecosystemPaneKlimaLines",
-				interactive: false,
+				// Anklickbar seit 2026-08-04 -- der Name ist der Griff, mit dem man sein Band hervorhebt.
+				interactive: true,
 				keyboard: false,
 				icon: L.divIcon({
 					className: klasse,
@@ -334,6 +406,20 @@ function drawClimateZoneNames() {
 					iconSize: null,
 				}),
 			}).addTo(map);
+			// 🪤 Die Zone wird über die REGION der Fläche gemerkt, die diesen Namen trägt -- nicht über den
+			// Namenstext. Zwei Bänder dürfen gleich heissen (der Name ist im Regionen-Editor frei), und
+			// dann leuchtete sonst das falsche.
+			const regionPublicId = String(area.region_public_id || "");
+			marker.on("click", (event) => {
+				// Der Klick gilt dem Namen und sonst niemandem: Leaflet reicht einen Marker-Klick sonst
+				// an die KARTE weiter, und deren Handler beantworten ihn als Klick ins Gelände.
+				// 🪤 Das ist NICHT, was den Zuhörer oben zurückhält -- der läuft in der Einfangphase und
+				// damit ohnehin vorher; er hält sich selbst heraus, weil das Ziel im Namen liegt.
+				if (event && event.originalEvent) {
+					L.DomEvent.stopPropagation(event.originalEvent);
+				}
+				setHighlightedClimateRegion(regionPublicId);
+			});
 			climateNameLayers.push(marker);
 		});
 	});

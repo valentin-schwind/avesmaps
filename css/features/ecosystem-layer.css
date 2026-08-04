@@ -1324,6 +1324,22 @@
 	cursor: default;
 }
 
+/* ---- Ein Klick auf den Zonennamen hebt sein Band hervor (Owner 2026-08-04) -----------------------
+   0,6 ist die Füllung einer gezeichneten Fläche -- also genau „so kräftig, wie eine Ebene hier
+   überhaupt wird". Damit springt der Unterschied in beiden Ausgangslagen: aus 0,3 auf der gewählten
+   Ebene wird das Doppelte, aus 0,1 in „Alle" das Sechsfache.
+
+   🪤 FÜNF Klassen, und das ist kein Zufall. Die beiden Regeln oben haben vier (0,4,2), und die
+   Hervorhebung muss BEIDE schlagen -- die von „Alle" ebenso wie die der gewählten Ebene. Bei Gleichstand
+   entschiede die Reihenfolge im Stylesheet, und das wäre eine Abhängigkeit, die beim nächsten Verschieben
+   eines Blocks lautlos kippt. Dieselbe Bauart wie bei `.ecosystem-area--selected` weiter oben.
+
+   Nur die Füllung, KEINE Kontur: eine Kontur gehört dem Bearbeiten (Owner 2026-08-03), und daran ändert
+   eine Hervorhebung im Frontend nichts. */
+.leaflet-pane.ecosystem-pane--klima.ecosystem-pane--active > svg path.leaflet-interactive.ecosystem-climate-area--highlight {
+	fill-opacity: 0.6;
+}
+
 /* ---- Klima ist NIE das Ziel einer booleschen Operation (Owner 2026-08-03) -------------------------
    💣 DIE ZIELWAHL HOLT DIE RUHENDEN EBENEN ABSICHTLICH ZURÜCK -- sichtbar UND anklickbar, sonst liesse
    sich ein See nie aus einem Wald ausschneiden (`--picking`, weiter unten). Das Flag geht auf ALLE
@@ -1463,10 +1479,20 @@
    Die FARBE bleibt der dunkle Klima-Ton: die Karten-Labels sind cremefarben mit dunklem Schatten, weil
    sie auf der Karte liegen -- dieser hier liegt auf einem blassen Band, wo hell verschwinden würde. */
 .ecosystem-climate-name {
-	pointer-events: none;
+	/* 🔴 KLICKBAR (Owner 2026-08-04): ein Klick auf den Namen hebt sein Band hervor. Der Name ist das
+	   EINZIGE Ziel dafür -- das Band selbst nimmt in „Alle" bewusst keine Klicks (Regel weiter oben),
+	   und daran ändert sich nichts: eine kartenbreite Fläche darf den Klick auf den Wald darunter nicht
+	   verschlucken. Ein Wort am Kartenrand verschluckt nichts. */
+	pointer-events: auto;
+	cursor: pointer;
 	white-space: nowrap;
 	padding-left: var(--space-12);
-	font-size: var(--font-size-subhead);
+	/* Versalien und eine Stufe kleiner (Owner 2026-08-04). Die grossflächigen Karten-Labels stehen
+	   ebenso -- Gebirge, Insel, Region, Kontinent (map-labels.css) --, und eine Klimazone ist die
+	   grösste Fläche, die die Karte kennt. Versalien lesen sich bei gleicher Grösse grösser, deshalb
+	   geht die Sprosse im selben Zug zurück auf `small`. */
+	text-transform: uppercase;
+	font-size: var(--font-size-small);
 	font-weight: var(--font-weight-regular);
 	letter-spacing: 0.02em;
 	line-height: 1;

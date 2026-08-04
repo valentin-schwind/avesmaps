@@ -178,6 +178,13 @@ function applyEcosystemAreaPayload(payload) {
 		// Only now does the <path> element exist. A rebuilt area that was selected has to get its class
 		// back, otherwise saving a geometry would silently drop the selection ring.
 		applyEcosystemSelectionClass(layer);
+		// Dasselbe für die hervorgehobene Klimazone (Owner 2026-08-04): auch sie ist eine Klasse am
+		// <path>, und ein neu gebautes Band bekäme sie sonst nicht zurück. Ein Klimaband ist zwar
+		// kartenbreit und fällt deshalb praktisch nie aus dem Ausschnitt -- aber „praktisch nie" ist
+		// kein Grund, den einen Fall offen zu lassen, in dem seine Geometrie sich ändert.
+		if (typeof applyClimateHighlightClass === "function") {
+			applyClimateHighlightClass(layer);
+		}
 	});
 
 	// Gone from the answer = gone from the viewport (the endpoint filters by bbox overlap). Removing

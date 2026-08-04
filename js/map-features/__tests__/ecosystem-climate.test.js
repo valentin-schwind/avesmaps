@@ -14,7 +14,10 @@ const source = fs.readFileSync(path.join(__dirname, "..", "map-features-ecosyste
 const context = {
 	console,
 	window: {},
-	document: { getElementById: () => null, querySelectorAll: () => [] },
+	// addEventListener nur, damit die Datei überhaupt lädt: sie hängt beim Laden EINEN Zuhörer ans
+	// Dokument (der Klick, der die Hervorhebung wieder löscht). Der Zuhörer selbst wird hier NICHT
+	// geprüft -- er ist DOM-Verdrahtung; geprüft wird die Regel darunter, die er aufruft.
+	document: { getElementById: () => null, querySelectorAll: () => [], addEventListener: () => {} },
 };
 context.globalThis = context;
 vm.createContext(context);
@@ -166,6 +169,23 @@ assert(context.isClimateLayerVisible(), "und auch wenn zuletzt Topographie gewä
 // Ohne den Landschaften-Modus überhaupt: nichts, auch nicht in „Alle".
 lage({ modus: false, alle: true });
 assert(!context.isClimateLayerVisible(), "ohne Landschaften-Modus gibt es keine Zonennamen");
+
+// ---- welche Fläche leuchtet, wenn man einen Namen anklickt? -----------------------------------------
+// 🔴 Gemerkt wird die REGION, nicht die Fläche und schon gar nicht der Name. Eine Zone hat heute genau
+// eine Fläche, aber die Zone ist das, was der Name meint -- und zwei Bänder dürfen gleich heissen, weil
+// der Name im Regionen-Editor frei ist. Über den Text zu vergleichen liesse dann das falsche leuchten.
+const klimaband = (regionId, kind = "klima") => ({ kind, region_public_id: regionId, region_name: "Gemäßigte Zone" });
+
+assert(context.shouldHighlightClimateArea(klimaband("r-gemaessigt"), "r-gemaessigt"),
+	"die Fläche der angeklickten Zone leuchtet");
+assert(!context.shouldHighlightClimateArea(klimaband("r-tropisch"), "r-gemaessigt"),
+	"die Nachbarzone nicht -- auch wenn sie genauso heisst");
+assert(!context.shouldHighlightClimateArea(klimaband("r-gemaessigt"), ""),
+	"ohne Auswahl leuchtet gar nichts (der Zustand nach einem Klick woanders hin)");
+assert(!context.shouldHighlightClimateArea(klimaband("r-wald", "vegetation"), "r-wald"),
+	"💣 und eine Fläche einer ANDEREN Ebene nie -- die Hervorhebung gehört den Klimazonen");
+assert(!context.shouldHighlightClimateArea(null, "r-gemaessigt"), "keine Fläche, kein Leuchten");
+assert(!context.shouldHighlightClimateArea(klimaband(""), ""), "und eine Fläche ohne Region auch nicht");
 
 if (failures > 0) {
 	console.error(`ecosystem-climate.test: ${failures} failure(s)`);
