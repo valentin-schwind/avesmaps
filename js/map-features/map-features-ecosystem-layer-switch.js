@@ -51,8 +51,8 @@ function getActiveEcosystemLayerKind() {
 //   ANSEHEN   -- isEcosystemLayerModeActive(): darf jeder. Die Ebene ist eine Ansicht der Karte wie
 //                „Politisch" auch, und die Daten dahinter sind ohnehin öffentlich lesbar
 //                (api/app/ecosystem-areas.php). Es gibt hier nichts mehr zu verriegeln.
-//   BEDIENEN  -- canOperateEcosystemLayers(): Ebenenwahl, Untergrund-Regler, Zeichnen. Das bleibt an
-//                der Sitzung (js/app/session.js), seit 2026-08-04 für Admins UND Editoren.
+//   BEDIENEN  -- canOperateEcosystemLayers(): Ebenenwahl, Untergrund-Regler, Zeichnen. Braucht ZWEI
+//                Dinge: den Editor-Kontext UND das Recht.
 //
 // 💣 WER DIE BEIDEN WIEDER ZUSAMMENZIEHT, NIMMT ENTWEDER JEDEM BESUCHER DIE ANSICHT ODER GIBT JEDEM
 // DIE WERKZEUGE. Der frühere Einzelriegel konnte nur das eine oder das andere.
@@ -62,8 +62,19 @@ function isEcosystemLayerModeActive() {
 		&& getSelectedMapLayerMode() === "ecosystem";
 }
 
+// 💣 ZWEI BEDINGUNGEN, UND DIE ERSTE IST DER KONTEXT. Owner 2026-08-04, auf avesmaps.de stehend: „ich
+// seh immer noch die Leiste -- die sollte ausgeblendet sein, egal was ich da noch für ein Flag im
+// Hintergrund hab." Das Recht allein genügt also nicht: wer angemeldet ist, sieht die ÖFFENTLICHE Karte
+// trotzdem so, wie jeder andere sie sieht. Die Werkzeuge gehören dem Editor (`?edit=1` / die
+// Editor-Hülle), nicht dem Konto.
+//
+// 🪤 IS_EDIT_MODE ist hier KEIN Riegel und soll keiner sein -- es ist ein ungeprüfter URL-Parameter
+// (siehe js/config.js). Der Riegel ist IS_ECOSYSTEM_ENABLED daneben; `?edit=1` sagt nur, WELCHE der
+// beiden Oberflächen gemeint ist. Wer den Parameter anhängt, ohne das Recht zu haben, bekommt weiterhin
+// nichts -- und der Schreibendpunkt fragt ohnehin selbst.
 function canOperateEcosystemLayers() {
-	return typeof IS_ECOSYSTEM_ENABLED !== "undefined" && Boolean(IS_ECOSYSTEM_ENABLED);
+	return typeof IS_EDIT_MODE !== "undefined" && Boolean(IS_EDIT_MODE)
+		&& typeof IS_ECOSYSTEM_ENABLED !== "undefined" && Boolean(IS_ECOSYSTEM_ENABLED);
 }
 
 // Active pane: visible and takes clicks. The two resting ones: drawn at 0% fill AND 0% contour, so you
@@ -332,6 +343,59 @@ function applyEcosystemUndergroundOpacity(active) {
 	}
 }
 
+// ---- Orte treten im Landschaftsmodus zurück (Owner 2026-08-04) --------------------------------------
+// „Städte sollen im Landschaftsmodus standardmässig ausgeblendet werden." Eine Landschaftsansicht handelt
+// von Flächen; ein paar tausend Ortspunkte darüber sind dort Streuung, nicht Auskunft.
+//
+// 🔴 STANDARDMÄSSIG, NICHT ZWANGSWEISE. Die Schalter bleiben da und bedienbar -- wer die Orte im Modus
+// zurückhaben will, holt sie sich mit einem Klick.
+//
+// 💣 UND DIE LAGE VORHER WIRD GEMERKT UND ZURÜCKGEGEBEN. Ohne das nähme ein Besuch der Landschaften dem
+// Nutzer seine Ortsauswahl dauerhaft weg: er kommt zurück nach „Politisch" und seine Metropolen sind
+// fort, ohne dass irgendetwas sagt, wer sie ausgeschaltet hat.
+//
+// 💣 KEIN syncPlannerStateToUrl(). Das hier ist keine Wahl des Nutzers, sondern eine Eigenschaft der
+// Ansicht -- sie in die Adresszeile zu schreiben hiesse, seinen Teilen-Link hinter seinem Rücken zu
+// ändern (URL-Policy: die Adresszeile wird nie automatisch umgeschrieben).
+let ecosystemSettlementMemory = null;   // die Schalterlage VOR dem Modus, oder null = nicht im Modus
+
+function syncEcosystemSettlementVisibility(inLayer) {
+	if (typeof LOCATION_TYPE_VISIBILITY_ORDER === "undefined"
+		|| typeof getLocationToggleButton !== "function"
+		|| typeof syncLocationMarkerVisibility !== "function") {
+		return;
+	}
+
+	if (inLayer) {
+		// Nur beim EINTRETEN merken. syncEcosystemControlsVisibility läuft auch mitten im Modus (etwa
+		// wenn die Rechteauskunft eintrifft) -- ein zweites Merken schriebe die bereits leere Lage fest
+		// und gäbe dem Nutzer seine Orte nie wieder.
+		if (ecosystemSettlementMemory !== null) {
+			return;
+		}
+		ecosystemSettlementMemory = LOCATION_TYPE_VISIBILITY_ORDER.map(
+			(locationType) => getLocationToggleButton(locationType).hasClass("is-active")
+		);
+		LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType) => {
+			getLocationToggleButton(locationType).removeClass("is-active");
+		});
+	} else {
+		if (ecosystemSettlementMemory === null) {
+			return;   // war gar nicht im Modus -- dann gibt es auch nichts zurückzugeben
+		}
+		LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType, index) => {
+			getLocationToggleButton(locationType).toggleClass("is-active", ecosystemSettlementMemory[index] === true);
+		});
+		ecosystemSettlementMemory = null;
+	}
+
+	// Die Knöpfe sagen die Wahrheit (aria-pressed, blasse Darstellung), und die Marker folgen.
+	if (typeof syncLocationToggleButtons === "function") {
+		syncLocationToggleButtons();
+	}
+	syncLocationMarkerVisibility();
+}
+
 function syncEcosystemUndergroundControl() {
 	const rangeElement = document.getElementById("ecosystem-underground-range");
 	const valueElement = document.getElementById("ecosystem-underground-value");
@@ -531,6 +595,11 @@ function syncEcosystemControlsVisibility() {
 	// dem man ihn zurückdreht. Wer den Regler nicht bekommt, bekommt auch die blasse Karte nicht: für
 	// ihn wäre sie nur eine Karte, die schlechter aussieht als vorher, ohne Weg zurück.
 	applyEcosystemUndergroundOpacity(operable);
+	// Die Orte treten für JEDEN zurück, der die Ebene ansieht -- nicht nur für den, der sie bedienen
+	// darf. Deshalb `shouldShow` und nicht `operable`: es ist eine Eigenschaft der Ansicht, keine
+	// Zeichenhilfe. Steht wie die Zeile darüber VOR dem frühen Ausstieg, damit das Verlassen des Modus
+	// die Orte auf beiden Wegen zurückgibt.
+	syncEcosystemSettlementVisibility(shouldShow);
 	// 🔴 Auf BEIDEN Wegen. Der Doppelklick-Zoom ist in dieser Ebene aus und muss beim Verlassen wieder
 	// an sein -- eine Karte, die nach einem Moduswechsel nicht mehr auf Doppelklick zoomt, wäre für
 	// jeden ausserhalb des Editors einfach kaputt. Deshalb vor dem frühen Return und danach.

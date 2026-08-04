@@ -1340,6 +1340,25 @@
 	fill-opacity: 0.6;
 }
 
+/* ---- Die ANGEKLICKTE Zone bekommt zusätzlich eine Kontur (Owner 2026-08-04) ----------------------
+   Damit unterscheiden sich Vorschau und Wahl: Überfahren füllt, Anklicken füllt UND umreisst.
+   `--picked` sitzt nur an der angeklickten Zone und auch nur, solange sie leuchtet -- zeigt die Maus
+   auf einen anderen Namen, wandert beides mit (contouredClimateRegionId).
+
+   🪤 DAS IST DIE EINE AUSNAHME VON „eine Kontur gehört dem BEARBEITEN" (Owner 2026-08-03, AGENTS.md
+   §12), und sie widerspricht ihr nicht: jene Regel meint die Kante, die eine Fläche VON SICH AUS
+   zieht -- die zeichnet hier weiterhin niemand. Diese hier ist die Antwort auf einen Klick, den es
+   vorher gar nicht gab. Sie entsteht mit der Geste und verschwindet mit ihr.
+
+   Der Ton ist der der Trennlinien: „wo eine Zone aufhört" ist genau das, was diese Kante zeigt --
+   und deshalb nicht der weisse Auswahlton des Editors, der eine andere Aussage hat („hieran
+   arbeite ich"). */
+.leaflet-pane.ecosystem-pane--klima.ecosystem-pane--active > svg path.leaflet-interactive.ecosystem-climate-area--picked {
+	stroke: var(--color-ecosystem-klima-divider);
+	stroke-opacity: 0.85;
+	stroke-width: 2;
+}
+
 /* ---- Klima ist NIE das Ziel einer booleschen Operation (Owner 2026-08-03) -------------------------
    💣 DIE ZIELWAHL HOLT DIE RUHENDEN EBENEN ABSICHTLICH ZURÜCK -- sichtbar UND anklickbar, sonst liesse
    sich ein See nie aus einem Wald ausschneiden (`--picking`, weiter unten). Das Flag geht auf ALLE

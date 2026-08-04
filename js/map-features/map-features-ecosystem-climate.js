@@ -205,6 +205,16 @@ function effectiveClimateRegionId() {
 	return hoveredClimateRegionId || clickedClimateRegionId;
 }
 
+// Welche Zone bekommt zusätzlich eine KONTUR? Die angeklickte -- aber nur, solange sie auch leuchtet.
+//
+// 🔴 Damit unterscheiden sich Vorschau und Wahl: Überfahren füllt, Anklicken füllt UND umreisst. Ohne
+// die zweite Bedingung bliebe die Kontur bei einer Zone liegen, die gerade gar nicht leuchtet, sobald
+// die Maus auf einen anderen Namen zeigt -- eine umrandete Fläche ohne Füllung neben einer gefüllten
+// ohne Rand, und keine von beiden sähe nach einer Antwort aus.
+function contouredClimateRegionId() {
+	return effectiveClimateRegionId() === clickedClimateRegionId ? clickedClimateRegionId : "";
+}
+
 // PUR (und deshalb prüfbar): gehört diese Fläche zur hervorgehobenen Zone?
 function shouldHighlightClimateArea(area, regionPublicId) {
 	if (!area || String(area.kind || "") !== "klima" || !regionPublicId) {
@@ -222,9 +232,14 @@ function applyClimateHighlightClass(layer) {
 	if (!element) {
 		return;
 	}
+	const area = layer._ecosystemArea;
 	element.classList.toggle(
 		"ecosystem-climate-area--highlight",
-		shouldHighlightClimateArea(layer._ecosystemArea, effectiveClimateRegionId())
+		shouldHighlightClimateArea(area, effectiveClimateRegionId())
+	);
+	element.classList.toggle(
+		"ecosystem-climate-area--picked",
+		shouldHighlightClimateArea(area, contouredClimateRegionId())
 	);
 }
 
@@ -238,10 +253,15 @@ function applyClimateHighlight() {
 // Beide Setzer gehen durch denselben Trichter: erst den Zustand ändern, dann prüfen, ob sich die
 // WIRKUNG überhaupt geändert hat. Ein Mauszeiger, der über den angeklickten Namen fährt, ändert den
 // Zustand -- aber nichts am Bild, und dann wird auch nichts neu gezeichnet.
+// 💣 BEIDE Ableitungen vergleichen, nicht nur die leuchtende. Solange es nur die Füllung gab, genügte
+// effectiveClimateRegionId() -- mit der Kontur nicht mehr, und der Fall sieht harmlos aus: Maus auf den
+// Namen (leuchtet), dann KLICK. Die leuchtende Zone bleibt dabei dieselbe, die Kontur aber müsste
+// dazukommen. Wer nur die eine vergleicht, überspringt genau den Klick, um den es geht -- und die
+// Kontur erscheint erst, wenn die Maus einmal woanders war. Gefunden im Durchlauf, nicht im Kopf.
 function updateClimateHighlight(change) {
-	const vorher = effectiveClimateRegionId();
+	const vorher = effectiveClimateRegionId() + "|" + contouredClimateRegionId();
 	change();
-	if (effectiveClimateRegionId() !== vorher) {
+	if (effectiveClimateRegionId() + "|" + contouredClimateRegionId() !== vorher) {
 		applyClimateHighlight();
 	}
 }

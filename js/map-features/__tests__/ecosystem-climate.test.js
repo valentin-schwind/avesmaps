@@ -221,6 +221,34 @@ context.setHighlightedClimateRegion("");
 context.setHoveredClimateRegion("");
 assert(context.effectiveClimateRegionId() === "", "ein Klick woanders hin räumt beide Zustände");
 
+// ---- die Kontur gehört der ANGEKLICKTEN Zone --------------------------------------------------------
+// 🔴 Überfahren füllt, Anklicken füllt UND umreisst -- daran unterscheidet man Vorschau und Wahl.
+// 💣 Und die Kontur bleibt nicht liegen: zeigt die Maus auf einen anderen Namen, wandert sie mit der
+// Füllung mit. Sonst stünde eine umrandete Fläche ohne Füllung neben einer gefüllten ohne Rand, und
+// keine von beiden sähe nach einer Antwort aus.
+context.setHighlightedClimateRegion("");
+context.setHoveredClimateRegion("r-boreal");
+assert(context.contouredClimateRegionId() === "", "eine bloss überfahrene Zone bekommt KEINE Kontur");
+context.setHoveredClimateRegion("");
+
+context.setHighlightedClimateRegion("r-gemaessigt");
+assert(context.contouredClimateRegionId() === "r-gemaessigt", "die angeklickte bekommt sie");
+
+context.setHoveredClimateRegion("r-tropisch");
+assert(context.effectiveClimateRegionId() === "r-tropisch", "die Vorschau leuchtet");
+assert(context.contouredClimateRegionId() === "", "💣 und die Kontur bleibt nicht bei der angeklickten liegen");
+
+context.setHoveredClimateRegion("");
+assert(context.contouredClimateRegionId() === "r-gemaessigt", "zurück bei der angeklickten, samt Kontur");
+
+// Die Maus auf dem, was ohnehin angeklickt ist, ändert nichts.
+context.setHoveredClimateRegion("r-gemaessigt");
+assert(context.contouredClimateRegionId() === "r-gemaessigt",
+	"auf der eigenen Zone zu stehen nimmt ihr die Kontur nicht");
+context.setHighlightedClimateRegion("");
+context.setHoveredClimateRegion("");
+assert(context.contouredClimateRegionId() === "", "und ein Klick woanders hin räumt auch sie");
+
 if (failures > 0) {
 	console.error(`ecosystem-climate.test: ${failures} failure(s)`);
 	process.exit(1);
