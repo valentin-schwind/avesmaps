@@ -604,6 +604,39 @@ function avesmapsVisibleEditorArea() {
 	return openId ? AVESMAPS_EDITOR_OVERLAY_AREAS[openId] : null;
 }
 
+// 💣 Not every editor is a window. The landscape layer -- Derographie, Vegetation, Topographie and
+// Klimazonen -- is drawn DIRECTLY ON THE MAP: ecosystem-pane--editable hangs off IS_EDIT_MODE, not
+// off an open overlay. The first version only watched overlays, so two people drawing climate zones
+// side by side showed up as plain "online" with nothing next to their name. This closes that.
+//
+// Pure, so the rule below can be tested: the caller passes the current map state in.
+//
+// 💣 The political map mode is deliberately NOT here. Switching that layer on is LOOKING, not
+// editing -- and "territories" carries the write claim. Reporting it from a map mode would let
+// anyone who merely turns the layer on lock every other editor out of saving.
+function avesmapsMapWorkActivityFor(mapMode, ecosystemKind, kindLabels) {
+	if (mapMode !== "ecosystem") {
+		return { area: null, label: null };
+	}
+	const label = (kindLabels && kindLabels[ecosystemKind]) || null;
+	return { area: "ecosystem", label };
+}
+
+// What to report right now. An open editor window always wins over the map layer underneath it.
+function avesmapsResolveEditorActivity() {
+	const overlayArea = avesmapsVisibleEditorArea();
+	if (overlayArea) {
+		// The label only belongs to the area it was reported for (the territory editor names its
+		// territory); after a switch it would describe the wrong editor.
+		return { area: overlayArea, label: overlayArea === editorActivityArea ? editorActivityLabel : null };
+	}
+	return avesmapsMapWorkActivityFor(
+		typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "",
+		typeof getActiveEcosystemLayerKind === "function" ? getActiveEcosystemLayerKind() : "",
+		typeof ECOSYSTEM_KIND_LABELS !== "undefined" ? ECOSYSTEM_KIND_LABELS : null
+	);
+}
+
 // Only reports on an actual AREA change. Editors that know their current object (the territory
 // editor) call avesmapsReportEditorArea directly and synchronously when they open, which runs
 // before this observer callback -- so the explicit call wins and this one stays quiet instead of
@@ -683,7 +716,10 @@ async function sendEditorPresenceHeartbeat() {
 				Accept: "application/json",
 				"Content-Type": "application/json",
 			},
-			body: JSON.stringify({ area: editorActivityArea, label: editorActivityLabel }),
+			// Resolved fresh on every beat rather than read from a stored value: the map layer can
+			// change without any event we listen for, and deriving it here means one place decides
+			// what "working on" means -- the same choice the claim itself is built on.
+			body: JSON.stringify(avesmapsResolveEditorActivity()),
 		});
 		const data = await response.json().catch(() => ({}));
 		if (!response.ok || data?.ok !== true) {
@@ -691,6 +727,7 @@ async function sendEditorPresenceHeartbeat() {
 		}
 
 		editorPresenceUsers = Array.isArray(data.users) ? data.users : [];
+		editorActivitySchema = String(data.activity_schema || "ok");
 		avesmapsApplyTerritoryClaim(data.territory_claim || null);
 		renderEditorPresenceUsers();
 		// The Status panel's visitor line rides on this poll instead of opening its own.
@@ -760,12 +797,16 @@ function renderEditorPresenceUsers() {
 
 	const onlineUsers = editorPresenceUsers.filter((user) => Boolean(user.is_online));
 	const offlineUsers = editorPresenceUsers.filter((user) => !user.is_online);
-	setPresencePanelStatus(
-		offlineUsers.length > 0
-			? `${onlineUsers.length} online, ${offlineUsers.length} offline.`
-			: `${onlineUsers.length} Nutzer online.`,
-		onlineUsers.length > 0 ? "success" : "empty"
-	);
+	// A silent fallback reads exactly like "nobody is working on anything" -- say it instead. The
+	// list itself still renders below; only the summary line changes.
+	const countLine = offlineUsers.length > 0
+		? `${onlineUsers.length} online, ${offlineUsers.length} offline.`
+		: `${onlineUsers.length} Nutzer online.`;
+	if (editorActivitySchema === "degraded") {
+		setPresencePanelStatus(`${countLine} Tätigkeit nicht verfügbar (Datenbankspalten fehlen).`, "warning");
+	} else {
+		setPresencePanelStatus(countLine, onlineUsers.length > 0 ? "success" : "empty");
+	}
 
 	renderPresenceUserGroup(listElement, "Online", onlineUsers, "online");
 	renderPresenceUserGroup(listElement, "Offline", offlineUsers, "offline");

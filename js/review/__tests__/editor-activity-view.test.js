@@ -82,6 +82,31 @@ check("a string instead of an object -> may write", avesmapsTerritoryWriteState(
 check("a nameless holder still gets a readable label",
 	avesmapsTerritoryWriteState({ is_mine: false }).holderName === "Ein anderer Editor");
 
+// --- work done on the map, not in a window --------------------------------------------------
+eval(extract("avesmapsMapWorkActivityFor"));
+const KINDS = { derographisch: "Derographie", vegetation: "Vegetation", topographie: "Topographie", klima: "Klimazonen" };
+
+check("drawing climate zones reports the landscape layer and which one",
+	JSON.stringify(avesmapsMapWorkActivityFor("ecosystem", "klima", KINDS)) === JSON.stringify({ area: "ecosystem", label: "Klimazonen" }));
+check("...and the same for vegetation",
+	avesmapsMapWorkActivityFor("ecosystem", "vegetation", KINDS).label === "Vegetation");
+check("an unknown landscape kind still reports the layer, just without a name",
+	JSON.stringify(avesmapsMapWorkActivityFor("ecosystem", "quatsch", KINDS)) === JSON.stringify({ area: "ecosystem", label: null }));
+check("missing label table does not throw",
+	avesmapsMapWorkActivityFor("ecosystem", "klima", null).area === "ecosystem");
+
+// 💣 THE rule that must never soften: turning the political layer on is LOOKING. If a map mode
+// could report "territories", anyone who merely switched that layer on would take the write claim
+// and lock every other editor out of saving -- a read action causing a write outage.
+check("the political map mode reports NOTHING (it must never take the write claim)",
+	avesmapsMapWorkActivityFor("political", "", KINDS).area === null);
+["regions", "powerlines", "aggregat", "", "stylized"].forEach((mode) => {
+	check(`map mode "${mode}" reports nothing`, avesmapsMapWorkActivityFor(mode, "klima", KINDS).area === null);
+});
+check("no map mode can ever report territories",
+	["political", "regions", "powerlines", "ecosystem", "aggregat", ""]
+		.every((m) => avesmapsMapWorkActivityFor(m, "klima", KINDS).area !== "territories"));
+
 // --- the two lists that must not drift ------------------------------------------------------
 // Read a `const X = {...}` table out of the source as a VALUE. Evaluating the declaration itself
 // would not help: a const never escapes its eval scope, so it would be invisible down here.

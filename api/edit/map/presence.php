@@ -51,6 +51,7 @@ try {
     // is genuinely absent -- or predates the activity columns, which is the normal state in the first
     // seconds after this feature deploys -- do we repair it once and retry. Steady state runs no DDL.
     $isHeartbeat = $requestMethod === 'POST';
+    $activitySchema = 'ok';
     try {
         $presence = avesmapsCollectEditorPresence($pdo, $user, $isHeartbeat, $activityArea, $activityLabel, true);
     } catch (PDOException $exception) {
@@ -69,6 +70,7 @@ try {
             // less, never a reason to fail. (Written after the first version of the retrofit did fail
             // and turned every heartbeat into a 500 -- see avesmapsEnsureEditorActivityColumns.)
             $presence = avesmapsCollectEditorPresence($pdo, $user, $isHeartbeat, null, null, false);
+            $activitySchema = 'degraded';
         }
     }
     $onlineEditors = $presence['users'];
@@ -79,6 +81,11 @@ try {
         'users' => $onlineEditors,
         'online_seconds' => AVESMAPS_EDITOR_PRESENCE_ONLINE_SECONDS,
         'claim_seconds' => AVESMAPS_EDITOR_ACTIVITY_CLAIM_SECONDS,
+        // 'degraded' means the activity columns are missing AND could not be created, so this
+        // response carries no activity and no claim. It is reported rather than hidden: a silent
+        // fallback is indistinguishable from "nobody is doing anything", and that ambiguity already
+        // cost an evening of guessing once. The panel says so out loud.
+        'activity_schema' => $activitySchema,
         // Only the ages travel, never activity_since itself: that column is MySQL server time, and
         // a client formatting it as "since 14:20" would be off by the timezone difference.
         'territory_claim' => $territoryClaim === null ? null : [
