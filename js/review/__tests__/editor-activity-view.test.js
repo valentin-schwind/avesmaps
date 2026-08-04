@@ -83,7 +83,14 @@ check("a nameless holder still gets a readable label",
 	avesmapsTerritoryWriteState({ is_mine: false }).holderName === "Ein anderer Editor");
 
 // --- work done on the map, not in a window --------------------------------------------------
-eval(extract("avesmapsMapWorkActivityFor"));
+// Together with its table, for the same reason as above: a const does not escape an eval scope, so
+// the function would be evaluated without the lookup it closes over.
+const mapModeTable = src.match(/const AVESMAPS_MAP_MODE_AREAS = \{[\s\S]*?\n\};/);
+if (!mapModeTable) {
+	console.error("FAIL: AVESMAPS_MAP_MODE_AREAS not found in js/review/review-panels.js");
+	process.exit(1);
+}
+eval([mapModeTable[0], extract("avesmapsMapWorkActivityFor")].join("\n"));
 const KINDS = { derographisch: "Derographie", vegetation: "Vegetation", topographie: "Topographie", klima: "Klimazonen" };
 
 check("drawing climate zones reports the landscape layer and which one",
@@ -95,17 +102,26 @@ check("an unknown landscape kind still reports the layer, just without a name",
 check("missing label table does not throw",
 	avesmapsMapWorkActivityFor("ecosystem", "klima", null).area === "ecosystem");
 
-// 💣 THE rule that must never soften: turning the political layer on is LOOKING. If a map mode
-// could report "territories", anyone who merely switched that layer on would take the write claim
-// and lock every other editor out of saving -- a read action causing a write outage.
-check("the political map mode reports NOTHING (it must never take the write claim)",
-	avesmapsMapWorkActivityFor("political", "", KINDS).area === null);
-["regions", "powerlines", "aggregat", "", "stylized"].forEach((mode) => {
+// The political layer IS shown -- an editor working there should be visible to the others.
+check("the political map mode is reported, so the work is visible",
+	avesmapsMapWorkActivityFor("political", "", KINDS).area === "political_map");
+check("the powerline layer is reported too",
+	avesmapsMapWorkActivityFor("powerlines", "", KINDS).area === "powerlines");
+check("a layer with no sub-layer carries no label",
+	avesmapsMapWorkActivityFor("political", "klima", KINDS).label === null);
+
+// 💣 THE rule that must never soften: reporting is not claiming. The write claim is keyed on the
+// area code "territories". If a map mode could emit that code, anyone who merely switched the
+// political layer on would take the claim and lock every other editor out of saving -- a read
+// action causing a write outage. Only the territory EDITOR may ever report it.
+check("no map mode can ever report territories -- that code belongs to the editor alone",
+	["political", "powerlines", "ecosystem", "none", "original", "deregraphic", "", "quatsch"]
+		.every((m) => avesmapsMapWorkActivityFor(m, "klima", KINDS).area !== "territories"));
+
+// Ways of looking at the base map are not places work happens.
+["none", "original", "deregraphic", "", "quatsch"].forEach((mode) => {
 	check(`map mode "${mode}" reports nothing`, avesmapsMapWorkActivityFor(mode, "klima", KINDS).area === null);
 });
-check("no map mode can ever report territories",
-	["political", "regions", "powerlines", "ecosystem", "aggregat", ""]
-		.every((m) => avesmapsMapWorkActivityFor(m, "klima", KINDS).area !== "territories"));
 
 // --- the two lists that must not drift ------------------------------------------------------
 // Read a `const X = {...}` table out of the source as a VALUE. Evaluating the declaration itself
@@ -120,6 +136,7 @@ function extractTable(name) {
 }
 
 const overlayAreas = extractTable("AVESMAPS_EDITOR_OVERLAY_AREAS");
+const mapModeAreas = extractTable("AVESMAPS_MAP_MODE_AREAS");
 const areaLabelTable = extractTable("AVESMAPS_EDITOR_AREA_LABELS");
 
 // Every overlay id in the table has to be an id something actually assigns. A typo here fails
@@ -137,14 +154,15 @@ Object.keys(overlayAreas).forEach((id) => {
 // itself, the server accepts the request, and the activity just never appears.
 const phpSrc = fs.readFileSync("api/_internal/map/editor-activity.php", "utf8");
 const phpAreas = (phpSrc.match(/const AVESMAPS_EDITOR_ACTIVITY_AREAS = \[[\s\S]*?\];/) || [""])[0];
-const clientAreas = [...new Set(Object.values(overlayAreas))].sort();
+// Both sources of area codes: the editor windows AND the map layers worked on without one.
+const clientAreas = [...new Set([...Object.values(overlayAreas), ...Object.values(mapModeAreas)])].sort();
 clientAreas.forEach((area) => {
 	check(`area "${area}" is on the server whitelist too`, phpAreas.includes(`'${area}'`));
 });
 
 // And the other way round: a server area nobody on the client ever sends is dead vocabulary.
 const serverAreas = [...phpAreas.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
-check("both lists describe the same eight editors",
+check("both lists describe exactly the same set of areas",
 	JSON.stringify(serverAreas) === JSON.stringify(clientAreas));
 
 // The label table must cover every area, or an editor reports itself and renders as nothing.

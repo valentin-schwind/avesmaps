@@ -534,6 +534,9 @@ const AVESMAPS_EDITOR_AREA_LABELS = {
 	citymaps: "Kartensammlung",
 	adventures: "Abenteuer",
 	wikisync: "Datenabgleich",
+	// The political LAYER, as opposed to the territory EDITOR above. Named apart on purpose: only
+	// the editor carries the write claim, and the panel should show which of the two someone is in.
+	political_map: "Politische Karte",
 };
 
 // Pure: what to append to a user's meta line in the Status tab. Empty string means "append
@@ -606,20 +609,34 @@ function avesmapsVisibleEditorArea() {
 
 // 💣 Not every editor is a window. The landscape layer -- Derographie, Vegetation, Topographie and
 // Klimazonen -- is drawn DIRECTLY ON THE MAP: ecosystem-pane--editable hangs off IS_EDIT_MODE, not
-// off an open overlay. The first version only watched overlays, so two people drawing climate zones
-// side by side showed up as plain "online" with nothing next to their name. This closes that.
+// off an open overlay. Watching only overlays left two people drawing climate zones side by side
+// showing as plain "online" with nothing next to their name.
 //
-// Pure, so the rule below can be tested: the caller passes the current map state in.
+// 💣 "political" maps to political_map, NOT to territories -- and that distinction is the whole
+// point. Reporting is not claiming. The write claim hangs off the area code `territories`, so if a
+// map mode could report it, anyone who merely switched the political layer on would lock every
+// other editor out of saving: a read action causing a write outage. Its own code shows the work
+// and grants nothing. The first version of this function refused to report `political` at all,
+// which protected the claim but also hid an editor at work -- reporting nothing was the wrong way
+// to grant nothing.
 //
-// 💣 The political map mode is deliberately NOT here. Switching that layer on is LOOKING, not
-// editing -- and "territories" carries the write claim. Reporting it from a map mode would let
-// anyone who merely turns the layer on lock every other editor out of saving.
+// Modes not listed here (none / original / deregraphic) are ways of LOOKING at the base map, not
+// places work happens.
+const AVESMAPS_MAP_MODE_AREAS = {
+	ecosystem: "ecosystem",
+	political: "political_map",
+	powerlines: "powerlines",
+};
+
+// Pure, so the rule above can be tested: the caller passes the current map state in.
 function avesmapsMapWorkActivityFor(mapMode, ecosystemKind, kindLabels) {
-	if (mapMode !== "ecosystem") {
+	const area = AVESMAPS_MAP_MODE_AREAS[mapMode] || null;
+	if (area === null) {
 		return { area: null, label: null };
 	}
-	const label = (kindLabels && kindLabels[ecosystemKind]) || null;
-	return { area: "ecosystem", label };
+	// Only the landscape layer has a meaningful sub-layer to name.
+	const label = area === "ecosystem" ? ((kindLabels && kindLabels[ecosystemKind]) || null) : null;
+	return { area, label };
 }
 
 // What to report right now. An open editor window always wins over the map layer underneath it.

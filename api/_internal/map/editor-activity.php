@@ -14,8 +14,14 @@ declare(strict_types=1);
  * Design: docs/superpowers/specs/2026-08-04-editor-taetigkeit-und-territorien-sperre-design.md
  */
 
-// The eight editors that exist. A value outside this list becomes null rather than being stored:
-// the panel list is user-visible and must not be fillable with free text.
+// The eight editors, plus the map layers that are worked on without opening a window. A value
+// outside this list becomes null rather than being stored: the panel list is user-visible and must
+// not be fillable with free text.
+//
+// 💣 'political_map' and 'territories' are deliberately NOT the same code. The write claim is keyed
+// on 'territories', so only the territory editor may report it; the political map layer reports its
+// own code, which shows the work and grants nothing. Merging the two would let anyone who switched
+// that layer on lock every other editor out of saving.
 const AVESMAPS_EDITOR_ACTIVITY_AREAS = [
     'territories',
     'paths',
@@ -25,6 +31,7 @@ const AVESMAPS_EDITOR_ACTIVITY_AREAS = [
     'citymaps',
     'adventures',
     'wikisync',
+    'political_map',
 ];
 
 // Deliberately longer than AVESMAPS_EDITOR_PRESENCE_ONLINE_SECONDS (90): the green dot may go out
