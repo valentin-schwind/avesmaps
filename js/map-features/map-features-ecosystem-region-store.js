@@ -158,6 +158,13 @@ function invalidateEcosystemRegionCache() {
 // Flächenzahlen veralten, sobald gezeichnet wird -- aber den Segmentschalter betätigt ein Editor
 // ständig, und das darf nicht jedes Mal eine Abfrage auf STRATO auslösen.
 function syncEcosystemRegionCache({ refresh = false } = {}) {
+	// 🔴 DER EINE ENGPASS zum fähigkeitsgeschützten Endpunkt. Seit die Ebene jedem Besucher offensteht
+	// (2026-08-04), liefe sie sonst bei jedem Moduswechsel gegen `list_regions` und bekäme ein 403 --
+	// einmal je Besucher, in der Konsole, ohne dass irgendetwas davon besser würde. Der Riegel sitzt
+	// hier und nicht an den drei Aufrufstellen: die vierte hätte ihn vergessen.
+	if (typeof canOperateEcosystemLayers === "function" && !canOperateEcosystemLayers()) {
+		return;
+	}
 	void loadEcosystemRegions(getActiveEcosystemLayerKind(), { force: refresh });
 }
 

@@ -123,7 +123,12 @@
 	// state restore after F5. Not bootstrap.js: the notice belongs to entering the layer, not to loading
 	// the page.
 	function maybeShowEcosystemIntro() {
-		const modeActive = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive();
+		// 🔴 NUR FÜR DIE, DIE ZEICHNEN DÜRFEN. Der Hinweis ist Einweisung ins Werkzeug („Fang mit einem
+		// einzigen Durchgang an … bitte noch keine Serie"), und seit die Ebene jedem Besucher offensteht
+		// (2026-08-04) spränge er sonst jeden an, der sich bloss die Landschaften ansehen will -- mit
+		// einer Anleitung für ein Werkzeug, das er gar nicht hat.
+		const modeActive = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
+			&& (typeof canOperateEcosystemLayers !== "function" || canOperateEcosystemLayers());
 		if (!shouldShowEcosystemIntro({
 			seen: readEcosystemIntroSeen(),
 			dismissedInSession: dismissedThisSession,

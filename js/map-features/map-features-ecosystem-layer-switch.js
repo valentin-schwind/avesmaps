@@ -45,16 +45,25 @@ function getActiveEcosystemLayerKind() {
 	return activeEcosystemLayerKind;
 }
 
-// The two gates. Everything visible in this feature asks this one question.
-// 💣 IS_EDIT_MODE gehörte bis 2026-08-01 dazu und ist hier bewusst WEG: „nur für Admins automatisch
-// freischalten" (Owner) heißt, ein angemeldeter Admin sieht die Ebene auf der normalen Karte, ohne
-// `?edit=1`. Der Riegel liegt jetzt in IS_ECOSYSTEM_ENABLED, das aus der Sitzung kommt (js/app/session.js)
-// -- und das ist strenger als vorher, nicht lockerer: `?edit=1` war nie geprüft.
+// 🔴 SEIT 2026-08-04 SIND ES ZWEI FRAGEN, NICHT EINE (Owner: „das, was jetzt unter ‚Alle' ist, dem
+// Frontendnutzer freischalten"):
+//
+//   ANSEHEN   -- isEcosystemLayerModeActive(): darf jeder. Die Ebene ist eine Ansicht der Karte wie
+//                „Politisch" auch, und die Daten dahinter sind ohnehin öffentlich lesbar
+//                (api/app/ecosystem-areas.php). Es gibt hier nichts mehr zu verriegeln.
+//   BEDIENEN  -- canOperateEcosystemLayers(): Ebenenwahl, Untergrund-Regler, Zeichnen. Das bleibt an
+//                der Sitzung (js/app/session.js), seit 2026-08-04 für Admins UND Editoren.
+//
+// 💣 WER DIE BEIDEN WIEDER ZUSAMMENZIEHT, NIMMT ENTWEDER JEDEM BESUCHER DIE ANSICHT ODER GIBT JEDEM
+// DIE WERKZEUGE. Der frühere Einzelriegel konnte nur das eine oder das andere.
 // ⚠️ Die ZEICHNEN-Wege (context-action, territory-import) fragen weiterhin zusätzlich IS_EDIT_MODE.
 function isEcosystemLayerModeActive() {
 	return typeof getSelectedMapLayerMode === "function"
-		&& getSelectedMapLayerMode() === "ecosystem"
-		&& typeof IS_ECOSYSTEM_ENABLED !== "undefined" && IS_ECOSYSTEM_ENABLED;
+		&& getSelectedMapLayerMode() === "ecosystem";
+}
+
+function canOperateEcosystemLayers() {
+	return typeof IS_ECOSYSTEM_ENABLED !== "undefined" && Boolean(IS_ECOSYSTEM_ENABLED);
 }
 
 // Active pane: visible and takes clicks. The two resting ones: drawn at 0% fill AND 0% contour, so you
@@ -357,6 +366,13 @@ const ECOSYSTEM_SHOW_ALL_STORAGE_KEY = "avesmaps.ecosystem.showAllLayers";
 let ecosystemShowAllLayers = null;   // null = noch nicht aus dem Speicher geholt
 
 function isEcosystemShowAllLayers() {
+	// 🔴 Wer die Ebene nicht bedienen darf, sieht IMMER „Alle" -- das ist die Ansicht, die der Owner
+	// freigeschaltet hat, und ohne das Bedienfeld gäbe es auch keinen Weg, eine andere zu wählen. Der
+	// gespeicherte Wert wird dabei nicht angefasst: meldet sich derselbe Browser später als Editor an,
+	// steht seine zuletzt gewählte Ebene wieder da.
+	if (!canOperateEcosystemLayers()) {
+		return true;
+	}
 	if (ecosystemShowAllLayers === null) {
 		try {
 			ecosystemShowAllLayers = window.localStorage?.getItem(ECOSYSTEM_SHOW_ALL_STORAGE_KEY) === "1";
@@ -501,18 +517,30 @@ function syncEcosystemControlsVisibility() {
 
 	bindEcosystemLayerSwitch();
 	const shouldShow = isEcosystemLayerModeActive();
-	controlsElement.hidden = !shouldShow;
+	// 🔴 Das Bedienfeld gehört dem, der die Ebene BEDIENEN darf (Owner 2026-08-04). Der gewöhnliche
+	// Besucher sieht die Landschaften, aber weder die Ebenen-Kacheln noch den Untergrund-Regler --
+	// beides sind Werkzeuge, und er hat nichts damit zu tun.
+	const operable = shouldShow && canOperateEcosystemLayers();
+	controlsElement.hidden = !operable;
 
 	// Both effects are restored on the way OUT, before the early return: a half-faded base map or a
 	// dimmed label pane left behind in "Politisch" would read as a broken map, not as a setting.
-	applyEcosystemUndergroundOpacity(shouldShow);
+	//
+	// 🔴 Der ausgeblasste Untergrund hängt am BEDIENEN, nicht am Ansehen. Er ist eine Zeichenhilfe --
+	// „die gemalte Landschaft soll die gezogene nicht überstimmen" --, und dazu gehört der Regler, mit
+	// dem man ihn zurückdreht. Wer den Regler nicht bekommt, bekommt auch die blasse Karte nicht: für
+	// ihn wäre sie nur eine Karte, die schlechter aussieht als vorher, ohne Weg zurück.
+	applyEcosystemUndergroundOpacity(operable);
 	// 🔴 Auf BEIDEN Wegen. Der Doppelklick-Zoom ist in dieser Ebene aus und muss beim Verlassen wieder
 	// an sein -- eine Karte, die nach einem Moduswechsel nicht mehr auf Doppelklick zoomt, wäre für
 	// jeden ausserhalb des Editors einfach kaputt. Deshalb vor dem frühen Return und danach.
 	if (typeof syncEcosystemDoubleClickZoom === "function") {
 		syncEcosystemDoubleClickZoom();
 	}
-	if (!shouldShow) {
+	if (!operable) {
+		// Der gewöhnliche Besucher endet hier: Panes einstellen, fertig. 💣 Vor allem NICHT
+		// syncEcosystemRegionCache -- das liest den fähigkeitsgeschützten Editor-Endpunkt und
+		// beantwortete ihm jeden Moduswechsel mit einem 403 in der Konsole.
 		syncEcosystemPaneStates();
 		return;
 	}

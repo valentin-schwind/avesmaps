@@ -1136,7 +1136,11 @@ if (typeof document !== "undefined") {
 		// moment after the area was deselected should say "nothing happened", not fall through to the
 		// browser's own undo or to whatever binds the key next.
 		const session = activeEcosystemGeometryEdit;
-		const inEcosystemMode = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive();
+		// 🔴 „Im Modus" reicht seit 2026-08-04 nicht mehr: die Ebene steht jedem Besucher offen. Ohne die
+		// zweite Frage schluckte Strg+Z bei ihm die Taste und antwortete mit einer Editor-Meldung
+		// („Doppelklick auf eine Fläche öffnet ihre Ecken") auf ein Werkzeug, das er gar nicht hat.
+		const inEcosystemMode = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
+			&& (typeof canOperateEcosystemLayers !== "function" || canOperateEcosystemLayers());
 		if (!session && !inEcosystemMode) { return; }
 
 		event.preventDefault();

@@ -165,17 +165,20 @@ function syncEditorDisplayTogglesToMode(mode) {
 }
 
 function setSelectedMapLayerMode(mode) {
-	// "ecosystem" joins the allowlist ONLY while the mode is actually permitted. This -- not the
-	// disabled <option> in map-features.js -- is the lock: without it a foreign link carrying
-	// ?mapLayerMode=ecosystem walks an anonymous visitor into a mode the combobox cannot even show,
-	// via map-features-layer-state.js (restorePlannerState -> setSelectedMapLayerMode).
-	// 💣 Seit 2026-08-01 fragt die Bedingung NUR noch IS_ECOSYSTEM_ENABLED, und das ist "der Sitzung
-	// nach Admin" -- nicht mehr `?edit=1` plus `?landschaften=1`. Beide waren ungeprüfte URL-Parameter;
-	// ein anonymer Besucher mit dem richtigen Link kam damit durch dieses Tor. Jetzt nicht mehr.
-	const allowedModes = ["none", "political", "deregraphic", "powerlines", "original"];
-	if (IS_ECOSYSTEM_ENABLED) {
-		allowedModes.push("ecosystem");
-	}
+	// Diese Liste ist die Stelle, an der ein GETEILTER LINK ankommt: ?mapLayerMode=… läuft über
+	// map-features-layer-state.js (restorePlannerState) hierher, an der Auswahlbox vorbei. Was hier
+	// nicht steht, führt zurück auf die Standardansicht.
+	//
+	// 🪤 Bis 2026-08-01 hing „ecosystem" an `?edit=1` plus `?landschaften=1`, bis 2026-08-04 an der
+	// Admin-Sitzung. Beide Riegel sind Geschichte, aber ihr Grund nicht: ein ungeprüfter URL-Parameter
+	// war nie ein Riegel. Heute gibt es hier NICHTS mehr zu verriegeln -- die Ansicht ist öffentlich.
+	//
+	// 🔴 „ecosystem" steht seit 2026-08-04 fest in der Liste (Owner: die „Alle"-Ansicht gehört jedem
+	// Besucher). Der Riegel, den dieser Kommentar oben beschreibt, ist damit gefallen -- und er muss es,
+	// sonst führte ein geteilter Link mit ?mapLayerMode=ecosystem den Besucher weiterhin in die
+	// Standardansicht zurück, während die Auswahl den Eintrag anbietet. Was an der Sitzung hängt, ist nur
+	// noch das BEDIENEN (canOperateEcosystemLayers).
+	const allowedModes = ["none", "political", "deregraphic", "powerlines", "original", "ecosystem"];
 	const normalizedMode = allowedModes.includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
 	$("#mapLayerModeSelect").val(normalizedMode);
 	syncTransportControl("mapLayerModeSelect");

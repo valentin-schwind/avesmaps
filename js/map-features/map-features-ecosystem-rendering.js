@@ -323,7 +323,11 @@ function syncEcosystemDoubleClickZoom() {
 	if (typeof map === "undefined" || !map || !map.doubleClickZoom) {
 		return;
 	}
-	const inEcosystemLayer = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive();
+	// 🔴 „In der Ebene" reicht seit 2026-08-04 NICHT mehr. Seit sie jedem Besucher offensteht, säße er
+	// sonst auf einer Karte, die nicht mehr auf Doppelklick zoomt -- und er hat nichts zu zeichnen, was
+	// den Entzug rechtfertigte. Der Doppelklick gehört dem, der auch die Werkzeuge bekommt.
+	const inEcosystemLayer = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
+		&& (typeof canOperateEcosystemLayers !== "function" || canOperateEcosystemLayers());
 	// Zeichnen und Ecken-Bearbeitung sind ohnehin nur dort möglich; sie stehen trotzdem hier, damit die
 	// Antwort auch dann stimmt, wenn der Moduswechsel noch nicht durchgelaufen ist.
 	const editing = typeof activeEcosystemGeometryEdit !== "undefined" && Boolean(activeEcosystemGeometryEdit);

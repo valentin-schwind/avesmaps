@@ -37,9 +37,11 @@ $("#mapLayerModeSelect option[value=\"political\"]").prop("disabled", !POLITICAL
 // 💣 IS_ECOSYSTEM_ENABLED ist hier IMMER noch false: die Rechteauskunft ist unterwegs. Diese Stelle
 // sperrt also unbedingt, und applyEcosystemAccess() (js/config.js) macht sie für Admins wieder auf,
 // sobald die Antwort da ist. Genau deshalb steht dort ein zweiter syncTransportControl-Aufruf.
-if (!IS_ECOSYSTEM_ENABLED) {
-	$("#mapLayerModeSelect option[value=\"ecosystem\"]").prop("disabled", true);
-}
+// 🔴 KEIN RIEGEL MEHR (Owner 2026-08-04: die „Alle"-Ansicht gehört jedem Besucher). „Landschaften"
+// steht wie „Politisch" oder „Kraftlinien" in der Auswahl, für alle. Was an der Sitzung hängt, ist nur
+// noch das BEDIENEN -- Ebenenwahl, Untergrund-Regler, Zeichnen (canOperateEcosystemLayers in
+// map-features-ecosystem-layer-switch.js). Deshalb ist hier auch kein zweiter syncTransportControl-Aufruf
+// aus applyEcosystemAccess() mehr nötig: der Eintrag war nie gesperrt.
 initializeTransportIconSelects();
 initializeVersionedAssetIcons();
 syncTransportControls();
