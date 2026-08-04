@@ -2,6 +2,7 @@ const assert = require("assert");
 const {
 	avesmapsDerivedBoundarySaveAction,
 	avesmapsDerivedBoundaryInnerFlagOverride,
+	avesmapsDerivedBoundaryOuterBoundaryForbidden,
 } = require("../territory-derived-geometry-save-order.js");
 
 // Bug #56: saving a territory in the Territoriumseditor did not recompute its outer boundary
@@ -93,5 +94,51 @@ assert.strictEqual(
 // 9. Defensive: garbage input never produces an override.
 assert.strictEqual(avesmapsDerivedBoundaryInnerFlagOverride(), undefined, "no argument => no override");
 assert.strictEqual(avesmapsDerivedBoundaryInnerFlagOverride({}), undefined, "empty options => no override");
+
+// --- outer-boundary lock ----------------------------------------------------------------
+// The editor asks this before enabling "Aussengrenzen darstellen". It answers from the
+// boundary plan, and the plan has NO node for a target it could not resolve.
+
+// 10. The bug (Alt-Gareth, 2026-08-04): a self-made tree node ("eigener-knoten:knoten071")
+//     resolves to nothing, so the plan comes back with plan_nodes: [] and the lookup yields
+//     null. Answering "allowed" left the checkbox tickable; the save then died server-side
+//     with "Die abgeleitete Geometrie braucht ein gespeichertes Ziel-Herrschaftsgebiet" and
+//     aborted the ENTIRE save, so the geometry could never be assigned. Unknown = forbidden.
+assert.strictEqual(
+	avesmapsDerivedBoundaryOuterBoundaryForbidden(null),
+	true,
+	"#alt-gareth: an unresolvable target must lock the checkbox, not offer it"
+);
+assert.strictEqual(
+	avesmapsDerivedBoundaryOuterBoundaryForbidden(undefined),
+	true,
+	"a missing plan node must lock the checkbox"
+);
+assert.strictEqual(
+	avesmapsDerivedBoundaryOuterBoundaryForbidden("plan"),
+	true,
+	"garbage instead of a node must lock the checkbox"
+);
+
+// 11. A root keeps its own boundary: nothing above it draws its outline.
+assert.strictEqual(
+	avesmapsDerivedBoundaryOuterBoundaryForbidden({ parent_id: 0, direct_geometry_count: 1, child_boundary_source_count: 0 }),
+	false,
+	"a root may have its own outer boundary"
+);
+
+// 12. A pure aggregate (no own polygon, but children that provide sources) may have one.
+assert.strictEqual(
+	avesmapsDerivedBoundaryOuterBoundaryForbidden({ parent_id: 7, direct_geometry_count: 0, child_boundary_source_count: 3 }),
+	false,
+	"a pure aggregate may have its own outer boundary"
+);
+
+// 13. Unchanged core rule: a leaf WITH a parent must not -- the parent already draws it.
+assert.strictEqual(
+	avesmapsDerivedBoundaryOuterBoundaryForbidden({ parent_id: 7, direct_geometry_count: 1, child_boundary_source_count: 0 }),
+	true,
+	"a leaf with a parent is drawn by its parent"
+);
 
 console.log("derived-boundary-save-action: ALL PASS");

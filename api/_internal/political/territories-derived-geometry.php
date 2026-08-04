@@ -193,7 +193,7 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
     $target = avesmapsPoliticalResolveDerivedGeometryTarget($pdo, $payload, true, $user);
     $territory = $target['territory'] ?? null;
     if (!is_array($territory)) {
-        throw new InvalidArgumentException('Die abgeleitete Geometrie braucht ein gespeichertes Ziel-Herrschaftsgebiet.');
+        throw new InvalidArgumentException(sprintf('Keine Außengrenze möglich: zum Ziel „%s“ gibt es kein gespeichertes Herrschaftsgebiet. Häkchen „Außengrenzen darstellen“ entfernen, dann wird die Zuordnung gespeichert.', (string) ($target['target_name'] ?? $target['target_key'] ?? '?')));
     }
     $territoryId = (int) $territory['id'];
 

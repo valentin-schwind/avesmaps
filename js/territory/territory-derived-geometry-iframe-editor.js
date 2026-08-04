@@ -72,8 +72,17 @@
 	// das await im Lock kam nie zurück, die Checkbox wurde nie deaktiviert. Reiner Container (kein eigenes
 	// Polygon, aggregiert Kinder) behält die Außengrenze; jedes andere Nicht-Root mit eigenem Polygon
 	// (Baronie/Mark/Blatt) wird gesperrt.
+	// Die Entscheidung selbst liegt (unit-getestet) in territory-derived-geometry-save-order.js.
+	// Sie sperrt bei FEHLENDEM Plan-Knoten -- der Fall "Ziel nicht auflösbar", der die Checkbox
+	// anbot, deren Speichern dann serverseitig starb und den GANZEN Speichervorgang mitnahm.
 	function isOwnDerivedBoundaryForbiddenPlanNode(node) {
-		if (!node) return false;
+		if (typeof avesmapsDerivedBoundaryOuterBoundaryForbidden === "function") {
+			return avesmapsDerivedBoundaryOuterBoundaryForbidden(node);
+		}
+		// Fallback für den Standalone-Editor (html/political-territory-editor.html), der
+		// save-order.js nicht einbindet: dieselbe Regel, damit beide Oberflächen gleich
+		// entscheiden. Bei Änderungen die getestete Fassung im Modul führen.
+		if (!node || typeof node !== "object") return true;
 		const isRoot = Number(node.parent_id || 0) === 0;
 		const isPureAggregate = Number(node.direct_geometry_count || 0) === 0 && Number(node.child_boundary_source_count || 0) > 0;
 		return !isRoot && !isPureAggregate;
@@ -87,7 +96,9 @@
 				.find((n) => String(n?.territory_public_id || "") === String(wantId)) || null;
 			return { forbidden: isOwnDerivedBoundaryForbiddenPlanNode(node), hasActiveBoundary: !!(node && node.has_active_derived_boundary) };
 		} catch (error) {
-			return { forbidden: false, hasActiveBoundary: false };
+			// Plan nicht abrufbar -> ebenfalls sperren (gleiche Richtung wie ein fehlender Knoten).
+			// hasActiveBoundary bleibt false, deshalb löscht die Sperre nie eine gespeicherte Grenze.
+			return { forbidden: true, hasActiveBoundary: false };
 		}
 	}
 

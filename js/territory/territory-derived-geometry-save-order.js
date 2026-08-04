@@ -19,6 +19,30 @@ function avesmapsDerivedBoundarySaveAction(options) {
 	return dirty ? "delete" : "none";
 }
 
+// May this plan node have its own derived outer boundary, i.e. should the editor's
+// "Aussengrenzen darstellen" checkbox stay usable?
+// FAIL CLOSED on a missing node. No plan node means the plan could not resolve the target
+// (a self-made tree node never resolves -- its key lives in wiki_territory_model, and the
+// resolver only knows UUIDs and wiki keys) or the target has no source area yet. In both
+// cases the save cannot produce a boundary, and answering "allowed" armed a checkbox whose
+// save died server-side ("Die abgeleitete Geometrie braucht ein gespeichertes
+// Ziel-Herrschaftsgebiet") and took the whole assignment save down with it -- the editor
+// could then never assign anything (Alt-Gareth, 2026-08-04).
+// Locking cannot destroy a stored boundary: the delete branch additionally requires
+// hasActiveBoundary, which a missing node never reports.
+// NOTE: isOwnDerivedBoundaryForbidden() in territory-derived-geometry-editor.js looks the
+// same but stays FAIL OPEN on purpose -- it guards a delete, where "unknown" must never
+// mean "throw it away". Do not unify the two without keeping that difference.
+function avesmapsDerivedBoundaryOuterBoundaryForbidden(node) {
+	if (!node || typeof node !== "object") {
+		return true;
+	}
+	const isRoot = Number(node.parent_id || 0) === 0;
+	const isPureAggregate = Number(node.direct_geometry_count || 0) === 0
+		&& Number(node.child_boundary_source_count || 0) > 0;
+	return !isRoot && !isPureAggregate;
+}
+
 // Should the save hand an explicit show_inner_boundaries flag down to the cascade engine?
 // Only when the editor actually touched the boundary controls in this session. On a plain save the
 // "Innengrenzen darstellen" checkbox is not a mirror of the stored value -- updateInnerBoundaryControl()
@@ -64,5 +88,9 @@ function avesmapsDerivedBoundaryInnerFlagOverride(options) {
 })();
 
 if (typeof module !== "undefined" && module.exports) {
-	module.exports = { avesmapsDerivedBoundarySaveAction, avesmapsDerivedBoundaryInnerFlagOverride };
+	module.exports = {
+		avesmapsDerivedBoundarySaveAction,
+		avesmapsDerivedBoundaryInnerFlagOverride,
+		avesmapsDerivedBoundaryOuterBoundaryForbidden,
+	};
 }
