@@ -522,6 +522,97 @@ function moderateReviewRating(id, action, publicId = "") {
 		.catch(() => showFeedbackToast("Aktion fehlgeschlagen.", "warning"));
 }
 
+// The German editor names, keyed by the area codes the server whitelists. Kept here rather than
+// server-side: these are UI strings and belong with the rest of the interface, not in the API
+// (AGENTS.md §8 -- German stays the default, English is the opt-in overlay).
+const AVESMAPS_EDITOR_AREA_LABELS = {
+	territories: "Territorien",
+	paths: "Wege",
+	ecosystem: "Landschaften",
+	settlements: "Siedlungen",
+	powerlines: "Kraftlinien",
+	citymaps: "Kartensammlung",
+	adventures: "Abenteuer",
+	wikisync: "Datenabgleich",
+};
+
+// Pure: what to append to a user's meta line in the Status tab. Empty string means "append
+// nothing" -- an offline user's area column is stale by definition, and an unknown key would
+// otherwise leak a raw code into the UI.
+function avesmapsFormatEditorActivity(user) {
+	if (!user || !user.is_online) {
+		return "";
+	}
+	const areaLabel = AVESMAPS_EDITOR_AREA_LABELS[user.activity_area];
+	if (!areaLabel) {
+		return "";
+	}
+	return user.activity_label ? `${areaLabel}: ${user.activity_label}` : areaLabel;
+}
+
+// Pure: may I write to the territory tree, and if not, who is holding it?
+// Unknown or malformed input resolves to "may write" on purpose. The server's 409 is the
+// authority; defaulting to "locked" here would turn a single bad response into an outage that
+// looks exactly like the feature working correctly.
+function avesmapsTerritoryWriteState(claim) {
+	if (!claim || typeof claim !== "object" || claim.is_mine !== false) {
+		return { canWrite: true, holderName: null, sinceSeconds: null };
+	}
+	return {
+		canWrite: false,
+		holderName: claim.username || "Ein anderer Editor",
+		sinceSeconds: Number.isFinite(Number(claim.seconds_since_activity)) ? Number(claim.seconds_since_activity) : null,
+	};
+}
+
+// Every editor calls this when it opens (area + optional label) and when it closes (null, null).
+// The heartbeat goes out IMMEDIATELY rather than waiting for the next 30s tick: whoever opens the
+// territory editor must learn within the same interaction whether they may write.
+function avesmapsSetEditorActivity(area, label) {
+	editorActivityArea = area || null;
+	editorActivityLabel = editorActivityArea ? (label || null) : null;
+	void sendEditorPresenceHeartbeat();
+}
+
+// The guarded form every editor actually calls. The presence machinery only exists in edit mode,
+// and 💣 `typeof` is not enough to check for it: a half-loaded const file throws in the temporal
+// dead zone, taking the caller with it. try/catch is the form that survives that.
+function avesmapsReportEditorArea(area, label) {
+	try {
+		avesmapsSetEditorActivity(area, label);
+	} catch (error) {
+		/* not in edit mode, or the panel bundle is not loaded -- nothing to report */
+	}
+}
+
+function avesmapsOnTerritoryClaimChange(listener) {
+	if (typeof listener === "function") {
+		editorTerritoryClaimListeners.push(listener);
+		// Late subscribers (the territory editor loads its scripts on first open) would otherwise
+		// sit on a stale "may write" until the next 30s tick.
+		if (editorTerritoryClaim !== null) {
+			try {
+				listener(editorTerritoryClaim);
+			} catch (error) {
+				console.warn("Territorien-Anspruch konnte nicht verarbeitet werden:", error);
+			}
+		}
+	}
+}
+
+// The iframe editors know WHICH object is open; the host owns the heartbeat, so they post it up.
+// The host never adopts an AREA from a message -- only a label, and only while it already holds an
+// area of its own. A postMessage is untrusted input: it may refine what we report, never define it.
+window.addEventListener("message", (event) => {
+	if (event.origin !== window.location.origin || !event.data || event.data.type !== "avesmaps:editor-activity") {
+		return;
+	}
+	if (!editorActivityArea) {
+		return;
+	}
+	avesmapsSetEditorActivity(editorActivityArea, event.data.label);
+});
+
 async function sendEditorPresenceHeartbeat() {
 	if (!IS_EDIT_MODE) {
 		return;
@@ -535,7 +626,7 @@ async function sendEditorPresenceHeartbeat() {
 				Accept: "application/json",
 				"Content-Type": "application/json",
 			},
-			body: JSON.stringify({ path: window.location.pathname }),
+			body: JSON.stringify({ area: editorActivityArea, label: editorActivityLabel }),
 		});
 		const data = await response.json().catch(() => ({}));
 		if (!response.ok || data?.ok !== true) {
@@ -543,6 +634,7 @@ async function sendEditorPresenceHeartbeat() {
 		}
 
 		editorPresenceUsers = Array.isArray(data.users) ? data.users : [];
+		avesmapsApplyTerritoryClaim(data.territory_claim || null);
 		renderEditorPresenceUsers();
 		// The Status panel's visitor line rides on this poll instead of opening its own.
 		if (typeof renderVisitorLiveStrip === "function") {
@@ -552,6 +644,29 @@ async function sendEditorPresenceHeartbeat() {
 		console.warn("Online-Status konnte nicht aktualisiert werden:", error);
 		setPresencePanelStatus(error.message || "Nutzerstatus konnte nicht geladen werden.", "error");
 	}
+}
+
+// Notify the territory editor only when the answer actually CHANGED, so a 30s poll does not
+// re-run the banner and save-button plumbing (and re-fire the "it is free now" toast) every tick.
+function avesmapsApplyTerritoryClaim(nextClaim) {
+	// Compare the HOLDER, not the whole object: seconds_since_* grow with every poll, so a deep
+	// compare would report "changed" every 30s and this guard would do nothing. The banner's
+	// "since 14:20" is derived from the age at the moment it was rendered and stays correct while
+	// the holder stays the same -- so not re-rendering is not just cheaper, it is also steadier.
+	const nextHolder = nextClaim ? Number(nextClaim.user_id) : null;
+	const currentHolder = editorTerritoryClaim ? Number(editorTerritoryClaim.user_id) : null;
+	if (nextHolder === currentHolder) {
+		editorTerritoryClaim = nextClaim;
+		return;
+	}
+	editorTerritoryClaim = nextClaim;
+	editorTerritoryClaimListeners.forEach((listener) => {
+		try {
+			listener(editorTerritoryClaim);
+		} catch (error) {
+			console.warn("Territorien-Anspruch konnte nicht verarbeitet werden:", error);
+		}
+	});
 }
 
 function startEditorPresenceHeartbeat() {
@@ -625,7 +740,7 @@ function renderPresenceUserGroup(listElement, title, users, state) {
 		const presenceAge = formatPresenceAge(user.seconds_since_seen);
 		const roleLabel = formatPresenceRole(user.role);
 		const stateLabel = user.is_online ? "online" : "offline";
-		itemElement.querySelector(".presence-user__meta").textContent = [roleLabel, stateLabel, presenceAge].filter(Boolean).join(" · ");
+		itemElement.querySelector(".presence-user__meta").textContent = [roleLabel, stateLabel, presenceAge, avesmapsFormatEditorActivity(user)].filter(Boolean).join(" · ");
 		groupListElement.appendChild(itemElement);
 	});
 
