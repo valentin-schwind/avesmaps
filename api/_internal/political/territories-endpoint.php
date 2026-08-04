@@ -190,7 +190,7 @@ try {
     //
     // Reads are untouched: every GET action returns above line 174, so the second editor keeps the
     // whole tree, the geometries and the audit, and loses only saving.
-    $territoryBlocker = avesmapsBlockingEditorAreaClaim($pdo, 'territories', $user);
+    $territoryBlocker = avesmapsBlockingEditorAreaClaim($pdo, AVESMAPS_TERRITORY_CLAIM_AREAS, $user);
     if ($territoryBlocker !== null) {
         avesmapsErrorResponse(409, 'territory_locked', sprintf(
             '%s bearbeitet gerade die Herrschaftsgebiete. Deine Aenderung wurde nicht gespeichert.',

@@ -132,6 +132,18 @@ check("no map mode can ever report territories -- that code belongs to the edito
 	check(`unknown map mode "${mode}" reports nothing`, avesmapsMapWorkActivityFor(mode, "klima", KINDS).area === null);
 });
 
+// --- the gate on political area actions -------------------------------------------------------
+eval([claimSrc.match(/const AVESMAPS_TERRITORY_READONLY_ACTIONS = \[[\s\S]*?\];/)[0],
+	extract("avesmapsTerritoryEditBlockedByFor", claimSrc, "js/territory/territory-claim-view.js")].join("\n"));
+
+const otherHolds = { is_mine: false, username: "Valentin", seconds_since_activity: 60 };
+["edit-geometry", "edit-properties", "move", "split", "extract", "delete", "union", "difference", "intersection"].forEach((a) => {
+	check(`action "${a}" is blocked while someone else holds the claim`, avesmapsTerritoryEditBlockedByFor(a, otherHolds) === "Valentin");
+});
+check("show-info stays allowed -- looking is never blocked", avesmapsTerritoryEditBlockedByFor("show-info", otherHolds) === "");
+check("nobody holds it -> nothing is blocked", avesmapsTerritoryEditBlockedByFor("delete", null) === "");
+check("I hold it myself -> nothing is blocked", avesmapsTerritoryEditBlockedByFor("delete", { is_mine: true }) === "");
+
 // --- the two lists that must not drift ------------------------------------------------------
 // Read a `const X = {...}` table out of the source as a VALUE. Evaluating the declaration itself
 // would not help: a const never escapes its eval scope, so it would be invisible down here.

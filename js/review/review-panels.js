@@ -561,6 +561,44 @@ function avesmapsFormatEditorActivity(user) {
 // avesmapsTerritoryWriteState lives in js/territory/territory-claim-view.js: the standalone
 // territory page needs it too and loads none of this file.
 
+// "Bearbeiten erzwingen": one heartbeat carrying force_claim. The server checks the capability --
+// hiding the button is courtesy, not the guard.
+async function avesmapsForceTerritoryClaim() {
+	const activity = avesmapsResolveEditorActivity();
+	try {
+		const response = await fetch(EDITOR_PRESENCE_API_URL, {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { Accept: "application/json", "Content-Type": "application/json" },
+			body: JSON.stringify({ area: activity.area, label: activity.label, force_claim: true }),
+		});
+		const data = await response.json().catch(() => ({}));
+		if (!response.ok || data?.ok !== true) {
+			throw new Error(apiErrorMessage(data, "Übernahme fehlgeschlagen."));
+		}
+		editorPresenceUsers = Array.isArray(data.users) ? data.users : [];
+		avesmapsApplyTerritoryClaim(data.territory_claim || null);
+		renderEditorPresenceUsers();
+		showFeedbackToast("Du hast das Schreibrecht für Territorien übernommen.", "success");
+	} catch (error) {
+		showFeedbackToast(error.message || "Übernahme fehlgeschlagen.", "error");
+	}
+}
+
+// Offered only to admins, and only while SOMEONE ELSE holds the claim -- taking over from nobody
+// is not a thing, and a permanently visible "force" button is a standing temptation.
+function avesmapsSyncForceClaimButton() {
+	const button = document.getElementById("presence-force-claim");
+	if (!button) {
+		return;
+	}
+	const blockedByOther = Boolean(editorTerritoryClaim) && editorTerritoryClaim.is_mine === false;
+	button.hidden = !(editorCanForceClaim && blockedByOther);
+	if (!button.hidden) {
+		button.textContent = `Bearbeiten erzwingen (statt ${editorTerritoryClaim.username || "dem anderen"})`;
+	}
+}
+
 // Every editor calls this when it opens (area + optional label) and when it closes (null, null).
 // The heartbeat goes out IMMEDIATELY rather than waiting for the next 30s tick: whoever opens the
 // territory editor must learn within the same interaction whether they may write.
@@ -759,6 +797,7 @@ async function sendEditorPresenceHeartbeat() {
 
 		editorPresenceUsers = Array.isArray(data.users) ? data.users : [];
 		editorActivitySchema = String(data.activity_schema || "ok");
+		editorCanForceClaim = data.can_force_claim === true;
 		avesmapsApplyTerritoryClaim(data.territory_claim || null);
 		renderEditorPresenceUsers();
 		// The Status panel's visitor line rides on this poll instead of opening its own.
@@ -778,9 +817,14 @@ function avesmapsApplyTerritoryClaim(nextClaim) {
 	// compare would report "changed" every 30s and this guard would do nothing. The banner's
 	// "since 14:20" is derived from the age at the moment it was rendered and stays correct while
 	// the holder stays the same -- so not re-rendering is not just cheaper, it is also steadier.
+	//
+	// 💣 The guard compares against the last SUCCESSFULLY APPLIED holder, not merely the last one
+	// received. The embedded editor's markup loads asynchronously, so the first claim answer often
+	// arrives before #territoryClaimBanner exists; comparing received-to-received then means the
+	// holder never "changes" again and the banner never appears at all. Retrying until it lands is
+	// what makes the read-only state show up for an editor who opened the window a moment ago.
 	const nextHolder = nextClaim ? Number(nextClaim.user_id) : null;
-	const currentHolder = editorTerritoryClaim ? Number(editorTerritoryClaim.user_id) : null;
-	if (nextHolder === currentHolder) {
+	if (nextHolder === editorTerritoryClaimAppliedFor) {
 		editorTerritoryClaim = nextClaim;
 		return;
 	}
@@ -789,7 +833,10 @@ function avesmapsApplyTerritoryClaim(nextClaim) {
 	// every script is loaded, so this cannot lose the load-order race the registry version did.
 	if (typeof applyPoliticalTerritoryClaim === "function") {
 		try {
-			applyPoliticalTerritoryClaim(editorTerritoryClaim);
+			// Only remember it as applied when the editor markup was actually there.
+			if (applyPoliticalTerritoryClaim(editorTerritoryClaim) === true) {
+				editorTerritoryClaimAppliedFor = nextHolder;
+			}
 		} catch (error) {
 			console.warn("Territorien-Anspruch konnte nicht angewendet werden:", error);
 		}
@@ -839,6 +886,7 @@ function renderEditorPresenceUsers() {
 		setPresencePanelStatus(countLine, onlineUsers.length > 0 ? "success" : "empty");
 	}
 
+	avesmapsSyncForceClaimButton();
 	renderPresenceUserGroup(listElement, "Online", onlineUsers, "online");
 	renderPresenceUserGroup(listElement, "Offline", offlineUsers, "offline");
 }
@@ -867,7 +915,12 @@ function renderPresenceUserGroup(listElement, title, users, state) {
 				<span class="presence-user__meta"></span>
 			</span>
 		`;
-		itemElement.querySelector(".presence-user__name").textContent = user.username || "Editor";
+		// A star marks who currently holds the write claim -- the one person whose saves go through.
+		const holdsClaim = Boolean(editorTerritoryClaim) && Number(editorTerritoryClaim.user_id) === Number(user.id);
+		itemElement.querySelector(".presence-user__name").textContent = (user.username || "Editor") + (holdsClaim ? " *" : "");
+		if (holdsClaim) {
+			itemElement.querySelector(".presence-user__name").title = "Bearbeitet gerade -- nur diese Person kann Territorien speichern.";
+		}
 		const presenceAge = formatPresenceAge(user.seconds_since_seen);
 		const roleLabel = formatPresenceRole(user.role);
 		const stateLabel = user.is_online ? "online" : "offline";

@@ -603,6 +603,10 @@
 				</nav>
 				<div class="status-subsection" data-status-subsection="editoren">
 					<p id="presence-panel-status" class="review-panel__status" role="status" aria-live="polite">Nutzerstatus wird geladen...</p>
+					<!-- Admin only, and only while SOMEONE ELSE holds the territory write claim. Shown by
+					     renderEditorPresenceUsers; hidden otherwise so it is not a standing temptation. -->
+					<button type="button" id="presence-force-claim" class="review-panel__action" hidden
+						title="Übernimmt das Schreibrecht für Territorien. Der andere kann dann nicht mehr speichern.">Bearbeiten erzwingen</button>
 					<div id="presence-user-list" class="review-panel__list"></div>
 					<div id="editor-activity-figures"></div>
 				</div>

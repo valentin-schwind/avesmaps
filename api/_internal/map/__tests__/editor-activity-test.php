@@ -49,6 +49,7 @@ $row = static fn(int $id, string $name, int $sinceActivity, int $sinceSeen): arr
     'activity_label' => null,
     'seconds_since_activity' => $sinceActivity,
     'seconds_since_seen' => $sinceSeen,
+    'seconds_since_forced' => null,
 ];
 
 assert(avesmapsPickEditorAreaClaim([], 180) === null, 'nobody present -> no claim');
@@ -86,10 +87,66 @@ assert($shape['seconds_since_seen'] === 10, 'the freshness travels, so the panel
 // just because null casts to 0. It sorts last, which is the honest reading: we do not know when
 // they arrived, so they do not get to claim seniority.
 $withUnknown = avesmapsPickEditorAreaClaim([
-    ['user_id' => 5, 'username' => 'Ohne', 'activity_label' => null, 'seconds_since_activity' => null, 'seconds_since_seen' => 5],
+    ['user_id' => 5, 'username' => 'Ohne', 'activity_label' => null, 'seconds_since_activity' => null, 'seconds_since_seen' => 5, 'seconds_since_forced' => null],
     $row(3, 'Valentin', 600, 10),
 ], 180);
 assert($withUnknown['user_id'] === 3, 'a row without a known arrival time never outranks a known one');
+
+// --- "Bearbeiten erzwingen" ------------------------------------------------------------------
+// An admin must be able to take the write right, or a colleague who wandered off with a tab open
+// locks the map for three minutes at a time. The override outranks arrival order entirely.
+$forcedRow = static fn(int $id, string $name, int $sinceActivity, int $sinceSeen, ?int $sinceForced): array => [
+    'user_id' => $id,
+    'username' => $name,
+    'activity_label' => null,
+    'seconds_since_activity' => $sinceActivity,
+    'seconds_since_seen' => $sinceSeen,
+    'seconds_since_forced' => $sinceForced,
+];
+
+// Anna arrived long after Valentin, but forced the claim 5s ago -> Anna holds it.
+$afterForce = avesmapsPickEditorAreaClaim([
+    $row(3, 'Valentin', 3600, 10),
+    $forcedRow(7, 'Anna', 20, 5, 5),
+], 180);
+assert($afterForce['user_id'] === 7, 'a forced claim outranks the earliest arrival');
+
+// 💣 The most recent override wins, so a forced claim can itself be taken over. Without this the
+// first admin to press the button would own the territories until their heartbeat expired, and a
+// second admin would have no way back in -- a deadlock built out of the escape hatch.
+$twoForced = avesmapsPickEditorAreaClaim([
+    $forcedRow(7, 'Anna', 900, 5, 90),
+    $forcedRow(4, 'Bea', 20, 5, 3),
+], 180);
+assert($twoForced['user_id'] === 4, 'the most recent override wins, so a takeover can be taken over');
+
+// An override ages out with the same window as everything else -- otherwise one press would grant
+// a permanent claim that no amount of walking away would release.
+$staleForce = avesmapsPickEditorAreaClaim([
+    $row(3, 'Valentin', 3600, 10),
+    $forcedRow(7, 'Anna', 20, 5, 181),
+], 180);
+assert($staleForce['user_id'] === 3, 'an expired override falls back to arrival order');
+
+// And an override on a row whose HEARTBEAT died counts for nothing: they are gone.
+$forcedButAbsent = avesmapsPickEditorAreaClaim([
+    $row(3, 'Valentin', 3600, 10),
+    $forcedRow(7, 'Anna', 20, 999, 2),
+], 180);
+assert($forcedButAbsent['user_id'] === 3, 'an override from someone whose heartbeat expired does not count');
+
+// --- both ways of working on territories share ONE claim -------------------------------------
+// The editor window and the political map layer are two doors into the same room. If they had
+// separate claims, two people could edit the same areas through different doors -- which is
+// exactly what happened live on 2026-08-04.
+assert(in_array('territories', AVESMAPS_TERRITORY_CLAIM_AREAS, true), 'the editor window shares the claim');
+assert(in_array('political_map', AVESMAPS_TERRITORY_CLAIM_AREAS, true), 'the political map layer shares the claim');
+foreach (AVESMAPS_TERRITORY_CLAIM_AREAS as $claimArea) {
+    assert(
+        avesmapsNormalizeEditorActivityArea($claimArea) === $claimArea,
+        "claim area {$claimArea} must survive the whitelist, or it could never be reported in the first place"
+    );
+}
 
 // --- the two schema-shape predicates -------------------------------------------------------
 // These decide whether the write gate stays OPEN. Getting them wrong in the "too narrow"

@@ -38,10 +38,49 @@ function formatTerritoryClaimSince(sinceSeconds) {
 	return ` (seit ${startedAt.getHours()}:${String(startedAt.getMinutes()).padStart(2, "0")} Uhr)`;
 }
 
+// Returns TRUE only when the editor markup was actually there to be updated.
+//
+// 💣 That return value is load-bearing. The embedded editor's markup arrives asynchronously
+// (territory-editor-inline-host.js fetches and parses it), while the heartbeat announcing the
+// editor goes out synchronously the moment it opens. So the very first claim answer regularly
+// lands BEFORE #territoryClaimBanner exists -- and the caller's "only act when the holder
+// changed" guard then never tries again, because the holder does not change. Result: the second
+// editor saw no banner and an enabled save button, for as long as the first one stayed.
+// Reporting the miss lets the caller retry on the next beat.
+// Every region context action that CHANGES something. "show-info" is deliberately absent: looking
+// stays allowed for everyone, which is what makes a read-only second editor useful rather than
+// merely locked out.
+const AVESMAPS_TERRITORY_READONLY_ACTIONS = ["show-info"];
+
+// Who is blocking this action, or "" when it may proceed. Pure apart from reading the current
+// claim, so the rule itself is testable.
+function avesmapsTerritoryEditBlockedByFor(action, claim) {
+	if (AVESMAPS_TERRITORY_READONLY_ACTIONS.includes(String(action))) {
+		return "";
+	}
+	const state = avesmapsTerritoryWriteState(claim);
+	return state.canWrite ? "" : (state.holderName || "Ein anderer Editor");
+}
+
+function avesmapsTerritoryEditBlockedBy(action) {
+	// 💣 try/catch, not typeof: editorTerritoryClaim is a `let` in runtime-state.js, and a bare
+	// reference to a not-yet-initialised binding throws rather than reading as undefined.
+	let claim = null;
+	try {
+		claim = editorTerritoryClaim;
+	} catch (error) {
+		return "";
+	}
+	return avesmapsTerritoryEditBlockedByFor(action, claim);
+}
+
 function applyPoliticalTerritoryClaim(claim) {
 	const state = avesmapsTerritoryWriteState(claim);
 	const banner = document.getElementById("territoryClaimBanner");
 	const saveButton = document.getElementById("saveButton");
+	if (!banner && !saveButton) {
+		return false;
+	}
 
 	// "It is free now" is worth saying, but only on the transition -- and only to someone who was
 	// actually blocked a moment ago, not to everyone who opens the editor.
@@ -63,4 +102,6 @@ function applyPoliticalTerritoryClaim(claim) {
 		saveButton.disabled = !state.canWrite;
 		saveButton.title = state.canWrite ? "" : `${state.holderName} bearbeitet gerade die Territorien.`;
 	}
+
+	return true;
 }

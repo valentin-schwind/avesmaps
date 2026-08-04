@@ -45,6 +45,12 @@ try {
     $activityArea = avesmapsNormalizeEditorActivityArea($activityPayload['area'] ?? null);
     $activityLabel = $activityArea === null ? null : avesmapsNormalizeEditorActivityLabel($activityPayload['label'] ?? null);
 
+    // "Bearbeiten erzwingen" -- admin only. Rides on this endpoint rather than getting its own,
+    // because it writes to the same row this one owns and needs the same auth. Capability is
+    // checked here, not in the library: the library computes, the endpoint decides who may.
+    $wantsForce = ($activityPayload['force_claim'] ?? false) === true;
+    $mayForce = avesmapsUserCan($user, 'admin');
+
     // The presence table is created lazily on first miss, NOT on every poll. Every connected editor
     // hits this endpoint every 30s; a CREATE TABLE IF NOT EXISTS on each call is a metadata probe on
     // the hot path that multiplies with editor count. Try the normal path first; only when the table
@@ -53,7 +59,7 @@ try {
     $isHeartbeat = $requestMethod === 'POST';
     $activitySchema = 'ok';
     try {
-        $presence = avesmapsCollectEditorPresence($pdo, $user, $isHeartbeat, $activityArea, $activityLabel, true);
+        $presence = avesmapsCollectEditorPresence($pdo, $user, $isHeartbeat, $activityArea, $activityLabel, true, $wantsForce && $mayForce);
     } catch (PDOException $exception) {
         if (!avesmapsIsMissingTableError($exception) && !avesmapsIsMissingColumnError($exception)) {
             throw $exception;
@@ -61,7 +67,7 @@ try {
         try {
             avesmapsEnsureEditorPresenceTable($pdo);
             avesmapsEnsureEditorActivityColumns($pdo);
-            $presence = avesmapsCollectEditorPresence($pdo, $user, $isHeartbeat, $activityArea, $activityLabel, true);
+            $presence = avesmapsCollectEditorPresence($pdo, $user, $isHeartbeat, $activityArea, $activityLabel, true, $wantsForce && $mayForce);
         } catch (PDOException) {
             // Last resort: serve presence WITHOUT the activity columns -- exactly what this endpoint
             // did before the activity feature existed. The panel loses the "working on ..." line and
@@ -86,6 +92,8 @@ try {
         // fallback is indistinguishable from "nobody is doing anything", and that ambiguity already
         // cost an evening of guessing once. The panel says so out loud.
         'activity_schema' => $activitySchema,
+        // Lets the panel offer "Bearbeiten erzwingen" only to those who may actually use it.
+        'can_force_claim' => $mayForce,
         // Only the ages travel, never activity_since itself: that column is MySQL server time, and
         // a client formatting it as "since 14:20" would be off by the timezone difference.
         'territory_claim' => $territoryClaim === null ? null : [
@@ -139,14 +147,19 @@ function avesmapsReadVisitorPresence(PDO $pdo): ?array {
  *
  * @return array{users: array, territory_claim: ?array}
  */
-function avesmapsCollectEditorPresence(PDO $pdo, array $user, bool $isHeartbeat, ?string $area, ?string $label, bool $withActivity): array {
+function avesmapsCollectEditorPresence(PDO $pdo, array $user, bool $isHeartbeat, ?string $area, ?string $label, bool $withActivity, bool $forceClaim = false): array {
     if ($isHeartbeat) {
         avesmapsWriteEditorPresenceHeartbeat($pdo, $user, $area, $label, $withActivity);
     }
 
+    // The override is stamped AFTER the heartbeat, which has just rewritten this row.
+    if ($forceClaim && $withActivity) {
+        avesmapsForceEditorAreaClaim($pdo, $user, $area ?? "territories");
+    }
+
     return [
         'users' => avesmapsListOnlineEditors($pdo, $withActivity),
-        'territory_claim' => $withActivity ? avesmapsReadEditorAreaClaim($pdo, 'territories') : null,
+        'territory_claim' => $withActivity ? avesmapsReadEditorAreaClaim($pdo, AVESMAPS_TERRITORY_CLAIM_AREAS) : null,
     ];
 }
 
@@ -162,6 +175,7 @@ function avesmapsEnsureEditorPresenceTable(PDO $pdo): void {
             activity_area VARCHAR(40) NULL,
             activity_label VARCHAR(190) NULL,
             activity_since DATETIME(3) NULL,
+            claim_forced_at DATETIME(3) NULL,
             PRIMARY KEY (user_id),
             KEY idx_editor_presence_last_seen (last_seen)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"

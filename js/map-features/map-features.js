@@ -566,6 +566,19 @@ $(document).on("click", "[data-region-context-action]", function (event) {
 		return;
 	}
 
+	// One gate for every writing action on a political area -- geometry edits, moves, splits,
+	// deletes and the boolean operations alike. It sits here rather than in each handler for the
+	// same reason the server's gate sits in front of its dispatch: a new action cannot forget it.
+	// Only "show-info" passes while someone else holds the claim, which is the whole point -- the
+	// second editor keeps the map, and loses only the ability to change it.
+	if (typeof avesmapsTerritoryEditBlockedBy === "function") {
+		const blockedBy = avesmapsTerritoryEditBlockedBy(action);
+		if (blockedBy) {
+			showFeedbackToast(`Bearbeiten blockiert – ${blockedBy} ist im politischen Modus.`, "warning");
+			return;
+		}
+	}
+
 	if (REGION_BOOLEAN_CONTEXT_ACTIONS.has(action)) {
 		startPendingRegionOperation(action, regionEntry, regionLayer);
 		return;

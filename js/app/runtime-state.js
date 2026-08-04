@@ -228,7 +228,11 @@ let locationData = [],
 	editorActivityArea = null,
 	editorActivityLabel = null,
 	editorActivitySchema = "ok",
+	editorCanForceClaim = false,
 	editorTerritoryClaim = null,
+	// Which holder the banner/save-button state was last SUCCESSFULLY written for -- not merely the
+	// last one received. The editor markup loads late; see avesmapsApplyTerritoryClaim.
+	editorTerritoryClaimAppliedFor = undefined,
 	labelCollisionFrameId = null,
 	powerlineAnimationFrameId = null,
 	powerlineAnimationLastFrameMs = 0,

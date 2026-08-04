@@ -46,6 +46,15 @@ const AVESMAPS_EDITOR_ACTIVITY_CLAIM_SECONDS = 180;
 
 const AVESMAPS_EDITOR_ACTIVITY_LABEL_MAX = 190;
 
+// Both ways of working on territories hold the SAME write claim: the editor window, and the
+// political map layer -- where polygons are clicked, moved, split, merged and deleted directly.
+// Owner 2026-08-04, after two admins edited the same areas side by side: "am besten waers wenn er
+// dieselbe ansicht haette wie im front end - solang ich drauf bin".
+//
+// An earlier version deliberately let the map layer claim nothing, on the theory that switching a
+// layer on is merely looking. It is not: that layer is where the geometry work happens.
+const AVESMAPS_TERRITORY_CLAIM_AREAS = ['territories', 'political_map'];
+
 function avesmapsNormalizeEditorActivityArea(?string $area): ?string
 {
     $normalized = strtolower(trim((string) $area));
@@ -79,6 +88,26 @@ function avesmapsPickEditorAreaClaim(array $rows, int $claimSeconds): ?array
         static fn(array $row): bool => (int) ($row['seconds_since_seen'] ?? PHP_INT_MAX) <= $claimSeconds
     ));
 
+    // An admin who pressed "Bearbeiten erzwingen" outranks everyone, so nobody can be locked out of
+    // their own map by a colleague who wandered off with a tab open. Among several, the most recent
+    // override wins -- so a forced claim can itself be taken over, and the feature cannot deadlock.
+    $forced = array_values(array_filter(
+        $fresh,
+        static fn(array $row): bool => $row['seconds_since_forced'] !== null
+            && (int) $row['seconds_since_forced'] <= $claimSeconds
+    ));
+    if ($forced !== []) {
+        usort($forced, static function (array $left, array $right): int {
+            // SMALLEST age = most recently forced. The opposite of the arrival rule below, because
+            // this asks "who overruled last", not "who was here first".
+            $byForced = (int) $left['seconds_since_forced'] <=> (int) $right['seconds_since_forced'];
+
+            return $byForced !== 0 ? $byForced : ((int) $left['user_id'] <=> (int) $right['user_id']);
+        });
+
+        return $forced[0];
+    }
+
     // seconds_since_activity is a DISTANCE: the LARGEST value is the earliest arrival, and the
     // earliest arrival owns the claim. Sorting this ascending silently hands the write right to
     // whoever showed up last. The tie-break on user_id is what makes two simultaneous openings
@@ -95,17 +124,31 @@ function avesmapsPickEditorAreaClaim(array $rows, int $claimSeconds): ?array
 /**
  * @return array<string, mixed>|null
  */
-function avesmapsReadEditorAreaClaim(PDO $pdo, string $area): ?array
+/**
+ * @param string|array<int, string> $area one area code, or several that share one claim
+ */
+function avesmapsReadEditorAreaClaim(PDO $pdo, string|array $area): ?array
 {
+    // Several codes can share one claim: the territory editor window and the political map layer
+    // are two ways of working on the same thing (AVESMAPS_TERRITORY_CLAIM_AREAS). They stay
+    // separate codes so the panel can name which one someone is in.
+    $areas = is_array($area) ? array_values($area) : [$area];
+    $placeholders = implode(', ', array_map(static fn(int $i): string => ':area' . $i, array_keys($areas)));
+    $parameters = [];
+    foreach ($areas as $index => $code) {
+        $parameters['area' . $index] = $code;
+    }
+
     try {
         $statement = $pdo->prepare(
-            'SELECT user_id, username, activity_label,
-                    TIMESTAMPDIFF(SECOND, activity_since, NOW(3)) AS seconds_since_activity,
-                    TIMESTAMPDIFF(SECOND, last_seen,      NOW(3)) AS seconds_since_seen
+            'SELECT user_id, username, activity_area, activity_label,
+                    TIMESTAMPDIFF(SECOND, activity_since,   NOW(3)) AS seconds_since_activity,
+                    TIMESTAMPDIFF(SECOND, claim_forced_at,  NOW(3)) AS seconds_since_forced,
+                    TIMESTAMPDIFF(SECOND, last_seen,        NOW(3)) AS seconds_since_seen
             FROM editor_presence
-            WHERE activity_area = :area'
+            WHERE activity_area IN (' . $placeholders . ')'
         );
-        $statement->execute(['area' => $area]);
+        $statement->execute($parameters);
     } catch (PDOException $exception) {
         // 💣 FAIL OPEN, and this is not a nicety. The presence table may not exist yet (fresh
         // install), and the activity columns certainly do not in the seconds between this feature
@@ -155,15 +198,33 @@ function avesmapsIsMissingColumnError(Throwable $exception): bool
     return str_contains(strtolower($exception->getMessage()), 'unknown column');
 }
 
+// "Bearbeiten erzwingen" -- admin only, enforced by the caller. Stamps an override on the caller's
+// own presence row; the next claim read hands them the write right (see avesmapsPickEditorAreaClaim).
+// Nothing is taken away from anyone: the previous holder's row is untouched and simply stops
+// outranking. That keeps the claim derived, with no state that could be left behind.
+function avesmapsForceEditorAreaClaim(PDO $pdo, array $user, string $area): void
+{
+    $statement = $pdo->prepare(
+        'UPDATE editor_presence
+        SET claim_forced_at = NOW(3),
+            activity_area = :area,
+            activity_since = COALESCE(activity_since, NOW(3)),
+            last_seen = NOW(3)
+        WHERE user_id = :user_id'
+    );
+    $statement->execute(['area' => $area, 'user_id' => (int) ($user['id'] ?? 0)]);
+}
+
 /**
  * The claim held by SOMEONE ELSE, or null when the caller may write.
  *
  * Asymmetric on purpose: when nobody holds the area, everybody may write. A client that fails to
  * report its activity therefore loses its protection -- never its ability to work.
  *
+ * @param string|array<int, string> $area
  * @return array<string, mixed>|null
  */
-function avesmapsBlockingEditorAreaClaim(PDO $pdo, string $area, array $user): ?array
+function avesmapsBlockingEditorAreaClaim(PDO $pdo, string|array $area, array $user): ?array
 {
     $claim = avesmapsReadEditorAreaClaim($pdo, $area);
     if ($claim === null || (int) $claim['user_id'] === (int) ($user['id'] ?? 0)) {
@@ -192,6 +253,7 @@ function avesmapsEnsureEditorActivityColumns(PDO $pdo): void
         'activity_area' => 'VARCHAR(40) NULL',
         'activity_label' => 'VARCHAR(190) NULL',
         'activity_since' => 'DATETIME(3) NULL',
+        'claim_forced_at' => 'DATETIME(3) NULL',
     ];
 
     foreach ($columns as $column => $definition) {
