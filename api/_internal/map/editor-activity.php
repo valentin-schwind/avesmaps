@@ -164,19 +164,30 @@ function avesmapsBlockingEditorAreaClaim(PDO $pdo, string $area, array $user): ?
 // Retrofit for the live table: CREATE TABLE IF NOT EXISTS does NOT add columns to a table that
 // already exists. Each column is probed on its own -- a half-migrated table (one ALTER applied,
 // the next interrupted) would otherwise stay broken forever behind a single all-or-nothing check.
+//
+// 💣 quote() + query(), NEVER prepare(). api/_internal/bootstrap.php sets
+// PDO::ATTR_EMULATE_PREPARES => false, so a prepared statement goes to MySQL's native protocol,
+// which does not accept a placeholder in SHOW ... LIKE ?. The first version of this function used
+// prepare() and took the entire presence endpoint down: the PDOException it raised is neither
+// "missing table" nor "unknown column", so it went straight past the caller's repair catch and
+// surfaced as "Der Editor-Status konnte nicht gespeichert werden." on every heartbeat.
+// This is the same shape as avesmapsEnsureContactColumn (api/app/contact.php) and
+// avesmapsEnsureMapReportColumn (api/app/report-location.php) -- the house pattern, and now the
+// pattern here too. Guarded by editor-activity-test.php.
 function avesmapsEnsureEditorActivityColumns(PDO $pdo): void
 {
     $columns = [
-        'activity_area' => 'ALTER TABLE editor_presence ADD COLUMN activity_area VARCHAR(40) NULL',
-        'activity_label' => 'ALTER TABLE editor_presence ADD COLUMN activity_label VARCHAR(190) NULL',
-        'activity_since' => 'ALTER TABLE editor_presence ADD COLUMN activity_since DATETIME(3) NULL',
+        'activity_area' => 'VARCHAR(40) NULL',
+        'activity_label' => 'VARCHAR(190) NULL',
+        'activity_since' => 'DATETIME(3) NULL',
     ];
 
-    foreach ($columns as $column => $ddl) {
-        $probe = $pdo->prepare('SHOW COLUMNS FROM editor_presence LIKE :column');
-        $probe->execute(['column' => $column]);
-        if ($probe->fetchColumn() === false) {
-            $pdo->exec($ddl);
+    foreach ($columns as $column => $definition) {
+        $quotedColumn = $pdo->quote($column);
+        $probe = $pdo->query("SHOW COLUMNS FROM editor_presence LIKE {$quotedColumn}");
+        if ($probe !== false && $probe->fetch() !== false) {
+            continue;
         }
+        $pdo->exec("ALTER TABLE editor_presence ADD COLUMN {$column} {$definition}");
     }
 }

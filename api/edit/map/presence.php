@@ -50,24 +50,29 @@ try {
     // the hot path that multiplies with editor count. Try the normal path first; only when the table
     // is genuinely absent -- or predates the activity columns, which is the normal state in the first
     // seconds after this feature deploys -- do we repair it once and retry. Steady state runs no DDL.
+    $isHeartbeat = $requestMethod === 'POST';
     try {
-        if ($requestMethod === 'POST') {
-            avesmapsWriteEditorPresenceHeartbeat($pdo, $user, $activityArea, $activityLabel);
-        }
-        $onlineEditors = avesmapsListOnlineEditors($pdo);
-        $territoryClaim = avesmapsReadEditorAreaClaim($pdo, 'territories');
+        $presence = avesmapsCollectEditorPresence($pdo, $user, $isHeartbeat, $activityArea, $activityLabel, true);
     } catch (PDOException $exception) {
         if (!avesmapsIsMissingTableError($exception) && !avesmapsIsMissingColumnError($exception)) {
             throw $exception;
         }
-        avesmapsEnsureEditorPresenceTable($pdo);
-        avesmapsEnsureEditorActivityColumns($pdo);
-        if ($requestMethod === 'POST') {
-            avesmapsWriteEditorPresenceHeartbeat($pdo, $user, $activityArea, $activityLabel);
+        try {
+            avesmapsEnsureEditorPresenceTable($pdo);
+            avesmapsEnsureEditorActivityColumns($pdo);
+            $presence = avesmapsCollectEditorPresence($pdo, $user, $isHeartbeat, $activityArea, $activityLabel, true);
+        } catch (PDOException) {
+            // Last resort: serve presence WITHOUT the activity columns -- exactly what this endpoint
+            // did before the activity feature existed. The panel loses the "working on ..." line and
+            // the territory claim; it does NOT lose the online list, which is a feature editors were
+            // relying on long before this one. A schema retrofit that cannot run is a reason to offer
+            // less, never a reason to fail. (Written after the first version of the retrofit did fail
+            // and turned every heartbeat into a 500 -- see avesmapsEnsureEditorActivityColumns.)
+            $presence = avesmapsCollectEditorPresence($pdo, $user, $isHeartbeat, null, null, false);
         }
-        $onlineEditors = avesmapsListOnlineEditors($pdo);
-        $territoryClaim = avesmapsReadEditorAreaClaim($pdo, 'territories');
     }
+    $onlineEditors = $presence['users'];
+    $territoryClaim = $presence['territory_claim'];
 
     avesmapsJsonResponse(200, [
         'ok' => true,
@@ -118,6 +123,26 @@ function avesmapsReadVisitorPresence(PDO $pdo): ?array {
 // two predicates to stay open while the schema is still being retrofitted, and one definition in a
 // shared library beats two that can drift apart.
 
+/**
+ * One heartbeat + one read, either with the activity columns or entirely without them.
+ *
+ * $withActivity=false is the degraded mode used when the schema cannot be retrofitted: the SQL then
+ * touches only the columns this table has always had, so the online list keeps working on any
+ * database old enough to run the previous version of this endpoint.
+ *
+ * @return array{users: array, territory_claim: ?array}
+ */
+function avesmapsCollectEditorPresence(PDO $pdo, array $user, bool $isHeartbeat, ?string $area, ?string $label, bool $withActivity): array {
+    if ($isHeartbeat) {
+        avesmapsWriteEditorPresenceHeartbeat($pdo, $user, $area, $label, $withActivity);
+    }
+
+    return [
+        'users' => avesmapsListOnlineEditors($pdo, $withActivity),
+        'territory_claim' => $withActivity ? avesmapsReadEditorAreaClaim($pdo, 'territories') : null,
+    ];
+}
+
 function avesmapsEnsureEditorPresenceTable(PDO $pdo): void {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS editor_presence (
@@ -136,7 +161,31 @@ function avesmapsEnsureEditorPresenceTable(PDO $pdo): void {
     );
 }
 
-function avesmapsWriteEditorPresenceHeartbeat(PDO $pdo, array $user, ?string $area, ?string $label): void {
+function avesmapsWriteEditorPresenceHeartbeat(PDO $pdo, array $user, ?string $area, ?string $label, bool $withActivity = true): void {
+    if (!$withActivity) {
+        // Degraded mode: the pre-activity statement, verbatim. Touches no column that a database
+        // older than this feature might not have.
+        $legacy = $pdo->prepare(
+            'INSERT INTO editor_presence (user_id, username, role, last_seen, request_origin, user_agent)
+            VALUES (:user_id, :username, :role, NOW(3), :request_origin, :user_agent)
+            ON DUPLICATE KEY UPDATE
+                username = VALUES(username),
+                role = VALUES(role),
+                last_seen = VALUES(last_seen),
+                request_origin = VALUES(request_origin),
+                user_agent = VALUES(user_agent)'
+        );
+        $legacy->execute([
+            'user_id' => (int) $user['id'],
+            'username' => (string) ($user['username'] ?? 'Editor'),
+            'role' => (string) ($user['role'] ?? ''),
+            'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN'] ?? ''), 255),
+            'user_agent' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 500),
+        ]);
+
+        return;
+    }
+
     // Two clauses below are load-bearing and easy to break by tidying:
     //
     // 1. activity_since is only reset when the AREA CHANGES. If every heartbeat carried it along,
@@ -172,16 +221,24 @@ function avesmapsWriteEditorPresenceHeartbeat(PDO $pdo, array $user, ?string $ar
     ]);
 }
 
-function avesmapsListOnlineEditors(PDO $pdo): array {
+function avesmapsListOnlineEditors(PDO $pdo, bool $withActivity = true): array {
+    // Degraded mode leaves the three activity expressions out entirely, so the query runs against a
+    // table that predates them (see avesmapsCollectEditorPresence).
+    $activityColumns = $withActivity
+        ? 'editor_presence.activity_area,
+            editor_presence.activity_label,
+            TIMESTAMPDIFF(SECOND, editor_presence.activity_since, NOW(3)) AS seconds_since_activity,'
+        : 'NULL AS activity_area,
+            NULL AS activity_label,
+            NULL AS seconds_since_activity,';
+
     $statement = $pdo->prepare(
         'SELECT
             users.id AS user_id,
             users.username,
             users.role,
             editor_presence.last_seen,
-            editor_presence.activity_area,
-            editor_presence.activity_label,
-            TIMESTAMPDIFF(SECOND, editor_presence.activity_since, NOW(3)) AS seconds_since_activity,
+            ' . $activityColumns . '
             TIMESTAMPDIFF(SECOND, editor_presence.last_seen, NOW(3)) AS seconds_since_seen,
             CASE
                 WHEN editor_presence.last_seen >= DATE_SUB(NOW(3), INTERVAL ' . AVESMAPS_EDITOR_PRESENCE_ONLINE_SECONDS . ' SECOND) THEN 1

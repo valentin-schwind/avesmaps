@@ -111,4 +111,39 @@ assert(avesmapsIsMissingTableError($realFault) === false, 'an unrelated error is
 assert(avesmapsIsMissingColumnError($realFault) === false, 'an unrelated error is not a missing column');
 assert(avesmapsIsMissingColumnError(new PDOException('SQLSTATE[HY000]: MySQL server has gone away')) === false, 'a dead connection is a real failure, not a schema gap');
 
+// --- the schema probe must not use a prepared statement ---------------------------------------
+// 💣 This shipped broken on 2026-08-04 and took the whole presence endpoint down with it:
+// $pdo->prepare('SHOW COLUMNS ... LIKE :column'). This project sets PDO::ATTR_EMULATE_PREPARES =>
+// false (bootstrap.php), so statements go to MySQL's native prepared-statement protocol, which does
+// not take a placeholder there. The resulting PDOException is neither "missing table" nor "unknown
+// column", so it sailed straight through the repair path's catch and became a 500 on every
+// heartbeat. All 15 other column probes in this codebase use $pdo->quote() + $pdo->query(); this
+// was the only one that did not. A static check is the only kind available -- there is no local
+// MySQL to reproduce against.
+$librarySource = file_get_contents(__DIR__ . '/../editor-activity.php');
+assert(
+    preg_match('/prepare\(\s*[\'"]\s*SHOW\b/i', $librarySource) !== 1,
+    'SHOW must never go through prepare(): native prepared statements reject the placeholder'
+);
+assert(
+    str_contains($librarySource, '$pdo->quote(')
+        && preg_match('/query\(\s*"SHOW COLUMNS/i', $librarySource) === 1,
+    'the column probe follows the house pattern: quote() + query(), like contact.php and report-location.php'
+);
+
+// --- the degraded presence path must not touch the new columns --------------------------------
+// If the retrofit cannot run, presence.php falls back to the statement this endpoint used before
+// the activity feature. That fallback is worthless if it still names a column the database does not
+// have -- it would fail for the very reason it exists. Check the shipped source, not a description.
+$presenceSource = file_get_contents(__DIR__ . '/../../../edit/map/presence.php');
+$degradedStart = strpos($presenceSource, 'Degraded mode: the pre-activity statement');
+assert($degradedStart !== false, 'presence.php still has the degraded heartbeat');
+$degradedBody = substr($presenceSource, $degradedStart, strpos($presenceSource, 'return;', $degradedStart) - $degradedStart);
+foreach (['activity_area', 'activity_label', 'activity_since'] as $newColumn) {
+    assert(
+        !str_contains($degradedBody, $newColumn),
+        "the degraded heartbeat must not reference {$newColumn} -- it exists precisely for databases without it"
+    );
+}
+
 echo "editor-activity: ALL PASSED\n";
