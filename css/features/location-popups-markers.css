@@ -415,12 +415,24 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
    damit Content-Margin (0), feste Breite, randbuendige Trenner (-14px) und Padding der grossen
    Infobox -- identisch zum Marker-Popup. Hier nur die Abweichungen. */
 
-/* Slim waypoint box: 310px instead of the settlement-popup default (400px). No expanded state.
+/* Waypoint box: same 400px as the settlement-popup default. It was 310px while the box held only two or
+   three tiles; since 2026-08-04 it carries the SAME four as the normally clicked settlement box
+   (Reiseziel entfernen · Link teilen · Abenteuer · Kartensammlung) and 4x90px + 3x8px gap needs the
+   width -- at 310px they shrank to ~65px and the labels broke apart.
    (No action-button override here: the box carries floating-location-popup, so the buttons ARE the
    floating icon tiles -- long labels like "Reiseziel entfernen" wrap inside the tile, same as the
    normal floating infobox. The old nowrap/no-shrink rule was for the retired inline layout.) */
 .route-waypoint-popup .location-popup {
-	width: min(310px, calc(100vw - 32px));
+	width: min(400px, calc(100vw - 32px));
+}
+/* Rating row: the shared .floating-location-popup rule pulls it out by -10px, which matches THAT box's
+   10px content padding. The waypoint box inherits the settlement-popup 14px padding, so its divider
+   would stop 4px short on each side. Same edge-to-edge rule as the header divider above. */
+.route-waypoint-popup .location-reviews {
+	margin-left: -14px;
+	margin-right: -14px;
+	padding-left: 14px;
+	padding-right: 14px;
 }
 /* Full-bleed header divider (Owner: "trenner zwischen den buttons und dem header"). The waypoint box
    inherits the settlement-popup 14px content padding, so pull the 1px line out to both edges -- same

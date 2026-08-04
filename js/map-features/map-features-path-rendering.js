@@ -73,9 +73,11 @@ function pathShareButtonMarkup(path) {
 // ?strasse=/?fluss= deep link does, through the same resolver. Filled (--accent) because it is the only tile
 // that acts on the MAP; the other two open dialogs. Gated like "Link teilen" on a linked wiki article (that
 // URL identifies the way), and off for sea routes like the item links.
-// The sextant is what "Anzeigen" already looks like elsewhere (the show-in-panel tile on a place/waypoint
-// popup, js/map-features/map-features-location-marker-entry.js + js/routing/routing.js) -- same word, same
-// icon, even though the actions differ. Kept unversioned like those two: the file never changes.
+// The sextant is what "Anzeigen" already looks like elsewhere (the show-in-panel tile on the "nächster Ort"
+// box, js/map-features/map-features-location-marker-entry.js) -- same word, same icon, even though the
+// actions differ. Kept unversioned like that one: the file never changes.
+// (The route-waypoint box had the same tile until 2026-08-04; there a click on the disc opens the place
+// itself now, so the tile was dropped -- see buildRoutePopupHtml in js/routing/routing.js.)
 function pathShowActionButtonMarkup(path) {
 	const wiki = (path.properties && path.properties.wiki_path) || {};
 	const supported = typeof pathSupportsItemLinks === "function" && pathSupportsItemLinks(path);

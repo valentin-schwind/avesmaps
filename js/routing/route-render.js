@@ -198,7 +198,10 @@ function bindRouteWaypointHoverPopup(marker, loc, role, geometry) {
 		// autoPan waehrend einer noch laufenden Karten-Animation korrumpiert das Karten-Zentrum
 		// (_panInsideMaxBounds -> NaN-Pan-Crash). Dieselbe Absicherung nutzt der normale Ort-Marker.
 		autoPan: false,
-		minWidth: 310,
+		// Gleiche Masse wie die normal angeklickte Ortsbox: sie traegt seit 2026-08-04 dasselbe
+		// Vier-Kachel-Menue, und vier 90px-Kacheln brauchen die Breite (bei den alten 310px quetschte
+		// sich "Reiseziel entfernen" auf ~65px).
+		minWidth: 320,
 		maxWidth: 400,
 		maxHeight: typeof locationMarkerPopupMaxHeight === "function" ? locationMarkerPopupMaxHeight() : 480,
 		// Die Box sitzt oberhalb der Grafik: der Anker liegt bei der Scheibe in der Mitte, beim Tropfen an
@@ -262,6 +265,17 @@ function bindRouteWaypointHoverPopup(marker, loc, role, geometry) {
 				closeUnlessStillHovered();
 			});
 		}
+		// Bewertungen EINMAL je Box nachladen, nicht bei jedem Hover. Leaflet baut den Inhalt beim
+		// Wiederoeffnen nicht neu (derselbe Container, siehe oben), der geladene Stand bleibt also stehen.
+		// 💣 Ohne dieses Flag kostet jedes Drueberfahren einen Netzabruf -- die Box geht per HOVER auf, nicht
+		// per Klick wie die normale Ortsbox, und auf STRATO ist das die teuerste Art, nichts Neues zu erfahren.
+		if (element && !element._routeReviewsHydrated && typeof hydrateLocationReviews === "function") {
+			const reviewsSlot = element.querySelector(".location-reviews");
+			if (reviewsSlot) {
+				element._routeReviewsHydrated = true;
+				hydrateLocationReviews(reviewsSlot);
+			}
+		}
 	};
 
 	marker.on("mouseover", () => {
@@ -278,6 +292,20 @@ function bindRouteWaypointHoverPopup(marker, loc, role, geometry) {
 		}
 		marker._routePopupPinned = true;
 		openPopup();
+		// Ein Klick auf die Scheibe ZEIGT DIE ORTSCHAFT -- wie ein Klick auf jeden anderen Ort (Owner
+		// 2026-08-04). Der Wegpunkt-Marker liegt im locationsPane UEBER dem Canvas-Punkt der Siedlung und
+		// faengt dessen Klick ab (L.DomEvent.stop oben): ausgerechnet an den Orten, die in der Route stehen,
+		// fuehrte kein Klick mehr ins Panel. Die frueher noetige Kachel "Anzeigen" ist damit entfallen.
+		// Ein freier Kartenpunkt ist keine Ortschaft -> nur die Box, kein Panel.
+		if (loc.isMapPoint || typeof window.avesmapsShowLocationInInfopanel !== "function") {
+			return;
+		}
+		// Ueber den Namen, nicht ueber loc: die Wegpunkt-Eintraege tragen nur die Routing-Felder; das
+		// Panel braucht den vollen markerEntry (Wappen, Wiki-Siedlung, Bewertungen, politische Kette).
+		const entry = typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(loc.name) : null;
+		if (entry) {
+			window.avesmapsShowLocationInInfopanel(entry);
+		}
 	});
 	// Schliesst der Nutzer die gepinnte Box (x), reagiert der Marker wieder auf Hover.
 	popup.on("remove", () => {

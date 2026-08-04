@@ -1285,9 +1285,10 @@ function findWaypointIdByLocationName(name) {
 	return foundId;
 }
 
-// Content of a route-waypoint popup: slim -- name + type + actions ("Reiseziel entfernen",
-// "Link teilen"). No expandable infobox anymore (owner: the waypoint popup stays slim; the full
-// settlement info is a normal map click away).
+// Inhalt der Wegpunkt-Box: Kopf (Name + Typ + Rolle in der Reise) und darunter DASSELBE Menue, das die
+// normal angeklickte Ortsbox zeigt -- Reiseziel entfernen · Link teilen · Abenteuer · Kartensammlung,
+// mit der kompakten Bewertungszeile darunter (Owner 2026-08-04). Weiterhin OHNE Attribut-Tabelle: die
+// volle Ortsinfo steht im rechten Panel, und dorthin bringt sie seither der Klick auf den Marker selbst.
 function routeWaypointRoleLabel(role) {
 	if (role === "start") return tr("route.role.start", "Startpunkt");
 	if (role === "between") return tr("route.role.between", "Zwischenziel");
@@ -1299,19 +1300,10 @@ function buildRoutePopupHtml(loc, { showRemoveAction = false, role = "" } = {}) 
 	const markerEntry = typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(loc.name) : null;
 
 	const buttons = [];
-	// "Anzeigen" (Sextant): oeffnet die VOLLE Info dieser Stadt im rechten Panel + aktiviert ihren
-	// Wegpunkt-Tab (avesmapsShowLocationInInfopanel setzt markerEntry.name als activeName). Nur im
-	// Panel-Modus sinnvoll (ohne Panel gibt es kein Ziel).
-	// ⚠️ ... aber nicht fuer einen angeklickten Kartenpunkt: der ist kein Ort, hat keine Infopanel-Seite
-	// und der Knopf koennte nur ins Leere greifen. Ein angebotener Knopf, der nichts tut, ist schlimmer
-	// als ein fehlender.
-	if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && !loc.isMapPoint) {
-		buttons.push(popupActionButtonMarkup({
-			label: tr("popup.showInPanel", "Anzeigen"),
-			iconMarkup: '<img class="location-popup__action-img" src="icons/sextant.webp" alt="" width="20" height="20" />',
-			attributes: { "data-popup-action": "show-in-panel", "data-place-name": loc.name },
-		}));
-	}
+	// KEIN "Anzeigen" mehr (Owner 2026-08-04). Ein Klick auf die Scheibe holt die Ortschaft jetzt selbst
+	// ins Panel -- genau wie ein Klick auf jeden anderen Ort (bindRouteWaypointHoverPopup in
+	// route-render.js). Eine Kachel, die nur nachholt, was der Klick schon getan hat, ist eine Kachel zu
+	// viel; der Platz gehoert den vier Kacheln, die auch die normal angeklickte Ortsbox zeigt.
 	// „Verschieben" -- nur am freien Kartenpunkt, und VOR dem Entfernen: wer einen Punkt danebengesetzt
 	// hat, will ihn ruecken, nicht wegwerfen und neu anlegen. Am Marker allein waere das nicht zu sehen
 	// (er laesst sich zwar ziehen, sagt es aber nicht), und auf Touch zieht ein Finger die Karte.
@@ -1346,7 +1338,28 @@ function buildRoutePopupHtml(loc, { showRemoveAction = false, role = "" } = {}) 
 			buttons.push(shareButton);
 		}
 	}
-	const actionsBar = buttons.length ? locationPopupActionsMarkup(buttons) : "";
+	// "Abenteuer" + "Kartensammlung" wie in der normal angeklickten Ortsbox (Owner 2026-08-04): die
+	// Wegpunkt-Box zeigt dasselbe Menue -- Reiseziel entfernen · Link teilen · Abenteuer · Kartensammlung.
+	// Beide Kacheln stehen auch dann da, wenn nichts vorliegt (Katalog nicht geladen -> deaktiviert; Ort
+	// ohne Eintraege -> Dialog mit Vorschlagen-Angebot), damit die Leiste beim Nachladen nicht springt.
+	// Ein freier Kartenpunkt hat keine publicId und bekommt darum keine von beiden.
+	if (markerEntry && markerEntry.publicId) {
+		if (typeof buildFloatingAdventuresButtonMarkup === "function") {
+			buttons.push(buildFloatingAdventuresButtonMarkup(markerEntry.location, markerEntry.publicId));
+		}
+		if (typeof buildFloatingCityMapsButtonMarkup === "function") {
+			buttons.push(buildFloatingCityMapsButtonMarkup(markerEntry.location, markerEntry.publicId));
+		}
+	}
+	const actionButtons = buttons.filter(Boolean);
+	const actionsBar = actionButtons.length ? locationPopupActionsMarkup(actionButtons) : "";
+	// Bewertungen in der kompakten Fassung (Schnitt als Link ins Panel + "Bewertung schreiben") -- dieselbe
+	// Zeile, die unten in der normal angeklickten Ortsbox steht. Gefuellt wird sie beim OEFFNEN der Box
+	// (hydrateLocationReviews in bindRouteWaypointHoverPopup), nicht hier: dieses Markup entsteht einmal je
+	// Routenberechnung, der Netzabruf gehoert an den Moment, in dem jemand hinsieht.
+	const reviewsSlot = markerEntry && markerEntry.publicId
+		? `<div class="location-reviews" data-reviews-compact="1" data-reviews-public-id="${escapeHtml(markerEntry.publicId)}" data-reviews-name="${escapeHtml(markerEntry.name)}"></div>`
+		: "";
 
 	// Slim waypoint box: header (name + type) + action buttons only. No Wiki link / infobox here --
 	// that lives in the normal marker popup.
@@ -1375,7 +1388,7 @@ function buildRoutePopupHtml(loc, { showRemoveAction = false, role = "" } = {}) 
 		showDescription: false,
 		showWikiLink: false,
 		isRuined: loc.isRuined,
-		actionsMarkup: actionsBar,
+		actionsMarkup: actionsBar + reviewsSlot,
 	});
 }
 
