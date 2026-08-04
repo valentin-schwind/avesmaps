@@ -74,5 +74,49 @@ check("a string instead of an object -> may write", avesmapsTerritoryWriteState(
 check("a nameless holder still gets a readable label",
 	avesmapsTerritoryWriteState({ is_mine: false }).holderName === "Ein anderer Editor");
 
+// --- the two lists that must not drift ------------------------------------------------------
+// Read a `const X = {...}` table out of the source as a VALUE. Evaluating the declaration itself
+// would not help: a const never escapes its eval scope, so it would be invisible down here.
+function extractTable(name) {
+	const match = src.match(new RegExp("const " + name + " = (\\{[\\s\\S]*?\\n\\});"));
+	if (!match) {
+		console.error("FAIL: " + name + " not found in js/review/review-panels.js");
+		process.exit(1);
+	}
+	return eval("(" + match[1] + ")"); // controlled: our own repo file, throwaway harness
+}
+
+const overlayAreas = extractTable("AVESMAPS_EDITOR_OVERLAY_AREAS");
+const areaLabelTable = extractTable("AVESMAPS_EDITOR_AREA_LABELS");
+
+// Every overlay id in the table has to be an id something actually assigns. A typo here fails
+// silently -- the editor simply never reports itself, and nobody notices until two people collide.
+const overlaySources = ["js/review/review-ecosystem-list.js", "js/review/review-path-editor-list.js",
+	"js/review/review-powerline-list.js", "js/review/review-settlement-list.js",
+	"js/review/review-wiki-sync.js", "js/territory/territory-editor-link.js", "index.html"]
+	.map((path) => fs.readFileSync(path, "utf8")).join("\n");
+Object.keys(overlayAreas).forEach((id) => {
+	check(`overlay id "${id}" is really assigned somewhere`, overlaySources.includes(id));
+});
+
+// The client's area codes have to match the server's whitelist verbatim. A mismatch is invisible:
+// avesmapsNormalizeEditorActivityArea turns an unknown code into NULL, so the editor reports
+// itself, the server accepts the request, and the activity just never appears.
+const phpSrc = fs.readFileSync("api/_internal/map/editor-activity.php", "utf8");
+const phpAreas = (phpSrc.match(/const AVESMAPS_EDITOR_ACTIVITY_AREAS = \[[\s\S]*?\];/) || [""])[0];
+const clientAreas = [...new Set(Object.values(overlayAreas))].sort();
+clientAreas.forEach((area) => {
+	check(`area "${area}" is on the server whitelist too`, phpAreas.includes(`'${area}'`));
+});
+
+// And the other way round: a server area nobody on the client ever sends is dead vocabulary.
+const serverAreas = [...phpAreas.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
+check("both lists describe the same eight editors",
+	JSON.stringify(serverAreas) === JSON.stringify(clientAreas));
+
+// The label table must cover every area, or an editor reports itself and renders as nothing.
+const labelKeys = Object.keys(areaLabelTable).sort();
+check("every area has a German label", JSON.stringify(labelKeys) === JSON.stringify(clientAreas));
+
 console.log(failed === 0 ? "\nALL PASSED" : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

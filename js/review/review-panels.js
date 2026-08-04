@@ -600,6 +600,83 @@ function avesmapsOnTerritoryClaimChange(listener) {
 	}
 }
 
+// Which editor is open is DERIVED from which overlay is visible, rather than announced by hand at
+// every open/close site. There are eight editors with three such sites each; a table plus an
+// observer is one place instead of twenty-four, and the ninth editor costs one line here instead
+// of an announcement someone has to remember. (That "someone has to remember" is exactly how the
+// handbook rule and the sources table went wrong before -- AGENTS.md §9, §5.)
+const AVESMAPS_EDITOR_OVERLAY_AREAS = {
+	"political-territory-editor-overlay": "territories",
+	"avesmaps-path-editor-overlay": "paths",
+	"avesmaps-ecosystem-editor-overlay": "ecosystem",
+	"avesmaps-settlement-editor-overlay": "settlements",
+	"avesmaps-powerline-editor-overlay": "powerlines",
+	"avesmaps-citymap-editor-overlay": "citymaps",
+	"avesmaps-adventure-editor-overlay": "adventures",
+	"avesmaps-sync-editor-overlay": "wikisync",
+};
+
+function avesmapsVisibleEditorArea() {
+	const openId = Object.keys(AVESMAPS_EDITOR_OVERLAY_AREAS).find((id) => {
+		const element = document.getElementById(id);
+		return Boolean(element) && !element.hidden;
+	});
+	return openId ? AVESMAPS_EDITOR_OVERLAY_AREAS[openId] : null;
+}
+
+// Only reports on an actual AREA change. Editors that know their current object (the territory
+// editor) call avesmapsReportEditorArea directly and synchronously when they open, which runs
+// before this observer callback -- so the explicit call wins and this one stays quiet instead of
+// overwriting the label with null and costing a second heartbeat.
+function avesmapsSyncEditorActivityFromOverlays() {
+	const area = avesmapsVisibleEditorArea();
+	if (area === editorActivityArea) {
+		return;
+	}
+	avesmapsReportEditorArea(area, null);
+}
+
+function avesmapsWatchEditorOverlay(element) {
+	if (!element || element.dataset.avesmapsActivityWatched === "1") {
+		return;
+	}
+	element.dataset.avesmapsActivityWatched = "1";
+	new MutationObserver(avesmapsSyncEditorActivityFromOverlays).observe(element, {
+		attributes: true,
+		attributeFilter: ["hidden"],
+	});
+	avesmapsSyncEditorActivityFromOverlays();
+}
+
+function avesmapsStartEditorOverlayWatch() {
+	if (!IS_EDIT_MODE || !document.body) {
+		return;
+	}
+	// childList WITHOUT subtree, on purpose: the overlays are appended straight to <body> on first
+	// open. A subtree observer here would fire on every Leaflet tile and marker insertion -- a
+	// constant cost on the hottest DOM in the app, for an event that happens eight times a session.
+	new MutationObserver((records) => {
+		records.forEach((record) => {
+			record.addedNodes.forEach((node) => {
+				if (node.nodeType === 1 && AVESMAPS_EDITOR_OVERLAY_AREAS[node.id]) {
+					avesmapsWatchEditorOverlay(node);
+				}
+			});
+		});
+	}).observe(document.body, { childList: true });
+
+	// The territory overlay already exists in index.html; the other seven are built on first open.
+	Object.keys(AVESMAPS_EDITOR_OVERLAY_AREAS).forEach((id) => avesmapsWatchEditorOverlay(document.getElementById(id)));
+}
+
+if (typeof document !== "undefined") {
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", avesmapsStartEditorOverlayWatch);
+	} else {
+		avesmapsStartEditorOverlayWatch();
+	}
+}
+
 // The iframe editors know WHICH object is open; the host owns the heartbeat, so they post it up.
 // The host never adopts an AREA from a message -- only a label, and only while it already holds an
 // area of its own. A postMessage is untrusted input: it may refine what we report, never define it.

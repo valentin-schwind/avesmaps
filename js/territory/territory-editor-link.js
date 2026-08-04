@@ -185,6 +185,15 @@ function openPoliticalTerritoryEditor(regionEntry = {}) {
 	window.AvesmapsPoliticalTerritoryEditorContext = buildPoliticalTerritoryEditorContext(regionEntry);
 	setPoliticalTerritoryEditorOpen(true);
 
+	// Announce the area AND the object. The overlay observer in review-panels.js would catch the
+	// area on its own, but only this call knows which territory is open -- and running here, in the
+	// same synchronous turn, it lands before the observer's microtask, so the two do not produce
+	// two heartbeats. The embedded editor shares this document with the heartbeat (the inline host
+	// pulls only .app-container across via DOMParser), so this is a direct call, not a frame bridge.
+	if (typeof avesmapsReportEditorArea === "function") {
+		avesmapsReportEditorArea("territories", regionEntry?.name || null);
+	}
+
 	inlineHost.load()
 		.then(() => setupPoliticalTerritoryEditorInline(regionEntry))
 		.catch((error) => {
