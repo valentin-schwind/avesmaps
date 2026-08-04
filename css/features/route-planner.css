@@ -1245,16 +1245,12 @@
 .route-plan-costs {
 	display: block;
 }
-/* Die Kostentabelle laeuft ueber die VOLLE Breite ihrer Trenner (Owner 2026-08-04) -- Ueberschrift,
-   Tabelle und Quellzeile stehen damit auf einer Kante statt die Tabelle 6 px eingerueckt.
-   💣 Die Seitenluft kommt nicht von hier, sondern aus review-panel.css: dort setzt
-   `.route-plan-summary__time { padding: 0 6px 2px }` dieselbe Klasse, die auch die Reiseuebersicht
-   ganz oben benutzt. Deshalb hier nur fuer den Kostenblock zuruecknehmen und nicht dort loeschen --
-   sonst ruecken Distanz, Reisezeit und Rastzeit gleich mit aus. */
-.route-plan-costs .route-plan-summary__time {
-	padding-left: 0;
-	padding-right: 0;
-}
+/* ⚠️ Die Kostentabelle behaelt die leichte Einrueckung von 6 px links und rechts (Owner 2026-08-04,
+   nach einem kurzen Versuch mit voller Breite). Sie kommt aus review-panel.css
+   (`.route-plan-summary__time { padding: 0 6px 2px }`) und gilt dort auch fuer die Reiseuebersicht
+   ganz oben -- beide Tabellen stehen damit gleich, und nur die Trenner laufen von Kante zu Kante.
+   Also hier NICHTS zuruecknehmen. */
+
 /* Die gemeinsame Titelregel gibt 1 px nach unten -- unter einer Ueberschrift, die ueber einer
    Tabelle steht, klebt das. */
 .route-plan-costs .route-plan-legs__title {
