@@ -195,8 +195,15 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     // ⚠️ Ihre Grenze wird beim ersten Abgleich als KOPIE der Wuesten-Oberkante angelegt, um genau
     // diesen Betrag angehoben (avesmapsClimateInsertedDividerAbove). Die Wueste bewegt sich dabei
     // nicht -- das neue Band nimmt seinen Platz von den winterfeuchten Subtropen darueber.
-    ['klima', 'trockene_subtropen', 'Trockene Subtropen', 55],
-    ['klima', 'subtropisch', 'Subtropische Zone', 60],
+    // Owner 2026-08-04 umbenannt: „Trockene Subtropen" -> „Subtropische Steppenzone" und
+    // „Subtropische Zone" -> „Subtropische Wuestenzone". Die beiden hiessen nebeneinander nach
+    // derselben Sache benannt; jetzt sagt jeder Name die Landschaft, die er meint.
+    // 🔴 DIE SCHLUESSEL BLEIBEN. `trockene_subtropen` und `subtropisch` stehen in
+    // ecosystem_region.region_type, in path_ecosystem ueber die Flaeche, im Reiseoptionen-Dialog und in
+    // season-ground.php -- eine Umbenennung des Schluessels waere eine Datenmigration, keine Textaenderung
+    // (AGENTS.md §5). Umbenannt wird ausschliesslich die Beschriftung.
+    ['klima', 'trockene_subtropen', 'Subtropische Steppenzone', 55],
+    ['klima', 'subtropisch', 'Subtropische Wüstenzone', 60],
     ['klima', 'tropisch', 'Tropische Zone', 70],
 ];
 
@@ -3081,6 +3088,62 @@ function avesmapsEcosystemKindOfRegionId(PDO $pdo, int $regionId): string
 }
 
 /**
+ * Eine umbenannte Zone im BESTAND nachziehen.
+ *
+ * 💣 OHNE DAS BLEIBT EINE UMBENENNUNG WIRKUNGSLOS. avesmapsEcosystemSeedRegionTypes schreibt mit
+ * INSERT IGNORE -- es legt fehlende Arten an und fasst vorhandene NIE an. Wer nur den Namen in
+ * AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED aendert, aendert damit ausschliesslich, wie eine frische
+ * Datenbank aussieht; die laufende traegt den alten Namen weiter, und zwar lautlos.
+ *
+ * Zwei Stellen tragen den Namen, und beide muessen mit:
+ *   * ecosystem_region_type.label  -- das Vokabular (Infobox-Zeile „Klimazone", Art-Filter im Editor,
+ *                                     der Reiseoptionen-Dialog ueber avesmapsClimateZoneLabel)
+ *   * ecosystem_region.name        -- der Name auf der Karte und in der Weg-Infobox („Fuehrt durch"
+ *                                     liest r.name, nicht das Label)
+ *
+ * 🔴 DIE REGION WIRD NUR UMBENANNT, WENN SIE NOCH IHREN ALTEN LABELNAMEN TRAEGT. Der Name ist im
+ * Regionen-Editor bearbeitbar (siehe der Kommentar an der Saat unten) -- eine eigene Benennung des
+ * Owners darf eine Textkorrektur an der Art nicht ueberschreiben. Deshalb laeuft das UPDATE der Region
+ * VOR dem der Art: nur solange ist der alte Labelname ueberhaupt noch bekannt.
+ *
+ * Gilt bewusst nur fuer `klima`. Die uebrigen Ebenen haben dieselbe Mechanik, aber keinen Anlass --
+ * wer dort umbenennt, holt sich diese Funktion eine Zeile weiter.
+ *
+ * @return bool ob etwas geschrieben wurde (dann hat der Aufrufer die Revision zu heben)
+ */
+function avesmapsEcosystemClimateReconcileLabels(PDO $pdo): bool
+{
+    $statement = $pdo->query("SELECT type_key, label FROM ecosystem_region_type WHERE kind = 'klima'");
+    $stored = [];
+    foreach ($statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $stored[(string) $row['type_key']] = (string) $row['label'];
+    }
+    if ($stored === []) {
+        return false;   // noch nichts gesaet -- dann gibt es auch nichts umzubenennen
+    }
+
+    $renameRegion = $pdo->prepare(
+        "UPDATE ecosystem_region SET name = :new
+          WHERE kind = 'klima' AND region_type = :type_key AND name = :old"
+    );
+    $renameType = $pdo->prepare(
+        "UPDATE ecosystem_region_type SET label = :new WHERE kind = 'klima' AND type_key = :type_key"
+    );
+
+    $changed = false;
+    foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortOrder]) {
+        if ($kind !== 'klima' || !isset($stored[$typeKey]) || $stored[$typeKey] === $label) {
+            continue;
+        }
+        $renameRegion->execute(['new' => $label, 'type_key' => $typeKey, 'old' => $stored[$typeKey]]);
+        $renameType->execute(['new' => $label, 'type_key' => $typeKey]);
+        $changed = true;
+    }
+
+    return $changed;
+}
+
+/**
  * Regionen und Trennlinien anlegen, falls sie fehlen, und danach die Baender ableiten. Idempotent:
  * ein zweiter Lauf direkt danach schreibt nichts mehr.
  *
@@ -3091,7 +3154,9 @@ function avesmapsEcosystemClimateEnsure(PDO $pdo, int $userId): bool
     avesmapsEcosystemEnsureTables($pdo);
     avesmapsEcosystemSeedRegionTypes($pdo);
 
-    $changed = false;
+    // 0. Umbenennungen aus der Saat nachziehen. MUSS vor dem Lesen der Zonen stehen, sonst traegt eine
+    //    frisch angelegte Region noch den alten Namen.
+    $changed = avesmapsEcosystemClimateReconcileLabels($pdo);
     $zones = avesmapsEcosystemClimateZones($pdo);
 
     // 1. Fehlende Regionen. Eine je Zone, Name = das Label der Art. Der Name darf danach im
