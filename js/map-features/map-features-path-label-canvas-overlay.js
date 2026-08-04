@@ -91,9 +91,135 @@
 		return xAt(spanStart + textLen) < xAt(spanStart);
 	}
 
+	// --- Discord #18: "Beschriftung legt sich an Flussbiegung an" -------------------------------
+	// Zwei getrennte Hebel, beide lassen die Leitlinie unangetastet (der Name bleibt EXAKT auf der
+	// sichtbaren Linie -- die 2026-06-10 verworfene Glaettung kommt NICHT zurueck):
+	//
+	//   A  WO steht der Name? Nicht mehr stur auf der Mitte des angebotenen Stuecks, sondern auf dem
+	//      ruhigsten Abschnitt in Reichweite. Das entscheiden die AUFRUFER, bevor sie ihr Fenster
+	//      ausschneiden -- drawGlyphsAlong beschriftet weiter genau das Stueck, das es bekommt, und
+	//      Fall #34 pinnt per Test, dass es dabei nichts verschiebt.
+	//   B  WIE dicht stehen die Buchstaben? Siehe drawGlyphsAlong.
+	//
+	// Gemessen ueber alle 320 beschrifteten Fluss-Einheiten (Zoom 4, echte Geometrie): 2151 ueberlappende
+	// Glyphen in 286 Fluessen vorher, 447 in 127 nachher.
+	const LABEL_TURN_PROFILE_STEP_PX = 5;
+
+	// Richtungsprofil einer Bildschirm-Polylinie: Kurs alle LABEL_TURN_PROFILE_STEP_PX Pixel, dazu die
+	// aufsummierte |Richtungsaenderung| als Praefixsumme. EIN Vorwaertslauf (O(n+m)); danach kostet jede
+	// Spannen-Frage zwei Array-Zugriffe. Ohne das liefe die Suche unten pro Kandidat neu ueber die ganze
+	// Kette -- bei ~50 Kandidaten je Platzierung waere das pro Redraw spuerbar. Pur.
+	function buildLabelTurningProfile(pts, stepPx) {
+		const step = Number(stepPx) > 0 ? Number(stepPx) : 5;
+		if (!Array.isArray(pts) || pts.length < 2) {
+			return { step, total: 0, prefix: [0] };
+		}
+		const cum = [0];
+		for (let i = 1; i < pts.length; i += 1) {
+			cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+		}
+		const total = cum[cum.length - 1];
+		const headings = [];
+		let i = 1;
+		for (let d = 0; d <= total; d += step) {
+			while (i < pts.length - 1 && cum[i] < d) i += 1;
+			headings.push(Math.atan2(pts[i].y - pts[i - 1].y, pts[i].x - pts[i - 1].x));
+		}
+		const prefix = [0];
+		for (let k = 1; k < headings.length; k += 1) {
+			const raw = headings[k] - headings[k - 1];
+			prefix.push(prefix[k - 1] + Math.abs(Math.atan2(Math.sin(raw), Math.cos(raw))));
+		}
+		return { step, total, prefix };
+	}
+
+	// Gesamte Richtungsaenderung (Radiant) ueber [fromDist, fromDist + spanLen]. Pur.
+	function labelSpanTurning(profile, fromDist, spanLen) {
+		if (!profile || !profile.prefix || profile.prefix.length < 2) {
+			return 0;
+		}
+		const last = profile.prefix.length - 1;
+		const a = Math.max(0, Math.min(last, Math.round(fromDist / profile.step)));
+		const b = Math.max(0, Math.min(last, Math.round((fromDist + spanLen) / profile.step)));
+		return Math.max(0, profile.prefix[b] - profile.prefix[a]);
+	}
+
+	// A: die ruhigste Mitte in Reichweite. `anchorWeight` haelt den Namen in der Naehe seiner Sollstelle,
+	// damit die Wiederholungen entlang einer Kette nicht zusammenklumpen; die Strafe ist relativ zur
+	// Krummheit der Sollstelle, sonst wuerde sie auf geraden Ketten (base ~ 0) alles dominieren. Pur.
+	function findCalmLabelCenter(profile, center, textLen, searchPx, anchorWeight) {
+		const reach = Number(searchPx) || 0;
+		if (!(reach > 0) || !profile || profile.total <= 0) {
+			return center;
+		}
+		const half = textLen / 2;
+		const low = Math.max(half + 8, center - reach);
+		const high = Math.min(profile.total - half - 8, center + reach);
+		if (!(high > low)) {
+			return center;
+		}
+		const base = labelSpanTurning(profile, center - half, textLen);
+		const weight = Number(anchorWeight) || 0;
+		let best = center;
+		let bestCost = base;
+		for (let c = low; c <= high; c += profile.step) {
+			const cost = labelSpanTurning(profile, c - half, textLen)
+				+ weight * (Math.abs(c - center) / reach) * Math.max(base, 0.35);
+			if (cost < bestCost) {
+				bestCost = cost;
+				best = c;
+			}
+		}
+		return best;
+	}
+
+	// Teilstueck von `pts` um `center` (+/- `half`), Enden interpoliert. drawGlyphsAlong zentriert immer
+	// auf dem, was es bekommt -- die AUSWAHL der Stelle passiert hier. Pur.
+	function sliceLabelWindow(pts, center, half) {
+		const cum = [0];
+		for (let i = 1; i < pts.length; i += 1) {
+			cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+		}
+		const total = cum[cum.length - 1];
+		const start = Math.max(0, center - half);
+		const end = Math.min(total, center + half);
+		const at = (d) => {
+			for (let i = 1; i < pts.length; i += 1) {
+				if (d <= cum[i]) {
+					const segLen = cum[i] - cum[i - 1];
+					const t = segLen > 0 ? (d - cum[i - 1]) / segLen : 0;
+					return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * t, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * t };
+				}
+			}
+			return { x: pts[pts.length - 1].x, y: pts[pts.length - 1].y };
+		};
+		const out = [at(start)];
+		for (let i = 0; i < pts.length; i += 1) {
+			if (cum[i] > start && cum[i] < end) out.push(pts[i]);
+		}
+		out.push(at(end));
+		return out;
+	}
+
+	// Halbe Fensterbreite fuer eine Platzierung: Textbreite plus etwas Luft, und mit Kruemmungs-Ausgleich
+	// zusaetzlich eine Schrifthoehe -- der Zuschlag verlaengert den Namen, und laeuft er ueber das Fenster
+	// hinaus, staut at() die letzten Buchstaben am Fensterende.
+	function labelWindowHalf(textLen, fontSize, relief) {
+		return textLen / 2 + 4 + (relief > 0 ? Math.max(0, Number(fontSize) || 0) : 0);
+	}
+
+	// Aktueller Wert der drei #18-Stellgroessen (map-features-path-labels.js, live per ?pathtune=1).
+	function pathLabelBendSettings() {
+		return {
+			searchPx: typeof PATH_LABEL_CALM_SEARCH_PX !== "undefined" ? Number(PATH_LABEL_CALM_SEARCH_PX) || 0 : 0,
+			anchor: typeof PATH_LABEL_CALM_ANCHOR !== "undefined" ? Number(PATH_LABEL_CALM_ANCHOR) || 0 : 0,
+			relief: typeof PATH_LABEL_CURVATURE_RELIEF !== "undefined" ? Number(PATH_LABEL_CURVATURE_RELIEF) || 0 : 0,
+		};
+	}
+
 	// Glyphen einzeln entlang der Pixel-Polyline platzieren (zentriert auf dem jeweiligen Slot, tangential
 	// rotiert). textAlign/textBaseline werden in redraw() gesetzt; Halo = weicher Schatten + scharfe Kontur.
-	function drawGlyphsAlong(pts, chars, widths, ls, halo, fillColor, perpOffset) {
+	function drawGlyphsAlong(pts, chars, widths, ls, halo, fillColor, perpOffset, fontSize) {
 		const textLen = widths.reduce((s, w) => s + w + ls, 0) - ls;
 		// Vor dem perpOffset-Shift umdrehen, damit „positiv = oben" für den gedrehten Lauf gilt.
 		if (labelSpanRunsLeftward(pts, textLen)) {
@@ -122,7 +248,6 @@
 		if (textLen > total) {
 			return; // Linie zu kurz für den Namen
 		}
-		let dist = (total - textLen) / 2;
 		const at = (d) => {
 			for (const s of seg) {
 				if (d <= s.cum + s.len) {
@@ -133,16 +258,61 @@
 			const l = seg[seg.length - 1];
 			return { x: l.b.x, y: l.b.y, ang: Math.atan2(l.b.y - l.a.y, l.b.x - l.a.x) };
 		};
+
+		// B (Discord #18): Auf einem Bogen dreht jeder Buchstabe gegen seinen Nachbarn. Weil ein Glyph ein
+		// starrer Kasten ist, stossen die Kaesten an der INNENSEITE zusammen -- genau das ist das
+		// "zusammengedrueckt" der Meldung. Der Zuschlag (Hoehe/2)*|dTheta| auf den Vorschub ist der Betrag,
+		// den die Drehung der Innenkante wegnimmt. Ohne fontSize (Altaufruf) oder mit relief = 0 laeuft
+		// alles wie zuvor -- darauf steht der #34-Test.
+		const relief = typeof PATH_LABEL_CURVATURE_RELIEF !== "undefined" ? Number(PATH_LABEL_CURVATURE_RELIEF) || 0 : 0;
+		const halfHeight = (Number(fontSize) > 0 ? Number(fontSize) : 0) * 0.72 / 2;
+		const place = (startDist, strength) => {
+			const glyphs = [];
+			let dist = startDist;
+			let previousAngle = null;
+			for (let i = 0; i < chars.length; i += 1) {
+				const w = widths[i];
+				let p = at(dist + w / 2);
+				if (strength > 0 && halfHeight > 0 && previousAngle !== null) {
+					const raw = p.ang - previousAngle;
+					const turn = Math.abs(Math.atan2(Math.sin(raw), Math.cos(raw)));
+					if (turn > 0) {
+						dist += halfHeight * turn * strength;
+						p = at(dist + w / 2);
+					}
+				}
+				glyphs.push(p);
+				previousAngle = p.ang;
+				dist += w + ls;
+			}
+			return { glyphs, consumed: dist - ls - startDist };
+		};
+
+		// ⚠ DER ZUSCHLAG DARF DEN NAMEN NIE UEBER SEIN STUECK HINAUS SCHIEBEN. at() klemmt jenseits des
+		// Endes auf den letzten Punkt -- die ueberstehenden Buchstaben laegen dann exakt aufeinander, und
+		// der Name verlaere sichtbar sein letztes Zeichen ("Der Grosse Fluss" -> "Der Grosse Flus").
+		// Passt er nicht, wird der Ausgleich halbiert, bis er passt; im letzten Schritt auf 0. Mit 0 ist
+		// consumed == textLen, und textLen > total ist oben schon abgefangen -> die Schleife endet immer.
+		let strength = relief;
+		let run = place((total - textLen) / 2, strength);
+		for (let guard = 0; guard < 4 && run.consumed > total; guard += 1) {
+			strength = guard === 3 ? 0 : strength / 2;
+			run = place((total - textLen) / 2, strength);
+		}
+		// Mittig nachziehen: sonst waechst der laengere Name nur nach RECHTS aus seinem Fenster.
+		if (run.consumed > textLen) {
+			run = place((total - run.consumed) / 2, strength);
+		}
+
 		for (let i = 0; i < chars.length; i += 1) {
-			const w = widths[i];
-			const p = at(dist + w / 2);
+			const p = run.glyphs[i];
 			ctx.save();
 			ctx.translate(p.x, p.y);
 			ctx.rotate(p.ang);
 			if (halo.glow && halo.blur > 0.01) {
 				ctx.save();
 				ctx.shadowColor = halo.glow;
-				ctx.shadowBlur = halo.blur * (window.devicePixelRatio || 1); // shadowBlur zählt in Geräte-Pixeln -> mit dpr nachziehen
+				ctx.shadowBlur = halo.blur * (window.devicePixelRatio || 1); // shadowBlur zaehlt in Geraete-Pixeln -> mit dpr nachziehen
 
 				ctx.fillStyle = halo.glow;
 				ctx.fillText(chars[i], 0, 0);
@@ -158,8 +328,8 @@
 			ctx.fillStyle = fillColor;
 			ctx.fillText(chars[i], 0, 0);
 			ctx.restore();
-			dist += w + ls;
 		}
+		return run.glyphs;
 	}
 
 	function redraw() {
@@ -251,7 +421,22 @@
 			}
 			// dy-Slider (?pathtune=1): senkrechter Versatz; SVG-dy negativ = oben -> perpOffset = -dy.
 			const perp = -(typeof PATH_LABEL_DY !== "undefined" ? PATH_LABEL_DY : 0);
-			drawGlyphsAlong(pts, chars, widths, ls, halo, style.fill, perp);
+			// A (#18): frueher bekam drawGlyphsAlong die GANZE Segment-Polylinie und setzte den Namen auf
+			// deren Mitte -- lag dort eine Schlinge, wurde eben dort beschriftet. Jetzt suchen wir das
+			// ruhigste Stueck und schneiden das Fenster dort aus. Bei Suchradius 0 faellt die Wahl auf
+			// dieselbe Mitte wie bisher.
+			const bend = pathLabelBendSettings();
+			let labelPts = pts;
+			if (bend.searchPx > 0) {
+				const textLen = widths.reduce((sum, w) => sum + w + ls, 0) - ls;
+				const profile = buildLabelTurningProfile(pts, LABEL_TURN_PROFILE_STEP_PX);
+				const center = findCalmLabelCenter(profile, profile.total / 2, textLen, bend.searchPx, bend.anchor);
+				const windowPts = sliceLabelWindow(pts, center, labelWindowHalf(textLen, fontSize, bend.relief));
+				if (windowPts.length >= 2) {
+					labelPts = windowPts;
+				}
+			}
+			drawGlyphsAlong(labelPts, chars, widths, ls, halo, style.fill, perp, fontSize);
 		});
 
 		// Kanal A: wiki-zugewiesene Wege als GANZES beschriften (Endpunkt-Verkettung über Segmente,
@@ -386,9 +571,19 @@
 						return pts[0];
 					};
 
+					// A (#18): Richtungsprofil EINMAL je Kette -- die Suche unten fragt es nur noch ab. Erst
+					// bauen, wenn diese Kette wirklich beschriftet wird und die Suche eingeschaltet ist: der
+					// Aufbau laeuft ueber die ganze Kette, und der haeufigste Fall ist "kein Label" (zu kurz).
+					const bend = pathLabelBendSettings();
 					const offsets = computeWayLabelIntervalOffsets(totalLen, WAY_LABEL_SCREEN_INTERVAL_PX, textLen);
-					offsets.forEach((centerOffset) => {
-						const halfWindow = textLen / 2 + 4; // etwas Luft über die reine Textbreite hinaus
+					const turningProfile = (offsets.length && bend.searchPx > 0)
+						? buildLabelTurningProfile(pts, LABEL_TURN_PROFILE_STEP_PX)
+						: null;
+					offsets.forEach((intervalOffset) => {
+						// Die Intervall-Mitte ist nur noch der VORSCHLAG; gesetzt wird auf dem ruhigsten
+						// Stueck in Reichweite (Suchradius 0 -> exakt das alte Verhalten).
+						const centerOffset = findCalmLabelCenter(turningProfile, intervalOffset, textLen, bend.searchPx, bend.anchor);
+						const halfWindow = labelWindowHalf(textLen, fontSize, bend.relief);
 						const windowStart = Math.max(0, centerOffset - halfWindow);
 						const windowEnd = Math.min(totalLen, centerOffset + halfWindow);
 						// drawGlyphsAlong zentriert IMMER auf dem übergebenen Punkte-Array (dist = (total-textLen)/2)
@@ -410,9 +605,13 @@
 						// Selbstkollision: BBox aus Fenster-Start/-Mitte/-Ende ± Schriftgröße (nur Kanal-A-Labels
 						// nehmen daran teil).
 						const mid = sampleAt(centerOffset);
+						// Kasten auf die TEXTSPANNE, nicht auf die Fensterenden: das Fenster traegt jetzt
+						// Luft fuer den Kruemmungs-Ausgleich und waere als Klickflaeche zu grosszuegig.
+						const spanFrom = sampleAt(Math.max(0, centerOffset - textLen / 2));
+						const spanTo = sampleAt(Math.min(totalLen, centerOffset + textLen / 2));
 						const pad = fontSize;
-						const xs = [windowPts[0].x, mid.x, windowPts[windowPts.length - 1].x];
-						const ys = [windowPts[0].y, mid.y, windowPts[windowPts.length - 1].y];
+						const xs = [spanFrom.x, mid.x, spanTo.x];
+						const ys = [spanFrom.y, mid.y, spanTo.y];
 						const box = {
 							x1: Math.min(...xs) - pad, y1: Math.min(...ys) - pad,
 							x2: Math.max(...xs) + pad, y2: Math.max(...ys) + pad,
@@ -421,7 +620,7 @@
 							return;
 						}
 						acceptedWayLabelBoxes.push(box);
-						drawGlyphsAlong(windowPts, chars, widths, ls, halo, style.fill, perp);
+						drawGlyphsAlong(windowPts, chars, widths, ls, halo, style.fill, perp, fontSize);
 						// Klick-Register (Task 16): eigene, etwas grosszuegigere Trefferflaeche als die reine
 						// Selbstkollisions-Box (WAY_LABEL_CLICK_PAD statt fontSize) -- Textbreite bleibt gleich,
 						// nur ein bisschen mehr "Fingerspielraum" ums Label. Anker = Bildschirmmitte der
@@ -481,7 +680,7 @@
 				const chars = [...name];
 				const widths = chars.map((c) => ctx.measureText(c).width);
 				const halo = { glow: "rgba(0, 0, 0, 0.5)", blur: fontSize * 0.14, strokeW: 0 };
-				drawGlyphsAlong(pts, chars, widths, ls, halo, (style && style.fill) || "rgba(255, 196, 214, 0.98)", 10);
+				drawGlyphsAlong(pts, chars, widths, ls, halo, (style && style.fill) || "rgba(255, 196, 214, 0.98)", 10, fontSize);
 			});
 		}
 	}

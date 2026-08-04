@@ -57,6 +57,12 @@ let PATH_LABEL_ROAD_HALO_SHARPNESS = 0.8;
 let PATH_LABEL_LETTER_SPACING = 0.5;  // px Sperrung
 // Leitlinie = sichtbare Linie, nur neu abgetastet: <1 ausdünnen (ruhiger), 1 = exakt die Linie, >1 dichter.
 let PATH_LABEL_GUIDE_DENSITY = 1;   // (von map-features-path-rendering.js gelesen)
+// Lesbarkeit an Boegen (Discord #18) -- beide Hebel wirken im Canvas-Overlay, nicht auf die Leitlinie.
+// Der Name bleibt also EXAKT auf der sichtbaren Linie; die 2026-06-10 verworfene Glaettung kommt nicht
+// zurueck (sie haette #18 auch kaum geholfen: gemessen -2 % ueberlappende Glyphen gegen -79 % hiermit).
+let PATH_LABEL_CALM_SEARCH_PX = 160;      // wie weit darf der Name wandern, um ein ruhigeres Stueck zu finden
+let PATH_LABEL_CALM_ANCHOR = 0.35;        // 0 = nimm das ruhigste Stueck, egal wie weit; gross = bleib, wo du bist
+let PATH_LABEL_CURVATURE_RELIEF = 1;      // Zuschlag (Schrifthoehe/2)*|dTheta| auf den Buchstaben-Vorschub; 0 = aus
 
 // SVG-Halo eines Pfad-Labels aus Stärke/Schärfe. Scharfer Anteil = SVG-Stroke (paint-order:stroke), weicher
 // Anteil = CSS drop-shadow (mehrere Pässe ~ Stärke für Dichte). Stärke 0 = kein Halo. drop-shadow nur bei
@@ -224,11 +230,15 @@ function syncPathLabels() {
 	slider("Sperrung (px)", 0, 8, 0.5, PATH_LABEL_LETTER_SPACING, (v) => { PATH_LABEL_LETTER_SPACING = v; restyle(); });
 	// Leitlinie liegt auf der sichtbaren Linie; Dichte <1 = vereinfacht (ausgedünnt), 1 = exakt, >1 = dichter.
 	slider("Dichte (vereinfachen↔dichter)", 0.1, 4, 0.1, PATH_LABEL_GUIDE_DENSITY, (v) => { PATH_LABEL_GUIDE_DENSITY = v; regeom(); });
+	// Boegen (#18): reine Platzierung im Canvas-Overlay -> restyle() reicht, keine Geometrie-Neuberechnung.
+	slider("Bögen: Suchradius (px)", 0, 600, 10, PATH_LABEL_CALM_SEARCH_PX, (v) => { PATH_LABEL_CALM_SEARCH_PX = v; restyle(); });
+	slider("Bögen: Treue zur Sollstelle", 0, 2, 0.05, PATH_LABEL_CALM_ANCHOR, (v) => { PATH_LABEL_CALM_ANCHOR = v; restyle(); });
+	slider("Bögen: Krümmungs-Ausgleich", 0, 2, 0.05, PATH_LABEL_CURVATURE_RELIEF, (v) => { PATH_LABEL_CURVATURE_RELIEF = v; restyle(); });
 	const okBtn = document.createElement("button");
 	okBtn.textContent = "OK / Werte merken";
 	okBtn.style.cssText = "width:100%;margin-top:10px;padding:7px;border:1px solid #5e4329;border-radius:6px;background:#7a5a3a;color:#fff;font:inherit;cursor:pointer;";
 	okBtn.addEventListener("click", () => {
-		const result = { fontDeltaByZoom: { ...PATH_LABEL_FONT_DELTA_BY_ZOOM }, dy: PATH_LABEL_DY, riverHaloStrength: PATH_LABEL_RIVER_HALO_STRENGTH, riverHaloSharpness: PATH_LABEL_RIVER_HALO_SHARPNESS, roadHaloStrength: PATH_LABEL_ROAD_HALO_STRENGTH, roadHaloSharpness: PATH_LABEL_ROAD_HALO_SHARPNESS, letterSpacing: PATH_LABEL_LETTER_SPACING, guideDensity: PATH_LABEL_GUIDE_DENSITY };
+		const result = { fontDeltaByZoom: { ...PATH_LABEL_FONT_DELTA_BY_ZOOM }, dy: PATH_LABEL_DY, riverHaloStrength: PATH_LABEL_RIVER_HALO_STRENGTH, riverHaloSharpness: PATH_LABEL_RIVER_HALO_SHARPNESS, roadHaloStrength: PATH_LABEL_ROAD_HALO_STRENGTH, roadHaloSharpness: PATH_LABEL_ROAD_HALO_SHARPNESS, letterSpacing: PATH_LABEL_LETTER_SPACING, guideDensity: PATH_LABEL_GUIDE_DENSITY, calmSearchPx: PATH_LABEL_CALM_SEARCH_PX, calmAnchor: PATH_LABEL_CALM_ANCHOR, curvatureRelief: PATH_LABEL_CURVATURE_RELIEF };
 		window.__avesmapsPathLabelTuning = result;
 		console.log("[Pfad-Namen-Tuning] " + JSON.stringify(result));
 		okBtn.textContent = "✓ gemerkt"; setTimeout(() => { okBtn.textContent = "OK / Werte merken"; }, 1500);
