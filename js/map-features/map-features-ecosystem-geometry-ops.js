@@ -223,6 +223,13 @@
 	// Nur für die Zwei-Flächen-Operationen. Zerschneiden und Verschieben arbeiten auf der EINEN Fläche,
 	// die schon gewählt ist; dort wäre die andere Ebene bloss Unruhe.
 	function setLayerPicking(on) {
+		// 💣 Auch hier zuerst die offenen Schwebezettel schliessen: dieser Griff macht ruhende Panes
+		// anklickbar und wieder klickdurchlässig, und eine Fläche, die unter dem Zeiger umgeschaltet wird,
+		// sieht nie wieder ein `mouseout` -- ihr Zettel bliebe stehen. Begründung an
+		// closeAllEcosystemAreaTooltips (map-features-ecosystem-rendering.js).
+		if (typeof closeAllEcosystemAreaTooltips === "function") {
+			closeAllEcosystemAreaTooltips();
+		}
 		document.querySelectorAll(".ecosystem-pane")
 			.forEach((pane) => pane.classList.toggle("ecosystem-pane--picking", Boolean(on)));
 	}

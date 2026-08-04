@@ -110,6 +110,35 @@ context.setHighlightedEcosystemRegion("");
 context.setHoveredEcosystemRegion("");
 assert(context.contouredEcosystemRegionId() === "", "und ein Klick woanders hin raeumt auch sie");
 
+// ---- der Schwebezettel, der stehen blieb (Owner 2026-08-04) ----------------------------------------
+// 🔴 URSACHE, nachgemessen im Browser: ein Leaflet-Tooltip geht von selbst nur bei `mouseout` zu -- und
+// ein Element, das unter dem Zeiger `pointer-events: none` bekommt, sieht NIE wieder ein Ereignis. Diese
+// App schaltet bei jedem Ebenenwechsel ganze Panes so um. Der Zettel bleibt also stehen, und zwar genau
+// dann, wenn der Zeiger im Augenblick des Wechsels zufaellig auf einer Flaeche lag -- das „manchmal".
+//
+// 🪤 Geprueft wird ALLE, nicht „die eine unter dem Zeiger": welche das war, weiss niemand mehr, und zwei
+// standen im Fehlerbericht gleichzeitig auf der Karte.
+const geschlossen = [];
+const ebene = (id, kannSchliessen = true) => ({
+	_ecosystemArea: { public_id: id },
+	closeTooltip: kannSchliessen ? () => geschlossen.push(id) : undefined,
+});
+// 🪤 Die Map muss IM vm-Kontext entstehen. `instanceof Map` vergleicht gegen den Konstruktor DIESES
+// Realms; eine hier draussen gebaute Map faellt durch die Pruefung im Modul und der Test bewiese nichts.
+context.ecosystemLayers = new (vm.runInContext("Map", context))([
+	["a-1", ebene("a-1")],
+	["a-2", ebene("a-2")],
+	["a-3", ebene("a-3", false)],   // eine ohne Tooltip-Bindung -- darf nicht werfen
+]);
+context.closeAllEcosystemAreaTooltips();
+assert(geschlossen.length === 2 && geschlossen.includes("a-1") && geschlossen.includes("a-2"),
+	"🔴 ALLE offenen Zettel werden geschlossen, nicht nur einer: " + geschlossen.join(","));
+
+// Ohne Flaechenregister passiert nichts -- und vor allem faellt nichts um.
+context.ecosystemLayers = undefined;
+context.closeAllEcosystemAreaTooltips();
+assert(true, "ohne Register laeuft es durch");
+
 if (failures > 0) {
 	console.error(`ecosystem-highlight.test: ${failures} failure(s)`);
 	process.exit(1);

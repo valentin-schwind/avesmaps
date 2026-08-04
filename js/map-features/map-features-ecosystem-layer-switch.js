@@ -86,6 +86,14 @@ function syncEcosystemPaneStates() {
 		return;
 	}
 
+	// 💣 ZUERST die offenen Schwebezettel schliessen, DANN umschalten. Gleich darunter bekommen Panes
+	// `pointer-events: none` -- und eine Fläche, die unter dem Zeiger klickdurchlässig wird, sieht nie
+	// wieder ein `mouseout`. Ihr Zettel bliebe für immer stehen (Owner 2026-08-04, zwei davon auf einmal;
+	// Begründung an closeAllEcosystemAreaTooltips).
+	if (typeof closeAllEcosystemAreaTooltips === "function") {
+		closeAllEcosystemAreaTooltips();
+	}
+
 	const activeKind = getActiveEcosystemLayerKind();
 	const showAll = isEcosystemShowAllLayers();
 	ECOSYSTEM_KINDS.forEach((kind) => {

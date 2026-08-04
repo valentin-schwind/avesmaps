@@ -202,6 +202,35 @@ function applyEcosystemSelectionClass(layer) {
 	element.classList.toggle("ecosystem-area--selected", layer._ecosystemArea?.public_id === selectedEcosystemAreaPublicId);
 }
 
+// ---- Der Schwebezettel, der stehen blieb (Owner 2026-08-04) -----------------------------------------
+// „manchmal verschwinden die Tooltips über den Regionen nicht" -- zwei davon standen gleichzeitig auf
+// der Karte, aus zwei verschiedenen Ebenen.
+//
+// 🔴 URSACHE, nachgemessen: ein Leaflet-Tooltip geht von selbst NUR bei `mouseout` der Fläche zu (und
+// beim Entfernen der Ebene -- das macht Leaflet selbst). Diese App schaltet aber bei jedem Ebenen- und
+// Moduswechsel ganze Panes auf `pointer-events: none` (`--resting`, klima in „Alle", `--picking`) --
+// und ein Element, das unter dem Zeiger klickdurchlässig wird, bekommt vom Browser KEIN mouseout mehr.
+// Im Versuch bestätigt: nach `pointerEvents = "none"` kommt kein einziges Ereignis mehr an. Der Zettel
+// erfährt also nie, dass die Maus weg ist, und bleibt für immer stehen.
+//
+// Das erklärt auch das „manchmal": es passiert genau dann, wenn der Zeiger im Augenblick des Wechsels
+// zufällig auf einer Fläche liegt.
+//
+// 🔴 DIE REPARATUR GEHÖRT AN DIE URSACHE, nicht an den Zettel: wer die Klickbarkeit umschaltet, macht
+// das Überfahren ungültig und hat es zu sagen. Deshalb steht der Aufruf in syncEcosystemPaneStates und
+// in setLayerPicking -- den zwei Stellen, die Panes umschalten -- und nicht in einem Zeitgeber, der
+// hinterherräumt.
+function closeAllEcosystemAreaTooltips() {
+	if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+		return;
+	}
+	ecosystemLayers.forEach((layer) => {
+		if (typeof layer?.closeTooltip === "function") {
+			layer.closeTooltip();
+		}
+	});
+}
+
 // ---- Hervorhebung: welche REGION der Leser gerade meint ---------------------------------------------
 // Owner 2026-08-04, in drei Schritten gewachsen und deshalb hier und nicht im Klima-Modul: erst hob ein
 // Klick auf einen Zonennamen sein Band hervor, dann sollte das Überfahren dasselbe zeigen -- und
