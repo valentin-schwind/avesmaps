@@ -294,6 +294,12 @@ const ECOSYSTEM_UNDERGROUND_STORAGE_KEY = "avesmaps.ecosystem.undergroundOpacity
 // anyone who wants the full map back is one drag away.
 const ECOSYSTEM_UNDERGROUND_DEFAULT = 50;
 
+// Was der gewöhnliche Besucher sieht (Owner 2026-08-04: „den Untergrund musst du noch ausblenden,
+// 25 % haben wie gesagt"). Er bekommt den Regler nicht -- also auch nicht den gespeicherten Wert:
+// 💣 der liegt je BROWSER, und wer irgendwann einmal auf 0 gezogen hat, bekäme eine leere weisse
+// Karte, ohne einen Weg zurück. Ein fester Wert ist hier das Gegenteil einer Einschränkung.
+const ECOSYSTEM_UNDERGROUND_FRONTEND = 25;
+
 // 🪤 The raw string is checked for "nothing stored" BEFORE the number conversion. Number(null) is 0 --
 // a perfectly finite 0 that passes a 0..100 range check, so converting first made an editor entering
 // the layer for the very first time land on 0% and stare at a blank white map. Same shape of trap as
@@ -328,7 +334,10 @@ function applyEcosystemUndergroundOpacity(active) {
 
 	const tilePane = map.getPane("tilePane");
 	const container = typeof map.getContainer === "function" ? map.getContainer() : null;
-	const percent = active ? readStoredEcosystemUndergroundOpacity() : 100;
+	// Wer den Regler hat, bekommt seinen Wert; wer ihn nicht hat, die festen 25 %.
+	const percent = active
+		? (canOperateEcosystemLayers() ? readStoredEcosystemUndergroundOpacity() : ECOSYSTEM_UNDERGROUND_FRONTEND)
+		: 100;
 
 	if (tilePane) {
 		tilePane.style.opacity = percent >= 100 ? "" : String(percent / 100);
@@ -590,11 +599,11 @@ function syncEcosystemControlsVisibility() {
 	// Both effects are restored on the way OUT, before the early return: a half-faded base map or a
 	// dimmed label pane left behind in "Politisch" would read as a broken map, not as a setting.
 	//
-	// 🔴 Der ausgeblasste Untergrund hängt am BEDIENEN, nicht am Ansehen. Er ist eine Zeichenhilfe --
-	// „die gemalte Landschaft soll die gezogene nicht überstimmen" --, und dazu gehört der Regler, mit
-	// dem man ihn zurückdreht. Wer den Regler nicht bekommt, bekommt auch die blasse Karte nicht: für
-	// ihn wäre sie nur eine Karte, die schlechter aussieht als vorher, ohne Weg zurück.
-	applyEcosystemUndergroundOpacity(operable);
+	// 🔴 Der ausgeblasste Untergrund gehört zur ANSICHT, nicht zum Werkzeug (Owner 2026-08-04). Er
+	// nimmt die gemalte Karte zurück, damit die Landschaftsflächen überhaupt zu lesen sind -- das gilt
+	// für den Besucher genauso wie für den, der darauf zeichnet. Nur der WERT unterscheidet sich: der
+	// Besucher bekommt die festen 25 %, der Editor seinen Regler (applyEcosystemUndergroundOpacity).
+	applyEcosystemUndergroundOpacity(shouldShow);
 	// Die Orte treten für JEDEN zurück, der die Ebene ansieht -- nicht nur für den, der sie bedienen
 	// darf. Deshalb `shouldShow` und nicht `operable`: es ist eine Eigenschaft der Ansicht, keine
 	// Zeichenhilfe. Steht wie die Zeile darüber VOR dem frühen Ausstieg, damit das Verlassen des Modus

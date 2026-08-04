@@ -1350,12 +1350,15 @@
    zieht -- die zeichnet hier weiterhin niemand. Diese hier ist die Antwort auf einen Klick, den es
    vorher gar nicht gab. Sie entsteht mit der Geste und verschwindet mit ihr.
 
-   Der Ton ist der der Trennlinien: „wo eine Zone aufhört" ist genau das, was diese Kante zeigt --
-   und deshalb nicht der weisse Auswahlton des Editors, der eine andere Aussage hat („hieran
-   arbeite ich"). */
+   🔴 HIER STEHT KEINE FARBE, UND DAS IST DIE FARBE (Owner 2026-08-04: „die Kontur kann in der Farbe
+   der Fläche sein, nur halt mit voller Deckkraft"). Der <path> trägt seinen Zonenton längst als
+   `stroke`-Attribut -- `klima` hat keinen eigenen Konturton, also fällt ecosystemAreaContourColor()
+   auf die Flächenfarbe zurück (map-features-ecosystem-rendering.js). Die Kante ist nur unsichtbar
+   gestellt: die Grundregel oben setzt `stroke-opacity: 0`. Es genügt deshalb, sie AUFZUDECKEN.
+   Wer hier doch einen Ton einträgt, hängt eine zweite Wahrheit über die Zonenfarbe daneben -- und die
+   driftet beim nächsten Farbwechsel. */
 .leaflet-pane.ecosystem-pane--klima.ecosystem-pane--active > svg path.leaflet-interactive.ecosystem-climate-area--picked {
-	stroke: var(--color-ecosystem-klima-divider);
-	stroke-opacity: 0.85;
+	stroke-opacity: 1;
 	stroke-width: 2;
 }
 

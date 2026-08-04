@@ -86,6 +86,46 @@ const sichtbar = welt({ recht: false, editor: false });
 	assert(sichtbar.isEcosystemKindVisible(kind), `in Alle ist ${kind} sichtbar`);
 });
 
+// ---- der Untergrund: 25 % fuer den Besucher, sein Regler fuer den Editor ----------------------------
+// 💣 Der Besucher bekommt einen FESTEN Wert, nicht den gespeicherten. Der liegt je Browser, und wer
+// irgendwann einmal auf 0 gezogen hat, saehe eine leere weisse Karte -- ohne Regler, mit dem er wieder
+// herauskaeme. Ein fester Wert ist hier das Gegenteil einer Einschraenkung.
+function untergrundWelt({ recht, editor, gespeichert }) {
+	const pane = { style: {} };
+	const container = { style: {} };
+	const context = {
+		console,
+		window: { localStorage: { getItem: () => gespeichert, setItem: () => {} },
+			getComputedStyle: () => ({ getPropertyValue: () => "#ffffff" }) },
+		document: { getElementById: () => null, querySelectorAll: () => [], addEventListener: () => {},
+			documentElement: {} },
+		getComputedStyle: () => ({ getPropertyValue: () => "#ffffff" }),
+		getSelectedMapLayerMode: () => "ecosystem",
+		IS_ECOSYSTEM_ENABLED: recht,
+		IS_EDIT_MODE: editor,
+		map: { getPane: (name) => (name === "tilePane" ? pane : null), getContainer: () => container },
+	};
+	context.globalThis = context;
+	vm.createContext(context);
+	vm.runInContext(source, context);
+	return { context, pane };
+}
+
+const besucherUntergrund = untergrundWelt({ recht: false, editor: false, gespeichert: "0" });
+besucherUntergrund.context.applyEcosystemUndergroundOpacity(true);
+assert(besucherUntergrund.pane.style.opacity === "0.25",
+	"💣 der Besucher bekommt die festen 25 % -- nicht die 0, die in seinem Browser steht: " + besucherUntergrund.pane.style.opacity);
+
+const editorUntergrund = untergrundWelt({ recht: true, editor: true, gespeichert: "40" });
+editorUntergrund.context.applyEcosystemUndergroundOpacity(true);
+assert(editorUntergrund.pane.style.opacity === "0.4",
+	"der Editor bekommt seinen Regler: " + editorUntergrund.pane.style.opacity);
+
+const verlassen = untergrundWelt({ recht: false, editor: false, gespeichert: "0" });
+verlassen.context.applyEcosystemUndergroundOpacity(false);
+assert(verlassen.pane.style.opacity === "",
+	"beim Verlassen ist die Karte wieder ganz da -- sonst bliebe sie in jedem anderen Modus blass");
+
 // ---- Orte treten im Landschaftsmodus zurück -- und kommen zurück ------------------------------------
 // 🔴 Der zweite Teil ist der, der weh tut, wenn er fehlt: ohne ihn nähme ein Besuch der Landschaften dem
 // Nutzer seine Ortsauswahl DAUERHAFT weg. Er kommt zurück nach „Politisch", seine Metropolen sind fort,
