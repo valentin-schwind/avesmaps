@@ -98,22 +98,48 @@ in den anderen.
 
 ```php
 avesmapsNormalizeEditorActivityArea(?string $area): ?string   // Whitelist, sonst null
+avesmapsPickEditorAreaClaim(array $rows): ?array              // REIN: entscheidet, wer hält
 avesmapsReadEditorAreaClaim(PDO $pdo, string $area): ?array   // ['user_id','username','seconds_since_activity','seconds_since_seen'] oder null
-avesmapsAssertEditorAreaClaim(PDO $pdo, string $area, array $user): void  // wirft, wenn ein ANDERER hält
+avesmapsBlockingEditorAreaClaim(PDO $pdo, string $area, array $user): ?array  // der FREMDE Halter, sonst null
+avesmapsEnsureEditorActivityColumns(PDO $pdo): void           // ALTER TABLE, je Spalte einzeln
 ```
 
-Die Besitzer-Abfrage:
+Bewusst **keine** werfende `assert`-Variante: der Endpunkt braucht HTTP 409, und die
+bestehenden `catch`-Blöcke dort bilden `InvalidArgumentException`→400 und `RuntimeException`→503
+ab. Eine neue Exception-Klasse nur für einen Statuscode wäre mehr Mechanik als der Rückgabewert
+`?array`, den der Aufrufer direkt in seine Fehlerantwort gießt.
+
+💣 **`avesmapsReadEditorAreaClaim` fällt OFFEN aus, wenn die Präsenz-Tabelle oder die drei Spalten
+fehlen** (beim Bauen gefunden, 2026-08-04). Diese Funktion läuft **im Schreibtor** (§5.2) — eine
+durchgereichte Exception würde „die Spalten sind noch nicht nachgerüstet", also den Normalzustand
+in den Sekunden nach dem Deploy, in eine 500 auf **jedem** Territorien-Speichern verwandeln, bis
+zufällig jemand die Präsenz öffnet. Ein Anspruch ist ein Schutz; ein fehlender Schutz darf nie zur
+Sperre werden. Erkannt über `avesmapsIsMissingTableError` / `avesmapsIsMissingColumnError`, die
+deshalb ebenfalls in dieser Bibliothek liegen (und nicht mehr in `presence.php`): beide Aufrufer
+brauchen sie — der eine, um die Schemaform zu reparieren, der andere, um offen zu bleiben. Jeder
+andere Fehler propagiert weiterhin.
+
+💣 **SQL holt, PHP entscheidet — und das ist kein Stilfrage, sondern die einzige Art, das
+Feature beweisen zu können.** Es gibt keine lokale Datenbank (kein `config.local.php`, kein
+`pdo_mysql`); eine Besitzerwahl in `ORDER BY … LIMIT 1` wäre bis zum Deploy ungetestet. Die
+Abfrage holt deshalb nur die Kandidatenzeilen des Bereichs — höchstens so viele wie es Editoren
+gibt, also eine Handvoll —, und die Entscheidung fällt in einer reinen Funktion, die vollständig
+unit-testbar ist:
 
 ```sql
-SELECT user_id, username,
+SELECT user_id, username, activity_label,
        TIMESTAMPDIFF(SECOND, activity_since, NOW(3)) AS seconds_since_activity,
-       TIMESTAMPDIFF(SECOND, last_seen, NOW(3))      AS seconds_since_seen
+       TIMESTAMPDIFF(SECOND, last_seen,      NOW(3)) AS seconds_since_seen
 FROM editor_presence
 WHERE activity_area = :area
-  AND last_seen >= DATE_SUB(NOW(3), INTERVAL 180 SECOND)
-ORDER BY activity_since ASC, user_id ASC
-LIMIT 1
 ```
+
+`avesmapsPickEditorAreaClaim` verwirft dann alles mit `seconds_since_seen > 180` und nimmt den
+Rest **nach `seconds_since_activity` absteigend**, bei Gleichstand nach `user_id` aufsteigend.
+
+⚠️ **Absteigend.** Der Wert ist ein *Abstand*, kein Zeitpunkt: je größer, desto früher war
+derjenige da. Ein `ASC` an dieser Stelle kehrt die Regel stillschweigend um — der zuletzt
+Eingetroffene bekäme das Schreibrecht. Genau dafür gibt es den Test.
 
 `activity_since` selbst verlässt den Server nie — nur die Differenz (§5.3).
 
@@ -180,9 +206,15 @@ erfahren, ob er schreiben darf.
   keine Frame-Brücke. ⚠️ Nicht von der Memory-Notiz `edit-shell-iframe-globals-trap` verwirren
   lassen: die betrifft die `/edit/`-Hülle, nicht diesen Editor.
 - **Die sechs iframe-Editoren** (Wege, Landschaften, Siedlungen, Kraftlinien, Karten,
-  Abenteuer): die Overlay-Hülle wird im Hauptdokument gebaut
-  (`review-*-list.js`, Muster `avm-editor-overlay`), also meldet **die Hülle** den Bereich beim
-  Öffnen und `null` beim Schließen. Für sie sind **keine iframe-Änderungen nötig**.
+  Abenteuer) melden **gar nicht selbst**. ⭐ Beim Bauen (2026-08-04) zeigte sich: jeder Öffner hat
+  *drei* Stellen (Früh-Return bei vorhandenem Overlay, `closeOverlay`, Ersterstellung), acht
+  Editoren also **24** Meldeaufrufe — und der neunte Editor käme ohne. Genau das „jemand muss dran
+  denken", das dieses Projekt schon die Handbuch-Regel und eine doppelte Quellen-Tabelle gekostet
+  hat (AGENTS.md §5, §9). Stattdessen wird der offene Editor **aus dem sichtbaren Overlay
+  abgeleitet**: eine ID→Bereich-Tabelle (`AVESMAPS_EDITOR_OVERLAY_AREAS`) plus ein schmaler
+  `MutationObserver` auf das `hidden`-Attribut. Ein neuer Editor kostet **eine Zeile** in der
+  Tabelle. ⚠️ Der `childList`-Observer läuft **ohne `subtree`** — auf `<body>` würde er sonst bei
+  jeder Leaflet-Kachel feuern. Ein Test bewacht, dass jede ID in der Tabelle wirklich vergeben ist.
 - **Das konkrete Ding** kennt nur der iframe-Inhalt. Er schickt es per `postMessage` an den
   Host: `{ type: 'avesmaps:editor-activity', label }`. Der Host akzeptiert die Nachricht nur
   bei `event.origin === window.location.origin` und nur, wenn er selbst gerade einen Bereich
@@ -233,6 +265,15 @@ Damit ein Fehler dort trotzdem nicht die Arbeit blockiert, ist die Serverregel b
 asymmetrisch formuliert: **es wird nur abgelehnt, wenn ein ANDERER einen frischen Anspruch
 hält.** Hält niemand einen, darf jeder schreiben. Wer nichts meldet, verliert also nur den
 Schutz — nie die Fähigkeit zu arbeiten.
+
+⭐ Beim Bauen zeigte sich, dass der Standalone **weder `review-panels.js` noch
+`territory-editor-link.js` lädt** — die Bandlogik hätte also doppelt existieren müssen. Sie liegt
+deshalb in einer eigenen kleinen Datei `js/territory/territory-claim-view.js`
+(`avesmapsTerritoryWriteState`, `formatTerritoryClaimSince`, `applyPoliticalTerritoryClaim`), die
+beide Oberflächen einbinden. `avesmapsTerritoryWriteState` war ohnehin nie Sache des Panels — das
+Panel reicht den Anspruch nur durch. ⚠️ Die Datei enthält **nur Funktionsdeklarationen, kein
+`const` auf oberster Ebene**: sie wird aus zwei Dokumenten geladen, und ein doppeltes `const` wäre
+ein harter Fehler.
 
 ## 8. Bewusst weggelassen
 
