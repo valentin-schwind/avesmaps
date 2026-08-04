@@ -126,5 +126,23 @@ check("both lists describe the same eight editors",
 const labelKeys = Object.keys(areaLabelTable).sort();
 check("every area has a German label", JSON.stringify(labelKeys) === JSON.stringify(clientAreas));
 
+// --- the load-order trap this feature already fell into once ---------------------------------
+// The first version had territory-editor-link.js subscribe at load time. index.html loads it at
+// position 35 and review-panels.js at 54, so the registry did not exist yet, the typeof guard
+// declined silently, and the banner never appeared -- the feature was entirely mute while every
+// unit test passed. The fix was to resolve the target by name at CALL time. Guard that it stays
+// that way, and that the file it points at really defines it.
+const applyBlock = extract("avesmapsApplyTerritoryClaim");
+check("the heartbeat calls applyPoliticalTerritoryClaim by name, not through a load-time registry",
+	applyBlock.includes("applyPoliticalTerritoryClaim"));
+check("...and that function really exists in territory-claim-view.js",
+	/function applyPoliticalTerritoryClaim\b/.test(claimSrc));
+
+// index.html must still load the shared file, or both territory surfaces lose the banner.
+check("index.html loads territory-claim-view.js",
+	fs.readFileSync("index.html", "utf8").includes("js/territory/territory-claim-view.js"));
+check("the standalone editor page loads it too",
+	fs.readFileSync("html/political-territory-editor.html", "utf8").includes("/js/territory/territory-claim-view.js"));
+
 console.log(failed === 0 ? "\nALL PASSED" : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

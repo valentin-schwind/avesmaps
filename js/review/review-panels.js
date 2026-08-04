@@ -573,20 +573,12 @@ function avesmapsReportEditorArea(area, label) {
 	}
 }
 
-function avesmapsOnTerritoryClaimChange(listener) {
-	if (typeof listener === "function") {
-		editorTerritoryClaimListeners.push(listener);
-		// Late subscribers (the territory editor loads its scripts on first open) would otherwise
-		// sit on a stale "may write" until the next 30s tick.
-		if (editorTerritoryClaim !== null) {
-			try {
-				listener(editorTerritoryClaim);
-			} catch (error) {
-				console.warn("Territorien-Anspruch konnte nicht verarbeitet werden:", error);
-			}
-		}
-	}
-}
+// 💣 No subscribe/register handshake here, and that is a fix, not a simplification. The first
+// version had territory-editor-link.js call avesmapsOnTerritoryClaimChange() at load time -- but
+// index.html loads that file at position 35 and this one at 54, so the registry did not exist yet,
+// the typeof guard silently declined, and the banner never appeared. Load order in index.html is a
+// contract (AGENTS.md §3) and a bad thing to depend on. Resolving the target at CALL time instead
+// cannot lose that race: by the first heartbeat every file is loaded.
 
 // Which editor is open is DERIVED from which overlay is visible, rather than announced by hand at
 // every open/close site. There are eight editors with three such sites each; a table plus an
@@ -725,13 +717,15 @@ function avesmapsApplyTerritoryClaim(nextClaim) {
 		return;
 	}
 	editorTerritoryClaim = nextClaim;
-	editorTerritoryClaimListeners.forEach((listener) => {
+	// Resolved at CALL time (see the note above avesmapsSetEditorActivity's neighbours): by now
+	// every script is loaded, so this cannot lose the load-order race the registry version did.
+	if (typeof applyPoliticalTerritoryClaim === "function") {
 		try {
-			listener(editorTerritoryClaim);
+			applyPoliticalTerritoryClaim(editorTerritoryClaim);
 		} catch (error) {
-			console.warn("Territorien-Anspruch konnte nicht verarbeitet werden:", error);
+			console.warn("Territorien-Anspruch konnte nicht angewendet werden:", error);
 		}
-	});
+	}
 }
 
 function startEditorPresenceHeartbeat() {

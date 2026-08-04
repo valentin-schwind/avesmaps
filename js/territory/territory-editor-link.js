@@ -598,9 +598,7 @@ window.AvesmapsPoliticalTerritoryEditorLink = {
 };
 
 // --- Territorien-Anspruch: nur einer schreibt --------------------------------------------------
-// The banner/save-button plumbing lives in js/territory/territory-claim-view.js, because the
-// standalone editor page needs the very same code and loads none of this file. Here we only wire
-// it to the presence heartbeat.
-if (typeof avesmapsOnTerritoryClaimChange === "function") {
-	avesmapsOnTerritoryClaimChange(applyPoliticalTerritoryClaim);
-}
+// Nothing to wire here. The banner/save-button plumbing lives in js/territory/territory-claim-view.js
+// (the standalone editor page needs the same code and loads none of this file), and the presence
+// heartbeat calls it directly by name -- deliberately NOT via a subscribe call from here, which
+// would run before review-panels.js is even loaded. See the note in avesmapsApplyTerritoryClaim.
