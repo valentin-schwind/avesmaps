@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 04.08.2026</span>
+		<span class="hb-topbar__meta">Stand: 05.08.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -233,7 +233,7 @@
 					<ul>
 						<li><a href="#kreise" data-keywords="kreis punkt icon symbol grün halb gefüllt leer abdeckung auf der karte legende">Der Kreis neben dem Namen</a></li>
 						<li><a href="#siedlungen" data-keywords="ort orte siedlung siedlungen stadt dorf metropole bauwerk art ortsart wappen bilder nodix ruine ortsgröße ortseditor siedlungseditor zuordnen verschieben ziehen strg offene wegenden ablösen ortsname eindeutig doppelter name klammern lage innerorts außerorts filter ki generiert prompt bild hochladen gemeinfrei">Orte</a></li>
-						<li><a href="#territorien" data-keywords="gebiet herrschaftsgebiet reich grafschaft baronie grenzen hauptstadt zoom gültigkeit schraffur einrasten ring ecke kante gebündelt speichern strg">Territorien</a></li>
+						<li><a href="#territorien" data-keywords="gebiet herrschaftsgebiet reich grafschaft baronie grenzen hauptstadt zoom gültigkeit schraffur einrasten ring ecke kante gebündelt speichern strg schreibrecht gesperrt sperre blockiert erzwingen kontur zielgebiet">Territorien</a></li>
 						<li><a href="#regionen" data-keywords="label beschriftung landschaft kategorie art höhe schritt berggipfel kraftlinie wald gebirge meer vulkan tal label zuweisen regionen bearbeiten vorschau größe rotation priorität darstellung">Regionen</a></li>
 						<li><a href="#kraftlinien" data-keywords="kraftlinie nodix madas haar ader sumus segment verbindet quellen wiki-link">Kraftlinien</a></li>
 						<li><a href="#wege" data-keywords="straße strasse pfad fluss seeweg kreuzung verlauf geometrie strömung transportmittel gangbar gangbarkeit saisonal jahreszeit pass winter routing teilen lage innerorts außerorts filter wege-editor wege bearbeiten höhenprofil wegprofile abschnitte">Wege</a></li>
@@ -253,7 +253,7 @@
 						<li><a href="#status" data-keywords="präsenz aktivität">Status</a>
 							<ul>
 								<li><a href="#status-besucher" data-keywords="statistik dashboard aufrufe zahlen analytics online jetzt live gleichzeitig anwesend">Besucher</a></li>
-								<li><a href="#status-editoren" data-keywords="wer online aktiv präsenz">Online-Status der Editoren</a></li>
+								<li><a href="#status-editoren" data-keywords="wer online aktiv präsenz tätigkeit woran arbeitet gerade schreibrecht erzwingen stern">Online-Status der Editoren</a></li>
 							</ul>
 						</li>
 					</ul>
@@ -597,6 +597,15 @@
 					<figcaption>Das Rechtsklick-Menü eines Gebiets. Je nach Gebiet erscheinen zusätzliche Einträge.</figcaption>
 				</figure>
 
+				<div class="hb-note hb-warn"><strong>An den Territorien arbeitet immer nur einer.</strong> Anders als überall sonst im Editor sind Herrschaftsgebiete <em>einfach vergeben</em>: Wer zuerst da ist, bekommt das Schreibrecht — und behält es, bis er rund drei Minuten lang nichts mehr gemeldet hat. „Zuerst da" gilt dabei über <em>beide</em> Wege: der Territoriumseditor und der Kartenmodus <strong>„Politische Karte"</strong> sind zwei Türen in denselben Raum und teilen sich dasselbe Recht.</div>
+				<p>Bist du der Zweite, ändert sich am <em>Ansehen</em> nichts — du bekommst den ganzen Baum, alle Geometrien und den Verlauf. Nur das Speichern fällt weg, und das sagt dir die Oberfläche an drei Stellen:</p>
+				<ul class="hb-steps">
+					<li>Im <strong>Territoriumseditor</strong> steht oben ein Hinweisband: <em>„… bearbeitet gerade die Territorien (seit 14:20 Uhr). Du kannst alles ansehen, aber nicht speichern."</em> Der Speichern-Knopf ist ausgegraut. Die <strong>Uhrzeit steht bewusst dabei</strong> — an ihr erkennst du, ob dort jemand arbeitet oder nur ein Tab offen liegt.</li>
+					<li>Auf der <strong>politischen Karte</strong> gibt es kein Band; dort antwortet jeder verändernde Eintrag des Rechtsklick-Menüs mit <em>„Bearbeiten blockiert – … ist im politischen Modus."</em>. <strong>„Infobox anzeigen"</strong> bleibt offen.</li>
+					<li>Wird das Recht frei, meldet sich die Karte von selbst: <em>„Die Territorien sind jetzt frei — du kannst speichern."</em></li>
+				</ul>
+				<p>Wer es gerade hält, steht im Reiter <a href="#status">Status</a> → <strong>Editoren</strong>: Hinter seinem Namen sitzt ein <strong>*</strong>. Admins finden dort außerdem <strong>„Bearbeiten erzwingen"</strong> — den Notausgang für den Tab, der niemandem mehr gehört.</p>
+
 				<h4>Grenzen bearbeiten</h4>
 				<p><strong>„Grenzen bearbeiten"</strong> zeigt jede Ecke des Gebiets als Griff. <strong>Ziehen</strong> verschiebt sie, <strong>Doppelklick auf einen Griff</strong> löscht sie.</p>
 				<p>Beim Loslassen passieren zwei Dinge: Der Punkt <strong>rastet ein</strong>, wenn ein <em>Nachbargebiet</em> dort eine Ecke oder Kante hat — und <strong>jedes Nachbargebiet, das genau diesen Punkt teilt, wird mitgezogen und mitgespeichert</strong>. So bleiben aneinandergrenzende Gebiete lückenlos, ohne dass du jede Grenze zweimal ziehst.</p>
@@ -614,7 +623,7 @@
 				<div class="hb-note hb-tip"><strong>Abgeleitete Außengrenzen ziehen nie mit.</strong> Sie sind berechnet, nicht gezeichnet, und kommen über <strong>„Grenzen berechnen"</strong> nach.</div>
 
 				<h4>Die Formwerkzeuge</h4>
-				<p>Alle vier arbeiten gleich: Du startest sie auf dem Gebiet, das du angeklickt hast, dann wählst du ein <strong>Zielgebiet</strong> — oben erscheint dazu der Hinweis <em>„Zielgebiet anklicken."</em>. Was danach passiert, unterscheidet sich in einem Punkt, den man den Namen nicht ansieht:</p>
+				<p>Alle vier arbeiten gleich: Du startest sie auf dem Gebiet, das du angeklickt hast, dann wählst du ein <strong>Zielgebiet</strong> — oben erscheint dazu der Hinweis <em>„Kontur des Zielgebiets anklicken."</em>. Was danach passiert, unterscheidet sich in einem Punkt, den man den Namen nicht ansieht:</p>
 				<table class="hb-table">
 					<tr><th>Werkzeug</th><th>Dein Gebiet bekommt …</th><th>Das Zielgebiet</th></tr>
 					<tr><td><strong>Mit anderem vereinigen</strong></td><td>beide Flächen zusammen</td><td><strong>wird aufgezehrt</strong></td></tr>
@@ -622,6 +631,7 @@
 					<tr><td><strong>Von anderem ausschneiden und anderes beibehalten</strong></td><td>dasselbe</td><td>bleibt stehen</td></tr>
 					<tr><td><strong>Neues von anderem ausschneiden</strong></td><td>nur die <em>Überlappung</em> beider</td><td>bleibt stehen</td></tr>
 				</table>
+				<div class="hb-note hb-tip"><strong>Beim Zielgebiet zählt der Rand, nicht die Fläche.</strong> Solange eine der vier Operationen auf ihr Ziel wartet, nimmt nur noch die <em>Kontur</em> eines Gebiets den Klick an — die Ränder werden dafür sichtbar dicker, das ist der Hinweis darauf. Dein Ausgangsgebiet ist ganz aus dem Spiel und lässt sich gar nicht mehr treffen. Der Grund: Lag es <em>über</em> dem gewünschten Ziel, fing früher seine eigene Fläche jeden Klick ab, und an das Gebiet darunter kam man mit der Maus nicht heran. Bei <strong>Verschieben</strong> und <strong>Gebiet zerschneiden</strong> gilt das nicht — die brauchen die Fläche.</div>
 				<div class="hb-note hb-warn"><strong>Die ersten beiden verbrauchen das Gebiet, das du anklickst.</strong> Hat es keine Fläche mehr übrig, ist es weg. Der lange Name „…&nbsp;und anderes beibehalten" ist genau dafür da — er ist nicht die umständliche Variante, sondern die vorsichtige. Im Zweifel nimm sie: Was zu viel stehen bleibt, kannst du danach immer noch löschen; was verbraucht wurde, holst du nur über den Reiter <a href="#aenderungen">Änderungen</a> zurück.</div>
 
 				<h4>Im Territoriumseditor</h4>
@@ -1075,6 +1085,8 @@
 
 				<h4 id="status-editoren" class="hb-sub">Online-Status der Editoren</h4>
 				<p>Wer gerade angemeldet und aktiv ist, dazu die Aktivität der letzten sieben Tage. Praktisch, bevor du an etwas Größerem anfängst: Wenn jemand anders gerade in derselben Ecke arbeitet, stimmt euch kurz ab.</p>
+				<p><strong>Bei jedem, der online ist, steht dabei, woran er gerade sitzt</strong> — der Editor oder Kartenmodus, in dem er steckt, und wo möglich das Objekt dazu: <em>„Territorien: Fürstentum Kosch"</em>, <em>„Wege"</em>, <em>„Standardkarte"</em>. Gemeldet wird jede Fläche, auf der gearbeitet wird, auch die schlichte Standardkarte — dort entstehen die meisten Orte und Wege. Ein <strong>*</strong> hinter einem Namen heißt: Diese Person hält gerade das Schreibrecht für die <a href="#territorien">Territorien</a>, und nur ihre Speicherungen gehen durch.</p>
+				<div class="hb-note hb-tip"><strong>Admins sehen hier „Bearbeiten erzwingen"</strong> — aber nur, solange jemand <em>anderes</em> das Territorien-Schreibrecht hält. Der Knopf holt es herüber; der andere kann dann nicht mehr speichern. Gedacht ist er für den offenen Tab, der niemandem mehr gehört, nicht für den Alltag — sprecht euch vorher ab.</div>
 			</section>
 
 			<!-- ============================= 4. VERSTEHEN ============================= -->
@@ -1248,6 +1260,7 @@
 
 				<h3 id="n-haekchen" class="hb-sub">Die Prüf-Häkchen</h3>
 				<p>Nur im Bearbeiten-Modus, unten bei den Kartenoptionen. Sie ändern nichts — sie zeigen nur.</p>
+				<p>Sie stehen in <strong>zwei Gruppen</strong>, und der Unterschied ist der Blick: Die obere Reihe sagt, was die Karte <em>zeigt</em>. Darunter, hinter einem Trenner mit der Überschrift <strong>„Prüfen"</strong> und in zwei Spalten, stehen die, die zeigen, was an der Karte <em>nicht stimmt</em>.</p>
 				<table class="hb-table">
 					<tr><th>Häkchen</th><th>Zeigt</th></tr>
 					<tr><td><strong>Wege</strong> / <strong>Flüsse</strong> / <strong>Seewege</strong></td><td>Die Linien der jeweiligen Sorte.</td></tr>
@@ -1257,6 +1270,7 @@
 					<tr><td><strong>Unverbunden</strong></td><td><em>Pinker Ring:</em> Ort oder Kreuzung ohne Anschluss ans Wegenetz (Regel 5).</td></tr>
 					<tr><td><strong>Kreuzungen ≤ 2 Wege</strong></td><td><em>Türkiser Ring:</em> Kreuzung, die nichts verbindet (Regel 2).</td></tr>
 					<tr><td><strong>Nodices</strong></td><td>Als Nodix markierte Objekte.</td></tr>
+					<tr><td><strong>nur Labels mit Region</strong></td><td>Blendet alle Beschriftungen aus, an denen <em>keine</em> Landschaftsfläche hängt — was stehen bleibt, ist die Restliste zum Nacharbeiten. Steht nur da, wenn die Landschaften-Ebene eingeschaltet ist.</td></tr>
 					<tr><td><strong>Mapstil</strong></td><td>Kein Häkchen, sondern eine Auswahl: Stylized · Original · Politics.</td></tr>
 				</table>
 				<p>Trägt ein Marker beide Fehler, gewinnt der pinke Ring — es wird immer nur einer gezeigt.</p>
