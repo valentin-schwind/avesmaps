@@ -1444,12 +1444,32 @@
 /* Der Marker sitzt EXAKT auf der Westkante (x = 0) -- dort hat das Band genau zwei Ringecken, deren
    Mitte die Bandmitte ist, und das rechnet sich ohne Schätzung. Der Abstand zum Kartenrand ist deshalb
    ein PIXELmaß hier und keine Karteneinheit: er soll beim Zoomen gleich bleiben. */
+/* 🔴 DIE SCHRIFT IST DIE DER KARTEN-LABELS (Owner 2026-08-04: „die schrift der klimazonen denen der
+   anderen labels anpassen"). Drei Werte spiegeln `.map-label span` in css/features/map-labels.css:
+   Gewicht 400, Sperrung 0.02em, Zeilenhöhe 1.
+
+   💣 VOR ALLEM NICHT MEHR FETT. Die Hausschrift „Faculty Glyphic" liefert nur Regular -- 700 lässt den
+   Browser synthetisch fetten, und genau das rendert ausgefranst (Begründung an der Sperre in
+   css/base/base.css). Ein Zonenname stand damit als einziger Text auf der Karte in einem Schnitt, den
+   es gar nicht gibt.
+
+   Die Werte stehen hier als Zahlen und nicht als Token, weil map-labels.css sie ebenso hält: es gibt
+   für Sperrung und Zeilenhöhe der Karten-Schrift keinen -- wer einen anlegt, zieht BEIDE Stellen mit.
+
+   Die GRÖSSE bleibt fest, anders als bei einem Karten-Label: der Zonenname gehört der Ebene und nicht
+   der Karte, er soll beim Zoomen also nicht mitwachsen. `--font-size-subhead` ist die Sprosse, die
+   einem Regionslabel bei mittlerem Zoom am nächsten kommt.
+
+   Die FARBE bleibt der dunkle Klima-Ton: die Karten-Labels sind cremefarben mit dunklem Schatten, weil
+   sie auf der Karte liegen -- dieser hier liegt auf einem blassen Band, wo hell verschwinden würde. */
 .ecosystem-climate-name {
 	pointer-events: none;
 	white-space: nowrap;
 	padding-left: var(--space-12);
-	font-size: var(--font-size-small);
-	font-weight: var(--font-weight-bold);
+	font-size: var(--font-size-subhead);
+	font-weight: var(--font-weight-regular);
+	letter-spacing: 0.02em;
+	line-height: 1;
 	color: var(--color-ecosystem-klima-label);
 }
 
