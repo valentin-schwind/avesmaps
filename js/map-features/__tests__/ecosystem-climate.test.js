@@ -187,6 +187,40 @@ assert(!context.shouldHighlightClimateArea(klimaband("r-wald", "vegetation"), "r
 assert(!context.shouldHighlightClimateArea(null, "r-gemaessigt"), "keine Fläche, kein Leuchten");
 assert(!context.shouldHighlightClimateArea(klimaband(""), ""), "und eine Fläche ohne Region auch nicht");
 
+// ---- angeklickt und überfahren sind ZWEI Zustände ---------------------------------------------------
+// 🔴 Der überfahrene ist geliehen: er gewinnt, solange die Maus liegt, und gibt danach an den
+// angeklickten zurück. Mit einer einzigen Variablen ginge der angeklickte beim ersten Zeigen auf einen
+// fremden Namen verloren, und das Loslassen liesse die Karte leer zurück -- der Fall, den man beim
+// Bauen nicht sieht, weil man immer nur EINEN Namen anfasst.
+context.setHighlightedClimateRegion("");
+assert(context.effectiveClimateRegionId() === "", "am Anfang leuchtet nichts");
+
+context.setHoveredClimateRegion("r-boreal");
+assert(context.effectiveClimateRegionId() === "r-boreal", "Überfahren allein lässt die Zone leuchten");
+context.setHoveredClimateRegion("");
+assert(context.effectiveClimateRegionId() === "", "und Loslassen nimmt es wieder zurück");
+
+context.setHighlightedClimateRegion("r-gemaessigt");
+assert(context.effectiveClimateRegionId() === "r-gemaessigt", "ein Klick bleibt stehen");
+context.setHoveredClimateRegion("r-tropisch");
+assert(context.effectiveClimateRegionId() === "r-tropisch", "der überfahrene übernimmt die Vorschau");
+context.setHoveredClimateRegion("");
+assert(context.effectiveClimateRegionId() === "r-gemaessigt",
+	"🔴 und danach steht der ANGEKLICKTE wieder da -- er war nie weg");
+
+// Ein Klick beendet die Vorschau, auch wenn die Maus noch auf dem Namen liegt.
+context.setHoveredClimateRegion("r-tropisch");
+context.setHighlightedClimateRegion("r-tropisch");
+context.setHoveredClimateRegion("");
+assert(context.effectiveClimateRegionId() === "r-tropisch",
+	"nach dem Klick auf denselben Namen bleibt er stehen, wenn die Maus geht");
+
+// Ein Klick woanders hin löscht beides -- sonst käme die alte Zone beim nächsten Verlassen zurück.
+context.setHoveredClimateRegion("r-boreal");
+context.setHighlightedClimateRegion("");
+context.setHoveredClimateRegion("");
+assert(context.effectiveClimateRegionId() === "", "ein Klick woanders hin räumt beide Zustände");
+
 if (failures > 0) {
 	console.error(`ecosystem-climate.test: ${failures} failure(s)`);
 	process.exit(1);

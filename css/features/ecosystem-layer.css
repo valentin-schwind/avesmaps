@@ -1497,6 +1497,28 @@
 	letter-spacing: 0.02em;
 	line-height: 1;
 	color: var(--color-ecosystem-klima-label);
+	/* Der helle Saum (Owner 2026-08-04). Dreimal derselbe Schatten statt eines breiten: gestapelte
+	   Schatten decken einander und ergeben eine gleichmässige Kontur, ein einzelner weicher wird an den
+	   Buchstabenspitzen dünn. Dieselbe Bauart wie der dunkle Saum der Karten-Labels, nur andersherum --
+	   dort helle Schrift auf der Karte, hier dunkle auf einem hellen Band. */
+	text-shadow:
+		0 0 3px var(--color-ecosystem-klima-label-halo),
+		0 0 3px var(--color-ecosystem-klima-label-halo),
+		0 0 3px var(--color-ecosystem-klima-label-halo);
+	transition: text-shadow 120ms ease-out;
+}
+
+/* 🔴 „dass man sieht, dass man es anklicken kann" (Owner 2026-08-04). Der Saum wird dichter und weiter,
+   der Name hebt sich vom Band ab. Bewusst KEINE Unterstreichung und keine andere Farbe: das eine sagt
+   „Link" (das ist es nicht, es führt nirgendwo hin), das andere hiesse, den einen neutralen Ton der
+   Ebene aufzugeben. Die eigentliche Antwort gibt ohnehin das Band selbst -- es leuchtet beim Überfahren
+   genauso auf wie beim Klick (setHoveredClimateRegion in map-features-ecosystem-climate.js). */
+.ecosystem-climate-name:hover {
+	text-shadow:
+		0 0 3px var(--color-ecosystem-klima-label-halo),
+		0 0 3px var(--color-ecosystem-klima-label-halo),
+		0 0 6px var(--color-ecosystem-klima-label-halo),
+		0 0 10px var(--color-ecosystem-klima-label-halo);
 }
 
 /* Dieselbe Beschriftung an der OSTkante (Owner 2026-08-03). Der Marker sitzt auf x = 1024, der Text

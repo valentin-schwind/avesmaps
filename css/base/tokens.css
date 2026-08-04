@@ -257,6 +257,12 @@
 	   Auskunft dieser Ebene, und die darf ihre Farbe nicht je Zone wechseln. */
 	--color-ecosystem-klima-divider: #2b3138;
 	--color-ecosystem-klima-label: #33302b;
+	/* Die helle Kontur hinter dem Zonennamen (Owner 2026-08-04). Der Name ist dunkel und sitzt auf
+	   sieben verschiedenen Bändern -- über der Polaren Zone auf fast Weiss, über der Tropischen auf
+	   kräftigem Ocker. Ein heller Saum trennt ihn von beidem, ohne dass es je Zone einen Ton bräuchte:
+	   dieselbe Begründung wie beim dunklen Schatten der Karten-Labels, nur seitenverkehrt.
+	   Halbtransparent, damit er ein Saum bleibt und kein Kasten. */
+	--color-ecosystem-klima-label-halo: rgba(255, 255, 255, 0.75);
 
 	/* Höhenrampe (V8). Fünf Stufen vom Gebirgsfuss bis zum Firn, aus dem Prototyp
 	   (html/landschaften-modell.html:589) übernommen -- dort standen sie als rohe RGB-Tripel im Code,

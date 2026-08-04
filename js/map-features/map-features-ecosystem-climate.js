@@ -191,7 +191,19 @@ function climateNeighbourCoordinates(dividerIndex, offset) {
 //
 // Gemerkt wird die REGION, nicht die Fläche: eine Zone hat heute genau eine Fläche, aber die Zone ist
 // das, was der Name meint. Käme je eine zweite Fläche dazu, leuchtete die Zone weiter als Ganzes.
-let highlightedClimateRegionId = "";
+//
+// 🔴 ZWEI ZUSTÄNDE, NICHT EINER (Owner 2026-08-04: „wenn mans hovert sollen auch die Klimazonen
+// leuchten"). Der angeklickte bleibt, der überfahrene ist geliehen -- und beim Verlassen muss der
+// angeklickte wieder hervorkommen. Mit einer einzigen Variablen ginge er beim ersten Mauszeiger über
+// einen fremden Namen verloren, und das Loslassen liesse die Karte leer zurück.
+let clickedClimateRegionId = "";
+let hoveredClimateRegionId = "";
+
+// Der überfahrene gewinnt, solange die Maus liegt -- das ist die Vorschau. Danach fällt es auf den
+// angeklickten zurück.
+function effectiveClimateRegionId() {
+	return hoveredClimateRegionId || clickedClimateRegionId;
+}
 
 // PUR (und deshalb prüfbar): gehört diese Fläche zur hervorgehobenen Zone?
 function shouldHighlightClimateArea(area, regionPublicId) {
@@ -212,7 +224,7 @@ function applyClimateHighlightClass(layer) {
 	}
 	element.classList.toggle(
 		"ecosystem-climate-area--highlight",
-		shouldHighlightClimateArea(layer._ecosystemArea, highlightedClimateRegionId)
+		shouldHighlightClimateArea(layer._ecosystemArea, effectiveClimateRegionId())
 	);
 }
 
@@ -223,13 +235,30 @@ function applyClimateHighlight() {
 	ecosystemLayers.forEach(applyClimateHighlightClass);
 }
 
-function setHighlightedClimateRegion(regionPublicId) {
-	const next = String(regionPublicId || "");
-	if (next === highlightedClimateRegionId) {
-		return;
+// Beide Setzer gehen durch denselben Trichter: erst den Zustand ändern, dann prüfen, ob sich die
+// WIRKUNG überhaupt geändert hat. Ein Mauszeiger, der über den angeklickten Namen fährt, ändert den
+// Zustand -- aber nichts am Bild, und dann wird auch nichts neu gezeichnet.
+function updateClimateHighlight(change) {
+	const vorher = effectiveClimateRegionId();
+	change();
+	if (effectiveClimateRegionId() !== vorher) {
+		applyClimateHighlight();
 	}
-	highlightedClimateRegionId = next;
-	applyClimateHighlight();
+}
+
+function setHighlightedClimateRegion(regionPublicId) {
+	updateClimateHighlight(() => {
+		clickedClimateRegionId = String(regionPublicId || "");
+		// Ein Klick beendet die Vorschau: von hier an gilt, was angeklickt wurde. Ohne das bliebe der
+		// geliehene Zustand liegen und überstimmte beim nächsten Zeichnen die frische Wahl.
+		hoveredClimateRegionId = "";
+	});
+}
+
+function setHoveredClimateRegion(regionPublicId) {
+	updateClimateHighlight(() => {
+		hoveredClimateRegionId = String(regionPublicId || "");
+	});
 }
 
 // 💣 EIN Zuhörer, im DOKUMENT und in der EINFANGPHASE. Nicht `map.on("click")`: der feuert nicht, wenn
@@ -420,6 +449,13 @@ function drawClimateZoneNames() {
 				}
 				setHighlightedClimateRegion(regionPublicId);
 			});
+			// Überfahren zeigt dasselbe wie ein Klick, nur geliehen (Owner 2026-08-04). Das ist der
+			// eigentliche „man kann hier klicken"-Hinweis: das Band selbst antwortet.
+			// 🪤 `mouseout`, nicht `mouseleave`: Leaflet reicht nur das erste als Ereignis der Ebene
+			// durch. Der Name hat keine verschachtelten Kinder ausser seinem einen <span>, deshalb kostet
+			// der Unterschied hier nichts.
+			marker.on("mouseover", () => setHoveredClimateRegion(regionPublicId));
+			marker.on("mouseout", () => setHoveredClimateRegion(""));
 			climateNameLayers.push(marker);
 		});
 	});
