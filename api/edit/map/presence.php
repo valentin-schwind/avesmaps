@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../../_internal/auth.php';
 require __DIR__ . '/../../_internal/analytics/visitor-analytics.php';
-require __DIR__ . '/../../_internal/map/editor-activity.php';
+require_once __DIR__ . '/../../_internal/map/editor-activity.php';
 
 const AVESMAPS_EDITOR_PRESENCE_ONLINE_SECONDS = 90;
 
@@ -113,32 +113,10 @@ function avesmapsReadVisitorPresence(PDO $pdo): ?array {
     }
 }
 
-// True when the exception means "the table does not exist yet" -- across MySQL (SQLSTATE 42S02 / "doesn't
-// exist" / "base table or view not found") and SQLite ("no such table", used by the test harness). Any
-// other error is a real failure and must propagate.
-function avesmapsIsMissingTableError(Throwable $exception): bool
-{
-    if ((string) $exception->getCode() === '42S02') {
-        return true;
-    }
-    $message = strtolower($exception->getMessage());
-    return str_contains($message, "doesn't exist")
-        || str_contains($message, 'base table or view not found')
-        || str_contains($message, 'no such table');
-}
-
-// True when the exception means "the column does not exist yet" -- MySQL SQLSTATE 42S22 / "unknown
-// column". Separate from the missing-table check because the repair is a different one (ALTER TABLE,
-// not CREATE TABLE) and because a live table that predates a retrofit is the normal state right
-// after a deploy, not an error worth a 500.
-function avesmapsIsMissingColumnError(Throwable $exception): bool
-{
-    if ((string) $exception->getCode() === '42S22') {
-        return true;
-    }
-
-    return str_contains(strtolower($exception->getMessage()), 'unknown column');
-}
+// avesmapsIsMissingTableError / avesmapsIsMissingColumnError moved to
+// api/_internal/map/editor-activity.php (required above): the territory write gate needs the same
+// two predicates to stay open while the schema is still being retrofitted, and one definition in a
+// shared library beats two that can drift apart.
 
 function avesmapsEnsureEditorPresenceTable(PDO $pdo): void {
     $pdo->exec(

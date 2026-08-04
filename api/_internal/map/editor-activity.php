@@ -85,16 +85,62 @@ function avesmapsPickEditorAreaClaim(array $rows, int $claimSeconds): ?array
  */
 function avesmapsReadEditorAreaClaim(PDO $pdo, string $area): ?array
 {
-    $statement = $pdo->prepare(
-        'SELECT user_id, username, activity_label,
-                TIMESTAMPDIFF(SECOND, activity_since, NOW(3)) AS seconds_since_activity,
-                TIMESTAMPDIFF(SECOND, last_seen,      NOW(3)) AS seconds_since_seen
-        FROM editor_presence
-        WHERE activity_area = :area'
-    );
-    $statement->execute(['area' => $area]);
+    try {
+        $statement = $pdo->prepare(
+            'SELECT user_id, username, activity_label,
+                    TIMESTAMPDIFF(SECOND, activity_since, NOW(3)) AS seconds_since_activity,
+                    TIMESTAMPDIFF(SECOND, last_seen,      NOW(3)) AS seconds_since_seen
+            FROM editor_presence
+            WHERE activity_area = :area'
+        );
+        $statement->execute(['area' => $area]);
+    } catch (PDOException $exception) {
+        // 💣 FAIL OPEN, and this is not a nicety. The presence table may not exist yet (fresh
+        // install), and the activity columns certainly do not in the seconds between this feature
+        // deploying and the first heartbeat retrofitting them. This function also runs inside the
+        // territory WRITE gate -- so letting the exception escape would turn "the claim is not set
+        // up yet" into a 500 on every single territory save until somebody happened to open the
+        // presence panel. A claim is a protection; a missing protection must never become a block.
+        if (!avesmapsIsMissingTableError($exception) && !avesmapsIsMissingColumnError($exception)) {
+            throw $exception;
+        }
+
+        return null;
+    }
 
     return avesmapsPickEditorAreaClaim($statement->fetchAll(), AVESMAPS_EDITOR_ACTIVITY_CLAIM_SECONDS);
+}
+
+// True when the exception means "the table does not exist yet" -- across MySQL (SQLSTATE 42S02 /
+// "doesn't exist" / "base table or view not found") and SQLite ("no such table", used by test
+// harnesses). Any other error is a real failure and must propagate.
+//
+// These two live here rather than in presence.php because BOTH callers of the claim need them: the
+// presence endpoint to repair the schema, and the territory write gate to stay open while it is
+// still missing.
+function avesmapsIsMissingTableError(Throwable $exception): bool
+{
+    if ((string) $exception->getCode() === '42S02') {
+        return true;
+    }
+    $message = strtolower($exception->getMessage());
+
+    return str_contains($message, "doesn't exist")
+        || str_contains($message, 'base table or view not found')
+        || str_contains($message, 'no such table');
+}
+
+// True when the exception means "the column does not exist yet" -- MySQL SQLSTATE 42S22 / "unknown
+// column". Separate from the missing-table check because the repair is a different one (ALTER
+// TABLE, not CREATE TABLE) and because a live table that predates a retrofit is the normal state
+// right after a deploy, not an error worth a 500.
+function avesmapsIsMissingColumnError(Throwable $exception): bool
+{
+    if ((string) $exception->getCode() === '42S22') {
+        return true;
+    }
+
+    return str_contains(strtolower($exception->getMessage()), 'unknown column');
 }
 
 /**

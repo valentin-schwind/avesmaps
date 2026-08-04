@@ -24,6 +24,7 @@ require_once __DIR__ . '/territories-debug.php';
 require_once __DIR__ . '/territories-geometry-inventory.php';
 require_once __DIR__ . '/territories-claims.php';
 require_once __DIR__ . '/../app/coat-display.php';
+require_once __DIR__ . '/../map/editor-activity.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -176,6 +177,27 @@ try {
     }
 
     $user = avesmapsRequireUserWithCapability('edit');
+
+    // One gate for all 30 write actions below. It sits BEFORE the match on purpose: a new action
+    // added to that list cannot forget the check, because there is nothing to remember. The
+    // territory tree is one connected thing -- a save propagates onto parents and siblings -- so
+    // per-object locking (map_feature_locks) does not protect it.
+    //
+    // Asymmetric by design: only a claim held by SOMEONE ELSE blocks. When nobody holds the area,
+    // everybody may write, so a client that fails to report its activity loses its protection but
+    // never its ability to work. The claim itself is derived from editor_presence, so it releases
+    // itself when a browser dies -- see api/_internal/map/editor-activity.php.
+    //
+    // Reads are untouched: every GET action returns above line 174, so the second editor keeps the
+    // whole tree, the geometries and the audit, and loses only saving.
+    $territoryBlocker = avesmapsBlockingEditorAreaClaim($pdo, 'territories', $user);
+    if ($territoryBlocker !== null) {
+        avesmapsErrorResponse(409, 'territory_locked', sprintf(
+            '%s bearbeitet gerade die Herrschaftsgebiete. Deine Aenderung wurde nicht gespeichert.',
+            (string) $territoryBlocker['username']
+        ));
+    }
+
     $payload = avesmapsReadJsonRequest();
     $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? ''), 80);
     $response = match ($action) {

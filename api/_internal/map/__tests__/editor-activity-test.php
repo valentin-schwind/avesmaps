@@ -91,4 +91,24 @@ $withUnknown = avesmapsPickEditorAreaClaim([
 ], 180);
 assert($withUnknown['user_id'] === 3, 'a row without a known arrival time never outranks a known one');
 
+// --- the two schema-shape predicates -------------------------------------------------------
+// These decide whether the write gate stays OPEN. Getting them wrong in the "too narrow"
+// direction means every territory save 500s until someone opens the presence panel; getting them
+// wrong in the "too wide" direction means a genuine database fault is silently read as "nobody
+// holds the claim". Both directions are covered.
+assert(avesmapsIsMissingTableError(new PDOException("SQLSTATE[42S02]: Base table or view not found: 1146 Table 'x.editor_presence' doesn't exist")) === true, 'MySQL missing table detected');
+assert(avesmapsIsMissingTableError(new PDOException('SQLSTATE[HY000]: General error: 1 no such table: editor_presence')) === true, 'SQLite missing table detected');
+assert(avesmapsIsMissingColumnError(new PDOException("SQLSTATE[42S22]: Column not found: 1054 Unknown column 'activity_area' in 'where clause'")) === true, 'MySQL missing column detected');
+
+// The state this whole retrofit exists for: table there, columns not yet. It must read as
+// "missing column", NOT as "missing table" -- the repairs differ (ALTER vs CREATE).
+$missingColumn = new PDOException("SQLSTATE[42S22]: Column not found: 1054 Unknown column 'activity_area' in 'where clause'");
+assert(avesmapsIsMissingTableError($missingColumn) === false, 'a missing column is not mistaken for a missing table');
+
+// A real fault must propagate, not be swallowed into "no claim".
+$realFault = new PDOException('SQLSTATE[23000]: Integrity constraint violation');
+assert(avesmapsIsMissingTableError($realFault) === false, 'an unrelated error is not a missing table');
+assert(avesmapsIsMissingColumnError($realFault) === false, 'an unrelated error is not a missing column');
+assert(avesmapsIsMissingColumnError(new PDOException('SQLSTATE[HY000]: MySQL server has gone away')) === false, 'a dead connection is a real failure, not a schema gap');
+
 echo "editor-activity: ALL PASSED\n";
