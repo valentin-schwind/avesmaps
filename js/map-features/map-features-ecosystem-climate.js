@@ -180,129 +180,13 @@ function climateNeighbourCoordinates(dividerIndex, offset) {
 	return neighbour ? neighbour.geometry.coordinates : null;
 }
 
-// ---- Hervorhebung einer Zone -----------------------------------------------------------------------
-// Owner 2026-08-04: ein Klick auf den NAMEN hebt sein Band von der leisen auf eine kräftige Füllung,
-// ein Klick woanders nimmt sie zurück.
-//
-// 🔴 DER NAME IST DAS EINZIGE ZIEL, und das ist keine Bequemlichkeit. Ein Klimaband ist exakt so breit
-// wie die Karte und liegt über allen anderen Ebenen; in „Alle" nimmt es deshalb ausdrücklich KEINE
-// Klicks an (Regel in ecosystem-layer.css), sonst verschluckte es jeden Klick, der einem Wald oder
-// einem See darunter galt. Ein Wort am Kartenrand verschluckt nichts -- deshalb hängt die Geste dort.
-//
-// Gemerkt wird die REGION, nicht die Fläche: eine Zone hat heute genau eine Fläche, aber die Zone ist
-// das, was der Name meint. Käme je eine zweite Fläche dazu, leuchtete die Zone weiter als Ganzes.
-//
-// 🔴 ZWEI ZUSTÄNDE, NICHT EINER (Owner 2026-08-04: „wenn mans hovert sollen auch die Klimazonen
-// leuchten"). Der angeklickte bleibt, der überfahrene ist geliehen -- und beim Verlassen muss der
-// angeklickte wieder hervorkommen. Mit einer einzigen Variablen ginge er beim ersten Mauszeiger über
-// einen fremden Namen verloren, und das Loslassen liesse die Karte leer zurück.
-let clickedClimateRegionId = "";
-let hoveredClimateRegionId = "";
-
-// Der überfahrene gewinnt, solange die Maus liegt -- das ist die Vorschau. Danach fällt es auf den
-// angeklickten zurück.
-function effectiveClimateRegionId() {
-	return hoveredClimateRegionId || clickedClimateRegionId;
-}
-
-// Welche Zone bekommt zusätzlich eine KONTUR? Die angeklickte -- aber nur, solange sie auch leuchtet.
-//
-// 🔴 Damit unterscheiden sich Vorschau und Wahl: Überfahren füllt, Anklicken füllt UND umreisst. Ohne
-// die zweite Bedingung bliebe die Kontur bei einer Zone liegen, die gerade gar nicht leuchtet, sobald
-// die Maus auf einen anderen Namen zeigt -- eine umrandete Fläche ohne Füllung neben einer gefüllten
-// ohne Rand, und keine von beiden sähe nach einer Antwort aus.
-function contouredClimateRegionId() {
-	return effectiveClimateRegionId() === clickedClimateRegionId ? clickedClimateRegionId : "";
-}
-
-// PUR (und deshalb prüfbar): gehört diese Fläche zur hervorgehobenen Zone?
-function shouldHighlightClimateArea(area, regionPublicId) {
-	if (!area || String(area.kind || "") !== "klima" || !regionPublicId) {
-		return false;
-	}
-
-	return String(area.region_public_id || "") === String(regionPublicId);
-}
-
-// Zustand als Klasse am <path>, Werte im CSS -- dieselbe Bauart wie applyEcosystemSelectionClass
-// (map-features-ecosystem-rendering.js). Ein zweiter Satz Zahlen im JavaScript wäre die zweite Wahrheit
-// über dieselbe Deckkraft.
-function applyClimateHighlightClass(layer) {
-	const element = typeof layer?.getElement === "function" ? layer.getElement() : null;
-	if (!element) {
-		return;
-	}
-	const area = layer._ecosystemArea;
-	element.classList.toggle(
-		"ecosystem-climate-area--highlight",
-		shouldHighlightClimateArea(area, effectiveClimateRegionId())
-	);
-	element.classList.toggle(
-		"ecosystem-climate-area--picked",
-		shouldHighlightClimateArea(area, contouredClimateRegionId())
-	);
-}
-
-function applyClimateHighlight() {
-	if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
-		return;
-	}
-	ecosystemLayers.forEach(applyClimateHighlightClass);
-}
-
-// Beide Setzer gehen durch denselben Trichter: erst den Zustand ändern, dann prüfen, ob sich die
-// WIRKUNG überhaupt geändert hat. Ein Mauszeiger, der über den angeklickten Namen fährt, ändert den
-// Zustand -- aber nichts am Bild, und dann wird auch nichts neu gezeichnet.
-// 💣 BEIDE Ableitungen vergleichen, nicht nur die leuchtende. Solange es nur die Füllung gab, genügte
-// effectiveClimateRegionId() -- mit der Kontur nicht mehr, und der Fall sieht harmlos aus: Maus auf den
-// Namen (leuchtet), dann KLICK. Die leuchtende Zone bleibt dabei dieselbe, die Kontur aber müsste
-// dazukommen. Wer nur die eine vergleicht, überspringt genau den Klick, um den es geht -- und die
-// Kontur erscheint erst, wenn die Maus einmal woanders war. Gefunden im Durchlauf, nicht im Kopf.
-function updateClimateHighlight(change) {
-	const vorher = effectiveClimateRegionId() + "|" + contouredClimateRegionId();
-	change();
-	if (effectiveClimateRegionId() + "|" + contouredClimateRegionId() !== vorher) {
-		applyClimateHighlight();
-	}
-}
-
-function setHighlightedClimateRegion(regionPublicId) {
-	updateClimateHighlight(() => {
-		clickedClimateRegionId = String(regionPublicId || "");
-		// Ein Klick beendet die Vorschau: von hier an gilt, was angeklickt wurde. Ohne das bliebe der
-		// geliehene Zustand liegen und überstimmte beim nächsten Zeichnen die frische Wahl.
-		hoveredClimateRegionId = "";
-	});
-}
-
-function setHoveredClimateRegion(regionPublicId) {
-	updateClimateHighlight(() => {
-		hoveredClimateRegionId = String(regionPublicId || "");
-	});
-}
-
-// 💣 EIN Zuhörer, im DOKUMENT und in der EINFANGPHASE. Nicht `map.on("click")`: der feuert nicht, wenn
-// der Klick einen Ort, einen Weg oder ein Popup trifft -- die Hervorhebung bliebe dann stehen, während
-// nebenan eine Infobox aufgeht. In der Einfangphase läuft dieser Zuhörer VOR Leaflets eigenem Handler;
-// trifft der Klick den Namen selbst, hält er sich heraus und der Marker setzt die Zone gleich neu.
-if (typeof document !== "undefined" && !document.__avesmapsClimateHighlightBound) {
-	document.__avesmapsClimateHighlightBound = true;
-	document.addEventListener("click", (event) => {
-		const onName = event.target && typeof event.target.closest === "function"
-			&& event.target.closest(".ecosystem-climate-name");
-		if (!onName) {
-			setHighlightedClimateRegion("");
-		}
-	}, true);
-}
-
 // ---- Zeichnen --------------------------------------------------------------------------------------
 
 function clearClimateOverlay() {
 	// 🪤 Die Hervorhebung sitzt an der FLÄCHE, nicht am Namen -- sie verschwindet also nicht mit den
 	// Namensmarkern. Wer die Ebene wechselt, liesse sonst ein kräftig gefärbtes Band zurück, dessen
 	// Beschriftung weg ist und das niemand mehr loswird.
-	setHighlightedClimateRegion("");
+	setHighlightedEcosystemRegion("");
 	[...climateLineLayers, ...climateHandleLayers, ...climateNameLayers].forEach((layer) => {
 		if (typeof map !== "undefined" && map && map.hasLayer(layer)) {
 			map.removeLayer(layer);
@@ -467,15 +351,15 @@ function drawClimateZoneNames() {
 				if (event && event.originalEvent) {
 					L.DomEvent.stopPropagation(event.originalEvent);
 				}
-				setHighlightedClimateRegion(regionPublicId);
+				setHighlightedEcosystemRegion(regionPublicId);
 			});
 			// Überfahren zeigt dasselbe wie ein Klick, nur geliehen (Owner 2026-08-04). Das ist der
 			// eigentliche „man kann hier klicken"-Hinweis: das Band selbst antwortet.
 			// 🪤 `mouseout`, nicht `mouseleave`: Leaflet reicht nur das erste als Ereignis der Ebene
 			// durch. Der Name hat keine verschachtelten Kinder ausser seinem einen <span>, deshalb kostet
 			// der Unterschied hier nichts.
-			marker.on("mouseover", () => setHoveredClimateRegion(regionPublicId));
-			marker.on("mouseout", () => setHoveredClimateRegion(""));
+			marker.on("mouseover", () => setHoveredEcosystemRegion(regionPublicId));
+			marker.on("mouseout", () => setHoveredEcosystemRegion(""));
 			climateNameLayers.push(marker);
 		});
 	});

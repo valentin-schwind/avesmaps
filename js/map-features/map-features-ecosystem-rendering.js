@@ -202,6 +202,129 @@ function applyEcosystemSelectionClass(layer) {
 	element.classList.toggle("ecosystem-area--selected", layer._ecosystemArea?.public_id === selectedEcosystemAreaPublicId);
 }
 
+// ---- Hervorhebung: welche REGION der Leser gerade meint ---------------------------------------------
+// Owner 2026-08-04, in drei Schritten gewachsen und deshalb hier und nicht im Klima-Modul: erst hob ein
+// Klick auf einen Zonennamen sein Band hervor, dann sollte das Überfahren dasselbe zeigen -- und
+// zuletzt: „ein Klick auf die Labels sollte immer auch die entsprechende Fläche markieren (in allen
+// Landschaftsmodi), ein Klick auf Aventurien soll auch die aventurische Fläche highlighten."
+//
+// 🔴 GEMERKT WIRD DIE REGION, NICHT DIE FLÄCHE UND NICHT DAS LABEL. Eine Region kann mehrere Flächen
+// haben (Fläche↔Label ist 1:N, und die Flächen erst recht) -- gemeint ist immer die Region als Ganzes,
+// und genau die verbindet ein Label mit ihr (properties.ecosystem_region_public_id).
+//
+// 🔴 ZWEI ZUSTÄNDE, NICHT EINER. Der angeklickte bleibt, der überfahrene ist geliehen -- und beim
+// Verlassen muss der angeklickte wieder hervorkommen. Mit einer einzigen Variablen ginge er beim ersten
+// Mauszeiger über einen fremden Namen verloren, und das Loslassen liesse die Karte leer zurück.
+//
+// 🪤 Das ist NICHT dieselbe Sache wie `selectedEcosystemAreaPublicId` darüber. Die Auswahl ist die
+// Arbeitsfläche des Editors (weisse Kontur, Griffe, Ziel der Werkzeuge); die Hervorhebung ist eine
+// Leseauskunft für jeden Besucher. Sie leben nebeneinander und dürfen sich nicht vermischen.
+let clickedEcosystemRegionId = "";
+let hoveredEcosystemRegionId = "";
+
+// Der überfahrene gewinnt, solange die Maus liegt -- das ist die Vorschau. Danach fällt es auf den
+// angeklickten zurück.
+function effectiveEcosystemRegionId() {
+	return hoveredEcosystemRegionId || clickedEcosystemRegionId;
+}
+
+// Welche Region bekommt zusätzlich eine KONTUR? Die angeklickte -- aber nur, solange sie auch leuchtet.
+//
+// 🔴 Damit unterscheiden sich Vorschau und Wahl: Überfahren füllt, Anklicken füllt UND umreisst. Ohne
+// die zweite Bedingung bliebe die Kontur bei einer Fläche liegen, die gerade gar nicht leuchtet, sobald
+// die Maus auf ein anderes Label zeigt -- eine umrandete Fläche ohne Füllung neben einer gefüllten ohne
+// Rand, und keine von beiden sähe nach einer Antwort aus.
+function contouredEcosystemRegionId() {
+	return effectiveEcosystemRegionId() === clickedEcosystemRegionId ? clickedEcosystemRegionId : "";
+}
+
+// PUR (und deshalb prüfbar): gehört diese Fläche zur hervorgehobenen Region?
+function shouldHighlightEcosystemArea(area, regionPublicId) {
+	if (!area || !regionPublicId) {
+		return false;
+	}
+
+	return String(area.region_public_id || "") === String(regionPublicId);
+}
+
+// Zustand als Klasse am <path>, Werte im CSS -- dieselbe Bauart wie applyEcosystemSelectionClass. Ein
+// zweiter Satz Zahlen im JavaScript wäre die zweite Wahrheit über dieselbe Deckkraft.
+function applyEcosystemHighlightClass(layer) {
+	const element = typeof layer?.getElement === "function" ? layer.getElement() : null;
+	if (!element) {
+		return;
+	}
+	const area = layer._ecosystemArea;
+	element.classList.toggle("ecosystem-area--highlight",
+		shouldHighlightEcosystemArea(area, effectiveEcosystemRegionId()));
+	element.classList.toggle("ecosystem-area--picked",
+		shouldHighlightEcosystemArea(area, contouredEcosystemRegionId()));
+}
+
+function applyEcosystemHighlight() {
+	if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+		return;
+	}
+	ecosystemLayers.forEach(applyEcosystemHighlightClass);
+}
+
+// Beide Setzer gehen durch denselben Trichter: erst den Zustand ändern, dann prüfen, ob sich die
+// WIRKUNG überhaupt geändert hat.
+//
+// 💣 BEIDE Ableitungen vergleichen, nicht nur die leuchtende. Solange es nur die Füllung gab, genügte
+// die eine -- mit der Kontur nicht mehr, und der Fall sieht harmlos aus: Maus auf das Label (leuchtet),
+// dann KLICK. Die leuchtende Region bleibt dieselbe, die Kontur aber müsste dazukommen. Wer nur die
+// eine vergleicht, überspringt genau den Klick, um den es geht -- und die Kontur erscheint erst, wenn
+// die Maus einmal woanders war. Gefunden im Durchlauf, nicht im Kopf.
+function updateEcosystemHighlight(change) {
+	const vorher = effectiveEcosystemRegionId() + "|" + contouredEcosystemRegionId();
+	change();
+	if (effectiveEcosystemRegionId() + "|" + contouredEcosystemRegionId() !== vorher) {
+		applyEcosystemHighlight();
+	}
+}
+
+function setHighlightedEcosystemRegion(regionPublicId) {
+	updateEcosystemHighlight(() => {
+		clickedEcosystemRegionId = String(regionPublicId || "");
+		// Ein Klick beendet die Vorschau: von hier an gilt, was angeklickt wurde. Ohne das bliebe der
+		// geliehene Zustand liegen und überstimmte beim nächsten Zeichnen die frische Wahl.
+		hoveredEcosystemRegionId = "";
+	});
+}
+
+function setHoveredEcosystemRegion(regionPublicId) {
+	updateEcosystemHighlight(() => {
+		hoveredEcosystemRegionId = String(regionPublicId || "");
+	});
+}
+
+// 💣 EIN Zuhörer, im DOKUMENT und in der EINFANGPHASE. Nicht `map.on("click")`: der feuert nicht, wenn
+// der Klick einen Ort, einen Weg oder ein Popup trifft -- die Hervorhebung bliebe dann stehen, während
+// nebenan eine Infobox aufgeht. In der Einfangphase läuft dieser Zuhörer VOR den eigenen Handlern der
+// Ziele; trifft der Klick eines der beiden Ziele selbst, hält er sich heraus und der Marker setzt die
+// Region gleich neu.
+//
+// 🪤 ZWEI Ziele, und beide müssen hier stehen: der Zonenname am Kartenrand und ein Karten-Label, das an
+// einer Fläche hängt. Wer eines vergisst, bekommt ein Aufblitzen -- gesetzt und im selben Wimpernschlag
+// wieder gelöscht.
+//
+// 🔴 Und NUR ein Label mit Fläche (`--has-eco-region`, gesetzt in map-features-labels.js). Stünde hier
+// `.map-label`, liesse ein Klick auf einen beliebigen Ortsnamen die vorige Fläche stehen -- der Nutzer
+// hat woanders hingeklickt, und es passierte nichts.
+const ECOSYSTEM_HIGHLIGHT_SOURCES = ".ecosystem-climate-name, .map-label--has-eco-region";
+
+if (typeof document !== "undefined" && !document.__avesmapsEcosystemHighlightBound) {
+	document.__avesmapsEcosystemHighlightBound = true;
+	document.addEventListener("click", (event) => {
+		const aufQuelle = event.target && typeof event.target.closest === "function"
+			&& event.target.closest(ECOSYSTEM_HIGHLIGHT_SOURCES);
+		if (!aufQuelle) {
+			setHighlightedEcosystemRegion("");
+		}
+	}, true);
+}
+
 // 🔴 DIE ART STEHT HIER MIT IHRER BEZEICHNUNG, NICHT MIT IHREM SCHLÜSSEL (Owner 2026-07-28). Bis heute
 // stand `region_type` im Zettel -- das ist ein Verbindungsschlüssel (`wald`, `suempfe_moore`) und
 // kleingeschrieben, weil Schlüssel so aussehen. Im Zettel las sich das wie ein Tippfehler. Die

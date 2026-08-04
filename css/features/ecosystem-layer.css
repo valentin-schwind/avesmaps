@@ -1336,7 +1336,19 @@
 
    Nur die Füllung, KEINE Kontur: eine Kontur gehört dem Bearbeiten (Owner 2026-08-03), und daran ändert
    eine Hervorhebung im Frontend nichts. */
-.leaflet-pane.ecosystem-pane--klima.ecosystem-pane--active > svg path.leaflet-interactive.ecosystem-climate-area--highlight {
+.leaflet-pane.ecosystem-pane.ecosystem-pane--active > svg path.leaflet-interactive.ecosystem-area--highlight {
+	fill-opacity: 0.8;
+}
+
+/* 🔴 KLIMA IST DIE LEISE EBENE, und deshalb ein eigener Wert. Ihre Bänder ruhen bei 0,3 (bzw. 0,1 in
+   „Alle"), die gezeichneten Ebenen bei 0,6 -- ein gemeinsamer Wert könnte deshalb nicht beides sein:
+   0,6 wäre bei Vegetation gar kein Sprung, und 0,8 machte ein kartenbreites Klimaband praktisch dicht.
+   Der Sprung ist relativ, die Zahl muss es auch sein.
+
+   🪤 SECHS Klassen, damit sie die fünf der allgemeinen Regel darüber schlägt -- unabhängig davon, wer
+   im Stylesheet zuerst steht. Zwei gleich starke Regeln, die sich über die Reihenfolge einigen, kippen
+   beim nächsten Verschieben eines Blocks. */
+.leaflet-pane.ecosystem-pane.ecosystem-pane--klima.ecosystem-pane--active > svg path.leaflet-interactive.ecosystem-area--highlight {
 	fill-opacity: 0.6;
 }
 
@@ -1357,7 +1369,7 @@
    gestellt: die Grundregel oben setzt `stroke-opacity: 0`. Es genügt deshalb, sie AUFZUDECKEN.
    Wer hier doch einen Ton einträgt, hängt eine zweite Wahrheit über die Zonenfarbe daneben -- und die
    driftet beim nächsten Farbwechsel. */
-.leaflet-pane.ecosystem-pane--klima.ecosystem-pane--active > svg path.leaflet-interactive.ecosystem-climate-area--picked {
+.leaflet-pane.ecosystem-pane.ecosystem-pane--active > svg path.leaflet-interactive.ecosystem-area--picked {
 	stroke-opacity: 1;
 	stroke-width: 2;
 }

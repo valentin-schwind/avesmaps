@@ -297,7 +297,12 @@ function createLabelIcon(label) {
 		// Das Blassmachen fremder Labels in der Landschaftsebene gehört ins Icon, weil dieses Icon bei
 		// jedem Zoomwechsel neu gebaut wird und dabei das DOM-Element ersetzt (siehe
 		// map-features-ecosystem-layer-switch.js). Ohne die Landschaftsebene ist der Zusatz leer.
-		className: `map-label map-label--${label.labelType}${labelHasWikiRegion(label) ? " map-label--has-wiki" : ""}${typeof ecosystemLabelMutedClass === "function" ? ecosystemLabelMutedClass(label) : ""}`,
+		// `map-label--has-eco-region`: dieses Label hängt an einer Landschaftsfläche und hebt sie beim
+		// Anklicken hervor. Die Klasse ist nicht Optik, sondern das Erkennungsmerkmal für den Zuhörer,
+		// der die Hervorhebung wieder löscht (ECOSYSTEM_HIGHLIGHT_SOURCES in
+		// map-features-ecosystem-rendering.js) -- ohne sie müsste er JEDES Label verschonen, und ein Klick
+		// auf einen Ortsnamen liesse die alte Fläche stehen.
+		className: `map-label map-label--${label.labelType}${labelHasWikiRegion(label) ? " map-label--has-wiki" : ""}${label.ecosystemRegionPublicId ? " map-label--has-eco-region" : ""}${typeof ecosystemLabelMutedClass === "function" ? ecosystemLabelMutedClass(label) : ""}`,
 		html: `<img src="${image.url}" width="${image.w}" height="${image.h}" style="display:block; transform: translate(calc(-50% + var(--label-offset-x, 0px)), calc(-50% + var(--label-offset-y, 0px))) rotate(${safeRotation}deg);" alt="${escapeHtml(label.text)}">`,
 		iconSize: [0, 0],
 		iconAnchor: [0, 0],
@@ -455,6 +460,24 @@ function createLabelMarkerEntry(label) {
 		pane: "labelsPane",
 	});
 	const entry = { label, marker };
+	// 🔴 Ein Klick auf ein Label hebt die verbundene Fläche hervor (Owner 2026-08-04: „ein Klick auf die
+	// Labels sollte immer auch die entsprechende Fläche markieren, in allen Landschaftsmodi -- ein Klick
+	// auf Aventurien soll auch die aventurische Fläche highlighten").
+	//
+	// 🪤 NUR DORT, WO NICHT BEARBEITET WIRD. Im Editor beantwortet derselbe Klick schon etwas anderes und
+	// Stärkeres: er WÄHLT die Fläche aus (weisse Kontur, Griffe, Ziel der Werkzeuge, siehe unten). Beides
+	// übereinanderzulegen hiesse, eine Fläche mit zwei Konturen zu versehen, die Verschiedenes bedeuten.
+	//
+	// Die Verbindung kommt aus `properties.ecosystem_region_public_id` -- serverseitig aus BEIDEN
+	// gespeicherten Richtungen aufgelöst (api/_internal/app/ecosystem-label-link.php). Ein Label ohne
+	// Fläche trägt sie nicht und bekommt hier folglich nichts.
+	const labelRegionPublicId = String(label.ecosystemRegionPublicId || "");
+	const hebtFlaecheHervor = labelRegionPublicId
+		&& typeof setHighlightedEcosystemRegion === "function"
+		&& !(typeof canOperateEcosystemLayers === "function" && canOperateEcosystemLayers());
+	if (hebtFlaecheHervor) {
+		marker.on("click", () => setHighlightedEcosystemRegion(labelRegionPublicId));
+	}
 	if (IS_EDIT_MODE) {
 		refreshLabelMarkerPopup(entry);
 		// 🔴 Ein Klick auf das Label einer verbundenen Flaeche waehlt AUCH die Flaeche aus (Owner
