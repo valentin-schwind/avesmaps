@@ -84,6 +84,17 @@ mehreren Tagen Proviant liegt bei etwa 30 Meilen; leicht bepackte Einzelwanderer
 Botenreiter mit Pferdewechsel schaffen ~180 Meilen/Tag, eine Eilkutsche auf einer Reichsstraße 120
 (S. 119).
 
+⛔ **Die Wechselstations-Modi werden bewusst NICHT modelliert** (Owner, 2026-08-04). Botenreiter
+und Eilkutsche sind keine durchgehende Reise: wer die Tiere wechselt, wechselt an der Station in
+aller Regel auch den Reiter. Das ist eine **Staffette mehrerer Personen** über Teilstrecken, und
+der Routenplaner rechnet die Reise **einer** Gruppe von A nach B. Beide Zahlen stehen hier als
+Quellenbefund, nicht als Rückstand — sie sind kein Kandidat für ein Reisemittel.
+
+💣 **Und sie sind der Grund, warum „die Kutsche ist zu langsam" immer wieder auftaucht.** Die 120
+der Eilkutsche verlockt dazu, die gewöhnliche Kutsche anzuheben. Sie gilt aber nur *mit*
+Pferdewechsel und nur auf einer Reichsstraße — ohne Wechsel deckelt S. 123 jede Kutsche bei
+×1,25. Siehe §7.1.
+
 ---
 
 ## 3. Die Geländearten-Multiplikatoren (S. 123, Tabelle)
@@ -204,6 +215,25 @@ die Wegtyp-Faktoren 0,8 und 0,4 der Quelle, jeweils halbiert.
 
 **Die Tagesleistungen.** Seit `d9d7ab39` trägt jedes Reisemittel seine eigene Zahl aus S. 123 /
 129 / 131 statt einer gemeinsamen Skalierung — siehe die Tabelle in §7.2.
+
+⭐ **Die Kutsche fährt 50, und das ist die LEICHTE Kutsche** — geprüft an der Primärquelle am
+2026-08-04, nachdem der Verdacht aufkam, wir modellierten eine schwere Handelskutsche. S. 119
+nennt die drei Landfahrzeuge in einem Satz: Ochsenkarren ~25, gewöhnliches Pferdefuhrwerk ~30,
+„eine Reise- oder Postkutsche 50 Meilen". Die 50 gilt also **ausdrücklich der Reisekutsche**.
+
+Die schwere Handelskutsche ist in der Quelle gar keine Kutsche: `Stoerrebrandter` und
+`Steppenschivone` (S. 127) sind „schwerer Transportwagen für Handelsgüter" mit Geschwindigkeit
+*gering bis mittel* — das ist die Tabellenzeile **Fuhrwerk 30**, nicht **Kutsche 50**. Und in der
+qualitativen Skala (S. 127 f.) stehen Postkutsche und herrschaftliche Karosse bei *mittel bis
+hoch*; darüber liegt nur der Streit- und Rennwagen (*hoch bis sehr hoch*), der „Last: keine"
+trägt und kein Reisefahrzeug ist. **Oberhalb der Reisekutsche kennt die GA kein Reisefahrzeug auf
+Rädern.**
+
+⚠️ Dass die Kutsche damit **genauso schnell ist wie der Einzelreiter** (beide 50, dieselbe Tabelle
+S. 123), ist kein Modellierungsfehler, sondern die Quelle. Plausibel ist es auch: Zugpferde
+ziehen Last, ein Reitpferd trägt nur den Reiter. Wer die Kutsche höher setzt, trifft eine eigene
+Entscheidung gegen zwei übereinstimmende Quellenstellen — dieselbe Lage wie bei den 35 der
+berittenen Gruppe (§7.2).
 
 ### 7.2 Was abwich — und was heute dasteht
 
