@@ -31,6 +31,10 @@ function welt({ modus = "ecosystem", recht = false, editor = true, gemerktAlle =
 		getSelectedMapLayerMode: () => modus,
 		IS_ECOSYSTEM_ENABLED: recht,
 		IS_EDIT_MODE: editor,
+		// Steht sonst in js/app/runtime-state.js bzw. weiter oben im Modul; hier nur so viel, dass
+		// getActiveEcosystemLayerKind() eine Antwort geben kann.
+		isKnownEcosystemKind: () => true,
+		activeEcosystemLayerKind: "vegetation",
 	};
 	context.globalThis = context;
 	vm.createContext(context);
@@ -56,9 +60,7 @@ assert(daneben.canOperateEcosystemLayers(),
 const angemeldetImFrontend = welt({ recht: true, editor: false });
 assert(angemeldetImFrontend.isEcosystemLayerModeActive(), "er sieht die Ebene wie jeder andere");
 assert(!angemeldetImFrontend.canOperateEcosystemLayers(),
-	"💣 aber KEIN Bedienfeld auf der oeffentlichen Karte -- egal welches Recht im Hintergrund liegt");
-assert(angemeldetImFrontend.isEcosystemShowAllLayers(),
-	"und deshalb sieht auch er dort Alle, wie jeder andere");
+	"💣 aber KEINE Werkzeuge auf der oeffentlichen Karte -- egal welches Recht im Hintergrund liegt");
 
 const imEditorOhneRecht = welt({ recht: false, editor: true });
 assert(!imEditorOhneRecht.canOperateEcosystemLayers(),
@@ -67,24 +69,78 @@ assert(!imEditorOhneRecht.canOperateEcosystemLayers(),
 const imEditor = welt({ recht: true, editor: true });
 assert(imEditor.canOperateEcosystemLayers(), "erst beides zusammen gibt die Werkzeuge frei");
 
-// ---- „Alle" ist für den Besucher die EINZIGE Ansicht -----------------------------------------------
-// 💣 Erzwungen, nicht gespeichert: ohne das Bedienfeld gaebe es keinen Weg, eine andere Ebene zu waehlen.
-// Ein Besucher, dessen Browser aus einer frueheren Editor-Sitzung „Vegetation" gemerkt hat, saehe sonst
-// eine einzelne Ebene und keine Moeglichkeit, da wieder herauszukommen.
-const besucherMitAltemWert = welt({ recht: false, editor: false, gemerktAlle: "0" });
-assert(besucherMitAltemWert.isEcosystemShowAllLayers(),
-	"💣 der Besucher bekommt IMMER Alle -- auch wenn im Speicher etwas anderes steht");
+// ---- die VORGABE haengt am Recht, die WAHL an niemandem ---------------------------------------------
+// Seit der Besucher die Kacheln bekommt (Owner 2026-08-04), waehlt er selbst. Nur wer noch nie gewaehlt
+// hat, faellt in eine Vorgabe -- und die ist fuer ihn die Uebersicht, fuer den Editor seine Arbeitsebene.
+const besucherOhneWahl = welt({ recht: false, editor: false, gemerktAlle: null });
+assert(besucherOhneWahl.isEcosystemShowAllLayers(),
+	"ohne eigene Wahl sieht der Besucher die Uebersicht");
+const editorOhneWahl = welt({ recht: true, editor: true, gemerktAlle: null });
+assert(!editorOhneWahl.isEcosystemShowAllLayers(),
+	"der Editor faengt dagegen in seiner Arbeitsebene an");
 
+// 🔴 Eine getroffene Wahl schlaegt die Vorgabe -- bei beiden.
+const besucherMitWahl = welt({ recht: false, editor: false, gemerktAlle: "0" });
+assert(!besucherMitWahl.isEcosystemShowAllLayers(),
+	"🔴 der Besucher, der eine Ebene gewaehlt hat, behaelt sie");
 const editorAlle = welt({ recht: true, editor: true, gemerktAlle: "1" });
-assert(editorAlle.isEcosystemShowAllLayers(), "der Editor bekommt, was er zuletzt gewaehlt hat: Alle");
-const editorEine = welt({ recht: true, editor: true, gemerktAlle: "0" });
-assert(!editorEine.isEcosystemShowAllLayers(), "... oder eben seine eine Arbeitsebene");
+assert(editorAlle.isEcosystemShowAllLayers(), "und der Editor, der Alle gewaehlt hat, behaelt Alle");
 
-// Und jede Ebene ist fuer den Besucher sichtbar -- das ist, was „Alle" bedeutet.
-const sichtbar = welt({ recht: false, editor: false });
+// 💣 EIN LEERER SPEICHERWERT IST KEINE WAHL. Waere die Vorgabe wie ein gewaehlter Wert gemerkt, entschiede
+// der Zufall: die Rechteauskunft ist beim ersten Lesen fast immer noch unterwegs, und ein Editor bliebe
+// die ganze Sitzung in Alle haengen, ohne je etwas gewaehlt zu haben.
+const kaputterSpeicher = welt({ recht: true, editor: true, gemerktAlle: "vielleicht" });
+assert(!kaputterSpeicher.isEcosystemShowAllLayers(),
+	"ein unbrauchbarer Speicherwert zaehlt nicht als Wahl");
+
+// Und in „Alle" ist jede Ebene sichtbar -- das ist, was es bedeutet.
+const sichtbar = welt({ recht: false, editor: false, gemerktAlle: null });
 ["derographisch", "vegetation", "topographie", "klima"].forEach((kind) => {
 	assert(sichtbar.isEcosystemKindVisible(kind), `in Alle ist ${kind} sichtbar`);
 });
+// Waehlt er eine, ist auch nur die eine sichtbar.
+const eineEbene = welt({ recht: false, editor: false, gemerktAlle: "0" });
+assert(eineEbene.isEcosystemKindVisible("vegetation"), "die gewaehlte Ebene ist sichtbar");
+assert(!eineEbene.isEcosystemKindVisible("klima"), "die anderen nicht");
+
+// ---- was vom Bedienfeld wer zu sehen bekommt --------------------------------------------------------
+// 🔴 Owner 2026-08-04: „einfach die Toggle-Buttons anzeigen, die wir auch im Edit-Modus sehen." Die
+// Ebenen-Kacheln sind keine Werkzeuge, sondern die Frage „welche Ebene schaue ich an". Der
+// Untergrund-REGLER bleibt dagegen dem Editor -- er ist eine Zeichenhilfe.
+function feldWelt({ recht, editor, modus = "ecosystem" }) {
+	const untergrund = { hidden: false };
+	const felder = { "ecosystem-controls": { hidden: true, querySelector: () => untergrund } };
+	const context = {
+		console,
+		window: { localStorage: { getItem: () => null, setItem: () => {} } },
+		document: {
+			getElementById: (id) => felder[id] || null,
+			querySelectorAll: () => [],
+			addEventListener: () => {},
+		},
+		getSelectedMapLayerMode: () => modus,
+		IS_ECOSYSTEM_ENABLED: recht,
+		IS_EDIT_MODE: editor,
+		isKnownEcosystemKind: () => true,
+		activeEcosystemLayerKind: "vegetation",
+	};
+	context.globalThis = context;
+	vm.createContext(context);
+	vm.runInContext(source, context);
+	context.syncEcosystemControlsVisibility();
+	return { feld: felder["ecosystem-controls"], untergrund };
+}
+
+const beimBesucher = feldWelt({ recht: false, editor: false });
+assert(beimBesucher.feld.hidden === false, "🔴 der Besucher SIEHT die Ebenen-Kacheln");
+assert(beimBesucher.untergrund.hidden === true, "🪤 aber nicht den Untergrund-Regler");
+
+const beimEditor = feldWelt({ recht: true, editor: true });
+assert(beimEditor.feld.hidden === false, "der Editor sieht das Feld");
+assert(beimEditor.untergrund.hidden === false, "und seinen Regler dazu");
+
+const daneben2 = feldWelt({ recht: true, editor: true, modus: "political" });
+assert(daneben2.feld.hidden === true, "ausserhalb des Landschaftsmodus ist das Feld weg");
 
 // ---- der Untergrund: 25 % fuer den Besucher, sein Regler fuer den Editor ----------------------------
 // 💣 Der Besucher bekommt einen FESTEN Wert, nicht den gespeicherten. Der liegt je Browser, und wer

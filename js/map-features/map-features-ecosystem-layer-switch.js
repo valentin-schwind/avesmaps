@@ -131,8 +131,14 @@ function syncEcosystemPaneStates() {
 	// eigenen Fläche. Das Blassmachen ist dagegen ans einzelne Label gewandert (siehe unten).
 	const labelsPane = map.getPane("labelsPane");
 	if (labelsPane) {
+		// 🔴 NUR BEIM BEARBEITEN (Owner 2026-08-04, mit den Kacheln im Frontend). Die Stummschaltung
+		// nimmt den Labels die KLICKS -- ihr Zweck ist, dass ein fremder Name nicht den Klick schluckt,
+		// der dem Polygon darunter galt. Das ist eine Zeichenfrage. Für den Besucher wäre es ein
+		// Schaden: seit er selbst eine Ebene wählen kann, verlöre er in „Vegetation" jeden Klick auf
+		// jedes Label -- die Infobox, das Hervorheben der Fläche, alles.
 		labelsPane.classList.toggle("ecosystem-labels-dimmed",
-			isEcosystemLayerModeActive() && !showAll && activeKind !== "derographisch");
+			isEcosystemLayerModeActive() && canOperateEcosystemLayers()
+			&& !showAll && activeKind !== "derographisch");
 	}
 	syncEcosystemLabelMuting();
 	// V8: das Relief hängt an derselben Frage wie die Panes -- welche Ebene liegt vorn. Es zeichnet sich
@@ -444,24 +450,35 @@ function setEcosystemUndergroundOpacity(percent) {
 // Zweck: Überlappungen sehen. Genau dafür waren die ruhenden Ebenen auf 0 % gesetzt -- das macht das
 // Zeichnen ruhig, verbirgt aber, dass ein Wald über einen See läuft.
 const ECOSYSTEM_SHOW_ALL_STORAGE_KEY = "avesmaps.ecosystem.showAllLayers";
-let ecosystemShowAllLayers = null;   // null = noch nicht aus dem Speicher geholt
+
+// 🔴 SEIT 2026-08-04 WÄHLT AUCH DER BESUCHER (Owner: „einfach die Toggle-Buttons anzeigen, die wir auch
+// im Edit-Modus sehen"). Vorher stand er fest auf „Alle", weil er das Bedienfeld gar nicht bekam.
+//
+// 💣 DREI Zustände, nicht zwei. `undefined` heisst „im Speicher noch nicht nachgesehen", `null` heisst
+// „nachgesehen, und dieser Browser hat noch nie gewählt". Nur der zweite Fall darf in die Vorgabe
+// fallen -- und die hängt am RECHT, das über das Netz kommt. Würde die Vorgabe wie ein gewählter Wert
+// zwischengespeichert, entschiede der Zufall: die Rechteauskunft ist beim ersten Lesen fast immer noch
+// unterwegs, und ein Editor bliebe die ganze Sitzung in „Alle" hängen, ohne je etwas gewählt zu haben.
+let ecosystemShowAllStored;
 
 function isEcosystemShowAllLayers() {
-	// 🔴 Wer die Ebene nicht bedienen darf, sieht IMMER „Alle" -- das ist die Ansicht, die der Owner
-	// freigeschaltet hat, und ohne das Bedienfeld gäbe es auch keinen Weg, eine andere zu wählen. Der
-	// gespeicherte Wert wird dabei nicht angefasst: meldet sich derselbe Browser später als Editor an,
-	// steht seine zuletzt gewählte Ebene wieder da.
-	if (!canOperateEcosystemLayers()) {
-		return true;
-	}
-	if (ecosystemShowAllLayers === null) {
+	if (ecosystemShowAllStored === undefined) {
+		ecosystemShowAllStored = null;
 		try {
-			ecosystemShowAllLayers = window.localStorage?.getItem(ECOSYSTEM_SHOW_ALL_STORAGE_KEY) === "1";
+			const gespeichert = window.localStorage?.getItem(ECOSYSTEM_SHOW_ALL_STORAGE_KEY);
+			if (gespeichert === "1" || gespeichert === "0") {
+				ecosystemShowAllStored = gespeichert === "1";
+			}
 		} catch (error) {
-			ecosystemShowAllLayers = false;
+			// gesperrter Speicher -- dann gilt eben die Vorgabe, und die Wahl überlebt kein Neuladen
 		}
 	}
-	return ecosystemShowAllLayers;
+	if (ecosystemShowAllStored !== null) {
+		return ecosystemShowAllStored;
+	}
+
+	// Ohne eigene Wahl: der Besucher bekommt die Übersicht („Alle"), der Editor seine Arbeitsebene.
+	return !canOperateEcosystemLayers();
 }
 
 // Ist diese Ebene gerade SICHTBAR -- also voll gezeichnet und klickbar, nicht blass und
@@ -474,9 +491,10 @@ function isEcosystemKindVisible(kind) {
 }
 
 function setEcosystemShowAllLayers(on) {
-	ecosystemShowAllLayers = Boolean(on);
+	// Ab hier ist es eine eigene Wahl -- die Vorgabe oben greift für diesen Browser nie wieder.
+	ecosystemShowAllStored = Boolean(on);
 	try {
-		window.localStorage?.setItem(ECOSYSTEM_SHOW_ALL_STORAGE_KEY, ecosystemShowAllLayers ? "1" : "0");
+		window.localStorage?.setItem(ECOSYSTEM_SHOW_ALL_STORAGE_KEY, ecosystemShowAllStored ? "1" : "0");
 	} catch (error) {
 		// gesperrter Speicher -- der Schalter wirkt trotzdem, er überlebt nur kein Neuladen
 	}
@@ -598,11 +616,18 @@ function syncEcosystemControlsVisibility() {
 
 	bindEcosystemLayerSwitch();
 	const shouldShow = isEcosystemLayerModeActive();
-	// 🔴 Das Bedienfeld gehört dem, der die Ebene BEDIENEN darf (Owner 2026-08-04). Der gewöhnliche
-	// Besucher sieht die Landschaften, aber weder die Ebenen-Kacheln noch den Untergrund-Regler --
-	// beides sind Werkzeuge, und er hat nichts damit zu tun.
 	const operable = shouldShow && canOperateEcosystemLayers();
-	controlsElement.hidden = !operable;
+	// 🔴 DIE EBENEN-KACHELN GEHÖREN JEDEM, DER DIE LANDSCHAFTEN ANSIEHT (Owner 2026-08-04: „einfach die
+	// Toggle-Buttons anzeigen, die wir auch im Edit-Modus sehen"). Sie sind keine Werkzeuge, sondern die
+	// Frage „welche Ebene schaue ich an" -- dieselbe Art Auswahl wie der Karten-Umschalter daneben.
+	controlsElement.hidden = !shouldShow;
+	// 🪤 DER UNTERGRUND-REGLER BLEIBT DEM EDITOR. Er ist eine Zeichenhilfe („die gemalte Landschaft soll
+	// die gezogene nicht überstimmen"), und wer ihn bekommt, muss auch etwas zu zeichnen haben. Der
+	// Besucher sieht den ausgeblassten Untergrund trotzdem -- nur mit festem Wert (25 %).
+	const undergroundElement = controlsElement.querySelector(".ecosystem-underground");
+	if (undergroundElement) {
+		undergroundElement.hidden = !operable;
+	}
 
 	// Both effects are restored on the way OUT, before the early return: a half-faded base map or a
 	// dimmed label pane left behind in "Politisch" would read as a broken map, not as a setting.
@@ -623,6 +648,9 @@ function syncEcosystemControlsVisibility() {
 	if (typeof syncEcosystemDoubleClickZoom === "function") {
 		syncEcosystemDoubleClickZoom();
 	}
+	// Die Kacheln zeigen ihren Zustand für JEDEN an, der sie sieht -- sonst wüsste der Besucher nicht,
+	// welche Ebene er gerade betrachtet.
+	syncEcosystemLayerSwitchControls();
 	if (!operable) {
 		// Der gewöhnliche Besucher endet hier: Panes einstellen, fertig. 💣 Vor allem NICHT
 		// syncEcosystemRegionCache -- das liest den fähigkeitsgeschützten Editor-Endpunkt und
@@ -631,7 +659,6 @@ function syncEcosystemControlsVisibility() {
 		return;
 	}
 
-	syncEcosystemLayerSwitchControls();
 	syncEcosystemUndergroundControl();
 	syncEcosystemPaneStates();
 	// V3.0b: the region picker lives in the same box and follows the active kind. Entering the mode
