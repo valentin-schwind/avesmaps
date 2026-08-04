@@ -265,14 +265,22 @@ function bindRouteWaypointHoverPopup(marker, loc, role, geometry) {
 				closeUnlessStillHovered();
 			});
 		}
-		// Bewertungen EINMAL je Box nachladen, nicht bei jedem Hover. Leaflet baut den Inhalt beim
-		// Wiederoeffnen nicht neu (derselbe Container, siehe oben), der geladene Stand bleibt also stehen.
-		// 💣 Ohne dieses Flag kostet jedes Drueberfahren einen Netzabruf -- die Box geht per HOVER auf, nicht
-		// per Klick wie die normale Ortsbox, und auf STRATO ist das die teuerste Art, nichts Neues zu erfahren.
-		if (element && !element._routeReviewsHydrated && typeof hydrateLocationReviews === "function") {
-			const reviewsSlot = element.querySelector(".location-reviews");
-			if (reviewsSlot) {
-				element._routeReviewsHydrated = true;
+		// Bewertungszeile fuellen.
+		//
+		// 💣 Leaflet setzt den Inhalt bei JEDEM Oeffnen neu aus dem gespeicherten Content-String
+		// (Popup._updateContent -> _contentNode.innerHTML = content). Der Container ueberlebt zwar, sein
+		// INHALT nicht -- und damit auch nicht das Nachgeladene. Ein "einmal je Element"-Flag greift deshalb
+		// daneben: es ueberlebt, der Stand nicht, und ab dem ZWEITEN Oeffnen bleibt die Zeile leer. Genau so
+		// am 2026-08-04 ausgeliefert und vom Owner gemeldet. Massgeblich ist der DOM-Zustand, nie ein Flag.
+		//
+		// Der geladene Stand wird beim Schliessen gesichert (popup.on("remove") unten) und hier wieder
+		// eingesetzt -> genau EIN Netzabruf je Wegpunkt, obwohl die Box per HOVER aufgeht und nicht per
+		// Klick wie die normale Ortsbox. Ohne diese Sicherung kostete jedes Drueberfahren einen Abruf.
+		const reviewsSlot = element ? element.querySelector(".location-reviews") : null;
+		if (reviewsSlot && !reviewsSlot.firstChild) {
+			if (marker._routeReviewsHtml) {
+				reviewsSlot.innerHTML = marker._routeReviewsHtml;
+			} else if (typeof hydrateLocationReviews === "function") {
 				hydrateLocationReviews(reviewsSlot);
 			}
 		}
@@ -312,6 +320,18 @@ function bindRouteWaypointHoverPopup(marker, loc, role, geometry) {
 		marker._routePopupPinned = false;
 		isOverPopup = false;
 		cancelClose();
+		// Den geladenen Bewertungsstand sichern, BEVOR das naechste Oeffnen ihn ueberschreibt (siehe oben).
+		// Hier haengt der Container noch am Popup und traegt seinen Inhalt unveraendert -- gemessen, nicht
+		// vermutet. Steht dort noch der Ladehinweis, wird NICHTS gesichert: sonst friert "Bewertungen werden
+		// geladen …" fuer immer ein. Der laufende Abruf schreibt dann in den verwaisten Knoten (wirkungslos),
+		// und das naechste Oeffnen laedt sauber neu.
+		// (Der gesicherte String ist genau das Markup, das hydrateLocationReviews eben selbst gebaut und
+		// escaped hat -- er wird gelesen und unveraendert zurueckgelegt, nichts Fremdes kommt dazu.)
+		const openElement = typeof popup.getElement === "function" ? popup.getElement() : null;
+		const openSlot = openElement ? openElement.querySelector(".location-reviews") : null;
+		if (openSlot && openSlot.firstChild && !openSlot.querySelector(".location-reviews__loading")) {
+			marker._routeReviewsHtml = openSlot.innerHTML;
+		}
 	});
 }
 
