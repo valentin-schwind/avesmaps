@@ -90,52 +90,87 @@
 	content: " ↗";
 }
 
-/* Discord- und Changelog-Aufruf lesen sich als eigene Karte, nicht als Fliesstext -- und als PAAR:
-   "mitreden" und "nachlesen" stehen direkt untereinander, in derselben Bauart. Deshalb eine
-   gemeinsame Regel statt zweier gleichlautender: eine dritte Karte kaeme sonst irgendwann leicht
-   anders heraus. */
-.legal-dialog__content p.legal-dialog__discord,
-.legal-dialog__content p.legal-dialog__changelog {
+/* Die beiden Aufrufe "mitreden" (Discord) und "nachlesen" (Aenderungsverlauf) sind Aktionskacheln,
+   kein Fliesstext: Rahmen, Titel, ein Satz, ein Knopf -- und als PAAR nebeneinander. Deshalb eine
+   gemeinsame Regel statt zweier gleichlautender: eine dritte Kachel kaeme sonst irgendwann leicht
+   anders heraus.
+   💣 Bis 2026-08-04 waren es zwei Absaetze mit `flex-wrap`, und die TEXTLAENGE entschied ueber das
+   Aussehen: die Discord-Zeile war EINEN Pixel zu breit (618 gegen 617 Platz) und brach dreizeilig,
+   die andere zweizeilig -- gleiches Markup, verschiedenes Bild. Hier haelt `flex: 1` auf dem Satz
+   den Knopf unten, und das Raster streckt beide Kacheln auf dieselbe Hoehe. Die Gleichheit ist
+   damit Bauart statt Zufall und ueberlebt jede Textaenderung, auch die englische Fassung. */
+.legal-dialog__content .legal-dialog__actions {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 10px;
+	margin: 0 0 18px;
+}
+
+.legal-dialog__content .legal-action {
 	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 4px 8px;
-	margin: 0 0 18px 0;
-	padding: 10px 12px;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
+	padding: 12px 14px 13px;
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
 	background: var(--color-panel-soft);
-	color: var(--color-text);
 }
 
-/* Die zweite Karte rueckt an die erste heran: 18px Abstand haetten zwei Kaesten ergeben, 6px
-   ergeben ein Paar. Der Abstand NACH UNTEN (zur ersten Ueberschrift) bleibt der volle. */
-.legal-dialog__content p.legal-dialog__discord + p.legal-dialog__changelog {
-	margin-top: -12px;
-}
-
-.legal-dialog__content p.legal-dialog__discord > strong:first-child,
-.legal-dialog__content p.legal-dialog__changelog > strong:first-child {
+.legal-dialog__content .legal-action__title {
+	margin: 0;
 	color: var(--color-accent-strong);
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.2;
 }
 
-/* Der Verlauf liegt auf DIESER Seite -- also ein Knopf, der wie ein Link aussieht, und kein <a>:
-   ein <a target="_blank"> bekaeme aus der Regel oben das nachgestellte ↗, das externen Zielen
-   vorbehalten ist, und ein <a href="#"> haengte einen toten Anker in die Adresszeile. */
-.legal-dialog__content .legal-dialog__changelog-open {
-	border: 0;
-	padding: 0;
-	background: none;
-	color: var(--color-link);
+/* `flex: 1` ist tragend: der Satz nimmt die Resthoehe und schiebt den Knopf auf den Kachelboden.
+   Ohne ihn haengt der Knopf am Text und die beiden Knoepfe stehen versetzt, sobald ein Satz
+   eine Zeile mehr braucht. */
+.legal-dialog__content .legal-action__body {
+	flex: 1 1 auto;
+	margin: 0;
+	color: var(--color-text);
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+/* 💣 Mit `.legal-dialog__content` davor, und das ist kein Zierrat: `.legal-dialog__content a`
+   (0,1,1) schlaegt `.legal-action__button` (0,1,0). Der Discord-Knopf ist ein <a> und zoege sich
+   sonst --color-link, der Verlaufs-Knopf als <button> die Knopffarbe -- zwei Knoepfe nebeneinander
+   in verschiedenen Farben, in beiden Designs.
+   Der Verlaufs-Knopf ist ein <button> und kein <a>, weil sein Ziel auf DIESER Seite liegt: ein
+   <a target="_blank"> bekaeme das nachgestellte ↗, das externen Zielen vorbehalten ist, und ein
+   <a href="#"> haengte einen toten Anker in die Adresszeile. Der Discord-Knopf ist ein echtes <a>
+   und traegt sein ↗ zu Recht. */
+.legal-dialog__content .legal-action__button {
+	margin-top: 3px;
+	padding: 7px 13px;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
 	font: inherit;
-	cursor: pointer;
-	text-align: left;
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.2;
 	text-decoration: none;
+	cursor: pointer;
+	transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 
-.legal-dialog__content .legal-dialog__changelog-open:hover,
-.legal-dialog__content .legal-dialog__changelog-open:focus-visible {
-	color: var(--color-link-hover);
+.legal-dialog__content .legal-action__button:hover,
+.legal-dialog__content .legal-action__button:focus-visible {
+	background: var(--color-button-soft-hover);
+	box-shadow: var(--shadow-button-hover);
+	transform: translateY(-1px);
+}
+
+.legal-dialog__content .legal-action__button:active {
+	background: var(--color-button-soft-active);
+	box-shadow: none;
+	transform: none;
 }
 
 .legal-dialog__group {

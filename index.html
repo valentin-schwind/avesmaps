@@ -2137,9 +2137,27 @@
 					<span data-i18n="legal.badge">Nicht-kommerzielles Fanprojekt</span>
 				</div>
 				<div class="legal-dialog__content">
-						<p class="legal-dialog__discord"><strong data-i18n="legal.discord.lead">Discord.</strong> <span data-i18n="legal.discord.body">Fragen, Feedback oder einfach mitreden? Komm in die Avesmaps-Community auf Discord:</span> <a href="https://discord.gg/BSHEEpn6UX" target="_blank" rel="noopener noreferrer">discord.gg/BSHEEpn6UX</a></p>
-						<!-- Zwilling der Discord-Karte: „mitreden“ und „nachlesen“ stehen als Paar. Der Knopf sieht aus wie ein Link, ist aber keiner — das Ziel liegt auf DIESER Seite (Begründung in css/components/legal-dialog.css). Fenster + Liste: js/app/changelog-dialog.js. -->
-						<p class="legal-dialog__changelog"><strong data-i18n="changelog.callout.lead">Was ist neu?</strong> <span data-i18n="changelog.callout.body">Avesmaps wächst ständig. Die wichtigsten Schritte seit dem Start stehen im</span> <button type="button" id="changelog-open" class="legal-dialog__changelog-open" aria-haspopup="dialog" aria-controls="changelog-dialog" data-i18n="changelog.callout.link">Änderungsverlauf</button></p>
+						<!-- „Mitreden" und „nachlesen" stehen als Paar: gleicher Rahmen, Titel, ein Satz,
+						     ein Knopf. Bis 2026-08-04 waren es zwei Absaetze, deren Umbruch die
+						     Textlaenge entschied -- die Discord-Karte war EINEN Pixel zu breit (618 gegen
+						     617) und brach dreizeilig, die andere zweizeilig. Jetzt drueckt `flex: 1` auf
+						     dem Satz den Knopf nach unten: beide Kacheln sind gleich hoch und die Knoepfe
+						     stehen auf einer Linie, unabhaengig von der Textlaenge -- also auch auf
+						     Englisch. Der Verlaufs-Knopf ist ein <button>, kein <a>: das Ziel liegt auf
+						     DIESER Seite (Begruendung in css/components/legal-dialog.css). Fenster +
+						     Liste: js/app/changelog-dialog.js. -->
+						<div class="legal-dialog__actions">
+							<div class="legal-action">
+								<h3 class="legal-action__title" data-i18n="legal.discord.lead">Discord</h3>
+								<p class="legal-action__body" data-i18n="legal.discord.body">Fragen, Feedback oder einfach mitreden? Die Avesmaps-Community trifft sich auf Discord.</p>
+								<a class="legal-action__button" href="https://discord.gg/BSHEEpn6UX" target="_blank" rel="noopener noreferrer" data-i18n="legal.discord.action">Zur Community</a>
+							</div>
+							<div class="legal-action">
+								<h3 class="legal-action__title" data-i18n="changelog.callout.lead">Was ist neu?</h3>
+								<p class="legal-action__body" data-i18n="changelog.callout.body">Avesmaps wächst ständig — die wichtigsten Schritte seit dem Start.</p>
+								<button type="button" id="changelog-open" class="legal-action__button" aria-haspopup="dialog" aria-controls="changelog-dialog" data-i18n="changelog.callout.link">Änderungsverlauf öffnen</button>
+							</div>
+						</div>
 						<h3 class="legal-dialog__group" data-i18n="legal.group.project">Projekt und rechtlicher Status</h3>
 						<p> <strong data-i18n="legal.fanproject.lead">Fanprojekt.</strong> <span data-i18n="legal.fanproject.body">Avesmaps ist ein privates, offenes und nicht-kommerzielles Fanprojekt von Valentin Schwind. Avesmaps ist keine offizielle Publikation zu Das Schwarze Auge und steht in keiner offiziellen Verbindung zu Ulisses Spiele, der Ulisses Medien & Spiel Distribution GmbH oder anderen Rechteinhabern. Die auf dieser Website enthaltenen Informationen zu Das Schwarze Auge, Aventurien und Dere sind inoffiziell, können unvollständig oder fehlerhaft sein und können offiziellen Publikationen widersprechen.</span> </p>
 						<p><strong data-i18n="legal.responsible.lead">Betreiber/Impressum.</strong> <span data-i18n="legal.responsible.body">Entwicklung, Gestaltung, Programmierung und Betrieb erfolgen durch Valentin Schwind (c/o Nobelstr. 10, D-70569 Stuttgart); bei der Programmierung wird Claude Code eingesetzt. Verantwortlich für die redaktionelle Pflege der Mapinhalte ist Thomas Braun.</span></p>

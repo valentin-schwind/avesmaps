@@ -720,8 +720,9 @@ window.AVESMAPS_I18N_EN = {
 	"legal.liability.availability.lead": "Availability and use.",
 	"legal.liability.availability.body": "There is no claim to constant, uninterrupted or error-free availability of the website. The map, search and route planner are intended for playful, private use in the fictional world of Aventurien and give no guarantee of real-world applicability, routing or distances. Use of the features offered is at your own risk.",
 	"legal.group.contact": "Contact",
-	"legal.discord.lead": "Discord.",
-	"legal.discord.body": "Questions, feedback or just want to chat? Join the Avesmaps community on Discord:",
+	"legal.discord.lead": "Discord",
+	"legal.discord.body": "Questions, feedback or just want to chat? The Avesmaps community meets on Discord.",
+	"legal.discord.action": "Join the community",
 	"legal.contact.discord": "Or reach us directly in the Avesmaps community on Discord:",
 	"legal.sources.fan": "Fan sources.",
 	"legal.sources.tech": "Technology.",
@@ -733,8 +734,8 @@ window.AVESMAPS_I18N_EN = {
 	// German: they are project history, not interface -- the same rule that keeps Aventurien's own
 	// names untranslated (AGENTS.md §8).
 	"changelog.callout.lead": "What's new?",
-	"changelog.callout.body": "Avesmaps keeps growing. The milestones since launch are listed in the",
-	"changelog.callout.link": "changelog",
+	"changelog.callout.body": "Avesmaps keeps growing — the milestones since launch.",
+	"changelog.callout.link": "Open the changelog",
 	"changelog.title": "Changelog",
 	"changelog.closeAria": "Close changelog",
 	"changelog.intro": "What has happened on Avesmaps since the map went online in April 2026 — the bigger steps; we'll spare you the fine print.",
