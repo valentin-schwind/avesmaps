@@ -2269,6 +2269,10 @@
 		<script src="js/community/location-reviews.js"></script>
 		<script src="js/app/api-client.js"></script>
 		<script src="js/territory/territory-editor-inline-host.js"></script>
+		<!-- Banner + save-button state for the territory claim. Shared with the standalone editor
+		     page, which loads none of the panel machinery. Must come BEFORE territory-editor-link.js,
+		     which registers applyPoliticalTerritoryClaim from here as a claim listener at load time. -->
+		<script src="js/territory/territory-claim-view.js"></script>
 		<script src="js/territory/territory-editor-link.js"></script>
 		<script src="js/territory/territory-editor-link-save.js"></script>
 		<script src="js/territory/territory-drag-assignment.js"></script>

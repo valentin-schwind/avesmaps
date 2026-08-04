@@ -550,20 +550,8 @@ function avesmapsFormatEditorActivity(user) {
 	return user.activity_label ? `${areaLabel}: ${user.activity_label}` : areaLabel;
 }
 
-// Pure: may I write to the territory tree, and if not, who is holding it?
-// Unknown or malformed input resolves to "may write" on purpose. The server's 409 is the
-// authority; defaulting to "locked" here would turn a single bad response into an outage that
-// looks exactly like the feature working correctly.
-function avesmapsTerritoryWriteState(claim) {
-	if (!claim || typeof claim !== "object" || claim.is_mine !== false) {
-		return { canWrite: true, holderName: null, sinceSeconds: null };
-	}
-	return {
-		canWrite: false,
-		holderName: claim.username || "Ein anderer Editor",
-		sinceSeconds: Number.isFinite(Number(claim.seconds_since_activity)) ? Number(claim.seconds_since_activity) : null,
-	};
-}
+// avesmapsTerritoryWriteState lives in js/territory/territory-claim-view.js: the standalone
+// territory page needs it too and loads none of this file.
 
 // Every editor calls this when it opens (area + optional label) and when it closes (null, null).
 // The heartbeat goes out IMMEDIATELY rather than waiting for the next 30s tick: whoever opens the

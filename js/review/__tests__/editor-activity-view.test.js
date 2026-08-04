@@ -7,11 +7,15 @@
 
 const fs = require("fs");
 const src = fs.readFileSync("js/review/review-panels.js", "utf8");
+// avesmapsTerritoryWriteState lives with the territory surface, not the panel: the standalone
+// editor page needs it and loads none of review-panels.js.
+const claimSrc = fs.readFileSync("js/territory/territory-claim-view.js", "utf8");
 
-function extract(name) {
-	const match = src.match(new RegExp("function " + name + "\\b[\\s\\S]*?\\n\\}"));
+function extract(name, source, where) {
+	const from = source || src;
+	const match = from.match(new RegExp("function " + name + "\\b[\\s\\S]*?\\n\\}"));
 	if (!match) {
-		console.error("FAIL: " + name + " not found in js/review/review-panels.js");
+		console.error("FAIL: " + name + " not found in " + (where || "js/review/review-panels.js"));
 		process.exit(1);
 	}
 	return match[0];
@@ -29,7 +33,11 @@ if (!areaLabels) {
 // to see it. Together, the function closes over it and still reaches this file.
 //
 // controlled: the input is our own repo file, and this is a throwaway harness
-eval([areaLabels[0], extract("avesmapsFormatEditorActivity"), extract("avesmapsTerritoryWriteState")].join("\n"));
+eval([
+	areaLabels[0],
+	extract("avesmapsFormatEditorActivity"),
+	extract("avesmapsTerritoryWriteState", claimSrc, "js/territory/territory-claim-view.js"),
+].join("\n"));
 
 let failed = 0;
 const check = (label, ok) => {

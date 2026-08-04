@@ -598,47 +598,9 @@ window.AvesmapsPoliticalTerritoryEditorLink = {
 };
 
 // --- Territorien-Anspruch: nur einer schreibt --------------------------------------------------
-// Reflect the derived write claim in the territory editor. 💣 The disabled save button is
-// COURTESY -- the real lock is the 409 from territories-endpoint.php, which no client can talk its
-// way past. This only spares the second editor from typing into work that will be rejected.
-function applyPoliticalTerritoryClaim(claim) {
-	const state = avesmapsTerritoryWriteState(claim);
-	const banner = document.getElementById("territoryClaimBanner");
-	const saveButton = document.getElementById("saveButton");
-
-	// "It is free now" is worth saying, but only on the transition -- and only to someone who was
-	// actually blocked a moment ago, not to everyone who happens to open the editor.
-	const wasBlocked = Boolean(banner) && !banner.hidden;
-	if (wasBlocked && state.canWrite && typeof showFeedbackToast === "function") {
-		showFeedbackToast("Die Territorien sind jetzt frei — du kannst speichern.", "success");
-	}
-
-	if (banner) {
-		banner.hidden = state.canWrite;
-		if (!state.canWrite) {
-			banner.querySelector(".territory-claim-banner__text").textContent =
-				`${state.holderName} bearbeitet gerade die Territorien${formatTerritoryClaimSince(state.sinceSeconds)}. `
-				+ "Du kannst alles ansehen, aber nicht speichern.";
-		}
-	}
-
-	if (saveButton) {
-		saveButton.disabled = !state.canWrite;
-		saveButton.title = state.canWrite ? "" : `${state.holderName} bearbeitet gerade die Territorien.`;
-	}
-}
-
-// "seit 14:20 Uhr" from an AGE, never from a server timestamp: activity_since is MySQL server
-// time, and formatting that against a local clock is off by the timezone difference. Without the
-// time the banner is a dead end -- you cannot tell someone working from someone who left a tab open.
-function formatTerritoryClaimSince(sinceSeconds) {
-	if (!Number.isFinite(sinceSeconds)) {
-		return "";
-	}
-	const startedAt = new Date(Date.now() - sinceSeconds * 1000);
-	return ` (seit ${startedAt.getHours()}:${String(startedAt.getMinutes()).padStart(2, "0")} Uhr)`;
-}
-
+// The banner/save-button plumbing lives in js/territory/territory-claim-view.js, because the
+// standalone editor page needs the very same code and loads none of this file. Here we only wire
+// it to the presence heartbeat.
 if (typeof avesmapsOnTerritoryClaimChange === "function") {
 	avesmapsOnTerritoryClaimChange(applyPoliticalTerritoryClaim);
 }

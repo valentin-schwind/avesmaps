@@ -21,7 +21,7 @@
 		<!-- Read-only banner, shown while ANOTHER editor holds the territory tree. It sits inside
 		     .app-container on purpose: territory-editor-inline-host.js copies exactly that element
 		     into the map page, so this one line serves both the embedded editor and this standalone
-		     page. Filled by applyPoliticalTerritoryClaim (js/territory/territory-editor-link.js). -->
+		     page. Filled by applyPoliticalTerritoryClaim (js/territory/territory-claim-view.js). -->
 		<div id="territoryClaimBanner" class="territory-claim-banner" hidden role="status"><span class="territory-claim-banner__icon" aria-hidden="true">&#128274;</span><span class="territory-claim-banner__text"></span></div>
 		<main>
 			<section class="status-grid">
@@ -166,5 +166,41 @@
 	<script src="/js/territory/territory-boundary-debug-tools.js"></script>
 	<script src="/js/territory/territory-editor-ui-hints.js"></script>
 	<script src="/js/territory/territory-editor-panel-columns.js"></script>
+	<script src="/js/territory/territory-claim-view.js"></script>
+	<script>
+// The standalone page has no host document and therefore no presence heartbeat of its own.
+// Without this it would report no area, never own the claim -- and the write gate in
+// territories-endpoint.php would refuse every save made from here. It also means two people on
+// this page would be invisible to each other.
+// Deliberately a bare 30s fetch, not the panel machinery: this page loads none of it.
+(function initStandaloneTerritoryPresence() {
+	if (window.top !== window.self) {
+		return; // inside a frame -- the host document already sends the heartbeat
+	}
+
+	function beat() {
+		fetch("/api/edit/map/presence.php", {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { Accept: "application/json", "Content-Type": "application/json" },
+			body: JSON.stringify({ area: "territories", label: null }),
+		})
+			.then(function (response) { return response.json(); })
+			.then(function (data) {
+				if (data && data.ok === true && typeof applyPoliticalTerritoryClaim === "function") {
+					applyPoliticalTerritoryClaim(data.territory_claim || null);
+				}
+			})
+			.catch(function () {
+				// Offline, or opened without an editor login. The server-side gate stays the
+				// authority either way, so failing quietly here is honest -- pretending to hold the
+				// claim would be worse than saying nothing.
+			});
+	}
+
+	beat();
+	window.setInterval(beat, 30000);
+})();
+	</script>
 </body>
 </html>
