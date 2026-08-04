@@ -337,13 +337,17 @@
 	--color-panel-translucent: rgba(255, 253, 249, 0.96);
 
 	/* Travel-speed tiers — the functional ampel in the speed-matrix dialog. A data
-	   highlight (not chrome), deliberately identical in both themes. */
-	--color-tier-fast-bg: #e2edcf;
-	--color-tier-fast-text: #27500a;
-	--color-tier-mid-bg: #f6e6c9;
+	   highlight, not chrome. 💣 THIS ONE IS THEMED (see the dark block below): it was
+	   pinned across both themes until 2026-08-04, and the pale light-theme fills then
+	   stood at 11:1 against the dark dialog — three glaring blocks instead of a tinted
+	   table. The dark set repeats the LIGHT theme's own relationship (fill ~1.5:1 over
+	   its panel), which is what makes it read as the same component. */
+	--color-tier-fast-bg: #d2e5ad;
+	--color-tier-fast-text: #2b5407;
+	--color-tier-mid-bg: #f2ddb0;
 	--color-tier-mid-text: #6b3d07;
-	--color-tier-slow-bg: #f6dede;
-	--color-tier-slow-text: #791f1f;
+	--color-tier-slow-bg: #f3cfcf;
+	--color-tier-slow-text: #7a1c1c;
 
 	/* Territory-editor "on map" presence indicator (tree/legend swatch ring). A
 	   data highlight (not chrome), deliberately identical in both themes. */
@@ -533,6 +537,17 @@
 	   theme-shifted red would make the planner (or the editor) disagree with the map. */
 
 	--color-panel-translucent: rgba(49, 46, 38, 0.96);
+
+	/* Travel-speed tiers, dark — deep warm fills with a light tint of their own hue, so the
+	   ampel stays readable as green/amber/red without lighting up the dialog. Measured on
+	   --color-panel #312e26: text 6,5–7,4:1 (AA is 4,5) and all three fills sit ~1,5:1 over
+	   the panel, the same modest lift the light theme has. */
+	--color-tier-fast-bg: #3f5326;
+	--color-tier-fast-text: #d3e9ac;
+	--color-tier-mid-bg: #5d4720;
+	--color-tier-mid-text: #f2dcab;
+	--color-tier-slow-bg: #753831;
+	--color-tier-slow-text: #f7d4ce;
 
 	/* Review stars, dark: the gold stays warm; the empty track darkens so it doesn't glare on the
 	   deep panel (a light beige track would read almost as bright as a filled star). */

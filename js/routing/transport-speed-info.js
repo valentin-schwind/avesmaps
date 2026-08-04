@@ -57,11 +57,35 @@
 	function iconImg(src) {
 		return src ? `<img class="tsi-ic" src="${esc(src)}" alt="" loading="lazy" />` : "";
 	}
-	function tierClass(v) {
-		return v >= 5.5 ? "tsi-fast" : v >= 3 ? "tsi-mid" : "tsi-slow";
+	// 💣 THE AMPEL NORMALISES ITSELF against the values the table actually shows -- thirds
+	// between the slowest and the fastest land speed. Fixed cut-offs (5,5 and 3,0 until
+	// 2026-08-04) silently belong to ONE version of SPEED_TABLE: after the source alignment
+	// (d9d7ab39) exactly one cell of 42 still cleared 5,5 -- the carriage on a Reichsstrasse --
+	// so "schnell" had become a legend entry for a single number, and the rider at 5,44 was
+	// filed under "mittel". Bounds derived here move with the table instead of aging against it.
+	function landTierBounds() {
+		let min = Infinity;
+		let max = -Infinity;
+		LAND_PATHS.forEach((p) => {
+			LAND_MODES.forEach((m) => {
+				const v = (SPEED_TABLE[m.key] || {})[p.key];
+				if (typeof v !== "number" || !isFinite(v)) return;
+				if (v < min) min = v;
+				if (v > max) max = v;
+			});
+		});
+		// Degenerate table (empty, or every value identical): one tier for everything beats
+		// dividing by zero and painting the whole matrix red.
+		if (!isFinite(min) || !isFinite(max) || max <= min) return { mid: -Infinity, fast: Infinity };
+		const step = (max - min) / 3;
+		return { mid: min + step, fast: min + 2 * step };
+	}
+	function tierClass(v, bounds) {
+		return v >= bounds.fast ? "tsi-fast" : v >= bounds.mid ? "tsi-mid" : "tsi-slow";
 	}
 
 	function landTable() {
+		const bounds = landTierBounds();
 		let h = '<div class="tsi-scroll"><table class="tsi-matrix"><thead><tr><th class="tsi-corner">' + esc(tr("transport.speedInfo.pathTypeHeader", "Wegtyp")) + "</th>";
 		LAND_MODES.forEach((m) => {
 			h += `<th><span class="tsi-modehead">${iconImg(transportIcon("landTransport", m.key))}<span>${esc(m.label)}</span></span></th>`;
@@ -72,7 +96,7 @@
 			LAND_MODES.forEach((m) => {
 				const row = SPEED_TABLE[m.key] || {};
 				const v = row[p.key];
-				h += v != null ? `<td class="${tierClass(v)}">${num(v)}</td>` : '<td class="tsi-na">–</td>';
+				h += v != null ? `<td class="${tierClass(v, bounds)}">${num(v)}</td>` : '<td class="tsi-na">–</td>';
 			});
 			h += "</tr>";
 		});
