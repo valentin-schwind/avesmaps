@@ -318,7 +318,12 @@
 	   at 0% the frame looks like no base map at all and the drawn areas stand alone (Owner 2026-07-26).
 	   Pinned white, deliberately NOT --color-panel: this is map surface, not a panel, and in the dark
 	   theme a themed value would fade the tiles into near-black instead of clearing them away. */
-	--color-ecosystem-underground: #ffffff;
+	/* Was hinter den ausgeblassten Kacheln durchscheint. 🔴 NICHT MEHR WEISS (Owner 2026-08-04: „kann man
+	   den Untergrund etwas dunkler ... machen?"). Reines Weiss hinter 25 % Kachel ergab eine fast leere
+	   Seite, auf der auch kräftige Flächenfarben blass wirkten -- der Untergrund nahm ihnen den Kontrast
+	   von unten. Ein warmes Pergamentgrau ist der Ton, gegen den die Landschaftsfarben stehen, statt in
+	   ihm zu verschwinden; es bleibt heller als jede Flächenfarbe und damit Hintergrund. */
+	--color-ecosystem-underground: #d3cec2;
 
 	/* Modal scrim (behind centred dialogs) */
 	--color-scrim: rgba(38, 28, 16, 0.5);

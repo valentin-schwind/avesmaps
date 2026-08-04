@@ -1183,8 +1183,12 @@
    Der Grund ist derselbe wie bei den Bändern: eine Kante ist eine ARBEITS-Auskunft („bis hierher geht
    die Fläche, die ich gerade ziehe"). Wer nur schaut, liest die Landschaft an der Farbe, und ein Netz
    aus Rändern über der halben Karte macht daraus eine technische Zeichnung. */
+/* 0,72 statt 0,6 (Owner 2026-08-04: „die Farben kräftiger"). Zusammen mit dem dunkleren Untergrund
+   (--color-ecosystem-underground) ist das der zweite Teil derselben Bitte: die Flächen sollen die Karte
+   tragen, nicht über ihr schweben. Es bleibt unter 1, damit das Gelände darunter durchscheint -- das
+   ist der Grund, aus dem hier überhaupt eine Zahl steht und nicht „deckend". */
 .ecosystem-pane--active {
-	--eco-fill: 0.6;
+	--eco-fill: 0.72;
 	--eco-contour: 0;
 }
 
@@ -1269,8 +1273,11 @@
    Die ANGEKLICKTE Fläche ist ausgenommen: sie behält ihre Auswahl-Darstellung, sonst verlöre man beim
    Hineinklicken genau das Stück aus den Augen, das man gerade meint. Drei Klassen plus :not schlagen
    die allgemeine Regel weiter oben (zwei). */
+/* 0,16 statt 0,1 (Owner 2026-08-04, „kräftiger"). Die derographische Ebene nimmt sich weiterhin am
+   weitesten zurück -- sie ist der Behälter, nicht die Landschaft --, aber bei 0,1 war sie auf dem
+   helleren Untergrund kaum noch eine Aussage. */
 .ecosystem-pane--derographisch.ecosystem-pane--active > svg path.leaflet-interactive:not(.ecosystem-area--selected) {
-	fill-opacity: 0.1;
+	fill-opacity: 0.16;
 }
 
 /* 🔴 DIE KLIMA-EBENE NIMMT SICH NOCH STÄRKER ZURÜCK ALS DIE DEROGRAPHISCHE (Owner 2026-08-03). Ein Band
@@ -1316,7 +1323,9 @@
    10 % statt 30 % (Owner): in „Alle" geht es um die Überlappungen der gezeichneten Ebenen, und sieben
    kartenbreite Bänder darüber färben sonst alles ein. */
 .ecosystem-pane--klima.ecosystem-pane--active.ecosystem-pane--showall > svg path.leaflet-interactive {
-	fill-opacity: 0.1;
+	/* 0,16 statt 0,1 (Owner 2026-08-04, „kräftiger"). Sie bleibt die leiseste der vier -- ein Band deckt
+	   die Karte in voller Breite --, aber auf dem dunkleren Untergrund war 0,1 kaum noch zu sehen. */
+	fill-opacity: 0.16;
 }
 
 .leaflet-pane.ecosystem-pane--klima.ecosystem-pane--showall > svg path.leaflet-interactive {
