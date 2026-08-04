@@ -2726,7 +2726,69 @@ function avesmapsEcosystemActionLabel(string $action): string
         'delete_region' => 'Region gelöscht',
         'delete_region_cascade' => 'Region mit Flächen gelöscht',
         'assign_wiki_region' => 'Wiki-Landschaft zugewiesen',
+        // Klima (Owner 2026-08-04: „die Änderungen im Klima-Editor sind noch ein bisschen aussagelos").
+        // Ohne diese zwei Zeilen fällt die Liste auf den rohen Aktionsschlüssel zurück und zeigt
+        // `update_climate_divider` -- ein Wort aus dem Code, kein Satz für den, der die Liste liest.
+        'update_climate_divider' => 'Klimagrenze verschoben',
+        'reset_climate_dividers' => 'Klimagrenzen zurückgesetzt',
     ][$action] ?? $action;
+}
+
+/**
+ * PUR: welche Grenze war das? „Boreale Zone – Gemäßigte Zone".
+ *
+ * 🔴 EINE TRENNLINIE HAT KEINEN NAMEN, und sie braucht auch keinen -- sie IST die Grenze zwischen zwei
+ * Zonen, und genau das soll in der Liste stehen. Ohne diese Auflösung zeigte jeder Eintrag „Unbenannt",
+ * weil die Zeile weder auf eine Fläche noch auf eine Region zeigt (sie ist beides nicht).
+ *
+ * `$zones` ist die Zonenliste von Nord nach Süd (avesmapsEcosystemClimateZones). Die Linie wird über die
+ * Zone UNTER ihr bestimmt -- `south_type_key`, die Identität, an der auch der Abgleich hängt. Findet sich
+ * die nicht, bleibt der Name leer: lieber gar nichts als eine geratene Grenze.
+ *
+ * @param list<array{type_key: string, label: string}> $zones
+ */
+function avesmapsEcosystemClimateDividerName(array $zones, string $southTypeKey): string
+{
+    $zones = array_values($zones);
+    foreach ($zones as $index => $zone) {
+        if ($index === 0 || (string) ($zone['type_key'] ?? '') !== $southTypeKey) {
+            continue;   // Index 0 hat keine Zone über sich -- dort liegt keine Trennlinie
+        }
+        $north = (string) ($zones[$index - 1]['label'] ?? '');
+        $south = (string) ($zone['label'] ?? '');
+
+        return ($north === '' || $south === '') ? '' : $north . ' – ' . $south;
+    }
+
+    return '';
+}
+
+/**
+ * Die Zone unter einer Trennlinie, aus dem, was die Protokollzeile hergibt.
+ *
+ * 🪤 ZUERST der mitgeschriebene Schlüssel, DANN erst die Nummer. Die Nummern verschieben sich, sobald
+ * jemand eine Zone einschiebt -- genau das ist am 2026-08-03 mit den „Trockenen Subtropen" passiert.
+ * Eine alte Zeile über ihre Nummer aufzulösen benennt danach die falsche Grenze; der Schlüssel bleibt
+ * richtig. Ältere Zeilen haben ihn noch nicht, für die ist die Nummer das Beste, was da ist.
+ *
+ * @param list<array{type_key: string, label: string}> $zones
+ */
+function avesmapsEcosystemClimateSouthKeyOfAudit(array $zones, mixed $after): string
+{
+    if (!is_array($after)) {
+        return '';
+    }
+    $stored = trim((string) ($after['south_type_key'] ?? ''));
+    if ($stored !== '') {
+        return $stored;
+    }
+    $seq = filter_var($after['seq'] ?? null, FILTER_VALIDATE_INT);
+
+    // seq k trennt Zone k von Zone k+1 (1-basiert) -- in der 0-basierten Liste ist die südliche also
+    // genau der Index k.
+    return ($seq !== false && $seq >= 1 && isset($zones[$seq]))
+        ? (string) ($zones[$seq]['type_key'] ?? '')
+        : '';
 }
 
 // Die Liste fürs „Änderungen"-Fenster, schon zu Gesten zusammengefasst.
@@ -2738,7 +2800,12 @@ function avesmapsListEcosystemChanges(PDO $pdo, bool $canUndoChanges): array
         'SELECT audit.id, audit.action, audit.created_at, audit.area_public_id, audit.region_public_id,
                 audit.operation_id, audit.operation_label, audit.undone_at,
                 users.username, undone_users.username AS undone_username,
-                region.name AS region_name, region.kind AS region_kind
+                region.name AS region_name, region.kind AS region_kind,
+                -- 💣 NUR fuer die Klima-Zeilen. `after_json` traegt bei einer Flaeche bis zu 20.000
+                -- Positionen; ueber die ganze Liste geholt waeren das Megabytes fuer einen Namen. Eine
+                -- Trennlinie hat hoechstens 500 Punkte, meist ein paar Dutzend -- das ist der Grund,
+                -- aus dem hier ein CASE steht und nicht schlicht `audit.after_json`.
+                CASE WHEN audit.action = \'update_climate_divider\' THEN audit.after_json END AS climate_after
            FROM ecosystem_geometry_audit_log audit
            LEFT JOIN users ON users.id = audit.actor_user_id
            LEFT JOIN users undone_users ON undone_users.id = audit.undone_by
@@ -2749,8 +2816,28 @@ function avesmapsListEcosystemChanges(PDO $pdo, bool $canUndoChanges): array
     $statement->execute();
     $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
+    // Die Zonenliste nur holen, wenn wirklich eine Klimazeile dabei ist -- sonst kostet jede Anzeige der
+    // Änderungsliste zwei Abfragen für nichts.
+    $climateZones = [];
+    foreach ($rows as $row) {
+        if ((string) $row['action'] === 'update_climate_divider') {
+            $climateZones = avesmapsEcosystemClimateZones($pdo);
+            break;
+        }
+    }
+
     $groups = [];
     foreach ($rows as $row) {
+        // Eine Trennlinie zeigt weder auf eine Fläche noch auf eine Region -- sie IST die Grenze
+        // zwischen zwei Zonen, und die steht hier als ihr Name. Ohne das las jeder Eintrag „Unbenannt".
+        if ((string) $row['action'] === 'update_climate_divider' && $climateZones !== []) {
+            $after = json_decode((string) ($row['climate_after'] ?? ''), true);
+            $row['region_name'] = avesmapsEcosystemClimateDividerName(
+                $climateZones,
+                avesmapsEcosystemClimateSouthKeyOfAudit($climateZones, $after)
+            );
+            $row['region_kind'] = 'klima';
+        }
         // Ohne Klammer ist die Zeile ihre eigene Gruppe -- so verhalten sich alle Einzelaktionen und
         // alles, was vor dieser Änderung protokolliert wurde.
         $key = (string) ($row['operation_id'] ?? '') !== '' ? 'op:' . $row['operation_id'] : 'row:' . $row['id'];
@@ -3457,7 +3544,11 @@ function avesmapsEcosystemClimateSaveDivider(PDO $pdo, array $payload, int $user
     $pdo->beginTransaction();
     try {
         $statement = $pdo->prepare(
-            'SELECT seq, geometry_geojson, revision FROM ecosystem_climate_divider WHERE seq = :seq FOR UPDATE'
+            // south_type_key mit: er ist die IDENTITÄT der Linie und wandert unten ins Protokoll, damit
+            // ein Eintrag auch dann noch die richtige Grenze benennt, wenn später eine Zone eingeschoben
+            // wurde und alle Nummern sich verschoben haben.
+            'SELECT seq, geometry_geojson, revision, south_type_key
+               FROM ecosystem_climate_divider WHERE seq = :seq FOR UPDATE'
         );
         $statement->execute(['seq' => $seq]);
         $row = $statement->fetch();
@@ -3501,7 +3592,7 @@ function avesmapsEcosystemClimateSaveDivider(PDO $pdo, array $payload, int $user
             null,
             null,
             $before,
-            ['seq' => $seq, 'geometry' => $geometry]
+            ['seq' => $seq, 'south_type_key' => (string) ($row['south_type_key'] ?? ''), 'geometry' => $geometry]
         );
         $revision = avesmapsNextEcosystemRevision($pdo);
         $pdo->commit();
