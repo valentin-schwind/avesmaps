@@ -24,10 +24,14 @@ const TRAVEL_COST_BORDER_MIN_RUN_MILES = 5;
 // 💣 `tr(key, default)` faellt ohne diese Tabellen auf den Schluessel selbst zurueck -- im deutschen
 // Panel staende dann „bett" statt „Bett im Gemeinschaftszimmer". Ein Schluessel, der zur Laufzeit
 // zusammengesetzt wird, kann seinen Default nicht im Aufruf tragen.
+// ⚠️ Die SCHLUESSEL nennen die Zeile der Quelle (DSA5-Regelwerk S. 382: Strohsack im Schlafsaal
+// 2 H, Bett im Gemeinschaftszimmer 6 H, Einzelzimmer 3 S), die Beschriftungen das, was der Reisende
+// liest -- kuerzer, seit sie in einer 150-px-Spalte stehen (Owner 2026-08-04). Deshalb heisst der
+// Schluessel weiter `strohsack`, obwohl im Feld „Schlafsaal" steht: er zeigt auf den Preis.
 const TRAVEL_COST_LODGING_LABEL_DE = {
-	frei: "im Freien",
-	strohsack: "Strohsack im Schlafsaal",
-	bett: "Bett im Gemeinschaftszimmer",
+	frei: "im Freien/Zelt",
+	strohsack: "Schlafsaal",
+	bett: "Gemeinschaftszimmer",
 	zimmer: "Einzelzimmer",
 };
 // Geographia S. 115: der Zoellner veranlagt nach der angenommenen Profession. Das Buch nennt die
