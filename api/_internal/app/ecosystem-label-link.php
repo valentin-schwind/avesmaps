@@ -94,12 +94,14 @@ function avesmapsEcosystemLabelRegionMap(array $regionRows, array $pointerRows, 
 function avesmapsEcosystemReadLabelRegionMap(PDO $pdo): array
 {
     try {
+        // `kind` mit: die Karte muss wissen, ZU WELCHER EBENE eine Beschriftung gehört, sonst kann sie
+        // beim Umschalten auf „Vegetation" nicht die Wälder von den Gebirgen trennen (Owner 2026-08-04).
         $regionStatement = $pdo->query(
-            'SELECT public_id, label_public_id FROM ecosystem_region WHERE is_active = 1'
+            'SELECT public_id, label_public_id, kind FROM ecosystem_region WHERE is_active = 1'
         );
         $regionRows = $regionStatement === false ? [] : $regionStatement->fetchAll(PDO::FETCH_ASSOC);
     } catch (Throwable) {
-        return ['by_label' => [], 'count_by_region' => []];
+        return ['by_label' => [], 'count_by_region' => [], 'kind_by_region' => []];
     }
 
     $activeStatement = $pdo->query(
@@ -122,7 +124,20 @@ function avesmapsEcosystemReadLabelRegionMap(PDO $pdo): array
         $pointerRows[] = ['public_id' => (string) $row['public_id'], 'region_public_id' => $regionId];
     }
 
-    return avesmapsEcosystemLabelRegionMap($regionRows, $pointerRows, $activeLabelIds);
+    // Die Ebene JE REGION -- getrennt von der reinen Relation darüber, damit deren Regel (und ihr Test)
+    // unangetastet bleibt: welche Beschriftung zu welcher Fläche gehört, ist eine andere Frage als
+    // welcher Ebene diese Fläche angehört.
+    $kindByRegion = [];
+    foreach ($regionRows as $row) {
+        $regionId = trim((string) ($row['public_id'] ?? ''));
+        $kind = trim((string) ($row['kind'] ?? ''));
+        if ($regionId !== '' && $kind !== '') {
+            $kindByRegion[$regionId] = $kind;
+        }
+    }
+
+    return avesmapsEcosystemLabelRegionMap($regionRows, $pointerRows, $activeLabelIds)
+        + ['kind_by_region' => $kindByRegion];
 }
 
 // Fill properties.ecosystem_region_public_id on every label feature that belongs to a region.
@@ -147,9 +162,9 @@ function avesmapsEcosystemReadLabelRegionMap(PDO $pdo): array
 //
 // @param list<array<string,mixed>> $features built GeoJSON features (mutated in place)
 // @param array<string,string> $byLabel label public_id => region public_id
-function avesmapsEcosystemApplyLabelRegionsToFeatures(array &$features, array $byLabel): void
+function avesmapsEcosystemApplyLabelRegionsToFeatures(array &$features, array $byLabel, array $kindByRegion = []): void
 {
-    if ($byLabel === []) {
+    if ($byLabel === [] && $kindByRegion === []) {
         return;
     }
     foreach ($features as $index => $feature) {
@@ -157,13 +172,22 @@ function avesmapsEcosystemApplyLabelRegionsToFeatures(array &$features, array $b
         if (!is_array($properties) || (string) ($properties['feature_type'] ?? '') !== 'label') {
             continue;
         }
-        if (trim((string) ($properties['ecosystem_region_public_id'] ?? '')) !== '') {
-            continue; // the label already says where it belongs
-        }
-        $regionPublicId = (string) ($byLabel[(string) ($properties['public_id'] ?? '')] ?? '');
+        // 🔴 Der EIGENE Zeiger des Labels gilt -- aber er beendet die Runde nicht mehr. Bis heute stand
+        // hier ein `continue`, und das war richtig, solange es nur um den Zeiger ging. Jetzt hängt die
+        // EBENE mit daran, und die brauchen genau diese ~10 Labels genauso wie alle anderen: sonst
+        // verschwänden ausgerechnet die, die ihre Fläche selbst benennen, beim Umschalten der Ebene.
+        $regionPublicId = trim((string) ($properties['ecosystem_region_public_id'] ?? ''));
         if ($regionPublicId === '') {
-            continue;
+            $regionPublicId = (string) ($byLabel[(string) ($properties['public_id'] ?? '')] ?? '');
+            if ($regionPublicId === '') {
+                continue;
+            }
+            $features[$index]['properties']['ecosystem_region_public_id'] = $regionPublicId;
         }
-        $features[$index]['properties']['ecosystem_region_public_id'] = $regionPublicId;
+        // Welche Ebene? Daran entscheidet die Karte, ob diese Beschriftung zur gewählten Ebene gehört.
+        $kind = (string) ($kindByRegion[$regionPublicId] ?? '');
+        if ($kind !== '') {
+            $features[$index]['properties']['ecosystem_region_kind'] = $kind;
+        }
     }
 }

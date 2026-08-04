@@ -35,6 +35,11 @@ function normalizeLabelFeature(feature) {
 		// Region -- `ecosystem_region.label_public_id` kann nur eines halten und bezeichnet weiterhin
 		// das PRIMÄRE, also das, welches der Regionsdialog verwaltet.
 		ecosystemRegionPublicId: String(properties.ecosystem_region_public_id || ""),
+		// Zu WELCHER Ebene gehört die Fläche an diesem Label? Serverseitig aufgelöst
+		// (api/_internal/app/ecosystem-label-link.php). Ohne dieses Feld liesse sich beim Umschalten auf
+		// „Vegetation" der Wald nicht vom Gebirge trennen -- die Ebene steht an der REGION, nicht am
+		// Label, und die Regionen kennt der Besucher nicht (ihre Liste ist ein Editor-Endpunkt).
+		ecosystemRegionKind: String(properties.ecosystem_region_kind || ""),
 		// Klimazonen der Region, ANTEILIG: [[schlüssel, anteil], ...], größter Anteil zuerst. Eine
 		// Fläche kann über zwei Bänder laufen -- anders als ein Ort, der genau in einem liegt.
 		// Serverseitig aus dem gespeicherten Verschnitt („Zugehörigkeit rechnen"), nicht neu gerechnet.
@@ -718,6 +723,30 @@ function isLabelsWithRegionFilterActive() {
 		&& document.getElementById("toggleLabelsWithRegion")?.checked === true;
 }
 
+// PUR (und deshalb prüfbar): gehört diese Beschriftung zur gerade gewählten Landschaftsebene?
+//
+// Drei Fälle, und nur der mittlere filtert:
+//   * gar kein Landschaftsmodus  -> ja (die Regel gilt nicht)
+//   * „Alle"                     -> ja (Owner: „bei Alle darf alles dranstehen")
+//   * eine gewählte Ebene        -> nur, wenn die Fläche dieses Labels zu ihr gehört
+//
+// 🪤 Die Umgebungsfunktionen werden mit `typeof` abgefragt, weil map-features-labels.js VOR
+// map-features-ecosystem-layer-switch.js geladen wird (index.html). Zur AUFRUFzeit sind sie da; beim
+// Laden noch nicht, und ein harter Zugriff auf Modulebene wäre ein ReferenceError.
+function isLabelOfActiveEcosystemLayer(label) {
+	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
+		return true;
+	}
+	if (typeof isEcosystemShowAllLayers === "function" && isEcosystemShowAllLayers()) {
+		return true;
+	}
+	if (typeof getActiveEcosystemLayerKind !== "function") {
+		return true;
+	}
+
+	return String(label?.ecosystemRegionKind || "") === getActiveEcosystemLayerKind();
+}
+
 function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), editorOverride = isMapLabelEditorOverrideActive()) {
 	const minZoom = Number(entry.label.minZoom) || 0;
 	const maxZoom = Number.isFinite(Number(entry.label.maxZoom)) ? Number(entry.label.maxZoom) : 7;
@@ -742,6 +771,19 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 	// „nur Labels mit Region": blendet Beschriftungen aus, an denen keine Landschaftsfläche hängt.
 	// Wieder ein `return false` und keine wahrheitswertige Bedingung -- der Haken darf nur verbergen.
 	if (isLabelsWithRegionFilterActive() && !ecosystemRegionOfLabel(entry.label)) {
+		return false;
+	}
+
+	// 🔴 EINE GEWÄHLTE EBENE ZEIGT NUR IHRE EIGENEN BESCHRIFTUNGEN (Owner 2026-08-04: „Wälder bei
+	// Vegetation, Namen der Klimazonen, etc. -- bei Alle darf alles dranstehen"). Wer auf Vegetation
+	// schaltet, will die Wälder lesen und nicht die Gebirge daneben.
+	//
+	// 🪤 Auch die Beschriftungen OHNE Fläche fallen weg -- Ortsnamen, Meere, alles, was an keiner
+	// Landschaftsfläche hängt. Das ist gewollt: „nur die Labels, die für die jeweilige Zone gelten".
+	// In „Alle" greift die Regel gar nicht, dort steht wieder alles.
+	//
+	// Wieder ein `return false` und keine wahrheitswertige Bedingung: der Filter darf nur verbergen.
+	if (!isLabelOfActiveEcosystemLayer(entry.label)) {
 		return false;
 	}
 

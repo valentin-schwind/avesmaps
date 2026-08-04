@@ -141,6 +141,14 @@ function syncEcosystemPaneStates() {
 			&& !showAll && activeKind !== "derographisch");
 	}
 	syncEcosystemLabelMuting();
+	// 🔴 Und die Beschriftungen NEU BEWERTEN. Seit eine gewählte Ebene nur noch ihre eigenen zeigt
+	// (isLabelOfActiveEcosystemLayer), ändert ein Ebenenwechsel, WELCHE Labels überhaupt auf der Karte
+	// stehen -- nicht bloss, wie blass sie sind. Ohne diesen Aufruf bliebe der alte Satz stehen, bis
+	// irgendetwas anderes die Sichtbarkeit anfasst (ein Schwenk, ein Zoom), und das sähe aus, als wirke
+	// der Reiter erst beim zweiten Anfassen.
+	if (typeof syncLabelVisibility === "function") {
+		syncLabelVisibility();
+	}
 	// V8: das Relief hängt an derselben Frage wie die Panes -- welche Ebene liegt vorn. Es zeichnet sich
 	// bei jeder anderen Lage leer, das Umschalten löscht es also von selbst.
 	window.AvesmapsEcosystemHeightRender?.redraw?.();

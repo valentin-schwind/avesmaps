@@ -41,7 +41,10 @@ require_once __DIR__ . '/../_internal/app/climate-membership.php';
 // 10: places carry properties.climate_zone and landscape labels properties.climate_zones, plus the
 //    payload-level `climate_zones` vocabulary the client renders the names from. New fields on features
 //    that had none -- a warm client would otherwise keep the old body and never show the row.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 10;
+// 11: jedes Label einer Landschaftsflaeche traegt zusaetzlich properties.ecosystem_region_kind.
+//    Ohne Bump zeigte ein warmer Client beim Umschalten auf eine einzelne Ebene GAR KEINE
+//    Beschriftung -- er kennt das Feld nicht und haelt jede fuer ebenenfremd.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 11;
 
 // Coat-of-arms staging + model tables for the settlement "Liegt in" breadcrumb. These MIRROR the constants
 // of api/app/territory-detail.php EXACTLY. The public-domain GATE itself now lives once in the shared
@@ -174,7 +177,8 @@ try {
     // region, resolved from BOTH stored directions. Applied here rather than inside the row builder
     // because it needs a relation the builder has no business knowing about -- same shape as the
     // legacy-other-source merge above.
-    avesmapsEcosystemApplyLabelRegionsToFeatures($features, avesmapsEcosystemReadLabelRegionMap($pdo)['by_label']);
+    $labelRegions = avesmapsEcosystemReadLabelRegionMap($pdo);
+    avesmapsEcosystemApplyLabelRegionsToFeatures($features, $labelRegions['by_label'], $labelRegions['kind_by_region'] ?? []);
     // Climate zone, one infobox row down the line. 🔴 STRICTLY AFTER the line above: a landscape label
     // finds its shares through properties.ecosystem_region_public_id, and for ~137 of them that pointer
     // is what the line above just resolved. Swap the two and those labels silently lose the row.

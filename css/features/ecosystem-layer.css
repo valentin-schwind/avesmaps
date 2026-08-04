@@ -63,6 +63,22 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	/* Die Übergänge laufen weich (Owner 2026-08-04). Die Kachel wechselt beim Wählen gleich drei Werte
+	   auf einmal -- Füllung, Rand und Schriftfarbe --, und ohne Überblendung springt die ganze Leiste.
+	   Die SCHRIFTSTÄRKE ist bewusst nicht dabei: sie lässt sich nicht überblenden (die Hausschrift hat
+	   nur einen Schnitt, siehe die Sperre in css/base/base.css), und ein Sprung mitten in einer sonst
+	   weichen Bewegung fällt mehr auf als gar keine.
+	   💣 Keine `all`-Kurzform: die zöge beim Aufbau der Leiste auch Grösse und Lage mit, und dann wandern
+	   die Kacheln beim Betreten des Modus sichtbar auseinander. */
+	transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+/* 🪤 Wer Bewegung abbestellt hat, bekommt sie nicht -- eine Auswahlleiste muss ohne Animation genauso
+   funktionieren, und sie tut es: die Farben stehen dann eben sofort. */
+@media (prefers-reduced-motion: reduce) {
+	.ecosystem-layer-switch__tab {
+		transition: none;
+	}
 }
 
 .ecosystem-layer-switch__tab:hover {

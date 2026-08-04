@@ -567,6 +567,17 @@ function buildEcosystemAreaLayer(area) {
 			&& typeof setActiveEcosystemLayerKind === "function" && area.kind) {
 			setActiveEcosystemLayerKind(area.kind);
 		}
+		// 🔴 Im FRONTEND beantwortet ein Klick auf die Fläche dasselbe wie einer auf ihr Label: die
+		// Fläche leuchtet auf (Owner 2026-08-04: „beim Frontendmodus dürfen die Klimazonen anklickbar
+		// sein"). Ein Klimaband ist genau dann anklickbar, wenn es die GEWÄHLTE Ebene ist -- in „Alle"
+		// bleibt es klickdurchlässig, sonst verschluckte es jeden Klick auf den Wald darunter.
+		//
+		// Der Editor behält stattdessen seine Auswahl: dort heisst ein Klick „daran arbeite ich", und
+		// zwei Konturen mit verschiedener Bedeutung auf einer Fläche sagen nichts mehr.
+		if (typeof canOperateEcosystemLayers === "function" && !canOperateEcosystemLayers()
+			&& typeof setHighlightedEcosystemRegion === "function") {
+			setHighlightedEcosystemRegion(area.region_public_id || "");
+		}
 		setSelectedEcosystemArea(area.public_id);
 		if (typeof showFeedbackToast === "function") {
 			showFeedbackToast(formatEcosystemAreaTooltip(area));

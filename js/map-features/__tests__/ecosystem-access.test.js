@@ -142,6 +142,51 @@ assert(beimEditor.untergrund.hidden === false, "und seinen Regler dazu");
 const daneben2 = feldWelt({ recht: true, editor: true, modus: "political" });
 assert(daneben2.feld.hidden === true, "ausserhalb des Landschaftsmodus ist das Feld weg");
 
+// ---- eine gewaehlte Ebene zeigt nur ihre eigenen Beschriftungen -------------------------------------
+// 🔴 Owner 2026-08-04: „Waelder bei Vegetation, Namen der Klimazonen, etc. -- bei Alle darf alles
+// dranstehen." Die Regel wohnt in map-features-labels.js, wird aber von DIESEM Modul beantwortet
+// (welche Ebene ist gewaehlt, und ist es Alle) -- deshalb steht sie hier mit.
+const labelQuelle = fs.readFileSync(path.join(__dirname, "..", "map-features-labels.js"), "utf8");
+function labelWelt({ recht, editor, gemerktAlle, ebene = "vegetation", modus = "ecosystem" }) {
+	const context = {
+		console,
+		window: { localStorage: { getItem: () => gemerktAlle, setItem: () => {} } },
+		document: { getElementById: () => null, querySelectorAll: () => [], addEventListener: () => {} },
+		getSelectedMapLayerMode: () => modus,
+		IS_ECOSYSTEM_ENABLED: recht,
+		IS_EDIT_MODE: editor,
+		isKnownEcosystemKind: () => true,
+		activeEcosystemLayerKind: ebene,
+	};
+	context.globalThis = context;
+	vm.createContext(context);
+	vm.runInContext(source, context);
+	// Nur die eine reine Funktion aus der Label-Datei nachziehen -- der Rest von ihr braucht Leaflet.
+	const anfang = labelQuelle.indexOf("function isLabelOfActiveEcosystemLayer");
+	const ende = labelQuelle.indexOf("\n}", anfang) + 2;
+	vm.runInContext(labelQuelle.slice(anfang, ende), context);
+	return context;
+}
+
+const inVegetation = labelWelt({ recht: false, editor: false, gemerktAlle: "0", ebene: "vegetation" });
+assert(inVegetation.isLabelOfActiveEcosystemLayer({ ecosystemRegionKind: "vegetation" }),
+	"in Vegetation steht der Wald dran");
+assert(!inVegetation.isLabelOfActiveEcosystemLayer({ ecosystemRegionKind: "topographie" }),
+	"🔴 das Gebirge nicht");
+assert(!inVegetation.isLabelOfActiveEcosystemLayer({}),
+	"🪤 und eine Beschriftung ohne Flaeche auch nicht -- nur die, die fuer die Zone gelten");
+
+const inAlle = labelWelt({ recht: false, editor: false, gemerktAlle: "1" });
+["vegetation", "topographie", "klima", "derographisch"].forEach((kind) => {
+	assert(inAlle.isLabelOfActiveEcosystemLayer({ ecosystemRegionKind: kind }), `in Alle steht ${kind} dran`);
+});
+assert(inAlle.isLabelOfActiveEcosystemLayer({}), "in Alle steht auch das Ortsschild dran");
+
+// Ausserhalb des Landschaftsmodus gilt die Regel gar nicht -- sonst waere die normale Karte leer.
+const normaleKarte = labelWelt({ recht: false, editor: false, gemerktAlle: "0", modus: "deregraphic" });
+assert(normaleKarte.isLabelOfActiveEcosystemLayer({}),
+    "💣 ohne Landschaftsmodus bleibt jede Beschriftung stehen");
+
 // ---- der Untergrund: 25 % fuer den Besucher, sein Regler fuer den Editor ----------------------------
 // 💣 Der Besucher bekommt einen FESTEN Wert, nicht den gespeicherten. Der liegt je Browser, und wer
 // irgendwann einmal auf 0 gezogen hat, saehe eine leere weisse Karte -- ohne Regler, mit dem er wieder
