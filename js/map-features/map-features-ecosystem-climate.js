@@ -144,22 +144,34 @@ function climateSay(message, tone) {
 // Die Trennung ist der ganze Punkt: im Frontend soll man die Zonen LESEN, nicht ihre Konstruktion
 // sehen. Dieselbe Linie, an der auch die Konturen hängen (ecosystem-pane--editable im Layer-Switch).
 function isClimateLayerVisible() {
-	// 🪤 „Alle" ist ausdrücklich AUSGENOMMEN (Owner 2026-08-03). Dort nimmt sich die Klima-Ebene ganz
-	// zurück -- 10 % Füllung, klickdurchlässig --, weil es in „Alle" um die Überlappungen der
-	// gezeichneten Ebenen geht; sieben Zonennamen quer darüber wären dann Beiwerk.
+	if (!(typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive())) {
+		return false;
+	}
+	// 🪤 „Alle" ZÄHLT MIT (Owner 2026-08-04). Bis dahin war es ausdrücklich ausgenommen -- die Ebene
+	// nimmt sich dort auf 10 % Füllung zurück, und sieben Namen quer darüber galten als Beiwerk. In der
+	// Praxis war das Gegenteil der Fall: die zurückgenommene Fläche ist ohne ihren Namen eine Färbung,
+	// die man nicht mehr zuordnen kann. Der Name ist die Auskunft der Ebene, gerade wenn die Farbe
+	// leise ist.
 	//
-	// 💣 Ohne diese Zeile hinge es am GEMERKTEN Ebenenwert: „Alle" lässt ihn stehen, also wären die
-	// Namen mal da und mal nicht, je nachdem was zuletzt gewählt war. Das ist kein Zustand, den man
-	// erklären kann.
+	// 💣 Es hängt NICHT am gemerkten Ebenenwert. „Alle" lässt den stehen, und genau deshalb wird er
+	// hier gar nicht erst gefragt -- sonst wären die Namen mal da und mal nicht, je nachdem was zuletzt
+	// gewählt war, und das ist kein Zustand, den man erklären kann.
+	if (typeof isEcosystemShowAllLayers === "function" && isEcosystemShowAllLayers()) {
+		return true;
+	}
+
+	return typeof getActiveEcosystemLayerKind === "function" && getActiveEcosystemLayerKind() === "klima";
+}
+
+// 🔴 Der EDITOR bleibt auf der gewählten Klima-Ebene, „Alle" ist ausgenommen. Die Namen darf man überall
+// lesen; Trennlinien und Griffe wären dort Werkzeug über drei fremden Ebenen -- und ein Griff, der auf
+// einer Vegetationsfläche zu liegen scheint, verwirrt mehr, als er nützt. Deshalb fragt diese Funktion
+// die Ebene ein zweites Mal, statt sich auf isClimateLayerVisible() zu verlassen.
+function isClimateEditorActive() {
 	if (typeof isEcosystemShowAllLayers === "function" && isEcosystemShowAllLayers()) {
 		return false;
 	}
 
-	return typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
-		&& typeof getActiveEcosystemLayerKind === "function" && getActiveEcosystemLayerKind() === "klima";
-}
-
-function isClimateEditorActive() {
 	return isClimateLayerVisible() && typeof IS_EDIT_MODE !== "undefined" && Boolean(IS_EDIT_MODE);
 }
 

@@ -122,6 +122,51 @@ const abseits = { type: "Polygon", coordinates: [[[300, 500], [700, 500], [700, 
 assert(context.climateAreaWestEdgeSpan(abseits) === null, "an area that never touches the west edge gets no label");
 assert(context.climateAreaWestEdgeSpan(undefined) === null, "and neither does a missing geometry");
 
+// ---- wann ist die Ebene zu SEHEN und wann zu BEARBEITEN? --------------------------------------------
+// 🔴 ZWEI Fragen, und seit dem 2026-08-04 fallen sie in „Alle" auseinander: die NAMEN werden dort
+// gezeichnet (der Owner will die blasse Fläche zuordnen können), die Trennlinien und Griffe NICHT --
+// die wären Werkzeug über drei fremden Ebenen.
+//
+// 💣 Die drei Umgebungsfunktionen werden hier ECHT gesetzt, nicht weggelassen. Beide geprüften
+// Funktionen sind gegen fehlende Globals gehärtet (`typeof … === "function"`); ohne sie liefe der Test
+// in die Notbremse und zertifizierte ein `false`, das gar nichts über die Regel aussagt.
+let umgebung = { modus: true, alle: false, ebene: "klima", bearbeiten: false };
+context.isEcosystemLayerModeActive = () => umgebung.modus;
+context.isEcosystemShowAllLayers = () => umgebung.alle;
+context.getActiveEcosystemLayerKind = () => umgebung.ebene;
+Object.defineProperty(context, "IS_EDIT_MODE", { get: () => umgebung.bearbeiten, configurable: true });
+
+const lage = (teil) => { umgebung = { ...umgebung, ...teil }; };
+
+// Die gewählte Klima-Ebene: sichtbar, und im Bearbeiten-Modus auch bearbeitbar.
+lage({ alle: false, ebene: "klima", bearbeiten: false });
+assert(context.isClimateLayerVisible(), "auf der gewählten Klima-Ebene stehen die Namen");
+assert(!context.isClimateEditorActive(), "ohne Bearbeiten-Modus aber keine Trennlinien");
+lage({ bearbeiten: true });
+assert(context.isClimateEditorActive(), "mit Bearbeiten-Modus schon");
+
+// Eine andere Ebene: gar nichts.
+lage({ ebene: "vegetation", bearbeiten: true });
+assert(!context.isClimateLayerVisible(), "auf der Vegetationsebene hat das Klima nichts zu sagen");
+assert(!context.isClimateEditorActive(), "und erst recht keine Griffe");
+
+// 🔴 „ALLE": Namen ja, Werkzeug nein. Das ist der Kern der Änderung.
+lage({ alle: true, ebene: "vegetation", bearbeiten: true });
+assert(context.isClimateLayerVisible(), "in Alle werden die Zonennamen gezeichnet");
+assert(!context.isClimateEditorActive(), "🔴 aber die Trennlinien nicht -- sie lägen über drei fremden Ebenen");
+
+// 💣 Und zwar UNABHÄNGIG vom gemerkten Ebenenwert. „Alle" lässt den stehen; hinge es daran, wären die
+// Namen mal da und mal nicht, je nachdem was zuletzt gewählt war.
+lage({ alle: true, ebene: "klima" });
+assert(context.isClimateLayerVisible(), "auch wenn zuletzt Klima gewählt war");
+assert(!context.isClimateEditorActive(), "und auch dann keine Griffe in Alle");
+lage({ alle: true, ebene: "topographie" });
+assert(context.isClimateLayerVisible(), "und auch wenn zuletzt Topographie gewählt war -- derselbe Anblick");
+
+// Ohne den Landschaften-Modus überhaupt: nichts, auch nicht in „Alle".
+lage({ modus: false, alle: true });
+assert(!context.isClimateLayerVisible(), "ohne Landschaften-Modus gibt es keine Zonennamen");
+
 if (failures > 0) {
 	console.error(`ecosystem-climate.test: ${failures} failure(s)`);
 	process.exit(1);
