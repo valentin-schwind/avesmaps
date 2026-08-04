@@ -62,14 +62,22 @@
 		};
 	}
 
-	// Die eine Entscheidung. Heute: Admin. „Die Reviewer werden zur gegebenen Zeit Zugriff auf das
-	// Tool bekommen" (Owner 2026-07-30) -- wenn es soweit ist, ist das hier eine Zeile, und der Test
-	// daneben sagt, welche.
+	// Die eine Entscheidung: wer die Ebene BEDIENEN darf -- Ebenenwahl, Untergrund-Regler, Zeichnen.
+	// ANSEHEN darf sie seit 2026-08-04 jeder; das ist keine Rechtefrage mehr und wird hier nicht
+	// gefragt (siehe isEcosystemLayerModeActive in map-features-ecosystem-layer-switch.js).
+	//
+	// Admin UND Editor (Owner 2026-08-04: „editoren können es jetzt editieren, nicht nur admins").
+	// 🔴 Das holt den Client nur dorthin, wo der Server längst steht: api/edit/map/ecosystem.php
+	// verlangt seit je die Fähigkeit `edit`, nicht `admin`. Der Client war ENGER als das Schloss --
+	// ein Editor bekam die Oberfläche nicht zu sehen, obwohl seine Schreibrechte gereicht hätten.
+	//
+	// „Die Reviewer werden zur gegebenen Zeit Zugriff auf das Tool bekommen" (Owner 2026-07-30) --
+	// wenn es soweit ist, ist das hier eine Zeile, und der Test daneben sagt, welche.
 	function sessionGrantsEcosystem(payload) {
 		if (!payload || typeof payload !== "object") { return false; }
 		const capabilities = payload.capabilities;
 		if (!capabilities || typeof capabilities !== "object") { return false; }
-		return strictBoolean(capabilities.admin);
+		return strictBoolean(capabilities.admin) || strictBoolean(capabilities.edit);
 	}
 
 	let currentSession = anonymousSession();

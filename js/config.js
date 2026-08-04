@@ -317,12 +317,13 @@ let IS_ECOSYSTEM_ENABLED = false;
 function applyEcosystemAccess(granted) {
 	if (granted !== true || IS_ECOSYSTEM_ENABLED) { return; }
 	IS_ECOSYSTEM_ENABLED = true;
-	// Der Modus-Eintrag: in map-features.js beim Aufbau gesperrt, weil die Antwort da noch nicht da war.
-	// syncTransportControl baut die Combobox aus den <option>-Elementen neu -- ohne den zweiten Aufruf
-	// bliebe der Eintrag optisch gesperrt, obwohl er es nicht mehr ist.
-	const option = document.querySelector("#mapLayerModeSelect option[value=\"ecosystem\"]");
-	if (option) { option.disabled = false; }
-	if (typeof syncTransportControl === "function") { syncTransportControl("mapLayerModeSelect"); }
+	// 🔴 Die Oberfläche NACHZIEHEN. Seit 2026-08-04 darf jeder die Ebene ansehen, und ein Editor kann
+	// deshalb längst darin stehen, wenn die Rechteauskunft eintrifft (ein geteilter Link, der letzte
+	// Zustand). Ohne diesen Aufruf bliebe sein Bedienfeld verborgen, bis er den Modus einmal
+	// wechselt -- sichtbar als „bei mir fehlen die Ebenen-Kacheln".
+	if (typeof syncEcosystemControlsVisibility === "function") {
+		syncEcosystemControlsVisibility();
+	}
 	// 🪤 Der Beschriftungsfilter „nur mit Region" ergibt ohne Landschaftsmodul keinen Sinn: er würde
 	// jede Beschriftung verbergen (siehe bootstrap.js). Nur im Edit-Modus überhaupt vorhanden.
 	if (IS_EDIT_MODE) {
@@ -334,8 +335,13 @@ function applyEcosystemAccess(granted) {
 // Sofort losschicken, nicht erst beim Kartenaufbau: die Antwort soll da sein, bevor jemand das
 // Ebenen-Menü aufklappt. Kostet einen Aufruf ohne Datenbank (api/app/session.php liest nur das Cookie).
 if (window.AvesmapsSession && typeof window.AvesmapsSession.load === "function") {
-	window.AvesmapsSession.load().then(function (session) {
-		applyEcosystemAccess(session && session.capabilities ? session.capabilities.admin === true : false);
+	window.AvesmapsSession.load().then(function () {
+		// 💣 grantsEcosystem() FRAGEN, die Regel nicht noch einmal aufschreiben. Bis 2026-08-04 stand
+		// hier `capabilities.admin === true` -- dieselbe Entscheidung ein zweites Mal, neben der in
+		// js/app/session.js. Als der Owner die Editoren dazunahm, hätte eine Änderung dort allein
+		// nichts bewirkt: diese Zeile hätte sie weiter ausgesperrt, und der Test daneben wäre grün
+		// geblieben. Eine Regel, ein Ort.
+		applyEcosystemAccess(window.AvesmapsSession.grantsEcosystem());
 	});
 }
 // Infopanel is the ONLY experience (Owner 2026-07-17): feature info lands in the collapsible

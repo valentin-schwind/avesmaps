@@ -20,10 +20,16 @@ const ANONYMOUS = { authenticated: false, username: null, role: null,
 
 assert.strictEqual(sessionGrantsEcosystem({ capabilities: { admin: true } }), true,
 	"an admin gets the landscape layer");
-assert.strictEqual(sessionGrantsEcosystem({ capabilities: { admin: false, edit: true } }), false,
-	"an editor does not -- 'nur fuer Admins' (owner 2026-07-30)");
+// 🔴 Seit 2026-08-04 auch der EDITOR (Owner: „editoren können es jetzt editieren, nicht nur admins").
+// Das holt den Client nur dorthin, wo der Server längst steht: api/edit/map/ecosystem.php verlangt seit
+// je die Fähigkeit `edit`. Der Client war ENGER als das Schloss.
+assert.strictEqual(sessionGrantsEcosystem({ capabilities: { admin: false, edit: true } }), true,
+	"an editor gets it too now -- the write endpoint has always asked for `edit`");
 assert.strictEqual(sessionGrantsEcosystem({ capabilities: { review: true } }), false,
 	"and neither does a reviewer -- 'zur gegebenen Zeit', not today");
+// 💣 Auch hier zählt nur echtes `true`: dieselbe Falle wie bei `admin`, eine Zeile tiefer im selben Gatter.
+assert.strictEqual(sessionGrantsEcosystem({ capabilities: { admin: false, edit: "1" } }), false,
+	"the string '1' does not open the gate for an editor either");
 assert.strictEqual(sessionGrantsEcosystem(ANONYMOUS), false, "an anonymous visitor never does");
 
 // 🔴 Fail CLOSED on every shape the network can hand us. The old gate was a url parameter, so a
