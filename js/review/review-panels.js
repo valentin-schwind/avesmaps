@@ -534,9 +534,14 @@ const AVESMAPS_EDITOR_AREA_LABELS = {
 	citymaps: "Kartensammlung",
 	adventures: "Abenteuer",
 	wikisync: "Datenabgleich",
-	// The political LAYER, as opposed to the territory EDITOR above. Named apart on purpose: only
-	// the editor carries the write claim, and the panel should show which of the two someone is in.
+	// The map layers. "Politische Karte" is deliberately a different entry from "Territorien" above:
+	// only the editor window carries the write claim, and the panel should show which of the two
+	// someone is in. The names follow the mode picker's own wording (index.html) so the panel says
+	// what the person sees in their own dropdown.
 	political_map: "Politische Karte",
+	standard_map: "Standardkarte",
+	original_map: "Originalkarte",
+	plain_map: "Nur Karte",
 };
 
 // Pure: what to append to a user's meta line in the Status tab. Empty string means "append
@@ -620,12 +625,21 @@ function avesmapsVisibleEditorArea() {
 // which protected the claim but also hid an editor at work -- reporting nothing was the wrong way
 // to grant nothing.
 //
-// Modes not listed here (none / original / deregraphic) are ways of LOOKING at the base map, not
-// places work happens.
+// EVERY map mode is listed. An earlier version left out none/original/deregraphic as "ways of
+// looking rather than places work happens" -- wrong, and the owner said so: the standard map is
+// where places get created, ways get drawn and markers get moved. It is the main work surface in
+// this app, not a viewing mode. If someone is in the editor, they are working somewhere, and the
+// panel should say where.
+//
+// powerlines and ecosystem share the code of their editor window on purpose -- same subject, and
+// the panel should read the same whether you are in the window or on the layer.
 const AVESMAPS_MAP_MODE_AREAS = {
 	ecosystem: "ecosystem",
-	political: "political_map",
 	powerlines: "powerlines",
+	political: "political_map",
+	deregraphic: "standard_map",
+	original: "original_map",
+	none: "plain_map",
 };
 
 // Pure, so the rule above can be tested: the caller passes the current map state in.

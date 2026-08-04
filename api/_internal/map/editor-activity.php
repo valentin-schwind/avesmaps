@@ -31,7 +31,12 @@ const AVESMAPS_EDITOR_ACTIVITY_AREAS = [
     'citymaps',
     'adventures',
     'wikisync',
+    // The map layers, for work done without opening an editor window at all. The standard map is
+    // the busiest of them: places, ways and markers are all created there.
     'political_map',
+    'standard_map',
+    'original_map',
+    'plain_map',
 ];
 
 // Deliberately longer than AVESMAPS_EDITOR_PRESENCE_ONLINE_SECONDS (90): the green dot may go out

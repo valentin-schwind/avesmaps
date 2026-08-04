@@ -102,13 +102,22 @@ check("an unknown landscape kind still reports the layer, just without a name",
 check("missing label table does not throw",
 	avesmapsMapWorkActivityFor("ecosystem", "klima", null).area === "ecosystem");
 
-// The political layer IS shown -- an editor working there should be visible to the others.
-check("the political map mode is reported, so the work is visible",
-	avesmapsMapWorkActivityFor("political", "", KINDS).area === "political_map");
-check("the powerline layer is reported too",
-	avesmapsMapWorkActivityFor("powerlines", "", KINDS).area === "powerlines");
+// EVERY mode the picker offers is reported. The standard map especially: places, ways and markers
+// are created there, so "nothing next to the name" would hide the most common work in the app.
+[["political", "political_map"], ["powerlines", "powerlines"], ["deregraphic", "standard_map"],
+	["original", "original_map"], ["none", "plain_map"]].forEach(([mode, area]) => {
+	check(`map mode "${mode}" is reported as ${area}`, avesmapsMapWorkActivityFor(mode, "", KINDS).area === area);
+});
 check("a layer with no sub-layer carries no label",
 	avesmapsMapWorkActivityFor("political", "klima", KINDS).label === null);
+
+// Every mode the picker actually offers must be covered -- read from index.html, not from a list
+// repeated here, so adding an option to the dropdown without a mapping fails loudly.
+const modeOptions = [...fs.readFileSync("index.html", "utf8")
+	.match(/<select id="mapLayerModeSelect"[\s\S]*?<\/select>/)[0]
+	.matchAll(/<option value="([a-z]+)"/g)].map((m) => m[1]);
+check(`all ${modeOptions.length} picker options have a mapping (${modeOptions.join(", ")})`,
+	modeOptions.every((m) => Boolean(avesmapsMapWorkActivityFor(m, "", KINDS).area)));
 
 // 💣 THE rule that must never soften: reporting is not claiming. The write claim is keyed on the
 // area code "territories". If a map mode could emit that code, anyone who merely switched the
@@ -118,9 +127,9 @@ check("no map mode can ever report territories -- that code belongs to the edito
 	["political", "powerlines", "ecosystem", "none", "original", "deregraphic", "", "quatsch"]
 		.every((m) => avesmapsMapWorkActivityFor(m, "klima", KINDS).area !== "territories"));
 
-// Ways of looking at the base map are not places work happens.
-["none", "original", "deregraphic", "", "quatsch"].forEach((mode) => {
-	check(`map mode "${mode}" reports nothing`, avesmapsMapWorkActivityFor(mode, "klima", KINDS).area === null);
+// An unknown mode reports nothing rather than inventing an area code.
+["", "quatsch", "hexgrid"].forEach((mode) => {
+	check(`unknown map mode "${mode}" reports nothing`, avesmapsMapWorkActivityFor(mode, "klima", KINDS).area === null);
 });
 
 // --- the two lists that must not drift ------------------------------------------------------
@@ -161,7 +170,9 @@ clientAreas.forEach((area) => {
 });
 
 // And the other way round: a server area nobody on the client ever sends is dead vocabulary.
-const serverAreas = [...phpAreas.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
+// Deduplicated: this compares SETS, and a quoted code inside a comment in that block would
+// otherwise show up as a phantom duplicate.
+const serverAreas = [...new Set([...phpAreas.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]))].sort();
 check("both lists describe exactly the same set of areas",
 	JSON.stringify(serverAreas) === JSON.stringify(clientAreas));
 
