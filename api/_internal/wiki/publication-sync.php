@@ -701,7 +701,54 @@ function avesmapsPublicationDesiredLinksForEntity(PDO $pdo, string $entityType, 
  *
  * @return array{links_added:int, links_removed:int, links_updated:int}
  */
+// One transaction per reconciled entity's publication sources (finding A21). Nothing here was atomic: the body below writes
+// sources and feature_sources, adding, updating and deleting link rows in sequence, and an abort in the middle -- on this host a
+// real case, the FastCGI pool has already collapsed once during a dump run -- left the entity
+// behind in half of them.
+//
+// ⚠️ Per ENTITY, not per step, and the difference is the whole point: the step cursor only moves
+// past fully processed entities, so a restart re-runs the interrupted one. Until now that
+// repaired the damage only because INSERT IGNORE and the upserts happen to tolerate it -- which
+// is luck, not a guarantee. The transaction turns it into one.
+//
+// 💣 NO DDL BETWEEN begin AND commit. MySQL commits an open transaction implicitly the moment it
+// sees DDL, even a no-op CREATE TABLE IF NOT EXISTS -- silently, with everything after it out of
+// reach of the rollback. Every *EnsureTables call belongs in the step that runs BEFORE this one,
+// which is where they are. Checked before this change, and pinned by the test.
+//
+// 💣 NO NETWORK AND NO FILE WRITES BETWEEN begin AND commit either. That is why the third
+// reconciler named in the finding, avesmapsAdventureReconcileEntity, is NOT wrapped: it fetches
+// the wiki cover over HTTP and writes it to /uploads/questcovers in the middle of its writes. A
+// transaction there would hold a connection open across unbounded network latency on a shared
+// host, and could not roll the file back anyway.
+//
+// ⚠️ $ownsTransaction, not a bare beginTransaction: PDO has no nested transactions, and a caller
+// that already opened one would get an exception. Same idiom as avesmapsCitymapRemoveVanished.
 function avesmapsPublicationReconcileEntity(PDO $pdo, string $entityType, string $entityPublicId, string $entityWikiKey, int $userId): array
+{
+    $ownsTransaction = !$pdo->inTransaction();
+    if ($ownsTransaction) {
+        $pdo->beginTransaction();
+    }
+    try {
+        $counters = avesmapsPublicationReconcileEntityWrites($pdo, $entityType, $entityPublicId, $entityWikiKey, $userId);
+    } catch (Throwable $exception) {
+        if ($ownsTransaction && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $exception;
+    }
+    if ($ownsTransaction) {
+        $pdo->commit();
+    }
+
+    return $counters;
+}
+
+// The writes themselves, unchanged. Split out so the transaction above needs no re-indentation
+// of the body -- and so the test can assert that nothing between begin and commit is anything
+// but this one call.
+function avesmapsPublicationReconcileEntityWrites(PDO $pdo, string $entityType, string $entityPublicId, string $entityWikiKey, int $userId): array
 {
     $counters = ['links_added' => 0, 'links_removed' => 0, 'links_updated' => 0];
     if ($entityType === '' || $entityPublicId === '' || $entityWikiKey === '') {
