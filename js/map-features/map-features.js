@@ -79,10 +79,22 @@ if (IS_EDIT_MODE) {
 }
 
 
+// 💣 REIHENFOLGE: erst der MODUS, dann seine VORGABEN. Bis 2026-08-05 stand es andersherum, und das war
+// der Grund für zwei Fehler auf einmal: setSelectedMapLayerMode gibt über syncEcosystemVisibility die
+// Ortsschalter zurück, die sich die Landschaften-Ebene beim Betreten gemerkt hat. Lief das NACH den
+// Vorgaben, überschrieb die Erinnerung den Zielmodus -- "Landschaften -> Nur Karte" zeigte dann alle
+// Ortsklassen, obwohl "Nur Karte" sie ausräumt, und wer über einen geteilten Landschaften-Link kam,
+// landete anschließend in "Standard" ohne einen einzigen Ort. In dieser Reihenfolge gilt die Erinnerung
+// nur noch dort, wo der Zielmodus selbst nichts vorgibt. applyPlannerStateFromUrl
+// (map-features-layer-state.js) macht es seit jeher genauso -- jetzt stimmen die beiden Wege überein.
 $("#mapLayerModeSelect").change(() => {
 	const selectedMode = getSelectedMapLayerMode();
-	applyFrontendLayerModeDefaults(selectedMode);
 	setSelectedMapLayerMode(selectedMode);
+	applyFrontendLayerModeDefaults(selectedMode);
+	// setSelectedMapLayerMode schreibt den Zustand an seinem Ende selbst weg -- das ist jetzt zu früh,
+	// die Vorgaben oben kommen danach. Im Frontend ein No-op (die Funktion steigt ohne IS_EDIT_MODE
+	// sofort aus), im Editmode rettet es die Filterlage über ein F5.
+	syncPlannerStateToUrl();
 });
 
 // On-intent Prefetch: sobald der Nutzer im Begriff ist, einen Kartenmodus zu waehlen (Dropdown oeffnen /

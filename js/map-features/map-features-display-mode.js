@@ -215,9 +215,13 @@ function setSelectedMapLayerMode(mode) {
 	// VOREINSTELLUNG beim Betreten; wer eine Ebene braucht, schaltet ihren Haken von Hand zurueck --
 	// dasselbe Muster wie die Nodices-Zeile darueber.
 	if (IS_EDIT_MODE && normalizedMode === "ecosystem") {
-		if (typeof setAllLocationTypesVisible === "function") {
-			setAllLocationTypesVisible(false);
-		}
+		// 💣 HIER STAND setAllLocationTypesVisible(false) -- ENTFERNT 2026-08-05. Es sah richtig aus (die
+		// Ebene will eine moeglichst leere Flaeche) und war doch der Grund, warum ein Editor nach dem
+		// Verlassen der Landschaften in JEDEM Zielmodus ohne Ortsklassen dastand: die Ebene MERKT sich
+		// die Schalterlage beim Betreten (syncEcosystemSettlementVisibility) -- und lief ERST DANACH.
+		// Sie merkte sich also die bereits geleerte Lage und gab genau die beim Verlassen zurueck.
+		// Ausblenden ist Sache der Ebene, die es auch wieder ruecknimmt; der Moduswechsel haelt sich
+		// davon fern. Wege/Fluesse darunter bleiben hier richtig -- fuer die gibt es keine Erinnerung.
 		$("#togglePaths").prop("checked", false);
 		// Fluesse gehen jetzt AUS. Das kehrt die Entscheidung vom Vormittag (2026-07-26) um, sie als
 		// Zeichenvorlage anzulassen -- nach dem ersten echten Zeichnen entschied der Owner am selben Tag
@@ -257,11 +261,39 @@ function setAllLocationTypesVisible(isVisible) {
 	syncLocationMarkerVisibility();
 }
 
-// Frontend-Sichtbarkeits-Defaults je Kartenmodus (im Editmode NICHT -- dort steuern die Haken Wege/Flüsse alles):
-//  - "Nur Karte" (none): freie Karte -> alle Städte aus, Straßen aus, Flussnamen aus.
-//  - "Standard" (deregraphic): alle Städte an, Straßen + Straßennamen an, Flussnamen an (Fluss-PFADE bleiben aus).
-//  - political/powerlines: keine Auto-Defaults (Zustand bleibt wie zuvor).
-// Die Städte werden nur bei includeCities gesetzt (beim Erst-Laden mit Stadt-Parametern im Deep-Link unterdrückt).
+// Was ein Kartenmodus im Frontend VON SICH AUS zeigt.
+//
+// 💣 DIESE TABELLE IST DIE VOLLSTÄNDIGE LISTE, und sie muss es bleiben. Bis 2026-08-05 stand hier eine
+// Kette von if-Zweigen, die "political" und "ecosystem" nicht kannte: beide stiegen aus, ohne einen
+// einzigen Schalter zu setzen, und erbten damit die Lage ihres VORGÄNGERS. Sichtbar wurde das als
+// "Standard -> Landschaften zeigt Straßen, Nur Karte -> Landschaften nicht" -- dieselbe Ansicht, zwei
+// Bilder, je nachdem woher man kam. Ein Modus, der hier fehlt, fällt sofort in genau diesen Fehler
+// zurück; layer-mode-defaults.test.js prüft deshalb jeden Eintrag aus ZWEI verschiedenen Vorlagen.
+//
+// `orte: null` heißt "dieser Modus fasst die Ortsklassen NICHT an":
+//  - powerlines zeigt ohnehin nur Nodices (shouldShowLocationMarker), ein Eingriff wäre folgenlos;
+//  - ecosystem blendet sie über seine EIGENE Erinnerung aus (syncEcosystemSettlementVisibility) und
+//    gibt sie beim Verlassen zurück -- wer hier eingreift, vergiftet deren Schnappschuss.
+const FRONTEND_LAYER_MODE_DEFAULTS = {
+	// "Nur Karte": freie Karte -- alles aus.
+	none:        { orte: false, wege: false, flussnamen: false },
+	original:    { orte: false, wege: false, flussnamen: false },
+	// "Standard": die volle Karte -- alle Ortsklassen, Straßen samt Namen, Flussnamen. (Die Fluss-PFADE
+	// bleiben auch hier aus; ihr Haken ist im Frontend nicht einmal sichtbar.)
+	deregraphic: { orte: true,  wege: true,  flussnamen: true  },
+	// "Politisch": die Gebiete stehen im Vordergrund. Ortsklassen aus -- das immer-an-Feature in
+	// shouldShowLocationMarker zeigt die Hauptstädte der angezeigten Gebiete von sich aus. Straßen aus
+	// (Owner 2026-08-05; vorher geerbt), die Gewässernamen bleiben zur Orientierung stehen.
+	political:   { orte: false, wege: false, flussnamen: true  },
+	powerlines:  { orte: null,  wege: false, flussnamen: false },
+	// "Landschaften": die Flächen sollen lesbar sein, deshalb keine Straßen (Owner 2026-08-05). Damit
+	// fallen auch die Straßennamen weg -- die hängen an #togglePaths. Die Flussnamen bleiben auf
+	// ausdrückliche Entscheidung stehen, aber fest und nicht mehr geerbt.
+	ecosystem:   { orte: null,  wege: false, flussnamen: true  },
+};
+
+// Setzt die Sichtbarkeits-Vorgaben des Zielmodus. Die Ortsklassen nur bei includeCities (beim
+// Erst-Laden mit Stadt-Parametern im Deep-Link unterdrückt).
 function applyFrontendLayerModeDefaults(mode, { includeCities = true } = {}) {
 	if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
 		// Editmode laesst Ortsklassen sonst komplett manuell (Haken steuern alles) -- aber beim Wechsel auf
@@ -272,30 +304,19 @@ function applyFrontendLayerModeDefaults(mode, { includeCities = true } = {}) {
 		}
 		return;
 	}
-	if (mode === "political") {
-		// Politische Ansicht: Standard-Siedlungsanzeige = NUR die Hauptstädte der aktuell ANGEZEIGTEN Gebiete
-		// (das übernimmt das immer-an-Feature in shouldShowLocationMarker/NameLabel, zoom/flächen-abhängig).
-		// Daher die Typ-Toggles auf AUS defaulten: klickt der Nutzer einen Typ an, kommt dieser zusätzlich;
-		// ein erneuter Wechsel auf "Politisch" setzt wieder auf nur-Hauptstädte zurück.
-		if (includeCities && typeof setAllLocationTypesVisible === "function") {
-			setAllLocationTypesVisible(false);
-		}
+	const defaults = FRONTEND_LAYER_MODE_DEFAULTS[mode];
+	if (!defaults) {
 		return;
 	}
-	if (mode !== "none" && mode !== "original" && mode !== "deregraphic" && mode !== "powerlines") {
-		return; // (political wird oben behandelt)
+
+	if (includeCities && defaults.orte !== null && typeof setAllLocationTypesVisible === "function") {
+		setAllLocationTypesVisible(defaults.orte);
 	}
-	const isStandard = mode === "deregraphic";
-	// Städte nur in none/deregraphic setzen; im Kraftlinien-Modus zeigt shouldShowLocationMarker ohnehin nur Nodices.
-	if (includeCities && mode !== "powerlines") {
-		setAllLocationTypesVisible(isStandard);
-	}
-	// Straßen/Flüsse nur im Standard an; in "Nur Karte" UND "Kraftlinien" aus.
-	$("#togglePaths").prop("checked", isStandard);
+	$("#togglePaths").prop("checked", defaults.wege);
 	$("#toggleRivers").prop("checked", false);
 	if (typeof pathRiverLabelsOverridden !== "undefined") {
 		pathRiverLabelsOverridden = true;
-		pathRiverLabelsVisible = isStandard;
+		pathRiverLabelsVisible = defaults.flussnamen;
 	}
 	syncPathVisibility();
 	if (mode === "powerlines") {
