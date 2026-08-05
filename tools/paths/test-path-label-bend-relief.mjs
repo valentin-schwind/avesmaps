@@ -45,7 +45,9 @@ function extractFunction(source, name) {
 }
 
 const PURE = ["buildLabelTurningProfile", "labelSpanTurning", "findCalmLabelCenter",
-	"sliceLabelWindow", "labelWindowHalf"];
+	// sliceLabelWindowAt replaced sliceLabelWindow on 2026-08-05: it takes the chain's cumulative
+	// lengths instead of rebuilding them, because the dodge search cuts up to 50 windows per placement.
+	"cumulativeLengths", "sliceLabelWindowAt", "labelWindowHalf"];
 
 // The pure helpers need no canvas at all.
 const pure = new Function(`${PURE.map((n) => extractFunction(overlaySource, n)).join("\n")}
@@ -73,6 +75,10 @@ function makeSandbox(relief) {
 	};
 	const body = [
 		extractFunction(overlaySource, "labelSpanRunsLeftward"),
+		// Since 2026-08-05 drawGlyphsAlong is split: layoutGlyphsAlong does the arithmetic (the
+		// dodge check needs the letter positions BEFORE anything is painted), paintGlyphs paints it.
+		extractFunction(overlaySource, "layoutGlyphsAlong"),
+		extractFunction(overlaySource, "paintGlyphs"),
 		extractFunction(overlaySource, "drawGlyphsAlong"),
 	].join("\n");
 	// eslint-disable-next-line no-new-func
@@ -217,7 +223,8 @@ assert.ok(
 );
 
 // --- The window the callers cut ----------------------------------------------------------------
-const win = pure.sliceLabelWindow(MIXED, 200, 60);
+const mixedCum = pure.cumulativeLengths(MIXED);
+const win = pure.sliceLabelWindowAt(MIXED, mixedCum, mixedCum[mixedCum.length - 1], 200, 60);
 let winLen = 0;
 for (let i = 1; i < win.length; i++) winLen += Math.hypot(win[i].x - win[i - 1].x, win[i].y - win[i - 1].y);
 assert.ok(Math.abs(winLen - 120) < 1, `window is 2x half long (got ${winLen.toFixed(2)})`);

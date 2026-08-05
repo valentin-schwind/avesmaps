@@ -2556,6 +2556,10 @@
 		     der spaeter angemeldete DOMContentLoaded-Zuhoerer laeuft auch spaeter. -->
 		<script src="js/map-features/map-features-planner-groups.js"></script>
 		<script src="js/map-features/map-features-location-name-labels.js"></script>
+		<!-- VOR map-features-label-collisions.js: dort wird publishLabelOccupancy am Ende jedes
+		     Kollisionspasses aufgerufen, und das Canvas-Overlay der Weg-/Flussnamen fragt dieselbe
+		     Belegungskarte ab, bevor es zeichnet. -->
+		<script src="js/map-features/map-features-label-occupancy.js"></script>
 		<script src="js/map-features/map-features-label-collisions.js"></script>
 		<script src="js/map-features/map-features-path-domain.js"></script>
 		<script src="js/map-features/map-features-path-labels.js"></script>

@@ -173,12 +173,15 @@ Gitter (`hits`), dann nur gegen diese wenigen Kästen der genaue SAT-Test je Buc
 *wo* das Fenster ausgeschnitten wird, nicht wie `drawGlyphsAlong` darin arbeitet. Die Zusicherung von
 `tools/paths/test-path-label-bend-relief.mjs` und Fall #34 bleibt unangetastet.
 
-### 4.5 Stellgrößen (in `map-features-path-labels.js`, live über `?pathtune=1`)
+### 4.5 Stellgrößen (in `map-features-path-labels.js`)
 
 | Größe | Vorgabe | Wirkung |
 |---|---|---|
-| `PATH_LABEL_DODGE_SLIDE_PX` | 300 | Rutschweite. **0 = Ausweichen aus**, exakt das heutige Verhalten (Notausgang). |
+| `PATH_LABEL_DODGE_SLIDE_PX` | 300 | Rutschweite an der eigenen Linie |
 | `PATH_LABEL_DODGE_STEP_PX` | 12 | Schrittweite der Suche |
+
+**Kein Rückfallschalter** (Owner-Entscheid 2026-08-05). Ein „0 = wie früher" war angeboten und wurde
+abgelehnt: die alte Lage ist keine, in die man zurückwollte.
 
 ## 5. Was NICHT geändert wird
 
@@ -201,7 +204,28 @@ Gitter (`hits`), dann nur gegen diese wenigen Kästen der genaue SAT-Test je Buc
 - Bestehende Tests müssen grün bleiben: `test-path-label-orientation.mjs` (Fall #34),
   `test-path-label-bend-relief.mjs`, `test-way-labels.mjs`.
 
-## 7. Offene Punkte
+## 7. Gebaut und nachgemessen (2026-08-05)
+
+Nicht nur offline: in der **echten Anwendung**, mit dem echten Kartenabzug lokal ausgeliefert. Gezählt
+wurden Schrift-Bildpunkte auf dem Wegnamen-Canvas, die innerhalb eines Ortsnamen-Kastens liegen — also
+am fertigen Bild, nicht am Modell.
+
+| Ausschnitt | vorher (Belegungskarte leer) | nachher |
+|---|---|---|
+| Wehrheim, Zoom 4 | 2368 Schriftpunkte, **1060 auf einem Ortsnamen** | 1306 Schriftpunkte, **1** |
+| Wehrheim, Zoom 5 | 2505, **570** | 1710, **2** |
+| Gareth, Zoom 4 | 2451, **1065** | 1314, **1** |
+| Gareth, Zoom 5 | 2492, **625** | 1665, **0** |
+
+Kosten am dichtesten Punkt der Karte (Gareth, Zoom 4, 149 Ortsnamen im Bild): `redraw()` 18,2 ms → 24,7 ms,
+Veröffentlichen der Rechtecke < 0,01 ms. `redraw()` läuft auf `moveend`/`zoomend`, nicht je Einzelbild.
+
+Tests: `tools/paths/test-label-occupancy.mjs` (19 Prüfungen), `tools/paths/test-path-label-dodge.mjs`
+(8), dazu unverändert grün `test-path-label-orientation.mjs` (#34), `test-path-label-bend-relief.mjs`,
+`test-way-labels.mjs`. Die beiden letztgenannten mussten ihre Sandbox nachziehen, weil
+`drawGlyphsAlong` jetzt geteilt ist.
+
+## 8. Offene Punkte
 
 - Der senkrechte Versatz (siehe §3) liegt gemessen vor, ist aber bewusst nicht Teil dieser Fassung.
 - Die Gebiets-/Reichsnamen des politischen Layers waren in der Offline-Messung nicht enthalten (eigener

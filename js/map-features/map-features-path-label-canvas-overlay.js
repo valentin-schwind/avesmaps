@@ -173,33 +173,9 @@
 		return best;
 	}
 
-	// Teilstueck von `pts` um `center` (+/- `half`), Enden interpoliert. drawGlyphsAlong zentriert immer
-	// auf dem, was es bekommt -- die AUSWAHL der Stelle passiert hier. Pur.
-	function sliceLabelWindow(pts, center, half) {
-		const cum = [0];
-		for (let i = 1; i < pts.length; i += 1) {
-			cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
-		}
-		const total = cum[cum.length - 1];
-		const start = Math.max(0, center - half);
-		const end = Math.min(total, center + half);
-		const at = (d) => {
-			for (let i = 1; i < pts.length; i += 1) {
-				if (d <= cum[i]) {
-					const segLen = cum[i] - cum[i - 1];
-					const t = segLen > 0 ? (d - cum[i - 1]) / segLen : 0;
-					return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * t, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * t };
-				}
-			}
-			return { x: pts[pts.length - 1].x, y: pts[pts.length - 1].y };
-		};
-		const out = [at(start)];
-		for (let i = 0; i < pts.length; i += 1) {
-			if (cum[i] > start && cum[i] < end) out.push(pts[i]);
-		}
-		out.push(at(end));
-		return out;
-	}
+	// (Das Teilstueck um `center` schneidet sliceLabelWindowAt aus -- es bekommt die kumulierte Laenge
+	// der Kette mit, statt sie je Fenster neu zu bauen. Die Ausweichsuche fragt bis zu 50 Fenster je
+	// Platzierung ab; ein eigener Aufbau je Fenster liefe jedes Mal ueber die ganze Kette.)
 
 	// Halbe Fensterbreite fuer eine Platzierung: Textbreite plus etwas Luft, und mit Kruemmungs-Ausgleich
 	// zusaetzlich eine Schrifthoehe -- der Zuschlag verlaengert den Namen, und laeuft er ueber das Fenster
@@ -218,8 +194,10 @@
 	}
 
 	// Glyphen einzeln entlang der Pixel-Polyline platzieren (zentriert auf dem jeweiligen Slot, tangential
-	// rotiert). textAlign/textBaseline werden in redraw() gesetzt; Halo = weicher Schatten + scharfe Kontur.
-	function drawGlyphsAlong(pts, chars, widths, ls, halo, fillColor, perpOffset, fontSize) {
+	// rotiert) -- die reine RECHNUNG, ohne zu zeichnen. Getrennt vom Malen, weil das Ausweichen vor
+	// Ortsnamen die Buchstabenlagen BRAUCHT, bevor entschieden ist, ob hier ueberhaupt gezeichnet wird
+	// (siehe findFreePlacement). Eine Rechnung, zwei Aufrufer: drawGlyphsAlong malt genau das hier.
+	function layoutGlyphsAlong(pts, chars, widths, ls, perpOffset, fontSize) {
 		const textLen = widths.reduce((s, w) => s + w + ls, 0) - ls;
 		// Vor dem perpOffset-Shift umdrehen, damit „positiv = oben" für den gedrehten Lauf gilt.
 		if (labelSpanRunsLeftward(pts, textLen)) {
@@ -243,10 +221,10 @@
 			total += d;
 		}
 		if (!seg.length) {
-			return;
+			return null;
 		}
 		if (textLen > total) {
-			return; // Linie zu kurz für den Namen
+			return null; // Linie zu kurz für den Namen
 		}
 		const at = (d) => {
 			for (const s of seg) {
@@ -281,7 +259,9 @@
 						p = at(dist + w / 2);
 					}
 				}
-				glyphs.push(p);
+				// w/h reisen mit: die Ausweichpruefung braucht den (gedrehten) Kasten jedes Buchstabens,
+				// und 0.72 x Schriftgrad ist dieselbe Tintenhoehe, mit der schon #18 gemessen wurde.
+				glyphs.push({ x: p.x, y: p.y, ang: p.ang, w, h: (Number(fontSize) > 0 ? Number(fontSize) : 0) * 0.72 });
 				previousAngle = p.ang;
 				dist += w + ls;
 			}
@@ -303,9 +283,113 @@
 		if (run.consumed > textLen) {
 			run = place((total - run.consumed) / 2, strength);
 		}
+		return run.glyphs;
+	}
 
+	// Die grobe Huelle einer Platzierung: erst damit wird das Belegungsgitter befragt, danach nur noch
+	// gegen die wenigen Treffer genau geprueft. Gleiche Rechnung wie die Selbstkollisions-Box unten
+	// (Buchstabenlagen + eine Schriftgroesse Polster).
+	function glyphsHullBox(glyphs, fontSize) {
+		let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+		for (const glyph of glyphs) {
+			if (glyph.x < left) left = glyph.x;
+			if (glyph.x > right) right = glyph.x;
+			if (glyph.y < top) top = glyph.y;
+			if (glyph.y > bottom) bottom = glyph.y;
+		}
+		const pad = Number(fontSize) || 0;
+		return { left: left - pad, top: top - pad, right: right + pad, bottom: bottom + pad };
+	}
+
+	// Die freie Stelle fuer einen Namen an SEINER EIGENEN Linie: Sollstelle zuerst, dann in
+	// PATH_LABEL_DODGE_STEP_PX-Schritten abwechselnd vor und zurueck, bis PATH_LABEL_DODGE_SLIDE_PX.
+	// Zur Seite weicht hier nichts aus -- ein Strassenname gehoert auf seine Strasse. Findet sich keine
+	// freie Stelle, gibt es null zurueck und der Aufrufer laesst diese Platzierung aus; der naechste
+	// Name derselben Kette steht ~WAY_LABEL_SCREEN_INTERVAL_PX weiter.
+	// `blockedByOwnKind` prueft die Selbstkollision der Wegnamen untereinander (Kanal A), `hull`/`glyphs`
+	// gehen an die gemeinsame Belegungskarte (Orts-, Landschafts-, Gebietsnamen).
+	function findFreePlacement(chainPts, cum, total, wishCenter, chars, widths, ls, fontSize, blockedByOwnKind) {
+		const slide = typeof PATH_LABEL_DODGE_SLIDE_PX !== "undefined" ? Math.max(0, Number(PATH_LABEL_DODGE_SLIDE_PX) || 0) : 0;
+		const step = typeof PATH_LABEL_DODGE_STEP_PX !== "undefined" ? Math.max(1, Number(PATH_LABEL_DODGE_STEP_PX) || 1) : 12;
+		const textLen = widths.reduce((sum, w) => sum + w + ls, 0) - ls;
+		const bend = pathLabelBendSettings();
+		const half = labelWindowHalf(textLen, fontSize, bend.relief);
+		const perp = -(typeof PATH_LABEL_DY !== "undefined" ? PATH_LABEL_DY : 0);
+
+		const offsets = [0];
+		for (let d = step; d <= slide; d += step) {
+			offsets.push(d);
+			offsets.push(-d);
+		}
+		for (const offset of offsets) {
+			const center = wishCenter + offset;
+			// Nicht ueber die Enden der eigenen Kette hinaus -- dort staut at() die Buchstaben aufeinander.
+			if (center < textLen / 2 || center > total - textLen / 2) {
+				continue;
+			}
+			const windowPts = sliceLabelWindowAt(chainPts, cum, total, center, half);
+			if (windowPts.length < 2) {
+				continue;
+			}
+			const glyphs = layoutGlyphsAlong(windowPts, chars, widths, ls, perp, fontSize);
+			if (!glyphs || glyphs.length === 0) {
+				continue;
+			}
+			const hull = glyphsHullBox(glyphs, fontSize);
+			if (typeof blockedByOwnKind === "function" && blockedByOwnKind(hull)) {
+				continue;
+			}
+			if (typeof labelOccupancyBlocksGlyphs === "function"
+				&& labelOccupancyBlocksGlyphs(avesmapsLabelOccupancy, hull, glyphs)) {
+				continue;
+			}
+			return { center, windowPts, glyphs, hull };
+		}
+		return null;
+	}
+
+	// Teilstueck von `pts` um `center` (+/- `half`), Enden interpoliert. layoutGlyphsAlong zentriert immer
+	// auf dem, was es bekommt -- die AUSWAHL der Stelle passiert hier. Die kumulierte Laenge kommt von
+	// aussen: die Ausweichsuche schneidet bis zu 50 Fenster je Platzierung aus, und sie je Fenster neu
+	// aufzubauen liefe jedes Mal ueber die ganze Kette. Pur.
+	function sliceLabelWindowAt(pts, cum, total, center, half) {
+		const start = Math.max(0, center - half);
+		const end = Math.min(total, center + half);
+		const at = (d) => {
+			for (let i = 1; i < pts.length; i += 1) {
+				if (d <= cum[i]) {
+					const segLen = cum[i] - cum[i - 1];
+					const t = segLen > 0 ? (d - cum[i - 1]) / segLen : 0;
+					return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * t, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * t };
+				}
+			}
+			return { x: pts[pts.length - 1].x, y: pts[pts.length - 1].y };
+		};
+		const out = [at(start)];
+		for (let i = 0; i < pts.length; i += 1) {
+			if (cum[i] > start && cum[i] < end) out.push(pts[i]);
+		}
+		out.push(at(end));
+		return out;
+	}
+
+	// Kumulierte Laenge je Punkt einer Bildschirm-Polylinie.
+	function cumulativeLengths(pts) {
+		const cum = [0];
+		for (let i = 1; i < pts.length; i += 1) {
+			cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+		}
+		return cum;
+	}
+
+	// Die fertig gerechneten Glyphen malen. textAlign/textBaseline werden in redraw() gesetzt;
+	// Halo = weicher Schatten + scharfe Kontur.
+	function paintGlyphs(glyphs, chars, halo, fillColor) {
 		for (let i = 0; i < chars.length; i += 1) {
-			const p = run.glyphs[i];
+			const p = glyphs[i];
+			if (!p) {
+				continue;
+			}
 			ctx.save();
 			ctx.translate(p.x, p.y);
 			ctx.rotate(p.ang);
@@ -329,7 +413,16 @@
 			ctx.fillText(chars[i], 0, 0);
 			ctx.restore();
 		}
-		return run.glyphs;
+		return glyphs;
+	}
+
+	// Rechnen und malen in einem Zug -- der Weg fuer Aufrufer ohne Ausweichpruefung (Kraftlinien).
+	function drawGlyphsAlong(pts, chars, widths, ls, halo, fillColor, perpOffset, fontSize) {
+		const glyphs = layoutGlyphsAlong(pts, chars, widths, ls, perpOffset, fontSize);
+		if (!glyphs) {
+			return;
+		}
+		return paintGlyphs(glyphs, chars, halo, fillColor);
 	}
 
 	function redraw() {
@@ -419,24 +512,30 @@
 					halo = { glow: hp.glow, blur: fontSize * (hp.glowBlurRatio || 0), strokeW: fontSize * (hp.strokeRatio || 0) };
 				}
 			}
-			// dy-Slider (?pathtune=1): senkrechter Versatz; SVG-dy negativ = oben -> perpOffset = -dy.
-			const perp = -(typeof PATH_LABEL_DY !== "undefined" ? PATH_LABEL_DY : 0);
+			// Den senkrechten Versatz (dy-Slider, ?pathtune=1) setzt findFreePlacement selbst -- er muss
+			// schon in den Kandidaten stecken, sonst pruefte das Ausweichen eine andere Lage als die,
+			// die spaeter gemalt wird.
 			// A (#18): frueher bekam drawGlyphsAlong die GANZE Segment-Polylinie und setzte den Namen auf
 			// deren Mitte -- lag dort eine Schlinge, wurde eben dort beschriftet. Jetzt suchen wir das
 			// ruhigste Stueck und schneiden das Fenster dort aus. Bei Suchradius 0 faellt die Wahl auf
 			// dieselbe Mitte wie bisher.
 			const bend = pathLabelBendSettings();
-			let labelPts = pts;
+			const cum = cumulativeLengths(pts);
+			const total = cum[cum.length - 1];
+			const textLen = widths.reduce((sum, w) => sum + w + ls, 0) - ls;
+			let wish = total / 2;
 			if (bend.searchPx > 0) {
-				const textLen = widths.reduce((sum, w) => sum + w + ls, 0) - ls;
 				const profile = buildLabelTurningProfile(pts, LABEL_TURN_PROFILE_STEP_PX);
-				const center = findCalmLabelCenter(profile, profile.total / 2, textLen, bend.searchPx, bend.anchor);
-				const windowPts = sliceLabelWindow(pts, center, labelWindowHalf(textLen, fontSize, bend.relief));
-				if (windowPts.length >= 2) {
-					labelPts = windowPts;
-				}
+				wish = findCalmLabelCenter(profile, profile.total / 2, textLen, bend.searchPx, bend.anchor);
 			}
-			drawGlyphsAlong(labelPts, chars, widths, ls, halo, style.fill, perp, fontSize);
+			// Ausweichen (2026-08-05): die Sollstelle ist nur der Wunsch -- liegt dort ein Orts-,
+			// Landschafts- oder Gebietsname, rutscht der Name an der eigenen Linie weiter. Findet sich
+			// nichts, wird hier nichts gezeichnet.
+			const found = findFreePlacement(pts, cum, total, wish, chars, widths, ls, fontSize, null);
+			if (!found) {
+				return;
+			}
+			paintGlyphs(found.glyphs, chars, halo, style.fill);
 		});
 
 		// Kanal A: wiki-zugewiesene Wege als GANZES beschriften (Endpunkt-Verkettung über Segmente,
@@ -554,22 +653,9 @@
 							halo = { glow: hp.glow, blur: fontSize * (hp.glowBlurRatio || 0), strokeW: fontSize * (hp.strokeRatio || 0) };
 						}
 					}
-					const perp = -(typeof PATH_LABEL_DY !== "undefined" ? PATH_LABEL_DY : 0);
-
-					// Punkt bei kumulierter Distanz `d` entlang der (bereits projizierten) Kettenpunkte pts
-					// interpolieren -- Grundlage sowohl fürs Fenster-Slicing als auch die Kollisions-BBox.
-					const sampleAt = (d) => {
-						let remaining = Math.max(0, Math.min(d, totalLen));
-						for (let i = 1; i < pts.length; i += 1) {
-							const segLen = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
-							if (remaining <= segLen || i === pts.length - 1) {
-								const t = segLen > 0 ? remaining / (segLen || 1) : 0;
-								return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * t, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * t };
-							}
-							remaining -= segLen;
-						}
-						return pts[0];
-					};
+					// Fenster-Ausschnitt und Kollisions-Kasten kommen jetzt beide aus findFreePlacement /
+					// sliceLabelWindowAt (die dieselbe kumulierte Laenge cumAtPts nutzen) -- der eigene
+					// Interpolierer hier waere ihre zweite Fassung.
 
 					// A (#18): Richtungsprofil EINMAL je Kette -- die Suche unten fragt es nur noch ab. Erst
 					// bauen, wenn diese Kette wirklich beschriftet wird und die Suche eingeschaltet ist: der
@@ -583,58 +669,43 @@
 						// Die Intervall-Mitte ist nur noch der VORSCHLAG; gesetzt wird auf dem ruhigsten
 						// Stueck in Reichweite (Suchradius 0 -> exakt das alte Verhalten).
 						const centerOffset = findCalmLabelCenter(turningProfile, intervalOffset, textLen, bend.searchPx, bend.anchor);
-						const halfWindow = labelWindowHalf(textLen, fontSize, bend.relief);
-						const windowStart = Math.max(0, centerOffset - halfWindow);
-						const windowEnd = Math.min(totalLen, centerOffset + halfWindow);
-						// drawGlyphsAlong zentriert IMMER auf dem übergebenen Punkte-Array (dist = (total-textLen)/2)
-						// -- für mehrere Platzierungen entlang derselben Kette wird deshalb, wie beim per-Segment-
-						// Zweig, ein Fenster (Sub-Polyline) um den Ziel-Offset ausgeschnitten und UNVERÄNDERT mit
-						// derselben Signatur an drawGlyphsAlong übergeben (kein neuer Parameter erfunden).
-						const windowPts = [sampleAt(windowStart)];
-						for (let i = 0; i < pts.length; i += 1) {
-							// Zwischenpunkte der Original-Polyline im Fenster mit übernehmen, damit Kurven
-							// (nicht nur Start/Ende) erhalten bleiben.
-							if (cumAtPts[i] > windowStart && cumAtPts[i] < windowEnd) {
-								windowPts.push(pts[i]);
-							}
-						}
-						windowPts.push(sampleAt(windowEnd));
-						if (windowPts.length < 2) {
+						// Ausweichen (2026-08-05): rutscht an der eigenen Kette weiter, bis die Stelle frei
+						// ist -- frei heisst hier BEIDES: kein anderer Wegname (Selbstkollision, wie bisher
+						// nur Kanal A) und kein Orts-/Landschafts-/Gebietsname (gemeinsame Belegungskarte,
+						// map-features-label-occupancy.js). Findet sich nichts, faellt diese Platzierung aus;
+						// der naechste Name derselben Kette steht ~WAY_LABEL_SCREEN_INTERVAL_PX weiter.
+						const found = findFreePlacement(
+							pts, cumAtPts, totalLen, centerOffset, chars, widths, ls, fontSize,
+							(hull) => acceptedWayLabelBoxes.some((accepted) => boxesOverlap(accepted, {
+								x1: hull.left, y1: hull.top, x2: hull.right, y2: hull.bottom,
+							}))
+						);
+						if (!found) {
 							return;
 						}
-						// Selbstkollision: BBox aus Fenster-Start/-Mitte/-Ende ± Schriftgröße (nur Kanal-A-Labels
-						// nehmen daran teil).
-						const mid = sampleAt(centerOffset);
-						// Kasten auf die TEXTSPANNE, nicht auf die Fensterenden: das Fenster traegt jetzt
-						// Luft fuer den Kruemmungs-Ausgleich und waere als Klickflaeche zu grosszuegig.
-						const spanFrom = sampleAt(Math.max(0, centerOffset - textLen / 2));
-						const spanTo = sampleAt(Math.min(totalLen, centerOffset + textLen / 2));
-						const pad = fontSize;
-						const xs = [spanFrom.x, mid.x, spanTo.x];
-						const ys = [spanFrom.y, mid.y, spanTo.y];
-						const box = {
-							x1: Math.min(...xs) - pad, y1: Math.min(...ys) - pad,
-							x2: Math.max(...xs) + pad, y2: Math.max(...ys) + pad,
-						};
-						if (acceptedWayLabelBoxes.some((accepted) => boxesOverlap(accepted, box))) {
-							return;
-						}
-						acceptedWayLabelBoxes.push(box);
-						drawGlyphsAlong(windowPts, chars, widths, ls, halo, style.fill, perp, fontSize);
+						// Selbstkollisions-Kasten = die tatsaechlichen Buchstabenlagen + eine Schriftgroesse
+						// (frueher aus Spannenanfang/-mitte/-ende geschaetzt; jetzt liegen die Glyphen ohnehin
+						// schon vor, weil die Ausweichpruefung sie braucht).
+						acceptedWayLabelBoxes.push({
+							x1: found.hull.left, y1: found.hull.top, x2: found.hull.right, y2: found.hull.bottom,
+						});
+						paintGlyphs(found.glyphs, chars, halo, style.fill);
 						// Klick-Register (Task 16): eigene, etwas grosszuegigere Trefferflaeche als die reine
 						// Selbstkollisions-Box (WAY_LABEL_CLICK_PAD statt fontSize) -- Textbreite bleibt gleich,
 						// nur ein bisschen mehr "Fingerspielraum" ums Label. Anker = Bildschirmmitte der
 						// Platzierung, zurueckprojiziert auf eine LatLng (ueberlebt den naechsten redraw/pan).
+						const middleGlyph = found.glyphs[Math.floor(found.glyphs.length / 2)];
+						const spanPad = WAY_LABEL_CLICK_PAD - fontSize; // hull traegt bereits fontSize Polster
 						wayLabelClickRegister.push({
-							left: Math.min(...xs) - WAY_LABEL_CLICK_PAD,
-							top: Math.min(...ys) - WAY_LABEL_CLICK_PAD,
-							right: Math.max(...xs) + WAY_LABEL_CLICK_PAD,
-							bottom: Math.max(...ys) + WAY_LABEL_CLICK_PAD,
+							left: found.hull.left - spanPad,
+							top: found.hull.top - spanPad,
+							right: found.hull.right + spanPad,
+							bottom: found.hull.bottom + spanPad,
 							wikiKey,
 							name: group.name,
 							wikiUrl: group.wikiUrl,
 							subtype,
-							anchorLatLng: map.containerPointToLatLng([mid.x, mid.y]),
+							anchorLatLng: map.containerPointToLatLng([middleGlyph.x, middleGlyph.y]),
 						});
 					});
 				});
@@ -859,6 +930,13 @@
 	map.on("moveend zoomend viewreset resize", () => {
 		cssZoomActive = false;
 		canvas.style.transition = "";
+		// Steht fuer dieses Bild schon ein Kollisionspass an, zeichnet DER am Ende (siehe
+		// scheduleLabelCollisionResolution). Selbst zu zeichnen hiesse: zweimal pro Bild, und der erste
+		// Lauf mit den Label-Rechtecken des VORIGEN Bildes. js/app/bootstrap.js meldet seine
+		// moveend/zoomend-Zuhoerer vor diesem hier an, der Pass ist also bereits angemeldet.
+		if (typeof labelCollisionFrameId !== "undefined" && labelCollisionFrameId !== null) {
+			return;
+		}
 		redraw();
 	});
 	map.on("zoomanim", function (event) {

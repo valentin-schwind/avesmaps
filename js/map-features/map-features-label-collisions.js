@@ -5,10 +5,25 @@ function scheduleLabelCollisionResolution() {
 
 	labelCollisionFrameId = window.requestAnimationFrame(() => {
 		labelCollisionFrameId = null;
+		// Den Versatz des Kartencontainers ZUERST lesen -- danach schreiben die Paesse, und ein
+		// getBoundingClientRect nach dem Schreiben erzwaenge einen zusaetzlichen Reflow (siehe
+		// readLabelOccupancyOrigin).
+		const containerOrigin = typeof readLabelOccupancyOrigin === "function" ? readLabelOccupancyOrigin() : null;
 		// Regionenlabels zuerst aufloesen; ihre finalen Rechtecke dann als feste Hindernisse an den
 		// Orts-/Frei-Label-Pass geben, damit Staedtenamen unter Regionenlabels auf die Gegenseite ausweichen.
 		const regionLabelRects = resolveRegionLabelCollisions();
-		resolveLabelCollisions(regionLabelRects);
+		const occupiedRects = resolveLabelCollisions(regionLabelRects);
+
+		// Dieser Pass ist der Taktgeber der GESAMTEN Beschriftung: erst steht die DOM-Seite (Gebiets-,
+		// Landschafts- und Ortsnamen), dann erfaehrt die Canvas-Seite, wo kein Platz mehr ist, und
+		// zeichnet ihre Weg-/Flussnamen als LETZTE -- sie sind die einzigen, die nur an ihrer eigenen
+		// Linie ausweichen koennen. Umgekehrt (Wegnamen zuerst) waere messbar schlechter: die Ortsnamen
+		// haben zwoelf Ausweichplaetze, verlieren aber bei ~500 zusaetzlichen Hindernissen 503 von ihnen
+		// ganz (gemessen 2026-08-05, docs/superpowers/specs/2026-08-05-label-kollision-wege-orte-design.md).
+		publishLabelOccupancy(occupiedRects, containerOrigin);
+		if (window.AvesmapsPathLabelCanvasOverlay && typeof window.AvesmapsPathLabelCanvasOverlay.redraw === "function") {
+			window.AvesmapsPathLabelCanvasOverlay.redraw();
+		}
 	});
 }
 
@@ -360,4 +375,10 @@ function resolveLabelCollisions(seedRects = []) {
 			element.classList.add("is-colliding");
 		}
 	});
+
+	// Die Endlage zurueckgeben: Gebietsnamen (die Vorbelegung) plus jedes tatsaechlich gesetzte Label.
+	// Ausgeblendete stehen NICHT drin -- ein verstecktes Label ist kein Hindernis. Der Aufrufer schiebt
+	// das in die gemeinsame Belegungskarte, damit die Weg-/Flussnamen ihnen ausweichen koennen
+	// (map-features-label-occupancy.js).
+	return acceptedRects;
 }

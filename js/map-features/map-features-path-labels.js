@@ -64,6 +64,16 @@ let PATH_LABEL_CALM_SEARCH_PX = 160;      // wie weit darf der Name wandern, um 
 let PATH_LABEL_CALM_ANCHOR = 0.35;        // 0 = nimm das ruhigste Stueck, egal wie weit; gross = bleib, wo du bist
 let PATH_LABEL_CURVATURE_RELIEF = 1;      // Zuschlag (Schrifthoehe/2)*|dTheta| auf den Buchstaben-Vorschub; 0 = aus
 
+// Ausweichen vor Orts-/Landschafts-/Gebietsnamen (2026-08-05). Ein Wegname darf NICHT zur Seite
+// weichen -- er gehoert auf seine Strasse --, also rutscht er an der eigenen Linie entlang, bis die
+// Stelle frei ist; findet er keine, faellt die Platzierung aus.
+// 💣 Die Rutschweite ist die HALBE Wiederholungsstrecke (WAY_LABEL_SCREEN_INTERVAL_PX = 600): weiter
+// zu rutschen liefe in den Platz der Nachbarplatzierung. Gemessen ueber die ganze Karte bei Zoom 4
+// (docs/superpowers/specs/2026-08-05-label-kollision-wege-orte-design.md): 0 px -> 445 Platzierungen
+// fallen aus, 150 px -> 249, 300 px -> 220, 600 px -> 211. Ab der halben Strecke bringt mehr nichts.
+let PATH_LABEL_DODGE_SLIDE_PX = 300;
+let PATH_LABEL_DODGE_STEP_PX = 12;
+
 // SVG-Halo eines Pfad-Labels aus Stärke/Schärfe. Scharfer Anteil = SVG-Stroke (paint-order:stroke), weicher
 // Anteil = CSS drop-shadow (mehrere Pässe ~ Stärke für Dichte). Stärke 0 = kein Halo. drop-shadow nur bei
 // Schärfe < 1 -> der Default (Schärfe 1) ist filterfrei und damit günstig.

@@ -66,6 +66,10 @@ function makeSandbox() {
 	// drawGlyphsAlong plus the orientation helper it calls, both taken from the real source.
 	const body = [
 		extractFunction(overlaySource, "labelSpanRunsLeftward"),
+		// Since 2026-08-05 drawGlyphsAlong is split: layoutGlyphsAlong does the arithmetic (the
+		// dodge check needs the letter positions BEFORE anything is painted), paintGlyphs paints it.
+		extractFunction(overlaySource, "layoutGlyphsAlong"),
+		extractFunction(overlaySource, "paintGlyphs"),
 		extractFunction(overlaySource, "drawGlyphsAlong"),
 	].join("\n");
 	// eslint-disable-next-line no-new-func
