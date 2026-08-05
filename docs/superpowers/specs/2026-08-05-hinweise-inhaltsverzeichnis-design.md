@@ -102,11 +102,21 @@ bleibt. `data-i18n` sitzt auf den Blaettern, denn `js/app/i18n.js` setzt
 
 ### Stil
 
-- `summary` wird `display: grid` (Spalten: Punkt · Text · Pfeil; zwei Zeilen fuer
-  Titel und Untertitel). Das entfernt zugleich das browsereigene Dreieck; fuer
-  Safari zusaetzlich `::-webkit-details-marker { display: none }`.
-- Der Pfeil ist ein CSS-gezeichneter Winkel in `currentColor` (`::after`), gekippt
-  ueber `details[open]` — keine Schriftart, kein Bild, in beiden Designs richtig.
+- `summary` wird `display: grid` (Spalten: Dreieck · Text; zwei Zeilen fuer Titel und
+  Untertitel). Das entfernt zugleich das browsereigene Dreieck; fuer Safari
+  zusaetzlich `::-webkit-details-marker { display: none }`.
+- **Ein Zeichen je Zeile.** Der erste Bau hatte links den alten Punkt-Marker und
+  rechts einen Pfeil — zwei Anzeigen fuer denselben Zustand, und der Punkt klebte am
+  Rand (Owner am gebauten Stand). Stattdessen steht links, wo der Punkt stand, ein
+  **Dreieck**: nach rechts, solange der Abschnitt zu ist, nach unten gekippt, wenn er
+  offen ist. Der rechte Pfeil entfaellt.
+- 💣 Das Dreieck ist ein `clip-path` auf einem **Quadrat**, kein Rahmen-Dreieck
+  (`border-left: … solid` + durchsichtige Kanten): dessen Kaestchen ist 7x10, und
+  `rotate(90deg)` drehte es um diese Mitte — sichtbar verrutscht. Ein Quadrat dreht
+  sich um sich selbst.
+- Der Einzug des Abschnittstextes ist die Summe der Zeile darueber (6 px Rand +
+  10 px Dreieck + 8 px Spalte = 24 px), damit der Absatz unter seiner Ueberschrift
+  beginnt.
 - Hover und Fokus: `background: var(--color-hover-wash)`, `outline: none` — dieselbe
   Formel wie `.map-context-menu__item`.
 - ⚠️ Die Trennlinie wandert von `.legal-dialog__group` (dem Titel) auf

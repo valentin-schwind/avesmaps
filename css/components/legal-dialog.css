@@ -183,21 +183,23 @@
 }
 
 /* Der Text der aufgeklappten Abschnitte rueckt unter die Ueberschrift ein -- ohne Huellen-<div>, damit
-   die Absaetze im Markup bleiben, wo sie stehen. */
+   die Absaetze im Markup bleiben, wo sie stehen. Das Mass ist keine runde Zahl, sondern die Summe der
+   Zeile darueber: 6 px Rand + 10 px Dreieck + 8 px Spalte. Wer eines davon aendert, aendert das hier
+   mit, sonst steht der Absatz nicht mehr unter seiner Ueberschrift. */
 .legal-section > :not(summary) {
-	padding-left: 16px;
+	padding-left: 24px;
 }
 
-/* Raster statt Flex, aus drei Gruenden: der Punkt-Marker und der Pfeil sollen ueber BEIDE Zeilen
-   (Titel + Hinweis) mittig stehen, und `display: grid` nimmt dem `<summary>` zugleich das
-   browsereigene Dreieck (`display: list-item` weicht). Safari braucht dafuer zusaetzlich die
-   ::-webkit-details-marker-Regel unten. */
+/* Raster statt Flex, aus zwei Gruenden: das Dreieck soll ueber BEIDE Zeilen (Titel + Hinweis) mittig
+   stehen, und `display: grid` nimmt dem `<summary>` zugleich das browsereigene Dreieck
+   (`display: list-item` weicht). Safari braucht dafuer zusaetzlich die ::-webkit-details-marker-Regel
+   unten. */
 .legal-dialog__group {
 	display: grid;
-	grid-template-columns: auto minmax(0, 1fr) auto;
+	grid-template-columns: auto minmax(0, 1fr);
 	align-items: center;
 	column-gap: 8px;
-	padding: 11px 6px 10px 0;
+	padding: 11px 6px 10px 6px;
 	border-radius: var(--radius-sm);
 	color: var(--color-accent-strong);
 	font-size: 15px;
@@ -222,35 +224,27 @@
 	outline: none;
 }
 
+/* EIN Zeichen je Zeile, und es sagt etwas: das Dreieck zeigt nach rechts, solange der Abschnitt zu
+   ist, und kippt beim Aufklappen nach unten. Es steht da, wo bis 2026-08-05 der reine Punkt-Marker
+   stand -- der bedeutete nichts und klebte am Rand (Owner). Ein zweiter Pfeil rechts ist damit
+   ueberfluessig: zwei Anzeigen fuer denselben Zustand sind Laerm, keine Hilfe.
+   💣 Gezeichnet als clip-path auf einem QUADRAT, nicht als Rahmen-Dreieck (`border-left: 7px solid`
+   + durchsichtige Kanten): ein solches Dreieck hat ein 7x10-Kaestchen, und `rotate(90deg)` dreht es
+   um dessen Mitte -- es waere beim Aufklappen sichtbar verrutscht. Das Quadrat dreht sich um sich
+   selbst. */
 .legal-dialog__group::before {
 	content: "";
 	grid-column: 1;
 	grid-row: 1 / -1;
-	width: 8px;
-	height: 8px;
-	border-radius: var(--radius-sm);
+	width: 10px;
+	height: 10px;
 	background: var(--color-accent-strong);
-}
-
-/* Der Pfeil ist gezeichnet, nicht geschrieben: zwei Kanten in currentColor, um 45° gekippt. Damit
-   braucht er keine Schrift, kein Bild und keine zweite Farbe fuer das dunkle Design. */
-.legal-dialog__group::after {
-	content: "";
-	grid-column: 3;
-	grid-row: 1 / -1;
-	width: 7px;
-	height: 7px;
-	margin-bottom: 3px;
-	border-right: 2px solid var(--color-text-muted);
-	border-bottom: 2px solid var(--color-text-muted);
-	transform: rotate(45deg);
+	clip-path: polygon(22% 4%, 88% 50%, 22% 96%);
 	transition: transform 0.15s ease;
 }
 
-.legal-section[open] > .legal-dialog__group::after {
-	margin-top: 3px;
-	margin-bottom: 0;
-	transform: rotate(-135deg);
+.legal-section[open] > .legal-dialog__group::before {
+	transform: rotate(90deg);
 }
 
 .legal-dialog__group-title {
