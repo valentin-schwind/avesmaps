@@ -940,6 +940,31 @@ Rechteinhaber, der Kontakt sucht, praktisch nicht auffindbar.
 > Alle sieben rot. Der Test fand beim Schreiben ausserdem einen echten Fehler: der Auflöser schnitt
 > das `#` **vor** dem Trimmen ab, ein Hash mit führendem Leerraum fiel durch.
 >
+> 🔁 **Und trotzdem prüfte er die Regel, nicht die Verdrahtung** (`88d85b27`). Fünf weitere
+> Mutationen gingen durch, die erste davon ist die **gesamte Wirkung** des Commits:
+>
+> | Mutation | vorher | jetzt |
+> |---|---|---|
+> | `openLegalSectionFromHash();` beim Start **gelöscht** | grün | rot |
+> | derselbe Aufruf mit `&& false` entschärft | grün | rot |
+> | `hashchange`-Handler zu `() => {}` geleert | grün | rot |
+> | Adresszeile per `history.replaceState(…, "#…")` bzw. `location.hash +=` geschrieben | grün | rot |
+> | 💣 **zwei Anker in `index.html` vertauscht** — `#datenschutz` öffnet den Haftungsausschluss | grün | rot |
+>
+> Der letzte ist der realistischste und ausgerechnet die **🔴-Warnung dieses Moduls eine Ebene
+> tiefer**: der Test prüfte, *dass* die acht ids da sind und *dass* es acht sind — nie, **welcher
+> Abschnitt welche trägt**. Acht Attribute von Hand nachzutragen ist genau die Geste, bei der eine
+> verrutscht. Jeder Anker ist jetzt gegen den i18n-Schlüssel seiner eigenen Überschrift festgenagelt,
+> und ein echter Tausch wurde gefahren, um zu belegen, dass die Paarungs-Zusicherung greift und nicht
+> die Doppel-id-Zusicherung.
+>
+> ⚠️ **Ausserdem behoben:** der Start-Aufruf stand ungeschützt auf oberster Ebene. Fällt
+> `legal-anchor.js` je aus (404 während eines Deploys), riss ein `ReferenceError` dort die restlichen
+> ~420 Zeilen von `bootstrap.js` mit — Schliessen-Knopf, sämtliche Editor-Öffner, der Escape-Riegel.
+> Ein Anker fürs Impressum darf nicht die halbe Bedienung kosten. Abgesichert mit **try/catch statt
+> `typeof`**: eine halb geladene Datei kann ihre `const` in der Todeszone stehen lassen, und dann
+> wirft schon die Prüfung.
+>
 > **Live im Browser geprüft, alle drei Wege:**
 >
 > | Probe | Ergebnis |
