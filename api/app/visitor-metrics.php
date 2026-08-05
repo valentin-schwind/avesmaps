@@ -27,6 +27,12 @@ try {
     avesmapsJsonResponse(200, [
         'ok' => true,
         'enabled' => true,
+        // ⚠️ Whether this installation still runs the salt that ships in the repository (finding A23).
+        // The privacy notice promises the visitor id cannot be traced back; with the published salt it
+        // can, because an IPv4 space is small enough to walk. Saying so here rather than nowhere means
+        // the claim is checkable instead of taken on trust -- and this endpoint is behind the `edit`
+        // capability, so the answer reaches an editor and nobody else.
+        'salt_configured' => avesmapsVisitorSaltIsConfigured(),
         'actor' => $actor,
         'days' => $days,
         'metrics' => avesmapsVisitorReadMetrics($pdo, $actor, $days),

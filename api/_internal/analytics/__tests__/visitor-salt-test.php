@@ -104,4 +104,23 @@ assert(
     'and no longer the constant -- that was the unoverridable path'
 );
 
+// --- The state has to be VISIBLE, or it is a fact nobody can check --------------------------------
+//
+// 💣 A resolver nothing reads from is a promise with no way to verify it. avesmapsVisitorSaltIsConfigured
+// answers the only question that matters here -- is this installation still running the published
+// salt? -- and it is wired into the metrics endpoint, which sits behind the `edit` capability, so the
+// answer reaches an editor and nobody else.
+$metricsSource = file_get_contents(__DIR__ . '/../../../app/visitor-metrics.php');
+assert(is_string($metricsSource) && $metricsSource !== '', 'the metrics endpoint is readable');
+assert(
+    str_contains($metricsSource, "'salt_configured' => avesmapsVisitorSaltIsConfigured(),"),
+    'the metrics answer reports whether the salt is still the published one'
+);
+// ⚠️ And it must stay behind the capability gate: this says something about how protected the
+// visitor data is, which is not an anonymous caller's business.
+assert(
+    strpos($metricsSource, "avesmapsRequireUserWithCapability('edit')") < strpos($metricsSource, "'salt_configured'"),
+    'and it is only answered to a caller that passed the capability gate'
+);
+
 echo "visitor-salt ok\n";
