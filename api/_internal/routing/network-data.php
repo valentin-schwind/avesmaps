@@ -78,6 +78,54 @@ function avesmapsIsRouteLocation(array $feature): bool {
 
 function avesmapsIsRouteCrossingLocation(array $feature): bool {
 	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
+
+	return avesmapsRoutePropertiesAreCrossing($properties);
+}
+
+// Ist dieses Objekt eine Kreuzung? EIN Praedikat, und das ist der Punkt (Befund A13 c).
+//
+// 💣 DIESELBE FRAGE WURDE IN DERSELBEN SCHLEIFE ZWEIMAL BEANTWORTET: avesmapsIsRouteCrossingLocation
+// zaehlte den Zaehler hoch, und avesmapsBuildRouteLocationData entschied mit einer EIGENEN,
+// woertlich abgeschriebenen Namenspruefung ueber das Umbenennen. Solange beide gleich lauteten,
+// fiel es nicht auf. Waeren sie je auseinandergelaufen, haette eine Zeile `Kreuzung-5` geheissen,
+// ohne dass der Zaehler weiterrueckt -- und die naechste Kreuzung haette denselben Namen bekommen.
+// Ortsnamen sind Graph-Schluessel; zwei Knoten mit einem Namen ist kein Anzeigefehler.
+//
+// ⚠️ Die drei Stufen sind die des CLIENTS (js/map-features/map-features-location-lookup.js:62-77),
+// nicht neu erfunden: erst `feature_type` (junction|crossing), dann der Subtyp, dann der Name.
+// Der Server prueft bisher nur die dritte. Am Vollbestand gemessen (06.08.2026, 5.575
+// Punkt-Objekte): 2.084 sind nach BEIDEN Kriterien eine Kreuzung, **0** nur nach dem einen und
+// **0** nur nach dem anderen. Diese Aenderung aendert heute also keinen einzigen Namen -- sie
+// macht die Deckung verbindlich, statt sie dem Zufall zu ueberlassen.
+//
+// 🔴 Was sie NICHT tut: die Namen bleiben Positionsnummern. `Kreuzung-1` bis `Kreuzung-2084`
+// werden bei jeder Anfrage neu durchgezaehlt, eine eingefuegte Kreuzung verschiebt alle
+// folgenden. Das zu beheben heisst, 2.084 Namen im stabilen Vertrag zu aendern (A13 a/b) -- eine
+// Owner-Entscheidung, und diese Zeilen nehmen sie nicht vorweg.
+function avesmapsRoutePropertiesAreCrossing(array $properties): bool {
+	$read = static function (array $properties, array $keys): string {
+		foreach ($keys as $key) {
+			$value = $properties[$key] ?? null;
+			if (is_string($value) && trim($value) !== '') {
+				return trim($value);
+			}
+		}
+
+		return '';
+	};
+
+	$featureType = strtolower($read($properties, ['feature_type']));
+	if ($featureType === 'junction' || $featureType === 'crossing') {
+		return true;
+	}
+
+	// ⚠️ Dieselbe Schluesselreihenfolge wie der Client. `settlement_class` steht vor
+	// `feature_subtype`, weil er sie so liest -- eine andere Reihenfolge waere eine zweite Regel.
+	$subtype = strtolower($read($properties, ['location_type', 'settlement_class', 'feature_subtype', 'locationType']));
+	if ($subtype === 'crossing') {
+		return true;
+	}
+
 	return strncmp((string) ($properties['name'] ?? ''), 'Kreuzung', strlen('Kreuzung')) === 0;
 }
 
@@ -127,7 +175,9 @@ function avesmapsResolveRoutePathSubtype(array $properties): string {
 function avesmapsBuildRouteLocationData(array $feature, int $clientCrossingIndex = 1): array {
 	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
 	$name = (string) ($properties['name'] ?? '');
-	if (strncmp($name, 'Kreuzung', strlen('Kreuzung')) === 0) {
+	// 💣 DASSELBE Praedikat wie der Zaehler eine Schleife hoeher. Hier stand eine zweite,
+	// abgeschriebene Namenspruefung -- siehe avesmapsRoutePropertiesAreCrossing.
+	if (avesmapsRoutePropertiesAreCrossing($properties)) {
 		$name = 'Kreuzung-' . $clientCrossingIndex;
 	}
 
