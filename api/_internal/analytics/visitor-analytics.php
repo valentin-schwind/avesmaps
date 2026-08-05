@@ -68,6 +68,29 @@ function avesmapsVisitorClientIp(): string {
 // Three sources, in order: a define() before this file (the old mechanism, still honoured), then
 // config.local.php, then the shipped default. Resolved once per request -- avesmapsLoadApiConfig
 // reads a file and does not cache, and this runs on every tracked hit.
+// Hand the resolver the config an endpoint has ALREADY loaded, so it does not load it again.
+//
+// 💣 avesmapsLoadApiConfig uses `require`, not `require_once` -- it has to, because it returns
+// the array the file yields, and a second `require_once` would hand back `true` instead. So a
+// second call really RE-EXECUTES api/config.local.php. Harmless for a file that only returns an
+// array, which is its documented shape -- but this was the first place in the project to call
+// the loader twice in one request, and it did so on the two hottest analytics paths (a beacon
+// per page view, a ping per minute per visitor) on shared hosting.
+//
+// ⚠️ Priming is a SAVING, not a contract. An endpoint that forgets it gets exactly the previous
+// behaviour -- the resolver loads the config itself. Nothing breaks, it just costs what it cost
+// before.
+//
+// Getter and setter in one function because a static cannot otherwise be shared between two.
+function avesmapsVisitorSaltPrimedConfig(?array $config = null): ?array {
+    static $primed = null;
+    if (is_array($config)) {
+        $primed = $config;
+    }
+
+    return $primed;
+}
+
 function avesmapsVisitorSalt(): string {
     static $resolved = null;
     if (is_string($resolved)) {
@@ -84,6 +107,18 @@ function avesmapsVisitorSalt(): string {
     // ⚠️ Guarded and wrapped: this file is required by five endpoints, and a analytics helper must
     // never be the reason one of them dies. An unreadable config falls through to the default,
     // which is exactly the behaviour before this change.
+    // The primed config first -- see avesmapsVisitorSaltPrimedConfig for why loading it again is
+    // not free.
+    $primed = avesmapsVisitorSaltPrimedConfig();
+    if ($primed !== null) {
+        $configured = trim((string) ($primed['analytics']['visitor_salt'] ?? ''));
+        if ($configured !== '') {
+            return $resolved = $configured;
+        }
+
+        return $resolved = AVESMAPS_VISITOR_SALT_FALLBACK;
+    }
+
     if (function_exists('avesmapsLoadApiConfig') && function_exists('avesmapsApiRoot')) {
         try {
             $config = avesmapsLoadApiConfig(avesmapsApiRoot());

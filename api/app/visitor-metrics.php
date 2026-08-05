@@ -8,6 +8,8 @@ require __DIR__ . '/../_internal/analytics/visitor-analytics.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
+    // Hand it on rather than let the analytics helper load the same file again (A23).
+    avesmapsVisitorSaltPrimedConfig($config);
     if (!avesmapsApplyCorsPolicy($config)) {
         avesmapsErrorResponse(403, 'forbidden', 'Origin not allowed.');
     }

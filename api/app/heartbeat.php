@@ -15,6 +15,8 @@ require __DIR__ . '/../_internal/analytics/visitor-analytics.php';
 // is best-effort decoration for the editor panel and must never reach a visitor.
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
+    // Hand it on rather than let the analytics helper load the same file again (A23).
+    avesmapsVisitorSaltPrimedConfig($config);
     if (!avesmapsApplyCorsPolicy($config)) {
         avesmapsJsonResponse(200, ['ok' => true]);
     }
