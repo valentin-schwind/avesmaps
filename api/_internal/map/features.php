@@ -2727,6 +2727,55 @@ function avesmapsUpdateRegionFeatureGeometry(PDO $pdo, array $payload, array $us
     }
 }
 
+// 💣 Die Gegenprobe zum Anlegen. avesmapsCreatePowerlineFeature prueft BEIDE Endpunkte hart --
+// sie muessen existieren und Nodix-Ort oder Kreuzung sein. Beim Loeschen eines solchen Punktes
+// prueft niemand, ob Kraftlinien daran haengen: im Bestand fanden sich 14 Abschnitte, die auf 6
+// verschwundene Ids zeigen (Befund A9). Die Linie zeichnet weiter, weil ihre Geometrie im Feature
+// steht -- aber „verbindet A mit B" ist tot, und der Kraftlinien-Editor sortiert die Abschnitte
+// genau ueber diese Kette.
+//
+// ⚠️ 162 Kraftlinien-Zeilen, in PHP gefiltert statt per JSON_EXTRACT in SQL. Das Loeschen eines
+// Ortes ist eine seltene Handbewegung, und es gibt keine lokale MySQL, an der sich eine
+// JSON-Funktion vorher ausprobieren liesse.
+// Nennt die Namen, nicht nur die Zahl: „3 Kraftlinien" schickt den Redakteur auf die Suche,
+// „Konzilslinie, Nelkra-Linie" sagt ihm, wo er hin muss. Ab vier Namen gekuerzt, damit die
+// Meldung eine Meldung bleibt.
+function avesmapsBuildAnchoredPowerlineMessage(array $names): string {
+    $unique = array_values(array_unique(array_filter($names, static fn(string $n): bool => $n !== '')));
+    sort($unique);
+    $shown = array_slice($unique, 0, 3);
+    $suffix = count($unique) > 3 ? ' und weitere' : '';
+    $list = $shown === [] ? '' : ' (' . implode(', ', $shown) . $suffix . ')';
+    $count = count($names);
+
+    return 'An diesem Ort haengen noch ' . $count . ' Kraftlinien-Abschnitte' . $list
+        . '. Bitte zuerst die Kraftlinie loesen -- sonst zeigt sie ins Leere.';
+}
+
+function avesmapsFindPowerlinesAnchoredAt(PDO $pdo, string $publicId): array {
+    if ($publicId === '') {
+        return [];
+    }
+
+    $statement = $pdo->prepare(
+        "SELECT name, properties_json
+        FROM map_features
+        WHERE feature_type = 'powerline' AND is_active = 1"
+    );
+    $statement->execute();
+
+    $names = [];
+    foreach ($statement->fetchAll() as $row) {
+        $properties = avesmapsDecodeJsonColumnForEdit($row['properties_json'] ?? null);
+        if ((string) ($properties['from_public_id'] ?? '') === $publicId
+            || (string) ($properties['to_public_id'] ?? '') === $publicId) {
+            $names[] = (string) ($row['name'] ?? '');
+        }
+    }
+
+    return $names;
+}
+
 function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
 
@@ -2734,6 +2783,15 @@ function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array 
     try {
         $feature = avesmapsFetchEditableFeature($pdo, $publicId);
         avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
+        // Refuse rather than repair: the segments carry names, sources and a sort order, and
+        // silently deleting or rewiring them would be a bigger surprise than a refused delete.
+        // The editor removes the powerline first, which is a deliberate act with its own undo.
+        if ((string) ($feature['feature_type'] ?? '') === 'location') {
+            $anchoredPowerlines = avesmapsFindPowerlinesAnchoredAt($pdo, $publicId);
+            if ($anchoredPowerlines !== []) {
+                throw new InvalidArgumentException(avesmapsBuildAnchoredPowerlineMessage($anchoredPowerlines));
+            }
+        }
         $revision = avesmapsNextMapRevision($pdo);
         $statement = $pdo->prepare(
             'UPDATE map_features

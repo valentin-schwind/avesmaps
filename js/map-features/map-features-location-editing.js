@@ -290,13 +290,23 @@ async function convertCrossingToLocation(markerEntry) {
 
 async function deleteLocationMarker(markerEntry) {
 	const locationTypeLabel = markerEntry.locationType === CROSSING_LOCATION_TYPE ? "Kreuzung" : "Ort";
-	const connectedPowerlines = markerEntry.locationType === CROSSING_LOCATION_TYPE
-		? getConnectedPowerlinesForPublicId(markerEntry.publicId)
-		: [];
-	const confirmationMessage = connectedPowerlines.length > 0
-		? `${markerEntry.name} ist noch mit ${connectedPowerlines.length} ${connectedPowerlines.length === 1 ? "Kraftlinie" : "Kraftlinien"} verbunden. Wirklich löschen?`
-		: `${markerEntry.name} wirklich löschen?`;
-	if (!window.confirm(confirmationMessage)) {
+	// 💣 JEDER Punkt, nicht nur eine Kreuzung. Kraftlinien verbinden Nodix-Orte ODER Kreuzungen
+	// (avesmapsCreatePowerlineFeature prüft genau das) -- die Abfrage stand aber hinter
+	// `locationType === CROSSING_LOCATION_TYPE`, also lief das Löschen eines Nodix-Ortes ohne ein
+	// Wort durch. So sind die 14 Abschnitte an toten Endpunkten entstanden (Befund A9).
+	const connectedPowerlines = getConnectedPowerlinesForPublicId(markerEntry.publicId);
+	// Und es ist kein „wirklich?" mehr, sondern eine Absage: der Server verweigert dasselbe. Ein
+	// Bestätigen-Dialog, dessen Ja danach am Server scheitert, ist schlechter als eine klare Absage.
+	if (connectedPowerlines.length > 0) {
+		const names = Array.from(new Set(connectedPowerlines.map((line) => line.name).filter(Boolean))).sort();
+		const shown = names.slice(0, 3).join(", ") + (names.length > 3 ? " und weitere" : "");
+		showFeedbackToast(
+			`${markerEntry.name} trägt noch ${connectedPowerlines.length} ${connectedPowerlines.length === 1 ? "Kraftlinien-Abschnitt" : "Kraftlinien-Abschnitte"}${shown ? ` (${shown})` : ""}. Bitte zuerst die Kraftlinie lösen.`,
+			"warning"
+		);
+		return;
+	}
+	if (!window.confirm(`${markerEntry.name} wirklich löschen?`)) {
 		return;
 	}
 
