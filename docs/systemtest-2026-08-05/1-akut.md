@@ -989,18 +989,35 @@ Missbrauchslage ist es der Verlust des letzten Messpunkts.
 
 *Beleg:* wörtlich gelesen; **bewusst nicht ausprobiert.** *Aufwand:* mittel.
 
-> **◐ Die Zielscheibe ist entschärft `db9d350b`, 05.08.2026 — der Kanal selbst ist 🔧 DU.**
+> **◐ Die Zielscheibe ist entschärft `db9d350b` (+ `60e4afb5`), 05.08.2026 — der Kanal selbst ist 🔧 DU.**
 > Die **offene** Warteschlange wurde ungedeckelt gelesen: jede `status='neu'`-Zeile aus **beiden**
-> Tabellen, samt `comment` und `payload_json`, in **eine** Antwort. Sie ist jetzt bei **500**
+> Tabellen, samt `comment`, ohne `LIMIT` und ohne Seitenteilung. Sie ist jetzt bei **500**
 > gedeckelt — grösser als die 200 der bearbeiteten Liste, weil sie zu erledigende Arbeit ist und
 > keine Chronik.
+>
+> ⚠️ **Zwei Präzisierungen an meiner eigenen Commit-Nachricht** (Behauptungsprüfer): `payload_json`
+> steht nur in der `map_reports`-Abfrage, nicht in beiden, und wird vor der Antwort per `unset`
+> entfernt — sie belastet also den Lesevorgang, reist aber nicht mit. Und der Deckel begrenzt
+> **Zeilen, nicht Bytes**: je Tabelle werden 501 gelesen, danach gemischt und auf 500 geschnitten.
+> Dass der ungedeckelte Lesevorgang „den Editor-Bildschirm umlegt", habe ich zweimal als Tatsache
+> geschrieben — **gemessen ist es nicht**, und der Befund selbst vermerkt „bewusst nicht
+> ausprobiert". Es bleibt eine begründete Erwartung, kein Messwert.
 >
 > ⭐ **Die Sortierung ist es, die den Deckel unbedenklich macht, nicht bloss begrenzt** — und sie
 > war schon richtig: offene Meldungen kommen **älteste zuerst**, eine Flut landet also am **Ende**
 > und ist genau das, was abgeschnitten wird. Der echte Rückstand, den ein Bearbeiter gerade
 > abarbeitet, bleibt sichtbar. Dieselbe Deckelung auf einer neueste-zuerst-Liste hätte exakt die
-> Meldungen versteckt, auf die es ankommt. Diese Eigenschaft steht jetzt als Zusicherung **neben**
-> dem Deckel, in beiden Tests — damit sie niemand später zu `DESC` „aufräumt".
+> Meldungen versteckt, auf die es ankommt.
+>
+> 🔁 **Und genau diese Eigenschaft war zunächst NICHT gesichert** (gefunden vom Behauptungsprüfer,
+> von mir nachgestellt). Ich hatte zugesichert, sie stehe „neben dem Deckel, damit sie niemand
+> später zu `DESC` aufräumt" — zugesichert war aber nur der **SQL**-`ORDER BY`. Die Reihenfolge
+> entscheidet das SQL gar nicht: beide Tabellen werden mit eigenem `ORDER BY` gelesen, die
+> endgültige Folge vor dem `array_slice` kommt aus einem **`usort` über die gemischte Menge** im
+> Endpunkt. Den drehte ich testweise auf neueste-zuerst — **alle 208 Tests blieben grün**, während
+> der Deckel anfing, die **ältesten** offenen Meldungen wegzuschneiden. Behoben in `60e4afb5`: der
+> Vergleicher ist jetzt wörtlich zugesichert, und die Zeile trägt einen Kommentar, warum eine
+> Zusicherung auf das SQL sie nicht abdeckt.
 >
 > **Zwei Hälften, zwei Deckel, zwei Flaggen.** `truncated`/`limit` behalten ihre Bedeutung für die
 > bearbeitete Hälfte, die offene meldet über `open_truncated`/`open_limit`. Eine gemeinsame Flagge
@@ -1033,8 +1050,12 @@ Missbrauchslage ist es der Verlust des letzten Messpunkts.
 > Vier-Minuten-Fenster mit einem falschen Satz.
 >
 > 🔧 **DU: der Schreibkanal bleibt offen, und das ist eine Produktfrage.** `report_mode=change`
-> erreicht die Datenbank ohne Anmeldung, ohne Fähigkeit, ohne Token, und seit A2 zählt die
-> Stundengrenze diese Zeilen bewusst nicht mehr mit. Beides ist so gewollt — anonyme
+> erreicht die Datenbank ohne Anmeldung, ohne Fähigkeit, ohne Token, und die Stundengrenze zählt
+> diese Zeilen nicht mit. ⚠️ *Zuschreibung korrigiert:* meine Commit-Nachricht schrieb „seit A2",
+> als habe A2 die Schranke entfernt. Das stimmt nicht — die Ausnahme für den Änderungsmodus sass
+> **schon vor A2** auf der Prüfung (`report_mode !== 'change' && …`); A2 hat nur den
+> Kollateralschaden an **neuen** Meldungen behoben. Der Befundtext oben sagt es richtig („das Loch
+> ist älter"), die Commit-Nachricht übernahm diese Ehrlichkeit nicht. Beides ist so gewollt — anonyme
 > Änderungsvorschläge *sind* das Feature, und A2 hat ehrliche Melder absichtlich entsperrt. Ob der
 > Kanal trotzdem eine eigene, grosszügigere Grenze bekommen soll (z.B. 30/Stunde statt 5), ist
 > deine Entscheidung, nicht meine: jede Zahl, die ich hier setzte, nähme A2 teilweise zurück.
