@@ -17,7 +17,8 @@
 // Normalfall ist. Am Container in der Capture-Phase sieht er alles, bevor irgendein Layer davon weiss.
 //
 // 🪤 Kartenziehen wird ausgeschaltet, solange gemalt wird: sonst schiebt der erste Strich die Karte
-// unter dem Pinsel weg, statt zu malen.
+// unter dem Pinsel weg, statt zu malen. Holding SPACE hands dragging back for as long as the key is
+// down -- see `brushPanHold` below.
 
 (() => {
 	// Der Radius lebt in BILDSCHIRM-Pixeln, nicht in Kartenkoordinaten: ein Pinsel soll sich beim Zoomen
@@ -49,6 +50,15 @@
 	let brushCursorLayer = null;
 	let brushResultLayer = null;
 	let brushBound = false;
+	// 🔴 Held SPACE is the hand instead of the brush (Owner 2026-08-05). Painting owns the left
+	// button, so a running brush cannot drag the map -- and the wheel alone does not get you across an
+	// area wider than the screen. Holding space parks the tool: dragging comes back, the preview goes
+	// away, and releasing hands the brush back unchanged (same area, same size, same undo stack).
+	//
+	// 💣 It never takes over MID-STROKE. The key arrives while the button is still down often
+	// enough -- one hand paints, the other reaches over -- and a stroke torn in half would be saved as
+	// whatever happened to be painted at that moment. While `brushStrokeActive`, space does nothing.
+	let brushPanHold = false;
 	// 🔴 Strg+Z nimmt Strich für Strich zurück (Owner 2026-07-28). Der Stapel hält den Stand VOR jedem
 	// Strich; er überlebt das Beenden des Pinsels, damit „alles seit dem Benutzen" auch dann noch
 	// zurückgeht, wenn man zwischendurch aus dem Werkzeug raus ist. Geleert wird er erst, wenn der
@@ -153,6 +163,11 @@
 	// Speichern -- und ein Pinsel, dessen Wirkung man erst hinterher sieht, ist kein Pinsel.
 	function updateBrushPreview(latlng) {
 		clearBrushPreview();
+		// Parked: neither ring nor outline. A brush circle that follows the pointer without painting
+		// anything is a lie about what the next click does.
+		if (brushPanHold) {
+			return;
+		}
 		const color = brushColor();
 		if (brushWorkingGeometry) {
 			brushResultLayer = L.polygon(geometryToLatLngs(brushWorkingGeometry), {
@@ -330,7 +345,7 @@
 	// ---- Ereignisse -----------------------------------------------------------------------------------
 
 	function handleBrushMouseDown(event) {
-		if (!brushMode || event.button !== 0) {
+		if (!brushMode || brushPanHold || event.button !== 0) {
 			return;
 		}
 		L.DomEvent.stop(event);
@@ -346,7 +361,7 @@
 	}
 
 	function handleBrushMouseMove(event) {
-		if (!brushMode) {
+		if (!brushMode || brushPanHold) {
 			return;
 		}
 		const latlng = map.mouseEventToLatLng(event);
@@ -382,10 +397,76 @@
 		updateBrushPreview(map.mouseEventToLatLng(event));
 	}
 
+	function isTypingTarget(target) {
+		const tag = target && target.tagName ? String(target.tagName).toUpperCase() : "";
+
+		return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable === true;
+	}
+
+	function beginPanHold() {
+		if (brushPanHold || !brushMode || typeof map === "undefined" || !map) {
+			return;
+		}
+		brushPanHold = true;
+		map.dragging.enable();
+		const container = map.getContainer();
+		container.classList.remove("ecosystem-brush-cursor");
+		container.classList.add("ecosystem-brush-pan");
+		clearBrushPreview();
+	}
+
+	function endPanHold() {
+		if (!brushPanHold) {
+			return;
+		}
+		// 🪤 Released mid-drag: let the drag finish first. Taking `dragging` away while Leaflet's own
+		// handler is running leaves the map stuck to the pointer, and the next click lands somewhere else.
+		if (typeof map !== "undefined" && map && map.dragging?.moving?.()) {
+			map.once("dragend", endPanHold);
+			return;
+		}
+		brushPanHold = false;
+		if (typeof map === "undefined" || !map) {
+			return;
+		}
+		map.getContainer().classList.remove("ecosystem-brush-pan");
+		// Only back to the brush if there still IS one -- stopBrush ends the hold on its way out, and it
+		// wants dragging left ON.
+		if (brushMode) {
+			map.dragging.disable();
+			map.getContainer().classList.add("ecosystem-brush-cursor");
+			updateBrushPreview(null);
+		}
+	}
+
 	function handleBrushKeydown(event) {
-		if (brushMode && event.key === "Escape") {
+		if (!brushMode) {
+			return;
+		}
+		if (event.key === "Escape") {
 			event.stopPropagation();
 			stopBrush("Pinsel beendet.");
+			return;
+		}
+		// 💣 A field being typed into keeps its space -- this handler sits on `document` in the capture
+		// phase, so without this check the brush would eat every blank of every name the editor types.
+		if ((event.code !== "Space" && event.key !== " ") || isTypingTarget(event.target)) {
+			return;
+		}
+		// Otherwise space scrolls the shell or presses whatever button happens to have focus.
+		event.preventDefault();
+		event.stopPropagation();
+		if (event.repeat || brushStrokeActive) {
+			return;
+		}
+		beginPanHold();
+	}
+
+	function handleBrushKeyup(event) {
+		// No typing-target check on the way out: if the hold never started, this is a no-op anyway, and a
+		// keyup that gets skipped would leave the brush parked for good.
+		if (event.code === "Space" || event.key === " ") {
+			endPanHold();
 		}
 	}
 
@@ -400,6 +481,10 @@
 		container.addEventListener("mouseup", handleBrushMouseUp, true);
 		container.addEventListener("wheel", handleBrushWheel, { capture: true, passive: false });
 		document.addEventListener("keydown", handleBrushKeydown, true);
+		document.addEventListener("keyup", handleBrushKeyup, true);
+		// 🪤 Alt+Tab with space held never delivers a keyup. Without this the editor comes back to a
+		// brush that paints nothing and a map that drags -- and no key left to press to get out of it.
+		window.addEventListener("blur", endPanHold);
 		brushBound = true;
 	}
 
@@ -431,12 +516,16 @@
 		brushWorkingGeometry = geometry;
 		brushDirty = false;
 		bindBrushEvents();
+		// A fresh brush never inherits a parked state. A hold still pending from the previous tool
+		// would swallow every stroke of this one, and nothing on screen would say why.
+		brushPanHold = false;
+		map.getContainer().classList.remove("ecosystem-brush-pan");
 		map.dragging.disable();
 		map.getContainer().classList.add("ecosystem-brush-cursor");
 		updateBrushPreview(null);
 		say(mode === "eraser"
-			? "Radiergummi: ziehen nimmt weg. Strg+Mausrad ändert die Größe, ESC beendet."
-			: "Pinsel: ziehen malt Fläche dazu. Strg+Mausrad ändert die Größe, ESC beendet.", "info");
+			? "Radiergummi: ziehen nimmt weg. Leertaste verschiebt die Karte, Strg+Mausrad ändert die Größe, ESC beendet."
+			: "Pinsel: ziehen malt Fläche dazu. Leertaste verschiebt die Karte, Strg+Mausrad ändert die Größe, ESC beendet.", "info");
 	}
 
 	function stopBrush(message) {
@@ -449,6 +538,8 @@
 			void finishStroke();
 		}
 		brushMode = "";
+		// After brushMode is cleared, so the hold gives the cursor back without re-disabling dragging.
+		endPanHold();
 		brushAreaPublicId = "";
 		brushStrokeActive = false;
 		brushLastStampPoint = null;
