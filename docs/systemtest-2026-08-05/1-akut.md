@@ -1165,7 +1165,7 @@ Missbrauchslage ist es der Verlust des letzten Messpunkts.
 > können unbegrenzt anwachsen. Der Editor bricht daran nicht, weil die Detail-Lesung fremde Zeilen
 > getrennt und schreibgeschützt führt und sie nie über `set_links` zurückschickt.
 
-### A31 · Die Drossel sitzt hinter dem teuersten Teil des Endpunkts
+### ✅ A31 · Die Drossel sitzt hinter dem teuersten Teil des Endpunkts
 `api/app/report-location.php:93` und `:94` gegen `:103`
 
 Die Reihenfolge ist verkehrt: `avesmapsEnsureMapReportsTable` (1 × `CREATE TABLE IF NOT EXISTS`,
@@ -1181,6 +1181,34 @@ stille Weg kehrt vor der Datenbankverbindung um.
 *Beleg:* am Kontrollfluss abgelesen, Abfragen gezählt. *Aufwand:* klein (Grenze nach vorn ziehen),
 berührt aber die Reihenfolge der Antworten und gehört deshalb geprüft, nicht nebenbei verschoben.
 
+> **✅ Erledigt `9f05463f`, 05.08.2026.** Die Stundengrenze wird jetzt **vor** dem Namensabgleich
+> entschieden. Neue Reihenfolge: DDL → **Drossel** → Namensabgleich → Duplikatprobe → `INSERT`.
+> Wer über der Grenze steht, zahlt die beiden ungedeckelten Vollscans nicht mehr.
+>
+> ⭐ **Der Tausch schliesst nebenbei ein Oracle, das in keinem Befund stand.** Solange der 409
+> zuerst entschieden wurde, liess sich „gibt es diesen Ort schon?" **ungedrosselt** fragen — die
+> Drossel kam danach und stoppte die *Meldung*, nie die *Frage*. Jetzt bekommt ein Aufrufer über
+> der Grenze eine 429 und erfährt nichts über die Namen dahinter.
+>
+> ⚠️ **Was sich für einen ehrlichen Melder ändert:** über der Grenze **und** mit kollidierendem
+> Namen kommt jetzt 429 statt 409. Das ist die bessere der beiden Antworten — „komm in ein paar
+> Minuten wieder" ist handlungsleitend, und der Namenskonflikt steht dann immer noch da.
+>
+> ⚠️ `avesmapsEnsureMapReportsTable` bleibt **bewusst über beiden**: die Drosselabfrage liest
+> `map_reports`, eine frische Installation antwortete sonst 500 statt zu drosseln. Der Test hält
+> auch das fest.
+>
+> **Zwei Mutationen rot, und die erste ist keine Erfindung:** die Datei aus `git` im Vorzustand
+> zurückgespielt lässt die Reihenfolgen-Zusicherung fallen; das DDL unter die Drossel geschoben
+> lässt die Frische-Installations-Zusicherung fallen. 208/208 grün.
+>
+> **Live geprüft, spurenfrei:** eine Meldung auf den bestehenden Ort „Gareth" antwortet weiter
+> **409 `conflict`** — der Namensabgleich läuft nach dem Tausch also unverändert, und der Endpunkt
+> ist gesund (der 409 bricht vor dem `INSERT` ab, es bleibt nichts liegen). ⚠️ **Die Reihenfolge
+> selbst ist von aussen nicht messbar**: dafür müsste ich über der Stundengrenze stehen, und
+> dorthin käme ich nur, indem ich fünf echte Meldungen speichere, für die es keinen Löschweg gibt.
+> Belegt ist sie durch die Mutation mit dem echten Vorzustand.
+>
 > ⚠️ **Nachtrag aus der A30-Gegenprüfung (05.08.2026): der Befund ist schlimmer als notiert, weil
 > die zweite Menge WÄCHST.** `avesmapsLocationNameExists` (`report-location.php:527-565`) liest
 > nicht nur alle aktiven Orte, sondern auch **alle offenen `map_reports` mit
