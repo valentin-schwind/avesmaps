@@ -504,6 +504,45 @@ Das ist der einzige Befund des Tests, der **falsche Daten ohne jede Fehlermeldun
 *Beleg:* Code gelesen, in der Momentaufnahme ausgezählt, gegen `map-features` verglichen.
 *Aufwand:* mittel.
 
+> ⚠️ **Nachgemessen am 05.08.2026 abends — die Schwere ist geringer als hier steht, die Fragilität
+> bleibt.** Ein Abruf der echten Nutzlast (11.523 Features), beide Zählungen wörtlich nachgebaut:
+>
+> | | |
+> |---|---|
+> | Kreuzungen laut **Server** (Namenspräfix `Kreuzung…`) | **2.084** |
+> | Kreuzungen laut **Client** (`resolveLocationTypeFromFeature`) | **2.084** |
+> | Objekte, die nur eine Seite für eine Kreuzung hält | **0** |
+> | Objekte mit **abweichendem Namen** | **0** |
+>
+> Client und Server reden **heute nicht** aneinander vorbei. Beide sortieren gleich
+> (`ORDER BY sort_order ASC, id ASC`) und kommen über verschiedene Prädikate zum selben Ergebnis —
+> der Client erkennt eine Kreuzung am Subtyp, der Server am Namen, und im Bestand deckt sich das
+> Zeichen für Zeichen. Es gibt also **keine** falsch aufgelöste Route.
+>
+> Und ein Kreuzungsname kann **nicht** in einen Kurzlink geraten: beide Wegpunkt-Wege filtern ihn
+> heraus (`map-features-location-lookup.js:155`, `map-features-waypoints.js:133`), und ein Kurzlink
+> speichert nur die Abfrage mit den Wegpunktnamen.
+>
+> **Was bleibt, und es bleibt echt:**
+> 1. **Die Namen sind Positionen.** Eine eingefügte oder gelöschte Kreuzung benennt bis zu 2.083
+>    Knoten um. Nichts bricht, solange beide Seiten bei jeder Anfrage neu durchzählen — aber jede
+>    Stelle, die einen Kreuzungsnamen **über die Zeit aufbewahrt**, zeigt danach woandershin.
+> 2. **Der stabile Vertrag sagt zwei Namen für ein Objekt.** `POST /api/route/` nennt es
+>    `Kreuzung-549`, `GET /api/locations/` und der Kartenpayload nennen es, wie es gespeichert ist.
+> 3. **Die beiden Prädikate sind nur zufällig deckungsgleich.** Eine Kreuzung, die ein Redakteur
+>    umbenennt, oder ein Ort, der „Kreuzung…" heißt, kippt es — ab dieser Zeile verschieben sich
+>    alle folgenden Nummern gegeneinander. Die Deckung ist ein Messwert von heute, keine Zusicherung.
+>
+> 🔧 **DU: der Fix ist eine Namensänderung an 2.084 Objekten im stabilen Vertrag — das entscheidest
+> du.** Drei Wege:
+> **(a) `public_id` als Schlüssel** (richtig, unveränderlich; die Anzeige bräuchte einen zweiten,
+> lesbaren Namen daneben);
+> **(b) `Kreuzung-<id>`** aus der Datenbank-Id statt aus der Laufnummer (stabil, klein, ändert die
+> Zahlen aber einmalig alle);
+> **(c) nur die Prädikate angleichen** (billig, macht die Deckung von Punkt 3 verbindlich, lässt die
+> Positionsabhängigkeit aber stehen).
+> Alle drei ändern, was `POST /api/route/` meldet.
+
 ### A14 · `GET /api/locations/` ist der ungeschützte Zwilling eines 152-MB-Pfades
 Der Endpunkt lädt die ganze `map_features`-Tabelle und baut das Routennetz auf — genau den
 Pfad, den `api/route/index.php:26` selbst mit „62 MB resident, peak 152 MB per call" beziffert
