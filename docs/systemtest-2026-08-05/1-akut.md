@@ -828,12 +828,57 @@ entfernt). Es gibt außerdem keinen Weg, eine Bewertung zu melden.
 
 *Aufwand:* mittel.
 
-### A23 · Der Besucher-Hash-Salt steht im Quelltext und ist technisch nicht überschreibbar
+### ◐ A23 · Der Besucher-Hash-Salt steht im Quelltext und ist technisch nicht überschreibbar
 Die Datenschutzerklärung sagt, die Besucherkennung sei nicht rückführbar. Mit einem bekannten
 Salt ist ein IP-Hash aber in Sekunden rückrechenbar — der Adressraum ist winzig. Entweder der
 Salt wird konfigurierbar, oder die Zusage muss anders formuliert werden.
 
 *Aufwand:* klein.
+
+> **◐ Der technische Weg ist gebaut `a9d3c6b2` (+ `89cc4e6b`), 05.08.2026 — die Zusage ist damit
+> aber noch NICHT eingelöst.** Der Befund bot zwei Wege an; ich habe den gewählt, der die Zusage
+> **hält** statt sie abzuschwächen, und der deshalb keine Entscheidung braucht.
+>
+> 💣 **Warum „nicht überschreibbar" wörtlich stimmte:** `if (!defined('AVESMAPS_VISITOR_SALT'))` sieht
+> aus wie ein Überschreibpunkt und ist auf diesem Server keiner. Die Konstante steht fest, sobald die
+> Datei per `require` geladen ist — und der einzige Ort, an dem eine Installation ein Geheimnis
+> halten kann (`api/config.local.php`, gitignoriert), wird **lazy** von `avesmapsLoadApiConfig()`
+> *innerhalb* des Request-Handlers gelesen, also lange danach. Jede Installation lief mit demselben,
+> im Repository veröffentlichten Salt und hatte keine Möglichkeit, das zu ändern.
+>
+> `avesmapsVisitorSalt()` löst jetzt in drei Stufen auf: ein `define()` vor dem `require` (der alte
+> Mechanismus, weiterhin geachtet) → `$config['analytics']['visitor_salt']` (die Form, die das
+> Projekt schon für das Import-Token nutzt) → der ausgelieferte Rückfallwert. Einmal je Anfrage
+> aufgelöst, mit `function_exists` gesichert und in `catch (Throwable)` gewickelt: **fünf** Endpunkte
+> laden diese Datei, und ein Analytics-Helfer darf nie der Grund sein, dass einer davon stirbt.
+>
+> 💣 **Der ausgelieferte Wert bleibt absichtlich unverändert.** Ihn hier zu ändern entwertete jeden
+> bereits gespeicherten Hash: ein wiederkehrender Besucher zählte als neu, die Tageszahlen machten
+> einen Sprung — lautlos.
+>
+> ⚠️ **Solange keine Konfiguration gesetzt ist, ist ein Hash weiterhin in Sekunden rückrechenbar.**
+> Der Commit macht es *möglich*, das zu ändern; er ändert es nicht. Damit das niemand für erledigt
+> hält, meldet die Kennzahlen-Antwort jetzt `salt_configured` — hinter der Fähigkeit `edit`, also für
+> Bearbeiter sichtbar und für sonst niemanden.
+>
+> Zwei Testdateien, und die Trennung ist der Punkt, nicht Ordnungsliebe: eine Konstante lässt sich
+> nicht neu definieren und der Auflöser cached in einem `static`, „ohne Überschreibung" und „mit"
+> passen also nicht in einen Prozess. Sie zusammenzulegen hiesse, eine der beiden Hälften aus dem
+> Quelltext zu behaupten — die Position-statt-Wirkung-Falle, in die diese Sitzung dreimal gelaufen
+> ist. **Fünf Mutationen rot**, darunter die entscheidende: Auflöser wird gerufen, der Hash nimmt
+> trotzdem den alten Wert. 211/211 grün.
+>
+> **Live geprüft, spurenfrei** (keine Anfrage, die eine Kennzahl schreibt): die Analytics-Kette lädt —
+> `visitor-metrics.php` antwortet **401** statt einer 500, und es bindet `visitor-analytics.php` ganz
+> oben ein; ebenso `presence.php` **401** und `import-geo.php` **401**. `map-features.php` unberührt
+> bei **200 / 19.236.101 Bytes**.
+>
+> 🔧 **DU: eine Zeile in `api/config.local.php`**, dann ist der Befund wirklich zu. Zum Beispiel:
+> ```php
+> 'analytics' => ['visitor_salt' => '<zufällige lange Zeichenkette>'],
+> ```
+> ⚠️ Ab dem Setzen zählen wiederkehrende Besucher **einmal** als neu — die Tageszahlen machen an dem
+> Tag einen Sprung. Das ist der Preis und er fällt nur einmal an.
 
 ### A24 · Das Impressum nennt keine E-Mail-Adresse und hat keine eigene Adresse
 Es ist nur über einen JavaScript-Dialog erreichbar, also nicht verlinkbar und für einen
