@@ -96,6 +96,37 @@ function avesmapsEnsureFeatureSourceTables(PDO $pdo): void
     }
 }
 
+// 💣 THE ENTITY TYPES THAT LIVE IN map_features AND ARE DELETED SOFTLY (is_active = 0).
+// A source link is keyed by (entity_type, entity_public_id) with no foreign key, so nothing removes
+// it when its element goes. On 2026-08-05 that was 216 elements with 4.714 links pointing at rows
+// nobody can see any more -- and the public endpoint served them: delete a place, and an anonymous
+// caller still got its sources (reproduced live in the system test, finding A6/A7).
+//
+// 💣 THE GUARD BELONGS ON THE READ, NOT ON THE DELETE, and that is the whole design. The delete is
+// soft ON PURPOSE so undo can restore an element completely. If deleting also removed the links,
+// undo would have to put them back -- a second piece of state to keep in sync, and the exact kind
+// of bookkeeping that drifts. A live check follows the element for free: deleted hides the sources,
+// undone shows them again, and there is nothing to remember.
+//
+// ⚠️ NOT every entity type belongs here. territory, citymap and lore keep their own tables and
+// their own delete semantics; filtering them against map_features would hide every one of their
+// sources (878 territory and 631 citymap links on the same day). The test asserts exactly that.
+const AVESMAPS_FEATURE_SOURCE_SOFT_DELETED_ENTITY_TYPES = ['settlement', 'region', 'path', 'powerline'];
+
+/**
+ * SQL fragment for "the element this link points at is still alive". Written once and used by every
+ * read, so the rule cannot drift between them. `$alias` is the feature_sources alias in the
+ * surrounding query. The interpolated values are the code constant above -- never user input.
+ */
+function avesmapsFeatureSourceLiveEntityClause(string $alias = 'fs'): string
+{
+    $types = "'" . implode("', '", AVESMAPS_FEATURE_SOURCE_SOFT_DELETED_ENTITY_TYPES) . "'";
+
+    return " AND ({$alias}.entity_type NOT IN ({$types})"
+        . " OR EXISTS (SELECT 1 FROM map_features mf"
+        . " WHERE mf.public_id = {$alias}.entity_public_id AND mf.is_active = 1))";
+}
+
 // The read used by the public endpoint: approved catalog links PLUS the element's legacy single
 // properties.other_source (settlements/regions/paths keep that field per the owner decision),
 // merged and deduped by URL (catalog wins). Official-first then insertion order. This makes the
@@ -104,12 +135,15 @@ function avesmapsEnsureFeatureSourceTables(PDO $pdo): void
 function avesmapsReadFeatureSources(PDO $pdo, string $entityType, string $entityPublicId): array
 {
     avesmapsEnsureFeatureSourceTables($pdo);
+    // The legacy branch below has always checked is_active; the catalog branch never did. That
+    // asymmetry inside one function is what leaked -- both halves now answer for the same element.
     $statement = $pdo->prepare(
         "SELECT s.url, s.label, s.source_type, s.is_official
            FROM feature_sources fs
            JOIN sources s ON s.id = fs.source_id
-          WHERE fs.entity_type = :t AND fs.entity_public_id = :id AND fs.status = 'approved'
-          ORDER BY s.is_official DESC, s.created_at ASC, s.id ASC"
+          WHERE fs.entity_type = :t AND fs.entity_public_id = :id AND fs.status = 'approved'"
+        . avesmapsFeatureSourceLiveEntityClause('fs') .
+        " ORDER BY s.is_official DESC, s.created_at ASC, s.id ASC"
     );
     $statement->execute(['t' => $entityType, 'id' => $entityPublicId]);
     $catalog = array_map(static fn(array $r): array => [
@@ -1013,10 +1047,13 @@ function avesmapsSearchSourceCatalog(PDO $pdo, string $query, int $limit): array
     }
 
     $ids = array_map(static fn(array $row): int => (int) $row['id'], $rows);
+    // Same guard as the public read: a link whose element is deleted is not a use. Without it the
+    // autocomplete told editors a source was still in use somewhere they could never find.
     $countStatement = $pdo->prepare(
-        "SELECT source_id, COUNT(*) AS uses FROM feature_sources
-          WHERE status = 'approved' AND source_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")
-          GROUP BY source_id"
+        "SELECT fs.source_id, COUNT(*) AS uses FROM feature_sources fs
+          WHERE fs.status = 'approved' AND fs.source_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")"
+        . avesmapsFeatureSourceLiveEntityClause('fs') .
+        " GROUP BY fs.source_id"
     );
     $countStatement->execute($ids);
     $uses = [];
