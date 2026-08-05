@@ -541,7 +541,19 @@ Das ist der einzige Befund des Tests, der **falsche Daten ohne jede Fehlermeldun
 > Zahlen aber einmalig alle);
 > **(c) nur die Prädikate angleichen** (billig, macht die Deckung von Punkt 3 verbindlich, lässt die
 > Positionsabhängigkeit aber stehen).
-> Alle drei ändern, was `POST /api/route/` meldet.
+>
+> 🔁 **Korrektur meiner eigenen Zeile (06.08.2026): „Alle drei ändern, was `POST /api/route/` meldet"
+> stimmt für (c) nicht.** (a) und (b) ändern 2.084 Namen im stabilen Vertrag — das ist deine
+> Entscheidung. (c) ändert **heute gar nichts**: die Messung oben hat 0 abweichende Namen und 0
+> Objekte ergeben, die nur eine Seite für eine Kreuzung hält. Angeglichen würde nur, was passiert,
+> wenn die Deckung **kippt** — ein Ort, den jemand „Kreuzung am Fluss" nennt, wird heute vom Server
+> umbenannt und verschiebt ab dieser Zeile alle folgenden Nummern. Der Server hat den Subtyp
+> ohnehin zur Hand (`network-data.php:138` liest ihn zwei Zeilen unter der Namensprüfung).
+>
+> ⚠️ **(c) wäre damit ohne Rückfrage baubar — ich habe es bewusst nicht getan.** Ortsnamen sind
+> Graph-Schlüssel; ein falsches Prädikat benennt entweder zu viel oder zu wenig um, und beides
+> verschiebt Routen still. Das gehört an den Anfang einer Sitzung mit einem Kopf voll Budget, nicht
+> ans Ende einer langen. Es ist der erste Punkt, den ich ohne eine Antwort von dir angehen würde.
 
 ### ⚠️ A14 · `GET /api/locations/` ist der ungeschützte Zwilling eines 152-MB-Pfades
 **Repariert (`9f2962e8` + `6bad25be`) — aber auf diesem Host wirkungslos, siehe A34.**
