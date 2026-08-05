@@ -2,17 +2,21 @@
 
 declare(strict_types=1);
 
-// Public catalog for the Abenteuer feature (Phase 1). GET returns the whole approved catalog so the
-// client aggregates locally (B1); no auth (public map, like map-features/feature-sources). POST is a
-// guarded one-shot BOOTSTRAP surface (seed/resolve) to populate the fresh tables after a deploy -- both
-// actions are idempotent and self-inert once done (seed only runs on an empty catalog; resolve only
-// touches still-unresolved places). Phase 3 moves editing to the capability-gated editor and can
-// tighten/remove these bootstrap actions. Envelope = gold contract.
+// Public catalog for the Abenteuer feature. GET returns the whole approved catalog so the client
+// aggregates locally (B1); no auth (public map, like map-features/feature-sources). READ ONLY --
+// every write goes through the capability-gated editor endpoint POST /api/edit/map/adventures.php.
+// Envelope = gold contract.
 //
-// GET  /api/app/adventures.php                    -> { ok:true, adventures:[ { ..., places:[...] } ],
-//                                                       territory_meta:{ "wiki:...":{name,rank}, ... } }
-// POST /api/app/adventures.php  {action:"seed"}    -> { ok:true, seeded:N }   (empty catalog only)
-// POST /api/app/adventures.php  {action:"resolve"} -> { ok:true, resolved, unresolved, total }
+// 💣 It was not always read-only. Until 2026-08-05 it also took POST {action:"seed"|"resolve"}
+// with no authentication whatsoever: a bootstrap surface from Phase 1 that this header itself said
+// "Phase 3 ... can tighten/remove", except Phase 3 shipped and the removal did not happen. It was
+// an anonymous write, and -- worse on this host -- an anonymous lever, because `resolve` walks the
+// whole stock and could be fired as often as anyone liked. Do not reintroduce a POST arm here; the
+// resolver is still reachable where it belongs (editor flow, wiki reconcile, and the CLI tool
+// tools/adventures/seed-sample-adventures.php, which is not part of the deploy).
+//
+// GET  /api/app/adventures.php  -> { ok:true, adventures:[ { ..., places:[...] } ],
+//                                    territory_meta:{ "wiki:...":{name,rank}, ... } }
 
 require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/app/adventures.php';
@@ -32,8 +36,17 @@ try {
         avesmapsJsonResponse(204);
     }
 
-    if ($requestMethod !== 'GET' && $requestMethod !== 'POST') {
-        avesmapsErrorResponse(405, 'method_not_allowed', 'Only GET and POST are allowed for adventures.');
+    // 💣 GET only. Until 2026-08-05 this endpoint also took POST {action:"seed"|"resolve"} with NO
+    // authentication at all -- an anonymous write into the catalogue, and worse, an anonymous lever:
+    // `resolve` walks the whole stock, so a stranger could drive the PHP pool into a full resolve run
+    // as often as they liked, on a host that has already been saturated into an outage three times.
+    // The file header called it a "one-shot BOOTSTRAP surface" that "Phase 3 can tighten/remove";
+    // Phase 3 shipped long ago and the removal never happened.
+    // Nothing is lost: the resolver has three other callers that stay -- the editor's own flow
+    // (api/_internal/app/adventures.php), the wiki reconcile (api/_internal/wiki/adventure-sync.php)
+    // and the CLI tool tools/adventures/seed-sample-adventures.php, which is not deployed at all.
+    if ($requestMethod !== 'GET') {
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Only GET is allowed for adventures. Writing goes through the capability-gated editor endpoint.');
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
@@ -78,26 +91,8 @@ try {
         ]);
     }
 
-    // POST: bootstrap actions.
-    $payload = avesmapsReadJsonRequest();
-    $action = trim((string) ($payload['action'] ?? ''));
-
-    if ($action === 'seed') {
-        // Empty-guard (owner decision "nur wenn leer"): never overwrites an existing catalog.
-        if (avesmapsAdventuresCount($pdo) > 0) {
-            avesmapsJsonResponse(200, ['ok' => true, 'seeded' => 0, 'skipped' => 'catalog_not_empty']);
-        }
-        $seeded = avesmapsAdventuresSeedSamples($pdo);
-        avesmapsJsonResponse(200, ['ok' => true, 'seeded' => $seeded]);
-    }
-
-    if ($action === 'resolve') {
-        require_once __DIR__ . '/../_internal/app/adventure-resolve.php';
-        $result = avesmapsAdventureResolveAll($pdo);
-        avesmapsJsonResponse(200, ['ok' => true] + $result);
-    }
-
-    avesmapsErrorResponse(400, 'invalid_action', 'Unknown action (expected seed or resolve).');
+    // Unreachable: the method gate above lets nothing but GET through, and the GET arm exits.
+    avesmapsErrorResponse(405, 'method_not_allowed', 'Only GET is allowed for adventures.');
 } catch (InvalidArgumentException $exception) {
     avesmapsErrorResponse(400, 'invalid_request', 'The request body is not valid JSON.');
 } catch (PDOException $exception) {

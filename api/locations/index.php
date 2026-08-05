@@ -35,6 +35,13 @@ try {
 	]);
 } catch (JsonException) {
 	avesmapsLocationsErrorResponse(500, 'server_error', 'Die Antwort konnte nicht serialisiert werden.');
+} catch (PDOException) {
+	// 💣 BEFORE the RuntimeException arm, never after: PDOException EXTENDS RuntimeException, so
+	// that arm used to catch it and hand the driver's message -- table names, columns, fragments
+	// of SQL -- to any anonymous caller. This is the stable public contract; it must not describe
+	// the schema to the world. Every neighbouring endpoint already catches PDOException first.
+	// The routing code's own RuntimeExceptions carry deliberate, safe text and still pass below.
+	avesmapsLocationsErrorResponse(500, 'server_error', 'Die Orte konnten nicht aus der Datenbank geladen werden.');
 } catch (RuntimeException $exception) {
 	avesmapsLocationsErrorResponse(500, 'server_error', $exception->getMessage());
 } catch (Throwable) {
