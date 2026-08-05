@@ -8,7 +8,7 @@ Der 28. Befund (A28) kam erst beim Nachzählen der eigenen Testspuren dazu. Er i
 einzige, den nicht das Prüfen, sondern das **Aufräumen** gefunden hat — und ein Beleg dafür,
 dass sich der Aufräumteil dieses Tests gelohnt hat.
 
-**Nachtrag vom Abend des 05.08.: sechs weitere (A29–A34), gefunden beim feindlichen Gegenprüfen
+**Nachtrag vom Abend des 05.08.: sieben weitere (A29–A35), gefunden beim feindlichen Gegenprüfen
 der A1–A4-Reparaturen** — siehe Abschnitt 9. Alle drei sind älter als diese Reparaturen und hatte
 keiner der zwölf Prüfagenten. Das ist der zweite Beleg für dasselbe: das Prüfen der Fixes findet
 mehr als das Prüfen des Bestands.
@@ -659,7 +659,31 @@ wird — und der Hintergrundklick darf in keinem Fall ein stiller Zerstörer ble
 
 ## 6. Zwei echte Lasttreiber
 
-### A19 · `ecosystem-areas.php` führt 64 SQL-Anweisungen aus, bevor es ein 304 zurückgibt
+### ⚠️ A19 · `ecosystem-areas.php` führt 64 SQL-Anweisungen aus, bevor es ein 304 zurückgibt
+**OFFEN — ein Reparaturversuch wurde zurückgenommen.**
+
+> ⚠️ **`cae7cad9` war falsch und ist zurückgenommen (`927e1abd`).** Der Versuch zog das DDL hinter
+> die 304-Prüfung. Meine Grundannahme — „`EnsureTables` hebt die Revision nicht" — ist falsch, und
+> die Datei sagt es in Rot: `avesmapsEcosystemEnsureTables` endet mit einer Migration, die
+> `avesmapsNextEcosystemRevision()` ruft (`ecosystem.php:901`), mit dem Kommentar „**THE REVISION HAS
+> TO BE BUMPED HERE** … ohne diese Zeile bekommt jeder warme Client ein 304 … That exact failure was
+> measured on 2026-07-28. **A payload-version bump is NOT the instrument here.**" Ich habe in meiner
+> Commit-Nachricht genau diese Payload-Version als Auffangnetz genannt.
+>
+> 💣 **Und ein zweiter Fehler, der bei jeder Anfrage wirkt:** das Fenster zwischen Revisions- und
+> Flächenlesung wuchs von zwei reinen Parse-Aufrufen auf **64 Anweisungen**. Ein Schreibvorgang darin
+> lässt den Endpunkt Daten von N+1 unter der Marke N ausliefern — und der Client verwirft seinen
+> Regionen-Cache nur bei einer Revisions**differenz**. `ecosystem_revision` sprang an einem
+> Arbeitstag **901**-mal.
+>
+> ⚠️ **Der Versuch brachte ohnehin nichts:** A34 hat gemessen, dass der 304-Zweig auf diesem Host nie
+> feuert. Kein Nutzen, zwei Korrektheitsfehler.
+>
+> 🔧 **DU: A19 lohnt erst zusammen mit A34** — und dann in dieser Form: die Revision **einmal, nach
+> dem DDL** lesen und daraus sowohl den ETag als auch das `revision`-Feld speisen. Eine billige
+> Vorab-Lesung darf nur die 304-Entscheidung tragen, und auch das erst, wenn `EnsureTables` den
+> Zähler nicht mehr bewegen kann.
+
 13 `CREATE TABLE`, 16 `information_schema`-Proben, 34 `INSERT IGNORE`. Ein Client mit gültigem
 ETag — also der Normalfall — zahlt sie vollständig.
 
@@ -744,7 +768,7 @@ Die Tabelle wächst außerdem unbegrenzt: es gibt kein Ablaufdatum und keine Ber
 
 ---
 
-## 9. Sechs Nachträge — gefunden beim Gegenprüfen der eigenen Fixes
+## 9. Sieben Nachträge — gefunden beim Gegenprüfen der eigenen Fixes
 
 Nicht aus dem Testlauf, sondern aus den drei feindlichen Prüfungen der Reparaturen vom Nachmittag
 des 05.08. Alle drei sind **älter als diese Fixes**; keiner der zwölf Prüfagenten hatte sie.
@@ -810,6 +834,38 @@ stille Weg kehrt vor der Datenbankverbindung um.
 
 *Beleg:* am Kontrollfluss abgelesen, Abfragen gezählt. *Aufwand:* klein (Grenze nach vorn ziehen),
 berührt aber die Reihenfolge der Antworten und gehört deshalb geprüft, nicht nebenbei verschoben.
+
+### A35 · Auf einer frischen Installation bleibt jede Geländeart bei Faktor 1,00
+`api/_internal/app/ecosystem.php:342` / `:476` / `:817` gegen `:845`
+
+Die Reihenfolge in `avesmapsEcosystemEnsureTables` ist verkehrt herum:
+
+| Schritt | Zeile |
+|---|---|
+| `ecosystem_region_type` wird **leer** angelegt | 342 |
+| Startwerte `terrain_*` per `UPDATE` | 476–486 |
+| Startwerte `offroad_factor` per `UPDATE` | 817–839 |
+| **die Saat, die die Zeilen erst anlegt** | **845** |
+
+Auf einer frischen Datenbank treffen beide `UPDATE`-Blöcke **null Zeilen** — die Tabelle ist zu
+diesem Zeitpunkt leer. Ihre Wächter (`if (!$typeColumnExists($pdo, 'offroad_factor'))`,
+`in_array('terrain_grain', $typeColumnsAdded, true)`) sind so gebaut, dass sie nur in dem Lauf
+feuern, der die Spalte anlegt — sie kommen also **nie wieder**.
+
+**Folge:** jede Geländeart behält dauerhaft `offroad_factor = 1.00`. Sumpf 3,00, Dschungel 2,40,
+Gebirge 2,20 stehen nur im Code; Querfeldein rechnet über Sumpf so schnell wie über offenes Land.
+Dasselbe für die `terrain_*`-Startwerte. Und es fällt niemandem auf: `offroad-data.php:138-140`
+verschluckt einen „Unknown column" mit `catch (Throwable) { return ''; }`.
+
+⚠️ **avesmaps.de ist NICHT betroffen** — dort wurden die Spalten auf eine bereits gefüllte Tabelle
+nachgerüstet, die `UPDATE`s trafen also Zeilen. Der Fehler wartet auf die nächste frische
+Installation, ein wiederhergestelltes Backup in eine leere Datenbank oder eine Entwicklungsumgebung.
+
+💡 Die richtige Reihenfolge steht schon halb im Code: Zeile 405 trägt den Kommentar „💣 DAS
+NACHTRAGEN MUSS HIER STEHEN — **VOR** `avesmapsEcosystemSeedRegionTypes()`". Das gilt fürs Anlegen
+der **Spalte**. Die **Werte** müssen umgekehrt danach kommen: ALTER → Saat → Startwerte.
+
+*Beleg:* Reihenfolge und Wächter gelesen, beim Gegenprüfen von A19 gefunden. *Aufwand:* klein.
 
 ### A34 · Kein PHP-Endpunkt liefert je einen ETag aus — der ganze 304-Mechanismus ist tot
 `.htaccess:28` gegen `api/app/map-features.php:131`
