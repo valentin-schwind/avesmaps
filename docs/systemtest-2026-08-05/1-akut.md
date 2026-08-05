@@ -754,8 +754,68 @@ Cache-Fehlschlag, auf dem schwersten Endpunkt des Projekts (gemessen: 2,82 s, 3,
 
 *Aufwand:* mittel.
 
-### A21 · Drei Wiki-Abgleicher schreiben über 4–6 Tabellen ohne jede Transaktion
+### ✅ A21 · Drei Wiki-Abgleicher schreiben über 4–6 Tabellen ohne jede Transaktion
 Ein Abbruch mitten im Lauf hinterlässt halbe Objekte. *Aufwand:* mittel.
+
+> **✅ Zwei von drei erledigt `219bc765` (+ Korrektur `eda93cf9`), 05.08.2026 — der dritte ist A37.**
+> `avesmapsCitymapReconcileEntity` (schreibt `citymap`, `citymap_type`, `citymap_place`,
+> `citymap_link`, `sources`, `feature_sources`) und `avesmapsPublicationReconcileEntity` (schreibt
+> `sources` **und** `feature_sources` — nicht nur die Verknüpfungszeilen) laufen jetzt je Objekt in
+> **einer** Transaktion. Der Rumpf heisst `…Writes` und wird aus einer dünnen Hülle gerufen — so
+> braucht die Transaktion keine Neu-Einrückung von ~100 Zeilen.
+>
+> 🔁 **Korrektur an meiner eigenen Begründung.** Ich schrieb, die Je-Objekt-Zusage trage, weil der
+> Schrittzähler nur über vollständig verarbeitete Objekte weiterrücke. **Das stimmt nicht** — in
+> beiden Schritten wird der Zähler **vor** der Verarbeitung gesetzt. Die Zusage trägt aus einem
+> anderen Grund: es gibt **kein `try/catch` um das einzelne Objekt**. Eine Ausnahme verlässt die
+> Schleife, die Schrittfunktion kehrt gar nicht zurück, der Aufrufer behält seinen alten Zähler und
+> der Lauf endet mit 500. 💣 Das ist zerbrechlich: wer später ein „kaputtes Objekt überspringen"-
+> `catch` in die Schleife setzt — der naheliegende Refactor —, schiebt den Zähler über ein
+> zurückgerolltes Objekt und baut denselben Schaden eine Ebene höher wieder ein. **Genau das
+> sichert der Test jetzt zu**, über alle drei Aufrufer (der Lore-Abgleich ruft den
+> Publikations-Reconciler ebenfalls), nicht nur über `dump.php`.
+>
+> 🔁 **Korrektur an der Erwartung des Befundes.** Der Befund verlangte alle drei Abgleicher. Der
+> dritte bleibt bewusst aussen vor: `avesmapsAdventureReconcileEntity` lädt das Wiki-Cover **über
+> HTTP** und schreibt es nach `/uploads/questcovers` — **mitten zwischen seinen Schreibvorgängen**,
+> verschränkt (erst legt `avesmapsAdventureFindOrAdoptRow` die Zeile an, dann wird deren
+> `cover_source` zurückgelesen, dann erst über den Download entschieden). Eine Transaktion darum
+> hielte auf einem Shared Host eine Verbindung über unbegrenzte Netz-Latenz offen — und könnte die
+> geschriebene Datei ohnehin nicht zurückrollen. Das ist **keine** Verkleinerung des Auftrags,
+> sondern ein zweiter Befund: **A37**.
+>
+> ⚠️ **Live nicht gegenprüfbar, und das sage ich, statt es zu überspringen.** Ein Sync auszulösen
+> ist ausgeschlossen (STRATO). Ein sqlite-Prüfstand wäre hier **schlechter als keiner**: sqlite
+> committet bei DDL **nicht** implizit, ein grüner Lauf dort sagte also nichts über MySQL, wo genau
+> das die Transaktion still beendet. Beweisbar bleibt der statische Weg — und den führt der Test.
+>
+> Der Test (`api/_internal/wiki/__tests__/reconcile-transaction-test.php`) hält fest: die
+> Besitzprüfung (`$ownsTransaction`, denn PDO kennt keine verschachtelten Transaktionen), das
+> `rollBack` **mit** Weiterwurf, **kein DDL** und **kein Netz/keine Datei** in der Reichweite der
+> Transaktion, dass **kein** Aufrufer eine äussere öffnet, dass **kein `catch`** um das Objekt
+> steht — und die Ausnahme für den Abenteuer-Abgleicher **zusammen mit ihrem Grund**, damit sie ihn
+> nicht überlebt. 208/208 Tests grün.
+>
+> 💣 **Die erste Fassung des Tests war genau dort wirkungslos, wo sie zählte** (gefunden von beiden
+> Gegenprüf-Agenten, von mir nachgestellt): sie schnitt den Text zwischen `beginTransaction` und
+> `commit` aus — **zehn Zeilen mit einem Funktionsaufruf** — und suchte darin nach DDL. Dorthin
+> schreibt es niemand. Ein `avesmapsEnsureFeatureSourceTables($pdo);` als erste Zeile von
+> `…EntityWrites` ging **grün** durch, ebenso ein `CREATE TABLE` und ein `file_get_contents`.
+> Der Test liest jetzt die **tatsächliche Reichweite**: den ausgelagerten Rumpf und **jede**
+> `avesmaps*`-Funktion, die er erreicht, in beliebiger Tiefe — mit PHPs eigenem Tokenizer, weil ein
+> Regex eine `{` im Kommentar nicht von einer echten unterscheiden kann. Alle drei Mutationen sind
+> jetzt rot. Eine Kontrollzusicherung läuft denselben Weg ab dem Abenteuer-Abgleicher und **verlangt**,
+> dass er den Cover-Download findet — hört der Lauf je auf zu funktionieren, wäre das Grün oben
+> wertlos.
+>
+> Zwei weitere Löcher derselben Prüfung, ebenfalls behoben: ein **werfendes `rollBack()`** begrub die
+> Ursache (es wirft gerade dann, wenn die Verbindung weg ist — der Abbruch, um den es geht — und der
+> Aufrufer erfuhr „MySQL server has gone away" statt des echten Fehlers); und
+> `avesmapsCitymapLinkSource` **schluckte jeden `Throwable`** über Quellen-Upsert *und* Verknüpfung
+> zusammen, committete also eine verwaiste `sources`-Zeile — und bei einem Deadlock, den InnoDB
+> serverseitig komplett zurückrollt, liefen die restlichen Schreibvorgänge ohne Transaktion weiter.
+> Geschluckt wird jetzt nur noch der dokumentierte Fall (fehlende WikiSync-Staging-Tabellen,
+> SQLSTATE 42S02).
 
 ---
 
@@ -881,6 +941,31 @@ statt auf ein Geheimnis.
 *Beleg:* wörtlich gelesen; **bewusst nicht ausprobiert.** Ob STRATO den Kopf vorher überschreibt,
 ist von außen nicht feststellbar und wäre als Verlass darauf ohnehin keine Verteidigung.
 *Aufwand:* klein (Allowlist oder `REMOTE_ADDR`), Radius: alle vier Drosseln.
+
+> 🔧 **DU: eine Abfrage, dann baue ich es** (05.08.2026). Der Befund ist bestätigt — die Funktion
+> steht wörtlich so in `api/_internal/bootstrap.php:303-313`, acht Aufrufstellen in vier Dateien.
+> Was den Fix entscheidet, ist eine Tatsachenfrage, die ich nicht raten darf: **sitzt ein Proxy
+> davor?**
+>
+> | | `REMOTE_ADDR` nehmen | Rechtestes `X-Forwarded-For`-Element nehmen |
+> |---|---|---|
+> | **kein Proxy** | ✅ richtig | ❌ es gibt keins |
+> | **Proxy davor** | 💣 **alle Besucher in EINEM Eimer** — nach fünf Meldungen ist die Seite für jeden gesperrt | ✅ richtig |
+>
+> Beide Wege sind einzeilig; nur die falsche Wahl ist teuer, und die teure Richtung ist ein
+> Totalausfall der Meldungsstrecke. Ein einzelner `HEAD` auf die Startseite zeigt nur
+> `Server: Apache/2.4.68 (Unix)` — kein `Via`, kein CDN-Kopf. Das *legt* „kein Proxy" nahe,
+> beweist es aber nicht (ein transparenter Proxy wirbt nicht für sich).
+>
+> **Der Beweis liegt in den eigenen Daten und ist rein lesend:** [`sql/a29-proxy-erkennung.sql`](../../sql/a29-proxy-erkennung.sql)
+> zählt, wie viele **verschiedene** Absenderadressen `map_reports` je gesehen hat. Eine einzige bei
+> Zeilen aus verschiedenen Sitzungen heisst Proxy; mehrere heissen keiner. Sag mir die Zahl, dann
+> ist der Rest eine Zeile.
+>
+> ⚠️ Unabhängig davon fehlt in beiden Fällen eine Prüfung, dass der Wert überhaupt eine IP **ist**
+> (`filter_var(..., FILTER_VALIDATE_IP)`). Heute ist `ip_hash` deshalb nicht der Hash einer
+> Adresse, sondern der einer beliebigen Zeichenkette des Aufrufers — das ist der
+> Datenschutz-Teil des Befundes und gilt in jeder Topologie.
 
 ### A30 · `report_mode=change` ist ein unbegrenzter Schreibkanal ohne Anmeldung
 `api/_internal/app/report-context.php:12-29`
@@ -1081,6 +1166,39 @@ des verbliebenen Aufwands ist. Sie steht in einem `SELECT COUNT(*)` und braucht 
 
 *Beleg:* am Code gelesen, im Test gemessen (2 + 3×2 = 8 Abfragen bei drei Wiki-Objekten).
 *Aufwand:* mittel. *Gefunden von den Gegenprüf-Agenten an der eigenen A20-Auslieferung.*
+
+### A37 · Der Abenteuer-Abgleich lädt ein Cover mitten in seinen Schreibvorgängen
+`api/_internal/wiki/adventure-sync.php:557-661` (Reconcile) und `:366-397` (Cover)
+
+Abgespalten von A21, dessen Transaktion die anderen beiden Abgleicher bekommen haben. Hier geht
+sie nicht: `avesmapsAdventureReconcileEntity` ruft `avesmapsAdventureSaveCoverLocal`, und das macht
+einen **HTTP-Download vom Wiki**, eine GD-Verkleinerung und ein `file_put_contents`. Eine
+Transaktion darum hielte auf einem Shared Host eine Datenbankverbindung über unbegrenzte
+Netz-Latenz offen — und die geschriebene Datei rollt sie ohnehin nicht zurück. Das Objekt bleibt
+damit als einziges der drei ohne Alles-oder-Nichts.
+
+Der Abruf ist **verschränkt**, nicht bloss schlecht platziert: `avesmapsAdventureFindOrAdoptRow`
+läuft davor, danach wird `cover_source` gelesen, und erst dieser Vergleich entscheidet, ob überhaupt
+geladen wird — anschliessend folgen `UPDATE adventure` und die Ortsschreiber. ⚠️ *Präzisierung nach
+Gegenprüfung:* `FindOrAdoptRow` **schreibt nur in zwei seiner drei Zweige** (Adoption und Neuanlage);
+der häufigste Fall — Treffer über `wiki_key` — ist rein lesend. Vor dem Download steht für ein
+bestehendes Abenteuer also **kein** Schreibvorgang. An der Verschränkung ändert das nichts (danach
+wird geschrieben), wohl aber an der Begründung. Ihn nach vorn zu ziehen heisst, die
+Reihenfolge Lesen/Schreiben/Netz neu zu ordnen — inklusive der Adoptionslogik, die bestimmt,
+**welche** Zeile gemeint ist.
+
+Mögliche Formen, bewusst nicht selbst entschieden, weil sie unterschiedliche Zusagen geben:
+1. **Cover vorziehen** — die bestehende Zeile vor der Adoption über `wiki_key` lesen, laden, dann
+   alles Übrige in einer Transaktion. Volle Atomarität, aber die Adoptionslogik muss zweimal
+   gedacht werden.
+2. **Transaktion nur um den Rest** — Anlegen/Adoptieren und Cover bleiben draussen, ab dem Feldplan
+   greift sie. Deckt das ab, was der Befund nennt (halbe Objekte), lässt aber einen Absturz direkt
+   nach dem Anlegen eine leere Abenteuerzeile hinterlassen.
+3. **Cover ganz aus dem Reconcile** — in einen eigenen Schritt nach dem Abgleich, wie ein
+   Nachlauf. Sauberste Trennung, grösster Umbau, und der Schritt braucht einen eigenen Zähler.
+
+*Beleg:* Aufrufkette am Code gelesen; der Test zu A21 hält die Ausnahme samt Grund fest und wird
+rot, sobald der Abruf nicht mehr dort steht. *Aufwand:* mittel. 🔧 **DU:** welche der drei Formen.
 
 ---
 
