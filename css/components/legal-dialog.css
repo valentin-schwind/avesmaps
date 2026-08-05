@@ -173,32 +173,107 @@
 	transform: none;
 }
 
-.legal-dialog__group {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	margin: 22px 0 8px;
-	padding-top: 14px;
+/* Die acht Abschnitte des Fensters. Zugeklappt sind sie sein Inhaltsverzeichnis, aufgeklappt sein
+   Inhalt -- deshalb traegt der Abschnitt (`<details>`) die Trennlinie und nicht mehr die Ueberschrift.
+   💣 Das ist kein Verschieben aus Geschmack: im `<details>` ist das `<summary>` IMMER erstes Kind, die
+   alte Ausnahme `.legal-dialog__group:first-child` haette also auf jede der acht Zeilen gepasst und
+   alle Linien geloescht. */
+.legal-section {
 	border-top: 1px solid var(--color-divider);
+}
+
+/* Der Text der aufgeklappten Abschnitte rueckt unter die Ueberschrift ein -- ohne Huellen-<div>, damit
+   die Absaetze im Markup bleiben, wo sie stehen. */
+.legal-section > :not(summary) {
+	padding-left: 16px;
+}
+
+/* Raster statt Flex, aus drei Gruenden: der Punkt-Marker und der Pfeil sollen ueber BEIDE Zeilen
+   (Titel + Hinweis) mittig stehen, und `display: grid` nimmt dem `<summary>` zugleich das
+   browsereigene Dreieck (`display: list-item` weicht). Safari braucht dafuer zusaetzlich die
+   ::-webkit-details-marker-Regel unten. */
+.legal-dialog__group {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: center;
+	column-gap: 8px;
+	padding: 11px 6px 10px 0;
+	border-radius: var(--radius-sm);
 	color: var(--color-accent-strong);
 	font-size: 15px;
 	font-weight: bold;
 	letter-spacing: 0.01em;
+	cursor: pointer;
+	list-style: none;
+}
+
+.legal-dialog__group::-webkit-details-marker {
+	display: none;
+}
+
+/* Hover und Fokus wie bei jeder anderen anklickbaren Zeile des Hauses (.map-context-menu__item):
+   der Wash, kein Rahmen, kein eigener Ring.
+   ⚠️ KEINE negativen Seitenraender fuer einen vollbreiten Streifen: `.legal-dialog__scroll` hat
+   `overflow-y: auto`, damit rechnet der Browser die Waagerechte auf `auto` -- ein Streifen, der
+   ueber die Inhaltsbreite hinausragt, haengt eine waagerechte Bildlaufleiste ans Fenster. */
+.legal-dialog__group:hover,
+.legal-dialog__group:focus-visible {
+	background: var(--color-hover-wash);
+	outline: none;
 }
 
 .legal-dialog__group::before {
 	content: "";
-	flex: none;
+	grid-column: 1;
+	grid-row: 1 / -1;
 	width: 8px;
 	height: 8px;
 	border-radius: var(--radius-sm);
 	background: var(--color-accent-strong);
 }
 
-.legal-dialog__group:first-child {
-	margin-top: 2px;
-	padding-top: 0;
-	border-top: 0;
+/* Der Pfeil ist gezeichnet, nicht geschrieben: zwei Kanten in currentColor, um 45° gekippt. Damit
+   braucht er keine Schrift, kein Bild und keine zweite Farbe fuer das dunkle Design. */
+.legal-dialog__group::after {
+	content: "";
+	grid-column: 3;
+	grid-row: 1 / -1;
+	width: 7px;
+	height: 7px;
+	margin-bottom: 3px;
+	border-right: 2px solid var(--color-text-muted);
+	border-bottom: 2px solid var(--color-text-muted);
+	transform: rotate(45deg);
+	transition: transform 0.15s ease;
+}
+
+.legal-section[open] > .legal-dialog__group::after {
+	margin-top: 3px;
+	margin-bottom: 0;
+	transform: rotate(-135deg);
+}
+
+.legal-dialog__group-title {
+	grid-column: 2;
+	grid-row: 1;
+	margin: 0;
+	color: inherit;
+	font-size: inherit;
+	font-weight: inherit;
+	letter-spacing: inherit;
+}
+
+/* Die Zeile, die das Verzeichnis erst zu einem macht: sie sagt, was in dem Abschnitt steckt, ohne
+   ihn zu oeffnen. Sie steht NEBEN der Ueberschrift im Markup, nicht darin -- eine Ueberschrift soll
+   kurz bleiben, auch fuer den Screenreader. */
+.legal-dialog__group-hint {
+	grid-column: 2;
+	grid-row: 2;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-regular);
+	letter-spacing: 0;
+	line-height: 1.4;
 }
 
 /* „Bedienung" ist die einzige Gruppe im Fenster mit einer Unterueberschrift -- alle anderen sind
