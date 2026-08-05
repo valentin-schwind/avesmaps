@@ -1398,7 +1398,7 @@ heute nur über den Import-Endpunkt (A33) oder von Hand in der Datenbank.
 *Beleg:* am Kontrollfluss abgelesen. *Aufwand:* klein (die Schreibpfade auf `status <> 'approved'`
 o. ä. öffnen) — aber es ist eine Produktentscheidung, was „zurückgestellt" bedeuten soll.
 
-### A33 · Der Import-Endpunkt schreibt jeden beliebigen Status
+### ✅ A33 · Der Import-Endpunkt schreibt jeden beliebigen Status
 `api/import/location-reports/update-status.php:26`
 
 Der Status wird nur auf 20 Zeichen gekürzt, **ohne Whitelist** — anders als im Editor-Endpunkt
@@ -1407,6 +1407,40 @@ Importwerkzeug schreibt einen Status, den keine Oberfläche kennt; die Meldung e
 „Bearbeitet", trägt ein Etikett, das niemand vergeben wollte, und ist wegen A32 eingefroren.
 
 *Beleg:* wörtlich gelesen. *Aufwand:* klein (dieselbe Whitelist wie nebenan).
+
+> **✅ Erledigt `7aedccb3`, 05.08.2026.** Der Import-Endpunkt hat jetzt einen Riegel, und der Editor
+> gibt seine eigene Kopie ab — **die Kopie war der Befund**.
+>
+> ⭐ **Die Liste wird ABGELEITET, nicht ein zweites Mal geschrieben:**
+> `array_keys(AVESMAPS_REPORT_MODERATION_AUDIT_ACTIONS)`. Das ist die Bauart, nicht Ordnungsliebe.
+> Ein Status, der **gesetzt** werden kann, aber keine Audit-Aktion hat, wäre eine
+> Moderationsentscheidung ohne Spur — also A4 wieder aufgemacht; einer mit Aktion, aber ohne
+> Setzweg, wäre tote Vokabel. Die Ableitung macht beides unmöglich, und der Test sichert zu, dass es
+> **dieselbe** Liste ist, nicht zwei, die heute zufällig übereinstimmen.
+>
+> ⚠️ **`neu` bleibt bewusst draussen** — das ist der Zustand, in dem eine Meldung *ankommt*, nicht
+> einer, den ein Bearbeiter wählt. Ob eine entschiedene Meldung dorthin zurück darf, ist **A32** und
+> deine Entscheidung; fällt sie, gehört der Eintrag in die Audit-Karte und erscheint hier von selbst.
+>
+> Die Absage **nennt die erlaubten Werte**: dieser Endpunkt antwortet einer Maschine, deren Betreiber
+> ein Protokoll liest, und „ungueltig" allein schickt ihn genau dann in den Quelltext, wenn er das
+> nicht sollte. ⚠️ Kein Informationsleck: die Token-Prüfung steht bei `:16`, der Riegel bei `:41` —
+> ein Unbefugter sieht weiterhin nur 401. Und er greift vor `avesmapsCreatePdo` (`:49`), kostet also
+> nicht einmal eine Datenbankverbindung.
+>
+> **Vier Mutationen rot — und eine musste ich mir selbst nachweisen:** ein `false &&` vor dem Riegel
+> liess ihn vorhanden und richtig platziert, während er nie feuerte, und meine erste Zusicherung ging
+> **grün** durch. Das war in dieser Sitzung das **dritte** Mal, dass ein Test Position statt Wirkung
+> prüft (A21: die Hülle statt der Transaktionsreichweite; A31: das SQL statt der Sortierung, dann die
+> Bedingung). Beide Bedingungen sind jetzt vollständig festgenagelt. 209/209 grün.
+>
+> **Live geprüft, spurenfrei** (der Import-Endpunkt schreibt ohne gültiges Token nichts): ein POST
+> ohne Token mit dem Müll-Status `voellig-erfunden` antwortet **401** — der Token-Riegel greift also
+> zuerst und die Aufzählung der erlaubten Werte erreicht keinen Unbefugten. Der Endpunkt lädt auch
+> mit dem neuen `require_once` (eine 500 wäre der Fatal gewesen), und `api/edit/reports/locations.php`
+> antwortet unverändert 401. ⚠️ Kleine Korrektur an meiner eigenen Erwartung: ein **GET** liefert
+> **401**, nicht 405 — die Token-Prüfung (`:16`) steht vor der Methodenprüfung (`:20`). Für einen
+> Unbefugten ist das die bessere Antwort, sie verrät nicht einmal die erlaubte Methode.
 
 ### A36 · Der Rest des N+1 sitzt im Wiki-Zweig des Sammlers
 `api/_internal/political/territories-derived-layer.php` (Sammler) → `territories-read.php:1277`
