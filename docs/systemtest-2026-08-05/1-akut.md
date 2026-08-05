@@ -942,10 +942,26 @@ statt auf ein Geheimnis.
 ist von außen nicht feststellbar und wäre als Verlass darauf ohnehin keine Verteidigung.
 *Aufwand:* klein (Allowlist oder `REMOTE_ADDR`), Radius: alle vier Drosseln.
 
-> 🔧 **DU: eine Abfrage, dann baue ich es** (05.08.2026). Der Befund ist bestätigt — die Funktion
-> steht wörtlich so in `api/_internal/bootstrap.php:303-313`, acht Aufrufstellen in vier Dateien.
-> Was den Fix entscheidet, ist eine Tatsachenfrage, die ich nicht raten darf: **sitzt ein Proxy
-> davor?**
+> **◐ Die Hälfte, die keine Entscheidung braucht, ist erledigt `864fe864`, 05.08.2026.** Der Wert
+> muss jetzt **eine IP sein** (`FILTER_VALIDATE_IP`); ein Kandidat, der es nicht ist, wird
+> **übersprungen** statt geglaubt. Damit fällt ein Aufrufer mit Müll im Kopf auf seine **eigene**
+> `REMOTE_ADDR` zurück — genau den Schlüssel, dem er entkommen wollte —, und zwei verschiedene
+> gefälschte Köpfe landen im **selben** Eimer statt in zweien. Spoofing mit beliebigem Text
+> funktioniert nicht mehr. Auch der Datenschutz-Teil ist damit geschlossen: `ip_hash` ist wieder der
+> Hash einer Adresse und nicht der einer beliebigen Zeichenkette. Drei Mutationen rot, 209/209 grün.
+> **Offen bleibt**, was eine gültig *aussehende* fremde Adresse angeht — dafür braucht es die
+> Topologie-Antwort unten. Ein Assert im Test hält diese Lücke ausdrücklich fest; er soll sich
+> **ändern**, wenn die Entscheidung fällt, nicht verschwinden.
+>
+> 🔁 **Meine Diagnose-Abfrage hat die Frage NICHT beantwortet, und der Fehler war meiner.** Sie
+> zählte `remote_ip` — eine Spalte, die der Melde-`INSERT` **absichtlich leer** lässt (gespeichert
+> wird nur der Hash; die vier gefüllten Zeilen stammen von vor dieser Entscheidung). Ergebnis: 281
+> Zeilen, **2** verschiedene `remote_ip` (277× leer), **92** verschiedene `ip_hash`. Was die 92
+> immerhin **ausschliessen**: einen Proxy, der den Client verbirgt und *kein* `X-Forwarded-For`
+> setzt — der würde alle auf **einen** Schlüssel zusammenfallen lassen. Übrig bleiben „kein Proxy"
+> und „Proxy, der korrekt weiterreicht", und die verlangen gegensätzliche Fixes.
+>
+> 🔧 **DU: die Tatsachenfrage bleibt offen** — **sitzt ein Proxy davor?**
 >
 > | | `REMOTE_ADDR` nehmen | Rechtestes `X-Forwarded-For`-Element nehmen |
 > |---|---|---|
@@ -957,10 +973,16 @@ ist von außen nicht feststellbar und wäre als Verlass darauf ohnehin keine Ver
 > `Server: Apache/2.4.68 (Unix)` — kein `Via`, kein CDN-Kopf. Das *legt* „kein Proxy" nahe,
 > beweist es aber nicht (ein transparenter Proxy wirbt nicht für sich).
 >
-> **Der Beweis liegt in den eigenen Daten und ist rein lesend:** [`sql/a29-proxy-erkennung.sql`](../../sql/a29-proxy-erkennung.sql)
-> zählt, wie viele **verschiedene** Absenderadressen `map_reports` je gesehen hat. Eine einzige bei
-> Zeilen aus verschiedenen Sitzungen heisst Proxy; mehrere heissen keiner. Sag mir die Zahl, dann
-> ist der Rest eine Zeile.
+> ⚠️ **Die Daten können es nicht mehr beantworten** — `remote_ip` wird aus gutem Grund nicht mehr
+> geschrieben, und ein Hash verrät die Topologie nicht. `sql/a29-proxy-erkennung.sql` hat damit
+> seinen Zweck verloren; es bleibt nur als Beleg für die 92 Schlüssel stehen. Was die Frage klärt,
+> ohne eine Zeile zu speichern, ist eines von zweien:
+> 1. **Die Auskunft des Hosters** — reicht STRATO die Anfragen über einen Reverse-Proxy? Steht das
+>    in der Doku oder lässt sich der Support fragen, ist die Sache erledigt.
+> 2. **Eine winzige, nur für Admins lesbare Diagnose**, die für die *eigene* Anfrage meldet, ob
+>    `X-Forwarded-For` überhaupt ankommt und ob `REMOTE_ADDR` davon abweicht — **ohne** eine Adresse
+>    zu zeigen oder zu speichern, nur zwei Wahrheitswerte. Sag Bescheid, dann baue ich sie; sie ist
+>    kleiner als der Fix selbst.
 >
 > ⚠️ Unabhängig davon fehlt in beiden Fällen eine Prüfung, dass der Wert überhaupt eine IP **ist**
 > (`filter_var(..., FILTER_VALIDATE_IP)`). Heute ist `ip_hash` deshalb nicht der Hash einer
@@ -1185,10 +1207,28 @@ berührt aber die Reihenfolge der Antworten und gehört deshalb geprüft, nicht 
 > entschieden. Neue Reihenfolge: DDL → **Drossel** → Namensabgleich → Duplikatprobe → `INSERT`.
 > Wer über der Grenze steht, zahlt die beiden ungedeckelten Vollscans nicht mehr.
 >
-> ⭐ **Der Tausch schliesst nebenbei ein Oracle, das in keinem Befund stand.** Solange der 409
-> zuerst entschieden wurde, liess sich „gibt es diesen Ort schon?" **ungedrosselt** fragen — die
-> Drossel kam danach und stoppte die *Meldung*, nie die *Frage*. Jetzt bekommt ein Aufrufer über
-> der Grenze eine 429 und erfährt nichts über die Namen dahinter.
+> 🔁 **Ich habe den Nutzen zu gross geschrieben — hier die Korrektur (Gegenprüfung, von mir am Code
+> nachgestellt).** Ich behauptete, der Tausch schliesse ein Oracle: über der Grenze gebe es nur noch
+> 429. **Das greift für den Aufrufer nicht, um den es geht.** Die Stundengrenze zählt
+> **gespeicherte Zeilen** (`SELECT COUNT(*) FROM map_reports`), und ein 409 speichert nichts — er
+> bricht vor dem `INSERT` ab. Wer mit **existierenden** Namen probt, füllt den Eimer also **nie**,
+> steht nie über der Grenze, und behält Antwort *und* ungedeckelten Scan auf **jeder** Anfrage,
+> dauerhaft. Für ihn ist der Endpunkt jetzt sogar **eine Abfrage teurer** (der `COUNT` läuft neu
+> davor). → eigener Befund **A38**.
+>
+> ⚠️ Und die Namen sind ohnehin nicht geheim: `GET /api/locations/` liefert alle **4.861**
+> anmeldefrei aus. Nicht-öffentlich war immer nur die **zweite** Hälfte der Prüfung — die offenen
+> Meldungen in `map_reports`. Für die ist der Tausch ein echter Gewinn.
+>
+> ⚠️ Zwei weitere Zahlen von mir waren zu hoch: es sind **~2.777** Ortszeilen, nicht ~4.700 (die
+> 2.084 Kreuzungen filtert die Abfrage über `feature_type='location'` weg), und die Normalisierung
+> kostet gemessen **0,59 ms für den ganzen Satz** — der Treiber sind Abfrage und Zeilen-Hydration,
+> nicht die Regex. Bei einem **treffenden** Namen bricht die Schleife ab, ein 409 kostet also
+> **einen** Scan, nicht zwei. „Ohne `LIMIT`" heisst zudem nicht „Volltabellenscan": beide Tabellen
+> haben einen Index auf der gefilterten Führungsspalte.
+>
+> Was bleibt: wer wirklich fünf Meldungen gespeichert hat, zahlt die Scans nicht mehr — und die
+> nicht-öffentliche Hälfte des Oracles ist hinter der Drossel.
 >
 > ⚠️ **Was sich für einen ehrlichen Melder ändert:** über der Grenze **und** mit kollidierendem
 > Namen kommt jetzt 429 statt 409. Das ist die bessere der beiden Antworten — „komm in ein paar
@@ -1200,7 +1240,13 @@ berührt aber die Reihenfolge der Antworten und gehört deshalb geprüft, nicht 
 >
 > **Zwei Mutationen rot, und die erste ist keine Erfindung:** die Datei aus `git` im Vorzustand
 > zurückgespielt lässt die Reihenfolgen-Zusicherung fallen; das DDL unter die Drossel geschoben
-> lässt die Frische-Installations-Zusicherung fallen. 208/208 grün.
+> lässt die Frische-Installations-Zusicherung fallen.
+>
+> 🔁 **Aber der Test prüfte Position, nie Wirkung — und liess eine tote Drossel durch** (`3d9cd9f5`).
+> Nachgestellt: `!==` zu `===` in der Bedingung, oder ein `false &&` davor, schaltet sie vollständig
+> ab und **alle 208 Tests blieben grün**; ebenso das Entfernen des `report_type`-Riegels, das die
+> beiden Scans für *jeden* Meldetyp laufen liesse. Jetzt sind die **Bedingungen selbst**
+> zugesichert, alle drei Mutationen rot. 209/209 grün.
 >
 > **Live geprüft, spurenfrei:** eine Meldung auf den bestehenden Ort „Gareth" antwortet weiter
 > **409 `conflict`** — der Namensabgleich läuft nach dem Tausch also unverändert, und der Endpunkt
@@ -1380,6 +1426,37 @@ des verbliebenen Aufwands ist. Sie steht in einem `SELECT COUNT(*)` und braucht 
 
 *Beleg:* am Code gelesen, im Test gemessen (2 + 3×2 = 8 Abfragen bei drei Wiki-Objekten).
 *Aufwand:* mittel. *Gefunden von den Gegenprüf-Agenten an der eigenen A20-Auslieferung.*
+
+### A38 · Eine abgewiesene Anfrage füllt den Eimer nicht — die Drossel sieht den Prober nie
+`api/_internal/app/report-outcome.php:57-63` gegen `api/app/report-location.php:129` und `:185`
+
+Aus der Gegenprüfung von A31, von mir am Code nachgestellt. Die Stundengrenze zählt **gespeicherte
+Zeilen** (`SELECT COUNT(*) FROM map_reports WHERE ip_hash = …`). Ein 409 (Name existiert bereits)
+und ein 400 (Validierung) schreiben aber **nichts** — sie brechen vor dem `INSERT` ab.
+
+**Folge:** wer mit *existierenden* Namen probt, füllt den Eimer nie, steht nie über der Grenze und
+behält Antwort **und** die beiden ungedeckelten Scans auf **jeder** Anfrage — unbegrenzt und
+dauerhaft. Die Drossel wirkt nur gegen den, der vorher fünf **echte** Meldungen gespeichert hat,
+also gegen die naive Flut, nicht gegen den Angreifer. A31 hat die Reihenfolge richtig gestellt, aber
+diesen Aufrufer erreicht sie nicht; für ihn ist der Endpunkt seither sogar eine Abfrage teurer.
+
+Dasselbe gilt für das ältere Filter-Oracle, das `report-outcome.php:27-31` beschreibt (409 = nichts
+gefiltert, 201 = etwas gefiltert): auch das kostet keine Zeile und wird nie gedrosselt.
+
+🔧 **DU: das ist eine Abwägung, keine Reparatur.** Der naheliegende Weg — **abgewiesene Anfragen
+mitzählen** — braucht einen zweiten Zähler (die Stundengrenze zählt Zeilen, nicht Versuche) und
+trifft **ehrliche Melder**: wer sich beim Namen vertippt oder auf einen bestehenden Ort stösst,
+verbraucht dann sein Kontingent, ohne je etwas gemeldet zu haben. Drei Formen, die ich nicht selbst
+wähle:
+1. **Nur Versuche zählen, nicht Erfolge deckeln** — ein getrennter, grosszügigerer Versuchszähler
+   (z.B. 60/Stunde), der ausschliesslich den Prober trifft.
+2. **Abweisungen halb zählen** — 409/400 füllen denselben Eimer, aber die Grenze steigt (z.B. 20),
+   damit ein Tippfehler nicht sofort sperrt.
+3. **Nichts ändern** und den Preis akzeptieren: die nicht-öffentliche Hälfte des Oracles bleibt
+   offen, die Last bleibt ungedrosselt.
+
+*Beleg:* am Code gelesen und nachgestellt (`report-location.php:129` bricht vor `:185` ab).
+*Aufwand:* mittel (ein zweiter Zähler ist eine eigene Tabelle oder Spalte).
 
 ### A37 · Der Abenteuer-Abgleich lädt ein Cover mitten in seinen Schreibvorgängen
 `api/_internal/wiki/adventure-sync.php:557-661` (Reconcile) und `:366-397` (Cover)
