@@ -13,6 +13,22 @@ Options -Indexes
     Satisfy any
 </IfModule>
 
+# --- Compression -----------------------------------------------------------
+# Until 2026-08-05 nothing was compressed except map-features.php, which gzips itself.
+# Measured on the real responses of that day: JS+CSS 5,97 -> 1,73 MB, the political layer
+# 2,90 -> 0,76 MB, adventures 1,81 -> 0,24 MB, the landscape layer 1,70 -> 0,48 MB. That is
+# several megabytes per cold visit, and it is the same line the PHP pool keeps saturating on.
+#
+# No double compression: map-features.php sets Content-Encoding itself, and mod_deflate skips
+# any response that already carries one. Images, fonts and webp are left alone deliberately --
+# they are compressed already and running deflate over them costs CPU for nothing.
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css
+    AddOutputFilterByType DEFLATE application/javascript application/x-javascript text/javascript
+    AddOutputFilterByType DEFLATE application/json application/geo+json application/ld+json
+    AddOutputFilterByType DEFLATE application/xml application/rss+xml image/svg+xml
+</IfModule>
+
 # --- Caching ---------------------------------------------------------------
 # Ziel: Endnutzer bekommen nach einem Deploy sofort frischen Code, OHNE Hard-Reload,
 # behalten aber maximale Performance. JS/CSS werden in index.html mit ?v=<contenthash>

@@ -34,3 +34,13 @@ uploads/map/*.zip
 
 # Superpowers brainstorming/verify scratch space (mockups, harnesses) — never deployed
 .superpowers/
+
+# Claude Code scratch space. .claude/worktrees alone was 2,2 GB with 57 checkouts of this repo
+# on 2026-08-05, none of it tracked. Two costs, both real: one git add -A would have tried to
+# commit all of it (AGENTS.md forbids that command, but a convention should not be the only
+# thing standing between the repo and 2,2 GB), and grep tools honour .gitignore -- two agents
+# in the system test measured multiplied hit counts before they noticed they were counting
+# 57 copies. launch.json stays untracked-but-visible on purpose; it is the preview config.
+.claude/worktrees/
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
