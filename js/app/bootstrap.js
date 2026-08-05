@@ -8,15 +8,20 @@
 // hardcoded default. Not edit mode, no stored frame, or a corrupt / out-of-bounds one -> the default, quietly.
 // The default frame is the "Aventurien" continent label, and it must stay BIT-IDENTICAL to what the search
 // does: picking "Aventurien" in the spotlight runs focusSpotlightLabel -> flyTo(label marker, zoom band cap)
-// = [497.28, 520.5] @ 2 (measured off the live click on 2026-08-05; the label is drawn from zoom 0 to 2, so
-// the cap is 2). Owner 2026-08-05, after seeing the start view drift 175px away from that: "vergleich mal
-// die jetzige map mitte mit dem zustand, wenn ich auf Aventurien klicke -- eigentlich will ich genau das".
+// = [497.28, 520.5] @ 3 (measured off the live click on 2026-08-05). Owner 2026-08-05, after seeing the
+// start view drift 175px away from that: "vergleich mal die jetzige map mitte mit dem zustand, wenn ich auf
+// Aventurien klicke -- eigentlich will ich genau das".
 // 💣 So do NOT re-introduce an optical offset here. Half a route-planner width to the west looks better
 // centred in the map area #search leaves free -- but then arriving on the site and searching for the
 // continent put the map in two different places, and that difference is what got noticed. If the offset
 // is ever wanted, it belongs in spotlightFlyTo (both paths at once), not in this seed alone.
+// 💣 THE ZOOM IS A COPY OF THE LABEL'S ZOOM BAND, and the only one that cannot follow it by itself: the
+// search reads max_zoom off the loaded label (min(max_zoom, VISUAL_MAX_ZOOM_LEVEL)), while this seed runs
+// before a single feature is fetched. The band was 0..2 and the owner widened it to 0..3 on 2026-08-05 --
+// at which point the search flew to 3 and only the start view stayed on 2. Whoever moves "Sichtbar bis
+// Zoom" on the continent label again moves this line with it, or the two drift apart silently.
 const AVESMAPS_DEFAULT_MAP_CENTER = [497.28, 520.5]; // [lat, lng] = [y, x], the label's map_features row
-const AVESMAPS_DEFAULT_MAP_ZOOM = 2;
+const AVESMAPS_DEFAULT_MAP_ZOOM = 3;
 function getInitialEditMapView() {
     if (!IS_EDIT_MODE) {
         return { center: AVESMAPS_DEFAULT_MAP_CENTER, zoom: AVESMAPS_DEFAULT_MAP_ZOOM };
