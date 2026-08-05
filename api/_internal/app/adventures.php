@@ -282,6 +282,7 @@ function avesmapsAdventureLinks(array $row, array $extraLinks): array
 // and a truncated label is a mislabelled one.
 const AVESMAPS_ADVENTURE_LINK_LABEL_MAX = 120;
 const AVESMAPS_ADVENTURE_LINK_URL_MAX = 500;
+const AVESMAPS_ADVENTURE_LINK_ROWS_MAX = 20;
 
 // The gate between the editor and adventure_link. Takes the WHOLE list as displayed and returns it as
 // storable rows; sort_order is the array position, so the editor's ▲▼ is a plain array move and no id
@@ -316,6 +317,16 @@ function avesmapsNormalizeAdventureLinkRows(array $rows): array
         }
         if (strlen($url) > AVESMAPS_ADVENTURE_LINK_URL_MAX) {
             throw new InvalidArgumentException('Die URL ist zu lang (max. ' . AVESMAPS_ADVENTURE_LINK_URL_MAX . ' Zeichen): ' . $label);
+        }
+        // 💣 DERSELBE DECKEL WIE BEI DEN KARTEN, und er fehlte hier genauso. Der Kommentar drueben
+        // nennt diese Funktion sein Vorbild -- ein Vorbild ohne Zeilendeckel vererbt genau den weiter.
+        // Kein anmeldefreier Schreibweg fuehrt heute hierher (avesmapsSetAdventureLinks ist der
+        // einzige Aufrufer, hinter einer Faehigkeit), aber die Groessenrechnung ist dieselbe, und die
+        // beiden Funktionen sind ausdruecklich als Zwillinge gepflegt.
+        //
+        // ⚠️ Gemessen, nicht geraten: live tragen 1.352 Abenteuer hoechstens 4 Links.
+        if (count($normalized) >= AVESMAPS_ADVENTURE_LINK_ROWS_MAX) {
+            throw new InvalidArgumentException('Zu viele Links (max. ' . AVESMAPS_ADVENTURE_LINK_ROWS_MAX . ').');
         }
         $normalized[] = ['label' => $label, 'url' => $url, 'sort_order' => count($normalized)];
     }

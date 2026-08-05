@@ -122,6 +122,7 @@ const AVESMAPS_CITYMAP_FORMAT_MAX = 120;
 // two-publisher case the wiki actually has.
 const AVESMAPS_CITYMAP_PUBLISHER_MAX = 160;
 const AVESMAPS_CITYMAP_URL_LABEL_MAX = 120; // matches map_url_label VARCHAR(120)
+const AVESMAPS_CITYMAP_LINK_ROWS_MAX = 20;
 
 // ---- DDL --------------------------------------------------------------------------------------------
 // Idempotent. Runs on every read (cheap: CREATE TABLE IF NOT EXISTS), so a fresh deploy self-heals on the
@@ -1712,6 +1713,19 @@ function avesmapsNormalizeCitymapLinkRows(array $rows): array
         }
         if (mb_strlen($label) > AVESMAPS_CITYMAP_LINK_LABEL_MAX) {
             throw new InvalidArgumentException('Der Link-Titel ist zu lang (max. ' . AVESMAPS_CITYMAP_LINK_LABEL_MAX . ' Zeichen): ' . $label);
+        }
+        // 💣 DER DECKEL AUF DIE ZEILENZAHL. Er fehlte, und die Fundort-Meldung ist der Weg, auf dem eine
+        // ANMELDEFREIE Meldung ihn erreicht: report_mode wird unabhaengig von report_type gelesen,
+        // ein report_type=fundort mit report_mode=change bekommt also die grosse Nutzlast UND die
+        // Befreiung von der Stundengrenze. Ohne Deckel fuellen rund 85 Zeilen maximaler Groesse die
+        // TEXT-Spalte (65.535 Bytes) -- ~80 KB je Meldung, und der Pruefbildschirm laedt bis zu 500
+        // davon (Befund A30).
+        //
+        // ⚠️ Die 20 ist gemessen, nicht geraten: live sind es 456 Karten mit hoechstens 2 Fundorten. Zurueckgewiesen wird,
+        // nicht abgeschnitten -- das ist die Hausform (siehe Titel-/URL-Laengen darueber), und ein
+        // still gekuerzter Vorschlag ist eine Behauptung ueber etwas, das der Melder nicht gesagt hat.
+        if (count($normalized) >= AVESMAPS_CITYMAP_LINK_ROWS_MAX) {
+            throw new InvalidArgumentException('Zu viele Links (max. ' . AVESMAPS_CITYMAP_LINK_ROWS_MAX . ').');
         }
         $normalized[] = [
             'label' => $label,

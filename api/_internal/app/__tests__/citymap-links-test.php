@@ -137,6 +137,33 @@ assert($throws(static fn() => avesmapsNormalizeCitymapLinkRows([['label' => str_
 assert(count(avesmapsNormalizeCitymapLinkRows([['label' => str_repeat('a', 200), 'url' => 'https://example.org/x']])) === 1);
 assert($throws(static fn() => avesmapsNormalizeCitymapLinkRows([['label' => 'X', 'url' => 'https://example.org/' . str_repeat('a', 500)]])));
 
+// 💣 Die Zeilenzahl hat einen Deckel, und der ist der Punkt: ohne ihn fuellen rund 85 Zeilen
+// maximaler Groesse die TEXT-Spalte einer einzigen Meldung (~80 KB), und der Pruefbildschirm laedt
+// bis zu 500 davon (Befund A30). Bei den Karten fuehrt ein ANMELDEFREIER Weg dorthin: report_mode
+// wird unabhaengig von report_type gelesen, also bekommt report_type=fundort mit report_mode=change
+// die grosse Nutzlast UND die Befreiung von der Stundengrenze.
+//
+// ⚠️ Zurueckgewiesen, nicht abgeschnitten -- Hausform, und ein still gekuerzter Vorschlag ist eine
+// Behauptung ueber etwas, das der Melder nicht gesagt hat.
+assert($throws(static fn() => avesmapsNormalizeCitymapLinkRows(array_map(
+    static fn(int $i): array => ['label' => 'L' . $i, 'url' => 'https://example.org/' . $i],
+    range(1, AVESMAPS_CITYMAP_LINK_ROWS_MAX + 1)
+))), 'one row over the cap is refused, not silently dropped');
+// Genau der Deckel geht noch durch -- ein Deckel, der bei N-1 zuschlaegt, ist ein anderer Deckel.
+assert(count(avesmapsNormalizeCitymapLinkRows(array_map(
+    static fn(int $i): array => ['label' => 'L' . $i, 'url' => 'https://example.org/' . $i],
+    range(1, AVESMAPS_CITYMAP_LINK_ROWS_MAX)
+))) === AVESMAPS_CITYMAP_LINK_ROWS_MAX, 'exactly the cap still passes');
+// ⚠️ Die Zahl ist gemessen, nicht geraten: 456 Karten tragen live hoechstens 2 Fundorte. Ein Deckel unterhalb des Bestands waere
+// kein Riegel gegen Missbrauch, sondern ein Fehler fuer echte Daten.
+assert(AVESMAPS_CITYMAP_LINK_ROWS_MAX === 20, 'the cap itself');
+// Leerzeilen zaehlen nicht mit: eine abschliessende leere Zeile im Zeileneditor ist keine Zeile.
+assert(count(avesmapsNormalizeCitymapLinkRows(array_merge(
+    array_map(static fn(int $i): array => ['label' => 'L' . $i, 'url' => 'https://example.org/' . $i], range(1, AVESMAPS_CITYMAP_LINK_ROWS_MAX)),
+    array_fill(0, 5, ['label' => '', 'url' => ''])
+))) === AVESMAPS_CITYMAP_LINK_ROWS_MAX, 'blank rows do not count towards the cap');
+
+
 echo "citymap-links ok\n";
 
 // ---- Linktext (map_url_label) ----
