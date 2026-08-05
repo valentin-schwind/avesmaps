@@ -713,8 +713,10 @@ function avesmapsPublicationDesiredLinksForEntity(PDO $pdo, string $entityType, 
 //
 // 💣 NO DDL BETWEEN begin AND commit. MySQL commits an open transaction implicitly the moment it
 // sees DDL, even a no-op CREATE TABLE IF NOT EXISTS -- silently, with everything after it out of
-// reach of the rollback. Every *EnsureTables call belongs in the step that runs BEFORE this one,
-// which is where they are. Checked before this change, and pinned by the test.
+// reach of the rollback. Every *EnsureTables call belongs OUTSIDE the transaction, and they are:
+// the step function runs its EnsureTables once, before the loop over the entities. Not in an
+// earlier step -- in the same one, ahead of the loop. Pinned by the test, which walks the whole
+// call chain the transaction spans rather than just these ten lines.
 //
 // 💣 NO NETWORK AND NO FILE WRITES BETWEEN begin AND commit either. That is why the third
 // reconciler named in the finding, avesmapsAdventureReconcileEntity, is NOT wrapped: it fetches
@@ -733,8 +735,16 @@ function avesmapsPublicationReconcileEntity(PDO $pdo, string $entityType, string
     try {
         $counters = avesmapsPublicationReconcileEntityWrites($pdo, $entityType, $entityPublicId, $entityWikiKey, $userId);
     } catch (Throwable $exception) {
+        // 💣 The rollBack is itself wrapped. It throws when the connection is gone -- which is
+        // exactly the abort this whole change is about -- and an unguarded one replaces the real
+        // cause with "MySQL server has gone away", with no previous-chaining. The caller would then
+        // be told the connection died and never that the entity failed.
         if ($ownsTransaction && $pdo->inTransaction()) {
-            $pdo->rollBack();
+            try {
+                $pdo->rollBack();
+            } catch (Throwable) {
+                // Nothing to do: the server already discarded the transaction with the connection.
+            }
         }
         throw $exception;
     }

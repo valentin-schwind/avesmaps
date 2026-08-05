@@ -1519,9 +1519,24 @@ function avesmapsCitymapLinkSource(PDO $pdo, string $citymapPublicId, string $so
         avesmapsFeatureSourceLink($pdo, 'citymap', $citymapPublicId, $sourceId, $userId, 'wiki_publication');
 
         return true;
+    } catch (PDOException $exception) {
+        // 💣 SINCE A21 THIS RUNS INSIDE A TRANSACTION, and that changes what may be swallowed.
+        // The documented reason for swallowing stays: the publication staging tables may not exist
+        // on a site without WikiSync (SQLSTATE 42S02), and a missing source line must not fail the
+        // whole card (same reasoning as the read side in citymaps.php).
+        //
+        // What must NOT be swallowed any more is everything that kills the transaction on the
+        // server: a deadlock (40001), a lock-wait timeout, a lost connection. InnoDB rolls the whole
+        // transaction back by itself in those cases -- so swallowing here would let the remaining
+        // writes run OUTSIDE any transaction and the wrapper commit something that no longer exists.
+        // Under autocommit, before this change, the same error was harmless. It is not any more.
+        if ((string) $exception->getCode() !== '42S02') {
+            throw $exception;
+        }
+
+        return false;
     } catch (Throwable) {
-        // The publication staging tables may not exist on a site without WikiSync. A missing source
-        // line must not fail the whole card (same reasoning as the read side in citymaps.php).
+        // Non-database failures keep the old behaviour: a missing source line, not a failed card.
         return false;
     }
 }
@@ -1648,8 +1663,10 @@ function avesmapsCitymapReconcileWikiLinks(PDO $pdo, int $citymapId, string $sou
 //
 // 💣 NO DDL BETWEEN begin AND commit. MySQL commits an open transaction implicitly the moment it
 // sees DDL, even a no-op CREATE TABLE IF NOT EXISTS -- silently, with everything after it out of
-// reach of the rollback. Every *EnsureTables call belongs in the step that runs BEFORE this one,
-// which is where they are. Checked before this change, and pinned by the test.
+// reach of the rollback. Every *EnsureTables call belongs OUTSIDE the transaction, and they are:
+// the step function runs its EnsureTables once, before the loop over the entities. Not in an
+// earlier step -- in the same one, ahead of the loop. Pinned by the test, which walks the whole
+// call chain the transaction spans rather than just these ten lines.
 //
 // 💣 NO NETWORK AND NO FILE WRITES BETWEEN begin AND commit either. That is why the third
 // reconciler named in the finding, avesmapsAdventureReconcileEntity, is NOT wrapped: it fetches
@@ -1668,8 +1685,16 @@ function avesmapsCitymapReconcileEntity(PDO $pdo, array $catalog, int $userId): 
     try {
         $counters = avesmapsCitymapReconcileEntityWrites($pdo, $catalog, $userId);
     } catch (Throwable $exception) {
+        // 💣 The rollBack is itself wrapped. It throws when the connection is gone -- which is
+        // exactly the abort this whole change is about -- and an unguarded one replaces the real
+        // cause with "MySQL server has gone away", with no previous-chaining. The caller would then
+        // be told the connection died and never that the entity failed.
         if ($ownsTransaction && $pdo->inTransaction()) {
-            $pdo->rollBack();
+            try {
+                $pdo->rollBack();
+            } catch (Throwable) {
+                // Nothing to do: the server already discarded the transaction with the connection.
+            }
         }
         throw $exception;
     }
