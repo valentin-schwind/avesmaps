@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/../../_internal/bootstrap.php';
+require_once __DIR__ . '/../../_internal/map/report-audit.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -29,8 +30,20 @@ try {
         avesmapsErrorResponse(400, 'invalid_request', 'Es wurde keine gueltige report_id uebergeben.');
     }
 
-    if ($newStatus === '') {
-        avesmapsErrorResponse(400, 'invalid_request', 'Es wurde kein gueltiger Status uebergeben.');
+    // 💣 A WHITELIST, WHICH THIS ENDPOINT NEVER HAD (finding A33). The status was only cut to 20
+    // characters, so a typo in the import tool wrote a status no surface in the project knows. The
+    // report then shows up under "Bearbeitet" -- the list asks for status <> 'neu' -- wearing a
+    // label nobody chose, and A32 means it cannot be moved back either.
+    //
+    // ⚠️ The accepted values are NAMED in the error, because this endpoint answers a machine and a
+    // human reading its log: "ungueltig" alone would send someone to the source to find out what
+    // is valid, and this is exactly the moment they should not have to.
+    if (!avesmapsReportModerationStatusIsAllowed($newStatus)) {
+        avesmapsErrorResponse(
+            400,
+            'invalid_request',
+            'Ungueltiger Status. Erlaubt sind: ' . implode(', ', avesmapsReportModerationStatuses()) . '.'
+        );
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);

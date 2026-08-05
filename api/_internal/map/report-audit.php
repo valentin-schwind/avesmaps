@@ -36,6 +36,24 @@ const AVESMAPS_REPORT_MODERATION_AUDIT_FIELDS = [
     'entity_public_id',
 ];
 
+// Which statuses a moderation path may set. 💣 DERIVED from the audit map above, never written
+// out a second time -- and that is the whole design, not tidiness. A status that can be SET but
+// has no audit action would be a moderation decision that leaves no trace, which is finding A4
+// reopened; a status with an action but no way to set it would be dead vocabulary. Deriving one
+// from the other makes both impossible.
+//
+// ⚠️ 'neu' is deliberately absent: it is the state a report ARRIVES in, not one a moderator
+// chooses. Whether a decided report can be put back to 'neu' is finding A32 and an open owner
+// question -- if it is ever answered yes, the entry belongs in the audit map above and appears
+// here by itself.
+function avesmapsReportModerationStatuses(): array {
+    return array_keys(AVESMAPS_REPORT_MODERATION_AUDIT_ACTIONS);
+}
+
+function avesmapsReportModerationStatusIsAllowed(string $status): bool {
+    return in_array($status, avesmapsReportModerationStatuses(), true);
+}
+
 function avesmapsReportModerationAuditAction(string $status): string {
     return AVESMAPS_REPORT_MODERATION_AUDIT_ACTIONS[$status] ?? '';
 }

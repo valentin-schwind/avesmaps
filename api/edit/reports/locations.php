@@ -246,7 +246,10 @@ function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, arra
         throw new InvalidArgumentException('Es wurde keine gueltige report_id uebergeben.');
     }
 
-    if (!in_array($newStatus, ['approved', 'rejected', 'in_review'], true)) {
+    // The list used to stand here as a literal, and next door in api/import/location-reports/ it
+    // did not stand at all (finding A33). One vocabulary now, in the file that also decides which
+    // audit action each status writes.
+    if (!avesmapsReportModerationStatusIsAllowed($newStatus)) {
         throw new InvalidArgumentException('Der Review-Status ist ungueltig.');
     }
 

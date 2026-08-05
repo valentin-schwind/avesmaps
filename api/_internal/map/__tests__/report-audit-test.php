@@ -181,4 +181,80 @@ assert(
     'and it writes a NULL feature id, because a decision is about no map object'
 );
 
+
+// ===== ONE STATUS VOCABULARY, FOR BOTH DOORS ======================================================
+//
+// 💣 Finding A33: api/import/location-reports/update-status.php cut the incoming status to 20
+// characters and wrote it. No whitelist at all -- while the editor endpoint next door checked
+// against a literal list of three. A typo in the import tool therefore stored a status no surface
+// in the project knows; the report then appears under "Bearbeitet" (that list asks for
+// status <> 'neu'), wearing a label nobody chose, and A32 means it cannot be moved back.
+assert(
+    avesmapsReportModerationStatuses() === ['approved', 'rejected', 'in_review'],
+    'the three statuses a moderation path may set'
+);
+// 💣 DERIVED, never repeated. A second literal list is how the two doors drifted apart in the first
+// place -- and deriving it from the audit map means a status that can be SET but writes no audit
+// entry is impossible to create, which would be finding A4 reopened.
+assert(
+    avesmapsReportModerationStatuses() === array_keys(AVESMAPS_REPORT_MODERATION_AUDIT_ACTIONS),
+    'the settable statuses ARE the audited ones -- one list, not two that agree today'
+);
+foreach (avesmapsReportModerationStatuses() as $status) {
+    assert(
+        avesmapsReportModerationAuditAction($status) !== '',
+        "every settable status writes an audit action ({$status})"
+    );
+}
+
+assert(avesmapsReportModerationStatusIsAllowed('approved'), 'approved passes');
+assert(avesmapsReportModerationStatusIsAllowed('in_review'), 'in_review passes -- a deferred report is a decision too');
+assert(!avesmapsReportModerationStatusIsAllowed('erledigt'), 'a plausible German synonym is not a status');
+assert(!avesmapsReportModerationStatusIsAllowed('APPROVED'), 'the comparison is strict, not case-folded');
+assert(!avesmapsReportModerationStatusIsAllowed(''), 'and empty is not one either');
+// ⚠️ 'neu' is the state a report ARRIVES in, not one a moderator chooses. Whether a decided report
+// may go back to it is finding A32 and an open owner question -- this assert is the marker for it.
+assert(!avesmapsReportModerationStatusIsAllowed('neu'), "'neu' is not settable (see A32)");
+
+// --- Both endpoints must actually use it ----------------------------------------------------------
+//
+// 💣 Asserting the library alone proves nothing about what ships: this project has already had a
+// green test sitting on top of a live bug for exactly that reason.
+$importSource = file_get_contents(__DIR__ . '/../../../import/location-reports/update-status.php');
+assert(is_string($importSource) && $importSource !== '', 'the import endpoint is readable');
+assert(
+    str_contains($importSource, "require_once __DIR__ . '/../../_internal/map/report-audit.php';"),
+    'the import endpoint loads the vocabulary'
+);
+// 💣 THE WHOLE CONDITION, not just the call. A `false &&` in front leaves the name present and still
+// positioned before the write, while the gate never fires -- verified: that exact mutation passed an
+// earlier version of this assert. Position is not effect, and this project has now been caught by
+// that three times.
+assert(
+    str_contains($importSource, 'if (!avesmapsReportModerationStatusIsAllowed($newStatus)) {'),
+    'and gates the incoming status on it -- with the condition intact'
+);
+// The gate has to come BEFORE the write, or it is decoration.
+assert(
+    strpos($importSource, 'avesmapsReportModerationStatusIsAllowed($newStatus)') < strpos($importSource, 'UPDATE location_reports'),
+    'the status is checked before anything is written'
+);
+// ⚠️ The accepted values are named in the answer: this endpoint replies to a machine whose operator
+// reads a log, and "ungueltig" alone sends them to the source to find out what is valid.
+assert(
+    str_contains($importSource, "implode(', ', avesmapsReportModerationStatuses())"),
+    'the refusal names what would have been accepted'
+);
+
+$editorSource = file_get_contents(__DIR__ . '/../../../edit/reports/locations.php');
+assert(is_string($editorSource) && $editorSource !== '', 'the editor endpoint is readable');
+assert(
+    str_contains($editorSource, 'if (!avesmapsReportModerationStatusIsAllowed($newStatus)) {'),
+    'the editor endpoint uses the shared list too -- with the condition intact'
+);
+assert(
+    !str_contains($editorSource, "['approved', 'rejected', 'in_review']"),
+    'and keeps no second copy of it -- the copy IS the finding'
+);
+
 echo "report-audit ok\n";
