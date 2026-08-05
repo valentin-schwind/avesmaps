@@ -39,11 +39,9 @@ try {
 	$pdo = avesmapsCreatePdo($config['database'] ?? []);
 	$revision = avesmapsFetchRouteMapRevision($pdo);
 	$etag = 'W/"loc-' . AVESMAPS_LOCATIONS_PAYLOAD_VERSION . '-' . $revision . '"';
-	header('ETag: ' . $etag);
-	header('Cache-Control: no-cache, must-revalidate');
-	header('Vary: Accept-Encoding', false);
 	$ifNoneMatch = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
 	if ($ifNoneMatch !== '' && avesmapsETagMatches($ifNoneMatch, $etag)) {
+		avesmapsSendLocationsCacheHeaders($etag);
 		http_response_code(304);
 		exit;
 	}
@@ -52,6 +50,13 @@ try {
 	$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);
 	$locations = avesmapsBuildLocationsResponseItems($routeNetworkData);
 
+	// 💣 ERST HIER, nicht vor dem Laden. Ein ETag, der schon steht, waehrend die 152-MB-Ladung
+	// laeuft, haengt auch an dem, was danach SCHIEFGEHT: avesmapsJsonResponse raeumt keine
+	// Kopfzeilen weg, also traegt eine 500 wegen max_user_connections oder memory_limit denselben
+	// gueltigen Tag. Wer diesen Fehlerkoerper unter dem Tag ablegt, bekommt beim naechsten Mal ein
+	// 304 darauf -- „deine Kopie ist aktuell" fuer eine Fehlermeldung, und das heilt nicht von
+	// selbst, weil map_revision sich ohne Bearbeitung nicht bewegt.
+	avesmapsSendLocationsCacheHeaders($etag);
 	avesmapsJsonResponse(200, [
 		'ok' => true,
 		'map_revision' => (int) ($routeMapData['revision'] ?? 0),
@@ -71,6 +76,16 @@ try {
 	avesmapsLocationsErrorResponse(500, 'server_error', $exception->getMessage());
 } catch (Throwable) {
 	avesmapsLocationsErrorResponse(500, 'server_error', 'Die Anfrage konnte nicht verarbeitet werden.');
+}
+
+// Die Cache-Kopfzeilen der Antwort, an EINER Stelle -- 304 und 200 muessen denselben Tag nennen.
+//
+// ⚠️ Kein `Vary: Accept-Encoding`: diese Antwort geht durch avesmapsJsonResponse und wird von PHP
+// nie selbst komprimiert (anders als map-features.php, das seinen eigenen gzip-Zweig hat). Was
+// mod_deflate daraus macht, traegt Apache selbst ein.
+function avesmapsSendLocationsCacheHeaders(string $etag): void {
+	header('ETag: ' . $etag);
+	header('Cache-Control: no-cache, must-revalidate');
 }
 
 function avesmapsBuildLocationsResponseItems(array $routeNetworkData): array {

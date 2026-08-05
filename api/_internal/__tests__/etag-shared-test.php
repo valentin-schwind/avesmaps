@@ -63,8 +63,11 @@ assert(is_int($etagAt) && is_int($loadAt) && is_int($networkAt), 'all three step
 assert($etagAt < $loadAt, 'the conditional check runs before the map data is loaded');
 assert($loadAt < $networkAt, 'and the load still precedes the network build');
 assert(
-    preg_match('/if \(\$ifNoneMatch !== \'\' && avesmapsETagMatches[^)]*\)\) \{\s*\n\s*http_response_code\(304\);\s*\n\s*exit;/', $endpointSource) === 1,
-    'a match answers 304 and stops -- it does not fall through and build the answer anyway'
+    preg_match(
+        '/if \(\$ifNoneMatch !== \'\' && avesmapsETagMatches[^)]*\)\) \{\s*\n\s*avesmapsSendLocationsCacheHeaders\(\$etag\);\s*\n\s*http_response_code\(304\);\s*\n\s*exit;/',
+        $endpointSource
+    ) === 1,
+    'a match names the tag, answers 304 and stops -- it does not fall through and build the answer anyway'
 );
 
 // The revision is read with its own small query, and the connection is handed on rather than opened
@@ -112,15 +115,69 @@ assert(
     'and a caller that passes none still gets one'
 );
 
-// One definition, in one place.
+// --- 💣 The declaration must survive a half-deployed state ----------------------------------------
+//
+// The deploy writes file by file over SFTP -- no staging directory, no atomic rename -- and STRATO's
+// opcache revalidates EACH FILE with a 2-4 minute lag. So bootstrap.php and map-features.php can be
+// served from different generations for minutes. PHP binds top-level functions at COMPILE time, so an
+// older map-features.php would have registered its own copy before its require of bootstrap ran, and
+// "Cannot redeclare" strikes as E_COMPILE_ERROR -- before any try, so no catch, no error response, no
+// CORS header: a blank 500 for every visitor on the busiest endpoint of the site. Reproduced against
+// the shipped commit; the guard is what makes it not happen.
+$bootstrapSource = file_get_contents(__DIR__ . '/../bootstrap.php');
+assert(
+    preg_match("/if \(!function_exists\('avesmapsETagMatches'\)\) \{\s*\nfunction avesmapsETagMatches/", $bootstrapSource) === 1,
+    'the shared declaration is guarded, or a skewed deploy fatals the map endpoint'
+);
+
+// --- 💣 The tag goes out with the ANSWER, never before the work -----------------------------------
+//
+// avesmapsJsonResponse does not clear headers. A tag emitted before the 152-MB load also rides the 500
+// that load can produce (max_user_connections, memory_limit, a PDO timeout) -- and anything that stores
+// a body under its tag then revalidates and is told 304: "your copy is current", for an error body.
+// It does not heal by itself, because map_revision does not move on its own.
+$headerAt = strpos($endpointSource, 'avesmapsSendLocationsCacheHeaders($etag);');
+assert(is_int($headerAt), 'the headers go out through one helper');
+assert(
+    substr_count($endpointSource, 'avesmapsSendLocationsCacheHeaders($etag);') === 2,
+    'exactly twice: on the 304 and on the 200 -- both must name the same tag'
+);
+assert(
+    !preg_match("/header\('ETag: ' \. \$etag\);\s*\n\s*header\('Cache-Control[^\n]*\n\s*header\('Vary/", $endpointSource),
+    'no bare header block before the load any more'
+);
+$loadAt2 = strpos($endpointSource, 'avesmapsLoadRouteMapData(');
+assert(
+    strrpos($endpointSource, 'avesmapsSendLocationsCacheHeaders($etag);') > $loadAt2,
+    'the 200 sets its headers after the load succeeded, not before it starts'
+);
+
+// One definition, in one place -- all three of them.
 $mapFeaturesSource = file_get_contents(__DIR__ . '/../../app/map-features.php');
 assert(
     !str_contains($mapFeaturesSource, 'function avesmapsETagMatches'),
     'the copy in the map endpoint is gone -- two would be a redeclare error, and a divergence besides'
 );
+// 💣 This one has to look at the CALL, not at the name: the pre-commit file contained the same call
+// string, so an assert on the call alone stays green through a wholesale revert. What distinguishes
+// "uses the shared one" from "carries its own" is that the definition is absent, asserted above -- and
+// that the file loads bootstrap at all, asserted here.
 assert(
-    str_contains($mapFeaturesSource, 'avesmapsETagMatches($ifNoneMatch, $etag)'),
-    'and that endpoint still uses the shared one'
+    preg_match("/^require __DIR__ \. '\/\.\.\/_internal\/bootstrap\.php';/m", $mapFeaturesSource) === 1,
+    'and it loads bootstrap, which is where the shared one lives'
+);
+// 💣 The THIRD copy. api/app/ecosystem-areas.php carried its own mirror, justified by the very reason
+// this move removed ("that one lives inside an endpoint file whose request handler would run on
+// include") -- and its comment pointed at a line that no longer holds the function. Three copies of a
+// comparison rule drift exactly as reliably as two.
+$ecosystemSource = file_get_contents(__DIR__ . '/../../app/ecosystem-areas.php');
+assert(
+    preg_match('/function avesmapsEcosystemETagMatches\([^)]*\): bool\s*\n\{\s*\n\s*return avesmapsETagMatches\(\$ifNoneMatch, \$etag\);\s*\n\}/', $ecosystemSource) === 1,
+    'the ecosystem endpoint delegates instead of mirroring'
+);
+assert(
+    !str_contains($ecosystemSource, '$normalize($candidate) === $target'),
+    'and keeps no second implementation of the rule'
 );
 
 echo "etag-shared ok\n";

@@ -132,22 +132,13 @@ function avesmapsEcosystemAreasETag(int $revision, array $queryParams): string
     return 'W/"eco-' . AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION . '-' . $revision . '-' . substr(hash('sha1', $seed), 0, 10) . '"';
 }
 
-// If-None-Match may be a list, "*", or W/-prefixed. Mirror of avesmapsETagMatches
-// (api/app/map-features.php:231) -- reimplemented rather than required, because that one lives inside an
-// endpoint file whose request handler would run on include.
+// ⚠️ Nur noch ein Weiterreichen -- der Name bleibt, damit kein Aufrufer angefasst werden muss.
+// Der Grund fuer die eigene Fassung ("reimplemented rather than required, because that one lives
+// inside an endpoint file whose request handler would run on include") gilt seit 9f2962e8 nicht mehr:
+// avesmapsETagMatches steht in api/_internal/bootstrap.php, das diese Datei ohnehin laedt. Die
+// Fundstelle, auf die der alte Kommentar zeigte, gibt es nicht mehr -- und drei Kopien einer
+// Vergleichsregel driften genauso sicher wie zwei.
 function avesmapsEcosystemETagMatches(string $ifNoneMatch, string $etag): bool
 {
-    if (trim($ifNoneMatch) === '*') {
-        return true;
-    }
-
-    $normalize = static fn(string $value): string => trim(preg_replace('/^W\//i', '', trim($value)) ?? trim($value));
-    $target = $normalize($etag);
-    foreach (explode(',', $ifNoneMatch) as $candidate) {
-        if ($normalize($candidate) === $target) {
-            return true;
-        }
-    }
-
-    return false;
+    return avesmapsETagMatches($ifNoneMatch, $etag);
 }

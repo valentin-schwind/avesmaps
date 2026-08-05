@@ -319,6 +319,16 @@ function avesmapsClientIpAddress(): string {
 // stand in api/app/map-features.php, und api/locations/index.php haette ihn nur bekommen koennen,
 // indem es map-features.php einbindet -- also die ganze Kartenantwort ausfuehrt. Die Alternative
 // waere eine Kopie gewesen, und zwei Kopien einer Vergleichsregel driften.
+// 💣 function_exists, und das ist kein Zierrat. Der Deploy laedt Datei fuer Datei per SFTP, ohne
+// Staging und ohne atomares Umbenennen, und STRATOs opcache prueft JEDE Datei einzeln mit 2-4
+// Minuten Verzug. Zwischen dem Hochladen dieser Datei und dem von api/app/map-features.php (das
+// dieselbe Funktion bis 9f2962e8 selbst deklarierte) gibt es also ein Fenster, in dem beide
+// Fassungen zugleich gelten. PHP bindet Funktionen auf oberster Ebene beim Kompilieren -- die alte
+// map-features.php haette ihre Kopie registriert, BEVOR ihr require dieser Datei laeuft, und der
+// Fatal „Cannot redeclare" trifft als E_COMPILE_ERROR, also VOR jedem try. Kein catch, keine
+// Fehlerantwort, kein CORS-Kopf: eine leere 500 fuer jeden Besucher, auf dem meistgerufenen
+// Endpunkt der Seite. Derselbe Fatal trifft bei einem `git revert`, nur mit vertauschten Rollen.
+if (!function_exists('avesmapsETagMatches')) {
 function avesmapsETagMatches(string $ifNoneMatch, string $etag): bool {
     if (trim($ifNoneMatch) === '*') {
         return true;
@@ -332,6 +342,7 @@ function avesmapsETagMatches(string $ifNoneMatch, string $etag): bool {
     }
 
     return false;
+}
 }
 
 function avesmapsErrorResponse(int $statusCode, string $code, string $message): never {
