@@ -124,6 +124,18 @@ assert(
     str_starts_with(avesmapsReportListOrderBy('neu'), 'created_at ASC'),
     'the open queue is oldest-first, which is what the cap cuts from the right end'
 );
+// 💣 AND THE SQL IS NOT WHERE THE ORDER IS DECIDED. Both tables are read with their own ORDER BY,
+// but the final sequence before array_slice comes from a usort over the MERGED set in the endpoint.
+// Asserting avesmapsReportListOrderBy alone leaves that line unguarded -- reproduced: flipping the
+// comparator to newest-first passed all 208 tests while the cap started removing the OLDEST open
+// reports, the precise opposite of what it is for. So the comparator is pinned literally.
+assert(
+    str_contains(
+        $endpointSource,
+        "static fn(array \$left, array \$right): int => [\$left['created_at'] ?? '', (int) (\$left['id'] ?? 0)] <=> [\$right['created_at'] ?? '', (int) (\$right['id'] ?? 0)]"
+    ),
+    'the merged open queue is sorted ascending -- the cap cuts the newest, never the oldest'
+);
 
 // --- The endpoint must use this, and must say when it cut ------------------------------------------
 //

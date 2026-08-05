@@ -191,6 +191,16 @@ function avesmapsListLocationReportsForReview(PDO $pdo, string $filter = 'neu'):
                 <=> [$left['reviewed_at'] ?? ($left['created_at'] ?? ''), (int) ($left['id'] ?? 0)]
         );
     } else {
+        // 💣 DIESE SORTIERUNG IST SCHNITT-KRITISCH, und sie entscheidet die Reihenfolge, nicht das SQL.
+        // Beide Tabellen werden mit eigenem ORDER BY gelesen, aber die endgueltige Folge vor dem
+        // array_slice unten kommt aus DIESEM usort ueber die gemischte Menge. Aufsteigend heisst:
+        // aelteste zuerst, eine Flut landet am ENDE und ist das, was gekuerzt wird -- der Rueckstand,
+        // den ein Bearbeiter gerade abarbeitet, bleibt stehen. Gedreht schneidet derselbe Deckel die
+        // AELTESTEN weg, also genau die Meldungen, um die es geht.
+        //
+        // ⚠️ Nachgestellt und deshalb hier vermerkt: eine Zusicherung nur auf avesmapsReportListOrderBy
+        // laesst diese Zeile ungeschuetzt -- die Drehung bestand die volle Suite. Der Test prueft
+        // seither diesen Vergleicher woertlich.
         usort(
             $reports,
             static fn(array $left, array $right): int => [$left['created_at'] ?? '', (int) ($left['id'] ?? 0)] <=> [$right['created_at'] ?? '', (int) ($right['id'] ?? 0)]
