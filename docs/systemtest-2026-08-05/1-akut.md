@@ -887,12 +887,35 @@ schützt einen Mechanismus, der nicht läuft.
 
 💣 **Die naheliegende Reparatur ist genau die, die schon einmal die Seite umgelegt hat.**
 `DeflateAlterETag` ist in `.htaccess` **nicht erlaubt** — der Versuch am 05.08. warf Apache-500 auf
-*alles* (zurückgenommen in `fdd4fc42`). Was bleibt: `application/json` aus der DEFLATE-Liste nehmen
-(dann sterben aber die 2,8 MB Kompression), oder den Kopf über `mod_headers` aus einem eigenen
-Antwort-Kopf zurückschreiben (`Header set ETag "expr=%{resp:X-Avesmaps-ETag}"`).
+*alles* (zurückgenommen in `fdd4fc42`).
 
-🔧 **DU:** das ist Serverkonfiguration und hat schon einmal die ganze Seite gekostet — ich habe
-bewusst nichts an der `.htaccess` angefasst.
+✅ **Nachgemessen am Abend des 05.08. — es gibt einen Weg ganz ohne Serverkonfiguration.** Vier
+Abrufe, kein einziger Codeeingriff:
+
+| Abruf | ETag | `Last-Modified` |
+|---|---|---|
+| `css/base/tokens.css` **mit** gzip | **entfernt** | ✅ da |
+| dieselbe Datei **ohne** gzip | ✅ da | ✅ da |
+| `favicon.ico` (nicht komprimierbar) | ✅ da | ✅ da |
+| `map-features.php` / `ecosystem-areas.php`, mit **und** ohne gzip | **entfernt** | — (wird nicht gesetzt) |
+
+**Die entscheidende Zeile ist die erste:** in genau der Antwort, aus der der ETag entfernt wurde,
+ist `Last-Modified` **geblieben**. Was hier greift, zielt also auf den ETag und nichts sonst. Dazu
+kommt: ein **PHP-gesetztes** `Cache-Control` kommt an — PHP-Kopfzeilen werden also nicht pauschal
+verworfen.
+
+➡️ **Damit ist `Last-Modified` + `If-Modified-Since` der Weg**: rein in PHP, ohne eine Zeile
+`.htaccess`, ohne das Risiko, das am 05.08. die Seite gekostet hat. Er braucht je Endpunkt einen
+ehrlichen Zeitstempel — für den Kartenpayload etwa `MAX(updated_at)` aus `map_features`.
+
+⚠️ **Ein Rest bleibt Schlussfolgerung, nicht Messung:** dass ein **PHP-gesetztes** `Last-Modified`
+ankommt, ist aus den drei Beobachtungen oben gefolgert, nicht direkt gemessen — kein Endpunkt setzt
+heute eines, und um es zu messen müsste man eines ausliefern. Ein Kopf auf einem kleinen Endpunkt
+genügt dafür.
+
+🔧 **DU:** die Entscheidung ist damit keine zwischen „riskant" und „unbekannt" mehr, sondern
+zwischen `Last-Modified` in PHP (billig, ohne Serverrisiko) und `application/json` aus der
+DEFLATE-Liste nehmen (kostet 2,8 MB Kompression je Kartenaufruf).
 
 *Beleg:* live gemessen (beide Endpunkte, dazu `favicon.ico` als Gegenprobe). *Aufwand:* klein, aber
 nur mit einer Probe auf dem echten Server zu verantworten.
