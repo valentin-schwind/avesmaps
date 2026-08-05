@@ -23,6 +23,12 @@ if (ini_get('zend.assertions') !== '1') {
 }
 
 require_once __DIR__ . '/../territory.php';
+// 💣 territories-read.php is NOT optional here, and leaving it out is a trap rather than a gap.
+// The collector's wiki branch calls avesmapsPoliticalFetchWikiById, which lives in that file. Without
+// it PHP raises "Call to undefined function" -- an Error, so a Throwable, so the collector's own
+// `catch (Throwable) { return []; }` swallows it and hands back an empty list. A wiki fixture would
+// then assert nothing at all and the test would stay green while covering none of that branch.
+require_once __DIR__ . '/../territories-read.php';
 require_once __DIR__ . '/../territories-derived-geometry.php';
 require_once __DIR__ . '/../territories-derived-geometry-shared.php';
 require_once __DIR__ . '/../territories-derived-layer.php';
@@ -45,6 +51,11 @@ assert(
 assert(
     function_exists('avesmapsPoliticalResolveDerivedLayerSourcePublicIds'),
     'and one batched resolver stands in their place'
+);
+// The swallow-trap named at the top, asserted rather than hoped for.
+assert(
+    function_exists('avesmapsPoliticalFetchWikiById'),
+    'the wiki branch is actually reachable -- otherwise its fixtures silently assert nothing'
 );
 
 // 💣 The stronger guard, because a new name could repeat the same mistake: between the head of the
@@ -170,6 +181,7 @@ $pdo->exec(
     )'
 );
 $pdo->exec('CREATE TABLE political_territory_geometry (id INTEGER PRIMARY KEY, public_id TEXT, territory_id INTEGER, is_active INTEGER)');
+$pdo->exec('CREATE TABLE political_territory_wiki (id INTEGER PRIMARY KEY, name TEXT, affiliation_path_json TEXT)');
 
 // id | public_id | parent | continent  | active | what it is here for
 //  1 | p1        | 0      | Aventurien |   1    | the parent of the aggregate
@@ -177,19 +189,28 @@ $pdo->exec('CREATE TABLE political_territory_geometry (id INTEGER PRIMARY KEY, p
 //  3 | p3        | 1      | Aventurien |   0    | an inactive child: not in the snapshot, no descendant
 //  4 | p4        | 0      | Aventurien |   0    | inactive territory that still owns an ACTIVE geometry
 //  5 | p5        | 0      | Aventurien |   1    | active territory whose only geometry is INACTIVE
-//  6 | p6        | 0      | Myranor    |   1    | 💣 another continent -- absent from the snapshot
+//  6 | p6        | 0      | Myranor    |   1    | another continent, reached by the BARE FALLBACK
+//  7 | p7        | 0      | Myranor    |   1    | 💣 another continent, reached by the WIKI branch
+//  8 | (blank)   | 1      | Aventurien |   1    | a blank public_id -- the trim guard must drop it
+//  9 | p1        | 1      | Aventurien |   1    | 💣 a DUPLICATE public_id -- array_unique must fold it
 $territoryRows = [
-    [1, 'p1', 0, 'Aventurien', 1],
-    [2, 'p2', 1, 'Aventurien', 1],
-    [3, 'p3', 1, 'Aventurien', 0],
-    [4, 'p4', 0, 'Aventurien', 0],
-    [5, 'p5', 0, 'Aventurien', 1],
-    [6, 'p6', 0, 'Myranor', 1],
+    [1, 'p1', 0, 'Aventurien', 1, 'Eins'],
+    [2, 'p2', 1, 'Aventurien', 1, 'Zwei'],
+    [3, 'p3', 1, 'Aventurien', 0, 'Drei'],
+    [4, 'p4', 0, 'Aventurien', 0, 'Vier'],
+    [5, 'p5', 0, 'Aventurien', 1, 'Fuenf'],
+    [6, 'p6', 0, 'Myranor', 1, 'Sechs'],
+    [7, 'p7', 0, 'Myranor', 1, 'Nachbar'],
+    [8, '   ', 1, 'Aventurien', 1, 'Acht'],
+    [9, 'p1', 1, 'Aventurien', 1, 'Neun'],
 ];
 $insertTerritory = $pdo->prepare('INSERT INTO political_territory (id, public_id, parent_id, continent, is_active, sort_order, name) VALUES (?, ?, ?, ?, ?, 0, ?)');
 foreach ($territoryRows as $row) {
-    $insertTerritory->execute([$row[0], $row[1], $row[2], $row[3], $row[4], $row[1]]);
+    $insertTerritory->execute([$row[0], $row[1], $row[2], $row[3], $row[4], $row[5]]);
 }
+// The wiki row the collector's second branch reads. It matches territory 7 BY NAME, and that query
+// (territories-derived-geometry.php) filters on territory.is_active alone -- no continent at all.
+$pdo->exec("INSERT INTO political_territory_wiki (id, name, affiliation_path_json) VALUES (70, 'Nachbar', NULL), (71, 'Nachbar', NULL), (72, 'Nachbar', NULL)");
 
 $geometryRows = [
     [10, 'g1', 1, 1],
@@ -199,6 +220,8 @@ $geometryRows = [
     [14, 'g4', 4, 1],   // same
     [15, 'g5', 5, 0],   // the geometry itself is inactive
     [16, 'g6', 6, 1],
+    [17, 'g1', 9, 1],   // 💣 the SAME public_id as geometry 10, under a second source of feature 'a'
+    [18, 'g7', 7, 1],   // what the wiki branch has to reach
 ];
 $insertGeometry = $pdo->prepare('INSERT INTO political_territory_geometry (id, public_id, territory_id, is_active) VALUES (?, ?, ?, ?)');
 foreach ($geometryRows as $row) {
@@ -212,15 +235,23 @@ $derivedFeatures = [
     'd' => ['properties' => ['derived_territory_id' => 4]],   // inactive territory
     'e' => ['properties' => []],                              // names nothing at all
     'f' => ['properties' => ['derived_territory_id' => 999]], // an id that does not exist
-    'g' => ['properties' => ['derived_territory_id' => 6]],   // 💣 off-snapshot continent
+    'g' => ['properties' => ['derived_territory_id' => 6]],   // off-snapshot via the bare fallback
+    'w' => ['properties' => ['derived_wiki_id' => 70]],       // 💣 off-snapshot via the WIKI branch
 ];
 
 $snapshot = avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
 // The premise of the 💣 comment in the resolver, asserted rather than assumed: the snapshot really
 // does NOT contain every territory a source list can name. Whoever "optimises" the first query away
-// by reading public_id out of it loses exactly these two.
-assert(!isset($snapshot[6]), 'the snapshot is continent-filtered -- territory 6 is not in it');
+// by reading public_id out of it loses exactly these.
+assert(!isset($snapshot[7]), 'the snapshot is continent-filtered -- territory 7 is not in it');
+assert(!isset($snapshot[6]), 'nor is territory 6');
 assert(!isset($snapshot[4]), 'nor is the inactive territory 4');
+// 💣 And feature 'w' is what makes that matter, because it is the only one of the two off-snapshot
+// cases that PRODUCTION can reach. Feature 'g' arrives at territory 6 through the bare fallback,
+// which takes properties['derived_territory_id'] -- and this file's layer query only ever emits ids
+// it selected under `territory.continent = :continent`, the same continent the snapshot uses. So the
+// fallback is off-snapshot here and never on the live map. The wiki branch has no continent
+// condition at all, and that is the one that keeps the first query alive.
 
 // --- the oracle's answer, and what it costs ------------------------------------------------------
 $pdo->prepareCount = 0;
@@ -268,12 +299,28 @@ assert($actual['d']['territory'] === [], 'd: an inactive territory contributes n
 assert($actual['d']['geometry'] === [], 'd: and the JOIN drops its active geometry with it');
 assert($actual['e']['territory'] === [] && $actual['e']['geometry'] === [], 'e: nothing named, nothing returned');
 assert($actual['f']['territory'] === [] && $actual['f']['geometry'] === [], 'f: an unknown id resolves to nothing');
-assert($actual['g']['territory'] === ['p6'], '💣 g: off-snapshot, and still resolved');
-assert($actual['g']['geometry'] === ['g6'], '💣 g: its geometry too');
+assert($actual['g']['territory'] === ['p6'], 'g: off-snapshot via the fallback, and still resolved');
+assert($actual['g']['geometry'] === ['g6'], 'g: its geometry too');
+assert($actual['w']['territory'] === ['p7'], '💣 w: the WIKI branch reaches off-snapshot, and resolves');
+assert($actual['w']['geometry'] === ['g7'], '💣 w: and its geometry with it');
+
+// 💣 The two guards that only bite when the fixture provokes them. Territory 8 carries a blank
+// public_id and territory 9 repeats territory 1's -- both are sources of feature 'a'. Without the
+// trim() check the blank one would enter the list; without array_unique 'p1' and 'g1' would each
+// appear twice. Both were unguarded by the fixture until the adversarial review pointed it out.
+assert(!in_array('', $actual['a']['territory'], true), 'a: the blank public_id is dropped, not carried');
+assert(count($actual['a']['territory']) === count(array_unique($actual['a']['territory'])), 'a: no repeated territory');
+assert(count($actual['a']['geometry']) === count(array_unique($actual['a']['geometry'])), 'a: no repeated geometry');
 
 // --- the point of the whole change ---------------------------------------------------------------
-assert($oracleQueries === 12, "the deleted code cost 2 queries per feature that names a source (got {$oracleQueries})");
-assert($batchedQueries === 2, "the batched resolver costs 2 for the whole layer (got {$batchedQueries})");
+// Seven of the eight features name a source, so the deleted code ran 14 reads; feature 'w' took the
+// wiki branch, and the old code re-collected for each of its two lists, so that one cost 4 more.
+assert($oracleQueries === 18, "the deleted code cost 2 reads per feature, plus doubled wiki lookups (got {$oracleQueries})");
+// ⚠️ FOUR, not two -- and the difference is the honest part of this number. Two are the batched
+// reads for the whole layer; the other two are the wiki lookups feature 'w' still makes, because the
+// collector is unchanged and still runs once per feature. That residual is named in the resolver's
+// comment and is NOT what this change fixed. It was 4 for such a feature before and is 2 now.
+assert($batchedQueries === 4, "two for the layer, plus the two the wiki branch still costs (got {$batchedQueries})");
 
 // And it stays 2 when the layer grows -- that is what "no N+1" means.
 $manyFeatures = [];
@@ -284,6 +331,19 @@ $pdo->prepareCount = 0;
 $many = avesmapsPoliticalResolveDerivedLayerSourcePublicIds($pdo, $manyFeatures, $snapshot);
 assert($pdo->prepareCount === 2, 'still two queries at 60 features, not 120');
 assert(count($many) === 60, 'and every one of them gets its answer');
+
+// ⚠️ And the residual, measured rather than described: three wiki-branch features cost 2 + 3x2 = 8.
+// It is linear in those features and nothing here changes that. Written down so the next person
+// reads a number instead of the word "batched" and assumes the layer is now flat in every case.
+$wikiFeatures = [
+    'w1' => ['properties' => ['derived_wiki_id' => 70]],
+    'w2' => ['properties' => ['derived_wiki_id' => 71]],
+    'w3' => ['properties' => ['derived_wiki_id' => 72]],
+];
+$pdo->prepareCount = 0;
+$wikiResolved = avesmapsPoliticalResolveDerivedLayerSourcePublicIds($pdo, $wikiFeatures, $snapshot);
+assert($pdo->prepareCount === 8, "the wiki branch is still per-feature: 2 + 3x2 (got {$pdo->prepareCount})");
+assert($wikiResolved['w3']['territory'] === ['p7'], 'and each of them still resolves correctly');
 
 // The empty layer asks nothing at all, exactly as the old readers' empty guard did.
 $pdo->prepareCount = 0;

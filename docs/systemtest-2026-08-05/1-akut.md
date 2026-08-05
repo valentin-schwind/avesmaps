@@ -689,10 +689,68 @@ ETag — also der Normalfall — zahlt sie vollständig.
 
 *Aufwand:* mittel.
 
-### A20 · Der N+1 im abgeleiteten Politik-Layer lebt noch
+### ✅ A20 · Der N+1 im abgeleiteten Politik-Layer lebt noch
 Milestone M6 hat nur den Volltabellen-Scan entfernt. `territories-derived-layer.php:66-67`
 feuert weiter **2 Abfragen je abgeleitetem Objekt** — bei Zoom 3 sind das **244 Abfragen** je
 Cache-Fehlschlag, auf dem schwersten Endpunkt des Projekts (gemessen: 2,82 s, 3,0 MB).
+
+> **✅ Erledigt `17e5e5de` (+ Korrektur `PENDING`), 05.08.2026.** Ein Auflöser sammelt die
+> Quell-IDs **aller** Objekte, vereinigt sie und löst beide Listen in **zwei** Abfragen auf.
+> Live gegengeprüft am Kartenstand: 382 Objekte, davon **121 mit Quell-Listen** (der alte Code
+> hätte hier **242** Abfragen gestellt), **2.163** Quell-Territorien und **1.931** Quell-Geometrien
+> aufgelöst, **0 Duplikate** in irgendeiner Liste, keine leere Liste — und die Folgewirkung steht
+> unverändert: 21 versteckte und 222 stroke-versteckte Quellflächen.
+>
+> ⚠️ **Nicht vollständig behoben, und das gehört hierhin statt in eine Fussnote.** Der Sammler
+> läuft weiter **einmal je Objekt**, und wo er auf `derived_wiki_id` zurückfällt, stellt er zwei
+> weitere Abfragen (`avesmapsPoliticalFetchWikiById` plus die namensgleiche Nachfahren-Abfrage).
+> Solche Objekte kosteten vorher **4** Abfragen und kosten jetzt **2** — halbiert, nicht beseitigt.
+> Im Test gemessen: **18 Abfragen vorher, 4 nachher** bei acht Objekten (davon eines über den
+> Wiki-Zweig), und bei drei Wiki-Objekten 2 + 3×2 = **8**. Der Rest ist linear in diesen Objekten.
+> Ihn zu bündeln hiesse, über zwei weitere Dateien zu bündeln — eigene Arbeit, eigener Befund.
+>
+> **Die naheliegende Abkürzung ist bewusst NICHT genommen:** `$territoriesSnapshot` trägt
+> `public_id` bereits, die erste Abfrage könnte also ganz entfallen. Er ist aber nach `continent`
+> gefiltert, und der **Wiki-Zweig** des Sammlers kann eine ID nennen, die nicht darin steht: seine
+> Abfrage matcht Territorien **über den Namen** und filtert allein auf `territory.is_active`, ganz
+> ohne Kontinentbedingung. Die Abkürzung verlöre diese Quellen **lautlos** — sichtbar nur als
+> doppelt gezeichnete Grenze, nie als Fehler.
+>
+> 🔁 **Korrektur an meiner eigenen ersten Fassung** (von den Gegenprüf-Agenten gefunden, von mir
+> am Code nachgeprüft): dort stand „zwei der drei Sammler-Zweige". Das war falsch. Die beiden
+> anderen Zweige starten von `derived_territory_id`, und die Layer-Abfrage dieser Datei erzeugt
+> die nur unter `territory.is_active = 1 AND territory.continent = :continent` — dieselbe
+> Kontinentbedingung wie der Schnappschuss. Sie liegen also **immer** darin. Der Test pinnte die
+> Aussage zuerst am nackten Rückfall fest, also an einem Pfad, den die Produktion gar nicht
+> erreicht; jetzt trägt sie ein Objekt über den Wiki-Zweig. Ebenso korrigiert: „M6 hat die beiden
+> Leser nicht angefasst" — M6 (`1e4d5bc4`) gab ihnen sehr wohl den Schnappschuss-Parameter,
+> unangetastet blieb nur die Abfrage je Objekt.
+>
+> **Die Reihenfolge in beiden Listen ändert sich** (jetzt nach den gesammelten IDs statt nach
+> der Zeilenfolge der Datenbank). Vorher gegen alle fünf Verbraucher geprüft: jeder baut ein
+> `Set` oder fragt `.includes()`, keiner liest eine Position. Ausserhalb von `js/` gibt es keinen
+> weiteren Verbraucher — in PHP steht nur der Erzeuger.
+>
+> Der Test (`api/_internal/political/__tests__/derived-source-public-ids-test.php`) führt eine
+> wörtliche Kopie der beiden gelöschten Funktionen als **Orakel** mit und vergleicht Objekt für
+> Objekt — sonst bewiese er nur, dass der neue Code mit sich selbst übereinstimmt. **Fünf**
+> Mutationen als Gegenprobe rot: die Kontinent-Abkürzung, das Gruppieren der Geometrien nach dem
+> falschen Schlüssel, jedem Objekt die volle Vereinigung zu geben — und die zwei, die in der
+> ersten Fassung noch **grün durchgingen**, weil keine Vorlage sie provozierte: der Riegel gegen
+> eine leere `public_id` und `array_unique`. Beide haben jetzt ihre Vorlagenzeile.
+>
+> 💣 Dass der Wiki-Zweig überhaupt prüfbar ist, hängt an einem `require`: `avesmapsPoliticalFetchWikiById`
+> steht in `territories-read.php`. Fehlt die Datei, wirft PHP „Call to undefined function" — ein
+> `Error`, also ein `Throwable`, den das `catch (Throwable)` des Sammlers verschluckt. Eine
+> Wiki-Vorlage prüfte dann **nichts** und der Test bliebe grün. Ein `function_exists`-Assert hält
+> das jetzt fest.
+>
+> ⚠️ **Die Laufzeit ist hier kein Beweis, und ich gebe sie deshalb nicht als einen aus.** Zwei
+> Sonden mit jeweils frischem Cache-Schlüssel ergaben 1,36 s und 2,17 s — dieselbe Anfrageform,
+> **byteidentische Antwort** (2.959.644 Bytes beide Male), 60 % Unterschied. Auf diesem Shared
+> Hosting schwankt die Wandzeit stärker als der Effekt, den 240 gesparte Abfragen auf einer
+> lokalen MySQL-Verbindung haben. Belastbar ist die **Abfragezahl** (im Test deterministisch
+> gezählt) und die **Unverändertheit der Antwort** — nicht die Uhr.
 
 *Aufwand:* mittel.
 
@@ -999,6 +1057,30 @@ Importwerkzeug schreibt einen Status, den keine Oberfläche kennt; die Meldung e
 „Bearbeitet", trägt ein Etikett, das niemand vergeben wollte, und ist wegen A32 eingefroren.
 
 *Beleg:* wörtlich gelesen. *Aufwand:* klein (dieselbe Whitelist wie nebenan).
+
+### A36 · Der Rest des N+1 sitzt im Wiki-Zweig des Sammlers
+`api/_internal/political/territories-derived-layer.php` (Sammler) → `territories-read.php:1277`
+und `territories-derived-geometry.php:598-611`
+
+A20 hat die **beiden Leser** gebündelt, nicht den **Sammler**. Der läuft weiter einmal je
+abgeleitetem Objekt, und wo er auf `derived_wiki_id` zurückfällt, stellt er zwei weitere Abfragen:
+`avesmapsPoliticalFetchWikiById` und die namensgleiche Nachfahren-Abfrage. Für solche Objekte
+sank der Preis von **4 auf 2** Abfragen — halbiert, nicht beseitigt, und weiterhin linear in
+ihrer Zahl.
+
+Die saubere Behebung sieht aus wie A20, nur über zwei weitere Dateien: die `derived_wiki_id`
+aller Objekte einsammeln, die Wiki-Zeilen in **einer** Abfrage holen, aus allen Namenslisten
+**eine** `IN`-Menge bilden und die Namenszuordnung in **einer** zweiten Abfrage auflösen. Das
+berührt `territories-derived-geometry.php`, die auch andere Aufrufer hat — deshalb ein eigener
+Befund und keine Nachbesserung im selben Commit.
+
+⚠️ **Wie viele Objekte den Zweig wirklich nehmen, ist offen.** Der Zweig greift nur, wenn ein
+Objekt im Schnappschuss keine Nachfahren hat **und** eine `derived_wiki_id` trägt; das lässt sich
+der Antwort nicht ansehen. Ohne diese Zahl ist unklar, ob A36 ein Rundungsfehler oder die Hälfte
+des verbliebenen Aufwands ist. Sie steht in einem `SELECT COUNT(*)` und braucht keinen Massenlauf.
+
+*Beleg:* am Code gelesen, im Test gemessen (2 + 3×2 = 8 Abfragen bei drei Wiki-Objekten).
+*Aufwand:* mittel. *Gefunden von den Gegenprüf-Agenten an der eigenen A20-Auslieferung.*
 
 ---
 

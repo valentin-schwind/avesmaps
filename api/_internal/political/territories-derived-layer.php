@@ -493,22 +493,40 @@ function avesmapsPoliticalEnrichDerivedContestedPieces(PDO $pdo, array $pieces, 
 }
 
 // Resolve, for every derived feature at once, the public_ids of its source territories and of
-// their geometries. Two queries for the whole layer.
+// their geometries.
+//
+// ⚠️ TWO QUERIES FOR THE LAYER -- PLUS TWO PER FEATURE THAT TAKES THE COLLECTOR'S WIKI BRANCH.
+// That residual is not fixed here, and the honest count is worth writing down rather than
+// rounding off: avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds still runs once per
+// feature, and when it falls through to $properties['derived_wiki_id'] it prepares two more
+// statements (avesmapsPoliticalFetchWikiById, then the name-matching descendant query in
+// territories-derived-geometry.php). Those features cost 4 queries before this change and cost 2
+// now -- halved, not removed. Batching them means batching across two more files and is its own
+// piece of work.
 //
 // 💣 THIS REPLACED TWO QUERIES PER FEATURE (finding A20). The two functions that stood here,
 // avesmapsPoliticalReadDerivedSource{Territory,Geometry}PublicIds, each ran one IN-query for one
-// feature -- 244 queries on a zoom-3 cache miss, on the heaviest endpoint of the project. They also
-// each re-ran the collector below, so a feature routed through its wiki branch paid those lookups
-// twice as well. Milestone M6 removed the full-table scan the collector did per feature; it did not
-// touch the two reads. Do not reintroduce a per-feature read here.
+// feature -- 242 of them on a zoom-3 cache miss (121 of 382 features carry source ids), on the
+// heaviest endpoint of the project. They also each re-ran the collector below, which is where the
+// doubled wiki lookups came from. Milestone M6 gave both readers the $territoriesSnapshot
+// parameter, so the collector stopped re-scanning political_territory per feature; the IN-query
+// per feature it left untouched. Do not reintroduce a per-feature read here.
 //
 // 💣 The batching is over the QUERIES, not over the snapshot. The tempting shortcut is to take
 // public_id straight out of $territoriesSnapshot -- it already carries the column, and then the
 // first query disappears entirely. It is filtered by continent (see
-// avesmapsPoliticalFetchDerivedGeometrySourceTerritories), while two of the collector's three
-// branches -- the wiki descendants and the bare-territory fallback -- can name an id that is not in
-// it. That shortcut drops those sources silently instead of resolving them, which shows up as a
+// avesmapsPoliticalFetchDerivedGeometrySourceTerritories), and the collector's WIKI BRANCH can
+// name an id that is not in it: avesmapsPoliticalCollectDerivedGeometryWikiDescendantIds matches
+// territories BY NAME and filters on territory.is_active alone, with no continent condition at
+// all. That shortcut drops those sources silently instead of resolving them, which shows up as a
 // source border drawn twice rather than as an error.
+//
+// ⚠️ It is the wiki branch and ONLY the wiki branch -- an earlier version of this comment claimed
+// two of the three, and that was wrong. The other two both start from
+// $properties['derived_territory_id'], which this file's own layer query produces under
+// `territory.is_active = 1 AND territory.continent = :continent` -- the same continent the
+// snapshot is filtered by. Those ids are therefore always in it. The distinction matters for the
+// test: pinning this on the bare fallback would pin it on a path production cannot reach.
 //
 // ⚠️ The ORDER inside each list now follows the collected ids instead of the row order the database
 // happened to return. Checked against every consumer before the change: all five build a Set or ask
