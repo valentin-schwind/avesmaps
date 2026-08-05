@@ -989,6 +989,60 @@ Missbrauchslage ist es der Verlust des letzten Messpunkts.
 
 *Beleg:* wörtlich gelesen; **bewusst nicht ausprobiert.** *Aufwand:* mittel.
 
+> **◐ Die Zielscheibe ist entschärft `db9d350b`, 05.08.2026 — der Kanal selbst ist 🔧 DU.**
+> Die **offene** Warteschlange wurde ungedeckelt gelesen: jede `status='neu'`-Zeile aus **beiden**
+> Tabellen, samt `comment` und `payload_json`, in **eine** Antwort. Sie ist jetzt bei **500**
+> gedeckelt — grösser als die 200 der bearbeiteten Liste, weil sie zu erledigende Arbeit ist und
+> keine Chronik.
+>
+> ⭐ **Die Sortierung ist es, die den Deckel unbedenklich macht, nicht bloss begrenzt** — und sie
+> war schon richtig: offene Meldungen kommen **älteste zuerst**, eine Flut landet also am **Ende**
+> und ist genau das, was abgeschnitten wird. Der echte Rückstand, den ein Bearbeiter gerade
+> abarbeitet, bleibt sichtbar. Dieselbe Deckelung auf einer neueste-zuerst-Liste hätte exakt die
+> Meldungen versteckt, auf die es ankommt. Diese Eigenschaft steht jetzt als Zusicherung **neben**
+> dem Deckel, in beiden Tests — damit sie niemand später zu `DESC` „aufräumt".
+>
+> **Zwei Hälften, zwei Deckel, zwei Flaggen.** `truncated`/`limit` behalten ihre Bedeutung für die
+> bearbeitete Hälfte, die offene meldet über `open_truncated`/`open_limit`. Eine gemeinsame Flagge
+> könnte über eine der beiden nur etwas Falsches sagen.
+>
+> Die Oberfläche trug einen Kommentar, der das Gegenteil versprach („die offenen sind vollständig").
+> Er war richtig, als er geschrieben wurde, und ist es jetzt nicht mehr — eine veraltete Beruhigung
+> ist dieselbe „mehr gibt es nicht"-Lüge, gegen die dieser Befund angetreten ist, nur in Prosa.
+> Hinweis und Kommentar nennen jetzt die tatsächlich gekürzte Hälfte und schweigen, wenn nichts
+> gekürzt wurde.
+>
+> **Zwei bestehende Tests fielen um und hatten recht damit** — einer sicherte zu, die offene
+> Warteschlange werde *nie* gekürzt, der andere die alte Formulierung. Beide sagen jetzt die neue
+> Absicht und warum sie die alte ablöst. Fünf von fünf Mutationen rot, 208/208 grün.
+>
+> **Live gegengeprüft** (203 s nach dem Push, nach der PHP-Verzögerung): der Editor-Endpunkt
+> antwortet anonym **401** — er lädt also, ein Parsefehler wäre eine 500; `map-features.php`
+> unberührt bei **200 / 19.236.101 Bytes**; und der neue Client ist wirklich draussen (**5** Treffer
+> auf `open_truncated`/`reviewReportsOpenTruncated` in der ausgelieferten Datei). Die Deckelung
+> selbst lässt sich von aussen nicht messen — sie greift erst über 500 offenen Meldungen, und die
+> herbeizuführen hiesse, 500 Zeilen in die Produktionsdatenbank zu schreiben.
+>
+> 🔁 **Korrektur an meiner eigenen Commit-Nachricht.** Dort steht, ein alter Client formuliere
+> während der Deploy-Schräglage weiterhin richtig. **Das stimmt nicht.** Bei Filter „Offen" war
+> `truncated` vorher immer `false`; wird es jetzt `true`, fällt der alte Client in seinen
+> Else-Zweig und schreibt *„Von den bearbeiteten werden nur die neuesten 500 gezeigt"* — falsche
+> Hälfte **und** falsche Zahl. Das Fenster ist die 2–4-Minuten-PHP-Verzögerung und setzt über 500
+> offene Meldungen voraus (heute sind es 13). Ich habe den Payload **nicht** dafür verbogen: eine
+> dauerhaft unehrliche Antwort — „nicht gekürzt", obwohl gekürzt — wäre schlechter als ein
+> Vier-Minuten-Fenster mit einem falschen Satz.
+>
+> 🔧 **DU: der Schreibkanal bleibt offen, und das ist eine Produktfrage.** `report_mode=change`
+> erreicht die Datenbank ohne Anmeldung, ohne Fähigkeit, ohne Token, und seit A2 zählt die
+> Stundengrenze diese Zeilen bewusst nicht mehr mit. Beides ist so gewollt — anonyme
+> Änderungsvorschläge *sind* das Feature, und A2 hat ehrliche Melder absichtlich entsperrt. Ob der
+> Kanal trotzdem eine eigene, grosszügigere Grenze bekommen soll (z.B. 30/Stunde statt 5), ist
+> deine Entscheidung, nicht meine: jede Zahl, die ich hier setzte, nähme A2 teilweise zurück.
+> ⚠️ Ungedeckelt ist ausserdem weiterhin `avesmapsNormalizeCitymapLinkRows`
+> (`api/_internal/app/citymaps.php`) — die Zahl der Fundorte je Meldung, anders als die
+> Quellenliste, die bei 10 endet. Das ist eine reine Deckelung ohne Produktfrage und kommt als
+> eigener Schritt.
+
 ### A31 · Die Drossel sitzt hinter dem teuersten Teil des Endpunkts
 `api/app/report-location.php:93` und `:94` gegen `:103`
 
