@@ -530,7 +530,13 @@ function avesmapsLogReportModeration(
     array $reportRow,
     string $reportSource,
     string $newStatus,
-    string $reviewNote,
+    // 💣 ?string, and the question mark is the whole lesson. avesmapsNormalizeReviewNote() answers NULL
+    // for an empty note, and NO client sends review_note at all -- so NULL is not the edge case, it is
+    // every case. Under strict_types=1 a `string` parameter turns that into a TypeError thrown AT THE
+    // CALL SITE, outside the try below: the "deliberately not fatal" design never runs, the top-level
+    // handler answers 500, and the report has already been updated. The retry then hits `status = 'neu'`
+    // and reports 404. Shipped that way for eleven minutes on 2026-08-05.
+    ?string $reviewNote,
     array $user
 ): void {
     $action = avesmapsReportModerationAuditAction($newStatus);

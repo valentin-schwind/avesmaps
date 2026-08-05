@@ -49,7 +49,11 @@ function avesmapsBuildReportModerationAuditSnapshots(
     array $reportRow,
     string $reportSource,
     string $newStatus,
-    string $reviewNote
+    // 💣 ?string. avesmapsNormalizeReviewNote() answers NULL for an empty note, and no client sends the
+    // field at all -- under strict_types=1 a plain `string` here is a TypeError thrown at the call site,
+    // where no catch of this file's can reach it. That is how A4 shipped a 500 on every moderation
+    // decision, after the decision had already taken effect.
+    ?string $reviewNote
 ): array {
     $identity = [];
     foreach (AVESMAPS_REPORT_MODERATION_AUDIT_FIELDS as $field) {
@@ -70,11 +74,15 @@ function avesmapsBuildReportModerationAuditSnapshots(
         ]),
         'after' => avesmapsEncodeReportModerationSnapshot($identity + [
             'status' => $newStatus,
-            'review_note' => $reviewNote,
+            'review_note' => (string) $reviewNote,
         ]),
     ];
 }
 
+// ⚠️ JSON_THROW_ON_ERROR, like avesmapsEncodeAuditJson next door. A report name is community-supplied
+// text; invalid UTF-8 in it makes json_encode return false, and `(string) false` is '' -- which lands in
+// a JSON column as MySQL error 3140 and gets swallowed by the caller's catch. A throw is caught by that
+// same catch and says what happened in the log.
 function avesmapsEncodeReportModerationSnapshot(array $snapshot): string {
-    return (string) json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    return json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 }

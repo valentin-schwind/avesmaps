@@ -96,6 +96,35 @@ assert($after['reporter_name'] === 'Melderin', 'who filed it');
 // Null columns are dropped rather than serialised as empty strings.
 assert(!array_key_exists('entity_type', $after), 'a null column is left out, not written as ""');
 
+// --- 💣 A missing review note is NULL, and NULL is the normal case ----------------------------------
+//
+// avesmapsNormalizeReviewNote() answers NULL for an empty note, and no client sends the field at all.
+// Under strict_types=1 a plain `string` parameter turns that into a TypeError thrown AT THE CALL SITE,
+// where the caller's own catch cannot reach it -- so the endpoint answered 500 on every approve, reject
+// and defer, AFTER the decision had already been written. That is exactly how A4 shipped on 2026-08-05,
+// with this test green, because it only ever passed a string.
+$withoutNote = avesmapsBuildReportModerationAuditSnapshots(
+    ['id' => 7, 'name' => 'Ohne Notiz', 'status' => 'neu'],
+    'map_reports',
+    'approved',
+    null
+);
+$withoutNoteAfter = json_decode($withoutNote['after'], true);
+assert($withoutNoteAfter['review_note'] === '', 'a missing note is an empty string, never a TypeError');
+assert($withoutNoteAfter['status'] === 'approved', 'and the decision is still recorded');
+
+// The same, asserted at the signature so a future edit cannot quietly narrow it back.
+$builderParams = (new ReflectionFunction('avesmapsBuildReportModerationAuditSnapshots'))->getParameters();
+assert($builderParams[3]->allowsNull(), 'the review note parameter accepts null');
+
+// 💣 The audit writer must accept a NULL feature id. A moderation decision is about no map object, and
+// narrowing this back to `int` makes every write a TypeError -- caught, logged, and silently dead, with
+// the rest of this file still green. Asserted through reflection rather than text: it is the behaviour
+// that matters, not the spelling.
+$writerParams = (new ReflectionFunction('avesmapsWriteMapAuditLog'))->getParameters();
+assert($writerParams[1]->getName() === 'featureId', 'the second parameter is the feature id');
+assert($writerParams[1]->allowsNull(), 'and it accepts null, or no moderation decision can be logged');
+
 // A legacy location_reports row has fewer columns; the builder must not care.
 $legacy = avesmapsBuildReportModerationAuditSnapshots(
     ['id' => 42, 'name' => 'Altfall', 'status' => 'neu'],
@@ -117,8 +146,16 @@ $endpointSource = file_get_contents(__DIR__ . '/../../../edit/reports/locations.
 assert(is_string($endpointSource) && $endpointSource !== '', 'the endpoint source must be readable');
 assert(
     substr_count($endpointSource, 'avesmapsLogReportModeration(') === 4,
-    'three calls plus the definition: update_status, the citymap claim and the fundort claim -- the last '
-        . 'two set status=approved themselves and consumed a report silently before A4'
+    'four occurrences: the definition plus three call sites -- update_status, the citymap claim and the '
+        . 'fundort claim. The last two set status=approved themselves and consumed a report silently '
+        . 'before A4'
+);
+// 💣 The signature the endpoint declares, not the one the library declares. This is the exact spelling
+// that answered 500 on every moderation decision when it read `string $reviewNote`.
+assert(
+    preg_match('/function avesmapsLogReportModeration\(.*?\?string \$reviewNote/s', $endpointSource) === 1,
+    'the endpoint helper accepts a NULL review note -- a plain string is a TypeError at the call site, '
+        . 'outside its own catch, on a decision that has already taken effect'
 );
 assert(
     str_contains($endpointSource, "require_once __DIR__ . '/../../_internal/map/report-audit.php';"),
@@ -127,9 +164,21 @@ assert(
 // The trail is written AFTER the report is updated, and a failure to write it must not undo the
 // decision: the caller catches, because the row is already changed at that point and a 500 would send
 // the reviewer into a retry that then answers 404 on the `status = 'neu'` guard.
+// ⚠️ Anchored on the function BODY, not on "somewhere after the signature": the file's top-level
+// dispatch also contains `catch (Throwable`, and a loose pattern would pass on whichever happened to
+// come first in the file.
+$moderationBody = null;
+if (preg_match('/function avesmapsLogReportModeration\(.*?\)\s*:\s*void\s*\{(.*?)\n\}/s', $endpointSource, $bodyMatch) === 1) {
+    $moderationBody = $bodyMatch[1];
+}
+assert(is_string($moderationBody), 'the writer is a void function whose body can be isolated');
 assert(
-    preg_match('/function avesmapsLogReportModeration\(.*?\)\s*:\s*void\s*\{.*?catch \(Throwable/s', $endpointSource) === 1,
+    str_contains($moderationBody, 'catch (Throwable'),
     'a trail that cannot be written must not undo a decision that already happened'
+);
+assert(
+    str_contains($moderationBody, 'avesmapsWriteMapAuditLog($pdo, null,'),
+    'and it writes a NULL feature id, because a decision is about no map object'
 );
 
 echo "report-audit ok\n";
