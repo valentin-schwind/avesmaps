@@ -2039,6 +2039,25 @@ function avesmapsSuppressCitymapPlace(PDO $pdo, int $placeId): array
 }
 
 /**
+ * Every row that hangs off a citymap, in one place. 💣 Es gab zwei Loeschwege und sie raeumten
+ * VERSCHIEDEN auf: die Hand loeschte place/type/link/related, der Wiki-Sync nur place/type -- also
+ * blieben nach jedem Sync-Loeschen citymap_related- und citymap_link-Zeilen als Waisen zurueck
+ * (Befund A8). Zwei Wege, zwei Ergebnisse, fuer dieselbe Handlung. Jetzt raeumt EINE Funktion,
+ * und ein neuer Kindtisch wird an genau einer Stelle nachgetragen.
+ *
+ * ⚠️ Kein FK und kein ON DELETE CASCADE in diesem Schema -- die Kinder muessen von Hand weg. Und
+ * citymap_related verbindet BEIDE Richtungen, also loescht es auf beiden Seiten.
+ */
+function avesmapsDeleteCitymapChildRows(PDO $pdo, int $citymapId): void
+{
+    $pdo->prepare('DELETE FROM citymap_related WHERE citymap_id = :a OR related_citymap_id = :b')
+        ->execute(['a' => $citymapId, 'b' => $citymapId]);
+    $pdo->prepare('DELETE FROM citymap_place WHERE citymap_id = :id')->execute(['id' => $citymapId]);
+    $pdo->prepare('DELETE FROM citymap_type WHERE citymap_id = :id')->execute(['id' => $citymapId]);
+    $pdo->prepare('DELETE FROM citymap_link WHERE citymap_id = :id')->execute(['id' => $citymapId]);
+}
+
+/**
  * Delete a whole citymap and its child rows (place / type / link / related). Owner-only and
  * irreversible -- the editor confirms first. Unlike the suppress_* actions it makes NO origin
  * distinction: the owner asked for THIS row gone (it is how the one manual duplicate is removed). A
@@ -2062,11 +2081,7 @@ function avesmapsDeleteCitymap(PDO $pdo, string $publicId): array
 
     $pdo->beginTransaction();
     try {
-        $pdo->prepare('DELETE FROM citymap_related WHERE citymap_id = :a OR related_citymap_id = :b')
-            ->execute(['a' => $id, 'b' => $id]);
-        $pdo->prepare('DELETE FROM citymap_place WHERE citymap_id = :id')->execute(['id' => $id]);
-        $pdo->prepare('DELETE FROM citymap_type WHERE citymap_id = :id')->execute(['id' => $id]);
-        $pdo->prepare('DELETE FROM citymap_link WHERE citymap_id = :id')->execute(['id' => $id]);
+        avesmapsDeleteCitymapChildRows($pdo, $id);
         $pdo->prepare('DELETE FROM citymap WHERE id = :id')->execute(['id' => $id]);
         $pdo->commit();
     } catch (Throwable $error) {

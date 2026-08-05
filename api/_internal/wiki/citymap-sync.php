@@ -1852,8 +1852,6 @@ function avesmapsCitymapRemoveVanished(PDO $pdo): int
 
     $removed = 0;
     $findId = $pdo->prepare('SELECT id FROM citymap WHERE wiki_key = :wk LIMIT 1');
-    $delPlaces = $pdo->prepare('DELETE FROM citymap_place WHERE citymap_id = :id');
-    $delTypes = $pdo->prepare('DELETE FROM citymap_type WHERE citymap_id = :id');
     $delCard = $pdo->prepare("DELETE FROM citymap WHERE id = :id AND origin = 'wiki'");
     foreach ($remove as $key) {
         $findId->execute(['wk' => $key]);
@@ -1861,10 +1859,24 @@ function avesmapsCitymapRemoveVanished(PDO $pdo): int
         if ($id === false) {
             continue;
         }
-        $delPlaces->execute(['id' => (int) $id]);
-        $delTypes->execute(['id' => (int) $id]);
-        $delCard->execute(['id' => (int) $id]); // origin guard repeated at the DELETE, belt and braces
-        $removed += $delCard->rowCount();
+        // 💣 KARTE ZUERST, Kinder danach. Der origin-Riegel an diesem DELETE ist die zweite
+        // Sicherung -- bis 2026-08-05 liefen die Kind-Loeschungen aber DAVOR. Griff der Riegel
+        // also je, blieb die Karte stehen und hatte ihre Orte und Arten verloren: die Sicherung
+        // richtete genau den Schaden an, den sie verhindern sollte. Ohne FK ist die Reihenfolge
+        // frei, also steht sie jetzt richtig herum.
+        $delCard->execute(['id' => (int) $id]);
+        if ($delCard->rowCount() < 1) {
+            continue;
+        }
+        // 💣 Derselbe Raeumer wie beim Loeschen von Hand (api/_internal/app/citymaps.php). Vorher
+        // raeumte dieser Weg nur place und type -- citymap_related und citymap_link blieben als
+        // Waisen zurueck (Befund A8). Laufzeit-Aufruf mit function_exists-Riegel, wie schon bei
+        // avesmapsCitymapsEnsureTables weiter oben: diese Datei laedt absichtlich nichts nach,
+        // damit ihr Unit-Test ohne MySQL laeuft; api/edit/wiki/dump.php laedt die Kette davor.
+        if (function_exists('avesmapsDeleteCitymapChildRows')) {
+            avesmapsDeleteCitymapChildRows($pdo, (int) $id);
+        }
+        $removed += 1;
     }
 
     return $removed;
