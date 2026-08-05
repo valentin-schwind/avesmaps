@@ -1144,6 +1144,16 @@ Missbrauchslage ist es der Verlust des letzten Messpunkts.
 > Bibliothek statt im Endpunkt-Skript — **erst das macht ihn überhaupt prüfbar**, weil sich ein
 > Endpunkt nicht laden lässt, ohne seinen Request-Handler auszuführen. Vier von vier Mutationen rot.
 >
+> ⚠️ **Der Byte-Riegel selbst ist NICHT spurenfrei live prüfbar, und ich habe es deshalb gelassen.**
+> Er läuft am **Ende** der Validierung, also nach der Koordinatenprüfung — der Sicherheitsgurt von
+> vorhin greift hier nicht mehr. Und zwischen Validierung und `INSERT` gibt es für einen Fundort
+> kein weiteres Tor: der 409-Namenskonflikt gilt nur für `report_type='location'`. Jede Probe, die
+> den Riegel auslöst, hinterliesse bei einem Versagen genau die Zeile, für die es keinen Löschweg
+> gibt. Belegt ist er durch die Nachstellung gegen den ausgelieferten Code (83.421 Bytes) und durch
+> den Test; **live geprüft ist, dass der umgebaute Pfad trägt**: 21 Zeilen → „Zu viele Links (max.
+> 20).", 20 Zeilen → „Die Koordinate lat ist ungueltig.", `map-features.php` unverändert
+> 200/19.236.101 Bytes.
+>
 > ⚠️ **Ein Wortfehler in meiner Commit-Nachricht, der teuer werden könnte:** dort steht „456 live
 > maps carry at most 2 **places**". Die gemessene Verteilung ist das Feld **`links`**, nicht
 > `places`. `places` gibt es daneben und es ist anders gross — auf der **Abenteuer**-Seite live
