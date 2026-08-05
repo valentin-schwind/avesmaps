@@ -116,5 +116,16 @@ assert(
     !preg_match('/connectedPowerlines\s*=\s*markerEntry\.locationType === CROSSING_LOCATION_TYPE/', $clientBody),
     'and no longer asks only for crossings -- a Nodix place carries powerlines just as well'
 );
+// 💣 A powerline object in powerlineData carries only id/geometry/properties at the top level, so
+// `line.name` is always undefined and the message listed no line at all -- exactly the part that tells
+// the editor where to go. Found by probing the deployed client at Gareth, not by this file.
+assert(
+    str_contains($clientBody, 'line.properties?.name'),
+    'the client reads the line name from properties, where it actually lives'
+);
+assert(
+    !preg_match('/connectedPowerlines\.map\(\(line\) => line\.name\)/', $clientBody),
+    'and not from the top level, where it is always undefined'
+);
 
 echo "powerline-anchor-delete ok\n";

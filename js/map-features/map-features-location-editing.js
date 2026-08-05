@@ -298,7 +298,11 @@ async function deleteLocationMarker(markerEntry) {
 	// Und es ist kein „wirklich?" mehr, sondern eine Absage: der Server verweigert dasselbe. Ein
 	// Bestätigen-Dialog, dessen Ja danach am Server scheitert, ist schlechter als eine klare Absage.
 	if (connectedPowerlines.length > 0) {
-		const names = Array.from(new Set(connectedPowerlines.map((line) => line.name).filter(Boolean))).sort();
+		// 💣 `properties.name`, nicht `name`. Ein Kraftlinien-Objekt in powerlineData traegt oben nur
+		// id/geometry/properties -- `line.name` ist immer undefined, und die Meldung nannte damit nie
+		// eine Linie. Erst die Live-Probe an Gareth zeigte es: „5 Kraftlinien-Abschnitte" ohne ein Wort
+		// dazu, wo sie liegen. Genau die Auskunft, wegen der die Namen ueberhaupt drinstehen.
+		const names = Array.from(new Set(connectedPowerlines.map((line) => line.properties?.name).filter(Boolean))).sort();
 		const shown = names.slice(0, 3).join(", ") + (names.length > 3 ? " und weitere" : "");
 		showFeedbackToast(
 			`${markerEntry.name} trägt noch ${connectedPowerlines.length} ${connectedPowerlines.length === 1 ? "Kraftlinien-Abschnitt" : "Kraftlinien-Abschnitte"}${shown ? ` (${shown})` : ""}. Bitte zuerst die Kraftlinie lösen.`,
