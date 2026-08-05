@@ -1467,6 +1467,15 @@
 	outline: none;
 }
 
+/* Eine Zeile ohne Kartenobjekt (Moderation einer Community-Meldung) ist kein Knopf: kein Zeigefinger
+   und keine Hover-Kante, die ein Ziel verspricht, das es nicht gibt. Muss NACH der Hover-Regel stehen
+   -- beide Selektoren wiegen gleich schwer, also entscheidet die Reihenfolge. */
+.change-log-entry--static,
+.change-log-entry--static:hover {
+	cursor: default;
+	border-color: var(--color-border);
+}
+
 .change-log-entry__action {
 	font-weight: 700;
 }

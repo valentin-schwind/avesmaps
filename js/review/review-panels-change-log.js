@@ -122,6 +122,11 @@ function formatChangeAction(action) {
 		geometry_operation_union: "Herrschaftsgebiete vereinigt",
 		geometry_operation_difference: "Herrschaftsgebiet ausgeschnitten",
 		geometry_operation_intersection: "Schnittmenge als Herrschaftsgebiet erstellt",
+		// A4: Moderation einer Community-Meldung. Diese Zeilen haben kein Kartenobjekt (feature_id NULL)
+		// und sind nicht rückgängig zu machen -- was eine Annahme ERZEUGT hat, steht mit eigener Zeile da.
+		report_approved: "Meldung angenommen",
+		report_rejected: "Meldung verworfen",
+		report_in_review: "Meldung zurückgestellt",
 	};
 
 	return labels[action] || action;
@@ -143,8 +148,16 @@ function renderChangeLog() {
 	changeLogEntries.forEach((entry) => {
 		const itemElement = document.createElement("article");
 		itemElement.className = "change-log-entry";
-		itemElement.tabIndex = 0;
-		itemElement.setAttribute("role", "button");
+		// 💣 Nur was sich zeigen lässt, ist ein Knopf. Eine Moderationszeile hat kein Kartenobjekt --
+		// als Knopf angeboten, antwortet sie beim Klick „Dieses Objekt kann nicht lokalisiert werden.",
+		// was nach einem Fehler aussieht und keiner ist. Gilt allgemein: weder public_id noch focus =
+		// nichts zum Hinspringen.
+		const canFocusEntry = Boolean(entry.public_id) || Boolean(entry.focus);
+		itemElement.classList.toggle("change-log-entry--static", !canFocusEntry);
+		if (canFocusEntry) {
+			itemElement.tabIndex = 0;
+			itemElement.setAttribute("role", "button");
+		}
 		itemElement.dataset.changeId = String(entry.id || "");
 		itemElement.dataset.publicId = entry.public_id || "";
 		itemElement.dataset.featureType = entry.feature_type || "";

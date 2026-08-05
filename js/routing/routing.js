@@ -586,6 +586,11 @@ $(document).on("click", ".review-rating__delete", function (event) {
 
 $(document).on("click", ".change-log-entry", function (event) {
 	event.preventDefault();
+	// Eine Zeile ohne Kartenobjekt (Moderation einer Meldung) ist kein Knopf und bekommt auch keine
+	// Fehlermeldung -- der Zuhoerer haengt am Dokument, die fehlende role allein haelt ihn nicht ab.
+	if (this.classList.contains("change-log-entry--static")) {
+		return;
+	}
 	const changeId = Number(this.dataset.changeId || 0);
 	const changeEntry = changeLogEntries.find((entry) => Number(entry.id) === changeId);
 	if (!changeEntry) {

@@ -2888,7 +2888,11 @@ function avesmapsNextMapRevision(PDO $pdo): int {
     return (int) $revision;
 }
 
-function avesmapsWriteMapAuditLog(PDO $pdo, int $featureId, string $action, int $actorUserId, string $beforeJson, string $afterJson): int {
+// feature_id is nullable because not every logged action is about a map object: a community-report
+// moderation decision (api/_internal/map/report-audit.php) has no feature, and the read path already
+// LEFT JOINs, so such a row simply shows no target. NULL and not 0 -- 0 would claim a feature id that
+// does not exist, and every later query would carry that claim forward.
+function avesmapsWriteMapAuditLog(PDO $pdo, ?int $featureId, string $action, int $actorUserId, string $beforeJson, string $afterJson): int {
     $statement = $pdo->prepare(
         'INSERT INTO map_audit_log (feature_id, action, actor_user_id, before_json, after_json)
         VALUES (:feature_id, :action, :actor_user_id, :before_json, :after_json)'

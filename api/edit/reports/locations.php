@@ -10,6 +10,10 @@ require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/map/features.php';
 require_once __DIR__ . '/../../_internal/app/citymaps.php';
 require_once __DIR__ . '/../../_internal/app/adventure-resolve.php';
+// A4: every moderation decision leaves a row in map_audit_log. The action names and the two
+// snapshots are pure and live next door so they can be asserted without a database -- in
+// particular that they are NOT undoable and that they carry no ip_hash.
+require_once __DIR__ . '/../../_internal/map/report-audit.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -176,6 +180,13 @@ function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, arra
         avesmapsEnsureMapReportsTableForReview($pdo);
     }
 
+    // Read the row BEFORE the update -- afterwards its old status and note are gone, and those are
+    // half of what the trail is for. A miss here is not an error: the UPDATE below decides whether
+    // the report was still open, and it answers 404 if it was not.
+    $beforeStatement = $pdo->prepare("SELECT * FROM {$reportSource} WHERE id = :report_id LIMIT 1");
+    $beforeStatement->execute(['report_id' => $reportId]);
+    $reportRow = $beforeStatement->fetch() ?: ['id' => $reportId];
+
     $reviewedBySql = $reportSource === 'map_reports' ? ', reviewed_by = :reviewed_by' : '';
     $statement = $pdo->prepare(
         "UPDATE {$reportSource}
@@ -200,6 +211,8 @@ function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, arra
     if ($statement->rowCount() < 1) {
         avesmapsErrorResponse(404, 'not_found', 'Die gewuenschte Meldung wurde bereits verarbeitet oder nicht gefunden.');
     }
+
+    avesmapsLogReportModeration($pdo, $reportRow, $reportSource, $newStatus, $reviewNote, $user);
 
     return [
         'ok' => true,
@@ -274,6 +287,11 @@ function avesmapsCreateCitymapFromReport(PDO $pdo, array $payload, array $user):
     if ($claim->rowCount() < 1) {
         avesmapsErrorResponse(409, 'conflict', 'Die Kartenmeldung wurde soeben von jemand anderem verarbeitet.');
     }
+
+    // A4 covers this path too. The finding names approve/reject/defer, but this claim and the one in
+    // avesmapsAddCitymapLinksFromReport set status='approved' on their own -- they consume a report
+    // just as finally, and left just as little behind.
+    avesmapsLogReportModeration($pdo, $report + ['report_type' => 'citymap'], 'map_reports', 'approved', '', $user);
 
     $created = avesmapsUpsertCitymap($pdo, $normalized['citymap'], $userId, 'community');
     $citymapPublicId = (string) $created['public_id'];
@@ -378,6 +396,8 @@ function avesmapsAddCitymapLinksFromReport(PDO $pdo, array $payload, array $user
         avesmapsErrorResponse(409, 'conflict', 'Die Fundort-Meldung wurde soeben von jemand anderem verarbeitet.');
     }
 
+    avesmapsLogReportModeration($pdo, $report + ['report_type' => 'citymap_link'], 'map_reports', 'approved', '', $user);
+
     // ADDITIVE, one row at a time. avesmapsSetCitymapLinks is off limits here: it REPLACES the list and
     // would delete every fundort an editor had entered -- a data loss nobody notices until someone misses
     // their links. 'community' is stamped HERE; the reporter never had a say in it (the allowlist does not
@@ -449,6 +469,35 @@ function avesmapsReviewTableExists(PDO $pdo, string $tableName): bool {
     $quotedTableName = $pdo->quote($tableName);
     $statement = $pdo->query("SHOW TABLES LIKE {$quotedTableName}");
     return $statement !== false && $statement->fetch() !== false;
+}
+
+// A4: one row in map_audit_log per moderation decision. 💣 Deliberately NOT fatal -- a trail that
+// cannot be written must not undo a decision that already happened. The report is already updated at
+// every call site, so throwing here would answer 500 to a reviewer whose click DID take effect, and
+// the retry would then hit the `AND status = 'neu'` guard and report 404. A missing line in the log is
+// the smaller loss; it is logged where the other server-side failures of this file go.
+function avesmapsLogReportModeration(
+    PDO $pdo,
+    array $reportRow,
+    string $reportSource,
+    string $newStatus,
+    string $reviewNote,
+    array $user
+): void {
+    $action = avesmapsReportModerationAuditAction($newStatus);
+    if ($action === '') {
+        return;
+    }
+
+    try {
+        $snapshots = avesmapsBuildReportModerationAuditSnapshots($reportRow, $reportSource, $newStatus, $reviewNote);
+        // feature_id NULL, because a moderation decision is not about a map object: the column is
+        // nullable, the reader LEFT JOINs, and the name comes out of after_json. NULL and not 0 --
+        // 0 would claim a feature that does not exist and would survive into every later query.
+        avesmapsWriteMapAuditLog($pdo, null, $action, (int) ($user['id'] ?? 0), $snapshots['before'], $snapshots['after']);
+    } catch (Throwable $exception) {
+        error_log('avesmaps report moderation audit failed: ' . $exception->getMessage());
+    }
 }
 
 function avesmapsNormalizeReviewNote(mixed $value): ?string {
