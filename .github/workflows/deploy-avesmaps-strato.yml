@@ -92,7 +92,11 @@ jobs:
           # first version of this gate -- 30 files, among them the wiki_key folding guard that
           # AGENTS.md §5 names by hand.
           echo "--- PHP ---"
-          for test in $(find api tools -path '*__tests__*' -name '*.php' -o -path './tools/*' -name 'test-*.php' -not -path '*__tests__*' | sort); do
+          # ⚠️ The parentheses are load-bearing: -o binds looser than the implicit -a, so without
+          # them the second branch swallows the first one's -name and the whole thing silently
+          # returns only the __tests__ set. Shipped wrong once (2026-08-05) -- 88 instead of 118,
+          # and the gate looked like it had grown when it had not. If you touch this line, count.
+          for test in $(find api tools \( -path '*__tests__*' -name '*.php' \) -o \( -name 'test-*.php' -not -path '*__tests__*' \) | sort); do
             if output="$(php -d zend.assertions=1 -d assert.exception=1 "$test" 2>&1)"; then
               php_ok=$((php_ok + 1))
             else
