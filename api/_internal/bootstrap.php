@@ -301,16 +301,42 @@ function avesmapsParseMapCoordinate(mixed $value, string $fieldName): float {
     return round((float) $coordinate, 3);
 }
 
+// The key every throttle in the house is bucketed by, and the value hashed into `ip_hash`.
+//
+// 💣 IT MUST BE AN IP ADDRESS, AND UNTIL 2026-08-05 IT DID NOT HAVE TO BE (finding A29). The old
+// version returned the leftmost X-Forwarded-For element unchecked -- any 64 characters the caller
+// felt like sending. Two consequences, and the second one is the quiet one:
+//   * a fresh string per request was a fresh bucket, so every throttle was one header away from
+//     being no throttle at all;
+//   * `ip_hash` was then not the hash of an address but of arbitrary caller-supplied text, which is
+//     not what a column called ip_hash promises anyone reading the schema for a privacy answer.
+//
+// Now every candidate has to pass FILTER_VALIDATE_IP, and anything that does not is skipped rather
+// than trusted -- so a caller who sends junk in X-Forwarded-For falls back to their own REMOTE_ADDR
+// instead of choosing their own bucket. Spoofing with garbage stops working outright.
+//
+// ⚠️ WHAT THIS DOES NOT FIX, so nobody mistakes it for the whole finding: a caller who sends a
+// syntactically VALID address they do not own is still believed. Closing that means deciding whether
+// to trust X-Forwarded-For at all, and that depends on whether a reverse proxy sits in front --
+// with one, REMOTE_ADDR is the same value for every visitor and switching to it would put the whole
+// site in one bucket. That question is open (owner decision, see docs/systemtest-2026-08-05/1-akut.md
+// A29); this change is correct under every answer to it, which is why it did not wait for one.
 function avesmapsClientIpAddress(): string {
     $forwardedFor = trim((string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
     if ($forwardedFor !== '') {
-        $ipCandidates = array_map('trim', explode(',', $forwardedFor));
-        if ($ipCandidates !== []) {
-            return mb_substr($ipCandidates[0], 0, 64);
+        foreach (explode(',', $forwardedFor) as $candidate) {
+            $candidate = trim($candidate);
+            if (filter_var($candidate, FILTER_VALIDATE_IP) !== false) {
+                return $candidate;
+            }
         }
     }
 
-    return mb_substr(trim((string) ($_SERVER['REMOTE_ADDR'] ?? '')), 0, 64);
+    // ⚠️ An empty return is deliberate and is the SAFE direction: everyone whose address cannot be
+    // established shares one bucket, rather than each getting a private one keyed on their own junk.
+    $remoteAddress = trim((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+
+    return filter_var($remoteAddress, FILTER_VALIDATE_IP) !== false ? $remoteAddress : '';
 }
 
 // Vergleicht If-None-Match (kann Liste sein, "*" oder W/-praefixiert) gegen unseren ETag.
