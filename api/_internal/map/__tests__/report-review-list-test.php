@@ -45,6 +45,27 @@ foreach ([
     );
 }
 
+// 💣 And it must be SILENT about it. `?status[]=erledigt` hands PHP an array; casting one emits
+// "Array to string conversion", and with display_errors on that warning prints itself in front of the
+// JSON and breaks the response for every caller. Asserting the return value alone does NOT catch this --
+// the cast yields "Array", which is not whitelisted, so the answer is right while the response is
+// broken. Only the warning itself proves the guard is there.
+$emittedWarnings = [];
+set_error_handler(static function (int $number, string $message) use (&$emittedWarnings): bool {
+    $emittedWarnings[] = $message;
+
+    return true;
+});
+foreach ([['erledigt'], ['a' => 'b'], new stdClass()] as $nonScalar) {
+    avesmapsNormalizeReportListFilter($nonScalar);
+}
+restore_error_handler();
+assert(
+    $emittedWarnings === [],
+    'a non-scalar status parameter must not emit a PHP notice or warning: it would print itself in '
+        . 'front of the JSON. Got: ' . implode(' | ', $emittedWarnings)
+);
+
 // Case and whitespace are tolerated, because a hand-typed URL is a legitimate caller.
 assert(avesmapsNormalizeReportListFilter('  ERLEDIGT ') === 'erledigt', 'trimmed and lower-cased');
 assert(avesmapsNormalizeReportListFilter('alle') === 'alle', 'alle survives');

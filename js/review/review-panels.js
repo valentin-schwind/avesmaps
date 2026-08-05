@@ -141,7 +141,7 @@ function toggleReviewPanel() {
 const reviewReportStatusFilter = { value: "neu" };
 const REVIEW_REPORT_STATUS_OPTIONS = [
 	{ value: "neu", label: "Offen" },
-	{ value: "erledigt", label: "Erledigt" },
+	{ value: "erledigt", label: "Bearbeitet" },
 ];
 let reviewReportsTruncated = false;
 let reviewReportsDoneLimit = 0;
@@ -285,7 +285,7 @@ function renderReviewReports() {
 	}
 
 	listElement.innerHTML = "";
-	const scopeWord = { neu: "offene", erledigt: "erledigte" }[reviewReportStatusFilter.value] || "";
+	const scopeWord = { neu: "offene", erledigt: "bearbeitete" }[reviewReportStatusFilter.value] || "";
 	if (reviewReports.length < 1) {
 		setReviewPanelStatus(`Keine ${scopeWord ? `${scopeWord} ` : ""}Meldungen.`, "empty");
 		return;
@@ -293,7 +293,14 @@ function renderReviewReports() {
 
 	// ⚠️ Der Deckel wird ausgesprochen. Eine still gekuerzte Liste liest sich wie „mehr gibt es nicht"
 	// -- genau die Luege, die die fehlende Liste vorher erzaehlt hat.
-	const cutNote = reviewReportsTruncated ? ` Nur die neuesten ${reviewReportsDoneLimit} werden gezeigt.` : "";
+	// ⚠️ Bei „Alle" gilt der Deckel NUR fuer die bearbeitete Haelfte -- die offenen sind vollstaendig.
+	// „230 Meldungen. Nur die neuesten 200 werden gezeigt." waere beides zugleich falsch und genau die
+	// Halbwahrheit, gegen die dieser Befund angetreten ist.
+	const cutNote = reviewReportsTruncated
+		? (reviewReportStatusFilter.value === "erledigt"
+			? ` Nur die neuesten ${reviewReportsDoneLimit} werden gezeigt.`
+			: ` Von den bearbeiteten werden nur die neuesten ${reviewReportsDoneLimit} gezeigt.`)
+		: "";
 	setReviewPanelStatus(`${reviewReports.length} ${scopeWord ? `${scopeWord} ` : ""}Meldungen.${cutNote}`, "success");
 	reviewReports.forEach((report) => {
 		const itemElement = document.createElement("article");
@@ -347,30 +354,12 @@ function renderReviewReports() {
 			commentEl.textContent = reportComment;
 			itemElement.querySelector(".review-report__focus").after(commentEl);
 		}
-		// Eine bearbeitete Meldung wird GEZEIGT, nicht angeboten: die Knoepfe wuerden ins Leere greifen
-		// (der Server nimmt nur `status = 'neu'` an) und an ihrer Stelle steht das, was A3 und A4
-		// beantworten sollen -- wer hat wann was entschieden, und mit welcher Begruendung.
-		if (isProcessedReviewReport(report)) {
-			itemElement.classList.add("review-report--done");
-			const actionsElement = itemElement.querySelector(".review-report__actions");
-			actionsElement.textContent = "";
-			const decisionElement = document.createElement("span");
-			decisionElement.className = "review-report__decision";
-			decisionElement.textContent = reviewReportDecisionSummary(report);
-			actionsElement.append(decisionElement);
-			const reviewNote = String(report.review_note || "").trim();
-			if (reviewNote) {
-				const noteElement = document.createElement("div");
-				noteElement.className = "review-report__note";
-				noteElement.textContent = reviewNote;
-				actionsElement.before(noteElement);
-			}
-		} else if (isCommentReport(report)) {
-			itemElement.querySelector(".review-report__create").textContent = "Erledigt";
+		if (isCommentReport(report)) {
+			setReviewReportCreateLabel(itemElement, "Erledigt");
 		}
 		// "Anlegen" waere gelogen: hier entsteht nichts, die Fundorte kommen an eine Karte, die es gibt.
 		if (isCitymapLinkReport(report)) {
-			itemElement.querySelector(".review-report__create").textContent = "Ergänzen";
+			setReviewReportCreateLabel(itemElement, "Ergänzen");
 		}
 		// Kartensammlungs-Vorschlag (§3.8): zeigen, WAS vorgeschlagen wird. Der Titel steht schon oben, aber
 		// der Karten-Link ist das, was der Pruefer aufmachen muss, um ueberhaupt entscheiden zu koennen --
@@ -462,9 +451,14 @@ function renderReviewReports() {
 			itemElement.querySelector(".review-report__focus").after(changeRefElement);
 			// Change reports edit the EXISTING element -> the create button opens the editor: "Bearbeiten".
 			if (isLocationReport(report)) {
-				itemElement.querySelector(".review-report__create").textContent = "Bearbeiten";
+				setReviewReportCreateLabel(itemElement, "Bearbeiten");
 			}
 		}
+		// 💣 ZULETZT, unmittelbar vor dem Anhaengen. Diese Umwandlung ENTFERNT die Knoepfe, und alles
+		// darueber darf sie noch beschriften -- stand sie in der Mitte, griffen die spaeteren
+		// Beschriftungen (Fundort „Ergaenzen", Aenderung „Bearbeiten") auf einen entfernten Knoten und
+		// warfen einen TypeError mitten im forEach. Die halb gebaute Liste sah dabei vollstaendig aus.
+		applyProcessedReviewReportPresentation(itemElement, report);
 		listElement.appendChild(itemElement);
 	});
 }
@@ -1134,3 +1128,43 @@ attachFilterMenu(
 	() => { void loadReviewReports(); },
 	"Filter"
 );
+
+// 💣 Der EINZIGE Weg, den Hauptknopf einer Meldung zu beschriften. Er kann fehlen -- eine bearbeitete
+// Meldung hat keinen mehr -- und ein ungeschuetztes querySelector(...).textContent reisst dann das
+// ganze Rendern mit. Genau so ist die „Erledigt"-Liste beim ersten Fundort- oder
+// Aenderungsvorschlag zerbrochen.
+function setReviewReportCreateLabel(itemElement, label) {
+	const createButton = itemElement?.querySelector(".review-report__create");
+	if (createButton) {
+		createButton.textContent = label;
+	}
+}
+
+// Eine bearbeitete Meldung wird GEZEIGT, nicht angeboten: die Knoepfe griffen ins Leere (der Server
+// nimmt nur `status = 'neu'` an), und an ihrer Stelle steht das, was A3 und A4 beantworten sollen --
+// wer hat wann was entschieden, und mit welcher Begruendung.
+function applyProcessedReviewReportPresentation(itemElement, report) {
+	if (!isProcessedReviewReport(report)) {
+		return;
+	}
+
+	itemElement.classList.add("review-report--done");
+	const actionsElement = itemElement.querySelector(".review-report__actions");
+	if (!actionsElement) {
+		return;
+	}
+
+	actionsElement.textContent = "";
+	const decisionElement = document.createElement("span");
+	decisionElement.className = "review-report__decision";
+	decisionElement.textContent = reviewReportDecisionSummary(report);
+	actionsElement.append(decisionElement);
+
+	const reviewNote = String(report.review_note || "").trim();
+	if (reviewNote) {
+		const noteElement = document.createElement("div");
+		noteElement.className = "review-report__note";
+		noteElement.textContent = reviewNote;
+		actionsElement.before(noteElement);
+	}
+}
