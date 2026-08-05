@@ -879,6 +879,30 @@ Salt wird konfigurierbar, oder die Zusage muss anders formuliert werden.
 > ```
 > ⚠️ Ab dem Setzen zählen wiederkehrende Besucher **einmal** als neu — die Tageszahlen machen an dem
 > Tag einen Sprung. Das ist der Preis und er fällt nur einmal an.
+>
+> 🔁 **Zwei Nachbesserungen aus der Gegenprüfung (`d27dc53a`).**
+>
+> 💣 **Der Zweig, für den die ganze Änderung da ist, wurde von keinem Test je ausgeführt.** Streicht
+> man den Vergleich gegen den Rückfallwert, ist der Config-Zweig dauerhaft unerreichbar — die Datei
+> definiert die Konstante ja selbst, der Wert ist also nie leer — und **beide** Tests blieben grün.
+> Der Zweck starb lautlos, und die Suite klatschte. Ursache: in keinem der beiden Prozesse existierte
+> ein Konfigurationslader, der Zweig war also nur per Quelltext-Vergleich „geprüft" — Position statt
+> Wirkung, ausgerechnet die Falle, mit der ich die Zweiteilung begründet hatte. Ein **dritter**
+> Prozess mit gestubbtem Lader schliesst es; drei vorher grüne Mutationen sind jetzt rot.
+>
+> 💣 **Die Konfigurationsdatei wurde auf drei Endpunkten ZWEIMAL je Anfrage ausgeführt.**
+> `avesmapsLoadApiConfig` nutzt `require`, nicht `require_once` — es muss, denn es gibt zurück, was
+> die Datei liefert. Ein zweiter Aufruf führt sie also wirklich erneut aus. Für eine reine
+> `return`-Datei folgenlos, aber es war die erste Stelle im Projekt, die den Lader zweimal in einer
+> Anfrage rief, und das auf den zwei heissesten Analytics-Pfaden. Die drei Endpunkte reichen die
+> Konfiguration jetzt weiter, die sie ohnehin schon halten. ⚠️ Das Weiterreichen ist eine
+> **Ersparnis, kein Vertrag**: wer es vergisst, bekommt exakt das alte Verhalten. Ein **vierter**
+> Prozess sichert beides zu.
+>
+> **Vier kleine Prozesse statt einer Datei, die ein Viertel der Zustände prüft und den Rest aus dem
+> Quelltext behauptet.** 213/213 grün. Live nach dem Deploy: `visitor-metrics` **401**, `track`
+> **200**, `heartbeat` **200** — beide kehren vor dem Schreiben um (`track.php:20` beantwortet alles
+> ausser POST ohne eine Zeile), `presence` **401**, `map-features` **200 / 19.236.101 Bytes**.
 
 ### A24 · Das Impressum nennt keine E-Mail-Adresse und hat keine eigene Adresse
 Es ist nur über einen JavaScript-Dialog erreichbar, also nicht verlinkbar und für einen
