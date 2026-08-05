@@ -77,8 +77,14 @@ function avesmapsListLocationReportsForReview(PDO $pdo, string $filter = 'neu'):
             'ok' => true,
             'filter' => 'alle',
             'reports' => array_merge($open['reports'], $done['reports']),
+            // ⚠️ `truncated`/`limit` keep meaning the PROCESSED half, exactly as before, and the open
+            // half reports separately. Two halves with two different caps cannot share one flag
+            // without the panel's notice saying something false about one of them -- and an older
+            // client that only knows these two fields still words its notice correctly.
             'truncated' => $done['truncated'],
             'limit' => $done['limit'],
+            'open_truncated' => $open['truncated'],
+            'open_limit' => $open['limit'],
         ];
     }
 
@@ -193,9 +199,14 @@ function avesmapsListLocationReportsForReview(PDO $pdo, string $filter = 'neu'):
 
     // ⚠️ Cut AFTER merging both tables, and say so. One row over the cap was fetched precisely so
     // this can tell "exactly the cap" from "more than the cap" without a second COUNT query.
-    $truncated = $fetchLimit > 0 && count($reports) > AVESMAPS_REPORT_LIST_DONE_LIMIT;
+    //
+    // 💣 The cap is per filter now (A30). It used to be the processed-list constant in both places,
+    // which was harmless only because the open branch fetched without a LIMIT and could never
+    // exceed it -- hardcoding it here again would silently cut the open queue at 200.
+    $cap = avesmapsReportListCap($filter);
+    $truncated = count($reports) > $cap;
     if ($truncated) {
-        $reports = array_slice($reports, 0, AVESMAPS_REPORT_LIST_DONE_LIMIT);
+        $reports = array_slice($reports, 0, $cap);
     }
 
     return [
@@ -203,7 +214,11 @@ function avesmapsListLocationReportsForReview(PDO $pdo, string $filter = 'neu'):
         'filter' => $filter,
         'reports' => $reports,
         'truncated' => $truncated,
-        'limit' => AVESMAPS_REPORT_LIST_DONE_LIMIT,
+        'limit' => $cap,
+        // The open half of a single-filter answer is that answer itself when the filter is 'neu',
+        // and empty otherwise -- so a caller can read the same two fields whatever it asked for.
+        'open_truncated' => $filter === 'erledigt' ? false : $truncated,
+        'open_limit' => AVESMAPS_REPORT_LIST_OPEN_LIMIT,
     ];
 }
 

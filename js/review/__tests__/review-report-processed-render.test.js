@@ -61,11 +61,34 @@ assert.ok(
 	"the filter says 'Bearbeitet', because a deferred report is not 'Erledigt'"
 );
 
-// The cap is stated truthfully per scope: with "Alle" it applies only to the processed half, and the
-// open half is complete.
+// The cap is stated truthfully per scope. 💣 Until A30 this asserted that with "Alle" the cap applied
+// ONLY to the processed half and the open half was complete -- true then, false now: the open queue
+// has its own cap (500) since an unauthenticated channel can fill it. Two halves, two caps, and the
+// note must name whichever was actually cut rather than one sentence for both.
 assert.ok(
-	/reviewReportStatusFilter\.value === "erledigt"[\s\S]{0,220}Von den bearbeiteten werden nur die neuesten/.test(source),
-	"the truncation note distinguishes 'only processed were cut' from 'the list was cut'"
+	!source.includes("die offenen sind vollstaendig"),
+	"the panel no longer promises the open list is complete"
+);
+assert.ok(
+	/reviewReportsOpenTruncated[\s\S]{0,200}aeltesten \$\{reviewReportsOpenLimit\}/.test(source),
+	"a cut open queue is announced with its own number"
+);
+assert.ok(
+	/reviewReportsTruncated\) cutParts\.push\(`von den bearbeiteten nur die neuesten/.test(source),
+	"and under 'Alle' the processed half is still named separately"
+);
+// ⚠️ Only what was really cut gets mentioned: an empty cutParts must produce no sentence at all, or
+// every ordinary load would carry a warning about a truncation that did not happen.
+assert.ok(
+	/cutParts\.length > 0 \? [\s\S]{0,80} : ""/.test(source),
+	"an uncut list says nothing about caps"
+);
+// ⭐ Oldest-first is what makes the queue cap safe -- a flood lands at the end and is what gets cut --
+// so the note says "aeltesten", not "neuesten", for the open half. Naming the wrong end would tell an
+// editor their oldest reports had been hidden.
+assert.ok(
+	!/offenen nur die neuesten/.test(source),
+	"the open half is never described as cut from the old end"
 );
 
 console.log("review-report-processed-render ok");

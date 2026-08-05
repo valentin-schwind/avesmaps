@@ -21,6 +21,22 @@ const AVESMAPS_REPORT_LIST_FILTERS = ['neu', 'erledigt', 'alle'];
 // them", which is the same lie the missing list told in the first place.
 const AVESMAPS_REPORT_LIST_DONE_LIMIT = 200;
 
+// 💣 AND A CAP ON THE OPEN QUEUE TOO (finding A30). It had none: the endpoint read every
+// status='neu' row of BOTH tables, with `comment` and `payload_json`, into one response. That is
+// the target an unauthenticated writer aims at -- report_mode=change reaches the database without
+// a login, a capability or a token, and since the hourly limit stopped counting change rows
+// (A2, deliberately) nothing bounds how many arrive. The write channel is a product question;
+// the unbounded READ is not, and it is the half that takes the editor's screen down.
+//
+// ⚠️ 500, not 200: this list is a work queue, not a history. It has to hold every report an
+// editor still has to decide, and on a normal day it is a handful.
+//
+// ⭐ The ORDER is what makes the cap safe rather than merely bounded. Open reports come oldest
+// first, so a flood lands at the END and is what gets cut -- the genuine backlog an editor was
+// already working through stays visible. Cutting a newest-first queue would have done the
+// opposite and hidden exactly the reports that matter.
+const AVESMAPS_REPORT_LIST_OPEN_LIMIT = 500;
+
 function avesmapsNormalizeReportListFilter(mixed $raw): string {
     // ⚠️ A query parameter is not necessarily a string: `?status[]=erledigt` hands PHP an array, and
     // casting one emits "Array to string conversion" -- a warning that, with display_errors on, prints
@@ -54,7 +70,17 @@ function avesmapsReportListOrderBy(string $filter): string {
         : 'created_at ASC, id ASC';
 }
 
-// One more than the cap, so the caller can tell "exactly 200" from "more than 200" without a COUNT.
+// How many rows this filter may return. Two different numbers for two different lists -- a history
+// that only grows, and a queue that should be short.
+function avesmapsReportListCap(string $filter): int {
+    return $filter === 'erledigt' ? AVESMAPS_REPORT_LIST_DONE_LIMIT : AVESMAPS_REPORT_LIST_OPEN_LIMIT;
+}
+
+// One more than the cap, so the caller can tell "exactly the cap" from "more than the cap" without
+// a second COUNT query.
+//
+// ⚠️ Never 0 any more. Returning 0 meant "no LIMIT clause at all", which is what left the open
+// queue unbounded; the whole point of A30 is that both branches now name a number.
 function avesmapsReportListFetchLimit(string $filter): int {
-    return $filter === 'erledigt' ? AVESMAPS_REPORT_LIST_DONE_LIMIT + 1 : 0;
+    return avesmapsReportListCap($filter) + 1;
 }

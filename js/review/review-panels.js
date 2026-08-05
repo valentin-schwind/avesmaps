@@ -145,6 +145,11 @@ const REVIEW_REPORT_STATUS_OPTIONS = [
 ];
 let reviewReportsTruncated = false;
 let reviewReportsDoneLimit = 0;
+// Die offene Warteschlange hat seit A30 einen eigenen Deckel, und der ist ein ANDERER als der
+// der bearbeiteten Liste. Zwei Zahlen, zwei Flaggen -- eine gemeinsame koennte ueber eine der
+// beiden Haelften nur etwas Falsches sagen.
+let reviewReportsOpenTruncated = false;
+let reviewReportsOpenLimit = 0;
 
 // Leerer Wert = die eingebaute Option „Alle" des Trichters.
 function reviewReportListUrl() {
@@ -177,6 +182,8 @@ async function loadReviewReports() {
 		reviewReports = Array.isArray(data.reports) ? data.reports : [];
 		reviewReportsTruncated = data.truncated === true;
 		reviewReportsDoneLimit = Number(data.limit) || 0;
+		reviewReportsOpenTruncated = data.open_truncated === true;
+		reviewReportsOpenLimit = Number(data.open_limit) || 0;
 		renderReviewReports();
 		// Live updates: remember the newest report id and make sure the background poll runs, so a
 		// freshly submitted community report toasts + appears without a manual F5.
@@ -247,6 +254,8 @@ async function pollReviewReportsForNew() {
 		reviewReports = data.reports;
 		reviewReportsTruncated = data.truncated === true;
 		reviewReportsDoneLimit = Number(data.limit) || 0;
+		reviewReportsOpenTruncated = data.open_truncated === true;
+		reviewReportsOpenLimit = Number(data.open_limit) || 0;
 		if (watchesOpenReports) {
 			reviewReportsKnownMaxId = reviewReportsMaxId();
 		}
@@ -293,14 +302,23 @@ function renderReviewReports() {
 
 	// ⚠️ Der Deckel wird ausgesprochen. Eine still gekuerzte Liste liest sich wie „mehr gibt es nicht"
 	// -- genau die Luege, die die fehlende Liste vorher erzaehlt hat.
-	// ⚠️ Bei „Alle" gilt der Deckel NUR fuer die bearbeitete Haelfte -- die offenen sind vollstaendig.
-	// „230 Meldungen. Nur die neuesten 200 werden gezeigt." waere beides zugleich falsch und genau die
-	// Halbwahrheit, gegen die dieser Befund angetreten ist.
-	const cutNote = reviewReportsTruncated
-		? (reviewReportStatusFilter.value === "erledigt"
-			? ` Nur die neuesten ${reviewReportsDoneLimit} werden gezeigt.`
-			: ` Von den bearbeiteten werden nur die neuesten ${reviewReportsDoneLimit} gezeigt.`)
-		: "";
+	//
+	// ⚠️ SEIT A30 HAT AUCH DIE OFFENE HAELFTE EINEN DECKEL. Hier stand vorher, bei „Alle" gelte er
+	// nur fuer die bearbeitete und die offenen seien vollstaendig -- das stimmt nicht mehr, und ein
+	// stehengebliebener Satz dieser Art waere schlimmer als gar keiner. Die beiden Haelften haben
+	// verschiedene Deckel (500 offen, 200 bearbeitet) und werden getrennt gemeldet; genannt wird nur,
+	// was tatsaechlich gekuerzt wurde.
+	const cutParts = [];
+	if (reviewReportStatusFilter.value === "erledigt") {
+		if (reviewReportsTruncated) cutParts.push(`nur die neuesten ${reviewReportsDoneLimit}`);
+	} else if (reviewReportStatusFilter.value === "neu") {
+		// Offen heisst aeltestes zuerst -- gekuerzt wird also am NEUEN Ende, und das gehoert dazugesagt.
+		if (reviewReportsOpenTruncated) cutParts.push(`nur die aeltesten ${reviewReportsOpenLimit}`);
+	} else {
+		if (reviewReportsOpenTruncated) cutParts.push(`von den offenen nur die aeltesten ${reviewReportsOpenLimit}`);
+		if (reviewReportsTruncated) cutParts.push(`von den bearbeiteten nur die neuesten ${reviewReportsDoneLimit}`);
+	}
+	const cutNote = cutParts.length > 0 ? ` Es werden ${cutParts.join(" und ")} gezeigt.` : "";
 	setReviewPanelStatus(`${reviewReports.length} ${scopeWord ? `${scopeWord} ` : ""}Meldungen.${cutNote}`, "success");
 	reviewReports.forEach((report) => {
 		const itemElement = document.createElement("article");

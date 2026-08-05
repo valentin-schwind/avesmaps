@@ -89,15 +89,41 @@ assert(
     'a processed row without reviewed_at still sorts by when it arrived'
 );
 
-// The open queue is never cut: an editor must see every report waiting for them.
-assert(avesmapsReportListFetchLimit('neu') === 0, 'the open queue is never truncated');
+// 💣 THE OPEN QUEUE USED TO BE UNCAPPED, and this test used to assert that on purpose: "an editor
+// must see every report waiting for them". Finding A30 is why it no longer holds. report_mode=change
+// writes to map_reports with no login, no capability and no token, and since the hourly limit stopped
+// counting change rows (A2, deliberately, so honest reporters are not locked out) nothing bounds how
+// many arrive. This list read every one of them -- from BOTH tables, with `comment` and
+// `payload_json` -- into a single response. The write channel is a product question; an unbounded
+// read that takes the editor's screen down with it is not.
+assert(
+    avesmapsReportListFetchLimit('neu') === AVESMAPS_REPORT_LIST_OPEN_LIMIT + 1,
+    'the open queue is capped too now, and fetches one over so truncation is detectable'
+);
 // One MORE than the cap, so "exactly the cap" and "more than the cap" can be told apart without a
-// second COUNT query.
+// second COUNT query. 💣 Never 0: that meant "no LIMIT clause at all", which is the bug itself.
 assert(
     avesmapsReportListFetchLimit('erledigt') === AVESMAPS_REPORT_LIST_DONE_LIMIT + 1,
     'one row over the cap is fetched so truncation is detectable'
 );
-assert(AVESMAPS_REPORT_LIST_DONE_LIMIT === 200, 'the cap itself');
+assert(avesmapsReportListFetchLimit('neu') > 1 && avesmapsReportListFetchLimit('erledigt') > 1, 'no branch returns an unlimited read');
+assert(AVESMAPS_REPORT_LIST_DONE_LIMIT === 200, 'the history cap');
+assert(AVESMAPS_REPORT_LIST_OPEN_LIMIT === 500, 'the queue cap -- larger, because it is work still to do');
+assert(
+    avesmapsReportListCap('neu') === AVESMAPS_REPORT_LIST_OPEN_LIMIT
+        && avesmapsReportListCap('alle') === AVESMAPS_REPORT_LIST_OPEN_LIMIT
+        && avesmapsReportListCap('erledigt') === AVESMAPS_REPORT_LIST_DONE_LIMIT,
+    'each filter gets its own cap'
+);
+
+// ⭐ The ORDER is what makes cutting the queue safe rather than merely bounded, so it is asserted
+// right next to the cap: open reports come oldest first, so a flood lands at the END and is what gets
+// cut. The genuine backlog an editor was already working through stays visible. Were this queue
+// newest-first, the same cap would hide exactly the reports that matter.
+assert(
+    str_starts_with(avesmapsReportListOrderBy('neu'), 'created_at ASC'),
+    'the open queue is oldest-first, which is what the cap cuts from the right end'
+);
 
 // --- The endpoint must use this, and must say when it cut ------------------------------------------
 //
@@ -127,8 +153,49 @@ assert(
     'the response says whether it was cut short'
 );
 assert(
-    str_contains($endpointSource, "'limit' => AVESMAPS_REPORT_LIST_DONE_LIMIT"),
+    str_contains($endpointSource, "'limit' => \$cap"),
     'and at what number, so the panel can print it'
+);
+// 💣 The endpoint must take the cap from the filter, not from the constant. It used to hardcode the
+// processed-list constant in both places -- harmless only while the open branch fetched without a
+// LIMIT and could never reach it. Left as it was, it would now cut the open queue at 200.
+assert(
+    !str_contains($endpointSource, 'count($reports) > AVESMAPS_REPORT_LIST_DONE_LIMIT'),
+    'the truncation check no longer hardcodes the processed cap'
+);
+assert(
+    str_contains($endpointSource, '$cap = avesmapsReportListCap($filter);')
+        && str_contains($endpointSource, 'count($reports) > $cap'),
+    'it cuts at the cap belonging to the filter it was asked for'
+);
+// ⚠️ Two halves, two caps, two flags. "Alle" merges an oldest-first queue capped at 500 with a
+// newest-first history capped at 200; one shared flag could only say something false about one of
+// them, and the panel words its notice from these fields.
+assert(
+    str_contains($endpointSource, "'open_truncated' => \$open['truncated']")
+        && str_contains($endpointSource, "'open_limit' => \$open['limit']"),
+    'the combined answer reports the open half separately'
+);
+
+// --- And the panel must actually say it ----------------------------------------------------------
+//
+// 💣 The client carried a comment stating the opposite -- "Bei Alle gilt der Deckel NUR fuer die
+// bearbeitete Haelfte -- die offenen sind vollstaendig". That sentence was true when it was written
+// and is false now, and a stale reassurance is worse than none: it is precisely the "that is all of
+// them" lie this whole finding is about, only in prose.
+$panelSource = file_get_contents(__DIR__ . '/../../../../js/review/review-panels.js');
+assert(is_string($panelSource) && $panelSource !== '', 'the review panel is readable');
+assert(
+    !str_contains($panelSource, 'die offenen sind vollstaendig'),
+    'the panel no longer promises the open list is complete'
+);
+assert(
+    str_contains($panelSource, 'data.open_truncated === true'),
+    'the panel reads the open half of the truncation report'
+);
+assert(
+    str_contains($panelSource, 'reviewReportsOpenLimit'),
+    'and the number belonging to it'
 );
 // 💣 map_reports and users share `id` and `created_at`. A LEFT JOIN under this unqualified column list
 // would make every load of the review list answer 500 -- the reviewer name comes from a correlated
