@@ -19,6 +19,13 @@ require_once __DIR__ . '/../_internal/app/ecosystem-label-link.php';
 // so exactly one zone) and a landscape label (an area, so shares). A way answers the same question
 // through api/app/path-landscapes.php -- 5.765 ways x their stretches do not belong in here.
 require_once __DIR__ . '/../_internal/app/climate-membership.php';
+// For avesmapsFeatureSourceLiveEntityClause only. 💣 Required rather than copied: the rule for
+// "which entity types are soft-deleted, and what collation the compare needs" must exist ONCE.
+// It was copied-by-omission on 2026-08-05 -- the fix landed on the per-entity reader, which has
+// had no caller since sources started travelling in this payload, while the leak sat here.
+// Checked before adding: the library is function definitions plus one const, no top-level code,
+// and its 20 function names do not collide with the 24 in this file.
+require_once __DIR__ . '/../_internal/app/feature-sources.php';
 
 // Bump when the SHAPE of the map-features payload changes (a property added/renamed/removed) WITHOUT a
 // map_revision change. The ETag is revision-based, so cached clients would otherwise keep a stale body
@@ -860,12 +867,15 @@ function avesmapsResolveSettlementPolitical(string $settlementName, array $prope
 function avesmapsLoadFeatureSourceCatalog(PDO $pdo): array {
     try {
         $statement = $pdo->query(
+            // Same clause as the refs below: a source whose only links hang on deleted elements is
+            // not in use and has no business in the shared catalog.
             "SELECT s.id, s.url, s.label, s.source_type, s.is_official
                FROM sources s
               WHERE EXISTS (
                     SELECT 1 FROM feature_sources fs
-                     WHERE fs.source_id = s.id AND fs.status = 'approved'
-              )"
+                     WHERE fs.source_id = s.id AND fs.status = 'approved'"
+            . avesmapsFeatureSourceLiveEntityClause('fs') .
+            "  )"
         );
     } catch (Throwable $error) {
         return [];
@@ -893,12 +903,17 @@ function avesmapsLoadFeatureSourceRefs(PDO $pdo): array {
     $placeholders = implode(', ', array_fill(0, count(AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES), '?'));
     try {
         $statement = $pdo->prepare(
+            // 💣 The live-entity clause is what keeps a DELETED element from shipping its sources.
+            // The delete is soft, so the link outlives the element -- 216 elements with 4.714 links
+            // on 2026-08-05. This is THE public path: sources travel in this payload, there is no
+            // per-popup fetch any more. Cost is one unique-key lookup per link.
             "SELECT fs.entity_type, fs.entity_public_id, fs.source_id, fs.reference_kind, fs.pages, fs.note
                FROM feature_sources fs
                JOIN sources s ON s.id = fs.source_id
               WHERE fs.status = 'approved'
-                AND fs.entity_type IN (" . $placeholders . ")
-              ORDER BY fs.entity_type, fs.entity_public_id, s.is_official DESC, s.created_at ASC, s.id ASC"
+                AND fs.entity_type IN (" . $placeholders . ")"
+            . avesmapsFeatureSourceLiveEntityClause('fs') .
+            " ORDER BY fs.entity_type, fs.entity_public_id, s.is_official DESC, s.created_at ASC, s.id ASC"
         );
         $statement->execute(AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES);
     } catch (Throwable $error) {
