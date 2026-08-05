@@ -678,13 +678,39 @@ sie doppelt (über `alpine clubs` schon roh, über `DIN 33466` nach der Normalis
 
 ## 5. Im Editor gibt es für drei Objektarten keinen Weg zurück
 
-### A16 · Karten, Abenteuer und Vorkommen haben kein Änderungsprotokoll und kein Rückgängig
+### 📐 A16 · Karten, Abenteuer und Vorkommen haben kein Änderungsprotokoll und kein Rückgängig
 Sieben schreibende Vorgänge, **null Protokollzeilen**, in allen drei Bibliotheken null
 Audit-Aufrufe. Abenteuer und Karten werden **hart** gelöscht; Vorkommen speichern beim
 Fokusverlust, ohne Speichern-Knopf. Das sind **5.104 + 1.352 + 457 Zeilen ohne Weg zurück** —
 während ein um drei Pixel verschobenes Label sauber protokolliert wird.
 
 *Beleg:* gegen Zeitstempel nachgezählt. *Aufwand:* groß.
+
+> **📐 Entwurf geschrieben, 06.08.2026 — noch nicht gebaut, und das mit Absicht.**
+> [`docs/superpowers/specs/2026-08-06-a16-aenderungsprotokoll-design.md`](../superpowers/specs/2026-08-06-a16-aenderungsprotokoll-design.md)
+>
+> ⚠️ **„Sieben schreibende Vorgänge" untertreibt deutlich.** Ausgezählt an den `match`-Armen der drei
+> Editor-Endpunkte sind es **26**: 12 bei den Karten, 9 bei den Abenteuern, 5 bei den Vorkommen —
+> über 55 Schreibanweisungen. Der Aufwand ist entsprechend grösser als notiert.
+>
+> **Vier nachgeprüfte Tatsachen machen die erste Hälfte machbar, ohne das Rückgängig anzufassen:**
+> `avesmapsCanUndoAuditAction()` antwortet für unbekannte Aktionen **automatisch** mit „nein" — Server
+> und Oberfläche aus derselben Funktion; `avesmapsIsCreateAuditAction()` ist eine **Liste**, kein
+> Präfix-Vergleich, ein `create_citymap` würde also nicht versehentlich rückgängig-fähig; `feature_id`
+> ist nullable (für A9 geweitet); und es gibt ein Vorbild im Haus — **A4** protokolliert
+> Moderationsentscheidungen genau so.
+>
+> 💣 **Die eine Falle, an der es scheitern könnte:** die Listen-Abfrage der Oberfläche verbindet über
+> `LEFT JOIN map_features ON features.id = audit.feature_id`. Wer dort die Id einer **Karte**
+> hineinschreibt, trifft ein völlig unbeteiligtes Kartenobjekt — die Id-Räume sind getrennt, die
+> Zahlen überschneiden sich, und ein `LEFT JOIN` fällt nicht auf: er liefert einfach eine Zeile mit
+> fremdem Namen. Regel: `feature_id` bleibt `NULL` (nicht `0`), die Identität reist in `after_json`.
+>
+> 🔧 **DU: zwei Entscheidungen** — zählen die Notausschalter (`set_*_enabled`) mit? *Mein Vorschlag:
+> ja, sie sind selten und global wirksam.* Und beginnt Stufe 1 mit den **drei Löschungen** oder gleich
+> mit allen 26? *Mein Vorschlag: die drei Löschungen* — sie sind der Kern des Befundes, und die
+> Erfahrung dieser Sitzung ist, dass breite mechanische Änderungen genau die sind, bei denen eine
+> Zeile verrutscht.
 
 ### ⚠️ A17 · Ein frisch angelegtes Abenteuer fehlt in der Liste des Editors, der es angelegt hat
 ### ⚠️ A18 · Editorfenster stapeln sich als lebende iframes
