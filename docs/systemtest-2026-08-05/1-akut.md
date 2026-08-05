@@ -694,7 +694,7 @@ Milestone M6 hat nur den Volltabellen-Scan entfernt. `territories-derived-layer.
 feuert weiter **2 Abfragen je abgeleitetem Objekt** — bei Zoom 3 sind das **244 Abfragen** je
 Cache-Fehlschlag, auf dem schwersten Endpunkt des Projekts (gemessen: 2,82 s, 3,0 MB).
 
-> **✅ Erledigt `17e5e5de` (+ Korrektur `PENDING`), 05.08.2026.** Ein Auflöser sammelt die
+> **✅ Erledigt `17e5e5de` (+ Korrektur `354a4c35`), 05.08.2026.** Ein Auflöser sammelt die
 > Quell-IDs **aller** Objekte, vereinigt sie und löst beide Listen in **zwei** Abfragen auf.
 > Live gegengeprüft am Kartenstand: 382 Objekte, davon **121 mit Quell-Listen** (der alte Code
 > hätte hier **242** Abfragen gestellt), **2.163** Quell-Territorien und **1.931** Quell-Geometrien
