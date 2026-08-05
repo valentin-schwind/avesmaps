@@ -1003,11 +1003,19 @@ Missbrauchslage ist es der Verlust des letzten Messpunkts.
 > geschrieben — **gemessen ist es nicht**, und der Befund selbst vermerkt „bewusst nicht
 > ausprobiert". Es bleibt eine begründete Erwartung, kein Messwert.
 >
-> ⭐ **Die Sortierung ist es, die den Deckel unbedenklich macht, nicht bloss begrenzt** — und sie
-> war schon richtig: offene Meldungen kommen **älteste zuerst**, eine Flut landet also am **Ende**
-> und ist genau das, was abgeschnitten wird. Der echte Rückstand, den ein Bearbeiter gerade
-> abarbeitet, bleibt sichtbar. Dieselbe Deckelung auf einer neueste-zuerst-Liste hätte exakt die
-> Meldungen versteckt, auf die es ankommt.
+> ⭐ **Die Sortierung schützt den Rückstand** — und sie war schon richtig: offene Meldungen kommen
+> **älteste zuerst**, eine Flut landet also am **Ende** und ist genau das, was abgeschnitten wird.
+> Was ein Bearbeiter gerade abarbeitet, bleibt sichtbar. Dieselbe Deckelung auf einer
+> neueste-zuerst-Liste hätte exakt die Meldungen versteckt, auf die es ankommt.
+>
+> 🔁 **Ich hatte das als „macht den Deckel unbedenklich" verkauft. Das ist zu stark, und der
+> Unterschied ist wichtig.** Geschützt ist der Rückstand, der **vor** einer Flut da war. Jede
+> **ehrliche Meldung, die danach eintrifft**, landet am neuen Ende — und ist dann von **keiner**
+> Oberfläche mehr erreichbar: es gibt kein `OFFSET`, kein „mehr laden", keine Gesamtzahl, keine
+> Massenaktion. 100.000 Flutzeilen heissen: die echten Meldungen von morgen sind unsichtbar, bis
+> jemand an die Datenbank geht. Neueste-zuerst hätte das Spiegelproblem. **Die eigentliche Antwort
+> ist Seitenteilung** (oder wenigstens ein `total`-Feld), und die fehlt — der Deckel ist eine
+> Notbremse, keine Lösung. Ohne die Grenze am Schreibkanal (🔧 DU, unten) bleibt es dabei.
 >
 > 🔁 **Und genau diese Eigenschaft war zunächst NICHT gesichert** (gefunden vom Behauptungsprüfer,
 > von mir nachgestellt). Ich hatte zugesichert, sie stehe „neben dem Deckel, damit sie niemand
@@ -1041,13 +1049,18 @@ Missbrauchslage ist es der Verlust des letzten Messpunkts.
 > herbeizuführen hiesse, 500 Zeilen in die Produktionsdatenbank zu schreiben.
 >
 > 🔁 **Korrektur an meiner eigenen Commit-Nachricht.** Dort steht, ein alter Client formuliere
-> während der Deploy-Schräglage weiterhin richtig. **Das stimmt nicht.** Bei Filter „Offen" war
-> `truncated` vorher immer `false`; wird es jetzt `true`, fällt der alte Client in seinen
-> Else-Zweig und schreibt *„Von den bearbeiteten werden nur die neuesten 500 gezeigt"* — falsche
-> Hälfte **und** falsche Zahl. Das Fenster ist die 2–4-Minuten-PHP-Verzögerung und setzt über 500
-> offene Meldungen voraus (heute sind es 13). Ich habe den Payload **nicht** dafür verbogen: eine
-> dauerhaft unehrliche Antwort — „nicht gekürzt", obwohl gekürzt — wäre schlechter als ein
-> Vier-Minuten-Fenster mit einem falschen Satz.
+> während der Deploy-Schräglage weiterhin richtig. **Das stimmt nicht**, und zwar an zwei Stellen:
+> bei Filter „Offen" fällt er in seinen Else-Zweig und schreibt *„Von den bearbeiteten werden nur
+> die neuesten 500 gezeigt"* — falsche Hälfte, falsche Richtung, falsche Zahl; und bei „Alle", wenn
+> **nur** die offene Hälfte gekürzt wurde, sagt er **gar nichts** — genau die stille Kürzung, gegen
+> die dieser Befund angetreten ist.
+>
+> ⚠️ **Auch das Zeitfenster hatte ich falsch beziffert** („2–4 Minuten PHP-Verzögerung"). Das JS
+> wird nur beim **Seitenaufbau** geholt; ein Bearbeiter mit offenem Editor-Tab pollt alle 45 s mit
+> dem **alten** JS gegen das neue PHP, bis er neu lädt. Das sind **Stunden, nicht Minuten**.
+> Ausgelöst wird es weiterhin erst über 500 offenen Meldungen (heute 13). Den Payload habe ich
+> trotzdem nicht verbogen: eine dauerhaft unehrliche Antwort — „nicht gekürzt", obwohl gekürzt —
+> wäre schlechter als ein Fenster mit einem falschen Satz.
 >
 > 🔧 **DU: der Schreibkanal bleibt offen, und das ist eine Produktfrage.** `report_mode=change`
 > erreicht die Datenbank ohne Anmeldung, ohne Fähigkeit, ohne Token, und die Stundengrenze zählt
@@ -1059,10 +1072,21 @@ Missbrauchslage ist es der Verlust des letzten Messpunkts.
 > Änderungsvorschläge *sind* das Feature, und A2 hat ehrliche Melder absichtlich entsperrt. Ob der
 > Kanal trotzdem eine eigene, grosszügigere Grenze bekommen soll (z.B. 30/Stunde statt 5), ist
 > deine Entscheidung, nicht meine: jede Zahl, die ich hier setzte, nähme A2 teilweise zurück.
-> ⚠️ Ungedeckelt ist ausserdem weiterhin `avesmapsNormalizeCitymapLinkRows`
-> (`api/_internal/app/citymaps.php`) — die Zahl der Fundorte je Meldung, anders als die
-> Quellenliste, die bei 10 endet. Das ist eine reine Deckelung ohne Produktfrage und kommt als
-> eigener Schritt.
+> 💣 **Und der Deckel zählt ZEILEN, nicht BYTES — der Bildschirm kann weiterhin sterben, nur bei
+> 500 statt bei N.** Durchgerechnet: `payload_json` ist `TEXT` (65.535 Bytes), `comment` 800
+> Zeichen; `avesmapsNormalizeCitymapLinkRows` (`api/_internal/app/citymaps.php:1696-1725`) kappt
+> die **Zahl der Fundorte** je Meldung weiterhin nicht — rund 85 Links maximaler Grösse füllen die
+> Spaltendecke. Das sind **~80 KB je Zeile × 500 ≈ 40 MB** JSON, die PHP mehrfach hält (gepuffertes
+> `fetchAll`, das dekodierte `citymap_link`, dann die kodierte Antwort). Auf STRATO ist das der
+> `memory_limit`-Abbruch.
+>
+> 💣 **Diese 64-KB-Zeile ist anmeldefrei erreichbar**, und die Kombination ist der Punkt:
+> `report_mode` wird **unabhängig von `report_type`** aus dem Payload gelesen
+> (`report-context.php:13`), die Fundort-Normalisierung hängt allein an `report_type`
+> (`report-location.php:280-282`). Ein `{"report_type":"fundort","report_mode":"change"}` bekommt
+> also die **grosse Nutzlast** *und* die Befreiung von der Stundengrenze. Ein POST, keine Anmeldung.
+> Die Fundort-Deckelung ist eine reine Deckelung ohne Produktfrage und kommt als eigener Schritt —
+> sie ist jetzt der wichtigere Teil, nicht der Nachtrag.
 
 ### A31 · Die Drossel sitzt hinter dem teuersten Teil des Endpunkts
 `api/app/report-location.php:93` und `:94` gegen `:103`
@@ -1079,6 +1103,16 @@ stille Weg kehrt vor der Datenbankverbindung um.
 
 *Beleg:* am Kontrollfluss abgelesen, Abfragen gezählt. *Aufwand:* klein (Grenze nach vorn ziehen),
 berührt aber die Reihenfolge der Antworten und gehört deshalb geprüft, nicht nebenbei verschoben.
+
+> ⚠️ **Nachtrag aus der A30-Gegenprüfung (05.08.2026): der Befund ist schlimmer als notiert, weil
+> die zweite Menge WÄCHST.** `avesmapsLocationNameExists` (`report-location.php:527-565`) liest
+> nicht nur alle aktiven Orte, sondern auch **alle offenen `map_reports` mit
+> `report_type='location'`** — und diese Menge lässt sich anmeldefrei füllen: ein
+> `report_mode=change` mit `report_type:'location'` wird als `report_type='location'`,
+> `status='neu'` gespeichert und zählt **nicht** gegen die Stundengrenze. Jede Meldung eines
+> ehrlichen Melders zahlt danach beide Vollscans über eine Menge, die ein Fremder beliebig
+> aufgebläht hat — auch die Anfrage, die anschliessend ein 429 bekommt. Die Grenze nach vorn zu
+> ziehen behebt die halbe Rechnung; die andere Hälfte ist der Kanal selbst (A30, 🔧 DU).
 
 ### A35 · Auf einer frischen Installation bleibt jede Geländeart bei Faktor 1,00
 `api/_internal/app/ecosystem.php:342` / `:476` / `:817` gegen `:845`
