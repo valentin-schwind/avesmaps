@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
-function avesmapsLoadRouteMapData(array $config): array {
-	$pdo = avesmapsCreatePdo($config['database'] ?? []);
+// ⚠️ $pdo ist optional und neu: wer die Revision schon gelesen hat (fuer einen ETag, bevor diese
+// teure Ladung ueberhaupt beginnt), reicht seine Verbindung durch, statt eine zweite zu oeffnen --
+// auf einem Host mit max_user_connections zaehlt das. Kein bestehender Aufrufer aendert sich.
+function avesmapsLoadRouteMapData(array $config, ?PDO $pdo = null): array {
+	$pdo = $pdo ?? avesmapsCreatePdo($config['database'] ?? []);
 	$revision = avesmapsFetchRouteMapRevision($pdo);
 	$features = avesmapsFetchRouteMapFeatures($pdo);
 

@@ -313,6 +313,27 @@ function avesmapsClientIpAddress(): string {
     return mb_substr(trim((string) ($_SERVER['REMOTE_ADDR'] ?? '')), 0, 64);
 }
 
+// Vergleicht If-None-Match (kann Liste sein, "*" oder W/-praefixiert) gegen unseren ETag.
+//
+// 💣 Wohnt hier, weil zwei oeffentliche Endpunkte ihn brauchen und der eine ein SKRIPT ist: er
+// stand in api/app/map-features.php, und api/locations/index.php haette ihn nur bekommen koennen,
+// indem es map-features.php einbindet -- also die ganze Kartenantwort ausfuehrt. Die Alternative
+// waere eine Kopie gewesen, und zwei Kopien einer Vergleichsregel driften.
+function avesmapsETagMatches(string $ifNoneMatch, string $etag): bool {
+    if (trim($ifNoneMatch) === '*') {
+        return true;
+    }
+    $normalize = static fn(string $value): string => trim(preg_replace('/^W\//i', '', trim($value)) ?? trim($value));
+    $target = $normalize($etag);
+    foreach (explode(',', $ifNoneMatch) as $candidate) {
+        if ($normalize($candidate) === $target) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function avesmapsErrorResponse(int $statusCode, string $code, string $message): never {
     avesmapsJsonResponse($statusCode, [
         'ok' => false,

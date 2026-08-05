@@ -347,21 +347,8 @@ function avesmapsMapFeaturesETag(int $revision, array $queryParams, string $clim
     return 'W/"mf-' . AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION . '-' . $revision . '-' . substr(hash('sha1', $seed), 0, 10) . '"';
 }
 
-// Vergleicht If-None-Match (kann Liste sein, "*" oder W/-praefixiert) gegen unseren ETag.
-function avesmapsETagMatches(string $ifNoneMatch, string $etag): bool {
-    if (trim($ifNoneMatch) === '*') {
-        return true;
-    }
-    $normalize = static fn(string $value): string => trim(preg_replace('/^W\//i', '', trim($value)) ?? trim($value));
-    $target = $normalize($etag);
-    foreach (explode(',', $ifNoneMatch) as $candidate) {
-        if ($normalize($candidate) === $target) {
-            return true;
-        }
-    }
-
-    return false;
-}
+// avesmapsETagMatches ist nach api/_internal/bootstrap.php gewandert -- api/locations/ braucht
+// ihn ebenfalls und kann diese Datei nicht einbinden, ohne die ganze Kartenantwort auszufuehren.
 
 // Gibt die GeoJSON-Antwort aus, gzip-komprimiert wenn der Client es akzeptiert (sonst identity).
 // Content-Length passend zur tatsaechlich gesendeten (ggf. komprimierten) Groesse.

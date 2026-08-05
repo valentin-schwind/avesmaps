@@ -7,6 +7,12 @@ require __DIR__ . '/../_internal/routing/client-graph.php';
 require __DIR__ . '/../_internal/routing/map-data.php';
 require __DIR__ . '/../_internal/routing/network-data.php';
 
+// 💣 Teil des ETags, und deshalb hochzuzaehlen, sobald sich die FORM der Antwort aendert -- ein
+// neues Feld, ein anderer Typ, eine andere Bedeutung. Sonst behaelt ein Aufrufer, der schon einen
+// ETag hat, seine alte Kopie ueber ein 304 und sieht die Aenderung nie. Genau das ist dem
+// Kartenendpunkt einmal passiert, als „political" dazukam.
+const AVESMAPS_LOCATIONS_PAYLOAD_VERSION = 1;
+
 try {
 	$config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
@@ -23,7 +29,26 @@ try {
 		avesmapsLocationsErrorResponse(405, 'method_not_allowed', 'Nur GET-Anfragen sind fuer Locations erlaubt.');
 	}
 
-	$routeMapData = avesmapsLoadRouteMapData($config);
+	// 💣 ETag ZUERST, und dafuer eine eigene, winzige Abfrage. Dieser Endpunkt baut das komplette
+	// Routennetz auf -- denselben Pfad, den api/route/index.php mit „62 MB resident, peak 152 MB per
+	// call" beziffert und fuer den sechs Diagnose-Endpunkte hinter Rechte gelegt wurden. Der
+	// oeffentliche Zwilling stand ohne Cache offen (Befund A14). Eine bedingte Anfrage kostet jetzt
+	// EINE Zeile aus map_revision statt der ganzen Ladung; die Antwort haengt an nichts sonst.
+	//
+	// ⚠️ Die Verbindung wird durchgereicht, nicht zweimal geoeffnet -- max_user_connections.
+	$pdo = avesmapsCreatePdo($config['database'] ?? []);
+	$revision = avesmapsFetchRouteMapRevision($pdo);
+	$etag = 'W/"loc-' . AVESMAPS_LOCATIONS_PAYLOAD_VERSION . '-' . $revision . '"';
+	header('ETag: ' . $etag);
+	header('Cache-Control: no-cache, must-revalidate');
+	header('Vary: Accept-Encoding', false);
+	$ifNoneMatch = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
+	if ($ifNoneMatch !== '' && avesmapsETagMatches($ifNoneMatch, $etag)) {
+		http_response_code(304);
+		exit;
+	}
+
+	$routeMapData = avesmapsLoadRouteMapData($config, $pdo);
 	$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);
 	$locations = avesmapsBuildLocationsResponseItems($routeNetworkData);
 
