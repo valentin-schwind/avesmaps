@@ -8,7 +8,7 @@
 Am 05.08.2026 lief ein Rundum-Systemtest (12 Prüfagenten + 2 Gegenprüfer). Ergebnis und
 Belege liegen vollständig im Repo: **[`docs/systemtest-2026-08-05/`](systemtest-2026-08-05/README.md)** —
 lies zuerst `README.md`, dann `1-akut.md`. 222 Befunde, davon 33 AKUT nach feindlicher
-Gegenprüfung. **13 AKUT sind erledigt** (im Bericht mit ✅ und Commit markiert), 20 offen.
+Gegenprüfung. **14 AKUT sind erledigt** (im Bericht mit ✅ und Commit markiert), 19 offen.
 
 Danach wurden die Fixes selbst geprüft. Das Ergebnis steht in
 **[`4-nachpruefung.md`](systemtest-2026-08-05/4-nachpruefung.md)** und ist der wertvollste

@@ -352,6 +352,32 @@ Zwei Wege, zwei Ergebnisse, für dieselbe Aktion.
 > ⚠️ **Verweigern statt reparieren** ist Absicht: die Abschnitte tragen Namen, Quellen und eine
 > Sortierung. Sie still zu löschen oder umzuhängen wäre die größere Überraschung.
 >
+> 💣 **Der erste Wurf griff nur für ein Drittel — die Gegenprüfung hat es zerlegt (`e6e684b5`).**
+> Der Riegel stand auf `feature_type === 'location'`, und das ist die falsche Achse: der Kommentar
+> des Hauses sagt, `avesmapsFetchEditablePointFeature` verlange „einen **Punkt**, keinen Ort". Ein
+> Endpunkt kann eine Kreuzung (`junction`, dazu **798** Altzeilen `crossing`) oder ein
+> **Nodix-Label** sein (Owner-Entscheid 2026-07-28). Die Reparatur ist keine längere Typliste — die
+> nächste Art fiele wieder heraus —, sondern **gar keine Typprüfung**.
+>
+> 💣 **Und der Löschweg war nicht der einzige Weg.** „Rückgängig" auf ein Anlegen setzt
+> `is_active = 0`, ohne ihn zu berühren (Ort anlegen, Kraftlinie dranhängen, Anlegen zurücknehmen =
+> eine Waise per Knopfdruck), und die Landschafts-Kaskade legt Label-Zeilen mit eigenem `UPDATE` um.
+> Im Client wird ein Label über `deleteLabelEntry` gelöscht, nicht über `deleteLocationMarker` —
+> dort gab es auf **keiner** Seite einen Riegel. Alle drei prüfen jetzt, und die Absage steht
+> **einmal** im Code statt zweimal.
+>
+> **Nach dem Hotfix live gemessen** — an beiden Arten, die der erste Wurf nicht erfasst hätte:
+>
+> | Probe | Ergebnis |
+> |---|---|
+> | Kreuzung-155 | „trägt noch **1 Kraftlinien-Abschnitt (Altoum-Linie)**" — Singular und Name |
+> | Gareth (Nodix-Ort) | „5 Kraftlinien-Abschnitte (Basiliuslinie, Chalwens Griff, … und weitere)" |
+> | Serveraufrufe / Rückfragen | **0 / 0**, beide Marker stehen noch |
+>
+> ⚠️ Der Test hatte nur die **Reihenfolge** zweier Aufrufe geprüft; **vier Mutationen überlebten
+> ihn**, darunter der ausgelieferte Fehler — sein Datensatz enthielt weder `junction` noch
+> `crossing` noch `label`, die Bedingung wurde also nie ausgeführt.
+>
 > 🔧 **DU: die 14 bestehenden bleiben.** Neue können nicht mehr entstehen, die alten räumt der Fix
 > nicht weg. [`sql/kraftlinien-tote-endpunkte.sql`](../../sql/kraftlinien-tote-endpunkte.sql) listet
 > sie und trennt den einfachen Fall ab: steht der tote Endpunkt nur auf `is_active = 0`, holt **ein**
@@ -360,7 +386,31 @@ Zwei Wege, zwei Ergebnisse, für dieselbe Aktion.
 
 *Beleg:* in der Momentaufnahme ausgezählt. *Aufwand:* klein (Datenbereinigung).
 
-### A10 · 516 Abenteuer-Zuordnungen zeigen auf gelöschte Label
+### ✅ A10 · 516 Abenteuer-Zuordnungen zeigen auf gelöschte Label
+
+> **✅ Erledigt `ae06f5dc`, 05.08.2026.** Der Auflöser setzt tote Zeiger auf `unresolved` zurück —
+> und mehr braucht es nicht: die vorhandene Auflösung nimmt sie **im selben Lauf** wieder auf und
+> findet das Label unter seiner neuen `public_id`. Deshalb läuft der Rückstellpass **vor** der
+> Abfrage der Arbeitsliste; danach wartete jede reparierte Zeile auf den nächsten Sync.
+>
+> 💣 **Ein Territorium zeigt in eine andere Tabelle** (`political_territory`) als die drei übrigen
+> Arten. Es gegen `map_features` zu prüfen fände nichts und würde **jede** Territoriums-Zuordnung
+> wegwerfen — eine Reparatur, die mehr zerstört als der Fehler. Der Test deckt diesen Fall zuerst ab.
+>
+> 💣 **`raw_name` bleibt stehen.** Er ist der einzige Weg zurück: der Auflöser vergleicht darüber,
+> und für **61 der 75** betroffenen Namen wartet ein lebendes Label gleichen Namens.
+>
+> ⚠️ **Der Abgleich läuft in PHP, nicht als `NOT EXISTS` in SQL.** `target_public_id` ist
+> `VARCHAR(64)`, `public_id` ist `CHAR(36)`, und sie liegen in verschiedenen Tabellen — genau der
+> Spaltenvergleich, der am 05.08. zwei öffentliche Endpunkte auf 500 gelegt hat. Kosten entstehen
+> keine: `avesmapsAdventureLoadCandidates` liest dieselbe Tabelle wenige Zeilen später **komplett**,
+> samt `properties_json`.
+>
+> ⚠️ **Nicht live prüfbar:** der Auflöser läuft in „Abenteuer syncen" und im Kartenort-Editor, beides
+> gesperrt. Belegt gegen sqlite mit der echten Funktion: lebende und verschwundene Ziele aller vier
+> Arten, ein stillgelegtes Ziel, nicht freigegebene Zeilen, leere Zeiger, Idempotenz beim zweiten
+> Lauf und die Whitelist auf dem interpolierten Tabellennamen.
+
 Der Wiki-Schlüssel-Rückfall des Clients rettet 491 davon; **25 sind unrettbar unsichtbar** —
 ein Abenteuer, das einem Ort zugeordnet ist, erscheint dort nicht.
 
