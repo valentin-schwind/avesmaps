@@ -5,8 +5,17 @@ declare(strict_types=1);
 if (!defined('AVESMAPS_VISITOR_ANALYTICS_ENABLED')) {
     define('AVESMAPS_VISITOR_ANALYTICS_ENABLED', true);
 }
+// The shipped salt, and it is not a secret -- it is in the repository, which is the point of
+// finding A23. It stays the DEFAULT on purpose: changing this string would invalidate every hash
+// already stored, so a returning visitor would count as new and the daily figures would step.
+// What changed is that it can now be overridden. Doing so is a one-line config change.
+const AVESMAPS_VISITOR_SALT_FALLBACK = 'avesmaps-visitor-salt-override-me';
+
+// ⚠️ Kept because it is the older override point and something may already use it: a define()
+// placed BEFORE this file is required still wins. The constant itself is no longer read by the
+// hash -- avesmapsVisitorSalt() is.
 if (!defined('AVESMAPS_VISITOR_SALT')) {
-    define('AVESMAPS_VISITOR_SALT', 'avesmaps-visitor-salt-override-me');
+    define('AVESMAPS_VISITOR_SALT', AVESMAPS_VISITOR_SALT_FALLBACK);
 }
 
 function avesmapsVisitorAnalyticsEnabled(): bool {
@@ -45,10 +54,61 @@ function avesmapsVisitorClientIp(): string {
     return (string) ($_SERVER['REMOTE_ADDR'] ?? '');
 }
 
+// 💣 THE SALT WAS PUBLISHED AND, ON THIS SERVER, UNCHANGEABLE (finding A23). The `if (!defined)`
+// above looks like an override point and is not one here: the constant is fixed the moment this
+// file is required, and the only place a deployment can keep a secret -- api/config.local.php,
+// which is gitignored -- is read LAZILY by avesmapsLoadApiConfig() inside the request handler,
+// long afterwards. Every installation therefore ran the same salt, and it is in the repository.
+//
+// ⚠️ Why that is worse here than a published secret usually is: the hash covers an IP address and
+// a user agent. The IPv4 space is small enough to walk in seconds, so a known salt makes a stored
+// hash reversible -- and the privacy notice promises that it is not. This function is what makes
+// the promise keepable; whether it IS kept depends on the config entry being set.
+//
+// Three sources, in order: a define() before this file (the old mechanism, still honoured), then
+// config.local.php, then the shipped default. Resolved once per request -- avesmapsLoadApiConfig
+// reads a file and does not cache, and this runs on every tracked hit.
+function avesmapsVisitorSalt(): string {
+    static $resolved = null;
+    if (is_string($resolved)) {
+        return $resolved;
+    }
+
+    if (defined('AVESMAPS_VISITOR_SALT')) {
+        $defined = trim((string) AVESMAPS_VISITOR_SALT);
+        if ($defined !== '' && $defined !== AVESMAPS_VISITOR_SALT_FALLBACK) {
+            return $resolved = $defined;
+        }
+    }
+
+    // ⚠️ Guarded and wrapped: this file is required by five endpoints, and a analytics helper must
+    // never be the reason one of them dies. An unreadable config falls through to the default,
+    // which is exactly the behaviour before this change.
+    if (function_exists('avesmapsLoadApiConfig') && function_exists('avesmapsApiRoot')) {
+        try {
+            $config = avesmapsLoadApiConfig(avesmapsApiRoot());
+            $configured = trim((string) ($config['analytics']['visitor_salt'] ?? ''));
+            if ($configured !== '') {
+                return $resolved = $configured;
+            }
+        } catch (Throwable) {
+            // fall through to the default
+        }
+    }
+
+    return $resolved = AVESMAPS_VISITOR_SALT_FALLBACK;
+}
+
+// ⚠️ Is the salt still the published one? The visitor-metrics surface can say so out loud rather
+// than leaving the privacy promise to be taken on trust.
+function avesmapsVisitorSaltIsConfigured(): bool {
+    return avesmapsVisitorSalt() !== AVESMAPS_VISITOR_SALT_FALLBACK;
+}
+
 function avesmapsVisitorDailyHash(): string {
     $ip = avesmapsVisitorClientIp();
     $ua = (string) ($_SERVER['HTTP_USER_AGENT'] ?? '');
-    $salt = gmdate('Ymd') . '|' . AVESMAPS_VISITOR_SALT;
+    $salt = gmdate('Ymd') . '|' . avesmapsVisitorSalt();
     return hash('sha256', $salt . '|' . $ip . '|' . $ua);
 }
 
