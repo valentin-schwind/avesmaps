@@ -782,6 +782,7 @@ window.AVESMAPS_I18N_EN = {
 	"shortcuts.row.modePolitical": "The “Political” view",
 	"shortcuts.row.modePowerlines": "The “Ley lines” view",
 	"shortcuts.row.modeStandard": "The “Standard” view",
+	"shortcuts.row.modeEcosystem": "The “Landscapes” view",
 	"shortcuts.row.modeNone": "The “Map only” view",
 	"shortcuts.row.locationTier": "Show places down to a tier: 1 metropolises, 2 adds large cities … 6 everything. The same digit again hides them all",
 	"shortcuts.row.routeFastest": "Fastest route",

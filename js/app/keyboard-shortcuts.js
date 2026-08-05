@@ -52,13 +52,19 @@
 			i18n: "shortcuts.row.search", de: "Suche öffnen" },
 		{ id: "addDestination", keys: ["r"], caps: [cap("R")],
 			i18n: "shortcuts.row.addDestination", de: "Reiseziel hinzufügen" },
-		{ id: "panUp", keys: ["w", "arrowup"], caps: [cap("W"), cap("↑")],
+		// Geschoben wird mit den PFEILEN, nicht mehr mit W A S D (2026-08-05). Anlass war „S" für die
+		// Ansicht „Standard": die Buchstaben gehören den Befehlen, und WASD saß mitten in ihrem Vorrat.
+		// „S" allein herauszunehmen und W, A, D zu behalten wäre die schlechteste Fassung gewesen --
+		// drei von vier Richtungen, die noch als Buchstabe gehen. `matchShortcut` nimmt ohnehin die
+		// ERSTE Zeile mit der Taste, und Schieben steht vor den Ansichten: „S" wäre nie bei „Standard"
+		// angekommen, solange es hier noch stand.
+		{ id: "panUp", keys: ["arrowup"], caps: [cap("↑")],
 			i18n: "shortcuts.row.panUp", de: "Karte nach oben schieben" },
-		{ id: "panLeft", keys: ["a", "arrowleft"], caps: [cap("A"), cap("←")],
+		{ id: "panLeft", keys: ["arrowleft"], caps: [cap("←")],
 			i18n: "shortcuts.row.panLeft", de: "Karte nach links schieben" },
-		{ id: "panDown", keys: ["s", "arrowdown"], caps: [cap("S"), cap("↓")],
+		{ id: "panDown", keys: ["arrowdown"], caps: [cap("↓")],
 			i18n: "shortcuts.row.panDown", de: "Karte nach unten schieben" },
-		{ id: "panRight", keys: ["d", "arrowright"], caps: [cap("D"), cap("→")],
+		{ id: "panRight", keys: ["arrowright"], caps: [cap("→")],
 			i18n: "shortcuts.row.panRight", de: "Karte nach rechts schieben" },
 		{ id: "panFast", keys: [], passive: true, caps: [cap("Umschalt", "shortcuts.key.shift")],
 			// Umschalt wirkt AUF DAS SCHIEBEN, nicht auf „die Tasten darüber": `panBy` ist die einzige
@@ -77,8 +83,13 @@
 			i18n: "shortcuts.row.modePolitical", de: "Ansicht „Politisch“" },
 		{ id: "modePowerlines", keys: ["k"], caps: [cap("K")], mode: "powerlines",
 			i18n: "shortcuts.row.modePowerlines", de: "Ansicht „Kraftlinien“" },
-		{ id: "modeStandard", keys: ["l"], caps: [cap("L")], mode: "deregraphic",
+		{ id: "modeStandard", keys: ["s"], caps: [cap("S")], mode: "deregraphic",
 			i18n: "shortcuts.row.modeStandard", de: "Ansicht „Standard“" },
+		// „L" wie Landschaften -- bis 2026-08-05 lag es auf „Standard". Die Ebene darf seit 2026-08-04
+		// JEDER ansehen (nur das Bearbeiten haengt an einer Faehigkeit, siehe js/app/session.js), also
+		// gehoert sie in die Tabelle wie die anderen fuenf.
+		{ id: "modeEcosystem", keys: ["l"], caps: [cap("L")], mode: "ecosystem",
+			i18n: "shortcuts.row.modeEcosystem", de: "Ansicht „Landschaften“" },
 		{ id: "modeNone", keys: ["i"], caps: [cap("I")], mode: "none",
 			i18n: "shortcuts.row.modeNone", de: "Ansicht „Nur Karte“" },
 		{ id: "locationTier", keys: ["1", "2", "3", "4", "5", "6"],

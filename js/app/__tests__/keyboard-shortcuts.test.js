@@ -83,7 +83,9 @@ function loadModule({ mapContainerClasses = [], dialogs = [], picking = null } =
 		political: { disabled: false },
 		deregraphic: { disabled: false },
 		powerlines: { disabled: false },
-		ecosystem: { disabled: true }
+		// „ecosystem" ist NICHT gesperrt: die Ebene darf seit 2026-08-04 jeder ansehen, und seit
+		// 2026-08-05 hat sie mit „L" eine eigene Taste (map-features-display-mode.js:176).
+		ecosystem: { disabled: false }
 	};
 	const layerSelect = makeElement([], {
 		value: "deregraphic",
@@ -277,18 +279,22 @@ check("R legt ein Zielfeld an und setzt den Cursor hinein", () => {
 	assert.strictEqual(t.log.waypointFocused, 1);
 });
 
-check("WASD und Pfeiltasten schieben in dieselbe Richtung, Umschalt verdreifacht", () => {
+check("die Pfeiltasten schieben, Umschalt verdreifacht, Buchstaben schieben NICHT mehr", () => {
 	const t = loadModule();
-	t.press("w");
 	t.press("ArrowUp");
-	assert.deepStrictEqual(plain(t.log.panBy[0]), plain(t.log.panBy[1]), "W und Pfeil hoch muessen gleich weit springen");
 	assert.deepStrictEqual(plain(t.log.panBy[0]), [0, -80]);
-	t.press("d");
-	assert.deepStrictEqual(plain(t.log.panBy[2]), [80, 0]);
-	t.press("a", { shiftKey: true });
-	assert.deepStrictEqual(plain(t.log.panBy[3]), [-240, 0]);
-	t.press("s");
-	assert.deepStrictEqual(plain(t.log.panBy[4]), [0, 80]);
+	t.press("ArrowRight");
+	assert.deepStrictEqual(plain(t.log.panBy[1]), [80, 0]);
+	t.press("ArrowLeft", { shiftKey: true });
+	assert.deepStrictEqual(plain(t.log.panBy[2]), [-240, 0], "Umschalt verdreifacht den Schritt");
+	t.press("ArrowDown");
+	assert.deepStrictEqual(plain(t.log.panBy[3]), [0, 80]);
+	// 🪤 W A S D schoben bis 2026-08-05 mit. „S" gehoert jetzt der Ansicht „Standard", und weil
+	// matchShortcut die ERSTE Zeile mit der Taste nimmt und Schieben vor den Ansichten steht, waere
+	// „S" nie dort angekommen. Drei Richtungen als Buchstabe zu behalten und eine nicht waere die
+	// schlechteste Fassung gewesen -- also schiebt kein Buchstabe mehr.
+	["w", "a", "s", "d"].forEach((key) => t.press(key));
+	assert.strictEqual(t.log.panBy.length, 4, "kein Buchstabe darf die Karte noch schieben");
 });
 
 check("Leaflets eigene Tastatursteuerung wird abgeschaltet", () => {
@@ -306,20 +312,22 @@ check("+ und - zoomen", () => {
 	assert.strictEqual(t.log.zoomOut, 1);
 });
 
-check("O P K L I schalten die fuenf Ansichten", () => {
+check("O P K S L I schalten die sechs Ansichten", () => {
 	const t = loadModule();
-	[["o", "original"], ["p", "political"], ["k", "powerlines"], ["l", "deregraphic"], ["i", "none"]]
-		.forEach(([key, mode]) => {
-			t.layerSelect.value = "__nichts__";
-			t.press(key);
-		});
-	assert.deepStrictEqual(t.log.layerModeSets, ["original", "political", "powerlines", "deregraphic", "none"]);
+	// Die Buchstaben sind Merkhilfen: Original, Politisch, Kraftlinien, Standard, Landschaften.
+	// „I" fuer „Nur Karte" ist die Ausnahme -- N gehoerte schon niemandem, und I stand frei.
+	["o", "p", "k", "s", "l", "i"].forEach((key) => {
+		t.layerSelect.value = "__nichts__";
+		t.press(key);
+	});
+	assert.deepStrictEqual(t.log.layerModeSets,
+		["original", "political", "powerlines", "deregraphic", "ecosystem", "none"]);
 });
 
 check("eine gesperrte Ansicht bleibt gesperrt", () => {
 	const t = loadModule();
-	// "ecosystem" ist im Aufbau als disabled gesetzt -- und hat ohnehin keine Taste. Die Probe gilt
-	// dem Riegel selbst: ein gesperrtes <option> darf nie geschaltet werden.
+	// Im Aufbau ist keine Ansicht gesperrt (alle sechs stehen jedem offen). Die Probe gilt dem
+	// Riegel selbst: ein gesperrtes <option> darf nie geschaltet werden, egal welches.
 	t.layerSelect.querySelector('option[value="political"]').disabled = true;
 	t.press("p");
 	assert.deepStrictEqual(t.log.layerModeSets, []);
@@ -328,7 +336,7 @@ check("eine gesperrte Ansicht bleibt gesperrt", () => {
 check("die schon gewaehlte Ansicht loest nichts aus", () => {
 	const t = loadModule();
 	t.layerSelect.value = "deregraphic";
-	t.press("l");
+	t.press("s");
 	assert.deepStrictEqual(t.log.layerModeSets, []);
 });
 
@@ -488,7 +496,7 @@ check("jede geschaltete Ansicht gibt es wirklich in der Auswahlbox", () => {
 		assert.ok(angeboten.has(entry.mode),
 			`${entry.id} schaltet auf "${entry.mode}" -- das steht nicht in #mapLayerModeSelect`);
 	});
-	assert.strictEqual(api.entries.filter((entry) => entry.mode).length, 5, "fuenf Ansichten haben eine Taste");
+	assert.strictEqual(api.entries.filter((entry) => entry.mode).length, 6, "sechs Ansichten haben eine Taste");
 });
 
 check("index.html laedt die Datei und haelt den Kasten fuer die Tabelle bereit", () => {
