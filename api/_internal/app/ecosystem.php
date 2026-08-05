@@ -2170,6 +2170,14 @@ function avesmapsEcosystemDeleteLabels(PDO $pdo, array $labelPublicIds, int $use
         'UPDATE map_features SET is_active = 0, revision = :revision, updated_by = :updated_by WHERE id = :id'
     );
     foreach ($rows as $row) {
+        // 💣 Ein Landschafts-Label kann ein Kraftlinien-Endpunkt sein (Owner 2026-07-28: eine als
+        // Nodix markierte Region gehoert in die Endpunktliste). Diese Schleife legt Label-Zeilen
+        // um, OHNE avesmapsDeleteMapFeature zu beruehren -- der Riegel dort erreicht sie also
+        // nicht. Wirft hier, statt eine Waise zu erzeugen; der Aufrufer laeuft in einer
+        // Transaktion, die Kaskade bricht also ganz ab statt halb.
+        if (function_exists('avesmapsAssertNoPowerlineAnchoredAt')) {
+            avesmapsAssertNoPowerlineAnchoredAt($pdo, (string) ($row['public_id'] ?? ''));
+        }
         $update->execute([
             'id' => (int) $row['id'],
             'revision' => $revision,

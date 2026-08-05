@@ -623,6 +623,29 @@ function getConnectedPowerlinesForPublicId(publicId) {
 	return powerlineData.filter((powerline) => powerline.properties?.from_public_id === publicId || powerline.properties?.to_public_id === publicId);
 }
 
+// 💣 EIN Riegel fuer alle Loeschwege eines Endpunkts. Es gibt mindestens zwei im Client --
+// deleteLocationMarker fuer Orte und Kreuzungen, deleteLabelEntry fuer Labels -- und ein als Nodix
+// markiertes Label ist ein ebenso gueltiger Endpunkt wie ein Nodix-Ort (Owner 2026-07-28).
+// Zwei Kopien derselben Absage waeren genau die Divergenz, aus der die Waisen entstanden sind.
+// Gibt true zurueck, wenn abgelehnt wurde -- der Aufrufer bricht dann ab, VOR jeder Rueckfrage.
+//
+// ⚠️ `line.properties?.name`, nicht `line.name`: ein Kraftlinien-Objekt traegt oben nur
+// id/geometry/properties. Die erste Fassung listete deshalb nie eine Linie.
+function refusePowerlineAnchoredDeletion(name, publicId) {
+	const attached = publicId ? getConnectedPowerlinesForPublicId(publicId) : [];
+	if (attached.length < 1) {
+		return false;
+	}
+
+	const names = Array.from(new Set(attached.map((line) => line.properties?.name).filter(Boolean))).sort();
+	const shown = names.slice(0, 3).join(", ") + (names.length > 3 ? " und weitere" : "");
+	showFeedbackToast(
+		`${name} trägt noch ${attached.length} ${attached.length === 1 ? "Kraftlinien-Abschnitt" : "Kraftlinien-Abschnitte"}${shown ? ` (${shown})` : ""}. Bitte zuerst die Kraftlinie lösen.`,
+		"warning"
+	);
+	return true;
+}
+
 function getPowerlineConnectedLocationPublicIds() {
 	const publicIds = new Set();
 	powerlineData.forEach((powerline) => {

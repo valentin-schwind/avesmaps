@@ -390,6 +390,14 @@ function avesmapsUndoAuditChange(PDO $pdo, array $payload, array $user): array {
         $afterSnapshot = avesmapsDecodeJsonColumnForEdit($auditEntry['after_json'] ?? null);
         $revision = avesmapsNextMapRevision($pdo);
         $updates = avesmapsBuildUndoFeatureUpdates($action, $featureBeforeUndo, $beforeSnapshot, $afterSnapshot, $revision, (int) $user['id']);
+        // 💣 „Rueckgaengig" auf ein Anlegen setzt is_active = 0 -- dieselbe Wirkung wie Loeschen,
+        // nur an dieser Funktion vorbei. Ort anlegen, Kraftlinie daran haengen, das Anlegen
+        // zuruecknehmen: eine frische Waise, per Knopfdruck. avesmapsAssertUndoPatchStillCurrent
+        // merkt nichts davon, weil es nur die Spalten des PUNKTES vergleicht, und die hat das
+        // Anlegen der Kraftlinie nicht angefasst.
+        if ((int) ($updates['is_active'] ?? 1) === 0) {
+            avesmapsAssertNoPowerlineAnchoredAt($pdo, (string) ($featureBeforeUndo['public_id'] ?? ''));
+        }
         avesmapsAssertUndoNameIsAvailable($pdo, $featureBeforeUndo, $updates);
         avesmapsApplyFeatureUpdates($pdo, $featureId, $updates);
 
@@ -2748,8 +2756,31 @@ function avesmapsBuildAnchoredPowerlineMessage(array $names): string {
     $list = $shown === [] ? '' : ' (' . implode(', ', $shown) . $suffix . ')';
     $count = count($names);
 
-    return 'An diesem Ort haengen noch ' . $count . ' Kraftlinien-Abschnitte' . $list
+    // Singular ist der HAEUFIGE Fall, nicht der Randfall: ein Endpunkt am Ende einer Linie traegt
+    // genau einen Abschnitt. „1 Kraftlinien-Abschnitte" stand hier trotzdem.
+    $verb = $count === 1 ? 'haengt' : 'haengen';
+    $noun = $count === 1 ? 'Kraftlinien-Abschnitt' : 'Kraftlinien-Abschnitte';
+
+    // „Punkt", nicht „Ort": ein Endpunkt kann eine Kreuzung oder ein Nodix-Label sein.
+    return 'An diesem Punkt ' . $verb . ' noch ' . $count . ' ' . $noun . $list
         . '. Bitte zuerst die Kraftlinie loesen -- sonst zeigt sie ins Leere.';
+}
+
+// 💣 KEINE Typ-Bedingung, und das ist die Lehre aus dem ersten Wurf. Der stand auf
+// `feature_type === 'location'` -- und traf damit genau EINE der drei Endpunktarten:
+//   * eine Kreuzung ist `feature_type = 'junction'` (dazu 798 Altzeilen mit 'crossing'),
+//   * ein Nodix-LABEL ist ein gueltiger Endpunkt (Owner 2026-07-28, api/edit/map/powerlines.php:93).
+// Der Kommentar dort sagt es genau: avesmapsFetchEditablePointFeature verlangt „einen Punkt und
+// keinen Ort". Zwei Drittel des Endpunktbereichs liefen also weiter ungebremst durch.
+//
+// Statt die Typliste nachzubessern -- die naechste Art faellt wieder heraus -- fragt der Riegel
+// gar nicht erst nach dem Typ. Was keine Kraftlinie nennt, kostet eine leere Antwort; was eine
+// nennt, kann nicht durchrutschen, egal wie es heisst.
+function avesmapsAssertNoPowerlineAnchoredAt(PDO $pdo, string $publicId): void {
+    $anchored = avesmapsFindPowerlinesAnchoredAt($pdo, $publicId);
+    if ($anchored !== []) {
+        throw new InvalidArgumentException(avesmapsBuildAnchoredPowerlineMessage($anchored));
+    }
 }
 
 function avesmapsFindPowerlinesAnchoredAt(PDO $pdo, string $publicId): array {
@@ -2786,12 +2817,7 @@ function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array 
         // Refuse rather than repair: the segments carry names, sources and a sort order, and
         // silently deleting or rewiring them would be a bigger surprise than a refused delete.
         // The editor removes the powerline first, which is a deliberate act with its own undo.
-        if ((string) ($feature['feature_type'] ?? '') === 'location') {
-            $anchoredPowerlines = avesmapsFindPowerlinesAnchoredAt($pdo, $publicId);
-            if ($anchoredPowerlines !== []) {
-                throw new InvalidArgumentException(avesmapsBuildAnchoredPowerlineMessage($anchoredPowerlines));
-            }
-        }
+        avesmapsAssertNoPowerlineAnchoredAt($pdo, $publicId);
         $revision = avesmapsNextMapRevision($pdo);
         $statement = $pdo->prepare(
             'UPDATE map_features

@@ -885,8 +885,17 @@ async function saveLabelPosition(entry) {
 	}
 }
 
+// 💣 Ein Label wird NICHT ueber deleteLocationMarker geloescht, sondern hier -- und ein als Nodix
+// markiertes Label ist ein gueltiger Kraftlinien-Endpunkt (Owner 2026-07-28,
+// api/edit/map/powerlines.php:93: „a nodix label was already a valid endpoint"). Ohne die Abfrage
+// war dieser Weg ungebremst: Region auf Nodix stellen, Kraftlinie anhaengen, Label loeschen --
+// eine frische Waise, lautlos. Der Riegel selbst wohnt bei den Kraftlinien, wo seine Datenquelle
+// liegt (map-features-powerlines.js); hier steht nur der Aufruf.
 async function deleteLabelEntry(entry, { closeDialog = false } = {}) {
 	if (!entry) {
+		return;
+	}
+	if (refusePowerlineAnchoredDeletion(entry.label?.text || "Das Label", entry.label?.publicId || "")) {
 		return;
 	}
 	// 🔴 Das LETZTE Label einer Landschaftsfläche nimmt die Fläche mit (Owner 2026-07-28, serverseitig

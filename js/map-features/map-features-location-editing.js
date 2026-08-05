@@ -290,24 +290,13 @@ async function convertCrossingToLocation(markerEntry) {
 
 async function deleteLocationMarker(markerEntry) {
 	const locationTypeLabel = markerEntry.locationType === CROSSING_LOCATION_TYPE ? "Kreuzung" : "Ort";
-	// 💣 JEDER Punkt, nicht nur eine Kreuzung. Kraftlinien verbinden Nodix-Orte ODER Kreuzungen
-	// (avesmapsCreatePowerlineFeature prüft genau das) -- die Abfrage stand aber hinter
-	// `locationType === CROSSING_LOCATION_TYPE`, also lief das Löschen eines Nodix-Ortes ohne ein
-	// Wort durch. So sind die 14 Abschnitte an toten Endpunkten entstanden (Befund A9).
-	const connectedPowerlines = getConnectedPowerlinesForPublicId(markerEntry.publicId);
-	// Und es ist kein „wirklich?" mehr, sondern eine Absage: der Server verweigert dasselbe. Ein
-	// Bestätigen-Dialog, dessen Ja danach am Server scheitert, ist schlechter als eine klare Absage.
-	if (connectedPowerlines.length > 0) {
-		// 💣 `properties.name`, nicht `name`. Ein Kraftlinien-Objekt in powerlineData traegt oben nur
-		// id/geometry/properties -- `line.name` ist immer undefined, und die Meldung nannte damit nie
-		// eine Linie. Erst die Live-Probe an Gareth zeigte es: „5 Kraftlinien-Abschnitte" ohne ein Wort
-		// dazu, wo sie liegen. Genau die Auskunft, wegen der die Namen ueberhaupt drinstehen.
-		const names = Array.from(new Set(connectedPowerlines.map((line) => line.properties?.name).filter(Boolean))).sort();
-		const shown = names.slice(0, 3).join(", ") + (names.length > 3 ? " und weitere" : "");
-		showFeedbackToast(
-			`${markerEntry.name} trägt noch ${connectedPowerlines.length} ${connectedPowerlines.length === 1 ? "Kraftlinien-Abschnitt" : "Kraftlinien-Abschnitte"}${shown ? ` (${shown})` : ""}. Bitte zuerst die Kraftlinie lösen.`,
-			"warning"
-		);
+	// 💣 JEDER Punkt, nicht nur eine Kreuzung. Kraftlinien verbinden Nodix-Orte, Kreuzungen ODER
+	// Nodix-Labels -- die Abfrage stand aber hinter `locationType === CROSSING_LOCATION_TYPE`, also
+	// lief das Löschen eines Nodix-Ortes ohne ein Wort durch. So sind die 14 Abschnitte an toten
+	// Endpunkten entstanden (Befund A9). Und es ist kein „wirklich?" mehr, sondern eine Absage: der
+	// Server verweigert dasselbe, und ein Ja, das danach am Server scheitert, ist die schlechtere
+	// Reihenfolge. Der Riegel selbst wohnt bei den Kraftlinien -- Labels brauchen denselben.
+	if (refusePowerlineAnchoredDeletion(markerEntry.name, markerEntry.publicId)) {
 		return;
 	}
 	if (!window.confirm(`${markerEntry.name} wirklich löschen?`)) {
