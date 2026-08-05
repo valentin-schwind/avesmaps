@@ -132,6 +132,29 @@ function toggleReviewPanel() {
 	syncReviewPanelVisibility();
 }
 
+// ---- A3: welche Meldungen die Liste zeigt ----
+// Bis 2026-08-05 zeigte sie ausschliesslich `status='neu'`, und es gab nirgends eine zweite Liste:
+// eine bearbeitete Meldung war weg. Wer sie angenommen oder verworfen hat, war nicht mehr
+// feststellbar -- waehrend des Systemtests sind der Redaktion zwei eigene Meldungen unter der Hand
+// verschwunden. ⚠️ „Offen" bleibt die Vorgabe; der Trichter zaehlt sie als aktiven Filter, damit im
+// Knopf steht, dass ueberhaupt gefiltert wird.
+const reviewReportStatusFilter = { value: "neu" };
+const REVIEW_REPORT_STATUS_OPTIONS = [
+	{ value: "neu", label: "Offen" },
+	{ value: "erledigt", label: "Erledigt" },
+];
+let reviewReportsTruncated = false;
+let reviewReportsDoneLimit = 0;
+
+// Leerer Wert = die eingebaute Option „Alle" des Trichters.
+function reviewReportListUrl() {
+	return `${LOCATION_REPORT_REVIEW_API_URL}?status=${encodeURIComponent(reviewReportStatusFilter.value || "alle")}`;
+}
+
+function isReviewReportOpenFilter() {
+	return reviewReportStatusFilter.value === "neu";
+}
+
 async function loadReviewReports() {
 	if (!IS_EDIT_MODE) {
 		return;
@@ -142,7 +165,7 @@ async function loadReviewReports() {
 
 	setReviewPanelStatus("Meldungen werden geladen...", "pending");
 	try {
-		const response = await fetch(LOCATION_REPORT_REVIEW_API_URL, {
+		const response = await fetch(reviewReportListUrl(), {
 			credentials: "same-origin",
 			headers: { Accept: "application/json" },
 		});
@@ -152,6 +175,8 @@ async function loadReviewReports() {
 		}
 
 		reviewReports = Array.isArray(data.reports) ? data.reports : [];
+		reviewReportsTruncated = data.truncated === true;
+		reviewReportsDoneLimit = Number(data.limit) || 0;
 		renderReviewReports();
 		// Live updates: remember the newest report id and make sure the background poll runs, so a
 		// freshly submitted community report toasts + appears without a manual F5.
@@ -205,15 +230,26 @@ async function pollReviewReportsForNew() {
 		return;
 	}
 	try {
-		const response = await fetch(LOCATION_REPORT_REVIEW_API_URL, { credentials: "same-origin", headers: { Accept: "application/json" } });
+		const response = await fetch(reviewReportListUrl(), { credentials: "same-origin", headers: { Accept: "application/json" } });
 		const data = await response.json().catch(() => null);
 		if (!response.ok || !data || data.ok !== true || !Array.isArray(data.reports)) {
 			return;
 		}
+		// ⚠️ „Neu" laesst sich nur auf der offenen Liste erkennen. Steht der Filter auf „Erledigt" oder
+		// „Alle", waere die hoechste id die einer laengst bearbeiteten Meldung, und der Vergleich
+		// meldete Zugaenge, die keine sind. Dann wird nur nachgeladen, nicht getoastet -- und die
+		// gemerkte Hoechst-id bleibt unangetastet, damit sie beim Zurueckschalten noch stimmt.
+		const watchesOpenReports = isReviewReportOpenFilter();
 		const previousMaxId = reviewReportsKnownMaxId;
-		const freshCount = data.reports.filter((report) => (Number(report.id) || 0) > previousMaxId).length;
+		const freshCount = watchesOpenReports
+			? data.reports.filter((report) => (Number(report.id) || 0) > previousMaxId).length
+			: 0;
 		reviewReports = data.reports;
-		reviewReportsKnownMaxId = reviewReportsMaxId();
+		reviewReportsTruncated = data.truncated === true;
+		reviewReportsDoneLimit = Number(data.limit) || 0;
+		if (watchesOpenReports) {
+			reviewReportsKnownMaxId = reviewReportsMaxId();
+		}
 		// Refresh the list on every tick (a report handled by another editor disappears too, not just
 		// new ones), but never while the user is working in it.
 		if (!isReviewReportsListBusy()) {
@@ -249,12 +285,16 @@ function renderReviewReports() {
 	}
 
 	listElement.innerHTML = "";
+	const scopeWord = { neu: "offene", erledigt: "erledigte" }[reviewReportStatusFilter.value] || "";
 	if (reviewReports.length < 1) {
-		setReviewPanelStatus("Keine offenen Meldungen.", "empty");
+		setReviewPanelStatus(`Keine ${scopeWord ? `${scopeWord} ` : ""}Meldungen.`, "empty");
 		return;
 	}
 
-	setReviewPanelStatus(`${reviewReports.length} offene Meldungen.`, "success");
+	// ⚠️ Der Deckel wird ausgesprochen. Eine still gekuerzte Liste liest sich wie „mehr gibt es nicht"
+	// -- genau die Luege, die die fehlende Liste vorher erzaehlt hat.
+	const cutNote = reviewReportsTruncated ? ` Nur die neuesten ${reviewReportsDoneLimit} werden gezeigt.` : "";
+	setReviewPanelStatus(`${reviewReports.length} ${scopeWord ? `${scopeWord} ` : ""}Meldungen.${cutNote}`, "success");
 	reviewReports.forEach((report) => {
 		const itemElement = document.createElement("article");
 		itemElement.className = "review-report";
@@ -307,7 +347,25 @@ function renderReviewReports() {
 			commentEl.textContent = reportComment;
 			itemElement.querySelector(".review-report__focus").after(commentEl);
 		}
-		if (isCommentReport(report)) {
+		// Eine bearbeitete Meldung wird GEZEIGT, nicht angeboten: die Knoepfe wuerden ins Leere greifen
+		// (der Server nimmt nur `status = 'neu'` an) und an ihrer Stelle steht das, was A3 und A4
+		// beantworten sollen -- wer hat wann was entschieden, und mit welcher Begruendung.
+		if (isProcessedReviewReport(report)) {
+			itemElement.classList.add("review-report--done");
+			const actionsElement = itemElement.querySelector(".review-report__actions");
+			actionsElement.textContent = "";
+			const decisionElement = document.createElement("span");
+			decisionElement.className = "review-report__decision";
+			decisionElement.textContent = reviewReportDecisionSummary(report);
+			actionsElement.append(decisionElement);
+			const reviewNote = String(report.review_note || "").trim();
+			if (reviewNote) {
+				const noteElement = document.createElement("div");
+				noteElement.className = "review-report__note";
+				noteElement.textContent = reviewNote;
+				actionsElement.before(noteElement);
+			}
+		} else if (isCommentReport(report)) {
 			itemElement.querySelector(".review-report__create").textContent = "Erledigt";
 		}
 		// "Anlegen" waere gelogen: hier entsteht nichts, die Fundorte kommen an eine Karte, die es gibt.
@@ -1047,3 +1105,32 @@ function armReviewReportMarkerDismiss() {
 	reviewReportDismissArmed = true;
 	map.on("click", () => clearReviewReportMarker());
 }
+
+function isProcessedReviewReport(report) {
+	return String(report?.status || "neu") !== "neu";
+}
+
+function reviewReportDecisionSummary(report) {
+	const status = String(report?.status || "");
+	const label = { approved: "Angenommen", rejected: "Verworfen", in_review: "Zurückgestellt" }[status] || status || "Bearbeitet";
+	const who = report?.reviewed_by_username ? ` von ${report.reviewed_by_username}` : "";
+	const when = report?.reviewed_at ? ` · ${String(report.reviewed_at).slice(0, 16).replace("T", " ")}` : "";
+	return `${label}${who}${when}`;
+}
+
+// Derselbe Trichter wie die WikiSync-Listen (js/app/utils.js). Ein Wechsel laedt neu, statt lokal zu
+// filtern: die erledigten Meldungen liegen gar nicht im Speicher, und der Server deckelt sie.
+attachFilterMenu(
+	"review-report-filter-toggle",
+	"review-report-filter-menu",
+	[{
+		menuId: "review-report-status-filter-menu",
+		kind: "single",
+		state: reviewReportStatusFilter,
+		options: REVIEW_REPORT_STATUS_OPTIONS,
+		label: "Bearbeitung",
+		isActive: () => Boolean(reviewReportStatusFilter.value),
+	}],
+	() => { void loadReviewReports(); },
+	"Filter"
+);

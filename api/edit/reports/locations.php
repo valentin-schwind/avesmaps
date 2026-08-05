@@ -14,6 +14,10 @@ require_once __DIR__ . '/../../_internal/app/adventure-resolve.php';
 // snapshots are pure and live next door so they can be asserted without a database -- in
 // particular that they are NOT undoable and that they carry no ip_hash.
 require_once __DIR__ . '/../../_internal/map/report-audit.php';
+// A3: which reports the list asks for. Whitelist and SQL fragments live next door so they can be
+// asserted without a database -- in particular that nothing but a whitelisted value ever reaches
+// the WHERE clause.
+require_once __DIR__ . '/../../_internal/map/report-review-list.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -31,7 +35,8 @@ try {
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
     if ($requestMethod === 'GET') {
-        avesmapsJsonResponse(200, avesmapsListLocationReportsForReview($pdo));
+        $listFilter = avesmapsNormalizeReportListFilter($_GET['status'] ?? null);
+        avesmapsJsonResponse(200, avesmapsListLocationReportsForReview($pdo, $listFilter));
     }
 
     if ($requestMethod !== 'POST') {
@@ -59,8 +64,30 @@ try {
     avesmapsErrorResponse(500, 'server_error', 'Die Meldungen konnten nicht verarbeitet werden.');
 }
 
-function avesmapsListLocationReportsForReview(PDO $pdo): array {
+function avesmapsListLocationReportsForReview(PDO $pdo, string $filter = 'neu'): array {
+    // 'alle' is the two halves, built by THIS function twice rather than by one query with a clever
+    // ORDER BY: open reports must keep reading as a queue (oldest first) and processed ones as a
+    // history (newest first), and a single sort cannot be both. Two passes also make it impossible
+    // for the halves to drift apart, which a hand-merged copy of the same SQL eventually would.
+    if ($filter === 'alle') {
+        $open = avesmapsListLocationReportsForReview($pdo, 'neu');
+        $done = avesmapsListLocationReportsForReview($pdo, 'erledigt');
+
+        return [
+            'ok' => true,
+            'filter' => 'alle',
+            'reports' => array_merge($open['reports'], $done['reports']),
+            'truncated' => $done['truncated'],
+            'limit' => $done['limit'],
+        ];
+    }
+
     avesmapsEnsureMapReportsTableForReview($pdo);
+
+    $statusCondition = avesmapsReportListStatusCondition($filter);
+    $orderBy = avesmapsReportListOrderBy($filter);
+    $fetchLimit = avesmapsReportListFetchLimit($filter);
+    $limitSql = $fetchLimit > 0 ? ' LIMIT ' . $fetchLimit : '';
 
     $reports = [];
     $mapStatement = $pdo->prepare(
@@ -84,14 +111,18 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
             comment,
             page_url,
             client_version,
-            review_note
+            review_note,
+            reviewed_at,
+            -- 💣 A correlated subselect, NOT a LEFT JOIN users. map_reports and users share `id` (and
+            -- `created_at`), so a join would make this unqualified column list ambiguous and every
+            -- load of the review list would answer 500. Qualifying twenty columns to buy one name is
+            -- the worse trade; this touches nothing else in the query.
+            (SELECT username FROM users WHERE users.id = map_reports.reviewed_by) AS reviewed_by_username
         FROM map_reports
-        WHERE status = :status
-        ORDER BY created_at ASC, id ASC'
+        WHERE ' . $statusCondition . '
+        ORDER BY ' . $orderBy . $limitSql
     );
-    $mapStatement->execute([
-        'status' => 'neu',
-    ]);
+    $mapStatement->execute();
 
     foreach ($mapStatement->fetchAll() as $report) {
         $report['report_source'] = 'map_reports';
@@ -129,14 +160,13 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
                 comment,
                 page_url,
                 client_version,
-                review_note
+                review_note,
+                reviewed_at
             FROM location_reports
-            WHERE status = :status
-            ORDER BY created_at ASC, id ASC'
+            WHERE ' . $statusCondition . '
+            ORDER BY ' . $orderBy . $limitSql
         );
-        $statement->execute([
-            'status' => 'neu',
-        ]);
+        $statement->execute();
 
         foreach ($statement->fetchAll() as $report) {
             $report['report_source'] = 'location_reports';
@@ -147,14 +177,33 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
         }
     }
 
-    usort(
-        $reports,
-        static fn(array $left, array $right): int => [$left['created_at'] ?? '', (int) ($left['id'] ?? 0)] <=> [$right['created_at'] ?? '', (int) ($right['id'] ?? 0)]
-    );
+    // Both tables answered; sort the merged set the way this filter reads.
+    if ($filter === 'erledigt') {
+        usort(
+            $reports,
+            static fn(array $left, array $right): int => [$right['reviewed_at'] ?? ($right['created_at'] ?? ''), (int) ($right['id'] ?? 0)]
+                <=> [$left['reviewed_at'] ?? ($left['created_at'] ?? ''), (int) ($left['id'] ?? 0)]
+        );
+    } else {
+        usort(
+            $reports,
+            static fn(array $left, array $right): int => [$left['created_at'] ?? '', (int) ($left['id'] ?? 0)] <=> [$right['created_at'] ?? '', (int) ($right['id'] ?? 0)]
+        );
+    }
+
+    // ⚠️ Cut AFTER merging both tables, and say so. One row over the cap was fetched precisely so
+    // this can tell "exactly the cap" from "more than the cap" without a second COUNT query.
+    $truncated = $fetchLimit > 0 && count($reports) > AVESMAPS_REPORT_LIST_DONE_LIMIT;
+    if ($truncated) {
+        $reports = array_slice($reports, 0, AVESMAPS_REPORT_LIST_DONE_LIMIT);
+    }
 
     return [
         'ok' => true,
+        'filter' => $filter,
         'reports' => $reports,
+        'truncated' => $truncated,
+        'limit' => AVESMAPS_REPORT_LIST_DONE_LIMIT,
     ];
 }
 

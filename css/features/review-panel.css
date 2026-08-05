@@ -1456,6 +1456,26 @@
 	text-align: left;
 }
 
+/* A3: eine bearbeitete Meldung wird gezeigt, nicht angeboten -- gedaempft wie eine
+   zurueckgenommene Aenderung, damit die offene Liste optisch die Arbeitsliste bleibt.
+   Nur Token, keine festen Werte (docs/design-language.md). */
+.review-report--done {
+	background: var(--color-panel-muted);
+	color: var(--color-text-muted);
+}
+
+.review-report__decision {
+	color: var(--color-text-muted);
+	font-size: 0.85em;
+}
+
+.review-report__note {
+	border-left: 2px solid var(--color-divider);
+	padding-left: 8px;
+	color: var(--color-text-muted);
+	font-size: 0.85em;
+}
+
 .change-log-entry.is-undone {
 	background: var(--color-panel-muted);
 	color: var(--color-text-muted);
