@@ -28,7 +28,9 @@ Das ist **eine Zeile Konfiguration** gegen mehrere Megabyte pro Erstbesuch — u
 zugleich die Leitung, über die sich der PHP-Pool immer wieder aufstaut. Es ist der mit Abstand
 beste Aufwand-Nutzen-Posten des ganzen Tests.
 
-Belegt: `curl --compressed` liefert **kein** `Content-Encoding` zurück.
+Belegt: `curl --compressed` lieferte **kein** `Content-Encoding` zurück.
+
+> **✅ Erledigt `38927c44`, 05.08.2026.** gzip ist an. Live gemessen: Startseite 230.874 → **54.762 B**, Politik-Layer 74 %, Abenteuer 86 %, Landschaften 71 % gespart — und die komprimierte Antwort ist im A/B sogar etwas **schneller** (0,35 gegen 0,39 s), das Komprimieren kostet also nichts. Ebenfalls erledigt: `.claude/worktrees/` steht in der `.gitignore`.
 
 **Weitere Leistungsposten** (14 Befunde): tote und doppelte Felder im Kartenpayload (3,04 MB roh,
 aber nur 196 KB gzip — der Gewinn liegt nicht am Draht, sondern beim `JSON.parse` und im

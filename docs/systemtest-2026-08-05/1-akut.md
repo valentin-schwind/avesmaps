@@ -111,8 +111,10 @@ ein Abenteuer, das einem Ort zugeordnet ist, erscheint dort nicht.
 
 ## 3. Offene Türen
 
-### A11 · Ein Schreibpfad ohne jede Anmeldung
+### ✅ A11 · Ein Schreibpfad ohne jede Anmeldung
 `api/app/adventures.php:94`
+
+> **Erledigt `360f8567`, 05.08.2026.** Der POST-Zweig ist entfernt statt bewacht — nichts brauchte ihn. Live gegengeprüft: POST antwortet 405 vor jeder Verbindung, GET liefert weiter 200.
 
 `POST /api/app/adventures.php {"action":"resolve"}` prüft **keinerlei Berechtigung**, schreibt
 in die Datenbank und läuft über den gesamten Bestand. Der Kopfkommentar der Datei nennt es eine
@@ -125,8 +127,10 @@ dreimal an Last erstickt ist, ist das der billigste denkbare Ausschaltknopf.
 
 *Beleg:* ausschließlich gelesen, **bewusst nicht ausprobiert**. *Aufwand:* klein.
 
-### A12 · `PDOException` leckt an jeden anonymen Aufrufer — im stabilen Vertrag
+### ✅ A12 · `PDOException` leckt an jeden anonymen Aufrufer — im stabilen Vertrag
 `api/locations/index.php:38` und `api/route/index.php:359`
+
+> **Erledigt `360f8567`, 05.08.2026.** Beide Endpunkte fangen `PDOException` jetzt zuerst. Mit totem Datenbankport vorgeführt: statt `SQLSTATE[42S02]: Base table…` kommt „Die Orte konnten nicht aus der Datenbank geladen werden."
 
 Beide fangen `RuntimeException $exception` und reichen `$exception->getMessage()` mit einem 500
 an den Aufrufer durch. In PHP **ist `PDOException` eine `RuntimeException`** — ein
@@ -181,8 +185,10 @@ immer alle 4.854 Objekte (938 KB).
 
 *Beleg:* Code gelesen, `?limit=25` live gegengeprüft. *Aufwand:* mittel.
 
-### A15 · Die öffentlich widerrufene DIN-33466-Behauptung steht weiter in der kanonischen Referenz
+### ✅ A15 · Die öffentlich widerrufene DIN-33466-Behauptung steht weiter in der kanonischen Referenz
 `api/README.md:101`
+
+> **Erledigt `36ea5f20`, 05.08.2026.** Der Wächter streift Kommentare ab (mit eigener Zusicherung, dass er dabei keinen ausgelieferten Text frisst), `api/README.md` steht in seiner Prüfliste, und der Absatz nennt das falsche Etikett gar nicht mehr.
 
 > „**The model is the Leistungskilometer** (DIN 33466, the marching-time arithmetic of the
 > German and Swiss alpine clubs)"
@@ -285,7 +291,9 @@ dem das Projekt am ehesten angreifbar ist.
 
 ## 8. Zwei Einzelstücke
 
-### A26 · Kein Test läuft beim Deploy — und einer ist rot
+### ✅ A26 · Kein Test läuft beim Deploy — und einer ist rot
+> **Erledigt `36ea5f20`, 05.08.2026.** Der Deploy fährt alle Tests, bevor er etwas hochlädt. Erster Lauf auf dem CI-Läufer: **PHP 87 grün, JS 79 grün, null rot.**
+
 **205 Testdateien** im Projekt, davon laufen bei einem Deploy **null**. Der Deploy ist reiner
 Datei-Upload. Genau deshalb konnte der Wächter-Test aus A15 monatelang rot bleiben, ohne dass
 es jemandem auffiel.
