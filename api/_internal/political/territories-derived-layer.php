@@ -58,13 +58,16 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
     // Perf (M6): fetch the source-territory snapshot ONCE; the per-feature collector reused it
     // instead of re-running a full political_territory scan per derived feature (AGENTS.md §10 N+1).
     $derivedSourceTerritorySnapshot = $derivedFeatures === [] ? null : avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
-    foreach ($derivedFeatures as &$feature) {
+    // Perf (A20): resolve the source public_ids for EVERY derived feature up front, in two queries
+    // total. See the resolver for what that replaced and why the snapshot is not a shortcut.
+    $derivedSourcePublicIds = avesmapsPoliticalResolveDerivedLayerSourcePublicIds($pdo, $derivedFeatures, $derivedSourceTerritorySnapshot);
+    foreach ($derivedFeatures as $featureKey => &$feature) {
         $territoryPublicId = trim((string) ($feature['properties']['territory_public_id'] ?? ''));
         // C (Innengrenzen-Styling): die Quell-IDs der Außengrenze IMMER mitliefern, damit
         // das Frontend diese Quellen als Innengrenzen (gestrichelt-weiß) zeichnen kann –
         // unabhaengig vom Innengrenzen-Haekchen und vom Zoom-Band.
-        $sourceTerritoryPublicIds = avesmapsPoliticalReadDerivedSourceTerritoryPublicIds($pdo, $feature, $derivedSourceTerritorySnapshot);
-        $sourceGeometryPublicIds = avesmapsPoliticalReadDerivedSourceGeometryPublicIds($pdo, $feature, $derivedSourceTerritorySnapshot);
+        $sourceTerritoryPublicIds = $derivedSourcePublicIds[$featureKey]['territory'] ?? [];
+        $sourceGeometryPublicIds = $derivedSourcePublicIds[$featureKey]['geometry'] ?? [];
         $feature['properties']['derived_source_territory_public_ids'] = $sourceTerritoryPublicIds;
         $feature['properties']['derived_source_geometry_public_ids'] = $sourceGeometryPublicIds;
         // Ausblenden der Quellflaechen NUR wenn Innengrenzen aus UND im Fuellband (Aggregat fuellt).
@@ -489,58 +492,105 @@ function avesmapsPoliticalEnrichDerivedContestedPieces(PDO $pdo, array $pieces, 
     return $enriched === [] ? null : $enriched;
 }
 
-function avesmapsPoliticalReadDerivedSourceTerritoryPublicIds(PDO $pdo, array $derivedFeature, ?array $territoriesSnapshot = null): array {
-    $sourceTerritoryIds = avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds($pdo, $derivedFeature, $territoriesSnapshot);
-    if ($sourceTerritoryIds === []) {
-        return [];
+// Resolve, for every derived feature at once, the public_ids of its source territories and of
+// their geometries. Two queries for the whole layer.
+//
+// 💣 THIS REPLACED TWO QUERIES PER FEATURE (finding A20). The two functions that stood here,
+// avesmapsPoliticalReadDerivedSource{Territory,Geometry}PublicIds, each ran one IN-query for one
+// feature -- 244 queries on a zoom-3 cache miss, on the heaviest endpoint of the project. They also
+// each re-ran the collector below, so a feature routed through its wiki branch paid those lookups
+// twice as well. Milestone M6 removed the full-table scan the collector did per feature; it did not
+// touch the two reads. Do not reintroduce a per-feature read here.
+//
+// 💣 The batching is over the QUERIES, not over the snapshot. The tempting shortcut is to take
+// public_id straight out of $territoriesSnapshot -- it already carries the column, and then the
+// first query disappears entirely. It is filtered by continent (see
+// avesmapsPoliticalFetchDerivedGeometrySourceTerritories), while two of the collector's three
+// branches -- the wiki descendants and the bare-territory fallback -- can name an id that is not in
+// it. That shortcut drops those sources silently instead of resolving them, which shows up as a
+// source border drawn twice rather than as an error.
+//
+// ⚠️ The ORDER inside each list now follows the collected ids instead of the row order the database
+// happened to return. Checked against every consumer before the change: all five build a Set or ask
+// .includes(), none reads a position -- map-features-region-rendering.js:362-385,
+// map-features-derived-boundary-runtime-fix.js:27, map-features-political-territory-loader.js:204,
+// map-features-contested-hatch-overlay.js:182, map-features-region-feature-normalization.js:71.
+function avesmapsPoliticalResolveDerivedLayerSourcePublicIds(PDO $pdo, array $derivedFeatures, ?array $territoriesSnapshot = null): array {
+    $sourceIdsByFeatureKey = [];
+    $allSourceIds = [];
+    foreach ($derivedFeatures as $featureKey => $derivedFeature) {
+        // ONCE per feature -- the pair of readers called this for each of its two lists.
+        $sourceIds = avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds($pdo, (array) $derivedFeature, $territoriesSnapshot);
+        $sourceIdsByFeatureKey[$featureKey] = $sourceIds;
+        foreach ($sourceIds as $sourceId) {
+            $allSourceIds[$sourceId] = true;
+        }
     }
 
-    $placeholders = implode(',', array_fill(0, count($sourceTerritoryIds), '?'));
-    $statement = $pdo->prepare(
-        'SELECT public_id
+    $resolved = [];
+    foreach ($sourceIdsByFeatureKey as $featureKey => $sourceIds) {
+        $resolved[$featureKey] = ['territory' => [], 'geometry' => []];
+    }
+    // No feature named a source: no query at all, exactly as the empty guard in each reader did.
+    if ($allSourceIds === []) {
+        return $resolved;
+    }
+
+    $ids = array_keys($allSourceIds);
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+    $territoryStatement = $pdo->prepare(
+        'SELECT id, public_id
         FROM political_territory
         WHERE id IN (' . $placeholders . ')
             AND is_active = 1'
     );
-    $statement->execute($sourceTerritoryIds);
-
-    $publicIds = [];
-    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+    $territoryStatement->execute($ids);
+    $publicIdByTerritoryId = [];
+    foreach ($territoryStatement->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $publicId = trim((string) ($row['public_id'] ?? ''));
         if ($publicId !== '') {
-            $publicIds[] = $publicId;
+            $publicIdByTerritoryId[(int) $row['id']] = $publicId;
         }
     }
 
-    return array_values(array_unique($publicIds));
-}
-
-function avesmapsPoliticalReadDerivedSourceGeometryPublicIds(PDO $pdo, array $derivedFeature, ?array $territoriesSnapshot = null): array {
-    $sourceTerritoryIds = avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds($pdo, $derivedFeature, $territoriesSnapshot);
-    if ($sourceTerritoryIds === []) {
-        return [];
-    }
-
-    $placeholders = implode(',', array_fill(0, count($sourceTerritoryIds), '?'));
-    $statement = $pdo->prepare(
-        'SELECT geometry.public_id
+    // ⚠️ territory_id has to come back with the row: it is what assigns each geometry to the feature
+    // that asked for it. The per-feature query could leave it out because the IN-list was the answer.
+    $geometryStatement = $pdo->prepare(
+        'SELECT geometry.territory_id, geometry.public_id
         FROM political_territory_geometry geometry
         INNER JOIN political_territory territory ON territory.id = geometry.territory_id
         WHERE geometry.is_active = 1
             AND territory.is_active = 1
             AND geometry.territory_id IN (' . $placeholders . ')'
     );
-    $statement->execute($sourceTerritoryIds);
-
-    $publicIds = [];
-    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+    $geometryStatement->execute($ids);
+    $geometryPublicIdsByTerritoryId = [];
+    foreach ($geometryStatement->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $publicId = trim((string) ($row['public_id'] ?? ''));
         if ($publicId !== '') {
-            $publicIds[] = $publicId;
+            $geometryPublicIdsByTerritoryId[(int) $row['territory_id']][] = $publicId;
         }
     }
 
-    return array_values(array_unique($publicIds));
+    foreach ($sourceIdsByFeatureKey as $featureKey => $sourceIds) {
+        $territoryPublicIds = [];
+        $geometryPublicIds = [];
+        foreach ($sourceIds as $sourceId) {
+            if (isset($publicIdByTerritoryId[$sourceId])) {
+                $territoryPublicIds[] = $publicIdByTerritoryId[$sourceId];
+            }
+            foreach ($geometryPublicIdsByTerritoryId[$sourceId] ?? [] as $geometryPublicId) {
+                $geometryPublicIds[] = $geometryPublicId;
+            }
+        }
+        $resolved[$featureKey] = [
+            'territory' => array_values(array_unique($territoryPublicIds)),
+            'geometry' => array_values(array_unique($geometryPublicIds)),
+        ];
+    }
+
+    return $resolved;
 }
 
 function avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds(PDO $pdo, array $derivedFeature, ?array $territoriesSnapshot = null): array {
