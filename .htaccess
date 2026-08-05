@@ -23,6 +23,14 @@ Options -Indexes
 # any response that already carries one. Images, fonts and webp are left alone deliberately --
 # they are compressed already and running deflate over them costs CPU for nothing.
 <IfModule mod_deflate.c>
+    # 💣 NoChange, not the Apache default. With AddSuffix a compressed response carries a DIFFERENT
+    # ETag than the identical uncompressed one, and this house compares If-None-Match ITSELF:
+    # avesmapsEcosystemETagMatches (api/app/ecosystem-areas.php) and avesmapsETagMatches
+    # (api/app/map-features.php) both normalise only the W/ prefix and would never match a
+    # -gzip suffix -- every revalidation would cost a full body instead of a 304. Measured
+    # 2026-08-05: with compression on, no ETag reached the client at all, while the server still
+    # answered 304 to If-None-Match: * -- the machinery works, the header has to survive the filter.
+    DeflateAlterETag NoChange
     AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css
     AddOutputFilterByType DEFLATE application/javascript application/x-javascript text/javascript
     AddOutputFilterByType DEFLATE application/json application/geo+json application/ld+json

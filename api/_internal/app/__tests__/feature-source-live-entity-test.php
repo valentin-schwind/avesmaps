@@ -63,13 +63,23 @@ $pdo->exec("INSERT INTO feature_sources (entity_type, entity_public_id, source_i
             ('territory',  'terr-1',      4),
             ('citymap',    'cmap-1',      5)");
 
+// 💣 sqlite does not know utf8mb4_unicode_ci, so the behavioural half of this test runs the clause
+// with the COLLATE stripped. That split is the honest one and it is the whole lesson of 2026-08-05:
+// the BEHAVIOUR is testable here, the COLLATION is not, and shipping on a green sqlite run is
+// exactly how both public readers went to 500. Step 7 at the bottom guards the part this cannot.
+$behaviourClause = static fn(string $alias = 'fs'): string => str_replace(
+    ' COLLATE utf8mb4_unicode_ci',
+    '',
+    avesmapsFeatureSourceLiveEntityClause($alias)
+);
+
 /** Runs the catalog read for one element, exactly as avesmapsReadFeatureSources builds it. */
-$readFor = static function (PDO $pdo, string $type, string $publicId): array {
+$readFor = static function (PDO $pdo, string $type, string $publicId) use ($behaviourClause): array {
     $statement = $pdo->prepare(
         "SELECT s.id FROM feature_sources fs
            JOIN sources s ON s.id = fs.source_id
           WHERE fs.entity_type = :t AND fs.entity_public_id = :id AND fs.status = 'approved'"
-        . avesmapsFeatureSourceLiveEntityClause('fs') .
+        . $behaviourClause('fs') .
         " ORDER BY s.id"
     );
     $statement->execute(['t' => $type, 'id' => $publicId]);
@@ -106,7 +116,7 @@ assert($readFor($pdo, 'region', 'pid-gone') === [], 'a link to an element that d
 $countStatement = $pdo->prepare(
     "SELECT fs.source_id, COUNT(*) AS uses FROM feature_sources fs
       WHERE fs.status = 'approved' AND fs.source_id IN (1, 2)"
-    . avesmapsFeatureSourceLiveEntityClause('fs') .
+    . $behaviourClause('fs') .
     " GROUP BY fs.source_id"
 );
 $countStatement->execute();
@@ -123,6 +133,24 @@ assert(($uses[2] ?? 0) === 0, 'source 2 is used nowhere -- its only element is d
 assert(
     AVESMAPS_FEATURE_SOURCE_SOFT_DELETED_ENTITY_TYPES === ['settlement', 'region', 'path', 'powerline'],
     'the soft-deleted entity types changed -- check api/_internal/map/features.php and update both'
+);
+
+// ---- 7. the COLLATE, which sqlite can never test ------------------------------------------------
+// 💣 feature_sources carries the SERVER default collation, map_features is explicitly
+// utf8mb4_unicode_ci. A bare column-to-column compare between them throws „Illegal mix of
+// collations" on MySQL -- decided at PLAN time, so it fires on every call whatever the data says.
+// This shipped without the COLLATE on 2026-08-05 and both public readers answered 500 within
+// minutes. sqlite has no such clash and ran every assert above green through the whole outage.
+// So this is a TEXT assert on purpose: it is the only guard the line can have here.
+$clause = avesmapsFeatureSourceLiveEntityClause('fs');
+assert(
+    str_contains($clause, 'fs.entity_public_id COLLATE utf8mb4_unicode_ci'),
+    'the COLLATE is gone from the live-entity clause -- MySQL will answer 500 on every read. '
+    . 'See api/_internal/app/lore.php:241 and ecosystem.php:230 for the same trap.'
+);
+assert(
+    !str_contains($clause, 'mf.public_id COLLATE'),
+    'the COLLATE moved onto map_features -- that makes its UNIQUE key unusable for this lookup'
 );
 
 echo 'feature-source-live-entity-test: all asserts passed', PHP_EOL;

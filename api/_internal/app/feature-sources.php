@@ -117,6 +117,22 @@ const AVESMAPS_FEATURE_SOURCE_SOFT_DELETED_ENTITY_TYPES = ['settlement', 'region
  * SQL fragment for "the element this link points at is still alive". Written once and used by every
  * read, so the rule cannot drift between them. `$alias` is the feature_sources alias in the
  * surrounding query. The interpolated values are the code constant above -- never user input.
+ *
+ * 💣 THE `COLLATE` IS LOAD-BEARING, AND THIS TABLE IS THE HOUSE'S SCAR FOR FORGETTING IT.
+ * `feature_sources` was created as `DEFAULT CHARSET=utf8mb4` with no COLLATE, so it carries the
+ * SERVER default; `map_features` is explicitly `utf8mb4_unicode_ci`. A bare column-to-column
+ * compare between the two throws „Illegal mix of collations" -- and MySQL decides that while
+ * PLANNING, so it fires on every call regardless of the data and regardless of whether the OR
+ * branch is ever reached. Shipped without it on 2026-08-05 and both public readers answered 500
+ * within minutes. The same trap is documented at api/_internal/app/lore.php:241 and
+ * api/_internal/app/ecosystem.php:230, the second of which names THIS table as the scar.
+ *
+ * ⚠️ It goes on the feature_sources side, not on map_features: collating a column makes it
+ * unusable for its index, and `map_features.public_id` is the UNIQUE key this lookup rides on.
+ *
+ * ⚠️ sqlite has no collation clash, so no unit test on sqlite can catch a missing COLLATE here.
+ * The test asserts the fragment CONTAINS it instead -- that is the only guard this line can have
+ * short of a MySQL fixture.
  */
 function avesmapsFeatureSourceLiveEntityClause(string $alias = 'fs'): string
 {
@@ -124,7 +140,8 @@ function avesmapsFeatureSourceLiveEntityClause(string $alias = 'fs'): string
 
     return " AND ({$alias}.entity_type NOT IN ({$types})"
         . " OR EXISTS (SELECT 1 FROM map_features mf"
-        . " WHERE mf.public_id = {$alias}.entity_public_id AND mf.is_active = 1))";
+        . " WHERE mf.public_id = {$alias}.entity_public_id COLLATE utf8mb4_unicode_ci"
+        . " AND mf.is_active = 1))";
 }
 
 // The read used by the public endpoint: approved catalog links PLUS the element's legacy single
