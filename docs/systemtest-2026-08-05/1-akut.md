@@ -1121,6 +1121,39 @@ Missbrauchslage ist es der Verlust des letzten Messpunkts.
 >
 > Das ist die Grenze von beiden Seiten, ohne eine einzige gespeicherte Zeile — was hier zählt, weil
 > es für `map_reports` bis heute keinen Löschweg gibt (A3/A28).
+>
+> 🔁 **Und damit war es NICHT erledigt: ein Zeilendeckel ist kein Grössendeckel.** Der Gegenprüfer
+> hat genau das gefunden, was der Commit zu schliessen erklärte, und ich habe es nachgestellt:
+> **20 Zeilen, jede innerhalb ihrer eigenen Grenze, ergeben 83.421 Bytes** — gegen eine
+> `TEXT`-Spalte von 65.535.
+>
+> Die Verstärkung steckt in den **Einheiten**: der Titel wird mit `mb_strlen` geprüft (ZEICHEN), die
+> URL mit `strlen` (BYTES), und **keines** misst die kodierte Grösse. `json_encode` muss jedes
+> C0-Steuerzeichen als `\u00XX` schreiben — sechs Bytes für eines —, und weder `trim()` noch die
+> `\s+`-Zusammenfassung entfernt `\x01`.
+>
+> Was das gekostet hätte: im Strict-Modus wirft MySQL 1406, der Melder bekommt eine **500** für eine
+> Meldung, die für ihn richtig aussah. **Ohne** Strict-Modus ist es schlimmer, weil still — die
+> Zeile wird gekürzt, `json_decode` liefert im Prüfbildschirm `null`, und die Freigabe antwortet für
+> immer „Zu welcher Karte gehoert der Fundort?". Diese Meldung ist dann **weder freizugeben noch zu
+> löschen**.
+>
+> **✅ Behoben `f1bf289a`.** `avesmapsEncodeReportPayloadJson` weist alles über **60.000 Bytes** ab —
+> unterhalb der Spalte statt an ihr entlang, denn ein Riegel bei exakt 65.535 reicht der Datenbank
+> immer noch eine Zeile, die sie ein Byte später ablehnt. Abgewiesen, nicht gekürzt. Er liegt in der
+> Bibliothek statt im Endpunkt-Skript — **erst das macht ihn überhaupt prüfbar**, weil sich ein
+> Endpunkt nicht laden lässt, ohne seinen Request-Handler auszuführen. Vier von vier Mutationen rot.
+>
+> ⚠️ **Ein Wortfehler in meiner Commit-Nachricht, der teuer werden könnte:** dort steht „456 live
+> maps carry at most 2 **places**". Die gemessene Verteilung ist das Feld **`links`**, nicht
+> `places`. `places` gibt es daneben und es ist anders gross — auf der **Abenteuer**-Seite live
+> **max. 22**, also **über** dem Deckel von 20. Wer später „denselben Zwillings-Deckel" auf eine
+> `places`-Liste überträgt, bricht damit sofort echte Daten.
+>
+> ⚠️ Nebenbefund, heute harmlos: `avesmapsAddCitymapLink` normalisiert **eine** Zeile, der Deckel
+> kann dort also nie greifen. Er bindet damit **je Aufruf**, nicht je Karte — Community-Freigaben
+> können unbegrenzt anwachsen. Der Editor bricht daran nicht, weil die Detail-Lesung fremde Zeilen
+> getrennt und schreibgeschützt führt und sie nie über `set_links` zurückschickt.
 
 ### A31 · Die Drossel sitzt hinter dem teuersten Teil des Endpunkts
 `api/app/report-location.php:93` und `:94` gegen `:103`
