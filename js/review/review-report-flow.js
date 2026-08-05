@@ -77,15 +77,13 @@ function openLocationEditDialogFromChangeReport(report) {
 		changed.push("location-edit-feature-sources");
 	}
 
-	// Free-text request -> prepend to the description so the editor sees it.
-	const descEl = document.getElementById("location-edit-description");
-	const request = String(report.comment || "").trim();
-	if (descEl && request) {
-		const reporter = String(report.reporter_name || "").trim();
-		const header = `— Community-Änderungswunsch${reporter ? ` von ${reporter}` : ""}:`;
-		descEl.value = [header, request, String(descEl.value || "").trim()].filter(Boolean).join("\n");
-		changed.push("location-edit-description");
-	}
+	// 💣 Der Wunsch geht in seinen EIGENEN, schreibgeschuetzten Kasten -- nicht in die Beschreibung.
+	// Bis 2026-08-05 wurde er ihr vorangestellt, samt der Zeile „— Community-Änderungswunsch von …:",
+	// und die Beschreibung war ein type="hidden"-Feld: der Text eines Fremden wurde mitveroeffentlicht,
+	// ohne dass die Redaktion ihn je zu sehen bekam, und die rote „geaendert"-Markierung sass auf
+	// einem unsichtbaren Element. Ein Wunsch ist ausserdem keine Beschreibung -- er soll gelesen und
+	// umgesetzt werden, nicht gedruckt.
+	showLocationEditChangeRequest(report);
 
 	// Proposed name -> prefill if it differs (users may propose a corrected spelling; name changes allowed).
 	const proposedName = String(report.name || "").trim();
@@ -146,6 +144,37 @@ function markChangeReportFields(fieldIds) {
 
 function clearChangeReportFieldMarks() {
 	document.querySelectorAll(".field--change-proposed").forEach((el) => el.classList.remove("field--change-proposed"));
+	hideLocationEditChangeRequest();
+}
+
+// Der Wunschtext des Melders, schreibgeschuetzt neben dem Formular. Rein per DOM gesetzt, nie ueber
+// innerHTML: das ist Fremdtext aus einer oeffentlichen Meldung.
+function showLocationEditChangeRequest(report) {
+	const blockElement = document.getElementById("location-edit-change-request");
+	const request = String(report?.comment || "").trim();
+	if (!blockElement) {
+		return;
+	}
+	if (!request) {
+		hideLocationEditChangeRequest();
+		return;
+	}
+
+	const reporter = String(report?.reporter_name || "").trim();
+	blockElement.querySelector(".location-edit-change-request__title").textContent =
+		`Änderungswunsch${reporter ? ` von ${reporter}` : ""}`;
+	blockElement.querySelector(".location-edit-change-request__text").textContent = request;
+	blockElement.hidden = false;
+}
+
+function hideLocationEditChangeRequest() {
+	const blockElement = document.getElementById("location-edit-change-request");
+	if (!blockElement) {
+		return;
+	}
+	blockElement.hidden = true;
+	blockElement.querySelector(".location-edit-change-request__title").textContent = "";
+	blockElement.querySelector(".location-edit-change-request__text").textContent = "";
 }
 
 // Kartensammlungs-Vorschlag (§3.8): "Anlegen" legt die Karte SERVERSEITIG an -- anders als beim Ort, wo der

@@ -1196,7 +1196,24 @@
 							<input id="location-edit-place-kind" name="place_kind" type="search" maxlength="120" autocomplete="off" placeholder="z. B. Brücke – leer lassen, wenn unbekannt" />
 						</label>
 					</div>
-					<input id="location-edit-description" name="description" type="hidden" value="" />
+					<!-- Der Wunsch eines Melders, schreibgeschuetzt. 💣 Er stand bis 2026-08-05 mitsamt der
+					     Zeile „— Community-Änderungswunsch von …:" IN der Beschreibung -- also in dem Feld,
+					     das oeffentlich wird. Ein Wunsch ist keine Beschreibung; er gehoert daneben, nicht
+					     hinein. -->
+					<div id="location-edit-change-request" class="location-edit-change-request" hidden>
+						<div class="location-edit-change-request__title"></div>
+						<div class="location-edit-change-request__text"></div>
+					</div>
+					<!-- 💣 Sichtbar, und das ist der Punkt. Bis 2026-08-05 stand hier type="hidden": der
+					     Erlaeuterungstext eines Melders wurde beim Annehmen einer Community-Meldung
+					     hineingeschrieben und mitveroeffentlicht, ohne dass die Redaktion ihn je zu sehen bekam --
+					     die rote „geaendert"-Markierung sass sogar auf einem unsichtbaren Element. Die beiden
+					     Schwesterdialoge (wiki-sync-resolve-description, powerline-edit-description) fuehren
+					     dasselbe Feld seit jeher als sichtbares Textfeld; der Ortsdialog war der Ausreisser. -->
+					<label class="location-report-form__field">
+						<span>Beschreibung <span class="location-report-form__hint">— öffentlich sichtbar</span></span>
+						<textarea id="location-edit-description" name="description" rows="3" maxlength="1200"></textarea>
+					</label>
 					<input id="location-edit-wiki-url" name="wiki_url" type="hidden" value="" />
 					<div class="label-edit-section"><div class="label-edit-section-title">Wiki-Ort</div>
 						<div class="label-wiki-reference" id="settlement-wiki-reference">

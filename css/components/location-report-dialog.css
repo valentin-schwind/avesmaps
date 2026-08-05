@@ -222,6 +222,38 @@
 	font-weight: bold;
 }
 
+/* Ein Zusatz IN der Feldbeschriftung, der sagt, wohin der Inhalt geht -- gedaempft und nicht fett,
+   damit er die Beschriftung ergaenzt statt mit ihr zu konkurrieren. Gebraucht fuer „Beschreibung
+   — oeffentlich sichtbar": genau diese Auskunft fehlte, als der Erlaeuterungstext eines Melders
+   ungefragt in der oeffentlichen Beschreibung landete. Nur Token (docs/design-language.md). */
+.location-report-form__field > span .location-report-form__hint {
+	color: var(--color-text-muted);
+	font-weight: normal;
+}
+
+/* Der Wunsch eines Melders: zu lesen, nicht zu veroeffentlichen. Abgesetzt durch eine Kante wie
+   ein Zitat, gedaempft, kein gerahmter Kasten (docs/design-language.md: gruppieren ueber Trenner,
+   nicht ueber Rahmen). Nur Token. */
+.location-edit-change-request {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	border-left: 2px solid var(--color-divider);
+	padding-left: 8px;
+}
+
+.location-edit-change-request__title {
+	color: var(--color-text-muted);
+	font-size: 12px;
+	font-weight: bold;
+}
+
+.location-edit-change-request__text {
+	color: var(--color-text-strong);
+	font-size: 12px;
+	white-space: pre-wrap;
+}
+
 .location-report-form__field small {
 	color: var(--color-text-muted);
 	font-size: 11px;
