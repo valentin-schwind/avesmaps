@@ -1587,11 +1587,22 @@ gleicht den Import an den Editor an und kommt mit.
 > `UPDATE` trägt jetzt `AND status = 'neu'`, wie der Editor in jedem seiner Schreibpfade. Ein
 > Import-Token kann damit keine Entscheidung mehr überschreiben, die ein Mensch getroffen hat.
 >
-> ⚠️ **Es kostet Wiederholungsläufe nichts, und das habe ich geprüft statt angenommen:** die
-> Verbindung setzt `MYSQL_ATTR_FOUND_ROWS` **nicht**, `rowCount()` zählt also *geänderte* Zeilen.
-> Denselben Status noch einmal zu schreiben lieferte hier **immer schon** 0 und antwortete **immer
-> schon** 404. Der Riegel fügt einem Wiederholungslauf keinen neuen Fehlschlag hinzu — er stoppt nur
-> den Fall, in dem die Zeile wirklich unter einer fremden Entscheidung weggeschrieben worden wäre.
+> 🔁 **Hier stand meine schlechteste Behauptung dieser Sitzung, ausgerechnet als „geprüft statt
+> angenommen" ausgewiesen** (gefunden von der Gegenprüfung, von mir am Code bestätigt). Ich schrieb,
+> der Riegel koste Wiederholungsläufe nichts, weil `MYSQL_ATTR_FOUND_ROWS` nicht gesetzt ist und
+> `rowCount()` daher *geänderte* Zeilen zählt. Das stimmt — und ich habe **die `SET`-Liste eine Zeile
+> darüber nie angesehen**. Dort steht `reviewed_at = CURRENT_TIMESTAMP`, und MySQL nennt eine Zeile
+> geändert, sobald **irgendeine** zugewiesene Spalte einen anderen Wert bekommt. Eine entschiedene
+> Meldung, erneut mit demselben Status geschickt, antwortete also **200 „aktualisiert"** — jedes Mal,
+> eine Sekunde später. Nach dem Riegel: 404.
+>
+> ⭐ **Das ist kein Verlust, den der Riegel verursacht — es ist mehr von dem Befund.** Jeder dieser
+> Wiederholungsläufe schob `reviewed_at` still auf einer fremden Entscheidung nach vorn, der
+> Zeitstempel driftete vom Moment der Entscheidung weg, und nichts hielt es fest. 404 ist die
+> ehrliche Antwort.
+>
+> ⚠️ Die `rowCount`-Rechnerei war ausserdem MySQL-spezifisch: die PDO-Fabrik dieses Projekts nimmt
+> auch `pgsql`, und dort zählt `rowCount()` *getroffene* Zeilen — die Unterscheidung gab es nie.
 >
 > Die Absage übernimmt den Wortlaut des Editors **wörtlich**, weil es jetzt dieselbe Tatsache ist:
 > null Zeilen heisst **entweder** „keine solche Meldung" **oder** „nicht mehr offen", und der
@@ -1601,7 +1612,16 @@ gleicht den Import an den Editor an und kommt mit.
 > **Fünf Mutationen, jede vorher benannt — und zwei davon haben mich erwischt:** meine ersten
 > Versuche der beiden mehrzeiligen Mutationen griffen **gar nicht** (die Anker trafen die
 > CRLF-Zeilenenden nicht) und meldeten grün. Sauber wiederholt, die erste mit der Vorzustandsdatei
-> direkt aus `git`: alle fünf rot. 213/213 grün.
+> direkt aus `git`: alle fünf rot.
+>
+> 🔁 **Und sie sicherten den Riegel nur gegen Löschung, nicht gegen Aushebelung** (`1801b6a8`).
+> Fünf realistische Wege, seinen Text zu behalten und seine Wirkung zu verlieren, gingen **alle**
+> durch: `if (false && rowCount() < 1)`, die Absage zu `error_log` degradiert, ein `OR id =
+> :report_id` an die `WHERE` gehängt (`AND` bindet stärker, das öffnet alles wieder), ein zweites
+> ungeschütztes `UPDATE` dahinter, und `$reportId` zwischen Prüfung und Schreiben neu gelesen.
+> Bitter daran: **dieselbe Testdatei hatte drei dieser Lektionen sechzig Zeilen weiter oben schon
+> gelernt** — für den Status-Riegel — und ich habe keine davon übertragen. Jetzt fallen alle fünf,
+> und jede Mutation prüft vorher, ob sie überhaupt auf der Platte gelandet ist. 213/213 grün.
 >
 > **Live geprüft, spurenfrei:** ein POST ohne Token antwortet unverändert **401** — der Endpunkt lädt
 > also mit dem geänderten `UPDATE` (eine 500 wäre der Fatal gewesen) und schreibt nichts; der
@@ -1613,8 +1633,13 @@ gleicht den Import an den Editor an und kommt mit.
 > 🔧 **DU: eine Leseabfrage, und sie ist jetzt dringender als vorher.** A33 und A39 sind je für sich
 > richtig, **zusammen** frieren sie eine Altzeile aber doppelt ein: A33 lässt nur noch
 > `approved|rejected|in_review` **setzen**, A39 lässt nur noch `status='neu'` **ändern**. Eine Zeile
-> mit einem Status ausserhalb dieser vier ist damit weder korrigierbar noch entfernbar — der Editor
-> fasst sie wegen A32 ebenfalls nicht an.
+> mit einem Status ausserhalb dieser vier ist damit über die Import-Tür nicht mehr **richtigzustellen**
+> — und der Editor fasst sie wegen A32 ebenfalls nicht an.
+>
+> 🔁 *Korrektur:* hier stand „weder korrigierbar **noch entfernbar**". Das Zweite stimmt für
+> `location_reports` nicht — `api/import/location-reports/delete.php` löscht mit demselben Token und
+> **ohne** Statusprüfung. Eine festsitzende Ortsmeldung lässt sich also entfernen, nur nicht mehr
+> richtigstellen. Für `map_reports` gibt es diese Import-Löschtür nicht; dort stimmt beides.
 >
 > 💣 Der Verdacht ist konkret, nicht erfunden: das am 17.05.2026 gelöschte Importwerkzeug
 > (`map/import_reported_locations.py`) setzte nach getanem Import den Status **`alt`**. Die Spalte

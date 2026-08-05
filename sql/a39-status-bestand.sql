@@ -13,8 +13,14 @@
 --     bereits einen anderen Status traegt, laesst sich ueber diese Tuer nicht mehr AENDERN.
 --
 -- Steht im Bestand also eine Zeile mit einem Status ausserhalb der vier bekannten
--- (neu | approved | rejected | in_review), dann ist sie ab sofort weder korrigierbar noch
--- entfernbar -- der Editor fasst wegen `AND status = 'neu'` ebenfalls nichts mehr an (A32).
+-- (neu | approved | rejected | in_review), dann ist sie ueber die Import-Tuer nicht mehr zu
+-- KORRIGIEREN -- und der Editor fasst sie wegen `AND status = 'neu'` ebenfalls nicht an (A32).
+--
+-- ⚠️ KORREKTUR einer frueheren Fassung dieser Datei: dort stand "weder korrigierbar noch
+-- entfernbar". Das Zweite stimmt fuer `location_reports` NICHT -- api/import/location-reports/
+-- delete.php loescht mit demselben Token und OHNE Statuspruefung. Eine festsitzende Ortsmeldung
+-- laesst sich also entfernen, nur nicht mehr richtigstellen. Fuer `map_reports` gibt es diese
+-- Import-Loeschtuer nicht; dort stimmt beides.
 --
 -- 💣 Ein konkreter Verdacht, kein erfundener: das inzwischen geloeschte Importwerkzeug
 -- (map/import_reported_locations.py, entfernt am 17.05.2026) setzte nach getanem Import den Status
