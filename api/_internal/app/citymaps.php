@@ -2039,7 +2039,7 @@ function avesmapsSuppressCitymapPlace(PDO $pdo, int $placeId): array
 }
 
 /**
- * Every row that hangs off a citymap, in one place. 💣 Es gab zwei Loeschwege und sie raeumten
+ * Alles, was an einer Karte haengt, an EINER Stelle. 💣 Es gab zwei Loeschwege und sie raeumten
  * VERSCHIEDEN auf: die Hand loeschte place/type/link/related, der Wiki-Sync nur place/type -- also
  * blieben nach jedem Sync-Loeschen citymap_related- und citymap_link-Zeilen als Waisen zurueck
  * (Befund A8). Zwei Wege, zwei Ergebnisse, fuer dieselbe Handlung. Jetzt raeumt EINE Funktion,
@@ -2047,14 +2047,34 @@ function avesmapsSuppressCitymapPlace(PDO $pdo, int $placeId): array
  *
  * ⚠️ Kein FK und kein ON DELETE CASCADE in diesem Schema -- die Kinder muessen von Hand weg. Und
  * citymap_related verbindet BEIDE Richtungen, also loescht es auf beiden Seiten.
+ *
+ * 💣 feature_sources gehoert dazu, obwohl es nicht ueber citymap_id haengt, sondern ueber
+ * entity_public_id -- und das ist die gefaehrlichste der fuenf Zeilen. Karten stehen NICHT in
+ * AVESMAPS_FEATURE_SOURCE_SOFT_DELETED_ENTITY_TYPES (feature-sources.php:114), der Lebend-Riegel
+ * greift fuer sie also nie: ein Quellenverweis auf eine geloeschte Karte wird weiter an JEDEN
+ * Besucher ausgeliefert, im Kartenpayload, dauerhaft. Genau der Befund A6, fuer die eine
+ * Entitaet, die A6 nicht abgedeckt hat -- ausgenommen mit der Begruendung, Karten haetten "ihre
+ * eigene Loeschsemantik". Die hatten sie nicht. Der Parameter ist deshalb die public_id, nicht
+ * nur die id.
+ *
+ * ⚠️ Der Vergleich bindet einen Wert, er stellt keine zwei Spalten gegenueber -- die
+ * Kollationsfalle von feature_sources (2026-08-05, zwei oeffentliche Endpunkte auf 500) greift
+ * hier nicht.
  */
-function avesmapsDeleteCitymapChildRows(PDO $pdo, int $citymapId): void
+function avesmapsDeleteCitymapChildRows(PDO $pdo, int $citymapId, string $publicId): void
 {
     $pdo->prepare('DELETE FROM citymap_related WHERE citymap_id = :a OR related_citymap_id = :b')
         ->execute(['a' => $citymapId, 'b' => $citymapId]);
     $pdo->prepare('DELETE FROM citymap_place WHERE citymap_id = :id')->execute(['id' => $citymapId]);
     $pdo->prepare('DELETE FROM citymap_type WHERE citymap_id = :id')->execute(['id' => $citymapId]);
     $pdo->prepare('DELETE FROM citymap_link WHERE citymap_id = :id')->execute(['id' => $citymapId]);
+    // Eine Unterkarte zeigt per parent_id auf ihre Oberkarte. Ohne dies bliebe der Zeiger stehen,
+    // und beide Leser fangen ihn still ab (`?? ''`) -- die Beziehung waere lautlos weg statt leer.
+    $pdo->prepare('UPDATE citymap SET parent_id = NULL WHERE parent_id = :id')->execute(['id' => $citymapId]);
+    if ($publicId !== '') {
+        $pdo->prepare("DELETE FROM feature_sources WHERE entity_type = 'citymap' AND entity_public_id = :pid")
+            ->execute(['pid' => $publicId]);
+    }
 }
 
 /**
@@ -2081,7 +2101,7 @@ function avesmapsDeleteCitymap(PDO $pdo, string $publicId): array
 
     $pdo->beginTransaction();
     try {
-        avesmapsDeleteCitymapChildRows($pdo, $id);
+        avesmapsDeleteCitymapChildRows($pdo, $id, $publicId);
         $pdo->prepare('DELETE FROM citymap WHERE id = :id')->execute(['id' => $id]);
         $pdo->commit();
     } catch (Throwable $error) {

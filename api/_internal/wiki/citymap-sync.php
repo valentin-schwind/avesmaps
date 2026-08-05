@@ -1851,30 +1851,65 @@ function avesmapsCitymapRemoveVanished(PDO $pdo): int
     }
 
     $removed = 0;
-    $findId = $pdo->prepare('SELECT id FROM citymap WHERE wiki_key = :wk LIMIT 1');
+    $findId = $pdo->prepare('SELECT id, public_id FROM citymap WHERE wiki_key = :wk LIMIT 1');
     $delCard = $pdo->prepare("DELETE FROM citymap WHERE id = :id AND origin = 'wiki'");
     foreach ($remove as $key) {
         $findId->execute(['wk' => $key]);
-        $id = $findId->fetchColumn();
-        if ($id === false) {
+        $card = $findId->fetch(PDO::FETCH_ASSOC);
+        if ($card === false) {
             continue;
         }
-        // 💣 KARTE ZUERST, Kinder danach. Der origin-Riegel an diesem DELETE ist die zweite
-        // Sicherung -- bis 2026-08-05 liefen die Kind-Loeschungen aber DAVOR. Griff der Riegel
-        // also je, blieb die Karte stehen und hatte ihre Orte und Arten verloren: die Sicherung
-        // richtete genau den Schaden an, den sie verhindern sollte. Ohne FK ist die Reihenfolge
-        // frei, also steht sie jetzt richtig herum.
-        $delCard->execute(['id' => (int) $id]);
-        if ($delCard->rowCount() < 1) {
-            continue;
+        $id = (int) $card['id'];
+        $publicId = (string) ($card['public_id'] ?? '');
+        // 💣 EINE TRANSAKTION JE KARTE, KARTE ZUERST -- beides zusammen, keines allein.
+        //
+        // Der origin-Riegel an diesem DELETE ist die zweite Sicherung, und bis 2026-08-05 liefen
+        // die Kind-Loeschungen DAVOR: griff der Riegel je, blieb die Karte stehen und hatte ihre
+        // Orte und Arten verloren -- die Sicherung richtete genau den Schaden an, den sie
+        // verhindern sollte. Ohne FK ist die Reihenfolge frei, also steht sie jetzt richtig herum.
+        //
+        // Die Reihenfolge allein taeuscht aber nur den Schaden um. Bricht der Lauf zwischen Karte
+        // und Kindern ab -- und dieser Schritt steht unter einem 43-Sekunden-Zeitlimit auf einem
+        // Host mit FastCGI-Abschuss-Geschichte --, ist die Karte weg und ihre Kinder sind FUER
+        // IMMER verwaist: die Liste der zu Entfernenden wird aus LEBENDEN citymap-Zeilen gebildet,
+        // diese id kann also nie wieder genannt werden. Andersherum war derselbe Abbruch heilbar,
+        // kostete aber die Kinder. Erst die Transaktion macht aus beiden Uebeln keines -- der
+        // Loeschweg von Hand fuehrt sie seit jeher.
+        $ownsTransaction = !$pdo->inTransaction();
+        if ($ownsTransaction) {
+            $pdo->beginTransaction();
         }
-        // 💣 Derselbe Raeumer wie beim Loeschen von Hand (api/_internal/app/citymaps.php). Vorher
-        // raeumte dieser Weg nur place und type -- citymap_related und citymap_link blieben als
-        // Waisen zurueck (Befund A8). Laufzeit-Aufruf mit function_exists-Riegel, wie schon bei
-        // avesmapsCitymapsEnsureTables weiter oben: diese Datei laedt absichtlich nichts nach,
-        // damit ihr Unit-Test ohne MySQL laeuft; api/edit/wiki/dump.php laedt die Kette davor.
-        if (function_exists('avesmapsDeleteCitymapChildRows')) {
-            avesmapsDeleteCitymapChildRows($pdo, (int) $id);
+        try {
+            $delCard->execute(['id' => $id]);
+            if ($delCard->rowCount() < 1) {
+                if ($ownsTransaction) {
+                    $pdo->rollBack();
+                }
+                continue;
+            }
+            // 💣 Derselbe Raeumer wie beim Loeschen von Hand (api/_internal/app/citymaps.php).
+            // Vorher raeumte dieser Weg nur place und type -- citymap_related und citymap_link
+            // blieben als Waisen zurueck (Befund A8), und der Quellenverweis der Karte blieb sogar
+            // im oeffentlichen Kartenpayload stehen.
+            //
+            // ⚠️ Laufzeit-Aufruf hinter function_exists, wie schon bei avesmapsCitymapsEnsureTables
+            // weiter oben: diese Datei laedt absichtlich nichts nach, damit ihr Unit-Test ohne
+            // MySQL laeuft. Der Riegel macht aus einer fehlenden Bibliothek KEIN Fatal, sondern
+            // "nicht aufgeraeumt" -- entscheidend ist deshalb, DASS api/edit/wiki/dump.php
+            // app/citymaps.php laedt. Die Reihenfolge der require-Zeilen ist dagegen egal: diese
+            // Datei hat keine Anweisung auf oberster Ebene, der Riegel wird erst beim Dispatch
+            // ausgewertet, lange nach jedem require.
+            if (function_exists('avesmapsDeleteCitymapChildRows')) {
+                avesmapsDeleteCitymapChildRows($pdo, $id, $publicId);
+            }
+            if ($ownsTransaction) {
+                $pdo->commit();
+            }
+        } catch (Throwable $error) {
+            if ($ownsTransaction && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $error;
         }
         $removed += 1;
     }

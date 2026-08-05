@@ -3,9 +3,13 @@
 declare(strict_types=1);
 
 /**
- * The two citymap delete paths must clear the same child rows (finding A8). No DB, no HTTP. Run:
+ * The two citymap delete paths must clear the same rows, in a safe order, atomically (finding A8).
+ * No DB, no HTTP. Run:
  *   php -d zend.assertions=1 -d assert.exception=1 api/_internal/wiki/__tests__/citymap-delete-parity-test.php
  * Exit 0 = all asserts passed.
+ *
+ * 💣 The first version of this file let FOUR mutations through, two of which re-opened the very bugs
+ * the commit claimed to fix. Every assert below was re-checked by breaking the thing it names.
  */
 if (ini_get('zend.assertions') !== '1') {
     fwrite(STDERR, "FATAL: zend.assertions is not '1' -- assert() would be a no-op. "
@@ -13,97 +17,121 @@ if (ini_get('zend.assertions') !== '1') {
     exit(2);
 }
 
-// Both files are read as TEXT. citymap-sync.php is deliberately require-safe, but app/citymaps.php is
-// not, and this test is about what the two files SAY -- there is no database here to delete anything in.
+// Read as TEXT: app/citymaps.php is not require-safe, and there is no database here anyway.
 $syncSource = file_get_contents(__DIR__ . '/../citymap-sync.php');
 $appSource = file_get_contents(__DIR__ . '/../../app/citymaps.php');
 $dumpSource = file_get_contents(__DIR__ . '/../../../edit/wiki/dump.php');
 assert(is_string($syncSource) && is_string($appSource) && is_string($dumpSource), 'all three sources readable');
 
-// --- 💣 One cleaner, used by both paths ------------------------------------------------------------
+// The cleaner's body, isolated once and used by every assert about it. Anchoring matters: an
+// unanchored /s pattern happily runs past the closing brace and finds the same SQL elsewhere in a
+// 2000-line file, which is how a one-sided citymap_related delete slipped through the first version.
+assert(
+    preg_match('/function avesmapsDeleteCitymapChildRows\([^)]*\)\s*:\s*void\s*\{(.*?)\n\}/s', $appSource, $match) === 1,
+    'the shared child-row cleaner exists and its body can be isolated'
+);
+$cleanerBody = $match[1];
+
+// --- 💣 One cleaner, and it clears everything that hangs off a card --------------------------------
 //
 // Until 2026-08-05 there were two: deleting by hand cleared citymap_related, citymap_place,
 // citymap_type and citymap_link; the wiki sync cleared only place and type. Every sync-side deletion
-// therefore left citymap_related and citymap_link rows behind as orphans -- two paths, two results,
-// for the same act. A third table added tomorrow would have had to be remembered in two places.
+// left orphans -- two paths, two results, for the same act.
 
+foreach (['citymap_related', 'citymap_place', 'citymap_type', 'citymap_link'] as $childTable) {
+    assert(str_contains($cleanerBody, $childTable), "the cleaner clears {$childTable}");
+}
 assert(
-    str_contains($appSource, 'function avesmapsDeleteCitymapChildRows(PDO $pdo, int $citymapId): void'),
-    'the shared child-row cleaner exists'
+    str_contains($cleanerBody, 'citymap_id = :a OR related_citymap_id = :b'),
+    'citymap_related is cleared on BOTH sides -- it links maps in both directions, and a one-sided '
+        . 'delete leaves the mirror row'
+);
+
+// 💣 feature_sources hangs off entity_public_id, not citymap_id, and it is the dangerous one: citymaps
+// are NOT in AVESMAPS_FEATURE_SOURCE_SOFT_DELETED_ENTITY_TYPES, so the live-entity guard never filters
+// them. A source reference to a deleted card keeps shipping in the PUBLIC map payload, forever. That is
+// finding A6, for the one entity A6 exempted on the grounds that citymaps "keep their own delete
+// semantics" -- which did not delete.
+assert(
+    str_contains($cleanerBody, "entity_type = 'citymap'") && str_contains($cleanerBody, 'feature_sources'),
+    'the cleaner removes the card\'s source references, or they stay in the public payload for good'
+);
+// A sub-map points at its parent. Both readers swallow a dangling pointer silently, so the relation
+// would vanish without a trace rather than come back empty.
+assert(
+    str_contains($cleanerBody, 'UPDATE citymap SET parent_id = NULL WHERE parent_id = :id'),
+    'children of a deleted card lose their parent pointer instead of keeping a dangling one'
+);
+
+// Neither path may keep a second copy of any of this. The hand path must CALL the cleaner.
+assert(
+    !str_contains($syncSource, 'DELETE FROM citymap_place') && !str_contains($syncSource, 'DELETE FROM citymap_type'),
+    'the sync carries no child deletes of its own -- that copy is how the two drifted apart'
+);
+assert(
+    preg_match('/function avesmapsDeleteCitymap\(PDO \$pdo, string \$publicId\): array\s*\{(.*?)\n\}/s', $appSource, $handMatch) === 1,
+    'the hand path body can be isolated'
+);
+$handBody = $handMatch[1];
+assert(
+    str_contains($handBody, 'avesmapsDeleteCitymapChildRows($pdo, $id, $publicId);'),
+    'the hand path calls the cleaner rather than inlining the deletes again'
 );
 foreach (['citymap_related', 'citymap_place', 'citymap_type', 'citymap_link'] as $childTable) {
     assert(
-        preg_match('/function avesmapsDeleteCitymapChildRows\(.*?\n\}/s', $appSource, $body) === 1
-            && str_contains($body[0], $childTable),
-        "the cleaner clears {$childTable}"
+        !str_contains($handBody, "DELETE FROM {$childTable}"),
+        "the hand path must not keep its own {$childTable} delete"
     );
 }
-// citymap_related links maps BOTH ways, so one-sided deletion leaves the mirror row.
-assert(
-    preg_match('/function avesmapsDeleteCitymapChildRows\(.*?citymap_id = :a OR related_citymap_id = :b/s', $appSource) === 1,
-    'and clears citymap_related on both sides'
-);
 
-// Neither path may keep its own copy of those deletes.
-foreach ([[$appSource, 'app/citymaps.php'], [$syncSource, 'citymap-sync.php']] as [$source, $label]) {
-    assert(
-        !preg_match('/DELETE FROM citymap_place WHERE citymap_id/', $source)
-            || $label === 'app/citymaps.php',
-        "{$label} must not carry its own child deletes"
-    );
-}
-assert(
-    !str_contains($syncSource, 'DELETE FROM citymap_place'),
-    'the sync no longer carries its own place delete -- that copy is how the two drifted'
-);
-assert(
-    !str_contains($syncSource, 'DELETE FROM citymap_type'),
-    'nor its own type delete'
-);
-assert(
-    str_contains($syncSource, 'avesmapsDeleteCitymapChildRows($pdo, (int) $id);'),
-    'the sync calls the shared cleaner instead'
-);
-
-// --- 💣 The card goes first, the children after ----------------------------------------------------
+// --- 💣 Card first, guard between, children after --------------------------------------------------
 //
 // The sync's DELETE carries `AND origin = 'wiki'` as a second guard. The child deletes used to run
-// BEFORE it, so whenever that guard actually fired, the card survived and had lost its places and
-// types: the safeguard caused exactly the damage it was there to prevent. Without a foreign key the
-// order is free, so it is the right way round now -- and the cleanup only runs once the card is gone.
-$removeBody = null;
-if (preg_match('/function avesmapsCitymapRemoveVanished\(PDO \$pdo\): int\s*\{(.*?)\n\}/s', $syncSource, $match) === 1) {
-    $removeBody = $match[1];
-}
-assert(is_string($removeBody), 'the vanish-remover body can be isolated');
-
-$cardDeleteAt = strpos($removeBody, "\$delCard->execute(['id' => (int) \$id]);");
-$childCleanAt = strpos($removeBody, 'avesmapsDeleteCitymapChildRows($pdo, (int) $id);');
-assert(is_int($cardDeleteAt) && is_int($childCleanAt), 'both steps are in the loop');
-assert($cardDeleteAt < $childCleanAt, 'the card is deleted before its children are cleared');
+// BEFORE it, so whenever that guard fired, the card survived having lost its places and types: the
+// safeguard caused exactly the damage it existed to prevent. All THREE offsets are compared -- with
+// only two, the guard can be moved below the cleanup and the same bug returns with the test green.
 assert(
-    preg_match('/\$delCard->rowCount\(\) < 1\)\s*\{\s*continue;/', $removeBody) === 1,
-    'and a card the origin guard refused stops the loop before anything of it is touched'
+    preg_match('/function avesmapsCitymapRemoveVanished\(PDO \$pdo\): int\s*\{(.*?)\n\}/s', $syncSource, $removeMatch) === 1,
+    'the vanish-remover body can be isolated'
+);
+$removeBody = $removeMatch[1];
+
+$cardDeleteAt = strpos($removeBody, "\$delCard->execute(['id' => \$id]);");
+$guardAt = strpos($removeBody, '$delCard->rowCount() < 1');
+$childCleanAt = strpos($removeBody, 'avesmapsDeleteCitymapChildRows($pdo, $id, $publicId);');
+assert(is_int($cardDeleteAt) && is_int($guardAt) && is_int($childCleanAt), 'all three steps are in the loop');
+assert($cardDeleteAt < $guardAt, 'the card delete comes first');
+assert($guardAt < $childCleanAt, 'the origin guard is checked BEFORE anything of the card is cleared');
+
+// --- 💣 Atomic, like the hand path -----------------------------------------------------------------
+//
+// Order alone only swaps which damage an abort causes. Break between card and children and the card is
+// gone while its children are orphaned FOREVER -- the removal list is built from LIVE citymap rows, so
+// that id can never be named again. This step runs under a 43-second limit on a host with a
+// FastCGI-kill history, so the window is real.
+assert(str_contains($removeBody, '$pdo->beginTransaction();'), 'the per-card delete opens a transaction');
+assert(str_contains($removeBody, '$pdo->commit();'), 'and commits it');
+assert(str_contains($removeBody, '$pdo->rollBack();'), 'and rolls back on failure');
+assert(
+    str_contains($removeBody, '$ownsTransaction = !$pdo->inTransaction();'),
+    'and never opens a nested one -- a caller may already own the transaction'
 );
 
-// --- ⚠️ The runtime call depends on a load order, so the load order is asserted ---------------------
+// --- ⚠️ What actually makes the runtime call work is PRESENCE, not order ---------------------------
 //
-// citymap-sync.php deliberately requires nothing (its own header says so: the unit test must be able
-// to include it without MySQL), and calls neighbouring libraries at runtime behind a function_exists
-// guard -- the same shape avesmapsCitymapsEnsureTables already uses here. That guard means a missing
-// library degrades to "no cleanup" rather than a fatal, so the endpoint's load order is what actually
-// makes it work, and nothing else asserts it.
+// citymap-sync.php has no top-level statement at all, so it cannot observe a load order; the guard is
+// evaluated at dispatch, long after every require has returned. The first version of this test asserted
+// the ORDER of the two requires -- which protects nothing -- using a substring search that also matched
+// a commented-out require. Commenting the require out therefore left the test green while every
+// sync-side removal silently stopped cleaning up. What is asserted now is that the require exists.
 assert(
     str_contains($syncSource, "if (function_exists('avesmapsDeleteCitymapChildRows')) {"),
     'the runtime call is guarded, like its neighbour'
 );
-$appRequireAt = strpos($dumpSource, "_internal/app/citymaps.php");
-$syncRequireAt = strpos($dumpSource, "_internal/wiki/citymap-sync.php");
-assert(is_int($appRequireAt) && is_int($syncRequireAt), 'the dump endpoint loads both libraries');
 assert(
-    $appRequireAt < $syncRequireAt,
-    'and loads the app library FIRST -- otherwise the guarded call silently skips the cleanup and the '
-        . 'orphan rows of A8 come straight back'
+    preg_match('/^\s*require(_once)?\s+__DIR__\s*\.\s*\'[^\']*_internal\/app\/citymaps\.php\'\s*;/m', $dumpSource) === 1,
+    'api/edit/wiki/dump.php really REQUIRES app/citymaps.php -- without it the guarded call skips the '
+        . 'cleanup without a sound and the orphans of A8 come straight back'
 );
 
 echo "citymap-delete-parity ok\n";
