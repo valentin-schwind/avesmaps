@@ -6,8 +6,18 @@
 // precedence question: everything that navigates on start -- ?s= share links, wiki deep-links, ?place=,
 // ?route=, spotlight focus -- runs AFTER map creation and overrides this seed exactly as it overrides the
 // hardcoded default. Not edit mode, no stored frame, or a corrupt / out-of-bounds one -> the default, quietly.
-const AVESMAPS_DEFAULT_MAP_CENTER = [478.0, 539.0];
+// The default frame is the "Aventurien" continent label -- literally the view the spotlight produces when
+// you pick "Aventurien" from the search: focusSpotlightLabel clamps to the label's own zoom band, and this
+// label is drawn from zoom 0 to 2. [497.28, 520.5] is its map_features position ([lat, lng] = [y, x], read
+// off the live row on 2026-08-05); a continent label does not travel.
+// The centre then moves half a route-planner width WEST on purpose: #search overlays the map's left 350px
+// (css/layout/map-layout.css), so the window centre is not the centre of the map the visitor can actually
+// see. Half the panel (175px) divided by the zoom scale (2^zoom px per map unit) = 43.75 units -- pure
+// pixel arithmetic, and the window WIDTH cancels out of it, so the label lands optically centred in the
+// free map area at 1280px and at 1920px alike. Change the panel width in CSS and this follows.
 const AVESMAPS_DEFAULT_MAP_ZOOM = 2;
+const AVESMAPS_ROUTE_PLANNER_PANEL_WIDTH_PX = 350;
+const AVESMAPS_DEFAULT_MAP_CENTER = [497.28, 520.5 - (AVESMAPS_ROUTE_PLANNER_PANEL_WIDTH_PX / 2) / (2 ** AVESMAPS_DEFAULT_MAP_ZOOM)];
 function getInitialEditMapView() {
     if (!IS_EDIT_MODE) {
         return { center: AVESMAPS_DEFAULT_MAP_CENTER, zoom: AVESMAPS_DEFAULT_MAP_ZOOM };
