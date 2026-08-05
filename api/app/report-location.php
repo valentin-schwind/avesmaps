@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
 require __DIR__ . '/../_internal/app/report-context.php';
+// What the hourly bucket counts -- a pure decision, kept out of this script so it can be asserted
+// without a database (__tests__/report-outcome-test.php).
+require __DIR__ . '/../_internal/app/report-outcome.php';
 // Kartensammlung community suggestion (Spec §3.8): the citymap vocabulary (arts, type keys, tri-bools,
 // URL rules) and the payload whitelist live in the citymap library, so this endpoint validates a proposed
 // map against THE SAME definitions the editor writes through -- rather than growing a second, drifting
@@ -94,7 +97,9 @@ try {
     }
     // Change reports come from the in-app editor flow on a KNOWN element (entity_public_id) and go to
     // editor review -> exempt them from the new-location rate limit (an active contributor legitimately
-    // files several in a row; honeypot + spam-word checks still apply).
+    // files several in a row; honeypot + spam-word checks still apply). 💣 The exemption lives in BOTH
+    // halves: this check skips them, and avesmapsReportRateLimitCountSql() does not count them. Until
+    // 2026-08-05 only this half existed, so five corrections quietly used up the allowance for new places.
     if ($mapReport['report_mode'] !== 'change' && avesmapsReportRateLimitExceeded($pdo, avesmapsBuildPrivacyIpHash($config))) {
         avesmapsJsonResponse(200, [
             'ok' => true,
@@ -434,17 +439,12 @@ function avesmapsBuildPrivacyIpHash(array $config): string {
 }
 
 function avesmapsReportRateLimitExceeded(PDO $pdo, string $ipHash): bool {
-    $statement = $pdo->prepare(
-        "SELECT COUNT(*)
-        FROM map_reports
-        WHERE ip_hash = :ip_hash
-            AND created_at >= (CURRENT_TIMESTAMP - INTERVAL 1 HOUR)"
-    );
+    $statement = $pdo->prepare(avesmapsReportRateLimitCountSql());
     $statement->execute([
         'ip_hash' => $ipHash,
     ]);
 
-    return (int) $statement->fetchColumn() >= 5;
+    return (int) $statement->fetchColumn() >= AVESMAPS_REPORT_RATE_LIMIT_PER_HOUR;
 }
 
 function avesmapsIsNearDuplicateReport(PDO $pdo, array $mapReport): bool {
