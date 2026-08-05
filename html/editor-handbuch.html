@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 05.08.2026</span>
+		<span class="hb-topbar__meta">Stand: 06.08.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -232,10 +232,10 @@
 				<li><a href="#karten-features" data-keywords="wikisync dump syncen sorten">Karten-Features</a>
 					<ul>
 						<li><a href="#kreise" data-keywords="kreis punkt icon symbol grün halb gefüllt leer abdeckung auf der karte legende">Der Kreis neben dem Namen</a></li>
-						<li><a href="#siedlungen" data-keywords="ort orte siedlung siedlungen stadt dorf metropole bauwerk art ortsart wappen bilder nodix ruine ortsgröße ortseditor siedlungseditor zuordnen verschieben ziehen strg offene wegenden ablösen ortsname eindeutig doppelter name klammern lage innerorts außerorts filter ki generiert prompt bild hochladen gemeinfrei">Orte</a></li>
+						<li><a href="#siedlungen" data-keywords="ort orte siedlung siedlungen stadt dorf metropole bauwerk art ortsart wappen bilder nodix ruine ortsgröße ortseditor siedlungseditor zuordnen verschieben ziehen strg offene wegenden ablösen ortsname eindeutig doppelter name klammern lage innerorts außerorts filter ki generiert prompt bild hochladen gemeinfrei beschreibung öffentlich">Orte</a></li>
 						<li><a href="#territorien" data-keywords="gebiet herrschaftsgebiet reich grafschaft baronie grenzen hauptstadt zoom gültigkeit schraffur einrasten ring ecke kante gebündelt speichern strg schreibrecht gesperrt sperre blockiert erzwingen kontur zielgebiet">Territorien</a></li>
 						<li><a href="#regionen" data-keywords="label beschriftung landschaft kategorie art höhe schritt berggipfel kraftlinie wald gebirge meer vulkan tal label zuweisen regionen bearbeiten vorschau größe rotation priorität darstellung">Regionen</a></li>
-						<li><a href="#kraftlinien" data-keywords="kraftlinie nodix madas haar ader sumus segment verbindet quellen wiki-link">Kraftlinien</a></li>
+						<li><a href="#kraftlinien" data-keywords="kraftlinie nodix madas haar ader sumus segment verbindet quellen wiki-link löschen abschnitt lösen">Kraftlinien</a></li>
 						<li><a href="#wege" data-keywords="straße strasse pfad fluss seeweg kreuzung verlauf geometrie strömung transportmittel gangbar gangbarkeit saisonal jahreszeit pass winter routing teilen lage innerorts außerorts filter wege-editor wege bearbeiten höhenprofil wegprofile abschnitte">Wege</a></li>
 						<li><a href="#abenteuer" data-keywords="cover spoiler shop edition schauplatz produkte publikationen materialien">Abenteuer</a></li>
 						<li><a href="#kartensammlungen" data-keywords="stadtplan karte vorschau fundort maßstab verlag kostenpflichtig produkte publikationen materialien lizenz hochladen upload webp eigene kreation">Kartensammlungen</a></li>
@@ -246,10 +246,10 @@
 					<ul>
 						<li><a href="#konflikte" data-keywords="konflikt konflikte wiki artikel doppelt verknüpfung trennen genehmigt kein wiki-eintrag widerspruch dump-lauf dump-bericht bericht auffällig">Konflikte</a></li>
 						<li><a href="#bug-system" data-keywords="discord fehler bug idee frage offen erledigt bot">Das automatische Bug-System</a></li>
-						<li><a href="#meldungen" data-keywords="community änderung vorschlagen position melden report">Meldungen</a></li>
+						<li><a href="#meldungen" data-keywords="community änderung vorschlagen position melden report bearbeitet erledigt offen alle filter wiederfinden angenommen verworfen begründung änderungswunsch beschreibung">Meldungen</a></li>
 						<li><a href="#bewertungen" data-keywords="sterne rating community">Bewertungen</a></li>
 						<li><a href="#mails" data-keywords="postfach kontakt empfangen gesendet">Mails</a></li>
-						<li><a href="#aenderungen" data-keywords="audit protokoll rückgängig undo redo wiederherstellen strg+z verlauf">Änderungen</a></li>
+						<li><a href="#aenderungen" data-keywords="audit protokoll rückgängig undo redo wiederherstellen strg+z verlauf meldung angenommen verworfen zurückgestellt">Änderungen</a></li>
 						<li><a href="#status" data-keywords="präsenz aktivität">Status</a>
 							<ul>
 								<li><a href="#status-besucher" data-keywords="statistik dashboard aufrufe zahlen analytics online jetzt live gleichzeitig anwesend">Besucher</a></li>
@@ -499,6 +499,7 @@
 				<ul class="hb-steps">
 					<li><strong>Position</strong> — die Koordinaten, nur zur Anzeige. Verschieben tust du den Ort, indem du ihn auf der Karte ziehst.</li>
 					<li><strong>Identität</strong> — <em>Ortsname</em>, <em>Ortsgröße</em> und <em>Art</em>. Das <strong>↻</strong> neben den ersten beiden übernimmt den Wert aus dem verbundenen Wiki-Ort.</li>
+					<li><strong>Beschreibung</strong> — ein Textfeld, beschriftet <em>„Beschreibung — öffentlich sichtbar"</em>. Was hier steht, erscheint in der Infobox; bis 1.200 Zeichen.</li>
 					<li><strong>Wiki-Ort</strong> — <strong>„Zuweisen"</strong> (heißt <strong>„Ändern"</strong>, sobald etwas verbunden ist) und <strong>„Entfernen"</strong>. Im Suchfeld <em>„Ort suchen …"</em> wählst du die Wiki-Seite.</li>
 					<li><strong>Quellen</strong> — womit dieser Ort belegt ist. Mehrere Einträge sind normal; siehe <a href="#v-quellen">Quellen</a>.</li>
 					<li><strong>Wappen</strong> — <strong>„Übernehmen"</strong> (aus dem Wiki), <strong>„Eigenes hochladen"</strong>, <strong>„Entfernen"</strong>. Erscheint erst, <em>nachdem</em> der Ort einmal gespeichert wurde.</li>
@@ -507,6 +508,7 @@
 				<div class="hb-note hb-tip"><strong>„Ortsgröße" und „Art" beantworten zwei verschiedene Fragen.</strong> Die <em>Ortsgröße</em> entscheidet, <strong>wie</strong> der Punkt gezeichnet wird — Symbol, Größe, ab welchem Zoom sein Name erscheint. Die <em>Art</em> sagt, <strong>was</strong> er ist: Brücke, Festung, Turm, Kloster … Sie ändert an der Karte nichts, sondern ersetzt nur die Typzeile in der Infobox. Tipp einfach los, der Editor schlägt aus dem Wiki-Katalog vor („brü" findet „Brücke"); <strong>leer lassen ist erlaubt</strong>, wenn du es nicht sicher weißt.</div>
 				<div class="hb-note hb-tip"><strong>„Art" ist grau? Dann steht die Ortsgröße nicht auf „Besondere Bauwerke/Stätten".</strong> Nur dort ist das Feld freigeschaltet — ein Dorf ist eben ein Dorf, da gibt es keine zweite Art. Stellst du die Ortsgröße wieder auf eine Siedlungsstufe zurück, wird die Art <em>geleert</em>, nicht bloß gesperrt: Gespeichert würde sie ohnehin nicht mehr, und ein stehengebliebener Text behauptete etwas Falsches.</div>
 				<div class="hb-note hb-warn"><strong>Wappen werden nur öffentlich gezeigt, wenn die Lizenz gemeinfrei ist.</strong> Lädt jemand ein Wappen hoch, dessen Lizenz unklar ist, bleibt es unsichtbar — das ist kein Fehler, sondern Absicht. Mehr unter <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>.</div>
+				<div class="hb-note hb-tip"><strong>Die Beschreibung war bis zum 5. August unsichtbar — und ging beim Speichern verloren.</strong> Das Feld gab es zwar, aber es wurde nie geladen: Wer den Namen eines vorhandenen Ortes korrigierte und speicherte, löschte damit stillschweigend dessen Beschreibung. Wenn dir bei einem Ort eine Beschreibung fehlt, die du dort in Erinnerung hast, ist das die wahrscheinliche Ursache — du kannst sie jetzt einfach neu eintragen.</div>
 
 				<h4>Einen Ort verschieben — und die Wege dabei liegen lassen</h4>
 				<p>Ziehst du einen Ort (oder eine Kreuzung) auf der Karte, <strong>wandern alle angeschlossenen Wegenden mit</strong>. Das ist der Normalfall und hält das Wegenetz dicht. Bei einem weiten Zug ist es aber genau das Falsche: Die Straßen werden quer über die Karte gedehnt, oder ein Ende landet an etwas, mit dem es nichts zu tun hat.</p>
@@ -673,6 +675,7 @@
 					<li><strong>Quellen</strong> — derselbe Quellen-Block wie bei Orten und Wegen, mit Autocomplete über den gemeinsamen Quellenkatalog.</li>
 				</ul>
 				<div class="hb-note hb-tip"><strong>Eine Kraftlinie besteht aus vielen Segmenten.</strong> Was auf der Karte wie <em>eine</em> Linie aussieht, sind in Wirklichkeit viele kurze Stücke von Nodix zu Nodix — die Basiliuslinie etwa aus vierzehn. Zusammengehalten werden sie <strong>allein durch den Namen</strong>. In der Infobox steht deshalb unter „Verbindet" die Spanne der <em>ganzen</em> Linie, nicht die des angeklickten Stücks; reine Kreuzungen an den Enden werden übersprungen.</div>
+				<div class="hb-note hb-warn"><strong>Einen Nodix-Ort, an dem eine Kraftlinie hängt, kannst du nicht löschen.</strong> Der Versuch wird abgelehnt, nicht bloß nachgefragt — die Meldung nennt die Zahl der Abschnitte und die Linien beim Namen (<em>„… trägt noch 3 Kraftlinien-Abschnitte (Konzilslinie, Nelkra-Linie). Bitte zuerst die Kraftlinie lösen."</em>). Das gilt genauso für Kreuzungen. Lös also erst die Kraftlinie, dann den Punkt. Früher lief das Löschen wortlos durch und ließ Abschnitte zurück, die ins Leere zeigten.</div>
 				<div class="hb-note hb-tip"><strong>Schreibweise zählt doppelt.</strong> Weil der Name das einzige Band ist, zerlegt ein Tippfehler eine Linie in zwei: „Elementare Hexagramm" neben „Elementares Hexagramm" ergibt zwei getrennte Ketten und zwei falsche Angaben — und der Wiki-Abgleich unten findet den Artikel dann nur für die richtig geschriebene Hälfte. Beim Umbenennen also alle Segmente derselben Linie gleich schreiben.</div>
 				<p>Nicht jede Kraftlinie ist ein Strang. Von 61 Namen auf der Karte sind 54 durchgehende Linien, sechs verzweigen sich (die <em>Yaquirlinie</em> hat sechs Enden) und eine ist ein geschlossener Ring. Die Infobox zeigt deshalb je nach Form <strong>„Verbindet"</strong> (die Enden), <strong>„Verläuft über"</strong> (die benannten Punkte dazwischen) und <strong>„Abschnitte"</strong>.</p>
 
@@ -937,7 +940,7 @@
 				<h3 id="natur-waren" class="hb-sub">Vorkommen</h3>
 				<p>Pflanzen, Tiere und Handelswaren aus dem Wiki — was wo wächst, lebt und gehandelt wird. Anders als Abenteuer und Karten ist das kein Produkt, sondern Weltwissen: Es bekommt keinen eigenen Punkt auf der Karte, sondern erscheint in der Infobox der Orte, Regionen und Gebiete, zu denen es gehört.</p>
 				<p>Unter der Auswahl steht <em>ein</em> Knopf: <strong>„Vorkommen bearbeiten"</strong>. Er öffnet das Fenster und startet nichts. Das Datum des letzten Syncs steht in der Auswahlzeile selbst — oder „nie", solange der Bestand leer ist.</p>
-				<div class="hb-note hb-tip"><strong>Der scharfe Sync steht nicht im Reiter, sondern im Fenster.</strong> Das ist Absicht: Der Abgleich liest den kompletten Wiki-Dump, braucht mehrere Minuten und soll nicht von einem ersten, neugierigen Klick ausgelöst werden. Du findest ihn als 🚨-Kachel <strong>„Vorkommen syncen"</strong> im Menüband des Fensters (siehe <a href="#n-editoren">Die sechs Sync-Editoren</a>). Manuelle und unterdrückte Einträge bleiben dabei unangetastet, und ein zweiter Klick bringt nichts — es läuft immer nur ein Lauf.</div>
+				<div class="hb-note hb-tip"><strong>Der scharfe Sync steht nicht im Reiter, sondern im Fenster.</strong> Das ist Absicht: Der Abgleich liest den kompletten Wiki-Dump, braucht mehrere Minuten und soll nicht von einem ersten, neugierigen Klick ausgelöst werden. Du findest ihn als 🚨-Kachel <strong>„Vorkommen syncen"</strong> im Menüband des Fensters (siehe <a href="#n-editoren">Die acht Sync-Editoren</a>). Manuelle und unterdrückte Einträge bleiben dabei unangetastet, und ein zweiter Klick bringt nichts — es läuft immer nur ein Lauf.</div>
 				<p>Über der Liste stehen die Arten als Reiter: <strong>Alle · Fauna · Flora · Waren · Spezies</strong>. <strong>Spezies ist ausgegraut</strong>, aber anklickbar: die öffentliche Anzeige ist aus, weil das Wiki-Feld „Regionen" der <em>Infobox Spezies</em> zu schlecht gepflegt ist — die Daten sind vollständig da und bleiben bearbeitbar. Die Begründung steht im Tooltip des Reiters.</p>
 
 				<h5>Das Fenster</h5>
@@ -1055,8 +1058,16 @@
 				</table>
 				<p>Rechts steht immer <strong>„Verwerfen"</strong>, mit Rückfrage.</p>
 
+				<h4>Bearbeitete Meldungen wiederfinden</h4>
+				<p>Über der Liste sitzt <strong>„Filter ▾"</strong> mit drei Möglichkeiten: <strong>Offen</strong> (die Voreinstellung), <strong>Bearbeitet</strong> und <strong>Alle</strong>. Die beiden Hälften sind mit Absicht verschieden sortiert — die offenen sind eine <em>Warteschlange</em> und stehen <strong>älteste zuerst</strong>, die bearbeiteten sind ein <em>Verlauf</em> und stehen <strong>neueste zuerst</strong>.</p>
+				<p>Eine bearbeitete Meldung wird <strong>gezeigt, nicht angeboten</strong>: „Anlegen" und „Verwerfen" fehlen dort. An ihrer Stelle steht die Entscheidung — <strong>„Angenommen"</strong> oder <strong>„Verworfen"</strong> —, dazu wer sie getroffen hat und wann, und darüber die Begründung, falls eine hinterlegt ist.</p>
+				<div class="hb-note hb-tip"><strong>Bis zum 5. August war eine entschiedene Meldung schlicht weg.</strong> Die Liste zeigte ausschließlich die offenen, und es gab nirgends eine zweite — wer eine Meldung angenommen oder verworfen hatte, war hinterher nicht mehr feststellbar. Falls du dich erinnerst, dass hier einmal etwas spurlos verschwunden ist: Es lag nicht an dir.</div>
+				<div class="hb-note hb-tip"><strong>Sehr lange Listen werden gekürzt — und sagen es.</strong> Steht in der Statuszeile <em>„Mehr als …&nbsp;Meldungen"</em> statt einer schlichten Zahl, siehst du nicht alles; der Satz dahinter nennt, welche Hälfte gekürzt wurde. Eine still gekürzte Liste läse sich wie „mehr gibt es nicht", und genau das soll sie nicht.</div>
+
 				<h4>Eine Änderungsmeldung bearbeiten</h4>
 				<p>Der Dialog geht vorbefüllt auf — aber <strong>nur dort, wo der Vorschlag von der Karte abweicht</strong>. Genau diese Felder bekommen einen <strong>roten Rahmen</strong>. Du musst also nicht vergleichen; du siehst sofort, worum es geht. Vorgeschlagene Quellen stehen im Quellen-Block in einer eigenen Gruppe <em>„Aus der Meldung (wird beim Speichern übernommen)"</em>.</p>
+				<p>Der Wunsch selbst steht in einem eigenen, <strong>schreibgeschützten Kasten</strong> über der Beschreibung: <em>„Änderungswunsch von …"</em>. Du kannst ihn lesen, aber nicht bearbeiten — er soll umgesetzt werden, nicht veröffentlicht.</p>
+				<div class="hb-note hb-tip"><strong>Bis zum 5. August wurde dieser Wunsch in die <em>Beschreibung</em> geschrieben</strong> — und die ist öffentlich. Weil das Beschreibungsfeld damals unsichtbar war, hat die Redaktion den fremden Text nie zu Gesicht bekommen und ihn beim Speichern mitveröffentlicht. Beides ist behoben: der Wunsch hat seinen eigenen Kasten, und die Beschreibung ist ein sichtbares Textfeld (siehe <a href="#siedlungen">Orte</a>).</div>
 				<div class="hb-note hb-warn"><strong>Eine vorgeschlagene Position ist bereits eingetragen, wenn der Dialog aufgeht.</strong> Es gibt keinen Knopf zum Übernehmen — und keinen zum Ablehnen. Speicherst du, wandert der Ort. Willst du den Namen übernehmen, die Position aber nicht, dann speichere hier <em>nicht</em>, sondern ändere den Ort auf dem normalen Weg und verwirf die Meldung.</div>
 				<div class="hb-note hb-tip"><strong>Meldung ≠ Auftrag.</strong> Prüf den Hinweis gegen das Wiki, bevor du ihn übernimmst. Nichts wird automatisch veröffentlicht — die Entscheidung liegt bei dir.</div>
 				<div class="hb-note hb-tip"><strong>Eine gemeldete Quelle ohne Link geht verloren.</strong> Nur Quellen mit URL werden beim Speichern zu echten Quellen. Bei einer Neu-Meldung landet eine linklose Quelle wenigstens als Textzeile in der Beschreibung — bei einer Änderungsmeldung gar nicht. Steht im Kommentar ein Buchtitel ohne Link, trag ihn selbst nach.</div>
@@ -1072,6 +1083,7 @@
 				<h3 id="aenderungen" class="hb-sub">Änderungen</h3>
 				<p class="hb-path"><strong>Editor → Änderungen</strong></p>
 				<p>Das Protokoll aller Editor-Änderungen: wer, was, wann — die letzten 200 Einträge. Deine erste Anlaufstelle, um eine Änderung nachzuvollziehen <em>oder rückgängig zu machen</em>.</p>
+				<p>Seit dem 5. August steht hier auch, wie über <a href="#meldungen">Meldungen</a> entschieden wurde: <strong>„Meldung angenommen"</strong>, <strong>„Meldung verworfen"</strong> und <strong>„Meldung zurückgestellt"</strong>, mit Namen und Begründung. Diese drei tragen <em>keinen</em> „Rückgängig"-Knopf — es gibt nichts zurückzunehmen. Was eine Annahme <em>erzeugt</em> hat (einen Ort, eine Karte), schreibt seinen eigenen Eintrag, und der ist der rücknehmbare.</p>
 				<p>Jeder Eintrag, der sich zurücknehmen lässt, trägt den Knopf <strong>„Rückgängig"</strong>. Danach steht in der Zeile <em>„Rückgängig gemacht"</em>, und oben entsteht ein <em>neuer</em> Eintrag <em>„Rückgängig: …"</em>. Auch der hat einen Knopf — dort heißt er <strong>„Wiederherstellen"</strong> und holt den Stand von davor zurück. Aus einem versehentlichen Rückgängig kommst du also wieder heraus, ohne die Änderung von Hand nachzubauen.</p>
 				<div class="hb-note hb-warn"><strong>Strg+Z wirkt hier nicht — mit Absicht.</strong> Früher nahm die Tastenkombination den obersten noch zurücknehmbaren Eintrag zurück: sofort auf dem Server, ohne Rückfrage, gleich wessen Eintrag es war. Und weil der nächste nachrückt, sobald einer abgehakt ist, arbeiteten sich mehrere Anschläge durch die Historie <em>nach unten</em>. Das Protokoll nimmt deshalb nur noch den ausdrücklichen Klick auf den benannten Eintrag an. Strg+Z gehört jetzt allein dem Zeichnen von Grenzen (siehe <a href="#territorien">Territorien</a>).</div>
 
