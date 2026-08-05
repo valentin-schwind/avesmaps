@@ -949,6 +949,11 @@ ist von außen nicht feststellbar und wäre als Verlass darauf ohnehin keine Ver
 > gefälschte Köpfe landen im **selben** Eimer statt in zweien. Spoofing mit beliebigem Text
 > funktioniert nicht mehr. Auch der Datenschutz-Teil ist damit geschlossen: `ip_hash` ist wieder der
 > Hash einer Adresse und nicht der einer beliebigen Zeichenkette. Drei Mutationen rot, 209/209 grün.
+>
+> **Live geprüft, spurenfrei** — `bootstrap.php` hängt an **vier** Drosseln, also alle vier angesehen:
+> dieselbe Meldung auf „Gareth" antwortet **409** mit *und ohne* `X-Forwarded-For: nicht-eine-ip`
+> (zeichengleich — der Müllkopf ändert nichts mehr), `contact.php` **405**, `share-link.php` **400**,
+> `map-features.php` **200 / 19.236.101 Bytes**. Keine gespeicherte Zeile.
 > **Offen bleibt**, was eine gültig *aussehende* fremde Adresse angeht — dafür braucht es die
 > Topologie-Antwort unten. Ein Assert im Test hält diese Lücke ausdrücklich fest; er soll sich
 > **ändern**, wenn die Entscheidung fällt, nicht verschwinden.
