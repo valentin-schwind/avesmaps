@@ -1085,8 +1085,42 @@ Missbrauchslage ist es der Verlust des letzten Messpunkts.
 > (`report-context.php:13`), die Fundort-Normalisierung hängt allein an `report_type`
 > (`report-location.php:280-282`). Ein `{"report_type":"fundort","report_mode":"change"}` bekommt
 > also die **grosse Nutzlast** *und* die Befreiung von der Stundengrenze. Ein POST, keine Anmeldung.
-> Die Fundort-Deckelung ist eine reine Deckelung ohne Produktfrage und kommt als eigener Schritt —
-> sie ist jetzt der wichtigere Teil, nicht der Nachtrag.
+>
+> **✅ Diese Hälfte ist erledigt `09318c8c`, 05.08.2026.** `avesmapsNormalizeCitymapLinkRows`
+> deckelt die Zeilenzahl jetzt bei **20** — **zurückgewiesen, nicht abgeschnitten** (Hausform; ein
+> still gekürzter Vorschlag ist eine Behauptung über etwas, das der Melder nie gesagt hat). Die
+> Ausnahme fällt in `avesmapsValidateMapReport` (`:87`) und damit **vor** dem `INSERT` (`:166`) und
+> vor dem teuren Namensabgleich — sie kostet also fast nichts und hinterlässt keine halbe Zeile;
+> der Aufrufer bekommt eine **400** mit einer eigens formulierten Meldung, kein Leck.
+>
+> ⭐ **Die 20 ist gemessen, nicht geraten** (je eine Anfrage an die öffentlichen Endpunkte):
+> **456 Karten tragen live höchstens 2 Fundorte** (Verteilung 0:47, 1:123, 2:286) — der Deckel ist
+> das **Zehnfache** des beobachteten Maximums. Der Wiki-Sync baut seine Zeilen an diesem
+> Normalisierer vorbei und liefert ohnehin genau eine.
+>
+> 💣 **Derselbe Deckel im Zwilling.** `avesmapsNormalizeAdventureLinkRows` hatte dasselbe Loch —
+> und der Kommentar auf der Kartenseite nennt ihn ausdrücklich sein **Vorbild**. Ein Vorbild ohne
+> Zeilendeckel vererbt genau den weiter. Auch dort gemessen: **1.352 Abenteuer tragen höchstens 4
+> Links**. Anmeldefrei erreichbar ist er heute nicht (einziger Aufrufer hinter einer Fähigkeit),
+> die Grössenrechnung ist aber dieselbe.
+>
+> Leerzeilen zählen weiterhin nicht mit (eine abschliessende leere Zeile im Zeileneditor ist keine
+> Zeile), und genau 20 gehen durch. Vier von vier Mutationen rot: Riegel entfernt, abschneiden statt
+> abweisen, Deckel unter den Live-Bestand gesetzt, und ein Off-by-one, das 21 daraus gemacht hätte.
+>
+> **Live an der Grenze gemessen, und zwar spurenfrei** — mit genau dem Angriffs-Payload
+> (`report_type=fundort` + `report_mode=change`), plus einer **ungültigen Koordinate** als
+> Sicherheitsgurt: die Koordinatenprüfung läuft **nach** der Normalisierung, wirft aber ebenfalls
+> vor dem `INSERT`. Hätte der Deckel nicht gegriffen, wäre die Meldung also trotzdem an ihr
+> gestorben. Zwei Anfragen:
+>
+> | Probe | Antwort |
+> |---|---|
+> | **21** Zeilen | `400` · `"Zu viele Links (max. 20)."` — der Deckel greift |
+> | **20** Zeilen | `400` · `"Die Koordinate lat ist ungueltig."` — der Deckel greift **nicht**, die Prüfung läuft weiter |
+>
+> Das ist die Grenze von beiden Seiten, ohne eine einzige gespeicherte Zeile — was hier zählt, weil
+> es für `map_reports` bis heute keinen Löschweg gibt (A3/A28).
 
 ### A31 · Die Drossel sitzt hinter dem teuersten Teil des Endpunkts
 `api/app/report-location.php:93` und `:94` gegen `:103`
