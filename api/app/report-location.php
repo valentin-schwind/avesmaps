@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
 require __DIR__ . '/../_internal/app/report-context.php';
-// What the hourly bucket counts -- a pure decision, kept out of this script so it can be asserted
-// without a database (__tests__/report-outcome-test.php).
+// What a submitted report is answered with, and what the hourly bucket counts -- pure decisions,
+// kept out of this script so they can be asserted without a database
+// (__tests__/report-outcome-test.php). The accepted-report answer in particular has exactly one
+// producer there, because a stored report and a silently discarded one must stay indistinguishable.
 require __DIR__ . '/../_internal/app/report-outcome.php';
 // Kartensammlung community suggestion (Spec §3.8): the citymap vocabulary (arts, type keys, tri-bools,
 // URL rules) and the payload whitelist live in the citymap library, so this endpoint validates a proposed
@@ -84,10 +86,7 @@ try {
     $requestPayload = avesmapsReadJsonRequest();
     $mapReport = avesmapsValidateMapReport($requestPayload);
     if ($mapReport['is_spam'] === true) {
-        avesmapsJsonResponse(200, [
-            'ok' => true,
-            'message' => 'Karteneintrag wurde gemeldet.',
-        ]);
+        avesmapsRespondReportAccepted();
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
@@ -100,11 +99,15 @@ try {
     // files several in a row; honeypot + spam-word checks still apply). 💣 The exemption lives in BOTH
     // halves: this check skips them, and avesmapsReportRateLimitCountSql() does not count them. Until
     // 2026-08-05 only this half existed, so five corrections quietly used up the allowance for new places.
-    if ($mapReport['report_mode'] !== 'change' && avesmapsReportRateLimitExceeded($pdo, avesmapsBuildPrivacyIpHash($config))) {
-        avesmapsJsonResponse(200, [
-            'ok' => true,
-            'message' => 'Karteneintrag wurde gemeldet.',
-        ]);
+    $ipHash = avesmapsBuildPrivacyIpHash($config);
+    if ($mapReport['report_mode'] !== 'change' && avesmapsReportRateLimitExceeded($pdo, $ipHash)) {
+        // 💣 The one rejection an honest contributor walks into, so it is the one that must NOT be
+        // silent: a real error, which the form shows without clearing what was typed.
+        $retryAfterSeconds = avesmapsReportRetryAfterSeconds($pdo, $ipHash);
+        if ($retryAfterSeconds > 0) {
+            header('Retry-After: ' . $retryAfterSeconds);
+        }
+        avesmapsErrorResponse(429, 'rate_limited', avesmapsReportRateLimitMessage($retryAfterSeconds));
     }
     if ($mapReport['report_mode'] !== 'change' && avesmapsIsNearDuplicateReport($pdo, $mapReport)) {
         $mapReport['review_note'] = 'Moegliches Duplikat.';
@@ -160,7 +163,6 @@ try {
         )'
     );
 
-    $ipHash = avesmapsBuildPrivacyIpHash($config);
     $insertStatement->execute([
         'status' => 'neu',
         'report_type' => $mapReport['report_type'],
@@ -186,10 +188,7 @@ try {
         'user_agent' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 500),
     ]);
 
-    avesmapsJsonResponse(201, [
-        'ok' => true,
-        'message' => 'Karteneintrag wurde gemeldet.',
-    ]);
+    avesmapsRespondReportAccepted();
 } catch (InvalidArgumentException $exception) {
     avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (PDOException $exception) {
@@ -329,10 +328,17 @@ function avesmapsValidateMapReport(array $payload): array {
         array_map(static fn(array $l): string => $l['label'] . ' ' . $l['url'], $citymapLinkReport['links'])
     ));
     $spamText = implode(' ', [$name, $sourceSpamText, $wikiUrl, $comment, $citymapSpamText, $citymapLinkSpamText, (string) ($payload['reporter_name'] ?? '')]);
-    if (avesmapsContainsSpamText($spamText) || avesmapsIsLinkOnlyText($comment)) {
+    if (avesmapsContainsSpamText($spamText)) {
         return [
             'is_spam' => true,
         ];
+    }
+    // An explanation made of nothing but a link is the one filter here a HUMAN walks into -- attaching
+    // the wiki article as the evidence is the obvious thing to do. Until 2026-08-05 it landed in the
+    // silent bin with the bots, and the reporter was told the map entry had been reported. It is a
+    // validation rule, so it answers like one: 400, and the form keeps what was typed.
+    if (avesmapsIsLinkOnlyText($comment)) {
+        throw new InvalidArgumentException('Bitte zur Meldung noch einen Satz schreiben, nicht nur einen Link.');
     }
 
     return [
@@ -445,6 +451,34 @@ function avesmapsReportRateLimitExceeded(PDO $pdo, string $ipHash): bool {
     ]);
 
     return (int) $statement->fetchColumn() >= AVESMAPS_REPORT_RATE_LIMIT_PER_HOUR;
+}
+
+// The single exit for "your report arrived" -- see avesmapsReportAcceptedResponse() for why a
+// discarded report answers through it too.
+function avesmapsRespondReportAccepted(): never {
+    [$statusCode, $responsePayload] = avesmapsReportAcceptedResponse();
+    avesmapsJsonResponse($statusCode, $responsePayload);
+}
+
+// Seconds until the limit lifts, 0 when that cannot be established. Runs only after the limit has
+// already been hit. 💣 Wrapped on purpose: there is no local MySQL to try this query against, and a
+// rejected report must come back with a sentence the reporter can act on -- never with a 500 that
+// looks like the outage the silent 200 used to hide.
+function avesmapsReportRetryAfterSeconds(PDO $pdo, string $ipHash): int {
+    try {
+        $statement = $pdo->prepare(avesmapsReportRateLimitRetryAfterSql());
+        $statement->execute([
+            'ip_hash' => $ipHash,
+        ]);
+
+        return avesmapsReportClampRetryAfterSeconds($statement->fetchColumn());
+    } catch (Throwable $exception) {
+        avesmapsLogLocationReportServerError('rate_limit_retry_after_failed', [
+            'exception_message' => $exception->getMessage(),
+        ]);
+
+        return 0;
+    }
 }
 
 function avesmapsIsNearDuplicateReport(PDO $pdo, array $mapReport): bool {
