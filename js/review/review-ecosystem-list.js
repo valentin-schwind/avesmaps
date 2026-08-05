@@ -47,7 +47,17 @@ window.openAvesmapsEcosystemEditorOverlay = window.openAvesmapsEcosystemEditorOv
 	closeButton.className = "avm-editor-dialog__close";
 	closeButton.setAttribute("aria-label", t("ecosystem.editor.closeAria", "Schließen"));
 	closeButton.textContent = "✕";
-	const closeOverlay = () => { overlay.hidden = true; document.body.style.overflow = ""; };
+	// 💣 ENTFERNEN, nicht ausblenden. Ein ausgeblendetes Overlay behaelt seinen iframe -- mit seinem
+	// Zustand, seinen Timern und seinen Anfragen an den Server. Zwei Befunde aus einem Fehler:
+	//   * Ein frisch angelegter Eintrag fehlte beim Wiederoeffnen in der Liste, weil dieselbe
+	//     Seiteninstanz mit ihrer alten `state`-Liste wieder eingeblendet wurde -- „0 von 1352",
+	//     waehrend der Endpunkt 1353 lieferte, und nur F5 raeumte es auf (A17).
+	//   * Die Fenster stapelten sich: am Ende eines Testlaufs drei tote Editoren bei null sichtbaren
+	//     Fenstern, jeder mit eigenen Timern und eigenen Abrufen (A18).
+	// `?v=' + Date.now()` im iframe-Pfad sah nach Cache-Bust aus, griff aber nur beim ALLERERSTEN
+	// Oeffnen. Mit remove() baut das naechste Oeffnen einen frischen iframe -- und der laedt seine
+	// Liste ohnehin selbst.
+	const closeOverlay = () => { overlay.remove(); document.body.style.overflow = ""; };
 	closeButton.addEventListener("click", closeOverlay);
 	header.appendChild(headingEl);
 	header.appendChild(closeButton);

@@ -810,8 +810,14 @@ window.openAvesmapsSettlementEditorOverlay = window.openAvesmapsSettlementEditor
 	closeButton.className = "avm-editor-dialog__close";
 	closeButton.setAttribute("aria-label", "Schließen");
 	closeButton.textContent = "✕";
+	// 💣 ENTFERNEN, nicht ausblenden. Ein ausgeblendetes Overlay behaelt seinen iframe -- mit seinem
+	// Zustand, seinen Timern und seinen Anfragen an den Server. Zwei Befunde aus einem Fehler: ein frisch
+	// angelegter Eintrag fehlte beim Wiederoeffnen in der Liste, weil dieselbe Seiteninstanz mit ihrer
+	// alten Liste wieder eingeblendet wurde (A17, „0 von 1352" gegen 1353 vom Endpunkt) -- und die Fenster
+	// stapelten sich: drei tote Editoren bei null sichtbaren Fenstern (A18). Das `?v=' + Date.now()` im
+	// iframe-Pfad sah nach Cache-Bust aus, griff aber nur beim ALLERERSTEN Oeffnen.
 	const closeOverlay = () => {
-		overlay.hidden = true;
+		overlay.remove();
 		document.body.style.overflow = "";
 	};
 	closeButton.addEventListener("click", closeOverlay);
@@ -864,8 +870,14 @@ window.openAvesmapsAdventureEditorOverlay = window.openAvesmapsAdventureEditorOv
 	closeButton.className = "political-territory-editor-dialog__close";
 	closeButton.setAttribute("aria-label", "Schließen");
 	closeButton.textContent = "✕";
+	// 💣 ENTFERNEN, nicht ausblenden. Ein ausgeblendetes Overlay behaelt seinen iframe -- mit seinem
+	// Zustand, seinen Timern und seinen Anfragen an den Server. Zwei Befunde aus einem Fehler: ein frisch
+	// angelegter Eintrag fehlte beim Wiederoeffnen in der Liste, weil dieselbe Seiteninstanz mit ihrer
+	// alten Liste wieder eingeblendet wurde (A17, „0 von 1352" gegen 1353 vom Endpunkt) -- und die Fenster
+	// stapelten sich: drei tote Editoren bei null sichtbaren Fenstern (A18). Das `?v=' + Date.now()` im
+	// iframe-Pfad sah nach Cache-Bust aus, griff aber nur beim ALLERERSTEN Oeffnen.
 	const closeOverlay = () => {
-		overlay.hidden = true;
+		overlay.remove();
 		document.body.style.overflow = "";
 		// Beim SCHLIESSEN nachladen, nicht beim Speichern (Owner 2026-07-17): waehrend das Overlay offen ist,
 		// verdeckt es die Karte -- ein Refresh dahinter saehe niemand. Ohne das blieb der Katalog der von der
@@ -933,8 +945,14 @@ window.openAvesmapsCitymapEditorOverlay = window.openAvesmapsCitymapEditorOverla
 	closeButton.className = "political-territory-editor-dialog__close";
 	closeButton.setAttribute("aria-label", "Schließen");
 	closeButton.textContent = "✕";
+	// 💣 ENTFERNEN, nicht ausblenden. Ein ausgeblendetes Overlay behaelt seinen iframe -- mit seinem
+	// Zustand, seinen Timern und seinen Anfragen an den Server. Zwei Befunde aus einem Fehler: ein frisch
+	// angelegter Eintrag fehlte beim Wiederoeffnen in der Liste, weil dieselbe Seiteninstanz mit ihrer
+	// alten Liste wieder eingeblendet wurde (A17, „0 von 1352" gegen 1353 vom Endpunkt) -- und die Fenster
+	// stapelten sich: drei tote Editoren bei null sichtbaren Fenstern (A18). Das `?v=' + Date.now()` im
+	// iframe-Pfad sah nach Cache-Bust aus, griff aber nur beim ALLERERSTEN Oeffnen.
 	const closeOverlay = () => {
-		overlay.hidden = true;
+		overlay.remove();
 		document.body.style.overflow = "";
 		// Nachladen beim Schliessen -- Begruendung beim Abenteuer-Editor oben.
 		if (typeof window.avesmapsReloadCitymapCatalog === "function") {

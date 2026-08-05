@@ -3389,8 +3389,14 @@ window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || f
 	closeButton.textContent = "✕";
 	// Nach dem Schließen des Sync-Editors die abhängigen Oberflaechen sofort auffrischen, damit
 	// WikiSync-Änderungen gleich im Territoriumseditor + Review-Tree erscheinen (kein manuelles Reload).
+	// 💣 ENTFERNEN, nicht ausblenden. Ein ausgeblendetes Overlay behaelt seinen iframe -- mit seinem
+	// Zustand, seinen Timern und seinen Anfragen an den Server. Zwei Befunde aus einem Fehler: ein frisch
+	// angelegter Eintrag fehlte beim Wiederoeffnen in der Liste, weil dieselbe Seiteninstanz mit ihrer
+	// alten Liste wieder eingeblendet wurde (A17, „0 von 1352" gegen 1353 vom Endpunkt) -- und die Fenster
+	// stapelten sich: drei tote Editoren bei null sichtbaren Fenstern (A18). Das `?v=' + Date.now()` im
+	// iframe-Pfad sah nach Cache-Bust aus, griff aber nur beim ALLERERSTEN Oeffnen.
 	const closeOverlay = () => {
-		overlay.hidden = true;
+		overlay.remove();
 		document.body.style.overflow = "";
 		try {
 			if (typeof renderWikiSyncTerritoryTree === "function") {
