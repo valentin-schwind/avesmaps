@@ -904,11 +904,63 @@ Salt wird konfigurierbar, oder die Zusage muss anders formuliert werden.
 > **200**, `heartbeat` **200** — beide kehren vor dem Schreiben um (`track.php:20` beantwortet alles
 > ausser POST ohne eine Zeile), `presence` **401**, `map-features` **200 / 19.236.101 Bytes**.
 
-### A24 · Das Impressum nennt keine E-Mail-Adresse und hat keine eigene Adresse
+### ◐ A24 · Das Impressum nennt keine E-Mail-Adresse und hat keine eigene Adresse
 Es ist nur über einen JavaScript-Dialog erreichbar, also nicht verlinkbar und für einen
 Rechteinhaber, der Kontakt sucht, praktisch nicht auffindbar.
 
 *Aufwand:* klein.
+
+> **◐ Die Adresse gibt es jetzt `faddaf91`, 06.08.2026 — welche E-Mail dort steht, bleibt bei dir.**
+> Die acht Abschnitte des Hinweise-Fensters tragen Anker, und ein Hash öffnet das Fenster mit dem
+> gemeinten Abschnitt aufgeklappt:
+>
+> | Link | öffnet |
+> |---|---|
+> | `https://avesmaps.de/#impressum` | „Kontakt und Impressum" |
+> | `https://avesmaps.de/#datenschutz` | „Datenschutz" |
+> | `https://avesmaps.de/#kontakt` | „Kontakt und Impressum" |
+> | `https://avesmaps.de/#hinweise` | das Fenster als Ganzes |
+>
+> Die technischen Anker (`#legal-contact` usw.) wirken ebenso. 🔴 **`impressum` zeigt auf
+> `legal-contact`, nicht auf `legal-project`** — der Betreiber-Absatz ist am 05.08.2026 nach „Kontakt
+> und Impressum" umgezogen (AGENTS.md §11).
+>
+> ⚠️ **Der Hash wird nur GELESEN, nie geschrieben.** Ein Fenster, das beim Öffnen die Adresszeile
+> umschreibt, macht aus jedem Klick einen Eintrag in der Zurück-Historie — und die Adresse dieser
+> Karte gehört dem Kartenstand, nicht einem Dialog.
+>
+> Die Regel liegt in einem **eigenen Blattmodul** (`js/app/legal-anchor.js`), und erst das macht sie
+> prüfbar: `bootstrap.js` lädt ohne jQuery und die halbe Karte nicht, eine Regel darin wäre also nur
+> über ihren Quelltext zu behaupten — die Falle, in die diese Sitzung fünfmal gelaufen ist. Hier
+> läuft sie gegen ein kleines DOM, das **antwortet**.
+>
+> **Sieben Mutationen, jede benannt und jede mit Nachweis, dass sie auf der Platte landete:** Alias
+> entfernt, Alias auf den alten Abschnitt gelegt, jeder Hash öffnet, `open = true` blind gesetzt,
+> die Anker aus `index.html` entfernt, Ladereihenfolge gekippt, `bootstrap.js` schreibt den Hash.
+> Alle sieben rot. Der Test fand beim Schreiben ausserdem einen echten Fehler: der Auflöser schnitt
+> das `#` **vor** dem Trimmen ab, ein Hash mit führendem Leerraum fiel durch.
+>
+> **Live im Browser geprüft, alle drei Wege:**
+>
+> | Probe | Ergebnis |
+> |---|---|
+> | Neuladen mit `#impressum` | Fenster **offen**, „Kontakt und Impressum" **aufgeklappt** |
+> | Neuladen mit `#irgendwas-fremdes` | Fenster bleibt **zu** |
+> | `#datenschutz` bei offener Seite (`hashchange`) | Fenster **offen**, „Datenschutz" **aufgeklappt** |
+>
+> ⚠️ Meine erste Messung war falsch und ich habe sie verworfen: ein Hash-Wechsel lädt die Seite
+> nicht neu, das Fenster stand noch von der vorigen Probe offen — und `hashchange` feuert
+> asynchron, mein Lesen kam zu früh. Erst mit echtem Neuladen und Abstand zwischen Setzen und Lesen
+> war die Messung etwas wert. 214/214 grün, Auslieferung bestätigt
+> (`js/app/legal-anchor.js?v=d996dec000`, 8 von 8 Ankern im ausgelieferten HTML).
+>
+> 🔧 **DU: zwei Fragen, beide inhaltlich, keine technische.**
+> 1. **Welche E-Mail-Adresse** soll das Impressum nennen? Das ist Inhalt und Exponiertheit, nicht
+>    Technik — ich setze dir keine Adresse ins Impressum.
+> 2. Soll das Impressum **zusätzlich eine eigene Seite** bekommen (`html/impressum.html`)? Dafür
+>    spricht §5 TMG („unmittelbar erreichbar", ohne JavaScript); dagegen, dass eine neue,
+>    indexierbare URL mit deinen Betreiberdaten eine Veröffentlichungsentscheidung ist. **Die treffe
+>    ich nicht.** Sag Bescheid, dann baue ich sie.
 
 ### A25 · Das vollständige Kartenmaterial ist als Archiv verlinkt
 **1,86 GB PNG plus 169 MB Kacheln.** Das steht in Spannung zur eigenen Fanregel-Zusage in
