@@ -13,6 +13,8 @@ die rechtliche Situation.
 | **[2 — KANN](2-kann.md)** | Refactoring, toter Code, Konsistenz, Maschinenlesbarkeit | 169 Befunde |
 | **[3 — ZUKUNFT](3-zukunft.md)** | Features und Komfort, die niemand vermisst, aber alle wollen | 14 Befunde |
 
+Dazu **[4 — Nachprüfung](4-nachpruefung.md)**: was die Kontrolle der ersten Fixes zutage gefördert hat — 12 ungebremste Lasthebel, 2 weitere Ausnahmetext-Lecks, 6 weitere Fälle „gelöschte Daten werden weiter ausgeliefert". Nicht abgearbeitet.
+
 Die vollständigen Einzelberichte mit allen Belegen liegen unter [`befunde/`](befunde/).
 
 ## Wer geprüft hat

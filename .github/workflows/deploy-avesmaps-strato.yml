@@ -52,14 +52,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 💣 Until 2026-08-05 not one of these ~205 tests ran on a deploy, and one of them had been
-      # red for weeks without anyone noticing. That is not a footnote: the red one is the guard
-      # against a claim about the slope model that two players had already caught in public, and
-      # while everyone was used to it being red, the same claim quietly survived in api/README.md
-      # for a month. A gate nobody watches is not a gate. This step is the gate.
+      # 💣 Until 2026-08-05 not one of these tests ran on a deploy, and one of them had been red
+      # for weeks without anyone noticing. That is not a footnote: the red one is the guard against
+      # a claim about the slope model that two players had already caught in public, and while
+      # everyone was used to it being red, the same claim quietly survived in api/README.md for a
+      # month. A gate nobody watches is not a gate. This step is the gate.
       #
-      # ⚠️ It runs BEFORE the secret check on purpose -- a broken build should fail on a pull
-      # request or a fork too, where the secrets do not exist.
+      # ⚠️ WHAT IT DOES NOT COVER, so nobody reads "the gate" as "everything":
+      #   * 21 *.mjs tests under tools/ -- SIX of them are red as of 2026-08-05 and would block
+      #     every deploy. They need fixing before they can be added; see the system test report.
+      #   * .github/scripts/__tests__/*.test.py -- the asset-stamping chain (AGENTS.md §7), which
+      #     this very workflow depends on. Needs a python step.
+      # Adding either is a separate change with its own verification.
+      #
+      # ⚠️ It runs BEFORE the secret check on purpose: a fork push or a workflow_dispatch should
+      # fail on broken tests rather than on a missing secret. (There is no pull_request trigger,
+      # so it does not fire on PRs at all -- an earlier version of this comment claimed it did.)
       - name: Run the unit tests
         shell: bash
         run: |
@@ -79,8 +87,12 @@ jobs:
           php_ok=0
           js_ok=0
 
+          # Two conventions, both real: __tests__/*.php under api/ and tools/, and test-*.php
+          # directly under tools/{paths,routing,wikidump}. The second set was invisible to the
+          # first version of this gate -- 30 files, among them the wiki_key folding guard that
+          # AGENTS.md §5 names by hand.
           echo "--- PHP ---"
-          for test in $(find api tools -path '*__tests__*' -name '*.php' | sort); do
+          for test in $(find api tools -path '*__tests__*' -name '*.php' -o -path './tools/*' -name 'test-*.php' -not -path '*__tests__*' | sort); do
             if output="$(php -d zend.assertions=1 -d assert.exception=1 "$test" 2>&1)"; then
               php_ok=$((php_ok + 1))
             else

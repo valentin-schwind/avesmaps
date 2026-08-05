@@ -73,7 +73,7 @@ gleich für alle sichtbar ist.
 Fünf Befunde, drei Agenten unabhängig darauf gestoßen. Der Kern ist immer derselbe: die
 Hauptzeile verschwindet, ihre Anhängsel bleiben — und bleiben **öffentlich abrufbar**.
 
-### A6 · Ein gelöschtes Kartenobjekt lässt seine Quellenverweise für immer zurück
+### ✅ A6 · Ein gelöschtes Kartenobjekt lässt seine Quellenverweise für immer zurück
 Verwaiste Einträge in `feature_sources`: **284** bei Karten, **123** bei Regionen (mit 3.471
 Verweisen), **84** bei Wegen, **9** bei Siedlungen. Ein `DELETE FROM sources` existiert nirgends
 im Projekt — **132 Katalogzeilen** zeigt nichts mehr an, sie tauchen aber weiter in der
@@ -85,7 +85,26 @@ Quellen-Vervollständigung aller Redakteure auf.
 *Beleg:* in den Momentaufnahmen ausgezählt und an einer echten Siedlung im Editor nachgewiesen.
 *Aufwand:* klein.
 
-### A7 · Auch „Rückgängig" lässt den Quellenverweis stehen
+> **✅ Erledigt `18b1e565`, 05.08.2026** (A6 und A7 zusammen — der Riegel sitzt am Lesen, also
+> bringt Rückgängig die Quellen von selbst zurück). Live gegen den Kartenpayload gemessen:
+> Verweise auf gelöschte Objekte **216 → 0**, Verweise auf Territorien und Karten **1.509 → 1.509**
+> (die Gegenrichtung, die man leicht mit wegfiltert). Payload 74 KB kleiner.
+>
+> ⚠️ **Der Weg dahin kostete zwei selbstverschuldete Ausfälle — beide gehören ins Protokoll:**
+> 1. `a1ee182c` reparierte den **falschen Leser**. `GET /api/app/feature-sources.php` hat seit dem
+>    Payload-Umbau keinen Aufrufer mehr; das Leck saß in `api/app/map-features.php`, also in der
+>    Anfrage, die jeder Besucher stellt. Die 216/4.714 waren **dort** gemessen. Lehre: messen und
+>    reparieren müssen denselben Pfad treffen — sonst beweist die Zahl nur, dass es woanders brennt.
+> 2. Derselbe Commit verglich zwei Spalten **verschiedener Kollation** → „Illegal mix of collations",
+>    zwei öffentliche Endpunkte auf 500. Die Falle steht zweimal im eigenen Code, und eine der
+>    Stellen nennt `feature_sources` wörtlich „the house's scar". Der sqlite-Test lief den ganzen
+>    Ausfall über grün, weil sqlite keinen Kollationskonflikt kennt. Lehre: ein grüner Lauf auf
+>    einer anderen Datenbank ist kein Beweis für die Eigenschaft, die diese Datenbank nicht hat.
+> 3. Der Reparaturversuch `6949fd41` brachte `DeflateAlterETag` in die `.htaccess` — dort **nicht
+>    erlaubt**, also Apache-500 auf *alles*, die ganze Karte. Zurückgenommen in `fdd4fc42`.
+>    Lehre: eine Direktive im falschen Gültigkeitsbereich nimmt die Seite mit, nicht nur sich selbst.
+
+### ✅ A7 · Auch „Rückgängig" lässt den Quellenverweis stehen
 Derselbe Mechanismus, eine Stufe schlimmer: Wer eine Änderung zurücknimmt, bekommt den alten
 Zustand — bis auf die Quellen, die öffentlich abrufbar bleiben. Betroffen ist auch
 `undo_create_point`.
