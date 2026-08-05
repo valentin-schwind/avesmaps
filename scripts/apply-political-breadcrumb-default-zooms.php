@@ -1,6 +1,18 @@
 <?php
 
 declare(strict_types=1);
+// ---------------------------------------------------------------------------
+// 0. CLI GUARD -- never run over HTTP. This script opens the production database
+//    and can write to it; it is CLI-only. Over HTTP it 403s and exits before it
+//    loads or connects to anything. Belt and braces: scripts/.htaccess denies the
+//    whole directory, this guard survives a lost or ignored .htaccess.
+// ---------------------------------------------------------------------------
+if (isset($_SERVER["REQUEST_METHOD"]) || isset($_SERVER["REQUEST_URI"]) || isset($_SERVER["HTTP_HOST"])) { // STRATO CLI runs as cgi-fcgi (not "cli"); detect a real HTTP request by its server markers instead
+    http_response_code(403);
+    header("Content-Type: text/plain; charset=utf-8");
+    echo 'Forbidden: apply-political-breadcrumb-default-zooms.php is a CLI-only tool.' . PHP_EOL;
+    exit(1);
+}
 
 require __DIR__ . '/../api/bootstrap.php';
 require_once __DIR__ . '/../api/_internal/political/territory.php';
