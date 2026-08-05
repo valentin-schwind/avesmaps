@@ -127,14 +127,7 @@ function avesmapsEcosystemReadLabelRegionMap(PDO $pdo): array
     // Die Ebene JE REGION -- getrennt von der reinen Relation darüber, damit deren Regel (und ihr Test)
     // unangetastet bleibt: welche Beschriftung zu welcher Fläche gehört, ist eine andere Frage als
     // welcher Ebene diese Fläche angehört.
-    $kindByRegion = [];
-    foreach ($regionRows as $row) {
-        $regionId = trim((string) ($row['public_id'] ?? ''));
-        $kind = trim((string) ($row['kind'] ?? ''));
-        if ($regionId !== '' && $kind !== '') {
-            $kindByRegion[$regionId] = $kind;
-        }
-    }
+    $kindByRegion = avesmapsEcosystemKindByRegion($regionRows);
 
     return avesmapsEcosystemLabelRegionMap($regionRows, $pointerRows, $activeLabelIds)
         + ['kind_by_region' => $kindByRegion];
@@ -190,4 +183,106 @@ function avesmapsEcosystemApplyLabelRegionsToFeatures(array &$features, array $b
             $features[$index]['properties']['ecosystem_region_kind'] = $kind;
         }
     }
+}
+
+// Die Ebene je Flaeche. Eigene Funktion, weil beide Leser dieser Datei sie brauchen -- ein zweiter Loop
+// waere die zweite Wahrheit, gegen die es diese Datei ueberhaupt gibt.
+//
+// @param list<array{public_id:string,kind:?string}> $regionRows
+// @return array<string,string> region public_id => kind
+function avesmapsEcosystemKindByRegion(array $regionRows): array
+{
+    $kindByRegion = [];
+    foreach ($regionRows as $row) {
+        $regionId = trim((string) ($row['public_id'] ?? ''));
+        $kind = trim((string) ($row['kind'] ?? ''));
+        if ($regionId !== '' && $kind !== '') {
+            $kindByRegion[$regionId] = $kind;
+        }
+    }
+
+    return $kindByRegion;
+}
+
+// ---- Der SCHREIBWEG ist der DRITTE Leser dieser Beziehung ------------------------------------------
+//
+// 🔴 WARUM DAS HIER STEHT UND NICHT IM EDIT-ENDPUNKT. api/edit/map/features.php antwortet auf jedes
+// Anlegen, Aendern und Verschieben mit dem fertigen Label-Feature, und der Client baut daraus dasselbe
+// Objekt wie aus dem Kartenpayload (normalizeLabelFeature). Diese Antwort ist damit ein dritter Leser
+// der Label-Flaeche-Beziehung -- und der Kopf dieser Datei sagt, warum ein zweiter Ort fuer die Regel
+// die zweite Wahrheit waere.
+//
+// 💣 DER FEHLER, DEN DAS BEHEBT (Owner 2026-08-05): ein dupliziertes Label verschwand aus seiner eigenen
+// Ebene und stand erst unter „Alle" wieder da. `shouldShowLabelMarker` fragt
+// `ecosystemRegionKind === aktive Ebene`; ein leeres Feld heisst dort „gehoert zu keiner Ebene". Und es
+// traf nicht nur den Klon: `applyLabelFeatureResponse` macht `Object.assign`, also loeschte JEDES
+// Verschieben und jedes Speichern eines Landschafts-Labels die beiden Felder wieder, die der
+// Kartenpayload gefuellt hatte.
+//
+// 🪤 ZWEI Felder, nicht eines. Die ~124 Bestandslabels tragen keinen eigenen Zeiger -- ihre Flaeche nennt
+// SIE. Fuer die muss die Antwort auch `ecosystem_region_public_id` aufloesen, sonst verlieren sie beim
+// Verschieben zusaetzlich ihre Zugehoerigkeit (Label anklicken -> Flaeche, „nur Labels mit Region").
+function avesmapsEcosystemEnrichEditLabelFeature(PDO $pdo, array $feature): array
+{
+    $properties = $feature['properties'] ?? null;
+    if (!is_array($properties) || (string) ($properties['feature_type'] ?? '') !== 'label') {
+        return $feature;
+    }
+    $labelPublicId = trim((string) ($properties['public_id'] ?? ''));
+    if ($labelPublicId === '') {
+        return $feature;
+    }
+    $ownRegion = trim((string) ($properties['ecosystem_region_public_id'] ?? ''));
+
+    // Beide Richtungen in EINER Abfrage, und nur die Zeilen, die dieses eine Label angehen: der Lesepfad
+    // zieht drei Listen ueber den ganzen Bestand, was hier -- einmal je Bearbeitung -- Verschwendung waere.
+    // 🪤 `is_active = 1` gehoert dazu: die Beschriftung einer stillgelegten Flaeche hinge sonst an einer
+    // Ebene, in der es diese Flaeche nicht mehr gibt.
+    try {
+        $statement = $pdo->prepare(
+            'SELECT public_id, label_public_id, kind FROM ecosystem_region
+              WHERE is_active = 1 AND (label_public_id = :label OR public_id = :own)'
+        );
+        $statement->execute(['label' => $labelPublicId, 'own' => $ownRegion]);
+        $regionRows = $statement->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable) {
+        // Installation ohne Landschaften-Tabellen: unveraendert durchreichen, genau wie vor dieser Zeile.
+        return $feature;
+    }
+
+    return avesmapsEcosystemApplyLabelRegionToEditFeature($feature, is_array($regionRows) ? $regionRows : []);
+}
+
+// Der reine Kern dazu: EIN Label-Feature gegen die Regionszeilen, die es angehen.
+//
+// 🔴 Nutzt dieselbe Regel (avesmapsEcosystemLabelRegionMap) und dieselbe Stempelung
+// (avesmapsEcosystemApplyLabelRegionsToFeatures) wie der Lesepfad -- eigener Zeiger schlaegt
+// Regionszeiger, ein gesetzter Zeiger wird nie ueberschrieben. Nachgebaut waeren beide Regeln hier
+// dieselbe Divergenz, die diese Datei verhindern soll.
+function avesmapsEcosystemApplyLabelRegionToEditFeature(array $feature, array $regionRows): array
+{
+    $properties = $feature['properties'] ?? null;
+    if (!is_array($properties) || (string) ($properties['feature_type'] ?? '') !== 'label') {
+        return $feature;
+    }
+    $labelPublicId = trim((string) ($properties['public_id'] ?? ''));
+    if ($labelPublicId === '') {
+        return $feature;
+    }
+    $ownRegion = trim((string) ($properties['ecosystem_region_public_id'] ?? ''));
+    $pointerRows = $ownRegion === ''
+        ? []
+        : [['public_id' => $labelPublicId, 'region_public_id' => $ownRegion]];
+
+    // Dieses Label IST aktiv -- es wurde gerade geschrieben. Die Pruefung der Regel gilt den ZEIGERN.
+    $relation = avesmapsEcosystemLabelRegionMap($regionRows, $pointerRows, [$labelPublicId]);
+
+    $features = [$feature];
+    avesmapsEcosystemApplyLabelRegionsToFeatures(
+        $features,
+        $relation['by_label'],
+        avesmapsEcosystemKindByRegion($regionRows)
+    );
+
+    return $features[0];
 }

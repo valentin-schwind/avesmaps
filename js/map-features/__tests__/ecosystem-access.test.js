@@ -417,6 +417,68 @@ assert(gipfelEditor.context.isEcosystemPeakActive("lbl-1"), "der Editor behaelt 
 gipfelEditor.context.syncEcosystemPeakDragging();
 assert(gipfelEditor.gezogen.ein === 1, "und zieht ihn ohne Zwischenschritt (V8)");
 
+// ---- die Naht zwischen Server und Karte: was der SCHREIBWEG antwortet -------------------------------
+//
+// 🔴 Ein frisch dupliziertes, verschobenes oder gespeichertes Label kommt NICHT aus dem Kartenpayload,
+// sondern aus der Antwort von api/edit/map/features.php -- und der Client baut daraus dasselbe Objekt
+// (normalizeLabelFeature). Fehlt darin `ecosystem_region_kind`, faellt das Label aus seiner eigenen
+// Ebene und steht nur noch unter „Alle" (Owner 2026-08-05, dupliziertes Label). Der Server fuellt das
+// Feld seit avesmapsEcosystemEnrichEditLabelFeature; DIESER Test haelt fest, dass der Schluessel auf
+// beiden Seiten derselbe ist -- ein Tippfehler im PHP-Feldnamen ist auf keiner Seite allein zu sehen.
+function antwortWelt({ ebene = "vegetation", gemerktAlle = "0" } = {}) {
+	const context = {
+		console,
+		window: { localStorage: { getItem: () => gemerktAlle, setItem: () => {} } },
+		document: { getElementById: () => null, querySelectorAll: () => [], addEventListener: () => {} },
+		getSelectedMapLayerMode: () => "ecosystem",
+		IS_ECOSYSTEM_ENABLED: true,
+		IS_EDIT_MODE: true,
+		isKnownEcosystemKind: () => true,
+		activeEcosystemLayerKind: ebene,
+		// Rand, nicht Regel: die Quellenuebernahme hat mit der Ebenenfrage nichts zu tun.
+		readFeatureOtherSource: () => null,
+	};
+	context.globalThis = context;
+	vm.createContext(context);
+	vm.runInContext(source, context);
+	// Die drei ECHTEN Funktionen aus der Label-Datei -- die Umwandlung, ihre Hoehenhilfe und die Regel.
+	// Nachgebaut waere genau der Feldname weg, um den es hier geht.
+	["function readLabelHeightSchritt", "function normalizeLabelFeature", "function isLabelOfActiveEcosystemLayer"]
+		.forEach((kopf) => {
+			const anfang = labelQuelle.indexOf(kopf);
+			vm.runInContext(labelQuelle.slice(anfang, labelQuelle.indexOf("\n}", anfang) + 2), context);
+		});
+	return context;
+}
+
+// Die Antwort, wie der Schreibweg sie seit dem Fix baut: der eigene Zeiger UND die aufgeloeste Ebene.
+const klonAntwort = {
+	type: "Feature",
+	id: "l-klon",
+	geometry: { type: "Point", coordinates: [12, 34] },
+	properties: {
+		feature_type: "label", public_id: "l-klon", text: "Finsterkamm", feature_subtype: "wald",
+		ecosystem_region_public_id: "r-wald", ecosystem_region_kind: "vegetation",
+	},
+};
+
+const inVeg = antwortWelt({ ebene: "vegetation" });
+const klonLabel = inVeg.normalizeLabelFeature(klonAntwort);
+assert(klonLabel.ecosystemRegionKind === "vegetation",
+	"💣 normalizeLabelFeature muss genau `ecosystem_region_kind` lesen -- den Namen, den der Server schreibt");
+assert(inVeg.isLabelOfActiveEcosystemLayer(klonLabel),
+	"💣 der Klon steht in seiner eigenen Ebene auf der Karte, nicht erst unter Alle");
+
+const inTopo = antwortWelt({ ebene: "topographie" });
+assert(!inTopo.isLabelOfActiveEcosystemLayer(inTopo.normalizeLabelFeature(klonAntwort)),
+	"und in der Topographie eben nicht -- die Regel bleibt scharf");
+
+// Der gemeldete Fehler selbst, festgenagelt: dieselbe Antwort OHNE das Feld verschwindet aus der Ebene.
+const ohneEbene = JSON.parse(JSON.stringify(klonAntwort));
+delete ohneEbene.properties.ecosystem_region_kind;
+assert(!inVeg.isLabelOfActiveEcosystemLayer(inVeg.normalizeLabelFeature(ohneEbene)),
+	"🪤 ohne das Feld faellt das Label aus seiner Ebene -- genau der gemeldete Fehler");
+
 if (failures > 0) {
 	console.error(`ecosystem-access.test: ${failures} failure(s)`);
 	process.exit(1);

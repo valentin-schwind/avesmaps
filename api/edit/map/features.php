@@ -66,6 +66,17 @@ try {
         default => throw new InvalidArgumentException('Die Edit-Aktion ist unbekannt.'),
     };
 
+    // 🔴 DIE EBENE DER BESCHRIFTUNG GEHOERT AUCH IN DIE ANTWORT DES SCHREIBWEGS. Der Client baut aus ihr
+    // dasselbe Label-Objekt wie aus dem Kartenpayload (normalizeLabelFeature). Fehlen die beiden
+    // Landschaftsfelder, gilt ein frisch angelegtes, geaendertes oder verschobenes Label als „gehoert zu
+    // keiner Ebene" und verschwindet aus der gewaehlten Landschaften-Ebene -- sichtbar blieb es nur unter
+    // „Alle" (Owner 2026-08-05, dupliziertes Label).
+    //
+    // 🪤 AN DER SCHLEUSE, NICHT IN DEN HANDLERN. create_label, update_label, move_label und
+    // undo_audit_change haben denselben Mangel; eine Zeile hier kann keinen davon vergessen. Alles, was
+    // kein Label ist, kommt unveraendert zurueck.
+    $result = avesmapsEcosystemEnrichEditLabelFeature($pdo, $result);
+
     avesmapsJsonResponse(200, [
         'ok' => true,
         'feature' => $result,
