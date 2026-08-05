@@ -751,6 +751,33 @@ absagt, bis man die Zeile von Hand löscht.
 
 Der Fix ist ein Rückbau, kein Bau. *Aufwand:* klein.
 
+> ⚠️ **Nachgeprüft am Abend des 05.08. — beides stimmt nicht.** Der Fix ist kein Rückbau, und klein
+> ist er auch nicht. Zwei Gründe, beide im Code nachgelesen:
+>
+> 1. **Der frühe Reset ist tragend.** `resetRoutePresentation()`
+>    (`js/map-features/map-features.js:161`) räumt nicht nur die Route ab, sondern auch die
+>    Wegpunkt-Marker (`removeHighlightedRouteNodes()`) — und direkt danach baut
+>    `renderRouteWaypointMarkers()` sie neu auf. Dieses Paar steht **wortgleich an allen drei**
+>    Aufrufstellen (`route-engine.js:531`, `:616`, `routing.js:1455`). Wer den Reset hinter die
+>    Berechnung schiebt, verdoppelt die Marker. Den fertigen Plan zu erhalten hiesse also:
+>    Zustand **vor** dem Reset sichern und im Absage-Zweig zurückspielen — ein Bau, kein Rückbau.
+> 2. **Die Absage nennt den Wegpunkt nicht.** Der abgelehnte Punkt ist eine Wegpunkt-Zeile mit Id
+>    (`route-travel-here.js`, `getWaypointElementById`), aber die Fehlerantwort trägt nur einen Code.
+>    Bei mehreren Kartenpunkt-Wegpunkten ist nicht bestimmbar, welcher gemeint war. Ihn zu entfernen
+>    verlangt, dass die Absage ihre Zeile benennt — also eine Erweiterung des Rückwegs von
+>    `updateMapView`.
+>
+> 🔧 **DU: was soll eine Absage hinterlassen?** Drei Formen, und es ist eine Produktfrage:
+> **(a)** Der Punkt wird zurückgenommen, der vorige Plan bleibt stehen — ein Fehlklick kostet nichts.
+> Verlangt beides: Zustandssicherung **und** die Id im Rückweg.
+> **(b)** Nur der Punkt wird zurückgenommen, der Plan bleibt gelöscht — behebt die Endlosschleife
+> („jede weitere Berechnung sagt erneut ab"), nicht den Verlust.
+> **(c)** Nur der Plan wird erhalten, der Punkt bleibt stehen — behebt den Verlust, nicht die
+> Endlosschleife.
+>
+> Der Befund beschreibt zwei Schäden; jede Form behebt einen oder beide, und (a) ist die einzige
+> vollständige.
+
 ---
 
 ### A28 · Ein erzeugter Kurzlink lässt sich nirgends wieder löschen
