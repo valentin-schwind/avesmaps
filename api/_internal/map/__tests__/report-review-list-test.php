@@ -107,6 +107,13 @@ assert(
     'one row over the cap is fetched so truncation is detectable'
 );
 assert(avesmapsReportListFetchLimit('neu') > 1 && avesmapsReportListFetchLimit('erledigt') > 1, 'no branch returns an unlimited read');
+// 💣 And the endpoint must not keep an unlimited branch as a fallback. `$limitSql = $fetchLimit > 0 ?
+// ' LIMIT ' . $fetchLimit : ''` left the empty string -- the ungapped query itself -- standing as the
+// else case, which is an invitation to bring the finding back by making one function return 0 again.
+assert(
+    str_contains($endpointSource, "\$limitSql = ' LIMIT ' . \$fetchLimit;"),
+    'the endpoint always appends a LIMIT -- there is no branch that omits one'
+);
 assert(AVESMAPS_REPORT_LIST_DONE_LIMIT === 200, 'the history cap');
 assert(AVESMAPS_REPORT_LIST_OPEN_LIMIT === 500, 'the queue cap -- larger, because it is work still to do');
 assert(

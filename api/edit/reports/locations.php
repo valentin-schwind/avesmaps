@@ -93,7 +93,11 @@ function avesmapsListLocationReportsForReview(PDO $pdo, string $filter = 'neu'):
     $statusCondition = avesmapsReportListStatusCondition($filter);
     $orderBy = avesmapsReportListOrderBy($filter);
     $fetchLimit = avesmapsReportListFetchLimit($filter);
-    $limitSql = $fetchLimit > 0 ? ' LIMIT ' . $fetchLimit : '';
+    // ⚠️ Kein `> 0 ? … : ''` mehr. Der leere Zweig WAR die ungedeckelte Abfrage -- er stand als
+    // Rueckfallebene noch da und laedt genau den Befund wieder ein, den A30 geschlossen hat.
+    // avesmapsReportListFetchLimit gibt fuer jeden Filter eine Zahl > 1 zurueck, und der Test haelt
+    // das fest; hier ist deshalb nichts mehr zu entscheiden.
+    $limitSql = ' LIMIT ' . $fetchLimit;
 
     $reports = [];
     $mapStatement = $pdo->prepare(

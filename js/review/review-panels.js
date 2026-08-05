@@ -319,7 +319,12 @@ function renderReviewReports() {
 		if (reviewReportsTruncated) cutParts.push(`von den bearbeiteten nur die neuesten ${reviewReportsDoneLimit}`);
 	}
 	const cutNote = cutParts.length > 0 ? ` Es werden ${cutParts.join(" und ")} gezeigt.` : "";
-	setReviewPanelStatus(`${reviewReports.length} ${scopeWord ? `${scopeWord} ` : ""}Meldungen.${cutNote}`, "success");
+	// ⚠️ Bei Kuerzung ist die gezeigte Zahl der DECKEL, nicht der Bestand -- und dann ist sie immer
+	// genau die Zahl aus dem Hinweis: „500 Meldungen. Es werden nur die aeltesten 500 gezeigt" liest
+	// sich wie „es sind 500, und du siehst alle 500", also als Entwarnung. „Mehr als 500" ist das
+	// Einzige, was ohne eine zweite COUNT-Abfrage sicher ist -- und es ist auch das, was stimmt.
+	const countWord = cutParts.length > 0 ? `Mehr als ${reviewReports.length}` : String(reviewReports.length);
+	setReviewPanelStatus(`${countWord} ${scopeWord ? `${scopeWord} ` : ""}Meldungen.${cutNote}`, "success");
 	reviewReports.forEach((report) => {
 		const itemElement = document.createElement("article");
 		itemElement.className = "review-report";

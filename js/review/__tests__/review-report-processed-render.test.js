@@ -83,6 +83,18 @@ assert.ok(
 	/cutParts\.length > 0 \? [\s\S]{0,80} : ""/.test(source),
 	"an uncut list says nothing about caps"
 );
+// 💣 And the COUNT in front of the notice must not undo it. When the list was cut, that number IS the
+// cap, so "500 Meldungen. Es werden nur die aeltesten 500 gezeigt." reads as "there are 500 and you
+// are seeing all 500" -- an all-clear, which is the opposite of the warning. Without a second COUNT
+// query the only true statement is "more than 500".
+assert.ok(
+	/const countWord = cutParts\.length > 0 \? `Mehr als \$\{reviewReports\.length\}`/.test(source),
+	"a cut list reports its count as a floor, not as the total"
+);
+assert.ok(
+	/setReviewPanelStatus\(`\$\{countWord\}/.test(source),
+	"and the status line uses that wording rather than the raw length"
+);
 // ⭐ Oldest-first is what makes the queue cap safe -- a flood lands at the end and is what gets cut --
 // so the note says "aeltesten", not "neuesten", for the open half. Naming the wrong end would tell an
 // editor their oldest reports had been hidden.
