@@ -1603,6 +1603,13 @@ gleicht den Import an den Editor an und kommt mit.
 > CRLF-Zeilenenden nicht) und meldeten grün. Sauber wiederholt, die erste mit der Vorzustandsdatei
 > direkt aus `git`: alle fünf rot. 213/213 grün.
 >
+> **Live geprüft, spurenfrei:** ein POST ohne Token antwortet unverändert **401** — der Endpunkt lädt
+> also mit dem geänderten `UPDATE` (eine 500 wäre der Fatal gewesen) und schreibt nichts; der
+> Editor-Endpunkt **401**, `map-features.php` **200 / 19.236.101 Bytes**. ⚠️ **Der Riegel selbst ist
+> von aussen nicht messbar** — dafür bräuchte es ein gültiges Import-Token *und* eine bereits
+> entschiedene Meldung, also genau den Schreibvorgang, den er verhindern soll. Belegt ist er durch
+> die Mutation mit dem echten Vorzustand.
+>
 > 🔧 **DU: eine Leseabfrage, und sie ist jetzt dringender als vorher.** A33 und A39 sind je für sich
 > richtig, **zusammen** frieren sie eine Altzeile aber doppelt ein: A33 lässt nur noch
 > `approved|rejected|in_review` **setzen**, A39 lässt nur noch `status='neu'` **ändern**. Eine Zeile
