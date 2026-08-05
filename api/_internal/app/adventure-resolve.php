@@ -410,18 +410,97 @@ function avesmapsAdventureResolveAll(PDO $pdo): array
 // NB: the avesmapsAdventure* prefix on the helpers is historical -- they are place resolvers, not
 // adventure code. Renaming them is a separate sweep; it would touch the adventure editor and its tests
 // for no behaviour change.
+// 💣 Eine EINMAL aufgeloeste Zeile wurde nie wieder angesehen -- auch dann nicht, wenn ihr Ziel
+// inzwischen geloescht war. Im Bestand: 516 adventure_place-Zeilen und 14 citymap_place-Zeilen mit
+// einer target_public_id, die es nicht mehr gibt (Befund A10). Fuer 61 der 75 betroffenen Namen
+// existiert ein Label GLEICHEN NAMENS unter anderer public_id -- das Label wurde also ersetzt, der
+// Zeiger nicht. Der Client faengt 491 der 516 ueber den Wiki-Schluessel ab; die uebrigen 25 fehlen
+// in der Infobox lautlos (Wildermark, Elburische Halbinsel, Blautann, Kosch, Perricumer Land).
+//
+// Der Riegel setzt tote Zeiger auf 'unresolved' zurueck. Mehr braucht es nicht: die vorhandene
+// Aufloesung unten nimmt sie dann von selbst wieder auf und findet das Label unter seiner neuen
+// public_id -- deshalb steht das hier und nicht als zweite, eigene Aufloesung daneben.
+//
+// ⚠️ Der Abgleich laeuft in PHP, nicht als NOT EXISTS in SQL. Es waere ein SPALTENvergleich
+// zwischen target_public_id (VARCHAR(64)) und public_id (CHAR(36)) ueber zwei Tabellen -- genau die
+// Form, die am 05.08.2026 zwei oeffentliche Endpunkte auf 500 gelegt hat („Illegal mix of
+// collations"), und es gibt keine lokale MySQL, an der sich das vorher ausprobieren liesse. Die
+// Kosten sind ohnehin keine: avesmapsAdventureLoadCandidates() weiter unten liest dieselbe Tabelle
+// KOMPLETT, samt properties_json.
+//
+// @return int Zahl der zurueckgesetzten Zeilen
+function avesmapsResetVanishedPlaceTargets(PDO $pdo, string $table): int
+{
+    if (!in_array($table, ['adventure_place', 'citymap_place'], true)) {
+        throw new InvalidArgumentException('Unbekannte Ort-Tabelle: ' . $table);
+    }
+
+    $resolvedRows = $pdo->query(
+        "SELECT id, target_kind, target_public_id
+           FROM {$table}
+          WHERE status = 'approved'
+            AND target_kind <> 'unresolved'
+            AND target_public_id IS NOT NULL
+            AND target_public_id <> ''"
+    )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    if ($resolvedRows === []) {
+        return 0;
+    }
+
+    // Nur die ids, nur die lebenden. 'territory' zeigt in eine ANDERE Tabelle als die drei anderen
+    // Arten -- ein Territorium gegen map_features zu pruefen wuerde jede Zuordnung wegwerfen.
+    $liveFeatureIds = array_flip(array_map('strval', $pdo->query(
+        "SELECT public_id FROM map_features WHERE is_active = 1"
+    )->fetchAll(PDO::FETCH_COLUMN) ?: []));
+    $liveTerritoryIds = array_flip(array_map('strval', $pdo->query(
+        'SELECT public_id FROM political_territory'
+    )->fetchAll(PDO::FETCH_COLUMN) ?: []));
+
+    $deadIds = [];
+    foreach ($resolvedRows as $row) {
+        $kind = (string) $row['target_kind'];
+        $publicId = (string) $row['target_public_id'];
+        $lives = $kind === 'territory'
+            ? isset($liveTerritoryIds[$publicId])
+            : isset($liveFeatureIds[$publicId]);
+        if (!$lives) {
+            $deadIds[] = (int) $row['id'];
+        }
+    }
+    if ($deadIds === []) {
+        return 0;
+    }
+
+    // raw_name bleibt stehen -- er ist der einzige Weg zurueck. Ohne ihn waere ein toter Zeiger
+    // nicht zurueckzusetzen, sondern verloren.
+    $placeholders = implode(', ', array_fill(0, count($deadIds), '?'));
+    $reset = $pdo->prepare(
+        "UPDATE {$table}
+            SET target_kind = 'unresolved',
+                target_public_id = NULL,
+                target_wiki_key = NULL,
+                target_territory_path = NULL
+          WHERE id IN ({$placeholders})"
+    );
+    $reset->execute($deadIds);
+
+    return count($deadIds);
+}
+
 function avesmapsResolvePlacesInTable(PDO $pdo, string $table): array
 {
     if (!in_array($table, ['adventure_place', 'citymap_place'], true)) {
         throw new InvalidArgumentException('Unbekannte Ort-Tabelle: ' . $table);
     }
+    // ZUERST, damit die naechste Abfrage die zurueckgesetzten Zeilen gleich mitnimmt.
+    $revived = avesmapsResetVanishedPlaceTargets($pdo, $table);
     $places = $pdo->query(
         "SELECT id, raw_name, target_kind, target_public_id, target_wiki_key
            FROM {$table}
           WHERE status = 'approved' AND (target_kind = 'unresolved' OR target_territory_path IS NULL)"
     )->fetchAll(PDO::FETCH_ASSOC) ?: [];
     if ($places === []) {
-        return ['resolved' => 0, 'unresolved' => 0, 'total' => 0, 'paths' => 0];
+        return ['resolved' => 0, 'unresolved' => 0, 'total' => 0, 'paths' => 0, 'revived' => $revived];
     }
 
     $candidates = avesmapsAdventureLoadCandidates($pdo);
@@ -475,5 +554,8 @@ function avesmapsResolvePlacesInTable(PDO $pdo, string $table): array
         ]);
     }
 
-    return ['resolved' => $resolved, 'unresolved' => $stillUnresolved, 'total' => count($places), 'paths' => $paths];
+    // `revived` steht dabei, weil die Zahl sonst nirgends auftaucht: eine Zeile, deren Ziel geloescht
+    // wurde, wird hier still zurueckgesetzt und gleich wieder aufgeloest -- ohne die Zahl saehe ein
+    // Lauf, der 516 tote Zeiger repariert hat, genauso aus wie einer, der nichts zu tun hatte.
+    return ['resolved' => $resolved, 'unresolved' => $stillUnresolved, 'total' => count($places), 'paths' => $paths, 'revived' => $revived];
 }
