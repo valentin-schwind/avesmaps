@@ -218,4 +218,49 @@ assert(
     'and no longer encodes that column by hand'
 );
 
+
+// ===== THE THROTTLE RUNS BEFORE THE EXPENSIVE WORK ================================================
+//
+// 💣 ORDER, not presence -- and the order is the whole finding (A31). avesmapsLocationNameExists
+// reads EVERY active place out of map_features and EVERY open location report out of map_reports,
+// two queries with no LIMIT, and normalises each row in PHP. Until 2026-08-05 it ran BEFORE the
+// hourly limit, so a caller already over that limit paid both scans on every request and got a 429
+// for it. A throttle that costs more than the work it declines is not a throttle, and this host has
+// gone down under load three times.
+$reportEndpoint = file_get_contents(__DIR__ . '/../../../app/report-location.php');
+assert(is_string($reportEndpoint) && $reportEndpoint !== '', 'the report endpoint is readable');
+
+$ensureAt = strpos($reportEndpoint, 'avesmapsEnsureMapReportsTable($pdo);');
+$throttleAt = strpos($reportEndpoint, 'avesmapsReportRateLimitExceeded($pdo, $ipHash)');
+$nameCheckAt = strpos($reportEndpoint, 'avesmapsLocationNameExists($pdo, $mapReport[');
+$duplicateAt = strpos($reportEndpoint, 'avesmapsIsNearDuplicateReport($pdo, $mapReport)');
+$insertAt = strpos($reportEndpoint, '$insertStatement = $pdo->prepare(');
+assert(
+    is_int($ensureAt) && is_int($throttleAt) && is_int($nameCheckAt) && is_int($duplicateAt) && is_int($insertAt),
+    'all five steps are present in the endpoint'
+);
+
+// ⚠️ The DDL stays ABOVE the throttle: the rate-limit query reads map_reports, so on a fresh
+// installation a throttle moved any earlier answers 500 instead of throttling.
+assert($ensureAt < $throttleAt, 'the table is ensured before anything queries it');
+// 💣 THE SWAP ITSELF.
+assert($throttleAt < $nameCheckAt, 'the hourly limit is decided BEFORE the two full scans, not after');
+assert($throttleAt < $duplicateAt, 'and before the duplicate probe as well');
+assert($nameCheckAt < $insertAt, 'the name conflict is still decided before anything is written');
+
+// ⭐ The swap also closes an oracle: while the 409 was decided first, a caller could ask "does this
+// place exist?" without limit -- the throttle came afterwards and stopped the report, never the
+// question. This assert is what keeps the answer behind the throttle.
+assert(
+    strpos($reportEndpoint, "avesmapsErrorResponse(429, 'rate_limited'") < strpos($reportEndpoint, "avesmapsErrorResponse(409, 'conflict'"),
+    'an over-limit caller is turned away before it learns whether the name exists'
+);
+
+// The two scans really are unbounded -- that is why their position matters. If someone ever gives
+// them a LIMIT this assert should be revisited, not deleted: the order would still be right.
+$nameFn = substr($reportEndpoint, (int) strpos($reportEndpoint, 'function avesmapsLocationNameExists'));
+$nameFn = substr($nameFn, 0, (int) strpos($nameFn, "\n}"));
+assert(substr_count($nameFn, '$pdo->prepare(') === 2, 'the name check runs two queries');
+assert(!str_contains($nameFn, 'LIMIT'), 'neither of them is bounded -- the reason the throttle must come first');
+
 echo "report-outcome ok\n";

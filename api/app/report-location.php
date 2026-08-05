@@ -91,9 +91,24 @@ try {
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsEnsureMapReportsTable($pdo);
-    if ($mapReport['report_type'] === 'location' && $mapReport['report_mode'] !== 'change' && avesmapsLocationNameExists($pdo, $mapReport['name'])) {
-        avesmapsErrorResponse(409, 'conflict', 'Ein Ort mit diesem Namen existiert bereits oder wurde bereits gemeldet.');
-    }
+    // 💣 THE THROTTLE RUNS BEFORE THE NAME CHECK, AND THAT ORDER IS THE FINDING (A31). It used to be
+    // the other way round, which made the throttle cost more than it saved: avesmapsLocationNameExists
+    // reads EVERY active place out of map_features and EVERY open location report out of map_reports --
+    // two queries with no LIMIT -- and normalises each row in PHP. A caller already over the limit paid
+    // both scans on every request, and was handed a 429 for the trouble. On a host that has fallen over
+    // under load three times, a throttle that is more expensive than the work it declines is not one.
+    //
+    // ⭐ The swapped order also closes an oracle nobody had noticed. Deciding the 409 first meant a
+    // caller could ask "does this place already exist?" as often as they liked -- the throttle came
+    // afterwards and never stopped the question, only the report. Now an over-limit caller gets 429 and
+    // learns nothing about the ~4.700 names behind it.
+    //
+    // ⚠️ What this changes for an honest reporter: over the limit AND with a colliding name, the answer
+    // is now 429 instead of 409. That is the better of the two -- "come back in a few minutes" is
+    // actionable, and the name conflict is still there to be found when they do.
+    //
+    // ⚠️ avesmapsEnsureMapReportsTable stays ABOVE both: the rate-limit query reads map_reports, so on
+    // a fresh installation moving it any earlier answers 500 instead of throttling.
     // Change reports come from the in-app editor flow on a KNOWN element (entity_public_id) and go to
     // editor review -> exempt them from the new-location rate limit (an active contributor legitimately
     // files several in a row; honeypot + spam-word checks still apply). 💣 The exemption lives in BOTH
@@ -108,6 +123,10 @@ try {
             header('Retry-After: ' . $retryAfterSeconds);
         }
         avesmapsErrorResponse(429, 'rate_limited', avesmapsReportRateLimitMessage($retryAfterSeconds));
+    }
+    // The name conflict is asked AFTER the throttle now -- see above.
+    if ($mapReport['report_type'] === 'location' && $mapReport['report_mode'] !== 'change' && avesmapsLocationNameExists($pdo, $mapReport['name'])) {
+        avesmapsErrorResponse(409, 'conflict', 'Ein Ort mit diesem Namen existiert bereits oder wurde bereits gemeldet.');
     }
     if ($mapReport['report_mode'] !== 'change' && avesmapsIsNearDuplicateReport($pdo, $mapReport)) {
         $mapReport['review_note'] = 'Moegliches Duplikat.';
