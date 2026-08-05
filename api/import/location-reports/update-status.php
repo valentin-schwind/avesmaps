@@ -53,11 +53,20 @@ try {
     // reviewed_by, no review_note, and no audit entry anywhere. A machine replacing an editor's
     // judgement is bad; doing it without a trace is what made it a finding.
     //
-    // ⚠️ This does NOT cost idempotent retries anything, and that was checked rather than assumed:
-    // the connection does not set MYSQL_ATTR_FOUND_ROWS, so rowCount() counts CHANGED rows. Writing
-    // the status a report already carries has always returned 0 here and always answered 404. The
-    // guard adds no new failure to a retry -- it only stops the case where the row would really
-    // have changed under someone else's decision.
+    // ⚠️ IT DOES CHANGE WHAT A REPEATED CALL ANSWERS, and the first version of this comment claimed
+    // the opposite. That claim checked the connection options -- no MYSQL_ATTR_FOUND_ROWS, so
+    // rowCount() counts CHANGED rows -- and never looked at the SET list one line above it.
+    // `reviewed_at = CURRENT_TIMESTAMP` is in that list, and MySQL calls a row changed when ANY
+    // assigned column takes a different value. So a decided report re-sent with the status it
+    // already has used to answer 200 "aktualisiert", every time, a second later.
+    //
+    // ⭐ That is not a loss, it is the finding. Each of those repeats silently moved reviewed_at
+    // forward on a decision somebody else had made -- the timestamp drifted away from the moment of
+    // the decision, quietly, with nothing recording it. 404 is the honest answer.
+    //
+    // ⚠️ The rowCount reasoning is MySQL's, and this project's PDO factory also accepts pgsql, where
+    // rowCount() reports MATCHED rows and the distinction never existed. The guard is right under
+    // both; only the old comment's arithmetic was driver-specific.
     $statement = $pdo->prepare(
         "UPDATE location_reports
         SET

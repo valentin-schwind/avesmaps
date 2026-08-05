@@ -319,10 +319,44 @@ assert(
     preg_match("/WHERE id = :report_id\s*\n\s*AND status = 'neu'/", $updateSql) === 1,
     'and the guard sits in the WHERE next to the id, not somewhere it matches everything'
 );
-// Catches: the zero-row check removed, which would report success for a row that never changed.
+// 💣 Catches: the zero-row check neutered rather than removed. `if (false && ...)` leaves the name
+// present and the block dead, and a blocked write then answers 200 "aktualisiert". The whole
+// condition is pinned -- this file learned that lesson sixty lines above for the status gate and the
+// first version of this block did not carry it over.
 assert(
-    str_contains($importSource, '$statement->rowCount() < 1'),
-    'zero changed rows is still a refusal, not a success'
+    str_contains($importSource, 'if ($statement->rowCount() < 1) {'),
+    'zero changed rows is still a refusal, not a success -- with the condition intact'
+);
+// 💣 Catches: the refusal downgraded to a log. avesmapsErrorResponse is `: never`; error_log is not,
+// and the request would fall through to the success answer.
+$rowCountAt = strpos($importSource, 'if ($statement->rowCount() < 1) {');
+$successAt = strpos($importSource, "'message' => 'Der Status der Ortsmeldung wurde aktualisiert.'");
+assert(is_int($rowCountAt) && is_int($successAt) && $rowCountAt < $successAt, 'the refusal precedes the success answer');
+assert(
+    str_contains(substr($importSource, $rowCountAt, $successAt - $rowCountAt), 'avesmapsErrorResponse('),
+    'and it answers and stops, rather than noting the problem and carrying on'
+);
+// 💣 Catches: the WHERE widened again after the guard -- `OR id = :report_id` appended undoes it
+// completely, because AND binds tighter than OR, and the literal above still matches.
+assert(
+    preg_match("/AND status = 'neu'\"\s*\n\s*\);/", $importSource) === 1,
+    'nothing follows the guard inside the statement -- no OR reopening what it just closed'
+);
+// 💣 Catches: a second, unguarded UPDATE added as a fallback behind the first.
+assert(
+    substr_count($importSource, 'UPDATE location_reports') === 1,
+    'there is exactly one UPDATE in this endpoint'
+);
+// 💣 Catches: $reportId re-read from the payload between validation and execution, so the id that
+// was checked is not the id that is written.
+$validationAt = strpos($importSource, '$reportId = filter_var(');
+$executeAt = strpos($importSource, '$statement->execute([', (int) $updateAt);
+assert(is_int($validationAt) && is_int($executeAt), 'validation and execution are both present');
+// ⚠️ The pattern excludes `===`: `$reportId === false` two lines below the assignment is a
+// comparison, not a second assignment, and a looser match counts it and fails for nothing.
+assert(
+    preg_match_all('/\$reportId\s*=[^=]/', substr($importSource, (int) $validationAt, (int) $executeAt - (int) $validationAt)) === 1,
+    'nothing reassigns $reportId between the check and the write'
 );
 // ⚠️ Catches: the old message left in place. With the guard, zero rows means EITHER no such report OR
 // one that is no longer open -- "nicht gefunden" alone became a lie for the more interesting case,
