@@ -189,17 +189,22 @@ assert(
 // against a literal list of three. A typo in the import tool therefore stored a status no surface
 // in the project knows; the report then appears under "Bearbeitet" (that list asks for
 // status <> 'neu'), wearing a label nobody chose, and A32 means it cannot be moved back.
-assert(
-    avesmapsReportModerationStatuses() === ['approved', 'rejected', 'in_review'],
-    'the three statuses a moderation path may set'
-);
-// 💣 DERIVED, never repeated. A second literal list is how the two doors drifted apart in the first
-// place -- and deriving it from the audit map means a status that can be SET but writes no audit
-// entry is impossible to create, which would be finding A4 reopened.
-assert(
-    avesmapsReportModerationStatuses() === array_keys(AVESMAPS_REPORT_MODERATION_AUDIT_ACTIONS),
-    'the settable statuses ARE the audited ones -- one list, not two that agree today'
-);
+$expectedStatuses = ['approved', 'rejected', 'in_review'];
+$actualStatuses = avesmapsReportModerationStatuses();
+sort($expectedStatuses);
+sort($actualStatuses);
+assert($actualStatuses === $expectedStatuses, 'the three statuses a moderation path may set');
+// ⚠️ The assert that used to stand here compared avesmapsReportModerationStatuses() against
+// array_keys(AVESMAPS_REPORT_MODERATION_AUDIT_ACTIONS) -- which is what the function RETURNS. It was
+// a tautology and could never go red. The literal list above is the one with teeth; this is what it
+// was meant to say, expressed so it can actually fail:
+$sortedStatuses = avesmapsReportModerationStatuses();
+$sortedActions = array_keys(AVESMAPS_REPORT_MODERATION_AUDIT_ACTIONS);
+sort($sortedStatuses);
+sort($sortedActions);
+assert($sortedStatuses === $sortedActions, 'settable and audited name the same set');
+// ⚠️ Compared as SETS. The order inside the audit map carries no meaning, and an assert that goes
+// red when someone reorders it teaches people to edit the test instead of reading it.
 foreach (avesmapsReportModerationStatuses() as $status) {
     assert(
         avesmapsReportModerationAuditAction($status) !== '',
@@ -235,9 +240,26 @@ assert(
     'and gates the incoming status on it -- with the condition intact'
 );
 // The gate has to come BEFORE the write, or it is decoration.
+$gateAt = strpos($importSource, 'if (!avesmapsReportModerationStatusIsAllowed($newStatus)) {');
+$writeAt = strpos($importSource, 'UPDATE location_reports');
+assert(is_int($gateAt) && is_int($writeAt) && $gateAt < $writeAt, 'the status is checked before anything is written');
+
+// 💣 And it has to REFUSE, not merely notice. An adversarial pass replaced avesmapsErrorResponse
+// with error_log inside the gate and every assert here stayed green: the call was present, the
+// position right, and the write happened anyway. avesmapsErrorResponse is `: never`, so naming it
+// inside the block is what makes the gate terminal.
+$gateBlock = substr($importSource, $gateAt, $writeAt - $gateAt);
 assert(
-    strpos($importSource, 'avesmapsReportModerationStatusIsAllowed($newStatus)') < strpos($importSource, 'UPDATE location_reports'),
-    'the status is checked before anything is written'
+    str_contains($gateBlock, 'avesmapsErrorResponse('),
+    'the gate answers and stops -- it does not log and carry on'
+);
+
+// 💣 And the value that was checked has to be the value that gets written. Reassigning $newStatus
+// between the two -- re-reading it from the payload, say -- leaves every assertion above true while
+// the check applies to something the database never sees. Also caught green once.
+assert(
+    !preg_match('/\$newStatus\s*=[^=]/', $gateBlock),
+    'nothing reassigns $newStatus between the check and the write'
 );
 // ⚠️ The accepted values are named in the answer: this endpoint replies to a machine whose operator
 // reads a log, and "ungueltig" alone sends them to the source to find out what is valid.
@@ -252,9 +274,28 @@ assert(
     str_contains($editorSource, 'if (!avesmapsReportModerationStatusIsAllowed($newStatus)) {'),
     'the editor endpoint uses the shared list too -- with the condition intact'
 );
+// ⚠️ Matched by SHAPE, not by one spelling. The first version of this assert compared against a
+// single literal string, so the same list with double quotes, other spacing or another order slipped
+// straight past it -- verified.
 assert(
-    !str_contains($editorSource, "['approved', 'rejected', 'in_review']"),
-    'and keeps no second copy of it -- the copy IS the finding'
+    preg_match('/[\'"]approved[\'"]\s*,\s*[\'"]rejected[\'"]/', $editorSource) !== 1
+        && preg_match('/[\'"]rejected[\'"]\s*,\s*[\'"]approved[\'"]/', $editorSource) !== 1
+        && preg_match('/[\'"]in_review[\'"]\s*,\s*[\'"]approved[\'"]/', $editorSource) !== 1,
+    'and keeps no second copy of it in any spelling -- the copy IS the finding'
+);
+
+// ⚠️ WHAT THIS FILE STILL CANNOT SAY, written down rather than left to be discovered again.
+//
+// 💣 The import endpoint writes NO audit entry at all -- no avesmapsLogReportModeration, no
+// avesmapsWriteMapAuditLog. So "settable implies audited", which is how the shared list was
+// justified, is true of the editor door and NOT of the one this list was added to. With a valid
+// token a report can still be moved to approved/rejected/in_review leaving no trace, which is A4
+// through the other door. Its UPDATE also lacks the `AND status = 'neu'` guard the editor carries in
+// three places, so an already decided report can be silently overwritten. Filed as A39; this assert
+// is the marker, and it is meant to be INVERTED when that lands, not deleted.
+assert(
+    !str_contains($importSource, 'avesmapsLogReportModeration'),
+    'the import door still writes no audit entry (A39) -- flip this assert when it does'
 );
 
 echo "report-audit ok\n";
