@@ -1301,6 +1301,10 @@ ist von außen nicht feststellbar und wäre als Verlass darauf ohnehin keine Ver
 > `Server: Apache/2.4.68 (Unix)` — kein `Via`, kein CDN-Kopf. Das *legt* „kein Proxy" nahe,
 > beweist es aber nicht (ein transparenter Proxy wirbt nicht für sich).
 >
+> 📊 **Am 06.08.2026 erneut gelaufen — Ergebnis unverändert** (281 Zeilen, 2 verschiedene
+> `remote_ip` davon 277 leer, 92 verschiedene `ip_hash`). Das ist **kein** Versäumnis des Owners: die
+> Abfrage *kann* die Frage nicht beantworten, und der Fehler lag bei mir, der sie geschrieben hat.
+>
 > ⚠️ **Die Daten können es nicht mehr beantworten** — `remote_ip` wird aus gutem Grund nicht mehr
 > geschrieben, und ein Hash verrät die Topologie nicht. `sql/a29-proxy-erkennung.sql` hat damit
 > seinen Zweck verloren; es bleibt nur als Beleg für die 92 Schlüssel stehen. Was die Frage klärt,
@@ -1782,7 +1786,7 @@ Importwerkzeug schreibt einen Status, den keine Oberfläche kennt; die Meldung e
 > **401**, nicht 405 — die Token-Prüfung (`:16`) steht vor der Methodenprüfung (`:20`). Für einen
 > Unbefugten ist das die bessere Antwort, sie verrät nicht einmal die erlaubte Methode.
 
-### A36 · Der Rest des N+1 sitzt im Wiki-Zweig des Sammlers
+### ✅ A36 · Der Rest des N+1 sitzt im Wiki-Zweig des Sammlers
 `api/_internal/political/territories-derived-layer.php` (Sammler) → `territories-read.php:1277`
 und `territories-derived-geometry.php:598-611`
 
@@ -1826,8 +1830,32 @@ des verbliebenen Aufwands ist. Sie steht in einem `SELECT COUNT(*)` und braucht 
 > was A20 entfernt hat** (242 → 2), und die Bündelung lohnt sofort. Die Spanne entscheidet, nicht
 > mein Gefühl.
 >
-> 🔧 **DU: eine Leseabfrage entscheidet es** — [`sql/a36-wiki-zweig-zaehlung.sql`](../../sql/a36-wiki-zweig-zaehlung.sql),
-> Abfrage 1. Abfrage 3 ist die Gegenprobe zum Modell: sie sollte ungefähr **2** liefern.
+> ---
+>
+> **✅ GEMESSEN 06.08.2026 — und damit bewusst NICHT gebaut.** Der Owner hat
+> `sql/a36-wiki-zweig-zaehlung.sql` laufen lassen:
+>
+> | | Schätzbereich | **gemessen** |
+> |---|---|---|
+> | Objekte mit Wiki-Zweig | 10 – 88 | **13** |
+> | zusätzliche Abfragen je Layer-Aufbau | 20 – 176 | **26** |
+> | abgeleitete Objekte gesamt | 121 (Ausschnitt) | **126** |
+> | Gegenprobe „ohne Kinder, ohne Wiki" | Vorhersage **2** | **2** ✓ |
+>
+> ⭐ **Die Gegenprobe traf punktgenau** — das Modell aus dem Kartenstand war richtig, und die echte
+> Zahl liegt am **unteren** Ende der Spanne.
+>
+> **Entscheidung: nicht bündeln.** Nach der oben selbst gesetzten Vorgabe ist 26 der Rundungsfehler,
+> nicht der Fall, der sich lohnt: der Layer kostet damit **28 statt 242** Abfragen je Cache-Fehlschlag
+> (2 aus A20 + 26 aus dem Wiki-Zweig). Die Bündelung müsste über **zwei weitere geteilte Dateien**
+> gehen — `territories-read.php` und `territories-derived-geometry.php` —, und die namensgleiche
+> Abfrage müsste zusätzlich den **getroffenen Namen** zurückgeben, damit sich Treffer wieder Objekten
+> zuordnen lassen. Das ist mehr Risiko als Gewinn.
+>
+> ⚠️ **Wann das neu zu bewerten wäre:** 13 von 126 sind ~10 %. Der Zweig greift bei Objekten **ohne
+> aktive Kinder**. Verliert eine grössere Zahl Territorien ihre Kinder (Umbau der Hierarchie, ein
+> Wiki-Abgleich, der Eltern-Zuordnungen ändert), wächst die Zahl mit. Ab etwa **50 Objekten (100
+> Abfragen)** lohnt die Bündelung. Die Abfrage dafür liegt im Repo und ist in zehn Sekunden wiederholt.
 
 *Beleg:* am Code gelesen, im Test gemessen (2 + 3×2 = 8 Abfragen bei drei Wiki-Objekten).
 *Aufwand:* mittel. *Gefunden von den Gegenprüf-Agenten an der eigenen A20-Auslieferung.*
@@ -1931,6 +1959,42 @@ gleicht den Import an den Editor an und kommt mit.
 > Abfrage 3 listet genau die Zeilen, die von keiner Oberfläche mehr erreichbar wären. **Erwartung:
 > leer.** Kommt etwas zurück, melde mir die `id`s — der Weg zurück ist ein einmaliges, gezieltes
 > `UPDATE` von Hand, **kein** dauerhaft offener Schreibkanal. Die Riegel bleiben.
+>
+> ---
+>
+> **📊 GEMESSEN 06.08.2026 — die Erwartung war falsch, der Verdacht richtig.** Abfrage 3 liefert
+> **17 Zeilen**, alle in `location_reports`, alle mit Status **`alt`**, ids **3–19**, alle vom
+> 24.04.2026. Genau das gelöschte Importwerkzeug, das ich als Verdacht benannt hatte.
+>
+> | Tabelle | Status | Zeilen |
+> |---|---|---|
+> | `location_reports` | `alt` | **17** |
+> | | `rejected` | 5 |
+> | | `approved` | 2 |
+> | `map_reports` | `rejected` | 172 |
+> | | `approved` | 108 |
+> | | `neu` | 1 |
+>
+> ⚠️ **Der Schaden ist klein, aber echt:** die 17 Zeilen stehen im Prüfbildschirm unter „Bearbeitet"
+> (der Filter ist `status <> 'neu'`) mit einem Etikett, das **keine Oberfläche kennt** — und seit A33
+> und A39 kann es niemand mehr richtigstellen. Löschbar sind sie weiterhin
+> (`api/import/location-reports/delete.php` prüft den Status nicht), aber löschen wäre hier das
+> Falsche: es sind echte, verarbeitete Meldungen.
+>
+> ⭐ **Was `alt` bedeutete, sagt das Werkzeug selbst.** Seine eigene Hilfe zu `--imported-status`:
+> „Auf diesen Status werden **erfolgreich importierte** Meldungen gesetzt." Also: übernommen, Inhalt
+> steht in der Karte. Das ist `approved`.
+>
+> 🔧 **DU: eine einmalige Richtigstellung liegt bereit** —
+> [`sql/a39-alt-status-korrektur.sql`](../../sql/a39-alt-status-korrektur.sql). ⚠️ **Sie schreibt.**
+> Abschnitt 1 ist rein lesend und zeigt vorher, was Abschnitt 2 anfassen würde; Abschnitt 3 ist die
+> Gegenprobe danach. `reviewed_at` bleibt **unangetastet** — der Zeitpunkt der damaligen Verarbeitung
+> ist eine Tatsache, und ihn auf heute zu setzen wäre dieselbe stille Fälschung, die A39 am
+> Import-Endpunkt gerade behoben hat.
+>
+> Wer die Zuordnung `alt → approved` nicht mittragen will, lässt sie stehen: sie schaden nichts, sie
+> tragen nur ein Etikett, das niemand kennt. **Die Riegel bleiben in jedem Fall** — der Weg zurück
+> ist dieses eine `UPDATE`, kein wieder geöffneter Schreibkanal.
 
 ### A38 · Eine abgewiesene Anfrage füllt den Eimer nicht — die Drossel sieht den Prober nie
 `api/_internal/app/report-outcome.php:57-63` gegen `api/app/report-location.php:129` und `:185`
