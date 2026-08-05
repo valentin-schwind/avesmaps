@@ -594,6 +594,21 @@ function buildEcosystemAreaLayer(area) {
 		if (typeof isEcosystemDrawing === "function" && isEcosystemDrawing()) {
 			return;
 		}
+		// 🔴 EINE FLÄCHE BEARBEITET NUR, WER DIE WERKZEUGE HAT (Owner 2026-08-05: „ohne avesmaps.de/edit/
+		// darf ich nirgendwo Regionen editieren"). Bis 2026-08-04 war der MODUS der Riegel -- in die Ebene
+		// kam nur ein Editor mit Recht, also brauchte diese Geste keinen eigenen. Seit die Ebene jedem
+		// Besucher offensteht, trägt sie ihre Frage selbst.
+		//
+		// 🪤 OHNE `stop` aussteigen, also VOR der Zeile darunter. Das Ereignis läuft dann weiter zur Karte,
+		// und der Besucher behält seinen Doppelklick-Zoom -- den syncEcosystemDoubleClickZoom ihm seit
+		// 2026-08-04 ohnehin lässt. Mit `stop` wäre der Doppelklick auf einer Fläche schlicht tot.
+		//
+		// 💣 FEHLT DIE FRAGE, IST DIE ANTWORT NEIN. `!== "function"` und nicht das im Haus übliche
+		// `typeof … === "function" && …`: das ist ein Recht, kein Komfort, und ein Riegel, der bei
+		// fehlendem Nachbarn aufgeht, ist keiner.
+		if (typeof canOperateEcosystemLayers !== "function" || !canOperateEcosystemLayers()) {
+			return;
+		}
 		if (event?.originalEvent) {
 			L.DomEvent.stop(event);
 		}
@@ -622,6 +637,17 @@ function buildEcosystemAreaLayer(area) {
 	// would be a rule about a gesture this file has no opinion on.
 	layer.on("contextmenu", (event) => {
 		if (typeof isEcosystemDrawing === "function" && isEcosystemDrawing()) {
+			return;
+		}
+		// 🔴 DASSELBE AM RECHTSKLICK -- und hier wog es schwerer: dieses Menü trägt „Eigenschaften …",
+		// „Fläche löschen", malen, radieren, vereinfachen, verschmelzen, zerschneiden, verschieben.
+		// Für einen ANGEMELDETEN Editor auf der öffentlichen Karte gingen die Schreibvorgänge WIRKLICH
+		// durch: api/edit/map/ecosystem.php fragt das Sitzungs-Cookie, nicht ob jemand in /edit/ steht.
+		//
+		// 🪤 OHNE `stop`, genau wie der Strg-Notausgang darunter: so bekommt der Besucher hier das
+		// gewöhnliche Kartenmenü („Hierher reisen", „Entfernung messen", „Hier melden") statt eines
+		// verschluckten Klicks. Begründung zur Fehlerrichtung: siehe dblclick oben.
+		if (typeof canOperateEcosystemLayers !== "function" || !canOperateEcosystemLayers()) {
 			return;
 		}
 		// 🔴 STRG + RECHTSKLICK ERZWINGT DAS KARTENMENÜ (Owner 2026-07-29). Die Ebene ist so dicht

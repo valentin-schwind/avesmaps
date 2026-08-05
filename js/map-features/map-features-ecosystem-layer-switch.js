@@ -187,6 +187,16 @@ function isEcosystemPeakLabel(labelPublicId) {
 // ihn die Klickdurchlässigkeit der Labels-Pane wieder auf (css/features/ecosystem-layer.css).
 function isEcosystemPeakActive(labelPublicId) {
 	return typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
+		// 💣 UND DAS BEDIENRECHT (Owner 2026-08-05). Ein Gipfel ist der ARBEITSPUNKT dieser Ebene: die
+		// Klasse gibt ihm `cursor: grab`, und syncEcosystemPeakDragging schaltet daraufhin sein Ziehen
+		// frei. Ohne diese Zeile bekam der gewöhnliche Besucher in der Topographie beides -- Leaflet legt
+		// `marker.dragging` an JEDEM anklickbaren Marker an, `draggable: false` unterdrückt nur das
+		// Einschalten. Gespeichert hätte er nichts (der `dragend`-Schreiber hängt an IS_EDIT_MODE), aber
+		// die Beschriftung wäre ihm unter der Maus weggerutscht und hätte Bearbeiten versprochen.
+		//
+		// 🪤 Die Pane-Ausnahme darunter verliert er nicht: `ecosystem-labels-dimmed` wird für ihn seit
+		// 2026-08-04 gar nicht mehr gesetzt, es gibt also nichts mehr aufzuheben.
+		&& canOperateEcosystemLayers()
 		&& getActiveEcosystemLayerKind() === "topographie"
 		&& isEcosystemPeakLabel(labelPublicId);
 }

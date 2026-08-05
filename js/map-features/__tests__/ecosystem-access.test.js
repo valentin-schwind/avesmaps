@@ -276,6 +276,147 @@ s.zustand.dorf = true;
 s.context.syncEcosystemSettlementVisibility(false);
 assert(s.zustand.dorf === true, "ohne vorheriges Eintreten wird nichts zurückgesetzt");
 
+// ---- DIE ZWEI GESTEN AN DER FLÄCHE SELBST ----------------------------------------------------------
+// 💣 DER GEMELDETE FALL (Owner 2026-08-05): „ich kann überall auf avesmaps, wenn ich nicht im Edit-Modus
+// bin, Dinge verändern -- Rechtsklick auf irgendeine Fläche und Eigenschaften ändern."
+//
+// 🔴 WARUM ES DIESE ZWEI SIND. Bis zum 2026-08-04 war der MODUS der Riegel: in die Landschaften-Ebene kam
+// nur, wer das Recht hatte, also brauchte keine einzelne Geste einen eigenen. Seit die Ebene jedem
+// Besucher offensteht, trägt jede Geste ihre Frage selbst -- und diese beiden hatten sie nicht:
+//
+//   Rechtsklick   -> das Flächenmenü mit „Eigenschaften …", „Fläche löschen", malen, radieren,
+//                    vereinfachen, verschmelzen, zerschneiden, verschieben
+//   Doppelklick   -> der Ecken-Editor mit ziehbaren Griffen
+//
+// 💣 Für einen ANGEMELDETEN Editor auf der öffentlichen Karte gingen diese Schreibvorgänge WIRKLICH durch:
+// api/edit/map/ecosystem.php fragt das Sitzungs-Cookie, nicht ob jemand in /edit/ steht.
+//
+// 🪤 Ohne `stop` aussteigen, nicht mit -- sonst verlöre der Besucher an jeder Fläche das Kartenmenü
+// („Hierher reisen", „Entfernung messen") und seinen Doppelklick-Zoom. Genau das prüfen die zwei
+// gestoppt-Zusicherungen unten mit.
+const renderQuelle = fs.readFileSync(path.join(__dirname, "..", "map-features-ecosystem-rendering.js"), "utf8");
+
+function flaechenWelt({ bedienen }) {
+	const gezaehlt = { menu: 0, ecken: 0, gestoppt: 0 };
+	const gesten = new Map();
+	const flaeche = {
+		on: (name, handler) => { gesten.set(name, handler); },
+		bindTooltip: () => {},
+		closeTooltip: () => {},
+		getElement: () => null,
+	};
+	const context = {
+		console,
+		window: {
+			AvesmapsEcosystemAreaMenu: { open: () => { gezaehlt.menu += 1; } },
+		},
+		document: {
+			documentElement: {},
+			getElementById: () => null,
+			querySelectorAll: () => [],
+			addEventListener: () => {},
+		},
+		getComputedStyle: () => ({ getPropertyValue: () => "#654321" }),
+		L: {
+			polygon: () => flaeche,
+			DomEvent: {
+				stop: () => { gezaehlt.gestoppt += 1; },
+				stopPropagation: () => {},
+			},
+		},
+		canOperateEcosystemLayers: () => bedienen,
+		openEcosystemGeometryEdit: () => { gezaehlt.ecken += 1; },
+	};
+	context.globalThis = context;
+	vm.createContext(context);
+	vm.runInContext(renderQuelle, context);
+
+	// 💣 GEGENPROBE ZUR SANDKASTEN-FALLE: die geprüften Handler sind gegen fehlende Globals gehärtet
+	// (`typeof … === "function" && …`). Fehlte die Rechtefrage hier, liefen sie in ihre Notbremse und
+	// dieser Test wäre grün, ohne die Regel je ausgeführt zu haben.
+	assert(typeof context.canOperateEcosystemLayers === "function",
+		"die Rechtefrage muss im Sandkasten stehen, sonst prueft dieser Test die Notbremse");
+
+	const gebaut = context.buildEcosystemAreaLayer({
+		public_id: "eco-1",
+		kind: "vegetation",
+		region_name: "Testwald",
+		region_type: "wald",
+		geometry_revision: 3,
+		geometry: { type: "Polygon", coordinates: [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]] },
+	});
+	assert(gebaut === flaeche, "die Flaeche wurde gebaut");
+	return { gesten, gezaehlt };
+}
+
+const ereignis = () => ({ originalEvent: { ctrlKey: false, metaKey: false, clientX: 5, clientY: 5 }, latlng: { lat: 1, lng: 1 } });
+
+const besucherFlaeche = flaechenWelt({ bedienen: false });
+besucherFlaeche.gesten.get("contextmenu")(ereignis());
+assert(besucherFlaeche.gezaehlt.menu === 0,
+	"💣 KEIN Flaechenmenue ohne Bedienrecht -- es traegt Eigenschaften, Loeschen, Malen, Vereinfachen");
+assert(besucherFlaeche.gezaehlt.gestoppt === 0,
+	"🪤 und das Ereignis laeuft weiter zum Kartenmenue, statt verschluckt zu werden");
+
+besucherFlaeche.gesten.get("dblclick")(ereignis());
+assert(besucherFlaeche.gezaehlt.ecken === 0, "💣 und keine Eckengriffe ohne Bedienrecht");
+assert(besucherFlaeche.gezaehlt.gestoppt === 0,
+	"🪤 der Doppelklick bleibt beim Besucher der Zoom, den er ueberall sonst auch ist");
+
+const editorFlaeche = flaechenWelt({ bedienen: true });
+editorFlaeche.gesten.get("contextmenu")(ereignis());
+assert(editorFlaeche.gezaehlt.menu === 1, "der Editor bekommt sein Flaechenmenue");
+editorFlaeche.gesten.get("dblclick")(ereignis());
+assert(editorFlaeche.gezaehlt.ecken === 1, "und seine Eckengriffe");
+
+// ---- der Gipfel ist ein ARBEITSPUNKT, kein Ortsschild -----------------------------------------------
+// 💣 Dieselbe Wurzel wie die zwei Gesten oben, nur unauffälliger: `map-label--eco-peak` gibt dem Label
+// `cursor: grab`, und syncEcosystemPeakDragging schaltet daraufhin sein Ziehen frei. Beides hing allein
+// an „Ebene sichtbar + Topographie" -- also bekam es auch der gewöhnliche Besucher.
+//
+// 🪤 `draggable: false` beim Anlegen schützt NICHT: Leaflet 1.9.4 legt `marker.dragging` an jedem
+// anklickbaren Marker an (`this.dragging = new pi(this)` in `_initInteraction`) und lässt es nur
+// abgeschaltet. Ein späteres enable() greift deshalb sofort. Genau das ist hier nachgebaut.
+function gipfelWelt({ recht, editor }) {
+	const gezogen = { ein: 0, aus: 0 };
+	const marker = {
+		dragging: { enable: () => { gezogen.ein += 1; }, disable: () => { gezogen.aus += 1; } },
+		getElement: () => null,
+	};
+	const context = {
+		console,
+		window: { localStorage: { getItem: () => "0", setItem: () => {} } },
+		document: { getElementById: () => null, querySelectorAll: () => [], addEventListener: () => {} },
+		getSelectedMapLayerMode: () => "ecosystem",
+		IS_ECOSYSTEM_ENABLED: recht,
+		IS_EDIT_MODE: editor,
+		isKnownEcosystemKind: () => true,
+		activeEcosystemLayerKind: "topographie",
+		// Die echten Nachbarn der Frage: ohne sie fiele isEcosystemPeakLabel in seine Notbremse und
+		// „kein Gipfel" käme aus dem falschen Grund heraus.
+		isEcosystemPeakSubtype: (typ) => typ === "berggipfel",
+		labelData: [{ publicId: "lbl-1", labelType: "berggipfel" }],
+		labelMarkers: [{ label: { publicId: "lbl-1" }, marker }],
+	};
+	context.globalThis = context;
+	vm.createContext(context);
+	vm.runInContext(source, context);
+	assert(context.isEcosystemPeakLabel("lbl-1"), "der Nachbar erkennt den Gipfel wirklich als Gipfel");
+	return { context, gezogen };
+}
+
+const gipfelBesucher = gipfelWelt({ recht: false, editor: false });
+assert(!gipfelBesucher.context.isEcosystemPeakActive("lbl-1"),
+	"💣 fuer den Besucher ist ein Gipfel kein Arbeitspunkt -- kein Greifzeiger, keine Ausnahme");
+gipfelBesucher.context.syncEcosystemPeakDragging();
+assert(gipfelBesucher.gezogen.ein === 0 && gipfelBesucher.gezogen.aus === 1,
+	"💣 und sein Ziehen wird ausdruecklich ABGESCHALTET, nicht bloss nicht eingeschaltet");
+
+const gipfelEditor = gipfelWelt({ recht: true, editor: true });
+assert(gipfelEditor.context.isEcosystemPeakActive("lbl-1"), "der Editor behaelt seinen Arbeitspunkt");
+gipfelEditor.context.syncEcosystemPeakDragging();
+assert(gipfelEditor.gezogen.ein === 1, "und zieht ihn ohne Zwischenschritt (V8)");
+
 if (failures > 0) {
 	console.error(`ecosystem-access.test: ${failures} failure(s)`);
 	process.exit(1);
