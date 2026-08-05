@@ -7,8 +7,8 @@
 
 Am 05.08.2026 lief ein Rundum-Systemtest (12 Prüfagenten + 2 Gegenprüfer). Ergebnis und
 Belege liegen vollständig im Repo: **[`docs/systemtest-2026-08-05/`](systemtest-2026-08-05/README.md)** —
-lies zuerst `README.md`, dann `1-akut.md`. 217 Befunde, davon 28 AKUT nach feindlicher
-Gegenprüfung. **6 AKUT sind erledigt** (im Bericht mit ✅ und Commit markiert), 22 offen.
+lies zuerst `README.md`, dann `1-akut.md`. 220 Befunde, davon 31 AKUT nach feindlicher
+Gegenprüfung. **8 AKUT sind erledigt** (im Bericht mit ✅ und Commit markiert), 23 offen.
 
 Danach wurden die Fixes selbst geprüft. Das Ergebnis steht in
 **[`4-nachpruefung.md`](systemtest-2026-08-05/4-nachpruefung.md)** und ist der wertvollste
@@ -34,14 +34,24 @@ die Redaktion kann feststellen, dass etwas verschwunden ist.
 - **A4** Annehmen/Ablehnen erzeugt **keinen** Eintrag im Änderungsprotokoll.
 - **A5** Der Erläuterungstext des Melders landet ungefragt in der öffentlichen Beschreibung.
 
-A1+A2 sind ein Endpunkt (`api/app/report-location.php`) und klein. A3+A4 sind eine
-Erweiterung (`api/edit/reports/locations.php` + Editor-Oberfläche) und mittelgroß.
-**Fang mit A1+A2 an, liefere sie einzeln aus, und prüfe live nach.**
+> **✅ A1 und A2 sind erledigt (05.08.2026 abends): `776c2b89`, `c6ceb981`, `a07348ef`.**
+> Owner-Entscheid zur Produktfrage: **Bot still, Mensch ehrlich** — die drei Bot-Fallen antworten
+> zeichen- und codegleich wie ein Erfolg, die Stundengrenze und der Nur-Link-Kommentar bekommen
+> eine echte Absage. Zahlen und Vorbehalte stehen bei A1/A2 in `1-akut.md`. Die drei feindlichen
+> Gegenprüfungen dieser Fixes haben **A29–A31** neu gefunden; A29 (der Schlüssel der Stundengrenze
+> steht in einem Anfrage-Kopf) trifft vier Drosseln auf einmal und gehört nach oben.
+>
+> **Es geht weiter bei A3+A4** — eine Erweiterung von `api/edit/reports/locations.php` plus
+> Editor-Oberfläche, mittelgroß. Danach A5 (klein).
 
-Der Owner entscheidet dabei eines selbst, frag ihn kurz: Soll eine verworfene Meldung dem
-Melder ehrlich sagen, dass sie nicht angekommen ist (und damit dem Bot dasselbe verraten),
-oder soll die Unterscheidung nur intern sichtbar werden? Das ist eine Produktfrage, keine
-technische.
+A1+A2 waren ein Endpunkt (`api/app/report-location.php`) und klein. A3+A4 sind eine
+Erweiterung (`api/edit/reports/locations.php` + Editor-Oberfläche) und mittelgroß.
+**Liefere einzeln aus und prüfe live nach.**
+
+💣 **Es gibt keinen Löschweg für `map_reports`** (das ist A3). Jede echte Meldung, die eine Probe
+anlegt, bleibt für immer. Vier der fünf A1-Wege legen nichts an und sind deshalb frei prüfbar; die
+Stundengrenze und ihre Zählsemantik sind es nicht — dafür braucht es fünf bis sechs Zeilen. Frag
+den Owner, bevor du sie anlegst.
 
 ## Pflichtlektüre vor der ersten Zeile Code
 

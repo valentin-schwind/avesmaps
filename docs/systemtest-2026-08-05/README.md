@@ -9,9 +9,13 @@ die rechtliche Situation.
 
 | Bericht | Inhalt | Umfang |
 |---|---|---|
-| **[1 — AKUT](1-akut.md)** | kaputt, falsch oder riskant. Muss behoben werden. | 28 Befunde |
+| **[1 — AKUT](1-akut.md)** | kaputt, falsch oder riskant. Muss behoben werden. | 31 Befunde |
 | **[2 — KANN](2-kann.md)** | Refactoring, toter Code, Konsistenz, Maschinenlesbarkeit | 169 Befunde |
 | **[3 — ZUKUNFT](3-zukunft.md)** | Features und Komfort, die niemand vermisst, aber alle wollen | 14 Befunde |
+
+Am Abend des 05.08. kamen **A1 und A2 dazu** (Community-Meldungsstrecke, erledigt) — und mit ihnen
+drei neue AKUT-Befunde **A29–A31**, die drei feindliche Gegenprüfungen der Reparaturen zutage
+gefördert haben. Alle drei sind älter als die Reparaturen; keiner der zwölf Prüfagenten hatte sie.
 
 Dazu **[4 — Nachprüfung](4-nachpruefung.md)**: was die Kontrolle der ersten Fixes zutage gefördert hat — 12 ungebremste Lasthebel, 2 weitere Ausnahmetext-Lecks, 6 weitere Fälle „gelöschte Daten werden weiter ausgeliefert". Nicht abgearbeitet.
 
@@ -59,12 +63,13 @@ Testabenteuer (1353 → 1352), eine Testkarte (457 → 456). Gegenprobe nach dem
 Antworten von `adventures.php` und `citymaps.php` sind **byteweise identisch** mit der
 Momentaufnahme von vor dem Test.
 
-**12 Zeilen in 4 Tabellen sind geblieben** — nicht aus Nachlässigkeit, sondern weil es für sie
-**keinen Löschweg gibt**, weder in einer Oberfläche noch in einem Endpunkt:
+**13 Zeilen in 4 Tabellen sind geblieben** — nicht aus Nachlässigkeit, sondern weil es für sie
+**keinen Löschweg gibt**, weder in einer Oberfläche noch in einem Endpunkt. Zwölf stammen aus dem
+Test, eine aus der Ausfallprobe zu [A2](1-akut.md) am Abend des 05.08.:
 
 | Tabelle | Zeilen | warum nicht entfernbar |
 |---|---|---|
-| `map_reports` | 8 (id 273–280) | keine Ansicht zeigt bearbeitete Meldungen → [A3](1-akut.md) |
+| `map_reports` | 9 (id 273–280 + die A2-Ausfallprobe vom Abend) | keine Ansicht zeigt bearbeitete Meldungen → [A3](1-akut.md) |
 | `map_share_links` | 2 | kein Löschpfad im ganzen Projekt → [A28](1-akut.md) |
 | `contact_message` | 1 | das Postfach kann nicht löschen |
 | `sources` | 1 (id 1224935) | kein Löschpfad für Katalogquellen → [A6](1-akut.md) |
@@ -74,6 +79,6 @@ Sicherheitsabfragen: [`aufraeumen.sql`](aufraeumen.sql).
 
 ## Eine Zahl zum Einordnen
 
-Von 217 Befunden sind **174 mit weniger als einer Stunde Aufwand** zu beheben. Das ist die
+Von 220 Befunden sind **174 mit weniger als einer Stunde Aufwand** zu beheben. Das ist die
 eigentliche Nachricht dieses Tests: Avesmaps hat kein strukturelles Problem. Es hat eine lange
 Liste vergessener Haken.

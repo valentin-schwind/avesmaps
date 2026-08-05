@@ -8,6 +8,11 @@ Der 28. Befund (A28) kam erst beim Nachzählen der eigenen Testspuren dazu. Er i
 einzige, den nicht das Prüfen, sondern das **Aufräumen** gefunden hat — und ein Beleg dafür,
 dass sich der Aufräumteil dieses Tests gelohnt hat.
 
+**Nachtrag vom Abend des 05.08.: drei weitere (A29–A31), gefunden beim feindlichen Gegenprüfen
+der A1/A2-Reparaturen** — siehe Abschnitt 9. Alle drei sind älter als diese Reparaturen und hatte
+keiner der zwölf Prüfagenten. Das ist der zweite Beleg für dasselbe: das Prüfen der Fixes findet
+mehr als das Prüfen des Bestands.
+
 Die Reihenfolge ist eine Empfehlung: oben steht, was Inhalt verliert oder Daten falsch macht;
 unten, was ärgerlich, aber folgenlos ist.
 
@@ -19,8 +24,54 @@ Das ist der schwerwiegendste Zusammenhang des ganzen Tests, weil er **gezielt de
 Mitwirkenden trifft** und von keiner Seite aus sichtbar ist — weder für den, der meldet, noch
 für den, der die Meldungen bearbeitet.
 
-### A1 · Eine verworfene Meldung wird dem Menschen als Erfolg gemeldet
+### ✅ A1 · Eine verworfene Meldung wird dem Menschen als Erfolg gemeldet
 `api/app/report-location.php:83` und `:98` gegen `:184`
+
+> **✅ Erledigt `c6ceb981` (+ `a07348ef`), 05.08.2026.**
+> **Owner-Entscheid zur Produktfrage: Bot still, Mensch ehrlich.** Die drei Bot-Fallen antworten
+> jetzt zeichen- **und** codegleich wie ein gespeicherter Bericht; die zwei Absagen, in die ein
+> Mensch läuft, bekommen eine echte Fehlerantwort. Live gemessen, **ohne eine einzige
+> hinterlassene Zeile** (alle fünf Wege kehren vor dem `INSERT` um):
+>
+> | Probe | vorher | jetzt |
+> |---|---|---|
+> | Honigtopf gefüllt | `200` + Erfolgstext | **`201`** + zeichengleicher Erfolgstext |
+> | unter 3 Sekunden abgeschickt | `200` + Erfolgstext | **`201`** |
+> | Spamwort | `200` + Erfolgstext | **`201`** |
+> | Kommentar ist nur ein Link | `200` + Erfolgstext | **`400`** „Bitte zur Meldung noch einen Satz schreiben, nicht nur einen Link." |
+> | bestehender Ortsname (Gesundheitsprobe) | `409` | **`409`** unverändert |
+>
+> Der Client brauchte keine Zeile: `apiErrorMessage` versteht die kanonische Hülle schon, und
+> `finalizeLocationReportSubmission` leert das Formular nur bei `ok:true` — eine ehrliche Absage
+> behält also den getippten Text. Das war die zweite Hälfte des Befunds.
+>
+> 💣 **Die Annahme-Antwort hat jetzt genau einen Erzeuger** (`avesmapsReportAcceptedResponse`),
+> und der Test prüft, dass der Endpunkt weder eine eigene Kopie des Satzes noch überhaupt noch
+> eine 200-Antwort enthält. Genau so war die Divergenz entstanden: zwei handgebaute Antworten,
+> die gleich aussahen und es nicht waren.
+>
+> ⚠️ **Nicht live gemessen: die 429-Antwort an der Stundengrenze.** Sie zu erreichen setzt einen
+> vollen Eimer voraus, und das kostet fünf unlöschbare Zeilen (A3). Bewacht ist sie vom Test.
+>
+> **Die Nachbesserung `a07348ef` ebenfalls live geprüft.** Der erste Wurf hatte die 400 **hinter**
+> die Spamwörter gelegt und damit ein Orakel gebaut: ein nackter Link antwortete `400`, derselbe
+> Link mit Spamwort `201` — beides ohne Zeile und ohne den Eimer zu berühren, also ein
+> Gratis-Prüfstand für Spam-Nutzlasten. Nach dem Tausch der Reihenfolge antworten beide Proben
+> **zeichengleich `400`**.
+>
+> Und der Weg von Ende zu Ende, im Browser auf avesmaps.de nachgestellt: Infopanel eines Weges →
+> „Änderungen vorschlagen" (Kategorie gesperrt, `data-lock-reason="context"`) → nur ein Link in
+> „Was soll geändert werden?" → **Fenster bleibt offen, Satz steht da, getippter Text erhalten,
+> Namensfeld wieder bedienbar, Kategorie weiterhin gesperrt.** Ohne die Nachbesserung wäre sie an
+> dieser Stelle wieder frei gewesen — und ein Weg-Vorschlag ließe sich als Ort abschicken.
+>
+> ⚠️ **Was der Umbau NICHT schließt, und was die Fassung vom ersten Wurf zu Unrecht behauptete:**
+> ein Bot lernt nichts mehr **aus dem Statuscode** — blind ist er nicht. Die 409-Antwort auf einen
+> bestehenden Namen steht **vor** den Filtern, also verrät eine einzige Anfrage mit einem Namen,
+> den es gibt, ob gefiltert wurde (`201`) oder nicht (`409`) — ohne Zeile und ohne den Eimer zu
+> berühren. Und der stille Weg kehrt vor der Datenbankverbindung um, antwortet also um
+> Größenordnungen schneller. Beides ist älter als dieser Fix; die Zusicherung im Code ist
+> entsprechend zurückgenommen (`a07348ef`).
 
 Honigtopf, Spamwort, „zu schnell" und die Stundengrenze antworten alle mit
 `{"ok":true,"message":"Karteneintrag wurde gemeldet."}` — **wortgleich** mit dem echten Erfolg.
@@ -34,8 +85,28 @@ seiner Tricks funktioniert hat. Beim Kontaktformular unterscheiden sich sogar di
 *Beleg:* über die echte Oberfläche reproduziert (vollständiges Formular, grüner Hinweis, keine
 Zeile in der Datenbank) und im Code nachgelesen. *Aufwand:* klein.
 
-### A2 · Die Stundengrenze zählt Änderungsvorschläge mit
+### ✅ A2 · Die Stundengrenze zählt Änderungsvorschläge mit
 `api/app/report-location.php:97`
+
+> **✅ Erledigt `776c2b89` (+ `a07348ef`), 05.08.2026.** Die Zählabfrage hat jetzt
+> `AND report_mode <> 'change'` — die Ausnahme steht in **beiden** Hälften statt nur in der
+> Prüfung. Live-Ausfallprobe mit **einer** echten Meldung: **`201`**, die geänderte Abfrage läuft
+> also auf MySQL (bei einem Syntaxfehler bekäme jeder Melder gerade einen 500). Die Zeile steht im
+> [Spurenbuch](befunde/SPURENBUCH.md).
+>
+> ⚠️ **Die Zählsemantik selbst ist nicht live gemessen.** Sie zu belegen kostet sechs unlöschbare
+> Zeilen: fünf Änderungsvorschläge, die den Eimer füllen müssten und es nicht mehr tun, plus die
+> sechste Meldung, die durchgeht. Nachzuholen, sobald A3 einen Weg zurück gibt.
+>
+> 💣 **Der Test dazu war zwei Commits lang wertlos, und das ist die Lehre.** Er prüfte, dass die
+> Bedingung in einer **Bibliotheks-Zeichenkette** steht — nichts prüfte, dass der Endpunkt diese
+> Zeichenkette benutzt. Ein Gegenprüfer hat die alte Abfrage wieder in die Aufrufstelle geklebt,
+> den Fehler damit Byte für Byte wiederhergestellt, und der Test lief grün durch. Behoben in
+> `a07348ef`, die Mutation bricht jetzt mit Exit 255 ab. **Eine Zusicherung über eine Zeichenkette
+> beweist nichts, solange nichts zusichert, dass die Zeichenkette verwendet wird.**
+>
+> ⚠️ **Und die Grenze selbst ist umgehbar** — siehe A29 unten. A2 repariert, was sie zählt; A29
+> sagt, dass ihr Schlüssel vom Gezählten selbst bestimmt wird.
 
 Fünf Meldungen je IP und Stunde. Änderungsvorschläge werden von der Grenze zwar **nicht
 blockiert**, zählen aber **auf das Kontingent an**. Wer fünf Korrekturen schickt, kann in
@@ -344,15 +415,86 @@ Die Tabelle wächst außerdem unbegrenzt: es gibt kein Ablaufdatum und keine Ber
 
 ---
 
+## 9. Drei Nachträge — gefunden beim Gegenprüfen der A1/A2-Fixes
+
+Nicht aus dem Testlauf, sondern aus den drei feindlichen Prüfungen der Reparaturen vom Nachmittag
+des 05.08. Alle drei sind **älter als diese Fixes**; keiner der zwölf Prüfagenten hatte sie.
+Nachgelesen und bestätigt, **nicht ausprobiert** — die ersten beiden ließen sich nur belegen,
+indem man sie ausnutzt.
+
+### A29 · Der Schlüssel der Stundengrenze steht in einem Anfrage-Kopf
+`api/_internal/bootstrap.php:304-314`
+
+`avesmapsClientIpAddress()` nimmt `X-Forwarded-For` und gibt das **linkeste** Element zurück —
+ohne Proxy-Allowlist, ohne Prüfung, dass es überhaupt eine IP ist. Das linkeste Element ist genau
+das, was der Aufrufer selbst gesetzt hat: hängt kein Proxy davor, gehört es ihm ganz; hängt einer
+davor, wird dessen Wert **rechts** angehängt und der gefälschte bleibt vorn.
+
+Damit ist jede Drossel im Haus wirkungslos, nicht nur die der Meldungen: ein neuer Kopfwert je
+Anfrage ergibt einen frischen Eimer. Umgekehrt sperrt fünfmal die IP eines Fremden diesen eine
+Stunde lang aus. Betroffen sind **vier** Stellen, die alle denselben Schlüssel bilden:
+`report-location.php:444`, `contact.php:156`, `share-link.php:38`, `_internal/reviews.php:47`.
+
+Nebenwirkung für den Datenschutz: `ip_hash` ist damit nicht der Hash einer IP, sondern der einer
+beliebigen Zeichenkette des Aufrufers — und der HMAC-Schlüssel fällt ohne Import-Token auf den
+**Datenbanknamen** zurück (`report-location.php:438-445`), also auf einen Konfigurationswert
+statt auf ein Geheimnis.
+
+*Beleg:* wörtlich gelesen; **bewusst nicht ausprobiert.** Ob STRATO den Kopf vorher überschreibt,
+ist von außen nicht feststellbar und wäre als Verlass darauf ohnehin keine Verteidigung.
+*Aufwand:* klein (Allowlist oder `REMOTE_ADDR`), Radius: alle vier Drosseln.
+
+### A30 · `report_mode=change` ist ein unbegrenzter Schreibkanal ohne Anmeldung
+`api/_internal/app/report-context.php:12-29`
+
+Wer `"report_mode":"change"` schickt, **ist** im Änderungsmodus — es gibt keine Anmeldung, keine
+Fähigkeit, kein Token, und `entity_public_id` wird auf 80 Zeichen gekürzt statt gegen irgendeine
+Tabelle geprüft. Der Modus schaltet fünf Prüfungen ab: die „unter 3 Sekunden"-Falle, den
+409-Namenskonflikt, die Stundengrenze, den Duplikat-Vermerk und die Quellenpflicht. Übrig bleiben
+Honigtopf und sieben Spamwörter.
+
+Die Zielscheibe ist der Prüfbildschirm: `avesmapsListLocationReportsForReview`
+(`api/edit/reports/locations.php:58-89`) liest **alle** `status='neu'`-Zeilen samt `comment` und
+`payload_json`, ohne `LIMIT` und ohne Seitenteilung. Und `avesmapsNormalizeCitymapLinkRows`
+(`api/_internal/app/citymaps.php:1696-1725`) kappt die Zahl der Fundorte **nicht** — anders als
+die Quellenliste, die bei 10 endet.
+
+⚠️ **Zuschreibung ehrlich:** das Loch ist älter, `776c2b89` erzeugt es nicht. Vorher füllten
+Änderungszeilen aber wenigstens den Eimer mit — nach dem Fix ist der Kanal in beiden Hälften
+unsichtbar. Für die Verfügbarkeit ehrlicher Melder ist das richtig (das war A2), für die
+Missbrauchslage ist es der Verlust des letzten Messpunkts.
+
+*Beleg:* wörtlich gelesen; **bewusst nicht ausprobiert.** *Aufwand:* mittel.
+
+### A31 · Die Drossel sitzt hinter dem teuersten Teil des Endpunkts
+`api/app/report-location.php:93` und `:94` gegen `:103`
+
+Die Reihenfolge ist verkehrt: `avesmapsEnsureMapReportsTable` (1 × `CREATE TABLE IF NOT EXISTS`,
+7 × `SHOW COLUMNS`, 1 × `SHOW INDEX`) und `avesmapsLocationNameExists` (**zwei ungegrenzte
+Volltabellen-Scans** plus ~4.700 Unicode-Regex-Läufe in PHP) laufen **vor** der Stundengrenze.
+Wer über der Grenze steht, löst sie mit jeder Anfrage weiter aus und bekommt dafür ein 429 — die
+Drossel kostet also mehr, als sie spart. Auf einem Host, der dreimal an Last ausgefallen ist, ist
+das kein Randthema.
+
+Dieselbe Reihenfolge ist auch der Grund, warum A1s Ununterscheidbarkeit am Zeitkanal endet: der
+stille Weg kehrt vor der Datenbankverbindung um.
+
+*Beleg:* am Kontrollfluss abgelesen, Abfragen gezählt. *Aufwand:* klein (Grenze nach vorn ziehen),
+berührt aber die Reihenfolge der Antworten und gehört deshalb geprüft, nicht nebenbei verschoben.
+
+---
+
 ## Was der Test hinterlassen hat
 
-12 Zeilen in 4 Tabellen. Sie sind Folge des Tests **und zugleich Befund** — dass es für keine
+13 Zeilen in 4 Tabellen (12 aus dem Test, 1 aus der A2-Ausfallprobe am Abend). Sie sind Folge
+des Tests **und zugleich Befund** — dass es für keine
 davon einen Löschweg gibt, ist der eigentliche Punkt. Fertiges SQL mit Sicherheitsabfragen:
 [`aufraeumen.sql`](aufraeumen.sql).
 
 | Was | Anzahl | Warum nicht entfernbar |
 |---|---|---|
 | `map_reports` id 273–280, Status ≠ `neu`, mit IP-Hash | 8 | keine Ansicht zeigt bearbeitete Meldungen (→ A3) |
+| `map_reports` `ZZ-Nulltest A2 Zaehlabfrage` (13:1x, Kommentar) | 1 | dieselbe Ursache; bewusst angelegt, um die A2-Abfrage auf MySQL auszuführen — spurenfrei ging es nicht |
 | `map_share_links`, Route Gareth→Ferdok, einer davon Code `HUGCPFhv` | 2 | kein Löschpfad im Projekt (→ A28) |
 | `contact_message` + die zugehörige Mail | 1 | das Postfach kann nicht löschen |
 | `sources` id 1224935 (`uses 0`) | 1 | kein Löschpfad für Katalogquellen (→ A6) |
