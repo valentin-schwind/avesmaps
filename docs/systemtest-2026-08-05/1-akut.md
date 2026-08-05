@@ -200,7 +200,46 @@ einer Karte, die 11.500 Objekte aus Community-Beiträgen führt.
 
 *Aufwand:* mittel.
 
-### A5 · Der Wunschtext des Melders landet in der öffentlichen Beschreibung
+### ✅ A5 · Der Wunschtext des Melders landet in der öffentlichen Beschreibung
+
+> **✅ Erledigt `f9321c9c` (+ Hotfix `93168488`), 05.08.2026.** Der Befund war schwerer als
+> beschrieben: `location-edit-description` war ein **`type="hidden"`**-Feld. Der Melder-Text wurde
+> also nicht nur ungefragt veröffentlicht — die Redaktion **konnte** ihn nicht sehen, und die rote
+> „geändert"-Markierung saß auf einem unsichtbaren Element. Die zwei Schwesterdialoge führen genau
+> dieses Feld seit jeher als sichtbares Textfeld; der Ortsdialog war der Ausreißer.
+>
+> Ein Änderungs**wunsch** ist außerdem keine Beschreibung. Er steht jetzt in einem eigenen,
+> schreibgeschützten Kasten daneben, statt ihr samt der Zeile „— Community-Änderungswunsch von …:"
+> vorangestellt zu werden.
+>
+> **Live gegen den ausgelieferten Client gemessen** (`?edit=1`, echte Ortsdaten):
+>
+> | Prüfung | Ergebnis |
+> |---|---|
+> | Feldart | `TEXTAREA`, `maxLength` 1200 |
+> | Beschriftung | „Beschreibung — öffentlich sichtbar" |
+> | gespeicherte Beschreibung wird geladen | **ja** (vorher `""`) |
+> | Wunsch-Kasten beim Änderungsvorschlag | sichtbar, mit Melder und Text |
+> | Beschreibung danach | unverändert |
+> | nach dem Schließen | Kasten versteckt |
+>
+> 💣 **Der schwerste Fund des Tages steckte darin und ist älter als der Befund.** Der Dialog **lud
+> die Beschreibung nie** (`presetDescription || ""` — und `presetDescription` setzt im ganzen
+> Projekt kein Aufrufer). Beim Speichern schickte er sie trotzdem mit, und der Server macht aus
+> einer leeren Beschreibung `unset($properties['description'])`
+> (`api/_internal/map/features.php:1275`). **Jedes Speichern eines bestehenden Ortes hat seine
+> öffentliche Beschreibung gelöscht** — auch wenn nur ein Tippfehler im Namen korrigiert wurde.
+> Unsichtbar, weil das Feld versteckt war. Die Nachbarzeile macht es für den Wiki-Link seit jeher
+> richtig: das Markup wurde kopiert, das Laden nicht.
+> 🔧 **DU:** falls Orte ihre Beschreibung verloren haben, ist das die Ursache — das
+> Änderungsprotokoll (`update_point`) zeigt, welche.
+>
+> 💣 **Und der erste Wurf war selbst zweimal falsch, beide Male von der Gegenprüfung gefunden:**
+> der Wunsch-Kasten wurde 44 Zeilen nach dem Anzeigen von `clearChangeReportFieldMarks()` wieder
+> geleert — der Wunsch stand damit **nirgends**. (Dieselbe Fehlerklasse wie bei A3: zwei
+> Lebensdauern in einer Funktion.) Und `maxlength` machte das Feld bei programmatisch gesetztem
+> Wert ungültig, worauf `reportValidity()` das Anlegen **ohne Meldung** abgebrochen hätte.
+
 Was ein Melder als Erläuterung schreibt, wird beim Annehmen in das öffentlich sichtbare
 Beschreibungsfeld übernommen — ohne dass die Redaktion darauf hingewiesen wird, dass dieser Text
 gleich für alle sichtbar ist.
@@ -252,7 +291,37 @@ Zustand — bis auf die Quellen, die öffentlich abrufbar bleiben. Betroffen ist
 
 *Aufwand:* klein (dieselbe Bedingung wie A6).
 
-### A8 · Der Karten-Sync löscht anders als die Hand
+### ✅ A8 · Der Karten-Sync löscht anders als die Hand
+
+> **✅ Erledigt `2664e6ea` (+ Hotfix `d434e658`), 05.08.2026.** Es gibt jetzt **einen** Räumer
+> (`avesmapsDeleteCitymapChildRows`), den beide Wege rufen — die zwei fehlenden `DELETE`s
+> nachzutragen hätte nur bis zur nächsten Kindtabelle gehalten.
+>
+> 💣 **Ein zweiter Fehler an derselben Stelle, nicht im Befund:** der Sync löschte die Kinderzeilen
+> **vor** der Karte, und die Karte hat einen `origin`-Riegel. Griff der je, blieb die Karte stehen
+> — ohne ihre Orte und Arten. Die Sicherung richtete genau den Schaden an, den sie verhindern
+> sollte.
+>
+> 💣 **Ein dritter, den erst die Gegenprüfung fand, und er ist der schlimmste:** der Sync schreibt
+> je Karte einen Quellenverweis in `feature_sources` (~631 Zeilen), und **kein Löschweg entfernte
+> ihn**. Karten stehen zudem nicht in `AVESMAPS_FEATURE_SOURCE_SOFT_DELETED_ENTITY_TYPES` — der
+> Lebend-Riegel aus A6 greift für sie also nie. Ein Verweis auf eine gelöschte Karte wurde damit
+> **dauerhaft an jeden Besucher ausgeliefert**. Das ist A6 noch einmal, für die eine Entität, die
+> A6 ausgenommen hatte — mit der Begründung, Karten hätten „ihre eigene Löschsemantik". Die hatten
+> sie nicht.
+> ⚠️ Der Räumer schließt das am Löschweg. Der **Lese**-Riegel nimmt Karten weiterhin aus; wer die
+> Karte auf einem anderen Weg entfernt, erzeugt dieselbe Leiche wieder.
+>
+> 💣 **Und die richtige Reihenfolge allein tauschte nur die Art des Schadens.** Bricht der Lauf
+> zwischen Karte und Kindern ab — der Schritt steht unter einem 43-Sekunden-Limit auf einem Host
+> mit Abschuss-Geschichte —, ist die Karte weg und ihre Kinder sind **für immer** verwaist: die
+> Liste der zu Entfernenden wird aus **lebenden** Zeilen gebildet. Jetzt eine Transaktion je Karte,
+> wie im Handpfad seit jeher.
+>
+> ⚠️ **Nicht live prüfbar:** dafür müsste „Karten syncen" laufen. Belegt sind Code, Tests und
+> **sechs nachgestellte Rückmutationen** — die erste Testfassung hatte vier davon überlebt, darunter
+> eine, die den Befund selbst wiederherstellte.
+
 Der Sync-Löschpfad vergisst `citymap_related` und `citymap_link`, die der Handlöschpfad räumt.
 Zwei Wege, zwei Ergebnisse, für dieselbe Aktion.
 

@@ -13,7 +13,7 @@ die rechtliche Situation.
 | **[2 — KANN](2-kann.md)** | Refactoring, toter Code, Konsistenz, Maschinenlesbarkeit | 169 Befunde |
 | **[3 — ZUKUNFT](3-zukunft.md)** | Features und Komfort, die niemand vermisst, aber alle wollen | 14 Befunde |
 
-Am Abend des 05.08. kam die ganze **Community-Meldungsstrecke A1–A4** dazu (erledigt) — und mit ihr
+Am Abend des 05.08. kam die ganze **Community-Meldungsstrecke A1–A5** dazu, dazu **A8** (alle erledigt) — und mit ihr
 fünf neue AKUT-Befunde **A29–A33**, die feindliche Gegenprüfungen der Reparaturen zutage gefördert
 haben. Alle fünf sind älter als die Reparaturen; keiner der zwölf Prüfagenten hatte sie.
 
