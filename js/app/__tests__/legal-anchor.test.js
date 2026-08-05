@@ -116,6 +116,21 @@ assert.strictEqual(
 	"jeder Abschnitt des Fensters hat einen Anker -- und keiner zu viel"
 );
 
+// 💣 UND JEDER ANKER MUSS AM RICHTIGEN ABSCHNITT SITZEN. Dass die acht ids DA sind und acht an der
+// Zahl, sagt nichts darüber, WELCHER Abschnitt welche trägt -- zwei vertauschte Attribute, und
+// `#datenschutz` öffnet den Haftungsausschluss. Acht ids von Hand nachzutragen ist genau die Geste,
+// bei der eine verrutscht, und es ist die 🔴-Warnung dieses Moduls eine Ebene tiefer. Geprüft wird
+// gegen den i18n-Schlüssel der Überschrift, denn der benennt den Abschnitt unabhängig vom Anker.
+AVESMAPS_LEGAL_SECTION_ANCHORS.forEach((id) => {
+	const key = id.replace(/^legal-/, "");
+	const at = indexHtml.indexOf(`<details class="legal-section" id="${id}">`);
+	const head = indexHtml.slice(at, at + 400);
+	assert.ok(
+		head.includes(`legal.group.${key}`),
+		`der Anker ${id} sitzt am Abschnitt legal.group.${key}, nicht an einem anderen`
+	);
+});
+
 // 💣 Fängt: die Ladereihenfolge kippt. index.html ist ein Vertrag; bootstrap.js ruft diese Funktion
 // beim Start, also muss das Blattmodul davor stehen -- sonst „undefined function" beim Seitenaufbau.
 const anchorAt = indexHtml.indexOf('<script src="js/app/legal-anchor.js"></script>');
@@ -132,13 +147,44 @@ assert.ok(
 	bootstrapSource.includes("avesmapsOpenLegalSectionFromHash(document, window.location.hash, setLegalDialogOpen)"),
 	"bootstrap.js reicht Dokument, Hash und Oeffner an das Modul"
 );
+
+// 💣 UND ES MUSS BEIM SEITENAUFBAU GERUFEN WERDEN. Die Zusicherung oben prüft nur den Rumpf der
+// Wrapper-Funktion -- den Aufruf zu löschen liess sie grün, und das ist die gesamte Wirkung dieses
+// Commits. Eine Funktion, die niemand ruft, ist kein Anker.
 assert.ok(
-	!/location\.hash\s*=/.test(bootstrapSource),
-	"und schreibt den Hash nirgends"
+	/\nopenLegalSectionFromHash\(\);/.test(bootstrapSource),
+	"openLegalSectionFromHash wird beim Start aufgerufen, nicht nur definiert"
 );
+// 💣 Und der Aufruf darf nicht entschärft sein (`&& false`, ein `if (0)` davor).
 assert.ok(
-	bootstrapSource.includes('$(window).on("hashchange"'),
-	"ein spaeter eingefuegter Link wirkt ebenfalls"
+	!/openLegalSectionFromHash\(\)\s*&&/.test(bootstrapSource),
+	"und der Aufruf ist nicht durch eine tote Bedingung entschaerft"
+);
+
+// 💣 Der hashchange-Handler muss die Funktion auch WIRKLICH rufen -- `() => {}` liess die alte
+// Zusicherung durch, weil sie nur nach dem Ereignisnamen suchte.
+assert.ok(
+	/\$\(window\)\.on\("hashchange",\s*\(\)\s*=>\s*openLegalSectionFromHash\(\)\)/.test(bootstrapSource),
+	"ein spaeter eingefuegter Link wirkt ebenfalls -- der Handler ruft die Funktion"
+);
+
+// 💣 „Nur lesen, nie schreiben" in ALLEN Schreibweisen. Die erste Fassung prüfte `location.hash =`
+// und liess `location.hash +=`, `history.replaceState(…, "#…")` und `pushState` durch -- jede davon
+// schreibt die Adresszeile genauso.
+assert.ok(!/location\.hash\s*=/.test(bootstrapSource), "kein location.hash =");
+assert.ok(!/location\.hash\s*\+=/.test(bootstrapSource), "kein location.hash +=");
+assert.ok(
+	!/(replaceState|pushState)\([^)]*#/.test(bootstrapSource),
+	"und kein replaceState/pushState, das ein Fragment setzt"
+);
+
+// 💣 Faellt das Modul aus (404 waehrend eines Deploys, Parsefehler), darf der ungeschuetzte Aufruf
+// nicht die restlichen ~420 Zeilen dieser Datei mitreissen -- vom Schliessen-Knopf ueber die
+// Editor-Oeffner bis zum Escape-Riegel. `typeof` waere hier die falsche Wahl: eine halb geladene
+// Datei kann ihre `const` in der Todeszone stehen lassen, und dann wirft schon die Pruefung.
+assert.ok(
+	/function openLegalSectionFromHash\(\) \{\s*\n\s*try \{/.test(bootstrapSource),
+	"der Aufruf ist gegen ein fehlendes Modul abgesichert, und zwar mit try/catch statt typeof"
 );
 
 console.log("legal-anchor ok");

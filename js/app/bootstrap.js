@@ -402,8 +402,18 @@ $("#legal-button").on("click", () => setLegalDialogOpen(true));
 // 💣 Das Impressum war nur anklickbar, nicht adressierbar (Befund A24). Die Regel dazu steht in
 // js/app/legal-anchor.js -- eigene Datei, weil sie dort in einer vm-Sandbox mit echtem DOM
 // pruefbar ist und hier nur ueber ihren Quelltext waere.
+// 💣 try/catch, nicht `typeof`. Faellt js/app/legal-anchor.js aus (404 waehrend eines Deploys, ein
+// Parsefehler), reisst ein ungeschuetzter Aufruf hier die restlichen ~420 Zeilen dieser Datei mit --
+// vom Schliessen-Knopf ueber saemtliche Editor-Oeffner bis zum Escape-Riegel. Ein Anker fuer das
+// Impressum darf nicht die halbe Bedienung kosten. `typeof` waere die naheliegende Wahl und ist die
+// falsche: eine halb geladene Datei kann ihre `const` in der Todeszone stehen lassen, und dann wirft
+// schon die Pruefung (siehe [[typeof-wirft-in-der-todeszone]]).
 function openLegalSectionFromHash() {
-    return avesmapsOpenLegalSectionFromHash(document, window.location.hash, setLegalDialogOpen);
+    try {
+        return avesmapsOpenLegalSectionFromHash(document, window.location.hash, setLegalDialogOpen);
+    } catch (error) {
+        return false;
+    }
 }
 
 openLegalSectionFromHash();
