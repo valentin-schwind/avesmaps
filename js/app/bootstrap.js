@@ -398,6 +398,17 @@ function setLegalDialogOpen(isOpen) {
 }
 
 $("#legal-button").on("click", () => setLegalDialogOpen(true));
+
+// 💣 Das Impressum war nur anklickbar, nicht adressierbar (Befund A24). Die Regel dazu steht in
+// js/app/legal-anchor.js -- eigene Datei, weil sie dort in einer vm-Sandbox mit echtem DOM
+// pruefbar ist und hier nur ueber ihren Quelltext waere.
+function openLegalSectionFromHash() {
+    return avesmapsOpenLegalSectionFromHash(document, window.location.hash, setLegalDialogOpen);
+}
+
+openLegalSectionFromHash();
+// Auch wenn jemand den Link einfuegt, waehrend die Karte schon offen ist.
+$(window).on("hashchange", () => openLegalSectionFromHash());
 $("#legal-close").on("click", () => setLegalDialogOpen(false));
 $("#legal-overlay").on("click", function (event) {
     if (event.target === this) {
