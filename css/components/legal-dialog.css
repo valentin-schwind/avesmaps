@@ -1,6 +1,12 @@
+/* 860 x 940 statt 680 x 760 (Owner 2026-08-05). Seit die acht Abschnitte zugeklappt sind, ist das
+   Fenster ein Verzeichnis, und ein Verzeichnis will man GANZ sehen: der zugeklappte Bestand misst
+   ~780 px, ab etwa 950 px Bildschirmhoehe steht er ohne einen einzigen Scrollstrich da.
+   ⚠️ Die Deckel bleiben: `100%` bzw. `90vh` gewinnen auf kleinen Geraeten, und der Overlay-Rahmen
+   haelt zusaetzlich 20 px Abstand zum Bildschirmrand (css/components/dialog-overlays.css). Auf einem
+   768-px-Schirm bleibt Scrollstrecke uebrig -- das laesst sich nicht wegkonfigurieren. */
 .legal-dialog {
-	width: min(680px, 100%);
-	max-height: min(80vh, 760px);
+	width: min(860px, 100%);
+	max-height: min(90vh, 940px);
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;

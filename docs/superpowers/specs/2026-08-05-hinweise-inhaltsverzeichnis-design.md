@@ -23,6 +23,10 @@ Damit passt das ganze Fenster — Logo, die beiden Kacheln, acht Zeilen — auf 
 Schirm, und die acht Zeilen beantworten die Frage „was steht hier eigentlich drin?"
 ohne eine einzige Bewegung.
 
+Das Fenster selbst wurde dafuer groesser: **860 x 940 statt 680 x 760** (Owner am
+gebauten Stand). Der zugeklappte Bestand misst ~780 px — ab etwa 950 px
+Bildschirmhoehe steht das Verzeichnis vollstaendig da, ohne einen Scrollstrich.
+
 ## 3. Wie es aussieht
 
 Alle acht Abschnitte sind **zugeklappt**, auch „Bedienung" (Owner-Entscheid: das
