@@ -52,19 +52,17 @@
 			i18n: "shortcuts.row.search", de: "Suche öffnen" },
 		{ id: "addDestination", keys: ["r"], caps: [cap("R")],
 			i18n: "shortcuts.row.addDestination", de: "Reiseziel hinzufügen" },
-		// Geschoben wird mit den PFEILEN, nicht mehr mit W A S D (2026-08-05). Anlass war „S" für die
-		// Ansicht „Standard": die Buchstaben gehören den Befehlen, und WASD saß mitten in ihrem Vorrat.
-		// „S" allein herauszunehmen und W, A, D zu behalten wäre die schlechteste Fassung gewesen --
-		// drei von vier Richtungen, die noch als Buchstabe gehen. `matchShortcut` nimmt ohnehin die
-		// ERSTE Zeile mit der Taste, und Schieben steht vor den Ansichten: „S" wäre nie bei „Standard"
-		// angekommen, solange es hier noch stand.
-		{ id: "panUp", keys: ["arrowup"], caps: [cap("↑")],
+		// 💣 W A S D schieben und BLEIBEN (Owner 2026-08-05). Sie liegen damit vor den Ansichten, und
+		// `matchShortcut` nimmt die ERSTE Zeile mit der Taste -- ein Buchstabe von hier oben ist für
+		// jede Ansicht unerreichbar. Genau daran ist „S" für „Standard" gescheitert; die Ansicht sitzt
+		// deshalb auf „N". Wer weiter unten einen Buchstaben vergibt, prüft ihn zuerst hier.
+		{ id: "panUp", keys: ["w", "arrowup"], caps: [cap("W"), cap("↑")],
 			i18n: "shortcuts.row.panUp", de: "Karte nach oben schieben" },
-		{ id: "panLeft", keys: ["arrowleft"], caps: [cap("←")],
+		{ id: "panLeft", keys: ["a", "arrowleft"], caps: [cap("A"), cap("←")],
 			i18n: "shortcuts.row.panLeft", de: "Karte nach links schieben" },
-		{ id: "panDown", keys: ["arrowdown"], caps: [cap("↓")],
+		{ id: "panDown", keys: ["s", "arrowdown"], caps: [cap("S"), cap("↓")],
 			i18n: "shortcuts.row.panDown", de: "Karte nach unten schieben" },
-		{ id: "panRight", keys: ["arrowright"], caps: [cap("→")],
+		{ id: "panRight", keys: ["d", "arrowright"], caps: [cap("D"), cap("→")],
 			i18n: "shortcuts.row.panRight", de: "Karte nach rechts schieben" },
 		{ id: "panFast", keys: [], passive: true, caps: [cap("Umschalt", "shortcuts.key.shift")],
 			// Umschalt wirkt AUF DAS SCHIEBEN, nicht auf „die Tasten darüber": `panBy` ist die einzige
@@ -83,7 +81,8 @@
 			i18n: "shortcuts.row.modePolitical", de: "Ansicht „Politisch“" },
 		{ id: "modePowerlines", keys: ["k"], caps: [cap("K")], mode: "powerlines",
 			i18n: "shortcuts.row.modePowerlines", de: "Ansicht „Kraftlinien“" },
-		{ id: "modeStandard", keys: ["s"], caps: [cap("S")], mode: "deregraphic",
+		// „N", nicht „S": das S schiebt die Karte (siehe oben) und wäre hier unerreichbar.
+		{ id: "modeStandard", keys: ["n"], caps: [cap("N")], mode: "deregraphic",
 			i18n: "shortcuts.row.modeStandard", de: "Ansicht „Standard“" },
 		// „L" wie Landschaften -- bis 2026-08-05 lag es auf „Standard". Die Ebene darf seit 2026-08-04
 		// JEDER ansehen (nur das Bearbeiten haengt an einer Faehigkeit, siehe js/app/session.js), also

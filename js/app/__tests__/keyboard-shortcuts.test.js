@@ -279,22 +279,22 @@ check("R legt ein Zielfeld an und setzt den Cursor hinein", () => {
 	assert.strictEqual(t.log.waypointFocused, 1);
 });
 
-check("die Pfeiltasten schieben, Umschalt verdreifacht, Buchstaben schieben NICHT mehr", () => {
+check("WASD und Pfeiltasten schieben in dieselbe Richtung, Umschalt verdreifacht", () => {
 	const t = loadModule();
+	t.press("w");
 	t.press("ArrowUp");
+	assert.deepStrictEqual(plain(t.log.panBy[0]), plain(t.log.panBy[1]), "W und Pfeil hoch muessen gleich weit springen");
 	assert.deepStrictEqual(plain(t.log.panBy[0]), [0, -80]);
-	t.press("ArrowRight");
-	assert.deepStrictEqual(plain(t.log.panBy[1]), [80, 0]);
-	t.press("ArrowLeft", { shiftKey: true });
-	assert.deepStrictEqual(plain(t.log.panBy[2]), [-240, 0], "Umschalt verdreifacht den Schritt");
-	t.press("ArrowDown");
-	assert.deepStrictEqual(plain(t.log.panBy[3]), [0, 80]);
-	// 🪤 W A S D schoben bis 2026-08-05 mit. „S" gehoert jetzt der Ansicht „Standard", und weil
-	// matchShortcut die ERSTE Zeile mit der Taste nimmt und Schieben vor den Ansichten steht, waere
-	// „S" nie dort angekommen. Drei Richtungen als Buchstabe zu behalten und eine nicht waere die
-	// schlechteste Fassung gewesen -- also schiebt kein Buchstabe mehr.
-	["w", "a", "s", "d"].forEach((key) => t.press(key));
-	assert.strictEqual(t.log.panBy.length, 4, "kein Buchstabe darf die Karte noch schieben");
+	t.press("d");
+	assert.deepStrictEqual(plain(t.log.panBy[2]), [80, 0]);
+	t.press("a", { shiftKey: true });
+	assert.deepStrictEqual(plain(t.log.panBy[3]), [-240, 0]);
+	t.press("s");
+	assert.deepStrictEqual(plain(t.log.panBy[4]), [0, 80]);
+	// 🪤 „S" schiebt und schaltet NICHT die Ansicht „Standard" (die sitzt auf „N"). matchShortcut
+	// nimmt die ERSTE Zeile mit der Taste, und Schieben steht vor den Ansichten -- ein Buchstabe aus
+	// W A S D ist fuer jede Ansicht unerreichbar. Genau deshalb steht diese Probe hier.
+	assert.deepStrictEqual(t.log.layerModeSets, [], "S darf keine Ansicht schalten");
 });
 
 check("Leaflets eigene Tastatursteuerung wird abgeschaltet", () => {
@@ -312,11 +312,11 @@ check("+ und - zoomen", () => {
 	assert.strictEqual(t.log.zoomOut, 1);
 });
 
-check("O P K S L I schalten die sechs Ansichten", () => {
+check("O P K N L I schalten die sechs Ansichten", () => {
 	const t = loadModule();
-	// Die Buchstaben sind Merkhilfen: Original, Politisch, Kraftlinien, Standard, Landschaften.
-	// „I" fuer „Nur Karte" ist die Ausnahme -- N gehoerte schon niemandem, und I stand frei.
-	["o", "p", "k", "s", "l", "i"].forEach((key) => {
+	// Merkhilfen, soweit die Buchstaben frei waren: Original, Politisch, Kraftlinien, Landschaften.
+	// „Standard" hat „N", weil „S" die Karte schiebt; „Nur Karte" hat „I".
+	["o", "p", "k", "n", "l", "i"].forEach((key) => {
 		t.layerSelect.value = "__nichts__";
 		t.press(key);
 	});
@@ -336,7 +336,7 @@ check("eine gesperrte Ansicht bleibt gesperrt", () => {
 check("die schon gewaehlte Ansicht loest nichts aus", () => {
 	const t = loadModule();
 	t.layerSelect.value = "deregraphic";
-	t.press("s");
+	t.press("n");
 	assert.deepStrictEqual(t.log.layerModeSets, []);
 });
 
