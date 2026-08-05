@@ -61,16 +61,51 @@ assert.ok(
 );
 
 // 4. It is reader-authored text: set by textContent, never innerHTML.
-const blockHelpers = reportFlowCode.slice(reportFlowCode.indexOf("function showLocationEditChangeRequest"));
+const showAt = reportFlowCode.indexOf("function showLocationEditChangeRequest");
+const hideAt = reportFlowCode.indexOf("function hideLocationEditChangeRequest");
+assert.ok(showAt > 0 && hideAt > showAt, "both block helpers exist, in that order");
 assert.ok(
-	!/innerHTML/.test(blockHelpers.slice(0, blockHelpers.indexOf("function hideLocationEditChangeRequest"))),
+	!/innerHTML/.test(reportFlowCode.slice(showAt, hideAt)),
 	"the request is written with textContent -- it is a stranger's prose"
 );
 
-// 5. It must not survive into the next report the editor opens.
+// 5. 💣 THE BLOCK MUST OUTLIVE THE DRAW. The red "changed" outlines are re-applied on every build, so
+// markChangeReportFields clears them first -- but the block belongs to the OPEN DIALOG. Putting the
+// hide in clearChangeReportFieldMarks meant showLocationEditChangeRequest displayed the request and
+// the same synchronous pass blanked it 44 lines later, before anything was painted. The request was
+// then visible NOWHERE: not in the description (rightly), not beside it. Shipped that way once.
 assert.ok(
-	/function clearChangeReportFieldMarks\(\)[\s\S]*?hideLocationEditChangeRequest\(\);/.test(reportFlowCode),
-	"resetting the dialog clears the block, or the previous reporter's request is read as this one's"
+	!/function clearChangeReportFieldMarks\(\)\s*\{[^}]*hideLocationEditChangeRequest/.test(reportFlowCode),
+	"clearChangeReportFieldMarks must NOT hide the block -- it runs while the dialog is being built"
+);
+const showCall = reportFlowCode.indexOf("showLocationEditChangeRequest(report);");
+const markCall = reportFlowCode.indexOf("markChangeReportFields(changed);");
+assert.ok(showCall > 0 && markCall > showCall, "the block is filled during the build, marks come last");
+
+// 6. It is hidden when the DIALOG resets -- a different lifetime, in a different function.
+const locations = fs.readFileSync(path.join(repo, "js", "review", "review-locations.js"), "utf8");
+assert.ok(
+	/function resetLocationEditForm\(\)[\s\S]*?hideLocationEditChangeRequest\(\);/.test(locations),
+	"resetting the dialog hides the block, or the previous reporter's request is read as this one's"
+);
+
+// 7. 💣 The dialog must LOAD the stored description. It never did: the line read
+// `presetDescription || ""`, and no caller in the project sets presetDescription -- so the field was
+// always empty, the payload always sent "", and the server turns an empty description into
+// unset($properties['description']) (api/_internal/map/features.php:1275). Every save of an existing
+// place deleted its description, including a save that only fixed a typo in the name. Invisible while
+// the field was hidden.
+assert.ok(
+	/location-edit-description"\)\.value = presetDescription \|\| location\.description \|\| ""/.test(locations),
+	"the editor loads the description it is about to send back, or saving silently deletes it"
+);
+
+// 8. The prefill cannot exceed what the field accepts. Setting .value programmatically raises the
+// dirty-value flag, so maxlength makes the field invalid, and the save handler's reportValidity()
+// returns without a message -- the place would simply never be created.
+assert.ok(
+	/\.filter\(Boolean\)\.join\("\\n\\n"\)\.slice\(0, 1200\)/.test(reportFlowCode),
+	"the prefill is capped at the same 1200 the field and the server use"
 );
 
 // 6. The prefill for a NEW place stays: there the reporter's own field is labelled "Kommentar (zur

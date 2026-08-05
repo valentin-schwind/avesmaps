@@ -10,10 +10,16 @@ function openLocationEditDialogFromReport(report, latlng) {
 	const reportSources = Array.isArray(report.sources) ? report.sources : [];
 	const linkedSources = reportSources.filter((source) => source && source.url && source.label);
 	const linklessSources = reportSources.filter((source) => source && source.label && !source.url);
+	// ⚠️ Auf 1200 gekappt, die Grenze des Feldes und des Servers (avesmapsReadLocationDescription).
+	// Ein programmatisch gesetzter Wert setzt das dirty-value-Flag, und dann macht `maxlength` das
+	// Feld ungueltig: reportValidity() im Speichern-Handler bricht ohne Meldung ab, und der Ort liesse
+	// sich nicht anlegen. Erreichbar mit echten Daten -- 800 Zeichen Kommentar plus bis zu zehn
+	// Quellenzeilen. Der Server haette denselben Rest ohnehin abgeschnitten, und der volle Text steht
+	// weiter in der Meldungsliste.
 	document.getElementById("location-edit-description").value = [
 		String(report.comment || ""),
 		...linklessSources.map((source) => `Quelle: ${source.label}${source.pages ? `, S. ${source.pages}` : ""}`),
-	].filter(Boolean).join("\n\n");
+	].filter(Boolean).join("\n\n").slice(0, 1200);
 	document.getElementById("location-edit-wiki-url").value = report.wiki_url || "";
 	// Remember the linked sources so create_point can attach each as a feature_source once the new place
 	// has a public_id (handleLocationEditFormSubmit).
@@ -142,9 +148,15 @@ function markChangeReportFields(fieldIds) {
 	});
 }
 
+// 💣 Blendet den Wunsch-Kasten NICHT aus. Die roten Markierungen werden bei jedem Zeichnen neu gesetzt,
+// also raeumt markChangeReportFields() sie zuerst weg -- der Kasten dagegen gehoert dem geoeffneten
+// Dialog. Beides in einer Funktion hiess: showLocationEditChangeRequest() zeigte den Kasten, und
+// vierundvierzig Zeilen spaeter loeschte ihn derselbe Durchlauf wieder, bevor irgendetwas gezeichnet
+// war. Der Wunsch war damit NIRGENDS zu sehen -- weder in der Beschreibung (dort steht er zu Recht
+// nicht mehr) noch daneben. Ausgeblendet wird er beim Zuruecksetzen des Dialogs
+// (resetLocationEditForm, review-locations.js), und nur dort.
 function clearChangeReportFieldMarks() {
 	document.querySelectorAll(".field--change-proposed").forEach((el) => el.classList.remove("field--change-proposed"));
-	hideLocationEditChangeRequest();
 }
 
 // Der Wunschtext des Melders, schreibgeschuetzt neben dem Formular. Rein per DOM gesetzt, nie ueber

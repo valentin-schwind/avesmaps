@@ -248,6 +248,9 @@ function resetLocationEditForm() {
 	activeReviewReportSource = null;
 	activeReviewReportSourceSuggestions = [];
 	if (typeof clearChangeReportFieldMarks === "function") { clearChangeReportFieldMarks(); }
+	// Der Wunsch-Kasten gehoert dem Dialog, nicht dem Zeichendurchlauf -- deshalb hier und nicht in
+	// clearChangeReportFieldMarks(), das waehrend des Aufbaus laeuft (review-report-flow.js).
+	if (typeof hideLocationEditChangeRequest === "function") { hideLocationEditChangeRequest(); }
 	pendingChangeReportMove = null;
 	pendingCrossingConversionPublicId = null;
 	pendingCrossingConversionName = "";
@@ -514,7 +517,14 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	const isCrossingConversion = pendingCrossingConversionPublicId && pendingCrossingConversionPublicId === markerEntry?.publicId;
 	document.getElementById("location-edit-name").value = presetName || (isCrossingConversion ? pendingCrossingConversionName : "") || location.name || markerEntry?.name || "";
 	setLocationEditSize(normalizeLocationType(presetLocationType || location.locationType || markerEntry?.locationType || "dorf"));
-	document.getElementById("location-edit-description").value = presetDescription || "";
+	// 💣 `location.description` MUSS hier stehen. Bis 2026-08-05 stand da nur `presetDescription || ""`,
+	// und `presetDescription` wird von keinem Aufrufer im ganzen Projekt gesetzt -- das Feld war also bei
+	// jedem Oeffnen leer. Beim Speichern schickt buildLocationEditPayload es trotzdem mit, und der Server
+	// macht aus einer leeren Beschreibung `unset($properties['description'])`
+	// (api/_internal/map/features.php:1275): **jedes Speichern eines bestehenden Ortes hat seine
+	// Beschreibung geloescht**, auch wenn nur der Name korrigiert wurde. Unsichtbar, weil das Feld bis
+	// heute `type="hidden"` war. Die Nachbarzeile darunter macht es fuer den Wiki-Link seit jeher richtig.
+	document.getElementById("location-edit-description").value = presetDescription || location.description || "";
 	document.getElementById("location-edit-wiki-url").value = presetWikiUrl || location.wikiUrl || wikiLocationLink?.url || "";
 	// Shared multi-source editor (multi-source #2): replaces the old "Andere Quelle" single
 	// url/label pair. The server-side takeover now owns other_source, so this dialog no longer
