@@ -8,7 +8,7 @@ Der 28. Befund (A28) kam erst beim Nachzählen der eigenen Testspuren dazu. Er i
 einzige, den nicht das Prüfen, sondern das **Aufräumen** gefunden hat — und ein Beleg dafür,
 dass sich der Aufräumteil dieses Tests gelohnt hat.
 
-**Nachtrag vom Abend des 05.08.: fünf weitere (A29–A33), gefunden beim feindlichen Gegenprüfen
+**Nachtrag vom Abend des 05.08.: sechs weitere (A29–A34), gefunden beim feindlichen Gegenprüfen
 der A1–A4-Reparaturen** — siehe Abschnitt 9. Alle drei sind älter als diese Reparaturen und hatte
 keiner der zwölf Prüfagenten. Das ist der zweite Beleg für dasselbe: das Prüfen der Fixes findet
 mehr als das Prüfen des Bestands.
@@ -543,7 +543,32 @@ Das ist der einzige Befund des Tests, der **falsche Daten ohne jede Fehlermeldun
 > Positionsabhängigkeit aber stehen).
 > Alle drei ändern, was `POST /api/route/` meldet.
 
-### A14 · `GET /api/locations/` ist der ungeschützte Zwilling eines 152-MB-Pfades
+### ⚠️ A14 · `GET /api/locations/` ist der ungeschützte Zwilling eines 152-MB-Pfades
+**Repariert (`9f2962e8` + `6bad25be`) — aber auf diesem Host wirkungslos, siehe A34.**
+
+> **Was gebaut wurde.** Der Endpunkt beantwortet bedingte Anfragen, und zwar **zuerst**: die Revision
+> kommt aus einer kleinen Abfrage, der ETag daraus, und ein Treffer antwortet `304`, **bevor**
+> irgendetwas geladen wird. Ein 304 nach dem Laden spart die Übertragung und nichts von den Kosten.
+> Dieselbe Verbindung wird weitergereicht statt eine zweite geöffnet (`max_user_connections`).
+>
+> 💣 **Der Vergleicher musste geteilt werden, nicht kopiert** — er wohnte in `map-features.php`,
+> einem **Skript**. Und die Verschiebung brauchte einen `function_exists`-Riegel: der Deploy schreibt
+> Datei für Datei, STRATOs opcache prüft jede einzeln mit 2–4 Minuten Verzug, und PHP bindet
+> Funktionen beim Kompilieren. Ohne Riegel hätte die ältere `map-settings.php`-Generation ihre eigene
+> Kopie zuerst registriert → `Cannot redeclare` als **E_COMPILE_ERROR**, also vor jedem `try`: eine
+> **leere 500 für jeden Besucher** auf dem meistgerufenen Endpunkt. Beide Richtungen nachgestellt.
+>
+> 💣 **Der ETag stand vor der Arbeit** und ritt damit auf jeder 500 mit, die die 152-MB-Ladung
+> auslösen kann. Wer den Fehlerkörper unter dem Tag ablegt, bekommt danach ein `304` darauf — und das
+> heilt nicht, weil `map_revision` sich ohne Bearbeitung nicht bewegt. Er geht jetzt nur noch mit der
+> Antwort raus.
+>
+> ⚠️ **Nicht getan: die Antwort begrenzen.** Der Befund merkt an, `?limit=25` werde ignoriert — das
+> stimmt, aber `api/README.md` hat nie ein `limit` zugesagt. Es zu erfüllen wäre ein **neuer**
+> Vertrag, und der Endpunkt gehört zum stabilen Teil.
+> 🔧 **DU:** ob `GET /api/locations/` `limit`/`offset` bekommen soll, ist eine Vertragsentscheidung.
+
+
 Der Endpunkt lädt die ganze `map_features`-Tabelle und baut das Routennetz auf — genau den
 Pfad, den `api/route/index.php:26` selbst mit „62 MB resident, peak 152 MB per call" beziffert
 und für den sechs Diagnose-Endpunkte hinter Rechte gelegt wurden. Der öffentliche Zwilling ist
@@ -692,7 +717,7 @@ Die Tabelle wächst außerdem unbegrenzt: es gibt kein Ablaufdatum und keine Ber
 
 ---
 
-## 9. Fünf Nachträge — gefunden beim Gegenprüfen der eigenen Fixes
+## 9. Sechs Nachträge — gefunden beim Gegenprüfen der eigenen Fixes
 
 Nicht aus dem Testlauf, sondern aus den drei feindlichen Prüfungen der Reparaturen vom Nachmittag
 des 05.08. Alle drei sind **älter als diese Fixes**; keiner der zwölf Prüfagenten hatte sie.
@@ -758,6 +783,36 @@ stille Weg kehrt vor der Datenbankverbindung um.
 
 *Beleg:* am Kontrollfluss abgelesen, Abfragen gezählt. *Aufwand:* klein (Grenze nach vorn ziehen),
 berührt aber die Reihenfolge der Antworten und gehört deshalb geprüft, nicht nebenbei verschoben.
+
+### A34 · Kein PHP-Endpunkt liefert je einen ETag aus — der ganze 304-Mechanismus ist tot
+`.htaccess:28` gegen `api/app/map-features.php:131`
+
+Gemessen am 05.08.2026: **weder** `GET /api/app/map-features.php` **noch** `GET /api/locations/`
+liefert einen `ETag`-Kopf an den Client — obwohl beide ihn setzen. `Cache-Control` aus **derselben
+Codezeile** kommt durch, und eine statische Datei behält ihren eigenen ETag. Es wird also gezielt
+dieser eine Kopf entfernt.
+
+Die `.htaccess` schickt jedes `application/json` durch mod_deflate
+(`AddOutputFilterByType DEFLATE application/json`, Zeile 28); dessen `DeflateAlterETag` verändert
+oder entfernt den Kopf. `Vary: Accept-Encoding,User-Agent` in der Antwort ist dessen Fingerabdruck.
+
+**Folge:** die aufwendige 304-Maschinerie des Kartenendpunkts hat **nie** funktioniert. Kein Client
+bekommt je einen ETag, also sendet keiner `If-None-Match`, also feuert der 304-Zweig nie — jeder
+Reload lädt die vollen ~2,8 MB (gzip) neu. Die Kommentare dort erklären sorgfältig, warum die
+Klimazonen-Marke im ETag-Seed stehen muss und wann die Payload-Version zu erhöhen ist; all das
+schützt einen Mechanismus, der nicht läuft.
+
+💣 **Die naheliegende Reparatur ist genau die, die schon einmal die Seite umgelegt hat.**
+`DeflateAlterETag` ist in `.htaccess` **nicht erlaubt** — der Versuch am 05.08. warf Apache-500 auf
+*alles* (zurückgenommen in `fdd4fc42`). Was bleibt: `application/json` aus der DEFLATE-Liste nehmen
+(dann sterben aber die 2,8 MB Kompression), oder den Kopf über `mod_headers` aus einem eigenen
+Antwort-Kopf zurückschreiben (`Header set ETag "expr=%{resp:X-Avesmaps-ETag}"`).
+
+🔧 **DU:** das ist Serverkonfiguration und hat schon einmal die ganze Seite gekostet — ich habe
+bewusst nichts an der `.htaccess` angefasst.
+
+*Beleg:* live gemessen (beide Endpunkte, dazu `favicon.ico` als Gegenprobe). *Aufwand:* klein, aber
+nur mit einer Probe auf dem echten Server zu verantworten.
 
 ### A32 · Eine zurückgestellte Meldung lässt sich nie wieder anfassen
 `api/edit/reports/locations.php` (`AND status = 'neu'` in jedem Schreibpfad)
