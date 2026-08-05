@@ -52,6 +52,62 @@ jobs:
         with:
           fetch-depth: 0
 
+      # 💣 Until 2026-08-05 not one of these ~205 tests ran on a deploy, and one of them had been
+      # red for weeks without anyone noticing. That is not a footnote: the red one is the guard
+      # against a claim about the slope model that two players had already caught in public, and
+      # while everyone was used to it being red, the same claim quietly survived in api/README.md
+      # for a month. A gate nobody watches is not a gate. This step is the gate.
+      #
+      # ⚠️ It runs BEFORE the secret check on purpose -- a broken build should fail on a pull
+      # request or a fork too, where the secrets do not exist.
+      - name: Run the unit tests
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          # zend.assertions=1 is not optional: without it assert() is a no-op and every test
+          # reports green while proving nothing. The tests carry their own guard against that and
+          # abort loudly, which is why a missing extension shows up as FATAL rather than a pass.
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            php-cli php-mbstring php-curl php-sqlite3 php-gd > /dev/null
+
+          php -v | head -1
+          echo "node $(node -v)"
+
+          failed=0
+          php_ok=0
+          js_ok=0
+
+          echo "--- PHP ---"
+          for test in $(find api tools -path '*__tests__*' -name '*.php' | sort); do
+            if output="$(php -d zend.assertions=1 -d assert.exception=1 "$test" 2>&1)"; then
+              php_ok=$((php_ok + 1))
+            else
+              failed=1
+              echo "::error file=${test}::PHP test failed"
+              echo "$output" | tail -20
+            fi
+          done
+
+          echo "--- JS ---"
+          for test in $(find js tools -path '*__tests__*' -name '*.test.js' | sort); do
+            if output="$(node "$test" 2>&1)"; then
+              js_ok=$((js_ok + 1))
+            else
+              failed=1
+              echo "::error file=${test}::JS test failed"
+              echo "$output" | tail -20
+            fi
+          done
+
+          echo "PHP ${php_ok} green, JS ${js_ok} green."
+
+          if [[ "$failed" -ne 0 ]]; then
+            echo "::error title=Tests failed::Nothing was uploaded. Fix the tests, then push again."
+            exit 1
+          fi
+
       - name: Validate deployment secrets
         shell: bash
         run: |

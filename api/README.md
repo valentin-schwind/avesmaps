@@ -99,10 +99,15 @@ Some technical diagnostic queries may currently still exist via `GET /api/route/
 The travel time of a leg is multiplied by a **slope factor** derived from the stored height
 rasters, when the owner switch `terrain_travel_enabled` is on.
 
-🔴 **The model is the Leistungskilometer** (DIN 33466, the marching-time arithmetic of the German
-and Swiss alpine clubs), owner decision of 2026-07-30: one mile of level ground is one performance
-mile, every 100 Schritt of climb adds another, and every 150 Schritt of descent does too — but only on
-stretches steeper than 20 %. `Faktor = Leistungsmeilen / Meilen`, capped at 4,0.
+🔴 **The model is the Leistungskilometer**, a surcharge on the DISTANCE in the manner of
+Naismith’s rule with Langmuir’s correction (owner decision of 2026-07-30): one mile of level
+ground is one performance mile, every 100 Schritt of climb adds another, and every 150 Schritt of
+descent does too — but only on stretches steeper than 20 %. `Faktor = Leistungsmeilen / Meilen`,
+capped at 4,0. It is deliberately NOT one of the marching-time formulas it is often confused with;
+those compute a TIME and none of them is implemented here — see the header of
+`api/_internal/routing/terrain-factor.php` for the full warning and
+`api/_internal/routing/__tests__/terrain-text-claims-test.php` for the guard that keeps this
+paragraph honest.
 
 ⚠️ **Therefore `terrain_time_factor` is never below 1.0.** Nothing is ever quicker than the level. A
 previous model handed out a bonus for gentle descents; if you cached or compared against values under

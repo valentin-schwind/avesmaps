@@ -140,9 +140,50 @@ foreach ($surfaces as $label => $file) {
 // Alpenvereine)" names three different procedures as one. DIN 33466 and the SAC method are TIME
 // formulas (300/400 Hm/h up, a halving rule); what is implemented adds to the DISTANCE. Two players
 // found it independently on 2026-07-31. Nothing in this repo may claim the model IS DIN 33466 again.
-$forbidden = ['DIN 33466', 'Marschzeitrechnung der Alpenvereine', 'alpine clubs'];
+//
+// 💣 AND THE ONE THAT FIRED ON ITSELF (system test 2026-08-05). Two things this check got wrong:
+//   1. It read the whole file and could not tell a comment from a shipped string, so the two
+//      comments in transport-speed-info.js that explain why the label must never come back were
+//      tripping it. The guard was permanently red -- which taught everyone to look away, which is
+//      exactly why (2) survived for a month. Comments are stripped before the claim is judged.
+//   2. `api/README.md` still carried the claim and was not in this list. AGENTS.md §4 calls that
+//      file the canonical reference for the stable contract, so it is the LAST place the claim
+//      should have survived. It is checked now -- separately, because the positive needles above
+//      are about the dialog and have no business in a README.
+/**
+ * Drops comments so the claim is judged on what SHIPS, not on the warnings that keep it away.
+ * Block comments go entirely; a line comment only counts when `//` opens the line, so a URL
+ * inside a string ("https://en.wikipedia.org/…") survives untouched.
+ */
+function terrainClaimStripComments(string $text): string
+{
+    $withoutBlocks = preg_replace('#/\*.*?\*/#s', '', $text);
+    $withoutLines = preg_replace('#^[ \t]*//.*$#m', '', $withoutBlocks ?? $text);
+
+    return $withoutLines ?? ($withoutBlocks ?? $text);
+}
+
+// The stripper must never eat shipped text -- that would turn this guard into a silent pass.
+// Every positive needle from above has to survive it.
 foreach ($surfaces as $label => $file) {
-    $source = terrainClaimNormalize((string) file_get_contents($file));
+    $stripped = terrainClaimStripComments(terrainClaimNormalize((string) file_get_contents($file)));
+    foreach ($needles[str_contains($label, '(EN)') ? 'EN' : 'DE'] as $needle) {
+        assert(
+            str_contains($stripped, $needle),
+            $label . ': stripping comments removed the shipped claim „' . $needle . '" -- the '
+            . 'stripper is broken and the forbidden check below would pass on anything.'
+        );
+    }
+}
+
+$forbidden = ['DIN 33466', 'Marschzeitrechnung der Alpenvereine', 'alpine clubs'];
+$forbiddenSurfaces = $surfaces + [
+    'api/README.md' => __DIR__ . '/../../../README.md',
+];
+foreach ($forbiddenSurfaces as $label => $file) {
+    $raw = (string) file_get_contents($file);
+    assert($raw !== '', $label . ' is readable');
+    $source = terrainClaimStripComments(terrainClaimNormalize($raw));
     foreach ($forbidden as $claim) {
         assert(
             !str_contains($source, $claim),
