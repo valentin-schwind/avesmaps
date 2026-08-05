@@ -9,13 +9,17 @@ die rechtliche Situation.
 
 | Bericht | Inhalt | Umfang |
 |---|---|---|
-| **[1 — AKUT](1-akut.md)** | kaputt, falsch oder riskant. Muss behoben werden. | 31 Befunde |
+| **[1 — AKUT](1-akut.md)** | kaputt, falsch oder riskant. Muss behoben werden. | 33 Befunde |
 | **[2 — KANN](2-kann.md)** | Refactoring, toter Code, Konsistenz, Maschinenlesbarkeit | 169 Befunde |
 | **[3 — ZUKUNFT](3-zukunft.md)** | Features und Komfort, die niemand vermisst, aber alle wollen | 14 Befunde |
 
-Am Abend des 05.08. kamen **A1 und A2 dazu** (Community-Meldungsstrecke, erledigt) — und mit ihnen
-drei neue AKUT-Befunde **A29–A31**, die drei feindliche Gegenprüfungen der Reparaturen zutage
-gefördert haben. Alle drei sind älter als die Reparaturen; keiner der zwölf Prüfagenten hatte sie.
+Am Abend des 05.08. kam die ganze **Community-Meldungsstrecke A1–A4** dazu (erledigt) — und mit ihr
+fünf neue AKUT-Befunde **A29–A33**, die feindliche Gegenprüfungen der Reparaturen zutage gefördert
+haben. Alle fünf sind älter als die Reparaturen; keiner der zwölf Prüfagenten hatte sie.
+
+⚠️ Dieselben Gegenprüfungen fanden **zwei selbstverschuldete Ausfälle in den Reparaturen selbst** —
+beide behoben, beide im Bericht bei A3 und A4 protokolliert. Das ist der wichtigste Ertrag des
+Verfahrens und der Grund, es beizubehalten.
 
 Dazu **[4 — Nachprüfung](4-nachpruefung.md)**: was die Kontrolle der ersten Fixes zutage gefördert hat — 12 ungebremste Lasthebel, 2 weitere Ausnahmetext-Lecks, 6 weitere Fälle „gelöschte Daten werden weiter ausgeliefert". Nicht abgearbeitet.
 
@@ -79,6 +83,6 @@ Sicherheitsabfragen: [`aufraeumen.sql`](aufraeumen.sql).
 
 ## Eine Zahl zum Einordnen
 
-Von 220 Befunden sind **174 mit weniger als einer Stunde Aufwand** zu beheben. Das ist die
+Von 222 Befunden sind **174 mit weniger als einer Stunde Aufwand** zu beheben. Das ist die
 eigentliche Nachricht dieses Tests: Avesmaps hat kein strukturelles Problem. Es hat eine lange
 Liste vergessener Haken.

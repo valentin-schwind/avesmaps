@@ -8,8 +8,8 @@ Der 28. Befund (A28) kam erst beim Nachzählen der eigenen Testspuren dazu. Er i
 einzige, den nicht das Prüfen, sondern das **Aufräumen** gefunden hat — und ein Beleg dafür,
 dass sich der Aufräumteil dieses Tests gelohnt hat.
 
-**Nachtrag vom Abend des 05.08.: drei weitere (A29–A31), gefunden beim feindlichen Gegenprüfen
-der A1/A2-Reparaturen** — siehe Abschnitt 9. Alle drei sind älter als diese Reparaturen und hatte
+**Nachtrag vom Abend des 05.08.: fünf weitere (A29–A33), gefunden beim feindlichen Gegenprüfen
+der A1–A4-Reparaturen** — siehe Abschnitt 9. Alle drei sind älter als diese Reparaturen und hatte
 keiner der zwölf Prüfagenten. Das ist der zweite Beleg für dasselbe: das Prüfen der Fixes findet
 mehr als das Prüfen des Bestands.
 
@@ -114,8 +114,43 @@ derselben Stunde keinen neuen Ort mehr melden — und erfährt es wegen A1 nicht
 
 *Beleg:* reproduziert, die sechste Meldung verschwand. *Aufwand:* klein.
 
-### A3 · Eine bearbeitete Meldung ist danach unauffindbar
+### ✅ A3 · Eine bearbeitete Meldung ist danach unauffindbar
 `api/edit/reports/locations.php`
+
+> **✅ Erledigt `7a6be1a8` (+ Hotfix `4202973b`), 05.08.2026.** `GET` nimmt jetzt
+> `?status=neu|erledigt|alle`; Vorgabe bleibt `neu`, damit sich für jeden bestehenden Aufrufer
+> nichts ändert. Im Panel derselbe Filter-Trichter wie in den WikiSync-Listen. Eine bearbeitete
+> Meldung wird **schreibgeschützt** gezeigt: Entscheidung, wer, wann, Begründung.
+>
+> Die beiden Listen lesen sich absichtlich verschieden — offene als Arbeitsschlange (älteste
+> zuerst), bearbeitete als Verlauf (neueste zuerst, über `COALESCE(reviewed_at, created_at)`).
+> „Alle" ist genau diese zwei Hälften, gebaut durch **zweimaligen Aufruf derselben Funktion**
+> statt durch eine Abfrage mit trickreichem `ORDER BY`: eine Sortierung kann nicht beides sein.
+>
+> ⚠️ **Der Deckel bei 200 wird ausgesprochen** (`truncated`/`limit` in der Antwort, Satz im Panel).
+> Die offene Schlange wird **nie** gekürzt.
+>
+> 💣 **Der Weg dahin kostete einen zweiten selbstverschuldeten Ausfall an einem Tag** — diesmal im
+> Client. Die schreibgeschützte Umwandlung leerte den Knopfkasten **mitten im Bauen** des Eintrags,
+> und zwei spätere Zeilen beschrifteten genau diesen Knopf noch (Fundort „Ergänzen", Änderung
+> „Bearbeiten"). `querySelector(...).textContent` auf einem entfernten Knoten = `TypeError` mitten
+> in der Schleife: die „Bearbeitet"-Liste brach beim ersten solchen Eintrag ab **und sah dabei
+> vollständig aus**; im 45-Sekunden-Takt schluckte der `catch` denselben Absturz wortlos. Behoben
+> in `4202973b` mit zwei Änderungen, weil es zwei Fehler sind: die Umwandlung läuft **zuletzt**,
+> und die Beschriftung geht ausschließlich über einen Helfer, der auf `null` prüft. **Die
+> Reihenfolge allein hätte dieselbe Falle für den nächsten Meldungstyp stehen lassen.**
+>
+> **Live gegengeprüft, soweit ohne Anmeldung möglich.** Der Endpunkt antwortet auf alle vier Formen
+> (`ohne`, `?status=erledigt`, `?status=alle`, `?status[]=boom`) mit einem sauberen **`401`** und
+> korrekter Hülle — kein `500`, keine PHP-Warnung vor dem JSON. Und das Rendern gegen den
+> **ausgelieferten** Client, mit untergeschobenen Daten auf avesmaps.de: drei Meldungen, darunter
+> genau die zwei Arten, an denen die Liste vorher zerbrach (angenommener Fundort, verworfener
+> Änderungsvorschlag) → **kein Absturz, 3 von 3 Einträgen gerendert**; die beiden bearbeiteten ohne
+> Knopf, mit „Angenommen von … · 05.08. 15:40" bzw. „Verworfen von … · 15:41" und der Begründung,
+> der offene mit Knopf. Vor dem Hotfix hätte derselbe Aufruf nach dem ersten Eintrag abgebrochen.
+>
+> ⚠️ **Was ohne Anmeldung nicht geht:** ein echter Durchgang mit Datenbank — der Endpunkt verlangt
+> die Fähigkeit `review`. Bleibt Owner-Sache.
 
 Der Endpunkt liefert nur Meldungen mit Status `neu`. Es gibt keine Liste erledigter Meldungen.
 Während des Tests sind der Redaktion zwei eigene Meldungen unter der Hand verschwunden, ohne
@@ -123,7 +158,42 @@ dass sich nachvollziehen ließ, was mit ihnen passiert war.
 
 *Aufwand:* mittel.
 
-### A4 · Die Moderation hinterlässt keinen Eintrag im Änderungsprotokoll
+### ✅ A4 · Die Moderation hinterlässt keinen Eintrag im Änderungsprotokoll
+
+> **✅ Erledigt `1d2999d6` (+ Hotfix `5eae0a6e`), 05.08.2026.** Jede Entscheidung schreibt eine
+> Zeile ins **vorhandene** `map_audit_log` und erscheint damit ohne neue Oberfläche im Reiter
+> „Änderungen": `report_approved` / `report_rejected` / `report_in_review`, mit Person, Meldung und
+> Status **und** Begründung vorher/nachher.
+>
+> **Fünf Aufrufstellen, nicht drei.** `create_citymap` und `add_citymap_links` setzen
+> `status='approved'` selbst — sie verbrauchen eine Meldung genauso endgültig.
+>
+> 💣 **Nicht rückgängig machbar, bauartbedingt** (`feature_id` NULL, keine Undo-Spalten). Was eine
+> Annahme *erzeugt* hat, trägt seine eigene, rückgängig machbare Zeile. Der Test sichert das für
+> alle drei Namen zu — ein künftiger Name, der mit `create` beginnt, würde es still umdrehen.
+>
+> 💣 **Eine Erlaubnisliste hält die Melderdaten draußen.** Der Moderationspfad hat die **ganze**
+> Meldungszeile in der Hand, samt `ip_hash`, `remote_ip` und `user_agent`. `map_audit_log` wird von
+> einem anderen Endpunkt gelesen und reist in jedem Datenbank-Backup mit. Acht Felder gehen mit;
+> der Test prüft die anderen als Schlüssel **und** als Werte.
+>
+> 💣 **Der Fix war 25 Minuten lang selbst ein Ausfall — das gehört ins Protokoll.**
+> `avesmapsNormalizeReviewNote()` antwortet `null`, wenn keine Begründung getippt wurde, und
+> **kein Client schickt das Feld überhaupt**. Meine neue Funktion verlangte `string`. Unter
+> `strict_types=1` ist das ein `TypeError` **an der Aufrufstelle** — also außerhalb genau des
+> `try/catch`, das verhindern sollte, dass ein Protokollfehler die Entscheidung mitreißt. Folge:
+> Annehmen legte den Ort an, nahm die Meldung an und meldete dann „Die Meldungen konnten nicht
+> verarbeitet werden."; ein zweiter Versuch bekam wegen `AND status = 'neu'` ein 404. Es ging
+> nichts verloren, aber **jede Rückmeldung log**. Behoben in `5eae0a6e`.
+>
+> ⚠️ **Und der Test war die ganze Zeit grün**, weil er nur Zeichenketten übergab. Er übergibt jetzt
+> `null`, prüft beide Signaturen per Reflection und die Rückmutation bricht nachweislich ab.
+> **Lehre, zum zweiten Mal an einem Tag: ein Test prüft nur die Fälle, die er einsetzt — und der
+> häufigste Fall war hier der ungeprüfte.**
+>
+> ⚠️ **Live nicht prüfbar ohne Anmeldung** (Fähigkeit `review`); ein echter Durchgang bleibt
+> Owner-Sache.
+
 Annehmen, Ablehnen und Zurückstellen einer Meldung erzeugen keine Protokollzeile. Wer eine
 Meldung bearbeitet hat und mit welcher Begründung, ist nachträglich nicht feststellbar — bei
 einer Karte, die 11.500 Objekte aus Community-Beiträgen führt.
@@ -415,7 +485,7 @@ Die Tabelle wächst außerdem unbegrenzt: es gibt kein Ablaufdatum und keine Ber
 
 ---
 
-## 9. Drei Nachträge — gefunden beim Gegenprüfen der A1/A2-Fixes
+## 9. Fünf Nachträge — gefunden beim Gegenprüfen der eigenen Fixes
 
 Nicht aus dem Testlauf, sondern aus den drei feindlichen Prüfungen der Reparaturen vom Nachmittag
 des 05.08. Alle drei sind **älter als diese Fixes**; keiner der zwölf Prüfagenten hatte sie.
@@ -481,6 +551,34 @@ stille Weg kehrt vor der Datenbankverbindung um.
 
 *Beleg:* am Kontrollfluss abgelesen, Abfragen gezählt. *Aufwand:* klein (Grenze nach vorn ziehen),
 berührt aber die Reihenfolge der Antworten und gehört deshalb geprüft, nicht nebenbei verschoben.
+
+### A32 · Eine zurückgestellte Meldung lässt sich nie wieder anfassen
+`api/edit/reports/locations.php` (`AND status = 'neu'` in jedem Schreibpfad)
+
+„Zurückstellen" (`in_review`) ist als Entscheidung vorgesehen und hat sogar ein eigenes Etikett im
+Änderungsprotokoll. Nur: **jeder** Schreibpfad verlangt `AND status = 'neu'`. Eine zurückgestellte
+Meldung ist damit aus der Arbeitsschlange raus und kann nie wieder angenommen oder verworfen werden
+— sie ist eingefroren, nicht aufgeschoben.
+
+Bis A3 fiel das niemandem auf, weil sie danach ohnehin unsichtbar war. Jetzt ist sie sichtbar, und
+die Sackgasse damit auch. (Im Panel heißt der Filter deshalb „Bearbeitet", nicht „Erledigt" —
+zurückgestellt ist nicht erledigt.)
+
+⚠️ Der Vollständigkeit halber: **kein Client schickt `status: "in_review"`.** Der Zustand entsteht
+heute nur über den Import-Endpunkt (A33) oder von Hand in der Datenbank.
+
+*Beleg:* am Kontrollfluss abgelesen. *Aufwand:* klein (die Schreibpfade auf `status <> 'approved'`
+o. ä. öffnen) — aber es ist eine Produktentscheidung, was „zurückgestellt" bedeuten soll.
+
+### A33 · Der Import-Endpunkt schreibt jeden beliebigen Status
+`api/import/location-reports/update-status.php:26`
+
+Der Status wird nur auf 20 Zeichen gekürzt, **ohne Whitelist** — anders als im Editor-Endpunkt
+(`api/edit/reports/locations.php`), der auf `approved|rejected|in_review` prüft. Ein Tippfehler im
+Importwerkzeug schreibt einen Status, den keine Oberfläche kennt; die Meldung erscheint dann unter
+„Bearbeitet", trägt ein Etikett, das niemand vergeben wollte, und ist wegen A32 eingefroren.
+
+*Beleg:* wörtlich gelesen. *Aufwand:* klein (dieselbe Whitelist wie nebenan).
 
 ---
 
