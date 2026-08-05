@@ -386,30 +386,43 @@ Zwei Wege, zwei Ergebnisse, für dieselbe Aktion.
 
 *Beleg:* in der Momentaufnahme ausgezählt. *Aufwand:* klein (Datenbereinigung).
 
-### ✅ A10 · 516 Abenteuer-Zuordnungen zeigen auf gelöschte Label
+### ⚠️ A10 · 516 Abenteuer-Zuordnungen zeigen auf gelöschte Label
+**OFFEN — ein Reparaturversuch wurde zurückgenommen.**
 
-> **✅ Erledigt `ae06f5dc`, 05.08.2026.** Der Auflöser setzt tote Zeiger auf `unresolved` zurück —
-> und mehr braucht es nicht: die vorhandene Auflösung nimmt sie **im selben Lauf** wieder auf und
-> findet das Label unter seiner neuen `public_id`. Deshalb läuft der Rückstellpass **vor** der
-> Abfrage der Arbeitsliste; danach wartete jede reparierte Zeile auf den nächsten Sync.
+> ⚠️ **`ae06f5dc` zerstörte Daten und ist zurückgenommen (`1ad11c54`).** Der Versuch setzte tote
+> Zeiger auf `unresolved` zurück, damit die vorhandene Auflösung sie im selben Lauf wieder aufnimmt.
+> Eine feindliche Gegenprüfung hat den Verlust an der echten Funktion **reproduziert**, und die
+> Änderung war da bereits ausgeliefert.
 >
-> 💣 **Ein Territorium zeigt in eine andere Tabelle** (`political_territory`) als die drei übrigen
-> Arten. Es gegen `map_features` zu prüfen fände nichts und würde **jede** Territoriums-Zuordnung
-> wegwerfen — eine Reparatur, die mehr zerstört als der Fehler. Der Test deckt diesen Fall zuerst ab.
+> 💣 **`target_kind` hat nicht vier Werte, sondern sieben.** Der Quellen-Verknüpfungsweg
+> (`adventures.php:1178`) nimmt **jeden** Entitätstyp der feature-sources-Whitelist außer `citymap`
+> und schreibt ihn direkt als `target_kind`: dazu gehören **`lore`** (lebt in `lore_entry`, über
+> `wiki_key`) und **`ecosystem`** (lebt in `ecosystem_region`). Beide wurden in `map_features`
+> gesucht, nie gefunden — und ihr Zeiger gelöscht. Der Pass läuft an
+> `avesmapsAddCitymapPlace`, also bei **jedem** „Ort hinzufügen" im Kartensammlungs-Editor.
 >
-> 💣 **`raw_name` bleibt stehen.** Er ist der einzige Weg zurück: der Auflöser vergleicht darüber,
-> und für **61 der 75** betroffenen Namen wartet ein lebendes Label gleichen Namens.
+> ⚠️ **Derselbe Fehler steht einen Tag älter im Code, in einer Datei, die diese hier einbindet**
+> (`api/_internal/app/feature-sources.php:111`): „NOT every entity type belongs here. territory,
+> citymap and lore keep their own tables and their own delete semantics." Jener Fix hat Zeilen nur
+> **versteckt**; meiner hat den Zeiger **überschrieben**.
 >
-> ⚠️ **Der Abgleich läuft in PHP, nicht als `NOT EXISTS` in SQL.** `target_public_id` ist
-> `VARCHAR(64)`, `public_id` ist `CHAR(36)`, und sie liegen in verschiedenen Tabellen — genau der
-> Spaltenvergleich, der am 05.08. zwei öffentliche Endpunkte auf 500 gelegt hat. Kosten entstehen
-> keine: `avesmapsAdventureLoadCandidates` liest dieselbe Tabelle wenige Zeilen später **komplett**,
-> samt `properties_json`.
+> 💣 **Und die Grundannahme trug nicht.** „`raw_name` ist der einzige Weg zurück" gilt für genau
+> diese Zeilen nicht: `avesmapsAdventurePlaceNameFor` kennt keinen Zweig für `lore`/`ecosystem`/
+> `powerline` und gibt die `public_id` zurück — `raw_name` ist dort ein Wiki-Slug oder eine UUID,
+> die der Auflöser nicht zuordnen kann.
 >
-> ⚠️ **Nicht live prüfbar:** der Auflöser läuft in „Abenteuer syncen" und im Kartenort-Editor, beides
-> gesperrt. Belegt gegen sqlite mit der echten Funktion: lebende und verschwundene Ziele aller vier
-> Arten, ein stillgelegtes Ziel, nicht freigegebene Zeilen, leere Zeiger, Idempotenz beim zweiten
-> Lauf und die Whitelist auf dem interpolierten Tabellennamen.
+> 💣 **`is_active = 0` als „verschwunden" zu werten macht aus einer umkehrbaren Handlung eine
+> unumkehrbare.** Ein Soft-Delete existiert, damit „Rückgängig" die Zeile unter **derselben**
+> `public_id` zurückholt; der Pass hätte in der Zwischenzeit jeden Zeiger darauf gekappt, und
+> Rückgängig kann sie nicht wiederherstellen. Das Quellen-System hat dasselbe Problem andersherum
+> gelöst und aufgeschrieben, warum: **„THE GUARD BELONGS ON THE READ, NOT ON THE DELETE."**
+>
+> 🔧 **DU: der Befund steht, der Weg ist offen.** Zwei Möglichkeiten, und die Wahl ist eine
+> Abwägung, keine technische Frage:
+> **(a) Riegel beim Lesen** — wie im Quellen-System. Kostet nichts, kann nichts verlieren, lässt
+> den toten Zeiger aber in der Tabelle stehen.
+> **(b) Zurücksetzen** — repariert die Daten wirklich, braucht dafür aber eine Nachschlagetabelle je
+> `target_kind` (vier Tabellen, nicht zwei) und muss stillgelegte Ziele **in Ruhe lassen**.
 
 Der Wiki-Schlüssel-Rückfall des Clients rettet 491 davon; **25 sind unrettbar unsichtbar** —
 ein Abenteuer, das einem Ort zugeordnet ist, erscheint dort nicht.
