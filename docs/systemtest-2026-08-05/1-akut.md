@@ -327,7 +327,37 @@ Zwei Wege, zwei Ergebnisse, für dieselbe Aktion.
 
 *Aufwand:* klein.
 
-### A9 · 14 Kraftlinien-Segmente hängen an Endpunkten, die es nicht mehr gibt
+### ✅ A9 · 14 Kraftlinien-Segmente hängen an Endpunkten, die es nicht mehr gibt
+
+> **✅ Ursache behoben `47ae9ced` (+ `35e0deb5`), 05.08.2026.** Das Löschen eines Punktes, an dem
+> eine **aktive** Kraftlinie hängt, wird jetzt verweigert — serverseitig **und** im Editor, mit
+> Nennung der betroffenen Linien. Das ist die Gegenprobe zum Anlegen, das beide Endpunkte seit jeher
+> hart prüft.
+>
+> 💣 **Die Ursache war präziser als der Befund.** Eine Warnung **gab** es im Client — sie stand
+> hinter `locationType === CROSSING_LOCATION_TYPE`. Kraftlinien verbinden aber **Nodix-Orte oder
+> Kreuzungen** (die Anlege-Prüfung sagt das wörtlich). Das Löschen eines Nodix-Ortes lief also ohne
+> ein Wort durch. So sind die Waisen entstanden.
+>
+> **Live gemessen, an Gareth** — einem Nodix-Ort, also genau dem Fall, für den es vorher keine
+> Warnung gab: **5 angebundene Abschnitte**, `deleteLocationMarker` macht **0 Serveraufrufe**,
+> stellt **0 Rückfragen**, der Marker bleibt stehen. Die Schreibschicht war während der Probe
+> abgeklemmt, es konnte also auch bei einem Fehlschlag nichts gelöscht werden.
+>
+> ⚠️ **Diese Probe fand gleich noch einen Fehler in meiner eigenen Reparatur:** die Meldung nannte
+> **keine** Linie, weil ein Kraftlinien-Objekt seinen Namen in `properties.name` trägt und nicht
+> oben. Behoben in `35e0deb5`; jetzt steht dort „Basiliuslinie, Chalwens Griff, Gareth - Reichsabtei
+> St. Praiodan und weitere". **Der Test hätte das nie gesehen — er prüft Struktur, keine Daten.**
+>
+> ⚠️ **Verweigern statt reparieren** ist Absicht: die Abschnitte tragen Namen, Quellen und eine
+> Sortierung. Sie still zu löschen oder umzuhängen wäre die größere Überraschung.
+>
+> 🔧 **DU: die 14 bestehenden bleiben.** Neue können nicht mehr entstehen, die alten räumt der Fix
+> nicht weg. [`sql/kraftlinien-tote-endpunkte.sql`](../../sql/kraftlinien-tote-endpunkte.sql) listet
+> sie und trennt den einfachen Fall ab: steht der tote Endpunkt nur auf `is_active = 0`, holt **ein**
+> `UPDATE` ihn zurück und repariert alle Abschnitte, die ihn nennen, auf einmal. Ob ein wirklich
+> verlorener Abschnitt umgehängt oder stillgelegt wird, ist eine inhaltliche Entscheidung.
+
 *Beleg:* in der Momentaufnahme ausgezählt. *Aufwand:* klein (Datenbereinigung).
 
 ### A10 · 516 Abenteuer-Zuordnungen zeigen auf gelöschte Label
