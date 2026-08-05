@@ -484,7 +484,7 @@ Erschwerend: es sind ausgerechnet die zwei Endpunkte, die als **stabil** zugesag
 
 `POST /api/route/` und `GET /api/locations/` sind ausdrücklich als **stabil** zugesagt.
 
-### A13 · Kreuzungsnamen sind Positionsnummern, keine Kennungen
+### ◐ A13 · Kreuzungsnamen sind Positionsnummern, keine Kennungen
 `api/_internal/routing/network-data.php:131`
 
 ```php
@@ -550,10 +550,40 @@ Das ist der einzige Befund des Tests, der **falsche Daten ohne jede Fehlermeldun
 > umbenannt und verschiebt ab dieser Zeile alle folgenden Nummern. Der Server hat den Subtyp
 > ohnehin zur Hand (`network-data.php:138` liest ihn zwei Zeilen unter der Namensprüfung).
 >
-> ⚠️ **(c) wäre damit ohne Rückfrage baubar — ich habe es bewusst nicht getan.** Ortsnamen sind
-> Graph-Schlüssel; ein falsches Prädikat benennt entweder zu viel oder zu wenig um, und beides
-> verschiebt Routen still. Das gehört an den Anfang einer Sitzung mit einem Kopf voll Budget, nicht
-> ans Ende einer langen. Es ist der erste Punkt, den ich ohne eine Antwort von dir angehen würde.
+> **✅ (c) ist gebaut `35582f01`, 06.08.2026 — (a) und (b) bleiben deine Entscheidung.**
+>
+> 💣 **Der eigentliche Defekt war ein anderer, als der Befund sagt.** Nicht „Client gegen Server",
+> sondern **zwei Prädikate in derselben Schleife**: `avesmapsIsRouteCrossingLocation` zählte den
+> Zähler hoch, und `avesmapsBuildRouteLocationData` entschied das Umbenennen mit einer **eigenen,
+> wörtlich abgeschriebenen** Namensprüfung, drei Zeilen daneben. Sie lauteten gleich, also brach
+> nichts. Wären sie je auseinandergelaufen, hätte eine Zeile `Kreuzung-5` geheissen, **ohne dass der
+> Zähler weiterrückt** — und die nächste Kreuzung hätte denselben Namen bekommen. Ortsnamen sind
+> Graph-Schlüssel; zwei Knoten unter einem Namen ist eine falsche Route, kein Anzeigefehler.
+>
+> Das geteilte Prädikat **spiegelt die drei Stufen des Clients**, statt neue zu erfinden:
+> `feature_type` (junction|crossing) → Subtyp unter den vier Client-Schlüsseln **in der
+> Client-Reihenfolge** → Namenspräfix. Der Server prüfte bisher nur die dritte.
+>
+> ⚠️ **Vorher am Vollbestand gemessen, weil es der Routing-Graph ist:** 5.575 Punkt-Objekte, **2.084**
+> Kreuzungen nach **beiden** Kriterien, **0** nur nach dem Namen, **0** nur nach dem Typ. Danach
+> beide Fassungen über dieselben Objekte gefahren: die erzeugten Namen sind **zeichengleich**, alle
+> 5.575.
+>
+> **Live bewiesen:** `GET /api/locations/` vor und nach dem Deploy — **962.079 Bytes, gleicher SHA1,
+> byteweise identisch**. Die Änderung ändert heute keinen einzigen Namen im stabilen Vertrag; sie
+> macht die Deckung verbindlich, statt sie dem Zufall zu überlassen.
+>
+> Sieben Mutationen, jede benannt und jede mit Nachweis, dass sie griff: jede Stufe einzeln entfernt,
+> Schlüsselreihenfolge gekippt, Gross-/Kleinschreibung fallengelassen, Präfix auf „Kreuz" geweitet,
+> und das Umbenennen zurück auf seine eigene Kopie gelegt. Alle sieben rot — die letzte
+> **verhaltensmässig** über die Nummerierung, nicht über den Quelltext. 215/215 grün.
+>
+> ⚠️ **Eine dritte Stelle bleibt, und sie ist eine Landmine für (a)/(b):** `api/locations/index.php:113`
+> bildet `is_crossing` aus `strncmp($name, 'Kreuzung-')` — **mit Bindestrich**, also aus dem bereits
+> **umbenannten** Namen. Heute deckungsgleich (im Bestand: 2.084 = 2.084 = 2.084 über `is_crossing`,
+> Namenspräfix und Subtyp). Aber sie fragt nicht „ist das eine Kreuzung?", sondern „wurde hier
+> umbenannt?" — wer das Benennungsschema ändert (A13 a/b), lässt sie **still** ins Leere laufen. Wer
+> (a) oder (b) baut, muss diese Zeile mitnehmen.
 
 ### ⚠️ A14 · `GET /api/locations/` ist der ungeschützte Zwilling eines 152-MB-Pfades
 **Repariert (`9f2962e8` + `6bad25be`) — aber auf diesem Host wirkungslos, siehe A34.**
