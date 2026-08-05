@@ -61,7 +61,12 @@
 		{ id: "panRight", keys: ["d", "arrowright"], caps: [cap("D"), cap("→")],
 			i18n: "shortcuts.row.panRight", de: "Karte nach rechts schieben" },
 		{ id: "panFast", keys: [], passive: true, caps: [cap("Umschalt", "shortcuts.key.shift")],
-			i18n: "shortcuts.row.panFast", de: "Zusammen mit einer der sechs Tasten darüber: dreifacher Schritt" },
+			// Umschalt wirkt AUF DAS SCHIEBEN, nicht auf „die Tasten darüber": `panBy` ist die einzige
+			// Stelle, die `event.shiftKey` liest (PAN_SHIFT_FACTOR), Zoom und Ansichten sehen es nicht.
+			// Bis 2026-08-05 stand hier „eine der sechs Tasten darüber" — es sind vier Richtungen mit
+			// acht Tasten (W A S D und die Pfeile), und die Zahl wäre bei jeder Umsortierung falsch.
+			// Deshalb nennt die Zeile jetzt die WIRKUNG statt einer Position in der Tabelle.
+			i18n: "shortcuts.row.panFast", de: "Beim Schieben der Karte gedrückt halten: dreifacher Schritt" },
 		{ id: "zoomIn", keys: ["+", "="], caps: [cap("+")],
 			i18n: "shortcuts.row.zoomIn", de: "Hineinzoomen" },
 		{ id: "zoomOut", keys: ["-", "_"], caps: [cap("−")],
