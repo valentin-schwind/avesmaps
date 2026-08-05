@@ -1548,8 +1548,8 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    der Karte, er soll beim Zoomen also nicht mitwachsen. `--font-size-subhead` ist die Sprosse, die
    einem Regionslabel bei mittlerem Zoom am nächsten kommt.
 
-   Die FARBE bleibt der dunkle Klima-Ton: die Karten-Labels sind cremefarben mit dunklem Schatten, weil
-   sie auf der Karte liegen -- dieser hier liegt auf einem blassen Band, wo hell verschwinden würde. */
+   Die FARBE ist seit 2026-08-05 die seiner Zone (Regel weiter unten), der Saum dafür dunkel -- damit
+   steht der Zonenname genau so auf der Karte wie jedes Karten-Label: farbige Schrift, dunkler Saum. */
 .ecosystem-climate-name {
 	/* 🔴 KLICKBAR (Owner 2026-08-04): ein Klick auf den Namen hebt sein Band hervor. Der Name ist das
 	   EINZIGE Ziel dafür -- das Band selbst nimmt in „Alle" bewusst keine Klicks (Regel weiter oben),
@@ -1568,16 +1568,42 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	font-weight: var(--font-weight-regular);
 	letter-spacing: 0.02em;
 	line-height: 1;
-	color: var(--color-ecosystem-klima-label);
-	/* Der helle Saum (Owner 2026-08-04). Dreimal derselbe Schatten statt eines breiten: gestapelte
-	   Schatten decken einander und ergeben eine gleichmässige Kontur, ein einzelner weicher wird an den
-	   Buchstabenspitzen dünn. Dieselbe Bauart wie der dunkle Saum der Karten-Labels, nur andersherum --
-	   dort helle Schrift auf der Karte, hier dunkle auf einem hellen Band. */
+	/* Der dunkle Saum (Owner 2026-08-04, dunkel seit 2026-08-05). Dreimal derselbe Schatten statt eines
+	   breiten: gestapelte Schatten decken einander und ergeben eine gleichmässige Kontur, ein einzelner
+	   weicher wird an den Buchstabenspitzen dünn. Dieselbe Bauart UND derselbe Ton wie bei den
+	   Karten-Labels -- er trägt jeden der acht Zonentöne, vom fast weissen Polareis bis zum Ocker.
+	   🪤 Er steht am Container, nicht am <span>: text-shadow vererbt sich, die FARBE dagegen sitzt am
+	   span (nur dort kennt das Stylesheet die Zone). Zwei Eigenschaften, zwei Ebenen -- Absicht. */
 	text-shadow:
 		0 0 3px var(--color-ecosystem-klima-label-halo),
 		0 0 3px var(--color-ecosystem-klima-label-halo),
 		0 0 3px var(--color-ecosystem-klima-label-halo);
 	transition: text-shadow 120ms ease-out;
+}
+
+/* 🔴 DER NAME TRÄGT DEN TON SEINER ZONE (Owner 2026-08-05: „den klimazonenlabels die fontfarben der
+   klimazonen geben"). Der Ton kommt als `--climate-name-color` am <span> vom Zeichner
+   (map-features-ecosystem-climate.js) und stammt dort aus ecosystemAreaColor() -- derselben Regel, die
+   die Fläche füllt. Name und Band können also gar nicht auseinanderlaufen.
+
+   💣 KEINE Klasse und keine Farbliste je Zone hier. Die Zonen sind DATEN (AVESMAPS_ECOSYSTEM_REGION_-
+   TYPE_SEED, heute acht), eine eingeschobene neunte bringt ihr Token mit und käme in einer Liste in
+   diesem Stylesheet nicht vor -- genau die Falle, die ecosystemAreaColor() mit seiner Namensregel
+   vermeidet. Der Rückfall ist der Grundton der Ebene, auf den auch ecosystemAreaColor selbst fällt.
+
+   💣 DER TON KOMMT AUS DER ZONE, DIE HELLIGKEIT NICHT. Der rohe Rampenton reicht nicht: er ist zugleich
+   die FÜLLUNG des Bandes, auf dem der Name steht -- Schrift und Grund sind derselbe Farbton, und am
+   dunklen Ende (Boreal #7aada9, Tropisch #c65e2e) verschwand der Name in seinem eigenen Band, so dass
+   ihn nur noch der Saum hielt. Gemessen an drei Fassungen auf der Live-Karte. Die Rampe ist eine
+   TEMPERATUR-Skala, ihre Helligkeit sagt „kalt/warm" und nicht „lesbar/unlesbar", also wird genau die
+   eingeebnet: `oklch(from … 0.85 c h)` hebt jede Zone auf dieselbe Leuchtkraft und lässt Farbton und
+   Sättigung stehen. Damit steht der Zonenname da wie jedes Karten-Label -- heller Text, dunkler Saum --
+   und sagt trotzdem, welche Zone er benennt.
+   🪤 Die erste `color`-Zeile ist kein Duplikat, sondern der Rückfall: ein Browser ohne relative
+   Farbsyntax verwirft die zweite Zeile und behält den rohen Zonenton. */
+.ecosystem-climate-name > span {
+	color: var(--climate-name-color, var(--color-ecosystem-klima));
+	color: oklch(from var(--climate-name-color, var(--color-ecosystem-klima)) 0.85 c h);
 }
 
 /* 🔴 „dass man sieht, dass man es anklicken kann" (Owner 2026-08-04). Der Saum wird dichter und weiter,

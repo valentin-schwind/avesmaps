@@ -314,6 +314,17 @@ function drawClimateZoneNames() {
 		if (name === "") {
 			return;
 		}
+		// Der Ton der Zone (Owner 2026-08-05). ecosystemAreaColor ist DIESELBE Quelle, aus der die
+		// Fläche ihre Füllung bekommt -- Name und Band können deshalb nicht auseinanderlaufen, und eine
+		// neu eingeschobene Zone braucht nur ihr Token. Was das CSS damit macht, steht im CSS
+		// (`.ecosystem-climate-name > span`); hierher gehört nur der Datenwert.
+		const zoneColor = typeof ecosystemAreaColor === "function"
+			? String(ecosystemAreaColor("klima", area.region_type) || "")
+			: "";
+		// 🪤 Der Ton kommt aus dem eigenen Stylesheet, nicht aus den Daten -- ein unbekannter type_key
+		// liefert einen leeren Tokenwert, keinen fremden Text. Das Attribut entfällt dann ganz und das
+		// CSS greift auf den Grundton der Ebene zurück.
+		const colorStyle = zoneColor === "" ? "" : ` style="--climate-name-color: ${zoneColor}"`;
 		// 🔴 BEIDE Kanten (Owner 2026-08-03). Die Karte ist 1024 breit; wer rechts arbeitet, hatte die
 		// Beschriftung ausserhalb des Bildschirms. Jede Kante wird für sich gemessen -- bei einer
 		// schrägen Grenze liegt die Bandmitte links woanders als rechts, und ein gespiegelter Wert
@@ -335,7 +346,7 @@ function drawClimateZoneNames() {
 				keyboard: false,
 				icon: L.divIcon({
 					className: klasse,
-					html: `<span>${escape(name)}</span>`,
+					html: `<span${colorStyle}>${escape(name)}</span>`,
 					iconSize: null,
 				}),
 			}).addTo(map);

@@ -252,17 +252,22 @@
 	--color-ecosystem-klima-trockene-subtropen: #cdb083;    /* dry subtropics, dusty sand */
 	--color-ecosystem-klima-subtropisch: #d98f3c;           /* subtropical, orange ochre */
 	--color-ecosystem-klima-tropisch: #c65e2e;              /* tropical, warm terracotta */
-	/* Die Trennlinie selbst und der Zonenname. Ein neutrales Dunkel, das auf allen sieben Tönen sitzt --
-	   dieselbe Begründung wie beim topographischen Konturton: wo eine Zone aufhört, ist genau die
-	   Auskunft dieser Ebene, und die darf ihre Farbe nicht je Zone wechseln. */
+	/* Die Trennlinie. Ein neutrales Dunkel, das auf allen acht Tönen sitzt -- dieselbe Begründung wie
+	   beim topographischen Konturton: wo eine Zone aufhört, ist genau die Auskunft dieser Ebene, und
+	   die darf ihre Farbe nicht je Zone wechseln.
+	   🪤 Der ZONENNAME hatte hier bis 2026-08-05 einen eigenen Ton (--color-ecosystem-klima-label,
+	   #33302b). Er trägt jetzt den Ton SEINER Zone und holt ihn über dieselbe Regel wie die Füllung
+	   ihres Bandes (ecosystemAreaColor) -- je Zone steht der Ton schon oben, ein zweiter wäre die
+	   Kopie, die beim Einschieben einer neunten Zone zurückfiele. */
 	--color-ecosystem-klima-divider: #2b3138;
-	--color-ecosystem-klima-label: #33302b;
-	/* Die helle Kontur hinter dem Zonennamen (Owner 2026-08-04). Der Name ist dunkel und sitzt auf
-	   sieben verschiedenen Bändern -- über der Polaren Zone auf fast Weiss, über der Tropischen auf
-	   kräftigem Ocker. Ein heller Saum trennt ihn von beidem, ohne dass es je Zone einen Ton bräuchte:
-	   dieselbe Begründung wie beim dunklen Schatten der Karten-Labels, nur seitenverkehrt.
-	   Halbtransparent, damit er ein Saum bleibt und kein Kasten. */
-	--color-ecosystem-klima-label-halo: rgba(255, 255, 255, 0.75);
+	/* Der dunkle Saum hinter dem Zonennamen (Owner 2026-08-05: „vielleicht den halo dunkel machen wie
+	   beim rest"). Bis dahin war es umgekehrt -- dunkle Schrift, heller Saum. Seit der Name den Ton
+	   seiner Zone trägt, geht das nicht mehr: die Rampe reicht von fast weissem Polareis bis zu warmem
+	   Ocker, und ein heller Saum liesse das kalte Ende auf den hellen Kacheln verschwinden. Ein dunkler
+	   trennt alle acht Töne vom Grund -- dieselbe Bauart wie bei den Karten-Labels, deren Halo
+	   ebenfalls rgba(0, 0, 0, 0.85) ist (`glow` in map-features-labels.js), nur als text-shadow statt
+	   im Canvas gezeichnet. Halbtransparent, damit er ein Saum bleibt und kein Kasten. */
+	--color-ecosystem-klima-label-halo: rgba(0, 0, 0, 0.85);
 
 	/* Höhenrampe (V8). Fünf Stufen vom Gebirgsfuss bis zum Firn, aus dem Prototyp
 	   (html/landschaften-modell.html:589) übernommen -- dort standen sie als rohe RGB-Tripel im Code,
