@@ -368,11 +368,10 @@ function avesmapsValidateMapReport(array $payload): array {
         // NULL for every type but 'karte' and 'fundort' -> the column stays empty on the reports that do
         // not use it. The two never collide: report_type decides which shape is in there, and each
         // approval re-runs its OWN allowlist over it before anything reaches a column.
-        'payload_json' => ($citymapReport ?? $citymapLinkReport) === null
-            ? null
-            : json_encode($citymapReport ?? $citymapLinkReport, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        'payload_json' => avesmapsEncodeReportPayloadJson($citymapReport ?? $citymapLinkReport),
     ];
 }
+
 
 // Multi-source #3: normalize + validate the community source list -- an array of
 // {source_id,url,label,pages,type,official}. Drops entries without a label; url is optional (a link-based

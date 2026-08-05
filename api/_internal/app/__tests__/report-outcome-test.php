@@ -144,4 +144,78 @@ assert(
 // itself is measured against the live database, and the retry-after query is wrapped at its call site
 // so a parse failure costs the minute count, not the answer.
 
+
+// ===== THE ENCODED PAYLOAD MUST FIT ITS COLUMN =====================================================
+//
+// 💣 A ROW CAP IS NOT A SIZE CAP. AVESMAPS_CITYMAP_LINK_ROWS_MAX bounds how many link rows a report
+// may carry (20, finding A30); it says nothing about how many BYTES they encode to, and the two
+// guards on a row measure different units without measuring this one -- the label with mb_strlen
+// (CHARACTERS), the url with strlen (BYTES). json_encode has to write every C0 control character as
+// \u00XX, six bytes for one, and neither trim() nor the \s+ collapse strips \x01. Measured against
+// the shipped code: twenty rows, every one inside its limits, encode to over 83.000 bytes.
+//
+// payload_json is TEXT (65.535). In strict mode that is error 1406 and a 500 for a reporter whose
+// report looked fine; without strict mode it is worse and silent -- truncated row, json_decode
+// returns null in the review screen, and the approval answers "Zu welcher Karte gehoert der
+// Fundort?" forever. The report can then never be approved AND never be deleted, because
+// map_reports has no delete path (A3/A28).
+assert(
+    AVESMAPS_REPORT_PAYLOAD_JSON_MAX_BYTES === 60000,
+    'the ceiling leaves room below the column rather than racing it'
+);
+assert(
+    AVESMAPS_REPORT_PAYLOAD_JSON_MAX_BYTES < 65535,
+    'and it is BELOW the TEXT column -- a guard at exactly the column still hands MySQL a row it rejects'
+);
+
+// A payload that is nothing is still nothing: no report type but karte/fundort fills this column.
+assert(avesmapsEncodeReportPayloadJson(null) === null, 'no payload encodes to no column value');
+
+// The ordinary case passes untouched, and the encoding flags are the ones the column has always
+// held -- unescaped slashes and unicode, or every umlaut would silently triple in size.
+$ordinary = ['citymap_public_id' => 'ABC', 'links' => [['label' => 'Wiki', 'url' => 'https://example.org/a']]];
+$encoded = avesmapsEncodeReportPayloadJson($ordinary);
+assert(is_string($encoded) && json_decode($encoded, true) === $ordinary, 'an ordinary payload survives the round trip');
+assert(str_contains($encoded, 'https://example.org/a'), 'slashes stay unescaped');
+
+// 💣 The case the guard exists for, built the way the attack does: every value inside its own limit.
+// ⚠️ The two sizes mirror AVESMAPS_CITYMAP_LINK_LABEL_MAX (200 CHARACTERS) and
+// AVESMAPS_CITYMAP_URL_MAX (500 BYTES) -- written out rather than imported, because this file tests
+// the outcome library and must not drag the whole citymap library in to do it. Every value here is
+// INSIDE its own guard; that is the entire point.
+$controlLabel = str_repeat("\x01", 200);
+$controlUrl = 'https://e.org/' . str_repeat("\x01", 486);
+$fat = ['citymap_public_id' => 'ABC', 'links' => []];
+for ($i = 0; $i < 20; $i++) {
+    $fat['links'][] = ['label' => $controlLabel, 'url' => $controlUrl, 'is_paid' => null, 'sort_order' => $i];
+}
+$rawSize = strlen(json_encode($fat, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+assert($rawSize > 65535, "the fixture really does burst the column (got {$rawSize} bytes)");
+$threw = false;
+try {
+    avesmapsEncodeReportPayloadJson($fat);
+} catch (InvalidArgumentException) {
+    $threw = true;
+}
+assert($threw, 'a payload over the ceiling is REFUSED, not stored and truncated');
+
+// ⚠️ Refused, not shortened. Cutting it would store a link list the reporter never wrote, under
+// their name -- the same reasoning as every other length guard on this path.
+assert(
+    !str_contains(file_get_contents(__DIR__ . '/../report-outcome.php'), 'substr($json'),
+    'the guard never truncates the encoded payload'
+);
+
+// And the endpoint has to USE it -- a green library on top of an endpoint that still calls
+// json_encode by hand is exactly the shape this file was burned by once before.
+$endpointSource = file_get_contents(__DIR__ . '/../../../app/report-location.php');
+assert(
+    str_contains($endpointSource, "'payload_json' => avesmapsEncodeReportPayloadJson("),
+    'the endpoint encodes through the guard'
+);
+assert(
+    !preg_match('/payload_json[^\n]*\n[^\n]*json_encode\(/', $endpointSource),
+    'and no longer encodes that column by hand'
+);
+
 echo "report-outcome ok\n";

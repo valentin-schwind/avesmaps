@@ -121,3 +121,43 @@ function avesmapsReportFormatWaitPhrase(int $retryAfterSeconds): string {
 
     return $minutes === 1 ? 'einer Minute' : $minutes . ' Minuten';
 }
+
+// The TEXT column payload_json lives in holds 65.535 bytes. 60.000 leaves room rather than racing
+// the ceiling -- see avesmapsEncodeReportPayloadJson for what happens when a row arrives one byte
+// too large, which is either a 500 or a report nobody can ever approve or delete.
+const AVESMAPS_REPORT_PAYLOAD_JSON_MAX_BYTES = 60000;
+
+// Encode the citymap/fundort payload -- and refuse it when the ENCODED result would not fit the
+// column.
+//
+// 💣 THE ROW CAP IS NOT A SIZE CAP, and reading it as one is the mistake this function exists to
+// stop. AVESMAPS_CITYMAP_LINK_ROWS_MAX bounds how many rows arrive; it says nothing about how many
+// BYTES they encode to. The two length guards on a row measure different things and neither
+// measures this one: the label is checked with mb_strlen (CHARACTERS), the url with strlen (BYTES).
+// json_encode has to write every C0 control character as \u00XX -- six bytes for one -- and
+// neither trim() nor the \s+ collapse in avesmapsCitymapReportText removes \x01. Measured against
+// the shipped code: twenty rows, all within their limits, encode to 83.421 bytes.
+//
+// What that costs without this guard: payload_json is TEXT (65.535). In strict mode MySQL raises
+// 1406 and the reporter gets a 500 for a report that looked fine to them. Without strict mode it
+// is worse and silent -- the row is truncated, json_decode returns null when the review screen
+// opens it, and the approval answers "Zu welcher Karte gehoert der Fundort?" forever. The report
+// can then never be approved and never be removed, because map_reports has no delete path.
+//
+// ⚠️ The ceiling is the COLUMN's, minus room. A guard at exactly 65.535 would still hand the
+// database a row it has to reject at the byte after.
+function avesmapsEncodeReportPayloadJson(?array $payload): ?string {
+    if ($payload === null) {
+        return null;
+    }
+
+    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if (!is_string($json)) {
+        throw new InvalidArgumentException('Die Meldung konnte nicht gespeichert werden.');
+    }
+    if (strlen($json) > AVESMAPS_REPORT_PAYLOAD_JSON_MAX_BYTES) {
+        throw new InvalidArgumentException('Die Meldung ist zu gross. Bitte kuerzen.');
+    }
+
+    return $json;
+}
