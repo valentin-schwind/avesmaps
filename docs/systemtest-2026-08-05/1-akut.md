@@ -919,12 +919,52 @@ Ein Abbruch mitten im Lauf hinterlässt halbe Objekte. *Aufwand:* mittel.
 
 ## 7. Wo die Seite etwas zusagt, das sie nicht einhält
 
-### A22 · Bewertungen erscheinen sofort öffentlich, obwohl eine Prüfung zugesagt ist
+### 📐 A22 · Bewertungen erscheinen sofort öffentlich, obwohl eine Prüfung zugesagt ist
 Der Hinweistext verspricht eine redaktionelle Prüfung; die Bewertung ist unmittelbar für alle
 sichtbar. Während dieses Tests ist genau das passiert (die Testbewertung stand live und wurde
 entfernt). Es gibt außerdem keinen Weg, eine Bewertung zu melden.
 
 *Aufwand:* mittel.
+
+> **📐 Durchleuchtet, 06.08.2026 — nicht gebaut, weil die Reihenfolge der Entscheidung zählt.**
+>
+> **Der Satz, um den es geht** (`index.html:2236`, `legal.communityReports.body`):
+> „Community-Meldungen **und Bewertungen**. Von Nutzerinnen und Nutzern gemeldete Orte, Korrekturen
+> oder Ergänzungen werden **nicht automatisch veröffentlicht**. Sie werden **redaktionell geprüft**…"
+>
+> 💣 **Der Satz wirft zwei verschiedene Wege zusammen.** Für **Meldungen** stimmt er (sie gehen in den
+> Prüfbildschirm). Für **Bewertungen** stimmt er nicht — sie stehen sofort öffentlich. Falsch ist
+> genau das eine Wort „und Bewertungen" in der Überschrift.
+>
+> **Die Maschinerie ist vollständig — nachgeprüft, Zeile für Zeile:**
+>
+> | | |
+> |---|---|
+> | Spalten `is_hidden` / `is_spam` | **vorhanden** (`api/_internal/reviews.php:30-31`) |
+> | öffentlicher Lesepfad filtert sie | **ja**, `AND is_hidden = 0 AND is_spam = 0` (`:111`, `:128`) |
+> | `hide` / `unhide` / `delete` | **vorhanden** (`api/edit/reviews.php:101-107`) |
+> | globale Warteschlange am Endpunkt | **vorhanden** — ohne `location` liefert er alle 300, **samt versteckten**, mit Ortsnamen |
+> | Oberfläche, die sie ruft | **keine** — der einzige Abruf reicht immer `?location=…` mit |
+>
+> 💣 **Und daraus folgt die Falle, die vor der Entscheidung stehen muss:** die Vorgabe auf „versteckt"
+> zu setzen wäre **heute ein Beerdigen**. Eine neue Bewertung wäre für die Öffentlichkeit weg *und*
+> für Bearbeiter unsichtbar — die Moderation hängt im **Infopanel je Ort**, nicht in einem
+> Editor-Reiter (die vier heissen `changes`, `presence`, `review` = *Meldungen*, `wiki-sync`).
+> Niemand sähe sie je wieder, ausser er öffnet zufällig genau diesen Ort.
+>
+> 🔧 **DU: erst die Richtung, dann baue ich.** Zwei Wege, und der zweite hat eine Vorbedingung:
+> **(a) Den Satz trennen** — „Meldungen werden geprüft; Bewertungen erscheinen sofort und können
+> entfernt werden." Billig, sofort wahr, ändert nichts am Produkt. **Rechtstext, also deiner.**
+> **(b) Vorab-Moderation** (`is_hidden` Vorgabe 1). Löst die Zusage ein, **braucht aber zuerst eine
+> Warteschlange in der Oberfläche** — sonst siehe oben. Der Endpunkt kann es bereits; es fehlt nur
+> ein fünfter Editor-Reiter, der ihn ohne `location` ruft.
+>
+> ⚠️ Ich baue die Warteschlange **nicht auf Verdacht**: fällt die Wahl auf (a), wird sie nicht
+> gebraucht. Deshalb steht hier ein Entwurf und kein Commit.
+>
+> ⚠️ Der zweite Teil des Befundes — „**keinen Weg, eine Bewertung zu melden**" — bleibt offen und ist
+> ebenfalls eine Produktfrage: ein Meldeknopf braucht ein Ziel (wohin geht die Meldung?) und eine
+> Regel (was passiert mit der Bewertung in der Zwischenzeit?).
 
 ### ◐ A23 · Der Besucher-Hash-Salt steht im Quelltext und ist technisch nicht überschreibbar
 Die Datenschutzerklärung sagt, die Besucherkennung sei nicht rückführbar. Mit einem bekannten
