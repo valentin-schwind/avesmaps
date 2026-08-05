@@ -614,60 +614,46 @@ während ein um drei Pixel verschobenes Label sauber protokolliert wird.
 
 *Beleg:* gegen Zeitstempel nachgezählt. *Aufwand:* groß.
 
-### ✅ A17 · Ein frisch angelegtes Abenteuer fehlt in der Liste des Editors, der es angelegt hat
+### ⚠️ A17 · Ein frisch angelegtes Abenteuer fehlt in der Liste des Editors, der es angelegt hat
+### ⚠️ A18 · Editorfenster stapeln sich als lebende iframes
+**BEIDE OFFEN — ein gemeinsamer Reparaturversuch wurde zurückgenommen.**
 
-> **✅ Erledigt `54aa6907`, 05.08.2026 — gemeinsam mit A18, weil es eine einzige Gewohnheit ist.**
-> Eine Editor-Überlagerung trägt einen iframe, und das Schließen setzte nur `hidden = true`. Beim
-> Wiederöffnen wurde **dieselbe Seiteninstanz** mit ihrer alten Liste eingeblendet. Jetzt wird sie
-> **entfernt**, das nächste Öffnen baut einen frischen iframe — und der lädt seine Liste ohnehin selbst.
->
-> 💣 **Der Code wusste es.** In `review-settlement-list.js` steht wörtlich: „The overlay is HIDDEN,
-> not destroyed, on close (like its two siblings) — so a re-open reuses a live iframe whose list is as
-> old as the first open. **The adventure editor lives with that.**" A17 ist, wie „damit leben" von
-> außen aussieht. Der Kartensammlungs-Editor hatte sich mit einem Refresh bei jedem Öffnen beholfen;
-> diese Notlösung ist jetzt überflüssig statt tragend.
->
-> ⚠️ Und `?v=" + Date.now()` im iframe-Pfad sah nach Cache-Bust aus und war einer — **nur beim
-> allerersten Öffnen**, weil jedes spätere gar keinen iframe mehr baute.
-Die Oberfläche zeigt „0 von 1352", der Endpunkt liefert 1353. Erst ein vollständiger
-Seitenneuaufbau bringt den Eintrag. Das Formular sagt „Erst speichern, dann Orte zuordnen" —
-genau das ist damit unmöglich.
+Die Ursache ist gemeinsam und steht fest: eine Editor-Überlagerung trägt einen iframe, und das
+Schließen setzt nur `hidden = true`. Beim Wiederöffnen wird **dieselbe Seiteninstanz** mit ihrer
+alten Liste eingeblendet (A17), und geschlossene Editoren laufen unsichtbar weiter (A18). Der Code
+sagt es selbst: „The overlay is HIDDEN, not destroyed, on close … **The adventure editor lives with
+that.**"
 
-*Aufwand:* klein.
-
-### ✅ A18 · Editorfenster stapeln sich als lebende iframes
-
-> **✅ Erledigt `54aa6907`, 05.08.2026** (siehe A17 — dieselbe Ursache). **Sieben Wirte** umgestellt:
-> Landschaften, Wege, Kraftlinien, Siedlungen, Abenteuer, Kartensammlung, Sync.
+> 💣 **`54aa6907` machte daraus einen Datenverlust und ist zurückgenommen (`28f98f5a`).**
+> Der Versuch räumte die Überlagerung beim Schließen ab. Alle **sieben** schließen aber bei einem
+> Klick auf den **Hintergrund**, ohne Rückfrage — und die iframes treiben mehrschrittige Jobs vom
+> Client aus. Das Entfernen verwirft ihr Dokument und bricht ihre Abrufe mitten in der Schleife ab:
 >
-> **Live gemessen** gegen den ausgelieferten Code (`?edit=1`):
->
-> | Schritt | Ergebnis |
+> | Job | Was ein Abbruch hinterlässt |
 > |---|---|
-> | vorher | kein Overlay, **0** iframes |
-> | Editor geöffnet | Overlay + **1** iframe, `overflow: hidden` |
-> | geschlossen | **Overlay entfernt, 0 iframes**, Scroll-Sperre freigegeben |
-> | wieder geöffnet | **frischer** iframe, nicht derselbe Knoten |
-> | am Ende | **0** iframes |
+> | „Zugehörigkeit rechnen" | Zeilen geschrieben, `assignment_commit` nie erreicht — der Lauf zählt als nicht gerechnet |
+> | „Syncen" | Staging halb geleert, bis zu 4.000 Schritte, Modellneubau läuft nie |
+> | Kraftlinie löschen | Linie mit teils gelöschten, teils lebenden Abschnitten — kaputte Routing-Topologie |
+> | Karte/Abenteuer speichern | Datensatz gespeichert, `set_links` fehlt |
 >
-> ⚠️ **Drei Überlagerungen bleiben absichtlich beim Ausblenden**: die Zugangsdaten-Abfrage und die
-> zwei Regionen-Dialoge tragen keinen iframe. Für einen schlichten Dialog ist Ausblenden richtig, und
-> der Test sichert ausdrücklich, dass ein pauschales Suchen-und-Ersetzen die beiden Arten nicht
-> vermengt.
+> **Vorher lief der Job zu Ende** und das Wiederöffnen zeigte das fertige Ergebnis. „Läuft im
+> Verborgenen weiter" war **tragend**, und ich habe es ohne Riegel, ohne Rückfrage und ohne einen
+> Weg für den iframe, zu widersprechen, entfernt: `busy()` sperrt nur Knöpfe **innerhalb** des
+> Rahmens, das ✕ und der Hintergrund gehören dem Elternfenster.
 >
-> ⚠️ **Nicht erfasst: der politische Territorien-Editor.** Er lädt seine Oberfläche **inline** statt
-> per iframe (daher der `ASSET_VERSION`-Mechanismus, AGENTS.md §7) und liegt in `js/territory/`, das
-> dieser Commit nicht anfasst. In der Live-Probe war seine Hülle leer (636 Bytes, nur der
-> Schließen-Knopf) und der Inline-Host nie geladen — ob er im verborgenen Zustand Daten und Timer
-> hält, sobald er einmal offen war, ist damit **nicht** beantwortet.
->
-> Der Test läuft über das **Verzeichnis**, nicht über eine Dateiliste: ein Editor, der morgen
-> dazukommt, ist mit abgedeckt, ohne dass sich jemand an diesen Commit erinnern muss.
-Jeder geöffnete Editor bleibt liegen. Schließt man den neuen, taucht der alte in seinem alten
-Zustand wieder auf. Am Ende des Testlaufs: **drei tote Editoren bei null sichtbaren Fenstern** —
-jeder mit eigenem Zustand, eigenen Timern und eigenen Anfragen an den Server.
+> Zwei weitere Funde derselben Prüfung: das Anwesenheits-System **erfährt vom Schließen nichts**
+> (es beobachtet das `hidden`-Attribut und hinzugefügte Knoten — ein `remove()` ist keines von
+> beidem), und der Wiederverwendungs-Zweig war **nicht tot**: `wiki-sync-monitor.html` blendet die
+> Sync-Überlagerung selbst aus, ohne `closeOverlay` zu rufen — auf genau diesem Weg blieben A17 und
+> A18 unrepariert.
 
-*Aufwand:* mittel.
+🔧 **DU: die Bauform ist eine Abwägung.** Die sichere Hälfte macht `review-path-editor-list.js`
+bereits vor: **ausblenden lassen und den iframe beim WIEDERÖFFNEN neu laden** — ein bewusster
+Handgriff, kein Fehlklick. Das behebt A17, aber **nicht** A18: ein verborgener Editor fragt weiter
+den Server ab. Abräumen beim Schließen behebt beides, verlangt aber, dass der Rahmen vorher gefragt
+wird — und der Hintergrundklick darf in keinem Fall ein stiller Zerstörer bleiben.
+
+*Aufwand:* A17 klein, A18 mittel.
 
 ---
 
