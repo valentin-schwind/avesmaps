@@ -941,22 +941,6 @@ function avesmapsNextEcosystemRevision(PDO $pdo): int
     return (int) $revision;
 }
 
-// Die Revision, OHNE sich auf das DDL zu verlassen: `null`, wenn es die Tabelle noch nicht gibt.
-//
-// 💣 avesmapsReadEcosystemRevision selbst wirft dann. PDO laeuft mit ERRMODE_EXCEPTION, und
-// `SELECT ... FROM ecosystem_revision` auf einer frischen Installation ist kein `false`, sondern
-// eine PDOException. Dieser Zwilling existiert, damit der Lesepfad seinen ETag bilden kann,
-// BEVOR die 64 Anweisungen von avesmapsEcosystemEnsureTables laufen -- und damit eine
-// Neuinstallation trotzdem sauber in den vollen Weg faellt, der die Tabellen anlegt.
-function avesmapsEcosystemReadRevisionIfPresent(PDO $pdo): ?int
-{
-    try {
-        return avesmapsReadEcosystemRevision($pdo);
-    } catch (Throwable) {
-        return null;
-    }
-}
-
 function avesmapsReadEcosystemRevision(PDO $pdo): int
 {
     $statement = $pdo->query('SELECT revision FROM ecosystem_revision WHERE id = 1');

@@ -79,41 +79,18 @@ try {
     // ⚠️ `ecosystem_enabled` bleibt im Umschlag und ist ab jetzt konstant true -- gleiche Payload-Form,
     // also keine Version zu heben und kein warmer Client, der ueber ein fehlendes Feld stolpert.
 
-    // 💣 ERST die bedingte Antwort, DANN das DDL. avesmapsEcosystemEnsureTables fuehrt 64
-    // Anweisungen aus -- 13 CREATE TABLE, 16 information_schema-Proben, 34 INSERT IGNORE -- und
-    // stand bisher VOR der 304-Pruefung: ein Client mit gueltigem ETag zahlte sie vollstaendig,
-    // um danach eine leere Antwort zu bekommen (Befund A19).
-    //
-    // Warum das Ueberspringen sicher ist: ein 304 heisst, der Client hat bereits eine Antwort zu
-    // dieser Revision UND dieser Payload-Version. Die Tabellen mussten existieren, als sie
-    // entstand. Und da hier keine Antwort gebaut wird, wird auch keine nachgeruestete Spalte
-    // gebraucht -- die naechste Anfrage, die wirklich eine Antwort baut, laeuft ueber den vollen
-    // Weg unten. Eine Formaenderung ohne Revisionswechsel deckt weiterhin
-    // AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION ab, wofuer es sie gibt.
-    //
-    // ⚠️ Auf einer frischen Installation gibt es ecosystem_revision noch nicht. Dann liefert der
-    // defensive Leser null, der bedingte Zweig entfaellt ganz, und der volle Weg legt alles an.
-    $revision = avesmapsEcosystemReadRevisionIfPresent($pdo);
-    if ($revision !== null) {
-        $etag = avesmapsEcosystemAreasETag($revision, $_GET);
-        header('ETag: ' . $etag);
-        header('Cache-Control: no-cache, must-revalidate');
-        $ifNoneMatch = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
-        if ($ifNoneMatch !== '' && avesmapsEcosystemETagMatches($ifNoneMatch, $etag)) {
-            http_response_code(304);
-            exit;
-        }
-    }
-
-    // Self-healing DDL, the project idiom -- jetzt nur noch auf dem Weg, der wirklich eine
-    // Antwort baut. Die Reihenfolge INNERHALB der Funktion bleibt unangetastet; sie ist dort
-    // ausdruecklich als tragend markiert.
+    // Self-healing DDL, the project idiom.
     avesmapsEcosystemEnsureTables($pdo);
 
-    if ($revision === null) {
-        $revision = avesmapsReadEcosystemRevision($pdo);
-        header('ETag: ' . avesmapsEcosystemAreasETag($revision, $_GET));
-        header('Cache-Control: no-cache, must-revalidate');
+    $revision = avesmapsReadEcosystemRevision($pdo);
+
+    $etag = avesmapsEcosystemAreasETag($revision, $_GET);
+    header('ETag: ' . $etag);
+    header('Cache-Control: no-cache, must-revalidate');
+    $ifNoneMatch = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
+    if ($ifNoneMatch !== '' && avesmapsEcosystemETagMatches($ifNoneMatch, $etag)) {
+        http_response_code(304);
+        exit;
     }
 
     $bbox = avesmapsEcosystemParseBoundingBox((string) ($_GET['bbox'] ?? ''));
