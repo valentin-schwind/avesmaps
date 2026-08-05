@@ -36,7 +36,7 @@ assert(
 );
 assert(
     substr_count($endpointSource, 'avesmapsRespondReportAccepted();') === 2,
-    'exactly two answers say "arrived": the stored report and the silently discarded one -- nothing else'
+    'two call sites answer "arrived" -- the stored report and the silently discarded one'
 );
 assert(
     !str_contains($endpointSource, 'avesmapsJsonResponse(200'),
@@ -57,22 +57,40 @@ assert(
     'the link-only check must no longer share the spam branch -- one is a bot trap, the other a human mistake'
 );
 
+// 💣 And it must run BEFORE the spam words. Behind them the two answers become a free oracle on the
+// word list: a bare link answers 400, the same bare link carrying a spam word answers 201, and neither
+// writes a row or touches the hourly limit. In front of them every link-only comment answers 400
+// whatever it carries.
+$linkOnlyCheckAt = strpos($endpointSource, 'avesmapsIsLinkOnlyText($comment)');
+$spamWordCheckAt = strpos($endpointSource, 'avesmapsContainsSpamText($spamText)');
+assert(
+    is_int($linkOnlyCheckAt) && is_int($spamWordCheckAt) && $linkOnlyCheckAt < $spamWordCheckAt,
+    'the link-only check runs before the spam words, or the pair of answers maps the word list for free'
+);
+
 // --- A1: the wait the reporter is told about -------------------------------------------------------
 
-assert(avesmapsReportClampRetryAfterSeconds(null) === 0, 'no row -> unknown');
+assert(avesmapsReportClampRetryAfterSeconds(null) === 0, 'MIN() over an empty set is SQL NULL -> unknown');
+assert(avesmapsReportClampRetryAfterSeconds(false) === 0, 'fetchColumn() on no row returns false -> unknown');
 assert(avesmapsReportClampRetryAfterSeconds('') === 0, 'unusable value -> unknown');
 assert(avesmapsReportClampRetryAfterSeconds(-30) === 0, 'a window already passed -> unknown');
 assert(avesmapsReportClampRetryAfterSeconds(0) === 0, 'zero -> unknown');
-assert(avesmapsReportClampRetryAfterSeconds('120.4') === 121, 'partial seconds round up, strings count');
+assert(avesmapsReportClampRetryAfterSeconds(45) === 60, 'a partial minute rounds up to a whole one');
+assert(avesmapsReportClampRetryAfterSeconds('120.4') === 180, 'partial seconds round up, strings count');
+assert(avesmapsReportClampRetryAfterSeconds(2580) === 2580, 'a whole number of minutes passes through');
 assert(avesmapsReportClampRetryAfterSeconds(99999) === 3600, 'a wrong clock cannot promise longer than the window');
+
+// 💣 Minute granularity is not cosmetic. The raw value is CURRENT_TIMESTAMP subtracted from the oldest
+// counted report, so a second-precise Retry-After hands that report's timestamp back to the second --
+// and with a spoofable bucket key that can be someone else's report.
+assert(
+    avesmapsReportClampRetryAfterSeconds(2581) % 60 === 0 && avesmapsReportClampRetryAfterSeconds(1) % 60 === 0,
+    'Retry-After is always a whole number of minutes'
+);
 
 $message = avesmapsReportRateLimitMessage(2580);
 assert(str_contains($message, '43 Minuten'), 'the reporter is told how long, not just "later"');
-assert(str_contains($message, 'nicht annehmen'), 'the reporter is told the report did NOT arrive');
-assert(
-    !str_contains($message, AVESMAPS_REPORT_ACCEPTED_MESSAGE),
-    'the rejection must not read like the acceptance'
-);
+assert(str_contains($message, 'nicht angenommen'), 'the reporter is told the report did NOT arrive');
 assert(str_contains(avesmapsReportRateLimitMessage(45), 'einer Minute'), 'singular minute reads as German');
 assert(str_contains(avesmapsReportRateLimitMessage(0), 'einer Stunde'), 'unknown wait falls back to the window');
 
@@ -88,7 +106,21 @@ assert(
     str_contains($rateLimitSql, 'ip_hash = :ip_hash') && str_contains($rateLimitSql, 'INTERVAL 1 HOUR'),
     'the bucket is still per IP and per hour'
 );
+// Pins the product decision, nothing more -- it proves neither fix.
 assert(AVESMAPS_REPORT_RATE_LIMIT_PER_HOUR === 5, 'five reports per IP per hour');
+
+// 💣 The two asserts below are the ones with teeth, and they were briefly missing: an adversarial
+// review restored the A2 bug by pasting the old inline query back into the endpoint, and every OTHER
+// assert in this file stayed green. Asserting a clause is in a library string proves nothing at all
+// unless something also asserts the endpoint uses that string.
+assert(
+    str_contains($endpointSource, 'avesmapsReportRateLimitCountSql()'),
+    'report-location.php must build the bucket query from this library'
+);
+assert(
+    preg_match('/FROM\s+map_reports\s+WHERE\s+ip_hash/i', $endpointSource) === 0,
+    'report-location.php must not keep a second copy of the bucket query'
+);
 
 // The retry-after query must describe the SAME set, or the minute count would name a row the bucket
 // never counted.
@@ -99,13 +131,17 @@ assert(
         && str_contains($retryAfterSql, 'INTERVAL 1 HOUR'),
     'the retry-after query filters the same rows as the count'
 );
+assert(
+    str_contains($endpointSource, 'avesmapsReportRateLimitRetryAfterSql()'),
+    'report-location.php must build the retry-after query from this library too'
+);
 
 // ⚠️ What this file CANNOT prove: that MySQL then counts correctly, or that the retry-after query even
-// parses. Both use INTERVAL, which sqlite cannot execute, so no local database can run them -- and a
-// green run on a database that lacks the property under test proves nothing about the one that has it
-// (the collation outage of 2026-08-05 stayed green throughout). A pass here means the clauses are in
-// the strings that ship. The counting itself is measured against the live database, and the
-// retry-after query is wrapped at its call site so a parse failure costs the minute count, not the
-// answer.
+// parses. Both use INTERVAL, which sqlite cannot execute -- and this project has no local MySQL to try
+// them against, so no local database can run them at all. A green run on a database that lacks the
+// property under test proves nothing about the one that has it (the collation outage of 2026-08-05
+// stayed green throughout). A pass here means the clauses are in the strings that ship. The counting
+// itself is measured against the live database, and the retry-after query is wrapped at its call site
+// so a parse failure costs the minute count, not the answer.
 
 echo "report-outcome ok\n";

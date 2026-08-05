@@ -24,6 +24,16 @@ const AVESMAPS_REPORT_ACCEPTED_MESSAGE = 'Karteneintrag wurde gemeldet.';
 // walks into (the hourly limit, an explanation made of nothing but a link) get a real error that the
 // form shows without clearing what was typed.
 //
+// ⚠️ This closes the status-code tell and ONLY that. Read no further than that: two older channels
+// still separate a discard from a store, and neither is this function's to fix.
+//   * The 409 duplicate-name answer sits BEFORE the filters in the flow (report-location.php:94
+//     against :88). Probing with a name that exists answers 409 when nothing was filtered and 201
+//     when something was -- one request per property, no row, and the hourly limit never sees it.
+//   * The silent path returns before avesmapsCreatePdo(), so it answers in a fraction of the time a
+//     stored report takes (9 metadata queries plus two full table scans).
+// So: a bot learns nothing FROM THE STATUS CODE. It is not blind. Saying otherwise here would be the
+// kind of confident, wrong sentence this project's own system test went looking for.
+//
 // @return array{0: int, 1: array{ok: bool, message: string}}
 function avesmapsReportAcceptedResponse(): array {
     return [
@@ -70,6 +80,10 @@ function avesmapsReportRateLimitRetryAfterSql(): string {
 
 // 0 means "unknown" -- no row, an unusable value, or a window that has already passed. Everything else
 // is capped at the window, so a wrong clock cannot promise a wait longer than the limit itself lasts.
+//
+// ⚠️ Rounded UP to a whole minute on purpose. The raw value is CURRENT_TIMESTAMP subtracted from the
+// oldest counted report, so a second-precise answer hands the caller that report's timestamp back to
+// the second. The reader is told minutes anyway, so the precision bought nothing and told something.
 function avesmapsReportClampRetryAfterSeconds(mixed $rawSeconds): int {
     if (!is_numeric($rawSeconds)) {
         return 0;
@@ -80,7 +94,7 @@ function avesmapsReportClampRetryAfterSeconds(mixed $rawSeconds): int {
         return 0;
     }
 
-    return min($seconds, AVESMAPS_REPORT_RATE_LIMIT_WINDOW_SECONDS);
+    return min((int) ceil($seconds / 60) * 60, AVESMAPS_REPORT_RATE_LIMIT_WINDOW_SECONDS);
 }
 
 // The sentence a rate-limited reporter reads. It has one job the old silent 200 could not do: say
@@ -90,11 +104,16 @@ function avesmapsReportRateLimitMessage(int $retryAfterSeconds): string {
         ? 'einer Stunde'
         : avesmapsReportFormatWaitPhrase($retryAfterSeconds);
 
-    return 'Aus diesem Netz wurden in der letzten Stunde schon '
+    // ⚠️ "Von dieser Verbindung aus", not "from this address" and not "from this network": the bucket
+    // keys on one hashed address, but behind a shared NAT that address is a whole household or campus,
+    // so naming either mechanism would be wrong for half the readers. And it names the LIMIT, never a
+    // count -- the check is >= 5, so the actual number of reports may be higher.
+    return 'Von dieser Verbindung aus sind '
         . AVESMAPS_REPORT_RATE_LIMIT_PER_HOUR
-        . ' Meldungen gesendet, deshalb konnten wir diese hier nicht annehmen. Bitte in '
+        . ' Meldungen pro Stunde moeglich, und die sind gerade aufgebraucht. Diese Meldung wurde deshalb'
+        . ' nicht angenommen. Bitte in '
         . $wait
-        . ' noch einmal senden - die Meldung bleibt so lange im Formular stehen.';
+        . ' noch einmal senden - der Text bleibt so lange im Formular stehen.';
 }
 
 function avesmapsReportFormatWaitPhrase(int $retryAfterSeconds): string {

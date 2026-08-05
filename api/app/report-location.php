@@ -328,17 +328,24 @@ function avesmapsValidateMapReport(array $payload): array {
         array_map(static fn(array $l): string => $l['label'] . ' ' . $l['url'], $citymapLinkReport['links'])
     ));
     $spamText = implode(' ', [$name, $sourceSpamText, $wikiUrl, $comment, $citymapSpamText, $citymapLinkSpamText, (string) ($payload['reporter_name'] ?? '')]);
-    if (avesmapsContainsSpamText($spamText)) {
-        return [
-            'is_spam' => true,
-        ];
-    }
     // An explanation made of nothing but a link is the one filter here a HUMAN walks into -- attaching
     // the wiki article as the evidence is the obvious thing to do. Until 2026-08-05 it landed in the
     // silent bin with the bots, and the reporter was told the map entry had been reported. It is a
     // validation rule, so it answers like one: 400, and the form keeps what was typed.
+    //
+    // 💣 It runs BEFORE the spam words, and the order is the whole point. Behind them, the two answers
+    // become a free oracle on the word list: a bare link comes back 400, the same bare link carrying a
+    // spam word comes back 201, neither writes a row and neither touches the hourly limit -- so a
+    // spammer tunes the payload against the live filter until it stops saying 400. In front of them,
+    // every link-only comment answers 400 whatever it contains, and nothing is given away. Filtering
+    // loses nothing by it: a link-only comment was never stored either way.
     if (avesmapsIsLinkOnlyText($comment)) {
         throw new InvalidArgumentException('Bitte zur Meldung noch einen Satz schreiben, nicht nur einen Link.');
+    }
+    if (avesmapsContainsSpamText($spamText)) {
+        return [
+            'is_spam' => true,
+        ];
     }
 
     return [

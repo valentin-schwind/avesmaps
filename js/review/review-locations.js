@@ -201,7 +201,8 @@ function syncLocationReportTypeFields() {
 	}
 	if (sizeSelectElement) {
 		sizeSelectElement.required = isLocationReport;
-		sizeSelectElement.disabled = !isLocationReport;
+		// Kontext-Sperre, kein Absende-Zustand: sie muss einen Fehlschlag überleben (review-pending.js).
+		setFieldContextLocked(sizeSelectElement, !isLocationReport);
 		if (!isLocationReport) {
 			sizeSelectElement.value = "dorf";
 		}
@@ -370,10 +371,13 @@ function applyChangeSuggestionContext(ctx) {
 	document.getElementById("location-report-entity-type").value = ctx.entityType || "";
 	document.getElementById("location-report-entity-id").value = ctx.entityId || "";
 
-	// Category locked + preselected.
+	// Category locked + preselected. 💣 Locked because the report already names a concrete element via
+	// entity_type/entity_public_id -- a category that disagrees with it produces a change report the
+	// review dispatch routes to the wrong editor. The lock must therefore outlive a failed submit,
+	// which is what setFieldContextLocked marks (review-pending.js).
 	if (typeSelect) {
 		typeSelect.value = reportType;
-		typeSelect.disabled = true;
+		setFieldContextLocked(typeSelect, true);
 	}
 
 	// Name prefilled but EDITABLE: users may propose a corrected spelling (owner: name changes are allowed,
@@ -462,7 +466,7 @@ function clearChangeSuggestionMode() {
 	const typeSelect = document.getElementById("location-report-type");
 	const nameInput = document.getElementById("location-report-name");
 	const commentField = document.getElementById("location-report-comment");
-	if (typeSelect) typeSelect.disabled = false;
+	if (typeSelect) setFieldContextLocked(typeSelect, false);
 	if (nameInput) nameInput.readOnly = false;
 	const modeEl = document.getElementById("location-report-mode");
 	if (modeEl) modeEl.value = "new";
