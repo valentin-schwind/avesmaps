@@ -1125,12 +1125,51 @@ Rechteinhaber, der Kontakt sucht, praktisch nicht auffindbar.
 >    indexierbare URL mit deinen Betreiberdaten eine Veröffentlichungsentscheidung ist. **Die treffe
 >    ich nicht.** Sag Bescheid, dann baue ich sie.
 
-### A25 · Das vollständige Kartenmaterial ist als Archiv verlinkt
+### 📐 A25 · Das vollständige Kartenmaterial ist als Archiv verlinkt
 **1,86 GB PNG plus 169 MB Kacheln.** Das steht in Spannung zur eigenen Fanregel-Zusage in
 `NOTICE.md`, keine Bereitstellung „als reines Bilderarchiv" zu betreiben. Es ist der Punkt, an
 dem das Projekt am ehesten angreifbar ist.
 
 *Aufwand:* klein (Verlinkung), die Entscheidung gehört dem Owner.
+
+> **📐 Fakten festgemacht, 06.08.2026 — hier ist nichts zu bauen, nur zu entscheiden.**
+>
+> **Die zwei Links** stehen in `index.html:2223`, im Absatz „Kartenmaterial" des Abschnitts
+> Urheberrecht — also ausgerechnet in dem Text, der die Fanregel-Bindung erklärt:
+> `uploads/map/avesmaps_aventurien_tiles_v2.05.zip` und `uploads/map/avesmaps_aventurien_v2.05.zip`.
+>
+> **Die Zusage** steht in `NOTICE.md:71` („keine Bereitstellung als reines Bilder- oder Textarchiv")
+> und `:90` („nicht als allgemeines Materialarchiv für DSA-Inhalte").
+>
+> ⚠️ **Die Zahlen des Befundes waren leicht daneben** — selbst gemessen, mit `HEAD`, ohne die Dateien
+> zu laden:
+>
+> | | Befund | gemessen |
+> |---|---|---|
+> | Kacheln | 169 MB | **161 MB** |
+> | ganze Karte (PNG) | 1,86 GB | **1,73 GB** (1.770 MB) |
+> | zusammen | | **1,89 GB** |
+>
+> Beide antworten **HTTP 200 ohne jeden Riegel** — kein Login, keine Fähigkeit, kein Verweis-Schutz.
+>
+> ⚖️ **Die Spannung ist echt, aber nicht eindeutig, und genau deshalb gehört sie dir:** die Zusage
+> sagt „**reines** Bilderarchiv". Avesmaps ist eine interaktive Karte, die *zusätzlich* einen Download
+> anbietet — ob das „rein" ist, ist eine Auslegung deiner eigenen Zusage und der Ulisses-Richtlinie,
+> keine technische Frage. Ich lege sie nicht aus.
+>
+> 🔧 **DU: vier Wege, aufsteigend nach Aufwand.**
+> **(a) Links entfernen** — löst die Spannung ganz, kostet zwei Zeilen in `index.html`. Der Text
+> darum herum muss mit (er kündigt den Download an).
+> **(b) Hinter die Anmeldung legen** — das Material bleibt für Mitwirkende erreichbar, nicht für die
+> Welt. Braucht einen Riegel vor `uploads/map/` (heute liefert der Server sie direkt aus).
+> **(c) Zusage in `NOTICE.md` umformulieren** — billig, aber es lockert eine Selbstbindung gegenüber
+> Ulisses, und das ist die Richtung, in die man am wenigsten aus Bequemlichkeit gehen sollte.
+> **(d) So lassen** und das Risiko bewusst tragen.
+>
+> ⚠️ Bei (b) ist eine Sache technisch zu wissen: `uploads/` ist laut AGENTS.md §10 **auf dem Server
+> tragend und geschützt** — dort liegen auch Wappen und Karten-Vorschauen, die die öffentliche Karte
+> braucht. Ein Riegel darf nur `uploads/map/` treffen, nicht `uploads/` als Ganzes, sonst fehlen der
+> Karte ihre Bilder.
 
 ---
 
