@@ -861,11 +861,36 @@ verschluckt einen „Unknown column" mit `catch (Throwable) { return ''; }`.
 nachgerüstet, die `UPDATE`s trafen also Zeilen. Der Fehler wartet auf die nächste frische
 Installation, ein wiederhergestelltes Backup in eine leere Datenbank oder eine Entwicklungsumgebung.
 
-💡 Die richtige Reihenfolge steht schon halb im Code: Zeile 405 trägt den Kommentar „💣 DAS
-NACHTRAGEN MUSS HIER STEHEN — **VOR** `avesmapsEcosystemSeedRegionTypes()`". Das gilt fürs Anlegen
-der **Spalte**. Die **Werte** müssen umgekehrt danach kommen: ALTER → Saat → Startwerte.
+💣 **Der naheliegende Fix ist falsch, und das ist der eigentliche Wert dieses Eintrags.** „Die Saat
+einfach nach vorn ziehen" bricht etwas anderes: der `south_type_key`-Nachtrag (`:402`) liest
+unmittelbar davor die Vokabeltabelle und ordnet zu, welche Klimagrenze zu welcher Zone gehört —
+„Linie k gehört zu Zone k+1". Läuft die Saat vorher, kennt die Tabelle eine neu eingefügte Zone
+bereits, und **jede Grenze unterhalb der Einschubstelle bekommt den falschen Schlüssel**. Der
+Kommentar dort verbietet es wörtlich: „💣 DAS NACHTRAGEN MUSS HIER STEHEN — **VOR**
+`avesmapsEcosystemSeedRegionTypes()`."
 
-*Beleg:* Reihenfolge und Wächter gelesen, beim Gegenprüfen von A19 gefunden. *Aufwand:* klein.
+**Drei Bedingungen, die in verschiedene Richtungen ziehen** — wer A35 anfasst, muss alle drei halten:
+
+1. Die **Saat** muss **nach** dem `south_type_key`-Nachtrag laufen (sonst verschiebt sich die
+   Zuordnung der Klimagrenzen um eine Stelle).
+2. Die **Startwerte** müssen **nach** der Saat laufen (sonst treffen sie null Zeilen — dieser Befund).
+3. Die Startwerte müssen **genau einmal** laufen, im Lauf, der die Spalte anlegt. Der Kommentar bei
+   `:815` sagt warum: „a shared ‚was anything new?' flag would re-run the terrain seed and **silently
+   reset every value the owner has adjusted since**" — es sind **Datenzeilen**, die der Owner in der
+   Datenbank verstellt.
+
+Daraus folgt die einzige zulässige Form: **Nachtrag → Saat → Startwerte**, wobei die vier
+Startwert-Blöcke (`terrain_grain`, `terrain_mean_height`, `affects_paths`, `offroad_factor`) hinter
+die Saat wandern und ihre „gerade erst angelegt"-Wächter als Merker mitnehmen. Bei `affects_paths`
+und `offroad_factor` stecken ALTER und `UPDATE` heute im **selben** `if` und müssen dafür getrennt
+werden.
+
+⚠️ **Auf avesmaps.de ändert der Fix nichts** — dort ist die Tabelle gefüllt, beide Reihenfolgen
+verhalten sich identisch, und die Wächter feuern ohnehin nicht mehr. Das macht ihn ungefährlich,
+aber auch unprüfbar: belegen lässt er sich nur gegen eine frische Datenbank.
+
+*Beleg:* Reihenfolge, Wächter und beide 💣-Kommentare gelesen; gefunden beim Gegenprüfen von A19.
+*Aufwand:* klein in Zeilen, aber drei gegenläufige Bedingungen — nicht nebenbei.
 
 ### A34 · Kein PHP-Endpunkt liefert je einen ETag aus — der ganze 304-Mechanismus ist tot
 `.htaccess:28` gegen `api/app/map-features.php:131`
