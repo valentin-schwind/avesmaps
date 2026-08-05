@@ -9,7 +9,7 @@ die rechtliche Situation.
 
 | Bericht | Inhalt | Umfang |
 |---|---|---|
-| **[1 — AKUT](1-akut.md)** | kaputt, falsch oder riskant. Muss behoben werden. | 27 Befunde |
+| **[1 — AKUT](1-akut.md)** | kaputt, falsch oder riskant. Muss behoben werden. | 28 Befunde |
 | **[2 — KANN](2-kann.md)** | Refactoring, toter Code, Konsistenz, Maschinenlesbarkeit | 169 Befunde |
 | **[3 — ZUKUNFT](3-zukunft.md)** | Features und Komfort, die niemand vermisst, aber alle wollen | 14 Befunde |
 
@@ -41,7 +41,7 @@ auf KANN abgestuft, 2 widerlegt, 4 waren Doppelungen. Die Berichte enthalten nur
 Durchgang überstanden hat. Die Urteile im Einzelnen: [V1](befunde/V1-widerlegung-technik.md),
 [V2](befunde/V2-widerlegung-nutzer.md).
 
-**Belegt statt behauptet.** 208 von 216 Befunden tragen einen eigenen Beleg — eine Fundstelle
+**Belegt statt behauptet.** 209 von 217 Befunden tragen einen eigenen Beleg — eine Fundstelle
 mit Zeilennummer, eine Grep-Abfrage mit Trefferzahl, eine nachgerechnete Zahl oder eine
 reproduzierte Bedienung. Die 8 nur hergeleiteten sind als solche gekennzeichnet.
 
@@ -50,19 +50,28 @@ reproduzierte Bedienung. Die 8 nur hergeleiteten sind als solche gekennzeichnet.
 Der Test hat echte Daten angelegt, um die Wege zu prüfen, die man sonst nicht prüfen kann.
 Jede Änderung steht im [Spurenbuch](befunde/SPURENBUCH.md).
 
-**Nachweislich wieder weg:** die öffentlich gestellte Testbewertung an Angbar (Bestand
-114 → 113), zwei aus Meldungen angelegte Orte, ein Testabenteuer, eine Testkarte, ein
-Quellenverweis, alle Testmeldungen. Gegenprobe nach dem Test: `map-search.php` findet zu
-`ZZ-Systemtest`, `Ambosshain` und `Ratenprobe` **nichts**, und die Antworten von
-`adventures.php` und `citymaps.php` sind **byteweise identisch** mit der Momentaufnahme von
-vor dem Test.
+**Alles, was eine Oberfläche zum Löschen hat, ist nachweislich weg:** die öffentlich gestellte
+Testbewertung an Angbar (Bestand 114 → 113), drei angelegte Orte samt Quellenverweisen, ein
+Testabenteuer (1353 → 1352), eine Testkarte (457 → 456). Gegenprobe nach dem Test:
+`map-search.php` findet zu `ZZ-Systemtest`, `Ambosshain` und `Ratenprobe` **nichts**, und die
+Antworten von `adventures.php` und `citymaps.php` sind **byteweise identisch** mit der
+Momentaufnahme von vor dem Test.
 
-**Drei Reste ließen sich über keine Oberfläche entfernen** — das ist selbst ein Befund und
-steht als solcher im AKUT-Bericht. Das fertige SQL dafür liegt in
-[`aufraeumen.sql`](aufraeumen.sql).
+**12 Zeilen in 4 Tabellen sind geblieben** — nicht aus Nachlässigkeit, sondern weil es für sie
+**keinen Löschweg gibt**, weder in einer Oberfläche noch in einem Endpunkt:
+
+| Tabelle | Zeilen | warum nicht entfernbar |
+|---|---|---|
+| `map_reports` | 8 (id 273–280) | keine Ansicht zeigt bearbeitete Meldungen → [A3](1-akut.md) |
+| `map_share_links` | 2 | kein Löschpfad im ganzen Projekt → [A28](1-akut.md) |
+| `contact_message` | 1 | das Postfach kann nicht löschen |
+| `sources` | 1 (id 1224935) | kein Löschpfad für Katalogquellen → [A6](1-akut.md) |
+
+Das ist selbst ein Befund und steht als solcher im AKUT-Bericht. Fertiges SQL mit
+Sicherheitsabfragen: [`aufraeumen.sql`](aufraeumen.sql).
 
 ## Eine Zahl zum Einordnen
 
-Von 216 Befunden sind **173 mit weniger als einer Stunde Aufwand** zu beheben. Das ist die
+Von 217 Befunden sind **174 mit weniger als einer Stunde Aufwand** zu beheben. Das ist die
 eigentliche Nachricht dieses Tests: Avesmaps hat kein strukturelles Problem. Es hat eine lange
 Liste vergessener Haken.

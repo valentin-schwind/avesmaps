@@ -1,8 +1,12 @@
 # Bericht 1 — AKUT: was behoben werden muss
 
-27 Befunde. Alle haben eine feindliche Gegenprüfung überstanden, deren Auftrag ausdrücklich
-war, sie zu widerlegen. 20 weitere ursprünglich als AKUT gemeldete Befunde wurden dabei
-abgestuft, 2 widerlegt, 4 als Doppelungen erkannt — sie stehen hier nicht mehr.
+28 Befunde. 27 davon haben eine feindliche Gegenprüfung überstanden, deren Auftrag ausdrücklich
+war, sie zu widerlegen; 20 weitere ursprünglich als AKUT gemeldete wurden dabei abgestuft,
+2 widerlegt, 4 als Doppelungen erkannt — die stehen hier nicht mehr.
+
+Der 28. Befund (A28) kam erst beim Nachzählen der eigenen Testspuren dazu. Er ist damit der
+einzige, den nicht das Prüfen, sondern das **Aufräumen** gefunden hat — und ein Beleg dafür,
+dass sich der Aufräumteil dieses Tests gelohnt hat.
 
 Die Reihenfolge ist eine Empfehlung: oben steht, was Inhalt verliert oder Daten falsch macht;
 unten, was ärgerlich, aber folgenlos ist.
@@ -298,13 +302,34 @@ Der Fix ist ein Rückbau, kein Bau. *Aufwand:* klein.
 
 ---
 
-## Die drei Reste, die sich über keine Oberfläche entfernen ließen
+### A28 · Ein erzeugter Kurzlink lässt sich nirgends wieder löschen
+`api/app/share-link.php`
 
-Sie sind Folge des Tests **und zugleich Befund** — dass es keinen Weg gibt, sie loszuwerden,
-ist der eigentliche Punkt. Fertiges SQL: [`aufraeumen.sql`](aufraeumen.sql).
+`map_share_links` hat im **ganzen Projekt keinen Löschpfad** — weder eine Oberfläche noch einen
+Endpunkt (`grep map_share_links` in `api/` und `js/` mit `delete`/`remove`: **0 Treffer**). Jeder
+je erzeugte Kurzlink bleibt für immer, samt `ip_hash` und der vollständigen Zielabfrage. Eine
+versehentlich geteilte Ansicht ist damit nicht zurückholbar.
 
-| Was | Warum nicht entfernbar |
-|---|---|
-| 8 Zeilen in `map_reports` (id 273–280), Status ≠ `neu`, mit IP-Hash | keine Ansicht zeigt bearbeitete Meldungen (→ A3) |
-| 1 Zeile `contact_message` + die zugehörige Mail | das Postfach kann nicht löschen |
-| 1 Zeile `sources` id 1224935 (`uses 0`) | kein Löschpfad für Katalogquellen (→ A6) |
+Die Tabelle wächst außerdem unbegrenzt: es gibt kein Ablaufdatum und keine Bereinigung.
+
+*Beleg:* im Test selbst gestolpert — zwei erzeugte Kurzlinks ließen sich nicht entfernen.
+*Aufwand:* klein.
+
+---
+
+## Was der Test hinterlassen hat
+
+12 Zeilen in 4 Tabellen. Sie sind Folge des Tests **und zugleich Befund** — dass es für keine
+davon einen Löschweg gibt, ist der eigentliche Punkt. Fertiges SQL mit Sicherheitsabfragen:
+[`aufraeumen.sql`](aufraeumen.sql).
+
+| Was | Anzahl | Warum nicht entfernbar |
+|---|---|---|
+| `map_reports` id 273–280, Status ≠ `neu`, mit IP-Hash | 8 | keine Ansicht zeigt bearbeitete Meldungen (→ A3) |
+| `map_share_links`, Route Gareth→Ferdok, einer davon Code `HUGCPFhv` | 2 | kein Löschpfad im Projekt (→ A28) |
+| `contact_message` + die zugehörige Mail | 1 | das Postfach kann nicht löschen |
+| `sources` id 1224935 (`uses 0`) | 1 | kein Löschpfad für Katalogquellen (→ A6) |
+
+⚠️ Beim Löschen der Kurzlinks aufpassen: am selben Tag können **echte** Kurzlinks von Besuchern
+entstanden sein. Ein gelöschter fremder Kurzlink ist ein toter Link in freier Wildbahn. Das SQL
+zeigt sie deshalb erst an, statt sie nach Datum wegzuräumen.

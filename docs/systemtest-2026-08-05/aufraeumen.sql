@@ -48,6 +48,26 @@ GROUP BY s.id, s.label, s.url;
 
 
 -- ---------------------------------------------------------------------------
+-- 4. Zwei Kurzlinks aus der Pruefung der Teilen-Funktion.
+--    `map_share_links` hat im ganzen Projekt KEINEN Loeschpfad -- weder eine
+--    Oberflaeche noch einen Endpunkt (Befund A28). Einer der beiden Codes ist
+--    bekannt (HUGCPFhv), der andere nicht; beide zeigen auf dieselbe Route
+--    Gareth->Ferdok und sind am 05.08.2026 entstanden.
+-- ---------------------------------------------------------------------------
+SELECT id, code, hits, created_at, LEFT(target_query, 80) AS ziel
+FROM map_share_links
+WHERE DATE(created_at) = '2026-08-05'
+ORDER BY id;
+-- Erwartet: die beiden Testzeilen, beide mit einer Route Gareth->Ferdok im Ziel.
+-- ACHTUNG: an diesem Tag koennen auch ECHTE Kurzlinks von Besuchern entstanden
+-- sein. Bitte am `target_query` abgleichen und NUR die beiden eigenen loeschen --
+-- ein geloeschter fremder Kurzlink ist ein toter Link in freier Wildbahn.
+
+-- DELETE FROM map_share_links WHERE code = 'HUGCPFhv';
+-- DELETE FROM map_share_links WHERE id = <die id der zweiten Zeile aus dem SELECT>;
+
+
+-- ---------------------------------------------------------------------------
 -- ZUR KONTROLLE: sind sonst noch Testspuren da?
 -- ---------------------------------------------------------------------------
 SELECT 'map_reports' AS tabelle, COUNT(*) AS treffer FROM map_reports WHERE name LIKE '%ZZ-Systemtest%'
