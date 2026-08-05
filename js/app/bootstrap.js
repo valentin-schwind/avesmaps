@@ -6,18 +6,17 @@
 // precedence question: everything that navigates on start -- ?s= share links, wiki deep-links, ?place=,
 // ?route=, spotlight focus -- runs AFTER map creation and overrides this seed exactly as it overrides the
 // hardcoded default. Not edit mode, no stored frame, or a corrupt / out-of-bounds one -> the default, quietly.
-// The default frame is the "Aventurien" continent label -- literally the view the spotlight produces when
-// you pick "Aventurien" from the search: focusSpotlightLabel clamps to the label's own zoom band, and this
-// label is drawn from zoom 0 to 2. [497.28, 520.5] is its map_features position ([lat, lng] = [y, x], read
-// off the live row on 2026-08-05); a continent label does not travel.
-// The centre then moves half a route-planner width WEST on purpose: #search overlays the map's left 350px
-// (css/layout/map-layout.css), so the window centre is not the centre of the map the visitor can actually
-// see. Half the panel (175px) divided by the zoom scale (2^zoom px per map unit) = 43.75 units -- pure
-// pixel arithmetic, and the window WIDTH cancels out of it, so the label lands optically centred in the
-// free map area at 1280px and at 1920px alike. Change the panel width in CSS and this follows.
+// The default frame is the "Aventurien" continent label, and it must stay BIT-IDENTICAL to what the search
+// does: picking "Aventurien" in the spotlight runs focusSpotlightLabel -> flyTo(label marker, zoom band cap)
+// = [497.28, 520.5] @ 2 (measured off the live click on 2026-08-05; the label is drawn from zoom 0 to 2, so
+// the cap is 2). Owner 2026-08-05, after seeing the start view drift 175px away from that: "vergleich mal
+// die jetzige map mitte mit dem zustand, wenn ich auf Aventurien klicke -- eigentlich will ich genau das".
+// 💣 So do NOT re-introduce an optical offset here. Half a route-planner width to the west looks better
+// centred in the map area #search leaves free -- but then arriving on the site and searching for the
+// continent put the map in two different places, and that difference is what got noticed. If the offset
+// is ever wanted, it belongs in spotlightFlyTo (both paths at once), not in this seed alone.
+const AVESMAPS_DEFAULT_MAP_CENTER = [497.28, 520.5]; // [lat, lng] = [y, x], the label's map_features row
 const AVESMAPS_DEFAULT_MAP_ZOOM = 2;
-const AVESMAPS_ROUTE_PLANNER_PANEL_WIDTH_PX = 350;
-const AVESMAPS_DEFAULT_MAP_CENTER = [497.28, 520.5 - (AVESMAPS_ROUTE_PLANNER_PANEL_WIDTH_PX / 2) / (2 ** AVESMAPS_DEFAULT_MAP_ZOOM)];
 function getInitialEditMapView() {
     if (!IS_EDIT_MODE) {
         return { center: AVESMAPS_DEFAULT_MAP_CENTER, zoom: AVESMAPS_DEFAULT_MAP_ZOOM };
