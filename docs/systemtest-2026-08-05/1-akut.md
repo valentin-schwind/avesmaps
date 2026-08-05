@@ -614,14 +614,55 @@ während ein um drei Pixel verschobenes Label sauber protokolliert wird.
 
 *Beleg:* gegen Zeitstempel nachgezählt. *Aufwand:* groß.
 
-### A17 · Ein frisch angelegtes Abenteuer fehlt in der Liste des Editors, der es angelegt hat
+### ✅ A17 · Ein frisch angelegtes Abenteuer fehlt in der Liste des Editors, der es angelegt hat
+
+> **✅ Erledigt `54aa6907`, 05.08.2026 — gemeinsam mit A18, weil es eine einzige Gewohnheit ist.**
+> Eine Editor-Überlagerung trägt einen iframe, und das Schließen setzte nur `hidden = true`. Beim
+> Wiederöffnen wurde **dieselbe Seiteninstanz** mit ihrer alten Liste eingeblendet. Jetzt wird sie
+> **entfernt**, das nächste Öffnen baut einen frischen iframe — und der lädt seine Liste ohnehin selbst.
+>
+> 💣 **Der Code wusste es.** In `review-settlement-list.js` steht wörtlich: „The overlay is HIDDEN,
+> not destroyed, on close (like its two siblings) — so a re-open reuses a live iframe whose list is as
+> old as the first open. **The adventure editor lives with that.**" A17 ist, wie „damit leben" von
+> außen aussieht. Der Kartensammlungs-Editor hatte sich mit einem Refresh bei jedem Öffnen beholfen;
+> diese Notlösung ist jetzt überflüssig statt tragend.
+>
+> ⚠️ Und `?v=" + Date.now()` im iframe-Pfad sah nach Cache-Bust aus und war einer — **nur beim
+> allerersten Öffnen**, weil jedes spätere gar keinen iframe mehr baute.
 Die Oberfläche zeigt „0 von 1352", der Endpunkt liefert 1353. Erst ein vollständiger
 Seitenneuaufbau bringt den Eintrag. Das Formular sagt „Erst speichern, dann Orte zuordnen" —
 genau das ist damit unmöglich.
 
 *Aufwand:* klein.
 
-### A18 · Editorfenster stapeln sich als lebende iframes
+### ✅ A18 · Editorfenster stapeln sich als lebende iframes
+
+> **✅ Erledigt `54aa6907`, 05.08.2026** (siehe A17 — dieselbe Ursache). **Sieben Wirte** umgestellt:
+> Landschaften, Wege, Kraftlinien, Siedlungen, Abenteuer, Kartensammlung, Sync.
+>
+> **Live gemessen** gegen den ausgelieferten Code (`?edit=1`):
+>
+> | Schritt | Ergebnis |
+> |---|---|
+> | vorher | kein Overlay, **0** iframes |
+> | Editor geöffnet | Overlay + **1** iframe, `overflow: hidden` |
+> | geschlossen | **Overlay entfernt, 0 iframes**, Scroll-Sperre freigegeben |
+> | wieder geöffnet | **frischer** iframe, nicht derselbe Knoten |
+> | am Ende | **0** iframes |
+>
+> ⚠️ **Drei Überlagerungen bleiben absichtlich beim Ausblenden**: die Zugangsdaten-Abfrage und die
+> zwei Regionen-Dialoge tragen keinen iframe. Für einen schlichten Dialog ist Ausblenden richtig, und
+> der Test sichert ausdrücklich, dass ein pauschales Suchen-und-Ersetzen die beiden Arten nicht
+> vermengt.
+>
+> ⚠️ **Nicht erfasst: der politische Territorien-Editor.** Er lädt seine Oberfläche **inline** statt
+> per iframe (daher der `ASSET_VERSION`-Mechanismus, AGENTS.md §7) und liegt in `js/territory/`, das
+> dieser Commit nicht anfasst. In der Live-Probe war seine Hülle leer (636 Bytes, nur der
+> Schließen-Knopf) und der Inline-Host nie geladen — ob er im verborgenen Zustand Daten und Timer
+> hält, sobald er einmal offen war, ist damit **nicht** beantwortet.
+>
+> Der Test läuft über das **Verzeichnis**, nicht über eine Dateiliste: ein Editor, der morgen
+> dazukommt, ist mit abgedeckt, ohne dass sich jemand an diesen Commit erinnern muss.
 Jeder geöffnete Editor bleibt liegen. Schließt man den neuen, taucht der alte in seinem alten
 Zustand wieder auf. Am Ende des Testlaufs: **drei tote Editoren bei null sichtbaren Fenstern** —
 jeder mit eigenem Zustand, eigenen Timern und eigenen Anfragen an den Server.
