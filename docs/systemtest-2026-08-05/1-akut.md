@@ -394,6 +394,12 @@ Zwei Wege, zwei Ergebnisse, für dieselbe Aktion.
 > Eine feindliche Gegenprüfung hat den Verlust an der echten Funktion **reproduziert**, und die
 > Änderung war da bereits ausgeliefert.
 >
+> ✅ **Nachgemessen vom Owner, 05.08.2026: kein Datenverlust.** Beide Abfragen aus
+> [`sql/a10-verlorene-ortszeiger.sql`](../../sql/a10-verlorene-ortszeiger.sql) liefern **null Zeilen**
+> — weder eine beschädigte Zeile noch überhaupt eine, die im Zeitfenster angefasst wurde. In den
+> sechzehn Minuten hat niemand einen Kartenort hinzugefügt und kein Sync lief; der Pass ist also nie
+> ausgeführt worden. Der Fehler war ausgeliefert, wurde aber nicht ausgelöst.
+>
 > 💣 **`target_kind` hat nicht vier Werte, sondern sieben.** Der Quellen-Verknüpfungsweg
 > (`adventures.php:1178`) nimmt **jeden** Entitätstyp der feature-sources-Whitelist außer `citymap`
 > und schreibt ihn direkt als `target_kind`: dazu gehören **`lore`** (lebt in `lore_entry`, über
