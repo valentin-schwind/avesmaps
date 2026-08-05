@@ -707,6 +707,7 @@ window.AVESMAPS_I18N_EN = {
 	"legal.title": "Notices",
 	"legal.closeAria": "Close legal notices",
 	"legal.badge": "Non-commercial fan project",
+	"legal.group.usage": "Using the map",
 	"legal.group.project": "About the fan project",
 	"legal.group.copyright": "Copyright and licenses",
 	"legal.group.content": "Content and data sources",
@@ -728,6 +729,42 @@ window.AVESMAPS_I18N_EN = {
 	"legal.sources.tech": "Technology.",
 	"legal.changes.lead": "Changes.",
 	"legal.changes.body": "These notices may be adjusted in the event of technical, legal or content-related changes to the project.",
+
+	// --- keyboard shortcuts ("Bedienhilfen", inside the notices dialog) ----------------------------
+	// ⚠️ The rows are BUILT from the same list the keys themselves come from
+	// (js/app/keyboard-shortcuts.js). A new shortcut needs its row key here, or the English table
+	// falls back to the German label for that one line. The view names deliberately repeat
+	// view.mode.* word for word -- the table has to name what the picker names.
+	"shortcuts.heading": "Keyboard shortcuts",
+	"shortcuts.intro": "The map can be operated from the keyboard. The keys act on the map itself — not while you are typing in a field, while a window is open, or while a tool is running. Ctrl, Alt and Command are left to the browser.",
+	"shortcuts.col.keys": "Key",
+	"shortcuts.col.action": "Effect",
+	"shortcuts.key.space": "Space",
+	"shortcuts.key.shift": "Shift",
+	"shortcuts.key.home": "Home",
+	"shortcuts.key.end": "End",
+	"shortcuts.key.pageUp": "Page ↑",
+	"shortcuts.key.pageDown": "Page ↓",
+	"shortcuts.row.search": "Open the search",
+	"shortcuts.row.addDestination": "Add a destination",
+	"shortcuts.row.panUp": "Move the map up",
+	"shortcuts.row.panLeft": "Move the map left",
+	"shortcuts.row.panDown": "Move the map down",
+	"shortcuts.row.panRight": "Move the map right",
+	"shortcuts.row.panFast": "Together with one of the six keys above: triple step",
+	"shortcuts.row.zoomIn": "Zoom in",
+	"shortcuts.row.zoomOut": "Zoom out",
+	"shortcuts.row.modeOriginal": "The “Original” view",
+	"shortcuts.row.modePolitical": "The “Political” view",
+	"shortcuts.row.modePowerlines": "The “Ley lines” view",
+	"shortcuts.row.modeStandard": "The “Standard” view",
+	"shortcuts.row.modeNone": "The “Map only” view",
+	"shortcuts.row.locationTier": "Show places down to a tier: 1 metropolises, 2 adds large cities … 6 everything. The same digit again hides them all",
+	"shortcuts.row.routeFastest": "Fastest route",
+	"shortcuts.row.routeShortest": "Shortest route",
+	"shortcuts.row.prevLeg": "Previous leg of the route plan",
+	"shortcuts.row.nextLeg": "Next leg of the route plan",
+	"shortcuts.row.close": "Close the open window",
 
 	// --- changelog ("Änderungsverlauf") -----------------------------------------------------------
 	// Only the CHROME is translated. The entries themselves come from the database in German and stay

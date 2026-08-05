@@ -2162,6 +2162,16 @@
 								<button type="button" id="changelog-open" class="legal-action__button" aria-haspopup="dialog" aria-controls="changelog-dialog" data-i18n="changelog.callout.link">Änderungsverlauf öffnen</button>
 							</div>
 						</div>
+						<!-- „Bedienung" steht GANZ OBEN, direkt unter den beiden Kacheln und vor dem
+						     rechtlichen Teil (Owner 2026-08-05). Wer die Hinweise öffnet, um zu lernen,
+						     wie die Karte geht, soll nicht erst an zwanzig Absätzen Impressum vorbei.
+						     💣 Die Tabelle steht NICHT hier, sondern wird von js/app/keyboard-shortcuts.js
+						     aus derselben Liste gebaut, nach der die Tasten wirken. Wer sie hier von Hand
+						     hinschreibt, baut die Divergenz ein, die genau das verhindern soll. -->
+						<h3 class="legal-dialog__group" data-i18n="legal.group.usage">Bedienung</h3>
+						<h4 class="legal-dialog__subgroup" data-i18n="shortcuts.heading">Bedienhilfen</h4>
+						<p data-i18n="shortcuts.intro">Die Karte lässt sich mit der Tastatur bedienen. Die Tasten wirken auf der Karte selbst — nicht, während du in einem Feld tippst, ein Fenster offen ist oder ein Werkzeug läuft. Strg-, Alt- und Befehlstaste bleiben dem Browser überlassen.</p>
+						<div id="legal-shortcuts" class="shortcut-table-wrap"></div>
 						<h3 class="legal-dialog__group" data-i18n="legal.group.project">Projekt und rechtlicher Status</h3>
 						<p> <strong data-i18n="legal.fanproject.lead">Fanprojekt.</strong> <span data-i18n="legal.fanproject.body">Avesmaps ist ein privates, offenes und nicht-kommerzielles Fanprojekt von Valentin Schwind. Avesmaps ist keine offizielle Publikation zu Das Schwarze Auge und steht in keiner offiziellen Verbindung zu Ulisses Spiele, der Ulisses Medien & Spiel Distribution GmbH oder anderen Rechteinhabern. Die auf dieser Website enthaltenen Informationen zu Das Schwarze Auge, Aventurien und Dere sind inoffiziell, können unvollständig oder fehlerhaft sein und können offiziellen Publikationen widersprechen.</span> </p>
 						<p><strong data-i18n="legal.responsible.lead">Betreiber/Impressum.</strong> <span data-i18n="legal.responsible.body">Entwicklung, Gestaltung, Programmierung und Betrieb erfolgen durch Valentin Schwind (c/o Nobelstr. 10, D-70569 Stuttgart); bei der Programmierung wird Claude Code eingesetzt. Verantwortlich für die redaktionelle Pflege der Mapinhalte ist Thomas Braun.</span></p>
@@ -2523,5 +2533,10 @@
 		<script src="js/map-features/map-features-citymaps.js"></script>
 		<script src="js/map-features/map-features-citymaps-dialog.js"></script>
 		<script src="js/map-features/map-features-citymaps-suggest.js"></script>
+		<!-- Tastaturbefehle. Bewusst als LETZTES: die Datei schaltet Leaflets eigene
+		     Tastatursteuerung ab und baut die Tabelle in den Hinweisen -- beides setzt voraus, dass
+		     die Karte und das Fenster schon stehen. Die Wirkungen selbst ruft sie ohnehin erst beim
+		     Tastendruck auf, die Reihenfolge ist dafür also kein Zwang. -->
+		<script src="js/app/keyboard-shortcuts.js"></script>
 	</body>
 </html>

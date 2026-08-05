@@ -201,6 +201,85 @@
 	border-top: 0;
 }
 
+/* „Bedienung" ist die einzige Gruppe im Fenster mit einer Unterueberschrift -- alle anderen sind
+   eine Folge von Absaetzen mit fettem Auftakt. Sie ordnet sich zwischen die Gruppe (--color-accent-
+   strong, 15px, Trennlinie darueber) und einen solchen Auftakt ein: dieselbe Farbe wie der Auftakt,
+   aber ohne Trenner und ohne den Punkt-Marker, damit sie eine Gruppe nicht faelschlich TEILT. */
+.legal-dialog__content .legal-dialog__subgroup {
+	margin: 14px 0 6px;
+	color: var(--color-text-strong);
+	font-size: var(--font-size-reading);
+}
+
+/* 💣 Der Kasten scrollt fuer sich. Ohne ihn schiebt die Tastenspalte das Fenster auf schmalen
+   Geraeten waagerecht auf -- und ein Dialog, der seitlich wegrutscht, verdeckt seinen Schliessen-
+   Knopf. Die Tabelle selbst darf dabei ruhig breiter sein als der Kasten. */
+.shortcut-table-wrap {
+	overflow-x: auto;
+	margin: 0 0 10px;
+}
+
+.shortcut-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--font-size-small);
+}
+
+/* Gruppiert wird per Trennlinie, nicht per Rahmen (AGENTS.md §12): eine Hairline je Zeile,
+   die letzte ohne -- sonst stuende unter der Tabelle ein zweiter Strich neben dem der naechsten
+   Gruppe. */
+.shortcut-table th,
+.shortcut-table td {
+	padding: 6px 12px 6px 0;
+	border-bottom: 1px solid var(--color-divider);
+	text-align: left;
+	vertical-align: baseline;
+}
+
+.shortcut-table tbody tr:last-child th,
+.shortcut-table tbody tr:last-child td {
+	border-bottom: 0;
+}
+
+.shortcut-table thead th {
+	color: var(--color-text-strong);
+	font-size: var(--font-size-caption);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.shortcut-table tbody td {
+	color: var(--color-text-muted);
+	line-height: 1.45;
+}
+
+/* `width: 1%` presst die Tastenspalte auf ihren Inhalt zusammen -- die Erklaerung bekommt den
+   ganzen Rest. `nowrap` haelt „Bild ↑" beisammen; umbrechen darf die Tabelle im Kasten darueber. */
+.shortcut-table__keys {
+	width: 1%;
+	white-space: nowrap;
+	font-weight: var(--font-weight-regular);
+}
+
+/* Die Tastenkappe. Keine eigenen Farben: die drei Pill-Token gibt es in hell UND dunkel, also
+   traegt sie in beiden Designs von selbst das Richtige.
+   ⚠️ KEIN font-weight: die Hausschrift liefert nur Regular, und base.css schaltet die Synthese ab
+   (fettes Zeug bliebe wirkungslos). Die Kappe hebt sich durch Flaeche und Rand ab, nicht durch
+   Fettung -- dieselbe Regel wie im Rest des Fensters. */
+.shortcut-key {
+	display: inline-block;
+	min-width: 1.7em;
+	margin: 1px 4px 1px 0;
+	padding: 2px 7px;
+	border: 1px solid var(--color-pill-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-pill);
+	color: var(--color-pill-text);
+	font-size: var(--font-size-caption);
+	line-height: 1.55;
+	text-align: center;
+}
+
 .legal-dialog__note {
 	color: var(--color-text-muted);
 	font-size: 12px;
