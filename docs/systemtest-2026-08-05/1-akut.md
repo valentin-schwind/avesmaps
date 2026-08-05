@@ -1626,6 +1626,32 @@ Objekt im Schnappschuss keine Nachfahren hat **und** eine `derived_wiki_id` trä
 der Antwort nicht ansehen. Ohne diese Zahl ist unklar, ob A36 ein Rundungsfehler oder die Hälfte
 des verbliebenen Aufwands ist. Sie steht in einem `SELECT COUNT(*)` und braucht keinen Massenlauf.
 
+> **📐 Eingegrenzt am öffentlichen Kartenstand, 06.08.2026 — ohne Rückfrage, aber nicht bis zur
+> Antwort.** Ich hatte die Zahl als „🔧 DU" abgelegt; sie lässt sich zum Teil selbst messen. Die drei
+> Sammler-Zweige hinterlassen unterscheidbare Spuren in `derived_source_territory_public_ids`:
+> Zweig 1 liefert das eigene Territorium **plus** Nachfahren (≥2), Zweig 3 genau das eigene (=1).
+>
+> | | |
+> |---|---|
+> | abgeleitete Objekte | **121** |
+> | Quellliste sieht nach Zweig 1 aus (≥2 + selbst) | 109 |
+> | nackter Rückfall (=1, selbst) | 12 |
+> | davon **mit** `derived_wiki_id` → Zweig 2 **lief** | **10** |
+>
+> 💣 **Aber die Obergrenze bleibt offen, und das ist der interessante Teil.** Ein Wiki-Treffer, der
+> zufällig das eigene Territorium enthält, ist von aussen nicht von Zweig 1 zu unterscheiden. Von den
+> 109 liess sich nur bei **31** ein Kind aus dem Payload in der Quellliste nachweisen; bei **78** sind
+> die Kinder im Zoomband gar nicht sichtbar. Der Payload kann es nicht schärfen — der Sammler
+> arbeitet auf **allen** aktiven Territorien, der Payload ist ein Ausschnitt.
+>
+> **Ergebnis: 10 bis 88 Objekte, also 20 bis 176 zusätzliche Abfragen je Layer-Aufbau.** Bei 20 ist
+> A36 ein Rundungsfehler und die Arbeit nicht wert; bei 176 ist der Rest **fast so gross wie das,
+> was A20 entfernt hat** (242 → 2), und die Bündelung lohnt sofort. Die Spanne entscheidet, nicht
+> mein Gefühl.
+>
+> 🔧 **DU: eine Leseabfrage entscheidet es** — [`sql/a36-wiki-zweig-zaehlung.sql`](../../sql/a36-wiki-zweig-zaehlung.sql),
+> Abfrage 1. Abfrage 3 ist die Gegenprobe zum Modell: sie sollte ungefähr **2** liefern.
+
 *Beleg:* am Code gelesen, im Test gemessen (2 + 3×2 = 8 Abfragen bei drei Wiki-Objekten).
 *Aufwand:* mittel. *Gefunden von den Gegenprüf-Agenten an der eigenen A20-Auslieferung.*
 
