@@ -1552,7 +1552,7 @@ des verbliebenen Aufwands ist. Sie steht in einem `SELECT COUNT(*)` und braucht 
 *Beleg:* am Code gelesen, im Test gemessen (2 + 3×2 = 8 Abfragen bei drei Wiki-Objekten).
 *Aufwand:* mittel. *Gefunden von den Gegenprüf-Agenten an der eigenen A20-Auslieferung.*
 
-### A39 · Der Import-Endpunkt moderiert ohne Spur — und überschreibt entschiedene Meldungen
+### ◐ A39 · Der Import-Endpunkt moderiert ohne Spur — und überschreibt entschiedene Meldungen
 `api/import/location-reports/update-status.php:49-60` gegen `api/edit/reports/locations.php:280`
 
 Aus der Gegenprüfung von A33, von mir am Code nachgestellt. Zwei Löcher an derselben Tür:
@@ -1582,6 +1582,43 @@ gleicht den Import an den Editor an und kommt mit.
 
 *Beleg:* `grep` über den Endpunkt (0 Treffer für beide Audit-Funktionen), `UPDATE` wörtlich gelesen.
 *Aufwand:* klein bis mittel.
+
+> **◐ Loch 2 ist zu `2d98bb9e`, 05.08.2026 — Loch 1 (der Audit-Eintrag) bleibt bei dir.** Das
+> `UPDATE` trägt jetzt `AND status = 'neu'`, wie der Editor in jedem seiner Schreibpfade. Ein
+> Import-Token kann damit keine Entscheidung mehr überschreiben, die ein Mensch getroffen hat.
+>
+> ⚠️ **Es kostet Wiederholungsläufe nichts, und das habe ich geprüft statt angenommen:** die
+> Verbindung setzt `MYSQL_ATTR_FOUND_ROWS` **nicht**, `rowCount()` zählt also *geänderte* Zeilen.
+> Denselben Status noch einmal zu schreiben lieferte hier **immer schon** 0 und antwortete **immer
+> schon** 404. Der Riegel fügt einem Wiederholungslauf keinen neuen Fehlschlag hinzu — er stoppt nur
+> den Fall, in dem die Zeile wirklich unter einer fremden Entscheidung weggeschrieben worden wäre.
+>
+> Die Absage übernimmt den Wortlaut des Editors **wörtlich**, weil es jetzt dieselbe Tatsache ist:
+> null Zeilen heisst **entweder** „keine solche Meldung" **oder** „nicht mehr offen", und der
+> Endpunkt kann die beiden nicht unterscheiden, ohne eine Abfrage zu stellen, die er nicht braucht.
+> „Nicht gefunden" allein wäre für den interessanteren der beiden Fälle eine Lüge geworden.
+>
+> **Fünf Mutationen, jede vorher benannt — und zwei davon haben mich erwischt:** meine ersten
+> Versuche der beiden mehrzeiligen Mutationen griffen **gar nicht** (die Anker trafen die
+> CRLF-Zeilenenden nicht) und meldeten grün. Sauber wiederholt, die erste mit der Vorzustandsdatei
+> direkt aus `git`: alle fünf rot. 213/213 grün.
+>
+> 🔧 **DU: eine Leseabfrage, und sie ist jetzt dringender als vorher.** A33 und A39 sind je für sich
+> richtig, **zusammen** frieren sie eine Altzeile aber doppelt ein: A33 lässt nur noch
+> `approved|rejected|in_review` **setzen**, A39 lässt nur noch `status='neu'` **ändern**. Eine Zeile
+> mit einem Status ausserhalb dieser vier ist damit weder korrigierbar noch entfernbar — der Editor
+> fasst sie wegen A32 ebenfalls nicht an.
+>
+> 💣 Der Verdacht ist konkret, nicht erfunden: das am 17.05.2026 gelöschte Importwerkzeug
+> (`map/import_reported_locations.py`) setzte nach getanem Import den Status **`alt`**. Die Spalte
+> ist `VARCHAR(20)` **ohne ENUM** — die Datenbank hat das nie eingeschränkt.
+>
+> ```bash
+> cat sql/a39-status-bestand.sql
+> ```
+> Abfrage 3 listet genau die Zeilen, die von keiner Oberfläche mehr erreichbar wären. **Erwartung:
+> leer.** Kommt etwas zurück, melde mir die `id`s — der Weg zurück ist ein einmaliges, gezieltes
+> `UPDATE` von Hand, **kein** dauerhaft offener Schreibkanal. Die Riegel bleiben.
 
 ### A38 · Eine abgewiesene Anfrage füllt den Eimer nicht — die Drossel sieht den Prober nie
 `api/_internal/app/report-outcome.php:57-63` gegen `api/app/report-location.php:129` und `:185`
