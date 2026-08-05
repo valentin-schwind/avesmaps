@@ -575,8 +575,38 @@ Das ist der einzige Befund des Tests, der **falsche Daten ohne jede Fehlermeldun
 >
 > Sieben Mutationen, jede benannt und jede mit Nachweis, dass sie griff: jede Stufe einzeln entfernt,
 > Schlüsselreihenfolge gekippt, Gross-/Kleinschreibung fallengelassen, Präfix auf „Kreuz" geweitet,
-> und das Umbenennen zurück auf seine eigene Kopie gelegt. Alle sieben rot — die letzte
-> **verhaltensmässig** über die Nummerierung, nicht über den Quelltext. 215/215 grün.
+> und das Umbenennen zurück auf seine eigene Kopie gelegt. Alle sieben rot.
+>
+> 🔁 **Und der Test rief die Schleife nie, für die er geschrieben war** (`60876b00`). Er baute das
+> `foreach` **nach** — damit war alles *innerhalb* der echten Schleife ungeprüft. Vier realistische
+> Mutationen gingen durch, zwei davon sind wörtlich der Schaden, den mein eigener Testkopf
+> beschreibt:
+>
+> | Mutation | Wirkung live | vorher | jetzt |
+> |---|---|---|---|
+> | Zähler überspringt die Alt-Schreibweise, Umbenennung nicht | **782 doppelte Graph-Schlüssel** | grün | rot |
+> | Bauen und Zählen vertauscht | **2.084 umnummerierte Schlüssel** | grün | rot |
+> | Umbenennen zurück auf eigene Prüfung, ohne das Wort `strncmp` | Befund wiederhergestellt | grün | rot |
+> | `Point`-Filter entfernt | Linien werden Orte | grün | rot |
+>
+> Der Preis war **ein Funktionsaufruf**. Die zwei Quelltext-Zählungen sind ersatzlos weg: sie waren in
+> **beide** Richtungen spröde — eine verhaltensgleiche Umschreibung auf `str_starts_with` machte die
+> eine rot, ein legitimer dritter Aufruf des geteilten Prädikats die andere. Genau diese Umschreibung
+> läuft jetzt als Mutation mit, die **grün bleiben muss**.
+>
+> ⚠️ **Eine Stufe spiegele ich bewusst NICHT:** der Client hat in Stufe 2 eine **sperrende** Hälfte —
+> nennt der Subtyp eine bekannte Ortsklasse, liest er den Namen nie mehr. Das PHP fällt weiter durch.
+> Auslöser: `feature_subtype='dorf'` + Name „Kreuzung…" → Server sagt Kreuzung, Client sagt Dorf.
+> **Live 0 Zeilen.** Sie zu schliessen bräuchte die sechs Ortsklassen-Schlüssel, und die liegen im
+> Projekt bereits als **zwei** getrennte Literalkopien — eine dritte für eine Null-Zeilen-Lücke wäre
+> genau die Doppelung, die dieser Commit beseitigt, eine Datei weiter. Eine Zusicherung hält die
+> Abweichung fest, statt sie zu verstecken.
+>
+> ⚠️ **Und eine Zahl war ungeprüft:** „798 Alt-Zeilen" hatte ich aus einem Code-Kommentar übernommen,
+> nicht gezählt. Gemessen: **782** `crossing` und **1.301** `junction` (plus genau **eine** Zeile mit
+> `feature_type='location'` und `feature_subtype='crossing'` — dafür gibt es Stufe 2). Eine
+> ungeprüfte Zahl im Gewand einer gemessenen, ausgerechnet in einer Änderung, deren ganzes Argument
+> „vorher am Vollbestand gemessen" lautet. 215/215 grün.
 >
 > ⚠️ **Eine dritte Stelle bleibt, und sie ist eine Landmine für (a)/(b):** `api/locations/index.php:113`
 > bildet `is_crossing` aus `strncmp($name, 'Kreuzung-')` — **mit Bindestrich**, also aus dem bereits
