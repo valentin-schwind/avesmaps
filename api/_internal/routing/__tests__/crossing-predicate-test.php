@@ -23,12 +23,21 @@ if (ini_get('zend.assertions') !== '1') {
     exit(2);
 }
 
-require __DIR__ . '/../network-data.php';
+// ⚠️ client-graph.php zuerst: die echte Schleife baut auch Wege, und deren Subtyp-Normalisierer
+// wohnt dort. Ohne ihn stirbt der Aufruf an der ersten LineString-Vorlage -- und genau die braucht
+// dieser Test, um zu belegen, dass eine Linie kein Ort ist.
+require_once __DIR__ . '/../client-graph.php';
+require_once __DIR__ . '/../network-data.php';
 
 $isCrossing = static fn(array $properties): bool => avesmapsRoutePropertiesAreCrossing($properties);
 
 // --- Tier 1: feature_type -------------------------------------------------------------------------
-// Catches: the feature_type tier removed. 798 legacy rows carry 'crossing' rather than 'junction'.
+// Catches: the feature_type tier removed. ⚠️ Measured on the live map 06.08.2026: 782 rows carry the
+// legacy 'crossing' spelling and 1.301 carry 'junction'. An earlier version of this line said "798",
+// copied from a comment in map-features-location-lookup.js:16 rather than counted -- an unchecked
+// number dressed as a measured one, in a change whose whole argument was that it measured first.
+// The third row of the 2.084 is neither: one feature_type='location' with feature_subtype='crossing',
+// which is what tier 2 exists for.
 assert($isCrossing(['feature_type' => 'junction']), 'junction is a crossing');
 assert($isCrossing(['feature_type' => 'crossing']), 'and so is the legacy spelling');
 assert($isCrossing(['feature_type' => 'JUNCTION']), 'the comparison is case-insensitive, like the client');
@@ -71,26 +80,38 @@ assert(!$isCrossing(['name' => 'Gareth', 'feature_type' => 'location', 'feature_
 // 💣 This is the finding. Feed a list where a row is a crossing by TYPE but not by name: under the
 // old code the counter advanced (name check) while the rename did not, or vice versa. Now both
 // answer alike, so the numbering stays dense and unique.
+// 💣 THROUGH THE REAL LOOP, not a rebuilt one. The first version of this test assembled its own
+// foreach here -- and thereby tested everything except the loop it was written for. Verified: making
+// the COUNTER skip the legacy feature_type='crossing' spelling while the rename kept it produces 782
+// duplicate graph keys on the live map, and that version stayed green. So did swapping the build and
+// count lines (2.084 renumbered keys) and dropping the Point filter. All four are caught now, and
+// the price is one function call.
 $features = [
     ['geometry' => ['type' => 'Point'], 'properties' => ['name' => 'Kreuzung A']],
     ['geometry' => ['type' => 'Point'], 'properties' => ['name' => 'Gareth', 'feature_subtype' => 'grossstadt']],
-    ['geometry' => ['type' => 'Point'], 'properties' => ['name' => 'Namenlos', 'feature_type' => 'junction']],
+    // A crossing whose NAME says nothing -- only the legacy feature_type does. This is the row that
+    // separates the counter from the rename if they ever ask different questions.
+    ['geometry' => ['type' => 'Point'], 'properties' => ['name' => 'Namenlos', 'feature_type' => 'crossing']],
+    ['geometry' => ['type' => 'Point'], 'properties' => ['name' => 'Auch namenlos', 'feature_type' => 'junction']],
     ['geometry' => ['type' => 'Point'], 'properties' => ['name' => 'Kreuzung B']],
+    // Not a location at all: a label is skipped, and so is a line.
+    ['geometry' => ['type' => 'Point'], 'properties' => ['name' => 'Ein Label', 'feature_type' => 'label']],
+    ['geometry' => ['type' => 'LineString'], 'properties' => ['name' => 'Kreuzung C']],
 ];
-$index = 1;
-$names = [];
-foreach ($features as $feature) {
-    $built = avesmapsBuildRouteLocationData($feature, $index);
-    $names[] = $built['name'];
-    if (avesmapsIsRouteCrossingLocation($feature)) {
-        $index++;
-    }
-}
+$network = avesmapsBuildRouteNetworkData(['features' => $features]);
+$names = array_column($network['locations'], 'name');
+
 assert(
-    $names === ['Kreuzung-1', 'Gareth', 'Kreuzung-2', 'Kreuzung-3'],
-    'counter and rename agree -- the numbering is dense and every name distinct'
+    $names === ['Kreuzung-1', 'Gareth', 'Kreuzung-2', 'Kreuzung-3', 'Kreuzung-4'],
+    'counter and rename agree through the real loop -- dense numbering, label and line skipped'
 );
+// 💣 The damage this exists to prevent, stated as its own assertion: names are graph keys.
 assert(count($names) === count(array_unique($names)), 'no two nodes share a name');
+assert(count($network['locations']) === 5, 'the label and the line are not locations');
+
+// ⚠️ Order matters as much as the predicate: the counter must advance AFTER the name is built, or
+// every crossing is off by one. Caught by the numbering above -- `Kreuzung-2` would read `Kreuzung-3`.
+assert($names[0] === 'Kreuzung-1', 'the first crossing is number one, not number two');
 
 // 💣 And the same list under the OLD rule would have collided: "Namenlos" was not renamed but also
 // did not advance the counter... which is the harmless half. The dangerous half is the mirror image,
@@ -103,15 +124,38 @@ assert(
 // --- One rule, written once -----------------------------------------------------------------------
 //
 // Catches: somebody pasting the name check back in beside the shared predicate.
+// ⚠️ The two assertions that used to stand here counted `strncmp(` and the predicate's own name in
+// the source. Both were brittle in BOTH directions: rewriting the comparison as str_starts_with --
+// behaviour for behaviour -- turned the first one red, and a legitimate third call of the shared
+// predicate turned the second one red. They guarded a spelling, not a rule, and the rule is now
+// guarded by the loop test above, which is where it belongs.
+//
+// What IS worth pinning from the source is that the two callers ask the shared predicate rather than
+// carrying their own copy again -- the state this change removed.
 $source = file_get_contents(__DIR__ . '/../network-data.php');
 assert(is_string($source) && $source !== '', 'the source is readable');
 assert(
-    substr_count($source, "strncmp(") === 1,
-    'the name comparison exists exactly once in this file'
+    str_contains($source, 'return avesmapsRoutePropertiesAreCrossing($properties);')
+        && str_contains($source, 'if (avesmapsRoutePropertiesAreCrossing($properties)) {'),
+    'the counter and the rename both ask the shared predicate'
 );
+
+// --- 🔴 What this predicate deliberately does NOT mirror -------------------------------------------
+//
+// The client's second tier has a STOPPING half this one lacks: `if (isKnownLocationTypeKey(subtype))
+// return subtype;` -- so once the subtype names a known settlement class, the client never looks at
+// the name at all. Here, a row with feature_subtype='dorf' AND a name starting with "Kreuzung" is
+// still treated as a crossing, while the client calls it a village.
+//
+// ⚠️ Measured on the live map before writing this: 0 rows. And it is left as it is on purpose --
+// mirroring the stopping half needs the six settlement keys, which already exist as TWO separate
+// literal copies in this codebase (api/app/report-location.php, api/edit/map/features.php). A third
+// copy to close a zero-row gap would be the very duplication this change removed, one file over.
+// The assertion below records the divergence rather than hiding it; it is meant to CHANGE the day
+// that list gets a shared home.
 assert(
-    substr_count($source, 'avesmapsRoutePropertiesAreCrossing(') === 3,
-    'defined once, asked twice -- by the counter and by the rename'
+    avesmapsRoutePropertiesAreCrossing(['feature_subtype' => 'dorf', 'name' => 'Kreuzung-auto-7']),
+    'the name still wins over a known settlement subtype here -- the client stops earlier (0 live rows)'
 );
 
 echo "crossing-predicate ok\n";
