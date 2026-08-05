@@ -355,6 +355,60 @@
 	text-align: center;
 }
 
+/* Das Schaubild zur stilisierten Karte. Es ist INLINE-SVG und muss es bleiben: nur so greifen die
+   Token, und nur so stimmt es in hell und dunkel (ein <img src="…svg"> sieht die CSS-Variablen der
+   Seite nicht und braeuchte zwei Dateien). Gescrollt wird wie bei der Tastentabelle im eigenen
+   Kasten -- die Zeichnung darf breiter sein als das Fenster, das Fenster nicht. */
+.pipeline-figure {
+	margin: 2px 0 14px;
+	overflow-x: auto;
+}
+
+.pipeline-figure__svg {
+	display: block;
+	width: 100%;
+	min-width: 640px;
+	height: auto;
+}
+
+.pipeline-figure__box rect {
+	fill: var(--color-panel-soft);
+	stroke: var(--color-border);
+	stroke-width: 1;
+}
+
+/* Der letzte Kasten ist das Ergebnis, das man auf dem Schirm sieht -- er traegt als einziger die
+   Akzentfarbe. */
+.pipeline-figure__box--last rect {
+	stroke: var(--color-accent-strong);
+}
+
+.pipeline-figure__label {
+	fill: var(--color-text-strong);
+	font-size: 14px;
+}
+
+.pipeline-figure__box--last .pipeline-figure__label {
+	fill: var(--color-accent-strong);
+}
+
+.pipeline-figure__tool {
+	fill: var(--color-text-muted);
+	font-size: 11.5px;
+}
+
+.pipeline-figure__flow line,
+.pipeline-figure__flow path {
+	fill: none;
+	stroke: var(--color-text-muted);
+	stroke-width: 1.5;
+}
+
+.pipeline-figure marker path {
+	fill: var(--color-text-muted);
+	stroke: none;
+}
+
 .legal-dialog__note {
 	color: var(--color-text-muted);
 	font-size: 12px;
