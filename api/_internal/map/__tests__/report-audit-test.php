@@ -298,4 +298,43 @@ assert(
     'the import door still writes no audit entry (A39) -- flip this assert when it does'
 );
 
+// --- 💣 A39, the half that needed no decision: no overwriting a decision already made -------------
+//
+// The editor guards every write path with `AND status = 'neu'`; the import door did not, so a token
+// could move an approved report to rejected -- silently, without reviewed_by, review_note or any
+// audit entry. Each assertion below names the mutation it exists to catch, and each of those was
+// actually run.
+$updateAt = strpos($importSource, 'UPDATE location_reports');
+$updateEndAt = strpos($importSource, '$statement->execute(', (int) $updateAt);
+assert(is_int($updateAt) && is_int($updateEndAt), 'the import UPDATE is where it is expected');
+$updateSql = substr($importSource, (int) $updateAt, (int) $updateEndAt - (int) $updateAt);
+
+// Catches: the guard deleted outright.
+assert(
+    str_contains($updateSql, "AND status = 'neu'"),
+    'the import UPDATE only touches a report that is still open'
+);
+// Catches: the guard weakened to something that matches every row (`status <> ''`, `status LIKE '%'`).
+assert(
+    preg_match("/WHERE id = :report_id\s*\n\s*AND status = 'neu'/", $updateSql) === 1,
+    'and the guard sits in the WHERE next to the id, not somewhere it matches everything'
+);
+// Catches: the zero-row check removed, which would report success for a row that never changed.
+assert(
+    str_contains($importSource, '$statement->rowCount() < 1'),
+    'zero changed rows is still a refusal, not a success'
+);
+// ⚠️ Catches: the old message left in place. With the guard, zero rows means EITHER no such report OR
+// one that is no longer open -- "nicht gefunden" alone became a lie for the more interesting case,
+// and it is the same fact the editor already words honestly.
+assert(
+    str_contains($importSource, 'bereits verarbeitet oder nicht gefunden'),
+    'and the refusal says which two cases it covers'
+);
+// Catches: the editor losing its own guard, which is what the import door was measured against.
+assert(
+    preg_match("/WHERE id = :report_id\s*\n\s*AND status = 'neu'/", $editorSource) === 1,
+    'the editor still carries the guard this was mirrored from'
+);
+
 echo "report-audit ok\n";
