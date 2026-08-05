@@ -248,12 +248,38 @@ assert($throttleAt < $nameCheckAt, 'the hourly limit is decided BEFORE the two f
 assert($throttleAt < $duplicateAt, 'and before the duplicate probe as well');
 assert($nameCheckAt < $insertAt, 'the name conflict is still decided before anything is written');
 
-// ⭐ The swap also closes an oracle: while the 409 was decided first, a caller could ask "does this
-// place exist?" without limit -- the throttle came afterwards and stopped the report, never the
-// question. This assert is what keeps the answer behind the throttle.
+// 💣 POSITION IS NOT EFFECT, and asserting only position is how a dead throttle ships. An
+// adversarial pass proved it: flipping `!==` to `===` in the condition below, or prefixing it with
+// `false &&`, leaves the call textually first and semantically never taken -- and every order assert
+// above stayed green. The condition itself is pinned now.
 assert(
-    strpos($reportEndpoint, "avesmapsErrorResponse(429, 'rate_limited'") < strpos($reportEndpoint, "avesmapsErrorResponse(409, 'conflict'"),
-    'an over-limit caller is turned away before it learns whether the name exists'
+    str_contains($reportEndpoint, "if (\$mapReport['report_mode'] !== 'change' && avesmapsReportRateLimitExceeded(\$pdo, \$ipHash)) {"),
+    'the throttle actually runs for everything except change reports -- not merely first in the file'
+);
+// The same class of hole one line down: dropping the report_type gate would run the two unbounded
+// scans for every report type instead of new places only.
+assert(
+    str_contains($reportEndpoint, "if (\$mapReport['report_type'] === 'location' && \$mapReport['report_mode'] !== 'change' && avesmapsLocationNameExists(\$pdo, \$mapReport['name'])) {"),
+    'the name check still runs only for new places, and only outside change mode'
+);
+
+// ⚠️ WHAT THE SWAP DOES NOT BUY, written here because the commit that made it claimed more.
+//
+// 💣 The bucket counts STORED ROWS (avesmapsReportRateLimitCountSql: SELECT COUNT(*) FROM
+// map_reports), and a 409 stores nothing -- it exits before the INSERT. So a caller probing with
+// names that ALREADY EXIST never fills the bucket, never becomes over-limit, and keeps both the
+// answer and the unbounded scan on every request, for good. The order swap helps the caller who has
+// genuinely stored five reports; it does not touch the one who never stores any. For that caller the
+// endpoint is now one COUNT query MORE expensive than before.
+//
+// Nor does it hide the place names: GET /api/locations/ hands out all of them without a login. Only
+// the second half of the check -- open reports in map_reports -- was ever non-public.
+//
+// This assert is a marker, not a guard: it holds today and is meant to be revisited together with
+// finding A38, not deleted.
+assert(
+    str_contains(avesmapsReportRateLimitCountSql(), 'FROM map_reports'),
+    'the bucket counts stored reports, which is why a refused request never fills it (A38)'
 );
 
 // The two scans really are unbounded -- that is why their position matters. If someone ever gives

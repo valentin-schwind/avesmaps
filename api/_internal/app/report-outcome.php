@@ -26,9 +26,11 @@ const AVESMAPS_REPORT_ACCEPTED_MESSAGE = 'Karteneintrag wurde gemeldet.';
 //
 // ⚠️ This closes the status-code tell and ONLY that. Read no further than that: two older channels
 // still separate a discard from a store, and neither is this function's to fix.
-//   * The 409 duplicate-name answer sits BEFORE the filters in the flow (report-location.php:94
-//     against :88). Probing with a name that exists answers 409 when nothing was filtered and 201
-//     when something was -- one request per property, no row, and the hourly limit never sees it.
+//   * The 409 duplicate-name answer. Probing with a name that exists answers 409 when nothing was
+//     filtered and 201 when something was -- one request per property, and the hourly limit never
+//     sees either, because it counts rows in map_reports and neither answer writes one (A38).
+//     ⚠️ The line numbers this note used to carry were made wrong by A31, which moved the throttle
+//     ahead of the name check. None are put back: this file cannot keep them true.
 //   * The silent path returns before avesmapsCreatePdo(), so it answers in a fraction of the time a
 //     stored report takes (9 metadata queries plus two full table scans).
 // So: a bot learns nothing FROM THE STATUS CODE. It is not blind. Saying otherwise here would be the
