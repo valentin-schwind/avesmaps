@@ -1412,11 +1412,14 @@ Importwerkzeug schreibt einen Status, den keine Oberfläche kennt; die Meldung e
 > gibt seine eigene Kopie ab — **die Kopie war der Befund**.
 >
 > ⭐ **Die Liste wird ABGELEITET, nicht ein zweites Mal geschrieben:**
-> `array_keys(AVESMAPS_REPORT_MODERATION_AUDIT_ACTIONS)`. Das ist die Bauart, nicht Ordnungsliebe.
-> Ein Status, der **gesetzt** werden kann, aber keine Audit-Aktion hat, wäre eine
-> Moderationsentscheidung ohne Spur — also A4 wieder aufgemacht; einer mit Aktion, aber ohne
-> Setzweg, wäre tote Vokabel. Die Ableitung macht beides unmöglich, und der Test sichert zu, dass es
-> **dieselbe** Liste ist, nicht zwei, die heute zufällig übereinstimmen.
+> `array_keys(AVESMAPS_REPORT_MODERATION_AUDIT_ACTIONS)`.
+>
+> 🔁 **Aber meine Begründung dafür war falsch, und zwar für genau den Endpunkt, den ich repariert
+> habe** (Gegenprüfung, von mir am Code nachgestellt). Ich schrieb, „setzbar heisst auditiert" —
+> das gilt für die **Editor**-Tür. Der **Import**-Endpunkt schreibt **null** Audit-Einträge (kein
+> `avesmapsLogReportModeration`, kein `avesmapsWriteMapAuditLog`). Mit gültigem Token lässt sich
+> also weiterhin jede Meldung auf `approved`/`rejected`/`in_review` setzen — **ohne jede Spur**.
+> Das ist A4 durch die andere Tür, und es ist grösser als A33. → **A39**.
 >
 > ⚠️ **`neu` bleibt bewusst draussen** — das ist der Zustand, in dem eine Meldung *ankommt*, nicht
 > einer, den ein Bearbeiter wählt. Ob eine entschiedene Meldung dorthin zurück darf, ist **A32** und
@@ -1428,11 +1431,25 @@ Importwerkzeug schreibt einen Status, den keine Oberfläche kennt; die Meldung e
 > ein Unbefugter sieht weiterhin nur 401. Und er greift vor `avesmapsCreatePdo` (`:49`), kostet also
 > nicht einmal eine Datenbankverbindung.
 >
-> **Vier Mutationen rot — und eine musste ich mir selbst nachweisen:** ein `false &&` vor dem Riegel
-> liess ihn vorhanden und richtig platziert, während er nie feuerte, und meine erste Zusicherung ging
-> **grün** durch. Das war in dieser Sitzung das **dritte** Mal, dass ein Test Position statt Wirkung
-> prüft (A21: die Hülle statt der Transaktionsreichweite; A31: das SQL statt der Sortierung, dann die
-> Bedingung). Beide Bedingungen sind jetzt vollständig festgenagelt. 209/209 grün.
+> **Mutationen — und hier habe ich mich selbst überschätzt.** Ich meldete „vier rot" und schrieb
+> „beide Bedingungen vollständig festgenagelt". Die Gegenprüfung fuhr sechs andere: **vier davon
+> blieben grün** (`9106f84d` behebt es):
+>
+> | Mutation | vorher | jetzt |
+> |---|---|---|
+> | Riegel **loggt** statt abzulehnen (vorhanden, richtig platziert, wirkungslos) | grün | rot |
+> | `$newStatus` zwischen Riegel und `UPDATE` neu aus dem Payload gelesen | grün | rot |
+> | `in_array(…, true)` in der Bibliothek durch `true` ersetzt | grün | rot |
+> | zweite Kopie im Editor mit **doppelten** Anführungszeichen | grün | rot |
+>
+> Dazu war eine meiner Zusicherungen eine **Tautologie**: sie verglich
+> `avesmapsReportModerationStatuses()` mit genau dem, was die Funktion zurückgibt — sie konnte nie
+> rot werden, während ich sie als Beweis verkaufte. Und eine andere reagierte auf die **Reihenfolge**
+> der Audit-Karte, die nichts bedeutet; verglichen wird jetzt als Menge.
+>
+> Das war in dieser Sitzung das **dritte** Mal, dass meine Tests Position statt Wirkung prüfen
+> (A21: die Hülle statt der Transaktionsreichweite; A31: das SQL statt der Sortierung, dann die
+> Bedingung). 209/209 grün.
 >
 > **Live geprüft, spurenfrei** (der Import-Endpunkt schreibt ohne gültiges Token nichts): ein POST
 > ohne Token mit dem Müll-Status `voellig-erfunden` antwortet **401** — der Token-Riegel greift also
@@ -1465,6 +1482,37 @@ des verbliebenen Aufwands ist. Sie steht in einem `SELECT COUNT(*)` und braucht 
 
 *Beleg:* am Code gelesen, im Test gemessen (2 + 3×2 = 8 Abfragen bei drei Wiki-Objekten).
 *Aufwand:* mittel. *Gefunden von den Gegenprüf-Agenten an der eigenen A20-Auslieferung.*
+
+### A39 · Der Import-Endpunkt moderiert ohne Spur — und überschreibt entschiedene Meldungen
+`api/import/location-reports/update-status.php:49-60` gegen `api/edit/reports/locations.php:280`
+
+Aus der Gegenprüfung von A33, von mir am Code nachgestellt. Zwei Löcher an derselben Tür:
+
+**1. Kein Audit.** Der Endpunkt schreibt **null** Einträge — kein `avesmapsLogReportModeration`, kein
+`avesmapsWriteMapAuditLog`. Mit gültigem Import-Token lässt sich jede Meldung auf
+`approved`/`rejected`/`in_review` setzen, **ohne dass irgendwo steht, dass es geschah**. A4 hat
+genau das für die Editor-Tür geschlossen; diese blieb offen, und A33 hat sie beim Schliessen der
+Status-Frage nicht mitgenommen (im Gegenteil: meine Begründung dort behauptete das Gegenteil).
+
+**2. Kein `AND status = 'neu'`.** Der Editor trägt diesen Riegel an **drei** Stellen (`:280`, `:337`,
+`:362`) — er verhindert, dass zwei Bearbeiter dieselbe Meldung nacheinander entscheiden. Dem Import
+fehlt er: ein Token überschreibt eine bereits entschiedene Meldung stillschweigend, samt
+`reviewed_at`, ohne `reviewed_by` und ohne `review_note`. Die Entscheidung eines Menschen wird von
+einer Maschine ersetzt, und niemand kann es hinterher sehen.
+
+⚠️ **Und eine Nebenwirkung von A33, die ich benennen muss:** `neu` ist nicht mehr setzbar. Über
+diesen Endpunkt war das der **einzige** Weg, eine entschiedene Meldung wieder freizugeben — der
+Editor hat in jedem Schreibpfad `AND status = 'neu'`. A33 hat die letzte Umgehung von **A32**
+zugemauert und sich dabei auf A32 berufen. Bewusst, aber der Preis stand nicht dabei.
+
+🔧 **DU: eine Frage, dann baue ich beides.** Der Audit-Eintrag braucht einen **Urheber**, und ein
+Import-Token ist kein Benutzer. Drei Möglichkeiten: (a) ein fester technischer Benutzer „Import",
+(b) `reviewed_by` bleibt leer und die Audit-Zeile trägt nur „import", (c) das Token bekommt eine
+Zuordnung zu einem echten Konto. Der `status='neu'`-Riegel dagegen ist keine Entscheidung — er
+gleicht den Import an den Editor an und kommt mit.
+
+*Beleg:* `grep` über den Endpunkt (0 Treffer für beide Audit-Funktionen), `UPDATE` wörtlich gelesen.
+*Aufwand:* klein bis mittel.
 
 ### A38 · Eine abgewiesene Anfrage füllt den Eimer nicht — die Drossel sieht den Prober nie
 `api/_internal/app/report-outcome.php:57-63` gegen `api/app/report-location.php:129` und `:185`
