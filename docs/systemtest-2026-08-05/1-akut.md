@@ -2014,6 +2014,29 @@ gleicht den Import an den Editor an und kommt mit.
 > ⚠️ Der Vergleich läuft über den **Namen**, und der ist kein Schlüssel; der Abstand steht daneben,
 > damit ein Namensgleicher an anderer Stelle auffällt (`map_features` speichert `min_x = lng`,
 > `min_y = lat`).
+>
+> ---
+>
+> **✅ ABGESCHLOSSEN 06.08.2026 — alle 17 richtiggestellt, alle 17 belegt.** Der Bestand meldet
+> `approved` **19** (die 2 von vorher plus die 17) und `rejected` 5; Status `alt` kommt nicht mehr
+> vor. Die Riegel bleiben, wie sie sind — der Weg zurück war dieses eine `UPDATE`.
+>
+> 🔁 **Und mein Beleg war beim ersten Anlauf zu eng gefasst.** 16 der 17 zeigten `karten_treffer = 1`,
+> **id 10 „Finsterkopp" zeigte 0** — nach meiner eigenen Regel hätte das „nie übernommen" geheissen
+> und `rejected` verlangt. Ein einzelner Live-Abruf zeigt das Gegenteil: **Finsterkopp liegt auf der
+> Karte**, als `label` vom Subtyp `berggipfel` (4,7 Einheiten von der gemeldeten Koordinate). Meine
+> Abfrage filtert `f.feature_type = 'location'` — ein Berggipfel ist aber kein Ort, sondern ein
+> Label. `approved` stimmt auch für ihn.
+>
+> 💣 **Die Lehre ist dieselbe wie den ganzen Tag, nur in der Gegenrichtung:** ich habe einen
+> Prüffilter geschrieben, der eine Antwort *erzeugt* statt sie zu messen — und wäre ihm gefolgt,
+> hätte er eine korrekt übernommene Meldung als abgelehnt etikettiert. Ein Prüfwerkzeug, das enger
+> ist als die Wirklichkeit, meldet keinen Zweifel, sondern eine falsche Gewissheit. Wer die Abfrage
+> wiederverwendet: die Zeile `AND f.feature_type = 'location'` streichen oder um `'label'` weiten.
+>
+> ⚠️ Die Abstände der übrigen 16 liegen zwischen 0,00 und 6,50 Einheiten (7 exakt auf 0). Ein Versatz
+> ist erwartbar und kein Mangel: die gemeldete Koordinate ist der Klick des Melders, die gespeicherte
+> die Setzung des Bearbeiters.
 
 ### A38 · Eine abgewiesene Anfrage füllt den Eimer nicht — die Drossel sieht den Prober nie
 `api/_internal/app/report-outcome.php:57-63` gegen `api/app/report-location.php:129` und `:185`
