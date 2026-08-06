@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Übernahme-Vorschau für die Herrschaftsgebiete (Sitzung 4)</title>
+<style>
+:root{
+  --font-ui:"Faculty Glyphic","Arial",sans-serif;
+  --fs-caption:11px; --fs-small:12px; --fs-body:13px; --fs-read:14px; --fs-sub:16px; --fs-title:20px;
+  --color-page-bg:#f3f0e8; --color-panel:#fffdf9; --color-panel-soft:#faf6ee; --color-panel-muted:#f1ece1;
+  --color-panel-active:#e7ddc9;
+  --color-text:#2e271e; --color-text-strong:#3c3327; --color-text-muted:#706557;
+  --color-border:#ddd3c3; --color-border-strong:#cdbfa8; --color-divider:rgba(125,115,96,.30);
+  --color-button:#5b5548; --color-button-border:#635b4d; --color-button-text:#f6efe1; --color-button-hover:#6a6353;
+  --color-button-soft:#efe9db; --color-button-soft-text:#564b3b; --color-button-soft-border:#cdbda0; --color-button-soft-hover:#e7ddc9;
+  --color-accent:#bfa03a; --color-accent-strong:#9c7f22; --color-link:#8f7326;
+  --color-pill:#f3ecd9; --color-pill-border:#d7c7a2; --color-pill-text:#675024;
+  --color-danger:#9d3a2e;
+  --color-success-soft:#eef6e2; --color-success-soft-border:#a9c07f; --color-success-soft-text:#3c5a1c;
+  --color-danger-soft:#fbeae6; --color-danger-soft-border:#d3a79c; --color-danger-soft-text:#8a2d22;
+  --color-warning-soft:#faeeda; --color-warning-soft-border:#ef9f27; --color-warning:#b8860b;
+  --radius-sm:4px; --radius-md:6px; --radius-lg:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:28px 20px 64px;background:var(--color-page-bg);color:var(--color-text);
+     font:var(--fs-body)/1.5 var(--font-ui);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto}
+h1{font-size:var(--fs-title);margin:0 0 4px;color:var(--color-text-strong)}
+.lede{color:var(--color-text-muted);font-size:var(--fs-read);margin:0 0 26px;max-width:78ch}
+h2{font-size:var(--fs-sub);margin:34px 0 10px;color:var(--color-text-strong);
+   padding-bottom:6px;border-bottom:1px solid var(--color-divider)}
+h3{font-size:var(--fs-read);margin:22px 0 6px;color:var(--color-text-strong)}
+p{max-width:82ch}
+code{background:var(--color-panel-muted);padding:1px 5px;border-radius:var(--radius-sm);font-size:var(--fs-small)}
+
+/* ---------- Menüband ---------- */
+.ribbon{display:flex;gap:8px;flex-wrap:wrap;background:var(--color-panel-soft);border:1px solid var(--color-border);
+        border-radius:var(--radius-lg);padding:10px 12px;margin:10px 0 4px}
+.tile{display:flex;flex-direction:column;gap:1px;min-width:132px;padding:6px 12px;border-radius:var(--radius-md);
+      border:1px solid var(--color-button-soft-border);background:var(--color-button-soft);
+      color:var(--color-button-soft-text);cursor:pointer;font:inherit;text-align:left}
+.tile b{font-size:var(--fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile span{font-size:var(--fs-caption);color:var(--color-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile--main{background:var(--color-button);border-color:var(--color-button-border);color:var(--color-button-text)}
+.tile--main span{color:rgba(246,239,225,.72)}
+.tile--gone{opacity:.45;text-decoration:line-through;text-decoration-color:var(--color-danger)}
+.ribbon__sep{width:1px;background:var(--color-divider);margin:2px 6px}
+.statusline{font-size:var(--fs-small);color:var(--color-text-muted);padding:6px 13px;border:1px solid var(--color-border);
+  border-top:0;border-radius:0 0 var(--radius-md) var(--radius-md);background:var(--color-panel);margin:0 0 8px}
+
+/* ---------- das Bauteil ---------- */
+.sheet{background:var(--color-panel);border:1px solid var(--color-border);border-radius:var(--radius-lg);
+       overflow:hidden;box-shadow:0 1px 2px rgba(60,51,39,.06)}
+.sheet__head{padding:14px 18px 12px;border-bottom:1px solid var(--color-divider);background:var(--color-panel-soft)}
+.sheet__title{font-size:var(--fs-sub);font-weight:700;color:var(--color-text-strong);margin:0 0 2px}
+.sheet__meta{font-size:var(--fs-small);color:var(--color-text-muted)}
+.sheet__body{padding:2px 0 0}
+
+.grp{border-bottom:1px solid var(--color-divider)}
+.grp:last-of-type{border-bottom:0}
+.grp>summary{list-style:none;cursor:pointer;padding:11px 18px;display:flex;align-items:center;gap:10px;user-select:none}
+.grp>summary::-webkit-details-marker{display:none}
+.grp>summary::before{content:"▸";color:var(--color-text-muted);font-size:11px;width:10px;flex:none;transition:transform .12s}
+.grp[open]>summary::before{transform:rotate(90deg)}
+.grp__name{font-weight:700;color:var(--color-text-strong)}
+.grp__count{font-size:var(--fs-caption);background:var(--color-pill);border:1px solid var(--color-pill-border);
+            color:var(--color-pill-text);border-radius:999px;padding:1px 8px}
+.grp__hint{font-size:var(--fs-small);color:var(--color-text-muted);margin-left:auto;text-align:right}
+.grp--del>summary{background:var(--color-danger-soft)}
+.grp--del .grp__count{background:#fff;border-color:var(--color-danger-soft-border);color:var(--color-danger-soft-text)}
+.grp--del .grp__hint{color:var(--color-danger-soft-text)}
+
+.rows{padding:2px 18px 14px}
+.row{display:grid;grid-template-columns:22px 1fr;gap:10px;padding:9px 0;border-top:1px solid var(--color-divider)}
+.row:first-child{border-top:0}
+.row input[type=checkbox]{margin-top:3px;width:15px;height:15px;accent-color:var(--color-accent-strong)}
+.row__name{font-weight:700;color:var(--color-text-strong)}
+.row__sub{font-size:var(--fs-small);color:var(--color-text-muted)}
+.row__why{font-size:var(--fs-small);color:var(--color-danger-soft-text)}
+.row__warn{font-size:var(--fs-small);color:#7a5a08;background:var(--color-warning-soft);
+  border-left:3px solid var(--color-warning-soft-border);border-radius:var(--radius-sm);padding:6px 9px;margin-top:6px;display:block}
+
+.diff{margin:6px 0 0;display:grid;grid-template-columns:max-content 1fr;gap:2px 14px;
+      font-size:var(--fs-small);background:var(--color-panel-muted);border-radius:var(--radius-md);padding:8px 10px}
+.diff dt{color:var(--color-text-muted)}
+.diff dd{margin:0}
+.old{color:var(--color-text-muted);text-decoration:line-through;text-decoration-color:rgba(125,115,96,.5)}
+.arrow{color:var(--color-text-muted);padding:0 4px}
+.new{color:var(--color-text-strong);font-weight:700}
+.kept{color:var(--color-warning);font-weight:700}
+
+.tag{display:inline-block;font-size:var(--fs-caption);border-radius:999px;padding:1px 8px;
+     border:1px solid var(--color-pill-border);background:var(--color-pill);color:var(--color-pill-text);vertical-align:1px}
+.tag--own{background:var(--color-warning-soft);border-color:var(--color-warning-soft-border);color:#7a5a08}
+.tag--gone{background:#fff;border-color:var(--color-danger-soft-border);color:var(--color-danger-soft-text)}
+.tag--skip{background:var(--color-panel-active);border-color:var(--color-border-strong);color:var(--color-text-muted)}
+.tag--skip b{color:var(--color-text-strong)}
+
+.grp__bulk{display:flex;gap:6px;margin-left:auto}
+.grp__bulk button{font:inherit;font-size:var(--fs-caption);padding:2px 9px;border-radius:var(--radius-sm);
+  border:1px solid var(--color-button-soft-border);background:var(--color-button-soft);
+  color:var(--color-button-soft-text);cursor:pointer}
+.grp__bulk button:hover{background:var(--color-button-soft-hover)}
+.grp__hint+.grp__bulk{margin-left:14px}
+
+.linkish{background:none;border:0;color:var(--color-link);cursor:pointer;font:inherit;font-size:var(--fs-small);
+         text-decoration:underline;padding:0}
+
+.foot{padding:13px 18px;border-top:1px solid var(--color-divider);background:var(--color-panel-soft);
+      display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.foot__count{font-size:var(--fs-small);color:var(--color-text-muted);margin-right:auto}
+.foot__count b{color:var(--color-text-strong)}
+.btn{font:inherit;font-size:var(--fs-body);border-radius:var(--radius-md);padding:7px 15px;cursor:pointer;
+     border:1px solid var(--color-button-soft-border);background:var(--color-button-soft);color:var(--color-button-soft-text)}
+.btn:hover{background:var(--color-button-soft-hover)}
+.btn--main{background:var(--color-button);border-color:var(--color-button-border);color:var(--color-button-text)}
+.btn--main:hover{background:var(--color-button-hover)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.gate{margin:0;padding:11px 18px;background:var(--color-danger-soft);border-top:1px solid var(--color-danger-soft-border);
+      color:var(--color-danger-soft-text);font-size:var(--fs-small);display:flex;gap:10px;align-items:center}
+.gate[hidden]{display:none}
+.gate label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.gate input{width:15px;height:15px;accent-color:var(--color-danger)}
+
+.note{background:var(--color-panel-soft);border:1px solid var(--color-border);border-left:3px solid var(--color-accent);
+      border-radius:var(--radius-md);padding:11px 14px;margin:14px 0;font-size:var(--fs-small)}
+.note b{color:var(--color-text-strong)}
+.note--danger{border-left-color:var(--color-danger)}
+
+table.map{width:100%;border-collapse:collapse;font-size:var(--fs-small);margin-top:8px}
+table.map th,table.map td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--color-divider);vertical-align:top}
+table.map th{color:var(--color-text-muted);font-weight:700;font-size:var(--fs-caption);text-transform:uppercase;letter-spacing:.04em}
+.scroll{overflow-x:auto}
+
+@media (prefers-color-scheme:dark){
+ :root{--color-page-bg:#221e19;--color-panel:#2b2621;--color-panel-soft:#322c25;--color-panel-muted:#3a332b;
+   --color-text:#ece5d8;--color-text-strong:#fff8ea;--color-text-muted:#a89d8b;
+   --color-border:#463e34;--color-divider:rgba(200,185,155,.22);
+   --color-button-soft:#3d362d;--color-button-soft-text:#e8dfcd;--color-button-soft-border:#5a5044;--color-button-soft-hover:#4a4238;
+   --color-pill:#3f3830;--color-pill-border:#5d5344;--color-pill-text:#e3d3a8;
+   --color-danger-soft:#40292a;--color-danger-soft-border:#7a4b45;--color-danger-soft-text:#f0bcb2;
+   --color-warning-soft:#3d3222;--color-warning-soft-border:#8a6a26;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Herrschaftsgebiete — die Übernahme-Vorschau (Sitzung 4)</h1>
+<p class="lede">Entwurf, nicht gebaut. Der Baum-Arbeitsablauf bleibt, wie er ist. Neu sind drei
+nummerierte Kacheln und <b>zwei</b> Vorschauen: eine für unsere Wiki-Kopie (Schritt 1), eine für das,
+was in die Karte geschrieben wird (Schritt 3).</p>
+
+<h2>Das Menüband</h2>
+
+<p><b>Heute</b> — neun Kacheln, vier davon gehören zu diesem Ablauf, und zwei zeigen Zahlen, an denen
+niemand etwas tun kann:</p>
+<div class="ribbon">
+  <button class="tile tile--main"><b>🚨 Syncen</b><span>vor 3 Std.</span></button>
+  <button class="tile"><b>Hierarchie</b><span>1.384 Knoten</span></button>
+  <button class="tile tile--gone"><b>Unterschiede</b><span>41 / 6 / 1.203</span></button>
+  <button class="tile tile--gone"><b>Test</b><span>59 auffüllbar</span></button>
+  <button class="tile"><b>Daten übernehmen</b><span>—</span></button>
+  <button class="tile tile--main"><b>Modell übernehmen</b><span>—</span></button>
+  <div class="ribbon__sep"></div>
+  <button class="tile"><b>Wappen lokalisieren</b><span>9 offen</span></button>
+  <button class="tile"><b>Wappen: An</b><span>im Frontend</span></button>
+  <button class="tile"><b>🔗 Links prüfen</b><span>—</span></button>
+</div>
+<p class="row__sub" style="margin:4px 0 0">„Daten übernehmen" ist keine eigene Handlung: „Modell
+übernehmen" ruft sie bereits mit auf.</p>
+
+<p style="margin-top:22px"><b>Danach</b> — drei nummerierte Kacheln, die Reihenfolge steht im Namen:</p>
+<div class="ribbon">
+  <button class="tile tile--main"><b>1 · Einlesen</b><span>vor 3 Std. · 1.384</span></button>
+  <button class="tile"><b>2 · Baum rechnen</b><span>1.384 Knoten</span></button>
+  <button class="tile tile--main"><b>3 · Übernehmen</b><span>63 Unterschiede</span></button>
+  <div class="ribbon__sep"></div>
+  <button class="tile"><b>Wappen lokalisieren</b><span>9 offen</span></button>
+  <button class="tile"><b>Wappen: An</b><span>im Frontend</span></button>
+  <button class="tile"><b>🔗 Links prüfen</b><span>—</span></button>
+</div>
+<p class="statusline">Bereit. · Vorschau offen: <b>Wiki-Kopie</b> — 1.250 Unterschiede
+  <button class="linkish">öffnen</button> &nbsp;·&nbsp; <b>Karte</b> — 63 Unterschiede
+  <button class="linkish">öffnen</button></p>
+<p class="row__sub">Eine liegengebliebene Liste geht so nicht verloren. Ein Druck auf 1 oder 3 zeigt eine
+offene Liste, statt neu zu rechnen — neu gerechnet wird nur, wenn keine da ist.</p>
+
+<h2>Schritt 1 · Die Wiki-Kopie nachführen</h2>
+<p>Vergleicht die frisch eingelesenen Wiki-Angaben gegen unsere Kopie, Zeile für Zeile über den
+<code>wiki_key</code>. Diese Kopie wurde zuletzt vor Monaten gefüllt — deshalb sind es so viele Zeilen.
+Sie speist die Infobox: Hauptstadt, Oberhaupt, Sprache, Währung, Handelswaren, Wappenbeschreibung.
+<b>Geometrie, Hierarchie und die Karte selbst bleiben unberührt.</b></p>
+
+<div class="sheet" data-sheet data-hidden="1238" data-total="1250">
+  <div class="sheet__head">
+    <p class="sheet__title">Die Wiki-Kopie der Herrschaftsgebiete nachführen</p>
+    <div class="sheet__meta">Einlesen vom 06.08.2026, 22:03 · 1.384 Wiki-Artikel gelesen · 1.250 Unterschiede</div>
+  </div>
+
+  <div class="sheet__body">
+
+    <details class="grp" open>
+      <summary>
+        <span class="grp__name">Neu</span><span class="grp__count">41</span>
+        <span class="grp__hint">im Wiki dazugekommen · alle vorangehäkelt</span>
+        <span class="grp__bulk"><button type="button">alle</button><button type="button">keine</button></span>
+      </summary>
+      <div class="rows">
+        <label class="row"><input type="checkbox" checked data-cb="new">
+          <span><span class="row__name">Baronie Eslamsbrück</span>
+          <span class="row__sub">Artikel seit 14.07. · wird mit dem gleichnamigen Gebiet auf der Karte verbunden</span></span></label>
+        <label class="row"><input type="checkbox" checked data-cb="new">
+          <span><span class="row__name">Sultanat Mengbilla</span>
+          <span class="row__sub">Artikel seit 02.08. · kein Gebiet auf der Karte trägt diesen Schlüssel — die Kopie steht für später bereit</span></span></label>
+        <label class="row"><input type="checkbox" checked data-cb="new">
+          <span><span class="row__name">Grafschaft Wildmark</span>
+          <span class="row__sub">Artikel seit 21.07.</span></span></label>
+        <div class="row"><span></span><span class="row__sub">… und 38 weitere (sie sind mit ihrem Häkchen gespeichert und werden mit übernommen)</span></div>
+      </div>
+    </details>
+
+    <details class="grp" open>
+      <summary>
+        <span class="grp__name">Geändert</span><span class="grp__count">1.203</span>
+        <span class="grp__hint">Wiki weicht von der Kopie ab · alle vorangehäkelt</span>
+        <span class="grp__bulk"><button type="button">alle</button><button type="button">keine</button></span>
+      </summary>
+      <div class="rows">
+
+        <label class="row"><input type="checkbox" checked data-cb="chg">
+          <span>
+            <span class="row__name">Fürstentum Kosch</span>
+            <dl class="diff">
+              <dt>Oberhaupt</dt><dd><span class="old">Blasius von Eberstamm</span><span class="arrow">→</span><span class="new">Growin Sohn des Grimbrand</span></dd>
+              <dt>Einwohnerzahl</dt><dd><span class="old">175.000</span><span class="arrow">→</span><span class="new">181.000</span></dd>
+              <dt>Handelswaren</dt><dd><span class="old">—</span><span class="arrow">→</span><span class="new">Erz, Holz, Bier</span></dd>
+            </dl>
+            <span class="row__sub">+ 4 weitere Felder</span>
+          </span>
+        </label>
+
+        <label class="row"><input type="checkbox" checked data-cb="chg">
+          <span>
+            <span class="row__name">Grafschaft Ferdok</span>
+            <dl class="diff">
+              <dt>Sprache</dt><dd><span class="old">Garethi</span><span class="arrow">→</span><span class="new">Garethi, Kosch-Dialekt</span></dd>
+              <dt>Währung</dt><dd><span class="kept">bleibt „Kosch-Taler"</span>
+                <span class="row__sub">Der frische Dump liefert dazu nichts. Ein leerer Wert überschreibt nie einen guten — deshalb ist das hier gar keine Änderung.</span></dd>
+            </dl>
+          </span>
+        </label>
+
+        <label class="row"><input type="checkbox" data-cb="chg">
+          <span>
+            <span class="row__name">Al'Anfa</span>
+            <span class="tag tag--skip">⤴ <b>2×</b> übersprungen, zuletzt 28.07.</span>
+            <dl class="diff">
+              <dt>Herrschaftsform</dt><dd><span class="old">Patriarchat</span><span class="arrow">→</span><span class="new">Wahlpatriarchat</span></dd>
+            </dl>
+            <span class="row__sub">Nicht vorangehäkelt, weil du zweimal Nein gesagt hast. Beim nächsten Lauf steht es wieder da.</span>
+          </span>
+        </label>
+
+        <div class="row"><span></span><span class="row__sub">… und 1.200 weitere (sie sind mit ihrem Häkchen gespeichert und werden mit übernommen)</span></div>
+      </div>
+    </details>
+
+    <details class="grp grp--del" open>
+      <summary>
+        <span class="grp__name">Gelöscht</span><span class="grp__count">6</span>
+        <span class="grp__hint">im Wiki nicht mehr da · <b>nichts vorangehäkelt</b></span>
+      </summary>
+      <div class="rows">
+        <p class="row__sub" style="margin:0 0 8px">Nur Kopien, auf die <b>kein</b> Gebiet auf der Karte
+          zeigt. Was du <b>nicht</b> anhäkelst, bleibt — dauerhaft, es wird nicht wieder gefragt.<br>
+          <b>Fünf weitere</b> Kopien haben ebenfalls keinen Artikel mehr, hängen aber an einem Gebiet auf
+          der Karte (Grafschaft Wehrsold, Baronie Rabenmund, Vogtei Isenhag, Baronie Sturmfels,
+          Grafschaft Hardenfels). Ihnen hingen sechs Infobox-Zeilen ab — sie bleiben stehen und werden
+          hier <b>nicht angeboten</b>.
+          <button type="button" class="linkish">2 früher abgelehnte Löschungen anzeigen</button></p>
+
+        <label class="row"><input type="checkbox" data-cb="del">
+          <span><span class="row__name">Baronie Alt-Gareth (Entwurf)</span> <span class="tag tag--gone">3 Läufe fehlend</span>
+          <span class="row__why">Artikel im Wiki gelöscht. Kein Gebiet auf der Karte zeigt darauf.</span></span></label>
+        <label class="row"><input type="checkbox" data-cb="del">
+          <span><span class="row__name">Grafschaft Nostria (Duplikat)</span> <span class="tag tag--gone">4 Läufe fehlend</span>
+          <span class="row__why">Zweite Kopie desselben Artikels aus einem alten Lauf. Kein Gebiet zeigt darauf.</span></span></label>
+        <label class="row"><input type="checkbox" data-cb="del">
+          <span><span class="row__name">Königreich Thorwal (alt)</span> <span class="tag tag--gone">7 Läufe fehlend</span>
+          <span class="row__why">Seit dem 12.06. nicht mehr im Dump. Kein Gebiet zeigt darauf.</span></span></label>
+        <div class="row"><span></span><span class="row__sub">… und 3 weitere</span></div>
+      </div>
+    </details>
+
+  </div>
+
+  <p class="gate" data-gate hidden>
+    <label><input type="checkbox" data-gate-cb>
+      <span>Ja, <b data-gate-n>1</b> Kopie wirklich löschen. Das lässt sich nicht rückgängig machen.</span></label>
+  </p>
+
+  <div class="foot">
+    <span class="foot__count"><b data-sum>1.247</b> von 1.250 werden übernommen — <b data-sumdel>0</b> Löschungen, <b data-skip>1</b> übersprungen bleibt liegen</span>
+    <button class="btn" title="Es wird nichts geschrieben. Die Liste bleibt liegen — samt deiner Häkchen.">Später</button>
+    <button class="btn btn--main" data-apply>Übernehmen</button>
+  </div>
+</div>
+
+<div class="note note--danger">
+  💣 <b>Ist die Staging-Tabelle leer, gibt es null Löschzeilen — und null Änderungszeilen.</b> Ein
+  abgebrochenes „Einlesen" darf nie als „das Wiki kennt diese 1.384 Gebiete nicht mehr" gelesen werden.
+  Denselben Riegel tragen die Stadtkarten seit Sitzung 1.
+</div>
+
+<h2>Schritt 3 · In die Karte übernehmen</h2>
+<p>Hier steht, was Besucher sehen werden. Wenige Dutzend Zeilen statt tausend — deshalb ist es eine
+eigene Liste und steht nicht zwischen den harmlosen von Schritt 1.</p>
+
+<div class="sheet" data-sheet data-hidden="56" data-total="63">
+  <div class="sheet__head">
+    <p class="sheet__title">Herrschaftsgebiete in die Karte übernehmen</p>
+    <div class="sheet__meta">Baum vom 06.08.2026, 22:05 · 1.384 Knoten · 63 Unterschiede</div>
+  </div>
+
+  <div class="sheet__body">
+
+    <details class="grp" open>
+      <summary>
+        <span class="grp__name">Neu</span><span class="grp__count">4</span>
+        <span class="grp__hint">eigene Knoten, die es auf der Karte noch nicht gibt · alle vorangehäkelt</span>
+        <span class="grp__bulk"><button type="button">alle</button><button type="button">keine</button></span>
+      </summary>
+      <div class="rows">
+        <label class="row"><input type="checkbox" checked data-cb="new">
+          <span><span class="row__name">Theaterritterliche Republik an Born und Walsach</span> <span class="tag tag--own">eigener Knoten</span>
+          <span class="row__sub">wird als Herrschaftsgebiet angelegt · Eltern: Bornland · 25 Kinder im Baum warten darauf</span></span></label>
+        <label class="row"><input type="checkbox" checked data-cb="new">
+          <span><span class="row__name">Freie Städte am Bodir</span> <span class="tag tag--own">eigener Knoten</span>
+          <span class="row__sub">wird als Herrschaftsgebiet angelegt · Eltern: (Wurzel)</span></span></label>
+        <div class="row"><span></span><span class="row__sub">… und 2 weitere</span></div>
+      </div>
+    </details>
+
+    <details class="grp" open>
+      <summary>
+        <span class="grp__name">Geändert</span><span class="grp__count">59</span>
+        <span class="grp__hint">Baum oder Wiki weichen von der Karte ab · alle vorangehäkelt</span>
+        <span class="grp__bulk"><button type="button">alle</button><button type="button">keine</button></span>
+      </summary>
+      <div class="rows">
+
+        <label class="row"><input type="checkbox" checked data-cb="chg">
+          <span>
+            <span class="row__name">Fürstentum Kosch</span>
+            <dl class="diff">
+              <dt>Staatsform</dt><dd><span class="old">Fürstentum</span><span class="arrow">→</span><span class="new">Fürstentum des Mittelreichs</span></dd>
+              <dt>Gegründet</dt><dd><span class="old">0 BF</span><span class="arrow">→</span><span class="new">512 BF</span></dd>
+            </dl>
+          </span>
+        </label>
+
+        <label class="row"><input type="checkbox" checked data-cb="chg">
+          <span>
+            <span class="row__name">Mark Ragathsquell</span>
+            <dl class="diff">
+              <dt>Eltern</dt><dd><span class="old">Grafschaft Ragath</span><span class="arrow">→</span><span class="new">Fürstentum Almada</span></dd>
+            </dl>
+            <span class="row__warn">⚠ Ändert die Außengrenzen-Rolle von drei Knoten:
+              <b>Grafschaft Ragath</b> verliert ihr letztes Kind und ist danach kein Behälter mehr — ihre
+              bestehende Außengrenze wird dadurch überflüssig. <b>Fürstentum Almada</b> bekommt ein Kind
+              dazu. <b>Mark Ragathsquell</b> selbst bleibt gesperrt (eigenes Polygon).
+              <br>Die Übernahme rechnet <b>nichts</b> nach und löscht <b>nichts</b> — sie setzt den
+              Elternteil. Das ist ein Hinweis, keine Handlung.</span>
+          </span>
+        </label>
+
+        <label class="row"><input type="checkbox" checked data-cb="chg">
+          <span>
+            <span class="row__name">Baronie Hügelsee</span> <span class="tag tag--gone">von Hand geändert</span>
+            <dl class="diff">
+              <dt>Name</dt><dd><span class="old">Baronie Hügelsee am Großen Fluss</span><span class="arrow">→</span><span class="new">Baronie Hügelsee</span></dd>
+            </dl>
+            <span class="row__sub">Der Name auf der Karte stammt nicht aus dem Wiki — jemand hat ihn im
+              Politik-Editor gesetzt. Häkchen weg heißt „diesmal nicht"; dauerhaft festhalten geht so:
+              <button type="button" class="linkish">Wert festhalten</button></span>
+          </span>
+        </label>
+
+        <label class="row"><input type="checkbox" checked data-cb="chg">
+          <span>
+            <span class="row__name">Markgrafschaft Sonnenmark</span> <span class="tag tag--own">eigener Wert</span>
+            <dl class="diff">
+              <dt>Gegründet</dt><dd><span class="old">—</span><span class="arrow">→</span><span class="new">720 BF</span>
+                <span class="row__sub">aus deinem eigenen Wert im Baum, nicht aus dem Wiki</span></dd>
+            </dl>
+          </span>
+        </label>
+
+        <label class="row"><input type="checkbox" data-cb="chg">
+          <span>
+            <span class="row__name">Grafschaft Wehrheim</span>
+            <span class="tag tag--skip">⤴ <b>3×</b> übersprungen, zuletzt 28.07.</span>
+            <dl class="diff">
+              <dt>Eltern</dt><dd><span class="old">Fürstentum Kosch</span><span class="arrow">→</span><span class="new">Kaiserreich Mittelreich</span></dd>
+            </dl>
+            <span class="row__sub">Nicht vorangehäkelt, weil du dreimal Nein gesagt hast. Der Baum sagt
+              weiterhin „Kaiserreich" — willst du das anders, gehört die Änderung in den Baum, nicht hierher.</span>
+          </span>
+        </label>
+
+        <div class="row"><span></span><span class="row__sub">… und 54 weitere (sie sind mit ihrem Häkchen gespeichert und werden mit übernommen)</span></div>
+      </div>
+    </details>
+
+    <details class="grp">
+      <summary>
+        <span class="grp__name">Gelöscht</span><span class="grp__count">0</span>
+        <span class="grp__hint">dieser Abgleich löscht nichts</span>
+      </summary>
+      <div class="rows">
+        <div class="row"><span></span><span class="row__sub">Ein Herrschaftsgebiet wird nie gelöscht. Der
+          Abgleich hat dafür keinen Weg und hatte nie einen — auch dann nicht, wenn sein Wiki-Artikel
+          verschwindet. Verwaiste <b>Kopien</b> stehen in der Vorschau von Schritt 1.</span></div>
+      </div>
+    </details>
+
+  </div>
+
+  <p class="gate" data-gate hidden>
+    <label><input type="checkbox" data-gate-cb><span>—</span></label>
+  </p>
+
+  <div class="foot">
+    <span class="foot__count"><b data-sum>61</b> von 63 werden übernommen — <b data-sumdel>0</b> Löschungen, <b data-skip>2</b> übersprungen bleiben liegen</span>
+    <button class="btn" title="Es wird nichts geschrieben. Die Liste bleibt liegen — samt deiner Häkchen.">Später</button>
+    <button class="btn btn--main" data-apply>Übernehmen</button>
+  </div>
+</div>
+
+<h2>Was der Abgleich nicht anfasst</h2>
+
+<div class="scroll">
+<table class="map">
+  <tr><th>Handarbeit</th><th>wo sie liegt</th><th>geschützt</th></tr>
+  <tr><td>Eigener Wert je Feld</td><td><code>metadata_overrides_json</code> im Baum-Modell</td>
+      <td><b>Ja, schon heute.</b> Der eigene Wert gewinnt immer über den Wiki-Wert — die Zeile zeigt ihn als „eigener Wert".</td></tr>
+  <tr><td>Eltern gesperrt · aussortiert</td><td><code>parent_locked</code>, <code>excluded</code></td>
+      <td><b>Ja, schon heute.</b> „Baum rechnen" schreibt gesperrte Eltern nicht um, Aussortiertes wird übersprungen.</td></tr>
+  <tr><td>Direkt im Politik-Editor geändert</td><td><code>political_territory</code> selbst</td>
+      <td><b>Neu sichtbar.</b> Dafür gibt es kein Merkmal — bis heute wird es wortlos zurückgesetzt. Jetzt steht es in der Zeile, ist abwählbar, und „Wert festhalten" macht daraus einen eigenen Wert.</td></tr>
+  <tr><td>Geometrien · Außengrenzen · Zoombänder · Farben</td><td><code>political_territory_geometry</code> u. a.</td>
+      <td><b>Unberührt.</b> Die Übernahme schreibt Eltern und Datenfelder, sonst nichts.</td></tr>
+</table>
+</div>
+
+<div class="note">
+  <b>Warum zwei Listen und nicht eine?</b> Weil es zwei verschiedene Handlungen sind. Schritt 1 führt
+  <em>unsere Ablage der Wiki-Angaben</em> nach — über tausend gleichförmige Zeilen. Schritt 3 ändert,
+  <em>was Besucher auf der Karte sehen</em> — wenige Dutzend Zeilen, jede mit Folgen. Stünden sie
+  zusammen, ständen die folgenreichen zwischen den harmlosen, und genau das soll die Vorschau verhindern.
+</div>
+
+<script>
+document.querySelectorAll("[data-sheet]").forEach(function (sheet) {
+  var gate = sheet.querySelector("[data-gate]");
+  var gateCb = sheet.querySelector("[data-gate-cb]");
+  var gateN = sheet.querySelector("[data-gate-n]");
+  var sum = sheet.querySelector("[data-sum]");
+  var sumDel = sheet.querySelector("[data-sumdel]");
+  var apply = sheet.querySelector("[data-apply]");
+  var hidden = Number(sheet.dataset.hidden || 0);
+
+  function refresh() {
+    var boxes = Array.prototype.slice.call(sheet.querySelectorAll("[data-cb]"));
+    var checked = boxes.filter(function (b) { return b.checked; });
+    var del = checked.filter(function (b) { return b.dataset.cb === "del"; }).length;
+    var dels = boxes.filter(function (b) { return b.dataset.cb === "del"; }).length;
+    var skipped = boxes.length - checked.length - (dels - del);
+
+    sum.textContent = (hidden + checked.length).toLocaleString("de-DE");
+    sumDel.textContent = del;
+    var skipText = sum.parentNode.querySelector("[data-skip]");
+    if (skipText) { skipText.textContent = skipped; }
+
+    if (del > 0 && gateN) {
+      gate.hidden = false;
+      gateN.textContent = del;
+    } else if (gate) {
+      gate.hidden = true;
+      if (gateCb) { gateCb.checked = false; }
+    }
+    apply.disabled = del > 0 && gateCb && !gateCb.checked;
+    apply.textContent = del > 0 ? "Übernehmen und " + del + " löschen" : "Übernehmen";
+  }
+
+  sheet.querySelectorAll(".grp__bulk button").forEach(function (button) {
+    button.addEventListener("click", function (event) {
+      event.preventDefault();
+      var on = button.textContent.trim() === "alle";
+      button.closest(".grp").querySelectorAll("[data-cb]").forEach(function (b) { b.checked = on; });
+      refresh();
+    });
+  });
+
+  sheet.addEventListener("change", refresh);
+  refresh();
+});
+</script>
+
+</div>
+</body>
+</html>
