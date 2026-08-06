@@ -717,7 +717,7 @@ window.AVESMAPS_I18N_EN = {
 	// The one-line hint under each section heading. Collapsed, the eight headings are the dialog's
 	// table of contents, and these lines are what makes it one — they say what is inside without
 	// opening it. Keep them short enough for a single line at 680 px.
-	"legal.hint.usage": "Keyboard shortcuts for map, search and route",
+	"legal.hint.usage": "Keyboard shortcuts — and what slows the map down",
 	"legal.hint.project": "Fan project, not an official DSA publication",
 	"legal.hint.copyright": "Trademarks, map material, coats of arms, images, covers",
 	"legal.hint.content": "Path data, wiki reconciliation, community reports",
@@ -753,6 +753,12 @@ window.AVESMAPS_I18N_EN = {
 	"legal.sources.tech": "Technology.",
 	"legal.changes.lead": "Changes.",
 	"legal.changes.body": "These notices may be adjusted in the event of technical, legal or content-related changes to the project.",
+
+	// Sits at the bottom of the "Bedienung" section, after the shortcut table. Reported by readers of
+	// the map; the editor handbook has carried the same finding for editors for a while.
+	"legal.performance.heading": "When the map feels slow",
+	"legal.performance.lead": "Ad and script blockers.",
+	"legal.performance.body": "Avesmaps shows no advertising and embeds no ad networks. Even so, some blockers step in here as well — especially the ones built into the browser, such as Vivaldi's — and noticeably slow down how the map builds up; we have had reports of exactly that. If the map feels sluggish, add avesmaps.de to your blocker's exception list.",
 
 	// --- keyboard shortcuts ("Bedienhilfen", inside the notices dialog) ----------------------------
 	// ⚠️ The rows are BUILT from the same list the keys themselves come from

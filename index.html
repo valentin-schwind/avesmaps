@@ -55,6 +55,49 @@
 		<link rel="stylesheet" href="css/styles.css" />
 		<link rel="stylesheet" href="css/features/loading-bar.css" />
 		<link rel="stylesheet" href="css/features/mail-inbox.css" />
+		<!-- Der Stil fuer den Riegel unten am Anfang des Rumpfes. Er steht HIER, im Kopf: nur in
+		     einem noscript-Block im Kopf darf ein style-Element stehen, und nur dort kostet er den
+		     Besucher MIT JavaScript nichts -- der Browser parst den Inhalt eines noscript-Blocks
+		     dann gar nicht. Deshalb auch keine neue Datei in der @import-Kette von styles.css:
+		     diese Regeln erreichen ausser dem Riegel nie ein Element.
+		     💣 Nur Token, keine Farbwerte (AGENTS.md §12) -- tokens.css haengt an styles.css und ist
+		     ohne JavaScript genauso geladen wie mit. -->
+		<noscript>
+			<style>
+				body { margin: 0; padding: var(--space-24) var(--space-20) 80px;
+					background: var(--color-page-bg); color: var(--color-text);
+					font: var(--font-size-reading)/var(--leading-normal) var(--font-ui); }
+				/* Ohne JavaScript baut Leaflet nichts auf; der leere Kasten wuerde nur eine
+				   Bildschirmhoehe Leerraum unter den Hinweis schieben. */
+				#map { display: none; }
+				.nojs { max-width: 46rem; margin: 0 auto; }
+				/* Der Riegel selbst spricht die Sprache der Aktionskacheln im Fenster „Hinweise":
+				   Rahmen, weicher Grund, goldene Ueberschrift. */
+				.nojs__card { padding: 18px 20px 16px; margin-bottom: var(--space-24);
+					border: 1px solid var(--color-border); border-radius: var(--radius-md);
+					background: var(--color-panel-soft); }
+				.nojs__title { margin: 0 0 8px; color: var(--color-accent-strong);
+					font-size: 17px; font-weight: var(--font-weight-bold); line-height: 1.2; }
+				.nojs p { margin: 0 0 10px; color: var(--color-text-muted); }
+				.nojs a { color: var(--color-link); }
+				/* 💣 Die Regeln des Faktenblocks haengen an `section`, nicht an `.nojs`. Der Titel des
+				   Riegels ist selbst ein h2 (der einzige h1 der Seite gehoert dem Faktenblock), und
+				   ein `.nojs h2` schlaegt `.nojs__title` -- es ist das speziellere Selektorpaar. Er
+				   bekam dadurch die Trennlinie und die Groesse einer Abschnittsueberschrift, mitten
+				   im Kasten. */
+				.nojs section h1 { margin: 0 0 10px; color: var(--color-text-strong);
+					font-size: 1.4rem; font-weight: var(--font-weight-bold); }
+				.nojs section h2 { margin: var(--space-24) 0 var(--space-8);
+					padding-top: var(--space-16); border-top: 1px solid var(--color-divider);
+					color: var(--color-accent-strong); font-size: 15px;
+					font-weight: var(--font-weight-bold); }
+				.nojs section ul { margin: 0 0 10px; padding-left: 20px; color: var(--color-text-muted); }
+				.nojs section li { margin-bottom: 4px; }
+				.nojs section dt { margin-top: 10px; color: var(--color-text-strong); }
+				.nojs section dd { margin: 2px 0 0; color: var(--color-text-muted); }
+				.nojs section[lang="en"] { margin-top: var(--space-24); display: block; }
+			</style>
+		</noscript>
 		<script type="application/ld+json">
 {
 	"@context": "https://schema.org",
@@ -206,6 +249,18 @@
 
 	<body>
 		<noscript>
+			<!-- 💣 DER RIEGEL STEHT VOR DEM FAKTENBLOCK, nicht statt seiner. Der Block darunter ist
+			     der GEO/SEO-Text (seine sieben Fragen sind zeichengleich mit der FAQPage im JSON-LD
+			     oben -- nichts daran umformulieren, ohne beides anzufassen). Er sagt aber nirgends,
+			     warum hier keine Karte ist. Genau das sagt jetzt der Kasten.
+			     Der Browser zeigt das alles NUR ohne JavaScript; mit JavaScript steht hier die Karte. -->
+			<div class="nojs">
+			<div class="nojs__card">
+				<h2 class="nojs__title">Ohne JavaScript keine Karte</h2>
+				<p>Avesmaps zeichnet die Karte von Aventurien direkt in deinem Browser &mdash; daf&uuml;r braucht die Seite JavaScript. Erlaube JavaScript f&uuml;r avesmaps.de und lade die Seite neu, dann erscheint hier die Karte.</p>
+				<p>Blockiert ein Werbe- oder Skriptblocker die Seite, hilft es, avesmaps.de dort auf die Ausnahmeliste zu setzen. Avesmaps zeigt keine Werbung und bindet keine Werbe-Netzwerke ein.</p>
+				<p><a href="/html/impressum.html">Impressum und Datenschutz</a> stehen auf einer eigenen Seite und sind auch ohne JavaScript lesbar.</p>
+			</div>
 			<section id="avesmaps-intro" lang="de">
 				<h1>Avesmaps – interaktive Aventurien-Karte und Routenplaner für Das Schwarze Auge (DSA)</h1>
 				<p>Avesmaps ist eine kostenlose, interaktive Karte von Aventurien und ein Reise-Routenplaner für das Pen-and-Paper-Rollenspiel Das Schwarze Auge (DSA). Die Karte zeigt Orte, Wege, Flüsse und die politischen Grenzen der Reiche; Routen zwischen mehreren Wegpunkten werden direkt im Browser berechnet und lassen sich per Link teilen.</p>
@@ -242,6 +297,7 @@
 					<dt>Is it official?</dt><dd>No, an unofficial fan project not affiliated with Ulisses Spiele.</dd>
 				</dl>
 			</section>
+			</div>
 		</noscript>
 		<div id="map" style="width: 100%; height: 100%"></div>
 		<div id="map-context-menu" class="map-context-menu" hidden>
@@ -2207,11 +2263,17 @@
 						<details class="legal-section" id="legal-usage">
 							<summary class="legal-dialog__group">
 								<h3 class="legal-dialog__group-title" data-i18n="legal.group.usage">Bedienung</h3>
-								<span class="legal-dialog__group-hint" data-i18n="legal.hint.usage">Tastenbefehle für Karte, Suche und Route</span>
+								<span class="legal-dialog__group-hint" data-i18n="legal.hint.usage">Tastenbefehle — und was die Karte ausbremst</span>
 							</summary>
 						<h4 class="legal-dialog__subgroup" data-i18n="shortcuts.heading">Bedienhilfen</h4>
 						<p data-i18n="shortcuts.intro">Die Karte lässt sich mit der Tastatur bedienen. Die Tasten wirken auf der Karte selbst — nicht, während du in einem Feld tippst, ein Fenster offen ist oder ein Werkzeug läuft. Strg-, Alt- und Befehlstaste bleiben dem Browser überlassen.</p>
 						<div id="legal-shortcuts" class="shortcut-table-wrap"></div>
+						<!-- Der Absatz steht NACH der Tastentabelle und unter eigener Unterueberschrift,
+						     damit der Tastatur-Teil zusammenbleibt. Denselben Befund kennt das
+						     Editor-Handbuch schon („Browser-Tipp", html/editor-handbuch.html) -- er galt
+						     dort nur den Editoren, gemeldet wurde er aber von Lesern der Karte. -->
+						<h4 class="legal-dialog__subgroup" data-i18n="legal.performance.heading">Wenn die Karte langsam ist</h4>
+						<p> <strong data-i18n="legal.performance.lead">Werbe- und Skriptblocker.</strong> <span data-i18n="legal.performance.body">Avesmaps zeigt keine Werbung und bindet keine Werbe-Netzwerke ein. Trotzdem greifen manche Blocker auch hier ein — besonders die fest in den Browser eingebauten, etwa in Vivaldi — und bremsen den Aufbau der Karte spürbar aus; einzelne Rückmeldungen dazu haben uns schon erreicht. Wird die Karte bei dir zäh, setze avesmaps.de im Blocker auf die Ausnahmeliste.</span> </p>
 						</details>
 						<details class="legal-section" id="legal-project">
 							<summary class="legal-dialog__group">
