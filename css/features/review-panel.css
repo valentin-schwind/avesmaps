@@ -1175,12 +1175,19 @@
 	gap: 8px;
 }
 
+/* 💣 Die Abschnitte (Offen / Zurueckgestellt / Archiviert) stehen EINE Ebene ueber den Fallgruppen.
+   Solange die Gruppen gerahmte Kaesten waren, trug der Kasten diesen Unterschied; seit Sitzung 3
+   tragen ihn Trennlinien, und Abschnitts- und Gruppentitel waren damit Zeichen fuer Zeichen gleich
+   (13px, 700, dieselbe Farbe) -- zwei Ebenen, eine Optik. Die Form ist die des Hauses fuer genau
+   diesen Zweck (.label-edit-section-title in css/components/region-sync.css): Versalien, gesperrt,
+   Akzentbraun. Sie konkurriert nicht mit den fetten Gruppentiteln, sondern steht ueber ihnen. */
 .wiki-sync-case-section__title {
 	margin: 0;
-	color: var(--color-text-strong);
-	font-size: 13px;
+	color: var(--color-accent-brown);
+	font-size: var(--font-size-caption);
 	font-weight: 700;
-	letter-spacing: 0;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
 }
 
 .wiki-sync-case-section__body {
