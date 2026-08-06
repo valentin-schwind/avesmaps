@@ -18,12 +18,14 @@ const SYNC_PLAN_KIND_NOUNS = {
 	citymap: { one: "Karte", many: "Karten" },
 	adventure: { one: "Abenteuer", many: "Abenteuer" },
 	publication: { one: "Quellenverweis", many: "Quellenverweise" },
+	lore: { one: "Eintrag", many: "Einträge" },
 };
 
 const SYNC_PLAN_KIND_TITLES = {
 	citymap: "Stadtkarten aus dem Wiki übernehmen",
 	adventure: "Abenteuer aus dem Wiki übernehmen",
 	publication: "Publikationsquellen aus dem Wiki übernehmen",
+	lore: "Vorkommen aus dem Wiki übernehmen",
 };
 
 /**
@@ -40,6 +42,18 @@ const SYNC_PLAN_KIND_DELETION = {
 		hint: "im Wiki nicht mehr da · <b>nichts vorangehäkelt</b>",
 		lead: "Was du <b>nicht</b> anhäkelst, <b>bleibt</b> — dauerhaft, es wird nicht wieder gefragt. "
 			+ "Es bleibt trotzdem ein Wiki-Eintrag: kommt der Artikel zurück, läuft er wieder mit.",
+		loss: {
+			lead: "Im aktuellen Dump nicht mehr enthalten.",
+			counts: [
+				["place_count", "Fundort", "Fundorte"],
+				["link_count", "Fundstelle", "Fundstellen"],
+				["related_count", "Verweis", "Verweise"],
+				["source_count", "Quellenverweis", "Quellenverweise"],
+			],
+			sentence: (list, single) => `Mit ihr ${single ? "verschwindet" : "verschwinden"} ${list}.`,
+		},
+		// Wie die abgelehnten Entscheidungen heißen, wenn man sie sich wieder ansieht.
+		actPlural: "Löschungen",
 	},
 	// Ein Abenteuer wird nie gelöscht, auch dann nicht, wenn sein Artikel im Wiki verschwindet: der
 	// Abgleich hat dafür keinen Weg und hatte nie einen.
@@ -47,6 +61,30 @@ const SYNC_PLAN_KIND_DELETION = {
 	// Bei den Publikationsquellen ist die Einheit ein Ort, eine Region, ein Weg -- die verschwindet
 	// nicht, weil ihr Artikel eine Fußnote weniger hat. Der Verlust steht in ihrer eigenen Zeile.
 	publication: null,
+	// 💣 Bei den Vorkommen ist es ein GRABSTEIN, keine Löschung: der Eintrag bleibt samt Vorkommen und
+	// Quellen stehen, und nennt das Wiki ihn wieder, wird er von selbst wieder aktiv (der Reconcile
+	// schreibt `status = CASE WHEN status='retired' THEN 'active' …`). „Löschen" wäre hier das eine
+	// Wort, das den Editor über das Ausmaß täuscht -- und eine Warnung, die mehr behauptet als
+	// passiert, wird beim zweiten Mal weggeklickt. Dann auch bei den Karten, wo sie stimmt (§7).
+	lore: {
+		hint: "im Wiki nicht mehr da · wird <b>stillgelegt</b>, nicht gelöscht",
+		lead: "Angehäkelt wird der Eintrag <b>stillgelegt</b>: er verschwindet aus den Listen, bleibt aber "
+			+ "samt seiner Vorkommen und Quellen erhalten — und nennt das Wiki ihn wieder, wird er ohne "
+			+ "Zutun wieder aktiv. Was du <b>nicht</b> anhäkelst, bleibt aktiv; es wird nicht wieder gefragt.",
+		verb: "stilllegen",
+		// Ohne Endgültigkeit: die Stilllegung nimmt der nächste Abgleich selbst zurück.
+		gateSuffix: "Sie verschwinden aus den Listen, bleiben aber erhalten.",
+		loss: {
+			lead: "Im aktuellen Dump nicht mehr enthalten.",
+			// Die Zahlen sagen, was ERHALTEN bleibt -- das Gegenteil einer Löschzeile.
+			counts: [
+				["kept_place_count", "Vorkommen", "Vorkommen"],
+				["kept_source_count", "Quellenverweis", "Quellenverweise"],
+			],
+			sentence: (list, single) => `${list} ${single ? "bleibt" : "bleiben"} erhalten.`,
+		},
+		actPlural: "Stilllegungen",
+	},
 };
 
 /**
@@ -149,6 +187,18 @@ function syncPlanFieldLabel(field) {
 		sources: "Quellenverweise",
 		sources_removed: "Quellenverweise entfallen",
 		sources_removed_titles: "davon",
+		// --- Vorkommen (Sitzung 2) ---
+		kind: "Art",
+		wiki_title: "Wiki-Titel",
+		name: "Name",
+		gruppe: "Gruppe",
+		typ: "Typ",
+		lebensraum: "Lebensraum",
+		synonyme: "Synonyme",
+		merkmale_json: "Merkmale",
+		continent: "Kontinent",
+		occurrences: "Vorkommen",
+		occurrences_removed: "Vorkommen entfallen",
 	};
 
 	return labels[field] || field;
@@ -195,17 +245,23 @@ function syncPlanFooterState(state) {
 	const selected = Number(options.selected || 0);
 	const deletions = Number(options.deletions || 0);
 	const confirmed = options.confirmed === true;
-	const nouns = syncPlanKindMeta(options.kind).nouns;
+	const meta = syncPlanKindMeta(options.kind);
+	const nouns = meta.nouns;
 	const selectedTotal = selected + hidden;
+	// Das Wort für die Handlung gehört der Art: bei den Vorkommen wird stillgelegt, überall sonst
+	// gelöscht. Und was dahinter steht, hängt am selben Wort -- eine Stilllegung nimmt der nächste
+	// Abgleich von selbst zurück, eine Löschung niemand.
+	const verb = (meta.deletion && meta.deletion.verb) || "löschen";
+	const suffix = (meta.deletion && meta.deletion.gateSuffix) || "Das lässt sich nicht rückgängig machen.";
 
 	return {
 		selectedTotal: selectedTotal,
 		deletions: deletions,
 		gateVisible: deletions > 0,
 		gateText: `Ja, ${syncPlanNumber(deletions)} ${deletions === 1 ? nouns.one : nouns.many} wirklich `
-			+ "löschen. Das lässt sich nicht rückgängig machen.",
+			+ `${verb}. ${suffix}`,
 		applyDisabled: (deletions > 0 && !confirmed) || selectedTotal < 1,
-		applyLabel: deletions > 0 ? `Übernehmen und ${syncPlanNumber(deletions)} löschen` : "Übernehmen",
+		applyLabel: deletions > 0 ? `Übernehmen und ${syncPlanNumber(deletions)} ${verb}` : "Übernehmen",
 	};
 }
 
@@ -262,36 +318,40 @@ function syncPlanDiffMarkup(item) {
 	return rows.length > 0 ? `<dl class="diff">${rows.join("")}</dl>` : "";
 }
 
-/** Was mit einer Karte verschwände. Genannt wird nur, was es wirklich gibt. */
-function syncPlanLossMarkup(item) {
+/**
+ * Was an einer Zeile der dritten Gruppe hängt. Genannt wird nur, was es wirklich gibt.
+ *
+ * 💣 Und je Art das RICHTIGE: bei einer Karte, was mit ihr verschwindet; bei einem Vorkommen, was
+ * erhalten BLEIBT. Dieselbe Stelle, entgegengesetzter Satz -- und genau das ist der Unterschied
+ * zwischen einer Löschung und einem Grabstein. Ein Satz für beide wäre für den einen zu schwach und
+ * für den anderen eine Drohung, die nicht stimmt.
+ */
+function syncPlanLossMarkup(item, kind) {
+	const loss = (syncPlanKindMeta(kind).deletion || {}).loss;
+	if (!loss) {
+		return "Im aktuellen Dump nicht mehr enthalten.";
+	}
 	const before = item.before || {};
 	const parts = [];
-	const named = [
-		["place_count", "Fundort", "Fundorte"],
-		["link_count", "Fundstelle", "Fundstellen"],
-		["related_count", "Verweis", "Verweise"],
-		["source_count", "Quellenverweis", "Quellenverweise"],
-	];
-	named.forEach(([key, one, many]) => {
+	(loss.counts || []).forEach(([key, one, many]) => {
 		const count = Number(before[key] || 0);
 		if (count > 0) {
 			parts.push(`${count} ${count === 1 ? one : many}`);
 		}
 	});
 
-	const lead = "Im aktuellen Dump nicht mehr enthalten.";
 	if (parts.length < 1) {
-		return lead;
+		return loss.lead;
 	}
 	// Ein einzelner Fundort „gehen" nicht — und diese Zeile wird in einem Moment gelesen, in dem
 	// Sorgfalt zählt.
 	const single = parts.length === 1 && /^1 /.test(parts[0]);
 
-	return `${lead} Mit ihr ${single ? "verschwindet" : "verschwinden"} ${parts.join(", ")}.`;
+	return `${loss.lead} ${loss.sentence(parts.join(", "), single)}`;
 }
 
-/** Eine Zeile. */
-function syncPlanRowMarkup(item) {
+/** Eine Zeile. Die Art entscheidet, was an einer Zeile der dritten Gruppe steht. */
+function syncPlanRowMarkup(item, kind) {
 	const skipped = Number(item.skipped_count || 0);
 	const tags = [];
 	if (skipped > 0 && item.change_type === "changed") {
@@ -304,7 +364,7 @@ function syncPlanRowMarkup(item) {
 	}
 
 	const why = item.change_type === "deleted"
-		? `<span class="row__why">${syncPlanEscape(syncPlanLossMarkup(item))}</span>`
+		? `<span class="row__why">${syncPlanEscape(syncPlanLossMarkup(item, kind))}</span>`
 		: "";
 
 	const body = item.change_type === "new" ? syncPlanNewSummary(item) : syncPlanDiffMarkup(item);
@@ -332,7 +392,7 @@ function syncPlanGroupMarkup(group, items, total, hiddenCount, kind) {
 			+ `</span></div></div></details>`;
 	}
 
-	const rows = (items || []).map(syncPlanRowMarkup);
+	const rows = (items || []).map((item) => syncPlanRowMarkup(item, kind));
 	if (hiddenCount > 0) {
 		rows.push(`<div class="row"><span></span><span class="row__sub">… und `
 			+ `${syncPlanNumber(hiddenCount)} weitere (sie sind mit ihrem Häkchen gespeichert und werden `
@@ -394,9 +454,12 @@ function syncPlanSheetMarkup(plan) {
 		.join("");
 
 	const declined = Number((plan && plan.declined_count) || 0);
+	// Das Wort gehört der Art: bei den Vorkommen wurden Stilllegungen abgelehnt, keine Löschungen --
+	// und wer hier „Löschungen" liest, sucht hinter dem Verweis etwas anderes, als er findet.
+	const declinedWord = (syncPlanKindMeta(kind).deletion || {}).actPlural || "Löschungen";
 	const declinedLink = declined > 0
 		? `<button type="button" class="linkish" data-declined>${syncPlanNumber(declined)} früher `
-			+ `abgelehnte Löschungen anzeigen</button>`
+			+ `abgelehnte ${declinedWord} anzeigen</button>`
 		: "";
 
 	const total = Number(counts.total || 0);

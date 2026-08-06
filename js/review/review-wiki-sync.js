@@ -2234,17 +2234,15 @@ async function runWikiSyncLoreBuildLoop(onProgress) {
 // Drive `sync_lore` to completion: one action call per step, advancing the
 // server-returned wiki_key high-water `cursor` (a STRING) and SUMMING the per-step
 // deltas until done. Mirrors runWikiSyncCitymapsSyncLoop, including the clean stop
-// on the 409 pipeline lock. Reads staging + live DB only (no dump reopen).
+// on the 409 pipeline lock. Reads staging + live DB only (no dump reopen -- and since
+// 2026-08-06 no write either: der Lauf legt einen Plan ab, die Vorschau entscheidet).
 async function runWikiSyncLoreSyncLoop(onProgress) {
 	let cursor = "";
 	let done = false;
 	let safetyCounter = 0;
 	let lastResult = null;
-	const totals = {
-		added: 0, updated: 0, unchanged: 0, retired: 0,
-		placesAdded: 0, placesRemoved: 0, placesSuppressed: 0,
-		sourcesAdded: 0, sourcesRemoved: 0, sourcesUpdated: 0, sourcesStagingEmpty: false, processed: 0,
-	};
+	// `planned` sind die Unterschieds-ZEILEN des Plans, keine geschriebenen Eintraege.
+	const totals = { planned: 0, processed: 0, sourcesStagingEmpty: false };
 	const MAX_STEPS = 4000;
 
 	while (!done) {
@@ -2273,16 +2271,7 @@ async function runWikiSyncLoreSyncLoop(onProgress) {
 
 		lastResult = stepResult;
 		cursor = String(stepResult.cursor ?? cursor);
-		totals.added += Number(stepResult.entries_added ?? 0);
-		totals.updated += Number(stepResult.entries_updated ?? 0);
-		totals.unchanged += Number(stepResult.entries_unchanged ?? 0);
-		totals.retired += Number(stepResult.entries_retired ?? 0);
-		totals.placesAdded += Number(stepResult.places_added ?? 0);
-		totals.placesRemoved += Number(stepResult.places_removed ?? 0);
-		totals.placesSuppressed += Number(stepResult.places_suppressed ?? 0);
-		totals.sourcesAdded += Number(stepResult.sources_added ?? 0);
-		totals.sourcesRemoved += Number(stepResult.sources_removed ?? 0);
-		totals.sourcesUpdated += Number(stepResult.sources_updated ?? 0);
+		totals.planned += Number(stepResult.planned ?? 0);
 		// KEIN Summieren: das ist eine Aussage über den Bestand, kein Zähler. Sobald ein
 		// Schritt meldet, dass das Quellen-Staging fehlt, gilt das für den ganzen Lauf.
 		if (stepResult.sources_staging_empty === true) { totals.sourcesStagingEmpty = true; }
@@ -2291,7 +2280,7 @@ async function runWikiSyncLoreSyncLoop(onProgress) {
 
 		const total = Number(stepResult?.progress?.total ?? 0);
 		const label = `${totals.processed}${total > 0 ? "/" + total : ""}`;
-		setWikiSyncStatus(`Vorkommen werden übernommen … ${label} geprüft`, "pending");
+		setWikiSyncStatus(`Vorkommen werden verglichen … ${label} geprüft`, "pending");
 		if (typeof onProgress === "function") {
 			onProgress(label);
 		}
@@ -2457,29 +2446,43 @@ async function startWikiSyncLoreSync() {
 			throw new Error("Der Dump enthält keine Lore-Einträge – das sollte nicht passieren, bitte melden.");
 		}
 
-		// SCHRITT 2: Staging override-sicher in die Live-Tabellen übernehmen.
+		// SCHRITT 2: 🔴 RECHNEN, nicht schreiben (seit 2026-08-06). Der Lauf legt einen Plan ab;
+		// geschrieben -- und stillgelegt -- wird erst, was in der Vorschau angehäkelt ist.
 		const result = await runWikiSyncLoreSyncLoop((label) => {
-			setLoreSyncStatusLabel(button, `übernehmen … ${label}`);
+			setLoreSyncStatusLabel(button, `vergleichen … ${label}`);
 		});
-		const t = (result && result.totals) || { added: 0, updated: 0, retired: 0, placesAdded: 0, sourcesAdded: 0, sourcesUpdated: 0 };
-		// Quellen sind seit 2026-07-22 Verknüpfungen im geteilten System, deshalb steht
-		// hier auch „~aktualisiert": eine nachgezogene Seitenangabe ist dort eine Änderung,
-		// keine Löschung samt Neuanlage.
-		// Quellen unangetastet, weil das Staging sie nicht kennt: das MUSS dranstehen, sonst
-		// liest sich „Quellen +0" wie „es gab nichts zu tun" statt wie „hier fehlt ein Schritt".
+		const t = (result && result.totals) || { planned: 0, processed: 0, sourcesStagingEmpty: false };
+		const counts = (result && result.counts) || {};
+		const total = Number(counts.total ?? 0);
+		// Quellen unangetastet, weil das Staging sie nicht kennt: das MUSS dranstehen, sonst liest
+		// sich eine kurze Liste wie „es gab nichts zu tun" statt wie „hier fehlt ein Schritt".
 		const quellen = t.sourcesStagingEmpty
-			? "Quellen unverändert (noch kein „Dump holen“ mit Quellen gelaufen)"
-			: `Quellen +${t.sourcesAdded}/~${t.sourcesUpdated}`;
-		const note = ` (+${t.added} neu / ~${t.updated} aktualisiert / -${t.retired} stillgelegt · Orte +${t.placesAdded} · ${quellen})`;
-		setWikiSyncStatus(`Vorkommen übernommen.${note}`, "success");
-		showFeedbackToast(`Vorkommen übernommen.${note}`, "success");
-		// Liste UND „zuletzt gesynct" nachziehen. Ohne das zeigt der Reiter direkt nach
-		// einem erfolgreichen Sync noch den alten Stempel und die alten Zahlen -- was
-		// wie ein fehlgeschlagener Lauf aussieht, obwohl gerade alles geklappt hat.
-		// BEIDE Ansichten: der Lauf startet im Fenster, aber der Reiter dahinter zeigt sonst
-		// weiter den alten Stempel und die alten Zahlen -- das sieht nach Fehlschlag aus.
-		loadLoreList("dialog");
-		loadLoreList("panel");
+			? " · Quellen nicht verglichen (noch kein „Dump holen“ mit Quellen gelaufen)"
+			: "";
+		const note = total > 0
+			? `Vorkommen: ${total} Unterschiede — Vorschau offen (${Number(counts.new ?? 0)} neu, `
+				+ `${Number(counts.changed ?? 0)} geändert, ${Number(counts.deleted ?? 0)} stillzulegen).${quellen}`
+			: `Vorkommen: keine Unterschiede.${quellen}`;
+		setWikiSyncStatus(note, "success");
+		showFeedbackToast(note, "success");
+
+		// Die Vorschau öffnet in DIESER Seite: das Vorkommen-Fenster liegt auf --z-editor-overlay,
+		// das Blatt auf --z-modal, also darüber.
+		const runId = Number((result && result.run_id) || 0);
+		if (total > 0 && runId > 0 && typeof openSyncPlanSheet === "function") {
+			openSyncPlanSheet({
+				kind: "lore",
+				mount: document.getElementById("wikiSyncPlanHost"),
+				onApplied: () => {
+					// Erst JETZT haben Liste und „zuletzt gesynct" einen neuen Stand: vorher wurde
+					// nichts geschrieben. BEIDE Ansichten -- der Lauf startet im Fenster, aber der
+					// Reiter dahinter zeigt sonst weiter den alten Stempel, und das sieht nach
+					// Fehlschlag aus.
+					loadLoreList("dialog");
+					loadLoreList("panel");
+				},
+			});
+		}
 	} catch (error) {
 		// IMMER sichtbar melden, auch bei dumpLocked. Die erste Fassung schwieg in
 		// genau dem Fall, weil der Loop ja schon setWikiSyncStatus() gesetzt hatte --

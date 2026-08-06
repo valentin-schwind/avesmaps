@@ -292,7 +292,7 @@ assert(
 // is not wrapped in a catch that would let the run continue past a rolled-back one.
 $callerFiles = [
     'api/edit/wiki/dump.php',
-    'api/_internal/wiki/lore-sync.php',
+    'api/_internal/wiki/lore-plan-apply.php',
     'api/_internal/wiki/citymap-plan-apply.php',
     'api/_internal/wiki/adventure-plan-apply.php',
     'api/_internal/wiki/publication-plan-apply.php',

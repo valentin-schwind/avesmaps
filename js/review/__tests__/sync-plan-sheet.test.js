@@ -252,4 +252,52 @@ assert.ok(lossDd.slice(0, lossDd.indexOf("</dd>")).includes("Alte Quelle"),
 assert.ok(!pubHtml.includes("<dt>davon</dt>"), "und nicht als eigene Zeile daneben");
 assert.ok(pubHtml.includes("löscht nichts"), "auch dieser Abgleich löscht keine Einheit");
 
+// ---- Vorkommen: stillgelegt, nicht gelöscht ----------------------------------------------------
+//
+// 💣 Der Grabstein muss sagen, was er ist. „Löschen" wäre hier falsch und teuer falsch: der Eintrag
+// bleibt samt Vorkommen und Quellen stehen, und nennt das Wiki ihn wieder, wird er von selbst wieder
+// aktiv. Eine Warnung, die mehr behauptet als passiert, wird beim zweiten Mal weggeklickt -- und dann
+// auch bei den Karten, wo sie stimmt (Entwurf §7).
+const loreGate = footer({ selected: 47, deletions: 46, confirmed: false, kind: "lore" });
+assert.ok(loreGate.gateText.includes("stilllegen"), "die zweite Bestätigung nennt die Handlung richtig");
+assert.ok(!loreGate.gateText.includes("löschen"), "und nicht die falsche");
+assert.ok(!loreGate.gateText.includes("nicht rückgängig"), "und droht nicht mit Endgültigkeit");
+assert.strictEqual(loreGate.applyDisabled, true, "der Riegel gilt trotzdem: es ist eine Handlung");
+assert.ok(footer({ selected: 47, deletions: 46, confirmed: true, kind: "lore" }).applyLabel.includes("stilllegen"),
+	"und der Knopf sagt, was er tut");
+// Bei den Karten bleibt es beim Löschen -- das eine Wort ist der ganze Unterschied.
+assert.ok(footer({ selected: 2, deletions: 1, confirmed: true, kind: "citymap" }).gateText.includes("löschen"));
+assert.ok(footer({ selected: 2, deletions: 1, confirmed: true, kind: "citymap" }).gateText.includes("nicht rückgängig"));
+
+const lorePlan = planWith({
+	kind: "lore",
+	declined_count: 2,
+	run: { id: 13, state: "open", created_at: "2026-08-06 23:40:00", source_stamp: "",
+		counts: { new: 0, changed: 1, deleted: 1, total: 2 } },
+	items: {
+		new: [],
+		changed: [{ id: 41, entity_key: "wirselkraut", change_type: "changed", label: "Wirselkraut",
+			before: { lebensraum: "Sümpfe" },
+			after: { lebensraum: "Wälder", occurrences: "2 neu", occurrences_removed: 4 },
+			override: { occurrences: "3 unterdrückte bleiben unterdrückt" },
+			selected: true, skipped_count: 0, last_skipped_at: "" }],
+		deleted: [{ id: 42, entity_key: "donf", change_type: "deleted", label: "Donf",
+			before: { kept_place_count: 7, kept_source_count: 2 }, after: {}, override: {},
+			selected: false, skipped_count: 0, last_skipped_at: "" }],
+	},
+});
+const loreHtml = markup(lorePlan);
+assert.ok(loreHtml.includes("stillgelegt"), "die Löschgruppe nennt die Stilllegung");
+assert.ok(loreHtml.includes("wieder aktiv"), "und die Rücknahme, die von selbst passiert");
+assert.ok(loreHtml.includes("Vorkommen entfallen"), "der echte Verlust steht in der Geändert-Zeile");
+assert.ok(loreHtml.includes("3 unterdrückte"), "und ein unterdrückter Ort bleibt unterdrückt");
+// Die Zeile einer Stilllegung nennt, was ERHALTEN bleibt -- das Gegenteil einer Löschzeile.
+assert.ok(loreHtml.includes("7 Vorkommen") && loreHtml.includes("bleiben"),
+	"die Stilllegungszeile sagt, was erhalten bleibt");
+assert.ok(!loreHtml.includes("verschwinden 7"), "und behauptet keinen Verlust");
+// Auch der Rückblick nennt die Handlung richtig: abgelehnt wurden Stilllegungen, keine Löschungen.
+assert.ok(loreHtml.includes("abgelehnte Stilllegungen"), "der Verweis auf Abgelehntes nennt die Handlung");
+assert.ok(markup(planWith({ declined_count: 3 })).includes("abgelehnte Löschungen"),
+	"bei den Karten bleibt es dabei");
+
 console.log("sync-plan-sheet ok");

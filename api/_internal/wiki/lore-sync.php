@@ -533,45 +533,374 @@ function avesmapsLoreCountStaging(PDO $pdo): int
 }
 
 /**
- * EIN begrenzter Reconcile-Schritt: gleicht den Staging-Katalog gegen die Live-Tabellen
- * ab. Override-sicher (siehe Dateikopf) und idempotent -- ein zweiter Lauf ohne
- * Dump-Aenderung schreibt nichts.
+ * PURE: die Wiki-Wunschwerte eines Eintrags aus seiner Staging-Zeile. Schluessel = die Spalten aus
+ * AVESMAPS_LORE_WIKI_FIELDS.
  *
- * ⚠️ RESUMIERBAR, und das ist nicht optional: der Katalog hat ~5.100 Zeilen, jede mit
- * eigener Ortsliste und einem Quellen-Reconcile. In einem Rutsch wuerde das auf STRATO
- * die PHP-Worker saettigen (CLAUDE.md). Ein Schritt verarbeitet hoechstens
- * AVESMAPS_LORE_RECONCILE_BATCH Zeilen bzw. bis zum Zeitbudget; der Aufrufer ruft
- * erneut mit `nextCursor`, bis `done` true ist. Cursor = wiki_key-High-Water-Mark,
- * genau wie beim Kartensammlungs-Reconcile.
+ * Stand bis 2026-08-06 mitten in der Reconcile-Schleife; beide Haelften brauchen sie jetzt (die
+ * Rechen-Haelfte fuer den Vergleich, die Ausfuehr-Haelfte fuer das Schreiben), und zwei Kopien wuerden
+ * auseinanderlaufen -- mit dem Ergebnis, dass jede Zeile fuer immer veraltet aussieht.
  *
- * Eintraege, die das Wiki NICHT mehr kennt, werden nicht geloescht, sondern auf
- * status='retired' gesetzt -- ein Eintrag kann in Orts- oder Quellenlisten referenziert
- * sein, und ein stiller Totalverlust waere im Zweifel schlimmer als eine Karteileiche.
- * Dieser Abschluss-Sweep laeuft NUR im letzten Schritt (done), sonst wuerde er alles
- * stilllegen, was noch gar nicht an der Reihe war.
- *
- * @return array<string,int|bool|string>
+ * @param array<string,mixed> $staged Zeile aus wiki_lore_catalog
+ * @return array<string,mixed>
  */
-function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun = false, int $userId = 0): array
+function avesmapsLoreDesiredFromStaging(array $staged): array
+{
+    return [
+        'kind' => (string) $staged['kind'],
+        'wiki_title' => (string) $staged['title'],
+        'wiki_url' => (string) ($staged['wiki_url'] ?? ''),
+        'name' => (string) $staged['name'],
+        'gruppe' => (string) ($staged['gruppe'] ?? ''),
+        'typ' => (string) ($staged['typ'] ?? ''),
+        'lebensraum' => (string) ($staged['lebensraum'] ?? ''),
+        'synonyme' => (string) ($staged['synonyme'] ?? ''),
+        'merkmale_json' => $staged['merkmale_json'],
+        'continent' => (string) ($staged['continent'] ?? ''),
+    ];
+}
+
+/**
+ * PURE: field_origins_json -> Abbildung feld => 'manual'|'wiki'. Leer/ungueltig -> [].
+ *
+ * @return array<string,string>
+ */
+function avesmapsLoreDecodeOrigins(?string $json): array
+{
+    if ($json === null || $json === '') {
+        return [];
+    }
+    $decoded = json_decode($json, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+    $out = [];
+    foreach ($decoded as $field => $origin) {
+        $out[(string) $field] = (string) $origin;
+    }
+
+    return $out;
+}
+
+/**
+ * PURE: heisst dieses leere Fenster "der Katalog ist leer" oder "der Katalog ist zu Ende"?
+ *
+ * 💣 Nur am ANFANG (Cursor leer) ist ein leeres Fenster ein leerer Katalog -- und ein leerer Katalog
+ * heisst "Dump holen lief nicht", nie "das Wiki hat alles vergessen". Der alte Reconcile stieg an
+ * derselben Stelle aus, bevor er seinen Abschluss-Sweep erreichte; in der neuen Welt kommt ein zweiter
+ * Grund hinzu: eroeffnete die Rechen-Haelfte hier einen Lauf, setzte avesmapsSyncPlanStartRun den
+ * offenen Plan auf 'superseded' -- die Arbeit eines anderen Editors, weggeraeumt von einem Klick, der
+ * nichts finden konnte.
+ *
+ * @param list<array<string,mixed>> $stagedRows
+ */
+function avesmapsLorePlanStagingEmpty(array $stagedRows, string $cursor): bool
+{
+    return $stagedRows === [] && $cursor === '';
+}
+
+/**
+ * EINE Unterschieds-Zeile fuer die Uebernahme-Vorschau, oder null, wenn es nichts zu fragen gibt. PURE.
+ *
+ * Nimmt die SELBEN reinen Plaene, die der Schreiber nimmt (avesmapsLoreFieldPlan, avesmapsLoreChildPlan)
+ * plus den Quellen-Diff, den der Aufrufer schon gelesen hat, und macht daraus eine Zeile zum Anhaekeln.
+ * Entwurf: docs/superpowers/specs/2026-08-06-sync-uebernahme-design.md §2/§7.
+ *
+ * 💣 EIN VERLUST BEKOMMT SEIN EIGENES FELD (occurrences_removed / sources_removed), nie eine Ecke im
+ * Zugewinn-Text: die Zeile kommt vorangehaekelt an, also muss das eine, was sich nicht zurueckholen
+ * laesst, das eine sein, das man nicht uebersieht. Das Bauteil zeichnet genau diese Felder in Warnfarbe.
+ *
+ * @param array<string,mixed>|null $current      die Live-Zeile (null = gibt es noch nicht)
+ * @param array<string,mixed>      $desired      avesmapsLoreDesiredFromStaging
+ * @param array<string,string>     $fieldOrigins feld => 'manual'|'wiki'
+ * @param array{add:list,remove:list,kept:int,suppressed:int} $placePlan avesmapsLoreChildPlan
+ * @param array{add:int,update:int,remove:int,add_titles:list<string>,remove_titles:list<string>} $sourceDiff
+ * @return array{change_type:string, after:array<string,mixed>, before:array<string,mixed>,
+ *               override:array<string,mixed>}|null
+ */
+function avesmapsLorePlanItem(
+    ?array $current,
+    array $desired,
+    array $fieldOrigins,
+    array $placePlan,
+    array $sourceDiff
+): ?array {
+    $isNew = $current === null;
+    $plan = avesmapsLoreFieldPlan($current ?? [], $desired, $fieldOrigins);
+
+    $after = [];
+    $before = [];
+    foreach ($plan['set'] as $field => $value) {
+        // 💣 merkmale_json ist ein JSON-Klumpen und gehoert nicht in eine Zeile: die Vorschau sagt, DASS
+        // er sich aendert, nicht wie. Sonst ist die Zeile 800 Zeichen breit und niemand liest die
+        // daneben.
+        // ⚠️ Preis: die Nachpruefung beim Uebernehmen erkennt fuer dieses eine Feld nur noch "aendert
+        // sich nicht mehr", nicht "aendert sich jetzt anders" -- angehaekelt wird der jeweils aktuelle
+        // Wikistand. Bei einem Merkmals-Klumpen ist das die richtige Seite des Handels.
+        if ($field === 'merkmale_json') {
+            if (!$isNew) {
+                $after[$field] = 'geändert';
+                $before[$field] = 'anders';
+            }
+            continue;
+        }
+        if ($isNew && ($value === null || $value === '')) {
+            continue; // auf einem Eintrag, den es noch nicht gibt, ist ein leeres Feld keine Nachricht
+        }
+        $after[$field] = $value;
+        if (!$isNew) {
+            $before[$field] = $current[$field] ?? null;
+        }
+    }
+
+    // Was von Hand gesetzt ist und wovon das Wiki abweicht: als "bleibt …", nie als Vorschlag.
+    $override = [];
+    if (!$isNew) {
+        foreach (AVESMAPS_LORE_WIKI_FIELDS as $field) {
+            if (!array_key_exists($field, $desired) || (string) ($fieldOrigins[$field] ?? '') !== 'manual') {
+                continue;
+            }
+            if (avesmapsLoreNormalizeField($current[$field] ?? null) !== avesmapsLoreNormalizeField($desired[$field])) {
+                $override[$field] = $field === 'merkmale_json'
+                    ? 'eigene Merkmale'
+                    : (string) ($current[$field] ?? '');
+            }
+        }
+    }
+
+    $added = count((array) ($placePlan['add'] ?? []));
+    if ($added > 0) {
+        $after['occurrences'] = $added . ' neu';
+    }
+    $removed = count((array) ($placePlan['remove'] ?? []));
+    if ($removed > 0) {
+        $after['occurrences_removed'] = $removed;
+    }
+    // Ein Grabstein ist genau der Fall, in dem eine Vorschau sonst behauptet, das Wiki wuerde etwas
+    // anlegen, was es nie tun wird.
+    $suppressed = (int) ($placePlan['suppressed'] ?? 0);
+    if ($suppressed > 0) {
+        $override['occurrences'] = $suppressed . ' unterdrückte bleiben unterdrückt';
+    }
+
+    $sourceAdd = (int) ($sourceDiff['add'] ?? 0) + (int) ($sourceDiff['update'] ?? 0);
+    if ($sourceAdd > 0) {
+        $parts = [];
+        if ((int) ($sourceDiff['add'] ?? 0) > 0) {
+            $parts[] = (int) $sourceDiff['add'] . ' neu';
+        }
+        if ((int) ($sourceDiff['update'] ?? 0) > 0) {
+            $parts[] = (int) $sourceDiff['update'] . ' geändert';
+        }
+        $after['sources'] = implode(', ', $parts);
+    }
+    if ((int) ($sourceDiff['remove'] ?? 0) > 0) {
+        $after['sources_removed'] = (int) $sourceDiff['remove'];
+        $titles = array_slice((array) ($sourceDiff['remove_titles'] ?? []), 0, 5);
+        if ($titles !== []) {
+            $after['sources_removed_titles'] = implode(', ', $titles);
+        }
+    }
+
+    if ($after === []) {
+        return null; // nichts zu schreiben -> nichts zu fragen
+    }
+
+    return [
+        'change_type' => $isNew ? 'new' : 'changed',
+        'after' => $after,
+        'before' => $isNew ? [] : $before,
+        'override' => $override,
+    ];
+}
+
+/**
+ * Die Unterschieds-Zeile fuer EINEN gestagten Eintrag, Lesevorgaenge inbegriffen. NUR LESEND.
+ *
+ * 💣 BEIDE HAELFTEN RUFEN DIESE EINE FUNKTION -- die Rechen-Haelfte, um den Plan zu bauen, die
+ * Ausfuehr-Haelfte, um ihn unmittelbar vor dem Schreiben neu zu rechnen und zu sehen, ob die Welt
+ * weitergezogen ist (Entwurf §4a). Zwei Kopien von "was braucht dieser Eintrag" wuerden auseinander
+ * laufen, und das saehe man als Plan, der sich nie uebernehmen laesst.
+ *
+ * @param array<string,mixed> $staged Zeile aus wiki_lore_catalog
+ * @return array{item:?array<string,mixed>, current:?array<string,mixed>, desired:array<string,mixed>}
+ */
+function avesmapsLorePlanForCatalogRow(PDO $pdo, array $staged, bool $sourceStagingReady): array
+{
+    $wikiKey = (string) $staged['wiki_key'];
+    $desired = avesmapsLoreDesiredFromStaging($staged);
+
+    $entry = $pdo->prepare('SELECT * FROM ' . AVESMAPS_LORE_TABLE_ENTRY . ' WHERE wiki_key = :wk LIMIT 1');
+    $entry->execute(['wk' => $wikiKey]);
+    $current = $entry->fetch(PDO::FETCH_ASSOC) ?: null;
+
+    $stagedPlaces = $pdo->prepare(
+        'SELECT * FROM ' . AVESMAPS_LORE_STAGING_PLACES . ' WHERE entry_wiki_key = :wk ORDER BY sort_order'
+    );
+    $stagedPlaces->execute(['wk' => $wikiKey]);
+    $currentPlaces = $pdo->prepare('SELECT * FROM ' . AVESMAPS_LORE_TABLE_PLACE . ' WHERE entry_wiki_key = :wk');
+    $currentPlaces->execute(['wk' => $wikiKey]);
+
+    $placePlan = avesmapsLoreChildPlan(
+        $currentPlaces->fetchAll(PDO::FETCH_ASSOC) ?: [],
+        $stagedPlaces->fetchAll(PDO::FETCH_ASSOC) ?: [],
+        'avesmapsLorePlaceKey'
+    );
+
+    // ⚠️ Der Eintragsschluessel ist zugleich die public id -- Lore hat keine eigene. Genau wie im
+    // Schreiber. Und gefragt wird nur, wenn das Staging Lore-Quellen ueberhaupt kennt: sonst hiesse
+    // "keine Wunschliste" faelschlich "alles entfaellt", und die Vorschau schlaege Verluste vor, die
+    // niemand will.
+    $sourceDiff = ['add' => 0, 'update' => 0, 'remove' => 0, 'add_titles' => [], 'remove_titles' => []];
+    if ($sourceStagingReady && function_exists('avesmapsPublicationLinkDiffForPlan')) {
+        $sourceDiff = avesmapsPublicationLinkDiffForPlan($pdo, 'lore', $wikiKey, $wikiKey);
+    }
+
+    return [
+        'item' => avesmapsLorePlanItem(
+            $current,
+            $desired,
+            avesmapsLoreDecodeOrigins($current['field_origins_json'] ?? null),
+            $placePlan,
+            $sourceDiff
+        ),
+        'current' => $current,
+        'desired' => $desired,
+    ];
+}
+
+/**
+ * Die Wiki-Eintraege, die das Staging nicht mehr kennt -- als ZEILEN ZUM ZEIGEN, nicht als Stilllegung.
+ * NUR LESEND.
+ *
+ * 💣 Der Leerkatalog-Riegel steht HIER DRIN, nicht nur beim Aufrufer: ein leerer Katalog heisst "Dump
+ * holen lief nicht", nie "das Wiki hat alles vergessen". Der Schaden hat die Form gewechselt, nicht die
+ * Groesse -- fruehher eine stille Massen-Stilllegung, jetzt eine Vorschau, die 5.100 davon vorschlaegt,
+ * und irgendwann klickt jemand.
+ *
+ * 💣 Und die abgelehnten kommen nie zurueck: eine abgelehnte Stilllegung ist eine dauerhafte
+ * Entscheidung (Entwurf §2); die Zeile bleibt origin='wiki' und wird weiter gepflegt, nur die Frage ist
+ * abbestellt.
+ *
+ * Die Kinderzahlen sagen, was ERHALTEN bleibt -- das ist der ganze Unterschied zwischen einem Grabstein
+ * und einer Loeschung. In ZWEI gruppierten Abfragen, nicht einer je Eintrag (STRATO, Entwurf §4f).
+ *
+ * @param array<int,string> $declinedKeys avesmapsSyncPlanDeclinedKeys
+ * @return array<int, array{wiki_key:string, name:string, kind:string, place_count:int, source_count:int}>
+ */
+function avesmapsLoreRetirableRows(PDO $pdo, array $declinedKeys): array
+{
+    $catalogCount = (int) $pdo->query('SELECT COUNT(*) FROM ' . AVESMAPS_LORE_STAGING_CATALOG)->fetchColumn();
+    if ($catalogCount < 1) {
+        return [];
+    }
+
+    $rows = $pdo->query(
+        'SELECT wiki_key, name, kind FROM ' . AVESMAPS_LORE_TABLE_ENTRY . "
+          WHERE origin = 'wiki' AND status = 'active'
+            AND wiki_key NOT IN (SELECT wiki_key FROM " . AVESMAPS_LORE_STAGING_CATALOG . ')
+          ORDER BY name ASC'
+    )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    $declined = array_flip(array_map('strval', $declinedKeys));
+    $rows = array_values(array_filter(
+        $rows,
+        static fn(array $row): bool => !isset($declined[(string) $row['wiki_key']])
+    ));
+    if ($rows === []) {
+        return [];
+    }
+
+    $keys = array_map(static fn(array $row): string => (string) $row['wiki_key'], $rows);
+    $placeholders = implode(',', array_fill(0, count($keys), '?'));
+    $countBy = static function (PDO $pdo, string $sql, array $params): array {
+        try {
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+        } catch (Throwable) {
+            // Fehlende Tabelle (eine Installation ohne Quellensystem) heisst "da haengt nichts dran",
+            // nie "die Vorschau ist kaputt": die Zahlen schmuecken die Zeile, sie entscheiden nichts.
+            return [];
+        }
+        $counts = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $counts[(string) $row['k']] = (int) $row['n'];
+        }
+
+        return $counts;
+    };
+
+    $places = $countBy(
+        $pdo,
+        'SELECT entry_wiki_key AS k, COUNT(*) AS n FROM ' . AVESMAPS_LORE_TABLE_PLACE . '
+          WHERE entry_wiki_key IN (' . $placeholders . ') GROUP BY entry_wiki_key',
+        $keys
+    );
+    $sources = $countBy(
+        $pdo,
+        "SELECT entity_public_id AS k, COUNT(*) AS n FROM feature_sources
+          WHERE entity_type = 'lore' AND entity_public_id IN (" . $placeholders . ') GROUP BY entity_public_id',
+        $keys
+    );
+
+    $out = [];
+    foreach ($rows as $row) {
+        $key = (string) $row['wiki_key'];
+        $out[] = [
+            'wiki_key' => $key,
+            'name' => (string) ($row['name'] ?? ''),
+            'kind' => (string) ($row['kind'] ?? ''),
+            'place_count' => (int) ($places[$key] ?? 0),
+            'source_count' => (int) ($sources[$key] ?? 0),
+        ];
+    }
+
+    return $out;
+}
+
+/**
+ * Wann das Vorkommen-Staging zuletzt von "Dump holen" gefuellt wurde -- der Quellstempel des Plans, damit
+ * ein Editor sieht, aus welchem Dump eine liegengebliebene Vorschau gerechnet ist. NULL = nie angelegt.
+ */
+function avesmapsLoreLastStaged(PDO $pdo): ?string
+{
+    try {
+        $value = $pdo->query('SELECT MAX(synced_at) FROM ' . AVESMAPS_LORE_STAGING_CATALOG)->fetchColumn();
+    } catch (Throwable) {
+        return null;
+    }
+
+    return $value !== false && $value !== null ? (string) $value : null;
+}
+
+/**
+ * EIN begrenzter RECHEN-Schritt ueber den Staging-Katalog, wiederaufnehmbar ueber einen
+ * wiki_key-High-Water-Cursor.
+ *
+ * 🔴 DAS IST DIE HAELFTE, DIE NICHT SCHREIBT. Sie hat die Form des Reconcile-Schritts, den sie ersetzt --
+ * dasselbe Fenster (AVESMAPS_LORE_RECONCILE_BATCH), dieselbe Zeitschranke, dieselbe done-Ableitung,
+ * derselbe Cursor -- und sie ruft dieselben reinen Plaene. Der Unterschied ist, wohin die Antwort geht:
+ * nach sync_plan_item, damit ein Mensch anhaekelt, statt in die Live-Tabellen (Entwurf §7).
+ * api/_internal/wiki/__tests__/sync-plan-purity-test.php sichert diese Eigenschaft ueber alles, was diese
+ * Funktion erreicht, in jeder Tiefe.
+ *
+ * Der Zeitstempel (AVESMAPS_LORE_LAST_SYNCED_SETTING) wandert in die Ausfuehr-Haelfte: er sagt "der
+ * Bestand ist abgeglichen", und hier ist nichts abgeglichen worden.
+ *
+ * @return array<string,int|bool|string|array>
+ */
+function avesmapsLorePlanStep(PDO $pdo, string $cursor, int $userId): array
 {
     avesmapsLoreEnsureStagingTables($pdo);
     avesmapsLoreEnsureLiveTables($pdo);
+    avesmapsEnsureSyncPlanTables($pdo);
     @set_time_limit((int) AVESMAPS_WIKI_DUMP_STEP_SECONDS + 15);
     $deadline = microtime(true) + (float) max(1, AVESMAPS_WIKI_DUMP_STEP_SECONDS - 3);
 
     $stats = [
-        'ok' => true, 'dry_run' => $dryRun, 'done' => false, 'nextCursor' => $cursor,
-        'entries_added' => 0, 'entries_updated' => 0, 'entries_retired' => 0, 'entries_unchanged' => 0,
-        'places_added' => 0, 'places_removed' => 0, 'places_suppressed' => 0,
-        // Quellen zaehlen jetzt Verknuepfungen in feature_sources, nicht mehr Zeilen einer
-        // eigenen Tabelle. `updated` kam mit dem Umstieg dazu: der geteilte Reconcile kann
-        // Seitenangabe/Gewichtung einer bestehenden Verknuepfung nachziehen, was der alte
-        // Weg nur als Loeschen+Anlegen ausdruecken konnte.
-        'sources_added' => 0, 'sources_removed' => 0, 'sources_updated' => 0,
-        // true = das Staging kennt keine Lore-Quellen, also wurden sie NICHT angefasst.
-        // Ein Zustand, kein Fehler -- der Client sagt, was fehlt ("Dump holen").
-        'sources_staging_empty' => false,
-        'processed_this_step' => 0,
+        'ok' => true, 'done' => false, 'nextCursor' => $cursor, 'run_id' => 0,
+        'planned' => 0, 'processed_this_step' => 0,
+        'counts' => ['new' => 0, 'changed' => 0, 'deleted' => 0, 'total' => 0],
+        'staging_empty' => false, 'sources_staging_empty' => false,
     ];
 
     $batch = $pdo->prepare(
@@ -581,48 +910,30 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
     $batch->execute(['cursor' => $cursor]);
     $staged = $batch->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-    if ($staged === [] && $cursor === '') {
-        // KEIN Fehler, sondern ein Zustand: „Dump holen" lief noch nicht, oder nicht bis
-        // zur lore-Phase durch. ok BLEIBT true -- sonst wirft submitWikiSyncDumpAction
-        // (api-client.js:431) mit der generischen Meldung „WikiDump-API antwortet mit
-        // HTTP 200", statt den tatsaechlichen Grund zu nennen.
+    if (avesmapsLorePlanStagingEmpty($staged, $cursor)) {
+        // KEIN Fehler, sondern ein Zustand: "Dump holen" lief noch nicht, oder nicht bis zur
+        // lore-Phase durch. ok BLEIBT true -- sonst wirft submitWikiSyncDumpAction mit der generischen
+        // Meldung "WikiDump-API antwortet mit HTTP 200", statt den tatsaechlichen Grund zu nennen.
+        //
+        // 🔴 UND VOR avesmapsSyncPlanStartRun: ein hier eroeffneter Lauf wuerde einen offenen, guten Plan
+        // auf 'superseded' setzen -- die Arbeit eines anderen Editors, weggeraeumt von einem Klick, der
+        // nichts finden konnte.
         $stats['done'] = true;
         $stats['staging_empty'] = true;
 
         return $stats;
     }
 
-    $selectEntry = $pdo->prepare('SELECT * FROM ' . AVESMAPS_LORE_TABLE_ENTRY . ' WHERE wiki_key = :wk LIMIT 1');
-    $selectPlaces = $pdo->prepare('SELECT * FROM ' . AVESMAPS_LORE_TABLE_PLACE . ' WHERE entry_wiki_key = :wk');
-    $stagedPlaces = $pdo->prepare('SELECT * FROM ' . AVESMAPS_LORE_STAGING_PLACES . ' WHERE entry_wiki_key = :wk ORDER BY sort_order');
+    $runId = $cursor === ''
+        ? avesmapsSyncPlanStartRun($pdo, 'lore', $userId, avesmapsLoreLastStaged($pdo))
+        : (int) (avesmapsSyncPlanBuildingRun($pdo, 'lore')['id'] ?? 0);
+    if ($runId <= 0) {
+        throw new RuntimeException('Der Abgleich wurde von einem zweiten Lauf abgeloest. Bitte neu starten.');
+    }
+    $stats['run_id'] = $runId;
 
-    // Einmal vorbereiten, nicht je Zeile: bei ~7.750 Orten waere ein prepare() in der
-    // Schleife ein spuerbarer Eigentor-Effekt.
-    $insertEntryLive = $pdo->prepare(
-        'INSERT INTO ' . AVESMAPS_LORE_TABLE_ENTRY . '
-            (wiki_key, kind, wiki_title, wiki_url, name, match_key, gruppe, typ, lebensraum,
-             synonyme, merkmale_json, continent, origin, status, field_origins_json)
-         VALUES (:wk, :kind, :wt, :url, :name, :mk, :gruppe, :typ, :leb, :syn, :merk, :cont, \'wiki\', \'active\', :fo)'
-    );
-    $insertPlaceLive = $pdo->prepare(
-        'INSERT INTO ' . AVESMAPS_LORE_TABLE_PLACE . '
-            (entry_wiki_key, place_wiki_key, place_title, relation, sort_order, origin, status)
-         VALUES (:wk, :pk, :pt, :rel, :so, \'wiki\', \'active\')
-         ON DUPLICATE KEY UPDATE place_title = VALUES(place_title)'
-    );
-    $deletePlaceLive = $pdo->prepare(
-        'DELETE FROM ' . AVESMAPS_LORE_TABLE_PLACE . '
-         WHERE entry_wiki_key = :wk AND place_wiki_key = :pk AND relation = :rel AND origin = \'wiki\''
-    );
-    // Quellen: KEINE eigenen Statements mehr. Sie laufen ueber den geteilten Reconcile,
-    // siehe die Quellen-Sektion in der Schleife unten.
-    //
-    // 💣 EINMAL je Schritt gefragt, nicht je Eintrag: kennt das Staging ueberhaupt
-    // Lore-Quellen? Wenn nicht, bleiben die Quellen KOMPLETT unangetastet. Sonst laese der
-    // Diff "keine Wunschliste" als "alles loeschen" und raeumte bei einem Sync vor dem
-    // ersten "Dump holen" jede vorhandene Verknuepfung weg -- genau der Fall nach der
-    // Migration vom 2026-07-22, die ~34.800 Zeilen anlegte, bevor je ein Dump Lore-Refs
-    // gestaged hatte. Leeres Staging heisst "weiss ich nicht", nie "gibt es nicht".
+    // EINMAL je Schritt gefragt, nicht je Eintrag -- beides ist die Schleife, die STRATO nicht vertraegt.
+    $decisions = avesmapsSyncPlanDecisions($pdo, 'lore');
     $sourceStagingReady = function_exists('avesmapsPublicationStagingHasEntityType')
         && avesmapsPublicationStagingHasEntityType($pdo, 'lore');
     $stats['sources_staging_empty'] = !$sourceStagingReady;
@@ -632,115 +943,28 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
     $budgetHit = false;
 
     foreach ($staged as $row) {
-        $wikiKey = (string) $row['wiki_key'];
-        $nextCursor = $wikiKey;
+        $nextCursor = (string) $row['wiki_key'];
         $processed++;
 
-        $desired = [
-            'kind' => (string) $row['kind'],
-            'wiki_title' => (string) $row['title'],
-            'wiki_url' => (string) ($row['wiki_url'] ?? ''),
-            'name' => (string) $row['name'],
-            'gruppe' => (string) ($row['gruppe'] ?? ''),
-            'typ' => (string) ($row['typ'] ?? ''),
-            'lebensraum' => (string) ($row['lebensraum'] ?? ''),
-            'synonyme' => (string) ($row['synonyme'] ?? ''),
-            'merkmale_json' => $row['merkmale_json'],
-            'continent' => (string) ($row['continent'] ?? ''),
-        ];
-
-        $selectEntry->execute(['wk' => $wikiKey]);
-        $current = $selectEntry->fetch(PDO::FETCH_ASSOC) ?: null;
-
-        if ($current === null) {
-            $stats['entries_added']++;
-            if (!$dryRun) {
-                $origins = [];
-                foreach (AVESMAPS_LORE_WIKI_FIELDS as $f) {
-                    $origins[$f] = 'wiki';
-                }
-                $insertEntryLive->execute([
-                    'wk' => $wikiKey, 'kind' => $desired['kind'], 'wt' => $desired['wiki_title'],
-                    'url' => $desired['wiki_url'], 'name' => $desired['name'],
-                    'mk' => mb_substr(avesmapsWikiSyncCreateMatchKey($desired['name']), 0, 300, 'UTF-8'),
-                    'gruppe' => $desired['gruppe'], 'typ' => $desired['typ'], 'leb' => $desired['lebensraum'],
-                    'syn' => $desired['synonyme'], 'merk' => $desired['merkmale_json'],
-                    'cont' => $desired['continent'],
-                    'fo' => json_encode($origins, JSON_UNESCAPED_UNICODE),
-                ]);
-            }
-        } else {
-            $fieldOrigins = [];
-            if (is_string($current['field_origins_json'] ?? null)) {
-                $decoded = json_decode((string) $current['field_origins_json'], true);
-                if (is_array($decoded)) {
-                    $fieldOrigins = $decoded;
-                }
-            }
-            $plan = avesmapsLoreFieldPlan($current, $desired, $fieldOrigins);
-            if ($plan['set'] === []) {
-                $stats['entries_unchanged']++;
-            } else {
-                $stats['entries_updated']++;
-                if (!$dryRun) {
-                    $assignments = [];
-                    $params = ['wk' => $wikiKey];
-                    foreach ($plan['set'] as $field => $value) {
-                        $assignments[] = $field . ' = :' . $field;
-                        $params[$field] = $value;
-                    }
-                    // status wieder aktivieren: das Wiki kennt den Eintrag ja offenbar wieder.
-                    $assignments[] = 'status = CASE WHEN status = \'retired\' THEN \'active\' ELSE status END';
-                    $assignments[] = 'field_origins_json = :fo';
-                    $params['fo'] = json_encode(array_merge($fieldOrigins, $plan['origins']), JSON_UNESCAPED_UNICODE);
-                    $update = $pdo->prepare(
-                        'UPDATE ' . AVESMAPS_LORE_TABLE_ENTRY . ' SET ' . implode(', ', $assignments) . ' WHERE wiki_key = :wk'
-                    );
-                    $update->execute($params);
-                }
-            }
-        }
-
-        // ---- Orte ----
-        $stagedPlaces->execute(['wk' => $wikiKey]);
-        $desiredPlaces = $stagedPlaces->fetchAll(PDO::FETCH_ASSOC) ?: [];
-        $selectPlaces->execute(['wk' => $wikiKey]);
-        $currentPlaces = $selectPlaces->fetchAll(PDO::FETCH_ASSOC) ?: [];
-        $placePlan = avesmapsLoreChildPlan($currentPlaces, $desiredPlaces, 'avesmapsLorePlaceKey');
-        $stats['places_added'] += count($placePlan['add']);
-        $stats['places_removed'] += count($placePlan['remove']);
-        $stats['places_suppressed'] += $placePlan['suppressed'];
-        if (!$dryRun) {
-            foreach ($placePlan['add'] as $p) {
-                $insertPlaceLive->execute([
-                    'wk' => $wikiKey, 'pk' => (string) $p['place_wiki_key'], 'pt' => (string) $p['place_title'],
-                    'rel' => (string) $p['relation'], 'so' => (int) ($p['sort_order'] ?? 0),
-                ]);
-            }
-            foreach ($placePlan['remove'] as $p) {
-                $deletePlaceLive->execute([
-                    'wk' => $wikiKey, 'pk' => (string) $p['place_wiki_key'], 'rel' => (string) $p['relation'],
-                ]);
-            }
-        }
-
-        // ---- Quellen: EIN Aufruf in das geteilte System ----
-        //
-        // Kein eigener Abgleich mehr. avesmapsPublicationReconcileEntity liest die
-        // Wunschliste aus wiki_entity_publication (entity_type='lore') und gleicht sie
-        // gegen feature_sources ab -- mit derselben override-sicheren, unit-getesteten
-        // Logik, die Siedlungen, Regionen, Wege und Territorien benutzen: es schreibt und
-        // loescht AUSSCHLIESSLICH Zeilen mit origin='wiki_publication', manuelle Zeilen und
-        // Grabsteine bleiben unberuehrt, ein Wiederholungslauf ist ein echtes No-op.
-        //
-        // ⚠️ Der Eintragsschluessel ist zugleich die public id (Lore hat keine eigene).
-        // Guarded: laeuft der Reconcile ohne geladene Publikations-Bibliothek, bleiben die
-        // Quellen schlicht unangetastet, statt den ganzen Lauf zu versenken.
-        if (!$dryRun && $sourceStagingReady && function_exists('avesmapsPublicationReconcileEntity')) {
-            $sourceCounters = avesmapsPublicationReconcileEntity($pdo, 'lore', $wikiKey, $wikiKey, $userId);
-            $stats['sources_added'] += (int) $sourceCounters['links_added'];
-            $stats['sources_removed'] += (int) $sourceCounters['links_removed'];
-            $stats['sources_updated'] += (int) $sourceCounters['links_updated'];
+        $computed = avesmapsLorePlanForCatalogRow($pdo, $row, $sourceStagingReady);
+        $item = $computed['item'];
+        if ($item !== null) {
+            $decision = $decisions[avesmapsSyncPlanDecisionKey($nextCursor, $item['change_type'])] ?? null;
+            avesmapsSyncPlanAddItem($pdo, $runId, [
+                'entity_key' => $nextCursor,
+                // Der Eintragsschluessel IST die public id -- Lore hat keine eigene.
+                'entity_public_id' => $nextCursor,
+                'change_type' => $item['change_type'],
+                'label' => (string) ($computed['desired']['name'] ?? $nextCursor),
+                'before' => $item['before'],
+                'after' => $item['after'],
+                'override' => $item['override'],
+                'selected' => avesmapsSyncPlanDefaultSelected(
+                    $item['change_type'],
+                    (int) ($decision['skipped_count'] ?? 0)
+                ),
+            ]);
+            $stats['planned']++;
         }
 
         if (microtime(true) >= $deadline) {
@@ -751,38 +975,32 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
 
     $stats['processed_this_step'] = $processed;
     $stats['nextCursor'] = $nextCursor;
-    // Fertig, wenn der Batch nicht voll war UND das Zeitbudget nicht gebremst hat.
     $stats['done'] = !$budgetHit && count($staged) < AVESMAPS_LORE_RECONCILE_BATCH;
 
     if ($stats['done']) {
-        // ABSCHLUSS-SWEEP, nur im letzten Schritt: Wiki-Eintraege, die das Staging nicht
-        // mehr kennt, stilllegen statt loeschen. Als EINE mengenbasierte Abfrage --
-        // ein "gesehen"-Set waere ueber Batches hinweg unvollstaendig und wuerde alles
-        // stilllegen, was noch nicht an der Reihe war.
-        $retireSql =
-            'UPDATE ' . AVESMAPS_LORE_TABLE_ENTRY . ' SET status = \'retired\'
-             WHERE origin = \'wiki\' AND status = \'active\'
-               AND wiki_key NOT IN (SELECT wiki_key FROM ' . AVESMAPS_LORE_STAGING_CATALOG . ')';
-        if ($dryRun) {
-            $countSql =
-                'SELECT COUNT(*) FROM ' . AVESMAPS_LORE_TABLE_ENTRY . '
-                 WHERE origin = \'wiki\' AND status = \'active\'
-                   AND wiki_key NOT IN (SELECT wiki_key FROM ' . AVESMAPS_LORE_STAGING_CATALOG . ')';
-            $stats['entries_retired'] = (int) $pdo->query($countSql)->fetchColumn();
-        } else {
-            $stats['entries_retired'] = (int) $pdo->exec($retireSql);
-            // Erst JETZT stempeln: nach dem letzten Schritt und nur auf dem scharfen
-            // Pfad. Ein Zeitstempel nach einem Probelauf oder mitten im Durchlauf waere
-            // eine stille Luege -- der Editor liest ihn als „Bestand ist aktuell".
-            if (function_exists('avesmapsAppSettingSet')) {
-                try {
-                    avesmapsAppSettingSet($pdo, AVESMAPS_LORE_LAST_SYNCED_SETTING, gmdate('Y-m-d H:i:s'));
-                } catch (Throwable) {
-                    // Einstellungstabelle fehlt -> ohne Zeitstempel weiter, kein Abbruch.
-                }
-            }
+        // Die Stilllegungen kommen zuletzt und genau einmal: sie sind die einzige Frage, fuer deren
+        // Antwort der GANZE Katalog gelesen sein muss -- und der Leerkatalog-Riegel steckt in ihnen.
+        foreach (avesmapsLoreRetirableRows($pdo, avesmapsSyncPlanDeclinedKeys($pdo, 'lore')) as $gone) {
+            avesmapsSyncPlanAddItem($pdo, $runId, [
+                'entity_key' => (string) $gone['wiki_key'],
+                'entity_public_id' => (string) $gone['wiki_key'],
+                'change_type' => 'deleted',
+                'label' => (string) ($gone['name'] !== '' ? $gone['name'] : $gone['wiki_key']),
+                // Die Zahlen sagen, was ERHALTEN bleibt. Bei einer Loeschung nennt die Zeile den
+                // Verlust; hier das Gegenteil -- und das ist der ganze Unterschied.
+                'before' => [
+                    'kept_place_count' => (int) $gone['place_count'],
+                    'kept_source_count' => (int) $gone['source_count'],
+                ],
+                'after' => [],
+                'override' => [],
+                'selected' => avesmapsSyncPlanDefaultSelected('deleted', 0),
+            ]);
+            $stats['planned']++;
         }
+        $stats['counts'] = avesmapsSyncPlanFinishBuild($pdo, $runId);
     }
 
     return $stats;
 }
+

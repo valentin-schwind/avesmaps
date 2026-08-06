@@ -336,4 +336,72 @@ assert(
     'und die Ausführ-Hälfte fragt ihn noch einmal'
 );
 
+// ==================================================================================================
+// VORKOMMEN (Sitzung 2). Hier ist die Löschung ein GRABSTEIN -- und auch ein Grabstein ist eine
+// Handlung, kein Nebeneffekt des Rechnens.
+// ==================================================================================================
+
+$loreCompute = $reachFrom($bodies, ['avesmapsLorePlanStep']);
+assert(count($loreCompute) >= 8, 'der Vorkommen-Lauf erreicht die aufgerufenen Funktionen (got ' . count($loreCompute) . ')');
+foreach (['avesmapsLorePlanForCatalogRow', 'avesmapsLorePlanItem', 'avesmapsLoreRetirableRows',
+    'avesmapsLorePlanStagingEmpty', 'avesmapsLoreFieldPlan', 'avesmapsLoreChildPlan',
+    'avesmapsPublicationLinkDiffForPlan', 'avesmapsSyncPlanAddItem'] as $expected) {
+    assert(isset($loreCompute[$expected]), "the walk reaches {$expected}");
+}
+
+$loreTables = ['lore_entry', 'lore_place', 'feature_sources', 'sources', 'wiki_lore_catalog',
+    'wiki_lore_place_staging', 'map_audit_log'];
+foreach ($loreCompute as $name => $body) {
+    foreach ($loreTables as $table) {
+        foreach ($forbiddenStatements($table) as $statement) {
+            assert(
+                !str_contains($body, $statement),
+                "{$name} runs in the COMPUTE half and writes: {$statement}"
+            );
+        }
+    }
+}
+
+// 🔴 Der Stilleger ist eine Handlung, kein Nebeneffekt -- und die Quellen erst recht.
+assert(
+    !isset($loreCompute['avesmapsLoreRetireWikiEntry']),
+    'the compute half only PROPOSES the tombstone'
+);
+assert(!isset($loreCompute['avesmapsLoreApplyEntity']), 'and never reaches the entity writer');
+assert(
+    !isset($loreCompute['avesmapsPublicationReconcileEntity']),
+    'the compute half must use the read-only source probe, not the reconcile that writes links'
+);
+// Das Stilllegen ist ein UPDATE auf status -- die Tabellen-Prüfung oben fängt es schon, aber diese
+// Zusicherung nennt es beim Namen, damit ein Umbau die Absicht liest und nicht nur die Regel.
+foreach ($loreCompute as $name => $body) {
+    assert(!str_contains($body, "SET status = 'retired'"), "{$name} retires an entry in the compute half");
+}
+
+// 💣 UND DER LAUF MUSS BEISSEN.
+$loreApply = $reachFrom($bodies, ['avesmapsLoreApplyStep']);
+assert(isset($loreApply['avesmapsLoreApplyEntity']), 'die Ausführ-Hälfte ruft den Schreiber');
+assert(isset($loreApply['avesmapsLoreRetireWikiEntry']), 'und den Stilleger');
+assert(
+    array_filter($loreApply, static fn(string $body): bool
+        => str_contains($body, "SET status = 'retired'")) !== [],
+    'die Ausführ-Hälfte legt wirklich still -- sonst prüft der Lauf oben nichts'
+);
+assert(
+    array_filter($loreApply, static fn(string $body): bool
+        => str_contains($body, 'INSERT INTO ') && str_contains($body, 'AVESMAPS_LORE_TABLE_ENTRY')) !== [],
+    'und sie schreibt Einträge'
+);
+
+// --- Der Quellen-Riegel wird in BEIDEN Hälften gefragt ---------------------------------------------
+// Leeres Lore-Staging heisst "weiss ich nicht", nie "es gibt keine Quellen" -- das ist der Beinah-Unfall
+// vom 22.07. (~34.800 Verknüpfungen). Die Rechen-Hälfte fragt, damit die Vorschau keine Verluste
+// vorschlägt; die Ausführ-Hälfte fragt erneut, weil zwischen beiden ein neues "Dump holen" beginnen kann.
+foreach (['avesmapsLorePlanStep', 'avesmapsLoreApplyStep'] as $half) {
+    assert(
+        str_contains($bodies[$half] ?? '', "avesmapsPublicationStagingHasEntityType(\$pdo, 'lore')"),
+        "{$half} fragt den Quellen-Riegel"
+    );
+}
+
 echo "sync-plan-purity ok\n";

@@ -48,9 +48,13 @@ require_once __DIR__ . '/../../_internal/wiki/adventure-plan-apply.php';
 // Session 2, publication sources: the apply half of the shared source reconcile (publication-sync.php
 // itself is already in the chain above -- the citymap source probe needs it).
 require_once __DIR__ . '/../../_internal/wiki/publication-plan-apply.php';
+// Session 2, occurrences: the lore libraries + the apply half. sync-monitor.php is already in the
+// chain (avesmapsLoreWikiKeyForTitle folds titles through it), app-setting.php comes with lore-sync.
+require_once __DIR__ . '/../../_internal/wiki/lore-sync.php';
+require_once __DIR__ . '/../../_internal/wiki/lore-plan-apply.php';
 
 /** The syncs that have a preview. Grows one entry per session (design §7). */
-const AVESMAPS_SYNC_PLAN_KINDS = ['citymap', 'adventure', 'publication'];
+const AVESMAPS_SYNC_PLAN_KINDS = ['citymap', 'adventure', 'publication', 'lore'];
 
 /**
  * One plan row, shaped for the component. The JSON columns are decoded HERE so the client never
@@ -227,6 +231,7 @@ try {
                 'citymap' => avesmapsCitymapApplyStep($pdo, $runId, $userId, $currentUser),
                 'adventure' => avesmapsAdventureApplyStep($pdo, $runId, $userId, $currentUser),
                 'publication' => avesmapsPublicationApplyStep($pdo, $runId, $userId, $currentUser),
+                'lore' => avesmapsLoreApplyStep($pdo, $runId, $userId, $currentUser),
             };
             $done = ($step['done'] ?? false) === true;
 

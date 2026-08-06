@@ -2,7 +2,9 @@
 
 **Stand:** 2026-08-06 · **Status:** abgestimmt · **Sitzung 1 (Fundament + Stadtkarten) gebaut am
 06.08.2026**, Bauplan: [`docs/superpowers/plans/2026-08-06-sync-uebernahme-sitzung-1.md`](../plans/2026-08-06-sync-uebernahme-sitzung-1.md) ·
-Sitzungen 2–4 offen ·
+**Sitzung 2 (Abenteuer, Publikationsquellen, Vorkommen) gebaut am 06.08.2026**, Bauplan:
+[`docs/superpowers/plans/2026-08-06-sync-uebernahme-sitzung-2.md`](../plans/2026-08-06-sync-uebernahme-sitzung-2.md) ·
+Sitzungen 3–4 offen ·
 **Mockup:** [`docs/sync-uebernahme-mockup.html`](../../sync-uebernahme-mockup.html) (anklickbar) ·
 **Verwandt:** A16 (`docs/systemtest-2026-08-05/1-akut.md`), `docs/konfliktmanagement-design.md`
 
@@ -192,13 +194,35 @@ echte Datenverlust sitzt (ganze Karten samt Kindern) und weil dieser Sync die kl
 - **Fertig heißt:** ein Wiki-Abgleich der Karten löscht nichts mehr ohne Häkchen, und die Übernahme
   hinterlässt genau eine Zeile im Änderungsverlauf.
 
-### Sitzung 2 — Abenteuer, Publikationen, Vorkommen
+### Sitzung 2 — Abenteuer, Publikationen, Vorkommen ✅ gebaut am 06.08.2026
 
-Dieselbe Mechanik, drei Mal nachgezogen. Alle drei haben bereits Plan-Funktionen
+Dieselbe Mechanik, drei Mal nachgezogen. Alle drei hatten bereits Plan-Funktionen
 (`avesmapsAdventurePlacePlan`, `avesmapsAdventureFieldPlan`, `avesmapsLoreChildPlan`,
 `avesmapsLoreFieldPlan`, `avesmapsPublicationReconcileSegmentOrder`). ⚠️ Bei den Vorkommen ist die
 Löschung ein **Grabstein**, keine echte Löschung — die Zeile sagt das, sonst wirkt die Warnung
 übertrieben und wird weggeklickt.
+
+**Was beim Bauen dazukam** (Einzelheiten im Bauplan):
+
+- 💣 **Die dritte Kategorie gehört dem Verschwinden einer ganzen EINHEIT.** Verliert eine lebende
+  Einheit nur Kindzeilen (3 Orte eines Abenteuers, 2 Quellenverweise eines Ortes, 4 Vorkommen eines
+  Eintrags), steht das benannt und in Warnfarbe in ihrer **Geändert**-Zeile. Zwingend, nicht
+  Geschmack: die Ausführ-Hälfte ruft den unveränderten Schreiber, und der schreibt eine Einheit
+  GANZ — zwei Zeilen je Einheit hießen, dass eine abgehäkelte Löschung trotzdem passiert. Abenteuer
+  und Publikationsquellen haben deshalb **nie** eine Löschzeile, und ihre dritte Gruppe sagt das.
+- 💣 **Drei Vorlagen antworten durch Schreiben** und brauchten read-only Zwillinge:
+  `avesmapsAdventureFindOrAdoptRow` (übernimmt einen Platzhalter auf der Stelle),
+  `avesmapsFeatureSourceUpsert` (legt die Quelle an, um ihre id nennen zu können) und der
+  Cover-Download mitten im Schreibvorgang.
+- 💣 **Der Vorkommen-Abgleich hatte keinen Schreiber je Eintrag** — der Rumpf war die Schleife
+  selbst, mit einem `$dryRun`-Schalter, der die arme Fassung genau dieser Vorschau war. Der Rumpf
+  wanderte wörtlich nach `lore-plan-apply.php`, der Schalter ist weg.
+- ⚠️ **„Dump holen" endet jetzt in einer Vorschau** (Schritt 4/4 ist der Quellen-Abgleich).
+- ⚠️ Die **zweite Tür** zum Publikations-Reconcile (die `reconcile`-Unterstufe der Dump-Phase) bleibt
+  scharf: sie gehört zur Apply-Pipeline der Orte/Wege/Regionen und damit zu Sitzung 3.
+- ⚠️ Nebenbei behoben: `avesmapsWikiSyncNextMapRevision` fehlte in der require-Kette des
+  Vorschau-Endpunkts — die Karten-Übernahme hob die Kartenrevision nicht, lautlos hinter einem
+  `function_exists`. Gefunden vom neuen `__tests__/sync-plan-endpoint-chain-test.php`.
 
 ### Sitzung 3 — Orte, Wege, Regionen
 

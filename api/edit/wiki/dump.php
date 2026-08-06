@@ -769,31 +769,39 @@ try {
             // no break -- avesmapsJsonResponse exits.
 
         case 'sync_lore':
-            // OWNER-triggered PRODUCTION reconcile of the wiki lore catalog (flora / fauna / species /
-            // trade goods, built by "Dump holen") into the live lore_entry / lore_place tables -- plus,
-            // per entry, its sources into the SHARED feature_sources (entity_type='lore', origin=
-            // 'wiki_publication'). Lore has no source table of its own since 2026-07-22 (AGENTS.md §5).
-            // MIRRORS sync_citymaps exactly: same 'edit' gate, same single-flight pipeline lock,
-            // same one-bounded-step-per-request client loop. It does NOT reopen the dump --
-            // avesmapsLoreReconcileStep reads the STAGING tables (wiki_lore_catalog + place/source
-            // staging, populated during "Dump holen") and applies the OVERRIDE-SAFE diff: writes and
-            // deletes ONLY origin='wiki' rows, manual rows and suppressed tombstones stay untouched.
-            // A REAL production write, so a second concurrent editor is rejected (409). Resumable via a
-            // wiki_key high-water cursor; one bounded step per call (STRATO: no server-side loop, and
-            // ~5.1k catalog rows would never fit in one request anyway).
+            // 🔴 THIS ACTION NO LONGER WRITES (design 2026-08-06 §6, session 2). It COMPUTES what the
+            // wiki lore catalog (flora / fauna / species / trade goods, built by "Dump holen") would do
+            // to the live lore_entry / lore_place tables -- plus, per entry, to its sources in the SHARED
+            // feature_sources (entity_type='lore', origin='wiki_publication'; lore has had no source
+            // table of its own since 2026-07-22, AGENTS.md §5) -- and writes that as a plan into
+            // sync_plan_item. An editor then ticks what may happen, and api/edit/wiki/sync-plan.php
+            // ('apply') does the writing.
+            //
+            // ⚠️ WHAT LOOKS LIKE A DELETION HERE IS A TOMBSTONE: an entry the wiki no longer lists is
+            // RETIRED (status='retired'), never deleted -- it keeps its occurrences, its sources and its
+            // wiki_key, and the next sync revives it by itself. The preview says exactly that, because a
+            // warning that claims more than happens is a warning that gets clicked away.
+            //
+            // It does NOT reopen the dump: avesmapsLorePlanStep reads the STAGING tables
+            // (wiki_lore_catalog + place staging) plus the live tables and runs the SAME override-safe
+            // diff the writer runs -- manual fields and suppressed place tombstones never even appear.
+            // Resumable via a wiki_key high-water cursor; one bounded step per call (STRATO: no
+            // server-side loop, and ~5.1k catalog rows would never fit in one request anyway).
+            //
+            // ⚠️ The lock is kept even though nothing is written: the run REPLACES whatever plan was
+            // lying around (design §6).
             avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'sync_lore');
             $lockHeldByThisRequest = true;
 
             avesmapsLoreEnsureStagingTables($pdo);
             avesmapsLoreEnsureLiveTables($pdo);
-            // Lore sources go into the SHARED system, so this reconcile needs the publication
-            // staging (it reads the desired links from there) and the feature_sources catalogue
-            // with its provenance columns. Both idempotent -- same pair sync_publications ensures.
+            // Lore sources live in the SHARED system, so the plan reads the publication staging and the
+            // feature_sources catalogue. Both idempotent -- the same pair sync_publications ensures.
             avesmapsEnsurePublicationStagingTables($pdo);
             avesmapsEnsureFeatureSourceTables($pdo);
 
             $loreCursor = avesmapsNormalizeSingleLine((string) ($payload['cursor'] ?? ''), 190);
-            $loreStep = avesmapsLoreReconcileStep($pdo, $loreCursor, false, $lockUserId);
+            $loreStep = avesmapsLorePlanStep($pdo, $loreCursor, $lockUserId);
             $loreDone = ($loreStep['done'] ?? false) === true;
 
             avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'sync_lore');
@@ -806,36 +814,22 @@ try {
                 // Immer true: der SCHRITT ist gelaufen. Ein leeres Staging ist ein Zustand,
                 // kein Fehler -- der Client erkennt ihn an staging_empty und nennt den Grund.
                 'ok' => true,
-                'stage' => 'reconcile',
+                'stage' => 'plan',
                 // Echo the advanced wiki_key high-water so the client loop resumes from exactly here.
                 'cursor' => (string) ($loreStep['nextCursor'] ?? $loreCursor),
                 'done' => $loreDone,
-                // Per-STEP deltas (each step starts at 0; the frontend sums them for the run total).
-                'entries_added' => (int) ($loreStep['entries_added'] ?? 0),
-                'entries_updated' => (int) ($loreStep['entries_updated'] ?? 0),
-                'entries_unchanged' => (int) ($loreStep['entries_unchanged'] ?? 0),
-                // Only filled on the final step: wiki entries the staging no longer knows are
-                // retired, never deleted -- they may still be referenced elsewhere.
-                'entries_retired' => (int) ($loreStep['entries_retired'] ?? 0),
-                'places_added' => (int) ($loreStep['places_added'] ?? 0),
-                'places_removed' => (int) ($loreStep['places_removed'] ?? 0),
-                // Wiki places the editor deliberately suppressed -- reported so a shrinking list is
-                // explainable rather than mysterious.
-                'places_suppressed' => (int) ($loreStep['places_suppressed'] ?? 0),
-                // Quellen zaehlen Verknuepfungen in feature_sources (entity_type='lore'), nicht
-                // mehr Zeilen einer Lore-eigenen Tabelle. `updated` gibt es erst seit dem
-                // Umstieg: der geteilte Reconcile kann Seitenangabe/Gewichtung nachziehen.
-                'sources_added' => (int) ($loreStep['sources_added'] ?? 0),
-                'sources_removed' => (int) ($loreStep['sources_removed'] ?? 0),
-                'sources_updated' => (int) ($loreStep['sources_updated'] ?? 0),
-                // Das Staging kennt keine Lore-Quellen -> sie wurden BEWUSST nicht angefasst
-                // (siehe die Wache in lore-sync.php). Der Client sagt, was zu tun ist.
-                'sources_staging_empty' => (bool) ($loreStep['sources_staging_empty'] ?? false),
+                // The run the preview will read. Server-derived from the cursor, never client-supplied.
+                'run_id' => (int) ($loreStep['run_id'] ?? 0),
+                // Per-STEP delta: difference rows written into the plan (the client sums them).
+                'planned' => (int) ($loreStep['planned'] ?? 0),
                 'processed' => (int) ($loreStep['processed_this_step'] ?? 0),
-                // Kein Lore-Staging vorhanden: „Dump holen" lief nicht oder nicht bis zur
-                // lore-Phase (sie steht an 8. von 10 Stellen -- ein abgebrochener Lauf
-                // erreicht sie nie). Der Client macht daraus eine lesbare Meldung.
-                'staging_empty' => (bool) ($loreStep['staging_empty'] ?? false),
+                // Only filled on the LAST step, when the plan is complete and the tombstone rows are in.
+                'counts' => (array) ($loreStep['counts'] ?? []),
+                // Zwei Zustände, keine Fehler: „Dump holen" lief nicht (staging_empty), bzw. das Staging
+                // kennt keine Lore-Quellen -> sie wurden BEWUSST nicht angefasst und stehen in keiner
+                // Planzeile.
+                'staging_empty' => ($loreStep['staging_empty'] ?? false) === true,
+                'sources_staging_empty' => ($loreStep['sources_staging_empty'] ?? false) === true,
                 'progress' => [
                     'processed' => (int) ($loreStep['processed_this_step'] ?? 0),
                     'total' => avesmapsLoreCountStaging($pdo),
