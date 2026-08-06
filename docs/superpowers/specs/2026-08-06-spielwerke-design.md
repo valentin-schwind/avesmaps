@@ -199,11 +199,25 @@ Protokollzeilen**. Nur die Beschriftung ändert sich; alte Zeilen bleiben lesbar
 
 ---
 
-## 10. 🔧 DU: eine Frage
+## 10. Wie viele Werke dazukommen — gemessen
 
-**Wie viele Werke kommen dazu?** Die Zahl steht schon in unserer eigenen Datenbank, es braucht keinen
-Wiki-Zugriff: `GET /api/edit/wiki/publication-art-survey.php` (angemeldet) zählt die `art`-Werte im
-Publikationskatalog. Interessant sind `Regionalspielhilfe` und `Spielhilfe`. Kommt dabei eine Zahl in
-der Größenordnung von tausend heraus, lohnt vor dem Bau ein zweiter Blick darauf, wie viele davon
-überhaupt ein verlinktes `Thema` haben — sonst baue ich eine Rubrik für Einträge, die die
-„kein Ort, kein Eintrag"-Regel gleich wieder verwirft.
+Am 06.08.2026 an den Wiki-Kategorien abgelesen (zwei Einzelabrufe, kein Crawl):
+
+| Kategorie | Seiten | bringt Orte mit |
+|---|---|---|
+| Regionalspielhilfe | **84** | fast alle (`Thema` = Wikilinks) |
+| Spielhilfe | **205** | nur ein Teil (`Thema` oft leer) |
+| Regelband / Buch | — | draußen (§2) |
+
+**289 Kandidaten, realistisch ~100–150 Einträge** nach der „kein Ort, kein Eintrag"-Regel. Das ist eine
+Größenordnung, die keine Sonderbehandlung braucht — gegen die 1349 vorhandenen Abenteuer ein Zuwachs
+von rund 10 %.
+
+⚠️ **Die vier Listenseiten selbst sind nicht syncbar** und müssen es auch nicht sein: `…/Liste` ist
+jeweils `{{Kat Liste Publikationsart}}`, also eine DPL, und steht im Dump leer da (§3.1). Was in den
+Listen steht, sind die Produktseiten — und die tragen ihre `Art` selbst. Der Inhalt der Listen wird
+also mitgesynct, nur nicht über die Listenseite.
+
+Die genaue Zahl je `art`-Wert liefert `GET /api/edit/wiki/publication-art-survey.php` (angemeldet, liest
+den vorhandenen Publikationskatalog, **kein** Wiki-Zugriff) — für den Bau nicht mehr nötig, aber gut,
+um nach dem ersten Sync die Erwartung gegen das Ergebnis zu halten.
