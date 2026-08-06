@@ -1567,6 +1567,24 @@ ist von außen nicht feststellbar und wäre als Verlass darauf ohnehin keine Ver
 > 🔧 **DU: einmal aufrufen, eingeloggt, und mir das Ergebnis sagen** — dann fällt die Entscheidung
 > aus dem Befund von selbst. ⚠️ **Ohne eigenen `X-Forwarded-For`-Kopf**, sonst misst man sich selbst;
 > ein normaler Browser-Aufruf tut genau das Richtige. 221/221 grün.
+>
+> 🔁 **Und die Live-Probe hat einen Fehler in dem gefunden, was ich gerade ausgeliefert hatte**
+> (`6b58d1d3` → behoben). Ein anonymer **POST** antwortete **405** statt 401: die Methodenprüfung
+> stand vor dem Riegel und verriet damit einem Unbefugten, dass es diesen Endpunkt gibt und dass er
+> GET nimmt. Dasselbe Haus hatte die Reihenfolge **schon entschieden** — bei der Import-Tür steht die
+> Token-Prüfung vor der Methodenprüfung, „für einen Unbefugten ist das die bessere Antwort, sie
+> verrät nicht einmal die erlaubte Methode" (A33, gestern). Ich habe die Entscheidung nicht
+> nachgeschlagen, sondern die naheliegende Reihenfolge geschrieben.
+>
+> ⚠️ Der Nachbar-Endpunkt `database-backup.php` macht es richtig (`:51` OPTIONS → `:56` Riegel →
+> Methodenprüfung erst im Dispatch). Jetzt beide gleich, und eine Zusicherung hält es fest — samt
+> der einen Ausnahme: **OPTIONS bleibt vor dem Riegel**, eine CORS-Vorabfrage trägt keine
+> Anmeldedaten und darf keine verlangen.
+>
+> 💣 **Die Mutation dazu ging mir beim ersten Versuch durch die Finger** und meldete grün: mein
+> Skript hatte den Riegel *direkt vor* die Methodenprüfung gesetzt statt dahinter — also die richtige
+> Reihenfolge nachgebaut und behauptet, es sei die falsche. Erst der zweite, wirklich vertauschte
+> Lauf war rot. Eine Mutation, die nicht das tut, was ihr Name sagt, ist ein grüner Test über nichts.
 
 ### A30 · `report_mode=change` ist ein unbegrenzter Schreibkanal ohne Anmeldung
 `api/_internal/app/report-context.php:12-29`

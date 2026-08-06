@@ -160,6 +160,19 @@ assert(
 $riegelBei = strpos($endpointSource, "avesmapsRequireUserWithCapability('admin')");
 $antwortBei = strpos($endpointSource, 'avesmapsProxySignals()');
 assert(is_int($riegelBei) && is_int($antwortBei) && $riegelBei < $antwortBei, 'der Riegel steht vor der Auswertung');
+
+// 💣 UND VOR DER METHODENPRUEFUNG. Stand zuerst andersherum, und die Live-Probe zeigte es: ein
+// anonymer POST antwortete **405** statt 401 und verriet damit, dass es diesen Endpunkt gibt und
+// dass er GET nimmt. Dasselbe Haus hat die Reihenfolge schon einmal entschieden -- bei der
+// Import-Tuer steht die Token-Pruefung vor der Methodenpruefung, „fuer einen Unbefugten ist das die
+// bessere Antwort" (A33). Diese Zusicherung haelt sie fest, damit sie nicht wieder zurueckrutscht.
+$methodeBei = strpos($endpointSource, "\$requestMethod !== 'GET'");
+assert(is_int($methodeBei), 'die Methodenpruefung steht in der Datei');
+assert($riegelBei < $methodeBei, 'ein Unbefugter bekommt 401, nicht 405 -- die Methode verraet er ihm nicht');
+// ⚠️ OPTIONS ist die EINZIGE Ausnahme und muss davor bleiben: eine CORS-Vorabfrage traegt keine
+// Anmeldedaten und darf keine verlangen.
+$optionsBei = strpos($endpointSource, "\$requestMethod === 'OPTIONS'");
+assert(is_int($optionsBei) && $optionsBei < $riegelBei, 'OPTIONS bleibt vor dem Riegel');
 // ⚠️ Rein lesend, und das soll so bleiben: keine Datenbank, kein Schreiben, kein Protokoll.
 foreach (['avesmapsCreatePdo', 'INSERT', 'UPDATE', 'error_log'] as $verboten) {
     assert(!str_contains($endpointSource, $verboten), "der Endpunkt bleibt rein lesend -- kein {$verboten}");

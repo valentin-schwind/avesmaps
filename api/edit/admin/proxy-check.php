@@ -40,15 +40,25 @@ if (!avesmapsApplyCorsPolicy($config)) {
 }
 
 $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+// OPTIONS bleibt vor dem Riegel: eine CORS-Vorabfrage traegt keine Anmeldedaten und darf keine
+// verlangen. Das ist die EINZIGE Ausnahme.
 if ($requestMethod === 'OPTIONS') {
     avesmapsJsonResponse(204);
-}
-if ($requestMethod !== 'GET') {
-    avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET-Anfragen sind fuer diesen Endpoint erlaubt.');
 }
 
 // ⚠️ Der Riegel steht VOR jeder Auswertung. Er braucht keine Datenbank und diese Antwort auch nicht --
 // es wird nichts gelesen, nichts geschrieben und nichts protokolliert.
+//
+// 💣 UND VOR DER METHODENPRUEFUNG, was zuerst andersherum stand. Ein anonymer POST antwortete live
+// mit **405** statt 401 -- und verriet damit einem Unbefugten, dass es diesen Endpunkt gibt und dass
+// er GET nimmt. Dasselbe Haus hat diese Reihenfolge schon einmal ausdruecklich entschieden: bei
+// api/import/location-reports/update-status.php steht die Token-Pruefung vor der Methodenpruefung,
+// „fuer einen Unbefugten ist das die bessere Antwort, sie verraet nicht einmal die erlaubte Methode"
+// (Befund A33). Von meiner eigenen Live-Probe gefunden, nachdem der Endpunkt bereits ausgeliefert war.
 avesmapsRequireUserWithCapability('admin');
+
+if ($requestMethod !== 'GET') {
+    avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET-Anfragen sind fuer diesen Endpoint erlaubt.');
+}
 
 avesmapsJsonResponse(200, ['ok' => true] + avesmapsProxySignals());
