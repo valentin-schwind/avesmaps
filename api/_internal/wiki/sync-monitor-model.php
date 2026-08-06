@@ -602,17 +602,59 @@ function avesmapsWikiSyncMonitorHierarchyDiff(PDO $pdo): array {
     ];
 }
 
+/**
+ * Die Auswahl eines Bulk-Schreibers als SQL-Bedingung. REIN.
+ *
+ * 💣 POSITIV, nicht negativ. „Alles Divergente ausser diesen" (der alte `skip`-Weg) schreibt jede
+ * Divergenz mit, die zwischen Vorschau und Uebernahme entstanden ist -- ungesehen, ohne Zeile, ohne
+ * Haekchen. Eine Vorschau, die das zulaesst, ist keine.
+ *
+ * 💣 `null` und `[]` sind NICHT dasselbe: `null` heisst „keine Einschraenkung" (der alte Aufrufweg),
+ * `[]` heisst „nichts" -- und ergibt deshalb `1 = 0`, nicht die leere Bedingung.
+ *
+ * @param list<string>|null $only
+ * @param list<string> $skip
+ * @return array{sql:string, params:list<string>}
+ */
+function avesmapsWikiSyncMonitorSelectionClause(string $column, ?array $only, array $skip): array {
+    $clean = static fn(array $values): array => array_values(array_unique(array_filter(
+        array_map(static fn($value): string => trim((string) $value), $values),
+        static fn(string $value): bool => $value !== ''
+    )));
+
+    if ($only !== null) {
+        $only = $clean($only);
+        if ($only === []) {
+            return ['sql' => ' AND 1 = 0', 'params' => []];
+        }
+
+        return [
+            'sql' => ' AND ' . $column . ' IN (' . implode(',', array_fill(0, count($only), '?')) . ')',
+            'params' => $only,
+        ];
+    }
+
+    $skip = $clean($skip);
+    if ($skip === []) {
+        return ['sql' => '', 'params' => []];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($skip), '?'));
+    return [
+        'sql' => ' AND ' . $column . " NOT IN ($placeholders)",
+        'params' => $skip,
+    ];
+}
+
 // Apply: uebernimmt das Modell-parent_wiki_key in political_territory.parent_id (Cache) fuer
 // DIVERGENTE Faelle (Modell != Live), ausser einer Skip-Liste (wiki_keys). UEBERSCHREIBT also
 // bewusst die gewaehlten Faelle. Schreibt NUR bei dry_run:false UND confirm:"apply".
 // Erster echter political_territory-Write -> nur mit explizitem Nutzer-OK.
-function avesmapsWikiSyncMonitorApplyParentCache(PDO $pdo, array $skipKeys, bool $dryRun): array {
+function avesmapsWikiSyncMonitorApplyParentCache(PDO $pdo, array $skipKeys, bool $dryRun, ?array $onlyKeys = null): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
-    $skipKeys = array_values(array_filter(array_map(static fn($v): string => trim((string) $v), $skipKeys), static fn(string $v): bool => $v !== ''));
-    $skipClause = '';
-    if ($skipKeys !== []) {
-        $skipClause = ' AND child.wiki_key NOT IN (' . implode(',', array_fill(0, count($skipKeys), '?')) . ')';
-    }
+    $selection = avesmapsWikiSyncMonitorSelectionClause('child.wiki_key', $onlyKeys, $skipKeys);
+    $skipClause = $selection['sql'];
+    $skipKeys = $selection['params'];
 
     $where = 'WHERE child.is_active = 1 AND m.parent_wiki_key IS NOT NULL
         AND (child.parent_id IS NULL OR child.parent_id <> parent.id)' . $skipClause;
@@ -800,15 +842,18 @@ function avesmapsWikiSyncMonitorDeleteCustomNode(PDO $pdo, string $wikiKey): arr
 // political_territory-Zeilen an (wiki_id NULL, wiki_key=eigener-knoten:..., Felder aus Overrides)
 // und setzt parent_id aus dem Modell (custom->custom funktioniert durch zwei Passes). Gegated:
 // schreibt nur bei $dryRun=false. Nicht-platzierte eigene Knoten werden NICHT uebernommen.
-function avesmapsWikiSyncMonitorApplyCustomNodes(PDO $pdo, bool $dryRun): array {
+function avesmapsWikiSyncMonitorApplyCustomNodes(PDO $pdo, bool $dryRun, ?array $onlyKeys = null): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
 
-    $rows = $pdo->query(
+    $selection = avesmapsWikiSyncMonitorSelectionClause('wiki_key', $onlyKeys, []);
+    $statement = $pdo->prepare(
         "SELECT wiki_key, parent_wiki_key, metadata_overrides_json
          FROM " . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . "
-         WHERE wiki_key LIKE 'eigener-knoten:%' AND excluded = 0
+         WHERE wiki_key LIKE 'eigener-knoten:%' AND excluded = 0" . $selection['sql'] . "
          ORDER BY wiki_key ASC"
-    )->fetchAll(PDO::FETCH_ASSOC);
+    );
+    $statement->execute($selection['params']);
+    $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
 
     $existingKeys = [];
     if ($rows) {

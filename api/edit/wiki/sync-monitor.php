@@ -63,7 +63,8 @@ try {
                 $pdo,
                 is_array($payload['skip'] ?? null) ? $payload['skip'] : [],
                 // Schreiben NUR bei dry_run:false UND confirm:"apply"; sonst immer lesender Dry-Run.
-                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
+                is_array($payload['only'] ?? null) ? $payload['only'] : null
             ),
             'set_territory_trashed' => avesmapsWikiSyncMonitorSetTerritoryTrashed(
                 $pdo,
@@ -94,7 +95,8 @@ try {
             'apply_custom_nodes' => avesmapsWikiSyncMonitorApplyCustomNodes(
                 $pdo,
                 // Schreiben NUR bei dry_run:false UND confirm:"apply"; sonst lesender Dry-Run.
-                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
+                is_array($payload['only'] ?? null) ? $payload['only'] : null
             ),
             'apply_identity' => avesmapsWikiSyncMonitorApplyIdentity(
                 $pdo,
