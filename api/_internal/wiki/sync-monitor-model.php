@@ -639,9 +639,8 @@ function avesmapsWikiSyncMonitorSelectionClause(string $column, ?array $only, ar
         return ['sql' => '', 'params' => []];
     }
 
-    $placeholders = implode(',', array_fill(0, count($skip), '?'));
     return [
-        'sql' => ' AND ' . $column . " NOT IN ($placeholders)",
+        'sql' => ' AND ' . $column . ' NOT IN (' . implode(',', array_fill(0, count($skip), '?')) . ')',
         'params' => $skip,
     ];
 }

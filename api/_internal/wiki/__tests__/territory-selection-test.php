@@ -45,9 +45,25 @@ $clause = avesmapsWikiSyncMonitorSelectionClause('child.wiki_key', [' wiki:a ', 
 assert($clause['params'] === ['wiki:a', 'wiki:c']);
 
 // --- Und die zwei Schreiber bauen ihre Bedingung nicht mehr selbst ---------------------------------
+//
+// 💣 Gescannt werden die RUMPFE der zwei Schreiber, nicht die ganze Datei: der Helfer selbst enthaelt
+// natuerlich ein NOT IN, und eine dateiweite Suche verbietet damit genau die Zentralisierung, die sie
+// erzwingen soll. Ein solcher Assert ist danach nur noch Deko -- er faellt bei jeder Schreibweise um,
+// ausser bei der einen, die gerade dasteht.
 $source = (string) file_get_contents(__DIR__ . '/../sync-monitor-model.php');
-assert(!str_contains($source, "NOT IN ('"), 'keine handgebaute Bedingung mehr');
 assert(!str_contains($source, '$skipClause = ' . "' AND child.wiki_key NOT IN"), 'der alte Bau ist weg');
-assert(substr_count($source, 'avesmapsWikiSyncMonitorSelectionClause(') >= 3, 'beide Schreiber rufen sie');
+
+$bodyOf = static function (string $source, string $function): string {
+    $start = strpos($source, 'function ' . $function . '(');
+    assert($start !== false, "die Funktion {$function} steht in der Datei");
+    $next = strpos($source, "\nfunction ", $start + 1);
+    return substr($source, $start, $next === false ? null : $next - $start);
+};
+foreach (['avesmapsWikiSyncMonitorApplyParentCache', 'avesmapsWikiSyncMonitorApplyCustomNodes'] as $writer) {
+    $body = $bodyOf($source, $writer);
+    assert(strlen($body) > 200, "{$writer}: Rumpf sieht abgeschnitten aus (" . strlen($body) . " Zeichen)");
+    assert(!str_contains($body, 'NOT IN'), "{$writer} baut seine Bedingung nicht mehr selbst");
+    assert(str_contains($body, 'avesmapsWikiSyncMonitorSelectionClause('), "{$writer} ruft den Helfer");
+}
 
 echo "territory-selection ok\n";
