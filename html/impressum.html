@@ -45,87 +45,142 @@
 			--imp-fg: var(--color-text);
 			--imp-strong: var(--color-text-strong);
 			--imp-muted: var(--color-text-muted);
+			--imp-accent: var(--color-accent-strong);
 			--imp-divider: var(--color-divider);
+			--imp-line: var(--color-border);
+			--imp-card: var(--color-panel);
+			--imp-soft: var(--color-panel-soft);
 			--imp-link: var(--color-link);
 			--imp-link-hover: var(--color-link-hover);
 		}
 
-		body {
-			margin: 0;
-			padding: var(--space-24) var(--space-20) var(--space-24);
-			background: var(--imp-bg);
-			color: var(--imp-fg);
-			line-height: 1.6;
-		}
+		/* --- Scrollbalken und native Chrome folgen dem Theme. Diese Seite laedt tokens.css, aber
+		       NICHT base.css -- also steht der kanonische Block aus css/base/base.css hier woertlich
+		       statt neu erfunden (gleiche Token, 7px, gleicher Radius). `color-scheme` ist das Stueck,
+		       das man am leichtesten vergisst: ohne es bleibt die Seite im Dunkelmodus hell-gechromt.
+		       Die WebKit-Pseudoelemente erben nicht, deshalb `*`. --- */
+		:root { color-scheme: light; scrollbar-width: thin;
+			scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
+		:root[data-theme="dark"] { color-scheme: dark; }
+		*::-webkit-scrollbar { width: 7px; height: 7px; }
+		*::-webkit-scrollbar-track { background: var(--color-scrollbar-track); }
+		*::-webkit-scrollbar-thumb { background: var(--color-scrollbar-thumb);
+			border-radius: var(--radius-sm); }
+		*::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-thumb-hover); }
 
-		.imp-shell { max-width: 46rem; margin: 0 auto; }
+		* { box-sizing: border-box; }
 
-		.imp-back {
-			display: inline-block;
-			margin-bottom: var(--space-20);
-			color: var(--imp-link);
-			text-decoration: none;
-		}
+		/* 💣 Ohne die Schriftzeile rendert die Seite in der Serifenschrift des Browsers: die globale
+		   Schriftregel steht in css/base/base.css, und die laedt eine eigenstaendige Seite unter
+		   html/ nicht mit -- sie hat nur die Token, nicht die Behandlungen. */
+		body { margin: 0; background: var(--imp-bg); color: var(--imp-fg);
+			font: var(--font-size-reading)/var(--leading-normal) var(--font-ui); }
+
+		/* --- Kopfleiste wie im Editor-Handbuch: Titel links, Umschalter und Rueckweg rechts. --- */
+		.imp-topbar { display: flex; justify-content: space-between; align-items: center;
+			gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--imp-line);
+			background: var(--imp-card); position: sticky; top: 0; z-index: 10; }
+		.imp-topbar__title { color: var(--imp-strong); font-weight: var(--font-weight-bold); }
+		.imp-topbar__actions { display: flex; align-items: center; gap: 16px; }
+		.imp-back { color: var(--imp-link); font-weight: var(--font-weight-bold);
+			text-decoration: none; white-space: nowrap; }
 		.imp-back:hover { color: var(--imp-link-hover); text-decoration: underline; }
 
-		h1 { font-size: 1.6rem; margin: 0 0 var(--space-6); color: var(--imp-strong); }
-		h2 {
-			font-size: 1.15rem;
-			margin: var(--space-24) 0 var(--space-8);
-			padding-top: var(--space-16);
-			border-top: 1px solid var(--imp-divider);
-			color: var(--imp-strong);
+		/* --- Hell/Dunkel-Umschalter: Markup aus index.html, Logik aus js/app/theme-toggle.js
+		   (unten eingebunden, kein zweiter Handler). Nur die Positionierung ist anders, deshalb
+		   stehen hier nur die Regeln, die das Aussehen tragen -- wie im Handbuch. --- */
+		.theme-toggle-btn { position: relative; width: 24px; height: 24px; padding: 0; flex: none;
+			overflow: hidden; border: 0; background: transparent; cursor: pointer;
+			transition: transform 0.12s ease; }
+		.theme-toggle-btn:hover { transform: scale(1.12); }
+		.theme-toggle-btn:focus-visible { outline: none; border-radius: var(--radius-md);
+			box-shadow: var(--focus-ring); }
+		.theme-toggle-ico { position: absolute; left: 50%; top: 50%; width: 21px; height: 21px;
+			transition: transform 0.55s cubic-bezier(0.34, 1.32, 0.5, 1); }
+		/* Sonne und Mond sind Symbolfarben, in beiden Themes gleich -- wie im Original. */
+		.theme-toggle-ico--sun { fill: #e6a532; stroke: #e6a532; transform: translate(-50%, -50%); }
+		.theme-toggle-ico--moon { fill: #d8d0bd; transform: translate(-50%, 135%); }
+		:root[data-theme="dark"] .theme-toggle-ico--sun { transform: translate(-50%, 135%); }
+		:root[data-theme="dark"] .theme-toggle-ico--moon { transform: translate(-50%, -50%); }
+		.theme-toggle-ico--sun g { transform-box: fill-box; transform-origin: center;
+			animation: theme-sun-spin 22s linear infinite; }
+		@keyframes theme-sun-spin { to { transform: rotate(360deg); } }
+		@media (prefers-reduced-motion: reduce) {
+			.theme-toggle-ico, .theme-toggle-ico--sun g { transition: none; animation: none; }
 		}
-		.imp-lede { margin: 0 0 var(--space-16); color: var(--imp-muted); }
-		p { margin: 0 0 var(--space-12); }
+
+		/* --- Der Lesekasten. Die Rollen-Farben sind dieselben wie im Fenster „Hinweise"
+		   (css/components/legal-dialog.css): Fliesstext gedeckt, fetter Auftakt --color-text-strong,
+		   Abschnittsueberschrift --color-accent-strong. Keine zweite Formel. --- */
+		.imp-shell { max-width: 46rem; margin: 0 auto; padding: var(--space-24) var(--space-20) 80px; }
+
+		h1 { margin: 0 0 var(--space-6); color: var(--imp-strong); font-size: 1.6rem;
+			font-weight: var(--font-weight-bold); }
+		.imp-lede { margin: 0 0 var(--space-24); color: var(--imp-muted); }
+
+		h2 { margin: var(--space-24) 0 var(--space-8); padding-top: var(--space-16);
+			border-top: 1px solid var(--imp-divider); color: var(--imp-accent);
+			font-size: 15px; font-weight: var(--font-weight-bold); }
+
+		p { margin: 0 0 10px; color: var(--imp-muted); }
+		p > strong:first-child { color: var(--imp-strong); }
+
 		a { color: var(--imp-link); }
 		a:hover { color: var(--imp-link-hover); }
-		.imp-note {
-			margin-top: var(--space-24);
-			padding-top: var(--space-16);
-			border-top: 1px solid var(--imp-divider);
-			color: var(--imp-muted);
-			font-size: 0.94rem;
-		}
+
+		.imp-note { margin-top: var(--space-24); padding: 12px 14px 13px;
+			border: 1px solid var(--imp-line); border-radius: var(--radius-md);
+			background: var(--imp-soft); color: var(--imp-muted);
+			font-size: var(--font-size-small); }
 	</style>
 </head>
 <body>
-<div class="imp-shell">
+	<div class="imp-topbar">
+		<span class="imp-topbar__title">Avesmaps &middot; Impressum und Datenschutz</span>
+		<div class="imp-topbar__actions">
+			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
+				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
+				<svg class="theme-toggle-ico theme-toggle-ico--moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
+			</button>
+			<a class="imp-back" href="/">&larr; Zur Karte</a>
+		</div>
+	</div>
 
-	<a class="imp-back" href="/">&larr; Zur Karte</a>
+	<main class="imp-shell">
 
-	<h1>Impressum und Datenschutz</h1>
-	<p class="imp-lede">Diese Seite tr&auml;gt die Angaben, die auch ohne JavaScript erreichbar sein
-		m&uuml;ssen. Sie ist wortgleich mit dem Fenster &bdquo;Hinweise&ldquo; auf der Karte.</p>
+		<h1>Impressum und Datenschutz</h1>
+		<p class="imp-lede">Diese Seite tr&auml;gt die Angaben, die auch ohne JavaScript erreichbar sein
+			m&uuml;ssen. Sie ist wortgleich mit dem Fenster &bdquo;Hinweise&ldquo; auf der Karte.</p>
 
-	<h2>Angaben gem&auml;&szlig; &sect; 5 DDG</h2>
-	<p><strong>Betreiber/Impressum.</strong> Entwicklung, Gestaltung, Programmierung und Betrieb erfolgen durch Valentin Schwind (c/o Nobelstr. 10, D-70569 Stuttgart); bei der Programmierung wird Claude Code eingesetzt. Verantwortlich für die redaktionelle Pflege der Mapinhalte ist Thomas Braun.</p>
+		<h2>Angaben gem&auml;&szlig; &sect; 5 DDG</h2>
+		<p><strong>Betreiber/Impressum.</strong> Entwicklung, Gestaltung, Programmierung und Betrieb erfolgen durch Valentin Schwind (c/o Nobelstr. 10, D-70569 Stuttgart); bei der Programmierung wird Claude Code eingesetzt. Verantwortlich für die redaktionelle Pflege der Mapinhalte ist Thomas Braun.</p>
 
-	<!-- 💣 Die Adresse steht als Zeichen-Entitaeten, nicht im Klartext, und das Verweis-Schema fehlt
-	     hier ganz -- js/app/legal-mail.js haengt es erst im Browser an (derselbe Aufbau wie in
-	     index.html; der Test haelt beide Dateien frei davon). Ohne JavaScript bleibt die Adresse
-	     LESBAR, nur nicht klickbar -- genau das meint &sect; 5 DDG mit "unmittelbar erreichbar",
-	     und genau deshalb steht sie im HTML und wird hier nur VERLINKT. -->
-	<p><strong>E-Mail.</strong> <span id="legal-mail">&#105;&#110;&#102;&#111;&#64;&#97;&#118;&#101;&#115;&#109;&#97;&#112;&#115;&#46;&#100;&#101;</span></p>
+		<!-- 💣 Die Adresse steht als Zeichen-Entitaeten, nicht im Klartext, und das Verweis-Schema fehlt
+		     hier ganz -- js/app/legal-mail.js haengt es erst im Browser an (derselbe Aufbau wie in
+		     index.html; der Test haelt beide Dateien frei davon). Ohne JavaScript bleibt die Adresse
+		     LESBAR, nur nicht klickbar -- genau das meint &sect; 5 DDG mit "unmittelbar erreichbar",
+		     und genau deshalb steht sie im HTML und wird hier nur VERLINKT. -->
+		<p><strong>E-Mail.</strong> <span id="legal-mail">&#105;&#110;&#102;&#111;&#64;&#97;&#118;&#101;&#115;&#109;&#97;&#112;&#115;&#46;&#100;&#101;</span></p>
 
-	<h2>Datenschutz</h2>
-	<p><strong>Server-Logdaten.</strong> Avesmaps wird bei STRATO gehostet. Beim Abruf der Website verarbeitet der Hoster automatisch technische Server-Logdaten (u. a. IP-Adresse, Datum und Uhrzeit, abgerufene Ressource, Browser- und Gerätetyp) zur technischen Bereitstellung, Stabilität und Sicherheit. Rechtsgrundlage ist das berechtigte Interesse am sicheren Betrieb (Art. 6 Abs. 1 lit. f DSGVO). Diese Logdaten werden nicht mit anderen Datenquellen zusammengeführt und nach kurzer Zeit gelöscht.</p>
-	<p><strong>Keine Cookies, kein Tracking, keine Werbung.</strong> Avesmaps setzt keine Cookies zu Tracking- oder Werbezwecken, bindet keine externen Werbe- oder Tracking-Netzwerke ein und erstellt keine nutzerbezogenen Profile.</p>
-	<p><strong>Besucher-Statistik und Geodaten.</strong> Avesmaps erfasst eine anonyme, ausschließlich aggregierte Nutzungsstatistik (Seitenaufrufe, genutzte Funktionen, ungefähre Herkunft) ohne Weitergabe an Dritte. Zur Schätzung eindeutiger Besucher pro Tag dient ein nicht rückführbarer, täglich wechselnder und nicht dauerhaft gespeicherter Hashwert. Die ungefähre Herkunft (Land/Bundesland) wird serverseitig aus der IP-Adresse ermittelt; die IP-Adresse selbst wird dabei nicht gespeichert. Die zugrunde liegende IP-Geodatenbank stammt von DB-IP.com und steht unter der Creative-Commons-Lizenz CC BY 4.0.</p>
-	<p><strong>Deine Rechte.</strong> Dir stehen im Rahmen der DSGVO die Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch zu sowie das Recht, dich bei einer Datenschutz-Aufsichtsbehörde zu beschweren. Verantwortlicher ist der oben genannte Betreiber; Anfragen zum Datenschutz richtest du bitte an die oben genannte E-Mail-Adresse. Da die Besucher-Statistik anonym erfolgt, ist dort eine Zuordnung zu deiner Person nicht möglich.</p>
+		<h2>Datenschutz</h2>
+		<p><strong>Server-Logdaten.</strong> Avesmaps wird bei STRATO gehostet. Beim Abruf der Website verarbeitet der Hoster automatisch technische Server-Logdaten (u. a. IP-Adresse, Datum und Uhrzeit, abgerufene Ressource, Browser- und Gerätetyp) zur technischen Bereitstellung, Stabilität und Sicherheit. Rechtsgrundlage ist das berechtigte Interesse am sicheren Betrieb (Art. 6 Abs. 1 lit. f DSGVO). Diese Logdaten werden nicht mit anderen Datenquellen zusammengeführt und nach kurzer Zeit gelöscht.</p>
+		<p><strong>Keine Cookies, kein Tracking, keine Werbung.</strong> Avesmaps setzt keine Cookies zu Tracking- oder Werbezwecken, bindet keine externen Werbe- oder Tracking-Netzwerke ein und erstellt keine nutzerbezogenen Profile.</p>
+		<p><strong>Besucher-Statistik und Geodaten.</strong> Avesmaps erfasst eine anonyme, ausschließlich aggregierte Nutzungsstatistik (Seitenaufrufe, genutzte Funktionen, ungefähre Herkunft) ohne Weitergabe an Dritte. Zur Schätzung eindeutiger Besucher pro Tag dient ein nicht rückführbarer, täglich wechselnder und nicht dauerhaft gespeicherter Hashwert. Die ungefähre Herkunft (Land/Bundesland) wird serverseitig aus der IP-Adresse ermittelt; die IP-Adresse selbst wird dabei nicht gespeichert. Die zugrunde liegende IP-Geodatenbank stammt von DB-IP.com und steht unter der Creative-Commons-Lizenz CC BY 4.0.</p>
+		<p><strong>Deine Rechte.</strong> Dir stehen im Rahmen der DSGVO die Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch zu sowie das Recht, dich bei einer Datenschutz-Aufsichtsbehörde zu beschweren. Verantwortlicher ist der oben genannte Betreiber; Anfragen zum Datenschutz richtest du bitte an die oben genannte E-Mail-Adresse. Da die Besucher-Statistik anonym erfolgt, ist dort eine Zuordnung zu deiner Person nicht möglich.</p>
 
-	<p class="imp-note">Die &uuml;brigen Hinweise &mdash; Nutzung, Projekt und rechtlicher Status,
-		Urheberrecht, Inhalte, Technik und Haftungsausschluss &mdash; stehen im Fenster
-		&bdquo;Hinweise&ldquo; auf der <a href="/#hinweise">Karte</a>. Es &ouml;ffnet sich &uuml;ber den
-		Knopf unten rechts und braucht JavaScript.</p>
+		<p class="imp-note">Die &uuml;brigen Hinweise &mdash; Nutzung, Projekt und rechtlicher Status,
+			Urheberrecht, Inhalte, Technik und Haftungsausschluss &mdash; stehen im Fenster
+			&bdquo;Hinweise&ldquo; auf der <a href="/#hinweise">Karte</a>. Es &ouml;ffnet sich &uuml;ber den
+			Knopf unten rechts und braucht JavaScript.</p>
 
-</div>
-<script src="/js/app/legal-mail.js"></script>
-<script>
-	/* Macht die Adresse anklickbar. try/catch, weil ein ausgefallenes Blattmodul diese Seite nicht
-	   kosten darf -- ohne den Aufruf bleibt die Adresse als Text stehen, und das ist der Rueckfall,
-	   den dieses Markup vorsieht. */
-	try { avesmapsActivateLegalMail(document); } catch (error) {}
-</script>
+	</main>
+	<script src="/js/app/legal-mail.js"></script>
+	<script src="/js/app/theme-toggle.js"></script>
+	<script>
+		/* Macht die Adresse anklickbar. try/catch, weil ein ausgefallenes Blattmodul diese Seite nicht
+		   kosten darf -- ohne den Aufruf bleibt die Adresse als Text stehen, und das ist der Rueckfall,
+		   den dieses Markup vorsieht. */
+		try { avesmapsActivateLegalMail(document); } catch (error) {}
+	</script>
 </body>
 </html>
