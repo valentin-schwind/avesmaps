@@ -166,6 +166,7 @@ const LEGACY_COMMON_VERBS = [
 
 const LEGACY_RULE_INFO = {
 	duplicate_wiki_title: {
+		short: "mehrere unserer Orte zeigen auf denselben Artikel",
 		hint: "Mehrere Orte auf der Karte wurden beim Sync demselben Wiki-Artikel zugeordnet. Nur einer kann gemeint sein — die übrigen brauchen einen eigenen Artikel oder gar keinen.",
 		verbs: [
 			{ label: "Akzeptieren", effect: "Erklärt DIESEN Ort zum richtigen Träger des Artikels. Die anderen bleiben, bis du sie einzeln entscheidest." },
@@ -173,6 +174,7 @@ const LEGACY_RULE_INFO = {
 		],
 	},
 	duplicate_avesmaps_name: {
+		short: "zwei unserer Orte tragen denselben Namen",
 		hint: "Zwei oder mehr Orte auf der Karte heißen gleich. Das ist nicht automatisch falsch — es macht aber jede Zuordnung über den Namen unzuverlässig, weil niemand weiß, welcher gemeint ist.",
 		verbs: [
 			{ label: "Anzeigen", effect: "Springt zu dem Ort, damit du siehst, ob es wirklich zwei verschiedene sind." },
@@ -180,18 +182,22 @@ const LEGACY_RULE_INFO = {
 		],
 	},
 	canonical_name_difference: {
+		short: "gehören zusammen, heißen aber verschieden",
 		hint: "Der Ort wurde einem Wiki-Artikel zugeordnet, dessen Titel anders lautet als der Kartenname — etwa „Burg Wolfenstein“ gegenüber „Festung Wolfenstein“. Meistens richtig, gelegentlich ein Fehlgriff.",
 		verbs: LEGACY_COMMON_VERBS,
 	},
 	type_conflict: {
+		short: "Karte und Wiki uneins über die Ortsgröße",
 		hint: "Karte und Wiki sind sich über die Ortsgröße uneinig — die Karte sagt etwa Dorf, das Wiki Kleinstadt. Die Größe bestimmt Symbol und ab welchem Zoom der Ort erscheint.",
 		verbs: LEGACY_COMMON_VERBS,
 	},
 	field_divergence: {
+		short: "einzelne Felder weichen ab — wer recht hat, sagt der Fall nicht",
 		hint: "Ein oder mehrere Felder weichen vom Wiki ab (Einwohner, Region, Ruine …). Der Fall sagt nicht, wer recht hat — eigene Angaben sind oft bewusst gesetzt.",
 		verbs: LEGACY_COMMON_VERBS,
 	},
 	coordinate_drift: {
+		short: "verrutschter Marker oder grobe Wiki-Koordinate",
 		hint: "Der Marker steht weit von der Position, die das Wiki angibt. Das ist entweder ein verrutschter Marker oder eine ungenaue Wiki-Koordinate — die Wiki-Positionen sind ausdrücklich gröber als die Karte.",
 		verbs: [
 			{ label: "Wiki-Position übernehmen", effect: "Verschiebt den Marker auf die Wiki-Koordinate. Das ist eine echte Kartenänderung, im Änderungsverlauf umkehrbar." },
@@ -200,10 +206,12 @@ const LEGACY_RULE_INFO = {
 		],
 	},
 	probable_match: {
+		short: "ein Vorschlag, keine Feststellung",
 		hint: "Der Sync hat einen wahrscheinlichen, aber nicht sicheren Wiki-Artikel gefunden. Verknüpft ist noch nichts — das ist ein Vorschlag, keine Feststellung.",
 		verbs: LEGACY_COMMON_VERBS,
 	},
 	unresolved_without_candidate: {
+		short: "im Wiki nichts Passendes gefunden — oft völlig in Ordnung",
 		// Gegenstueck zum Abgrenzungssatz in „Kein Wiki-Schluessel" (rules.php) -- beide zeigen
 		// aufeinander, weil sie sich zum Verwechseln aehnlich lesen.
 		hint: "Zu diesem Ort wurde im Wiki nichts Passendes gefunden. Das ist oft völlig in Ordnung: nicht jeder Ort auf der Karte hat einen Artikel. Unterschied zu „Kein Wiki-Schlüssel“: dort fehlt nur der Link — hier hat der Lauf bereits gesucht und nichts gefunden.",
@@ -213,6 +221,7 @@ const LEGACY_RULE_INFO = {
 		],
 	},
 	missing_wiki_with_coordinates: {
+		short: "das Wiki kennt ihn samt Position, wir nicht",
 		hint: "Das Wiki kennt einen Ort, den unsere Karte nicht hat — und liefert Koordinaten dazu. Er ließe sich also direkt anlegen.",
 		verbs: [
 			{ label: "Lösen", effect: "Öffnet den Anlegen-Dialog mit der Wiki-Position und den Wiki-Werten. Erst das Speichern dort legt den Ort wirklich an." },
@@ -220,6 +229,7 @@ const LEGACY_RULE_INFO = {
 		],
 	},
 	missing_wiki_without_coordinates: {
+		short: "wo er hingehört, muss von Hand bestimmt werden",
 		hint: "Das Wiki kennt einen Ort, den unsere Karte nicht hat — aber ohne Koordinaten. Wo er hingehört, muss von Hand bestimmt werden.",
 		verbs: [
 			{ label: "Auf der Karte setzen", effect: "Du klickst die Stelle auf der Karte an, danach öffnet sich der Anlegen-Dialog. Erst das Speichern legt den Ort an." },
@@ -227,10 +237,12 @@ const LEGACY_RULE_INFO = {
 		],
 	},
 	coat_available: {
+		short: "ein Wappen im Wiki, das bei uns fehlt",
 		hint: "Das Wiki hat ein Wappen, das bei uns fehlt. Achtung: öffentlich gezeigt werden nur gemeinfreie Wappen — ein vorhandenes Wappen heißt nicht automatisch, dass wir es zeigen dürfen.",
 		verbs: LEGACY_COMMON_VERBS,
 	},
 	missing_capital: {
+		short: "ein Gebiet nennt eine Hauptstadt ohne Zuordnung",
 		hint: "Ein Herrschaftsgebiet nennt im Wiki eine Hauptstadt, die bei uns nicht zugeordnet ist. Betrifft Territorien, nicht Orte.",
 		verbs: [
 			{ label: "Hauptstadt zuweisen", effect: "Verknüpft das Gebiet mit dem gewählten Ort. Echte Änderung, im Editor umkehrbar." },

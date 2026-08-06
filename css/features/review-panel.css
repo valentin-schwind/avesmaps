@@ -410,16 +410,42 @@
 	color: var(--color-button-text);
 }
 
-.wiki-sync-case__action--primary {
-	border: 1px solid var(--color-success-soft-border);
-	background: var(--color-success-soft);
-	color: var(--color-success-soft-text);
+/* Eine Haupthandlung gefuellt, alles Weitere weich, das Lebenszyklus-Paar still (AGENTS.md §12).
+   Diese Regel stand seit 2026-07-21 schon einmal da -- unter #conflict-list, weil dort auffiel, dass
+   gruen/rot neben den warmen Knoepfen "wie zwei verschiedene Programme" liest und dass "Archivieren"
+   gar keine Daten aendert. Sie war bewusst auf die eine Oberflaeche beschraenkt; seit Sitzung 3 gilt
+   sie fuer beide, und die Kopie unter #conflict-list ist entfallen. */
+.wiki-sync-case__action {
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
 }
 
+.wiki-sync-case__action:hover {
+	background: var(--color-button-soft-hover);
+}
+
+.wiki-sync-case__action--primary {
+	border-color: var(--color-button-border);
+	background: var(--color-button);
+	color: var(--color-button-text);
+}
+
+.wiki-sync-case__action--primary:hover {
+	background: var(--color-button-hover);
+}
+
+/* "Zurueckstellen" und "Archivieren" aendern KEINE Daten -- sie sind das Gegenteil einer Warnung.
+   Der Klassenname bleibt --danger, weil ihn drei Dateien schreiben; die Bedeutung ist "still". */
 .wiki-sync-case__action--danger {
-	border: 1px solid var(--color-danger-soft-border);
-	background: var(--color-danger-soft);
-	color: var(--color-danger-soft-text);
+	border-color: var(--color-divider);
+	background: none;
+	color: var(--color-text-muted);
+}
+
+.wiki-sync-case__action--danger:hover {
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
 }
 
 /* Der Spalten-Abstand traegt hier eine Bedeutung: links die Handlung, rechts ihr Datum. Bei 8px
@@ -1162,20 +1188,47 @@
 	gap: 8px;
 }
 
+/* Gruppieren durch Trennlinie, nicht durch gerahmte Kaesten (AGENTS.md §12). Diese Liste ist aelter
+   als die Regel und stand als Kasten-im-Kasten-im-Kasten neben der Uebernahme-Vorschau, die es richtig
+   macht -- in derselben Seite, in zwei Handschriften. Formensprache jetzt: die des Blattes
+   (css/components/sync-plan-sheet.css), damit ein Editor nicht zwei Programme zu lernen hat. */
 .wiki-sync-case-group {
-	overflow: hidden;
-	border: 1px solid var(--color-border);
-	border-radius: 8px;
-	background: var(--color-panel-soft);
+	border: 0;
+	border-bottom: 1px solid var(--color-divider);
+	border-radius: 0;
+	background: none;
+}
+
+.wiki-sync-case-group:last-of-type {
+	border-bottom: 0;
 }
 
 .wiki-sync-case-group__summary {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	padding: 9px 10px;
+	justify-content: flex-start;
+	gap: 10px;
+	padding: 11px 2px;
 	cursor: pointer;
+	list-style: none;
+}
+
+.wiki-sync-case-group__summary::-webkit-details-marker {
+	display: none;
+}
+
+/* Das Dreieck uebernimmt die Rolle des Rahmens: es sagt, dass hier etwas aufgeht. */
+.wiki-sync-case-group__summary::before {
+	content: "▸";
+	flex: none;
+	width: 10px;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	transition: transform 0.12s;
+}
+
+.wiki-sync-case-group[open] > .wiki-sync-case-group__summary::before {
+	transform: rotate(90deg);
 }
 
 .wiki-sync-case-group__title {
@@ -1188,25 +1241,48 @@
 .wiki-sync-case-group__count {
 	min-width: 28px;
 	padding: 2px 8px;
+	border: 1px solid var(--color-pill-border);
 	border-radius: 999px;
 	background: var(--color-pill);
 	color: var(--color-pill-text);
-	font-size: 12px;
+	font-size: var(--font-size-caption);
 	text-align: center;
+}
+
+/* Der erklaerende Satz der Gruppe. Er steht IM Rumpf, nicht rechts in der Ueberschrift -- gemessen
+   am 2026-08-06: in dieser 400px schmalen Spalte bricht er dort auf drei Zeilen und macht jede
+   Ueberschrift von 35 auf 61px hoch. Zugeklappt bleibt die Liste so ihr Inhaltsverzeichnis.
+   Sein Inhalt kommt aus dem EINEN Katalog (LEGACY_RULE_INFO in review-conflicts.js). */
+.wiki-sync-case-group__hint {
+	margin: 0 0 2px;
+	padding: 0 2px;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
 }
 
 .wiki-sync-case-group__body {
 	display: grid;
-	gap: 8px;
-	padding: 0 8px 8px;
+	gap: 0;
+	padding: 0 0 8px 12px;
 }
 
 .wiki-sync-case {
-	overflow: hidden;
-	border: 1px solid var(--color-border);
-	border-radius: 7px;
-	background: var(--color-panel);
+	/* ⚠️ visible, nicht hidden: im Fall steckt bei "Fehlende Hauptstaedte" ein Suchfeld mit
+	   Vorschlagsliste, und die darf ueber den Rand hinausreichen. Der alte Kasten brauchte hidden
+	   fuer seine Ecken -- ohne Ecken braucht es das nicht mehr. */
+	overflow: visible;
+	border: 0;
+	border-top: 1px solid var(--color-divider);
+	border-radius: 0;
+	background: none;
 	color: var(--color-text-strong);
+}
+
+/* ⚠️ Steht ein Gruppen-Hinweis im Rumpf, ist der erste Fall NICHT mehr :first-child -- dann zieht
+   er seine Linie, und das ist gewollt: erst der erklaerende Satz, dann die Liste. Genau so haelt
+   es das Blatt mit dem Vorspann seiner Loeschgruppe. Kein Fehler, nicht wegregeln. */
+.wiki-sync-case:first-child {
+	border-top: 0;
 }
 
 .wiki-sync-case__summary {
@@ -1214,8 +1290,13 @@
 	grid-template-columns: minmax(0, 1fr) auto;
 	align-items: center;
 	gap: 8px;
-	padding: 8px 9px;
+	padding: 9px 2px;
 	cursor: pointer;
+	list-style: none;
+}
+
+.wiki-sync-case__summary::-webkit-details-marker {
+	display: none;
 }
 
 .wiki-sync-case__title {
@@ -1229,8 +1310,15 @@
 	border-radius: 999px;
 	background: var(--color-pill);
 	color: var(--color-text-muted);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	white-space: nowrap;
+}
+
+/* "offen" an jeder Zeile eines Abschnitts, der "Offen" heisst, ist keine Auskunft, sondern Rauschen.
+   Die beiden anderen Zustaende bleiben sichtbar -- die sagen etwas, gerade im Konfliktzentrum, wo
+   Faelle aller Zustaende nebeneinander stehen. */
+.wiki-sync-case__status--open {
+	display: none;
 }
 
 .wiki-sync-case__status--archived {
@@ -1246,7 +1334,17 @@
 .wiki-sync-case__body {
 	display: grid;
 	gap: 7px;
-	padding: 0 9px 9px;
+	padding: 0 2px 9px;
+}
+
+/* Das ruhige Feld der Auskunftszeilen -- dieselbe Rolle wie .diff im Blatt. Den Behaelter legt
+   wikiSyncCaseFacts() in review-wiki-sync-cases.js an; ohne ihn waeren es lose Absaetze. */
+.wiki-sync-case__facts {
+	display: grid;
+	gap: 2px;
+	padding: 8px 10px;
+	border-radius: var(--radius-md);
+	background: var(--color-panel-muted);
 }
 
 .wiki-sync-case__row {
@@ -1254,7 +1352,7 @@
 	grid-template-columns: 78px minmax(0, 1fr);
 	gap: 8px;
 	margin: 0;
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	line-height: 1.35;
 }
 
@@ -1321,12 +1419,12 @@
 .wiki-sync-case__choice {
 	padding: 4px 7px;
 	border: 1px solid var(--color-pill-border);
-	border-radius: 6px;
+	border-radius: var(--radius-md);
 	background: var(--color-pill);
 	color: var(--color-pill-text);
 	cursor: pointer;
 	font: inherit;
-	font-size: 12px;
+	font-size: var(--font-size-small);
 }
 
 .wiki-sync-case__choice--accept {
@@ -1621,40 +1719,11 @@
 	}
 }
 
-/* Einheitliche Knopf-Optik im Konfliktzentrum. Die eingegliederten WikiSync-Faelle bringen ihre
-   gruen/roten Varianten aus dem Panel mit; neben den warmen Knoepfen der neuen Regeln liest sich
-   das wie zwei verschiedene Programme (Owner 2026-07-21). Rot war ausserdem irrefuehrend:
-   „Archivieren“ aendert gar keine Daten. Bewusst NUR innerhalb #conflict-list ueberschrieben --
-   dieselben Klassen im uebrigen WikiSync-Panel bleiben, wie sie sind. */
-#conflict-list .wiki-sync-case__action,
-#conflict-list .wiki-sync-case__choice {
-	padding: 4px 10px;
-	border: 1px solid var(--color-button-soft-border);
-	border-radius: var(--radius-md);
-	background: var(--color-button-soft);
-	color: var(--color-button-soft-text);
-	font-size: 12px;
-}
-#conflict-list .wiki-sync-case__action:hover,
-#conflict-list .wiki-sync-case__choice:hover {
-	background: var(--color-button-soft-hover);
-}
-/* Die eine Haupthandlung bleibt hervorgehoben -- gefuellt statt farbig, wie ueberall sonst. */
-#conflict-list .wiki-sync-case__action--primary,
-#conflict-list .wiki-sync-case__choice--accept {
-	border-color: var(--color-button-border);
-	background: var(--color-button);
-	color: var(--color-button-text);
-}
-#conflict-list .wiki-sync-case__action--primary:hover,
-#conflict-list .wiki-sync-case__choice--accept:hover {
-	background: var(--color-button-hover);
-}
-#conflict-list .wiki-sync-case__action--danger {
-	border-color: var(--color-button-soft-border);
-	background: var(--color-button-soft);
-	color: var(--color-button-soft-text);
-}
+/* Die Knopf-Optik des Konfliktzentrums stand hier bis Sitzung 3 als eigener Block: die eingegliederten
+   WikiSync-Faelle brachten ihre gruen/roten Varianten mit, und neben den warmen Knoepfen der neuen
+   Regeln las sich das "wie zwei verschiedene Programme" (Owner 2026-07-21). Der Block ist entfallen,
+   weil die Regel jetzt fuer BEIDE Oberflaechen in der Grundform steht (oben bei
+   .wiki-sync-case__action). Eine Ausnahme, die ueberall gilt, ist keine Ausnahme mehr. */
 
 /* Fusszeile des Konfliktfensters: links der Durchlauf, rechts der Stand. Der Durchlauf-Knopf sass
    in der Kopfzeile -- dort steht jetzt nur noch Verkleinern und Schliessen (Editor-Wunsch). */

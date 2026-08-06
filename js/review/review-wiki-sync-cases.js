@@ -318,6 +318,26 @@ function getWikiSyncCaseTypeLabel(caseType) {
 	return labels[caseType] || caseType;
 }
 
+/**
+ * Der kurze Satz einer Fallart — er steht rechts in der Gruppenüberschrift und sagt, worum es geht.
+ *
+ * 🔴 Aus dem EINEN Katalog, der ohnehin je Fallart erklärt, was sie bedeutet und was ihre Knöpfe tun
+ * (LEGACY_RULE_INFO in review-conflicts.js). Eine zweite Tabelle mit denselben Schlüsseln daneben
+ * wäre genau die Divergenz, die die Token-Regel für Farben verbietet — hier für Wörter: zwei Sätze
+ * über dieselbe Fallart, und nach dem ersten Umformulieren widersprechen sie sich.
+ *
+ * 💣 try/catch statt `typeof`: `LEGACY_RULE_INFO` ist ein `const` auf oberster Ebene einer klassischen
+ * Skriptdatei. Ist review-conflicts.js noch nicht ausgeführt, steht der Name in der Todeszone — und
+ * dort wirft schon `typeof`, was diese ganze Datei mitrisse.
+ */
+function getWikiSyncCaseTypeHint(caseType) {
+	try {
+		return (LEGACY_RULE_INFO[caseType] || {}).short || "";
+	} catch (error) {
+		return "";
+	}
+}
+
 function getWikiSyncResolvedFeature(caseEntry) {
 	return caseEntry?.resolution?.feature || caseEntry?.payload?.resolution?.feature || null;
 }
@@ -407,6 +427,22 @@ function createWikiSyncCaseGroupElement(group, sectionKey) {
 
 	const bodyElement = document.createElement("div");
 	bodyElement.className = "wiki-sync-case-group__body";
+
+	// 💣 Der erklärende Satz steht IM Rumpf, nicht in der Überschrift — anders als im Blatt, und aus
+	// einem gemessenen Grund: das Blatt ist eine 1180px breite Seite, diese Liste eine 400px schmale
+	// Spalte. Rechts in der Überschrift bricht derselbe Satz dort auf drei Zeilen und macht sie von
+	// 35 auf 61px hoch; bei zwölf Gruppen sind das rund 300px Scrollstrecke, bevor man den ersten Fall
+	// sieht. Zugeklappt bleibt die Liste damit ihr Inhaltsverzeichnis, aufgeklappt erklärt sie sich —
+	// dieselbe Ordnung wie bei den Hinweisen (AGENTS.md §11). Fehlt der Satz, steht nichts da: eine
+	// Gruppe ohne Erklärung ist besser als eine mit der falschen.
+	const hint = getWikiSyncCaseTypeHint(group.caseType);
+	if (hint) {
+		const hintElement = document.createElement("p");
+		hintElement.className = "wiki-sync-case-group__hint";
+		hintElement.textContent = hint;
+		bodyElement.appendChild(hintElement);
+	}
+
 	group.cases.forEach((caseEntry) => bodyElement.appendChild(createWikiSyncCaseElement(caseEntry)));
 	groupElement.appendChild(bodyElement);
 
@@ -741,6 +777,30 @@ const WIKI_SYNC_CASE_TYPES_WITHOUT_FOCUS = new Set([
 	"missing_capital",
 ]);
 
+/**
+ * Der gemeinsame Kasten der Auskunftszeilen — beim ersten Aufruf angelegt, danach wiederverwendet.
+ *
+ * Er trägt das ruhige Feld, mit dem die Übernahme-Vorschau ihre Unterschiede zeigt (`.diff` dort,
+ * `.wiki-sync-case__facts` hier). Ohne ihn wären es lose Absätze, und dieselbe Wirkung ließe sich nur
+ * durch eine Regel je Absatz nachbauen — die bei drei Zeilen drei Ränder zöge.
+ *
+ * ⚠️ `:scope >` ist tragend: derselbe Fall wird auch ins Konfliktzentrum gerendert
+ * (createWikiSyncCaseElement, gerufen aus review-conflicts.js), und dort steht er in fremdem Umfeld.
+ * Ohne `:scope` griffe der Helfer in den Kasten eines anderen Falls.
+ */
+function wikiSyncCaseFacts(bodyElement) {
+	const existing = bodyElement.querySelector(":scope > .wiki-sync-case__facts");
+	if (existing) {
+		return existing;
+	}
+
+	const facts = document.createElement("div");
+	facts.className = "wiki-sync-case__facts";
+	bodyElement.appendChild(facts);
+
+	return facts;
+}
+
 function appendWikiSyncInfoRow(bodyElement, label, value) {
 	const rowElement = document.createElement("p");
 	rowElement.className = "wiki-sync-case__row";
@@ -751,7 +811,7 @@ function appendWikiSyncInfoRow(bodyElement, label, value) {
 	valueElement.className = "wiki-sync-case__row-value";
 	valueElement.textContent = value || "-";
 	rowElement.append(labelElement, valueElement);
-	bodyElement.appendChild(rowElement);
+	wikiSyncCaseFacts(bodyElement).appendChild(rowElement);
 }
 
 function appendWikiSyncLinkRow(bodyElement, label, text, url) {
@@ -767,7 +827,7 @@ function appendWikiSyncLinkRow(bodyElement, label, text, url) {
 	linkElement.rel = "noopener";
 	linkElement.textContent = text || url || "-";
 	rowElement.append(labelElement, linkElement);
-	bodyElement.appendChild(rowElement);
+	wikiSyncCaseFacts(bodyElement).appendChild(rowElement);
 }
 
 function canResolveWikiSyncCase(caseEntry) {
