@@ -1525,6 +1525,48 @@ ist von außen nicht feststellbar und wäre als Verlass darauf ohnehin keine Ver
 > (`filter_var(..., FILTER_VALIDATE_IP)`). Heute ist `ip_hash` deshalb nicht der Hash einer
 > Adresse, sondern der einer beliebigen Zeichenkette des Aufrufers — das ist der
 > Datenschutz-Teil des Befundes und gilt in jeder Topologie.
+>
+> ---
+>
+> **✅ DIE DIAGNOSE IST GEBAUT, 06.08.2026.** Owner: *„nicht dass ich wüsste, bau eine Diagnose."*
+>
+> `GET /api/edit/admin/proxy-check.php`, **Fähigkeit `admin`**, rein lesend. Sie beantwortet die
+> Frage für die **eigene** Anfrage des Aufrufers:
+>
+> | Feld | sagt |
+> |---|---|
+> | `forwarded_header_present` | kam der Weiterreich-Kopf überhaupt an? |
+> | `forwarded_entry_count` | wie viele Stationen — als **Zahl**, nicht als Werte |
+> | `proxy_evidence_headers` | welche Beweis-Köpfe da sind — nur **Namen** (`Via`, `X-Real-IP`, …) |
+> | `client_key_source` | welchen Zweig die Drossel für diese Anfrage nimmt |
+> | `caveat` | die Einschränkung, mitgeliefert statt nur dokumentiert |
+>
+> **Ablesen:** `forwarded_header_present: false` **und** `proxy_evidence_headers: []` → kein
+> Zwischenserver, die Umstellung auf `REMOTE_ADDR` ist richtig. Sonst reicht jemand weiter, und
+> dieselbe Umstellung würfe alle Besucher in **einen** Eimer.
+>
+> 🔴 **Sie zeigt und speichert keine Adresse** — das ist bei einer Diagnose zu einer Datenschutzfrage
+> keine Feinheit, sondern die Bedingung. Bewacht von einer Zusicherung, die die **ganze** Antwort
+> rekursiv nach etwas durchsucht, das eine IP sein könnte, auch eingebettet in Fliesstext. Drei
+> Mutationen dagegen sind rot: die Adresse als eigenes Feld · die Adresse im `caveat`-Text ·
+> Kopf-**Inhalte** statt Kopf-**Namen**.
+>
+> ⚠️ **Nicht nach `api/diagnostics/`**, obwohl der Name dorthin passt: der Ordner ist per `.htaccess`
+> fürs Web gesperrt (AGENTS.md §10), ein Endpunkt dort wäre gar nicht aufrufbar. Und `admin` statt
+> `edit`, weil die Antwort die Netz-Topologie des Servers beschreibt.
+>
+> 💣 **Eine Mutation hat zuerst überlebt, und sie war die interessanteste.** Der Kopf der Bibliothek
+> argumentiert, `client_key_source` werde aus dem **echten** `avesmapsClientIpAddress()` abgeleitet
+> und nicht nachgebaut — eine nachgebaute Regel driftet, und dann beschriebe die Diagnose eine andere
+> Funktion als die, die die Drosseln benutzen. Ich habe genau das ersetzt (`$validEntries[0] ??
+> $remoteAddress`) und **alle Zusicherungen blieben grün**: meine fünf Fälle konnten die beiden gar
+> nicht unterscheiden. Es fehlte der Fall, in dem sie auseinanderlaufen — ein `REMOTE_ADDR`, der
+> **keine Adresse ist**: der echte Schlüsselbildner prüft ihn und antwortet leer (alle in **einem**
+> Eimer, die sichere Richtung), die Nachbildung reicht den Müll durch. Fall ergänzt, Mutation rot.
+>
+> 🔧 **DU: einmal aufrufen, eingeloggt, und mir das Ergebnis sagen** — dann fällt die Entscheidung
+> aus dem Befund von selbst. ⚠️ **Ohne eigenen `X-Forwarded-For`-Kopf**, sonst misst man sich selbst;
+> ein normaler Browser-Aufruf tut genau das Richtige. 221/221 grün.
 
 ### A30 · `report_mode=change` ist ein unbegrenzter Schreibkanal ohne Anmeldung
 `api/_internal/app/report-context.php:12-29`
