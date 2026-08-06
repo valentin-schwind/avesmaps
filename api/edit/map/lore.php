@@ -38,7 +38,10 @@ try {
         avesmapsErrorResponse(405, 'method_not_allowed', 'Nur POST ist fuer diesen Endpoint erlaubt.');
     }
 
-    avesmapsRequireUserWithCapability('edit');
+    // The user is kept, not discarded: removing an occurrence writes an audit entry (A16) and it has to
+    // be able to name who did it. Without this the trail would say "system" about a person who is
+    // logged in.
+    $user = avesmapsRequireUserWithCapability('edit');
     $payload = avesmapsReadJsonRequest();
     $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? ''), 40);
     $wikiKey = avesmapsNormalizeSingleLine((string) ($payload['wiki_key'] ?? ''), 190);
@@ -78,7 +81,8 @@ try {
                 $pdo,
                 $wikiKey,
                 avesmapsNormalizeSingleLine((string) ($payload['place_wiki_key'] ?? ''), 190),
-                avesmapsNormalizeSingleLine((string) ($payload['relation'] ?? 'verbreitung'), 20)
+                avesmapsNormalizeSingleLine((string) ($payload['relation'] ?? 'verbreitung'), 20),
+                $user
             );
             if (($result['ok'] ?? false) !== true) {
                 avesmapsErrorResponse(404, (string) ($result['error'] ?? 'not_found'), 'Dieser Ort ist dem Eintrag nicht zugeordnet.');

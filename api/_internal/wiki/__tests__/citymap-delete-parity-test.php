@@ -68,8 +68,12 @@ assert(
     !str_contains($syncSource, 'DELETE FROM citymap_place') && !str_contains($syncSource, 'DELETE FROM citymap_type'),
     'the sync carries no child deletes of its own -- that copy is how the two drifted apart'
 );
+// ⚠️ Matched by SHAPE, not by one spelling of the parameter list -- like the cleaner above. The
+// signature gained a `?array $user` on 2026-08-06 (finding A16: the hand delete now writes an audit
+// entry and has to name who did it), and a pinned parameter list turned this into a red test about
+// nothing.
 assert(
-    preg_match('/function avesmapsDeleteCitymap\(PDO \$pdo, string \$publicId\): array\s*\{(.*?)\n\}/s', $appSource, $handMatch) === 1,
+    preg_match('/function avesmapsDeleteCitymap\([^)]*\)\s*:\s*array\s*\{(.*?)\n\}/s', $appSource, $handMatch) === 1,
     'the hand path body can be isolated'
 );
 $handBody = $handMatch[1];

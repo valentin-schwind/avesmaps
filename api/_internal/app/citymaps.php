@@ -2101,11 +2101,17 @@ function avesmapsDeleteCitymapChildRows(PDO $pdo, int $citymapId, string $public
  *
  * @return array{deleted: bool, public_id: string, title: string}
  */
-function avesmapsDeleteCitymap(PDO $pdo, string $publicId): array
+function avesmapsDeleteCitymap(PDO $pdo, string $publicId, ?array $user): array
 {
+    // A16: the trail. Loaded HERE and not at file scope -- this library is on public read paths
+    // (api/app/citymaps.php, map-search.php, report-location.php) and must not carry map/features.php
+    // on every visitor request. A deletion is rare enough to pay for it.
+    require_once __DIR__ . '/../map/collection-audit.php';
     avesmapsCitymapsEnsureTables($pdo);
 
-    $find = $pdo->prepare('SELECT id, title FROM citymap WHERE public_id = :pid LIMIT 1');
+    // origin and art ride along for the log: origin answers the one question a deleted map raises --
+    // does the next "Karten syncen" bring it back, or is this permanent?
+    $find = $pdo->prepare('SELECT id, title, origin, art FROM citymap WHERE public_id = :pid LIMIT 1');
     $find->execute(['pid' => $publicId]);
     $row = $find->fetch(PDO::FETCH_ASSOC);
     if ($row === false) {
@@ -2125,7 +2131,45 @@ function avesmapsDeleteCitymap(PDO $pdo, string $publicId): array
         throw $error;
     }
 
+    // 🔴 AFTER the commit, and outside the transaction. Inside, a failing log would roll the deletion
+    // back and the map would be undeletable; before it, the log would claim a deletion a rollback then
+    // undid. avesmapsLogCollectionDeletion swallows its own errors for the same reason.
+    $snapshots = avesmapsCitymapDeletionAuditSnapshots($row, $publicId);
+    avesmapsLogCollectionDeletion($pdo, 'delete_citymap', $snapshots['before'], $snapshots['after'], $user);
+
     return ['deleted' => true, 'public_id' => $publicId, 'title' => (string) $row['title']];
+}
+
+/**
+ * What the change log gets to see of a deleted citymap (finding A16).
+ *
+ * 💣 citymap_public_id, NEVER public_id. The audit reader lifts a `public_id` out of after_json when
+ * its LEFT JOIN finds no map feature, and the change log then renders the entry as a button that
+ * answers "Objekt ist nicht mehr aktiv" -- a false error for a deletion that worked. Named fields
+ * rather than the row: map_audit_log keeps 200 entries and travels in every database backup.
+ *
+ * @return array{before: array<string,mixed>, after: array<string,mixed>}
+ */
+function avesmapsCitymapDeletionAuditSnapshots(array $row, string $publicId): array
+{
+    // The identity is in BOTH snapshots: the reader prefers after_json for the displayed name, and
+    // without it the entry reads "Unbenannt".
+    $identity = [
+        'entity' => 'citymap',
+        'name' => (string) ($row['title'] ?? ''),
+        'citymap_public_id' => $publicId,
+        'citymap_id' => (int) ($row['id'] ?? 0),
+    ];
+
+    return [
+        // Passed through rather than cast: avesmapsCollectionAuditSnapshot drops a NULL, and an empty
+        // `art` is an absent fact, not an answer worth storing.
+        'before' => $identity + [
+            'origin' => $row['origin'] ?? null,
+            'art' => $row['art'] ?? null,
+        ],
+        'after' => $identity + ['deleted' => true],
+    ];
 }
 
 // Reset to 'unresolved', then run the shared resolver (which only touches unresolved rows) and report

@@ -1273,8 +1273,12 @@ function avesmapsAdventureUnlinkPlaceFromSource(PDO $pdo, int $sourceId, string 
 // The cover file (uploads/questcovers) is intentionally left on disk: deriving a filesystem path
 // from a stored URL to unlink it is how the wrong file gets deleted. An orphaned image costs a few
 // kB; a bad unlink costs a cover that was still in use.
-function avesmapsDeleteAdventure(PDO $pdo, string $publicId): array
+function avesmapsDeleteAdventure(PDO $pdo, string $publicId, ?array $user): array
 {
+    // A16: the trail. Loaded HERE and not at file scope -- this library is on public read paths
+    // (api/app/adventures.php, map-search.php) and must not carry map/features.php on every visitor
+    // request. A deletion is rare enough to pay for it.
+    require_once __DIR__ . '/../map/collection-audit.php';
     avesmapsAdventuresEnsureTables($pdo);
 
     $find = $pdo->prepare('SELECT id, origin, title FROM adventure WHERE public_id = :pid LIMIT 1');
@@ -1302,18 +1306,64 @@ function avesmapsDeleteAdventure(PDO $pdo, string $publicId): array
         $links->execute(['aid' => $adventureId]);
         $pdo->prepare('DELETE FROM adventure WHERE id = :id')->execute(['id' => $adventureId]);
         $pdo->commit();
-
-        return [
-            'deleted' => true,
-            'public_id' => $publicId,
-            'title' => (string) $row['title'],
-            'places_deleted' => $places->rowCount(),
-            'links_deleted' => $links->rowCount(),
-        ];
     } catch (Throwable $error) {
         $pdo->rollBack();
         throw $error;
     }
+
+    // 🔴 AFTER the commit, and outside the transaction. Inside, a failing log would roll the deletion
+    // back and the adventure would be undeletable; before it, the log would claim a deletion a rollback
+    // then undid. avesmapsLogCollectionDeletion swallows its own errors for the same reason.
+    //
+    // ⚠️ The return moved out of the try with it. Leaving it inside would have meant building the
+    // snapshots there too -- and any throw from that would then hit the catch above and call rollBack()
+    // on a transaction that has already committed.
+    $snapshots = avesmapsAdventureDeletionAuditSnapshots($row, $publicId, $places->rowCount(), $links->rowCount());
+    avesmapsLogCollectionDeletion($pdo, 'delete_adventure', $snapshots['before'], $snapshots['after'], $user);
+
+    return [
+        'deleted' => true,
+        'public_id' => $publicId,
+        'title' => (string) $row['title'],
+        'places_deleted' => $places->rowCount(),
+        'links_deleted' => $links->rowCount(),
+    ];
+}
+
+/**
+ * What the change log gets to see of a deleted adventure (finding A16).
+ *
+ * 💣 adventure_public_id, NEVER public_id. The audit reader lifts a `public_id` out of after_json when
+ * its LEFT JOIN finds no map feature, and the change log then renders the entry as a button that
+ * answers "Objekt ist nicht mehr aktiv" -- a false error for a deletion that worked.
+ *
+ * The two counts are the point of the after snapshot: the places and links went with the adventure and
+ * none of them can be recovered, so "how much was lost" is the one number worth keeping.
+ *
+ * @return array{before: array<string,mixed>, after: array<string,mixed>}
+ */
+function avesmapsAdventureDeletionAuditSnapshots(array $row, string $publicId, int $placesDeleted, int $linksDeleted): array
+{
+    // The identity is in BOTH snapshots: the reader prefers after_json for the displayed name, and
+    // without it the entry reads "Unbenannt".
+    $identity = [
+        'entity' => 'adventure',
+        'name' => (string) ($row['title'] ?? ''),
+        'adventure_public_id' => $publicId,
+        'adventure_id' => (int) ($row['id'] ?? 0),
+    ];
+
+    return [
+        // Always 'manual' today -- the function refuses wiki rows outright. Stored anyway, because that
+        // guard is a rule and not a law of nature, and a log that only records what cannot change is
+        // a log that answers nothing when the rule moves.
+        'before' => $identity + ['origin' => $row['origin'] ?? null],
+        'after' => $identity + [
+            'deleted' => true,
+            'places_deleted' => $placesDeleted,
+            'links_deleted' => $linksDeleted,
+        ],
+    ];
 }
 
 // Re-resolve a place (by id -> 404 if unknown): reset it to 'unresolved', then run the shared resolver

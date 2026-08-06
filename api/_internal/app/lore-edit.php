@@ -163,16 +163,22 @@ function avesmapsLoreAddPlace(PDO $pdo, string $entryKey, string $placeTitle, st
  *
  * @return array<string,mixed>
  */
-function avesmapsLoreRemovePlace(PDO $pdo, string $entryKey, string $placeKey, string $relation): array
+function avesmapsLoreRemovePlace(PDO $pdo, string $entryKey, string $placeKey, string $relation, ?array $user): array
 {
+    // A16: the trail. Loaded here rather than at file scope, like the two sibling libraries -- and this
+    // one has the largest number behind it: 5.104 occurrences, none of which left an entry until now.
+    require_once __DIR__ . '/../map/collection-audit.php';
+
     $entryKey = trim($entryKey);
     $placeKey = trim($placeKey);
     if ($entryKey === '' || $placeKey === '') {
         return ['ok' => false, 'error' => 'invalid_request'];
     }
 
+    // 💣 place_title comes along because it has to be read BEFORE the row goes -- afterwards there is
+    // nothing left to read, and the change log would show a pair of slugs.
     $statement = $pdo->prepare(
-        'SELECT origin FROM lore_place
+        'SELECT origin, place_title FROM lore_place
          WHERE entry_wiki_key = :wk AND place_wiki_key = :pk AND relation = :rel LIMIT 1'
     );
     $statement->execute(['wk' => $entryKey, 'pk' => $placeKey, 'rel' => $relation]);
@@ -181,21 +187,59 @@ function avesmapsLoreRemovePlace(PDO $pdo, string $entryKey, string $placeKey, s
         return ['ok' => false, 'error' => 'not_found'];
     }
 
-    if ((string) ($row['origin'] ?? 'wiki') === 'wiki') {
+    $suppress = (string) ($row['origin'] ?? 'wiki') === 'wiki';
+    // Which occurrence disappeared is TWO facts -- from which entry, and which place. Either one alone
+    // leaves the change log unable to answer the question it is read for.
+    //
+    // 💣 In a try, and the try is the point. This lookup is new and it runs BEFORE the removal: a throw
+    // here would turn a removal that worked yesterday into a 500 today, for the sake of a nicer line in
+    // a log. The key is a worse label than the name, and a perfectly good fallback.
+    $entryLabel = $entryKey;
+    try {
+        $entryName = $pdo->prepare('SELECT name FROM lore_entry WHERE wiki_key = :wk LIMIT 1');
+        $entryName->execute(['wk' => $entryKey]);
+        $fetched = trim((string) $entryName->fetchColumn());
+        if ($fetched !== '') {
+            $entryLabel = $fetched;
+        }
+    } catch (Throwable $exception) {
+        error_log('avesmaps lore entry name lookup failed: ' . $exception->getMessage());
+    }
+    $placeLabel = trim((string) ($row['place_title'] ?? ''));
+    $identity = [
+        'entity' => 'lore_place',
+        'name' => $entryLabel . ': ' . ($placeLabel !== '' ? $placeLabel : $placeKey),
+        'lore_entry_key' => $entryKey,
+        'lore_place_key' => $placeKey,
+        'relation' => $relation,
+        'origin' => $row['origin'] ?? null,
+    ];
+
+    if ($suppress) {
         $pdo->prepare(
             'UPDATE lore_place SET status = \'suppressed\'
              WHERE entry_wiki_key = :wk AND place_wiki_key = :pk AND relation = :rel'
         )->execute(['wk' => $entryKey, 'pk' => $placeKey, 'rel' => $relation]);
-
-        return ['ok' => true, 'action' => 'suppressed'];
+    } else {
+        $pdo->prepare(
+            'DELETE FROM lore_place
+             WHERE entry_wiki_key = :wk AND place_wiki_key = :pk AND relation = :rel AND origin <> \'wiki\''
+        )->execute(['wk' => $entryKey, 'pk' => $placeKey, 'rel' => $relation]);
     }
 
-    $pdo->prepare(
-        'DELETE FROM lore_place
-         WHERE entry_wiki_key = :wk AND place_wiki_key = :pk AND relation = :rel AND origin <> \'wiki\''
-    )->execute(['wk' => $entryKey, 'pk' => $placeKey, 'rel' => $relation]);
+    // 🔴 Two action names, and the difference is the whole of A16: a wiki row becomes a tombstone that
+    // "Ort wieder aufnehmen" can undo, a manual row is gone. One shared name would bury the answer in
+    // the JSON, where the change-log list never shows it.
+    $action = $suppress ? 'suppress_lore_place' : 'delete_lore_place';
+    avesmapsLogCollectionDeletion(
+        $pdo,
+        $action,
+        $identity + ['status' => 'active'],
+        $identity + ($suppress ? ['status' => 'suppressed'] : ['deleted' => true]),
+        $user
+    );
 
-    return ['ok' => true, 'action' => 'deleted'];
+    return ['ok' => true, 'action' => $suppress ? 'suppressed' : 'deleted'];
 }
 
 /**

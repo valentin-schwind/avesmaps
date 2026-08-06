@@ -148,6 +148,19 @@ function formatChangeAction(action) {
 		report_approved: "Meldung angenommen",
 		report_rejected: "Meldung verworfen",
 		report_in_review: "Meldung zurückgestellt",
+		// A16: die drei harten Löschungen in Kartensammlung, Abenteuern und Natur & Waren. Auch diese
+		// Zeilen haben kein Kartenobjekt (feature_id NULL) und sind nicht rückgängig zu machen -- diese
+		// Tabellen kennen kein weiches Löschen, ein Knopf würde also etwas versprechen, das kein Code
+		// einlösen kann.
+		//
+		// 💣 Die beiden Vorkommen-Zeilen dürfen NICHT gleich heißen: ein Wiki-Ort wird zum Grabstein und
+		// lässt sich mit „Ort wieder aufnehmen" zurückholen, ein manueller ist weg. Ob es einen Weg
+		// zurück gibt, ist genau die Frage, für die A16 existiert -- steht sie nur im JSON, beantwortet
+		// die Liste sie nie.
+		delete_citymap: "Kartensammlung: Karte gelöscht",
+		delete_adventure: "Abenteuer gelöscht",
+		delete_lore_place: "Natur & Waren: Ort gelöscht",
+		suppress_lore_place: "Natur & Waren: Ort ausgeblendet",
 	};
 
 	return labels[action] || action;

@@ -28,7 +28,9 @@ try {
         avesmapsErrorResponse(405, 'method_not_allowed', 'Nur POST ist fuer diesen Endpoint erlaubt.');
     }
 
-    avesmapsRequireUserWithCapability('edit');
+    // The user is kept, not discarded: a deletion writes an audit entry (A16) and it has to be able to
+    // name who did it. Without this the trail would say "system" about a person who is logged in.
+    $user = avesmapsRequireUserWithCapability('edit');
     $payload = avesmapsReadJsonRequest();
     $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? ''), 40);
 
@@ -80,12 +82,12 @@ try {
         })(),
         // Only for entries the editor created by hand -- avesmapsDeleteAdventure refuses wiki-origin
         // rows, because sync_adventures owns those and would recreate them on the next run.
-        'delete_adventure' => (static function () use ($pdo, $payload): array {
+        'delete_adventure' => (static function () use ($pdo, $payload, $user): array {
             $publicId = trim((string) ($payload['public_id'] ?? ''));
             if ($publicId === '') {
                 avesmapsErrorResponse(400, 'invalid_request', 'public_id ist erforderlich.');
             }
-            return avesmapsDeleteAdventure($pdo, $publicId);
+            return avesmapsDeleteAdventure($pdo, $publicId, $user);
         })(),
         'resolve_place' => (static function () use ($pdo, $payload): array {
             $placeId = (int) ($payload['place_id'] ?? 0);
