@@ -1300,6 +1300,34 @@ dem das Projekt am ehesten angreifbar ist.
 > tragend und geschützt** — dort liegen auch Wappen und Karten-Vorschauen, die die öffentliche Karte
 > braucht. Ein Riegel darf nur `uploads/map/` treffen, nicht `uploads/` als Ganzes, sonst fehlen der
 > Karte ihre Bilder.
+>
+> ---
+>
+> **✅ (a) GEBAUT, 06.08.2026 — die Links sind raus.** Beide `<a>` samt dem Text, der sie ankündigte
+> (`legal.mapMaterial.dlPre/dlHere/dlMid/dlTail`), und die vier Sprachschlüssel dazu. Eine
+> Übersetzung ohne Ziel ist der Rest, den jemand versehentlich wieder verdrahtet.
+>
+> 🔴 **„Nicht mehr angeboten" ist NICHT „nicht mehr erreichbar", und das muss hier stehen.** Die
+> beiden ZIPs liegen weiter in `uploads/map/` und antworten unter ihrer bekannten Adresse. Der Deploy
+> löscht nie (AGENTS.md §10), und `uploads/` steht nicht einmal in seiner Liste — ein Riegel dafür
+> lässt sich also **nicht aus dem Repository ausliefern**, er müsste von Hand auf dem Server liegen.
+> Wer die Adresse kennt oder sie im Verlauf hat, lädt weiter.
+>
+> 🔧 **DU, falls das zumachen soll:** eine `.htaccess` **in `uploads/map/`** (nicht in `uploads/`,
+> sonst fehlen der Karte Wappen und Kartenvorschauen), von Hand hochgeladen. Zwei Zeilen, und sie
+> wirken nur in diesem Ordner — ein Fehler darin ist eine 500 für **diesen einen** Ordner, nicht für
+> die Seite. Das ist der wesentliche Unterschied zum Versuch bei A34.
+>
+> ⭐ **Bewacht in `legal-texts.test.js`**, zusammen mit A22 — und die Zusicherung geht in **beide**
+> Richtungen: keine Archiv-Verlinkung in `index.html`, **und** der Satz „Bilder- oder Textarchiv"
+> steht weiterhin in `NOTICE.md`. Ohne ihn wäre das Entfernen nur eine Aufräumaktion; mit ihm ist es
+> die Einhaltung einer Selbstbindung. **Drei Mutationen, alle rot:** ein Link wieder eingesetzt ·
+> `NOTICE.md` gibt die Zusage auf · die verwaisten Sprachschlüssel wieder verdrahtet.
+>
+> ⚠️ Beim Entfernen hat mein eigener Ersetzer den Folgeabsatz **verdoppelt** („Keine freie Lizenz für
+> DSA-Material" stand zweimal da). Gefunden, weil ich nach der Änderung in die Datei gesehen habe
+> statt sie für erledigt zu halten — im Fenster wäre es als doppelter Absatz aufgefallen, im
+> Rechtstext ist das kein Schönheitsfehler.
 
 ---
 

@@ -58,4 +58,29 @@ assert.ok(
 	"nennt die Ueberschrift Bewertungen, muss der Absatz ihren eigenen Weg beschreiben",
 );
 
+// ---- A25: das Kartenmaterial wird nicht mehr als Archiv angeboten -------------------------------
+//
+// 💣 Im Absatz „Kartenmaterial" standen zwei Downloads: die Kacheln (161 MB) und die ganze Karte als
+// PNG (1,73 GB), beide ohne jeden Riegel -- ausgerechnet in dem Text, der die Fanregel-Bindung
+// erklaert. NOTICE.md sagt zu, das Projekt nicht „als reines Bilder- oder Textarchiv" zu betreiben.
+// Owner-Entscheid 06.08.2026: Links raus.
+assert.ok(!/avesmaps_aventurien[^"]*\.zip/.test(indexHtml), "kein Archiv-Download im Hinweise-Fenster");
+assert.ok(!/href="uploads\/map\//.test(indexHtml), "und keine Verlinkung nach uploads/map/");
+assert.ok(!i18nEn.includes('"legal.mapMaterial.dlPre"'), "die zugehoerigen Sprachschluessel sind mit weg");
+
+// 🔴 UND DIE ZUSAGE, GEGEN DIE ES GING, MUSS STEHENBLEIBEN. Ohne sie waere „Links entfernt" nur eine
+// Aufraeumaktion; MIT ihr ist es die Einhaltung einer Selbstbindung. Faellt der Satz aus NOTICE.md
+// weg, hat dieser Befund keinen Massstab mehr.
+const notice = fs.readFileSync(path.join(ROOT, "NOTICE.md"), "utf8");
+assert.ok(
+	notice.includes("Bilder- oder Textarchiv"),
+	"NOTICE.md traegt weiterhin die Zusage, kein reines Bilderarchiv zu sein",
+);
+
+// ⚠️ Was diese Datei NICHT behaupten kann: dass das Material unerreichbar ist. Die ZIPs liegen
+// weiter in uploads/map/ und antworten unter ihrer bekannten Adresse -- der Deploy loescht nie
+// (AGENTS.md §10) und `uploads/` steht nicht einmal in seiner Liste. „Nicht mehr angeboten" ist
+// nicht „nicht mehr erreichbar", und diese Zeile steht hier, damit niemand das eine fuer das
+// andere liest.
+
 console.log("legal-texts ok");
