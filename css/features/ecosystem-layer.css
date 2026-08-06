@@ -522,7 +522,8 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    (.location-report-form__field--checkbox). Der Rückzug auf `width: auto` ist nötig, weil die
    Feldregel darunter jedem input im Dialog volle Breite gibt. */
 .ecosystem-region-dialog__checkbox,
-.ecosystem-properties-dialog__checkbox {
+.ecosystem-properties-dialog__checkbox,
+.ecosystem-transfer-dialog__checkbox {
 	display: flex;
 	align-items: center;
 	gap: var(--space-8);
@@ -531,7 +532,8 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 }
 
 .ecosystem-region-dialog__checkbox input,
-.ecosystem-properties-dialog__checkbox input {
+.ecosystem-properties-dialog__checkbox input,
+.ecosystem-transfer-dialog__checkbox input {
 	width: auto;
 	margin: 0;
 }
@@ -754,10 +756,15 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	overflow-wrap: break-word;
 }
 
-/* ---- send dialog, the part that is NOT shared (V3.6) -----------------------------------------------
-   Two lines of prose in a form. Both are explanatory text and take the ONE token for that role
+/* ---- copy dialog, the part that is NOT shared (V3.6) -----------------------------------------------
+   Three lines of prose in a form. Two are explanatory and take the ONE token for that role
    (--color-text-muted) -- the source line says what was right-clicked, the note says what the wiki link
-   will do. Neither is a status of its own: failures go to the shared error line above them. */
+   will do. Neither is a status of its own: failures go to the shared error line above them.
+   The THIRD one is (2026-08-06): --note--warning sits under „Originalfläche löschen" and announces that
+   deleting the source can take its region and that region's labels with it. That is not explanation, it
+   is a consequence the editor has to weigh before ticking the box -- so it carries the warning token
+   rather than the muted one, and it is the one exception to the paragraph above. Still no box and no
+   border: the design language groups by divider, not by frame. */
 .ecosystem-transfer-dialog__source {
 	margin: 0;
 	color: var(--color-text-muted);
@@ -774,6 +781,10 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	line-height: var(--leading-normal);
 	hyphens: auto;
 	overflow-wrap: break-word;
+}
+
+.ecosystem-transfer-dialog__note--warning {
+	color: var(--color-warning-soft-text);
 }
 
 /* ---- assign dialog, the part that is NOT shared (V6) -----------------------------------------------

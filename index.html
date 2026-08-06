@@ -758,22 +758,25 @@
 				</div>
 			</div>
 		</div>
-		<!-- V3.6: "Senden an ..." -- dieselbe Flaeche noch einmal in einer der beiden anderen Ebenen, als
-		     KOPIE mit eigener public_id. Ein Eintrag, EIN Dialog: die Zielebene steht hier drin statt in
-		     einem Untermenue, weil die Zielregion ohnehin gefragt werden muss (eine Region traegt mehrere
-		     Flaechen). Huelle/Scrim/z-index kommen aus css/components/dialog-overlays.css, wo die ID in
-		     allen DREI Selektorlisten steht -- ein neues Overlay-<div> erbt sonst NICHTS. -->
+		<!-- V3.6: "Kopieren ..." -- dieselbe Flaeche noch einmal, in einer anderen Ebene ODER in der
+		     eigenen (seit 2026-08-06), als KOPIE mit eigener public_id. Ein Eintrag, EIN Dialog: die
+		     Zielebene steht hier drin statt in einem Untermenue, weil die Zielregion ohnehin gefragt
+		     werden muss (eine Region traegt mehrere Flaechen). Huelle/Scrim/z-index kommen aus
+		     css/components/dialog-overlays.css, wo die ID in allen DREI Selektorlisten steht -- ein
+		     neues Overlay-<div> erbt sonst NICHTS. -->
 		<div id="ecosystem-transfer-overlay" hidden>
 			<div id="ecosystem-transfer-dialog" class="ecosystem-transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-transfer-title" tabindex="-1">
 				<div class="ecosystem-transfer-dialog__header">
-					<h2 id="ecosystem-transfer-title" data-i18n="ecosystem.transfer.dialogTitle">Fläche senden</h2>
+					<h2 id="ecosystem-transfer-title" data-i18n="ecosystem.transfer.dialogTitle">Fläche kopieren</h2>
 					<button id="ecosystem-transfer-close" class="ecosystem-transfer-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.transfer.closeAria">×</button>
 				</div>
 				<form id="ecosystem-transfer-form" class="ecosystem-transfer-dialog__form">
 					<p id="ecosystem-transfer-source" class="ecosystem-transfer-dialog__source"></p>
 					<label class="ecosystem-transfer-dialog__field">
 						<span data-i18n="ecosystem.transfer.kindLabel">Zielebene</span>
-						<!-- Die beiden anderen Ebenen, Zwilling zuerst (Vegetation <-> Topographie). -->
+						<!-- Zwilling zuerst (Vegetation <-> Topographie), die eigene Ebene ZULETZT: eine
+						     Kopie in der eigenen Ebene liegt deckungsgleich auf ihrer Quelle und darf
+						     deshalb nie die vorausgewaehlte Antwort sein. -->
 						<select id="ecosystem-transfer-kind" name="kind"></select>
 					</label>
 					<label class="ecosystem-transfer-dialog__field">
@@ -789,14 +792,27 @@
 					</label>
 					<label id="ecosystem-transfer-type-field" class="ecosystem-transfer-dialog__field">
 						<span data-i18n="ecosystem.transfer.typeLabel">Art</span>
-						<!-- Aus ecosystem_region_type der ZIELebene; die Art der Quelle passt dort nie. -->
+						<!-- Aus ecosystem_region_type der ZIELebene. Startet auch dann leer, wenn das Ziel
+						     die eigene Ebene ist und die Art der Quelle dort gelten wuerde: wer innerhalb
+						     einer Ebene kopiert, will meist eine ANDERE Art (Insel -> Inselgruppe). -->
 						<select id="ecosystem-transfer-type" name="region_type"></select>
 					</label>
 					<p id="ecosystem-transfer-wiki-note" class="ecosystem-transfer-dialog__note" hidden></p>
+					<!-- Damit wird aus dem Kopieren ein VERSCHIEBEN. Die Reihenfolge ist tragend: erst die
+					     Kopie schreiben, dann das Original loeschen, nie umgekehrt -- sonst kostet ein
+					     fehlgeschlagener Schreibvorgang die einzige Fassung einer Kontur, die jemand von
+					     Hand gezogen hat (js/map-features/map-features-ecosystem-transfer.js). Der Absatz
+					     darunter kuendigt an, was das Loeschen der QUELLregion antut, und fuehrt denselben
+					     Satz wie die Loeschen-Rueckfrage im Flaechenmenue. -->
+					<label class="ecosystem-transfer-dialog__checkbox">
+						<input id="ecosystem-transfer-delete-source" name="delete_source" type="checkbox" />
+						<span data-i18n="ecosystem.transfer.deleteSource">Originalfläche löschen</span>
+					</label>
+					<p id="ecosystem-transfer-delete-note" class="ecosystem-transfer-dialog__note ecosystem-transfer-dialog__note--warning" hidden></p>
 					<p id="ecosystem-transfer-error" class="ecosystem-transfer-dialog__error" role="alert" hidden></p>
 					<div class="ecosystem-transfer-dialog__actions">
 						<button id="ecosystem-transfer-cancel" class="ecosystem-transfer-dialog__button" type="button" data-i18n="ecosystem.transfer.cancel">Abbrechen</button>
-						<button id="ecosystem-transfer-save" class="ecosystem-transfer-dialog__button ecosystem-transfer-dialog__button--primary" type="submit" data-i18n="ecosystem.transfer.save">Senden</button>
+						<button id="ecosystem-transfer-save" class="ecosystem-transfer-dialog__button ecosystem-transfer-dialog__button--primary" type="submit" data-i18n="ecosystem.transfer.save">Kopieren</button>
 					</div>
 				</form>
 			</div>

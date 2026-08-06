@@ -850,8 +850,10 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
 // ---- 2026-07-30: `insel` moves from derographisch to topographie ------------------------------------
 //
 // A MOVE, never a copy. The same 251 rows change their layer; outlines, public_ids, geometry_revisions
-// and the linked labels stay untouched. „Senden an" (V3.6) would have been the wrong tool -- it copies,
-// so 251 transfers would leave 502 areas with the originals still sitting on the derographic layer.
+// and the linked labels stay untouched. „Kopieren" (V3.6) would have been the wrong tool: it copies, so
+// 251 transfers would leave 502 areas with the originals still sitting on the derographic layer. Its
+// „Originalfläche löschen" checkbox (2026-08-06) closes that half of the gap, but not the other: it is
+// still 251 dialogs by hand, and it mints new public_ids, while this migration keeps every row's identity.
 //
 // 🔴 ORDER IS LOAD-BEARING, and it is why this runs AFTER avesmapsEcosystemSeedRegionTypes():
 // avesmapsEcosystemAssertRegionType() checks the pair (kind, region_type) against an ACTIVE row. Move

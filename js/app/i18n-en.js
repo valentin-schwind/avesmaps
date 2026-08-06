@@ -345,7 +345,7 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.ctxmenu.extract": "Extract sub-area",
 	"ecosystem.ctxmenu.delete-part": "Delete sub-area",
 	"ecosystem.ctxmenu.deleteArea": "Delete area",
-	"ecosystem.ctxmenu.sendTo": "Send to …",
+	"ecosystem.ctxmenu.sendTo": "Copy …",
 	"ecosystem.ctxmenu.properties": "Properties …",
 	"ecosystem.ctxmenu.importTerritory": "Boundary from territories …",
 
@@ -372,7 +372,7 @@ window.AVESMAPS_I18N_EN = {
 	// --- Landschaften: sending an area to one of the other two layers, as a COPY (V3.6). The dialog
 	//     asks for target layer and target region at once; the strings resolved through tr() are the ones
 	//     on nodes this feature creates itself. ---
-	"ecosystem.transfer.dialogTitle": "Send area",
+	"ecosystem.transfer.dialogTitle": "Copy area",
 	"ecosystem.transfer.closeAria": "Close dialog",
 	"ecosystem.transfer.kindLabel": "Target layer",
 	"ecosystem.transfer.regionLabel": "Target region",
@@ -383,9 +383,10 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.transfer.typeNone": "— no kind —",
 	"ecosystem.transfer.wikiKept": "The source's wiki article is carried over.",
 	"ecosystem.transfer.wikiDropped": "Different name from the source — the wiki article is not carried over.",
+	"ecosystem.transfer.deleteSource": "Delete the original area",
 	"ecosystem.transfer.cancel": "Cancel",
-	"ecosystem.transfer.save": "Send",
-	"ecosystem.transfer.saving": "Sending …",
+	"ecosystem.transfer.save": "Copy",
+	"ecosystem.transfer.saving": "Copying …",
 
 	// --- Landschaften: building an area out of EXISTING territory boundaries (V7). A COPY, never a link
 	//     -- the inserted area does not follow the territories it came from. "Outer boundary"/"Boundary"

@@ -114,7 +114,7 @@ lassen will, schiebt ihre beiden Linien zusammen — sie bleibt dann als hauchd�
 Streifen bestehen, statt ungültig zu werden.
 
 **Was auf einem Band nicht geht:** Ecken ziehen, zerschneiden, vereinigen,
-vereinfachen, „Senden an …", löschen. Das Flächenmenü geht dort gar nicht erst auf.
+vereinfachen, „Kopieren …", löschen. Das Flächenmenü geht dort gar nicht erst auf.
 Die Auswahl bleibt aber bestehen, damit erkennbar ist, welche Zone getroffen wurde.
 
 Die Zonen laufen **über die ganze Karte, auch über das Meer** (Owner-Entscheid

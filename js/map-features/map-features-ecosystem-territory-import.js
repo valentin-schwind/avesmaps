@@ -67,7 +67,7 @@
 	let importSelection = new Set();
 	let importPreviewLayer = null;
 	// 💣 Gesetzt, wenn `create_region` geklappt hat und `create_area` nicht. Ohne das legte jeder erneute
-	// Versuch eine WEITERE leere Region an -- dieselbe Falle, die „Senden an …" dokumentiert.
+	// Versuch eine WEITERE leere Region an -- dieselbe Falle, die „Kopieren …" dokumentiert.
 	let importCreatedRegion = null;
 
 	function label(key, german) {

@@ -1,6 +1,6 @@
 /*
- * Landschaften (Erprobung) -- "Senden an ..." (plan V3.6): the same outline, once more, in one of the
- * other two layers.
+ * Landschaften -- "Kopieren ..." (plan V3.6): the same outline, once more, in another layer or in the
+ * one it is already in.
  *
  * 🔴 A COPY, NEVER A LINK. The analysis calls taking over geometry "die wichtigste einzelne Funktion des
  * ganzen Editors" (§4.4), because ~266 of the 500 areas are twins: the Farindel is a wood in Vegetation
@@ -22,16 +22,31 @@
  * Routing unsichtbar (api/_internal/routing/water-areas.php).
  *
  * ONE ENTRY, ONE DIALOG. The area menu (V3.4) is flat and built in JS; the map menu's submenu is static
- * markup and not reusable. A submenu "Senden an > Topographie" would therefore be new mechanics AND still
+ * markup and not reusable. A submenu "Kopieren > Topographie" would therefore be new mechanics AND still
  * need a dialog afterwards, because the target REGION has to be chosen either way (owner decision 1: a
  * region carries many areas). So the target layer moved into that same dialog and the submenu is gone.
  *
+ * 🔴 "ORIGINALFLÄCHE LÖSCHEN" IS A THIRD WRITE, AND IT RUNS LAST. With the box ticked this stops being
+ * a copy and becomes a move -- but only in that order: create_area first, delete_area after. The other
+ * way round would, on any failure of the write, have destroyed the only copy of an outline that took
+ * minutes to trace. A delete that fails after the copy succeeded is a half-done move somebody can finish
+ * by hand; a copy that fails after the delete is gone. So the delete has its OWN try/catch: it must not
+ * be able to make the dialog say "could not be copied" about a copy that is sitting on the map.
+ *
+ * 🔴 THE DELETE RULES BELONG TO THE AREA MENU, NOT HERE. expected_revision and the sentence about what a
+ * vanishing region takes with it come through window.AvesmapsEcosystemAreaMenu. Without them the box is
+ * refused rather than guessed at -- a second copy of either rule is how the two answers drift apart.
+ *
  * 🪤 region_type does NOT travel. `wald` is vegetation, never topography -- avesmapsEcosystemAssertRegionType
- * would answer 400. The Art select is filled from the TARGET kind's vocabulary and starts empty.
+ * would answer 400. The Art select is filled from the TARGET kind's vocabulary and starts empty. It starts
+ * empty for the source's OWN layer too, where the source's Art would in fact be valid: the reason to copy
+ * inside one layer is usually that the copy is something else (an island that is also an archipelago).
  */
 (function initEcosystemTransfer() {
 	"use strict";
 
+	// The entry is called "Kopieren ..." since 2026-08-06; this key is internal (menu identity, idempotency)
+	// and stays as it is -- renaming it would buy nothing and cost the menu's insert order.
 	const SEND_TO_ACTION = "send-to";
 	const OVERLAY_ELEMENT_ID = "ecosystem-transfer-overlay";
 	const DIALOG_ELEMENT_ID = "ecosystem-transfer-dialog";
@@ -62,14 +77,20 @@
 		}
 	}
 
+	// The area menu's namespace, or null. Read through typeof so this works both in the browser (a
+	// window property) and in the unit test (a bare global) without a second code path.
+	function areaMenu() {
+		return typeof AvesmapsEcosystemAreaMenu !== "undefined" ? AvesmapsEcosystemAreaMenu : null;
+	}
+
 	function kindLabel(kind) {
 		return (typeof ECOSYSTEM_KIND_LABELS !== "undefined" && ECOSYSTEM_KIND_LABELS?.[kind]) || String(kind || "");
 	}
 
 	// ---- pure helpers (unit-tested) ------------------------------------------------------------------
 
-	// The two other layers, twin first. `kinds` is passed in rather than read off the ECOSYSTEM_KINDS
-	// global so the rule can be tested without loading the rendering file.
+	// The other layers, twin first, and the source's own layer last. `kinds` is passed in rather than read
+	// off the ECOSYSTEM_KINDS global so the rule can be tested without loading the rendering file.
 	function ecosystemTransferTargetKinds(sourceKind, kinds = []) {
 		const source = String(sourceKind || "");
 		if (!Array.isArray(kinds) || !kinds.includes(source)) {
@@ -87,8 +108,14 @@
 
 		const others = kinds.filter((kind) => kind !== source && !abgeleitet(kind));
 		const twin = ECOSYSTEM_TRANSFER_TWIN[source];
+		const ordered = twin && others.includes(twin) ? [twin, ...others.filter((kind) => kind !== twin)] : others;
 
-		return twin && others.includes(twin) ? [twin, ...others.filter((kind) => kind !== twin)] : others;
+		// 💣 THE SOURCE'S OWN LAYER, AND ALWAYS LAST (owner 2026-08-06). Copying inside one layer is a real
+		// need -- an island that is also an archipelago is two derographic areas of the same outline -- but
+		// it must never be what the select offers by default: unlike a transfer, this copy lands exactly on
+		// top of its source and is invisible on the map, so it may only come about when somebody picks it.
+		// `source` is safe to append: it was checked against `kinds` and against `abgeleitet` above.
+		return [...ordered, source];
 	}
 
 	// Only shapes create_area accepts. The server validates properly (avesmapsEcosystemNormalizeGeometry);
@@ -108,6 +135,7 @@
 		targetRegionPublicId = "",
 		newRegionName = "",
 		newRegionType = "",
+		deleteSource = false,
 		kinds = [],
 	} = {}) {
 		const sourceKind = String(area?.kind || "");
@@ -124,9 +152,23 @@
 		// shared reference that turns into "the copy moved with the original" the first time something
 		// does. Cloning here costs one pass over a few hundred numbers.
 		const geometry = JSON.parse(JSON.stringify(area.geometry));
+
+		// 💣 Checked BEFORE anything is written, not between the two writes. delete_area answers 400 without
+		// an expected_revision, and an area whose row arrived without a geometry_revision would produce a
+		// copy and then a failed delete -- i.e. the editor is told "verschoben" while the original is still
+		// lying there. The box either works or the form says why.
+		let sourceDelete = null;
+		if (deleteSource) {
+			const buildRequest = areaMenu()?.deleteRequest;
+			sourceDelete = typeof buildRequest === "function" ? buildRequest(area) : null;
+			if (!sourceDelete) {
+				return { error: "Die Originalfläche kann nicht gelöscht werden. Bitte die Karte neu laden und es noch einmal versuchen." };
+			}
+		}
+
 		const existingRegionId = String(targetRegionPublicId || "").trim();
 		if (existingRegionId) {
-			return { targetKind: String(targetKind), regionPublicId: existingRegionId, createRegion: null, geometry };
+			return { targetKind: String(targetKind), regionPublicId: existingRegionId, createRegion: null, geometry, deleteSource: sourceDelete };
 		}
 
 		const name = String(newRegionName || "").trim();
@@ -148,6 +190,7 @@
 				wiki_url: ecosystemTransferCarriesWiki(area, name) ? String(area.wiki_url) : "",
 			},
 			geometry,
+			deleteSource: sourceDelete,
 		};
 	}
 
@@ -158,11 +201,37 @@
 		return wikiUrl !== "" && sourceName !== "" && String(name || "").trim() === sourceName;
 	}
 
+	// What ticking the box does to the SOURCE's region, in the sentence the area menu already keeps for it
+	// (AvesmapsEcosystemAreaMenu.deleteConsequence). Not rewritten here: on the live stock nearly every
+	// region holds exactly one area, so "das war die letzte" is the normal case, and two sentences about it
+	// would drift the first time one of them is touched.
+	function ecosystemTransferDeleteNote(area, targetRegionPublicId, kaskade) {
+		if (!area) {
+			return "";
+		}
+
+		// 🪤 TARGET REGION = SOURCE REGION. Then the source is NOT the last area of its region when it is
+		// deleted -- the copy is already in there -- so nothing happens to the region and announcing that
+		// it disappears would be plainly false. Only reachable since a layer can be copied into itself.
+		const target = String(targetRegionPublicId || "").trim();
+		if (target !== "" && target === String(area.region_public_id || "").trim()) {
+			return "";
+		}
+
+		const consequence = areaMenu()?.deleteConsequence;
+		return typeof consequence === "function" ? String(consequence(area, kaskade) || "") : "";
+	}
+
 	// Names BOTH the layer and the region: "gespeichert" alone would not say where it landed, and where it
-	// landed is the whole question the dialog just asked.
-	function formatEcosystemTransferSuccess(targetKindLabel, regionName) {
+	// landed is the whole question the dialog just asked. With the source deleted it was not a copy but a
+	// move, and the sentence says the thing that actually happened.
+	function formatEcosystemTransferSuccess(targetKindLabel, regionName, sourceDeleted = false) {
 		const name = String(regionName || "").trim() || "Ohne Namen";
-		return `Kopie in „${String(targetKindLabel || "")}“ angelegt — Region „${name}“.`;
+		const ziel = String(targetKindLabel || "");
+
+		return sourceDeleted
+			? `Fläche nach „${ziel}“ verschoben — Region „${name}“.`
+			: `Kopie in „${ziel}“ angelegt — Region „${name}“.`;
 	}
 
 	// ---- the dialog ----------------------------------------------------------------------------------
@@ -191,6 +260,27 @@
 	function isEcosystemTransferDialogOpen() {
 		const overlayElement = document.getElementById(OVERLAY_ELEMENT_ID);
 		return Boolean(overlayElement) && !overlayElement.hidden;
+	}
+
+	// The consequence line under the checkbox. Re-run whenever the box or the target region changes --
+	// the target region is half of the answer (see ecosystemTransferDeleteNote).
+	function syncTransferDeleteNote() {
+		const note = transferElement("delete-note");
+		if (!note) {
+			return;
+		}
+
+		const wanted = Boolean(transferElement("delete-source")?.checked);
+		const text = wanted
+			? ecosystemTransferDeleteNote(
+				currentTransferArea(),
+				transferElement("region")?.value,
+				typeof isEcosystemCascadeEnabled === "function" ? isEcosystemCascadeEnabled() : null
+			)
+			: "";
+
+		note.textContent = text;
+		note.hidden = text === "";
 	}
 
 	// Which of the two "new region" fields are on show, plus the honest sentence about the wiki link.
@@ -271,7 +361,7 @@
 
 		// 🪤 Back to "Neue Region anlegen" on every render, and deliberately NOT to whatever the select
 		// held before. Carrying the previous value over would survive the dialog being CLOSED and
-		// reopened for a different area -- measured: the second "Senden an ..." offered to append to
+		// reopened for a different area -- measured: the second "Kopieren ..." offered to append to
 		// whatever the first one picked, which is the one answer nobody meant. The single exception is a
 		// region created by a FAILED attempt: that one stays selected so the retry appends to it instead
 		// of minting a second empty one.
@@ -280,6 +370,7 @@
 			? keep
 			: "";
 		syncTransferRegionFields();
+		syncTransferDeleteNote();
 	}
 
 	async function applyTransferTargetKind(targetKind) {
@@ -318,7 +409,7 @@
 		const kinds = typeof ECOSYSTEM_KINDS !== "undefined" ? ECOSYSTEM_KINDS : [];
 		const targets = ecosystemTransferTargetKinds(area.kind, kinds);
 		if (targets.length === 0) {
-			say("Diese Fläche kann nicht gesendet werden.", "warning");
+			say("Diese Fläche kann nicht kopiert werden.", "warning");
 			return;
 		}
 
@@ -339,6 +430,13 @@
 		if (nameInput) {
 			nameInput.value = String(area.region_name || "");
 		}
+		// 🔴 Always back to unticked. Deleting is the destructive half of this dialog, and a box that
+		// remembered its state would carry a decision made about one area over onto the next one.
+		const deleteBox = transferElement("delete-source");
+		if (deleteBox) {
+			deleteBox.checked = false;
+		}
+		syncTransferDeleteNote();
 		setTransferError("");
 		bindEcosystemTransferDialog();
 		overlayElement.hidden = false;
@@ -402,6 +500,7 @@
 			targetRegionPublicId: transferElement("region")?.value,
 			newRegionName: transferElement("name")?.value,
 			newRegionType: transferElement("type")?.value,
+			deleteSource: Boolean(transferElement("delete-source")?.checked),
 			kinds: typeof ECOSYSTEM_KINDS !== "undefined" ? ECOSYSTEM_KINDS : [],
 		});
 		if (plan.error) {
@@ -414,7 +513,7 @@
 		setTransferError("");
 		if (saveButton) {
 			saveButton.disabled = true;
-			saveButton.textContent = label("ecosystem.transfer.saving", "Wird gesendet …");
+			saveButton.textContent = label("ecosystem.transfer.saving", "Wird kopiert …");
 		}
 
 		try {
@@ -454,21 +553,55 @@
 				? { public_id: regionPublicId, name: regionName, kind: plan.targetKind, region_type: transferCreatedRegion.regionType || null }
 				: null;
 			transferCreatedRegion = null;
+
+			// 🔴 THE THIRD WRITE, AND ITS OWN try/catch. The copy is on the server at this point; letting a
+			// failed delete fall into the outer catch would put "Die Fläche konnte nicht kopiert werden."
+			// in front of an editor whose copy exists -- and a retry would then mint a second one.
+			let sourceDeleted = false;
+			let deleteFailure = "";
+			if (plan.deleteSource) {
+				try {
+					const removed = await postEcosystemEdit("delete_area", plan.deleteSource);
+					sourceDeleted = true;
+					if (typeof removeEcosystemAreaLayer === "function") {
+						removeEcosystemAreaLayer(plan.deleteSource.public_id);
+					}
+					// 🔴 War es die letzte Fläche ihrer Region, hat der Server Region und Labels mitgenommen.
+					// Die Labels kommen aus der Kartennutzlast, die der Nachladeweg unten NICHT holt -- ohne
+					// diese Zeile stünde der Name der Quellregion bis zum nächsten Seitenaufbau ohne Fläche da.
+					if (typeof removeEcosystemCascadedLabels === "function") {
+						removeEcosystemCascadedLabels(removed);
+					}
+					if (typeof invalidateEcosystemRegionCache === "function") {
+						invalidateEcosystemRegionCache();
+					}
+				} catch (deleteError) {
+					console.error("Originalflaeche konnte nach dem Kopieren nicht geloescht werden:", deleteError);
+					deleteFailure = String(deleteError?.message || "").trim();
+				}
+			}
+
 			closeEcosystemTransferDialog();
 			await jumpIntoEcosystemCopy(plan.targetKind, regionPublicId, String(saved?.area?.public_id || ""), createdRegion);
-			say(formatEcosystemTransferSuccess(kindLabel(plan.targetKind), regionName));
+			// Ein misslungenes Löschen ist kein misslungener Vorgang, sondern ein halber: die Meldung nennt
+			// beides, damit niemand die Kopie sucht oder das Original für gelöscht hält.
+			if (deleteFailure || (plan.deleteSource && !sourceDeleted)) {
+				say(`${formatEcosystemTransferSuccess(kindLabel(plan.targetKind), regionName, false)} Die Originalfläche wurde NICHT gelöscht${deleteFailure ? `: ${deleteFailure}` : "."}`, "warning");
+			} else {
+				say(formatEcosystemTransferSuccess(kindLabel(plan.targetKind), regionName, sourceDeleted));
+			}
 		} catch (error) {
-			console.error("Landschaftsflaeche konnte nicht gesendet werden:", error);
+			console.error("Landschaftsflaeche konnte nicht kopiert werden:", error);
 			setTransferError(transferCreatedRegion
-				? `${error?.message || "Die Fläche konnte nicht gesendet werden."} Die Region wurde bereits angelegt — ein erneutes Senden hängt die Fläche dort an.`
-				: (error?.message || "Die Fläche konnte nicht gesendet werden."));
+				? `${error?.message || "Die Fläche konnte nicht kopiert werden."} Die Region wurde bereits angelegt — ein erneutes Kopieren hängt die Fläche dort an.`
+				: (error?.message || "Die Fläche konnte nicht kopiert werden."));
 			// The region select now has to offer the region that DID get created, so the retry finds it.
 			renderTransferRegionOptions(plan.targetKind);
 		} finally {
 			transferBusy = false;
 			if (saveButton) {
 				saveButton.disabled = false;
-				saveButton.textContent = label("ecosystem.transfer.save", "Senden");
+				saveButton.textContent = label("ecosystem.transfer.save", "Kopieren");
 			}
 		}
 	}
@@ -532,7 +665,11 @@
 			transferCreatedRegion = null;
 			void applyTransferTargetKind(String(event.target.value || ""));
 		});
-		transferElement("region")?.addEventListener("change", syncTransferRegionFields);
+		transferElement("region")?.addEventListener("change", () => {
+			syncTransferRegionFields();
+			syncTransferDeleteNote();
+		});
+		transferElement("delete-source")?.addEventListener("change", syncTransferDeleteNote);
 		transferElement("name")?.addEventListener("input", syncTransferRegionFields);
 		// Click on the scrim closes; a click inside the dialog must not.
 		overlayElement.addEventListener("click", (event) => {
@@ -555,7 +692,7 @@
 	function registerEcosystemTransferEntry() {
 		window.AvesmapsEcosystemAreaMenu?.addEntry?.({
 			action: SEND_TO_ACTION,
-			label: label("ecosystem.ctxmenu.sendTo", "Senden an …"),
+			label: label("ecosystem.ctxmenu.sendTo", "Kopieren …"),
 			onClick: openEcosystemTransferDialog,
 		});
 	}
@@ -584,6 +721,7 @@
 			ecosystemTransferPlan,
 			ecosystemTransferCarriesWiki,
 			formatEcosystemTransferSuccess,
+			ecosystemTransferDeleteNote,
 		};
 	}
 })();

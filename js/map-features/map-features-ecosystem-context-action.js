@@ -20,7 +20,7 @@
  *   #region-context-menu   index.html  political polygons          <- untouched, not even closed
  *   (none)                             landscape areas             <- built here, delete first
  *
- * The area menu is the prerequisite for V3.6 ("Senden an ...") AND the way back out of an area put in
+ * The area menu is the prerequisite for V3.6 ("Kopieren ...") AND the way back out of an area put in
  * the wrong place, which V3.0b left open on purpose. It is built and owned here, so a sibling feature
  * adds its entry through window.AvesmapsEcosystemAreaMenu.addEntry() -- the one seam this file offers.
  * V3.6 uses it; wrapping open() from outside would be the alternative, and it would break on the next
@@ -141,17 +141,18 @@
 	//
 	// Die Zahlen kommen aus der Flächenzeile (region_area_count / region_label_count, seit heute im
 	// Lesepfad), nicht aus den geladenen Ebenen: die halten nur den Ausschnitt.
-	function formatEcosystemAreaDeleteConfirmation(area, kaskade) {
+	// 🔴 DER FOLGESATZ IST EINE EIGENE FUNKTION (2026-08-06), weil er einen zweiten Aufrufer hat: der
+	// Haken „Originalfläche löschen" in „Kopieren …" kündigt dieselbe Folge an. Zwei Sätze über dasselbe
+	// Ereignis laufen auseinander, sobald jemand nur einen anfasst -- und dieser hier ist die einzige
+	// Bremse vor einer Region, die mitgeht. Leerstring heisst „dazu ist nichts Belastbares zu sagen".
+	function formatEcosystemAreaDeleteConsequence(area, kaskade) {
 		const regionName = String(area?.region_name || "").trim() || "Ohne Namen";
-		const kindLabel = (typeof ECOSYSTEM_KIND_LABELS !== "undefined" && ECOSYSTEM_KIND_LABELS?.[area?.kind])
-			|| String(area?.kind || "");
 		const areaCount = Number(area?.region_area_count) || 0;
 		const labelCount = Number(area?.region_label_count) || 0;
-		const kopf = `Fläche aus „${regionName}"${kindLabel ? ` (${kindLabel})` : ""} wirklich löschen?`;
 
 		if (areaCount > 1) {
 			const rest = areaCount - 1;
-			return [kopf, "", `Die Region und ihre ${rest === 1 ? "andere Fläche" : `anderen ${rest} Flächen`} bleiben bestehen.`].join("\n");
+			return `Die Region und ihre ${rest === 1 ? "andere Fläche" : `anderen ${rest} Flächen`} bleiben bestehen.`;
 		}
 
 		// 🔴 Ab hier geht es um die LETZTE Fläche, und was dann passiert, entscheidet der Server
@@ -166,24 +167,32 @@
 			// 🪤 0 heisst „unbekannt", nicht „keine": die Fläche, um die es geht, zählt selbst mit. Dann
 			// gar keine Aussage über die Region treffen.
 			return areaCount <= 0
-				? kopf
-				: [kopf, "", `Das ist die LETZTE Fläche von „${regionName}" — die Region bleibt bestehen, ohne Fläche.`].join("\n");
+				? ""
+				: `Das ist die LETZTE Fläche von „${regionName}" — die Region bleibt bestehen, ohne Fläche.`;
 		}
 
 		// 🪤 Unbekannte Zahl bei eingeschalteter Kaskade: die Folge offenlassen ist ehrlicher, als sie
 		// falsch zu verneinen.
 		if (areaCount <= 0) {
-			return [kopf, "", "Ist es die letzte Fläche dieser Region, verschwinden die Region und ihre Labels mit."].join("\n");
+			return "Ist es die letzte Fläche dieser Region, verschwinden die Region und ihre Labels mit.";
 		}
 		if (labelCount <= 0) {
-			return [kopf, "", `Das ist die LETZTE Fläche von „${regionName}" — die Region verschwindet mit.`].join("\n");
+			return `Das ist die LETZTE Fläche von „${regionName}" — die Region verschwindet mit.`;
 		}
 
-		return [
-			kopf,
-			"",
-			`Das ist die LETZTE Fläche von „${regionName}" — die Region und ${labelCount === 1 ? "ihr Label" : `ihre ${labelCount} Labels`} verschwinden mit.`,
-		].join("\n");
+		return `Das ist die LETZTE Fläche von „${regionName}" — die Region und ${labelCount === 1 ? "ihr Label" : `ihre ${labelCount} Labels`} verschwinden mit.`;
+	}
+
+	// Kopf plus Folge. Der Kopf ist die FRAGE und gehört deshalb hierher: „Kopieren …" fragt nicht, dort
+	// ist der gesetzte Haken die Antwort -- angekündigt wird die Folge trotzdem, und zwar dieselbe.
+	function formatEcosystemAreaDeleteConfirmation(area, kaskade) {
+		const regionName = String(area?.region_name || "").trim() || "Ohne Namen";
+		const kindLabel = (typeof ECOSYSTEM_KIND_LABELS !== "undefined" && ECOSYSTEM_KIND_LABELS?.[area?.kind])
+			|| String(area?.kind || "");
+		const kopf = `Fläche aus „${regionName}"${kindLabel ? ` (${kindLabel})` : ""} wirklich löschen?`;
+		const folge = formatEcosystemAreaDeleteConsequence(area, kaskade);
+
+		return folge === "" ? kopf : [kopf, "", folge].join("\n");
 	}
 
 	// ---- the three "Neue ..." entries in the map menu ------------------------------------------------
@@ -415,7 +424,7 @@
 		return menu;
 	}
 
-	// Adds one entry to the area menu on behalf of another file (V3.6: "Senden an ..."). Idempotent by
+	// Adds one entry to the area menu on behalf of another file (V3.6: "Kopieren ..."). Idempotent by
 	// action, exactly like ensureAreaMenuElement is by element -- both may run again after a reload of
 	// the calling file without producing a second entry.
 	//
@@ -469,7 +478,7 @@
 	// `group: "new-area"` hängt den Eintrag ins Untermenü statt in die flache Liste. `danger: true` färbt
 	// ihn wie „Fläche löschen" und schiebt ihn damit ans Ende -- die Einfügeregel unten setzt jeden neuen
 	// Eintrag VOR den ersten gefährlichen, also sortieren sich Zerstörer von selbst nach unten.
-	// Sonst unverändert -- die Nachbardatei für den Territorien-Import benutzt denselben Weg wie „Senden an …".
+	// Sonst unverändert -- die Nachbardatei für den Territorien-Import benutzt denselben Weg wie „Kopieren …".
 	function addEcosystemAreaMenuEntry({ action = "", label: entryLabel = "", onClick = null, group = "", danger = false } = {}) {
 		const actionName = String(action).trim();
 		if (!actionName || typeof onClick !== "function") {
@@ -777,6 +786,12 @@
 			// V3.6 and anything after it: one entry point for adding an entry, so a sibling feature never
 			// has to reach into this file's DOM or wrap its open().
 			addEntry: addEcosystemAreaMenuEntry,
+			// 🔴 Deleting an area is decided in THIS file, and stays decided here. "Kopieren …" can delete
+			// the source (2026-08-06), so it needs the same request shape and the same announced consequence
+			// -- handed out rather than reimplemented, because a second expected_revision rule or a second
+			// sentence about a vanishing region is exactly how the two drift apart.
+			deleteRequest: ecosystemAreaDeleteRequest,
+			deleteConsequence: formatEcosystemAreaDeleteConsequence,
 		};
 	}
 
@@ -785,6 +800,7 @@
 			ecosystemMapMenuVisibility,
 			ecosystemAreaDeleteRequest,
 			formatEcosystemAreaDeleteConfirmation,
+			formatEcosystemAreaDeleteConsequence,
 		};
 	}
 })();

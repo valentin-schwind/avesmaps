@@ -7,6 +7,7 @@ const {
 	ecosystemMapMenuVisibility,
 	ecosystemAreaDeleteRequest,
 	formatEcosystemAreaDeleteConfirmation,
+	formatEcosystemAreaDeleteConsequence,
 } = require("../map-features-ecosystem-context-action.js");
 
 // ---- which entries the MAP menu shows ------------------------------------------------------------
@@ -230,5 +231,47 @@ assert.strictEqual(
 const namelessConfirmation = formatEcosystemAreaDeleteConfirmation({ public_id: "eca_9" }, true);
 assert.ok(namelessConfirmation.includes("Ohne Namen"), "a region without a name still produces a sentence");
 assert.ok(!namelessConfirmation.includes("()"), "and no empty bracket where the kind label would be");
+
+// ---- the consequence on its own (2026-08-06) ------------------------------------------------------
+// "Kopieren ..." shows the same consequence next to its "Originalfläche löschen" checkbox. Two sentences
+// about one event drift apart the moment somebody touches only one of them -- so the sentence IS the
+// function, and the confirmation above is merely its first caller.
+
+const AREA_LAST = { public_id: "eca_123", region_name: "Farindel", kind: "vegetation", region_area_count: 1, region_label_count: 2 };
+
+// 💣 The assertion that keeps the two in step. Without it the split is cosmetic: the confirmation could
+// grow a different wording and nothing here would notice.
+[
+	[AREA_LAST, true],
+	[AREA_LAST, false],
+	[{ ...AREA_LAST, region_area_count: 3 }, true],
+	[{ public_id: "eca_9", region_name: "Farindel", kind: "vegetation" }, true],
+].forEach(([area, kaskade]) => {
+	const folge = formatEcosystemAreaDeleteConsequence(area, kaskade);
+	assert.ok(
+		formatEcosystemAreaDeleteConfirmation(area, kaskade).endsWith(folge),
+		`the confirmation ends on exactly this consequence (kaskade=${kaskade}, count=${area.region_area_count})`
+	);
+});
+
+assert.ok(
+	!formatEcosystemAreaDeleteConsequence(AREA_LAST, true).includes("wirklich löschen?"),
+	"the consequence carries no question of its own -- the head belongs to the caller"
+);
+
+assert.strictEqual(
+	formatEcosystemAreaDeleteConsequence({ public_id: "eca_9", region_name: "Farindel", kind: "vegetation" }, false),
+	"",
+	"unknown count and no cascade: nothing to say, and an empty string rather than a guess"
+);
+
+assert.ok(
+	formatEcosystemAreaDeleteConsequence(AREA_LAST, true).includes("2 Labels"),
+	"the cascade case still names the labels"
+);
+assert.ok(
+	formatEcosystemAreaDeleteConsequence(AREA_LAST, false).includes("die Region bleibt bestehen"),
+	"and the switched-off case still says the region survives"
+);
 
 console.log("ecosystem-context-menu.test.js: all assertions passed");

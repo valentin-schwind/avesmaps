@@ -627,7 +627,7 @@ function buildEcosystemAreaLayer(area) {
 		}
 	});
 
-	// V3.4: a landscape area has its OWN context menu (delete first, "Senden an ..." from V3.6). Stopping
+	// V3.4: a landscape area has its OWN context menu (delete first, "Kopieren ..." from V3.6). Stopping
 	// the event is what keeps #map-context-menu from opening on top of it -- Leaflet would otherwise carry
 	// the contextmenu on to map.on("contextmenu") (js/app/bootstrap.js:701), and L.DomEvent.stop is also
 	// what suppresses the browser's own menu, since the map handler that normally does that never runs.
