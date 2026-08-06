@@ -35,6 +35,35 @@ FROM location_reports
 WHERE status = 'alt';
 
 -- ============================================================================================
+-- 1b) NUR LESEN: der Beleg fuer 'approved' statt 'rejected'. Erwartet: 17 Zeilen, alle mit
+--     karten_treffer = 1. Eine Zeile mit karten_treffer = 0 heisst: diese Meldung wurde damals
+--     NICHT uebernommen -- dann ist 'approved' fuer sie falsch und Abschnitt 2 zu eng zu fassen.
+-- ============================================================================================
+-- ⚠️ Warum das hier steht: die Begruendung oben stuetzt sich auf die Hilfe eines geloeschten
+-- Werkzeugs. Das ist eine Herleitung, keine Messung. Diese Abfrage misst es an den Kartendaten
+-- selbst. (Drei der 17 sind am 06.08.2026 einzeln live geprueft -- Altenfurten, Rabenhorst,
+-- Kloster Loë liegen als Dorf auf der Karte. Drei von 17 ist eine Stichprobe, kein Beweis.)
+--
+-- ⚠️ Verglichen wird ueber den NAMEN, und der ist kein Schluessel. `map_features` speichert
+-- min_x = lng und min_y = lat (api/_internal/map/features.php:1400), deshalb steht die
+-- Entfernung daneben: ein Namensgleicher an ganz anderer Stelle ist ein anderer Ort.
+SELECT
+    r.id,
+    r.name,
+    r.lat,
+    r.lng,
+    COUNT(f.id) AS karten_treffer,
+    MIN(ABS(f.min_y - r.lat) + ABS(f.min_x - r.lng)) AS naechster_abstand
+FROM location_reports r
+LEFT JOIN map_features f
+    ON f.name = r.name
+   AND f.feature_type = 'location'
+   AND f.is_active = 1
+WHERE r.status = 'alt'
+GROUP BY r.id, r.name, r.lat, r.lng
+ORDER BY karten_treffer ASC, r.id ASC;
+
+-- ============================================================================================
 -- 2) SCHREIBT. Erst ausfuehren, wenn Abschnitt 1 genau die erwarteten Zeilen gezeigt hat.
 -- ============================================================================================
 -- ⚠️ `reviewed_at` bleibt unangetastet: der Zeitpunkt der damaligen Verarbeitung ist eine Tatsache,
@@ -43,6 +72,13 @@ WHERE status = 'alt';
 UPDATE location_reports
 SET status = 'approved'
 WHERE status = 'alt';
+
+-- Falls Abschnitt 1b bei einzelnen Zeilen karten_treffer = 0 zeigt: STATT der Zeile oben diese
+-- beiden nehmen, mit den betroffenen ids. Die erste stellt die uebernommenen richtig, die zweite
+-- die nicht uebernommenen -- ein pauschales 'approved' waere fuer sie die Behauptung, ihr Inhalt
+-- stehe auf der Karte.
+--   UPDATE location_reports SET status = 'approved' WHERE status = 'alt' AND id NOT IN (<ids>);
+--   UPDATE location_reports SET status = 'rejected' WHERE status = 'alt' AND id     IN (<ids>);
 
 -- ============================================================================================
 -- 3) NUR LESEN: Gegenprobe nach dem Schreiben. Erwartet: 0 Zeilen.

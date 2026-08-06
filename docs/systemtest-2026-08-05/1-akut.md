@@ -1995,6 +1995,25 @@ gleicht den Import an den Editor an und kommt mit.
 > Wer die Zuordnung `alt → approved` nicht mittragen will, lässt sie stehen: sie schaden nichts, sie
 > tragen nur ein Etikett, das niemand kennt. **Die Riegel bleiben in jedem Fall** — der Weg zurück
 > ist dieses eine `UPDATE`, kein wieder geöffneter Schreibkanal.
+>
+> ---
+>
+> **📊 Abschnitt 1 gelaufen (Owner, 06.08.2026): genau die erwarteten 17 Zeilen**, ids 3–19, alle
+> `alt`, alle vom 24.04.2026, `reviewed_at` zwischen 15:59 und 16:00 — ein einziger Importlauf.
+>
+> 🔁 **Meine Begründung für `approved` war eine Herleitung, keine Messung.** Sie stützte sich auf die
+> Hilfe eines am 17.05.2026 gelöschten Werkzeugs — also auf einen Text über den Code, nicht auf die
+> Wirkung. Drei der 17 einzeln live nachgesehen (`map-search.php`, drei Einzelabrufe, keine
+> Schleife): **Altenfurten**, **Rabenhorst** und **Kloster Loë** liegen als `dorf` auf der Karte.
+> Der Inhalt wurde also wirklich übernommen. ⚠️ **Drei von 17 ist eine Stichprobe, kein Beweis** —
+> deshalb steht die Messung für alle 17 jetzt als **Abschnitt 1b** in der Datei, rein lesend, ohne
+> einen einzigen Serverabruf: sie hält die 17 Namen gegen `map_features` und meldet je Zeile
+> `karten_treffer` plus den Abstand zur gemeldeten Koordinate. Zeigt eine Zeile `0`, ist `approved`
+> für sie falsch — für diesen Fall liegt die aufgeteilte Fassung des `UPDATE` daneben.
+>
+> ⚠️ Der Vergleich läuft über den **Namen**, und der ist kein Schlüssel; der Abstand steht daneben,
+> damit ein Namensgleicher an anderer Stelle auffällt (`map_features` speichert `min_x = lng`,
+> `min_y = lat`).
 
 ### A38 · Eine abgewiesene Anfrage füllt den Eimer nicht — die Drossel sieht den Prober nie
 `api/_internal/app/report-outcome.php:57-63` gegen `api/app/report-location.php:129` und `:185`
