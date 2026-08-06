@@ -678,6 +678,29 @@ Das ist der einzige Befund des Tests, der **falsche Daten ohne jede Fehlermeldun
 > `is_crossing` weiterhin **2.084**, die Nicht-Kreuzungsnamen **zeichengleich** — und **nur** die
 > Kreuzungsnamen anders. 221/221 grün.
 >
+> **✅ NACHHER GEMESSEN, jeder Punkt eingehalten** (`0185e3d8`, 06.08.2026):
+>
+> | Prüfung | Erwartung | Ergebnis |
+> |---|---|---|
+> | Anzahl Orte · `is_crossing` | unverändert | **4.861 · 2.084** ✓ |
+> | SHA1 der Nicht-Kreuzungsnamen | unverändert | ✓ zeichengleich |
+> | Routenkosten Gareth→Punin | unverändert | **27,99105601858446** ✓ |
+> | SHA1 Segmente **ohne** Knotennamen | unverändert | ✓ |
+> | SHA1 der Zusammenfassung | unverändert | ✓ |
+> | Nicht-Kreuzungen in der Knotenkette | unverändert | ✓ |
+> | Kreuzungsnamen | **müssen sich ändern** | ✓ `Kreuzung-419` → `Kreuzung-2465` … |
+> | Kreuzungsnamen eindeutig | ja | **2.084 von 2.084** ✓ |
+> | Zahlenraum | **nicht mehr lückenlos** | **2006 … 13936**, lückenhaft ✓ |
+>
+> ⭐ **Die Lückenhaftigkeit ist der eigentliche Beleg.** Vorher `1 … 2084` lückenlos — das *war* die
+> Laufnummer. Wären die neuen Zahlen wieder lückenlos, stünde der Befund noch. Die Antwort wuchs um
+> 1.747 Bytes (962.079 → 963.826), weil Ids längere Zahlen sind als Positionen 1–2084.
+>
+> 🔴 **Und die Zusage an den Owner, gegen echte Daten geprüft statt hergeleitet:** alle **2.084**
+> neuen Namen durch die **echte** `normalizeNodeName` des Clients laufen lassen (aus
+> `js/map-features/map-features.js` geladen, nicht nachgebaut) — **2.084 von 2.084** normalisieren zu
+> `Kreuzung`, **0** Ausreißer. Die Etappenanzeige absorbiert damit jeden einzelnen, wie zugesagt.
+>
 > ⚠️ **Eine dritte Stelle bleibt, und sie ist eine Landmine für (a)/(b):** `api/locations/index.php:113`
 > bildet `is_crossing` aus `strncmp($name, 'Kreuzung-')` — **mit Bindestrich**, also aus dem bereits
 > **umbenannten** Namen. Heute deckungsgleich (im Bestand: 2.084 = 2.084 = 2.084 über `is_crossing`,
