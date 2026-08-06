@@ -1403,14 +1403,16 @@ git add api/_internal/wiki/territory-wiki-plan-apply.php api/_internal/wiki/__te
 - Test: `api/_internal/wiki/__tests__/territory-plan-test.php` (neu)
 
 **Interfaces:**
-- Consumes: `avesmapsWikiSyncMonitorApplyIdentityPreview` (rein, liefert `changed[]` mit
-  `id`, `wiki_key`, `name`, `changes[feld][from|to]`, `eff[]`),
-  `avesmapsWikiSyncMonitorApplyParentCache($pdo, [], true)` (Trockenlauf),
-  `avesmapsWikiSyncMonitorApplyCustomNodes($pdo, true)` (Trockenlauf).
+- Consumes: **nur** `avesmapsWikiSyncMonitorApplyIdentityPreview` (bereits eine eigene, reine
+  Funktion; liefert `changed[]` mit `id`, `wiki_key`, `name`, `changes[feld][from|to]`, `eff[]`).
+  💣 **Nicht** die Trockenlauf-Zweige der zwei Bulk-Schreiber — für die schreibt diese Aufgabe zwei
+  read-only Zwillinge (AGENTS.md §11: ein `$dryRun`-Schalter ist ein Versprechen zur Laufzeit, und die
+  Reinheitsprobe sieht den Rumpf des Schreibers so oder so).
 - Produces:
   `avesmapsTerritoryPlanRoleShift(array $counts, string $child, ?string $oldParent, ?string $newParent): string`
   `avesmapsTerritoryPlanNodeCounts(PDO $pdo): array<string,array{name:string,own_geometry:int,children:int}>`
-  `avesmapsTerritoryPlanParentMoves(PDO $pdo): array<string,array{name:string,old_key:?string,old_name:string,new_key:string,new_name:string}>`
+  `avesmapsTerritoryPlanParentMoves(PDO $pdo): array<string,array{name:string,old_key:?string,old_name:string,new_key:string,new_name:string}>` (read-only Zwilling von `…ApplyParentCache`)
+  `avesmapsTerritoryPlanCustomNodesToCreate(PDO $pdo): list<array{wiki_key:string,name:string,parent_wiki_key:?string}>` (read-only Zwilling von `…ApplyCustomNodes`)
   `avesmapsTerritoryPlanStep(PDO $pdo, string $cursor, int $userId, ?int $budget = null): array{done,nextCursor,run_id,planned,processed,counts}`
 
 - [ ] **Step 1: Den Test der Rollen-Verschiebung schreiben**
@@ -1618,9 +1620,14 @@ function avesmapsTerritoryPlanStep(PDO $pdo, string $cursor, int $userId, ?int $
     $nodeCounts = avesmapsTerritoryPlanNodeCounts($pdo);
 
     // --- the three read-only sources -------------------------------------------------------------
-    $identity = avesmapsWikiSyncMonitorApplyIdentityPreview($pdo);
-    $parents = avesmapsWikiSyncMonitorApplyParentCache($pdo, [], true);
-    $custom = avesmapsWikiSyncMonitorApplyCustomNodes($pdo, true);
+    //
+    // 💣 NOT the dry-run branches of the three writers. AGENTS.md §11: "Wo eine Vorlage durch SCHREIBEN
+    // antwortet, braucht die Rechen-Hälfte einen read-only Zwilling." A $dryRun flag is a promise made
+    // at runtime; the purity walk sees the writer's body either way, and the guarantee this whole
+    // rebuild is about would rest on a boolean argument nobody re-checks.
+    $identity = avesmapsWikiSyncMonitorApplyIdentityPreview($pdo);   // already pure, its own function
+    $parentMoves = avesmapsTerritoryPlanParentMoves($pdo);           // twin of ApplyParentCache
+    $toCreate = avesmapsTerritoryPlanCustomNodesToCreate($pdo);      // twin of ApplyCustomNodes
 
     // --- Geändert: one row per territory ----------------------------------------------------------
     $rows = [];
@@ -1644,7 +1651,6 @@ function avesmapsTerritoryPlanStep(PDO $pdo, string $cursor, int $userId, ?int $
         ];
     }
 
-    $parentMoves = avesmapsTerritoryPlanParentMoves($pdo);
     foreach ($parentMoves as $wikiKey => $move) {
         if (!isset($rows[$wikiKey])) {
             $rows[$wikiKey] = ['label' => $move['name'], 'public_id' => null,
@@ -1679,7 +1685,7 @@ function avesmapsTerritoryPlanStep(PDO $pdo, string $cursor, int $userId, ?int $
     }
 
     // --- Neu: the own nodes that do not exist on the map yet --------------------------------------
-    foreach (($custom['to_create'] ?? []) as $node) {
+    foreach ($toCreate as $node) {
         $parentKey = $node['parent_wiki_key'] === null ? '' : (string) $node['parent_wiki_key'];
         avesmapsSyncPlanAddItem($pdo, $runId, [
             'entity_key' => (string) $node['wiki_key'],
@@ -1705,9 +1711,56 @@ function avesmapsTerritoryPlanStep(PDO $pdo, string $cursor, int $userId, ?int $
         'nextCursor' => '',
         'run_id' => $runId,
         'planned' => $planned,
-        'processed' => count($rows) + count($custom['to_create'] ?? []),
+        'processed' => count($rows) + count($toCreate),
         'counts' => $counts,
     ];
+}
+
+/**
+ * The own nodes that are placed in the tree but have no row on the map yet. READ-ONLY TWIN of
+ * avesmapsWikiSyncMonitorApplyCustomNodes' dry-run branch -- see the note at its only caller for why
+ * the flag would not do.
+ *
+ * @return list<array{wiki_key:string, name:string, parent_wiki_key:?string}>
+ */
+function avesmapsTerritoryPlanCustomNodesToCreate(PDO $pdo): array {
+    $rows = $pdo->query(
+        "SELECT wiki_key, parent_wiki_key, metadata_overrides_json
+           FROM " . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . "
+          WHERE wiki_key LIKE 'eigener-knoten:%' AND excluded = 0
+          ORDER BY wiki_key ASC"
+    )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    if ($rows === []) {
+        return [];
+    }
+
+    $existing = [];
+    foreach ($pdo->query("SELECT wiki_key FROM political_territory
+        WHERE wiki_key LIKE 'eigener-knoten:%' AND is_active = 1")->fetchAll(PDO::FETCH_COLUMN) ?: [] as $key) {
+        $existing[(string) $key] = true;
+    }
+
+    $toCreate = [];
+    foreach ($rows as $row) {
+        $key = (string) $row['wiki_key'];
+        if (isset($existing[$key])) {
+            continue;
+        }
+        $overrides = json_decode((string) ($row['metadata_overrides_json'] ?? ''), true);
+        $name = trim((string) ((is_array($overrides) ? $overrides : [])['name'] ?? ''));
+        if ($name === '') {
+            // The writer skips a nameless node too (missing_name). A row proposing "" would be a tick
+            // an editor cannot judge.
+            continue;
+        }
+        $toCreate[] = [
+            'wiki_key' => $key,
+            'name' => $name,
+            'parent_wiki_key' => $row['parent_wiki_key'] === null ? null : (string) $row['parent_wiki_key'],
+        ];
+    }
+
+    return $toCreate;
 }
 
 /**
@@ -1991,17 +2044,103 @@ In `sync-plan-endpoint-chain-test.php`, `$applyFiles` ergänzen:
     'territory-plan-apply.php',
 ```
 
-In `sync-plan-purity-test.php` die Liste der Wurzeln (die Rechen-Hälften) um die zwei neuen erweitern —
-sie steht unter dem Kommentar, der die vier vorhandenen nennt:
+In `sync-plan-purity-test.php` **gibt es keine gemeinsame Wurzelliste** — die Datei hat je Art einen
+eigenen Abschnitt mit eigenem `$reachFrom(...)` und eigenen, benannten Zusicherungen. Zwei solche
+Abschnitte kommen dazu, nach dem Muster des Vorkommen-Abschnitts am Dateiende.
+
+Zuerst die Tabellenliste erweitern (`$forbiddenTables`, Zeile ~120). `political_territory_wiki_test`
+und `wiki_territory_model` stehen aus demselben Grund dabei wie `wiki_citymap_catalog`: eine
+Rechen-Hälfte, die ihre eigene Eingabe aufräumt, lässt sich später nicht mehr gegen sie prüfen — und
+genau das tut die Veraltungs-Prüfung der Ausführ-Hälfte.
 
 ```php
-    'avesmapsTerritoryWikiPlanStep',
-    'avesmapsTerritoryPlanStep',
+    'political_territory', 'political_territory_wiki', 'political_territory_geometry',
+    'political_territory_wiki_test', 'wiki_territory_model',
 ```
 
-…und in der Liste der Nutztabellen, die keine Rechen-Hälfte anfassen darf, sicherstellen, dass
-`political_territory`, `political_territory_wiki`, `political_territory_geometry` und
-`wiki_territory_model` stehen. Fehlt eine, ergänzen.
+⚠️ Läuft danach ein **bestehender** Abschnitt rot, ist das ein Befund und keine Einladung, die Liste
+wieder zu kürzen: dann greift eine der vier alten Rechen-Hälften an eine Territorien-Tabelle. Melden,
+nicht abschwächen.
+
+Dann die zwei Abschnitte, ans Dateiende vor das `echo`:
+
+```php
+// =================================================================================================
+// Sitzung 4 -- die Wiki-Kopie der Herrschaftsgebiete
+// =================================================================================================
+
+$territoryWikiCompute = $reachFrom($bodies, ['avesmapsTerritoryWikiPlanStep']);
+assert(count($territoryWikiCompute) >= 5, 'der Lauf erreicht die gerufenen Funktionen (' . count($territoryWikiCompute) . ')');
+foreach (['avesmapsTerritoryWikiPlanItem', 'avesmapsTerritoryWikiVanishedRows', 'avesmapsSyncPlanAddItem'] as $expected) {
+    assert(isset($territoryWikiCompute[$expected]), "der Lauf erreicht {$expected}");
+}
+// 💣 Der Schreiber der Kopie gehört der ANDEREN Hälfte.
+assert(!isset($territoryWikiCompute['avesmapsPoliticalUpsertWikiRecord']), 'kein Upsert in der Rechen-Hälfte');
+assert(!isset($territoryWikiCompute['avesmapsWikiSyncRelinkPoliticalTerritoryByWikiKey']), 'kein Relink');
+foreach ($territoryWikiCompute as $name => $body) {
+    foreach ($forbiddenTables as $table) {
+        foreach ($forbiddenStatements($table) as $statement) {
+            assert(!str_contains($body, $statement), "{$name} schreibt in {$table}");
+        }
+    }
+}
+// UND DER LAUF MUSS BEISSEN: die Ausführ-Hälfte findet dieselben Schreiber sehr wohl.
+$territoryWikiApply = $reachFrom($bodies, ['avesmapsTerritoryWikiApplyStep']);
+assert(isset($territoryWikiApply['avesmapsPoliticalUpsertWikiRecord']), 'die Ausführ-Hälfte ruft den Schreiber');
+assert(isset($territoryWikiApply['avesmapsWikiSyncRelinkPoliticalTerritoryByWikiKey']), 'und den Relink');
+assert(
+    array_filter($territoryWikiApply, static fn(string $body): bool
+        => str_contains($body, 'DELETE FROM political_territory_wiki ')) !== [],
+    'und sie löscht wirklich -- sonst prüft der Lauf oben nichts'
+);
+
+// =================================================================================================
+// Sitzung 4 -- die Karte
+// =================================================================================================
+
+$territoryCompute = $reachFrom($bodies, ['avesmapsTerritoryPlanStep']);
+assert(count($territoryCompute) >= 5, 'der Lauf erreicht die gerufenen Funktionen (' . count($territoryCompute) . ')');
+foreach (['avesmapsTerritoryPlanRoleShift', 'avesmapsTerritoryPlanNodeCounts', 'avesmapsTerritoryPlanParentMoves',
+    'avesmapsWikiSyncMonitorApplyIdentityPreview'] as $expected) {
+    assert(isset($territoryCompute[$expected]), "der Lauf erreicht {$expected}");
+}
+foreach ($territoryCompute as $name => $body) {
+    foreach ($forbiddenTables as $table) {
+        foreach ($forbiddenStatements($table) as $statement) {
+            assert(!str_contains($body, $statement), "{$name} schreibt in {$table}");
+        }
+    }
+}
+// 💣 Und NICHTS aus dem Aussengrenzen-System, in KEINER der beiden Hälften. Vier Fehler hingen an
+// diesem Praedikat, der letzte fail OPEN und mitten im Speicherpfad.
+foreach ([$territoryCompute, $reachFrom($bodies, ['avesmapsTerritoryApplyStep'])] as $span) {
+    foreach ($span as $name => $body) {
+        foreach (['DerivedGeometry', 'derived_geometry'] as $forbidden) {
+            assert(!str_contains($body, $forbidden), "{$name} fasst {$forbidden} an");
+        }
+    }
+}
+// UND DER LAUF MUSS BEISSEN.
+$territoryApply = $reachFrom($bodies, ['avesmapsTerritoryApplyStep']);
+foreach (['avesmapsWikiSyncMonitorApplyParentCache', 'avesmapsWikiSyncMonitorApplyCustomNodes',
+    'avesmapsWikiSyncMonitorApplyIdentity'] as $writer) {
+    assert(isset($territoryApply[$writer]), "die Ausführ-Hälfte ruft {$writer}");
+}
+```
+
+💣 **Es darf keine Ausnahme geben, und das ist der Grund für die zwei Zwillinge in Task 5.** Riefe die
+Rechen-Hälfte den Trockenlauf-Zweig der Bulk-Schreiber, stünde deren scharfes `UPDATE` im Aufrufbaum —
+für den Textscan sichtbar, zur Laufzeit hinter `if (!$dryRun)` versteckt. Man müsste die Prüfung
+aufweichen, und damit hinge die Eigenschaft, um die es in diesem ganzen Umbau geht, an einem
+booleschen Argument. Deshalb zwei zusätzliche Zusicherungen im Karten-Abschnitt:
+
+```php
+// 💣 Die Rechen-Hälfte erreicht die Bulk-Schreiber GAR NICHT -- auch nicht im Trockenlauf.
+foreach (['avesmapsWikiSyncMonitorApplyParentCache', 'avesmapsWikiSyncMonitorApplyCustomNodes',
+    'avesmapsWikiSyncMonitorApplyIdentity'] as $writer) {
+    assert(!isset($territoryCompute[$writer]), "die Rechen-Hälfte erreicht {$writer}");
+}
+```
 
 - [ ] **Step 2: Zum Fehlschlagen bringen**
 
