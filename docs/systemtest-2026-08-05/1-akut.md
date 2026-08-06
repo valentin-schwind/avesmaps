@@ -965,6 +965,34 @@ entfernt). Es gibt außerdem keinen Weg, eine Bewertung zu melden.
 > ⚠️ Der zweite Teil des Befundes — „**keinen Weg, eine Bewertung zu melden**" — bleibt offen und ist
 > ebenfalls eine Produktfrage: ein Meldeknopf braucht ein Ziel (wohin geht die Meldung?) und eine
 > Regel (was passiert mit der Bewertung in der Zwischenzeit?).
+>
+> ---
+>
+> **✅ (a) GEBAUT, 06.08.2026.** Owner: *„Bewertungen werden nicht geprüft bevor sie erscheinen, aber
+> danach."* Genau das steht jetzt da, deutsch und englisch:
+>
+> > … Mit dem Absenden einer Meldung wird keine Veröffentlichung zugesagt. **Bewertungen von Orten
+> > erscheinen dagegen sofort und ohne vorherige Prüfung; sie werden erst danach gesichtet und können
+> > vom Betreiber jederzeit entfernt werden.** Rechtsgrundlage …
+>
+> Die Warteschlange in der Oberfläche wird damit **nicht** gebraucht und ist nicht gebaut — sie wäre
+> nur für (b) nötig gewesen.
+>
+> ⭐ **Bewacht von einer eigenen Testdatei für Rechtstexte** (`js/app/__tests__/legal-texts.test.js`).
+> Das ist neu und hat einen Grund: der Systemtest hat **zweimal** denselben Fehlertyp gefunden — die
+> Seite sagt etwas zu, das sie nicht tut. Solche Abweichungen sind unsichtbar, weil **beide Hälften
+> für sich richtig aussehen**: der Satz liest sich gut, die Funktion arbeitet korrekt, erst zusammen
+> ergeben sie eine Unwahrheit. Hier ist der Text das Erzeugnis, eine Zusicherung darauf misst also
+> die Wirkung.
+>
+> **Drei Mutationen, alle rot:** der Satz wieder entfernt · deutsch geändert, englisch stehen
+> gelassen (die beiden dürfen nicht auseinanderlaufen) · zu „werden in der Regel vor der
+> Veröffentlichung geprüft" abgeschwächt — also zurück in die Unwahrheit, nur vorsichtiger formuliert.
+>
+> **Im Browser geprüft:** der Absatz steht so im Fenster. ⚠️ Meine erste Messung zeigte den **alten**
+> Text — der Browser hatte `index.html` aus dem Cache, ein Hash-Wechsel lädt nichts neu. Erst mit
+> Cache-Umgehung war die Messung etwas wert; der Server lieferte die ganze Zeit die neue Fassung.
+> 218/218 grün.
 
 ### ◐ A23 · Der Besucher-Hash-Salt steht im Quelltext und ist technisch nicht überschreibbar
 Die Datenschutzerklärung sagt, die Besucherkennung sei nicht rückführbar. Mit einem bekannten
