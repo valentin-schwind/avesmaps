@@ -48,6 +48,10 @@
 <!-- Das „eigene Editor-Seiten-Stylesheet", nach dem der Kommentar hier bis 2026-07-22 verlangt hat:
      Hüllenmaße + Bildlaufleisten für alle Editorseiten an EINER Stelle (Spec §3.1a/§4.6). -->
 <link rel="stylesheet" href="/css/components/editor-page.css">
+<!-- Die Übernahme-Vorschau: ein Bauteil für jeden Wiki-Abgleich (Entwurf 2026-08-06). Der Deploy
+     stempelt beide Verweise mit einem Inhaltshash, weil sie von einer html/*.html-Seite aus
+     erreichbar sind — hier steht deshalb KEIN ?v= von Hand (AGENTS.md §7). -->
+<link rel="stylesheet" href="/css/components/sync-plan-sheet.css">
 <style>
   * { box-sizing: border-box; }
   /* Die kompakten Zeilen-Knoepfe (.btn--sm/.btn--icon) bleiben bewusst kleiner als
@@ -498,7 +502,7 @@
 <body>
 
 <div class="ce-header">
-  <button type="button" class="ce-btn2 ce-btn2--primary" id="ceSyncBtn" title="Übernimmt Karten aus dem zuletzt geholten Wiki-Dump override-sicher (Stadtplanindex + Kartenindex). Eigene und Community-Karten bleiben unberührt, entfernte Karten bleiben entfernt. Vorher einmal „Dump holen" im WikiSync-Menüband ausführen.">
+  <button type="button" class="ce-btn2 ce-btn2--primary" id="ceSyncBtn" title="Zeigt ERST, was der Abgleich mit dem zuletzt geholten Wiki-Dump tun würde (Stadtplanindex + Kartenindex) — geschrieben wird nur, was du in der Vorschau anhäkelst; Löschungen brauchen eine zweite Bestätigung. Eigene und Community-Karten tauchen gar nicht erst auf. Vorher einmal „Dump holen" im WikiSync-Menüband ausführen.">
     <span class="t1">🚨 Karten syncen</span>
     <span class="t2" id="ceSyncSub">…</span>
   </button>
@@ -568,6 +572,14 @@
     </div>
   </section>
 </div>
+
+<!-- Der Wirt der Übernahme-Vorschau. Liegt über der ganzen Seite, wenn er gefüllt ist, und ist sonst
+     nicht da: die Vorschau ist ein eigener Arbeitsschritt, kein Streifen neben der Kartenliste. -->
+<div class="sync-plan-host" id="ceSyncPlanHost" hidden></div>
+
+<!-- Das Bauteil der Übernahme-Vorschau. EINE Datei für alle Abgleiche (Entwurf 2026-08-06 §7); die
+     Zeilen kommen fertig vom Server, diese Seite reicht nur „citymap" und den Wirt hinein. -->
+<script src="/js/review/sync-plan-sheet.js"></script>
 
 <script>
   const CITYMAP_EDIT_API = "/api/edit/map/citymaps.php";
@@ -1462,13 +1474,26 @@
       return;
     }
     setCeSyncBusy(true);
-    ceStatus("Karten werden übernommen …");
+    ceStatus("Unterschiede werden gesucht …");
     try {
-      await parentWindow.startWikiSyncCitymapsSync();
-      ceStatus("Sync abgeschlossen.");
-      await loadList(); // new/updated maps should show up in the left list right away
+      // 🔴 Der Lauf SCHREIBT NICHTS mehr (Entwurf 2026-08-06 §6). Er rechnet, was der Abgleich tun
+      // würde, und danach öffnet sich die Vorschau -- geschrieben wird erst, was dort angehäkelt ist.
+      const result = await parentWindow.startWikiSyncCitymapsSync();
+      const total = Number((result && result.counts && result.counts.total) || 0);
+      ceStatus(total > 0
+        ? `${total} Unterschiede — Vorschau offen.`
+        : "Keine Unterschiede: der Bestand entspricht dem Dump.");
+      openSyncPlanSheet({
+        kind: "citymap",
+        mount: document.getElementById("ceSyncPlanHost"),
+        onApplied: async (totals) => {
+          ceStatus(`Übernommen: ${totals.applied}${totals.deleted > 0 ? `, gelöscht: ${totals.deleted}` : ""}.`);
+          await loadList(); // übernommene Karten gehören sofort in die linke Liste
+          void refreshCeSyncedInfo();
+        },
+      });
     } catch (e) {
-      ceStatus("Sync fehlgeschlagen: " + (e && e.message ? e.message : String(e)), true);
+      ceStatus("Abgleich fehlgeschlagen: " + (e && e.message ? e.message : String(e)), true);
     } finally {
       setCeSyncBusy(false);
       setTimeout(() => { void refreshCeSyncedInfo(); }, 1500);

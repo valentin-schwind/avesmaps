@@ -35,6 +35,8 @@ const labels = {
 	delete_adventure: formatChangeAction("delete_adventure"),
 	delete_lore_place: formatChangeAction("delete_lore_place"),
 	suppress_lore_place: formatChangeAction("suppress_lore_place"),
+	// Dazugekommen 2026-08-06: die bestätigte Übernahme-Vorschau, EINE Zeile je Lauf.
+	apply_sync_plan: formatChangeAction("apply_sync_plan"),
 };
 
 Object.entries(labels).forEach(([action, label]) => {
@@ -58,6 +60,19 @@ assert.notStrictEqual(
 	labels.delete_citymap,
 	formatChangeAction("delete_feature"),
 	"eine Karte der Kartensammlung liest sich nicht wie ein gelöschtes Kartenobjekt",
+);
+
+// 💣 Und die Übernahme darf sich nicht wie eine Löschung lesen. Die Zeile steht für einen ganzen Lauf
+// — sie kann Neues, Geändertes UND Gelöschtes enthalten —, und wer sie für eine Löschung hält, sucht
+// nach einem Objekt, das es nie gab.
+assert.ok(
+	!labels.apply_sync_plan.includes("gelöscht"),
+	"die Übernahme-Zeile behauptet keine Löschung",
+);
+assert.notStrictEqual(
+	labels.apply_sync_plan,
+	labels.delete_citymap,
+	"ein bestätigter Abgleich liest sich nicht wie eine gelöschte Karte",
 );
 
 // Der Bestand bleibt, wie er war -- diese Datei fasst eine gemeinsame Tabelle an.

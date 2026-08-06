@@ -1,0 +1,367 @@
+/* Das Bauteil der Übernahme-Vorschau — EIN Blatt für jeden Wiki-Abgleich.
+   Entwurf: docs/superpowers/specs/2026-08-06-sync-uebernahme-design.md
+   Mockup:  docs/sync-uebernahme-mockup.html (dort mit eigenen Variablen, hier mit den echten Tokens)
+
+   🔴 KEIN einziger Hex-Wert, kein Radius von Hand: alles aus css/base/tokens.css (AGENTS.md §12).
+   Das Mockup führt einen @media(prefers-color-scheme)-Block; der ist hier NICHT nachgebaut, weil die
+   Tokens das Thema schon tragen — ein zweiter Satz Farben daneben wäre genau die Divergenz, gegen die
+   die Token-Regel geschrieben wurde.
+
+   Markup dazu: js/review/sync-plan-sheet.js. Geladen von html/citymap-editor.html. */
+
+.sync-plan-host {
+	position: fixed;
+	inset: 0;
+	z-index: 40;
+	overflow-y: auto;
+	/* 💣 Ohne das steht die frisch geöffnete Vorschau nach dem Nachladen nicht oben: das
+	   Scroll-Anchoring zieht den Kasten mit, wenn „Lade …" durch die Liste ersetzt wird.
+	   Dieselbe Falle wie beim Änderungsverlauf (AGENTS.md §11). */
+	overflow-anchor: none;
+	padding: 18px;
+	background: var(--color-page-bg);
+}
+
+.sync-plan-host[hidden] {
+	display: none;
+}
+
+.sync-plan-host .sheet {
+	max-width: 1180px;
+	margin: 0 auto;
+	background: var(--color-panel);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+}
+
+.sync-plan-host .sheet__head {
+	padding: 14px 18px 12px;
+	border-bottom: 1px solid var(--color-divider);
+	background: var(--color-panel-soft);
+}
+
+.sync-plan-host .sheet__title {
+	font-size: var(--font-size-subhead);
+	font-weight: 700;
+	color: var(--color-text-strong);
+	margin: 0 0 2px;
+}
+
+.sync-plan-host .sheet__meta {
+	font-size: var(--font-size-small);
+	color: var(--color-text-muted);
+}
+
+/* ---- Die Gruppen ---------------------------------------------------------------------------- */
+
+.sync-plan-host .grp {
+	border-bottom: 1px solid var(--color-divider);
+}
+
+.sync-plan-host .grp:last-of-type {
+	border-bottom: 0;
+}
+
+.sync-plan-host .grp > summary {
+	list-style: none;
+	cursor: pointer;
+	padding: 11px 18px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	user-select: none;
+}
+
+.sync-plan-host .grp > summary::-webkit-details-marker {
+	display: none;
+}
+
+.sync-plan-host .grp > summary::before {
+	content: "▸";
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	width: 10px;
+	flex: none;
+	transition: transform 0.12s;
+}
+
+.sync-plan-host .grp[open] > summary::before {
+	transform: rotate(90deg);
+}
+
+.sync-plan-host .grp__name {
+	font-weight: 700;
+	color: var(--color-text-strong);
+}
+
+.sync-plan-host .grp__count {
+	font-size: var(--font-size-caption);
+	background: var(--color-pill);
+	border: 1px solid var(--color-pill-border);
+	color: var(--color-pill-text);
+	border-radius: 999px;
+	padding: 1px 8px;
+}
+
+.sync-plan-host .grp__hint {
+	font-size: var(--font-size-small);
+	color: var(--color-text-muted);
+	margin-left: auto;
+	text-align: right;
+}
+
+/* Die Löschgruppe trägt ihre Warnung in der Fläche, nicht in einem Ausrufezeichen. */
+.sync-plan-host .grp--del > summary {
+	background: var(--color-danger-soft);
+}
+
+.sync-plan-host .grp--del .grp__count {
+	background: var(--color-panel);
+	border-color: var(--color-danger-soft-border);
+	color: var(--color-danger-soft-text);
+}
+
+.sync-plan-host .grp--del .grp__hint {
+	color: var(--color-danger-soft-text);
+}
+
+.sync-plan-host .grp__bulk {
+	display: flex;
+	gap: 6px;
+	margin-left: 14px;
+}
+
+.sync-plan-host .grp__bulk button {
+	font: inherit;
+	font-size: var(--font-size-caption);
+	padding: 2px 9px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+}
+
+.sync-plan-host .grp__bulk button:hover {
+	background: var(--color-button-soft-hover);
+}
+
+/* ---- Die Zeilen ----------------------------------------------------------------------------- */
+
+.sync-plan-host .rows {
+	padding: 2px 18px 14px;
+}
+
+.sync-plan-host .row {
+	display: grid;
+	grid-template-columns: 22px 1fr;
+	gap: 10px;
+	padding: 9px 0;
+	border-top: 1px solid var(--color-divider);
+}
+
+.sync-plan-host .row:first-child {
+	border-top: 0;
+}
+
+.sync-plan-host .row input[type="checkbox"] {
+	margin-top: 3px;
+	width: 15px;
+	height: 15px;
+	accent-color: var(--color-check-accent);
+}
+
+.sync-plan-host .row__name {
+	font-weight: 700;
+	color: var(--color-text-strong);
+}
+
+.sync-plan-host .row__sub {
+	display: block;
+	font-size: var(--font-size-small);
+	color: var(--color-text-muted);
+}
+
+.sync-plan-host .row__why {
+	display: block;
+	font-size: var(--font-size-small);
+	color: var(--color-danger-soft-text);
+}
+
+.sync-plan-host .diff {
+	margin: 6px 0 0;
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: 2px 14px;
+	font-size: var(--font-size-small);
+	background: var(--color-panel-muted);
+	border-radius: var(--radius-md);
+	padding: 8px 10px;
+}
+
+.sync-plan-host .diff dt {
+	color: var(--color-text-muted);
+}
+
+.sync-plan-host .diff dd {
+	margin: 0;
+}
+
+.sync-plan-host .old {
+	color: var(--color-text-muted);
+	text-decoration: line-through;
+}
+
+.sync-plan-host .arrow {
+	color: var(--color-text-muted);
+	padding: 0 4px;
+}
+
+.sync-plan-host .new {
+	color: var(--color-text-strong);
+	font-weight: 700;
+}
+
+/* Was von Hand gesetzt ist und deshalb stehenbleibt — auffällig, aber keine Warnung. */
+.sync-plan-host .kept {
+	color: var(--color-warning);
+	font-weight: 700;
+}
+
+/* ---- Merkmale ------------------------------------------------------------------------------- */
+
+.sync-plan-host .tag {
+	display: inline-block;
+	font-size: var(--font-size-caption);
+	border-radius: 999px;
+	padding: 1px 8px;
+	border: 1px solid var(--color-pill-border);
+	background: var(--color-pill);
+	color: var(--color-pill-text);
+	vertical-align: 1px;
+}
+
+.sync-plan-host .tag--own {
+	background: var(--color-warning-soft);
+	border-color: var(--color-warning-soft-border);
+	color: var(--color-warning-soft-text);
+}
+
+/* „Beim letzten Mal übersprungen" ist ein ZUSTAND, keine Warnung: dass etwas liegenbleibt, ist
+   erlaubt. Auffällig wird es durch die ZAHL, wenn es sich wiederholt. */
+.sync-plan-host .tag--skip {
+	background: var(--color-panel-active);
+	border-color: var(--color-border-strong);
+	color: var(--color-text-muted);
+}
+
+.sync-plan-host .tag--skip b {
+	color: var(--color-text-strong);
+}
+
+.sync-plan-host .linkish {
+	background: none;
+	border: 0;
+	color: var(--color-link);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-small);
+	text-decoration: underline;
+	padding: 0;
+}
+
+.sync-plan-host .linkish:hover {
+	color: var(--color-link-hover);
+}
+
+/* ---- Die zweite Bestätigung und die Fußzeile ------------------------------------------------- */
+
+.sync-plan-host .gate {
+	margin: 0;
+	padding: 11px 18px;
+	background: var(--color-danger-soft);
+	border-top: 1px solid var(--color-danger-soft-border);
+	color: var(--color-danger-soft-text);
+	font-size: var(--font-size-small);
+	display: flex;
+	gap: 10px;
+	align-items: center;
+}
+
+.sync-plan-host .gate[hidden] {
+	display: none;
+}
+
+.sync-plan-host .gate label {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	cursor: pointer;
+}
+
+.sync-plan-host .gate input {
+	width: 15px;
+	height: 15px;
+	accent-color: var(--color-danger);
+}
+
+.sync-plan-host .foot {
+	padding: 13px 18px;
+	border-top: 1px solid var(--color-divider);
+	background: var(--color-panel-soft);
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.sync-plan-host .foot__count {
+	font-size: var(--font-size-small);
+	color: var(--color-text-muted);
+	margin-right: auto;
+}
+
+.sync-plan-host .foot__count b {
+	color: var(--color-text-strong);
+}
+
+.sync-plan-host .btn {
+	font: inherit;
+	border-radius: var(--radius-md);
+	padding: 7px 15px;
+	cursor: pointer;
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+}
+
+.sync-plan-host .btn:hover {
+	background: var(--color-button-soft-hover);
+}
+
+/* Eine Hauptaktion, gefüllt; alles andere weich (Designsprache, AGENTS.md §12). */
+.sync-plan-host .btn--main {
+	background: var(--color-button);
+	border-color: var(--color-button-border);
+	color: var(--color-button-text);
+}
+
+.sync-plan-host .btn--main:hover {
+	background: var(--color-button-hover);
+}
+
+.sync-plan-host .btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.sync-plan-host .sheet__declined {
+	padding: 4px 18px 14px;
+	border-top: 1px solid var(--color-divider);
+	background: var(--color-panel-soft);
+}
+
+.sync-plan-host .sheet__declined[hidden] {
+	display: none;
+}

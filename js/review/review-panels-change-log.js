@@ -161,6 +161,11 @@ function formatChangeAction(action) {
 		delete_adventure: "Abenteuer gelöscht",
 		delete_lore_place: "Natur & Waren: Ort gelöscht",
 		suppress_lore_place: "Natur & Waren: Ort ausgeblendet",
+		// Eine bestätigte Übernahme-Vorschau: EINE Zeile je Lauf, nicht eine je Eintrag (Entwurf
+		// 2026-08-06 §4e) -- 46 Löschungen einzeln zu protokollieren würde dieses Protokoll, das nur
+		// 200 Zeilen behält, mit einem Klick leerräumen. Welcher Abgleich und mit welchem Ergebnis,
+		// steht im Ziel der Zeile („Stadtkarten · 42 übernommen, 3 gelöscht").
+		apply_sync_plan: "Wiki-Abgleich: Übernahme",
 	};
 
 	return labels[action] || action;

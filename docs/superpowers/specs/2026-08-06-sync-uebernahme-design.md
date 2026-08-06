@@ -1,6 +1,8 @@
 # Sync-Übernahme — Vorschau und Bestätigung für jeden Abgleich
 
-**Stand:** 2026-08-06 · **Status:** Entwurf, abgestimmt, noch nicht gebaut ·
+**Stand:** 2026-08-06 · **Status:** abgestimmt · **Sitzung 1 (Fundament + Stadtkarten) gebaut am
+06.08.2026**, Bauplan: [`docs/superpowers/plans/2026-08-06-sync-uebernahme-sitzung-1.md`](../plans/2026-08-06-sync-uebernahme-sitzung-1.md) ·
+Sitzungen 2–4 offen ·
 **Mockup:** [`docs/sync-uebernahme-mockup.html`](../../sync-uebernahme-mockup.html) (anklickbar) ·
 **Verwandt:** A16 (`docs/systemtest-2026-08-05/1-akut.md`), `docs/konfliktmanagement-design.md`
 

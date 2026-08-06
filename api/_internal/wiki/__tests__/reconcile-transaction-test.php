@@ -278,10 +278,16 @@ assert(
 // those paths would make $ownsTransaction false for every entity and turn the per-entity guarantee
 // silently into a per-step one -- which is what the finding argued against, a step being hundreds
 // of entities.
+//
+// ⚠️ citymap-plan-apply.php stands where citymap-sync.php used to (2026-08-06): the citymap reconcile
+// loop moved into the APPLY half of the Übernahme-Vorschau, and it is the same loop with the same
+// rule -- one transaction per entity, and an exception must leave the loop rather than be swallowed
+// into "skip the broken one and carry on". citymap-sync.php itself no longer calls the entity
+// reconciler at all, so listing it here would only assert something about a call that is gone.
 $callerFiles = [
     'api/edit/wiki/dump.php',
     'api/_internal/wiki/lore-sync.php',
-    'api/_internal/wiki/citymap-sync.php',
+    'api/_internal/wiki/citymap-plan-apply.php',
     'api/_internal/wiki/publication-sync.php',
 ];
 foreach ($callerFiles as $relative) {

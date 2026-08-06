@@ -94,9 +94,14 @@ foreach (['citymap_related', 'citymap_place', 'citymap_type', 'citymap_link'] as
 // BEFORE it, so whenever that guard fired, the card survived having lost its places and types: the
 // safeguard caused exactly the damage it existed to prevent. All THREE offsets are compared -- with
 // only two, the guard can be moved below the cleanup and the same bug returns with the test green.
+//
+// ⚠️ The function was avesmapsCitymapRemoveVanished (a LOOP over everything the wiki dropped) until
+// 2026-08-06. It is now one card per call, because the selection is made by a person in the
+// Übernahme-Vorschau rather than by the catalog -- the sync only proposes (design §7). Everything
+// this section asserts is about the body, and the body did not change.
 assert(
-    preg_match('/function avesmapsCitymapRemoveVanished\(PDO \$pdo\): int\s*\{(.*?)\n\}/s', $syncSource, $removeMatch) === 1,
-    'the vanish-remover body can be isolated'
+    preg_match('/function avesmapsCitymapDeleteWikiRow\(PDO \$pdo, string \$wikiKey\): bool\s*\{(.*?)\n\}/s', $syncSource, $removeMatch) === 1,
+    'the single-card delete body can be isolated'
 );
 $removeBody = $removeMatch[1];
 

@@ -1974,10 +1974,15 @@ async function startWikiSyncAdventuresSync() {
 }
 
 // ===========================================================================
-// Karten syncen (Kartensammlung, pipeline stages 1+2): the SHARP reconcile of the
-// wiki citymap catalog (built during "Dump holen") into the live citymap/
-// citymap_place tables. Drives the backend `sync_citymaps` action via the same
+// Karten abgleichen (Kartensammlung, pipeline stages 1+2): the COMPUTE half of the
+// wiki citymap sync. Drives the backend `sync_citymaps` action via the same
 // one-POST-per-step client loop as sync_adventures.
+//
+// 🔴 SEIT 2026-08-06 SCHREIBT DIESER LAUF NICHTS. Er rechnet, was der Abgleich des
+// Wiki-Katalogs mit den Karten täte, und legt es als Plan ab; geschrieben wird erst,
+// was ein Editor in der Übernahme-Vorschau anhäkelt (js/review/sync-plan-sheet.js →
+// api/edit/wiki/sync-plan.php). Entwurf:
+// docs/superpowers/specs/2026-08-06-sync-uebernahme-design.md.
 //
 // UNLIKE the adventure loop this has NO ribbon button and therefore no progress
 // bar to render into: the only trigger is "Karten syncen" in the citymap editor's
@@ -1988,7 +1993,8 @@ async function startWikiSyncAdventuresSync() {
 //
 // The override guarantee (never touch a manual/community/suppressed row, never
 // resurrect a tombstone, never duplicate on a re-run) lives entirely in the backend
-// diff (avesmapsCitymapReconcilePlan). Backend: api/edit/wiki/dump.php (sync_citymaps).
+// diff (avesmapsCitymapReconcilePlan) -- which is now what the preview SHOWS: a card
+// that is not ours never becomes a row in it. Backend: api/edit/wiki/dump.php.
 // ===========================================================================
 
 let isWikiSyncCitymapsRunning = false;
@@ -1996,13 +2002,15 @@ let isWikiSyncCitymapsRunning = false;
 // Drive `sync_citymaps` to completion: loop the action once per step, advancing the
 // server-returned wiki_key high-water `cursor` (a STRING) and SUMMING the per-step
 // deltas until done. Mirrors runWikiSyncAdventuresSyncLoop (bounded step ceiling;
-// stops cleanly on the 409 pipeline lock). Reads staging + live DB only (no dump reopen).
+// stops cleanly on the 409 pipeline lock). Reads staging + live DB only (no dump reopen,
+// and since the split: no write either).
 async function runWikiSyncCitymapsSyncLoop() {
 	let cursor = "";
 	let done = false;
 	let safetyCounter = 0;
 	let lastResult = null;
-	const totals = { created: 0, updated: 0, placesAdded: 0, placesUpdated: 0, sourcesLinked: 0, linksWritten: 0, removed: 0, processed: 0 };
+	// `planned` are the difference ROWS written into the plan, not changes made to any card.
+	const totals = { planned: 0, processed: 0 };
 	const MAX_STEPS = 4000;
 
 	while (!done) {
@@ -2025,19 +2033,13 @@ async function runWikiSyncCitymapsSyncLoop() {
 
 		lastResult = stepResult;
 		cursor = String(stepResult.cursor ?? cursor);
-		totals.created += Number(stepResult.created ?? 0);
-		totals.updated += Number(stepResult.updated ?? 0);
-		totals.placesAdded += Number(stepResult.places_added ?? 0);
-		totals.placesUpdated += Number(stepResult.places_updated ?? 0);
-		totals.sourcesLinked += Number(stepResult.sources_linked ?? 0);
-		totals.linksWritten += Number(stepResult.links_written ?? 0);
-		totals.removed += Number(stepResult.removed ?? 0);
+		totals.planned += Number(stepResult.planned ?? 0);
 		totals.processed += Number(stepResult.processed ?? 0);
 		done = stepResult.done === true;
 
 		const total = Number(stepResult?.progress?.total ?? 0);
 		setWikiSyncStatus(
-			`Karten werden übernommen … ${totals.processed}${total > 0 ? "/" + total : ""} geprüft`,
+			`Karten werden verglichen … ${totals.processed}${total > 0 ? "/" + total : ""} geprüft`,
 			"pending"
 		);
 	}
@@ -2052,21 +2054,31 @@ async function runWikiSyncCitymapsSyncLoop() {
 // window.parent.startWikiSyncCitymapsSync(). Re-entrancy guarded, so a double click is a no-op.
 async function startWikiSyncCitymapsSync() {
 	if (isWikiSyncCitymapsRunning) {
-		return;
+		return null;
 	}
 	isWikiSyncCitymapsRunning = true;
-	setWikiSyncStatus("Karten werden übernommen …", "pending");
+	setWikiSyncStatus("Karten werden verglichen …", "pending");
 
 	try {
 		const result = await runWikiSyncCitymapsSyncLoop();
-		const totals = (result && result.totals) || { created: 0, updated: 0, removed: 0, placesAdded: 0, placesUpdated: 0, sourcesLinked: 0, linksWritten: 0 };
-		const note = ` (+${totals.created} neu / ~${totals.updated} aktualisiert / -${totals.removed} entfernt · Orte +${totals.placesAdded}/~${totals.placesUpdated} · ${totals.sourcesLinked} Quellen / ${totals.linksWritten} Fundstellen)`;
-		setWikiSyncStatus(`Karten übernommen.${note}`, "success");
-		showFeedbackToast(`Karten übernommen.${note}`, "success");
+		// Die Zahlen der letzten Antwort: nur der ABSCHLIESSENDE Schritt kennt sie vollständig, weil
+		// die Löschzeilen erst entstehen, wenn der ganze Katalog durch ist (der Leerkatalog-Riegel
+		// braucht ihn ganz).
+		const counts = (result && result.counts) || {};
+		const total = Number(counts.total ?? 0);
+		const note = total > 0
+			? `${total} Unterschiede — Vorschau offen (${Number(counts.new ?? 0)} neu, `
+				+ `${Number(counts.changed ?? 0)} geändert, ${Number(counts.deleted ?? 0)} gelöscht).`
+			: "Keine Unterschiede: der Bestand entspricht dem Dump.";
+		setWikiSyncStatus(note, "success");
+		showFeedbackToast(note, "success");
+
+		// Der Aufrufer (der Karten-Editor) öffnet damit die Vorschau.
+		return { run_id: Number((result && result.run_id) || 0), counts: counts };
 	} catch (error) {
 		if (!(error && error.dumpLocked)) {
-			setWikiSyncStatus(error.message || "Karten-Übernahme fehlgeschlagen.", "error");
-			showFeedbackToast(error.message || "Karten-Übernahme fehlgeschlagen.", "warning");
+			setWikiSyncStatus(error.message || "Karten-Abgleich fehlgeschlagen.", "error");
+			showFeedbackToast(error.message || "Karten-Abgleich fehlgeschlagen.", "warning");
 		}
 		throw error; // the editor's button shows its own failure text
 	} finally {

@@ -704,6 +704,8 @@ $chain = [
     '/../../app/citymaps.php',
     '/../dump-reader.php',
     '/../locations-helpers.php',
+    // The Übernahme-Vorschau foundation: the compute half writes its plan through it (2026-08-06).
+    '/../sync-plan.php',
 ];
 foreach ($chain as $relative) {
     $path = __DIR__ . $relative;

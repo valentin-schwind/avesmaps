@@ -1051,6 +1051,108 @@ function avesmapsCitymapRemovableKeys(array $liveRows, array $catalogKeys): arra
 }
 
 /**
+ * ONE difference row for the Übernahme-Vorschau, or null when there is nothing to ask about. PURE.
+ *
+ * This is the compute half's whole judgement: it takes the SAME pure plans the writer uses
+ * (avesmapsCitymapReconcilePlan, avesmapsCitymapPlaceReconcilePlan, avesmapsCitymapWikiLinkPlan) plus
+ * two read-only probes the caller has already run, and turns them into a row an editor can tick.
+ * Design: docs/superpowers/specs/2026-08-06-sync-uebernahme-design.md §2/§7.
+ *
+ * 💣 A 'skip' from the reconcile plan becomes NO ROW AT ALL -- not a greyed-out one. Manual cards,
+ * community cards and tombstones are not ours, and showing them would invite a tick that then does
+ * nothing (or, worse, a tick somebody expects to work).
+ *
+ * 💣 The source and the Fundstellen have to be in here, even though neither is a citymap FIELD. Today
+ * they are written on every reconciled card as a side effect; once writing needs a tick, a card whose
+ * only difference is a missing source reference would have no row -- and would stay sourceless for
+ * good. What the reader would never see is exactly what the preview must show.
+ *
+ * ⚠️ An override alone is not a row. A place a human pinned down produces `override`, which decorates
+ * a row that exists for another reason; on its own there is nothing to apply and therefore nothing to
+ * ask. The one exception the design allows itself for city maps -- everything else about a card is
+ * override-protected as a WHOLE (origin='manual' -> skip above).
+ *
+ * @param array<string,mixed>|null $current      live citymap row (null = does not exist yet)
+ * @param array<string,mixed>      $desired      catalog row, already enriched with map_url + publisher
+ * @param array<string,mixed>|null $currentPlace live wiki citymap_place row
+ * @param array{insert:array,update:array,delete:array} $linkPlan avesmapsCitymapWikiLinkPlan output
+ * @param bool $sourceMissing avesmapsCitymapSourceLinkMissing -- would a source reference be written?
+ * @return array{change_type:string, after:array<string,mixed>, before:array<string,mixed>,
+ *               override:array<string,mixed>}|null
+ */
+function avesmapsCitymapPlanItem(
+    ?array $current,
+    array $desired,
+    ?array $currentPlace,
+    string $desiredPlaceRaw,
+    array $linkPlan,
+    bool $sourceMissing
+): ?array {
+    $plan = avesmapsCitymapReconcilePlan($current, $desired);
+    if ($plan['action'] === 'skip') {
+        return null;
+    }
+    $isNew = $plan['action'] === 'create';
+
+    $after = [];
+    $before = [];
+    foreach ($plan['set'] as $field => $value) {
+        // On a card nobody has ever seen, an unknown field is not news -- it would fill the row with
+        // "Format: —" lines that say nothing. On an existing card every entry here IS a difference.
+        if ($isNew && ($value === null || $value === '')) {
+            continue;
+        }
+        $after[$field] = $value;
+        if (!$isNew) {
+            $before[$field] = $current[$field] ?? null;
+        }
+    }
+
+    $override = [];
+    $placePlan = avesmapsCitymapPlaceReconcilePlan($currentPlace, $desiredPlaceRaw);
+    if ($placePlan['action'] === 'create' || $placePlan['action'] === 'update') {
+        $after['place'] = $desiredPlaceRaw;
+        if ($currentPlace !== null) {
+            $before['place'] = (string) ($currentPlace['raw_name'] ?? '');
+        }
+    } elseif (
+        $placePlan['action'] === 'skip'
+        && $currentPlace !== null
+        && (string) ($currentPlace['raw_name'] ?? '') !== $desiredPlaceRaw
+    ) {
+        $override['place'] = (string) ($currentPlace['raw_name'] ?? '');
+    }
+
+    if ($sourceMissing) {
+        $after['source'] = 'wird verknüpft';
+    }
+
+    // German display text on purpose, like the Änderungsverlauf's entries (AGENTS.md §11): this value
+    // is read by a person in the preview, and phrasing it here keeps the component free of arithmetic.
+    $linkParts = [];
+    foreach ([['insert', 'neu'], ['update', 'geändert'], ['delete', 'entfällt']] as [$bucket, $word]) {
+        $n = count((array) ($linkPlan[$bucket] ?? []));
+        if ($n > 0) {
+            $linkParts[] = $n . ' ' . $word;
+        }
+    }
+    if ($linkParts !== []) {
+        $after['links'] = implode(', ', $linkParts);
+    }
+
+    if ($after === []) {
+        return null; // nothing to write -> nothing to ask
+    }
+
+    return [
+        'change_type' => $isNew ? 'new' : 'changed',
+        'after' => $after,
+        'before' => $isNew ? [] : $before,
+        'override' => $override,
+    ];
+}
+
+/**
  * The label of a publication's shop link: the FUNDSTELLE, not the publication.
  *
  * docs/superpowers/specs/2026-07-17-karten-mehrfachlinks-design.md §7 left this open ("Wiki-Aventurica
@@ -1588,6 +1690,103 @@ function avesmapsCitymapDesiredWikiLinks(PDO $pdo, string $sourceRaw): array
 }
 
 /**
+ * Would a source reference be written for this card? READ-ONLY twin of avesmapsCitymapLinkSource.
+ *
+ * 💣 The compute half may not call the writer "just to find out": avesmapsCitymapLinkSource answers
+ * the question BY upserting into `sources` and linking `feature_sources`. That is precisely the write
+ * this whole change moves behind a tick.
+ *
+ * The identity must be the writer's identity, not "does this card have any source at all": a card can
+ * already carry a hand-added source and still be missing its publication. So the same rule as
+ * avesmapsFeatureSourceUpsert -- url_hash of the shop link, or of 'wikipub:<wiki_key>' when the
+ * publication has none. Get this wrong in the loose direction and a card silently never gets its
+ * source; get it wrong in the strict direction and every card shows a difference that applying does
+ * not remove, so the preview never empties.
+ *
+ * A source name that is not a known publication yields false -- no invented source, exactly as the
+ * writer refuses to invent one.
+ */
+function avesmapsCitymapSourceLinkMissing(PDO $pdo, ?string $publicId, string $sourceRaw): bool
+{
+    if (!function_exists('avesmapsPublicationCatalogWikiKeyForTitle')) {
+        return false;
+    }
+    $sourceKey = avesmapsPublicationCatalogWikiKeyForTitle($sourceRaw);
+    if ($sourceKey === '') {
+        return false;
+    }
+
+    try {
+        $stmt = $pdo->prepare('SELECT wiki_key, chosen_url, has_link FROM wiki_publication_catalog WHERE wiki_key = :wk LIMIT 1');
+        $stmt->execute(['wk' => $sourceKey]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row === false) {
+            return false;
+        }
+        // The card does not exist yet -> the link is missing by definition; no lookup can say more.
+        if ($publicId === null || $publicId === '') {
+            return true;
+        }
+
+        $chosenUrl = (int) ($row['has_link'] ?? 0) === 1 ? (string) ($row['chosen_url'] ?? '') : '';
+        $wikiKey = (string) ($row['wiki_key'] ?? '');
+        $hash = ($chosenUrl === '' && $wikiKey !== '')
+            ? hash('sha256', 'wikipub:' . $wikiKey)
+            : hash('sha256', $chosenUrl);
+
+        $have = $pdo->prepare(
+            "SELECT 1 FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
+              WHERE fs.entity_type = 'citymap' AND fs.entity_public_id = :pid AND s.url_hash = :h
+              LIMIT 1"
+        );
+        $have->execute(['pid' => $publicId, 'h' => $hash]);
+
+        return $have->fetchColumn() === false;
+    } catch (Throwable) {
+        // Publication or source staging absent (a site without WikiSync): no source line, never a
+        // failed preview -- the same trade the writer makes.
+        return false;
+    }
+}
+
+/**
+ * What would happen to this card's wiki-born Fundstellen? READ-ONLY half of
+ * avesmapsCitymapReconcileWikiLinks: the same two reads, the same pure plan, none of its three writes.
+ *
+ * @return array{insert:array<int,array<string,mixed>>, update:array<int,array<string,mixed>>, delete:array<int,int>}
+ */
+function avesmapsCitymapWikiLinkDiff(PDO $pdo, ?int $citymapId, string $sourceRaw): array
+{
+    $empty = ['insert' => [], 'update' => [], 'delete' => []];
+    $desired = avesmapsCitymapDesiredWikiLinks($pdo, $sourceRaw);
+
+    $current = [];
+    if ($citymapId !== null && $citymapId > 0) {
+        try {
+            $stmt = $pdo->prepare("SELECT id, url, label, is_paid, status FROM citymap_link WHERE citymap_id = :id AND origin = 'wiki'");
+            $stmt->execute(['id' => $citymapId]);
+            $current = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Throwable) {
+            return $empty;
+        }
+    }
+    if ($current === [] && $desired === []) {
+        return $empty;
+    }
+
+    return avesmapsCitymapWikiLinkPlan(
+        array_map(static fn(array $r): array => [
+            'id' => (int) $r['id'],
+            'url' => (string) $r['url'],
+            'label' => (string) $r['label'],
+            'is_paid' => $r['is_paid'] === null ? null : (int) $r['is_paid'],
+            'status' => (string) $r['status'],
+        ], $current),
+        $desired
+    );
+}
+
+/**
  * Write ONE card's wiki-born Fundstellen. Idempotent; returns the number of rows touched.
  *
  * Scoped to origin='wiki' at the SELECT and again at every write: a manual or community Fundstelle is
@@ -1823,19 +2022,100 @@ function avesmapsCitymapReconcileEntityWrites(PDO $pdo, array $catalog, int $use
 }
 
 /**
- * ONE bounded reconcile step over the staging catalog, resumable via a wiki_key high-water cursor.
- * Mirrors avesmapsAdventureReconcileStep: same budget shape, same "done" derivation, same
- * resolve-once-at-the-end. One bounded step per request (STRATO: no server-side loop).
+ * The difference row for ONE staged card, reads included. READ-ONLY.
  *
- * @return array{done:bool, nextCursor:string, created:int, updated:int, places_added:int, places_updated:int,
- *               sources_linked:int, links_written:int, removed:int, processed:int}
+ * 💣 BOTH HALVES CALL THIS ONE FUNCTION -- the compute half to build the plan, the apply half to
+ * recompute it just before writing and see whether the world moved on (design §4a). Two copies of
+ * "what would this card need" would drift, and the drift would show up as a plan that can never be
+ * applied: every row would look stale forever, and nobody would know why.
+ *
+ * @param array<string,mixed> $catalog wiki_citymap_catalog row
+ * @return array{item:?array<string,mixed>, current:?array<string,mixed>, desired:array<string,mixed>}
  */
-function avesmapsCitymapReconcileStep(PDO $pdo, string $cursor, int $userId, ?int $budget = null): array
+function avesmapsCitymapPlanForCatalogRow(PDO $pdo, array $catalog): array
+{
+    $wikiKey = (string) ($catalog['wiki_key'] ?? '');
+    $sourceRaw = (string) ($catalog['source_raw'] ?? '');
+
+    $find = $pdo->prepare(
+        'SELECT id, public_id, origin, status, title, map_url, art, is_color, is_labeled, format,
+                has_scale, author, publisher, note
+           FROM citymap WHERE wiki_key = :wk LIMIT 1'
+    );
+    $find->execute(['wk' => $wikiKey]);
+    $current = $find->fetch(PDO::FETCH_ASSOC) ?: null;
+
+    // Exactly as avesmapsCitymapReconcileEntityWrites derives them: the catalog carries neither, both
+    // live on the publication page, and both lookups are reads.
+    $desired = $catalog;
+    $desired['map_url'] = avesmapsCitymapWikiUrlForSource($pdo, $sourceRaw);
+    $desired['publisher'] = avesmapsCitymapPublisherForSource($pdo, $sourceRaw);
+
+    $currentPlace = null;
+    if ($current !== null) {
+        $placeRow = $pdo->prepare(
+            "SELECT id, raw_name, target_kind, origin, status FROM citymap_place
+             WHERE citymap_id = :id AND origin = 'wiki' LIMIT 1"
+        );
+        $placeRow->execute(['id' => (int) $current['id']]);
+        $currentPlace = $placeRow->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
+    $item = avesmapsCitymapPlanItem(
+        $current,
+        $desired,
+        $currentPlace,
+        mb_substr((string) ($catalog['place_raw'] ?? ''), 0, 300, 'UTF-8'),
+        avesmapsCitymapWikiLinkDiff($pdo, $current === null ? null : (int) $current['id'], $sourceRaw),
+        avesmapsCitymapSourceLinkMissing($pdo, $current === null ? null : (string) $current['public_id'], $sourceRaw)
+    );
+
+    return ['item' => $item, 'current' => $current, 'desired' => $desired];
+}
+
+/**
+ * ONE bounded COMPUTE step over the staging catalog, resumable via a wiki_key high-water cursor.
+ *
+ * 🔴 THIS IS THE HALF THAT DOES NOT WRITE. It has the shape of the reconcile step it replaces --
+ * same budget, same deadline, same "done" derivation, same cursor -- and it calls the same pure
+ * plans. The only difference is where the answer goes: into sync_plan_item, for a person to tick,
+ * instead of into the live tables (design §7). api/_internal/wiki/__tests__/sync-plan-purity-test.php
+ * asserts that property over everything this function reaches, at any depth.
+ *
+ * The three closing acts of the old step -- the last-synced stamp, the place resolver and the
+ * map-features ETag bump -- moved to the apply half (citymap-plan-apply.php). They mark that
+ * something was written, and nothing is written here.
+ *
+ * @return array{done:bool, nextCursor:string, run_id:int, planned:int, processed:int,
+ *               counts:array{new:int,changed:int,deleted:int,total:int}}
+ */
+function avesmapsCitymapPlanStep(PDO $pdo, string $cursor, int $userId, ?int $budget = null): array
 {
     $budget = $budget ?? AVESMAPS_CITYMAP_RECONCILE_STEP_BUDGET;
     @set_time_limit((int) AVESMAPS_WIKI_DUMP_STEP_SECONDS + 15);
     $deadline = microtime(true) + (float) max(1, AVESMAPS_WIKI_DUMP_STEP_SECONDS - 3);
+    // ⚠️ Both DDL calls up here, before anything else: MySQL commits an open transaction implicitly
+    // when it sees DDL, and this step must be safe to call from anywhere.
     avesmapsEnsureCitymapStagingTables($pdo);
+    avesmapsEnsureSyncPlanTables($pdo);
+
+    // The run is derived from the cursor, never named by the client: an empty cursor means "from the
+    // top" and opens a fresh run (retiring whatever was lying around), anything else belongs to the
+    // build already in flight. A run id off the wire would let one editor write into another's plan.
+    if ($cursor === '') {
+        $runId = avesmapsSyncPlanStartRun($pdo, 'citymap', $userId, avesmapsCitymapLastStaged($pdo));
+    } else {
+        $building = avesmapsSyncPlanBuildingRun($pdo, 'citymap');
+        $runId = (int) ($building['id'] ?? 0);
+    }
+    if ($runId <= 0) {
+        // A second run replaced ours mid-build (design §6). Carrying on would silently produce a plan
+        // that starts at the cursor and claims to be complete -- worse than stopping.
+        throw new RuntimeException('Der Abgleich wurde von einem zweiten Lauf abgeloest. Bitte neu starten.');
+    }
+
+    // ONE read of the decision table per step, not one per card: this is the loop STRATO cannot take.
+    $decisions = avesmapsSyncPlanDecisions($pdo, 'citymap');
 
     $select = $pdo->prepare('SELECT * FROM wiki_citymap_catalog WHERE wiki_key > :cur ORDER BY wiki_key ASC LIMIT :lim');
     $select->bindValue(':cur', $cursor, PDO::PARAM_STR);
@@ -1843,18 +2123,35 @@ function avesmapsCitymapReconcileStep(PDO $pdo, string $cursor, int $userId, ?in
     $select->execute();
     $catalogRows = $select->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-    $totals = ['created' => 0, 'updated' => 0, 'places_added' => 0, 'places_updated' => 0, 'sources_linked' => 0, 'links_written' => 0, 'removed' => 0];
+    $planned = 0;
     $processed = 0;
     $nextCursor = $cursor;
     $timedOut = false;
 
     foreach ($catalogRows as $catalog) {
         $nextCursor = (string) $catalog['wiki_key'];
-        $entity = avesmapsCitymapReconcileEntity($pdo, $catalog, $userId);
-        foreach (['created', 'updated', 'places_added', 'places_updated', 'sources_linked', 'links_written'] as $key) {
-            $totals[$key] += (int) ($entity[$key] ?? 0);
-        }
         $processed++;
+
+        $computed = avesmapsCitymapPlanForCatalogRow($pdo, $catalog);
+        $item = $computed['item'];
+        $current = $computed['current'];
+        $desired = $computed['desired'];
+
+        if ($item !== null) {
+            $decision = $decisions[avesmapsSyncPlanDecisionKey($nextCursor, $item['change_type'])] ?? null;
+            avesmapsSyncPlanAddItem($pdo, $runId, [
+                'entity_key' => $nextCursor,
+                'entity_public_id' => $current === null ? null : (string) $current['public_id'],
+                'change_type' => $item['change_type'],
+                'label' => (string) ($desired['title'] ?? ($current['title'] ?? $nextCursor)),
+                'before' => $item['before'],
+                'after' => $item['after'],
+                'override' => $item['override'],
+                'selected' => avesmapsSyncPlanDefaultSelected($item['change_type'], (int) ($decision['skipped_count'] ?? 0)),
+            ]);
+            $planned++;
+        }
+
         if (microtime(true) >= $deadline) {
             $timedOut = true;
             break;
@@ -1862,49 +2159,65 @@ function avesmapsCitymapReconcileStep(PDO $pdo, string $cursor, int $userId, ?in
     }
 
     $done = !$timedOut && count($catalogRows) < $budget;
+    $counts = ['new' => 0, 'changed' => 0, 'deleted' => 0, 'total' => 0];
 
     if ($done) {
-        // Stamp the run BEFORE the heavy tail work: this records "the owner ran a full sync", which is
-        // true the moment the catalog is drained, whether or not anything changed.
-        if (function_exists('avesmapsAppSettingSet')) {
-            try {
-                avesmapsAppSettingSet($pdo, AVESMAPS_CITYMAP_LAST_SYNCED_SETTING, gmdate('Y-m-d H:i:s'));
-            } catch (Throwable) {
-                // A missing timestamp is a cosmetic loss; it must never fail the reconcile itself.
-            }
+        // The deletions come last, once, because they are the only question that needs the WHOLE
+        // catalog to be answered -- and the empty-catalog gate lives inside them.
+        foreach (avesmapsCitymapVanishedRows($pdo, avesmapsSyncPlanDeclinedKeys($pdo, 'citymap')) as $gone) {
+            avesmapsSyncPlanAddItem($pdo, $runId, [
+                'entity_key' => (string) $gone['wiki_key'],
+                'entity_public_id' => (string) $gone['public_id'],
+                'change_type' => 'deleted',
+                'label' => (string) $gone['title'],
+                'before' => [
+                    'place_count' => (int) $gone['place_count'],
+                    'link_count' => (int) $gone['link_count'],
+                    'related_count' => (int) $gone['related_count'],
+                    'source_count' => (int) $gone['source_count'],
+                ],
+                'after' => [],
+                'override' => [],
+                'selected' => avesmapsSyncPlanDefaultSelected('deleted', 0),
+            ]);
+            $planned++;
         }
-        $totals['removed'] = avesmapsCitymapRemoveVanished($pdo);
-        // Resolve freshly-added wiki place names -> entities, once, at the end (mirrors the adventures
-        // reconcile). THIS is what makes the cards appear at their settlements, so it is not optional:
-        // no function_exists guard, because a silently skipped resolve would look exactly like a
-        // successful sync while every card stayed invisible. avesmapsResolvePlacesInTable already
-        // whitelists 'citymap_place' -- the shared resolver, not a citymap-specific copy.
-        avesmapsResolvePlacesInTable($pdo, 'citymap_place');
-        if (function_exists('avesmapsWikiSyncNextMapRevision')) {
-            avesmapsWikiSyncNextMapRevision($pdo); // bust the map-features ETag
-        }
+        $counts = avesmapsSyncPlanFinishBuild($pdo, $runId);
     }
 
     return [
         'done' => $done,
         'nextCursor' => $nextCursor,
-        'created' => $totals['created'],
-        'updated' => $totals['updated'],
-        'places_added' => $totals['places_added'],
-        'places_updated' => $totals['places_updated'],
-        'sources_linked' => $totals['sources_linked'],
-        'links_written' => $totals['links_written'],
-        'removed' => $totals['removed'],
+        'run_id' => $runId,
+        'planned' => $planned,
         'processed' => $processed,
+        'counts' => $counts,
     ];
 }
 
 /**
- * Delete wiki-origin cards the wiki no longer lists. Runs once, when the reconcile has drained.
- * Scoped by avesmapsCitymapRemovableKeys (pure, tested): manual/community/suppressed rows survive,
- * and an EMPTY catalog removes nothing -- a misfired "Dump holen" must not wipe the collection.
+ * The wiki-origin cards the wiki no longer lists -- as ROWS TO SHOW, not as a deletion. READ-ONLY.
+ *
+ * This is what avesmapsCitymapRemoveVanished used to be, minus its DELETE (design §7): the sync now
+ * proposes, and avesmapsCitymapDeleteWikiRow below executes what an editor ticked.
+ *
+ * 💣 The empty-catalog gate travels with it, untouched, inside avesmapsCitymapRemovableKeys (pure,
+ * tested): an empty catalog means "Dump holen" never ran, not "the wiki dropped everything". The
+ * damage it prevents changed shape rather than size -- it used to be a silent mass deletion, now it
+ * would be a preview proposing 457 deletions, and sooner or later somebody clicks.
+ *
+ * 💣 And the declined ones never come back. A deletion an editor refused is a permanent decision
+ * (design §2); the row stays origin='wiki' and carries on being maintained, only the question is
+ * unsubscribed.
+ *
+ * The child counts say what would go WITH the card, in four grouped queries rather than four per
+ * card: this list is short, but the loop it avoids is the one STRATO cannot take.
+ *
+ * @param array<int,string> $declinedKeys avesmapsSyncPlanDeclinedKeys
+ * @return array<int, array{wiki_key:string, public_id:string, title:string, place_count:int,
+ *                          link_count:int, related_count:int, source_count:int}>
  */
-function avesmapsCitymapRemoveVanished(PDO $pdo): int
+function avesmapsCitymapVanishedRows(PDO $pdo, array $declinedKeys): array
 {
     $catalogKeys = $pdo->query('SELECT wiki_key FROM wiki_citymap_catalog')->fetchAll(PDO::FETCH_COLUMN) ?: [];
     $liveRows = $pdo->query("SELECT wiki_key, origin, status FROM citymap WHERE wiki_key IS NOT NULL")
@@ -1918,73 +2231,145 @@ function avesmapsCitymapRemoveVanished(PDO $pdo): int
         ], $liveRows),
         array_map('strval', $catalogKeys)
     );
+
+    $declined = array_flip(array_map('strval', $declinedKeys));
+    $remove = array_values(array_filter($remove, static fn(string $key): bool => !isset($declined[$key])));
     if ($remove === []) {
-        return 0;
+        return [];
     }
 
-    $removed = 0;
+    $placeholders = implode(',', array_fill(0, count($remove), '?'));
+    $cards = $pdo->prepare(
+        'SELECT id, public_id, wiki_key, title FROM citymap WHERE wiki_key IN (' . $placeholders . ')'
+    );
+    $cards->execute($remove);
+    $rows = $cards->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    if ($rows === []) {
+        return [];
+    }
+
+    $ids = array_map(static fn(array $r): int => (int) $r['id'], $rows);
+    $idPlaceholders = implode(',', array_fill(0, count($ids), '?'));
+    $countBy = static function (PDO $pdo, string $sql, array $params): array {
+        try {
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+        } catch (Throwable) {
+            // A missing table (a site without the source system) is "nothing hangs off it", never a
+            // failed preview: the numbers decorate the row, they do not decide anything.
+            return [];
+        }
+        $counts = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $counts[(string) $row['k']] = (int) $row['n'];
+        }
+
+        return $counts;
+    };
+
+    $places = $countBy($pdo, 'SELECT citymap_id AS k, COUNT(*) AS n FROM citymap_place
+        WHERE citymap_id IN (' . $idPlaceholders . ') GROUP BY citymap_id', $ids);
+    $links = $countBy($pdo, 'SELECT citymap_id AS k, COUNT(*) AS n FROM citymap_link
+        WHERE citymap_id IN (' . $idPlaceholders . ') GROUP BY citymap_id', $ids);
+    // Both directions, like the child-row cleaner: citymap_related links maps both ways.
+    $related = $countBy($pdo, 'SELECT citymap_id AS k, COUNT(*) AS n FROM citymap_related
+        WHERE citymap_id IN (' . $idPlaceholders . ') GROUP BY citymap_id', $ids);
+    $publicIds = array_map(static fn(array $r): string => (string) ($r['public_id'] ?? ''), $rows);
+    $sources = $countBy(
+        $pdo,
+        "SELECT entity_public_id AS k, COUNT(*) AS n FROM feature_sources
+          WHERE entity_type = 'citymap' AND entity_public_id IN ("
+            . implode(',', array_fill(0, count($publicIds), '?')) . ') GROUP BY entity_public_id',
+        $publicIds
+    );
+
+    $out = [];
+    foreach ($rows as $row) {
+        $id = (int) $row['id'];
+        $publicId = (string) ($row['public_id'] ?? '');
+        $out[] = [
+            'wiki_key' => (string) $row['wiki_key'],
+            'public_id' => $publicId,
+            'title' => (string) ($row['title'] ?? ''),
+            'place_count' => (int) ($places[(string) $id] ?? 0),
+            'link_count' => (int) ($links[(string) $id] ?? 0),
+            'related_count' => (int) ($related[(string) $id] ?? 0),
+            'source_count' => (int) ($sources[$publicId] ?? 0),
+        ];
+    }
+
+    return $out;
+}
+
+/**
+ * Delete ONE wiki-origin card, children and all. Returns false when the origin guard refused.
+ *
+ * The body below is the loop body of the former avesmapsCitymapRemoveVanished, unchanged -- only the
+ * loop is gone, because the selection is now made by a person in the preview rather than by the
+ * catalog. Every invariant the delete-parity test names still lives here.
+ */
+function avesmapsCitymapDeleteWikiRow(PDO $pdo, string $wikiKey): bool
+{
     $findId = $pdo->prepare('SELECT id, public_id FROM citymap WHERE wiki_key = :wk LIMIT 1');
     $delCard = $pdo->prepare("DELETE FROM citymap WHERE id = :id AND origin = 'wiki'");
-    foreach ($remove as $key) {
-        $findId->execute(['wk' => $key]);
-        $card = $findId->fetch(PDO::FETCH_ASSOC);
-        if ($card === false) {
-            continue;
-        }
-        $id = (int) $card['id'];
-        $publicId = (string) ($card['public_id'] ?? '');
-        // 💣 EINE TRANSAKTION JE KARTE, KARTE ZUERST -- beides zusammen, keines allein.
-        //
-        // Der origin-Riegel an diesem DELETE ist die zweite Sicherung, und bis 2026-08-05 liefen
-        // die Kind-Loeschungen DAVOR: griff der Riegel je, blieb die Karte stehen und hatte ihre
-        // Orte und Arten verloren -- die Sicherung richtete genau den Schaden an, den sie
-        // verhindern sollte. Ohne FK ist die Reihenfolge frei, also steht sie jetzt richtig herum.
-        //
-        // Die Reihenfolge allein taeuscht aber nur den Schaden um. Bricht der Lauf zwischen Karte
-        // und Kindern ab -- und dieser Schritt steht unter einem 43-Sekunden-Zeitlimit auf einem
-        // Host mit FastCGI-Abschuss-Geschichte --, ist die Karte weg und ihre Kinder sind FUER
-        // IMMER verwaist: die Liste der zu Entfernenden wird aus LEBENDEN citymap-Zeilen gebildet,
-        // diese id kann also nie wieder genannt werden. Andersherum war derselbe Abbruch heilbar,
-        // kostete aber die Kinder. Erst die Transaktion macht aus beiden Uebeln keines -- der
-        // Loeschweg von Hand fuehrt sie seit jeher.
-        $ownsTransaction = !$pdo->inTransaction();
-        if ($ownsTransaction) {
-            $pdo->beginTransaction();
-        }
-        try {
-            $delCard->execute(['id' => $id]);
-            if ($delCard->rowCount() < 1) {
-                if ($ownsTransaction) {
-                    $pdo->rollBack();
-                }
-                continue;
-            }
-            // 💣 Derselbe Raeumer wie beim Loeschen von Hand (api/_internal/app/citymaps.php).
-            // Vorher raeumte dieser Weg nur place und type -- citymap_related und citymap_link
-            // blieben als Waisen zurueck (Befund A8), und der Quellenverweis der Karte blieb sogar
-            // im oeffentlichen Kartenpayload stehen.
-            //
-            // ⚠️ Laufzeit-Aufruf hinter function_exists, wie schon bei avesmapsCitymapsEnsureTables
-            // weiter oben: diese Datei laedt absichtlich nichts nach, damit ihr Unit-Test ohne
-            // MySQL laeuft. Der Riegel macht aus einer fehlenden Bibliothek KEIN Fatal, sondern
-            // "nicht aufgeraeumt" -- entscheidend ist deshalb, DASS api/edit/wiki/dump.php
-            // app/citymaps.php laedt. Die Reihenfolge der require-Zeilen ist dagegen egal: diese
-            // Datei hat keine Anweisung auf oberster Ebene, der Riegel wird erst beim Dispatch
-            // ausgewertet, lange nach jedem require.
-            if (function_exists('avesmapsDeleteCitymapChildRows')) {
-                avesmapsDeleteCitymapChildRows($pdo, $id, $publicId);
-            }
+
+    $findId->execute(['wk' => $wikiKey]);
+    $card = $findId->fetch(PDO::FETCH_ASSOC);
+    if ($card === false) {
+        return false;
+    }
+    $id = (int) $card['id'];
+    $publicId = (string) ($card['public_id'] ?? '');
+    // 💣 EINE TRANSAKTION JE KARTE, KARTE ZUERST -- beides zusammen, keines allein.
+    //
+    // Der origin-Riegel an diesem DELETE ist die zweite Sicherung, und bis 2026-08-05 liefen
+    // die Kind-Loeschungen DAVOR: griff der Riegel je, blieb die Karte stehen und hatte ihre
+    // Orte und Arten verloren -- die Sicherung richtete genau den Schaden an, den sie
+    // verhindern sollte. Ohne FK ist die Reihenfolge frei, also steht sie jetzt richtig herum.
+    //
+    // Die Reihenfolge allein taeuscht aber nur den Schaden um. Bricht der Lauf zwischen Karte
+    // und Kindern ab -- und dieser Schritt steht unter einem 43-Sekunden-Zeitlimit auf einem
+    // Host mit FastCGI-Abschuss-Geschichte --, ist die Karte weg und ihre Kinder sind FUER
+    // IMMER verwaist: die Liste der zu Entfernenden wird aus LEBENDEN citymap-Zeilen gebildet,
+    // diese id kann also nie wieder genannt werden. Andersherum war derselbe Abbruch heilbar,
+    // kostete aber die Kinder. Erst die Transaktion macht aus beiden Uebeln keines -- der
+    // Loeschweg von Hand fuehrt sie seit jeher.
+    $ownsTransaction = !$pdo->inTransaction();
+    if ($ownsTransaction) {
+        $pdo->beginTransaction();
+    }
+    try {
+        $delCard->execute(['id' => $id]);
+        if ($delCard->rowCount() < 1) {
             if ($ownsTransaction) {
-                $pdo->commit();
-            }
-        } catch (Throwable $error) {
-            if ($ownsTransaction && $pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            throw $error;
+            return false;
         }
-        $removed += 1;
+        // 💣 Derselbe Raeumer wie beim Loeschen von Hand (api/_internal/app/citymaps.php).
+        // Vorher raeumte dieser Weg nur place und type -- citymap_related und citymap_link
+        // blieben als Waisen zurueck (Befund A8), und der Quellenverweis der Karte blieb sogar
+        // im oeffentlichen Kartenpayload stehen.
+        //
+        // ⚠️ Laufzeit-Aufruf hinter function_exists, wie schon bei avesmapsCitymapsEnsureTables
+        // weiter oben: diese Datei laedt absichtlich nichts nach, damit ihr Unit-Test ohne
+        // MySQL laeuft. Der Riegel macht aus einer fehlenden Bibliothek KEIN Fatal, sondern
+        // "nicht aufgeraeumt" -- entscheidend ist deshalb, DASS api/edit/wiki/dump.php
+        // app/citymaps.php laedt. Die Reihenfolge der require-Zeilen ist dagegen egal: diese
+        // Datei hat keine Anweisung auf oberster Ebene, der Riegel wird erst beim Dispatch
+        // ausgewertet, lange nach jedem require.
+        if (function_exists('avesmapsDeleteCitymapChildRows')) {
+            avesmapsDeleteCitymapChildRows($pdo, $id, $publicId);
+        }
+        if ($ownsTransaction) {
+            $pdo->commit();
+        }
+    } catch (Throwable $error) {
+        if ($ownsTransaction && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $error;
     }
 
-    return $removed;
+    return true;
 }

@@ -30,11 +30,18 @@ require_once __DIR__ . '/features.php';
 // Two names for the one occurrence removal on purpose: a wiki row becomes a tombstone that "Ort wieder
 // aufnehmen" can undo, a manual row is deleted outright. Whether there is a way back is the question
 // A16 exists for; one shared name would hide the answer in the JSON.
+//
+// 'apply_sync_plan' joined on 2026-08-06 and is the odd one out: not a deletion but a whole
+// Übernahme-Vorschau being confirmed, ONE row per run (see avesmapsLogSyncPlanApply at the bottom of
+// this file for why it must never be one per entry). It is in this list, and therefore under the same
+// no-undo rule, for the same reason as its neighbours: the Übernahme has no way back either -- that is
+// A16 stage 3 and needs a soft delete these tables do not have.
 const AVESMAPS_COLLECTION_AUDIT_ACTIONS = [
     'delete_citymap',
     'delete_adventure',
     'delete_lore_place',
     'suppress_lore_place',
+    'apply_sync_plan',
 ];
 
 // 💣 THE KEYS THAT WOULD TURN AN HONEST ENTRY INTO A LYING ONE.
@@ -61,6 +68,14 @@ const AVESMAPS_COLLECTION_AUDIT_RESERVED_KEYS = ['public_id', 'feature_type', 'f
 // was not a person" is exactly how the import door in A39 ended up writing "unbekannt" about a human
 // who never existed.
 const AVESMAPS_COLLECTION_AUDIT_ACTOR_SYSTEM = 'system';
+
+/** How many deleted titles the single Übernahme row names before it says "und N weitere". */
+const AVESMAPS_COLLECTION_AUDIT_TITLE_LIMIT = 20;
+
+/** What the Übernahme row calls the sync it belongs to. Grows with session 2-4 (design §7). */
+const AVESMAPS_COLLECTION_AUDIT_KIND_LABELS = [
+    'citymap' => 'Stadtkarten',
+];
 
 function avesmapsCollectionAuditActionIsKnown(string $action): bool
 {
@@ -160,4 +175,68 @@ function avesmapsLogCollectionDeletion(
     } catch (Throwable $exception) {
         error_log('avesmaps collection deletion audit failed: ' . $exception->getMessage());
     }
+}
+
+/**
+ * ONE row per confirmed Übernahme-Vorschau -- never one per entry.
+ *
+ * 💣 THIS IS THE WHOLE POINT OF THE FUNCTION. map_audit_log keeps 200 entries. An Übernahme with 46
+ * deletions writing 46 rows would flush yesterday's own edits out of the log in the same breath in
+ * which the sync is confirmed -- the trail A16 added would erase the trail it was added to protect.
+ * The detail is not lost: it stays in sync_plan_item, which is not truncated and does not travel in
+ * the backup the way this table does.
+ *
+ * ⚠️ It writes through avesmapsLogCollectionDeletion despite the name. That writer is the right one
+ * here for two reasons that have nothing to do with deletion: it drops the keys that would turn the
+ * row into a focus button for an object with no map position (see the reserved-key block above), and
+ * it never throws -- the Übernahme has already happened by the time this runs.
+ *
+ * @param array{new?:int,changed?:int,deleted?:int,total?:int} $planned what the preview offered
+ * @param array{run_id:int, applied:int, stale:int, skipped:int, declined:int,
+ *              deleted_titles:array<int,string>} $result what came of it
+ */
+function avesmapsLogSyncPlanApply(PDO $pdo, string $kind, array $planned, array $result, ?array $user): void
+{
+    $titles = array_values(array_filter(array_map('strval', (array) ($result['deleted_titles'] ?? []))));
+    $shown = array_slice($titles, 0, AVESMAPS_COLLECTION_AUDIT_TITLE_LIMIT);
+    $rest = count($titles) - count($shown);
+    $titleLine = implode(' · ', $shown);
+    if ($rest > 0) {
+        $titleLine .= ' · … und ' . $rest . ' weitere';
+    }
+
+    $applied = (int) ($result['applied'] ?? 0);
+    // ⚠️ `name` is the one key the reader renders as the entry's TARGET (avesmapsNormalizeAuditRow
+    // lifts it out of after_json). Without it the line would read "Unbenannt" -- true of an object,
+    // wrong for a run. German, like every other reader-facing string; the keys stay English.
+    $name = AVESMAPS_COLLECTION_AUDIT_KIND_LABELS[$kind] ?? $kind;
+    $name .= ' · ' . $applied . ' übernommen';
+    if (count($titles) > 0) {
+        $name .= ', ' . count($titles) . ' gelöscht';
+    }
+
+    avesmapsLogCollectionDeletion(
+        $pdo,
+        'apply_sync_plan',
+        [
+            'kind' => $kind,
+            'planned_new' => (int) ($planned['new'] ?? 0),
+            'planned_changed' => (int) ($planned['changed'] ?? 0),
+            'planned_deleted' => (int) ($planned['deleted'] ?? 0),
+        ],
+        [
+            'name' => $name,
+            'kind' => $kind,
+            'run_id' => (int) ($result['run_id'] ?? 0),
+            'applied' => $applied,
+            'deleted' => count($titles),
+            'stale' => (int) ($result['stale'] ?? 0),
+            'skipped' => (int) ($result['skipped'] ?? 0),
+            'declined' => (int) ($result['declined'] ?? 0),
+            // Only the deletions are named: they are the irreversible half, and a list of 200 changed
+            // titles in a 200-row log is the flood this function exists to prevent.
+            'deleted_titles' => $titleLine,
+        ],
+        $user
+    );
 }

@@ -48,11 +48,16 @@ foreach (AVESMAPS_COLLECTION_AUDIT_ACTIONS as $action) {
 }
 
 // The vocabulary itself, so a rename has to come past this line.
-$expectedActions = ['delete_citymap', 'delete_adventure', 'delete_lore_place', 'suppress_lore_place'];
+//
+// ⚠️ apply_sync_plan (2026-08-06) is not a deletion but a confirmed Übernahme-Vorschau -- ONE row per
+// run, never one per entry. It sits in the same list because it is under the same no-undo rule, which
+// the loop above has just asserted for it along with the other four.
+$expectedActions = ['delete_citymap', 'delete_adventure', 'delete_lore_place', 'suppress_lore_place',
+    'apply_sync_plan'];
 sort($expectedActions);
 $actualActions = AVESMAPS_COLLECTION_AUDIT_ACTIONS;
 sort($actualActions);
-assert($actualActions === $expectedActions, 'the four actions stage 1 logs');
+assert($actualActions === $expectedActions, 'the five actions the collection log knows');
 
 assert(avesmapsCollectionAuditActionIsKnown('delete_citymap'), 'a known action passes');
 assert(!avesmapsCollectionAuditActionIsKnown('delete_feature'), 'a map-feature action is not one of ours');
