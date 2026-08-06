@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Sitzung 3: die Falllisten (Orte, Wege, Regionen)</title>
+<style>
+:root{
+  --font-ui:"Faculty Glyphic","Arial",sans-serif;
+  --fs-caption:11px; --fs-small:12px; --fs-body:13px; --fs-read:14px; --fs-sub:16px; --fs-title:20px;
+  --color-page-bg:#f3f0e8; --color-panel:#fffdf9; --color-panel-soft:#faf6ee; --color-panel-muted:#f1ece1;
+  --color-panel-active:#e7ddc9;
+  --color-text:#2e271e; --color-text-strong:#3c3327; --color-text-muted:#706557;
+  --color-border:#ddd3c3; --color-border-strong:#cdbfa8; --color-divider:rgba(125,115,96,.30);
+  --color-button:#5b5548; --color-button-border:#635b4d; --color-button-text:#f6efe1; --color-button-hover:#6a6353;
+  --color-button-soft:#efe9db; --color-button-soft-text:#564b3b; --color-button-soft-border:#cdbda0; --color-button-soft-hover:#e7ddc9;
+  --color-accent:#bfa03a; --color-accent-strong:#9c7f22; --color-link:#8f7326;
+  --color-pill:#f3ecd9; --color-pill-border:#d7c7a2; --color-pill-text:#675024;
+  --color-danger:#9d3a2e;
+  --color-success-soft:#eef6e2; --color-success-soft-border:#a9c07f; --color-success-soft-text:#3c5a1c;
+  --color-danger-soft:#fbeae6; --color-danger-soft-border:#d3a79c; --color-danger-soft-text:#8a2d22;
+  --color-warning-soft:#faeeda; --color-warning-soft-border:#ef9f27; --color-warning:#b8860b;
+  --radius-sm:4px; --radius-md:6px; --radius-lg:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:28px 20px 64px;background:var(--color-page-bg);color:var(--color-text);
+     font:var(--fs-body)/1.5 var(--font-ui);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto}
+h1{font-size:var(--fs-title);margin:0 0 4px;color:var(--color-text-strong)}
+.lede{color:var(--color-text-muted);font-size:var(--fs-read);margin:0 0 26px;max-width:80ch}
+h2{font-size:var(--fs-sub);margin:38px 0 6px;color:var(--color-text-strong);
+   padding-bottom:6px;border-bottom:1px solid var(--color-divider)}
+h3{font-size:var(--fs-read);margin:22px 0 8px;color:var(--color-text-strong)}
+p{max-width:84ch}
+.note{color:var(--color-text-muted);font-size:var(--fs-small);max-width:84ch;margin:0 0 14px}
+code{background:var(--color-panel-muted);padding:1px 5px;border-radius:var(--radius-sm);font-size:var(--fs-small)}
+a{color:var(--color-link)}
+
+/* ============ das Blatt (aus css/components/sync-plan-sheet.css) ============ */
+.sheet{background:var(--color-panel);border:1px solid var(--color-border);border-radius:var(--radius-lg);
+       overflow:hidden;box-shadow:0 1px 2px rgba(60,51,39,.06)}
+.sheet__head{padding:14px 18px 12px;border-bottom:1px solid var(--color-divider);background:var(--color-panel-soft)}
+.sheet__title{font-size:var(--fs-sub);font-weight:700;color:var(--color-text-strong);margin:0 0 2px}
+.sheet__meta{font-size:var(--fs-small);color:var(--color-text-muted)}
+
+.grp{border-bottom:1px solid var(--color-divider)}
+.grp:last-of-type{border-bottom:0}
+.grp>summary{list-style:none;cursor:pointer;padding:11px 18px;display:flex;align-items:center;gap:10px;
+             user-select:none}
+.grp>summary::-webkit-details-marker{display:none}
+.grp>summary::before{content:"\25B8";color:var(--color-text-muted);font-size:11px;width:10px;flex:none;
+                     transition:transform .12s}
+.grp[open]>summary::before{transform:rotate(90deg)}
+.grp__name{font-weight:700;color:var(--color-text-strong)}
+.grp__count{font-size:var(--fs-caption);background:var(--color-pill);border:1px solid var(--color-pill-border);
+            color:var(--color-pill-text);border-radius:999px;padding:1px 8px}
+.grp__hint{font-size:var(--fs-small);color:var(--color-text-muted);margin-left:auto;text-align:right}
+.grp--del>summary{background:var(--color-danger-soft)}
+.grp--del .grp__count{background:#fff;border-color:var(--color-danger-soft-border);color:var(--color-danger-soft-text)}
+.grp--del .grp__hint{color:var(--color-danger-soft-text)}
+.grp__bulk{display:flex;gap:6px;margin-left:14px}
+.grp__bulk button{font:inherit;font-size:var(--fs-caption);padding:2px 9px;border-radius:var(--radius-sm);
+                  border:1px solid var(--color-button-soft-border);background:var(--color-button-soft);
+                  color:var(--color-button-soft-text);cursor:pointer}
+
+.rows{padding:2px 18px 14px}
+.row{padding:9px 0;border-top:1px solid var(--color-divider)}
+.row:first-child{border-top:0}
+.row__name{font-weight:700;color:var(--color-text-strong)}
+.row__sub{display:block;font-size:var(--fs-small);color:var(--color-text-muted)}
+
+.diff{margin:7px 0 0;display:grid;grid-template-columns:max-content 1fr;gap:2px 14px;
+      font-size:var(--fs-small);background:var(--color-panel-muted);border-radius:var(--radius-md);padding:8px 10px}
+.diff dt{color:var(--color-text-muted)}
+.diff dd{margin:0}
+.old{color:var(--color-text-muted);text-decoration:line-through;text-decoration-color:rgba(125,115,96,.5)}
+.arrow{color:var(--color-text-muted);padding:0 4px}
+.new{color:var(--color-text-strong);font-weight:700}
+
+.tag{display:inline-block;font-size:var(--fs-caption);border-radius:999px;padding:1px 8px;
+     border:1px solid var(--color-pill-border);background:var(--color-pill);color:var(--color-pill-text);
+     vertical-align:1px}
+.tag--own{background:var(--color-warning-soft);border-color:var(--color-warning-soft-border);color:#8a6a26}
+.tag--skip{background:var(--color-panel-active);border-color:var(--color-border-strong);color:var(--color-text-muted)}
+
+.foot{padding:13px 18px;border-top:1px solid var(--color-divider);background:var(--color-panel-soft);
+      display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.foot__count{font-size:var(--fs-small);color:var(--color-text-muted);margin-right:auto}
+.foot__count b{color:var(--color-text-strong)}
+.gate{margin:0;padding:11px 18px;background:var(--color-danger-soft);border-top:1px solid var(--color-danger-soft-border);
+      color:var(--color-danger-soft-text);font-size:var(--fs-small);display:flex;gap:10px;align-items:center}
+.btn{font:inherit;border-radius:var(--radius-md);padding:7px 15px;cursor:pointer;
+     border:1px solid var(--color-button-soft-border);background:var(--color-button-soft);
+     color:var(--color-button-soft-text)}
+.btn--main{background:var(--color-button);border-color:var(--color-button-border);color:var(--color-button-text)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ============ NEU in diesem Entwurf: die Verben einer Fallzeile ============ */
+/* Eine Zeile bleibt ein <details>: das Aufklappen ist bei „Position weicht ab" der Auslöser,
+   der die beiden Punkte und die Linie auf die Karte zeichnet, und das Zuklappen räumt sie weg. */
+.row--case>summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.row--case>summary::-webkit-details-marker{display:none}
+.row--case>summary::before{content:"\25B8";color:var(--color-text-muted);font-size:11px;flex:none;
+                           transition:transform .12s;position:relative;top:-1px}
+.row--case[open]>summary::before{transform:rotate(90deg)}
+.row__body{padding:0 0 2px 18px}
+/* Die Verben: eine gefüllte Hauptaktion, alles andere weich (Designsprache §12). */
+.verbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.verbs .btn{padding:4px 10px;font-size:var(--fs-small)}
+.verbs .btn--quiet{background:none;border-color:var(--color-divider);color:var(--color-text-muted)}
+/* Die Auswahl-Knöpfe: „welcher von diesen" — das, was ein Häkchen nicht kann. */
+.picks{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;font-size:var(--fs-small)}
+.picks__label{color:var(--color-text-muted)}
+.pick{padding:3px 9px;border:1px solid var(--color-pill-border);border-radius:var(--radius-md);
+      background:var(--color-pill);color:var(--color-pill-text);cursor:pointer;font:inherit;font-size:var(--fs-small)}
+.pick--accept{border-color:var(--color-success-soft-border);background:var(--color-success-soft);
+              color:var(--color-success-soft-text)}
+
+/* ============ Fassung A: wie es heute aussieht ============ */
+.today{display:grid;gap:8px;max-width:560px}
+.t-group{overflow:hidden;border:1px solid var(--color-border);border-radius:8px;background:var(--color-panel-soft)}
+.t-group>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;cursor:pointer}
+.t-group__title{font-weight:700;color:var(--color-text-strong)}
+.t-group__count{min-width:28px;padding:2px 8px;border-radius:999px;background:var(--color-pill);
+                color:var(--color-pill-text);font-size:12px;text-align:center}
+.t-group__body{display:grid;gap:8px;padding:0 8px 8px}
+.t-case{overflow:hidden;border:1px solid var(--color-border);border-radius:7px;background:var(--color-panel)}
+.t-case>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;
+                padding:8px 9px;cursor:pointer}
+.t-case__title{font-weight:700;color:var(--color-text-strong)}
+.t-case__status{padding:2px 7px;border-radius:999px;background:var(--color-pill);color:var(--color-text-muted);
+                font-size:11px;white-space:nowrap}
+.t-case__body{display:grid;gap:7px;padding:0 9px 9px}
+.t-row{display:grid;grid-template-columns:78px minmax(0,1fr);gap:8px;margin:0;font-size:12px;line-height:1.35}
+.t-row__label{color:var(--color-text-muted)}
+.t-acts{display:flex;flex-wrap:wrap;gap:6px}
+.t-act{padding:4px 7px;border:1px solid var(--color-pill-border);border-radius:6px;background:var(--color-pill);
+       color:var(--color-pill-text);cursor:pointer;font:inherit;font-size:12px}
+.t-act--primary{background:var(--color-button);border-color:var(--color-button-border);color:var(--color-button-text)}
+.t-act--danger{background:none;border-color:var(--color-divider);color:var(--color-text-muted)}
+
+/* ============ die Markierungen der Probe (Fassung C) ============ */
+.brk{display:inline-block;min-width:17px;height:17px;line-height:16px;text-align:center;border-radius:999px;
+     background:var(--color-danger);color:#fff;font-size:11px;font-weight:700;vertical-align:1px;margin-left:4px}
+.legend{margin:14px 0 0;padding:12px 14px;border:1px solid var(--color-danger-soft-border);
+        border-radius:var(--radius-md);background:var(--color-danger-soft);max-width:84ch}
+.legend p{margin:0 0 7px;font-size:var(--fs-small);color:var(--color-danger-soft-text);max-width:none}
+.legend p:last-child{margin-bottom:0}
+.legend b{color:var(--color-danger-soft-text)}
+.dim{opacity:.45}
+
+.side{display:grid;grid-template-columns:1fr;gap:22px}
+@media (min-width:1000px){.side{grid-template-columns:1fr 1fr;align-items:start}}
+.side h3{margin-top:0}
+
+@media (prefers-color-scheme:dark){
+ :root{--color-page-bg:#221e19;--color-panel:#2b2621;--color-panel-soft:#322c25;--color-panel-muted:#3a332b;
+   --color-panel-active:#3f382f;
+   --color-text:#ece5d8;--color-text-strong:#fff8ea;--color-text-muted:#a89d8b;
+   --color-border:#463e34;--color-border-strong:#5a5044;--color-divider:rgba(200,185,155,.22);
+   --color-button-soft:#3d362d;--color-button-soft-text:#e8dfcd;--color-button-soft-border:#5a5044;
+   --color-pill:#3f3830;--color-pill-border:#5d5344;--color-pill-text:#e3d3a8;
+   --color-danger-soft:#40292a;--color-danger-soft-border:#7a4b45;--color-danger-soft-text:#f0bcb2;
+   --color-success-soft:#2c3720;--color-success-soft-border:#5c7538;--color-success-soft-text:#c4dc9c;
+   --color-warning-soft:#3d3222;--color-warning-soft-border:#8a6a26;}
+ .grp--del .grp__count{background:var(--color-panel)}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Sitzung 3 — Orte, Wege, Regionen</h1>
+<p class="lede">Drei Fassungen derselben Liste. <b>A</b> ist der heutige Stand, <b>B</b> mein Vorschlag
+(gleiche Formensprache wie die Übernahme-Vorschau, die Knöpfe bleiben Knöpfe), <b>C</b> die Probe: dieselben
+Fälle mit Gewalt in die drei Kategorien Neu/Geändert/Gelöscht gepresst, mit den Stellen markiert, an denen
+es kippt. Nichts davon ist gebaut.</p>
+
+<h2>A · Wie es heute aussieht</h2>
+<p class="note">Kasten im Kasten im Kasten: Gruppe, Fall, Zeile — jeder mit eigenem Rahmen und eigenem
+Radius. Die Designsprache sagt seit langem das Gegenteil (<em>gruppieren durch Trennlinie, nicht durch
+gerahmte Kästen</em>, AGENTS.md §12); diese Liste ist älter als die Regel. Daneben steht seit dem 6. August
+die Übernahme-Vorschau — in derselben Seite, in einer anderen Handschrift.</p>
+
+<div class="today">
+  <details class="t-group" open>
+    <summary><span class="t-group__title">Abweichende Benennung</span><span class="t-group__count">12</span></summary>
+    <div class="t-group__body">
+
+      <details class="t-case" open>
+        <summary><span class="t-case__title">Ferdok</span><span class="t-case__status">offen</span></summary>
+        <div class="t-case__body">
+          <p class="t-row"><span class="t-row__label">Karte</span><span>Ferdok · Stadt</span></p>
+          <p class="t-row"><span class="t-row__label">Wiki</span><span>Ferdok (Stadt)</span></p>
+          <p class="t-row"><span class="t-row__label">Match</span><span>Ähnlichkeit 0,86</span></p>
+          <div class="t-acts">
+            <button class="t-act t-act--primary">Anzeigen</button>
+            <button class="t-act t-act--primary">Lösen</button>
+            <button class="t-act t-act--danger">Zurückstellen</button>
+            <button class="t-act t-act--danger">Archivieren</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="t-case">
+        <summary><span class="t-case__title">Angbar</span><span class="t-case__status">offen</span></summary>
+      </details>
+      <details class="t-case">
+        <summary><span class="t-case__title">Sinoda</span><span class="t-case__status">offen</span></summary>
+      </details>
+
+    </div>
+  </details>
+
+  <details class="t-group">
+    <summary><span class="t-group__title">Position weicht vom Wiki ab</span><span class="t-group__count">23</span></summary>
+  </details>
+  <details class="t-group">
+    <summary><span class="t-group__title">Dubletten in Avesmaps</span><span class="t-group__count">7</span></summary>
+  </details>
+</div>
+
+<h2>B · Der Vorschlag</h2>
+<p class="note">Dieselben Fälle in der Formensprache des Blattes: Trennlinien statt Rahmen, die Zahl als
+Pille, der erklärende Satz rechts in der Überschrift, die Einzelheiten im ruhigen Feld. Was <b>bleibt</b>:
+die Gruppierung nach Fallart, die Verben, die Abschnitte Offen/Zurückgestellt/Archiviert. Eine Zeile bleibt
+zum Aufklappen — bei „Position weicht ab“ ist genau das der Auslöser, der beide Punkte auf die Karte
+zeichnet, und das Zuklappen räumt sie weg.</p>
+
+<div class="sheet">
+  <div class="sheet__head">
+    <p class="sheet__title">Orte — Fälle aus dem Wiki-Abgleich</p>
+    <div class="sheet__meta">Lauf vom 06.08.2026, 21:14 · 4.653 Orte geprüft · 563 offene Fälle · 340 zurückgestellt</div>
+  </div>
+
+  <div class="sheet__body">
+
+    <details class="grp" open>
+      <summary>
+        <span class="grp__name">Abweichende Benennung</span>
+        <span class="grp__count">12</span>
+        <span class="grp__hint">Ort und Artikel gehören zusammen, heißen aber verschieden</span>
+      </summary>
+      <div class="rows">
+
+        <details class="row row--case" open>
+          <summary><span class="row__name">Ferdok</span> <span class="tag">Ähnlichkeit 0,86</span></summary>
+          <div class="row__body">
+            <dl class="diff">
+              <dt>Karte</dt><dd>Ferdok · Stadt</dd>
+              <dt>Wiki</dt><dd><a href="#">Ferdok (Stadt) &#8599;</a></dd>
+            </dl>
+            <div class="verbs">
+              <button class="btn btn--main">Lösen</button>
+              <button class="btn">Anzeigen</button>
+              <button class="btn btn--quiet">Zurückstellen</button>
+              <button class="btn btn--quiet">Archivieren</button>
+            </div>
+          </div>
+        </details>
+
+        <details class="row row--case">
+          <summary><span class="row__name">Sinoda</span> <span class="tag">3 Kandidaten</span></summary>
+          <div class="row__body">
+            <dl class="diff">
+              <dt>Karte</dt><dd>Sinoda · Dorf</dd>
+            </dl>
+            <div class="picks">
+              <span class="picks__label">Wiki-Kandidaten</span>
+              <button class="pick">Sinoda (68 %)</button>
+              <button class="pick">Sinodia (54 %)</button>
+              <button class="pick">Sinoda-Feste (41 %)</button>
+            </div>
+            <div class="verbs">
+              <button class="btn btn--main">Lösen</button>
+              <button class="btn">Anzeigen</button>
+              <button class="btn btn--quiet">Zurückstellen</button>
+              <button class="btn btn--quiet">Archivieren</button>
+            </div>
+          </div>
+        </details>
+
+        <details class="row row--case">
+          <summary><span class="row__name">Angbar</span></summary>
+        </details>
+
+      </div>
+    </details>
+
+    <details class="grp" open>
+      <summary>
+        <span class="grp__name">Position weicht vom Wiki ab</span>
+        <span class="grp__count">23</span>
+        <span class="grp__hint">verrutschter Marker oder grobe Wiki-Koordinate</span>
+      </summary>
+      <div class="rows">
+        <details class="row row--case" open>
+          <summary><span class="row__name">Wehrheim</span> <span class="tag">6,2 Einheiten</span></summary>
+          <div class="row__body">
+            <dl class="diff">
+              <dt>Karte</dt><dd>512,3 / 388,1</dd>
+              <dt>Wiki</dt><dd>517,9 / 385,4</dd>
+              <dt>Abstand</dt><dd><span class="new">6,2 Karteneinheiten</span></dd>
+            </dl>
+            <div class="verbs">
+              <button class="btn btn--main">Auf Wiki-Position setzen</button>
+              <button class="btn">Karte behalten</button>
+              <button class="btn">Anzeigen</button>
+              <button class="btn btn--quiet">Zurückstellen</button>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <details class="grp">
+      <summary>
+        <span class="grp__name">Dubletten in Avesmaps</span>
+        <span class="grp__count">7</span>
+        <span class="grp__hint">zwei unserer Orte tragen denselben Namen</span>
+      </summary>
+      <div class="rows">
+        <details class="row row--case" open>
+          <summary><span class="row__name">Neersand</span> <span class="tag">2 Orte</span></summary>
+          <div class="row__body">
+            <p class="row__sub">Nichts zu übernehmen — das wird im Editor aufgeräumt, danach ist der Fall erledigt.</p>
+            <div class="picks">
+              <span class="picks__label">1. Neersand · Dorf</span>
+              <button class="pick">Anzeigen</button>
+              <span class="picks__label">2. Neersand · Kleinstadt</span>
+              <button class="pick">Anzeigen</button>
+            </div>
+            <div class="verbs">
+              <button class="btn btn--quiet">Zurückstellen</button>
+              <button class="btn btn--quiet">Archivieren</button>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <details class="grp">
+      <summary>
+        <span class="grp__name">Fehlende Wiki-Orte ohne nutzbare Koordinaten</span>
+        <span class="grp__count">12</span>
+        <span class="grp__hint">wo sie hingehören, muss von Hand bestimmt werden</span>
+      </summary>
+      <div class="rows">
+        <details class="row row--case" open>
+          <summary><span class="row__name">Ochsenwasser</span></summary>
+          <div class="row__body">
+            <dl class="diff">
+              <dt>Wiki</dt><dd><a href="#">Ochsenwasser &#8599;</a> · Dorf</dd>
+              <dt>Position</dt><dd><span class="old">keine im Artikel</span></dd>
+            </dl>
+            <div class="verbs">
+              <button class="btn btn--main">Position wählen</button>
+              <button class="btn btn--quiet">Zurückstellen</button>
+              <button class="btn btn--quiet">Archivieren</button>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+  </div>
+
+  <div class="foot">
+    <span class="foot__count"><b>563</b> offene Fälle · 340 zurückgestellt · 1.204 archiviert</span>
+    <button class="btn">Neu berechnen</button>
+  </div>
+</div>
+
+<h3>Und die Wege, im selben Bild</h3>
+<div class="sheet">
+  <div class="sheet__head">
+    <p class="sheet__title">Wege — Fälle aus dem Verlaufs-Abgleich</p>
+    <div class="sheet__meta">3.721 Wege geprüft · 46 offene Fälle</div>
+  </div>
+  <div class="sheet__body">
+    <details class="grp" open>
+      <summary>
+        <span class="grp__name">Verlauf geändert</span>
+        <span class="grp__count">31</span>
+        <span class="grp__hint">das Wiki nennt eine andere Stationenfolge als wir</span>
+      </summary>
+      <div class="rows">
+        <details class="row row--case" open>
+          <summary><span class="row__name">Reichsstraße Gareth&#8211;Ferdok</span> <span class="tag">unstrittig</span></summary>
+          <div class="row__body">
+            <dl class="diff">
+              <dt>zuweisen</dt><dd><span class="new">2 Segmente</span> · Ferdok&#8211;Angbar, Angbar&#8211;Grangor</dd>
+              <dt>lösen</dt><dd>1 Segment · Abzweig Herzogenfurt</dd>
+            </dl>
+            <div class="verbs">
+              <button class="btn btn--main">Übernehmen &#8230;</button>
+              <button class="btn">Anzeigen</button>
+              <button class="btn btn--quiet">Zurückstellen</button>
+              <button class="btn btn--quiet">Archivieren</button>
+            </div>
+            <p class="row__sub">„Übernehmen“ rechnet erst und fragt dann: <em>2 Segmente zuweisen, 1 lösen. Übernehmen?</em></p>
+          </div>
+        </details>
+      </div>
+    </details>
+    <details class="grp">
+      <summary>
+        <span class="grp__name">Nicht routbar</span>
+        <span class="grp__count">9</span>
+        <span class="grp__hint">nichts zu übernehmen — ein Befund, keine Änderung</span>
+      </summary>
+    </details>
+  </div>
+</div>
+
+<h2>C · Die Probe: dieselben Fälle in den drei Kategorien</h2>
+<p class="note">Hier ist derselbe Bestand als Ankreuzliste, so wie es die Übernahme-Vorschau bei Stadtkarten,
+Abenteuern, Quellen und Vorkommen macht. Die roten Ziffern markieren die Stellen, an denen die Form nicht
+mehr trägt.</p>
+
+<div class="sheet">
+  <div class="sheet__head">
+    <p class="sheet__title">Orte aus dem Wiki übernehmen</p>
+    <div class="sheet__meta">Lauf vom 06.08.2026, 21:14 · 563 Unterschiede</div>
+  </div>
+
+  <div class="sheet__body">
+
+    <details class="grp" open>
+      <summary>
+        <span class="grp__name">Neu</span>
+        <span class="grp__count">60</span>
+        <span class="grp__hint">im Wiki dazugekommen · alle vorangehäkelt</span>
+        <span class="grp__bulk"><button>alle</button><button>keine</button></span>
+      </summary>
+      <div class="rows">
+        <div class="row" style="display:grid;grid-template-columns:22px 1fr;gap:10px">
+          <input type="checkbox" checked>
+          <span><span class="row__name">Rhodenstein</span>
+            <span class="row__sub">Wiki: Rhodenstein · Dorf · Position 604,1 / 271,8 (Positionskarte)</span></span>
+        </div>
+        <div class="row" style="display:grid;grid-template-columns:22px 1fr;gap:10px">
+          <input type="checkbox" disabled>
+          <span><span class="row__name">Ochsenwasser</span><span class="brk">1</span>
+            <span class="row__sub">Ohne Koordinaten. Ein Häkchen kann nicht sagen, <em>wohin</em> — dafür
+            braucht es einen Klick auf die Karte.</span></span>
+        </div>
+        <div class="row" style="display:grid;grid-template-columns:22px 1fr;gap:10px">
+          <input type="checkbox" checked>
+          <span><span class="row__name">Sinoda</span><span class="brk">2</span>
+            <span class="row__sub">Drei Wiki-Kandidaten (68 % / 54 % / 41 %). Das Häkchen nimmt stillschweigend
+            den ersten.</span></span>
+        </div>
+      </div>
+    </details>
+
+    <details class="grp" open>
+      <summary>
+        <span class="grp__name">Geändert</span>
+        <span class="grp__count">118</span>
+        <span class="grp__hint">Wiki weicht von uns ab · alle vorangehäkelt</span>
+        <span class="grp__bulk"><button>alle</button><button>keine</button></span>
+      </summary>
+      <div class="rows">
+        <div class="row" style="display:grid;grid-template-columns:22px 1fr;gap:10px">
+          <input type="checkbox" checked>
+          <span><span class="row__name">Wehrheim</span>
+            <dl class="diff">
+              <dt>Position</dt><dd><span class="old">512,3 / 388,1</span><span class="arrow">&#8594;</span><span class="new">517,9 / 385,4</span></dd>
+            </dl></span>
+        </div>
+        <div class="row" style="display:grid;grid-template-columns:22px 1fr;gap:10px">
+          <input type="checkbox" checked>
+          <span><span class="row__name">Elenvina</span><span class="brk">3</span>
+            <dl class="diff">
+              <dt>Einwohner</dt><dd><span class="old">8.400</span><span class="arrow">&#8594;</span><span class="new">9.100</span></dd>
+              <dt>Region</dt><dd><span class="old">Kosch</span><span class="arrow">&#8594;</span><span class="new">Kosch, Fürstentum</span></dd>
+            </dl>
+            <span class="row__sub">Der Fall sagt heute ausdrücklich <em>nicht</em>, wer recht hat — und es gibt
+            keinen Schreiber, der den Wiki-Wert setzt. Das Häkchen müsste erst einen erfinden.</span></span>
+        </div>
+      </div>
+    </details>
+
+    <details class="grp grp--del">
+      <summary>
+        <span class="grp__name">Gelöscht</span>
+        <span class="grp__count">0</span>
+        <span class="grp__hint">dieser Abgleich löscht nichts<span class="brk">4</span></span>
+      </summary>
+      <div class="rows">
+        <div class="row"><span class="row__sub">Leer. Bei Orten, Wegen und Regionen wird nie etwas gelöscht —
+        in allen drei Listen, bei jedem Lauf.</span></div>
+      </div>
+    </details>
+
+    <details class="grp dim">
+      <summary>
+        <span class="grp__name">&#8230; und die übrigen 385</span>
+        <span class="grp__count">385</span>
+        <span class="grp__hint">passen unter keine der drei Überschriften<span class="brk">5</span></span>
+      </summary>
+      <div class="rows">
+        <div class="row"><span class="row__sub">Dubletten in Avesmaps (7) · Mehrere Namen auf denselben Artikel (3) ·
+        Unaufgelöst ohne Match (340) · Fehlende Hauptstädte (26) · Wege: Konflikt, Ort fehlt, nicht routbar (9)</span></div>
+      </div>
+    </details>
+
+  </div>
+
+  <p class="gate"><label><input type="checkbox"> <span>Ja, 0 Orte wirklich löschen. Das lässt sich nicht rückgängig machen.</span></label></p>
+  <div class="foot">
+    <span class="foot__count"><b>178</b> von 563 werden übernommen</span>
+    <button class="btn">Später</button>
+    <button class="btn btn--main">Übernehmen</button>
+  </div>
+</div>
+
+<div class="legend">
+  <p><b>1 &#183;</b> „Position wählen“ ist kein Ja. Ein Häkchen hat einen Zustand; hier fehlt eine Angabe,
+  die nur ein Klick auf die Karte liefern kann. Zwölf Fälle können nur ausgegraut dastehen.</p>
+  <p><b>2 &#183;</b> „Welcher von diesen?“ ist kein Ja. Bei drei Wiki-Kandidaten trifft das Häkchen die Wahl
+  im Verborgenen — und ein Artikel hing live schon an <em>fünf</em> unserer Orte.</p>
+  <p><b>3 &#183;</b> Für „Weicht vom Wiki ab“ gibt es heute keinen Schreiber, und das mit Absicht: der Fall
+  behauptet nicht, dass das Wiki recht hat. Das Häkchen müsste erst eine Übernahme erfinden, die es nie gab.</p>
+  <p><b>4 &#183;</b> Die dritte Überschrift bleibt in allen drei Listen für immer leer. Eine rote Gruppe, die
+  nie etwas enthält, bringt einem Editor bei, sie zu überblättern — auch dort, wo wirklich etwas verschwindet.</p>
+  <p><b>5 &#183;</b> 385 von 563 Fällen haben keine der drei Überschriften, weil sie keine <em>Änderung</em>
+  sind, sondern ein <em>Problem</em>. Entweder verschwinden sie aus der Liste, oder es braucht eine vierte
+  Kategorie — und dann sind es nicht mehr „drei Kategorien, immer dieselben“.</p>
+  <p><b>Und einer ohne Ziffer, der teuerste:</b> unter „Geändert“ stünden die 31 geänderten Wegverläufe
+  vorangehäkelt, mit einem „alle“-Knopf darüber. Genau diesen Sammelknopf haben wir am 22. Juli ausgebaut,
+  nachdem er an echten Daten gemessen 70 Straßenstücke gelöst hätte — jedes ein Stück seiner eigenen Straße.</p>
+</div>
+
+<h2>D · Die Regionen sind gar keine Fallliste</h2>
+<p class="note">Der Vollständigkeit halber: bei den Regionen gibt es überhaupt keine Fälle. Dort steht eine
+Arbeitsfläche mit den Reitern <em>Alle / Platziert / Fehlt</em>; eine fehlende Region <b>zieht</b> man auf die
+Karte, und dort entsteht sie. Das ist kein Vorschlag, den man annimmt oder ablehnt, sondern ein Werkzeug.
+Es bekommt dieselben Farben und Abstände wie alles andere — mehr ist dort nicht zu holen.</p>
+
+</div>
+</body>
+</html>

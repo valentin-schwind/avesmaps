@@ -4,7 +4,9 @@
 06.08.2026**, Bauplan: [`docs/superpowers/plans/2026-08-06-sync-uebernahme-sitzung-1.md`](../plans/2026-08-06-sync-uebernahme-sitzung-1.md) ·
 **Sitzung 2 (Abenteuer, Publikationsquellen, Vorkommen) gebaut am 06.08.2026**, Bauplan:
 [`docs/superpowers/plans/2026-08-06-sync-uebernahme-sitzung-2.md`](../plans/2026-08-06-sync-uebernahme-sitzung-2.md) ·
-Sitzungen 3–4 offen ·
+**Sitzung 3 (Orte, Wege, Regionen) gebaut am 06.08.2026** — nur die Formensprache; die drei Kategorien
+passen dort nicht (§7) ·
+Sitzung 4 offen ·
 **Mockup:** [`docs/sync-uebernahme-mockup.html`](../../sync-uebernahme-mockup.html) (anklickbar) ·
 **Verwandt:** A16 (`docs/systemtest-2026-08-05/1-akut.md`), `docs/konfliktmanagement-design.md`
 
@@ -224,12 +226,57 @@ Löschung ein **Grabstein**, keine echte Löschung — die Zeile sagt das, sonst
   Vorschau-Endpunkts — die Karten-Übernahme hob die Kartenrevision nicht, lautlos hinter einem
   `function_exists`. Gefunden vom neuen `__tests__/sync-plan-endpoint-chain-test.php`.
 
-### Sitzung 3 — Orte, Wege, Regionen
+### Sitzung 3 — Orte, Wege, Regionen ✅ gebaut am 06.08.2026
 
-Die bestehende Fall-Oberfläche (`wiki_sync_cases`) auf dasselbe Bauteil umstellen. Hier ändert sich
-das **Verhalten kaum** — Fälle werden schon einzeln bestätigt —, aber das Aussehen wird einheitlich
-und die drei Kategorien ersetzen die heutige Fall-Typologie an der Oberfläche. ⚠️ Die Fälle behalten
-ihre eigene Speicherung und ihre Auflöse-Wege, genau wie im Konfliktzentrum.
+Bauplan: [`docs/superpowers/plans/2026-08-06-sync-uebernahme-sitzung-3.md`](../plans/2026-08-06-sync-uebernahme-sitzung-3.md) ·
+Mockup: [`docs/sync-uebernahme-fallliste-mockup.html`](../../sync-uebernahme-fallliste-mockup.html)
+
+Gebaut wurde die eine Hälfte dieses Abschnitts: **das Aussehen wird einheitlich.** Die Fälle behalten
+ihre eigene Speicherung, ihre Verben und ihre Auflöse-Wege, genau wie im Konfliktzentrum.
+
+💣 **Die andere Hälfte — „die drei Kategorien ersetzen die heutige Fall-Typologie" — ist nach Zählung
+zurückgenommen worden** (Owner-Entscheid 06.08.2026 nach Mockup). Die drei Kategorien sind eine
+Ordnung von **vorgeschlagenen Schreibungen**, die Fall-Typologie eine Ordnung von **Fragen**. Alle 16
+Falltypen:
+
+| | Zahl | welche |
+|---|---|---|
+| **Neu** ehrlich | 2 | `missing_wiki_with_coordinates`, `missing_wiki_without_coordinates` |
+| **Geändert** ehrlich | 7 | `canonical_name_difference`, `type_conflict`, `probable_match`, `coordinate_drift`, `field_divergence`, `coat_available`, `verlauf_changed` |
+| **Gelöscht** | **0** | keiner der drei Abgleiche löscht je etwas |
+| **kein Zuhause** | 7 | `unresolved_without_candidate`, `duplicate_avesmaps_name`, `duplicate_wiki_title`, `missing_capital`, `course_conflict`, `station_missing`, `hops_unroutable` |
+
+Und ein **Häkchen ist bei 2 von 16 Falltypen die richtige Form**. Sonst ist die Antwort nicht „ja",
+sondern *„welcher von diesen"* und danach *„und so soll er heißen"*: „Lösen" öffnet ein **Formular**
+mit den Voreinstellungen Karte/Wiki, das ein Mensch ausfüllt und abschickt
+(`openWikiSyncResolveDialogForCase`; der Server nimmt `name`/`feature_subtype`/`description`/
+`wiki_url`/`is_nodix`/`is_ruined` entgegen). „Position wählen" wartet auf einen Kartenklick.
+„Hauptstadt zuweisen" ist ein Suchfeld. Bei den Regionen gibt es überhaupt keine Fälle, sondern eine
+Arbeitsfläche zum Draufziehen.
+
+💣 **Die teuerste Stelle wäre „Geändert" gewesen:** dort stünden die geänderten Wegverläufe
+vorangehäkelt, mit einem „alle"-Knopf darüber. Genau dieser Sammelknopf wurde am **22.07.2026
+ausgebaut** (`js/review/review-path-sync.js`), nachdem er an echten Daten gemessen 70 Straßensegmente
+gelöst hätte — jedes ein zusammenhängendes Stück seiner *eigenen* Straße.
+
+**Was gebaut wurde:**
+
+- Das Bauteil nimmt seine Zeilen jetzt aus einer **austauschbaren Quelle** (`syncPlanResolvePost`,
+  `openSyncPlanSheet({…, post})`). Abnehmer ist Sitzung 4 — die Territorien rechnen ihre Unterschiede
+  längst als `neu / verschwunden / geändert`, also genau die drei Kategorien. Ein Test zählt am
+  Quelltext nach, dass niemand am eingereichten Sender vorbei den Standard ruft.
+- Die Falllisten gruppieren durch **Trennlinien statt Kästen**, die Auskunftszeilen stehen im
+  **ruhigen Feld** (`.wiki-sync-case__facts`), und die Knöpfe tragen die Hierarchie des Blattes.
+  ⚠️ Die Knopfregel gab es seit dem 21.07. schon — beschränkt auf `#conflict-list`, weil sie dort
+  auffiel. Sie gilt jetzt für beide Oberflächen, die Kopie ist entfallen.
+- Jede Fallgruppe sagt in **einem Satz**, worum es geht, aus dem EINEN Katalog (`LEGACY_RULE_INFO`).
+  ⚠️ Der Satz steht im **Rumpf**, nicht rechts in der Überschrift wie im Blatt: in der 400 px schmalen
+  Spalte bricht er dort auf drei Zeilen (35 → 61 px je Überschrift, bei zwölf Gruppen rund 300 px
+  Scrollstrecke). Zugeklappt bleibt die Liste ihr Inhaltsverzeichnis.
+
+⚠️ **Live mit echten Daten nur mit Editor-Anmeldung sichtbar.** Belegt wurde in beiden Umgebungen
+(WikiSync-Panel und Konfliktzentrum) und in beiden Themes über eine Prüfseite mit der echten
+CSS-Kette — nicht am echten Fallbestand.
 
 ### Sitzung 4 — Territorien
 
