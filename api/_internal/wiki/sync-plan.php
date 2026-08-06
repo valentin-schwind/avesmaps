@@ -430,6 +430,23 @@ function avesmapsSyncPlanPendingItems(PDO $pdo, int $runId, int $limit): array
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
 
+/**
+ * How many ticked rows are still waiting.
+ *
+ * ⚠️ A real COUNT, not "did LIMIT 1 return something": the apply step reports this number to the
+ * editor, and a field called `remaining` that can only ever say 0 or 1 is a lie in the shape of a
+ * fact. The client shows progress with it.
+ */
+function avesmapsSyncPlanPendingCount(PDO $pdo, int $runId): int
+{
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) FROM sync_plan_item WHERE run_id = :r AND selected = 1 AND apply_state IS NULL'
+    );
+    $stmt->execute(['r' => $runId]);
+
+    return (int) $stmt->fetchColumn();
+}
+
 function avesmapsSyncPlanMarkItem(PDO $pdo, int $itemId, string $applyState, string $note = ''): void
 {
     $pdo->prepare('UPDATE sync_plan_item SET apply_state = :s, apply_note = :n WHERE id = :id')

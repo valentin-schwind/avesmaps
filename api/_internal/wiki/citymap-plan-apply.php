@@ -116,7 +116,7 @@ function avesmapsCitymapApplyStep(PDO $pdo, int $runId, int $userId, ?array $use
         }
     }
 
-    $remaining = count(avesmapsSyncPlanPendingItems($pdo, $runId, 1));
+    $remaining = avesmapsSyncPlanPendingCount($pdo, $runId);
     $done = $remaining === 0;
     $closing = ['skipped' => 0, 'declined' => 0];
 

@@ -162,7 +162,12 @@ try {
                 avesmapsErrorResponse(409, 'plan_not_open', 'This plan can no longer be changed.');
             }
 
-            $ids = isset($payload['ids']) && is_array($payload['ids']) ? $payload['ids'] : null;
+            // ⚠️ Gedeckelt: die Oberflaeche schickt EINE id je Klick und benutzt fuer ganze Gruppen
+            // change_type. Eine Liste von zehntausend ids waere entweder ein Fehler oder ein Versuch,
+            // und ein IN() dieser Groesse ist auf diesem Host ein Problem fuer alle.
+            $ids = isset($payload['ids']) && is_array($payload['ids'])
+                ? array_slice($payload['ids'], 0, AVESMAPS_SYNC_PLAN_CATEGORY_LIMIT)
+                : null;
             $changeType = isset($payload['change_type'])
                 ? avesmapsNormalizeSingleLine((string) $payload['change_type'], 8)
                 : null;
