@@ -75,6 +75,21 @@ const AVESMAPS_COLLECTION_AUDIT_TITLE_LIMIT = 20;
 /** What the Übernahme row calls the sync it belongs to. Grows with session 2-4 (design §7). */
 const AVESMAPS_COLLECTION_AUDIT_KIND_LABELS = [
     'citymap' => 'Stadtkarten',
+    'adventure' => 'Abenteuer',
+    'publication' => 'Publikationsquellen',
+    'lore' => 'Vorkommen',
+];
+
+/**
+ * What the deletions of THIS sync are called.
+ *
+ * ⚠️ Not decoration. For the Vorkommen a "deletion" sets status='retired' and the very next sync can
+ * revive it, so "gelöscht" would be the single most misleading word available here -- this log is read
+ * months later, by somebody deciding whether something is recoverable. Anything not listed keeps
+ * 'gelöscht', because for the other kinds that is exactly what happened.
+ */
+const AVESMAPS_COLLECTION_AUDIT_KIND_DELETION_VERB = [
+    'lore' => 'stillgelegt',
 ];
 
 function avesmapsCollectionAuditActionIsKnown(string $action): bool
@@ -212,7 +227,7 @@ function avesmapsLogSyncPlanApply(PDO $pdo, string $kind, array $planned, array 
     $name = AVESMAPS_COLLECTION_AUDIT_KIND_LABELS[$kind] ?? $kind;
     $name .= ' · ' . $applied . ' übernommen';
     if (count($titles) > 0) {
-        $name .= ', ' . count($titles) . ' gelöscht';
+        $name .= ', ' . count($titles) . ' ' . (AVESMAPS_COLLECTION_AUDIT_KIND_DELETION_VERB[$kind] ?? 'gelöscht');
     }
 
     avesmapsLogCollectionDeletion(

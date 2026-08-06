@@ -12,7 +12,11 @@
 .sync-plan-host {
 	position: fixed;
 	inset: 0;
-	z-index: 40;
+	/* Der Wirt steht seit Sitzung 2 auch in index.html (Vorkommen, Publikationsquellen), und dort liegt
+	   das Vorkommen-Fenster auf --z-editor-overlay (1500): eine 40 verschwände dahinter. --z-modal ist
+	   die oberste Sprosse der Leiter und genau dafür gedacht — ein Blatt über allem, das eine Antwort
+	   verlangt. In den Editorseiten ändert sich dadurch nichts (ihr höchster eigener Wert ist 30). */
+	z-index: var(--z-modal);
 	overflow-y: auto;
 	/* 💣 Ohne das steht die frisch geöffnete Vorschau nach dem Nachladen nicht oben: das
 	   Scroll-Anchoring zieht den Kasten mit, wenn „Lade …" durch die Liste ersetzt wird.
@@ -220,6 +224,14 @@
 
 .sync-plan-host .new {
 	color: var(--color-text-strong);
+	font-weight: 700;
+}
+
+/* 🔴 Ein Verlust in einer vorangehäkelten Zeile. Dieselbe Farbe wie die Löschgruppe, weil es dasselbe
+   ist: etwas geht weg. Er steht bei den anderen Feldern, damit man ihn dort findet, wo man liest — und
+   fällt trotzdem heraus, weil er die einzige Zeile in Warnfarbe ist. */
+.sync-plan-host .diff__loss {
+	color: var(--color-danger-soft-text);
 	font-weight: 700;
 }
 

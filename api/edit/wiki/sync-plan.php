@@ -28,6 +28,11 @@ require_once __DIR__ . '/../../_internal/wiki/dump-lock.php';
 require_once __DIR__ . '/../../_internal/political/territory.php';
 require_once __DIR__ . '/../../_internal/wiki/sync.php';
 require_once __DIR__ . '/../../_internal/map/features.php';
+// avesmapsWikiSyncNextMapRevision -- the map-features ETag bump every apply half ends with. It was
+// missing until 2026-08-06 (session 2): the call sits behind function_exists, so a citymap Übernahme
+// quietly skipped it and warm-cache clients kept 304-ing the pre-Übernahme payload. Found by
+// __tests__/sync-plan-endpoint-chain-test.php, which exists for exactly this class of silence.
+require_once __DIR__ . '/../../_internal/wiki/locations-helpers.php';
 require_once __DIR__ . '/../../_internal/app/feature-sources.php';
 require_once __DIR__ . '/../../_internal/app/adventure-resolve.php';
 require_once __DIR__ . '/../../_internal/app/citymaps.php';
@@ -35,9 +40,14 @@ require_once __DIR__ . '/../../_internal/wiki/publication-parsing.php';
 require_once __DIR__ . '/../../_internal/wiki/publication-sync.php';
 require_once __DIR__ . '/../../_internal/wiki/citymap-sync.php';
 require_once __DIR__ . '/../../_internal/wiki/citymap-plan-apply.php';
+// Session 2, adventures: the live tables + the reconcile writer + the apply half. Same order the dump
+// endpoint assembles them in (adventures.php before adventure-resolve.php above).
+require_once __DIR__ . '/../../_internal/app/adventures.php';
+require_once __DIR__ . '/../../_internal/wiki/adventure-sync.php';
+require_once __DIR__ . '/../../_internal/wiki/adventure-plan-apply.php';
 
 /** The syncs that have a preview. Grows one entry per session (design §7). */
-const AVESMAPS_SYNC_PLAN_KINDS = ['citymap'];
+const AVESMAPS_SYNC_PLAN_KINDS = ['citymap', 'adventure'];
 
 /**
  * One plan row, shaped for the component. The JSON columns are decoded HERE so the client never
@@ -212,6 +222,7 @@ try {
 
             $step = match ($kind) {
                 'citymap' => avesmapsCitymapApplyStep($pdo, $runId, $userId, $currentUser),
+                'adventure' => avesmapsAdventureApplyStep($pdo, $runId, $userId, $currentUser),
             };
             $done = ($step['done'] ?? false) === true;
 

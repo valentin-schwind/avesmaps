@@ -55,6 +55,10 @@
 		<link rel="stylesheet" href="css/styles.css" />
 		<link rel="stylesheet" href="css/features/loading-bar.css" />
 		<link rel="stylesheet" href="css/features/mail-inbox.css" />
+		<!-- Die Übernahme-Vorschau der Wiki-Abgleiche. Hier, weil ihre zwei Auslöser in DIESER Seite
+		     sitzen: „Vorkommen syncen" im Vorkommen-Fenster und „Dump holen" im WikiSync-Panel. Die
+		     Karten- und Abenteuer-Editoren sind iframes und verlinken sie selbst. -->
+		<link rel="stylesheet" href="css/components/sync-plan-sheet.css" />
 		<!-- Der Stil fuer den Riegel unten am Anfang des Rumpfes. Er steht HIER, im Kopf: nur in
 		     einem noscript-Block im Kopf darf ein style-Element stehen, und nur dort kostet er den
 		     Besucher MIT JavaScript nichts -- der Browser parst den Inhalt eines noscript-Blocks
@@ -2573,6 +2577,10 @@
 			<script src="js/review/review-capitals-list.js"></script>
 		<script src="js/territory/territory-wiki-tree.js"></script>
 		<!-- review-subjects.js ist nach OBEN gezogen, vor seine beiden Leser -- siehe dort. -->
+		<!-- Das Bauteil der Übernahme-Vorschau. VOR review-wiki-sync.js: dessen Abschlüsse rufen
+		     openSyncPlanSheet(). Kein DOM auf oberster Ebene, also kostet die Reihenfolge nichts außer
+		     der Gewissheit, dass die Funktion da ist, wenn der erste Abgleich fertig wird. -->
+		<script src="js/review/sync-plan-sheet.js"></script>
 		<script src="js/review/review-wiki-sync.js"></script>
 		<script src="js/review/review-link-check.js"></script>
 		<script src="js/review/review-citymap-autoget.js"></script>
@@ -2786,5 +2794,10 @@
 		     die Karte und das Fenster schon stehen. Die Wirkungen selbst ruft sie ohnehin erst beim
 		     Tastendruck auf, die Reihenfolge ist dafür also kein Zwang. -->
 		<script src="js/app/keyboard-shortcuts.js"></script>
+		<!-- Der Wirt der Übernahme-Vorschau: ein leerer, versteckter Kasten am Ende des Rumpfes. Er
+		     liegt bewusst NICHT im WikiSync-Panel -- das Vorkommen-Fenster überlagert es, und ein Blatt
+		     darin wäre hinter dem Fenster, das es geöffnet hat. Gefüllt wird er erst auf Klick
+		     (js/review/sync-plan-sheet.js). -->
+		<div class="sync-plan-host" id="wikiSyncPlanHost" hidden></div>
 	</body>
 </html>

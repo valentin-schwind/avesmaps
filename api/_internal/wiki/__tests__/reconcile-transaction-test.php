@@ -284,10 +284,17 @@ assert(
 // rule -- one transaction per entity, and an exception must leave the loop rather than be swallowed
 // into "skip the broken one and carry on". citymap-sync.php itself no longer calls the entity
 // reconciler at all, so listing it here would only assert something about a call that is gone.
+//
+// ⚠️ adventure-plan-apply.php joined on 2026-08-06 (session 2), and for the adventure reconciler the
+// rule reads the other way round: it is the ONE entity writer that is deliberately NOT wrapped (it
+// downloads the cover mid-write, see the exception above). What still holds -- and what this list
+// checks -- is the other half of the promise: no transaction is opened around the loop, and the entity
+// is not wrapped in a catch that would let the run continue past a rolled-back one.
 $callerFiles = [
     'api/edit/wiki/dump.php',
     'api/_internal/wiki/lore-sync.php',
     'api/_internal/wiki/citymap-plan-apply.php',
+    'api/_internal/wiki/adventure-plan-apply.php',
     'api/_internal/wiki/publication-sync.php',
 ];
 foreach ($callerFiles as $relative) {

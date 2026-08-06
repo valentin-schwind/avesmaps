@@ -1841,21 +1841,34 @@ async function startWikiSyncPowerlines() {
 	return finalStatus;
 }
 
-// Abenteuer syncen (Phase 4): the SHARP reconcile of the wiki adventure catalog
-// (built during "Dump holen") into the live adventure/adventure_place tables.
-// UNLIKE publications (folded into "Dump holen"), this is its OWN "Abenteuer"-tab
-// button so the owner can re-run just the adventure reconcile. Drives the backend
-// `sync_adventures` action via the same one-POST-per-step client loop; the override
-// guarantee (never touch a manual/community/suppressed row) lives entirely in the
-// backend diff, and any new cover is fetched into /uploads/questcovers server-side.
+// Abenteuer abgleichen (Phase 4): der Vergleich des Wiki-Abenteuerkatalogs (beim „Dump
+// holen" gebaut) mit den Tabellen adventure/adventure_place.
+//
+// 🔴 SEIT 2026-08-06 SCHREIBT DIESER LAUF NICHTS. Er rechnet, was der Abgleich täte, und
+// legt es als Plan ab; geschrieben wird erst, was ein Editor in der Übernahme-Vorschau
+// anhäkelt (js/review/sync-plan-sheet.js → api/edit/wiki/sync-plan.php). Auch das
+// Titelbild wird erst dann geholt -- ein Download ist ein Seiteneffekt, und der wartet
+// jetzt ebenfalls auf ein Häkchen. Entwurf:
+// docs/superpowers/specs/2026-08-06-sync-uebernahme-design.md.
+//
+// Zwei Auslöser, ein Lauf: „🚨 Abenteuer syncen" im Menüband des Abenteuereditors
+// (window.parent.startWikiSyncAdventuresSync({ openSheet: false }) -- der Editor öffnet
+// das Blatt in seiner eigenen Seite, weil der Wirt DIESER Seite hinter dem Editorfenster
+// läge) und der Verb-Knopf im WikiSync-Panel, der #wiki-sync-sync-adventure anklickt und
+// das Blatt hier öffnet.
+//
+// Die Override-Garantie (niemals eine manuelle/community/unterdrückte Zeile anfassen,
+// keinen Grabstein wiederbeleben, ein Wiederholungslauf ist ein No-op) liegt vollständig
+// im Backend-Diff -- und genau der ist jetzt das, was die Vorschau ZEIGT: ein Feld, das
+// jemand von Hand gesetzt hat, steht dort als „bleibt …" statt als Vorschlag.
 // Backend: api/edit/wiki/dump.php (sync_adventures).
 // ===========================================================================
 
 let isWikiSyncAdventuresRunning = false;
 
-// Render the adventure-reconcile progress bar + status line from a step response.
-// `totals` carries the run-summed counters the loop accumulates (each step's counters
-// start at 0). progress.total is the staging catalog size (the "N Abenteuer geprüft" cap).
+// Render the adventure-compare progress bar + status line from a step response.
+// `totals` carries the run-summed counters the loop accumulates (each step's counters start
+// at 0). progress.total is the staging catalog size (the "N Abenteuer geprüft" cap).
 function renderWikiSyncAdventuresProgress(step, done, totals) {
 	const button = document.getElementById("wiki-sync-sync-adventure");
 	if (!button) {
@@ -1865,10 +1878,16 @@ function renderWikiSyncAdventuresProgress(step, done, totals) {
 	const total = Number(step?.progress?.total ?? 0);
 
 	if (done) {
-		// A result, not a state -- the toast overlays instead of pushing the tabs down.
+		// A result, not a state -- the toast overlays instead of pushing the tabs down. It names
+		// DIFFERENCES, not changes: nothing has been written at this point.
+		const counts = (step && step.counts) || {};
+		const differences = Number(counts.total ?? 0);
 		if (typeof showFeedbackToast === "function") {
 			showFeedbackToast(
-				`Abenteuer: +${totals.created} neu / ~${totals.updated} aktualisiert · Orte +${totals.placesAdded}/-${totals.placesRemoved} · ${totals.coversFetched} Cover (${totals.processed} geprüft).`,
+				differences > 0
+					? `Abenteuer: ${differences} Unterschiede — Vorschau offen (${Number(counts.new ?? 0)} neu, `
+						+ `${Number(counts.changed ?? 0)} geändert · ${totals.processed} geprüft).`
+					: `Abenteuer: keine Unterschiede (${totals.processed} geprüft).`,
 				"success"
 			);
 		}
@@ -1878,7 +1897,7 @@ function renderWikiSyncAdventuresProgress(step, done, totals) {
 	}
 
 	setWikiSyncButtonState(button, {
-		label: `Syncen … ${processed}${total > 0 ? "/" + total : ""} Abenteuer`,
+		label: `Vergleicht … ${processed}${total > 0 ? "/" + total : ""} Abenteuer`,
 		current: processed,
 		total,
 		running: true,
@@ -1887,19 +1906,21 @@ function renderWikiSyncAdventuresProgress(step, done, totals) {
 
 // Drive `sync_adventures` to completion: loop the action once per step, advancing the
 // server-returned wiki_key high-water `cursor` (a STRING) and SUMMING the per-step deltas
-// until done. Mirrors runWikiSyncPublicationsSyncLoop (bounded step ceiling; stops cleanly
-// on the 409 pipeline lock). Reads staging + live DB only (no dump reopen).
+// until done. Mirrors runWikiSyncCitymapsSyncLoop (bounded step ceiling; stops cleanly on
+// the 409 pipeline lock). Reads staging + live DB only (no dump reopen, and since the split:
+// no write either).
 async function runWikiSyncAdventuresSyncLoop() {
 	let cursor = "";
 	let done = false;
 	let safetyCounter = 0;
 	let lastResult = null;
-	const totals = { created: 0, updated: 0, placesAdded: 0, placesRemoved: 0, placesUpdated: 0, coversFetched: 0, processed: 0 };
+	// `planned` are the difference ROWS written into the plan, not changes made to an adventure.
+	const totals = { planned: 0, processed: 0 };
 	const MAX_STEPS = 4000;
 
 	while (!done) {
 		if (safetyCounter > MAX_STEPS) {
-			throw new Error("Abenteuer-Übernahme wurde nach zu vielen Teilschritten angehalten.");
+			throw new Error("Der Abenteuer-Abgleich wurde nach zu vielen Teilschritten angehalten.");
 		}
 		safetyCounter += 1;
 
@@ -1917,12 +1938,7 @@ async function runWikiSyncAdventuresSyncLoop() {
 
 		lastResult = stepResult;
 		cursor = String(stepResult.cursor ?? cursor);
-		totals.created += Number(stepResult.adv_created ?? 0);
-		totals.updated += Number(stepResult.adv_updated ?? 0);
-		totals.placesAdded += Number(stepResult.places_added ?? 0);
-		totals.placesRemoved += Number(stepResult.places_removed ?? 0);
-		totals.placesUpdated += Number(stepResult.places_updated ?? 0);
-		totals.coversFetched += Number(stepResult.covers_fetched ?? 0);
+		totals.planned += Number(stepResult.planned ?? 0);
 		totals.processed += Number(stepResult.processed ?? 0);
 		done = stepResult.done === true;
 		renderWikiSyncAdventuresProgress(stepResult, done, totals);
@@ -1934,37 +1950,57 @@ async function runWikiSyncAdventuresSyncLoop() {
 	return lastResult;
 }
 
-// The "Abenteuer"-tab "Syncen" button handler: guard against a double-run, disable the
-// button, drive the loop, then refresh the persistent "Zuletzt gesynct" label.
-async function startWikiSyncAdventuresSync() {
+// The "Abenteuer" sync entry point. Global on purpose: html/adventure-editor.html runs in an
+// iframe and calls window.parent.startWikiSyncAdventuresSync({ openSheet: false }) -- it opens
+// the preview in its OWN page, because this page's host would sit behind the editor window.
+// Re-entrancy guarded, so a double click is a no-op.
+//
+// Returns { run_id, counts } so the caller can open the preview; opens it here itself when the
+// trigger was the panel's verb button (no options, or openSheet !== false).
+async function startWikiSyncAdventuresSync(options) {
 	if (isWikiSyncAdventuresRunning) {
-		return;
+		return null;
 	}
 	isWikiSyncAdventuresRunning = true;
 	const button = document.getElementById("wiki-sync-sync-adventure");
 	if (button) {
 		button.disabled = true;
 	}
-	setWikiSyncStatus("Abenteuer werden übernommen …", "pending");
+	setWikiSyncStatus("Abenteuer werden verglichen …", "pending");
 
 	try {
 		const result = await runWikiSyncAdventuresSyncLoop();
-		const totals = (result && result.totals) || { created: 0, updated: 0, coversFetched: 0 };
-		const note = ` (+${totals.created} neu / ~${totals.updated} aktualisiert / ${totals.coversFetched} Cover)`;
-		setWikiSyncStatus(`Abenteuer übernommen.${note}`, "success");
-		showFeedbackToast(`Abenteuer übernommen.${note}`, "success");
-		if (typeof refreshWikiSyncKindSyncedStatus === "function") {
-			try {
-				await refreshWikiSyncKindSyncedStatus();
-			} catch (refreshError) {
-				/* best-effort: the persistent label refresh is non-critical */
-			}
+		// Die Zahlen der letzten Antwort: nur der ABSCHLIESSENDE Schritt kennt sie vollständig.
+		const counts = (result && result.counts) || {};
+		const total = Number(counts.total ?? 0);
+		const note = total > 0
+			? `${total} Unterschiede — Vorschau offen (${Number(counts.new ?? 0)} neu, `
+				+ `${Number(counts.changed ?? 0)} geändert).`
+			: "Keine Unterschiede: der Bestand entspricht dem Dump.";
+		setWikiSyncStatus(note, "success");
+
+		const runId = Number((result && result.run_id) || 0);
+		if (total > 0 && runId > 0 && (!options || options.openSheet !== false)
+			&& typeof openSyncPlanSheet === "function") {
+			openSyncPlanSheet({
+				kind: "adventure",
+				mount: document.getElementById("wikiSyncPlanHost"),
+				onApplied: () => {
+					// Der Datumsstempel steht erst nach der Übernahme -- vorher wurde nichts geschrieben.
+					if (typeof refreshWikiSyncKindSyncedStatus === "function") {
+						void refreshWikiSyncKindSyncedStatus();
+					}
+				},
+			});
 		}
+
+		return { run_id: runId, counts: counts };
 	} catch (error) {
 		if (!(error && error.dumpLocked)) {
-			setWikiSyncStatus(error.message || "Abenteuer-Übernahme fehlgeschlagen.", "error");
-			showFeedbackToast(error.message || "Abenteuer-Übernahme fehlgeschlagen.", "warning");
+			setWikiSyncStatus(error.message || "Abenteuer-Abgleich fehlgeschlagen.", "error");
+			showFeedbackToast(error.message || "Abenteuer-Abgleich fehlgeschlagen.", "warning");
 		}
+		throw error; // the editor's button shows its own failure text
 	} finally {
 		isWikiSyncAdventuresRunning = false;
 		if (button) {

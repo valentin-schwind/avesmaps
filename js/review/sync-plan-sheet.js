@@ -16,11 +16,42 @@
 /** Was der Abgleich zählt — Ein-/Mehrzahl für die zweite Bestätigung. */
 const SYNC_PLAN_KIND_NOUNS = {
 	citymap: { one: "Karte", many: "Karten" },
+	adventure: { one: "Abenteuer", many: "Abenteuer" },
 };
 
 const SYNC_PLAN_KIND_TITLES = {
 	citymap: "Stadtkarten aus dem Wiki übernehmen",
+	adventure: "Abenteuer aus dem Wiki übernehmen",
 };
+
+/**
+ * Was die dritte Gruppe je Art bedeutet — und `null` heißt: diese Art löscht nichts.
+ *
+ * 🔴 Nicht kosmetisch. Eine rote, immer leere Löschgruppe bringt einem Editor bei, sie zu
+ * überblättern; und dann überblättert er sie auch dort, wo wirklich etwas verschwindet. Die dritte
+ * Kategorie gehört dem Verschwinden einer ganzen Einheit — verliert eine lebende Einheit nur
+ * Kindzeilen, die das Wiki nicht mehr auflistet, steht das benannt in ihrer Geändert-Zeile
+ * (SYNC_PLAN_LOSS_FIELDS). Bauplan Sitzung 2, Entscheidung 1.
+ */
+const SYNC_PLAN_KIND_DELETION = {
+	citymap: {
+		hint: "im Wiki nicht mehr da · <b>nichts vorangehäkelt</b>",
+		lead: "Was du <b>nicht</b> anhäkelst, <b>bleibt</b> — dauerhaft, es wird nicht wieder gefragt. "
+			+ "Es bleibt trotzdem ein Wiki-Eintrag: kommt der Artikel zurück, läuft er wieder mit.",
+	},
+	// Ein Abenteuer wird nie gelöscht, auch dann nicht, wenn sein Artikel im Wiki verschwindet: der
+	// Abgleich hat dafür keinen Weg und hatte nie einen.
+	adventure: null,
+};
+
+/**
+ * Felder, die einen VERLUST nennen. Sie werden gezeichnet, wo sie stehen — aber in Warnfarbe und ohne
+ * Pfeil, weil „— → 3" bei einem Verlust nichts erklärt.
+ *
+ * 💣 Diese Zeilen kommen vorangehäkelt an (Geändert tut das immer), also muss das eine, was sich nicht
+ * zurückholen lässt, das eine sein, das man nicht übersieht.
+ */
+const SYNC_PLAN_LOSS_FIELDS = ["places_removed", "occurrences_removed", "sources_removed"];
 
 /** Die drei Kategorien und wie sie sich erklären. Reihenfolge = Anzeigereihenfolge. */
 const SYNC_PLAN_GROUPS = [
@@ -28,6 +59,26 @@ const SYNC_PLAN_GROUPS = [
 	{ key: "changed", name: "Geändert", hint: "Wiki weicht von uns ab · alle vorangehäkelt" },
 	{ key: "deleted", name: "Gelöscht", hint: "im Wiki nicht mehr da · <b>nichts vorangehäkelt</b>" },
 ];
+
+/**
+ * Alles, was eine Art über sich sagt, an EINER Stelle abgefragt.
+ *
+ * ⚠️ Eine unbekannte Art bekommt die strengste Fassung (die der Karten): eine Warnung, die zu viel
+ * behauptet, ist unangenehm — eine, die fehlt, ist ein Datenverlust. `known` sagt, dass geraten wurde.
+ */
+function syncPlanKindMeta(kind) {
+	const key = String(kind || "");
+	const known = Object.prototype.hasOwnProperty.call(SYNC_PLAN_KIND_TITLES, key);
+
+	return {
+		known: known,
+		title: SYNC_PLAN_KIND_TITLES[key] || "Aus dem Wiki übernehmen",
+		nouns: SYNC_PLAN_KIND_NOUNS[key] || { one: "Eintrag", many: "Einträge" },
+		deletion: Object.prototype.hasOwnProperty.call(SYNC_PLAN_KIND_DELETION, key)
+			? SYNC_PLAN_KIND_DELETION[key]
+			: SYNC_PLAN_KIND_DELETION.citymap,
+	};
+}
 
 /**
  * HTML-Escaper, sicher für Text UND (in Anführungszeichen stehende) Attribute.
@@ -61,6 +112,25 @@ function syncPlanFieldLabel(field) {
 		place: "Ort",
 		source: "Quelle",
 		links: "Fundstellen",
+		// --- Abenteuer (Sitzung 2). Dieselben deutschen Wörter, die der Abenteuereditor benutzt
+		// (html/adventure-editor.html): zwei Beschriftungen für dasselbe Ding wären genau die
+		// Divergenz, die die Token-Regel für Farben verbietet -- hier gilt sie für Wörter.
+		product_type: "Produkttyp",
+		edition: "Regelsystem",
+		// Auch wenn es gleich aussieht: die Tabelle ist die Liste dessen, was benannt IST -- ein Feld,
+		// das nur zufällig deutsch heißt, wäre morgen das eine ohne Beschriftung.
+		genre: "Genre",
+		complexity_gm: "Komplexität (SL)",
+		complexity_pl: "Komplexität (Spieler)",
+		authors: "Autoren",
+		series: "Serie / Reihe",
+		fshop_code: "F-Shop-Code",
+		cover_url: "Cover-URL",
+		wiki_url: "Wiki-URL",
+		cover: "Titelbild",
+		adopt: "Übernahme",
+		places: "Orte",
+		places_removed: "Orte entfallen",
 	};
 
 	return labels[field] || field;
@@ -107,7 +177,7 @@ function syncPlanFooterState(state) {
 	const selected = Number(options.selected || 0);
 	const deletions = Number(options.deletions || 0);
 	const confirmed = options.confirmed === true;
-	const nouns = SYNC_PLAN_KIND_NOUNS[options.kind] || { one: "Eintrag", many: "Einträge" };
+	const nouns = syncPlanKindMeta(options.kind).nouns;
 	const selectedTotal = selected + hidden;
 
 	return {
@@ -143,6 +213,13 @@ function syncPlanDiffMarkup(item) {
 	const rows = [];
 
 	Object.keys(after).forEach((field) => {
+		// Ein Verlust ist kein „alt → neu": es gibt kein Nachher, es gibt weniger. Eigene Farbe, eigene
+		// Form -- und damit die eine Zeile, die man in einer vorangehäkelten Liste nicht überliest.
+		if (SYNC_PLAN_LOSS_FIELDS.indexOf(field) >= 0) {
+			rows.push(`<dt>${syncPlanEscape(syncPlanFieldLabel(field))}</dt>`
+				+ `<dd class="diff__loss">${syncPlanEscape(syncPlanFieldValue(field, after[field]))}</dd>`);
+			return;
+		}
 		const oldValue = syncPlanEscape(syncPlanFieldValue(field, before[field]));
 		const newValue = syncPlanEscape(syncPlanFieldValue(field, after[field]));
 		rows.push(`<dt>${syncPlanEscape(syncPlanFieldLabel(field))}</dt><dd>`
@@ -213,7 +290,22 @@ function syncPlanRowMarkup(item) {
 }
 
 /** Eine Gruppe. Zugeklappt ist sie ihre Überschrift, aufgeklappt ihr Inhalt. */
-function syncPlanGroupMarkup(group, items, total, hiddenCount) {
+function syncPlanGroupMarkup(group, items, total, hiddenCount, kind) {
+	const meta = syncPlanKindMeta(kind);
+
+	// Eine Art, die nichts löscht, sagt genau das -- und behält die Gruppe, damit die drei Kategorien
+	// überall dieselben drei sind (Entwurf §2) und niemand sich fragt, wo die dritte hin ist.
+	if (group.key === "deleted" && meta.deletion === null) {
+		return `<details class="grp" data-group="deleted"><summary>`
+			+ `<span class="grp__name">${group.name}</span>`
+			+ `<span class="grp__count">0</span>`
+			+ `<span class="grp__hint">dieser Abgleich löscht nichts</span>`
+			+ `</summary><div class="rows"><div class="row"><span></span><span class="row__sub">`
+			+ `Dieser Abgleich löscht nichts. Was das Wiki nicht mehr auflistet, steht als Verlust in der `
+			+ `Zeile des Eintrags, zu dem es gehört — dort, wo es sich abhäkeln lässt.`
+			+ `</span></div></div></details>`;
+	}
+
 	const rows = (items || []).map(syncPlanRowMarkup);
 	if (hiddenCount > 0) {
 		rows.push(`<div class="row"><span></span><span class="row__sub">… und `
@@ -224,10 +316,11 @@ function syncPlanGroupMarkup(group, items, total, hiddenCount) {
 		rows.push('<div class="row"><span></span><span class="row__sub">Nichts.</span></div>');
 	}
 
-	const lead = group.key === "deleted" && total > 0
-		? '<p class="row__sub" style="margin:0 0 8px">Was du <b>nicht</b> anhäkelst, <b>bleibt</b> — '
-			+ 'dauerhaft, es wird nicht wieder gefragt. Es bleibt trotzdem ein Wiki-Eintrag: kommt der '
-			+ 'Artikel zurück, läuft er wieder mit.</p>'
+	// Der Vorspann der Löschgruppe gehört der ART, nicht dieser Datei: bei den Karten verschwindet
+	// wirklich etwas, bei den Vorkommen wird stillgelegt. Ein Satz für beide wäre für den einen zu
+	// schwach und für den anderen zu stark — und eine zu starke Warnung wird weggeklickt (Entwurf §7).
+	const lead = group.key === "deleted" && total > 0 && meta.deletion
+		? `<p class="row__sub" style="margin:0 0 8px">${meta.deletion.lead}</p>`
 		: "";
 
 	// 🔴 KEIN „alle" ÜBER DEN LÖSCHUNGEN. Bei 168 neuen Zeilen ist Einzelklicken keine Bedienung — bei
@@ -242,11 +335,13 @@ function syncPlanGroupMarkup(group, items, total, hiddenCount) {
 	// 💣 <details>/<summary>, nichts Selbstgebautes: nur damit findet Strg+F Text in einem ZUgeklappten
 	// Abschnitt und klappt ihn selbst auf. Fokus, Enter/Leertaste und aria-expanded kommen ebenfalls
 	// vom Element — hier gehört kein JS hin.
+	const hint = group.key === "deleted" && meta.deletion ? meta.deletion.hint : group.hint;
+
 	return `<details class="grp${group.key === "deleted" ? " grp--del" : ""}"${total > 0 ? " open" : ""}`
 		+ ` data-group="${group.key}"><summary>`
 		+ `<span class="grp__name">${group.name}</span>`
 		+ `<span class="grp__count">${syncPlanNumber(total)}</span>`
-		+ `<span class="grp__hint">${group.hint}</span>${bulk}`
+		+ `<span class="grp__hint">${hint}</span>${bulk}`
 		+ `</summary><div class="rows">${lead}${rows.join("")}</div></details>`;
 }
 
@@ -267,7 +362,8 @@ function syncPlanSheetMarkup(plan) {
 			group,
 			items[group.key] || [],
 			Number(counts[group.key] || 0),
-			Number(truncated[group.key] || 0)
+			Number(truncated[group.key] || 0),
+			kind
 		))
 		.join("");
 
@@ -284,7 +380,7 @@ function syncPlanSheetMarkup(plan) {
 
 	return `<div class="sheet" data-sync-plan data-kind="${syncPlanEscape(kind)}" data-run="${Number(run.id || 0)}">
 	<div class="sheet__head">
-		<p class="sheet__title">${syncPlanEscape(SYNC_PLAN_KIND_TITLES[kind] || "Aus dem Wiki übernehmen")}</p>
+		<p class="sheet__title">${syncPlanEscape(syncPlanKindMeta(kind).title)}</p>
 		<div class="sheet__meta">${meta}</div>
 	</div>
 	<div class="sheet__body">${groups}</div>

@@ -664,15 +664,23 @@ try {
             // no break -- avesmapsJsonResponse exits.
 
         case 'sync_adventures':
-            // OWNER-triggered PRODUCTION reconcile of the wiki adventure catalog (built by "Dump holen")
-            // into the live adventure / adventure_place tables. MIRRORS sync_publications: same 'edit'
-            // gate, same single-flight pipeline lock, same one-bounded-step-per-request client loop. It
-            // does NOT reopen the dump -- avesmapsAdventureReconcileStep reads the STAGING tables
-            // (wiki_adventure_catalog / wiki_adventure_place_staging, populated during "Dump holen") and
-            // applies the OVERRIDE-SAFE diff (writes/deletes ONLY origin='wiki' rows; manual/community +
-            // suppressed tombstones untouched) + fetches any new cover into /uploads/questcovers. A REAL
-            // production write, so a second concurrent editor is rejected (409). Resumable via a wiki_key
-            // high-water cursor; one bounded step per call (STRATO: no server-side loop).
+            // 🔴 THIS ACTION NO LONGER WRITES (design 2026-08-06 §6, session 2). It COMPUTES what the
+            // wiki adventure catalog would do to the live adventure / adventure_place tables and writes
+            // that as a plan into sync_plan_item; an editor then ticks what may happen, and
+            // api/edit/wiki/sync-plan.php (action 'apply') does the writing -- including the cover
+            // download, which is a real side effect and now waits for a checkmark too. The name stays
+            // because it is the same button and the same first half of the same job.
+            //
+            // It still does NOT reopen the dump: avesmapsAdventurePlanStep reads the STAGING tables
+            // (wiki_adventure_catalog / wiki_adventure_place_staging, populated during "Dump holen")
+            // plus the live tables, and calls the same pure plans the writer uses -- so the preview
+            // shows exactly what the writer would do, override-safety included (manual fields and
+            // suppressed place tombstones never even appear). Resumable via a wiki_key high-water
+            // cursor; one bounded step per call (STRATO: no server-side loop).
+            //
+            // ⚠️ The lock is kept even though nothing is written: the run REPLACES whatever plan was
+            // lying around (design §6), so two editors computing at once would still take each other's
+            // work away.
             avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'sync_adventures');
             $lockHeldByThisRequest = true;
 
@@ -682,7 +690,7 @@ try {
             avesmapsEnsureAdventureStagingTables($pdo);
 
             $advCursor = avesmapsNormalizeSingleLine((string) ($payload['cursor'] ?? ''), 190);
-            $advStep = avesmapsAdventureReconcileStep($pdo, $advCursor, $lockUserId);
+            $advStep = avesmapsAdventurePlanStep($pdo, $advCursor, $lockUserId);
             $advDone = ($advStep['done'] ?? false) === true;
 
             avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'sync_adventures');
@@ -693,18 +701,17 @@ try {
 
             avesmapsJsonResponse(200, [
                 'ok' => true,
-                'stage' => 'reconcile',
+                'stage' => 'plan',
                 // Echo the advanced wiki_key high-water so the client loop resumes from exactly here.
                 'cursor' => (string) ($advStep['nextCursor'] ?? $advCursor),
                 'done' => $advDone,
-                // Per-STEP deltas (each step starts at 0; the frontend sums them for the run total).
-                'adv_created' => (int) ($advStep['adv_created'] ?? 0),
-                'adv_updated' => (int) ($advStep['adv_updated'] ?? 0),
-                'places_added' => (int) ($advStep['places_added'] ?? 0),
-                'places_removed' => (int) ($advStep['places_removed'] ?? 0),
-                'places_updated' => (int) ($advStep['places_updated'] ?? 0),
-                'covers_fetched' => (int) ($advStep['covers_fetched'] ?? 0),
+                // The run the preview will read. Server-derived from the cursor, never client-supplied.
+                'run_id' => (int) ($advStep['run_id'] ?? 0),
+                // Per-STEP delta: difference rows written into the plan (the client sums them).
+                'planned' => (int) ($advStep['planned'] ?? 0),
                 'processed' => (int) ($advStep['processed'] ?? 0),
+                // Only filled on the LAST step, when the plan is complete.
+                'counts' => (array) ($advStep['counts'] ?? []),
                 'progress' => [
                     'processed' => (int) ($advStep['processed'] ?? 0),
                     'total' => avesmapsAdventureCountCatalog($pdo),

@@ -151,6 +151,115 @@ function avesmapsAdventurePlacePlan(array $currentPlaces, array $desiredPlaces):
     return ['add' => $add, 'update' => $update, 'remove' => $remove];
 }
 
+/**
+ * ONE difference row for the Übernahme-Vorschau, or null when there is nothing to ask about. PURE.
+ *
+ * This is the compute half's whole judgement: it takes the SAME pure plans the writer uses
+ * (avesmapsAdventureFieldPlan, avesmapsAdventurePlacePlan) plus two answers the caller has already
+ * looked up, and turns them into a row an editor can tick. Design:
+ * docs/superpowers/specs/2026-08-06-sync-uebernahme-design.md §2/§7.
+ *
+ * 💣 The two probes arrive as ARGUMENTS because this function may not read anything: the cover
+ * question needs the live cover_source, the adoption question needs a second SELECT -- and a "pure"
+ * function that quietly accepts a PDO is how a preview ends up writing.
+ *
+ * 💣 A LOSS GETS ITS OWN FIELD (places_removed), never a corner of the additions text. A 'changed'
+ * row arrives pre-checked, so the one thing on it that cannot be taken back has to be the one thing
+ * that is impossible to miss; the component paints exactly these fields in the warning colour
+ * (SYNC_PLAN_LOSS_FIELDS). Session-2 plan, Entscheidung 1.
+ *
+ * ⚠️ An override alone is not a row -- same rule as avesmapsCitymapPlanItem. A field a human pinned
+ * down decorates a row that exists for another reason; on its own there is nothing to apply and
+ * therefore nothing to ask.
+ *
+ * @param array<string,mixed>|null $current      the live adventure row (null = does not exist yet)
+ * @param array<string,mixed>      $desired      avesmapsAdventureDesiredFromStaging output
+ * @param array<string,string>     $fieldOrigins field => 'manual'|'wiki'
+ * @param array{add:array,update:array,remove:array} $placePlan avesmapsAdventurePlacePlan output
+ * @param bool $coverPending would the writer fetch a new cover file?
+ * @param bool $adopting     would the writer adopt a hand-made placeholder row?
+ * @return array{change_type:string, after:array<string,mixed>, before:array<string,mixed>,
+ *               override:array<string,mixed>}|null
+ */
+function avesmapsAdventurePlanItem(
+    ?array $current,
+    array $desired,
+    array $fieldOrigins,
+    array $placePlan,
+    bool $coverPending,
+    bool $adopting
+): ?array {
+    $isNew = $current === null;
+    $plan = avesmapsAdventureFieldPlan($current ?? [], $desired, $fieldOrigins);
+
+    $after = [];
+    $before = [];
+    foreach ($plan['set'] as $field => $value) {
+        // On an adventure nobody has ever seen, an empty field is not news -- it would fill the row
+        // with "Serie / Reihe: —" lines. On an existing one every entry here IS a difference.
+        if ($isNew && ($value === null || $value === '')) {
+            continue;
+        }
+        $after[$field] = $value;
+        if (!$isNew) {
+            $before[$field] = $current[$field] ?? null;
+        }
+    }
+
+    // What a human pinned down and the wiki disagrees with: shown as "bleibt …", never proposed.
+    // avesmapsAdventureFieldPlan drops those fields silently -- which is right for writing and wrong
+    // for a preview: silence reads as "the wiki agrees with us".
+    $override = [];
+    if (!$isNew) {
+        foreach (AVESMAPS_ADVENTURE_WIKI_FIELDS as $field) {
+            if (!array_key_exists($field, $desired) || (string) ($fieldOrigins[$field] ?? '') !== 'manual') {
+                continue;
+            }
+            if (
+                avesmapsAdventureNormalizeField($current[$field] ?? null)
+                !== avesmapsAdventureNormalizeField($desired[$field])
+            ) {
+                $override[$field] = (string) ($current[$field] ?? '');
+            }
+        }
+    }
+
+    if ($coverPending) {
+        // German display text on purpose, like the citymap row's "wird verknüpft": a person reads
+        // this, and the local URL does not exist until the apply half has fetched the file.
+        $after['cover'] = 'wird neu geladen';
+    }
+    if ($adopting) {
+        $after['adopt'] = 'Platzhalter wird zum Wiki-Abenteuer';
+    }
+
+    $placeParts = [];
+    foreach ([['add', 'neu'], ['update', 'geändert']] as [$bucket, $word]) {
+        $count = count((array) ($placePlan[$bucket] ?? []));
+        if ($count > 0) {
+            $placeParts[] = $count . ' ' . $word;
+        }
+    }
+    if ($placeParts !== []) {
+        $after['places'] = implode(', ', $placeParts);
+    }
+    $removed = count((array) ($placePlan['remove'] ?? []));
+    if ($removed > 0) {
+        $after['places_removed'] = $removed;
+    }
+
+    if ($after === []) {
+        return null; // nothing to write -> nothing to ask
+    }
+
+    return [
+        'change_type' => $isNew ? 'new' : 'changed',
+        'after' => $after,
+        'before' => $isNew ? [] : $before,
+        'override' => $override,
+    ];
+}
+
 // ===========================================================================
 // 2. Staging schema (mirror wiki_publication_catalog) + a self-healing adventure.cover_source column.
 // ===========================================================================
@@ -661,21 +770,184 @@ function avesmapsAdventureReconcileEntity(PDO $pdo, array $catalog, int $userId)
 }
 
 /**
- * ONE bounded reconcile step over the staging catalog, resumable via a wiki_key high-water cursor.
- * Drains wiki_adventure_catalog in $budget-sized ORDER BY wiki_key windows, reconciling each adventure;
- * honors the step time budget (STRATO: no unbounded loop). On done, runs the shared place resolver ONCE
- * (avesmapsAdventureResolveAll) so freshly-added wiki place names resolve to entities, then bumps
- * map_revision if anything changed (the map payload carries adventures). done=true only when drained.
+ * Find the live adventure row for a wiki adventure WITHOUT touching it. READ-ONLY twin of
+ * avesmapsAdventureFindOrAdoptRow.
  *
- * @return array{done:bool, nextCursor:string, processed:int, adv_created:int, adv_updated:int,
- *   places_added:int, places_updated:int, places_removed:int, covers_fetched:int}
+ * 💣 THE TWIN ANSWERS BY WRITING. avesmapsAdventureFindOrAdoptRow adopts a pristine placeholder on
+ * the spot -- it sets wiki_key, flips origin to 'wiki' and deletes the placeholder's seeded places.
+ * That is right for a reconcile and wrong for a preview, which would have performed the adoption
+ * before anybody saw a checkbox. Here the same question is answered by looking: `adopting` says the
+ * writer WOULD adopt, `clears_places` says it would drop the placeholder's places -- under exactly
+ * the same condition as over there (no field was ever hand-edited).
+ *
+ * ⚠️ Every change to the twin's matching rules has to be made here too, or the preview describes a
+ * different adventure than the one that gets written.
+ *
+ * @param array<string,mixed> $catalog wiki_adventure_catalog row
+ * @return array{current:?array<string,mixed>, field_origins:array<string,string>, adopting:bool,
+ *               clears_places:bool}
  */
-function avesmapsAdventureReconcileStep(PDO $pdo, string $cursor, int $userId, ?int $budget = null): array
+function avesmapsAdventurePlanFindRow(PDO $pdo, array $catalog): array
+{
+    $columns = 'id, public_id, origin, status, field_origins_json, title, product_type, edition,
+                genre, complexity_gm, complexity_pl, authors, series, fshop_code, cover_url,
+                cover_source, wiki_url';
+    $wikiKey = trim((string) ($catalog['wiki_key'] ?? ''));
+
+    $byKey = $pdo->prepare('SELECT ' . $columns . ' FROM adventure WHERE wiki_key = :wk LIMIT 1');
+    $byKey->execute(['wk' => $wikiKey]);
+    $row = $byKey->fetch(PDO::FETCH_ASSOC);
+    if ($row !== false) {
+        return [
+            'current' => $row,
+            'field_origins' => avesmapsAdventureDecodeOrigins($row['field_origins_json'] ?? null),
+            'adopting' => false,
+            'clears_places' => false,
+        ];
+    }
+
+    $title = trim((string) ($catalog['title'] ?? ''));
+    if ($title !== '') {
+        $byTitle = $pdo->prepare(
+            'SELECT ' . $columns . " FROM adventure
+              WHERE wiki_key IS NULL AND origin = 'manual' AND title = :title LIMIT 1"
+        );
+        $byTitle->execute(['title' => $title]);
+        $placeholder = $byTitle->fetch(PDO::FETCH_ASSOC);
+        if ($placeholder !== false) {
+            $fieldOrigins = avesmapsAdventureDecodeOrigins($placeholder['field_origins_json'] ?? null);
+            $handEdited = in_array('manual', array_values($fieldOrigins), true);
+
+            return [
+                'current' => $placeholder,
+                // A pristine placeholder's origins are wiped by the writer, so the plan must be built
+                // against an empty map -- otherwise a field marked 'wiki' here would be read as an
+                // override that does not survive the adoption.
+                'field_origins' => $handEdited ? $fieldOrigins : [],
+                'adopting' => true,
+                'clears_places' => !$handEdited,
+            ];
+        }
+    }
+
+    return ['current' => null, 'field_origins' => [], 'adopting' => false, 'clears_places' => false];
+}
+
+/**
+ * The difference row for ONE staged adventure, reads included. READ-ONLY.
+ *
+ * 💣 BOTH HALVES CALL THIS ONE FUNCTION -- the compute half to build the plan, the apply half to
+ * recompute it right before writing and see whether the world moved on (design §4a). Two copies of
+ * "what would this adventure need" would drift, and the drift would show up as a plan that can never
+ * be applied: every row would look stale forever and nobody would know why.
+ *
+ * @param array<string,mixed> $catalog wiki_adventure_catalog row
+ * @return array{item:?array<string,mixed>, current:?array<string,mixed>, desired:array<string,mixed>,
+ *               adopting:bool}
+ */
+function avesmapsAdventurePlanForCatalogRow(PDO $pdo, array $catalog): array
+{
+    $wikiKey = trim((string) ($catalog['wiki_key'] ?? ''));
+    $found = avesmapsAdventurePlanFindRow($pdo, $catalog);
+    $current = $found['current'];
+    $desired = avesmapsAdventureDesiredFromStaging($catalog);
+
+    // Read-only twin of the cover branch in avesmapsAdventureReconcileEntity. Three cases, and only
+    // the first one is news:
+    //   file changed   -> the writer FETCHES it (HTTP + a file in /uploads/questcovers). A plan can
+    //                     only announce that; the local URL does not exist yet.
+    //   file unchanged -> the writer re-uses the stored local URL, so nothing differs.
+    //   no file        -> the writer leaves cover_url out of $desired entirely, so the field plan
+    //                     skips it.
+    // The last two are therefore deliberately absent from $desired here as well: same input for
+    // avesmapsAdventureFieldPlan, same plan.
+    $coverFile = trim((string) ($catalog['cover_file'] ?? ''));
+    $coverPending = (string) ($found['field_origins']['cover_url'] ?? '') !== 'manual'
+        && $coverFile !== ''
+        && $coverFile !== trim((string) ($current['cover_source'] ?? ''));
+
+    // An adopted pristine placeholder loses its seeded places before the wiki list is rebuilt, so the
+    // plan is computed against an empty list -- exactly what the writer will see.
+    $currentPlaces = ($current === null || $found['clears_places'])
+        ? []
+        : avesmapsAdventureLoadPlacesForReconcile($pdo, (int) $current['id']);
+
+    $item = avesmapsAdventurePlanItem(
+        $current,
+        $desired,
+        $found['field_origins'],
+        avesmapsAdventurePlacePlan($currentPlaces, avesmapsAdventureDesiredPlaces($pdo, $wikiKey)),
+        $coverPending,
+        $found['adopting']
+    );
+
+    return ['item' => $item, 'current' => $current, 'desired' => $desired, 'adopting' => $found['adopting']];
+}
+
+/**
+ * When the adventure staging was last filled by "Dump holen" -- the plan's source stamp, so an
+ * editor can see which dump a lying-about preview was computed from. NULL = staging never created.
+ */
+function avesmapsAdventureLastStaged(PDO $pdo): ?string
+{
+    try {
+        $value = $pdo->query('SELECT MAX(synced_at) FROM wiki_adventure_catalog')->fetchColumn();
+    } catch (Throwable) {
+        return null;
+    }
+
+    return $value !== false && $value !== null ? (string) $value : null;
+}
+
+/**
+ * ONE bounded COMPUTE step over the staging catalog, resumable via a wiki_key high-water cursor.
+ *
+ * 🔴 THIS IS THE HALF THAT DOES NOT WRITE. It has the shape of the reconcile step it replaces --
+ * same budget, same deadline, same "done" derivation, same cursor -- and it calls the same pure
+ * plans. The only difference is where the answer goes: into sync_plan_item, for a person to tick,
+ * instead of into the live tables (design §7). api/_internal/wiki/__tests__/sync-plan-purity-test.php
+ * asserts that property over everything this function reaches, at any depth -- including that it
+ * never downloads a cover.
+ *
+ * ⚠️ NO deletion rows, and that is not an omission: an adventure is never deleted by the sync, not
+ * even when its wiki article disappears (there is no removal sweep here and never was). A shrinking
+ * "Ort" list is a change to a LIVING adventure and rides in its own row as "Orte entfallen" --
+ * session-2 plan, Entscheidung 1.
+ *
+ * The three closing acts of the old step -- the last-synced stamp, the place resolver and the
+ * map_revision bump -- moved to the apply half (adventure-plan-apply.php). They mean "something was
+ * written", and nothing is written here.
+ *
+ * @return array{done:bool, nextCursor:string, run_id:int, planned:int, processed:int,
+ *               counts:array{new:int,changed:int,deleted:int,total:int}}
+ */
+function avesmapsAdventurePlanStep(PDO $pdo, string $cursor, int $userId, ?int $budget = null): array
 {
     $budget = $budget ?? AVESMAPS_ADVENTURE_RECONCILE_STEP_BUDGET;
     @set_time_limit((int) AVESMAPS_WIKI_DUMP_STEP_SECONDS + 15);
     $deadline = microtime(true) + (float) max(1, AVESMAPS_WIKI_DUMP_STEP_SECONDS - 3);
+    // ⚠️ Both DDL calls up here, once and before anything else: MySQL commits an open transaction
+    // implicitly the moment it sees DDL.
     avesmapsEnsureAdventureStagingTables($pdo);
+    avesmapsEnsureSyncPlanTables($pdo);
+
+    // The run is derived from the cursor, never named by the client: an empty cursor means "from the
+    // top" and opens a fresh run (retiring whatever was lying around), anything else belongs to the
+    // build already in flight. A run id off the wire would let one editor write into another's plan.
+    if ($cursor === '') {
+        $runId = avesmapsSyncPlanStartRun($pdo, 'adventure', $userId, avesmapsAdventureLastStaged($pdo));
+    } else {
+        $runId = (int) (avesmapsSyncPlanBuildingRun($pdo, 'adventure')['id'] ?? 0);
+    }
+    if ($runId <= 0) {
+        // A second run replaced ours mid-build (design §6). Carrying on would silently produce a plan
+        // that starts at the cursor and claims to be complete -- worse than stopping.
+        throw new RuntimeException('Der Abgleich wurde von einem zweiten Lauf abgeloest. Bitte neu starten.');
+    }
+
+    // ONE read of the decision table per step, not one per adventure: this is the loop STRATO cannot
+    // take (AGENTS.md §10).
+    $decisions = avesmapsSyncPlanDecisions($pdo, 'adventure');
 
     $select = $pdo->prepare('SELECT * FROM wiki_adventure_catalog WHERE wiki_key > :cur ORDER BY wiki_key ASC LIMIT :lim');
     $select->bindValue(':cur', $cursor, PDO::PARAM_STR);
@@ -683,18 +955,36 @@ function avesmapsAdventureReconcileStep(PDO $pdo, string $cursor, int $userId, ?
     $select->execute();
     $catalogRows = $select->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-    $totals = ['adv_created' => 0, 'adv_updated' => 0, 'places_added' => 0, 'places_updated' => 0, 'places_removed' => 0, 'covers_fetched' => 0];
+    $planned = 0;
     $processed = 0;
     $nextCursor = $cursor;
     $timedOut = false;
 
     foreach ($catalogRows as $catalog) {
         $nextCursor = (string) $catalog['wiki_key'];
-        $entityCounters = avesmapsAdventureReconcileEntity($pdo, $catalog, $userId);
-        foreach ($totals as $key => $_) {
-            $totals[$key] += (int) ($entityCounters[$key] ?? 0);
-        }
         $processed++;
+
+        $computed = avesmapsAdventurePlanForCatalogRow($pdo, $catalog);
+        $item = $computed['item'];
+        if ($item !== null) {
+            $current = $computed['current'];
+            $decision = $decisions[avesmapsSyncPlanDecisionKey($nextCursor, $item['change_type'])] ?? null;
+            avesmapsSyncPlanAddItem($pdo, $runId, [
+                'entity_key' => $nextCursor,
+                'entity_public_id' => $current === null ? null : (string) $current['public_id'],
+                'change_type' => $item['change_type'],
+                'label' => (string) ($computed['desired']['title'] ?? ($current['title'] ?? $nextCursor)),
+                'before' => $item['before'],
+                'after' => $item['after'],
+                'override' => $item['override'],
+                'selected' => avesmapsSyncPlanDefaultSelected(
+                    $item['change_type'],
+                    (int) ($decision['skipped_count'] ?? 0)
+                ),
+            ]);
+            $planned++;
+        }
+
         if (microtime(true) >= $deadline) {
             $timedOut = true;
             break;
@@ -703,30 +993,19 @@ function avesmapsAdventureReconcileStep(PDO $pdo, string $cursor, int $userId, ?
 
     // Drained iff we consumed fewer than a full budget AND did not bail on the clock mid-window.
     $done = !$timedOut && count($catalogRows) < $budget;
-
-    $changed = $totals['adv_created'] + $totals['adv_updated'] + $totals['places_added'] + $totals['places_updated'] + $totals['places_removed'] + $totals['covers_fetched'];
+    $counts = ['new' => 0, 'changed' => 0, 'deleted' => 0, 'total' => 0];
     if ($done) {
-        // Stamp the run the moment the catalog is drained, whether or not anything changed -- this is
-        // what "Letzte Sync" reads (avesmapsAdventureLastSynced). Without it the label only moved when
-        // a row's synced_at was bumped (i.e. on a real change), so a repeat/no-op sync left it stuck on
-        // the old date. Mirrors sync_citymaps exactly. Best-effort: a missing timestamp is cosmetic and
-        // must never fail the reconcile.
-        if (function_exists('avesmapsAppSettingSet')) {
-            try {
-                avesmapsAppSettingSet($pdo, AVESMAPS_ADVENTURE_LAST_SYNCED_SETTING, gmdate('Y-m-d H:i:s'));
-            } catch (Throwable) {
-                // cosmetic timestamp; swallow
-            }
-        }
-        if (function_exists('avesmapsAdventureResolveAll')) {
-            avesmapsAdventureResolveAll($pdo); // resolve freshly-added wiki place names -> entities (once)
-        }
-    }
-    if ($changed > 0 && function_exists('avesmapsWikiSyncNextMapRevision')) {
-        avesmapsWikiSyncNextMapRevision($pdo); // adventures travel in the map-features payload -> invalidate
+        $counts = avesmapsSyncPlanFinishBuild($pdo, $runId);
     }
 
-    return ['done' => $done, 'nextCursor' => $done ? '' : $nextCursor, 'processed' => $processed] + $totals;
+    return [
+        'done' => $done,
+        'nextCursor' => $done ? '' : $nextCursor,
+        'run_id' => $runId,
+        'planned' => $planned,
+        'processed' => $processed,
+        'counts' => $counts,
+    ];
 }
 
 // ===========================================================================

@@ -40,6 +40,9 @@
      bis 2026-07-22 selbst -- dreimal abgeschrieben, dreimal verschieden. NICHT editor-shell.css,
      das ist die App-Hülle; der Unterschied steht im Kopf der Datei. -->
 <link rel="stylesheet" href="/css/components/editor-page.css">
+<!-- Die Übernahme-Vorschau des Wiki-Abgleichs. EIN Bauteil für alle Abgleiche (Entwurf 2026-08-06 §7);
+     diese Seite reicht nur „adventure" und ihren Wirt hinein. -->
+<link rel="stylesheet" href="/css/components/sync-plan-sheet.css">
 <style>
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -427,7 +430,7 @@
 </head>
 <body>
   <div class="ae-header">
-    <button type="button" class="ae-btn2 ae-btn2--primary" id="aeSyncBtn" title="Übernimmt Abenteuer aus dem zuletzt geholten Wiki-Dump override-sicher (Katalog + Orte + Cover). Vorher einmal „Dump holen" im WikiSync-Menüband ausführen.">
+    <button type="button" class="ae-btn2 ae-btn2--primary" id="aeSyncBtn" title="Zeigt erst, was aus dem zuletzt geholten Wiki-Dump übernommen würde (Katalog + Orte + Cover) — geschrieben wird nur, was du in der Vorschau anhäkelst. Vorher einmal „Dump holen" im WikiSync-Menüband ausführen.">
       <span class="t1">🚨 Abenteuer syncen</span>
       <span class="t2" id="aeHeaderSub">Letzte Sync: wird geladen…</span>
     </button>
@@ -550,6 +553,12 @@
       </div>
     </section>
   </div>
+
+<!-- Der Wirt der Übernahme-Vorschau. Liegt über der ganzen Seite, wenn er gefüllt ist, und ist sonst
+     nicht da: die Vorschau ist ein eigener Arbeitsschritt, kein Streifen neben der Abenteuerliste. -->
+<div class="sync-plan-host" id="aeSyncPlanHost" hidden></div>
+
+<script src="/js/review/sync-plan-sheet.js"></script>
 
 <script>
   const ADVENTURE_EDIT_API = "/api/edit/map/adventures.php";
@@ -1559,9 +1568,28 @@
     if (aeSyncedInfoPollTimer) clearInterval(aeSyncedInfoPollTimer);
     aeSyncedInfoPollTimer = setInterval(() => { void refreshAeSyncedInfo(); }, 4000);
     try {
-      await parentWindow.startWikiSyncAdventuresSync();
-      if (statusEl) statusEl.textContent = "Sync abgeschlossen.";
-      await loadList(); // new/updated adventures should show up in the left list right away
+      // 🔴 Der Lauf SCHREIBT NICHTS mehr (Entwurf 2026-08-06 §6). Er rechnet, was der Abgleich tun
+      // würde -- Felder, Orte und das Titelbild --, und danach öffnet sich die Vorschau; geschrieben
+      // wird erst, was dort angehäkelt ist.
+      //
+      // openSheet: false -- das Blatt gehört in DIESE Seite. Der Wirt der Elternseite läge hinter dem
+      // Editor-Fenster, das den Abgleich angestoßen hat.
+      const result = await parentWindow.startWikiSyncAdventuresSync({ openSheet: false });
+      const total = Number((result && result.counts && result.counts.total) || 0);
+      if (statusEl) {
+        statusEl.textContent = total > 0
+          ? `${total} Unterschiede — Vorschau offen.`
+          : "Keine Unterschiede: der Bestand entspricht dem Dump.";
+      }
+      openSyncPlanSheet({
+        kind: "adventure",
+        mount: document.getElementById("aeSyncPlanHost"),
+        onApplied: async (totals) => {
+          if (statusEl) statusEl.textContent = `Übernommen: ${totals.applied}.`;
+          await loadList(); // übernommene Abenteuer gehören sofort in die linke Liste
+          void refreshAeSyncedInfo();
+        },
+      });
     } catch (e) {
       if (statusEl) statusEl.textContent = "Sync fehlgeschlagen: " + (e && e.message ? e.message : String(e));
     } finally {

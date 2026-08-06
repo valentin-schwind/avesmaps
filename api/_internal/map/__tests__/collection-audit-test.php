@@ -295,4 +295,33 @@ assert(
     'a tombstone and a hard delete do not read the same in the change log'
 );
 
+// ---- Every sync with a preview can be named in the log ----------------------------------------------
+//
+// avesmapsLogSyncPlanApply writes ONE row per Übernahme and puts the sync's name in `name` -- which the
+// reader lifts out of after_json and renders as the entry's target. Without a label the editor reads
+// "lore", which is true and unreadable.
+foreach (['citymap', 'adventure', 'publication', 'lore'] as $kind) {
+    assert(
+        (AVESMAPS_COLLECTION_AUDIT_KIND_LABELS[$kind] ?? '') !== '',
+        "the Übernahme row can name the {$kind} sync"
+    );
+}
+
+// 💣 Und die Vorkommen werden STILLGELEGT, nicht gelöscht. Dieselbe Unterscheidung, die oben zwischen
+// delete_lore_place und suppress_lore_place hängt: das Protokoll wird Monate später gelesen, von
+// jemandem, der wissen will, ob etwas zurückzuholen ist.
+assert(
+    (AVESMAPS_COLLECTION_AUDIT_KIND_DELETION_VERB['lore'] ?? '') === 'stillgelegt',
+    'a retired occurrence entry is not called deleted'
+);
+assert(
+    !isset(AVESMAPS_COLLECTION_AUDIT_KIND_DELETION_VERB['citymap']),
+    'and a deleted card keeps the plain word -- the default is the truth for every other kind'
+);
+$auditSource = file_get_contents(__DIR__ . '/../collection-audit.php');
+assert(
+    str_contains($auditSource, "AVESMAPS_COLLECTION_AUDIT_KIND_DELETION_VERB[\$kind] ?? 'gelöscht'"),
+    'and the writer actually asks for the verb instead of hardcoding one'
+);
+
 echo "collection-audit ok\n";

@@ -460,8 +460,12 @@ $("#wiki-sync-dump-read").on("click", () => startWikiSyncDumpRead());
 $("#wiki-sync-sync-settlement").on("click", () => startWikiSyncKindSync("settlement"));
 $("#wiki-sync-sync-path").on("click", () => startWikiSyncKindSync("path"));
 $("#wiki-sync-sync-region").on("click", () => startWikiSyncKindSync("region"));
-// Abenteuer (Phase 4): its OWN reconcile action (sync_adventures), not a sync_kind -- so its own handler.
-$("#wiki-sync-sync-adventure").on("click", () => startWikiSyncAdventuresSync());
+// Abenteuer (Phase 4): eigene Aktion (sync_adventures), kein sync_kind -- also eigener Handler. Seit
+// 2026-08-06 rechnet der Lauf einen Plan und oeffnet die Uebernahme-Vorschau. Das .catch steht da, weil
+// die Funktion fuer ihren ANDEREN Aufrufer weiterwirft (der Editor-iframe zeigt den Fehlschlag in
+// seiner eigenen Kopfzeile) -- eine unbehandelte Zurueckweisung waere hier nur Konsolenlaerm, den
+// niemand liest: Statuszeile und Hinweisfenster haben es schon gesagt.
+$("#wiki-sync-sync-adventure").on("click", () => { void startWikiSyncAdventuresSync().catch(() => {}); });
 // Karten hat hier bewusst keine Bindung: sein Sync (sync_citymaps, startWikiSyncCitymapsSync)
 // wird ausschliesslich aus dem Karteneditor heraus angestossen, nicht aus dem Panel.
 // Natur & Waren (Flora/Fauna/Spezies/Handelswaren): likewise its OWN reconcile action

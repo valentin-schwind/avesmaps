@@ -160,4 +160,67 @@ const skippedHtml = markup(skipped);
 assert.ok(skippedHtml.includes("3×") || skippedHtml.includes("3&times;"), "die Zahl der Übersprünge steht an der Zeile");
 assert.ok(skippedHtml.includes("28.07."), "und wann zuletzt");
 
+// ---- Die Arten (Sitzung 2) ---------------------------------------------------------------------
+//
+// Jede Art, die eine Vorschau hat, braucht einen Titel und ein Wort für ihre Einträge; sonst steht im
+// Kopf „Aus dem Wiki übernehmen" und in der zweiten Bestätigung „3 Einträge" -- richtig, aber blind.
+// ⚠️ Gefragt wird über syncPlanKindMeta, nicht an den Tabellen vorbei: `const` auf oberster Ebene ist
+// in der vm-Sandbox keine Eigenschaft des globalen Objekts (nur Funktionen und `var` sind es). Ein
+// Zugriff ist ohnehin die richtige Antwort -- die drei Tabellen sind ein Innenleben, keine Schnittstelle.
+const kindMeta = sandbox.syncPlanKindMeta;
+assert.strictEqual(typeof kindMeta, "function", "das Bauteil sagt, was es über eine Art weiß");
+["citymap", "adventure"].forEach((kind) => {
+	const meta = kindMeta(kind);
+	assert.ok(meta.known, `${kind} ist eine bekannte Art`);
+	assert.ok(meta.title && meta.title !== "Aus dem Wiki übernehmen", `${kind} hat einen eigenen Titel`);
+	assert.ok(meta.nouns && meta.nouns.one && meta.nouns.many, `${kind} hat ein Hauptwort`);
+});
+// Löscht: Karten ja, Abenteuer nein -- und „nein" ist eine Antwort, kein fehlender Eintrag.
+assert.ok(kindMeta("citymap").deletion, "Karten können verschwinden");
+assert.strictEqual(kindMeta("adventure").deletion, null, "ein Abenteuer wird nie gelöscht");
+// Eine unbekannte Art bekommt die strengste Fassung: eine zu starke Warnung ist besser als keine.
+assert.ok(kindMeta("wurstsalat").deletion, "eine unbekannte Art wird streng behandelt");
+assert.strictEqual(kindMeta("wurstsalat").known, false);
+
+// 🔴 Eine Art, die NICHTS löscht, sagt das -- statt einer leeren Warnung. Eine Löschgruppe, die bei
+// jedem Abgleich rot und leer dasteht, bringt einem Editor bei, sie zu überblättern; und dann
+// überblättert er sie auch bei den Karten, wo wirklich etwas verschwindet.
+const advPlan = planWith({
+	kind: "adventure",
+	run: { id: 9, state: "open", created_at: "2026-08-06 22:00:00", source_stamp: "",
+		counts: { new: 0, changed: 1, deleted: 0, total: 1 } },
+	items: {
+		new: [],
+		changed: [{ id: 11, entity_key: "die-sieben-gezeichneten", change_type: "changed",
+			label: "Die Sieben Gezeichneten", before: { genre: "Reise" },
+			after: { genre: "Intrige", places_removed: 3 }, override: { series: "Eigene Reihe" },
+			selected: true, skipped_count: 0, last_skipped_at: "" }],
+		deleted: [],
+	},
+});
+const advHtml = markup(advPlan);
+assert.ok(advHtml.includes("löscht nichts"), "die Löschgruppe sagt, dass dieser Abgleich nicht löscht");
+assert.ok(advHtml.includes("Abenteuer aus dem Wiki übernehmen"), "und der Kopf nennt die Art");
+assert.ok(!advHtml.includes("lässt sich nicht rückgängig machen"),
+	"und droht nicht mit etwas, das gar nicht passiert");
+
+// Die Felder der Abenteuer sind deutsch beschriftet, samt der vier, die kein Feld der Zeile sind.
+["title", "product_type", "edition", "genre", "complexity_gm", "complexity_pl", "authors", "series",
+	"fshop_code", "cover_url", "wiki_url", "cover", "adopt", "places", "places_removed"].forEach((field) => {
+	const label = fieldLabel(field);
+	assert.notStrictEqual(label, field, `${field} hat eine deutsche Beschriftung`);
+	assert.ok(label.length > 0, `${field} ist nicht leer beschriftet`);
+});
+
+// 💣 Ein Verlust in einer VORANGEHÄKELTEN Zeile braucht seine eigene Farbe. „Orte entfallen: 3"
+// zwischen sechs harmlosen Zeilen ist genau die Zeile, die man überliest -- und dass sie auffällt, ist
+// die Bedingung, unter der ein Kindzeilen-Verlust überhaupt unter „Geändert" stehen darf.
+assert.ok(advHtml.includes("diff__loss"), "das Verlustfeld ist als solches gekennzeichnet");
+assert.ok(advHtml.includes("Orte entfallen"), "und es ist benannt, nicht in eine Aufzählung gemischt");
+assert.ok(!advHtml.includes('class="old">3'), "ein Verlust hat kein durchgestrichenes Vorher");
+// Der Feld-Override steht als „bleibt", nicht als Änderung -- Abenteuer sind die erste Art mit
+// Overrides je Feld (field_origins_json).
+assert.ok(advHtml.includes("bleibt „Eigene Reihe"), "ein von Hand gesetztes Feld bleibt stehen");
+assert.ok(!advHtml.includes('class="new">Eigene Reihe'), "und wird nicht als Änderung vorgeschlagen");
+
 console.log("sync-plan-sheet ok");
