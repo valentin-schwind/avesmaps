@@ -78,6 +78,8 @@ const AVESMAPS_COLLECTION_AUDIT_KIND_LABELS = [
     'adventure' => 'Abenteuer',
     'publication' => 'Publikationsquellen',
     'lore' => 'Vorkommen',
+    'territory_wiki' => 'Wiki-Kopie der Herrschaftsgebiete',
+    'territory' => 'Herrschaftsgebiete',
 ];
 
 /**
