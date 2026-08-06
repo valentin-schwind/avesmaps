@@ -388,13 +388,17 @@ assert.ok(!unpinned.includes("data-pin"), "eine reine Eltern-Zeile hat nichts fe
 
 // 💣 Die Löschgruppe muss sagen, was sie NICHT anbietet. Bei den Kopien sind das die, an denen ein
 // Kartengebiet hängt -- eine Zahl, die man nicht sieht, liest sich als „alles erledigt".
+// ⚠️ Der Gebietsname trägt hier bewusst ein HTML-signifikantes Zeichen: `extraLead` kommt vom Server
+// und wird escaped -- ein Fixture ohne so ein Zeichen ließe die Zusicherung grün bleiben, ob escaped
+// wird oder nicht, und würde genau die Regression durchlassen, vor der der Brief warnt.
 const withProtected = sandbox.syncPlanGroupMarkup(
     { key: "deleted", name: "Gelöscht", hint: "x" },
     [{ id: 1, label: "Baronie Alt-Gareth", change_type: "deleted", before: {}, after: {} }],
     1, 0, "territory_wiki",
-    "Fünf weitere Kopien hängen an einem Gebiet (Grafschaft Wehrsold, …) und werden nicht angeboten."
+    "Fünf weitere Kopien hängen an einem Gebiet (Grafschaft <Wehrsold>, …) und werden nicht angeboten."
 );
-assert.ok(withProtected.includes("Grafschaft Wehrsold"), "die geschützten stehen im Vorspann, mit Namen");
+assert.ok(withProtected.includes("Grafschaft &lt;Wehrsold&gt;"), "der Servertext wird escaped -- er trägt Wiki-Namen");
+assert.ok(!withProtected.includes("<Wehrsold>"), "und kommt nie roh in die Seite");
 assert.ok(withProtected.includes("kein</b> Gebiet auf der Karte"), "und der feste Satz der Art auch");
 const withoutProtected = sandbox.syncPlanGroupMarkup(
     { key: "deleted", name: "Gelöscht", hint: "x" },
@@ -402,5 +406,13 @@ const withoutProtected = sandbox.syncPlanGroupMarkup(
     1, 0, "territory_wiki", ""
 );
 assert.ok(!withoutProtected.includes("werden nicht angeboten"), "ohne geschützte kein leerer Satz");
+
+// „+ 7 weitere Felder" ist der Rest einer gedeckelten Liste, kein Vergleich mit einem erfundenen
+// Vorher -- sonst stünde da „weitere Felder: — → 7", was niemandem etwas sagt.
+const capped = sandbox.syncPlanDiffMarkup({
+    change_type: "changed", before: { name: "A" }, after: { name: "B", fields_more: "7" },
+});
+assert.ok(capped.includes("+ 7 weitere Felder"), "der Rest einer gedeckelten Liste steht als Satz da");
+assert.ok(!capped.includes("<dt>weitere Felder</dt>"), "nicht als Vergleich mit einem erfundenen Vorher");
 
 console.log("sync-plan-sheet ok");

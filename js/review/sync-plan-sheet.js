@@ -364,6 +364,11 @@ function syncPlanDiffMarkup(item) {
 			rows.push(`<dd class="diff__note">⚠ ${syncPlanEscape(after[field])}</dd>`);
 			return;
 		}
+		// „+ 7 weitere Felder" ist kein Vergleich, sondern der Rest einer gedeckelten Liste.
+		if (field === "fields_more") {
+			rows.push(`<dd class="row__sub">+ ${syncPlanEscape(after[field])} weitere Felder</dd>`);
+			return;
+		}
 		// Ein Verlust ist kein „alt → neu": es gibt kein Nachher, es gibt weniger. Eigene Farbe, eigene
 		// Form -- und damit die eine Zeile, die man in einer vorangehäkelten Liste nicht überliest.
 		if (SYNC_PLAN_LOSS_FIELDS.indexOf(field) >= 0) {
