@@ -84,20 +84,20 @@ anderen. Die Naht bleibt für die Falllisten, wo sie hingehört.
 | | |
 |---|---|
 | Der Baum-Arbeitsablauf | **bleibt**. „Eltern gesperrt", „aussortiert", die Lücken, das Ziehen: unangetastet |
-| „🚨 Syncen" und „2 Baum rechnen" | **unverändert** in dem, was sie rechnen; der Sync behält Namen und Alarmzeichen wie in den anderen vier Editoren |
+| „🚨 Syncen" und „2 · Hierarchie rechnen" | **unverändert** in dem, was sie rechnen; der Sync behält Namen und Alarmzeichen wie in den anderen vier Editoren |
 | Die alte Wiki-Kopie | wird **nachgeführt** — das ist der fehlende Weg, nicht nur ein Bericht |
 | Verschwundene Wiki-Artikel | **Waisen löschbar, benutzte nie.** Hängt ein Kartengebiet an der Kopie, wird sie nicht angeboten |
 | Handarbeit auf der Karte | wird **gezeigt**, ist abwählbar, und „Wert festhalten" macht daraus einen eigenen Wert |
 | Die zwei Arten von Schreiben | **zwei Vorschauen an zwei Schritten** (§3) |
 | Eltern-Umzug und Außengrenzen | **Hinweis in der Zeile, sonst nichts** — keine Neuberechnung |
-| „Unterschiede" und „Test" | **fallen weg**; es bleiben drei nummerierte Kacheln — `1 · 🚨 Syncen`, `2 · Baum rechnen`, `3 · Übernehmen` |
+| „Unterschiede" und „Test" | **fallen weg**; es bleiben drei nummerierte Kacheln — `1 · 🚨 Syncen`, `2 · Hierarchie rechnen`, `3 · Übernehmen` |
 
 ---
 
 ## 3. Der Ablauf danach
 
 ```
-1 · 🚨 Syncen    2 · Baum rechnen    3 · Übernehmen   │   Wappen lokalisieren · Wappen: An · 🔗 Links prüfen
+1 · 🚨 Syncen    2 · Hierarchie rechnen    3 · Übernehmen   │   Wappen lokalisieren · Wappen: An · 🔗 Links prüfen
 ```
 
 **1 · 🚨 Syncen** liest wie bisher den Dump ins Staging und rechnet danach den Baum. Neu ist nur: **es
@@ -108,7 +108,7 @@ endet in einer Vorschau** — was die Wiki-Kopie bekäme (§4). Wie „Dump hole
 > `citymap-editor.html`, `adventure-editor.html`, hier). Ein eigener Name für denselben Vorgang wäre
 > genau die Divergenz, die dieses Vorhaben abbaut. Neu ist nur die vorangestellte Nummer.
 
-**2 · Baum rechnen** bleibt Wort für Wort. Es zieht aber eine offene **Karten**-Vorschau zurück
+**2 · Hierarchie rechnen** bleibt Wort für Wort. Es zieht aber eine offene **Karten**-Vorschau zurück
 (`state='superseded'`): die Eltern haben sich gerade geändert, ihre Zahlen gelten nicht mehr.
 
 **3 · Übernehmen** ersetzt „Daten übernehmen" **und** „Modell übernehmen" (§1.3) und zeigt die
@@ -195,7 +195,7 @@ ebenso. Der negative Weg bleibt bestehen, wird aus der Vorschau aber nie benutzt
 
 **(b) Zwei Arten, zwei Läufe, zwei Häkchenstände.** `sync_plan_run.kind` trägt `'territory_wiki'` bzw.
 `'territory'` (14 bzw. 9 Zeichen, `VARCHAR(24)` reicht). Sie superseden einander **nicht**: „Syncen"
-zieht nur die Kopie-Vorschau zurück, „Baum rechnen" nur die Karten-Vorschau.
+zieht nur die Kopie-Vorschau zurück, „Hierarchie rechnen" nur die Karten-Vorschau.
 
 **(c) Leeres Staging heißt nie „alles löschen"** — und auch nie „alles geändert". Ist das Staging leer,
 liefert die Rechen-Hälfte **null** Zeilen jeder Kategorie. Derselbe Riegel, den

@@ -299,7 +299,7 @@ sind Kuratierung *am Baum*, nicht am einzelnen Datensatz.
 | heute | danach |
 |---|---|
 | 🚨 Syncen | **1 · 🚨 Syncen** — unverändert; Name und Alarmzeichen bleiben wie in den anderen vier Editoren |
-| Hierarchie | **2 · Baum rechnen** — unverändert |
+| Hierarchie | **2 · Hierarchie rechnen** — unverändert |
 | Unterschiede (`neu / verschwunden / geändert`) | eine **eigene** Vorschau an Schritt 1 (siehe unten) |
 | Test (trockene Probe der Eltern-Zuweisung) | fällt weg — die Vorschau an Schritt 3 sagt dasselbe mit Namen und Häkchen |
 | Daten-Vorschau (read-only) | geht in „Geändert" auf, mit Häkchen |
