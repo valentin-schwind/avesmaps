@@ -401,6 +401,7 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.import.loading": "Loading territories — seven requests, this takes a moment …",
 	"ecosystem.import.aggregate": "Outer boundary",
 	"ecosystem.import.raw": "Boundary",
+	"ecosystem.import.parts": "parts",
 	"ecosystem.import.emptyAll": "No territories were loaded — the political layer returned nothing. Please try again.",
 	"ecosystem.import.emptyFilter": "No territory matches this search.",
 	"ecosystem.import.cancel": "Cancel",

@@ -176,10 +176,9 @@ async function settlementAssignFetchJson(path, params = {}) {
 }
 
 /**
- * Loads the FULL political-territory geometry set by fetching the `layer`
- * action once per zoom level in POLITICAL_TERRITORY_LAYER_ZOOM_LEVELS and
- * de-duplicating features by territory_public_id (first zoom that returns a
- * given territory wins).
+ * Loads the FULL political-territory layer by fetching the `layer` action once
+ * per zoom level in POLITICAL_TERRITORY_LAYER_ZOOM_LEVELS and grouping EVERY
+ * returned feature under its territory_public_id -- nothing is discarded.
  *
  * This is the §6.1 anti-culling requirement: the server culls the `layer`
  * response by min_zoom/max_zoom, so window.regionData -- populated by the
@@ -189,14 +188,26 @@ async function settlementAssignFetchJson(path, params = {}) {
  * readPoliticalTerritoryLayerFallbacks (map-features-political-territory-loader.js),
  * but as a standalone one-shot fetch rather than a background cache warm.
  *
- * Also computes each feature's `area` (shoelace, outer minus holes) once here,
- * since buildTerritoryMeta needs it for the tiebreak and re-deriving it later
- * would mean walking the geometry twice.
+ * 💣 ONE TERRITORY IS MANY FEATURES. Measured against the live layer at zoom 0
+ * (2026-08-06), the Alanfanisches Imperium carries EIGHT features under a single
+ * territory_public_id in ONE response: three aggregate fragments belonging to
+ * OTHER territories (rendered under the empire's name at low zoom), four of its
+ * own raw geometries, and -- always last, because the server appends them via
+ * `array_merge($baseFeatures, $derivedFeatures)` in
+ * territories-derived-layer.php:141 -- its computed derived outer boundary.
+ * Callers that want a specific one of those MUST pick by provenance
+ * (is_derived_geometry / aggregate_source_territory_public_id), never by
+ * position; see pickTerritoryImportGeometry in
+ * map-features-ecosystem-territory-import.js.
  *
- * @returns {Promise<Array<{feature: Object, territory_public_id: string, area: number}>>}
- *   one entry per distinct territory, each carrying its GeoJSON feature and area.
+ * Features are de-duplicated WITHIN a territory group by feature id, because the
+ * same geometry is served again at every zoom level inside its band.
+ *
+ * @returns {Promise<Array<{territory_public_id: string, features: Object[]}>>}
+ *   one entry per distinct territory, carrying every feature the layer served
+ *   for it, in fetch order (zoom 0 first, derived boundary last).
  */
-async function loadAllTerritoryGeometry() {
+async function loadAllTerritoryLayerFeatures() {
   const zoomLevels = (typeof POLITICAL_TERRITORY_LAYER_ZOOM_LEVELS !== "undefined")
     ? POLITICAL_TERRITORY_LAYER_ZOOM_LEVELS
     : [0, 1, 2, 3, 4, 5, 6];
@@ -214,19 +225,56 @@ async function loadAllTerritoryGeometry() {
   );
 
   const byPublicId = new Map();
+  const seenByPublicId = new Map();
   layers.forEach((layer) => {
     (layer?.features || []).forEach((feature) => {
       const publicId = String(feature?.properties?.territory_public_id || "").trim();
-      if (!publicId || byPublicId.has(publicId)) return; // first zoom to surface a territory wins (dedup)
-      byPublicId.set(publicId, {
-        feature,
-        territory_public_id: publicId,
-        area: geometryArea(feature.geometry),
-      });
+      if (!publicId) return;
+      if (!byPublicId.has(publicId)) {
+        byPublicId.set(publicId, { territory_public_id: publicId, features: [] });
+        seenByPublicId.set(publicId, new Set());
+      }
+      // Same geometry, next zoom level inside its band -- not a second feature.
+      const featureKey = String(feature?.id || feature?.properties?.geometry_public_id || "");
+      const seen = seenByPublicId.get(publicId);
+      if (featureKey !== "") {
+        if (seen.has(featureKey)) return;
+        seen.add(featureKey);
+      }
+      byPublicId.get(publicId).features.push(feature);
     });
   });
 
   return Array.from(byPublicId.values());
+}
+
+/**
+ * The ray-cast engine's view of the same fan-out: ONE geometry per territory,
+ * "first feature the layer served wins".
+ *
+ * 🔴 Deliberately NOT the derived outer boundary, even where one exists. The
+ * assignment engine asks "which territory is this settlement inside", and a
+ * derived hull spans the gaps BETWEEN its children -- a settlement sitting in
+ * such a gap would be assigned to the empire instead of staying unassigned.
+ * The import dialog wants the opposite and therefore picks for itself.
+ *
+ * Also computes each feature's `area` (shoelace, outer minus holes) once here,
+ * since buildTerritoryMeta needs it for the tiebreak and re-deriving it later
+ * would mean walking the geometry twice.
+ *
+ * @returns {Promise<Array<{feature: Object, territory_public_id: string, area: number}>>}
+ *   one entry per distinct territory, each carrying its GeoJSON feature and area.
+ */
+async function loadAllTerritoryGeometry() {
+  const groups = await loadAllTerritoryLayerFeatures();
+
+  return groups
+    .filter((group) => Boolean(group.features[0]))
+    .map((group) => ({
+      feature: group.features[0],
+      territory_public_id: group.territory_public_id,
+      area: geometryArea(group.features[0].geometry),
+    }));
 }
 
 /**
@@ -584,6 +632,7 @@ if (typeof window !== "undefined") {
     descendantWikiKeys,
     pickDeepestTerritory,
     loadAllTerritoryGeometry,
+    loadAllTerritoryLayerFeatures,
     buildTerritoryMeta,
     computeDryRun,
     apply,

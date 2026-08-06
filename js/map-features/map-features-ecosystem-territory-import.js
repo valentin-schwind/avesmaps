@@ -11,21 +11,28 @@
  * Deshalb gibt es hier keine `source_territory_id` und keinen Zeiger irgendeiner Art.
  *
  * 🔴 POLITISCHE DATEIEN WERDEN GELESEN, NIE GESCHRIEBEN (Owner-Freigabe 2026-07-28 für den LESEweg).
- * Gelesen wird über `loadAllTerritoryGeometry()` -- denselben Helfer, den der Siedlungseditor benutzt
- * und den der Landschaften-Editor für „Liegt in" schon ruft. Geschrieben wird ausschliesslich über
- * `postEcosystemEdit`, also in die Landschaftstabellen.
+ * Gelesen wird über `loadAllTerritoryLayerFeatures()` -- den Fächer, der auch unter
+ * `loadAllTerritoryGeometry()` steckt (Siedlungseditor, „Liegt in"), aber ALLE Features je Gebiet
+ * behält statt eines. Geschrieben wird ausschliesslich über `postEcosystemEdit`, also in die
+ * Landschaftstabellen.
  *
  * 💣 TERRITORIEN SIND ZOOM-GEBÄNDERT. Ein einzelner `?action=layer`-Aufruf liefert die meisten NICHT.
- * `loadAllTerritoryGeometry` fächert deshalb über Zoom 0..6 auf und entdoppelt nach
+ * `loadAllTerritoryLayerFeatures` fächert deshalb über Zoom 0..6 auf und gruppiert nach
  * `territory_public_id`. Das sind SIEBEN Anfragen an den Politik-Layer, und CLAUDE.md verbietet, diesen
  * Endpunkt zu schleifen -- er hat einmal die PHP-Worker gesättigt und wie ein DB-Ausfall ausgesehen.
  * Der Fächer bleibt deshalb hinter dieser ausdrücklichen Aktion und läuft je Sitzung HÖCHSTENS EINMAL
  * (`importTerritories` hält das Ergebnis). Dieselbe Regel wie bei der Kachel „Zugehörigkeit rechnen“.
  *
- * 💣 DIE ENTDOPPLUNG BEHÄLT EINE GEOMETRIE JE GEBIET -- „erste Zoomstufe, die es zeigt, gewinnt".
- * Aggregat ODER roh, je nachdem was der Layer für dieses Gebiet zeigt; beide zugleich gibt dieser Weg
- * nicht her (Owner-Entscheid 2026-07-28: „nehmen, was der Layer zeigt"). Jede Zeile sagt deshalb,
- * welche es wurde („Außengrenze" bzw. „Grenze"), statt die Wahl vorzutäuschen.
+ * 💣 EIN GEBIET IST VIELE FEATURES, UND DIE REIHENFOLGE IST KEIN KRITERIUM. Der Owner-Entscheid vom
+ * 2026-07-28 lautete „nehmen, was der Layer zeigt", und das wurde als „das erste Feature mit dieser
+ * territory_public_id" gebaut. Die Annahme dahinter -- der Layer zeigt EINE Geometrie je Gebiet -- ist
+ * falsch: am Live-Layer gemessen (Zoom 0, 2026-08-06) trägt das Alanfanische Imperium ACHT Features in
+ * EINER Antwort. Was gewonnen hat, war ein 18-Ecken-Fetzen des Großkönigreichs Selem; die berechnete
+ * Außengrenze (MultiPolygon, 7 Teile, 735 Ecken) kam nie an. Sie konnte auch nicht: der Server hängt die
+ * abgeleiteten Grenzen per `array_merge($baseFeatures, $derivedFeatures)` ANS ENDE
+ * (territories-derived-layer.php:141), also verliert sie ein „erstes gewinnt" nicht manchmal, sondern
+ * immer -- für jedes Gebiet, das überhaupt eine hat. Gewählt wird deshalb nach HERKUNFT, siehe
+ * pickTerritoryImportGeometry.
  *
  * Drei Entscheidungen des Owners (2026-07-28), weil sie die Oberfläche bestimmen:
  *   1. Die EBENE fragt der Dialog, vorausgewählt ist „Derographische Region" -- politische Grenzen
@@ -153,6 +160,7 @@
 				parentId,
 				childIds: children.slice(),
 				isAggregate: byId.get(publicId)?.isAggregate === true,
+				partCount: Number(byId.get(publicId)?.partCount) || 0,
 			});
 			children.forEach((childId) => walk(childId, depth + 1, publicId));
 		};
@@ -224,6 +232,71 @@
 		return (type === "Polygon" || type === "MultiPolygon")
 			&& Array.isArray(geometry?.coordinates)
 			&& geometry.coordinates.length > 0;
+	}
+
+	// Die Teile einer Geometrie, auch wenn das Geometrie-Modul noch nicht geladen ist. Ohne den Rückfall
+	// verschwänden bei einer ungünstigen Ladereihenfolge ALLE Gebiete aus der Liste statt einer Zahl.
+	function importGeometryParts(geometry) {
+		if (typeof ecosystemGeometryParts === "function") {
+			return ecosystemGeometryParts(geometry);
+		}
+		const type = String(geometry?.type || "");
+		if (type === "Polygon") {
+			return [geometry.coordinates];
+		}
+
+		return type === "MultiPolygon" ? geometry.coordinates : [];
+	}
+
+	// Welche der Geometrien eines Gebiets der Import nimmt. NICHT die erste -- siehe Kopf dieser Datei.
+	// Entschieden wird nach Herkunft, in drei Schritten:
+	//
+	//   1. 🪤 AGGREGAT-FETZEN FREMDER GEBIETE FLIEGEN RAUS. Bei Tiefzoom rendert der Layer die Geometrie
+	//      eines Kindes unter Namen und Farbe des angezeigten Vorfahren -- solche Features tragen die
+	//      `territory_public_id` des Vorfahren, `is_aggregate` UND eine `aggregate_source_territory_public_id`,
+	//      die auf jemand anderen zeigt. Sie gehören diesem Gebiet nicht. Bis 2026-08-06 gewann genau so
+	//      ein Fetzen (Großkönigreich Selem), und weil er `is_aggregate` trägt, behauptete die Zeile im
+	//      Dialog dazu auch noch „Außengrenze".
+	//   2. Gibt es eine ABGELEITETE AUSSENGRENZE, ist sie die Antwort. Sie ist das, was der Editor
+	//      ausgerechnet hat und auf der Karte sieht.
+	//   3. Sonst ALLE eigenen rohen Geometrien ZUSAMMEN, nicht die erste. Ein Gebiet hat oft mehrere
+	//      Geometriezeilen (das Imperium: Kernland und drei Inseln); „die erste gewinnt" warf hier
+	//      dieselben Landstücke weg, deren Fehlen den Fehler sichtbar gemacht hat.
+	//
+	// Zusammengelegt wird zu einem MultiPolygon, nicht vereinigt: getrennte Geometriezeilen sind getrennte
+	// Landstücke, und die echte Vereinigung macht ohnehin unionTerritoryImportGeometries über die Auswahl.
+	function pickTerritoryImportGeometry(features, territoryPublicId) {
+		const ownId = String(territoryPublicId || "").trim();
+		const own = (Array.isArray(features) ? features : []).filter((feature) => {
+			const sourceId = String(feature?.properties?.aggregate_source_territory_public_id || "").trim();
+
+			return (sourceId === "" || sourceId === ownId) && isUsableImportGeometry(feature?.geometry);
+		});
+
+		const derived = own.find((feature) => feature?.properties?.is_derived_geometry === true);
+		if (derived) {
+			return {
+				feature: derived,
+				geometry: derived.geometry,
+				isAggregate: true,
+				partCount: importGeometryParts(derived.geometry).length,
+			};
+		}
+
+		const parts = [];
+		own.forEach((feature) => {
+			parts.push(...importGeometryParts(feature.geometry));
+		});
+		if (parts.length === 0) {
+			return null;
+		}
+
+		return {
+			feature: own[0],
+			geometry: parts.length === 1 ? { type: "Polygon", coordinates: parts[0] } : { type: "MultiPolygon", coordinates: parts },
+			isAggregate: false,
+			partCount: parts.length,
+		};
 	}
 
 	// Die gewählten Grenzen zu EINER Geometrie. Getrennt liegende Gebiete ergeben ein MultiPolygon --
@@ -339,19 +412,27 @@
 
 	// ---- Territorien holen ---------------------------------------------------------------------------
 
-	// Dieselbe Umformung, die der Landschaften-Editor für „Liegt in" macht -- eine flache Zeile je Gebiet
-	// statt der GeoJSON-Merkmalshülle.
+	// Eine flache Zeile je Gebiet aus seiner GRUPPE von Features. Die Beschreibung kommt vom GEWÄHLTEN
+	// Feature, nicht vom ersten: ein Aggregat-Fetzen trägt zwar den Namen des angezeigten Gebiets, aber
+	// nicht zwingend dessen Hierarchie -- und die Hierarchie ist der Baum.
+	//
+	// 💣 `isAggregate` sagt jetzt, was WIRKLICH genommen wurde. Vorher las es `properties.is_aggregate`
+	// des ersten Features, und das ist bei einem Fremd-Fetzen `true` -- die Zeile behauptete „Außengrenze"
+	// für eine Geometrie, die keine war.
 	function toImportTerritory(entry) {
-		const properties = entry?.feature?.properties || {};
-		const geometry = entry?.feature?.geometry || null;
+		const publicId = String(entry?.territory_public_id || "").trim();
+		const features = Array.isArray(entry?.features) ? entry.features : [];
+		const picked = pickTerritoryImportGeometry(features, publicId);
+		const properties = (picked?.feature || features[0])?.properties || {};
 
 		return {
-			publicId: String(properties.territory_public_id || "").trim(),
+			publicId: publicId || String(properties.territory_public_id || "").trim(),
 			name: String(properties.name || properties.display_name || ""),
 			type: String(properties.territory_type || properties.feature_subtype || ""),
 			parentId: String(properties.parent_public_id || "").trim(),
-			isAggregate: properties.is_aggregate === true,
-			geometry,
+			isAggregate: picked?.isAggregate === true,
+			partCount: Number(picked?.partCount) || 0,
+			geometry: picked?.geometry || null,
 		};
 	}
 
@@ -366,12 +447,14 @@
 			importTerritories = territoryImportDemoTerritories();
 			return importTerritories;
 		}
-		if (typeof loadAllTerritoryGeometry !== "function") {
+		// 🪤 NICHT `loadAllTerritoryGeometry` -- das ist die Sicht des Siedlungseditors und behält EINE
+		// Geometrie je Gebiet („erste gewinnt"). Genau daran ging die Außengrenze verloren.
+		if (typeof loadAllTerritoryLayerFeatures !== "function") {
 			throw new Error("Das Territorien-Modul ist nicht geladen.");
 		}
 
 		importTerritoriesPromise = (async () => {
-			const entries = await loadAllTerritoryGeometry();
+			const entries = await loadAllTerritoryLayerFeatures();
 			const territories = entries
 				.map(toImportTerritory)
 				.filter((territory) => territory.publicId !== "" && isUsableImportGeometry(territory.geometry));
@@ -564,10 +647,15 @@
 			const meta = document.createElement("span");
 			meta.className = "ecosystem-import-dialog__rowmeta";
 			// 💣 Gesagt, nicht verschwiegen: welche Geometrie der Layer für dieses Gebiet hergibt, ist
-			// nicht wählbar (siehe Kopf) -- also steht wenigstens da, welche es ist.
-			meta.textContent = row.isAggregate
+			// nicht wählbar (siehe Kopf) -- also steht wenigstens da, welche es ist. Und die Teilzahl
+			// dazu, wo es mehrere sind: „ein paar Inseln statt der Außengrenze" ist genau der Unterschied,
+			// den diese Zeile sichtbar machen muss.
+			const kindText = row.isAggregate
 				? label("ecosystem.import.aggregate", "Außengrenze")
 				: label("ecosystem.import.raw", "Grenze");
+			meta.textContent = row.partCount > 1
+				? `${kindText} · ${row.partCount} ${label("ecosystem.import.parts", "Teile")}`
+				: kindText;
 
 			rowElement.append(checkbox, name, meta);
 			fragment.appendChild(rowElement);
@@ -1017,6 +1105,7 @@
 			buildTerritoryImportRows,
 			territoryImportDescendants,
 			territoryImportVisibleRows,
+			pickTerritoryImportGeometry,
 			unionTerritoryImportGeometries,
 			roundImportGeometry,
 		};
@@ -1029,6 +1118,8 @@
 			territoryImportDescendants,
 			territoryImportVisibleRows,
 			isUsableImportGeometry,
+			pickTerritoryImportGeometry,
+			toImportTerritory,
 			unionTerritoryImportGeometries,
 			roundImportRing,
 			roundImportGeometry,

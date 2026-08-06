@@ -26,6 +26,8 @@ const {
 	territoryImportDescendants,
 	territoryImportVisibleRows,
 	isUsableImportGeometry,
+	pickTerritoryImportGeometry,
+	toImportTerritory,
 	unionTerritoryImportGeometries,
 	roundImportGeometry,
 	formatImportSummary,
@@ -98,6 +100,118 @@ assert.deepStrictEqual(
 );
 assert.strictEqual(territoryImportVisibleRows(tree, "").length, tree.length, "leere Suche zeigt alles");
 assert.strictEqual(territoryImportVisibleRows(tree, "Nirgendwo").length, 0);
+
+// ------------------------------------------ WELCHE GEOMETRIE EIN GEBIET HERGIBT ---
+// 💣 Der Live-Fall, am Politik-Layer gemessen (Zoom 0, 2026-08-06): das Alanfanische Imperium trägt ACHT
+// Features unter EINER territory_public_id -- drei Aggregat-Fetzen FREMDER Gebiete, vier eigene rohe
+// Geometrien und, ganz zuletzt, die berechnete Außengrenze. Bis dahin nahm der Import „das erste", also
+// einen 18-Ecken-Fetzen des Großkönigreichs Selem. Die Außengrenze steht IMMER hinten, weil der Server
+// sie per `array_merge($baseFeatures, $derivedFeatures)` anhängt (territories-derived-layer.php:141) --
+// sie konnte diesen Wettlauf nicht manchmal verlieren, sondern nie gewinnen.
+const IMPERIUM = "0a443a3c-2da8-420c-b1e2-7d89e3a1ffc7";
+const layerFeature = (geometry, properties = {}) => ({
+	type: "Feature",
+	geometry,
+	properties: {
+		territory_public_id: IMPERIUM,
+		name: "Alanfanisches Imperium",
+		parent_public_id: "aventurien",
+		...properties,
+	},
+});
+// Ein Fetzen trägt die territory_public_id des ANGEZEIGTEN Gebiets, is_aggregate -- und eine Quelle, die
+// auf jemand anderen zeigt. Seine Hierarchie ist die der Quelle, nicht die des Imperiums.
+const foreignFragment = (name, sourceId, geometry) => layerFeature(geometry, {
+	is_aggregate: true,
+	aggregate_source_territory_public_id: sourceId,
+	aggregate_source_territory_name: name,
+	parent_public_id: "irgendein-fremder-elternteil",
+});
+
+const outerBoundary = {
+	type: "MultiPolygon",
+	coordinates: [394, 477, 500, 600, 686, 750, 800].map((x) => box(x, 37, x + 6, 90).coordinates),
+};
+const imperiumFeatures = [
+	foreignFragment("Großkönigreich Selem", "selem-id", box(487, 234, 491, 240)),
+	foreignFragment("Generalpräfektur Port Corrad", "corrad-id", box(461, 242, 464, 245)),
+	layerFeature({ type: "MultiPolygon", coordinates: [box(394, 109, 512, 260).coordinates, box(400, 200, 410, 210).coordinates] }),
+	layerFeature(box(477, 104, 487, 119)),
+	layerFeature(box(686, 37, 694, 43)),
+	layerFeature(box(800, 81, 806, 91)),
+	foreignFragment("Fürstliche Dreikroneninsel Nelkra", "nelkra-id", box(460, 234, 466, 238)),
+	layerFeature(outerBoundary, { is_aggregate: true, is_derived_geometry: true }),
+];
+
+const pickedBoundary = pickTerritoryImportGeometry(imperiumFeatures, IMPERIUM);
+assert.strictEqual(pickedBoundary.isAggregate, true);
+assert.strictEqual(pickedBoundary.partCount, 7);
+assert.strictEqual(
+	pickedBoundary.geometry,
+	outerBoundary,
+	"die abgeleitete Außengrenze gewinnt, obwohl sie das LETZTE der acht Features ist"
+);
+
+// 🪤 Ohne Außengrenze: ALLE eigenen Landstücke, nicht das erste. „Ein paar Inseln fehlen" war dieselbe
+// Wegwerf-Regel eine Ebene tiefer -- Kernland (2 Teile) plus drei Inseln sind fünf Teile, nicht einer.
+const withoutBoundary = imperiumFeatures.filter((feature) => feature.properties.is_derived_geometry !== true);
+const pickedRaw = pickTerritoryImportGeometry(withoutBoundary, IMPERIUM);
+assert.strictEqual(pickedRaw.isAggregate, false);
+assert.strictEqual(pickedRaw.geometry.type, "MultiPolygon");
+assert.strictEqual(pickedRaw.partCount, 5, "vier eigene Geometrien mit zusammen fünf Teilen, die drei Fremd-Fetzen raus");
+
+// Ein Gebiet, unter dem NUR fremde Fetzen liegen, hat keine eigene Geometrie -- und gibt lieber keine her
+// als eine fremde unter seinem Namen.
+assert.strictEqual(
+	pickTerritoryImportGeometry([foreignFragment("Selem", "selem-id", box(487, 234, 491, 240))], IMPERIUM),
+	null
+);
+assert.strictEqual(pickTerritoryImportGeometry([], IMPERIUM), null);
+
+// Zeigt die Quelle auf das Gebiet SELBST, ist es dessen eigene Geometrie und bleibt drin.
+assert.strictEqual(
+	pickTerritoryImportGeometry(
+		[layerFeature(box(0, 0, 10, 10), { is_aggregate: true, aggregate_source_territory_public_id: IMPERIUM })],
+		IMPERIUM
+	).partCount,
+	1
+);
+
+// Unbrauchbares (eine Linie, ein leeres Feature) zählt nicht mit.
+assert.strictEqual(
+	pickTerritoryImportGeometry(
+		[layerFeature({ type: "LineString", coordinates: [[0, 0], [1, 1]] }), layerFeature(box(0, 0, 4, 4))],
+		IMPERIUM
+	).partCount,
+	1
+);
+
+// ---- und was die Zeile im Dialog daraus macht ----
+const imperiumRow = toImportTerritory({ territory_public_id: IMPERIUM, features: imperiumFeatures });
+assert.strictEqual(imperiumRow.isAggregate, true, "„Außengrenze“, weil wirklich eine genommen wurde");
+assert.strictEqual(imperiumRow.partCount, 7);
+assert.strictEqual(imperiumRow.publicId, IMPERIUM);
+
+// 💣 Und ohne Außengrenze sagt die Zeile NICHT „Außengrenze" -- obwohl das erste Feature `is_aggregate`
+// trägt. Genau das behauptete sie vorher, für einen Fetzen, der dem Gebiet nicht einmal gehört.
+const rawRow = toImportTerritory({ territory_public_id: IMPERIUM, features: withoutBoundary });
+assert.strictEqual(rawRow.isAggregate, false);
+assert.strictEqual(rawRow.partCount, 5);
+assert.strictEqual(
+	rawRow.parentId,
+	"aventurien",
+	"die Hierarchie kommt vom GEWÄHLTEN Feature -- der Fremd-Fetzen trägt die des Quellgebiets"
+);
+
+// 💣 `is_aggregate` am Feature ist NICHT die abgeleitete Außengrenze. Eine eigene Geometrie kann das Flag
+// tragen (Quelle = das Gebiet selbst) und bleibt trotzdem eine rohe Grenze. Die Zeile folgt der WAHL,
+// nicht dem Flag -- sonst steht „Außengrenze" an einer Geometrie, die keine ist.
+const ownAggregateRow = toImportTerritory({
+	territory_public_id: IMPERIUM,
+	features: [layerFeature(box(0, 0, 10, 10), { is_aggregate: true, aggregate_source_territory_public_id: IMPERIUM })],
+});
+assert.strictEqual(ownAggregateRow.isAggregate, false);
+assert.strictEqual(ownAggregateRow.partCount, 1);
 
 // ------------------------------------------------------------------- VEREINIGEN ---
 assert.strictEqual(isUsableImportGeometry(box(0, 0, 1, 1)), true);
