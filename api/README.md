@@ -296,6 +296,26 @@ Or via environment variable:
 AVESMAPS_IMPORT_API_TOKEN=replace-with-a-long-random-import-token
 ```
 
+### Visitor salt
+
+`api/_internal/analytics/visitor-analytics.php` hashes an IP address plus a user agent into the
+daily visitor key. The salt is resolved in three steps: a `define('AVESMAPS_VISITOR_SALT', …)`
+before the file is required, then `analytics.visitor_salt` from the config, then the fallback
+shipped in the repository.
+
+💣 **Set it.** On the fallback the salt is public, and the IPv4 space is small enough to walk in
+seconds — a stored hash is then reversible, which the privacy notice says it is not.
+
+```php
+'analytics' => [
+    'visitor_salt' => 'replace-with-a-long-random-visitor-salt',
+],
+```
+
+⚠️ Changing the salt counts every returning visitor as new exactly once. `GET
+/api/app/visitor-metrics.php` reports `salt_configured` (capability `edit`) so the state is
+visible rather than assumed.
+
 PowerShell example:
 
 ```powershell

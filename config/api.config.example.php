@@ -21,6 +21,18 @@ return [
     'import_api' => [
         'token' => 'replace-with-a-long-random-import-token',
     ],
+    // 💣 SET THIS. Without it the visitor hash runs on the salt shipped in the repository, and a
+    // stored hash covers an IP address plus a user agent -- the IPv4 space is small enough to walk
+    // in seconds, so a published salt makes the hash reversible. The privacy notice promises it is
+    // not. Any long random string does; `php -r "echo bin2hex(random_bytes(32));"` produces one.
+    //
+    // ⚠️ Changing it counts every returning visitor as new EXACTLY ONCE -- the daily numbers jump
+    // on that day and are normal again afterwards. That is the price of setting it, and it is
+    // cheaper the earlier it is paid. Whether it IS set is reported by the visitor-metrics answer
+    // as `salt_configured` (behind the `edit` capability, so no visitor learns it).
+    'analytics' => [
+        'visitor_salt' => 'replace-with-a-long-random-visitor-salt',
+    ],
     'discord' => [
         'public_key' => 'replace-with-the-application-public-key',
         'application_id' => 'replace-with-the-application-id',
