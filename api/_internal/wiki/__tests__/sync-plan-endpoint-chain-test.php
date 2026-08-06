@@ -45,6 +45,7 @@ foreach ($chain as $relative) {
 $applyFiles = [
     'citymap-plan-apply.php',
     'adventure-plan-apply.php',
+    'publication-plan-apply.php',
 ];
 
 // Kommentare werden per TOKENIZER entfernt, nicht per Regex: die Dateien erklären in ihren Köpfen

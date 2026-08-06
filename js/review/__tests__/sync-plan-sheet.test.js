@@ -169,7 +169,7 @@ assert.ok(skippedHtml.includes("28.07."), "und wann zuletzt");
 // Zugriff ist ohnehin die richtige Antwort -- die drei Tabellen sind ein Innenleben, keine Schnittstelle.
 const kindMeta = sandbox.syncPlanKindMeta;
 assert.strictEqual(typeof kindMeta, "function", "das Bauteil sagt, was es über eine Art weiß");
-["citymap", "adventure"].forEach((kind) => {
+["citymap", "adventure", "publication"].forEach((kind) => {
 	const meta = kindMeta(kind);
 	assert.ok(meta.known, `${kind} ist eine bekannte Art`);
 	assert.ok(meta.title && meta.title !== "Aus dem Wiki übernehmen", `${kind} hat einen eigenen Titel`);
@@ -178,6 +178,7 @@ assert.strictEqual(typeof kindMeta, "function", "das Bauteil sagt, was es über 
 // Löscht: Karten ja, Abenteuer nein -- und „nein" ist eine Antwort, kein fehlender Eintrag.
 assert.ok(kindMeta("citymap").deletion, "Karten können verschwinden");
 assert.strictEqual(kindMeta("adventure").deletion, null, "ein Abenteuer wird nie gelöscht");
+assert.strictEqual(kindMeta("publication").deletion, null, "und ein Ort nicht wegen einer Fußnote");
 // Eine unbekannte Art bekommt die strengste Fassung: eine zu starke Warnung ist besser als keine.
 assert.ok(kindMeta("wurstsalat").deletion, "eine unbekannte Art wird streng behandelt");
 assert.strictEqual(kindMeta("wurstsalat").known, false);
@@ -222,5 +223,33 @@ assert.ok(!advHtml.includes('class="old">3'), "ein Verlust hat kein durchgestric
 // Overrides je Feld (field_origins_json).
 assert.ok(advHtml.includes("bleibt „Eigene Reihe"), "ein von Hand gesetztes Feld bleibt stehen");
 assert.ok(!advHtml.includes('class="new">Eigene Reihe'), "und wird nicht als Änderung vorgeschlagen");
+
+// ---- Publikationsquellen: der Verlust nennt Namen ----------------------------------------------
+//
+// 💣 „3 entfallen" ist keine Grundlage für ein Häkchen. Die Namen gehören IN die Zeile des
+// Verlustfeldes, nicht in eine eigene darunter -- sonst steht die Zahl in der einen Zeile und die
+// Namen in der nächsten, ohne dass etwas sie verbindet.
+const pubPlan = planWith({
+	kind: "publication",
+	run: { id: 12, state: "open", created_at: "2026-08-06 23:10:00", source_stamp: "",
+		counts: { new: 0, changed: 1, deleted: 0, total: 1 } },
+	items: {
+		new: [],
+		changed: [{ id: 31, entity_key: "settlement|havena", change_type: "changed",
+			label: "Havena (Ort)", before: {},
+			after: { sources: "2 neu (Havena – Stadt der Diebe)", sources_removed: 3,
+				sources_removed_titles: "Alte Quelle, Bote 12" },
+			override: {}, selected: true, skipped_count: 0, last_skipped_at: "" }],
+		deleted: [],
+	},
+});
+const pubHtml = markup(pubPlan);
+assert.ok(pubHtml.includes("Quellenverweise entfallen"), "der Verlust ist benannt");
+assert.ok(pubHtml.includes("Alte Quelle, Bote 12"), "und die Namen stehen dabei");
+const lossDd = pubHtml.slice(pubHtml.indexOf('class="diff__loss"'));
+assert.ok(lossDd.slice(0, lossDd.indexOf("</dd>")).includes("Alte Quelle"),
+	"die Namen stehen IN der Zeile des Verlustfeldes");
+assert.ok(!pubHtml.includes("<dt>davon</dt>"), "und nicht als eigene Zeile daneben");
+assert.ok(pubHtml.includes("löscht nichts"), "auch dieser Abgleich löscht keine Einheit");
 
 console.log("sync-plan-sheet ok");

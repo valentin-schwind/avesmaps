@@ -266,4 +266,74 @@ $adventureWriters = array_filter(
 );
 assert($adventureWriters !== [], 'die Ausführ-Hälfte enthält die Schreiber -- sonst prüft der Lauf oben nichts');
 
+// ==================================================================================================
+// PUBLIKATIONSQUELLEN (Sitzung 2). Die Falle hier: die Wunschliste des Schreibers ANTWORTET, indem sie
+// den Quellenkatalog füllt -- eine Vorschau, die sie ruft, hat schon geschrieben.
+// ==================================================================================================
+
+$publicationCompute = $reachFrom($bodies, ['avesmapsPublicationPlanStep']);
+assert(count($publicationCompute) >= 8, 'der Publikations-Lauf erreicht die aufgerufenen Funktionen (got ' . count($publicationCompute) . ')');
+foreach (['avesmapsPublicationPlanForEntity', 'avesmapsPublicationLinkDiffForPlan',
+    'avesmapsPublicationSourceIdForPlan', 'avesmapsPublicationDiffLinks',
+    'avesmapsPublicationStagingHasEntityType', 'avesmapsPublicationFetchLiveEntityBatch',
+    'avesmapsSyncPlanAddItem'] as $expected) {
+    assert(isset($publicationCompute[$expected]), "the walk reaches {$expected}");
+}
+
+$publicationTables = ['sources', 'feature_sources', 'map_features', 'political_territory', 'lore_entry',
+    'wiki_entity_publication', 'wiki_publication_catalog', 'map_audit_log'];
+foreach ($publicationCompute as $name => $body) {
+    foreach ($publicationTables as $table) {
+        foreach ($forbiddenStatements($table) as $statement) {
+            assert(
+                !str_contains($body, $statement),
+                "{$name} runs in the COMPUTE half and writes: {$statement}"
+            );
+        }
+    }
+}
+
+// 🔴 Die drei Wege in den Quellenkatalog, und keiner gehört in die Rechen-Hälfte.
+assert(
+    !isset($publicationCompute['avesmapsPublicationDesiredLinksForEntity']),
+    'the compute half must use the read-only probe, not the desired-list that upserts into `sources`'
+);
+assert(!isset($publicationCompute['avesmapsFeatureSourceUpsert']), 'no upsert in the compute half');
+assert(!isset($publicationCompute['avesmapsFeatureSourceLink']), 'no linking in the compute half');
+assert(
+    !isset($publicationCompute['avesmapsPublicationReconcileEntity']),
+    'the compute half must never reach the entity writer'
+);
+
+// 💣 UND DER LAUF MUSS BEISSEN.
+$publicationApply = $reachFrom($bodies, ['avesmapsPublicationApplyStep']);
+assert(
+    isset($publicationApply['avesmapsPublicationReconcileEntityWrites']),
+    'die Ausführ-Hälfte ruft den Schreiber'
+);
+assert(
+    isset($publicationApply['avesmapsFeatureSourceUpsert']),
+    'und dort DARF der Katalog gefüllt werden -- sonst prüft das Verbot oben nichts'
+);
+assert(
+    array_filter($publicationApply, static fn(string $body): bool
+        => str_contains($body, 'DELETE FROM feature_sources')) !== [],
+    'die Ausführ-Hälfte enthält den Löscher -- sonst prüft der Lauf oben nichts'
+);
+
+// --- Der Typ-Riegel steht, wo er stehen muss ------------------------------------------------------
+//
+// Er ist das einzige, was einen nie gestagten Typ von einem Typ unterscheidet, dessen Artikel alle
+// ihre Quellen verloren haben. Beide Hälften müssen ihn fragen: die Rechen-Hälfte, damit die Vorschau
+// nicht 4.653 Verluste vorschlägt, und die Ausführ-Hälfte, weil zwischen Vorschau und Übernahme ein
+// neues „Dump holen" beginnen kann.
+assert(
+    str_contains($bodies['avesmapsPublicationPlanStep'] ?? '', 'avesmapsPublicationStagingHasEntityType($pdo, $type)'),
+    'die Rechen-Hälfte fragt den Typ-Riegel'
+);
+assert(
+    str_contains($bodies['avesmapsPublicationApplyStep'] ?? '', 'avesmapsPublicationStagingHasEntityType('),
+    'und die Ausführ-Hälfte fragt ihn noch einmal'
+);
+
 echo "sync-plan-purity ok\n";

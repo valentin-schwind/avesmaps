@@ -50,16 +50,18 @@ declare(strict_types=1);
  *           the tiny conflict-gen accumulator table): never map_features, never
  *           live political_territory. Holds the pipeline lock; releases on done.
  *   POST { "action": "sync_publications", "segment"?: int, "cursor"?: int }
- *        -> OWNER-triggered PRODUCTION reconcile of the wiki publication sources built
- *           by "Dump holen" into feature_sources (origin='wiki_publication'). Mirrors
- *           sync_kind (same 'edit' gate, same pipeline lock, same client-loop), but does
- *           NOT reopen the dump -- avesmapsPublicationReconcileStep reads the STAGING
- *           tables (wiki_publication_catalog / wiki_entity_publication) + the live
- *           feature_sources/map_features/political_territory and applies the OVERRIDE-SAFE
- *           diff (writes/deletes ONLY approved origin='wiki_publication' rows). Client-
- *           loopable; resumable via (segment, id high-water); returns
- *           { stage, segment, cursor, done, links_added, links_removed, links_updated,
- *             no_link, processed, progress }. Holds the pipeline lock; releases on done.
+ *        -> COMPUTES what the wiki publication sources built by "Dump holen" would do to
+ *           feature_sources and writes it as an Übernahme-Vorschau plan (sync_plan_item).
+ *           🔴 SINCE 2026-08-06 IT WRITES NO SOURCE ROW: the editor ticks what may happen
+ *           and api/edit/wiki/sync-plan.php ('apply') writes it. Mirrors sync_kind (same
+ *           'edit' gate, same pipeline lock, same client-loop) and does NOT reopen the dump
+ *           -- avesmapsPublicationPlanStep reads the STAGING tables
+ *           (wiki_publication_catalog / wiki_entity_publication) + the live
+ *           feature_sources/map_features/political_territory/lore_entry and runs the SAME
+ *           override-safe diff the writer runs. Client-loopable; resumable via (segment, id
+ *           high-water); returns { stage:'plan', segment, cursor, done, run_id, planned,
+ *           counts, skipped_types, no_link, processed, progress }. Holds the pipeline lock
+ *           (a second run would replace the open plan); releases on done.
  *   POST { "action": "cleanup_state" }
  *        -> "Dump holen" step 3/3: deletes every dump_read run's sandbox rows
  *           from wiki_dump_hybrid_state/wiki_dump_title_alias EXCEPT the newest
@@ -559,37 +561,43 @@ try {
             // no break -- avesmapsJsonResponse exits.
 
         case 'sync_publications':
-            // OWNER-triggered PRODUCTION reconcile of the wiki publication sources into
-            // feature_sources (origin='wiki_publication'). MIRRORS sync_kind: same 'edit' gate,
-            // same single-flight pipeline lock, same one-bounded-step-per-request client loop.
-            // It does NOT reopen the dump -- avesmapsPublicationReconcileStep reads the STAGING
-            // tables (wiki_publication_catalog / wiki_entity_publication, populated during the
-            // dry "Dump holen") plus the live feature_sources / map_features / political_territory,
-            // and applies the OVERRIDE-SAFE diff through the SAME reconcile step the phase uses
-            // (writes/deletes ONLY approved origin='wiki_publication' rows -- manual/community/
-            // suppressed are never touched, no write path bypasses the diff). This is a REAL
-            // production write, so -- exactly like sync_kind / apply -- a second concurrent editor
-            // is rejected (409): two concurrent reconciles would double-apply. Resumable via
-            // (segment, id high-water); one bounded step per call (STRATO: no server-side loop).
+            // 🔴 THIS ACTION NO LONGER WRITES (design 2026-08-06 §6, session 2). It COMPUTES what the
+            // wiki publication sources would do to feature_sources and writes that as a plan into
+            // sync_plan_item; an editor then ticks what may happen, and api/edit/wiki/sync-plan.php
+            // (action 'apply') does the writing. "Dump holen" therefore ends in a preview instead of a
+            // write -- which is the whole point: this reconcile can REMOVE source references, and until
+            // now it did so without asking, at the end of a ten-minute job nobody watches to the end.
+            //
+            // It still does NOT reopen the dump -- avesmapsPublicationPlanStep reads the STAGING tables
+            // (wiki_publication_catalog / wiki_entity_publication, populated during "Dump holen") plus
+            // the live feature_sources / map_features / political_territory / lore_entry, and calls the
+            // SAME pure diff the writer uses, so the preview shows exactly what the writer would do
+            // (manual and community links, and suppressed tombstones, never even appear).
+            //
+            // ⚠️ The OTHER door stays sharp: avesmapsPublicationSyncPhaseStep's 'reconcile' sub-stage
+            // (dump-hybrid-driver.php, dryRun=false) still calls avesmapsPublicationReconcileStep. That
+            // one belongs to the ways/regions/places apply pipeline and is session 3's business.
+            //
+            // ⚠️ The lock is kept even though nothing is written: the run REPLACES whatever plan was
+            // lying around (design §6). Resumable via (segment, id high-water); one bounded step per
+            // call (STRATO: no server-side loop).
             avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'sync_publications');
             $lockHeldByThisRequest = true;
 
-            // Ensure the staging tables (read) + the feature_sources catalog/provenance columns
-            // (write) exist before the step -- idempotent, mirrors the phase orchestrator's
-            // reconcile sub-stage (avesmapsPublicationSyncPhaseStep).
+            // Ensure the staging tables (read) + the feature_sources catalog/provenance columns exist
+            // before the step -- idempotent, and the plan step reads both.
             avesmapsEnsurePublicationStagingTables($pdo);
             avesmapsEnsureFeatureSourceTables($pdo);
 
-            // Resumable cursor: segment index (0..4 over territory/settlement/region/path/lore) +
-            // the id high-water within the segment. Both are echoed back so the loop advances them.
+            // Resumable cursor: segment index (0..4 over territory/settlement/region/path/lore) + the
+            // id high-water within the segment. Both are echoed back so the loop advances them.
             $pubSegment = max(0, (int) ($payload['segment'] ?? 0));
             $pubLastId = max(0, (int) ($payload['cursor'] ?? 0));
-            $pubStep = avesmapsPublicationReconcileStep($pdo, $pubSegment, $pubLastId, $lockUserId);
+            $pubStep = avesmapsPublicationPlanStep($pdo, $pubSegment, $pubLastId, $lockUserId);
             $pubDone = ($pubStep['done'] ?? false) === true;
 
-            // Refresh the heartbeat so a slow step is not judged stale; release only when the
-            // WHOLE reconcile (every segment) is done -- same terminal-release discipline as
-            // sync_kind's staging drain / apply.
+            // Refresh the heartbeat so a slow step is not judged stale; release only when every segment
+            // is through -- same terminal-release discipline as sync_kind's staging drain / apply.
             avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'sync_publications');
             if ($pubDone) {
                 avesmapsWikiDumpLockRelease($pdo, $lockUserId);
@@ -598,18 +606,23 @@ try {
 
             avesmapsJsonResponse(200, [
                 'ok' => true,
-                'stage' => 'reconcile',
+                'stage' => 'plan',
                 // Echo the advanced cursor so the client loop resumes from exactly here.
                 'segment' => (int) ($pubStep['nextSegment'] ?? $pubSegment),
                 'cursor' => (int) ($pubStep['nextLastId'] ?? $pubLastId),
                 'done' => $pubDone,
-                // Per-STEP deltas (each step starts at 0; the frontend sums them for the run total).
-                'links_added' => (int) ($pubStep['links_added'] ?? 0),
-                'links_removed' => (int) ($pubStep['links_removed'] ?? 0),
-                'links_updated' => (int) ($pubStep['links_updated'] ?? 0),
+                // The run the preview will read. Server-derived from the cursor, never client-supplied.
+                'run_id' => (int) ($pubStep['run_id'] ?? 0),
+                // Per-STEP delta: difference rows written into the plan (the client sums them).
+                'planned' => (int) ($pubStep['planned'] ?? 0),
+                'processed' => (int) ($pubStep['processed'] ?? 0),
+                // Only filled on the LAST step, when the plan is complete.
+                'counts' => (array) ($pubStep['counts'] ?? []),
+                // Types the staging knows nothing about were SKIPPED, not emptied -- the client says so
+                // instead of letting the editor read a short list as "there is nothing".
+                'skipped_types' => (array) ($pubStep['skipped_types'] ?? []),
                 // Catalog context (cheap COUNT): how many catalogued publications have no shop link.
                 'no_link' => avesmapsPublicationCountCatalogNoLink($pdo),
-                'processed' => (int) ($pubStep['processed'] ?? 0),
                 'progress' => [
                     'processed' => (int) ($pubStep['processed'] ?? 0),
                     'segment' => (int) ($pubStep['nextSegment'] ?? $pubSegment),

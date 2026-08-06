@@ -295,6 +295,7 @@ $callerFiles = [
     'api/_internal/wiki/lore-sync.php',
     'api/_internal/wiki/citymap-plan-apply.php',
     'api/_internal/wiki/adventure-plan-apply.php',
+    'api/_internal/wiki/publication-plan-apply.php',
     'api/_internal/wiki/publication-sync.php',
 ];
 foreach ($callerFiles as $relative) {

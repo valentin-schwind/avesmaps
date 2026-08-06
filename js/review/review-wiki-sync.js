@@ -931,12 +931,13 @@ async function runWikiSyncDumpLoop(action, { runId = null } = {}) {
 //      way; writes ONLY wiki_dump_hybrid_state/wiki_dump_title_alias).
 //   3. cleanup_state -- ONLY after a successful scan: delete every OTHER dump_read
 //      run's sandbox rows so exactly one dump's state remains.
-//   4. sync_publications loop (runWikiSyncPublicationsSyncLoop) -- the SHARP
-//      reconcile of wiki publication sources into feature_sources
-//      (origin=wiki_publication only; manual/suppressed sources are untouched).
-//      Folded in here so "Dump holen" is ONE action instead of two -- this used
-//      to be a separate "Publikationsquellen übernehmen" button; the owner asked
-//      to fold it in. The reconcile itself stays override-safe and idempotent.
+//   4. sync_publications loop (runWikiSyncPublicationsSyncLoop) -- since 2026-08-06 the
+//      COMPUTE half: it works out what the wiki publication sources would change in
+//      feature_sources and leaves that as an Uebernahme-Vorschau plan. NOTHING is written;
+//      the preview opens at the end and the editor ticks what may happen. Folded in here so
+//      "Dump holen" is ONE action instead of two -- this used to be a separate
+//      "Publikationsquellen uebernehmen" button; the owner asked to fold it in. The diff
+//      itself stays override-safe and idempotent.
 // If fetch fails, the scan never runs. If the scan fails, cleanup never runs (so a
 // failed/partial run's rows stay around rather than silently vanishing, and the
 // previous good run -- if any -- is untouched since it is still "the newest
@@ -946,7 +947,7 @@ async function startWikiSyncDumpRead() {
 	if (isWikiSyncDumpRunning) {
 		return;
 	}
-	if (!window.confirm("Dump holen lädt den kompletten Wiki-Dump neu, holt Weiterleitungen + Kontinente online und übernimmt danach die Publikationsquellen scharf in die Quellen (feature_sources) — manuelle/unterdrückte Quellen bleiben unangetastet. Das dauert einige Minuten. Jetzt starten?")) {
+	if (!window.confirm("Dump holen lädt den kompletten Wiki-Dump neu, holt Weiterleitungen + Kontinente online und zeigt danach, was sich bei den Publikationsquellen ändern würde — geschrieben wird erst, was du in der Vorschau anhäkelst. Das dauert einige Minuten. Jetzt starten?")) {
 		return;
 	}
 	isWikiSyncDumpRunning = true;
@@ -989,18 +990,27 @@ async function startWikiSyncDumpRead() {
 		await submitWikiSyncDumpAction("cleanup_state");
 		dumpReportDraft.steps.cleanup_state = { ok: true };
 
-		// Step 4/4: reconcile the wiki publication sources into feature_sources now
-		// that this dump's scan is the newest completed run. A failure here surfaces
-		// via the same catch block below (steps 1-3 already succeeded and are not
-		// rolled back).
-		setWikiSyncDumpButtonsDisabled(true, "Übernimmt Publikationsquellen...");
-		setWikiSyncStatus("Publikationsquellen werden übernommen …", "pending");
+		// Step 4/4: COMPUTE what the wiki publication sources of this dump would change in
+		// feature_sources, now that this scan is the newest completed run. 🔴 SEIT 2026-08-06 SCHREIBT
+		// DIESER SCHRITT NICHTS: er legt einen Plan ab, und die Vorschau darunter entscheidet. Genau
+		// hier war es am nötigsten -- dieser Abgleich kann Quellenverweise ENTFERNEN, und er tat es am
+		// Ende eines zehnminütigen Laufs, den niemand bis zum Schluss anschaut. A failure here surfaces
+		// via the same catch block below (steps 1-3 already succeeded and are not rolled back).
+		setWikiSyncDumpButtonsDisabled(true, "Vergleicht Publikationsquellen...");
+		setWikiSyncStatus("Publikationsquellen werden verglichen …", "pending");
 		const publicationsResult = await runWikiSyncPublicationsSyncLoop();
-		const totals = (publicationsResult && publicationsResult.totals) || { added: 0, removed: 0, updated: 0, processed: 0 };
-		const note = ` (+${Number(totals.added || 0)} / ~${Number(totals.updated || 0)} / -${Number(totals.removed || 0)})`;
+		const totals = (publicationsResult && publicationsResult.totals) || { planned: 0, processed: 0, skippedTypes: [] };
+		const pubCounts = (publicationsResult && publicationsResult.counts) || {};
+		const pubDifferences = Number(pubCounts.total ?? 0);
+		const skipped = (totals.skippedTypes || []).length > 0
+			? ` Ohne: ${totals.skippedTypes.join(", ")} (kennt der Zwischenspeicher nicht).`
+			: "";
+		const note = pubDifferences > 0
+			? `Dump geholt · ${pubDifferences} Quellen-Unterschiede — Vorschau offen.${skipped}`
+			: `Dump geholt · keine Unterschiede bei den Quellen.${skipped}`;
 
-		setWikiSyncStatus(`Dump geholt und Publikationsquellen übernommen.${note}`, "success");
-		showFeedbackToast(`Dump geholt und Publikationsquellen übernommen.${note}`, "success");
+		setWikiSyncStatus(note, "success");
+		showFeedbackToast(note, "success");
 		isWikiSyncDumpRunning = false;
 		setWikiSyncDumpButtonsDisabled(false);
 		await refreshWikiSyncDumpFetchedStatus();
@@ -1008,12 +1018,16 @@ async function startWikiSyncDumpRead() {
 		dumpReportDraft.steps.sync_publications = {
 			ok: true,
 			processed: Number(totals.processed || 0),
-			added: Number(totals.added || 0),
-			updated: Number(totals.updated || 0),
-			removed: Number(totals.removed || 0),
+			// Der Bericht nennt jetzt UNTERSCHIEDE, nicht Schreibvorgänge: geschrieben wird erst in der
+			// Vorschau. Die drei alten Schlüssel (added/updated/removed) sind bewusst weg -- eine Zahl,
+			// die „geschrieben" heißt und „vorgeschlagen" bedeutet, ist schlimmer als keine.
+			planned: Number(totals.planned || 0),
+			differences: pubDifferences,
+			new: Number(pubCounts.new ?? 0),
+			changed: Number(pubCounts.changed ?? 0),
+			skipped_types: (totals.skippedTypes || []).join(", "),
 		};
 		dumpReportDraft.finished_at = new Date().toISOString();
-
 		// Persist the report. BEST-EFFORT on purpose: the run itself already succeeded and is
 		// never rolled back, so a failed save must not turn a good run into a failed one. The
 		// overlay below still shows the numbers it holds in memory either way.
@@ -1040,6 +1054,17 @@ async function startWikiSyncDumpRead() {
 		// Dump-Report: after a full run, open the in-editor report -- the run's own numbers plus
 		// the code's self-tests green/red in the browser (no shell on STRATO).
 		// Fire-and-forget + fully guarded so a report bug can NEVER affect the dump flow.
+		// Die Übernahme-Vorschau der Quellen, VOR dem Bericht: sie verlangt eine Entscheidung, der
+		// Bericht ist zum Nachlesen. Bei null Unterschieden wird sie nicht geöffnet -- ein leeres Blatt
+		// nach zehn Minuten Arbeit ist Lärm, und die Statuszeile hat es schon gesagt.
+		if (pubDifferences > 0 && Number(publicationsResult?.run_id || 0) > 0
+			&& typeof openSyncPlanSheet === "function") {
+			openSyncPlanSheet({
+				kind: "publication",
+				mount: document.getElementById("wikiSyncPlanHost"),
+			});
+		}
+
 		try { void avesmapsOpenDumpReport(dumpReportShown, dumpReportDelta); } catch (reportError) { console.error("Dump-Report:", reportError); }
 	} catch (error) {
 		console.error("Dump holen fehlgeschlagen:", error);
@@ -1270,7 +1295,16 @@ function avesmapsDumpReportRunSectionHtml(report, delta) {
 	if (entries > 0) {
 		rows.push(`<li><span>Einträge im Dump</span><b>${entries.toLocaleString("de-DE")}</b></li>`);
 	}
-	rows.push(`<li><span>Publikationsquellen</span><b>+${Number(pub.added || 0)} / ~${Number(pub.updated || 0)} / −${Number(pub.removed || 0)}</b></li>`);
+	// Seit 2026-08-06 nennt diese Zeile UNTERSCHIEDE, nicht Schreibvorgänge: "Dump holen" endet in
+	// einer Vorschau. Ein Bericht, der "+12 / ~3 / −1" sagt, obwohl niemand etwas übernommen hat,
+	// wäre genau die Zahl, an der man später falsch abliest, was geschehen ist.
+	// ⚠️ Ein ARCHIVIERTER Bericht trägt noch added/updated/removed -- der wird weiter so gezeigt und
+	// nicht als 0 dargestellt: damals wurde wirklich geschrieben.
+	if (pub.differences !== undefined || pub.planned !== undefined) {
+		rows.push(`<li><span>Quellen-Unterschiede</span><b>${Number(pub.differences || 0).toLocaleString("de-DE")}</b></li>`);
+	} else {
+		rows.push(`<li><span>Publikationsquellen (übernommen)</span><b>+${Number(pub.added || 0)} / ~${Number(pub.updated || 0)} / −${Number(pub.removed || 0)}</b></li>`);
+	}
 
 	// Per-kind counts with the comparison to the previous run. A drop is what matters here --
 	// the Art-gate incident swallowed ~430 adventures while the run reported success.
@@ -1661,9 +1695,14 @@ function renderWikiSyncPublicationsProgress(step, done, totals) {
 	if (done) {
 		// The summary is a result, not a state: it goes to the toast, which overlays instead of
 		// pushing, and the button drops back to its resting label.
+		// Es werden UNTERSCHIEDE gemeldet, keine Änderungen: geschrieben ist an dieser Stelle nichts.
 		if (typeof showFeedbackToast === "function") {
+			const counts = (step && step.counts) || {};
+			const differences = Number(counts.total ?? 0);
 			showFeedbackToast(
-				`Publikationsquellen: +${totals.added} neu / ~${totals.updated} aktualisiert / -${totals.removed} entfernt (${totals.processed} geprüft).`,
+				differences > 0
+					? `Publikationsquellen: ${differences} Unterschiede — Vorschau offen (${totals.processed} geprüft).`
+					: `Publikationsquellen: keine Unterschiede (${totals.processed} geprüft).`,
 				"success"
 			);
 		}
@@ -1674,7 +1713,7 @@ function renderWikiSyncPublicationsProgress(step, done, totals) {
 
 	const shown = Math.min(segment + 1, totalSegments);
 	setWikiSyncButtonState(button, {
-		label: `Publikationsquellen … ${shown}/${totalSegments} (${totals.processed} geprüft)`,
+		label: `Quellen vergleichen … ${shown}/${totalSegments} (${totals.processed} geprüft)`,
 		current: segment,
 		total: totalSegments,
 		running: true,
@@ -1691,7 +1730,8 @@ async function runWikiSyncPublicationsSyncLoop() {
 	let done = false;
 	let safetyCounter = 0;
 	let lastResult = null;
-	const totals = { added: 0, removed: 0, updated: 0, processed: 0 };
+	// `planned` sind die Unterschieds-ZEILEN des Plans, keine geschriebenen Verknüpfungen.
+	const totals = { planned: 0, processed: 0, skippedTypes: [] };
 	// Four segments, each drained in id-high-water batches; a generous ceiling still
 	// bounds the loop so a backend bug can never spin forever (STRATO).
 	const MAX_STEPS = 4000;
@@ -1717,10 +1757,15 @@ async function runWikiSyncPublicationsSyncLoop() {
 		lastResult = stepResult;
 		segment = Number(stepResult.segment ?? segment);
 		cursor = Number(stepResult.cursor ?? cursor);
-		totals.added += Number(stepResult.links_added ?? 0);
-		totals.removed += Number(stepResult.links_removed ?? 0);
-		totals.updated += Number(stepResult.links_updated ?? 0);
+		totals.planned += Number(stepResult.planned ?? 0);
 		totals.processed += Number(stepResult.processed ?? 0);
+		// Typen, über die der Zwischenspeicher nichts weiß, wurden ÜBERSPRUNGEN -- nicht geleert. Wer
+		// das nicht sagt, lässt eine kurze Liste wie Vollständigkeit aussehen.
+		(stepResult.skipped_types || []).forEach((type) => {
+			if (totals.skippedTypes.indexOf(type) < 0) {
+				totals.skippedTypes.push(type);
+			}
+		});
 		done = stepResult.done === true;
 		renderWikiSyncPublicationsProgress(stepResult, done, totals);
 	}

@@ -17,11 +17,13 @@
 const SYNC_PLAN_KIND_NOUNS = {
 	citymap: { one: "Karte", many: "Karten" },
 	adventure: { one: "Abenteuer", many: "Abenteuer" },
+	publication: { one: "Quellenverweis", many: "Quellenverweise" },
 };
 
 const SYNC_PLAN_KIND_TITLES = {
 	citymap: "Stadtkarten aus dem Wiki übernehmen",
 	adventure: "Abenteuer aus dem Wiki übernehmen",
+	publication: "Publikationsquellen aus dem Wiki übernehmen",
 };
 
 /**
@@ -42,6 +44,9 @@ const SYNC_PLAN_KIND_DELETION = {
 	// Ein Abenteuer wird nie gelöscht, auch dann nicht, wenn sein Artikel im Wiki verschwindet: der
 	// Abgleich hat dafür keinen Weg und hatte nie einen.
 	adventure: null,
+	// Bei den Publikationsquellen ist die Einheit ein Ort, eine Region, ein Weg -- die verschwindet
+	// nicht, weil ihr Artikel eine Fußnote weniger hat. Der Verlust steht in ihrer eigenen Zeile.
+	publication: null,
 };
 
 /**
@@ -52,6 +57,15 @@ const SYNC_PLAN_KIND_DELETION = {
  * zurückholen lässt, das eine sein, das man nicht übersieht.
  */
 const SYNC_PLAN_LOSS_FIELDS = ["places_removed", "occurrences_removed", "sources_removed"];
+
+/**
+ * Der Beipackzettel eines Verlustfeldes: WELCHE es sind. Wird unter die Zahl gesetzt, nicht daneben
+ * gestellt — und nie als eigene Zeile, sonst steht die Zahl in einer Zeile und die Namen in der
+ * nächsten, ohne dass etwas sie verbindet.
+ *
+ * „3 entfallen" ohne Namen ist nichts, was man mit gutem Gewissen anhäkeln kann.
+ */
+const SYNC_PLAN_LOSS_DETAIL = { sources_removed: "sources_removed_titles" };
 
 /** Die drei Kategorien und wie sie sich erklären. Reihenfolge = Anzeigereihenfolge. */
 const SYNC_PLAN_GROUPS = [
@@ -131,6 +145,10 @@ function syncPlanFieldLabel(field) {
 		adopt: "Übernahme",
 		places: "Orte",
 		places_removed: "Orte entfallen",
+		// --- Publikationsquellen (Sitzung 2) ---
+		sources: "Quellenverweise",
+		sources_removed: "Quellenverweise entfallen",
+		sources_removed_titles: "davon",
 	};
 
 	return labels[field] || field;
@@ -216,8 +234,16 @@ function syncPlanDiffMarkup(item) {
 		// Ein Verlust ist kein „alt → neu": es gibt kein Nachher, es gibt weniger. Eigene Farbe, eigene
 		// Form -- und damit die eine Zeile, die man in einer vorangehäkelten Liste nicht überliest.
 		if (SYNC_PLAN_LOSS_FIELDS.indexOf(field) >= 0) {
+			const detailKey = SYNC_PLAN_LOSS_DETAIL[field];
+			const detail = detailKey && after[detailKey]
+				? `<span class="row__sub">${syncPlanEscape(after[detailKey])}</span>`
+				: "";
 			rows.push(`<dt>${syncPlanEscape(syncPlanFieldLabel(field))}</dt>`
-				+ `<dd class="diff__loss">${syncPlanEscape(syncPlanFieldValue(field, after[field]))}</dd>`);
+				+ `<dd class="diff__loss">${syncPlanEscape(syncPlanFieldValue(field, after[field]))}${detail}</dd>`);
+			return;
+		}
+		// Der Beipackzettel steht schon in der Zeile seines Verlustfeldes.
+		if (Object.values(SYNC_PLAN_LOSS_DETAIL).indexOf(field) >= 0) {
 			return;
 		}
 		const oldValue = syncPlanEscape(syncPlanFieldValue(field, before[field]));

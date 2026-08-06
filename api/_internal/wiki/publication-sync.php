@@ -809,6 +809,241 @@ function avesmapsPublicationReconcileEntityWrites(PDO $pdo, string $entityType, 
 }
 
 // ===========================================================================
+// 4b. The COMPUTE half of the Übernahme-Vorschau (session 2, 2026-08-06).
+//
+// Everything below reads. The writers above stay exactly as they are -- the apply half
+// (publication-plan-apply.php) calls avesmapsPublicationReconcileEntity unchanged, so every
+// override guarantee proved for it still holds. Design:
+// docs/superpowers/specs/2026-08-06-sync-uebernahme-design.md.
+// ===========================================================================
+
+/**
+ * The plan's identity for ONE live entity. PURE.
+ *
+ * 💣 The TYPE is part of the key. A same-named settlement and region share the plain slug -- which is
+ * why wiki_entity_publication is unique on (entity_type, entity_wiki_key) since Fix 2. Keying a plan
+ * row on the slug alone would let one entity's row (and its durable decision in sync_decision)
+ * stand for the other's.
+ *
+ * The separator is '|': a territory key carries a colon of its own ('wiki:…'), and the split below
+ * therefore cuts at the FIRST bar only.
+ */
+function avesmapsPublicationPlanEntityKey(string $entityType, string $entityWikiKey): string
+{
+    return $entityType . '|' . $entityWikiKey;
+}
+
+/**
+ * Take the key apart again, or null when it is not one. PURE.
+ *
+ * @return array{0:string, 1:string}|null
+ */
+function avesmapsPublicationPlanSplitEntityKey(string $entityKey): ?array
+{
+    $at = strpos($entityKey, '|');
+    if ($at === false || $at < 1 || $at + 1 >= strlen($entityKey)) {
+        return null;
+    }
+
+    return [substr($entityKey, 0, $at), substr($entityKey, $at + 1)];
+}
+
+/**
+ * The id of an existing shared source, or 0 when there is none yet. READ-ONLY twin of
+ * avesmapsFeatureSourceUpsert.
+ *
+ * 💣 THE WRITER ANSWERS BY INSERTING: it upserts into `sources` and returns the id it has just made
+ * sure of. That is the right shape for a reconcile and the wrong one for a preview -- a plan that
+ * creates catalogue rows has already changed the database it claims to be describing, and nobody
+ * would notice, because a source row on its own is harmless.
+ *
+ * ⚠️ The hash is built by the SAME rule, including the URL-less fallback ('wikipub:' + wiki_key for a
+ * publication without a shop link). Compute it differently and every such source looks new, forever:
+ * the preview would keep offering the same additions that are already there.
+ */
+function avesmapsPublicationSourceIdForPlan(PDO $pdo, string $url, string $wikiKey): int
+{
+    $hash = ($url === '' && $wikiKey !== '') ? hash('sha256', 'wikipub:' . $wikiKey) : hash('sha256', $url);
+    try {
+        $stmt = $pdo->prepare('SELECT id FROM sources WHERE url_hash = :h LIMIT 1');
+        $stmt->execute(['h' => $hash]);
+    } catch (Throwable) {
+        return 0; // no source catalogue yet -> nothing is linked, and that is an answer
+    }
+    $id = $stmt->fetchColumn();
+
+    return $id === false || $id === null ? 0 : (int) $id;
+}
+
+/**
+ * What the reconcile WOULD do to one entity's wiki-publication links. READ-ONLY.
+ *
+ * The first half of avesmapsPublicationReconcileEntityWrites, verbatim, minus its three writers: read
+ * the current links, read the desired ones out of the staging JOIN, run the SAME pure diff
+ * (avesmapsPublicationDiffLinks). Titles ride along because "3 entfallen" without names is not
+ * something anybody can tick with a clear conscience.
+ *
+ * ⚠️ A desired publication with no `sources` row yet counts as an addition and is NOT passed into the
+ * diff -- avesmapsPublicationDiffLinks skips source_id 0 anyway, and `remove` is unaffected either
+ * way: a source that does not exist cannot appear in an existing link.
+ *
+ * @return array{add:int, update:int, remove:int, add_titles:list<string>, remove_titles:list<string>}
+ */
+function avesmapsPublicationLinkDiffForPlan(PDO $pdo, string $entityType, string $entityPublicId, string $entityWikiKey): array
+{
+    $empty = ['add' => 0, 'update' => 0, 'remove' => 0, 'add_titles' => [], 'remove_titles' => []];
+    if ($entityType === '' || $entityPublicId === '' || $entityWikiKey === '') {
+        return $empty;
+    }
+
+    try {
+        $currentStmt = $pdo->prepare(
+            'SELECT source_id, origin, status, reference_kind, pages, note
+               FROM feature_sources
+              WHERE entity_type = :t AND entity_public_id = :id'
+        );
+        $currentStmt->execute(['t' => $entityType, 'id' => $entityPublicId]);
+        $current = $currentStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        // The desired list, exactly as avesmapsPublicationDesiredLinksForEntity reads it.
+        $wantStmt = $pdo->prepare(
+            'SELECT c.wiki_key AS publication_wiki_key, c.title, c.source_type, c.chosen_url, c.has_link,
+                    r.reference_kind, r.pages, r.note
+               FROM wiki_entity_publication r
+               JOIN wiki_publication_catalog c ON c.wiki_key = r.publication_wiki_key
+              WHERE r.entity_type = :type AND r.entity_wiki_key = :ewk
+              ORDER BY c.title ASC, c.wiki_key ASC'
+        );
+        $wantStmt->execute(['type' => $entityType, 'ewk' => $entityWikiKey]);
+        $wantRows = $wantStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable) {
+        // A site without the source system or without staging: "I know nothing", never "there is
+        // nothing". Same reading as avesmapsPublicationStagingHasEntityType.
+        return $empty;
+    }
+
+    $desired = [];
+    $titleBySource = [];
+    $newTitles = [];
+    foreach ($wantRows as $row) {
+        $chosenUrl = (int) ($row['has_link'] ?? 0) === 1 ? (string) ($row['chosen_url'] ?? '') : '';
+        $title = (string) ($row['title'] ?? '');
+        $sourceId = avesmapsPublicationSourceIdForPlan(
+            $pdo,
+            $chosenUrl,
+            (string) ($row['publication_wiki_key'] ?? '')
+        );
+        if ($sourceId <= 0) {
+            // The publication is catalogued but has no shared source row yet: the apply half will
+            // create it, so this is an addition -- named, and counted separately from the diff.
+            $newTitles[] = $title;
+            continue;
+        }
+        $titleBySource[$sourceId] = $title;
+        $desired[] = [
+            'source_id' => $sourceId,
+            'reference_kind' => $row['reference_kind'] ?? null,
+            'pages' => $row['pages'] ?? null,
+            'note' => $row['note'] ?? null,
+        ];
+    }
+
+    $diff = avesmapsPublicationDiffLinks($current, $desired);
+
+    $addTitles = $newTitles;
+    foreach ($diff['add'] as $row) {
+        $addTitles[] = $titleBySource[(int) $row['source_id']] ?? '';
+    }
+
+    // The label of a link that goes: read from the source catalogue, because the wiki no longer names
+    // it -- that is the whole reason it is being removed.
+    $removeTitles = [];
+    if ($diff['remove'] !== []) {
+        $ids = array_map(static fn(array $row): int => (int) $row['source_id'], $diff['remove']);
+        try {
+            $labels = $pdo->prepare(
+                'SELECT id, label FROM sources WHERE id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')'
+            );
+            $labels->execute($ids);
+            foreach ($labels->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+                $removeTitles[] = (string) ($row['label'] ?? '');
+            }
+        } catch (Throwable) {
+            $removeTitles = [];
+        }
+    }
+
+    return [
+        'add' => count($diff['add']) + count($newTitles),
+        'update' => count($diff['update']),
+        'remove' => count($diff['remove']),
+        'add_titles' => array_values(array_filter($addTitles, static fn(string $t): bool => $t !== '')),
+        'remove_titles' => array_values(array_filter($removeTitles, static fn(string $t): bool => $t !== '')),
+    ];
+}
+
+/** How many names one row lists before it says "und N weitere". A row is a row. */
+const AVESMAPS_PUBLICATION_PLAN_TITLE_LIMIT = 5;
+
+/**
+ * ONE difference row, or null when there is nothing to ask about. PURE.
+ *
+ * 💣 THERE IS NO 'new' HERE, and that is not an oversight: the entity is a settlement, a region, a
+ * path, a territory or a lore entry -- it always exists already, and only its source links change. A
+ * category called "Neu" would have to mean "newly created", which never happens on this path.
+ *
+ * 💣 AND NO 'deleted' EITHER. What the wiki stops citing is a CHILD row of a living entity, so it
+ * rides in that entity's own row as a named loss (sources_removed, painted in the warning colour by
+ * the component) rather than in the category that carries the second confirmation. The third category
+ * belongs to a whole entity disappearing -- and a settlement does not disappear because its article
+ * dropped a footnote. Session-2 plan, Entscheidung 1.
+ *
+ * @param array{add:int, update:int, remove:int, add_titles:list<string>, remove_titles:list<string>} $diff
+ * @return array{change_type:string, after:array<string,mixed>, before:array<string,mixed>,
+ *               override:array<string,mixed>}|null
+ */
+function avesmapsPublicationPlanItem(array $diff): ?array
+{
+    $add = (int) ($diff['add'] ?? 0);
+    $update = (int) ($diff['update'] ?? 0);
+    $remove = (int) ($diff['remove'] ?? 0);
+    if ($add + $update + $remove < 1) {
+        return null;
+    }
+
+    $names = static function (array $titles): string {
+        $shown = array_slice($titles, 0, AVESMAPS_PUBLICATION_PLAN_TITLE_LIMIT);
+        $rest = count($titles) - count($shown);
+        $line = implode(', ', $shown);
+        if ($rest > 0) {
+            $line .= ($line === '' ? '' : ', ') . '… und ' . $rest . ' weitere';
+        }
+
+        return $line;
+    };
+
+    $after = [];
+    $parts = [];
+    if ($add > 0) {
+        $parts[] = $add . ' neu';
+    }
+    if ($update > 0) {
+        $parts[] = $update . ' geändert';
+    }
+    if ($parts !== []) {
+        // German display text on purpose (like every other row value): a person reads this.
+        $addNames = $names((array) ($diff['add_titles'] ?? []));
+        $after['sources'] = implode(', ', $parts) . ($addNames === '' ? '' : ' (' . $addNames . ')');
+    }
+    if ($remove > 0) {
+        $after['sources_removed'] = $remove;
+        $after['sources_removed_titles'] = $names((array) ($diff['remove_titles'] ?? []));
+    }
+
+    return ['change_type' => 'changed', 'after' => $after, 'before' => [], 'override' => []];
+}
+
+// ===========================================================================
 // 5. Live-entity enumeration (segmented) + one bounded reconcile step.
 // ===========================================================================
 
@@ -836,14 +1071,17 @@ function avesmapsPublicationReconcileSegmentOrder(): array
  * PHP (a `LIKE '%"wiki_*"%'` pre-filter narrows to assigned rows). Rows with an empty key
  * are still returned (they advance the cursor); the caller skips them.
  *
- * @return list<array{id:int, public_id:string, wiki_key:string}>
+ * ⚠️ `name` rides along since 2026-08-06 (session 2): the Übernahme-Vorschau labels its rows with it,
+ * and reading it here costs nothing -- the row is already being fetched. The reconcile ignores it.
+ *
+ * @return list<array{id:int, public_id:string, wiki_key:string, name:string}>
  */
 function avesmapsPublicationFetchLiveEntityBatch(PDO $pdo, string $type, int $lastId, int $budget): array
 {
     $budget = max(1, $budget);
     if ($type === 'territory') {
         $statement = $pdo->prepare(
-            "SELECT id, public_id, wiki_key
+            "SELECT id, public_id, wiki_key, name
                FROM political_territory
               WHERE wiki_key IS NOT NULL AND wiki_key <> '' AND id > :last
               ORDER BY id LIMIT :budget"
@@ -856,6 +1094,7 @@ function avesmapsPublicationFetchLiveEntityBatch(PDO $pdo, string $type, int $la
             'id' => (int) $r['id'],
             'public_id' => (string) $r['public_id'],
             'wiki_key' => trim((string) $r['wiki_key']),
+            'name' => (string) ($r['name'] ?? ''),
         ], $statement->fetchAll(PDO::FETCH_ASSOC) ?: []);
     }
 
@@ -868,7 +1107,7 @@ function avesmapsPublicationFetchLiveEntityBatch(PDO $pdo, string $type, int $la
         // lore_entry table, and that must skip the segment rather than break the whole reconcile.
         try {
             $statement = $pdo->prepare(
-                "SELECT id, wiki_key
+                "SELECT id, wiki_key, name
                    FROM lore_entry
                   WHERE status = 'active' AND wiki_key <> '' AND id > :last
                   ORDER BY id LIMIT :budget"
@@ -884,6 +1123,7 @@ function avesmapsPublicationFetchLiveEntityBatch(PDO $pdo, string $type, int $la
             'id' => (int) $r['id'],
             'public_id' => trim((string) $r['wiki_key']),
             'wiki_key' => trim((string) $r['wiki_key']),
+            'name' => (string) ($r['name'] ?? ''),
         ], $statement->fetchAll(PDO::FETCH_ASSOC) ?: []);
     }
 
@@ -896,7 +1136,7 @@ function avesmapsPublicationFetchLiveEntityBatch(PDO $pdo, string $type, int $la
     }
 
     $statement = $pdo->prepare(
-        "SELECT id, public_id, properties_json
+        "SELECT id, public_id, name, properties_json
            FROM map_features
           WHERE is_active = 1 AND feature_type = :ft AND id > :last AND properties_json LIKE :needle
           ORDER BY id LIMIT :budget"
@@ -914,7 +1154,12 @@ function avesmapsPublicationFetchLiveEntityBatch(PDO $pdo, string $type, int $la
         if (is_array($props) && is_array($props[$propKey] ?? null)) {
             $wikiKey = trim((string) ($props[$propKey]['wiki_key'] ?? ''));
         }
-        $out[] = ['id' => (int) $row['id'], 'public_id' => (string) $row['public_id'], 'wiki_key' => $wikiKey];
+        $out[] = [
+            'id' => (int) $row['id'],
+            'public_id' => (string) $row['public_id'],
+            'wiki_key' => $wikiKey,
+            'name' => (string) ($row['name'] ?? ''),
+        ];
     }
 
     return $out;
@@ -1018,6 +1263,208 @@ function avesmapsPublicationReconcileStep(PDO $pdo, int $segment, int $lastId, i
         'links_removed' => $linksRemoved,
         'links_updated' => $linksUpdated,
         'processed' => $processed,
+    ];
+}
+
+/** Was die Vorschau je Einheit über die Art sagt. Ein Slug erklärt niemandem, was er vor sich hat. */
+const AVESMAPS_PUBLICATION_PLAN_TYPE_WORDS = [
+    'settlement' => 'Ort',
+    'region' => 'Region',
+    'path' => 'Weg',
+    'territory' => 'Herrschaftsgebiet',
+    'lore' => 'Vorkommen',
+];
+
+/**
+ * The difference row for ONE live entity, reads included. READ-ONLY.
+ *
+ * 💣 BOTH HALVES CALL THIS ONE FUNCTION -- the compute half to build the plan, the apply half to
+ * recompute it right before writing and see whether the world moved on (design §4a). Two copies of
+ * "what would this entity need" would drift, and the drift would show up as a plan that can never be
+ * applied: every row would look stale forever and nobody would know why.
+ *
+ * @param array{public_id:string, wiki_key:string, name?:string} $entity
+ * @return array{item:?array<string,mixed>, label:string}
+ */
+function avesmapsPublicationPlanForEntity(PDO $pdo, string $entityType, array $entity): array
+{
+    $publicId = (string) ($entity['public_id'] ?? '');
+    $wikiKey = (string) ($entity['wiki_key'] ?? '');
+    $name = trim((string) ($entity['name'] ?? ''));
+    $word = AVESMAPS_PUBLICATION_PLAN_TYPE_WORDS[$entityType] ?? $entityType;
+    // Falls die Zeile keinen Namen trägt (bei Vorkommen ist der Schlüssel die Identität), nennt die
+    // Zeile den Schlüssel: hässlich, aber auffindbar -- und "Unbenannt" wäre beides nicht.
+    $label = ($name !== '' ? $name : $wikiKey) . ' (' . $word . ')';
+
+    return [
+        'item' => avesmapsPublicationPlanItem(
+            avesmapsPublicationLinkDiffForPlan($pdo, $entityType, $publicId, $wikiKey)
+        ),
+        'label' => $label,
+    ];
+}
+
+/**
+ * When the publication staging was last filled by "Dump holen" -- the plan's source stamp, so an
+ * editor can see which dump a lying-about preview was computed from. NULL = staging never created.
+ */
+function avesmapsPublicationLastStaged(PDO $pdo): ?string
+{
+    try {
+        $value = $pdo->query('SELECT MAX(synced_at) FROM wiki_publication_catalog')->fetchColumn();
+    } catch (Throwable) {
+        return null;
+    }
+
+    return $value !== false && $value !== null ? (string) $value : null;
+}
+
+/**
+ * ONE bounded COMPUTE step over the live entities, resumable via (segment, id high-water).
+ *
+ * 🔴 THIS IS THE HALF THAT DOES NOT WRITE. It has the shape of avesmapsPublicationReconcileStep --
+ * same segments, same batches, same deadline, same cursor -- and it calls the same pure diff. The only
+ * difference is where the answer goes: into sync_plan_item, for a person to tick, instead of into
+ * feature_sources (design §7). api/_internal/wiki/__tests__/sync-plan-purity-test.php asserts that
+ * property over everything this function reaches, at any depth.
+ *
+ * ⚠️ avesmapsPublicationReconcileStep STAYS as it is: the dump-apply pipeline
+ * (avesmapsPublicationSyncPhaseStep, dryRun=false) still drives it. That door belongs to the
+ * ways/regions/places apply path and is session 3's business -- moving it here would start two
+ * sessions in one commit.
+ *
+ * 💣 The type-level staging gate travels along unchanged (avesmapsPublicationStagingHasEntityType): an
+ * unstaged type must never be read as "the wiki dropped every source of this type". The skipped types
+ * are reported so the preview can say what it knows nothing about.
+ *
+ * @return array{done:bool, nextSegment:int, nextLastId:int, run_id:int, planned:int, processed:int,
+ *               counts:array{new:int,changed:int,deleted:int,total:int}, skipped_types:list<string>,
+ *               skipped_long_keys:int}
+ */
+function avesmapsPublicationPlanStep(PDO $pdo, int $segment, int $lastId, int $userId, ?int $budget = null): array
+{
+    $budget = $budget ?? AVESMAPS_PUBLICATION_RECONCILE_STEP_BUDGET;
+    @set_time_limit((int) AVESMAPS_WIKI_DUMP_STEP_SECONDS + 15);
+    $deadline = microtime(true) + (float) max(1, AVESMAPS_WIKI_DUMP_STEP_SECONDS - 3);
+    // ⚠️ DDL once, up here, before anything else (MySQL commits an open transaction on DDL).
+    avesmapsEnsurePublicationStagingTables($pdo);
+    avesmapsEnsureSyncPlanTables($pdo);
+
+    $segments = avesmapsPublicationReconcileSegmentOrder();
+    $currentSegment = max(0, $segment);
+    $currentLastId = max(0, $lastId);
+
+    // The run is derived from the cursor, never named by the client: the very start of the 2D cursor
+    // means "from the top" and opens a fresh run (retiring whatever was lying around).
+    if ($currentSegment === 0 && $currentLastId === 0) {
+        $runId = avesmapsSyncPlanStartRun($pdo, 'publication', $userId, avesmapsPublicationLastStaged($pdo));
+    } else {
+        $runId = (int) (avesmapsSyncPlanBuildingRun($pdo, 'publication')['id'] ?? 0);
+    }
+    if ($runId <= 0) {
+        throw new RuntimeException('Der Abgleich wurde von einem zweiten Lauf abgeloest. Bitte neu starten.');
+    }
+
+    // ONE read of the decision table per step, not one per entity: this is the loop STRATO cannot take.
+    $decisions = avesmapsSyncPlanDecisions($pdo, 'publication');
+
+    $planned = 0;
+    $processed = 0;
+    $skippedTypes = [];
+    $skippedLongKeys = 0;
+    $timedOut = false;
+
+    while ($currentSegment < count($segments)) {
+        $type = $segments[$currentSegment];
+
+        if (!avesmapsPublicationStagingHasEntityType($pdo, $type)) {
+            $skippedTypes[] = $type;
+            $currentSegment++;
+            $currentLastId = 0;
+            continue;
+        }
+
+        $rows = avesmapsPublicationFetchLiveEntityBatch($pdo, $type, $currentLastId, $budget);
+
+        foreach ($rows as $row) {
+            $currentLastId = (int) $row['id'];
+            $wikiKey = (string) $row['wiki_key'];
+            $publicId = (string) $row['public_id'];
+            if ($wikiKey === '' || $publicId === '') {
+                continue; // LIKE-matched but unassigned/empty key -> cursor advanced, skip
+            }
+
+            $entityKey = avesmapsPublicationPlanEntityKey($type, $wikiKey);
+            if (mb_strlen($entityKey, 'UTF-8') > 190) {
+                // 💣 The column is 190 long. A truncated key would find the wrong entity -- or none --
+                // when the Übernahme looks it up again, so the entity is skipped and COUNTED instead of
+                // being planned with a key that does not identify it. In practice this never happens;
+                // if it ever does, it says so out loud.
+                $skippedLongKeys++;
+                continue;
+            }
+
+            $computed = avesmapsPublicationPlanForEntity($pdo, $type, $row);
+            $processed++;
+            $item = $computed['item'];
+            if ($item !== null) {
+                $decision = $decisions[avesmapsSyncPlanDecisionKey($entityKey, $item['change_type'])] ?? null;
+                avesmapsSyncPlanAddItem($pdo, $runId, [
+                    'entity_key' => $entityKey,
+                    'entity_public_id' => $publicId,
+                    'change_type' => $item['change_type'],
+                    'label' => $computed['label'],
+                    'before' => $item['before'],
+                    'after' => $item['after'],
+                    'override' => $item['override'],
+                    'selected' => avesmapsSyncPlanDefaultSelected(
+                        $item['change_type'],
+                        (int) ($decision['skipped_count'] ?? 0)
+                    ),
+                ]);
+                $planned++;
+            }
+
+            if (microtime(true) >= $deadline) {
+                $timedOut = true;
+                break;
+            }
+        }
+
+        if ($timedOut) {
+            break;
+        }
+
+        if (count($rows) < $budget) {
+            // Fewer than a full batch -> this segment is drained; advance to the next.
+            $currentSegment++;
+            $currentLastId = 0;
+        }
+
+        if (microtime(true) >= $deadline) {
+            $timedOut = true;
+            break;
+        }
+    }
+
+    $done = !$timedOut && $currentSegment >= count($segments);
+    $counts = ['new' => 0, 'changed' => 0, 'deleted' => 0, 'total' => 0];
+    if ($done) {
+        // No deletion rows: a source link the wiki stopped citing belongs to a LIVING entity and rides
+        // in that entity's row (see avesmapsPublicationPlanItem).
+        $counts = avesmapsSyncPlanFinishBuild($pdo, $runId);
+    }
+
+    return [
+        'done' => $done,
+        'nextSegment' => $currentSegment,
+        'nextLastId' => $done ? 0 : $currentLastId,
+        'run_id' => $runId,
+        'planned' => $planned,
+        'processed' => $processed,
+        'counts' => $counts,
+        'skipped_types' => $skippedTypes,
+        'skipped_long_keys' => $skippedLongKeys,
     ];
 }
 

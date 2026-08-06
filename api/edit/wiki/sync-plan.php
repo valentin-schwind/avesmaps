@@ -45,9 +45,12 @@ require_once __DIR__ . '/../../_internal/wiki/citymap-plan-apply.php';
 require_once __DIR__ . '/../../_internal/app/adventures.php';
 require_once __DIR__ . '/../../_internal/wiki/adventure-sync.php';
 require_once __DIR__ . '/../../_internal/wiki/adventure-plan-apply.php';
+// Session 2, publication sources: the apply half of the shared source reconcile (publication-sync.php
+// itself is already in the chain above -- the citymap source probe needs it).
+require_once __DIR__ . '/../../_internal/wiki/publication-plan-apply.php';
 
 /** The syncs that have a preview. Grows one entry per session (design §7). */
-const AVESMAPS_SYNC_PLAN_KINDS = ['citymap', 'adventure'];
+const AVESMAPS_SYNC_PLAN_KINDS = ['citymap', 'adventure', 'publication'];
 
 /**
  * One plan row, shaped for the component. The JSON columns are decoded HERE so the client never
@@ -223,6 +226,7 @@ try {
             $step = match ($kind) {
                 'citymap' => avesmapsCitymapApplyStep($pdo, $runId, $userId, $currentUser),
                 'adventure' => avesmapsAdventureApplyStep($pdo, $runId, $userId, $currentUser),
+                'publication' => avesmapsPublicationApplyStep($pdo, $runId, $userId, $currentUser),
             };
             $done = ($step['done'] ?? false) === true;
 
