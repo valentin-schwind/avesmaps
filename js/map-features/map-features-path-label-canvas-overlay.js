@@ -190,6 +190,7 @@
 			searchPx: typeof PATH_LABEL_CALM_SEARCH_PX !== "undefined" ? Number(PATH_LABEL_CALM_SEARCH_PX) || 0 : 0,
 			anchor: typeof PATH_LABEL_CALM_ANCHOR !== "undefined" ? Number(PATH_LABEL_CALM_ANCHOR) || 0 : 0,
 			relief: typeof PATH_LABEL_CURVATURE_RELIEF !== "undefined" ? Number(PATH_LABEL_CURVATURE_RELIEF) || 0 : 0,
+			maxTurn: typeof PATH_LABEL_MAX_TURN_DEG !== "undefined" ? Number(PATH_LABEL_MAX_TURN_DEG) || 0 : 0,
 		};
 	}
 
@@ -286,6 +287,21 @@
 		return run.glyphs;
 	}
 
+	// Wie krumm steht dieser Name? Summe der Richtungsaenderung von Buchstabe zu Buchstabe, in Grad --
+	// dasselbe Mass, mit dem Discord #18 gemessen wurde, nur an der fertigen Platzierung statt an der
+	// Linie. Ein gerader Name liefert 0, ein Name um eine Flussschlinge mehrere hundert Grad. Pur.
+	function labelGlyphRunTurningDegrees(glyphs) {
+		if (!Array.isArray(glyphs) || glyphs.length < 2) {
+			return 0;
+		}
+		let sum = 0;
+		for (let i = 1; i < glyphs.length; i += 1) {
+			const raw = glyphs[i].ang - glyphs[i - 1].ang;
+			sum += Math.abs(Math.atan2(Math.sin(raw), Math.cos(raw)));
+		}
+		return sum * 180 / Math.PI;
+	}
+
 	// Die grobe Huelle einer Platzierung: erst damit wird das Belegungsgitter befragt, danach nur noch
 	// gegen die wenigen Treffer genau geprueft. Gleiche Rechnung wie die Selbstkollisions-Box unten
 	// (Buchstabenlagen + eine Schriftgroesse Polster).
@@ -301,14 +317,63 @@
 		return { left: left - pad, top: top - pad, right: right + pad, bottom: bottom + pad };
 	}
 
-	// Die freie Stelle fuer einen Namen an SEINER EIGENEN Linie: Sollstelle zuerst, dann in
-	// PATH_LABEL_DODGE_STEP_PX-Schritten abwechselnd vor und zurueck, bis PATH_LABEL_DODGE_SLIDE_PX.
+	// Die Reihenfolge, in der das Ausweichen unten seine Kandidatenstellen abklopft.
+	//
+	// 💣 DAS AUSWEICHEN DARF DIE BOGENSUCHE NICHT WIEDER AUFHEBEN. Bis 2026-08-06 lief es stur
+	// 0, +12, -12, +24, -24 ... und nahm die ERSTE freie Stelle -- ohne zu fragen, wie krumm die
+	// ist. findCalmLabelCenter hatte davor genau dafuer das ruhigste Stueck gesucht (Discord #18),
+	// und der erste Ortsname im Weg warf das wieder weg. Messbar wurde es am Unterschied zwischen
+	// zwei Ansichten: derselbe Fluss, derselbe Ausschnitt, in Landschaften (kaum etwas belegt, also
+	// Offset 0) auf 38 Grad Kruemmung -- in der Standardansicht auf 110 (Warna; Hils 2 gegen 40,
+	// Tarnel 45 gegen 83).
+	//
+	// ⚠️ DIESE FUNKTION ALLEIN ZIEHT DIE BEIDEN ANSICHTEN NICHT GLEICH, und sie soll es auch nicht
+	// vorgeben. Am echten Bestand nachgespielt (Live-Geometrie, echte Belegungskarte, 2026-08-06)
+	// aenderte die neue Reihenfolge bei Warna, Hils und Tarnel GAR NICHTS: die ruhige Stelle war dort
+	// nicht bloss ungefragt, sie war besetzt -- von einem Ortsnamen bzw. von "Talloner Huegelsteig".
+	// Gleich aussehen laesst die Namen erst PATH_LABEL_MAX_TURN_DEG (der Deckel, siehe unten in der
+	// Suche). Die Reihenfolge hier ist dessen Vorbedingung: sie sorgt dafuer, dass der Deckel nur die
+	// Namen wegnimmt, fuer die es wirklich keine ruhige Stelle gibt, statt die naechstbeste zu nehmen
+	// und dann daran zu scheitern.
+	//
+	// 🔴 DIE NULL BLEIBT VORN. Eine FREIE Wunschstelle behaelt der Name -- sonst tauschte das
+	// Ausweichen sie auch dort gegen eine ruhigere, wo gar nichts im Weg steht, und veraenderte das
+	// Bild in der leeren Landschaften-Ansicht. Sortiert werden nur die Ausweichstellen, und zwar
+	// nach denselben Kosten wie in findCalmLabelCenter: Kruemmung des Stuecks plus Anker-Strafe fuer
+	// die Entfernung. Gleichstand faellt auf die alte Reihenfolge zurueck (naeher zuerst, vorwaerts
+	// vor rueckwaerts) -- auf einer geraden Linie ist deshalb alles wie bisher. Ohne Profil (die
+	// Bogensuche ist per ?pathtune=1 abschaltbar) bleibt die alte Reihenfolge ganz. Pur.
+	function orderDodgeOffsets(slide, step, profile, wishCenter, textLen, anchorWeight) {
+		const offsets = [];
+		for (let d = step; d <= slide; d += step) {
+			offsets.push(d);
+			offsets.push(-d);
+		}
+		if (!profile || offsets.length === 0) {
+			return [0, ...offsets];
+		}
+		const reach = slide > 0 ? slide : 1;
+		const weight = Number(anchorWeight) || 0;
+		const base = labelSpanTurning(profile, wishCenter - textLen / 2, textLen);
+		const ranked = offsets.map((offset, index) => ({
+			offset,
+			index,
+			cost: labelSpanTurning(profile, wishCenter + offset - textLen / 2, textLen)
+				+ weight * (Math.abs(offset) / reach) * Math.max(base, 0.35),
+		}));
+		ranked.sort((first, second) => (first.cost - second.cost) || (first.index - second.index));
+		return [0, ...ranked.map((entry) => entry.offset)];
+	}
+
+	// Die freie Stelle fuer einen Namen an SEINER EIGENEN Linie: Sollstelle zuerst, danach die
+	// Ausweichstellen in PATH_LABEL_DODGE_STEP_PX-Schritten bis PATH_LABEL_DODGE_SLIDE_PX -- in der
+	// Reihenfolge, die orderDodgeOffsets vorgibt (ruhigstes Stueck zuerst, siehe dort).
 	// Zur Seite weicht hier nichts aus -- ein Strassenname gehoert auf seine Strasse. Findet sich keine
 	// freie Stelle, gibt es null zurueck und der Aufrufer laesst diese Platzierung aus; der naechste
 	// Name derselben Kette steht ~WAY_LABEL_SCREEN_INTERVAL_PX weiter.
 	// `blockedByOwnKind` prueft die Selbstkollision der Wegnamen untereinander (Kanal A), `hull`/`glyphs`
 	// gehen an die gemeinsame Belegungskarte (Orts-, Landschafts-, Gebietsnamen).
-	function findFreePlacement(chainPts, cum, total, wishCenter, chars, widths, ls, fontSize, blockedByOwnKind) {
+	function findFreePlacement(chainPts, cum, total, wishCenter, chars, widths, ls, fontSize, blockedByOwnKind, turningProfile = null) {
 		const slide = typeof PATH_LABEL_DODGE_SLIDE_PX !== "undefined" ? Math.max(0, Number(PATH_LABEL_DODGE_SLIDE_PX) || 0) : 0;
 		const step = typeof PATH_LABEL_DODGE_STEP_PX !== "undefined" ? Math.max(1, Number(PATH_LABEL_DODGE_STEP_PX) || 1) : 12;
 		const textLen = widths.reduce((sum, w) => sum + w + ls, 0) - ls;
@@ -316,11 +381,7 @@
 		const half = labelWindowHalf(textLen, fontSize, bend.relief);
 		const perp = -(typeof PATH_LABEL_DY !== "undefined" ? PATH_LABEL_DY : 0);
 
-		const offsets = [0];
-		for (let d = step; d <= slide; d += step) {
-			offsets.push(d);
-			offsets.push(-d);
-		}
+		const offsets = orderDodgeOffsets(slide, step, turningProfile, wishCenter, textLen, bend.anchor);
 		for (const offset of offsets) {
 			const center = wishCenter + offset;
 			// Nicht ueber die Enden der eigenen Kette hinaus -- dort staut at() die Buchstaben aufeinander.
@@ -333,6 +394,12 @@
 			}
 			const glyphs = layoutGlyphsAlong(windowPts, chars, widths, ls, perp, fontSize);
 			if (!glyphs || glyphs.length === 0) {
+				continue;
+			}
+			// 🔴 ZU KRUMM IST WIE BESETZT. Der Name rutscht weiter, statt sich in den Bogen zu legen;
+			// findet er nirgends eine ruhige Stelle, faellt die Platzierung aus -- genau wie bei einem
+			// belegten Platz. Vor den Belegungsfragen, weil es die billigere Pruefung ist.
+			if (bend.maxTurn > 0 && labelGlyphRunTurningDegrees(glyphs) > bend.maxTurn) {
 				continue;
 			}
 			const hull = glyphsHullBox(glyphs, fontSize);
@@ -524,14 +591,17 @@
 			const total = cum[cum.length - 1];
 			const textLen = widths.reduce((sum, w) => sum + w + ls, 0) - ls;
 			let wish = total / 2;
+			// Dasselbe Profil beantwortet beide Fragen: WO ist es am ruhigsten (hier) und, falls dort
+			// etwas im Weg steht, WOHIN darf der Name ausweichen (findFreePlacement).
+			let turningProfile = null;
 			if (bend.searchPx > 0) {
-				const profile = buildLabelTurningProfile(pts, LABEL_TURN_PROFILE_STEP_PX);
-				wish = findCalmLabelCenter(profile, profile.total / 2, textLen, bend.searchPx, bend.anchor);
+				turningProfile = buildLabelTurningProfile(pts, LABEL_TURN_PROFILE_STEP_PX);
+				wish = findCalmLabelCenter(turningProfile, turningProfile.total / 2, textLen, bend.searchPx, bend.anchor);
 			}
 			// Ausweichen (2026-08-05): die Sollstelle ist nur der Wunsch -- liegt dort ein Orts-,
 			// Landschafts- oder Gebietsname, rutscht der Name an der eigenen Linie weiter. Findet sich
 			// nichts, wird hier nichts gezeichnet.
-			const found = findFreePlacement(pts, cum, total, wish, chars, widths, ls, fontSize, null);
+			const found = findFreePlacement(pts, cum, total, wish, chars, widths, ls, fontSize, null, turningProfile);
 			if (!found) {
 				return;
 			}
@@ -678,7 +748,8 @@
 							pts, cumAtPts, totalLen, centerOffset, chars, widths, ls, fontSize,
 							(hull) => acceptedWayLabelBoxes.some((accepted) => boxesOverlap(accepted, {
 								x1: hull.left, y1: hull.top, x2: hull.right, y2: hull.bottom,
-							}))
+							})),
+							turningProfile
 						);
 						if (!found) {
 							return;

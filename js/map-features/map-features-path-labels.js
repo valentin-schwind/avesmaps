@@ -63,6 +63,20 @@ let PATH_LABEL_GUIDE_DENSITY = 1;   // (von map-features-path-rendering.js geles
 let PATH_LABEL_CALM_SEARCH_PX = 160;      // wie weit darf der Name wandern, um ein ruhigeres Stueck zu finden
 let PATH_LABEL_CALM_ANCHOR = 0.35;        // 0 = nimm das ruhigste Stueck, egal wie weit; gross = bleib, wo du bist
 let PATH_LABEL_CURVATURE_RELIEF = 1;      // Zuschlag (Schrifthoehe/2)*|dTheta| auf den Buchstaben-Vorschub; 0 = aus
+// Deckel fuer die Kruemmung einer Platzierung (Grad ueber den ganzen Namen): passt ein Name nur noch
+// in einen Bogen, wird er NICHT gezeichnet. 0 = aus (alles wird gesetzt, wie bis 2026-08-06).
+//
+// 💣 DIESE REGEL IST DER GRUND, WARUM ZWEI ANSICHTEN DENSELBEN FLUSS GLEICH BESCHRIFTEN. Ohne sie
+// hing die Lesbarkeit eines Flussnamens daran, wie viel SONST auf der Karte steht: in der
+// Landschaften-Ansicht (keine Ortsnamen, keine Strassennamen) bekam jeder Name seine ruhige Stelle,
+// in der Standardansicht blieben ihm nur die Boegen -- gemessen 2026-08-06 an derselben Kartenstelle:
+// Warna 38 gegen 110 Grad, Hils 2 gegen 40, Tarnel 45 gegen 83. Umsortieren allein half nicht, die
+// ruhigen Stellen waren dort schlicht besetzt (von "Wehrheim" bzw. "Talloner Huegelsteig").
+//
+// ⚠️ Der Deckel gilt fuer ALLE Wegnamen, nicht nur fuer Fluesse -- es ist dieselbe Rechnung und
+// dasselbe Leiden: im selben Ausschnitt lagen 4 von 12 Strassennamen ueber 90 Grad, einer bei 368
+// (der Name lief einmal im Kreis).
+let PATH_LABEL_MAX_TURN_DEG = 90;
 
 // Ausweichen vor Orts-/Landschafts-/Gebietsnamen (2026-08-05). Ein Wegname darf NICHT zur Seite
 // weichen -- er gehoert auf seine Strasse --, also rutscht er an der eigenen Linie entlang, bis die
@@ -244,11 +258,13 @@ function syncPathLabels() {
 	slider("Bögen: Suchradius (px)", 0, 600, 10, PATH_LABEL_CALM_SEARCH_PX, (v) => { PATH_LABEL_CALM_SEARCH_PX = v; restyle(); });
 	slider("Bögen: Treue zur Sollstelle", 0, 2, 0.05, PATH_LABEL_CALM_ANCHOR, (v) => { PATH_LABEL_CALM_ANCHOR = v; restyle(); });
 	slider("Bögen: Krümmungs-Ausgleich", 0, 2, 0.05, PATH_LABEL_CURVATURE_RELIEF, (v) => { PATH_LABEL_CURVATURE_RELIEF = v; restyle(); });
+	// 0 = kein Deckel (jeder Name wird gesetzt, egal wie krumm); 360 = praktisch aus.
+	slider("Bögen: Deckel (Grad, 0=aus)", 0, 360, 10, PATH_LABEL_MAX_TURN_DEG, (v) => { PATH_LABEL_MAX_TURN_DEG = v; restyle(); });
 	const okBtn = document.createElement("button");
 	okBtn.textContent = "OK / Werte merken";
 	okBtn.style.cssText = "width:100%;margin-top:10px;padding:7px;border:1px solid #5e4329;border-radius:6px;background:#7a5a3a;color:#fff;font:inherit;cursor:pointer;";
 	okBtn.addEventListener("click", () => {
-		const result = { fontDeltaByZoom: { ...PATH_LABEL_FONT_DELTA_BY_ZOOM }, dy: PATH_LABEL_DY, riverHaloStrength: PATH_LABEL_RIVER_HALO_STRENGTH, riverHaloSharpness: PATH_LABEL_RIVER_HALO_SHARPNESS, roadHaloStrength: PATH_LABEL_ROAD_HALO_STRENGTH, roadHaloSharpness: PATH_LABEL_ROAD_HALO_SHARPNESS, letterSpacing: PATH_LABEL_LETTER_SPACING, guideDensity: PATH_LABEL_GUIDE_DENSITY, calmSearchPx: PATH_LABEL_CALM_SEARCH_PX, calmAnchor: PATH_LABEL_CALM_ANCHOR, curvatureRelief: PATH_LABEL_CURVATURE_RELIEF };
+		const result = { fontDeltaByZoom: { ...PATH_LABEL_FONT_DELTA_BY_ZOOM }, dy: PATH_LABEL_DY, riverHaloStrength: PATH_LABEL_RIVER_HALO_STRENGTH, riverHaloSharpness: PATH_LABEL_RIVER_HALO_SHARPNESS, roadHaloStrength: PATH_LABEL_ROAD_HALO_STRENGTH, roadHaloSharpness: PATH_LABEL_ROAD_HALO_SHARPNESS, letterSpacing: PATH_LABEL_LETTER_SPACING, guideDensity: PATH_LABEL_GUIDE_DENSITY, calmSearchPx: PATH_LABEL_CALM_SEARCH_PX, calmAnchor: PATH_LABEL_CALM_ANCHOR, curvatureRelief: PATH_LABEL_CURVATURE_RELIEF, maxTurnDeg: PATH_LABEL_MAX_TURN_DEG };
 		window.__avesmapsPathLabelTuning = result;
 		console.log("[Pfad-Namen-Tuning] " + JSON.stringify(result));
 		okBtn.textContent = "✓ gemerkt"; setTimeout(() => { okBtn.textContent = "OK / Werte merken"; }, 1500);

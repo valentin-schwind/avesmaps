@@ -41,7 +41,9 @@ function extractFunction(source, name) {
 }
 
 const OVERLAY_PARTS = ["labelSpanRunsLeftward", "layoutGlyphsAlong", "labelWindowHalf",
-	"pathLabelBendSettings", "cumulativeLengths", "sliceLabelWindowAt", "glyphsHullBox", "findFreePlacement"];
+	"pathLabelBendSettings", "cumulativeLengths", "sliceLabelWindowAt", "glyphsHullBox",
+	"buildLabelTurningProfile", "labelSpanTurning", "orderDodgeOffsets",
+	"labelGlyphRunTurningDegrees", "findFreePlacement"];
 const OCCUPANCY_PARTS = ["labelBoxCorners", "labelGlyphCorners", "labelPolygonsOverlap",
 	"labelOccupancyCellKeys", "createLabelOccupancyGrid", "labelOccupancyBlocksGlyphs"];
 
@@ -50,17 +52,22 @@ const OCCUPANCY_PARTS = ["labelBoxCorners", "labelGlyphCorners", "labelPolygonsO
 const factory = new Function(
 	"PATH_LABEL_DODGE_SLIDE_PX", "PATH_LABEL_DODGE_STEP_PX", "PATH_LABEL_DY",
 	"PATH_LABEL_CURVATURE_RELIEF", "PATH_LABEL_CALM_SEARCH_PX", "PATH_LABEL_CALM_ANCHOR",
-	"LABEL_OCCUPANCY_CELL_PX",
+	"PATH_LABEL_MAX_TURN_DEG", "LABEL_OCCUPANCY_CELL_PX",
 	`
 	${OCCUPANCY_PARTS.map((n) => extractFunction(occupancySource, n)).join("\n")}
 	const avesmapsLabelOccupancy = createLabelOccupancyGrid(LABEL_OCCUPANCY_CELL_PX);
 	${OVERLAY_PARTS.map((n) => extractFunction(overlaySource, n)).join("\n")}
-	return { findFreePlacement, cumulativeLengths, occupancy: avesmapsLabelOccupancy };
+	return { findFreePlacement, cumulativeLengths, buildLabelTurningProfile, occupancy: avesmapsLabelOccupancy };
 	`
 );
 
-function makeSandbox({ slide = 300, step = 12 } = {}) {
-	return factory(slide, step, -1, 1, 0, 0, 128);
+// Schrittweite des Richtungsprofils -- aus der Quelle gelesen, damit der Test nicht wegdriftet.
+const TURN_PROFILE_STEP = Number(/const LABEL_TURN_PROFILE_STEP_PX = (\d+)/.exec(overlaySource)[1]);
+
+// maxTurn = 0 (kein Krümmungs-Deckel) ist hier der Vorgabewert, NICHT der ausgelieferte: die Prüfungen
+// unten wollen jede für sich einen Hebel bewegen. Der Deckel hat eigene Prüfungen am Dateiende.
+function makeSandbox({ slide = 300, step = 12, calmSearch = 0, calmAnchor = 0, maxTurn = 0 } = {}) {
+	return factory(slide, step, -1, 1, calmSearch, calmAnchor, maxTurn, 128);
 }
 
 // A dead straight, horizontal road 1000px long -- so "slid by N px" is readable straight off the x
@@ -168,11 +175,116 @@ check("another WAY name blocks just as a place name does (channel A self-collisi
 	assert.ok(found.hull.right <= 400 || found.hull.left >= 600, "placed on top of the other way name");
 });
 
+// --- Ausweichen und Bogensuche (Discord #18) muessen dasselbe wollen -----------------------------
+// Eine Linie, die bis x=700 schnurgerade laeuft und danach in flachen Zacken weiter: dieselbe
+// Richtung, aber alle 30px ein Knick von ~44 Grad. Die Bogenlaenge waechst dabei nur um ~8%, also
+// heisst "170px ausgewichen" auf beiden Seiten ungefaehr dasselbe Stueck Weg -- der Unterschied
+// zwischen den beiden Seiten ist allein die Kruemmung.
+function rippledLine() {
+	const points = [{ x: 0, y: 100 }, { x: 700, y: 100 }];
+	for (let x = 730; x <= 1000; x += 30) {
+		points.push({ x, y: points.length % 2 === 0 ? 106 : 94 });
+	}
+	return points;
+}
+
+// Gesamte Richtungsaenderung ueber die gesetzten Buchstaben, in Grad -- dasselbe Mass, mit dem #18
+// gemessen wurde.
+function turningDegrees(glyphs) {
+	let sum = 0;
+	for (let i = 1; i < glyphs.length; i += 1) {
+		const raw = glyphs[i].ang - glyphs[i - 1].ang;
+		sum += Math.abs(Math.atan2(Math.sin(raw), Math.cos(raw)));
+	}
+	return sum * 180 / Math.PI;
+}
+
+function placeOn(sandbox, points, wish, { blockedByOwnKind = null, withProfile = true } = {}) {
+	const cum = sandbox.cumulativeLengths(points);
+	const profile = withProfile ? sandbox.buildLabelTurningProfile(points, TURN_PROFILE_STEP) : null;
+	return sandbox.findFreePlacement(points, cum, cum[cum.length - 1], wish, CHARS, WIDTHS, LS, FONT,
+		blockedByOwnKind, profile);
+}
+
+check("blockierte Wunschstelle -> es weicht auf das RUHIGSTE freie Stueck aus, nicht auf das naechste", () => {
+	const sandbox = makeSandbox({ calmSearch: 160, calmAnchor: 0.35 });
+	const line = rippledLine();
+	// Das Hindernis deckt die Wunschstelle (x=650) und reicht weiter nach hinten als nach vorne:
+	// vorwaerts wird zuerst frei -- aber eben in den Zacken. Nach hinten ist es weiter, dafuer gerade.
+	sandbox.occupancy.add(box(520, 40, 730, 160));
+	const found = placeOn(sandbox, line, 650);
+	assert.ok(found, "links und rechts ist Platz, es muss eine Stelle geben");
+	assert.ok(found.center < 650, `nach vorne in die Zacken ausgewichen (center=${found.center})`);
+	assert.ok(turningDegrees(found.glyphs) < 15,
+		`der Name steht im Bogen: ${turningDegrees(found.glyphs).toFixed(1)} Grad`);
+	found.glyphs.forEach((glyph) => {
+		assert.ok(glyph.x < 520 || glyph.x > 730, `Buchstabe steht noch auf dem Ortsnamen: x=${glyph.x}`);
+	});
+});
+
+check("ohne Richtungsprofil (Bogensuche aus) bleibt die alte Reihenfolge: die naechste freie Stelle", () => {
+	const sandbox = makeSandbox({ calmSearch: 160, calmAnchor: 0.35 });
+	sandbox.occupancy.add(box(520, 40, 730, 160));
+	const found = placeOn(sandbox, rippledLine(), 650, { withProfile: false });
+	assert.ok(found);
+	assert.ok(found.center > 650, "ohne Profil darf sich nichts an der Reihenfolge aendern");
+});
+
+check("freie Wunschstelle bleibt die Wunschstelle -- auch wenn es woanders ruhiger waere", () => {
+	// 🔴 Das ist die Zusicherung fuer die Landschaften-Ansicht: dort ist kaum etwas belegt, der Name
+	// steht auf der Stelle, die findCalmLabelCenter gewaehlt hat. Wuerde das Ausweichen auch eine
+	// FREIE Wunschstelle gegen eine ruhigere tauschen, aenderte sich das Bild auch dort, wo gar
+	// nichts im Weg steht.
+	const sandbox = makeSandbox({ calmSearch: 160, calmAnchor: 0.35 });
+	const line = rippledLine();
+	const cum = sandbox.cumulativeLengths(line);
+	const wish = cum[cum.length - 1] - 200;   // mitten in den Zacken, aber frei
+	const found = placeOn(sandbox, line, wish);
+	assert.ok(found);
+	assert.equal(found.center, wish);
+	assert.ok(turningDegrees(found.glyphs) > 30, "die Wunschstelle muss fuer diesen Test krumm sein");
+});
+
 check("an empty occupancy map never blocks (the map draws before the first collision pass)", () => {
 	const sandbox = makeSandbox();
 	const found = place(sandbox, 500);
 	assert.ok(found);
 	assert.equal(found.center, 500);
+});
+
+// --- Krümmungs-Deckel: zu krumm ist wie besetzt (2026-08-06) --------------------------------------
+// Eine Linie, die auf ganzer Länge in Zacken läuft: hier ist KEINE Stelle ruhig.
+function fullyRippledLine() {
+	const points = [{ x: 0, y: 100 }];
+	for (let x = 30; x <= 1000; x += 30) {
+		points.push({ x, y: points.length % 2 === 1 ? 88 : 112 });
+	}
+	return points;
+}
+
+check("Deckel an: ein Name, der nirgends ruhig steht, wird NICHT gezeichnet", () => {
+	const sandbox = makeSandbox({ calmSearch: 160, calmAnchor: 0.35, maxTurn: 90 });
+	// Nichts belegt -- er fällt allein an seiner Krümmung aus.
+	assert.equal(placeOn(sandbox, fullyRippledLine(), 500), null);
+});
+
+check("Deckel an: krumme Wunschstelle -> er rutscht auf die ruhige Stelle, statt auszufallen", () => {
+	const sandbox = makeSandbox({ calmSearch: 160, calmAnchor: 0.35, maxTurn: 90 });
+	const line = rippledLine();
+	const cum = sandbox.cumulativeLengths(line);
+	const wish = cum[cum.length - 1] - 200;   // mitten in den Zacken, frei, aber zu krumm
+	const found = placeOn(sandbox, line, wish);
+	assert.ok(found, "die Gerade davor ist in Reichweite -- ausfallen wäre falsch");
+	assert.ok(found.center < wish, "er ist nicht auf die ruhige Seite gerutscht");
+	assert.ok(turningDegrees(found.glyphs) <= 90,
+		`über dem Deckel gezeichnet: ${turningDegrees(found.glyphs).toFixed(1)} Grad`);
+});
+
+check("Deckel aus (0): auch der Bogen wird gesetzt -- der Notausgang bleibt", () => {
+	const sandbox = makeSandbox({ calmSearch: 160, calmAnchor: 0.35, maxTurn: 0 });
+	const found = placeOn(sandbox, fullyRippledLine(), 500);
+	assert.ok(found, "ohne Deckel muss dieselbe Linie eine Platzierung liefern");
+	assert.ok(turningDegrees(found.glyphs) > 90, "diese Linie muss für den Test krumm sein");
 });
 
 console.log(results.join("\n"));
