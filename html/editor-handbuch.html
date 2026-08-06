@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 06.08.2026</span>
+		<span class="hb-topbar__meta">Stand: 07.08.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -229,7 +229,7 @@
 						<li><a href="#erster-durchlauf" data-keywords="tutorial übung anfang beispiel">Dein erster Durchlauf</a></li>
 					</ul>
 				</li>
-				<li><a href="#karten-features" data-keywords="wikisync dump syncen sorten">Karten-Features</a>
+				<li><a href="#karten-features" data-keywords="wikisync dump syncen sorten übernahme vorschau häkchen anhäkeln neu geändert gelöscht stilllegen abgelehnte löschungen">Karten-Features</a>
 					<ul>
 						<li><a href="#kreise" data-keywords="kreis punkt icon symbol grün halb gefüllt leer abdeckung auf der karte legende">Der Kreis neben dem Namen</a></li>
 						<li><a href="#siedlungen" data-keywords="ort orte siedlung siedlungen stadt dorf metropole bauwerk art ortsart wappen bilder nodix ruine ortsgröße ortseditor siedlungseditor zuordnen verschieben ziehen strg offene wegenden ablösen ortsname eindeutig doppelter name klammern lage innerorts außerorts filter ki generiert prompt bild hochladen gemeinfrei beschreibung öffentlich">Orte</a></li>
@@ -437,10 +437,27 @@
 				<h3>Zwei Knöpfe, die überall gleich funktionieren</h3>
 				<p>Im Reiter <strong>WikiSync</strong> stehen über den Sorten-Reitern zwei Aktionen, die für alle Sorten dasselbe bedeuten:</p>
 				<ul class="hb-steps">
-					<li><strong>„📥 Dump holen"</strong> — lädt den aktuellen Wiki-Dump und liest ihn in eine Sandbox ein. <em>Schreibt noch nichts Scharfes.</em> Was der Lauf gefunden hat, bleibt danach als <strong>„Letzter Dump-Lauf"</strong> ganz oben in <a href="#konflikte">⚖️ Konflikte</a> nachlesbar.</li>
-					<li><strong>„🚨 Syncen"</strong> — übernimmt die Objekte der gewählten Sorte aus dem Dump in unsere Tabellen. Bei Orten, Kraftlinien, Abenteuern, Karten und Vorkommen sitzt dieser Knopf nicht im Reiter, sondern im jeweiligen Editorfenster.</li>
+					<li><strong>„📥 Dump holen"</strong> — lädt den aktuellen Wiki-Dump und liest ihn in eine Sandbox ein. <em>Schreibt noch nichts Scharfes.</em> Sein letzter Schritt (4/4) gleicht die <strong>Publikationsquellen</strong> ab und endet in der <a href="#uebernahme">Übernahme-Vorschau</a> — dass dort am Ende ein Blatt aufgeht, ist also kein Fehler. Was der Lauf gefunden hat, bleibt danach als <strong>„Letzter Dump-Lauf"</strong> ganz oben in <a href="#konflikte">⚖️ Konflikte</a> nachlesbar.</li>
+					<li><strong>„🚨 Syncen"</strong> — gleicht die Objekte der gewählten Sorte gegen den Dump ab. Bei Orten, Kraftlinien, Abenteuern, Karten und Vorkommen sitzt dieser Knopf nicht im Reiter, sondern im jeweiligen Editorfenster. Bei <strong>Karten</strong>, <strong>Abenteuern</strong> und <strong>Vorkommen</strong> schreibt er von sich aus nichts mehr: er rechnet nur und legt dir die <a href="#uebernahme">Übernahme-Vorschau</a> vor.</li>
 				</ul>
 				<div class="hb-note hb-warn"><strong>Beides löst der Betreiber aus, nicht du.</strong> Ein Dump-Lauf zieht den ganzen Wiki-Bestand durch und belastet den Server erheblich. Wenn dir auffällt, dass ein Sync nötig wäre, sag Bescheid — klick ihn nicht selbst an, und niemals mehrfach hintereinander.</div>
+				<h4 id="uebernahme">Die Übernahme-Vorschau: erst zeigen, dann schreiben</h4>
+				<p>Seit dem 06.08.2026 schreibt ein Abgleich nicht mehr einfach los. Er rechnet zuerst, was er tun <em>würde</em>, und legt dir das Ergebnis als Blatt vor: <strong>geschrieben wird nur, was angehäkelt ist</strong>. Die Zeilen stehen immer in denselben drei Gruppen.</p>
+				<table class="hb-table">
+					<tr><th>Gruppe</th><th>Was darin steht</th><th>Häkchen</th></tr>
+					<tr><td><strong>Neu</strong></td><td>Im Wiki dazugekommen.</td><td>alle vorangehäkelt</td></tr>
+					<tr><td><strong>Geändert</strong></td><td>Das Wiki weicht von uns ab — die Zeile zeigt je Feld <em>alt → neu</em>.</td><td>alle vorangehäkelt</td></tr>
+					<tr><td><strong>Gelöscht</strong></td><td>Im Wiki nicht mehr da.</td><td><strong>nichts vorangehäkelt</strong></td></tr>
+				</table>
+				<p>Über „Neu" und „Geändert" stehen <strong>„alle"</strong> und <strong>„keine"</strong>. Über „Gelöscht" bewusst nicht — die häkelst du einzeln an, mit Blick auf das, was mit jeder verschwände. Unten schreibt <strong>„Übernehmen"</strong>. Ist eine Löschung dabei, heißt der Knopf <strong>„Übernehmen und 3 löschen"</strong> und bleibt gesperrt, bis du den Satz darüber ausdrücklich bestätigt hast — solange der fehlt, geht auch der harmlose Rest nicht durch.</p>
+				<div class="hb-note hb-warn"><strong>Ein Häkchen wegzunehmen bedeutet zweierlei — je nach Gruppe.</strong> Eine übersprungene <em>Änderung</em> kommt beim nächsten Lauf wieder und trägt dann die Marke <em>„⤴ 3× übersprungen"</em>. Eine abgelehnte <em>Löschung</em> wird <strong>nie wieder</strong> vorgeschlagen. Weggeworfen ist damit nichts: die Zeile bleibt ein Wiki-Eintrag und läuft weiter mit, kommt der Artikel zurück. Über <strong>„… früher abgelehnte Löschungen anzeigen"</strong> und <strong>„Wieder vorschlagen"</strong> holst du die Entscheidung zurück.</div>
+				<div class="hb-note hb-tip"><strong>Zwei Dinge, die man in der Vorschau sucht.</strong> Was du von Hand gesetzt hast, steht als <em>„bleibt …"</em> da — der Abgleich fasst es nicht an. Und was eine Einheit nur an <em>Kindzeilen</em> verliert, steht in Warnfarbe in ihrer <strong>Geändert</strong>-Zeile („Quellenverweise entfallen: 3 · Alte Quelle, Bote 12"), nicht unter „Gelöscht" — dort steht ausschließlich, was als Ganzes verschwindet. Findet ein Lauf keinen einzigen Unterschied, geht gar kein Blatt auf.</div>
+				<p>So arbeiten heute vier Abgleiche: <strong>Karten</strong>, <strong>Abenteuer</strong>, <strong>Vorkommen</strong> und die <strong>Publikationsquellen</strong> am Ende von „Dump holen". Zwei Eigenheiten solltest du kennen:</p>
+				<ul class="hb-steps">
+					<li>Bei <strong>Abenteuern</strong> und <strong>Publikationsquellen</strong> bleibt die dritte Gruppe immer leer — diese beiden Abgleiche löschen grundsätzlich nichts, und die Gruppe sagt das auch selbst.</li>
+					<li>Bei den <strong>Vorkommen</strong> heißt die dritte Gruppe nicht „löschen", sondern <strong>„stilllegen"</strong>: der Eintrag verschwindet aus den Listen, behält aber seine Vorkommen und seine Quellen — und nennt das Wiki ihn wieder, wird er ohne dein Zutun wieder aktiv.</li>
+				</ul>
+				<p>Die übrigen Abgleiche behalten ihre Form: <strong>Orte</strong>, <strong>Wege</strong> und die <a href="#konflikte">Konflikte</a> haben ihre eigenen Falllisten, in denen du jeden Fall einzeln entscheidest. Sie sehen der Vorschau seit dem 06.08.2026 sehr ähnlich, arbeiten aber weiter mit ihren eigenen Knöpfen. Bei den <strong>Regionen</strong> und den <strong>Territorien</strong> ändert sich vorerst nichts.</p>
 				<p>Jede Sorten-Liste hat oben dieselben Ansichten: <strong>Alle</strong>, <strong>Platziert</strong> und <strong>Fehlt</strong> — mit der Anzahl in Klammern. „Fehlt" ist deine Arbeitsliste: Dinge, die das Wiki kennt und die Karte noch nicht.</p>
 
 				<h3 id="kreise" class="hb-sub">Der Kreis neben dem Namen</h3>
@@ -940,7 +957,7 @@
 				<h3 id="natur-waren" class="hb-sub">Vorkommen</h3>
 				<p>Pflanzen, Tiere und Handelswaren aus dem Wiki — was wo wächst, lebt und gehandelt wird. Anders als Abenteuer und Karten ist das kein Produkt, sondern Weltwissen: Es bekommt keinen eigenen Punkt auf der Karte, sondern erscheint in der Infobox der Orte, Regionen und Gebiete, zu denen es gehört.</p>
 				<p>Unter der Auswahl steht <em>ein</em> Knopf: <strong>„Vorkommen bearbeiten"</strong>. Er öffnet das Fenster und startet nichts. Das Datum des letzten Syncs steht in der Auswahlzeile selbst — oder „nie", solange der Bestand leer ist.</p>
-				<div class="hb-note hb-tip"><strong>Der scharfe Sync steht nicht im Reiter, sondern im Fenster.</strong> Das ist Absicht: Der Abgleich liest den kompletten Wiki-Dump, braucht mehrere Minuten und soll nicht von einem ersten, neugierigen Klick ausgelöst werden. Du findest ihn als 🚨-Kachel <strong>„Vorkommen syncen"</strong> im Menüband des Fensters (siehe <a href="#n-editoren">Die acht Sync-Editoren</a>). Manuelle und unterdrückte Einträge bleiben dabei unangetastet, und ein zweiter Klick bringt nichts — es läuft immer nur ein Lauf.</div>
+				<div class="hb-note hb-tip"><strong>Der Sync steht nicht im Reiter, sondern im Fenster.</strong> Das ist Absicht: Der Abgleich liest den kompletten Wiki-Dump und braucht mehrere Minuten — auch wenn er inzwischen erst rechnet und dir die <a href="#uebernahme">Übernahme-Vorschau</a> vorlegt, statt gleich zu schreiben. Du findest ihn als 🚨-Kachel <strong>„Vorkommen syncen"</strong> im Menüband des Fensters (siehe <a href="#n-editoren">Die acht Sync-Editoren</a>). Manuelle und unterdrückte Einträge bleiben dabei unangetastet, und ein zweiter Klick bringt nichts — es läuft immer nur ein Lauf.</div>
 				<p>Über der Liste stehen die Arten als Reiter: <strong>Alle · Fauna · Flora · Waren · Spezies</strong>. <strong>Spezies ist ausgegraut</strong>, aber anklickbar: die öffentliche Anzeige ist aus, weil das Wiki-Feld „Regionen" der <em>Infobox Spezies</em> zu schlecht gepflegt ist — die Daten sind vollständig da und bleiben bearbeitbar. Die Begründung steht im Tooltip des Reiters.</p>
 
 				<h5>Das Fenster</h5>
@@ -959,7 +976,7 @@
 				<div class="hb-note hb-warn"><strong>Was du von Hand tust, überlebt jeden weiteren Sync.</strong> Überschriebene Felder bleiben stehen. Ein entfernter Wiki-Ort wandert unter <strong>„Entfernte Wiki-Orte"</strong> und kommt nicht zurück, auch wenn das Wiki ihn weiter nennt — mit <strong>„wieder aufnehmen"</strong> holst du ihn selbst zurück. Dasselbe gilt für Quellen: eine entfernte Wiki-Quelle bleibt entfernt, eine selbst eingetragene bleibt stehen. Und ein Feld, das du wieder <em>leerst</em>, gibst du damit ans Wiki zurück: Beim nächsten Sync steht dort erneut der Wiki-Wert.</div>
 
 				<h5>Der Sync</h5>
-				<p>Ein Klick auf die 🚨-Kachel erledigt beides hintereinander: erst den Dump lesen, dann übernehmen. Der Fortschritt läuft in der Kachel selbst mit („Dump lesen … 12.000 Seiten · 900 Einträge", dann „übernehmen … 300/5100"), damit darunter nichts verspringt. Am Ende steht, was passiert ist: neu, aktualisiert, stillgelegt, dazu Orte und Quellen.</p>
+				<p>Ein Klick auf die 🚨-Kachel erledigt beides hintereinander: erst den Dump lesen, dann vergleichen. Der Fortschritt läuft in der Kachel selbst mit („Dump lesen … 12.000 Seiten · 900 Einträge", dann „vergleichen … 300/5100"), damit darunter nichts verspringt. <strong>Geschrieben wird dabei nichts.</strong> Am Ende steht, was der Lauf gefunden hat („17 Unterschiede — Vorschau offen: 4 neu, 11 geändert, 2 stillzulegen"), und die <a href="#uebernahme">Übernahme-Vorschau</a> geht auf. Erst dein <strong>„Übernehmen"</strong> darin schreibt — und erst danach steht ein neues Datum in „zuletzt gesynct".</p>
 				<p><strong>Ein vorheriges „Dump holen" ist nicht nötig</strong> — der Knopf arbeitet auf der zwischengespeicherten Dump-Kopie und holt sie nur nach, wenn sie älter als einen Tag ist. Ein zweiter Klick während des Laufs bleibt wirkungslos. Geht etwas schief, steht der Grund in der Kachel und bleibt dort bis zum nächsten Versuch stehen.</p>
 				<div class="hb-note hb-tip"><strong>„Spezies: AUS" ist kein Fehler und braucht keine Reparatur.</strong> Die Spezies-Einträge sind vollständig da und im Fenster ganz normal bearbeitbar — öffentlich zeigen wir sie nur nicht, weil das Wiki-Feld „Regionen" der <em>Infobox Spezies</em> zu dünn gepflegt ist. Das ist eine Entscheidung, kein offener Posten.</div>
 			</section>
