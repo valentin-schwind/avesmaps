@@ -1306,6 +1306,74 @@
 	padding: 7px 9px;
 }
 
+/* Die Tabelle der Default-Zoomregeln (gebaut in js/territory/territory-editor-ui-hints.js).
+   Sie stand bis 06.08.2026 als eingespritzter <style> IM Javascript, mit festen Hexwerten --
+   und war deshalb die einzige Flaeche des Editors, die im dunklen Thema hell blieb. Hier
+   steht sie auf Tokens und wechselt das Thema mit allem anderen. */
+#political-territory-editor-host .zoom-rules-table {
+	margin-top: var(--space-8);
+	padding: var(--space-8) var(--space-10);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--panel-muted);
+	color: var(--muted);
+	font-size: var(--font-size-caption);
+	line-height: 1.4;
+}
+
+#political-territory-editor-host .zoom-rules-title {
+	margin-bottom: var(--space-4);
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	color: var(--text-strong);
+	letter-spacing: 0.02em;
+}
+
+#political-territory-editor-host .zoom-rules-table table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--font-size-caption);
+	line-height: 1.4;
+}
+
+#political-territory-editor-host .zoom-rules-table thead th {
+	padding: 4px 6px 5px 0;
+	border-bottom: 1px solid var(--color-divider);
+	text-align: left;
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	color: var(--muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+#political-territory-editor-host .zoom-rules-table tbody td {
+	padding: 4px 6px 4px 0;
+	border-bottom: 1px solid var(--color-divider);
+	vertical-align: top;
+}
+
+#political-territory-editor-host .zoom-rules-table tbody tr:last-child td {
+	border-bottom: none;
+}
+
+#political-territory-editor-host .zoom-rules-table tbody td:first-child {
+	width: 92px;
+	white-space: nowrap;
+	font-weight: 700;
+	color: var(--text-strong);
+}
+
+#political-territory-editor-host .zoom-rules-table tbody td:last-child {
+	color: var(--text);
+}
+
+#political-territory-editor-host .zoom-rules-note {
+	margin-top: var(--space-4);
+	font-size: var(--font-size-caption);
+	color: var(--muted);
+}
+
 #political-territory-editor-host .manual-data-inline-hint {
 	display: block;
 	color: var(--muted);

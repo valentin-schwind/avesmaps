@@ -64,9 +64,15 @@ const EDITOR_HTML = path.join(ROOT, "html", "political-territory-editor.html");
 	for (const match of html.matchAll(/class="([^"]+)"/g)) {
 		for (const name of match[1].split(/\s+/)) if (name) used.add(name);
 	}
-	// Der Wiki-Sync-Knopf entsteht erst im Javascript (js/territory/territory-editor-embedded.js)
-	// und faellt durch das Markup-Raster -- er ist beim selben Neuerzeugen mitgestorben.
+	// Diese vier entstehen erst im Javascript und fallen durch das Markup-Raster. Der
+	// Wiki-Sync-Knopf (territory-editor-embedded.js) ist beim selben Neuerzeugen mitgestorben;
+	// die Zoomregeln-Tabelle (territory-editor-ui-hints.js) brachte ihre Gestaltung bis zum
+	// 06.08.2026 als eingespritzten <style> mit festen Hexwerten selbst mit -- sie blieb damit
+	// als einzige Flaeche des Editors im dunklen Thema hell, und ihr Titel stand weiss auf weiss.
 	used.add("info-origin-link");
+	used.add("zoom-rules-table");
+	used.add("zoom-rules-title");
+	used.add("zoom-rules-note");
 
 	let css = "";
 	const walk = (dir) => {
