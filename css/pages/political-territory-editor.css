@@ -996,6 +996,35 @@ select:focus {
 	border-radius: 0;
 }
 
+/* Der Deep-Link in die Wiki-Sync-Pflege ist ein echter Knopf (das Element entsteht in
+   js/territory/territory-editor-embedded.js). Optik wie die uebrigen Hauptknoepfe.
+   `color` braucht !important, weil css/features/links.css jedes a[target=_blank] global
+   per !important in Gold-Braun einfaerbt. */
+.info-origin-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	min-height: var(--pte-control-h);
+	font-size: var(--font-size-small);
+	font-weight: 400;
+	line-height: var(--leading-snug);
+	cursor: pointer;
+	background: var(--button);
+	color: var(--color-button-text) !important;
+	border: 1px solid var(--button-border);
+	border-radius: var(--radius-md);
+	padding: 5px 8px;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.info-origin-link:hover,
+.info-origin-link:focus-visible {
+	background: var(--color-button-hover);
+	border-color: var(--color-button-hover);
+	color: var(--color-button-text) !important;
+}
+
 .info-key,
 .info-value {
 	padding: 8px 8px;
@@ -1135,6 +1164,33 @@ select:focus {
 	accent-color: var(--accent);
 }
 
+/* Schieber, Zahlenfeld und das Prozentzeichen sind EINE Zeile -- ohne diese Regel
+   stapeln sie sich untereinander und das "%" steht allein unter dem Feld. */
+.transparency-control-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.transparency-control-row input[type="range"] {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+#transparencyNumberInput {
+	flex: 0 0 56px;
+	width: 56px;
+	min-width: 0;
+	text-align: right;
+}
+
+.transparency-unit {
+	flex: 0 0 auto;
+	color: var(--muted-2);
+	font-size: var(--font-size-small);
+	font-weight: 700;
+}
+
 .manual-data-field output {
 	color: var(--muted);
 	font-weight: 700;
@@ -1161,6 +1217,66 @@ select:focus {
 	gap: 8px 10px;
 	align-items: end;
 	justify-content: space-between;
+}
+
+.manual-data-variance-levels {
+	flex: 1 1 100%;
+	display: grid;
+	gap: 4px;
+	min-width: 0;
+}
+
+.variance-levels-title {
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	color: var(--muted);
+}
+
+/* 💣 `table-layout: fixed` + `width: 100%` sind hier TRAGEND, nicht Kosmetik. Ohne sie
+   bestimmen die sechs Zahlenfelder die Spaltenbreiten; die Mindestbreite der Tabelle
+   (gemessen 428px) steigt ueber die Spalte der Sektion (340px). Die Sektion ist ein
+   Grid, Grid-Elemente haben `min-width: auto` -- also zieht die Tabelle die ganze
+   Spalte auf ihre Mindestbreite, und der Farbwaehler darueber (width: 100%) steht
+   88px rechts aus dem Panel heraus. Genau so sah es zwei Wochen lang aus.
+
+   ⚠️ Der Abschnitt im Selektor ist Absicht, kein Zierrat: css/components/political-
+   territory-editor-columns.css setzt `#…-host .manual-data-section table { table-
+   layout: auto }`, um eine alte pauschale `table { min-width: 520px }`-Regel
+   auszuhebeln. Die Datei wird NACH dieser geladen und gewinnt bei gleicher
+   Spezifitaet -- ein blosses `.variance-levels-table` waere im eingebetteten Editor
+   wirkungslos gewesen und haette nur auf der eigenstaendigen Seite gewirkt. */
+.manual-data-section .variance-levels-table {
+	width: 100%;
+	table-layout: fixed;
+	border-collapse: collapse;
+}
+
+.variance-levels-table th {
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	color: var(--muted);
+	text-align: center;
+	padding: 2px 2px 5px;
+	/* Nur der waagerechte Trenner zwischen Level-Kopf und Eingaben (keine Spalten-Trenner). */
+	border-bottom: 1px solid var(--color-divider);
+}
+
+.variance-levels-table td {
+	padding: 5px 3px 0;
+	text-align: center;
+}
+
+.variance-levels-table input {
+	width: 100%;
+	min-width: 0;
+	text-align: center;
+	box-sizing: border-box;
+}
+
+.variance-levels-table input:disabled {
+	opacity: 0.4;
+	background: var(--panel-muted);
+	cursor: not-allowed;
 }
 
 .manual-data-variance-range {
