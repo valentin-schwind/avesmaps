@@ -69,7 +69,18 @@ Antwortet das **nicht** 200, die Zeile sofort wieder herausnehmen.
 
 ---
 
-## 3 · `uploads/map/.htaccess` — das Kartenarchiv zumachen ⭕ optional
+## 3 · `uploads/map/.htaccess` — das Kartenarchiv zumachen ✅ ERLEDIGT 06.08.2026
+
+> **Gesetzt vom Owner, gegengeprüft in beide Richtungen:** beide Archive **403**, ein Wappen aus
+> `uploads/wappen/own/` weiterhin **200**, `map-features.php` unverändert **200 / 19.236.101 Bytes**.
+> Die fertige Datei liegt als [`uploads-map.htaccess`](uploads-map.htaccess) im Repository.
+>
+> ⚠️ **Sie kann verlorengehen, ohne dass es auffällt.** Sie kommt nicht aus dem Repository, also
+> merkt kein Test und kein Deploy, wenn sie eines Tages nicht mehr da ist — die Archive wären dann
+> wieder offen. Einen Deploy überlebt sie (`uploads/` wird nicht angefasst), eine Handbewegung im
+> Dateimanager nicht.
+
+Der ursprüngliche Auftrag, zum Nachlesen:
 
 **Befund A25.** Die Links sind seit `57f2dc92` aus dem Hinweise-Fenster raus. **Die Dateien liegen
 weiter da:** gemessen am 06.08.2026 antwortet `uploads/map/avesmaps_aventurien_tiles_v2.05.zip` mit

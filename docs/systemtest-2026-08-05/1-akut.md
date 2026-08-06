@@ -1328,6 +1328,28 @@ dem das Projekt am ehesten angreifbar ist.
 > DSA-Material" stand zweimal da). Gefunden, weil ich nach der Änderung in die Datei gesehen habe
 > statt sie für erledigt zu halten — im Fenster wäre es als doppelter Absatz aufgefallen, im
 > Rechtstext ist das kein Schönheitsfehler.
+>
+> ---
+>
+> **✅ A25 IST ZU — der Owner hat den Riegel gesetzt, 06.08.2026.**
+> [`uploads-map.htaccess`](uploads-map.htaccess) liegt seither als `uploads/map/.htaccess` auf dem
+> Server. Gegengeprüft, und **in beide Richtungen**, weil ein zu weit gefasster Riegel der Karte ihre
+> Bilder nimmt:
+>
+> | Abruf | vorher | jetzt |
+> |---|---|---|
+> | `uploads/map/…_tiles_v2.05.zip` | 200 · 168.647.049 Bytes | **403** |
+> | `uploads/map/…_aventurien_v2.05.zip` | 200 | **403** |
+> | ein Wappen aus `uploads/wappen/own/…` | 200 | **200** |
+> | `map-features.php` | 200 · 19.236.101 Bytes | **200 · 19.236.101 Bytes** |
+>
+> Der Riegel greift genau in `uploads/map/` und nirgends sonst. Damit ist die Spannung zur Zusage in
+> `NOTICE.md` aufgelöst: kein Link, und kein Weg über das Web.
+>
+> ⚠️ **Was weiterhin gilt:** die Dateien sind nicht gelöscht, nur nicht mehr ausgeliefert. Über FTP
+> liegen sie da. Und: die `.htaccess` kommt **nicht** aus dem Repository — geht sie auf dem Server
+> verloren, sind die Archive wieder offen, ohne dass ein Test das je merkt. Sie überlebt einen Deploy
+> (der fasst `uploads/` nicht an), aber keine Handbewegung im Dateimanager.
 
 ---
 
