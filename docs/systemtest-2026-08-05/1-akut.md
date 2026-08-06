@@ -608,6 +608,76 @@ Das ist der einzige Befund des Tests, der **falsche Daten ohne jede Fehlermeldun
 > ungeprüfte Zahl im Gewand einer gemessenen, ausgerechnet in einer Änderung, deren ganzes Argument
 > „vorher am Vollbestand gemessen" lautet. 215/215 grün.
 >
+> ---
+>
+> **✅ (b) GEBAUT, 06.08.2026 — bedingt, auf ausdrücklichen Owner-Wunsch.** *„bau (b) bedingt mit der
+> Möglichkeit Kreuzungen später zu benennen, Standardname ist einfach ‚Kreuzung' für alle Editoren
+> erstmal, check nochmal ob das mit dem Pathfinding OK ist — insbesondere die Etappenanzeige darf
+> sich nicht ändern."*
+>
+> **Die Prüfung zuerst, weil sie die Bauweise entschieden hat.**
+>
+> 🔴 **Die Etappenanzeige ändert sich nicht, und das hängt an einer Zeile:** `normalizeNodeName`
+> (`js/map-features/map-features.js:232`) streicht `Kreuzung-<Ziffern>` weg, der Reiseplan schluckt
+> alles, was zu `Kreuzung` normalisiert, als etappeninternen Stützpunkt — **die Zahl erreicht die
+> Anzeige nie**. Eine Datenbank-Id ist ebenso ziffernweise wie eine Laufnummer, also greift dieselbe
+> Regel.
+>
+> 💣 **Und genau deshalb musste die Id NUMERISCH sein.** Die Routen-Nutzlast trug sie gar nicht:
+> `avesmapsFetchRouteMapFeatures` liest nur `public_id`. Mit einer UUID im Namen hätte
+> `normalizeNodeName` nicht mehr gegriffen — und die Etappenanzeige hätte angefangen, Kreuzungen als
+> Stationen zu zeigen, also genau das, was nicht passieren darf. `map-data.php` holt jetzt `id` mit;
+> sie steht in den **äußeren** properties und verlässt den Server nicht (der Ortsbauer reicht nur die
+> inneren weiter). Sichtbar wird von ihr allein die Zahl im Namen.
+>
+> **Die anderen Stellen, die den Namen sehen — alle geprüft:** Wegpunkte/Kurzlinks filtern Kreuzungen
+> auf beiden Wegen heraus · `path-verlauf` baut sein Netz mit demselben Builder, nutzt die Namen aber
+> **nur** als Nachschlage-Schlüssel gegen Ortsnamen (ein `Kreuzung-…` trifft dort nie) · der
+> gespeicherte `course_hash` kommt aus dem **Wiki-Stationsverlauf**, nicht aus der Route — nichts
+> Gespeichertes verrottet.
+>
+> **📊 Vollbestand gemessen, vor dem Bau** (eine Anfrage an die Kartennutzlast, 11.526 Objekte):
+>
+> | | |
+> |---|---|
+> | Kreuzungen | **2.084** (deckt sich mit der Messung von gestern) |
+> | davon **Platzhalter** (werden umbenannt) | **2.084** |
+> | davon **echte Namen** (blieben stehen) | **0** |
+> | Formen | `Kreuzung` **1.302** · `Kreuzung-<N>` **597** · `Kreuzung-auto-<N>` **185** |
+>
+> ⭐ Die bedingte Hälfte ändert also **heute nichts** — sie hält nur die Tür auf. Und die 1.302 blank
+> `Kreuzung` benannten Zeilen zeigen, warum das Umbenennen tragend ist: ohne es wären das **1.302
+> Knoten unter einem Graph-Schlüssel**.
+>
+> **Was gebaut ist:** `avesmapsRouteCrossingNameIsPlaceholder()` (ausgeschriebene Liste, nicht
+> geraten) + `avesmapsRouteCrossingName()` (Id, sonst öffentliche Kennung als **eindeutiger**
+> Rückfall — ein sichtbarer Fehler ist besser als `Kreuzung-0` für alle, also mehrere Knoten unter
+> einem Schlüssel). Der **Zähler ist weg**, und mit ihm `avesmapsIsRouteCrossingLocation()`: seine
+> Hülle hatte ohne ihn keinen Aufrufer mehr ausser ihrem eigenen Test.
+>
+> ⭐ **Eine Zusicherung, die vorher unmöglich war:** dieselben Objekte in umgekehrter Reihenfolge
+> durchlaufen — die Zuordnung Objekt → Name muss zeichengleich bleiben. Das ist die Eigenschaft, die
+> (b) überhaupt kauft, und mit einer Laufnummer war sie nicht zu haben.
+>
+> **📊 Vorher-Zustand des öffentlichen Vertrags, festgehalten vor dem Push:**
+>
+> | `GET /api/locations/` | |
+> |---|---|
+> | Bytes | 962.079 · 4.861 Orte |
+> | `is_crossing: true` | **2.084**, alle `Kreuzung-1…2084`, **lückenlos** |
+> | SHA1 der 2.777 Nicht-Kreuzungsnamen | `63792b22d1313234c772042e8bb747bbba8f9ec2` |
+>
+> | `POST /api/route/` Gareth→Punin, zu Fuss, schnellste | |
+> |---|---|
+> | Kosten | `27.99105601858446` |
+> | Segmente | 23, Knotenkette mit **6** Kreuzungen |
+> | SHA1 der Segmente **ohne** Knotennamen | `6ec7e0a14db9fc8f60aed1c8e31cf727eba4e67e` |
+> | SHA1 der Zusammenfassung | `e4ff12c4c4e6456144ecaf3a172b8e58607a62a2` |
+>
+> **Nach dem Deploy muss gelten:** Kosten, Segment-SHA1 und Zusammenfassungs-SHA1 **unverändert**,
+> `is_crossing` weiterhin **2.084**, die Nicht-Kreuzungsnamen **zeichengleich** — und **nur** die
+> Kreuzungsnamen anders. 221/221 grün.
+>
 > ⚠️ **Eine dritte Stelle bleibt, und sie ist eine Landmine für (a)/(b):** `api/locations/index.php:113`
 > bildet `is_crossing` aus `strncmp($name, 'Kreuzung-')` — **mit Bindestrich**, also aus dem bereits
 > **umbenannten** Namen. Heute deckungsgleich (im Bestand: 2.084 = 2.084 = 2.084 über `is_crossing`,

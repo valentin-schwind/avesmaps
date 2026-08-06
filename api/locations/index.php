@@ -110,7 +110,17 @@ function avesmapsBuildLocationsResponseItems(array $routeNetworkData): array {
 			'public_id' => (string) ($location['public_id'] ?? ''),
 			'name' => $name,
 			'subtype' => (string) ($location['subtype'] ?? ''),
-			'is_crossing' => strncmp($name, 'Kreuzung-', strlen('Kreuzung-')) === 0,
+			// 💣 SIE FRAGTE „WURDE HIER UMBENANNT?", NICHT „IST DAS EINE KREUZUNG?" (Befund A13).
+			// `strncmp($name, 'Kreuzung-')` las den BEREITS umbenannten Namen, war also nur so lange
+			// richtig, wie das Benennungsschema genau so aussah. Mit `Kreuzung-<id>` haette sie
+			// weiter zufaellig gestimmt, mit einer benannten Kreuzung („Kreuzung am Ochsenwasser")
+			// aber still `false` gemeldet -- im STABILEN Vertrag, ohne dass irgendetwas bricht.
+			// Jetzt fragt sie dasselbe Praedikat wie das Routennetz, und zwar den Subtyp zuerst.
+			'is_crossing' => avesmapsRoutePropertiesAreCrossing([
+				'feature_type' => (string) ($location['feature_type'] ?? ''),
+				'feature_subtype' => (string) ($location['subtype'] ?? ''),
+				'name' => $name,
+			]),
 			'coordinates' => [
 				'x' => $x === false ? 0.0 : (float) $x,
 				'y' => $y === false ? 0.0 : (float) $y,

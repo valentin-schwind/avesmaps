@@ -34,6 +34,7 @@ function avesmapsFetchRouteMapRevision(PDO $pdo): int {
 function avesmapsFetchRouteMapFeatures(PDO $pdo): array {
 	$statement = $pdo->prepare(
 		'SELECT
+			id,
 			public_id,
 			feature_type,
 			feature_subtype,
@@ -58,6 +59,18 @@ function avesmapsFetchRouteMapFeatures(PDO $pdo): array {
 				'id' => (string) ($row['public_id'] ?? ''),
 				'geometry' => avesmapsDecodeRouteMapJsonColumn($row['geometry_json'] ?? null),
 				'properties' => [
+					// 💣 DIE INTERNE ZEILEN-ID, UND SIE BLEIBT SERVERSEITIG. Sie ist der einzige
+					// unveraenderliche, NUMERISCHE Schluessel eines Kartenobjekts -- gebraucht wird
+					// sie fuer den Kreuzungsnamen `Kreuzung-<id>` (Befund A13 b): eine UUID waere
+					// zwar auch stabil, aber `normalizeNodeName` streicht nur `Kreuzung-<Ziffern>`,
+					// und mit einer UUID im Namen begaenne die Etappenanzeige, Kreuzungen als
+					// Stationen zu zeigen. Genau das darf sie nicht (Owner 06.08.2026).
+					//
+					// ⚠️ Sie steht in den AEUSSEREN properties, und das ist der Punkt: der Bauer der
+					// Ortsdaten reicht nur `properties['properties']` (die inneren) an den Client
+					// weiter -- dieser Wert verlaesst den Server also nicht. Sichtbar wird von ihm
+					// nur die Zahl im Kreuzungsnamen.
+					'internal_id' => (int) ($row['id'] ?? 0),
 					'public_id' => (string) ($row['public_id'] ?? ''),
 					'feature_type' => (string) ($row['feature_type'] ?? ''),
 					'feature_subtype' => (string) ($row['feature_subtype'] ?? ''),

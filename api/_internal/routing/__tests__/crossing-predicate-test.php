@@ -86,39 +86,112 @@ assert(!$isCrossing(['name' => 'Gareth', 'feature_type' => 'location', 'feature_
 // duplicate graph keys on the live map, and that version stayed green. So did swapping the build and
 // count lines (2.084 renumbered keys) and dropping the Point filter. All four are caught now, and
 // the price is one function call.
+// ⚠️ Seit dem 06.08.2026 (A13 b) kommt der Name aus `internal_id`, nicht aus einer Laufnummer --
+// die Zeilen tragen deshalb eine. „Kreuzung C" ist eine Linie und bekommt bewusst KEINE: eine Id,
+// die nie gebraucht wird, waere eine falsche Zusage an den Leser.
 $features = [
-    ['geometry' => ['type' => 'Point'], 'properties' => ['name' => 'Kreuzung A']],
-    ['geometry' => ['type' => 'Point'], 'properties' => ['name' => 'Gareth', 'feature_subtype' => 'grossstadt']],
-    // A crossing whose NAME says nothing -- only the legacy feature_type does. This is the row that
-    // separates the counter from the rename if they ever ask different questions.
-    ['geometry' => ['type' => 'Point'], 'properties' => ['name' => 'Namenlos', 'feature_type' => 'crossing']],
-    ['geometry' => ['type' => 'Point'], 'properties' => ['name' => 'Auch namenlos', 'feature_type' => 'junction']],
-    ['geometry' => ['type' => 'Point'], 'properties' => ['name' => 'Kreuzung B']],
+    ['geometry' => ['type' => 'Point'], 'properties' => ['internal_id' => 8471, 'public_id' => 'pid-8471', 'name' => 'Kreuzung']],
+    ['geometry' => ['type' => 'Point'], 'properties' => ['internal_id' => 12, 'public_id' => 'pid-12', 'name' => 'Gareth', 'feature_subtype' => 'grossstadt']],
+    // A crossing whose NAME says nothing -- only the legacy feature_type does.
+    ['geometry' => ['type' => 'Point'], 'properties' => ['internal_id' => 3, 'public_id' => 'pid-3', 'name' => 'Namenlos', 'feature_type' => 'crossing']],
+    ['geometry' => ['type' => 'Point'], 'properties' => ['internal_id' => 4, 'public_id' => 'pid-4', 'name' => 'Auch namenlos', 'feature_type' => 'junction']],
+    // 💣 DIE ZEILE, DIE DAS GANZE BEDINGTE UMBENENNEN TRAEGT: eine Kreuzung mit einem ECHTEN Namen.
+    // Bis zum 06.08.2026 hat der Server ihn weggeworfen -- ausgerechnet dort, wo Namen
+    // Graph-Schluessel sind und im Reiseplan stehen. Sie ist der Grund, warum „Kreuzungen benennen"
+    // spaeter reine Dateneingabe ist und keine Aenderung am stabilen Vertrag mehr.
+    ['geometry' => ['type' => 'Point'], 'properties' => ['internal_id' => 5, 'public_id' => 'pid-5', 'name' => 'Kreuzung am Ochsenwasser', 'feature_type' => 'junction']],
+    ['geometry' => ['type' => 'Point'], 'properties' => ['internal_id' => 6, 'public_id' => 'pid-6', 'name' => 'Kreuzung-auto-7']],
     // Not a location at all: a label is skipped, and so is a line.
-    ['geometry' => ['type' => 'Point'], 'properties' => ['name' => 'Ein Label', 'feature_type' => 'label']],
+    ['geometry' => ['type' => 'Point'], 'properties' => ['internal_id' => 7, 'public_id' => 'pid-7', 'name' => 'Ein Label', 'feature_type' => 'label']],
     ['geometry' => ['type' => 'LineString'], 'properties' => ['name' => 'Kreuzung C']],
 ];
 $network = avesmapsBuildRouteNetworkData(['features' => $features]);
 $names = array_column($network['locations'], 'name');
 
+// 💣 „Namenlos" und „Auch namenlos" SIND Kreuzungen (nach feature_type), behalten ihren Namen aber --
+// er ist kein Platzhalter. Genau das ist die neue Regel, und sie sieht beim ersten Lesen falsch aus:
+// vorher hiessen diese Zeilen `Kreuzung-2` und `Kreuzung-3`. Der Preis ist bewusst: wer den Namen
+// einer Kreuzung ersetzt, obwohl jemand ihn vergeben hat, macht „Kreuzungen benennen" unmoeglich.
+// ⚠️ Im Bestand kommt dieser Fall am 06.08.2026 NICHT vor -- gemessen an der Kartennutzlast, siehe
+// die Zahlen im Befund. Er steht hier, weil er vorkommen KANN, sobald jemand einen Namen vergibt.
 assert(
-    $names === ['Kreuzung-1', 'Gareth', 'Kreuzung-2', 'Kreuzung-3', 'Kreuzung-4'],
-    'counter and rename agree through the real loop -- dense numbering, label and line skipped'
+    $names === ['Kreuzung-8471', 'Gareth', 'Namenlos', 'Auch namenlos', 'Kreuzung am Ochsenwasser', 'Kreuzung-6'],
+    'der Name kommt aus der Zeilen-Id, jeder NICHT-Platzhalter bleibt stehen, Label und Linie fallen weg'
 );
 // 💣 The damage this exists to prevent, stated as its own assertion: names are graph keys.
 assert(count($names) === count(array_unique($names)), 'no two nodes share a name');
-assert(count($network['locations']) === 5, 'the label and the line are not locations');
+assert(count($network['locations']) === 6, 'the label and the line are not locations');
 
-// ⚠️ Order matters as much as the predicate: the counter must advance AFTER the name is built, or
-// every crossing is off by one. Caught by the numbering above -- `Kreuzung-2` would read `Kreuzung-3`.
-assert($names[0] === 'Kreuzung-1', 'the first crossing is number one, not number two');
+// 🔴 DIE EIGENSCHAFT, DIE (b) UEBERHAUPT KAUFT, und vor dem 06.08.2026 war sie nicht zu haben:
+// DER NAME HAENGT NICHT MEHR VON DER POSITION AB. Frueher zaehlte eine Laufnummer die Kreuzungen in
+// Lesereihenfolge durch -- eine eingefuegte oder geloeschte Kreuzung benannte bis zu 2.083 Knoten
+// um, und jede Stelle, die einen solchen Namen ueber die Zeit aufbewahrt, zeigte danach woandershin.
+// Gemessen wird das, indem dieselben Objekte in ANDERER Reihenfolge durchlaufen: die Zuordnung
+// Objekt -> Name muss zeichengleich bleiben.
+$umgedreht = avesmapsBuildRouteNetworkData(['features' => array_reverse($features)]);
+$vorher = [];
+foreach ($network['locations'] as $location) {
+    $vorher[$location['public_id'] . '|' . $location['subtype'] . '|' . $location['id']] = $location['name'];
+}
+$nachher = [];
+foreach ($umgedreht['locations'] as $location) {
+    $nachher[$location['public_id'] . '|' . $location['subtype'] . '|' . $location['id']] = $location['name'];
+}
+ksort($vorher);
+ksort($nachher);
+assert($vorher === $nachher, 'die Namen sind unabhaengig von der Reihenfolge -- das ist der ganze Zweck von (b)');
+assert(count(array_unique(array_column($umgedreht['locations'], 'name'))) === 6, 'auch umgedreht traegt jeder Knoten seinen eigenen Namen');
 
-// 💣 And the same list under the OLD rule would have collided: "Namenlos" was not renamed but also
-// did not advance the counter... which is the harmless half. The dangerous half is the mirror image,
-// and it is why one predicate matters rather than two that happen to agree.
+// ---- Der Platzhalter-Begriff, ausgeschrieben ------------------------------------------------------
+//
+// 💣 Diese Liste entscheidet, ob sich Kreuzungen spaeter benennen lassen. Zu weit gefasst, und ein
+// von Hand vergebener Name wird wieder weggeworfen; zu eng, und Altzeilen behalten einen Namen, der
+// mehrfach vorkommt -- also zwei Knoten unter einem Schluessel.
+foreach (['Kreuzung', 'kreuzung', 'Kreuzung-5', 'Kreuzung-2084', 'Kreuzung-auto', 'Kreuzung-auto-7', '  Kreuzung  '] as $platzhalter) {
+    assert(avesmapsRouteCrossingNameIsPlaceholder($platzhalter), "Platzhalter nicht erkannt: {$platzhalter}");
+}
+foreach (['Kreuzung am Ochsenwasser', 'Kreuzung Nord', 'Gareth', 'Kreuzung-Nord', 'Alte Kreuzung', ''] as $echt) {
+    assert(!avesmapsRouteCrossingNameIsPlaceholder($echt), "faelschlich als Platzhalter erkannt: {$echt}");
+}
+
+// ⚠️ Ohne brauchbare Id NICHT `Kreuzung-0` fuer alle -- das waeren mehrere Knoten unter einem
+// Schluessel, also falsche Routen. Der Rueckfall nimmt die oeffentliche Kennung: haesslich in der
+// Etappenliste, aber eindeutig. Ein sichtbarer Fehler ist besser als ein stiller.
 assert(
-    avesmapsIsRouteCrossingLocation(['properties' => ['name' => 'Namenlos', 'feature_type' => 'junction']]),
-    'a crossing without the name prefix is now recognised by both sides'
+    avesmapsRouteCrossingName(['public_id' => 'abc-123']) === 'Kreuzung-abc-123',
+    'ohne interne Id faellt der Name auf die oeffentliche Kennung zurueck'
+);
+assert(
+    avesmapsRouteCrossingName(['internal_id' => 99, 'public_id' => 'abc-123']) === 'Kreuzung-99',
+    'mit interner Id gewinnt sie -- sie ist die numerische, die der Client wegnormalisiert'
+);
+
+// 🔴 UND DIE ZAHL MUSS ZIFFERNWEISE SEIN. `normalizeNodeName` im Client streicht `Kreuzung-<Ziffern>`
+// weg, damit der Reiseplan Kreuzungen als etappeninterne Stuetzpunkte schluckt statt sie als
+// Stationen zu zeigen. Der Owner hat sich am 06.08.2026 ausdruecklich darauf festgelegt, dass sich
+// die ETAPPENANZEIGE NICHT AENDERT -- eine UUID im Namen waere genau diese Aenderung.
+foreach ($names as $name) {
+    if (!str_starts_with($name, 'Kreuzung-')) {
+        continue;
+    }
+    assert(
+        preg_match('/^Kreuzung-\d+$/', $name) === 1,
+        "der erzeugte Name muss `Kreuzung-<Ziffern>` sein, sonst zeigt ihn die Etappenliste an: {$name}"
+    );
+}
+
+// 💣 Eine Kreuzung, die ihr NAME nicht verraet, wird trotzdem als eine erkannt -- das war A13 (c),
+// und es traegt jetzt (b): ohne die Typ-Stufe fiele „Kreuzung am Ochsenwasser" nach einer Umbenennung
+// aus dem Kreuzungsbegriff heraus, und api/locations/index.php meldete `is_crossing: false`.
+// ⚠️ Frueher stand hier avesmapsIsRouteCrossingLocation() -- die Huelle des Zaehlers. Sie ist mit ihm
+// weggefallen; geprueft wird dieselbe Sache eine Ebene tiefer, wo sie ohnehin entschieden wird.
+assert(
+    avesmapsRoutePropertiesAreCrossing(['name' => 'Namenlos', 'feature_type' => 'junction']),
+    'a crossing without the name prefix is recognised by its type'
+);
+assert(
+    avesmapsRoutePropertiesAreCrossing(['name' => 'Kreuzung am Ochsenwasser', 'feature_type' => 'junction']),
+    'und eine BENANNTE Kreuzung bleibt eine Kreuzung -- daran haengt is_crossing im stabilen Vertrag'
 );
 
 // --- One rule, written once -----------------------------------------------------------------------
@@ -134,10 +207,13 @@ assert(
 // carrying their own copy again -- the state this change removed.
 $source = file_get_contents(__DIR__ . '/../network-data.php');
 assert(is_string($source) && $source !== '', 'the source is readable');
+// ⚠️ Toleranter Ausdruck, kein woertlicher Vergleich: seit dem 06.08.2026 haengt eine zweite
+// Bedingung daran (der Platzhalter-Test), und eine Zusicherung, die daran zerbricht, lehrt nur, den
+// Test zu bearbeiten statt ihn zu lesen. Was sie festhaelt, ist unveraendert: das Umbenennen fragt
+// das GETEILTE Praedikat und traegt keine eigene, abgeschriebene Namenspruefung mehr.
 assert(
-    str_contains($source, 'return avesmapsRoutePropertiesAreCrossing($properties);')
-        && str_contains($source, 'if (avesmapsRoutePropertiesAreCrossing($properties)) {'),
-    'the counter and the rename both ask the shared predicate'
+    preg_match('/if \(avesmapsRoutePropertiesAreCrossing\(\$properties\)[^)]*\)/', $source) === 1,
+    'das Umbenennen fragt das geteilte Praedikat'
 );
 
 // --- 🔴 What this predicate deliberately does NOT mirror -------------------------------------------

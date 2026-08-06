@@ -16,7 +16,10 @@ function avesmapsBuildRouteNetworkData(array $routeMapData): array {
 	];
 
 	$clientPathIndex = 0;
-	$clientCrossingIndex = 1;
+	// 💣 DER KREUZUNGS-ZAEHLER IST WEG, und das ist der ganze Befund A13 (b). Er machte aus dem
+	// Namen eine POSITION: `Kreuzung-1` bis `Kreuzung-2084`, bei jeder Anfrage neu durchgezaehlt --
+	// eine eingefuegte oder geloeschte Kreuzung benannte bis zu 2.083 Knoten um. Der Name kommt
+	// jetzt aus der Zeilen-Id und haengt an nichts mehr, was sich nebenan aendern kann.
 	$features = is_array($routeMapData['features'] ?? null) ? $routeMapData['features'] : [];
 	foreach ($features as $feature) {
 		if (!is_array($feature)) {
@@ -30,10 +33,7 @@ function avesmapsBuildRouteNetworkData(array $routeMapData): array {
 		}
 
 		if (avesmapsIsRouteLocation($feature)) {
-			$locations[] = avesmapsBuildRouteLocationData($feature, $clientCrossingIndex);
-			if (avesmapsIsRouteCrossingLocation($feature)) {
-				$clientCrossingIndex++;
-			}
+			$locations[] = avesmapsBuildRouteLocationData($feature);
 			$statistics['location_count']++;
 			continue;
 		}
@@ -76,11 +76,11 @@ function avesmapsIsRouteLocation(array $feature): bool {
 		&& (string) ($properties['feature_type'] ?? '') !== 'label';
 }
 
-function avesmapsIsRouteCrossingLocation(array $feature): bool {
-	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
-
-	return avesmapsRoutePropertiesAreCrossing($properties);
-}
+// ⚠️ avesmapsIsRouteCrossingLocation() stand hier und ist am 06.08.2026 mit dem Kreuzungs-Zaehler
+// weggefallen (A13 b). Sie war seine Huelle -- sie packte nur `$feature['properties']` aus und
+// reichte an das Praedikat unten weiter. Ohne Zaehler hatte sie keinen Aufrufer mehr ausser ihrem
+// eigenen Test, und eine Funktion, die nur noch von ihrem Test am Leben gehalten wird, ist toter
+// Code mit gruenem Anstrich.
 
 // Ist dieses Objekt eine Kreuzung? EIN Praedikat, und das ist der Punkt (Befund A13 c).
 //
@@ -129,6 +129,53 @@ function avesmapsRoutePropertiesAreCrossing(array $properties): bool {
 	return strncmp((string) ($properties['name'] ?? ''), 'Kreuzung', strlen('Kreuzung')) === 0;
 }
 
+// Ist dieser gespeicherte Name ein PLATZHALTER -- also ersetzbar? (Befund A13 b, Owner 06.08.2026.)
+//
+// 💣 DIESE LISTE IST AUSGESCHRIEBEN UND NICHT GERATEN, und daran haengt, ob sich Kreuzungen
+// spaeter benennen lassen. Bis heute benannte der Server JEDE Kreuzung um, bedingungslos -- ein von
+// Hand vergebener Name waere also ausgerechnet dort weggeworfen worden, wo Namen Graph-Schluessel
+// sind und im Reiseplan stehen. Jetzt gilt: Platzhalter werden ersetzt, ein echter Name bleibt.
+// „Kreuzungen benennen" ist damit reine Dateneingabe und keine Aenderung am stabilen Vertrag mehr.
+//
+// Die drei Formen, die im Bestand vorkommen:
+//   * `Kreuzung`           -- was avesmapsCreateCrossingFeature() heute vergibt (features.php:1431)
+//   * `Kreuzung-<Ziffern>` -- was frueher gespeichert wurde
+//   * `Kreuzung-auto-<n>`  -- ~200 Altzeilen, die der strengere Client-Test bewusst NICHT trifft
+//
+// ⚠️ Alles andere ist ein echter Name. „Kreuzung am Ochsenwasser" faellt hier durch und bleibt
+// stehen -- das ist der ganze Zweck.
+function avesmapsRouteCrossingNameIsPlaceholder(string $name): bool {
+	return preg_match('/^Kreuzung(?:-auto)?(?:-\d+)?$/i', trim($name)) === 1;
+}
+
+// Der Name, unter dem eine Kreuzung im Routennetz gefuehrt wird.
+//
+// 🔴 ORTSNAMEN SIND GRAPH-SCHLUESSEL. Zwei Knoten unter einem Namen sind eine falsche Route, kein
+// Anzeigefehler -- deshalb muss das Ergebnis EINDEUTIG sein. `map_features.id` ist ein
+// Primaerschluessel und leistet das von Bauart wegen; die frueher benutzte Laufnummer leistete es
+// auch, war dafuer aber eine POSITION: eine eingefuegte Kreuzung verschob alle folgenden Namen.
+//
+// 💣 NUMERISCH, UND DAS IST KEINE GESCHMACKSFRAGE. `normalizeNodeName` im Client
+// (js/map-features/map-features.js:232) streicht `Kreuzung-<Ziffern>` weg, damit der Reiseplan
+// Kreuzungen als etappeninterne Stuetzpunkte schluckt statt sie als Stationen zu zeigen. Eine UUID
+// im Namen wuerde dort nicht greifen -- und die Etappenanzeige begaenne, sich zu aendern. Sie darf
+// sich nicht aendern (Owner 06.08.2026).
+//
+// ⚠️ Der Rueckfall ohne brauchbare Id nimmt die oeffentliche Kennung. Er sieht in der Etappenliste
+// haesslich aus -- und genau darum geht es: ohne ihn hiessen ALLE betroffenen Kreuzungen
+// `Kreuzung-0`, also mehrere Knoten gleich, also falsche Routen. Ein sichtbarer Fehler ist besser
+// als ein stiller.
+function avesmapsRouteCrossingName(array $properties): string {
+	$internalId = (int) ($properties['internal_id'] ?? 0);
+	if ($internalId > 0) {
+		return 'Kreuzung-' . $internalId;
+	}
+
+	$publicId = trim((string) ($properties['public_id'] ?? ''));
+
+	return $publicId !== '' ? 'Kreuzung-' . $publicId : (string) ($properties['name'] ?? '');
+}
+
 function avesmapsIsRoutePath(array $feature): bool {
 	return avesmapsIsClientRenderableRoutePath($feature);
 }
@@ -172,13 +219,14 @@ function avesmapsResolveRoutePathSubtype(array $properties): string {
 	return avesmapsNormalizeClientRouteSubtype($subtypeCandidate);
 }
 
-function avesmapsBuildRouteLocationData(array $feature, int $clientCrossingIndex = 1): array {
+function avesmapsBuildRouteLocationData(array $feature): array {
 	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
 	$name = (string) ($properties['name'] ?? '');
-	// 💣 DASSELBE Praedikat wie der Zaehler eine Schleife hoeher. Hier stand eine zweite,
-	// abgeschriebene Namenspruefung -- siehe avesmapsRoutePropertiesAreCrossing.
-	if (avesmapsRoutePropertiesAreCrossing($properties)) {
-		$name = 'Kreuzung-' . $clientCrossingIndex;
+	// 💣 ZWEI BEDINGUNGEN, UND DIE ZWEITE IST NEU (Befund A13 b, Owner 06.08.2026): eine Kreuzung
+	// wird nur umbenannt, wenn ihr gespeicherter Name ein PLATZHALTER ist. Ein von Hand vergebener
+	// Name bleibt stehen -- vorher warf diese Zeile ihn weg.
+	if (avesmapsRoutePropertiesAreCrossing($properties) && avesmapsRouteCrossingNameIsPlaceholder($name)) {
+		$name = avesmapsRouteCrossingName($properties);
 	}
 
 	return [
@@ -186,6 +234,11 @@ function avesmapsBuildRouteLocationData(array $feature, int $clientCrossingIndex
 		'public_id' => (string) ($properties['public_id'] ?? ''),
 		'name' => $name,
 		'subtype' => (string) ($properties['feature_subtype'] ?? ''),
+		// ⚠️ Reicht die ERSTE Stufe des Kreuzungs-Praedikats weiter (junction|crossing). Ohne sie
+		// koennte api/locations/index.php nur Subtyp und Name fragen -- und liefe damit genau in die
+		// Teil-Pruefung zurueck, die Befund A13 (c) beseitigt hat. Verlaesst den Server nicht: die
+		// Antwort dort wird aus einer eigenen, ausgeschriebenen Feldliste gebaut.
+		'feature_type' => (string) ($properties['feature_type'] ?? ''),
 		'geometry' => is_array($feature['geometry'] ?? null) ? $feature['geometry'] : [],
 		'properties' => is_array($properties['properties'] ?? null) ? $properties['properties'] : [],
 	];
