@@ -6,7 +6,8 @@
 [`docs/superpowers/plans/2026-08-06-sync-uebernahme-sitzung-2.md`](../plans/2026-08-06-sync-uebernahme-sitzung-2.md) ·
 **Sitzung 3 (Orte, Wege, Regionen) gebaut am 06.08.2026** — nur die Formensprache; die drei Kategorien
 passen dort nicht (§7) ·
-Sitzung 4 offen ·
+**Sitzung 4 (Territorien) entworfen am 06.08.2026**, eigener Entwurf:
+[`2026-08-06-sync-uebernahme-territorien-design.md`](2026-08-06-sync-uebernahme-territorien-design.md) — noch nicht gebaut ·
 **Mockup:** [`docs/sync-uebernahme-mockup.html`](../../sync-uebernahme-mockup.html) (anklickbar) ·
 **Verwandt:** A16 (`docs/systemtest-2026-08-05/1-akut.md`), `docs/konfliktmanagement-design.md`
 
@@ -288,16 +289,38 @@ CSS-Kette — nicht am echten Fallbestand.
 
 ### Sitzung 4 — Territorien
 
+**Eigener Entwurf, abgestimmt am 06.08.2026:**
+[`2026-08-06-sync-uebernahme-territorien-design.md`](2026-08-06-sync-uebernahme-territorien-design.md) ·
+Mockup: [`docs/sync-uebernahme-territorien-mockup.html`](../../sync-uebernahme-territorien-mockup.html)
+
 Zuletzt und allein. Der Baum-Arbeitsablauf **bleibt**: „Eltern gesperrt", „aussortiert" und die Lücken
 sind Kuratierung *am Baum*, nicht am einzelnen Datensatz.
 
 | heute | danach |
 |---|---|
-| 🚨 Syncen | **1 · Einlesen** — unverändert |
+| 🚨 Syncen | **1 · 🚨 Syncen** — unverändert; Name und Alarmzeichen bleiben wie in den anderen vier Editoren |
 | Hierarchie | **2 · Baum rechnen** — unverändert |
-| Unterschiede (`neu / verschwunden / geändert`) | füllt die gemeinsame Vorschau |
+| Unterschiede (`neu / verschwunden / geändert`) | eine **eigene** Vorschau an Schritt 1 (siehe unten) |
+| Test (trockene Probe der Eltern-Zuweisung) | fällt weg — die Vorschau an Schritt 3 sagt dasselbe mit Namen und Häkchen |
 | Daten-Vorschau (read-only) | geht in „Geändert" auf, mit Häkchen |
 | „Daten übernehmen" + „Modell übernehmen" | **3 · Übernehmen** — ein Knopf |
+
+💣 **Diese Tabelle war eine Zuordnung, kein Entwurf — und drei Zeilen stimmten so nicht.** Beim
+Nachlesen im Code:
+
+1. **Der Territorien-Abgleich löscht nie und legt nie ein Wiki-Gebiet an.** Nur eigene Knoten
+   (`eigener-knoten:*`) werden angelegt; ein Wiki-Artikel wird zum Kartengebiet ausschliesslich von
+   Hand im Politik-Editor. ⇒ Die dritte Kategorie ist strukturell **0**, wie bei den Orten in
+   Sitzung 3, und „Neu" sind die eigenen Knoten.
+2. **„Modell übernehmen" ruft die Daten-Übernahme bereits mit auf** (`wiki-sync-monitor.html:1333`).
+   Der eine Knopf entfernt eine **Dopplung**, er verschmilzt keine zwei gleichrangigen Handlungen.
+3. 💣 **Den Wiki-Spiegel `political_territory_wiki` füllt seit der Stilllegung von `sync_territories`
+   niemand mehr** — gelesen wird er live (Infobox, „Liegt in", Konfliktregeln). „Unterschiede" zeigte
+   also Zahlen, an denen kein Knopf etwas ändern konnte. Owner-Entscheid: **die Kopie wird
+   nachgeführt.** Damit hat Sitzung 4 zwei verschiedene Ziele — unsere Wiki-Ablage (über tausend
+   gleichförmige Zeilen) und die Karte (wenige Dutzend folgenreiche) — und deshalb **zwei** Vorschauen
+   an zwei Schritten statt einer. Ständen sie zusammen, ständen die folgenreichen zwischen den
+   harmlosen.
 
 ---
 

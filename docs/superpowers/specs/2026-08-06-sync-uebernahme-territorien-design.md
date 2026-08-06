@@ -84,24 +84,29 @@ anderen. Die Naht bleibt für die Falllisten, wo sie hingehört.
 | | |
 |---|---|
 | Der Baum-Arbeitsablauf | **bleibt**. „Eltern gesperrt", „aussortiert", die Lücken, das Ziehen: unangetastet |
-| „1 Einlesen" und „2 Baum rechnen" | **unverändert** in dem, was sie rechnen |
+| „🚨 Syncen" und „2 Baum rechnen" | **unverändert** in dem, was sie rechnen; der Sync behält Namen und Alarmzeichen wie in den anderen vier Editoren |
 | Die alte Wiki-Kopie | wird **nachgeführt** — das ist der fehlende Weg, nicht nur ein Bericht |
 | Verschwundene Wiki-Artikel | **Waisen löschbar, benutzte nie.** Hängt ein Kartengebiet an der Kopie, wird sie nicht angeboten |
 | Handarbeit auf der Karte | wird **gezeigt**, ist abwählbar, und „Wert festhalten" macht daraus einen eigenen Wert |
 | Die zwei Arten von Schreiben | **zwei Vorschauen an zwei Schritten** (§3) |
 | Eltern-Umzug und Außengrenzen | **Hinweis in der Zeile, sonst nichts** — keine Neuberechnung |
-| „Unterschiede" und „Test" | **fallen weg**; drei nummerierte Kacheln bleiben |
+| „Unterschiede" und „Test" | **fallen weg**; es bleiben drei nummerierte Kacheln — `1 · 🚨 Syncen`, `2 · Baum rechnen`, `3 · Übernehmen` |
 
 ---
 
 ## 3. Der Ablauf danach
 
 ```
-1 · Einlesen    2 · Baum rechnen    3 · Übernehmen   │   Wappen lokalisieren · Wappen: An · 🔗 Links prüfen
+1 · 🚨 Syncen    2 · Baum rechnen    3 · Übernehmen   │   Wappen lokalisieren · Wappen: An · 🔗 Links prüfen
 ```
 
-**1 · Einlesen** liest wie bisher den Dump ins Staging und rechnet danach den Baum. Neu ist nur: **es
+**1 · 🚨 Syncen** liest wie bisher den Dump ins Staging und rechnet danach den Baum. Neu ist nur: **es
 endet in einer Vorschau** — was die Wiki-Kopie bekäme (§4). Wie „Dump holen" seit Sitzung 2.
+
+> ⚠️ **Der Knopf behält Namen und Zeichen** (Owner, 06.08.2026): `🚨 Syncen`, braune Kachel — so heißt
+> er in allen fünf Editoren (`wiki-sync-settlement-editor.html`, `landschaften-editor.html`,
+> `citymap-editor.html`, `adventure-editor.html`, hier). Ein eigener Name für denselben Vorgang wäre
+> genau die Divergenz, die dieses Vorhaben abbaut. Neu ist nur die vorangestellte Nummer.
 
 **2 · Baum rechnen** bleibt Wort für Wort. Es zieht aber eine offene **Karten**-Vorschau zurück
 (`state='superseded'`): die Eltern haben sich gerade geändert, ihre Zahlen gelten nicht mehr.
@@ -189,7 +194,7 @@ keiner Skip-Liste und würde **ungesehen geschrieben**. Beide Schreiber bekommen
 ebenso. Der negative Weg bleibt bestehen, wird aus der Vorschau aber nie benutzt.
 
 **(b) Zwei Arten, zwei Läufe, zwei Häkchenstände.** `sync_plan_run.kind` trägt `'territory_wiki'` bzw.
-`'territory'` (14 bzw. 9 Zeichen, `VARCHAR(24)` reicht). Sie superseden einander **nicht**: „Einlesen"
+`'territory'` (14 bzw. 9 Zeichen, `VARCHAR(24)` reicht). Sie superseden einander **nicht**: „Syncen"
 zieht nur die Kopie-Vorschau zurück, „Baum rechnen" nur die Karten-Vorschau.
 
 **(c) Leeres Staging heißt nie „alles löschen"** — und auch nie „alles geändert". Ist das Staging leer,
@@ -310,7 +315,7 @@ weiter. Die Kacheln, Statuszeile und die zwei „öffnen"-Links liegen in dersel
 - **Schritt 1 schreibt weiterhin ohne Vorschau ins Staging** (Owner: unverändert).
   ⚠️ Nebenbefund, hier nur festgehalten: das Staging wird ebenfalls live gelesen — die Wappen-URL und
   der Lizenzstand der Politik-Ebene kommen von dort (`territories-layer.php:75 f., 183 f.`). Ein
-  „Einlesen" ändert also sichtbare Wappen, ohne zu fragen. Das war vorher so und ist nicht Teil dieser
+  „Syncen" ändert also sichtbare Wappen, ohne zu fragen. Das war vorher so und ist nicht Teil dieser
   Sitzung.
 
 ---
