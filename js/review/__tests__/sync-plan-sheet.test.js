@@ -300,4 +300,49 @@ assert.ok(loreHtml.includes("abgelehnte Stilllegungen"), "der Verweis auf Abgele
 assert.ok(markup(planWith({ declined_count: 3 })).includes("abgelehnte Löschungen"),
 	"bei den Karten bleibt es dabei");
 
+// ---- Der austauschbare Sender (Sitzung 3) ------------------------------------------------------
+//
+// 🔴 Das Blatt darf seine Zeilen aus einer ZWEITEN Quelle beziehen — Sitzung 4 braucht das, weil die
+// Territorien ihre Unterschiede längst als neu / verschwunden / geändert rechnen. Geprüft wird
+// beides: dass die reine Wahl den eingereichten Sender nimmt, UND dass im Rumpf niemand am Sender
+// vorbei den Standard ruft. Nur das erste zu prüfen hieße, eine Hülle für offen zu erklären, deren
+// Naht an vier Stellen weiterhin festgeschweißt ist.
+const resolvePost = sandbox.syncPlanResolvePost;
+assert.strictEqual(typeof resolvePost, "function", "die reine Wahl ist geladen");
+assert.strictEqual(typeof sandbox.syncPlanDefaultPost, "function", "und der Standardsender auch");
+
+const ownPost = async () => ({ ok: true });
+assert.strictEqual(resolvePost({ post: ownPost }), ownPost, "ein eingereichter Sender gewinnt");
+assert.strictEqual(resolvePost({}), sandbox.syncPlanDefaultPost, "ohne Angabe gilt der Standard");
+assert.strictEqual(resolvePost(null), sandbox.syncPlanDefaultPost, "und auch ganz ohne options");
+assert.strictEqual(resolvePost({ post: "nein" }), sandbox.syncPlanDefaultPost,
+	"was keine Funktion ist, ist kein Sender");
+
+// 💣 Presence is not execution: erst die Kommentare weg, sonst zertifiziert der Test die Doku —
+// dieser Block hier nennt den Standardsender schließlich selbst mehrfach.
+const body = source
+	.replace(/\/\*[\s\S]*?\*\//g, "")
+	.split("\n")
+	.filter((line) => !/^\s*\/\//.test(line))
+	.join("\n");
+
+assert.strictEqual((body.match(/syncPlanDefaultPost/g) || []).length, 2,
+	"genau zwei Nennungen: die Definition und der EINE Rückfall in syncPlanResolvePost. Jede weitere "
+	+ "ist ein Aufruf am eingereichten Sender vorbei.");
+
+// Und jeder Sendeaufruf trägt seinen Sender als erstes Argument.
+//
+// ⚠️ Die zweite Zusicherung ist die tragende: ein zurückgefallenes `syncPlanPost({ action: … })`
+// beginnt mit einer Klammer und würde vom Bezeichner-Muster gar nicht erst erfasst — es fiele
+// stillschweigend aus der Prüfung, statt sie rot zu machen. Deshalb müssen beide Zählungen gleich sein.
+const sends = body.match(/syncPlanPost\(\s*[A-Za-z_$][\w$.]*/g) || [];
+const allCalls = body.match(/syncPlanPost\(/g) || [];
+assert.ok(sends.length >= 6, `alle Sendestellen gefunden (${sends.length})`);
+assert.strictEqual(sends.length, allCalls.length,
+	"jeder syncPlanPost-Aufruf beginnt mit einem Bezeichner — ein Objektliteral heißt: der Sender fehlt");
+sends.forEach((call) => {
+	assert.ok(/syncPlanPost\(\s*post\b/.test(call),
+		`syncPlanPost ohne Sender als erstes Argument: ${call}`);
+});
+
 console.log("sync-plan-sheet ok");

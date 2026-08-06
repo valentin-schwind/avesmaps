@@ -499,7 +499,13 @@ function syncPlanEmptyMarkup(message) {
 // Ab hier DOM. Nichts davon läuft beim Laden.
 // =================================================================================================
 
-async function syncPlanPost(body) {
+/**
+ * Der Standardsender: der Endpunkt, den die Abgleiche der Sitzungen 1 und 2 benutzen.
+ *
+ * ⚠️ Er wird an genau EINER Stelle genannt (syncPlanResolvePost). Wer ihn irgendwo sonst direkt ruft,
+ * schweißt diese Stelle wieder fest — der Test zählt die Nennungen und wird rot.
+ */
+async function syncPlanDefaultPost(body) {
 	const response = await fetch("/api/edit/wiki/sync-plan.php", {
 		method: "POST",
 		credentials: "same-origin",
@@ -517,9 +523,35 @@ async function syncPlanPost(body) {
 }
 
 /**
+ * Welcher Sender gilt. REIN.
+ *
+ * 🔴 Die eine Naht, an der eine zweite Zeilenquelle andockt. Der reine Markup-Teil oben wusste noch
+ * nie, woher seine Zeilen kommen — nur die DOM-Hälfte war an `sync_plan_item` festgeschweißt. Sitzung 4
+ * braucht das: die Territorien rechnen ihre Unterschiede längst als neu / verschwunden / geändert.
+ *
+ * Was NICHT dazugehört: die Falllisten der Orte, Wege und Regionen. Dort ist die Antwort kein Ja/Nein,
+ * sondern „welcher von diesen" und danach ein Formular — sie behalten ihre Verben und bekommen nur
+ * dieselbe Formensprache (Entwurf §7, Sitzung 3).
+ */
+function syncPlanResolvePost(options) {
+	const own = options && options.post;
+
+	return typeof own === "function" ? own : syncPlanDefaultPost;
+}
+
+/** Einen Schritt schicken. Der Sender steht vorn, damit kein Aufruf ihn vergessen kann. */
+function syncPlanPost(post, body) {
+	return post(body);
+}
+
+/**
  * Öffnet die Vorschau in `mount`.
  *
- * @param {{kind:string, mount:HTMLElement, onApplied?:function, onClose?:function}} options
+ * `post` ist der Sender: ohne ihn spricht das Blatt mit /api/edit/wiki/sync-plan.php, mit ihm mit
+ * irgendwem sonst. Er muss dieselben fünf Aktionen beantworten (get/select/apply/declined/undecline)
+ * und dasselbe Antwortformat liefern — die Zeilen kommen fertig, das Blatt rechnet nichts nach.
+ *
+ * @param {{kind:string, mount:HTMLElement, post?:function, onApplied?:function, onClose?:function}} options
  */
 async function openSyncPlanSheet(options) {
 	const mount = options && options.mount;
@@ -528,12 +560,14 @@ async function openSyncPlanSheet(options) {
 		return;
 	}
 
+	const post = syncPlanResolvePost(options);
+
 	mount.hidden = false;
 	mount.innerHTML = syncPlanEmptyMarkup("Vorschau wird geladen …");
 
 	let plan;
 	try {
-		plan = await syncPlanPost({ action: "get", kind: kind });
+		plan = await syncPlanPost(post, { action: "get", kind: kind });
 	} catch (error) {
 		mount.innerHTML = syncPlanEmptyMarkup(error.message || "Die Vorschau konnte nicht geladen werden.");
 		syncPlanBindClose(mount, options);
@@ -565,6 +599,7 @@ function syncPlanBindClose(mount, options) {
 }
 
 function syncPlanBindSheet(mount, plan, options) {
+	const post = syncPlanResolvePost(options);
 	const sheet = mount.querySelector("[data-sync-plan]");
 	const runId = Number(plan.run.id);
 	const kind = plan.kind;
@@ -612,7 +647,7 @@ function syncPlanBindSheet(mount, plan, options) {
 		if (box && box.dataset && box.dataset.itemId) {
 			refresh();
 			try {
-				await syncPlanPost({
+				await syncPlanPost(post, {
 					action: "select", kind: kind, run_id: runId,
 					ids: [Number(box.dataset.itemId)], selected: box.checked,
 				});
@@ -637,7 +672,7 @@ function syncPlanBindSheet(mount, plan, options) {
 			});
 			refresh();
 			try {
-				await syncPlanPost({
+				await syncPlanPost(post, {
 					action: "select", kind: kind, run_id: runId, change_type: group, selected: on,
 				});
 			} catch (error) {
@@ -653,7 +688,7 @@ function syncPlanBindSheet(mount, plan, options) {
 			list.hidden = false;
 			list.innerHTML = '<p class="row__sub">Lade …</p>';
 			try {
-				const answer = await syncPlanPost({ action: "declined", kind: kind });
+				const answer = await syncPlanPost(post, { action: "declined", kind: kind });
 				const rows = (answer.declined || []).map((row) =>
 					`<label class="row"><input type="checkbox" data-undecline="${syncPlanEscape(row.entity_key)}">`
 					+ `<span><span class="row__name">${syncPlanEscape(row.entity_key)}</span>`
@@ -672,7 +707,7 @@ function syncPlanBindSheet(mount, plan, options) {
 						if (keys.length < 1) {
 							return;
 						}
-						await syncPlanPost({ action: "undecline", kind: kind, entity_keys: keys });
+						await syncPlanPost(post, { action: "undecline", kind: kind, entity_keys: keys });
 						list.innerHTML = '<p class="row__sub">Erledigt. Der nächste Abgleich fragt wieder.</p>';
 					});
 				}
@@ -695,7 +730,7 @@ function syncPlanBindSheet(mount, plan, options) {
 				if (guard > 4000) {
 					throw new Error("Die Übernahme wurde nach zu vielen Teilschritten angehalten.");
 				}
-				const step = await syncPlanPost({
+				const step = await syncPlanPost(post, {
 					action: "apply", kind: kind, run_id: runId, confirm_delete: gateCb.checked === true,
 				});
 				["applied", "deleted", "stale", "skipped", "declined"].forEach((key) => {
