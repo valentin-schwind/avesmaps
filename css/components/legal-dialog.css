@@ -418,6 +418,11 @@
 	margin-top: 24px;
 }
 
+/* ⚠️ Seit 06.08.2026 ein <a>, kein <button>: ohne JavaScript fuehrt es auf html/impressum.html,
+   sonst waeren Impressum und Datenschutz unerreichbar (siehe index.html an dieser Stelle). Aussehen
+   und Lage bleiben unveraendert -- die drei Zeilen darunter sind alles, was der Wechsel kostet:
+   ein Link bringt eine Unterstreichung und die Linkfarbe mit, ein Knopf nicht. `position: fixed`
+   macht die Box ohnehin blockartig, `padding` und `border` wirken also wie zuvor. */
 #legal-button {
 	position: fixed;
 	right: 12px;
@@ -431,6 +436,9 @@
 	cursor: pointer;
 	z-index: var(--z-map-ui);
 	font-size: 13px;
+	text-decoration: none;
+	font-family: inherit;
+	text-align: center;
 }
 
 #legal-button:hover,

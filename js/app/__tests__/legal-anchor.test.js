@@ -18,7 +18,37 @@ const {
 	AVESMAPS_LEGAL_SECTION_ANCHORS,
 	avesmapsResolveLegalAnchor,
 	avesmapsOpenLegalSectionFromHash,
+	avesmapsHandleLegalButtonClick,
 } = require(path.join(ROOT, "js", "app", "legal-anchor.js"));
+
+// ---- Der Klick auf „Hinweise" ---------------------------------------------------------------------
+//
+// 💣 Seit dem 06.08.2026 ist #legal-button ein <a href="/html/impressum.html">: ohne JavaScript
+// waeren Impressum und Datenschutzerklaerung sonst unerreichbar (§ 5 DDG, Art. 13 DSGVO). MIT
+// JavaScript muss der Klick die Navigation ANHALTEN -- sonst oeffnet er das Fenster und verlaesst
+// die Karte, mitsamt der gerade geplanten Route.
+//
+// 🔴 Gemessen an einem Ereignis, das MITZAEHLT, nicht am Quelltext. Genau hier liegt der
+// Unterschied: `if (false) { event.preventDefault(); }` besteht jede Zusicherung, die nur nach der
+// Zeichenkette sucht -- nachgestellt, und es war der Grund, diese Regel aus bootstrap.js
+// herauszuloesen.
+{
+	const event = { prevented: 0, preventDefault() { this.prevented += 1; } };
+	const opened = [];
+	const result = avesmapsHandleLegalButtonClick(event, (isOpen) => opened.push(isOpen));
+	assert.strictEqual(event.prevented, 1, "die Navigation wird angehalten -- genau einmal");
+	assert.deepStrictEqual(opened, [true], "und das Fenster geoeffnet");
+	assert.strictEqual(result, true, "und es wird zurueckgemeldet");
+}
+
+// ⚠️ Ohne brauchbares Ereignis wird nichts angehalten -- und das MUSS gemeldet werden, statt still
+// „ja" zu sagen. Der Rueckfall ist dann der Link selbst, und der ist ein gueltiger Weg.
+{
+	const opened = [];
+	assert.strictEqual(avesmapsHandleLegalButtonClick(null, (isOpen) => opened.push(isOpen)), false, "kein Ereignis, kein Anhalten");
+	assert.deepStrictEqual(opened, [true], "das Fenster geht trotzdem auf");
+	assert.strictEqual(avesmapsHandleLegalButtonClick({}, () => {}), false, "ein Ereignis ohne preventDefault ebenso");
+}
 
 // ---- Welchen Abschnitt meint ein Hash? -----------------------------------------------------------
 

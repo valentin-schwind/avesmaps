@@ -77,11 +77,37 @@ function avesmapsOpenLegalSectionFromHash(doc, hash, openDialog) {
 	return true;
 }
 
+// Der Klick auf „Hinweise". Gibt zurueck, ob die Navigation angehalten wurde.
+//
+// 💣 #legal-button IST EIN LINK, KEIN KNOPF (Owner 06.08.2026). Sein Ziel html/impressum.html ist
+// der Weg fuer jeden OHNE JavaScript -- ohne ihn waeren Impressum und Datenschutzerklaerung
+// unerreichbar, also genau die zwei Angaben, die § 5 DDG und Art. 13 DSGVO „unmittelbar erreichbar"
+// verlangen. MIT JavaScript soll er genau dorthin nicht gehen: ein Klick, der die Karte verlaesst,
+// nimmt die gerade geplante Route mit.
+//
+// ⚠️ Warum das hier steht und nicht als drei Zeilen in bootstrap.js: dort waere „haelt die
+// Navigation an" nur ueber den Quelltext zu behaupten -- und `if (false) { event.preventDefault(); }`
+// laesst jede Zusicherung auf den Quelltext gruen durch. Nachgestellt, bevor diese Funktion
+// entstand. Hier laeuft sie gegen ein Ereignis, das MITZAEHLT.
+function avesmapsHandleLegalButtonClick(event, openDialog) {
+	const prevented = Boolean(event) && typeof event.preventDefault === "function";
+	if (prevented) {
+		event.preventDefault();
+	}
+
+	if (typeof openDialog === "function") {
+		openDialog(true);
+	}
+
+	return prevented;
+}
+
 if (typeof module === "object" && module.exports) {
 	module.exports = {
 		AVESMAPS_LEGAL_SECTION_ANCHORS,
 		AVESMAPS_LEGAL_ANCHOR_ALIASES,
 		avesmapsResolveLegalAnchor,
 		avesmapsOpenLegalSectionFromHash,
+		avesmapsHandleLegalButtonClick,
 	};
 }

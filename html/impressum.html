@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Impressum und Datenschutz &middot; Avesmaps</title>
+	<meta name="description" content="Pflichtangaben nach &sect; 5 DDG und Datenschutzerkl&auml;rung f&uuml;r avesmaps.de." />
+	<link rel="canonical" href="https://avesmaps.de/html/impressum.html" />
+	<!-- 🔴 KEIN noindex. Jede andere Seite unter html/ traegt eines, weil sie Editor-Werkzeug ist --
+	     diese hier ist das Gegenteil: sie MUSS auffindbar sein, das ist ihr ganzer Zweck. -->
+	<script>
+		/* Hell/Dunkel genau wie die Karte (js/app/theme-toggle.js): eine ausdrueckliche Wahl gewinnt,
+		   sonst folgt die Seite dem System. Laeuft vor dem Stylesheet, damit nichts falsch aufblitzt.
+		   Dieselbe Wache wie html/editor-handbuch.html. */
+		(function () {
+			function isDark() {
+				var saved = null;
+				try { saved = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+				if (saved === "dark") { return true; }
+				if (saved === "light") { return false; }
+				return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+			}
+			function apply() {
+				if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+				else { document.documentElement.removeAttribute("data-theme"); }
+			}
+			apply();
+			if (window.matchMedia) {
+				var mq = window.matchMedia("(prefers-color-scheme: dark)");
+				if (mq.addEventListener) { mq.addEventListener("change", apply); }
+				else if (mq.addListener) { mq.addListener(apply); }
+			}
+		})();
+	</script>
+	<link rel="stylesheet" href="/css/base/fonts.css">
+	<!-- Die echten Design-Token. Der Deploy stempelt diese Referenz mit einem Inhalts-Hash, sie
+	     entwertet sich also selbst -- nichts von Hand zu erhoehen (docs/asset-caching-and-versioning.md). -->
+	<link rel="stylesheet" href="/css/base/tokens.css">
+	<style>
+		/* Die --imp-* sind ALIASSE der echten Token, keine festgeschriebene Palette -- so folgt jede
+		   Regel hier Hell/Dunkel, ohne umgeschrieben zu werden (AGENTS.md §12: nie eine Farbe
+		   hartkodieren). Dasselbe Muster wie im Editor-Handbuch. */
+		:root {
+			--imp-bg: var(--color-page-bg);
+			--imp-fg: var(--color-text);
+			--imp-strong: var(--color-text-strong);
+			--imp-muted: var(--color-text-muted);
+			--imp-divider: var(--color-divider);
+			--imp-link: var(--color-link);
+			--imp-link-hover: var(--color-link-hover);
+		}
+
+		body {
+			margin: 0;
+			padding: var(--space-24) var(--space-20) var(--space-24);
+			background: var(--imp-bg);
+			color: var(--imp-fg);
+			line-height: 1.6;
+		}
+
+		.imp-shell { max-width: 46rem; margin: 0 auto; }
+
+		.imp-back {
+			display: inline-block;
+			margin-bottom: var(--space-20);
+			color: var(--imp-link);
+			text-decoration: none;
+		}
+		.imp-back:hover { color: var(--imp-link-hover); text-decoration: underline; }
+
+		h1 { font-size: 1.6rem; margin: 0 0 var(--space-6); color: var(--imp-strong); }
+		h2 {
+			font-size: 1.15rem;
+			margin: var(--space-24) 0 var(--space-8);
+			padding-top: var(--space-16);
+			border-top: 1px solid var(--imp-divider);
+			color: var(--imp-strong);
+		}
+		.imp-lede { margin: 0 0 var(--space-16); color: var(--imp-muted); }
+		p { margin: 0 0 var(--space-12); }
+		a { color: var(--imp-link); }
+		a:hover { color: var(--imp-link-hover); }
+		.imp-note {
+			margin-top: var(--space-24);
+			padding-top: var(--space-16);
+			border-top: 1px solid var(--imp-divider);
+			color: var(--imp-muted);
+			font-size: 0.94rem;
+		}
+	</style>
+</head>
+<body>
+<div class="imp-shell">
+
+	<a class="imp-back" href="/">&larr; Zur Karte</a>
+
+	<h1>Impressum und Datenschutz</h1>
+	<p class="imp-lede">Diese Seite tr&auml;gt die Angaben, die auch ohne JavaScript erreichbar sein
+		m&uuml;ssen. Sie ist wortgleich mit dem Fenster &bdquo;Hinweise&ldquo; auf der Karte.</p>
+
+	<h2>Angaben gem&auml;&szlig; &sect; 5 DDG</h2>
+	<p><strong>Betreiber/Impressum.</strong> Entwicklung, Gestaltung, Programmierung und Betrieb erfolgen durch Valentin Schwind (c/o Nobelstr. 10, D-70569 Stuttgart); bei der Programmierung wird Claude Code eingesetzt. Verantwortlich für die redaktionelle Pflege der Mapinhalte ist Thomas Braun.</p>
+
+	<!-- 💣 Die Adresse steht als Zeichen-Entitaeten, nicht im Klartext, und das Verweis-Schema fehlt
+	     hier ganz -- js/app/legal-mail.js haengt es erst im Browser an (derselbe Aufbau wie in
+	     index.html; der Test haelt beide Dateien frei davon). Ohne JavaScript bleibt die Adresse
+	     LESBAR, nur nicht klickbar -- genau das meint &sect; 5 DDG mit "unmittelbar erreichbar",
+	     und genau deshalb steht sie im HTML und wird hier nur VERLINKT. -->
+	<p><strong>E-Mail.</strong> <span id="legal-mail">&#105;&#110;&#102;&#111;&#64;&#97;&#118;&#101;&#115;&#109;&#97;&#112;&#115;&#46;&#100;&#101;</span></p>
+
+	<h2>Datenschutz</h2>
+	<p><strong>Server-Logdaten.</strong> Avesmaps wird bei STRATO gehostet. Beim Abruf der Website verarbeitet der Hoster automatisch technische Server-Logdaten (u. a. IP-Adresse, Datum und Uhrzeit, abgerufene Ressource, Browser- und Gerätetyp) zur technischen Bereitstellung, Stabilität und Sicherheit. Rechtsgrundlage ist das berechtigte Interesse am sicheren Betrieb (Art. 6 Abs. 1 lit. f DSGVO). Diese Logdaten werden nicht mit anderen Datenquellen zusammengeführt und nach kurzer Zeit gelöscht.</p>
+	<p><strong>Keine Cookies, kein Tracking, keine Werbung.</strong> Avesmaps setzt keine Cookies zu Tracking- oder Werbezwecken, bindet keine externen Werbe- oder Tracking-Netzwerke ein und erstellt keine nutzerbezogenen Profile.</p>
+	<p><strong>Besucher-Statistik und Geodaten.</strong> Avesmaps erfasst eine anonyme, ausschließlich aggregierte Nutzungsstatistik (Seitenaufrufe, genutzte Funktionen, ungefähre Herkunft) ohne Weitergabe an Dritte. Zur Schätzung eindeutiger Besucher pro Tag dient ein nicht rückführbarer, täglich wechselnder und nicht dauerhaft gespeicherter Hashwert. Die ungefähre Herkunft (Land/Bundesland) wird serverseitig aus der IP-Adresse ermittelt; die IP-Adresse selbst wird dabei nicht gespeichert. Die zugrunde liegende IP-Geodatenbank stammt von DB-IP.com und steht unter der Creative-Commons-Lizenz CC BY 4.0.</p>
+	<p><strong>Deine Rechte.</strong> Dir stehen im Rahmen der DSGVO die Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch zu sowie das Recht, dich bei einer Datenschutz-Aufsichtsbehörde zu beschweren. Verantwortlicher ist der oben genannte Betreiber; Anfragen zum Datenschutz richtest du bitte an die oben genannte E-Mail-Adresse. Da die Besucher-Statistik anonym erfolgt, ist dort eine Zuordnung zu deiner Person nicht möglich.</p>
+
+	<p class="imp-note">Die &uuml;brigen Hinweise &mdash; Nutzung, Projekt und rechtlicher Status,
+		Urheberrecht, Inhalte, Technik und Haftungsausschluss &mdash; stehen im Fenster
+		&bdquo;Hinweise&ldquo; auf der <a href="/#hinweise">Karte</a>. Es &ouml;ffnet sich &uuml;ber den
+		Knopf unten rechts und braucht JavaScript.</p>
+
+</div>
+<script src="/js/app/legal-mail.js"></script>
+<script>
+	/* Macht die Adresse anklickbar. try/catch, weil ein ausgefallenes Blattmodul diese Seite nicht
+	   kosten darf -- ohne den Aufruf bleibt die Adresse als Text stehen, und das ist der Rueckfall,
+	   den dieses Markup vorsieht. */
+	try { avesmapsActivateLegalMail(document); } catch (error) {}
+</script>
+</body>
+</html>

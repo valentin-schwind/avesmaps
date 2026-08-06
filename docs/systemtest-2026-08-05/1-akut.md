@@ -1169,6 +1169,63 @@ Rechteinhaber, der Kontakt sucht, praktisch nicht auffindbar.
 > ⚠️ Meine erste Messung war wieder zu früh — die Seite lädt ~117 Skripte, `bootstrap.js` steht am
 > Ende, und ich las, bevor es lief: „kein Link" war die Antwort einer Seite, die noch nicht fertig
 > war. Erst mit Abstand zwischen Laden und Lesen war die Messung etwas wert.
+>
+> ---
+>
+> **✅ UND DIE EIGENE SEITE DOCH — auf einen Einwand des Owners hin, der grösser war als die Frage.**
+> Erst „nein", dann: *„wenn Hinweise sich nur über JavaScript öffnen lässt, sollen für Leute, die
+> kein JavaScript erlauben, ‚Hinweise' zum impressum.html führen"*. Das ist der richtige Bau
+> (progressive Verbesserung) — und er deckt ein grösseres Loch auf, als die ursprüngliche Frage hatte.
+>
+> 💣 **Ohne JavaScript war nicht nur das Impressum unerreichbar, sondern auch die
+> Datenschutzerklärung.** Das Fenster „Hinweise" öffnet ausschliesslich ein `<button>`; beide
+> Pflichtangaben — § 5 DDG **und** Art. 13 DSGVO — hingen daran. Die Seite trägt deshalb **beide**
+> Abschnitte, nicht nur das Impressum, und sagt am Fuss, wo die übrigen sechs stehen.
+>
+> **Was gebaut ist:**
+>
+> | | |
+> |---|---|
+> | `html/impressum.html` | Impressum + Datenschutz, echte Token, Hell/Dunkel, **kein `noindex`** (als einzige Seite unter `html/`), kanonische Adresse, in `sitemap.xml` |
+> | `#legal-button` | vom `<button>` zum `<a href="/html/impressum.html">` — Aussehen unverändert, drei CSS-Zeilen |
+> | mit JavaScript | `avesmapsHandleLegalButtonClick` öffnet das Fenster und **hält die Navigation an** |
+> | ohne JavaScript | der Link führt auf die Seite; **2.518 Zeichen** stehen dort ohne ein einziges Skript |
+> | die Adresse | dort wie in `index.html`: Entitäten, kein `mailto:` im Quelltext |
+>
+> 🔴 **Der Preis ist eine zweite Kopie der Rechtstexte**, und eine stille Divergenz wäre hier
+> schlimmer als anderswo: zwei Datenschutzerklärungen, die verschiedenes sagen, sind schlechter als
+> eine. Es gibt keinen Build-Schritt, der die Seite erzeugen könnte — also hält
+> `impressum-page.test.js` beide Fassungen **zeichenweise** aneinander. **Ein** Satz weicht bewusst ab
+> (im Fenster steht das Kontaktformular darunter, auf der Seite nicht), und der Test hält beides
+> fest: dass die Anpassung da ist, **und** dass die Fassung des Fensters nicht hineinkopiert wurde.
+>
+> **Zehn Mutationen, alle rot** — darunter: zurück zum `<button>` · ein Datenschutz-Absatz nur im
+> Fenster geändert · `noindex` von einer Editor-Seite mitkopiert · die Adresse im Klartext auf der
+> zweiten Seite (der Schutz von `index.html` wäre dann wertlos) · Sitemap-Eintrag entfernt.
+>
+> 💣 **Eine überlebte, und sie ist die Lehre dieser Sitzung im Kleinen.**
+> `if (false) { event.preventDefault(); }` — der Riegel steht wörtlich da und wirkt nicht; meine
+> Zusicherung suchte die Zeichenkette im Quelltext und blieb **grün**. Ohne `preventDefault` öffnet
+> ein Klick das Fenster **und verlässt die Karte**, mitsamt der gerade geplanten Route. Behoben, indem
+> die Regel aus `bootstrap.js` in `legal-anchor.js` gezogen wurde und jetzt gegen ein **mitzählendes**
+> Ereignis läuft. Danach fallen alle drei Spielarten: entfernt, entschärft, und „meldet `true`, ohne
+> zu verhindern".
+>
+> ⚠️ **Absichtlich ohne `try/catch`**, anders als beim Hash-Anker daneben: fällt `legal-anchor.js`
+> aus, wirft der Handler, die Navigation wird **nicht** angehalten — und der Browser folgt dem Link
+> auf die Seite. Das ist genau der Rückfall, den das Markup vorsieht; ein still schluckendes `catch`
+> hätte stattdessen einen toten Knopf hinterlassen.
+>
+> **Im Browser geprüft:** Knopf ist ein `<a>`, sieht unverändert aus (keine Unterstreichung, gleiche
+> Fläche), Klick öffnet das Fenster und **navigiert nicht** (`urlBefore === urlAfter`); die Seite
+> selbst lädt mit `HTTP 200`, Titel, beiden Abschnitten, `mailto:`-Link und Rückweg zur Karte.
+> 217/217 grün.
+>
+> 🔧 **DU, eine Kleinigkeit:** die Adresse ist `avesmaps.de/html/impressum.html`. Hübscher wäre
+> `avesmaps.de/impressum` — eine Zeile in `.htaccess`, dieselbe Art Regel, die dort schon dreimal
+> steht. Ich habe sie **nicht** gebaut: `.htaccess` lässt sich vor dem Deploy nicht erproben, und ein
+> Fehler dort ist eine 500 für die **ganze** Seite (so ist der Versuch zu A34 ausgegangen). Sag
+> Bescheid, dann kommt sie als eigener, kleiner Commit.
 
 ### 📐 A25 · Das vollständige Kartenmaterial ist als Archiv verlinkt
 **1,86 GB PNG plus 169 MB Kacheln.** Das steht in Spannung zur eigenen Fanregel-Zusage in

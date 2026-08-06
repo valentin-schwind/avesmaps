@@ -397,7 +397,14 @@ function setLegalDialogOpen(isOpen) {
     }
 }
 
-$("#legal-button").on("click", () => setLegalDialogOpen(true));
+// 💣 #legal-button ist ein <a href="/html/impressum.html">, kein <button>. Die Regel dazu -- Fenster
+// oeffnen UND die Navigation anhalten -- steht in js/app/legal-anchor.js, weil sie dort gegen ein
+// mitzaehlendes Ereignis laeuft statt gegen ihren Quelltext.
+// ⚠️ HIER ABSICHTLICH OHNE try/catch, anders als beim Hash weiter oben. Faellt legal-anchor.js aus,
+// wirft dieser Handler, die Navigation wird NICHT angehalten -- und der Browser folgt dem Link auf
+// html/impressum.html. Das ist genau der Rueckfall, den dieses Markup vorsieht; ein catch, das
+// still schluckt, haette stattdessen einen toten Knopf hinterlassen.
+$("#legal-button").on("click", (event) => avesmapsHandleLegalButtonClick(event, setLegalDialogOpen));
 
 // 💣 Das Impressum war nur anklickbar, nicht adressierbar (Befund A24). Die Regel dazu steht in
 // js/app/legal-anchor.js -- eigene Datei, weil sie dort in einer vm-Sandbox mit echtem DOM
