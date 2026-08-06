@@ -804,6 +804,39 @@ während ein um drei Pixel verschobenes Label sauber protokolliert wird.
 > mit allen 26? *Mein Vorschlag: die drei Löschungen* — sie sind der Kern des Befundes, und die
 > Erfahrung dieser Sitzung ist, dass breite mechanische Änderungen genau die sind, bei denen eine
 > Zeile verrutscht.
+>
+> ✅ **Beide beantwortet (06.08.2026): die Schalter zählen mit, Stufe 1 sind die drei Löschungen.**
+
+> ### ✅ Stufe 1 gebaut — `1b450f70`, 06.08.2026
+>
+> Die drei harten Löschungen schreiben jetzt in **dasselbe** `map_audit_log` wie jeder andere
+> Editor-Vorgang: `delete_citymap`, `delete_adventure` und — weil `remove_place` zwei verschiedene
+> Dinge tut — `delete_lore_place` und `suppress_lore_place`. Damit haben **5.104 + 1.352 + 457**
+> Zeilen erstmals eine Spur. Rückgängig ist keine davon, und das ist die ehrliche Antwort: keine der
+> drei Tabellen kennt ein weiches Löschen, ein Knopf verspräche also, was kein Code einlöst.
+>
+> Im Fenster „Änderungen" stehen vier neue Beschriftungen. Die beiden Vorkommen-Zeilen lauten
+> **absichtlich verschieden**: ein Wiki-Ort wird zum Grabstein und lässt sich mit „Ort wieder
+> aufnehmen" zurückholen, ein manueller ist weg — und genau diese Frage ist der Befund.
+>
+> 💣 **Die Falle war eine halbe Falle.** `feature_id = NULL` stimmt, reicht aber nicht:
+> `avesmapsNormalizeAuditRow` hebt auch **`public_id`**, `feature_type`, `feature_subtype` und
+> `geometry_json` aus dem `after_json`, wenn der `LEFT JOIN` nichts findet — und eine Karten-`public_id`
+> dort macht die Zeile zum **Knopf**, der beim Klick „Objekt ist nicht mehr aktiv" meldet. Ein
+> Fehlalarm für eine Löschung, die funktioniert hat; genau der, für den A4 den Vermerk „Nur was sich
+> zeigen lässt, ist ein Knopf" geschrieben hat. Die Identität reist deshalb als `citymap_public_id` /
+> `adventure_public_id`, und der Schreiber wirft diese vier Schlüssel weg, was immer ein Aufrufer
+> übergibt.
+>
+> 🔧 **DU: eine neue Entscheidung.** Der **Wiki-Sync löscht Karten ebenfalls** (`citymap-sync.php`,
+> `avesmapsCitymapRemoveVanished`) — auf einem eigenen Weg, der `avesmapsDeleteCitymap` gar nicht
+> aufruft. Diese Löschungen bleiben spurlos. Der Schreiber kann das schon (`?array $user`, `null` heisst
+> „kein Mensch", Vermerk `system`); es fehlt nur der Aufruf. Soll der Sync mitprotokollieren? *Mein
+> Vorschlag: ja* — es ist eine Zeile, und „warum ist diese Karte weg?" ist dort die häufigere Frage als
+> im Editor. ⚠️ Gegenargument: ein Sync-Lauf kann viele Karten auf einmal entfernen, und das Protokoll
+> behält nur 200 Einträge.
+>
+> **Nächster Schritt: Stufe 2** (die übrigen 23 Schreibvorgänge) — mechanisch, aber breit.
 
 ### ⚠️ A17 · Ein frisch angelegtes Abenteuer fehlt in der Liste des Editors, der es angelegt hat
 ### ⚠️ A18 · Editorfenster stapeln sich als lebende iframes

@@ -1,7 +1,35 @@
 # A16 · Änderungsprotokoll für Karten, Abenteuer und Vorkommen — Entwurf
 
-**Stand:** 2026-08-06 · **Befund:** `docs/systemtest-2026-08-05/1-akut.md` § A16 · **Status:** Entwurf,
-noch nicht gebaut. Er braucht eine Owner-Entscheidung an genau zwei Stellen (§ 6).
+**Stand:** 2026-08-06 · **Befund:** `docs/systemtest-2026-08-05/1-akut.md` § A16 ·
+**Status: Stufe 1 gebaut und ausgeliefert (`1b450f70`, 06.08.2026).** Stufe 2 und 3 offen. Die beiden
+Owner-Fragen aus § 6 sind beantwortet: die Notausschalter zählen mit, und Stufe 1 sind die drei
+Löschungen.
+
+> **Was der Bau gegenüber diesem Entwurf geändert hat — drei Stellen:**
+>
+> 1. 💣 **§ 3 beschreibt eine halbe Falle.** `feature_id = NULL` stimmt, reicht aber nicht:
+>    `avesmapsNormalizeAuditRow` hebt auch **`public_id`**, `feature_type`, `feature_subtype` und
+>    `geometry_json` aus dem `after_json`, wenn der `LEFT JOIN` nichts findet
+>    (`audit-log.php:109-111`). Eine Karten-`public_id` dort macht die Zeile zum **Knopf**
+>    (`canFocusEntry`), der beim Klick „Objekt ist nicht mehr aktiv" meldet — ein Fehlalarm für eine
+>    Löschung, die funktioniert hat. Die Identität reist deshalb als `citymap_public_id` /
+>    `adventure_public_id`, und `avesmapsCollectionAuditSnapshot()` wirft die vier Schlüssel weg, was
+>    immer ein Aufrufer übergibt. **Der Anmerkung in § 3, die Oberfläche müsse angefasst werden, ist
+>    damit widersprochen: sie musste nicht** — der `??`-Fallback auf `after_json['name']` stand schon.
+> 2. **`remove_place` sind zwei Vorgänge, also zwei Aktionsnamen.** Ein Wiki-Ort wird zum Grabstein
+>    (umkehrbar mit „Ort wieder aufnehmen"), ein manueller wird gelöscht. Ob es einen Weg zurück gibt,
+>    ist die Frage, für die dieser Befund existiert — ein gemeinsamer Name vergräbt die Antwort im
+>    JSON, wo die Liste sie nie zeigt. Daher `suppress_lore_place` **und** `delete_lore_place`.
+> 3. **Der Schreiber steht in den drei Bibliotheken, nicht in den Endpunkten.** Das ist die A39-Lehre
+>    wörtlich: ein Schreiber an einer Tür lässt jede andere spurlos. Geladen wird er **innerhalb** der
+>    Löschfunktionen (`require_once` im Funktionsrumpf), weil `app/citymaps.php` und
+>    `app/adventures.php` auf öffentlichen Lesewegen liegen und `map/features.php` nicht bei jedem
+>    Besucher mitschleppen dürfen.
+>
+> **Und ein Fund nebenbei:** der Wiki-Sync löscht Karten auf einem **eigenen** Weg
+> (`avesmapsCitymapRemoveVanished` in `citymap-sync.php`), der `avesmapsDeleteCitymap` nicht aufruft.
+> Diese Löschungen bleiben spurlos. Der Schreiber kann sie schon aufnehmen (`?array $user`, `null` =
+> „kein Mensch"); es fehlt nur der Aufruf — 🔧 eine Owner-Entscheidung, siehe `1-akut.md`.
 
 ---
 
