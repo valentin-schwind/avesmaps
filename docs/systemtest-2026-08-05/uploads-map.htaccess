@@ -1,0 +1,57 @@
+# ---------------------------------------------------------------------------
+# Avesmaps -- das Kartenmaterial wird nicht mehr als Archiv angeboten.
+# Befund A25 des Systemtests vom 05.08.2026, Owner-Entscheid vom 06.08.2026 (a).
+#
+# ZIEL AUF DEM SERVER:  uploads/map/.htaccess
+# (Diese Datei heisst im Repository `uploads-map.htaccess`, damit sie hier nicht
+#  versteckt ist. Beim Hochladen in `.htaccess` umbenennen -- mit fuehrendem Punkt.)
+#
+# Die Links im Hinweise-Fenster sind seit Commit 57f2dc92 entfernt. Die Dateien
+# lagen danach weiter hier und antworteten unter ihrer bekannten Adresse:
+# gemessen am 06.08.2026 HTTP 200 mit 168.647.049 Bytes. "Nicht mehr angeboten"
+# war also nicht "nicht mehr erreichbar". Diese Datei schliesst das.
+#
+# 💣 SIE GEHOERT NUR IN uploads/map/ -- NIEMALS EINE EBENE HOEHER.
+#    In uploads/ liegen die Wappen der Herrschaftsgebiete und die Kartenvorschauen,
+#    die die oeffentliche Karte braucht (AGENTS.md §10: uploads/ ist tragend).
+#    Derselbe Riegel dort nimmt der Karte ihre Bilder.
+#
+# 💣 SIE KOMMT NICHT AUS DEM REPOSITORY. Der Deploy spiegelt eine Positivliste, und
+#    `uploads` steht nicht darauf. Diese Datei muss von Hand dorthin (FTP/SFTP oder
+#    Dateimanager) -- und sie ueberlebt danach jeden Deploy unveraendert, weil der
+#    Deploy nie loescht und diesen Ordner gar nicht anfasst.
+#
+# NACH DEM HOCHLADEN PRUEFEN. Erwartet wird 403:
+#
+#   curl -s -o /dev/null -w "%{http_code}\n" https://avesmaps.de/uploads/map/avesmaps_aventurien_tiles_v2.05.zip
+#
+#   403 -> erledigt.
+#   200 -> die Regel greift nicht. Dann erlaubt der Host in diesem Ordner kein
+#          AllowOverride Limit/AuthConfig; melden, dann suchen wir einen anderen Weg.
+#   500 -> Datei wieder loeschen und melden. Der Schaden bleibt in DIESEM Ordner --
+#          das ist der Grund, warum der Riegel hier steht und nicht in der Wurzel.
+#
+# ⚠️ WAS DIESE DATEI NICHT TUT: sie loescht nichts. Die Archive bleiben liegen und
+#    bleiben ueber FTP erreichbar -- gesperrt ist nur der Weg ueber das Web.
+# ---------------------------------------------------------------------------
+
+# Gesperrt wird nach ENDUNG, nicht nach Dateiname: die Versionsnummer im Namen
+# (v2.05) aendert sich mit jeder neuen Karte, die Endung nicht. Ein Riegel auf den
+# heutigen Namen waere beim naechsten Export lautlos wirkungslos.
+
+<IfModule mod_authz_core.c>
+    # Apache 2.4 -- die Fassung dieses Servers (gemessen: Apache/2.4.68).
+    <FilesMatch "\.(?:zip|7z|rar|tar|gz|tgz)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    # Rueckfall fuer Apache 2.2. Steht hier, damit ein Wechsel der Serverfassung den
+    # Riegel nicht lautlos aushebelt. Apache ueberspringt einen nicht zutreffenden
+    # <IfModule>-Block vollstaendig, diese Zeilen koennen auf 2.4 also nichts brechen.
+    <FilesMatch "\.(?:zip|7z|rar|tar|gz|tgz)$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</IfModule>
