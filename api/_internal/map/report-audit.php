@@ -58,11 +58,24 @@ function avesmapsReportModerationAuditAction(string $status): string {
     return AVESMAPS_REPORT_MODERATION_AUDIT_ACTIONS[$status] ?? '';
 }
 
+// 💣 WER WAR ES, WENN ES KEIN MENSCH WAR (Befund A39, Owner-Entscheid (b) vom 06.08.2026).
+// api/import/location-reports/update-status.php moderiert mit einem Token, und ein Token ist kein
+// Benutzer. `actor_user_id` ist eine Zahl mit LEFT JOIN auf `users`; eine 0 findet dort niemanden,
+// und die Oberflaeche schrieb dann „unbekannt" -- eine Behauptung ueber einen Menschen, den es nie
+// gab. Der Vermerk reist deshalb im `after_json` mit und sagt, was zutrifft: es war der Import.
+//
+// 🔴 Bewusst KEIN technischer Benutzer und KEINE eigene Aktionsnamen-Familie. Ein Konto „Import"
+// waere ein Mensch, den es nicht gibt -- und ein `report_approved_import` haette die Ableitung
+// zerschlagen, aus der die setzbaren Status kommen (siehe avesmapsReportModerationStatuses) und
+// ausserdem avesmapsCanUndoAuditAction() vor einen unbekannten Namen gestellt.
+const AVESMAPS_REPORT_MODERATION_ACTOR_IMPORT = 'import';
+
 /**
  * The before/after pair for one moderation decision, JSON-encoded and ready for the audit writer.
  *
  * @return array{before: string, after: string}
  */
+
 function avesmapsBuildReportModerationAuditSnapshots(
     array $reportRow,
     string $reportSource,
@@ -71,7 +84,10 @@ function avesmapsBuildReportModerationAuditSnapshots(
     // field at all -- under strict_types=1 a plain `string` here is a TypeError thrown at the call site,
     // where no catch of this file's can reach it. That is how A4 shipped a 500 on every moderation
     // decision, after the decision had already taken effect.
-    ?string $reviewNote
+    ?string $reviewNote,
+    // Der Vermerk fuer eine Entscheidung ohne Menschen. Leer = ein Mensch war es (der uebliche Fall);
+    // er steht dann in actor_user_id und braucht hier nichts.
+    string $actorSource = ''
 ): array {
     $identity = [];
     foreach (AVESMAPS_REPORT_MODERATION_AUDIT_FIELDS as $field) {
@@ -85,16 +101,71 @@ function avesmapsBuildReportModerationAuditSnapshots(
     $identity['report_id'] = (string) ($reportRow['id'] ?? '');
     $identity['report_source'] = $reportSource;
 
+    // ⚠️ Nur im `after`. Der Vermerk beschreibt, WER diese Aenderung gemacht hat -- der Zustand
+    // davor hatte damit nichts zu tun, und ihn dort mitzuschreiben hiesse, den Import auch fuer die
+    // vorige Entscheidung verantwortlich zu machen.
+    $after = [
+        'status' => $newStatus,
+        'review_note' => (string) $reviewNote,
+    ];
+    if ($actorSource !== '') {
+        $after['actor_source'] = $actorSource;
+    }
+
     return [
         'before' => avesmapsEncodeReportModerationSnapshot($identity + [
             'status' => (string) ($reportRow['status'] ?? 'neu'),
             'review_note' => (string) ($reportRow['review_note'] ?? ''),
         ]),
-        'after' => avesmapsEncodeReportModerationSnapshot($identity + [
-            'status' => $newStatus,
-            'review_note' => (string) $reviewNote,
-        ]),
+        'after' => avesmapsEncodeReportModerationSnapshot($identity + $after),
     ];
+}
+
+// A4: eine Zeile in map_audit_log je Moderationsentscheidung -- fuer BEIDE Tueren, den Editor und den
+// Import (Befund A39). 💣 Bewusst NICHT fatal: eine Spur, die sich nicht schreiben laesst, darf keine
+// Entscheidung rueckgaengig machen, die schon passiert ist. An jeder Aufrufstelle ist die Meldung
+// bereits aktualisiert; ein Wurf hier antwortete 500 auf einen Klick, der GEWIRKT hat, und der
+// Wiederholungsversuch liefe danach in den `AND status = 'neu'`-Riegel und meldete 404. Eine fehlende
+// Zeile im Protokoll ist der kleinere Verlust.
+//
+// 💣 Diese Funktion stand bis zum 06.08.2026 in api/edit/reports/locations.php -- also HINTER der
+// Anmeldung, wo der Import sie nicht erreichen konnte. Genau deshalb hatte die Import-Tuer gar keine
+// Spur (A39). Sie ist hierher gezogen, weil beide Tueren diese Datei ohnehin laden; das ist dieselbe
+// Bewegung wie bei A33, wo der Editor seine private Kopie der Statusliste abgegeben hat.
+function avesmapsLogReportModeration(
+    PDO $pdo,
+    array $reportRow,
+    string $reportSource,
+    string $newStatus,
+    // 💣 ?string, und das Fragezeichen ist die ganze Lehre. avesmapsNormalizeReviewNote() antwortet
+    // NULL bei leerer Notiz, und KEIN Client schickt review_note ueberhaupt -- NULL ist also nicht der
+    // Sonderfall, sondern jeder Fall. Unter strict_types=1 macht ein `string` daraus einen TypeError
+    // AN DER AUFRUFSTELLE, ausserhalb des try unten: die „bewusst nicht fatal"-Bauart laeuft nie, der
+    // oberste Handler antwortet 500, und die Meldung ist bereits geaendert. Am 05.08.2026 elf Minuten
+    // lang so ausgeliefert.
+    ?string $reviewNote,
+    // 💣 ?array, und NULL heisst „kein Mensch" -- die Import-Tuer (A39, Owner-Entscheid (b)). Nicht
+    // ein leeres Array: das waere ein Benutzer ohne Id und liefe still in dieselbe 0, ohne dass
+    // irgendwo stuende, dass es keiner war.
+    ?array $user
+): void {
+    $action = avesmapsReportModerationAuditAction($newStatus);
+    if ($action === '') {
+        return;
+    }
+
+    $actorSource = $user === null ? AVESMAPS_REPORT_MODERATION_ACTOR_IMPORT : '';
+    $actorUserId = $user === null ? 0 : (int) ($user['id'] ?? 0);
+
+    try {
+        $snapshots = avesmapsBuildReportModerationAuditSnapshots($reportRow, $reportSource, $newStatus, $reviewNote, $actorSource);
+        // feature_id NULL, because a moderation decision is not about a map object: the column is
+        // nullable, the reader LEFT JOINs, and the name comes out of after_json. NULL and not 0 --
+        // 0 would claim a feature that does not exist and would survive into every later query.
+        avesmapsWriteMapAuditLog($pdo, null, $action, $actorUserId, $snapshots['before'], $snapshots['after']);
+    } catch (Throwable $exception) {
+        error_log('avesmaps report moderation audit failed: ' . $exception->getMessage());
+    }
 }
 
 // ⚠️ JSON_THROW_ON_ERROR, like avesmapsEncodeAuditJson next door. A report name is community-supplied

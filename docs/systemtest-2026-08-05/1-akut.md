@@ -2242,6 +2242,59 @@ gleicht den Import an den Editor an und kommt mit.
 > ⚠️ Die Abstände der übrigen 16 liegen zwischen 0,00 und 6,50 Einheiten (7 exakt auf 0). Ein Versatz
 > ist erwartbar und kein Mangel: die gemeldete Koordinate ist der Klick des Melders, die gespeicherte
 > die Setzung des Bearbeiters.
+>
+> ---
+>
+> **✅ LOCH 1 IST ZU — die Import-Tür hinterlässt eine Spur, 06.08.2026.** Owner-Entscheid **(b)**:
+> kein technischer Benutzer, der Eintrag trägt den Vermerk „import".
+>
+> 💣 **Der eigentliche Grund, warum diese Tür keine Spur hatte, war ein Ort.** `avesmapsLogReportModeration`
+> stand in `api/edit/reports/locations.php` — also **hinter der Anmeldung**, wo der Import sie gar
+> nicht erreichen konnte. Sie ist nach `api/_internal/map/report-audit.php` gezogen, das **beide**
+> Türen ohnehin laden. Dieselbe Bewegung wie bei A33, wo der Editor seine private Kopie der
+> Statusliste abgegeben hat — und dort wie hier war die Kopie beziehungsweise der Ort der Befund.
+>
+> | | |
+> |---|---|
+> | Aktionsname | derselbe wie beim Editor (`report_approved` …) |
+> | `feature_id` | `NULL` — eine Entscheidung ist kein Kartenobjekt |
+> | `actor_user_id` | **0** — es gibt keinen Benutzer, und die Zeile behauptet auch keinen |
+> | `after_json.actor_source` | **`import`** |
+> | `before_json` | trägt den Vermerk **nicht** — er sagt, wer die Änderung gemacht hat, nicht wer vorher zuständig war |
+>
+> 🔴 **Kein technischer Benutzer und keine eigene Aktionsnamen-Familie**, beides bewusst. Ein Konto
+> „Import" wäre ein Mensch, den es nicht gibt; ein `report_approved_import` hätte die Ableitung
+> zerschlagen, aus der die setzbaren Status kommen, und `avesmapsCanUndoAuditAction()` vor einen
+> unbekannten Namen gestellt.
+>
+> ⭐ **Die Lesehälfte gehört dazu, sonst wäre nichts gewonnen:** ohne sie stünde im Protokollfenster
+> weiter **„unbekannt"** — eine Behauptung über einen Menschen, den es nie gab. Der Endpunkt gibt
+> `actor_source` heraus (eigenes Feld, **nicht** in `username` hineingeschrieben — dort steht der Name
+> einer Person, und „import" wäre dort eine Person namens import), und die Oberfläche macht „Import"
+> daraus. ⚠️ Ein **unbekannter** Vermerk wird durchgereicht statt zu „unbekannt" verschluckt: käme
+> eines Tages eine zweite maschinelle Quelle dazu und fehlte ihre Beschriftung, stünde ihr Schlüssel
+> da — hässlich, aber wahr.
+>
+> ⭐ **Der neue Test schreibt wirklich** (`report-audit-import-test.php`, sqlite): „ruft die Funktion"
+> und „es steht hinterher eine Zeile da" sind zwei verschiedene Aussagen, und an genau diesem
+> Unterschied ist diese Sitzung mehrfach hängengeblieben. Mitgeprüft: dass `ip_hash`, `remote_ip` und
+> `user_agent` auch durch diese Tür **nicht** ins Protokoll gelangen, und dass ein fehlgeschlagener
+> Schreiber **nicht wirft** — die Meldung ist an dieser Stelle bereits geändert, ein Wurf antwortete
+> 500 auf etwas, das gewirkt hat.
+>
+> **Elf Mutationen, alle rot**, darunter die drei, die man tatsächlich baut: Vermerk hängt an
+> **jeder** Zeile (dann stünde „import" unter den Entscheidungen echter Bearbeiter) · Spur wird
+> **vor** dem `rowCount`-Riegel geschrieben (eine Protokollzeile für eine Entscheidung, die nie
+> stattfand) · Vorzustand erst **nach** dem `UPDATE` gelesen (dann wäre `before` der Nachzustand).
+> Dazu in der Oberfläche: die Rangfolge gedreht, sodass der Vermerk den Namen einer Person überdeckt.
+>
+> ⚠️ **Ein alter Marker hat gehalten.** In `report-audit-test.php` stand seit gestern
+> `assert(!str_contains($importSource, 'avesmapsLogReportModeration'), '… flip this assert when it
+> does')`. Er ist umgedreht, nicht gelöscht — so war er gemeint.
+>
+> ⚠️ **Was von aussen nicht messbar ist:** die Tür verlangt ein gültiges Import-Token, und der
+> einzige Weg, die Spur live zu sehen, wäre genau der Schreibvorgang. Belegt ist sie an einer echten
+> Tabelle im Test; live geprüft ist nur, dass der Endpunkt mit den neuen `require`s lädt. 220/220 grün.
 
 ### A38 · Eine abgewiesene Anfrage füllt den Eimer nicht — die Drossel sieht den Prober nie
 `api/_internal/app/report-outcome.php:57-63` gegen `api/app/report-location.php:129` und `:185`

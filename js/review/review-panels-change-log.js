@@ -78,6 +78,27 @@ async function loadChangeLog() {
 	}
 }
 
+// Wer die Änderung gemacht hat. 💣 Nicht jede Zeile stammt von einem Menschen: die Import-Tür
+// (`api/import/location-reports/update-status.php`) moderiert mit einem Token, und dort steht keine
+// `username` — sie stand deshalb bis zum 06.08.2026 als „unbekannt" da, also als Behauptung über
+// einen Menschen, den es nie gab (Befund A39).
+//
+// ⚠️ Die Rangfolge ist Absicht: eine echte `username` gewinnt IMMER. Wäre es andersherum, könnte ein
+// mitgeschriebener Vermerk den Namen einer Person überdecken — und der Herkunftsvermerk kommt aus dem
+// `after_json` und ist damit die weichere der beiden Quellen.
+const CHANGE_LOG_ACTOR_LABELS = {
+	import: "Import",
+};
+
+function changeLogEntryActor(entry) {
+	if (entry?.username) {
+		return entry.username;
+	}
+
+	const source = String(entry?.actor_source || "");
+	return CHANGE_LOG_ACTOR_LABELS[source] || (source !== "" ? source : "unbekannt");
+}
+
 // Was in der Zeile steht. Die Landschaften liefern eine fertige Beschriftung mit -- sie kennen die
 // GESTE („Mit anderer vereinigen"), während die Aktion nur den letzten Schreibvorgang benennen könnte.
 // Bestand ohne `label` läuft unverändert über die Aktionstabelle.
@@ -172,7 +193,7 @@ function renderChangeLog() {
 		`;
 		itemElement.querySelector(".change-log-entry__action").textContent = changeLogEntryLabel(entry);
 		itemElement.querySelector(".change-log-entry__target").textContent = entry.name || entry.feature_subtype || entry.public_id || "Unbenannt";
-		itemElement.querySelector(".change-log-entry__meta").textContent = `${entry.username || "unbekannt"} · ${entry.created_at || ""}`;
+		itemElement.querySelector(".change-log-entry__meta").textContent = `${changeLogEntryActor(entry)} · ${entry.created_at || ""}`;
 		const stateElement = itemElement.querySelector(".change-log-entry__state");
 		if (entry.undone) {
 			stateElement.textContent = `Rückgängig gemacht${entry.undone_username ? ` von ${entry.undone_username}` : ""}`;

@@ -552,40 +552,10 @@ function avesmapsReviewTableExists(PDO $pdo, string $tableName): bool {
     return $statement !== false && $statement->fetch() !== false;
 }
 
-// A4: one row in map_audit_log per moderation decision. 💣 Deliberately NOT fatal -- a trail that
-// cannot be written must not undo a decision that already happened. The report is already updated at
-// every call site, so throwing here would answer 500 to a reviewer whose click DID take effect, and
-// the retry would then hit the `AND status = 'neu'` guard and report 404. A missing line in the log is
-// the smaller loss; it is logged where the other server-side failures of this file go.
-function avesmapsLogReportModeration(
-    PDO $pdo,
-    array $reportRow,
-    string $reportSource,
-    string $newStatus,
-    // 💣 ?string, and the question mark is the whole lesson. avesmapsNormalizeReviewNote() answers NULL
-    // for an empty note, and NO client sends review_note at all -- so NULL is not the edge case, it is
-    // every case. Under strict_types=1 a `string` parameter turns that into a TypeError thrown AT THE
-    // CALL SITE, outside the try below: the "deliberately not fatal" design never runs, the top-level
-    // handler answers 500, and the report has already been updated. The retry then hits `status = 'neu'`
-    // and reports 404. Shipped that way for eleven minutes on 2026-08-05.
-    ?string $reviewNote,
-    array $user
-): void {
-    $action = avesmapsReportModerationAuditAction($newStatus);
-    if ($action === '') {
-        return;
-    }
-
-    try {
-        $snapshots = avesmapsBuildReportModerationAuditSnapshots($reportRow, $reportSource, $newStatus, $reviewNote);
-        // feature_id NULL, because a moderation decision is not about a map object: the column is
-        // nullable, the reader LEFT JOINs, and the name comes out of after_json. NULL and not 0 --
-        // 0 would claim a feature that does not exist and would survive into every later query.
-        avesmapsWriteMapAuditLog($pdo, null, $action, (int) ($user['id'] ?? 0), $snapshots['before'], $snapshots['after']);
-    } catch (Throwable $exception) {
-        error_log('avesmaps report moderation audit failed: ' . $exception->getMessage());
-    }
-}
+// 💣 avesmapsLogReportModeration STAND HIER und wohnt seit dem 06.08.2026 in
+// api/_internal/map/report-audit.php (Befund A39). Hinter der Anmeldung war sie fuer die Import-Tuer
+// unerreichbar -- und genau deshalb hinterliess die gar keine Spur. Dieselbe Bewegung wie bei A33,
+// wo dieser Endpunkt seine private Kopie der Statusliste abgegeben hat.
 
 function avesmapsNormalizeReviewNote(mixed $value): ?string {
     $normalizedValue = avesmapsNormalizeSingleLine((string) ($value ?? ''), 500);

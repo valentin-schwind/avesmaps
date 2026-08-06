@@ -144,22 +144,35 @@ assert(!array_key_exists('report_type', $legacyAfter), 'columns the legacy table
 // so it is read as text and never required.
 $endpointSource = file_get_contents(__DIR__ . '/../../../edit/reports/locations.php');
 assert(is_string($endpointSource) && $endpointSource !== '', 'the endpoint source must be readable');
+// ⚠️ DREI, nicht mehr vier: der Schreiber selbst ist am 06.08.2026 nach report-audit.php gezogen
+// (Befund A39). Hinter der Anmeldung war er fuer die Import-Tuer unerreichbar, und genau deshalb
+// hinterliess die gar keine Spur. Uebrig bleiben die drei Aufrufstellen -- update_status, der
+// Kartensammlungs-Anspruch und der Fundort-Anspruch. Die letzten beiden setzen selbst
+// status=approved und verbrauchten vor A4 eine Meldung lautlos.
 assert(
-    substr_count($endpointSource, 'avesmapsLogReportModeration(') === 4,
-    'four occurrences: the definition plus three call sites -- update_status, the citymap claim and the '
-        . 'fundort claim. The last two set status=approved themselves and consumed a report silently '
-        . 'before A4'
-);
-// 💣 The signature the endpoint declares, not the one the library declares. This is the exact spelling
-// that answered 500 on every moderation decision when it read `string $reviewNote`.
-assert(
-    preg_match('/function avesmapsLogReportModeration\(.*?\?string \$reviewNote/s', $endpointSource) === 1,
-    'the endpoint helper accepts a NULL review note -- a plain string is a TypeError at the call site, '
-        . 'outside its own catch, on a decision that has already taken effect'
+    substr_count($endpointSource, 'avesmapsLogReportModeration(') === 3,
+    'three call sites remain in the editor endpoint -- the writer itself moved to the shared library'
 );
 assert(
     str_contains($endpointSource, "require_once __DIR__ . '/../../_internal/map/report-audit.php';"),
     'the endpoint loads this library rather than carrying its own copy of the action names'
+);
+
+// 💣 Die Fassung, die AUSGELIEFERT wird -- jetzt die der Bibliothek, weil der Schreiber dort wohnt.
+// Genau diese Schreibweise antwortete 500 auf jede Moderationsentscheidung, als dort `string
+// $reviewNote` stand.
+$writerSource = file_get_contents(__DIR__ . '/../report-audit.php');
+assert(is_string($writerSource) && $writerSource !== '', 'the shared writer is readable');
+assert(
+    preg_match('/function avesmapsLogReportModeration\(.*?\?string \$reviewNote/s', $writerSource) === 1,
+    'the writer accepts a NULL review note -- a plain string is a TypeError at the call site, '
+        . 'outside its own catch, on a decision that has already taken effect'
+);
+// 💣 Und ?array $user -- NULL heisst „kein Mensch" und ist der Weg der Import-Tuer (A39, Entscheid b).
+// Ein `array` hier waere ein TypeError an derselben Stelle, aus demselben Grund.
+assert(
+    preg_match('/function avesmapsLogReportModeration\(.*?\?array \$user/s', $writerSource) === 1,
+    'and a NULL user, which is how the import door records that it was not a person'
 );
 // The trail is written AFTER the report is updated, and a failure to write it must not undo the
 // decision: the caller catches, because the row is already changed at that point and a 500 would send
@@ -168,7 +181,7 @@ assert(
 // dispatch also contains `catch (Throwable`, and a loose pattern would pass on whichever happened to
 // come first in the file.
 $moderationBody = null;
-if (preg_match('/function avesmapsLogReportModeration\(.*?\)\s*:\s*void\s*\{(.*?)\n\}/s', $endpointSource, $bodyMatch) === 1) {
+if (preg_match('/function avesmapsLogReportModeration\(.*?\)\s*:\s*void\s*\{(.*?)\n\}/s', $writerSource, $bodyMatch) === 1) {
     $moderationBody = $bodyMatch[1];
 }
 assert(is_string($moderationBody), 'the writer is a void function whose body can be isolated');
@@ -284,18 +297,20 @@ assert(
     'and keeps no second copy of it in any spelling -- the copy IS the finding'
 );
 
-// ⚠️ WHAT THIS FILE STILL CANNOT SAY, written down rather than left to be discovered again.
+// ✅ UMGEDREHT AM 06.08.2026 -- genau so war der Marker gemeint, und er hat gehalten.
 //
-// 💣 The import endpoint writes NO audit entry at all -- no avesmapsLogReportModeration, no
-// avesmapsWriteMapAuditLog. So "settable implies audited", which is how the shared list was
-// justified, is true of the editor door and NOT of the one this list was added to. With a valid
-// token a report can still be moved to approved/rejected/in_review leaving no trace, which is A4
-// through the other door. Its UPDATE also lacks the `AND status = 'neu'` guard the editor carries in
-// three places, so an already decided report can be silently overwritten. Filed as A39; this assert
-// is the marker, and it is meant to be INVERTED when that lands, not deleted.
+// 💣 Hier stand: „the import door still writes no audit entry (A39) -- flip this assert when it
+// does." Die Import-Tuer schrieb NULL Protokollzeilen, also war „setzbar heisst auditiert" -- die
+// Begruendung fuer die geteilte Statusliste -- fuer die Editor-Tuer wahr und fuer die, der die Liste
+// hinzugefuegt wurde, falsch. Mit gueltigem Token liess sich jede Meldung entscheiden, ohne Spur.
+//
+// ⚠️ Diese Zusicherung sagt nur, DASS die Tuer den Schreiber ruft. Ob dabei wirklich eine Zeile
+// entsteht und was in ihr steht, prueft report-audit-import-test.php an einer echten Tabelle -- die
+// beiden Aussagen sind nicht dieselbe, und diese Sitzung ist an dem Unterschied mehrfach
+// haengengeblieben.
 assert(
-    !str_contains($importSource, 'avesmapsLogReportModeration'),
-    'the import door still writes no audit entry (A39) -- flip this assert when it does'
+    str_contains($importSource, 'avesmapsLogReportModeration'),
+    'the import door writes an audit entry now (A39)'
 );
 
 // --- 💣 A39, the half that needed no decision: no overwriting a decision already made -------------

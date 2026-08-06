@@ -93,6 +93,14 @@ function avesmapsNormalizeAuditRow(array $row, bool $canUndoChanges): array {
         'action' => $action,
         'created_at' => (string) $row['created_at'],
         'username' => (string) ($row['username'] ?? ''),
+        // 💣 WER, WENN ES KEIN MENSCH WAR (Befund A39). Die Import-Tuer moderiert mit einem Token;
+        // `actor_user_id` ist dann 0, der LEFT JOIN findet niemanden, und die Oberflaeche schrieb
+        // „unbekannt" -- eine Behauptung ueber einen Menschen, den es nie gab. Der Vermerk kommt aus
+        // dem after_json, das ihn seit dem 06.08.2026 mitfuehrt.
+        // ⚠️ Eigenes Feld, NICHT in `username` hineingeschrieben: dort steht der Name einer Person,
+        // und „import" waere dort eine Person namens import. Die Oberflaeche entscheidet, wie sie es
+        // nennt -- hier steht nur, was zutrifft.
+        'actor_source' => (string) ($after['actor_source'] ?? ''),
         'undone' => $isUndone,
         'undone_at' => (string) ($row['undone_at'] ?? ''),
         'undone_username' => (string) ($row['undone_username'] ?? ''),

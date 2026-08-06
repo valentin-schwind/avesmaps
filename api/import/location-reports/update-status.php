@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 require __DIR__ . '/../../_internal/bootstrap.php';
 require_once __DIR__ . '/../../_internal/map/report-audit.php';
+// A39: avesmapsWriteMapAuditLog() wohnt hier. Gross, aber ohne Nebenwirkung beim Einbinden -- die
+// Datei definiert nur Funktionen, und diese Tuer wird von einem Werkzeug gerufen, nicht von Besuchern.
+require_once __DIR__ . '/../../_internal/map/features.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -47,6 +50,19 @@ try {
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
+
+    // A39: der Zustand VOR der Aenderung, fuer die Spur. Muss vor dem UPDATE gelesen werden -- danach
+    // ist `before` nicht mehr da.
+    // ⚠️ Diese Zeile entscheidet NICHTS. Der Riegel ist das `AND status = 'neu'` im UPDATE unten, und
+    // das ist Absicht: eine Pruefung hier und ein Schreiben dort waeren zwei Schritte, zwischen die
+    // ein zweiter Aufrufer passt. Findet das SELECT nichts, laeuft das UPDATE trotzdem und meldet
+    // ueber rowCount ehrlich 404 -- nur die Spur faellt dann aus, und das ist die richtige
+    // Rangfolge: lieber eine Entscheidung ohne Protokollzeile als ein Protokoll ohne Entscheidung.
+    $beforeStatement = $pdo->prepare('SELECT * FROM location_reports WHERE id = :report_id LIMIT 1');
+    $beforeStatement->execute(['report_id' => $reportId]);
+    $reportRow = $beforeStatement->fetch();
+    $reportRow = is_array($reportRow) ? $reportRow : [];
+
     // 💣 AND status = 'neu' -- THIS ENDPOINT COULD OVERWRITE A DECISION A HUMAN HAD ALREADY MADE
     // (finding A39). The editor carries this guard in every one of its write paths; the import door
     // did not, so a token could move an approved report to rejected -- silently, with no
@@ -91,6 +107,19 @@ try {
             'Die gewuenschte Ortsmeldung wurde bereits verarbeitet oder nicht gefunden.'
         );
     }
+
+    // 💣 A39, ERSTE HAELFTE: DIESE TUER SCHRIEB NULL PROTOKOLLZEILEN. Mit gueltigem Token liess sich
+    // jede Meldung entscheiden, ohne dass irgendwo stand, dass es geschah -- A4 hatte genau das fuer
+    // die Editor-Tuer geschlossen, diese blieb offen. Jetzt geht beides in DASSELBE map_audit_log.
+    //
+    // 🔴 `null` als Urheber ist der Owner-Entscheid (b) vom 06.08.2026: kein technischer Benutzer,
+    // der Eintrag traegt den Vermerk „import". Es war keine Person, und der Eintrag soll keine
+    // behaupten.
+    //
+    // ⚠️ ERST NACH dem rowCount-Riegel. Oberhalb stuende eine Zeile im Protokoll fuer eine
+    // Entscheidung, die gar nicht stattgefunden hat -- ein Protokoll, das mehr behauptet als
+    // geschehen ist, ist schlimmer als keines.
+    avesmapsLogReportModeration($pdo, $reportRow, 'location_reports', $newStatus, null, null);
 
     avesmapsJsonResponse(200, [
         'ok' => true,
