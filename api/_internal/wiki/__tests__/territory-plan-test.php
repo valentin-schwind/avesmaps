@@ -44,6 +44,25 @@ $note = avesmapsTerritoryPlanRoleShift($counts, 'wiki:baronie-schwarztannen', nu
 assert(str_contains($note, 'Neue Mark'), 'der neue Elternteil wird benannt');
 assert(str_contains($note, 'wird zum Behälter'));
 
+// --- 💣 Der umgezogene Knoten selbst kann seine Rolle ebenso verlieren -------------------------------
+//
+// Eine Wurzel ist foerderberechtigt ALLEIN weil sie eine Wurzel ist (isRoot || isPureAggregate,
+// isOwnDerivedBoundaryForbidden in territory-derived-geometry-editor.js) -- unabhaengig von ihrer
+// Geometrie. Der Umzug oben (Baronie: eigenes Polygon, Wurzel -> Neue Mark) ist genau dieser Fall, und
+// er ist der HAEUFIGE Weg in diesem Datenmodell: ein Territorium wird von Hand ohne Elternteil angelegt
+// und erst danach eingehaengt -- derselbe $note wie eben, nur mit dem Blick auf die Baronie statt auf
+// "Neue Mark".
+assert(str_contains($note, 'Baronie Schwarztannen verliert'), '💣 der umgezogene Knoten selbst wird benannt');
+assert(str_contains($note, 'Wurzelstatus'), 'und der Grund ist der Wurzelstatus, nicht die Geometrie');
+
+// --- Ein reiner Behaelter bleibt foerderberechtigt, auch wenn er die Wurzel verliert -----------------
+//
+// Almada aggregiert Kinder (0 eigene Geometrie, 4 Kinder) -- seine eigenen Zahlen aendern sich durch
+// einen Umzug NICHT, nur wessen Kind es ist. Ein Umzug von der Wurzel zu einem echten Elternteil darf
+// ihm deshalb nichts nehmen: er bleibt Behaelter und damit foerderberechtigt, ganz ohne die Wurzel-Regel.
+$note = avesmapsTerritoryPlanRoleShift($counts, 'wiki:f-rstentum-almada', null, 'wiki:grafschaft-ragath');
+assert($note === '', 'ein reiner Behaelter verliert seine Berechtigung NICHT ueber die Wurzel-Regel');
+
 // --- Ein Umzug ohne Rollenwechsel sagt nichts -------------------------------------------------------
 //
 // Almada hat vier Kinder und behaelt drei; Ragathsquell traegt ein eigenes Polygon und bleibt so oder
@@ -163,6 +182,25 @@ assert($moves['wiki:baronie-schwarztannen']['new_name'] === 'Grafschaft Ragath')
 $pdo->exec("UPDATE political_territory SET parent_id = {$grafschaftId} WHERE id = {$baronieId}");
 $movesAfter = avesmapsTerritoryPlanParentMoves($pdo);
 assert($movesAfter === [], 'einmal angewendet, kein Vorschlag mehr');
+
+// --- 💣 Der ZWEITE Teil der Bedingung: ein VORHANDENER, aber FALSCHER Elternteil --------------------
+//
+// Bisher wurde nur "child.parent_id IS NULL" geprueft (die Baronie hatte noch KEINEN Elternteil). Die
+// echte WHERE-Bedingung hat ein zweites Disjunkt: "child.parent_id <> parent.id" -- ein Kind, das schon
+// einen Elternteil hat, nur nicht den vom Modell gewollten, ist ebenso ein Umzug. Eine dritte,
+// eigenstaendige Herrschaft spielt den falschen Elternteil.
+$pdo->exec(
+    "INSERT INTO political_territory (public_id, wiki_key, name, is_active, parent_id) "
+    . "VALUES ('P-FA', 'wiki:freiherrschaft-anderswo', 'Freiherrschaft Anderswo', 1, NULL)"
+);
+$falscherElternteilId = (int) $pdo->lastInsertId();
+$pdo->exec("UPDATE political_territory SET parent_id = {$falscherElternteilId} WHERE id = {$baronieId}");
+$movesWrongParent = avesmapsTerritoryPlanParentMoves($pdo);
+assert(isset($movesWrongParent['wiki:baronie-schwarztannen']), 'ein VORHANDENER, aber falscher Elternteil ist ebenso ein Umzug');
+assert($movesWrongParent['wiki:baronie-schwarztannen']['old_key'] === 'wiki:freiherrschaft-anderswo', 'der alte (falsche) Elternteil wird benannt');
+assert($movesWrongParent['wiki:baronie-schwarztannen']['old_name'] === 'Freiherrschaft Anderswo');
+assert($movesWrongParent['wiki:baronie-schwarztannen']['new_key'] === 'wiki:grafschaft-ragath', 'der Zielelternteil bleibt der aus dem Modell');
+
 $pdo->exec("UPDATE political_territory SET parent_id = NULL WHERE id = {$baronieId}"); // zurueck fuer den naechsten Teil
 
 // --- avesmapsTerritoryPlanCustomNodesToCreate: derselbe Filter wie ApplyCustomNodes im Trockenlauf --
@@ -171,5 +209,32 @@ $toCreateKeys = array_column($toCreate, 'wiki_key');
 assert($toCreateKeys === ['eigener-knoten:knoten001'], 'nur der platzierte, benannte, noch nicht angelegte Knoten');
 assert($toCreate[0]['name'] === 'Markgenossenschaft');
 assert($toCreate[0]['parent_wiki_key'] === 'wiki:grafschaft-ragath');
+
+// --- 💣 avesmapsTerritoryPlanCustomNodeParentName: ein VERKETTETER eigener Knoten zeigt einen Namen --
+//
+// Der Schreiber unterstuetzt custom->custom ausdruecklich ("funktioniert durch zwei Passes", sein
+// eigener Kommentar auf ApplyCustomNodes) -- $nodeCounts kennt aber nur LIVE-Territorien. Der Elternteil
+// eines verketteten, noch nicht angelegten Knotens muss deshalb aus der to-create-Liste selbst kommen,
+// nicht aus dem rohen Schluessel. PURE -- keine Datenbank noetig, $nodeCounts von oben wird nur gelesen.
+assert(
+    avesmapsTerritoryPlanCustomNodeParentName($nodeCounts, ['eigener-knoten:knoten005' => 'Markgrafschaft Zwo'], 'eigener-knoten:knoten005') === 'Markgrafschaft Zwo',
+    '💣 ein verketteter, noch nicht angelegter Elternteil zeigt seinen Namen, nicht seinen Schluessel'
+);
+assert(
+    avesmapsTerritoryPlanCustomNodeParentName($nodeCounts, [], 'wiki:grafschaft-ragath') === 'Grafschaft Ragath',
+    'ein LEBENDER Elternteil kommt weiterhin aus $nodeCounts'
+);
+assert(
+    avesmapsTerritoryPlanCustomNodeParentName($nodeCounts, ['wiki:grafschaft-ragath' => 'Falschname'], 'wiki:grafschaft-ragath') === 'Grafschaft Ragath',
+    'ein LEBENDER Elternteil hat Vorrang vor der to-create-Liste'
+);
+assert(
+    avesmapsTerritoryPlanCustomNodeParentName($nodeCounts, [], null) === '(Wurzel)',
+    'kein Elternteil bleibt die Wurzel'
+);
+assert(
+    avesmapsTerritoryPlanCustomNodeParentName($nodeCounts, [], 'eigener-knoten:unbekannt') === 'eigener-knoten:unbekannt',
+    'weder lebend noch in der Liste: der rohe Schluessel als letzter Ausweg, nicht verschluckt'
+);
 
 echo "territory-plan (sqlite) ok\n";

@@ -18,8 +18,13 @@ declare(strict_types=1);
  *
  * The rule (territory-derived-geometry-editor.js, isOwnDerivedBoundaryForbidden): a node owns a
  * derived outer boundary only if it is a pure container -- no own polygon AND it aggregates children --
- * or a root. So a move can flip two neighbours: the OLD parent losing its last child stops being a
- * container, and the NEW parent gaining its first one becomes one.
+ * or a ROOT. So a move can flip THREE roles, not two:
+ *
+ *   - the MOVED node itself: a root is eligible on that ground alone, whatever its geometry. Gaining a
+ *     parent ends that -- and in this project's model, most territories are CREATED parent-less by hand
+ *     and linked in later, so "was root, gains its first parent" is the common path, not an edge case.
+ *   - the OLD parent losing its last child stops being a container.
+ *   - the NEW parent gaining its first one becomes one.
  *
  * Returns '' when nothing flips. 💣 That matters: a note on every row is a note nobody reads.
  *
@@ -32,6 +37,25 @@ function avesmapsTerritoryPlanRoleShift(array $counts, string $child, ?string $o
 
     $isContainer = static fn(array $node): bool => (int) $node['own_geometry'] === 0 && (int) $node['children'] > 0;
     $parts = [];
+
+    // --- the moved node itself: does gaining a parent cost it its ROOT eligibility? -------------------
+    //
+    // Its own geometry/children counts are unaffected by whose child it is -- only the "is it a root"
+    // half of the rule changes. A move that ATTACHES a former root (was root, gains $newParent) can
+    // therefore lose eligibility; a container stays eligible either way, so this only fires when the
+    // moved node is NOT also a pure container.
+    if (isset($counts[$child])) {
+        $node = $counts[$child];
+        $wasEligible = $oldParent === null || $isContainer($node);
+        $staysEligible = $newParent === null || $isContainer($node);
+        if ($wasEligible && !$staysEligible) {
+            $parts[] = sprintf(
+                '%s verliert mit dem Umzug seinen Wurzelstatus und darf danach keine eigene Außengrenze '
+                . 'mehr haben — eine bestehende wird dadurch überflüssig.',
+                $node['name']
+            );
+        }
+    }
 
     if ($oldParent !== null && isset($counts[$oldParent])) {
         $before = $counts[$oldParent];
@@ -178,17 +202,23 @@ function avesmapsTerritoryPlanStep(PDO $pdo, string $cursor, int $userId, ?int $
     }
 
     // --- Neu: the own nodes that do not exist on the map yet --------------------------------------
+    //
+    // A custom node's parent can be ANOTHER not-yet-created custom node -- the writer supports this
+    // ("custom->custom funktioniert durch zwei Passes", its own comment on ApplyCustomNodes). $nodeCounts
+    // only knows LIVE territories, so such a parent needs a second lookup: the to-create list itself.
+    $toCreateNames = [];
     foreach ($toCreate as $node) {
-        $parentKey = $node['parent_wiki_key'] === null ? '' : (string) $node['parent_wiki_key'];
+        $toCreateNames[(string) $node['wiki_key']] = (string) $node['name'];
+    }
+    foreach ($toCreate as $node) {
+        $parentKey = $node['parent_wiki_key'] === null ? null : (string) $node['parent_wiki_key'];
         avesmapsSyncPlanAddItem($pdo, $runId, [
             'entity_key' => (string) $node['wiki_key'],
             'entity_public_id' => null,
             'change_type' => 'new',
             'label' => (string) $node['name'],
             'before' => [],
-            'after' => ['parent' => $parentKey === ''
-                ? '(Wurzel)'
-                : (string) ($nodeCounts[$parentKey]['name'] ?? $parentKey)],
+            'after' => ['parent' => avesmapsTerritoryPlanCustomNodeParentName($nodeCounts, $toCreateNames, $parentKey)],
             'override' => [],
             'selected' => avesmapsSyncPlanDefaultSelected('new', 0),
         ]);
@@ -207,6 +237,24 @@ function avesmapsTerritoryPlanStep(PDO $pdo, string $cursor, int $userId, ?int $
         'processed' => count($rows) + count($toCreate),
         'counts' => $counts,
     ];
+}
+
+/**
+ * The display name for a Neu-row's parent. PURE, and split out of avesmapsTerritoryPlanStep specifically
+ * so it can be tested without a database: a LIVE territory (from $nodeCounts) if there is one, else the
+ * matching entry in the SAME to-create list (a custom node chained under another not-yet-created custom
+ * node -- see the note at avesmapsTerritoryPlanStep's "Neu" loop), else the raw key as a last resort (more
+ * useful shown than swallowed, even though every key this is called with should resolve to one of the two).
+ *
+ * @param array<string,array{name:string,own_geometry:int,children:int}> $nodeCounts
+ * @param array<string,string> $toCreateNames wiki_key => name, built from the SAME to-create list
+ */
+function avesmapsTerritoryPlanCustomNodeParentName(array $nodeCounts, array $toCreateNames, ?string $parentKey): string {
+    if ($parentKey === null || $parentKey === '') {
+        return '(Wurzel)';
+    }
+
+    return (string) ($nodeCounts[$parentKey]['name'] ?? $toCreateNames[$parentKey] ?? $parentKey);
 }
 
 /**
