@@ -274,6 +274,14 @@ gelöst hätte — jedes ein zusammenhängendes Stück seiner *eigenen* Straße.
   Spalte bricht er dort auf drei Zeilen (35 → 61 px je Überschrift, bei zwölf Gruppen rund 300 px
   Scrollstrecke). Zugeklappt bleibt die Liste ihr Inhaltsverzeichnis.
 
+⚠️ **Erfasst sind Orte, Wege und das Konfliktzentrum — die Regionen NICHT.** Die drei teilen sich die
+Klassen `.wiki-sync-case*` und haben die neue Form deshalb in einem Zug geerbt (die Wege ohne eine
+Zeile JS, das Konfliktzentrum, weil es `createWikiSyncCaseElement` mitbenutzt). Die Regionenliste
+schreibt eigene Klassen (`region-sync__*`, `tree-item`) und ist unverändert geblieben: sie hat keine
+Fälle, sondern eine Arbeitsfläche mit den Reitern Alle / Platziert / Fehlt, auf der man eine fehlende
+Region auf die Karte **zieht**. Sie anzugleichen ist eine eigene, kleinere Aufgabe und war in dieser
+Sitzung nicht nötig, um die Divergenz zu beenden — die saß zwischen Fallliste und Blatt.
+
 ⚠️ **Live mit echten Daten nur mit Editor-Anmeldung sichtbar.** Belegt wurde in beiden Umgebungen
 (WikiSync-Panel und Konfliktzentrum) und in beiden Themes über eine Prüfseite mit der echten
 CSS-Kette — nicht am echten Fallbestand.
