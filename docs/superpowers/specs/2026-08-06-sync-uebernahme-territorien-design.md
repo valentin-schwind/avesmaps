@@ -1,6 +1,7 @@
 # Sync-Übernahme, Sitzung 4 — Herrschaftsgebiete
 
 **Stand:** 2026-08-06 · **Status:** abgestimmt (Owner, 06.08.2026) · **nicht gebaut** ·
+**Bauplan:** [`docs/superpowers/plans/2026-08-06-sync-uebernahme-sitzung-4.md`](../plans/2026-08-06-sync-uebernahme-sitzung-4.md) ·
 **Mockup:** [`docs/sync-uebernahme-territorien-mockup.html`](../../sync-uebernahme-territorien-mockup.html) (anklickbar) ·
 **Übergeordnet:** [`2026-08-06-sync-uebernahme-design.md`](2026-08-06-sync-uebernahme-design.md) §7, Sitzung 4 ·
 **Verwandt:** `docs/territories.md`, `docs/political-territory-global-display-and-derived-boundaries-plan.md`
