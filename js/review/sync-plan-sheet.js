@@ -19,6 +19,8 @@ const SYNC_PLAN_KIND_NOUNS = {
 	adventure: { one: "Abenteuer", many: "Abenteuer" },
 	publication: { one: "Quellenverweis", many: "Quellenverweise" },
 	lore: { one: "Eintrag", many: "Einträge" },
+	territory_wiki: { one: "Kopie", many: "Kopien" },
+	territory: { one: "Herrschaftsgebiet", many: "Herrschaftsgebiete" },
 };
 
 const SYNC_PLAN_KIND_TITLES = {
@@ -26,6 +28,8 @@ const SYNC_PLAN_KIND_TITLES = {
 	adventure: "Abenteuer aus dem Wiki übernehmen",
 	publication: "Publikationsquellen aus dem Wiki übernehmen",
 	lore: "Vorkommen aus dem Wiki übernehmen",
+	territory_wiki: "Die Wiki-Kopie der Herrschaftsgebiete nachführen",
+	territory: "Herrschaftsgebiete in die Karte übernehmen",
 };
 
 /**
@@ -85,6 +89,36 @@ const SYNC_PLAN_KIND_DELETION = {
 		},
 		actPlural: "Stilllegungen",
 	},
+	// Die Kopie einer Wiki-Seite, auf die KEIN Gebiet der Karte zeigt. Hängt eins daran, kommt die
+	// Zeile gar nicht erst her -- der Vorspann nennt sie trotzdem, sonst sähe es nach „alles erledigt" aus.
+	territory_wiki: {
+		hint: "im Wiki nicht mehr da · <b>nichts vorangehäkelt</b>",
+		lead: "Nur Kopien, auf die <b>kein</b> Gebiet auf der Karte zeigt. Was du <b>nicht</b> anhäkelst, "
+			+ "bleibt — dauerhaft, es wird nicht wieder gefragt.",
+		loss: {
+			lead: "Kein Wiki-Artikel mehr, und kein Gebiet auf der Karte zeigt darauf.",
+			counts: [],
+			sentence: (list, single) => "",
+		},
+		actPlural: "Löschungen",
+	},
+	// 💣 Ein Herrschaftsgebiet wird nie gelöscht -- der Abgleich hat dafür keinen Weg und hatte nie
+	// einen. Der Satz dazu steht in SYNC_PLAN_KIND_NO_DELETION_NOTE, weil der eingebaute für diese Art
+	// falsch wäre: hier steht das Verschwundene nicht in der Zeile des Eintrags, sondern in der
+	// anderen Vorschau.
+	territory: null,
+};
+
+/**
+ * Was eine Art, die nichts löscht, an dieser Stelle sagt. Ohne Eintrag gilt der eingebaute Satz.
+ *
+ * ⚠️ Nicht kosmetisch: „steht als Verlust in der Zeile des Eintrags" schickt einen Editor bei den
+ * Herrschaftsgebieten an eine Stelle, an der nichts steht.
+ */
+const SYNC_PLAN_KIND_NO_DELETION_NOTE = {
+	territory: "Ein Herrschaftsgebiet wird nie gelöscht. Der Abgleich hat dafür keinen Weg und hatte nie "
+		+ "einen — auch dann nicht, wenn sein Wiki-Artikel verschwindet. Verwaiste Kopien stehen in der "
+		+ "Vorschau von „🚨 Syncen\".",
 };
 
 /**
@@ -104,6 +138,15 @@ const SYNC_PLAN_LOSS_FIELDS = ["places_removed", "occurrences_removed", "sources
  * „3 entfallen" ohne Namen ist nichts, was man mit gutem Gewissen anhäkeln kann.
  */
 const SYNC_PLAN_LOSS_DETAIL = { sources_removed: "sources_removed_titles" };
+
+/**
+ * Pseudo-Felder, die keine Änderung sind, sondern eine Warnung ZU einer. Eigene Form, eigene Farbe —
+ * damit sie in einer vorangehäkelten Liste nicht als weitere Zeile „alt → neu" untergehen.
+ */
+const SYNC_PLAN_NOTE_FIELDS = ["boundary_note"];
+
+/** Felder, die nur die ZEILE informieren und nie selbst erscheinen. */
+const SYNC_PLAN_SILENT_FIELDS = ["pin_fields"];
 
 /** Die drei Kategorien und wie sie sich erklären. Reihenfolge = Anzeigereihenfolge. */
 const SYNC_PLAN_GROUPS = [
@@ -199,6 +242,33 @@ function syncPlanFieldLabel(field) {
 		continent: "Kontinent",
 		occurrences: "Vorkommen",
 		occurrences_removed: "Vorkommen entfallen",
+		// --- Herrschaftsgebiete (Sitzung 4). Dieselben deutschen Wörter, die der Territorien-Dialog
+		// und die Infobox benutzen -- zwei Beschriftungen für dasselbe Feld wären die Divergenz, die
+		// die Token-Regel für Farben verbietet.
+		type: "Staatsform",
+		status: "Status",
+		valid_from_bf: "Gegründet",
+		valid_to_bf: "Aufgelöst",
+		parent: "Eltern",
+		ruler: "Oberhaupt",
+		capital_name: "Hauptstadt",
+		seat_name: "Herrschaftssitz",
+		form_of_government: "Herrschaftsform",
+		language: "Sprache",
+		currency: "Währung",
+		trade_goods: "Handelswaren",
+		population: "Einwohnerzahl",
+		blazon: "Blasonierung",
+		founder: "Gründer",
+		founded_text: "Gründungsdatum",
+		dissolved_text: "Auflösung",
+		affiliation_root: "Zugehörigkeit",
+		affiliation_raw: "Zugehörigkeit (roh)",
+		trade_zone: "Handelszone",
+		geographic: "Geographisch",
+		political: "Politisch",
+		coat_of_arms_url: "Wappen",
+		fields_more: "weitere Felder",
 	};
 
 	return labels[field] || field;
@@ -287,6 +357,13 @@ function syncPlanDiffMarkup(item) {
 	const rows = [];
 
 	Object.keys(after).forEach((field) => {
+		if (SYNC_PLAN_SILENT_FIELDS.indexOf(field) >= 0) {
+			return;
+		}
+		if (SYNC_PLAN_NOTE_FIELDS.indexOf(field) >= 0) {
+			rows.push(`<dd class="diff__note">⚠ ${syncPlanEscape(after[field])}</dd>`);
+			return;
+		}
 		// Ein Verlust ist kein „alt → neu": es gibt kein Nachher, es gibt weniger. Eigene Farbe, eigene
 		// Form -- und damit die eine Zeile, die man in einer vorangehäkelten Liste nicht überliest.
 		if (SYNC_PLAN_LOSS_FIELDS.indexOf(field) >= 0) {
@@ -367,28 +444,38 @@ function syncPlanRowMarkup(item, kind) {
 		? `<span class="row__why">${syncPlanEscape(syncPlanLossMarkup(item, kind))}</span>`
 		: "";
 
+	// „Werte festhalten" schreibt den vorhandenen Override und beendet die Frage dauerhaft, OHNE das
+	// Gebiet aus der Pflege zu nehmen. Häkchen weg heißt weiterhin nur „diesmal nicht" (Entwurf §5).
+	const pinFields = String((item.after || {}).pin_fields || "");
+	const pin = pinFields === ""
+		? ""
+		: ` <button type="button" class="linkish" data-pin="${Number(item.id)}"`
+			+ ` data-pin-fields="${syncPlanEscape(pinFields)}">Werte festhalten</button>`;
+
 	const body = item.change_type === "new" ? syncPlanNewSummary(item) : syncPlanDiffMarkup(item);
 
 	return `<label class="row"><input type="checkbox" data-item-id="${Number(item.id)}"`
 		+ ` data-change-type="${syncPlanEscape(item.change_type)}"${item.selected ? " checked" : ""}>`
 		+ `<span><span class="row__name">${syncPlanEscape(item.label)}</span> ${tags.join(" ")}`
-		+ `${body}${why}</span></label>`;
+		+ `${body}${why}${pin}</span></label>`;
 }
 
 /** Eine Gruppe. Zugeklappt ist sie ihre Überschrift, aufgeklappt ihr Inhalt. */
-function syncPlanGroupMarkup(group, items, total, hiddenCount, kind) {
+function syncPlanGroupMarkup(group, items, total, hiddenCount, kind, extraLead) {
 	const meta = syncPlanKindMeta(kind);
 
 	// Eine Art, die nichts löscht, sagt genau das -- und behält die Gruppe, damit die drei Kategorien
 	// überall dieselben drei sind (Entwurf §2) und niemand sich fragt, wo die dritte hin ist.
 	if (group.key === "deleted" && meta.deletion === null) {
+		const note = SYNC_PLAN_KIND_NO_DELETION_NOTE[kind]
+			|| "Dieser Abgleich löscht nichts. Was das Wiki nicht mehr auflistet, steht als Verlust in der "
+				+ "Zeile des Eintrags, zu dem es gehört — dort, wo es sich abhäkeln lässt.";
 		return `<details class="grp" data-group="deleted"><summary>`
 			+ `<span class="grp__name">${group.name}</span>`
 			+ `<span class="grp__count">0</span>`
 			+ `<span class="grp__hint">dieser Abgleich löscht nichts</span>`
 			+ `</summary><div class="rows"><div class="row"><span></span><span class="row__sub">`
-			+ `Dieser Abgleich löscht nichts. Was das Wiki nicht mehr auflistet, steht als Verlust in der `
-			+ `Zeile des Eintrags, zu dem es gehört — dort, wo es sich abhäkeln lässt.`
+			+ `${note}`
 			+ `</span></div></div></details>`;
 	}
 
@@ -402,12 +489,13 @@ function syncPlanGroupMarkup(group, items, total, hiddenCount, kind) {
 		rows.push('<div class="row"><span></span><span class="row__sub">Nichts.</span></div>');
 	}
 
-	// Der Vorspann der Löschgruppe gehört der ART, nicht dieser Datei: bei den Karten verschwindet
-	// wirklich etwas, bei den Vorkommen wird stillgelegt. Ein Satz für beide wäre für den einen zu
-	// schwach und für den anderen zu stark — und eine zu starke Warnung wird weggeklickt (Entwurf §7).
-	const lead = group.key === "deleted" && total > 0 && meta.deletion
-		? `<p class="row__sub" style="margin:0 0 8px">${meta.deletion.lead}</p>`
+	// Der Vorspann der Löschgruppe gehört der ART -- und ein zweiter Satz dem LAUF: bei den Wiki-Kopien
+	// steht dort, welche NICHT angeboten werden, weil ein Kartengebiet an ihnen hängt. Der weiß nur der
+	// Server, und ohne ihn liest sich die Gruppe als „mehr ist nicht verschwunden".
+	const leadText = group.key === "deleted" && total > 0 && meta.deletion
+		? meta.deletion.lead + (extraLead ? `<br>${syncPlanEscape(extraLead)}` : "")
 		: "";
+	const lead = leadText === "" ? "" : `<p class="row__sub" style="margin:0 0 8px">${leadText}</p>`;
 
 	// 🔴 KEIN „alle" ÜBER DEN LÖSCHUNGEN. Bei 168 neuen Zeilen ist Einzelklicken keine Bedienung — bei
 	// Löschungen ist es genau das, was der Entwurf will: jede einzeln, mit Blick auf das, was mit ihr
@@ -449,7 +537,8 @@ function syncPlanSheetMarkup(plan) {
 			items[group.key] || [],
 			Number(counts[group.key] || 0),
 			Number(truncated[group.key] || 0),
-			kind
+			kind,
+			group.key === "deleted" ? String(counts.protected_note || "") : ""
 		))
 		.join("");
 
@@ -551,7 +640,8 @@ function syncPlanPost(post, body) {
  * irgendwem sonst. Er muss dieselben fünf Aktionen beantworten (get/select/apply/declined/undecline)
  * und dasselbe Antwortformat liefern — die Zeilen kommen fertig, das Blatt rechnet nichts nach.
  *
- * @param {{kind:string, mount:HTMLElement, post?:function, onApplied?:function, onClose?:function}} options
+ * @param {{kind:string, mount:HTMLElement, post?:function, onApplied?:function, onClose?:function,
+ *          onPin?:function}} options
  */
 async function openSyncPlanSheet(options) {
 	const mount = options && options.mount;
@@ -678,6 +768,23 @@ function syncPlanBindSheet(mount, plan, options) {
 			} catch (error) {
 				await openSyncPlanSheet(options); // neu laden ist ehrlicher als raten
 			}
+		});
+	});
+
+	// 💣 Die Zeile IST ein <label>. Ohne preventDefault UND stopPropagation schaltet dieser Klick das
+	// Häkchen der Zeile um -- der Editor hält einen Wert fest und häkelt dabei die Zeile ab.
+	sheet.querySelectorAll("[data-pin]").forEach((button) => {
+		button.addEventListener("click", async (event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			if (!options || typeof options.onPin !== "function") {
+				return;
+			}
+			button.disabled = true;
+			const fields = String(button.dataset.pinFields || "").split(",").filter(Boolean);
+			const ok = await options.onPin({ id: Number(button.dataset.pin), fields: fields });
+			button.textContent = ok === true ? "festgehalten" : "ging nicht — bitte erneut";
+			button.disabled = ok !== true;
 		});
 	});
 

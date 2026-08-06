@@ -345,4 +345,62 @@ sends.forEach((call) => {
 		`syncPlanPost ohne Sender als erstes Argument: ${call}`);
 });
 
+// --- Sitzung 4: die zwei Territorien-Arten ---------------------------------------------------------
+
+assert.equal(sandbox.syncPlanKindMeta("territory_wiki").title, "Die Wiki-Kopie der Herrschaftsgebiete nachführen");
+assert.equal(sandbox.syncPlanKindMeta("territory").deletion, null, "die Karte löscht nie");
+assert.equal(sandbox.syncPlanKindMeta("territory_wiki").nouns.many, "Kopien");
+
+// 💣 Der Satz der leeren Löschgruppe gehört der ART. Der fest verdrahtete Satz („steht als Verlust in
+// der Zeile des Eintrags") stimmt für die Karte nicht -- dort steht es in der Vorschau von „Syncen".
+const emptyDeleted = sandbox.syncPlanGroupMarkup({ key: "deleted", name: "Gelöscht", hint: "x" }, [], 0, 0, "territory");
+assert.ok(emptyDeleted.includes("Verwaiste Kopien"), "die Karte sagt, wo die verschwundenen stehen");
+assert.ok(!emptyDeleted.includes("in der Zeile des Eintrags"), "und nicht den Satz der anderen Arten");
+
+assert.equal(sandbox.syncPlanFieldLabel("valid_to_bf"), "Aufgelöst");
+assert.equal(sandbox.syncPlanFieldLabel("parent"), "Eltern");
+assert.equal(sandbox.syncPlanFieldLabel("ruler"), "Oberhaupt");
+
+// Der Warnblock ist keine Änderung: kein „alt → neu", eigene Form.
+const noted = sandbox.syncPlanDiffMarkup({
+    change_type: "changed",
+    before: { parent: "Grafschaft Ragath" },
+    after: { parent: "Fürstentum Almada", boundary_note: "Grafschaft Ragath verliert ihr letztes Kind." },
+});
+assert.ok(noted.includes("diff__note"), "der Hinweis bekommt seine eigene Form");
+assert.ok(noted.includes("Grafschaft Ragath verliert ihr letztes Kind."));
+assert.ok(!noted.includes("<dt>Außengrenzen</dt>"), "und steht nicht als Feldname in der Pfeilliste");
+
+// pin_fields informiert die Zeile und erscheint nie als Unterschied.
+const pinned = sandbox.syncPlanRowMarkup({
+    id: 7, label: "Baronie Hügelsee", change_type: "changed",
+    before: { name: "Baronie Hügelsee am Großen Fluss" },
+    after: { name: "Baronie Hügelsee", pin_fields: "name" },
+}, "territory");
+assert.ok(pinned.includes('data-pin="7"'), "die Zeile bietet „Werte festhalten\"");
+assert.ok(!pinned.includes("<dt>weitere Felder</dt>") && !pinned.includes("pin_fields"), "aber nennt das Pseudo-Feld nie");
+
+const unpinned = sandbox.syncPlanRowMarkup({
+    id: 8, label: "Mark Ragathsquell", change_type: "changed",
+    before: { parent: "A" }, after: { parent: "B" },
+}, "territory");
+assert.ok(!unpinned.includes("data-pin"), "eine reine Eltern-Zeile hat nichts festzuhalten");
+
+// 💣 Die Löschgruppe muss sagen, was sie NICHT anbietet. Bei den Kopien sind das die, an denen ein
+// Kartengebiet hängt -- eine Zahl, die man nicht sieht, liest sich als „alles erledigt".
+const withProtected = sandbox.syncPlanGroupMarkup(
+    { key: "deleted", name: "Gelöscht", hint: "x" },
+    [{ id: 1, label: "Baronie Alt-Gareth", change_type: "deleted", before: {}, after: {} }],
+    1, 0, "territory_wiki",
+    "Fünf weitere Kopien hängen an einem Gebiet (Grafschaft Wehrsold, …) und werden nicht angeboten."
+);
+assert.ok(withProtected.includes("Grafschaft Wehrsold"), "die geschützten stehen im Vorspann, mit Namen");
+assert.ok(withProtected.includes("kein</b> Gebiet auf der Karte"), "und der feste Satz der Art auch");
+const withoutProtected = sandbox.syncPlanGroupMarkup(
+    { key: "deleted", name: "Gelöscht", hint: "x" },
+    [{ id: 1, label: "X", change_type: "deleted", before: {}, after: {} }],
+    1, 0, "territory_wiki", ""
+);
+assert.ok(!withoutProtected.includes("werden nicht angeboten"), "ohne geschützte kein leerer Satz");
+
 console.log("sync-plan-sheet ok");

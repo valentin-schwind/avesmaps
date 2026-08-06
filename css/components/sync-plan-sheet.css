@@ -235,6 +235,18 @@
 	font-weight: 700;
 }
 
+/* Ein Hinweis zu einer Änderung, kein „alt → neu": volle Breite, Warnton, eigene Kante. Er sagt, was
+   die Zeile NEBENBEI bewirkt -- bei den Herrschaftsgebieten die Außengrenzen-Rolle. */
+.sync-plan-host .diff__note {
+	grid-column: 1 / -1;
+	color: var(--color-warning);
+	background: var(--color-warning-soft);
+	border-left: 3px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-sm);
+	padding: 6px 9px;
+	margin: 2px 0;
+}
+
 /* Was von Hand gesetzt ist und deshalb stehenbleibt — auffällig, aber keine Warnung. */
 .sync-plan-host .kept {
 	color: var(--color-warning);
