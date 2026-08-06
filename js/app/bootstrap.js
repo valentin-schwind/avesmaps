@@ -419,6 +419,15 @@ function openLegalSectionFromHash() {
 openLegalSectionFromHash();
 // Auch wenn jemand den Link einfuegt, waehrend die Karte schon offen ist.
 $(window).on("hashchange", () => openLegalSectionFromHash());
+
+// Die E-Mail-Adresse des Impressums anklickbar machen (Befund A24, zweite Haelfte). Sie STEHT schon
+// im HTML -- ohne diesen Aufruf bleibt sie lesbar, nur nicht klickbar. Deshalb derselbe try/catch
+// wie oben: ein ausgefallenes Blattmodul darf nicht die halbe Bedienung kosten.
+try {
+    avesmapsActivateLegalMail(document);
+} catch (error) {
+    // Die Adresse bleibt als Text stehen -- genau das ist der Rueckfall, den dieses Markup vorsieht.
+}
 $("#legal-close").on("click", () => setLegalDialogOpen(false));
 $("#legal-overlay").on("click", function (event) {
     if (event.target === this) {

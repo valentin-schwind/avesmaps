@@ -2339,6 +2339,15 @@
 						     Das Wort „Impressum" steht damit sichtbar in der Abschnittsliste, statt im dritten
 						     Absatz eines Fliesstextes zu stecken -- leichter auffindbar als vorher, nicht schwerer. -->
 						<p><strong data-i18n="legal.responsible.lead">Betreiber/Impressum.</strong> <span data-i18n="legal.responsible.body">Entwicklung, Gestaltung, Programmierung und Betrieb erfolgen durch Valentin Schwind (c/o Nobelstr. 10, D-70569 Stuttgart); bei der Programmierung wird Claude Code eingesetzt. Verantwortlich für die redaktionelle Pflege der Mapinhalte ist Thomas Braun.</span></p>
+						<!-- 💣 Die Adresse steht hier als Zeichen-Entitaeten, nicht im Klartext: der Browser macht
+						     daraus echten Text (lesbar, vorlesbar, kopierbar), im ausgelieferten Quelltext gibt es
+						     aber kein `@` zu finden. Auch das Verweis-Schema fehlt hier ganz -- js/app/legal-mail.js
+						     haengt es erst im Browser an, und der Test haelt diese Datei frei davon. Ohne JavaScript
+						     bleibt die Adresse LESBAR, nur nicht klickbar; das ist der Teil, den § 5 DDG mit
+						     „unmittelbar erreichbar" meint.
+						     🔴 Nicht unter data-i18n stellen: eine Adresse wird nicht uebersetzt, und die
+						     Sprachtabelle traegt den Klartext, den dieser Absatz gerade vermeidet. -->
+						<p><strong data-i18n="legal.responsible.mailLead">E-Mail.</strong> <span id="legal-mail">&#105;&#110;&#102;&#111;&#64;&#97;&#118;&#101;&#115;&#109;&#97;&#112;&#115;&#46;&#100;&#101;</span></p>
 						<div class="legal-contact">
 														<p class="legal-contact__hint" data-i18n="legal.contact.hint">Fragen, Korrekturen oder Datenschutz-Anliegen? Deine Nachricht und (falls angegeben) deine E-Mail-Adresse werden nur zur Bearbeitung deiner Anfrage genutzt und nicht weitergegeben.</p>
 							<p class="legal-contact__hint"><span data-i18n="legal.contact.discord">Oder komm direkt in unsere Community auf Discord:</span> <a href="https://discord.gg/BSHEEpn6UX" target="_blank" rel="noopener noreferrer">discord.gg/BSHEEpn6UX</a></p>
@@ -2663,6 +2672,7 @@
 		<script src="js/ui/spotlight-search.js"></script>
 		<script src="js/ui/spotlight-search-focus.js"></script>
 		<script src="js/app/legal-anchor.js"></script>
+		<script src="js/app/legal-mail.js"></script>
 		<script src="js/app/bootstrap.js"></script>
 		<script src="js/review/review-mail.js"></script>
 		<script src="js/app/perf-trace.js"></script>

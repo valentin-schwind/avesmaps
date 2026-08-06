@@ -1124,6 +1124,51 @@ Rechteinhaber, der Kontakt sucht, praktisch nicht auffindbar.
 >    spricht §5 TMG („unmittelbar erreichbar", ohne JavaScript); dagegen, dass eine neue,
 >    indexierbare URL mit deinen Betreiberdaten eine Veröffentlichungsentscheidung ist. **Die treffe
 >    ich nicht.** Sag Bescheid, dann baue ich sie.
+>
+> ---
+>
+> **✅ BEANTWORTET UND GEBAUT, 06.08.2026.** Owner: `info@avesmaps.de`, **keine** eigene Seite —
+> und die Rückfrage, warum das Kontaktformular nicht reicht, plus „mach es absolut spamsicher".
+>
+> **Warum das Formular nicht reicht.** § 5 DDG (bis Mai 2024 § 5 TMG) verlangt Angaben zur schnellen
+> elektronischen Kontaktaufnahme „**einschliesslich der Adresse der elektronischen Post**" — die
+> Adresse steht im Gesetzestext selbst. Der EuGH hat das Formular 2008 (C-298/07) ausdrücklich als
+> den **zweiten** Kanal eingeordnet, den ein Anbieter zusätzlich anbieten kann, nicht als Ersatz.
+> Beides steht jetzt nebeneinander.
+>
+> 🔴 **„Absolut spamsicher" gibt es nicht, und der Commit behauptet es nicht.** Was ein Mensch lesen
+> kann, liest auch ein Programm, das die Seite wirklich darstellt. Gebaut ist die Stufe darunter, und
+> die erwischt fast alle:
+>
+> | | |
+> |---|---|
+> | Adresse im ausgelieferten HTML | **als Zeichen-Entitäten**, kein `@` im Quelltext |
+> | `mailto:` im ausgelieferten HTML | **kommt nicht vor** — `js/app/legal-mail.js` hängt es erst im Browser an |
+> | Gemessen an den ausgelieferten Bytes | `info@avesmaps.de` **nicht enthalten**, `mailto:` **nicht enthalten**, überhaupt **keine** Zeichenkette der Form `@domain.tld` |
+> | ohne JavaScript | Adresse **lesbar**, nur nicht klickbar — das ist der Teil, den „unmittelbar erreichbar" meint |
+>
+> 💣 **Deshalb steht die Adresse im HTML und wird nur VERLINKT.** Wer sie stattdessen erst per
+> JavaScript einsetzt, hat sie für jeden ohne JavaScript gelöscht — und das Impressum ist die eine
+> Seite, bei der man das nicht darf. Aus demselben Grund liegt sie **nicht** unter `data-i18n`: eine
+> Adresse wird nicht übersetzt, und die Sprachtabelle wird mitgeliefert — der Schlüssel dort wäre
+> genau die Klartextkopie, die dieser Absatz vermeidet. Übersetzt wird nur das Wort „E-Mail."
+>
+> **Sieben Mutationen, jede mit Nachweis, dass sie auf der Platte landete, alle rot:** der Aufruf in
+> `bootstrap.js` entfernt · **eine** Entität verfälscht (die Adresse wäre still falsch, die Seite
+> sähe richtig aus) · Adresse im Klartext statt als Entitäten · der Adressprüfer sagt immer ja
+> (toter `mailto:`-Knopf) · der Riegel gegen einen zweiten Link entfernt · das `<script>` entfernt ·
+> **die Ladereihenfolge gekippt**.
+>
+> 💣 **Die letzte ist die, die man baut, ohne es zu merken.** Steht `legal-mail.js` hinter
+> `bootstrap.js`, ist die Funktion beim Aufruf nicht da, der `try/catch` schluckt es, die Adresse
+> bleibt als Text stehen — und **nichts sieht kaputt aus**. Ich hatte die Zusicherung zuerst nicht,
+> sie kam erst dazu, nachdem ich die Reihenfolge zufällig richtig getroffen hatte.
+>
+> **Im Browser geprüft** (lokal, `#impressum`): Fenster offen, „Kontakt und Impressum" aufgeklappt,
+> Absatz „E-Mail. info@avesmaps.de", **genau ein** Link mit `href="mailto:info@avesmaps.de"`.
+> ⚠️ Meine erste Messung war wieder zu früh — die Seite lädt ~117 Skripte, `bootstrap.js` steht am
+> Ende, und ich las, bevor es lief: „kein Link" war die Antwort einer Seite, die noch nicht fertig
+> war. Erst mit Abstand zwischen Laden und Lesen war die Messung etwas wert.
 
 ### 📐 A25 · Das vollständige Kartenmaterial ist als Archiv verlinkt
 **1,86 GB PNG plus 169 MB Kacheln.** Das steht in Spannung zur eigenen Fanregel-Zusage in
