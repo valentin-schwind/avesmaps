@@ -8,7 +8,17 @@ Konsequenz. 4 ist eine Warnung.
 
 ---
 
-## 1 · `api/config.local.php` — der Besucher-Salt ✅ empfohlen
+## 1 · `api/config.local.php` — der Besucher-Salt ✅ ERLEDIGT 06.08.2026
+
+> **Gesetzt vom Owner.** Gegengeprüft wurde das, was von aussen prüfbar ist — dass die Datei parst
+> und das Backend gesund blieb: `map-features.php` 200 / 19.236.101 Bytes, `/api/locations/` 200 /
+> 962.079 Bytes, `visitor-metrics.php` 401 (er lädt und weist anonym korrekt ab). Der Wert selbst
+> steht hinter der Fähigkeit `edit` und ist von aussen nicht sichtbar — richtig so.
+>
+> Bestätigen, eingeloggt: `https://avesmaps.de/api/app/visitor-metrics.php` → `"salt_configured": true`.
+> ⚠️ Keine Oberfläche zeigt das an; es steht nur in der JSON-Antwort.
+
+Der ursprüngliche Auftrag, zum Nachlesen:
 
 **Befund A23.** Die Datenschutzerklärung sagt, die Besucherkennung sei nicht rückführbar. Der Wert,
 mit dem sie gebildet wird, steht bis dahin im öffentlichen Quelltext — ein gespeicherter Hash deckt

@@ -1027,6 +1027,31 @@ Salt wird konfigurierbar, oder die Zusage muss anders formuliert werden.
 > hält, meldet die Kennzahlen-Antwort jetzt `salt_configured` — hinter der Fähigkeit `edit`, also für
 > Bearbeiter sichtbar und für sonst niemanden.
 >
+> ---
+>
+> **✅ GESETZT VOM OWNER, 06.08.2026 — die Zusage ist damit eingelöst.**
+>
+> ⚠️ **Was ich davon prüfen konnte und was nicht, getrennt gehalten.** Das eigentliche Risiko dieser
+> Änderung ist nicht der Salt, sondern die **Datei**: `api/config.local.php` wird von jedem Endpunkt
+> geladen, ein Syntaxfehler darin ist eine Seite ohne Backend. Fünf Einzelabrufe, keine Schleife:
+>
+> | | |
+> |---|---|
+> | `map-features.php` | **200 · 19.236.101 Bytes** (unverändert) |
+> | `map-search.php?q=Gareth` | **200** |
+> | `visitor-metrics.php` | **401** — er lädt also, und weist anonym korrekt ab |
+> | `changelog.php` | **200** |
+> | `/api/locations/` | **200 · 962.079 Bytes** — dieselbe Zahl wie bei der A13(c)-Probe |
+>
+> Die Datei parst, das Backend ist gesund. **Den Wert selbst kann ich von aussen nicht sehen** —
+> `salt_configured` steht hinter der Fähigkeit `edit`, und das ist richtig so. Bestätigen kann ihn nur
+> der Owner, eingeloggt, an der Antwort von `/api/app/visitor-metrics.php`.
+>
+> ⚠️ **Eine kleine Lücke bleibt und sei benannt:** `salt_configured` wird *gemeldet*, aber **keine
+> Oberfläche zeigt es an**. Wer den Zustand wissen will, muss einen Endpunkt von Hand aufrufen. Für
+> eine Zusage, die in der Datenschutzerklärung steht, ist das dünn — eine Zeile im
+> Kennzahlen-Bildschirm wäre der richtige Ort. Nicht gebaut, nicht beauftragt.
+>
 > Zwei Testdateien, und die Trennung ist der Punkt, nicht Ordnungsliebe: eine Konstante lässt sich
 > nicht neu definieren und der Auflöser cached in einem `static`, „ohne Überschreibung" und „mit"
 > passen also nicht in einen Prozess. Sie zusammenzulegen hiesse, eine der beiden Hälften aus dem
