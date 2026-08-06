@@ -34,30 +34,41 @@ $ipFor = static function (?string $forwardedFor, ?string $remoteAddress): string
 // --- The ordinary cases ---------------------------------------------------------------------------
 assert($ipFor(null, '203.0.113.7') === '203.0.113.7', 'no header: the peer address is the key');
 assert($ipFor(null, '2001:db8::1') === '2001:db8::1', 'IPv6 counts as an address');
-assert($ipFor('198.51.100.9', '203.0.113.7') === '198.51.100.9', 'a valid forwarded address is used');
-assert($ipFor('  198.51.100.9  ', '203.0.113.7') === '198.51.100.9', 'padding is trimmed');
-assert($ipFor('198.51.100.9, 203.0.113.7', '10.0.0.1') === '198.51.100.9', 'a list still uses the leftmost VALID one');
 
-// --- 💣 The finding: an unvalidated header was a free bucket ---------------------------------------
+// --- 💣 DER KOPF WIRD NICHT MEHR GELESEN (A29, zweite Haelfte, 06.08.2026) -------------------------
 //
-// The old version returned whatever the leftmost element was, cut to 64 characters. A different
-// string per request was a different bucket, so five reports per hour meant five per REQUEST for
-// anyone who noticed. Junk is skipped now, and the caller falls back to their own peer address --
-// which is exactly the one they were trying not to be counted under.
-assert($ipFor('not-an-ip', '203.0.113.7') === '203.0.113.7', 'junk in the header falls back to the real peer');
+// Ohne Zwischenserver gehoert X-Forwarded-For dem AUFRUFER. Jeder Wert war ein frischer
+// Drossel-Eimer; die Pruefung auf eine gueltige IP (864fe864) nahm dem nur die Bequemlichkeit --
+// eine syntaktisch richtige, FREMDE Adresse wurde weiterhin geglaubt.
+//
+// 📊 Gemessen, nicht angenommen: api/edit/admin/proxy-check.php meldete am 06.08.2026
+// `forwarded_header_present: false` und `proxy_evidence_headers: []`. Es kommt kein Kopf an.
+assert($ipFor('198.51.100.9', '203.0.113.7') === '203.0.113.7', 'ein weitergereichter Wert wird ignoriert');
+assert($ipFor('  198.51.100.9  ', '203.0.113.7') === '203.0.113.7', 'auch sauber formatiert');
+assert($ipFor('198.51.100.9, 203.0.113.7', '10.0.0.1') === '10.0.0.1', 'und eine ganze Kette ebenso');
+assert($ipFor('not-an-ip', '203.0.113.7') === '203.0.113.7', 'Muell erst recht');
 assert($ipFor('<script>alert(1)</script>', '203.0.113.7') === '203.0.113.7', 'and so does markup');
 assert($ipFor(str_repeat('a', 64), '203.0.113.7') === '203.0.113.7', 'and a 64-character filler');
-assert($ipFor('999.999.999.999', '203.0.113.7') === '203.0.113.7', 'a number-shaped non-address is still not an address');
 
-// 💣 The property that turns the bypass off: two DIFFERENT junk values must land in the SAME bucket.
-// Under the old code they were two buckets, which is what made the throttle optional.
+// 💣 DIE EIGENSCHAFT, DIE DEN AUSWEG SCHLIESST: der Kopf darf den Eimer NICHT beeinflussen. Egal
+// was drinsteht -- derselbe Nachbar, derselbe Eimer. Vorher kaufte jeder neue Wert einen neuen.
+$eimer = [
+    $ipFor(null, '203.0.113.7'),
+    $ipFor('198.51.100.9', '203.0.113.7'),
+    $ipFor('203.0.113.99', '203.0.113.7'),
+    $ipFor('junk-one', '203.0.113.7'),
+    $ipFor('junk-two', '203.0.113.7'),
+    $ipFor('1.1.1.1, 2.2.2.2, 3.3.3.3', '203.0.113.7'),
+];
+assert(count(array_unique($eimer)) === 1, 'kein Kopfwert kauft einen zweiten Eimer -- alle sechs sind derselbe');
+assert($eimer[0] === '203.0.113.7', 'und es ist der des echten Gegenuebers');
+
+// 💣 UND DIE GEGENRICHTUNG, die genauso schlimm war: wer die Adresse eines FREMDEN schickte, sperrte
+// diesen aus. Zwei verschiedene Gegenueber duerfen sich nicht ueber den Kopf denselben Eimer teilen.
 assert(
-    $ipFor('junk-one', '203.0.113.7') === $ipFor('junk-two', '203.0.113.7'),
-    'two different forged headers no longer buy two different buckets'
+    $ipFor('198.51.100.9', '203.0.113.7') !== $ipFor('198.51.100.9', '203.0.113.8'),
+    'derselbe gefaelschte Kopf sperrt keinen Fremden mehr aus'
 );
-
-// A list of junk followed by a real address uses the real one rather than giving up.
-assert($ipFor('junk, 198.51.100.9', '203.0.113.7') === '198.51.100.9', 'the first VALID element wins, not the first element');
 
 // --- The privacy half -----------------------------------------------------------------------------
 //
@@ -75,17 +86,36 @@ assert($ipFor(null, 'not-an-ip') === '', 'an unusable peer address yields no key
 assert($ipFor(null, null) === '', 'and a missing one likewise');
 assert($ipFor('junk', 'also-junk') === '', 'junk on both sides collapses to the same empty bucket');
 
-// --- 💣 What this change deliberately does NOT do -------------------------------------------------
+// --- ✅ DIE LUECKE IST ZU, und dieser Marker war genau dafuer gedacht ------------------------------
 //
-// A syntactically valid address the caller does not own is still believed. Closing that means
-// deciding whether X-Forwarded-For may be trusted at all, which depends on whether a reverse proxy
-// sits in front: with one, REMOTE_ADDR is identical for every visitor, and switching to it would put
-// the whole site into a single bucket and lock everyone out after five reports. That question is open
-// and belongs to the owner. This assert states the remaining hole so it cannot be forgotten -- it is
-// meant to CHANGE when that decision lands, not to be quietly deleted.
+// 💣 Hier stand: „a forged but well-formed address is still trusted -- the open half of A29", mit
+// dem Vermerk, die Zusicherung sei zum UMDREHEN gedacht, nicht zum Loeschen. Sie ist umgedreht.
+//
+// Die Entscheidung, die dahinter fehlte: darf X-Forwarded-For ueberhaupt geglaubt werden? Das hing
+// daran, ob ein Zwischenserver davorsteht -- mit einem waere REMOTE_ADDR fuer jeden Besucher
+// derselbe Wert, und die Umstellung darauf haette die ganze Seite in EINEN Eimer geworfen. Beantwortet
+// am 06.08.2026 durch api/edit/admin/proxy-check.php: kein Kopf, kein Beweis-Kopf, kein
+// Zwischenserver.
 assert(
-    $ipFor('198.51.100.9', '203.0.113.7') === '198.51.100.9',
-    'a forged but well-formed address is still trusted -- the open half of A29'
+    $ipFor('198.51.100.9', '203.0.113.7') === '203.0.113.7',
+    'eine gefaelschte, aber wohlgeformte Adresse wird NICHT mehr geglaubt -- A29 ist zu'
+);
+
+// 🔴 UND DER WEG ZURUECK, falls je ein Zwischenserver davorkommt, ist NICHT „den Kopf wieder
+// pauschal glauben", sondern eine Liste der Adressen, denen man ihn glaubt. Diese Zusicherung haelt
+// fest, dass niemand den alten Zweig einfach wieder einbaut: taucht `HTTP_X_FORWARDED_FOR` in
+// bootstrap.php wieder auf, soll das eine bewusste Entscheidung sein und keine Ruecknahme aus
+// Versehen.
+$bootstrapSource = file_get_contents(__DIR__ . '/../bootstrap.php');
+assert(is_string($bootstrapSource) && $bootstrapSource !== '', 'bootstrap.php ist lesbar');
+$funktion = null;
+if (preg_match('/function avesmapsClientIpAddress\(\): string \{(.*?)\n\}/s', $bootstrapSource, $treffer) === 1) {
+    $funktion = $treffer[1];
+}
+assert(is_string($funktion), 'der Schluesselbildner laesst sich isolieren');
+assert(
+    !preg_match('/^\s*[^\/\n].*HTTP_X_FORWARDED_FOR/m', $funktion),
+    'der Schluesselbildner LIEST den Kopf nicht mehr -- nur die Kommentare erwaehnen ihn'
 );
 
 echo "client-ip ok\n";

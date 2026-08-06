@@ -81,9 +81,17 @@ assert($mit['forwarded_header_present'] === true, 'mit Proxy kommt der Kopf an')
 assert($mit['forwarded_entry_count'] === 1, 'eine Station');
 assert($mit['remote_addr_differs_from_forwarded'] === true, 'und REMOTE_ADDR ist ein anderer -- er selbst');
 assert($mit['proxy_evidence_headers'] === ['Via'], 'der Beweis-Kopf wird beim NAMEN genannt');
-// 🔴 Und hier nimmt die Drossel den weitergereichten Wert -- eine Umstellung auf REMOTE_ADDR wuerfe
-// alle Besucher in EINEN Eimer.
-assert($mit['client_key_source'] === 'forwarded', 'die Drossel nimmt den weitergereichten Wert');
+// 🔴 SEIT DEM 06.08.2026 NIMMT DIE DROSSEL AUCH HIER REMOTE_ADDR -- der Kopf wird nicht mehr
+// gelesen (A29, zweite Haelfte). Diese Zusicherung sagte bis dahin `forwarded`, und sie hat sich
+// mitgeaendert, OHNE dass jemand die Diagnose angefasst hat: `client_key_source` wird aus dem echten
+// avesmapsClientIpAddress() abgeleitet. Genau dafuer ist die Ableitung da.
+//
+// ⚠️ Und das ist zugleich die WARNUNG, die die Diagnose weiter aussprechen muss: kaeme ein
+// Zwischenserver, wuerden hier alle Besucher denselben Schluessel bekommen. Die Felder darueber --
+// `forwarded_header_present` und `proxy_evidence_headers` -- sind das, was diesen Fall anzeigt,
+// nicht mehr `client_key_source`.
+assert($mit['client_key_source'] === 'remote_addr', 'der Kopf wird nicht mehr geglaubt, auch nicht mit Via');
+assert($mit['forwarded_header_present'] === true, 'die Diagnose meldet ihn trotzdem -- sie misst, sie urteilt nicht');
 
 // ---- Fall 3: eine Kette --------------------------------------------------------------------------
 

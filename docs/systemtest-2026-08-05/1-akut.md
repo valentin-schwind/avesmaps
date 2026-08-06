@@ -1661,6 +1661,53 @@ ist von außen nicht feststellbar und wäre als Verlass darauf ohnehin keine Ver
 > aus dem Befund von selbst. ⚠️ **Ohne eigenen `X-Forwarded-For`-Kopf**, sonst misst man sich selbst;
 > ein normaler Browser-Aufruf tut genau das Richtige. 221/221 grün.
 >
+> ---
+>
+> **✅ A29 IST ZU — gemessen, entschieden, gebaut, 06.08.2026.** Die Antwort des Owners:
+>
+> ```
+> forwarded_header_present : false      proxy_evidence_headers : []
+> forwarded_entry_count    : 0          client_key_source      : remote_addr
+> ```
+>
+> **Kein Zwischenserver.** Kein Weiterreich-Kopf, kein `Via`, kein `X-Real-IP`. Der zweite,
+> unabhängige Beleg passt dazu: die **92 verschiedenen `ip_hash`** entstanden unter der alten Regel,
+> die den Kopf *bevorzugt* hätte — da keiner ankommt, waren sie bereits `REMOTE_ADDR`-basiert. Zwei
+> Messungen, dieselbe Aussage: `REMOTE_ADDR` unterscheidet die Besucher.
+>
+> **Gebaut:** `avesmapsClientIpAddress()` liest `X-Forwarded-For` **gar nicht mehr**.
+>
+> ⭐ **Für echte Besucher ändert sich dadurch nichts** — da ohnehin kein Kopf ankommt, war
+> `REMOTE_ADDR` schon vorher der genommene Zweig. Gespeicherte `ip_hash`-Werte bleiben gültig, die
+> Besucherzahlen machen keinen Sprung. Wirksam wird die Änderung **allein** gegen den, der sich einen
+> Kopf selbst schickt.
+>
+> **Beide Richtungen des Befundes sind damit zu**, und die zweite wurde bisher kaum genannt: wer die
+> Adresse eines **Fremden** schickte, sperrte diesen aus. Eine eigene Zusicherung hält jetzt fest,
+> dass zwei verschiedene Gegenüber sich über den Kopf **nicht** denselben Eimer teilen können.
+>
+> ⚠️ **Ein alter Marker hat gehalten, der zweite heute.** In `client-ip-test.php` stand
+> „*a forged but well-formed address is still trusted — the open half of A29*" mit dem Vermerk, die
+> Zusicherung sei zum **Umdrehen** gedacht, nicht zum Löschen. Sie ist umgedreht.
+>
+> ⭐ **Und die Diagnose hat sich von selbst mitgeändert.** `client_key_source` wird aus dem **echten**
+> `avesmapsClientIpAddress()` abgeleitet — der Testfall „Zwischenserver mit `Via`" meldet seit dieser
+> Änderung `remote_addr` statt `forwarded`, **ohne dass jemand die Diagnose angefasst hat**. Genau
+> dafür war die Ableitung da; eine nachgebaute Verzweigung hätte weiter das Alte behauptet. Was den
+> Proxy-Fall künftig anzeigt, sind `forwarded_header_present` und `proxy_evidence_headers` — nicht
+> mehr `client_key_source`.
+>
+> 🔴 **Stellt STRATO je einen Zwischenserver davor, ist diese Zeile falsch:** dann landen alle
+> Besucher in **einem** Eimer und die Meldestrecke ist nach fünf Meldungen für die ganze Seite
+> gesperrt. Das fällt sofort auf, und die Diagnose sagt in einem Aufruf, ob es so weit ist. Der Weg
+> zurück ist dann **nicht** pauschales Vertrauen in den Kopf, sondern eine **Liste der Adressen,
+> denen man ihn glaubt** — bewusst nicht auf Vorrat gebaut: eine leere Liste, die niemand pflegt, ist
+> eine zweite Betriebsart, die nie jemand geprüft hat. Eine Zusicherung bewacht, dass niemand den
+> alten Zweig aus Versehen wieder einbaut.
+>
+> **Zwei Mutationen, beide rot:** der alte Zweig wieder eingebaut · `REMOTE_ADDR` ungeprüft
+> durchgereicht. 221/221 grün.
+>
 > 🔁 **Und die Live-Probe hat einen Fehler in dem gefunden, was ich gerade ausgeliefert hatte**
 > (`6b58d1d3` → behoben). Ein anonymer **POST** antwortete **405** statt 401: die Methodenprüfung
 > stand vor dem Riegel und verriet damit einem Unbefugten, dass es diesen Endpunkt gibt und dass er

@@ -322,16 +322,36 @@ function avesmapsParseMapCoordinate(mixed $value, string $fieldName): float {
 // site in one bucket. That question is open (owner decision, see docs/systemtest-2026-08-05/1-akut.md
 // A29); this change is correct under every answer to it, which is why it did not wait for one.
 function avesmapsClientIpAddress(): string {
-    $forwardedFor = trim((string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
-    if ($forwardedFor !== '') {
-        foreach (explode(',', $forwardedFor) as $candidate) {
-            $candidate = trim($candidate);
-            if (filter_var($candidate, FILTER_VALIDATE_IP) !== false) {
-                return $candidate;
-            }
-        }
-    }
-
+    // 💣 X-FORWARDED-FOR WIRD NICHT MEHR GELESEN (Befund A29, zweite Haelfte, 06.08.2026).
+    //
+    // Der Kopf gehoert dem AUFRUFER, solange kein Zwischenserver davorsteht -- er kann ihn frei
+    // setzen, und jeder neue Wert war ein frischer Drossel-Eimer. Die Pruefung auf eine gueltige IP
+    // (864fe864) nahm dem nur die Bequemlichkeit: eine syntaktisch richtige, FREMDE Adresse wurde
+    // weiterhin geglaubt. Damit war jede der vier Drosseln im Haus einen Kopf weit von wirkungslos
+    // entfernt -- und umgekehrt sperrte, wer die Adresse eines Fremden schickte, diesen aus.
+    //
+    // 📊 DIE ENTSCHEIDUNG STEHT AUF EINER MESSUNG, NICHT AUF EINER ANNAHME. Von aussen ist die
+    // Topologie nicht ablesbar, dafuer gibt es api/edit/admin/proxy-check.php. Owner-Messung vom
+    // 06.08.2026: `forwarded_header_present: false`, `forwarded_entry_count: 0`,
+    // `proxy_evidence_headers: []` -- es kommt kein Weiterreich-Kopf an und kein Via/X-Real-IP.
+    // Zweiter, unabhaengiger Beleg: 92 verschiedene `ip_hash` im Bestand. Die entstanden unter der
+    // alten Regel, die den Kopf BEVORZUGT haette -- da keiner ankommt, waren sie bereits
+    // REMOTE_ADDR-basiert. Beide Messungen sagen dasselbe: REMOTE_ADDR unterscheidet die Besucher.
+    //
+    // ⭐ FUER ECHTE BESUCHER AENDERT SICH NICHTS. Da ohnehin kein Kopf ankommt, war REMOTE_ADDR
+    // schon vorher der genommene Zweig -- gespeicherte `ip_hash`-Werte bleiben gueltig, die
+    // Besucherzahlen machen keinen Sprung. Wirksam wird diese Aenderung allein gegen den, der sich
+    // einen Kopf selbst schickt, und das ist ihr ganzer Zweck.
+    //
+    // 🔴 STELLT STRATO JE EINEN ZWISCHENSERVER DAVOR, IST DIESE ZEILE FALSCH. Dann waere
+    // REMOTE_ADDR fuer JEDEN Besucher derselbe Wert, alle landen in EINEM Eimer, und nach fuenf
+    // Meldungen ist die Meldestrecke fuer die ganze Seite gesperrt. Das faellt sofort auf, und die
+    // Diagnose oben sagt in einem Aufruf, ob es so weit ist. Der Weg zurueck ist dann NICHT
+    // pauschales Vertrauen in den Kopf, sondern eine Liste der Adressen, denen man ihn glaubt:
+    // nur wenn REMOTE_ADDR eine davon ist, zaehlt das RECHTESTE Element. Bewusst nicht auf Vorrat
+    // gebaut -- eine leere Liste, die niemand pflegt, ist eine zweite Betriebsart, die nie jemand
+    // geprueft hat.
+    //
     // ⚠️ An empty return is deliberate and is the SAFE direction: everyone whose address cannot be
     // established shares one bucket, rather than each getting a private one keyed on their own junk.
     $remoteAddress = trim((string) ($_SERVER['REMOTE_ADDR'] ?? ''));

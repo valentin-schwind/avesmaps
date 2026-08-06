@@ -65,11 +65,17 @@ function avesmapsProxySignals(): array {
         }
     }
 
-    // 🔴 Der echte Schluesselbildner, nicht seine Nachbildung.
+    // 🔴 Der echte Schluesselbildner, nicht seine Nachbildung -- und genau deshalb hat sich diese
+    // Zeile am 06.08.2026 von selbst mitgeaendert: seit der Kopf nicht mehr gelesen wird, antwortet
+    // sie `remote_addr`, wo sie vorher `forwarded` gesagt haette. Eine nachgebaute Verzweigung haette
+    // hier weiter das Alte behauptet, und die Diagnose beschriebe eine Funktion, die es nicht gibt.
     $clientKey = avesmapsClientIpAddress();
     $keySource = 'none';
     if ($clientKey !== '') {
-        // Reihenfolge wie im Original: der Weiterreich-Kopf hat Vorrang, sonst REMOTE_ADDR.
+        // ⚠️ `forwarded` ist seit dem 06.08.2026 nicht mehr erreichbar -- ausser der weitergereichte
+        // Wert IST zufaellig das Gegenueber. Der Zweig bleibt stehen, weil er nichts behauptet,
+        // sondern vergleicht: kaeme der Kopf je wieder zu Ehren (Liste vertrauenswuerdiger
+        // Adressen), sagt diese Zeile es ohne Zutun.
         $keySource = in_array($clientKey, $validEntries, true) ? 'forwarded' : 'remote_addr';
     }
 
