@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Übernahme-Vorschau für jeden Sync</title>
+<style>
+:root{
+  --font-ui:"Faculty Glyphic","Arial",sans-serif;
+  --fs-caption:11px; --fs-small:12px; --fs-body:13px; --fs-read:14px; --fs-sub:16px; --fs-title:20px;
+  --color-page-bg:#f3f0e8; --color-panel:#fffdf9; --color-panel-soft:#faf6ee; --color-panel-muted:#f1ece1;
+  --color-panel-active:#e7ddc9;
+  --color-text:#2e271e; --color-text-strong:#3c3327; --color-text-muted:#706557;
+  --color-border:#ddd3c3; --color-border-strong:#cdbfa8; --color-divider:rgba(125,115,96,.30);
+  --color-button:#5b5548; --color-button-border:#635b4d; --color-button-text:#f6efe1; --color-button-hover:#6a6353;
+  --color-button-soft:#efe9db; --color-button-soft-text:#564b3b; --color-button-soft-border:#cdbda0; --color-button-soft-hover:#e7ddc9;
+  --color-accent:#bfa03a; --color-accent-strong:#9c7f22; --color-link:#8f7326;
+  --color-pill:#f3ecd9; --color-pill-border:#d7c7a2; --color-pill-text:#675024;
+  --color-danger:#9d3a2e;
+  --color-success-soft:#eef6e2; --color-success-soft-border:#a9c07f; --color-success-soft-text:#3c5a1c;
+  --color-danger-soft:#fbeae6; --color-danger-soft-border:#d3a79c; --color-danger-soft-text:#8a2d22;
+  --color-warning-soft:#faeeda; --color-warning-soft-border:#ef9f27; --color-warning:#b8860b;
+  --radius-sm:4px; --radius-md:6px; --radius-lg:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:28px 20px 64px;background:var(--color-page-bg);color:var(--color-text);
+     font:var(--fs-body)/1.5 var(--font-ui);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto}
+h1{font-size:var(--fs-title);margin:0 0 4px;color:var(--color-text-strong)}
+.lede{color:var(--color-text-muted);font-size:var(--fs-read);margin:0 0 26px;max-width:78ch}
+h2{font-size:var(--fs-sub);margin:34px 0 10px;color:var(--color-text-strong);
+   padding-bottom:6px;border-bottom:1px solid var(--color-divider)}
+p{max-width:82ch}
+code{background:var(--color-panel-muted);padding:1px 5px;border-radius:var(--radius-sm);font-size:var(--fs-small)}
+
+/* ---------- das Bauteil ---------- */
+.sheet{background:var(--color-panel);border:1px solid var(--color-border);border-radius:var(--radius-lg);
+       overflow:hidden;box-shadow:0 1px 2px rgba(60,51,39,.06)}
+.sheet__head{padding:14px 18px 12px;border-bottom:1px solid var(--color-divider);background:var(--color-panel-soft)}
+.sheet__title{font-size:var(--fs-sub);font-weight:700;color:var(--color-text-strong);margin:0 0 2px}
+.sheet__meta{font-size:var(--fs-small);color:var(--color-text-muted)}
+.sheet__body{padding:2px 0 0}
+
+.grp{border-bottom:1px solid var(--color-divider)}
+.grp:last-of-type{border-bottom:0}
+.grp>summary{list-style:none;cursor:pointer;padding:11px 18px;display:flex;align-items:center;gap:10px;
+             user-select:none}
+.grp>summary::-webkit-details-marker{display:none}
+.grp>summary::before{content:"▸";color:var(--color-text-muted);font-size:11px;width:10px;flex:none;
+                     transition:transform .12s}
+.grp[open]>summary::before{transform:rotate(90deg)}
+.grp__name{font-weight:700;color:var(--color-text-strong)}
+.grp__count{font-size:var(--fs-caption);background:var(--color-pill);border:1px solid var(--color-pill-border);
+            color:var(--color-pill-text);border-radius:999px;padding:1px 8px}
+.grp__hint{font-size:var(--fs-small);color:var(--color-text-muted);margin-left:auto;text-align:right}
+.grp--del>summary{background:var(--color-danger-soft)}
+.grp--del .grp__count{background:#fff;border-color:var(--color-danger-soft-border);color:var(--color-danger-soft-text)}
+.grp--del .grp__hint{color:var(--color-danger-soft-text)}
+
+.rows{padding:2px 18px 14px}
+.row{display:grid;grid-template-columns:22px 1fr;gap:10px;padding:9px 0;border-top:1px solid var(--color-divider)}
+.row:first-child{border-top:0}
+.row input[type=checkbox]{margin-top:3px;width:15px;height:15px;accent-color:var(--color-accent-strong)}
+.row__name{font-weight:700;color:var(--color-text-strong)}
+.row__sub{font-size:var(--fs-small);color:var(--color-text-muted)}
+.row__why{font-size:var(--fs-small);color:var(--color-danger-soft-text)}
+
+.diff{margin:6px 0 0;display:grid;grid-template-columns:max-content 1fr;gap:2px 14px;
+      font-size:var(--fs-small);background:var(--color-panel-muted);border-radius:var(--radius-md);padding:8px 10px}
+.diff dt{color:var(--color-text-muted)}
+.diff dd{margin:0}
+.old{color:var(--color-text-muted);text-decoration:line-through;text-decoration-color:rgba(125,115,96,.5)}
+.arrow{color:var(--color-text-muted);padding:0 4px}
+.new{color:var(--color-text-strong);font-weight:700}
+.kept{color:var(--color-warning);font-weight:700}
+
+.tag{display:inline-block;font-size:var(--fs-caption);border-radius:999px;padding:1px 8px;
+     border:1px solid var(--color-pill-border);background:var(--color-pill);color:var(--color-pill-text);
+     vertical-align:1px}
+.tag--own{background:var(--color-warning-soft);border-color:var(--color-warning-soft-border);color:#7a5a08}
+.tag--gone{background:#fff;border-color:var(--color-danger-soft-border);color:var(--color-danger-soft-text)}
+/* „Beim letzten Mal übersprungen" — Zustand, keine Warnung. Deshalb ruhig, nicht rot: dass etwas
+   liegenbleibt, ist erlaubt. Auffällig wird es durch die ZAHL, wenn es sich wiederholt. */
+.tag--skip{background:var(--color-panel-active);border-color:var(--color-border-strong);color:var(--color-text-muted)}
+.tag--skip b{color:var(--color-text-strong)}
+
+.grp__bulk{display:flex;gap:6px;margin-left:auto}
+.grp__bulk button{font:inherit;font-size:var(--fs-caption);padding:2px 9px;border-radius:var(--radius-sm);
+  border:1px solid var(--color-button-soft-border);background:var(--color-button-soft);
+  color:var(--color-button-soft-text);cursor:pointer}
+.grp__bulk button:hover{background:var(--color-button-soft-hover)}
+.grp__hint+.grp__bulk{margin-left:14px}
+
+.linkish{background:none;border:0;color:var(--color-link);cursor:pointer;font:inherit;font-size:var(--fs-small);
+         text-decoration:underline;padding:0}
+
+.foot{padding:13px 18px;border-top:1px solid var(--color-divider);background:var(--color-panel-soft);
+      display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.foot__count{font-size:var(--fs-small);color:var(--color-text-muted);margin-right:auto}
+.foot__count b{color:var(--color-text-strong)}
+.btn{font:inherit;font-size:var(--fs-body);border-radius:var(--radius-md);padding:7px 15px;cursor:pointer;
+     border:1px solid var(--color-button-soft-border);background:var(--color-button-soft);color:var(--color-button-soft-text)}
+.btn:hover{background:var(--color-button-soft-hover)}
+.btn--main{background:var(--color-button);border-color:var(--color-button-border);color:var(--color-button-text)}
+.btn--main:hover{background:var(--color-button-hover)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.gate{margin:0;padding:11px 18px;background:var(--color-danger-soft);border-top:1px solid var(--color-danger-soft-border);
+      color:var(--color-danger-soft-text);font-size:var(--fs-small);display:flex;gap:10px;align-items:center}
+.gate[hidden]{display:none}
+.gate label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.gate input{width:15px;height:15px;accent-color:var(--color-danger)}
+
+/* Eine liegengebliebene Liste veraltet — das ist der Preis von „Später", und er gehoert sichtbar an
+   die Liste, nicht in eine Fussnote. */
+.stale{margin:0;padding:10px 18px;background:var(--color-warning-soft);
+  border-bottom:1px solid var(--color-warning-soft-border);color:#7a5a08;font-size:var(--fs-small)}
+
+.note{background:var(--color-panel-soft);border:1px solid var(--color-border);border-left:3px solid var(--color-accent);
+      border-radius:var(--radius-md);padding:11px 14px;margin:14px 0;font-size:var(--fs-small)}
+.note b{color:var(--color-text-strong)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:18px;align-items:start}
+
+table.map{width:100%;border-collapse:collapse;font-size:var(--fs-small);margin-top:8px}
+table.map th,table.map td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--color-divider);vertical-align:top}
+table.map th{color:var(--color-text-muted);font-weight:700;font-size:var(--fs-caption);text-transform:uppercase;letter-spacing:.04em}
+.scroll{overflow-x:auto}
+
+@media (prefers-color-scheme:dark){
+ :root{--color-page-bg:#221e19;--color-panel:#2b2621;--color-panel-soft:#322c25;--color-panel-muted:#3a332b;
+   --color-text:#ece5d8;--color-text-strong:#fff8ea;--color-text-muted:#a89d8b;
+   --color-border:#463e34;--color-divider:rgba(200,185,155,.22);
+   --color-button-soft:#3d362d;--color-button-soft-text:#e8dfcd;--color-button-soft-border:#5a5044;--color-button-soft-hover:#4a4238;
+   --color-pill:#3f3830;--color-pill-border:#5d5344;--color-pill-text:#e3d3a8;
+   --color-danger-soft:#40292a;--color-danger-soft-border:#7a4b45;--color-danger-soft-text:#f0bcb2;
+   --color-warning-soft:#3d3222;--color-warning-soft-border:#8a6a26;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Übernahme-Vorschau — ein Bauteil für jeden Sync</h1>
+<p class="lede">Entwurf, nicht gebaut. Jeder Abgleich zeigt erst, <em>was er tun würde</em>; die Editoren
+häkeln an, was übernommen wird. Neu und Geändert sind vorangehäkelt, Gelöscht nicht — und Löschen braucht
+eine zweite, ausdrückliche Bestätigung.</p>
+
+<h2>1 · Der Regelfall: Stadtkarten</h2>
+
+<div class="sheet" data-sheet data-hidden="36" data-total="46">
+  <div class="sheet__head">
+    <p class="sheet__title">Stadtkarten aus dem Wiki übernehmen</p>
+    <div class="sheet__meta">Abgleich vom 06.08.2026, 21:14 · 457 Karten geprüft · 46 Unterschiede</div>
+  </div>
+
+  <div class="sheet__body">
+
+    <details class="grp" open>
+      <summary>
+        <span class="grp__name">Neu</span><span class="grp__count">12</span>
+        <span class="grp__hint">im Wiki dazugekommen · alle vorangehäkelt</span>
+        <span class="grp__bulk"><button type="button">alle</button><button type="button">keine</button></span>
+      </summary>
+      <div class="rows">
+        <label class="row"><input type="checkbox" checked data-cb="new">
+          <span><span class="row__name">Elenvina – Werftviertel</span>
+          <span class="row__sub">Stadtplan · Ulisses · <span class="tag">1:5000</span> · aus „Am Rande der Nacht", S. 88</span></span></label>
+        <label class="row"><input type="checkbox" checked data-cb="new">
+          <span><span class="row__name">Baliho – Marktplatz</span>
+          <span class="row__sub">Ausschnitt · Fan · ohne Maßstab</span></span></label>
+        <label class="row"><input type="checkbox" checked data-cb="new">
+          <span><span class="row__name">Zorgan – Hafen</span>
+          <span class="row__sub">Stadtplan · Ulisses · <span class="tag">1:2000</span></span></span></label>
+        <div class="row"><span></span><span class="row__sub">… und 9 weitere</span></div>
+      </div>
+    </details>
+
+    <details class="grp" open>
+      <summary>
+        <span class="grp__name">Geändert</span><span class="grp__count">31</span>
+        <span class="grp__hint">Wiki weicht von uns ab · alle vorangehäkelt</span>
+        <span class="grp__bulk"><button type="button">alle</button><button type="button">keine</button></span>
+      </summary>
+      <div class="rows">
+
+        <label class="row"><input type="checkbox" checked data-cb="chg">
+          <span>
+            <span class="row__name">Havena – Hafenviertel</span>
+            <dl class="diff">
+              <dt>Titel</dt><dd><span class="old">Havena, Hafen</span><span class="arrow">→</span><span class="new">Havena – Hafenviertel</span></dd>
+              <dt>Maßstab</dt><dd><span class="old">—</span><span class="arrow">→</span><span class="new">1:5000</span></dd>
+            </dl>
+          </span>
+        </label>
+
+        <label class="row"><input type="checkbox" data-cb="chg">
+          <span>
+            <span class="row__name">Khunchom – Basarviertel</span>
+            <span class="tag tag--skip">⤴ <b>3×</b> übersprungen, zuletzt 28.07.</span>
+            <dl class="diff">
+              <dt>Autor</dt><dd><span class="old">Ina Kramer</span><span class="arrow">→</span><span class="new">unbekannt</span></dd>
+            </dl>
+            <span class="row__sub">Nicht vorangehäkelt, weil du es dreimal stehen gelassen hast — der Rest der
+              Gruppe ist es. Beim nächsten Lauf steht es wieder da.</span>
+          </span>
+        </label>
+
+        <label class="row"><input type="checkbox" checked data-cb="chg">
+          <span>
+            <span class="row__name">Gareth – Südquartier</span> <span class="tag tag--own">eigener Wert</span>
+            <dl class="diff">
+              <dt>Autor</dt><dd><span class="old">unbekannt</span><span class="arrow">→</span><span class="new">Ina Kramer</span></dd>
+              <dt>Titel</dt><dd><span class="kept">bleibt „Gareth – Südquartier (Neufassung)"</span>
+                <span class="row__sub">von Hand gesetzt — der Sync fasst es nicht an
+                  <button type="button" class="linkish">eigenen Wert aufgeben</button></span></dd>
+            </dl>
+          </span>
+        </label>
+
+        <label class="row"><input type="checkbox" checked data-cb="chg">
+          <span>
+            <span class="row__name">Punin – Tempelbezirk</span>
+            <dl class="diff">
+              <dt>Quelle</dt><dd><span class="old">—</span><span class="arrow">→</span><span class="new">„Herz des Reiches", S. 41</span></dd>
+            </dl>
+          </span>
+        </label>
+        <div class="row"><span></span><span class="row__sub">… und 28 weitere</span></div>
+      </div>
+    </details>
+
+    <details class="grp grp--del" open>
+      <summary>
+        <span class="grp__name">Gelöscht</span><span class="grp__count">3</span>
+        <span class="grp__hint">im Wiki nicht mehr da · <b>nichts vorangehäkelt</b></span>
+      </summary>
+      <div class="rows">
+        <p class="row__sub" style="margin:0 0 8px">Was du <b>nicht</b> anhäkelst, <b>bleibt</b> — dauerhaft,
+          es wird nicht wieder gefragt. Es bleibt trotzdem ein Wiki-Eintrag: kommt der Artikel zurück,
+          läuft er wieder mit.
+          <button type="button" class="linkish">4 früher abgelehnte Löschungen anzeigen</button></p>
+        <label class="row"><input type="checkbox" data-cb="del">
+          <span><span class="row__name">Punin – Altstadt</span> <span class="tag tag--gone">2 Läufe fehlend</span>
+          <span class="row__why">Artikel im Wiki gelöscht. Mit ihr gingen 4 Fundorte und 2 Quellenverweise.</span></span></label>
+        <label class="row"><input type="checkbox" data-cb="del">
+          <span><span class="row__name">Riva – Nordmole</span> <span class="tag tag--gone">1 Lauf fehlend</span>
+          <span class="row__why">Artikel umbenannt? Kein Nachfolger gefunden. Mit ihr ginge 1 Fundort.</span></span></label>
+        <label class="row"><input type="checkbox" data-cb="del">
+          <span><span class="row__name">Festum – Hafen (alt)</span> <span class="tag tag--gone">5 Läufe fehlend</span>
+          <span class="row__why">Seit dem 12.07. nicht mehr im Dump.</span></span></label>
+      </div>
+    </details>
+
+  </div>
+
+  <p class="gate" data-gate hidden>
+    <label><input type="checkbox" data-gate-cb>
+      <span>Ja, <b data-gate-n>1</b> Karte wirklich löschen. Das lässt sich nicht rückgängig machen.</span></label>
+  </p>
+
+  <div class="foot">
+    <span class="foot__count"><b data-sum>42</b> von 46 werden übernommen — <b data-sumdel>0</b> Löschungen, <b data-skip>1</b> übersprungen bleibt liegen</span>
+    <button class="btn" title="Nichts wird geschrieben. Die Liste bleibt liegen — samt deiner Häkchen. Weitermachen kannst du (oder jemand anderes) jederzeit.">Später</button>
+    <button class="btn btn--main" data-apply>Übernehmen</button>
+  </div>
+</div>
+
+<div class="note">
+  <b>Was passiert mit dem, was ich <em>ab</em>häkle?</b> Zwei Antworten, weil es zwei verschiedene Dinge sind.
+  <ul style="margin:6px 0 0;padding-left:20px">
+    <li><b>Änderung abgehäkelt = „nicht jetzt".</b> Der Eintrag wird diesmal übersprungen und steht beim
+      nächsten Lauf wieder da — mit dem Vermerk, wie oft schon (siehe „Khunchom – Basarviertel" oben).
+      Ab dem zweiten Überspringen ist er nicht mehr vorangehäkelt: du hast ja schon zweimal Nein gesagt.</li>
+    <li><b>Löschung abgehäkelt = „behalten".</b> Der Eintrag bleibt und wird nicht wieder gefragt — die
+      abgelehnte Löschung ist eine dauerhafte Entscheidung. Er bleibt aber ein <em>Wiki</em>-Eintrag:
+      sein <code>wiki_key</code> steht weiter da, der Abgleich findet ihn bei jedem Lauf wieder, und
+      kommt der Artikel im Wiki zurück, <b>läuft er ohne Zutun wieder mit</b>. Nur das Löschen ist
+      abbestellt, nicht die Pflege.</li>
+  </ul>
+  <p style="margin:8px 0 0">💣 Deshalb <b>nicht</b> <code>origin='manual'</code>: das entscheidet zwei
+  Dinge auf einmal — „nicht löschen" <em>und</em> „nie wieder aktualisieren" —, und in dem Moment denkt
+  man nur über das erste nach. Die Vorlage steht schon im Haus: bei den Vorkommen setzt ein entfernter
+  Wiki-Ort <code>status='suppressed'</code> und behält <code>origin='wiki'</code>. Dieselbe Mechanik,
+  andere Richtung.</p>
+</div>
+
+<h2>2 · Dasselbe Bauteil, anderer Inhalt: Vorkommen (Natur &amp; Waren)</h2>
+<p>Andere Zeilen, dieselbe Hülle. Das ist der Punkt: <b>ein</b> Bauteil, <b>eine</b> Tabelle dahinter,
+neun Lieferanten davor.</p>
+
+<div class="sheet" data-sheet data-hidden="172" data-total="212">
+  <div class="sheet__head">
+    <p class="sheet__title">Vorkommen aus dem Wiki übernehmen</p>
+    <div class="sheet__meta">Abgleich vom <b>03.08.2026</b>, 09:12 · 5.104 Zuordnungen geprüft · 212 Unterschiede
+      · <button type="button" class="linkish">3 Tage liegengeblieben — neu berechnen</button></div>
+  </div>
+  <p class="stale">⚠️ Seitdem gab es einen neuen Dump und 6 Handbearbeitungen. Beim Übernehmen wird jede
+    angehäkelte Zeile noch einmal gegen den aktuellen Stand geprüft — was nicht mehr passt, bleibt
+    stehen und wird dir hinterher genannt.</p>
+  <div class="sheet__body">
+    <details class="grp">
+      <summary><span class="grp__name">Neu</span><span class="grp__count">168</span>
+        <span class="grp__hint">alle vorangehäkelt</span></summary>
+      <div class="rows">
+        <label class="row"><input type="checkbox" checked data-cb="new">
+          <span><span class="row__name">Rondrarot: Gareth</span><span class="row__sub">Verbreitung</span></span></label>
+        <label class="row"><input type="checkbox" checked data-cb="new">
+          <span><span class="row__name">Wirselkraut: Bornland</span><span class="row__sub">Verbreitung</span></span></label>
+        <div class="row"><span></span><span class="row__sub">… und 166 weitere</span></div>
+      </div>
+    </details>
+    <details class="grp">
+      <summary><span class="grp__name">Geändert</span><span class="grp__count">7</span>
+        <span class="grp__hint">alle vorangehäkelt</span></summary>
+      <div class="rows">
+        <label class="row"><input type="checkbox" checked data-cb="chg">
+          <span><span class="row__name">Tarnele</span> <span class="tag tag--own">eigener Wert</span>
+            <dl class="diff">
+              <dt>Lebensraum</dt><dd><span class="kept">bleibt „Küstenwald"</span>
+                <span class="row__sub">von Hand gesetzt — der Sync fasst es nicht an</span></dd>
+              <dt>Gruppe</dt><dd><span class="old">Kräuter</span><span class="arrow">→</span><span class="new">Heilkräuter</span></dd>
+            </dl></span></label>
+      </div>
+    </details>
+    <details class="grp grp--del" open>
+      <summary><span class="grp__name">Gelöscht</span><span class="grp__count">37</span>
+        <span class="grp__hint"><b>nichts vorangehäkelt</b></span></summary>
+      <div class="rows">
+        <label class="row"><input type="checkbox" data-cb="del">
+          <span><span class="row__name">Rondrarot: Punin</span>
+          <span class="row__why">Der Artikel nennt Punin nicht mehr. Wird ein Grabstein — zurückholbar.</span></span></label>
+        <label class="row"><input type="checkbox" data-cb="del">
+          <span><span class="row__name">Wirselkraut: Nostria</span>
+          <span class="row__why">Der Artikel nennt Nostria nicht mehr. Wird ein Grabstein — zurückholbar.</span></span></label>
+        <div class="row"><span></span><span class="row__sub">… und 35 weitere</span></div>
+      </div>
+    </details>
+  </div>
+  <p class="gate" data-gate hidden>
+    <label><input type="checkbox" data-gate-cb>
+      <span>Ja, <b data-gate-n>1</b> Zuordnung wirklich entfernen.</span></label>
+  </p>
+  <div class="foot">
+    <span class="foot__count"><b data-sum>175</b> von 212 werden übernommen — davon <b data-sumdel>0</b> Löschungen</span>
+    <button class="btn" title="Nichts wird geschrieben. Die Liste bleibt liegen — samt deiner Häkchen. Weitermachen kannst du (oder jemand anderes) jederzeit.">Später</button>
+    <button class="btn btn--main" data-apply>Übernehmen</button>
+  </div>
+</div>
+
+<h2>3 · Wie die Territorien darauf passen</h2>
+<p>Der große Arbeitsablauf im Herrschaftsgebiete-Monitor bleibt — er kann nicht weg, weil dort eine
+<em>Hierarchie</em> kuratiert wird, nicht nur eine Liste. Er bekommt aber dieselbe Vorschau als letzten
+Schritt, und die Schritte davor werden benannt statt nummeriert:</p>
+
+<div class="scroll"><table class="map">
+<tr><th>heute</th><th>was der Knopf tut</th><th>danach</th></tr>
+<tr><td>🚨&nbsp;Syncen</td><td>Dump → Staging, spielt noch nichts ein</td><td><b>1 · Einlesen</b> — unverändert</td></tr>
+<tr><td>Hierarchie</td><td>rechnet den Elternbaum aus dem Staging</td><td><b>2 · Baum rechnen</b> — unverändert</td></tr>
+<tr><td>Unterschiede</td><td>zählt neu / verschwunden / geändert</td><td>→ <b>füllt die Vorschau</b> (dieselben drei Kategorien!)</td></tr>
+<tr><td>Daten-Vorschau</td><td>read-only Liste der Identitätsfelder</td><td>→ <b>geht auf in „Geändert"</b>, mit Häkchen</td></tr>
+<tr><td>Daten übernehmen<br>Modell übernehmen</td><td>zwei getrennte Schreibknöpfe</td><td><b>3 · Übernehmen</b> — ein Knopf, der schreibt, was angehäkelt ist</td></tr>
+</table></div>
+
+<div class="note">
+  <b>Der Unterschied, den die Territorien behalten:</b> „Eltern gesperrt", „aussortiert" und die Lücken
+  sind Kuratierung <em>am Baum</em>, nicht am einzelnen Datensatz — die bleiben, wo sie sind. Was in die
+  gemeinsame Vorschau wandert, sind nur die drei Kategorien: neu, geändert, verschwunden.
+</div>
+
+<h2>4 · Was dahinter liegt</h2>
+<p>Eine Tabelle, neun Lieferanten, ein Bauteil. Der Abgleich <em>rechnet</em> nur noch und schreibt
+seinen Plan hinein; geschrieben wird erst beim Übernehmen.</p>
+
+<div class="scroll"><table class="map">
+<tr><th>Sync</th><th>löscht heute</th><th>ohne Rückfrage?</th></tr>
+<tr><td>Stadtkarten</td><td>ganze Karten (<code>origin='wiki'</code>) samt Orten, Typen, Links, Quellen</td><td><b style="color:var(--color-danger)">ja</b></td></tr>
+<tr><td>Abenteuer</td><td>zugeordnete Orte (<code>origin='wiki'</code>)</td><td><b style="color:var(--color-danger)">ja</b></td></tr>
+<tr><td>Vorkommen</td><td>Zuordnungen (Grabstein statt Löschung)</td><td>ja, aber umkehrbar</td></tr>
+<tr><td>Publikationen</td><td>Quellenverweise (<code>origin='wiki_publication'</code>)</td><td><b style="color:var(--color-danger)">ja</b></td></tr>
+<tr><td>Kraftlinien</td><td>—</td><td>—</td></tr>
+<tr><td>Wege · Regionen · Orte</td><td>läuft über Fälle, die einzeln bestätigt werden</td><td>nein — <b>das ist heute schon fast der Zielzustand</b></td></tr>
+<tr><td>Territorien</td><td>schreibt Eltern/Daten, löscht nicht</td><td>nein</td></tr>
+</table></div>
+
+<script>
+document.querySelectorAll("[data-sheet]").forEach(function (sheet) {
+  var gate = sheet.querySelector("[data-gate]");
+  var gateCb = sheet.querySelector("[data-gate-cb]");
+  var gateN = sheet.querySelector("[data-gate-n]");
+  var sum = sheet.querySelector("[data-sum]");
+  var sumDel = sheet.querySelector("[data-sumdel]");
+  var apply = sheet.querySelector("[data-apply]");
+  // Die Liste ist gekuerzt dargestellt; die ausgeblendeten Zeilen zaehlen als angehaekelt mit.
+  var hidden = Number(sheet.dataset.hidden || 0);
+
+  function refresh() {
+    var boxes = Array.prototype.slice.call(sheet.querySelectorAll("[data-cb]"));
+    var checked = boxes.filter(function (b) { return b.checked; });
+    var del = checked.filter(function (b) { return b.dataset.cb === "del"; }).length;
+    var skipped = boxes.length - checked.length - (boxes.filter(function (b) { return b.dataset.cb === "del"; }).length - del);
+
+    sum.textContent = hidden + checked.length;
+    sumDel.textContent = del;
+    var skipText = sum.parentNode.querySelector("[data-skip]");
+    if (skipText) { skipText.textContent = skipped; }
+
+    if (del > 0) {
+      gate.hidden = false;
+      gateN.textContent = del;
+    } else {
+      gate.hidden = true;
+      gateCb.checked = false;
+    }
+    // 🔴 Der Riegel: solange eine Loeschung angehaekelt und nicht bestaetigt ist, geht gar nichts --
+    // auch die harmlosen Uebernahmen nicht. Sonst waere die Bestaetigung eine Empfehlung.
+    apply.disabled = del > 0 && !gateCb.checked;
+    apply.textContent = del > 0 ? "Übernehmen und " + del + " löschen" : "Übernehmen";
+  }
+
+  // „alle / keine" je Gruppe -- bei 168 neuen Zeilen ist Einzelklicken keine Bedienung.
+  sheet.querySelectorAll(".grp__bulk button").forEach(function (button) {
+    button.addEventListener("click", function (event) {
+      event.preventDefault();
+      var on = button.textContent.trim() === "alle";
+      button.closest(".grp").querySelectorAll("[data-cb]").forEach(function (b) { b.checked = on; });
+      refresh();
+    });
+  });
+
+  sheet.addEventListener("change", refresh);
+  refresh();
+});
+</script>
+
+</div>
+</body>
+</html>
