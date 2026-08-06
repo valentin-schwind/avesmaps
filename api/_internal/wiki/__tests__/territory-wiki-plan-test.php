@@ -60,6 +60,26 @@ assert($item !== null && $item['change_type'] === 'changed');
 assert(array_keys($item['after']) === ['ruler'], '💣 nur das Oberhaupt, NICHT die Waehrung');
 assert($item['before']['ruler'] === 'Blasius von Eberstamm');
 
+// --- Die andere Haelfte der Leerwert-Regel: ein LEERER ALTWERT ist kein Schutz --------------------
+//
+// Nur der FRISCHE Wert darf nie ein leeres Nichts vortaeuschen (siehe oben). Ein leerer oder fehlender
+// ALTWERT gegen einen echten frischen Wert ist eine ganz normale Aenderung -- sonst bliebe ein Feld, das
+// die Kopie noch nie hatte, fuer immer ungefuellt, weil niemand je gefragt wird.
+$emptyMirror = $same;
+$emptyMirror['ruler'] = '';
+$item = avesmapsTerritoryWikiPlanItem($emptyMirror, $staging);
+assert($item !== null && $item['change_type'] === 'changed', 'leerer Altwert gegen echten Frischwert IST eine Aenderung');
+assert(array_keys($item['after']) === ['ruler']);
+assert($item['after']['ruler'] === 'Growin Sohn des Grimbrand');
+assert($item['before']['ruler'] === '', 'das Vorher ist leer, nicht abwesend');
+
+$nullMirror = $same;
+$nullMirror['ruler'] = null;
+$item = avesmapsTerritoryWikiPlanItem($nullMirror, $staging);
+assert($item !== null && $item['change_type'] === 'changed', 'ein NULL-Altwert verhaelt sich wie ein leerer');
+assert($item['after']['ruler'] === 'Growin Sohn des Grimbrand');
+assert($item['before']['ruler'] === '');
+
 // --- Der Feld-Deckel --------------------------------------------------------------------------------
 $manyStaging = [];
 $manyMirror = [];
@@ -98,15 +118,18 @@ $addMirror = static function (PDO $pdo, string $key, string $name): int {
 };
 
 $koschId = $addMirror($pdo, 'wiki:f-rstentum-kosch', 'Fürstentum Kosch');   // lebt, ist im Staging
-$wehrsoldId = $addMirror($pdo, 'wiki:grafschaft-wehrsold', 'Grafschaft Wehrsold'); // benutzt, Artikel weg
+$wehrsoldId = $addMirror($pdo, 'wiki:grafschaft-wehrsold', 'Grafschaft Wehrsold'); // benutzt ueber wiki_id, Artikel weg
+$greifenfurtId = $addMirror($pdo, 'wiki:grafschaft-greifenfurt', 'Grafschaft Greifenfurt'); // benutzt NUR ueber wiki_key, Artikel weg
 $altGarethId = $addMirror($pdo, 'wiki:baronie-alt-gareth', 'Baronie Alt-Gareth'); // Waise
 $addMirror($pdo, 'wiki:koenigreich-thorwal-alt', 'Königreich Thorwal (alt)');     // Waise
 
-// Ein Kartengebiet zeigt auf Wehrsold -- ueber wiki_id. Ein zweites auf Kosch ueber den Schluessel.
+// Ein Kartengebiet zeigt auf Wehrsold -- ueber wiki_id. Ein zweites auf Greifenfurt -- NUR ueber den
+// Schluessel (wiki_id NULL, z.B. weil das Gebiet angelegt wurde, bevor es die wiki_id-Spalte gab). Beide
+// Pfade muessen "benutzt" ergeben -- die WHERE-Bedingung der Abfrage prueft ausdruecklich ODER.
 $pdo->prepare('INSERT INTO political_territory (wiki_id, wiki_key, name) VALUES (:w, :k, :n)')
     ->execute(['w' => $wehrsoldId, 'k' => 'wiki:grafschaft-wehrsold', 'n' => 'Grafschaft Wehrsold']);
 $pdo->prepare('INSERT INTO political_territory (wiki_id, wiki_key, name) VALUES (NULL, :k, :n)')
-    ->execute(['k' => 'wiki:f-rstentum-kosch', 'n' => 'Fürstentum Kosch']);
+    ->execute(['k' => 'wiki:grafschaft-greifenfurt', 'n' => 'Grafschaft Greifenfurt']);
 
 // --- 💣 Der Leer-Riegel (Entwurf §6c) --------------------------------------------------------------
 //
@@ -122,14 +145,17 @@ $orphanKeys = array_map(static fn(array $r): string => $r['wiki_key'], $result['
 sort($orphanKeys);
 assert($orphanKeys === ['wiki:baronie-alt-gareth', 'wiki:koenigreich-thorwal-alt'], 'genau die zwei Waisen');
 
-// --- 💣 Eine benutzte Kopie wird NIE angeboten -----------------------------------------------------
+// --- 💣 Eine benutzte Kopie wird NIE angeboten -- gleich ueber welchen Pfad sie gefunden wird --------
 //
 // An ihr haengen sechs Zeilen der Infobox eines echten Gebiets, und es gibt keinen Wiki-Artikel mehr,
 // aus dem sie zurueckkaemen. Genannt wird sie trotzdem -- sonst sieht die Gruppe nach "alles erledigt" aus.
-assert(!in_array('wiki:grafschaft-wehrsold', $orphanKeys, true), '💣 benutzte Kopie: keine Loeschzeile');
+// Beide Verweisarten muessen greifen: Wehrsold haengt ueber wiki_id, Greifenfurt NUR ueber wiki_key.
+assert(!in_array('wiki:grafschaft-wehrsold', $orphanKeys, true), '💣 benutzte Kopie (wiki_id): keine Loeschzeile');
+assert(!in_array('wiki:grafschaft-greifenfurt', $orphanKeys, true), '💣 benutzte Kopie (NUR wiki_key): keine Loeschzeile');
 $inUseKeys = array_map(static fn(array $r): string => $r['wiki_key'], $result['in_use']);
-assert($inUseKeys === ['wiki:grafschaft-wehrsold'], 'aber im Vorspann genannt');
-assert($result['in_use'][0]['name'] === 'Grafschaft Wehrsold', 'mit Namen, nicht als Zahl');
+assert($inUseKeys === ['wiki:grafschaft-greifenfurt', 'wiki:grafschaft-wehrsold'], 'beide Pfade im Vorspann genannt');
+assert($result['in_use'][0]['name'] === 'Grafschaft Greifenfurt', 'mit Namen, nicht als Zahl');
+assert($result['in_use'][1]['name'] === 'Grafschaft Wehrsold');
 
 // --- Der Behalten-Riegel ---------------------------------------------------------------------------
 $result = avesmapsTerritoryWikiVanishedRows($pdo, ['wiki:baronie-alt-gareth']);

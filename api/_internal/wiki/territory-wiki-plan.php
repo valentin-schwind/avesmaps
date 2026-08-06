@@ -242,15 +242,26 @@ function avesmapsTerritoryWikiPlanStep(PDO $pdo, string $cursor, int $userId, ?i
         // Kartengebiet benutzt. Neu gerechnet statt über die Schritte getragen: dieselbe eine Abfrage,
         // einmal am Ende, und kein Zustand, der zwischen Requests verlorengehen kann.
         $protected = avesmapsTerritoryWikiVanishedRows($pdo, [])['in_use'];
+        // 💣 The terminating response must carry the SAME rows the sentence below talks about. Leaving
+        // $inUse at whatever the first step (cursor === '') set left it EMPTY on every later step's
+        // terminating response -- the normal path, since the territory table is far above the 200-row
+        // budget -- while counts['protected_note'] stayed correct. A caller reading the raw rows off
+        // that response got nothing: exactly the "looks like all done" failure the 💣 comment on
+        // avesmapsTerritoryWikiVanishedRows warns about.
+        $inUse = $protected;
         if ($protected !== []) {
+            $isSingle = count($protected) === 1;
             $names = array_map(static fn(array $r): string => $r['name'], array_slice($protected, 0, 10));
             $counts['protected_note'] = sprintf(
-                '%d weitere %s ebenfalls keinen Artikel mehr, hängen aber an einem Gebiet auf der Karte '
-                . '(%s%s). Sie bleiben stehen und werden hier nicht angeboten.',
+                '%d weitere %s ebenfalls keinen Artikel mehr, %s aber an einem Gebiet auf der Karte '
+                . '(%s%s). %s stehen und %s hier nicht angeboten.',
                 count($protected),
-                count($protected) === 1 ? 'Kopie hat' : 'Kopien haben',
+                $isSingle ? 'Kopie hat' : 'Kopien haben',
+                $isSingle ? 'hängt' : 'hängen',
                 implode(', ', $names),
-                count($protected) > 10 ? ', …' : ''
+                count($protected) > 10 ? ', …' : '',
+                $isSingle ? 'Sie bleibt' : 'Sie bleiben',
+                $isSingle ? 'wird' : 'werden'
             );
             $pdo->prepare('UPDATE sync_plan_run SET counts_json = :c WHERE id = :id')->execute([
                 'c' => json_encode($counts, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
