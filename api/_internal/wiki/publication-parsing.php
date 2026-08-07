@@ -504,12 +504,13 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
             (string) ($params[$placeField] ?? ''),
             $placeField === 'Ort'
         );
-        if ($places === []) {
-            $otherField = $placeField === 'Ort' ? 'Thema' : 'Ort';
-            $places = avesmapsWikiParseGameLiteraturePlaceList(
-                (string) ($params[$otherField] ?? ''),
-                $otherField === 'Ort'
-            );
+        // ⚠️ Das Ausweichen geht NUR von `Ort` nach `Thema`, nicht zurueck (Owner 2026-08-07).
+        // Die Abenteuer-Familie fuellt nachweislich beide Felder: "Verraeter & Geaechtete" ist
+        // Art=Anthologie und traegt `Thema=` LEER neben `Ort=[[Havena]], [[Rashdul]], …`. Fuer die
+        // Spielhilfen dagegen kennt der Spaltensatz des Wikis gar kein `Ort` -- ein `Ort` dort waere
+        // kein dokumentiertes Ortsfeld, und daraus Orte zu lesen hiesse, welche zu erfinden.
+        if ($places === [] && $placeField === 'Ort') {
+            $places = avesmapsWikiParseGameLiteraturePlaceList((string) ($params['Thema'] ?? ''), false);
         }
     }
     // 💣 No linked place, no entry (design §2). Without it the 205 Spielhilfe pages -- whose `Thema` is

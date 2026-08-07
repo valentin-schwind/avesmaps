@@ -117,7 +117,23 @@ $rsh = avesmapsWikiParseProductInfobox("{{Infobox Produkt
 |Art=Regionalspielhilfe
 |Ort=[[Punin]]
 }}");
-assert(is_array($rsh['adventure'] ?? null) && $rsh['adventure']['places'] === ['Punin']);
+// ⚠️ EINSEITIG: eine Regionalspielhilfe/Spielhilfe liest NUR `Thema`. Ihr Spaltensatz im Wiki kennt
+// gar kein `Ort` -- daraus Orte zu lesen hiesse, welche zu erfinden (Owner 2026-08-07).
+assert(($rsh['adventure'] ?? null) === null, 'Regionalspielhilfe mit nur Ort erzeugt KEINEN Eintrag');
+$sh = avesmapsWikiParseProductInfobox("{{Infobox Produkt
+|Titel=Randfall
+|Art=Spielhilfe
+|Ort=[[Punin]]
+}}");
+assert(($sh['adventure'] ?? null) === null, 'dasselbe fuer die Spielhilfe');
+// Die Gegenrichtung bleibt: die Abenteuer-Familie fuellt nachweislich beide Felder.
+$aTh = avesmapsWikiParseProductInfobox("{{Infobox Produkt
+|Titel=Sammelband
+|Art=Anthologie
+|Thema=[[Bornland (Bund)|Bornland]]
+}}");
+assert(is_array($aTh['adventure'] ?? null) && $aTh['adventure']['places'] === ['Bornland (Bund)'],
+    'eine Anthologie ohne Ort weicht auf Thema aus');
 foreach (['Regelband', 'Buch'] as $art) {
     assert(avesmapsWikiProductGameLiteratureKind($art) === '', "$art bleibt draussen (Owner-Entscheid)");
 }
