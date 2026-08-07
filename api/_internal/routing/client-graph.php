@@ -8,6 +8,11 @@ require_once __DIR__ . '/terrain-read.php';
 require_once __DIR__ . '/water-areas.php';
 
 const AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD = 0.5;
+// 💣 How close a way end must sit to a location to count as LYING ON it. The threshold above only
+// catches loose ends and settles ties by list order; this one runs first, so an exactly hit place
+// gets its own end regardless of where it sits in $locations. Twin of LOCATION_ENDPOINT_EXACT_HIT
+// (js/config.js) -- the two engines build the same graph and must not drift.
+const AVESMAPS_ROUTE_CLIENT_ENDPOINT_EXACT_HIT = 0.01;
 // Cell width of the endpoint lookup index = the endpoint tolerance. A hit therefore lies in the
 // own cell or one of the eight neighbours, never further -- 9 cells instead of all 4531 locations.
 const AVESMAPS_ROUTE_CLIENT_CELL_SIZE = 0.5;
@@ -1164,24 +1169,45 @@ function avesmapsFindClientLocationAtPathEndpoint(array $locations, array $cellI
     $cx = (int) round($x / AVESMAPS_ROUTE_CLIENT_CELL_SIZE);
     $cy = (int) round($y / AVESMAPS_ROUTE_CLIENT_CELL_SIZE);
 
-    // The linear scan returned the FIRST hit in $locations order. Walking cells the order would be
-    // a different one -- with two locations inside the same tolerance window a different one would
-    // come out, and a shared ?s= link would silently resolve to another route. So: lowest index wins.
+    // 💣 TWO TIERS, and the first one asks for the DISTANCE. Until 2026-08-07 only the tier below
+    // existed: lowest index wins, chosen so that walking cells could not reorder the old linear
+    // scan and silently re-resolve a shared ?s= link. That reasoning holds for a tie between two
+    // loose ends -- but it also decided when a place was hit EXACTLY, and then it is not a tie at
+    // all. The tolerance window is a box, not a circle (|dx| and |dy| each < 0.5 reaches to a
+    // diagonal of 0.707), so a village and its castle share one. Measured on the live map: 541 of
+    // 11,662 endpoints went to the wrong place and 165 ways collapsed into self-loops.
+    //
+    // ⚠️ Lowest-index-wins stays as the second tier. Only 97.5% of ends lie on a place; the rest
+    // hang on the box alone, and its merging is what keeps nodes attached where no way is drawn.
+    // Twin of getLocationAtPathEndpoint (js/map-features/map-features-location-editing.js).
     $best = null;
+    $exact = null;
+    $exactDistance = INF;
     for ($dx = -1; $dx <= 1; $dx++) {
         for ($dy = -1; $dy <= 1; $dy++) {
             foreach ($cellIndex[($cx + $dx) . ':' . ($cy + $dy)] ?? [] as $i) {
-                if ($best !== null && $i >= $best) continue;
                 $location = $locations[$i];
-                if (abs((float) $location['route_y'] - $y) < AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD
-                    && abs((float) $location['route_x'] - $x) < AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD) {
+                $ly = (float) $location['route_y'];
+                $lx = (float) $location['route_x'];
+                if (abs($ly - $y) >= AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD
+                    || abs($lx - $x) >= AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD) {
+                    continue;
+                }
+                if ($best === null || $i < $best) {
                     $best = $i;
+                }
+                $distance = hypot($lx - $x, $ly - $y);
+                if ($distance < AVESMAPS_ROUTE_CLIENT_ENDPOINT_EXACT_HIT && $distance < $exactDistance) {
+                    $exactDistance = $distance;
+                    $exact = $i;
                 }
             }
         }
     }
 
-    return $best === null ? null : $locations[$best];
+    $hit = $exact ?? $best;
+
+    return $hit === null ? null : $locations[$hit];
 }
 
 function avesmapsReadRoutePathLineCoordinates(mixed $geometry): array {

@@ -1,5 +1,14 @@
 // Konstanten
 const THRESHOLD = 0.5;
+// 💣 Wie nah ein Wegende an einem Ort liegen muss, um ALS AUF IHM LIEGEND zu gelten. THRESHOLD faengt
+// lose Enden ein und entscheidet bei mehreren Kandidaten nach Array-Reihenfolge; das ist willkuerlich,
+// aber es fasst zusammen und haelt Knoten im Netz. Diese Grenze hier geht davor: wer exakt getroffen
+// ist, bekommt sein Ende, egal wo er in locationData steht. 0,01 ist gut zehnmal die Rundungsdifferenz
+// der Daten (Weggeometrie 3, Orte 5 Nachkommastellen) und weit unter dem kleinsten echten Ortspaar.
+// ⚠️ Eindeutig nur, solange keine zwei Orte naeher als 2x dieser Wert stehen -- am 07.08.2026 dafuer
+// 11 doppelte Kreuzungen stillgelegt, kleinster Abstand seither 0,031. Spiegelbild in PHP:
+// AVESMAPS_ROUTE_CLIENT_ENDPOINT_EXACT_HIT (api/_internal/routing/client-graph.php).
+const LOCATION_ENDPOINT_EXACT_HIT = 0.01;
 // Maximaler Abstand (Karten-Einheiten), ab dem ein Routen-Endpunkt noch als "Stadt sitzt am Knoten"
 // gilt. 0.15 Einheiten = 0.45 Meilen (1 Einheit = DISTANCE_SCALING_FACTOR Meilen). Liegt die naechste
 // Stadt weiter weg, ist der Knoten in Wahrheit eine Kreuzung mit nur zufaellig benachbarter Stadt und

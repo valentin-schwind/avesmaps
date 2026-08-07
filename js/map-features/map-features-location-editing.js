@@ -3,8 +3,37 @@
 // crossing. Split out of map-features.js (M5 god-file split). Plain classic script:
 // global functions called at runtime; shared map-features state referenced cross-script.
 
+// 💣 ZWEI STUFEN, UND DIE ERSTE FRAGT NACH DEM ABSTAND. Bis 2026-08-07 stand hier ein blosses
+// find() ueber den THRESHOLD-Kasten: der erste Ort der Array-Reihenfolge gewann, auch gegen einen
+// mit Abstand 0. Und der Kasten ist kein Kreis -- |dlat| und |dlng| je < 0,5 reicht bis zur
+// Diagonale 0,707, weit genug fuer ein Dorf-und-Burg-Paar. Gemessen am Livebestand: 541 von 11.662
+// Endpunkten am falschen Ort, 165 Wege als Selbstkante (beide Enden auf einem Knoten = eine
+// Schleife, die nichts verbindet), 470 Orte scheinbar unverbunden. Sichtbar wurde es als Route,
+// die „nach Reichsgrenzfeste Neu-Süderwacht" hiess und wortlos 0,625 davor im Dorf endete.
+//
+// ⚠️ Der Kasten BLEIBT als zweite Stufe, samt seiner Reihenfolge-Willkuer. Nur 97,5 % der Enden
+// liegen auf einem Ort; die uebrigen haengen allein an ihm, und sein Zusammenfassen haelt Knoten
+// im Netz, zwischen denen kein Weg gezeichnet ist (auf „naechster gewinnt" umzustellen riss
+// gemessen 56 Knoten aus dem Hauptnetz). Server-Zwilling: avesmapsFindClientLocationAtPathEndpoint.
 function getLocationAtPathEndpoint([x, y]) {
-	return locationData.find(({ coordinates: [lat, lng] }) => Math.abs(lat - y) < THRESHOLD && Math.abs(lng - x) < THRESHOLD) || null;
+	let boxHit = null;
+	let exactHit = null;
+	let exactDistance = Infinity;
+	locationData.forEach((location) => {
+		const [lat, lng] = location.coordinates;
+		if (Math.abs(lat - y) >= THRESHOLD || Math.abs(lng - x) >= THRESHOLD) {
+			return;
+		}
+		if (!boxHit) {
+			boxHit = location;
+		}
+		const distance = Math.hypot(lng - x, lat - y);
+		if (distance < LOCATION_ENDPOINT_EXACT_HIT && distance < exactDistance) {
+			exactDistance = distance;
+			exactHit = location;
+		}
+	});
+	return exactHit || boxHit;
 }
 
 function calculatePathCoordinateDistance(coordinates) {
