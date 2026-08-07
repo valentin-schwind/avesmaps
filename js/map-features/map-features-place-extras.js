@@ -123,11 +123,23 @@ function avesmapsSpoilerVeilMarkup(label) {
 	return '<span class="avesmaps-spoiler-veil" data-spoiler-reveal>' + placeExtrasEscape(label) + '</span>';
 }
 
+// Die Rolle, mit der eine Karte GERENDERT wird -- 'start' | 'play' | 'covers'. Die Rollenlogik selbst
+// steht in avesmapsGameLiteratureNormalizeRole (map-features-game-literature.js) und hat den Katalog
+// bereits durchlaufen, bevor eine Shape hier ankommt; diese Weiche ist nur der Riegel an der
+// RENDER-Grenze, damit ein Aufrufer ohne dritten Wert (und der alte boolesche `isPlay`) weiter
+// eindeutig bleibt: `false`/nichts heisst "spoilerfrei", `true` heisst Spoiler.
+function advCardRole(role) {
+	if (role === true) {
+		return "play";
+	}
+	return (role === "play" || role === "covers") ? role : "start";
+}
+
 // Die ANFANGSreihenfolge einer Abenteuerliste: durchgehend "neueste zuerst" (Edition, dann BF-Jahr, dann
 // Titel -- s. avesmapsCompareGameLiteratureRecency), Spoiler stehen dazwischen statt als Block am Ende
 // (Owner 2026-07-18). Muss mit der Default-Sortierung der Sortierzeile uebereinstimmen
 // (data-adv-sort="year" traegt is-active), sonst ordnet der erste Sortierklick sichtbar um, obwohl der
-// Leser dieselbe Sortierung waehlt. Nimmt/liefert {a, isPlay}-Paare, weil die Rolle beim Rendern
+// Leser dieselbe Sortierung waehlt. Nimmt/liefert {a, role}-Paare, weil die Rolle beim Rendern
 // gebraucht wird.
 //
 // Hier stand frueher "stabil, damit Jahrgleiche ihre Eingangsreihenfolge behalten" -- genau das WAR der
@@ -138,6 +150,8 @@ function avesmapsSortGameLiteratureEntries(entries) {
 		// map-features-game-literature.js laedt NACH dieser Datei (index.html); der Aufruf faellt aber erst zur
 		// Laufzeit an, das Global steht dann. Fehlt es wider Erwarten, bleibt das Jahr als Notbehelf: eine
 		// schwaechere Reihenfolge ist ein Schoenheitsfehler, eine Ausnahme waere ein leerer Streifen.
+		// Die Rolle im Paar wird hier NICHT gelesen -- sie reist nur mit, weil der Aufrufer sie zum
+		// Rendern braucht und die Reihenfolge sie bewusst ignoriert (ein Spoiler steht an seinem Platz).
 		if (typeof avesmapsCompareGameLiteratureRecency === "function") {
 			return avesmapsCompareGameLiteratureRecency(x.a, y.a);
 		}
@@ -594,9 +608,9 @@ function buildCityMapRowMarkup(m) {
 		+ '</div>';
 }
 
-// ---- eine Abenteuer-Karte (Cover A4 + Titel + Jahr + Typ) -- fuer beginnt/spielt-Streifen UND Dialog ----
-// isPlay=true -> "spielt hier"-Karte: gleiche Zeile, initial verborgen (display:none), wird beim Umschalten
-// per Fade + Rechts-Scroll freigegeben. data-role gruppiert die Sortierung (beginnt bleibt vor spielt).
+// ---- eine Literatur-Karte (Cover A4 + Titel + Jahr + Typ) -- fuer den Streifen UND den Dialog ----
+// role='play' -> "spielt hier"-Karte: steht mit im Streifen, nur verschleiert. role='covers' ->
+// "beschreibt"-Karte (Regionalspielhilfe/Spielhilfe): steht offen da wie ein "beginnt hier".
 // The shop/reference links for an adventure, in click PRIORITY order, highest first: Ulisses e-book ->
 // F-Shop -> the wiki page -> Deutsche Nationalbibliothek (DNB LAST, it is a mere ISBN/title search).
 //
@@ -676,7 +690,8 @@ function advBestLink(a) {
 	return links.length ? links[0] : null;
 }
 
-function buildGameLiteratureCardMarkup(a, isPlay) {
+function buildGameLiteratureCardMarkup(a, role) {
+	var cardRole = advCardRole(role);
 	var wikiUrl = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
 	// The COVER opens the highest-priority shop/reference link (Ulisses -> F-Shop -> DNB -> Wiki); the TITLE
 	// stays the wiki page. Fall back to the wiki on the cover only when nothing is known.
@@ -698,9 +713,12 @@ function buildGameLiteratureCardMarkup(a, isPlay) {
 	// "spielt hier" IST der Spoiler (Owner 2026-07-18): er steht jetzt da, nur verschleiert -- vorher war er
 	// display:none, und der Leser erfuhr erst NACH dem Umschalten, welche Eintraege es ueberhaupt betrifft.
 	// is-play bleibt der ROLLEN-Marker (data-role, Zaehler, Filter), is-spoiler ist der SCHUTZ-Zustand.
-	var extraClass = isPlay ? " is-play is-spoiler" : "";
-	var veil = isPlay ? avesmapsSpoilerVeilMarkup(tr("gameLiterature.spoilerVeil", "Spoiler (spielt hier)")) : "";
-	return '<div class="avesmaps-adv__card' + extraClass + '"' + advCardDataAttributes(a, isPlay) + '>'
+	// 💣 "beschreibt" (covers) traegt WEDER das eine noch das andere: eine Regionalspielhilfe verraet
+	// nichts, sie beschreibt den Ort (Entwurf §2). Sie steht offen wie ein "beginnt hier" und
+	// unterscheidet sich ueber ihre ART auf der Karte, nicht ueber eine zweite Farbe (Entwurf §7).
+	var extraClass = cardRole === "play" ? " is-play is-spoiler" : "";
+	var veil = cardRole === "play" ? avesmapsSpoilerVeilMarkup(tr("gameLiterature.spoilerVeil", "Spoiler (spielt hier)")) : "";
+	return '<div class="avesmaps-adv__card' + extraClass + '"' + advCardDataAttributes(a, cardRole) + '>'
 		+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" data-spoiler-image href="' + placeExtrasEscape(coverHref) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(coverTitle) + '">' + coverInner + '</a>'
 		+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(wikiUrl) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
 		+ metaLine
@@ -711,11 +729,13 @@ function buildGameLiteratureCardMarkup(a, isPlay) {
 }
 
 // The data-* contract shared by the card AND the dialog row. The sort handler, the filter predicate and
-// the beginnt/spielt toggle all read these attributes off whatever element they find, so card and row MUST
+// the spoiler switch all read these attributes off whatever element they find, so card and row MUST
 // stamp the identical set -- a row missing one would silently disable a control rather than break loudly.
+// data-role carries the FULL role ('start' | 'play' | 'covers'); the class .is-play carries only "is this
+// veiled" -- the flat dialog rebuilds its rows from data-role, so a covers card cannot come back as start.
 // data-public-id is the row's link back into the catalog (see advDialogShapesFromSection).
-function advCardDataAttributes(a, isPlay) {
-	return ' data-role="' + (isPlay ? "play" : "start") + '"'
+function advCardDataAttributes(a, role) {
+	return ' data-role="' + advCardRole(role) + '"'
 		+ ' data-public-id="' + placeExtrasEscape(a.public_id || "") + '"'
 		+ ' data-year="' + (Number(a.year) || 0) + '"'
 		+ ' data-type="' + placeExtrasEscape(a.type) + '"'
@@ -765,7 +785,8 @@ function advRowLinkMarkup(link, opts) {
 // Traegt bewusst AUCH .avesmaps-adv__card: Sortierung, Filter und der beginnt/spielt-Umschalter sind
 // geteilte Handler, die auf diese Klasse + .is-play + .is-filtered-out zielen. So gilt fuer die Zeile
 // automatisch dieselbe Steuerung wie fuer die Kachel; die abweichende Optik haengt an .avesmaps-adv-row.
-function buildGameLiteratureRowMarkup(a, isPlay) {
+function buildGameLiteratureRowMarkup(a, role) {
+	var rowRole = advCardRole(role);
 	var wikiUrl = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
 	var links = advShopLinks(a);
 	var best = links.length ? links[0] : null;
@@ -797,9 +818,9 @@ function buildGameLiteratureRowMarkup(a, isPlay) {
 		return advRowLinkMarkup(link);
 	}).join("") + '</ul>' : "";
 
-	var extraClass = isPlay ? " is-play is-spoiler" : "";
-	var veil = isPlay ? avesmapsSpoilerVeilMarkup(tr("gameLiterature.spoilerVeil", "Spoiler (spielt hier)")) : "";
-	return '<div class="avesmaps-adv__card avesmaps-adv-row' + extraClass + '"' + advCardDataAttributes(a, isPlay) + '>'
+	var extraClass = rowRole === "play" ? " is-play is-spoiler" : "";
+	var veil = rowRole === "play" ? avesmapsSpoilerVeilMarkup(tr("gameLiterature.spoilerVeil", "Spoiler (spielt hier)")) : "";
+	return '<div class="avesmaps-adv__card avesmaps-adv-row' + extraClass + '"' + advCardDataAttributes(a, rowRole) + '>'
 		+ '<a class="avesmaps-adv-row__cover' + (a.cover ? " has-img" : "") + '" data-spoiler-image href="' + placeExtrasEscape(coverHref) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(coverTitle) + '">' + coverInner + '</a>'
 		+ '<div class="avesmaps-adv-row__main">'
 		+ '<a class="avesmaps-adv-row__title" href="' + placeExtrasEscape(wikiUrl) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
@@ -849,18 +870,23 @@ function avesmapsCitymapCreditMarkup() {
 // opts.allowEmpty: eine Sektion OHNE Abenteuer bauen, statt "" zu liefern -- dieselbe Regel wie bei der
 // Kartensammlung. Der Streifen im Infopanel will das nicht, der Dialog schon: seine Kachel oeffnet seit
 // 2026-07-18 immer, und der leere Dialog braucht eine Sektion, die Ortsnamen und -id traegt.
-function buildGameLiteratureSectionMarkup(placeName, beginnt, play, opts) {
+function buildGameLiteratureSectionMarkup(placeName, beginnt, play, covers, opts) {
 	opts = opts || {};
 	var hasBeginnt = beginnt && beginnt.length > 0;
 	var hasPlay = play && play.length > 0;
-	if (!hasBeginnt && !hasPlay && !opts.allowEmpty) {
+	var hasCovers = covers && covers.length > 0;
+	if (!hasBeginnt && !hasPlay && !hasCovers && !opts.allowEmpty) {
 		return "";
 	}
 	var name = placeName || tr("gameLiterature.fallbackPlace", "diesem Ort");
-	var total = (opts.total != null) ? opts.total : (hasBeginnt ? beginnt.length : 0);
 	// Kopf-Zaehler IMMER: seit der Umschalter ein blosser Spoiler-Schalter ist, hat "Beginnt hier" kein
 	// eigenes Segment mehr, das seine Zahl tragen koennte (Owner 2026-07-18: "'Beginnt hier' schrumpft zur
 	// Zahl im Kopf").
+	// Gezaehlt wird, was OFFEN dasteht -- "beginnt hier" UND "beschreibt". Die Zahl ist damit weiter die
+	// des Kopfes und nicht die des Streifens: ein Spoiler steht sichtbar da, aber er zaehlt nicht mit,
+	// sonst verriete die Zahl allein schon, wie viel hier gespielt wird. Ein Ort, den nur
+	// Regionalspielhilfen beschreiben, stuende ohne diese Erweiterung bei "(0)" ueber drei Karten.
+	var total = (opts.total != null) ? opts.total : ((hasBeginnt ? beginnt.length : 0) + (hasCovers ? covers.length : 0));
 	var countMarkup = ' <span class="avesmaps-adv__count">(' + placeExtrasEscape(total) + ')</span>';
 
 	// KEINE Sortier- und keine Spoilerzeile mehr im Infopanel (Owner 2026-07-19: "die Filter koennen alle
@@ -874,20 +900,23 @@ function buildGameLiteratureSectionMarkup(placeName, beginnt, play, opts) {
 	// (buildDialogControls) -- die Sortierung ist hier nur nicht mehr angebracht, nicht tot.
 
 	var noteMarkup = opts.placeholderNote ? '<div class="avesmaps-adv__placeholder">' + placeExtrasEscape(tr("gameLiterature.placeholderNote", "Platzhalter · Cover temporär aus dem Wiki")) + '</div>' : "";
-	// Rand-Fall: hier beginnt nichts, es wird aber gespielt -> Hinweis in der beginnt-Sicht.
-	var emptyHint = (!hasBeginnt && hasPlay) ? '<div class="avesmaps-adv__empty" data-adv-empty>' + placeExtrasEscape(tr("gameLiterature.emptyHint", "Hier beginnt kein Abenteuer.")) + '</div>' : "";
+	// Rand-Fall: hier beginnt nichts, es wird aber gespielt -> Hinweis, warum alles verschleiert ist.
+	// 💣 Nur wenn ueberhaupt NICHTS offen dasteht: beschreibt eine Regionalspielhilfe den Ort, erklaert
+	// sie sich selbst, und "Hier beginnt kein Abenteuer." stuende als Widerspruch ueber einer offenen Karte.
+	var emptyHint = (hasPlay && !hasBeginnt && !hasCovers) ? '<div class="avesmaps-adv__empty" data-adv-empty>' + placeExtrasEscape(tr("gameLiterature.emptyHint", "Hier beginnt kein Abenteuer.")) + '</div>' : "";
 
 	// EIN Streifen, DURCHGEHEND sortiert (Owner 2026-07-18): ein Spoiler steht an seinem Sortierplatz
 	// zwischen den anderen, nicht als Block am Ende. Die Anfangsreihenfolge MUSS der Default-Sortierung der
 	// Sortierzeile entsprechen ("neueste zuerst", is-active) -- sonst springen die Karten beim ersten
 	// Sortierklick, ohne dass sich die Sortierung geaendert haette.
 	var cards = avesmapsSortGameLiteratureEntries(
-		(hasBeginnt ? beginnt.map(function (a) { return { a: a, isPlay: false }; }) : [])
-			.concat(hasPlay ? play.map(function (a) { return { a: a, isPlay: true }; }) : [])
-	).map(function (e) { return buildGameLiteratureCardMarkup(e.a, e.isPlay); }).join("");
+		(hasBeginnt ? beginnt.map(function (a) { return { a: a, role: "start" }; }) : [])
+			.concat(hasPlay ? play.map(function (a) { return { a: a, role: "play" }; }) : [])
+			.concat(hasCovers ? covers.map(function (a) { return { a: a, role: "covers" }; }) : [])
+	).map(function (e) { return buildGameLiteratureCardMarkup(e.a, e.role); }).join("");
 	var listMarkup = '<div class="avesmaps-adv__list">' + cards + '</div>';
 
-	var alleMarkup = (hasBeginnt || hasPlay) ? '<div class="avesmaps-adv__actions"><button type="button" class="avesmaps-adv__all">' + placeExtrasEscape(tr("gameLiterature.all", "Alle anzeigen")) + '</button></div>' : "";
+	var alleMarkup = (hasBeginnt || hasPlay || hasCovers) ? '<div class="avesmaps-adv__actions"><button type="button" class="avesmaps-adv__all">' + placeExtrasEscape(tr("gameLiterature.all", "Alle anzeigen")) + '</button></div>' : "";
 
 	var creditMarkup = avesmapsGameLiteratureCreditMarkup();
 
@@ -907,15 +936,19 @@ function buildGameLiteratureSectionMarkup(placeName, beginnt, play, opts) {
 		+ '</div>';
 }
 
-// Siedlung: die "beginnt hier"/"spielt hier"-Abenteuer dieses Orts (Phase 1). Delegiert an den Kern-Renderer.
+// Siedlung: die "beginnt hier"/"spielt hier"/"beschreibt"-Werke dieses Orts (Phase 1). Delegiert an den
+// Kern-Renderer.
 function buildPlaceGameLiteratureMarkup(location, opts) {
 	var catalogReady = typeof avesmapsGameLiteratureCatalogIsReady === "function" && avesmapsGameLiteratureCatalogIsReady();
 	var beginnt = getPlaceGameLiterature(location); // "beginnt hier" (Start-Ort liegt hier)
 	var play = (catalogReady && typeof getGameLiteratureForPlace === "function") ? getGameLiteratureForPlace(location, { role: "play" }) : [];
+	var covers = (catalogReady && typeof getGameLiteratureForPlace === "function") ? getGameLiteratureForPlace(location, { role: "covers" }) : [];
 	var hasBeginnt = beginnt && beginnt.length > 0;
 	var placeName = (location && location.name) ? location.name : tr("gameLiterature.fallbackPlace", "diesem Ort");
-	return buildGameLiteratureSectionMarkup(placeName, beginnt, play, {
-		total: hasBeginnt ? getPlaceGameLiteratureTotal(location) : 0,
+	return buildGameLiteratureSectionMarkup(placeName, beginnt, play, covers, {
+		// Steht der echte Katalog, ist die Zahl das, was offen dasteht (beginnt + beschreibt). Nur solange
+		// er fehlt, gilt der Platzhalter-/Payload-Gesamtwert -- dort gibt es noch keine Rollen.
+		total: catalogReady ? (beginnt.length + covers.length) : (hasBeginnt ? getPlaceGameLiteratureTotal(location) : 0),
 		placeholderNote: hasBeginnt && !catalogReady,
 		// Nur der Dialog will eine leere Sektion (s. buildGameLiteratureSectionMarkup); der Streifen nicht.
 		allowEmpty: !!(opts && opts.allowEmpty),
@@ -943,9 +976,10 @@ function buildTerritoryGameLiteratureMarkup(regionEntry) {
 	if (wikiKey) {
 		var beginnt = getGameLiteratureForTerritory(wikiKey, { role: "start" });
 		var play = getGameLiteratureForTerritory(wikiKey, { role: "play" });
-		if ((beginnt && beginnt.length) || (play && play.length)) {
+		var covers = getGameLiteratureForTerritory(wikiKey, { role: "covers" });
+		if ((beginnt && beginnt.length) || (play && play.length) || (covers && covers.length)) {
 			// territoryKey = der Server-wiki_key, den der Nested-Dialog an getGameLiteratureTerritoryTree weitergibt.
-			return buildGameLiteratureSectionMarkup(name, beginnt, play, { territoryKey: wikiKey });
+			return buildGameLiteratureSectionMarkup(name, beginnt, play, covers, { territoryKey: wikiKey });
 		}
 		return "";
 	}
@@ -956,10 +990,11 @@ function buildTerritoryGameLiteratureMarkup(regionEntry) {
 	}
 	var rBeginnt = getGameLiteratureForRegion(regionEntry, { role: "start" });
 	var rPlay = getGameLiteratureForRegion(regionEntry, { role: "play" });
-	if ((!rBeginnt || !rBeginnt.length) && (!rPlay || !rPlay.length)) {
+	var rCovers = getGameLiteratureForRegion(regionEntry, { role: "covers" });
+	if ((!rBeginnt || !rBeginnt.length) && (!rPlay || !rPlay.length) && (!rCovers || !rCovers.length)) {
 		return "";
 	}
-	return buildGameLiteratureSectionMarkup(name, rBeginnt, rPlay, {});
+	return buildGameLiteratureSectionMarkup(name, rBeginnt, rPlay, rCovers, {});
 }
 
 // Landschafts-Region-LABEL (Phase 2, Regionen): die diesem Label direkt zugeordneten "beginnt/spielt"-
@@ -975,11 +1010,12 @@ function buildRegionGameLiteratureMarkup(label) {
 	}
 	var beginnt = getGameLiteratureForRegion(label, { role: "start" });
 	var play = getGameLiteratureForRegion(label, { role: "play" });
-	if ((!beginnt || !beginnt.length) && (!play || !play.length)) {
+	var covers = getGameLiteratureForRegion(label, { role: "covers" });
+	if ((!beginnt || !beginnt.length) && (!play || !play.length) && (!covers || !covers.length)) {
 		return "";
 	}
 	var name = (label.text || (label.wikiRegion && label.wikiRegion.name)) || tr("gameLiterature.fallbackRegion", "dieser Region");
-	return buildGameLiteratureSectionMarkup(name, beginnt, play, {});
+	return buildGameLiteratureSectionMarkup(name, beginnt, play, covers, {});
 }
 
 // Weg/Pfad (Phase 2, Wege): die diesem Weg zugeordneten "beginnt/spielt"-Abenteuer. Match primaer ueber die
@@ -999,11 +1035,12 @@ function buildPathGameLiteratureMarkup(path) {
 	};
 	var beginnt = getGameLiteratureForPath(ref, { role: "start" });
 	var play = getGameLiteratureForPath(ref, { role: "play" });
-	if ((!beginnt || !beginnt.length) && (!play || !play.length)) {
+	var covers = getGameLiteratureForPath(ref, { role: "covers" });
+	if ((!beginnt || !beginnt.length) && (!play || !play.length) && (!covers || !covers.length)) {
 		return "";
 	}
 	var name = (typeof getPathDisplayName === "function") ? getPathDisplayName(path) : (path.name || tr("gameLiterature.fallbackPath", "diesem Weg"));
-	return buildGameLiteratureSectionMarkup(name, beginnt, play, {});
+	return buildGameLiteratureSectionMarkup(name, beginnt, play, covers, {});
 }
 
 // Floating-Box-Kachel "Abenteuer" (Owner via Design-Session): die schlanke Siedlungs-Box zeigt KEINEN
@@ -1181,7 +1218,9 @@ function advFiltersMarkup(facets) {
 				: null;
 			return {
 				shape: fromCatalog || cardShapeFromEl(card),
-				isPlay: card.classList.contains("is-play"),
+				// data-role, NICHT .is-play: die Klasse kennt nur "verschleiert ja/nein" und machte aus
+				// jeder "beschreibt"-Karte im Dialog wieder ein "beginnt hier".
+				role: advCardRole(card.getAttribute("data-role")),
 			};
 		});
 	}
@@ -1301,8 +1340,8 @@ function advFiltersMarkup(facets) {
 		var head = section.querySelector(".avesmaps-adv__head");
 		overlay.querySelector(".avesmaps-adv-dialog__title").textContent = head ? head.textContent.trim() : tr("gameLiterature.label", "Literatur");
 		var entries = advDialogShapesFromSection(section);
-		var startEntries = entries.filter(function (e) { return !e.isPlay; });
-		var playEntries = entries.filter(function (e) { return e.isPlay; });
+		var startEntries = entries.filter(function (e) { return e.role !== "play"; });
+		var playEntries = entries.filter(function (e) { return e.role === "play"; });
 		var grid = overlay.querySelector(".avesmaps-adv-dialog__grid");
 		grid.classList.remove("show-spoilers"); // Dialog startet verschleiert -- Spoiler sind bei jedem Oeffnen wieder zu
 		// Durchgehend sortiert wie der Streifen -- Spoilerzeilen stehen an ihrem Platz, nicht als Block am
@@ -1312,8 +1351,8 @@ function advFiltersMarkup(facets) {
 		// NICHT einstellen (Owner) -- fuehrt er zum naechstgelegenen Ort, an dem eines spielt.
 		grid.innerHTML = entries.length
 			? avesmapsSortGameLiteratureEntries(
-				entries.map(function (e) { return { a: e.shape, isPlay: e.isPlay }; })
-			).map(function (e) { return buildGameLiteratureRowMarkup(e.a, e.isPlay); }).join("")
+				entries.map(function (e) { return { a: e.shape, role: e.role }; })
+			).map(function (e) { return buildGameLiteratureRowMarkup(e.a, e.role); }).join("")
 			: '<div class="avesmaps-dialog-empty">'
 				+ '<p class="avesmaps-dialog-empty__text">' + placeExtrasEscape(tr("gameLiterature.emptyPlace", "Noch keine Literatur hier.")) + '</p>'
 				+ '<button type="button" class="avesmaps-dialog-empty__action" data-adv-find-nearest="'
@@ -1489,8 +1528,10 @@ if (typeof module !== "undefined" && module.exports) {
 		advShopLinks: advShopLinks,
 		advBestLink: advBestLink,
 		advFiltersMarkup: advFiltersMarkup,
+		advCardRole: advCardRole,
 		buildGameLiteratureCardMarkup: buildGameLiteratureCardMarkup,
 		buildGameLiteratureRowMarkup: buildGameLiteratureRowMarkup,
+		buildGameLiteratureSectionMarkup: buildGameLiteratureSectionMarkup,
 		avesmapsSortGameLiteratureEntries: avesmapsSortGameLiteratureEntries,
 		cityMapSafeUrl: cityMapSafeUrl,
 		cityMapBestLink: cityMapBestLink,

@@ -19,22 +19,22 @@ global.tr = function (key, germanDefault, params) {
 	return out;
 };
 
-const { advShopLinks, advBestLink, buildGameLiteratureRowMarkup, avesmapsSortGameLiteratureEntries } = require("../map-features-place-extras.js");
+const { advShopLinks, advBestLink, buildGameLiteratureRowMarkup, buildGameLiteratureSectionMarkup, avesmapsSortGameLiteratureEntries } = require("../map-features-place-extras.js");
 
 // ---- Reihenfolge: Spoiler stehen MITTENDRIN, nicht als Block am Ende (Owner 2026-07-18) -------------
 // Die alte Invariante "beginnt vor spielt" hing am Umschalter, der die spielt-Karten rechts freigab. Ohne
 // ihn wird durchgehend nach Jahr sortiert -- und die ANFANGSreihenfolge muss das auch tun, sonst ordnet
 // der erste Klick auf "neueste zuerst" sichtbar um, obwohl der Leser dieselbe Sortierung waehlt.
 const mixed = avesmapsSortGameLiteratureEntries([
-	{ a: { title: "alt, spoilerfrei", year: 1010 }, isPlay: false },
-	{ a: { title: "neu, SPOILER", year: 1040 }, isPlay: true },
-	{ a: { title: "mittel, spoilerfrei", year: 1025 }, isPlay: false },
+	{ a: { title: "alt, spoilerfrei", year: 1010 }, role: "start" },
+	{ a: { title: "neu, SPOILER", year: 1040 }, role: "play" },
+	{ a: { title: "mittel, spoilerfrei", year: 1025 }, role: "start" },
 ]);
 assert.deepStrictEqual(mixed.map((e) => e.a.title), ["neu, SPOILER", "mittel, spoilerfrei", "alt, spoilerfrei"]);
-assert.strictEqual(mixed[0].isPlay, true, "ein neuerer Spoiler steht VOR aelteren spoilerfreien");
+assert.strictEqual(mixed[0].role, "play", "ein neuerer Spoiler steht VOR aelteren spoilerfreien");
 // Jahrlose Eintraege zaehlen als 0 und landen hinten, statt die Sortierung zu sprengen.
 assert.deepStrictEqual(
-	avesmapsSortGameLiteratureEntries([{ a: {}, isPlay: false }, { a: { year: 1000 }, isPlay: true }]).map((e) => Number(e.a.year) || 0),
+	avesmapsSortGameLiteratureEntries([{ a: {}, role: "start" }, { a: { year: 1000 }, role: "play" }]).map((e) => Number(e.a.year) || 0),
 	[1000, 0]
 );
 
@@ -128,7 +128,7 @@ assert.ok(!bare.includes("link-status--online") && !bare.includes("avesmaps-adv-
 
 // Spoiler-Rolle: "spielt hier" ist der Spoiler. is-play bleibt der ROLLEN-Marker (data-role, Zaehler,
 // Filter), is-spoiler ist der SCHUTZ-Zustand -- zwei Dinge, die vorher eines waren.
-const playRow = buildGameLiteratureRowMarkup({ public_id: "adv-3", title: "P", links: [] }, true);
+const playRow = buildGameLiteratureRowMarkup({ public_id: "adv-3", title: "P", links: [] }, "play");
 assert.ok(playRow.includes("is-play") && playRow.includes('data-role="play"'), "play row marked");
 // Seit 2026-07-18 steht ein Spoiler DA, nur verschleiert -- er wird nicht mehr weggeblendet. Ein
 // wiederkehrendes display:none hier waere der Rueckfall in den alten, zweiten Mechanismus.
@@ -137,10 +137,63 @@ assert.ok(!playRow.includes("display:none"), "ein Spoiler wird NICHT mehr verste
 // Und der Schleier nennt seinen Grund (Owner-Muster "Spoiler (<Grund>)"), statt nur "Spoiler" zu rufen.
 assert.ok(playRow.includes("Spoiler (spielt hier)"), "der Schleier nennt seinen Grund");
 // Spoilerfreies bleibt unangetastet: kein Schleier, keine Schutzklasse.
-const startRow = buildGameLiteratureRowMarkup({ public_id: "adv-5", title: "S", links: [] }, false);
+const startRow = buildGameLiteratureRowMarkup({ public_id: "adv-5", title: "S", links: [] }, "start");
 assert.ok(!startRow.includes("is-spoiler") && !startRow.includes("avesmaps-spoiler-veil"), "spoilerfrei bleibt offen");
+
+// Die DRITTE Rolle: "beschreibt". Eine Regionalspielhilfe verraet nichts -- sie steht offen da wie ein
+// "beginnt hier", traegt aber ihre eigene Rolle im data-Attribut, damit der Dialog sie beim Neubau
+// nicht als Startort zurueckbekommt.
+const coversRow = buildGameLiteratureRowMarkup({ public_id: "adv-6", title: "Das Bornland", type: "Regionalspielhilfe", links: [] }, "covers");
+assert.ok(coversRow.includes('data-role="covers"'), "covers row carries its own role");
+assert.ok(!coversRow.includes("is-play"), "eine beschreibende Zeile ist kein Spielort");
+assert.ok(!coversRow.includes("is-spoiler") && !coversRow.includes("avesmaps-spoiler-veil"), "beschreiben ist NIE ein Spoiler");
+assert.ok(coversRow.includes("Regionalspielhilfe"), "die Art unterscheidet sie sichtbar (Entwurf §7)");
+// 💣 Der Riegel an der Render-Grenze: alles, was nicht ausdruecklich Spoiler ist, bleibt offen -- und
+// der alte boolesche Aufruf bleibt eindeutig (true = Spoiler), damit ein vergessener Aufrufer nicht
+// lautlos eine dritte Bedeutung erfindet.
+assert.ok(buildGameLiteratureRowMarkup({ public_id: "adv-7", title: "B", links: [] }, true).includes('data-role="play"'));
+assert.ok(buildGameLiteratureRowMarkup({ public_id: "adv-8", title: "B", links: [] }).includes('data-role="start"'));
 
 // Attribute-context escaping: a title with a quote must not break out of data-title="…".
 const nasty = buildGameLiteratureRowMarkup({ public_id: "adv-4", title: 'A" onmouseover="x', links: [] });
 assert.ok(!nasty.includes('onmouseover="x"'), "title cannot break out of the attribute");
 console.log("buildGameLiteratureRowMarkup ok");
+
+// ---- der Streifen (buildGameLiteratureSectionMarkup): drei Rollen, EIN Streifen ------------------
+const section = buildGameLiteratureSectionMarkup(
+	"Festum",
+	[{ public_id: "s1", title: "Beginnt", type: "Gruppenabenteuer", year: 1040 }],
+	[{ public_id: "p1", title: "Spielt", type: "Szenario", year: 1030 }],
+	[{ public_id: "c1", title: "Das Bornland", type: "Regionalspielhilfe", year: 0 }],
+	{}
+);
+assert.ok(section.includes("Literatur zu Festum"), "Ueberschrift nennt den Ort");
+assert.ok(section.includes("Beginnt") && section.includes("Spielt") && section.includes("Das Bornland"),
+	"alle drei Rollen stehen im selben Streifen");
+assert.ok(section.includes('data-role="covers"'), "die beschreibende Karte traegt ihre Rolle");
+// Genau EIN Schleier, und zwar am Spielort.
+assert.strictEqual((section.match(/avesmaps-spoiler-veil/g) || []).length, 1, "nur der Spielort ist verschleiert");
+// Der Kopfzaehler zaehlt, was OFFEN dasteht: beginnt + beschreibt, nicht den Spoiler.
+assert.ok(section.includes('avesmaps-adv__count">(2)'), "Kopfzahl = spoilerfreie Eintraege");
+
+// 💣 Ein Ort, den NUR eine Regionalspielhilfe beschreibt: der Abschnitt erscheint (frueher fiel er
+// weg, weil beide Listen leer waren), zaehlt sie mit -- und behauptet NICHT, hier beginne nichts.
+const onlyCovers = buildGameLiteratureSectionMarkup("Bornland", [], [],
+	[{ public_id: "c1", title: "Das Bornland", type: "Regionalspielhilfe", year: 0 }], {});
+assert.notStrictEqual(onlyCovers, "", "ein nur beschriebener Ort bekommt seinen Abschnitt");
+assert.ok(onlyCovers.includes('avesmaps-adv__count">(1)'));
+assert.ok(!onlyCovers.includes("Hier beginnt kein Abenteuer"), "kein Widerspruch ueber einer offenen Karte");
+assert.ok(onlyCovers.includes("Alle anzeigen"), "und der Dialog ist von dort aus erreichbar");
+
+// Die Gegenprobe, damit der Hinweis nicht einfach verschwindet: wo NUR gespielt wird, steht er weiter.
+const onlyPlay = buildGameLiteratureSectionMarkup("Havena", [],
+	[{ public_id: "p1", title: "Spielt", type: "Szenario", year: 1030 }], [], {});
+assert.ok(onlyPlay.includes("Hier beginnt kein Abenteuer"), "der Hinweis erklaert weiter den reinen Spoilerfall");
+// Der Fall, der die beiden Regeln auseinanderhaelt: gespielt UND beschrieben, aber kein Startort. Die
+// alte Bedingung ("kein Start, aber Spiel") stuende hier -- ueber einer offen sichtbaren Karte.
+const playAndCovers = buildGameLiteratureSectionMarkup("Festum", [],
+	[{ public_id: "p1", title: "Spielt", type: "Szenario", year: 1030 }],
+	[{ public_id: "c1", title: "Das Bornland", type: "Regionalspielhilfe", year: 0 }], {});
+assert.ok(!playAndCovers.includes("Hier beginnt kein Abenteuer"), "eine offene Karte macht den Hinweis falsch");
+console.log("buildGameLiteratureSectionMarkup ok");
+

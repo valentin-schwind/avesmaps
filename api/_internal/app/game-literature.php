@@ -1231,16 +1231,32 @@ function avesmapsGameLiteratureLinkPlaceFromSource(PDO $pdo, int $sourceId, stri
     $order = $pdo->prepare('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM adventure_place WHERE adventure_id = :aid');
     $order->execute(['aid' => $gameLiteratureId]);
 
+    // Die Rolle richtet sich nach der ART des Werks, nicht nach dem Weg hierher. Sie stand hier als
+    // Literal 'play', und fuer ein Abenteuer stimmt das auch -- eine Regionalspielhilfe aber
+    // BESCHREIBT den Ort, sie spielt nicht in ihm. Als 'play' geschrieben stuende genau das Buch, das
+    // die Quelle des Ortes IST ("Das Bornland" fuer bornlaendische Orte), im Infopanel hinter einem
+    // Spoiler-Schleier -- und dieser Weg ist fuer solche Werke der wahrscheinlichste von allen.
+    // Dieselbe Tabelle wie ueberall (Entwurf §5). Lokal required wie collection-audit.php weiter
+    // unten: der oeffentliche Lesepfad laedt diese Datei damit weiterhin nicht mit.
+    require_once __DIR__ . '/../wiki/publication-parsing.php';
+    $typeStatement = $pdo->prepare('SELECT product_type FROM adventure WHERE id = :id LIMIT 1');
+    $typeStatement->execute(['id' => $gameLiteratureId]);
+    $productType = (string) ($typeStatement->fetchColumn() ?: '');
+    // sort_order 1 statt 0: ein Quellenverweis ist nie der ANFANG eines Abenteuers -- fuer die
+    // geordneten Arten bleibt es damit bei 'play', genau wie bisher.
+    $role = avesmapsGameLiteratureRoleForKind(avesmapsGameLiteratureKindForProductType($productType), 1);
+
     $pdo->prepare(
         "INSERT INTO adventure_place
             (adventure_id, sort_order, raw_name, target_kind, target_public_id, role, origin, status, created_from_source_id)
-         VALUES (:aid, :ord, :name, :kind, :pid, 'play', 'manual', 'approved', :src)"
+         VALUES (:aid, :ord, :name, :kind, :pid, :role, 'manual', 'approved', :src)"
     )->execute([
         'aid' => $gameLiteratureId,
         'ord' => (int) $order->fetchColumn(),
         'name' => avesmapsGameLiteraturePlaceNameFor($pdo, $entityType, $publicId),
         'kind' => $entityType,
         'pid' => $publicId,
+        'role' => $role,
         'src' => $sourceId,
     ]);
     return true;

@@ -31,11 +31,11 @@ const titles = (entries) => entries.map((e) => e.a.title);
 // Meridiana, 25 Abenteuer, 0 davon mit bf_year (live gemessen). Vorher kam hier die Eingangsreihenfolge
 // wieder heraus -- 8 spoilerfreie, dann 17 Spoiler. Jetzt entscheidet die Edition.
 const live = avesmapsSortGameLiteratureEntries([
-	{ a: { title: "Blutbeflecktes Gold", edition: "DSA4" }, isPlay: false },
-	{ a: { title: "Die sieben magischen Kelche", edition: "DSA1 Basis" }, isPlay: false },
-	{ a: { title: "Der Götze der Mohas", edition: "DSA2" }, isPlay: true },
-	{ a: { title: "Das Tal des Todes", edition: "DSA5" }, isPlay: true },
-	{ a: { title: "Rabenblut", edition: "DSA4.1" }, isPlay: true },
+	{ a: { title: "Blutbeflecktes Gold", edition: "DSA4" }, role: "start" },
+	{ a: { title: "Die sieben magischen Kelche", edition: "DSA1 Basis" }, role: "start" },
+	{ a: { title: "Der Götze der Mohas", edition: "DSA2" }, role: "play" },
+	{ a: { title: "Das Tal des Todes", edition: "DSA5" }, role: "play" },
+	{ a: { title: "Rabenblut", edition: "DSA4.1" }, role: "play" },
 ]);
 assert.deepStrictEqual(titles(live), [
 	"Das Tal des Todes",        // DSA5  -- Spoiler, steht trotzdem GANZ OBEN
@@ -44,17 +44,17 @@ assert.deepStrictEqual(titles(live), [
 	"Der Götze der Mohas",      // DSA2
 	"Die sieben magischen Kelche", // DSA1
 ]);
-assert.strictEqual(live[0].isPlay, true, "der neueste Eintrag steht oben, auch wenn er ein Spoiler ist");
+assert.strictEqual(live[0].role, "play", "der neueste Eintrag steht oben, auch wenn er ein Spoiler ist");
 
 // ---- 2. Die Rolle darf die Reihenfolge NICHT beeinflussen ------------------------------------------
 // Der Kern der Owner-Ansage: "egal ob Spoiler oder nicht". Dieselbe Menge mit vertauschten Rollen muss
 // dieselbe Titelreihenfolge ergeben -- sonst sortiert irgendwo doch die Rolle mit.
 const flipped = avesmapsSortGameLiteratureEntries([
-	{ a: { title: "Blutbeflecktes Gold", edition: "DSA4" }, isPlay: true },
-	{ a: { title: "Die sieben magischen Kelche", edition: "DSA1 Basis" }, isPlay: true },
-	{ a: { title: "Der Götze der Mohas", edition: "DSA2" }, isPlay: false },
-	{ a: { title: "Das Tal des Todes", edition: "DSA5" }, isPlay: false },
-	{ a: { title: "Rabenblut", edition: "DSA4.1" }, isPlay: false },
+	{ a: { title: "Blutbeflecktes Gold", edition: "DSA4" }, role: "play" },
+	{ a: { title: "Die sieben magischen Kelche", edition: "DSA1 Basis" }, role: "play" },
+	{ a: { title: "Der Götze der Mohas", edition: "DSA2" }, role: "start" },
+	{ a: { title: "Das Tal des Todes", edition: "DSA5" }, role: "start" },
+	{ a: { title: "Rabenblut", edition: "DSA4.1" }, role: "start" },
 ]);
 assert.deepStrictEqual(titles(flipped), titles(live), "die Rolle veraendert die Reihenfolge nicht");
 
@@ -62,9 +62,9 @@ assert.deepStrictEqual(titles(flipped), titles(live), "die Rolle veraendert die 
 // Die 6 Platzhalter tragen eines; es soll weiter wirken, aber die Edition nicht ueberstimmen.
 assert.deepStrictEqual(
 	titles(avesmapsSortGameLiteratureEntries([
-		{ a: { title: "DSA5, ohne Jahr", edition: "DSA5" }, isPlay: false },
-		{ a: { title: "DSA5, 1044 BF", edition: "DSA5", year: 1044 }, isPlay: false },
-		{ a: { title: "DSA3, 1015 BF", edition: "DSA3", year: 1015 }, isPlay: false },
+		{ a: { title: "DSA5, ohne Jahr", edition: "DSA5" }, role: "start" },
+		{ a: { title: "DSA5, 1044 BF", edition: "DSA5", year: 1044 }, role: "start" },
+		{ a: { title: "DSA3, 1015 BF", edition: "DSA3", year: 1015 }, role: "start" },
 	])),
 	["DSA5, 1044 BF", "DSA5, ohne Jahr", "DSA3, 1015 BF"]
 );
@@ -75,9 +75,9 @@ assert.deepStrictEqual(
 // die "neueste zuerst" verspricht.
 assert.deepStrictEqual(
 	titles(avesmapsSortGameLiteratureEntries([
-		{ a: { title: "ohne Edition" }, isPlay: false },
-		{ a: { title: "Fremdregelwerk", edition: "Aventuria 2.0" }, isPlay: false },
-		{ a: { title: "DSA1", edition: "DSA1" }, isPlay: false },
+		{ a: { title: "ohne Edition" }, role: "start" },
+		{ a: { title: "Fremdregelwerk", edition: "Aventuria 2.0" }, role: "start" },
+		{ a: { title: "DSA1", edition: "DSA1" }, role: "start" },
 	])),
 	["DSA1", "Fremdregelwerk", "ohne Edition"]
 );
@@ -87,8 +87,8 @@ assert.deepStrictEqual(
 // Rollen-Block, der den urspruenglichen Fehler erzeugt hat.
 assert.deepStrictEqual(
 	titles(avesmapsSortGameLiteratureEntries([
-		{ a: { title: "Zwischen Geistern und Piraten", edition: "DSA4" }, isPlay: true },
-		{ a: { title: "Blutbeflecktes Gold", edition: "DSA4" }, isPlay: false },
+		{ a: { title: "Zwischen Geistern und Piraten", edition: "DSA4" }, role: "play" },
+		{ a: { title: "Blutbeflecktes Gold", edition: "DSA4" }, role: "start" },
 	])),
 	["Blutbeflecktes Gold", "Zwischen Geistern und Piraten"]
 );

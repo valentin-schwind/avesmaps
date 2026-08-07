@@ -660,6 +660,9 @@ window.AVESMAPS_I18N_EN = {
 	"spotlight.gameLiterature": "Literature",
 	"spotlight.gameLiteratureMore": "… and {n} more works",
 	"spotlight.gameLiteratureStartsIn": "starts in {place}",
+	// The spoiler-free counterpart: a Regionalspielhilfe/Spielhilfe describes its places, it does not
+	// begin or play in them. Same hint line, different verb.
+	"spotlight.gameLiteratureCovers": "covers {place}",
 	"spotlight.lore": "Occurrences",
 	"spotlight.loreMore": "… and {n} more occurrences",
 	"spotlight.labelType.region": "Region",

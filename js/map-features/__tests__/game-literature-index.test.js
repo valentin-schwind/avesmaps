@@ -3,6 +3,7 @@ const {
 	avesmapsGameLiteratureProductTypeLabel,
 	avesmapsGameLiteratureEditionSortKey,
 	avesmapsNormalizeGameLiteratureKey,
+	avesmapsGameLiteratureNormalizeRole,
 	avesmapsGameLiteratureToRenderShape,
 	avesmapsBuildGameLiteratureIndex,
 	avesmapsSelectGameLiteratureEntries,
@@ -12,7 +13,27 @@ const {
 assert.strictEqual(avesmapsGameLiteratureProductTypeLabel("gruppenabenteuer"), "Gruppenabenteuer");
 assert.strictEqual(avesmapsGameLiteratureProductTypeLabel("SOLOABENTEUER"), "Soloabenteuer");
 assert.strictEqual(avesmapsGameLiteratureProductTypeLabel("unbekannt"), "unbekannt"); // pass-through
+// 💣 Jede Art, die die serverseitige Weiche durchlaesst, braucht hier ein WORT. Fehlt es, reicht der
+// Rueckfall den rohen Datenbankwert durch, und in der Typzeile der Karte steht dann
+// "regionalspielhilfe" statt "Regionalspielhilfe" -- klein, ohne Fuge, wie ein Datenbankfeld.
+["kampagnenband", "metaband", "roman", "kurzgeschichte", "regionalspielhilfe", "spielhilfe"].forEach((slug) => {
+	const label = avesmapsGameLiteratureProductTypeLabel(slug);
+	assert.notStrictEqual(label, slug, "ohne Beschriftung: " + slug);
+	assert.strictEqual(label.charAt(0), label.charAt(0).toUpperCase());
+});
 console.log("product-type labels ok");
+
+// ---- Rollen-Normalisierung: der Client-Zwilling der Server-Regel ----
+assert.strictEqual(avesmapsGameLiteratureNormalizeRole("start"), "start");
+assert.strictEqual(avesmapsGameLiteratureNormalizeRole("play"), "play");
+assert.strictEqual(avesmapsGameLiteratureNormalizeRole("covers"), "covers");
+// 💣 Die Richtung des Rueckfalls ist die ganze Regel: Unbekanntes wird zum SPOILER, nie zum offenen
+// Eintrag. Ein zu Unrecht verschleierter Eintrag ist ein Schoenheitsfehler; ein zu Unrecht offener
+// verraet, wo ein Abenteuer hinfuehrt.
+assert.strictEqual(avesmapsGameLiteratureNormalizeRole("beschreibt"), "play");
+assert.strictEqual(avesmapsGameLiteratureNormalizeRole(""), "play");
+assert.strictEqual(avesmapsGameLiteratureNormalizeRole(undefined), "play");
+console.log("role normalize ok");
 
 // ---- render shape (catalog -> place-extras shape) ----
 const shape = avesmapsGameLiteratureToRenderShape({
@@ -85,6 +106,36 @@ const terrHit = avesmapsSelectGameLiteratureEntries(terrIndex, { key: avesmapsNo
 assert.strictEqual(terrHit.length, 1);
 assert.strictEqual(terrHit[0].adv.public_id, "advT");
 console.log("territory index ok");
+
+// ---- die dritte Rolle: "beschreibt" (Regionalspielhilfe/Spielhilfe) ----
+// Eine Regionalspielhilfe hat GAR KEINEN Startort -- ihre Orte kommen aus `Thema` und tragen alle
+// 'covers'. Bis zum Literatur-Umbau faltete der Index jede Nicht-Start-Rolle auf 'play', also stand
+// "Das Bornland" im Infopanel als SPOILER hinter einem Schleier.
+const coversIndex = avesmapsBuildGameLiteratureIndex([
+	{ public_id: "rsh", title: "Das Bornland", product_type: "regionalspielhilfe", places: [
+		{ role: "covers", target_kind: "territory", target_wiki_key: "wiki:bornland" },
+		{ role: "covers", target_kind: "settlement", target_public_id: "S-festum", target_wiki_key: "wiki:festum" },
+	] },
+	{ public_id: "abt", title: "Ein Abenteuer", product_type: "gruppenabenteuer", places: [
+		{ role: "play", target_kind: "settlement", target_public_id: "S-festum", target_wiki_key: "wiki:festum" },
+	] },
+]);
+const bornKeyN = avesmapsNormalizeGameLiteratureKey("wiki:bornland");
+assert.strictEqual(avesmapsSelectGameLiteratureEntries(coversIndex, { key: bornKeyN }, "covers").length, 1);
+// Und sie ist NICHT als Spoiler ansprechbar -- sonst haette der Umbau nur den Namen der Rolle geaendert.
+assert.strictEqual(avesmapsSelectGameLiteratureEntries(coversIndex, { key: bornKeyN }, "play").length, 0);
+assert.strictEqual(avesmapsSelectGameLiteratureEntries(coversIndex, { key: bornKeyN }, "start").length, 0);
+// Am selben Ort duerfen beide Rollen nebeneinander stehen und sauber getrennt bleiben.
+assert.deepStrictEqual(
+	avesmapsSelectGameLiteratureEntries(coversIndex, { publicId: "S-festum" }, "covers").map((e) => e.adv.public_id),
+	["rsh"]
+);
+assert.deepStrictEqual(
+	avesmapsSelectGameLiteratureEntries(coversIndex, { publicId: "S-festum" }, "play").map((e) => e.adv.public_id),
+	["abt"]
+);
+assert.strictEqual(avesmapsSelectGameLiteratureEntries(coversIndex, { publicId: "S-festum" }, "all").length, 2);
+console.log("covers role ok");
 
 // empty / missing inputs are safe
 assert.deepStrictEqual(avesmapsSelectGameLiteratureEntries(null, { publicId: "S1" }, "start"), []);

@@ -490,6 +490,14 @@
                Filter-Icon"). Dasselbe SVG wie AVM_FILTER_ICON (js/ui/filter-menu.js) / utils.js. -->
           <button type="button" class="type-filter__toggle" id="aeFilterToggle" aria-expanded="false" aria-label="Filter"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 8v5l-4 2v-7z"/></svg> Filter ▾</button>
           <div class="ae-filters type-filter__menu" id="aeFilters" hidden>
+        <!-- Art VOR Typ: die Art ist die Rubrik (Abenteuer, Roman, Regionalspielhilfe …), der Typ die
+             Feinstufe darin. Beide bleiben, weil beide gefragt werden -- „zeig mir alle Spielhilfen"
+             und „zeig mir alle Soloabenteuer". Die Art ist ABGELEITET (aus product_type), nie
+             gespeichert: zwei Wahrheiten ueber dieselbe Zeile waeren der Fehler (Entwurf §7). -->
+        <div class="ae-filter">
+          <label class="ae-filter__lbl" for="aeFArt">Art</label>
+          <select class="ae-select" id="aeFArt"></select>
+        </div>
         <div class="ae-filter">
           <label class="ae-filter__lbl" for="aeFType">Typ</label>
           <select class="ae-select" id="aeFType"></select>
@@ -640,26 +648,51 @@
   // — genau so ging das 2026-07-19 mit "kampagne" gegen "Kampagnenband" (27 Baende). Die Liste haengt an
   // AVESMAPS_GAME_LITERATURE_KINDS in api/_internal/wiki/publication-parsing.php; wer dort eine Art
   // ergaenzt, ergaenzt sie hier mit.
-  const PRODUCT_TYPES = ["gruppenabenteuer", "soloabenteuer", "kurzabenteuer", "szenario", "anthologie", "kampagne", "kampagnenband", "metaband", "roman", "kurzgeschichte", "regionalspielhilfe", "spielhilfe"];
   const PRODUCT_TYPE_LABEL = { gruppenabenteuer: "Gruppenabenteuer", soloabenteuer: "Soloabenteuer",
     kurzabenteuer: "Kurzabenteuer", szenario: "Szenario", anthologie: "Anthologie", kampagne: "Kampagne",
     kampagnenband: "Kampagnenband", metaband: "Metaband", roman: "Roman", kurzgeschichte: "Kurzgeschichte",
     regionalspielhilfe: "Regionalspielhilfe", spielhilfe: "Spielhilfe" };
   // Welche Typen zu welcher Art gehoeren — Anzeige, KEIN Datenmodell: die Art ist aus product_type
   // abgeleitet. Wer sie mitspeichert, hat ab dem ersten Handgriff zwei Wahrheiten ueber dieselbe Zeile.
+  // Der Zwilling von AVESMAPS_GAME_LITERATURE_KINDS (api/_internal/wiki/publication-parsing.php); `roles`
+  // sagt hier dasselbe wie dort: "ordered" = erster Ort ist der Start, Rest ist Spoiler; "covers" = alle
+  // Orte werden beschrieben, keiner verraten.
   const PRODUCT_TYPE_GROUPS = [
-    ["Abenteuer", ["gruppenabenteuer", "soloabenteuer", "kurzabenteuer", "szenario", "anthologie", "kampagne", "kampagnenband", "metaband"]],
-    ["Roman", ["roman"]],
-    ["Kurzgeschichte", ["kurzgeschichte"]],
-    ["Regionalspielhilfe", ["regionalspielhilfe"]],
-    ["Spielhilfe", ["spielhilfe"]],
+    { art: "Abenteuer", roles: "ordered", types: ["gruppenabenteuer", "soloabenteuer", "kurzabenteuer", "szenario", "anthologie", "kampagne", "kampagnenband", "metaband"] },
+    { art: "Roman", roles: "ordered", types: ["roman"] },
+    { art: "Kurzgeschichte", roles: "ordered", types: ["kurzgeschichte"] },
+    { art: "Regionalspielhilfe", roles: "covers", types: ["regionalspielhilfe"] },
+    { art: "Spielhilfe", roles: "covers", types: ["spielhilfe"] },
   ];
+  // Die flache Liste ist ABGELEITET, nicht zweitgeschrieben: zwei Aufzaehlungen derselben zwoelf Werte
+  // waeren die naechste Divergenz, und diese hier ist genau die, die 2026-07-19 27 Baende gekostet hat.
+  const PRODUCT_TYPES = PRODUCT_TYPE_GROUPS.reduce((all, g) => all.concat(g.types), []);
+  // Die Art eines gespeicherten Typs. 💣 Ein UNBEKANNTER Typ gilt als Abenteuer — genau wie serverseitig
+  // (avesmapsGameLiteratureKindForProductType). Das ist kein Notnagel, sondern das, was jede Zeile aus
+  // der Zeit vor dieser Tabelle unveraendert weiterlaufen laesst. Und unbekannte gibt es wirklich: die
+  // Wiki-Weiche nimmt JEDES `Art`, in dem "abenteuer" oder "kampagne" vorkommt.
+  function aeGroupForType(productType) {
+    const key = String(productType == null ? "" : productType).toLowerCase();
+    return PRODUCT_TYPE_GROUPS.find((g) => g.types.indexOf(key) >= 0) || PRODUCT_TYPE_GROUPS[0];
+  }
+  // Beschreibt dieses Werk seine Orte, statt in ihnen zu spielen?
+  function aeWorkCovers() {
+    return aeGroupForType((state.detail && state.detail.product_type) || "").roles === "covers";
+  }
+  // Die Rolle, die ein NEU zugeordneter Ort mitbekommt — "" heisst „nichts mitschicken, der Server
+  // entscheidet" (er setzt 'play', und der Stern macht daraus einen Startort).
+  // 💣 Bei einer Regionalspielhilfe MUSS sie mit: dort gibt es keine Startorte, und der serverseitige
+  // Standard 'play' hiesse, dass ein von Hand zugeordneter Ort im Frontend als SPOILER dastuende —
+  // dieselbe Bauart wie Entwurf §4f, nur eine Ebene hoeher.
+  function aeNewPlaceRole() {
+    return aeWorkCovers() ? "covers" : "";
+  }
   const EDITIONS = ["", "DSA1", "DSA2", "DSA3", "DSA4", "DSA5"];
   const KIND_LABEL = { settlement: "Siedlung", territory: "Territorium", region: "Region", path: "Weg", unresolved: "—" };
 
   // Left-list filters (all AND-combined with the title search). ortId = an exact target_public_id picked from
   // the map-search autocomplete; region = a raw_name of a region/territory place (coarse area filter).
-  const EMPTY_FILTERS = { type: "", edition: "", yearFrom: "", yearTo: "", cover: "", fshop: "", region: "", ortId: "", ortName: "" };
+  const EMPTY_FILTERS = { art: "", type: "", edition: "", yearFrom: "", yearTo: "", cover: "", fshop: "", region: "", ortId: "", ortName: "" };
   // extraLinks = the working copy of the "Weitere Links" list (§2.4). Held in state rather than read off
   // the DOM on demand because ▲▼/✕ re-render the rows: whatever is typed must survive that.
   const state = { adventures: [], selectedId: null, detail: null, extraLinks: [], filters: Object.assign({}, EMPTY_FILTERS) };
@@ -731,6 +764,7 @@
     const f = state.filters;
     const q = (document.getElementById("aeSearch").value || "").trim().toLowerCase();
     if (q && !((a.title || "").toLowerCase().includes(q))) return false;
+    if (f.art && aeGroupForType(a.product_type).art !== f.art) return false;
     if (f.type && a.product_type !== f.type) return false;
     if (f.edition && (a.edition || "") !== f.edition) return false;
     if (f.yearFrom !== "" && (a.bf_year == null || a.bf_year < Number(f.yearFrom))) return false;
@@ -810,7 +844,25 @@
       return `<div class="ae-field${opts.wide ? " is-wide" : ""}"><label class="ae-check"><input type="checkbox" data-field="${field}"${value ? " checked" : ""}> ${aeEscape(label)}${manual}</label></div>`;
     }
     let control;
-    if (opts.select) {
+    if (opts.groups) {
+      // Gruppierte Auswahl (Produkttyp): <optgroup> je Art, Beschriftung sichtbar, SLUG im value.
+      // 💣 Der value MUSS der Slug bleiben — er ist der gespeicherte product_type, und die Beschriftung
+      //    ist nur die Anzeige.
+      // 💣 Ein gespeicherter Typ, den keine Gruppe kennt, bekommt seine EIGENE Zeile. Ohne sie stuende
+      //    das Feld auf der ersten Option, und der naechste Klick auf „Speichern" schriebe sie still
+      //    hinein — genau der Unfall vom 19.07. (`kampagne` gegen „Kampagnenband", 27 Baende, Entwurf
+      //    §4b). Unbekannte Werte sind kein Restrisiko: die Wiki-Weiche laesst JEDES `Art` durch, in dem
+      //    "abenteuer" oder "kampagne" steckt, der Editor kennt aber nur die ausgeschriebene Liste.
+      const cur = value == null ? "" : String(value);
+      const known = opts.groups.some((g) => g.types.indexOf(cur) >= 0);
+      const option = (t) => `<option value="${aeEscape(t)}"${t === cur ? " selected" : ""}>${aeEscape((opts.labels && opts.labels[t]) || t)}</option>`;
+      const groups = opts.groups.map((g) =>
+        `<optgroup label="${aeEscape(g.art)}">${g.types.map(option).join("")}</optgroup>`).join("");
+      const stray = (cur && !known)
+        ? `<optgroup label="nicht zugeordnet">${option(cur)}</optgroup>`
+        : "";
+      control = `<select class="ae-select" data-field="${field}">${stray}${groups}</select>`;
+    } else if (opts.select) {
       const cur = value == null ? "" : String(value);
       control = `<select class="ae-select" data-field="${field}">${opts.select.map((o) =>
         `<option${o === cur ? " selected" : ""}>${aeEscape(o)}</option>`).join("")}</select>`;
@@ -857,7 +909,7 @@
       ${aeCoverGroup(v, o)}
       <div class="ae-grp"><p class="ae-grp__title">Identität</p><div class="ae-fields">
         ${aeField("Titel *", "title", v.title || "", o, { wide: true })}
-        ${aeField("Produkttyp", "product_type", v.product_type || "gruppenabenteuer", o, { select: PRODUCT_TYPES })}
+        ${aeField("Produkttyp", "product_type", v.product_type || "gruppenabenteuer", o, { groups: PRODUCT_TYPE_GROUPS, labels: PRODUCT_TYPE_LABEL })}
         ${aeField("Regelsystem", "edition", v.edition || "", o, { select: EDITIONS })}
         ${aeField("Offizielles Produkt", "is_official", v.is_official !== false, o, { checkbox: true })}
         ${aeField("Serie / Reihe", "series", v.series || "", o)}
@@ -1098,6 +1150,9 @@
 
   // ---- Orte (places) ----
   function placeRow(p, isFirst, isLast) {
+    // Die GESPEICHERTE Rolle entscheidet, nicht die Art des Werks: waere es umgekehrt, machte ein
+    // Umstellen des Produkttyps aus 40 Spielorten stillschweigend 40 beschriebene Orte.
+    const covers = p.role === "covers";
     const start = p.role === "start";
     const kind = p.target_kind || "unresolved";
     const resolved = kind === "unresolved"
@@ -1115,7 +1170,9 @@
         <div class="ae-place__badges">${kind !== "unresolved" ? `<span class="pill pill--kind">${aeEscape(KIND_LABEL[kind] || kind)}</span> ` : ""}${origin}</div></div>
       <div class="ae-place__ctl">
         ${kind === "unresolved" ? `<button class="btn btn--sm" data-act="resolve" title="Erneut auflösen">↻ Auflösen</button>` : ""}
-        <button class="btn btn--sm start-toggle${start ? " is-on" : ""}" data-act="start" title="Startort umschalten (mehrere möglich)">${start ? "★ Startort" : "☆ Start"}</button>
+        ${covers
+          ? `<span class="pill pill--kind" title="Dieses Werk beschreibt den Ort — es beginnt und spielt nirgends, also gibt es hier auch keinen Startort und keinen Spoiler.">beschreibt</span>`
+          : `<button class="btn btn--sm start-toggle${start ? " is-on" : ""}" data-act="start" title="Startort umschalten (mehrere möglich)">${start ? "★ Startort" : "☆ Start"}</button>`}
         <button class="btn btn--icon btn--danger" data-act="suppress" title="Entfernen">✕</button></div></div>`;
   }
   function renderPlaces() {
@@ -1128,17 +1185,22 @@
     const all = state.detail.places || [];
     const approved = all.filter((p) => p.status === "approved");
     const suppressed = all.filter((p) => p.status === "suppressed");
+    // Beschreibt das WERK seine Orte? Steuert nur Kopfzeile und Hinweis; die einzelne Zeile richtet sich
+    // nach ihrer eigenen gespeicherten Rolle.
+    const covers = aeWorkCovers();
     aeSetOrteCount(approved.length);
     body.innerHTML = `
       <div class="ae-orte__head">
-        <span class="ae-orte__invariant" title="Startorte oben; nie automatisch umsortieren — nur manuell per ▲▼.">★ Startorte oben · manuell ordenbar (▲▼)</span>
+        <span class="ae-orte__invariant" title="${covers ? "Reihenfolge wie im Wiki-Artikel; nie automatisch umsortieren — nur manuell per ▲▼." : "Startorte oben; nie automatisch umsortieren — nur manuell per ▲▼."}">${covers ? "Reihenfolge des Artikels · manuell ordenbar (▲▼)" : "★ Startorte oben · manuell ordenbar (▲▼)"}</span>
         <span style="flex:1"></span>
         ${suppressed.length ? `<button class="btn btn--sm" data-act="toggle-sup">unterdrückte anzeigen (${suppressed.length})</button>` : ""}</div>
       <div class="ae-add">
         <input class="ae-input" id="aeAddName" autocomplete="off" placeholder="Ort suchen oder Wiki-Titel eingeben …">
         <button class="btn btn--primary" data-act="add">+ Ort</button>
         <div class="ae-ac" id="aeAc" hidden></div></div>
-      <p class="ae-orte__hint" style="margin:0 0 var(--space-8)">★ = beginnt hier (Spoiler-frei) · übrige = spielt hier (Spoiler) · mehrere Startorte möglich · neuer Ort wird automatisch aufgelöst</p>
+      <p class="ae-orte__hint" style="margin:0 0 var(--space-8)">${covers
+        ? "Dieses Werk <strong>beschreibt</strong> seine Orte — kein Startort, kein Spoiler. Alle stehen im Infopanel offen da · neuer Ort wird automatisch aufgelöst"
+        : "★ = beginnt hier (Spoiler-frei) · übrige = spielt hier (Spoiler) · mehrere Startorte möglich · neuer Ort wird automatisch aufgelöst"}</p>
       ${approved.length ? approved.map((p, i) => placeRow(p, i === 0, i === approved.length - 1)).join("")
         : `<p class="ae-orte__hint">Noch keine Orte — oben hinzufügen.</p>`}
       <div class="ae-suppressed-wrap" hidden>${suppressed.map((p) =>
@@ -1254,13 +1316,20 @@
 
   // ---- list filters: init selects, wire controls, Ort autocomplete ----
   function initFilterSelects() {
+    document.getElementById("aeFArt").innerHTML = ['<option value="">alle Arten</option>'].concat(
+      PRODUCT_TYPE_GROUPS.map((g) => `<option value="${aeEscape(g.art)}">${aeEscape(g.art)}</option>`)
+    ).join("");
+    // Der Typ steht GRUPPIERT da wie im Formular — sonst liest sich die Liste als zwoelf gleichrangige
+    // Werte, und die Art daneben waere die zweite, widersprechende Ordnung derselben Sache.
     document.getElementById("aeFType").innerHTML = ['<option value="">alle Typen</option>'].concat(
-      PRODUCT_TYPES.map((t) => `<option value="${aeEscape(t)}">${aeEscape(PRODUCT_TYPE_LABEL[t] || t)}</option>`)
+      PRODUCT_TYPE_GROUPS.map((g) => `<optgroup label="${aeEscape(g.art)}">` + g.types.map((t) =>
+        `<option value="${aeEscape(t)}">${aeEscape(PRODUCT_TYPE_LABEL[t] || t)}</option>`).join("") + `</optgroup>`)
     ).join("");
     document.getElementById("aeFEdition").innerHTML =
       EDITIONS.map((ed) => `<option value="${aeEscape(ed)}">${ed ? aeEscape(ed) : "alle"}</option>`).join("");
   }
   function syncSimpleFilters() {
+    state.filters.art = document.getElementById("aeFArt").value;
     state.filters.type = document.getElementById("aeFType").value;
     state.filters.edition = document.getElementById("aeFEdition").value;
     state.filters.yearFrom = document.getElementById("aeFYearFrom").value.trim();
@@ -1288,7 +1357,7 @@
   // Liste ploetzlich acht Eintraege zeigt.
   function aeActiveFilterCount() {
     const f = state.filters;
-    return ["type", "edition", "cover", "fshop", "region", "ortId"].filter((k) => f[k]).length
+    return ["art", "type", "edition", "cover", "fshop", "region", "ortId"].filter((k) => f[k]).length
       + (f.yearFrom !== "" ? 1 : 0) + (f.yearTo !== "" ? 1 : 0);
   }
   // Diese Seite lädt kein filter-menu.js, daher das Trichter-Icon lokal (dasselbe SVG wie
@@ -1321,13 +1390,13 @@
   initFilterSelects();
   renderOrtChip();
   renderFilterToggle();
-  ["aeFType", "aeFEdition", "aeFCover", "aeFShop", "aeFRegion"].forEach((id) =>
+  ["aeFArt", "aeFType", "aeFEdition", "aeFCover", "aeFShop", "aeFRegion"].forEach((id) =>
     document.getElementById(id).addEventListener("change", syncSimpleFilters));
   ["aeFYearFrom", "aeFYearTo"].forEach((id) =>
     document.getElementById(id).addEventListener("input", syncSimpleFilters));
   document.getElementById("aeFReset").addEventListener("click", () => {
     state.filters = Object.assign({}, EMPTY_FILTERS);
-    ["aeFType", "aeFEdition", "aeFCover", "aeFShop", "aeFRegion"].forEach((id) => { document.getElementById(id).value = ""; });
+    ["aeFArt", "aeFType", "aeFEdition", "aeFCover", "aeFShop", "aeFRegion"].forEach((id) => { document.getElementById(id).value = ""; });
     document.getElementById("aeFYearFrom").value = "";
     document.getElementById("aeFYearTo").value = "";
     document.getElementById("aeFOrt").value = "";
@@ -1421,6 +1490,8 @@
       } else if (act === "restore") {
         const place = { raw_name: btn.dataset.raw };
         if (btn.dataset.kind && btn.dataset.kind !== "unresolved" && btn.dataset.kind !== "") place.target_kind = btn.dataset.kind;
+        const restoreRole = aeNewPlaceRole();
+        if (restoreRole) place.role = restoreRole;
         await gameLiteraturePost({ action: "add_place", adventure_public_id: state.selectedId, place });
       } else if (act === "up" || act === "down") {
         const approved = (state.detail.places || []).filter((p) => p.status === "approved");
@@ -1481,7 +1552,10 @@
     hideAc();
     if (!raw || !state.selectedId) return;
     try {
-      const { place_id } = await gameLiteraturePost({ action: "add_place", adventure_public_id: state.selectedId, place: { raw_name: raw } });
+      const place = { raw_name: raw };
+      const newRole = aeNewPlaceRole();
+      if (newRole) place.role = newRole;
+      const { place_id } = await gameLiteraturePost({ action: "add_place", adventure_public_id: state.selectedId, place });
       try { await gameLiteraturePost({ action: "resolve_place", place_id }); } catch (_) { /* best-effort */ }
       await reloadDetail();
       const inp = document.getElementById("aeAddName");
@@ -1510,8 +1584,10 @@
     const kind = mapSearchKind(item);
     if (!kind || !item.public_id) { addPlaceRaw(item.name); return; }
     try {
-      await gameLiteraturePost({ action: "add_place", adventure_public_id: state.selectedId,
-        place: { raw_name: item.name, target_kind: kind, target_public_id: item.public_id } });
+      const picked = { raw_name: item.name, target_kind: kind, target_public_id: item.public_id };
+      const pickedRole = aeNewPlaceRole();
+      if (pickedRole) picked.role = pickedRole;
+      await gameLiteraturePost({ action: "add_place", adventure_public_id: state.selectedId, place: picked });
       await reloadDetail();
       const inp = document.getElementById("aeAddName");
       if (inp) inp.focus();

@@ -17,7 +17,13 @@ var avesmapsGameLiteratureCatalogState = { loaded: false, loading: null, catalog
 
 // ---- pure core (exported for Node tests; no window/fetch/DOM) -------------------------------------
 
-// Wiki "Ort" product-type slug -> German display label. Unknown slugs pass through capitalized-as-is.
+// product-type slug -> German display label. Unknown slugs pass through capitalized-as-is.
+//
+// 💣 Ein fehlender Eintrag ist NICHT harmlos: der Rueckfall reicht den rohen Datenbankwert durch, und
+// "regionalspielhilfe" klein und ohne Fuge liest sich wie ein Datenbankfeld, nicht wie eine Angabe ueber
+// ein Buch (derselbe Befund wie im Editor, Owner 2026-08-07). Diese Liste MUSS deshalb jeden Wert
+// kennen, den AVESMAPS_GAME_LITERATURE_KINDS (api/_internal/wiki/publication-parsing.php) zulaesst --
+// die acht Abenteuertypen plus Roman, Kurzgeschichte, Regionalspielhilfe und Spielhilfe.
 function avesmapsGameLiteratureProductTypeLabel(productType) {
 	var labels = {
 		gruppenabenteuer: "Gruppenabenteuer",
@@ -26,9 +32,27 @@ function avesmapsGameLiteratureProductTypeLabel(productType) {
 		szenario: "Szenario",
 		anthologie: "Anthologie",
 		kampagne: "Kampagne",
+		kampagnenband: "Kampagnenband",
+		metaband: "Metaband",
+		roman: "Roman",
+		kurzgeschichte: "Kurzgeschichte",
+		regionalspielhilfe: "Regionalspielhilfe",
+		spielhilfe: "Spielhilfe",
 	};
 	var key = String(productType == null ? "" : productType).toLowerCase();
 	return labels[key] || (productType ? String(productType) : "");
+}
+
+// Die DREI Rollen, die ein Ort tragen kann -- der Client-Zwilling von
+// avesmapsGameLiteratureNormalizeRole (api/_internal/app/game-literature.php):
+//   start  -- "beginnt hier", spoilerfrei (Abenteuer, Roman, Kurzgeschichte)
+//   play   -- "spielt hier", und play IST der Spoiler
+//   covers -- "beschreibt", spoilerfrei (Regionalspielhilfe, Spielhilfe)
+// 💣 Alles Unbekannte wird zum SPOILER, nicht zum spoilerfreien Fall. Die Richtung ist die ganze Regel:
+// ein falsch verschleierter Eintrag ist ein Schoenheitsfehler, ein faelschlich offen stehender verraet,
+// wo ein Abenteuer hinfuehrt. Genau dieselbe Richtung waehlt der Server (Entwurf §4f).
+function avesmapsGameLiteratureNormalizeRole(role) {
+	return (role === "start" || role === "covers") ? role : "play";
 }
 
 // Sort key for the DSA edition so a "nach Edition" sort runs NEWEST-first (Owner): DSA5 > DSA4.1 > DSA4 > …
@@ -119,7 +143,7 @@ function avesmapsGameLiteratureToRenderShape(adventure) {
 }
 
 // Build lookup indices from the catalog. Each index maps a place target -> [{ adv, role }] where role is
-// the place's role AT that target ('start' = beginnt hier, 'play' = spielt hier).
+// the place's role AT that target ('start' = beginnt hier, 'play' = spielt hier, 'covers' = beschreibt).
 function avesmapsBuildGameLiteratureIndex(catalog, normalizeKey) {
 	var norm = typeof normalizeKey === "function" ? normalizeKey : avesmapsNormalizeGameLiteratureKey;
 	var index = {
@@ -151,7 +175,7 @@ function avesmapsBuildGameLiteratureIndex(catalog, normalizeKey) {
 		}
 		index.byPublicId[adventure.public_id] = adventure;
 		(adventure.places || []).forEach(function (place) {
-			var entry = { adv: adventure, role: place.role === "start" ? "start" : "play" };
+			var entry = { adv: adventure, role: avesmapsGameLiteratureNormalizeRole(place.role) };
 			var normKey = norm(place.target_wiki_key);
 			if (place.target_kind === "settlement") {
 				pushEntry(index.bySettlementPublicId, place.target_public_id, entry);
@@ -181,7 +205,7 @@ function avesmapsBuildGameLiteratureIndex(catalog, normalizeKey) {
 }
 
 // Select { adv, role } entries for a place reference { publicId, key } filtered by role
-// ('start' | 'play' | 'all'), deduped by adventure (public_id wins once).
+// ('start' | 'play' | 'covers' | 'all'), deduped by adventure (public_id wins once).
 function avesmapsSelectGameLiteratureEntries(index, ref, role) {
 	if (!index || !ref) {
 		return [];
@@ -244,8 +268,8 @@ function avesmapsGameLiteraturePrettifyKey(rawKey) {
 
 // Build the nested subtree of adventures under a clicked territory (server 'wiki:'-key), DEEPEST-WINS:
 // each adventure appears once PER ROLE at the deepest territory node of its (role) assignment inside the
-// clicked subtree. Returns { key, name, rank, start:[shape], play:[shape], children:[node] } or null when
-// the key is empty. Comparison runs on the NORMALIZED key axis (same as byTerritoryPath) so server/client
+// clicked subtree. Returns { key, name, rank, start:[shape], play:[shape], covers:[shape], children:[node] }
+// or null when the key is empty. Comparison runs on the NORMALIZED key axis (same as byTerritoryPath) so server/client
 // umlaut transliteration cancels out; display name+rank come from territoryMeta (keyed by the raw
 // 'wiki:'-key). Pure (no window/DOM) -> Node-testable.
 function avesmapsBuildGameLiteratureTerritoryTree(catalog, territoryMeta, rootKey, normalizeKey) {
@@ -285,7 +309,7 @@ function avesmapsBuildGameLiteratureTerritoryTree(catalog, territoryMeta, rootKe
 		if (!rawByNorm[nkey]) {
 			rawByNorm[nkey] = nkey;
 		}
-		return { key: nkey, _childMap: {}, start: [], play: [], children: [] };
+		return { key: nkey, _childMap: {}, start: [], play: [], covers: [], children: [] };
 	}
 	function childOf(node, nkey) {
 		if (!node._childMap[nkey]) {
@@ -301,11 +325,11 @@ function avesmapsBuildGameLiteratureTerritoryTree(catalog, territoryMeta, rootKe
 		if (!adventure || !adventure.public_id) {
 			return;
 		}
-		["start", "play"].forEach(function (role) {
+		["start", "play", "covers"].forEach(function (role) {
 			// Deepest place of this role whose path contains the root -> one placement per (adventure, role).
 			var bestChain = null; // normalized keys, deepest -> root
 			(adventure.places || []).forEach(function (place) {
-				var placeRole = place.role === "start" ? "start" : "play";
+				var placeRole = avesmapsGameLiteratureNormalizeRole(place.role);
 				if (placeRole !== role) {
 					return;
 				}
@@ -520,7 +544,8 @@ function avesmapsBuildGameLiteraturePlaceRef(placeRef) {
 	return { publicId: publicId, key: key };
 }
 
-// Adventures for a place, in render shape. opts.role: 'start' (beginnt, default) | 'play' (spielt) | 'all'.
+// Adventures for a place, in render shape. opts.role: 'start' (beginnt, default) | 'play' (spielt) |
+// 'covers' (beschreibt) | 'all'.
 function getGameLiteratureForPlace(placeRef, opts) {
 	var index = avesmapsGameLiteratureCatalogState.index;
 	if (!index) {
@@ -535,7 +560,7 @@ function getGameLiteratureForPlace(placeRef, opts) {
 
 // Adventures aggregated over a TERRITORY/REGION SUBTREE, in render shape (Phase 2). territoryWikiKey = the
 // political territory's wiki_key (server 'wiki:'-form, same axis as the per-place territory_path).
-// opts.role: 'start' (beginnt) | 'play' (spielt) | 'all'. Deduped by adventure.
+// opts.role: 'start' (beginnt) | 'play' (spielt) | 'covers' (beschreibt) | 'all'. Deduped by adventure.
 function getGameLiteratureForTerritory(territoryWikiKey, opts) {
 	var index = avesmapsGameLiteratureCatalogState.index;
 	if (!index) {
@@ -607,7 +632,7 @@ function getGameLiteratureForPath(pathRef, opts) {
 
 // Nested territory subtree for the "Alle anzeigen" dialog (Phase 2.3): the deepest-wins tree rooted at
 // territoryWikiKey (server 'wiki:'-form, same axis as territory_path). Returns null when the catalog is not
-// ready or the key is empty. Each node carries name+rank (from territory_meta) and its direct start/play
+// ready or the key is empty. Each node carries name+rank (from territory_meta) and its direct start/play/covers
 // adventure render shapes; the dialog renders nested frames + filter bar from it.
 function getGameLiteratureTerritoryTree(territoryWikiKey) {
 	var state = avesmapsGameLiteratureCatalogState;
@@ -652,6 +677,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsGameLiteratureEditionSortKey: avesmapsGameLiteratureEditionSortKey,
 		avesmapsCompareGameLiteratureRecency: avesmapsCompareGameLiteratureRecency,
 		avesmapsNormalizeGameLiteratureKey: avesmapsNormalizeGameLiteratureKey,
+		avesmapsGameLiteratureNormalizeRole: avesmapsGameLiteratureNormalizeRole,
 		avesmapsGameLiteratureToRenderShape: avesmapsGameLiteratureToRenderShape,
 		avesmapsBuildGameLiteratureIndex: avesmapsBuildGameLiteratureIndex,
 		avesmapsSelectGameLiteratureEntries: avesmapsSelectGameLiteratureEntries,
@@ -665,6 +691,7 @@ if (typeof window !== "undefined") {
 	window.avesmapsLoadGameLiteratureCatalog = avesmapsLoadGameLiteratureCatalog;
 	window.avesmapsReloadGameLiteratureCatalog = avesmapsReloadGameLiteratureCatalog;
 	window.avesmapsGameLiteratureCatalogIsReady = avesmapsGameLiteratureCatalogIsReady;
+	window.avesmapsGameLiteratureNormalizeRole = avesmapsGameLiteratureNormalizeRole;
 	window.avesmapsGameLiteratureEditionSortKey = avesmapsGameLiteratureEditionSortKey;
 	window.avesmapsCompareGameLiteratureRecency = avesmapsCompareGameLiteratureRecency;
 	window.getGameLiteratureForPlace = getGameLiteratureForPlace;

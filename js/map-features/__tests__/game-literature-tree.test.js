@@ -92,6 +92,27 @@ assert.strictEqual(gRoot.children.length, 1);
 assert.strictEqual(gRoot.children[0].start[0].title, "X");
 console.log("nested tree mid-level root ok");
 
+// ---- die dritte Rolle im Baum: "beschreibt" ----
+// Eine Regionalspielhilfe haengt an einem Territorium und hat KEINE Start-/Spielorte. Ohne einen
+// eigenen Ast im Baum haette der Territoriumsdialog sie entweder verloren oder als Spoiler gezeigt.
+const coversCatalog = catalog.concat([
+	{ public_id: "rsh", title: "Das Bornland", product_type: "regionalspielhilfe", bf_year: 0, places: [
+		{ role: "covers", target_kind: "territory", territory_path: ["wiki:grafschaft-h", "wiki:mittelreich"] },
+	] },
+]);
+const coversRoot = avesmapsBuildGameLiteratureTerritoryTree(coversCatalog, meta, "wiki:mittelreich");
+const ghCovers = coversRoot.children[1]; // Grafschaft H
+assert.strictEqual(ghCovers.covers.length, 1);
+assert.strictEqual(ghCovers.covers[0].title, "Das Bornland");
+assert.strictEqual(ghCovers.covers[0].type, "Regionalspielhilfe"); // Wort, nicht Datenbankwert
+// Sie taucht in KEINER der beiden anderen Listen auf -- weder als Start noch als Spoiler.
+assert.strictEqual(ghCovers.start.length, 0);
+assert.strictEqual(ghCovers.play.length, 0);
+assert.strictEqual(coversRoot.covers.length, 0); // deepest-wins gilt auch fuer die dritte Rolle
+// Jeder Knoten traegt die Liste, auch ein leerer -- der Dialog iteriert unbewacht darueber.
+assert.ok(Array.isArray(coversRoot.covers) && Array.isArray(coversRoot.children[0].covers));
+console.log("nested tree covers ok");
+
 // Guards: empty key -> null; empty catalog -> a childless root.
 assert.strictEqual(avesmapsBuildGameLiteratureTerritoryTree(catalog, meta, ""), null);
 const emptyRoot = avesmapsBuildGameLiteratureTerritoryTree([], meta, "wiki:mittelreich");

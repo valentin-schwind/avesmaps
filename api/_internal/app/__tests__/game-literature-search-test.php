@@ -51,10 +51,25 @@ $rows = [
         'place_kind' => 'territory',
         'place_public_id' => 'terr-garetien',
     ],
+    // Die Regionalspielhilfe: sie hat GAR KEINEN Startort -- ihre Orte kommen aus `Thema` und tragen
+    // alle die Rolle 'covers'. Vor dem Literatur-Umbau kam sie damit ohne Sprungziel an.
+    [
+        'public_id' => 'adv-5',
+        'title' => 'Das Bornland',
+        'product_type' => 'regionalspielhilfe',
+        'edition' => 'DSA4.1',
+        'genre' => '',
+        'series' => '',
+        'contained_in' => '',
+        'place_name' => 'Bornland',
+        'place_kind' => 'territory',
+        'place_role' => 'covers',
+        'place_public_id' => 'terr-bornland',
+    ],
 ];
 
 $entries = avesmapsBuildGameLiteratureSearchEntries($rows, $labels);
-assert(count($entries) === 3);
+assert(count($entries) === 4);
 
 $byId = [];
 foreach ($entries as $entry) {
@@ -79,16 +94,36 @@ assert($byId['adv-3']['unresolved'] === false);
 assert($byId['adv-2']['place_public_id'] === '');
 assert($byId['adv-2']['unresolved'] === true);
 
+// Die Regionalspielhilfe hat ein Sprungziel UND die Rolle, aus der der Client seinen Hinweis baut:
+// "beschreibt Bornland" statt "beginnt in Bornland" -- eine Spielhilfe faengt nirgends an.
+assert($byId['adv-5']['place_public_id'] === 'terr-bornland');
+assert($byId['adv-5']['unresolved'] === false);
+assert($byId['adv-5']['place_role'] === 'covers');
+// Und die Gegenprobe: alles andere ist "beginnt", auch wenn die Zeile gar keine Rolle mitbringt
+// (Zeilen aus einer Datenbank ohne die Spalte -- der Rueckfall darf nie 'covers' erfinden).
+assert($byId['adv-1']['place_role'] === 'start');
+assert($byId['adv-3']['place_role'] === 'start');
+
 // The type line carries product type AND edition. The edition is not decoration: 29 titles are
 // handed out twice or more ("Silvanas Befreiung" 3x), and two identical rows are indistinguishable.
 assert($byId['adv-1']['type_label'] === 'Gruppenabenteuer · DSA5');
 assert($byId['adv-2']['type_label'] === 'Kampagnenband · DSA4.1');
 
-// Product types match by KEY and by LABEL. kampagnenband/metaband are live (27 + 5) but MISSING from
-// the client table js/map-features/map-features-game-literature.js, where they fall back to the raw key.
+// Product types match by KEY and by LABEL.
 assert(avesmapsCalculateSearchScore($byId['adv-2'], avesmapsNormalizeSearchText('kampagnenband')) !== null);
 assert(avesmapsCalculateSearchScore($byId['adv-2'], avesmapsNormalizeSearchText('Kampagnenband')) !== null);
 assert(isset($labels['metaband']));
+
+// 💣 Jede Art, die die Weiche durchlaesst, MUSS hier eine Beschriftung haben -- sonst steht der rohe
+// Datenbankwert in der Typzeile ("regionalspielhilfe" statt "Regionalspielhilfe"). Die Weiche ist die
+// Wahrheit, diese Tabelle bloss ihre Anzeige; sie darf ihr nicht hinterherhinken.
+require_once __DIR__ . '/../../wiki/publication-parsing.php';
+foreach (AVESMAPS_GAME_LITERATURE_KINDS as $kindSpec) {
+    foreach ($kindSpec['types'] as $productType) {
+        assert(isset($labels[$productType]), 'ohne Beschriftung: ' . $productType);
+    }
+}
+assert($byId['adv-5']['type_label'] === 'Regionalspielhilfe · DSA4.1');
 
 // metaband gets the SAME proof as kampagnenband above, not just the label-table isset() check: a real
 // entry, built with the real row shape, must match on the raw key AND on the beautified label.
@@ -116,11 +151,15 @@ assert(str_contains($haystack, 'Gareth'));
 assert(str_contains($haystack, 'Die Verschwoerung von Gareth'));
 
 // 💣 THE SPOILER RULE lives in the SQL, and SQL is not unit-testable without a database -- so it is
-// pinned statically. Dropping `role = 'start'` from the join would silently turn every play location
-// into a searchable, jumpable, printable fact, and nothing else in this file would notice.
+// pinned statically. Letting 'play' into the join would silently turn every play location into a
+// searchable, jumpable, printable fact, and nothing else in this file would notice.
 $librarySource = file_get_contents(__DIR__ . '/../game-literature-search.php');
 assert(is_string($librarySource));
-assert(str_contains($librarySource, "p2.role = 'start'"));
+assert(str_contains($librarySource, "p2.role IN ('start', 'covers')"));
+// Die Gegenprobe zaehlt mehr als die Zusicherung darueber: die Liste darf wachsen (sie tat es beim
+// Literatur-Umbau um 'covers'), aber NIE um den Spoiler. Ein SQL-Literal 'play' kommt in dieser Datei
+// nicht vor -- gaebe es eines, waere die Frage nicht mehr, WO es steht.
+assert(!str_contains($librarySource, "'play'"), "kein SQL-Literal fuer die Spoiler-Rolle in dieser Datei -- auch nicht im Kommentar");
 
 // The builder must not invent fields either: anything the fetch did not select stays out of the entry.
 $leaky = avesmapsBuildGameLiteratureSearchEntries([[

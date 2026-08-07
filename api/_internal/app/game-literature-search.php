@@ -6,21 +6,28 @@ declare(strict_types=1);
 // from the place it BEGINS at, exactly like a Kartensammlung map inherits the place it is assigned to.
 // Design: docs/superpowers/specs/2026-08-02-spotlight-abenteuer-vorkommen-design.md
 //
-// 💣 ONLY role='start' places are read here, and that is the SPOILER RULE, not an optimisation.
-// "beginnt hier" is spoiler-free, "spielt hier" is the spoiler -- the infopanel already enforces that
-// with a veil (avesmapsSpoilerVeilMarkup). A search row has no veil: it appears unasked while somebody
-// types something else. The only version that cannot leak is the one that never learns the play
-// location. Measured cost, live 2026-08-02: 4 adventures have ONLY play places and 80 more have a
-// resolved play place but no resolved start place -- 84 of 1352 lose their jump target, none loses its
-// findability.
+// 💣 Only SPOILER-FREE places are read here, and that is the SPOILER RULE, not an optimisation.
+// "beginnt hier" (start) and "beschreibt" (covers) are spoiler-free, "spielt hier" (play) IS the
+// spoiler -- the infopanel already enforces that with a veil (avesmapsSpoilerVeilMarkup). A search row
+// has no veil: it appears unasked while somebody types something else. The only version that cannot
+// leak is the one that never learns the play location. Measured cost, live 2026-08-02: 4 adventures
+// have ONLY play places and 80 more have a resolved play place but no resolved start place -- 84 of
+// 1352 lose their jump target, none loses its findability.
+//
+// 'covers' joined the list with the Literatur rebuild: a Regionalspielhilfe has no start place at all
+// (its places come from `Thema` and all carry 'covers'), so restricting to 'start' would have left
+// every one of them without a jump target -- ~100-150 works, i.e. the whole point of the rebuild.
 //
 // The building function is PURE (rows in, entries out) so it is testable without a database.
 
-// Mirrors avesmapsGameLiteratureProductTypeLabel in js/map-features/map-features-game-literature.js, PLUS
-// kampagnenband (27 live) and metaband (5 live), which are missing there and fall back to the raw key.
+// Mirrors avesmapsGameLiteratureProductTypeLabel in js/map-features/map-features-game-literature.js.
 // Both key and label are searchable: the payload carries 'gruppenabenteuer', a human types
 // "Gruppenabenteuer" -- matching only the key fails silently on every capitalised or umlaut-bearing
 // label (same trap the Kartensammlung hit with 'uebersicht' / "Übersicht").
+// 💣 A product_type MISSING here falls back to the raw slug, and the raw slug is what the reader then
+// sees in the type line: "regionalspielhilfe", lowercase and unhyphenated, reads as a database field
+// rather than a statement about a book (Owner 2026-08-07, same finding as in the editor). Every key
+// AVESMAPS_GAME_LITERATURE_KINDS (api/_internal/wiki/publication-parsing.php) lets in belongs here.
 const AVESMAPS_GAME_LITERATURE_SEARCH_TYPE_LABELS = [
     'gruppenabenteuer' => 'Gruppenabenteuer',
     'soloabenteuer' => 'Soloabenteuer',
@@ -30,17 +37,27 @@ const AVESMAPS_GAME_LITERATURE_SEARCH_TYPE_LABELS = [
     'kampagne' => 'Kampagne',
     'kampagnenband' => 'Kampagnenband',
     'metaband' => 'Metaband',
+    'roman' => 'Roman',
+    'kurzgeschichte' => 'Kurzgeschichte',
+    'regionalspielhilfe' => 'Regionalspielhilfe',
+    'spielhilfe' => 'Spielhilfe',
 ];
 
 /**
- * One row per approved adventure, with its FIRST RESOLVED approved role='start' place (design §4.1)
+ * One row per approved adventure, with its FIRST RESOLVED approved SPOILER-FREE place (design §4.1)
  * -- a resolved row always outranks an unresolved one, regardless of sort_order.
  *
  * The correlated subquery picks exactly one place per adventure, so no GROUP BY and no N+1 -- this
  * runs on a public, per-keystroke path.
  *
- * 💣 The join condition carries `role = 'start'`. Dropping it would silently turn every play location
- * into a searchable, jumpable, printable fact.
+ * 💣 The join condition carries `role IN ('start', 'covers')`. Letting the play role in would silently
+ * turn every play location into a searchable, jumpable, printable fact. game-literature-search-test.php
+ * pins that by asserting this whole FILE contains no SQL literal for it -- which is why the word
+ * appears unquoted in every comment here. That is the pin working, not an oversight.
+ *
+ * A work carries EITHER ordered places (start/play) OR covers places -- which of the two is decided by
+ * its kind, not per place. `start` is preferred anyway, so a hand-edited row that mixes both still
+ * answers with the place a reader would call its first.
  *
  * contained_in is a self-healing column added by game-literature.php; if a deployment ever lacks it the
  * query throws and this returns [] -- the adventure section disappears, the search does not 500.
@@ -57,12 +74,14 @@ function avesmapsFetchGameLiteratureSearchRows(PDO $pdo): array {
                     COALESCE(a.contained_in, '') AS contained_in,
                     COALESCE(p.raw_name, '') AS place_name,
                     COALESCE(p.target_kind, 'unresolved') AS place_kind,
+                    COALESCE(p.role, '') AS place_role,
                     p.target_public_id AS place_public_id
              FROM adventure a
              LEFT JOIN adventure_place p ON p.id = (
                  SELECT p2.id FROM adventure_place p2
-                 WHERE p2.adventure_id = a.id AND p2.status = 'approved' AND p2.role = 'start'
-                 ORDER BY (p2.target_public_id IS NULL OR p2.target_kind = 'unresolved') ASC, p2.sort_order ASC, p2.id ASC LIMIT 1
+                 WHERE p2.adventure_id = a.id AND p2.status = 'approved' AND p2.role IN ('start', 'covers')
+                 ORDER BY (p2.target_public_id IS NULL OR p2.target_kind = 'unresolved') ASC,
+                          (p2.role = 'start') DESC, p2.sort_order ASC, p2.id ASC LIMIT 1
              )
              WHERE a.status = 'approved'"
         );
@@ -98,13 +117,17 @@ function avesmapsBuildGameLiteratureSearchEntries(array $rows, array $typeLabels
         $edition = trim((string) ($row['edition'] ?? ''));
         $placeName = trim((string) ($row['place_name'] ?? ''));
         $placeKind = (string) ($row['place_kind'] ?? 'unresolved');
+        // Which spoiler-free role the place carries -- the CLIENT words the hint from it ("beginnt in
+        // Gareth" vs "beschreibt Gareth"), because every visible German string of the result list lives
+        // in js/ui/spotlight-search.js. Anything but 'covers' reads as "beginnt".
+        $placeRole = (string) ($row['place_role'] ?? '') === 'covers' ? 'covers' : 'start';
         $placePublicId = (string) ($row['place_public_id'] ?? '');
         $unresolved = $placePublicId === '' || $placeKind === 'unresolved';
 
         // The type line carries product type AND edition. 29 titles are handed out more than once
         // ("Silvanas Befreiung" 3x, "Zukunft im Sand" 3x) -- without the edition two hits read as one
         // duplicated row. The PLACE is deliberately not in here: it goes into the client's hint line
-        // as "beginnt in <Ort>", where the wording carries the spoiler-free role.
+        // as "beginnt in <Ort>" / "beschreibt <Ort>", where the wording carries the spoiler-free role.
         $typeLabelParts = array_values(array_filter([$typeLabel, $edition]));
 
         $entries[] = [
@@ -118,6 +141,7 @@ function avesmapsBuildGameLiteratureSearchEntries(array $rows, array $typeLabels
             'place_public_id' => $unresolved ? '' : $placePublicId,
             'place_kind' => $placeKind,
             'place_name' => $placeName,
+            'place_role' => $placeRole,
             'not_on_map' => true,
             'unresolved' => $unresolved,
             'min_x' => 0.0,

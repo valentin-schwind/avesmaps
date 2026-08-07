@@ -117,11 +117,27 @@ assert($params['kind'] === 'settlement' && $params['pid'] === 'schlaefer-id', 'a
 assert($params['name'] === 'Der Schläfer', 'mit dem echten Ortsnamen, nicht der id');
 assert($params['ord'] === 3, 'ans Ende der Reihenfolge');
 assert($params['src'] === 107810, 'mit der Herkunftsnotiz -- ohne sie ist der Rueckweg blind');
-// role/origin/status are literals in the SQL: 'play' = "spielt hier" (Spoiler), and 'manual' is what
-// keeps sync_adventures off it (it writes and deletes only origin='wiki').
-assert(str_contains($inserts[0]['sql'], "'play'"), 'Rolle spielt hier');
+// origin/status are literals in the SQL: 'manual' is what keeps sync_adventures off it (it writes
+// and deletes only origin='wiki'). Die ROLLE ist kein Literal mehr -- sie richtet sich nach der Art
+// des Werks. Fuer ein Abenteuer bleibt es bei "spielt hier" (Spoiler), wie seit jeher.
+assert($params['role'] === 'play', 'ein Abenteuer: Rolle spielt hier');
 assert(str_contains($inserts[0]['sql'], "'manual'"), "origin manual -> kein Reconcile fasst es an");
 echo "hinweg ok\n";
+
+// 💣 Und die Art entscheidet wirklich: eine Regionalspielhilfe BESCHREIBT den Ort. Als 'play'
+// geschrieben stuende sie im Infopanel hinter einem Spoiler-Schleier -- ausgerechnet das Buch, das
+// die Quelle dieses Ortes ist. Dieser Weg (Quelle eintragen -> Ort verknuepft) ist fuer eine
+// Regionalspielhilfe der wahrscheinlichste von allen.
+$pdo = $fresh(['SELECT product_type FROM adventure WHERE id' => 'regionalspielhilfe']);
+assert(avesmapsGameLiteratureLinkPlaceFromSource($pdo, 107810, 'settlement', 'festum-id', 42) === true);
+$coversInsert = $pdo->ran('INSERT INTO adventure_place')[0];
+assert($coversInsert['params']['role'] === 'covers', 'eine Regionalspielhilfe beschreibt, sie spielt nicht');
+// Ein unbekannter Produkttyp gilt als Abenteuer -- so verhaelt sich jede Zeile aus der Zeit vor
+// dieser Tabelle unveraendert weiter (dieselbe Richtung wie serverseitig ueberall).
+$pdo = $fresh(['SELECT product_type FROM adventure WHERE id' => 'stadtabenteuer']);
+assert(avesmapsGameLiteratureLinkPlaceFromSource($pdo, 107810, 'settlement', 'gareth-id', 42) === true);
+assert($pdo->ran('INSERT INTO adventure_place')[0]['params']['role'] === 'play', 'Unbekanntes zaehlt als Abenteuer');
+echo "rolle nach art ok\n";
 
 // ---- the three silent no-ops -------------------------------------------------------------------
 $pdo = $fresh(['url_hash, wiki_key FROM sources' => '']);

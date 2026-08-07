@@ -1,6 +1,7 @@
 # Aus „Abenteuer" wird „Literatur"
 
-**Stand:** 2026-08-07 · **Status:** Entwurf, mit dem Owner abgestimmt, noch nicht gebaut ·
+**Stand:** 2026-08-07 · **Status:** **gebaut und live** (Datenweg + Anzeige; end-to-end steht noch aus,
+weil es dafür einen echten „Dump holen" + „Literatur syncen" braucht — §9) ·
 **Verwandt:** [`2026-08-06-sync-uebernahme-design.md`](2026-08-06-sync-uebernahme-design.md) (Sitzung 2
 baut darauf auf), `docs/abenteuer-feature-design.md`, AGENTS.md §11 „Abenteuer"
 
@@ -144,6 +145,22 @@ override-sicherer Reconcile (`origin='wiki'`), Cover, Shop-Links, Resolver.
 
 ## 7. Die Oberfläche
 
+> ✅ **Gebaut am 07.08.2026.** Abweichungen von der Tabelle unten, weil die Oberfläche sich seit dem
+> Entwurf bewegt hatte:
+> - Den **Umschalter** „Beginnt hier | Spielt hier" gibt es seit 2026-07-19 nicht mehr (Owner: „die
+>   Filter können alle weg"). Es ist EIN Streifen, durchgehend nach „neueste zuerst" sortiert, in dem
+>   ein Spoiler an seinem Platz steht — nur verschleiert. Die „dritte Gruppe" ist deshalb keine dritte
+>   Schaltfläche geworden, sondern das, was sie sein sollte: die `covers`-Karten stehen **offen** im
+>   selben Streifen und unterscheiden sich über ihre Art („Regionalspielhilfe"), wie es der Absatz
+>   unter der Tabelle ohnehin verlangt.
+> - **Der Kopfzähler** hat die Rolle der weggefallenen Segment-Zahlen mit übernommen: er zählt seit
+>   2026-07-18 „beginnt hier" und zählt jetzt „beschreibt" mit — also alles, was offen dasteht. Ein
+>   Ort, den nur eine Regionalspielhilfe beschreibt, stünde sonst mit „(0)" über drei Karten.
+> - **Dazugekommen**, weil es ohne sie keine Anzeige gäbe: die Spotlight-Suche liest jetzt auch
+>   `covers`-Orte (eine Spielhilfe hat gar keinen Startort und käme sonst ohne Sprungziel an, §9), und
+>   die Rolle eines über eine **Quelle** verknüpften Orts richtet sich nach der Art des Werks statt
+>   hart `'play'` zu sein.
+
 | heute | danach |
 |---|---|
 | „Abenteuer in Gareth" | **„Literatur zu Gareth"** |
@@ -229,6 +246,10 @@ Protokollzeilen**. Nur die Beschriftung ändert sich; alte Zeilen bleiben lesbar
   `covers` — und der Spoiler-Schleier greift nur bei `play`.
 - **Der Editor-Zwang:** eine Zusicherung hält `PRODUCT_TYPES` in `html/game-literature-editor.html` (Zeile **619**) gegen die
   serverseitige Liste. Das ist Falle (b), und sie ist am Quelltext prüfbar.
+  ✅ Gebaut in `api/_internal/wiki/__tests__/publication-parsing-test.php`: sie liest den Editor-Quelltext
+  und hält `PRODUCT_TYPE_GROUPS` **und** `PRODUCT_TYPE_LABEL` **und** die Rollen-Spalte gegen
+  `AVESMAPS_GAME_LITERATURE_KINDS` — in beide Richtungen. `PRODUCT_TYPES` ist inzwischen aus den Gruppen
+  abgeleitet, damit es die zwei Listen gar nicht mehr gibt, die auseinanderlaufen könnten.
 - ⚠️ **End-to-End braucht einen echten „Dump holen" + Sync** — lokal gibt es keine Datenbank. Vor dem
   ersten Lauf die Art-Messung fahren, damit die Zahl der neuen Werke vorher bekannt ist.
 

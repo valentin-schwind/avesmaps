@@ -315,3 +315,70 @@ assert($sec[0]['title'] === 'Verräter & Geächtete', 'Discord #47: ==Publikatio
 assert($sec[0]['note'] === "Al'Anfa", 'Discord #47: note text too');
 assert($sec[0]['pages'] === '12');
 echo "entity decode ok\n";
+
+// ---- Der Editor-Zwang (Entwurf §9, Falle §4b) ------------------------------------------------
+// 💣 Ein product_type, den die Weiche oben durchlaesst, MUSS im Editor eine Option haben. Fehlt sie,
+// zeigt der Eintrag beim Oeffnen den falschen Typ und SCHREIBT IHN BEIM SPEICHERN STILL UM -- 27
+// Baende sind so am 19.07. von "Kampagnenband" zu `kampagne` geworden. Der Editor ist eine HTML-Datei
+// mit Inline-Skript, also wird sie als Quelltext gelesen; das ist genau die Ebene, auf der die Falle
+// sitzt (eine fehlende Zeile in einer Liste), und sie ist damit hier pruefbar.
+$editorPath = __DIR__ . '/../../../../html/game-literature-editor.html';
+$editorSource = file_get_contents($editorPath);
+assert(is_string($editorSource), 'Editor-Quelltext lesbar');
+
+// Alle Typen aus PRODUCT_TYPE_GROUPS (die EINE Tabelle dort; PRODUCT_TYPES ist daraus abgeleitet).
+preg_match('/const PRODUCT_TYPE_GROUPS = \[(.*?)\n  \];/s', $editorSource, $groupsMatch);
+assert(isset($groupsMatch[1]), 'PRODUCT_TYPE_GROUPS gefunden');
+preg_match_all('/types: \[([^\]]*)\]/', $groupsMatch[1], $typeLists);
+$editorTypes = [];
+foreach ($typeLists[1] as $list) {
+    preg_match_all('/"([a-z]+)"/', $list, $names);
+    foreach ($names[1] as $name) {
+        $editorTypes[] = $name;
+    }
+}
+assert($editorTypes !== [], 'Typen aus PRODUCT_TYPE_GROUPS gelesen');
+
+// Und die Beschriftungen -- ein Typ ohne Beschriftung stuende als roher Datenbankwert da.
+preg_match('/const PRODUCT_TYPE_LABEL = \{(.*?)\};/s', $editorSource, $labelMatch);
+assert(isset($labelMatch[1]), 'PRODUCT_TYPE_LABEL gefunden');
+preg_match_all('/([a-z]+):\s*"/', $labelMatch[1], $labelKeys);
+$editorLabels = $labelKeys[1];
+
+foreach (AVESMAPS_GAME_LITERATURE_KINDS as $kind => $spec) {
+    foreach ($spec['types'] as $productType) {
+        assert(in_array($productType, $editorTypes, true), "Editor kennt den Typ nicht: {$productType}");
+        assert(in_array($productType, $editorLabels, true), "Editor hat keine Beschriftung fuer: {$productType}");
+    }
+}
+// Die Abenteuer-Familie kommt oben ueber eine TEILWORT-Regel herein (jedes *abenteuer, jede *kampagne)
+// und steht deshalb nicht vollstaendig in AVESMAPS_GAME_LITERATURE_KINDS. Die vier gemessenen Werte,
+// die live vorkommen, gehoeren trotzdem in den Editor -- sonst greift Falle §4b genau bei ihnen.
+foreach (['gruppenabenteuer', 'soloabenteuer', 'kurzabenteuer', 'kampagne', 'kampagnenband'] as $productType) {
+    assert(avesmapsWikiProductGameLiteratureKind($productType) !== '', "Weiche laesst {$productType} durch");
+    assert(in_array($productType, $editorTypes, true), "Editor kennt den Typ nicht: {$productType}");
+    assert(in_array($productType, $editorLabels, true), "Editor hat keine Beschriftung fuer: {$productType}");
+}
+
+// Die Gegenrichtung: was der Editor anbietet, muss die Weiche auch durchlassen. Eine Option, die der
+// Sync nie schreiben kann, ist eine Einladung, von Hand einen Typ zu setzen, den niemand sonst kennt.
+foreach ($editorTypes as $productType) {
+    assert(avesmapsWikiProductGameLiteratureKind($productType) !== '', "Editor bietet eine Art an, die die Weiche verwirft: {$productType}");
+}
+echo "editor product types ok\n";
+
+// Und die ROLLEN-Spalte der Editor-Tabelle muss dasselbe sagen wie die serverseitige: eine
+// Regionalspielhilfe beschreibt, ein Roman beginnt und spielt. Steht dort "ordered", wo der Server
+// 'covers' schreibt, bekommt ein von Hand zugeordneter Ort die falsche Rolle -- und im Frontend einen
+// Spoiler-Schleier ueber einem Buch, das nichts verraet.
+preg_match_all('/\{ art: "([^"]+)", roles: "([^"]+)", types: \[([^\]]*)\] \}/', $groupsMatch[1], $rowMatches, PREG_SET_ORDER);
+assert(count($rowMatches) >= 5, 'Editor-Gruppen als Zeilen lesbar');
+foreach ($rowMatches as $row) {
+    preg_match_all('/"([a-z]+)"/', $row[3], $names);
+    foreach ($names[1] as $productType) {
+        $serverRole = avesmapsGameLiteratureRoleForKind(avesmapsGameLiteratureKindForProductType($productType), 0);
+        $expected = $row[2] === 'covers' ? 'covers' : 'start';
+        assert($serverRole === $expected, "Rollen-Spalte weicht ab bei {$productType}: Editor {$row[2]}, Server {$serverRole}");
+    }
+}
+echo "editor role modes ok\n";

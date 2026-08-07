@@ -66,13 +66,14 @@
 		}
 		(node.start || []).forEach(function (s) { out.push(s); });
 		(node.play || []).forEach(function (s) { out.push(s); });
+		(node.covers || []).forEach(function (s) { out.push(s); });
 		(node.children || []).forEach(function (c) { collectShapes(c, out); });
 	}
 
 	// Eine Karte in Nested-Optik: buildGameLiteratureCardMarkup (geteilte Optik) OHNE inline display:none, damit
 	// Spoiler stehen da wie alle anderen, nur verschleiert; .is-filtered-out blendet aus.
-	function cardMarkup(shape, isPlay) {
-		return typeof buildGameLiteratureCardMarkup === "function" ? buildGameLiteratureCardMarkup(shape, isPlay) : "";
+	function cardMarkup(shape, role) {
+		return typeof buildGameLiteratureCardMarkup === "function" ? buildGameLiteratureCardMarkup(shape, role) : "";
 	}
 
 	// Ein Territoriums-Rahmen, ECHT verschachtelt: Kopf (Rang-Pill + Name + "N direkt"), eigene Karten
@@ -85,14 +86,15 @@
 		// Durchgehend sortiert wie Streifen und flacher Dialog (Owner 2026-07-18): ein Spoiler steht an
 		// seinem Sortierplatz, nicht als Block hinter den spoilerfreien. Geteilte Hilfsfunktion aus
 		// place-extras.js -- drei Listen, EINE Reihenfolge-Regel.
-		var frameEntries = (node.start || []).map(function (s) { return { a: s, isPlay: false }; })
-			.concat((node.play || []).map(function (s) { return { a: s, isPlay: true }; }));
+		var frameEntries = (node.start || []).map(function (s) { return { a: s, role: "start" }; })
+			.concat((node.play || []).map(function (s) { return { a: s, role: "play" }; }))
+			.concat((node.covers || []).map(function (s) { return { a: s, role: "covers" }; }));
 		// Fehlt die geteilte Sortierung wider Erwarten, wird UNSORTIERT gerendert -- nie gar nicht. Eine
 		// falsche Reihenfolge ist ein Schoenheitsfehler, ein leerer Rahmen waere Datenverlust vor dem Leser.
 		if (typeof avesmapsSortGameLiteratureEntries === "function") {
 			frameEntries = avesmapsSortGameLiteratureEntries(frameEntries);
 		}
-		var frameCards = frameEntries.map(function (e) { return cardMarkup(e.a, e.isPlay); }).join("");
+		var frameCards = frameEntries.map(function (e) { return cardMarkup(e.a, e.role); }).join("");
 		var kids = (node.children || []).map(renderFrame).join("");
 		return '<div class="avesmaps-adv-tree__frame">'
 			+ '<div class="avesmaps-adv-tree__fhead">' + pill
@@ -160,8 +162,8 @@
 		var facets = (typeof avesmapsGameLiteratureFacetOptions === "function")
 			? avesmapsGameLiteratureFacetOptions(allShapes)
 			: { types: [], complexities: [], genres: [] };
-		// Gibt es ueberhaupt Spoiler? Die Rolle steht NICHT in der Shape (collectShapes wirft start und play
-		// in eine Liste) -- also am Baum selbst nachsehen, sonst erschiene der Schalter nie.
+		// Gibt es ueberhaupt Spoiler? Die Rolle steht NICHT in der Shape (collectShapes wirft alle drei
+		// Rollen in eine Liste) -- also am Baum selbst nachsehen, sonst erschiene der Schalter nie.
 		facets.spoiler = (function hasPlay(node) {
 			if (!node) { return false; }
 			if ((node.play || []).length) { return true; }
@@ -218,9 +220,9 @@
 			var frames = Array.prototype.slice.call(body.querySelectorAll(".avesmaps-adv-tree__frame")).reverse();
 			frames.forEach(function (f) {
 				var wrap = f.querySelector(":scope > .avesmaps-adv-tree__cards");
+				// Unverschleiert = "beginnt hier" UND "beschreibt"; .is-play traegt nur den Spoiler.
 				var visStart = wrap ? wrap.querySelectorAll(".avesmaps-adv__card:not(.is-play):not(.is-filtered-out)").length : 0;
 				var visPlay = wrap ? wrap.querySelectorAll(".avesmaps-adv__card.is-play:not(.is-filtered-out)").length : 0;
-				// Sichtbare Karten im aktuellen Modus: start-Modus nur start; play-Modus zeigt beide (Fade).
 				var visInMode = visStart + visPlay;
 				var hasKid = Array.prototype.some.call(f.querySelectorAll(":scope > .avesmaps-adv-tree__frame"), function (k) {
 					return !k.classList.contains("is-hidden");
