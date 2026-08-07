@@ -303,7 +303,8 @@
   .pill { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-caption);
     line-height: 1.3; padding: 1px var(--space-6); border-radius: var(--radius-md); white-space: nowrap;
     border: 1px solid var(--color-pill-border); background: var(--color-pill); color: var(--color-pill-text); }
-  .pill--kind { border-color: var(--color-border); background: var(--color-panel-muted); color: var(--color-text-muted); }
+  .pill--kind { border-color: var(--color-border); background: var(--color-panel-muted);
+    color: var(--color-text); font-weight: var(--font-weight-bold); letter-spacing: 0.01em; }
   .pill--start { border-color: var(--color-accent-strong); background: var(--color-active-wash);
     color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
   .pill--manual { border-color: var(--color-accent); background: var(--color-pill); color: var(--color-accent-strong);
@@ -755,7 +756,7 @@
         <span class="ae-item__thumb">${thumb}</span>
         <span class="ae-item__text">
           <span class="ae-item__l1"><span class="ae-item__title">${aeEscape(a.title)}</span></span>
-          <span class="ae-item__l2"><span class="pill pill--kind">${aeEscape(a.product_type)}</span> ${aeEscape(a.bf_label || "—")} · ${a.place_count || 0} Orte${manual}</span>
+          <span class="ae-item__l2"><span class="pill pill--kind">${aeEscape(PRODUCT_TYPE_LABEL[a.product_type] || a.product_type)}</span> ${aeEscape(a.bf_label || "—")} · ${a.place_count || 0} Orte${manual}</span>
         </span></button>`;
     }).join("") : `<p class="ae-empty">Keine Literatur.</p>`;
   }
@@ -842,7 +843,7 @@
         : "";
       head.innerHTML = `<div class="ae-detail__head-main">
         <h2 class="ae-detail__title">${aeEscape(d.title || "—")}</h2>
-        <div class="ae-detail__meta"><span class="pill pill--kind">${aeEscape(d.product_type)}</span>
+        <div class="ae-detail__meta"><span class="pill pill--kind">${aeEscape(PRODUCT_TYPE_LABEL[d.product_type] || d.product_type)}</span>
           <span>${aeEscape([d.edition, d.bf_label].filter(Boolean).join(" · "))}</span>
           <span class="pill pill--wiki">Quelle: ${originLabel}</span>
           ${d.wiki_key ? `<span>wiki_key: <code>${aeEscape(d.wiki_key)}</code></span>` : ""}</div></div>${deleteButton}`;

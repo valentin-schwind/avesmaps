@@ -117,15 +117,16 @@ $rsh = avesmapsWikiParseProductInfobox("{{Infobox Produkt
 |Art=Regionalspielhilfe
 |Ort=[[Punin]]
 }}");
-// ⚠️ EINSEITIG: eine Regionalspielhilfe/Spielhilfe liest NUR `Thema`. Ihr Spaltensatz im Wiki kennt
-// gar kein `Ort` -- daraus Orte zu lesen hiesse, welche zu erfinden (Owner 2026-08-07).
-assert(($rsh['adventure'] ?? null) === null, 'Regionalspielhilfe mit nur Ort erzeugt KEINEN Eintrag');
+// Beide Felder werden immer geprueft -- ein Treffer ist ein Treffer, egal in welchem (Owner 07.08.).
+// Nur der Freitext-Rueckfall bleibt an `Ort` gebunden, sonst wuerde "erweiterte Regeln" ein Ort.
+assert(is_array($rsh['adventure'] ?? null) && $rsh['adventure']['places'] === ['Punin'],
+    'Regionalspielhilfe ohne Thema weicht auf Ort aus');
 $sh = avesmapsWikiParseProductInfobox("{{Infobox Produkt
 |Titel=Randfall
 |Art=Spielhilfe
 |Ort=[[Punin]]
 }}");
-assert(($sh['adventure'] ?? null) === null, 'dasselbe fuer die Spielhilfe');
+assert(is_array($sh['adventure'] ?? null) && $sh['adventure']['places'] === ['Punin'], 'dasselbe fuer die Spielhilfe');
 // Die Gegenrichtung bleibt: die Abenteuer-Familie fuellt nachweislich beide Felder.
 $aTh = avesmapsWikiParseProductInfobox("{{Infobox Produkt
 |Titel=Sammelband

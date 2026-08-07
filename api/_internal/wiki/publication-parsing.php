@@ -504,13 +504,18 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
             (string) ($params[$placeField] ?? ''),
             $placeField === 'Ort'
         );
-        // ⚠️ Das Ausweichen geht NUR von `Ort` nach `Thema`, nicht zurueck (Owner 2026-08-07).
-        // Die Abenteuer-Familie fuellt nachweislich beide Felder: "Verraeter & Geaechtete" ist
-        // Art=Anthologie und traegt `Thema=` LEER neben `Ort=[[Havena]], [[Rashdul]], …`. Fuer die
-        // Spielhilfen dagegen kennt der Spaltensatz des Wikis gar kein `Ort` -- ein `Ort` dort waere
-        // kein dokumentiertes Ortsfeld, und daraus Orte zu lesen hiesse, welche zu erfinden.
-        if ($places === [] && $placeField === 'Ort') {
-            $places = avesmapsWikiParseGameLiteraturePlaceList((string) ($params['Thema'] ?? ''), false);
+        // Ist das eigene Feld leer, wird das andere gelesen -- in BEIDE Richtungen (Owner 2026-08-07:
+        // "wenn du einen match hast, hast du einen"). Beide Richtungen kommen echt vor: "Das Bornland"
+        // (Regionalspielhilfe) hat nur `Thema`, die Anthologie "Verraeter & Geaechtete" hat `Thema=`
+        // LEER neben `Ort=[[Havena]], [[Rashdul]], …`.
+        // ⚠️ Der Freitext-Rueckfall haengt am FELD, nie an der Art: `Ort` darf auf eine Kommaliste
+        // zurueckfallen, `Thema` nie -- sonst wird "erweiterte Regeln" ein Ort (Entwurf §4a).
+        if ($places === []) {
+            $otherField = $placeField === 'Ort' ? 'Thema' : 'Ort';
+            $places = avesmapsWikiParseGameLiteraturePlaceList(
+                (string) ($params[$otherField] ?? ''),
+                $otherField === 'Ort'
+            );
         }
     }
     // 💣 No linked place, no entry (design §2). Without it the 205 Spielhilfe pages -- whose `Thema` is
