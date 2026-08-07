@@ -69,7 +69,7 @@ const WIKI_SYNC_SUBJECTS = [
 	{ key: "regions",     label: "Regionen",    syncButtonId: "wiki-sync-sync-region",      editorButtonId: "ecosystem-editor-open",  syncKind: "region",     views: WIKI_SYNC_MAP_VIEWS },
 	{ key: "paths",       label: "Wege",        syncButtonId: "wiki-sync-sync-path",        editorButtonId: "path-editor-open",       syncKind: "path",       views: WIKI_SYNC_PATH_VIEWS },
 	{ key: "powerlines",  label: "Kraftlinien", syncButtonId: "wiki-sync-powerlines-sync",  editorButtonId: "powerline-editor-open", syncKind: "powerline",  views: [] },
-	{ key: "adventures",  label: "Abenteuer",   syncButtonId: "wiki-sync-sync-adventure",   editorButtonId: "adventure-editor-open",  syncKind: "adventure",  views: [] },
+	{ key: "adventures",  label: "Literatur",   syncButtonId: "wiki-sync-sync-game-literature",   editorButtonId: "game-literature-editor-open",  syncKind: "adventure",  views: [] },
 	{ key: "citymaps",    label: "Karten",      syncButtonId: null,                         editorButtonId: "citymaps-editor-open",   syncKind: "citymap",    views: [] },
 	// Label "Vorkommen", key stays `lore`: renaming the key buys nothing but a chance to miss
 	// one place (same reasoning as index.html:383). Here label and key even agree.

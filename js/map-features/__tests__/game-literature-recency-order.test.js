@@ -4,33 +4,33 @@ const assert = require("assert");
 //
 // Der Bug, den diese Datei festhaelt (Owner 2026-07-19: "die spoiler werden immer noch nach unten
 // sortiert"): die Default-Sortierung verglich AUSSCHLIESSLICH bf_year. Dieses Feld traegt live
-// 6 von 1352 Abenteuern -- naemlich nur die handgesetzten Platzhalter. api/_internal/wiki/adventure-sync.php
+// 6 von 1352 Abenteuern -- naemlich nur die handgesetzten Platzhalter. api/_internal/wiki/game-literature-sync.php
 // sagt es selbst: "the {{Infobox Produkt}} infobox carries no in-world BF year", der Wiki-Sync fuellt es
 // also nie. Damit lieferte der Vergleich fuer praktisch JEDES Paar 0, Array.sort ist stabil, und die
 // Eingangsreihenfolge blieb unangetastet -- gebaut wird sie als `beginnt`.concat(`spielt`), weshalb die
 // Spoiler ("spielt hier") systembedingt hinten standen. Nicht als Regel, sondern als Rest.
 //
 // Die Recency-Achse, die tatsaechlich gefuellt ist, ist die EDITION (DSA1..DSA5, ~97 % der Eintraege) --
-// dieselbe Angabe, die auch auf der Karte zuerst steht (buildAdventureCardMarkup: "Edition first so it
+// dieselbe Angabe, die auch auf der Karte zuerst steht (buildGameLiteratureCardMarkup: "Edition first so it
 // leads even when a year exists"). bf_year verfeinert nur noch innerhalb einer Edition.
 
 const { escapeHtml } = require("../../app/utils.js");
-const { avesmapsCompareAdventureRecency } = require("../map-features-adventures.js");
+const { avesmapsCompareGameLiteratureRecency } = require("../map-features-game-literature.js");
 
 global.escapeHtml = escapeHtml;
 global.tr = function (key, germanDefault) { return String(germanDefault == null ? "" : germanDefault); };
-// Der Browser laedt map-features-adventures.js NACH place-extras.js (index.html); place-extras ruft den
+// Der Browser laedt map-features-game-literature.js NACH place-extras.js (index.html); place-extras ruft den
 // Vergleicher deshalb ueber das Global auf. Genau so wird er hier verdrahtet -- nicht als Import.
-global.avesmapsCompareAdventureRecency = avesmapsCompareAdventureRecency;
+global.avesmapsCompareGameLiteratureRecency = avesmapsCompareGameLiteratureRecency;
 
-const { avesmapsSortAdventureEntries } = require("../map-features-place-extras.js");
+const { avesmapsSortGameLiteratureEntries } = require("../map-features-place-extras.js");
 
 const titles = (entries) => entries.map((e) => e.a.title);
 
 // ---- 1. Der Live-Fall: kein einziges bf_year, aber Editionen ---------------------------------------
 // Meridiana, 25 Abenteuer, 0 davon mit bf_year (live gemessen). Vorher kam hier die Eingangsreihenfolge
 // wieder heraus -- 8 spoilerfreie, dann 17 Spoiler. Jetzt entscheidet die Edition.
-const live = avesmapsSortAdventureEntries([
+const live = avesmapsSortGameLiteratureEntries([
 	{ a: { title: "Blutbeflecktes Gold", edition: "DSA4" }, isPlay: false },
 	{ a: { title: "Die sieben magischen Kelche", edition: "DSA1 Basis" }, isPlay: false },
 	{ a: { title: "Der Götze der Mohas", edition: "DSA2" }, isPlay: true },
@@ -49,7 +49,7 @@ assert.strictEqual(live[0].isPlay, true, "der neueste Eintrag steht oben, auch w
 // ---- 2. Die Rolle darf die Reihenfolge NICHT beeinflussen ------------------------------------------
 // Der Kern der Owner-Ansage: "egal ob Spoiler oder nicht". Dieselbe Menge mit vertauschten Rollen muss
 // dieselbe Titelreihenfolge ergeben -- sonst sortiert irgendwo doch die Rolle mit.
-const flipped = avesmapsSortAdventureEntries([
+const flipped = avesmapsSortGameLiteratureEntries([
 	{ a: { title: "Blutbeflecktes Gold", edition: "DSA4" }, isPlay: true },
 	{ a: { title: "Die sieben magischen Kelche", edition: "DSA1 Basis" }, isPlay: true },
 	{ a: { title: "Der Götze der Mohas", edition: "DSA2" }, isPlay: false },
@@ -61,7 +61,7 @@ assert.deepStrictEqual(titles(flipped), titles(live), "die Rolle veraendert die 
 // ---- 3. bf_year verfeinert INNERHALB einer Edition --------------------------------------------------
 // Die 6 Platzhalter tragen eines; es soll weiter wirken, aber die Edition nicht ueberstimmen.
 assert.deepStrictEqual(
-	titles(avesmapsSortAdventureEntries([
+	titles(avesmapsSortGameLiteratureEntries([
 		{ a: { title: "DSA5, ohne Jahr", edition: "DSA5" }, isPlay: false },
 		{ a: { title: "DSA5, 1044 BF", edition: "DSA5", year: 1044 }, isPlay: false },
 		{ a: { title: "DSA3, 1015 BF", edition: "DSA3", year: 1015 }, isPlay: false },
@@ -74,7 +74,7 @@ assert.deepStrictEqual(
 // Beides ist "Alter unbekannt" -- und Unbekanntes gehoert ans Ende, nicht an die Spitze einer Liste,
 // die "neueste zuerst" verspricht.
 assert.deepStrictEqual(
-	titles(avesmapsSortAdventureEntries([
+	titles(avesmapsSortGameLiteratureEntries([
 		{ a: { title: "ohne Edition" }, isPlay: false },
 		{ a: { title: "Fremdregelwerk", edition: "Aventuria 2.0" }, isPlay: false },
 		{ a: { title: "DSA1", edition: "DSA1" }, isPlay: false },
@@ -86,7 +86,7 @@ assert.deepStrictEqual(
 // Ohne letzten Schluessel haengt die Reihenfolge an der Eingangsreihenfolge -- und die ist genau der
 // Rollen-Block, der den urspruenglichen Fehler erzeugt hat.
 assert.deepStrictEqual(
-	titles(avesmapsSortAdventureEntries([
+	titles(avesmapsSortGameLiteratureEntries([
 		{ a: { title: "Zwischen Geistern und Piraten", edition: "DSA4" }, isPlay: true },
 		{ a: { title: "Blutbeflecktes Gold", edition: "DSA4" }, isPlay: false },
 	])),
@@ -99,15 +99,15 @@ assert.deepStrictEqual(
 // auf "neueste zuerst", obwohl der Leser dieselbe Sortierung waehlt, die schon aktiv ist.
 const asDataset = (edition, year, title) => ({ edition: edition, year: String(year), title: title });
 assert.ok(
-	avesmapsCompareAdventureRecency(asDataset("DSA5", 0, "A"), asDataset("DSA3", 1015, "B")) < 0,
+	avesmapsCompareGameLiteratureRecency(asDataset("DSA5", 0, "A"), asDataset("DSA3", 1015, "B")) < 0,
 	"DSA5 ohne Jahr steht vor DSA3 mit Jahr -- auch als String-dataset"
 );
 assert.ok(
-	avesmapsCompareAdventureRecency(asDataset("DSA5", 1044, "A"), asDataset("DSA5", 1020, "B")) < 0,
+	avesmapsCompareGameLiteratureRecency(asDataset("DSA5", 1044, "A"), asDataset("DSA5", 1020, "B")) < 0,
 	"innerhalb einer Edition entscheidet das BF-Jahr, absteigend"
 );
 assert.strictEqual(
-	avesmapsCompareAdventureRecency(asDataset("DSA5", 1044, "A"), asDataset("DSA5", 1044, "A")),
+	avesmapsCompareGameLiteratureRecency(asDataset("DSA5", 1044, "A"), asDataset("DSA5", 1044, "A")),
 	0,
 	"identische Eintraege sind gleich -- ein Vergleicher, der das verletzt, macht sort() instabil"
 );

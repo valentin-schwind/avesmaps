@@ -49,24 +49,24 @@ assert(avesmapsWikiMapArtToSourceType('Unbekanntes Dings')==='sonstiges');
 // matters here -- and until now they entered NOTHING: not the catalogue, not even a wrong type.
 foreach (['Szenario', 'Anthologie', 'Kampagnenband', 'Metaband'] as $art) {
     assert(avesmapsWikiMapArtToSourceType($art) === 'abenteuer', "$art -> abenteuer");
-    assert(avesmapsWikiProductIsAdventure($art) === true, "$art zaehlt als Abenteuer");
+    assert(avesmapsWikiProductIsGameLiterature($art) === true, "$art zaehlt als Abenteuer");
 }
 // "Kampagnenband" used to fail on an EXACT comparison against 'kampagne'; one character of
 // difference cost 27 volumes. The bare form must keep working alongside it.
-assert(avesmapsWikiProductIsAdventure('Kampagne') === true, 'die blosse Kampagne weiterhin');
+assert(avesmapsWikiProductIsGameLiterature('Kampagne') === true, 'die blosse Kampagne weiterhin');
 // Prose: a better type than the catch-all, but emphatically NOT an adventure. If this ever flips,
 // 189 short stories appear in the adventure list.
 assert(avesmapsWikiMapArtToSourceType('Kurzgeschichte') === 'roman');
-assert(avesmapsWikiProductIsAdventure('Kurzgeschichte') === false, 'Kurzgeschichte ist kein Abenteuer');
+assert(avesmapsWikiProductIsGameLiterature('Kurzgeschichte') === false, 'Kurzgeschichte ist kein Abenteuer');
 // The rest of the fall-through list must stay out -- the gate widened, it did not open.
 foreach (['Hörbuch', 'Soundtrack', 'Brettspiel', 'Kartenspiel', 'Computerspiel', 'Browserspiel',
           'Heldenbogen', 'Lösungsbuch', 'Merchandising', 'DLC', 'Spielmaterial', 'Meisterschirmset'] as $art) {
-    assert(avesmapsWikiProductIsAdventure($art) === false, "$art darf KEIN Abenteuer sein");
+    assert(avesmapsWikiProductIsGameLiterature($art) === false, "$art darf KEIN Abenteuer sein");
 }
 // product_type is the folded Art -- the value the editor's PRODUCT_TYPES list must contain, or
 // opening such an entry shows the wrong type selected and saving rewrites it.
-assert(avesmapsWikiNormalizeAdventureProductType('Anthologie') === 'anthologie');
-assert(avesmapsWikiNormalizeAdventureProductType('Kampagnenband') === 'kampagnenband');
+assert(avesmapsWikiNormalizeGameLiteratureProductType('Anthologie') === 'anthologie');
+assert(avesmapsWikiNormalizeGameLiteratureProductType('Kampagnenband') === 'kampagnenband');
 echo "art mapping ok\n";
 // Whitespace/newline-tolerant Produkt-infobox guard (real dump wikitext is not always "{{Infobox Produkt" exactly).
 $infoDoubleSpace = avesmapsWikiParseProductInfobox("{{Infobox  Produkt\n|Titel=Doppelter Leerraum\n}}"); // double space after "Infobox"

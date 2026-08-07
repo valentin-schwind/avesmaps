@@ -668,8 +668,8 @@
 		if (typeof buildPathCityMapsMarkup === "function") {
 			markup += buildPathCityMapsMarkup(path);
 		}
-		if (typeof buildPathAdventuresMarkup === "function") {
-			markup += buildPathAdventuresMarkup(path);
+		if (typeof buildPathGameLiteratureMarkup === "function") {
+			markup += buildPathGameLiteratureMarkup(path);
 		}
 		window.avesmapsShowInfopanel(markup);
 		lastPanelRender = function () { window.avesmapsShowPathInInfopanel(path); };
@@ -713,16 +713,16 @@
 	var regionDetailToken = null;
 	// Regions-/Gebiets-Infobox + (Phase 2.2) angehaengter "Abenteuer in <Gebiet>"-Block. Der Block braucht den
 	// SERVER-wiki_key, der erst mit regionEntry.detail (territory-detail.php) ankommt -> in der ersten (sync)
-	// Runde liefert buildTerritoryAdventuresMarkup "" (kein detail), in der zweiten (nach dem Fetch) die ueber
-	// den politischen Subtree aggregierten Abenteuer. buildTerritoryAdventuresMarkup lebt in place-extras.js
+	// Runde liefert buildTerritoryGameLiteratureMarkup "" (kein detail), in der zweiten (nach dem Fetch) die ueber
+	// den politischen Subtree aggregierten Abenteuer. buildTerritoryGameLiteratureMarkup lebt in place-extras.js
 	// (nur im Infopanel-Modus relevant) -> per typeof-Guard optional.
-	function regionMarkupWithAdventures(regionEntry) {
+	function regionMarkupWithGameLiterature(regionEntry) {
 		var markup = createRegionCompactTooltipMarkup(regionEntry);
 		if (typeof buildTerritoryCityMapsMarkup === "function") {
 			markup += buildTerritoryCityMapsMarkup(regionEntry);
 		}
-		if (typeof buildTerritoryAdventuresMarkup === "function") {
-			markup += buildTerritoryAdventuresMarkup(regionEntry);
+		if (typeof buildTerritoryGameLiteratureMarkup === "function") {
+			markup += buildTerritoryGameLiteratureMarkup(regionEntry);
 		}
 		// Natur & Waren stehen NICHT mehr hier als eigener Block: sie sind Zeilen in der
 		// Feldliste der Infobox selbst (createRegionWikiInfoBoxMarkup, Owner-Vorgabe) --
@@ -762,7 +762,7 @@
 	// Anker zeigt hierher statt auf avesmapsShowRegionInInfopanel -- ein Refresh soll nur das Markup neu
 	// bauen, nicht die Fetch-Logik nochmal anwerfen.
 	function showRegionMarkup(regionEntry) {
-		window.avesmapsShowInfopanel(regionMarkupWithAdventures(regionEntry));
+		window.avesmapsShowInfopanel(regionMarkupWithGameLiterature(regionEntry));
 		lastPanelRender = function () { showRegionMarkup(regionEntry); };
 	}
 

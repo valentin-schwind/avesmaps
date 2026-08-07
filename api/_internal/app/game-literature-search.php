@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Adventures as a search source. An adventure has NO geometry of its own -- it inherits its position
+// Literatur as a search source. An entry has NO geometry of its own -- it inherits its position
 // from the place it BEGINS at, exactly like a Kartensammlung map inherits the place it is assigned to.
 // Design: docs/superpowers/specs/2026-08-02-spotlight-abenteuer-vorkommen-design.md
 //
@@ -16,12 +16,12 @@ declare(strict_types=1);
 //
 // The building function is PURE (rows in, entries out) so it is testable without a database.
 
-// Mirrors avesmapsAdventureProductTypeLabel in js/map-features/map-features-adventures.js, PLUS
+// Mirrors avesmapsGameLiteratureProductTypeLabel in js/map-features/map-features-game-literature.js, PLUS
 // kampagnenband (27 live) and metaband (5 live), which are missing there and fall back to the raw key.
 // Both key and label are searchable: the payload carries 'gruppenabenteuer', a human types
 // "Gruppenabenteuer" -- matching only the key fails silently on every capitalised or umlaut-bearing
 // label (same trap the Kartensammlung hit with 'uebersicht' / "Übersicht").
-const AVESMAPS_ADVENTURE_SEARCH_TYPE_LABELS = [
+const AVESMAPS_GAME_LITERATURE_SEARCH_TYPE_LABELS = [
     'gruppenabenteuer' => 'Gruppenabenteuer',
     'soloabenteuer' => 'Soloabenteuer',
     'kurzabenteuer' => 'Kurzabenteuer',
@@ -42,10 +42,10 @@ const AVESMAPS_ADVENTURE_SEARCH_TYPE_LABELS = [
  * 💣 The join condition carries `role = 'start'`. Dropping it would silently turn every play location
  * into a searchable, jumpable, printable fact.
  *
- * contained_in is a self-healing column added by adventures.php; if a deployment ever lacks it the
+ * contained_in is a self-healing column added by game-literature.php; if a deployment ever lacks it the
  * query throws and this returns [] -- the adventure section disappears, the search does not 500.
  */
-function avesmapsFetchAdventureSearchRows(PDO $pdo): array {
+function avesmapsFetchGameLiteratureSearchRows(PDO $pdo): array {
     try {
         $statement = $pdo->query(
             "SELECT a.public_id,
@@ -85,7 +85,7 @@ function avesmapsFetchAdventureSearchRows(PDO $pdo): array {
  * @param array<string, string> $typeLabels product_type => German label
  * @return list<array<string, mixed>>
  */
-function avesmapsBuildAdventureSearchEntries(array $rows, array $typeLabels): array {
+function avesmapsBuildGameLiteratureSearchEntries(array $rows, array $typeLabels): array {
     $entries = [];
     foreach ($rows as $row) {
         $title = trim((string) ($row['title'] ?? ''));
@@ -114,7 +114,7 @@ function avesmapsBuildAdventureSearchEntries(array $rows, array $typeLabels): ar
             'name' => $title,
             'type_label' => implode(' · ', $typeLabelParts),
             'feature_subtype' => 'adventure',
-            'edition_sort_key' => avesmapsAdventureSearchEditionSortKey($edition),
+            'edition_sort_key' => avesmapsGameLiteratureSearchEditionSortKey($edition),
             'place_public_id' => $unresolved ? '' : $placePublicId,
             'place_kind' => $placeKind,
             'place_name' => $placeName,
@@ -147,11 +147,11 @@ function avesmapsBuildAdventureSearchEntries(array $rows, array $typeLabels): ar
  * Sort key for the DSA edition so "newest first" runs DSA5 > DSA4.1 > DSA4 > ... > DSA1, then non-DSA
  * rulesets, then no edition. Ascending sort of this key yields that order.
  *
- * Mirrors avesmapsAdventureEditionSortKey in js/map-features/map-features-adventures.js on purpose:
+ * Mirrors avesmapsGameLiteratureEditionSortKey in js/map-features/map-features-game-literature.js on purpose:
  * the search and the adventure dialog must order the same catalogue the same way. bf_year is NOT an
  * alternative -- it is filled on 6 of 1352 rows.
  */
-function avesmapsAdventureSearchEditionSortKey(string $edition): float {
+function avesmapsGameLiteratureSearchEditionSortKey(string $edition): float {
     $edition = trim($edition);
     if ($edition === '') {
         return 1001.0;
@@ -168,7 +168,7 @@ function avesmapsAdventureSearchEditionSortKey(string $edition): float {
  * (api/_internal/app/search-section.php) as the $tieBreak callable: resolved start place before
  * unresolved, then score, then edition, then name.
  */
-function avesmapsAdventureSearchCompare(array $left, array $right): int {
+function avesmapsGameLiteratureSearchCompare(array $left, array $right): int {
     $resolvedDiff = ((int) $left['unresolved']) <=> ((int) $right['unresolved']);
     if ($resolvedDiff !== 0) {
         return $resolvedDiff;

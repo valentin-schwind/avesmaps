@@ -2,25 +2,25 @@
 
 declare(strict_types=1);
 
-// The adventure-cover autoget RUN (cap 'edit'). One bounded, GUARDED step per request; the CLIENT drives
-// the repetition (js/review/review-adventure-cover-autoget.js). Built to the SAME pattern as
+// The game-literature cover autoget RUN (cap 'edit'). One bounded, GUARDED step per request; the CLIENT drives
+// the repetition (js/review/review-game-literature-cover-autoget.js). Built to the SAME pattern as
 // citymap-autoget.php and sharing its safety core (avesmapsAutogetGuardedStep + the ONE lock name): a
 // single-flight GET_LOCK, a ~4s budget, a DB kill-switch, and NO EnsureTables on the step path. STRATO has
 // no cron; looping a heavy endpoint once saturated the pool (php-pool-hang-incident-2026-07-17).
 //
 // The work unit is an adventure whose LOCAL cover is missing and that has a wiki cover source. The fetch
-// itself is avesmapsAdventureSaveCoverLocal (the same one the reconcile and the single-cover refetch use)
+// itself is avesmapsGameLiteratureSaveCoverLocal (the same one the reconcile and the single-cover refetch use)
 // -- this endpoint only adds the resumable, guarded calling frame.
 
 require __DIR__ . '/../../_internal/auth.php';
-require_once __DIR__ . '/../../_internal/app/adventures.php';                // ensure tables, kill-switch, SetAdventureCoverUrl
+require_once __DIR__ . '/../../_internal/app/game-literature.php';                // ensure tables, kill-switch, SetGameLiteratureCoverUrl
 require_once __DIR__ . '/../../_internal/app/autoget-run.php';               // the shared gate
 require_once __DIR__ . '/../../_internal/wiki/sync.php';                     // AVESMAPS_WIKI_PAGE_BASE_URL + wiki sync constants (used by adventure-sync helpers)
 require_once __DIR__ . '/../../_internal/wiki/locations-helpers.php';        // avesmapsWikiSyncNextMapRevision (covers travel in the map-features payload -> invalidate). NOT in sync.php: it hangs off locations.php, which this endpoint does not load.
 require_once __DIR__ . '/../../_internal/wiki/sync-monitor-identity.php';    // HttpGetBinary / ImageExtension / DownscaleCoatBytes (the cover fetch helpers)
 require_once __DIR__ . '/../../_internal/wiki/territories-tree.php';         // avesmapsWikiSyncNormalizeWikiTreeText (called transitively by PoliticalTerritoryFilePathUrl)
 require_once __DIR__ . '/../../_internal/wiki/territories-parsing.php';      // avesmapsWikiSyncPoliticalTerritoryFilePathUrl (cover file -> wiki image URL)
-require_once __DIR__ . '/../../_internal/wiki/adventure-sync.php';           // avesmapsAdventureSaveCoverLocal + avesmapsAdventureCoverAutogetStep + staging ensure
+require_once __DIR__ . '/../../_internal/wiki/game-literature-sync.php';           // avesmapsGameLiteratureSaveCoverLocal + avesmapsGameLiteratureCoverAutogetStep + staging ensure
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -47,7 +47,7 @@ try {
     $withSource = "wiki_key IS NOT NULL AND TRIM(wiki_key) <> ''";
 
     if ($action === 'status') {
-        avesmapsAdventuresEnsureTables($pdo);
+        avesmapsGameLiteratureEnsureTables($pdo);
         $counts = [];
         $stmt = $pdo->query('SELECT cover_auto_state AS s, COUNT(*) AS c FROM adventure WHERE ' . $withSource . ' GROUP BY cover_auto_state');
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -62,7 +62,7 @@ try {
     }
 
     if ($action === 'reset') {
-        avesmapsAdventuresEnsureTables($pdo);
+        avesmapsGameLiteratureEnsureTables($pdo);
         // Clear the state for every adventure that HAS a source, so all are re-checked. Deliberately NOT
         // filtered on origin: a manual upload just becomes skipped_manual again next run (a cheap code
         // check, no fetch), and filtering on origin is exactly the trap that excludes everything.
@@ -79,9 +79,9 @@ try {
     // No EnsureTables here (the adventure table exists long since). The staging table (wiki_adventure_
     // catalog) is read read-only by the step; it too exists after the first "Dump holen". The step body is
     // wrapped by the shared gate, so {stopped:true}/{busy:true} can come back instead of the tally.
-    $enabled = avesmapsAdventureCoverAutogetEnabled($pdo);
+    $enabled = avesmapsGameLiteratureCoverAutogetEnabled($pdo);
     $result = avesmapsAutogetGuardedStep($pdo, $enabled, AVESMAPS_AUTOGET_RUN_LOCK, function (PDO $pdo): array {
-        return avesmapsAdventureCoverAutogetStep($pdo, AVESMAPS_AUTOGET_STEP_BUDGET_SECONDS);
+        return avesmapsGameLiteratureCoverAutogetStep($pdo, AVESMAPS_AUTOGET_STEP_BUDGET_SECONDS);
     });
     avesmapsJsonResponse(200, $result);
 } catch (Throwable $exception) {

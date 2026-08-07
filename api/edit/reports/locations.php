@@ -9,7 +9,7 @@ require __DIR__ . '/../../_internal/auth.php';
 // citymap library (which also brings feature-sources, used below to link the reported sources).
 require_once __DIR__ . '/../../_internal/map/features.php';
 require_once __DIR__ . '/../../_internal/app/citymaps.php';
-require_once __DIR__ . '/../../_internal/app/adventure-resolve.php';
+require_once __DIR__ . '/../../_internal/app/game-literature-resolve.php';
 // A4: every moderation decision leaves a row in map_audit_log. The action names and the two
 // snapshots are pure and live next door so they can be asserted without a database -- in
 // particular that they are NOT undoable and that they carry no ip_hash.

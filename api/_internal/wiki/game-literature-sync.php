@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-// Wiki adventure sync (Phase 4): staging schema + dump-build steps + an OVERRIDE-SAFE reconcile of
+// Wiki game-literature sync (Phase 4): staging schema + dump-build steps + an OVERRIDE-SAFE reconcile of
 // the dump's adventure catalog into the live adventure / adventure_place tables. Mirrors
 // api/_internal/wiki/publication-sync.php: the SAME two-step model -- build STAGING during
 // "Dump holen" (the adventures phase, dryRun), then an owner-triggered `sync_adventures` action
 // that reconciles staging into production. Adventures ARE {{Infobox Produkt}} pages (the SAME
-// infobox publications use), classified by Art via avesmapsWikiProductIsAdventure().
+// infobox publications use), classified by Art via avesmapsWikiProductIsGameLiterature().
 //
 // Side-effect-free on include (function definitions only -- NO top-level code, NO require of a
-// side-effectful file), so the pure-diff unit test (__tests__/adventure-sync-test.php) can `require`
+// side-effectful file), so the pure-diff unit test (__tests__/game-literature-sync-test.php) can `require`
 // it with no MySQL. Every DB/dump/parser function takes its dependencies as arguments and calls the
 // other libraries at RUNTIME (the dump endpoint loads that chain before dispatch).
 //
@@ -32,7 +32,7 @@ require_once __DIR__ . '/publication-parsing.php'; // avesmapsWikiParseProductIn
 
 // The adventure business columns the wiki sync may fill (override-safe per field_origins_json).
 // bf_year/bf_label are NOT here: the {{Infobox Produkt}} infobox carries no in-world BF year.
-const AVESMAPS_ADVENTURE_WIKI_FIELDS = [
+const AVESMAPS_GAME_LITERATURE_WIKI_FIELDS = [
     'title', 'product_type', 'edition', 'genre', 'complexity_gm', 'complexity_pl',
     'authors', 'series', 'fshop_code', 'cover_url', 'wiki_url',
 ];
@@ -40,7 +40,7 @@ const AVESMAPS_ADVENTURE_WIKI_FIELDS = [
 /**
  * PURE: normalize a field value for change-detection (null and '' are equal; trims). String compare.
  */
-function avesmapsAdventureNormalizeField(mixed $value): string
+function avesmapsGameLiteratureNormalizeField(mixed $value): string
 {
     return $value === null ? '' : trim((string) $value);
 }
@@ -55,17 +55,17 @@ function avesmapsAdventureNormalizeField(mixed $value): string
  * @param array<string,string> $fieldOrigins the stored per-field origin map (field => 'manual'|'wiki')
  * @return array{set:array<string,mixed>, origins:array<string,string>}
  */
-function avesmapsAdventureFieldPlan(array $current, array $desired, array $fieldOrigins): array
+function avesmapsGameLiteratureFieldPlan(array $current, array $desired, array $fieldOrigins): array
 {
     $set = [];
-    foreach (AVESMAPS_ADVENTURE_WIKI_FIELDS as $field) {
+    foreach (AVESMAPS_GAME_LITERATURE_WIKI_FIELDS as $field) {
         if (!array_key_exists($field, $desired)) {
             continue; // the wiki has nothing to say about this field
         }
         if ((string) ($fieldOrigins[$field] ?? '') === 'manual') {
             continue; // a manual edit wins outright -- never overwritten by the wiki
         }
-        if (avesmapsAdventureNormalizeField($current[$field] ?? null) !== avesmapsAdventureNormalizeField($desired[$field])) {
+        if (avesmapsGameLiteratureNormalizeField($current[$field] ?? null) !== avesmapsGameLiteratureNormalizeField($desired[$field])) {
             $set[$field] = $desired[$field];
         }
     }
@@ -81,7 +81,7 @@ function avesmapsAdventureFieldPlan(array $current, array $desired, array $field
 /**
  * PURE: case/space-insensitive key for matching a place name against a wiki tombstone.
  */
-function avesmapsAdventurePlaceNameKey(string $name): string
+function avesmapsGameLiteraturePlaceNameKey(string $name): string
 {
     return mb_strtolower(trim($name), 'UTF-8');
 }
@@ -100,7 +100,7 @@ function avesmapsAdventurePlaceNameKey(string $name): string
  * @param list<array<string,mixed>> $desiredPlaces [{sort_order, raw_name, role}] ordered (start=0)
  * @return array{add:list<array<string,mixed>>, update:list<array<string,mixed>>, remove:list<array{id:int}>}
  */
-function avesmapsAdventurePlacePlan(array $currentPlaces, array $desiredPlaces): array
+function avesmapsGameLiteraturePlacePlan(array $currentPlaces, array $desiredPlaces): array
 {
     $wikiApprovedByOrder = [];
     $suppressedWikiNames = [];
@@ -110,7 +110,7 @@ function avesmapsAdventurePlacePlan(array $currentPlaces, array $desiredPlaces):
         }
         $status = (string) ($place['status'] ?? 'approved');
         if ($status === 'suppressed') {
-            $suppressedWikiNames[avesmapsAdventurePlaceNameKey((string) ($place['raw_name'] ?? ''))] = true;
+            $suppressedWikiNames[avesmapsGameLiteraturePlaceNameKey((string) ($place['raw_name'] ?? ''))] = true;
             continue;
         }
         if ($status === 'approved') {
@@ -127,7 +127,7 @@ function avesmapsAdventurePlacePlan(array $currentPlaces, array $desiredPlaces):
         $rawName = (string) ($desired['raw_name'] ?? '');
         $role = (string) ($desired['role'] ?? 'play');
 
-        if (isset($suppressedWikiNames[avesmapsAdventurePlaceNameKey($rawName)])) {
+        if (isset($suppressedWikiNames[avesmapsGameLiteraturePlaceNameKey($rawName)])) {
             continue; // editor tombstoned this wiki place -> keep it removed
         }
 
@@ -155,7 +155,7 @@ function avesmapsAdventurePlacePlan(array $currentPlaces, array $desiredPlaces):
  * ONE difference row for the Übernahme-Vorschau, or null when there is nothing to ask about. PURE.
  *
  * This is the compute half's whole judgement: it takes the SAME pure plans the writer uses
- * (avesmapsAdventureFieldPlan, avesmapsAdventurePlacePlan) plus two answers the caller has already
+ * (avesmapsGameLiteratureFieldPlan, avesmapsGameLiteraturePlacePlan) plus two answers the caller has already
  * looked up, and turns them into a row an editor can tick. Design:
  * docs/superpowers/specs/2026-08-06-sync-uebernahme-design.md §2/§7.
  *
@@ -173,15 +173,15 @@ function avesmapsAdventurePlacePlan(array $currentPlaces, array $desiredPlaces):
  * therefore nothing to ask.
  *
  * @param array<string,mixed>|null $current      the live adventure row (null = does not exist yet)
- * @param array<string,mixed>      $desired      avesmapsAdventureDesiredFromStaging output
+ * @param array<string,mixed>      $desired      avesmapsGameLiteratureDesiredFromStaging output
  * @param array<string,string>     $fieldOrigins field => 'manual'|'wiki'
- * @param array{add:array,update:array,remove:array} $placePlan avesmapsAdventurePlacePlan output
+ * @param array{add:array,update:array,remove:array} $placePlan avesmapsGameLiteraturePlacePlan output
  * @param bool $coverPending would the writer fetch a new cover file?
  * @param bool $adopting     would the writer adopt a hand-made placeholder row?
  * @return array{change_type:string, after:array<string,mixed>, before:array<string,mixed>,
  *               override:array<string,mixed>}|null
  */
-function avesmapsAdventurePlanItem(
+function avesmapsGameLiteraturePlanItem(
     ?array $current,
     array $desired,
     array $fieldOrigins,
@@ -190,7 +190,7 @@ function avesmapsAdventurePlanItem(
     bool $adopting
 ): ?array {
     $isNew = $current === null;
-    $plan = avesmapsAdventureFieldPlan($current ?? [], $desired, $fieldOrigins);
+    $plan = avesmapsGameLiteratureFieldPlan($current ?? [], $desired, $fieldOrigins);
 
     $after = [];
     $before = [];
@@ -207,17 +207,17 @@ function avesmapsAdventurePlanItem(
     }
 
     // What a human pinned down and the wiki disagrees with: shown as "bleibt …", never proposed.
-    // avesmapsAdventureFieldPlan drops those fields silently -- which is right for writing and wrong
+    // avesmapsGameLiteratureFieldPlan drops those fields silently -- which is right for writing and wrong
     // for a preview: silence reads as "the wiki agrees with us".
     $override = [];
     if (!$isNew) {
-        foreach (AVESMAPS_ADVENTURE_WIKI_FIELDS as $field) {
+        foreach (AVESMAPS_GAME_LITERATURE_WIKI_FIELDS as $field) {
             if (!array_key_exists($field, $desired) || (string) ($fieldOrigins[$field] ?? '') !== 'manual') {
                 continue;
             }
             if (
-                avesmapsAdventureNormalizeField($current[$field] ?? null)
-                !== avesmapsAdventureNormalizeField($desired[$field])
+                avesmapsGameLiteratureNormalizeField($current[$field] ?? null)
+                !== avesmapsGameLiteratureNormalizeField($desired[$field])
             ) {
                 $override[$field] = (string) ($current[$field] ?? '');
             }
@@ -230,7 +230,7 @@ function avesmapsAdventurePlanItem(
         $after['cover'] = 'wird neu geladen';
     }
     if ($adopting) {
-        $after['adopt'] = 'Platzhalter wird zum Wiki-Abenteuer';
+        $after['adopt'] = 'Platzhalter wird zum Wiki-Eintrag';
     }
 
     $placeParts = [];
@@ -266,13 +266,13 @@ function avesmapsAdventurePlanItem(
 
 // Per-step budgets: the dump-walking catalog build reuses the shared page/time budget; the reconcile
 // does several writes + up to one image fetch per adventure, so it uses a small entity budget.
-const AVESMAPS_ADVENTURE_RECONCILE_STEP_BUDGET = 40;
+const AVESMAPS_GAME_LITERATURE_RECONCILE_STEP_BUDGET = 40;
 // Covers display far larger than coats (infobox header / list thumbnail), so keep a bigger long edge.
-const AVESMAPS_ADVENTURE_COVER_MAX_EDGE = 600;
+const AVESMAPS_GAME_LITERATURE_COVER_MAX_EDGE = 600;
 // "Owner ran a full sync" run stamp -- set on $done in the reconcile step, read by
-// avesmapsAdventureLastSynced. Mirrors AVESMAPS_CITYMAP_LAST_SYNCED_SETTING; see that function's
+// avesmapsGameLiteratureLastSynced. Mirrors AVESMAPS_CITYMAP_LAST_SYNCED_SETTING; see that function's
 // docblock for why a run stamp is needed instead of MAX(synced_at).
-const AVESMAPS_ADVENTURE_LAST_SYNCED_SETTING = 'adventures_last_synced';
+const AVESMAPS_GAME_LITERATURE_LAST_SYNCED_SETTING = 'adventures_last_synced';
 
 /**
  * Self-healing staging schema. wiki_adventure_catalog: one row per adventure {{Infobox Produkt}} page
@@ -281,7 +281,7 @@ const AVESMAPS_ADVENTURE_LAST_SYNCED_SETTING = 'adventures_last_synced';
  * cover_source column to the live `adventure` table so the reconcile fetches an image only when the wiki
  * cover file actually changed. Idempotent.
  */
-function avesmapsEnsureAdventureStagingTables(PDO $pdo): void
+function avesmapsEnsureGameLiteratureStagingTables(PDO $pdo): void
 {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS wiki_adventure_catalog (
@@ -311,9 +311,9 @@ function avesmapsEnsureAdventureStagingTables(PDO $pdo): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
 
-    // The live adventure/adventure_place tables (self-healing DDL in api/_internal/app/adventures.php).
-    if (function_exists('avesmapsAdventuresEnsureTables')) {
-        avesmapsAdventuresEnsureTables($pdo);
+    // The live adventure/adventure_place tables (self-healing DDL in api/_internal/app/game-literature.php).
+    if (function_exists('avesmapsGameLiteratureEnsureTables')) {
+        avesmapsGameLiteratureEnsureTables($pdo);
     }
     // cover_source: the wiki cover FILE the current cover_url was fetched from -> refetch only on change.
     $columnExists = static function (PDO $pdo, string $table, string $column): bool {
@@ -342,7 +342,7 @@ function avesmapsEnsureAdventureStagingTables(PDO $pdo): void
  *
  * @return callable(string,int):iterable
  */
-function avesmapsAdventureDefaultPageSource(): callable
+function avesmapsGameLiteratureDefaultPageSource(): callable
 {
     return static function (string $path, int $skip): iterable {
         $reader = avesmapsWikiDumpOpenReader($path);
@@ -365,12 +365,12 @@ function avesmapsAdventureDefaultPageSource(): callable
  * @param callable|null $pageSource test seam: (dumpPath, skipPages) => iterable of page rows
  * @return array{ok:bool, done:bool, nextCursor:int, pages_scanned:int, found_this_step:int}
  */
-function avesmapsAdventureBuildCatalogStep(PDO $pdo, string $dumpPath, int $cursor = 0, ?callable $pageSource = null): array
+function avesmapsGameLiteratureBuildCatalogStep(PDO $pdo, string $dumpPath, int $cursor = 0, ?callable $pageSource = null): array
 {
-    avesmapsEnsureAdventureStagingTables($pdo);
+    avesmapsEnsureGameLiteratureStagingTables($pdo);
     @set_time_limit((int) AVESMAPS_WIKI_DUMP_STEP_SECONDS + 15);
     $deadline = microtime(true) + (float) max(1, AVESMAPS_WIKI_DUMP_STEP_SECONDS - 3);
-    $source = $pageSource ?? avesmapsAdventureDefaultPageSource();
+    $source = $pageSource ?? avesmapsGameLiteratureDefaultPageSource();
 
     $upsertCatalog = $pdo->prepare(
         'INSERT INTO wiki_adventure_catalog
@@ -403,7 +403,7 @@ function avesmapsAdventureBuildCatalogStep(PDO $pdo, string $dumpPath, int $curs
         if (stripos($wikitext, 'Produkt') !== false && (int) ($page['ns'] ?? 0) === 0 && ($page['redirect'] ?? null) === null) {
             $info = avesmapsWikiParseProductInfobox($wikitext);
             if (is_array($info) && is_array($info['adventure'] ?? null)) {
-                $adventure = $info['adventure'];
+                $gameLiterature = $info['adventure'];
                 $pageTitle = (string) ($page['title'] ?? '');
                 $wikiKey = avesmapsPublicationCatalogWikiKeyForTitle($pageTitle);
                 if ($wikiKey !== '') {
@@ -415,23 +415,23 @@ function avesmapsAdventureBuildCatalogStep(PDO $pdo, string $dumpPath, int $curs
                     $upsertCatalog->execute([
                         'wk' => $wikiKey,
                         'title' => mb_substr($displayTitle, 0, 300, 'UTF-8'),
-                        'pt' => mb_substr((string) ($adventure['product_type'] ?? ''), 0, 32, 'UTF-8'),
-                        'ed' => mb_substr((string) ($adventure['edition'] ?? ''), 0, 16, 'UTF-8'),
-                        'genre' => mb_substr((string) ($adventure['genre'] ?? ''), 0, 160, 'UTF-8'),
-                        'cgm' => mb_substr((string) ($adventure['complexity_gm'] ?? ''), 0, 60, 'UTF-8'),
-                        'cpl' => mb_substr((string) ($adventure['complexity_pl'] ?? ''), 0, 60, 'UTF-8'),
-                        'authors' => mb_substr((string) ($adventure['authors'] ?? ''), 0, 500, 'UTF-8'),
-                        'series' => mb_substr((string) ($adventure['series'] ?? ''), 0, 200, 'UTF-8'),
+                        'pt' => mb_substr((string) ($gameLiterature['product_type'] ?? ''), 0, 32, 'UTF-8'),
+                        'ed' => mb_substr((string) ($gameLiterature['edition'] ?? ''), 0, 16, 'UTF-8'),
+                        'genre' => mb_substr((string) ($gameLiterature['genre'] ?? ''), 0, 160, 'UTF-8'),
+                        'cgm' => mb_substr((string) ($gameLiterature['complexity_gm'] ?? ''), 0, 60, 'UTF-8'),
+                        'cpl' => mb_substr((string) ($gameLiterature['complexity_pl'] ?? ''), 0, 60, 'UTF-8'),
+                        'authors' => mb_substr((string) ($gameLiterature['authors'] ?? ''), 0, 500, 'UTF-8'),
+                        'series' => mb_substr((string) ($gameLiterature['series'] ?? ''), 0, 200, 'UTF-8'),
                         'off' => 1,
                         'fshop' => mb_substr((string) ($info['f_shop_pid'] ?? ''), 0, 40, 'UTF-8'),
-                        'cover' => mb_substr((string) ($adventure['cover_file'] ?? ''), 0, 300, 'UTF-8'),
+                        'cover' => mb_substr((string) ($gameLiterature['cover_file'] ?? ''), 0, 300, 'UTF-8'),
                         'url' => mb_substr($wikiUrl, 0, 500, 'UTF-8'),
                     ]);
 
                     // Rebuild the ordered place list (delete+insert) so a dropped/reordered "Ort" is mirrored.
                     $deletePlaces->execute(['wk' => $wikiKey]);
                     $sortOrder = 0;
-                    foreach ($adventure['places'] as $rawName) {
+                    foreach ($gameLiterature['places'] as $rawName) {
                         $rawName = trim((string) $rawName);
                         if ($rawName === '') {
                             continue;
@@ -472,7 +472,7 @@ function avesmapsAdventureBuildCatalogStep(PDO $pdo, string $dumpPath, int $curs
  * DISPLAY layer, not here). The source URL is built from the cover FILE via the wiki's own
  * Spezial:Dateipfad redirect (so only wiki-aventurica images are ever fetched).
  */
-function avesmapsAdventureSaveCoverLocal(string $wikiKey, string $coverFile): string
+function avesmapsGameLiteratureSaveCoverLocal(string $wikiKey, string $coverFile): string
 {
     $coverFile = trim($coverFile);
     $wikiKey = trim($wikiKey);
@@ -499,7 +499,7 @@ function avesmapsAdventureSaveCoverLocal(string $wikiKey, string $coverFile): st
     $slug = strtolower((string) preg_replace('/[^a-z0-9_-]+/i', '-', (string) preg_replace('/^wiki:/', '', $wikiKey)));
     $slug = trim($slug, '-') ?: 'cover';
     $filename = $slug . '.' . $ext;
-    $bytes = avesmapsWikiSyncMonitorDownscaleCoatBytes($downloaded['bytes'], $ext, AVESMAPS_ADVENTURE_COVER_MAX_EDGE);
+    $bytes = avesmapsWikiSyncMonitorDownscaleCoatBytes($downloaded['bytes'], $ext, AVESMAPS_GAME_LITERATURE_COVER_MAX_EDGE);
     if (@file_put_contents($dir . '/' . $filename, $bytes) === false) {
         return '';
     }
@@ -512,12 +512,12 @@ function avesmapsAdventureSaveCoverLocal(string $wikiKey, string $coverFile): st
 
 /**
  * The DESIRED wiki field values for an adventure, from its catalog staging row (cover_url is resolved
- * separately by the fetch). Keys match AVESMAPS_ADVENTURE_WIKI_FIELDS (minus cover_url).
+ * separately by the fetch). Keys match AVESMAPS_GAME_LITERATURE_WIKI_FIELDS (minus cover_url).
  *
  * @param array<string,mixed> $catalog wiki_adventure_catalog row
  * @return array<string,string>
  */
-function avesmapsAdventureDesiredFromStaging(array $catalog): array
+function avesmapsGameLiteratureDesiredFromStaging(array $catalog): array
 {
     return [
         'title' => (string) ($catalog['title'] ?? ''),
@@ -538,7 +538,7 @@ function avesmapsAdventureDesiredFromStaging(array $catalog): array
  *
  * @return array<string,string>
  */
-function avesmapsAdventureDecodeOrigins(?string $json): array
+function avesmapsGameLiteratureDecodeOrigins(?string $json): array
 {
     if ($json === null || $json === '') {
         return [];
@@ -565,7 +565,7 @@ function avesmapsAdventureDecodeOrigins(?string $json): array
  * @param array<string,mixed> $catalog wiki_adventure_catalog row
  * @return array{id:int, field_origins:array<string,string>, created:bool}
  */
-function avesmapsAdventureFindOrAdoptRow(PDO $pdo, array $catalog): array
+function avesmapsGameLiteratureFindOrAdoptRow(PDO $pdo, array $catalog): array
 {
     $wikiKey = trim((string) ($catalog['wiki_key'] ?? ''));
 
@@ -573,7 +573,7 @@ function avesmapsAdventureFindOrAdoptRow(PDO $pdo, array $catalog): array
     $byKey->execute(['wk' => $wikiKey]);
     $row = $byKey->fetch(PDO::FETCH_ASSOC);
     if ($row !== false) {
-        return ['id' => (int) $row['id'], 'field_origins' => avesmapsAdventureDecodeOrigins($row['field_origins_json'] ?? null), 'created' => false];
+        return ['id' => (int) $row['id'], 'field_origins' => avesmapsGameLiteratureDecodeOrigins($row['field_origins_json'] ?? null), 'created' => false];
     }
 
     $title = trim((string) ($catalog['title'] ?? ''));
@@ -584,8 +584,8 @@ function avesmapsAdventureFindOrAdoptRow(PDO $pdo, array $catalog): array
         $byTitle->execute(['title' => $title]);
         $placeholder = $byTitle->fetch(PDO::FETCH_ASSOC);
         if ($placeholder !== false) {
-            $adventureId = (int) $placeholder['id'];
-            $fieldOrigins = avesmapsAdventureDecodeOrigins($placeholder['field_origins_json'] ?? null);
+            $gameLiteratureId = (int) $placeholder['id'];
+            $fieldOrigins = avesmapsGameLiteratureDecodeOrigins($placeholder['field_origins_json'] ?? null);
             $handEdited = false;
             foreach ($fieldOrigins as $origin) {
                 if ($origin === 'manual') {
@@ -594,13 +594,13 @@ function avesmapsAdventureFindOrAdoptRow(PDO $pdo, array $catalog): array
                 }
             }
             $pdo->prepare("UPDATE adventure SET wiki_key = :wk, origin = 'wiki' WHERE id = :id")
-                ->execute(['wk' => $wikiKey, 'id' => $adventureId]);
+                ->execute(['wk' => $wikiKey, 'id' => $gameLiteratureId]);
             if (!$handEdited) {
                 // Pristine seed placeholder -> drop its placeholder places so the wiki list rebuilds clean.
-                $pdo->prepare('DELETE FROM adventure_place WHERE adventure_id = :id')->execute(['id' => $adventureId]);
+                $pdo->prepare('DELETE FROM adventure_place WHERE adventure_id = :id')->execute(['id' => $gameLiteratureId]);
                 $fieldOrigins = [];
             }
-            return ['id' => $adventureId, 'field_origins' => $fieldOrigins, 'created' => false];
+            return ['id' => $gameLiteratureId, 'field_origins' => $fieldOrigins, 'created' => false];
         }
     }
 
@@ -613,26 +613,26 @@ function avesmapsAdventureFindOrAdoptRow(PDO $pdo, array $catalog): array
     )->execute([
         'pid' => $publicId,
         'wk' => $wikiKey,
-        'title' => mb_substr($title !== '' ? $title : 'Unbenanntes Abenteuer', 0, 300, 'UTF-8'),
+        'title' => mb_substr($title !== '' ? $title : 'Unbenannter Eintrag', 0, 300, 'UTF-8'),
         'pt' => mb_substr((string) ($catalog['product_type'] ?? ''), 0, 32, 'UTF-8'),
     ]);
     return ['id' => (int) $pdo->lastInsertId(), 'field_origins' => [], 'created' => true];
 }
 
 /** The adventure columns that are NOT NULL (never written as NULL even when the wiki value is empty). */
-const AVESMAPS_ADVENTURE_NOT_NULL_FIELDS = ['title', 'product_type'];
+const AVESMAPS_GAME_LITERATURE_NOT_NULL_FIELDS = ['title', 'product_type'];
 
 /**
- * Load an adventure's places in the shape avesmapsAdventurePlacePlan consumes.
+ * Load an adventure's places in the shape avesmapsGameLiteraturePlacePlan consumes.
  *
  * @return list<array<string,mixed>>
  */
-function avesmapsAdventureLoadPlacesForReconcile(PDO $pdo, int $adventureId): array
+function avesmapsGameLiteratureLoadPlacesForReconcile(PDO $pdo, int $gameLiteratureId): array
 {
     $stmt = $pdo->prepare(
         'SELECT id, sort_order, raw_name, role, origin, status FROM adventure_place WHERE adventure_id = :id'
     );
-    $stmt->execute(['id' => $adventureId]);
+    $stmt->execute(['id' => $gameLiteratureId]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
 
@@ -641,7 +641,7 @@ function avesmapsAdventureLoadPlacesForReconcile(PDO $pdo, int $adventureId): ar
  *
  * @return list<array{sort_order:int, raw_name:string, role:string}>
  */
-function avesmapsAdventureDesiredPlaces(PDO $pdo, string $wikiKey): array
+function avesmapsGameLiteratureDesiredPlaces(PDO $pdo, string $wikiKey): array
 {
     $stmt = $pdo->prepare(
         'SELECT sort_order, raw_name FROM wiki_adventure_place_staging WHERE adventure_wiki_key = :wk ORDER BY sort_order ASC'
@@ -663,7 +663,7 @@ function avesmapsAdventureDesiredPlaces(PDO $pdo, string $wikiKey): array
  * @param array<string,mixed> $catalog wiki_adventure_catalog row
  * @return array{adv_created:int, adv_updated:int, places_added:int, places_updated:int, places_removed:int, covers_fetched:int}
  */
-function avesmapsAdventureReconcileEntity(PDO $pdo, array $catalog, int $userId): array
+function avesmapsGameLiteratureReconcileEntity(PDO $pdo, array $catalog, int $userId): array
 {
     $counters = ['adv_created' => 0, 'adv_updated' => 0, 'places_added' => 0, 'places_updated' => 0, 'places_removed' => 0, 'covers_fetched' => 0];
     $wikiKey = trim((string) ($catalog['wiki_key'] ?? ''));
@@ -671,8 +671,8 @@ function avesmapsAdventureReconcileEntity(PDO $pdo, array $catalog, int $userId)
         return $counters;
     }
 
-    $found = avesmapsAdventureFindOrAdoptRow($pdo, $catalog);
-    $adventureId = $found['id'];
+    $found = avesmapsGameLiteratureFindOrAdoptRow($pdo, $catalog);
+    $gameLiteratureId = $found['id'];
     $fieldOrigins = $found['field_origins'];
     if ($found['created']) {
         $counters['adv_created']++;
@@ -683,22 +683,22 @@ function avesmapsAdventureReconcileEntity(PDO $pdo, array $catalog, int $userId)
                 fshop_code, cover_url, cover_source, wiki_url
            FROM adventure WHERE id = :id LIMIT 1'
     );
-    $currentStmt->execute(['id' => $adventureId]);
+    $currentStmt->execute(['id' => $gameLiteratureId]);
     $current = $currentStmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-    $desired = avesmapsAdventureDesiredFromStaging($catalog);
+    $desired = avesmapsGameLiteratureDesiredFromStaging($catalog);
 
     // Cover: fetch ONLY when the wiki cover file changed and the cover is not a manual override.
     if ((string) ($fieldOrigins['cover_url'] ?? '') !== 'manual') {
         $coverFile = trim((string) ($catalog['cover_file'] ?? ''));
         $currentSource = trim((string) ($current['cover_source'] ?? ''));
         if ($coverFile !== '' && $coverFile !== $currentSource) {
-            $localUrl = avesmapsAdventureSaveCoverLocal($wikiKey, $coverFile);
+            $localUrl = avesmapsGameLiteratureSaveCoverLocal($wikiKey, $coverFile);
             if ($localUrl !== '') {
                 $desired['cover_url'] = $localUrl;
                 $counters['covers_fetched']++;
                 $pdo->prepare('UPDATE adventure SET cover_source = :cs WHERE id = :id')
-                    ->execute(['cs' => mb_substr($coverFile, 0, 300, 'UTF-8'), 'id' => $adventureId]);
+                    ->execute(['cs' => mb_substr($coverFile, 0, 300, 'UTF-8'), 'id' => $gameLiteratureId]);
             }
         } elseif ($coverFile !== '' && $coverFile === $currentSource) {
             // Unchanged cover already fetched -> keep the stored local URL (no re-fetch, no field change).
@@ -706,20 +706,20 @@ function avesmapsAdventureReconcileEntity(PDO $pdo, array $catalog, int $userId)
         }
     }
 
-    $plan = avesmapsAdventureFieldPlan($current, $desired, $fieldOrigins);
+    $plan = avesmapsGameLiteratureFieldPlan($current, $desired, $fieldOrigins);
     if ($plan['set'] !== []) {
         $setClauses = [];
-        $params = ['id' => $adventureId];
+        $params = ['id' => $gameLiteratureId];
         foreach ($plan['set'] as $field => $value) {
             $setClauses[] = $field . ' = :' . $field;
-            $params[$field] = ($value === '' && !in_array($field, AVESMAPS_ADVENTURE_NOT_NULL_FIELDS, true)) ? null : $value;
+            $params[$field] = ($value === '' && !in_array($field, AVESMAPS_GAME_LITERATURE_NOT_NULL_FIELDS, true)) ? null : $value;
         }
         $mergedOrigins = $fieldOrigins;
         foreach ($plan['origins'] as $field => $origin) {
             $mergedOrigins[$field] = $origin;
         }
         $setClauses[] = 'field_origins_json = :field_origins_json';
-        $params['field_origins_json'] = avesmapsAdventuresEncodeOrigins($mergedOrigins);
+        $params['field_origins_json'] = avesmapsGameLiteratureEncodeOrigins($mergedOrigins);
         $setClauses[] = 'synced_at = CURRENT_TIMESTAMP(3)';
         $pdo->prepare('UPDATE adventure SET ' . implode(', ', $setClauses) . ' WHERE id = :id')->execute($params);
         if (!$found['created']) {
@@ -728,9 +728,9 @@ function avesmapsAdventureReconcileEntity(PDO $pdo, array $catalog, int $userId)
     }
 
     // Places: reconcile the wiki list (manual/community + suppressed tombstones untouched).
-    $placePlan = avesmapsAdventurePlacePlan(
-        avesmapsAdventureLoadPlacesForReconcile($pdo, $adventureId),
-        avesmapsAdventureDesiredPlaces($pdo, $wikiKey)
+    $placePlan = avesmapsGameLiteraturePlacePlan(
+        avesmapsGameLiteratureLoadPlacesForReconcile($pdo, $gameLiteratureId),
+        avesmapsGameLiteratureDesiredPlaces($pdo, $wikiKey)
     );
     if ($placePlan['add'] !== []) {
         $insertPlace = $pdo->prepare(
@@ -738,7 +738,7 @@ function avesmapsAdventureReconcileEntity(PDO $pdo, array $catalog, int $userId)
              VALUES (:aid, :so, :rn, 'unresolved', :role, 'wiki', 'approved')"
         );
         foreach ($placePlan['add'] as $add) {
-            $insertPlace->execute(['aid' => $adventureId, 'so' => (int) $add['sort_order'], 'rn' => mb_substr((string) $add['raw_name'], 0, 300, 'UTF-8'), 'role' => (string) $add['role']]);
+            $insertPlace->execute(['aid' => $gameLiteratureId, 'so' => (int) $add['sort_order'], 'rn' => mb_substr((string) $add['raw_name'], 0, 300, 'UTF-8'), 'role' => (string) $add['role']]);
             $counters['places_added']++;
         }
     }
@@ -771,9 +771,9 @@ function avesmapsAdventureReconcileEntity(PDO $pdo, array $catalog, int $userId)
 
 /**
  * Find the live adventure row for a wiki adventure WITHOUT touching it. READ-ONLY twin of
- * avesmapsAdventureFindOrAdoptRow.
+ * avesmapsGameLiteratureFindOrAdoptRow.
  *
- * 💣 THE TWIN ANSWERS BY WRITING. avesmapsAdventureFindOrAdoptRow adopts a pristine placeholder on
+ * 💣 THE TWIN ANSWERS BY WRITING. avesmapsGameLiteratureFindOrAdoptRow adopts a pristine placeholder on
  * the spot -- it sets wiki_key, flips origin to 'wiki' and deletes the placeholder's seeded places.
  * That is right for a reconcile and wrong for a preview, which would have performed the adoption
  * before anybody saw a checkbox. Here the same question is answered by looking: `adopting` says the
@@ -787,7 +787,7 @@ function avesmapsAdventureReconcileEntity(PDO $pdo, array $catalog, int $userId)
  * @return array{current:?array<string,mixed>, field_origins:array<string,string>, adopting:bool,
  *               clears_places:bool}
  */
-function avesmapsAdventurePlanFindRow(PDO $pdo, array $catalog): array
+function avesmapsGameLiteraturePlanFindRow(PDO $pdo, array $catalog): array
 {
     $columns = 'id, public_id, origin, status, field_origins_json, title, product_type, edition,
                 genre, complexity_gm, complexity_pl, authors, series, fshop_code, cover_url,
@@ -800,7 +800,7 @@ function avesmapsAdventurePlanFindRow(PDO $pdo, array $catalog): array
     if ($row !== false) {
         return [
             'current' => $row,
-            'field_origins' => avesmapsAdventureDecodeOrigins($row['field_origins_json'] ?? null),
+            'field_origins' => avesmapsGameLiteratureDecodeOrigins($row['field_origins_json'] ?? null),
             'adopting' => false,
             'clears_places' => false,
         ];
@@ -815,7 +815,7 @@ function avesmapsAdventurePlanFindRow(PDO $pdo, array $catalog): array
         $byTitle->execute(['title' => $title]);
         $placeholder = $byTitle->fetch(PDO::FETCH_ASSOC);
         if ($placeholder !== false) {
-            $fieldOrigins = avesmapsAdventureDecodeOrigins($placeholder['field_origins_json'] ?? null);
+            $fieldOrigins = avesmapsGameLiteratureDecodeOrigins($placeholder['field_origins_json'] ?? null);
             $handEdited = in_array('manual', array_values($fieldOrigins), true);
 
             return [
@@ -845,14 +845,14 @@ function avesmapsAdventurePlanFindRow(PDO $pdo, array $catalog): array
  * @return array{item:?array<string,mixed>, current:?array<string,mixed>, desired:array<string,mixed>,
  *               adopting:bool}
  */
-function avesmapsAdventurePlanForCatalogRow(PDO $pdo, array $catalog): array
+function avesmapsGameLiteraturePlanForCatalogRow(PDO $pdo, array $catalog): array
 {
     $wikiKey = trim((string) ($catalog['wiki_key'] ?? ''));
-    $found = avesmapsAdventurePlanFindRow($pdo, $catalog);
+    $found = avesmapsGameLiteraturePlanFindRow($pdo, $catalog);
     $current = $found['current'];
-    $desired = avesmapsAdventureDesiredFromStaging($catalog);
+    $desired = avesmapsGameLiteratureDesiredFromStaging($catalog);
 
-    // Read-only twin of the cover branch in avesmapsAdventureReconcileEntity. Three cases, and only
+    // Read-only twin of the cover branch in avesmapsGameLiteratureReconcileEntity. Three cases, and only
     // the first one is news:
     //   file changed   -> the writer FETCHES it (HTTP + a file in /uploads/questcovers). A plan can
     //                     only announce that; the local URL does not exist yet.
@@ -860,7 +860,7 @@ function avesmapsAdventurePlanForCatalogRow(PDO $pdo, array $catalog): array
     //   no file        -> the writer leaves cover_url out of $desired entirely, so the field plan
     //                     skips it.
     // The last two are therefore deliberately absent from $desired here as well: same input for
-    // avesmapsAdventureFieldPlan, same plan.
+    // avesmapsGameLiteratureFieldPlan, same plan.
     $coverFile = trim((string) ($catalog['cover_file'] ?? ''));
     $coverPending = (string) ($found['field_origins']['cover_url'] ?? '') !== 'manual'
         && $coverFile !== ''
@@ -870,13 +870,13 @@ function avesmapsAdventurePlanForCatalogRow(PDO $pdo, array $catalog): array
     // plan is computed against an empty list -- exactly what the writer will see.
     $currentPlaces = ($current === null || $found['clears_places'])
         ? []
-        : avesmapsAdventureLoadPlacesForReconcile($pdo, (int) $current['id']);
+        : avesmapsGameLiteratureLoadPlacesForReconcile($pdo, (int) $current['id']);
 
-    $item = avesmapsAdventurePlanItem(
+    $item = avesmapsGameLiteraturePlanItem(
         $current,
         $desired,
         $found['field_origins'],
-        avesmapsAdventurePlacePlan($currentPlaces, avesmapsAdventureDesiredPlaces($pdo, $wikiKey)),
+        avesmapsGameLiteraturePlacePlan($currentPlaces, avesmapsGameLiteratureDesiredPlaces($pdo, $wikiKey)),
         $coverPending,
         $found['adopting']
     );
@@ -888,7 +888,7 @@ function avesmapsAdventurePlanForCatalogRow(PDO $pdo, array $catalog): array
  * When the adventure staging was last filled by "Dump holen" -- the plan's source stamp, so an
  * editor can see which dump a lying-about preview was computed from. NULL = staging never created.
  */
-function avesmapsAdventureLastStaged(PDO $pdo): ?string
+function avesmapsGameLiteratureLastStaged(PDO $pdo): ?string
 {
     try {
         $value = $pdo->query('SELECT MAX(synced_at) FROM wiki_adventure_catalog')->fetchColumn();
@@ -915,27 +915,27 @@ function avesmapsAdventureLastStaged(PDO $pdo): ?string
  * session-2 plan, Entscheidung 1.
  *
  * The three closing acts of the old step -- the last-synced stamp, the place resolver and the
- * map_revision bump -- moved to the apply half (adventure-plan-apply.php). They mean "something was
+ * map_revision bump -- moved to the apply half (game-literature-plan-apply.php). They mean "something was
  * written", and nothing is written here.
  *
  * @return array{done:bool, nextCursor:string, run_id:int, planned:int, processed:int,
  *               counts:array{new:int,changed:int,deleted:int,total:int}}
  */
-function avesmapsAdventurePlanStep(PDO $pdo, string $cursor, int $userId, ?int $budget = null): array
+function avesmapsGameLiteraturePlanStep(PDO $pdo, string $cursor, int $userId, ?int $budget = null): array
 {
-    $budget = $budget ?? AVESMAPS_ADVENTURE_RECONCILE_STEP_BUDGET;
+    $budget = $budget ?? AVESMAPS_GAME_LITERATURE_RECONCILE_STEP_BUDGET;
     @set_time_limit((int) AVESMAPS_WIKI_DUMP_STEP_SECONDS + 15);
     $deadline = microtime(true) + (float) max(1, AVESMAPS_WIKI_DUMP_STEP_SECONDS - 3);
     // ⚠️ Both DDL calls up here, once and before anything else: MySQL commits an open transaction
     // implicitly the moment it sees DDL.
-    avesmapsEnsureAdventureStagingTables($pdo);
+    avesmapsEnsureGameLiteratureStagingTables($pdo);
     avesmapsEnsureSyncPlanTables($pdo);
 
     // The run is derived from the cursor, never named by the client: an empty cursor means "from the
     // top" and opens a fresh run (retiring whatever was lying around), anything else belongs to the
     // build already in flight. A run id off the wire would let one editor write into another's plan.
     if ($cursor === '') {
-        $runId = avesmapsSyncPlanStartRun($pdo, 'adventure', $userId, avesmapsAdventureLastStaged($pdo));
+        $runId = avesmapsSyncPlanStartRun($pdo, 'adventure', $userId, avesmapsGameLiteratureLastStaged($pdo));
     } else {
         $runId = (int) (avesmapsSyncPlanBuildingRun($pdo, 'adventure')['id'] ?? 0);
     }
@@ -964,7 +964,7 @@ function avesmapsAdventurePlanStep(PDO $pdo, string $cursor, int $userId, ?int $
         $nextCursor = (string) $catalog['wiki_key'];
         $processed++;
 
-        $computed = avesmapsAdventurePlanForCatalogRow($pdo, $catalog);
+        $computed = avesmapsGameLiteraturePlanForCatalogRow($pdo, $catalog);
         $item = $computed['item'];
         if ($item !== null) {
             $current = $computed['current'];
@@ -1012,9 +1012,9 @@ function avesmapsAdventurePlanStep(PDO $pdo, string $cursor, int $userId, ?int $
 // 6. Small COUNT / status accessors.
 // ===========================================================================
 
-function avesmapsAdventureCountCatalog(PDO $pdo): int
+function avesmapsGameLiteratureCountCatalog(PDO $pdo): int
 {
-    avesmapsEnsureAdventureStagingTables($pdo);
+    avesmapsEnsureGameLiteratureStagingTables($pdo);
     return (int) $pdo->query('SELECT COUNT(*) FROM wiki_adventure_catalog')->fetchColumn();
 }
 
@@ -1032,11 +1032,11 @@ function avesmapsAdventureCountCatalog(PDO $pdo): int
  * stamp existed still has row timestamps, so the label shows the real last-change date instead of
  * "nie" until the next sync writes the run stamp.
  */
-function avesmapsAdventureLastSynced(PDO $pdo): ?string
+function avesmapsGameLiteratureLastSynced(PDO $pdo): ?string
 {
     if (function_exists('avesmapsAppSettingGet')) {
         try {
-            $value = trim(avesmapsAppSettingGet($pdo, AVESMAPS_ADVENTURE_LAST_SYNCED_SETTING, ''));
+            $value = trim(avesmapsAppSettingGet($pdo, AVESMAPS_GAME_LITERATURE_LAST_SYNCED_SETTING, ''));
             if ($value !== '') {
                 return $value;
             }
@@ -1071,7 +1071,7 @@ function avesmapsAdventureLastSynced(PDO $pdo): ?string
  * @return array{ok:bool, done:bool, remaining:int, adventures_done:int, covers_ok:int, no_image:int,
  *   fetch_failed:int, skipped:int}
  */
-function avesmapsAdventureCoverAutogetStep(PDO $pdo, float $budgetSeconds): array
+function avesmapsGameLiteratureCoverAutogetStep(PDO $pdo, float $budgetSeconds): array
 {
     $startedAt = microtime(true);
     @set_time_limit(30);
@@ -1090,7 +1090,7 @@ function avesmapsAdventureCoverAutogetStep(PDO $pdo, float $budgetSeconds): arra
     $coverFileStmt = $pdo->prepare('SELECT cover_file FROM wiki_adventure_catalog WHERE wiki_key = :wk LIMIT 1');
     $stateStmt = $pdo->prepare('UPDATE adventure SET cover_auto_state = :state WHERE public_id = :pid');
     // On a successful fetch: cover_url + its 'wiki' origin + cover_source + the ok state in ONE update, so
-    // the step never calls avesmapsAdventuresEnsureTables. Using avesmapsSetAdventureCoverUrl here would
+    // the step never calls avesmapsGameLiteratureEnsureTables. Using avesmapsSetGameLiteratureCoverUrl here would
     // run that ensure (3 CREATE + information_schema probes) PER cover -- exactly the DDL load mechanism 3
     // removes from the step path. The citymap step likewise writes its state directly, never ensuring in
     // the loop. field_origins is merged from the row we already read (same step -> no stale race).
@@ -1100,7 +1100,7 @@ function avesmapsAdventureCoverAutogetStep(PDO $pdo, float $budgetSeconds): arra
     );
 
     $tally = ['ok' => 0, 'no_image' => 0, 'fetch_failed' => 0, 'skipped_manual' => 0];
-    $adventuresDone = 0;
+    $gameLiteratureDone = 0;
 
     foreach ($due as $row) {
         $publicId = (string) $row['public_id'];
@@ -1115,10 +1115,10 @@ function avesmapsAdventureCoverAutogetStep(PDO $pdo, float $budgetSeconds): arra
         }
 
         // own beats wiki: never overwrite a manual upload.
-        if (avesmapsAdventureCoverAutogetSkips($origins)) {
+        if (avesmapsGameLiteratureCoverAutogetSkips($origins)) {
             $stateStmt->execute(['state' => 'skipped_manual', 'pid' => $publicId]);
             $tally['skipped_manual']++;
-            $adventuresDone++;
+            $gameLiteratureDone++;
         } else {
             $coverFileStmt->execute(['wk' => $wikiKey]);
             $coverFile = trim((string) ($coverFileStmt->fetchColumn() ?: ''));
@@ -1128,7 +1128,7 @@ function avesmapsAdventureCoverAutogetStep(PDO $pdo, float $budgetSeconds): arra
                 $stateStmt->execute(['state' => 'no_image', 'pid' => $publicId]);
                 $tally['no_image']++;
             } else {
-                $localUrl = avesmapsAdventureSaveCoverLocal($wikiKey, $coverFile);
+                $localUrl = avesmapsGameLiteratureSaveCoverLocal($wikiKey, $coverFile);
                 if ($localUrl === '') {
                     $stateStmt->execute(['state' => 'fetch_failed', 'pid' => $publicId]);
                     $tally['fetch_failed']++;
@@ -1138,14 +1138,14 @@ function avesmapsAdventureCoverAutogetStep(PDO $pdo, float $budgetSeconds): arra
                     $origins['cover_url'] = 'wiki';
                     $okStmt->execute([
                         'u' => $localUrl,
-                        'fo' => avesmapsAdventuresEncodeOrigins($origins),
+                        'fo' => avesmapsGameLiteratureEncodeOrigins($origins),
                         'cs' => mb_substr($coverFile, 0, 300, 'UTF-8'),
                         'pid' => $publicId,
                     ]);
                     $tally['ok']++;
                 }
             }
-            $adventuresDone++;
+            $gameLiteratureDone++;
         }
 
         // Time budget: stop after ~4s; leftovers stay due (cover_auto_state IS NULL) for the next step.
@@ -1164,7 +1164,7 @@ function avesmapsAdventureCoverAutogetStep(PDO $pdo, float $budgetSeconds): arra
         'ok' => true,
         'done' => $remaining === 0,
         'remaining' => $remaining,
-        'adventures_done' => $adventuresDone,
+        'adventures_done' => $gameLiteratureDone,
         'covers_ok' => $tally['ok'],
         'no_image' => $tally['no_image'],
         'fetch_failed' => $tally['fetch_failed'],

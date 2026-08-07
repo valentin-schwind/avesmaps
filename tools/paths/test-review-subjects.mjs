@@ -50,7 +50,7 @@ assert.equal(known(null), false);
 // been taken out of it. Rule: editor button where there is one, sync button otherwise.
 assert.equal(buttonId("locations"), "settlement-editor-open");
 assert.equal(buttonId("territories"), "wiki-sync-territories");
-assert.equal(buttonId("adventures"), "adventure-editor-open");
+assert.equal(buttonId("adventures"), "game-literature-editor-open");
 assert.equal(buttonId("citymaps"), "citymaps-editor-open");
 assert.equal(buttonId("lore"), "wiki-sync-lore-open");
 // The three without a list editor fall through to their sync button.

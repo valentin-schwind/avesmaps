@@ -153,7 +153,7 @@ $check('sharp s in a word',  'reichsstrasse',    avesmapsFoldToAscii('reichsstra
 // ===========================================================================
 // C. The COMPLETE non-ASCII repertoire of the live data set.
 //    Measured 2026-07-24 over the full public payload (GET /api/app/map-features.php,
-//    /api/app/political-territory-wiki.php, /api/app/adventures.php): 45 distinct
+//    /api/app/political-territory-wiki.php, /api/app/game-literature.php): 45 distinct
 //    codepoints. Every one of them lands here, so a future table edit cannot
 //    silently change a character that actually occurs in the data.
 //    'ß' and 'æ' are the only two with an alphanumeric translit -- they are in

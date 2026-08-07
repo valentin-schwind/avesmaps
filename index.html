@@ -487,23 +487,23 @@
 						<!-- The material sub-tab row (level 3) is gone: Abenteuer, Karten and Vorkommen
 						     are top-level subjects now, each with its own section below. -->
 						<div class="wiki-sync-panel__actions">
-							<button type="button" id="adventure-editor-open" class="wiki-sync-panel__start" title="Öffnet den Abenteuereditor (anlegen/bearbeiten, Orte zuordnen, enthält jetzt auch Syncen + Zuletzt gesynct)."><span class="t1">Abenteuer bearbeiten</span><span id="adventure-editor-synced" class="wiki-sync-panel__summary" hidden></span></button>
+							<button type="button" id="game-literature-editor-open" class="wiki-sync-panel__start" title="Öffnet den Literatur-Editor (anlegen/bearbeiten, Orte zuordnen, enthält jetzt auch Syncen + Zuletzt gesynct)."><span class="t1">Literatur bearbeiten</span><span id="game-literature-editor-synced" class="wiki-sync-panel__summary" hidden></span></button>
 						</div>
-						<!-- Kept hidden, NOT removed: startWikiSyncAdventuresSync/renderWikiSyncKindProgress/
+						<!-- Kept hidden, NOT removed: startWikiSyncGameLiteratureSync/renderWikiSyncKindProgress/
 						     refreshWikiSyncKindSyncedStatus (js/review/review-wiki-sync.js) still target
 						     these exact ids and must never null-deref. The visible trigger now lives in
-						     the editor toolbar (html/adventure-editor.html #aeSyncBtn) and calls
-						     window.parent.startWikiSyncAdventuresSync(). -->
+						     the editor toolbar (html/game-literature-editor.html #aeSyncBtn) and calls
+						     window.parent.startWikiSyncGameLiteratureSync(). -->
 						<div class="wiki-sync-panel__actions" hidden>
-							<button id="wiki-sync-sync-adventure" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Abenteuer aus dem zuletzt geholten Dump (Katalog + Ort-Listen + Cover) override-sicher in die Abenteuer-Tabellen. Manuelle und unterdrückte Einträge bleiben unangetastet.">🚨 Syncen</button>
+							<button id="wiki-sync-sync-game-literature" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Literatur aus dem zuletzt geholten Dump (Katalog + Ort-Listen + Cover) override-sicher in die Literatur-Tabellen. Manuelle und unterdrückte Einträge bleiben unangetastet.">🚨 Syncen</button>
 						</div>
 						<div class="wiki-sync-adv-picker">
 							<div class="wiki-sync-adv-picker__top">
-								<input type="search" id="wiki-sync-adv-search" class="wiki-sync-adv-picker__search" placeholder="Abenteuer suchen …" autocomplete="off"><div class="type-filter"><button type="button" id="wiki-sync-adv-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="wiki-sync-adv-filter-menu" class="type-filter__menu" hidden></div></div>
+								<input type="search" id="wiki-sync-adv-search" class="wiki-sync-adv-picker__search" placeholder="Literatur suchen …" autocomplete="off"><div class="type-filter"><button type="button" id="wiki-sync-adv-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="wiki-sync-adv-filter-menu" class="type-filter__menu" hidden></div></div>
 								<span class="wiki-sync-panel__summary" id="wiki-sync-adv-count"></span>
 							</div>
 							<div class="wiki-sync-adv-picker__scroll" id="wiki-sync-adv-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
-							<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Abenteuereditor direkt dort.</p>
+							<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Literatur-Editor direkt dort.</p>
 						</div>
 						</div>
 						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="lore"><div class="wiki-sync-panel__actions" id="wiki-sync-lore-open-wrap"><button id="wiki-sync-lore-open" class="wiki-sync-panel__start" type="button" title="Öffnet das Fenster für Vorkommen (Flora, Fauna, Spezies, Handelswaren). Startet NICHTS: Syncen und Bearbeiten passieren erst im Fenster."><span class="t1">Vorkommen bearbeiten</span><span id="wiki-sync-lore-synced" class="wiki-sync-panel__summary" hidden></span></button></div>
@@ -2324,7 +2324,7 @@
 						<p> <strong data-i18n="legal.noFreeLicense.lead">Keine freie Lizenz für DSA-Material.</strong> <span data-i18n="legal.noFreeLicense.body">DSA-bezogenes Karten-, Bild-, Marken-, Namens- und Hintergrundmaterial wird auf Avesmaps nicht unter Creative Commons, Open Data, Open Source oder einer vergleichbaren freien Lizenz veröffentlicht. Dies gilt insbesondere für Inhalte, die auf offiziellen Publikationen, Karten, Namen, Begriffen, Marken oder sonstigem geschütztem Material von Ulisses oder anderen Rechteinhabern beruhen. Eine Weiterverwendung solcher Inhalte ist nur im Rahmen der jeweils einschlägigen Rechte und Lizenzbedingungen zulässig.</span> </p>
 						<p> <strong data-i18n="legal.wappen.lead">Wappen.</strong> <span data-i18n="legal.wappen.body">Die in der Karte angezeigten Wappen der Herrschaftsgebiete stammen aus Wiki Aventurica (importiert über das dortige Feld „Wappen-Link"). Angezeigt werden ausschließlich Wappen, die nach der im Import übernommenen Lizenzkennzeichnung als gemeinfrei eingestuft sind; Wappen mit unbekanntem oder einschränkendem Lizenzstatus bleiben ausgeblendet. Die Rechte an den Wappen verbleiben bei den jeweiligen Urhebern und Rechteinhabern; die Darstellung auf Avesmaps begründet keine eigenen Rechte daran. Auf Hinweis von Rechteinhabern werden betroffene Wappen geprüft und, soweit erforderlich, entfernt oder angepasst.</span> </p>
 						<p> <strong data-i18n="legal.images.lead">Bilder.</strong> <span data-i18n="legal.images.body">Editorinnen und Editoren können Regionen, Siedlungen und andere Orte auf der Karte zusätzlich mit Bildern versehen. Ziel ist es, wiedererkennbare Eindrücke von Orten zu vermitteln, die Nutzerinnen und Nutzer mögen — nicht, die Arbeit von Künstlerinnen und Künstlern oder von Ulisses zu ersetzen oder zu unterwandern. Da auf Avesmaps keine urheberrechtlich geschützten Inhalte verwendet werden sollen, werden ausschließlich gemeinfreies Material (Public Domain, etwa mit abgelaufenem Urheberrecht oder unter CC0) sowie KI-generierte Bilder eingebunden, da hier eine hinreichende Sicherheit besteht, dass keine fremden Rechte verletzt werden. Nicht verwendet werden insbesondere Scans oder Fotos von Ulisses-Artworks sowie Fanart anderer Künstlerinnen und Künstler ohne deren ausdrückliche Erlaubnis. Auf Hinweis von Rechteinhabern werden betroffene Bilder geprüft und, soweit erforderlich, entfernt oder angepasst.</span> </p>
-						<p> <strong data-i18n="legal.covers.lead">Cover.</strong> <span data-i18n="legal.covers.body">Die bei Abenteuern angezeigten Cover-Bilder von DSA-Publikationen werden mit Genehmigung von Ulisses verwendet. Das Cover verlinkt, soweit im Shop verfügbar, auf die jeweilige Publikation bei Ulisses oder im F-Shop; ist die Publikation dort nicht gelistet, führt der Link ersatzweise auf den zugehörigen Wiki-Aventurica-Artikel oder die Deutsche Nationalbibliothek.</span> </p>
+						<p> <strong data-i18n="legal.covers.lead">Cover.</strong> <span data-i18n="legal.covers.body">Die bei Literatur-Einträgen angezeigten Cover-Bilder von DSA-Publikationen werden mit Genehmigung von Ulisses verwendet. Das Cover verlinkt, soweit im Shop verfügbar, auf die jeweilige Publikation bei Ulisses oder im F-Shop; ist die Publikation dort nicht gelistet, führt der Link ersatzweise auf den zugehörigen Wiki-Aventurica-Artikel oder die Deutsche Nationalbibliothek.</span> </p>
 						</details>
 						<details class="legal-section" id="legal-content">
 							<summary class="legal-dialog__group">
@@ -2584,7 +2584,7 @@
 		<script src="js/review/review-wiki-sync.js"></script>
 		<script src="js/review/review-link-check.js"></script>
 		<script src="js/review/review-citymap-autoget.js"></script>
-		<script src="js/review/review-adventure-cover-autoget.js"></script>
+		<script src="js/review/review-game-literature-cover-autoget.js"></script>
 		<script src="js/review/review-wiki-sync-cases.js"></script>
 		<script src="js/review/review-conflicts.js"></script>
 		<script src="js/review/review-wiki-sync-resolve.js"></script>
@@ -2782,10 +2782,10 @@
 		<script src="js/app/perf-trace.js"></script>
 		<script src="js/ui/route-planner-toggle.js"></script>
 		<script src="js/map-features/map-features-infopanel.js"></script>
-		<script src="js/map-features/map-features-adventures.js"></script>
+		<script src="js/map-features/map-features-game-literature.js"></script>
 		<script src="js/map-features/map-features-lore.js"></script>
 		<script src="js/map-features/map-features-traffic-links.js"></script>
-		<script src="js/map-features/map-features-adventures-dialog.js"></script>
+		<script src="js/map-features/map-features-game-literature-dialog.js"></script>
 		<script src="js/map-features/map-features-citymaps.js"></script>
 		<script src="js/map-features/map-features-citymaps-dialog.js"></script>
 		<script src="js/map-features/map-features-citymaps-suggest.js"></script>

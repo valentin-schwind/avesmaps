@@ -29,7 +29,7 @@ const { advFiltersMarkup } = require("../../map-features/map-features-place-extr
 function advFiltersMarkupBeforeTaskC(facets) {
   const placeExtrasEscape = (v) => escapeHtml(String(v == null ? "" : v));
   facets = facets || {};
-  var parts = ['<span class="avesmaps-adv-tree__flabel">' + placeExtrasEscape(tr("adventures.filter.label", "Filter")) + "</span>"];
+  var parts = ['<span class="avesmaps-adv-tree__flabel">' + placeExtrasEscape(tr("gameLiterature.filter.label", "Filter")) + "</span>"];
   if (facets.types && facets.types.length) {
     facets.types.forEach(function (t) {
       parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="type" data-adv-value="' + placeExtrasEscape(t) + '">' + placeExtrasEscape(t) + "</span>");
@@ -45,21 +45,21 @@ function advFiltersMarkupBeforeTaskC(facets) {
       values.map(function (v) { return '<option value="' + placeExtrasEscape(v) + '">' + placeExtrasEscape(v) + "</option>"; }).join("") +
       "</select></span>";
   }
-  parts.push(selectMarkup("edition", tr("adventures.filter.edition", "DSA-Version"), facets.editions));
-  parts.push(selectMarkup("complexity", tr("adventures.filter.complexity", "Schwierigkeit"), facets.complexities));
-  parts.push(selectMarkup("genre", tr("adventures.filter.genre", "Genre"), facets.genres));
+  parts.push(selectMarkup("edition", tr("gameLiterature.filter.edition", "DSA-Version"), facets.editions));
+  parts.push(selectMarkup("complexity", tr("gameLiterature.filter.complexity", "Schwierigkeit"), facets.complexities));
+  parts.push(selectMarkup("genre", tr("gameLiterature.filter.genre", "Genre"), facets.genres));
 
   var yr = facets.yearRange || { min: 0, max: 0 };
-  var fromPh = yr.min > 0 ? placeExtrasEscape(yr.min) : placeExtrasEscape(tr("adventures.filter.from", "von"));
-  var toPh = yr.max > 0 ? placeExtrasEscape(yr.max) : placeExtrasEscape(tr("adventures.filter.to", "bis"));
-  parts.push('<span class="avesmaps-adv-tree__yearwrap"><span class="avesmaps-adv-tree__ylabel">' + placeExtrasEscape(tr("adventures.filter.period", "Zeitraum (BF)")) + "</span>" +
+  var fromPh = yr.min > 0 ? placeExtrasEscape(yr.min) : placeExtrasEscape(tr("gameLiterature.filter.from", "von"));
+  var toPh = yr.max > 0 ? placeExtrasEscape(yr.max) : placeExtrasEscape(tr("gameLiterature.filter.to", "bis"));
+  parts.push('<span class="avesmaps-adv-tree__yearwrap"><span class="avesmaps-adv-tree__ylabel">' + placeExtrasEscape(tr("gameLiterature.filter.period", "Zeitraum (BF)")) + "</span>" +
     '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearFrom" placeholder="' + fromPh + '">' +
     '<span class="avesmaps-adv-tree__ydash">–</span>' +
     '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearTo" placeholder="' + toPh + '"></span>');
   parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
   // Read "nur offiziell" until 0d237bbc, which renamed it so one bar carries ONE name for the switch both
   // it and the Kartensammlung bar have. A deliberate relabel, not drift -- the golden string follows it.
-  parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">' + placeExtrasEscape(tr("adventures.filter.officialOnly", "offiziell")) + "</span>");
+  parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">' + placeExtrasEscape(tr("gameLiterature.filter.officialOnly", "offiziell")) + "</span>");
   return '<div class="avesmaps-adv-tree__filters">' + parts.join("") + "</div>";
 }
 

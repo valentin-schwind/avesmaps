@@ -7,7 +7,7 @@ declare(strict_types=1);
  * connects its place, and removing that source takes the connection with it -- but ONLY the one it
  * created. No DB, no HTTP. Run (from repo root):
  *   php -d zend.assertions=1 -d assert.exception=1 -d extension=mbstring \
- *       api/_internal/app/__tests__/adventure-source-place-test.php
+ *       api/_internal/app/__tests__/game-literature-source-place-test.php
  * Exit 0 = all asserts passed.
  *
  * The load-bearing rule is the reverse path. The instruction is explicit that removal must not take
@@ -21,7 +21,7 @@ if (ini_get('zend.assertions') !== '1') {
     exit(2);
 }
 
-require __DIR__ . '/../adventures.php';
+require __DIR__ . '/../game-literature.php';
 // avesmapsSourceWikiKeyResolved lives here: the key lookup is not a plain column read, it derives
 // and repairs a missing key. Without this require the guarded call finds nothing and every case
 // below would "pass" by doing nothing at all.
@@ -107,7 +107,7 @@ $fresh = static function (array $columns = []): FakeAdvPdo {
 
 // ---- forward: a source carrying an adventure key connects the place -----------------------------
 $pdo = $fresh();
-$made = avesmapsAdventureLinkPlaceFromSource($pdo, 107810, 'settlement', 'schlaefer-id', 42);
+$made = avesmapsGameLiteratureLinkPlaceFromSource($pdo, 107810, 'settlement', 'schlaefer-id', 42);
 assert($made === true, 'ein Abenteuer-Key erzeugt die Ortszuordnung');
 $inserts = $pdo->ran('INSERT INTO adventure_place');
 assert(count($inserts) === 1, 'genau eine Zeile');
@@ -125,7 +125,7 @@ echo "hinweg ok\n";
 
 // ---- the three silent no-ops -------------------------------------------------------------------
 $pdo = $fresh(['url_hash, wiki_key FROM sources' => '']);
-assert(avesmapsAdventureLinkPlaceFromSource($pdo, 1, 'settlement', 'x') === false, 'ohne Wiki-Key passiert nichts');
+assert(avesmapsGameLiteratureLinkPlaceFromSource($pdo, 1, 'settlement', 'x') === false, 'ohne Wiki-Key passiert nichts');
 assert($pdo->ran('INSERT INTO adventure_place') === [], 'und es wird nichts geschrieben');
 
 // The case that broke it live: the column is empty, but the source IS a known publication. The key
@@ -134,30 +134,30 @@ $pdo = $fresh([
     'url_hash, wiki_key FROM sources' => '',
     'FROM wiki_publication_catalog' => 'die-feuer-von-gruuzash',
 ]);
-assert(avesmapsAdventureLinkPlaceFromSource($pdo, 107810, 'settlement', 'schlaefer-id') === true, 'abgeleiteter Key zaehlt genauso');
+assert(avesmapsGameLiteratureLinkPlaceFromSource($pdo, 107810, 'settlement', 'schlaefer-id') === true, 'abgeleiteter Key zaehlt genauso');
 $repairs = $pdo->ran('UPDATE sources SET wiki_key');
 assert(count($repairs) === 1, 'und der Key wird zurueckgeschrieben, sonst bleibt die Spalte unzuverlaessig');
 assert($repairs[0]['params']['k'] === 'die-feuer-von-gruuzash', 'mit dem abgeleiteten Wert');
 assert(count($pdo->ran('INSERT INTO adventure_place')) === 1, 'und der Ort haengt am Abenteuer');
 
 $pdo = $fresh(['FROM adventure WHERE wiki_key' => false]);
-assert(avesmapsAdventureLinkPlaceFromSource($pdo, 1, 'settlement', 'x') === false, 'Key ist kein Abenteuer (Karte, Quellenband)');
+assert(avesmapsGameLiteratureLinkPlaceFromSource($pdo, 1, 'settlement', 'x') === false, 'Key ist kein Abenteuer (Karte, Quellenband)');
 assert($pdo->ran('INSERT INTO adventure_place') === [], 'und es wird nichts geschrieben');
 
 // "Beide Tueren, ein Ergebnis": wer Quelle UND Ort von Hand pflegt, bekommt trotzdem EINE Verbindung.
 $pdo = $fresh(['FROM adventure_place' => 55]);
-assert(avesmapsAdventureLinkPlaceFromSource($pdo, 1, 'settlement', 'x') === false, 'Paar existiert -> zweite Eingabe aendert nichts');
+assert(avesmapsGameLiteratureLinkPlaceFromSource($pdo, 1, 'settlement', 'x') === false, 'Paar existiert -> zweite Eingabe aendert nichts');
 assert($pdo->ran('INSERT INTO adventure_place') === [], 'keine Dublette');
 
 // A citymap source is the OTHER feature (Fundort) and must not fall through to the adventure path.
 $pdo = $fresh();
-assert(avesmapsAdventureLinkPlaceFromSource($pdo, 1, 'citymap', 'x') === false, 'citymap gehoert nicht hierher');
+assert(avesmapsGameLiteratureLinkPlaceFromSource($pdo, 1, 'citymap', 'x') === false, 'citymap gehoert nicht hierher');
 echo "no-ops ok\n";
 
 // ---- reverse: takes what it made, leaves what it found ------------------------------------------
 $pdo = $fresh();
 $pdo->deleteRows = 1;
-$removed = avesmapsAdventureUnlinkPlaceFromSource($pdo, 107810, 'settlement', 'schlaefer-id');
+$removed = avesmapsGameLiteratureUnlinkPlaceFromSource($pdo, 107810, 'settlement', 'schlaefer-id');
 assert($removed === 1, 'die selbst erzeugte Zuordnung verschwindet mit der Quelle');
 $deletes = $pdo->ran('DELETE FROM adventure_place');
 assert(count($deletes) === 1, 'genau ein DELETE');
@@ -171,14 +171,14 @@ assert(!str_contains($deletes[0]['sql'], 'adventure_id'), 'nicht ueber das Abent
 // Nothing of ours there: a pre-existing entry survives, and the caller learns nothing was removed.
 $pdo = $fresh();
 $pdo->deleteRows = 0;
-assert(avesmapsAdventureUnlinkPlaceFromSource($pdo, 107810, 'settlement', 'schlaefer-id') === 0, 'fremde Eintragung bleibt stehen');
+assert(avesmapsGameLiteratureUnlinkPlaceFromSource($pdo, 107810, 'settlement', 'schlaefer-id') === 0, 'fremde Eintragung bleibt stehen');
 echo "rueckweg ok\n";
 
 // ---- defensive ---------------------------------------------------------------------------------
 $pdo = $fresh();
-assert(avesmapsAdventureLinkPlaceFromSource($pdo, 0, 'settlement', 'x') === false, 'ohne source_id');
-assert(avesmapsAdventureLinkPlaceFromSource($pdo, 1, 'settlement', '') === false, 'ohne public_id');
-assert(avesmapsAdventureUnlinkPlaceFromSource($pdo, 0, 'settlement', 'x') === 0, 'Rueckweg ohne source_id');
+assert(avesmapsGameLiteratureLinkPlaceFromSource($pdo, 0, 'settlement', 'x') === false, 'ohne source_id');
+assert(avesmapsGameLiteratureLinkPlaceFromSource($pdo, 1, 'settlement', '') === false, 'ohne public_id');
+assert(avesmapsGameLiteratureUnlinkPlaceFromSource($pdo, 0, 'settlement', 'x') === 0, 'Rueckweg ohne source_id');
 assert($pdo->ran('DELETE') === [], 'und dann auch kein DELETE');
 echo "defensiv ok\n";
 

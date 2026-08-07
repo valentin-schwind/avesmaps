@@ -224,18 +224,18 @@ assert(
 // Karten nicht gab: der Finder ANTWORTET durch Übernehmen, und das Titelbild kommt über HTTP.
 // ==================================================================================================
 
-$adventureCompute = $reachFrom($bodies, ['avesmapsAdventurePlanStep']);
-assert(count($adventureCompute) >= 8, 'the adventure walk reaches the called functions too (got ' . count($adventureCompute) . ')');
-foreach (['avesmapsAdventurePlanForCatalogRow', 'avesmapsAdventurePlanItem', 'avesmapsAdventurePlanFindRow',
-    'avesmapsAdventureFieldPlan', 'avesmapsAdventurePlacePlan', 'avesmapsAdventureDesiredPlaces',
+$gameLiteratureCompute = $reachFrom($bodies, ['avesmapsGameLiteraturePlanStep']);
+assert(count($gameLiteratureCompute) >= 8, 'the adventure walk reaches the called functions too (got ' . count($gameLiteratureCompute) . ')');
+foreach (['avesmapsGameLiteraturePlanForCatalogRow', 'avesmapsGameLiteraturePlanItem', 'avesmapsGameLiteraturePlanFindRow',
+    'avesmapsGameLiteratureFieldPlan', 'avesmapsGameLiteraturePlacePlan', 'avesmapsGameLiteratureDesiredPlaces',
     'avesmapsSyncPlanAddItem'] as $expected) {
-    assert(isset($adventureCompute[$expected]), "the walk reaches {$expected}");
+    assert(isset($gameLiteratureCompute[$expected]), "the walk reaches {$expected}");
 }
 
-$adventureTables = ['adventure', 'adventure_place', 'wiki_adventure_catalog',
+$gameLiteratureTables = ['adventure', 'adventure_place', 'wiki_adventure_catalog',
     'wiki_adventure_place_staging', 'map_features', 'map_audit_log'];
-foreach ($adventureCompute as $name => $body) {
-    foreach ($adventureTables as $table) {
+foreach ($gameLiteratureCompute as $name => $body) {
+    foreach ($gameLiteratureTables as $table) {
         foreach ($forbiddenStatements($table) as $statement) {
             assert(
                 !str_contains($body, $statement),
@@ -247,37 +247,37 @@ foreach ($adventureCompute as $name => $body) {
 
 // 🔴 Die zwei Wege, auf denen gerade diese Hälfte am leichtesten schreibt.
 assert(
-    !isset($adventureCompute['avesmapsAdventureFindOrAdoptRow']),
+    !isset($gameLiteratureCompute['avesmapsGameLiteratureFindOrAdoptRow']),
     'the compute half must use the read-only twin, not the finder that ANSWERS by adopting'
 );
 assert(
-    !isset($adventureCompute['avesmapsAdventureReconcileEntity']),
+    !isset($gameLiteratureCompute['avesmapsGameLiteratureReconcileEntity']),
     'the compute half must never reach the entity writer'
 );
-// 💣 UND KEIN BILD-DOWNLOAD. avesmapsAdventureSaveCoverLocal holt über HTTP und legt eine Datei in
+// 💣 UND KEIN BILD-DOWNLOAD. avesmapsGameLiteratureSaveCoverLocal holt über HTTP und legt eine Datei in
 // /uploads/questcovers -- ein Seiteneffekt, den in einem Lauf, der nur rechnet, niemand erlaubt hat.
 // Die Zeile kündigt das Laden an ("wird neu geladen"); getan wird es erst beim Übernehmen.
 assert(
-    !isset($adventureCompute['avesmapsAdventureSaveCoverLocal']),
+    !isset($gameLiteratureCompute['avesmapsGameLiteratureSaveCoverLocal']),
     'the compute half must not fetch a cover -- it announces the fetch, it does not perform it'
 );
-foreach ($adventureCompute as $name => $body) {
+foreach ($gameLiteratureCompute as $name => $body) {
     assert(!str_contains($body, 'file_put_contents('), "{$name} writes a file in the compute half");
 }
 
 // 💣 UND DER LAUF MUSS BEISSEN.
-$adventureApply = $reachFrom($bodies, ['avesmapsAdventureApplyStep']);
-assert(isset($adventureApply['avesmapsAdventureReconcileEntity']), 'die Ausführ-Hälfte ruft den Schreiber');
+$gameLiteratureApply = $reachFrom($bodies, ['avesmapsGameLiteratureApplyStep']);
+assert(isset($gameLiteratureApply['avesmapsGameLiteratureReconcileEntity']), 'die Ausführ-Hälfte ruft den Schreiber');
 assert(
-    isset($adventureApply['avesmapsAdventureSaveCoverLocal']),
+    isset($gameLiteratureApply['avesmapsGameLiteratureSaveCoverLocal']),
     'und dort DARF das Titelbild geholt werden -- sonst prüft das Verbot oben nichts'
 );
-$adventureWriters = array_filter(
-    $adventureApply,
+$gameLiteratureWriters = array_filter(
+    $gameLiteratureApply,
     static fn(string $body): bool => str_contains($body, 'INSERT INTO adventure ')
         || str_contains($body, 'UPDATE adventure SET ')
 );
-assert($adventureWriters !== [], 'die Ausführ-Hälfte enthält die Schreiber -- sonst prüft der Lauf oben nichts');
+assert($gameLiteratureWriters !== [], 'die Ausführ-Hälfte enthält die Schreiber -- sonst prüft der Lauf oben nichts');
 
 // ==================================================================================================
 // PUBLIKATIONSQUELLEN (Sitzung 2). Die Falle hier: die Wunschliste des Schreibers ANTWORTET, indem sie

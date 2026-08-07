@@ -7,7 +7,7 @@ declare(strict_types=1);
 //
 // Its own file rather than a branch inside citymaps.php: it is pure (bytes in, bytes out -- no DB, no
 // HTTP), which is the only reason it can be unit-tested against real GD at all. Same motive that moved
-// the app_setting store out of adventures.php.
+// the app_setting store out of game-literature.php.
 //
 // The FULL MAP (slot=map) has deliberately no counterpart here -- it is stored exactly as uploaded
 // (owner: "Ganze Karte soll nicht veraendert werden"), because it is the artefact people zoom into and

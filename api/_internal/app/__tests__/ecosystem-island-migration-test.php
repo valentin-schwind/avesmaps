@@ -9,7 +9,7 @@ declare(strict_types=1);
  * Unlike its neighbours this one DOES drive the real PDO path, against sqlite::memory:. It has to:
  * the whole risk of this step sits in three SQL statements -- the guard, the move and the
  * deactivation -- and a test built on pre-cooked results would stay green while the WHERE clauses
- * moved the wrong rows. Same reasoning as adventure-resolve-candidates-test.php.
+ * moved the wrong rows. Same reasoning as game-literature-resolve-candidates-test.php.
  *
  * ⭐ HOW THE REVISION BUMP IS PROVEN WITHOUT MySQL. avesmapsNextEcosystemRevision() uses
  * `ON DUPLICATE KEY UPDATE`, which sqlite rejects with `near "DUPLICATE": syntax error`. That turns

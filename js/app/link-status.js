@@ -1,7 +1,7 @@
 // Linkchecker: the reader-facing marker for one link's reachability (Spec §1.8).
 //
 // The module knows nothing about adventures or maps -- it turns a state string into markup, nothing else.
-// The state travels inside the payload that carries the link (adventures.php / citymaps.php), or can be
+// The state travels inside the payload that carries the link (game-literature.php / citymaps.php), or can be
 // fetched for arbitrary hashes via GET api/app/link-status.php.
 //
 // Three visible states (Spec §1.3) -- the third is shown rather than hidden, on the owner's explicit

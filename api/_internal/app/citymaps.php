@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // Kartensammlung (Spec §3) -- backend entity for curated city/region maps plus the places they depict.
-// Sibling of api/_internal/app/adventures.php and deliberately built to the same shape: self-healing
+// Sibling of api/_internal/app/game-literature.php and deliberately built to the same shape: self-healing
 // inline DDL, a two-query catalog read, the same place CRUD. The public read wrapper is
 // api/app/citymaps.php; editor writes go through api/edit/map/citymaps.php. Language policy per AGENTS.md
 // §8: code/identifiers EN, domain content DE.
@@ -126,7 +126,7 @@ const AVESMAPS_CITYMAP_LINK_ROWS_MAX = 20;
 
 // ---- DDL --------------------------------------------------------------------------------------------
 // Idempotent. Runs on every read (cheap: CREATE TABLE IF NOT EXISTS), so a fresh deploy self-heals on the
-// first endpoint hit -- no migration step (project idiom, mirror of adventures.php / feature-sources.php).
+// first endpoint hit -- no migration step (project idiom, mirror of game-literature.php / feature-sources.php).
 function avesmapsCitymapsEnsureTables(PDO $pdo): void
 {
     $pdo->exec(
@@ -471,7 +471,7 @@ function avesmapsCitymapTriBoolOut(mixed $raw): ?bool
 
 // The reader-facing links of ONE citymap: the external map link first (§3.1: "immer gespeichert, immer
 // angezeigt"), then wherever else the map can be found (citymap_link). This is the same shape
-// avesmapsAdventureLinks() returns, and it is the SINGLE definition of that list: the linkcheck provider,
+// avesmapsGameLiteratureLinks() returns, and it is the SINGLE definition of that list: the linkcheck provider,
 // the state decoration in api/app/citymaps.php and the reader row all consume it identically. That was
 // written down as the reason this returned a list rather than a scalar back when there was only one link
 // -- and it is what let the multi-link feature land here instead of in three places.
@@ -867,7 +867,7 @@ function avesmapsCitymapEditorThumbUrl(array $row): string
 
 // ---- public catalog read (Spec §3.5) ------------------------------------------------------------------
 // The whole approved catalog in ONE payload so the client indexes + aggregates locally, exactly like
-// api/app/adventures.php. Batched throughout: one query for the maps, one for the places, one for the
+// api/app/game-literature.php. Batched throughout: one query for the maps, one for the places, one for the
 // types, one for the related links, one for the sources -- never per map. (§3.5 says "zwei Queries"; the
 // point of that sentence is "no N+1", and types/related/sources each need their own batched pass.)
 //
@@ -907,7 +907,7 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
     try {
         $sourcesByPublicId = avesmapsReadFeatureSourcesByEntityType($pdo, 'citymap');
     } catch (Throwable) {
-        // Same reasoning as the link-state decoration in api/app/adventures.php: a source list is a
+        // Same reasoning as the link-state decoration in api/app/game-literature.php: a source list is a
         // decoration on the catalog, not the catalog. Losing it must not take the whole map collection
         // down -- the maps still render, just without their source line.
         $sourcesByPublicId = [];
@@ -1068,7 +1068,7 @@ function avesmapsCitymapLinksByCitymap(PDO $pdo, array $citymapIds): array
 // =====================================================================================================
 // EDITOR-ONLY from here down (capability 'edit', reached via api/edit/map/citymaps.php).
 //
-// Same layering rule as adventures.php: the PUBLIC read path above must not need any of this, and must
+// Same layering rule as game-literature.php: the PUBLIC read path above must not need any of this, and must
 // not pull in the ambient editor globals these use -- avesmapsUuidV4() (api/_internal/map/features.php)
 // and avesmapsErrorResponse() (api/_internal/bootstrap.php) are loaded by the edit dispatcher.
 // =====================================================================================================
@@ -1690,7 +1690,7 @@ const AVESMAPS_CITYMAP_LINK_LABEL_MAX = 200;
 // storable rows; sort_order is the array position, so the editor's ▲▼ is a plain array move and no id ever
 // has to be renumbered. Pure (no PDO) -> unit-tested in __tests__/citymap-links-test.php.
 //
-// Mirrors avesmapsNormalizeAdventureLinkRows, plus is_paid. An all-blank row is a trailing empty line in a
+// Mirrors avesmapsNormalizeGameLiteratureLinkRows, plus is_paid. An all-blank row is a trailing empty line in a
 // row editor, not an error -- skipped. A HALF-filled row is an error rather than a silent drop: dropping
 // loses what the editor typed, and storing it would render an anchor with no text (avesmapsCitymapLinks
 // only skips on an empty url, never on an empty label).
@@ -1900,10 +1900,10 @@ function avesmapsCitymapIdByPublicId(PDO $pdo, string $publicId): int
 }
 
 // ---- places (Spec §3.1, 1:1 with adventure_place) ----------------------------------------------------
-// Deliberate copies of avesmapsAddAdventurePlace & co rather than a shared generic: the two tables differ
+// Deliberate copies of avesmapsAddGameLiteraturePlace & co rather than a shared generic: the two tables differ
 // (no `role` here) and the adventure versions are load-bearing for a shipped feature. What IS shared is
 // the part that matters -- the resolver (avesmapsResolvePlacesInTable) and the wiki-key lookup
-// (avesmapsAdventureWikiKeyByPublicId), so a place resolves identically on both surfaces.
+// (avesmapsGameLiteratureWikiKeyByPublicId), so a place resolves identically on both surfaces.
 
 // $origin mirrors avesmapsUpsertCitymap's: 'community' when the place came from an approved reader
 // suggestion (Spec §3.8), 'manual' when an editor added it. Not cosmetic in two ways -- the editor prints
@@ -1957,7 +1957,7 @@ function avesmapsAddCitymapPlace(PDO $pdo, string $citymapPublicId, array $data,
     // state, not an error.
     if ($targetPublicId !== '' && $targetWikiKey === ''
         && in_array($targetKind, ['settlement', 'territory', 'region', 'path'], true)) {
-        $derivedKey = avesmapsAdventureWikiKeyByPublicId($pdo, $targetKind, $targetPublicId);
+        $derivedKey = avesmapsGameLiteratureWikiKeyByPublicId($pdo, $targetKind, $targetPublicId);
         if ($derivedKey !== '') {
             $pdo->prepare('UPDATE citymap_place SET target_wiki_key = :wk WHERE id = :id')
                 ->execute(['wk' => $derivedKey, 'id' => $placeId]);

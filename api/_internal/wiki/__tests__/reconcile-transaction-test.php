@@ -30,7 +30,7 @@ $read = static function (string $relative): string {
 
 $citymap = $read('citymap-sync.php');
 $publication = $read('publication-sync.php');
-$adventure = $read('adventure-sync.php');
+$gameLiterature = $read('game-literature-sync.php');
 
 // Everything from `beginTransaction()` up to the matching `commit()` in the named wrapper.
 $transactionBody = static function (string $source, string $functionName): string {
@@ -229,39 +229,39 @@ foreach ($spanned as $name => $body) {
     }
 }
 
-// 💣 The walk must actually bite. avesmapsAdventureReconcileEntity is the control: the same walk
+// 💣 The walk must actually bite. avesmapsGameLiteratureReconcileEntity is the control: the same walk
 // from there MUST find the cover download. If it does not, the tokenizer or the regex is broken and
 // the green above means nothing.
-$adventureSpan = $reachFrom($bodies, ['avesmapsAdventureReconcileEntity']);
-$adventureIo = array_filter($adventureSpan, static fn(string $body): bool => str_contains($body, 'curl_') || str_contains($body, 'file_put_contents('));
-assert($adventureIo !== [], 'the walk finds the I/O in the adventure reconciler -- otherwise it proves nothing above');
+$gameLiteratureSpan = $reachFrom($bodies, ['avesmapsGameLiteratureReconcileEntity']);
+$gameLiteratureIo = array_filter($gameLiteratureSpan, static fn(string $body): bool => str_contains($body, 'curl_') || str_contains($body, 'file_put_contents('));
+assert($gameLiteratureIo !== [], 'the walk finds the I/O in the adventure reconciler -- otherwise it proves nothing above');
 
 // --- The exemption, and the reason it exists, pinned together ------------------------------------
 //
-// 💣 avesmapsAdventureReconcileEntity is deliberately NOT wrapped. It fetches the wiki cover over
+// 💣 avesmapsGameLiteratureReconcileEntity is deliberately NOT wrapped. It fetches the wiki cover over
 // HTTP and writes it under /uploads/questcovers in the MIDDLE of its writes, and that fetch is
-// interleaved: the row is created first (avesmapsAdventureFindOrAdoptRow), its cover_source is read
+// interleaved: the row is created first (avesmapsGameLiteratureFindOrAdoptRow), its cover_source is read
 // back, and only then is the download decided. Wrapping as-is would span the network; hoisting the
 // fetch out means restructuring a read/write sequence on a path that cannot be exercised live.
 //
 // The point of asserting it here is that an exemption must not outlive its reason. If someone moves
 // the fetch out, this assert fails and says so -- at which point the reconciler can and should join
 // the two above.
-$adventureAt = strpos($adventure, 'function avesmapsAdventureReconcileEntity(PDO $pdo');
-$adventureEndAt = strpos($adventure, "\nfunction ", (int) $adventureAt + 10);
-$adventureBody = substr($adventure, (int) $adventureAt, (int) $adventureEndAt - (int) $adventureAt);
+$gameLiteratureAt = strpos($gameLiterature, 'function avesmapsGameLiteratureReconcileEntity(PDO $pdo');
+$gameLiteratureEndAt = strpos($gameLiterature, "\nfunction ", (int) $gameLiteratureAt + 10);
+$gameLiteratureBody = substr($gameLiterature, (int) $gameLiteratureAt, (int) $gameLiteratureEndAt - (int) $gameLiteratureAt);
 assert(
-    str_contains($adventureBody, 'avesmapsAdventureSaveCoverLocal('),
+    str_contains($gameLiteratureBody, 'avesmapsGameLiteratureSaveCoverLocal('),
     'the adventure reconciler still fetches its cover inline -- if it no longer does, wrap it too (A37)'
 );
 assert(
-    !str_contains($adventureBody, '$pdo->beginTransaction();'),
+    !str_contains($gameLiteratureBody, '$pdo->beginTransaction();'),
     'and it is therefore still unwrapped, on purpose'
 );
 // The fetch really is network + file, so the exemption rests on a fact and not on a memory of one.
-$coverAt = strpos($adventure, 'function avesmapsAdventureSaveCoverLocal(');
-$coverEndAt = strpos($adventure, "\n}", (int) $coverAt);
-$coverBody = substr($adventure, (int) $coverAt, (int) $coverEndAt - (int) $coverAt);
+$coverAt = strpos($gameLiterature, 'function avesmapsGameLiteratureSaveCoverLocal(');
+$coverEndAt = strpos($gameLiterature, "\n}", (int) $coverAt);
+$coverBody = substr($gameLiterature, (int) $coverAt, (int) $coverEndAt - (int) $coverAt);
 assert(
     str_contains($coverBody, 'HttpGetBinary(') && str_contains($coverBody, 'file_put_contents('),
     'the cover helper does download and write a file -- that is what keeps it out of a transaction'
@@ -285,7 +285,7 @@ assert(
 // into "skip the broken one and carry on". citymap-sync.php itself no longer calls the entity
 // reconciler at all, so listing it here would only assert something about a call that is gone.
 //
-// ⚠️ adventure-plan-apply.php joined on 2026-08-06 (session 2), and for the adventure reconciler the
+// ⚠️ game-literature-plan-apply.php joined on 2026-08-06 (session 2), and for the adventure reconciler the
 // rule reads the other way round: it is the ONE entity writer that is deliberately NOT wrapped (it
 // downloads the cover mid-write, see the exception above). What still holds -- and what this list
 // checks -- is the other half of the promise: no transaction is opened around the loop, and the entity
@@ -294,7 +294,7 @@ $callerFiles = [
     'api/edit/wiki/dump.php',
     'api/_internal/wiki/lore-plan-apply.php',
     'api/_internal/wiki/citymap-plan-apply.php',
-    'api/_internal/wiki/adventure-plan-apply.php',
+    'api/_internal/wiki/game-literature-plan-apply.php',
     'api/_internal/wiki/publication-plan-apply.php',
     'api/_internal/wiki/publication-sync.php',
 ];

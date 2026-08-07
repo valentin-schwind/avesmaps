@@ -29,7 +29,7 @@ if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
 
 require __DIR__ . '/../collection-audit.php';
 require __DIR__ . '/../../app/citymaps.php';
-require __DIR__ . '/../../app/adventures.php';
+require __DIR__ . '/../../app/game-literature.php';
 require __DIR__ . '/../../app/lore-edit.php';
 
 function avesmapsTestCollectionAuditPdo(): PDO {
@@ -126,18 +126,18 @@ assert($citymapSnapshots['before']['origin'] === 'wiki', 'a wiki map comes back 
 assert(($citymapSnapshots['after']['deleted'] ?? null) === true, 'the after state is "gone"');
 assert(!array_key_exists('deleted', $citymapSnapshots['before']), 'the before state is not');
 
-$adventureSnapshots = avesmapsAdventureDeletionAuditSnapshots(
+$gameLiteratureSnapshots = avesmapsGameLiteratureDeletionAuditSnapshots(
     ['id' => 88, 'title' => 'Die Verschwörung von Gareth', 'origin' => 'manual'],
     'cccc-3333',
     5,
     2
 );
-assert($adventureSnapshots['before']['name'] === 'Die Verschwörung von Gareth', 'the adventure title is the displayed name');
-assert($adventureSnapshots['before']['adventure_public_id'] === 'cccc-3333', 'under its own key');
-assert(!array_key_exists('public_id', $adventureSnapshots['before']), 'never as public_id');
+assert($gameLiteratureSnapshots['before']['name'] === 'Die Verschwörung von Gareth', 'the adventure title is the displayed name');
+assert($gameLiteratureSnapshots['before']['adventure_public_id'] === 'cccc-3333', 'under its own key');
+assert(!array_key_exists('public_id', $gameLiteratureSnapshots['before']), 'never as public_id');
 // The children go with it and are unrecoverable -- how many is the one number that says how much was lost.
-assert((int) $adventureSnapshots['after']['places_deleted'] === 5, 'the places that went with it are counted');
-assert((int) $adventureSnapshots['after']['links_deleted'] === 2, 'and the links');
+assert((int) $gameLiteratureSnapshots['after']['places_deleted'] === 5, 'the places that went with it are counted');
+assert((int) $gameLiteratureSnapshots['after']['links_deleted'] === 2, 'and the links');
 
 // ---- The occurrence removal, end to end ------------------------------------------------------------
 //

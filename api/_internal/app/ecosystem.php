@@ -218,7 +218,7 @@ const AVESMAPS_ECOSYSTEM_MAX_POSITIONS = 20000;
 
 // ---- DDL --------------------------------------------------------------------------------------------
 // Idempotent, runs before every write and before the (enabled) read -- the project idiom, mirror of
-// adventures.php / citymaps.php. See avesmapsEcosystemEnsureTables' notes for the four deliberate
+// game-literature.php / citymaps.php. See avesmapsEcosystemEnsureTables' notes for the four deliberate
 // departures from the plan's literal DDL.
 function avesmapsEcosystemEnsureTables(PDO $pdo): void
 {
@@ -1976,7 +1976,7 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
 }
 
 // 🔴 Soft delete, and it takes its areas with it in ONE transaction (house pattern
-// api/_internal/app/adventures.php:1284-1293). Without the transaction an abort leaves a half-deleted
+// api/_internal/app/game-literature.php:1284-1293). Without the transaction an abort leaves a half-deleted
 // region: the region gone, its areas still active but invisible behind the read's INNER JOIN -- rows
 // nobody can see and nobody can find again.
 function avesmapsDeleteEcosystemRegion(PDO $pdo, array $payload, int $userId): array

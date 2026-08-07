@@ -34,17 +34,17 @@ require_once __DIR__ . '/../../_internal/map/features.php';
 // __tests__/sync-plan-endpoint-chain-test.php, which exists for exactly this class of silence.
 require_once __DIR__ . '/../../_internal/wiki/locations-helpers.php';
 require_once __DIR__ . '/../../_internal/app/feature-sources.php';
-require_once __DIR__ . '/../../_internal/app/adventure-resolve.php';
+require_once __DIR__ . '/../../_internal/app/game-literature-resolve.php';
 require_once __DIR__ . '/../../_internal/app/citymaps.php';
 require_once __DIR__ . '/../../_internal/wiki/publication-parsing.php';
 require_once __DIR__ . '/../../_internal/wiki/publication-sync.php';
 require_once __DIR__ . '/../../_internal/wiki/citymap-sync.php';
 require_once __DIR__ . '/../../_internal/wiki/citymap-plan-apply.php';
 // Session 2, adventures: the live tables + the reconcile writer + the apply half. Same order the dump
-// endpoint assembles them in (adventures.php before adventure-resolve.php above).
-require_once __DIR__ . '/../../_internal/app/adventures.php';
-require_once __DIR__ . '/../../_internal/wiki/adventure-sync.php';
-require_once __DIR__ . '/../../_internal/wiki/adventure-plan-apply.php';
+// endpoint assembles them in (game-literature.php before game-literature-resolve.php above).
+require_once __DIR__ . '/../../_internal/app/game-literature.php';
+require_once __DIR__ . '/../../_internal/wiki/game-literature-sync.php';
+require_once __DIR__ . '/../../_internal/wiki/game-literature-plan-apply.php';
 // Session 2, publication sources: the apply half of the shared source reconcile (publication-sync.php
 // itself is already in the chain above -- the citymap source probe needs it).
 require_once __DIR__ . '/../../_internal/wiki/publication-plan-apply.php';
@@ -253,7 +253,7 @@ try {
 
             $step = match ($kind) {
                 'citymap' => avesmapsCitymapApplyStep($pdo, $runId, $userId, $currentUser),
-                'adventure' => avesmapsAdventureApplyStep($pdo, $runId, $userId, $currentUser),
+                'adventure' => avesmapsGameLiteratureApplyStep($pdo, $runId, $userId, $currentUser),
                 'publication' => avesmapsPublicationApplyStep($pdo, $runId, $userId, $currentUser),
                 'lore' => avesmapsLoreApplyStep($pdo, $runId, $userId, $currentUser),
                 'territory_wiki' => avesmapsTerritoryWikiApplyStep($pdo, $runId, $userId, $currentUser),

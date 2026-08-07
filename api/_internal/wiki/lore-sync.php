@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // Flora/Fauna/Spezies/Handelswaren -- Schema, Dump-Staging und der OVERRIDE-SICHERE
-// Reconcile in die Live-Tabellen. Spiegelt api/_internal/wiki/adventure-sync.php 1:1:
+// Reconcile in die Live-Tabellen. Spiegelt api/_internal/wiki/game-literature-sync.php 1:1:
 // STAGING waehrend "Dump holen" (Phase `lore`, dryRun), danach eine owner-getriggerte
 // Aktion `sync_lore`, die Staging nach Produktion abgleicht.
 //

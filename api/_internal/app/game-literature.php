@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-// Abenteuer-Feature (Phase 1) -- backend entity for DSA adventures + their ordered place list.
+// Literatur-Feature (Phase 1) -- backend entity for DSA game literature + their ordered place list.
 // Self-healing inline DDL (project idiom, mirror of api/_internal/app/feature-sources.php). The public
-// read wrapper is api/app/adventures.php; name resolution (place -> entity) lives in
-// api/_internal/app/adventure-resolve.php. Language policy: code/identifiers EN, domain content DE.
+// read wrapper is api/app/game-literature.php; name resolution (place -> entity) lives in
+// api/_internal/app/game-literature-resolve.php. Language policy: code/identifiers EN, domain content DE.
 //
 // CORE INVARIANT (Spec §3.2): adventure_place.sort_order = position in the wiki "Ort" list; the smallest
 // sort_order is the start place (role='start', "beginnt hier"). NEVER reorder/resort that list -- the
@@ -13,13 +13,13 @@ declare(strict_types=1);
 
 // The generic app_setting KV store (avesmapsAppSettingEnsureTable/Get/Set) used to live in this file.
 // It moved out when the Kartensammlung needed the same store for its own kill switch (Spec §3.3): a
-// feature-agnostic store belongs to neither feature, and citymaps.php requiring adventures.php for it
+// feature-agnostic store belongs to neither feature, and citymaps.php requiring game-literature.php for it
 // would have inverted the dependency. Only the adventure-specific cover switch below stayed here.
 require_once __DIR__ . '/app-setting.php';
 
 // Idempotent DDL. Runs on every read (cheap: CREATE TABLE IF NOT EXISTS + INFORMATION_SCHEMA column
 // probes), so a fresh deploy self-heals on the first endpoint hit -- no migration step.
-function avesmapsAdventuresEnsureTables(PDO $pdo): void
+function avesmapsGameLiteratureEnsureTables(PDO $pdo): void
 {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS adventure (
@@ -76,7 +76,7 @@ function avesmapsAdventuresEnsureTables(PDO $pdo): void
     // Self-healing column-add (project idiom). Phase 2: per-place territory ancestor path (JSON array of
     // 'wiki:'-keys, deepest->root) so the CLIENT aggregates territory/region adventures locally WITHOUT
     // loading the political parent tree (which is edit-mode-only in the frontend). Filled by the resolver
-    // (adventure-resolve.php) from properties.territory_wiki_key + the wiki_territory_model parent tree.
+    // (game-literature-resolve.php) from properties.territory_wiki_key + the wiki_territory_model parent tree.
     $columnExists = static function (PDO $pdo, string $column): bool {
         $stmt = $pdo->query(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
@@ -92,7 +92,7 @@ function avesmapsAdventuresEnsureTables(PDO $pdo): void
     // ({{PDF-Shop|ID=}} / {{F-Shop|ID=|PID=}}) -- auto-filled by the sync, override-safe via field_origins_json;
     // ISBN backs the derived DNB search link. DNB + the wiki page link are computed at render time (from
     // isbn/title resp. wiki_url) and need no column. Click priority: Ulisses -> F-Shop -> DNB -> Wiki.
-    $adventureColumnExists = static function (PDO $pdo, string $column): bool {
+    $gameLiteratureColumnExists = static function (PDO $pdo, string $column): bool {
         $stmt = $pdo->query(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'adventure' AND COLUMN_NAME = '" . $column . "'"
@@ -105,7 +105,7 @@ function avesmapsAdventuresEnsureTables(PDO $pdo): void
     // fetch_failed | skipped_manual). Like citymap.thumb_auto_state: EVERY outcome writes a state so the
     // run terminates, and the due-query keys off it (never off an origin field -- that would exclude all).
     foreach (['link_ulisses' => 'VARCHAR(500)', 'link_fshop' => 'VARCHAR(500)', 'isbn' => 'VARCHAR(20)', 'contained_in' => 'VARCHAR(300)', 'cover_auto_state' => 'VARCHAR(20)'] as $column => $type) {
-        if (!$adventureColumnExists($pdo, $column)) {
+        if (!$gameLiteratureColumnExists($pdo, $column)) {
             $pdo->exec('ALTER TABLE adventure ADD COLUMN ' . $column . ' ' . $type . ' NULL');
         }
     }
@@ -153,9 +153,9 @@ function avesmapsAdventuresEnsureTables(PDO $pdo): void
     );
 }
 
-function avesmapsAdventuresCount(PDO $pdo): int
+function avesmapsGameLiteratureCount(PDO $pdo): int
 {
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
     return (int) $pdo->query('SELECT COUNT(*) FROM adventure')->fetchColumn();
 }
 
@@ -164,17 +164,17 @@ function avesmapsAdventuresCount(PDO $pdo): int
 // instead) while the images stay stored internally. Only the public render honors it; the
 // capability-gated editor keeps showing covers so admins can moderate. Backed by the generic app_setting
 // store (app-setting.php, required above).
-const AVESMAPS_ADVENTURE_COVERS_SETTING = 'adventure_covers_enabled';
+const AVESMAPS_GAME_LITERATURE_COVERS_SETTING = 'adventure_covers_enabled';
 
 // Default ENABLED -- only an explicit stored '0' hides covers on the public frontend.
-function avesmapsAdventuresCoversEnabled(PDO $pdo): bool
+function avesmapsGameLiteratureCoversEnabled(PDO $pdo): bool
 {
-    return avesmapsAppSettingGet($pdo, AVESMAPS_ADVENTURE_COVERS_SETTING, '1') !== '0';
+    return avesmapsAppSettingGet($pdo, AVESMAPS_GAME_LITERATURE_COVERS_SETTING, '1') !== '0';
 }
 
-function avesmapsSetAdventuresCoversEnabled(PDO $pdo, bool $enabled): array
+function avesmapsSetGameLiteratureCoversEnabled(PDO $pdo, bool $enabled): array
 {
-    avesmapsAppSettingSet($pdo, AVESMAPS_ADVENTURE_COVERS_SETTING, $enabled ? '1' : '0');
+    avesmapsAppSettingSet($pdo, AVESMAPS_GAME_LITERATURE_COVERS_SETTING, $enabled ? '1' : '0');
     return ['covers_enabled' => $enabled];
 }
 
@@ -185,16 +185,16 @@ function avesmapsSetAdventuresCoversEnabled(PDO $pdo, bool $enabled): array
 // citymaps_enabled: the public catalog returns an empty list, so the client builds empty indices and
 // every place shows zero adventures (no frontend change needed). Default ENABLED; only a stored '0'
 // disables.
-const AVESMAPS_ADVENTURES_SETTING = 'adventures_enabled';
+const AVESMAPS_GAME_LITERATURE_SETTING = 'adventures_enabled';
 
-function avesmapsAdventuresEnabled(PDO $pdo): bool
+function avesmapsGameLiteratureEnabled(PDO $pdo): bool
 {
-    return avesmapsAppSettingGet($pdo, AVESMAPS_ADVENTURES_SETTING, '1') !== '0';
+    return avesmapsAppSettingGet($pdo, AVESMAPS_GAME_LITERATURE_SETTING, '1') !== '0';
 }
 
-function avesmapsSetAdventuresEnabled(PDO $pdo, bool $enabled): array
+function avesmapsSetGameLiteratureEnabled(PDO $pdo, bool $enabled): array
 {
-    avesmapsAppSettingSet($pdo, AVESMAPS_ADVENTURES_SETTING, $enabled ? '1' : '0');
+    avesmapsAppSettingSet($pdo, AVESMAPS_GAME_LITERATURE_SETTING, $enabled ? '1' : '0');
     return ['adventures_enabled' => $enabled];
 }
 
@@ -205,18 +205,18 @@ function avesmapsSetAdventuresEnabled(PDO $pdo, bool $enabled): array
 //   INSERT INTO app_setting (setting_key, setting_value) VALUES ('adventure_cover_autoget_enabled','0')
 //     ON DUPLICATE KEY UPDATE setting_value='0';   -- '1' re-arms.
 // Default ENABLED; only a stored '0' stops the run.
-const AVESMAPS_ADVENTURE_COVER_AUTOGET_SETTING = 'adventure_cover_autoget_enabled';
+const AVESMAPS_GAME_LITERATURE_COVER_AUTOGET_SETTING = 'adventure_cover_autoget_enabled';
 
-function avesmapsAdventureCoverAutogetEnabled(PDO $pdo): bool
+function avesmapsGameLiteratureCoverAutogetEnabled(PDO $pdo): bool
 {
-    return avesmapsAppSettingGet($pdo, AVESMAPS_ADVENTURE_COVER_AUTOGET_SETTING, '1') !== '0';
+    return avesmapsAppSettingGet($pdo, AVESMAPS_GAME_LITERATURE_COVER_AUTOGET_SETTING, '1') !== '0';
 }
 
 // PURE: skip this adventure's cover fetch? Only when the cover is a MANUAL editor upload (own beats wiki,
 // spec §4). $fieldOrigins is the decoded field_origins_json map. Unlike citymap's thumb_origin (which
 // DEFAULTS to 'manual'), an unset cover origin means "never set" -> fetchable, so we test ONLY for the
 // explicit 'manual' value and never invert it into a default-excludes-everything trap.
-function avesmapsAdventureCoverAutogetSkips(array $fieldOrigins): bool
+function avesmapsGameLiteratureCoverAutogetSkips(array $fieldOrigins): bool
 {
     return (string) ($fieldOrigins['cover_url'] ?? '') === 'manual';
 }
@@ -224,7 +224,7 @@ function avesmapsAdventureCoverAutogetSkips(array $fieldOrigins): bool
 // ---- shared link builder (Spec §2.5) --------------------------------------------------------------
 // The shop/reference links of ONE adventure, in click PRIORITY order: Ulisses e-book -> F-Shop -> the
 // wiki page -> Deutsche Nationalbibliothek. This is the SINGLE definition of that rule: the public
-// catalog (api/app/adventures.php), the linkcheck provider and -- from Phase B on -- the client all read
+// catalog (api/app/game-literature.php), the linkcheck provider and -- from Phase B on -- the client all read
 // it from here. It used to live only in the client (advShopLinks, map-features-place-extras.js) and the
 // linkchecker would have needed a second copy to hash the same URLs; two copies of a priority rule is
 // exactly the divergence this project already paid for once.
@@ -234,7 +234,7 @@ function avesmapsAdventureCoverAutogetSkips(array $fieldOrigins): bool
 // "Weitere Links" (§2.4 adventure_link) and stay in the caller's order BEHIND the priority links, so
 // links[0] remains the cover target (advBestLink). Returns [{key, label, url, url_hash}]; url_hash is
 // the sha256 that link_status/link_ref join on. A row with nothing identifiable returns [].
-function avesmapsAdventureLinks(array $row, array $extraLinks): array
+function avesmapsGameLiteratureLinks(array $row, array $extraLinks): array
 {
     $field = static fn(string $key): string => trim((string) ($row[$key] ?? ''));
 
@@ -280,18 +280,18 @@ function avesmapsAdventureLinks(array $row, array $extraLinks): array
 // ---- curated extra links (Spec §2.4) --------------------------------------------------------------
 // Column widths, enforced in PHP rather than left to MySQL: a silently truncated URL is a broken link,
 // and a truncated label is a mislabelled one.
-const AVESMAPS_ADVENTURE_LINK_LABEL_MAX = 120;
-const AVESMAPS_ADVENTURE_LINK_URL_MAX = 500;
-const AVESMAPS_ADVENTURE_LINK_ROWS_MAX = 20;
+const AVESMAPS_GAME_LITERATURE_LINK_LABEL_MAX = 120;
+const AVESMAPS_GAME_LITERATURE_LINK_URL_MAX = 500;
+const AVESMAPS_GAME_LITERATURE_LINK_ROWS_MAX = 20;
 
 // The gate between the editor and adventure_link. Takes the WHOLE list as displayed and returns it as
 // storable rows; sort_order is the array position, so the editor's ▲▼ is a plain array move and no id
-// ever has to be renumbered. Pure (no PDO) -> unit-tested in __tests__/adventure-links-test.php.
+// ever has to be renumbered. Pure (no PDO) -> unit-tested in __tests__/game-literature-links-test.php.
 //
 // An all-blank row is a trailing empty line in a row editor, not an error -- skipped. A HALF-filled row
 // is an error rather than a silent drop: dropping loses what the editor typed, and storing it would
-// render an empty anchor (avesmapsAdventureLinks only skips on an empty url, never on an empty label).
-function avesmapsNormalizeAdventureLinkRows(array $rows): array
+// render an empty anchor (avesmapsGameLiteratureLinks only skips on an empty url, never on an empty label).
+function avesmapsNormalizeGameLiteratureLinkRows(array $rows): array
 {
     $normalized = [];
     foreach ($rows as $row) {
@@ -312,21 +312,21 @@ function avesmapsNormalizeAdventureLinkRows(array $rows): array
         if ($scheme !== 'http' && $scheme !== 'https') {
             throw new InvalidArgumentException('Nur http/https-Links sind erlaubt: ' . $label);
         }
-        if (mb_strlen($label) > AVESMAPS_ADVENTURE_LINK_LABEL_MAX) {
-            throw new InvalidArgumentException('Der Titel ist zu lang (max. ' . AVESMAPS_ADVENTURE_LINK_LABEL_MAX . ' Zeichen): ' . $label);
+        if (mb_strlen($label) > AVESMAPS_GAME_LITERATURE_LINK_LABEL_MAX) {
+            throw new InvalidArgumentException('Der Titel ist zu lang (max. ' . AVESMAPS_GAME_LITERATURE_LINK_LABEL_MAX . ' Zeichen): ' . $label);
         }
-        if (strlen($url) > AVESMAPS_ADVENTURE_LINK_URL_MAX) {
-            throw new InvalidArgumentException('Die URL ist zu lang (max. ' . AVESMAPS_ADVENTURE_LINK_URL_MAX . ' Zeichen): ' . $label);
+        if (strlen($url) > AVESMAPS_GAME_LITERATURE_LINK_URL_MAX) {
+            throw new InvalidArgumentException('Die URL ist zu lang (max. ' . AVESMAPS_GAME_LITERATURE_LINK_URL_MAX . ' Zeichen): ' . $label);
         }
         // 💣 DERSELBE DECKEL WIE BEI DEN KARTEN, und er fehlte hier genauso. Der Kommentar drueben
         // nennt diese Funktion sein Vorbild -- ein Vorbild ohne Zeilendeckel vererbt genau den weiter.
-        // Kein anmeldefreier Schreibweg fuehrt heute hierher (avesmapsSetAdventureLinks ist der
+        // Kein anmeldefreier Schreibweg fuehrt heute hierher (avesmapsSetGameLiteratureLinks ist der
         // einzige Aufrufer, hinter einer Faehigkeit), aber die Groessenrechnung ist dieselbe, und die
         // beiden Funktionen sind ausdruecklich als Zwillinge gepflegt.
         //
         // ⚠️ Gemessen, nicht geraten: live tragen 1.352 Abenteuer hoechstens 4 Links.
-        if (count($normalized) >= AVESMAPS_ADVENTURE_LINK_ROWS_MAX) {
-            throw new InvalidArgumentException('Zu viele Links (max. ' . AVESMAPS_ADVENTURE_LINK_ROWS_MAX . ').');
+        if (count($normalized) >= AVESMAPS_GAME_LITERATURE_LINK_ROWS_MAX) {
+            throw new InvalidArgumentException('Zu viele Links (max. ' . AVESMAPS_GAME_LITERATURE_LINK_ROWS_MAX . ').');
         }
         $normalized[] = ['label' => $label, 'url' => $url, 'sort_order' => count($normalized)];
     }
@@ -336,9 +336,9 @@ function avesmapsNormalizeAdventureLinkRows(array $rows): array
 // The extra links of MANY adventures in one query, grouped by adventure_id (never per adventure -- the
 // catalog read and the linkcheck provider both walk the whole table). Returns [adventure_id => [{id,
 // label, url}]] in display order; adventures without extras are simply absent from the map.
-function avesmapsAdventureExtraLinksByAdventure(PDO $pdo, array $adventureIds): array
+function avesmapsGameLiteratureExtraLinksByGameLiterature(PDO $pdo, array $gameLiteratureIds): array
 {
-    $ids = array_values(array_unique(array_map('intval', $adventureIds)));
+    $ids = array_values(array_unique(array_map('intval', $gameLiteratureIds)));
     if ($ids === []) {
         return [];
     }
@@ -351,47 +351,47 @@ function avesmapsAdventureExtraLinksByAdventure(PDO $pdo, array $adventureIds): 
     );
     $statement->execute($ids);
 
-    $byAdventure = [];
+    $byGameLiterature = [];
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
-        $byAdventure[(int) $row['adventure_id']][] = [
+        $byGameLiterature[(int) $row['adventure_id']][] = [
             'id' => (int) $row['id'],
             'label' => (string) $row['label'],
             'url' => (string) $row['url'],
         ];
     }
-    return $byAdventure;
+    return $byGameLiterature;
 }
 
 // Replace an adventure's whole extra-link list atomically (Spec §2.4 `set_links`). Delete + re-insert
 // rather than diffing: these are leaf rows with nothing to protect, and link_status keys on url_hash, so
 // a re-created row inherits the probe history of its URL even though its id (and thus its 'extra:<id>'
 // link_ref field) changed -- the stale ref is pruned by the next sync. 404s on an unknown public_id.
-function avesmapsSetAdventureLinks(PDO $pdo, string $publicId, array $links): array
+function avesmapsSetGameLiteratureLinks(PDO $pdo, string $publicId, array $links): array
 {
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
 
     $find = $pdo->prepare('SELECT id FROM adventure WHERE public_id = :pid LIMIT 1');
     $find->execute(['pid' => $publicId]);
-    $adventureId = $find->fetchColumn();
-    if ($adventureId === false) {
-        avesmapsErrorResponse(404, 'not_found', 'Das Abenteuer wurde nicht gefunden.');
+    $gameLiteratureId = $find->fetchColumn();
+    if ($gameLiteratureId === false) {
+        avesmapsErrorResponse(404, 'not_found', 'Der Literatur-Eintrag wurde nicht gefunden.');
     }
-    $adventureId = (int) $adventureId;
+    $gameLiteratureId = (int) $gameLiteratureId;
 
     // Validate the WHOLE list before touching a row: a partial save would leave the editor showing a list
     // that no longer matches what is stored.
-    $rows = avesmapsNormalizeAdventureLinkRows($links);
+    $rows = avesmapsNormalizeGameLiteratureLinkRows($links);
 
     $pdo->beginTransaction();
     try {
-        $pdo->prepare('DELETE FROM adventure_link WHERE adventure_id = :aid')->execute(['aid' => $adventureId]);
+        $pdo->prepare('DELETE FROM adventure_link WHERE adventure_id = :aid')->execute(['aid' => $gameLiteratureId]);
         $insert = $pdo->prepare(
             "INSERT INTO adventure_link (adventure_id, label, url, sort_order, origin, status)
              VALUES (:aid, :label, :url, :sort_order, 'manual', 'approved')"
         );
         foreach ($rows as $row) {
             $insert->execute([
-                'aid' => $adventureId,
+                'aid' => $gameLiteratureId,
                 'label' => $row['label'],
                 'url' => $row['url'],
                 'sort_order' => $row['sort_order'],
@@ -409,13 +409,13 @@ function avesmapsSetAdventureLinks(PDO $pdo, string $publicId, array $links): ar
 // The public catalog read (B1 client aggregation): the whole approved catalog in ONE payload so the
 // client can index + aggregate locally. Places travel WITH each adventure, in sort_order (start first);
 // spoiler separation (start vs play) is done in the client, the catalog ships both.
-function avesmapsAdventuresReadCatalog(PDO $pdo): array
+function avesmapsGameLiteratureReadCatalog(PDO $pdo): array
 {
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
     // Feature kill switch: off -> empty catalog, exactly like citymaps. The client then builds empty
     // indices, so the floating tile goes disabled and no infopanel section renders. Checked right after
     // EnsureTables so "off" skips the query entirely.
-    if (!avesmapsAdventuresEnabled($pdo)) {
+    if (!avesmapsGameLiteratureEnabled($pdo)) {
         return [];
     }
     $rows = $pdo->query(
@@ -434,7 +434,7 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
     $ids = array_map(static fn(array $r): int => (int) $r['id'], $rows);
     // The curated extra links, likewise in ONE query -- they are part of every adventure's link list, so
     // fetching them per adventure would turn this endpoint into an N+1 on a payload every visitor loads.
-    $extraLinksByAdventure = avesmapsAdventureExtraLinksByAdventure($pdo, $ids);
+    $extraLinksByGameLiterature = avesmapsGameLiteratureExtraLinksByGameLiterature($pdo, $ids);
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
     $placeStatement = $pdo->prepare(
         "SELECT adventure_id, role, target_kind, target_public_id, target_wiki_key, target_territory_path, raw_name, sort_order
@@ -443,7 +443,7 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
           ORDER BY adventure_id ASC, sort_order ASC"
     );
     $placeStatement->execute($ids);
-    $placesByAdventure = [];
+    $placesByGameLiterature = [];
     foreach ($placeStatement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $place) {
         $territoryPath = [];
         if (isset($place['target_territory_path']) && $place['target_territory_path'] !== null) {
@@ -452,7 +452,7 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
                 $territoryPath = array_values(array_map(static fn($value): string => (string) $value, $decodedPath));
             }
         }
-        $placesByAdventure[(int) $place['adventure_id']][] = [
+        $placesByGameLiterature[(int) $place['adventure_id']][] = [
             'role' => (string) $place['role'],
             'target_kind' => (string) $place['target_kind'],
             'target_public_id' => $place['target_public_id'] !== null ? (string) $place['target_public_id'] : '',
@@ -463,9 +463,9 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
         ];
     }
 
-    $adventures = [];
+    $gameLiteratureEntries = [];
     foreach ($rows as $row) {
-        $adventures[] = [
+        $gameLiteratureEntries[] = [
             'public_id' => (string) $row['public_id'],
             'title' => (string) $row['title'],
             'wiki_url' => (string) ($row['wiki_url'] ?? ''),
@@ -484,14 +484,14 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
             'link_fshop' => (string) ($row['link_fshop'] ?? ''),
             'isbn' => (string) ($row['isbn'] ?? ''),
             'contained_in' => (string) ($row['contained_in'] ?? ''),
-            'places' => $placesByAdventure[(int) $row['id']] ?? [],
+            'places' => $placesByGameLiterature[(int) $row['id']] ?? [],
             // The priority-ordered link list, built server-side (§2.5), curated extras appended. The
             // endpoint decorates each entry with its link state; this library deliberately knows nothing
             // about the linkchecker.
-            'links' => avesmapsAdventureLinks($row, $extraLinksByAdventure[(int) $row['id']] ?? []),
+            'links' => avesmapsGameLiteratureLinks($row, $extraLinksByGameLiterature[(int) $row['id']] ?? []),
         ];
     }
-    return $adventures;
+    return $gameLiteratureEntries;
 }
 
 // Phase 2.3 -- compact { wiki_key => {name, rank} } lookup for the territory keys that appear in any
@@ -500,11 +500,11 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
 // actually referenced are shipped (lean payload); keyed by the RAW 'wiki:'-key exactly as stored in
 // territory_path, so the client looks meta up by the same key it walks. First active row per key wins
 // (timeline variants share a wiki_key; Phase-2 aggregation does not depend on the exact variant).
-function avesmapsAdventuresTerritoryMeta(PDO $pdo, array $adventures): array
+function avesmapsGameLiteratureTerritoryMeta(PDO $pdo, array $gameLiteratureEntries): array
 {
     $keys = [];
-    foreach ($adventures as $adventure) {
-        foreach ($adventure['places'] ?? [] as $place) {
+    foreach ($gameLiteratureEntries as $gameLiterature) {
+        foreach ($gameLiterature['places'] ?? [] as $place) {
             foreach ($place['territory_path'] ?? [] as $pathKey) {
                 $pathKey = (string) $pathKey;
                 if ($pathKey !== '') {
@@ -540,7 +540,7 @@ function avesmapsAdventuresTerritoryMeta(PDO $pdo, array $adventures): array
 
 // ---- Sample/bootstrap data (Task 1.2) -------------------------------------------------------------
 // Six real DSA adventures with ordered "Ort" lists, defined ONCE here (the CLI tool and the endpoint
-// seed action both call avesmapsAdventuresSeedSamples). These are BOOTSTRAP samples so Phase 1 has
+// seed action both call avesmapsGameLiteratureSeedSamples). These are BOOTSTRAP samples so Phase 1 has
 // something to render; the Phase 4 wiki sync reconciles the real catalog override-safely by wiki_key.
 // Order is verbatim -- the FIRST place of each list is the start ("beginnt hier"). Place lists mix
 // precise (settlement/path) and area (territory/region) targets to exercise the whole pipeline:
@@ -549,7 +549,7 @@ function avesmapsAdventuresTerritoryMeta(PDO $pdo, array $adventures): array
 //   - Das Jahr des Greifen: contains "Bornstraße" -> path resolution
 //   - Die Verschwörung von Gareth: single place   -> no questroute button (< 2 places)
 // public_id values are fixed so re-seeding is idempotent (UNIQUE(public_id)).
-function avesmapsAdventuresSampleSeedData(): array
+function avesmapsGameLiteratureSampleSeedData(): array
 {
     return [
         [
@@ -665,13 +665,13 @@ function avesmapsAdventuresSampleSeedData(): array
 
 // Idempotent seed: insert each sample adventure (skip if its public_id already exists) and, for a
 // freshly created adventure, its ordered places (sort_order = list index, role = start for index 0).
-// Places are seeded target_kind='unresolved'; the resolver (adventure-resolve.php) fills target_* on a
+// Places are seeded target_kind='unresolved'; the resolver (game-literature-resolve.php) fills target_* on a
 // later resolve pass. Returns the number of adventures actually inserted.
-function avesmapsAdventuresSeedSamples(PDO $pdo): int
+function avesmapsGameLiteratureSeedSamples(PDO $pdo): int
 {
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
 
-    $insertAdventure = $pdo->prepare(
+    $insertGameLiterature = $pdo->prepare(
         "INSERT INTO adventure
             (public_id, wiki_key, wiki_url, title, product_type, edition, bf_year, bf_label, genre,
              complexity_gm, complexity_pl, is_official, authors, series, fshop_code, cover_url, origin, status)
@@ -688,45 +688,45 @@ function avesmapsAdventuresSeedSamples(PDO $pdo): int
     );
 
     $inserted = 0;
-    foreach (avesmapsAdventuresSampleSeedData() as $adventure) {
-        $selectId->execute(['public_id' => $adventure['public_id']]);
+    foreach (avesmapsGameLiteratureSampleSeedData() as $gameLiterature) {
+        $selectId->execute(['public_id' => $gameLiterature['public_id']]);
         $existingId = $selectId->fetchColumn();
         if ($existingId === false) {
-            $insertAdventure->execute([
-                'public_id' => $adventure['public_id'],
-                'wiki_url' => $adventure['wiki_url'],
-                'title' => $adventure['title'],
-                'product_type' => $adventure['product_type'],
-                'edition' => $adventure['edition'],
-                'bf_year' => $adventure['bf_year'],
-                'bf_label' => $adventure['bf_label'],
-                'genre' => $adventure['genre'],
-                'complexity_gm' => $adventure['complexity_gm'],
-                'complexity_pl' => $adventure['complexity_pl'],
-                'is_official' => (int) $adventure['is_official'],
-                'authors' => $adventure['authors'],
-                'series' => $adventure['series'],
-                'fshop_code' => $adventure['fshop_code'],
-                'cover_url' => $adventure['cover_url'],
+            $insertGameLiterature->execute([
+                'public_id' => $gameLiterature['public_id'],
+                'wiki_url' => $gameLiterature['wiki_url'],
+                'title' => $gameLiterature['title'],
+                'product_type' => $gameLiterature['product_type'],
+                'edition' => $gameLiterature['edition'],
+                'bf_year' => $gameLiterature['bf_year'],
+                'bf_label' => $gameLiterature['bf_label'],
+                'genre' => $gameLiterature['genre'],
+                'complexity_gm' => $gameLiterature['complexity_gm'],
+                'complexity_pl' => $gameLiterature['complexity_pl'],
+                'is_official' => (int) $gameLiterature['is_official'],
+                'authors' => $gameLiterature['authors'],
+                'series' => $gameLiterature['series'],
+                'fshop_code' => $gameLiterature['fshop_code'],
+                'cover_url' => $gameLiterature['cover_url'],
             ]);
             $inserted++;
         }
 
-        $selectId->execute(['public_id' => $adventure['public_id']]);
-        $adventureId = (int) $selectId->fetchColumn();
-        if ($adventureId <= 0) {
+        $selectId->execute(['public_id' => $gameLiterature['public_id']]);
+        $gameLiteratureId = (int) $selectId->fetchColumn();
+        if ($gameLiteratureId <= 0) {
             continue;
         }
 
         // Only seed places when the adventure has none yet (keeps re-seed idempotent, never duplicates).
-        $countPlaces->execute(['aid' => $adventureId]);
+        $countPlaces->execute(['aid' => $gameLiteratureId]);
         if ((int) $countPlaces->fetchColumn() > 0) {
             continue;
         }
         $sortOrder = 0;
-        foreach ($adventure['places'] as $rawName) {
+        foreach ($gameLiterature['places'] as $rawName) {
             $insertPlace->execute([
-                'aid' => $adventureId,
+                'aid' => $gameLiteratureId,
                 'sort_order' => $sortOrder,
                 'raw_name' => (string) $rawName,
                 'role' => $sortOrder === 0 ? 'start' : 'play',
@@ -738,25 +738,25 @@ function avesmapsAdventuresSeedSamples(PDO $pdo): int
 }
 
 // ---- Phase 3 (P1): capability-gated editor write library ------------------------------------------
-// These functions back api/edit/map/adventures.php (the editor dispatcher). They rely on globals loaded
+// These functions back api/edit/map/game-literature.php (the editor dispatcher). They rely on globals loaded
 // by that dispatcher -- avesmapsUuidV4() (api/_internal/map/features.php), avesmapsErrorResponse()
-// (bootstrap.php via auth.php) and, for resolve_place, avesmapsAdventureResolveAll()
-// (adventure-resolve.php) -- exactly like the feature-sources write library relies on the map-features
+// (bootstrap.php via auth.php) and, for resolve_place, avesmapsGameLiteratureResolveAll()
+// (game-literature-resolve.php) -- exactly like the feature-sources write library relies on the map-features
 // globals loaded by its own dispatcher. They are NEVER reached on the public read path
-// (api/app/adventures.php), so that path stays free of those includes.
+// (api/app/game-literature.php), so that path stays free of those includes.
 
 // Encode a per-field origin map ({field:'manual', ...}) as a JSON object (never a JSON array, so an
 // empty map still serialises as "{}").
-function avesmapsAdventuresEncodeOrigins(array $origins): string
+function avesmapsGameLiteratureEncodeOrigins(array $origins): string
 {
     return (string) json_encode((object) $origins, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
 
 // Editor left-hand list: EVERY adventure (approved AND non-approved), with an approved-place count.
 // Same ordering as the public catalog (newest BF year first, undated last, then title).
-function avesmapsListAdventuresForEdit(PDO $pdo): array
+function avesmapsListGameLiteratureForEdit(PDO $pdo): array
 {
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
     // `id` is fetched only to key the per-adventure places map below -- it is intentionally NOT exposed
     // in the output (the editor addresses adventures by public_id). has_cover/has_fshop back the "hat/fehlt
     // Cover" and "F-Shop ja/nein" list filters; edition backs the DSA-Version filter.
@@ -789,9 +789,9 @@ function avesmapsListAdventuresForEdit(PDO $pdo): array
         ];
     }
 
-    $adventures = [];
+    $gameLiteratureEntries = [];
     foreach ($rows as $row) {
-        $adventures[] = [
+        $gameLiteratureEntries[] = [
             'public_id' => (string) $row['public_id'],
             'title' => (string) $row['title'],
             'product_type' => (string) $row['product_type'],
@@ -808,15 +808,15 @@ function avesmapsListAdventuresForEdit(PDO $pdo): array
             'cover_url' => (string) ($row['cover_url'] ?? ''),
         ];
     }
-    return ['adventures' => $adventures, 'covers_enabled' => avesmapsAdventuresCoversEnabled($pdo), 'adventures_enabled' => avesmapsAdventuresEnabled($pdo)];
+    return ['adventures' => $gameLiteratureEntries, 'covers_enabled' => avesmapsGameLiteratureCoversEnabled($pdo), 'adventures_enabled' => avesmapsGameLiteratureEnabled($pdo)];
 }
 
 // Editor detail view: one adventure with all business columns + its whole place list (approved AND
 // suppressed, sort_order ASC). Returns null when the public_id does not exist. The surrogate integer id
 // is intentionally not exposed (the editor addresses adventures by public_id, places by their own id).
-function avesmapsAdventureDetailForEdit(PDO $pdo, string $publicId): ?array
+function avesmapsGameLiteratureDetailForEdit(PDO $pdo, string $publicId): ?array
 {
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
     $stmt = $pdo->prepare(
         "SELECT id, public_id, wiki_key, wiki_url, title, product_type, edition, bf_year, bf_label, genre,
                 complexity_gm, complexity_pl, is_official, authors, series, fshop_code, cover_url,
@@ -890,7 +890,7 @@ function avesmapsAdventureDetailForEdit(PDO $pdo, string $publicId): ?array
         'places' => $places,
         // The curated "Weitere Links" (§2.4) in display order. The editor edits this array as a whole and
         // posts it back via set_links; the ids ride along only so the UI has a stable key per row.
-        'extra_links' => avesmapsAdventureExtraLinksByAdventure($pdo, [(int) $row['id']])[(int) $row['id']] ?? [],
+        'extra_links' => avesmapsGameLiteratureExtraLinksByGameLiterature($pdo, [(int) $row['id']])[(int) $row['id']] ?? [],
     ];
 }
 
@@ -898,9 +898,9 @@ function avesmapsAdventureDetailForEdit(PDO $pdo, string $publicId): ?array
 // stamps origin='manual', status='approved'. field_origins_json records 'manual' ONLY for the fields the
 // caller actually sent; on update that map is merged into the stored one so an override-safe wiki sync
 // (Phase 4) can leave manually-touched fields alone. title is mandatory. Returns ['public_id','created'].
-function avesmapsUpsertAdventure(PDO $pdo, array $data): array
+function avesmapsUpsertGameLiterature(PDO $pdo, array $data): array
 {
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
 
     $title = trim((string) ($data['title'] ?? ''));
     if ($title === '') {
@@ -948,7 +948,7 @@ function avesmapsUpsertAdventure(PDO $pdo, array $data): array
         $publicId = avesmapsUuidV4();
         $insertParams = [
             'public_id' => $publicId,
-            'field_origins_json' => avesmapsAdventuresEncodeOrigins($origins),
+            'field_origins_json' => avesmapsGameLiteratureEncodeOrigins($origins),
         ];
         foreach ($editableFields as $field) {
             $default = $field === 'product_type' ? '' : ($field === 'is_official' ? 1 : null);
@@ -974,7 +974,7 @@ function avesmapsUpsertAdventure(PDO $pdo, array $data): array
     $existing->execute(['pid' => $publicId]);
     $row = $existing->fetch(PDO::FETCH_ASSOC);
     if ($row === false) {
-        avesmapsErrorResponse(404, 'not_found', 'Das Abenteuer wurde nicht gefunden.');
+        avesmapsErrorResponse(404, 'not_found', 'Der Literatur-Eintrag wurde nicht gefunden.');
     }
 
     $mergedOrigins = [];
@@ -1000,7 +1000,7 @@ function avesmapsUpsertAdventure(PDO $pdo, array $data): array
     $setClauses[] = "origin = 'manual'";
     $setClauses[] = "status = 'approved'";
     $setClauses[] = 'field_origins_json = :field_origins_json';
-    $updateParams['field_origins_json'] = avesmapsAdventuresEncodeOrigins($mergedOrigins);
+    $updateParams['field_origins_json'] = avesmapsGameLiteratureEncodeOrigins($mergedOrigins);
 
     $pdo->prepare('UPDATE adventure SET ' . implode(', ', $setClauses) . ' WHERE id = :id')->execute($updateParams);
     return ['public_id' => $publicId, 'created' => false];
@@ -1009,17 +1009,17 @@ function avesmapsUpsertAdventure(PDO $pdo, array $data): array
 // Append one place to an adventure (looked up by public_id -> 404 if unknown). raw_name is mandatory.
 // sort_order defaults to MAX(existing)+1 (0 for the first place) so the CORE INVARIANT holds -- the
 // editor sets sort_order/role explicitly, this NEVER reorders the list. Returns ['place_id'].
-function avesmapsAddAdventurePlace(PDO $pdo, string $adventurePublicId, array $data): array
+function avesmapsAddGameLiteraturePlace(PDO $pdo, string $gameLiteraturePublicId, array $data): array
 {
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
 
     $find = $pdo->prepare('SELECT id FROM adventure WHERE public_id = :pid LIMIT 1');
-    $find->execute(['pid' => $adventurePublicId]);
-    $adventureId = $find->fetchColumn();
-    if ($adventureId === false) {
-        avesmapsErrorResponse(404, 'not_found', 'Das Abenteuer wurde nicht gefunden.');
+    $find->execute(['pid' => $gameLiteraturePublicId]);
+    $gameLiteratureId = $find->fetchColumn();
+    if ($gameLiteratureId === false) {
+        avesmapsErrorResponse(404, 'not_found', 'Der Literatur-Eintrag wurde nicht gefunden.');
     }
-    $adventureId = (int) $adventureId;
+    $gameLiteratureId = (int) $gameLiteratureId;
 
     $rawName = trim((string) ($data['raw_name'] ?? ''));
     if ($rawName === '') {
@@ -1041,7 +1041,7 @@ function avesmapsAddAdventurePlace(PDO $pdo, string $adventurePublicId, array $d
         $sortOrder = (int) $data['sort_order'];
     } else {
         $maxStmt = $pdo->prepare('SELECT MAX(sort_order) FROM adventure_place WHERE adventure_id = :aid');
-        $maxStmt->execute(['aid' => $adventureId]);
+        $maxStmt->execute(['aid' => $gameLiteratureId]);
         $max = $maxStmt->fetchColumn();
         $sortOrder = ($max === null || $max === false) ? 0 : ((int) $max) + 1;
     }
@@ -1051,7 +1051,7 @@ function avesmapsAddAdventurePlace(PDO $pdo, string $adventurePublicId, array $d
             (adventure_id, sort_order, raw_name, target_kind, target_public_id, target_wiki_key, role, origin, status)
          VALUES (:aid, :sort_order, :raw_name, :target_kind, :target_public_id, :target_wiki_key, :role, 'manual', 'approved')"
     )->execute([
-        'aid' => $adventureId,
+        'aid' => $gameLiteratureId,
         'sort_order' => $sortOrder,
         'raw_name' => $rawName,
         'target_kind' => $targetKind,
@@ -1066,7 +1066,7 @@ function avesmapsAddAdventurePlace(PDO $pdo, string $adventurePublicId, array $d
     // leave it NULL -- the editor shows "ohne Wiki-Eintrag", a valid state (no fragile name-resolution).
     if ($targetPublicId !== '' && $targetWikiKey === ''
         && in_array($targetKind, ['settlement', 'territory', 'region', 'path'], true)) {
-        $derivedKey = avesmapsAdventureWikiKeyByPublicId($pdo, $targetKind, $targetPublicId);
+        $derivedKey = avesmapsGameLiteratureWikiKeyByPublicId($pdo, $targetKind, $targetPublicId);
         if ($derivedKey !== '') {
             $pdo->prepare('UPDATE adventure_place SET target_wiki_key = :wk WHERE id = :id')
                 ->execute(['wk' => $derivedKey, 'id' => $placeId]);
@@ -1076,11 +1076,11 @@ function avesmapsAddAdventurePlace(PDO $pdo, string $adventurePublicId, array $d
 }
 
 // Partial-update a place (by id -> 404 if unknown). Only the sent fields are written; origin is always
-// stamped 'manual' so avesmapsAdventureResolveAll leaves the (now manually chosen) target alone. Does NOT
+// stamped 'manual' so avesmapsGameLiteratureResolveAll leaves the (now manually chosen) target alone. Does NOT
 // re-derive sort_order/role -- the editor owns both (CORE INVARIANT). Returns ['place_id'].
-function avesmapsSetAdventurePlace(PDO $pdo, int $placeId, array $data): array
+function avesmapsSetGameLiteraturePlace(PDO $pdo, int $placeId, array $data): array
 {
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
 
     $find = $pdo->prepare('SELECT id FROM adventure_place WHERE id = :id LIMIT 1');
     $find->execute(['id' => $placeId]);
@@ -1134,9 +1134,9 @@ function avesmapsSetAdventurePlace(PDO $pdo, int $placeId, array $data): array
 // Remove a place (by id -> 404 if unknown). A wiki-origin place is tombstoned (status='suppressed') so a
 // later wiki sync does not resurrect it; a manual/community place has nothing to protect and is deleted.
 // Returns ['place_id','suppressed'] (suppressed=true tombstoned, false hard-deleted).
-function avesmapsSuppressAdventurePlace(PDO $pdo, int $placeId): array
+function avesmapsSuppressGameLiteraturePlace(PDO $pdo, int $placeId): array
 {
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
 
     $find = $pdo->prepare('SELECT origin FROM adventure_place WHERE id = :id LIMIT 1');
     $find->execute(['id' => $placeId]);
@@ -1159,7 +1159,7 @@ function avesmapsSuppressAdventurePlace(PDO $pdo, int $placeId): array
 // The display name for adventure_place.raw_name. settlement/region/path live in map_features, a
 // territory in political_territory; anything else falls back to the id so a row is never written
 // with an empty name.
-function avesmapsAdventurePlaceNameFor(PDO $pdo, string $entityType, string $publicId): string
+function avesmapsGameLiteraturePlaceNameFor(PDO $pdo, string $entityType, string $publicId): string
 {
     try {
         if (in_array($entityType, ['settlement', 'region', 'path'], true)) {
@@ -1186,12 +1186,12 @@ function avesmapsAdventurePlaceNameFor(PDO $pdo, string $entityType, string $pub
 //
 // origin='manual' by design (invariant 2): sync_adventures writes and deletes only origin='wiki',
 // so no reconcile can ever remove what an editor caused here.
-function avesmapsAdventureLinkPlaceFromSource(PDO $pdo, int $sourceId, string $entityType, string $publicId, int $userId = 0): bool
+function avesmapsGameLiteratureLinkPlaceFromSource(PDO $pdo, int $sourceId, string $entityType, string $publicId, int $userId = 0): bool
 {
     if ($sourceId <= 0 || $publicId === '' || $entityType === 'citymap') {
         return false;
     }
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
 
     // Not a plain column read: avesmapsSourceWikiKeyResolved also DERIVES the key for a source the
     // reconcile has never touched (a publication the wiki lists no places for keeps wiki_key NULL
@@ -1204,10 +1204,10 @@ function avesmapsAdventureLinkPlaceFromSource(PDO $pdo, int $sourceId, string $e
         return false; // no wiki key means nothing happens -- section 2, point 4
     }
 
-    $adventureStatement = $pdo->prepare('SELECT id FROM adventure WHERE wiki_key = :k LIMIT 1');
-    $adventureStatement->execute(['k' => $wikiKey]);
-    $adventureId = (int) ($adventureStatement->fetchColumn() ?: 0);
-    if ($adventureId <= 0) {
+    $gameLiteratureStatement = $pdo->prepare('SELECT id FROM adventure WHERE wiki_key = :k LIMIT 1');
+    $gameLiteratureStatement->execute(['k' => $wikiKey]);
+    $gameLiteratureId = (int) ($gameLiteratureStatement->fetchColumn() ?: 0);
+    if ($gameLiteratureId <= 0) {
         return false; // the key names something that is not an adventure (a map, a sourcebook)
     }
 
@@ -1215,22 +1215,22 @@ function avesmapsAdventureLinkPlaceFromSource(PDO $pdo, int $sourceId, string $e
         'SELECT id FROM adventure_place
           WHERE adventure_id = :aid AND target_kind = :kind AND target_public_id = :pid LIMIT 1'
     );
-    $existing->execute(['aid' => $adventureId, 'kind' => $entityType, 'pid' => $publicId]);
+    $existing->execute(['aid' => $gameLiteratureId, 'kind' => $entityType, 'pid' => $publicId]);
     if ($existing->fetchColumn() !== false) {
         return false; // already connected, through whichever door
     }
 
     $order = $pdo->prepare('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM adventure_place WHERE adventure_id = :aid');
-    $order->execute(['aid' => $adventureId]);
+    $order->execute(['aid' => $gameLiteratureId]);
 
     $pdo->prepare(
         "INSERT INTO adventure_place
             (adventure_id, sort_order, raw_name, target_kind, target_public_id, role, origin, status, created_from_source_id)
          VALUES (:aid, :ord, :name, :kind, :pid, 'play', 'manual', 'approved', :src)"
     )->execute([
-        'aid' => $adventureId,
+        'aid' => $gameLiteratureId,
         'ord' => (int) $order->fetchColumn(),
-        'name' => avesmapsAdventurePlaceNameFor($pdo, $entityType, $publicId),
+        'name' => avesmapsGameLiteraturePlaceNameFor($pdo, $entityType, $publicId),
         'kind' => $entityType,
         'pid' => $publicId,
         'src' => $sourceId,
@@ -1245,12 +1245,12 @@ function avesmapsAdventureLinkPlaceFromSource(PDO $pdo, int $sourceId, string $e
 // by hand carries NULL there and survives: "es zählt, was diese Eingabe erzeugt hat -- nicht, was
 // zufällig dasselbe Paar beschreibt". That is the difference between undoing a mistake and quietly
 // destroying older work.
-function avesmapsAdventureUnlinkPlaceFromSource(PDO $pdo, int $sourceId, string $entityType, string $publicId): int
+function avesmapsGameLiteratureUnlinkPlaceFromSource(PDO $pdo, int $sourceId, string $entityType, string $publicId): int
 {
     if ($sourceId <= 0 || $publicId === '') {
         return 0;
     }
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
     $statement = $pdo->prepare(
         'DELETE FROM adventure_place
           WHERE created_from_source_id = :src AND target_kind = :kind AND target_public_id = :pid'
@@ -1266,45 +1266,45 @@ function avesmapsAdventureUnlinkPlaceFromSource(PDO $pdo, int $sourceId, string 
 // on the next run -- leaving an editor convinced the button is broken, and the deletion of the
 // attached places permanent. Refusing outright is the honest answer.
 //
-// Deliberately NOT a suppression like avesmapsSuppressAdventurePlace: a tombstone exists so a later
+// Deliberately NOT a suppression like avesmapsSuppressGameLiteraturePlace: a tombstone exists so a later
 // sync does not resurrect a removed row, and nothing syncs a manual adventure. A tombstone here
 // would just be a row nobody can see and nobody can clean up.
 //
 // The cover file (uploads/questcovers) is intentionally left on disk: deriving a filesystem path
 // from a stored URL to unlink it is how the wrong file gets deleted. An orphaned image costs a few
 // kB; a bad unlink costs a cover that was still in use.
-function avesmapsDeleteAdventure(PDO $pdo, string $publicId, ?array $user): array
+function avesmapsDeleteGameLiterature(PDO $pdo, string $publicId, ?array $user): array
 {
     // A16: the trail. Loaded HERE and not at file scope -- this library is on public read paths
-    // (api/app/adventures.php, map-search.php) and must not carry map/features.php on every visitor
+    // (api/app/game-literature.php, map-search.php) and must not carry map/features.php on every visitor
     // request. A deletion is rare enough to pay for it.
     require_once __DIR__ . '/../map/collection-audit.php';
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
 
     $find = $pdo->prepare('SELECT id, origin, title FROM adventure WHERE public_id = :pid LIMIT 1');
     $find->execute(['pid' => $publicId]);
     $row = $find->fetch(PDO::FETCH_ASSOC);
     if ($row === false) {
-        avesmapsErrorResponse(404, 'not_found', 'Das Abenteuer wurde nicht gefunden.');
+        avesmapsErrorResponse(404, 'not_found', 'Der Literatur-Eintrag wurde nicht gefunden.');
     }
     if ((string) $row['origin'] === 'wiki') {
         avesmapsErrorResponse(
             400,
             'wiki_origin_protected',
-            'Dieses Abenteuer stammt aus dem Wiki-Sync und kann hier nicht geloescht werden. Nur selbst angelegte Eintraege.'
+            'Dieser Literatur-Eintrag stammt aus dem Wiki-Sync und kann hier nicht geloescht werden. Nur selbst angelegte Eintraege.'
         );
     }
 
-    $adventureId = (int) $row['id'];
+    $gameLiteratureId = (int) $row['id'];
     $pdo->beginTransaction();
     try {
         // Children first: an adventure_place or _link row whose adventure is gone is invisible
         // everywhere and would never be cleaned up again.
         $places = $pdo->prepare('DELETE FROM adventure_place WHERE adventure_id = :aid');
-        $places->execute(['aid' => $adventureId]);
+        $places->execute(['aid' => $gameLiteratureId]);
         $links = $pdo->prepare('DELETE FROM adventure_link WHERE adventure_id = :aid');
-        $links->execute(['aid' => $adventureId]);
-        $pdo->prepare('DELETE FROM adventure WHERE id = :id')->execute(['id' => $adventureId]);
+        $links->execute(['aid' => $gameLiteratureId]);
+        $pdo->prepare('DELETE FROM adventure WHERE id = :id')->execute(['id' => $gameLiteratureId]);
         $pdo->commit();
     } catch (Throwable $error) {
         $pdo->rollBack();
@@ -1318,7 +1318,7 @@ function avesmapsDeleteAdventure(PDO $pdo, string $publicId, ?array $user): arra
     // ⚠️ The return moved out of the try with it. Leaving it inside would have meant building the
     // snapshots there too -- and any throw from that would then hit the catch above and call rollBack()
     // on a transaction that has already committed.
-    $snapshots = avesmapsAdventureDeletionAuditSnapshots($row, $publicId, $places->rowCount(), $links->rowCount());
+    $snapshots = avesmapsGameLiteratureDeletionAuditSnapshots($row, $publicId, $places->rowCount(), $links->rowCount());
     avesmapsLogCollectionDeletion($pdo, 'delete_adventure', $snapshots['before'], $snapshots['after'], $user);
 
     return [
@@ -1342,7 +1342,7 @@ function avesmapsDeleteAdventure(PDO $pdo, string $publicId, ?array $user): arra
  *
  * @return array{before: array<string,mixed>, after: array<string,mixed>}
  */
-function avesmapsAdventureDeletionAuditSnapshots(array $row, string $publicId, int $placesDeleted, int $linksDeleted): array
+function avesmapsGameLiteratureDeletionAuditSnapshots(array $row, string $publicId, int $placesDeleted, int $linksDeleted): array
 {
     // The identity is in BOTH snapshots: the reader prefers after_json for the displayed name, and
     // without it the entry reads "Unbenannt".
@@ -1367,11 +1367,11 @@ function avesmapsAdventureDeletionAuditSnapshots(array $row, string $publicId, i
 }
 
 // Re-resolve a place (by id -> 404 if unknown): reset it to 'unresolved', then run the shared resolver
-// (avesmapsAdventureResolveAll, loaded by the dispatcher) which only touches unresolved places. Returns
+// (avesmapsGameLiteratureResolveAll, loaded by the dispatcher) which only touches unresolved places. Returns
 // the freshly resolved ['target_kind','target_public_id','target_wiki_key'].
-function avesmapsResolveAdventurePlace(PDO $pdo, int $placeId): array
+function avesmapsResolveGameLiteraturePlace(PDO $pdo, int $placeId): array
 {
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
 
     $find = $pdo->prepare('SELECT id FROM adventure_place WHERE id = :id LIMIT 1');
     $find->execute(['id' => $placeId]);
@@ -1385,7 +1385,7 @@ function avesmapsResolveAdventurePlace(PDO $pdo, int $placeId): array
           WHERE id = :id"
     )->execute(['id' => $placeId]);
 
-    avesmapsAdventureResolveAll($pdo);
+    avesmapsGameLiteratureResolveAll($pdo);
 
     $select = $pdo->prepare(
         'SELECT target_kind, target_public_id, target_wiki_key FROM adventure_place WHERE id = :id LIMIT 1'
@@ -1401,16 +1401,16 @@ function avesmapsResolveAdventurePlace(PDO $pdo, int $placeId): array
 
 // Set/override an adventure's cover_url and stamp its per-field origin: 'manual' for an editor upload
 // (a manual cover the wiki sync must never overwrite) or 'wiki' for a re-fetched wiki cover. Merges into
-// field_origins_json (so the reconcile's avesmapsAdventureFieldPlan honours it). Backs the cover endpoint
-// api/edit/map/adventure-cover.php. Returns ['public_id','cover_url','origin']. 404s on an unknown id.
-function avesmapsSetAdventureCoverUrl(PDO $pdo, string $publicId, ?string $coverUrl, string $origin): array
+// field_origins_json (so the reconcile's avesmapsGameLiteratureFieldPlan honours it). Backs the cover endpoint
+// api/edit/map/game-literature-cover.php. Returns ['public_id','cover_url','origin']. 404s on an unknown id.
+function avesmapsSetGameLiteratureCoverUrl(PDO $pdo, string $publicId, ?string $coverUrl, string $origin): array
 {
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
     $select = $pdo->prepare('SELECT id, field_origins_json FROM adventure WHERE public_id = :pid LIMIT 1');
     $select->execute(['pid' => $publicId]);
     $row = $select->fetch(PDO::FETCH_ASSOC);
     if ($row === false) {
-        avesmapsErrorResponse(404, 'not_found', 'Das Abenteuer wurde nicht gefunden.');
+        avesmapsErrorResponse(404, 'not_found', 'Der Literatur-Eintrag wurde nicht gefunden.');
     }
 
     $origins = [];
@@ -1424,7 +1424,7 @@ function avesmapsSetAdventureCoverUrl(PDO $pdo, string $publicId, ?string $cover
     $normalized = ($coverUrl === null || trim($coverUrl) === '') ? null : trim($coverUrl);
 
     $pdo->prepare('UPDATE adventure SET cover_url = :u, field_origins_json = :fo WHERE id = :id')
-        ->execute(['u' => $normalized, 'fo' => avesmapsAdventuresEncodeOrigins($origins), 'id' => (int) $row['id']]);
+        ->execute(['u' => $normalized, 'fo' => avesmapsGameLiteratureEncodeOrigins($origins), 'id' => (int) $row['id']]);
 
     return ['public_id' => $publicId, 'cover_url' => (string) $normalized, 'origin' => $origins['cover_url']];
 }

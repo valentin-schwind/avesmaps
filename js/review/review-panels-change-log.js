@@ -158,7 +158,7 @@ function formatChangeAction(action) {
 		// zurück gibt, ist genau die Frage, für die A16 existiert -- steht sie nur im JSON, beantwortet
 		// die Liste sie nie.
 		delete_citymap: "Kartensammlung: Karte gelöscht",
-		delete_adventure: "Abenteuer gelöscht",
+		delete_adventure: "Literatur-Eintrag gelöscht",
 		delete_lore_place: "Natur & Waren: Ort gelöscht",
 		suppress_lore_place: "Natur & Waren: Ort ausgeblendet",
 		// Eine bestätigte Übernahme-Vorschau: EINE Zeile je Lauf, nicht eine je Eintrag (Entwurf

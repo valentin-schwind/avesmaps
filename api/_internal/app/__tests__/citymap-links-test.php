@@ -9,7 +9,7 @@ declare(strict_types=1);
  *       api/_internal/app/__tests__/citymap-links-test.php
  * Exit 0 = all asserts passed.
  *
- * Sibling of adventure-links-test.php, and deliberately so: citymap_link is adventure_link with one added
+ * Sibling of game-literature-links-test.php, and deliberately so: citymap_link is adventure_link with one added
  * column (is_paid), so the two normalizers must agree on everything the spec did not set apart.
  */
 if (ini_get('zend.assertions') !== '1') {

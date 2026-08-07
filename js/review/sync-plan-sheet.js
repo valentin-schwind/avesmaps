@@ -16,7 +16,7 @@
 /** Was der Abgleich zählt — Ein-/Mehrzahl für die zweite Bestätigung. */
 const SYNC_PLAN_KIND_NOUNS = {
 	citymap: { one: "Karte", many: "Karten" },
-	adventure: { one: "Abenteuer", many: "Abenteuer" },
+	adventure: { one: "Werk", many: "Werke" },
 	publication: { one: "Quellenverweis", many: "Quellenverweise" },
 	lore: { one: "Eintrag", many: "Einträge" },
 	territory_wiki: { one: "Kopie", many: "Kopien" },
@@ -25,7 +25,7 @@ const SYNC_PLAN_KIND_NOUNS = {
 
 const SYNC_PLAN_KIND_TITLES = {
 	citymap: "Stadtkarten aus dem Wiki übernehmen",
-	adventure: "Abenteuer aus dem Wiki übernehmen",
+	adventure: "Literatur aus dem Wiki übernehmen",
 	publication: "Publikationsquellen aus dem Wiki übernehmen",
 	lore: "Vorkommen aus dem Wiki übernehmen",
 	territory_wiki: "Die Wiki-Kopie der Herrschaftsgebiete nachführen",
@@ -118,7 +118,7 @@ const SYNC_PLAN_KIND_DELETION = {
  */
 const SYNC_PLAN_KIND_EMPTY_HINT = {
 	citymap: 'Erst „🚨 Karten syncen" ausführen.',
-	adventure: 'Erst „🚨 Abenteuer syncen" ausführen.',
+	adventure: 'Erst „🚨 Literatur syncen" ausführen.',
 	publication: 'Erst „Dump holen" ausführen — der Quellen-Abgleich ist dessen letzter Schritt.',
 	lore: 'Erst „🚨 Vorkommen syncen" ausführen.',
 	territory_wiki: 'Erst „1 · 🚨 Syncen" ausführen.',
@@ -240,7 +240,7 @@ function syncPlanFieldLabel(field) {
 		source: "Quelle",
 		links: "Fundstellen",
 		// --- Abenteuer (Sitzung 2). Dieselben deutschen Wörter, die der Abenteuereditor benutzt
-		// (html/adventure-editor.html): zwei Beschriftungen für dasselbe Ding wären genau die
+		// (html/game-literature-editor.html): zwei Beschriftungen für dasselbe Ding wären genau die
 		// Divergenz, die die Token-Regel für Farben verbietet -- hier gilt sie für Wörter.
 		product_type: "Produkttyp",
 		edition: "Regelsystem",

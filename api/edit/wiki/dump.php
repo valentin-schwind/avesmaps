@@ -137,14 +137,14 @@ require_once __DIR__ . '/../../_internal/wiki/publication-parsing.php';
 require_once __DIR__ . '/../../_internal/wiki/publication-sync.php';
 // Abenteuer (Phase 4): the adventures build phase (dump-hybrid-driver.php) + the owner-triggered
 // sync_adventures reconcile action below need the adventure staging/reconcile lib plus the live
-// adventure tables + name resolver. adventure-resolve.php require_once-pulls adventures.php + the
+// adventure tables + name resolver. game-literature-resolve.php require_once-pulls game-literature.php + the
 // political lib (already loaded above); all three are function-definitions-only on include.
-require_once __DIR__ . '/../../_internal/app/adventures.php';
-require_once __DIR__ . '/../../_internal/app/adventure-resolve.php';
-require_once __DIR__ . '/../../_internal/wiki/adventure-sync.php';
+require_once __DIR__ . '/../../_internal/app/game-literature.php';
+require_once __DIR__ . '/../../_internal/app/game-literature-resolve.php';
+require_once __DIR__ . '/../../_internal/wiki/game-literature-sync.php';
 // Kartensammlung (stages 1+2): the citymaps build phase (dump-hybrid-driver.php) + the
 // owner-triggered sync_citymaps reconcile below need the citymap staging/reconcile lib plus the live
-// citymap tables. The place resolver is the SHARED avesmapsResolvePlacesInTable (adventure-resolve.php
+// citymap tables. The place resolver is the SHARED avesmapsResolvePlacesInTable (game-literature-resolve.php
 // above, which already whitelists 'citymap_place') -- not a citymap-specific copy. All
 // function-definitions-only on include.
 require_once __DIR__ . '/../../_internal/app/citymaps.php';
@@ -689,7 +689,7 @@ try {
             // download, which is a real side effect and now waits for a checkmark too. The name stays
             // because it is the same button and the same first half of the same job.
             //
-            // It still does NOT reopen the dump: avesmapsAdventurePlanStep reads the STAGING tables
+            // It still does NOT reopen the dump: avesmapsGameLiteraturePlanStep reads the STAGING tables
             // (wiki_adventure_catalog / wiki_adventure_place_staging, populated during "Dump holen")
             // plus the live tables, and calls the same pure plans the writer uses -- so the preview
             // shows exactly what the writer would do, override-safety included (manual fields and
@@ -702,13 +702,13 @@ try {
             avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'sync_adventures');
             $lockHeldByThisRequest = true;
 
-            if (function_exists('avesmapsAdventuresEnsureTables')) {
-                avesmapsAdventuresEnsureTables($pdo);
+            if (function_exists('avesmapsGameLiteratureEnsureTables')) {
+                avesmapsGameLiteratureEnsureTables($pdo);
             }
-            avesmapsEnsureAdventureStagingTables($pdo);
+            avesmapsEnsureGameLiteratureStagingTables($pdo);
 
             $advCursor = avesmapsNormalizeSingleLine((string) ($payload['cursor'] ?? ''), 190);
-            $advStep = avesmapsAdventurePlanStep($pdo, $advCursor, $lockUserId);
+            $advStep = avesmapsGameLiteraturePlanStep($pdo, $advCursor, $lockUserId);
             $advDone = ($advStep['done'] ?? false) === true;
 
             avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'sync_adventures');
@@ -732,7 +732,7 @@ try {
                 'counts' => (array) ($advStep['counts'] ?? []),
                 'progress' => [
                     'processed' => (int) ($advStep['processed'] ?? 0),
-                    'total' => avesmapsAdventureCountCatalog($pdo),
+                    'total' => avesmapsGameLiteratureCountCatalog($pdo),
                 ],
             ]);
             // no break -- avesmapsJsonResponse exits.

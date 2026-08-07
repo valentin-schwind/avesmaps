@@ -24,7 +24,7 @@ var AVESMAPS_LORE_API_URL = "api/app/lore.php";
 // beim BAUEN des Markups, und bindPopup baut das für jedes Label schon beim
 // Kartenaufbau -- hunderte gleichzeitige Anfragen, ohne Zeitlimit. Ein Request, der
 // auf einem vollen Pool hängt, belegt bis zum Servertimeout einen Worker; danach hing
-// die ganze API, auch adventures.php, das damit nichts zu tun hat.
+// die ganze API, auch game-literature.php, das damit nichts zu tun hat.
 //
 // Warum er wieder AUF TRUE steht: die Ursachen sind behoben -- geladen wird nur noch
 // über den DOM-Beobachter (also je geöffnetem Panel einmal), jeder Abruf bricht nach

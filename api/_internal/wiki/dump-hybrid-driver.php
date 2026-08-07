@@ -125,8 +125,8 @@ const AVESMAPS_WIKI_DUMP_PHASE_PUBLICATION_SOURCES = 'publication_sources';
 // {{Infobox Produkt}} adventure pages (STAGING ONLY, same infobox scan as publication_sources).
 // The sharp reconcile into the live adventure/adventure_place tables is a SEPARATE owner-triggered
 // action (sync_adventures), NOT part of this phase -- so "Dump holen" only ever stages adventures.
-// See adventure-sync.php.
-const AVESMAPS_WIKI_DUMP_PHASE_ADVENTURES = 'adventures';
+// See game-literature-sync.php.
+const AVESMAPS_WIKI_DUMP_PHASE_GAME_LITERATURE = 'adventures';
 // Kartensammlung (stages 1+2): build the citymap catalog from the two index PAGES (Stadtplanindex,
 // Kartenindex) -- a title match, not an infobox scan, because the maps live in tables on two known
 // pages rather than one page each. STAGING ONLY, exactly like adventures: the sharp reconcile into
@@ -201,7 +201,7 @@ function avesmapsWikiDumpHybridPhaseOrder(): array
         // Abenteuer staging runs right after publication_sources (same {{Infobox Produkt}} scan,
         // different payload). STAGING-ONLY, so it is dryRun-agnostic and never a sharp write; the
         // production reconcile is the owner's sync_adventures action.
-        AVESMAPS_WIKI_DUMP_PHASE_ADVENTURES,
+        AVESMAPS_WIKI_DUMP_PHASE_GAME_LITERATURE,
         // Kartensammlung staging runs right after adventures: same STAGING-ONLY contract, so it is
         // dryRun-agnostic and never a sharp write. It scans for two known index PAGES rather than an
         // infobox. The production reconcile is the owner's sync_citymaps action.
@@ -236,7 +236,7 @@ function avesmapsWikiDumpHybridResumableCursorKeys(): array
         // stats_json via the step's 'stats_patch' (merged by avesmapsWikiDumpHybridAdvanceReadStep).
         AVESMAPS_WIKI_DUMP_PHASE_PUBLICATION_SOURCES => 'publication_cursor',
         // The dump page cursor for the adventure catalog/place staging build.
-        AVESMAPS_WIKI_DUMP_PHASE_ADVENTURES => 'adventure_cursor',
+        AVESMAPS_WIKI_DUMP_PHASE_GAME_LITERATURE => 'adventure_cursor',
         // The dump page cursor for the citymap catalog build (Stadtplanindex + Kartenindex).
         AVESMAPS_WIKI_DUMP_PHASE_CITYMAPS => 'citymap_cursor',
         // The dump page cursor for the lore catalog build (four infoboxes, ~5.1k entries).
@@ -984,12 +984,12 @@ function avesmapsWikiDumpHybridDispatchPhaseStep(
                 'processed_this_step' => (int) ($r['processed_this_step'] ?? 0),
             ];
 
-        case AVESMAPS_WIKI_DUMP_PHASE_ADVENTURES:
+        case AVESMAPS_WIKI_DUMP_PHASE_GAME_LITERATURE:
             // Build the adventure catalog + ordered place staging from the dump (STAGING ONLY, both
             // read_step and apply -- there is no sharp adventure write here; the owner's
             // sync_adventures action reconciles staging into the live tables). Same dump-page cursor
             // contract as the publication catalog build.
-            $r = avesmapsAdventureBuildCatalogStep($pdo, $dumpPath, $cursor);
+            $r = avesmapsGameLiteratureBuildCatalogStep($pdo, $dumpPath, $cursor);
             return [
                 'done' => (bool) ($r['done'] ?? false),
                 'nextCursor' => (int) ($r['nextCursor'] ?? $cursor),

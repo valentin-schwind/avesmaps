@@ -38,7 +38,7 @@
 
      NO token-alias :root here, unlike the older wiki-sync-settlement-editor: that block is a shim for
      pre-existing hardcoded rules, and this page uses var(--color-*) directly. (Spec §3.6 asks for both
-     "wie adventure-editor.html" and "Token-Alias-Block" — those contradict each other; the sibling
+     "wie game-literature-editor.html" and "Token-Alias-Block" — those contradict each other; the sibling
      editor's actual architecture wins.)
 
      tokens.css needs no hand-written ?v=: the deploy stamps this reference with a content hash, so it
@@ -396,7 +396,7 @@
   .btn--danger { color: var(--color-danger); }
   .btn--icon { min-height: 0; padding: 2px var(--space-6); }
 
-  /* Base pill copied token-for-token from html/adventure-editor.html -- the nearest existing component
+  /* Base pill copied token-for-token from html/game-literature-editor.html -- the nearest existing component
      (AGENTS.md §12: reuse it as the template, do not re-invent). It had drifted here: --color-border /
      --color-text-muted instead of the dedicated --color-pill* tokens, radius-sm instead of -md, and no
      background at all, so the same badge read differently in the two editors. */
@@ -1423,7 +1423,7 @@
   // ---- Wiki-Sync (citymaps) ----
   // Delegates to window.parent.startWikiSyncCitymapsSync() -- the SAME sync_citymaps client loop that
   // lives in js/review/review-wiki-sync.js, so there is exactly one sync_citymaps loop in the app, not
-  // a second copy here. Mirrors handleAeSyncClick in html/adventure-editor.html. Requires a prior
+  // a second copy here. Mirrors handleAeSyncClick in html/game-literature-editor.html. Requires a prior
   // "Dump holen" (WikiSync-Menüband) -- an empty staging catalog just yields 0 processed, which is why
   // the sub-label reports the STAGING state rather than a last-sync time: "nichts im Dump" and "sync
   // failed" must not look the same.

@@ -1,5 +1,5 @@
-// Abenteuer-Feature (Phase 1) -- client catalog + index. Loads the whole approved adventure catalog
-// ONCE (only in infopanel mode) from api/app/adventures.php and builds lookup indices so the settlement
+// Literatur-Feature (Phase 1) -- client catalog + index. Loads the whole approved adventure catalog
+// ONCE (only in infopanel mode) from api/app/game-literature.php and builds lookup indices so the settlement
 // infopanel (map-features-place-extras.js) can query adventures locally (B1 -- no server geometry, no
 // per-popup fetch). NB: the wiki "Ort" list order is NOT a quest route -- routes are editor-maintained
 // per settlement (future), decoupled from the beginnt/spielt display.
@@ -13,12 +13,12 @@
 // and client normalizeWikiDeeplinkKey (ö->o) can diverge on umlauts, so never rely on the key alone for
 // a settlement that has a public_id.
 
-var avesmapsAdventureCatalogState = { loaded: false, loading: null, catalog: [], index: null, territoryMeta: {}, coversEnabled: true };
+var avesmapsGameLiteratureCatalogState = { loaded: false, loading: null, catalog: [], index: null, territoryMeta: {}, coversEnabled: true };
 
 // ---- pure core (exported for Node tests; no window/fetch/DOM) -------------------------------------
 
 // Wiki "Ort" product-type slug -> German display label. Unknown slugs pass through capitalized-as-is.
-function avesmapsAdventureProductTypeLabel(productType) {
+function avesmapsGameLiteratureProductTypeLabel(productType) {
 	var labels = {
 		gruppenabenteuer: "Gruppenabenteuer",
 		soloabenteuer: "Soloabenteuer",
@@ -36,7 +36,7 @@ function avesmapsAdventureProductTypeLabel(productType) {
 // to -n (higher edition = smaller key = first, and DSA4.1 -> -4.1 sorts before DSA4 -> -4), a non-DSA ruleset
 // (Aventuria, regelfrei, …) to 1000, an empty edition to 1001 (last). Uses the FIRST DSA<n>(.<m>) number
 // ("DSA4.1 Basis" -> -4.1, "DSA1-Ausbau" -> -1, "DSA4 / DSA5" -> -4). The edition roughly approximates an era.
-function avesmapsAdventureEditionSortKey(edition) {
+function avesmapsGameLiteratureEditionSortKey(edition) {
 	var s = String(edition == null ? "" : edition).trim();
 	if (!s) {
 		return 1001;
@@ -49,7 +49,7 @@ function avesmapsAdventureEditionSortKey(edition) {
 // element.dataset (dort ist jeder Wert ein String). Schluessel in dieser Reihenfolge:
 //   1. EDITION (DSA5 -> DSA1, Unbekanntes ans Ende) -- die einzige Recency-Achse, die wirklich
 //      gefuellt ist. bf_year traegt live 6 von 1352 Abenteuern, weil {{Infobox Produkt}} keine
-//      BF-Jahreszahl fuehrt; api/_internal/wiki/adventure-sync.php sagt es ausdruecklich, der
+//      BF-Jahreszahl fuehrt; api/_internal/wiki/game-literature-sync.php sagt es ausdruecklich, der
 //      Wiki-Sync fuellt das Feld also nie. Ein Vergleich NUR auf bf_year lieferte deshalb fuer
 //      fast jedes Paar 0 -- und weil Array.sort stabil ist, blieb dann die EINGANGSreihenfolge
 //      stehen. Gebaut wird die als `beginnt`.concat(`spielt`), weshalb jeder Spoiler
@@ -59,9 +59,9 @@ function avesmapsAdventureEditionSortKey(edition) {
 //      fallen (genau der Rueckfall, der den Fehler erzeugt hat).
 // Die ROLLE (beginnt/spielt = spoilerfrei/Spoiler) geht bewusst NICHT ein: ein Spoiler steht an
 // seinem Sortierplatz, verschleiert -- nicht als Block am Ende.
-function avesmapsCompareAdventureRecency(a, b) {
-	var editionA = avesmapsAdventureEditionSortKey(a && a.edition);
-	var editionB = avesmapsAdventureEditionSortKey(b && b.edition);
+function avesmapsCompareGameLiteratureRecency(a, b) {
+	var editionA = avesmapsGameLiteratureEditionSortKey(a && a.edition);
+	var editionB = avesmapsGameLiteratureEditionSortKey(b && b.edition);
 	if (editionA !== editionB) {
 		return editionA - editionB;
 	}
@@ -75,7 +75,7 @@ function avesmapsCompareAdventureRecency(a, b) {
 
 // Normalize a stored wiki key ('wiki:<slug>') OR a page name into the client comparison key: strip the
 // 'wiki:' prefix, then apply the deeplink normalizer (NFD diacritic strip, lowercase, drop non-alnum).
-function avesmapsNormalizeAdventureKey(key) {
+function avesmapsNormalizeGameLiteratureKey(key) {
 	if (!key) {
 		return "";
 	}
@@ -91,15 +91,15 @@ function avesmapsNormalizeAdventureKey(key) {
 // Phase 2.3 adds the facets the "Alle anzeigen" dialog filters on: official (bool), complexity (Spielleiter
 // preferred, else Spieler), genre. Kept on the SAME shape so the settlement strip and the nested dialog read
 // identical cards.
-function avesmapsAdventureToRenderShape(adventure) {
+function avesmapsGameLiteratureToRenderShape(adventure) {
 	return {
 		public_id: adventure.public_id || "",
 		title: adventure.title || "",
-		type: avesmapsAdventureProductTypeLabel(adventure.product_type),
+		type: avesmapsGameLiteratureProductTypeLabel(adventure.product_type),
 		edition: adventure.edition || "",
 		year: Number(adventure.bf_year) || 0,
 		yearLabel: adventure.bf_label || (adventure.bf_year ? adventure.bf_year + " BF" : ""),
-		cover: avesmapsAdventureCatalogState.coversEnabled === false ? "" : (adventure.cover_url || ""),
+		cover: avesmapsGameLiteratureCatalogState.coversEnabled === false ? "" : (adventure.cover_url || ""),
 		url: adventure.wiki_url || "",
 		fshop: adventure.fshop_code || "",
 		linkUlisses: adventure.link_ulisses || "",
@@ -110,7 +110,7 @@ function avesmapsAdventureToRenderShape(adventure) {
 		complexity: adventure.complexity_gm || adventure.complexity_pl || "",
 		genre: adventure.genre || "",
 		// The server-built link list [{key,label,url,state}] in click-priority order (Spec §2.5,
-		// avesmapsAdventureLinks). This shape is built from an EXPLICIT field list, so anything not named
+		// avesmapsGameLiteratureLinks). This shape is built from an EXPLICIT field list, so anything not named
 		// here is silently dropped -- leaving `links` out is why the dialog would show no links however
 		// correct the backend is. [] (not undefined) so callers can iterate unguarded; an empty list is
 		// also the honest answer for placeholder data, which advShopLinks then rebuilds client-side.
@@ -120,8 +120,8 @@ function avesmapsAdventureToRenderShape(adventure) {
 
 // Build lookup indices from the catalog. Each index maps a place target -> [{ adv, role }] where role is
 // the place's role AT that target ('start' = beginnt hier, 'play' = spielt hier).
-function avesmapsBuildAdventureIndex(catalog, normalizeKey) {
-	var norm = typeof normalizeKey === "function" ? normalizeKey : avesmapsNormalizeAdventureKey;
+function avesmapsBuildGameLiteratureIndex(catalog, normalizeKey) {
+	var norm = typeof normalizeKey === "function" ? normalizeKey : avesmapsNormalizeGameLiteratureKey;
 	var index = {
 		bySettlementPublicId: {},
 		bySettlementKey: {},
@@ -182,7 +182,7 @@ function avesmapsBuildAdventureIndex(catalog, normalizeKey) {
 
 // Select { adv, role } entries for a place reference { publicId, key } filtered by role
 // ('start' | 'play' | 'all'), deduped by adventure (public_id wins once).
-function avesmapsSelectAdventureEntries(index, ref, role) {
+function avesmapsSelectGameLiteratureEntries(index, ref, role) {
 	if (!index || !ref) {
 		return [];
 	}
@@ -232,7 +232,7 @@ function avesmapsSelectAdventureEntries(index, ref, role) {
 // Prettify a raw 'wiki:<slug>' key into a fallback display name -- ONLY used when territory_meta lacks the
 // key (rare: a path node that is not an active political_territory). The slug is diacritic-stripped, so this
 // is best-effort and never preferred over meta.name.
-function avesmapsAdventurePrettifyKey(rawKey) {
+function avesmapsGameLiteraturePrettifyKey(rawKey) {
 	var bare = String(rawKey || "").replace(/^wiki:/i, "");
 	if (!bare) {
 		return "";
@@ -248,8 +248,8 @@ function avesmapsAdventurePrettifyKey(rawKey) {
 // the key is empty. Comparison runs on the NORMALIZED key axis (same as byTerritoryPath) so server/client
 // umlaut transliteration cancels out; display name+rank come from territoryMeta (keyed by the raw
 // 'wiki:'-key). Pure (no window/DOM) -> Node-testable.
-function avesmapsBuildAdventureTerritoryTree(catalog, territoryMeta, rootKey, normalizeKey) {
-	var norm = typeof normalizeKey === "function" ? normalizeKey : avesmapsNormalizeAdventureKey;
+function avesmapsBuildGameLiteratureTerritoryTree(catalog, territoryMeta, rootKey, normalizeKey) {
+	var norm = typeof normalizeKey === "function" ? normalizeKey : avesmapsNormalizeGameLiteratureKey;
 	var rootNorm = norm(rootKey);
 	if (!rootNorm) {
 		return null;
@@ -326,13 +326,13 @@ function avesmapsBuildAdventureTerritoryTree(catalog, territoryMeta, rootKey, no
 			for (var i = bestChain.length - 2; i >= 0; i -= 1) {
 				node = childOf(node, bestChain[i]);
 			}
-			node[role].push(avesmapsAdventureToRenderShape(adventure));
+			node[role].push(avesmapsGameLiteratureToRenderShape(adventure));
 		});
 	});
 
 	(function finalize(node) {
 		var meta = metaByNorm[node.key] || null;
-		node.name = (meta && meta.name) || avesmapsAdventurePrettifyKey(rawByNorm[node.key]) || node.key;
+		node.name = (meta && meta.name) || avesmapsGameLiteraturePrettifyKey(rawByNorm[node.key]) || node.key;
 		node.rank = (meta && meta.rank) || "";
 		delete node._childMap;
 		node.children.sort(function (a, b) {
@@ -348,7 +348,7 @@ function avesmapsBuildAdventureTerritoryTree(catalog, territoryMeta, rootKey, no
 
 // Distinct filter facets present across a set of render shapes (populates the dialog filter bar). Sorted
 // for a stable UI; empty values dropped.
-function avesmapsAdventureFacetOptions(shapes) {
+function avesmapsGameLiteratureFacetOptions(shapes) {
 	var types = {};
 	var complexities = {};
 	var genres = {};
@@ -388,7 +388,7 @@ function avesmapsAdventureFacetOptions(shapes) {
 // Does a render shape pass the active filter? filter = { types:[]|Set, complexity:"", genre:"", edition:"",
 // yearFrom:0, yearTo:0, officialOnly:bool }. Empty/absent facets are "no constraint" (a year of 0 = undated ->
 // excluded once a year bound is set). Kept pure so both the tree render and tests share one predicate.
-function avesmapsAdventureMatchesFilter(shape, filter) {
+function avesmapsGameLiteratureMatchesFilter(shape, filter) {
 	if (!filter || !shape) {
 		return true;
 	}
@@ -424,26 +424,26 @@ function avesmapsAdventureMatchesFilter(shape, filter) {
 
 // ---- browser wrappers (window API named by the instruction) --------------------------------------
 
-function avesmapsAdventuresEndpointUrl() {
-	if (typeof window !== "undefined" && window.AVESMAPS_ADVENTURES_ENDPOINT) {
-		return window.AVESMAPS_ADVENTURES_ENDPOINT;
+function avesmapsGameLiteratureEndpointUrl() {
+	if (typeof window !== "undefined" && window.AVESMAPS_GAME_LITERATURE_ENDPOINT) {
+		return window.AVESMAPS_GAME_LITERATURE_ENDPOINT;
 	}
 	if (typeof SQL_MAP_HOSTS !== "undefined" && typeof window !== "undefined" && SQL_MAP_HOSTS.has(window.location.hostname)) {
-		return "api/app/adventures.php";
+		return "api/app/game-literature.php";
 	}
 	return ""; // e.g. localhost dev without a backend -> ready-empty, place-extras keeps its fallback
 }
 
-function avesmapsApplyAdventureCatalog(catalog, territoryMeta, coversEnabled) {
-	var state = avesmapsAdventureCatalogState;
+function avesmapsApplyGameLiteratureCatalog(catalog, territoryMeta, coversEnabled) {
+	var state = avesmapsGameLiteratureCatalogState;
 	state.catalog = Array.isArray(catalog) ? catalog : [];
 	state.territoryMeta = (territoryMeta && typeof territoryMeta === "object") ? territoryMeta : {};
 	state.coversEnabled = coversEnabled !== false; // default ENABLED; only an explicit false (kill switch) hides covers
-	state.index = avesmapsBuildAdventureIndex(state.catalog, avesmapsNormalizeAdventureKey);
+	state.index = avesmapsBuildGameLiteratureIndex(state.catalog, avesmapsNormalizeGameLiteratureKey);
 	state.loaded = true;
 	if (typeof window !== "undefined") {
-		window.avesmapsAdventureCatalog = state.catalog;
-		window.avesmapsAdventureCatalogReady = true;
+		window.avesmapsGameLiteratureCatalog = state.catalog;
+		window.avesmapsGameLiteratureCatalogReady = true;
 		// A panel opened BEFORE this resolved shows the PLACEHOLDER adventures and their fabricated total
 		// ("Abenteuer in Gareth (57)") -- and keeps showing them, because nothing re-renders. The
 		// placeholder was meant to bridge the load, not to outlive it. Rebuild once (coalesced with the
@@ -456,28 +456,28 @@ function avesmapsApplyAdventureCatalog(catalog, territoryMeta, coversEnabled) {
 
 // Nachladen auf Zuruf (Owner 2026-07-17): der Katalog wurde bisher genau EINMAL geholt -- state.loading
 // merkt sich die Promise, jeder weitere Aufruf bekam die alte Antwort. Wer im Editor etwas aenderte, sah es
-// erst nach F5. Das Zuruecksetzen ist der ganze Trick; avesmapsApplyAdventureCatalog baut danach den Index
+// erst nach F5. Das Zuruecksetzen ist der ganze Trick; avesmapsApplyGameLiteratureCatalog baut danach den Index
 // neu UND zeichnet ein offenes Panel neu. Aufrufer: das Schliessen des Abenteuer-Editors.
-function avesmapsReloadAdventureCatalog() {
-	avesmapsAdventureCatalogState.loading = null;
-	return avesmapsLoadAdventureCatalog();
+function avesmapsReloadGameLiteratureCatalog() {
+	avesmapsGameLiteratureCatalogState.loading = null;
+	return avesmapsLoadGameLiteratureCatalog();
 }
 
-// Load the catalog once. Injected window.AVESMAPS_ADVENTURE_CATALOG (repro harness / tests) bypasses
+// Load the catalog once. Injected window.AVESMAPS_GAME_LITERATURE_CATALOG (repro harness / tests) bypasses
 // the fetch. Returns a promise resolving to the catalog array.
-function avesmapsLoadAdventureCatalog() {
-	var state = avesmapsAdventureCatalogState;
+function avesmapsLoadGameLiteratureCatalog() {
+	var state = avesmapsGameLiteratureCatalogState;
 	if (state.loading) {
 		return state.loading;
 	}
-	if (typeof window !== "undefined" && Array.isArray(window.AVESMAPS_ADVENTURE_CATALOG)) {
-		avesmapsApplyAdventureCatalog(window.AVESMAPS_ADVENTURE_CATALOG, window.AVESMAPS_ADVENTURE_TERRITORY_META, window.AVESMAPS_ADVENTURE_COVERS_ENABLED);
+	if (typeof window !== "undefined" && Array.isArray(window.AVESMAPS_GAME_LITERATURE_CATALOG)) {
+		avesmapsApplyGameLiteratureCatalog(window.AVESMAPS_GAME_LITERATURE_CATALOG, window.AVESMAPS_GAME_LITERATURE_TERRITORY_META, window.AVESMAPS_GAME_LITERATURE_COVERS_ENABLED);
 		state.loading = Promise.resolve(state.catalog);
 		return state.loading;
 	}
-	var url = avesmapsAdventuresEndpointUrl();
+	var url = avesmapsGameLiteratureEndpointUrl();
 	if (!url || typeof fetch !== "function") {
-		avesmapsApplyAdventureCatalog([], {});
+		avesmapsApplyGameLiteratureCatalog([], {});
 		state.loading = Promise.resolve(state.catalog);
 		return state.loading;
 	}
@@ -487,7 +487,7 @@ function avesmapsLoadAdventureCatalog() {
 			var catalog = data && data.ok && Array.isArray(data.adventures) ? data.adventures : [];
 			var meta = data && data.territory_meta && typeof data.territory_meta === "object" ? data.territory_meta : {};
 			var coversEnabled = data ? (data.covers_enabled !== false) : true;
-			avesmapsApplyAdventureCatalog(catalog, meta, coversEnabled);
+			avesmapsApplyGameLiteratureCatalog(catalog, meta, coversEnabled);
 			return state.catalog;
 		})
 		.catch(function () {
@@ -499,13 +499,13 @@ function avesmapsLoadAdventureCatalog() {
 	return state.loading;
 }
 
-function avesmapsAdventureCatalogIsReady() {
-	return avesmapsAdventureCatalogState.loaded === true && !!avesmapsAdventureCatalogState.index;
+function avesmapsGameLiteratureCatalogIsReady() {
+	return avesmapsGameLiteratureCatalogState.loaded === true && !!avesmapsGameLiteratureCatalogState.index;
 }
 
 // Build a place reference { publicId, key } from a location-like object (settlement popup passes the
 // map-features `location`, which carries publicId + wikiUrl).
-function avesmapsBuildAdventurePlaceRef(placeRef) {
+function avesmapsBuildGameLiteraturePlaceRef(placeRef) {
 	if (!placeRef) {
 		return {};
 	}
@@ -515,39 +515,39 @@ function avesmapsBuildAdventurePlaceRef(placeRef) {
 	if (wikiUrl && typeof wikiUrlToDeeplinkKey === "function" && typeof normalizeWikiDeeplinkKey === "function") {
 		key = normalizeWikiDeeplinkKey(wikiUrlToDeeplinkKey(wikiUrl));
 	} else if (placeRef.wikiKey || placeRef.wiki_key) {
-		key = avesmapsNormalizeAdventureKey(placeRef.wikiKey || placeRef.wiki_key);
+		key = avesmapsNormalizeGameLiteratureKey(placeRef.wikiKey || placeRef.wiki_key);
 	}
 	return { publicId: publicId, key: key };
 }
 
 // Adventures for a place, in render shape. opts.role: 'start' (beginnt, default) | 'play' (spielt) | 'all'.
-function getAdventuresForPlace(placeRef, opts) {
-	var index = avesmapsAdventureCatalogState.index;
+function getGameLiteratureForPlace(placeRef, opts) {
+	var index = avesmapsGameLiteratureCatalogState.index;
 	if (!index) {
 		return [];
 	}
 	var role = (opts && opts.role) || "start";
-	var ref = avesmapsBuildAdventurePlaceRef(placeRef);
-	return avesmapsSelectAdventureEntries(index, ref, role).map(function (entry) {
-		return avesmapsAdventureToRenderShape(entry.adv);
+	var ref = avesmapsBuildGameLiteraturePlaceRef(placeRef);
+	return avesmapsSelectGameLiteratureEntries(index, ref, role).map(function (entry) {
+		return avesmapsGameLiteratureToRenderShape(entry.adv);
 	});
 }
 
 // Adventures aggregated over a TERRITORY/REGION SUBTREE, in render shape (Phase 2). territoryWikiKey = the
 // political territory's wiki_key (server 'wiki:'-form, same axis as the per-place territory_path).
 // opts.role: 'start' (beginnt) | 'play' (spielt) | 'all'. Deduped by adventure.
-function getAdventuresForTerritory(territoryWikiKey, opts) {
-	var index = avesmapsAdventureCatalogState.index;
+function getGameLiteratureForTerritory(territoryWikiKey, opts) {
+	var index = avesmapsGameLiteratureCatalogState.index;
 	if (!index) {
 		return [];
 	}
 	var role = (opts && opts.role) || "start";
-	var key = avesmapsNormalizeAdventureKey(territoryWikiKey);
+	var key = avesmapsNormalizeGameLiteratureKey(territoryWikiKey);
 	if (!key) {
 		return [];
 	}
-	return avesmapsSelectAdventureEntries(index, { territoryKey: key }, role).map(function (entry) {
-		return avesmapsAdventureToRenderShape(entry.adv);
+	return avesmapsSelectGameLiteratureEntries(index, { territoryKey: key }, role).map(function (entry) {
+		return avesmapsGameLiteratureToRenderShape(entry.adv);
 	});
 }
 
@@ -555,8 +555,8 @@ function getAdventuresForTerritory(territoryWikiKey, opts) {
 // targets (no political subtree) -> a flat strip like a settlement. regionRef = the map label / regionEntry
 // (carries .publicId + optionally .wikiRegion.wiki_key). Primary match = the region label's public_id (what
 // the resolver stores as target_public_id, exact, no umlaut divergence); wiki_key is a fallback.
-function getAdventuresForRegion(regionRef, opts) {
-	var index = avesmapsAdventureCatalogState.index;
+function getGameLiteratureForRegion(regionRef, opts) {
+	var index = avesmapsGameLiteratureCatalogState.index;
 	if (!index || !regionRef) {
 		return [];
 	}
@@ -569,21 +569,21 @@ function getAdventuresForRegion(regionRef, opts) {
 		ref.regionPublicId = publicId;
 	}
 	if (rawKey) {
-		ref.regionKey = avesmapsNormalizeAdventureKey(rawKey);
+		ref.regionKey = avesmapsNormalizeGameLiteratureKey(rawKey);
 	}
 	if (!ref.regionPublicId && !ref.regionKey) {
 		return [];
 	}
-	return avesmapsSelectAdventureEntries(index, ref, role).map(function (entry) {
-		return avesmapsAdventureToRenderShape(entry.adv);
+	return avesmapsSelectGameLiteratureEntries(index, ref, role).map(function (entry) {
+		return avesmapsGameLiteratureToRenderShape(entry.adv);
 	});
 }
 
 // Adventures assigned to a path/Weg, in render shape (Phase 2, paths). pathRef = { publicId, wikiKey }. Paths
 // are segmented (one wiki_path namespace spans many segments) -> the wiki_key is the robust match axis; the
 // clicked segment's public_id is a secondary exact match. Flat strip (a path is a leaf target).
-function getAdventuresForPath(pathRef, opts) {
-	var index = avesmapsAdventureCatalogState.index;
+function getGameLiteratureForPath(pathRef, opts) {
+	var index = avesmapsGameLiteratureCatalogState.index;
 	if (!index || !pathRef) {
 		return [];
 	}
@@ -595,13 +595,13 @@ function getAdventuresForPath(pathRef, opts) {
 		ref.pathPublicId = publicId;
 	}
 	if (rawKey) {
-		ref.pathKey = avesmapsNormalizeAdventureKey(rawKey);
+		ref.pathKey = avesmapsNormalizeGameLiteratureKey(rawKey);
 	}
 	if (!ref.pathPublicId && !ref.pathKey) {
 		return [];
 	}
-	return avesmapsSelectAdventureEntries(index, ref, role).map(function (entry) {
-		return avesmapsAdventureToRenderShape(entry.adv);
+	return avesmapsSelectGameLiteratureEntries(index, ref, role).map(function (entry) {
+		return avesmapsGameLiteratureToRenderShape(entry.adv);
 	});
 }
 
@@ -609,12 +609,12 @@ function getAdventuresForPath(pathRef, opts) {
 // territoryWikiKey (server 'wiki:'-form, same axis as territory_path). Returns null when the catalog is not
 // ready or the key is empty. Each node carries name+rank (from territory_meta) and its direct start/play
 // adventure render shapes; the dialog renders nested frames + filter bar from it.
-function getAdventureTerritoryTree(territoryWikiKey) {
-	var state = avesmapsAdventureCatalogState;
+function getGameLiteratureTerritoryTree(territoryWikiKey) {
+	var state = avesmapsGameLiteratureCatalogState;
 	if (!state.index) {
 		return null;
 	}
-	return avesmapsBuildAdventureTerritoryTree(state.catalog, state.territoryMeta || {}, territoryWikiKey, avesmapsNormalizeAdventureKey);
+	return avesmapsBuildGameLiteratureTerritoryTree(state.catalog, state.territoryMeta || {}, territoryWikiKey, avesmapsNormalizeGameLiteratureKey);
 }
 
 // The full render shape of ONE catalog adventure by public_id -- links (with their checked state)
@@ -625,19 +625,19 @@ function getAdventureTerritoryTree(territoryWikiKey) {
 // Deliberately not a place query: re-running the place lookup could return a different set than the strip
 // rendered, and the two disagreeing is the exact failure the data-driven rebuild is meant to end. null
 // (placeholder data, or a card rendered before the catalog landed) is a valid answer, not an error.
-function getAdventureShape(publicId) {
-	var index = avesmapsAdventureCatalogState.index;
+function getGameLiteratureShape(publicId) {
+	var index = avesmapsGameLiteratureCatalogState.index;
 	if (!index || !publicId) {
 		return null;
 	}
 	var adventure = index.byPublicId[publicId];
-	return adventure ? avesmapsAdventureToRenderShape(adventure) : null;
+	return adventure ? avesmapsGameLiteratureToRenderShape(adventure) : null;
 }
 
 // All places of one adventure (in sort_order). Returns the raw place objects (general catalog accessor,
 // e.g. for a future editor-defined route). The list order is wiki position, NOT a route.
-function getAdventurePlaces(publicId) {
-	var index = avesmapsAdventureCatalogState.index;
+function getGameLiteraturePlaces(publicId) {
+	var index = avesmapsGameLiteratureCatalogState.index;
 	if (!index || !publicId) {
 		return [];
 	}
@@ -648,39 +648,39 @@ function getAdventurePlaces(publicId) {
 // ---- exports -------------------------------------------------------------------------------------
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
-		avesmapsAdventureProductTypeLabel: avesmapsAdventureProductTypeLabel,
-		avesmapsAdventureEditionSortKey: avesmapsAdventureEditionSortKey,
-		avesmapsCompareAdventureRecency: avesmapsCompareAdventureRecency,
-		avesmapsNormalizeAdventureKey: avesmapsNormalizeAdventureKey,
-		avesmapsAdventureToRenderShape: avesmapsAdventureToRenderShape,
-		avesmapsBuildAdventureIndex: avesmapsBuildAdventureIndex,
-		avesmapsSelectAdventureEntries: avesmapsSelectAdventureEntries,
-		avesmapsBuildAdventureTerritoryTree: avesmapsBuildAdventureTerritoryTree,
-		avesmapsAdventureFacetOptions: avesmapsAdventureFacetOptions,
-		avesmapsAdventureMatchesFilter: avesmapsAdventureMatchesFilter,
-		avesmapsAdventurePrettifyKey: avesmapsAdventurePrettifyKey,
+		avesmapsGameLiteratureProductTypeLabel: avesmapsGameLiteratureProductTypeLabel,
+		avesmapsGameLiteratureEditionSortKey: avesmapsGameLiteratureEditionSortKey,
+		avesmapsCompareGameLiteratureRecency: avesmapsCompareGameLiteratureRecency,
+		avesmapsNormalizeGameLiteratureKey: avesmapsNormalizeGameLiteratureKey,
+		avesmapsGameLiteratureToRenderShape: avesmapsGameLiteratureToRenderShape,
+		avesmapsBuildGameLiteratureIndex: avesmapsBuildGameLiteratureIndex,
+		avesmapsSelectGameLiteratureEntries: avesmapsSelectGameLiteratureEntries,
+		avesmapsBuildGameLiteratureTerritoryTree: avesmapsBuildGameLiteratureTerritoryTree,
+		avesmapsGameLiteratureFacetOptions: avesmapsGameLiteratureFacetOptions,
+		avesmapsGameLiteratureMatchesFilter: avesmapsGameLiteratureMatchesFilter,
+		avesmapsGameLiteraturePrettifyKey: avesmapsGameLiteraturePrettifyKey,
 	};
 }
 if (typeof window !== "undefined") {
-	window.avesmapsLoadAdventureCatalog = avesmapsLoadAdventureCatalog;
-	window.avesmapsReloadAdventureCatalog = avesmapsReloadAdventureCatalog;
-	window.avesmapsAdventureCatalogIsReady = avesmapsAdventureCatalogIsReady;
-	window.avesmapsAdventureEditionSortKey = avesmapsAdventureEditionSortKey;
-	window.avesmapsCompareAdventureRecency = avesmapsCompareAdventureRecency;
-	window.getAdventuresForPlace = getAdventuresForPlace;
-	window.getAdventuresForTerritory = getAdventuresForTerritory;
-	window.getAdventuresForRegion = getAdventuresForRegion;
-	window.getAdventuresForPath = getAdventuresForPath;
-	window.getAdventureTerritoryTree = getAdventureTerritoryTree;
-	window.getAdventureShape = getAdventureShape;
-	window.getAdventurePlaces = getAdventurePlaces;
+	window.avesmapsLoadGameLiteratureCatalog = avesmapsLoadGameLiteratureCatalog;
+	window.avesmapsReloadGameLiteratureCatalog = avesmapsReloadGameLiteratureCatalog;
+	window.avesmapsGameLiteratureCatalogIsReady = avesmapsGameLiteratureCatalogIsReady;
+	window.avesmapsGameLiteratureEditionSortKey = avesmapsGameLiteratureEditionSortKey;
+	window.avesmapsCompareGameLiteratureRecency = avesmapsCompareGameLiteratureRecency;
+	window.getGameLiteratureForPlace = getGameLiteratureForPlace;
+	window.getGameLiteratureForTerritory = getGameLiteratureForTerritory;
+	window.getGameLiteratureForRegion = getGameLiteratureForRegion;
+	window.getGameLiteratureForPath = getGameLiteratureForPath;
+	window.getGameLiteratureTerritoryTree = getGameLiteratureTerritoryTree;
+	window.getGameLiteratureShape = getGameLiteratureShape;
+	window.getGameLiteraturePlaces = getGameLiteraturePlaces;
 	// Cover kill switch (owner "emergency off"): false -> place-extras drops the "© Ulisses" cover credit
 	// (covers already render as placeholders because the render shape zeroes cover_url when disabled).
-	window.avesmapsAdventuresCoversEnabled = function () { return avesmapsAdventureCatalogState.coversEnabled !== false; };
-	window.avesmapsAdventureCatalogReady = window.avesmapsAdventureCatalogReady || false;
+	window.avesmapsGameLiteratureCoversEnabled = function () { return avesmapsGameLiteratureCatalogState.coversEnabled !== false; };
+	window.avesmapsGameLiteratureCatalogReady = window.avesmapsGameLiteratureCatalogReady || false;
 	// Kick the single catalog fetch as early as possible when in infopanel mode; the popup opens
 	// (user-initiated) generally after this resolves.
 	if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE) {
-		avesmapsLoadAdventureCatalog();
+		avesmapsLoadGameLiteratureCatalog();
 	}
 }

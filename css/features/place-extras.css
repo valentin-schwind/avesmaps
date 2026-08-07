@@ -377,7 +377,7 @@
 	display: flex;
 	flex-direction: column;
 	/* 860px (Aufgabe B, §2.3): die Zeile braucht 62 + Mitte + 196 plus Padding. Der Nested-Dialog setzt
-	   sich in adventures-dialog.css weiterhin auf seine eigene Breite. */
+	   sich in game-literature-dialog.css weiterhin auf seine eigene Breite. */
 	width: min(860px, 100%);
 	max-height: min(82vh, 900px);
 	background: var(--color-panel);

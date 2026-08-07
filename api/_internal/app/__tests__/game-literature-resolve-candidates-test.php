@@ -3,15 +3,15 @@
 declare(strict_types=1);
 
 /**
- * Regression test for the CANDIDATE LOADER in api/_internal/app/adventure-resolve.php --
- * avesmapsAdventureLoadCandidates(), i.e. "which map_features rows can a place name resolve to".
+ * Regression test for the CANDIDATE LOADER in api/_internal/app/game-literature-resolve.php --
+ * avesmapsGameLiteratureLoadCandidates(), i.e. "which map_features rows can a place name resolve to".
  *
- * Unlike adventure-resolve-test.php (pure matcher, candidate maps handed in ready-made), this one has
+ * Unlike game-literature-resolve-test.php (pure matcher, candidate maps handed in ready-made), this one has
  * to touch a PDO: the bug it guards lives in the loader's SQL WHERE clause, so a test that stubbed the
  * rows out would stay green while the query still filtered them away -- a false green of exactly the
- * kind adventure-resolve-test.php warns about. An in-memory SQLite DB is the smallest thing that
+ * kind game-literature-resolve-test.php warns about. An in-memory SQLite DB is the smallest thing that
  * exercises the REAL query text. No MySQL, no network. Run (Windows), from the repo root:
- *   php -d zend.assertions=1 -d assert.exception=1 -d extension=php_mbstring.dll -d extension=php_pdo_sqlite.dll api/_internal/app/__tests__/adventure-resolve-candidates-test.php
+ *   php -d zend.assertions=1 -d assert.exception=1 -d extension=php_mbstring.dll -d extension=php_pdo_sqlite.dll api/_internal/app/__tests__/game-literature-resolve-candidates-test.php
  * Exit 0 = all asserts passed.
  *
  * WHAT IT PINS (owner report 2026-07-17, "Regengebirge wird nicht aufgelöst"): a landscape label is
@@ -34,7 +34,7 @@ if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
     exit(2);
 }
 
-require __DIR__ . '/../adventure-resolve.php';
+require __DIR__ . '/../game-literature-resolve.php';
 
 // Minimal stand-ins for the two tables the loader reads. Only the columns it selects/filters on --
 // the real DDL lives inline in the app libs and is MySQL-flavoured.
@@ -66,26 +66,26 @@ $label('L-NAMENLOS', 'wald', 'Namenloser Forst');          // control: no wiki l
 $pdo->prepare('UPDATE map_features SET properties_json = :p WHERE public_id = :i')
     ->execute(['p' => json_encode(['name' => 'Namenloser Forst']), 'i' => 'L-NAMENLOS']);
 
-$candidates = avesmapsAdventureLoadCandidates($pdo);
+$candidates = avesmapsGameLiteratureLoadCandidates($pdo);
 
 // 1) THE BUG: a Gebirge label is a region candidate, findable by its page name.
-$m = avesmapsAdventureMatchCandidates('Regengebirge', $candidates);
+$m = avesmapsGameLiteratureMatchCandidates('Regengebirge', $candidates);
 assert($m['kind'] === 'region', "Regengebirge muss als Region aufloesen, war: {$m['kind']}");
 assert($m['public_id'] === 'L-REGENGEBIRGE', "falsche public_id: {$m['public_id']}");
 echo "gebirge-label resolves (Regengebirge) ok\n";
 
 // 2) Same cause, different subtype -- a continent label.
-$m = avesmapsAdventureMatchCandidates('Aventurien', $candidates);
+$m = avesmapsGameLiteratureMatchCandidates('Aventurien', $candidates);
 assert($m['kind'] === 'region' && $m['public_id'] === 'L-AVENTURIEN', 'Aventurien (kontinent) muss aufloesen');
 echo "kontinent-label resolves (Aventurien) ok\n";
 
 // 3) NO REGRESSION: the subtype that already worked still resolves to the same row.
-$m = avesmapsAdventureMatchCandidates('Raschtulswall', $candidates);
+$m = avesmapsGameLiteratureMatchCandidates('Raschtulswall', $candidates);
 assert($m['kind'] === 'region' && $m['public_id'] === 'L-RASCHTULSWALL', 'Raschtulswall darf nicht brechen');
 echo "region-label still resolves (Raschtulswall) ok\n";
 
 // 4) The gate is the WIKI LINK, not the subtype: a label without one stays unresolved.
-$m = avesmapsAdventureMatchCandidates('Namenloser Forst', $candidates);
+$m = avesmapsGameLiteratureMatchCandidates('Namenloser Forst', $candidates);
 assert($m['kind'] === 'unresolved', "Label ohne Wiki-Link darf nicht aufloesen, war: {$m['kind']}");
 echo "label without wiki link stays unresolved ok\n";
 

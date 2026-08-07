@@ -10,7 +10,7 @@
 // window.parent.startLinkCheck(scope, onProgress) -- the same way their "Syncen" buttons already
 // delegate. EACH IS SCOPED to one entity type, so the work splits into portions someone can sit through
 // instead of one ~2851-link, 15-30 min run:
-//   adventure-editor.html          -> 'adventure'          (shop + wiki links of the adventures)
+//   game-literature-editor.html          -> 'adventure'          (shop + wiki links of the adventures)
 //   wiki-sync-settlement-editor    -> 'source_settlement'  (source catalogue links of settlements)
 //   wiki-sync-monitor.html         -> 'source_territory'   (   "        "        of territories)
 //   citymap-editor.html (phase 3)  -> 'citymap'

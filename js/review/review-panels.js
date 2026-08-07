@@ -607,7 +607,7 @@ const AVESMAPS_EDITOR_AREA_LABELS = {
 	settlements: "Siedlungen",
 	powerlines: "Kraftlinien",
 	citymaps: "Kartensammlung",
-	adventures: "Abenteuer",
+	adventures: "Literatur",
 	wikisync: "Datenabgleich",
 	// The map layers. "Politische Karte" is deliberately a different entry from "Territorien" above:
 	// only the editor window carries the write claim, and the panel should show which of the two
@@ -713,7 +713,7 @@ const AVESMAPS_EDITOR_OVERLAY_AREAS = {
 	"avesmaps-settlement-editor-overlay": "settlements",
 	"avesmaps-powerline-editor-overlay": "powerlines",
 	"avesmaps-citymap-editor-overlay": "citymaps",
-	"avesmaps-adventure-editor-overlay": "adventures",
+	"avesmaps-game-literature-editor-overlay": "adventures",
 	"avesmaps-sync-editor-overlay": "wikisync",
 };
 

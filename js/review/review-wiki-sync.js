@@ -397,7 +397,7 @@ function setWikiSyncPanelTab(tabName) {
 		regions: () => (typeof loadRegionWikiSync === "function") && loadRegionWikiSync(),
 		paths: () => (typeof loadPathWikiSync === "function") && loadPathWikiSync(),
 		powerlines: () => (typeof renderPowerlineSyncList === "function") && renderPowerlineSyncList(),
-		adventures: () => (typeof loadWikiSyncAdventureList === "function") && loadWikiSyncAdventureList(),
+		adventures: () => (typeof loadWikiSyncGameLiteratureList === "function") && loadWikiSyncGameLiteratureList(),
 		citymaps: () => (typeof loadWikiSyncCitymapList === "function") && loadWikiSyncCitymapList(),
 		lore: () => (typeof loadLoreList === "function") && loadLoreList("panel"),
 	};
@@ -796,11 +796,11 @@ async function refreshWikiSyncKindSyncedStatus() {
 		// ⚠️ Siedlungen/Wege/Regionen stehen hier NICHT mehr -- die Schleife darueber erledigt sie,
 		// seit deren `synced`-Verweise auf die echten Spans zeigen. Zwei Stellen fuer dasselbe Feld
 		// waren genau der Grund, warum das Fehlen bei Wegen und Regionen so lange unbemerkt blieb.
-		// ⚠️ `wiki-sync-sync-adventure-synced` stand hier und existiert in keiner Zeile Markup --
+		// ⚠️ `wiki-sync-sync-game-literature-synced` stand hier und existiert in keiner Zeile Markup --
 		// gefunden von js/review/__tests__/sync-synced-ids.test.js. Folgenlos, weil Abenteuer
-		// daneben `adventure-editor-synced` haben, aber genau diese Art Verweis war das eigentliche
+		// daneben `game-literature-editor-synced` haben, aber genau diese Art Verweis war das eigentliche
 		// Problem: er schreibt still nirgendwohin.
-		[["wiki-sync-territory-synced", "territory"], ["adventure-editor-synced", "adventure"], ["citymaps-editor-synced", "citymap"], ["powerline-editor-synced", "powerline"]].forEach(([id, kind]) => {
+		[["wiki-sync-territory-synced", "territory"], ["game-literature-editor-synced", "adventure"], ["citymaps-editor-synced", "citymap"], ["powerline-editor-synced", "powerline"]].forEach(([id, kind]) => {
 			const el = document.getElementById(id);
 			if (!el) {
 				return;
@@ -1897,9 +1897,9 @@ async function startWikiSyncPowerlines() {
 // docs/superpowers/specs/2026-08-06-sync-uebernahme-design.md.
 //
 // Zwei Auslöser, ein Lauf: „🚨 Abenteuer syncen" im Menüband des Abenteuereditors
-// (window.parent.startWikiSyncAdventuresSync({ openSheet: false }) -- der Editor öffnet
+// (window.parent.startWikiSyncGameLiteratureSync({ openSheet: false }) -- der Editor öffnet
 // das Blatt in seiner eigenen Seite, weil der Wirt DIESER Seite hinter dem Editorfenster
-// läge) und der Verb-Knopf im WikiSync-Panel, der #wiki-sync-sync-adventure anklickt und
+// läge) und der Verb-Knopf im WikiSync-Panel, der #wiki-sync-sync-game-literature anklickt und
 // das Blatt hier öffnet.
 //
 // Die Override-Garantie (niemals eine manuelle/community/unterdrückte Zeile anfassen,
@@ -1909,13 +1909,13 @@ async function startWikiSyncPowerlines() {
 // Backend: api/edit/wiki/dump.php (sync_adventures).
 // ===========================================================================
 
-let isWikiSyncAdventuresRunning = false;
+let isWikiSyncGameLiteratureRunning = false;
 
 // Render the adventure-compare progress bar + status line from a step response.
 // `totals` carries the run-summed counters the loop accumulates (each step's counters start
 // at 0). progress.total is the staging catalog size (the "N Abenteuer geprüft" cap).
-function renderWikiSyncAdventuresProgress(step, done, totals) {
-	const button = document.getElementById("wiki-sync-sync-adventure");
+function renderWikiSyncGameLiteratureProgress(step, done, totals) {
+	const button = document.getElementById("wiki-sync-sync-game-literature");
 	if (!button) {
 		return;
 	}
@@ -1930,9 +1930,9 @@ function renderWikiSyncAdventuresProgress(step, done, totals) {
 		if (typeof showFeedbackToast === "function") {
 			showFeedbackToast(
 				differences > 0
-					? `Abenteuer: ${differences} Unterschiede — Vorschau offen (${Number(counts.new ?? 0)} neu, `
+					? `Literatur: ${differences} Unterschiede — Vorschau offen (${Number(counts.new ?? 0)} neu, `
 						+ `${Number(counts.changed ?? 0)} geändert · ${totals.processed} geprüft).`
-					: `Abenteuer: keine Unterschiede (${totals.processed} geprüft).`,
+					: `Literatur: keine Unterschiede (${totals.processed} geprüft).`,
 				"success"
 			);
 		}
@@ -1942,7 +1942,7 @@ function renderWikiSyncAdventuresProgress(step, done, totals) {
 	}
 
 	setWikiSyncButtonState(button, {
-		label: `Vergleicht … ${processed}${total > 0 ? "/" + total : ""} Abenteuer`,
+		label: `Vergleicht … ${processed}${total > 0 ? "/" + total : ""} Werke`,
 		current: processed,
 		total,
 		running: true,
@@ -1954,7 +1954,7 @@ function renderWikiSyncAdventuresProgress(step, done, totals) {
 // until done. Mirrors runWikiSyncCitymapsSyncLoop (bounded step ceiling; stops cleanly on
 // the 409 pipeline lock). Reads staging + live DB only (no dump reopen, and since the split:
 // no write either).
-async function runWikiSyncAdventuresSyncLoop() {
+async function runWikiSyncGameLiteratureSyncLoop() {
 	let cursor = "";
 	let done = false;
 	let safetyCounter = 0;
@@ -1965,7 +1965,7 @@ async function runWikiSyncAdventuresSyncLoop() {
 
 	while (!done) {
 		if (safetyCounter > MAX_STEPS) {
-			throw new Error("Der Abenteuer-Abgleich wurde nach zu vielen Teilschritten angehalten.");
+			throw new Error("Der Literatur-Abgleich wurde nach zu vielen Teilschritten angehalten.");
 		}
 		safetyCounter += 1;
 
@@ -1986,7 +1986,7 @@ async function runWikiSyncAdventuresSyncLoop() {
 		totals.planned += Number(stepResult.planned ?? 0);
 		totals.processed += Number(stepResult.processed ?? 0);
 		done = stepResult.done === true;
-		renderWikiSyncAdventuresProgress(stepResult, done, totals);
+		renderWikiSyncGameLiteratureProgress(stepResult, done, totals);
 	}
 
 	if (lastResult && typeof lastResult === "object") {
@@ -1995,26 +1995,26 @@ async function runWikiSyncAdventuresSyncLoop() {
 	return lastResult;
 }
 
-// The "Abenteuer" sync entry point. Global on purpose: html/adventure-editor.html runs in an
-// iframe and calls window.parent.startWikiSyncAdventuresSync({ openSheet: false }) -- it opens
+// The "Abenteuer" sync entry point. Global on purpose: html/game-literature-editor.html runs in an
+// iframe and calls window.parent.startWikiSyncGameLiteratureSync({ openSheet: false }) -- it opens
 // the preview in its OWN page, because this page's host would sit behind the editor window.
 // Re-entrancy guarded, so a double click is a no-op.
 //
 // Returns { run_id, counts } so the caller can open the preview; opens it here itself when the
 // trigger was the panel's verb button (no options, or openSheet !== false).
-async function startWikiSyncAdventuresSync(options) {
-	if (isWikiSyncAdventuresRunning) {
+async function startWikiSyncGameLiteratureSync(options) {
+	if (isWikiSyncGameLiteratureRunning) {
 		return null;
 	}
-	isWikiSyncAdventuresRunning = true;
-	const button = document.getElementById("wiki-sync-sync-adventure");
+	isWikiSyncGameLiteratureRunning = true;
+	const button = document.getElementById("wiki-sync-sync-game-literature");
 	if (button) {
 		button.disabled = true;
 	}
-	setWikiSyncStatus("Abenteuer werden verglichen …", "pending");
+	setWikiSyncStatus("Literatur wird verglichen …", "pending");
 
 	try {
-		const result = await runWikiSyncAdventuresSyncLoop();
+		const result = await runWikiSyncGameLiteratureSyncLoop();
 		// Die Zahlen der letzten Antwort: nur der ABSCHLIESSENDE Schritt kennt sie vollständig.
 		const counts = (result && result.counts) || {};
 		const total = Number(counts.total ?? 0);
@@ -2042,12 +2042,12 @@ async function startWikiSyncAdventuresSync(options) {
 		return { run_id: runId, counts: counts };
 	} catch (error) {
 		if (!(error && error.dumpLocked)) {
-			setWikiSyncStatus(error.message || "Abenteuer-Abgleich fehlgeschlagen.", "error");
-			showFeedbackToast(error.message || "Abenteuer-Abgleich fehlgeschlagen.", "warning");
+			setWikiSyncStatus(error.message || "Literatur-Abgleich fehlgeschlagen.", "error");
+			showFeedbackToast(error.message || "Literatur-Abgleich fehlgeschlagen.", "warning");
 		}
 		throw error; // the editor's button shows its own failure text
 	} finally {
-		isWikiSyncAdventuresRunning = false;
+		isWikiSyncGameLiteratureRunning = false;
 		if (button) {
 			button.disabled = false;
 		}
@@ -2082,7 +2082,7 @@ let isWikiSyncCitymapsRunning = false;
 
 // Drive `sync_citymaps` to completion: loop the action once per step, advancing the
 // server-returned wiki_key high-water `cursor` (a STRING) and SUMMING the per-step
-// deltas until done. Mirrors runWikiSyncAdventuresSyncLoop (bounded step ceiling;
+// deltas until done. Mirrors runWikiSyncGameLiteratureSyncLoop (bounded step ceiling;
 // stops cleanly on the 409 pipeline lock). Reads staging + live DB only (no dump reopen,
 // and since the split: no write either).
 async function runWikiSyncCitymapsSyncLoop() {

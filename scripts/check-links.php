@@ -30,7 +30,7 @@ require_once __DIR__ . '/../api/_internal/linkcheck/providers.php';
 $confirm = in_array('--confirm', $argv, true);
 $syncOnly = in_array('--sync-only', $argv, true);
 
-// Same bootstrap contract the app endpoints use (see api/app/adventures.php).
+// Same bootstrap contract the app endpoints use (see api/app/game-literature.php).
 $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 $pdo = avesmapsCreatePdo($config['database'] ?? []);
 avesmapsLinkCheckEnsureTables($pdo);

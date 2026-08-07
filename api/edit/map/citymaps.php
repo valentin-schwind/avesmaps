@@ -5,13 +5,13 @@ declare(strict_types=1);
 require __DIR__ . '/../../_internal/auth.php';
 
 // Editor writes for the Kartensammlung (Spec §3.5) -- tables citymap / citymap_type / citymap_place /
-// citymap_related. Mirrors the adventures.php dispatcher. avesmapsUuidV4() (new citymap public_ids) lives
+// citymap_related. Mirrors the game-literature.php dispatcher. avesmapsUuidV4() (new citymap public_ids) lives
 // in the map-features library and is not pulled in by the citymap library, so load it here; the resolver
 // is loaded for add_place's wiki-key backfill and for resolve_place. The write logic lives in the
 // app-layer library -- the dispatcher stays thin.
 require_once __DIR__ . '/../../_internal/map/features.php';
 require_once __DIR__ . '/../../_internal/app/citymaps.php';
-require_once __DIR__ . '/../../_internal/app/adventure-resolve.php';
+require_once __DIR__ . '/../../_internal/app/game-literature-resolve.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());

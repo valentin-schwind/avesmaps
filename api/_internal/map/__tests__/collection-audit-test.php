@@ -143,9 +143,9 @@ assert($writerParams[1]->getName() === 'featureId' && $writerParams[1]->allowsNu
 // Asserting the library alone proves nothing about what ships -- this project has had a green test on
 // top of a live bug for exactly that reason. Read as text: requiring them would pull in MySQL DDL.
 $citymapSource = file_get_contents(__DIR__ . '/../../app/citymaps.php');
-$adventureSource = file_get_contents(__DIR__ . '/../../app/adventures.php');
+$gameLiteratureSource = file_get_contents(__DIR__ . '/../../app/game-literature.php');
 $loreSource = file_get_contents(__DIR__ . '/../../app/lore-edit.php');
-assert(is_string($citymapSource) && is_string($adventureSource) && is_string($loreSource), 'the three libraries are readable');
+assert(is_string($citymapSource) && is_string($gameLiteratureSource) && is_string($loreSource), 'the three libraries are readable');
 
 /**
  * The body of one function with all COMMENTS REMOVED, so an assertion cannot pass on a match somewhere
@@ -171,7 +171,7 @@ $bodyOf = static function (string $source, string $signature): string {
 };
 
 $deleteCitymapBody = $bodyOf($citymapSource, 'function avesmapsDeleteCitymap(');
-$deleteAdventureBody = $bodyOf($adventureSource, 'function avesmapsDeleteAdventure(');
+$deleteGameLiteratureBody = $bodyOf($gameLiteratureSource, 'function avesmapsDeleteGameLiterature(');
 $removeLorePlaceBody = $bodyOf($loreSource, 'function avesmapsLoreRemovePlace(');
 
 // ⚠️ Anchored at FUNCTION-BODY indentation (a newline and exactly four spaces). The second net after
@@ -182,7 +182,7 @@ assert(
     'deleting a citymap writes a trail, unconditionally'
 );
 assert(
-    preg_match("/\n {4}avesmapsLogCollectionDeletion\(\\\$pdo, 'delete_adventure',/", $deleteAdventureBody) === 1,
+    preg_match("/\n {4}avesmapsLogCollectionDeletion\(\\\$pdo, 'delete_adventure',/", $deleteGameLiteratureBody) === 1,
     'deleting an adventure writes a trail, unconditionally'
 );
 assert(
@@ -200,8 +200,8 @@ assert(
 $commitAt = strpos($deleteCitymapBody, '$pdo->commit();');
 $logAt = strpos($deleteCitymapBody, 'avesmapsLogCollectionDeletion(');
 assert(is_int($commitAt) && is_int($logAt) && $commitAt < $logAt, 'the citymap trail is written after the commit');
-$commitAt = strpos($deleteAdventureBody, '$pdo->commit();');
-$logAt = strpos($deleteAdventureBody, 'avesmapsLogCollectionDeletion(');
+$commitAt = strpos($deleteGameLiteratureBody, '$pdo->commit();');
+$logAt = strpos($deleteGameLiteratureBody, 'avesmapsLogCollectionDeletion(');
 assert(is_int($commitAt) && is_int($logAt) && $commitAt < $logAt, 'the adventure trail is written after the commit');
 
 // ⚠️ And the previous state has to be READ before the row is gone -- afterwards there is no `before`.
@@ -211,12 +211,12 @@ assert(is_int($readAt) && is_int($writeAt) && $readAt < $writeAt, 'the occurrenc
 
 // 💣 The library has to LOAD the writer, or the call is an undefined function that the writer's own
 // try/catch cannot even see. Loaded inside the delete function on purpose: app/citymaps.php and
-// app/adventures.php are on PUBLIC read paths (api/app/citymaps.php, map-search.php, report-location.php)
+// app/game-literature.php are on PUBLIC read paths (api/app/citymaps.php, map-search.php, report-location.php)
 // and must not carry map/features.php on every visitor request.
 foreach (
     [
         'citymap' => $deleteCitymapBody,
-        'adventure' => $deleteAdventureBody,
+        'adventure' => $deleteGameLiteratureBody,
         'lore' => $removeLorePlaceBody,
     ] as $label => $body
 ) {
@@ -226,7 +226,7 @@ foreach (
     );
 }
 // The other half of that rule: NOT at file scope, or every public read pays for it.
-foreach (['citymaps' => $citymapSource, 'adventures' => $adventureSource] as $label => $source) {
+foreach (['citymaps' => $citymapSource, 'adventures' => $gameLiteratureSource] as $label => $source) {
     assert(
         preg_match('#^require(_once)? __DIR__ \. \'/\.\./map/#m', (string) $source) !== 1,
         "app/{$label}.php does not pull the map library in at file scope -- it is on a public read path"
@@ -236,7 +236,7 @@ foreach (['citymaps' => $citymapSource, 'adventures' => $adventureSource] as $la
 // 💣 And every audit write from these files passes NULL as the feature id. This is the assertion §5 of
 // the design asks for, and it is the one that catches the trap of §3 at the source.
 foreach (
-    ['citymaps.php' => $citymapSource, 'adventures.php' => $adventureSource, 'lore-edit.php' => $loreSource,
+    ['citymaps.php' => $citymapSource, 'game-literature.php' => $gameLiteratureSource, 'lore-edit.php' => $loreSource,
         'collection-audit.php' => file_get_contents(__DIR__ . '/../collection-audit.php')] as $file => $source
 ) {
     assert(is_string($source), "{$file} is readable");
@@ -252,19 +252,19 @@ foreach (
 
 // ---- The three endpoints must hand the user down ---------------------------------------------------
 //
-// citymaps.php already kept $user; adventures.php and lore.php threw the return value of
+// citymaps.php already kept $user; game-literature.php and lore.php threw the return value of
 // avesmapsRequireUserWithCapability away, so without this the trail would say "system" for a person who
 // is sitting right there and is logged in.
 $citymapEndpoint = file_get_contents(__DIR__ . '/../../../edit/map/citymaps.php');
-$adventureEndpoint = file_get_contents(__DIR__ . '/../../../edit/map/adventures.php');
+$gameLiteratureEndpoint = file_get_contents(__DIR__ . '/../../../edit/map/game-literature.php');
 $loreEndpoint = file_get_contents(__DIR__ . '/../../../edit/map/lore.php');
 assert(
     str_contains($citymapEndpoint, 'avesmapsDeleteCitymap($pdo, $publicId, $user)'),
     'the citymap endpoint names the acting editor'
 );
 assert(
-    str_contains($adventureEndpoint, 'avesmapsDeleteAdventure($pdo, $publicId, $user)')
-        && str_contains($adventureEndpoint, "\$user = avesmapsRequireUserWithCapability('edit');"),
+    str_contains($gameLiteratureEndpoint, 'avesmapsDeleteGameLiterature($pdo, $publicId, $user)')
+        && str_contains($gameLiteratureEndpoint, "\$user = avesmapsRequireUserWithCapability('edit');"),
     'the adventure endpoint keeps the user it authenticated'
 );
 assert(

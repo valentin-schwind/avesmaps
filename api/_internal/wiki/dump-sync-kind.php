@@ -173,10 +173,10 @@ function avesmapsWikiDumpSyncKindLastSynced(PDO $pdo): array
 
     // Abenteuer are NOT a task-facing sync_kind (no entity sandbox), but the panel's "Zuletzt gesynct"
     // label reuses this same map. Fill it from the adventure reconcile timestamp
-    // (avesmapsAdventureLastSynced, loaded by the dump endpoint). Guarded so a context without the
+    // (avesmapsGameLiteratureLastSynced, loaded by the dump endpoint). Guarded so a context without the
     // adventure lib still returns the four real kinds unchanged.
-    if (function_exists('avesmapsAdventureLastSynced')) {
-        $result['adventure'] = avesmapsAdventureLastSynced($pdo);
+    if (function_exists('avesmapsGameLiteratureLastSynced')) {
+        $result['adventure'] = avesmapsGameLiteratureLastSynced($pdo);
     }
     // Karten are not a sync_kind either; two labels read this map and they need DIFFERENT answers:
     //   citymap        -- when "Karten syncen" last completed. The ribbon button asks this.

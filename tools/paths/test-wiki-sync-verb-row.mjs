@@ -66,7 +66,7 @@ const buttons = {};
 	["regions", "wiki-sync-sync-region"],
 	["paths", "wiki-sync-sync-path"],
 	["powerlines", "wiki-sync-powerlines-sync"],
-	["adventures", "adventure-editor-open"],
+	["adventures", "game-literature-editor-open"],
 	["citymaps", "citymaps-editor-open"],
 	["lore", "wiki-sync-lore-open"],
 ].forEach(([subject, buttonId]) => {

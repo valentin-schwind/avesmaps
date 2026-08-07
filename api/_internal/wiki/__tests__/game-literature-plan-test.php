@@ -7,7 +7,7 @@ declare(strict_types=1);
  * docs/superpowers/specs/2026-08-06-sync-uebernahme-design.md §2/§7, Bauplan Sitzung 2 Task 1.
  * Run:
  *   php -d zend.assertions=1 -d assert.exception=1 -d extension=php_mbstring.dll \
- *       -d extension=php_pdo_sqlite.dll api/_internal/wiki/__tests__/adventure-plan-test.php
+ *       -d extension=php_pdo_sqlite.dll api/_internal/wiki/__tests__/game-literature-plan-test.php
  * Exit 0 = alle Zusicherungen halten.
  */
 if (ini_get('zend.assertions') !== '1') {
@@ -17,7 +17,7 @@ if (ini_get('zend.assertions') !== '1') {
 }
 
 require_once __DIR__ . '/../sync-plan.php';
-require_once __DIR__ . '/../adventure-sync.php';
+require_once __DIR__ . '/../game-literature-sync.php';
 
 // =================================================================================================
 // Teil 1: die reine Zeilenbildung (ohne DB)
@@ -32,7 +32,7 @@ $desired = [
 $noPlaces = ['add' => [], 'update' => [], 'remove' => []];
 
 // --- Neu ---------------------------------------------------------------------------------------
-$item = avesmapsAdventurePlanItem(null, $desired, [], [
+$item = avesmapsGameLiteraturePlanItem(null, $desired, [], [
     'add' => [['sort_order' => 0, 'raw_name' => 'Havena', 'role' => 'start']],
     'update' => [], 'remove' => [],
 ], false, false);
@@ -44,14 +44,14 @@ assert($item['after']['places'] === '1 neu', 'die Orte stehen als kurzer Text in
 // --- Nichts zu tun = keine Zeile ----------------------------------------------------------------
 $gleich = $desired + ['cover_url' => '', 'cover_source' => ''];
 assert(
-    avesmapsAdventurePlanItem($gleich, $desired, [], $noPlaces, false, false) === null,
+    avesmapsGameLiteraturePlanItem($gleich, $desired, [], $noPlaces, false, false) === null,
     'ein zweiter Lauf ohne Unterschied erzeugt KEINE Zeile'
 );
 
 // --- Geändert: nur die abweichenden Felder ------------------------------------------------------
 $alt = $gleich;
 $alt['genre'] = 'Reise';
-$item = avesmapsAdventurePlanItem($alt, $desired, [], $noPlaces, false, false);
+$item = avesmapsGameLiteraturePlanItem($alt, $desired, [], $noPlaces, false, false);
 assert($item['change_type'] === 'changed');
 assert(array_keys($item['after']) === ['genre'], 'nur das abweichende Feld, keine ganze Zeile');
 assert($item['before']['genre'] === 'Reise');
@@ -59,24 +59,24 @@ assert($item['before']['genre'] === 'Reise');
 // --- 💣 Ein Feld-Override ist ein „bleibt", keine Änderung ---------------------------------------
 // Abenteuer sind die erste Art mit Overrides JE FELD (field_origins_json) -- bei den Karten ist der
 // Override die ganze Karte. Genau dafür steht override_json im Entwurf §5.
-$item = avesmapsAdventurePlanItem($alt, $desired, ['genre' => 'manual'], $noPlaces, false, false);
+$item = avesmapsGameLiteraturePlanItem($alt, $desired, ['genre' => 'manual'], $noPlaces, false, false);
 assert($item === null, 'ist das einzige abweichende Feld von Hand gesetzt, gibt es nichts zu fragen');
 $alt2 = $alt;
 $alt2['authors'] = 'Unbekannt';
-$item = avesmapsAdventurePlanItem($alt2, $desired, ['genre' => 'manual'], $noPlaces, false, false);
+$item = avesmapsGameLiteraturePlanItem($alt2, $desired, ['genre' => 'manual'], $noPlaces, false, false);
 assert(isset($item['override']['genre']) && $item['override']['genre'] === 'Reise');
 assert(!isset($item['after']['genre']), 'und wird NICHT als Änderung vorgeschlagen');
 assert(isset($item['after']['authors']), 'die andere Änderung steht sehr wohl da');
 
 // --- Das Titelbild: die Zeile sagt es, der Rechenlauf lädt es NICHT ------------------------------
-// 💣 avesmapsAdventureSaveCoverLocal holt das Bild über HTTP und schreibt es nach
+// 💣 avesmapsGameLiteratureSaveCoverLocal holt das Bild über HTTP und schreibt es nach
 // /uploads/questcovers. In der Rechen-Hälfte hat es nichts zu suchen -- die Zeile trägt deshalb
 // einen Satz statt einer URL, die es noch nicht gibt.
-$item = avesmapsAdventurePlanItem($gleich, $desired, [], $noPlaces, true, false);
+$item = avesmapsGameLiteraturePlanItem($gleich, $desired, [], $noPlaces, true, false);
 assert($item !== null && $item['after']['cover'] === 'wird neu geladen');
 
 // --- Die Übernahme eines Platzhalters steht in der Zeile ----------------------------------------
-$item = avesmapsAdventurePlanItem($gleich, $desired, [], $noPlaces, false, true);
+$item = avesmapsGameLiteraturePlanItem($gleich, $desired, [], $noPlaces, false, true);
 assert(
     $item !== null && isset($item['after']['adopt']),
     'dass ein von Hand angelegter Platzhalter zum Wiki-Abenteuer wird, ist der Rede wert'
@@ -86,14 +86,14 @@ assert(
 // Nicht "Orte: 3 entfällt" mitten in einer Aufzählung: das Feld heisst „Orte entfallen" und wird
 // vom Bauteil in Warnfarbe gezeichnet (SYNC_PLAN_LOSS_FIELDS). Sonst geht der Verlust in einer
 // vorangehäkelten Zeile unter -- Entscheidung 1 des Bauplans.
-$item = avesmapsAdventurePlanItem($gleich, $desired, [], [
+$item = avesmapsGameLiteraturePlanItem($gleich, $desired, [], [
     'add' => [], 'update' => [], 'remove' => [['id' => 5], ['id' => 6], ['id' => 7]],
 ], false, false);
 assert($item !== null && $item['after']['places_removed'] === 3);
 assert(!isset($item['after']['places']), 'kein zweites Feld für dasselbe');
 
 // Zugewinn und Verlust zusammen: zwei Felder, zwei Farben.
-$item = avesmapsAdventurePlanItem($gleich, $desired, [], [
+$item = avesmapsGameLiteraturePlanItem($gleich, $desired, [], [
     'add' => [['sort_order' => 3, 'raw_name' => 'Neu', 'role' => 'play']],
     'update' => [['id' => 1, 'sort_order' => 0, 'raw_name' => 'Havena', 'role' => 'start']],
     'remove' => [['id' => 9]],
@@ -122,19 +122,19 @@ $pdo->exec("INSERT INTO adventure_place (adventure_id, sort_order, raw_name, rol
     VALUES (2, 0, 'Irgendwo', 'start', 'wiki', 'approved')");
 
 // Über den wiki_key gefunden -> keine Übernahme.
-$found = avesmapsAdventurePlanFindRow($pdo, [
+$found = avesmapsGameLiteraturePlanFindRow($pdo, [
     'wiki_key' => 'die-sieben-gezeichneten', 'title' => 'Die Sieben Gezeichneten',
 ]);
 assert($found['current'] !== null && $found['adopting'] === false);
 assert((string) $found['current']['public_id'] === 'p1', 'die Zeile kommt mit, nicht nur ihre id');
 
 // Über den Titel gefunden -> Übernahme, und weil nichts von Hand gesetzt ist, verliert der
-// Platzhalter seine Orte (genau das tut avesmapsAdventureFindOrAdoptRow).
-$found = avesmapsAdventurePlanFindRow($pdo, ['wiki_key' => 'der-platzhalter', 'title' => 'Der Platzhalter']);
+// Platzhalter seine Orte (genau das tut avesmapsGameLiteratureFindOrAdoptRow).
+$found = avesmapsGameLiteraturePlanFindRow($pdo, ['wiki_key' => 'der-platzhalter', 'title' => 'Der Platzhalter']);
 assert($found['adopting'] === true && $found['clears_places'] === true);
 
 // 🔴 UND SIE HAT NICHTS GESCHRIEBEN. Das ist die eigentliche Zusicherung: die Vorlage
-// (avesmapsAdventureFindOrAdoptRow) ANTWORTET durch Schreiben -- sie setzt wiki_key, dreht origin
+// (avesmapsGameLiteratureFindOrAdoptRow) ANTWORTET durch Schreiben -- sie setzt wiki_key, dreht origin
 // auf 'wiki' und löscht die Platzhalter-Orte. Eine Vorschau, die das täte, hätte die Übernahme
 // schon vollzogen, bevor jemand ein Häkchen gesehen hat.
 assert((string) $pdo->query("SELECT origin FROM adventure WHERE public_id='p2'")->fetchColumn() === 'manual');
@@ -144,12 +144,12 @@ assert((int) $pdo->query('SELECT COUNT(*) FROM adventure')->fetchColumn() === 2,
 
 // Ein von Hand bearbeiteter Platzhalter behält seine Orte.
 $pdo->exec("UPDATE adventure SET field_origins_json='{\"genre\":\"manual\"}' WHERE public_id='p2'");
-$found = avesmapsAdventurePlanFindRow($pdo, ['wiki_key' => 'der-platzhalter', 'title' => 'Der Platzhalter']);
+$found = avesmapsGameLiteraturePlanFindRow($pdo, ['wiki_key' => 'der-platzhalter', 'title' => 'Der Platzhalter']);
 assert($found['adopting'] === true && $found['clears_places'] === false);
 assert(($found['field_origins']['genre'] ?? '') === 'manual', 'und seine Overrides sind bekannt');
 
 // Nichts gefunden -> neu.
-$found = avesmapsAdventurePlanFindRow($pdo, ['wiki_key' => 'unbekannt', 'title' => 'Unbekannt']);
+$found = avesmapsGameLiteraturePlanFindRow($pdo, ['wiki_key' => 'unbekannt', 'title' => 'Unbekannt']);
 assert($found['current'] === null && $found['adopting'] === false && $found['clears_places'] === false);
 
 echo "adventure-plan ok\n";

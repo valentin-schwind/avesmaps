@@ -1,9 +1,9 @@
 // Place-Extras (Infopanel Phase 6): die Abschnitte "Kartensammlung" (kuratierte Karten) und
 // "Abenteuer in <Ort>" fuer Siedlung, Territorium, Region und Weg -- Popup wie Panel.
 //
-// BEIDE sind seit Aufgabe C datengetrieben: die Abenteuer aus dem Katalog (map-features-adventures.js,
-// api/app/adventures.php), die Karten aus dem Kartenkatalog (map-features-citymaps.js,
-// api/app/citymaps.php). Von den Platzhaltern ist nur noch AVESMAPS_PLACEHOLDER_ADVENTURES uebrig, und
+// BEIDE sind seit Aufgabe C datengetrieben: die Abenteuer aus dem Katalog (map-features-game-literature.js,
+// api/app/game-literature.php), die Karten aus dem Kartenkatalog (map-features-citymaps.js,
+// api/app/citymaps.php). Von den Platzhaltern ist nur noch AVESMAPS_PLACEHOLDER_GAME_LITERATURE uebrig, und
 // zwar absichtlich: der Abenteuerkatalog kann laden, waehrend die Box schon offen ist, und ein leerer
 // Blitz waere schlechter als eine Platzhalterkarte. Die Kartensammlung hat dieses Fenster nicht -- ohne
 // Katalog erscheint der Abschnitt gar nicht erst, was eine ehrliche Antwort ist.
@@ -16,7 +16,7 @@
 // cover: TEMPORAER hotgelinkte Wiki-Aventurica-Thumbnails (Owner-Freigabe fuer die Demo) -- spaeter
 // ersetzt durch echte Payload-Daten (location.adventures[].cover), idealerweise ueber den coat.php-artigen
 // Cache-Proxy statt Hotlink.
-var AVESMAPS_PLACEHOLDER_ADVENTURES = [
+var AVESMAPS_PLACEHOLDER_GAME_LITERATURE = [
 	{ title: "Jagd nach dem Primoptolithen", type: "Soloabenteuer", edition: "", year: 1046, yearLabel: "1046 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/c/c5/Jagd_nach_dem_Primoptolithen.jpg/240px-Jagd_nach_dem_Primoptolithen.jpg" },
 	{ title: "Siegelbruch", type: "Gruppenabenteuer", edition: "DSA5", year: 1044, yearLabel: "1044 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/5/55/AB_VA62.jpg/240px-AB_VA62.jpg" },
 	{ title: "Aus den Augen, aber nicht aus dem Sinn", type: "Gruppenabenteuer", edition: "DSA5", year: 1041, yearLabel: "1041 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/a/a0/40_Jahre_und_ein_Schelm.jpg/240px-40_Jahre_und_ein_Schelm.jpg" },
@@ -28,7 +28,7 @@ var AVESMAPS_PLACEHOLDER_ADVENTURES = [
 	{ title: "Herren der Unterwelt", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1037, yearLabel: "Anfang 1037 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/4/47/Box-AB_Gh.png/240px-Box-AB_Gh.png" },
 	{ title: "Sturm der Gewalt", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1037, yearLabel: "Hochsommer ab 1037 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/4/47/Box-AB_Gh.png/240px-Box-AB_Gh.png" },
 ];
-var AVESMAPS_PLACEHOLDER_ADVENTURES_TOTAL = 57;
+var AVESMAPS_PLACEHOLDER_GAME_LITERATURE_TOTAL = 57;
 // AVESMAPS_PLACEHOLDER_CITYMAPS is gone (Aufgabe C): the Kartensammlung has a backend now
 // (api/app/citymaps.php + map-features-citymaps.js), so a place with no maps renders NO section rather
 // than four fake links. The adventure placeholders above still stand -- their catalog can be slow, and a
@@ -38,27 +38,27 @@ var AVESMAPS_CITYMAP_THUMB_SVG = '<svg viewBox="0 0 24 24" width="26" height="26
 // Platzhalter-Icon fuer das Abenteuer-Cover (A4), solange kein echtes Cover-Bild (a.cover) vorliegt.
 var AVESMAPS_ADV_COVER_PH_SVG = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 16 5-4 4 3 3-2 4 3"/></svg>';
 
-// Datenzugriff (Abenteuer-Feature Phase 1): sobald der Katalog geladen ist (map-features-adventures.js),
+// Datenzugriff (Abenteuer-Feature Phase 1): sobald der Katalog geladen ist (map-features-game-literature.js),
 // liefern wir die ECHTEN "beginnt hier"-Abenteuer dieses Orts (leer erlaubt -> Abschnitt entfaellt). Nur
 // solange der Katalog noch nicht bereit ist (oder ausserhalb des Infopanel-Modus) greifen die Platzhalter
 // -- so gibt es keinen leeren Blitz waehrend des Ladens. location.adventures bleibt als Payload-Pfad erhalten.
-function getPlaceAdventures(location) {
-	if (typeof avesmapsAdventureCatalogIsReady === "function" && avesmapsAdventureCatalogIsReady()) {
-		return getAdventuresForPlace(location, { role: "start" });
+function getPlaceGameLiterature(location) {
+	if (typeof avesmapsGameLiteratureCatalogIsReady === "function" && avesmapsGameLiteratureCatalogIsReady()) {
+		return getGameLiteratureForPlace(location, { role: "start" });
 	}
 	if (location && Array.isArray(location.adventures)) {
 		return location.adventures;
 	}
-	return AVESMAPS_PLACEHOLDER_ADVENTURES;
+	return AVESMAPS_PLACEHOLDER_GAME_LITERATURE;
 }
-function getPlaceAdventuresTotal(location) {
-	if (typeof avesmapsAdventureCatalogIsReady === "function" && avesmapsAdventureCatalogIsReady()) {
-		return getPlaceAdventures(location).length;
+function getPlaceGameLiteratureTotal(location) {
+	if (typeof avesmapsGameLiteratureCatalogIsReady === "function" && avesmapsGameLiteratureCatalogIsReady()) {
+		return getPlaceGameLiterature(location).length;
 	}
 	if (location && typeof location.adventuresTotal === "number") {
 		return location.adventuresTotal;
 	}
-	return AVESMAPS_PLACEHOLDER_ADVENTURES_TOTAL;
+	return AVESMAPS_PLACEHOLDER_GAME_LITERATURE_TOTAL;
 }
 // Kartensammlung (Aufgabe C): the real catalog (map-features-citymaps.js) whenever it is loaded.
 // location.cityMaps stays as the payload path for a box that carries its own maps. No placeholder tier --
@@ -124,7 +124,7 @@ function avesmapsSpoilerVeilMarkup(label) {
 }
 
 // Die ANFANGSreihenfolge einer Abenteuerliste: durchgehend "neueste zuerst" (Edition, dann BF-Jahr, dann
-// Titel -- s. avesmapsCompareAdventureRecency), Spoiler stehen dazwischen statt als Block am Ende
+// Titel -- s. avesmapsCompareGameLiteratureRecency), Spoiler stehen dazwischen statt als Block am Ende
 // (Owner 2026-07-18). Muss mit der Default-Sortierung der Sortierzeile uebereinstimmen
 // (data-adv-sort="year" traegt is-active), sonst ordnet der erste Sortierklick sichtbar um, obwohl der
 // Leser dieselbe Sortierung waehlt. Nimmt/liefert {a, isPlay}-Paare, weil die Rolle beim Rendern
@@ -133,13 +133,13 @@ function avesmapsSpoilerVeilMarkup(label) {
 // Hier stand frueher "stabil, damit Jahrgleiche ihre Eingangsreihenfolge behalten" -- genau das WAR der
 // Fehler: fast alle Jahre sind gleich (naemlich keins), also blieb die Eingangsreihenfolge
 // `beginnt`.concat(`spielt`) unangetastet und schob jeden Spoiler ans Ende (Owner 2026-07-19).
-function avesmapsSortAdventureEntries(entries) {
+function avesmapsSortGameLiteratureEntries(entries) {
 	return entries.slice().sort(function (x, y) {
-		// map-features-adventures.js laedt NACH dieser Datei (index.html); der Aufruf faellt aber erst zur
+		// map-features-game-literature.js laedt NACH dieser Datei (index.html); der Aufruf faellt aber erst zur
 		// Laufzeit an, das Global steht dann. Fehlt es wider Erwarten, bleibt das Jahr als Notbehelf: eine
 		// schwaechere Reihenfolge ist ein Schoenheitsfehler, eine Ausnahme waere ein leerer Streifen.
-		if (typeof avesmapsCompareAdventureRecency === "function") {
-			return avesmapsCompareAdventureRecency(x.a, y.a);
+		if (typeof avesmapsCompareGameLiteratureRecency === "function") {
+			return avesmapsCompareGameLiteratureRecency(x.a, y.a);
 		}
 		return (Number(y.a && y.a.year) || 0) - (Number(x.a && x.a.year) || 0);
 	});
@@ -600,8 +600,8 @@ function buildCityMapRowMarkup(m) {
 // The shop/reference links for an adventure, in click PRIORITY order, highest first: Ulisses e-book ->
 // F-Shop -> the wiki page -> Deutsche Nationalbibliothek (DNB LAST, it is a mere ISBN/title search).
 //
-// The SERVER list wins whenever the payload carries one (Spec §2.5): avesmapsAdventureLinks() in
-// api/_internal/app/adventures.php is the single definition of that priority rule, it is what the
+// The SERVER list wins whenever the payload carries one (Spec §2.5): avesmapsGameLiteratureLinks() in
+// api/_internal/app/game-literature.php is the single definition of that priority rule, it is what the
 // linkchecker probes, and only its entries carry the checked `state` and the curated extras (§2.4).
 // An EMPTY array is an answer ("this adventure has no identifiable link"), not a miss -- only a MISSING
 // list falls through to the builder below, which is the placeholder path on a box without a backend.
@@ -676,7 +676,7 @@ function advBestLink(a) {
 	return links.length ? links[0] : null;
 }
 
-function buildAdventureCardMarkup(a, isPlay) {
+function buildGameLiteratureCardMarkup(a, isPlay) {
 	var wikiUrl = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
 	// The COVER opens the highest-priority shop/reference link (Ulisses -> F-Shop -> DNB -> Wiki); the TITLE
 	// stays the wiki page. Fall back to the wiki on the cover only when nothing is known.
@@ -694,12 +694,12 @@ function buildAdventureCardMarkup(a, isPlay) {
 	var metaLine = metaParts.length ? '<div class="avesmaps-adv__meta">' + placeExtrasEscape(metaParts.join(" · ")) + '</div>' : "";
 	var typeLine = a.type ? '<div class="avesmaps-adv__type">' + placeExtrasEscape(a.type) + '</div>' : "";
 	// Anthology-only adventures ship inside a parent product -> the shop link points there; say why.
-	var containedLine = a.containedIn ? '<div class="avesmaps-adv__contained">' + placeExtrasEscape(tr("adventures.containedInPrefix", "enthalten in: ")) + placeExtrasEscape(a.containedIn) + '</div>' : "";
+	var containedLine = a.containedIn ? '<div class="avesmaps-adv__contained">' + placeExtrasEscape(tr("gameLiterature.containedInPrefix", "enthalten in: ")) + placeExtrasEscape(a.containedIn) + '</div>' : "";
 	// "spielt hier" IST der Spoiler (Owner 2026-07-18): er steht jetzt da, nur verschleiert -- vorher war er
 	// display:none, und der Leser erfuhr erst NACH dem Umschalten, welche Eintraege es ueberhaupt betrifft.
 	// is-play bleibt der ROLLEN-Marker (data-role, Zaehler, Filter), is-spoiler ist der SCHUTZ-Zustand.
 	var extraClass = isPlay ? " is-play is-spoiler" : "";
-	var veil = isPlay ? avesmapsSpoilerVeilMarkup(tr("adventures.spoilerVeil", "Spoiler (spielt hier)")) : "";
+	var veil = isPlay ? avesmapsSpoilerVeilMarkup(tr("gameLiterature.spoilerVeil", "Spoiler (spielt hier)")) : "";
 	return '<div class="avesmaps-adv__card' + extraClass + '"' + advCardDataAttributes(a, isPlay) + '>'
 		+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" data-spoiler-image href="' + placeExtrasEscape(coverHref) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(coverTitle) + '">' + coverInner + '</a>'
 		+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(wikiUrl) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
@@ -765,7 +765,7 @@ function advRowLinkMarkup(link, opts) {
 // Traegt bewusst AUCH .avesmaps-adv__card: Sortierung, Filter und der beginnt/spielt-Umschalter sind
 // geteilte Handler, die auf diese Klasse + .is-play + .is-filtered-out zielen. So gilt fuer die Zeile
 // automatisch dieselbe Steuerung wie fuer die Kachel; die abweichende Optik haengt an .avesmaps-adv-row.
-function buildAdventureRowMarkup(a, isPlay) {
+function buildGameLiteratureRowMarkup(a, isPlay) {
 	var wikiUrl = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
 	var links = advShopLinks(a);
 	var best = links.length ? links[0] : null;
@@ -791,14 +791,14 @@ function buildAdventureRowMarkup(a, isPlay) {
 	var factLine = factParts.length ? '<div class="avesmaps-adv-row__facts">' + placeExtrasEscape(factParts.join(" · ")) + '</div>' : "";
 
 	var containedLine = a.containedIn
-		? '<div class="avesmaps-adv-row__contained">' + placeExtrasEscape(tr("adventures.containedInPrefix", "enthalten in: ")) + placeExtrasEscape(a.containedIn) + '</div>'
+		? '<div class="avesmaps-adv-row__contained">' + placeExtrasEscape(tr("gameLiterature.containedInPrefix", "enthalten in: ")) + placeExtrasEscape(a.containedIn) + '</div>'
 		: "";
 	var linksMarkup = links.length ? '<ul class="avesmaps-adv-row__links">' + links.map(function (link) {
 		return advRowLinkMarkup(link);
 	}).join("") + '</ul>' : "";
 
 	var extraClass = isPlay ? " is-play is-spoiler" : "";
-	var veil = isPlay ? avesmapsSpoilerVeilMarkup(tr("adventures.spoilerVeil", "Spoiler (spielt hier)")) : "";
+	var veil = isPlay ? avesmapsSpoilerVeilMarkup(tr("gameLiterature.spoilerVeil", "Spoiler (spielt hier)")) : "";
 	return '<div class="avesmaps-adv__card avesmaps-adv-row' + extraClass + '"' + advCardDataAttributes(a, isPlay) + '>'
 		+ '<a class="avesmaps-adv-row__cover' + (a.cover ? " has-img" : "") + '" data-spoiler-image href="' + placeExtrasEscape(coverHref) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(coverTitle) + '">' + coverInner + '</a>'
 		+ '<div class="avesmaps-adv-row__main">'
@@ -816,9 +816,9 @@ function buildAdventureRowMarkup(a, isPlay) {
 // Dialogen (flacher Siedlungs-Dialog hier + verschachtelter Territorien-Dialog in map-features-adventures-
 // dialog.js), damit die Pflichtangabe ueberall steht, wo Cover zu sehen sind. Suppressed wenn der Cover-
 // Killswitch aus ist -- keine Cover auf dem Schirm heisst kein Ulisses-Credit noetig.
-function avesmapsAdventureCreditMarkup() {
-	var coversOn = (typeof avesmapsAdventuresCoversEnabled !== "function") || avesmapsAdventuresCoversEnabled();
-	return coversOn ? '<div class="avesmaps-adv__credit">' + tr("adventures.credit", "Bilder © Ulisses Spiele bzw. der jeweiligen Rechteinhaber — <a href=\"https://www.f-shop.de/\" target=\"_blank\" rel=\"noopener\">im F-Shop ansehen ↗</a>") + '</div>' : "";
+function avesmapsGameLiteratureCreditMarkup() {
+	var coversOn = (typeof avesmapsGameLiteratureCoversEnabled !== "function") || avesmapsGameLiteratureCoversEnabled();
+	return coversOn ? '<div class="avesmaps-adv__credit">' + tr("gameLiterature.credit", "Bilder © Ulisses Spiele bzw. der jeweiligen Rechteinhaber — <a href=\"https://www.f-shop.de/\" target=\"_blank\" rel=\"noopener\">im F-Shop ansehen ↗</a>") + '</div>' : "";
 }
 
 // Lizenz-Fussnote der Kartensammlung. Dieselbe Pflichtangabe wie bei den Abenteuern und derselbe
@@ -826,7 +826,7 @@ function avesmapsAdventureCreditMarkup() {
 //
 // EIGENE Funktion mit EIGENEM Schalter, obwohl der Text fast derselbe ist: die Erlaubnis gilt "nur bis auf
 // Widerruf" (NOTICE.md), und dann will man Karten-Vorschauen abschalten koennen, ohne die Abenteuer-Cover
-// zu verlieren. avesmapsAdventureCreditMarkup wiederzuverwenden haette die beiden Flaechen an einen
+// zu verlieren. avesmapsGameLiteratureCreditMarkup wiederzuverwenden haette die beiden Flaechen an einen
 // Schalter gekettet, der nach der einen von beiden benannt ist.
 //
 // Fehlt der Schalter (aelterer Payload), zeigt die Fussnote TROTZDEM: bei einer Pflichtangabe ist "im
@@ -841,7 +841,7 @@ function avesmapsCitymapCreditMarkup() {
 // nur verschleiert; aufgedeckt wird einzeln per Klick auf den Schleier.
 //
 // Kern-Renderer (Phase 2.2): baut den Abschnitt aus fertigen beginnt/spielt-Listen (render shape). Wird von
-// der SIEDLUNG (buildPlaceAdventuresMarkup) UND vom TERRITORIUM/der REGION (buildTerritoryAdventuresMarkup)
+// der SIEDLUNG (buildPlaceGameLiteratureMarkup) UND vom TERRITORIUM/der REGION (buildTerritoryGameLiteratureMarkup)
 // genutzt -- identisches Markup/identische Klassen, daher greift "Alle anzeigen" (Document-Delegation weiter
 // unten) fuer beide unveraendert. opts.total = Kopf-Zaehler (Default beginnt.length,
 // fuer die Siedlung ggf. der Payload-/Platzhalter-Gesamtwert); opts.placeholderNote = Platzhalter-Hinweis
@@ -849,14 +849,14 @@ function avesmapsCitymapCreditMarkup() {
 // opts.allowEmpty: eine Sektion OHNE Abenteuer bauen, statt "" zu liefern -- dieselbe Regel wie bei der
 // Kartensammlung. Der Streifen im Infopanel will das nicht, der Dialog schon: seine Kachel oeffnet seit
 // 2026-07-18 immer, und der leere Dialog braucht eine Sektion, die Ortsnamen und -id traegt.
-function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
+function buildGameLiteratureSectionMarkup(placeName, beginnt, play, opts) {
 	opts = opts || {};
 	var hasBeginnt = beginnt && beginnt.length > 0;
 	var hasPlay = play && play.length > 0;
 	if (!hasBeginnt && !hasPlay && !opts.allowEmpty) {
 		return "";
 	}
-	var name = placeName || tr("adventures.fallbackPlace", "diesem Ort");
+	var name = placeName || tr("gameLiterature.fallbackPlace", "diesem Ort");
 	var total = (opts.total != null) ? opts.total : (hasBeginnt ? beginnt.length : 0);
 	// Kopf-Zaehler IMMER: seit der Umschalter ein blosser Spoiler-Schalter ist, hat "Beginnt hier" kein
 	// eigenes Segment mehr, das seine Zahl tragen koennte (Owner 2026-07-18: "'Beginnt hier' schrumpft zur
@@ -865,7 +865,7 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 
 	// KEINE Sortier- und keine Spoilerzeile mehr im Infopanel (Owner 2026-07-19: "die Filter koennen alle
 	// weg"). Der Streifen ist eine Vorschau, kein Arbeitsgeraet -- und er braucht die Bedienung auch nicht:
-	// er steht bereits in seiner besten Reihenfolge (avesmapsSortAdventureEntries, "neueste zuerst"), jeder
+	// er steht bereits in seiner besten Reihenfolge (avesmapsSortGameLiteratureEntries, "neueste zuerst"), jeder
 	// Spoiler bleibt EINZELN per Klick auf seinen Schleier aufdeckbar (data-spoiler-reveal), und wer wirklich
 	// sortieren oder filtern will, nimmt "Alle anzeigen": der Dialog baut seine eigene Leiste
 	// (buildDialogControls) und ist von hier unabhaengig. Damit liest sich die Sektion wie die
@@ -873,32 +873,32 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 	// Der Handler auf .avesmaps-adv__sort bleibt: der flache Dialog baut exakt dieselben Klassen
 	// (buildDialogControls) -- die Sortierung ist hier nur nicht mehr angebracht, nicht tot.
 
-	var noteMarkup = opts.placeholderNote ? '<div class="avesmaps-adv__placeholder">' + placeExtrasEscape(tr("adventures.placeholderNote", "Platzhalter · Cover temporär aus dem Wiki")) + '</div>' : "";
+	var noteMarkup = opts.placeholderNote ? '<div class="avesmaps-adv__placeholder">' + placeExtrasEscape(tr("gameLiterature.placeholderNote", "Platzhalter · Cover temporär aus dem Wiki")) + '</div>' : "";
 	// Rand-Fall: hier beginnt nichts, es wird aber gespielt -> Hinweis in der beginnt-Sicht.
-	var emptyHint = (!hasBeginnt && hasPlay) ? '<div class="avesmaps-adv__empty" data-adv-empty>' + placeExtrasEscape(tr("adventures.emptyHint", "Hier beginnt kein Abenteuer.")) + '</div>' : "";
+	var emptyHint = (!hasBeginnt && hasPlay) ? '<div class="avesmaps-adv__empty" data-adv-empty>' + placeExtrasEscape(tr("gameLiterature.emptyHint", "Hier beginnt kein Abenteuer.")) + '</div>' : "";
 
 	// EIN Streifen, DURCHGEHEND sortiert (Owner 2026-07-18): ein Spoiler steht an seinem Sortierplatz
 	// zwischen den anderen, nicht als Block am Ende. Die Anfangsreihenfolge MUSS der Default-Sortierung der
 	// Sortierzeile entsprechen ("neueste zuerst", is-active) -- sonst springen die Karten beim ersten
 	// Sortierklick, ohne dass sich die Sortierung geaendert haette.
-	var cards = avesmapsSortAdventureEntries(
+	var cards = avesmapsSortGameLiteratureEntries(
 		(hasBeginnt ? beginnt.map(function (a) { return { a: a, isPlay: false }; }) : [])
 			.concat(hasPlay ? play.map(function (a) { return { a: a, isPlay: true }; }) : [])
-	).map(function (e) { return buildAdventureCardMarkup(e.a, e.isPlay); }).join("");
+	).map(function (e) { return buildGameLiteratureCardMarkup(e.a, e.isPlay); }).join("");
 	var listMarkup = '<div class="avesmaps-adv__list">' + cards + '</div>';
 
-	var alleMarkup = (hasBeginnt || hasPlay) ? '<div class="avesmaps-adv__actions"><button type="button" class="avesmaps-adv__all">' + placeExtrasEscape(tr("adventures.all", "Alle anzeigen")) + '</button></div>' : "";
+	var alleMarkup = (hasBeginnt || hasPlay) ? '<div class="avesmaps-adv__actions"><button type="button" class="avesmaps-adv__all">' + placeExtrasEscape(tr("gameLiterature.all", "Alle anzeigen")) + '</button></div>' : "";
 
-	var creditMarkup = avesmapsAdventureCreditMarkup();
+	var creditMarkup = avesmapsGameLiteratureCreditMarkup();
 
 	// data-adv-territory-key markiert den Territoriums-/Regions-Block -> "Alle anzeigen" oeffnet den
-	// datengetriebenen Nested-Dialog (getAdventureTerritoryTree, deepest-wins + Filter) statt des flachen
+	// datengetriebenen Nested-Dialog (getGameLiteratureTerritoryTree, deepest-wins + Filter) statt des flachen
 	// DOM-Klon-Dialogs der Siedlung. Bei der Siedlung fehlt das Attribut -> flacher Dialog wie bisher.
 	var terrAttr = opts.territoryKey ? ' data-adv-scope="territory" data-adv-territory-key="' + placeExtrasEscape(opts.territoryKey) + '"' : "";
 	// Die Orts-id reist mit, damit der leere Dialog von HIER aus das naechste Abenteuer suchen kann.
 	var placeIdAttr = opts.placeId ? ' data-adv-place-id="' + placeExtrasEscape(opts.placeId) + '"' : "";
 	return '<div class="avesmaps-adv"' + terrAttr + placeIdAttr + '>'
-		+ '<div class="avesmaps-adv__head">' + tr("adventures.heading", "Abenteuer in {place}", { place: placeExtrasEscape(name) }) + countMarkup + '</div>'
+		+ '<div class="avesmaps-adv__head">' + tr("gameLiterature.heading", "Literatur zu {place}", { place: placeExtrasEscape(name) }) + countMarkup + '</div>'
 		+ noteMarkup
 		+ emptyHint
 		+ listMarkup
@@ -908,16 +908,16 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 }
 
 // Siedlung: die "beginnt hier"/"spielt hier"-Abenteuer dieses Orts (Phase 1). Delegiert an den Kern-Renderer.
-function buildPlaceAdventuresMarkup(location, opts) {
-	var catalogReady = typeof avesmapsAdventureCatalogIsReady === "function" && avesmapsAdventureCatalogIsReady();
-	var beginnt = getPlaceAdventures(location); // "beginnt hier" (Start-Ort liegt hier)
-	var play = (catalogReady && typeof getAdventuresForPlace === "function") ? getAdventuresForPlace(location, { role: "play" }) : [];
+function buildPlaceGameLiteratureMarkup(location, opts) {
+	var catalogReady = typeof avesmapsGameLiteratureCatalogIsReady === "function" && avesmapsGameLiteratureCatalogIsReady();
+	var beginnt = getPlaceGameLiterature(location); // "beginnt hier" (Start-Ort liegt hier)
+	var play = (catalogReady && typeof getGameLiteratureForPlace === "function") ? getGameLiteratureForPlace(location, { role: "play" }) : [];
 	var hasBeginnt = beginnt && beginnt.length > 0;
-	var placeName = (location && location.name) ? location.name : tr("adventures.fallbackPlace", "diesem Ort");
-	return buildAdventuresSectionMarkup(placeName, beginnt, play, {
-		total: hasBeginnt ? getPlaceAdventuresTotal(location) : 0,
+	var placeName = (location && location.name) ? location.name : tr("gameLiterature.fallbackPlace", "diesem Ort");
+	return buildGameLiteratureSectionMarkup(placeName, beginnt, play, {
+		total: hasBeginnt ? getPlaceGameLiteratureTotal(location) : 0,
 		placeholderNote: hasBeginnt && !catalogReady,
-		// Nur der Dialog will eine leere Sektion (s. buildAdventuresSectionMarkup); der Streifen nicht.
+		// Nur der Dialog will eine leere Sektion (s. buildGameLiteratureSectionMarkup); der Streifen nicht.
 		allowEmpty: !!(opts && opts.allowEmpty),
 		placeId: (location && (location.publicId || location.public_id)) || "",
 	});
@@ -926,70 +926,70 @@ function buildPlaceAdventuresMarkup(location, opts) {
 // Territorium/Region (Phase 2.2): die ueber den politischen Subtree aggregierten "beginnt/spielt"-Abenteuer.
 // Nutzt den SERVER-wiki_key aus der territory-detail.php-Antwort (regionEntry.detail.wiki_key) -- NICHT aus
 // wiki_url client-normalisiert: der Server-Slug (avesmapsPoliticalSlug, ö->oe) und der Client-Normalizer
-// (ö->o) divergieren bei Umlauten, und getAdventuresForTerritory vergleicht gegen die per territory_path
+// (ö->o) divergieren bei Umlauten, und getGameLiteratureForTerritory vergleicht gegen die per territory_path
 // emittierten Server-Keys. Leer (kein detail / kein Treffer) -> Abschnitt entfaellt.
-function buildTerritoryAdventuresMarkup(regionEntry) {
-	if (typeof avesmapsAdventureCatalogIsReady !== "function" || !avesmapsAdventureCatalogIsReady()) {
+function buildTerritoryGameLiteratureMarkup(regionEntry) {
+	if (typeof avesmapsGameLiteratureCatalogIsReady !== "function" || !avesmapsGameLiteratureCatalogIsReady()) {
 		return "";
 	}
-	if (typeof getAdventuresForTerritory !== "function") {
+	if (typeof getGameLiteratureForTerritory !== "function") {
 		return "";
 	}
-	var name = (regionEntry && (regionEntry.displayName || regionEntry.name)) || tr("adventures.fallbackTerritory", "diesem Gebiet");
+	var name = (regionEntry && (regionEntry.displayName || regionEntry.name)) || tr("gameLiterature.fallbackTerritory", "diesem Gebiet");
 	// Political territory: aggregate over the whole political subtree via the SERVER wiki_key that arrives
 	// with regionEntry.detail (territory-detail.php). Pre-detail render -> no wiki_key yet -> "".
 	var detail = (regionEntry && regionEntry.detail && regionEntry.detail.ok) ? regionEntry.detail : null;
 	var wikiKey = detail ? (detail.wiki_key || "") : "";
 	if (wikiKey) {
-		var beginnt = getAdventuresForTerritory(wikiKey, { role: "start" });
-		var play = getAdventuresForTerritory(wikiKey, { role: "play" });
+		var beginnt = getGameLiteratureForTerritory(wikiKey, { role: "start" });
+		var play = getGameLiteratureForTerritory(wikiKey, { role: "play" });
 		if ((beginnt && beginnt.length) || (play && play.length)) {
-			// territoryKey = der Server-wiki_key, den der Nested-Dialog an getAdventureTerritoryTree weitergibt.
-			return buildAdventuresSectionMarkup(name, beginnt, play, { territoryKey: wikiKey });
+			// territoryKey = der Server-wiki_key, den der Nested-Dialog an getGameLiteratureTerritoryTree weitergibt.
+			return buildGameLiteratureSectionMarkup(name, beginnt, play, { territoryKey: wikiKey });
 		}
 		return "";
 	}
 	// Landscape region rendered as a POLYGON (no political territoryPublicId): adventures assigned DIRECTLY
-	// to this region, matched by its public_id. (Region LABELS go through buildRegionAdventuresMarkup below.)
-	if (!regionEntry || regionEntry.territoryPublicId || typeof getAdventuresForRegion !== "function") {
+	// to this region, matched by its public_id. (Region LABELS go through buildRegionGameLiteratureMarkup below.)
+	if (!regionEntry || regionEntry.territoryPublicId || typeof getGameLiteratureForRegion !== "function") {
 		return "";
 	}
-	var rBeginnt = getAdventuresForRegion(regionEntry, { role: "start" });
-	var rPlay = getAdventuresForRegion(regionEntry, { role: "play" });
+	var rBeginnt = getGameLiteratureForRegion(regionEntry, { role: "start" });
+	var rPlay = getGameLiteratureForRegion(regionEntry, { role: "play" });
 	if ((!rBeginnt || !rBeginnt.length) && (!rPlay || !rPlay.length)) {
 		return "";
 	}
-	return buildAdventuresSectionMarkup(name, rBeginnt, rPlay, {});
+	return buildGameLiteratureSectionMarkup(name, rBeginnt, rPlay, {});
 }
 
 // Landschafts-Region-LABEL (Phase 2, Regionen): die diesem Label direkt zugeordneten "beginnt/spielt"-
 // Abenteuer, EXAKT ueber label.publicId (= der vom Resolver gespeicherte target_public_id) gematcht -- flacher
 // Streifen wie bei der Siedlung. Angehaengt in buildRegionLabelViewPopupHtml (map-features-labels.js). Regionen
 // sind Blatt-Ziele (kein Subtree) -> kein territoryKey, "Alle anzeigen" oeffnet den flachen Dialog.
-function buildRegionAdventuresMarkup(label) {
-	if (typeof avesmapsAdventureCatalogIsReady !== "function" || !avesmapsAdventureCatalogIsReady()) {
+function buildRegionGameLiteratureMarkup(label) {
+	if (typeof avesmapsGameLiteratureCatalogIsReady !== "function" || !avesmapsGameLiteratureCatalogIsReady()) {
 		return "";
 	}
-	if (typeof getAdventuresForRegion !== "function" || !label) {
+	if (typeof getGameLiteratureForRegion !== "function" || !label) {
 		return "";
 	}
-	var beginnt = getAdventuresForRegion(label, { role: "start" });
-	var play = getAdventuresForRegion(label, { role: "play" });
+	var beginnt = getGameLiteratureForRegion(label, { role: "start" });
+	var play = getGameLiteratureForRegion(label, { role: "play" });
 	if ((!beginnt || !beginnt.length) && (!play || !play.length)) {
 		return "";
 	}
-	var name = (label.text || (label.wikiRegion && label.wikiRegion.name)) || tr("adventures.fallbackRegion", "dieser Region");
-	return buildAdventuresSectionMarkup(name, beginnt, play, {});
+	var name = (label.text || (label.wikiRegion && label.wikiRegion.name)) || tr("gameLiterature.fallbackRegion", "dieser Region");
+	return buildGameLiteratureSectionMarkup(name, beginnt, play, {});
 }
 
 // Weg/Pfad (Phase 2, Wege): die diesem Weg zugeordneten "beginnt/spielt"-Abenteuer. Match primaer ueber die
 // wiki_path-Namensgruppe (robust, da ein Weg aus vielen Segmenten besteht) + Segment-public_id. Flacher
 // Streifen. Angehaengt in avesmapsShowPathInInfopanel (map-features-infopanel.js).
-function buildPathAdventuresMarkup(path) {
-	if (typeof avesmapsAdventureCatalogIsReady !== "function" || !avesmapsAdventureCatalogIsReady()) {
+function buildPathGameLiteratureMarkup(path) {
+	if (typeof avesmapsGameLiteratureCatalogIsReady !== "function" || !avesmapsGameLiteratureCatalogIsReady()) {
 		return "";
 	}
-	if (typeof getAdventuresForPath !== "function" || !path) {
+	if (typeof getGameLiteratureForPath !== "function" || !path) {
 		return "";
 	}
 	var wikiPath = (path.properties && path.properties.wiki_path) || null;
@@ -997,13 +997,13 @@ function buildPathAdventuresMarkup(path) {
 		publicId: (typeof getPathPublicId === "function") ? getPathPublicId(path) : (path.public_id || ""),
 		wikiKey: (wikiPath && wikiPath.wiki_key) || "",
 	};
-	var beginnt = getAdventuresForPath(ref, { role: "start" });
-	var play = getAdventuresForPath(ref, { role: "play" });
+	var beginnt = getGameLiteratureForPath(ref, { role: "start" });
+	var play = getGameLiteratureForPath(ref, { role: "play" });
 	if ((!beginnt || !beginnt.length) && (!play || !play.length)) {
 		return "";
 	}
-	var name = (typeof getPathDisplayName === "function") ? getPathDisplayName(path) : (path.name || tr("adventures.fallbackPath", "diesem Weg"));
-	return buildAdventuresSectionMarkup(name, beginnt, play, {});
+	var name = (typeof getPathDisplayName === "function") ? getPathDisplayName(path) : (path.name || tr("gameLiterature.fallbackPath", "diesem Weg"));
+	return buildGameLiteratureSectionMarkup(name, beginnt, play, {});
 }
 
 // Floating-Box-Kachel "Abenteuer" (Owner via Design-Session): die schlanke Siedlungs-Box zeigt KEINEN
@@ -1011,13 +1011,13 @@ function buildPathAdventuresMarkup(path) {
 // Nur wenn der Katalog geladen ist UND die Siedlung ueberhaupt Abenteuer hat (sonst "" -> keine Kachel). Die
 // Kachel-Optik kommt aus location-popups-markers.css (jeder .location-popup__action-button wird dort zur
 // Kachel); der Klick laeuft ueber data-adv-open-place + den Delegation-Handler (public_id -> Ort -> Dialog).
-function buildFloatingAdventuresButtonMarkup(location, publicId) {
+function buildFloatingGameLiteratureButtonMarkup(location, publicId) {
 	if (!publicId || typeof popupActionButtonMarkup !== "function") {
 		return "";
 	}
 	// Immer eine Kachel rendern (Owner via Design-Session): fehlen Abenteuer -- oder ist der Katalog noch
 	// nicht geladen -- steht sie deaktiviert da, statt wegzufallen. So bleibt die Aktionsleiste stabil.
-	var ready = typeof avesmapsAdventureCatalogIsReady === "function" && avesmapsAdventureCatalogIsReady();
+	var ready = typeof avesmapsGameLiteratureCatalogIsReady === "function" && avesmapsGameLiteratureCatalogIsReady();
 	var attributes = { "data-adv-open-place": publicId };
 	// Wie bei der Kartensammlung: nur der ungeladene Katalog deaktiviert. Ein Ort ohne Abenteuer oeffnet
 	// den Dialog und bietet an, eines in der Gegend zu finden.
@@ -1025,7 +1025,7 @@ function buildFloatingAdventuresButtonMarkup(location, publicId) {
 		attributes["aria-disabled"] = "true";
 	}
 	return popupActionButtonMarkup({
-		label: tr("adventures.label", "Abenteuer"),
+		label: tr("gameLiterature.label", "Literatur"),
 		iconMarkup: '<img class="location-popup__action-img" src="img/menu/abenteuer.webp" alt="" width="20" height="20" />',
 		attributes: attributes,
 	});
@@ -1077,37 +1077,37 @@ function buildFloatingCityMapsButtonMarkup(location, publicId) {
 function advFiltersMarkup(facets) {
 	facets = facets || {};
 	return avesmapsFilterBarMarkup([
-		{ kind: "label", text: tr("adventures.filter.label", "Filter") },
+		{ kind: "label", text: tr("gameLiterature.filter.label", "Filter") },
 		// dividerAfter statt eines eigenen Trenner-Eintrags: ohne Art-Facette faellt der Trenner MIT den
 		// Chips weg (sonst stuende eine Linie direkt hinter dem "Filter"-Label).
 		{ kind: "chips", filter: "type", values: facets.types || [], dividerAfter: true },
-		{ kind: "select", filter: "edition", placeholder: tr("adventures.filter.edition", "DSA-Version"), values: facets.editions },
-		{ kind: "select", filter: "complexity", placeholder: tr("adventures.filter.complexity", "Schwierigkeit"), values: facets.complexities },
-		{ kind: "select", filter: "genre", placeholder: tr("adventures.filter.genre", "Genre"), values: facets.genres },
+		{ kind: "select", filter: "edition", placeholder: tr("gameLiterature.filter.edition", "DSA-Version"), values: facets.editions },
+		{ kind: "select", filter: "complexity", placeholder: tr("gameLiterature.filter.complexity", "Schwierigkeit"), values: facets.complexities },
+		{ kind: "select", filter: "genre", placeholder: tr("gameLiterature.filter.genre", "Genre"), values: facets.genres },
 		{
 			kind: "years", from: "yearFrom", to: "yearTo",
-			label: tr("adventures.filter.period", "Zeitraum (BF)"),
+			label: tr("gameLiterature.filter.period", "Zeitraum (BF)"),
 			range: facets.yearRange || { min: 0, max: 0 },
-			fromPlaceholder: tr("adventures.filter.from", "von"),
-			toPlaceholder: tr("adventures.filter.to", "bis"),
+			fromPlaceholder: tr("gameLiterature.filter.from", "von"),
+			toPlaceholder: tr("gameLiterature.filter.to", "bis"),
 		},
 		// Ab hier die GEMEINSAME Ordnung mit der Kartenleiste (Owner 2026-07-18): Trenner, `offiziell`,
 		// dahinter `Spoiler`. Das Wort ist "offiziell" wie dort, nicht mehr "nur offiziell" -- dieselbe
 		// Leiste soll nicht zwei Namen fuer denselben Schalter fuehren.
 		{ kind: "divider" },
-		{ kind: "toggle", filter: "official", label: tr("adventures.filter.officialOnly", "offiziell") },
+		{ kind: "toggle", filter: "official", label: tr("gameLiterature.filter.officialOnly", "offiziell") },
 	].concat(facets.spoiler
 		// Kein Filter, sondern der Sammelschalter fuer den Spoiler-Schleier -- er blendet keine Zeile aus.
 		// Sass frueher in einer EIGENEN Leiste (.avesmaps-adv__modes) ueber den Filtern und sah dadurch
 		// anders aus als sein Gegenstueck bei den Karten. Jetzt derselbe Chip an derselben Stelle.
-		? [{ kind: "toggle", filter: "spoiler", label: tr("adventures.mode.play", "Spoiler") + " " + tr("adventures.mode.playNote", "(spielt hier)") }]
+		? [{ kind: "toggle", filter: "spoiler", label: tr("gameLiterature.mode.play", "Spoiler") + " " + tr("gameLiterature.mode.playNote", "(spielt hier)") }]
 		: []));
 }
 
 // ---- Interaktivitaet via Document-Delegation (funktioniert in Popup UND Panel) ----
 (function initPlaceExtrasDelegation() {
 	// Node (unit tests): nothing to bind, and touching `window` here would throw before the pure markup
-	// builders above could ever be required. Same guard as map-features-adventures-dialog.js.
+	// builders above could ever be required. Same guard as map-features-game-literature-dialog.js.
 	if (typeof window === "undefined" || typeof document === "undefined") {
 		return;
 	}
@@ -1120,7 +1120,7 @@ function advFiltersMarkup(facets) {
 	}
 
 	// Dialog "Alle Abenteuer": modaler Overlay, einmal lazy gebaut und wiederverwendet.
-	function ensureAdventuresDialog() {
+	function ensureGameLiteratureDialog() {
 		var overlay = document.getElementById("avesmaps-adv-dialog");
 		if (overlay) {
 			return overlay;
@@ -1130,7 +1130,7 @@ function advFiltersMarkup(facets) {
 		overlay.className = "avesmaps-adv-dialog";
 		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box" role="dialog" aria-modal="true">'
 			+ '<div class="avesmaps-adv-dialog__head"><span class="avesmaps-adv-dialog__title"></span>'
-			+ '<button type="button" class="avesmaps-adv-dialog__close" aria-label="' + placeExtrasEscape(tr("adventures.closeAria", "Schließen")) + '">✕</button></div>'
+			+ '<button type="button" class="avesmaps-adv-dialog__close" aria-label="' + placeExtrasEscape(tr("gameLiterature.closeAria", "Schließen")) + '">✕</button></div>'
 			+ '<div class="avesmaps-adv-dialog__grid"></div>'
 			+ '<div class="avesmaps-adv-dialog__credit"></div></div>';
 		document.body.appendChild(overlay);
@@ -1140,8 +1140,8 @@ function advFiltersMarkup(facets) {
 		document.addEventListener("keydown", function (e) { if (e.key === "Escape") { close(); } });
 		return overlay;
 	}
-	// Shape aus den Karten-data-Attributen -> avesmapsAdventureFacetOptions/avesmapsAdventureMatchesFilter
-	// (geteilte, reine Funktionen aus map-features-adventures.js, gleiches Praedikat wie der Nested-Dialog).
+	// Shape aus den Karten-data-Attributen -> avesmapsGameLiteratureFacetOptions/avesmapsGameLiteratureMatchesFilter
+	// (geteilte, reine Funktionen aus map-features-game-literature.js, gleiches Praedikat wie der Nested-Dialog).
 	// Das ist die MAGERE Shape: sie kennt nur, was als Attribut am Element steht -- insbesondere KEINE Links.
 	// Fuer die Dialogzeile wird sie deshalb nach Moeglichkeit durch die Katalog-Shape ersetzt (siehe unten).
 	function cardShapeFromEl(card) {
@@ -1157,10 +1157,10 @@ function advFiltersMarkup(facets) {
 		};
 	}
 	function dialogCardPasses(card, filter) {
-		if (typeof avesmapsAdventureMatchesFilter !== "function") {
+		if (typeof avesmapsGameLiteratureMatchesFilter !== "function") {
 			return true;
 		}
-		return avesmapsAdventureMatchesFilter(cardShapeFromEl(card), filter);
+		return avesmapsGameLiteratureMatchesFilter(cardShapeFromEl(card), filter);
 	}
 
 	// Die Abenteuer einer Streifen-Section als VOLLE Katalog-Shapes (Spec §2.2: der flache Dialog wird
@@ -1176,8 +1176,8 @@ function advFiltersMarkup(facets) {
 		var listEl = section.querySelector(".avesmaps-adv__list");
 		var cards = listEl ? listEl.querySelectorAll(".avesmaps-adv__card") : [];
 		return Array.prototype.map.call(cards, function (card) {
-			var fromCatalog = (typeof getAdventureShape === "function")
-				? getAdventureShape(card.getAttribute("data-public-id"))
+			var fromCatalog = (typeof getGameLiteratureShape === "function")
+				? getGameLiteratureShape(card.getAttribute("data-public-id"))
 				: null;
 			return {
 				shape: fromCatalog || cardShapeFromEl(card),
@@ -1202,21 +1202,21 @@ function advFiltersMarkup(facets) {
 		controls.className = "avesmaps-adv-dialog__controls";
 		var sortsHtml =
 			'<div class="avesmaps-adv__sorts">'
-			+ '<span class="avesmaps-adv__sort is-active" data-adv-sort="year">' + placeExtrasEscape(tr("adventures.sort.newest", "neueste zuerst")) + '</span>'
+			+ '<span class="avesmaps-adv__sort is-active" data-adv-sort="year">' + placeExtrasEscape(tr("gameLiterature.sort.newest", "neueste zuerst")) + '</span>'
 			+ '<span class="avesmaps-adv__sortsep"> · </span>'
-			+ '<span class="avesmaps-adv__sort" data-adv-sort="type">' + placeExtrasEscape(tr("adventures.sort.byType", "nach Art")) + '</span>'
+			+ '<span class="avesmaps-adv__sort" data-adv-sort="type">' + placeExtrasEscape(tr("gameLiterature.sort.byType", "nach Art")) + '</span>'
 			+ '<span class="avesmaps-adv__sortsep"> · </span>'
-			+ '<span class="avesmaps-adv__sort" data-adv-sort="edition">' + placeExtrasEscape(tr("adventures.sort.byEdition", "nach Edition")) + '</span>'
+			+ '<span class="avesmaps-adv__sort" data-adv-sort="edition">' + placeExtrasEscape(tr("gameLiterature.sort.byEdition", "nach Edition")) + '</span>'
 			+ '<span class="avesmaps-adv__sortsep"> · </span>'
-			+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">' + placeExtrasEscape(tr("adventures.sort.alpha", "alphabetisch")) + '</span>'
+			+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">' + placeExtrasEscape(tr("gameLiterature.sort.alpha", "alphabetisch")) + '</span>'
 			+ '</div>';
 		var cards = grid ? Array.prototype.slice.call(grid.querySelectorAll(".avesmaps-adv__card")) : [];
 		var shapes = cards.map(cardShapeFromEl);
-		var facets = (typeof avesmapsAdventureFacetOptions === "function")
-			? avesmapsAdventureFacetOptions(shapes)
+		var facets = (typeof avesmapsGameLiteratureFacetOptions === "function")
+			? avesmapsGameLiteratureFacetOptions(shapes)
 			: { types: [], complexities: [], genres: [], editions: [] };
 		// Die Rolle steht nicht in der Shape, nur der Aufrufer kennt sie -- deshalb wird die Spoiler-Facette
-		// hier gesetzt und nicht in avesmapsAdventureFacetOptions.
+		// hier gesetzt und nicht in avesmapsGameLiteratureFacetOptions.
 		facets.spoiler = playCount > 0;
 		var filtersHtml = advFiltersMarkup(facets);
 
@@ -1288,7 +1288,7 @@ function advFiltersMarkup(facets) {
 
 	// Kern: den flachen Dialog aus einer .avesmaps-adv-SECTION befuellen und oeffnen. Genutzt vom
 	// "Alle anzeigen"-Button (Streifen im Panel) UND vom Floating-Box-"Abenteuer"-Button (der die Section
-	// on-demand aus den Ortsdaten baut -> openPlaceAdventuresDialog).
+	// on-demand aus den Ortsdaten baut -> openPlaceGameLiteratureDialog).
 	//
 	// Seit Aufgabe B datengetrieben (Spec §2.2): der Streifen sagt nur noch, WELCHE Abenteuer in welcher
 	// Rolle gemeint sind; die Zeilen werden aus den Katalog-Shapes NEU gebaut, nicht aus den Kacheln
@@ -1297,9 +1297,9 @@ function advFiltersMarkup(facets) {
 		if (!section) {
 			return;
 		}
-		var overlay = ensureAdventuresDialog();
+		var overlay = ensureGameLiteratureDialog();
 		var head = section.querySelector(".avesmaps-adv__head");
-		overlay.querySelector(".avesmaps-adv-dialog__title").textContent = head ? head.textContent.trim() : tr("adventures.label", "Abenteuer");
+		overlay.querySelector(".avesmaps-adv-dialog__title").textContent = head ? head.textContent.trim() : tr("gameLiterature.label", "Literatur");
 		var entries = advDialogShapesFromSection(section);
 		var startEntries = entries.filter(function (e) { return !e.isPlay; });
 		var playEntries = entries.filter(function (e) { return e.isPlay; });
@@ -1311,14 +1311,14 @@ function advFiltersMarkup(facets) {
 		// und zeigt mittig, was Sache ist. Statt eines Vorschlags-Knopfs -- Abenteuer sollen Nutzer vorerst
 		// NICHT einstellen (Owner) -- fuehrt er zum naechstgelegenen Ort, an dem eines spielt.
 		grid.innerHTML = entries.length
-			? avesmapsSortAdventureEntries(
+			? avesmapsSortGameLiteratureEntries(
 				entries.map(function (e) { return { a: e.shape, isPlay: e.isPlay }; })
-			).map(function (e) { return buildAdventureRowMarkup(e.a, e.isPlay); }).join("")
+			).map(function (e) { return buildGameLiteratureRowMarkup(e.a, e.isPlay); }).join("")
 			: '<div class="avesmaps-dialog-empty">'
-				+ '<p class="avesmaps-dialog-empty__text">' + placeExtrasEscape(tr("adventures.emptyPlace", "Noch kein Abenteuer hier.")) + '</p>'
+				+ '<p class="avesmaps-dialog-empty__text">' + placeExtrasEscape(tr("gameLiterature.emptyPlace", "Noch keine Literatur hier.")) + '</p>'
 				+ '<button type="button" class="avesmaps-dialog-empty__action" data-adv-find-nearest="'
 				+ placeExtrasEscape(section.getAttribute("data-adv-place-id") || "") + '">'
-				+ placeExtrasEscape(tr("adventures.emptyFindNearby", "Finde ein Abenteuer in der Gegend")) + '</button>'
+				+ placeExtrasEscape(tr("gameLiterature.emptyFindNearby", "Finde Literatur in der Gegend")) + '</button>'
 				+ '</div>';
 		// Ohne Eintraege gibt es nichts zu filtern und nichts zu sortieren -- eine Leiste ueber einem leeren
 		// Fenster waere Bedienung ohne Gegenstand.
@@ -1330,28 +1330,28 @@ function advFiltersMarkup(facets) {
 		}
 		var creditEl = overlay.querySelector(".avesmaps-adv-dialog__credit");
 		if (creditEl) {
-			creditEl.innerHTML = avesmapsAdventureCreditMarkup();
+			creditEl.innerHTML = avesmapsGameLiteratureCreditMarkup();
 		}
 		overlay.classList.add("is-open");
 	}
 
 	// Floating-Box-"Abenteuer"-Button: die schlanke Box rendert KEINEN Abenteuer-Streifen -> den Streifen-Markup
 	// on-demand aus den Ortsdaten bauen (detached, nur als Karten-Quelle) und daraus den flachen Dialog oeffnen.
-	function openPlaceAdventuresDialog(location) {
-		if (!location || typeof buildPlaceAdventuresMarkup !== "function") {
+	function openPlaceGameLiteratureDialog(location) {
+		if (!location || typeof buildPlaceGameLiteratureMarkup !== "function") {
 			return;
 		}
 		// allowEmpty: auch ohne Abenteuer oeffnen (Owner 2026-07-18) -- der Dialog zeigt dann seinen leeren
 		// Zustand mit dem Weg zum naechsten Abenteuer, statt dass gar nichts passiert.
 		var holder = document.createElement("div");
-		holder.innerHTML = buildPlaceAdventuresMarkup(location, { allowEmpty: true });
+		holder.innerHTML = buildPlaceGameLiteratureMarkup(location, { allowEmpty: true });
 		var section = holder.querySelector(".avesmaps-adv");
 		if (section) {
 			openFlatDialogForSection(section);
 		}
 	}
 
-	// "Finde ein Abenteuer in der Gegend": der raeumlich naechste Ort, an dem ueberhaupt eines spielt --
+	// "Finde Literatur in der Gegend": der raeumlich naechste Ort, an dem ueberhaupt eines spielt --
 	// und dorthin springen, statt den Dialog mit fremden Abenteuern zu fuellen (die spielen ja nicht hier).
 	// Nutzt bewusst die vorhandene Nachbarschaftssuche (findNearestLocationToLatLng) und nicht die
 	// politische Hierarchie: "in der Gegend" heisst fuer einen Leser Luftlinie, nicht Lehnspyramide.
@@ -1369,15 +1369,15 @@ function advFiltersMarkup(facets) {
 		var target = findNearestLocationToLatLng(L.latLng(coords[0], coords[1]), {
 			accept: function (candidate) {
 				return candidate !== origin.location
-					&& typeof getPlaceAdventuresTotal === "function"
-					&& getPlaceAdventuresTotal(candidate) > 0;
+					&& typeof getPlaceGameLiteratureTotal === "function"
+					&& getPlaceGameLiteratureTotal(candidate) > 0;
 			},
 		});
 		var warn = function (msg) {
 			if (typeof showFeedbackToast === "function") { showFeedbackToast(msg, "warning"); }
 		};
 		if (!target) {
-			warn(tr("adventures.noneNearby", "In der Nähe ist kein Abenteuer verzeichnet."));
+			warn(tr("gameLiterature.noneNearby", "In der Nähe ist keine Literatur verzeichnet."));
 			return;
 		}
 		var overlay = document.getElementById("avesmaps-adv-dialog");
@@ -1404,8 +1404,8 @@ function advFiltersMarkup(facets) {
 			return;
 		}
 		var territoryKey = section.getAttribute("data-adv-territory-key");
-		if (territoryKey && typeof openNestedAdventuresDialog === "function") {
-			openNestedAdventuresDialog(territoryKey, section);
+		if (territoryKey && typeof openNestedGameLiteratureDialog === "function") {
+			openNestedGameLiteratureDialog(territoryKey, section);
 			return;
 		}
 		openFlatDialogForSection(section);
@@ -1424,7 +1424,7 @@ function advFiltersMarkup(facets) {
 		}
 		var entry = findLocationMarkerByPublicId(publicId);
 		if (entry && entry.location) {
-			openPlaceAdventuresDialog(entry.location);
+			openPlaceGameLiteratureDialog(entry.location);
 		}
 	});
 
@@ -1447,15 +1447,15 @@ function advFiltersMarkup(facets) {
 				return String(a.dataset.type).localeCompare(String(b.dataset.type), "de") || ((Number(b.dataset.year) || 0) - (Number(a.dataset.year) || 0));
 			}
 			if (mode === "edition") {
-				var ek = typeof avesmapsAdventureEditionSortKey === "function"
-					? (avesmapsAdventureEditionSortKey(a.dataset.edition) - avesmapsAdventureEditionSortKey(b.dataset.edition)) : 0;
+				var ek = typeof avesmapsGameLiteratureEditionSortKey === "function"
+					? (avesmapsGameLiteratureEditionSortKey(a.dataset.edition) - avesmapsGameLiteratureEditionSortKey(b.dataset.edition)) : 0;
 				return ek || String(a.dataset.title).localeCompare(String(b.dataset.title), "de");
 			}
 			// "neueste zuerst" -- DERSELBE Vergleicher wie die Anfangsreihenfolge (dataset liefert Strings,
 			// der Vergleicher rechnet sie um). Liefen die beiden auseinander, ordnete der erste Klick auf die
 			// ohnehin schon aktive Sortierung sichtbar um.
-			return (typeof avesmapsCompareAdventureRecency === "function")
-				? avesmapsCompareAdventureRecency(a.dataset, b.dataset)
+			return (typeof avesmapsCompareGameLiteratureRecency === "function")
+				? avesmapsCompareGameLiteratureRecency(a.dataset, b.dataset)
 				: ((Number(b.dataset.year) || 0) - (Number(a.dataset.year) || 0));
 		};
 		// DURCHGEHEND sortieren, ohne Rollen-Bloecke (Owner 2026-07-18). Die alte Invariante "beginnt bleibt
@@ -1477,7 +1477,7 @@ function advFiltersMarkup(facets) {
 	// Der Sammel-Spoilerschalter (.avesmaps-adv__modes) ist mit der Sortierzeile aus dem Streifen entfallen
 	// (Owner 2026-07-19), und der Streifen war zuletzt der EINZIGE Ort, der ihn baute -- in den Dialogen ist
 	// er ein Chip in der Filterleiste mit eigenem Handler. Sein Klick-Handler stand hier also ohne Element und
-	// ist mitgegangen, zusammen mit applyAdventureSpoilers(), das nur dieser Handler aufrief.
+	// ist mitgegangen, zusammen mit applyGameLiteratureSpoilers(), das nur dieser Handler aufrief.
 	// Aufgedeckt wird jetzt im Streifen einzeln ueber [data-spoiler-reveal].
 })();
 
@@ -1489,9 +1489,9 @@ if (typeof module !== "undefined" && module.exports) {
 		advShopLinks: advShopLinks,
 		advBestLink: advBestLink,
 		advFiltersMarkup: advFiltersMarkup,
-		buildAdventureCardMarkup: buildAdventureCardMarkup,
-		buildAdventureRowMarkup: buildAdventureRowMarkup,
-		avesmapsSortAdventureEntries: avesmapsSortAdventureEntries,
+		buildGameLiteratureCardMarkup: buildGameLiteratureCardMarkup,
+		buildGameLiteratureRowMarkup: buildGameLiteratureRowMarkup,
+		avesmapsSortGameLiteratureEntries: avesmapsSortGameLiteratureEntries,
 		cityMapSafeUrl: cityMapSafeUrl,
 		cityMapBestLink: cityMapBestLink,
 		cityMapIsSpoiler: cityMapIsSpoiler,

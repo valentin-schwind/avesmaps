@@ -10,7 +10,7 @@ declare(strict_types=1);
 // (optionally with a precomputed 'url_hash'). The sync writes those into link_ref, per entity type.
 
 require_once __DIR__ . '/store.php';
-require_once __DIR__ . '/../app/adventures.php';
+require_once __DIR__ . '/../app/game-literature.php';
 require_once __DIR__ . '/../app/citymaps.php';
 require_once __DIR__ . '/../app/feature-sources.php';
 
@@ -25,7 +25,7 @@ require_once __DIR__ . '/../app/feature-sources.php';
 function avesmapsLinkCheckProviders(): array
 {
     return [
-        'adventure' => 'avesmapsLinkCheckCollectAdventureLinks',
+        'adventure' => 'avesmapsLinkCheckCollectGameLiteratureLinks',
         'citymap' => 'avesmapsLinkCheckCollectCitymapLinks',
         'source_settlement' => 'avesmapsLinkCheckCollectSettlementSourceLinks',
         'source_territory' => 'avesmapsLinkCheckCollectTerritorySourceLinks',
@@ -34,12 +34,12 @@ function avesmapsLinkCheckProviders(): array
     ];
 }
 
-// Every shop/reference link of every approved adventure. Uses avesmapsAdventureLinks() -- the SAME
+// Every shop/reference link of every approved adventure. Uses avesmapsGameLiteratureLinks() -- the SAME
 // function the public catalog renders from (Spec §2.5), so the checker can never end up probing a
 // different set of URLs than the one the reader sees.
-function avesmapsLinkCheckCollectAdventureLinks(PDO $pdo): array
+function avesmapsLinkCheckCollectGameLiteratureLinks(PDO $pdo): array
 {
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
     $rows = $pdo->query(
         "SELECT id, public_id, title, wiki_url, link_ulisses, link_fshop, isbn
            FROM adventure WHERE status = 'approved'"
@@ -49,14 +49,14 @@ function avesmapsLinkCheckCollectAdventureLinks(PDO $pdo): array
     // they are collected in the same pass -- one batch query, never per adventure. Skipping them here
     // would leave the reader looking at an "(noch nicht geprüft)" marker forever: the catalog renders
     // them, but nothing would ever register or probe them.
-    $extraLinksByAdventure = avesmapsAdventureExtraLinksByAdventure(
+    $extraLinksByGameLiterature = avesmapsGameLiteratureExtraLinksByGameLiterature(
         $pdo,
         array_map(static fn(array $r): int => (int) $r['id'], $rows)
     );
 
     $collected = [];
     foreach ($rows as $row) {
-        foreach (avesmapsAdventureLinks($row, $extraLinksByAdventure[(int) $row['id']] ?? []) as $link) {
+        foreach (avesmapsGameLiteratureLinks($row, $extraLinksByGameLiterature[(int) $row['id']] ?? []) as $link) {
             $collected[] = [
                 'entity_public_id' => (string) $row['public_id'],
                 'field' => (string) $link['key'],

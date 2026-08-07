@@ -8,7 +8,7 @@ declare(strict_types=1);
 // no test could reach it; moved to api/_internal/app/search-section.php for exactly that reason (same
 // precedent as map-search-scoring.php: read that file's header).
 //
-// Entries are built with the REAL builders (avesmapsBuildAdventureSearchEntries,
+// Entries are built with the REAL builders (avesmapsBuildGameLiteratureSearchEntries,
 // avesmapsBuildLoreSearchEntries, avesmapsBuildCitymapSearchEntries) rather than hand-written arrays,
 // so this test breaks if an entry shape drifts out from under the comparators.
 
@@ -20,16 +20,16 @@ if (!assert_options(ASSERT_ACTIVE)) {
 require_once __DIR__ . '/../map-search-scoring.php';
 require_once __DIR__ . '/../search-section.php';
 require_once __DIR__ . '/../citymap-search.php';
-require_once __DIR__ . '/../adventure-search.php';
+require_once __DIR__ . '/../game-literature-search.php';
 require_once __DIR__ . '/../lore-search.php';
 
 // ---- the cap itself: 8 matches capped to 5, and the total is counted BEFORE the cap -----------------
 // The total feeds the "... und N weitere" overflow line (js/ui/spotlight-search.js,
 // SPOTLIGHT_SEARCH_SECTIONS). Counting it AFTER the cap would always report the cap itself (5 of 5),
 // which would render "... und 0 weitere" no matter how many more actually exist.
-$matchingAdventureRows = [];
+$matchingGameLiteratureRows = [];
 for ($i = 1; $i <= 8; $i++) {
-    $matchingAdventureRows[] = [
+    $matchingGameLiteratureRows[] = [
         'public_id' => "adv-cap-$i",
         'title' => "Testabenteuer $i",
         'product_type' => 'szenario',
@@ -44,7 +44,7 @@ for ($i = 1; $i <= 8; $i++) {
 }
 // A ninth row that does NOT match the query -- it must be excluded from both the capped list AND the
 // total. If the total counted it, feeding 8 matches would report 9.
-$nonMatchingAdventureRow = [
+$nonMatchingGameLiteratureRow = [
     'public_id' => 'adv-cap-miss',
     'title' => 'Voellig Anderes',
     'product_type' => 'szenario',
@@ -56,14 +56,14 @@ $nonMatchingAdventureRow = [
     'place_kind' => 'settlement',
     'place_public_id' => 'loc-havena',
 ];
-$capEntries = avesmapsBuildAdventureSearchEntries(
-    array_merge($matchingAdventureRows, [$nonMatchingAdventureRow]),
-    AVESMAPS_ADVENTURE_SEARCH_TYPE_LABELS
+$capEntries = avesmapsBuildGameLiteratureSearchEntries(
+    array_merge($matchingGameLiteratureRows, [$nonMatchingGameLiteratureRow]),
+    AVESMAPS_GAME_LITERATURE_SEARCH_TYPE_LABELS
 );
 [$capped, $capTotal] = avesmapsCollectSearchSection(
     $capEntries,
     avesmapsNormalizeSearchText('testabenteuer'),
-    'avesmapsAdventureSearchCompare',
+    'avesmapsGameLiteratureSearchCompare',
     5
 );
 assert(count($capped) === 5);
@@ -92,7 +92,7 @@ assert($smallTotal === 3);
 // The place_name deliberately does NOT contain "gareth" on either row, so the only source of a match is
 // the title -- proving the resolved entry's score really is the numerically WORSE one, not a coincidence
 // of some other search text.
-$adventureResolvedWorseRow = [
+$gameLiteratureResolvedWorseRow = [
     'public_id' => 'adv-rank-resolved',
     'title' => 'Xgarethx', // contains "gareth" -> tier 3 (contained), the WORSE score
     'product_type' => 'szenario',
@@ -104,7 +104,7 @@ $adventureResolvedWorseRow = [
     'place_kind' => 'settlement',
     'place_public_id' => 'loc-havena',
 ];
-$adventureUnresolvedBetterRow = [
+$gameLiteratureUnresolvedBetterRow = [
     'public_id' => 'adv-rank-unresolved',
     'title' => 'Gareth', // exact match -> tier 0, the BETTER score
     'product_type' => 'szenario',
@@ -116,30 +116,30 @@ $adventureUnresolvedBetterRow = [
     'place_kind' => 'unresolved',
     'place_public_id' => null,
 ];
-$adventureRankEntries = avesmapsBuildAdventureSearchEntries(
-    [$adventureUnresolvedBetterRow, $adventureResolvedWorseRow],
-    AVESMAPS_ADVENTURE_SEARCH_TYPE_LABELS
+$gameLiteratureRankEntries = avesmapsBuildGameLiteratureSearchEntries(
+    [$gameLiteratureUnresolvedBetterRow, $gameLiteratureResolvedWorseRow],
+    AVESMAPS_GAME_LITERATURE_SEARCH_TYPE_LABELS
 );
-[$adventureRanked, $adventureRankTotal] = avesmapsCollectSearchSection(
-    $adventureRankEntries,
+[$gameLiteratureRanked, $gameLiteratureRankTotal] = avesmapsCollectSearchSection(
+    $gameLiteratureRankEntries,
     avesmapsNormalizeSearchText('gareth'),
-    'avesmapsAdventureSearchCompare',
+    'avesmapsGameLiteratureSearchCompare',
     5
 );
-assert($adventureRankTotal === 2);
-assert($adventureRanked[0]['public_id'] === 'adv-rank-resolved');
-assert($adventureRanked[0]['unresolved'] === false);
-assert($adventureRanked[1]['public_id'] === 'adv-rank-unresolved');
-assert($adventureRanked[1]['unresolved'] === true);
+assert($gameLiteratureRankTotal === 2);
+assert($gameLiteratureRanked[0]['public_id'] === 'adv-rank-resolved');
+assert($gameLiteratureRanked[0]['unresolved'] === false);
+assert($gameLiteratureRanked[1]['public_id'] === 'adv-rank-unresolved');
+assert($gameLiteratureRanked[1]['unresolved'] === true);
 // The premise: the WINNER (resolved) has the numerically WORSE (higher) score than the entry it beat.
-assert($adventureRanked[0]['score'] > $adventureRanked[1]['score']);
+assert($gameLiteratureRanked[0]['score'] > $gameLiteratureRanked[1]['score']);
 
 // ---- adventures: at equal score AND equal resolvedness, the LOWER edition_sort_key (newer) wins ------
 // Same title on both rows guarantees an identical score; both places resolved guarantees equal
 // resolvedness -- so the edition is the ONLY thing that can decide the order. Rows are listed
 // oldest-first here, the opposite of the expected output, so a passing test cannot be an accident of
 // input order.
-$adventureEditionOlderRow = [
+$gameLiteratureEditionOlderRow = [
     'public_id' => 'adv-edition-old',
     'title' => 'Zukunft im Sand',
     'product_type' => 'szenario',
@@ -151,7 +151,7 @@ $adventureEditionOlderRow = [
     'place_kind' => 'settlement',
     'place_public_id' => 'loc-gareth',
 ];
-$adventureEditionNewerRow = [
+$gameLiteratureEditionNewerRow = [
     'public_id' => 'adv-edition-new',
     'title' => 'Zukunft im Sand',
     'product_type' => 'szenario',
@@ -163,22 +163,22 @@ $adventureEditionNewerRow = [
     'place_kind' => 'settlement',
     'place_public_id' => 'loc-gareth',
 ];
-$adventureEditionEntries = avesmapsBuildAdventureSearchEntries(
-    [$adventureEditionOlderRow, $adventureEditionNewerRow],
-    AVESMAPS_ADVENTURE_SEARCH_TYPE_LABELS
+$gameLiteratureEditionEntries = avesmapsBuildGameLiteratureSearchEntries(
+    [$gameLiteratureEditionOlderRow, $gameLiteratureEditionNewerRow],
+    AVESMAPS_GAME_LITERATURE_SEARCH_TYPE_LABELS
 );
-[$adventureEditionRanked, $adventureEditionTotal] = avesmapsCollectSearchSection(
-    $adventureEditionEntries,
+[$gameLiteratureEditionRanked, $gameLiteratureEditionTotal] = avesmapsCollectSearchSection(
+    $gameLiteratureEditionEntries,
     avesmapsNormalizeSearchText('zukunft'),
-    'avesmapsAdventureSearchCompare',
+    'avesmapsGameLiteratureSearchCompare',
     5
 );
-assert($adventureEditionTotal === 2);
+assert($gameLiteratureEditionTotal === 2);
 // Confirm the premise first: equal resolvedness, equal score -- only the edition is left to decide.
-assert($adventureEditionRanked[0]['unresolved'] === $adventureEditionRanked[1]['unresolved']);
-assert($adventureEditionRanked[0]['score'] === $adventureEditionRanked[1]['score']);
-assert($adventureEditionRanked[0]['public_id'] === 'adv-edition-new');
-assert($adventureEditionRanked[1]['public_id'] === 'adv-edition-old');
+assert($gameLiteratureEditionRanked[0]['unresolved'] === $gameLiteratureEditionRanked[1]['unresolved']);
+assert($gameLiteratureEditionRanked[0]['score'] === $gameLiteratureEditionRanked[1]['score']);
+assert($gameLiteratureEditionRanked[0]['public_id'] === 'adv-edition-new');
+assert($gameLiteratureEditionRanked[1]['public_id'] === 'adv-edition-old');
 
 // ---- occurrences: place_count === 0 ranks LAST, even with a better score ------------------------------
 $loreUnplacedBetterRow = ['wiki_key' => 'unplaced-better', 'kind' => 'flora', 'name' => 'Alraune', 'gruppe' => '', 'typ' => ''];

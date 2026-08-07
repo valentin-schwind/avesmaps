@@ -10,7 +10,7 @@
 // ändert es für alle sechs Filterflächen -- und muss es nicht fünfmal abtippen.
 //
 // Bewusst OHNE Abhängigkeiten (eigener Escaper), damit auch die Seiten sie laden können, die sonst
-// gar kein externes Skript einbinden: html/wiki-sync-monitor.html und html/adventure-editor.html.
+// gar kein externes Skript einbinden: html/wiki-sync-monitor.html und html/game-literature-editor.html.
 //
 // Abschnittsarten:
 //   "multi"  -> state = Set,                    Ankreuzfelder, leer = alle

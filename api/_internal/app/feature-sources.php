@@ -466,8 +466,8 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
     // Step 6: if this source IS an adventure, the place joins its "Abenteuer in …" list right away
     // -- no confirmation step (owner). Guarded because the adventure library is not loaded on every
     // surface that adds a source; without it the source link simply stands on its own, as before.
-    if (function_exists('avesmapsAdventureLinkPlaceFromSource')) {
-        avesmapsAdventureLinkPlaceFromSource($pdo, $sourceId, $entityType, $publicId, $userId);
+    if (function_exists('avesmapsGameLiteratureLinkPlaceFromSource')) {
+        avesmapsGameLiteratureLinkPlaceFromSource($pdo, $sourceId, $entityType, $publicId, $userId);
     }
     // Cache invalidation (Fix #1): a new source link changes the element's rendered source list,
     // which rides in the ETag-cached map-features payload (W/"mf-<map_revision>-..."). Bump the SAME
@@ -510,8 +510,8 @@ function avesmapsRemoveFeatureSource(PDO $pdo, string $entityType, string $publi
     // Step 6, the reverse path: the place entry this source link created goes with it, immediately
     // and through the same door. An entry that was already there is untouched -- it carries no
     // created_from_source_id, and only rows carrying THIS source id are removed.
-    if (function_exists('avesmapsAdventureUnlinkPlaceFromSource')) {
-        avesmapsAdventureUnlinkPlaceFromSource($pdo, $sourceId, $entityType, $publicId);
+    if (function_exists('avesmapsGameLiteratureUnlinkPlaceFromSource')) {
+        avesmapsGameLiteratureUnlinkPlaceFromSource($pdo, $sourceId, $entityType, $publicId);
     }
     // Cache invalidation (Fix #1): suppress OR hard-delete both change the element's rendered
     // source list -> bump the same global map_revision counter (ETag seed) ordinary edits use, so
@@ -556,8 +556,8 @@ function avesmapsLinkExistingFeatureSource(PDO $pdo, string $entityType, string 
         $pagesValue !== '' ? mb_substr($pagesValue, 0, 120) : null
     );
     // Step 6, same as the add path: picking an existing adventure source connects the place to it.
-    if (function_exists('avesmapsAdventureLinkPlaceFromSource')) {
-        avesmapsAdventureLinkPlaceFromSource($pdo, $sourceId, $entityType, $publicId, $userId);
+    if (function_exists('avesmapsGameLiteratureLinkPlaceFromSource')) {
+        avesmapsGameLiteratureLinkPlaceFromSource($pdo, $sourceId, $entityType, $publicId, $userId);
     }
     // Same cache invalidation as the add path: the element's rendered source list changed.
     avesmapsNextMapRevision($pdo);
@@ -718,11 +718,11 @@ function avesmapsSourceWikiKeyReport(PDO $pdo, int $sampleLimit = 50): array
     }
 
     // Which resolved keys are an adventure we already know? That is what step 6 will light up.
-    $adventureKeys = [];
+    $gameLiteratureKeys = [];
     try {
         $adv = $pdo->query("SELECT wiki_key FROM adventure WHERE wiki_key IS NOT NULL AND wiki_key <> ''");
         foreach ($adv === false ? [] : $adv->fetchAll(PDO::FETCH_COLUMN) as $key) {
-            $adventureKeys[(string) $key] = true;
+            $gameLiteratureKeys[(string) $key] = true;
         }
     } catch (Throwable) {
         // adventure table absent -> the count stays 0, the rest of the report is unaffected.
@@ -731,10 +731,10 @@ function avesmapsSourceWikiKeyReport(PDO $pdo, int $sampleLimit = 50): array
     $merges = [];
     $conflicts = [];
     $linksInMerges = 0;
-    $keysHittingAdventure = 0;
+    $keysHittingGameLiterature = 0;
     foreach ($byKey as $key => $group) {
-        if (isset($adventureKeys[$key])) {
-            $keysHittingAdventure++;
+        if (isset($gameLiteratureKeys[$key])) {
+            $keysHittingGameLiterature++;
         }
         if (count($group) < 2) {
             continue;
@@ -752,7 +752,7 @@ function avesmapsSourceWikiKeyReport(PDO $pdo, int $sampleLimit = 50): array
             'catalog_title' => $catalogTitleByKey[$key] ?? '',
             'sources' => $group,
             'links_affected' => $links,
-            'is_adventure' => isset($adventureKeys[$key]),
+            'is_adventure' => isset($gameLiteratureKeys[$key]),
         ];
         $merges[] = $entry;
         // A conflict is a disagreement about WHAT THE WORK IS. Section 6 decided the wiki wins those,
@@ -775,7 +775,7 @@ function avesmapsSourceWikiKeyReport(PDO $pdo, int $sampleLimit = 50): array
         'with_key' => $routes['stored'] + $routes['hash'] + $routes['url'],
         'without_key' => $routes['none'],
         'distinct_keys' => count($byKey),
-        'keys_matching_an_adventure' => $keysHittingAdventure,
+        'keys_matching_an_adventure' => $keysHittingGameLiterature,
         'merge_groups' => count($merges),
         'links_affected_by_merges' => $linksInMerges,
         'conflicts' => count($conflicts),

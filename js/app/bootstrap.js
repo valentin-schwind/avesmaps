@@ -449,7 +449,7 @@ $("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEd
 $("#location-edit-type").on("change", () => syncLocationEditPlaceKindAvailability());
 $("#wiki-sync-territories").on("click", () => startWikiSyncTerritoryRun());
 $("#settlement-editor-open").on("click", () => openAvesmapsSettlementEditorOverlay());
-$("#adventure-editor-open").on("click", () => openAvesmapsAdventureEditorOverlay());
+$("#game-literature-editor-open").on("click", () => openAvesmapsGameLiteratureEditorOverlay());
 $("#citymaps-editor-open").on("click", () => openAvesmapsCitymapEditorOverlay());
 $("#powerline-editor-open").on("click", () => openAvesmapsPowerlineEditorOverlay());
 $("#ecosystem-editor-open").on("click", () => openAvesmapsEcosystemEditorOverlay());
@@ -465,7 +465,7 @@ $("#wiki-sync-sync-region").on("click", () => startWikiSyncKindSync("region"));
 // die Funktion fuer ihren ANDEREN Aufrufer weiterwirft (der Editor-iframe zeigt den Fehlschlag in
 // seiner eigenen Kopfzeile) -- eine unbehandelte Zurueckweisung waere hier nur Konsolenlaerm, den
 // niemand liest: Statuszeile und Hinweisfenster haben es schon gesagt.
-$("#wiki-sync-sync-adventure").on("click", () => { void startWikiSyncAdventuresSync().catch(() => {}); });
+$("#wiki-sync-sync-game-literature").on("click", () => { void startWikiSyncGameLiteratureSync().catch(() => {}); });
 // Karten hat hier bewusst keine Bindung: sein Sync (sync_citymaps, startWikiSyncCitymapsSync)
 // wird ausschliesslich aus dem Karteneditor heraus angestossen, nicht aus dem Panel.
 // Natur & Waren (Flora/Fauna/Spezies/Handelswaren): likewise its OWN reconcile action

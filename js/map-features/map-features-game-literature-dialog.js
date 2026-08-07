@@ -1,11 +1,11 @@
-// Abenteuer-Feature (Phase 2.3) -- der verschachtelte "Alle anzeigen"-Dialog fuer Territorien/Regionen.
+// Literatur-Feature (Phase 2.3) -- der verschachtelte "Alle anzeigen"-Dialog fuer Territorien/Regionen.
 //
 // Umsetzung des vom Owner freigegebenen Entwurfs: echt VERSCHACHTELTE Rahmen (Box-in-Box, jede Ebene inkl.
 // oberstem Reich gerahmt, Kind warm getoent + eingerueckt), Rang-Pill + "N direkt" je Knoten, Sortierzeile,
 // beginnt/spielt-Umschalter (Fade wie im Streifen) und eine Filterleiste (Art als Chips [multi], Schwierigkeit
 // + Genre als Selects, "nur offiziell" als Chip). Deepest-wins + Baum + Facetten kommen fertig aus dem
-// Datenlayer (map-features-adventures.js): getAdventureTerritoryTree / avesmapsAdventureFacetOptions /
-// avesmapsAdventureMatchesFilter. Die Karten-Optik teilt sich buildAdventureCardMarkup (place-extras.js) --
+// Datenlayer (map-features-game-literature.js): getGameLiteratureTerritoryTree / avesmapsGameLiteratureFacetOptions /
+// avesmapsGameLiteratureMatchesFilter. Die Karten-Optik teilt sich buildGameLiteratureCardMarkup (place-extras.js) --
 // im Nested-Dialog; Sichtbarkeit steuern die geteilten Klassen (.is-spoiler/.show-spoilers/
 // .is-filtered-out) Sichtbarkeit + Fade + Filter steuern.
 //
@@ -13,10 +13,10 @@
 // unberuehrt bleibt; eigene data-Attribute (data-adv-tree-*), damit dessen Document-Delegation nicht
 // hineinfeuert. Aufgerufen aus dem "Alle anzeigen"-Handler in place-extras.js (Weiche auf data-adv-territory-key).
 //
-// Load order: nach map-features-adventures.js (Datenlayer) UND map-features-place-extras.js
-// (buildAdventureCardMarkup). Alle Abhaengigkeiten werden beim Oeffnen aufgeloest + typeof-gegated.
+// Load order: nach map-features-game-literature.js (Datenlayer) UND map-features-place-extras.js
+// (buildGameLiteratureCardMarkup). Alle Abhaengigkeiten werden beim Oeffnen aufgeloest + typeof-gegated.
 
-(function initAdventuresNestedDialog() {
+(function initGameLiteratureNestedDialog() {
 	if (typeof window === "undefined" || typeof document === "undefined") {
 		return;
 	}
@@ -42,7 +42,7 @@
 		overlay.className = "avesmaps-adv-dialog avesmaps-adv-tree-dialog";
 		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box" role="dialog" aria-modal="true">'
 			+ '<div class="avesmaps-adv-dialog__head"><span class="avesmaps-adv-dialog__title"></span>'
-			+ '<button type="button" class="avesmaps-adv-dialog__close" aria-label="' + esc(tr("adventures.closeAria", "Schließen")) + '">✕</button></div>'
+			+ '<button type="button" class="avesmaps-adv-dialog__close" aria-label="' + esc(tr("gameLiterature.closeAria", "Schließen")) + '">✕</button></div>'
 			+ '<div class="avesmaps-adv-tree-dialog__controls"></div>'
 			+ '<div class="avesmaps-adv-tree-dialog__body avesmaps-adv-tree-dialog__tree"></div>'
 			+ '<div class="avesmaps-adv-dialog__credit"></div></div>';
@@ -69,10 +69,10 @@
 		(node.children || []).forEach(function (c) { collectShapes(c, out); });
 	}
 
-	// Eine Karte in Nested-Optik: buildAdventureCardMarkup (geteilte Optik) OHNE inline display:none, damit
+	// Eine Karte in Nested-Optik: buildGameLiteratureCardMarkup (geteilte Optik) OHNE inline display:none, damit
 	// Spoiler stehen da wie alle anderen, nur verschleiert; .is-filtered-out blendet aus.
 	function cardMarkup(shape, isPlay) {
-		return typeof buildAdventureCardMarkup === "function" ? buildAdventureCardMarkup(shape, isPlay) : "";
+		return typeof buildGameLiteratureCardMarkup === "function" ? buildGameLiteratureCardMarkup(shape, isPlay) : "";
 	}
 
 	// Ein Territoriums-Rahmen, ECHT verschachtelt: Kopf (Rang-Pill + Name + "N direkt"), eigene Karten
@@ -89,15 +89,15 @@
 			.concat((node.play || []).map(function (s) { return { a: s, isPlay: true }; }));
 		// Fehlt die geteilte Sortierung wider Erwarten, wird UNSORTIERT gerendert -- nie gar nicht. Eine
 		// falsche Reihenfolge ist ein Schoenheitsfehler, ein leerer Rahmen waere Datenverlust vor dem Leser.
-		if (typeof avesmapsSortAdventureEntries === "function") {
-			frameEntries = avesmapsSortAdventureEntries(frameEntries);
+		if (typeof avesmapsSortGameLiteratureEntries === "function") {
+			frameEntries = avesmapsSortGameLiteratureEntries(frameEntries);
 		}
 		var frameCards = frameEntries.map(function (e) { return cardMarkup(e.a, e.isPlay); }).join("");
 		var kids = (node.children || []).map(renderFrame).join("");
 		return '<div class="avesmaps-adv-tree__frame">'
 			+ '<div class="avesmaps-adv-tree__fhead">' + pill
 			+ '<span class="avesmaps-adv-tree__fname">' + esc(node.name) + '</span>'
-			+ '<span class="avesmaps-adv-tree__direct" data-adv-direct>' + esc(tr("adventures.directCount", "{n} direkt", { n: 0 })) + '</span></div>'
+			+ '<span class="avesmaps-adv-tree__direct" data-adv-direct>' + esc(tr("gameLiterature.directCount", "{n} direkt", { n: 0 })) + '</span></div>'
 			+ '<div class="avesmaps-adv-tree__cards">' + frameCards + '</div>'
 			+ kids
 			+ '</div>';
@@ -105,14 +105,14 @@
 
 	function sortsMarkup() {
 		return '<div class="avesmaps-adv-tree__sorts">'
-			+ '<span class="avesmaps-adv-tree__slabel">' + esc(tr("adventures.sortLabel", "Sortierung:")) + '</span> '
-			+ '<span class="avesmaps-adv-tree__sort is-active" data-adv-tree-sort="year">' + esc(tr("adventures.sort.newest", "neueste zuerst")) + '</span>'
+			+ '<span class="avesmaps-adv-tree__slabel">' + esc(tr("gameLiterature.sortLabel", "Sortierung:")) + '</span> '
+			+ '<span class="avesmaps-adv-tree__sort is-active" data-adv-tree-sort="year">' + esc(tr("gameLiterature.sort.newest", "neueste zuerst")) + '</span>'
 			+ '<span class="avesmaps-adv-tree__sortsep"> · </span>'
-			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="type">' + esc(tr("adventures.sort.byType", "nach Art")) + '</span>'
+			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="type">' + esc(tr("gameLiterature.sort.byType", "nach Art")) + '</span>'
 			+ '<span class="avesmaps-adv-tree__sortsep"> · </span>'
-			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="edition">' + esc(tr("adventures.sort.byEdition", "nach Edition")) + '</span>'
+			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="edition">' + esc(tr("gameLiterature.sort.byEdition", "nach Edition")) + '</span>'
 			+ '<span class="avesmaps-adv-tree__sortsep"> · </span>'
-			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="alpha">' + esc(tr("adventures.sort.alpha", "alphabetisch")) + '</span>'
+			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="alpha">' + esc(tr("gameLiterature.sort.alpha", "alphabetisch")) + '</span>'
 			+ '</div>';
 	}
 	// modesMarkup() ist entfallen (Owner 2026-07-18): der Spoiler-Schalter sitzt jetzt als Chip in
@@ -124,12 +124,12 @@
 		return typeof advFiltersMarkup === "function" ? advFiltersMarkup(facets) : "";
 	}
 
-	// Pseudo-shape aus den Karten-data-Attributen -> avesmapsAdventureMatchesFilter (geteiltes Praedikat).
+	// Pseudo-shape aus den Karten-data-Attributen -> avesmapsGameLiteratureMatchesFilter (geteiltes Praedikat).
 	function cardPasses(card, filter) {
-		if (typeof avesmapsAdventureMatchesFilter !== "function") {
+		if (typeof avesmapsGameLiteratureMatchesFilter !== "function") {
 			return true;
 		}
-		return avesmapsAdventureMatchesFilter({
+		return avesmapsGameLiteratureMatchesFilter({
 			type: card.getAttribute("data-type") || "",
 			edition: card.getAttribute("data-edition") || "",
 			year: Number(card.getAttribute("data-year")) || 0,
@@ -139,11 +139,11 @@
 		}, filter);
 	}
 
-	window.openNestedAdventuresDialog = function (territoryKey, section) {
-		if (typeof getAdventureTerritoryTree !== "function") {
+	window.openNestedGameLiteratureDialog = function (territoryKey, section) {
+		if (typeof getGameLiteratureTerritoryTree !== "function") {
 			return;
 		}
-		var tree = getAdventureTerritoryTree(territoryKey);
+		var tree = getGameLiteratureTerritoryTree(territoryKey);
 		if (!tree) {
 			return;
 		}
@@ -152,13 +152,13 @@
 		var head = section ? section.querySelector(".avesmaps-adv__head") : null;
 		var titleEl = overlay.querySelector(".avesmaps-adv-dialog__title");
 		if (titleEl) {
-			titleEl.textContent = head ? head.textContent.trim() : tr("adventures.heading", "Abenteuer in {place}", { place: tree.name || "" });
+			titleEl.textContent = head ? head.textContent.trim() : tr("gameLiterature.heading", "Literatur zu {place}", { place: tree.name || "" });
 		}
 
 		var allShapes = [];
 		collectShapes(tree, allShapes);
-		var facets = (typeof avesmapsAdventureFacetOptions === "function")
-			? avesmapsAdventureFacetOptions(allShapes)
+		var facets = (typeof avesmapsGameLiteratureFacetOptions === "function")
+			? avesmapsGameLiteratureFacetOptions(allShapes)
 			: { types: [], complexities: [], genres: [] };
 		// Gibt es ueberhaupt Spoiler? Die Rolle steht NICHT in der Shape (collectShapes wirft start und play
 		// in eine Liste) -- also am Baum selbst nachsehen, sonst erschiene der Schalter nie.
@@ -188,14 +188,14 @@
 					|| ((Number(b.getAttribute("data-year")) || 0) - (Number(a.getAttribute("data-year")) || 0));
 			}
 			if (state.sort === "edition") {
-				var ek = typeof avesmapsAdventureEditionSortKey === "function"
-					? (avesmapsAdventureEditionSortKey(a.getAttribute("data-edition")) - avesmapsAdventureEditionSortKey(b.getAttribute("data-edition"))) : 0;
+				var ek = typeof avesmapsGameLiteratureEditionSortKey === "function"
+					? (avesmapsGameLiteratureEditionSortKey(a.getAttribute("data-edition")) - avesmapsGameLiteratureEditionSortKey(b.getAttribute("data-edition"))) : 0;
 				return ek || String(a.getAttribute("data-title")).localeCompare(String(b.getAttribute("data-title")), "de");
 			}
 			// "neueste zuerst" -- derselbe Vergleicher wie Streifen und flacher Dialog (place-extras.js),
 			// damit die drei Listen EINE Reihenfolge-Regel haben.
-			return (typeof avesmapsCompareAdventureRecency === "function")
-				? avesmapsCompareAdventureRecency(a.dataset, b.dataset)
+			return (typeof avesmapsCompareGameLiteratureRecency === "function")
+				? avesmapsCompareGameLiteratureRecency(a.dataset, b.dataset)
 				: ((Number(b.getAttribute("data-year")) || 0) - (Number(a.getAttribute("data-year")) || 0));
 		}
 		function sortCards() {
@@ -229,7 +229,7 @@
 				var direct = f.querySelector(":scope > .avesmaps-adv-tree__fhead > [data-adv-direct]");
 				if (direct) {
 					var n = visStart + visPlay;
-					direct.textContent = tr("adventures.directCount", "{n} direkt", { n: n });
+					direct.textContent = tr("gameLiterature.directCount", "{n} direkt", { n: n });
 				}
 			});
 
@@ -305,7 +305,7 @@
 
 		var creditEl = box.querySelector(".avesmaps-adv-dialog__credit");
 		if (creditEl) {
-			creditEl.innerHTML = (typeof avesmapsAdventureCreditMarkup === "function") ? avesmapsAdventureCreditMarkup() : "";
+			creditEl.innerHTML = (typeof avesmapsGameLiteratureCreditMarkup === "function") ? avesmapsGameLiteratureCreditMarkup() : "";
 		}
 
 		sortCards();

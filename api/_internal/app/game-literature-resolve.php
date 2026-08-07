@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-// Abenteuer name resolution (Spec §5): map a wiki "Ort" page name to ONE entity, precedence
+// Literatur name resolution (Spec §5): map a wiki "Ort" page name to ONE entity, precedence
 // settlement -> territory -> region -> path, else 'unresolved'. The reliable axis is a canonical
 // wiki-key built by the SAME slugger on both sides (avesmapsPoliticalSlug) -- NOT a fuzzy name match
 // (the design's slug-divergence warning, §5.2). This runs ONLY on the resolve action / editor, never
 // on the hot catalog read, so requiring the political lib here does not touch the public read path.
 
 require_once __DIR__ . '/../political/territory.php'; // avesmapsPoliticalSlug, avesmapsPoliticalBuildWikiKey
-require_once __DIR__ . '/adventures.php';             // avesmapsAdventuresEnsureTables (resolve writer)
+require_once __DIR__ . '/game-literature.php';             // avesmapsGameLiteratureEnsureTables (resolve writer)
 
 if (!function_exists('avesmapsPoliticalSlug') || !function_exists('avesmapsPoliticalBuildWikiKey')) {
     throw new RuntimeException('adventure-resolve requires the political territory library.');
@@ -18,7 +18,7 @@ if (!function_exists('avesmapsPoliticalSlug') || !function_exists('avesmapsPolit
 // Canonical 'wiki:<slug>' key for a raw place name. Matches political_territory.wiki_key and the key
 // built from any entity's stored wiki_url via avesmapsPoliticalBuildWikiKey (both go through
 // avesmapsPoliticalSlug, so any locale-dependent transliteration cancels out).
-function avesmapsAdventureCanonicalKeyForName(string $rawName): string
+function avesmapsGameLiteratureCanonicalKeyForName(string $rawName): string
 {
     $slug = avesmapsPoliticalSlug(trim($rawName));
     return $slug === '' ? '' : 'wiki:' . $slug;
@@ -37,7 +37,7 @@ function avesmapsAdventureCanonicalKeyForName(string $rawName): string
  * "-siedlung", by which point "Havena (Siedlung)" and a genuine "Havena-Siedlung" are indistinguishable.
  * The parenthetical has to be read off the title, before slugging.
  */
-function avesmapsAdventureDeparenKeyForTitle(string $pageTitle): string
+function avesmapsGameLiteratureDeparenKeyForTitle(string $pageTitle): string
 {
     $title = trim(str_replace('_', ' ', $pageTitle));
     if (preg_match('/^(.*?)\s*\([^)]+\)\s*$/u', $title, $matches) !== 1) {
@@ -45,11 +45,11 @@ function avesmapsAdventureDeparenKeyForTitle(string $pageTitle): string
     }
     $base = trim($matches[1]);
 
-    return $base === '' ? '' : avesmapsAdventureCanonicalKeyForName($base);
+    return $base === '' ? '' : avesmapsGameLiteratureCanonicalKeyForName($base);
 }
 
 /** The wiki page title behind a wiki_url ("…/wiki/Havena_(Siedlung)" -> "Havena (Siedlung)"). */
-function avesmapsAdventurePageTitleFromUrl(string $wikiUrl): string
+function avesmapsGameLiteraturePageTitleFromUrl(string $wikiUrl): string
 {
     $path = (string) parse_url(trim($wikiUrl), PHP_URL_PATH);
     if ($path === '') {
@@ -62,7 +62,7 @@ function avesmapsAdventurePageTitleFromUrl(string $wikiUrl): string
 // Redirect alias (wiki_redirect_alias: alias_slug PK -> canonical_wiki_key). Returns '' when there is
 // no alias row or the table does not exist yet (fresh DB) -- the caller then falls back to the
 // name-derived canonical key.
-function avesmapsAdventureResolveRedirect(PDO $pdo, string $rawName): string
+function avesmapsGameLiteratureResolveRedirect(PDO $pdo, string $rawName): string
 {
     $title = trim((string) preg_replace('/#.*$/', '', str_replace('_', ' ', $rawName)));
     $aliasSlug = avesmapsPoliticalSlug($title);
@@ -84,9 +84,9 @@ function avesmapsAdventureResolveRedirect(PDO $pdo, string $rawName): string
 //   'settlement'|'territory'|'region' => [ 'wiki:<slug>'  => public_id ]   (avesmapsPoliticalBuildWikiKey / column)
 //   'path'                            => [ '<bare-slug>'  => public_id ]   (path wiki_key is UNPREFIXED)
 // $canonicalKeyOverride lets a caller inject a redirect-resolved key; empty => derive from the name.
-function avesmapsAdventureMatchCandidates(string $rawName, array $candidates, string $canonicalKeyOverride = ''): array
+function avesmapsGameLiteratureMatchCandidates(string $rawName, array $candidates, string $canonicalKeyOverride = ''): array
 {
-    $canonicalKey = $canonicalKeyOverride !== '' ? $canonicalKeyOverride : avesmapsAdventureCanonicalKeyForName($rawName);
+    $canonicalKey = $canonicalKeyOverride !== '' ? $canonicalKeyOverride : avesmapsGameLiteratureCanonicalKeyForName($rawName);
     if ($canonicalKey === '') {
         return ['kind' => 'unresolved', 'public_id' => '', 'wiki_key' => ''];
     }
@@ -129,9 +129,9 @@ function avesmapsAdventureMatchCandidates(string $rawName, array $candidates, st
 // diacritic/translit normalization can't run in SQL, so keys are built in PHP. This is a type-filtered
 // scan of map_features (cheaper than map-search.php, which scans ALL active rows every request) plus an
 // indexed read of political_territory.wiki_key -- run it once per resolve pass, never in a loop.
-function avesmapsAdventureLoadCandidates(PDO $pdo): array
+function avesmapsGameLiteratureLoadCandidates(PDO $pdo): array
 {
-    // The *_deparen maps back the last-resort lookup in avesmapsAdventureMatchCandidates: they map the
+    // The *_deparen maps back the last-resort lookup in avesmapsGameLiteratureMatchCandidates: they map the
     // UNDISAMBIGUATED key ('wiki:havena') to every candidate whose page title carries a parenthetical
     // ('Havena (Siedlung)'). A LIST, not a single value, because uniqueness is the safety condition --
     // two entries mean the name is genuinely ambiguous and must stay unresolved.
@@ -143,7 +143,7 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
     // Record a parenthesised page under its undisambiguated key. Same "first writer wins" rule as the
     // direct maps: a page already seen is not added twice (its title and wiki_url both reach here).
     $addDeparen = static function (array &$candidates, string $kind, string $pageTitle, string $realKey, string $publicId): void {
-        $deparenKey = avesmapsAdventureDeparenKeyForTitle($pageTitle);
+        $deparenKey = avesmapsGameLiteratureDeparenKeyForTitle($pageTitle);
         if ($deparenKey === '' || $deparenKey === $realKey) {
             return;
         }
@@ -193,7 +193,7 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
             $settlement = is_array($props['wiki_settlement'] ?? null) ? $props['wiki_settlement'] : [];
             $title = trim((string) ($settlement['title'] ?? ''));
             if ($title !== '') {
-                $key = avesmapsAdventureCanonicalKeyForName($title);
+                $key = avesmapsGameLiteratureCanonicalKeyForName($title);
                 if ($key !== '' && !isset($candidates['settlement'][$key])) {
                     $candidates['settlement'][$key] = $publicId;
                 }
@@ -211,7 +211,7 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
                     $candidates['settlement'][$key] = $publicId;
                 }
                 if (strncmp($key, 'wiki:', 5) === 0) {
-                    $addDeparen($candidates, 'settlement', avesmapsAdventurePageTitleFromUrl($wikiUrl), $key, $publicId);
+                    $addDeparen($candidates, 'settlement', avesmapsGameLiteraturePageTitleFromUrl($wikiUrl), $key, $publicId);
                 }
             }
         } elseif ($type === 'region' || $type === 'label') {
@@ -230,7 +230,7 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
                     $candidates['region'][$key] = $publicId;
                 }
                 if (strncmp($key, 'wiki:', 5) === 0) {
-                    $addDeparen($candidates, 'region', avesmapsAdventurePageTitleFromUrl($wikiUrl), $key, $publicId);
+                    $addDeparen($candidates, 'region', avesmapsGameLiteraturePageTitleFromUrl($wikiUrl), $key, $publicId);
                 }
             }
         } elseif ($type === 'path') { // path -- properties.wiki_path.wiki_key is a BARE slug (no 'wiki:' prefix)
@@ -276,20 +276,20 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
     return $candidates;
 }
 
-// Single-place resolve (editor / ad-hoc). Loads candidates every call -> use avesmapsAdventureResolveAll
+// Single-place resolve (editor / ad-hoc). Loads candidates every call -> use avesmapsGameLiteratureResolveAll
 // for bulk work.
-function avesmapsAdventureResolvePlace(PDO $pdo, string $rawName): array
+function avesmapsGameLiteratureResolvePlace(PDO $pdo, string $rawName): array
 {
-    $candidates = avesmapsAdventureLoadCandidates($pdo);
-    $canonical = avesmapsAdventureResolveRedirect($pdo, $rawName);
-    return avesmapsAdventureMatchCandidates($rawName, $candidates, $canonical);
+    $candidates = avesmapsGameLiteratureLoadCandidates($pdo);
+    $canonical = avesmapsGameLiteratureResolveRedirect($pdo, $rawName);
+    return avesmapsGameLiteratureMatchCandidates($rawName, $candidates, $canonical);
 }
 
 // ---- Phase 2: territory ancestor path (for client-side subtree aggregation) ----------------------
 
 // Territory parent tree from wiki_territory_model (the canonical parent_wiki_key map). Ancestors are
 // walked over parent_wiki_key ONLY (KERN-INVARIANTE -- NEVER via affiliation_path). Empty on a fresh DB.
-function avesmapsAdventureLoadTerritoryParentMap(PDO $pdo): array
+function avesmapsGameLiteratureLoadTerritoryParentMap(PDO $pdo): array
 {
     $map = [];
     try {
@@ -308,7 +308,7 @@ function avesmapsAdventureLoadTerritoryParentMap(PDO $pdo): array
 
 // Settlement public_id -> its ray-cast deepest territory_wiki_key (map_features.properties_json). Bounded
 // scan of active locations (same cost class as the candidate scan; resolve is not a hot path).
-function avesmapsAdventureLoadSettlementTerritoryKeys(PDO $pdo): array
+function avesmapsGameLiteratureLoadSettlementTerritoryKeys(PDO $pdo): array
 {
     $map = [];
     $rows = $pdo->query(
@@ -328,7 +328,7 @@ function avesmapsAdventureLoadSettlementTerritoryKeys(PDO $pdo): array
 }
 
 // Ancestor chain [deepest, parent, ..., root] via parent_wiki_key, cycle-guarded.
-function avesmapsAdventureTerritoryAncestors(string $deepestWikiKey, array $parentMap): array
+function avesmapsGameLiteratureTerritoryAncestors(string $deepestWikiKey, array $parentMap): array
 {
     $path = [];
     $seen = [];
@@ -346,7 +346,7 @@ function avesmapsAdventureTerritoryAncestors(string $deepestWikiKey, array $pare
 // name/key-divergent entities like the settlement "Thalhaus"). This returns the entity's derived wiki_key
 // (empty when it genuinely has no wiki link -> the editor shows "ohne Wiki-Eintrag", a valid state, not an
 // error). Intentionally does NOT walk the territory tree -- keep it a single cheap lookup.
-function avesmapsAdventureWikiKeyByPublicId(PDO $pdo, string $kind, string $publicId): string
+function avesmapsGameLiteratureWikiKeyByPublicId(PDO $pdo, string $kind, string $publicId): string
 {
     if ($kind === 'territory') {
         $stmt = $pdo->prepare('SELECT wiki_key FROM political_territory WHERE public_id = :p LIMIT 1');
@@ -362,7 +362,7 @@ function avesmapsAdventureWikiKeyByPublicId(PDO $pdo, string $kind, string $publ
             $settlement = is_array($props['wiki_settlement'] ?? null) ? $props['wiki_settlement'] : [];
             $title = trim((string) ($settlement['title'] ?? ''));
             if ($title !== '') {
-                return avesmapsAdventureCanonicalKeyForName($title);
+                return avesmapsGameLiteratureCanonicalKeyForName($title);
             }
             $wikiUrl = trim((string) ($settlement['wiki_url'] ?? ($props['wiki_url'] ?? '')));
             if ($wikiUrl !== '') {
@@ -392,9 +392,9 @@ function avesmapsAdventureWikiKeyByPublicId(PDO $pdo, string $kind, string $publ
 // settlement/territory places (from the deepest territory + parent tree) so the client aggregates
 // territory/region adventures locally. Processes places that are unresolved OR still missing a path;
 // idempotent. Candidate maps + parent tree loaded once (no N+1). Returns counts.
-function avesmapsAdventureResolveAll(PDO $pdo): array
+function avesmapsGameLiteratureResolveAll(PDO $pdo): array
 {
-    avesmapsAdventuresEnsureTables($pdo);
+    avesmapsGameLiteratureEnsureTables($pdo);
     return avesmapsResolvePlacesInTable($pdo, 'adventure_place');
 }
 
@@ -407,7 +407,7 @@ function avesmapsAdventureResolveAll(PDO $pdo): array
 // $table is interpolated (a table name cannot be a bound parameter), hence the whitelist: every caller
 // passes a literal today, and this keeps it that way. The caller ensures its own tables first.
 //
-// NB: the avesmapsAdventure* prefix on the helpers is historical -- they are place resolvers, not
+// NB: the avesmapsGameLiterature* prefix on the helpers is historical -- they are place resolvers, not
 // adventure code. Renaming them is a separate sweep; it would touch the adventure editor and its tests
 // for no behaviour change.
 function avesmapsResolvePlacesInTable(PDO $pdo, string $table): array
@@ -424,9 +424,9 @@ function avesmapsResolvePlacesInTable(PDO $pdo, string $table): array
         return ['resolved' => 0, 'unresolved' => 0, 'total' => 0, 'paths' => 0];
     }
 
-    $candidates = avesmapsAdventureLoadCandidates($pdo);
-    $parentMap = avesmapsAdventureLoadTerritoryParentMap($pdo);
-    $settlementTerritory = avesmapsAdventureLoadSettlementTerritoryKeys($pdo);
+    $candidates = avesmapsGameLiteratureLoadCandidates($pdo);
+    $parentMap = avesmapsGameLiteratureLoadTerritoryParentMap($pdo);
+    $settlementTerritory = avesmapsGameLiteratureLoadSettlementTerritoryKeys($pdo);
     $update = $pdo->prepare(
         "UPDATE {$table}
             SET target_kind = :kind, target_public_id = :pid, target_wiki_key = :wkey, target_territory_path = :path
@@ -439,8 +439,8 @@ function avesmapsResolvePlacesInTable(PDO $pdo, string $table): array
     foreach ($places as $place) {
         if ((string) $place['target_kind'] === 'unresolved') {
             $rawName = (string) $place['raw_name'];
-            $canonical = avesmapsAdventureResolveRedirect($pdo, $rawName);
-            $match = avesmapsAdventureMatchCandidates($rawName, $candidates, $canonical);
+            $canonical = avesmapsGameLiteratureResolveRedirect($pdo, $rawName);
+            $match = avesmapsGameLiteratureMatchCandidates($rawName, $candidates, $canonical);
             $kind = $match['kind'];
             $publicId = $match['public_id'];
             $wikiKey = $match['wiki_key'];
@@ -461,7 +461,7 @@ function avesmapsResolvePlacesInTable(PDO $pdo, string $table): array
         } elseif ($kind === 'territory' && $wikiKey !== '') {
             $deepestTerritoryKey = $wikiKey;
         }
-        $path = $deepestTerritoryKey !== '' ? avesmapsAdventureTerritoryAncestors($deepestTerritoryKey, $parentMap) : [];
+        $path = $deepestTerritoryKey !== '' ? avesmapsGameLiteratureTerritoryAncestors($deepestTerritoryKey, $parentMap) : [];
         if ($path !== []) {
             $paths++;
         }

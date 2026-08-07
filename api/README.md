@@ -182,7 +182,7 @@ OPTIONS CORS/preflight
 The following endpoints are used by the Avesmaps app. They are reachable, but not stabilized as an external developer API:
 
 ```text
-/api/app/adventures.php
+/api/app/game-literature.php
 /api/app/coat.php
 /api/app/contact.php
 /api/app/ecosystem-areas.php

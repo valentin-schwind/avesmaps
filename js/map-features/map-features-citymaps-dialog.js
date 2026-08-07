@@ -12,7 +12,7 @@
 
 (function initCitymapsDialog() {
 	// Node (unit tests): nothing to bind, and touching `window` here would throw before the pure markup
-	// builders in place-extras.js could ever be required. Same guard as map-features-adventures-dialog.js.
+	// builders in place-extras.js could ever be required. Same guard as map-features-game-literature-dialog.js.
 	if (typeof window === "undefined" || typeof document === "undefined") {
 		return;
 	}

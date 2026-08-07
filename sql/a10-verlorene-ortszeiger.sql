@@ -5,11 +5,11 @@
 -- jede target_public_id in map_features. target_kind hat aber SIEBEN Werte, nicht vier: 'lore' lebt in
 -- lore_entry (Schluessel: wiki_key), 'ecosystem' in ecosystem_region. Beide wurden in map_features nie
 -- gefunden -- und ihre Zeiger geloescht. Betroffen ist ausschliesslich `adventure_place`; nur der
--- Quellen-Verknuepfungsweg (avesmapsAdventureLinkPlaceFromSource) schreibt diese beiden Arten, und der
+-- Quellen-Verknuepfungsweg (avesmapsGameLiteratureLinkPlaceFromSource) schreibt diese beiden Arten, und der
 -- schreibt nur in diese Tabelle.
 --
 -- ✅ DER SCHADEN IST VOLLSTAENDIG WIEDERHERSTELLBAR, und zwar aus der Zeile selbst.
--- avesmapsAdventurePlaceNameFor (adventures.php:1151) kennt fuer 'lore', 'ecosystem' und 'powerline'
+-- avesmapsGameLiteraturePlaceNameFor (game-literature.php:1151) kennt fuer 'lore', 'ecosystem' und 'powerline'
 -- keinen Namenszweig und gibt die public_id zurueck. `raw_name` ENTHAELT also genau die geloeschte
 -- target_public_id -- und raw_name hat der Versuch stehen lassen.
 --
@@ -26,7 +26,7 @@
 -- Schritt 1 -- DER SCHADEN, zeitzonenunabhaengig erkannt.
 --
 -- Eine Zeile mit created_from_source_id kann NICHT ohne Zeiger entstanden sein: der Einfuegepfad
--- (adventures.php:1180) lehnt einen leeren publicId ab und schreibt kind und pid immer zusammen. Eine
+-- (game-literature.php:1180) lehnt einen leeren publicId ab und schreibt kind und pid immer zusammen. Eine
 -- solche Zeile OHNE target_public_id ist also zwangslaeufig beschaedigt.
 -- Die letzte Spalte sagt zugleich, was wiederhergestellt gehoert.
 -- ============================================================================

@@ -719,7 +719,7 @@ function avesmapsPublicationDesiredLinksForEntity(PDO $pdo, string $entityType, 
 // call chain the transaction spans rather than just these ten lines.
 //
 // 💣 NO NETWORK AND NO FILE WRITES BETWEEN begin AND commit either. That is why the third
-// reconciler named in the finding, avesmapsAdventureReconcileEntity, is NOT wrapped: it fetches
+// reconciler named in the finding, avesmapsGameLiteratureReconcileEntity, is NOT wrapped: it fetches
 // the wiki cover over HTTP and writes it to /uploads/questcovers in the middle of its writes. A
 // transaction there would hold a connection open across unbounded network latency on a shared
 // host, and could not roll the file back anyway.

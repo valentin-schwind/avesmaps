@@ -8,9 +8,9 @@ if (!assert_options(ASSERT_ACTIVE)) {
 }
 
 require_once __DIR__ . '/../map-search-scoring.php';
-require_once __DIR__ . '/../adventure-search.php';
+require_once __DIR__ . '/../game-literature-search.php';
 
-$labels = AVESMAPS_ADVENTURE_SEARCH_TYPE_LABELS;
+$labels = AVESMAPS_GAME_LITERATURE_SEARCH_TYPE_LABELS;
 
 // Modelled on real rows (live 2026-08-02), not invented. Row 2 is the spoiler case: its start place
 // never resolved, so the fetch hands over the empty place -- the play place is not even selected.
@@ -53,7 +53,7 @@ $rows = [
     ],
 ];
 
-$entries = avesmapsBuildAdventureSearchEntries($rows, $labels);
+$entries = avesmapsBuildGameLiteratureSearchEntries($rows, $labels);
 assert(count($entries) === 3);
 
 $byId = [];
@@ -85,14 +85,14 @@ assert($byId['adv-1']['type_label'] === 'Gruppenabenteuer · DSA5');
 assert($byId['adv-2']['type_label'] === 'Kampagnenband · DSA4.1');
 
 // Product types match by KEY and by LABEL. kampagnenband/metaband are live (27 + 5) but MISSING from
-// the client table js/map-features/map-features-adventures.js, where they fall back to the raw key.
+// the client table js/map-features/map-features-game-literature.js, where they fall back to the raw key.
 assert(avesmapsCalculateSearchScore($byId['adv-2'], avesmapsNormalizeSearchText('kampagnenband')) !== null);
 assert(avesmapsCalculateSearchScore($byId['adv-2'], avesmapsNormalizeSearchText('Kampagnenband')) !== null);
 assert(isset($labels['metaband']));
 
 // metaband gets the SAME proof as kampagnenband above, not just the label-table isset() check: a real
 // entry, built with the real row shape, must match on the raw key AND on the beautified label.
-$metabandEntry = avesmapsBuildAdventureSearchEntries([[
+$metabandEntry = avesmapsBuildGameLiteratureSearchEntries([[
     'public_id' => 'adv-4',
     'title' => 'Der Splitterfall-Kompendium',
     'product_type' => 'metaband',
@@ -118,12 +118,12 @@ assert(str_contains($haystack, 'Die Verschwoerung von Gareth'));
 // 💣 THE SPOILER RULE lives in the SQL, and SQL is not unit-testable without a database -- so it is
 // pinned statically. Dropping `role = 'start'` from the join would silently turn every play location
 // into a searchable, jumpable, printable fact, and nothing else in this file would notice.
-$librarySource = file_get_contents(__DIR__ . '/../adventure-search.php');
+$librarySource = file_get_contents(__DIR__ . '/../game-literature-search.php');
 assert(is_string($librarySource));
 assert(str_contains($librarySource, "p2.role = 'start'"));
 
 // The builder must not invent fields either: anything the fetch did not select stays out of the entry.
-$leaky = avesmapsBuildAdventureSearchEntries([[
+$leaky = avesmapsBuildGameLiteratureSearchEntries([[
     'public_id' => 'adv-9',
     'title' => 'Leck',
     'product_type' => 'szenario',
@@ -136,15 +136,15 @@ $leaky = avesmapsBuildAdventureSearchEntries([[
 assert(!str_contains(mb_strtolower(implode(' | ', $leaky['search_texts'])), 'havena'));
 
 // Edition sort key: DSA5 before DSA4.1 before DSA4 before DSA1, then non-DSA, then empty. Mirrors
-// avesmapsAdventureEditionSortKey in js/map-features/map-features-adventures.js.
-assert(avesmapsAdventureSearchEditionSortKey('DSA5') < avesmapsAdventureSearchEditionSortKey('DSA4.1'));
-assert(avesmapsAdventureSearchEditionSortKey('DSA4.1') < avesmapsAdventureSearchEditionSortKey('DSA4'));
-assert(avesmapsAdventureSearchEditionSortKey('DSA4 Basis') === avesmapsAdventureSearchEditionSortKey('DSA4'));
-assert(avesmapsAdventureSearchEditionSortKey('DSA1-Ausbau') === -1.0);
-assert(avesmapsAdventureSearchEditionSortKey('Aventuria 2.0') === 1000.0);
-assert(avesmapsAdventureSearchEditionSortKey('') === 1001.0);
+// avesmapsGameLiteratureEditionSortKey in js/map-features/map-features-game-literature.js.
+assert(avesmapsGameLiteratureSearchEditionSortKey('DSA5') < avesmapsGameLiteratureSearchEditionSortKey('DSA4.1'));
+assert(avesmapsGameLiteratureSearchEditionSortKey('DSA4.1') < avesmapsGameLiteratureSearchEditionSortKey('DSA4'));
+assert(avesmapsGameLiteratureSearchEditionSortKey('DSA4 Basis') === avesmapsGameLiteratureSearchEditionSortKey('DSA4'));
+assert(avesmapsGameLiteratureSearchEditionSortKey('DSA1-Ausbau') === -1.0);
+assert(avesmapsGameLiteratureSearchEditionSortKey('Aventuria 2.0') === 1000.0);
+assert(avesmapsGameLiteratureSearchEditionSortKey('') === 1001.0);
 
 // An empty title is not an adventure.
-assert(avesmapsBuildAdventureSearchEntries([['public_id' => 'x', 'title' => '   ']], $labels) === []);
+assert(avesmapsBuildGameLiteratureSearchEntries([['public_id' => 'x', 'title' => '   ']], $labels) === []);
 
 echo "adventure-search: OK\n";

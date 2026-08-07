@@ -1,28 +1,28 @@
 const assert = require("assert");
 const {
-	avesmapsNormalizeAdventureKey,
-	avesmapsAdventureToRenderShape,
-	avesmapsBuildAdventureTerritoryTree,
-	avesmapsAdventureFacetOptions,
-	avesmapsAdventureMatchesFilter,
-	avesmapsAdventurePrettifyKey,
-} = require("../map-features-adventures.js");
+	avesmapsNormalizeGameLiteratureKey,
+	avesmapsGameLiteratureToRenderShape,
+	avesmapsBuildGameLiteratureTerritoryTree,
+	avesmapsGameLiteratureFacetOptions,
+	avesmapsGameLiteratureMatchesFilter,
+	avesmapsGameLiteraturePrettifyKey,
+} = require("../map-features-game-literature.js");
 
 // ---- render shape: Phase 2.3 facet fields (official / complexity / genre) ----
-const s = avesmapsAdventureToRenderShape({
+const s = avesmapsGameLiteratureToRenderShape({
 	public_id: "x", title: "T", product_type: "gruppenabenteuer",
 	is_official: 1, complexity_gm: "hoch", complexity_pl: "mittel", genre: "Intrige",
 });
 assert.strictEqual(s.official, true);
 assert.strictEqual(s.complexity, "hoch"); // complexity_gm preferred over complexity_pl
 assert.strictEqual(s.genre, "Intrige");
-assert.strictEqual(avesmapsAdventureToRenderShape({ public_id: "y", is_official: 0 }).official, false);
-assert.strictEqual(avesmapsAdventureToRenderShape({ public_id: "z", complexity_pl: "niedrig" }).complexity, "niedrig"); // falls back to pl
+assert.strictEqual(avesmapsGameLiteratureToRenderShape({ public_id: "y", is_official: 0 }).official, false);
+assert.strictEqual(avesmapsGameLiteratureToRenderShape({ public_id: "z", complexity_pl: "niedrig" }).complexity, "niedrig"); // falls back to pl
 console.log("render shape facets ok");
 
 // ---- prettify fallback ----
-assert.strictEqual(avesmapsAdventurePrettifyKey("wiki:baronie-c"), "Baronie C");
-assert.strictEqual(avesmapsAdventurePrettifyKey(""), "");
+assert.strictEqual(avesmapsGameLiteraturePrettifyKey("wiki:baronie-c"), "Baronie C");
+assert.strictEqual(avesmapsGameLiteraturePrettifyKey(""), "");
 console.log("prettify ok");
 
 // ---- nested territory tree (deepest-wins) ----
@@ -49,7 +49,7 @@ const meta = {
 	// wiki:baronie-c / -d intentionally absent -> fallback prettify + empty rank
 };
 
-const root = avesmapsBuildAdventureTerritoryTree(catalog, meta, "wiki:mittelreich");
+const root = avesmapsBuildGameLiteratureTerritoryTree(catalog, meta, "wiki:mittelreich");
 assert.strictEqual(root.name, "Mittelreich");
 assert.strictEqual(root.rank, "Reich");
 // Realm-direct: only advZ begins AT the realm node.
@@ -84,7 +84,7 @@ assert.strictEqual(bc.start.length, 0);
 console.log("nested tree deepest-wins ok");
 
 // Mid-level root (Grafschaft G): advY (direct) + advX (Baronie A); advZ (realm) is NOT in this subtree.
-const gRoot = avesmapsBuildAdventureTerritoryTree(catalog, meta, "wiki:grafschaft-g");
+const gRoot = avesmapsBuildGameLiteratureTerritoryTree(catalog, meta, "wiki:grafschaft-g");
 assert.strictEqual(gRoot.name, "Grafschaft G");
 assert.strictEqual(gRoot.start.length, 1);
 assert.strictEqual(gRoot.start[0].title, "Y");
@@ -93,60 +93,60 @@ assert.strictEqual(gRoot.children[0].start[0].title, "X");
 console.log("nested tree mid-level root ok");
 
 // Guards: empty key -> null; empty catalog -> a childless root.
-assert.strictEqual(avesmapsBuildAdventureTerritoryTree(catalog, meta, ""), null);
-const emptyRoot = avesmapsBuildAdventureTerritoryTree([], meta, "wiki:mittelreich");
+assert.strictEqual(avesmapsBuildGameLiteratureTerritoryTree(catalog, meta, ""), null);
+const emptyRoot = avesmapsBuildGameLiteratureTerritoryTree([], meta, "wiki:mittelreich");
 assert.strictEqual(emptyRoot.children.length, 0);
 assert.strictEqual(emptyRoot.start.length, 0);
 console.log("nested tree guards ok");
 
 // ---- facet options + filter predicate ----
 const shapes = [
-	avesmapsAdventureToRenderShape(catalog[0]), // Gruppenabenteuer / hoch / Intrige / official
-	avesmapsAdventureToRenderShape(catalog[1]), // Soloabenteuer / niedrig / Reise / inofficial
-	avesmapsAdventureToRenderShape(catalog[2]), // Kampagne / hoch / Krieg / official
+	avesmapsGameLiteratureToRenderShape(catalog[0]), // Gruppenabenteuer / hoch / Intrige / official
+	avesmapsGameLiteratureToRenderShape(catalog[1]), // Soloabenteuer / niedrig / Reise / inofficial
+	avesmapsGameLiteratureToRenderShape(catalog[2]), // Kampagne / hoch / Krieg / official
 ];
-const facets = avesmapsAdventureFacetOptions(shapes);
+const facets = avesmapsGameLiteratureFacetOptions(shapes);
 assert.deepStrictEqual(facets.types, ["Gruppenabenteuer", "Kampagne", "Soloabenteuer"]);
 assert.deepStrictEqual(facets.complexities, ["hoch", "niedrig"]); // distinct + sorted
 assert.deepStrictEqual(facets.genres, ["Intrige", "Krieg", "Reise"]);
 console.log("facet options ok");
 
 // no filter / empty facets = pass-through
-assert.strictEqual(avesmapsAdventureMatchesFilter(shapes[0], null), true);
-assert.strictEqual(avesmapsAdventureMatchesFilter(shapes[0], { types: new Set(), complexity: "", genre: "", officialOnly: false }), true);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(shapes[0], null), true);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(shapes[0], { types: new Set(), complexity: "", genre: "", officialOnly: false }), true);
 // type filter (Set)
-assert.strictEqual(avesmapsAdventureMatchesFilter(shapes[0], { types: new Set(["Kampagne"]) }), false);
-assert.strictEqual(avesmapsAdventureMatchesFilter(shapes[2], { types: new Set(["Kampagne"]) }), true);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(shapes[0], { types: new Set(["Kampagne"]) }), false);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(shapes[2], { types: new Set(["Kampagne"]) }), true);
 // type filter (array form also supported)
-assert.strictEqual(avesmapsAdventureMatchesFilter(shapes[0], { types: ["Gruppenabenteuer"] }), true);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(shapes[0], { types: ["Gruppenabenteuer"] }), true);
 // complexity + genre
-assert.strictEqual(avesmapsAdventureMatchesFilter(shapes[0], { complexity: "hoch" }), true);
-assert.strictEqual(avesmapsAdventureMatchesFilter(shapes[1], { complexity: "hoch" }), false);
-assert.strictEqual(avesmapsAdventureMatchesFilter(shapes[1], { genre: "Reise" }), true);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(shapes[0], { complexity: "hoch" }), true);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(shapes[1], { complexity: "hoch" }), false);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(shapes[1], { genre: "Reise" }), true);
 // officialOnly hides the inofficial one
-assert.strictEqual(avesmapsAdventureMatchesFilter(shapes[1], { officialOnly: true }), false);
-assert.strictEqual(avesmapsAdventureMatchesFilter(shapes[0], { officialOnly: true }), true);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(shapes[1], { officialOnly: true }), false);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(shapes[0], { officialOnly: true }), true);
 console.log("filter predicate ok");
 
 // ---- edition (DSA-Version) + year facets/filters (Owner: overview dialog) ----
 const yShapes = [
-	avesmapsAdventureToRenderShape({ public_id: "e1", title: "A", edition: "DSA5", bf_year: 1040 }),
-	avesmapsAdventureToRenderShape({ public_id: "e2", title: "B", edition: "DSA4", bf_year: 1020 }),
-	avesmapsAdventureToRenderShape({ public_id: "e3", title: "C", edition: "DSA5" }), // undated -> year 0
+	avesmapsGameLiteratureToRenderShape({ public_id: "e1", title: "A", edition: "DSA5", bf_year: 1040 }),
+	avesmapsGameLiteratureToRenderShape({ public_id: "e2", title: "B", edition: "DSA4", bf_year: 1020 }),
+	avesmapsGameLiteratureToRenderShape({ public_id: "e3", title: "C", edition: "DSA5" }), // undated -> year 0
 ];
-const yf = avesmapsAdventureFacetOptions(yShapes);
+const yf = avesmapsGameLiteratureFacetOptions(yShapes);
 assert.deepStrictEqual(yf.editions, ["DSA4", "DSA5"]);           // distinct + sorted
 assert.deepStrictEqual(yf.yearRange, { min: 1020, max: 1040 }); // undated ignored
-assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[0], { edition: "DSA5" }), true);
-assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[1], { edition: "DSA5" }), false);
-assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[0], { yearFrom: 1030 }), true);
-assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[1], { yearFrom: 1030 }), false);
-assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[0], { yearTo: 1030 }), false);
-assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[1], { yearTo: 1030 }), true);
-assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[0], { yearFrom: 1000, yearTo: 1050 }), true);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(yShapes[0], { edition: "DSA5" }), true);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(yShapes[1], { edition: "DSA5" }), false);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(yShapes[0], { yearFrom: 1030 }), true);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(yShapes[1], { yearFrom: 1030 }), false);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(yShapes[0], { yearTo: 1030 }), false);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(yShapes[1], { yearTo: 1030 }), true);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(yShapes[0], { yearFrom: 1000, yearTo: 1050 }), true);
 // undated (year 0) is excluded once a year bound is set, included when none
-assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[2], { yearFrom: 1000 }), false);
-assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[2], {}), true);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(yShapes[2], { yearFrom: 1000 }), false);
+assert.strictEqual(avesmapsGameLiteratureMatchesFilter(yShapes[2], {}), true);
 console.log("edition + year filter ok");
 
 console.log("ALL OK");

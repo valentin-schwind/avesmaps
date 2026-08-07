@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // Public link-status lookup (Spec §1.7). The integration hatch for surfaces that show links but have no
-// payload of their own -- the fast path is the state embedded in api/app/adventures.php, which needs no
+// payload of their own -- the fast path is the state embedded in api/app/game-literature.php, which needs no
 // second roundtrip. No auth (public map, like map-features/adventures); read-only. Envelope = gold contract.
 //
 // GET /api/app/link-status.php?hashes=<h1>,<h2>,…   (max 200 sha256 hex hashes)

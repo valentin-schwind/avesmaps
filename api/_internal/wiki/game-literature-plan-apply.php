@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-// The APPLY half of the adventure sync: it works through the rows an editor ticked in the
+// The APPLY half of the game-literature sync: it works through the rows an editor ticked in the
 // Übernahme-Vorschau and writes exactly those. Design:
 // docs/superpowers/specs/2026-08-06-sync-uebernahme-design.md §4/§7, session 2.
 //
-// 💣 IT WRITES BY CALLING THE UNCHANGED avesmapsAdventureReconcileEntity. Not a copy of it, not a
+// 💣 IT WRITES BY CALLING THE UNCHANGED avesmapsGameLiteratureReconcileEntity. Not a copy of it, not a
 // simplified version: the same override-safe writer the sync has always used -- fields behind
 // field_origins_json, places behind origin='wiki' AND status='approved', tombstones never revived,
 // the cover fetched only when its wiki file changed. The only thing this change moves is WHO decides
@@ -15,10 +15,10 @@ declare(strict_types=1);
 //
 // It lives in its own file so the compute half can be shown not to reach a writer -- and, here, not
 // to reach the cover download either (__tests__/sync-plan-purity-test.php walks the call graph from
-// avesmapsAdventurePlanStep).
+// avesmapsGameLiteraturePlanStep).
 //
 // ⚠️ THERE IS NO DELETION BRANCH, and that is not an omission. An adventure is never deleted by the
-// sync, not even when its wiki article disappears: adventure-sync.php has no removal sweep and never
+// sync, not even when its wiki article disappears: game-literature-sync.php has no removal sweep and never
 // had one. What the wiki CAN take away is places -- and a shrinking "Ort" list is a change to a
 // living adventure, so it rides in that adventure's own row, named as "Orte entfallen" and painted in
 // the warning colour. Session-2 plan, Entscheidung 1.
@@ -40,7 +40,7 @@ require_once __DIR__ . '/../map/collection-audit.php';
  * back. Here an exception leaves the loop, the step never returns, the client reports the failure --
  * and because everything already done is marked 'applied', a second click resumes precisely there.
  *
- * ⚠️ And no transaction around avesmapsAdventureReconcileEntity either -- that one is the documented
+ * ⚠️ And no transaction around avesmapsGameLiteratureReconcileEntity either -- that one is the documented
  * exception (reconcile-transaction-test.php): it fetches the wiki cover over HTTP and writes it to
  * /uploads/questcovers in the middle of its writes, and a transaction there would hold a connection
  * open across unbounded network latency on a shared host without being able to roll the file back.
@@ -49,14 +49,14 @@ require_once __DIR__ . '/../map/collection-audit.php';
  * @return array{done:bool, applied:int, deleted:int, stale:int, processed:int, remaining:int,
  *               skipped:int, declined:int}
  */
-function avesmapsAdventureApplyStep(PDO $pdo, int $runId, int $userId, ?array $user, ?int $budget = null): array
+function avesmapsGameLiteratureApplyStep(PDO $pdo, int $runId, int $userId, ?array $user, ?int $budget = null): array
 {
-    $budget = $budget ?? AVESMAPS_ADVENTURE_RECONCILE_STEP_BUDGET;
+    $budget = $budget ?? AVESMAPS_GAME_LITERATURE_RECONCILE_STEP_BUDGET;
     @set_time_limit((int) AVESMAPS_WIKI_DUMP_STEP_SECONDS + 15);
     $deadline = microtime(true) + (float) max(1, AVESMAPS_WIKI_DUMP_STEP_SECONDS - 3);
     // ⚠️ DDL first and once, never inside the per-entity writes below: MySQL commits an open
     // transaction implicitly when it sees DDL.
-    avesmapsEnsureAdventureStagingTables($pdo);
+    avesmapsEnsureGameLiteratureStagingTables($pdo);
     avesmapsEnsureSyncPlanTables($pdo);
 
     $totals = ['applied' => 0, 'stale' => 0, 'processed' => 0];
@@ -80,12 +80,12 @@ function avesmapsAdventureApplyStep(PDO $pdo, int $runId, int $userId, ?array $u
             // including the cover: if the wiki swapped the image in the meantime, the row's
             // "wird neu geladen" would fetch a different file than the one it was ticked for.
             $stored = json_decode((string) ($row['after_json'] ?? ''), true);
-            $fresh = avesmapsAdventurePlanForCatalogRow($pdo, $catalog);
+            $fresh = avesmapsGameLiteraturePlanForCatalogRow($pdo, $catalog);
             if (avesmapsSyncPlanIsStale(is_array($stored) ? $stored : null, $fresh['item']['after'] ?? null)) {
                 avesmapsSyncPlanMarkItem($pdo, $itemId, 'stale', 'Der Stand hat sich seit der Vorschau geaendert.');
                 $totals['stale']++;
             } else {
-                avesmapsAdventureReconcileEntity($pdo, $catalog, $userId);
+                avesmapsGameLiteratureReconcileEntity($pdo, $catalog, $userId);
                 avesmapsSyncPlanMarkItem($pdo, $itemId, 'applied');
                 $totals['applied']++;
             }
@@ -101,7 +101,7 @@ function avesmapsAdventureApplyStep(PDO $pdo, int $runId, int $userId, ?array $u
     $closing = ['skipped' => 0, 'declined' => 0];
 
     if ($done) {
-        $closing = avesmapsAdventureApplyFinish($pdo, $runId, $userId, $user);
+        $closing = avesmapsGameLiteratureApplyFinish($pdo, $runId, $userId, $user);
     }
 
     return [
@@ -124,7 +124,7 @@ function avesmapsAdventureApplyStep(PDO $pdo, int $runId, int $userId, ?array $u
  *
  * @return array{skipped:int, declined:int}
  */
-function avesmapsAdventureApplyFinish(PDO $pdo, int $runId, int $userId, ?array $user): array
+function avesmapsGameLiteratureApplyFinish(PDO $pdo, int $runId, int $userId, ?array $user): array
 {
     $planned = ['new' => 0, 'changed' => 0, 'deleted' => 0, 'total' => 0];
     $run = avesmapsSyncPlanRunById($pdo, $runId);
@@ -162,15 +162,15 @@ function avesmapsAdventureApplyFinish(PDO $pdo, int $runId, int $userId, ?array 
     // written" -- and until now, nothing was.
     if (function_exists('avesmapsAppSettingSet')) {
         try {
-            avesmapsAppSettingSet($pdo, AVESMAPS_ADVENTURE_LAST_SYNCED_SETTING, gmdate('Y-m-d H:i:s'));
+            avesmapsAppSettingSet($pdo, AVESMAPS_GAME_LITERATURE_LAST_SYNCED_SETTING, gmdate('Y-m-d H:i:s'));
         } catch (Throwable) {
             // A missing timestamp is a cosmetic loss; it must never fail the Übernahme itself.
         }
     }
     // Resolve freshly-added wiki place names -> entities. NOT guarded away: a silently skipped resolve
     // looks exactly like a successful Übernahme while every new place stays unresolved.
-    if (function_exists('avesmapsAdventureResolveAll')) {
-        avesmapsAdventureResolveAll($pdo);
+    if (function_exists('avesmapsGameLiteratureResolveAll')) {
+        avesmapsGameLiteratureResolveAll($pdo);
     }
     if (function_exists('avesmapsWikiSyncNextMapRevision')) {
         avesmapsWikiSyncNextMapRevision($pdo); // adventures travel in the map-features payload

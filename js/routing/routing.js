@@ -1349,8 +1349,8 @@ function buildRoutePopupHtml(loc, { showRemoveAction = false, role = "" } = {}) 
 	// ohne Eintraege -> Dialog mit Vorschlagen-Angebot), damit die Leiste beim Nachladen nicht springt.
 	// Ein freier Kartenpunkt hat keine publicId und bekommt darum keine von beiden.
 	if (markerEntry && markerEntry.publicId) {
-		if (typeof buildFloatingAdventuresButtonMarkup === "function") {
-			buttons.push(buildFloatingAdventuresButtonMarkup(markerEntry.location, markerEntry.publicId));
+		if (typeof buildFloatingGameLiteratureButtonMarkup === "function") {
+			buttons.push(buildFloatingGameLiteratureButtonMarkup(markerEntry.location, markerEntry.publicId));
 		}
 		if (typeof buildFloatingCityMapsButtonMarkup === "function") {
 			buttons.push(buildFloatingCityMapsButtonMarkup(markerEntry.location, markerEntry.publicId));

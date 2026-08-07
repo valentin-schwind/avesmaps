@@ -44,7 +44,7 @@ foreach ($chain as $relative) {
 // Die Ausführ-Hälften. Wächst mit jeder Sitzung um eine Datei.
 $applyFiles = [
     'citymap-plan-apply.php',
-    'adventure-plan-apply.php',
+    'game-literature-plan-apply.php',
     'publication-plan-apply.php',
     'lore-plan-apply.php',
     'territory-wiki-plan-apply.php',
@@ -52,7 +52,7 @@ $applyFiles = [
 ];
 
 // Kommentare werden per TOKENIZER entfernt, nicht per Regex: die Dateien erklären in ihren Köpfen
-// ausdrücklich, welche Funktionen sie NICHT rufen dürfen ("avesmapsAdventureSaveCoverLocal holt über
+// ausdrücklich, welche Funktionen sie NICHT rufen dürfen ("avesmapsGameLiteratureSaveCoverLocal holt über
 // HTTP …"), und ein Textscan meldete diese Warnung als Aufruf. Ein Test, der die eigene Dokumentation
 // anzeigt, ist schlimmer als keiner -- er erzieht zum Wegsehen.
 $missing = [];

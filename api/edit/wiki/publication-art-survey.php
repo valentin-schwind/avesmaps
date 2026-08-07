@@ -9,7 +9,7 @@ declare(strict_types=1);
 //
 // Two consequences of falling through, and the second one is the expensive one:
 //   * the source gets source_type='sonstiges' instead of its real kind
-//   * avesmapsWikiProductIsAdventure() says no, so the page never enters wiki_adventure_catalog
+//   * avesmapsWikiProductIsGameLiterature() says no, so the page never enters wiki_adventure_catalog
 //     at all -- the adventure is simply missing from the catalogue, with nothing to indicate why
 //
 // Read-only, and it needs no wiki access whatsoever: wiki_publication_catalog already stores the
@@ -59,7 +59,7 @@ try {
                 'art' => (string) $row['art'],
                 'stored_source_type' => (string) $row['source_type'],
                 'parsed_source_type' => avesmapsWikiMapArtToSourceType((string) $row['art']),
-                'counts_as_adventure' => avesmapsWikiProductIsAdventure((string) $row['art']),
+                'counts_as_adventure' => avesmapsWikiProductIsGameLiterature((string) $row['art']),
             ], $lookup->fetchAll(PDO::FETCH_ASSOC) ?: []),
         ]);
     }
@@ -73,7 +73,7 @@ try {
 
     $known = [];
     $unmapped = [];
-    $adventureArts = [];
+    $gameLiteratureArts = [];
     $totalPages = 0;
     $unmappedPages = 0;
 
@@ -83,11 +83,11 @@ try {
         $totalPages += $count;
 
         $type = avesmapsWikiMapArtToSourceType($art);
-        $isAdventure = avesmapsWikiProductIsAdventure($art);
-        $entry = ['art' => $art, 'pages' => $count, 'source_type' => $type, 'counts_as_adventure' => $isAdventure];
+        $isGameLiterature = avesmapsWikiProductIsGameLiterature($art);
+        $entry = ['art' => $art, 'pages' => $count, 'source_type' => $type, 'counts_as_adventure' => $isGameLiterature];
 
-        if ($isAdventure) {
-            $adventureArts[] = $entry;
+        if ($isGameLiterature) {
+            $gameLiteratureArts[] = $entry;
         }
         // 'sonstiges' is the fall-through bucket: every value landing there is one the table does
         // not know. An empty `art` is a parse gap of its own and is reported the same way.
@@ -107,7 +107,7 @@ try {
         // The actionable list: every Art the parser does not know, biggest first. Each one is a
         // candidate row for the table in publication-parsing.php.
         'unmapped' => $unmapped,
-        'recognised_as_adventure' => $adventureArts,
+        'recognised_as_adventure' => $gameLiteratureArts,
         'mapped' => $known,
     ]);
 } catch (PDOException) {

@@ -19,7 +19,7 @@ const SPOTLIGHT_SEARCH_RESULT_TYPE_ORDER = {
 // api/app/map-search.php appends them in.
 const SPOTLIGHT_SEARCH_SECTIONS = [
 	{ kind: "citymap", totalField: "citymapTotal", labelKey: "spotlight.citymaps", label: "Kartensammlung", moreKey: "spotlight.citymapsMore", more: "… und {n} weitere Karten" },
-	{ kind: "adventure", totalField: "adventureTotal", labelKey: "spotlight.adventures", label: "Abenteuer", moreKey: "spotlight.adventuresMore", more: "… und {n} weitere Abenteuer" },
+	{ kind: "adventure", totalField: "gameLiteratureTotal", labelKey: "spotlight.gameLiterature", label: "Literatur", moreKey: "spotlight.gameLiteratureMore", more: "… und {n} weitere Werke" },
 	{ kind: "lore", totalField: "loreTotal", labelKey: "spotlight.lore", label: "Vorkommen", moreKey: "spotlight.loreMore", more: "… und {n} weitere Vorkommen" },
 ];
 const SPOTLIGHT_SECTION_KINDS = new Set(SPOTLIGHT_SEARCH_SECTIONS.map((section) => section.kind));
@@ -432,12 +432,12 @@ function buildPlaceBoundSpotlightEntry(result, kind) {
 		// the server: every other visible German string in the result list lives in this file, and the
 		// server has no business owning one. Only shown when the place is actually reachable.
 		placeHint: placeEntry && kind === "adventure" && result.place_name
-			? tr("spotlight.adventureStartsIn", "beginnt in {place}").replace("{place}", String(result.place_name))
+			? tr("spotlight.gameLiteratureStartsIn", "beginnt in {place}").replace("{place}", String(result.place_name))
 			: "",
 		notOnMap: true,
 		unreachable: !placeEntry,
 		citymapTotal: Number(result.citymap_total) || 0,
-		adventureTotal: Number(result.adventure_total) || 0,
+		gameLiteratureTotal: Number(result.adventure_total) || 0,
 	};
 }
 

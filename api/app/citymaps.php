@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // Public catalog for the Kartensammlung (Spec §3.5). GET returns the whole approved catalog so the client
-// indexes + aggregates locally, exactly like api/app/adventures.php; no auth (public map, like
+// indexes + aggregates locally, exactly like api/app/game-literature.php; no auth (public map, like
 // map-features/feature-sources). Read-only: every write goes through the capability-gated editor
 // (api/edit/map/citymaps.php), so there is no bootstrap POST surface here at all.
 //

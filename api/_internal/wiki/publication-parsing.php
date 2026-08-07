@@ -176,7 +176,7 @@ function avesmapsWikiMapArtToSourceType(string $art, string $unterkategorie = ''
         'kampagnenband' => 'abenteuer',
         'metaband' => 'abenteuer',
         // Prose, not a scenario: it belongs with the novels rather than in the catch-all. It is NOT
-        // an adventure (see avesmapsWikiProductIsAdventure) -- this only fixes its type.
+        // an adventure (see avesmapsWikiProductIsGameLiterature) -- this only fixes its type.
         'kurzgeschichte' => 'roman',
         'regionalspielhilfe' => 'regionalspielhilfe',
         'quellenband' => 'quellenband',
@@ -231,7 +231,7 @@ function avesmapsWikiMapArtToSourceType(string $art, string $unterkategorie = ''
 // them, hence the ampersand). It becomes ONE entry with the combined place list, which is what
 // the infobox can actually show; splitting a volume into its parts is not something the
 // {{Infobox Produkt}} data supports.
-function avesmapsWikiProductIsAdventure(string $art): bool {
+function avesmapsWikiProductIsGameLiterature(string $art): bool {
     $key = avesmapsWikiSyncMonitorFieldKey($art);
     if ($key === '') {
         return false;
@@ -244,7 +244,7 @@ function avesmapsWikiProductIsAdventure(string $art): bool {
 
 // Normalize an `Art` value to the adventure.product_type slug (lowercase, umlaut-folded, non-alnum
 // stripped -- the SAME folding the seed data uses: "Gruppenabenteuer" -> "gruppenabenteuer").
-function avesmapsWikiNormalizeAdventureProductType(string $art): string {
+function avesmapsWikiNormalizeGameLiteratureProductType(string $art): string {
     return avesmapsWikiSyncMonitorFieldKey($art);
 }
 
@@ -259,7 +259,7 @@ function avesmapsWikiStripWikiInlineMarkup(string $text): string {
 // Parse the ordered "Ort" place list: the wikilink TARGETS in source order (STRICT -- the first is
 // the start place, role='start'; NEVER reorder). "[[Mittelreich]], [[Königreich Garetien]], …" ->
 // ['Mittelreich','Königreich Garetien',…]. A bare (non-linked) comma list is a fallback.
-function avesmapsWikiParseAdventurePlaceList(string $ort): array {
+function avesmapsWikiParseGameLiteraturePlaceList(string $ort): array {
     $out = [];
     if (preg_match_all('/\[\[\s*([^\]|#]+?)\s*(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/u', $ort, $matches) > 0) {
         foreach ($matches[1] as $target) {
@@ -381,11 +381,11 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
     // Adventure sub-payload: present ONLY for adventure/campaign products (null otherwise, so the
     // publication catalog path is byte-for-byte unaffected). The Phase-4 adventure sync reads it;
     // publications ignore it. bf_year/bf_label are deliberately absent -- the infobox has no BF year.
-    $adventure = null;
-    if (avesmapsWikiProductIsAdventure($art)) {
-        $adventure = [
-            'product_type' => avesmapsWikiNormalizeAdventureProductType($art),
-            'places' => avesmapsWikiParseAdventurePlaceList((string) ($params['Ort'] ?? '')),
+    $gameLiterature = null;
+    if (avesmapsWikiProductIsGameLiterature($art)) {
+        $gameLiterature = [
+            'product_type' => avesmapsWikiNormalizeGameLiteratureProductType($art),
+            'places' => avesmapsWikiParseGameLiteraturePlaceList((string) ($params['Ort'] ?? '')),
             'genre' => avesmapsWikiStripWikiInlineMarkup((string) ($params['Genre'] ?? '')),
             'complexity_gm' => trim((string) ($params['KompM'] ?? '')),
             'complexity_pl' => trim((string) ($params['KompSp'] ?? '')),
@@ -409,7 +409,7 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
         'publisher' => $publisher,
         'f_shop_pid' => $fShopPid,
         'pdf_shop_id' => $pdfShopId,
-        'adventure' => $adventure,
+        'adventure' => $gameLiterature,
     ];
 }
 

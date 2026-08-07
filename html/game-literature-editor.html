@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Avesmaps – Abenteuer bearbeiten</title>
+<title>Avesmaps – Literatur bearbeiten</title>
 <script>
   /* Resolve light/dark exactly like the parent app (js/app/theme-toggle.js): an explicit saved choice
      wins, otherwise follow the browser/OS scheme (prefers-color-scheme). Runs before the stylesheet
@@ -31,9 +31,9 @@
   })();
 </script>
 <!-- Self-contained editor page (Phase 3 / P2), loaded as an iframe overlay via
-     openAvesmapsAdventureEditorOverlay() with ?v=Date.now() (no ASSET_VERSION). Links the REAL design
+     openAvesmapsGameLiteratureEditorOverlay() with ?v=Date.now() (no ASSET_VERSION). Links the REAL design
      tokens so the warm/aventurian language is authentic — no hardcoded hex/radius/spacing, no blue. Pure
-     client on the LIVE P1 endpoints (POST /api/edit/map/adventures.php). Layout C: Liste | Stammdaten | Orte. -->
+     client on the LIVE P1 endpoints (POST /api/edit/map/game-literature.php). Layout C: Liste | Stammdaten | Orte. -->
 <link rel="stylesheet" href="/css/base/fonts.css">
 <link rel="stylesheet" href="/css/base/tokens.css">
 <!-- Gemeinsame Hüllenmaße + Bildlaufleisten aller Editor-SEITEN (Spec §3.1a/§4.6). Trug diese Seite
@@ -77,7 +77,7 @@
   /* Zweizeiliger Button (Label + kleine Statuszeile) wie #seSyncen im Siedlungseditor -- gleiches
      Muster, hier aber ueber die echten Tokens statt hartkodierter Hex-Werte (kein eigenes :root noetig,
      diese Seite bindet tokens.css bereits direkt ein). Der Dialog-Rahmen zeigt den Editor-Titel schon
-     im H2 der Ueberschrift (siehe openAvesmapsAdventureEditorOverlay) -- ein zweiter H1 hier waere doppelt.
+     im H2 der Ueberschrift (siehe openAvesmapsGameLiteratureEditorOverlay) -- ein zweiter H1 hier waere doppelt.
      Gilt fuer alle Header-Kacheln; nur die Sync-Kachel hebt sich ab (--primary), :disabled dimmt. */
   .ae-btn2 {
     display: flex; flex-direction: column; align-items: flex-start; text-align: left;
@@ -431,14 +431,14 @@
 <body>
   <div class="ae-header">
     <button type="button" class="ae-btn2 ae-btn2--primary" id="aeSyncBtn" title="Zeigt erst, was aus dem zuletzt geholten Wiki-Dump übernommen würde (Katalog + Orte + Cover) — geschrieben wird nur, was du in der Vorschau anhäkelst. Vorher einmal „Dump holen" im WikiSync-Menüband ausführen.">
-      <span class="t1">🚨 Abenteuer syncen</span>
+      <span class="t1">🚨 Literatur syncen</span>
       <span class="t2" id="aeHeaderSub">Letzte Sync: wird geladen…</span>
     </button>
-    <button type="button" class="ae-btn2" id="aeLinkCheckBtn" title="Prüft NUR die Links der Abenteuer (Shoplinks, Wiki-Seiten) auf Erreichbarkeit — Karten und Quellen bleiben unberührt. Höflich: 600ms Pause je Host, ein voller Durchlauf dauert entsprechend.">
+    <button type="button" class="ae-btn2" id="aeLinkCheckBtn" title="Prüft NUR die Links der Literatur (Shoplinks, Wiki-Seiten) auf Erreichbarkeit — Karten und Quellen bleiben unberührt. Höflich: 600ms Pause je Host, ein voller Durchlauf dauert entsprechend.">
       <span class="t1">Links prüfen</span>
       <span class="t2" id="aeLinkCheckSub">…</span>
     </button>
-    <button type="button" class="ae-btn2" id="aeAutogetBtn" title="Holt die Wiki-Cover für alle Abenteuer, deren Cover lokal noch fehlt. Läuft nach einem Klick sicher durch: ein Server-Riegel lässt nur EINEN Vorschau-Lauf gleichzeitig zu (Karten oder Abenteuer), jeder Schritt hält einen Worker nur ~4 s. Eigene Cover-Uploads bleiben unangetastet. Vorher einmal „Dump holen“ + „Abenteuer syncen“.">
+    <button type="button" class="ae-btn2" id="aeAutogetBtn" title="Holt die Wiki-Cover für alle Literatur-Einträge, deren Cover lokal noch fehlt. Läuft nach einem Klick sicher durch: ein Server-Riegel lässt nur EINEN Vorschau-Lauf gleichzeitig zu (Karten oder Abenteuer), jeder Schritt hält einen Worker nur ~4 s. Eigene Cover-Uploads bleiben unangetastet. Vorher einmal „Dump holen“ + „Abenteuer syncen“.">
       <span class="t1">Vorschauen holen</span>
       <span class="t2" id="aeAutogetSub">…</span>
     </button>
@@ -446,8 +446,8 @@
       <span class="t1" id="aeCoversToggleLabel">Vorschauen: …</span>
       <span class="t2">öffentliche Anzeige</span>
     </button>
-    <button type="button" class="ae-btn2" id="aeEnabledToggle" title="Globaler Notaus für die Abenteuer: aus = die Abenteuer verschwinden auf der öffentlichen Seite (schwebende Kachel + Infopanel-Sektionen inkl. „Abenteuer in …“). Die Daten bleiben, der Editor arbeitet weiter.">
-      <span class="t1" id="aeEnabledLabel">Abenteuer: …</span>
+    <button type="button" class="ae-btn2" id="aeEnabledToggle" title="Globaler Notaus für die Literatur: aus = die Literatur verschwindet auf der öffentlichen Seite (schwebende Kachel + Infopanel-Sektionen inkl. „Abenteuer in …“). Die Daten bleiben, der Editor arbeitet weiter.">
+      <span class="t1" id="aeEnabledLabel">Literatur: …</span>
       <span class="t2">Frontend-Zugriff</span>
     </button>
     <!-- Bleibt im Markup, ist aber seit 2026-07-22 per CSS ausgeblendet: das Menueband ist ein Gitter
@@ -459,13 +459,13 @@
 
   <div class="ae-body">
     <aside class="ae-list">
-      <h2 class="ae-colhead">Abenteuer</h2>
+      <h2 class="ae-colhead">Literatur</h2>
       <!-- Die sieben Filter sitzen im Aufklappmenü (Spec §4.4), nicht mehr dauerhaft offen in der
            Spalte: aufgeklappt frassen sie rund die halbe Listenspalte und liessen den Editor neben
            Siedlungen ("Filter ▾") wie ein anderes Programm aussehen. Gleiche .type-filter-
            Komponente, aus css/components/editor-page.css. -->
       <div class="ae-list__top">
-        <input class="ae-search" id="aeSearch" type="search" placeholder="Abenteuer suchen …">
+        <input class="ae-search" id="aeSearch" type="search" placeholder="Literatur suchen …">
         <div class="type-filter">
           <!-- Trichter-Icon wie bei allen anderen Filterknöpfen (Owner 2026-07-23: „überall das
                Filter-Icon"). Dasselbe SVG wie AVM_FILTER_ICON (js/ui/filter-menu.js) / utils.js. -->
@@ -518,7 +518,7 @@
         <button type="button" class="ae-filter__reset" id="aeFReset">Filter zurücksetzen</button>
           </div>
         </div>
-        <button class="btn btn--primary" id="aeNew" title="Neues Abenteuer anlegen">+ Neu</button>
+        <button class="btn btn--primary" id="aeNew" title="Neuen Literatur-Eintrag anlegen">+ Neu</button>
       </div>
       <p class="ae-list__count" id="aeListCount">Lädt…</p>
       <div class="ae-list__scroll" id="aeListScroll"></div>
@@ -535,13 +535,13 @@
         <div class="ae-panel ae-panel--stamm">
           <h2 class="ae-colhead">Stammdaten</h2>
           <div class="ae-panel__scroll" id="aeStammBody">
-            <p class="ae-placeholder">Abenteuer links wählen oder neu anlegen.</p>
+            <p class="ae-placeholder">Literatur links wählen oder neu anlegen.</p>
           </div>
         </div>
         <div class="ae-panel ae-panel--orte">
           <h2 class="ae-colhead" id="aeOrteTitle">Orte</h2>
           <div class="ae-panel__scroll" id="aeOrteBody">
-            <p class="ae-placeholder">Noch kein Abenteuer gewählt.</p>
+            <p class="ae-placeholder">Noch kein Eintrag gewählt.</p>
           </div>
         </div>
       </div>
@@ -561,12 +561,12 @@
 <script src="/js/review/sync-plan-sheet.js"></script>
 
 <script>
-  const ADVENTURE_EDIT_API = "/api/edit/map/adventures.php";
+  const GAME_LITERATURE_EDIT_API = "/api/edit/map/game-literature.php";
   const WIKI_SYNC_DUMP_API = "/api/edit/wiki/dump.php";
 
   // POST helper — mirrors settlementDetailPost: Gold-Contract envelope, surfaces error.message.
-  async function adventurePost(body) {
-    const response = await fetch(ADVENTURE_EDIT_API, {
+  async function gameLiteraturePost(body) {
+    const response = await fetch(GAME_LITERATURE_EDIT_API, {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
@@ -612,7 +612,7 @@
   }
 
   // ============ data layer (P2) ============
-  // Must cover every Art that avesmapsWikiProductIsAdventure lets through (api/_internal/wiki/
+  // Must cover every Art that avesmapsWikiProductIsGameLiterature lets through (api/_internal/wiki/
   // publication-parsing.php): product_type IS the folded Art value, and a value missing from this
   // list has no matching <option> -- so opening such an entry would show the wrong type selected
   // and saving would quietly rewrite it.
@@ -637,13 +637,13 @@
   // ---- left list (list action) ----
   async function loadList() {
     try {
-      const res = await adventurePost({ action: "list" });
+      const res = await gameLiteraturePost({ action: "list" });
       state.adventures = res.adventures || [];
       if (typeof res.covers_enabled === "boolean") setCoversToggleState(res.covers_enabled);
-      if (typeof res.adventures_enabled === "boolean") setAdventuresEnabledToggleState(res.adventures_enabled);
+      if (typeof res.adventures_enabled === "boolean") setGameLiteratureEnabledToggleState(res.adventures_enabled);
       populateRegionFilter();
       renderList();
-      aeSetStatus(`${state.adventures.length} Abenteuer geladen.`);
+      aeSetStatus(`${state.adventures.length} Einträge geladen.`);
     } catch (e) {
       document.getElementById("aeListCount").textContent = "Fehler: " + e.message;
       aeSetStatus("Liste konnte nicht geladen werden: " + e.message, true);
@@ -662,7 +662,7 @@
     const btn = document.getElementById("aeCoversToggle");
     if (btn) btn.disabled = true;
     try {
-      const res = await adventurePost({ action: "set_covers_enabled", enabled: next });
+      const res = await gameLiteraturePost({ action: "set_covers_enabled", enabled: next });
       setCoversToggleState(typeof res.covers_enabled === "boolean" ? res.covers_enabled : next);
     } catch (e) {
       alert("Cover-Umschaltung fehlgeschlagen: " + e.message);
@@ -673,18 +673,18 @@
 
   // Feature kill switch: the WHOLE adventure access on the public frontend (floating tile + infopanel
   // sections). Wider than the cover switch above. Mirrors citymaps' ceEnabledToggle.
-  function setAdventuresEnabledToggleState(enabled) {
-    state.adventuresEnabled = enabled;
+  function setGameLiteratureEnabledToggleState(enabled) {
+    state.gameLiteratureEnabled = enabled;
     const label = document.getElementById("aeEnabledLabel");
-    if (label) label.textContent = enabled ? "Abenteuer: AN" : "Abenteuer: AUS";
+    if (label) label.textContent = enabled ? "Literatur: AN" : "Literatur: AUS";
   }
-  async function toggleAdventuresEnabled() {
-    const next = !state.adventuresEnabled;
+  async function toggleGameLiteratureEnabled() {
+    const next = !state.gameLiteratureEnabled;
     const btn = document.getElementById("aeEnabledToggle");
     if (btn) btn.disabled = true;
     try {
-      const res = await adventurePost({ action: "set_adventures_enabled", enabled: next });
-      setAdventuresEnabledToggleState(typeof res.adventures_enabled === "boolean" ? res.adventures_enabled : next);
+      const res = await gameLiteraturePost({ action: "set_adventures_enabled", enabled: next });
+      setGameLiteratureEnabledToggleState(typeof res.adventures_enabled === "boolean" ? res.adventures_enabled : next);
     } catch (e) {
       alert("Umschaltung fehlgeschlagen: " + e.message);
     } finally {
@@ -693,7 +693,7 @@
   }
 
   // True when an adventure passes EVERY active filter (AND-combined) plus the title search.
-  function adventureMatchesFilters(a) {
+  function gameLiteratureMatchesFilters(a) {
     const f = state.filters;
     const q = (document.getElementById("aeSearch").value || "").trim().toLowerCase();
     if (q && !((a.title || "").toLowerCase().includes(q))) return false;
@@ -710,7 +710,7 @@
     return true;
   }
   function renderList() {
-    const rows = state.adventures.filter(adventureMatchesFilters);
+    const rows = state.adventures.filter(gameLiteratureMatchesFilters);
     document.getElementById("aeListCount").textContent = `${rows.length} von ${state.adventures.length}`;
     document.getElementById("aeListScroll").innerHTML = rows.length ? rows.map((a) => {
       const draft = a.status !== "approved";
@@ -724,7 +724,7 @@
           <span class="ae-item__l1"><span class="ae-item__title">${aeEscape(a.title)}</span></span>
           <span class="ae-item__l2"><span class="pill pill--kind">${aeEscape(a.product_type)}</span> ${aeEscape(a.bf_label || "—")} · ${a.place_count || 0} Orte${manual}</span>
         </span></button>`;
-    }).join("") : `<p class="ae-empty">Keine Abenteuer.</p>`;
+    }).join("") : `<p class="ae-empty">Keine Literatur.</p>`;
   }
 
   // Region dropdown = distinct raw_names of region/territory places across all adventures (coarse area filter).
@@ -743,23 +743,23 @@
   }
 
   // ---- selection / new ----
-  async function selectAdventure(publicId) {
+  async function selectGameLiterature(publicId) {
     state.selectedId = publicId;
     renderList();
     try {
-      state.detail = await adventurePost({ action: "detail", public_id: publicId });
+      state.detail = await gameLiteraturePost({ action: "detail", public_id: publicId });
     } catch (e) {
       document.getElementById("aeStammBody").innerHTML = `<p class="ae-placeholder" style="color:var(--color-danger)">Fehler: ${aeEscape(e.message)}</p>`;
-      aeSetStatus("Abenteuer konnte nicht geladen werden: " + e.message, true);
+      aeSetStatus("Eintrag konnte nicht geladen werden: " + e.message, true);
       return;
     }
     renderDetail();
     renderPlaces();
     // Raeumt eine stehengebliebene Fehlermeldung weg -- sonst behauptet die Zeile beim naechsten
     // erfolgreichen Klick immer noch, das Laden sei fehlgeschlagen.
-    aeSetStatus(`Gewählt: ${(state.detail && state.detail.title) || "Abenteuer"}`);
+    aeSetStatus(`Gewählt: ${(state.detail && state.detail.title) || "Eintrag"}`);
   }
-  function newAdventure() {
+  function newGameLiterature() {
     state.selectedId = null;
     state.detail = null;
     renderList();
@@ -793,19 +793,19 @@
     const st = document.getElementById("aeSaveState");
     st.textContent = ""; st.className = "saved";
     if (!d) {
-      head.innerHTML = `<div class="ae-detail__head-main"><h2 class="ae-detail__title">Neues Abenteuer</h2>
+      head.innerHTML = `<div class="ae-detail__head-main"><h2 class="ae-detail__title">Neuer Eintrag</h2>
         <div class="ae-detail__meta">Noch nicht gespeichert</div></div>`;
     } else {
       const originLabel = d.origin === "manual" ? "Manuell" : "Wiki";
       // Deleting is offered ONLY for entries made here. A wiki-sync row would be back on the next
-      // run, so the server refuses it as well (avesmapsDeleteAdventure) -- the button simply does
+      // run, so the server refuses it as well (avesmapsDeleteGameLiterature) -- the button simply does
       // not appear rather than failing on click. The place count is carried on the element so the
       // armed label can name the consequence.
       const deletable = d.origin !== "wiki";
       const placeCount = (d.places || []).filter((p) => p.status === "approved").length;
       const deleteButton = deletable
         ? `<button type="button" class="btn btn--sm btn--danger" id="aeDelete" data-places="${placeCount}"
-             title="Dieses selbst angelegte Abenteuer löschen">Löschen</button>`
+             title="Diesen selbst angelegten Eintrag löschen">Löschen</button>`
         : "";
       head.innerHTML = `<div class="ae-detail__head-main">
         <h2 class="ae-detail__title">${aeEscape(d.title || "—")}</h2>
@@ -907,7 +907,7 @@
   function aeExtraLinksGroup() {
     return `<div class="ae-grp"><p class="ae-grp__title">Weitere Links</p>
       <p class="ae-xlink__hint">Rezensionen, Errata, Fanmaterial — alles, was weder Shop noch Wiki ist. Sie stehen im
-        Abenteuer-Dialog hinter den Shop-Links und werden mitgeprüft; gespeichert wird mit „Speichern“.</p>
+        Literatur-Dialog hinter den Shop-Links und werden mitgeprüft; gespeichert wird mit „Speichern“.</p>
       <div id="aeExtraLinks">${aeExtraLinkRows()}</div>
       <div class="ae-xlink__add"><button type="button" class="btn btn--sm" data-xl-act="add">+ Link</button></div>
     </div>`;
@@ -963,9 +963,9 @@
   }
 
   // POST a FormData (multipart upload OR the refetch form) to the cover endpoint; throws on a non-ok body.
-  const ADVENTURE_COVER_API = "/api/edit/map/adventure-cover.php";
+  const GAME_LITERATURE_COVER_API = "/api/edit/map/game-literature-cover.php";
   async function aeCoverPost(formData) {
-    const res = await fetch(ADVENTURE_COVER_API, { method: "POST", credentials: "same-origin", body: formData });
+    const res = await fetch(GAME_LITERATURE_COVER_API, { method: "POST", credentials: "same-origin", body: formData });
     const payload = await res.json().catch(() => null);
     if (!res.ok || !payload || payload.ok !== true) {
       throw new Error((payload && payload.error && payload.error.message) || `HTTP ${res.status}`);
@@ -977,7 +977,7 @@
     if (el) { el.textContent = text; el.className = "ae-cover__state" + (isError ? " error" : ""); }
   }
   async function aeUploadCover(input) {
-    if (!state.selectedId) { aeCoverState("Bitte zuerst das Abenteuer speichern.", true); input.value = ""; return; }
+    if (!state.selectedId) { aeCoverState("Bitte zuerst den Eintrag speichern.", true); input.value = ""; return; }
     const file = input.files && input.files[0];
     if (!file) return;
     aeCoverState("Cover wird hochgeladen …", false);
@@ -986,7 +986,7 @@
       fd.append("public_id", state.selectedId);
       fd.append("cover", file);
       await aeCoverPost(fd);
-      await selectAdventure(state.selectedId); // re-render detail with the new cover
+      await selectGameLiterature(state.selectedId); // re-render detail with the new cover
     } catch (e) {
       aeCoverState("Fehler: " + e.message, true);
     } finally {
@@ -994,14 +994,14 @@
     }
   }
   async function aeRefetchCover() {
-    if (!state.selectedId) { aeCoverState("Bitte zuerst das Abenteuer speichern.", true); return; }
+    if (!state.selectedId) { aeCoverState("Bitte zuerst den Eintrag speichern.", true); return; }
     aeCoverState("Wiki-Cover wird gezogen …", false);
     try {
       const fd = new FormData();
       fd.append("public_id", state.selectedId);
       fd.append("mode", "refetch");
       await aeCoverPost(fd);
-      await selectAdventure(state.selectedId);
+      await selectGameLiterature(state.selectedId);
     } catch (e) {
       aeCoverState("Fehler: " + e.message, true);
     }
@@ -1020,28 +1020,28 @@
     const st = document.getElementById("aeSaveState");
     if (!adventure.title || !String(adventure.title).trim()) { st.textContent = "Titel fehlt."; st.className = "error"; return; }
     try {
-      const { public_id } = await adventurePost({ action: "upsert_adventure", adventure });
+      const { public_id } = await gameLiteraturePost({ action: "upsert_adventure", adventure });
       // AFTER the upsert: set_links addresses the adventure by public_id, and a brand-new one only has
       // that once it exists. The list is replaced wholesale, so an empty array legitimately clears it.
-      await adventurePost({ action: "set_links", public_id, links: state.extraLinks });
+      await gameLiteraturePost({ action: "set_links", public_id, links: state.extraLinks });
       const st2 = document.getElementById("aeSaveState");
       st2.textContent = "✓ gespeichert"; st2.className = "saved";
       // Close on save (owner 2026-07-17: "beim speichern zugehen"), same as the citymap editor. NOT
       // before this point -- an error above must leave the dialog open with its message. The parent
       // reloads its catalog on close, so the list refresh that used to run here is redundant.
-      aeCloseAfterSave("Abenteuer gespeichert.");
+      aeCloseAfterSave("Eintrag gespeichert.");
     } catch (e) {
       st.textContent = "Fehler: " + e.message; st.className = "error";
     }
   }
 
   // The parent window IF this page runs inside the editor overlay -- null when it is open standalone
-  // (/html/adventure-editor.html), where there is no overlay to close. Both "Speichern" and "Verwerfen"
+  // (/html/game-literature-editor.html), where there is no overlay to close. Both "Speichern" and "Verwerfen"
   // ask through here.
   function aeParentOverlay() {
     let parentWindow;
     try { parentWindow = window.parent; } catch (e) { return null; }
-    if (!parentWindow || parentWindow === window || typeof parentWindow.closeAvesmapsAdventureEditorOverlay !== "function") {
+    if (!parentWindow || parentWindow === window || typeof parentWindow.closeAvesmapsGameLiteratureEditorOverlay !== "function") {
       return null;
     }
     return parentWindow;
@@ -1058,7 +1058,7 @@
     if (typeof parentWindow.showFeedbackToast === "function") {
       parentWindow.showFeedbackToast(message, "success");
     }
-    parentWindow.closeAvesmapsAdventureEditorOverlay();
+    parentWindow.closeAvesmapsGameLiteratureEditorOverlay();
     return true;
   }
 
@@ -1088,7 +1088,7 @@
     const body = document.getElementById("aeOrteBody");
     if (!state.detail) {
       aeSetOrteCount(null);
-      body.innerHTML = `<p class="ae-placeholder">Erst ein Abenteuer speichern, dann Orte zuordnen.</p>`;
+      body.innerHTML = `<p class="ae-placeholder">Erst einen Eintrag speichern, dann Orte zuordnen.</p>`;
       return;
     }
     const all = state.detail.places || [];
@@ -1117,7 +1117,7 @@
   }
 
   async function reloadDetail() {
-    state.detail = await adventurePost({ action: "detail", public_id: state.selectedId });
+    state.detail = await gameLiteraturePost({ action: "detail", public_id: state.selectedId });
     renderDetail();
     renderPlaces();
     await loadList();
@@ -1125,7 +1125,7 @@
 
   // ---- event wiring ----
   document.getElementById("aeSearch").addEventListener("input", renderList);
-  document.getElementById("aeNew").addEventListener("click", newAdventure);
+  document.getElementById("aeNew").addEventListener("click", newGameLiterature);
   document.getElementById("aeSave").addEventListener("click", saveStammdaten);
   // "Verwerfen" drops the edits AND leaves. It sits right next to "Speichern", which closes the dialog
   // since 2026-07-17 -- and a pair where only one half closes reads as the other half being broken, which
@@ -1136,10 +1136,10 @@
   // trap them in the dialog; nothing was saved either way.
   document.getElementById("aeDiscard").addEventListener("click", async () => {
     try {
-      if (state.selectedId) { await selectAdventure(state.selectedId); } else { newAdventure(); }
+      if (state.selectedId) { await selectGameLiterature(state.selectedId); } else { newGameLiterature(); }
     } finally {
       const parentWindow = aeParentOverlay();
-      if (parentWindow) { parentWindow.closeAvesmapsAdventureEditorOverlay(); }
+      if (parentWindow) { parentWindow.closeAvesmapsGameLiteratureEditorOverlay(); }
     }
   });
   // Delete, in two clicks. Delegated on the STATIC #aeDetailHead because its contents are replaced
@@ -1160,7 +1160,7 @@
     }
     btn.disabled = true;
     try {
-      await adventurePost({ action: "delete_adventure", public_id: state.selectedId });
+      await gameLiteraturePost({ action: "delete_adventure", public_id: state.selectedId });
       // Clear the panels in BOTH cases. The overlay only HIDES this iframe, it never destroys it,
       // so a reopen would otherwise show the detail of the row we just deleted -- with a
       // "Speichern" button sitting under it that would quietly recreate the entry.
@@ -1169,15 +1169,15 @@
       document.getElementById("aeSaveBar").hidden = true;
       document.getElementById("aeDetailHead").innerHTML = "";
       document.getElementById("aeStammBody").innerHTML =
-        `<p class="ae-placeholder">Abenteuer links wählen oder neu anlegen.</p>`;
+        `<p class="ae-placeholder">Literatur links wählen oder neu anlegen.</p>`;
       document.getElementById("aeOrteBody").innerHTML =
-        `<p class="ae-placeholder">Noch kein Abenteuer gewählt.</p>`;
+        `<p class="ae-placeholder">Noch kein Eintrag gewählt.</p>`;
       aeSetOrteCount(null);
-      aeSetStatus("Abenteuer gelöscht.");
+      aeSetStatus("Eintrag gelöscht.");
       // aeCloseAfterSave reloads the list ONLY when standalone (it returns false there). In the
       // overlay case nothing reloads OUR list -- the parent refreshes its own catalog, not this
       // one -- so the deleted row would still be sitting there on the next open.
-      if (aeCloseAfterSave("Abenteuer gelöscht.")) {
+      if (aeCloseAfterSave("Eintrag gelöscht.")) {
         await loadList();
       }
     } catch (err) {
@@ -1192,7 +1192,7 @@
 
   document.getElementById("aeListScroll").addEventListener("click", (e) => {
     const b = e.target.closest(".ae-item"); if (!b) return;
-    selectAdventure(b.dataset.id);
+    selectGameLiterature(b.dataset.id);
   });
 
   // „Weitere Links": + Link / ▲▼ / ✕. Delegiert auf dem statischen #aeStammBody, weil die Zeilen bei
@@ -1370,7 +1370,7 @@
       btn.textContent = show ? btn.textContent.replace("anzeigen", "ausblenden") : btn.textContent.replace("ausblenden", "anzeigen");
       return;
     }
-    if (!state.selectedId) { alert("Erst ein Abenteuer speichern/wählen."); return; }
+    if (!state.selectedId) { alert("Erst einen Eintrag speichern/wählen."); return; }
     // Add paths (button, autocomplete pick, or free-text row) run their own add+resolve+reload (P3).
     if (act === "add" || act === "ac-free") { addPlaceRaw(document.getElementById("aeAddName").value); return; }
     if (act === "ac-pick") { const it = acItems[Number(btn.dataset.idx)]; if (it) addPickedItem(it); return; }
@@ -1378,24 +1378,24 @@
     const placeId = rowEl ? Number(rowEl.dataset.placeId) : null;
     try {
       if (act === "resolve") {
-        await adventurePost({ action: "resolve_place", place_id: placeId });
+        await gameLiteraturePost({ action: "resolve_place", place_id: placeId });
       } else if (act === "start") {
         const on = btn.classList.contains("is-on");
-        await adventurePost({ action: "set_place", place_id: placeId, place: { role: on ? "play" : "start" } });
+        await gameLiteraturePost({ action: "set_place", place_id: placeId, place: { role: on ? "play" : "start" } });
       } else if (act === "suppress") {
-        await adventurePost({ action: "suppress_place", place_id: placeId });
+        await gameLiteraturePost({ action: "suppress_place", place_id: placeId });
       } else if (act === "restore") {
         const place = { raw_name: btn.dataset.raw };
         if (btn.dataset.kind && btn.dataset.kind !== "unresolved" && btn.dataset.kind !== "") place.target_kind = btn.dataset.kind;
-        await adventurePost({ action: "add_place", adventure_public_id: state.selectedId, place });
+        await gameLiteraturePost({ action: "add_place", adventure_public_id: state.selectedId, place });
       } else if (act === "up" || act === "down") {
         const approved = (state.detail.places || []).filter((p) => p.status === "approved");
         const idx = approved.findIndex((p) => p.id === placeId);
         const swapWith = act === "up" ? approved[idx - 1] : approved[idx + 1];
         if (!swapWith) return;
         const cur = approved[idx];
-        await adventurePost({ action: "set_place", place_id: cur.id, place: { sort_order: swapWith.sort_order } });
-        await adventurePost({ action: "set_place", place_id: swapWith.id, place: { sort_order: cur.sort_order } });
+        await gameLiteraturePost({ action: "set_place", place_id: cur.id, place: { sort_order: swapWith.sort_order } });
+        await gameLiteraturePost({ action: "set_place", place_id: swapWith.id, place: { sort_order: cur.sort_order } });
       }
       await reloadDetail();
     } catch (err) { alert("Fehler: " + err.message); }
@@ -1447,8 +1447,8 @@
     hideAc();
     if (!raw || !state.selectedId) return;
     try {
-      const { place_id } = await adventurePost({ action: "add_place", adventure_public_id: state.selectedId, place: { raw_name: raw } });
-      try { await adventurePost({ action: "resolve_place", place_id }); } catch (_) { /* best-effort */ }
+      const { place_id } = await gameLiteraturePost({ action: "add_place", adventure_public_id: state.selectedId, place: { raw_name: raw } });
+      try { await gameLiteraturePost({ action: "resolve_place", place_id }); } catch (_) { /* best-effort */ }
       await reloadDetail();
       const inp = document.getElementById("aeAddName");
       if (inp) inp.focus();
@@ -1476,7 +1476,7 @@
     const kind = mapSearchKind(item);
     if (!kind || !item.public_id) { addPlaceRaw(item.name); return; }
     try {
-      await adventurePost({ action: "add_place", adventure_public_id: state.selectedId,
+      await gameLiteraturePost({ action: "add_place", adventure_public_id: state.selectedId,
         place: { raw_name: item.name, target_kind: kind, target_public_id: item.public_id } });
       await reloadDetail();
       const inp = document.getElementById("aeAddName");
@@ -1504,7 +1504,7 @@
   document.addEventListener("click", (e) => { if (!e.target.closest(".ae-add")) hideAc(); });
 
   // ---- Wiki-Sync (adventures) ----
-  // Delegates to window.parent.startWikiSyncAdventuresSync() -- the SAME sync_adventures client
+  // Delegates to window.parent.startWikiSyncGameLiteratureSync() -- the SAME sync_adventures client
   // loop the WikiSync ribbon's "Abenteuer" tab drives (js/review/review-wiki-sync.js) -- so there
   // is exactly one sync_adventures loop in the app, not a second copy here. Mirrors
   // handleSeSyncenClick/refreshSeSyncedInfo in html/wiki-sync-settlement-editor.html. Requires a
@@ -1512,7 +1512,7 @@
   let aeSyncRunning = false;
   let aeSyncedInfoPollTimer = null;
 
-  function formatAdventureLastSyncedText(raw) {
+  function formatGameLiteratureLastSyncedText(raw) {
     const trimmed = String(raw || "").trim();
     if (trimmed === "") return "Letzte Sync: nie";
     const parsed = new Date(trimmed.replace(" ", "T"));
@@ -1521,7 +1521,7 @@
   }
 
   // Read-only, no lock (same GET the ribbon's own synced-status refresh uses).
-  async function fetchAdventureLastSynced() {
+  async function fetchGameLiteratureLastSynced() {
     const url = new URL(WIKI_SYNC_DUMP_API, window.location.href);
     url.searchParams.set("action", "last_synced");
     url.searchParams.set("_", String(Date.now()));
@@ -1537,7 +1537,7 @@
     const el = document.getElementById("aeHeaderSub");
     if (!el) return;
     try {
-      el.textContent = formatAdventureLastSyncedText(await fetchAdventureLastSynced());
+      el.textContent = formatGameLiteratureLastSyncedText(await fetchGameLiteratureLastSynced());
     } catch (e) {
       el.textContent = "Letzte Sync: Fehler beim Laden";
     }
@@ -1549,7 +1549,7 @@
     if (!button) return;
     button.disabled = isBusy;
     const label = button.querySelector(".t1");
-    if (label) label.textContent = isBusy ? "Synchronisiert…" : "🚨 Abenteuer syncen";
+    if (label) label.textContent = isBusy ? "Synchronisiert…" : "🚨 Literatur syncen";
   }
 
   async function handleAeSyncClick() {
@@ -1557,12 +1557,12 @@
     let parentWindow;
     try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
     const statusEl = document.getElementById("aeHeaderSub");
-    if (!parentWindow || parentWindow === window || typeof parentWindow.startWikiSyncAdventuresSync !== "function") {
+    if (!parentWindow || parentWindow === window || typeof parentWindow.startWikiSyncGameLiteratureSync !== "function") {
       if (statusEl) statusEl.textContent = "Syncen ist nur im eingebetteten Editor verfügbar.";
       return;
     }
     setAeSyncBusy(true);
-    if (statusEl) statusEl.textContent = "Abenteuer werden übernommen …";
+    if (statusEl) statusEl.textContent = "Literatur wird übernommen …";
     // Poll the "Letzte Sync" label while the loop runs in the OTHER document (it can't call
     // back into this iframe directly); the parent's own ribbon shows the live progress/totals.
     if (aeSyncedInfoPollTimer) clearInterval(aeSyncedInfoPollTimer);
@@ -1574,7 +1574,7 @@
       //
       // openSheet: false -- das Blatt gehört in DIESE Seite. Der Wirt der Elternseite läge hinter dem
       // Editor-Fenster, das den Abgleich angestoßen hat.
-      const result = await parentWindow.startWikiSyncAdventuresSync({ openSheet: false });
+      const result = await parentWindow.startWikiSyncGameLiteratureSync({ openSheet: false });
       const total = Number((result && result.counts && result.counts.total) || 0);
       if (statusEl) {
         statusEl.textContent = total > 0
@@ -1640,8 +1640,8 @@
   }
 
   // ---- Cover autoget (all adventures) ----
-  // Delegates to window.parent.startAdventureCoverAutoget -- the loop lives in the parent
-  // (js/review/review-adventure-cover-autoget.js) because this editor is an iframe and the run must
+  // Delegates to window.parent.startGameLiteratureCoverAutoget -- the loop lives in the parent
+  // (js/review/review-game-literature-cover-autoget.js) because this editor is an iframe and the run must
   // outlive its own status line, exactly like "Abenteuer syncen" and "Links prüfen".
   let aeAutogetRunning = false;
 
@@ -1659,7 +1659,7 @@
     const el = document.getElementById("aeAutogetSub");
     if (!el) return;
     try {
-      const res = await fetch("/api/edit/map/adventure-cover-autoget.php", {
+      const res = await fetch("/api/edit/map/game-literature-cover-autoget.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
@@ -1669,7 +1669,7 @@
       if (!res.ok || !payload || payload.ok !== true) throw new Error(`HTTP ${res.status}`);
       el.textContent = payload.remaining > 0
         ? `${payload.remaining} von ${payload.total} offen`
-        : `${payload.total} Abenteuer geprüft`;
+        : `${payload.total} Einträge geprüft`;
     } catch (e) {
       el.textContent = "Status unbekannt";
     }
@@ -1680,16 +1680,16 @@
     const statusEl = document.getElementById("aeAutogetSub");
     let parentWindow;
     try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
-    if (!parentWindow || parentWindow === window || typeof parentWindow.startAdventureCoverAutoget !== "function") {
+    if (!parentWindow || parentWindow === window || typeof parentWindow.startGameLiteratureCoverAutoget !== "function") {
       if (statusEl) statusEl.textContent = "Nur im eingebetteten Editor verfügbar.";
       return;
     }
-    if (!window.confirm("Für alle Abenteuer ohne lokales Cover das Wiki-Cover holen?\n\nEigene Uploads bleiben unangetastet. Der Durchlauf lässt sich fortsetzen und jederzeit stoppen.")) {
+    if (!window.confirm("Für alle Literatur-Einträge ohne lokales Cover das Wiki-Cover holen?\n\nEigene Uploads bleiben unangetastet. Der Durchlauf lässt sich fortsetzen und jederzeit stoppen.")) {
       return;
     }
     setAeAutogetBusy(true);
     try {
-      const r = await parentWindow.startAdventureCoverAutoget((text) => {
+      const r = await parentWindow.startGameLiteratureCoverAutoget((text) => {
         if (statusEl) statusEl.textContent = text;
       });
       if (!r) {
@@ -1700,7 +1700,7 @@
         if (statusEl) statusEl.textContent = "Durchlauf per Not-Aus gestoppt.";
       } else if (statusEl) {
         // Report EVERY outcome, not just the wins ("kein stilles Abschneiden", owner).
-        const parts = [`${r.adventures} Abenteuer · ${r.ok} Cover geholt`];
+        const parts = [`${r.adventures} Einträge · ${r.ok} Cover geholt`];
         if (r.no_image) parts.push(`${r.no_image} ohne Cover-Quelle`);
         if (r.fetch_failed) parts.push(`${r.fetch_failed} nicht erreichbar`);
         if (r.skipped) parts.push(`${r.skipped} übersprungen (eigenes Cover)`);
@@ -1718,16 +1718,16 @@
   document.getElementById("aeLinkCheckBtn").addEventListener("click", handleAeLinkCheckClick);
   document.getElementById("aeAutogetBtn").addEventListener("click", handleAeAutogetClick);
   document.getElementById("aeCoversToggle").addEventListener("click", toggleCovers);
-  document.getElementById("aeEnabledToggle").addEventListener("click", toggleAdventuresEnabled);
+  document.getElementById("aeEnabledToggle").addEventListener("click", toggleGameLiteratureEnabled);
   void refreshAeSyncedInfo();
   void refreshAeAutogetInfo();
 
   // Pre-selection from the parent (WikiSync adventure picker): a same-origin postMessage jumps to an
-  // adventure by public_id. selectAdventure fetches the detail by id, so it works even before loadList resolves.
+  // adventure by public_id. selectGameLiterature fetches the detail by id, so it works even before loadList resolves.
   window.addEventListener("message", (e) => {
     if (!e || e.origin !== location.origin || !e.data || typeof e.data.avesmapsAdvSelect !== "string") return;
     const id = e.data.avesmapsAdvSelect.trim();
-    if (id) selectAdventure(id);
+    if (id) selectGameLiterature(id);
   });
 
   loadList();

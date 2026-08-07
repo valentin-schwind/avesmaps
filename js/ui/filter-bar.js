@@ -24,7 +24,7 @@
 //
 // The emitted CLASSES are still .avesmaps-adv-tree__* -- historical (they were named after the tree
 // dialog), and already shared across two dialogs before this file existed, so a third consumer is
-// consistent rather than divergent. Renaming them is a separate sweep across adventures-dialog.css and
+// consistent rather than divergent. Renaming them is a separate sweep across game-literature-dialog.css and
 // both dialogs' wiring, with real regression risk and no behaviour change; not worth bundling in here.
 //
 // The MARKUP is shared, the WIRING stays per dialog (box-local vs. document-delegated) -- the

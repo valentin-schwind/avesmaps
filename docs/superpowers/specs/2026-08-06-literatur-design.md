@@ -170,9 +170,17 @@ Protokollzeilen**. Nur die Beschriftung ändert sich; alte Zeilen bleiben lesbar
 
 ## 8. Was NICHT dazugehört
 
-- **Kein Rename der Bezeichner.** Beschlossen, aber eigene Sitzung: 24 Dateien, 275 Vorkommen,
-  3 öffentliche Endpunkte. Zielname **`game-literature`** in Dateinamen, **`GameLiterature`** in
-  Bezeichnern (`avesmapsGameLiterature*`, `gameLiterature*`, `GAME_LITERATURE_*`) — Owner-Entscheid 07.08.
+- **Kein Rename der Bezeichner.** ✅ **Erledigt am 07.08.2026 in eigener Sitzung** — dieser Abschnitt
+  beschreibt, was dort gebaut wurde; für den Literatur-Umbau selbst ist er abgehakt. Zielname
+  **`game-literature`** in Dateinamen, **`GameLiterature`** in Bezeichnern
+  (`avesmapsGameLiterature*`, `gameLiterature*`, `GAME_LITERATURE_*`) — Owner-Entscheid 07.08.
+
+  Der Bestand war größer als die Schätzung „24 Dateien, 275 Vorkommen": 24 sind die **umbenannten**
+  Dateien (es wurden 27), die **Verweise** darauf standen in 130. Gelaufen sind 27 `git mv`,
+  173 Bezeichner, 4 HTML-IDs, der i18n-Namensraum `adventures.*` → `gameLiterature.*` und 80 sichtbare
+  Texte. ⚠️ Die **CSS-Klassen `.avesmaps-adv*` blieben**: sie gehören inzwischen auch dem
+  Kartensammlungs-Dialog und der allgemeinen Filterleiste (`js/ui/filter-bar.js` sagt das ausdrücklich),
+  benennen also ein **Bauteil**, nicht dieses Feature.
 
   💣 **Die Tabellen werden dabei NICHT umbenannt** — und das ist keine Bequemlichkeit, sondern das,
   was den Rename überhaupt gefahrlos macht. Der Deploy löscht nie (AGENTS.md §10): `api/app/adventures.php`

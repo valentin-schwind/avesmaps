@@ -10,7 +10,7 @@ require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
 require_once __DIR__ . '/../_internal/app/citymaps.php';
 require_once __DIR__ . '/../_internal/app/app-setting.php';
 require_once __DIR__ . '/../_internal/app/citymap-search.php';
-require_once __DIR__ . '/../_internal/app/adventure-search.php';
+require_once __DIR__ . '/../_internal/app/game-literature-search.php';
 require_once __DIR__ . '/../_internal/app/lore-search.php';
 
 const AVESMAPS_MAP_SEARCH_MAX_LIMIT = 20;
@@ -19,12 +19,12 @@ const AVESMAPS_CITYMAP_SEARCH_LIMIT = 5;
 // Same cap, same reason: "abenteuer" is inside 1040 of 1352 adventure entries and would fill the whole
 // list on its own. Occurrences get the same treatment for symmetry -- and because 5104 entries dwarf
 // everything else in the payload.
-const AVESMAPS_ADVENTURE_SEARCH_LIMIT = 5;
+const AVESMAPS_GAME_LITERATURE_SEARCH_LIMIT = 5;
 const AVESMAPS_LORE_SEARCH_LIMIT = 5;
-// Mirrors AVESMAPS_ADVENTURES_SETTING in api/_internal/app/adventures.php. Duplicated rather than
+// Mirrors AVESMAPS_GAME_LITERATURE_SETTING in api/_internal/app/game-literature.php. Duplicated rather than
 // required: that file carries the whole adventure catalogue, cover engine and DDL, and this endpoint
 // needs one string.
-const AVESMAPS_ADVENTURE_SEARCH_SETTING = 'adventures_enabled';
+const AVESMAPS_GAME_LITERATURE_SEARCH_SETTING = 'adventures_enabled';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -79,7 +79,7 @@ try {
     // four lore_kind_*_enabled keys. This endpoint is the site's hottest public path (a
     // keystroke-debounced search) -- three separate round trips for six flags was three too many.
     //
-    // Deliberately NOT avesmapsCitymapsEnabled()/avesmapsAdventuresEnabled()/avesmapsLoreKindEnabled():
+    // Deliberately NOT avesmapsCitymapsEnabled()/avesmapsGameLiteratureEnabled()/avesmapsLoreKindEnabled():
     // all three read via avesmapsAppSettingGet, which runs `CREATE TABLE IF NOT EXISTS app_setting` on
     // EVERY call. That DDL firing on every keystroke is the same per-request DDL/information_schema
     // load AGENTS.md §10 blames for the 2026-07-17 PHP-worker-pool exhaustion. Read all six flags
@@ -88,19 +88,19 @@ try {
     $loreSearchSettingKeys = array_map('avesmapsLoreSearchSettingKey', AVESMAPS_LORE_SEARCH_KINDS);
     $storedSearchSettings = avesmapsAppSettingGetManyWithoutDdl(
         $pdo,
-        array_merge([AVESMAPS_CITYMAPS_SETTING, AVESMAPS_ADVENTURE_SEARCH_SETTING], $loreSearchSettingKeys)
+        array_merge([AVESMAPS_CITYMAPS_SETTING, AVESMAPS_GAME_LITERATURE_SEARCH_SETTING], $loreSearchSettingKeys)
     );
     // Fourth source: the Kartensammlung. The kill switch counts here too -- a collection switched off must
     // not become visible again through the search. Default is ON; only a stored '0' disables.
     $citymapsEnabled = ($storedSearchSettings[AVESMAPS_CITYMAPS_SETTING] ?? '1') !== '0';
     $citymapRows = $citymapsEnabled ? avesmapsFetchCitymapSearchRows($pdo) : [];
     // Fifth source: adventures. Same default-on/'0'-disables polarity as the Kartensammlung above.
-    $adventuresEnabled = ($storedSearchSettings[AVESMAPS_ADVENTURE_SEARCH_SETTING] ?? '1') !== '0';
-    $adventureRows = $adventuresEnabled ? avesmapsFetchAdventureSearchRows($pdo) : [];
+    $gameLiteratureEnabled = ($storedSearchSettings[AVESMAPS_GAME_LITERATURE_SEARCH_SETTING] ?? '1') !== '0';
+    $gameLiteratureRows = $gameLiteratureEnabled ? avesmapsFetchGameLiteratureSearchRows($pdo) : [];
     // Sixth source: occurrences. 💣 The switch here is PER KIND, not global -- 'spezies' is off by
     // default and off live (187 entries the search must not show).
     $loreRows = avesmapsFetchLoreSearchRows($pdo, avesmapsLoreSearchEnabledKindsFromSettings($storedSearchSettings));
-    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows, $adventureRows, $loreRows);
+    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows, $gameLiteratureRows, $loreRows);
 
     avesmapsJsonResponse(200, [
         'ok' => true,
@@ -197,7 +197,7 @@ function avesmapsBuildMapSearchResults(
     array $inSettlementRows = [],
     ?PDO $pdo = null,
     array $citymapRows = [],
-    array $adventureRows = [],
+    array $gameLiteratureRows = [],
     array $loreRows = ['entries' => [], 'places_by_entry' => []]
 ): array {
     $normalizedQuery = avesmapsNormalizeSearchText($query);
@@ -301,11 +301,11 @@ function avesmapsBuildMapSearchResults(
         AVESMAPS_CITYMAP_SEARCH_LIMIT
     );
 
-    [$adventureResults, $adventureTotal] = avesmapsCollectSearchSection(
-        avesmapsBuildAdventureSearchEntries($adventureRows, AVESMAPS_ADVENTURE_SEARCH_TYPE_LABELS),
+    [$gameLiteratureResults, $gameLiteratureTotal] = avesmapsCollectSearchSection(
+        avesmapsBuildGameLiteratureSearchEntries($gameLiteratureRows, AVESMAPS_GAME_LITERATURE_SEARCH_TYPE_LABELS),
         $normalizedQuery,
-        'avesmapsAdventureSearchCompare',
-        AVESMAPS_ADVENTURE_SEARCH_LIMIT
+        'avesmapsGameLiteratureSearchCompare',
+        AVESMAPS_GAME_LITERATURE_SEARCH_LIMIT
     );
 
     [$loreResults, $loreTotal] = avesmapsCollectSearchSection(
@@ -347,7 +347,7 @@ function avesmapsBuildMapSearchResults(
     // sequence (SPOTLIGHT_SEARCH_SECTIONS in js/ui/spotlight-search.js).
     $sections = [
         [$citymapResults, 'citymap_total', $citymapTotal],
-        [$adventureResults, 'adventure_total', $adventureTotal],
+        [$gameLiteratureResults, 'adventure_total', $gameLiteratureTotal],
         [$loreResults, 'lore_total', $loreTotal],
     ];
     foreach ($sections as [$sectionResults, $totalField, $sectionTotal]) {

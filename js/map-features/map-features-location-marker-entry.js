@@ -95,8 +95,8 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 		if (typeof buildPlaceCityMapsMarkup === "function") {
 			placeExtrasMarkup += buildPlaceCityMapsMarkup(markerEntry.location);
 		}
-		if (typeof buildPlaceAdventuresMarkup === "function") {
-			placeExtrasMarkup += buildPlaceAdventuresMarkup(markerEntry.location);
+		if (typeof buildPlaceGameLiteratureMarkup === "function") {
+			placeExtrasMarkup += buildPlaceGameLiteratureMarkup(markerEntry.location);
 		}
 	}
 	// "Liegt in" breadcrumb (Owner Variante A): the full leaf -> root territory chain as gold fly-to links,
@@ -155,7 +155,7 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 		actionsMarkup: locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location,
 			floating
 				? [
-					typeof buildFloatingAdventuresButtonMarkup === "function" ? buildFloatingAdventuresButtonMarkup(markerEntry.location, markerEntry.publicId) : "",
+					typeof buildFloatingGameLiteratureButtonMarkup === "function" ? buildFloatingGameLiteratureButtonMarkup(markerEntry.location, markerEntry.publicId) : "",
 					typeof buildFloatingCityMapsButtonMarkup === "function" ? buildFloatingCityMapsButtonMarkup(markerEntry.location, markerEntry.publicId) : "",
 				]
 				: [], { floating }) + breadcrumbMarkup + settlementInfobox + placeExtrasMarkup + reviewsSlot,

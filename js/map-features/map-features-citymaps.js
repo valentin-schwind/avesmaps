@@ -1,5 +1,5 @@
 // Kartensammlung (Spec §3.9): catalog fetch + the client-side index that answers "which maps hang on this
-// place". Sibling of map-features-adventures.js and deliberately the same shape -- one eager fetch of the
+// place". Sibling of map-features-game-literature.js and deliberately the same shape -- one eager fetch of the
 // whole approved catalog (api/app/citymaps.php), one index built once, then pure local lookups.
 //
 // A map can hang on a settlement, a territory, a region or a path/river, exactly like an adventure, so the
@@ -97,7 +97,7 @@ function avesmapsCitymapToRenderShape(citymap) {
 }
 
 // ---- index -------------------------------------------------------------------------------------------
-// Same axes as the adventure index (map-features-adventures.js:95), minus the role. byTerritoryPath is the
+// Same axes as the adventure index (map-features-game-literature.js:95), minus the role. byTerritoryPath is the
 // subtree axis: a map is indexed under EVERY territory on its place's ancestor path, so a territory shows
 // the maps of everything beneath it without the client ever loading the political parent tree.
 function avesmapsBuildCitymapIndex(catalog, normalizeKey) {

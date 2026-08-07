@@ -201,7 +201,7 @@ const advPlan = planWith({
 });
 const advHtml = markup(advPlan);
 assert.ok(advHtml.includes("löscht nichts"), "die Löschgruppe sagt, dass dieser Abgleich nicht löscht");
-assert.ok(advHtml.includes("Abenteuer aus dem Wiki übernehmen"), "und der Kopf nennt die Art");
+assert.ok(advHtml.includes("Literatur aus dem Wiki übernehmen"), "und der Kopf nennt die Art");
 assert.ok(!advHtml.includes("lässt sich nicht rückgängig machen"),
 	"und droht nicht mit etwas, das gar nicht passiert");
 

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 // Global app settings: a tiny, self-healing key/value store for runtime-toggleable flags.
 //
-// This lives in its own file because it is genuinely FEATURE-AGNOSTIC. It started inside adventures.php
+// This lives in its own file because it is genuinely FEATURE-AGNOSTIC. It started inside game-literature.php
 // for the cover kill switch, and the Kartensammlung (Spec §3.3) needs the same store for
-// 'citymaps_enabled'. Requiring adventures.php from citymaps.php just to reach three generic functions
+// 'citymaps_enabled'. Requiring game-literature.php from citymaps.php just to reach three generic functions
 // would make the map collection depend on the adventure catalog -- and PHP fatals on a redeclaration, so
 // copying them was never an option either. Only the store moved out; the per-feature part (the key
 // constant plus the default-on reader/writer pair) stays with the feature it belongs to.

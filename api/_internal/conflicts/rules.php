@@ -40,7 +40,7 @@ const AVESMAPS_CONFLICT_TYPE_LABELS = [
     'label' => 'Region/Landschaft',
     'powerline' => 'Kraftlinie',
     'territory' => 'Territorium',
-    'adventure' => 'Abenteuer',
+    'adventure' => 'Literatur',
     'citymap' => 'Karte',
 ];
 
@@ -184,7 +184,7 @@ function avesmapsConflictLoadTerritoryRows(PDO $pdo): array {
     return $rows;
 }
 
-function avesmapsConflictLoadAdventureRows(PDO $pdo): array {
+function avesmapsConflictLoadGameLiteratureRows(PDO $pdo): array {
     try {
         $statement = $pdo->query(
             "SELECT public_id, title, wiki_url FROM adventure
@@ -477,7 +477,7 @@ function avesmapsConflictDetectAll(PDO $pdo): array {
     $claimRows = array_merge(
         $rows,
         avesmapsConflictLoadTerritoryRows($pdo),
-        avesmapsConflictLoadAdventureRows($pdo)
+        avesmapsConflictLoadGameLiteratureRows($pdo)
     );
     $conflicts = array_merge(
         avesmapsConflictRuleSharedArticle($claimRows, $wikiTitles),

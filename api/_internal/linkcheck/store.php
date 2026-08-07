@@ -72,7 +72,7 @@ function avesmapsLinkCheckEnsureTables(PDO $pdo): void
 }
 
 // {entity_public_id => {field => {state, http_status, checked_at}}} for ONE entity type -- the embedded
-// path (§1.7): api/app/adventures.php ships the status inside its own payload, so a dialog needs no
+// path (§1.7): api/app/game-literature.php ships the status inside its own payload, so a dialog needs no
 // second roundtrip. One JOIN over the registry, never an IN(…) of every hash in the catalog and never
 // N+1. An entity whose links were never synced is simply absent -> the caller renders 'unchecked'.
 function avesmapsLinkCheckStatesByEntityType(PDO $pdo, string $entityType): array

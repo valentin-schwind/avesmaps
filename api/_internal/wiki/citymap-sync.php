@@ -6,7 +6,7 @@ declare(strict_types=1);
 //
 // The house pipeline is "Dump ziehen -> syncen (staging, override-safe) -> manuell pflegen". For the
 // Kartensammlung stage 3 (html/citymap-editor.html) was built first; this file is stages 1+2. It mirrors
-// api/_internal/wiki/adventure-sync.php one-to-one: build STAGING during "Dump holen" (the citymaps
+// api/_internal/wiki/game-literature-sync.php one-to-one: build STAGING during "Dump holen" (the citymaps
 // phase, dryRun), then an owner-triggered `sync_citymaps` action reconciles staging into production.
 //
 // Side-effect-free on include (function definitions only -- NO top-level code, NO require of a
@@ -1312,7 +1312,7 @@ function avesmapsEnsureCitymapStagingTables(PDO $pdo): void
     }
 }
 
-/** Test seam mirror of avesmapsAdventureDefaultPageSource: (dumpPath, skipPages) => page rows. */
+/** Test seam mirror of avesmapsGameLiteratureDefaultPageSource: (dumpPath, skipPages) => page rows. */
 function avesmapsCitymapDefaultPageSource(): callable
 {
     return static function (string $path, int $skip): iterable {
@@ -1868,7 +1868,7 @@ function avesmapsCitymapReconcileWikiLinks(PDO $pdo, int $citymapId, string $sou
 // call chain the transaction spans rather than just these ten lines.
 //
 // 💣 NO NETWORK AND NO FILE WRITES BETWEEN begin AND commit either. That is why the third
-// reconciler named in the finding, avesmapsAdventureReconcileEntity, is NOT wrapped: it fetches
+// reconciler named in the finding, avesmapsGameLiteratureReconcileEntity, is NOT wrapped: it fetches
 // the wiki cover over HTTP and writes it to /uploads/questcovers in the middle of its writes. A
 // transaction there would hold a connection open across unbounded network latency on a shared
 // host, and could not roll the file back anyway.
@@ -1939,7 +1939,7 @@ function avesmapsCitymapReconcileEntityWrites(PDO $pdo, array $catalog, int $use
         // avesmapsWikiSyncUuidV4 (wiki/sync.php), NOT avesmapsUuidV4 (map/features.php): three identical
         // UUID helpers exist in this codebase, and only this one is in the dump endpoint's require
         // chain. Calling the features.php one here was a fatal "undefined function" on the sync path --
-        // invisible in unit tests, because they never load the endpoint's chain. adventure-sync.php,
+        // invisible in unit tests, because they never load the endpoint's chain. game-literature-sync.php,
         // the template for this whole file, uses this same helper for exactly this reason.
         $publicId = avesmapsWikiSyncUuidV4();
         $pdo->prepare(

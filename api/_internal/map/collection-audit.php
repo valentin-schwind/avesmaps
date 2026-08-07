@@ -75,7 +75,7 @@ const AVESMAPS_COLLECTION_AUDIT_TITLE_LIMIT = 20;
 /** What the Übernahme row calls the sync it belongs to. Grows with session 2-4 (design §7). */
 const AVESMAPS_COLLECTION_AUDIT_KIND_LABELS = [
     'citymap' => 'Stadtkarten',
-    'adventure' => 'Abenteuer',
+    'adventure' => 'Literatur',
     'publication' => 'Publikationsquellen',
     'lore' => 'Vorkommen',
     'territory_wiki' => 'Wiki-Kopie der Herrschaftsgebiete',

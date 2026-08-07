@@ -31,7 +31,7 @@ const settlementBuildingTypeFilter = new Set(); // gewählte Bauwerks-Arten (lee
 // es seit jeher tut. Owner 2026-07-22.
 //
 // Warum das keine Formsache ist: der Abenteuereditor fuehrt den Fehler gerade vor. Seine feste
-// Liste EDITIONS (html/adventure-editor.html:573) endet bei DSA5 und kennt DSA4.1 nicht -- im
+// Liste EDITIONS (html/game-literature-editor.html:573) endet bei DSA5 und kennt DSA4.1 nicht -- im
 // Bestand stehen aber Abenteuer mit genau dieser Angabe. Eine solche Liste bietet an, was es nicht
 // gibt, und verschluckt, was es gibt.
 //
@@ -830,11 +830,11 @@ window.openAvesmapsSettlementEditorOverlay = window.openAvesmapsSettlementEditor
 };
 
 // Abenteuer-Editor overlay (Phase 3 / P2) — same overlay chrome as the settlement editor, own iframe page.
-// Self-contained html/adventure-editor.html loaded with ?v=Date.now() (no ASSET_VERSION). No deep-link
+// Self-contained html/game-literature-editor.html loaded with ?v=Date.now() (no ASSET_VERSION). No deep-link
 // param and no tree refresh on close (the adventure editor has no parent tree).
-window.openAvesmapsAdventureEditorOverlay = window.openAvesmapsAdventureEditorOverlay || function openAvesmapsAdventureEditorOverlay(selectPublicId) {
-	const overlayId = "avesmaps-adventure-editor-overlay";
-	const buildSrc = () => "/html/adventure-editor.html?v=" + Date.now();
+window.openAvesmapsGameLiteratureEditorOverlay = window.openAvesmapsGameLiteratureEditorOverlay || function openAvesmapsGameLiteratureEditorOverlay(selectPublicId) {
+	const overlayId = "avesmaps-game-literature-editor-overlay";
+	const buildSrc = () => "/html/game-literature-editor.html?v=" + Date.now();
 	// Optional pre-selection: tell the (same-origin) editor iframe to jump to an adventure by public_id.
 	const postSelect = (frame) => {
 		const id = (selectPublicId == null ? "" : String(selectPublicId)).trim();
@@ -858,7 +858,7 @@ window.openAvesmapsAdventureEditorOverlay = window.openAvesmapsAdventureEditorOv
 	const header = document.createElement("div");
 	header.className = "political-territory-editor-dialog__header";
 	const headingEl = document.createElement("h2");
-	headingEl.textContent = "Abenteuer bearbeiten";
+	headingEl.textContent = "Literatur bearbeiten";
 	const closeButton = document.createElement("button");
 	closeButton.type = "button";
 	closeButton.className = "political-territory-editor-dialog__close";
@@ -871,21 +871,21 @@ window.openAvesmapsAdventureEditorOverlay = window.openAvesmapsAdventureEditorOv
 		// verdeckt es die Karte -- ein Refresh dahinter saehe niemand. Ohne das blieb der Katalog der von der
 		// Seitenladung, und man sah seine eigene Aenderung erst nach F5. Bedingungslos, weil der Editor uns
 		// nicht sagt, ob er gespeichert hat; der Katalog ist ~1 KB, ein Abruf je Schliessen faellt nicht auf.
-		if (typeof window.avesmapsReloadAdventureCatalog === "function") {
-			void window.avesmapsReloadAdventureCatalog();
+		if (typeof window.avesmapsReloadGameLiteratureCatalog === "function") {
+			void window.avesmapsReloadGameLiteratureCatalog();
 		}
 	};
 	closeButton.addEventListener("click", closeOverlay);
 	// Exposed so the editor iframe can close itself after a save (owner 2026-07-17: "beim speichern
 	// zugehen"). Re-assigned on every open, which is correct: closeOverlay closes over THIS overlay.
-	window.closeAvesmapsAdventureEditorOverlay = closeOverlay;
+	window.closeAvesmapsGameLiteratureEditorOverlay = closeOverlay;
 	header.appendChild(headingEl);
 	header.appendChild(closeButton);
 	const frame = document.createElement("iframe");
 	frame.className = "political-territory-editor-dialog__frame";
 	frame.addEventListener("load", () => postSelect(frame));
 	frame.src = buildSrc();
-	frame.title = "Abenteuereditor";
+	frame.title = "Literatur-Editor";
 	dialog.appendChild(header);
 	dialog.appendChild(frame);
 	overlay.appendChild(dialog);
@@ -961,7 +961,7 @@ window.openAvesmapsCitymapEditorOverlay = window.openAvesmapsCitymapEditorOverla
 };
 
 // ---- Abenteuer-Liste im WikiSync-"Abenteuer"-Tab (ersetzt den alten Beschreibungstext) ------------------
-// Same catalog the editor uses (POST /api/edit/map/adventures.php {action:list} -> approved + drafts). Lazily
+// Same catalog the editor uses (POST /api/edit/map/game-literature.php {action:list} -> approved + drafts). Lazily
 // loaded when the tab opens (setWikiSyncPanelTab). Double-click a row -> open the editor pre-selected there.
 var avesmapsAdvPickerCache = null; // [{ public_id, title, edition, product_type, status, ... }]
 var avesmapsAdvPickerWired = false;
@@ -972,7 +972,7 @@ var avesmapsAdvPickerWired = false;
 // own "X / Y" line right below, which is the number an editor actually reads.
 
 // --- Filter der Abenteuerliste ------------------------------------------------------------
-// Der Facettensatz ist DER DES EDITORS (html/adventure-editor.html:432), soweit er in den
+// Der Facettensatz ist DER DES EDITORS (html/game-literature-editor.html:432), soweit er in den
 // Trichter passt. „Jahr von/bis" und „Ort" bleiben dort: das eine ist ein Zahlenbereich, das
 // andere eine Autovervollstaendigung, und attachFilterMenu kennt nur Ankreuz- und Radioabschnitte.
 // Eine dritte Art dafuer waere groesser als diese Aufgabe -- und die Panel-Liste ist die Flaeche,
@@ -988,7 +988,7 @@ var avesmapsAdvCoverFilter = { value: "" };
 var avesmapsAdvFshopFilter = { value: "" };
 
 // Die Regionen EINER Zeile: die Rohnamen ihrer Orte vom Typ region/territory, wie sie auch der
-// Editor zieht (populateRegionFilter, html/adventure-editor.html:681). Eine Zeile kann mehrere
+// Editor zieht (populateRegionFilter, html/game-literature-editor.html:681). Eine Zeile kann mehrere
 // haben, deshalb eine eigene Lesart -- wikiSyncFacetRowValue liefert genau einen Wert je Zeile.
 function avesmapsAdvRegionNames(adventure) {
 	return ((adventure && adventure.places) || [])
@@ -1041,7 +1041,7 @@ function avesmapsAdvFacetOptions(key) {
 	return wikiSyncFacetOptions(avesmapsAdvFilteredRows(key), avesmapsAdvFacet(key), AVESMAPS_ADV_FILTER_STATES[key]);
 }
 
-function avesmapsRenderAdventurePicker() {
+function avesmapsRenderGameLiteraturePicker() {
 	var scroll = document.getElementById("wiki-sync-adv-scroll");
 	if (!scroll) { return; }
 	var countEl = document.getElementById("wiki-sync-adv-count");
@@ -1049,21 +1049,21 @@ function avesmapsRenderAdventurePicker() {
 	var rows = avesmapsAdvFilteredRows(null);
 	if (countEl) { countEl.textContent = rows.length + " / " + all.length; }
 	if (!rows.length) {
-		scroll.innerHTML = '<p class="wiki-sync-panel__summary">' + (all.length ? "Kein Treffer." : "Keine Abenteuer.") + '</p>';
+		scroll.innerHTML = '<p class="wiki-sync-panel__summary">' + (all.length ? "Kein Treffer." : "Keine Literatur.") + '</p>';
 		return;
 	}
 	var esc = typeof escapeHtml === "function" ? escapeHtml : function (s) { return String(s == null ? "" : s); };
 	scroll.innerHTML = rows.map(function (a) {
 		var meta = [a.edition, a.product_type].filter(Boolean).join(" · ");
 		var draft = a.status && a.status !== "approved" ? " · Entwurf" : "";
-		return '<button type="button" class="wiki-sync-adv-picker__row" data-adv-id="' + esc(a.public_id) + '" title="Doppelklick: im Abenteuereditor öffnen">'
+		return '<button type="button" class="wiki-sync-adv-picker__row" data-adv-id="' + esc(a.public_id) + '" title="Doppelklick: im Literatur-Editor öffnen">'
 			+ '<span class="wiki-sync-adv-picker__title">' + esc(a.title || "(ohne Titel)") + '</span>'
 			+ '<span class="wiki-sync-adv-picker__meta">' + esc(meta + draft) + '</span>'
 			+ '</button>';
 	}).join("");
 }
 
-function avesmapsWireAdventurePicker() {
+function avesmapsWireGameLiteraturePicker() {
 	if (avesmapsAdvPickerWired) { return; }
 	var searchEl = document.getElementById("wiki-sync-adv-search");
 	var scroll = document.getElementById("wiki-sync-adv-scroll");
@@ -1078,26 +1078,26 @@ function avesmapsWireAdventurePicker() {
 		{ menuId: "wiki-sync-adv-region-menu", kind: "multi", state: avesmapsAdvRegionFilter, getOptions: avesmapsAdvRegionOptions, label: avesmapsAdvFacet("region").label, isActive: function () { return avesmapsAdvRegionFilter.size > 0; } },
 		{ menuId: "wiki-sync-adv-cover-menu", kind: "single", state: avesmapsAdvCoverFilter, getOptions: function () { return avesmapsAdvFacetOptions("cover"); }, label: avesmapsAdvFacet("cover").label, isActive: function () { return Boolean(avesmapsAdvCoverFilter.value); } },
 		{ menuId: "wiki-sync-adv-fshop-menu", kind: "single", state: avesmapsAdvFshopFilter, getOptions: function () { return avesmapsAdvFacetOptions("fshop"); }, label: avesmapsAdvFacet("fshop").label, isActive: function () { return Boolean(avesmapsAdvFshopFilter.value); } },
-	], avesmapsRenderAdventurePicker, "Filter"));
-	searchEl.addEventListener("input", avesmapsRenderAdventurePicker);
+	], avesmapsRenderGameLiteraturePicker, "Filter"));
+	searchEl.addEventListener("input", avesmapsRenderGameLiteraturePicker);
 	scroll.addEventListener("dblclick", function (e) {
 		var row = e.target && e.target.closest ? e.target.closest("[data-adv-id]") : null;
 		if (!row) { return; }
 		var id = row.getAttribute("data-adv-id");
-		if (id && typeof window.openAvesmapsAdventureEditorOverlay === "function") {
-			window.openAvesmapsAdventureEditorOverlay(id);
+		if (id && typeof window.openAvesmapsGameLiteratureEditorOverlay === "function") {
+			window.openAvesmapsGameLiteratureEditorOverlay(id);
 		}
 	});
 }
 
-window.loadWikiSyncAdventureList = window.loadWikiSyncAdventureList || function loadWikiSyncAdventureList(force) {
-	avesmapsWireAdventurePicker();
+window.loadWikiSyncGameLiteratureList = window.loadWikiSyncGameLiteratureList || function loadWikiSyncGameLiteratureList(force) {
+	avesmapsWireGameLiteraturePicker();
 	if (avesmapsAdvPickerCache && !force) {
-		avesmapsRenderAdventurePicker();
+		avesmapsRenderGameLiteraturePicker();
 		return Promise.resolve();
 	}
 	var scroll = document.getElementById("wiki-sync-adv-scroll");
-	return fetch("/api/edit/map/adventures.php", {
+	return fetch("/api/edit/map/game-literature.php", {
 		method: "POST", credentials: "same-origin",
 		headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "list" }),
 	}).then(function (r) { return r.json().catch(function () { return null; }); }).then(function (p) {
@@ -1105,7 +1105,7 @@ window.loadWikiSyncAdventureList = window.loadWikiSyncAdventureList || function 
 			throw new Error((p && p.error && p.error.message) || "Laden fehlgeschlagen");
 		}
 		avesmapsAdvPickerCache = p.adventures;
-		avesmapsRenderAdventurePicker();
+		avesmapsRenderGameLiteraturePicker();
 	}).catch(function (e) {
 		if (scroll) { scroll.innerHTML = '<p class="wiki-sync-panel__summary">Fehler: ' + (e && e.message ? e.message : "Laden fehlgeschlagen") + '</p>'; }
 	});

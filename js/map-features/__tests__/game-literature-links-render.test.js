@@ -19,13 +19,13 @@ global.tr = function (key, germanDefault, params) {
 	return out;
 };
 
-const { advShopLinks, advBestLink, buildAdventureRowMarkup, avesmapsSortAdventureEntries } = require("../map-features-place-extras.js");
+const { advShopLinks, advBestLink, buildGameLiteratureRowMarkup, avesmapsSortGameLiteratureEntries } = require("../map-features-place-extras.js");
 
 // ---- Reihenfolge: Spoiler stehen MITTENDRIN, nicht als Block am Ende (Owner 2026-07-18) -------------
 // Die alte Invariante "beginnt vor spielt" hing am Umschalter, der die spielt-Karten rechts freigab. Ohne
 // ihn wird durchgehend nach Jahr sortiert -- und die ANFANGSreihenfolge muss das auch tun, sonst ordnet
 // der erste Klick auf "neueste zuerst" sichtbar um, obwohl der Leser dieselbe Sortierung waehlt.
-const mixed = avesmapsSortAdventureEntries([
+const mixed = avesmapsSortGameLiteratureEntries([
 	{ a: { title: "alt, spoilerfrei", year: 1010 }, isPlay: false },
 	{ a: { title: "neu, SPOILER", year: 1040 }, isPlay: true },
 	{ a: { title: "mittel, spoilerfrei", year: 1025 }, isPlay: false },
@@ -34,12 +34,12 @@ assert.deepStrictEqual(mixed.map((e) => e.a.title), ["neu, SPOILER", "mittel, sp
 assert.strictEqual(mixed[0].isPlay, true, "ein neuerer Spoiler steht VOR aelteren spoilerfreien");
 // Jahrlose Eintraege zaehlen als 0 und landen hinten, statt die Sortierung zu sprengen.
 assert.deepStrictEqual(
-	avesmapsSortAdventureEntries([{ a: {}, isPlay: false }, { a: { year: 1000 }, isPlay: true }]).map((e) => Number(e.a.year) || 0),
+	avesmapsSortGameLiteratureEntries([{ a: {}, isPlay: false }, { a: { year: 1000 }, isPlay: true }]).map((e) => Number(e.a.year) || 0),
 	[1000, 0]
 );
 
 // ---- advShopLinks: the server list wins (Spec §2.5) ----------------------------------------------
-// avesmapsAdventureLinks() in api/_internal/app/adventures.php is the SINGLE definition of the priority
+// avesmapsGameLiteratureLinks() in api/_internal/app/game-literature.php is the SINGLE definition of the priority
 // rule. Whenever the payload carries it, the client must not re-derive its own -- that divergence is
 // precisely what §2.5 exists to prevent, and only the server list carries the checked state.
 const served = advShopLinks({
@@ -69,8 +69,8 @@ assert.strictEqual(advBestLink({ title: "X", links: [] }), null);
 assert.strictEqual(advBestLink({}), null);
 console.log("advShopLinks ok");
 
-// ---- buildAdventureRowMarkup: the dialog row (Spec §2.3) -----------------------------------------
-const row = buildAdventureRowMarkup({
+// ---- buildGameLiteratureRowMarkup: the dialog row (Spec §2.3) -----------------------------------------
+const row = buildGameLiteratureRowMarkup({
 	public_id: "adv-1",
 	title: "Siegelbruch",
 	type: "Gruppenabenteuer",
@@ -122,13 +122,13 @@ assert.ok(row.includes('data-genre="Intrige"'), "data-genre");
 assert.ok(row.includes('data-complexity="mittel"'), "data-complexity");
 
 // An adventure with no links at all: still a valid row (title + meta), just no link column entries.
-const bare = buildAdventureRowMarkup({ public_id: "adv-2", title: "Ohne Links", links: [] });
+const bare = buildGameLiteratureRowMarkup({ public_id: "adv-2", title: "Ohne Links", links: [] });
 assert.ok(bare.includes("Ohne Links"), "bare row still renders");
 assert.ok(!bare.includes("link-status--online") && !bare.includes("avesmaps-adv-row__linkmeta"), "bare row has no link markers");
 
 // Spoiler-Rolle: "spielt hier" ist der Spoiler. is-play bleibt der ROLLEN-Marker (data-role, Zaehler,
 // Filter), is-spoiler ist der SCHUTZ-Zustand -- zwei Dinge, die vorher eines waren.
-const playRow = buildAdventureRowMarkup({ public_id: "adv-3", title: "P", links: [] }, true);
+const playRow = buildGameLiteratureRowMarkup({ public_id: "adv-3", title: "P", links: [] }, true);
 assert.ok(playRow.includes("is-play") && playRow.includes('data-role="play"'), "play row marked");
 // Seit 2026-07-18 steht ein Spoiler DA, nur verschleiert -- er wird nicht mehr weggeblendet. Ein
 // wiederkehrendes display:none hier waere der Rueckfall in den alten, zweiten Mechanismus.
@@ -137,10 +137,10 @@ assert.ok(!playRow.includes("display:none"), "ein Spoiler wird NICHT mehr verste
 // Und der Schleier nennt seinen Grund (Owner-Muster "Spoiler (<Grund>)"), statt nur "Spoiler" zu rufen.
 assert.ok(playRow.includes("Spoiler (spielt hier)"), "der Schleier nennt seinen Grund");
 // Spoilerfreies bleibt unangetastet: kein Schleier, keine Schutzklasse.
-const startRow = buildAdventureRowMarkup({ public_id: "adv-5", title: "S", links: [] }, false);
+const startRow = buildGameLiteratureRowMarkup({ public_id: "adv-5", title: "S", links: [] }, false);
 assert.ok(!startRow.includes("is-spoiler") && !startRow.includes("avesmaps-spoiler-veil"), "spoilerfrei bleibt offen");
 
 // Attribute-context escaping: a title with a quote must not break out of data-title="…".
-const nasty = buildAdventureRowMarkup({ public_id: "adv-4", title: 'A" onmouseover="x', links: [] });
+const nasty = buildGameLiteratureRowMarkup({ public_id: "adv-4", title: 'A" onmouseover="x', links: [] });
 assert.ok(!nasty.includes('onmouseover="x"'), "title cannot break out of the attribute");
-console.log("buildAdventureRowMarkup ok");
+console.log("buildGameLiteratureRowMarkup ok");
