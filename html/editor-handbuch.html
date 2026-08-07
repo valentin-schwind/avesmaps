@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 07.08.2026</span>
+		<span class="hb-topbar__meta">Stand: 08.08.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -686,9 +686,9 @@
 				<p>Der Linksklick auf eine Beschriftung bietet außerdem <strong>„Label verschieben"</strong>, <strong>„Label duplizieren"</strong> und <strong>„Label löschen"</strong> — sowie <strong>„Neue Kraftlinie"</strong>. Kraftlinien sind ein eigener Objekttyp, unabhängig vom Wegenetz — siehe unten.</p>
 
 				<h3 id="landschaften" class="hb-sub">Landschaften</h3>
-				<p class="hb-path"><strong>Auf der Karte:</strong> Kartenmodus „Landschaften" wählen (Taste <kbd>L</kbd>) &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick auf leere Karte → „Hier hinzufügen" → „Neue Vegetation" &nbsp;·&nbsp; <strong>Ecken bearbeiten:</strong> <strong>Doppelklick auf die Fläche</strong></p>
+				<p class="hb-path"><strong>Auf der Karte:</strong> Kartenmodus „Landschaften" wählen (Taste <kbd>L</kbd>) &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick auf leere Karte → „Hier hinzufügen" → „Neue Vegetation" &nbsp;·&nbsp; <strong>Ecken bearbeiten:</strong> Rechtsklick auf die Fläche → „Fläche bearbeiten" &nbsp;·&nbsp; oder <strong>Doppelklick auf die Fläche</strong></p>
 				<p>Während eine <a href="#regionen">Region</a> nur ein <em>Name</em> auf der Karte ist, ist eine Landschaft eine <strong>Fläche</strong>: der Umriss des Farindelwaldes, die Ausdehnung des Raschtulswalls, der Rand der Khôm. Daraus rechnet die Karte später das Gelände und damit die Reisezeiten — eine sauber gezogene Fläche ist also keine Dekoration.</p>
-				<div class="hb-note hb-warn"><strong>Die eine Geste, die niemand von selbst findet: Doppelklick.</strong> Ein <em>einfacher</em> Klick wählt eine Fläche nur aus — erst der <strong>Doppelklick auf die Fläche</strong> holt ihre Ecken hervor, und dann ziehst du sie ganz normal. Bei den <a href="#territorien">Territorien</a> ist das anders, dort genügt die Auswahl; wer von dort kommt, sucht hier vergeblich. Ein Doppelklick <em>neben</em> die Fläche beendet das Ecken-Bearbeiten wieder.</div>
+				<div class="hb-note hb-warn"><strong>Ein einfacher Klick wählt nur aus — die Ecken kommen erst auf Ansage.</strong> Dorthin führen zwei Wege, und beide tun genau dasselbe: <strong>Rechtsklick auf die Fläche → „Fläche bearbeiten"</strong> (der sichtbare) oder <strong>Doppelklick auf die Fläche</strong> (der schnelle). Danach ziehst du die Ecken ganz normal. Bei den <a href="#territorien">Territorien</a> ist das anders, dort genügt die Auswahl; wer von dort kommt, sucht hier zunächst vergeblich. Ein Doppelklick <em>neben</em> die Fläche beendet das Ecken-Bearbeiten wieder. Liegen die Ecken schon frei, sagt der Menüeintrag genau das und tut sonst nichts — das ist Absicht: ein zweites Öffnen würfe alles weg, was du mit <kbd>Strg</kbd>+<kbd>Z</kbd> noch zurücknehmen könntest.</div>
 				<h5>Die vier Ebenen</h5>
 				<p>Oben auf der Karte steht der Ebenen-Schalter: <strong>Alle · Derographie · Vegetation · Topographie · Klimazonen</strong>. Immer nur <em>eine</em> Ebene nimmt Klicks entgegen — die, die dort ausgewählt ist. „Alle" ist zum Ansehen da, nicht zum Arbeiten. Umschalten lädt nichts neu und wirft nichts weg.</p>
 				<table class="hb-table">
@@ -704,7 +704,7 @@
 					<li><strong>Rechtsklick auf die leere Karte</strong> → „Hier hinzufügen" → <strong>„Neue Vegetation"</strong>, <strong>„Neue Topographie"</strong> oder <strong>„Neue Derographische Region"</strong>. Der Eintrag schaltet zugleich auf die passende Ebene.</li>
 					<li><strong>Klicken setzt Punkt für Punkt</strong> den Umriss; eine Linie läuft mit dem Zeiger mit und zeigt ab dem zweiten Punkt auch schon den Schluss zurück zum Anfang.</li>
 					<li><strong>Doppelklick oder <kbd>Enter</kbd></strong> schließt die Fläche ab, <strong><kbd>Esc</kbd></strong> bricht ab.</li>
-					<li>Erst beim Abschließen entsteht etwas — danach fragt der Dialog <em>„Fläche bearbeiten"</em> den Steckbrief ab.</li>
+					<li>Erst beim Abschließen entsteht etwas — danach fragt ein Dialog den Steckbrief ab. Er heißt nach seiner Ebene, also <em>„Vegetations-Fläche bearbeiten"</em>, <em>„Topographie-Fläche bearbeiten"</em> oder <em>„Derographie-Fläche bearbeiten"</em>.</li>
 				</ol>
 				<div class="hb-note hb-tip"><strong>Vor dem Abschluss ist nichts geschrieben.</strong> Ein Abbruch mit <kbd>Esc</kbd> kostet also gar nichts und hinterlässt keine halbe Fläche. Es gibt auch keinen Regionen-Wähler mehr, den man übersehen könnte: mit dem Schließen des Umrisses bekommt die Fläche <em>ihre eigene</em> Region.</div>
 				<h5>Ecken ziehen — nach dem Doppelklick</h5>
@@ -726,7 +726,7 @@
 					<li><strong><kbd>Esc</kbd></strong> beendet das Werkzeug. Gespeichert wird einmal je Strich, nicht je Mausbewegung.</li>
 				</ul>
 				<h5>Das Flächenmenü</h5>
-				<p>Ein <strong>Rechtsklick auf eine Fläche</strong> öffnet ihr eigenes Menü (ein <kbd>Strg</kbd>+Rechtsklick holt statt dessen das normale Kartenmenü). Neben Pinsel, Radiergummi, <em>„Kopieren …"</em> und <em>„Eigenschaften …"</em> stehen dort die Formoperationen:</p>
+				<p>Ein <strong>Rechtsklick auf eine Fläche</strong> öffnet ihr eigenes Menü (ein <kbd>Strg</kbd>+Rechtsklick holt statt dessen das normale Kartenmenü). Ganz oben steht <em>„Fläche bearbeiten"</em> — es holt die Ecken hervor, genau wie der Doppelklick, und ist nicht zu verwechseln mit dem Steckbrief-Dialog, der weiter unten unter <em>„Eigenschaften …"</em> sitzt und je nach Ebene <em>„Vegetations-Fläche bearbeiten"</em> heißt. Neben Pinsel, Radiergummi, <em>„Kopieren …"</em> und <em>„Eigenschaften …"</em> stehen dort die Formoperationen:</p>
 				<table class="hb-table">
 					<tr><th>Eintrag</th><th>Was er tut</th></tr>
 					<tr><td><strong>Verschieben</strong></td><td>Die ganze Fläche folgt der Maus; ein Klick speichert, <kbd>Esc</kbd> bricht ab.</td></tr>
