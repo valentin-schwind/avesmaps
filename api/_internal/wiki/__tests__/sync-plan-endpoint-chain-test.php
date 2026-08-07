@@ -47,6 +47,8 @@ $applyFiles = [
     'adventure-plan-apply.php',
     'publication-plan-apply.php',
     'lore-plan-apply.php',
+    'territory-wiki-plan-apply.php',
+    'territory-plan-apply.php',
 ];
 
 // Kommentare werden per TOKENIZER entfernt, nicht per Regex: die Dateien erklären in ihren Köpfen

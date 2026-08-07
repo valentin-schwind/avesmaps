@@ -52,9 +52,33 @@ require_once __DIR__ . '/../../_internal/wiki/publication-plan-apply.php';
 // chain (avesmapsLoreWikiKeyForTitle folds titles through it), app-setting.php comes with lore-sync.
 require_once __DIR__ . '/../../_internal/wiki/lore-sync.php';
 require_once __DIR__ . '/../../_internal/wiki/lore-plan-apply.php';
+// Session 4, territories: the model + identity libraries the two compute halves read, then the two
+// apply halves. sync-monitor.php carries the table constants and is already in the chain via
+// lore-sync.php -- required again here, explicitly, because "somebody else pulls it in" is exactly the
+// assumption sync-plan-endpoint-chain-test.php exists to stop being true silently.
+require_once __DIR__ . '/../../_internal/wiki/sync-monitor.php';
+require_once __DIR__ . '/../../_internal/wiki/sync-monitor-model.php';
+require_once __DIR__ . '/../../_internal/wiki/sync-monitor-identity.php';
+require_once __DIR__ . '/../../_internal/wiki/sync-monitor-tree.php';
+// dump-reader.php -- home of AVESMAPS_WIKI_DUMP_STEP_SECONDS, which every one of the four compute/apply
+// halves below reads for its per-step time budget. Not in sync-constants.php despite comments elsewhere
+// suggesting otherwise; without this require every one of the four is a fatal on the first request.
+require_once __DIR__ . '/../../_internal/wiki/dump-reader.php';
+// territories.php -- home of avesmapsWikiSyncRelinkPoliticalTerritoryByWikiKey, called UNGUARDED by
+// territory-wiki-plan-apply.php's finish step. Missing here is a hard fatal on the first COMPLETED
+// apply run, after rows have already been marked applied.
+require_once __DIR__ . '/../../_internal/wiki/territories.php';
+// territories-derived-layer.php -- home of avesmapsPoliticalInvalidateLayerCache, called behind
+// function_exists by both apply halves' finish steps. Missing here fails SILENTLY, and the political
+// layer keeps serving the pre-Übernahme payload from its 300s file cache.
+require_once __DIR__ . '/../../_internal/political/territories-derived-layer.php';
+require_once __DIR__ . '/../../_internal/wiki/territory-wiki-plan.php';
+require_once __DIR__ . '/../../_internal/wiki/territory-wiki-plan-apply.php';
+require_once __DIR__ . '/../../_internal/wiki/territory-plan.php';
+require_once __DIR__ . '/../../_internal/wiki/territory-plan-apply.php';
 
 /** The syncs that have a preview. Grows one entry per session (design §7). */
-const AVESMAPS_SYNC_PLAN_KINDS = ['citymap', 'adventure', 'publication', 'lore'];
+const AVESMAPS_SYNC_PLAN_KINDS = ['citymap', 'adventure', 'publication', 'lore', 'territory_wiki', 'territory'];
 
 /**
  * One plan row, shaped for the component. The JSON columns are decoded HERE so the client never
@@ -232,6 +256,8 @@ try {
                 'adventure' => avesmapsAdventureApplyStep($pdo, $runId, $userId, $currentUser),
                 'publication' => avesmapsPublicationApplyStep($pdo, $runId, $userId, $currentUser),
                 'lore' => avesmapsLoreApplyStep($pdo, $runId, $userId, $currentUser),
+                'territory_wiki' => avesmapsTerritoryWikiApplyStep($pdo, $runId, $userId, $currentUser),
+                'territory' => avesmapsTerritoryApplyStep($pdo, $runId, $userId, $currentUser),
             };
             $done = ($step['done'] ?? false) === true;
 

@@ -120,9 +120,22 @@ $reachFrom = static function (array $bodies, array $roots): array {
 $forbiddenTables = [
     'citymap', 'citymap_place', 'citymap_type', 'citymap_link', 'citymap_related',
     'feature_sources', 'sources', 'map_features', 'map_audit_log', 'wiki_citymap_catalog',
+    'political_territory', 'political_territory_wiki', 'political_territory_geometry',
+    'political_territory_wiki_test', 'wiki_territory_model',
 ];
 // ⚠️ STATEMENTS, not table names: `ALTER TABLE citymap ADD COLUMN wiki_key` is self-healing schema
 // (avesmapsEnsureCitymapStagingTables) and is allowed to stay -- it writes no data.
+//
+// 💣 NAMED EXCEPTION (owner decision 2026-08-07): avesmapsPoliticalEnsureTables, reached from the
+// territory compute half via avesmapsWikiSyncMonitorApplyIdentityPreview, contains a conditional
+// `UPDATE political_territory ... SET wiki_key = ...`. It is exempted BY FUNCTION NAME, not by
+// removing political_territory from the table list above -- doing the latter would blind this scan to
+// every real write that table's OTHER callers make. The exemption holds because: (1) it is the
+// codebase-wide self-healing-schema convention (AGENTS.md §5, "self-healing" CREATE TABLE IF NOT
+// EXISTS / ALTER TABLE pattern -- the same shape as the citymap exception above, just an UPDATE instead
+// of an ALTER); (2) it backfills a DERIVED key (wiki_key, copied from political_territory_wiki), never
+// user data; (3) it already runs on every political read path, sync or not; and (4) on the live data it
+// is a no-op today (AGENTS.md records 1384/1384 rows already keyed).
 $forbiddenStatements = static function (string $table): array {
     return [
         'INSERT INTO ' . $table . ' ',
@@ -402,6 +415,81 @@ foreach (['avesmapsLorePlanStep', 'avesmapsLoreApplyStep'] as $half) {
         str_contains($bodies[$half] ?? '', "avesmapsPublicationStagingHasEntityType(\$pdo, 'lore')"),
         "{$half} fragt den Quellen-Riegel"
     );
+}
+
+// =================================================================================================
+// Sitzung 4 -- die Wiki-Kopie der Herrschaftsgebiete
+// =================================================================================================
+
+$territoryWikiCompute = $reachFrom($bodies, ['avesmapsTerritoryWikiPlanStep']);
+assert(count($territoryWikiCompute) >= 5, 'der Lauf erreicht die gerufenen Funktionen (' . count($territoryWikiCompute) . ')');
+foreach (['avesmapsTerritoryWikiPlanItem', 'avesmapsTerritoryWikiVanishedRows', 'avesmapsSyncPlanAddItem'] as $expected) {
+    assert(isset($territoryWikiCompute[$expected]), "der Lauf erreicht {$expected}");
+}
+// 💣 Der Schreiber der Kopie gehört der ANDEREN Hälfte.
+assert(!isset($territoryWikiCompute['avesmapsPoliticalUpsertWikiRecord']), 'kein Upsert in der Rechen-Hälfte');
+assert(!isset($territoryWikiCompute['avesmapsWikiSyncRelinkPoliticalTerritoryByWikiKey']), 'kein Relink');
+foreach ($territoryWikiCompute as $name => $body) {
+    foreach ($forbiddenTables as $table) {
+        foreach ($forbiddenStatements($table) as $statement) {
+            assert(!str_contains($body, $statement), "{$name} schreibt in {$table}");
+        }
+    }
+}
+// UND DER LAUF MUSS BEISSEN: die Ausführ-Hälfte findet dieselben Schreiber sehr wohl.
+$territoryWikiApply = $reachFrom($bodies, ['avesmapsTerritoryWikiApplyStep']);
+assert(isset($territoryWikiApply['avesmapsPoliticalUpsertWikiRecord']), 'die Ausführ-Hälfte ruft den Schreiber');
+assert(isset($territoryWikiApply['avesmapsWikiSyncRelinkPoliticalTerritoryByWikiKey']), 'und den Relink');
+assert(
+    array_filter($territoryWikiApply, static fn(string $body): bool
+        => str_contains($body, 'DELETE FROM political_territory_wiki ')) !== [],
+    'und sie löscht wirklich -- sonst prüft der Lauf oben nichts'
+);
+
+// =================================================================================================
+// Sitzung 4 -- die Karte
+// =================================================================================================
+
+$territoryCompute = $reachFrom($bodies, ['avesmapsTerritoryPlanStep']);
+assert(count($territoryCompute) >= 5, 'der Lauf erreicht die gerufenen Funktionen (' . count($territoryCompute) . ')');
+foreach (['avesmapsTerritoryPlanRoleShift', 'avesmapsTerritoryPlanNodeCounts', 'avesmapsTerritoryPlanParentMoves',
+    'avesmapsWikiSyncMonitorApplyIdentityPreview'] as $expected) {
+    assert(isset($territoryCompute[$expected]), "der Lauf erreicht {$expected}");
+}
+foreach ($territoryCompute as $name => $body) {
+    // 💣 NAMED EXCEPTION (owner decision 2026-08-07), see the comment beside $forbiddenTables above:
+    // avesmapsPoliticalEnsureTables is reached here (via avesmapsWikiSyncMonitorApplyIdentityPreview ->
+    // avesmapsWikiSyncMonitorEnsureTables) and contains a self-healing backfill UPDATE on
+    // political_territory.wiki_key. Skipped BY NAME, not by shrinking $forbiddenTables -- every other
+    // function in this span (and every other span in this file) is still checked against the full list.
+    if ($name === 'avesmapsPoliticalEnsureTables') {
+        continue;
+    }
+    foreach ($forbiddenTables as $table) {
+        foreach ($forbiddenStatements($table) as $statement) {
+            assert(!str_contains($body, $statement), "{$name} schreibt in {$table}");
+        }
+    }
+}
+// 💣 Und NICHTS aus dem Aussengrenzen-System, in KEINER der beiden Hälften. Vier Fehler hingen an
+// diesem Praedikat, der letzte fail OPEN und mitten im Speicherpfad.
+foreach ([$territoryCompute, $reachFrom($bodies, ['avesmapsTerritoryApplyStep'])] as $span) {
+    foreach ($span as $name => $body) {
+        foreach (['DerivedGeometry', 'derived_geometry'] as $forbidden) {
+            assert(!str_contains($body, $forbidden), "{$name} fasst {$forbidden} an");
+        }
+    }
+}
+// UND DER LAUF MUSS BEISSEN.
+$territoryApply = $reachFrom($bodies, ['avesmapsTerritoryApplyStep']);
+foreach (['avesmapsWikiSyncMonitorApplyParentCache', 'avesmapsWikiSyncMonitorApplyCustomNodes',
+    'avesmapsWikiSyncMonitorApplyIdentity'] as $writer) {
+    assert(isset($territoryApply[$writer]), "die Ausführ-Hälfte ruft {$writer}");
+}
+// 💣 Die Rechen-Hälfte erreicht die Bulk-Schreiber GAR NICHT -- auch nicht im Trockenlauf.
+foreach (['avesmapsWikiSyncMonitorApplyParentCache', 'avesmapsWikiSyncMonitorApplyCustomNodes',
+    'avesmapsWikiSyncMonitorApplyIdentity'] as $writer) {
+    assert(!isset($territoryCompute[$writer]), "die Rechen-Hälfte erreicht {$writer}");
 }
 
 echo "sync-plan-purity ok\n";
