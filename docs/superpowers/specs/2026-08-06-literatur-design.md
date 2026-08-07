@@ -1,4 +1,4 @@
-# Aus „Abenteuer" werden „Veröffentlichungen"
+# Aus „Abenteuer" wird „Literatur"
 
 **Stand:** 2026-08-07 · **Status:** Entwurf, mit dem Owner abgestimmt, noch nicht gebaut ·
 **Verwandt:** [`2026-08-06-sync-uebernahme-design.md`](2026-08-06-sync-uebernahme-design.md) (Sitzung 2
@@ -8,7 +8,7 @@ baut darauf auf), `docs/abenteuer-feature-design.md`, AGENTS.md §11 „Abenteue
 
 ## 1. Worum es geht
 
-Ein Abenteuer ist **eine Form** von Veröffentlichung, nicht die einzige. Eine Regionalspielhilfe wie
+Ein Abenteuer ist **eine Form** von Literatur, nicht die einzige. Eine Regionalspielhilfe wie
 „Das Bornland" gehört genauso an einen Ort — sie beschreibt ihn. Heute kann unsere Karte sie nicht
 zeigen, weil das ganze Feature „Abenteuer" heißt und nur Abenteuer einliest.
 
@@ -21,15 +21,15 @@ und der Sync braucht eine breitere Weiche plus ein zweites Quellfeld.
 
 | | |
 |---|---|
-| Kategorie heißt **„Veröffentlichungen"**, „Abenteuer" ist eine Art davon | an jeder Oberfläche |
-| Im Code heißt sie **`game_work`** | Owner: „bau es so, wie es für dich am besten ist" (07.08.) |
+| Kategorie heißt **„Literatur"**, „Abenteuer" ist eine Art davon | an jeder Oberfläche |
+| Im Code heißt sie **`game-literature` / `GameLiterature`** | Owner-Entscheid 07.08. |
 | Aufgenommen werden | **Abenteuer · Regionalspielhilfe · Spielhilfe** |
 | **Regelband und Buch bleiben draußen** | hart, nicht über eine Regel |
 | Nicht-Abenteuer erscheinen mit der Rolle **„beschreibt"** | ohne Spoiler-Schleier |
 | Abenteuer behalten „beginnt hier / spielt hier (Spoiler)" | unverändert |
 | Ein Werk **ohne verlinkten Ort wird nicht angelegt** | sonst kämen leere Einträge herein |
 | Die Bezeichner im Code werden **voll umbenannt** | aber in **eigener Sitzung**, nach diesem Umbau |
-| Reihenfolge | Rename → Veröffentlichungen → Sync-Übernahme dafür |
+| Reihenfolge | Rename → Literatur → Sync-Übernahme dafür |
 
 ---
 
@@ -71,7 +71,7 @@ ist 2026-07-19 schon einmal passiert (`kampagne` gegen „Kampagnenband", 27 Bä
 Seiten stehen dann noch nicht im Staging. Reihenfolge bleibt: **Dump holen → syncen.**
 
 **(d) Ein unbekanntes `Art` kostet das ganze Werk.** Dieselbe Funktion beantwortet „ist das ein
-Veröffentlichung?" und „welcher Quelltyp ist das?". Kennt die Tabelle den Wert nicht, fällt die Seite lautlos
+Literatur?" und „welcher Quelltyp ist das?". Kennt die Tabelle den Wert nicht, fällt die Seite lautlos
 aus dem Katalog — kein Fehler, kein Log. Deshalb gehört zu jeder Erweiterung eine Messung
 (`GET /api/edit/wiki/publication-art-survey.php`, liest `art` aus dem Katalog, **ohne** Wiki-Zugriff).
 
@@ -121,7 +121,7 @@ Sitzung (§8).
 ## 6. Der Sync
 
 **Die Weiche gibt die Art zurück statt ja/nein.** Aus `avesmapsWikiProductIsAdventure(string): bool`
-wird `avesmapsWikiProductWorkKind(string): string` (`''` = keine Veröffentlichung). Die drei zugelassenen Arten
+wird `avesmapsWikiProductWorkKind(string): string` (`''` = keine Literatur). Die drei zugelassenen Arten
 stehen als Liste da; Regelband und Buch fallen durch, weil sie nicht darin stehen.
 
 **Die Ortsliste kommt aus zwei Feldern:**
@@ -145,14 +145,14 @@ override-sicherer Reconcile (`origin='wiki'`), Cover, Shop-Links, Resolver.
 
 | heute | danach |
 |---|---|
-| „Abenteuer in Gareth" | **„Veröffentlichungen zu Gareth"** |
+| „Abenteuer in Gareth" | **„Literatur zu Gareth"** |
 | Umschalter „Beginnt hier (N) \| Spielt hier (Spoiler) (M)" | dazu eine dritte Gruppe **„Beschreibt (K)"**, ohne Schleier |
-| Floating-Kachel „Abenteuer" | **„Veröffentlichungen"** |
-| Spotlight-Abschnitt „Abenteuer" | **„Veröffentlichungen"**, Art als Beisatz an der Zeile |
-| Menüband-Reiter „Abenteuer" / „Abenteuer bearbeiten" | **„Veröffentlichungen"** / **„Veröffentlichungen bearbeiten"** |
+| Floating-Kachel „Abenteuer" | **„Literatur"** |
+| Spotlight-Abschnitt „Abenteuer" | **„Literatur"**, Art als Beisatz an der Zeile |
+| Menüband-Reiter „Abenteuer" / „Abenteuer bearbeiten" | **„Literatur"** / **„Literatur bearbeiten"** |
 | Editor: Produkttyp-Auswahl (8 Werte) | **gruppierte** Auswahl: `<optgroup>` Abenteuer / Regionalspielhilfe / Spielhilfe |
 | Editor-Listenfilter | zusätzlich **Art** |
-| Änderungsprotokoll `delete_adventure` | Beschriftung „Veröffentlichung gelöscht" (Aktionsname bleibt) |
+| Änderungsprotokoll `delete_adventure` | Beschriftung „Literatur-Eintrag gelöscht" (Aktionsname bleibt) |
 
 ⚠️ **Die Art wird NICHT als zweites Feld gespeichert.** Sie ist aus `product_type` abgeleitet (§5); die
 Gruppierung im Editor ist Anzeige, kein Datenmodell. Wer sie mitspeichert, hat ab dem ersten
@@ -171,7 +171,8 @@ Protokollzeilen**. Nur die Beschriftung ändert sich; alte Zeilen bleiben lesbar
 ## 8. Was NICHT dazugehört
 
 - **Kein Rename der Bezeichner.** Beschlossen, aber eigene Sitzung: 24 Dateien, 275 Vorkommen,
-  3 öffentliche Endpunkte. Zielname **`game_work`** (Owner-Entscheid 07.08.).
+  3 öffentliche Endpunkte. Zielname **`game-literature`** in Dateinamen, **`GameLiterature`** in
+  Bezeichnern (`avesmapsGameLiterature*`, `gameLiterature*`, `GAME_LITERATURE_*`) — Owner-Entscheid 07.08.
 
   💣 **Die Tabellen werden dabei NICHT umbenannt** — und das ist keine Bequemlichkeit, sondern das,
   was den Rename überhaupt gefahrlos macht. Der Deploy löscht nie (AGENTS.md §10): `api/app/adventures.php`
@@ -193,13 +194,14 @@ Protokollzeilen**. Nur die Beschriftung ändert sich; alte Zeilen bleiben lesbar
   `sync_decision.kind`; eine Umbenennung liesse jede gespeicherte „Löschung abgelehnt"-Entscheidung
   verwaisen).
 
-  ⚠️ **Warum `game_work` und nicht etwas mit „publication".** Das Wortfeld ist besetzt:
+  ⚠️ **Warum nichts mit „publication".** Das Wortfeld ist besetzt:
   `publication-sync.php`, `avesmapsPublication*` und `publisher` bedeuten **Quellen**, also das
   Gegenteil. Wer `avesmapsPubl` tippt, bekäme beide Begriffe, die einander ausschliessen. Der
-  Anzeigename „Veröffentlichungen" grenzt genau gegen „Quellen" ab — der Code-Name muss dieselbe
-  Grenze ziehen, und `game_work` zieht sie. Die Lücke zwischen beiden Wörtern schliesst ein Eintrag im
+  Anzeigename „Literatur" grenzt genau gegen „Quellen" ab — der Code-Name muss dieselbe
+  Grenze ziehen, und `avesmapsGameLiterature*` zieht sie (das Präfix `avesmapsGameL…` ist frei; geprüft
+  07.08.). Die Lücke zwischen beiden Wörtern schliesst ein Eintrag im
   Glossar (AGENTS.md §2), nicht ein dritter Name.
-- **Keine Übernahme-Vorschau.** Die kommt in der Sitzung danach und gilt dann für Veröffentlichungen als
+- **Keine Übernahme-Vorschau.** Die kommt in der Sitzung danach und gilt dann für die Literatur als
   Ganzes.
 - **Keine neue Ortsquelle.** `Inhalt`, `Reihentitel` und `Setting` bleiben ungenutzt.
 - **Keine Änderung an Cover, Shop-Links oder Resolver.**
