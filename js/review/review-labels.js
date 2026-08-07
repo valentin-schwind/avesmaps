@@ -92,11 +92,31 @@ function setLabelEditDialogOpen(isOpen, { resetForm = false } = {}) {
 	}
 }
 
-// Der Fenstertitel des Label-Dialogs. Leere Ebene -> „Label bearbeiten" (Kontinente, Meere, freie
-// Kartentitel gehören zu keiner Landschaftsebene), sonst „Vegetations-Label bearbeiten" usw.
-function setLabelEditDialogTitle(kind) {
+// Der Fenstertitel des Label-Dialogs -- und die Stelle, an der die beiden Label-FORMEN beim Namen
+// genannt werden (Owner 2026-08-07: „ich schreib 'freies label' und 'flächenlabel'").
+//
+// 🔴 DREI ZUSTÄNDE, nicht zwei. „Freies Label bearbeiten" ist eine Aussage über die Zugehörigkeit, und
+// die steht erst fest, wenn sie AUFGELÖST ist (`resolved`) -- deshalb:
+//   - aufgelöst, keine Fläche  -> „Freies Label bearbeiten"
+//   - aufgelöst, Ebene bekannt -> „Topographie-Label bearbeiten" usw.
+//   - noch nicht aufgelöst     -> „Label bearbeiten", allgemein und wahr
+// Der dritte Zustand ist der Grund für die Fallunterscheidung: der Titel wird zweistufig gesetzt (siehe
+// populateLabelEditForm), und ein Titel, der von „Freies Label" auf „Topographie-Label" springt, behauptet
+// unterwegs etwas Falsches. Ein NEUES Label überspringt den Zwischenzustand -- es kann keine Fläche haben.
+//
+// 🪤 `ecosystemDialogTitle` bleibt unangetastet: „Topographie-Label bearbeiten" sind die Worte des Owners
+// vom 2026-07-28 und von ecosystem-rendering.test.js gesichert. Die Ebene im Titel SAGT bereits, dass eine
+// Fläche dahintersteht; nur die freie Form hatte bisher keinen eigenen Namen.
+function setLabelEditDialogTitle(kind, { resolved = false } = {}) {
 	const titleElement = document.getElementById("label-edit-title");
-	if (titleElement && typeof ecosystemDialogTitle === "function") {
+	if (!titleElement) {
+		return;
+	}
+	if (resolved && String(kind || "") === "") {
+		titleElement.textContent = "Freies Label bearbeiten";
+		return;
+	}
+	if (typeof ecosystemDialogTitle === "function") {
 		titleElement.textContent = ecosystemDialogTitle(kind, "label");
 	}
 }
@@ -111,7 +131,23 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	document.getElementById("label-edit-public-id").value = label.publicId || "";
 	void acquireFeatureSoftLock(label.publicId || "");
 	document.getElementById("label-edit-text").value = label.text || "";
-	document.getElementById("label-edit-type").value = label.labelType || "region";
+	// 🔴 JEDER DIALOG BEGINNT ALS FREIES LABEL (Owner 2026-08-07). Das Auswahlfeld ist über alle Dialoge
+	// dasselbe Element, und eingedampft wird es nur für ein Label, das WIRKLICH an einer Landschaftsfläche
+	// hängt -- die Verfeinerung darauf kommt asynchron aus renderLabelCarrierNote, sobald die Fläche
+	// aufgelöst ist. Hier steht deshalb immer erst die volle Liste, und `applyLabelTypeVocabulary(null, …)`
+	// setzt zugleich den Wert; ein blosses `select.value = …` wäre nur die halbe Zuweisung.
+	//
+	// 💣 Ein NEUES Label ist immer ein freies: „Hier hinzufügen -> Neues Label", „Höhenpunkt setzen" und
+	// das Ziehen einer Wiki-Region auf die Karte legen alle drei einen Punkt ohne Fläche an, und
+	// renderLabelCarrierNote steigt mangels public_id sofort aus. Ohne diese Zeile erbte ein neues Label
+	// die Arten des zuletzt geöffneten Flächenlabels -- `formElement.reset()` setzt Werte zurück, keine
+	// Optionen. Gemeldet als „unter den Arten keinen Berggipfel zur Auswahl": die Topographie führt
+	// keinen, denn ein Gipfel ist ein Punkt und keine Fläche.
+	//
+	// 💣 Und die stille Hälfte: startNewEcosystemPeak öffnet diesen Dialog und setzt danach
+	// `value = "berggipfel"`. Steht dort ein Vokabular ohne diese Art, HAFTET DIE ZUWEISUNG NICHT -- der
+	// Höhenpunkt entstand als `region`-Label ohne Höhenzeile, ohne Fehler, ohne Meldung.
+	applyLabelTypeVocabulary(null, label);
 	document.getElementById("label-edit-size").value = label.size || remembered.size || 18;
 	document.getElementById("label-edit-rotation").value = ((Number(label.rotation ?? remembered.rotation ?? 0) % 360) + 360) % 360;
 	document.getElementById("label-edit-min-zoom").value = label.minZoom ?? remembered.minZoom ?? 0;
@@ -142,7 +178,10 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	// später richtiger, und ein Label OHNE Fläche bleibt dauerhaft beim allgemeinen.
 	// Ausgangswerte merken, BEVOR ein Regler sie überschreibt -- daraus besteht die Rücknahme.
 	beginLabelDisplayPreview(labelEntry);
-	setLabelEditDialogTitle("");
+	// Ein NEUES Label (kein labelEntry) ist sofort aufgelöst: es hängt an keiner Fläche und kann in
+	// diesem Moment an keiner hängen. Ein bestehendes bleibt allgemein, bis renderLabelCarrierNote
+	// antwortet -- dort steht die zweite Stufe.
+	setLabelEditDialogTitle("", { resolved: !labelEntry });
 	renderLabelCarrierNote(label);
 	syncLabelZoomRangeOutputs();
 	syncLabelSliderRowsFromNumbers();
@@ -185,7 +224,7 @@ async function renderLabelCarrierNote(label) {
 	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(label) : null;
 	applyLabelTypeVocabulary(region, label);
 	// Die zweite Stufe des Titels (siehe populateLabelEditForm): jetzt ist die Ebene bekannt.
-	setLabelEditDialogTitle(region?.kind || "");
+	setLabelEditDialogTitle(region?.kind || "", { resolved: true });
 	fillLabelRegionSelect(label, region);
 	if (!region) {
 		return;
