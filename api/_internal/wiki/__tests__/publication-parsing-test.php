@@ -96,6 +96,28 @@ assert(avesmapsGameLiteratureKindForProductType('kurzgeschichte') === 'kurzgesch
 // Die Faltung liefert genau die Werte, die PRODUCT_TYPES im Editor kennen muss.
 assert(avesmapsWikiNormalizeGameLiteratureProductType('Roman') === 'roman');
 assert(avesmapsWikiNormalizeGameLiteratureProductType('Kurzgeschichte') === 'kurzgeschichte');
+// 💣 Das Feld haengt an der KATEGORIE, mit Ausweichen: ist das eigene Feld leer, wird das andere
+// gelesen. Beide Richtungen kommen in echtem Dump-Wikitext vor -- "Das Bornland" hat nur `Thema`,
+// die Anthologie "Verraeter & Geaechtete" hat `Ort` gefuellt, obwohl die Listen-Vorlage des Wikis fuer
+// Anthologie eine Thema-Spalte rendert. Die Vorlage sagt, was die LISTE zeigt, nicht was die Infobox
+// traegt; ein fest verdrahtetes Feld je Kategorie verliert genau eine der beiden Richtungen.
+assert(avesmapsGameLiteraturePlaceFieldForKind('abenteuer') === 'Ort');
+assert(avesmapsGameLiteraturePlaceFieldForKind('regionalspielhilfe') === 'Thema');
+// Die Anthologie ist der Pruefstein: Abenteuer-Kategorie, `Ort` gefuellt -- sie MUSS ankommen.
+$antho = avesmapsWikiParseProductInfobox("{{Infobox Produkt
+|Titel=Sammelband
+|Art=Anthologie
+|Ort=[[Festum]]
+}}");
+assert(is_array($antho['adventure'] ?? null), 'eine Anthologie mit Ort faellt nicht aus dem Katalog');
+assert($antho['adventure']['places'] === ['Festum']);
+// Und die Gegenrichtung: eine Regionalspielhilfe ohne Thema, aber mit Ort, geht auch nicht verloren.
+$rsh = avesmapsWikiParseProductInfobox("{{Infobox Produkt
+|Titel=Randfall
+|Art=Regionalspielhilfe
+|Ort=[[Punin]]
+}}");
+assert(is_array($rsh['adventure'] ?? null) && $rsh['adventure']['places'] === ['Punin']);
 foreach (['Regelband', 'Buch'] as $art) {
     assert(avesmapsWikiProductGameLiteratureKind($art) === '', "$art bleibt draussen (Owner-Entscheid)");
 }

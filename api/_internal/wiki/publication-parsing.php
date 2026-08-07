@@ -311,8 +311,11 @@ function avesmapsGameLiteratureKindForProductType(string $productType): string {
     return AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER;
 }
 
-// Which infobox field carries the place list for a kind, and which role those places get. Both read
-// the table above -- an unknown kind falls back to the adventure behaviour, same rule as everywhere.
+// The PRIMARY field a kind reads. The caller falls back to the other field when this one is empty --
+// see the note at the parse site. ⚠️ Do NOT turn this into a per-Art table from
+// Vorlage:Kat Liste Publikationsart: that template lists which COLUMN each Publikationsart's list
+// renders, which is not the same as which field the infobox carries. It says `Thema` for Anthologie,
+// yet the real page "Verräter & Geächtete" fills `Ort` -- keying off it drops every such anthology.
 function avesmapsGameLiteraturePlaceFieldForKind(string $kind): string {
     return AVESMAPS_GAME_LITERATURE_KINDS[$kind]['place_field']
         ?? AVESMAPS_GAME_LITERATURE_KINDS[AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER]['place_field'];
@@ -488,11 +491,26 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
         // and only its wikilinks (design §6). A Regionalspielhilfe has NO `Ort` field at all; "Das
         // Bornland" carries `Thema=[[Bornland (Bund)|Bornland]]; [[Vallusa|Vallusa]]`, while a Roman
         // carries `Ort=[[Fürstentum Kosch]], '''[[Ferdok]]'''` -- the adventure shape exactly.
+        // Primary field by kind; if it is empty, try the other one. 💣 Both directions occur in real
+        // dump wikitext: "Das Bornland" (Regionalspielhilfe) has only `Thema`, while the anthology
+        // "Verräter & Geächtete" has `Ort` filled even though the wiki's list template renders a
+        // `Thema` column for Anthologie -- that template says which COLUMN the list shows, not which
+        // field the infobox carries. A single fixed field per kind loses one of the two.
+        // The free-text fallback follows the FIELD, never the kind: `Ort` is an ordered place list and
+        // may fall back to a plain comma list, `Thema` may never (design §4a -- otherwise
+        // "erweiterte Regeln" becomes a place).
         $placeField = avesmapsGameLiteraturePlaceFieldForKind($gameLiteratureKind);
         $places = avesmapsWikiParseGameLiteraturePlaceList(
             (string) ($params[$placeField] ?? ''),
-            avesmapsGameLiteratureKindUsesOrderedPlaces($gameLiteratureKind)
+            $placeField === 'Ort'
         );
+        if ($places === []) {
+            $otherField = $placeField === 'Ort' ? 'Thema' : 'Ort';
+            $places = avesmapsWikiParseGameLiteraturePlaceList(
+                (string) ($params[$otherField] ?? ''),
+                $otherField === 'Ort'
+            );
+        }
     }
     // 💣 No linked place, no entry (design §2). Without it the 205 Spielhilfe pages -- whose `Thema` is
     // often empty -- would arrive as empty rubrics. This costs nothing on the adventure side: the sync
