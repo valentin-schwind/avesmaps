@@ -616,10 +616,23 @@
   // publication-parsing.php): product_type IS the folded Art value, and a value missing from this
   // list has no matching <option> -- so opening such an entry would show the wrong type selected
   // and saving would quietly rewrite it.
-  const PRODUCT_TYPES = ["gruppenabenteuer", "soloabenteuer", "kurzabenteuer", "szenario", "anthologie", "kampagne", "kampagnenband", "metaband"];
+  // 💣 Jeder product_type, den der Sync schreiben kann, MUSS hier stehen. Fehlt einer, hat der Eintrag
+  // keine passende Option, zeigt beim Oeffnen den falschen Typ und schreibt ihn beim Speichern still um
+  // — genau so ging das 2026-07-19 mit "kampagne" gegen "Kampagnenband" (27 Baende). Die Liste haengt an
+  // AVESMAPS_GAME_LITERATURE_KINDS in api/_internal/wiki/publication-parsing.php; wer dort eine Art
+  // ergaenzt, ergaenzt sie hier mit.
+  const PRODUCT_TYPES = ["gruppenabenteuer", "soloabenteuer", "kurzabenteuer", "szenario", "anthologie", "kampagne", "kampagnenband", "metaband", "regionalspielhilfe", "spielhilfe"];
   const PRODUCT_TYPE_LABEL = { gruppenabenteuer: "Gruppenabenteuer", soloabenteuer: "Soloabenteuer",
     kurzabenteuer: "Kurzabenteuer", szenario: "Szenario", anthologie: "Anthologie", kampagne: "Kampagne",
-    kampagnenband: "Kampagnenband", metaband: "Metaband" };
+    kampagnenband: "Kampagnenband", metaband: "Metaband",
+    regionalspielhilfe: "Regionalspielhilfe", spielhilfe: "Spielhilfe" };
+  // Welche Typen zu welcher Art gehoeren — Anzeige, KEIN Datenmodell: die Art ist aus product_type
+  // abgeleitet. Wer sie mitspeichert, hat ab dem ersten Handgriff zwei Wahrheiten ueber dieselbe Zeile.
+  const PRODUCT_TYPE_GROUPS = [
+    ["Abenteuer", ["gruppenabenteuer", "soloabenteuer", "kurzabenteuer", "szenario", "anthologie", "kampagne", "kampagnenband", "metaband"]],
+    ["Regionalspielhilfe", ["regionalspielhilfe"]],
+    ["Spielhilfe", ["spielhilfe"]],
+  ];
   const EDITIONS = ["", "DSA1", "DSA2", "DSA3", "DSA4", "DSA5"];
   const KIND_LABEL = { settlement: "Siedlung", territory: "Territorium", region: "Region", path: "Weg", unresolved: "—" };
 

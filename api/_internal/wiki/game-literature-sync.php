@@ -637,12 +637,23 @@ function avesmapsGameLiteratureLoadPlacesForReconcile(PDO $pdo, int $gameLiterat
 }
 
 /**
- * The DESIRED ordered places for an adventure from its place staging (role: the first = 'start').
+ * The DESIRED ordered places for one entry from its place staging.
+ *
+ * The ROLE is derived, never stored: an Abenteuer's first place is 'start' and the rest are 'play'
+ * (play IS the spoiler), everything else gets 'covers'. The kind comes from the catalog's
+ * product_type, which already is the folded `Art` -- that is why the third role needed no new column
+ * (design §5). 💣 An unknown product_type counts as an Abenteuer, so every row written before this
+ * existed keeps its start/play roles without a backfill.
  *
  * @return list<array{sort_order:int, raw_name:string, role:string}>
  */
 function avesmapsGameLiteratureDesiredPlaces(PDO $pdo, string $wikiKey): array
 {
+    $typeStmt = $pdo->prepare('SELECT product_type FROM wiki_adventure_catalog WHERE wiki_key = :wk LIMIT 1');
+    $typeStmt->execute(['wk' => $wikiKey]);
+    $productType = (string) ($typeStmt->fetchColumn() ?: '');
+    $kind = avesmapsGameLiteratureKindForProductType($productType);
+
     $stmt = $pdo->prepare(
         'SELECT sort_order, raw_name FROM wiki_adventure_place_staging WHERE adventure_wiki_key = :wk ORDER BY sort_order ASC'
     );
@@ -650,7 +661,11 @@ function avesmapsGameLiteratureDesiredPlaces(PDO $pdo, string $wikiKey): array
     $out = [];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
         $sortOrder = (int) $row['sort_order'];
-        $out[] = ['sort_order' => $sortOrder, 'raw_name' => (string) $row['raw_name'], 'role' => $sortOrder === 0 ? 'start' : 'play'];
+        $out[] = [
+            'sort_order' => $sortOrder,
+            'raw_name' => (string) $row['raw_name'],
+            'role' => avesmapsGameLiteratureRoleForKind($kind, $sortOrder),
+        ];
     }
     return $out;
 }

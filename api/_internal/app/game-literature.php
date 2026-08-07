@@ -153,6 +153,20 @@ function avesmapsGameLiteratureEnsureTables(PDO $pdo): void
     );
 }
 
+// The three roles a place can carry. 'start'/'play' belong to an Abenteuer ("beginnt hier" / "spielt
+// hier", where play IS the spoiler); 'covers' belongs to everything else ("beschreibt", no veil).
+// 💣 An unknown value is rewritten to 'play' -- and until 2026-08-07 that happened at BOTH write paths
+// with the list spelled out twice. A role the editor could legitimately set came back as a spoiler on
+// the next load, with no error anywhere. The fallback stays (a bad value must not write garbage), but
+// the list lives in ONE place now, so widening it cannot be done in one path and forgotten in the other.
+const AVESMAPS_GAME_LITERATURE_ROLES = ['start', 'play', 'covers'];
+
+function avesmapsGameLiteratureNormalizeRole(string $role): string
+{
+    $role = trim($role);
+    return in_array($role, AVESMAPS_GAME_LITERATURE_ROLES, true) ? $role : 'play';
+}
+
 function avesmapsGameLiteratureCount(PDO $pdo): int
 {
     avesmapsGameLiteratureEnsureTables($pdo);
@@ -1032,10 +1046,7 @@ function avesmapsAddGameLiteraturePlace(PDO $pdo, string $gameLiteraturePublicId
     }
     $targetPublicId = trim((string) ($data['target_public_id'] ?? ''));
     $targetWikiKey = trim((string) ($data['target_wiki_key'] ?? ''));
-    $role = trim((string) ($data['role'] ?? 'play'));
-    if ($role !== 'start' && $role !== 'play') {
-        $role = 'play';
-    }
+    $role = avesmapsGameLiteratureNormalizeRole((string) ($data['role'] ?? 'play'));
 
     if (array_key_exists('sort_order', $data) && $data['sort_order'] !== null && $data['sort_order'] !== '') {
         $sortOrder = (int) $data['sort_order'];
@@ -1115,10 +1126,7 @@ function avesmapsSetGameLiteraturePlace(PDO $pdo, int $placeId, array $data): ar
         $params['target_wiki_key'] = $value === '' ? null : $value;
     }
     if (array_key_exists('role', $data)) {
-        $role = trim((string) $data['role']);
-        if ($role !== 'start' && $role !== 'play') {
-            $role = 'play';
-        }
+        $role = avesmapsGameLiteratureNormalizeRole((string) $data['role']);
         $setClauses[] = 'role = :role';
         $params['role'] = $role;
     }

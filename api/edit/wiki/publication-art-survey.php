@@ -9,7 +9,7 @@ declare(strict_types=1);
 //
 // Two consequences of falling through, and the second one is the expensive one:
 //   * the source gets source_type='sonstiges' instead of its real kind
-//   * avesmapsWikiProductIsGameLiterature() says no, so the page never enters wiki_adventure_catalog
+//   * avesmapsWikiProductGameLiteratureKind() returns '', so the page never enters wiki_adventure_catalog
 //     at all -- the adventure is simply missing from the catalogue, with nothing to indicate why
 //
 // Read-only, and it needs no wiki access whatsoever: wiki_publication_catalog already stores the
@@ -59,7 +59,9 @@ try {
                 'art' => (string) $row['art'],
                 'stored_source_type' => (string) $row['source_type'],
                 'parsed_source_type' => avesmapsWikiMapArtToSourceType((string) $row['art']),
-                'counts_as_adventure' => avesmapsWikiProductIsGameLiterature((string) $row['art']),
+                // The JSON key stays as it is -- a live panel reads it. The kind travels alongside.
+                'counts_as_adventure' => avesmapsWikiProductGameLiteratureKind((string) $row['art']) !== '',
+                'game_literature_kind' => avesmapsWikiProductGameLiteratureKind((string) $row['art']),
             ], $lookup->fetchAll(PDO::FETCH_ASSOC) ?: []),
         ]);
     }
@@ -83,8 +85,9 @@ try {
         $totalPages += $count;
 
         $type = avesmapsWikiMapArtToSourceType($art);
-        $isGameLiterature = avesmapsWikiProductIsGameLiterature($art);
-        $entry = ['art' => $art, 'pages' => $count, 'source_type' => $type, 'counts_as_adventure' => $isGameLiterature];
+        $gameLiteratureKind = avesmapsWikiProductGameLiteratureKind($art);
+        $isGameLiterature = $gameLiteratureKind !== '';
+        $entry = ['art' => $art, 'pages' => $count, 'source_type' => $type, 'counts_as_adventure' => $isGameLiterature, 'game_literature_kind' => $gameLiteratureKind];
 
         if ($isGameLiterature) {
             $gameLiteratureArts[] = $entry;

@@ -49,24 +49,67 @@ assert(avesmapsWikiMapArtToSourceType('Unbekanntes Dings')==='sonstiges');
 // matters here -- and until now they entered NOTHING: not the catalogue, not even a wrong type.
 foreach (['Szenario', 'Anthologie', 'Kampagnenband', 'Metaband'] as $art) {
     assert(avesmapsWikiMapArtToSourceType($art) === 'abenteuer', "$art -> abenteuer");
-    assert(avesmapsWikiProductIsGameLiterature($art) === true, "$art zaehlt als Abenteuer");
+    assert(avesmapsWikiProductGameLiteratureKind($art) === 'abenteuer', "$art zaehlt als Abenteuer");
 }
 // "Kampagnenband" used to fail on an EXACT comparison against 'kampagne'; one character of
 // difference cost 27 volumes. The bare form must keep working alongside it.
-assert(avesmapsWikiProductIsGameLiterature('Kampagne') === true, 'die blosse Kampagne weiterhin');
+assert(avesmapsWikiProductGameLiteratureKind('Kampagne') === 'abenteuer', 'die blosse Kampagne weiterhin');
 // Prose: a better type than the catch-all, but emphatically NOT an adventure. If this ever flips,
 // 189 short stories appear in the adventure list.
 assert(avesmapsWikiMapArtToSourceType('Kurzgeschichte') === 'roman');
-assert(avesmapsWikiProductIsGameLiterature('Kurzgeschichte') === false, 'Kurzgeschichte ist kein Abenteuer');
+assert(avesmapsWikiProductGameLiteratureKind('Kurzgeschichte') === '', 'Kurzgeschichte ist keine Literatur');
 // The rest of the fall-through list must stay out -- the gate widened, it did not open.
 foreach (['Hörbuch', 'Soundtrack', 'Brettspiel', 'Kartenspiel', 'Computerspiel', 'Browserspiel',
           'Heldenbogen', 'Lösungsbuch', 'Merchandising', 'DLC', 'Spielmaterial', 'Meisterschirmset'] as $art) {
-    assert(avesmapsWikiProductIsGameLiterature($art) === false, "$art darf KEIN Abenteuer sein");
+    assert(avesmapsWikiProductGameLiteratureKind($art) === '', "$art darf KEINE Literatur sein");
 }
 // product_type is the folded Art -- the value the editor's PRODUCT_TYPES list must contain, or
 // opening such an entry shows the wrong type selected and saving rewrites it.
 assert(avesmapsWikiNormalizeGameLiteratureProductType('Anthologie') === 'anthologie');
 assert(avesmapsWikiNormalizeGameLiteratureProductType('Kampagnenband') === 'kampagnenband');
+
+// --- Die zwei neuen Arten (Entwurf 2026-08-06-literatur-design.md §2) ---------------------------
+// Aufgenommen werden GENAU drei Arten. Regelband und Buch bleiben draussen, und zwar hart: sie
+// stehen nicht in AVESMAPS_GAME_LITERATURE_KINDS. Wer hier eine Zeile ergaenzt, holt eine ganze
+// Produktfamilie auf die Karte -- die Liste IST die Entscheidung.
+assert(avesmapsWikiProductGameLiteratureKind('Regionalspielhilfe') === 'regionalspielhilfe');
+assert(avesmapsWikiProductGameLiteratureKind('Spielhilfe') === 'spielhilfe');
+foreach (['Regelband', 'Buch'] as $art) {
+    assert(avesmapsWikiProductGameLiteratureKind($art) === '', "$art bleibt draussen (Owner-Entscheid)");
+}
+// Die Art faellt durch dieselbe Faltung wie die Abenteuertypen -- der Wert, den PRODUCT_TYPES im
+// Editor kennen MUSS, sonst zeigt der Eintrag den falschen Typ und das Speichern schreibt ihn um.
+assert(avesmapsWikiNormalizeGameLiteratureProductType('Regionalspielhilfe') === 'regionalspielhilfe');
+assert(avesmapsWikiNormalizeGameLiteratureProductType('Spielhilfe') === 'spielhilfe');
+
+// 💣 Ein unbekannter product_type gilt als Abenteuer -- so behaelt jede vor diesem Umbau
+// geschriebene Zeile ihre start/play-Rollen, ohne Backfill.
+assert(avesmapsGameLiteratureKindForProductType('gruppenabenteuer') === 'abenteuer');
+assert(avesmapsGameLiteratureKindForProductType('') === 'abenteuer', 'leer gilt als Abenteuer');
+assert(avesmapsGameLiteratureKindForProductType('voellig unbekannt') === 'abenteuer');
+assert(avesmapsGameLiteratureKindForProductType('regionalspielhilfe') === 'regionalspielhilfe');
+
+// Die Rollen: ein Abenteuer bekommt start + play, alles andere ausschliesslich covers.
+assert(avesmapsGameLiteratureRoleForKind('abenteuer', 0) === 'start');
+assert(avesmapsGameLiteratureRoleForKind('abenteuer', 1) === 'play');
+assert(avesmapsGameLiteratureRoleForKind('regionalspielhilfe', 0) === 'covers', 'auch der ERSTE Ort ist covers');
+assert(avesmapsGameLiteratureRoleForKind('spielhilfe', 3) === 'covers');
+// Und das Feld, aus dem die Orte kommen.
+assert(avesmapsGameLiteraturePlaceFieldForKind('abenteuer') === 'Ort');
+assert(avesmapsGameLiteraturePlaceFieldForKind('regionalspielhilfe') === 'Thema');
+
+// 💣💣 FALLE (a) -- der Freitext-Rueckfall darf `Thema` NICHT anfassen.
+// "Abenteuer Ausbau-Spiel" traegt Thema=erweiterte Regeln. Mit Rueckfall entstuende daraus ein ORT
+// namens "erweiterte Regeln", der durch den Resolver laeuft und im Editor als unaufgeloester Ort
+// stehenbleibt. MUTATIONSPROBE: den zweiten Parameter auf true setzen ⇒ diese Zusicherung wird rot.
+assert(avesmapsWikiParseGameLiteraturePlaceList('erweiterte Regeln', false) === [],
+    'Freitext in Thema ergibt KEINEN Ort');
+assert(avesmapsWikiParseGameLiteraturePlaceList('erweiterte Regeln', true) === ['erweiterte Regeln'],
+    'und mit Rueckfall waere es genau der Fehler -- die Gegenprobe');
+// Der Trenner ist egal: derselbe Ausdruck liest Komma UND Semikolon, weil er nur die Linkziele sieht.
+assert(avesmapsWikiParseGameLiteraturePlaceList('[[Bornland (Bund)|Bornland]]; [[Vallusa|Vallusa]]', false)
+    === ['Bornland (Bund)', 'Vallusa'], 'Semikolon-Liste aus Das Bornland, in Quellreihenfolge');
+assert(avesmapsWikiParseGameLiteraturePlaceList('', false) === [], 'leeres Thema ergibt nichts');
 echo "art mapping ok\n";
 // Whitespace/newline-tolerant Produkt-infobox guard (real dump wikitext is not always "{{Infobox Produkt" exactly).
 $infoDoubleSpace = avesmapsWikiParseProductInfobox("{{Infobox  Produkt\n|Titel=Doppelter Leerraum\n}}"); // double space after "Infobox"

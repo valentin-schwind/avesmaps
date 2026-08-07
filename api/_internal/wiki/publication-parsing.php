@@ -231,15 +231,71 @@ function avesmapsWikiMapArtToSourceType(string $art, string $unterkategorie = ''
 // them, hence the ampersand). It becomes ONE entry with the combined place list, which is what
 // the infobox can actually show; splitting a volume into its parts is not something the
 // {{Infobox Produkt}} data supports.
-function avesmapsWikiProductIsGameLiterature(string $art): bool {
+// The ONE table that says which kind a product_type belongs to (design §5). It decides two things at
+// once: whether a page enters the catalog at all, and which ROLE its places get.
+//   abenteuer          -> places from `Ort`,   first = 'start', rest = 'play' (play IS the spoiler)
+//   regionalspielhilfe -> places from `Thema`, all 'covers' (no veil -- the work describes the place)
+//   spielhilfe         -> ditto
+// 💣 Regelband and Buch are out by ABSENCE, not by a rule: whoever adds a key here adds a whole
+// product family to the map, so the list is the decision. `Buch` has four pages in total -- a rubric
+// for nothing (design §3.5).
+const AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER = 'abenteuer';
+const AVESMAPS_GAME_LITERATURE_KINDS = [
+    // The adventure family is matched by SUBSTRING below (every *abenteuer, every *kampagne) plus
+    // these three exact keys; listing all of them here would go stale on the next wiki wording.
+    AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER => ['szenario', 'anthologie', 'metaband'],
+    'regionalspielhilfe' => ['regionalspielhilfe'],
+    'spielhilfe' => ['spielhilfe'],
+];
+
+// Which kind an `Art` value belongs to -- '' means "not game literature, keep it out of the catalog".
+// Replaces the old avesmapsWikiProductIsGameLiterature(): the same function answers "does this belong
+// in?" AND "which kind is it?", because a page that falls through here is dropped silently (design
+// §4d) -- two functions could disagree and the disagreement would be invisible.
+// The gate runs when the DUMP builds wiki_adventure_catalog, not at reconcile time -- so widening it
+// only takes effect after another "Dump holen", never from a "Literatur syncen" alone (design §4c).
+function avesmapsWikiProductGameLiteratureKind(string $art): string {
     $key = avesmapsWikiSyncMonitorFieldKey($art);
     if ($key === '') {
-        return false;
+        return '';
     }
+    // 'kampagne' is matched by substring so "Kampagnenband" comes along; it used to be an exact
+    // comparison and that one character of difference cost 27 volumes.
     if (str_contains($key, 'abenteuer') || str_contains($key, 'kampagne')) {
-        return true;
+        return AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER;
     }
-    return in_array($key, ['szenario', 'anthologie', 'metaband'], true);
+    foreach (AVESMAPS_GAME_LITERATURE_KINDS as $kind => $keys) {
+        if (in_array($key, $keys, true)) {
+            return $kind;
+        }
+    }
+    return '';
+}
+
+// The same question asked of a STORED row instead of a wiki `Art`: adventure.product_type already is
+// the folded Art value (design §5), so no second column is needed. 💣 An unknown product_type counts
+// as an adventure -- that is what lets every row written before this existed keep behaving exactly as
+// before, without a backfill.
+function avesmapsGameLiteratureKindForProductType(string $productType): string {
+    $key = trim(mb_strtolower($productType, 'UTF-8'));
+    foreach (AVESMAPS_GAME_LITERATURE_KINDS as $kind => $keys) {
+        if ($kind !== AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER && in_array($key, $keys, true)) {
+            return $kind;
+        }
+    }
+    return AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER;
+}
+
+// Which infobox field carries the place list for a kind, and which role those places get.
+function avesmapsGameLiteraturePlaceFieldForKind(string $kind): string {
+    return $kind === AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER ? 'Ort' : 'Thema';
+}
+
+function avesmapsGameLiteratureRoleForKind(string $kind, int $sortOrder): string {
+    if ($kind !== AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER) {
+        return 'covers';
+    }
+    return $sortOrder === 0 ? 'start' : 'play';
 }
 
 // Normalize an `Art` value to the adventure.product_type slug (lowercase, umlaut-folded, non-alnum
@@ -259,7 +315,13 @@ function avesmapsWikiStripWikiInlineMarkup(string $text): string {
 // Parse the ordered "Ort" place list: the wikilink TARGETS in source order (STRICT -- the first is
 // the start place, role='start'; NEVER reorder). "[[Mittelreich]], [[Königreich Garetien]], …" ->
 // ['Mittelreich','Königreich Garetien',…]. A bare (non-linked) comma list is a fallback.
-function avesmapsWikiParseGameLiteraturePlaceList(string $ort): array {
+// 💣 $allowPlainFallback MUST be false for `Thema`. Both fields are read by the SAME wikilink
+// expression -- comma or semicolon separated makes no difference to it -- so the free-text fallback is
+// the only thing that differs between the two ways in. `Thema` is not always a place list:
+// "Abenteuer Ausbau-Spiel" carries `Thema=erweiterte Regeln`, and the fallback would turn that into a
+// PLACE named "erweiterte Regeln" that then runs through the resolver and sits in the editor as an
+// unresolved place forever (design §4a).
+function avesmapsWikiParseGameLiteraturePlaceList(string $ort, bool $allowPlainFallback = true): array {
     $out = [];
     if (preg_match_all('/\[\[\s*([^\]|#]+?)\s*(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/u', $ort, $matches) > 0) {
         foreach ($matches[1] as $target) {
@@ -269,6 +331,9 @@ function avesmapsWikiParseGameLiteraturePlaceList(string $ort): array {
             }
         }
         return $out;
+    }
+    if (!$allowPlainFallback) {
+        return [];
     }
     // No wikilinks -> treat a plain comma/newline list as raw names (best-effort).
     foreach (preg_split('/\s*[,;\n]\s*/u', trim($ort)) ?: [] as $name) {
@@ -382,10 +447,24 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
     // publication catalog path is byte-for-byte unaffected). The Phase-4 adventure sync reads it;
     // publications ignore it. bf_year/bf_label are deliberately absent -- the infobox has no BF year.
     $gameLiterature = null;
-    if (avesmapsWikiProductIsGameLiterature($art)) {
+    $gameLiteratureKind = avesmapsWikiProductGameLiteratureKind($art);
+    if ($gameLiteratureKind !== '') {
+        // Abenteuer read `Ort` (ordered, first = start); everything else reads `Thema` -- and only its
+        // wikilinks (design §6). A Regionalspielhilfe has NO `Ort` field at all; "Das Bornland" carries
+        // `Thema=[[Bornland (Bund)|Bornland]]; [[Vallusa|Vallusa]]`.
+        $isAbenteuer = $gameLiteratureKind === AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER;
+        $placeField = avesmapsGameLiteraturePlaceFieldForKind($gameLiteratureKind);
+        $places = avesmapsWikiParseGameLiteraturePlaceList((string) ($params[$placeField] ?? ''), $isAbenteuer);
+    }
+    // 💣 No linked place, no entry (design §2). Without it the 205 Spielhilfe pages -- whose `Thema` is
+    // often empty -- would arrive as empty rubrics. This costs nothing on the adventure side: the sync
+    // has NO deletion branch (game-literature-plan-apply.php), so an adventure that loses its place
+    // list is not removed, it merely stops being refreshed.
+    if ($gameLiteratureKind !== '' && $places !== []) {
         $gameLiterature = [
+            'kind' => $gameLiteratureKind,
             'product_type' => avesmapsWikiNormalizeGameLiteratureProductType($art),
-            'places' => avesmapsWikiParseGameLiteraturePlaceList((string) ($params['Ort'] ?? '')),
+            'places' => $places,
             'genre' => avesmapsWikiStripWikiInlineMarkup((string) ($params['Genre'] ?? '')),
             'complexity_gm' => trim((string) ($params['KompM'] ?? '')),
             'complexity_pl' => trim((string) ($params['KompSp'] ?? '')),
