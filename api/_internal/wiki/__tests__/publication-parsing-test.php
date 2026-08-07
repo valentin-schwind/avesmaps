@@ -54,10 +54,10 @@ foreach (['Szenario', 'Anthologie', 'Kampagnenband', 'Metaband'] as $art) {
 // "Kampagnenband" used to fail on an EXACT comparison against 'kampagne'; one character of
 // difference cost 27 volumes. The bare form must keep working alongside it.
 assert(avesmapsWikiProductGameLiteratureKind('Kampagne') === 'abenteuer', 'die blosse Kampagne weiterhin');
-// Prose: a better type than the catch-all, but emphatically NOT an adventure. If this ever flips,
-// 189 short stories appear in the adventure list.
+// Prose keeps its own source_type and is NOT an adventure -- but since 2026-08-07 it IS literature:
+// Kurzgeschichte is a kind of its own (asserted above). The note that used to stand here warned that those 189 short stories would land in the adventure list; that derivation is outdated -- they get their own rubric.
 assert(avesmapsWikiMapArtToSourceType('Kurzgeschichte') === 'roman');
-assert(avesmapsWikiProductGameLiteratureKind('Kurzgeschichte') === '', 'Kurzgeschichte ist keine Literatur');
+assert(avesmapsWikiMapArtToSourceType('Kurzgeschichte') === 'roman', 'der Quelltyp bleibt roman');
 // The rest of the fall-through list must stay out -- the gate widened, it did not open.
 foreach (['Hörbuch', 'Soundtrack', 'Brettspiel', 'Kartenspiel', 'Computerspiel', 'Browserspiel',
           'Heldenbogen', 'Lösungsbuch', 'Merchandising', 'DLC', 'Spielmaterial', 'Meisterschirmset'] as $art) {
@@ -74,6 +74,28 @@ assert(avesmapsWikiNormalizeGameLiteratureProductType('Kampagnenband') === 'kamp
 // Produktfamilie auf die Karte -- die Liste IST die Entscheidung.
 assert(avesmapsWikiProductGameLiteratureKind('Regionalspielhilfe') === 'regionalspielhilfe');
 assert(avesmapsWikiProductGameLiteratureKind('Spielhilfe') === 'spielhilfe');
+// --- Roman und Kurzgeschichte (Owner-Entscheid 2026-08-07) -------------------------------------
+// Eigene Arten, aber ABENTEUER-Verhalten: Orte aus `Ort`, Rollen start/play mit Spoiler-Schleier.
+// Geprueft an "Der Scharlatan": Art=Roman, Ort=[[Fuerstentum Kosch]], '''[[Ferdok]]''' -- genau die
+// Form der Abenteuer. Die Art bleibt trotzdem eigen, weil sie auf der Karte und im Editor eigen heisst.
+assert(avesmapsWikiProductGameLiteratureKind('Roman') === 'roman');
+assert(avesmapsWikiProductGameLiteratureKind('Kurzgeschichte') === 'kurzgeschichte',
+    'Kurzgeschichte ist eine EIGENE Art, nicht in roman gefaltet');
+foreach (['roman', 'kurzgeschichte'] as $kind) {
+    assert(avesmapsGameLiteraturePlaceFieldForKind($kind) === 'Ort', "$kind liest Ort, nicht Thema");
+    assert(avesmapsGameLiteratureRoleForKind($kind, 0) === 'start', "$kind: erster Ort ist der Startort");
+    assert(avesmapsGameLiteratureRoleForKind($kind, 2) === 'play', "$kind: der Rest traegt den Spoiler");
+    assert(avesmapsGameLiteratureKindUsesOrderedPlaces($kind) === true);
+}
+// 💣 Die Gegenrichtung -- daran haengt Falle (a): nur die Ort-Arten duerfen den Freitext-Rueckfall.
+assert(avesmapsGameLiteratureKindUsesOrderedPlaces('regionalspielhilfe') === false);
+assert(avesmapsGameLiteratureKindUsesOrderedPlaces('spielhilfe') === false);
+// product_type -> Art, fuer schon gespeicherte Zeilen.
+assert(avesmapsGameLiteratureKindForProductType('roman') === 'roman');
+assert(avesmapsGameLiteratureKindForProductType('kurzgeschichte') === 'kurzgeschichte');
+// Die Faltung liefert genau die Werte, die PRODUCT_TYPES im Editor kennen muss.
+assert(avesmapsWikiNormalizeGameLiteratureProductType('Roman') === 'roman');
+assert(avesmapsWikiNormalizeGameLiteratureProductType('Kurzgeschichte') === 'kurzgeschichte');
 foreach (['Regelband', 'Buch'] as $art) {
     assert(avesmapsWikiProductGameLiteratureKind($art) === '', "$art bleibt draussen (Owner-Entscheid)");
 }

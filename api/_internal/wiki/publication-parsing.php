@@ -239,13 +239,38 @@ function avesmapsWikiMapArtToSourceType(string $art, string $unterkategorie = ''
 // 💣 Regelband and Buch are out by ABSENCE, not by a rule: whoever adds a key here adds a whole
 // product family to the map, so the list is the decision. `Buch` has four pages in total -- a rubric
 // for nothing (design §3.5).
+// 💣 The table carries the BEHAVIOUR, not just the type list -- because the two are not the same
+// axis. A Roman takes its places from `Ort` and gets start/play like an Abenteuer (Owner 2026-08-07),
+// but it is its own Art on the card and in the editor. Keying the behaviour off "is it the adventure
+// kind?" was right while there were three kinds and becomes a lie at the fourth.
+//   place_field: which {{Infobox Produkt}} field holds the places
+//   roles: 'ordered' = first 'start', rest 'play' (play IS the spoiler) | 'covers' = all 'covers', no veil
 const AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER = 'abenteuer';
 const AVESMAPS_GAME_LITERATURE_KINDS = [
     // The adventure family is matched by SUBSTRING below (every *abenteuer, every *kampagne) plus
     // these three exact keys; listing all of them here would go stale on the next wiki wording.
-    AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER => ['szenario', 'anthologie', 'metaband'],
-    'regionalspielhilfe' => ['regionalspielhilfe'],
-    'spielhilfe' => ['spielhilfe'],
+    AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER => [
+        'types' => ['szenario', 'anthologie', 'metaband'], 'place_field' => 'Ort', 'roles' => 'ordered',
+    ],
+    'roman' => [
+        'types' => ['roman'], 'place_field' => 'Ort', 'roles' => 'ordered',
+    ],
+    // Own kind, not folded into 'roman' (Owner 2026-08-07): same literary form, but a rubric of its
+    // own on the card and in the editor. Same behaviour as a Roman -- ordered places, start/play with
+    // the spoiler veil.
+    // ⚠️ NOT verified against a live short-story page that `Ort` is filled there (the wiki's API path
+    // did not answer; no crawl per the dump policy). It fails safe: without linked places no entry is
+    // created at all, so a wrong guess here produces zero rows, never wrong ones. The art survey after
+    // the first "Dump holen" says how many actually arrive.
+    'kurzgeschichte' => [
+        'types' => ['kurzgeschichte'], 'place_field' => 'Ort', 'roles' => 'ordered',
+    ],
+    'regionalspielhilfe' => [
+        'types' => ['regionalspielhilfe'], 'place_field' => 'Thema', 'roles' => 'covers',
+    ],
+    'spielhilfe' => [
+        'types' => ['spielhilfe'], 'place_field' => 'Thema', 'roles' => 'covers',
+    ],
 ];
 
 // Which kind an `Art` value belongs to -- '' means "not game literature, keep it out of the catalog".
@@ -264,8 +289,8 @@ function avesmapsWikiProductGameLiteratureKind(string $art): string {
     if (str_contains($key, 'abenteuer') || str_contains($key, 'kampagne')) {
         return AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER;
     }
-    foreach (AVESMAPS_GAME_LITERATURE_KINDS as $kind => $keys) {
-        if (in_array($key, $keys, true)) {
+    foreach (AVESMAPS_GAME_LITERATURE_KINDS as $kind => $spec) {
+        if (in_array($key, $spec['types'], true)) {
             return $kind;
         }
     }
@@ -278,24 +303,34 @@ function avesmapsWikiProductGameLiteratureKind(string $art): string {
 // before, without a backfill.
 function avesmapsGameLiteratureKindForProductType(string $productType): string {
     $key = trim(mb_strtolower($productType, 'UTF-8'));
-    foreach (AVESMAPS_GAME_LITERATURE_KINDS as $kind => $keys) {
-        if ($kind !== AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER && in_array($key, $keys, true)) {
+    foreach (AVESMAPS_GAME_LITERATURE_KINDS as $kind => $spec) {
+        if ($kind !== AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER && in_array($key, $spec['types'], true)) {
             return $kind;
         }
     }
     return AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER;
 }
 
-// Which infobox field carries the place list for a kind, and which role those places get.
+// Which infobox field carries the place list for a kind, and which role those places get. Both read
+// the table above -- an unknown kind falls back to the adventure behaviour, same rule as everywhere.
 function avesmapsGameLiteraturePlaceFieldForKind(string $kind): string {
-    return $kind === AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER ? 'Ort' : 'Thema';
+    return AVESMAPS_GAME_LITERATURE_KINDS[$kind]['place_field']
+        ?? AVESMAPS_GAME_LITERATURE_KINDS[AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER]['place_field'];
 }
 
 function avesmapsGameLiteratureRoleForKind(string $kind, int $sortOrder): string {
-    if ($kind !== AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER) {
+    $roles = AVESMAPS_GAME_LITERATURE_KINDS[$kind]['roles']
+        ?? AVESMAPS_GAME_LITERATURE_KINDS[AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER]['roles'];
+    if ($roles === 'covers') {
         return 'covers';
     }
     return $sortOrder === 0 ? 'start' : 'play';
+}
+
+// True when a kind reads its places from `Ort` in the STRICT ordered form -- the free-text fallback is
+// allowed only there (design §4a: for `Thema` it must stay off).
+function avesmapsGameLiteratureKindUsesOrderedPlaces(string $kind): bool {
+    return avesmapsGameLiteraturePlaceFieldForKind($kind) === 'Ort';
 }
 
 // Normalize an `Art` value to the adventure.product_type slug (lowercase, umlaut-folded, non-alnum
@@ -449,12 +484,15 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
     $gameLiterature = null;
     $gameLiteratureKind = avesmapsWikiProductGameLiteratureKind($art);
     if ($gameLiteratureKind !== '') {
-        // Abenteuer read `Ort` (ordered, first = start); everything else reads `Thema` -- and only its
-        // wikilinks (design §6). A Regionalspielhilfe has NO `Ort` field at all; "Das Bornland" carries
-        // `Thema=[[Bornland (Bund)|Bornland]]; [[Vallusa|Vallusa]]`.
-        $isAbenteuer = $gameLiteratureKind === AVESMAPS_GAME_LITERATURE_KIND_ABENTEUER;
+        // Abenteuer AND Romane read `Ort` (ordered, first = start); the Spielhilfen read `Thema` --
+        // and only its wikilinks (design §6). A Regionalspielhilfe has NO `Ort` field at all; "Das
+        // Bornland" carries `Thema=[[Bornland (Bund)|Bornland]]; [[Vallusa|Vallusa]]`, while a Roman
+        // carries `Ort=[[Fürstentum Kosch]], '''[[Ferdok]]'''` -- the adventure shape exactly.
         $placeField = avesmapsGameLiteraturePlaceFieldForKind($gameLiteratureKind);
-        $places = avesmapsWikiParseGameLiteraturePlaceList((string) ($params[$placeField] ?? ''), $isAbenteuer);
+        $places = avesmapsWikiParseGameLiteraturePlaceList(
+            (string) ($params[$placeField] ?? ''),
+            avesmapsGameLiteratureKindUsesOrderedPlaces($gameLiteratureKind)
+        );
     }
     // 💣 No linked place, no entry (design §2). Without it the 205 Spielhilfe pages -- whose `Thema` is
     // often empty -- would arrive as empty rubrics. This costs nothing on the adventure side: the sync
