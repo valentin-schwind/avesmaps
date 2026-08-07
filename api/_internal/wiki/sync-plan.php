@@ -213,8 +213,7 @@ function avesmapsEnsureSyncPlanTables(PDO $pdo): void
  */
 function avesmapsSyncPlanStartRun(PDO $pdo, string $kind, int $userId, ?string $sourceStamp): int
 {
-    $pdo->prepare("UPDATE sync_plan_run SET state = 'superseded' WHERE kind = :k AND state IN ('building', 'open')")
-        ->execute(['k' => $kind]);
+    avesmapsSyncPlanSupersedeRuns($pdo, $kind);
 
     $pdo->prepare(
         "INSERT INTO sync_plan_run (kind, state, source_stamp, created_by)
@@ -222,6 +221,48 @@ function avesmapsSyncPlanStartRun(PDO $pdo, string $kind, int $userId, ?string $
     )->execute(['k' => $kind, 'st' => $sourceStamp, 'by' => $userId > 0 ? $userId : null]);
 
     return (int) $pdo->lastInsertId();
+}
+
+/**
+ * Retire the open (and half-built) preview of one kind WITHOUT starting a new one.
+ *
+ * 💣 A PREVIEW OUTLIVES ITS FACTS. Everything the two territory previews show is recomputed from live
+ * state, so anything that moves that state behind their back turns a listed row into a promise the
+ * apply half will not keep -- and it would keep it QUIETLY: "Baronie X: A → B" applied while the writer
+ * takes the parent the model says NOW, reported as `applied`. Whoever changes such state calls this
+ * (design §3/§6b): "2 · Hierarchie rechnen" and the model rebuild at the end of "1 · 🚨 Syncen" both
+ * rewrite the parents behind the MAP preview.
+ *
+ * ⚠️ Deliberately NOT the browser's job. Superseding client-side would mean every other entry point --
+ * the dump endpoint, a second tab, a scheduled run -- silently keeps the stale list.
+ *
+ * ⚠️ Missing table = nothing to retire, not an error: this runs on write paths that have their own
+ * work to finish, and refusing to rebuild the hierarchy because no preview has ever been computed
+ * would be the tail wagging the dog. Same 42S02 tolerance the preview's `get` carries.
+ *
+ * @return int how many runs were retired
+ */
+function avesmapsSyncPlanSupersedeRuns(PDO $pdo, string $kind): int
+{
+    try {
+        $stmt = $pdo->prepare(
+            "UPDATE sync_plan_run SET state = 'superseded' WHERE kind = :k AND state IN ('building', 'open')"
+        );
+        $stmt->execute(['k' => $kind]);
+
+        return $stmt->rowCount();
+    } catch (PDOException $exception) {
+        // 42S02 is MySQL's "table does not exist"; sqlite reports HY000 with a message instead, and
+        // sqlite is what the test harness runs on -- a branch that cannot be exercised is a branch
+        // nobody has seen work. Same two-shape reading as avesmapsIsMissingTableError next door.
+        $missing = (string) $exception->getCode() === '42S02'
+            || str_contains(strtolower($exception->getMessage()), 'no such table');
+        if (!$missing) {
+            throw $exception;
+        }
+
+        return 0;
+    }
 }
 
 /** The run currently being computed, or null. Server-derived -- a client never names a run id. */
@@ -428,6 +469,29 @@ function avesmapsSyncPlanPendingItems(PDO $pdo, int $runId, int $limit): array
     $stmt->execute();
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+/**
+ * Every ticked key of one category in a run -- INCLUDING the rows earlier steps already handled.
+ *
+ * 💣 THIS IS THE RUN, NOT THE PAGE. avesmapsSyncPlanPendingItems hands out one bounded page at a time,
+ * and a bulk writer that resolves references BETWEEN its own rows (an own node hanging under another
+ * own node) cannot do that job on a page: the reader goes by ascending id, i.e. wiki_key order, so a
+ * child can sit on page 6 and its parent on page 7. Restricted to the page, the child is created,
+ * finds no parent, and is silently left at the root -- and because it now exists, no later plan offers
+ * it again. Whoever needs the whole chain asks for the whole chain.
+ *
+ * @return list<string>
+ */
+function avesmapsSyncPlanSelectedKeys(PDO $pdo, int $runId, string $changeType): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT DISTINCT entity_key FROM sync_plan_item
+          WHERE run_id = :r AND selected = 1 AND change_type = :ct ORDER BY entity_key ASC'
+    );
+    $stmt->execute(['r' => $runId, 'ct' => $changeType]);
+
+    return array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN) ?: []);
 }
 
 /**

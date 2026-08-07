@@ -510,6 +510,11 @@ try {
                 if ($syncKind === 'territory') {
                     $rebuild = avesmapsWikiSyncMonitorRebuildModel($pdo);
                     $rebuildSummary = is_array($rebuild['summary'] ?? null) ? $rebuild['summary'] : [];
+                    // 💣 The tile "1 · 🚨 Syncen" ends here, and it just rewrote the parents: an open MAP
+                    // preview now lists moves the writer would no longer make -- and would report them
+                    // as applied (design §3/§6b). Same call as the "Hierarchie rechnen" tile makes in
+                    // sync-monitor.php; both doors have to close the same list.
+                    avesmapsSyncPlanSupersedeRuns($pdo, 'territory');
                     $syncPostActions['territory_model'] = [
                         'rebuilt' => true,
                         'nodes' => (int) ($rebuildSummary['total'] ?? 0),

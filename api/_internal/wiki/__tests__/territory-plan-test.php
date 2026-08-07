@@ -175,6 +175,7 @@ assert(count($moves) === 1, 'genau ein divergentes Kind');
 assert(isset($moves['wiki:baronie-schwarztannen']), 'die Baronie zieht um');
 assert($moves['wiki:baronie-schwarztannen']['old_key'] === null, 'sie hatte noch keinen Elternteil');
 assert($moves['wiki:baronie-schwarztannen']['old_name'] === '(keiner)');
+assert($moves['wiki:baronie-schwarztannen']['was_root'] === true, 'kein parent_id => sie WAR eine Wurzel');
 assert($moves['wiki:baronie-schwarztannen']['new_key'] === 'wiki:grafschaft-ragath');
 assert($moves['wiki:baronie-schwarztannen']['new_name'] === 'Grafschaft Ragath');
 
@@ -201,6 +202,42 @@ assert(isset($movesWrongParent['wiki:baronie-schwarztannen']), 'ein VORHANDENER,
 assert($movesWrongParent['wiki:baronie-schwarztannen']['old_key'] === 'wiki:freiherrschaft-anderswo', 'der alte (falsche) Elternteil wird benannt');
 assert($movesWrongParent['wiki:baronie-schwarztannen']['old_name'] === 'Freiherrschaft Anderswo');
 assert($movesWrongParent['wiki:baronie-schwarztannen']['new_key'] === 'wiki:grafschaft-ragath', 'der Zielelternteil bleibt der aus dem Modell');
+assert($movesWrongParent['wiki:baronie-schwarztannen']['was_root'] === false, 'sie hatte einen Elternteil, also keine Wurzel');
+
+// --- 💣 Ein vorhandener Elternteil OHNE wiki_key ist keine Wurzel ------------------------------------
+//
+// old_key ist dann null -- aber parent_id ist gesetzt, und old_name nennt den Elternteil. Wer beides in
+// einen Topf wirft, schreibt „verliert seinen Wurzelstatus" direkt unter eine Zeile, die den alten
+// Elternteil beim Namen nennt. Eigene Knoten und von Hand angelegte Gebiete haben regelmaessig keinen
+// wiki_key, das ist also kein Sonderfall, sondern Bestand.
+$pdo->exec(
+    "INSERT INTO political_territory (public_id, wiki_key, name, is_active, parent_id) "
+    . "VALUES ('P-OK', NULL, 'Herrschaft ohne Wiki', 1, NULL)"
+);
+$ohneKeyId = (int) $pdo->lastInsertId();
+$pdo->exec("UPDATE political_territory SET parent_id = {$ohneKeyId} WHERE id = {$baronieId}");
+$movesKeyless = avesmapsTerritoryPlanParentMoves($pdo);
+assert($movesKeyless['wiki:baronie-schwarztannen']['old_key'] === null, 'der alte Elternteil hat keinen Schluessel');
+assert($movesKeyless['wiki:baronie-schwarztannen']['old_name'] === 'Herrschaft ohne Wiki', 'aber sehr wohl einen Namen');
+assert($movesKeyless['wiki:baronie-schwarztannen']['was_root'] === false,
+    '💣 kein Schluessel heisst nicht „keine Eltern" -- parent_id entscheidet');
+// Und der Hinweis, der daran haengt: mit was_root=false faellt der Wurzel-Satz weg, mit dem alten
+// „old_key === null" stuende er da. Die Baronie traegt ein eigenes Polygon, ist also kein Behaelter.
+$keylessCounts = [
+    'wiki:baronie-schwarztannen' => ['name' => 'Baronie Schwarztannen', 'own_geometry' => 1, 'children' => 0],
+    'wiki:grafschaft-ragath' => ['name' => 'Grafschaft Ragath', 'own_geometry' => 0, 'children' => 2],
+];
+assert(
+    avesmapsTerritoryPlanRoleShift($keylessCounts, 'wiki:baronie-schwarztannen', null, 'wiki:grafschaft-ragath', false) === '',
+    '💣 kein Wurzelstatus zu verlieren -- der Knoten hatte einen Elternteil'
+);
+assert(
+    str_contains(
+        avesmapsTerritoryPlanRoleShift($keylessCounts, 'wiki:baronie-schwarztannen', null, 'wiki:grafschaft-ragath', true),
+        'Wurzelstatus'
+    ),
+    'und mit einer echten Wurzel steht der Satz sehr wohl da -- sonst prueft die Zeile darueber nichts'
+);
 
 $pdo->exec("UPDATE political_territory SET parent_id = NULL WHERE id = {$baronieId}"); // zurueck fuer den naechsten Teil
 
@@ -382,6 +419,40 @@ assert(
     '💣 ApplyParentCache laeuft nur, wenn es tatsaechlich changedKeys gibt'
 );
 
+// 💣 Der Riegel, ohne den [] wieder „alles" hiesse: ApplyIdentity liest seit 2026-08-07 null als
+// „keine Einschraenkung" und [] als „nichts" -- dieselbe Bedeutung wie SelectionClause. Die if-Zeile
+// darf trotzdem nicht wegfallen; sie ist der Grund, warum eine reine Neu-Seite den Schreiber gar nicht
+// erst anfasst.
+assert(
+    (bool) preg_match('/if\s*\(\s*\$changedKeys\s*!==\s*\[\]\s*\)\s*\{\s*\$identityResult\s*=\s*avesmapsWikiSyncMonitorApplyIdentity\(/', $apply),
+    '💣 ApplyIdentity laeuft nur mit einer nicht-leeren Schluesselliste'
+);
+$identityFn = (string) file_get_contents(__DIR__ . '/../sync-monitor-identity.php');
+assert(
+    str_contains($identityFn, 'function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, ?array $only,'),
+    '💣 die only-Liste ist NULLBAR -- null = keine Einschraenkung, [] = nichts, wie bei den Nachbarn'
+);
+assert(
+    str_contains($identityFn, '$onlySet = $only === null ? null :'),
+    '💣 und [] wird nicht mehr als „alles" gelesen'
+);
+
+// 💣 Die eigenen Knoten bekommen die Schluessel des GANZEN LAUFS, nicht die der aktuellen Seite:
+// ApplyCustomNodes loest custom->custom in zwei Durchlaeufen ueber die Zeilen auf, die es bekommt.
+// Mit der Seite als Welt verliert ein Kind auf Seite 6 den Elternteil, der auf Seite 7 entsteht --
+// gemeldet als „uebernommen", und kein spaeterer Plan bietet es wieder an.
+assert(
+    (bool) preg_match(
+        '/avesmapsWikiSyncMonitorApplyCustomNodes\(\s*\$pdo\s*,\s*false\s*,\s*avesmapsSyncPlanSelectedKeys\(\s*\$pdo\s*,\s*\$runId\s*,\s*\x27new\x27\s*\)\s*\)/',
+        $apply
+    ),
+    '💣 ApplyCustomNodes bekommt alle angehaekelten Neu-Schluessel des Laufs'
+);
+assert(
+    !preg_match('/avesmapsWikiSyncMonitorApplyCustomNodes\(\s*\$pdo\s*,\s*false\s*,\s*\$newKeys\s*\)/', $apply),
+    'und nicht mehr die Seitenliste'
+);
+
 echo "territory-plan-apply (Reihenfolge) ok\n";
 
 // =====================================================================================================
@@ -512,3 +583,38 @@ assert($editGatePos !== false && $wikiArmPos !== false && $mapArmPos !== false, 
 assert($editGatePos < $wikiArmPos && $editGatePos < $mapArmPos, '💣 der edit-Riegel steht VOR beiden Armen, nicht dahinter');
 
 echo "territory-plan (Monitor-Endpunkt, Task 8) ok\n";
+
+// =====================================================================================================
+// TEIL 8 -- wer die Fakten aendert, zieht die Vorschau zurueck (Gesamtpruefung 2026-08-07)
+// =====================================================================================================
+//
+// 💣 Eine Karten-Vorschau ist vollstaendig aus dem Live-Stand gerechnet. Wer den Baum umschreibt, ohne
+// sie zurueckzuziehen, laesst eine Liste stehen, die einen Eltern-Umzug ZEIGT und einen anderen
+// SCHREIBT -- der Schreiber nimmt den Elternteil, den das Modell jetzt nennt, und die Zeile meldet
+// „uebernommen". Zwei Tueren fuehren zum Neurechnen des Baums, und beide muessen zumachen: die Kachel
+// „2 · Hierarchie rechnen" (sync-monitor.php) und das Ende von „1 · 🚨 Syncen" (dump.php).
+assert(
+    (bool) preg_match(
+        "/\\\$action === 'rebuild_model'.*?avesmapsSyncPlanSupersedeRuns\(\\\$pdo, 'territory'\)/s",
+        $monitor
+    ),
+    "💣 rebuild_model zieht die offene Karten-Vorschau zurueck"
+);
+$dump = (string) file_get_contents(__DIR__ . '/../../../edit/wiki/dump.php');
+assert(
+    (bool) preg_match(
+        "/avesmapsWikiSyncMonitorRebuildModel\(\\\$pdo\).*?avesmapsSyncPlanSupersedeRuns\(\\\$pdo, 'territory'\)/s",
+        $dump
+    ),
+    '💣 und das Modell-Neurechnen am Ende von „Syncen" ebenso'
+);
+// ⚠️ Serverseitig, nicht im Browser: die Seite ruft den Endpunkt, nicht umgekehrt. Eine Zurueckziehung
+// im JavaScript liesse jeden anderen Weg (zweiter Reiter, Dump-Endpunkt, geplanter Lauf) die alte Liste
+// behalten. Deshalb steht in der Oberflaeche nur die Statusabfrage.
+$monitorPage = (string) file_get_contents(__DIR__ . '/../../../../html/wiki-sync-monitor.html');
+assert(
+    !str_contains($monitorPage, 'supersede'),
+    '⚠️ die Oberflaeche zieht nichts selbst zurueck -- sie fragt nur den Stand ab'
+);
+
+echo "territory-plan (Vorschau zurueckziehen) ok\n";

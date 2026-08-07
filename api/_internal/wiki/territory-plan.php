@@ -28,9 +28,18 @@ declare(strict_types=1);
  *
  * Returns '' when nothing flips. 💣 That matters: a note on every row is a note nobody reads.
  *
+ * 💣 $wasRoot is NOT "$oldParent === null". A wiki_key is not a parent: political_territory rows exist
+ * whose parent carries no wiki_key at all (own nodes predate one, hand-made rows may never get one), and
+ * for those the old parent's KEY is null while the node very much had a parent. Reading the missing key
+ * as "was a root" produced the note "verliert seinen Wurzelstatus" right underneath a rendered
+ * "Eltern: <the old parent's name> → …" -- two lines of the same row contradicting each other.
+ * Callers with the live parent_id at hand pass it; null keeps the old two-valued reading for the pure
+ * callers (tests) where a null key really does mean "no parent".
+ *
  * @param array<string,array{name:string,own_geometry:int,children:int}> $counts keyed by wiki_key
+ * @param bool|null $wasRoot whether the child had NO live parent at all; null = derive from $oldParent
  */
-function avesmapsTerritoryPlanRoleShift(array $counts, string $child, ?string $oldParent, ?string $newParent): string {
+function avesmapsTerritoryPlanRoleShift(array $counts, string $child, ?string $oldParent, ?string $newParent, ?bool $wasRoot = null): string {
     if ($oldParent === $newParent || $newParent === $child) {
         return '';
     }
@@ -46,7 +55,7 @@ function avesmapsTerritoryPlanRoleShift(array $counts, string $child, ?string $o
     // moved node is NOT also a pure container.
     if (isset($counts[$child])) {
         $node = $counts[$child];
-        $wasEligible = $oldParent === null || $isContainer($node);
+        $wasEligible = ($wasRoot ?? ($oldParent === null)) || $isContainer($node);
         $staysEligible = $newParent === null || $isContainer($node);
         if ($wasEligible && !$staysEligible) {
             $parts[] = sprintf(
@@ -291,7 +300,7 @@ function avesmapsTerritoryPlanStep(PDO $pdo, string $cursor, int $userId, ?int $
         }
         $rows[$wikiKey]['before']['parent'] = $move['old_name'];
         $rows[$wikiKey]['after']['parent'] = $move['new_name'];
-        $note = avesmapsTerritoryPlanRoleShift($nodeCounts, $wikiKey, $move['old_key'], $move['new_key']);
+        $note = avesmapsTerritoryPlanRoleShift($nodeCounts, $wikiKey, $move['old_key'], $move['new_key'], $move['was_root']);
         if ($note !== '') {
             $rows[$wikiKey]['after']['boundary_note'] = $note;
         }
@@ -429,11 +438,16 @@ function avesmapsTerritoryPlanCustomNodesToCreate(PDO $pdo): array {
  * The parent moves the model would apply, with both names. Read-only; the same join the dry-run of
  * avesmapsWikiSyncMonitorApplyParentCache counts, plus the CURRENT parent's name for the "alt → neu".
  *
- * @return array<string,array{name:string,old_key:?string,old_name:string,new_key:string,new_name:string}>
+ * 💣 old_key and was_root are two different questions. child.parent_id answers "did it have a parent";
+ * oldp.wiki_key answers "does that parent have a wiki key", and a live territory is allowed to have
+ * none. Conflating them turned "the old parent is not in the wiki" into "it was a root" and put a
+ * spurious Wurzelstatus note under a row that names its old parent one line above.
+ *
+ * @return array<string,array{name:string,old_key:?string,old_name:string,new_key:string,new_name:string,was_root:bool}>
  */
 function avesmapsTerritoryPlanParentMoves(PDO $pdo): array {
     $rows = $pdo->query(
-        'SELECT child.wiki_key AS child_key, child.name AS child_name,
+        'SELECT child.wiki_key AS child_key, child.name AS child_name, child.parent_id AS old_parent_id,
                 oldp.wiki_key AS old_key, oldp.name AS old_name,
                 parent.wiki_key AS new_key, parent.name AS new_name
            FROM political_territory child
@@ -451,7 +465,12 @@ function avesmapsTerritoryPlanParentMoves(PDO $pdo): array {
         $moves[(string) $row['child_key']] = [
             'name' => (string) $row['child_name'],
             'old_key' => $row['old_key'] === null ? null : (string) $row['old_key'],
-            'old_name' => $row['old_name'] === null ? '(keiner)' : (string) $row['old_name'],
+            // „(keiner)" gilt nur ohne parent_id. Ein vorhandener Elternteil ohne Namen ist ein
+            // Datenfehler und wird als solcher gezeigt, nicht als Wurzel weggeschrieben.
+            'old_name' => $row['old_parent_id'] === null
+                ? '(keiner)'
+                : (string) ($row['old_name'] ?? '(unbekannt)'),
+            'was_root' => $row['old_parent_id'] === null,
             'new_key' => (string) $row['new_key'],
             'new_name' => (string) $row['new_name'],
         ];

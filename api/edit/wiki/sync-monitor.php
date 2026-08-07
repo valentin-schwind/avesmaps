@@ -118,7 +118,10 @@ try {
             'apply_identity' => avesmapsWikiSyncMonitorApplyIdentity(
                 $pdo,
                 is_array($payload['skip'] ?? null) ? $payload['skip'] : [],
-                is_array($payload['only'] ?? null) ? $payload['only'] : [],
+                // null, nicht []: seit der only-Vereinheitlichung heisst [] „waehle nichts" und null
+                // „keine Einschraenkung" -- wie beim apply_parent_cache-Arm darueber. Ein fehlendes
+                // `only` im Aufruf ist das alte, uneingeschraenkte Verhalten dieser Aktion.
+                is_array($payload['only'] ?? null) ? $payload['only'] : null,
                 (int) ($payload['limit'] ?? 0),
                 // Schreiben NUR bei dry_run:false UND confirm:"apply"; sonst immer lesender Dry-Run.
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
@@ -203,6 +206,11 @@ try {
         // Editor-Status mitschreiben (Buttons zeigen frisch/veraltet relativ zur letzten Sync).
         if ($action === 'rebuild_model') {
             avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'rebuild');
+            // 💣 Der Baum ist gerade umgeschrieben worden: eine offene KARTEN-Vorschau zeigt ab jetzt
+            // Eltern-Umzuege, die der Schreiber so nicht mehr machen wuerde -- er nimmt den Elternteil,
+            // den das Modell JETZT nennt, und meldete die Zeile trotzdem als "uebernommen"
+            // (Entwurf §3/§6b). Serverseitig, nicht im Browser: der zweite Weg hierher ist "Syncen".
+            avesmapsSyncPlanSupersedeRuns($pdo, 'territory');
         } elseif ($action === 'sync_parent_cache') {
             avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'test');
         } elseif ($action === 'apply_parent_cache' && is_array($response) && ($response['dry_run'] ?? true) === false) {

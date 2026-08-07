@@ -104,7 +104,22 @@ function avesmapsTerritoryApplyStep(PDO $pdo, int $runId, int $userId, ?array $u
             avesmapsWikiSyncMonitorApplyParentCache($pdo, [], false, $changedKeys);
         }
         if ($newKeys !== []) {
-            avesmapsWikiSyncMonitorApplyCustomNodes($pdo, false, $newKeys);
+            // 💣 THE WHOLE RUN'S ticked own nodes, not this page's. avesmapsWikiSyncMonitorApplyCustomNodes
+            // supports custom→custom through two passes over the rows IT was given -- and a page is not
+            // the chain: the pending reader goes by ascending id (= wiki_key order), so a child can be on
+            // page 6 and its parent on page 7. With the page as its world, page 6 creates the child, finds
+            // no parent, drops it into `unresolved_parents` (which nobody reads), and marks it `applied`
+            // because the row now exists; page 7 creates the parent and never links the child. Parentless
+            // forever -- and no later plan offers it, because it exists.
+            //
+            // The alternative (mark the row stale when unresolved_parents names it) was rejected: the row
+            // IS created either way, so the next plan would not propose it again anyway -- the stale note
+            // would describe the damage instead of preventing it.
+            //
+            // ⚠️ It ignores the step budget for this one writer, and that is affordable HERE and only
+            // here: own nodes are made by hand in the tree editor, so the run's whole "Neu" group is a
+            // handful of rows, not the thousand-row category the copy sync has.
+            avesmapsWikiSyncMonitorApplyCustomNodes($pdo, false, avesmapsSyncPlanSelectedKeys($pdo, $runId, 'new'));
         }
         // ⚠️ ApplyIdentity recomputes its own preview and filters by `only`. That IS the re-check
         // (design §6f): a key whose change has vanished since the plan was built simply produces no

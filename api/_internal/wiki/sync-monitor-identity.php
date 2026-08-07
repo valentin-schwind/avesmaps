@@ -740,11 +740,19 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
 // des Undo-Snapshots (reine abgeleitete Korrektur; ein Revert laesst den korrigierten Kontinent stehen).
 // written_keys is UNCAPPED (unlike sample, capped at 12): the wiki_key of every target actually
 // written -- the apply half needs the full set to tell 'applied' from 'stale' per row.
-function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, array $only, int $limit, bool $dryRun): array {
+//
+// 💣 `only`: null = KEINE Einschraenkung, [] = NICHTS -- dieselbe Bedeutung wie in
+// avesmapsWikiSyncMonitorSelectionClause, mit der die beiden Bulk-Schreiber daneben arbeiten. Bis
+// 2026-08-07 hiess [] hier „alles", und damit lag zwischen einer leer gebliebenen Auswahl und dem
+// Umschreiben JEDES divergenten Gebiets nur die Wachsamkeit des Aufrufers (in
+// territory-plan-apply.php eine einzige if-Zeile). Zwei Nachbarn, die dasselbe Argument
+// entgegengesetzt lesen, sind kein Stil, sondern eine Falle.
+
+function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, ?array $only, int $limit, bool $dryRun): array {
     $preview = avesmapsWikiSyncMonitorApplyIdentityPreview($pdo);
     $changed = is_array($preview['changed'] ?? null) ? $preview['changed'] : [];
     $skipSet = array_fill_keys(array_map('strval', $skip), true);
-    $onlySet = $only === [] ? null : array_fill_keys(array_map('strval', $only), true);
+    $onlySet = $only === null ? null : array_fill_keys(array_map('strval', $only), true);
 
     $targets = [];
     $skippedSkiplist = 0;
