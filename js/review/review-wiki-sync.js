@@ -1055,9 +1055,17 @@ async function startWikiSyncDumpRead() {
 		// the code's self-tests green/red in the browser (no shell on STRATO).
 		// Fire-and-forget + fully guarded so a report bug can NEVER affect the dump flow.
 		// Die Übernahme-Vorschau der Quellen, VOR dem Bericht: sie verlangt eine Entscheidung, der
-		// Bericht ist zum Nachlesen. Bei null Unterschieden wird sie nicht geöffnet -- ein leeres Blatt
-		// nach zehn Minuten Arbeit ist Lärm, und die Statuszeile hat es schon gesagt.
-		if (pubDifferences > 0 && Number(publicationsResult?.run_id || 0) > 0
+		// Bericht ist zum Nachlesen.
+		//
+		// 🔴 Sie kommt IMMER, auch bei null Unterschieden (Owner 2026-08-07). Bis dahin blieb sie dann
+		// zu, mit der Begründung „ein leeres Blatt nach zehn Minuten Arbeit ist Lärm". Der Denkfehler
+		// darin: wer einen Abgleich anstößt, fragt nicht „gibt es Arbeit", sondern „hat sich etwas
+		// getan" -- und ein Fenster, das mal kommt und mal nicht, beantwortet weder das eine noch das
+		// andere. Das leere Blatt sagt es jetzt selbst, in einem Satz (syncPlanVerdict).
+		//
+		// ⚠️ `run_id > 0` bleibt: keine Lauf-Nummer heißt, dass die Rechen-Hälfte gar nicht fertig
+		// wurde. Dann gibt es nichts zu zeigen, und der Fehlerpfad hat es schon gemeldet.
+		if (Number(publicationsResult?.run_id || 0) > 0
 			&& typeof openSyncPlanSheet === "function") {
 			openSyncPlanSheet({
 				kind: "publication",
@@ -2024,8 +2032,10 @@ async function startWikiSyncGameLiteratureSync(options) {
 			: "Keine Unterschiede: der Bestand entspricht dem Dump.";
 		setWikiSyncStatus(note, "success");
 
+		// 🔴 IMMER, auch bei null Unterschieden (Owner 2026-08-07) -- siehe die ausführliche Begründung
+		// beim Quellen-Abgleich weiter oben. Das leere Blatt sagt selbst, dass nichts anders ist.
 		const runId = Number((result && result.run_id) || 0);
-		if (total > 0 && runId > 0 && (!options || options.openSheet !== false)
+		if (runId > 0 && (!options || options.openSheet !== false)
 			&& typeof openSyncPlanSheet === "function") {
 			openSyncPlanSheet({
 				kind: "adventure",
@@ -2468,8 +2478,9 @@ async function startWikiSyncLoreSync() {
 
 		// Die Vorschau öffnet in DIESER Seite: das Vorkommen-Fenster liegt auf --z-editor-overlay,
 		// das Blatt auf --z-modal, also darüber.
+		// 🔴 IMMER, auch bei null Unterschieden (Owner 2026-08-07) -- Begründung beim Quellen-Abgleich.
 		const runId = Number((result && result.run_id) || 0);
-		if (total > 0 && runId > 0 && typeof openSyncPlanSheet === "function") {
+		if (runId > 0 && typeof openSyncPlanSheet === "function") {
 			openSyncPlanSheet({
 				kind: "lore",
 				mount: document.getElementById("wikiSyncPlanHost"),

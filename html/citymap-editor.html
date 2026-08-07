@@ -124,6 +124,32 @@
   }
   .ce-status.error { color: var(--color-danger); }
 
+  /* Der Verweis auf eine liegengebliebene Vorschau. Steht UNTER der Statuszeile und nur dann, wenn es
+     etwas zu verweisen gibt -- deshalb ohne Mindesthoehe: sichtbar schiebt er die Spalten darunter um
+     seine eigene Hoehe, und genau das soll er, sonst uebersaehe man ihn. */
+  .ce-planhint {
+    flex: 0 0 auto;
+    padding: var(--avm-status-pad);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-panel-soft);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+  }
+  .ce-planhint[hidden] { display: none; }
+  /* Textknopf in Link-Optik -- die Handlung ist "oeffne die Liste", kein zweiter Hauptknopf neben
+     "Karten syncen". Farbe aus dem Token, nie ein eigener Wert (AGENTS.md §12). */
+  .ce-planhint button {
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-link);
+    cursor: pointer;
+    font: inherit;
+    text-decoration: underline;
+  }
+
   /* Gitterspuren statt flex:1/2 -- 💣 `flex: 1 1 0` macht die Spalten NICHT gleich breit, sobald eine
      davon eigene Polsterung oder einen Rahmen traegt: box-sizing:border-box hebt die flex-basis auf
      padding+border an statt auf 0. Hier ist es der 1px-Trenner der Liste; gemessen kam sie dadurch auf
@@ -527,6 +553,12 @@
 <!-- Statuszeile (Spec §3.4). Sie nimmt auf, was gerade LAEUFT; was ein Knopf im Ruhezustand ueber sich
      zu sagen hat ("Dump: …", "12 von 300 offen"), bleibt in seiner eigenen zweiten Zeile stehen. -->
 <div class="ce-status" id="ceStatus" role="status" aria-live="polite">Bereit.</div>
+
+<!-- Der Weg zurueck in eine liegengebliebene Vorschau. „Spaeter" laesst die Liste samt Haekchen stehen,
+     und ohne diese Zeile fuehrt danach kein Weg mehr hinein ausser einem neuen, minutenlangen Abgleich.
+     Vorbild: refreshPlanStatus() im Territorien-Monitor (Sitzung 4). Leer und unsichtbar, solange keine
+     Liste offen ist -- eine Zeile, die immer da steht, wird nicht mehr gelesen. -->
+<div class="ce-planhint" id="ceSyncPlanHint" hidden></div>
 
 <div class="ce-body">
   <aside class="ce-list">
@@ -1465,6 +1497,41 @@
     if (label) label.textContent = isBusy ? "Synchronisiert…" : "🚨 Karten syncen";
   }
 
+  // Liegt eine Vorschau bereit, die noch niemand abgearbeitet hat? Dann nennt die Zeile sie mit ihrer
+  // Zahl und macht sie wieder aufrufbar. Der Zustand entsteht durch „Später" im Blatt.
+  //
+  // ⚠️ Fragt über syncPlanOpenRunSummary, nicht über einen eigenen fetch: die Endpunkt-Adresse steht in
+  // js/review/sync-plan-sheet.js an genau EINER Stelle, und ein Test zählt die Nennungen.
+  async function refreshCePlanHint() {
+    const el = document.getElementById("ceSyncPlanHint");
+    if (!el || typeof syncPlanOpenRunSummary !== "function") return;
+    const summary = await syncPlanOpenRunSummary({ kind: "citymap" });
+    if (!summary.has) {
+      el.hidden = true;
+      el.textContent = "";
+      return;
+    }
+    el.hidden = false;
+    // Number(), nicht Text: `total` kommt aus syncPlanOpenRunSummary schon als Zahl durch ein
+    // Number() -- hier steht also nie fremder Text im Markup.
+    el.innerHTML = `Eine Vorschau liegt bereit — ${Number(summary.total)} `
+      + `Unterschied${summary.total === 1 ? "" : "e"}. `
+      + `<button type="button" id="ceSyncPlanHintOpen">Wieder öffnen</button>`;
+    document.getElementById("ceSyncPlanHintOpen").addEventListener("click", () => {
+      openSyncPlanSheet({
+        kind: "citymap",
+        mount: document.getElementById("ceSyncPlanHost"),
+        onApplied: async (totals) => {
+          ceStatus(`Übernommen: ${totals.applied}${totals.deleted > 0 ? `, gelöscht: ${totals.deleted}` : ""}.`);
+          await loadList();
+          void refreshCeSyncedInfo();
+          void refreshCePlanHint();
+        },
+        onClose: () => { void refreshCePlanHint(); },
+      });
+    });
+  }
+
   async function handleCeSyncClick() {
     if (ceSyncRunning) return;
     let parentWindow;
@@ -1478,6 +1545,10 @@
     try {
       // 🔴 Der Lauf SCHREIBT NICHTS mehr (Entwurf 2026-08-06 §6). Er rechnet, was der Abgleich tun
       // würde, und danach öffnet sich die Vorschau -- geschrieben wird erst, was dort angehäkelt ist.
+      //
+      // 🔴 Und sie öffnet sich IMMER, auch bei null Unterschieden (Owner 2026-08-07). Diese Seite hat
+      // das von Anfang an so gemacht; seit heute ist es die Regel für alle Abgleiche statt einer
+      // Abweichung. Was dann drinsteht, sagt das Blatt selbst (syncPlanVerdict).
       const result = await parentWindow.startWikiSyncCitymapsSync();
       const total = Number((result && result.counts && result.counts.total) || 0);
       ceStatus(total > 0
@@ -1490,7 +1561,9 @@
           ceStatus(`Übernommen: ${totals.applied}${totals.deleted > 0 ? `, gelöscht: ${totals.deleted}` : ""}.`);
           await loadList(); // übernommene Karten gehören sofort in die linke Liste
           void refreshCeSyncedInfo();
+          void refreshCePlanHint();
         },
+        onClose: () => { void refreshCePlanHint(); },
       });
     } catch (e) {
       ceStatus("Abgleich fehlgeschlagen: " + (e && e.message ? e.message : String(e)), true);
@@ -1813,6 +1886,9 @@
   void refreshCeSyncedInfo();
   // Fill the autoget sub-label on open: how many maps are still due (read-only, no lock, no run).
   void refreshCeAutogetInfo();
+  // Und beim Öffnen fragen, ob von einem früheren Besuch noch eine Vorschau liegengeblieben ist --
+  // sonst erführe man davon erst nach dem nächsten, minutenlangen Abgleich.
+  void refreshCePlanHint();
 </script>
 </body>
 </html>

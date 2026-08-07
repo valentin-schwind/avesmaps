@@ -566,4 +566,105 @@ assert.ok(newWithKey.includes("Eltern: (Wurzel)") && !newWithKey.includes("weite
 // Spaltenname in der Zeile, und „affiliation_key" ist eins der ersten sechs.
 assert.strictEqual(fieldLabel("affiliation_key"), "Zugehörigkeit (Schlüssel)");
 
-console.log("sync-plan-sheet ok");
+// --- Die Vorschau kommt IMMER und sagt, ob und was (Owner 2026-08-07) ---------------------------
+//
+// 🔴 Die Umkehrung des alten Verhaltens. Bis dahin blieb das Blatt bei null Unterschieden zu („ein
+// leeres Blatt nach zehn Minuten Arbeit ist Lärm"). Jetzt geht es immer auf — und damit ist der
+// SATZ die eigentliche Leistung: ein Fenster, das drei Nullen zeigt, hat die Frage „hat sich etwas
+// getan?" nicht beantwortet, es hat sie nur anders gestellt.
+
+const verdict = sandbox.syncPlanVerdict;
+assert.strictEqual(typeof verdict, "function", "der Befund ist eine eigene, reine Funktion");
+
+const none = verdict({ new: 0, changed: 0, deleted: 0, total: 0 }, "2026-08-06 20:39");
+assert.strictEqual(none.empty, true);
+assert.ok(none.text.startsWith("Keine Unterschiede"), "das leere Blatt sagt es in Worten, nicht in Nullen");
+assert.ok(none.text.includes("2026-08-06 20:39"),
+	"💣 und WOGEGEN verglichen wurde: keine Unterschiede ist keine Aussage über das Wiki, sondern "
+	+ "über den zuletzt geholten Dump — und der kann Wochen alt sein");
+
+const some = verdict({ new: 8, changed: 3, deleted: 1, total: 12 }, "");
+assert.strictEqual(some.empty, false);
+assert.ok(some.text.includes("12 Unterschiede"), "die Summe zuerst");
+// 💣 ALLE DREI, auch Nullen: „12 Unterschiede: 12 neu" ließe offen, ob gelöscht wird oder ob die
+// Frage gar nicht gestellt wurde.
+["8 neu", "3 geändert", "1 gelöscht"].forEach((part) =>
+	assert.ok(some.text.includes(part), `der Befund nennt „${part}"`));
+assert.ok(verdict({ new: 4, changed: 0, deleted: 0, total: 4 }).text.includes("0 gelöscht"),
+	"💣 auch die Null steht da — sonst weiß niemand, ob nichts gelöscht wird oder nicht danach gesucht wurde");
+assert.ok(verdict({ new: 1, total: 1 }).text.includes("1 Unterschied:"), "Einzahl ohne -e");
+// Tausenderpunkte wie überall sonst in der Oberfläche (5012, nicht 5.012, wäre der Ausrutscher).
+assert.ok(verdict({ new: 5012, total: 5012 }).text.includes("5.012"), "Zahlformat des Hauses");
+
+// ---- Das leere Blatt hat keinen Übernehmen-Knopf ------------------------------------------------
+//
+// 💣 Ein ausgegrautes „Übernehmen" neben einem Knopf namens „Später" ist eine Aufforderung, nach dem
+// Haken zu suchen, den man vergessen hat. Es gibt keinen.
+const emptyFoot = footer({ kind: "citymap", total: 0, selected: 0, deletions: 0 });
+assert.strictEqual(emptyFoot.nothingToDo, true);
+assert.strictEqual(emptyFoot.applyVisible, false, "kein Knopf für eine Handlung, die es nicht gibt");
+assert.strictEqual(emptyFoot.closeLabel, "Schließen", "und nichts, das auf später warten könnte");
+const fullFoot = footer({ kind: "citymap", total: 12, selected: 12, deletions: 0 });
+assert.strictEqual(fullFoot.applyVisible, true);
+assert.strictEqual(fullFoot.closeLabel, "Später");
+
+// ⚠️ Ein WEGGELASSENES total heißt „ich weiß es nicht", nicht „leer". Ein Aufrufer, der es vergisst,
+// darf nicht dadurch den Übernehmen-Knopf verlieren -- ein fehlendes Argument nimmt nie eine
+// Handlung weg. (Genau diese Aufrufform steht oben in den älteren Zusicherungen.)
+assert.strictEqual(footer({ selected: 42, deletions: 0 }).applyVisible, true,
+	"ohne Angabe bleibt der Knopf da");
+assert.strictEqual(footer({ selected: 0, total: 12, deletions: 0 }).applyVisible, true,
+	"und ein Blatt mit 12 Unterschieden behält ihn, auch wenn gerade kein Häkchen gesetzt ist");
+
+// ---- Und das Blatt selbst zeigt beides ----------------------------------------------------------
+const nothingPlan = planWith({
+	run: { id: 9, created_at: "2026-08-07 09:00:00", source_stamp: "2026-08-06 20:39",
+		counts: { new: 0, changed: 0, deleted: 0, total: 0 } },
+	items: { new: [], changed: [], deleted: [] },
+});
+const nothingHtml = markup(nothingPlan);
+assert.ok(nothingHtml.includes("Keine Unterschiede"), "der Befund steht im Blatt");
+assert.ok(!nothingHtml.includes("data-apply"), "💣 kein Übernehmen-Knopf im leeren Blatt");
+assert.ok(nothingHtml.includes(">Schließen<"), "der eine Knopf heißt Schließen");
+assert.ok(nothingHtml.includes("sheet__verdict--none"), "und trägt den Ton einer guten Nachricht");
+// Zugeklappt: drei Gruppen mit einer Null sind ein Inhaltsverzeichnis, keine Liste.
+assert.ok(!/<details class="grp[^"]*" open/.test(nothingHtml), "bei null Unterschieden steht nichts offen");
+
+const fullHtml = markup(planWith());
+assert.ok(fullHtml.includes("data-apply"), "das gefüllte Blatt hat ihn sehr wohl");
+assert.ok(fullHtml.includes(">Später<"), "und sein Gegenstück heißt weiter Später");
+assert.ok(/class="sheet__verdict"/.test(fullHtml), "der Befund steht auch dort");
+
+// ---- Der Weg zurück in eine liegengebliebene Liste ----------------------------------------------
+//
+// 🔴 „Später" lässt die Liste samt Häkchen stehen. Ohne diese Abfrage führt danach kein Weg mehr
+// hinein außer einem neuen, minutenlangen Abgleich.
+const summary = sandbox.syncPlanOpenRunSummary;
+assert.strictEqual(typeof summary, "function");
+const asked = [];
+const fakePost = (body) => { asked.push(body); return Promise.resolve({ ok: true, run: { id: 4, counts: { total: 7 } } }); };
+
+// ⚠️ Feldweise vergleichen, nicht deepStrictEqual: das Ergebnis entsteht IN der vm-Sandbox und hat
+// deshalb einen anderen Object-Prototyp — „gleiche Struktur, nicht referenzgleich" wäre ein Rotton
+// über einem richtigen Wert.
+function assertSummary(actual, expected, note) {
+	assert.strictEqual(actual.has, expected.has, `${note}: has`);
+	assert.strictEqual(actual.total, expected.total, `${note}: total`);
+}
+
+(async () => {
+	const withRun = await summary({ kind: "citymap", post: fakePost });
+	assertSummary(withRun, { has: true, total: 7 }, "offene Liste");
+	assert.strictEqual(asked[0].action, "get", "fragt über den eingereichten Sender");
+	assert.strictEqual(asked[0].kind, "citymap", "und nennt die Art");
+
+	const noRun = await summary({ kind: "citymap", post: () => Promise.resolve({ ok: true, run: null }) });
+	assertSummary(noRun, { has: false, total: 0 }, "keine Liste ist kein Fehler");
+
+	// ⚠️ Der Sender WIRFT, er antwortet nicht mit ok:false. Eine Statuszeile, die daran stirbt, ist
+	// schlimmer als eine, die schweigt: sie nimmt der Seite die Zeile darunter gleich mit.
+	const boom = await summary({ kind: "citymap", post: () => Promise.reject(new Error("HTTP 500")) });
+	assertSummary(boom, { has: false, total: 0 }, "ein Wurf wird geschluckt, nicht durchgereicht");
+
+	console.log("sync-plan-sheet ok");
+})();

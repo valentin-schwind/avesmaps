@@ -52,6 +52,21 @@
 	margin: 0 0 2px;
 }
 
+/* Der Befund: hat sich etwas geaendert, und was. Seit die Vorschau IMMER aufgeht (Owner 2026-08-07)
+   ist das die erste Zeile, die jemand liest -- also in Lesegroesse und in der starken Textfarbe, nicht
+   im Kleingedruckten der Zeile darunter. Die traegt jetzt nur noch das Datum des Laufs. */
+.sync-plan-host .sheet__verdict {
+	margin: 0 0 3px;
+	color: var(--color-text-strong);
+	font-size: var(--font-size-body);
+}
+
+/* Und wenn nichts anders ist, sagt es die Farbe mit: das ist eine gute Nachricht, kein Fehlschlag.
+   Der Ton ist derselbe, den das Haus fuer "in Ordnung" benutzt. */
+.sync-plan-host .sheet__verdict--none {
+	color: var(--color-success-soft-text);
+}
+
 .sync-plan-host .sheet__meta {
 	font-size: var(--font-size-small);
 	color: var(--color-text-muted);

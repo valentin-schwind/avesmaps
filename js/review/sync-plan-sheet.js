@@ -179,6 +179,46 @@ const SYNC_PLAN_NOTE_FIELDS = ["boundary_note"];
  */
 const SYNC_PLAN_SILENT_FIELDS = ["pin_fields", "hand_edited", "parent_key"];
 
+/**
+ * Der Satz, mit dem jedes Blatt anfängt: hat sich etwas geändert, und was.
+ *
+ * 🔴 Owner-Entscheid 2026-08-07: **die Vorschau kommt IMMER**, auch wenn nichts anders ist — und dann
+ * muss sie das AUSSPRECHEN. Bis dahin galt das Gegenteil („ein leeres Blatt nach zehn Minuten Arbeit
+ * ist Lärm"), und dabei war das leere Blatt tatsächlich stumm: drei Gruppen mit einer Null. Wer einen
+ * Abgleich anstößt, fragt nicht „gibt es Arbeit", sondern „hat sich etwas getan" — und ein Fenster,
+ * das mal kommt und mal nicht, beantwortet beides nicht. Es kommt jetzt immer, und dieser Satz ist
+ * seine Antwort.
+ *
+ * 💣 ALLE DREI ZAHLEN, auch die Nullen. „12 Unterschiede: 12 neu" ließe offen, ob gelöscht wird oder
+ * ob die Frage gar nicht gestellt wurde; „0 gelöscht" sagt es. Genau dafür trägt das Blatt die dritte
+ * Gruppe auch bei den Arten, die nie löschen (SYNC_PLAN_KIND_DELETION).
+ *
+ * @param {{new?:number, changed?:number, deleted?:number, total?:number}} counts
+ * @param {string} [sourceStamp] Stand des Dumps, gegen den verglichen wurde
+ */
+function syncPlanVerdict(counts, sourceStamp) {
+	const numbers = counts || {};
+	const total = Number(numbers.total || 0);
+	// Woher der Vergleich seine Wahrheit nahm. Ohne das liest sich „keine Unterschiede" wie eine
+	// Aussage über das Wiki -- es ist aber eine über den zuletzt geholten Dump, und der kann alt sein.
+	const against = sourceStamp ? ` Verglichen mit dem Dump vom ${sourceStamp}.` : "";
+
+	if (total < 1) {
+		return {
+			empty: true,
+			text: `Keine Unterschiede — der Bestand entspricht dem Dump.${against}`,
+		};
+	}
+
+	return {
+		empty: false,
+		text: `${syncPlanNumber(total)} Unterschied${total === 1 ? "" : "e"}: `
+			+ `${syncPlanNumber(Number(numbers.new || 0))} neu · `
+			+ `${syncPlanNumber(Number(numbers.changed || 0))} geändert · `
+			+ `${syncPlanNumber(Number(numbers.deleted || 0))} gelöscht.${against}`,
+	};
+}
+
 /** Die drei Kategorien und wie sie sich erklären. Reihenfolge = Anzeigereihenfolge. */
 const SYNC_PLAN_GROUPS = [
 	{ key: "new", name: "Neu", hint: "im Wiki dazugekommen · alle vorangehäkelt" },
@@ -357,9 +397,23 @@ function syncPlanFooterState(state) {
 	const verb = (meta.deletion && meta.deletion.verb) || "löschen";
 	const suffix = (meta.deletion && meta.deletion.gateSuffix) || "Das lässt sich nicht rückgängig machen.";
 
+	// 💣 „Nichts zu tun" ist NICHT dasselbe wie „nichts angehäkelt". Seit die Vorschau immer aufgeht
+	// (Owner 2026-08-07), ist der häufigste Zustand dieses Blattes der leere -- und dort wäre ein
+	// ausgegrautes „Übernehmen" neben einem Knopf namens „Später" eine Aufforderung, nach dem Haken zu
+	// suchen, den man vergessen hat. Es gibt keinen. Also: kein Übernehmen-Knopf, und der andere heißt
+	// „Schließen", weil es nichts gibt, das auf später warten könnte.
+	//
+	// ⚠️ Nur bei AUSDRUECKLICH genannter Null. Ein weggelassenes `total` heisst „ich weiss es nicht" --
+	// und ein Aufrufer, der es vergisst, darf nicht dadurch den Uebernehmen-Knopf verlieren. Ein
+	// fehlendes Argument nimmt nie eine Handlung weg.
+	const nothingToDo = options.total !== undefined && options.total !== null && Number(options.total) < 1;
+
 	return {
 		selectedTotal: selectedTotal,
 		deletions: deletions,
+		nothingToDo: nothingToDo,
+		applyVisible: !nothingToDo,
+		closeLabel: nothingToDo ? "Schließen" : "Später",
 		gateVisible: deletions > 0,
 		gateText: `Ja, ${syncPlanNumber(deletions)} ${deletions === 1 ? nouns.one : nouns.many} wirklich `
 			+ `${verb}. ${suffix}`,
@@ -624,14 +678,17 @@ function syncPlanSheetMarkup(plan) {
 			+ `abgelehnte ${declinedWord} anzeigen</button>`
 		: "";
 
+	// Der Befund steht als eigene Zeile, nicht in der Kleingedruckten-Zeile darunter: er ist die
+	// Antwort auf die Frage, die den Abgleich ausgelöst hat.
 	const total = Number(counts.total || 0);
-	const meta = `Abgleich vom ${syncPlanEscape(run.created_at || "")}`
-		+ ` · ${syncPlanNumber(total)} Unterschied${total === 1 ? "" : "e"}`
-		+ (run.source_stamp ? ` · Dump vom ${syncPlanEscape(run.source_stamp)}` : "");
+	const verdict = syncPlanVerdict(counts, run.source_stamp || "");
+	const meta = `Abgleich vom ${syncPlanEscape(run.created_at || "")}`;
+	const foot = syncPlanFooterState({ kind: kind, total: total });
 
 	return `<div class="sheet" data-sync-plan data-kind="${syncPlanEscape(kind)}" data-run="${Number(run.id || 0)}">
 	<div class="sheet__head">
 		<p class="sheet__title">${syncPlanEscape(syncPlanKindMeta(kind).title)}</p>
+		<p class="sheet__verdict${verdict.empty ? " sheet__verdict--none" : ""}">${syncPlanEscape(verdict.text)}</p>
 		<div class="sheet__meta">${meta}</div>
 	</div>
 	<div class="sheet__body">${groups}</div>
@@ -640,8 +697,8 @@ function syncPlanSheetMarkup(plan) {
 	<div class="foot">
 		<span class="foot__count" data-foot></span>
 		${declinedLink}
-		<button type="button" class="btn" data-later title="Es wird nichts geschrieben. Die Liste bleibt liegen — samt deiner Häkchen.">Später</button>
-		<button type="button" class="btn btn--main" data-apply></button>
+		<button type="button" class="btn" data-later title="Es wird nichts geschrieben. Die Liste bleibt liegen — samt deiner Häkchen.">${syncPlanEscape(foot.closeLabel)}</button>
+		${foot.applyVisible ? '<button type="button" class="btn btn--main" data-apply></button>' : ""}
 	</div>
 	<div class="sheet__declined" data-declined-list hidden></div>
 </div>`;
@@ -765,6 +822,37 @@ async function openSyncPlanSheet(options) {
 	syncPlanBindSheet(mount, plan, options);
 }
 
+/**
+ * Liegt für diese Art eine Vorschau bereit, und wie viele Unterschiede stehen darin?
+ *
+ * 🔴 Der Grund, dass es das gibt, heißt „Später". Der Knopf lässt die Liste samt Häkchen stehen
+ * (`state='open'`) — und danach führt kein Weg mehr hinein, außer den ganzen Abgleich noch einmal zu
+ * fahren. Bei den Karten sind das zehn Minuten. Das Vorbild steht seit Sitzung 4 im
+ * Territorien-Monitor (`refreshPlanStatus`, html/wiki-sync-monitor.html).
+ *
+ * ⚠️ Fragt über denselben Sender wie das Blatt (`syncPlanResolvePost`). Die Endpunkt-Adresse steht in
+ * dieser Datei an genau EINER Stelle, und ein Test zählt die Nennungen.
+ *
+ * ⚠️ Schluckt jeden Fehler: „keine Liste" ist kein Fehler, sondern der Normalfall vor dem ersten
+ * Abgleich — und eine Statuszeile, die eine Fehlermeldung wirft, ist schlimmer als eine, die schweigt.
+ *
+ * @returns {Promise<{has:boolean, total:number}>}
+ */
+async function syncPlanOpenRunSummary(options) {
+	const post = syncPlanResolvePost(options);
+	const kind = (options && options.kind) || "";
+	try {
+		const plan = await syncPlanPost(post, { action: "get", kind: kind });
+		if (!plan || !plan.run) {
+			return { has: false, total: 0 };
+		}
+
+		return { has: true, total: Number((plan.run.counts || {}).total || 0) };
+	} catch (error) {
+		return { has: false, total: 0 };
+	}
+}
+
 function syncPlanBindClose(mount, options) {
 	const later = mount.querySelector("[data-later]");
 	if (later) {
@@ -789,6 +877,10 @@ function syncPlanBindSheet(mount, plan, options) {
 	const gateCb = sheet.querySelector("[data-gate-cb]");
 	const gateText = sheet.querySelector("[data-gate-text]");
 	const footElement = sheet.querySelector("[data-foot]");
+	// 💣 KANN FEHLEN. Seit die Vorschau immer aufgeht (Owner 2026-08-07), ist das leere Blatt ein
+	// regulärer Zustand -- und es hat keinen Übernehmen-Knopf, weil es nichts zu übernehmen gibt. Jede
+	// Berührung ab hier muss das aushalten; ein `applyButton.disabled` auf null nähme dem leeren Blatt
+	// auch noch das Schließen und den Verweis auf die abgelehnten Löschungen.
 	const applyButton = sheet.querySelector("[data-apply]");
 
 	function boxes() {
@@ -803,8 +895,12 @@ function syncPlanBindSheet(mount, plan, options) {
 	function refresh() {
 		const checked = boxes().filter((box) => box.checked);
 		const deletions = checked.filter((box) => box.dataset.changeType === "deleted").length;
+		// ⚠️ `total` ist die Zahl des LAUFS, nicht die der Häkchen. Ohne sie hielte die Fußzeile jedes
+		// Blatt für leer, sobald der Editor das letzte Häkchen wegnimmt -- und nähme ihm den Knopf, mit
+		// dem er es zurückholen wollte.
 		const state = syncPlanFooterState({
 			kind: kind,
+			total: counts.total,
 			selected: checked.length,
 			hidden: hiddenSelected,
 			deletions: deletions,
@@ -816,10 +912,16 @@ function syncPlanBindSheet(mount, plan, options) {
 			gateCb.checked = false;
 		}
 		gateText.textContent = state.gateText;
-		applyButton.disabled = state.applyDisabled;
-		applyButton.textContent = state.applyLabel;
-		footElement.innerHTML = `<b>${syncPlanNumber(state.selectedTotal)}</b> von `
-			+ `${syncPlanNumber(counts.total || 0)} werden übernommen`;
+		if (applyButton) {
+			applyButton.disabled = state.applyDisabled;
+			applyButton.textContent = state.applyLabel;
+		}
+		// Beim leeren Blatt sagt der Befund oben schon alles; „0 von 0 werden übernommen" wäre eine
+		// zweite, umständlichere Fassung derselben Nachricht.
+		footElement.innerHTML = state.nothingToDo
+			? ""
+			: `<b>${syncPlanNumber(state.selectedTotal)}</b> von `
+				+ `${syncPlanNumber(counts.total || 0)} werden übernommen`;
 	}
 
 	sheet.addEventListener("change", async (event) => {
@@ -925,6 +1027,13 @@ function syncPlanBindSheet(mount, plan, options) {
 	}
 
 	syncPlanBindClose(mount, options);
+
+	// Kein Knopf, kein Zuhörer -- und `refresh()` unten ist trotzdem nötig: es räumt den Riegel weg und
+	// leert die Fußzeile.
+	if (!applyButton) {
+		refresh();
+		return;
+	}
 
 	applyButton.addEventListener("click", async () => {
 		applyButton.disabled = true;

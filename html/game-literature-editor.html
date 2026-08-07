@@ -106,6 +106,20 @@
   .ae-status__text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ae-status.is-error .ae-status__text { color: var(--color-danger); }
 
+  /* Der Verweis auf eine liegengebliebene Vorschau -- gleiche Regel wie .ce-planhint im Karten-Editor.
+     Ohne Mindesthoehe: er ist nur da, wenn es etwas zu verweisen gibt. */
+  .ae-planhint {
+    flex: 0 0 auto; padding: var(--avm-status-pad);
+    color: var(--color-text-muted); background: var(--color-panel-soft);
+    border-bottom: 1px solid var(--color-border); font-size: var(--font-size-small);
+  }
+  .ae-planhint[hidden] { display: none; }
+  /* Textknopf in Link-Optik: die Handlung ist "oeffne die Liste", kein zweiter Hauptknopf. */
+  .ae-planhint button {
+    appearance: none; -webkit-appearance: none; padding: 0; border: 0; background: none;
+    color: var(--color-link); cursor: pointer; font: inherit; text-decoration: underline;
+  }
+
   /* Gitter statt Flex -- und das ist die Loesung des 483/458/458-Raetsels (Spaltenbreiten waren
      1 : 1,898 statt 1 : 2). Ursache: `flex: 1 1 0` MIT `box-sizing: border-box`. Eine Border-Box-
      Groesse kann nicht kleiner werden als ihr eigenes Padding + Border, also wurde die flex-basis
@@ -456,6 +470,10 @@
   </div>
 
   <div class="ae-status" id="aeStatus"><span class="ae-status__text" id="aeStatusText">Bereit.</span></div>
+
+  <!-- Der Weg zurueck in eine liegengebliebene Vorschau (Gegenstueck zu #ceSyncPlanHint im
+       Karten-Editor). Leer und unsichtbar, solange keine Liste offen ist. -->
+  <div class="ae-planhint" id="aeSyncPlanHint" hidden></div>
 
   <div class="ae-body">
     <aside class="ae-list">
@@ -1565,6 +1583,36 @@
     if (label) label.textContent = isBusy ? "Synchronisiert…" : "🚨 Literatur syncen";
   }
 
+  // Der Weg zurück in eine liegengebliebene Vorschau — Gegenstück zu refreshCePlanHint() im
+  // Karten-Editor. „Später" lässt die Liste samt Häkchen stehen; ohne diese Zeile führt danach kein Weg
+  // mehr hinein außer einem neuen Abgleich.
+  async function refreshAePlanHint() {
+    const el = document.getElementById("aeSyncPlanHint");
+    if (!el || typeof syncPlanOpenRunSummary !== "function") return;
+    const summary = await syncPlanOpenRunSummary({ kind: "adventure" });
+    if (!summary.has) {
+      el.hidden = true;
+      el.textContent = "";
+      return;
+    }
+    el.hidden = false;
+    el.innerHTML = `Eine Vorschau liegt bereit — ${Number(summary.total)} `
+      + `Unterschied${summary.total === 1 ? "" : "e"}. `
+      + `<button type="button" id="aeSyncPlanHintOpen">Wieder öffnen</button>`;
+    document.getElementById("aeSyncPlanHintOpen").addEventListener("click", () => {
+      openSyncPlanSheet({
+        kind: "adventure",
+        mount: document.getElementById("aeSyncPlanHost"),
+        onApplied: async () => {
+          await loadList();
+          void refreshAeSyncedInfo();
+          void refreshAePlanHint();
+        },
+        onClose: () => { void refreshAePlanHint(); },
+      });
+    });
+  }
+
   async function handleAeSyncClick() {
     if (aeSyncRunning) return;
     let parentWindow;
@@ -1601,7 +1649,9 @@
           if (statusEl) statusEl.textContent = `Übernommen: ${totals.applied}.`;
           await loadList(); // übernommene Abenteuer gehören sofort in die linke Liste
           void refreshAeSyncedInfo();
+          void refreshAePlanHint();
         },
+        onClose: () => { void refreshAePlanHint(); },
       });
     } catch (e) {
       if (statusEl) statusEl.textContent = "Sync fehlgeschlagen: " + (e && e.message ? e.message : String(e));
@@ -1734,6 +1784,8 @@
   document.getElementById("aeEnabledToggle").addEventListener("click", toggleGameLiteratureEnabled);
   void refreshAeSyncedInfo();
   void refreshAeAutogetInfo();
+  // Beim Öffnen fragen, ob von einem früheren Besuch noch eine Vorschau liegengeblieben ist.
+  void refreshAePlanHint();
 
   // Pre-selection from the parent (WikiSync adventure picker): a same-origin postMessage jumps to an
   // adventure by public_id. selectGameLiterature fetches the detail by id, so it works even before loadList resolves.
