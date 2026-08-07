@@ -428,7 +428,16 @@ async function api(action, opts={}) {
   const r = await fetch(url, init);
   const t = await r.text();
   let j; try { j = JSON.parse(t); } catch(e) { throw new Error('Ungültige Antwort: '+t.slice(0,200)); }
-  if (!r.ok || j.ok === false) throw new Error(j.error || ('HTTP '+r.status));
+  // Der Endpunkt antwortet in ZWEI Formen: die alten Aktionen mit einem flachen `error`-Text, die
+  // Riegel- und Fehlerantworten aus bootstrap.php mit `error: {code, message}`. Ohne diese Zeile wird
+  // aus der zweiten Form „[object Object]" -- also genau dort unlesbar, wo etwas Wichtiges steht
+  // (409 dump_locked: „Ein anderer Nutzer bearbeitet gerade den WikiDump").
+  if (!r.ok || j.ok === false) {
+    const err = (j.error && typeof j.error === 'object') ? (j.error.message || j.error.code) : j.error;
+    const e = new Error(err || ('HTTP '+r.status));
+    e.code = (j.error && typeof j.error === 'object') ? j.error.code : null;
+    throw e;
+  }
   return j;
 }
 function setStatus(msg) { $('statusText').textContent = msg; }

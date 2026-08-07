@@ -21,6 +21,13 @@ require_once __DIR__ . '/../../_internal/wiki/territory-plan.php';
 // first request. sync-monitor-model.php / sync-monitor-identity.php (also read by the two compute
 // steps) already arrive via the sync-monitor.php require just above -- see its own require_once list.
 require_once __DIR__ . '/../../_internal/wiki/dump-reader.php';
+// Der Pipeline-Riegel. Drei Aktionen dieses Endpunkts loesen einen offenen Plan ab (rebuild_model ueber
+// avesmapsSyncPlanSupersedeRuns, die zwei Rechen-Schritte ueber avesmapsSyncPlanStartRun) -- waehrend
+// einer laufenden Uebernahme heisst das: der naechste Teilschritt bekommt 409 plan_not_open, der Lauf
+// bleibt halb abgearbeitet stehen, avesmapsTerritoryApplyFinish laeuft nie, es gibt keine Protokollzeile
+// und keine Entscheidungen. Deshalb nehmen sie denselben Einzelplatz-Riegel wie die Dump-Aktionen und
+// wie 'apply' in api/edit/wiki/sync-plan.php.
+require_once __DIR__ . '/../../_internal/wiki/dump-lock.php';
 require_once __DIR__ . '/../../_internal/app/coat-display.php';
 // Only for avesmapsPoliticalInvalidateLayerCache(): the "Wappen: An/Aus" toggle changes what the layer
 // payload contains, and the layer's file cache would otherwise serve the old URLs for up to 300 s.
@@ -40,6 +47,8 @@ try {
 
     $user = avesmapsRequireUserWithCapability('review');
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
+    $lockUserId = (int) ($user['id'] ?? 0);
+    $lockHeldByThisRequest = false;
 
     if ($requestMethod === 'POST') {
         // upload_coat kommt als multipart/form-data (Datei-Upload) -> dann liegen die Felder in $_POST
@@ -56,6 +65,19 @@ try {
         // working through and could not even see the sheet that shows what got lost.
         if (in_array($action, ['build_territory_wiki_plan', 'build_territory_plan'], true)) {
             avesmapsRequireUserWithCapability('edit');
+        }
+
+        // 💣 EINZELPLATZ FUER ALLES, WAS EINEN OFFENEN PLAN ABLOEST. Genommen wird derselbe Riegel wie
+        // in api/edit/wiki/sync-plan.php ('apply') und in dump.php -- also acquire-or-throw: ein zweiter
+        // Nutzer wird mit 409 dump_locked ABGEWIESEN, statt zu warten. Ohne ihn kann ein Druck auf
+        // „2 · Hierarchie rechnen" eine laufende Uebernahme mitten in einer Seite abbrechen: die
+        // Ablösung setzt den Lauf auf 'superseded', der naechste Teilschritt bekommt 409 plan_not_open,
+        // und der Lauf bleibt halb abgearbeitet ohne Abschluss, ohne Protokollzeile und ohne
+        // Entscheidungen stehen. Same-holder-Wiedereintritt ist erlaubt, der Client-Ablauf
+        // „Syncen → Kopie-Vorschau rechnen" laeuft also durch.
+        if (in_array($action, ['rebuild_model', 'build_territory_wiki_plan', 'build_territory_plan'], true)) {
+            avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, (string) ($user['username'] ?? ''), $action);
+            $lockHeldByThisRequest = true;
         }
 
         $response = match ($action) {
@@ -237,6 +259,12 @@ try {
             avesmapsWikiSyncMonitorInvalidateModelTreeCache($pdo);
         }
 
+        // Freigeben, BEVOR geantwortet wird: avesmapsJsonResponse beendet den Prozess.
+        if ($lockHeldByThisRequest) {
+            avesmapsWikiDumpLockRelease($pdo, $lockUserId);
+            $lockHeldByThisRequest = false;
+        }
+
         avesmapsJsonResponse(200, $response);
     }
 
@@ -307,6 +335,16 @@ try {
     }
 
     avesmapsJsonResponse(200, $response);
+} catch (WikiDumpLockBusyException $busy) {
+    // Ein anderer Nutzer haelt die Pipeline. 409 + Maschinencode, damit der Client-Ablauf sauber
+    // stehenbleibt statt zu drehen. Diese Anfrage hat den Riegel nie gehalten (sie hat das Rennen
+    // verloren), also gibt es hier nichts freizugeben.
+    avesmapsErrorResponse(409, 'dump_locked', $busy->getMessage());
 } catch (Throwable $error) {
+    // Ein Fehler mitten in einer Riegel-Aktion gibt ihn frei -- sonst blockiert ein Absturz die
+    // Pipeline bis zur Stale-Uebernahme (180 s).
+    if (isset($pdo, $lockUserId, $lockHeldByThisRequest) && $lockHeldByThisRequest) {
+        try { avesmapsWikiDumpLockRelease($pdo, $lockUserId); } catch (Throwable) { /* best-effort */ }
+    }
     avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
 }

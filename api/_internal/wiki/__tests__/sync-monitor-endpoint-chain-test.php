@@ -115,5 +115,38 @@ foreach (['build_territory_wiki_plan' => 'avesmapsTerritoryWikiPlanStep',
 // im Endpunkt selbst (nach rebuild_model), nicht in einer der beiden Dateien oben.
 assert(function_exists('avesmapsSyncPlanSupersedeRuns'), 'und der Zurückzieher ebenso');
 
+// 💣 DER EINZELPLATZ-RIEGEL. Genau die drei Aktionen, die einen offenen Plan ablösen, nehmen ihn --
+// sonst bricht ein zweiter Editor mit einem Druck auf „2 · Hierarchie rechnen" eine laufende Übernahme
+// mitten in einer Seite ab: der nächste Teilschritt bekommt 409 plan_not_open, der Lauf bleibt halb
+// abgearbeitet stehen, ohne Abschluss, ohne Protokollzeile, ohne Entscheidungen. Erreichbar wurde das
+// erst durch die Ablösung selbst.
+assert(function_exists('avesmapsWikiDumpLockAcquireOrThrow'), 'der Riegel ist in der Kette');
+assert(function_exists('avesmapsWikiDumpLockRelease'), 'und seine Freigabe');
+assert(class_exists('WikiDumpLockBusyException'), 'und die Ausnahme, die er wirft');
+assert(
+    (bool) preg_match(
+        "/in_array\(\\\$action, \['rebuild_model', 'build_territory_wiki_plan', 'build_territory_plan'\], true\)\)\s*\{\s*avesmapsWikiDumpLockAcquireOrThrow\(/s",
+        $endpoint
+    ),
+    '💣 alle drei ablösenden Aktionen nehmen den Riegel, in EINER Prüfung'
+);
+// Und er wird wieder freigegeben -- vor der Antwort (die beendet den Prozess) und im Fehlerfall.
+assert(
+    (bool) preg_match('/if \(\$lockHeldByThisRequest\) \{\s*avesmapsWikiDumpLockRelease\(\$pdo, \$lockUserId\);/', $endpoint),
+    'freigegeben wird auf dem Normalweg'
+);
+assert(
+    (bool) preg_match('/catch \(WikiDumpLockBusyException \$busy\) \{.*?avesmapsErrorResponse\(409, \x27dump_locked\x27/s', $endpoint),
+    "💣 ein zweiter Nutzer bekommt 409 dump_locked -- damit der Client-Ablauf stehenbleibt statt zu drehen"
+);
+assert(
+    (bool) preg_match('/catch \(Throwable \$error\) \{.*?avesmapsWikiDumpLockRelease\(\$pdo, \$lockUserId\)/s', $endpoint),
+    'und ein Absturz verkeilt die Pipeline nicht bis zur Stale-Übernahme'
+);
+$acquirePos = strpos($endpoint, 'avesmapsWikiDumpLockAcquireOrThrow(');
+$matchPos = strpos($endpoint, '$response = match ($action) {');
+assert($acquirePos !== false && $matchPos !== false && $acquirePos < $matchPos,
+    '💣 der Riegel steht VOR dem Dispatcher, nicht dahinter');
+
 echo 'sync-monitor-endpoint-chain ok (' . count($chain) . ' Dateien, ' . $checkedCalls . ' Aufrufe, '
     . $checkedConstants . " Konstanten)\n";
