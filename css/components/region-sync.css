@@ -394,15 +394,25 @@
 	user-select: none;
 }
 
+/* ===== Formensprache des Blattes (Sitzung 3 nachgezogen, 2026-08-07) ==============================
+   Die Falllisten der Orte, Wege und des Konfliktzentrums haben die Optik der Uebernahme-Vorschau in
+   Sitzung 3 geerbt; diese Chips und Knoepfe hier NICHT -- sie standen weiter auf handgeschriebenen
+   Werten (10px-Pille, 11px-Schrift, --color-border-strong) neben Knoepfen aus --radius-md und den
+   Pill-Tokens, in derselben Zeile. AGENTS.md §12: kein hartkodierter Radius, keine Pillen.
+
+   ⚠️ Die Klassen heissen `region-sync__*`, gehoeren aber den Regionen UND den Wegen: der Wege-Reiter
+   schreibt `.region-sync__cand` an 15 Stellen (am 07.08. live 6.390 Chips gegen 1.577 Regionenzeilen).
+   Sie hier anzugleichen zieht die Wege mit -- in dieselbe Richtung, und das ist der Zweck. Wer nur die
+   Regionen aendert, poliert die kleinere Haelfte und baut die Divergenz in die groessere ein. */
 .region-sync__cand {
 	display: inline-block;
 	margin: 1px 3px 1px 0;
-	padding: 1px 7px;
-	font-size: 11px;
-	border: 1px solid var(--color-border-strong);
-	border-radius: 10px;
-	background: var(--color-panel);
-	color: var(--color-button-soft-text);
+	padding: 2px 7px;
+	font-size: var(--font-size-small);
+	border: 1px solid var(--color-pill-border);
+	border-radius: var(--radius-md);
+	background: var(--color-pill);
+	color: var(--color-pill-text);
 	cursor: pointer;
 }
 
@@ -422,22 +432,28 @@
 	background: var(--color-danger-soft);
 }
 
+/* 🔴 KNOPF-HIERARCHIE (AGENTS.md §12: EINE Haupthandlung gefuellt, alles Weitere weich).
+   „Zuordnen"/„+" war ein GEFUELLTER Akzentknopf -- in einer Liste, die am 07.08. live 4.134 Zeilen
+   hat. 462 gefuellte Hauptknoepfe untereinander sind keine Hierarchie mehr, sondern eine Wand; und in
+   der Regionenliste daneben standen es zwei je Zeile, 3.154 Stueck. Eine Zeilenhandlung ist nie die
+   Haupthandlung der Seite: die steht oben im Menueband und heisst „Syncen". */
 .path-sync__assign {
 	margin: 1px 3px 1px 0;
-	padding: 1px 8px;
-	font-size: 11px;
+	padding: 2px 8px;
+	font-size: var(--font-size-small);
 	font-weight: 700;
 	line-height: inherit;
-	border: 1px solid var(--color-accent-brown);
-	border-radius: 10px;
-	background: var(--color-accent-brown);
-	color: var(--color-accent-brown-text);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
 	cursor: pointer;
 	vertical-align: baseline;
 }
 
 .path-sync__assign:hover {
-	background: var(--color-accent-brown-hover);
+	background: var(--color-button-soft-hover);
+	border-color: var(--color-accent-brown);
 }
 
 /* ===== V6: Landschaftsflächen in der Regionen-Zeile ===== */
@@ -455,31 +471,36 @@
 .region-sync__areachip {
 	display: inline-block;
 	margin: 1px 3px 1px 0;
-	padding: 1px 7px;
-	font-size: 11px;
-	border: 1px solid var(--color-border-strong);
-	border-radius: 10px;
-	background: var(--color-panel);
-	color: var(--color-button-soft-text);
+	padding: 2px 7px;
+	font-size: var(--font-size-small);
+	border: 1px solid var(--color-pill-border);
+	border-radius: var(--radius-md);
+	background: var(--color-pill);
+	color: var(--color-pill-text);
 }
 
-/* Textknopf in der Meta-Zeile, Muster .path-sync__assign -- dieselbe Geste, dieselbe Optik. */
+/* Textknopf in der Meta-Zeile, Muster .path-sync__assign -- dieselbe Geste, dieselbe Optik.
+   💣 HIER sass die Angleichung am dringendsten: „Flaeche zuweisen" und „Label zuweisen" stehen in
+   JEDER Regionenzeile, also live 2x1.577 = 3.154 gefuellte Akzentknoepfe in einer 246px schmalen
+   Spalte -- waehrend die Ortsliste daneben, dieselbe Komponente, ueber 3.414 Zeilen gar keinen Knopf
+   traegt. Begruendung und Messung: .path-sync__assign weiter oben. */
 .region-sync__assign {
 	margin: 1px 3px 1px 0;
-	padding: 1px 8px;
-	font-size: 11px;
+	padding: 2px 8px;
+	font-size: var(--font-size-small);
 	font-weight: 700;
 	line-height: inherit;
-	border: 1px solid var(--color-accent-brown);
-	border-radius: 10px;
-	background: var(--color-accent-brown);
-	color: var(--color-accent-brown-text);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
 	cursor: pointer;
 	vertical-align: baseline;
 }
 
 .region-sync__assign:hover {
-	background: var(--color-accent-brown-hover);
+	background: var(--color-button-soft-hover);
+	border-color: var(--color-accent-brown);
 }
 
 /* Infobox-Popup-Innenabstand (region-info-box selbst hat jetzt padding:0). */
