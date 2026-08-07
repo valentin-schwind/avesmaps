@@ -479,3 +479,36 @@ if (preg_match('/function avesmapsSyncPlanMarkItem\(.*?\n\}/s', $syncPlanSource,
 }
 
 echo "territory-plan-apply (Folgekette) ok\n";
+
+// =====================================================================================================
+// TEIL 7 -- die zwei Rechen-Aktionen haengen am Monitor-Endpunkt, nicht am Vorschau-Endpunkt (Task 8)
+// =====================================================================================================
+//
+// Gerechnet wird an Schritt 1 und Schritt 3 des Menuebands; der Vorschau-Endpunkt liest, haekelt und
+// uebernimmt. Zwei Tueren fuer dasselbe waeren zwei Stellen, an denen ein Lauf beginnen kann.
+$monitor = (string) file_get_contents(__DIR__ . '/../../../edit/wiki/sync-monitor.php');
+assert(str_contains($monitor, "'build_territory_wiki_plan' =>"), 'die Kopie rechnet hier');
+assert(str_contains($monitor, "'build_territory_plan' =>"), 'die Karte auch');
+assert(str_contains($monitor, 'territory-wiki-plan.php'), 'und die Datei ist geladen');
+assert(str_contains($monitor, 'territory-plan.php'), 'die zweite ebenso');
+
+// 💣 Beide Aktionen sind auf 'edit' gegated, nicht nur auf das 'review' des gesamten Endpunkts: das
+// Rechnen LOEST den offenen Plan derselben Art ab, und das Blatt, das einen Plan liest/haekelt/uebernimmt
+// (sync-plan.php), verlangt bereits 'edit'. Ohne den staerkeren Riegel hier koennte ein reines
+// Review-Konto die offene Vorschau eines anderen Editors wegrechnen -- und saehe das Blatt, das den
+// Verlust zeigt, nicht einmal.
+assert(
+    str_contains($monitor, "avesmapsRequireUserWithCapability('edit')"),
+    "💣 die beiden Rechen-Aktionen sind auf 'edit' gegated, nicht nur auf das 'review' des Endpunkts"
+);
+assert(
+    str_contains($monitor, "in_array(\$action, ['build_territory_wiki_plan', 'build_territory_plan'], true)"),
+    '💣 beide Aktionen stehen in EINER Pruefung, nicht in zwei getrennten'
+);
+$editGatePos = strpos($monitor, "avesmapsRequireUserWithCapability('edit')");
+$wikiArmPos = strpos($monitor, "'build_territory_wiki_plan' =>");
+$mapArmPos = strpos($monitor, "'build_territory_plan' =>");
+assert($editGatePos !== false && $wikiArmPos !== false && $mapArmPos !== false, 'alle drei Stellen existieren');
+assert($editGatePos < $wikiArmPos && $editGatePos < $mapArmPos, '💣 der edit-Riegel steht VOR beiden Armen, nicht dahinter');
+
+echo "territory-plan (Monitor-Endpunkt, Task 8) ok\n";

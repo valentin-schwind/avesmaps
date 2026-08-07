@@ -13,6 +13,14 @@ require_once __DIR__ . '/../../_internal/wiki/locations.php';
 require_once __DIR__ . '/../../_internal/wiki/territories.php';
 require_once __DIR__ . '/../../_internal/political/territory.php';
 require_once __DIR__ . '/../../_internal/wiki/sync-monitor.php';
+require_once __DIR__ . '/../../_internal/wiki/sync-plan.php';
+require_once __DIR__ . '/../../_internal/wiki/territory-wiki-plan.php';
+require_once __DIR__ . '/../../_internal/wiki/territory-plan.php';
+// dump-reader.php -- home of AVESMAPS_WIKI_DUMP_STEP_SECONDS, which both compute steps below read for
+// their per-step time budget. Not in sync-constants.php; without this require both are a fatal on the
+// first request. sync-monitor-model.php / sync-monitor-identity.php (also read by the two compute
+// steps) already arrive via the sync-monitor.php require just above -- see its own require_once list.
+require_once __DIR__ . '/../../_internal/wiki/dump-reader.php';
 require_once __DIR__ . '/../../_internal/app/coat-display.php';
 // Only for avesmapsPoliticalInvalidateLayerCache(): the "Wappen: An/Aus" toggle changes what the layer
 // payload contains, and the layer's file cache would otherwise serve the old URLs for up to 300 s.
@@ -40,6 +48,15 @@ try {
         $payload = $isMultipart ? $_POST : avesmapsReadJsonRequest();
         $action = trim((string) ($payload['action'] ?? ($_GET['action'] ?? '')));
         $options = is_array($payload['options'] ?? null) ? $payload['options'] : $payload;
+
+        // The two territory compute actions below OVERRIDE any open plan of the same kind (design
+        // §6b) -- so gate them at 'edit', stricter than this endpoint's overall 'review'. The sheet
+        // that reads/ticks/applies a plan (api/edit/wiki/sync-plan.php) already requires 'edit';
+        // without this, a review-only account could wipe out an open preview another editor is
+        // working through and could not even see the sheet that shows what got lost.
+        if (in_array($action, ['build_territory_wiki_plan', 'build_territory_plan'], true)) {
+            avesmapsRequireUserWithCapability('edit');
+        }
 
         $response = match ($action) {
             'start_run' => avesmapsWikiSyncMonitorStartRun(
@@ -153,6 +170,20 @@ try {
                 $pdo,
                 (string) ($payload['target'] ?? ''),
                 (string) ($payload['run_id'] ?? '')
+            ),
+            // Die Rechen-Haelften. Sie schreiben Planzeilen, keine Nutzdaten -- deshalb ohne den
+            // dry_run/confirm-Riegel der Schreiber daneben, und deshalb ist ein zweiter Aufruf
+            // ungefaehrlich: er loest den offenen Plan ab (Entwurf §6b). Die Kopie ist cursor-getrieben
+            // und wird vom Client geschleift; die Karte ist ein einziger Durchlauf ohne Cursor.
+            'build_territory_wiki_plan' => avesmapsTerritoryWikiPlanStep(
+                $pdo,
+                (string) ($payload['cursor'] ?? ''),
+                (int) ($user['id'] ?? 0)
+            ),
+            'build_territory_plan' => avesmapsTerritoryPlanStep(
+                $pdo,
+                '',
+                (int) ($user['id'] ?? 0)
             ),
             default => null,
         };
