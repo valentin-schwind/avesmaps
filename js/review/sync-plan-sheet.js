@@ -146,7 +146,7 @@ const SYNC_PLAN_LOSS_DETAIL = { sources_removed: "sources_removed_titles" };
 const SYNC_PLAN_NOTE_FIELDS = ["boundary_note"];
 
 /** Felder, die nur die ZEILE informieren und nie selbst erscheinen. */
-const SYNC_PLAN_SILENT_FIELDS = ["pin_fields"];
+const SYNC_PLAN_SILENT_FIELDS = ["pin_fields", "hand_edited"];
 
 /** Die drei Kategorien und wie sie sich erklären. Reihenfolge = Anzeigereihenfolge. */
 const SYNC_PLAN_GROUPS = [
@@ -440,6 +440,14 @@ function syncPlanRowMarkup(item, kind) {
 		const when = syncPlanShortDate(item.last_skipped_at);
 		tags.push(`<span class="tag tag--skip">⤴ <b>${skipped}×</b> übersprungen`
 			+ `${when ? `, zuletzt ${syncPlanEscape(when)}` : ""}</span>`);
+	}
+	// Kein geratener Verdacht: der Server leitet das ausschließlich aus dem eigenen Schreib-Schnappschuss
+	// des Abgleichs ab. Anders als „eigener Wert" (ein geschützter Override, den der Abgleich gar nicht
+	// anfasst) heißt das hier: der Kartenwert IST eine menschliche Änderung, und das Häkchen überschreibt
+	// sie -- eine Warnung vor einer Handlung, keine Besitzmarke.
+	const handEdited = String((item.after || {}).hand_edited || "");
+	if (handEdited !== "") {
+		tags.push('<span class="tag tag--handedit">von Hand geändert</span>');
 	}
 	if (Object.keys(item.override || {}).length > 0) {
 		tags.push('<span class="tag tag--own">eigener Wert</span>');

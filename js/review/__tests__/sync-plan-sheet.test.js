@@ -415,4 +415,42 @@ const capped = sandbox.syncPlanDiffMarkup({
 assert.ok(capped.includes("+ 7 weitere Felder"), "der Rest einer gedeckelten Liste steht als Satz da");
 assert.ok(!capped.includes("<dt>weitere Felder</dt>"), "nicht als Vergleich mit einem erfundenen Vorher");
 
+// --- hand_edited: der Gegenpart zu pin_fields (Owner-Nachtrag) ----------------------------------
+//
+// 💣 Kein geratener Verdacht: der Server leitet das nur aus dem eigenen Schreib-Schnappschuss ab, und
+// nur für die fünf Felder, die der Schnappschuss führt (name, type, status, valid_from_bf,
+// valid_to_bf) -- `continent` kann hier nie stehen. Fehlt das Feld, ist nichts beweisbar, also steht
+// auch nichts an der Zeile: Schweigen ist hier eine Aussage.
+const handEditedRow = sandbox.syncPlanRowMarkup({
+    id: 15, label: "Baronie Hügelsee", change_type: "changed",
+    before: { name: "Baronie Hügelsee am Großen Fluss" },
+    after: { name: "Baronie Hügelsee", hand_edited: "name,status" },
+}, "territory");
+assert.ok(handEditedRow.includes('class="tag tag--handedit"'), "die Zeile trägt die Marke mit ihrer eigenen Klasse");
+assert.ok(handEditedRow.includes("von Hand geändert"), "und ihrem deutschen Text");
+
+const noHandEditedRow = sandbox.syncPlanRowMarkup({
+    id: 16, label: "Mark Ragathsquell", change_type: "changed",
+    before: { parent: "A" }, after: { parent: "B" },
+}, "territory");
+assert.ok(!noHandEditedRow.includes("tag--handedit"), "ohne hand_edited keine Marke");
+
+// Das Silent-Feld-Verhalten: nie ein <dt>, nie in der Vergleichsliste -- wie bei pin_fields.
+assert.ok(!handEditedRow.includes("<dt>weitere Felder</dt>") && !handEditedRow.includes("hand_edited"),
+    "das Pseudo-Feld erscheint nirgends als Feldname oder roher Schlüssel");
+const handEditedDiff = sandbox.syncPlanDiffMarkup({
+    change_type: "changed", before: {}, after: { hand_edited: "name" },
+});
+assert.ok(!handEditedDiff.includes("hand_edited") && !handEditedDiff.includes("<dt>"),
+    "hand_edited erscheint auch für sich genommen nie als Zeile der Unterschiedsliste");
+
+// Beide Marken zusammen: ein Override UND eine Vor-Ort-Änderung schließen sich nicht aus.
+const bothTagsRow = sandbox.syncPlanRowMarkup({
+    id: 17, label: "Markgrafschaft Sonnenmark", change_type: "changed",
+    before: { valid_from_bf: null }, after: { valid_from_bf: "720 BF", hand_edited: "valid_from_bf" },
+    override: { name: "Eigener Name" },
+}, "territory");
+assert.ok(bothTagsRow.includes("tag--handedit") && bothTagsRow.includes("tag--own"),
+    "eine Zeile kann beide Marken zugleich tragen");
+
 console.log("sync-plan-sheet ok");

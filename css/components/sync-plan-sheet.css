@@ -272,6 +272,16 @@
 	color: var(--color-warning-soft-text);
 }
 
+/* Eine Warnung vor einer Handlung, keine Besitzmarke: der Kartenwert ist eine menschliche Änderung,
+   und das Häkchen überschreibt sie. Bewusst NICHT dieselbe Palette wie .tag--own (das ist ein
+   GESCHÜTZTER Override, den der Abgleich ohnehin nicht anfasst) und NICHT die Löschfarbe (das ist
+   keine Löschung) -- die „ACTIVE warn chip"-Stufe der Warnfamilie aus tokens.css ist genau dafür da. */
+.sync-plan-host .tag--handedit {
+	background: var(--color-warning-strong);
+	border-color: var(--color-warning);
+	color: var(--color-warning-strong-text);
+}
+
 /* „Beim letzten Mal übersprungen" ist ein ZUSTAND, keine Warnung: dass etwas liegenbleibt, ist
    erlaubt. Auffällig wird es durch die ZAHL, wenn es sich wiederholt. */
 .sync-plan-host .tag--skip {
