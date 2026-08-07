@@ -738,6 +738,8 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
 // geschrieben (Live-Konvention). Override > Wiki, Gruendungs-Vererbung + IZ stecken bereits in der
 // Berechnung. continent ist COALESCE-gefuehrt (leerer Eff-Wert => Live-Wert bleibt) und NICHT Teil
 // des Undo-Snapshots (reine abgeleitete Korrektur; ein Revert laesst den korrigierten Kontinent stehen).
+// written_keys is UNCAPPED (unlike sample, capped at 12): the wiki_key of every target actually
+// written -- the apply half needs the full set to tell 'applied' from 'stale' per row.
 function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, array $only, int $limit, bool $dryRun): array {
     $preview = avesmapsWikiSyncMonitorApplyIdentityPreview($pdo);
     $changed = is_array($preview['changed'] ?? null) ? $preview['changed'] : [];
@@ -762,6 +764,7 @@ function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, array $only
     }
 
     $written = 0;
+    $writtenKeys = [];
     $batchId = '';
     if (!$dryRun && $targets !== []) {
         $batchId = date('YmdHis') . '-' . substr(bin2hex(random_bytes(2)), 0, 4);
@@ -822,7 +825,11 @@ function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, array $only
                     'continent' => $newContinent,
                     'id' => $id,
                 ]);
-                $written += $stmt->rowCount() > 0 ? 1 : 0;
+                $rowWritten = $stmt->rowCount() > 0;
+                $written += $rowWritten ? 1 : 0;
+                if ($rowWritten) {
+                    $writtenKeys[] = (string) $c['wiki_key'];
+                }
             }
             $pdo->commit();
         } catch (Throwable $error) {
@@ -837,6 +844,7 @@ function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, array $only
         'batch_id' => $batchId,
         'targets' => count($targets),
         'written' => $written,
+        'written_keys' => $writtenKeys,
         'skipped_skiplist' => $skippedSkiplist,
         'sample' => array_slice(array_map(
             static fn(array $c): array => ['wiki_key' => $c['wiki_key'], 'name' => $c['name'], 'eff' => $c['eff']],

@@ -338,3 +338,37 @@ $edited = avesmapsTerritoryPlanHandEditedFields(
 assert($edited === [], 'kein Backup ueberhaupt => keine Markierung, nicht geraten');
 
 echo "territory-plan (hand-edited) ok\n";
+
+// =====================================================================================================
+// TEIL 4 -- die Ausführ-Hälfte: Reihenfolge und positive Auswahl
+// =====================================================================================================
+//
+// 💣 Die Reihenfolge der drei Schreiber ist tragend --------------------------------------------------
+//
+// Eltern zuerst (Wiki-Knoten), dann die eigenen Knoten (die legen an UND haengen ein), dann die Daten.
+// Umgekehrt zeigte eine Eltern-Zuweisung auf einen eigenen Knoten, den es noch nicht gibt -- sie
+// landete stillschweigend in `unresolved` statt zu wirken.
+$apply = (string) file_get_contents(__DIR__ . '/../territory-plan-apply.php');
+$order = [];
+foreach (['ApplyParentCache', 'ApplyCustomNodes', 'ApplyIdentity'] as $writer) {
+    $position = strpos($apply, 'avesmapsWikiSyncMonitor' . $writer . '(');
+    assert($position !== false, "die Ausfuehr-Haelfte ruft {$writer}");
+    $order[] = $position;
+}
+assert($order === array_values(array_filter($order)) && $order[0] < $order[1] && $order[1] < $order[2],
+    '💣 Eltern -> eigene Knoten -> Daten');
+
+// Und sie ruft sie POSITIV: kein Aufruf ohne only-Liste.
+assert(!preg_match('/ApplyParentCache\(\s*\$pdo\s*,\s*\[\]\s*,\s*false\s*\)/', $apply),
+    '💣 kein Aufruf ohne only -- das schriebe jede Divergenz mit');
+
+// 💣 Der Bug, den written_keys behebt: der Aufruf von ApplyIdentity muss seinen Rueckgabewert
+// tatsaechlich AUFFANGEN -- ein Aufruf, dessen Ergebnis verworfen wird, koennte written_keys nie lesen
+// und liesse jede reine Datenzeile ungeprueft als "applied" durch (siehe task-6-report.md).
+assert(
+    (bool) preg_match('/\$identityResult\s*=\s*avesmapsWikiSyncMonitorApplyIdentity\(/', $apply),
+    '💣 der Rueckgabewert von ApplyIdentity wird aufgefangen, nicht verworfen'
+);
+assert(str_contains($apply, "['written_keys']"), '💣 written_keys wird tatsaechlich gelesen');
+
+echo "territory-plan-apply (Reihenfolge) ok\n";
