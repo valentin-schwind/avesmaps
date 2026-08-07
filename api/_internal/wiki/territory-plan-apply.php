@@ -16,6 +16,51 @@ declare(strict_types=1);
 require_once __DIR__ . '/../map/collection-audit.php';
 
 /**
+ * Whether a 'changed' row is fully applied, and if not, which half is to blame. PURE -- no DB, no
+ * side effects, split out specifically so the two combo-row cases can be unit-tested without a database
+ * (task-6 quality review, 2026-08-07).
+ *
+ * 💣 EVERY proposed part must have taken effect. Design §6f checks staleness per proposed CHANGE, not
+ * per row-as-a-whole: an OR here (either half succeeding is enough) would let a combo row whose data
+ * landed but whose parent still diverges report as fully `applied` -- its skip counter gets cleared,
+ * and the unresolved parent half is named nowhere until somebody rebuilds the plan by hand. That is
+ * exactly the silence design §6f forbids ("was nicht mehr passt, wird stale ... und wird hinterher
+ * genannt").
+ *
+ * @return array{applied:bool, note:string} note is '' when applied is true
+ */
+function avesmapsTerritoryApplyClassifyChangedRow(
+    bool $hasParentMove,
+    bool $parentDivergent,
+    bool $hasDataChange,
+    bool $dataWritten
+): array {
+    $parentOk = !$hasParentMove || !$parentDivergent;
+    $dataOk = !$hasDataChange || $dataWritten;
+
+    if ($parentOk && $dataOk) {
+        return ['applied' => true, 'note' => ''];
+    }
+
+    if ($hasParentMove && $hasDataChange) {
+        // A combo row: name exactly which half failed -- the other one succeeded silently and needs no
+        // mention. (Both failing at once falls through to the generic note: naming two absent things is
+        // no more informative than naming none.)
+        $note = $dataOk
+            ? 'Die Daten wurden geschrieben, der Elternteil ließ sich nicht auflösen.'
+            : ($parentOk
+                ? 'Der Elternteil wurde übernommen, die Daten ließen sich nicht mehr schreiben.'
+                : 'Der Stand hat sich seit der Vorschau geändert.');
+    } elseif ($hasParentMove) {
+        $note = 'Der Elternteil war nicht auflösbar.';
+    } else {
+        $note = 'Der Stand hat sich seit der Vorschau geändert.';
+    }
+
+    return ['applied' => false, 'note' => $note];
+}
+
+/**
  * ONE bounded apply step: it takes up to $budget ticked rows and hands their keys to the three
  * writers as an `only` list. Bulk writers, bounded by the subset -- not by a cursor.
  *
@@ -49,7 +94,15 @@ function avesmapsTerritoryApplyStep(PDO $pdo, int $runId, int $userId, ?array $u
         // 💣 THE ORDER IS LOAD-BEARING. Parents first, then the own nodes (they create AND link), then
         // the data fields. The other way round, a parent assignment pointing at an own node that does
         // not exist yet lands in `unresolved` instead of taking effect.
-        avesmapsWikiSyncMonitorApplyParentCache($pdo, [], false, $changedKeys);
+        //
+        // Both bulk writers are gated on their OWN key list being non-empty: `only = []` correctly means
+        // "select nothing" (avesmapsWikiSyncMonitorSelectionClause turns it into `1 = 0`), so an
+        // unguarded call is not wrong, only three no-op SELECTs and a no-op UPDATE for nothing -- and a
+        // budget page of pure 'new' rows (reachable: the compute half inserts all 'changed' rows before
+        // all 'new' ones, the pending reader goes by ascending id) hits exactly that every time.
+        if ($changedKeys !== []) {
+            avesmapsWikiSyncMonitorApplyParentCache($pdo, [], false, $changedKeys);
+        }
         if ($newKeys !== []) {
             avesmapsWikiSyncMonitorApplyCustomNodes($pdo, false, $newKeys);
         }
@@ -92,13 +145,20 @@ function avesmapsTerritoryApplyStep(PDO $pdo, int $runId, int $userId, ?array $u
             continue;
         }
 
-        // 'changed': decide on each of the row's OWN components, never on the other's evidence.
-        // hasParentMove comes straight from the planned after_json -- the same 'parent' key
-        // avesmapsTerritoryPlanStep writes only for rows a parent move actually touched, so a data-only
-        // row never triggers the (irrelevant, always-zero) parent query at all.
+        // 'changed': decide on each of the row's OWN components, never on the other's evidence, then
+        // require EVERY proposed part to have taken effect -- avesmapsTerritoryApplyClassifyChangedRow
+        // above has the reasoning (design §6f) and the per-half notes.
+        //
+        // hasParentMove/hasDataChange both come straight from the planned after_json: 'parent' is the
+        // key avesmapsTerritoryPlanStep writes only for rows a parent move actually touched, and
+        // 'pin_fields' is written only when there was at least one identity-field change (it is
+        // implode(',', array_keys($before)), and $before is only ever non-empty for an identity diff) --
+        // so a data-only row never triggers the (irrelevant, always-zero) parent query at all, and a
+        // parent-only row is never held to a data check that was never proposed for it.
         $after = json_decode((string) ($row['after_json'] ?? ''), true);
         $after = is_array($after) ? $after : [];
         $hasParentMove = array_key_exists('parent', $after);
+        $hasDataChange = array_key_exists('pin_fields', $after);
 
         $parentDivergent = false;
         if ($hasParentMove) {
@@ -107,14 +167,22 @@ function avesmapsTerritoryApplyStep(PDO $pdo, int $runId, int $userId, ?array $u
         }
         $dataWritten = isset($writtenKeySet[$key]);
 
-        if ($dataWritten || ($hasParentMove && !$parentDivergent)) {
+        $classification = avesmapsTerritoryApplyClassifyChangedRow(
+            $hasParentMove, $parentDivergent, $hasDataChange, $dataWritten
+        );
+        if ($classification['applied']) {
             avesmapsSyncPlanMarkItem($pdo, $itemId, 'applied');
             $applied++;
         } else {
-            $note = ($hasParentMove && $parentDivergent)
-                ? 'Der Elternteil war nicht auflösbar.'
-                : 'Der Stand hat sich seit der Vorschau geändert.';
-            avesmapsSyncPlanMarkItem($pdo, $itemId, 'stale', $note);
+            // 💣 A row that lands here is NOT applied, so avesmapsSyncPlanClearSkip (in
+            // avesmapsTerritoryApplyFinish below) never fires for it and any existing skip counter
+            // survives untouched; it is also still `selected = 1` (avesmapsSyncPlanMarkItem never
+            // touches that column), so avesmapsSyncPlanRecordSkip never fires either. It simply stays
+            // unresolved with apply_state='stale' -- the NEXT computed plan re-derives everything from
+            // live state, so it proposes only whatever is still actually outstanding; the half that
+            // already landed will no longer produce a divergent row and so will not reappear (verified
+            // by tracing avesmapsTerritoryApplyFinish's classification loop -- see task-6-report.md).
+            avesmapsSyncPlanMarkItem($pdo, $itemId, 'stale', $classification['note']);
             $stale++;
         }
     }

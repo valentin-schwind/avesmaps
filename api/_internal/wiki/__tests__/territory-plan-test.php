@@ -20,6 +20,7 @@ if (ini_get('zend.assertions') !== '1') {
 require_once __DIR__ . '/../sync-monitor.php';
 require_once __DIR__ . '/../sync-plan.php';
 require_once __DIR__ . '/../territory-plan.php';
+require_once __DIR__ . '/../territory-plan-apply.php';
 
 // counts[wiki_key] = ['name' => …, 'own_geometry' => int, 'children' => int]
 $counts = [
@@ -371,4 +372,110 @@ assert(
 );
 assert(str_contains($apply, "['written_keys']"), '💣 written_keys wird tatsaechlich gelesen');
 
+// Beide Bulk-Schreiber, die einen `only`-Schluessel brauchen, sind auf IHRE EIGENE Liste gegated
+// (Quality-Review-Fund 2, 2026-08-07): [] heisst zwar korrekt "waehle nichts", aber eine Seite reiner
+// 'new'-Zeilen (erreichbar, weil die Rechen-Haelfte erst alle 'changed'-, dann alle 'new'-Zeilen
+// einfuegt und der Leser nach aufsteigender id geht) fuehrte sonst drei No-op-SELECTs und ein
+// No-op-UPDATE fuer nichts aus -- auf STRATO nicht kostenlos.
+assert(
+    (bool) preg_match('/if\s*\(\s*\$changedKeys\s*!==\s*\[\]\s*\)\s*\{\s*avesmapsWikiSyncMonitorApplyParentCache\(/', $apply),
+    '💣 ApplyParentCache laeuft nur, wenn es tatsaechlich changedKeys gibt'
+);
+
 echo "territory-plan-apply (Reihenfolge) ok\n";
+
+// =====================================================================================================
+// TEIL 5 -- avesmapsTerritoryApplyClassifyChangedRow: JEDER Teil einer Zeile muss gelandet sein
+// =====================================================================================================
+//
+// 💣 Quality-Review-Fund 1 (2026-08-07): eine 'changed'-Zeile kann eine Datenaenderung, einen
+// Eltern-Umzug oder beides tragen. Ein ODER ueber beide Haelften liesse eine Kombi-Zeile, deren Daten
+// geschrieben wurden, aber deren Elternteil noch abweicht, als VOLLSTAENDIG uebernommen melden -- ihr
+// Skip-Zaehler wuerde geloescht, und die offene Haelfte stuende nirgends, bis jemand den Plan von Hand
+// neu rechnet. Design §6f verlangt die Pruefung je ANGEBOTENER Aenderung, nicht je Zeile als Ganzes:
+// „was nicht mehr passt, wird stale, bleibt stehen und wird hinterher genannt" -- deshalb jetzt ein UND.
+
+// --- reine Datenzeile (kein Eltern-Umzug im Plan) ---------------------------------------------------
+$result = avesmapsTerritoryApplyClassifyChangedRow(false, false, true, true);
+assert($result === ['applied' => true, 'note' => ''], 'Daten geschrieben, kein Eltern-Umzug geplant => applied');
+
+$result = avesmapsTerritoryApplyClassifyChangedRow(false, false, true, false);
+assert($result['applied'] === false, '💣 Daten NICHT geschrieben => stale, nicht applied (der behobene Fehler)');
+assert($result['note'] === 'Der Stand hat sich seit der Vorschau geändert.');
+
+// --- reine Eltern-Zeile (keine Datenaenderung im Plan) ----------------------------------------------
+$result = avesmapsTerritoryApplyClassifyChangedRow(true, false, false, false);
+assert($result === ['applied' => true, 'note' => ''], 'Eltern-Umzug aufgeloest, keine Datenaenderung geplant => applied');
+
+$result = avesmapsTerritoryApplyClassifyChangedRow(true, true, false, false);
+assert($result['applied'] === false);
+assert($result['note'] === 'Der Elternteil war nicht auflösbar.');
+
+// --- Kombi-Zeile, beide Haelften gelandet -----------------------------------------------------------
+$result = avesmapsTerritoryApplyClassifyChangedRow(true, false, true, true);
+assert($result === ['applied' => true, 'note' => ''], 'beide Haelften einer Kombi-Zeile gelandet => applied');
+
+// --- 💣 Kombi-Zeile, Fall 1: Daten geschrieben, Elternteil haengt fest ------------------------------
+//
+// Der Fall, den die Quality-Review konkret nannte: unter dem alten ODER waere das "applied" gewesen.
+$result = avesmapsTerritoryApplyClassifyChangedRow(true, true, true, true);
+assert($result['applied'] === false, '💣 nur EINE Haelfte einer Kombi-Zeile ist NICHT applied');
+assert(
+    $result['note'] === 'Die Daten wurden geschrieben, der Elternteil ließ sich nicht auflösen.',
+    '💣 die Notiz nennt die Haelfte, die NICHT gelandet ist -- die Daten liefen still durch'
+);
+
+// --- 💣 Kombi-Zeile, Fall 2 (Spiegelfall): Elternteil uebernommen, Daten sind seit der Vorschau weg --
+$result = avesmapsTerritoryApplyClassifyChangedRow(true, false, true, false);
+assert($result['applied'] === false);
+assert(
+    $result['note'] === 'Der Elternteil wurde übernommen, die Daten ließen sich nicht mehr schreiben.',
+    '💣 Spiegelfall: diesmal nennt die Notiz die Daten, der Elternteil lief still durch'
+);
+
+// --- Kombi-Zeile, beide Haelften weg -- der generische Hinweis, nichts Erfundenes ------------------
+$result = avesmapsTerritoryApplyClassifyChangedRow(true, true, true, false);
+assert($result['applied'] === false);
+assert($result['note'] === 'Der Stand hat sich seit der Vorschau geändert.');
+
+echo "territory-plan-apply (Klassifizierung) ok\n";
+
+// =====================================================================================================
+// TEIL 6 -- die Folgekette einer stale Kombi-Zeile: weder Skip noch Clear-Skip, nachgelesen im Code
+// =====================================================================================================
+//
+// avesmapsTerritoryApplyFinish laeuft nicht unter sqlite (avesmapsEnsureSyncPlanTables ist echtes
+// MySQL-DDL -- AUTO_INCREMENT, ENGINE=InnoDB, mehrspaltige KEY-Klauseln -- dieselbe seit Task 5
+// dokumentierte Grenze). Diese Zeilen halten die Behauptung stattdessen als Zusicherung UEBER DEN
+// QUELLTEXT fest, nachgezaehlt an sync-plan.php: RecordSkip/RecordDecline/ClearSkip aendern
+// AUSSCHLIESSLICH sync_decision, niemals sync_plan_item.selected oder .apply_state -- und
+// avesmapsSyncPlanMarkItem aendert NIE `selected`. Zusammen heisst das: eine stale Zeile bleibt
+// selected=1 UND apply_state='stale', trifft in avesmapsTerritoryApplyFinish's Schleife keinen der drei
+// Zweige (weder "!isSelected" noch "applied"), und ihr Skip-Zaehler (falls vorhanden) bleibt unberuehrt
+// stehen -- das naechste Mal rechnet die Rechen-Haelfte ohnehin frisch vom Live-Stand, also erscheint
+// nur noch die tatsaechlich offene Haelfte wieder.
+$syncPlanSource = (string) file_get_contents(__DIR__ . '/../sync-plan.php');
+assert(
+    (bool) preg_match(
+        '/function avesmapsSyncPlanRecordSkip.*?INSERT INTO sync_decision/s',
+        $syncPlanSource
+    ),
+    'RecordSkip schreibt in sync_decision'
+);
+foreach (['avesmapsSyncPlanRecordSkip', 'avesmapsSyncPlanRecordDecline', 'avesmapsSyncPlanClearSkip'] as $fn) {
+    if (preg_match('/function ' . $fn . '\(.*?\n\}/s', $syncPlanSource, $m)) {
+        assert(
+            !str_contains($m[0], 'sync_plan_item'),
+            "💣 {$fn} fasst sync_plan_item nicht an -- nur sync_decision"
+        );
+    } else {
+        assert(false, "{$fn} nicht gefunden");
+    }
+}
+if (preg_match('/function avesmapsSyncPlanMarkItem\(.*?\n\}/s', $syncPlanSource, $m)) {
+    assert(!str_contains($m[0], 'selected'), '💣 avesmapsSyncPlanMarkItem aendert selected NIE');
+} else {
+    assert(false, 'avesmapsSyncPlanMarkItem nicht gefunden');
+}
+
+echo "territory-plan-apply (Folgekette) ok\n";
