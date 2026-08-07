@@ -141,7 +141,20 @@ dann „+ N weitere Felder". Vorangehäkelt.
 > 💣 **Ein leerer frischer Wert ist keine Änderung.** Liefert der Dump zu einem Feld nichts und steht in
 > der Kopie ein Wert, bleibt er — und das Feld taucht in der Zeile gar nicht erst auf. Diese Falle ist
 > beim Kontinent schon einmal zugeschnappt und wird dort mit `COALESCE` abgefangen
-> (`sync-monitor-identity.php:786`); hier gilt sie für **alle** Felder.
+> (`sync-monitor-identity.php:786`); hier gilt sie für **alle** Felder. Sie gilt **in beiden Hälften**:
+> die Rechen-Hälfte nennt das Feld nicht, und die Ausführ-Hälfte behält den Kopie-Wert
+> (`avesmapsTerritoryWikiRecordFromStagingRow` bekommt die Spiegelzeile dazu). Ohne das Zweite wäre das
+> Erste wertlos — der Upsert schreibt **alle 36 Spalten** per `VALUES()`, und
+> `avesmapsPoliticalNullableString('')` ist `NULL`. „Leer" heißt in beiden Hälften **wörtlich dasselbe**
+> (`trim() === ''`); `0` ist ein Wert, kein Nichts (der Parser schreibt 0 für „kein Datum", und die
+> Rechen-Hälfte bietet `1050 → 0` als Änderung an).
+>
+> ⚠️ **Der Preis dieser Regel, benannt:** verschwindet ein Feld dauerhaft aus dem Wiki-Artikel, behält
+> die Kopie ihren **alten** Wert für immer — der Abgleich kann ihn nicht mehr leeren, und für
+> `political_territory_wiki` gibt es **keinen Handeditor** (ihr einziger Schreiber war immer der
+> Crawler, §1.8). Das ist bewusst so herum entschieden: ein zu lange stehender Wert ist ein Schönheits-
+> fehler, ein weggeschriebener ist ein Datenverlust ohne Backup. Wer ihn doch loswerden muss, löscht
+> heute die Kopie-Zeile über die „Gelöscht"-Gruppe (falls verwaist) oder greift zur Datenbank.
 
 **Gelöscht** — Kopien ohne Staging-Schlüssel, **und nur, wenn kein aktives `political_territory` auf
 sie zeigt** (`wiki_id` und `wiki_key` beide geprüft). Nicht vorangehäkelt, zweite ausdrückliche
@@ -195,8 +208,32 @@ keiner Skip-Liste und würde **ungesehen geschrieben**. Beide Schreiber bekommen
 ebenso. Der negative Weg bleibt bestehen, wird aus der Vorschau aber nie benutzt.
 
 **(b) Zwei Arten, zwei Läufe, zwei Häkchenstände.** `sync_plan_run.kind` trägt `'territory_wiki'` bzw.
-`'territory'` (14 bzw. 9 Zeichen, `VARCHAR(24)` reicht). Sie superseden einander **nicht**: „Syncen"
-zieht nur die Kopie-Vorschau zurück, „Hierarchie rechnen" nur die Karten-Vorschau.
+`'territory'` (14 bzw. 9 Zeichen, `VARCHAR(24)` reicht). Eine Art löst nie die Vorschau der **anderen**
+ab, nur ihre eigene — **aber die Kachel tut es sehr wohl:**
+
+| Was gedrückt wird | zieht zurück | warum |
+|---|---|---|
+| **1 · 🚨 Syncen** | die Kopie-Vorschau **und** die Karten-Vorschau | Schritt 1 rechnet die Kopie-Vorschau neu (das löst die vorige ab) **und** rechnet am Ende den Baum neu — und damit gelten die Eltern-Umzüge der Karten-Vorschau nicht mehr |
+| **2 · Hierarchie rechnen** | nur die Karten-Vorschau | dieselbe Ursache, nur ohne den Kopie-Teil |
+| **3 · Übernehmen** | nur die Karten-Vorschau (und nur, wenn keine offen ist: dann wird gerechnet) | — |
+
+> 💣 Beides läuft über **`avesmapsSyncPlanSupersedeRuns($pdo, 'territory')`**, gerufen **serverseitig**
+> an beiden Türen zum Baum-Neurechnen: `api/edit/wiki/sync-monitor.php` nach `rebuild_model` und
+> `api/edit/wiki/dump.php` nach dem `avesmapsWikiSyncMonitorRebuildModel` des `sync_kind`-Laufs. Wer
+> einen der beiden Aufrufe entfernt, weil „Syncen zieht ja nur die Kopie zurück", baut die stille Lüge
+> wieder ein: die Liste zeigt dann einen Eltern-Umzug und schreibt einen anderen.
+>
+> ⚠️ Ein **Zug im Baum** (`set_parent`) zieht **nichts** zurück — die Kuratierung bleibt unangetastet
+> (§9), und ein einzelner Zug darf nicht die Häkchen eines ganzen Laufs vernichten. Stattdessen prüft
+> die **Übernahme** jede Zeile gegen den Baum: die Planzeile trägt neben dem Elternnamen den
+> `parent_key`, und weicht der vom heutigen `parent_wiki_key` ab, wird die Zeile `stale`, benennt den
+> neuen Elternteil und wird **nicht** geschrieben (§6f).
+>
+> ⚠️ Alle drei Aktionen, die einen offenen Plan ablösen (`rebuild_model` und die zwei Rechen-Schritte),
+> nehmen den **Einzelplatz-Riegel** der Pipeline (`avesmapsWikiDumpLockAcquireOrThrow`, wie `apply` in
+> `sync-plan.php`). Ohne ihn bricht ein zweiter Editor mit einem Druck auf Schritt 2 eine laufende
+> Übernahme mitten in einer Seite ab: der nächste Teilschritt bekommt `409 plan_not_open`, der Lauf
+> bleibt halb abgearbeitet stehen, ohne Abschluss, ohne Protokollzeile, ohne Entscheidungen.
 
 **(c) Leeres Staging heißt nie „alles löschen"** — und auch nie „alles geändert". Ist das Staging leer,
 liefert die Rechen-Hälfte **null** Zeilen jeder Kategorie. Derselbe Riegel, den
