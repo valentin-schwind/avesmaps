@@ -110,6 +110,31 @@ const SYNC_PLAN_KIND_DELETION = {
 };
 
 /**
+ * Woher die Liste einer Art käme, wenn gerade keine da ist. Ohne Eintrag bleibt es beim allgemeinen Satz.
+ *
+ * ⚠️ Nicht kosmetisch: der Satz nennt einen Knopf, und ein Knopf, den es auf dieser Seite nicht gibt,
+ * schickt jemanden suchen. Bei den Herrschaftsgebieten heißt die Kachel „1 · 🚨 Syncen" und eben nicht
+ * „Karten syncen".
+ */
+const SYNC_PLAN_KIND_EMPTY_HINT = {
+	citymap: 'Erst „🚨 Karten syncen" ausführen.',
+	adventure: 'Erst „🚨 Abenteuer syncen" ausführen.',
+	publication: 'Erst „Dump holen" ausführen — der Quellen-Abgleich ist dessen letzter Schritt.',
+	lore: 'Erst „🚨 Vorkommen syncen" ausführen.',
+	territory_wiki: 'Erst „1 · 🚨 Syncen" ausführen.',
+	territory: 'Erst „3 · Übernehmen" drücken — die Liste wird dann gerechnet.',
+};
+
+/**
+ * Wie viele Felder eine NEUE Zeile aufzählt, bevor sie „+ N weitere Felder" sagt.
+ *
+ * 💣 Dieselbe Sechs wie im Vergleich (AVESMAPS_TERRITORY_WIKI_PLAN_FIELD_LIMIT, serverseitig): eine
+ * neue Wiki-Kopie bringt gut dreißig Felder mit, und ungedeckelt steht die ganze Zeile — samt zweier
+ * JSON-Klumpen — als eine einzige Textwurst in der Liste.
+ */
+const SYNC_PLAN_NEW_SUMMARY_FIELD_LIMIT = 6;
+
+/**
  * Was eine Art, die nichts löscht, an dieser Stelle sagt. Ohne Eintrag gilt der eingebaute Satz.
  *
  * ⚠️ Nicht kosmetisch: „steht als Verlust in der Zeile des Eintrags" schickt einen Editor bei den
@@ -169,6 +194,7 @@ function syncPlanKindMeta(kind) {
 		known: known,
 		title: SYNC_PLAN_KIND_TITLES[key] || "Aus dem Wiki übernehmen",
 		nouns: SYNC_PLAN_KIND_NOUNS[key] || { one: "Eintrag", many: "Einträge" },
+		emptyHint: SYNC_PLAN_KIND_EMPTY_HINT[key] || "Erst den Abgleich dieser Art ausführen.",
 		deletion: Object.prototype.hasOwnProperty.call(SYNC_PLAN_KIND_DELETION, key)
 			? SYNC_PLAN_KIND_DELETION[key]
 			: SYNC_PLAN_KIND_DELETION.citymap,
@@ -340,11 +366,27 @@ function syncPlanFooterState(state) {
  *
  * ⚠️ Für „Neu" wäre die Pfeilliste unten irreführend: „Titel — → Elenvina" behauptet ein Vorher, das
  * es nie gab, und füllt die Zeile mit Gedankenstrichen. Was zählt, ist, WAS da ankommt.
+ *
+ * 💣 GEDECKELT, und die Pseudo-Felder bleiben draußen. Eine neue Wiki-Kopie eines Herrschaftsgebiets
+ * bringt gut dreißig Felder mit; ungefiltert stünden `pin_fields`, `hand_edited` und zwei JSON-Klumpen
+ * mit rohem Spaltennamen mitten drin, in einer Zeile, die niemand mehr liest. Dieselbe Sechs wie im
+ * Vergleich, und der Rest wird gezählt statt verschwiegen.
  */
 function syncPlanNewSummary(item) {
 	const after = item.after || {};
-	const parts = Object.keys(after).map((field) =>
+	const named = Object.keys(after).filter((field) =>
+		SYNC_PLAN_SILENT_FIELDS.indexOf(field) < 0
+		&& SYNC_PLAN_NOTE_FIELDS.indexOf(field) < 0
+		&& field !== "fields_more");
+	const shown = named.slice(0, SYNC_PLAN_NEW_SUMMARY_FIELD_LIMIT);
+	const parts = shown.map((field) =>
 		`${syncPlanEscape(syncPlanFieldLabel(field))}: ${syncPlanEscape(syncPlanFieldValue(field, after[field]))}`);
+	// Was der Server schon abgeschnitten hat, zählt mit: sonst behauptete „+ 3 weitere" eine
+	// Vollständigkeit, die die Zeile gar nicht kennt.
+	const more = (named.length - shown.length) + Number(after.fields_more || 0);
+	if (more > 0) {
+		parts.push(`+ ${syncPlanNumber(more)} weitere Felder`);
+	}
 
 	return parts.length > 0 ? `<span class="row__sub">${parts.join(" · ")}</span>` : "";
 }
@@ -505,10 +547,21 @@ function syncPlanGroupMarkup(group, items, total, hiddenCount, kind, extraLead) 
 	// Der Vorspann der Löschgruppe gehört der ART -- und ein zweiter Satz dem LAUF: bei den Wiki-Kopien
 	// steht dort, welche NICHT angeboten werden, weil ein Kartengebiet an ihnen hängt. Der weiß nur der
 	// Server, und ohne ihn liest sich die Gruppe als „mehr ist nicht verschwunden".
-	const leadText = group.key === "deleted" && total > 0 && meta.deletion
-		? meta.deletion.lead + (extraLead ? `<br>${syncPlanEscape(extraLead)}` : "")
-		: "";
-	const lead = leadText === "" ? "" : `<p class="row__sub" style="margin:0 0 8px">${leadText}</p>`;
+	//
+	// 💣 Der zweite Satz steht auch bei NULL angebotenen Zeilen -- genau dann nämlich am dringendsten:
+	// „Gelöscht 0 · Nichts." liest sich als „alles erledigt", während N Kopien verwaist und nur deshalb
+	// geschützt sind, weil ein Kartengebiet an ihnen hängt. Der erste Satz („was du nicht anhäkelst,
+	// bleibt") schweigt dann weiterhin, denn es gibt nichts anzuhäkeln.
+	const leadParts = [];
+	if (group.key === "deleted" && meta.deletion) {
+		if (total > 0) {
+			leadParts.push(meta.deletion.lead);
+		}
+		if (extraLead) {
+			leadParts.push(syncPlanEscape(extraLead));
+		}
+	}
+	const lead = leadParts.length < 1 ? "" : `<p class="row__sub" style="margin:0 0 8px">${leadParts.join("<br>")}</p>`;
 
 	// 🔴 KEIN „alle" ÜBER DEN LÖSCHUNGEN. Bei 168 neuen Zeilen ist Einzelklicken keine Bedienung — bei
 	// Löschungen ist es genau das, was der Entwurf will: jede einzeln, mit Blick auf das, was mit ihr
@@ -585,6 +638,21 @@ function syncPlanSheetMarkup(plan) {
 	</div>
 	<div class="sheet__declined" data-declined-list hidden></div>
 </div>`;
+}
+
+/**
+ * Was der Knopf „Werte festhalten" nach dem Versuch sagt — und ob er noch klickbar ist. REIN.
+ *
+ * 💣 GELUNGEN = TOT, MISSLUNGEN = KLICKBAR, und nicht umgekehrt. Bis 2026-08-07 stand es andersherum:
+ * unter „bitte erneut" war der Knopf gesperrt, und nach „festgehalten" lud er zum zweiten Klick auf
+ * etwas ein, das schon geschehen ist. Ein Knopf, der genau dann nicht geht, wenn er soll, ist
+ * schlimmer als keiner — der Editor hält den Wert für gesichert und häkelt die Zeile ab.
+ */
+function syncPlanPinButtonState(ok) {
+	return {
+		text: ok === true ? "festgehalten" : "ging nicht — bitte erneut",
+		disabled: ok === true,
+	};
 }
 
 /** Der leere Fall — kein Fehler, sondern die beste Nachricht des Tages. */
@@ -678,7 +746,9 @@ async function openSyncPlanSheet(options) {
 	}
 
 	if (!plan.run) {
-		mount.innerHTML = syncPlanEmptyMarkup('Es liegt keine Vorschau vor. Erst „Karten syncen" ausführen.');
+		// Der Hinweis gehört der ART: „Erst Karten syncen" schickt im Territorien-Monitor jemanden nach
+		// einem Knopf suchen, den es dort nicht gibt (die Kachel heißt „1 · 🚨 Syncen").
+		mount.innerHTML = syncPlanEmptyMarkup('Es liegt keine Vorschau vor. ' + syncPlanKindMeta(kind).emptyHint);
 		syncPlanBindClose(mount, options);
 		return;
 	}
@@ -795,9 +865,19 @@ function syncPlanBindSheet(mount, plan, options) {
 			}
 			button.disabled = true;
 			const fields = String(button.dataset.pinFields || "").split(",").filter(Boolean);
-			const ok = await options.onPin({ id: Number(button.dataset.pin), fields: fields });
-			button.textContent = ok === true ? "festgehalten" : "ging nicht — bitte erneut";
-			button.disabled = ok !== true;
+			// 💣 MIT try/catch. Der Sender wirft (er antwortet nicht mit ok:false), und dieser Zuhörer
+			// ist async: eine durchgereichte Ablehnung verlässt ihn wortlos, der Knopf bliebe für immer
+			// gesperrt und beschriftet, als liefe er noch. Genau der Zustand, in dem man ein zweites Mal
+			// klickt und nichts passiert.
+			let ok = false;
+			try {
+				ok = await options.onPin({ id: Number(button.dataset.pin), fields: fields }) === true;
+			} catch (error) {
+				ok = false;
+			}
+			const state = syncPlanPinButtonState(ok);
+			button.textContent = state.text;
+			button.disabled = state.disabled;
 		});
 	});
 

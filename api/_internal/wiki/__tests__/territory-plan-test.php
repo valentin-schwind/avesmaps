@@ -608,13 +608,75 @@ assert(
     ),
     '💣 und das Modell-Neurechnen am Ende von „Syncen" ebenso'
 );
-// ⚠️ Serverseitig, nicht im Browser: die Seite ruft den Endpunkt, nicht umgekehrt. Eine Zurueckziehung
-// im JavaScript liesse jeden anderen Weg (zweiter Reiter, Dump-Endpunkt, geplanter Lauf) die alte Liste
-// behalten. Deshalb steht in der Oberflaeche nur die Statusabfrage.
+// ⚠️ Serverseitig, nicht im Browser: eine Zurueckziehung im JavaScript liesse jeden anderen Weg
+// (zweiter Reiter, Dump-Endpunkt, geplanter Lauf) die alte Liste behalten. In der Oberflaeche steht
+// deshalb nur die Statusabfrage -- und der Zustandsname taucht dort nirgends auf.
 $monitorPage = (string) file_get_contents(__DIR__ . '/../../../../html/wiki-sync-monitor.html');
 assert(
-    !str_contains($monitorPage, 'supersede'),
+    !str_contains($monitorPage, 'superseded'),
     '⚠️ die Oberflaeche zieht nichts selbst zurueck -- sie fragt nur den Stand ab'
+);
+assert(
+    (bool) preg_match("/rebuild_model.*?await refreshPlanStatus\(\)/s", $monitorPage),
+    'sie holt sich nach dem Hierarchie-Rechnen den neuen Stand'
 );
 
 echo "territory-plan (Vorschau zurueckziehen) ok\n";
+
+// =====================================================================================================
+// TEIL 9 -- „Werte festhalten": zwei Vokabulare fuer dieselben Felder
+// =====================================================================================================
+//
+// 💣 Von jeder Seite allein ist der Bruch unsichtbar. pin_fields traegt die Schluessel des
+// Identitaets-Vergleichs (Sprache von political_territory: valid_from_bf / valid_to_bf); die
+// Override-Erlaubnisliste kennt die Schluessel des Wiki-Datensatzes (founded_start_bf /
+// dissolved_end_bf). Ungemappt wirft set_field_override „Feld ... ist nicht editierbar." -- bei den
+// haeufigsten Feldern dieses Bestands, und die Schleife schreibt der Reihe nach, also bliebe eine
+// Zeile mit „name, valid_to_bf" halb festgehalten.
+//
+// Beide Listen werden GELESEN, nicht abgeschrieben: eine abgeschriebene Liste bleibt gruen, wenn eine
+// der beiden Seiten ein Feld dazubekommt.
+preg_match('/\$fieldCounts = \[([^\]]*)\]/', $identityFn, $fieldCountsMatch);
+preg_match_all("/'([a-z_]+)' => 0/", $fieldCountsMatch[1] ?? '', $pinnableMatch);
+$pinnable = $pinnableMatch[1] ?? [];
+assert(count($pinnable) === 6, 'die sechs vergleichbaren Felder wurden gefunden (' . count($pinnable) . ')');
+assert(in_array('valid_to_bf', $pinnable, true), 'darunter die Gueltigkeit -- der haeufigste Fall');
+
+preg_match('/const PIN_FIELD_OVERRIDE_KEYS = \{([^}]*)\}/', $monitorPage, $pinMapMatch);
+preg_match_all("/([a-z_]+)\s*:\s*'([a-z_]+)'/", $pinMapMatch[1] ?? '', $pinPairs, PREG_SET_ORDER);
+$pinMap = [];
+foreach ($pinPairs as $pair) {
+    $pinMap[$pair[1]] = $pair[2];
+}
+assert($pinMap !== [], 'die Zuordnung der Oberflaeche wurde gefunden');
+
+$editable = avesmapsWikiSyncMonitorEditableFields();
+foreach ($pinnable as $field) {
+    $target = $pinMap[$field] ?? $field;
+    assert(
+        isset($editable[$target]),
+        "💣 Werte festhalten schickt {$field} als {$target} -- und set_field_override kennt das nicht"
+    );
+}
+assert($pinMap['valid_from_bf'] === 'founded_start_bf', 'gegruendet heisst dort founded_start_bf');
+assert($pinMap['valid_to_bf'] === 'dissolved_end_bf', 'und aufgeloest dissolved_end_bf');
+// Gegenprobe zur Behauptung „die Werte passen ohne Umrechnung": '' liest der Override-Leser als
+// „besteht" -- genau das, was die Vorschau aus dem 9999-Sentinel macht.
+assert(
+    str_contains($identityFn, "if (array_key_exists('dissolved_end_bf', \$ov)) {"),
+    'der Override-Leser fragt genau diesen Schluessel'
+);
+assert(
+    (bool) preg_match("/array_key_exists\('dissolved_end_bf', \\\$ov\).*?return \\\$t === '' \? null :/s", $identityFn),
+    '💣 und liest die leere Zeichenkette als null = besteht -- deshalb braucht der Wert keine Umrechnung'
+);
+
+// Und der Aufrufer faengt seinen eigenen Wurf ab: api() antwortet nicht mit ok:false, es wirft.
+preg_match('/async function pinValues\(.*?\n\}/s', $monitorPage, $pinFn);
+assert(($pinFn[0] ?? '') !== '', 'pinValues wurde gefunden');
+assert(str_contains($pinFn[0], 'try {') && str_contains($pinFn[0], 'catch(e)'),
+    '💣 pinValues faengt den Wurf von api() ab -- sonst verlaesst er die async-Funktion wortlos');
+assert(!str_contains($pinFn[0], 'result.ok === false'),
+    'und prueft keinen Rueckgabewert mehr, den es nie gibt (toter Code)');
+
+echo "territory-plan (Werte festhalten) ok\n";

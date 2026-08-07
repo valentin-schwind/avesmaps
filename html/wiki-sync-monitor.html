@@ -1216,9 +1216,10 @@ document.addEventListener('click', e => {
   if(el) selectKey(el.dataset.key);               // Klick = auswählen -> Detail-Panel
 });
 
-$('btnCrawl').onclick = () => { if (window.confirm("Syncen wirklich starten? Das übernimmt die Herrschaftsgebiete aus dem geholten Offline-Dump ins Staging und baut die Hierarchie neu (läuft in Schüben).")) runCrawl(); };
+$('btnCrawl').onclick = () => { if (window.confirm("Syncen wirklich starten? Das liest die Herrschaftsgebiete aus dem geholten Offline-Dump ins Staging, rechnet danach die Hierarchie neu und zeigt zum Schluss eine Vorschau: was die Wiki-Kopie bekäme. Geschrieben wird davon erst, was du dort anhäkelst. Läuft in Schüben. Achtung: eine offene Vorschau der Karte wird dabei zurückgezogen, weil die Hierarchie sich ändert — ihre Häkchen sind dann weg.")) runCrawl(); };
 $('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Hierarchie: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false);
-  // Die Eltern haben sich gerade geändert: eine offene Karten-Vorschau zählt nicht mehr.
+  // Die Eltern haben sich gerade geändert: der Endpunkt hat eine offene Karten-Vorschau deshalb
+  // zurückgezogen (avesmapsSyncPlanSupersedeRuns, Entwurf §6b) -- hier wird nur der neue Stand geholt.
   await refreshPlanStatus();
 };
 // Link check, scoped to the TERRITORY source links. Delegates to window.parent.startLinkCheck() -- the
@@ -1443,16 +1444,39 @@ async function planPost(body){
   return payload;
 }
 
+// 💣 ZWEI VOKABULARE FÜR DIESELBE ZEIT, und von jeder Seite allein sieht man den Bruch nicht. Die
+// Vorschau spricht die Sprache der Kartentabelle (political_territory: valid_from_bf / valid_to_bf) --
+// so heißen die Felder, die avesmapsWikiSyncMonitorApplyIdentityPreview vergleicht und die als
+// pin_fields an der Zeile stehen. Die Override-Erlaubnisliste (avesmapsWikiSyncMonitorEditableFields)
+// spricht dagegen die Sprache des Wiki-Datensatzes: founded_start_bf / dissolved_end_bf. Ungemappt
+// antwortet set_field_override mit „Feld … ist nicht editierbar." -- bei den zwei häufigsten Feldern
+// dieses Bestands, und weil die Schleife unten der Reihe nach schreibt, bliebe eine Zeile mit
+// „name, valid_to_bf" halb festgehalten.
+//
+// Die WERTE passen ohne Umrechnung: die Vorschau normalisiert den 9999-Sentinel zu null, daraus wird
+// hier '', und genau '' liest $effTo (sync-monitor-identity.php) wieder als „besteht".
+// ⚠️ Bekannte Grenze bei valid_from_bf: ein LEERER Gründungswert lässt sich nicht festhalten, weil das
+// effektive Gründungsjahr geerbt wird und am Ende auf 0 fällt -- die Zeile kommt dann wieder. Das ist
+// die Vererbung des Identitäts-Vergleichs, nicht diese Zuordnung.
+const PIN_FIELD_OVERRIDE_KEYS = {valid_from_bf: 'founded_start_bf', valid_to_bf: 'dissolved_end_bf'};
+
 async function pinValues({id, fields}){
   const row = planRows[id];
   if(!row) return false;
-  for(const field of fields){
-    const value = row.before[field];
-    // Der Live-Wert wird zum eigenen Wert. Ein leerer Live-Wert ist dabei ein gültiger eigener Wert:
-    // „hier steht absichtlich nichts" ist eine Aussage, „" ist nur ihre Schreibweise.
-    const result = await api('set_field_override', {method:'POST',
-      body:{wiki_key: row.entity_key, field_key: field, value: value === undefined ? '' : String(value)}});
-    if(!result || result.ok === false) return false;
+  try {
+    for(const field of fields){
+      const value = row.before[field];
+      // Der Live-Wert wird zum eigenen Wert. Ein leerer Live-Wert ist dabei ein gültiger eigener Wert:
+      // „hier steht absichtlich nichts" ist eine Aussage, „" ist nur ihre Schreibweise.
+      await api('set_field_override', {method:'POST',
+        body:{wiki_key: row.entity_key, field_key: PIN_FIELD_OVERRIDE_KEYS[field] || field,
+              value: value === undefined ? '' : String(value)}});
+    }
+  } catch(e){
+    // api() WIRFT, es antwortet nicht mit ok:false -- eine Prüfung auf den Rückgabewert wäre toter
+    // Code, und die Ablehnung verließe diese async-Funktion wortlos.
+    setStatus('Werte festhalten fehlgeschlagen: '+e.message);
+    return false;
   }
   await loadModel();
   return true;

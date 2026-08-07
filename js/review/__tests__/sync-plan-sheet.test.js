@@ -407,6 +407,22 @@ const withoutProtected = sandbox.syncPlanGroupMarkup(
 );
 assert.ok(!withoutProtected.includes("werden nicht angeboten"), "ohne geschützte kein leerer Satz");
 
+// 💣 UND GENAU DANN, WENN NICHTS ANGEBOTEN WIRD. Alle Löschungen abgelehnt oder gar keine verwaist:
+// die Gruppe zeigt „Gelöscht 0 · Nichts." -- und liest sich als „alles erledigt", während N Kopien
+// verwaist und nur deshalb geschützt sind, weil ein Kartengebiet an ihnen hängt. Der bisherige Test
+// gab in beiden Fällen total = 1 und sah diesen Fall deshalb nie.
+const protectedButEmpty = sandbox.syncPlanGroupMarkup(
+    { key: "deleted", name: "Gelöscht", hint: "x" }, [], 0, 0, "territory_wiki",
+    "Fünf weitere Kopien hängen an einem Gebiet (Grafschaft Wehrsold) und werden nicht angeboten."
+);
+assert.ok(protectedButEmpty.includes("werden nicht angeboten"),
+    "💣 der Satz über die geschützten Kopien steht auch bei null angebotenen Zeilen");
+assert.ok(protectedButEmpty.includes("Nichts."), "die leere Gruppe sagt trotzdem, dass sie leer ist");
+assert.ok(!protectedButEmpty.includes("Was du <b>nicht</b> anhäkelst"),
+    "aber der Satz über das Anhäkeln schweigt -- es gibt nichts anzuhäkeln");
+assert.ok(!protectedButEmpty.includes(">​<br>") && !/>\s*<br>/.test(protectedButEmpty),
+    "und der Vorspann beginnt nicht mit einem leeren Umbruch");
+
 // „+ 7 weitere Felder" ist der Rest einer gedeckelten Liste, kein Vergleich mit einem erfundenen
 // Vorher -- sonst stünde da „weitere Felder: — → 7", was niemandem etwas sagt.
 const capped = sandbox.syncPlanDiffMarkup({
@@ -435,9 +451,9 @@ const noHandEditedRow = sandbox.syncPlanRowMarkup({
 }, "territory");
 assert.ok(!noHandEditedRow.includes("tag--handedit"), "ohne hand_edited keine Marke");
 
-// Das Silent-Feld-Verhalten: nie ein <dt>, nie in der Vergleichsliste -- wie bei pin_fields.
-assert.ok(!handEditedRow.includes("<dt>weitere Felder</dt>") && !handEditedRow.includes("hand_edited"),
-    "das Pseudo-Feld erscheint nirgends als Feldname oder roher Schlüssel");
+// Das Silent-Feld-Verhalten: nie in der Vergleichsliste, nie als roher Schlüssel -- wie bei pin_fields.
+assert.ok(!handEditedRow.includes("hand_edited"),
+    "das Pseudo-Feld erscheint nirgends als roher Schlüssel");
 const handEditedDiff = sandbox.syncPlanDiffMarkup({
     change_type: "changed", before: {}, after: { hand_edited: "name" },
 });
@@ -452,5 +468,75 @@ const bothTagsRow = sandbox.syncPlanRowMarkup({
 }, "territory");
 assert.ok(bothTagsRow.includes("tag--handedit") && bothTagsRow.includes("tag--own"),
     "eine Zeile kann beide Marken zugleich tragen");
+
+// --- Eine NEUE Zeile ist gedeckelt (Gesamtprüfung 2026-08-07) ------------------------------------
+//
+// 💣 Eine neue Wiki-Kopie eines Herrschaftsgebiets bringt gut dreißig Felder mit. Ungedeckelt stand
+// die ganze Zeile als eine Textwurst da -- samt JSON-Klumpen und samt der Pseudo-Felder, die überall
+// sonst stumm sind. Dieselbe Sechs wie im Vergleich, und der Rest wird gezählt statt verschwiegen.
+const bigNew = sandbox.syncPlanNewSummary({
+    change_type: "new",
+    after: {
+        name: "Baronie Hügelsee", type: "Baronie", continent: "Aventurien",
+        affiliation_raw: "Kosch", affiliation_key: "wiki:kosch", affiliation_root: "Mittelreich",
+        affiliation_path_json: '["Mittelreich","Kosch"]', status: "aktiv", ruler: "Baron X",
+        capital_name: "Hügelsee", language: "Garethi",
+        pin_fields: "name,type", hand_edited: "name",
+    },
+});
+assert.ok(bigNew.includes("Name: Baronie Hügelsee"), "die ersten Felder stehen ausgeschrieben da");
+assert.ok(bigNew.includes("+ 5 weitere Felder"), "💣 gedeckelt bei sechs, die restlichen fünf werden gezählt");
+assert.ok(!bigNew.includes("Sprache") && !bigNew.includes("affiliation_path_json"),
+    "ab dem siebten Feld steht nichts mehr einzeln da -- auch kein JSON-Klumpen");
+assert.ok(!bigNew.includes("pin_fields") && !bigNew.includes("hand_edited"),
+    "💣 die stummen Pseudo-Felder erscheinen auch hier nicht -- und zählen nicht mit");
+assert.strictEqual((bigNew.match(/ · /g) || []).length, 6, "sechs Felder plus der Restzähler");
+
+// Eine kurze neue Zeile bleibt, was sie war: keine Zahl, kein Rest.
+const smallNew = sandbox.syncPlanNewSummary({ change_type: "new", after: { title: "Elenvina", art: "stadtplan" } });
+assert.ok(smallNew.includes("Titel: Elenvina") && !smallNew.includes("weitere Felder"));
+// Was der Server schon abgeschnitten hat, zählt mit -- sonst behauptet „+ 1 weitere" Vollständigkeit.
+const serverCapped = sandbox.syncPlanNewSummary({ change_type: "new", after: { name: "X", fields_more: "24" } });
+assert.ok(serverCapped.includes("+ 24 weitere Felder"), "der serverseitige Rest wird übernommen");
+assert.ok(!serverCapped.includes("fields_more"), "und nicht als rohes Feld gezeigt");
+
+// --- „Werte festhalten": gelungen = tot, misslungen = klickbar -----------------------------------
+//
+// 💣 Bis 2026-08-07 stand es andersherum: unter „ging nicht — bitte erneut" war der Knopf gesperrt,
+// nach „festgehalten" lud er zum zweiten Klick ein. Ein Knopf, der genau dann nicht geht, wenn er
+// soll, ist schlimmer als keiner.
+const pinOk = sandbox.syncPlanPinButtonState(true);
+assert.strictEqual(pinOk.text, "festgehalten");
+assert.strictEqual(pinOk.disabled, true, "🔴 nach dem Festhalten gibt es nichts mehr zu tun");
+const pinFail = sandbox.syncPlanPinButtonState(false);
+assert.strictEqual(pinFail.text, "ging nicht — bitte erneut");
+assert.strictEqual(pinFail.disabled, false, "🔴 wer 'bitte erneut' liest, muss erneut drücken können");
+// Alles, was nicht ausdrücklich true ist, ist ein Fehlschlag -- undefined kommt von einem Aufrufer
+// ohne Rückgabewert, und der hat nichts festgehalten.
+assert.strictEqual(sandbox.syncPlanPinButtonState(undefined).disabled, false);
+assert.strictEqual(sandbox.syncPlanPinButtonState("ja").disabled, false, "eine Zeichenkette ist kein Ja");
+
+// 💣 Und der Zuhörer fängt den Wurf ab. Der Sender antwortet nicht mit ok:false, er WIRFT -- in einem
+// async-Zuhörer ohne try/catch verlässt die Ablehnung die Funktion wortlos, und der Knopf bleibt für
+// immer gesperrt und beschriftet, als liefe er noch.
+const pinListener = body.slice(body.indexOf('sheet.querySelectorAll("[data-pin]")'));
+const pinBody = pinListener.slice(0, pinListener.indexOf("const declinedButton"));
+assert.ok(/try\s*\{[\s\S]*await options\.onPin\([\s\S]*?\}\s*catch/.test(pinBody),
+    "💣 der await auf onPin steht in einem try/catch");
+assert.ok(pinBody.includes("syncPlanPinButtonState("),
+    "und die Beschriftung kommt aus der reinen Funktion, nicht aus einer zweiten Kopie der Regel");
+
+// --- Der leere Fall nennt den Knopf DIESER Art ---------------------------------------------------
+//
+// „Erst Karten syncen" schickt im Territorien-Monitor jemanden nach einem Knopf suchen, den es dort
+// nicht gibt: die Kachel heißt „1 · 🚨 Syncen".
+assert.ok(kindMeta("territory_wiki").emptyHint.includes("1 · 🚨 Syncen"), "die Kopie nennt ihre Kachel");
+assert.ok(kindMeta("citymap").emptyHint.includes("Karten syncen"), "die Karten ihre");
+assert.ok(kindMeta("lore").emptyHint.includes("Vorkommen syncen"), "die Vorkommen ihre");
+assert.ok(kindMeta("wurstsalat").emptyHint.length > 0, "und eine unbekannte Art bleibt nicht stumm");
+assert.ok(!kindMeta("wurstsalat").emptyHint.includes("Karten"), "sie behauptet aber keinen fremden Knopf");
+assert.strictEqual((body.match(/Karten syncen/g) || []).length, 1,
+    "der Kartenknopf wird genau EINMAL genannt: in der Tabelle. Jede weitere Nennung ist der fest "
+    + "verdrahtete Satz, der gerade abgeschafft wurde.");
 
 console.log("sync-plan-sheet ok");
