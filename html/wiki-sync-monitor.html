@@ -40,6 +40,10 @@
      genau der Zustand, den editor-page.css beendet hat: derselbe Wert an vier Stellen laeuft
      auseinander. NICHT editor-shell.css, das ist die App-Huelle drumherum. -->
 <link rel="stylesheet" href="/css/components/editor-page.css">
+<!-- Die Uebernahme-Vorschau: ein Bauteil fuer jeden Wiki-Abgleich (Entwurf 2026-08-06). Der Deploy
+     stempelt beide Verweise mit einem Inhaltshash, weil sie von einer html/*.html-Seite aus
+     erreichbar sind -- hier steht deshalb KEIN ?v= von Hand (AGENTS.md §7). -->
+<link rel="stylesheet" href="/css/components/sync-plan-sheet.css">
 <style>
   /* Local short names are now ALIASES of the real design tokens (css/base/tokens.css) instead of a
      pinned light palette, so every rule below follows the light/dark theme without being rewritten. */
@@ -247,34 +251,18 @@
   fieldset.fld legend { color:var(--mut); padding:0 4px; }
   fieldset.fld label { display:block; margin:3px 0; }
   .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
-  /* Identitäts-Vorschau-Modal */
-  .ident-box { width:920px; max-width:94vw; }
-  .ident-controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:6px 0 8px; }
-  .ident-chips { display:flex; gap:6px; flex-wrap:wrap; }
-  .ident-chip { font-size:var(--font-size-caption); padding:3px 9px; border:1px solid var(--line); border-radius:999px; background:var(--panel); cursor:pointer; }
-  .ident-chip.active { background:var(--color-button); color:var(--color-button-text); border-color:var(--color-button-border); }
-  #identSearch { font-size:var(--font-size-small); padding:4px 8px; flex:1 1 180px; min-width:140px; }
+  /* .ident-table bedient jetzt nur noch #geomModal ("🗑 Nicht zugewiesene Geometrie") -- die
+     Identitäts-Vorschau, die die anderen .ident-*-Regeln brauchte, ist mit der Übernahme-Vorschau
+     (sync-plan-sheet.js) abgelöst. */
   .ident-table { max-height:60vh; overflow:auto; border:1px solid var(--line); border-radius:6px; }
-  .ident-row { padding:6px 9px; border-bottom:1px solid var(--line); font-size:var(--font-size-small); }
-  .ident-row:last-child { border-bottom:none; }
-  .ident-name { font-weight:bold; color:var(--color-text-strong); }
-  .ident-wk { color:var(--mut); font-size:var(--font-size-caption); margin-left:6px; }
-  .ident-changes { display:grid; grid-template-columns:auto 1fr; gap:1px 8px; margin-top:3px; }
-  .ident-fld { color:var(--mut); white-space:nowrap; }
-  .ident-old { color:var(--bad); }
-  .ident-arrow { color:var(--mut); }
-  .ident-new { color:var(--color-success); }
 </style>
 </head>
 <body>
 <header>
   <div class="controls">
-    <button class="btn2 primary" id="btnCrawl" title="Übernimmt die Herrschaftsgebiete aus dem geholten Offline-Dump ins Staging und baut die Hierarchie neu (läuft in Schüben)."><span class="t1">🚨 Syncen</span><span class="t2" id="stSync">—</span></button>
-    <button class="btn2" id="btnModel" title="Berechnet die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)"><span class="t1">Hierarchie</span><span class="t2" id="stModel">—</span></button>
-    <button class="btn2" id="btnDiff" title="Vergleicht Staging gegen das aktuelle Wiki: gelöscht / geändert / neu"><span class="t1">Unterschiede</span><span class="t2" id="stDiff">—</span></button>
-    <button class="btn2" id="btnCache" title="Testweise zeigen, was die Übertragung nach Avesmaps ändern würde – schreibt nichts"><span class="t1">Test</span><span class="t2" id="stTest">—</span></button>
-    <button class="btn2" id="btnIdentPreview" title="Vorschau der Daten-Änderungen (Name, Staatsform, Status, Gegründet/Aufgelöst, „Bis heute“) – im Dialog mit „Daten übernehmen“ schreibbar"><span class="t1">Daten übernehmen</span><span class="t2" id="stIdent">—</span></button>
-    <button class="btn2 primary" id="btnApply" title="Übernimmt das kuratierte Modell in Avesmaps – schreibt Eltern-Zuweisungen UND Daten (Name/Status/Gegründet/Aufgelöst, „Bis heute“); Geometrien bleiben unberührt"><span class="t1">Modell übernehmen</span><span class="t2" id="stApply">—</span></button>
+    <button class="btn2 primary" id="btnCrawl" title="Liest die Herrschaftsgebiete aus dem geholten Offline-Dump ins Staging, rechnet die Hierarchie neu und zeigt danach, was die Wiki-Kopie bekäme. Geschrieben wird erst, was du anhäkelst."><span class="t1">1 · 🚨 Syncen</span><span class="t2" id="stSync">—</span></button>
+    <button class="btn2" id="btnModel" title="Berechnet die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)"><span class="t1">2 · Hierarchie rechnen</span><span class="t2" id="stModel">—</span></button>
+    <button class="btn2 primary" id="btnApply" title="Zeigt, was in die Karte geschrieben würde – Daten, Eltern-Zuweisungen und neue eigene Knoten. Geschrieben wird nur, was angehäkelt ist; Geometrien bleiben unberührt."><span class="t1">3 · Übernehmen</span><span class="t2" id="stApply">—</span></button>
     <button class="btn2" id="btnLocalizeCoats" title="Prüft zuerst die Wappen-Lizenzen neu (nur die bisher unbekannten – sichtbare Wappen bleiben dabei sichtbar), lädt dann ALLE noch auf wiki-aventurica verlinkten gemeinfreien Wappen auf den Avesmaps-Server, verkleinert sie (max. 512px) und nutzt künftig die lokalen Kopien (Override). Läuft in Schüben; schreibt nur Wappen-Overrides, keine Geometrien."><span class="t1">Wappen lokalisieren</span><span class="t2" id="stLocalize">—</span></button>
     <button class="btn2" id="btnCoatsToggle" aria-pressed="false" title="Globaler Schalter: ersetzt ALLE Wappen der Herrschaftsgebiete im öffentlichen Frontend durch einen leeren Schild – Kartenlabel, Infobox, Tooltip und die „Liegt in“-Treppe. Die Wappen selbst bleiben gespeichert, dieser Editor und der Edit-Modus der Karte zeigen sie weiter."><span class="t1" id="stCoatsToggleLabel">Wappen: An</span><span class="t2">im Frontend</span></button>
     <button class="btn2" id="btnLinkCheck" title="Prüft NUR die Quellen-Links der Herrschaftsgebiete auf Erreichbarkeit. Abenteuer, Karten und Siedlungs-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="stLinkCheck">—</span></button>
@@ -283,6 +271,7 @@
 <div id="status">
   <span id="statusText">Bereit.</span>
   <span id="busy" class="muted" style="margin-left:8px"></span>
+  <span id="planOpen" class="muted" style="margin-left:8px"></span>
   <div id="contDD" class="dropdown2">
     <button type="button" id="contBtn" class="ddbtn" title="Filtert beide Listen nach Kontinent">Kontinente <span id="contCount" class="count"></span><span class="ddcaret">▾</span></button>
     <div class="dd-menu" id="contMenu" hidden></div>
@@ -337,6 +326,7 @@
     <div id="detailBody"><div class="dt-empty">Links oder im Baum ein Herrschaftsgebiet anklicken, um die gecrawlten Wiki-Details zu sehen.</div></div>
   </div>
 </div>
+<div id="planSheet" class="sync-plan-host" hidden></div>
 <div id="wappenDialog" class="modal" hidden>
   <div class="modal-box">
     <div class="modal-title">Eigenes Wappen hochladen</div>
@@ -361,22 +351,6 @@
     </div>
   </div>
 </div>
-<div id="identModal" class="modal" hidden>
-  <div class="modal-box ident-box">
-    <div class="modal-title">Daten-Vorschau (read-only)</div>
-    <div class="modal-sub" id="identSummary">—</div>
-    <div class="ident-controls">
-      <div class="ident-chips" id="identChips"></div>
-      <input type="search" id="identSearch" placeholder="Name / wiki_key suchen…">
-    </div>
-    <div class="ident-table" id="identTable"></div>
-    <div class="modal-actions">
-      <button id="identClose">Schließen</button>
-      <button class="primary" id="identApply" title="Schreibt nur die angezeigten Daten-Felder (Name, Staatsform, Status, Gültigkeit, Kontinent) – ohne Hierarchie/Eltern – (inkl. „Bis heute“) in political_territory – mit Backup/Revert">Daten übernehmen</button>
-    </div>
-  </div>
-</div>
-
 <div id="geomModal" class="modal" hidden>
   <div class="modal-box" style="width:680px">
     <div class="modal-title">🗑 Nicht zugewiesene Geometrie</div>
@@ -394,6 +368,9 @@
 <!-- Verschiebbare Fenster: greift die .modal-title dieser Seite. Die Fenster der Hauptseite bedient
      dieselbe Datei dort; ein iframe braucht seine eigene Kopie, sein Dokument ist ein anderes. -->
 <script src="/js/ui/dialog-drag.js"></script>
+<!-- Die Übernahme-Vorschau. Gewöhnliches Skript ohne App-Globals und ohne Griff ins Elternfenster --
+     deshalb funktioniert diese Seite auch, wenn sie per window.open in einem eigenen Fenster steht. -->
+<script src="/js/review/sync-plan-sheet.js"></script>
 <script>
 const API = '/api/edit/wiki/sync-monitor.php';
 // Offline-Dump endpoint (api/edit/wiki/dump.php). "Syncen" drives its sync_kind
@@ -519,6 +496,17 @@ async function runCrawl() {
       await loadModel();
       await loadEditorState();
       setStatus('Syncen fertig. Die Hierarchie wurde aus dem Dump neu berechnet.');
+      // Schritt 4/4: rechnen, was die Wiki-Kopie bekäme. Geschrieben wird nichts.
+      setStatus('Vergleiche die Wiki-Kopie …');
+      let cursor = '';
+      for(let round = 0; round < 200; round++){
+        const step = await api('build_territory_wiki_plan', {method:'POST', body:{cursor: cursor}});
+        cursor = step.nextCursor || '';
+        setStatus(`Vergleiche die Wiki-Kopie … ${step.planned} Unterschiede bisher.`);
+        if(step.done) break;
+      }
+      await refreshPlanStatus();
+      await openPlan('territory_wiki');
     }
   } catch(e) { setStatus('Fehler: '+e.message); }
   busy(false);
@@ -529,8 +517,6 @@ async function loadEditorState(){ try{ renderEditorState(await api('editor_state
 function renderEditorState(s){
   $('stSync').textContent  = s.last_sync_at ? `letzte Sync: ${fmtDT(s.last_sync_at)}` : 'noch nie gesynct';
   $('stModel').textContent = s.model_fresh ? '✓ Modell aktuell' : 'Modell nicht aktuell';
-  $('stDiff').textContent  = (s.diff_fresh && s.last_diff_at) ? `gelöscht ${s.diff.deleted??0}, geändert ${s.diff.changed??0}, neu ${s.diff.new??0}` : 'noch nicht verglichen';
-  $('stTest').textContent  = s.test_fresh ? '✓ Ergebnis da' : 'ausstehend';
   $('stApply').textContent = s.apply_fresh ? '✓ gespeichert und übernommen' : 'noch nicht übernommen';
   if (typeof s.coats_enabled === 'boolean') setCoatsToggleState(s.coats_enabled);
 }
@@ -1231,9 +1217,10 @@ document.addEventListener('click', e => {
 });
 
 $('btnCrawl').onclick = () => { if (window.confirm("Syncen wirklich starten? Das übernimmt die Herrschaftsgebiete aus dem geholten Offline-Dump ins Staging und baut die Hierarchie neu (läuft in Schüben).")) runCrawl(); };
-$('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Hierarchie: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
-$('btnDiff').onclick = async()=>{ busy(true); try{ const d=await api('diff'); setStatus(`Unterschiede (Staging vs Wiki): neu ${d.new}, verschwunden ${d.disappeared}, geändert ${d.changed}.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
-$('btnCache').onclick = async()=>{ busy(true); try{ const c=await api('sync_parent_cache',{method:'POST',body:{}}); setStatus(`Testübertragung: auffüllbar ${c.fillable}, deckungsgleich ${c.already_aligned}, divergent ${c.divergent_existing} – es wurde nichts geschrieben.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
+$('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Hierarchie: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false);
+  // Die Eltern haben sich gerade geändert: eine offene Karten-Vorschau zählt nicht mehr.
+  await refreshPlanStatus();
+};
 // Link check, scoped to the TERRITORY source links. Delegates to window.parent.startLinkCheck() -- the
 // same single loop the adventure/settlement editors drive, just a different scope, so nothing else is
 // touched here (one 2851-link run split into portions someone can sit through). Progress arrives via the
@@ -1309,33 +1296,18 @@ $('btnLocalizeCoats').onclick = async()=>{
   refreshLocalizeCount();
 };
 $('btnApply').onclick = async()=>{
-  busy(true); let dry, dryOwn, ident;
-  try {
-    dry = await api('apply_parent_cache', {method:'POST', body:{dry_run:true}});
-    dryOwn = await api('apply_custom_nodes', {method:'POST', body:{dry_run:true}});
-    // Identitäts-Vorschau mitziehen: "Modell übernehmen" schreibt jetzt AUCH die Identitäts-/Validitäts-Overrides
-    // (Name/Status/Gegründet/Aufgelöst inkl. "Bis heute") nach political_territory, nicht nur die Eltern.
-    ident = await api('apply_identity_preview');
-  }
-  catch(e){ setStatus('Fehler: '+e.message); busy(false); return; }
-  busy(false);
-  const unres = (dry.unresolved||[]).length;
-  const ownCreate = (dryOwn.to_create||[]).length;
-  const ownUnres = (dryOwn.unresolved_parents||[]).length;
-  const identN = ident?.summary?.rows_with_changes || 0;
-  const ownLine = `• ${ownCreate} eigene Knoten werden neu angelegt${ownUnres?` (${ownUnres} ohne auflösbaren Elternteil)`:''}\n`;
-  const identLine = `• ${identN} Daten-Änderungen (Name/Status/Gegründet/Aufgelöst, „Bis heute") werden übernommen\n`;
-  if (!confirm(`Modell in Avesmaps übernehmen?\n\n• ${dry.will_apply} Eltern-Zuweisungen werden gesetzt/überschrieben\n• ${unres} nicht auflösbar (übersprungen – Eltern fehlt live)\n${ownLine}${identLine}• Geometrien bleiben unberührt\n\nJetzt schreiben?`)) { setStatus('Übernahme abgebrochen.'); return; }
   busy(true);
-  try {
-    const r = await api('apply_parent_cache', {method:'POST', body:{dry_run:false, confirm:'apply'}});
-    const ro = await api('apply_custom_nodes', {method:'POST', body:{dry_run:false, confirm:'apply'}});
-    const ri = await api('apply_identity', {method:'POST', body:{dry_run:false, confirm:'apply'}});
-    if (ri && ri.ok === false) { throw new Error(ri.error || 'Daten-Übernahme fehlgeschlagen.'); }
-    setStatus(`Übernommen: ${r.applied} Eltern-Zuweisungen, ${ro.created} eigene Knoten neu, ${ro.linked} verknüpft, ${ri.written}/${ri.targets} Daten geschrieben${(ro.unresolved_parents||[]).length?`, ${ro.unresolved_parents.length} ohne Elternteil`:''}.`);
-    await loadModel(); await loadEditorState();
-  }
-  catch(e){ setStatus('FEHLER beim Übernehmen (nicht alles geschrieben): '+e.message); }
+  try{
+    // Eine offene Liste wird gezeigt, nicht neu gerechnet -- sonst wären die Häkchen von gestern weg.
+    const open = await planPost({action:'get', kind:'territory'});
+    if(!open.run){
+      setStatus('Rechne, was in die Karte ginge …');
+      const step = await api('build_territory_plan', {method:'POST', body:{}});
+      setStatus(`${step.counts.total} Unterschiede — Vorschau offen.`);
+    }
+    await openPlan('territory');
+    await refreshPlanStatus();
+  }catch(e){ setStatus('Fehler: '+e.message); }
   busy(false);
 };
 $('btnNewOwn').onclick = createOwnNode;
@@ -1447,73 +1419,78 @@ async function uploadCoat(){
 }
 $('wappenUpload').onclick = uploadCoat;
 
-// --- Identitäts-Vorschau (Apply-Flow Phase A, read-only) ---
-let IDENT=null, identFieldFilter='';
-const IDENT_LABELS={ name:'Name', type:'Staatsform', status:'Status', valid_from_bf:'Gegründet', valid_to_bf:'Aufgelöst', continent:'Kontinent' };
-function fmtIdentVal(field, v){
-  if(v===null||v===undefined||v==='') return '—';
-  if(field==='valid_from_bf'||field==='valid_to_bf'){ const n=Number(v); return n<0?(Math.abs(n)+' v.BF'):(n+' BF'); }
-  return String(v);
+// --- Übernahme-Vorschau ---------------------------------------------------------------------------
+// Zwei Arten, zwei Schritte: die Wiki-Kopie hängt an „1 · 🚨 Syncen", die Karte an „3 · Übernehmen".
+// Eine offene Liste wird GEZEIGT, nicht neu gerechnet -- „Später" wäre sonst wertlos.
+const PLAN_API = '/api/edit/wiki/sync-plan.php';
+let planRows = {};   // id -> {entity_key, before}
+
+async function planPost(body){
+  const response = await fetch(PLAN_API, {method:'POST', credentials:'same-origin',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  const payload = await response.json().catch(()=>null);
+  if(!response.ok || !payload || payload.ok !== true){
+    const error = new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+    error.code = payload && payload.error && payload.error.code;
+    throw error;
+  }
+  if(body.action === 'get' && payload.items){
+    planRows = {};
+    ['new','changed','deleted'].forEach(group => (payload.items[group]||[]).forEach(row => {
+      planRows[row.id] = {entity_key: row.entity_key, before: row.before || {}};
+    }));
+  }
+  return payload;
 }
-async function openIdentPreview(){
-  busy(true);
-  try{
-    IDENT = await api('apply_identity_preview');
-    const s=IDENT.summary;
-    $('stIdent').textContent = `${s.rows_with_changes} Änderungen`;
-    renderIdentModal();
-    $('identModal').hidden=false;
-  }catch(e){ setStatus('Fehler: '+e.message); }
-  busy(false);
+
+async function pinValues({id, fields}){
+  const row = planRows[id];
+  if(!row) return false;
+  for(const field of fields){
+    const value = row.before[field];
+    // Der Live-Wert wird zum eigenen Wert. Ein leerer Live-Wert ist dabei ein gültiger eigener Wert:
+    // „hier steht absichtlich nichts" ist eine Aussage, „" ist nur ihre Schreibweise.
+    const result = await api('set_field_override', {method:'POST',
+      body:{wiki_key: row.entity_key, field_key: field, value: value === undefined ? '' : String(value)}});
+    if(!result || result.ok === false) return false;
+  }
+  await loadModel();
+  return true;
 }
-function renderIdentChips(){
-  const fc=IDENT.field_counts||{};
-  const chips=[`<span class="ident-chip${identFieldFilter===''?' active':''}" data-fld="">Alle (${IDENT.summary.rows_with_changes})</span>`];
-  for(const f of ['name','type','status','valid_from_bf','valid_to_bf','continent']){ if(!fc[f]) continue; chips.push(`<span class="ident-chip${identFieldFilter===f?' active':''}" data-fld="${f}">${IDENT_LABELS[f]} (${fc[f]})</span>`); }
-  $('identChips').innerHTML=chips.join('');
-}
-function renderIdentRows(){
-  const q=($('identSearch').value||'').trim().toLowerCase();
-  const all=IDENT.rows||[];
-  const rows=all.filter(r=>{
-    if(identFieldFilter && !(r.changes && r.changes[identFieldFilter])) return false;
-    if(q && !((r.name||'').toLowerCase().includes(q) || (r.wiki_key||'').toLowerCase().includes(q))) return false;
-    return true;
+
+async function openPlan(kind){
+  await openSyncPlanSheet({
+    kind: kind,
+    mount: $('planSheet'),
+    post: planPost,
+    onApplied: async ()=>{ await loadModel(); await loadEditorState(); await refreshPlanStatus(); },
+    onClose: ()=>{ refreshPlanStatus(); },
+    onPin: pinValues,
   });
-  const out=rows.map(r=>{
-    const ch=Object.keys(r.changes).filter(f=>!identFieldFilter||f===identFieldFilter).map(f=>{ const c=r.changes[f]; return `<div class="ident-fld">${IDENT_LABELS[f]||f}</div><div><span class="ident-old">${esc(fmtIdentVal(f,c.from))}</span> <span class="ident-arrow">→</span> <span class="ident-new">${esc(fmtIdentVal(f,c.to))}</span></div>`; }).join('');
-    return `<div class="ident-row"><span class="ident-name">${esc(r.name||'')}</span><span class="ident-wk">${esc(r.wiki_key||'')}</span><div class="ident-changes">${ch}</div></div>`;
-  }).join('');
-  const trunc = all.length>=300 ? `<div class="muted" style="padding:6px 9px">… nur die ersten ${all.length} Zeilen geladen (Backend-Limit)</div>` : '';
-  $('identTable').innerHTML = (out||'<div class="muted" style="padding:8px">— keine —</div>') + trunc;
 }
-function renderIdentModal(){
-  const s=IDENT.summary;
-  $('identSummary').textContent = `${s.live_with_wiki_key} Live-Gebiete · ${s.rows_with_changes} würden sich ändern · ${s.unchanged} unverändert · ${s.excluded_skipped} aussortiert · ${s.no_staging} ohne Staging — read-only, schreibt nichts.`;
-  renderIdentChips(); renderIdentRows();
+
+// Die Statuszeile nennt jede offene Liste mit ihrer Zahl. Ohne sie wäre eine liegengebliebene
+// Vorschau unerreichbar -- es gibt keine Kachel mehr, die sie öffnet.
+async function refreshPlanStatus(){
+  const parts = [];
+  for(const [kind, label] of [['territory_wiki','Wiki-Kopie'], ['territory','Karte']]){
+    try{
+      const plan = await planPost({action:'get', kind: kind});
+      if(plan.run){
+        const total = (plan.run.counts && plan.run.counts.total) || 0;
+        parts.push(`<b>${label}</b> — ${total} Unterschiede <a href="#" data-open-plan="${kind}">öffnen</a>`);
+      }
+    }catch(e){ /* keine Liste ist kein Fehler */ }
+  }
+  $('planOpen').innerHTML = parts.length ? 'Vorschau offen: ' + parts.join(' · ') : '';
 }
-$('btnIdentPreview').onclick = openIdentPreview;
-$('identClose').onclick = ()=>{ $('identModal').hidden=true; };
-$('identApply').onclick = async()=>{
-  if(!IDENT){ setStatus('Erst die Daten-Vorschau laden.'); return; }
-  const n = IDENT.summary?.rows_with_changes || 0;
-  if(n < 1){ setStatus('Keine Daten-Änderungen zu übernehmen.'); return; }
-  const fc = IDENT.field_counts || {};
-  const fcLine = ['name','type','status','valid_from_bf','valid_to_bf','continent'].filter(f=>fc[f]).map(f=>`${IDENT_LABELS[f]}: ${fc[f]}`).join(', ');
-  if(!confirm(`Daten in Avesmaps übernehmen?\n\n• ${n} Gebiete werden geändert (${fcLine})\n• Schreibt Name/Staatsform/Status/Gegründet/Aufgelöst (inkl. „Bis heute“) in political_territory\n• Rückgängig per Backup/Revert\n\nJetzt schreiben?`)){ setStatus('Daten-Übernahme abgebrochen.'); return; }
-  busy(true);
-  try{
-    const r = await api('apply_identity', {method:'POST', body:{dry_run:false, confirm:'apply'}});
-    if(r && r.ok === false){ throw new Error(r.error || 'Daten-Übernahme fehlgeschlagen.'); }
-    setStatus(`Daten übernommen: ${r.written}/${r.targets} Gebiete geschrieben${r.skipped_skiplist?`, ${r.skipped_skiplist} übersprungen`:''} (Batch ${r.batch_id||'—'}).`);
-    $('identModal').hidden = true;
-    await loadEditorState();
-  }catch(e){ setStatus('FEHLER bei der Daten-Übernahme:'+e.message); }
-  busy(false);
-};
-$('identModal').addEventListener('click', e=>{ if(e.target.id==='identModal') $('identModal').hidden=true; });
-$('identChips').addEventListener('click', e=>{ const c=e.target.closest('.ident-chip'); if(c){ identFieldFilter=c.dataset.fld; renderIdentChips(); renderIdentRows(); } });
-$('identSearch').oninput = renderIdentRows;
+
+$('planOpen').addEventListener('click', (event)=>{
+  const link = event.target.closest('[data-open-plan]');
+  if(!link) return;
+  event.preventDefault();
+  openPlan(link.dataset.openPlan);
+});
 
 // --- Nicht zugewiesene (verwaiste) Geometrien: Liste + endgültig löschen ---
 async function geomApi(action, body){
@@ -1581,6 +1558,7 @@ loadModel().then(()=>{
   }
 }).catch(e=>setStatus('Modell laden fehlgeschlagen: '+e.message));
 loadEditorState();
+refreshPlanStatus();
 loadUnassignedGeoms();
 refreshLocalizeCount();
 </script>
