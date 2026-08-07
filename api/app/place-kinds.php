@@ -2,15 +2,18 @@
 
 declare(strict_types=1);
 
-// Public, read-only: the place-kind vocabulary for the editor's "Art" field, sorted by how often
-// each kind actually occurs in this installation's own data.
+// Public, read-only: the place-kind vocabulary for the editor's "Art" field, in ALPHABETICAL
+// order, each kind carrying how often it actually occurs in this installation's own data.
 // (docs/superpowers/specs/2026-08-02-ort-bearbeiten-ortsarten-design.md)
 //
 // The VOCABULARY is a constant (api/_internal/wiki/place-kinds.php, one source of truth shared
-// with the wiki crawl). Only the ORDER comes from the database, and that is the point: the wiki
-// has ~90 kinds with an extreme long tail -- Festung has more articles than the bottom thirty
-// together -- so an alphabetical list would bury everything an editor actually reaches for.
-// Sorting by measured frequency means the list follows the data, not somebody's opinion.
+// with the wiki crawl). Only the COUNTS come from the database.
+//
+// Until 2026-08-07 the list was ordered by those counts. It was changed on an editor's request
+// (Discord case #64, owner's call): the long-tail argument was real but answered the wrong
+// question -- an editor who opens this field is looking for ONE kind they already have in mind,
+// and they look for it under its first letter. The count stays in the payload and is still shown;
+// it now says how common a kind is instead of explaining the order.
 //
 // The whole list is sent ONCE and filtered in the browser. It is ~83 short strings; a round trip
 // per keystroke would cost more than the payload, and the filter rule has to exist client-side

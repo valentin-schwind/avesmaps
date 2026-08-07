@@ -1782,12 +1782,17 @@ function avesmapsEcosystemReadRegionTypes(PDO $pdo, ?string $kind): array
         $sql .= ' AND kind = :kind';
         $params['kind'] = $kind;
     }
+    // Die Datenbank liefert die stabile Grundordnung; die Anzeigereihenfolge macht danach in PHP
+    // avesmapsEcosystemSortRegionTypes(). Absicht: sie haengt damit nicht an der Kollation der Spalte
+    // (utf8mb4_*_ci sortiert Umlaute anders als eine _bin-Spalte), und sie ist gegen pdo_sqlite
+    // pruefbar, das byteweise sortiert -- eine Reihenfolge, die auf dem Testrechner anders ausfaellt
+    // als auf STRATO, waere keine.
     $sql .= ' ORDER BY kind ASC, sort_order ASC, label ASC';
 
     $statement = $pdo->prepare($sql);
     $statement->execute($params);
 
-    return array_map(
+    return avesmapsEcosystemSortRegionTypes(array_map(
         static fn(array $row): array => [
             'kind' => (string) $row['kind'],
             'type_key' => (string) $row['type_key'],
@@ -1800,7 +1805,41 @@ function avesmapsEcosystemReadRegionTypes(PDO $pdo, ?string $kind): array
             'terrain_mean_height' => $row['terrain_mean_height'] === null ? null : (float) $row['terrain_mean_height'],
         ],
         $statement->fetchAll()
-    );
+    ));
+}
+
+// Die Anzeigereihenfolge der „Art"-Auswahl, je Ebene. PURE -- Eingabe und Ausgabe sind dieselben
+// Zeilen, nur anders sortiert; der Test erreicht sie ohne Datenbank.
+//
+// ALPHABETISCH (Editor-Wunsch, Discord-Fall #64, Owner-Entscheid 2026-08-07). Die `sort_order` der
+// drei sichtbaren Ebenen war nie eine Aussage, sondern die Reihenfolge, in der die Arten
+// nachgetragen wurden -- „Insel" stand hinter „Flussdelta", weil sie später kam. Diese eine
+// Funktion ordnet ALLE Art-Auswahlfelder der Landschaften: den Landschaften-Editor, „Fläche
+// übertragen" auf der Karte und die Art am Flächenlabel lesen alle dieselbe Liste (`region_types`
+// aus list_regions).
+//
+// 🔴 AUSSER `klima`. Dort IST die `sort_order` die Aussage -- sie sagt, welche Zone nördlich welcher
+// liegt (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED). Alphabetisch stünde die Polare Zone zwischen der
+// Gemäßigten und der Subpolaren, und die Auswahl behauptete eine falsche Erdkunde. Die Bänder
+// selbst rechnen über eine eigene Abfrage (app/climate-membership.php) und hängen nicht hier dran;
+// kaputt ginge also die Anzeige, nicht die Karte -- lautlos, und das ist das Schlimmere.
+//
+// 🪤 Sortiert wird ueber avesmapsGermanSortKey(), dieselbe Regel wie bei den Ortsarten
+// (wiki/place-kinds.php): byteweise stuenden „Hügelland" und „Küste" hinter allem anderen.
+function avesmapsEcosystemSortRegionTypes(array $rows): array {
+    usort($rows, static function (array $a, array $b): int {
+        $kindOrder = strcmp((string) $a['kind'], (string) $b['kind']);
+        if ($kindOrder !== 0) {
+            return $kindOrder;
+        }
+        if ((string) $a['kind'] === 'klima') {
+            return 0; // stabil: die Ebene behaelt ihre Reihenfolge aus dem ORDER BY (sort_order)
+        }
+        $keyA = avesmapsGermanSortKey((string) $a['label']);
+        $keyB = avesmapsGermanSortKey((string) $b['label']);
+        return $keyA === $keyB ? strcmp((string) $a['label'], (string) $b['label']) : strcmp($keyA, $keyB);
+    });
+    return $rows;
 }
 
 // ---- write path: regions -----------------------------------------------------------------------------

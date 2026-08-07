@@ -113,19 +113,37 @@ assert(avesmapsFilterPlaceKinds($catalog, 'zzzz') === []);
 echo "filter ok\n";
 
 // -------------------------------------------------------------------- RANKING ---
-// Frequency decides, alphabet breaks ties, and a kind nobody has used yet still appears -- the
-// editor must be able to be the FIRST to file something as a Karawanserei.
+// ALPHABETICAL, regardless of how often a kind is used (case #64, owner's call 2026-08-07).
+// The count still travels -- it says how common a kind is -- but it no longer decides the order,
+// and a kind nobody has used yet sits in its normal place instead of at the bottom: the editor
+// must be able to be the FIRST to file something as a Karawanserei.
 $ranked = avesmapsRankPlaceKinds(['Oase', 'Festung', 'Brücke', 'Karawanserei'], ['Festung' => 421, 'Brücke' => 40, 'Oase' => 40]);
-assert(array_column($ranked, 'kind') === ['Festung', 'Brücke', 'Oase', 'Karawanserei']);
-assert($ranked[3]['count'] === 0);
-// Same counts in, same order out -- twice. A ranking that reshuffles between two requests moves
-// the entry under the cursor of someone who is mid-click.
+assert(array_column($ranked, 'kind') === ['Brücke', 'Festung', 'Karawanserei', 'Oase']);
+assert($ranked[2]['count'] === 0);          // Karawanserei -- unused, and still in the middle
+assert($ranked[0]['count'] === 40);         // the count rides along untouched
+
+// 🪤 THE assert of this block. Byte order puts every umlaut behind „z" (0xC3), so a naive strcmp
+// would answer Brunnen/Brücke and Feggagir/Fährstation the wrong way round -- in a list whose
+// whole purpose is that a name stands where a German reader looks for it.
+$umlaut = avesmapsRankPlaceKinds(['Brunnen', 'Brücke', 'Feggagir', 'Fährstation', 'Zoo'], []);
+assert(array_column($umlaut, 'kind') === ['Brücke', 'Brunnen', 'Fährstation', 'Feggagir', 'Zoo']);
+assert(avesmapsGermanSortKey('Wüstenoase') === 'wustenoase');
+assert(avesmapsGermanSortKey('Sümpfe & Moore') === 'sumpfe & moore');
+assert(avesmapsGermanSortKey('Straße') === 'strasse');
+
+// Same input, same order out -- twice. A list that reshuffles between two requests moves the
+// entry under the cursor of someone who is mid-click.
 $again = avesmapsRankPlaceKinds(['Oase', 'Festung', 'Brücke', 'Karawanserei'], ['Festung' => 421, 'Brücke' => 40, 'Oase' => 40]);
 assert($again === $ranked);
 // The real catalogue survives an empty count map (fresh installation, no wiki registry).
 $cold = avesmapsRankPlaceKinds($catalog, []);
 assert(count($cold) === count($catalog));
 assert(array_sum(array_column($cold, 'count')) === 0);
+// And it really is sorted end to end, not just in the sample above.
+$keys = array_map('avesmapsGermanSortKey', array_column($cold, 'kind'));
+$sorted = $keys;
+sort($sorted, SORT_STRING);
+assert($keys === $sorted);
 echo "ranking ok\n";
 
 echo "\nALL PLACE-KIND TESTS PASSED\n";

@@ -106,3 +106,34 @@ function avesmapsFoldToAscii(string $value): string {
 
     return $folded;
 }
+
+/**
+ * Sort key for a GERMAN word list: lower-cased, umlauts on their base letter
+ * (DIN 5007 variant 1 -- ae=a, oe=o, ue=u, sz=ss).
+ *
+ * 💣 THIS IS NOT avesmapsFoldToAscii(), AND THE DIFFERENCE IS THE WHOLE POINT.
+ *   The fold above reproduces what production has STORED ('ü' -> '?', the base
+ *   letter is gone); it must never change. This one is for DISPLAY order only,
+ *   it never touches a key, and it must keep the base letter -- sorted through
+ *   the fold, 'Brücke' would read 'br?cke' and land in front of everything.
+ *   They sit next to each other so the choice is visible: deriving a key ->
+ *   the one above; ordering a list a German reader will read -> this one.
+ *
+ * Why not strcmp() alone: a UTF-8 umlaut starts with 0xC3, so byte order puts
+ * every one of them behind 'z' -- 'Brücke' after 'Brunnen', 'Fährstation' after
+ * 'Feggagir'. Why not Collator/intl: the extension is not guaranteed on STRATO,
+ * and an order that depends on the host is not an order.
+ *
+ * Callers: the place-kind list (api/_internal/wiki/place-kinds.php) and the
+ * landscape "Art" vocabulary (api/_internal/app/ecosystem.php). Sorting in PHP
+ * rather than in SQL is deliberate for the second one: it keeps the result
+ * independent of the column's MySQL collation, and makes it testable against
+ * pdo_sqlite, which sorts bytewise.
+ */
+function avesmapsGermanSortKey(string $value): string {
+    return str_replace(
+        ['ä', 'ö', 'ü', 'ß'],
+        ['a', 'o', 'u', 'ss'],
+        mb_strtolower(trim($value), 'UTF-8')
+    );
+}

@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+// Fuer avesmapsGermanSortKey() -- die alphabetische Reihenfolge der Liste unten. Dieselbe Regel
+// ordnet die Landschafts-Arten (api/_internal/app/ecosystem.php): eine Sortierung, zwei Listen.
+require_once __DIR__ . '/../text/ascii-fold.php';
+
 // Der Ortsarten-Katalog: EINE Quelle der Wahrheit fuer „was fuer ein Ort ist das?“.
 //
 // Diese Liste hat zwei Abnehmer mit sehr verschiedenen Bedürfnissen, und genau deshalb steht sie
@@ -15,6 +19,9 @@ declare(strict_types=1);
 // Abnehmer 2 darf wiki/settlements.php NICHT laden -- die Datei ist gross, zieht place-scope,
 // coat-display und die WikiSync-Kerntabellen nach und macht DDL. Eine reine Konstantendatei
 // kostet dagegen nichts und ist ohne Datenbank testbar.
+//
+// Die EINE Abhaengigkeit (oben) ist text/ascii-fold.php, und sie aendert daran nichts: reine
+// Funktionen ueber Zeichenketten, keine Datenbank, kein DDL.
 //
 // 🔴 DIE REIHENFOLGE IST TRAGEND. avesmapsWikiDumpCategoryAssembleBuildingMap behält den ERSTEN
 // Typ, der einen Titel beansprucht (dump-category-layer.php) -- eine spezifische Art muss also vor
@@ -103,8 +110,9 @@ function avesmapsWikiSettlementIsExcludedBuildingType(string $type): bool {
 }
 
 // Die dem Editor angebotenen Arten: der Katalog ohne die versteckten und ohne die lineare
-// Infrastruktur. Die Reihenfolge hier ist bedeutungslos -- api/app/place-kinds.php sortiert nach
-// gemessener Haeufigkeit.
+// Infrastruktur. Die Reihenfolge hier ist bedeutungslos -- avesmapsRankPlaceKinds() sortiert die
+// Antwort alphabetisch. (Fuer den DUMP ist die Reihenfolge der Konstante sehr wohl tragend, siehe
+// ganz oben; gemeint ist hier nur, was der Editor angeboten bekommt.)
 function avesmapsPlaceKindCatalog(): array {
     $kinds = array_diff(AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES, AVESMAPS_PLACE_KIND_HIDDEN);
     return array_values(array_filter(
@@ -143,20 +151,26 @@ function avesmapsNormalizePlaceKind(string $value): string {
 
 // PURE. Katalog + gemessene Haeufigkeiten -> die Antwortzeilen von api/app/place-kinds.php.
 //
-// Gleichstand und Null fallen auf alphabetisch zurueck, damit das Ende der Liste zwischen zwei
-// Anfragen STABIL bleibt: eine Liste, die unter dem Cursor umspringt, ist schlimmer als eine, die
-// bloss lang ist. (usort ist seit PHP 8.0 stabil, die Zweitsortierung ist trotzdem explizit --
-// sie ist eine Zusage an den Client, keine Nebenwirkung der Implementierung.)
+// ALPHABETISCH (Editor-Wunsch, Discord-Fall #64, Owner-Entscheid 2026-08-07). Bis dahin stand die
+// Liste nach gemessener Haeufigkeit; das Argument dafuer war der extreme Langschwanz des Wikis.
+// Es hat sich in der Praxis nicht gehalten: wer eine Art SUCHT, sucht sie unter ihrem
+// Anfangsbuchstaben. Die Zahl reist weiter mit -- sie sagt jetzt, wie gebraeuchlich eine Art ist,
+// statt die Reihenfolge zu erklaeren.
+//
+// 🪤 Sortiert wird ueber avesmapsGermanSortKey(), nie ueber strcmp() allein: byteweise stuende
+// „Brücke" hinter „Brunnen" und „Fährstation" hinter „Feggagir", weil ein Umlaut mit 0xC3 beginnt.
+// Dieselbe Regel ordnet die Landschafts-Arten (app/ecosystem.php) -- eine Sortierung, zwei Listen.
+// Zweitschluessel bleibt der rohe Name, damit die Reihenfolge zwischen zwei Anfragen STABIL ist:
+// eine Liste, die unter dem Cursor umspringt, ist schlimmer als eine, die bloss lang ist.
 function avesmapsRankPlaceKinds(array $catalog, array $counts): array {
     $ranked = [];
     foreach ($catalog as $kind) {
         $ranked[] = ['kind' => (string) $kind, 'count' => (int) ($counts[$kind] ?? 0)];
     }
     usort($ranked, static function (array $a, array $b): int {
-        if ($a['count'] !== $b['count']) {
-            return $b['count'] <=> $a['count'];
-        }
-        return strcmp($a['kind'], $b['kind']);
+        $keyA = avesmapsGermanSortKey($a['kind']);
+        $keyB = avesmapsGermanSortKey($b['kind']);
+        return $keyA === $keyB ? strcmp($a['kind'], $b['kind']) : strcmp($keyA, $keyB);
     });
     return $ranked;
 }

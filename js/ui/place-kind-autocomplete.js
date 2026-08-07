@@ -11,11 +11,19 @@
 //   2. Gefiltert wird IM SPEICHER. Die Liste wird einmal geholt und bleibt liegen -- ein
 //      Netzaufruf je Tastendruck kostete mehr als die ganze Nutzlast.
 //
-// Die Reihenfolge kommt vom Server (nach gemessener Häufigkeit) und wird hier NICHT verändert:
-// das Wiki hat einen extremen Langschwanz, alphabetisch begrübe es alles Häufige.
+// Die Reihenfolge kommt vom Server (alphabetisch, seit Fall #64 / 2026-08-07) und wird hier NICHT
+// verändert -- sortiert wird an EINER Stelle, in avesmapsRankPlaceKinds. Ein zweites Sortieren im
+// Client wäre die Divergenz, die man erst bemerkt, wenn die beiden auseinanderlaufen.
 
 const PLACE_KIND_API_URL = "/api/app/place-kinds.php";
-const PLACE_KIND_LIMIT = 12;
+// 💣 Diese Zahl hängt an der SORTIERUNG, und beide zusammen ergeben erst den Sinn. Solange die Liste
+// nach Häufigkeit stand, waren die obersten 12 die zwölf nützlichsten -- eine Kappung, die nichts
+// kostete. Alphabetisch (Fall #64) wären es „Akademie" bis „Eispalast" gewesen: 71 der 83 Arten
+// nur noch über das Tippen erreichbar, und genau das Blättern zu einem Buchstaben, wegen dem die
+// Liste alphabetisch sein soll, ginge nicht mehr. Der Kasten scrollt ohnehin (`.sac-list`,
+// max-height 260px), 83 kurze Namen kosten ihn nichts. Die Zahl bleibt als Riegel gegen einen
+// entgleisten Katalog stehen, liegt aber bewusst ÜBER dessen Umfang.
+const PLACE_KIND_LIMIT = 200;
 
 // Einmal geholt, dann wiederverwendet. Ein zweiter Dialog-Aufruf soll nicht erneut laden.
 let placeKindCatalogPromise = null;
@@ -86,8 +94,9 @@ function renderPlaceKindAutocompleteHtml(state, opts) {
   const rows = items
     .map((item, index) => {
       const active = index === safeState.activeIndex;
-      // Die Zahl steht dabei, weil sie die Reihenfolge ERKLÄRT. Ohne sie sähe die Sortierung
-      // willkürlich aus. „—" statt „0": noch nie benutzt ist kein Messwert, sondern ein Anfang.
+      // Die Zahl sagt, wie gebräuchlich eine Art ist -- seit die Liste alphabetisch steht, erklärt
+      // sie nicht mehr die Reihenfolge, sondern ist die einzige Auskunft darüber, ob eine Art hier
+      // überhaupt verwendet wird. „—" statt „0": nie benutzt ist kein Messwert, sondern ein Anfang.
       const count = Number(item && item.count) || 0;
       const countLabel = count > 0
         ? '<span class="sac-uses">' + escape(String(count)) + "</span>"

@@ -1265,8 +1265,9 @@
 						</label>
 						<!-- Ortsart: die zweite Achse. Die Ortsgröße darüber entscheidet, WIE der Punkt gezeichnet wird
 						     (Radius, Symbol, ab welchem Zoom das Label kommt); dieses Feld sagt, WAS er ist. Optional --
-						     leer ist ein gültiger Zustand. Vorschläge kommen aus dem Wiki-Katalog, nach gemessener
-						     Häufigkeit sortiert (js/ui/place-kind-autocomplete.js). -->
+						     leer ist ein gültiger Zustand. Vorschläge kommen aus dem Wiki-Katalog, alphabetisch
+						     sortiert (js/ui/place-kind-autocomplete.js); die Zahl rechts sagt, wie oft die Art hier
+						     schon vergeben ist. -->
 						<label class="location-report-form__field">
 							<span>Art</span>
 							<input id="location-edit-place-kind" name="place_kind" type="search" maxlength="120" autocomplete="off" placeholder="z. B. Brücke – leer lassen, wenn unbekannt" />
@@ -1670,36 +1671,44 @@
 					<label class="location-report-form__field">
 						<span>Art *</span>
 						<div class="location-edit-fieldrow"><select id="label-edit-type" name="feature_subtype" required>
-							<option value="region">Region</option>
-							<option value="fluss">Fluss</option>
-							<option value="meer">Meer</option>
-							<option value="gebirge">Gebirge</option>
+							<!-- Alphabetisch (Fall #64, 2026-08-07), Umlaut auf seinem Grundbuchstaben: Küste bei K,
+							     Sümpfe bei S, Wüste bei W. Dieselbe Ordnung, die avesmapsEcosystemReadRegionTypes der
+							     eingedampften Ebenen-Liste gibt -- dasselbe Auswahlfeld darf nicht mal so und mal anders
+							     sortiert sein, je nachdem ob das Label an einer Fläche hängt.
+							     🪤 `selected` an „Region": bis hierher war der neutrale Subtyp die ERSTE Option und damit
+							     nebenbei die Vorauswahl. Alphabetisch stünde dort „Auenlandschaft". applyLabelTypeVocabulary
+							     setzt zwar überall ausdrücklich `region`, aber diese eine Zeile sorgt dafür, dass die stille
+							     Vorauswahl nicht an der Sortierung hängt. -->
+							<option value="auenlandschaft">Auenlandschaft</option>
 							<option value="berggipfel">Berggipfel</option>
-							<option value="vulkan">Vulkan</option>
-							<option value="wald">Wald</option>
-							<option value="steppe">Steppe</option>
-								<option value="huegelland">Hügelland</option>
-								<option value="tal">Tal</option>
-								<option value="tundra">Tundra</option>
-								<option value="kueste">Küste</option>
-								<option value="ebene">Ebene</option>
-								<option value="graslandschaft">Graslandschaft</option>
-								<option value="auenlandschaft">Auenlandschaft</option>
-								<option value="kontinent">Kontinent</option>
-							<option value="wueste">Wüste</option>
-							<option value="suempfe_moore">Sümpfe & Moore</option>
-							<option value="flussland_flusstal">Flussland/Flusstal</option>
 							<option value="dschungel">Dschungel</option>
-							<option value="wuestenoase">Wüstenoase</option>
-							<option value="wadi">Wadi</option>
-							<option value="schlucht">Schlucht</option>
-							<option value="hochebene">Hochebene</option>
-							<option value="tiefebene">Tiefebene</option>
+							<option value="ebene">Ebene</option>
+							<option value="fluss">Fluss</option>
 							<option value="flussdelta">Flussdelta</option>
-							<option value="see">See</option>
+							<option value="flussland_flusstal">Flussland/Flusstal</option>
+							<option value="gebirge">Gebirge</option>
+							<option value="graslandschaft">Graslandschaft</option>
+							<option value="hochebene">Hochebene</option>
+							<option value="huegelland">Hügelland</option>
 							<option value="insel">Insel</option>
 							<option value="inselgruppe">Inselgruppe</option>
+							<option value="kontinent">Kontinent</option>
+							<option value="kueste">Küste</option>
+							<option value="meer">Meer</option>
+							<option value="region" selected>Region</option>
+							<option value="schlucht">Schlucht</option>
+							<option value="see">See</option>
 							<option value="sonstiges">Sonstiges</option>
+							<option value="steppe">Steppe</option>
+							<option value="suempfe_moore">Sümpfe & Moore</option>
+							<option value="tal">Tal</option>
+							<option value="tiefebene">Tiefebene</option>
+							<option value="tundra">Tundra</option>
+							<option value="vulkan">Vulkan</option>
+							<option value="wadi">Wadi</option>
+							<option value="wald">Wald</option>
+							<option value="wueste">Wüste</option>
+							<option value="wuestenoase">Wüstenoase</option>
 						</select><button type="button" id="label-edit-wiki-sync-cat" class="location-edit-wiki-mini" disabled title="Kategorie aus der verbundenen Wiki-Landschaft &uuml;bernehmen" aria-label="Kategorie aus der verbundenen Wiki-Landschaft &uuml;bernehmen">↻</button></div>
 					</label>
 						<!-- Sobald die Art „Berggipfel" oder „Vulkan" ist, erscheint diese Zeile mit einem Regler
