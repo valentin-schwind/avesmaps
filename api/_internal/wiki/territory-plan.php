@@ -234,6 +234,34 @@ function avesmapsTerritoryPlanHandEditedFields(array $changes, ?array $lastWrote
 }
 
 /**
+ * Which of a row's changed fields „Wert festhalten" can actually FREEZE. PURE.
+ *
+ * 💣 EIN KNOPF, DER „festgehalten" SAGT, MUSS ES FESTGEHALTEN HABEN. valid_from_bf fällt heraus, wenn
+ * der Live-Wert LEER ist, und nur dann: das effektive Gründungsjahr wird über die Elternkette vererbt
+ * und fällt am Ende auf 0 (`$effFoundedInherited`, sync-monitor-identity.php), während live NULL steht.
+ * Kein Override-Wert kann diese Zeile also stillstellen -- '' bedeutet dort „kein eigenes Datum, erbe
+ * weiter", und 0 ist kein NULL. Der Override würde geschrieben, die Zeile käme trotzdem wieder, und der
+ * Knopf hätte „festgehalten" gesagt. Lieber gar nicht anbieten als etwas Unwahres melden.
+ *
+ * ⚠️ Ein GEFÜLLTER Gründungswert lässt sich sehr wohl festhalten (Override '1050' → effektiv 1050 →
+ * deckungsgleich mit live). Deshalb hängt die Ausnahme am WERT, nicht am Feldnamen.
+ *
+ * @param array<string,string> $before die Live-Werte der vorgeschlagenen Änderungen
+ * @return list<string>
+ */
+function avesmapsTerritoryPlanPinnableFields(array $before): array {
+    $fields = [];
+    foreach ($before as $field => $value) {
+        if ((string) $field === 'valid_from_bf' && trim((string) $value) === '') {
+            continue;
+        }
+        $fields[] = (string) $field;
+    }
+
+    return $fields;
+}
+
+/**
  * The map plan, in ONE step: the three sources are each a single pass over the whole set, so there is
  * nothing to resume. ONE ROW PER TERRITORY (design §5) -- data fields and the parent move travel
  * together, because the entity is the territory.
@@ -279,10 +307,11 @@ function avesmapsTerritoryPlanStep(PDO $pdo, string $cursor, int $userId, ?int $
             'public_id' => null,
             'before' => $before,
             'after' => $after,
-            // Every named data field can be pinned at its CURRENT live value. ⚠️ No claim about where
+            // Every named data field can be pinned at its CURRENT live value -- except the ones that
+            // provably would not stick (avesmapsTerritoryPlanPinnableFields). ⚠️ No claim about where
             // that value came from: political_territory carries no "edited by hand" mark, so a tag
             // saying so would be a guess (design §5).
-            'pin_fields' => array_keys($before),
+            'pin_fields' => avesmapsTerritoryPlanPinnableFields($before),
             // The provable subset of the above: fields the identity backup shows a HUMAN changed after
             // apply_identity last wrote them (avesmapsTerritoryPlanHandEditedFields). [] when there is no
             // backup row for this territory (nothing provable) -- never a guess from the live value alone.
@@ -300,6 +329,13 @@ function avesmapsTerritoryPlanStep(PDO $pdo, string $cursor, int $userId, ?int $
         }
         $rows[$wikiKey]['before']['parent'] = $move['old_name'];
         $rows[$wikiKey]['after']['parent'] = $move['new_name'];
+        // 💣 DER SCHLÜSSEL REIST MIT, und er ist der Grund, warum die Übernahme später überhaupt
+        // prüfen kann, ob sie noch das tut, was hier steht. Der NAME taugt dafür nicht: Gebietsnamen
+        // sind in diesem Bestand nicht eindeutig (dafür gibt es das Konfliktzentrum), und die
+        // Übernahme benennt Gebiete im selben Lauf um -- ein Vergleich über den Namen wäre also
+        // zugleich zu grob und zu empfindlich. `parent_key` ist stumm (SYNC_PLAN_SILENT_FIELDS im
+        // Bauteil) und erscheint nie in der Liste.
+        $rows[$wikiKey]['after']['parent_key'] = $move['new_key'];
         $note = avesmapsTerritoryPlanRoleShift($nodeCounts, $wikiKey, $move['old_key'], $move['new_key'], $move['was_root']);
         if ($note !== '') {
             $rows[$wikiKey]['after']['boundary_note'] = $note;

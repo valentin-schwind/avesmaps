@@ -539,4 +539,31 @@ assert.strictEqual((body.match(/Karten syncen/g) || []).length, 1,
     "der Kartenknopf wird genau EINMAL genannt: in der Tabelle. Jede weitere Nennung ist der fest "
     + "verdrahtete Satz, der gerade abgeschafft wurde.");
 
+// --- parent_key ist stumm (Nachprüfung 2026-08-07) ------------------------------------------------
+//
+// 💣 Die Planzeile trägt neben dem Elternnamen den SCHLÜSSEL, damit die Übernahme prüfen kann, ob der
+// Baum sich seit der Vorschau bewegt hat — Namen sind in diesem Bestand keine Schlüssel. Für den Leser
+// wäre er eine zweite, rohe Fassung derselben Zeile.
+const parentRow = sandbox.syncPlanRowMarkup({
+    id: 21, label: "Baronie Hügelsee", change_type: "changed",
+    before: { parent: "Grafschaft Ragath" },
+    after: { parent: "Fürstentum Almada", parent_key: "wiki:f-rstentum-almada" },
+}, "territory");
+assert.ok(parentRow.includes("Fürstentum Almada"), "der Name steht da");
+assert.ok(!parentRow.includes("parent_key") && !parentRow.includes("wiki:f-rstentum-almada"),
+    "💣 der Schlüssel nirgends — weder als Feldname noch als Wert");
+const parentDiff = sandbox.syncPlanDiffMarkup({
+    change_type: "changed", before: {}, after: { parent_key: "wiki:x" },
+});
+assert.ok(!parentDiff.includes("parent_key") && !parentDiff.includes("<dt>"),
+    "auch für sich genommen erzeugt er keine Zeile");
+// Und in einer NEUEN Zeile zählt er nicht als „weiteres Feld" mit.
+const newWithKey = sandbox.syncPlanNewSummary({ change_type: "new", after: { parent: "(Wurzel)", parent_key: "" } });
+assert.ok(newWithKey.includes("Eltern: (Wurzel)") && !newWithKey.includes("weitere Felder"),
+    "eine neue Zeile zählt das stumme Feld nicht mit");
+
+// Ein Feld, das der Deckel durchlässt, braucht eine deutsche Beschriftung -- sonst steht der rohe
+// Spaltenname in der Zeile, und „affiliation_key" ist eins der ersten sechs.
+assert.strictEqual(fieldLabel("affiliation_key"), "Zugehörigkeit (Schlüssel)");
+
 console.log("sync-plan-sheet ok");

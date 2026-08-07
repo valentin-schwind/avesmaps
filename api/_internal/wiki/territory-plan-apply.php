@@ -61,6 +61,70 @@ function avesmapsTerritoryApplyClassifyChangedRow(
 }
 
 /**
+ * Which planned parent moves the TREE has moved on from since the preview. PURE.
+ *
+ * 💣 THE CHECK THE APPLY HALF WAS MISSING. `$parentStill` only asks "is there still a divergence?" --
+ * and after the writer has run there is none, whatever parent it wrote. So: the row says
+ * „Baronie X: A → B", somebody drags X under C in the tree, the writer sets C, the divergence is gone
+ * and the row reports `applied` under a text that promised B. Word for word the silent lie the whole
+ * Übernahme exists to end. Design §6f: every ticked row is re-checked against the CURRENT state, and
+ * what no longer matches is left standing and named afterwards.
+ *
+ * ⚠️ Matched by KEY, never by the name in the row. Territory names are not unique in this data (that
+ * is what the conflict centre is for), and the identity writer renames territories in the SAME run --
+ * a name comparison would be both too coarse and too jumpy. avesmapsTerritoryPlanStep therefore writes
+ * `parent_key` next to the display name.
+ *
+ * ⚠️ A row without a promised key (a plan computed before this check existed) is NOT flagged: nothing
+ * can be said about it, and inventing drift would strand rows nobody can apply. It keeps the older,
+ * weaker check -- and the next computed plan carries the key.
+ *
+ * @param array<string,string> $promised child wiki_key => the parent key its plan row promised
+ * @param array<string,string> $current  child wiki_key => the parent key the model holds NOW ('' = root)
+ * @return array<string,string> child wiki_key => the parent the model holds now ('' = none)
+ */
+function avesmapsTerritoryApplyParentDrift(array $promised, array $current): array {
+    $drift = [];
+    foreach ($promised as $child => $promisedParent) {
+        $promisedParent = (string) $promisedParent;
+        if ($promisedParent === '') {
+            continue;
+        }
+        $currentParent = (string) ($current[(string) $child] ?? '');
+        if ($currentParent !== $promisedParent) {
+            $drift[(string) $child] = $currentParent;
+        }
+    }
+
+    return $drift;
+}
+
+/**
+ * What a row says when the tree moved under it. PURE.
+ *
+ * The data half is named separately because it is written independently: a combo row can perfectly
+ * well have had its fields written while its parent move was withdrawn.
+ */
+function avesmapsTerritoryApplyParentDriftNote(bool $hasDataChange, bool $dataWritten, string $currentParent): string {
+    $where = $currentParent === ''
+        ? 'gar keinen Elternteil mehr'
+        : sprintf('„%s"', $currentParent);
+
+    if ($hasDataChange && $dataWritten) {
+        return sprintf(
+            'Der Baum wurde seit der Vorschau geändert und nennt jetzt %s. Die Daten wurden geschrieben, '
+            . 'der Elternteil nicht.',
+            $where
+        );
+    }
+
+    return sprintf(
+        'Der Baum wurde seit der Vorschau geändert und nennt jetzt %s — der Elternteil wurde nicht gesetzt.',
+        $where
+    );
+}
+
+/**
  * ONE bounded apply step: it takes up to $budget ticked rows and hands their keys to the three
  * writers as an `only` list. Bulk writers, bounded by the subset -- not by a cursor.
  *
@@ -75,14 +139,50 @@ function avesmapsTerritoryApplyStep(PDO $pdo, int $runId, int $userId, ?array $u
     $pending = avesmapsSyncPlanPendingItems($pdo, $runId, $budget);
     $changedKeys = [];
     $newKeys = [];
+    // Decoded ONCE, up front: the drift check below needs the promised parent BEFORE the writers run,
+    // and the per-row loop needs the same array afterwards. Two decodings would be two chances to read
+    // the row differently.
+    $afterByItem = [];
+    $promisedParents = [];
     foreach ($pending as $row) {
         $key = (string) $row['entity_key'];
+        $after = json_decode((string) ($row['after_json'] ?? ''), true);
+        $after = is_array($after) ? $after : [];
+        $afterByItem[(int) $row['id']] = $after;
         if ((string) $row['change_type'] === 'new') {
             $newKeys[] = $key;
             continue;
         }
         $changedKeys[] = $key;
+        if (($after['parent_key'] ?? '') !== '') {
+            $promisedParents[$key] = (string) $after['parent_key'];
+        }
     }
+
+    // 💣 WAS DIE ZEILE VERSPROCHEN HAT, GEGEN DAS, WAS DER BAUM JETZT SAGT. Der Baum lässt sich
+    // zwischen Vorschau und Übernahme ziehen (set_parent schreibt parent_wiki_key) -- und weil das
+    // Kuratieren unangetastet bleiben soll (Entwurf §9), wird eine offene Vorschau davon NICHT
+    // zurückgezogen. Stattdessen: die abgedrifteten Schlüssel fliegen aus der only-Liste des
+    // Eltern-Schreibers (Entwurf §6a: was nach der Vorschau entsteht, wird nicht geschrieben) und ihre
+    // Zeile wird hinterher benannt. EINE Sammelabfrage, kein N+1.
+    $modelParents = [];
+    if ($promisedParents !== []) {
+        $keys = array_keys($promisedParents);
+        $placeholders = implode(',', array_fill(0, count($keys), '?'));
+        $modelStmt = $pdo->prepare(
+            'SELECT wiki_key, parent_wiki_key FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE
+            . ' WHERE wiki_key IN (' . $placeholders . ')'
+        );
+        $modelStmt->execute($keys);
+        foreach ($modelStmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $modelRow) {
+            $modelParents[(string) $modelRow['wiki_key']] = (string) ($modelRow['parent_wiki_key'] ?? '');
+        }
+    }
+    $parentDrift = avesmapsTerritoryApplyParentDrift($promisedParents, $modelParents);
+    $parentCacheKeys = array_values(array_filter(
+        $changedKeys,
+        static fn(string $key): bool => !array_key_exists($key, $parentDrift)
+    ));
 
     $applied = 0;
     // 💣 The key of the required deviation from the brief (see task-6-report.md): a 'changed' row can
@@ -100,8 +200,11 @@ function avesmapsTerritoryApplyStep(PDO $pdo, int $runId, int $userId, ?array $u
         // unguarded call is not wrong, only three no-op SELECTs and a no-op UPDATE for nothing -- and a
         // budget page of pure 'new' rows (reachable: the compute half inserts all 'changed' rows before
         // all 'new' ones, the pending reader goes by ascending id) hits exactly that every time.
-        if ($changedKeys !== []) {
-            avesmapsWikiSyncMonitorApplyParentCache($pdo, [], false, $changedKeys);
+        // ⚠️ $parentCacheKeys, nicht $changedKeys: eine Zeile, deren Elternteil seit der Vorschau
+        // umgezogen ist, bekommt hier gar nichts geschrieben -- der Schreiber nähme den Elternteil, den
+        // das Modell JETZT nennt, und das ist nicht der, der in der Liste steht.
+        if ($parentCacheKeys !== []) {
+            avesmapsWikiSyncMonitorApplyParentCache($pdo, [], false, $parentCacheKeys);
         }
         if ($newKeys !== []) {
             // 💣 THE WHOLE RUN'S ticked own nodes, not this page's. avesmapsWikiSyncMonitorApplyCustomNodes
@@ -164,23 +267,37 @@ function avesmapsTerritoryApplyStep(PDO $pdo, int $runId, int $userId, ?array $u
         // require EVERY proposed part to have taken effect -- avesmapsTerritoryApplyClassifyChangedRow
         // above has the reasoning (design §6f) and the per-half notes.
         //
-        // hasParentMove/hasDataChange both come straight from the planned after_json: 'parent' is the
-        // key avesmapsTerritoryPlanStep writes only for rows a parent move actually touched, and
-        // 'pin_fields' is written only when there was at least one identity-field change (it is
-        // implode(',', array_keys($before)), and $before is only ever non-empty for an identity diff) --
-        // so a data-only row never triggers the (irrelevant, always-zero) parent query at all, and a
-        // parent-only row is never held to a data check that was never proposed for it.
-        $after = json_decode((string) ($row['after_json'] ?? ''), true);
-        $after = is_array($after) ? $after : [];
+        // Both halves are read from what the PLAN offered: 'parent' in after_json is written only for
+        // rows a parent move actually touched, and every other key of before_json is an identity-field
+        // change. ⚠️ NOT from `pin_fields`: that list is filtered down to what can actually be frozen
+        // (avesmapsTerritoryPlanPinnableFields), so a row whose only change is an empty Gründungsjahr
+        // carries no pin_fields at all -- and would silently drop out of the data check.
+        $after = $afterByItem[$itemId] ?? [];
+        $before = json_decode((string) ($row['before_json'] ?? ''), true);
+        $before = is_array($before) ? $before : [];
         $hasParentMove = array_key_exists('parent', $after);
-        $hasDataChange = array_key_exists('pin_fields', $after);
+        $hasDataChange = array_diff(array_keys($before), ['parent']) !== [];
+        $dataWritten = isset($writtenKeySet[$key]);
+
+        // 💣 ZUERST DER BAUM. Ein abgedrifteter Elternteil ist kein „nicht auflösbar", sondern
+        // „inzwischen woanders" -- und $parentStill könnte es gar nicht sehen: es fragt nur, OB noch
+        // eine Abweichung besteht, nicht ob der geschriebene Elternteil der versprochene war. Diese
+        // Zeile wurde vom Eltern-Schreiber ausgenommen, steht also unverändert da.
+        if ($hasParentMove && array_key_exists($key, $parentDrift)) {
+            avesmapsSyncPlanMarkItem($pdo, $itemId, 'stale', avesmapsTerritoryApplyParentDriftNote(
+                $hasDataChange,
+                $dataWritten,
+                $parentDrift[$key]
+            ));
+            $stale++;
+            continue;
+        }
 
         $parentDivergent = false;
         if ($hasParentMove) {
             $parentStill->execute(['wk' => $key]);
             $parentDivergent = (int) $parentStill->fetchColumn() > 0;
         }
-        $dataWritten = isset($writtenKeySet[$key]);
 
         $classification = avesmapsTerritoryApplyClassifyChangedRow(
             $hasParentMove, $parentDivergent, $hasDataChange, $dataWritten

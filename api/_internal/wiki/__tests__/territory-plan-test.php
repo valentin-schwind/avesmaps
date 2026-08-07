@@ -414,9 +414,11 @@ assert(str_contains($apply, "['written_keys']"), '💣 written_keys wird tatsaec
 // 'new'-Zeilen (erreichbar, weil die Rechen-Haelfte erst alle 'changed'-, dann alle 'new'-Zeilen
 // einfuegt und der Leser nach aufsteigender id geht) fuehrte sonst drei No-op-SELECTs und ein
 // No-op-UPDATE fuer nichts aus -- auf STRATO nicht kostenlos.
+// ⚠️ Der Eltern-Schreiber laeuft seit dem Abdrift-Fix gegen $parentCacheKeys (= changedKeys ohne die
+// Zeilen, deren Baum sich bewegt hat) -- die Bedingung ist dieselbe, nur auf der richtigen Liste.
 assert(
-    (bool) preg_match('/if\s*\(\s*\$changedKeys\s*!==\s*\[\]\s*\)\s*\{\s*avesmapsWikiSyncMonitorApplyParentCache\(/', $apply),
-    '💣 ApplyParentCache laeuft nur, wenn es tatsaechlich changedKeys gibt'
+    (bool) preg_match('/if\s*\(\s*\$parentCacheKeys\s*!==\s*\[\]\s*\)\s*\{\s*avesmapsWikiSyncMonitorApplyParentCache\(/', $apply),
+    '💣 ApplyParentCache laeuft nur, wenn es tatsaechlich Schluessel gibt'
 );
 
 // 💣 Der Riegel, ohne den [] wieder „alles" hiesse: ApplyIdentity liest seit 2026-08-07 null als
@@ -680,3 +682,119 @@ assert(!str_contains($pinFn[0], 'result.ok === false'),
     'und prueft keinen Rueckgabewert mehr, den es nie gibt (toter Code)');
 
 echo "territory-plan (Werte festhalten) ok\n";
+
+// =====================================================================================================
+// TEIL 10 -- der Baum kann sich unter einer offenen Vorschau bewegen (Nachpruefung 2026-08-07)
+// =====================================================================================================
+//
+// 💣 Ein Zug im Baum schreibt wiki_territory_model.parent_wiki_key -- genau die Quelle, aus der
+// avesmapsTerritoryPlanParentMoves die Zeile gerechnet hat. Zurueckgezogen wird die Vorschau dabei
+// NICHT (Entwurf §9: die Kuratierung bleibt unangetastet, und ein Zug darf nicht die Haekchen eines
+// ganzen Laufs vernichten). Also muss die UEBERNAHME pruefen -- und $parentStill kann das nicht: es
+// fragt nur, OB noch eine Abweichung besteht, und nach dem Schreiben besteht keine, egal welcher
+// Elternteil gesetzt wurde. Die Zeile sagte "A -> B", geschrieben wurde C, gemeldet wurde "applied".
+
+// --- avesmapsTerritoryApplyParentDrift: versprochen gegen heute ------------------------------------
+$drift = avesmapsTerritoryApplyParentDrift(
+    ['wiki:baronie-a' => 'wiki:grafschaft-b', 'wiki:baronie-c' => 'wiki:grafschaft-d'],
+    ['wiki:baronie-a' => 'wiki:grafschaft-b', 'wiki:baronie-c' => 'wiki:grafschaft-d']
+);
+assert($drift === [], 'unveraendertes Modell => kein Abdriften');
+
+$drift = avesmapsTerritoryApplyParentDrift(
+    ['wiki:baronie-a' => 'wiki:grafschaft-b'],
+    ['wiki:baronie-a' => 'wiki:grafschaft-c']
+);
+assert($drift === ['wiki:baronie-a' => 'wiki:grafschaft-c'],
+    '💣 gezogen seit der Vorschau -- und der Befund nennt, wohin');
+
+$drift = avesmapsTerritoryApplyParentDrift(['wiki:baronie-a' => 'wiki:grafschaft-b'], []);
+assert($drift === ['wiki:baronie-a' => ''], 'aus dem Modell genommen => Wurzel, und das ist auch ein Abdriften');
+
+// ⚠️ Eine Zeile OHNE versprochenen Schluessel (ein Plan von vor dieser Pruefung) wird nicht markiert:
+// ueber sie laesst sich nichts sagen, und erfundenes Abdriften strandete Zeilen, die niemand mehr
+// uebernehmen kann.
+$drift = avesmapsTerritoryApplyParentDrift(['wiki:baronie-a' => ''], ['wiki:baronie-a' => 'wiki:irgendwas']);
+assert($drift === [], 'ohne versprochenen Schluessel keine Behauptung');
+
+// --- Der Satz dazu --------------------------------------------------------------------------------
+$note = avesmapsTerritoryApplyParentDriftNote(false, false, 'Grafschaft Ragath');
+assert(str_contains($note, 'Grafschaft Ragath'), 'der Satz nennt den neuen Elternteil');
+assert(str_contains($note, 'nicht gesetzt'), 'und sagt, dass nichts geschrieben wurde');
+$note = avesmapsTerritoryApplyParentDriftNote(true, true, 'Grafschaft Ragath');
+assert(str_contains($note, 'Daten wurden geschrieben'), '💣 die Datenhaelfte laeuft unabhaengig und wird genannt');
+$note = avesmapsTerritoryApplyParentDriftNote(false, false, '');
+assert(str_contains($note, 'keinen Elternteil mehr'), 'und die Wurzel wird als Wurzel benannt, nicht als leere Klammer');
+
+// --- 💣 Und die Ausfuehr-Haelfte handelt danach ----------------------------------------------------
+//
+// Der Schreiber bekommt die BEREINIGTE Liste (Entwurf §6a: was nach der Vorschau entsteht, wird nicht
+// geschrieben), und die Zeile wird davor als stale markiert -- nicht danach, wo sie schon geschrieben waere.
+assert(
+    (bool) preg_match('/if\s*\(\s*\$parentCacheKeys\s*!==\s*\[\]\s*\)\s*\{\s*avesmapsWikiSyncMonitorApplyParentCache\(\s*\$pdo\s*,\s*\[\]\s*,\s*false\s*,\s*\$parentCacheKeys\s*\)/', $apply),
+    '💣 der Eltern-Schreiber bekommt die um die abgedrifteten Zeilen bereinigte Liste'
+);
+assert(
+    !preg_match('/avesmapsWikiSyncMonitorApplyParentCache\(\s*\$pdo\s*,\s*\[\]\s*,\s*false\s*,\s*\$changedKeys\s*\)/', $apply),
+    'und nicht mehr alle geaenderten Schluessel'
+);
+$driftPos = strpos($apply, 'avesmapsTerritoryApplyParentDrift($promisedParents, $modelParents)');
+$writerPos = strpos($apply, 'avesmapsWikiSyncMonitorApplyParentCache($pdo, [], false, $parentCacheKeys)');
+assert($driftPos !== false && $writerPos !== false, 'beide Stellen existieren');
+assert($driftPos < $writerPos, '💣 gerechnet wird VOR dem Schreiben -- danach waere die Zeile schon geschrieben');
+assert(
+    (bool) preg_match('/if\s*\(\s*\$hasParentMove\s*&&\s*array_key_exists\(\$key, \$parentDrift\)\s*\)/', $apply),
+    'und die Zeile wird als stale gemeldet'
+);
+// Der Schluessel muss auch tatsaechlich in der Planzeile stehen, sonst prueft das alles nichts.
+$planSource = (string) file_get_contents(__DIR__ . '/../territory-plan.php');
+assert(
+    str_contains($planSource, "\$rows[\$wikiKey]['after']['parent_key'] = \$move['new_key'];"),
+    '💣 die Rechen-Haelfte legt den Elternschluessel in die Zeile -- der NAME taugt nicht als Schluessel'
+);
+// Und im Bauteil ist er stumm, sonst stuende der rohe Schluessel als zweite Zeile in der Liste.
+$sheet = (string) file_get_contents(__DIR__ . '/../../../../js/review/sync-plan-sheet.js');
+assert(
+    (bool) preg_match('/SYNC_PLAN_SILENT_FIELDS = \[[^\]]*"parent_key"/', $sheet),
+    '💣 parent_key ist im Bauteil ein stummes Feld'
+);
+
+// --- Die Datenhaelfte haengt nicht mehr an pin_fields ----------------------------------------------
+//
+// 💣 Seit pin_fields gefiltert wird (Teil 11), ist seine Anwesenheit kein Beweis mehr fuer "diese Zeile
+// schlaegt Datenaenderungen vor": eine Zeile, deren einzige Aenderung ein leeres Gruendungsjahr ist,
+// traegt gar keine pin_fields. Sie faellt sonst still aus der written_keys-Pruefung.
+assert(
+    str_contains($apply, "\$hasDataChange = array_diff(array_keys(\$before), ['parent']) !== [];"),
+    '💣 die Datenhaelfte kommt aus before_json, nicht aus pin_fields'
+);
+
+echo "territory-plan-apply (Baum-Abdriften) ok\n";
+
+// =====================================================================================================
+// TEIL 11 -- „festgehalten" muss stimmen
+// =====================================================================================================
+//
+// 💣 Ein LEERES Gruendungsjahr laesst sich nicht festhalten: das effektive Jahr wird vererbt und faellt
+// am Ende auf 0, waehrend live NULL steht -- kein Override-Wert stellt diese Zeile still. Der Knopf
+// sagte trotzdem "festgehalten". Also wird das Feld gar nicht erst angeboten.
+assert(
+    avesmapsTerritoryPlanPinnableFields(['name' => 'Alt', 'valid_from_bf' => '']) === ['name'],
+    '💣 ein leeres Gruendungsjahr wird nicht zum Festhalten angeboten'
+);
+assert(
+    avesmapsTerritoryPlanPinnableFields(['name' => 'Alt', 'valid_from_bf' => '720']) === ['name', 'valid_from_bf'],
+    '⚠️ ein GEFUELLTES sehr wohl -- die Ausnahme haengt am Wert, nicht am Feldnamen'
+);
+assert(
+    avesmapsTerritoryPlanPinnableFields(['valid_to_bf' => '']) === ['valid_to_bf'],
+    'das leere Aufloesungsjahr bleibt: dort ist "" = besteht, ein gueltiger eigener Wert'
+);
+assert(avesmapsTerritoryPlanPinnableFields([]) === [], 'nichts geaendert => nichts anzubieten');
+// Und die Rechen-Haelfte benutzt den Filter auch.
+assert(
+    str_contains($planSource, "'pin_fields' => avesmapsTerritoryPlanPinnableFields(\$before),"),
+    '💣 der Plan schreibt die gefilterte Liste, nicht array_keys($before)'
+);
+
+echo "territory-plan (nur Festhaltbares anbieten) ok\n";

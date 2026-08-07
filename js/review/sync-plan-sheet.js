@@ -170,8 +170,14 @@ const SYNC_PLAN_LOSS_DETAIL = { sources_removed: "sources_removed_titles" };
  */
 const SYNC_PLAN_NOTE_FIELDS = ["boundary_note"];
 
-/** Felder, die nur die ZEILE informieren und nie selbst erscheinen. */
-const SYNC_PLAN_SILENT_FIELDS = ["pin_fields", "hand_edited"];
+/**
+ * Felder, die nur die ZEILE informieren und nie selbst erscheinen.
+ *
+ * `parent_key` ist der Schlüssel zum daneben stehenden Namen „Eltern": die Übernahme prüft damit, ob
+ * der Baum seit der Vorschau umgezogen ist (Namen sind hier keine Schlüssel). Für den Leser wäre er
+ * eine zweite, rohe Fassung derselben Zeile.
+ */
+const SYNC_PLAN_SILENT_FIELDS = ["pin_fields", "hand_edited", "parent_key"];
 
 /** Die drei Kategorien und wie sie sich erklären. Reihenfolge = Anzeigereihenfolge. */
 const SYNC_PLAN_GROUPS = [
@@ -290,6 +296,7 @@ function syncPlanFieldLabel(field) {
 		dissolved_text: "Auflösung",
 		affiliation_root: "Zugehörigkeit",
 		affiliation_raw: "Zugehörigkeit (roh)",
+		affiliation_key: "Zugehörigkeit (Schlüssel)",
 		trade_zone: "Handelszone",
 		geographic: "Geographisch",
 		political: "Politisch",
