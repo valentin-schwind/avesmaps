@@ -238,3 +238,103 @@ assert(
 );
 
 echo "territory-plan (sqlite) ok\n";
+
+// =====================================================================================================
+// TEIL 3 -- „Von Hand geändert": die provable-only Quelle, auf sqlite
+// =====================================================================================================
+//
+// political_territory traegt keine "von Hand geaendert"-Spalte, also kann "live weicht von Wiki UND
+// Override ab" einen Menschen-Edit nicht von einem Wert unterscheiden, den der Abgleich nur noch nicht
+// erreicht hat. political_territory_identity_backup ist BEWEIS statt Vermutung: es haelt fest, was
+// apply_identity zuletzt WIRKLICH geschrieben hat. avesmapsTerritoryPlanLastSyncWrote holt die neueste,
+// nicht zurueckgenommene Zeile je Territorium (EINE gruppierte Abfrage, kein N+1);
+// avesmapsTerritoryPlanHandEditedFields vergleicht live dagegen.
+
+$pdo->exec(
+    "CREATE TABLE political_territory_identity_backup (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id TEXT, territory_id INTEGER, wiki_key TEXT,
+        old_name TEXT, old_type TEXT, old_status TEXT, old_valid_from_bf INTEGER, old_valid_to_bf INTEGER,
+        new_name TEXT, new_type TEXT, new_status TEXT, new_valid_from_bf INTEGER, new_valid_to_bf INTEGER,
+        old_coat_of_arms_url TEXT, new_coat_of_arms_url TEXT, kind TEXT DEFAULT 'identity',
+        reverted_at TEXT, created_at TEXT
+    )"
+);
+
+// --- Drei weitere Territorien, eigens fuer dieses Kapitel (fruehere Zuordnungen bleiben unberuehrt) ---
+$pdo->exec("INSERT INTO political_territory (public_id, wiki_key, name, is_active) "
+    . "VALUES ('P-KU', 'wiki:freie-stadt-kuslik', 'Freie Stadt Kuslik', 1)");
+$kuslikId = (int) $pdo->lastInsertId();
+$pdo->exec("INSERT INTO political_territory (public_id, wiki_key, name, is_active) "
+    . "VALUES ('P-TR', 'wiki:baronie-trallenwald', 'Baronie Trallenwald', 1)");
+$trallenwaldId = (int) $pdo->lastInsertId();
+$pdo->exec("INSERT INTO political_territory (public_id, wiki_key, name, is_active) "
+    . "VALUES ('P-VL', 'wiki:grafschaft-verlassen', 'Grafschaft Verlassen', 1)");
+$verlassenId = (int) $pdo->lastInsertId();
+
+$insertBackup = static function (PDO $pdo, int $territoryId, string $newName, ?string $revertedAt, string $kind = 'identity'): void {
+    $pdo->prepare(
+        "INSERT INTO political_territory_identity_backup
+            (batch_id, territory_id, new_name, new_type, new_status, new_valid_from_bf, new_valid_to_bf, kind, reverted_at)
+         VALUES ('b1', :tid, :name, 'Freie Stadt', NULL, 900, 9999, :kind, :reverted)"
+    )->execute(['tid' => $territoryId, 'name' => $newName, 'kind' => $kind, 'reverted' => $revertedAt]);
+};
+
+// Kuslik: eine AELTERE, dann eine NEUERE nicht-zurueckgenommene Zeile -- die neuere muss gewinnen.
+$insertBackup($pdo, $kuslikId, 'Kuslik (alter Schreibstand)', null);
+$insertBackup($pdo, $kuslikId, 'Freie Stadt Kuslik', null);
+// Ein 'coat'-Eintrag fuer dieselbe Stadt, mit einer ANDEREN Schreibung -- darf nie einsickern.
+$insertBackup($pdo, $kuslikId, 'Kuslik (Wappen-Backup, falsche Spur)', null, 'coat');
+
+// Trallenwald: eine einzige, aktuelle Zeile, deckungsgleich mit "live".
+$insertBackup($pdo, $trallenwaldId, 'Baronie Trallenwald', null);
+
+// Verlassen: die EINZIGE Zeile ist zurueckgenommen -- "kein Beweis", nicht "so war es vorher".
+$insertBackup($pdo, $verlassenId, 'Alter Name (durch Revert wiederhergestellt)', '2026-01-01 00:00:00');
+
+$lastSyncWrote = avesmapsTerritoryPlanLastSyncWrote($pdo);
+assert($lastSyncWrote[$kuslikId]['new_name'] === 'Freie Stadt Kuslik', 'die NEUERE nicht-zurueckgenommene Zeile gewinnt, nicht irgendeine');
+assert($lastSyncWrote[$trallenwaldId]['new_name'] === 'Baronie Trallenwald');
+assert(!isset($lastSyncWrote[$verlassenId]), '💣 eine zurueckgenommene Zeile zaehlt NICHT als Beweis');
+assert(!isset($lastSyncWrote[$baronieId]), 'kein Backup fuer die Baronie -- sie bekommt keine Zeile');
+
+// --- avesmapsTerritoryPlanHandEditedFields: die reine Vergleichslogik ------------------------------
+
+// Kuslik: live weicht vom letzten Schreiben ab (jemand hat umbenannt) -- UND ein Kontinent-Wechsel
+// steht ebenfalls zur Debatte, der aber NIE erscheinen darf (keine Beweisgrundlage im Backup).
+$edited = avesmapsTerritoryPlanHandEditedFields(
+    [
+        'name' => ['from' => 'Kuslik (von Hand umbenannt)', 'to' => 'Freie Stadt Kuslik'],
+        'continent' => ['from' => 'Aventurien', 'to' => 'Myranor'],
+    ],
+    $lastSyncWrote[$kuslikId]
+);
+assert($edited === ['name'], 'Kuslik: nur "name" ist belegt, "continent" hat keine Beweisgrundlage');
+
+// Trallenwald: live stimmt fuer JEDES betroffene Feld mit dem letzten Schreiben ueberein -- die
+// vorgeschlagene Aenderung kommt aus dem Wiki, nicht von einer Hand. valid_to_bf traegt zusaetzlich die
+// 9999-Falle: live "besteht noch" (from = null), das Backup schrieb ebenfalls "besteht noch" (9999 roh).
+$edited = avesmapsTerritoryPlanHandEditedFields(
+    [
+        'name' => ['from' => 'Baronie Trallenwald', 'to' => 'Baronie Trallenwald (neuer Name im Wiki)'],
+        'status' => ['from' => '', 'to' => 'aufgelöst'],
+        'valid_to_bf' => ['from' => null, 'to' => 1020],
+    ],
+    $lastSyncWrote[$trallenwaldId]
+);
+assert($edited === [], '💣 kein Feld ist von Hand geaendert -- insbesondere nicht ueber die 9999-Falle bei valid_to_bf');
+
+// Verlassen: kein Beweis (die einzige Zeile ist zurueckgenommen) -- trotz klar abweichendem Namen.
+$edited = avesmapsTerritoryPlanHandEditedFields(
+    ['name' => ['from' => 'Grafschaft Verlassen', 'to' => 'Grafschaft Verlassen (Wiki-Update)']],
+    $lastSyncWrote[$verlassenId] ?? null
+);
+assert($edited === [], '💣 eine zurueckgenommene Zeile beweist nichts -- keine Markierung');
+
+// Baronie: kein Backup ueberhaupt -- "der Abgleich hat sie nie geschrieben" ist kein Beweis fuer eine Hand.
+$edited = avesmapsTerritoryPlanHandEditedFields(
+    ['type' => ['from' => 'Baronie', 'to' => 'Freiherrschaft']],
+    $lastSyncWrote[$baronieId] ?? null
+);
+assert($edited === [], 'kein Backup ueberhaupt => keine Markierung, nicht geraten');
+
+echo "territory-plan (hand-edited) ok\n";

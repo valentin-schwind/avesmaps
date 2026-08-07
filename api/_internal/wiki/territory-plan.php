@@ -117,6 +117,114 @@ function avesmapsTerritoryPlanNodeCounts(PDO $pdo): array {
 }
 
 /**
+ * The newest NON-REVERTED apply_identity write per territory, from political_territory_identity_backup.
+ * ONE grouped query, no N+1.
+ *
+ * This is the only PROVABLE source for a "von Hand geändert" marker: political_territory itself carries
+ * no "edited by hand" column, so "live differs from wiki AND override" cannot tell a human edit from a
+ * value the sync never got round to (design doc §1.9: "Direkt im Politik-Editor geändert … es gibt kein
+ * Merkmal, der Abgleich setzt es wortlos zurück"). But apply_identity is the ONLY other writer of these
+ * columns, and it snapshots exactly what it wrote -- so if the live value now differs from the newest
+ * snapshot's new_<field>, something wrote it that was NOT apply_identity, i.e. a human, in the political
+ * editor. That is proof, not inference.
+ *
+ * 💣 The filter is kind = 'identity' AND reverted_at IS NULL, BOTH:
+ *   - kind = 'identity': the same table also carries kind = 'coat' rows (a different write, coat-of-arms
+ *     backups) whose new_name/new_type/… columns are not what apply_identity wrote.
+ *   - reverted_at IS NULL: avesmapsWikiSyncMonitorRevertIdentity (sync-monitor-identity.php ~850) sets
+ *     reverted_at per row when a batch is undone -- a reverted batch put the OLD value back, so treating
+ *     its new_* as "what the sync wrote" would label every reverted territory as hand-edited.
+ *
+ * @return array<int, array{new_name:?string, new_type:?string, new_status:?string, new_valid_from_bf:?int, new_valid_to_bf:?int}>
+ */
+function avesmapsTerritoryPlanLastSyncWrote(PDO $pdo): array {
+    $tbl = AVESMAPS_WIKI_SYNC_MONITOR_IDENTITY_BACKUP_TABLE;
+    $rows = $pdo->query(
+        'SELECT b.territory_id, b.new_name, b.new_type, b.new_status, b.new_valid_from_bf, b.new_valid_to_bf
+           FROM ' . $tbl . ' b
+           JOIN (
+               SELECT territory_id, MAX(id) AS max_id
+                 FROM ' . $tbl . "
+                WHERE kind = 'identity' AND reverted_at IS NULL
+                GROUP BY territory_id
+           ) latest ON latest.territory_id = b.territory_id AND latest.max_id = b.id"
+    )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    $out = [];
+    foreach ($rows as $row) {
+        $out[(int) $row['territory_id']] = [
+            'new_name' => $row['new_name'] === null ? null : (string) $row['new_name'],
+            'new_type' => $row['new_type'] === null ? null : (string) $row['new_type'],
+            'new_status' => $row['new_status'] === null ? null : (string) $row['new_status'],
+            'new_valid_from_bf' => $row['new_valid_from_bf'] === null ? null : (int) $row['new_valid_from_bf'],
+            'new_valid_to_bf' => $row['new_valid_to_bf'] === null ? null : (int) $row['new_valid_to_bf'],
+        ];
+    }
+
+    return $out;
+}
+
+/**
+ * Which of a row's ALREADY-CHANGING fields a human edited after the sync last wrote them. PURE.
+ *
+ * Provable only: without a backup row for this territory, apply_identity has never written it, so
+ * nothing can be said -- returns [], silence rather than a guess. `continent` never appears in the
+ * result: it is deliberately not part of the backup snapshot (sync-monitor-identity.php: "continent ist
+ * … NICHT Teil des Undo-Snapshots"), so there is nothing provable to compare it against.
+ *
+ * Only fields already present in $changes are considered -- a hand-edit on a field the sync does not
+ * currently want to touch is not this row's business.
+ *
+ * 💣 valid_to_bf is compared as the RAW 9999 sentinel on BOTH sides, never the null-normalised form
+ * avesmapsWikiSyncMonitorApplyIdentityPreview computes for its own "from"/"to": both the live column and
+ * the backup snapshot store literal 9999 for "still exists". Comparing normalised-null against raw-9999
+ * would flag every currently-valid, ever-synced territory as hand-edited.
+ *
+ * name/type/status are compared through the SAME null-as-'' convention the identity preview's own
+ * cmpStr() uses for deciding "changed" in the first place -- otherwise PHP's null-vs-'' distinction
+ * alone (not a real difference: political_territory.type stores NULL, the preview's diff casts it to
+ * '') would flag a field that was, and still is, simply unset.
+ *
+ * @param array<string,array{from:mixed,to:mixed}> $changes this row's already-proposed changes
+ * @param array{new_name:?string,new_type:?string,new_status:?string,new_valid_from_bf:?int,new_valid_to_bf:?int}|null $lastWrote
+ * @return list<string> the affected field keys
+ */
+function avesmapsTerritoryPlanHandEditedFields(array $changes, ?array $lastWrote): array {
+    if ($lastWrote === null) {
+        return [];
+    }
+
+    $edited = [];
+
+    foreach (['name' => 'new_name', 'type' => 'new_type', 'status' => 'new_status'] as $field => $backupKey) {
+        if (!array_key_exists($field, $changes)) {
+            continue;
+        }
+        $live = (string) ($changes[$field]['from'] ?? '');
+        $written = (string) ($lastWrote[$backupKey] ?? '');
+        if ($live !== $written) {
+            $edited[] = $field;
+        }
+    }
+
+    if (array_key_exists('valid_from_bf', $changes)) {
+        if ($changes['valid_from_bf']['from'] !== ($lastWrote['new_valid_from_bf'] ?? null)) {
+            $edited[] = 'valid_from_bf';
+        }
+    }
+
+    if (array_key_exists('valid_to_bf', $changes)) {
+        $liveFrom = $changes['valid_to_bf']['from'];
+        $liveRaw = $liveFrom === null ? 9999 : (int) $liveFrom;
+        if ($liveRaw !== ($lastWrote['new_valid_to_bf'] ?? null)) {
+            $edited[] = 'valid_to_bf';
+        }
+    }
+
+    return $edited;
+}
+
+/**
  * The map plan, in ONE step: the three sources are each a single pass over the whole set, so there is
  * nothing to resume. ONE ROW PER TERRITORY (design §5) -- data fields and the parent move travel
  * together, because the entity is the territory.
@@ -145,6 +253,7 @@ function avesmapsTerritoryPlanStep(PDO $pdo, string $cursor, int $userId, ?int $
     $identity = avesmapsWikiSyncMonitorApplyIdentityPreview($pdo);   // already pure, its own function
     $parentMoves = avesmapsTerritoryPlanParentMoves($pdo);           // twin of ApplyParentCache
     $toCreate = avesmapsTerritoryPlanCustomNodesToCreate($pdo);      // twin of ApplyCustomNodes
+    $lastSyncWrote = avesmapsTerritoryPlanLastSyncWrote($pdo);       // the provable "von Hand geändert" source
 
     // --- Geändert: one row per territory ----------------------------------------------------------
     $rows = [];
@@ -165,13 +274,20 @@ function avesmapsTerritoryPlanStep(PDO $pdo, string $cursor, int $userId, ?int $
             // that value came from: political_territory carries no "edited by hand" mark, so a tag
             // saying so would be a guess (design §5).
             'pin_fields' => array_keys($before),
+            // The provable subset of the above: fields the identity backup shows a HUMAN changed after
+            // apply_identity last wrote them (avesmapsTerritoryPlanHandEditedFields). [] when there is no
+            // backup row for this territory (nothing provable) -- never a guess from the live value alone.
+            'hand_edited' => avesmapsTerritoryPlanHandEditedFields(
+                (array) ($entry['changes'] ?? []),
+                $lastSyncWrote[(int) $entry['id']] ?? null
+            ),
         ];
     }
 
     foreach ($parentMoves as $wikiKey => $move) {
         if (!isset($rows[$wikiKey])) {
             $rows[$wikiKey] = ['label' => $move['name'], 'public_id' => null,
-                'before' => [], 'after' => [], 'pin_fields' => []];
+                'before' => [], 'after' => [], 'pin_fields' => [], 'hand_edited' => []];
         }
         $rows[$wikiKey]['before']['parent'] = $move['old_name'];
         $rows[$wikiKey]['after']['parent'] = $move['new_name'];
@@ -186,6 +302,11 @@ function avesmapsTerritoryPlanStep(PDO $pdo, string $cursor, int $userId, ?int $
         $after = $row['after'];
         if ($row['pin_fields'] !== []) {
             $after['pin_fields'] = implode(',', $row['pin_fields']);
+        }
+        // A pseudo-field like pin_fields above -- it informs the row and must never render as a
+        // comparison (there is no "from"/"to" for "was this hand-edited").
+        if (!empty($row['hand_edited'])) {
+            $after['hand_edited'] = implode(',', $row['hand_edited']);
         }
         $decision = $decisions[avesmapsSyncPlanDecisionKey((string) $wikiKey, 'changed')] ?? null;
         avesmapsSyncPlanAddItem($pdo, $runId, [
