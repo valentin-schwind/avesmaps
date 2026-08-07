@@ -92,12 +92,6 @@ function avesmapsTerritoryWikiRecordFromStagingRow(array $row, ?array $mirror = 
         $record[$column] = is_array($decoded) ? $decoded : [];
     }
 
-    // The upsert reads 'slug' for nothing on this path, but avesmapsPoliticalNormalizeWikiRecord's
-    // consumers expect the key to exist. Derive it the same way the normaliser does.
-    if (!isset($record['slug']) || (string) $record['slug'] === '') {
-        $record['slug'] = avesmapsPoliticalSlug((string) ($record['name'] ?? ''));
-    }
-
     return $record;
 }
 
@@ -142,11 +136,11 @@ function avesmapsTerritoryWikiApplyStep(PDO $pdo, int $runId, int $userId, ?arra
             if ($staging !== null) {
                 $refusal = 'Der Artikel steht wieder im Wiki.';
             } elseif (isset($declined[$wikiKey])) {
-                $refusal = 'Die Loeschung wurde inzwischen abgelehnt.';
+                $refusal = 'Die Löschung wurde inzwischen abgelehnt.';
             } elseif ((int) $usedBy->fetchColumn() > 0) {
                 // 💣 The re-check that matters most: a territory was linked to this copy since the
                 // preview was computed. Deleting now would strip six infobox lines off a live object.
-                $refusal = 'Inzwischen haengt ein Gebiet der Karte an dieser Kopie.';
+                $refusal = 'Inzwischen hängt ein Gebiet der Karte an dieser Kopie.';
             }
             if ($refusal !== '') {
                 avesmapsSyncPlanMarkItem($pdo, $itemId, 'stale', $refusal);
@@ -166,7 +160,7 @@ function avesmapsTerritoryWikiApplyStep(PDO $pdo, int $runId, int $userId, ?arra
             $stored = json_decode((string) ($row['after_json'] ?? ''), true);
             $fresh = avesmapsTerritoryWikiPlanItem($mirror, $staging);
             if (avesmapsSyncPlanIsStale(is_array($stored) ? $stored : null, $fresh['after'] ?? null)) {
-                avesmapsSyncPlanMarkItem($pdo, $itemId, 'stale', 'Der Stand hat sich seit der Vorschau geaendert.');
+                avesmapsSyncPlanMarkItem($pdo, $itemId, 'stale', 'Der Stand hat sich seit der Vorschau geändert.');
                 $totals['stale']++;
             } else {
                 // 💣 The mirror row goes WITH the staging row: without it the upsert NULLs every column

@@ -22,10 +22,11 @@ require_once __DIR__ . '/../sync-monitor.php';
 require_once __DIR__ . '/../sync-plan.php';
 require_once __DIR__ . '/../territory-wiki-plan.php';
 require_once __DIR__ . '/../territory-wiki-plan-apply.php';
-// The adapter calls avesmapsPoliticalSlug() -- territory-wiki-plan-apply.php does not require this
-// file itself (only the endpoint's own require chain does, matching the citymap/adventure/publication/
-// lore siblings, which likewise assume political/territory.php from their caller), so the test loads it
-// before touching the adapter.
+// Fuer die Gegenproben unten (avesmapsPoliticalEncodeJsonOrNull / …NullableString): das sind die zwei
+// Funktionen, durch die der Upsert jeden Wert schickt, und nur an ihnen laesst sich zeigen, was aus
+// einem bewahrten und was aus einem leeren Feld wirklich wird. territory-wiki-plan-apply.php requiret
+// diese Datei nicht selbst (das tut die Kette des Endpunkts, wie bei den citymap/adventure/publication/
+// lore-Geschwistern), also laedt der Test sie.
 require_once __DIR__ . '/../../political/territory.php';
 
 $row = [
