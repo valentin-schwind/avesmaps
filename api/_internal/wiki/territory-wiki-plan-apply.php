@@ -14,22 +14,74 @@ declare(strict_types=1);
 require_once __DIR__ . '/../map/collection-audit.php';
 
 /**
+ * Is a staging value "nothing"? PURE.
+ *
+ * 💣 IT IS THE COMPUTE HALF'S TEST, ON PURPOSE. avesmapsTerritoryWikiPlanItem refuses to name a field
+ * whose fresh value is `trim((string) $fresh) === ''` (design §4). If the two halves used different
+ * notions of empty, the preview would name a field the apply keeps -- or, worse, keep one the preview
+ * named. A preview that does not describe the write is not a preview.
+ *
+ * 💣 `0` IS A VALUE HERE, NOT NOTHING -- even though the parser writes 0 into founded_start_bf when the
+ * article carries no date at all (`(int) $temporal['founded_start_bf']`, sync-monitor-parsing.php:542).
+ * Calling 0 empty is tempting and wrong: the compute half compares '0' as a value, so a copy holding
+ * 1050 against a staging 0 IS offered as "Gegründet: 1050 → 0". Swallowing it here would leave that
+ * ticked row reported as `applied` while nothing was written -- the same silent lie in the other
+ * direction. A bogus 0 is a parser problem and belongs in the parser, not in a second, invisible rule
+ * on the write path.
+ *
+ * The *_json columns come out of PDO as strings and are compared as strings by the compute half, so
+ * they follow the same rule. An array (a caller that decoded first) is empty only when it is [] --
+ * exactly what avesmapsPoliticalEncodeJsonOrNull turns into NULL.
+ */
+function avesmapsTerritoryWikiStagingValueIsEmpty(mixed $value): bool {
+    if ($value === null) {
+        return true;
+    }
+    if (is_array($value)) {
+        return $value === [];
+    }
+
+    return trim((string) $value) === '';
+}
+
+/**
  * A staging row, shaped into the record avesmapsPoliticalUpsertWikiRecord expects. PURE.
+ *
+ * 💣 THE MIRROR ROW IS NOT OPTIONAL DECORATION. The upsert writes ALL 36 columns
+ * (`ON DUPLICATE KEY UPDATE <col> = VALUES(<col>)`), and avesmapsPoliticalNullableString('') is NULL --
+ * so handing it the raw staging row NULLs every field the dump happens not to carry, no matter what the
+ * preview said. The copy is the live source of Hauptstadt, Oberhaupt, Sprache, Währung, Handelswaren
+ * and Blasonierung, and it has no backup: a row whose preview showed one line ("Oberhaupt: A → B")
+ * would silently empty five others. So for every column the staging leaves empty, the mirror's value
+ * is carried over -- which is design §4's "ein leerer frischer Wert ist keine Änderung", applied to the
+ * write instead of only to the list.
  *
  * 💣 THE JSON COLUMNS MUST BE DECODED FIRST. The upsert pushes every *_json value through
  * avesmapsPoliticalEncodeJsonOrNull, which calls json_encode -- hand it the staging column verbatim
  * and the copy stores a DOUBLE-encoded string. Silent: the field is filled, the preview row looked
- * right, and only the infobox shows the quotes.
+ * right, and only the infobox shows the quotes. The carry-over above happens BEFORE the decoding, so a
+ * value taken from the mirror (also a JSON string) goes through the same decode.
  *
- * id and synced_at are dropped: the first is the staging table's own identity, the second its clock.
+ * id and synced_at are dropped: the first is the staging table's own identity, the second its clock --
+ * and because the loop below walks the trimmed record, neither can be carried back in from the mirror.
  *
  * @param array<string,mixed> $row
+ * @param array<string,mixed>|null $mirror the political_territory_wiki row, NULL for a NEW copy
  * @return array<string,mixed>
  */
-function avesmapsTerritoryWikiRecordFromStagingRow(array $row): array {
+function avesmapsTerritoryWikiRecordFromStagingRow(array $row, ?array $mirror = null): array {
     $jsonColumns = ['affiliation_path_json', 'affiliation_json', 'founded_json', 'dissolved_json', 'raw_json'];
     $record = $row;
     unset($record['id'], $record['synced_at']);
+
+    if ($mirror !== null) {
+        foreach ($record as $column => $value) {
+            if (!array_key_exists($column, $mirror) || !avesmapsTerritoryWikiStagingValueIsEmpty($value)) {
+                continue;
+            }
+            $record[$column] = $mirror[$column];
+        }
+    }
 
     foreach ($jsonColumns as $column) {
         $value = $record[$column] ?? null;
@@ -117,7 +169,9 @@ function avesmapsTerritoryWikiApplyStep(PDO $pdo, int $runId, int $userId, ?arra
                 avesmapsSyncPlanMarkItem($pdo, $itemId, 'stale', 'Der Stand hat sich seit der Vorschau geaendert.');
                 $totals['stale']++;
             } else {
-                avesmapsPoliticalUpsertWikiRecord($pdo, avesmapsTerritoryWikiRecordFromStagingRow($staging));
+                // 💣 The mirror row goes WITH the staging row: without it the upsert NULLs every column
+                // the dump left empty, including the ones the preview promised to leave alone.
+                avesmapsPoliticalUpsertWikiRecord($pdo, avesmapsTerritoryWikiRecordFromStagingRow($staging, $mirror));
                 avesmapsSyncPlanMarkItem($pdo, $itemId, 'applied');
                 $totals['applied']++;
             }
