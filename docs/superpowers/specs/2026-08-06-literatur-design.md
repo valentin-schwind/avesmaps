@@ -52,18 +52,19 @@ Am 06.08.2026 gegen das echte Wiki geprüft (Einzelabrufe `?action=raw`, **kein*
 5. **Die Kategorie `Buch` hat vier Seiten insgesamt.** Sie wäre eine Rubrik für nichts.
 6. **Der Katalog ist schon da.** `wiki_publication_catalog` enthält alle ~3060 Produktseiten samt
    `art`. Es wird **nichts neu gecrawlt**; die Weiche entscheidet nur, welche davon in
-   `wiki_adventure_catalog` promoviert werden.
+   `wiki_adventure_catalog` promoviert werden. (Die Tabellennamen sind beim Rename am 07.08. bewusst
+   geblieben — §8.)
 
 ---
 
 ## 4. 💣 Die Fallen
 
-**(a) Der Freitext-Rückfall darf `Thema` nicht anfassen.** `avesmapsWikiParseAdventurePlaceList` liest
+**(a) Der Freitext-Rückfall darf `Thema` nicht anfassen.** `avesmapsWikiParseGameLiteraturePlaceList` (`publication-parsing.php:262`) liest
 eine Kommaliste als Namen, wenn keine Wikilinks da sind. Auf `Thema=erweiterte Regeln` angewandt legt
 das einen **Ort namens „erweiterte Regeln"** an, der dann durch den Resolver läuft und im Editor als
 unaufgelöster Ort steht. Für `Thema` gilt: **nur Wikilinks, sonst nichts.**
 
-**(b) Ein neuer `product_type` MUSS in `PRODUCT_TYPES` im Editor stehen.** Sonst hat der Eintrag keine
+**(b) Ein neuer `product_type` MUSS in `PRODUCT_TYPES` im Editor (`html/game-literature-editor.html:619`) stehen.** Sonst hat der Eintrag keine
 passende Option, zeigt beim Öffnen den falschen Typ und **schreibt ihn beim Speichern still um**. Das
 ist 2026-07-19 schon einmal passiert (`kampagne` gegen „Kampagnenband", 27 Bände).
 
@@ -80,8 +81,8 @@ Spoiler. Ein dritter Wert muss überall dort ankommen, wo heute „alles, was ni
 Spoiler" steht — sonst wird eine Regionalspielhilfe als Spoiler verschleiert.
 
 **(f) 💣 Und der Server schreibt eine unbekannte Rolle STILL auf `play` um.** In
-`api/_internal/app/adventures.php` steht zweimal
-`if ($role !== 'start' && $role !== 'play') { $role = 'play'; }` (bei `add_place` und `set_place`).
+`api/_internal/app/game-literature.php` steht zweimal
+`if ($role !== 'start' && $role !== 'play') { $role = 'play'; }` — Zeile **1036** (`add_place`) und **1119** (`set_place`).
 Wird das nicht mitgeändert, landet jede über den Editor gesetzte Rolle `covers` als **`play`** in der
 Datenbank — also als Spoiler, und zwar ohne Fehlermeldung. Dieselbe Bauart wie Falle (b), dieselbe
 Wirkung: der Wert sieht beim Speichern richtig aus und ist es beim nächsten Laden nicht mehr.
@@ -100,7 +101,7 @@ neu:    regionalspielhilfe spielhilfe
 Eine **einzige** Tabelle in einer Datei sagt, welcher Typ ein Abenteuer ist:
 
 ```php
-AVESMAPS_GAME_WORK_KINDS = [
+AVESMAPS_GAME_LITERATURE_KINDS = [
     'abenteuer'          => [ …die acht Abenteuertypen… ],   // Rollen start|play, play = Spoiler
     'regionalspielhilfe' => ['regionalspielhilfe'],          // Rolle covers
     'spielhilfe'         => ['spielhilfe'],                  // Rolle covers
@@ -120,8 +121,8 @@ Sitzung (§8).
 
 ## 6. Der Sync
 
-**Die Weiche gibt die Art zurück statt ja/nein.** Aus `avesmapsWikiProductIsAdventure(string): bool`
-wird `avesmapsWikiProductWorkKind(string): string` (`''` = keine Literatur). Die drei zugelassenen Arten
+**Die Weiche gibt die Art zurück statt ja/nein.** Aus `avesmapsWikiProductIsGameLiterature(string): bool` (`publication-parsing.php:234`)
+wird `avesmapsWikiProductGameLiteratureKind(string): string` (`''` = keine Literatur). Die drei zugelassenen Arten
 stehen als Liste da; Regelband und Buch fallen durch, weil sie nicht darin stehen.
 
 **Die Ortsliste kommt aus zwei Feldern:**
@@ -226,7 +227,7 @@ Protokollzeilen**. Nur die Beschriftung ändert sich; alte Zeilen bleiben lesbar
 - **Kein Ort, kein Eintrag:** ein Werk mit leerem `Thema` erzeugt keine Katalogzeile.
 - **Die Rollen:** ein Abenteuer bekommt `start` + `play`, eine Regionalspielhilfe ausschließlich
   `covers` — und der Spoiler-Schleier greift nur bei `play`.
-- **Der Editor-Zwang:** eine Zusicherung hält `PRODUCT_TYPES` in `html/adventure-editor.html` gegen die
+- **Der Editor-Zwang:** eine Zusicherung hält `PRODUCT_TYPES` in `html/game-literature-editor.html` (Zeile **619**) gegen die
   serverseitige Liste. Das ist Falle (b), und sie ist am Quelltext prüfbar.
 - ⚠️ **End-to-End braucht einen echten „Dump holen" + Sync** — lokal gibt es keine Datenbank. Vor dem
   ersten Lauf die Art-Messung fahren, damit die Zahl der neuen Werke vorher bekannt ist.
