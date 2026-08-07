@@ -142,6 +142,15 @@
 	content: "\21E9";
 }
 
+/* „Fläche bearbeiten" -- DIESELBE Glyphe wie „Grenzen bearbeiten" im Herrschaftsgebiete-Menü weiter
+   unten (✎). Es ist derselbe Vorgang an einer anderen Geometrie, und ein zweites Zeichen dafür wäre
+   die zweite Vokabel für dieselbe Geste.
+   💣 Pflicht, nicht Zierde: ohne `content` entsteht das ::before gar nicht, die BESCHRIFTUNG wird
+   zum ersten Rasterelement und beginnt bei 12 statt bei 41 px. */
+.map-context-menu__item[data-ecosystem-area-action="edit-geometry"]::before {
+	content: "\270E";
+}
+
 .map-context-menu__item[data-ecosystem-area-action="send-to"]::before {
 	content: "\2192";
 }

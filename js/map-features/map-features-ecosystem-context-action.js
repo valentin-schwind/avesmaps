@@ -35,6 +35,10 @@
 	const NEW_AREA_ACTION = "new-area";
 	const NEW_PEAK_ACTION = "new-peak";
 	const DELETE_AREA_ACTION = "delete";
+	// Der Zwilling von „Grenzen bearbeiten" im Herrschaftsgebiete-Menü, bis auf die Beschriftung
+	// gleich. Bis 2026-08-07 gab es dafür NUR den Doppelklick -- eine Geste, die man kennen muss,
+	// ist für den, der sie nicht kennt, keine. Der Eintrag macht denselben Griff sichtbar.
+	const EDIT_GEOMETRY_ACTION = "edit-geometry";
 
 	// 🪤 NOT data-ecosystem-kind. syncEcosystemLayerSwitchControls does a DOCUMENT-WIDE
 	// querySelectorAll("[data-ecosystem-kind]") (map-features-ecosystem-layer-switch.js:76) and stamps
@@ -398,6 +402,18 @@
 		menu.className = "map-context-menu";
 		menu.hidden = true;
 
+		// 🔴 HIER GEBAUT, NICHT ÜBER addEntry -- wegen des PLATZES. Was addEntry hereinreicht, landet in
+		// Registrierungsreihenfolge, und die ist die Skript-Reihenfolge in index.html: „über Kopieren …"
+		// wäre damit eine unausgesprochene Absprache zwischen zwei Dateien, die beim nächsten Verschieben
+		// eines <script>-Tags lautlos zerfällt. Als Kind dieser Funktion steht der Eintrag oben, egal wer
+		// sich später einreiht -- dieselbe Überlegung wie bei „Fläche löschen", nur am anderen Ende.
+		const editButton = document.createElement("button");
+		editButton.type = "button";
+		editButton.className = "map-context-menu__item";
+		editButton.setAttribute(AREA_ACTION_ATTRIBUTE, EDIT_GEOMETRY_ACTION);
+		editButton.textContent = label("ecosystem.ctxmenu.editGeometry", "Fläche bearbeiten");
+		menu.appendChild(editButton);
+
 		const deleteButton = document.createElement("button");
 		deleteButton.type = "button";
 		deleteButton.className = "map-context-menu__item map-context-menu__item--danger";
@@ -697,6 +713,27 @@
 		}
 	}
 
+	// „Fläche bearbeiten" = genau das, was der Doppelklick tut (map-features-ecosystem-rendering.js).
+	// Kein zweiter Weg in den Ecken-Editor, sondern derselbe -- deshalb steht hier auch dieselbe
+	// Frage davor.
+	//
+	// 💣 EINE OFFENE SITZUNG WIRD NICHT NEU GEÖFFNET. openEcosystemGeometryEdit schliesst und baut neu
+	// auf, und das wirft den Rückgängig-Stapel weg: ein zweiter Aufruf kostete lautlos jeden Schritt,
+	// den man noch hätte zurücknehmen können. Der Doppelklick steigt an derselben Stelle aus -- nur
+	// sagt es ein Menüeintrag laut, weil ein angeklickter Eintrag, der nichts tut, wie ein Fehler
+	// aussieht.
+	function openEcosystemGeometryEditFromMenu(publicId) {
+		if (typeof openEcosystemGeometryEdit !== "function") {
+			say("Der Ecken-Editor ist nicht bereit.", "warning");
+			return;
+		}
+		if (typeof isEcosystemGeometryEditOpen === "function" && isEcosystemGeometryEditOpen(publicId)) {
+			say("Diese Fläche ist bereits in Bearbeitung — ihre Ecken liegen schon frei.");
+			return;
+		}
+		openEcosystemGeometryEdit(publicId);
+	}
+
 	function handleAreaMenuClick(event) {
 		const actionElement = event.target?.closest?.(`[${AREA_ACTION_ATTRIBUTE}]`);
 		if (!actionElement) {
@@ -713,6 +750,10 @@
 		const latlng = activeEcosystemAreaMenuLatLng ? L.latLng(activeEcosystemAreaMenuLatLng) : null;
 		const action = actionElement.getAttribute(AREA_ACTION_ATTRIBUTE);
 		closeEcosystemAreaContextMenu();
+		if (action === EDIT_GEOMETRY_ACTION) {
+			openEcosystemGeometryEditFromMenu(publicId);
+			return true;
+		}
 		if (action === DELETE_AREA_ACTION) {
 			void deleteEcosystemArea(publicId);
 			return true;

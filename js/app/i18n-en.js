@@ -344,6 +344,9 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.ctxmenu.merge-subareas": "Merge all sub-areas",
 	"ecosystem.ctxmenu.extract": "Extract sub-area",
 	"ecosystem.ctxmenu.delete-part": "Delete sub-area",
+	// The entry twin of the double-click: it opens the vertex handles. "Edit outline" rather than "Edit
+	// area" -- the latter is the properties dialog's title below, and the two do different things.
+	"ecosystem.ctxmenu.editGeometry": "Edit outline",
 	"ecosystem.ctxmenu.deleteArea": "Delete area",
 	"ecosystem.ctxmenu.sendTo": "Copy …",
 	"ecosystem.ctxmenu.properties": "Properties …",
