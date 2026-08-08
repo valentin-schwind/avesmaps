@@ -30,6 +30,27 @@ declare(strict_types=1);
 // wer eine fuenfte will, traegt sie hier ein und im Filter des Editors, sonst nirgends.
 const AVESMAPS_CHANGELOG_CATEGORIES = ['karte', 'routenplaner', 'inhalte', 'community'];
 
+// Was die Routine "Avesmaps feature updates" mit ihrem App-Token darf (Schreibpfad
+// api/edit/map/changelog.php). Sie hat keine Session, nur das Token, mit dem sie auch nach Discord
+// postet -- also braucht sie einen Weg herein. Aber einen SCHMALEREN als ein Mensch:
+// 💣 `delete` gehoert NICHT hierher und darf nie dazukommen. Die Routine hat keinen Grund zu
+// loeschen, und ein abhandengekommenes Token soll den Verlauf ergaenzen koennen, nicht ausraeumen.
+// Die Liste steht hier statt im Endpunkt, damit ein Test die echte Konstante lesen kann statt
+// Quelltext zu greppen.
+const AVESMAPS_CHANGELOG_TOKEN_ACTIONS = ['list', 'save'];
+
+/**
+ * Darf die Routine diese Aktion ausfuehren? Die Entscheidung steht als eigene Funktion hier und
+ * nicht als in_array() im Endpunkt, damit ein Test sie WIRKLICH aufrufen kann -- der Endpunkt
+ * laesst sich nicht requiren, sein try-Block beantwortete sofort eine Anfrage.
+ *
+ * Strikt verglichen: 'Delete' ist nicht 'delete', und '' ist keine Aktion.
+ */
+function avesmapsChangelogTokenMayRun(string $action): bool
+{
+    return in_array($action, AVESMAPS_CHANGELOG_TOKEN_ACTIONS, true);
+}
+
 /**
  * Der Startbestand: 42 Meilensteine, destilliert aus 4.655 Commits (22.04.2026 - 03.08.2026).
  *

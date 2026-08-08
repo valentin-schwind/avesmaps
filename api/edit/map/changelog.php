@@ -14,10 +14,44 @@ declare(strict_types=1);
 //
 // Gedacht ist er für die Routine „Avesmaps feature updates": sie liest über `list` den
 // `latest_source_ref` (den Commit, bis zu dem der Verlauf reicht), nimmt die Commits seit dann und
-// hängt das Erzählenswerte per `save` an. Alles capability-gated ('edit') wie jeder Editor-Schreibweg.
+// hängt das Erzählenswerte per `save` an.
+//
+// 💣 ZWEI Anrufer, zwei Ausweise — und der Routine fehlte ihrer. Ein Mensch im Editor kommt mit
+// seiner Session (capability 'edit') wie auf jedem Editor-Schreibweg. Die Routine hat keine Session,
+// sie hat nur das App-Token, mit dem sie auch nach Discord postet. Bis 2026-08-08 stand hier allein
+// die Session-Prüfung — und weil es AUSSER der Routine keinen Anrufer gibt (keine Oberfläche ruft
+// diesen Pfad, `git grep "edit/map/changelog"` über js/ und edit/ ist leer), konnte ihn niemand
+// rufen: fünf Tage nach dem Start stand der Verlauf noch auf der Saat, `source: "seed"`, kein
+// einziger angehängter Eintrag. Ein Schreibpfad, dessen einziger vorgesehener Aufrufer sich nicht
+// ausweisen kann, ist kein Schreibpfad.
+//
+// ⚠️ Das Token darf WENIGER als eine Session: nur `list` und `save` (Liste in
+// AVESMAPS_CHANGELOG_TOKEN_ACTIONS). Löschen bleibt am Menschen — die Routine hat dafür keinen
+// Grund, und ein abhandengekommenes Token soll den Verlauf ergänzen können, nicht ihn ausräumen.
+// Gelesen wird es NUR aus dem Header, nie aus `?token=` wie in report-post.php: eine Adresszeile
+// steht im Server-Log, ein Header nicht.
 
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/app/changelog.php';
+require_once __DIR__ . '/../../_internal/discord/app-auth.php';
+
+/**
+ * Kommt diese Anfrage von der Routine? Prüft NUR den Header und nur gegen ein konfiguriertes Token:
+ * avesmapsDiscordCheckAppToken() fällt bei leerem Soll- ODER Ist-Wert zu und vergleicht sonst mit
+ * hash_equals(). Ohne gültiges Token ist die Antwort false, und der Aufrufer verlangt die Session —
+ * dieser Weg kann also nichts aufsperren, was vorher zu war.
+ *
+ * @param array<string, mixed> $config
+ */
+function avesmapsChangelogHasRoutineToken(array $config): bool
+{
+    $discord = is_array($config['discord'] ?? null) ? $config['discord'] : [];
+
+    return avesmapsDiscordCheckAppToken(
+        (string) ($discord['app_token'] ?? ''),
+        (string) ($_SERVER['HTTP_X_AVESMAPS_TOKEN'] ?? '')
+    );
+}
 
 /**
  * Prüft und normalisiert einen eingehenden Eintrag. Gibt eine Fehlermeldung als String zurück,
@@ -79,9 +113,23 @@ try {
         avesmapsErrorResponse(405, 'method_not_allowed', 'Nur POST ist für diesen Endpoint erlaubt.');
     }
 
-    avesmapsRequireUserWithCapability('edit');
+    // Erst der Ausweis, dann der Rumpf: wer weder Token noch Session hat, bekommt 401, bevor hier
+    // irgendetwas geparst wird. Nur wenn das Token stimmt, entscheidet danach die Aktion.
+    $isRoutine = avesmapsChangelogHasRoutineToken($config);
+    if (!$isRoutine) {
+        avesmapsRequireUserWithCapability('edit');
+    }
+
     $payload = avesmapsReadJsonRequest();
     $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? ''), 40);
+
+    if ($isRoutine && !avesmapsChangelogTokenMayRun($action)) {
+        avesmapsErrorResponse(
+            403,
+            'forbidden',
+            'Mit dem App-Token lässt sich der Änderungsverlauf lesen und ergänzen, mehr nicht.'
+        );
+    }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
