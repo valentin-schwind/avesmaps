@@ -661,9 +661,15 @@
 
 	// Die Anzeige sagt AUSDRÜCKLICH, ob der Wert eingestellt oder abgeleitet ist. Ohne das sähe eine
 	// Automatik aus wie eine Entscheidung, und niemand wüsste, was ein Speichern festschreibt.
-	// 🪤 Schreibt in das Zahlenfeld NUR, wenn der Wert sich unterscheidet. Sonst würde jedes Tippen die
-	// Eingabe zurückschreiben und dabei den Cursor ans Ende reissen -- „950" liesse sich nicht zu „9500"
-	// vervollständigen, weil der Zwischenstand jedes Mal neu formatiert würde.
+	// 🪤 SCHREIBT NIE IN DAS FELD, IN DEM GERADE GETIPPT WIRD. Der Vergleich „nur wenn der Wert sich
+	// unterscheidet" stand hier von Anfang an und sollte genau das verhindern -- er griff nur nicht: der
+	// getippte Wert läuft über den Regler daneben, und ein `input[type=range]` RUNDET seinen `value`
+	// sofort auf seine Schrittweite (bei den beiden Höhen 50). Der Rückweg unterscheidet sich damit fast
+	// immer, und das Feld wurde nach JEDEM Anschlag überschrieben: getipptes „3500" endete als „000",
+	// die Höhe liess sich nur noch mit den Pfeiltasten stellen (Fall #65, an der Live-Seite nachgestellt --
+	// die Pfeiltasten treffen die Schrittweite immer, deshalb fiel es nur beim Tippen auf).
+	// Die Schrittweite ist erst beim VERLASSEN des Feldes fällig, nicht zwischen zwei Ziffern; das
+	// erledigt der blur-Handler in der Verdrahtung unten.
 	function syncTerrainOutput(feld, area) {
 		const regler = propertiesElement(feld.element);
 		const feldnummer = propertiesElement(feld.element + "-num");
@@ -672,7 +678,7 @@
 			return;
 		}
 		const zahl = Number(regler.value).toFixed(feld.decimals);
-		if (feldnummer && Number(feldnummer.value) !== Number(zahl)) {
+		if (feldnummer && feldnummer !== document.activeElement && Number(feldnummer.value) !== Number(zahl)) {
 			feldnummer.value = zahl;
 		}
 		// 🔴 KEIN „(auto)"-VERMERK MEHR (Owner 2026-07-29: „kannst du dieses autofeld einfach weglassen").
@@ -1328,6 +1334,17 @@
 				}
 				regler.value = String(wert);
 				regler.dispatchEvent(new Event("input", { bubbles: true }));
+			});
+			// 🪤 UND BEIM VERLASSEN ZURECHTRÜCKEN. Während des Tippens bleibt das Feld unangetastet (siehe
+			// syncTerrainOutput) -- danach soll es aber die Zahl zeigen, die WIRKLICH gilt: geklemmt an die
+			// Reglergrenzen und auf dessen Schrittweite gerundet. Sonst bliebe ein getipptes „3501" stehen,
+			// während Regler, Vorschau und Speicherung längst 3500 meinen -- zwei sichtbare Wahrheiten.
+			propertiesElement(feld.element + "-num")?.addEventListener("blur", () => {
+				const feldnummer = propertiesElement(feld.element + "-num");
+				const regler = propertiesElement(feld.element);
+				if (feldnummer && regler) {
+					feldnummer.value = Number(regler.value).toFixed(feld.decimals);
+				}
 			});
 			propertiesElement(feld.element)?.addEventListener("input", () => {
 				// Anfassen heisst entscheiden -- ab hier gilt der Regler und nicht mehr die Ableitung.
