@@ -44,3 +44,12 @@ uploads/map/*.zip
 .claude/worktrees/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# Verify-Seiten: die Beweis-Harnische der Sitzungen (Mockups, Messseiten, ihre Daten).
+# Sie gehoeren zur Arbeit, aber nicht in das Repo -- sie werden nie ausgeliefert, und 51
+# Stueck (5,4 MB) standen dauerhaft in "git status". Das ist nicht Kosmetik: AGENTS.md §9
+# verlangt "erst git status, dann NUR eigene Pfade stagen", und diese Regel ist die einzige,
+# die in einem geteilten Arbeitsbaum die Arbeit fremder Sitzungen schuetzt. Sie wird
+# unbefolgbar, wenn die Liste zu 56 Zeilen Rauschen wird, in denen die eigene Aenderung
+# untergeht. Gleiche Begruendung wie .superpowers/ weiter oben.
+verify-*
