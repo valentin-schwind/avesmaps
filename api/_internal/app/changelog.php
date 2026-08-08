@@ -30,9 +30,9 @@ declare(strict_types=1);
 // wer eine fuenfte will, traegt sie hier ein und im Filter des Editors, sonst nirgends.
 const AVESMAPS_CHANGELOG_CATEGORIES = ['karte', 'routenplaner', 'inhalte', 'community'];
 
-// Was die Routine "Avesmaps feature updates" mit ihrem App-Token darf (Schreibpfad
-// api/edit/map/changelog.php). Sie hat keine Session, nur das Token, mit dem sie auch nach Discord
-// postet -- also braucht sie einen Weg herein. Aber einen SCHMALEREN als ein Mensch:
+// Was die Routine "Avesmaps feature updates" mit ihrem Token darf (Schreibpfad
+// api/edit/map/changelog.php). Sie hat keine Session, nur ein Token -- also braucht sie einen Weg
+// herein. Aber einen SCHMALEREN als ein Mensch:
 // 💣 `delete` gehoert NICHT hierher und darf nie dazukommen. Die Routine hat keinen Grund zu
 // loeschen, und ein abhandengekommenes Token soll den Verlauf ergaenzen koennen, nicht ausraeumen.
 // Die Liste steht hier statt im Endpunkt, damit ein Test die echte Konstante lesen kann statt
@@ -49,6 +49,29 @@ const AVESMAPS_CHANGELOG_TOKEN_ACTIONS = ['list', 'save'];
 function avesmapsChangelogTokenMayRun(string $action): bool
 {
     return in_array($action, AVESMAPS_CHANGELOG_TOKEN_ACTIONS, true);
+}
+
+/**
+ * Vergleicht das mitgeschickte Token mit dem konfigurierten ($config['changelog']['app_token']).
+ *
+ * 💣 Faellt ZU, sobald eine der beiden Seiten leer ist -- und beide Richtungen zaehlen. Ohne die
+ * erste Haelfte kaeme jede Installation, in der der Schluessel fehlt, mit einem leeren Header
+ * herein; das ist genau der Zustand direkt nach diesem Deploy und vor dem Eintrag in
+ * config.local.php. hash_equals() vergleicht in konstanter Zeit, damit die Antwortzeit das Token
+ * nicht Zeichen fuer Zeichen verraet.
+ *
+ * ⚠️ Bewusst eine EIGENE Pruefung statt avesmapsDiscordCheckAppToken(): der Verlauf hat seit
+ * 2026-08-08 seinen eigenen Schluessel (Owner-Entscheid). Drei Zeilen doppelt sind der Preis dafuer,
+ * dass die beiden Tueren nichts voneinander wissen -- wer den Discord-Schluessel tauscht, faellt dem
+ * Verlauf nicht ins Schloss, und ein Leck auf der einen Seite oeffnet die andere nicht mit.
+ */
+function avesmapsChangelogTokenMatches(string $configured, string $provided): bool
+{
+    if ($configured === '' || $provided === '') {
+        return false;
+    }
+
+    return hash_equals($configured, $provided);
 }
 
 /**

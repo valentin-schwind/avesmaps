@@ -17,38 +17,46 @@ declare(strict_types=1);
 // hängt das Erzählenswerte per `save` an.
 //
 // 💣 ZWEI Anrufer, zwei Ausweise — und der Routine fehlte ihrer. Ein Mensch im Editor kommt mit
-// seiner Session (capability 'edit') wie auf jedem Editor-Schreibweg. Die Routine hat keine Session,
-// sie hat nur das App-Token, mit dem sie auch nach Discord postet. Bis 2026-08-08 stand hier allein
-// die Session-Prüfung — und weil es AUSSER der Routine keinen Anrufer gibt (keine Oberfläche ruft
-// diesen Pfad, `git grep "edit/map/changelog"` über js/ und edit/ ist leer), konnte ihn niemand
-// rufen: fünf Tage nach dem Start stand der Verlauf noch auf der Saat, `source: "seed"`, kein
-// einziger angehängter Eintrag. Ein Schreibpfad, dessen einziger vorgesehener Aufrufer sich nicht
-// ausweisen kann, ist kein Schreibpfad.
+// seiner Session (capability 'edit') wie auf jedem Editor-Schreibweg. Die Routine hat keine Session.
+// Bis 2026-08-08 stand hier allein die Session-Prüfung — und weil es AUSSER der Routine keinen
+// Anrufer gibt (keine Oberfläche ruft diesen Pfad, `git grep "edit/map/changelog"` über js/ und
+// edit/ ist leer), konnte ihn niemand rufen: fünf Tage nach dem Start stand der Verlauf noch auf der
+// Saat, `source: "seed"`, kein einziger angehängter Eintrag. Ein Schreibpfad, dessen einziger
+// vorgesehener Aufrufer sich nicht ausweisen kann, ist kein Schreibpfad.
+//
+// 🔴 Der Schlüssel ist ein EIGENER: `$config['changelog']['app_token']` in config.local.php, NICHT
+// der Discord-Schlüssel (Owner-Entscheid 2026-08-08, am selben Tag korrigiert). Die erste Fassung
+// nahm `discord.app_token` mit, weil das keine neue Konfigurationszeile auf dem Server kostete —
+// aber damit hätte ein Token, das bis dahin nur in einen Chat-Kanal schreiben durfte, plötzlich
+// öffentlich sichtbaren Text in die Webanwendung geschrieben. Bequemlichkeit ist kein Grund, zwei
+// Befugnisse zu einer zu verschmelzen; wer eine davon tauschen oder sperren will, muss das
+// einzeln können.
 //
 // ⚠️ Das Token darf WENIGER als eine Session: nur `list` und `save` (Liste in
 // AVESMAPS_CHANGELOG_TOKEN_ACTIONS). Löschen bleibt am Menschen — die Routine hat dafür keinen
 // Grund, und ein abhandengekommenes Token soll den Verlauf ergänzen können, nicht ihn ausräumen.
 // Gelesen wird es NUR aus dem Header, nie aus `?token=` wie in report-post.php: eine Adresszeile
 // steht im Server-Log, ein Header nicht.
+//
+// ⚠️ Fehlt der Schlüssel in der Konfiguration, fällt der Weg ZU (nicht auf) — dann bleibt nur die
+// Session. Genau das ist der Zustand zwischen diesem Deploy und dem Eintrag in config.local.php.
 
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/app/changelog.php';
-require_once __DIR__ . '/../../_internal/discord/app-auth.php';
 
 /**
- * Kommt diese Anfrage von der Routine? Prüft NUR den Header und nur gegen ein konfiguriertes Token:
- * avesmapsDiscordCheckAppToken() fällt bei leerem Soll- ODER Ist-Wert zu und vergleicht sonst mit
- * hash_equals(). Ohne gültiges Token ist die Antwort false, und der Aufrufer verlangt die Session —
- * dieser Weg kann also nichts aufsperren, was vorher zu war.
+ * Kommt diese Anfrage von der Routine? Prüft NUR den Header und nur gegen ein konfiguriertes Token.
+ * Ohne gültiges Token ist die Antwort false, und der Aufrufer verlangt die Session — dieser Weg kann
+ * also nichts aufsperren, was vorher zu war.
  *
  * @param array<string, mixed> $config
  */
 function avesmapsChangelogHasRoutineToken(array $config): bool
 {
-    $discord = is_array($config['discord'] ?? null) ? $config['discord'] : [];
+    $changelog = is_array($config['changelog'] ?? null) ? $config['changelog'] : [];
 
-    return avesmapsDiscordCheckAppToken(
-        (string) ($discord['app_token'] ?? ''),
+    return avesmapsChangelogTokenMatches(
+        (string) ($changelog['app_token'] ?? ''),
         (string) ($_SERVER['HTTP_X_AVESMAPS_TOKEN'] ?? '')
     );
 }

@@ -18,7 +18,6 @@ if (ini_get('zend.assertions') !== '1') {
 }
 
 require __DIR__ . '/../changelog.php';
-require __DIR__ . '/../../discord/app-auth.php';
 
 // ---- Die Regel: das Token darf WENIGER als ein Mensch -----------------------------------------
 // 💣 Der eine Fehler, der hier wehtut, ist ein grosszuegiges `delete`. Ein abhandengekommenes Token
@@ -37,14 +36,32 @@ assert(avesmapsChangelogTokenMayRun('Delete') === false, 'strikt verglichen, kei
 assert(avesmapsChangelogTokenMayRun('save ') === false, 'kein Durchrutschen ueber Leerzeichen');
 
 // ---- Die Tokenpruefung faellt ZU, wo etwas fehlt ------------------------------------------------
-// Beide Richtungen zaehlen: ein nicht konfiguriertes Token darf nicht dadurch passen, dass der
-// Anrufer ebenfalls nichts schickt -- sonst stuende der Endpunkt auf jeder Installation offen, die
-// den Discord-Teil der Konfiguration nicht ausgefuellt hat.
-assert(avesmapsDiscordCheckAppToken('', '') === false, 'nichts gegen nichts ist kein Ausweis');
-assert(avesmapsDiscordCheckAppToken('geheim', '') === false, 'ohne mitgeschicktes Token: zu');
-assert(avesmapsDiscordCheckAppToken('', 'geheim') === false, 'ohne konfiguriertes Token: zu');
-assert(avesmapsDiscordCheckAppToken('geheim', 'falsch') === false, 'falsches Token: zu');
-assert(avesmapsDiscordCheckAppToken('geheim', 'geheim') === true, 'richtiges Token: auf');
+// 💣 Beide Richtungen zaehlen. Ohne die Pruefung auf das KONFIGURIERTE Token kaeme jede Installation
+// ohne Schluessel mit einem leeren Header herein -- und das ist kein Randfall, sondern der Zustand
+// direkt nach dem Deploy und vor dem Eintrag in config.local.php.
+assert(avesmapsChangelogTokenMatches('', '') === false, 'nichts gegen nichts ist kein Ausweis');
+assert(avesmapsChangelogTokenMatches('geheim', '') === false, 'ohne mitgeschicktes Token: zu');
+assert(avesmapsChangelogTokenMatches('', 'geheim') === false, 'ohne konfiguriertes Token: zu');
+assert(avesmapsChangelogTokenMatches('geheim', 'falsch') === false, 'falsches Token: zu');
+assert(avesmapsChangelogTokenMatches('geheim', 'geheim') === true, 'richtiges Token: auf');
+
+// ⚠️ Der konstant-zeitige Vergleich laesst sich VERHALTEN nicht nachweisen: `===` liefert dieselben
+// true/false, nur verraet es das Token ueber die Antwortzeit Zeichen fuer Zeichen. Ein Unit-Test
+// kann das nicht messen -- also wird die Zeile selbst festgehalten, sonst faellt sie beim naechsten
+// „das geht doch einfacher" lautlos weg. (Gemessen: die Mutation `hash_equals` -> `===` blieb ohne
+// diese Zusicherung gruen.)
+// 💣 Der GANZE Ausdruck, nicht der Funktionsname: der Docblock direkt darueber nennt hash_equals()
+// ebenfalls, und gegen den blossen Namen blieb die Mutation gruen. Das ist in dieser Datei die
+// DRITTE Zusicherung, die zuerst auf Prosa statt auf Code angeschlagen hat (Riegel, Discord-
+// Schluessel, hier) -- in einem Quelltext-Test ist der Kommentar Teil des Suchraums. Faustregel:
+// niemals auf einen Bezeichner pruefen, immer auf den Aufruf samt Argumenten.
+assert(
+    str_contains(
+        (string) file_get_contents(__DIR__ . '/../changelog.php'),
+        'return hash_equals($configured, $provided);'
+    ),
+    'der Tokenvergleich bleibt konstant-zeitig'
+);
 
 // ---- Die Verdrahtung im Endpunkt ----------------------------------------------------------------
 $endpoint = (string) file_get_contents(__DIR__ . '/../../../edit/map/changelog.php');
@@ -61,6 +78,19 @@ assert(
 // steht danach in jedem Server-Log und in jedem Verlauf. Hier nicht.
 assert(str_contains($endpoint, 'HTTP_X_AVESMAPS_TOKEN'), 'Token kommt aus dem Header');
 assert(!str_contains($endpoint, '_GET'), 'Token niemals aus der Adresszeile');
+
+// 🔴 Der Verlauf hat einen EIGENEN Schluessel. Die erste Fassung lieh sich den Discord-Schluessel,
+// weil das keine neue Konfigurationszeile kostete -- damit haette ein Token, das nur in einen
+// Chat-Kanal schreiben durfte, oeffentlich sichtbaren Text in die Webanwendung geschrieben
+// (Owner-Entscheid 2026-08-08: umdrehen). Die Zusicherung haelt beides fest: den eigenen Schluessel
+// UND dass der Discord-Weg hier nicht wieder hereinkommt.
+// ⚠️ Geprueft wird der AUSDRUCK, nicht das Wort. Ein `!str_contains($endpoint, 'discord')` schlaegt
+// schon an dem Kommentar an, der ERKLAERT, warum der Discord-Schluessel hier nicht steht -- und
+// zwingt so dazu, die Begruendung zu loeschen, um den Test gruen zu bekommen. Zweites Mal dieselbe
+// Falle in dieser Datei (siehe den Riegel weiter unten): Prosa und Code teilen sich die Woerter.
+assert(str_contains($endpoint, "\$config['changelog']"), 'eigener Konfigurationsschluessel');
+assert(!str_contains($endpoint, "\$config['discord']"), 'kein Rueckgriff auf den Discord-Schluessel');
+assert(!str_contains($endpoint, 'avesmapsDiscordCheckAppToken('), 'eigene Tokenpruefung, nicht die von Discord');
 
 // Und die Reihenfolge: erst der Ausweis, dann die Aktion. Stuende die Pruefung hinter dem `switch`,
 // haette die Routine ihre `delete`-Anfrage laengst ausgefuehrt, bevor jemand sie ablehnt.
