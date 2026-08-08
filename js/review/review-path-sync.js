@@ -774,8 +774,10 @@ function renderVerlaufCaseFlags(flags) {
 }
 
 // Renders a single verlauf case (name+link, kind badge, flags, adds/removes, actions).
-// Layout + classes reuse the existing tree-item/region-sync/wiki-sync-case styling (no new CSS
-// in this task — only review-path-sync.js is in scope).
+// Layout + classes reuse the existing tree-item/region-sync/wiki-sync-case styling; the two
+// add/remove chips carry their colour as the modifiers `region-sync__cand--add`/`--remove`
+// (css/components/region-sync.css), never as an inline style — an inline style has no dark-mode
+// variant. See AGENTS.md §12; guarded by __tests__/verlauf-chip-colour-tokens.test.js.
 function renderVerlaufCase(caseEntry) {
 	const kindLabel = verlaufKindLabel(caseEntry.kind);
 	const nameHtml = caseEntry.wiki_url
@@ -784,8 +786,8 @@ function renderVerlaufCase(caseEntry) {
 	const adds = Array.isArray(caseEntry.adds) ? caseEntry.adds : [];
 	const removes = Array.isArray(caseEntry.removes) ? caseEntry.removes : [];
 	const addRemoveParts = [].concat(
-		adds.map((a) => `<span class="region-sync__cand" style="color:#2f6b3a;border-color:#8fa46d;">+ ${pathSyncEscapeText(a.name)}${Array.isArray(a.hops) && a.hops.length ? ` (${a.hops.map(pathSyncEscapeText).join(" → ")})` : ""}</span>`),
-		removes.map((r) => `<span class="region-sync__cand" style="color:#8a2d22;border-color:#b87d73;">− ${pathSyncEscapeText(r.name)}</span>`)
+		adds.map((a) => `<span class="region-sync__cand region-sync__cand--add">+ ${pathSyncEscapeText(a.name)}${Array.isArray(a.hops) && a.hops.length ? ` (${a.hops.map(pathSyncEscapeText).join(" → ")})` : ""}</span>`),
+		removes.map((r) => `<span class="region-sync__cand region-sync__cand--remove">− ${pathSyncEscapeText(r.name)}</span>`)
 	);
 	const addRemoveHtml = addRemoveParts.join(" ");
 	const hashOnlyHtml = caseEntry.hash_only ? '<span class="region-sync__badge">Nur Kurs-Stempel aktualisieren</span>' : "";

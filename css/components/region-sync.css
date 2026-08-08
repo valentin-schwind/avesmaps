@@ -432,6 +432,36 @@
 	background: var(--color-danger-soft);
 }
 
+/* Verlaufsvergleich der Wege-Fallliste: „+ Ort" hinzugefuegt, „− Ort" entfernt.
+   💣 Bis 2026-08-08 trug review-path-sync.js diese beiden Farben als rohen Inline-Style im Markup --
+   und ein Inline-Style hat keine data-theme-Variante. Im Dunkelmodus stand das Dunkelgruen/Dunkelrot
+   deshalb auf dunklem Grund, und seit der Umstellung auf die Pill-Tokens (101c00bc, 07.08.) ueberschrieb
+   es zusaetzlich die frisch geordnete Farbgebung der Pille. AGENTS.md §12: nie eine Farbe hartkodieren.
+   ⚠️ Die :hover-Regeln sind nicht Kosmetik, sondern tragend: `.region-sync__cand:hover` ist mit (0,2,0)
+   spezifischer als ein Modifier allein (0,1,0) und faerbte den Chip sonst beim Ueberfahren braun um --
+   derselbe Grund, aus dem --conflict direkt darueber einen hat.
+   Die Kante ist WEICHER als bei --conflict (--color-danger-soft-border statt --color-danger): ein
+   Konflikt darf lauter sein als eine gewoehnliche Entfernung. */
+.region-sync__cand--add {
+	border-color: var(--color-success-soft-border);
+	color: var(--color-success-soft-text);
+	background: var(--color-success-soft);
+}
+.region-sync__cand--add:hover {
+	border-color: var(--color-success-soft-text);
+	background: var(--color-success-soft);
+}
+
+.region-sync__cand--remove {
+	border-color: var(--color-danger-soft-border);
+	color: var(--color-danger-soft-text);
+	background: var(--color-danger-soft);
+}
+.region-sync__cand--remove:hover {
+	border-color: var(--color-danger-soft-text);
+	background: var(--color-danger-soft);
+}
+
 /* 🔴 KNOPF-HIERARCHIE (AGENTS.md §12: EINE Haupthandlung gefuellt, alles Weitere weich).
    „Zuordnen"/„+" war ein GEFUELLTER Akzentknopf -- in einer Liste, die am 07.08. live 4.134 Zeilen
    hat. 462 gefuellte Hauptknoepfe untereinander sind keine Hierarchie mehr, sondern eine Wand; und in
