@@ -418,15 +418,32 @@
 	margin-top: 24px;
 }
 
-/* ⚠️ Seit 06.08.2026 ein <a>, kein <button>: ohne JavaScript fuehrt es auf html/impressum.html,
-   sonst waeren Impressum und Datenschutz unerreichbar (siehe index.html an dieser Stelle). Aussehen
-   und Lage bleiben unveraendert -- die drei Zeilen darunter sind alles, was der Wechsel kostet:
-   ein Link bringt eine Unterstreichung und die Linkfarbe mit, ein Knopf nicht. `position: fixed`
-   macht die Box ohnehin blockartig, `padding` und `border` wirken also wie zuvor. */
-#legal-button {
+/* Die Kartenecke unten rechts ist ein BUND aus zwei Knoepfen: „Neuigkeiten“ (der
+   Änderungsverlauf) links, „Hinweise“ rechts am Rand. Das Positionieren gehoert dem Bund, das
+   Aussehen den Knoepfen -- sonst muesste jeder weitere Eckknopf right/bottom/z-index noch einmal
+   von Hand treffen und beim naechsten Verschieben nachgezogen werden. Wohin der Bund wandert, wenn
+   die Infobox aufgeht, und wann er stapelt, steht in css/features/infopanel.css; dort haengt auch
+   der Zoom darueber an derselben Zahl. */
+#map-corner-actions {
 	position: fixed;
 	right: 12px;
 	bottom: 12px;
+	z-index: var(--z-map-ui);
+	display: flex;
+	align-items: flex-end;
+	gap: 6px;
+}
+
+/* ⚠️ Seit 06.08.2026 ist #legal-button ein <a>, kein <button>: ohne JavaScript fuehrt es auf
+   html/impressum.html, sonst waeren Impressum und Datenschutz unerreichbar (siehe index.html an
+   dieser Stelle). Aussehen und Lage bleiben unveraendert -- `text-decoration` und `font-family`
+   sind alles, was der Wechsel kostet: ein Link bringt eine Unterstreichung und die Linkfarbe mit,
+   ein Knopf seine eigene Schriftart.
+   ⚠️ Aus demselben Grund steht `line-height` ausgeschrieben: ein <button> bringt `normal` mit, ein
+   <a> erbt die Zeilenhoehe des Dokuments. Ohne die Zeile waeren die beiden nebeneinander
+   unterschiedlich hoch -- und das faellt erst auf, wenn sie es sind. */
+#legal-button,
+#news-button {
 	padding: 7px 10px;
 	border: 1px solid var(--color-border-strong);
 	border-radius: var(--radius-sm);
@@ -434,16 +451,19 @@
 	color: var(--color-text);
 	box-shadow: var(--shadow-panel);
 	cursor: pointer;
-	z-index: var(--z-map-ui);
 	font-size: 13px;
+	line-height: 1.2;
 	text-decoration: none;
 	font-family: inherit;
 	text-align: center;
+	white-space: nowrap;
 }
 
 #legal-button:hover,
-#legal-button:focus-visible {
-	/* #legal-button schwebt wie der Zoom-Control ueber der KARTE -> das translucente --color-hover-wash
+#legal-button:focus-visible,
+#news-button:hover,
+#news-button:focus-visible {
+	/* Die beiden schweben wie der Zoom-Control ueber der KARTE -> das translucente --color-hover-wash
 	   allein liess die Karte durchscheinen ("komisch transparent"). Wash UEBER das opake Panel legen statt
 	   es zu ersetzen (gleiches Muster wie .leaflet-control-zoom a:hover in map-layout.css). */
 	background-color: var(--color-panel);

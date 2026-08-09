@@ -712,6 +712,9 @@ window.AVESMAPS_I18N_EN = {
 
 	// --- legal / "Hinweise" dialog (German text remains the authoritative version) ---
 	"legal.button": "Notices",
+	// The corner button next to "Notices" -- it opens the changelog. Short on purpose: it sits
+	// on the map, next to another button, and "What's new?" already names the tile inside.
+	"legal.news": "News",
 	"legal.title": "Notices",
 	"legal.closeAria": "Close legal notices",
 	"legal.badge": "Non-commercial fan project",

@@ -26,9 +26,16 @@ var AVESMAPS_CHANGELOG_CATEGORY_LABELS = {
 };
 
 (function () {
+	// ZWEI Öffner: die Kachel „Was ist neu?" in den Hinweisen und der Knopf „Neuigkeiten" unten
+	// rechts an der Karte. Wohin der Fokus beim Schliessen zurückkehrt, entscheidet nicht die Liste,
+	// sondern wer tatsächlich geöffnet hat -- sonst landet er nach einem Klick auf „Neuigkeiten"
+	// hinter einem geschlossenen Fenster in den Hinweisen.
+	var OPEN_BUTTON_IDS = ["changelog-open", "news-button"];
+
 	var overlay = null;
 	var listHost = null;
-	var openButton = null;
+	var openButtons = null;
+	var lastOpener = null;
 	var entriesCache = null;
 	var isLoading = false;
 
@@ -37,7 +44,9 @@ var AVESMAPS_CHANGELOG_CATEGORY_LABELS = {
 		// später verschobenes Fenster (wie beim Konfliktzentrum geschehen) soll es nicht abhängen.
 		overlay = overlay || document.getElementById("changelog-overlay");
 		listHost = listHost || document.getElementById("changelog-list");
-		openButton = openButton || document.getElementById("changelog-open");
+		openButtons = openButtons || OPEN_BUTTON_IDS.map(function (id) {
+			return document.getElementById(id);
+		}).filter(Boolean);
 		return overlay && listHost;
 	}
 
@@ -220,8 +229,8 @@ var AVESMAPS_CHANGELOG_CATEGORY_LABELS = {
 			}
 		} else {
 			overlay.setAttribute("hidden", "hidden");
-			if (openButton) {
-				openButton.focus();
+			if (lastOpener) {
+				lastOpener.focus();
 			}
 		}
 	}
@@ -230,11 +239,12 @@ var AVESMAPS_CHANGELOG_CATEGORY_LABELS = {
 		return;
 	}
 
-	if (openButton) {
-		openButton.addEventListener("click", function () {
+	openButtons.forEach(function (button) {
+		button.addEventListener("click", function () {
+			lastOpener = button;
 			setOpen(true);
 		});
-	}
+	});
 
 	var closeButton = document.getElementById("changelog-close");
 	if (closeButton) {

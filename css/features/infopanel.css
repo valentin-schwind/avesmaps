@@ -372,12 +372,24 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	right: var(--avesmaps-ip-w);
 }
 
-/* ---- Zoom + "Hinweise" fahren mit der Panel-Kante mit (Owner-Vorgabe) ----
+/* ---- Zoom + Eckknoepfe fahren mit der Panel-Kante mit (Owner-Vorgabe) ----
    Panel ZU (kein Inhalt oder eingeklappt): unten rechts am Bildschirmrand. Panel OFFEN
    (.avesmaps-infopanel-open, per JS auf <html>): sie fahren nach links ans untere linke Panel-Eck
    (12px neben der Panel-Kante). Gleiche 0.22s-Dauer wie das Panel -> sie gleiten mit. Nie vom
-   Panel verdeckt. */
-.avesmaps-infopanel-mode #legal-button {
+   Panel verdeckt.
+   💣 --avesmaps-corner-stack ist die EINE Zahl, wie hoch der Knopfbund unten rechts baut
+   (Knopfhoehe + Luft zum Zoom). Der Zoom rechnet seinen Abstand daraus, statt ihn zu kennen: als
+   hier noch `bottom: 52px` stand, war die 52 eine stille Kopie der Knopfhoehe -- eine zweite
+   Knopfreihe waere ihm in den Ruecken gelaufen, ohne dass die 52 falsch AUSSIEHT. */
+/* 💣 :root, nicht `.avesmaps-infopanel-mode` allein -- die Modus-Klasse haengt an BEIDEN,
+   <html> (js/config.js) und <body> (map-features-infopanel.js). Ohne :root schriebe <body> die
+   Zahl ein zweites Mal auf 40px und uebersteuerte damit die 78px, die der schmale Fall weiter
+   unten auf <html> setzt -- der Zoom bliebe sitzen und der gestapelte Bund liefe in ihn hinein.
+   Genau so gemessen, bevor diese Zeile entstand. */
+:root.avesmaps-infopanel-mode {
+	--avesmaps-corner-stack: 40px;
+}
+.avesmaps-infopanel-mode #map-corner-actions {
 	left: auto;
 	right: 12px;
 	bottom: 12px;
@@ -387,14 +399,29 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	position: fixed;
 	left: auto;
 	right: 12px;
-	bottom: 52px; /* ueber dem Hinweise-Knopf */
+	bottom: calc(12px + var(--avesmaps-corner-stack)); /* ueber dem Knopfbund */
 	margin: 0;
 	z-index: 1000;
 	transition: right 0.22s ease;
 }
-.avesmaps-infopanel-mode.avesmaps-infopanel-open #legal-button,
+.avesmaps-infopanel-mode.avesmaps-infopanel-open #map-corner-actions,
 .avesmaps-infopanel-mode.avesmaps-infopanel-open .leaflet-control-zoom {
 	right: calc(var(--avesmaps-ip-w) + 12px);
+}
+
+/* Wird es in der Ecke eng, stapelt der Bund: „Neuigkeiten“ nach oben, „Hinweise“ bleibt unten am
+   Rand (Owner 09.08.2026: „A normal und C wenn zu eng“). Eng ist genau EIN Fall -- offene Infobox
+   auf schmalem Schirm. Sonst ist die Ecke immer breit genug: die Zeile misst ~175px, links vom
+   Panel bleiben 100vw - --avesmaps-ip-w - 24px, und das unterschreitet 175px erst unterhalb von
+   600px Fensterbreite. Kein flex-wrap: dann entschiede der Umbruch allein, wie hoch der Bund baut,
+   und der Zoom darueber erfuehre es nie. So haengen Stapel und Zoom an DERSELBEN Bedingung. */
+@media (max-width: 599px) {
+	:root.avesmaps-infopanel-mode.avesmaps-infopanel-open {
+		--avesmaps-corner-stack: 78px;
+	}
+	.avesmaps-infopanel-mode.avesmaps-infopanel-open #map-corner-actions {
+		flex-direction: column;
+	}
 }
 /* Zoom etwas kompakter (Owner: "gerne kleiner"). */
 .avesmaps-infopanel-mode .leaflet-control-zoom a {

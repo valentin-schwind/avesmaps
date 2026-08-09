@@ -2230,15 +2230,26 @@
 			</section>
 			<div id="overview" data-i18n="planner.overview.default">Wegpunkte und Dauer der Reise werden hier angezeigt.</div>
 		</div>
-		<!-- 💣 EIN LINK, KEIN KNOPF -- und das ist der ganze Punkt (Owner 06.08.2026, Befund A24).
-		     Das Fenster „Hinweise" oeffnet nur JavaScript. Ohne JavaScript waren damit Impressum UND
-		     Datenschutzerklaerung unerreichbar, also genau die beiden Angaben, die § 5 DDG und
-		     Art. 13 DSGVO „unmittelbar erreichbar" verlangen. Als <a> traegt derselbe Knopf ein Ziel:
-		     mit JavaScript oeffnet er das Fenster (bootstrap.js ruft preventDefault), ohne
-		     JavaScript fuehrt er auf html/impressum.html, das beide Abschnitte wortgleich traegt.
-		     🔴 Fiele das preventDefault weg, oeffnete ein Klick das Fenster UND verliesse die Karte
-		     -- mitsamt der gerade geplanten Route. Der Test haelt es fest. -->
-		<a id="legal-button" href="/html/impressum.html" aria-haspopup="dialog" aria-controls="legal-dialog" aria-expanded="false" data-i18n="legal.button">Hinweise</a>
+		<!-- Die Ecke unten rechts ist EIN Bund, kein einzelner Knopf mehr: „Neuigkeiten" steht links
+		     neben „Hinweise", beide wandern gemeinsam nach links, wenn die Infobox aufgeht. Wird es
+		     eng (offene Infobox auf schmalem Schirm), stapelt der Bund -- „Neuigkeiten" nach oben,
+		     „Hinweise" bleibt unten am Rand. Wie hoch der Bund baut, sagt EINE Zahl
+		     (--avesmaps-corner-stack in css/features/infopanel.css); der Zoom darueber rechnet seinen
+		     Abstand daraus, damit Stapel und Zoom nicht auseinanderlaufen koennen.
+		     ⚠️ Die beiden sind absichtlich UNGLEICHE Elemente: „Neuigkeiten" ist ein <button>, weil
+		     sein Ziel auf DIESER Seite liegt, „Hinweise" ein <a> -- Begruendung direkt daran. -->
+		<div id="map-corner-actions">
+			<button type="button" id="news-button" aria-haspopup="dialog" aria-controls="changelog-dialog" data-i18n="legal.news">Neuigkeiten</button>
+			<!-- 💣 EIN LINK, KEIN KNOPF -- und das ist der ganze Punkt (Owner 06.08.2026, Befund A24).
+			     Das Fenster „Hinweise" oeffnet nur JavaScript. Ohne JavaScript waren damit Impressum UND
+			     Datenschutzerklaerung unerreichbar, also genau die beiden Angaben, die § 5 DDG und
+			     Art. 13 DSGVO „unmittelbar erreichbar" verlangen. Als <a> traegt derselbe Knopf ein Ziel:
+			     mit JavaScript oeffnet er das Fenster (bootstrap.js ruft preventDefault), ohne
+			     JavaScript fuehrt er auf html/impressum.html, das beide Abschnitte wortgleich traegt.
+			     🔴 Fiele das preventDefault weg, oeffnete ein Klick das Fenster UND verliesse die Karte
+			     -- mitsamt der gerade geplanten Route. Der Test haelt es fest. -->
+			<a id="legal-button" href="/html/impressum.html" aria-haspopup="dialog" aria-controls="legal-dialog" aria-expanded="false" data-i18n="legal.button">Hinweise</a>
+		</div>
 		<div id="legal-overlay" hidden>
 			<div id="legal-dialog" class="legal-dialog" role="dialog" aria-modal="true" aria-labelledby="legal-title" tabindex="-1">
 				<div class="legal-dialog__header">
