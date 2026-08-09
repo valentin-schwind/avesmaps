@@ -15,7 +15,7 @@
  * jeder normale externe Link faellt weiter unter den einheitlichen Gold-Braun-Stil. */
 /* Zweite Ausnahme :not(.legal-action__button): ein Link, der als KNOPF gezeichnet ist, ist kein
  * Fliesstext-Link. In den Hinweisen stehen zwei Aktionskacheln nebeneinander -- „Zur Community"
- * fuehrt nach draussen (also ein <a target="_blank">), „Änderungsverlauf öffnen" bleibt auf dieser
+ * fuehrt nach draussen (also ein <a target="_blank">), „Neuigkeiten öffnen" bleibt auf dieser
  * Seite (also ein <button>). Ohne die Ausnahme truege der eine Knopf die Linkfarbe und der andere
  * die Knopffarbe: zwei gleiche Knoepfe in verschiedenen Farben, und zwar in beiden Designs.
  * Nach derselben Regel wie oben steht die Ausnahme hier an der breiten Regel. Das ↗ behaelt er --

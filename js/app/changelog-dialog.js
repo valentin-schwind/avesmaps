@@ -1,7 +1,13 @@
 "use strict";
 
 /*
- * Der Änderungsverlauf — die Meilensteine des Projekts, aufgerufen aus dem Hinweise-Dialog.
+ * Das Fenster „Neuigkeiten" — die Meilensteine des Projekts, aufgerufen aus dem Hinweise-Dialog
+ * und vom Eckknopf unten rechts an der Karte.
+ *
+ * ⚠️ Bis zum 09.08.2026 hiess es „Änderungsverlauf". Umbenannt wurde nur die BESCHRIFTUNG: Datei,
+ * ids, CSS-Klassen, i18n-Schlüssel (`changelog.*`), Endpunkt und Tabelle heissen weiter changelog.
+ * Das ist Absicht — der Deploy löscht nie (AGENTS.md §10), und eine umgetaufte Tabelle oder ein
+ * umgetaufter Endpunkt liesse eine noch gecachte index.html ins Leere greifen.
  *
  * Markup: index.html (#changelog-overlay), Gestalt: css/components/changelog-dialog.css,
  * Daten: GET /api/app/changelog.php (Startbestand + Logik: api/_internal/app/changelog.php).
@@ -197,7 +203,7 @@ var AVESMAPS_CHANGELOG_CATEGORY_LABELS = {
 			.catch(function () {
 				// Kein Wiederholungsknopf: ein erneutes Öffnen versucht es ohnehin neu, weil der
 				// Cache nur bei Erfolg gefüllt wird.
-				showStatus(t("changelog.error", "Der Änderungsverlauf konnte nicht geladen werden."));
+				showStatus(t("changelog.error", "Die Neuigkeiten konnten nicht geladen werden."));
 			})
 			.then(function () {
 				isLoading = false;

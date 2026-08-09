@@ -1,4 +1,7 @@
-/* Der Änderungsverlauf — erreichbar aus dem Hinweise-Dialog, direkt unter der Discord-Karte.
+/* Das Fenster „Neuigkeiten“ (bis 09.08.2026 „Änderungsverlauf“ — umbenannt wurde die
+   Beschriftung, nicht die Technik: Datei, ids und Klassen heissen weiter changelog).
+   Erreichbar aus dem Hinweise-Dialog, direkt unter der Discord-Karte, und vom Eckknopf
+   #news-button unten rechts an der Karte.
    Markup: index.html (#changelog-overlay), Verhalten: js/app/changelog-dialog.js,
    Daten: GET /api/app/changelog.php.
 

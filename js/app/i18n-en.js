@@ -712,8 +712,8 @@ window.AVESMAPS_I18N_EN = {
 
 	// --- legal / "Hinweise" dialog (German text remains the authoritative version) ---
 	"legal.button": "Notices",
-	// The corner button next to "Notices" -- it opens the changelog. Short on purpose: it sits
-	// on the map, next to another button, and "What's new?" already names the tile inside.
+	// The corner button next to "Notices" -- it opens the news window. Same word as the German
+	// label, so button and window match; "What's new?" already names the tile inside.
 	"legal.news": "News",
 	"legal.title": "Notices",
 	"legal.closeAria": "Close legal notices",
@@ -808,20 +808,20 @@ window.AVESMAPS_I18N_EN = {
 	"shortcuts.row.nextLeg": "Next leg of the route plan",
 	"shortcuts.row.close": "Close the open window",
 
-	// --- changelog ("Änderungsverlauf") -----------------------------------------------------------
+	// --- changelog (German label "Neuigkeiten" since 2026-08-09; the KEYS stay changelog.*) -----------------------------------------------------------
 	// Only the CHROME is translated. The entries themselves come from the database in German and stay
 	// German: they are project history, not interface -- the same rule that keeps Aventurien's own
 	// names untranslated (AGENTS.md §8).
 	"changelog.callout.lead": "What's new?",
 	"changelog.callout.body": "Avesmaps keeps growing — the milestones since launch.",
-	"changelog.callout.link": "Open the changelog",
-	"changelog.title": "Changelog",
-	"changelog.closeAria": "Close changelog",
+	"changelog.callout.link": "Open the news",
+	"changelog.title": "News",
+	"changelog.closeAria": "Close the news",
 	"changelog.intro": "What has happened on Avesmaps since the map went online in April 2026 — the bigger steps; we'll spare you the fine print.",
 	"changelog.foot": "Avesmaps is a fan project and is being built on continuously. Ideas and bugs are welcome on our Discord.",
 	"changelog.loading": "Loading …",
 	"changelog.empty": "Nothing here yet.",
-	"changelog.error": "The changelog could not be loaded.",
+	"changelog.error": "The news could not be loaded.",
 	"changelog.category.karte": "Map",
 	"changelog.category.routenplaner": "Route planner",
 	"changelog.category.inhalte": "Content",

@@ -2268,7 +2268,7 @@
 						     617) und brach dreizeilig, die andere zweizeilig. Jetzt drueckt `flex: 1` auf
 						     dem Satz den Knopf nach unten: beide Kacheln sind gleich hoch und die Knoepfe
 						     stehen auf einer Linie, unabhaengig von der Textlaenge -- also auch auf
-						     Englisch. Der Verlaufs-Knopf ist ein <button>, kein <a>: das Ziel liegt auf
+						     Englisch. Der Neuigkeiten-Knopf ist ein <button>, kein <a>: das Ziel liegt auf
 						     DIESER Seite (Begruendung in css/components/legal-dialog.css). Fenster +
 						     Liste: js/app/changelog-dialog.js. -->
 						<div class="legal-dialog__actions">
@@ -2280,7 +2280,7 @@
 							<div class="legal-action">
 								<h3 class="legal-action__title" data-i18n="changelog.callout.lead">Was ist neu?</h3>
 								<p class="legal-action__body" data-i18n="changelog.callout.body">Avesmaps wächst ständig — die wichtigsten Schritte seit dem Start.</p>
-								<button type="button" id="changelog-open" class="legal-action__button" aria-haspopup="dialog" aria-controls="changelog-dialog" data-i18n="changelog.callout.link">Änderungsverlauf öffnen</button>
+								<button type="button" id="changelog-open" class="legal-action__button" aria-haspopup="dialog" aria-controls="changelog-dialog" data-i18n="changelog.callout.link">Neuigkeiten öffnen</button>
 							</div>
 						</div>
 						<!-- „Bedienung" steht GANZ OBEN, direkt unter den beiden Kacheln und vor dem
@@ -2493,7 +2493,10 @@
 			</div>
 		</div>
 
-		<!-- Der Änderungsverlauf. Aufgerufen aus den Hinweisen (#changelog-open), liegt aber als
+		<!-- Das Fenster „Neuigkeiten" (bis 09.08.2026 „Änderungsverlauf" — umbenannt wurde die
+		     BESCHRIFTUNG, nicht die Technik: ids, Klassen, i18n-Schlüssel, Endpunkt und Tabelle
+		     heissen weiter changelog/changelog_entry). Aufgerufen aus den Hinweisen
+		     (#changelog-open) und vom Eckknopf #news-button, liegt aber als
 		     eigenes Overlay daneben statt darin: ein Fenster im Fenster erbte dessen Scroll-Kasten
 		     und liesse sich nicht verschieben. Die Hülle (fixed, Scrim, z-index 1260 — ÜBER den
 		     Hinweisen mit 1200) kommt aus css/components/dialog-overlays.css, wo die ID in allen
@@ -2502,8 +2505,8 @@
 		<div id="changelog-overlay" hidden>
 			<div id="changelog-dialog" class="changelog-dialog" role="dialog" aria-modal="true" aria-labelledby="changelog-title" tabindex="-1">
 				<div class="changelog-dialog__header">
-					<h2 id="changelog-title" data-i18n="changelog.title">Änderungsverlauf</h2>
-					<button id="changelog-close" class="changelog-dialog__close" type="button" aria-label="Änderungsverlauf schließen" data-i18n-aria-label="changelog.closeAria">×</button>
+					<h2 id="changelog-title" data-i18n="changelog.title">Neuigkeiten</h2>
+					<button id="changelog-close" class="changelog-dialog__close" type="button" aria-label="Neuigkeiten schließen" data-i18n-aria-label="changelog.closeAria">×</button>
 				</div>
 				<p class="changelog-dialog__intro" data-i18n="changelog.intro">Was sich auf Avesmaps getan hat, seit die Karte im April 2026 online ging — die größeren Schritte, das Kleingedruckte lassen wir weg.</p>
 				<div id="changelog-list" class="changelog-dialog__scroll"></div>

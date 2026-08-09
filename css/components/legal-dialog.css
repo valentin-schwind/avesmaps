@@ -418,8 +418,8 @@
 	margin-top: 24px;
 }
 
-/* Die Kartenecke unten rechts ist ein BUND aus zwei Knoepfen: „Neuigkeiten“ (der
-   Änderungsverlauf) links, „Hinweise“ rechts am Rand. Das Positionieren gehoert dem Bund, das
+/* Die Kartenecke unten rechts ist ein BUND aus zwei Knoepfen: „Neuigkeiten“ (das gleichnamige Fenster mit
+   den Meilensteinen des Projekts) links, „Hinweise“ rechts am Rand. Das Positionieren gehoert dem Bund, das
    Aussehen den Knoepfen -- sonst muesste jeder weitere Eckknopf right/bottom/z-index noch einmal
    von Hand treffen und beim naechsten Verschieben nachgezogen werden. Wohin der Bund wandert, wenn
    die Infobox aufgeht, und wann er stapelt, steht in css/features/infopanel.css; dort haengt auch
