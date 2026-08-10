@@ -13,6 +13,19 @@
 
 /* ---- die Liste ------------------------------------------------------------------------------- */
 
+/* 💣 `.wiki-sync-panel__tab-panel` hat KEIN eigenes Innenmass -- jeder Reiter bringt seines selbst mit
+   (Mails ueber mail-inbox.css, Meldungen ueber seine Listenklassen). Social brachte keines: der
+   Hauptknopf klebte auf 1 px an der Panelkante, waehrend die Reiterleiste darueber auf 10 px sitzt.
+   Das faellt in keinem Test auf und in keiner Konsole -- nur im Ansehen, und dort sofort.
+
+   ⚠️ 10 px ist die HAUSNUMMER DIESES PANELS (`.wiki-sync-panel__tabs { margin: 10px 10px 8px }`),
+   keine neue Zahl: der Knopf steht damit bündig unter „Meldungen · Bewertungen · Mails · Social
+   Media". Und die Regel haengt am Social-Abschnitt, NICHT am gemeinsamen `.tab-panel` -- dort haette
+   sie jeden anderen Reiter mitverschoben, der sein Mass schon selbst mitbringt. */
+[data-review-subtab-section="social"] {
+	padding: 0 10px 10px;
+}
+
 /* Der Kopf ueber der Liste -- eine Ueberschrift plus Trenner, kein gerahmter Kasten
    (Designsprache: gruppiert wird durch Trenner). */
 .social-list__head {
