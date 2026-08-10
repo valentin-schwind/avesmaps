@@ -98,6 +98,13 @@
 			: "Entwurf — noch nicht veröffentlicht.";
 	}
 
+	// 🔴 Was in die Entwurfsliste des Fensters gehoert -- und was NICHT. Ein bereits veroeffentlichter
+	// Beitrag darf dort nie auftauchen: er traegt dieselben Knoepfe, und „Veroeffentlichen" waere auf
+	// ihm ein zweiter Versand. Auf Instagram ist der ein Doppelbeitrag, den man nur loeschen kann.
+	function isDraft(post) {
+		return !!post && post.state === "proposal";
+	}
+
 	// 🔴 Ein Beitrag, dessen Verfasser verloren ging, darf nie so lesen, als haette die Automatik ihn
 	// geschrieben. Der Unterschied zwischen „ein Mensch hat das entschieden" und „eine Routine hat es
 	// vorgeschlagen" ist der Sinn des Kennzeichens.
@@ -112,6 +119,10 @@
 	const hasDocument = typeof document !== "undefined";
 
 	let channels = [];
+	// Die zuletzt geladenen Beitraege. Sie liegen hier, weil sie ZWEI Leser haben: die Liste im Panel
+	// und die Entwurfsspalte im Fenster. Der Server ein zweites Mal danach zu fragen waere derselbe
+	// Stand, nur spaeter -- und zwei Staende, die auseinanderlaufen koennen.
+	let posts = [];
 	let vocabulary = [];
 	let sendingEnabled = true;
 	let loaded = false;
@@ -305,7 +316,66 @@
 			setStatus(sendingEnabled
 				? ""
 				: "Das Senden ist serverseitig abgeschaltet — Beiträge werden angelegt, aber nicht verschickt.");
-			renderList(response.posts || []);
+			posts = response.posts || [];
+			renderList(posts);
+			// Auch wenn das Fenster gerade zu ist: es kostet nichts und verhindert, dass es beim
+			// naechsten Oeffnen kurz den alten Stand zeigt.
+			renderHubDrafts();
+		});
+	}
+
+	// ---- die Entwuerfe im Fenster ---------------------------------------------------------------------
+
+	function renderHubDrafts() {
+		const host = el("social-hub-drafts");
+		if (!host) { return; }
+		host.textContent = "";
+
+		const drafts = (posts || []).filter(isDraft);
+		if (!drafts.length) {
+			const empty = document.createElement("p");
+			empty.className = "social-hub__hint";
+			empty.textContent = "Keine Entwürfe.";
+			host.appendChild(empty);
+			return;
+		}
+
+		drafts.forEach(function (post) {
+			const row = document.createElement("div");
+			row.className = "social-hub__draft";
+
+			const when = document.createElement("span");
+			when.className = "social-hub__draft-when";
+			when.textContent = postAuthorLabel(post) + " · " + formatDate(post.created_at);
+
+			const text = document.createElement("p");
+			text.className = "social-hub__draft-text";
+			text.textContent = post.title ? post.title : (post.text || "");
+
+			const actions = document.createElement("div");
+			actions.className = "social-hub__draft-actions";
+
+			const send = document.createElement("button");
+			send.type = "button";
+			send.className = "social-hub__soft social-hub__soft--mini";
+			send.textContent = "Veröffentlichen";
+			send.addEventListener("click", function () {
+				send.disabled = true;
+				send.textContent = "…";
+				// Genau DIESEN einen Entwurf, nicht was gerade im Formular steht. Der Server sendet
+				// ihn an die Kanaele, die beim Anlegen ausgewaehlt waren.
+				decideProposal(post.id, "approve");
+			});
+
+			const open = document.createElement("button");
+			open.type = "button";
+			open.className = "social-hub__soft social-hub__soft--mini";
+			open.textContent = "Bearbeiten";
+			open.addEventListener("click", function () { openHub(post); });
+
+			actions.append(send, open);
+			row.append(when, text, actions);
+			host.appendChild(row);
 		});
 	}
 
@@ -688,6 +758,7 @@
 
 		renderVocabulary();
 		renderChannels();
+		renderHubDrafts();
 		renderMedia();
 		overlay.hidden = false;
 		if (text) { text.focus(); }
@@ -827,6 +898,6 @@
 
 	if (typeof module !== "undefined" && module.exports) {
 		module.exports = { chipClass, chipLabel, canRetry, strictestLimit, formatCount, postAuthorLabel,
-			formatExpiry, proposalNote };
+			formatExpiry, proposalNote, isDraft };
 	}
 })();

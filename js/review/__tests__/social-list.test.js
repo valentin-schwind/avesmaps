@@ -18,6 +18,7 @@ const {
 	postAuthorLabel,
 	formatExpiry,
 	proposalNote,
+	isDraft,
 } = require("../review-social.js");
 
 // ---- the status a chip shows ---------------------------------------------------------------------
@@ -129,5 +130,16 @@ assert.strictEqual(proposalNote({ origin: "editor" }), "Entwurf — noch nicht v
 assert.strictEqual(proposalNote({}), "Entwurf — noch nicht veröffentlicht.",
 	"ohne Herkunft faellt es auf den Menschen zurueck, nicht auf die Automatik");
 assert.strictEqual(proposalNote(null), "Entwurf — noch nicht veröffentlicht.");
+
+// ---- was in die Entwurfsspalte des Fensters gehoert -----------------------------------------------
+
+assert.strictEqual(isDraft({ state: "proposal" }), true);
+// 🔴 Ein veroeffentlichter Beitrag darf dort NIE stehen: die Zeile traegt einen
+// "Veroeffentlichen"-Knopf, und auf ihm waere das ein zweiter Versand -- auf Instagram ein
+// Doppelbeitrag, den man nur loeschen kann.
+assert.strictEqual(isDraft({ state: "released" }), false);
+assert.strictEqual(isDraft({ state: "discarded" }), false);
+assert.strictEqual(isDraft({}), false, "ohne Zustand faellt es zu -- nicht auf");
+assert.strictEqual(isDraft(null), false);
 
 console.log("social-list.test: OK");

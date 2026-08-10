@@ -276,7 +276,10 @@
 	display: grid;
 	/* Links Inhalt, rechts Kanäle (Entwurf §2.3). Unter 720px fallen sie untereinander, sonst wird
 	   die schmale Spalte zur Rutsche. */
-	grid-template-columns: minmax(0, 1fr) 300px;
+	/* Die rechte Spalte traegt seit 11.08.2026 zweierlei -- Kanaele UND die wartenden Entwuerfe --,
+	   also bekommt sie Platz und die linke gibt ihn ab (Owner-Wunsch). 360 statt 300: eine
+	   Entwurfszeile mit zwei Knoepfen darunter bricht sonst dreizeilig um. */
+	grid-template-columns: minmax(0, 1fr) 360px;
 	gap: 24px;
 	/* 🔴 24px zum Rand, nicht 18: der Owner hat das am 10.08.2026 dreimal angemahnt. Ein Fenster
 	   dieser Breite mit knappem Innenmass liest sich gedraengt, und die Kanalspalte klebte an der
@@ -396,6 +399,47 @@
 
 .social-hub__ok {
 	color: var(--color-success-soft-text);
+}
+
+/* Die wartenden Entwuerfe in der rechten Spalte. Abgetrennt durch eine Linie, nicht durch einen
+   Kasten -- gruppiert wird in diesem Projekt durch Trenner (docs/design-language.md). */
+.social-hub__drafts {
+	margin-top: 14px;
+	padding-top: 10px;
+	border-top: 1px solid var(--color-divider);
+}
+
+.social-hub__draft {
+	padding: 8px 0;
+	border-top: 1px solid var(--color-divider);
+}
+
+.social-hub__draft:first-child {
+	border-top: 0;
+}
+
+.social-hub__draft-when {
+	display: block;
+	font-size: 12px;
+	color: var(--color-text-muted);
+}
+
+/* Der Textanfang. Zwei Zeilen und dann Schluss: die Spalte ist schmal, und ein Entwurf ist hier
+   ein Wiedererkennungszeichen, kein Lesetext -- zum Lesen gibt es „Bearbeiten". */
+.social-hub__draft-text {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	margin: 2px 0 6px;
+	color: var(--color-text);
+	overflow-wrap: anywhere;
+}
+
+.social-hub__draft-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
 }
 
 /* Die Einrichtung eines Zugangs. Sie steht UNTER der Kanalliste und ist normalerweise zu: sie ist
