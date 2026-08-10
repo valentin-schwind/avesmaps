@@ -363,14 +363,14 @@
 			</header>
 			<p id="map-data-status" class="map-data-status" role="status" aria-live="polite" hidden></p>
 			<nav class="review-panel__tabs" aria-label="Editorpanel">
-				<button class="review-panel__tab is-active" type="button" data-editor-panel-tab="review">Meldungen</button>
+				<button class="review-panel__tab is-active" type="button" data-editor-panel-tab="review">Community</button>
 				<button class="review-panel__tab" type="button" data-editor-panel-tab="changes">Änderungen</button>
 				<button class="review-panel__tab" type="button" data-editor-panel-tab="wiki-sync">WikiSync</button>
 				<button class="review-panel__tab" type="button" data-editor-panel-tab="presence">Status</button>
 			</nav>
 			<section class="review-panel__section is-active" data-editor-panel-section="review">
-				<nav class="wiki-sync-panel__tabs" aria-label="Meldungen-Bereiche">
-					<button class="wiki-sync-panel__tab is-active" type="button" data-review-subtab="reports">Community Meldungen</button>
+				<!-- 🔴 „Community" und „Meldungen" sind BESCHRIFTUNGEN; `review` und `reports` bleiben die technischen Namen -- hier, in `review-panel__*`, `#review-report-list` und den Endpunkten. Dieselbe Trennung wie bei „Neuigkeiten", wo die Tabelle weiter `changelog_entry` heisst (AGENTS.md §11): umbenannt wird, was Menschen lesen, nicht das, woran Code haengt. Der Reiter traegt seit dem 10.08.2026 mehr als Meldungen (Bewertungen, Mails, Social Media), und „Community Meldungen" sagte das Wort zweimal. Entwurf: docs/superpowers/specs/2026-08-10-social-media-hub-design.md --><nav class="wiki-sync-panel__tabs" aria-label="Community-Bereiche">
+					<button class="wiki-sync-panel__tab is-active" type="button" data-review-subtab="reports">Meldungen</button>
 					<button class="wiki-sync-panel__tab" type="button" data-review-subtab="ratings">Bewertungen</button>
 					<button class="wiki-sync-panel__tab" type="button" data-review-subtab="mails">Mails</button>
 				</nav>
