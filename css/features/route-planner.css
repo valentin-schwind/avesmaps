@@ -21,7 +21,7 @@
 	grid-template-columns: 24px minmax(0, 1fr) 26px;
 	align-items: center;
 	gap: 4px;
-	min-height: 36px;
+	min-height: max(36px, var(--tap-min));
 	padding: 3px 4px;
 	border: 1px solid var(--color-border);
 	border-radius: 8px;
@@ -43,8 +43,8 @@
 
 .waypoint-drag-handle,
 .remove-waypoint {
-	width: 24px;
-	height: 24px;
+	width: var(--control-h-sm);
+	height: var(--control-h-sm);
 	border: 0;
 	border-radius: var(--radius-md);
 	background: transparent;
@@ -74,7 +74,7 @@
 
 .waypoint-input {
 	width: 100%;
-	height: 30px;
+	height: var(--control-h);
 	min-width: 0;
 	border: 0;
 	border-radius: var(--radius-md);
@@ -105,7 +105,7 @@
 }
 
 .input-options button {
-	min-height: 32px;
+	min-height: var(--control-h);
 	border: 1px solid var(--color-button-border);
 	border-radius: 8px;
 	background: var(--color-button);
@@ -170,7 +170,7 @@
 	justify-content: center;
 	gap: 8px;
 	width: 100%;
-	min-height: 32px;
+	min-height: var(--control-h);
 	/* Full-width "Ziel hinzufügen" action button (replaces the old icon-only "+" and the removed
 	   "Suche" button). The "+" glyph is still drawn via ::before/::after (crisp, font-metric
 	   independent) but now sits on the LEFT, ahead of the label; the left padding reserves room for
@@ -354,7 +354,7 @@
 	   Zugeklappt -- also sobald eine Route steht und die Automatik greift -- sind es auch bei fuenf
 	   Wegpunkten nur 559 px. Der Engpass ist deshalb der Zwischenzustand „mehrere Ziele getippt,
 	   noch keine Route". Wer hier eine VIERTE Optionszeile plant, misst vorher nach. */
-	min-height: 24px;
+	min-height: var(--control-h-sm);
 	margin: 0;
 	padding: 0;
 	border: 0;
@@ -608,7 +608,7 @@
    ungebremstes <select> ist je nach Plattform 2-4 px hoeher als das Zahlenfeld daneben. */
 .route-planner-options-panel input[type="number"],
 .route-planner-options-panel select {
-	height: 25px;
+	height: var(--control-h-field);
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
 	background: var(--color-panel);
@@ -663,6 +663,10 @@
 	   Die Selects in diesen Zeilen erben von hier (sie tragen `font: inherit`). */
 	font-size: var(--font-size-control);
 	line-height: 1.25;
+	/* Das Klickziel ist die ZEILE, nicht das Kaestchen darin: ein <input type="checkbox"> ist
+	   nativ 14x14 und verzoege die Zeile, wenn man es aufblaest. Am Finger hebt --tap-min die
+	   Zeile auf 44px; am Zeiger ist der Token `auto` und aendert nichts. */
+	min-height: var(--tap-min);
 }
 
 .display-options__row[hidden] {
@@ -748,7 +752,10 @@
 
 .display-options__row--wrap label,
 .transport-filter-label {
-	min-height: auto;
+	/* 💣 DIESE Regel gewinnt, nicht die weiter oben: gleiche Spezifitaet, spaeter in der Datei.
+	   Ein --tap-min oben wurde hier auf `auto` zurueckgesetzt und blieb wirkungslos (gemessen:
+	   Zeile blieb 20px statt 44). Am Zeiger bleibt `auto` der Wert -- der Token IST dort auto. */
+	min-height: var(--tap-min);
 	padding: 0;
 	border: 0;
 	border-radius: 0;

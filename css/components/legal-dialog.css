@@ -445,6 +445,9 @@
 #legal-button,
 #news-button {
 	padding: 7px 10px;
+	/* Am Finger sind die beiden Eckknoepfe 31px hoch -- knapp unter dem Fingermass.
+	   --tap-min ist am Zeiger `auto` und aendert dort nichts. */
+	min-height: var(--tap-min);
 	border: 1px solid var(--color-border-strong);
 	border-radius: var(--radius-sm);
 	background: var(--color-panel);

@@ -115,4 +115,75 @@ if (maxH) {
 assert.ok(/#search\s*\{[^}]*height:\s*100dvh/.test(schmal[0]),
 	"#search laeuft am Telefon ueber die volle Hoehe -- daran haengt, dass sein overflow-y greift");
 
+// ---- Kein zweiter Ort fuer Steuermasse -----------------------------------------------------------
+const HOEHEN = ["--control-h", "--control-h-sm", "--control-h-field", "--tap-min"];
+HOEHEN.forEach((name) => {
+	assert.ok(new RegExp(escapeRe(name) + ":").test(tokens), `${name} steht in tokens.css`);
+	assert.ok(new RegExp(escapeRe(name) + ":").test(coarse), `${name} wird im Finger-Block angehoben`);
+});
+["css/features/route-planner.css", "css/layout/map-layout.css", "css/components/legal-dialog.css"]
+	.forEach((rel) => {
+		const css = withoutComments(read(...rel.split("/")));
+		assert.ok(!/@media\s*\(pointer:\s*coarse\)[^{]*\{[^}]*--control-h/.test(css),
+			`${rel} hebt die Steuerhoehen NICHT selbst an -- das gehoert in tokens.css,`
+			+ " sonst gibt es zwei Wahrheiten");
+	});
+
+// ---- Die Fingerwerte sind Fingerwerte -------------------------------------------------------------
+const tap = coarse.match(/--tap-min:\s*([0-9.]+)px/);
+assert.ok(tap && Number(tap[1]) >= 44,
+	`--tap-min ist am Finger ${tap ? tap[1] + "px" : "nicht gesetzt"} -- unter 44 ist es kein Fingerziel`);
+const controlH = coarse.match(/--control-h:\s*([0-9.]+)px/);
+assert.ok(controlH && Number(controlH[1]) >= 44,
+	`--control-h ist am Finger ${controlH ? controlH[1] + "px" : "nicht gesetzt"} -- Felder und Knoepfe`
+	+ " sind die Haupt-Bedienelemente des Planers");
+
+// ---- Die Komponenten lesen die Token, statt Hoehen zu tragen ---------------------------------------
+// 💣 Die Wegpunktzeile steht NICHT hier drin. Ihre Masse besitzt
+// css/features/route-planner-waypoint-timeline.css -- die Datei wird nach route-planner.css
+// importiert und arbeitet mit `#waypoints …` plus !important. Eine Hoehe in route-planner.css ist
+// dort wirkungslos; gemessen, nachdem genau das passiert war (Griff und Loeschknopf blieben am
+// Finger auf 32/24px, obwohl die Token schon standen). Deshalb wird sie unten gesondert geprueft.
+const HOEHEN_REGELN = [
+	[".input-options button", "--control-h"],
+	["#inputLocation", "--control-h"],
+	[".planner-group__toggle", "--control-h-sm"],
+	[".route-planner-options-panel input", "--control-h-field"],
+];
+HOEHEN_REGELN.forEach(([selector, token]) => {
+	// 💣 Am ZEILENANFANG verankert. Ohne das greift `.planner-group__toggle` die weiter oben
+	// stehende `.planner-group__head:has(.planner-group__toggle:hover) .planner-group__toggle`-Regel
+	// -- eine andere Regel, deren Rumpf den Token nie enthaelt. Der Test waere rot, obwohl der Code
+	// stimmt; genauso koennte er gruen sein, obwohl er nicht stimmt.
+	const rule = planner.match(new RegExp("^" + escapeRe(selector) + "[^{]*\\{([^}]*)\\}", "m"));
+	assert.ok(rule, `Regel fuer ${selector} gefunden`);
+	assert.ok(new RegExp(escapeRe("var(" + token + ")")).test(rule[1]),
+		`${selector} liest ${token} -- eine harte Hoehe hier bliebe am Finger stehen`);
+});
+
+// ---- Die Wegpunktzeile: dort, wo ihre Masse wirklich stehen --------------------------------------
+const timeline = withoutComments(read("css", "features", "route-planner-waypoint-timeline.css"));
+[["#waypoints .waypoint-drag-handle", "--control-h"],
+ ["#waypoints .waypoint-input", "--control-h"],
+ ["#waypoints .remove-waypoint", "--control-h-sm"]].forEach(([selector, token]) => {
+	const rule = timeline.match(new RegExp("^" + escapeRe(selector) + "\\s*\\{([^}]*)\\}", "m"));
+	assert.ok(rule, `Regel fuer ${selector} in der Timeline-Datei gefunden`);
+	assert.ok(new RegExp(escapeRe("var(" + token + ")")).test(rule[1]),
+		`${selector} liest ${token} -- diese Datei gewinnt ueber route-planner.css (#waypoints +`
+		+ " !important), eine Hoehe dort waere wirkungslos");
+});
+
+// 💣 Die nackten Kaestchen bleiben 14px: sie zu vergroessern verzieht die Zeile. Das Klickziel ist
+// das umgebende <label>, und DAS traegt --tap-min -- und zwar an der Regel, die auch GEWINNT:
+// `.transport-filter-label` steht dreimal in route-planner.css, und die spaeteste setzt min-height
+// zurueck. Ein --tap-min an der ersten blieb wirkungslos (gemessen: Zeile blieb 20px statt 44).
+const zeilenRegeln = planner.match(/^\.transport-filter-label\s*\{[^}]*\}/gm) || [];
+assert.ok(zeilenRegeln.length >= 1, "die Kaestchen-Zeile ist auffindbar");
+assert.ok(/var\(--tap-min\)/.test(zeilenRegeln[zeilenRegeln.length - 1])
+	|| zeilenRegeln.some((r) => /min-height:\s*var\(--tap-min\)/.test(r)),
+	"die LETZTE .transport-filter-label-Regel traegt min-height: var(--tap-min)"
+	+ " -- eine fruehere wuerde von ihrem `min-height: auto` ueberschrieben");
+assert.ok(!zeilenRegeln.some((r) => /min-height:\s*auto/.test(r)),
+	"und keine spaetere setzt es wieder auf auto zurueck");
+
 console.log("touch-scale tests passed");

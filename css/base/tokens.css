@@ -466,6 +466,17 @@
 	--icon-2xl: 48px;   /* infobox type icon (coat fallback) */
 	--icon-hero: 130px; /* coat / logo hero */
 
+	/* Steuerhoehen — die Masse der Bedienelemente. Am Zeiger genau das, was die Komponenten heute
+	   tragen; der (pointer: coarse)-Block weiter unten hebt sie auf Fingermass.
+	   💣 Diese Werte sind am Zeiger NICHT frei: sie sind gegen Panel-Ueberlauf gerechnet. Der
+	   Kommentar bei .planner-group__toggle in css/features/route-planner.css rechnet es vor --
+	   eine Optionszeile kostet 36px, und bei vier Wegpunkten faellt der Scrollbalken. Wer sie hier
+	   "aufraeumt", bricht dieses Budget. */
+	--control-h: 32px;        /* Wegpunktfeld, Combobox, Knopf */
+	--control-h-sm: 24px;     /* Klappzeile, ✕ am Wegpunkt, ⓘ */
+	--control-h-field: 25px;  /* Zahlen- und Datumsfeld der Optionen */
+	--tap-min: auto;          /* Mindesthoehe einer anfassbaren ZEILE */
+
 	/* Elevation */
 	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
 	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.38);
@@ -508,6 +519,14 @@
 		   NICHT ueber maximum-scale im Viewport-Meta loesen: das naehme allen das Aufziehen der
 		   Karte, also die Geste, die am Finger die einzige Zoomhilfe ist. */
 		--font-size-control: 16px;
+
+		--control-h: 44px;
+		--control-h-sm: 40px;
+		--control-h-field: 44px;
+		/* 💣 Gilt der ZEILE, nicht dem Kaestchen: ein <input type="checkbox"> ist nativ 14x14 und
+		   verzieht die Zeile, wenn man es aufblaest. Jedes sitzt ohnehin in einem <label> -- die
+		   anfassbare Flaeche ist die Zeile, und die misst heute 15px. */
+		--tap-min: 44px;
 	}
 }
 
