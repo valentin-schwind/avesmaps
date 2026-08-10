@@ -158,3 +158,214 @@
 	font-size: 12px;
 	padding: 3px 10px;
 }
+
+/* ---- das Hub-Fenster ---------------------------------------------------------------------------
+
+   💣 Huelle, Schleier und Stapelhoehe kommen aus css/components/dialog-overlays.css, wo
+   #social-hub-overlay in DREI Selektorlisten steht. Hier steht nur, was DIESES Fenster ausmacht --
+   eine eigene position/inset/z-index-Regel waere genau die Divergenz, die die geteilten Listen
+   verhindern. */
+
+.social-hub {
+	display: flex;
+	flex-direction: column;
+	width: min(960px, 100%);
+	max-height: 100%;
+	overflow: hidden;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-dialog);
+}
+
+.social-hub__head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	padding: 14px 18px;
+	border-bottom: 1px solid var(--color-divider);
+}
+
+.social-hub__head h2 {
+	margin: 0;
+	font-size: 17px;
+	color: var(--color-text-strong);
+}
+
+.social-hub__muted {
+	color: var(--color-text-muted);
+	font-size: 13px;
+}
+
+.social-hub__close {
+	margin-left: auto;
+	border: 0;
+	background: none;
+	color: var(--color-text-muted);
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.social-hub__close:hover {
+	color: var(--color-text-strong);
+}
+
+.social-hub__body {
+	display: grid;
+	/* Links Inhalt, rechts Kanäle (Entwurf §2.3). Unter 720px fallen sie untereinander, sonst wird
+	   die schmale Spalte zur Rutsche. */
+	grid-template-columns: minmax(0, 1fr) 300px;
+	gap: 20px;
+	padding: 16px 18px;
+	overflow-y: auto;
+}
+
+@media (max-width: 720px) {
+	.social-hub__body {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.social-hub__label {
+	display: block;
+	margin: 14px 0 6px;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: var(--color-text-muted);
+	text-transform: uppercase;
+}
+
+.social-hub__main > .social-hub__label:first-child,
+.social-hub__side > .social-hub__label:first-child {
+	margin-top: 0;
+}
+
+.social-hub__body textarea,
+.social-hub__body input[type="text"] {
+	width: 100%;
+	padding: 8px 10px;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text);
+	font: inherit;
+	resize: vertical;
+}
+
+.social-hub__count {
+	margin-top: 6px;
+	font-size: 12px;
+	color: var(--color-text-muted);
+}
+
+.social-hub__count--over {
+	color: var(--color-danger-soft-text);
+	font-weight: 600;
+}
+
+.social-hub__vocabulary {
+	margin-top: 8px;
+}
+
+.social-hub__vocab-chip {
+	cursor: pointer;
+	font: inherit;
+	font-size: 12px;
+}
+
+.social-hub__vocab-chip:hover {
+	background: var(--color-panel-active);
+}
+
+/* Die Datei-Auswahl sieht aus wie ein weicher Knopf; das native <input type=file> bleibt darin
+   verborgen, statt durch ein eigenes Bedienelement ersetzt zu werden -- die Tastaturbedienung und
+   der Dateidialog kommen so vom Element selbst. */
+.social-hub__file {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	overflow: hidden;
+	cursor: pointer;
+}
+
+.social-hub__file input[type="file"] {
+	position: absolute;
+	inset: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+
+.social-hub__media {
+	margin-top: 8px;
+	font-size: 12px;
+	color: var(--color-text-muted);
+}
+
+.social-hub__media-line {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+}
+
+.social-hub__ok {
+	color: var(--color-success-soft-text);
+}
+
+.social-hub__radio,
+.social-hub__channel {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 6px 0;
+	border-top: 1px solid var(--color-divider);
+	cursor: pointer;
+}
+
+.social-hub__radio:first-of-type,
+.social-hub__channel:first-child {
+	border-top: 0;
+}
+
+.social-hub__radio span,
+.social-hub__channel span {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.social-hub__radio small,
+.social-hub__channel-meta {
+	font-size: 12px;
+	color: var(--color-text-muted);
+}
+
+.social-hub__channel-name {
+	color: var(--color-text-strong);
+	font-weight: 600;
+}
+
+.social-hub__channel--off {
+	opacity: 0.55;
+	cursor: default;
+}
+
+.social-hub__warn {
+	margin: 10px 0 0;
+	font-size: 12px;
+	color: var(--color-warning-soft-text);
+}
+
+.social-hub__foot {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 12px 18px;
+	border-top: 1px solid var(--color-divider);
+}
+
+.social-hub__spacer {
+	flex: 1 1 auto;
+}

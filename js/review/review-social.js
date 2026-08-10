@@ -287,6 +287,7 @@
 
 	function boot() {
 		applyCapability();
+		bindHub();
 		if (typeof window !== "undefined" && window.AvesmapsSession) {
 			window.AvesmapsSession.load().then(function () {
 				if (!applyCapability()) { return; }
@@ -307,10 +308,326 @@
 		}
 	}
 
-	// openHub und decideProposal kommen mit dem Hub-Fenster; bis dahin sind sie stille Platzhalter,
-	// damit die Liste für sich lauffähig bleibt.
-	function openHub() {}
-	function decideProposal() {}
+	// ---- das Hub-Fenster ---------------------------------------------------------------------------
+
+	let media = null;      // { url, width, height, cropped, fits: [...] }
+	let editingId = null;  // gesetzt, wenn ein Vorschlag bearbeitet wird
+
+	function el(id) { return document.getElementById(id); }
+
+	function selectedChannelKeys() {
+		return Array.prototype.slice
+			.call(document.querySelectorAll("#social-channels input[type=checkbox]:checked"))
+			.map(function (input) { return input.value; });
+	}
+
+	function currentHashtags() {
+		const raw = (el("social-hashtags") || { value: "" }).value;
+		// Spiegelt avesmapsSocialNormalizeHashtags: '#' abstreifen, Leerraum drin entfernen,
+		// klein-gefaltet entdoppeln. Umlaute bleiben -- ein Hashtag ist kein Wiki-Schlüssel.
+		const seen = {};
+		const out = [];
+		String(raw).split(/[,\s]+/).forEach(function (item) {
+			const tag = item.replace(/^#+/, "").replace(/\s+/g, "");
+			if (tag === "") { return; }
+			const fold = tag.toLowerCase();
+			if (seen[fold]) { return; }
+			seen[fold] = true;
+			out.push("#" + tag);
+		});
+		return out;
+	}
+
+	// ⚠️ Nur die Bequemlichkeit, nicht der Riegel: avesmapsSocialCheckTarget rechnet dasselbe auf dem
+	// Server noch einmal, und dort zählt es.
+	function updateCount() {
+		const keys = selectedChannelKeys();
+		const limit = strictestLimit(channels, keys);
+		const text = (el("social-text") || { value: "" }).value.replace(/\s+$/, "");
+		const tags = currentHashtags();
+
+		// Je Kanal andere Hashtag-Zahlen; für den Zähler zählt der STRENGSTE angehakte, sonst
+		// verspricht die Zeile mehr Platz, als der engste Kanal hergibt.
+		let maxTags = null;
+		channels.forEach(function (channel) {
+			if (keys.indexOf(channel.key) === -1) { return; }
+			if (channel.max_hashtags === null || channel.max_hashtags === undefined) { return; }
+			if (maxTags === null || channel.max_hashtags < maxTags) { maxTags = channel.max_hashtags; }
+		});
+		const used = maxTags === null ? tags : tags.slice(0, maxTags);
+		const caption = used.length && text !== "" ? text + "\n\n" + used.join(" ")
+			: (used.length ? used.join(" ") : text);
+
+		const counter = el("social-count");
+		if (counter) {
+			counter.textContent = formatCount(text.length, caption.length - text.length, limit);
+			const over = limit.max_chars !== null && caption.length > limit.max_chars;
+			counter.classList.toggle("social-hub__count--over", over);
+			const publish = el("social-publish");
+			if (publish) { publish.disabled = over || text === "" || keys.length === 0; }
+		}
+
+		const foot = el("social-foot-note");
+		if (foot) {
+			foot.textContent = "Geht an " + keys.length + (keys.length === 1 ? " Kanal" : " Kanäle")
+				+ " · als Avesmaps, nicht unter deinem Namen";
+		}
+	}
+
+	function renderChannels() {
+		const host = el("social-channels");
+		if (!host) { return; }
+		host.textContent = "";
+
+		channels.forEach(function (channel) {
+			const row = document.createElement("label");
+			row.className = "social-hub__channel" + (channel.configured ? "" : " social-hub__channel--off");
+
+			const box = document.createElement("input");
+			box.type = "checkbox";
+			box.value = channel.key;
+			// Ein Kanal ohne Zugang ist ausgegraut und nicht anhakbar -- aber sichtbar. Wer den Hub
+			// sieht, soll wissen, was möglich wäre (Entwurf §3).
+			box.disabled = !channel.configured;
+			// Instagram ohne Bild bleibt gesperrt: dort ist ein Beitrag ohne Bild kein Beitrag.
+			if (channel.requires_media && !media) { box.disabled = true; }
+			box.checked = channel.configured && !box.disabled && channel.key === "probe";
+			box.addEventListener("change", updateCount);
+
+			const name = document.createElement("span");
+			name.className = "social-hub__channel-name";
+			name.textContent = channel.label;
+
+			const meta = document.createElement("span");
+			meta.className = "social-hub__channel-meta";
+			const parts = [channel.configured ? channel.account : "noch nicht eingerichtet"];
+			if (channel.configured) {
+				if (channel.requires_media) { parts.push("Bild erforderlich"); }
+				if (channel.max_chars !== null) { parts.push("max. " + channel.max_chars + " Zeichen"); }
+				if (!channel.clickable_links) { parts.push("Links nicht klickbar"); }
+			}
+			meta.textContent = parts.join(" · ");
+
+			const label = document.createElement("span");
+			label.append(name, meta);
+			row.append(box, label);
+			host.appendChild(row);
+		});
+
+		const hint = el("social-channel-hint");
+		if (hint) {
+			hint.textContent = media
+				? ""
+				: "Instagram braucht ein Bild — ohne Anhang bleibt der Kanal gesperrt.";
+		}
+		updateCount();
+	}
+
+	function renderVocabulary() {
+		const host = el("social-vocabulary");
+		if (!host) { return; }
+		host.textContent = "";
+		vocabulary.forEach(function (tag) {
+			const chip = document.createElement("button");
+			chip.type = "button";
+			chip.className = "social-chip social-hub__vocab-chip";
+			chip.textContent = tag;
+			chip.addEventListener("click", function () {
+				const field = el("social-hashtags");
+				if (!field) { return; }
+				if (currentHashtags().indexOf(tag) !== -1) { return; }
+				field.value = (field.value.trim() + " " + tag).trim();
+				updateCount();
+			});
+			host.appendChild(chip);
+		});
+	}
+
+	function renderMedia() {
+		const host = el("social-media-info");
+		if (!host) { return; }
+		host.textContent = "";
+		if (!media) { return; }
+
+		const line = document.createElement("div");
+		line.className = "social-hub__media-line";
+		const size = document.createElement("small");
+		size.textContent = media.width + " × " + media.height
+			+ (media.cropped ? " (zugeschnitten)" : "")
+			+ " · " + Math.round(media.bytes / 1024) + " kB · JPEG";
+		const fits = document.createElement("small");
+		// Sagt VOR dem Absenden, was durchgeht -- statt hinterher einen API-Fehler zu zeigen.
+		const labels = channels
+			.filter(function (c) { return media.fits.indexOf(c.key) !== -1 && c.key !== "probe"; })
+			.map(function (c) { return c.label; });
+		fits.className = "social-hub__ok";
+		fits.textContent = labels.length ? "✓ Passt für " + labels.join(", ") : "Passt für keinen Netzkanal.";
+
+		const remove = document.createElement("button");
+		remove.type = "button";
+		remove.className = "social-hub__soft social-hub__soft--mini";
+		remove.textContent = "Entfernen";
+		remove.addEventListener("click", function () {
+			media = null;
+			const file = el("social-file");
+			if (file) { file.value = ""; }
+			renderMedia();
+			renderChannels();
+		});
+
+		line.append(size, fits, remove);
+		host.appendChild(line);
+	}
+
+	function uploadMedia(file) {
+		const host = el("social-media-info");
+		if (host) { host.textContent = "Bild wird hochgeladen …"; }
+
+		const form = new FormData();
+		form.append("media", file);
+		form.append("license", (document.querySelector("input[name=social-license]:checked") || {}).value || "own_work");
+		form.append("source", (el("social-source") || { value: "" }).value);
+
+		return api("/api/edit/social/media.php", { method: "POST", body: form })
+			.then(function (response) {
+				if (!response || !response.ok) {
+					if (host) {
+						host.textContent = (response && response.error && response.error.message)
+							|| "Das Bild wurde nicht angenommen.";
+					}
+					return;
+				}
+				media = response;
+				renderMedia();
+				renderChannels();
+			});
+	}
+
+	function openHub(post) {
+		const overlay = el("social-hub-overlay");
+		if (!overlay) { return; }
+
+		editingId = post && post.state === "proposal" ? post.id : null;
+		media = null;
+		const text = el("social-text");
+		const tags = el("social-hashtags");
+		if (text) { text.value = post ? (post.text || "") : ""; }
+		if (tags) { tags.value = post ? (post.hashtags || "") : ""; }
+		const file = el("social-file");
+		if (file) { file.value = ""; }
+
+		const subtitle = el("social-hub-subtitle");
+		if (subtitle) {
+			subtitle.textContent = editingId ? "— Vorschlag bearbeiten" : "— Beitrag verfassen";
+		}
+
+		renderVocabulary();
+		renderChannels();
+		renderMedia();
+		overlay.hidden = false;
+		if (text) { text.focus(); }
+	}
+
+	function closeHub() {
+		const overlay = el("social-hub-overlay");
+		if (overlay) { overlay.hidden = true; }
+		editingId = null;
+	}
+
+	function publish() {
+		const button = el("social-publish");
+		if (button) { button.disabled = true; }
+
+		const body = {
+			action: "create",
+			text: (el("social-text") || { value: "" }).value,
+			hashtags: currentHashtags(),
+			channels: selectedChannelKeys(),
+			media_url: media ? media.url : "",
+			media_license: (document.querySelector("input[name=social-license]:checked") || {}).value || "",
+			media_source: (el("social-source") || { value: "" }).value,
+		};
+
+		// Ein bearbeiteter Vorschlag wird als neuer Beitrag gesendet und der alte verworfen -- so ist
+		// im Verlauf sichtbar, dass jemand eingegriffen hat, statt dass der Vorschlag sich still ändert.
+		const discardFirst = editingId
+			? api("/api/edit/social/publish.php", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ action: "discard", id: editingId }),
+			})
+			: Promise.resolve(null);
+
+		return discardFirst.then(function () {
+			return api("/api/edit/social/publish.php", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+		}).then(function (response) {
+			if (button) { button.disabled = false; }
+			if (!response || !response.ok) {
+				const counter = el("social-count");
+				if (counter) {
+					counter.textContent = (response && response.error && response.error.message)
+						|| "Der Beitrag wurde nicht angenommen.";
+					counter.classList.add("social-hub__count--over");
+				}
+				return;
+			}
+			closeHub();
+			load(true);
+		});
+	}
+
+	function decideProposal(id, action) {
+		return api("/api/edit/social/publish.php", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ action: action, id: id }),
+		}).then(function () { load(true); });
+	}
+
+	function bindHub() {
+		const open = el("social-open-hub");
+		if (open) { open.addEventListener("click", function () { openHub(null); }); }
+		const close = el("social-hub-close");
+		if (close) { close.addEventListener("click", closeHub); }
+		const overlay = el("social-hub-overlay");
+		if (overlay) {
+			// Klick auf die Hülle schließt, Klick INS Fenster nicht.
+			overlay.addEventListener("click", function (event) {
+				if (event.target === overlay) { closeHub(); }
+			});
+		}
+		document.addEventListener("keydown", function (event) {
+			const box = el("social-hub-overlay");
+			if (event.key === "Escape" && box && !box.hidden) { closeHub(); }
+		});
+
+		const text = el("social-text");
+		if (text) { text.addEventListener("input", updateCount); }
+		const tags = el("social-hashtags");
+		if (tags) { tags.addEventListener("input", updateCount); }
+
+		// „Freie Lizenz" verlangt die Quelle -- dieselbe Regel wie serverseitig, nur früher sichtbar.
+		Array.prototype.forEach.call(document.querySelectorAll("input[name=social-license]"), function (radio) {
+			radio.addEventListener("change", function () {
+				const source = el("social-source");
+				if (source) { source.hidden = radio.value !== "free_license" || !radio.checked; }
+			});
+		});
+
+		const file = el("social-file");
+		if (file) {
+			file.addEventListener("change", function () {
+				if (file.files && file.files[0]) { uploadMedia(file.files[0]); }
+			});
+		}
+
+		const publishButton = el("social-publish");
+		if (publishButton) { publishButton.addEventListener("click", publish); }
+	}
 
 	if (typeof window !== "undefined") {
 		window.AvesmapsSocial = {

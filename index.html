@@ -1948,6 +1948,61 @@
 				</div>
 			</div>
 		</div>
+		<!-- Social-Media-Hub, Entwurf §2.3. 💣 Die ID steht in DREI Selektorlisten in
+		     css/components/dialog-overlays.css (hidden / position+scrim / z-index) -- ein neues
+		     Overlay-<div> erbt NICHTS, und ohne die drei Eintraege kaeme ein gewoehnlicher Block
+		     mitten im Dokumentfluss heraus statt eines Fensters. -->
+		<div id="social-hub-overlay" hidden>
+			<div class="social-hub" role="dialog" aria-modal="true" aria-labelledby="social-hub-title">
+				<div class="social-hub__head">
+					<h2 id="social-hub-title">Social Media Hub</h2>
+					<span class="social-hub__muted" id="social-hub-subtitle">— Beitrag verfassen</span>
+					<button id="social-hub-close" class="social-hub__close" type="button" aria-label="Schließen">✕</button>
+				</div>
+				<div class="social-hub__body">
+					<div class="social-hub__main">
+						<label class="social-hub__label" for="social-text">Text</label>
+						<textarea id="social-text" rows="6"></textarea>
+						<div id="social-count" class="social-hub__count"></div>
+
+						<label class="social-hub__label" for="social-hashtags">Hashtags</label>
+						<input id="social-hashtags" type="text" autocomplete="off" placeholder="#DSA #Aventurien">
+						<!-- Ein Vorrat projektweiter Tags zum Anklicken. Ohne ihn tippt jeder etwas anderes
+						     und #dsa5 / #DSA5 / #dasschwarzeauge sind drei Toepfe, die niemand mehr findet. -->
+						<div id="social-vocabulary" class="social-chips social-hub__vocabulary"></div>
+
+						<label class="social-hub__label">Bild</label>
+						<div class="social-chips">
+							<label class="social-hub__soft social-hub__file">⬆ Eigene Datei<input id="social-file" type="file" accept="image/png,image/jpeg,image/webp"></label>
+							<!-- Sichtbar und abgeschaltet statt versteckt: wer den Hub sieht, soll wissen, was
+							     kommt. Video ist Stufe 3 (Instagram nimmt es nur asynchron an), der
+							     Kartenausschnitt braucht eine eigene Aufnahme fuer Kacheln UND Canvas-Ebenen. -->
+							<button class="social-hub__soft" type="button" disabled title="Kommt spaeter">🗺 Kartenausschnitt</button>
+							<button class="social-hub__soft" type="button" disabled title="Kommt in Stufe 3">🎬 Video</button>
+						</div>
+						<div id="social-media-info" class="social-hub__media"></div>
+
+						<label class="social-hub__label">Herkunft und Rechte</label>
+						<label class="social-hub__radio"><input type="radio" name="social-license" value="own_work" checked><span><strong>Eigenes Werk / Avesmaps-Karte</strong><small>selbst erstellt oder aus der Karte aufgenommen</small></span></label>
+						<label class="social-hub__radio"><input type="radio" name="social-license" value="free_license"><span><strong>Freie Lizenz</strong><small>gemeinfrei oder CC — Quelle angeben</small></span></label>
+						<input id="social-source" type="text" placeholder="Quelle angeben" hidden>
+						<p class="social-hub__warn">Keine Scans aus DSA-Publikationen, keine Ulisses-Artworks. Das Projekt läuft unter den Fan-Richtlinien — was hier rausgeht, steht öffentlich unter dem Namen Avesmaps und lässt sich nicht zurückholen.</p>
+					</div>
+					<div class="social-hub__side">
+						<label class="social-hub__label">Kanäle</label>
+						<div id="social-channels"></div>
+						<p id="social-channel-hint" class="social-hub__warn"></p>
+					</div>
+				</div>
+				<div class="social-hub__foot">
+					<!-- Steht hier, weil es die haeufigste Rueckfrage ist: es postet das Konto des Projekts,
+					     nie das persoenliche Konto dessen, der drueckt. Wer es war, steht nur intern. -->
+					<span id="social-foot-note" class="social-hub__muted"></span>
+					<span class="social-hub__spacer"></span>
+					<button id="social-publish" class="review-panel__button" type="button">Veröffentlichen</button>
+				</div>
+			</div>
+		</div>
 		<div id="review-overlay" hidden>
 			<div id="review-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="review-dialog-title" tabindex="-1">
 				<div class="location-report-dialog__header">

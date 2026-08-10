@@ -26,7 +26,8 @@ body.modal-dialog-open {
 #ecosystem-properties-overlay[hidden],
 #ecosystem-simplify-overlay[hidden],
 #ecosystem-import-overlay[hidden],
-#review-overlay[hidden] {
+#review-overlay[hidden],
+#social-hub-overlay[hidden] {
 	display: none !important;
 }
 
@@ -51,7 +52,8 @@ body.modal-dialog-open {
 #ecosystem-properties-overlay,
 #ecosystem-simplify-overlay,
 #ecosystem-import-overlay,
-#review-overlay {
+#review-overlay,
+#social-hub-overlay {
 	position: fixed;
 	inset: 0;
 	display: flex;
@@ -115,7 +117,8 @@ body.modal-dialog-open {
 #ecosystem-properties-overlay,
 #ecosystem-simplify-overlay,
 #ecosystem-import-overlay,
-#review-overlay {
+#review-overlay,
+#social-hub-overlay {
 	z-index: 1260;
 }
 
