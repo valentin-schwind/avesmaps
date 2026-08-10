@@ -614,6 +614,9 @@
 	background: var(--color-panel);
 	color: var(--color-text);
 	font: inherit;
+	/* NACH `font: inherit`: die Kurzform setzt font-size mit und ueberschriebe diese Zeile sonst.
+	   Die Feldhoehe ist fest (25px oben) -- die groessere Schrift waechst nach innen. */
+	font-size: var(--font-size-control);
 	padding: 0 4px;
 	box-sizing: border-box;
 }
@@ -1479,4 +1482,16 @@
 .route-plan-entry--chained:last-child::after,
 .route-plan-entry--chained:not(:has(~ .route-plan-entry--chained))::after {
 	content: none;
+}
+/* Das Wegpunktfeld am Finger.
+   💣 `input.waypoint-input`, nicht `.waypoint-input`: die Klassenregel weiter oben gewinnt nicht --
+   das Feld rendert 13,33px statt der dort stehenden 15px. Am 10.08.2026 gemessen, indem beide
+   Fassungen in die laufende Seite eingespritzt wurden: die Klasse allein bewegt nichts,
+   Element+Klasse setzt sich durch.
+   ⚠️ Und deshalb NUR am groben Zeiger: eine Regel, die auch am Zeiger gewinnt, verschoebe das Feld
+   dort von 13,33 auf 12px. Die alte 15px-Regel bleibt unangetastet. */
+@media (pointer: coarse) {
+	input.waypoint-input {
+		font-size: var(--font-size-control);
+	}
 }
