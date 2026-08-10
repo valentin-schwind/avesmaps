@@ -45,11 +45,17 @@ assert($mastodon['max_hashtags'] === 4, 'mastodon: four');
 // "no limit" -- a typo in the table would silently REMOVE a limit rather than break loudly.
 foreach (avesmapsSocialChannelKeys() as $key) {
     $channel = avesmapsSocialChannel($key);
-    foreach (['label', 'account', 'max_chars', 'max_hashtags', 'requires_media', 'clickable_links'] as $field) {
+    foreach (['label', 'account', 'note', 'max_chars', 'max_hashtags',
+              'requires_media', 'shows_media', 'clickable_links'] as $field) {
         assert(array_key_exists($field, $channel), $key . ' carries the field ' . $field);
     }
     assert(is_bool($channel['requires_media']), $key . ': requires_media is a real bool');
+    assert(is_bool($channel['shows_media']), $key . ': shows_media is a real bool');
     assert(is_bool($channel['clickable_links']), $key . ': clickable_links is a real bool');
+    // A channel that DEMANDS a picture but would not show it is a contradiction -- it would refuse
+    // every text-only post for a picture nobody ever sees.
+    assert(!($channel['requires_media'] && !$channel['shows_media']),
+        $key . ': requires_media without shows_media makes no sense');
 }
 
 // ---- availability -------------------------------------------------------------------------------
@@ -57,6 +63,15 @@ foreach (avesmapsSocialChannelKeys() as $key) {
 // The probe needs NOTHING. This is the assertion that makes Stufe 1 testable at all.
 assert(avesmapsSocialChannelIsConfigured('probe', [], []) === true,
     'the probe channel is configured out of the box -- no config, no token');
+
+// And so does "Neuigkeiten": it publishes on avesmaps ITSELF, so there is no foreign account whose
+// credentials could be missing. It is the only channel that is both always available AND real.
+assert(avesmapsSocialChannelIsConfigured('changelog', [], []) === true,
+    'the changelog channel needs no credentials -- it writes into our own database');
+assert(avesmapsSocialChannel('changelog')['label'] === 'Neuigkeiten',
+    'label "Neuigkeiten", key `changelog` -- the same split AGENTS.md §11 already documents for that '
+    . 'window: the key is stored in social_post_target.channel_key and renaming it would drag every '
+    . 'saved row along');
 
 assert(avesmapsSocialChannelIsConfigured('instagram', [], []) === false,
     'no credentials, no instagram');
@@ -111,9 +126,9 @@ assert($byKey['instagram']['requires_media'] === true,
 foreach ($list as $row) {
     assert(!isset($row['access_token']), 'no access token ever leaves the server in the channel list');
     assert(!isset($row['app_secret']), 'no app secret either');
-    assert(array_keys($row) === ['key', 'label', 'account', 'max_chars', 'max_hashtags',
-        'requires_media', 'clickable_links', 'configured'],
-        'the row carries exactly these eight keys -- a field added here reaches the browser');
+    assert(array_keys($row) === ['key', 'label', 'account', 'note', 'max_chars', 'max_hashtags',
+        'requires_media', 'shows_media', 'clickable_links', 'configured'],
+        'the row carries exactly these ten keys -- a field added here reaches the browser');
 }
 
 // Config for one channel must not configure another.

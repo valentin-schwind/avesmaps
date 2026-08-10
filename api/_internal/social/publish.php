@@ -17,6 +17,7 @@ require_once __DIR__ . '/compose.php';
 require_once __DIR__ . '/media.php';
 require_once __DIR__ . '/store.php';
 require_once __DIR__ . '/adapters/probe.php';
+require_once __DIR__ . '/adapters/changelog.php';
 require_once __DIR__ . '/adapters/facebook.php';
 
 /**
@@ -63,6 +64,8 @@ function avesmapsSocialAdapterFor(string $key): ?callable
 {
     return match ($key) {
         'probe' => 'avesmapsSocialAdapterProbe',
+        // Der einzige Kanal, der auf avesmaps SELBST veröffentlicht (Fenster „Neuigkeiten").
+        'changelog' => 'avesmapsSocialAdapterChangelog',
         'facebook' => 'avesmapsSocialAdapterFacebook',
         default => null,
     };
@@ -180,7 +183,11 @@ function avesmapsSocialDispatch(PDO $pdo, int $postId, array $config, ?string $o
                 $channel,
                 $composed['caption'],
                 $absoluteMediaUrl,
-                avesmapsSocialAdapterContext($social, $tokenRows, $key)
+                // Die offene Verbindung liegt bei, statt dass ein Adapter sich eine eigene holt: der
+                // Kanal „Neuigkeiten" schreibt in unsere EIGENE Datenbank (`changelog_entry`), nicht
+                // an ein fremdes Netz. Additiv angehängt, damit avesmapsSocialAdapterContext seine
+                // drei Argumente behält -- die Netz-Adapter brauchen kein PDO und sollen keins sehen.
+                avesmapsSocialAdapterContext($social, $tokenRows, $key) + ['pdo' => $pdo]
             );
         } catch (Throwable) {
             // An adapter that throws must not take the other channels down with it, and its exception

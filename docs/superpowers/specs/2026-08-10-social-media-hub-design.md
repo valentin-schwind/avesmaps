@@ -113,6 +113,39 @@ entgegennehmen und `{ok, remote_id}` oder `{ok:false, error}` zurückgeben.
 Fehlt zu einem Kanal der Zugang, erscheint er **ausgegraut und nicht anhakbar** („noch nicht
 eingerichtet"), statt zu verschwinden. Wer die Oberfläche sieht, soll wissen, was möglich wäre.
 
+### 3.0 Der Kanal „Neuigkeiten" — avesmaps selbst
+
+Ein Kanal muss nicht nach draußen führen. **„Neuigkeiten"** (Schlüssel `changelog`) schreibt in
+`changelog_entry` und erscheint im Fenster **Hinweise → Neuigkeiten**. Er braucht kein fremdes
+Konto, keinen Token und keine Freigabe von Meta — damit ist er nach der Probe der zweite Kanal, der
+ohne jede Einrichtung läuft, und der erste, der dabei **wirklich veröffentlicht**.
+
+Das ist auch die ehrlichste Antwort auf §1: der Verlauf war bisher etwas, das *ich* aus Commits
+schreibe. Über diesen Kanal kann die Redaktion ihn selbst bespielen, im selben Fenster, in dem sie
+auch nach draußen schreibt.
+
+🔴 Schlüssel `changelog`, Beschriftung „Neuigkeiten" — dieselbe Trennung, die AGENTS.md §11 für
+dieses Fenster ohnehin festhält. Der Schlüssel steht in `social_post_target.channel_key`; ihn
+umzutaufen hieße, jede gespeicherte Zeile mitzuziehen.
+
+💣 **Die erste Zeile wird die Überschrift**, der Rest der Rumpf (`title` ist VARCHAR(190)). Ist die
+erste Zeile länger, wird sie **nicht gekürzt, sondern abgelehnt** — mit beiden Zahlen und dem
+Hinweis, wo der Umbruch hingehört. Eine stumm abgeschnittene Überschrift steht öffentlich, und
+niemand erführe, dass etwas fehlt.
+
+💣 **Eine leere `changelog_entry` fällt im Lesepfad auf die Saat zurück** (AGENTS.md §11). Wer in
+diesem Zustand eine Zeile einfügt, hat den Verlauf nicht ergänzt, sondern auf einen einzigen
+Eintrag zusammengestrichen — und es fällt nicht auf, weil Saat und gepflegter Verlauf gleich
+aussehen. Der Adapter ruft deshalb `avesmapsChangelogSeedIfEmpty()` **vor** jedem Schreibvorgang,
+genau wie der Schreibendpunkt.
+
+⚠️ **Keine Hashtags** (`max_hashtags = 0`): im Verlaufsfenster wären sie toter Text unter einer
+Meldung, die niemand nach Schlagworten durchsucht. ⚠️ **Kein Bild** — der Verlauf hat kein Bildfeld;
+`shows_media = false` sorgt dafür, dass die Zeile „✓ Passt für …" im Hub ihn nie nennt und damit
+nichts verspricht. ⚠️ Kategorie ist immer `community`; der Hub hat keine Kategoriewahl und soll
+keine bekommen. ⚠️ Idempotent über `source_ref = social:<id>` — ein „Erneut" schreibt dieselbe Zeile
+fort, statt eine sichtbare Dublette im öffentlichen Fenster anzulegen.
+
 ### 3.1 Die Auflagen der Netze
 
 | | Zeichen | Hashtags | Bild | Link klickbar | Format |

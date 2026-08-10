@@ -33,33 +33,64 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     'probe' => [
         'label' => 'Probe',
         'account' => 'nur intern — sendet nichts',
+        'note' => '',
         'max_chars' => 500,
         'max_hashtags' => 2,
         'requires_media' => false,
+        'shows_media' => false,
+        'clickable_links' => true,
+    ],
+    // Der einzige Kanal, der auf avesmaps SELBST veröffentlicht: das Fenster „Neuigkeiten"
+    // (Tabelle `changelog_entry`). Er braucht kein fremdes Konto und ist deshalb -- wie die Probe --
+    // ohne jede Konfiguration nutzbar.
+    //
+    // 🔴 Schlüssel `changelog`, Beschriftung „Neuigkeiten". Dieselbe Trennung, die AGENTS.md §11 für
+    // dieses Fenster ohnehin festhält: umbenannt wird, was Menschen lesen, nicht das, woran Code
+    // hängt. Der Schlüssel steht in `social_post_target.channel_key` -- er umzutaufen hiesse, jede
+    // gespeicherte Zeile mitzuziehen.
+    //
+    // 💣 Hashtags: KEINE. Im Verlaufsfenster stünden sie als toter Text unter einer Meldung, die
+    // niemand nach Schlagworten durchsucht. max_hashtags = 0 kappt sie, statt sie mitzuschleppen.
+    'changelog' => [
+        'label' => 'Neuigkeiten',
+        'account' => 'auf avesmaps.de',
+        'note' => 'erste Zeile wird die Überschrift · Bild wird nicht übernommen',
+        // Die Überschrift ist VARCHAR(190); der Rumpf ist TEXT. 2 000 Zeichen sind reichlich für
+        // eine Meldung und halten das Fenster lesbar.
+        'max_chars' => 2000,
+        'max_hashtags' => 0,
+        'requires_media' => false,
+        'shows_media' => false,
         'clickable_links' => true,
     ],
     'instagram' => [
         'label' => 'Instagram',
         'account' => '@avesmaps',
+        'note' => '',
         'max_chars' => 2200,
         'max_hashtags' => null,
         'requires_media' => true,
+        'shows_media' => true,
         'clickable_links' => false,
     ],
     'facebook' => [
         'label' => 'Facebook',
         'account' => 'Seite Avesmaps',
+        'note' => '',
         'max_chars' => 63206,
         'max_hashtags' => 2,
         'requires_media' => false,
+        'shows_media' => true,
         'clickable_links' => true,
     ],
     'mastodon' => [
         'label' => 'Mastodon',
         'account' => 'noch kein Konto',
+        'note' => '',
         'max_chars' => 500,
         'max_hashtags' => 4,
         'requires_media' => false,
+        'shows_media' => true,
         'clickable_links' => true,
     ],
 ];
@@ -90,8 +121,10 @@ function avesmapsSocialChannelIsConfigured(string $key, array $socialConfig, arr
     if (avesmapsSocialChannel($key) === null) {
         return false;
     }
-    // The probe needs nothing -- that IS its purpose (Entwurf §10).
-    if ($key === 'probe') {
+    // Two channels need no credentials at all: the probe (that IS its purpose, Entwurf §10) and the
+    // "Neuigkeiten" window, which publishes on avesmaps itself -- there is no foreign account to hold
+    // an account for. Both are therefore always available.
+    if ($key === 'probe' || $key === 'changelog') {
         return true;
     }
 
@@ -132,9 +165,15 @@ function avesmapsSocialChannelList(array $socialConfig, array $tokenKeys): array
             'key' => $key,
             'label' => $channel['label'],
             'account' => $channel['account'],
+            'note' => $channel['note'],
             'max_chars' => $channel['max_chars'],
             'max_hashtags' => $channel['max_hashtags'],
             'requires_media' => $channel['requires_media'],
+            // Zeigt der Kanal das Bild ueberhaupt? Die Zeile „✓ Passt fuer …" im Hub darf nur die
+            // Kanaele nennen, bei denen das Bild ankommt -- Probe und Neuigkeiten tun das nicht.
+            // Als Feld im Register statt als Schluesselliste im Client: sonst steht dieselbe
+            // Entscheidung an zwei Stellen und laeuft beim naechsten Kanal auseinander.
+            'shows_media' => $channel['shows_media'],
             'clickable_links' => $channel['clickable_links'],
             'configured' => avesmapsSocialChannelIsConfigured($key, $socialConfig, $tokenKeys),
         ];

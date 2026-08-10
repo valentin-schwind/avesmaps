@@ -174,7 +174,7 @@
 
 		const approve = document.createElement("button");
 		approve.type = "button";
-		approve.className = "review-panel__button social-hub__primary--mini";
+		approve.className = "wiki-sync-panel__start social-hub__inline";
 		approve.textContent = "Freigeben und veröffentlichen";
 		approve.addEventListener("click", function () {
 			approve.disabled = true;
@@ -291,11 +291,19 @@
 		if (typeof window !== "undefined" && window.AvesmapsSession) {
 			window.AvesmapsSession.load().then(function () {
 				if (!applyCapability()) { return; }
-				// Erst laden, wenn der Unterreiter wirklich angesehen wird: die Liste ist eine Abfrage
-				// über zwei Tabellen und niemand braucht sie beim Öffnen des Editors.
+				// 💣 Geladen wird, SOBALD das Recht feststeht -- nicht erst beim Klick auf den Reiter.
+				// Die erste Fassung hing allein am Klick, plus einer Prüfung auf `is-active` beim
+				// Start. Beides greift daneben, wenn die Reiter-Kaskade den zuletzt offenen
+				// Unterreiter aus dem Speicher wiederherstellt: dann fällt nie ein Klick, `is-active`
+				// steht womöglich erst nach dieser Zeile, und der Reiter zeigt für immer „Beiträge
+				// werden geladen …" über einer leeren Liste. Ein Wettlauf, den man nicht gewinnt,
+				// indem man ihn genauer timt -- also gar nicht erst antreten. Die Abfrage kostet
+				// einen Aufruf beim Öffnen des Editors, und den auch nur für Admins.
+				load(false);
+				// Der Klick bleibt als Auffrischung: wer den Reiter noch einmal anfasst, will sehen,
+				// was inzwischen dazugekommen ist.
 				const tab = document.querySelector('[data-review-subtab="social"]');
-				if (tab) { tab.addEventListener("click", function () { load(false); }); }
-				if (tab && tab.classList.contains("is-active")) { load(false); }
+				if (tab) { tab.addEventListener("click", function () { load(true); }); }
 			});
 		}
 	}
@@ -402,8 +410,12 @@
 			meta.className = "social-hub__channel-meta";
 			const parts = [channel.configured ? channel.account : "noch nicht eingerichtet"];
 			if (channel.configured) {
+				// Der Hinweis kommt aus dem Register, nicht aus einer Schlüsselabfrage hier: sonst
+				// stünde dieselbe Aussage an zwei Stellen und liefe beim nächsten Kanal auseinander.
+				if (channel.note) { parts.push(channel.note); }
 				if (channel.requires_media) { parts.push("Bild erforderlich"); }
 				if (channel.max_chars !== null) { parts.push("max. " + channel.max_chars + " Zeichen"); }
+				if (channel.max_hashtags === 0) { parts.push("keine Hashtags"); }
 				if (!channel.clickable_links) { parts.push("Links nicht klickbar"); }
 			}
 			meta.textContent = parts.join(" · ");
@@ -457,8 +469,12 @@
 			+ " · " + Math.round(media.bytes / 1024) + " kB · JPEG";
 		const fits = document.createElement("small");
 		// Sagt VOR dem Absenden, was durchgeht -- statt hinterher einen API-Fehler zu zeigen.
+		// `shows_media` kommt aus dem Register: Probe und Neuigkeiten zeigen das Bild gar nicht, und
+		// sie hier zu nennen wäre ein Versprechen, das der Kanal nicht einlöst. Die Entscheidung
+		// steht im Register und nicht als Schlüsselliste hier, sonst läuft sie beim nächsten Kanal
+		// von der Serverseite weg.
 		const labels = channels
-			.filter(function (c) { return media.fits.indexOf(c.key) !== -1 && c.key !== "probe"; })
+			.filter(function (c) { return c.shows_media && media.fits.indexOf(c.key) !== -1; })
 			.map(function (c) { return c.label; });
 		fits.className = "social-hub__ok";
 		fits.textContent = labels.length ? "✓ Passt für " + labels.join(", ") : "Passt für keinen Netzkanal.";

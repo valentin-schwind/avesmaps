@@ -13,6 +13,20 @@
 
 /* ---- die Liste ------------------------------------------------------------------------------- */
 
+/* Der Kopf ueber der Liste -- eine Ueberschrift plus Trenner, kein gerahmter Kasten
+   (Designsprache: gruppiert wird durch Trenner). */
+.social-list__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	margin: 14px 0 2px;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: var(--color-text-muted);
+	text-transform: uppercase;
+}
+
 .social-post {
 	border-top: 1px solid var(--color-divider);
 	padding: 10px 0;
@@ -154,8 +168,23 @@
 	padding: 2px 8px;
 }
 
-.social-hub__primary--mini {
+/* ⚠️ `.wiki-sync-panel__start` ist `width: 100%` -- richtig fuer den Hauptknopf oben im Reiter, falsch
+   ueberall dort, wo er neben etwas anderem steht. Deshalb NICHT eine eigene gefuellte Knopfklasse
+   erfinden (die driftet), sondern dieselbe nehmen und nur die Breite zuruecknehmen: in der Fusszeile
+   des Fensters, wo er neben dem Absender-Hinweis sitzt, und in der Zeile eines Vorschlags. */
+.social-hub__foot .wiki-sync-panel__start,
+.social-hub__inline {
+	width: auto;
+}
+
+/* ⚠️ Die Klasse traegt ausserdem `min-width: 16rem` (256 px). In der Fusszeile des 960 px breiten
+   Fensters ist das genau richtig -- ein grosszuegiger Hauptknopf, wie ueberall im Editor. In einer
+   Zeile der 400 px schmalen Panel-Spalte, neben „Bearbeiten" und „Verwerfen", ist es zu viel:
+   deshalb hier, und NUR hier, zurueckgenommen. */
+.social-hub__inline {
+	min-width: 0;
 	font-size: 12px;
+	min-height: 26px;
 	padding: 3px 10px;
 }
 
