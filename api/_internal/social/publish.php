@@ -17,6 +17,7 @@ require_once __DIR__ . '/compose.php';
 require_once __DIR__ . '/media.php';
 require_once __DIR__ . '/store.php';
 require_once __DIR__ . '/adapters/probe.php';
+require_once __DIR__ . '/adapters/facebook.php';
 
 /**
  * May this post go to this channel? Returns the refusal as GERMAN text -- it lands in the editor's
@@ -54,16 +55,41 @@ function avesmapsSocialCheckTarget(array $post, array $channel, string $caption)
 /**
  * The adapter for a channel, or null when there is none yet.
  *
- * 🔴 A missing adapter is NULL, never a no-op that reports success. Stufe 1 has exactly one adapter;
- * a silent no-op would mark Instagram "gesendet" with nothing on Instagram -- the single worst
- * failure mode this design exists to avoid, and one nobody would catch by looking at the panel.
+ * 🔴 A missing adapter is NULL, never a no-op that reports success. A silent no-op would mark
+ * Instagram "gesendet" with nothing on Instagram -- the single worst failure mode this design exists
+ * to avoid, and one nobody would catch by looking at the panel.
  */
 function avesmapsSocialAdapterFor(string $key): ?callable
 {
     return match ($key) {
         'probe' => 'avesmapsSocialAdapterProbe',
+        'facebook' => 'avesmapsSocialAdapterFacebook',
         default => null,
     };
+}
+
+/**
+ * What an adapter needs beyond the post: its config block and its access token.
+ *
+ * 🔴 THE DATABASE WINS OVER THE CONFIG. config.local.php carries what never changes (page id, app id,
+ * app secret); social_token carries what rotates, and it is what the server itself rewrites when a
+ * token is renewed (Entwurf §3). If both hold a token, the stored one is the current one -- preferring
+ * the config would mean a renewal silently has no effect and the channel dies on the day the old token
+ * expires, weeks after the renewal "worked".
+ *
+ * @param array<string, mixed>  $social    The 'social' block of config.local.php.
+ * @param array<string, string> $tokenRows channel_key => access_token, read once per dispatch.
+ * @return array{settings: array<string, mixed>, access_token: string}
+ */
+function avesmapsSocialAdapterContext(array $social, array $tokenRows, string $key): array
+{
+    $settings = is_array($social[$key] ?? null) ? $social[$key] : [];
+    $stored = trim((string) ($tokenRows[$key] ?? ''));
+
+    return [
+        'settings' => $settings,
+        'access_token' => $stored !== '' ? $stored : trim((string) ($settings['access_token'] ?? '')),
+    ];
 }
 
 /**
@@ -93,6 +119,9 @@ function avesmapsSocialDispatch(PDO $pdo, int $postId, array $config, ?string $o
     $mediaReachable = $mediaUrl === '' ? true : avesmapsSocialMediaIsReachable($absoluteMediaUrl);
 
     $hashtags = avesmapsSocialNormalizeHashtags((string) ($post['hashtags'] ?? ''));
+    // ONE read for every channel's token, before the loop -- not one per adapter. Same reason as the
+    // single picture probe above: this is a request on shared hosting, not a batch job.
+    $tokenRows = avesmapsSocialTokenMap($pdo);
     $results = [];
 
     foreach ($post['targets'] as $target) {
@@ -146,7 +175,13 @@ function avesmapsSocialDispatch(PDO $pdo, int $postId, array $config, ?string $o
         }
 
         try {
-            $outcome = $adapter($post, $channel, $composed['caption'], $absoluteMediaUrl);
+            $outcome = $adapter(
+                $post,
+                $channel,
+                $composed['caption'],
+                $absoluteMediaUrl,
+                avesmapsSocialAdapterContext($social, $tokenRows, $key)
+            );
         } catch (Throwable) {
             // An adapter that throws must not take the other channels down with it, and its exception
             // text must not reach the client verbatim (AGENTS.md §10, information disclosure).

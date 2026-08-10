@@ -87,7 +87,26 @@ assert($reachedDatabase === true,
 // missing table must therefore answer "nobody stored a token", not create one and not raise.
 assert(avesmapsSocialTokenKeys($pdo) === [],
     'a missing social_token table yields an empty list, silently -- no DDL, no exception');
+// The same holds for the map dispatch reads before every run -- it is the same read path, one query
+// instead of one per channel, and it must fail just as quietly.
+assert(avesmapsSocialTokenMap($pdo) === [],
+    'and so does the token map -- a missing table means "nobody stored a token", not an error');
 $tables = $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table'")->fetchAll(PDO::FETCH_COLUMN);
-assert($tables === [], 'and it created nothing on the way');
+assert($tables === [], 'and neither of them created anything on the way');
+
+// With rows, the map answers channel_key => token. Dispatch hands exactly this to the adapter, so a
+// swapped key here would hand one network another network's credentials.
+//
+// ⚠️ The table is created by hand, in sqlite dialect: the real DDL is MySQL and must stay so (see the
+// header). Only the two columns the map reads are needed -- this proves the KEYING, not the schema.
+$pdo->exec('CREATE TABLE social_token (channel_key TEXT PRIMARY KEY, access_token TEXT NOT NULL)');
+$pdo->exec("INSERT INTO social_token VALUES ('facebook', 'seiten-token'), ('mastodon', 'anderes-token')");
+$map = avesmapsSocialTokenMap($pdo);
+assert($map['facebook'] === 'seiten-token' && $map['mastodon'] === 'anderes-token',
+    'each channel gets ITS token, keyed by channel_key');
+assert(!isset($map['instagram']), 'and a channel without a row appears nowhere -- the adapter then '
+    . 'refuses by name instead of sending with someone else\'s token');
+assert(avesmapsSocialTokenKeys($pdo) === ['facebook', 'mastodon'],
+    'and the availability check sees the same two channels');
 
 fwrite(STDOUT, "store-test: OK\n");

@@ -17,10 +17,17 @@ declare(strict_types=1);
 /**
  * @param array<string, mixed> $post
  * @param array<string, mixed> $channel
+ * @param array<string, mixed> $context Credentials and settings -- every adapter takes the same five
+ *   arguments; the rehearsal needs none of them, because it addresses no network.
  * @return array{ok: bool, remote_id: string, payload: string}
  */
-function avesmapsSocialAdapterProbe(array $post, array $channel, string $caption, string $mediaUrl): array
-{
+function avesmapsSocialAdapterProbe(
+    array $post,
+    array $channel,
+    string $caption,
+    string $mediaUrl,
+    array $context = []
+): array {
     $payload = [
         'channel' => (string) ($channel['label'] ?? 'Probe'),
         // The FINAL caption, hashtags already folded in and truncated to this channel's allowance.

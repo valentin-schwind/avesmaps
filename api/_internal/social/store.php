@@ -275,6 +275,32 @@ function avesmapsSocialTokenKeys(PDO $pdo): array
     return array_map('strval', $rows);
 }
 
+/**
+ * Every stored token at once: channel_key => access_token. Dispatch reads this ONCE per run instead of
+ * asking per channel, so a three-channel post is one query, not three.
+ *
+ * ⚠️ Runs NO DDL, for the same reason as avesmapsSocialTokenKeys above -- and a missing table is an
+ * answer ("nobody has stored a token yet"), not an error.
+ *
+ * @return array<string, string>
+ */
+function avesmapsSocialTokenMap(PDO $pdo): array
+{
+    try {
+        $rows = $pdo->query('SELECT channel_key, access_token FROM social_token')
+            ->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (PDOException) {
+        return [];
+    }
+
+    $map = [];
+    foreach ($rows as $row) {
+        $map[(string) $row['channel_key']] = (string) $row['access_token'];
+    }
+
+    return $map;
+}
+
 /** @return array{access_token: string, expires_at: ?string, refreshed_at: ?string}|null */
 function avesmapsSocialTokenGet(PDO $pdo, string $channelKey): ?array
 {
