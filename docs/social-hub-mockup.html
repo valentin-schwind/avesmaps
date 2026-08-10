@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Social-Media-Hub im Editor</title>
+<style>
+/* 💣 Standalone-Mockup: die Token-Kette (css/base/tokens.css) wird hier NICHT geladen,
+   die Werte stehen deshalb im Dokument. Sie sind 1:1 aus tokens.css kopiert — wer sie
+   dort aendert, aendert sie hier NICHT mit. Das Mockup ist ein Bild, kein Bauteil. */
+:root {
+	--color-panel: #fffdf9;
+	--color-panel-soft: #faf6ee;
+	--color-panel-muted: #f1ece1;
+	--color-panel-active: #e7ddc9;
+	--color-text: #2e271e;
+	--color-text-strong: #3c3327;
+	--color-text-muted: #706557;
+	--color-border: #ddd3c3;
+	--color-border-strong: #cdbfa8;
+	--color-divider: rgba(125, 115, 96, 0.30);
+	--color-button: #5b5548;
+	--color-button-border: #635b4d;
+	--color-button-text: #f6efe1;
+	--color-button-hover: #6a6353;
+	--color-button-soft: #efe9db;
+	--color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0;
+	--color-button-soft-hover: #e7ddc9;
+	--color-accent: #bfa03a;
+	--color-accent-strong: #9c7f22;
+	--color-link: #8f7326;
+	--radius-sm: 5px;
+	--radius-md: 8px;
+	--radius-lg: 10px;
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
+	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.38);
+	--font-size-small: 12px;
+}
+* { box-sizing: border-box; }
+body {
+	margin: 0; padding: 32px 24px 64px;
+	background: #e9e2d4;
+	color: var(--color-text);
+	font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+}
+.page { max-width: 1180px; margin: 0 auto; }
+h1 { font-size: 22px; margin: 0 0 6px; color: var(--color-text-strong); }
+.lede { margin: 0 0 32px; color: var(--color-text-muted); max-width: 70ch; }
+.step { margin: 0 0 10px; font: 700 11px/1.4 inherit; letter-spacing: .08em;
+	text-transform: uppercase; color: var(--color-accent-strong); }
+.note { max-width: 78ch; margin: 10px 0 34px; color: var(--color-text-muted); font-size: 13px; }
+.note strong { color: var(--color-text-strong); }
+.split { display: grid; grid-template-columns: 400px 1fr; gap: 26px; align-items: start; }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+
+/* ---- Editor-Panel (Nachbau von .review-panel) ---------------------------------- */
+.panel {
+	width: 400px; background: var(--color-panel); border: 1px solid var(--color-border);
+	border-radius: var(--radius-md); box-shadow: var(--shadow-panel); overflow: hidden;
+}
+.panel__head { padding: 11px 14px; border-bottom: 1px solid var(--color-divider);
+	display: flex; align-items: center; justify-content: space-between; }
+.panel__title { font-weight: 700; color: var(--color-text-strong); }
+.panel__x { color: var(--color-text-muted); }
+.tabs { display: flex; gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--color-divider); }
+.tab { flex: 1; padding: 7px 6px; border: 0; background: none; cursor: pointer;
+	font: 600 12px/1.2 inherit; color: var(--color-text-muted);
+	border-bottom: 2px solid transparent; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.tab.is-active { color: var(--color-accent-strong); border-bottom-color: var(--color-accent-strong);
+	background: var(--color-panel-soft); }
+.tab .new { color: #fff; background: var(--color-accent-strong); border-radius: 9px;
+	padding: 0 5px; font-size: 10px; margin-left: 3px; }
+.subtabs { display: flex; gap: 4px; padding: 9px 10px; flex-wrap: wrap;
+	border-bottom: 1px solid var(--color-divider); background: var(--color-panel-soft); }
+.subtab { padding: 5px 10px; border: 1px solid transparent; background: none; cursor: pointer;
+	font: 600 12px/1.2 inherit; color: var(--color-text-muted); border-radius: var(--radius-md); }
+.subtab.is-active { background: var(--color-panel); border-color: var(--color-border-strong);
+	color: var(--color-text-strong); }
+.body { padding: 12px 12px 14px; }
+
+/* ---- Knoepfe ------------------------------------------------------------------- */
+.btn { padding: 8px 14px; border-radius: var(--radius-md); border: 1px solid var(--color-button-border);
+	background: var(--color-button); color: var(--color-button-text);
+	font: 600 13px/1.2 inherit; cursor: pointer; }
+.btn--wide { display: block; width: 100%; }
+.btn--soft { background: var(--color-button-soft); color: var(--color-button-soft-text);
+	border-color: var(--color-button-soft-border); }
+.btn--mini { padding: 4px 9px; font-size: 12px; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+/* ---- Liste der Beitraege ------------------------------------------------------- */
+.listhead { display: flex; align-items: center; justify-content: space-between;
+	margin: 16px 0 8px; color: var(--color-text-muted); font-size: var(--font-size-small); }
+.post { padding: 10px 0; border-top: 1px solid var(--color-divider); }
+.post__top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+.who { font-size: 11px; padding: 1px 6px; border-radius: 9px; font-weight: 700; }
+.who--ki { background: #ece4cd; color: #6f5a1c; }
+.who--ed { background: #e2e8dd; color: #4a5a44; }
+.post__date { margin-left: auto; color: var(--color-text-muted); font-size: 11px; }
+.post__text { margin: 0 0 6px; font-size: 13px; }
+.chips { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	background: var(--color-panel-soft); font-size: 11px; color: var(--color-text-muted); }
+.chip.ok { border-color: #b6c9a9; background: #eef3e9; color: #46603a; }
+.chip.err { border-color: #d8b3a6; background: #f7ece7; color: #8a4b34; }
+.chip.wait { border-color: var(--color-border-strong); }
+
+/* ---- Hub-Dialog ---------------------------------------------------------------- */
+.hub { background: var(--color-panel); border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-lg); box-shadow: var(--shadow-dialog); overflow: hidden; }
+.hub__head { padding: 13px 18px; border-bottom: 1px solid var(--color-divider);
+	display: flex; align-items: center; gap: 10px; }
+.hub__head h2 { margin: 0; font-size: 15px; color: var(--color-text-strong); }
+.hub__body { padding: 16px 18px 18px; display: grid; grid-template-columns: 1fr 300px; gap: 22px; }
+@media (max-width: 820px) { .hub__body { grid-template-columns: 1fr; } }
+label.f { display: block; font-weight: 700; font-size: 12px; margin: 0 0 5px;
+	color: var(--color-text-strong); }
+textarea, input[type=text] { width: 100%; padding: 9px 11px; font: inherit;
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	background: var(--color-panel-soft); color: var(--color-text); resize: vertical; }
+textarea { min-height: 108px; }
+.count { display: flex; justify-content: space-between; margin-top: 4px;
+	font-size: 11px; color: var(--color-text-muted); }
+.count b { color: var(--color-accent-strong); }
+.drop { margin-top: 14px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md);
+	background: var(--color-panel-soft); padding: 14px; display: flex; gap: 12px; align-items: center; }
+.thumb { width: 62px; height: 78px; border-radius: var(--radius-sm); flex: none;
+	background: linear-gradient(160deg, #c8a55c, #8a6a34); border: 1px solid var(--color-border-strong); }
+.drop small { display: block; color: var(--color-text-muted); font-size: 11px; margin-top: 2px; }
+.side { border-left: 1px solid var(--color-divider); padding-left: 20px; }
+@media (max-width: 820px) { .side { border-left: 0; padding-left: 0; border-top: 1px solid var(--color-divider); padding-top: 16px; } }
+.ch { display: flex; align-items: flex-start; gap: 9px; padding: 8px 0;
+	border-bottom: 1px solid var(--color-divider); }
+.ch:last-of-type { border-bottom: 0; }
+.ch input { margin-top: 3px; accent-color: var(--color-accent-strong); }
+.ch__name { font-weight: 600; font-size: 13px; }
+.ch__meta { display: block; color: var(--color-text-muted); font-size: 11px; }
+.ch--off .ch__name { color: var(--color-text-muted); }
+.warn { margin: 12px 0 0; padding: 9px 11px; border-radius: var(--radius-md);
+	background: #f7f0e2; border: 1px solid #e0cfa4; font-size: 12px; color: #6b5520; }
+.hub__foot { padding: 12px 18px; border-top: 1px solid var(--color-divider);
+	background: var(--color-panel-soft); display: flex; align-items: center; gap: 10px; }
+.hub__foot .spacer { margin-left: auto; }
+.muted { color: var(--color-text-muted); font-size: 12px; }
+code { background: var(--color-panel-muted); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Social-Media-Hub — Mockup</h1>
+<p class="lede">Wie Editoren aus Avesmaps heraus auf mehreren Kanälen veröffentlichen, und wo die
+	automatischen Feature-Updates landen. Alle Farben, Radien und Abstände stammen aus
+	<code>css/base/tokens.css</code>.</p>
+
+<!-- ============================================================ 1 -->
+<p class="step">1 — Der Reiter heißt jetzt „Community"</p>
+<div class="split">
+	<div class="panel">
+		<div class="panel__head"><span class="panel__title">Editor</span><span class="panel__x">✕</span></div>
+		<nav class="tabs">
+			<button class="tab is-active">Community</button>
+			<button class="tab">Änderungen</button>
+			<button class="tab">WikiSync</button>
+			<button class="tab">Status</button>
+		</nav>
+		<nav class="subtabs">
+			<button class="subtab">Meldungen <span class="new">3</span></button>
+			<button class="subtab">Bewertungen</button>
+			<button class="subtab">Mails</button>
+			<button class="subtab is-active">Social Media</button>
+		</nav>
+		<div class="body">
+			<button class="btn btn--wide">✎ Social Media Hub öffnen</button>
+
+			<div class="listhead"><span>Zuletzt veröffentlicht</span><span>Filter ▾</span></div>
+
+			<div class="post">
+				<div class="post__top"><span class="who who--ed">Thomas</span>
+					<span class="post__date">heute, 18:04</span></div>
+				<p class="post__text">Das Bornland hat 42 neue Dörfer bekommen — inklusive
+					Wegeanschluss bis Festum.</p>
+				<div class="chips"><span class="chip ok">Instagram ✓</span>
+					<span class="chip ok">Facebook ✓</span>
+					<span class="chip err">Mastodon — Fehler</span>
+					<button class="btn btn--soft btn--mini">Erneut</button></div>
+			</div>
+
+			<div class="post">
+				<div class="post__top"><span class="who who--ki">Automatisch</span>
+					<span class="post__date">gestern, 10:02</span></div>
+				<p class="post__text">Neu: Wege lassen sich am Handy antippen, ohne die Fläche
+					darunter zu treffen.</p>
+				<div class="chips"><span class="chip ok">Instagram ✓</span>
+					<span class="chip ok">Facebook ✓</span></div>
+			</div>
+
+			<div class="post">
+				<div class="post__top"><span class="who who--ed">Valentin</span>
+					<span class="post__date">08.08., 21:12</span></div>
+				<p class="post__text">Die Klimazonen sind da: acht Bänder von Polar bis Tropisch.</p>
+				<div class="chips"><span class="chip ok">Instagram ✓</span>
+					<span class="chip wait">Facebook — geplant 09:00</span></div>
+			</div>
+		</div>
+	</div>
+
+	<div>
+		<p class="note"><strong>Was sich ändert.</strong> Der Hauptreiter „Meldungen" heißt
+			<strong>Community</strong>, weil er längst mehr trägt als Meldungen. Darunter heißt der erste
+			Unterreiter schlicht <strong>Meldungen</strong> (bisher „Community Meldungen" — das Wort stand
+			doppelt), Bewertungen und Mails bleiben unberührt, und <strong>Social Media</strong> kommt dazu.</p>
+		<p class="note"><strong>Eine Liste, zwei Herkünfte.</strong> Was ich automatisch aus den Commits
+			erzeuge, steht neben dem, was Editoren selbst schreiben — unterschieden nur durch das
+			Kennzeichen links. Für Leser draußen ist beides derselbe Kanal, für euch ist nachvollziehbar,
+			wer was verantwortet.</p>
+		<p class="note"><strong>Je Kanal ein eigener Zustand.</strong> Ein Beitrag geht an mehrere Netze,
+			aber jedes kann für sich scheitern — im Beispiel oben hat Mastodon nicht angenommen. Deshalb
+			trägt jede Marke ihren eigenen Status und ihren eigenen „Erneut"-Knopf. Ein einziger
+			Gesamtstatus („gesendet") würde diesen Fall verschlucken.</p>
+	</div>
+</div>
+
+<!-- ============================================================ 2 -->
+<p class="step">2 — Der Hub: einmal schreiben, überall veröffentlichen</p>
+<div class="hub">
+	<div class="hub__head"><h2>Social Media Hub</h2>
+		<span class="muted">— Beitrag verfassen</span></div>
+	<div class="hub__body">
+		<div>
+			<label class="f" for="t">Text</label>
+			<textarea id="t">Im Bornland sind 42 Dörfer dazugekommen — mit Wegen, Namen und
+Reisezeiten bis Festum. Wer dort spielt, findet die Strecke jetzt im Routenplaner.</textarea>
+			<div class="count">
+				<span>Kürzestes Limit: <b>Mastodon 500</b></span>
+				<span>168 + 61 Hashtags = 229 / 500</span>
+			</div>
+
+			<label class="f" style="margin-top:14px">Hashtags</label>
+			<div class="chips">
+				<span class="chip" style="background:var(--color-panel-active)">#Aventurien ✕</span>
+				<span class="chip" style="background:var(--color-panel-active)">#DSA ✕</span>
+				<span class="chip" style="background:var(--color-panel-active)">#Rollenspiel ✕</span>
+				<span class="chip" style="background:var(--color-panel-active)">#Bornland ✕</span>
+				<span class="chip" style="border-style:dashed">+ hinzufügen</span>
+			</div>
+			<div class="count">
+				<span>Vorrat: #TDE · #PnP · #Karte · #Fanprojekt</span>
+				<span>Instagram alle · Facebook 2 · Mastodon 4</span>
+			</div>
+
+			<label class="f" style="margin-top:16px">Bild oder Video</label>
+			<div class="chips" style="margin-bottom:10px">
+				<span class="chip" style="background:var(--color-panel-active)">⬆ Eigene Datei</span>
+				<span class="chip">🗺 Kartenausschnitt aufnehmen</span>
+				<span class="chip">🎬 Video hochladen</span>
+			</div>
+
+			<div class="drop">
+				<div class="thumb"></div>
+				<div style="min-width:0">
+					<strong>bornland-doerfer.jpg</strong>
+					<small>1080 × 1350 (4:5) · 640 kB · JPEG</small>
+					<small style="margin-top:5px">✓ Passt für Instagram, Facebook und Mastodon</small>
+					<small style="margin-top:6px"><a href="#" style="color:var(--color-link)">Zuschnitt ändern</a>
+						· <a href="#" style="color:var(--color-link)">Ersetzen</a>
+						· <a href="#" style="color:var(--color-link)">Entfernen</a></small>
+				</div>
+			</div>
+
+			<div class="drop" style="margin-top:10px;align-items:flex-start">
+				<div class="thumb" style="background:var(--color-panel-muted);display:flex;align-items:center;justify-content:center;font-size:22px">🎬</div>
+				<div style="min-width:0">
+					<strong>bornland-flug.mp4</strong>
+					<small>0:24 · 1080 × 1350 · 18 MB</small>
+					<small style="margin-top:5px" class="ch--off">⏳ Instagram verarbeitet Videos —
+						Beitrag erscheint 1–2 Minuten nach dem Absenden</small>
+				</div>
+			</div>
+
+			<label class="f" style="margin-top:16px">Herkunft und Rechte</label>
+			<div class="ch"><input type="radio" name="lic" checked>
+				<span><span class="ch__name">Eigenes Werk / Avesmaps-Karte</span>
+					<span class="ch__meta">selbst erstellt oder aus der Karte aufgenommen</span></span></div>
+			<div class="ch"><input type="radio" name="lic">
+				<span><span class="ch__name">Freie Lizenz</span>
+					<span class="ch__meta">gemeinfrei oder CC — Quelle angeben</span></span></div>
+			<p class="warn" style="margin-top:8px">Keine Scans aus DSA-Publikationen, keine
+				Ulisses-Artworks. Das Projekt läuft unter den Fan-Richtlinien (NOTICE.md) — was hier
+				rausgeht, steht unter dem Namen Avesmaps und ist öffentlich.</p>
+		</div>
+
+		<div class="side">
+			<label class="f">Kanäle</label>
+
+			<div class="ch"><input type="checkbox" checked>
+				<span><span class="ch__name">Instagram</span>
+					<span class="ch__meta">@avesmaps · Bild erforderlich · max. 2 200 Zeichen</span></span></div>
+
+			<div class="ch"><input type="checkbox" checked>
+				<span><span class="ch__name">Facebook</span>
+					<span class="ch__meta">Seite Avesmaps · Link erlaubt</span></span></div>
+
+			<div class="ch"><input type="checkbox">
+				<span><span class="ch__name">Mastodon</span>
+					<span class="ch__meta">@avesmaps@dsa.social · max. 500 Zeichen</span></span></div>
+
+			<div class="ch ch--off"><input type="checkbox" disabled>
+				<span><span class="ch__name">Bluesky</span>
+					<span class="ch__meta">noch nicht eingerichtet</span></span></div>
+
+			<p class="warn">Instagram braucht ein Bild — ohne Anhang bleibt der Kanal gesperrt.
+				Der Text erscheint dort ohne klickbaren Link.</p>
+
+			<label class="f" style="margin-top:16px">Zeitpunkt</label>
+			<div class="chips">
+				<span class="chip" style="background:var(--color-panel-active)">Sofort</span>
+				<span class="chip">Morgen 09:00</span>
+				<span class="chip">Datum wählen …</span>
+			</div>
+		</div>
+	</div>
+	<div class="hub__foot">
+		<span class="muted">Geht an <strong>2 Kanäle</strong> · als <strong>Avesmaps</strong>, nicht unter deinem Namen</span>
+		<span class="spacer"></span>
+		<button class="btn btn--soft">Vorschau</button>
+		<button class="btn">Veröffentlichen</button>
+	</div>
+</div>
+
+<p class="note" style="margin-top:18px"><strong>Warum die Kanalliste rechts steht und nicht fest im
+	Code.</strong> Jeder Eintrag ist eine Zeile in der Server-Konfiguration: Name, Zugangsdaten,
+	Zeichenlimit, ob ein Bild Pflicht ist, ob Links klickbar sind. Ein neuer Kanal — Bluesky, Threads,
+	was auch immer — ist damit ein Eintrag, kein Umbau. Genau deshalb steht auch <em>Bluesky</em> schon
+	ausgegraut da: Die Oberfläche kennt ihn, es fehlt nur die Anmeldung.</p>
+<p class="note"><strong>Die Limits sind nicht Deko.</strong> Mastodon bricht bei 500 Zeichen ab,
+	Instagram nimmt keinen klickbaren Link, Facebook nimmt beides. Der Zähler zeigt deshalb immer das
+	<em>strengste</em> gerade angehakte Limit — sonst schreibt jemand 900 Zeichen und wundert sich, dass
+	nur ein Netz gemeckert hat. Wer Mastodon abwählt, hat sofort wieder 2 200 Zeichen.</p>
+<p class="note"><strong>Absender ist immer Avesmaps.</strong> Unten links steht das ausdrücklich, weil
+	es die häufigste Rückfrage ist: Es postet die Seite bzw. das Konto des Projekts, nie das persönliche
+	Konto dessen, der auf „Veröffentlichen" drückt. Wer es war, steht nur intern in der Liste.</p>
+<p class="note"><strong>Eigene Dateien, Kartenausschnitt, Video — drei Wege, ein Anhang.</strong> Der
+	Editor lädt hoch, was er hat; der Kartenausschnitt ist nur die bequeme Abkürzung für „zeig, was sich
+	geändert hat". 💣 <strong>Instagram nimmt kein PNG</strong> — nur JPEG, und nur Seitenverhältnisse
+	zwischen 4:5 und 1,91:1. Ein hochgeladenes PNG wird deshalb serverseitig zu JPEG umgewandelt und bei
+	Bedarf zugeschnitten; die Zeile „✓ Passt für …" sagt vorher, was durchgeht, statt hinterher einen
+	API-Fehler zu zeigen. Facebook und Mastodon sind genügsamer, Instagram gibt den Takt vor.</p>
+<p class="note"><strong>Video ist ein anderer Ablauf, kein größeres Bild.</strong> Instagram nimmt
+	Videos nur asynchron an: hochladen, warten, Status abfragen, dann erst veröffentlichen. Deshalb steht
+	am Video-Anhang ein Hinweis, dass der Beitrag ein bis zwei Minuten später erscheint — und deshalb
+	würde ich Video in eine <strong>zweite Stufe</strong> legen. Bilder sind ein Aufruf, Video ist eine
+	Warteschlange mit eigenen Fehlerfällen. Wenn Bilder laufen, ist Video ein überschaubarer Nachtrag;
+	beides gleichzeitig zu bauen verdoppelt die Zahl der Stellen, an denen etwas hängenbleiben kann.</p>
+<p class="note"><strong>Hashtags stehen in einem eigenen Feld, landen aber im Text.</strong> Die APIs
+	kennen kein Hashtag-Feld — sie werden an die Nachricht angehängt. Getrennt eingegeben werden sie
+	trotzdem, weil die Netze Verschiedenes vertragen: Auf Instagram sind zehn normal, auf Facebook wirken
+	drei schon wie Spam, und auf Mastodon sind sie die <em>einzige</em> brauchbare Suche (Volltextsuche
+	ist dort meist abgeschaltet). Deshalb steht in der Kanalkonfiguration je Kanal eine Zahl — Instagram
+	alle, Facebook 2, Mastodon 4 —, und jeder bekommt die ersten so vielen. Ein Vorrat projektweiter
+	Tags (#DSA, #Aventurien …) steht darunter zum Anklicken, damit nicht jeder etwas anderes tippt und
+	die Beiträge unauffindbar werden.</p>
+<p class="note">⚠️ <strong>Hashtags zählen zum Zeichenlimit</strong>, und das ist kein Detail: Vier Tags
+	sind schnell 60 Zeichen, bei Mastodons 500 also mehr als ein Zehntel. Der Zähler zeigt sie deshalb
+	getrennt an („168 + 61 Hashtags"), sonst schreibt jemand bis 490 und der Beitrag wird beim Absenden
+	abgeschnitten. — Nebenbei: Der bei Instagram beliebte Trick, die Tags in den <em>ersten Kommentar</em>
+	statt in die Bildunterschrift zu setzen, ginge per API auch, bräuchte aber die Berechtigung
+	<code>instagram_manage_comments</code>. Die haben wir bewusst nicht angefordert — wir wollen
+	veröffentlichen, nicht kommentieren. Also stehen sie in der Bildunterschrift.</p>
+<p class="note"><strong>Die Rechtefrage ist hier keine Formalie.</strong> Beim Stadtkarten-Upload gibt
+	es bereits einen Lizenzriegel, und aus demselben Grund steht hier einer: Was der Hub verschickt,
+	trägt öffentlich den Namen Avesmaps und lässt sich nicht zurückholen. Ein hochgeladener Scan aus
+	einem DSA-Band wäre nicht euer Fehler beim Kartenmachen, sondern eine Urheberrechtsverletzung unter
+	eurem Namen auf Instagram. Die zwei Radiobuttons kosten eine Sekunde und verhindern genau das.</p>
+
+<!-- ============================================================ 3 -->
+<p class="step">3 — Woher die automatischen Beiträge kommen</p>
+<div class="hub" style="box-shadow:var(--shadow-panel)">
+	<div class="hub__head"><h2>Vorschlag der Routine</h2>
+		<span class="muted">— alle zwei Tage, wartet auf Freigabe</span></div>
+	<div class="hub__body" style="grid-template-columns:1fr">
+		<div>
+			<div class="post" style="border-top:0;padding-top:0">
+				<div class="post__top"><span class="who who--ki">Automatisch</span>
+					<span class="post__date">heute, 10:00</span></div>
+				<p class="post__text">Wege sind am Handy jetzt am Finger treffbar — ein unsichtbares Band
+					über der Linie fängt den Tipp ab, die Fläche darunter bleibt dem Gebiet.</p>
+				<div class="chips"><span class="chip">Instagram</span><span class="chip">Facebook</span>
+					<span class="chip" style="border-style:dashed">Bild: Kartenausschnitt</span></div>
+			</div>
+			<div class="chips" style="margin-top:12px">
+				<button class="btn">Freigeben und veröffentlichen</button>
+				<button class="btn btn--soft">Bearbeiten</button>
+				<button class="btn btn--soft">Verwerfen</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<p class="note" style="margin-top:18px"><strong>Der offene Punkt, den du entscheiden musst.</strong>
+	Du wolltest die Routine vollautomatisch veröffentlichen lassen. Sobald aber <em>Editoren</em>
+	denselben Kanal bespielen, ist die Frage neu: Ein Vorschlag, der erst freigegeben wird (wie oben
+	gezeigt), landet in derselben Liste wie ein Editor-Beitrag und kann vor dem Absenden noch korrigiert
+	werden. Vollautomatisch hieße: Der Kasten oben erscheint nie, der Beitrag ist schon draußen. Beides
+	ist baubar — die Oberfläche unterscheidet sich nur um diesen einen Kasten.</p>
+
+</div>
+</body>
+</html>
