@@ -1098,3 +1098,26 @@ function normalizeSpotlightSearchText(value) {
 }
 
 // (Spotlight focus/navigation moved to spotlight-search-focus.js - M5 split.)
+
+// 💣 Die Bildschirmtastatur ist der eine Haken an einem unten verankerten Feld: iOS schrumpft den
+// Layout-Viewport NICHT, wenn sie aufgeht -- `100dvh` und der untere Rand zeigen weiter auf den
+// Bildschirmrand, und das Feld verschwindet hinter der Tastatur. Die tatsaechlich sichtbare Hoehe
+// kennt nur visualViewport.
+// ⚠️ Nur am groben Zeiger verdrahtet: am Zeiger gibt es keine Tastatur, die etwas verdeckt, und
+// das Fenster steht dort ohnehin mittig (siehe css/components/spotlight-search.css).
+(function keepSpotlightAboveKeyboard() {
+	const overlay = document.getElementById("spotlight-search-overlay");
+	const viewport = window.visualViewport;
+	if (!overlay || !viewport || !window.matchMedia("(pointer: coarse)").matches) {
+		return;
+	}
+	const sync = () => {
+		const verdeckt = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+		overlay.style.paddingBottom = verdeckt > 0
+			? `calc(var(--space-10) + ${Math.round(verdeckt)}px)`
+			: "";
+	};
+	viewport.addEventListener("resize", sync);
+	viewport.addEventListener("scroll", sync);
+	sync();
+})();

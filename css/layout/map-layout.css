@@ -139,3 +139,14 @@ body {
 	background-color: var(--color-disabled-bg);
 	color: var(--color-disabled-text);
 }
+
+/* Am Finger ist die Zwei-Finger-Geste die Zoomhilfe; zwei 26px-Kacheln daneben sind ein Mausrelikt,
+   das Kartenflaeche kostet (Owner 2026-08-10). Der Platz, den sie raeumen, geht an den Suchknopf.
+   ⚠️ AUSGEBLENDET, nicht bei `L.control.zoom(...).addTo(map)` weggelassen: die Platzierungsregel
+   `.avesmaps-infopanel-mode .leaflet-control-zoom` in infopanel.css stuende sonst als tote
+   Zusicherung da, und js/app/__tests__/map-corner-actions.test.js prueft sie. */
+@media (pointer: coarse) {
+	.leaflet-control-zoom {
+		display: none;
+	}
+}

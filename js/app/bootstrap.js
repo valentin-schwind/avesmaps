@@ -134,6 +134,23 @@ initializeMapDecorations();
 L.control.zoom({ position: "topright" }).addTo(map);
 map.setMaxBounds(MAP_BOUNDS);
 
+// Der Suchknopf an der Karte. Sichtbar ist er nur am groben Zeiger (css/components/legal-dialog.css)
+// -- dort, wo der Zoom raeumt und wo es sonst keinen sichtbaren Weg in die Suche gibt: sie haengt
+// ansonsten am Tastenkuerzel und am Langdruck-Kontextmenue, und beides hat ein Telefon nicht.
+// ⚠️ Er oeffnet die VORHANDENE Spotlight-Suche. Kein zweites Feld daneben: das waere eine zweite
+// Trefferlogik ueber demselben Bestand.
+(function wireMapSearchButton() {
+    const button = document.getElementById("map-search-button");
+    if (!button) {
+        return;
+    }
+    button.addEventListener("click", () => {
+        if (typeof openSpotlightSearch === "function") {
+            openSpotlightSearch();
+        }
+    });
+})();
+
 map.on("zoomend", () => {
     const zoom = map.getZoom();
     const size = 9 + zoom * 3;

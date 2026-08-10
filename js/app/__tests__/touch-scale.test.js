@@ -186,4 +186,36 @@ assert.ok(/var\(--tap-min\)/.test(zeilenRegeln[zeilenRegeln.length - 1])
 assert.ok(!zeilenRegeln.some((r) => /min-height:\s*auto/.test(r)),
 	"und keine spaetere setzt es wieder auf auto zurueck");
 
+// ---- Der Zoom raeumt am Finger, und die Suche zieht ein -------------------------------------------
+assert.ok(/@media\s*\(pointer:\s*coarse\)[^{]*\{[\s\S]*?\.leaflet-control-zoom[^}]*display:\s*none/.test(layout),
+	"der Zoom-Control wird am Finger AUSGEBLENDET -- am Finger ist die Zwei-Finger-Geste die"
+	+ " Zoomhilfe, und zwei 26px-Kacheln daneben kosten nur Kartenflaeche");
+const bootstrap = withoutComments(read("js", "app", "bootstrap.js"));
+assert.ok(/L\.control\.zoom\(/.test(bootstrap),
+	"...aber er wird weiterhin ANGELEGT. Nicht bei addTo weglassen: die Platzierungsregel"
+	+ " `.avesmaps-infopanel-mode .leaflet-control-zoom` in infopanel.css stuende sonst als tote"
+	+ " Zusicherung da, und map-corner-actions.test.js prueft sie.");
+
+assert.ok(/id="map-search-button"/.test(indexHtml), "der Suchknopf steht im Markup");
+const bundIdx = indexHtml.indexOf('id="map-corner-actions"');
+const suchIdx = indexHtml.indexOf('id="map-search-button"');
+assert.ok(bundIdx > -1 && suchIdx > -1 && suchIdx < bundIdx,
+	"und VOR dem Knopfbund -- er sitzt UEBER ihm, nicht darin: die Ecke traegt damit eine"
+	+ " Rangfolge, eine Handlung (gefuellt) neben zwei Verweisen (weich)");
+assert.ok(/openSpotlightSearch\s*\(/.test(bootstrap),
+	"der Knopf ruft die VORHANDENE Suche -- ein zweites Suchfeld waere eine zweite Trefferlogik");
+
+// ---- Das Suchfenster sitzt am Finger unten, und die Tastatur verdeckt es nicht --------------------
+const spotlightCss = withoutComments(read("css", "components", "spotlight-search.css"));
+assert.ok(/@media\s*\(pointer:\s*coarse\)[\s\S]*?align-items:\s*flex-end/.test(spotlightCss),
+	"am Finger ist das Suchfenster unten verankert -- dort war der Knopf, dort ist der Daumen");
+assert.ok(/order:\s*\d/.test(spotlightCss),
+	"die Treffer wachsen per `order` nach oben, nicht per flex-direction: column-reverse"
+	+ " -- die Umkehrung erwischte auch die versteckte Ueberschrift und die Statuszeile");
+const spotlightJs = withoutComments(read("js", "ui", "spotlight-search.js"));
+assert.ok(/visualViewport/.test(spotlightJs),
+	"das Feld haengt an der SICHThoehe (visualViewport): iOS schrumpft den Layout-Viewport bei"
+	+ " offener Tastatur NICHT, 100dvh zeigt weiter auf den Bildschirmrand und das Feld"
+	+ " verschwindet dahinter");
+
 console.log("touch-scale tests passed");

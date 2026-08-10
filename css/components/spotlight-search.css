@@ -153,3 +153,26 @@
 	font-size: 11px;
 	opacity: 0.68;
 }
+
+/* ── Am Finger: das Suchfenster sitzt UNTEN ───────────────────────────────────────────────────
+   Dort war der Knopf, der es oeffnet, und dort ist der Daumen. Die Verbreiterung der Lupe zum
+   Feld ist damit auch raeumlich stimmig -- es waechst an Ort und Stelle statt in der Mitte zu
+   erscheinen.
+   ⚠️ Ueber `order`, NICHT ueber `flex-direction: column-reverse`: die Umkehrung erwischte auch
+   die (visuell versteckte) Ueberschrift und die Statuszeile und wuerfe sie an unerwartete
+   Stellen. So steht genau das an genau der Stelle, die gemeint ist. */
+@media (pointer: coarse) {
+	#spotlight-search-overlay {
+		align-items: flex-end;
+		padding: var(--space-16) var(--space-10) var(--space-10);
+	}
+
+	.spotlight-search {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+	}
+	.spotlight-search__results { order: 1; }
+	.spotlight-search__input   { order: 2; border-bottom: 0; }
+	.spotlight-search__status  { order: 3; }
+}

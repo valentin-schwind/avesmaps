@@ -567,3 +567,40 @@
 .legal-contact__status[data-tone="error"] {
 	color: var(--color-danger);
 }
+
+/* ── Der Suchknopf an der Karte ───────────────────────────────────────────────────────────────
+   Sitzt dort, wo am Zeiger der Zoom sitzt -- am Finger raeumt der (map-layout.css), und dieser
+   Knopf zieht ein. Nur am groben Zeiger sichtbar: am Zeiger oeffnet F / Leertaste die Suche,
+   ein Knopf waere ein doppelter Weg.
+   ⚠️ Quadratisch mit --radius-md und GEFUELLT (AGENTS.md §12: Hauptaktion gefuellt, der Rest
+   weich). Er ist die einzige Handlung in einer Ecke, die sonst zwei Verweise traegt.
+   ⚠️ Der Abstand nach unten liest --avesmaps-corner-stack, dieselbe Zahl, aus der auch der Zoom
+   seinen Abstand rechnet -- keine abgeschriebene Knopfhoehe. */
+#map-search-button {
+	position: fixed;
+	right: var(--space-10);
+	bottom: calc(var(--space-10) + var(--avesmaps-corner-stack, 40px) + var(--space-6));
+	z-index: var(--z-map-ui);
+	display: none;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	padding: 0;
+	border: 1px solid var(--color-button-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	box-shadow: var(--shadow-panel);
+	cursor: pointer;
+	transition: right 0.22s ease;
+}
+#map-search-button svg {
+	width: 22px;
+	height: 22px;
+}
+@media (pointer: coarse) {
+	#map-search-button {
+		display: flex;
+	}
+}

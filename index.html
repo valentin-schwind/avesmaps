@@ -2238,6 +2238,18 @@
 		     Abstand daraus, damit Stapel und Zoom nicht auseinanderlaufen koennen.
 		     ⚠️ Die beiden sind absichtlich UNGLEICHE Elemente: „Neuigkeiten" ist ein <button>, weil
 		     sein Ziel auf DIESER Seite liegt, „Hinweise" ein <a> -- Begruendung direkt daran. -->
+		<!-- Der Suchknopf nimmt den Sitz, den der Zoom am Finger raeumt (Owner 2026-08-10): ein
+		     Tausch, keine Zugabe -- gleich viele Bedienelemente auf der Karte, praktisch dieselbe
+		     Flaeche (30x56 raus, 48x48 rein), und der Daumen erreicht ihn.
+		     💣 Er steht UEBER dem Bund, nicht darin: so traegt die Ecke sichtbar eine Rangfolge --
+		     eine Handlung (gefuellt) neben zwei Verweisen (weich/outline, AGENTS.md §12).
+		     Sichtbar nur am groben Zeiger (css/components/legal-dialog.css); am Zeiger oeffnet die
+		     Suche das Tastenkuerzel F / Leertaste, und ein Knopf waere dort ein doppelter Weg. -->
+		<button type="button" id="map-search-button" aria-label="Suchen" data-i18n-aria-label="spotlight.title">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+				<circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M15.5 15.5 21 21"></path>
+			</svg>
+		</button>
 		<div id="map-corner-actions">
 			<button type="button" id="news-button" aria-haspopup="dialog" aria-controls="changelog-dialog" data-i18n="legal.news">Neuigkeiten</button>
 			<!-- 💣 EIN LINK, KEIN KNOPF -- und das ist der ganze Punkt (Owner 06.08.2026, Befund A24).
