@@ -321,6 +321,39 @@ denselben öffentlichen Kanal teilen, ist ein ungeprüfter Beitrag ein öffentli
 Namen des Projekts — und ein Instagram-Beitrag lässt sich nachträglich nicht ändern, nur löschen.
 Die Freigabe kostet einen Klick.
 
+### 9.1 Die Entwurfs-Box (10.08.2026)
+
+Ein Beitrag muss nicht sofort hinaus. Neben „Veröffentlichen" steht **„Als Entwurf speichern"** —
+weich, nicht gefüllt, denn die Haupthandlung des Fensters bleibt das Veröffentlichen. Der Beitrag
+landet in der Liste und wartet dort mit **Freigeben und veröffentlichen · Bearbeiten · Verwerfen**.
+
+🔴 **EIN Zustand für beide Herkünfte.** Ein eigener `draft` neben `proposal` wäre dieselbe Sache
+unter zwei Namen: die Liste müsste beide filtern, die Freigabe beide kennen, und beim nächsten
+Zustand liefen sie auseinander. Woher ein Beitrag kommt, steht in `origin` (`editor` | `routine`),
+nicht im Zustand.
+
+🔴 **Ein Entwurf wird nicht versendet.** Der Rücksprung steht **vor** dem Versand und nicht als Zweig
+darin — so kann kein später hinzugefügter Zweig daran vorbeilaufen.
+
+💣 **Derselbe Zustand, zwei Sätze.** Über einem wartenden Beitrag stand fest verdrahtet „Vorschlag
+der Routine — wartet auf Freigabe". Mit der Box war das ab dem ersten Editor-Entwurf sichtbar falsch,
+über dem eigenen Text. `origin` entscheidet; ohne Herkunft fällt es auf den **Menschen** zurück, denn
+„eine Routine hat das geschrieben" ist die Aussage, die man nicht raten darf. Die Überschrift der
+Liste heißt aus demselben Grund „Beiträge und Entwürfe" statt „Zuletzt veröffentlicht".
+
+**Die Routine liefert hier ein** (`avesmaps-feature-updates`, Schritt 6b): 2–4 Sätze für die
+Öffentlichkeit — nicht die Discord-Stichpunktliste —, `channels: ["facebook","instagram","mastodon"]`
+(der Server wirft die nicht eingerichteten weg, also steigen die anderen von selbst ein),
+`source_ref` = Commit-Hash als Dublettenschutz, **409 ist kein Fehler**. Eigenes Token, das dritte
+neben Discord und Verlauf.
+
+⚠️ **`channels` enthält NIE `changelog`.** Der Verlauf gehört Schritt 6 derselben Routine und wird
+dort mit richtiger Kategorie und Commit-Anker geschrieben. Ein Hub-Eintrag trägt
+`source_ref = social:<id>` und stünde damit oben im Verlauf — der nächste Lauf läse ihn als
+`latest_source_ref` und liefe `git log` gegen „social:42". Der Anschluss ginge verloren, ohne dass es
+auffällt. **Wer beides zusammenlegen will, braucht am Kanal „Neuigkeiten" zuerst Kategorie und
+Commit-Ref.**
+
 ## 10. Der Probe-Kanal
 
 Ein eingebauter Kanal `probe`, der die volle Kette durchläuft — Bild konvertieren, zuschneiden,
