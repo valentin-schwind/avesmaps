@@ -300,7 +300,21 @@ schon in der alten Zeile: was hier als „Asset `1322710140914682`" notiert war,
 sondern die Graph-ID der alten Seite. Wer die `6159…`-Zahl in `social.facebook.page_id` schreibt,
 bekommt von Meta einen Fehler statt eines Beitrags. 🔧 **Maßgeblich ist, was
 `GET /me/accounts?fields=name,id,tasks` als `id` zurückgibt** — was dort steht, ist per Definition
-der richtige Knoten; die beiden Zahlen oben sind aus der Seite ausgelesen, nicht aus der API.
+der richtige Knoten.
+
+⭐ **Und man kann die beiden ohne einen einzigen API-Aufruf auseinanderhalten — an den Links der
+Seite selbst.** Facebook adressiert sie je nach Werkzeug verschieden, und das verrät, welche Zahl
+welche ist:
+
+| steht in | ist |
+|---|---|
+| `business.facebook.com/latest/home`, `…/inbox`, `/ad_center/…`, `/leads_center` | die **Graph-ID** — dieselbe Welt, in der auch die API lebt |
+| `profile.php?id=…`, `photo.php?…` | die **Profil-ID**, reine Anzeige |
+
+Am 10.08.2026 an der neuen Seite abgelesen: `1240150995850875` in allen Business-Adressen,
+`61593145741175` in `profile.php`. Damit ist die Zuordnung oben nicht geraten, sondern belegt — die
+Antwort aus `/me/accounts` bleibt trotzdem die letzte Instanz, und sie kostet nichts: sie kommt in
+derselben Zeile wie der Token.
 
 ⚠️ **Altlasten, vom Owner zu löschen:** die alte Seite `61592910429900` und das persönliche Profil
 „Aves Maps" `61593292284323`. Das Profil war nie die Seite — es verstößt als Projektauftritt gegen
