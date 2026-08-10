@@ -253,6 +253,62 @@ figcaption {
 }
 .ui-search svg { width: 22px; height: 22px; }
 
+/* Angetippt: die Lupe waechst zum Feld (Owner 2026-08-10). Dieselbe Kiste, nur breit --
+   deshalb steht sie hier auch auf denselben Werten und wandert nur in Breite und Ausrichtung. */
+.ui-search--open {
+	left: var(--space-10);
+	justify-content: flex-start;
+	gap: var(--space-8);
+	width: auto;
+	padding: 0 var(--space-10);
+	background: var(--color-panel);
+	border-color: var(--color-border-strong);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-subhead);
+}
+.ui-search--open svg { flex: 0 0 auto; color: var(--color-text-muted); }
+.ui-search__caret {
+	display: inline-block;
+	width: 2px;
+	height: 22px;
+	background: var(--color-text);
+}
+/* Die Trefferliste waechst NACH OBEN -- unten steht das Feld, dort steht auch der Daumen. */
+.ui-results {
+	position: absolute;
+	right: var(--space-10);
+	bottom: 116px;
+	left: var(--space-10);
+	overflow: hidden;
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-dialog);
+}
+.ui-results div {
+	display: flex;
+	align-items: center;
+	min-height: 44px;
+	padding: 0 var(--space-10);
+	font-size: var(--font-size-reading);
+}
+.ui-results div + div { border-top: 1px solid var(--color-divider); }
+.ui-results small { margin-left: auto; color: var(--color-text-muted); font-size: var(--font-size-caption); }
+/* Angedeutete Bildschirmtastatur -- sie ist der Grund, warum das Feld die Sichthoehe lesen muss. */
+.ui-keyboard {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	height: 58px;
+	border-top: 1px solid var(--color-border);
+	background: var(--color-panel-muted);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
 /* Randlasche (Routenplaner / Info) */
 .ui-tab {
 	position: absolute;
@@ -287,8 +343,11 @@ figcaption {
 .ui-panel--right { right: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
 /* Heute: oben 10 px abgesetzt, feste 350 px, und die Hoehe darf ueber den Schirm hinaus. */
 .ui-panel--ist { top: 10px; width: 350px; height: 766px; }
-/* Vorschlag: randlos in der Hoehe, Breite laesst die 64-px-Gasse stehen. */
-.ui-panel--soll { top: 0; height: 100%; width: min(350px, calc(360px - 64px)); }
+/* Vorschlag: randlos in der Hoehe, Breite laesst die Gasse stehen.
+   💣 Die Gasse ist NICHT frei gewaehlt, sondern aus der Lasche abgeleitet: 30 px Lasche plus
+   --space-12 Luft = 44 px. Owner 2026-08-10: "zum Rand etwas weniger Platz lassen" -- weniger
+   als 44 hiesse, die Lasche wieder anzuschneiden. */
+.ui-panel--soll { top: 0; height: 100%; width: min(350px, calc(360px - 44px)); }
 
 .ui-panel__logo {
 	margin-bottom: var(--space-2);
@@ -501,6 +560,39 @@ geht. Es ist ein Tausch, keine Zugabe.</p>
 		seinen Sitz: 48 × 48, quadratisch, <b>gefüllt</b> — die eine Handlung neben zwei
 		Verweisen. Alle drei tragen jetzt <code>--radius-md</code>.</figcaption>
 	</figure>
+
+	<figure>
+		<span class="tag tag--soll">angetippt</span>
+		<div class="phone">
+			<div class="map" id="map-g"></div>
+			<div class="ui-results">
+				<div>Gareth <small>Metropole</small></div>
+				<div>Garether Heldenbühne <small>Amphitheater</small></div>
+				<div>Garether Portal <small>Stadttor</small></div>
+			</div>
+			<span class="ui-search ui-search--open" style="bottom:62px">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+				     stroke-linecap="round" aria-hidden="true">
+					<circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M15.5 15.5 21 21"></path>
+				</svg>
+				Gareth<span class="ui-search__caret"></span>
+			</span>
+			<div class="ui-keyboard">Bildschirmtastatur</div>
+		</div>
+		<figcaption>Die Lupe <b>wächst zum Feld</b> (dein Wunsch): dieselbe Kiste, nur breit.
+		Die Treffer wachsen <b>nach oben</b> — unten steht das Feld, dort steht der Daumen, und
+		dort schiebt die Tastatur.</figcaption>
+	</figure>
+</div>
+
+<div class="note">
+	<b>Es bleibt EINE Suchfläche.</b> Das aufgezogene Feld ist nicht neu, sondern das vorhandene
+	Spotlight — nur am Telefon unten verankert statt mittig, und die Verbreiterung ist sein
+	Auftritt. Ein zweites Suchfeld daneben wäre eine zweite Trefferlogik.<br><br>
+	⚠️ <b>Die Tastatur ist der eine echte Haken.</b> Ein unten verankertes Feld verdeckt iOS,
+	weil der Layout-Viewport bei offener Tastatur nicht schrumpft. Es muss deshalb an der
+	<b>Sichthöhe</b> hängen (<code>visualViewport</code>), nicht an <code>100dvh</code> — sonst
+	tippt man blind. Das ist am Gerät zu messen, nicht zu glauben.
 </div>
 
 <div class="note">
@@ -511,7 +603,7 @@ geht. Es ist ein Tausch, keine Zugabe.</p>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════════════════════ -->
-<h2>2 · Der Routenplaner — volle Höhe und die 64-px-Gasse</h2>
+<h2>2 · Der Routenplaner — volle Höhe und die 44-px-Gasse</h2>
 <p class="lead">Zur Wahl stand ein Schließkreuz oder die vorhandene Lasche. Die Lasche genügt —
 ihr fehlt nur die Gasse.</p>
 
@@ -559,12 +651,22 @@ ihr fehlt nur die Gasse.</p>
 				<div class="ui-row"><span class="ui-field">Reisegruppe zu Fuß</span></div>
 				<div class="ui-check"><i></i>über Flüsse</div>
 			</div>
-			<div class="ui-tab ui-tab--left" style="left:296px">Routenplaner</div>
+			<div class="ui-tab ui-tab--left" style="left:316px">Routenplaner</div>
 		</div>
-		<figcaption>Randlos in der Höhe, <code>min(350px, 100vw − 64px)</code> breit — dieselbe
+		<figcaption>Randlos in der Höhe, <code>min(350px, 100vw − 44px)</code> breit — dieselbe
 		Formel, die das Infopanel längst trägt. Die Lasche steht mit <b>30 von 30 px</b> im
 		Bild, das Panel scrollt in sich. Kein X nötig; es wäre der zweite Weg hinaus.</figcaption>
 	</figure>
+</div>
+
+<div class="note">
+	<b>Die Gasse ist auf 44 px geschrumpft</b> (dein „etwas weniger Platz zum Rand"; im ersten
+	Entwurf 64). Sie ist damit kein gewählter Wert mehr, sondern ein <b>abgeleiteter</b>:
+	<code>Laschenbreite (30) + --space-12 (14)</code>. Weniger hieße, die Lasche wieder
+	anzuschneiden — genau der Fehler, den der linke Rahmen zeigt. Das Panel gewinnt dadurch
+	20 px: 296 → <b>316 px</b>. ⚠️ Beide Panels teilen sich den Wert; er gehört als <b>ein</b>
+	Token neben <code>--avesmaps-ip-w</code>, sonst driften die zwei Zahlen beim nächsten
+	Anfassen auseinander.
 </div>
 
 <div class="note">
@@ -577,6 +679,15 @@ ihr fehlt nur die Gasse.</p>
 <!-- ══════════════════════════════════════════════════════════════════════════════════════ -->
 <h2>3 · Das Infopanel — die schwebende Box entfällt</h2>
 
+<div class="note">
+	🔴 <b>Korrektur gegenüber der ersten Fassung dieses Mockups (Owner: „das gibt's schon, schau
+	mal rein").</b> Ich hatte hier ein dünnes, erfundenes Panel gezeichnet und damit den Eindruck
+	erweckt, ich schlüge neuen Inhalt vor. <b>Der Inhalt existiert längst</b> — und ist viel
+	reicher, als ich ihn gemalt hatte. Unten steht jetzt, was am 10.08. wirklich im Panel stand,
+	Wort für Wort aus der laufenden Seite gelesen. <b>Vorgeschlagen ist an dieser Stelle einzig:
+	die schwebende Box fällt weg.</b> Am Panel ändert sich nichts.
+</div>
+
 <div class="pair">
 	<figure>
 		<span class="tag tag--ist">heute</span>
@@ -584,42 +695,58 @@ ihr fehlt nur die Gasse.</p>
 			<div class="map" id="map-e"></div>
 			<div class="ui-float">
 				<b>Gareth</b>
-				Metropole · Mittelreich<br>Route hierher · Teilen
+				Metropole · Hauptstadt von Heiliges Neues Kaiserreich<br>
+				Reiseziel hinzufügen · Link teilen
 			</div>
 			<div class="ui-panel ui-panel--right ui-panel--soll sz-ist" style="width:296px">
-				<div class="ui-row"><span class="ui-field" style="flex:1">‹ Gareth ›</span></div>
-				<div class="ui-panel__logo" style="font-size:var(--font-size-display)">Gareth</div>
-				<p style="margin:0;font-size:var(--font-size-small);color:var(--color-text-muted)">
-				Metropole · Mittelreich · 100 000 Einwohner. Hauptstadt des Mittelreichs und
-				größte Stadt Aventuriens.</p>
-				<div class="ui-grouphead">Literatur</div>
-				<div class="ui-row"><span class="ui-field">Im Schatten des Greifen</span></div>
+				<div class="ui-panel__logo" style="font-size:var(--font-size-display);margin:0">Gareth</div>
+				<p style="margin:0;font-size:var(--font-size-caption);color:var(--color-text-muted)">
+				Metropole · Hauptstadt von Heiliges Neues Kaiserreich vom Greifenthron zu Gareth</p>
+				<div class="ui-row"><span class="ui-btnfill" style="flex:1">+ Reiseziel hinzufügen</span></div>
+				<div class="ui-row"><span class="ui-btnsoft" style="flex:1">Link teilen</span><span class="ui-btnsoft" style="flex:1">Änderungen vorschlagen</span></div>
+				<div class="ui-grouphead">Liegt in</div>
+				<p style="margin:0;font-size:var(--font-size-caption);line-height:var(--leading-snug)">
+				Heiliges Neues Kaiserreich vom Greifenthron zu Gareth › Königreich Garetien ›
+				Kaisermark Gareth › Baronie Kaiserlich Raulsmark</p>
+				<div class="ui-grouphead">Beschreibung</div>
+				<p style="margin:0;font-size:var(--font-size-caption);line-height:var(--leading-snug)">
+				Gareth ist mit Abstand die größte Stadt Aventuriens und Hauptstadt des Mittelreichs.</p>
+				<div class="ui-grouphead">Oberhaupt</div>
+				<p style="margin:0;font-size:var(--font-size-caption)">Kaiserin Rohaja von Gareth</p>
+				<div class="ui-grouphead">Einwohner</div>
+				<p style="margin:0;font-size:var(--font-size-caption)">170 000 (1040 BF)</p>
 			</div>
 			<div class="ui-tab ui-tab--right" style="right:296px">Info</div>
 		</div>
-		<figcaption>Ein Tipp auf einen Ort öffnet <b>zweierlei</b>. Die schwebende Box misst
-		320–400 px, das Panel daneben 296 — sie liegt vollständig dahinter und ist nie zu
-		sehen.</figcaption>
+		<figcaption>Ein Tipp auf einen Ort öffnet <b>zweierlei</b>. Gemessen: die Box ist 334 px
+		breit und beginnt bei x = 13, das Panel bei x = 64 — <b>283 von 334 px liegen dahinter</b>,
+		übrig bleibt ein 51-px-Streifen. Mit der neuen 44-px-Gasse wären es noch 31.</figcaption>
 	</figure>
 
 	<figure>
 		<span class="tag tag--soll">Vorschlag</span>
 		<div class="phone">
 			<div class="map" id="map-f"></div>
-			<div class="ui-panel ui-panel--right ui-panel--soll sz-soll" style="width:296px">
-				<div class="ui-row"><span class="ui-field" style="flex:1">‹ Gareth ›</span></div>
-				<div class="ui-panel__logo" style="font-size:var(--font-size-display)">Gareth</div>
-				<p style="margin:0;font-size:var(--font-size-reading);color:var(--color-text-muted)">
-				Metropole · Mittelreich · 100 000 Einwohner. Hauptstadt des Mittelreichs und
-				größte Stadt Aventuriens.</p>
-				<div class="ui-grouphead">Literatur</div>
-				<div class="ui-row"><span class="ui-field">Im Schatten des Greifen</span></div>
-				<div class="ui-row"><span class="ui-btnfill" style="flex:1">Route hierher</span></div>
+			<div class="ui-panel ui-panel--right ui-panel--soll sz-soll" style="width:316px">
+				<div class="ui-panel__logo" style="font-size:var(--font-size-display);margin:0">Gareth</div>
+				<p style="margin:0;font-size:var(--font-size-small);color:var(--color-text-muted)">
+				Metropole · Hauptstadt von Heiliges Neues Kaiserreich vom Greifenthron zu Gareth</p>
+				<div class="ui-row"><span class="ui-btnfill" style="flex:1">+ Reiseziel hinzufügen</span></div>
+				<div class="ui-row"><span class="ui-btnsoft" style="flex:1">Link teilen</span></div>
+				<div class="ui-grouphead">Liegt in</div>
+				<p style="margin:0;font-size:var(--font-size-small);line-height:var(--leading-snug)">
+				Heiliges Neues Kaiserreich … › Königreich Garetien › Kaisermark Gareth ›
+				Baronie Kaiserlich Raulsmark</p>
+				<div class="ui-grouphead">Beschreibung</div>
+				<p style="margin:0;font-size:var(--font-size-small);line-height:var(--leading-snug)">
+				Gareth ist mit Abstand die größte Stadt Aventuriens und Hauptstadt des
+				Mittelreichs.</p>
 			</div>
-			<div class="ui-tab ui-tab--right" style="right:296px">Info</div>
+			<div class="ui-tab ui-tab--right" style="right:316px">Info</div>
 		</div>
-		<figcaption>Eine Fläche, eine Auskunft. 🔴 Nur hier — bei „nächster Ort" ist dieselbe Box
-		die <b>einzige</b> Antwortfläche und bleibt.</figcaption>
+		<figcaption>Dasselbe Panel — nur ohne die Box dahinter, 316 statt 296 px breit und mit
+		Fingermaßen. 🔴 Nur <b>hier</b>: bei „nächster Ort" ist dieselbe Box die <b>einzige</b>
+		Antwortfläche und bleibt.</figcaption>
 	</figure>
 </div>
 
@@ -738,7 +865,7 @@ Abschlüsse. Zu entscheiden ist nichts — AGENTS.md §12 sagt: <i>„Buttons �
 <table>
 	<tr><th class="num">#</th><th>Schritt</th><th>Abnahme</th></tr>
 	<tr class="hi"><td class="num">1</td><td><b>A1</b> · iOS-Schwelle</td><td>Fokus in jedes Feld, kein Hineinzoomen. Der billigste Schritt, deshalb der erste — und der einzige, der nicht auf Schritt 2 wartet.</td></tr>
-	<tr><td class="num">2</td><td><b>0</b> · Panels: volle Höhe, 64-px-Gasse, schwebende Box weg</td><td>360×640: Panel scrollt in sich, Seite nicht; Lasche 30 von 30 px</td></tr>
+	<tr><td class="num">2</td><td><b>0</b> · Panels: volle Höhe, 44-px-Gasse, schwebende Box weg</td><td>360×640: Panel scrollt in sich, Seite nicht; Lasche 30 von 30 px</td></tr>
 	<tr><td class="num">3</td><td><b>A</b> · Maßschicht in den Tokens</td><td>nichts unter 44 px am Finger; Desktop <b>pixelgleich</b></td></tr>
 	<tr><td class="num">4</td><td><b>C2 → C1</b> · Zoom räumt, Suche zieht ein</td><td>in dieser Reihenfolge, sonst stehen kurz drei Dinge übereinander</td></tr>
 	<tr><td class="num">5</td><td><b>C3b</b> · Ortsnamen klickbar (auch Desktop)</td><td>Name und Punkt öffnen <b>dasselbe</b></td></tr>
@@ -801,7 +928,7 @@ Abschlüsse. Zu entscheiden ist nichts — AGENTS.md §12 sagt: <i>„Buttons �
 		});
 	}
 
-	["map-a", "map-b", "map-c", "map-d", "map-e", "map-f"].forEach(function (id) {
+	["map-a", "map-b", "map-c", "map-d", "map-e", "map-f", "map-g"].forEach(function (id) {
 		paint(document.getElementById(id));
 	});
 	document.querySelectorAll(".hit .map").forEach(paint);

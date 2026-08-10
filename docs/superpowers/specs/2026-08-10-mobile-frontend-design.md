@@ -124,7 +124,7 @@ kleinere Übel — er liegt über einem Panel, das man ohnehin scrollt, während
 Karte den Bezugspunkt kostet. `#overview` behält seine eigene Grenze und scrollt weiter für
 sich.
 
-### 5.2 Die 64-px-Gasse — und warum kein X nötig ist
+### 5.2 Die Gasse — 44 px, aus der Lasche abgeleitet, und warum kein X nötig ist
 
 Zur Wahl stand ein Schließkreuz oder die vorhandenen Randlaschen. **Die Laschen genügen — es
 fehlt ihnen nur die Gasse**, und die Messung sagt, warum es heute nicht so aussieht:
@@ -132,32 +132,59 @@ fehlt ihnen nur die Gasse**, und die Messung sagt, warum es heute nicht so aussi
 | auf 360 px Schirm | Panelbreite | Lasche auf dem Schirm |
 |---|---:|---:|
 | Infopanel (`min(400px, 100vw − 64px)`) | 296 px | **30 von 30 px** |
+| Routenplaner **mit der Gasse** (Vorschlag) | 316 px | **30 von 30 px** |
 | Routenplaner (fest `350px`) | 350 px | **10 von 30 px** |
 
 Die Lasche des Planers ist 30 px breit und sitzt bei `left: 350px` — auf einem 360er Schirm
 ragen zwei Drittel davon aus dem Bild. Das Infopanel hat die Lösung längst: eine Breitenformel,
-die 64 px stehen lässt. Der Planer bekommt dieselbe:
+die eine Gasse stehen lässt. Der Planer bekommt dieselbe.
+
+**Die Gasse misst 44 px, nicht 64** (Owner 2026-08-10: „zum Rand etwas weniger Platz lassen").
+Und sie ist damit kein gewählter Wert mehr, sondern ein **abgeleiteter**:
 
 ```
-#search { width: min(350px, calc(100vw - 64px)); }
+--avesmaps-tab-w:       30px;                                    /* die Randlasche */
+--avesmaps-panel-gutter: calc(var(--avesmaps-tab-w) + var(--space-12));   /* = 44px */
+
+#search              { width: min(350px, calc(100vw - var(--avesmaps-panel-gutter))); }
+--avesmaps-ip-w:       min(400px, calc(100vw - var(--avesmaps-panel-gutter)));
 ```
 
-💣 **Eine Formel für beide Panels, nicht zwei ähnliche.** Sie gehört als Token neben
-`--avesmaps-ip-w` (`--avesmaps-panel-gutter: 64px`), sonst laufen die beiden Zahlen beim
-nächsten Anfassen auseinander — genau das Muster, vor dem AGENTS.md §12 warnt. Ein X wäre
-danach der **zweite** Weg hinaus und damit eine Bedienfrage mehr, keine weniger.
+💣 **Der Boden ist die Laschenbreite, nicht der Geschmack.** Weniger als 30 px + Luft schneidet
+die Lasche wieder an — genau der Fehler, den die Tabelle oben misst. Aus der Lasche abgeleitet
+kann die Gasse diesen Fehler gar nicht mehr annehmen; als freie Zahl könnte sie es jederzeit.
+Gewinn nebenbei: beide Panels werden 20 px breiter (296 → **316** auf 360 px).
+
+💣 **Eine Formel für beide Panels, nicht zwei ähnliche.** Sonst laufen die Zahlen beim nächsten
+Anfassen auseinander — genau das Muster, vor dem AGENTS.md §12 warnt. Ein X wäre danach der
+**zweite** Weg hinaus und damit eine Bedienfrage mehr, keine weniger.
 
 ### 5.3 Die schwebende Box entfällt am Telefon
 
 Ein Tipp auf einen Ort öffnet heute **zweierlei**: die schlanke schwebende Box auf der Karte
 *und* das gefüllte Infopanel
 ([`location-marker-entry.js:239`](../../../js/map-features/map-features-location-marker-entry.js)
-— „leave the floating box OPEN on the map"). Die Box misst `minWidth: 320` / `maxWidth: 400`;
-das Panel daneben ist auf 360 px Schirm 296 px breit. **Die Box liegt vollständig dahinter.**
+— „leave the floating box OPEN on the map (Owner: keep seeing WHERE the place is)").
+
+**Am offenen Panel auf 360 × 640 nachgemessen** (Gareth über die Spotlight-Suche geöffnet): die
+Box beginnt bei x = 13 und ist 334 px breit, das Panel beginnt bei x = 64. **283 von 334 px
+liegen dahinter**; übrig bleibt ein 51-px-Streifen, auf dem der Anfang des Namens steht. Mit
+der 44-px-Gasse aus §5.2 sind es noch 31.
+
+🔴 **Korrektur gegenüber der ersten Fassung**, die hier „die Box liegt vollständig dahinter"
+behauptete. Das war zu stark: ein Streifen bleibt. Er trägt nur nichts — und genau das, was die
+Box laut Owner-Kommentar leisten soll („sehen, WO der Ort liegt"), leistet er am wenigsten,
+weil das, was von der Karte übrig ist, links davon liegt.
 
 Am groben Zeiger entfällt sie: der Aufruf übergibt `{ floating: true }` nur noch, wenn Platz
-dafür ist. Das Panel trägt ohnehin die vollständige Auskunft, die Box nur Kopf, Route/Teilen
-und die Bewertungszeile.
+dafür ist.
+
+⚠️ **Am Panel ändert sich dabei NICHTS** (Owner 2026-08-10: „das gibt's schon, schau mal
+rein"). Es trägt heute schon Kopf, Politikzeile, „+ Reiseziel hinzufügen", „Link teilen",
+„Änderungen vorschlagen", „Liegt in" über vier Ebenen, Beschreibung, Oberhaupt, Einwohner,
+Verkehrswege, Handelszone, Waren und Fauna — am 10.08. Wort für Wort aus der laufenden Seite
+gelesen. Wer diesen Abschnitt liest und dabei an neuen Panel-Inhalt denkt, hat ihn falsch
+verstanden: **die einzige Änderung ist, dass die Box wegfällt.**
 
 🔴 **Nicht mitreißen: `location-lookup.js:342`.** Der zweite Aufrufer von `{ floating: true }`
 ist „nächster Ort" — dort ist die Box die **einzige** Antwortfläche, kein Doppel. Sie fällt
@@ -270,11 +297,24 @@ einziges Element auf der Karte **gefüllt** (`--color-button`) — „Neuigkeite
 sind weich/outline. Damit trägt die Ecke sichtbar eine Rangfolge: eine Handlung, zwei Verweise.
 Nur eine Lupe, dazu `aria-label="Suchen"`; ein Wort daneben bräuchte Breite, die es nicht gibt.
 
-⚠️ **Der Knopf öffnet nichts Neues.** Er ruft `openSpotlightSearch()` — dieselbe Fläche, die
-schon 50 px hoch ist und mit 20 px setzt. Es entsteht kein zweites Suchfeld.
+**Angetippt wächst die Lupe zum Feld** (Owner 2026-08-10). Die Kiste bleibt dieselbe und wird
+nur breit: von 48 px am rechten Rand auf die volle Breite minus Rand, die Lupe wandert nach
+links vor den Text. Die Treffer wachsen **nach oben** — unten steht das Feld, dort steht der
+Daumen.
+
+⚠️ **Der Knopf öffnet nichts Neues.** Das aufgezogene Feld **ist** das vorhandene Spotlight
+(`openSpotlightSearch()`) — am Telefon unten verankert statt mittig, und die Verbreiterung ist
+sein Auftritt, keine zweite Oberfläche. Ein eigenes Feld daneben wäre eine zweite Trefferlogik
+über demselben Bestand.
+
+💣 **Die Bildschirmtastatur ist der eine echte Haken.** Ein unten verankertes Feld verdeckt iOS,
+weil der Layout-Viewport bei offener Tastatur **nicht** schrumpft — `100dvh` hilft hier nicht.
+Das Feld muss an der **Sichthöhe** hängen (`window.visualViewport`, `resize`/`scroll`), sonst
+tippt man blind in ein Feld hinter der Tastatur. ⚠️ Am Gerät zu messen, nicht zu glauben: das
+ist die einzige Stelle des ganzen Entwurfs, an der ein Emulator die Antwort nicht kennt.
 
 ⚠️ **Bei offenem Panel verschwindet er mit dem Rest der Kartenbedienung.** Am Telefon läuft ein
-offenes Panel über die volle Höhe und lässt 64 px Karte (§5) — dort ist kein Knopf mehr sinnvoll
+offenes Panel über die volle Höhe und lässt 44 px Karte (§5) — dort ist kein Knopf mehr sinnvoll
 bedienbar. 🔧 Wie sich der Eckbund heute bei offenem Infopanel verhält, ist **nicht belegt**:
 die Regel `right: calc(var(--avesmaps-ip-w) + 12px)` griff in der Simulation nicht (gerechnet
 308 px, gemessen 12 px), aber die Simulation bekam das Panel auch nicht wirklich auf. Vor dem
@@ -524,7 +564,7 @@ keine Seite).
 | 1 | **A1** iOS-Schwelle (§6) | — | iPhone: Fokus in jedes Feld des Planers, **kein** Hineinzoomen. Der billigste Schritt, deshalb der erste |
 | 2 | **0** Panels (§5.1–5.3) | — | 360×640, 5 Wegpunkte: Panel läuft randlos, scrollt in sich, Seite nicht; Lasche 30 von 30 px sichtbar; ein Tipp auf einen Ort öffnet **eine** Fläche |
 | 3 | **A** Maßschicht (Rest) | 0 | kein Bedienelement des Fingerwegs unter 44 px; Desktop 1280×800 **pixelgleich** |
-| 4 | **C2 → C1** Ecke | A | erst räumt der Zoom, dann zieht die Suche ein — in dieser Reihenfolge, sonst stehen kurz drei Dinge übereinander |
+| 4 | **C2 → C1** Ecke | A | erst räumt der Zoom, dann zieht die Suche ein — in dieser Reihenfolge, sonst stehen kurz drei Dinge übereinander. **Am echten Gerät:** Feld aufgezogen, Tastatur offen, Feld sichtbar |
 | 5 | **C3b** Ortsnamen klickbar | — | **auch am Desktop:** Klick auf „Gareth" öffnet dasselbe wie der Punkt darunter; ein weggekollidierter Name fängt nichts; Ziehen im Editmodus unverändert |
 | 6 | **C3a** Trefferboden Punkte | — | Dorf bei Zoom 4 treffbar, ohne dass ein Tipp auf leere Karte einen Ort weit weg öffnet |
 | 7 | **C3c** Linien ab Zoom 4 | C3b | ein Weg am Finger treffbar; **Gegenproben: bei Zoom 3 ändert sich nichts, und bei Zoom 5 öffnet eine Grafschaft neben einem Weg weiter die Grafschaft** |
@@ -549,8 +589,9 @@ daran.
 Quelltext-Tests im Haus-Muster (`js/app/__tests__/*.test.js` lesen CSS und behaupten über den
 Inhalt):
 
-1. **Die Gasse ist EINE Zahl.** Der 64-px-Rand steht als Token, und **beide** Panelbreiten
-   lesen ihn. Mutation: eine zweite Datei schreibt `100vw - 64px` von Hand ⇒ rot. Das ist die
+1. **Die Gasse ist EINE Zahl, und sie ist ABGELEITET.** `--avesmaps-panel-gutter` rechnet sich
+   aus `--avesmaps-tab-w`, und **beide** Panelbreiten lesen ihn. Mutation: eine zweite Datei
+   schreibt `100vw - 44px` von Hand ⇒ rot; Gasse kleiner als die Laschenbreite ⇒ rot. Das ist die
    Zusicherung, die §5.2 überhaupt trägt — zwei Formeln driften, ein Token nicht.
 2. **`140dvh` kommt nicht zurück.** `#search` trägt unter 640 px keine `max-height` über
    `100dvh`. Mutation: die alte Regel wieder eingesetzt ⇒ rot.
