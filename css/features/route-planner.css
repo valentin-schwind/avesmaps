@@ -614,6 +614,10 @@
 	background: var(--color-panel);
 	color: var(--color-text);
 	font: inherit;
+	/* NACH `font: inherit`, nicht davor: die Kurzform setzt font-size mit und wuerde diese Zeile
+	   sonst ueberschreiben. Ohne sie erben die Felder die 12px der umgebenden Zeile -- und unter
+	   16px zoomt iOS beim Fokus hinein, ohne zurueckzukehren. */
+	font-size: var(--font-size-control);
 	padding: 0 4px;
 	box-sizing: border-box;
 }
@@ -655,7 +659,9 @@
 	align-items: center;
 	gap: 6px;
 	color: var(--color-text);
-	font-size: 12px;
+	/* Am Zeiger dieselben 12px wie bisher; am Finger hebt der Token sie auf die iOS-Schwelle.
+	   Die Selects in diesen Zeilen erben von hier (sie tragen `font: inherit`). */
+	font-size: var(--font-size-control);
 	line-height: 1.25;
 }
 
@@ -1479,4 +1485,26 @@
 .route-plan-entry--chained:last-child::after,
 .route-plan-entry--chained:not(:has(~ .route-plan-entry--chained))::after {
 	content: none;
+}
+/* ── Das Wegpunktfeld am Finger ───────────────────────────────────────────────────────────────
+   💣 Die EINE Ausnahme von „Masse stehen in tokens.css, Komponenten lesen sie nur". Zwei Gruende,
+   beide am 10.08.2026 an der laufenden Seite gemessen (nicht aus der Kaskade gelesen):
+
+   (1) `input.waypoint-input`, nicht `.waypoint-input`. Die Klassenregel weiter oben in DIESER
+       Datei gewinnt nicht: das Feld rendert 13,33px statt der dort stehenden 15px. Nachgewiesen
+       durch Einspritzen beider Fassungen in die laufende Seite -- `.waypoint-input` bewegt
+       nichts, `input.waypoint-input` setzt sich durch. Ohne die hoehere Spezifitaet bliebe die
+       iOS-Schwelle am wichtigsten Feld des Planers wirkungslos, und zwar lautlos.
+
+   (2) Deshalb NUR am groben Zeiger. Eine Regel, die auch am Zeiger gewinnt, verschoebe das Feld
+       dort von 13,33px auf 12px -- eine sichtbare Desktop-Aenderung, und die ist in diesem
+       Vorhaben ausgeschlossen. So bleibt der Zeiger auf den Pixel, wie er war.
+
+   🔧 WARUM die Klassenregel verliert, ist offen: die CSSOM des Pruef-Browsers meldete gar keine
+   passende Regel, obwohl die ausgelieferte Datei sie enthaelt. Fuer diesen Zweck ist das egal --
+   die Wirkung ist gemessen. Wer es aufklaert, darf diese Regel gegen eine saubere tauschen. */
+@media (pointer: coarse) {
+	input.waypoint-input {
+		font-size: var(--font-size-control);
+	}
 }

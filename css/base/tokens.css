@@ -21,6 +21,11 @@
 	--font-size-subhead: 16px;  /* subheaders */
 	--font-size-title: 20px;    /* dialog / panel titles */
 	--font-size-display: 22px;  /* infobox hero name */
+	/* Schriftgroesse der BEDIENELEMENTE (Felder, Selects, Comboboxen) — getrennt von der
+	   Lese-Skala oben, weil sie am Finger auf die iOS-Schwelle springt (siehe den
+	   (pointer: coarse)-Block unter diesem :root). Am Zeiger unveraendert das, was die Felder
+	   heute tragen. */
+	--font-size-control: var(--font-size-small);
 	--leading-tight: 1.15;      /* titles / display */
 	--leading-snug: 1.25;       /* controls / labels */
 	--leading-normal: 1.45;     /* reading body */
@@ -472,6 +477,28 @@
 	   menu (.ui-autocomplete), which must out-rank jquery-ui.css's .ui-front (z-index: 100). */
 	--z-autocomplete: 1600;
 	--z-modal: 5000; /* full-screen modal overlay — above --z-autocomplete */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   DIE MASSSCHICHT AM FINGER — der EINE Ort, an dem Bedienmasse fuer grobe Zeiger stehen.
+
+   💣 Es darf genau einen solchen Block geben; js/app/__tests__/touch-scale.test.js haelt die
+   Zahl fest. Ein zweiter waere eine zweite Wahrheit, und die faende man erst, wenn sie
+   auseinanderlaufen.
+
+   ⚠️ `pointer: coarse` meint den PRIMAEREN Zeiger: ein Laptop mit Touchscreen UND Maus meldet
+   `fine` und bleibt unberuehrt. Genau das ist gewollt — die engen Steuerhoehen des Planers sind
+   gegen Panel-Ueberlauf gerechnet (css/features/route-planner.css, Kommentar bei
+   .planner-group__toggle: eine Optionszeile kostet 36px, bei vier Wegpunkten faellt der Balken).
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+@media (pointer: coarse) {
+	:root {
+		/* 🔴 16 ist eine SCHWELLE, kein Richtwert: 15,5px zoomt noch. Darunter faehrt Safari beim
+		   Fokus in jedes Feld hinein und kehrt nicht zurueck — bei jeder einzelnen Eingabe.
+		   NICHT ueber maximum-scale im Viewport-Meta loesen: das naehme allen das Aufziehen der
+		   Karte, also die Geste, die am Finger die einzige Zoomhilfe ist. */
+		--font-size-control: 16px;
+	}
 }
 
 /* Dark theme — opt-in (set data-theme="dark" on :root). Same warm family,

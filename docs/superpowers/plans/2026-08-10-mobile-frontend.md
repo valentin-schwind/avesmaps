@@ -116,7 +116,9 @@ assert.ok(Number(controlFont[1]) >= 16,
 	`--font-size-control ist am Finger ${controlFont[1]}px -- unter 16 zoomt iOS beim Fokus und kehrt nicht zurueck`);
 
 // ---- Kein Feld schreibt daneben seine eigene Schrift --------------------------------------------
-const FELD_REGELN = [".waypoint-input", ".route-planner-options-panel input", ".display-options__row"];
+// ⚠️ `.waypoint-input` steht NICHT in dieser Liste: seine Klassenregel gewinnt nachweislich
+// nicht (gemessen 13,33px statt der 15px, die dort stehen). Es wird stattdessen unten geprueft.
+const FELD_REGELN = [".route-planner-options-panel input", ".display-options__row"];
 FELD_REGELN.forEach((selector) => {
 	const rule = planner.match(new RegExp(escapeRe(selector) + "[^{]*\\{([^}]*)\\}"));
 	assert.ok(rule, `Regel fuer ${selector} gefunden`);
@@ -126,6 +128,17 @@ FELD_REGELN.forEach((selector) => {
 		`${selector} liest --font-size-control statt "${font[1].trim()}" -- ein Literal hier schlaegt`
 		+ " den Basisselektor (0,1,0 gegen 0,0,1) und die Schwelle bliebe wirkungslos");
 });
+
+// ---- Das Wegpunktfeld: die eine Ausnahme, und sie muss am Finger greifen ------------------------
+const wegpunktRegel = planner.match(/@media\s*\(pointer:\s*coarse\)\s*\{[^}]*input\.waypoint-input\s*\{([^}]*)\}/);
+assert.ok(wegpunktRegel,
+	"route-planner.css traegt eine (pointer: coarse)-Regel fuer `input.waypoint-input`"
+	+ " -- mit blossem `.waypoint-input` bliebe die Schwelle dort wirkungslos (live gemessen)");
+assert.ok(/var\(--font-size-control\)/.test(wegpunktRegel[1]),
+	"und sie liest den Token");
+assert.ok(/\.waypoint-input\s*\{[^}]*font-size:\s*15px/.test(planner),
+	"die alte 15px-Regel bleibt unangetastet -- sie gewinnt heute ohnehin nicht, und sie zu aendern"
+	+ " koennte den Zeiger verschieben, falls die Kaskade dort einmal repariert wird");
 
 // ---- Der falsche Fix darf nicht nachwachsen -----------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
@@ -178,11 +191,44 @@ In `css/base/tokens.css`, **nach** dem schliessenden `}` des `:root`-Blocks und 
 
 - [ ] **Step 5: Die drei Feldregeln auf das Token stellen**
 
-`css/features/route-planner.css` — in `.waypoint-input` (Zeile ~83) `font-size: 15px;` ersetzen durch:
+🔴 **`.waypoint-input` (Zeile ~83) bleibt unangetastet.** Die 15 px dort gewinnen heute nicht —
+das Feld rendert 13,33 px —, und die Regel zu ändern könnte den Zeiger verschieben, falls die
+Kaskade dort einmal repariert wird. Stattdessen kommt eine eigene Regel dazu.
+
+💣 **Warum eine zweite Regel nötig ist.** Am 10.08. live gemessen: das
+Wegpunktfeld rendert **13,33 px**, nicht die 15 px seiner eigenen Regel — an `.waypoint-input`
+(0,1,0) gewinnt etwas anderes. Nachgewiesen durch Einspritzen, nicht durch Lesen der Kaskade:
+
+| eingespritzte Regel | Wirkung |
+|---|---|
+| `.waypoint-input { font-size: 16px }` | **keine** — bleibt 13,33 px |
+| `input.waypoint-input { font-size: 16px }` | **16 px** |
+| `#search .waypoint-input { font-size: 16px }` | 16 px |
+
+Deshalb am Ende von `css/features/route-planner.css`:
 
 ```css
-	font-size: var(--font-size-control);
+/* 💣 Die EINE Ausnahme von "Masse stehen in tokens.css, Komponenten lesen sie nur".
+   Zwei Gruende, beide gemessen am 10.08.2026:
+   (1) `input.waypoint-input`, nicht `.waypoint-input` -- die Klassenregel weiter oben verliert.
+       Nachgewiesen durch Einspritzen beider Fassungen in die laufende Seite: die Klasse allein
+       bewegt nichts (bleibt 13,33px), Element+Klasse setzt sich durch (16px). Ohne die hoehere
+       Spezifitaet bliebe die iOS-Schwelle am wichtigsten Feld des Planers wirkungslos, lautlos.
+   (2) Deshalb NUR am groben Zeiger. Eine Regel, die auch am Zeiger gewinnt, verschoebe das Feld
+       dort von 13,33px auf 12px -- eine sichtbare Desktop-Aenderung, und die ist verboten
+       (Randbedingung 1). So bleibt der Zeiger auf den Pixel, wie er war.
+   🔧 WARUM die Klassenregel verliert, ist offen: die CSSOM des Pruef-Browsers meldete GAR keine
+   passende Regel, obwohl die ausgelieferte Datei sie enthaelt. Fuer diese Aufgabe ist das egal --
+   die Wirkung ist gemessen. Wer es aufklaert, darf diese Regel gegen eine saubere tauschen. */
+@media (pointer: coarse) {
+	input.waypoint-input {
+		font-size: var(--font-size-control);
+	}
+}
 ```
+
+⚠️ **Abnahme ist die Messung, nicht der Augenschein:** danach zeigt das Feld am Zeiger
+**13,33 px** (unverändert) und am groben Zeiger **16 px**.
 
 In `.route-planner-options-panel input[type="number"], .route-planner-options-panel select` (Zeile ~611) **nach** `font: inherit;` ergänzen:
 
