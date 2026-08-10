@@ -73,9 +73,14 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'shows_media' => true,
         'clickable_links' => false,
     ],
+    // 💣 `connect` ist der EINRICHTUNGSweg, nicht der Sendeweg. Steht hier ein Wert, kann der Server
+    // den Zugang selbst herstellen (api/_internal/social/connect.php) und der Hub zeigt „einrichten".
+    // Fehlt der Schlüssel, gibt es keinen -- dann bleibt nur die Konfiguration von Hand. Er steht im
+    // Register und nicht im Client, weil sonst der Browser entscheiden müsste, was der Server kann.
     'facebook' => [
         'label' => 'Facebook',
         'account' => 'Seite Avesmaps',
+        'connect' => 'facebook_page',
         'note' => '',
         'max_chars' => 63206,
         'max_hashtags' => 2,
@@ -150,7 +155,7 @@ function avesmapsSocialChannelIsConfigured(string $key, array $socialConfig, arr
 /**
  * The list the editor panel renders: every channel with its limits, and whether it can be used.
  *
- * 🔴 Carries NO credential -- this travels to the client. The eight keys below are pinned by
+ * 🔴 Carries NO credential -- this travels to the client. The keys below are pinned by
  * channels-test.php precisely so that a field added here cannot reach the browser unnoticed.
  *
  * @param array<string, mixed> $socialConfig
@@ -176,6 +181,9 @@ function avesmapsSocialChannelList(array $socialConfig, array $tokenKeys): array
             'shows_media' => $channel['shows_media'],
             'clickable_links' => $channel['clickable_links'],
             'configured' => avesmapsSocialChannelIsConfigured($key, $socialConfig, $tokenKeys),
+            // Kann der Server den Zugang selbst herstellen? Nur DASS es geht reist mit, nie WIE --
+            // der Weg samt App-Geheimnis bleibt serverseitig.
+            'connectable' => ($channel['connect'] ?? null) !== null,
         ];
     }
 

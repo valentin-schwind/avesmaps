@@ -127,9 +127,23 @@ foreach ($list as $row) {
     assert(!isset($row['access_token']), 'no access token ever leaves the server in the channel list');
     assert(!isset($row['app_secret']), 'no app secret either');
     assert(array_keys($row) === ['key', 'label', 'account', 'note', 'max_chars', 'max_hashtags',
-        'requires_media', 'shows_media', 'clickable_links', 'configured'],
-        'the row carries exactly these ten keys -- a field added here reaches the browser');
+        'requires_media', 'shows_media', 'clickable_links', 'configured', 'connectable'],
+        'the row carries exactly these eleven keys -- a field added here reaches the browser');
 }
+
+// ---- der Einrichtungsweg ---------------------------------------------------------------------------
+
+// Nur DASS es geht reist mit, nie WIE: der Weg braucht das App-Geheimnis und bleibt serverseitig.
+assert($byKey['facebook']['connectable'] === true, 'Facebook kann sich selbst einrichten');
+assert($byKey['probe']['connectable'] === false, 'die Probe hat keinen Zugang und braucht keinen');
+assert($byKey['instagram']['connectable'] === false,
+    'Instagram noch nicht -- der Weg dorthin ist ein anderer (graph.instagram.com, eigene Rechtenamen)');
+
+// 🔴 „Einrichtbar" heisst NICHT „eingerichtet". Facebook ist beides getrennt: der Knopf steht auch
+// da, wenn noch kein Token existiert -- genau dafuer ist er da -- und verschwindet danach nicht,
+// weil ein Token ersetzt werden koennen muss.
+assert($byKey['facebook']['configured'] === false && $byKey['facebook']['connectable'] === true,
+    'nicht eingerichtet und trotzdem einrichtbar -- die beiden Felder duerfen nie zusammenfallen');
 
 // Config for one channel must not configure another.
 $onlyMastodon = avesmapsSocialChannelList(['mastodon' => ['base_url' => 'https://x', 'access_token' => 't']], []);

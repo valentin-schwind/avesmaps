@@ -290,8 +290,12 @@
 	margin-top: 0;
 }
 
+/* ⚠️ `password` gehoert mit in diese Liste: das Token-Feld der Einrichtung ist maskiert (es steht ein
+   Zugangsdatum drin, und der Hub wird beim Einrichten auch mal geteilt oder abfotografiert). Ohne den
+   Selektor faellt genau dieses eine Feld aus der Formensprache -- ohne Fehler, nur haesslich. */
 .social-hub__body textarea,
-.social-hub__body input[type="text"] {
+.social-hub__body input[type="text"],
+.social-hub__body input[type="password"] {
 	width: 100%;
 	padding: 8px 10px;
 	border: 1px solid var(--color-button-soft-border);
@@ -375,6 +379,38 @@
 
 .social-hub__ok {
 	color: var(--color-success-soft-text);
+}
+
+/* Die Einrichtung eines Zugangs. Sie steht UNTER der Kanalliste und ist normalerweise zu: sie ist
+   Wartung, nicht die Handlung, fuer die der Hub geoeffnet wurde. Abgetrennt durch eine Linie, nicht
+   durch einen Kasten -- dieselbe Gruppierung wie ueberall (docs/design-language.md). */
+.social-hub__connect {
+	margin-top: 12px;
+	padding-top: 10px;
+	border-top: 1px solid var(--color-divider);
+}
+
+.social-hub__connect-actions {
+	display: flex;
+	gap: 6px;
+	margin-top: 8px;
+}
+
+/* Der Aufmacher UNTER der Liste, nicht in der Kanalzeile. 💣 Ein <button> darf nicht in das <label>
+   der Zeile: das Label gehoert seinem Kontrollkaestchen, und ein Klick auf den Knopf haette den Kanal
+   an- und abgehakt. Ausserdem ist eine Zeilenhandlung nie die Haupthandlung (AGENTS.md §12) --
+   deshalb ein Textknopf, kein gefuellter. */
+.social-hub__connect-open {
+	display: block;
+	margin-top: 8px;
+	border: 0;
+	background: none;
+	padding: 0 2px;
+	color: var(--color-link);
+	font: inherit;
+	font-size: 12px;
+	text-decoration: underline;
+	cursor: pointer;
 }
 
 .social-hub__radio,

@@ -15,6 +15,7 @@
 
 	const LIST_API = "/api/edit/social/list.php";
 	const RETRY_API = "/api/edit/social/retry.php";
+	const CONNECT_API = "/api/edit/social/connect.php";
 
 	// ---- reine Entscheidungen (unter Test in __tests__/social-list.test.js) -----------------------
 
@@ -437,6 +438,23 @@
 			host.appendChild(row);
 		});
 
+		// Der Aufmacher für die Einrichtung, je einrichtbarem Kanal einer. 💣 Bewusst UNTER der Liste
+		// und nicht in der Zeile: die Zeile ist ein <label> für ihr Kontrollkästchen, ein Knopf darin
+		// würde beim Klick den Kanal an- und abhaken (und wäre ungültiges HTML obendrein).
+		channels.forEach(function (channel) {
+			if (!channel.connectable) { return; }
+			const open = document.createElement("button");
+			open.type = "button";
+			open.className = "social-hub__connect-open";
+			// „Erneuern" statt „einrichten", sobald ein Zugang steht: der Knopf verschwindet nicht,
+			// weil ein Token ersetzt werden können muss -- aber er soll nicht behaupten, es fehle noch
+			// etwas.
+			open.textContent = (channel.configured ? "🔑 " + channel.label + "-Zugang erneuern"
+				: "🔑 " + channel.label + "-Zugang einrichten");
+			open.addEventListener("click", function () { openConnect(channel); });
+			host.appendChild(open);
+		});
+
 		const hint = el("social-channel-hint");
 		if (hint) {
 			hint.textContent = media
@@ -444,6 +462,83 @@
 				: "Instagram braucht ein Bild — ohne Anhang bleibt der Kanal gesperrt.";
 		}
 		updateCount();
+	}
+
+	// ---- einen Zugang einrichten ---------------------------------------------------------------------
+
+	// Welcher Kanal gerade eingerichtet wird. Steht hier und nicht im Feld: das Feld trägt einen Token,
+	// und was daran hängt, darf nicht aus dem DOM gelesen werden müssen.
+	let connectChannel = null;
+
+	function connectResult(message, tone) {
+		const box = el("social-connect-result");
+		if (!box) { return; }
+		box.textContent = message;
+		box.className = "social-hub__hint"
+			+ (tone === "ok" ? " social-hub__ok" : "")
+			+ (tone === "err" ? " social-hub__warn" : "");
+	}
+
+	function openConnect(channel) {
+		connectChannel = channel;
+		const box = el("social-connect");
+		const name = el("social-connect-channel");
+		const field = el("social-connect-token");
+		if (name) { name.textContent = " — " + channel.label; }
+		if (field) { field.value = ""; }
+		connectResult("", "");
+		if (box) { box.hidden = false; }
+		if (field) { field.focus(); }
+	}
+
+	function closeConnect() {
+		connectChannel = null;
+		const box = el("social-connect");
+		const field = el("social-connect-token");
+		// 🔴 Das Feld wird GELEERT, nicht nur versteckt. Ein Zugangsdatum, das in einem unsichtbaren
+		// Feld weiterlebt, reist bei der nächsten Formularaktion mit und steht in jedem Screenshot des
+		// geöffneten Fensters.
+		if (field) { field.value = ""; }
+		if (box) { box.hidden = true; }
+		connectResult("", "");
+	}
+
+	function submitConnect() {
+		if (!connectChannel) { return; }
+		const field = el("social-connect-token");
+		const button = el("social-connect-go");
+		const token = field ? String(field.value || "").trim() : "";
+		if (token === "") {
+			connectResult("Es wurde kein Token eingefügt.", "err");
+			return;
+		}
+
+		// Status IN den Knopf: der Weg geht dreimal zu Meta und dauert spürbar, und ein Knopf, der
+		// nichts sagt, wird ein zweites Mal gedrückt.
+		const channel = connectChannel;
+		if (button) { button.disabled = true; button.textContent = "Verbinde …"; }
+		connectResult("Tausch, Seitenliste, Nachprüfung — einen Moment.", "");
+
+		api(CONNECT_API, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			// Im Rumpf, nie in der Adresse: eine Abfragezeichenfolge landet in den Server-Protokollen.
+			body: JSON.stringify({ channel: channel.key, token: token })
+		}).then(function (response) {
+			if (button) { button.disabled = false; button.textContent = "Verbinden"; }
+			if (!response || !response.ok) {
+				const message = (response && response.error && response.error.message)
+					|| "Die Einrichtung ist fehlgeschlagen.";
+				connectResult(message, "err");
+				return;
+			}
+			// Das Feld ist sofort leer, auch im Erfolgsfall -- der Token hat seinen Zweck erfüllt.
+			if (field) { field.value = ""; }
+			connectResult("✓ " + (response.page_name || channel.label) + " verbunden · läuft nie ab.", "ok");
+			// Die Liste neu holen, damit der Kanal sofort anhakbar ist: sonst steht „verbunden" über
+			// einem ausgegrauten Kästchen, und das liest sich wie ein Fehler.
+			load(true).then(renderChannels);
+		});
 	}
 
 	function renderVocabulary() {
@@ -659,6 +754,19 @@
 
 		const publishButton = el("social-publish");
 		if (publishButton) { publishButton.addEventListener("click", publish); }
+
+		const connectGo = el("social-connect-go");
+		if (connectGo) { connectGo.addEventListener("click", submitConnect); }
+		const connectCancel = el("social-connect-cancel");
+		if (connectCancel) { connectCancel.addEventListener("click", closeConnect); }
+		const connectField = el("social-connect-token");
+		if (connectField) {
+			// Enter im Feld sendet -- ein einzelnes Feld mit einem Knopf daneben verhält sich sonst
+			// anders als jedes andere Formular.
+			connectField.addEventListener("keydown", function (event) {
+				if (event.key === "Enter") { event.preventDefault(); submitConnect(); }
+			});
+		}
 	}
 
 	if (typeof window !== "undefined") {

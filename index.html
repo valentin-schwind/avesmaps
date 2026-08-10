@@ -2005,6 +2005,19 @@
 						<label class="social-hub__label">Kanäle</label>
 						<div id="social-channels"></div>
 						<p id="social-channel-hint" class="social-hub__warn"></p>
+						<div id="social-connect" class="social-hub__connect" hidden>
+							<label class="social-hub__label" for="social-connect-token">Zugang einrichten<span class="social-hub__label-note" id="social-connect-channel"></span></label>
+							<!-- Der Server macht Tausch, Seiten-Token und Nachpruefung. Hier hinein gehoert nur der
+							     KURZLEBIGE Token aus dem Explorer -- alles andere waere ein Handgriff zu viel, und
+							     genau an diesen Handgriffen ging es am 10.08.2026 dreimal daneben. -->
+							<p class="social-hub__hint">Kurzlebigen Nutzer-Token aus dem <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener noreferrer">Graph API Explorer ↗</a> einfügen. Tausch, Seiten-Token und Nachprüfung macht der Server — und legt nur ab, was nachweislich nie abläuft.</p>
+							<input id="social-connect-token" type="password" autocomplete="off" spellcheck="false" placeholder="Token einfügen">
+							<div class="social-hub__connect-actions">
+								<button type="button" id="social-connect-go" class="social-hub__soft">Verbinden</button>
+								<button type="button" id="social-connect-cancel" class="social-hub__soft social-hub__soft--mini">Abbrechen</button>
+							</div>
+							<p id="social-connect-result" class="social-hub__hint"></p>
+						</div>
 					</div>
 				</div>
 				<div class="social-hub__foot">
