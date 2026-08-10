@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Das Frontend am Telefon – Mockup (Abstimmung, 2026-08-10)</title>
+<script>
+  /* Wie jede Editorseite und jedes Mockup im Haus: gespeicherte Wahl schlaegt OS-Schema,
+     vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, und das ist Absicht: eine docs/-Datei, die per file:// geoeffnet wird.
+     Geladen wird die echte Designsprache (Schrift + Token + Basis), damit Farbe, Radius,
+     Abstand und Schrift hier NICHT meine Auslegung sind, sondern die der App.
+
+     ⚠️ Die Komponenten-Stylesheets (route-planner.css, infopanel.css, legal-dialog.css) sind
+     bewusst NICHT geladen: sie positionieren gegen eine lebende Leaflet-Karte (position: fixed,
+     Panes, --avesmaps-ip-w) und wuerden in einem stehenden Rahmen nichts Wahres zeigen. Was
+     hier nachgebaut ist, ist ausschliesslich aus Token gebaut -- kein Farbwert, kein Radius,
+     kein Abstand von Hand (AGENTS.md §12). Einzige Ausnahme und als solche markiert: die
+     Kartenmalerei in den Rahmen, die Illustration ist und keine Oberflaeche. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/base/base.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   MOCKUP-RAHMEN — faellt beim Bau vollstaendig weg.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+* { box-sizing: border-box; }
+body {
+	margin: 0;
+	padding: var(--space-24) var(--space-16) var(--space-24);
+	background: var(--color-page-bg);
+	color: var(--color-text);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-reading);
+	line-height: var(--leading-normal);
+}
+.wrap { max-width: 68rem; margin: 0 auto; }
+
+h1 {
+	margin: 0 0 var(--space-6);
+	color: var(--color-text-strong);
+	font-size: var(--font-size-display);
+	line-height: var(--leading-tight);
+}
+h2 {
+	margin: var(--space-24) 0 var(--space-4);
+	padding-top: var(--space-16);
+	border-top: 1px solid var(--color-divider);
+	color: var(--color-text-strong);
+	font-size: var(--font-size-title);
+	line-height: var(--leading-tight);
+}
+h3 {
+	margin: var(--space-16) 0 var(--space-4);
+	color: var(--color-text-strong);
+	font-size: var(--font-size-subhead);
+}
+p { margin: 0 0 var(--space-8); max-width: 58rem; }
+.lead { color: var(--color-text-muted); }
+a { color: var(--color-link); }
+a:hover { color: var(--color-link-hover); }
+code {
+	padding: 0 var(--space-2);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel-muted);
+	font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+	font-size: 0.9em;
+}
+.meta {
+	margin-bottom: var(--space-16);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+}
+.theme-btn {
+	float: right;
+	padding: var(--space-4) var(--space-8);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: var(--font-size-small);
+	cursor: pointer;
+}
+.theme-btn:hover { background: var(--color-button-soft-hover); }
+
+/* Zwei Zustaende nebeneinander */
+.pair {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-24);
+	margin: var(--space-12) 0 var(--space-8);
+}
+.pair > figure { margin: 0; }
+figcaption {
+	margin-top: var(--space-6);
+	max-width: 22rem;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: var(--leading-snug);
+}
+.tag {
+	display: inline-block;
+	margin-bottom: var(--space-4);
+	padding: var(--space-2) var(--space-6);
+	border-radius: var(--radius-sm);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+.tag--ist { background: var(--color-panel-muted); color: var(--color-text-muted); }
+.tag--soll { background: var(--color-button); color: var(--color-button-text); }
+
+/* ── Der Telefonrahmen. 360 x 640 in ECHTEN Pixeln — so gross ist ein verbreitetes
+      Android-Geraet, und nur in wahrer Groesse laesst sich ueber Fingermasse urteilen. ── */
+.phone {
+	position: relative;
+	width: 360px;
+	height: 640px;
+	overflow: hidden;
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-panel);
+}
+.phone__scale {
+	margin-top: var(--space-4);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+
+/* ── Kartenmalerei ────────────────────────────────────────────────────────────────────────
+   ⚠️ HIER und NUR HIER stehen Farbwerte von Hand. Das ist Illustration (der Kartenhintergrund),
+   keine Oberflaeche — die Karte ist im Echtbetrieb ein Bild-Tile, kein Stylesheet. Alles
+   andere in dieser Datei kommt aus Token. ────────────────────────────────────────────────── */
+.map {
+	position: absolute;
+	inset: 0;
+	background:
+		radial-gradient(ellipse 70% 50% at 22% 18%, #8ea36b 0%, transparent 60%),
+		radial-gradient(ellipse 60% 45% at 78% 72%, #a8b177 0%, transparent 62%),
+		radial-gradient(ellipse 90% 60% at 50% 100%, #7f9ba6 0%, transparent 55%),
+		#c9c8a4;
+}
+.map__road, .map__river {
+	position: absolute;
+	transform-origin: 0 50%;
+	border-radius: 999px;
+}
+.map__road { background: #f2ead9; box-shadow: 0 0 0 1px rgba(90, 76, 54, 0.35); }
+.map__river { background: #7fb3c8; }
+.map__dot {
+	position: absolute;
+	border-radius: 999px;
+	background: #cc2f2a;
+	box-shadow: 0 0 0 1.5px #fff, 0 0 0 2.5px rgba(0, 0, 0, 0.5);
+	transform: translate(-50%, -50%);
+}
+.map__name {
+	position: absolute;
+	color: #2f2a1e;
+	font-family: Georgia, "Times New Roman", serif;
+	font-size: 12px;
+	text-shadow: 0 0 3px rgba(255, 253, 245, 0.95), 0 0 6px rgba(255, 253, 245, 0.8);
+	transform: translateY(-50%);
+	white-space: nowrap;
+}
+
+/* ── Kartenbedienung im Rahmen (aus Token nachgebaut) ─────────────────────────────────────── */
+.ui-corner {
+	position: absolute;
+	right: var(--space-10);
+	bottom: var(--space-10);
+	display: flex;
+	align-items: flex-end;
+	gap: var(--space-4);
+}
+.ui-cornerbtn {
+	padding: 7px var(--space-8);
+	border: 1px solid var(--color-border-strong);
+	background: var(--color-panel);
+	color: var(--color-text);
+	box-shadow: var(--shadow-panel);
+	font: inherit;
+	font-size: var(--font-size-body);
+	line-height: 1.2;
+	white-space: nowrap;
+}
+/* Der heutige Abschluss der Eckknoepfe … */
+.ui-cornerbtn--ist { border-radius: var(--radius-sm); }
+/* … und der, den AGENTS.md §12 fuer Knoepfe vorschreibt. */
+.ui-cornerbtn--soll { border-radius: var(--radius-md); }
+
+.ui-zoom {
+	position: absolute;
+	right: var(--space-10);
+	bottom: 52px;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	/* Leaflets EIGENER Wert aus css/third-party/leaflet.css — der dritte Abschluss in der Ecke. */
+	border-radius: 4px;
+	box-shadow: var(--shadow-panel);
+}
+.ui-zoom span {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 26px;
+	background: var(--color-panel);
+	color: var(--color-text);
+	font-size: var(--font-size-subhead);
+}
+.ui-zoom span + span { border-top: 1px solid var(--color-border); }
+
+/* Der vorgeschlagene Suchknopf: quadratisch, --radius-md, gefuellt — die eine Handlung
+   in einer Ecke, in der sonst zwei Verweise stehen. */
+.ui-search {
+	position: absolute;
+	right: var(--space-10);
+	bottom: 62px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	border: 1px solid var(--color-button-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	box-shadow: var(--shadow-panel);
+}
+.ui-search svg { width: 22px; height: 22px; }
+
+/* Randlasche (Routenplaner / Info) */
+.ui-tab {
+	position: absolute;
+	top: 30px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 140px;
+	background: var(--color-button);
+	color: var(--color-button-text);
+	box-shadow: -4px 0 9px rgba(0, 0, 0, 0.3);
+	font-size: var(--font-size-body);
+	writing-mode: vertical-rl;
+	text-orientation: mixed;
+}
+.ui-tab--left { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.ui-tab--right { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+
+/* Panel (Planer links / Info rechts) */
+.ui-panel {
+	position: absolute;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+	overflow: hidden;
+	padding: var(--space-8);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-panel);
+}
+.ui-panel--left { left: 0; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.ui-panel--right { right: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+/* Heute: oben 10 px abgesetzt, feste 350 px, und die Hoehe darf ueber den Schirm hinaus. */
+.ui-panel--ist { top: 10px; width: 350px; height: 766px; }
+/* Vorschlag: randlos in der Hoehe, Breite laesst die 64-px-Gasse stehen. */
+.ui-panel--soll { top: 0; height: 100%; width: min(350px, calc(360px - 64px)); }
+
+.ui-panel__logo {
+	margin-bottom: var(--space-2);
+	color: var(--color-text-strong);
+	font-family: Georgia, "Times New Roman", serif;
+	font-size: var(--font-size-title);
+	text-align: center;
+	letter-spacing: 0.06em;
+}
+.ui-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+}
+.ui-field {
+	flex: 1 1 auto;
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	padding: 0 var(--space-6);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+}
+.ui-btnsoft {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	white-space: nowrap;
+}
+.ui-btnfill {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid var(--color-button-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	white-space: nowrap;
+}
+.ui-check { display: flex; align-items: center; gap: var(--space-4); }
+.ui-check i {
+	display: block;
+	flex: 0 0 auto;
+	border: 1px solid var(--color-border-strong);
+	border-radius: 3px;
+	background: var(--color-panel-soft);
+}
+.ui-grouphead {
+	margin-top: var(--space-4);
+	padding-top: var(--space-4);
+	border-top: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+/* Massvariante A: heute (Mauswerte) — B: Vorschlag (Fingerwerte) */
+.sz-ist  { --h: 25px; --hs: 24px; --fs: 12px;  --box: 14px; }
+.sz-soll { --h: 44px; --hs: 40px; --fs: 16px;  --box: 22px; }
+.ui-field, .ui-btnsoft, .ui-btnfill { height: var(--h); font-size: var(--fs); }
+.ui-btnsoft--sm, .ui-btnfill--sm { height: var(--hs); }
+.ui-check { min-height: var(--hs); font-size: var(--fs); }
+.ui-check i { width: var(--box); height: var(--box); }
+
+/* Die schwebende Box, die heute HINTER dem Infopanel liegt */
+.ui-float {
+	position: absolute;
+	top: 120px;
+	left: 20px;
+	width: 320px;
+	padding: var(--space-8);
+	border-radius: var(--radius-lg);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-dialog);
+	font-size: var(--font-size-small);
+}
+.ui-float b { display: block; color: var(--color-text-strong); font-size: var(--font-size-subhead); }
+
+/* Messmarken */
+.rule {
+	position: absolute;
+	z-index: 5;
+	border: 0 dashed var(--color-danger, #a33);
+	pointer-events: none;
+}
+.rule--v { border-left-width: 2px; border-left-style: dashed; }
+.rule--h { border-top-width: 2px; border-top-style: dashed; }
+.rule__lbl {
+	position: absolute;
+	padding: 1px var(--space-2);
+	border-radius: var(--radius-sm);
+	background: var(--color-text-strong);
+	color: var(--color-panel);
+	font-size: var(--font-size-caption);
+	white-space: nowrap;
+}
+
+/* Tabellen */
+table { width: 100%; border-collapse: collapse; margin: var(--space-8) 0 var(--space-12); font-size: var(--font-size-small); }
+th, td { padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--color-divider); text-align: left; }
+th { color: var(--color-text-muted); font-weight: var(--font-weight-bold); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.hi td { background: var(--color-panel-muted); }
+
+.note {
+	margin: var(--space-8) 0 var(--space-12);
+	padding: var(--space-8) var(--space-10);
+	border-left: 3px solid var(--color-accent);
+	background: var(--color-panel-soft);
+	font-size: var(--font-size-small);
+}
+.note b { color: var(--color-text-strong); }
+
+/* Abschluss-Vergleich */
+.radii { display: flex; flex-wrap: wrap; gap: var(--space-16); align-items: flex-end; margin: var(--space-8) 0; }
+.radii figure { margin: 0; text-align: center; }
+.radii figcaption { margin: var(--space-4) auto 0; max-width: 12rem; text-align: center; }
+
+/* Trefferflaechen-Demo */
+.hit {
+	position: relative;
+	height: 190px;
+	overflow: hidden;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+}
+.hit__band {
+	position: absolute;
+	background: color-mix(in srgb, var(--color-accent) 34%, transparent);
+	outline: 1px dashed var(--color-accent-strong);
+	transform-origin: 0 50%;
+}
+.hit__ring {
+	position: absolute;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--color-accent) 34%, transparent);
+	outline: 1px dashed var(--color-accent-strong);
+	transform: translate(-50%, -50%);
+}
+.hit__lbl {
+	position: absolute;
+	padding: 1px var(--space-4);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
+	color: var(--color-text);
+	font-size: var(--font-size-caption);
+	box-shadow: var(--shadow-panel);
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<button type="button" class="theme-btn" id="theme-btn">Hell / Dunkel</button>
+<h1>Das Frontend am Telefon</h1>
+<p class="meta">Mockup zur Abstimmung · 2026-08-10 · Entwurf:
+<a href="superpowers/specs/2026-08-10-mobile-frontend-design.md">2026-08-10-mobile-frontend-design.md</a><br>
+Die Telefonrahmen sind <b>360 × 640 in echten Pixeln</b> — ein verbreitetes Android-Maß. Nur in
+wahrer Größe lässt sich über Fingermaße urteilen; ein skaliertes Bild würde die Frage
+verschieben, um die es geht.</p>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>1 · Die Ecke — der Zoom räumt, die Suche zieht ein</h2>
+<p class="lead">Der Einwand war: es ist kein Platz für einen Suchknopf. Stimmt — bis der Zoom
+geht. Es ist ein Tausch, keine Zugabe.</p>
+
+<div class="pair">
+	<figure>
+		<span class="tag tag--ist">heute</span>
+		<div class="phone">
+			<div class="map" id="map-a"></div>
+			<div class="ui-zoom"><span>+</span><span>−</span></div>
+			<div class="ui-corner">
+				<span class="ui-cornerbtn ui-cornerbtn--ist">Neuigkeiten</span>
+				<span class="ui-cornerbtn ui-cornerbtn--ist">Hinweise</span>
+			</div>
+			<div class="ui-tab ui-tab--left" style="left:0">Routenplaner</div>
+		</div>
+		<figcaption><b>Drei Abschlüsse auf einem Fleck:</b> Eckknöpfe 5 px, Zoom 4 px (aus
+		Leaflets eigener Datei). Und die Suche hat keinen sichtbaren Auslöser — nur Tastenkürzel
+		und Langdruck.</figcaption>
+	</figure>
+
+	<figure>
+		<span class="tag tag--soll">Vorschlag</span>
+		<div class="phone">
+			<div class="map" id="map-b"></div>
+			<span class="ui-search" aria-label="Suchen">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+				     stroke-linecap="round" aria-hidden="true">
+					<circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M15.5 15.5 21 21"></path>
+				</svg>
+			</span>
+			<div class="ui-corner">
+				<span class="ui-cornerbtn ui-cornerbtn--soll">Neuigkeiten</span>
+				<span class="ui-cornerbtn ui-cornerbtn--soll">Hinweise</span>
+			</div>
+			<div class="ui-tab ui-tab--left" style="left:0">Routenplaner</div>
+		</div>
+		<figcaption>Der Zoom entfällt am Finger (die Zwei-Finger-Geste genügt), die Suche nimmt
+		seinen Sitz: 48 × 48, quadratisch, <b>gefüllt</b> — die eine Handlung neben zwei
+		Verweisen. Alle drei tragen jetzt <code>--radius-md</code>.</figcaption>
+	</figure>
+</div>
+
+<div class="note">
+	<b>Die Rechnung.</b> Zoom raus: 30 × 56 = 1.680 px². Suche rein: 48 × 48 = 2.304 px². Gleich
+	viele Bedienelemente auf der Karte, praktisch dieselbe Fläche — und der Knopf sitzt im
+	Daumenbereich. Er öffnet nichts Neues, sondern <code>openSpotlightSearch()</code>: die
+	einzige Fläche der App, die mit 50 px Feldhöhe und 20 px Schrift schon Handymaße hat.
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>2 · Der Routenplaner — volle Höhe und die 64-px-Gasse</h2>
+<p class="lead">Zur Wahl stand ein Schließkreuz oder die vorhandene Lasche. Die Lasche genügt —
+ihr fehlt nur die Gasse.</p>
+
+<div class="pair">
+	<figure>
+		<span class="tag tag--ist">heute</span>
+		<div class="phone">
+			<div class="map" id="map-c"></div>
+			<div class="ui-panel ui-panel--left ui-panel--ist sz-ist">
+				<div class="ui-panel__logo">AVESMAPS</div>
+				<div class="ui-row"><span class="ui-field">Gareth</span><span class="ui-btnsoft ui-btnsoft--sm" style="width:24px">✕</span></div>
+				<div class="ui-row"><span class="ui-field">Havena</span><span class="ui-btnsoft ui-btnsoft--sm" style="width:24px">✕</span></div>
+				<div class="ui-row"><span class="ui-btnfill" style="flex:1">Ziel hinzufügen</span></div>
+				<div class="ui-grouphead">Transportmittel</div>
+				<div class="ui-check"><i></i>zu Land</div>
+				<div class="ui-row"><span class="ui-field">Reisegruppe zu Fuß</span></div>
+				<div class="ui-check"><i></i>über Flüsse</div>
+				<div class="ui-row"><span class="ui-field">Flusssegler</span></div>
+				<div class="ui-grouphead">Reiseoptionen</div>
+				<div class="ui-check"><i></i>schnellste Route</div>
+				<div class="ui-check"><i></i>kürzeste Route</div>
+				<div class="ui-check"><i></i>wenige Umstiege</div>
+				<div class="ui-row"><span class="ui-field">Stunden/Tag</span><span class="ui-field" style="max-width:56px">8</span></div>
+				<div class="ui-row"><span class="ui-field">Reisebeginn</span></div>
+			</div>
+			<div class="ui-tab ui-tab--left" style="left:350px">Routenplaner</div>
+			<div class="rule rule--h" style="left:0;right:0;top:640px"></div>
+		</div>
+		<figcaption><b>766 px hoch in einem 640-px-Schirm.</b> 136 px hängen unten raus, und das
+		Panel scrollt <b>nicht</b> — stattdessen scrollt die Seite, die Karte fährt weg. Von der
+		30 px breiten Lasche sind <b>10 px</b> auf dem Schirm.</figcaption>
+	</figure>
+
+	<figure>
+		<span class="tag tag--soll">Vorschlag</span>
+		<div class="phone">
+			<div class="map" id="map-d"></div>
+			<div class="ui-panel ui-panel--left ui-panel--soll sz-soll">
+				<div class="ui-panel__logo">AVESMAPS</div>
+				<div class="ui-row"><span class="ui-field">Gareth</span><span class="ui-btnsoft" style="width:40px">✕</span></div>
+				<div class="ui-row"><span class="ui-field">Havena</span><span class="ui-btnsoft" style="width:40px">✕</span></div>
+				<div class="ui-row"><span class="ui-btnfill" style="flex:1">Ziel hinzufügen</span></div>
+				<div class="ui-grouphead">Transportmittel</div>
+				<div class="ui-check"><i></i>zu Land</div>
+				<div class="ui-row"><span class="ui-field">Reisegruppe zu Fuß</span></div>
+				<div class="ui-check"><i></i>über Flüsse</div>
+			</div>
+			<div class="ui-tab ui-tab--left" style="left:296px">Routenplaner</div>
+		</div>
+		<figcaption>Randlos in der Höhe, <code>min(350px, 100vw − 64px)</code> breit — dieselbe
+		Formel, die das Infopanel längst trägt. Die Lasche steht mit <b>30 von 30 px</b> im
+		Bild, das Panel scrollt in sich. Kein X nötig; es wäre der zweite Weg hinaus.</figcaption>
+	</figure>
+</div>
+
+<div class="note">
+	<b>Warum die Maße im rechten Rahmen größer sind.</b> Das ist kein Zufall des Mockups,
+	sondern Block A: dieselben Zeilen mit Fingermaßen. Links Feldhöhe 25 px / Schrift 12 px /
+	Kästchen 14 px, rechts 44 / 16 / 22. Deshalb passt rechts weniger auf einen Blick — und
+	genau deshalb <b>muss</b> das Panel vorher scrollen können. Erst die Höhe, dann die Maße.
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>3 · Das Infopanel — die schwebende Box entfällt</h2>
+
+<div class="pair">
+	<figure>
+		<span class="tag tag--ist">heute</span>
+		<div class="phone">
+			<div class="map" id="map-e"></div>
+			<div class="ui-float">
+				<b>Gareth</b>
+				Metropole · Mittelreich<br>Route hierher · Teilen
+			</div>
+			<div class="ui-panel ui-panel--right ui-panel--soll sz-ist" style="width:296px">
+				<div class="ui-row"><span class="ui-field" style="flex:1">‹ Gareth ›</span></div>
+				<div class="ui-panel__logo" style="font-size:var(--font-size-display)">Gareth</div>
+				<p style="margin:0;font-size:var(--font-size-small);color:var(--color-text-muted)">
+				Metropole · Mittelreich · 100 000 Einwohner. Hauptstadt des Mittelreichs und
+				größte Stadt Aventuriens.</p>
+				<div class="ui-grouphead">Literatur</div>
+				<div class="ui-row"><span class="ui-field">Im Schatten des Greifen</span></div>
+			</div>
+			<div class="ui-tab ui-tab--right" style="right:296px">Info</div>
+		</div>
+		<figcaption>Ein Tipp auf einen Ort öffnet <b>zweierlei</b>. Die schwebende Box misst
+		320–400 px, das Panel daneben 296 — sie liegt vollständig dahinter und ist nie zu
+		sehen.</figcaption>
+	</figure>
+
+	<figure>
+		<span class="tag tag--soll">Vorschlag</span>
+		<div class="phone">
+			<div class="map" id="map-f"></div>
+			<div class="ui-panel ui-panel--right ui-panel--soll sz-soll" style="width:296px">
+				<div class="ui-row"><span class="ui-field" style="flex:1">‹ Gareth ›</span></div>
+				<div class="ui-panel__logo" style="font-size:var(--font-size-display)">Gareth</div>
+				<p style="margin:0;font-size:var(--font-size-reading);color:var(--color-text-muted)">
+				Metropole · Mittelreich · 100 000 Einwohner. Hauptstadt des Mittelreichs und
+				größte Stadt Aventuriens.</p>
+				<div class="ui-grouphead">Literatur</div>
+				<div class="ui-row"><span class="ui-field">Im Schatten des Greifen</span></div>
+				<div class="ui-row"><span class="ui-btnfill" style="flex:1">Route hierher</span></div>
+			</div>
+			<div class="ui-tab ui-tab--right" style="right:296px">Info</div>
+		</div>
+		<figcaption>Eine Fläche, eine Auskunft. 🔴 Nur hier — bei „nächster Ort" ist dieselbe Box
+		die <b>einzige</b> Antwortfläche und bleibt.</figcaption>
+	</figure>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>4 · Fingermaße — und die iOS-Schwelle</h2>
+<p class="lead">Gemessen: <b>25 von 31</b> Bedienelementen im Routenplaner sind unter 44 px,
+18 unter 32 px Höhe. Und <b>jedes</b> Eingabefeld liegt unter 16 px Schrift.</p>
+
+<table>
+	<tr><th>Element</th><th class="num">heute</th><th class="num">Vorschlag</th><th>Token</th></tr>
+	<tr><td>Wegpunktfeld, Combobox, Knopf</td><td class="num">32 px</td><td class="num">44 px</td><td><code>--control-h</code></td></tr>
+	<tr><td>Zahlen-/Datumsfeld, Select</td><td class="num">25 px</td><td class="num">44 px</td><td><code>--control-h-field</code></td></tr>
+	<tr><td>Klappzeile, ✕ am Wegpunkt</td><td class="num">24 px</td><td class="num">40 px</td><td><code>--control-h-sm</code></td></tr>
+	<tr><td>ⓘ-Knopf</td><td class="num">16 px</td><td class="num">40 px</td><td><code>--control-h-sm</code></td></tr>
+	<tr><td>Kästchen-<b>Zeile</b> (nicht die Box)</td><td class="num">15 px</td><td class="num">44 px</td><td><code>--tap-min</code></td></tr>
+	<tr class="hi"><td><b>Schrift in jedem Feld</b></td><td class="num"><b>12–13,3 px</b></td><td class="num"><b>16 px</b></td><td><code>--font-size-control</code></td></tr>
+</table>
+
+<div class="note">
+	<b>Die 16 px sind eine Schwelle, kein Richtwert.</b> Darunter zoomt Safari beim Fokus in
+	jedes Feld hinein und <b>kehrt nicht zurück</b> — bei jeder einzelnen Eingabe. 15,5 px zoomt
+	noch. 🔴 <b>Nicht</b> über <code>maximum-scale=1</code> im Viewport-Meta: das nähme allen das
+	Aufziehen der Karte, also genau die Geste, die nach Abschnitt 1 die einzige Zoomhilfe ist.<br><br>
+	⚠️ Die Kästchen selbst bleiben 14 px — sie zu vergrößern verzöge die Zeile. Jedes sitzt in
+	einem <code>&lt;label&gt;</code>: die Fläche ist die <b>Zeile</b>, und die ist heute 15 px hoch.
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>5 · Einheitliche Abschlüsse</h2>
+<p class="lead">Aus dem Screenshot des Owners: drei knopfartige Flächen in einer Bildecke, drei
+Abschlüsse. Zu entscheiden ist nichts — AGENTS.md §12 sagt: <i>„Buttons … radius
+<code>--radius-md</code>"</i>.</p>
+
+<div class="radii">
+	<figure>
+		<span class="ui-cornerbtn ui-cornerbtn--ist" style="display:inline-block">Hinweise</span>
+		<figcaption><code>--radius-sm</code> · <b>5 px</b><br>Eckknöpfe heute</figcaption>
+	</figure>
+	<figure>
+		<span class="ui-zoom" style="position:static;display:inline-flex"><span>+</span><span>−</span></span>
+		<figcaption><b>4 px</b> · aus <code>third-party/leaflet.css</code><br>der Zoom heute</figcaption>
+	</figure>
+	<figure>
+		<span class="ui-cornerbtn ui-cornerbtn--soll" style="display:inline-block">Alle anzeigen</span>
+		<figcaption><code>--radius-md</code> · <b>8 px</b><br>die Hausregel — und der Vorschlag für alle</figcaption>
+	</figure>
+</div>
+
+<table>
+	<tr><th>im Frontend-CSS</th><th class="num">Anzahl</th></tr>
+	<tr><td><code>border-radius</code> <b>mit</b> Token</td><td class="num">167</td></tr>
+	<tr class="hi"><td><code>border-radius</code> <b>ohne</b> Token</td><td class="num">135</td></tr>
+	<tr><td>verschiedene harte Werte (bei <b>drei</b> definierten Stufen)</td><td class="num">11</td></tr>
+	<tr><td>davon: schreiben einen <b>Tokenwert von Hand ab</b> (21× 8 px, 5× 5 px)</td><td class="num">26</td></tr>
+	<tr><td>davon: <code>999px</code> / <code>50%</code> — einzeln zu beurteilen, nicht zu fegen</td><td class="num">42</td></tr>
+</table>
+
+<div class="note">
+	<b>Drei Schritte, absteigend nach Sicherheit.</b> (1) Die 26 abgeschriebenen Werte werden
+	Token — mechanisch, <b>null sichtbare Änderung</b>, und das ist beweisbar. (2) Knopfartige
+	Flächen auf <code>--radius-md</code>. (3) Die 42 runden Formen einzeln ansehen: ein Punkt,
+	ein Wappenrahmen, ein Zählerkreis dürfen rund sein — ein <i>Knopf</i> nach §12 nicht.<br><br>
+	⚠️ Der Zoom-Wert steht in einer <b>Fremddatei</b>. Die wird nicht angefasst; die Korrektur
+	gehört in <code>map-layout.css</code>, wo schon die Zoom-Farben liegen. Die Panel-Hülle
+	dagegen ist richtig: der Unterschied Panel↔Knopf ist gewollt, Knopf↔Knopf nicht.
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════════ -->
+<h2>6 · Trefferflächen — Punkte, Namen, Linien; Flächen nie</h2>
+
+<h3>Was heute treffbar ist</h3>
+<div class="hit" id="hit-a">
+	<div class="map" style="position:absolute;inset:0"></div>
+</div>
+<p class="lead" style="margin-top:var(--space-4)">Trefferkreis eines <b>Dorfes</b>: Markerradius
++ 3 px. Der Ortsname ist <b>gar nicht</b> klickbar (<code>interactive: false</code> <i>und</i>
+<code>pointer-events: none</code>). Ein Weg ist so breit, wie er gezeichnet ist.</p>
+
+<h3>Was vorgeschlagen ist</h3>
+<div class="hit" id="hit-b">
+	<div class="map" style="position:absolute;inset:0"></div>
+</div>
+
+<table>
+	<tr><th>Sorte</th><th>Vorschlag</th><th>kostet der Fläche darunter</th></tr>
+	<tr><td><b>Punkte</b> — Ortsmarker</td><td>Boden 16 px am groben Zeiger</td><td>nichts (liegen darüber)</td></tr>
+	<tr><td><b>Namen</b> — Ortslabel</td><td>klickbar, <b>auch am Desktop</b>; öffnet dasselbe wie der Punkt</td><td>nichts</td></tr>
+	<tr class="hi"><td><b>Linien</b> — Wege</td><td>Band 24 px, <b>erst ab Zoom 4</b></td><td>± 12 px, und nur im Detail</td></tr>
+	<tr><td><b>Flächen</b> — Territorien, Landschaften, Klima</td><td><b>keine Änderung</b></td><td>—</td></tr>
+</table>
+
+<div class="note">
+	<b>„Bei hohem Zoom sind die Wege ohnehin breit genug" — stimmt nicht.</b> Gerechnet aus
+	<code>PATH_OUTLINE_WEIGHTS × PATH_WIDTH_SCALE</code>:
+</div>
+
+<table>
+	<tr><th>Subtyp</th><th class="num">z2</th><th class="num">z3</th><th class="num">z4</th><th class="num">z5</th><th class="num">z6</th></tr>
+	<tr><td>Reichsstraße</td><td class="num">1,95</td><td class="num">5,85</td><td class="num">7,80</td><td class="num">11,70</td><td class="num">13,00</td></tr>
+	<tr><td>Straße · Weg</td><td class="num">1,20</td><td class="num">2,40</td><td class="num">2,40</td><td class="num">4,00</td><td class="num">4,80</td></tr>
+	<tr><td>Pfad · Gebirgspass · Wüstenpfad</td><td class="num">0,30</td><td class="num">1,20</td><td class="num">1,80</td><td class="num">3,00</td><td class="num">3,60</td></tr>
+</table>
+
+<div class="note">
+	Auf der <b>höchsten</b> Stufe misst ein Pfad 3,6 px und eine Straße 4,8 px. Kein Weg erreicht
+	je aus eigener Kraft Fingergröße — die Zugabe wird auf jeder sichtbaren Stufe gebraucht.<br><br>
+	<b>Der Zoom-Riegel bleibt trotzdem richtig, nur aus dem anderen Grund:</b> er sagt nichts
+	über die Breite des Weges, sondern über die Absicht. Im Überblick sucht man Gebiete und
+	Städte, im Detail den Weg — und dort kostet das Band am wenigsten, weil eine Baronie dann
+	den halben Schirm füllt.<br><br>
+	⚠️ 24 px klingt schmal, ist es für eine <b>Linie</b> aber nicht: Genauigkeit braucht man nur
+	quer dazu, längs ist das Ziel unbegrenzt.
+</div>
+
+<h2>Reihenfolge</h2>
+<table>
+	<tr><th class="num">#</th><th>Schritt</th><th>Abnahme</th></tr>
+	<tr class="hi"><td class="num">1</td><td><b>A1</b> · iOS-Schwelle</td><td>Fokus in jedes Feld, kein Hineinzoomen. Der billigste Schritt, deshalb der erste — und der einzige, der nicht auf Schritt 2 wartet.</td></tr>
+	<tr><td class="num">2</td><td><b>0</b> · Panels: volle Höhe, 64-px-Gasse, schwebende Box weg</td><td>360×640: Panel scrollt in sich, Seite nicht; Lasche 30 von 30 px</td></tr>
+	<tr><td class="num">3</td><td><b>A</b> · Maßschicht in den Tokens</td><td>nichts unter 44 px am Finger; Desktop <b>pixelgleich</b></td></tr>
+	<tr><td class="num">4</td><td><b>C2 → C1</b> · Zoom räumt, Suche zieht ein</td><td>in dieser Reihenfolge, sonst stehen kurz drei Dinge übereinander</td></tr>
+	<tr><td class="num">5</td><td><b>C3b</b> · Ortsnamen klickbar (auch Desktop)</td><td>Name und Punkt öffnen <b>dasselbe</b></td></tr>
+	<tr><td class="num">6</td><td><b>C3a</b> · Trefferboden für Punkte</td><td>nach C3b, sonst wird der Boden zu groß gewählt</td></tr>
+	<tr><td class="num">7</td><td><b>C3c</b> · Wege-Band ab Zoom 4</td><td>bei Zoom 3 ändert sich <b>nichts</b></td></tr>
+	<tr><td class="num">8</td><td><b>D</b> · Einheitliche Abschlüsse</td><td>Zeiger-Sache; D1 beweisbar ohne Bildänderung</td></tr>
+</table>
+
+<p class="meta" style="margin-top:var(--space-24)">Alle Zahlen live gemessen auf avesmaps.de bei
+375 × 812 und 360 × 640, DPR 2, <code>pointer: coarse</code>.</p>
+
+</div>
+
+<script>
+(function () {
+	/* Kartenmalerei: dieselbe Skizze in jedem Rahmen, damit die Rahmen vergleichbar sind. */
+	var ROADS = [
+		{ x: -20, y: 90,  w: 300, a: 18,  t: 4 },
+		{ x: 40,  y: 300, w: 360, a: -12, t: 6 },
+		{ x: 180, y: 20,  w: 260, a: 74,  t: 3 },
+		{ x: -10, y: 470, w: 300, a: 8,   t: 4 },
+		{ x: 250, y: 120, w: 240, a: 55,  t: 3 }
+	];
+	var RIVERS = [{ x: -30, y: 210, w: 340, a: -6, t: 5 }];
+	var TOWNS = [
+		{ x: 70,  y: 128, r: 5,   n: "Oyandagh" },
+		{ x: 205, y: 262, r: 7,   n: "Tarashim" },
+		{ x: 120, y: 430, r: 4,   n: "Kossabad" },
+		{ x: 285, y: 355, r: 3.5, n: "Wawend" }
+	];
+
+	function paint(el) {
+		if (!el) { return; }
+		var h = el.clientHeight || 640;
+		var f = h / 640;
+		RIVERS.concat(ROADS).forEach(function (r, i) {
+			var d = document.createElement("div");
+			d.className = i < RIVERS.length ? "map__river" : "map__road";
+			d.style.left = (r.x * f) + "px";
+			d.style.top = (r.y * f) + "px";
+			d.style.width = (r.w * f) + "px";
+			d.style.height = Math.max(1, r.t * f) + "px";
+			d.style.transform = "rotate(" + r.a + "deg)";
+			el.appendChild(d);
+		});
+		TOWNS.forEach(function (t) {
+			var d = document.createElement("div");
+			d.className = "map__dot";
+			d.style.left = (t.x * f) + "px";
+			d.style.top = (t.y * f) + "px";
+			d.style.width = d.style.height = (t.r * 2 * f) + "px";
+			el.appendChild(d);
+			var n = document.createElement("div");
+			n.className = "map__name";
+			n.style.left = (t.x * f + t.r * f + 5) + "px";
+			n.style.top = (t.y * f) + "px";
+			n.style.fontSize = Math.max(9, 12 * f) + "px";
+			n.textContent = t.n;
+			el.appendChild(n);
+		});
+	}
+
+	["map-a", "map-b", "map-c", "map-d", "map-e", "map-f"].forEach(function (id) {
+		paint(document.getElementById(id));
+	});
+	document.querySelectorAll(".hit .map").forEach(paint);
+
+	/* Trefferflaechen einzeichnen. Massstab: der .hit-Kasten ist 190 px hoch = 640/190 des
+	   Telefons, die Marken sind deshalb auf die HIER sichtbare Groesse gerechnet. */
+	function mark(boxId, opts) {
+		var box = document.getElementById(boxId);
+		if (!box) { return; }
+		var f = 190 / 640;
+		TOWNS.slice(0, 3).forEach(function (t, i) {
+			var ring = document.createElement("div");
+			ring.className = "hit__ring";
+			var rad = opts.floor ? Math.max(t.r * 1.33 + 3, opts.floor) : (t.r * 1.33 + 3);
+			ring.style.left = (t.x * f) + "px";
+			ring.style.top = (t.y * f) + "px";
+			ring.style.width = ring.style.height = (rad * 2 * f) + "px";
+			box.appendChild(ring);
+			if (opts.labels) {
+				var lab = document.createElement("div");
+				lab.className = "hit__band";
+				lab.style.left = (t.x * f + t.r * f + 4) + "px";
+				lab.style.top = (t.y * f - 8 * f) + "px";
+				lab.style.width = (t.n.length * 7 * f) + "px";
+				lab.style.height = (18 * f) + "px";
+				lab.style.borderRadius = "3px";
+				box.appendChild(lab);
+			}
+		});
+		if (opts.band) {
+			ROADS.slice(0, 3).forEach(function (r) {
+				var b = document.createElement("div");
+				b.className = "hit__band";
+				b.style.left = (r.x * f) + "px";
+				b.style.top = (r.y * f - (opts.band / 2) * f) + "px";
+				b.style.width = (r.w * f) + "px";
+				b.style.height = (opts.band * f) + "px";
+				b.style.transform = "rotate(" + r.a + "deg)";
+				box.appendChild(b);
+			});
+		}
+		var note = document.createElement("div");
+		note.className = "hit__lbl";
+		note.style.left = "8px";
+		note.style.bottom = "8px";
+		note.textContent = opts.note;
+		box.appendChild(note);
+	}
+
+	mark("hit-a", { note: "heute — Punkt: Radius + 3 px · Name: gar nicht · Weg: so breit wie gezeichnet" });
+	mark("hit-b", { floor: 16, labels: true, band: 24,
+	                note: "Vorschlag — Punkt: Boden 16 px · Name klickbar · Weg: Band 24 px ab Zoom 4" });
+
+	/* Hell/Dunkel wie in der App: die Wahl wird gemerkt. */
+	var btn = document.getElementById("theme-btn");
+	if (btn) {
+		btn.addEventListener("click", function () {
+			var dark = document.documentElement.getAttribute("data-theme") === "dark";
+			if (dark) { document.documentElement.removeAttribute("data-theme"); }
+			else { document.documentElement.setAttribute("data-theme", "dark"); }
+			try { localStorage.setItem("avesmaps-theme", dark ? "light" : "dark"); } catch (e) {}
+		});
+	}
+})();
+</script>
+</body>
+</html>

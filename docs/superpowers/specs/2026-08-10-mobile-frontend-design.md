@@ -1,6 +1,8 @@
 # Das Frontend am Telefon — Fingermaße, Höhenbudget, und der Weg zur Karte
 
-**Stand:** 2026-08-10 · **Gemessen:** live auf avesmaps.de bei 375×812 und 360×640, DPR 2,
+**Stand:** 2026-08-10 · **Mockup:** [`docs/mobile-frontend-mockup.html`](../../mobile-frontend-mockup.html)
+(Telefonrahmen in echter Größe, heute/Vorschlag nebeneinander) ·
+**Gemessen:** live auf avesmaps.de bei 375×812 und 360×640, DPR 2,
 `pointer: coarse` · **Owner-Abstimmung:** 2026-08-10 — Zoomtasten entfallen (§7 C2), die
 schwebende Box entfällt (§5.3), Panels in voller Höhe mit den vorhandenen Laschen statt eines
 Schließkreuzes (§5.1–5.2), die iOS-Schwelle vorgezogen (§6 A1), die Suche nimmt den Sitz des
