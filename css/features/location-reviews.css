@@ -171,7 +171,7 @@
 	display: inline-block;
 	margin-left: 4px;
 	padding: 0 5px;
-	border-radius: 8px;
+	border-radius: var(--radius-md);
 	background: var(--color-panel-muted);
 	color: var(--color-text-muted);
 	font-size: 10px;

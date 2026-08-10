@@ -150,3 +150,12 @@ body {
 		display: none;
 	}
 }
+
+/* Leaflets eigener 4px-Abschluss (css/third-party/leaflet.css, .leaflet-bar) war der dritte in der
+   unteren rechten Ecke -- neben 5px an den Eckknoepfen und 8px an den Dialogknoepfen. AGENTS.md §12
+   gibt Knoepfen --radius-md; hier gilt dasselbe.
+   ⚠️ UEBERSCHRIEBEN, nicht dort geaendert: Fremddateien werden im Haus nie bearbeitet -- und die
+   Zoom-FARBEN liegen aus demselben Grund schon in dieser Datei. */
+.leaflet-control-zoom {
+	border-radius: var(--radius-md);
+}

@@ -40,7 +40,7 @@
 .va-pill { font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--color-border-strong); background: var(--color-panel); color: var(--color-text-muted); cursor: pointer; }
 .va-pill.is-active { background: var(--color-button-soft-text); color: var(--color-panel); border-color: var(--color-button-soft-text); }
 .va-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
-.va-kpi { background: var(--color-panel-soft); border-radius: 8px; padding: 11px; }
+.va-kpi { background: var(--color-panel-soft); border-radius: var(--radius-md); padding: 11px; }
 .va-kpi__label { font-size: 12px; color: var(--color-text-muted); }
 .va-kpi__value { font-size: 20px; font-weight: 700; color: var(--color-button-soft-text); }
 .va-kpi__trend { font-size: 12px; color: var(--color-success); }

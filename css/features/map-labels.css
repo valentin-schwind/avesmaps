@@ -294,7 +294,7 @@ body.edit-mode .map-label img {
 	max-width: min(380px, calc(100vw - 32px));
 	padding: 0;
 	border: 1px solid #b79d7d;
-	border-radius: 8px;
+	border-radius: var(--radius-md);
 	background: rgba(255, 249, 244, 0.98);
 	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
 	color: #3f3428;

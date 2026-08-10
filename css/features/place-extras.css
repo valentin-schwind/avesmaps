@@ -407,7 +407,7 @@
 	color: var(--color-text-muted);
 	cursor: pointer;
 	padding: 3px 7px;
-	border-radius: 5px;
+	border-radius: var(--radius-sm);
 }
 .avesmaps-adv-dialog__close:hover {
 	background: var(--color-hover-wash);

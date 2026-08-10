@@ -218,4 +218,38 @@ assert.ok(/visualViewport/.test(spotlightJs),
 	+ " offener Tastatur NICHT, 100dvh zeigt weiter auf den Bildschirmrand und das Feld"
 	+ " verschwindet dahinter");
 
+// ---- Kein Token-Wert steht doppelt ----------------------------------------------------------------
+//
+// 21x `8px` und 5x `5px` schrieben den Wert von --radius-md bzw. --radius-sm von Hand ab. Die sehen
+// richtig AUS und verstellen sich nie mit -- genau die Divergenz, vor der AGENTS.md §12 warnt.
+// ⚠️ Nur DEKLARATIONEN, und Kommentare sind vorher heraus: css/components/editor-page.css
+// BESCHREIBT einen 6px-Sonderfall in Prosa und nennt dabei beide Tokenwerte. Die erste Zaehlung
+// beim Bauen ist genau darauf hereingefallen.
+const FRONTEND_CSS_DIRS = [["css", "features"], ["css", "components"], ["css", "layout"], ["css", "base"]];
+const doppelt = [];
+FRONTEND_CSS_DIRS.forEach((dir) => {
+	const abs = path.join(ROOT, ...dir);
+	fs.readdirSync(abs).filter((f) => f.endsWith(".css")).forEach((file) => {
+		const css = withoutComments(fs.readFileSync(path.join(abs, file), "utf8"));
+		const treffer = css.match(/border-radius:\s*(?:8px|5px)\s*;/g) || [];
+		if (treffer.length) {
+			doppelt.push(`${dir.join("/")}/${file}: ${treffer.length}x`);
+		}
+	});
+});
+assert.deepStrictEqual(doppelt, [],
+	"diese Dateien schreiben einen Tokenwert von Hand ab (8px = --radius-md, 5px = --radius-sm):\n  "
+	+ doppelt.join("\n  "));
+
+// ---- Die Knoepfe der Kartenecke tragen EINEN Abschluss ---------------------------------------------
+const legalCss = withoutComments(read("css", "components", "legal-dialog.css"));
+const eckRegel = legalCss.match(/#legal-button,\s*\r?\n?#news-button\s*\{([^}]*)\}/);
+assert.ok(eckRegel, "die Eckknoepfe teilen sich eine Regel");
+assert.ok(/border-radius:\s*var\(--radius-md\)/.test(eckRegel[1]),
+	"und tragen --radius-md, wie AGENTS.md §12 es fuer Knoepfe vorschreibt (sie trugen --radius-sm)."
+	+ " Die Panel-HUELLE bleibt bei -sm: der Unterschied Panel<->Knopf ist gewollt, Knopf<->Knopf nie.");
+assert.ok(/\.leaflet-control-zoom[^{]*\{[^}]*border-radius/.test(layout),
+	"der Zoom-Abschluss wird in map-layout.css ueberschrieben -- css/third-party/leaflet.css wird"
+	+ " im Haus nie bearbeitet, und die Zoom-FARBEN liegen aus demselben Grund schon dort");
+
 console.log("touch-scale tests passed");

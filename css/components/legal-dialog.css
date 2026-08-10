@@ -449,7 +449,11 @@
 	   --tap-min ist am Zeiger `auto` und aendert dort nichts. */
 	min-height: var(--tap-min);
 	border: 1px solid var(--color-border-strong);
-	border-radius: var(--radius-sm);
+	/* --radius-md, nicht -sm: AGENTS.md §12 gibt Knoepfen diesen Abschluss. Die Panel-HUELLE
+	   bleibt bei -sm -- der Unterschied Panel<->Knopf ist gewollt, Knopf<->Knopf war es nie.
+	   Owner-Meldung 2026-08-10 mit Screenshot: drei Abschluesse in einer Bildecke (5px hier,
+	   4px am Leaflet-Zoom, 8px an "Alle anzeigen"). */
+	border-radius: var(--radius-md);
 	background: var(--color-panel);
 	color: var(--color-text);
 	box-shadow: var(--shadow-panel);

@@ -155,7 +155,7 @@
 	text-align: left;
 	padding: 6px 8px;
 	border: 1px solid transparent;
-	border-radius: 5px;
+	border-radius: var(--radius-sm);
 	background: var(--color-panel);
 	cursor: pointer;
 }
@@ -332,7 +332,7 @@
 .label-wiki-infobox-popup .leaflet-popup-content-wrapper {
 	background: var(--color-panel-translucent);
 	border: 1px solid var(--color-border-strong);
-	border-radius: 8px;
+	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-panel);
 	color: var(--color-text-strong);
 }
@@ -607,7 +607,7 @@
 .label-edit-section {
 	background: var(--color-panel);
 	border: 1px solid var(--color-border);
-	border-radius: 8px;
+	border-radius: var(--radius-md);
 	padding: 8px 10px 10px;
 	display: flex;
 	flex-direction: column;
