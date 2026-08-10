@@ -226,11 +226,22 @@
 			when.textContent = formatDate(post.created_at);
 			top.append(who, when);
 
+			item.append(top);
+
+			// Nur wenn es eine gibt. Ein leerer fetter Absatz über jedem Beitrag ohne Titelzeile wäre
+			// eine Zeile Rauschen je Eintrag -- und die Titelzeile ist die Ausnahme, nicht die Regel.
+			if (post.title) {
+				const heading = document.createElement("p");
+				heading.className = "social-post__title";
+				heading.textContent = post.title;
+				heading.title = "Titelzeile — erscheint nur im Fenster Neuigkeiten";
+				item.appendChild(heading);
+			}
+
 			const text = document.createElement("p");
 			text.className = "social-post__text";
 			text.textContent = post.text || "";
-
-			item.append(top, text);
+			item.appendChild(text);
 
 			if (post.state === "proposal") {
 				const note = document.createElement("p");
@@ -525,8 +536,10 @@
 
 		editingId = post && post.state === "proposal" ? post.id : null;
 		media = null;
+		const title = el("social-title");
 		const text = el("social-text");
 		const tags = el("social-hashtags");
+		if (title) { title.value = post ? (post.title || "") : ""; }
 		if (text) { text.value = post ? (post.text || "") : ""; }
 		if (tags) { tags.value = post ? (post.hashtags || "") : ""; }
 		const file = el("social-file");
@@ -556,6 +569,9 @@
 
 		const body = {
 			action: "create",
+			// Wahlfrei, und sie geht nur an „Neuigkeiten" -- deshalb zählt sie auch nicht im Zähler
+			// unten, der die Zeichenlimits der Netze bewacht.
+			title: (el("social-title") || { value: "" }).value,
 			text: (el("social-text") || { value: "" }).value,
 			hashtags: currentHashtags(),
 			channels: selectedChannelKeys(),

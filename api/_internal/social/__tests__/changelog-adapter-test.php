@@ -75,6 +75,43 @@ $padded = avesmapsSocialChangelogSplit("   Titel mit Rand   \n   Rumpf mit Rand 
 assert($padded['title'] === 'Titel mit Rand' && $padded['body'] === 'Rumpf mit Rand',
     'beide Haelften werden getrimmt');
 
+// ---- die ausdrueckliche Titelzeile schlaegt die erste Zeile ---------------------------------------------
+
+$withTitle = avesmapsSocialChangelogSplit("Erste Textzeile\nZweite Zeile", 'Eine echte Ueberschrift');
+assert($withTitle['error'] === null, 'mit Titelzeile ist alles in Ordnung');
+assert($withTitle['title'] === 'Eine echte Ueberschrift', 'die Titelzeile IST die Ueberschrift');
+// 💣 Der ganze Text bleibt der Rumpf. Ihm hier die erste Zeile wegzunehmen waere genau der Fehler,
+// den die Titelzeile abschafft: der Editor hat die Ueberschrift bereits separat gesagt, also ist
+// „Erste Textzeile" gewoehnlicher Text und kein Titel mehr.
+assert($withTitle['body'] === "Erste Textzeile\nZweite Zeile",
+    'der GANZE Text wird der Rumpf -- die erste Zeile wird nicht ein zweites Mal abgetrennt');
+
+$titlePadded = avesmapsSocialChangelogSplit('Text', '   Titel mit Rand   ');
+assert($titlePadded['title'] === 'Titel mit Rand', 'auch die Titelzeile wird getrimmt');
+
+// Eine leere oder nur aus Leerraum bestehende Titelzeile ist KEINE Titelzeile -- dann gilt wieder die
+// alte Regel. Das ist der Rueckfall, den die Routine und jeder Beitrag von vor dem 10.08.2026 braucht.
+$blankTitle = avesmapsSocialChangelogSplit("Erste Zeile\nRest", '   ');
+assert($blankTitle['title'] === 'Erste Zeile' && $blankTitle['body'] === 'Rest',
+    'leere Titelzeile faellt auf die Erste-Zeile-Regel zurueck');
+assert(avesmapsSocialChangelogSplit("Erste Zeile\nRest")['title'] === 'Erste Zeile',
+    'und das Argument ist wahlfrei -- alte Aufrufer bleiben gueltig');
+
+$longTitle = avesmapsSocialChangelogSplit('Text', str_repeat('x', 191));
+assert($longTitle['error'] !== null, '191 Zeichen Titelzeile werden abgelehnt');
+assert(mb_stripos($longTitle['error'], 'Titelzeile') !== false,
+    'und die Absage nennt das FELD, nicht die erste Textzeile -- sonst sucht der Editor am falschen Ort');
+assert(mb_strpos($longTitle['error'], '190') !== false && mb_strpos($longTitle['error'], '191') !== false,
+    'beide Zahlen, wie ueberall');
+assert(avesmapsSocialChangelogSplit('Text', str_repeat('x', 190))['error'] === null,
+    'genau 190 passt');
+
+// Der Adapter reicht sie aus dem Beitrag durch.
+$viaPost = avesmapsSocialAdapterChangelog(
+    ['id' => 1, 'title' => str_repeat('x', 191)], $channel, "Kurzer Text", '', ['pdo' => null]);
+assert($viaPost['ok'] === false && mb_stripos((string) $viaPost['error'], 'Titelzeile') !== false,
+    'der Adapter liest post[title] und gibt dessen Absage weiter');
+
 // ---- die beiden Absagen -------------------------------------------------------------------------------
 
 $empty = avesmapsSocialChangelogSplit("\nRumpf ohne Ueberschrift");

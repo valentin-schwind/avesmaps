@@ -65,6 +65,15 @@
 	color: var(--color-text-muted);
 }
 
+/* Die Titelzeile eines Beitrags -- steht nur da, wenn es eine gibt (sie ist die Ausnahme, nicht die
+   Regel) und wird nur vom Kanal „Neuigkeiten" verwendet. */
+.social-post__title {
+	margin: 0 0 2px;
+	font-weight: 600;
+	color: var(--color-text-strong);
+	overflow-wrap: anywhere;
+}
+
 .social-post__text {
 	margin: 0 0 6px;
 	color: var(--color-text);
@@ -291,6 +300,21 @@
 	color: var(--color-text);
 	font: inherit;
 	resize: vertical;
+}
+
+/* Der Zusatz in der Feldbeschriftung („nur für Neuigkeiten"): dieselbe Zeile, aber ohne
+   Großbuchstaben und ohne Fettung, damit er als Erläuterung liest und nicht als zweites Feld. */
+.social-hub__label-note {
+	font-weight: 400;
+	text-transform: none;
+	letter-spacing: 0;
+	opacity: 0.85;
+}
+
+.social-hub__hint {
+	margin: 6px 0 0;
+	font-size: 12px;
+	color: var(--color-text-muted);
 }
 
 .social-hub__count {

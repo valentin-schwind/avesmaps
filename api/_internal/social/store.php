@@ -32,6 +32,7 @@ function avesmapsSocialEnsureTables(PDO $pdo): void
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS social_post (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(190) NOT NULL DEFAULT '',
             body TEXT NOT NULL,
             hashtags VARCHAR(500) NOT NULL DEFAULT '',
             media_url VARCHAR(500) NOT NULL DEFAULT '',
@@ -68,6 +69,28 @@ function avesmapsSocialEnsureTables(PDO $pdo): void
             KEY idx_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
+
+    // 💣 `CREATE TABLE IF NOT EXISTS` rührt eine BESTEHENDE Tabelle nicht an -- eine neue Spalte oben
+    // erreicht also jede Anlage, die es schon gibt, NICHT. Deshalb der Nachbau: EINE
+    // information_schema-Abfrage, dann in PHP entscheiden (nicht eine Sonde je Spalte -- das war der
+    // Lastvervielfacher hinter dem PHP-Pool-Hänger vom 17.07.2026). Muster von citymaps.php.
+    //
+    // `title` kam am 10.08.2026 dazu: die Titelzeile des Hubs. Sie wird NUR vom Kanal „Neuigkeiten"
+    // benutzt -- die Netze kennen keine Überschrift, dort bliebe sie unsichtbar oder stünde doppelt
+    // im Text. Leer heißt „keine": der Adapter fällt dann auf die alte Regel zurück (erste Zeile).
+    $existingColumns = [];
+    $columnStatement = $pdo->query(
+        "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'social_post'"
+    );
+    if ($columnStatement !== false) {
+        foreach ($columnStatement->fetchAll(PDO::FETCH_COLUMN) as $existingColumn) {
+            $existingColumns[(string) $existingColumn] = true;
+        }
+    }
+    if ($existingColumns !== [] && !isset($existingColumns['title'])) {
+        $pdo->exec("ALTER TABLE social_post ADD COLUMN title VARCHAR(190) NOT NULL DEFAULT '' AFTER id");
+    }
 
     // TEXT, not VARCHAR(255): an Instagram long-lived token is already ~200 characters and Meta has
     // lengthened them before. A token truncated by the column is a token that fails at send time with
@@ -110,13 +133,17 @@ function avesmapsSocialCreatePost(PDO $pdo, array $post, array $channelKeys): in
     try {
         $insert = $pdo->prepare(
             'INSERT INTO social_post
-                (body, hashtags, media_url, media_kind, media_license, media_source,
+                (title, body, hashtags, media_url, media_kind, media_license, media_source,
                  origin, state, author_user_id, author_name, source_ref, scheduled_for)
-             VALUES (:body, :hashtags, :media_url, :media_kind, :media_license, :media_source,
+             VALUES (:title, :body, :hashtags, :media_url, :media_kind, :media_license, :media_source,
                      :origin, :state, :author_user_id, :author_name, :source_ref, :scheduled_for)'
         );
         $authorId = (int) ($post['author_user_id'] ?? 0);
         $insert->execute([
+            // Am Rand beschnitten, nicht abgelehnt: die Spalte ist VARCHAR(190), das Eingabefeld hat
+            // maxlength=190, und der Kanal „Neuigkeiten" prüft die Länge noch einmal mit einer Absage,
+            // die dem Editor sagt, um wie viel er drüber ist.
+            'title' => mb_substr(trim((string) ($post['title'] ?? '')), 0, 190),
             'body' => (string) ($post['body'] ?? ''),
             'hashtags' => (string) ($post['hashtags'] ?? ''),
             'media_url' => (string) ($post['media_url'] ?? ''),

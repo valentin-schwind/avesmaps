@@ -75,6 +75,8 @@ try {
     $sourceRef = trim((string) ($request['source_ref'] ?? ''));
     try {
         $postId = avesmapsSocialCreatePost($pdo, [
+            // Wahlfrei: ohne Titelzeile fällt der Kanal „Neuigkeiten" auf die erste Textzeile zurück.
+            'title' => (string) ($request['title'] ?? ''),
             'body' => $text,
             'hashtags' => implode(' ', avesmapsSocialNormalizeHashtags($request['hashtags'] ?? [])),
             'origin' => 'routine',

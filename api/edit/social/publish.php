@@ -100,6 +100,9 @@ try {
     }
 
     $postId = avesmapsSocialCreatePost($pdo, [
+        // Die Titelzeile ist WAHLFREI und geht nur an den Kanal „Neuigkeiten" -- die Netze kennen
+        // keine Überschrift. Sie zählt deshalb auch nicht zum Zeichenlimit der Netze.
+        'title' => (string) ($request['title'] ?? ''),
         'body' => $text,
         'hashtags' => implode(' ', avesmapsSocialNormalizeHashtags($request['hashtags'] ?? [])),
         'media_url' => $mediaUrl,

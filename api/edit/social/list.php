@@ -53,6 +53,7 @@ try {
 
         $posts[] = [
             'id' => (int) $row['id'],
+            'title' => (string) ($row['title'] ?? ''),
             'text' => (string) $row['body'],
             'hashtags' => (string) $row['hashtags'],
             'media_url' => (string) $row['media_url'],

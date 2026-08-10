@@ -15,10 +15,14 @@ declare(strict_types=1);
 // gepflegter Verlauf gleich aussehen. Deshalb steht `avesmapsChangelogSeedIfEmpty` hier vor jedem
 // Schreibvorgang, genau wie im Schreibendpunkt `api/edit/map/changelog.php`.
 //
-// 💣 DIE ERSTE ZEILE IST DIE ÜBERSCHRIFT, und sie muss passen. `changelog_entry.title` ist
-// VARCHAR(190). Zu kürzen wäre die falsche Freundlichkeit -- eine stumm abgeschnittene Überschrift
-// steht öffentlich und niemand erfährt, dass etwas fehlt. Also: absagen mit beiden Zahlen und dem
-// Hinweis, wo der Umbruch hingehört. Das ist dieselbe Haltung wie beim Zeichenlimit der Netze.
+// 💣 DIE ÜBERSCHRIFT MUSS PASSEN. `changelog_entry.title` ist VARCHAR(190). Zu kürzen wäre die
+// falsche Freundlichkeit -- eine stumm abgeschnittene Überschrift steht öffentlich und niemand
+// erfährt, dass etwas fehlt. Also: absagen mit beiden Zahlen. Dieselbe Haltung wie beim
+// Zeichenlimit der Netze.
+//
+// Woher sie kommt, entscheidet avesmapsSocialChangelogSplit: aus der **Titelzeile** des Hubs, wenn
+// eine da ist, sonst aus der ersten Zeile des Textes. Die Titelzeile geht NUR hierher -- die Netze
+// kennen keine Überschrift, dort bliebe sie unsichtbar oder stünde doppelt im Beitrag.
 
 require_once __DIR__ . '/../../app/changelog.php';
 
@@ -29,13 +33,34 @@ const AVESMAPS_SOCIAL_CHANGELOG_CATEGORY = 'community';
 const AVESMAPS_SOCIAL_CHANGELOG_TITLE_MAX = 190;
 
 /**
- * Zerlegt den fertigen Text in Überschrift und Rumpf. REIN -- deshalb prüfbar, und deshalb steht die
- * Regel hier und nicht mitten im Schreibvorgang.
+ * Zerlegt den Beitrag in Überschrift und Rumpf. REIN -- deshalb prüfbar, und deshalb steht die Regel
+ * hier und nicht mitten im Schreibvorgang.
  *
+ * ZWEI Wege, und der ausdrückliche gewinnt:
+ *   1. Der Hub hat eine **Titelzeile**. Ist sie gefüllt, IST sie die Überschrift und der ganze Text
+ *      wird der Rumpf. Nichts wird abgeschnitten, nichts erraten.
+ *   2. Ist sie leer, gilt die alte Regel: die erste Zeile wird die Überschrift, der Rest der Rumpf.
+ *      Der Rückfall bleibt, weil ihn zwei Aufrufer brauchen -- die Routine (`routine-post.php`
+ *      liefert nicht zwingend einen Titel) und jeder Beitrag, der vor dem 10.08.2026 entstand.
+ *
+ * @param string $title Die Titelzeile des Beitrags; '' bedeutet „keine".
  * @return array{title: string, body: string, error: ?string}
  */
-function avesmapsSocialChangelogSplit(string $caption): array
+function avesmapsSocialChangelogSplit(string $caption, string $title = ''): array
 {
+    $explicit = trim($title);
+    if ($explicit !== '') {
+        $length = mb_strlen($explicit);
+        if ($length > AVESMAPS_SOCIAL_CHANGELOG_TITLE_MAX) {
+            return ['title' => '', 'body' => '', 'error' =>
+                'Neuigkeiten: die Titelzeile darf höchstens ' . AVESMAPS_SOCIAL_CHANGELOG_TITLE_MAX
+                . ' Zeichen haben (hier: ' . $length . ').'];
+        }
+        // Der GANZE Text wird der Rumpf. Ihm hier die erste Zeile wegzunehmen, wäre der Fehler, den
+        // die Titelzeile gerade abschafft: der Editor hat die Überschrift bereits separat gesagt.
+        return ['title' => $explicit, 'body' => trim(str_replace(["\r\n", "\r"], "\n", $caption)), 'error' => null];
+    }
+
     $normalized = str_replace(["\r\n", "\r"], "\n", $caption);
     $parts = explode("\n", $normalized, 2);
     $title = trim($parts[0]);
@@ -81,7 +106,7 @@ function avesmapsSocialAdapterChangelog(
     // beheben kann, also soll sie ihn erreichen, wann immer sie zutrifft. Die fehlende Verbindung ist
     // dagegen ein Fehler des Servers, kein Zustand, den jemand herbeiführt -- und weil die Reihenfolge
     // so ist, lässt sich die ganze Absage ohne Datenbank prüfen.
-    $split = avesmapsSocialChangelogSplit($caption);
+    $split = avesmapsSocialChangelogSplit($caption, (string) ($post['title'] ?? ''));
     if ($split['error'] !== null) {
         return ['ok' => false, 'error' => $split['error']];
     }

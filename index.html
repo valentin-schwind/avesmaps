@@ -1966,6 +1966,14 @@
 				</div>
 				<div class="social-hub__body">
 					<div class="social-hub__main">
+						<!-- Die Titelzeile geht NUR an den Kanal „Neuigkeiten" (changelog_entry.title,
+						     VARCHAR(190) -- daher maxlength). Die Netze kennen keine Ueberschrift; dort
+						     bliebe sie unsichtbar oder stuende doppelt im Beitrag. Bleibt sie leer,
+						     nimmt „Neuigkeiten" die erste Zeile des Textes. -->
+						<label class="social-hub__label" for="social-title">Titelzeile <span class="social-hub__label-note">nur für Neuigkeiten</span></label>
+						<input id="social-title" type="text" maxlength="190" autocomplete="off" placeholder="Überschrift der Neuigkeit — leer lassen, dann gilt die erste Textzeile">
+						<p class="social-hub__hint">Wird ausschließlich im Fenster <strong>Neuigkeiten</strong> auf avesmaps.de verwendet. Instagram, Facebook und Mastodon kennen keine Überschrift — dort erscheint nur der Text unten.</p>
+
 						<label class="social-hub__label" for="social-text">Text</label>
 						<textarea id="social-text" rows="6"></textarea>
 						<div id="social-count" class="social-hub__count"></div>

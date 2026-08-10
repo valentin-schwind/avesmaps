@@ -54,7 +54,7 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     'changelog' => [
         'label' => 'Neuigkeiten',
         'account' => 'auf avesmaps.de',
-        'note' => 'erste Zeile wird die Überschrift · Bild wird nicht übernommen',
+        'note' => 'nutzt die Titelzeile · Bild wird nicht übernommen',
         // Die Überschrift ist VARCHAR(190); der Rumpf ist TEXT. 2 000 Zeichen sind reichlich für
         // eine Meldung und halten das Fenster lesbar.
         'max_chars' => 2000,

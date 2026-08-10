@@ -128,10 +128,25 @@ auch nach draußen schreibt.
 dieses Fenster ohnehin festhält. Der Schlüssel steht in `social_post_target.channel_key`; ihn
 umzutaufen hieße, jede gespeicherte Zeile mitzuziehen.
 
-💣 **Die erste Zeile wird die Überschrift**, der Rest der Rumpf (`title` ist VARCHAR(190)). Ist die
-erste Zeile länger, wird sie **nicht gekürzt, sondern abgelehnt** — mit beiden Zahlen und dem
-Hinweis, wo der Umbruch hingehört. Eine stumm abgeschnittene Überschrift steht öffentlich, und
-niemand erführe, dass etwas fehlt.
+**Die Titelzeile.** Der Hub hat ein eigenes Feld **„Titelzeile"** über dem Text, und es gilt
+**ausschließlich für diesen Kanal** — die Netze kennen keine Überschrift; dort bliebe sie unsichtbar
+oder stünde doppelt im Beitrag. Sie zählt deshalb auch **nicht** zum Zeichenlimit im Zähler.
+`social_post.title`, VARCHAR(190), `maxlength` am Feld.
+
+⚠️ **Bleibt sie leer, gilt die alte Regel:** die erste Zeile des Textes wird die Überschrift, der
+Rest der Rumpf. Der Rückfall bleibt, weil ihn zwei Aufrufer brauchen — die Routine
+(`routine-post.php` muss keinen Titel liefern) und jeder Beitrag von vor dem 10.08.2026.
+💣 Ist die Titelzeile dagegen **gefüllt, wird dem Text nichts abgeschnitten**: der Editor hat die
+Überschrift bereits separat gesagt, also ist die erste Textzeile gewöhnlicher Text.
+
+💣 **Zu lang wird abgelehnt, nicht gekürzt** — mit beiden Zahlen, und die Absage nennt das Feld, aus
+dem die Überschrift kam (Titelzeile oder erste Textzeile), sonst sucht der Editor am falschen Ort.
+Eine stumm abgeschnittene Überschrift steht öffentlich, und niemand erführe, dass etwas fehlt.
+
+⚠️ Die Spalte kam am 10.08.2026 dazu und wird **nachgerüstet**: `CREATE TABLE IF NOT EXISTS` rührt
+eine bestehende Tabelle nicht an, also prüft `avesmapsSocialEnsureTables` einmal
+`information_schema` und hängt `title` per `ALTER TABLE` an, wenn es fehlt (Muster aus
+`citymaps.php`, **eine** Abfrage für alle Spalten — nicht eine Sonde je Spalte).
 
 💣 **Eine leere `changelog_entry` fällt im Lesepfad auf die Saat zurück** (AGENTS.md §11). Wer in
 diesem Zustand eine Zeile einfügt, hat den Verlauf nicht ergänzt, sondern auf einen einzigen
