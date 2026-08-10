@@ -5,16 +5,18 @@
 schwebende Box entfällt (§5.3), Panels in voller Höhe mit den vorhandenen Laschen statt eines
 Schließkreuzes (§5.1–5.2), die iOS-Schwelle vorgezogen (§6 A1), die Suche nimmt den Sitz des
 Zooms (§7 C1), Trefferflächen **insgesamt** unter der Bedingung „Flächen bleiben unberührt"
-(§7 C3a–d), Ortsnamen klickbar **auch am Desktop** (§7 C3b); das „Blatt von unten" ist
-verworfen (§8)
+(§7 C3a–d), Ortsnamen klickbar **auch am Desktop** (§7 C3b), einheitliche Abschlüsse als
+Block D (§7b); das „Blatt von unten" ist verworfen (§8)
 
 > Umfang: **nur das Frontend.** Die Editoren (`css/pages/*`, `edit/`, `html/*-editor.html`)
 > bleiben unberührt — dort wird am Schreibtisch gearbeitet. Wo eine Regel unter
 > `@media (pointer: coarse)` steht, greift sie auf einem Tablet auch im Editor; das ist
 > hingenommen, aber nicht Gegenstand der Abnahme.
 >
-> ⚠️ **Eine Maßnahme ist ausdrücklich nicht auf das Telefon beschränkt:** klickbare Ortsnamen
-> (§7 C3b, Owner 2026-08-10) gelten auch am Zeiger und werden auch dort abgenommen.
+> ⚠️ **Zwei Maßnahmen sind ausdrücklich nicht auf das Telefon beschränkt** (beide Owner
+> 2026-08-10): klickbare Ortsnamen (§7 C3b) gelten auch am Zeiger, und die einheitlichen
+> Abschlüsse (§7b Block D) sind sogar überwiegend eine Zeiger-Sache. Beide werden auch am
+> Desktop abgenommen. Sie stehen hier, weil sie dieselben Stylesheets betreffen.
 
 ---
 
@@ -402,6 +404,64 @@ ordnet die Flächen ohnehin ganz unten ein — gemessen: `regionsPane` 200, `eco
 liegen darüber und nehmen ihnen nichts, was sie nicht heute schon nähmen. **Nur C3c greift
 wirklich in die Fläche darunter** — deshalb steht dort ein Deckel und ein Ausstieg.
 
+## 7b. Block D — Einheitliche Abschlüsse *(Owner 2026-08-10, mit Beleg-Screenshot)*
+
+Owner: „uneinheitliche Abschlüsse beseitigen wie z. B. hier beim Panel und den Buttons." Am
+Zeiger sichtbar, aber es ist eine Stylesheet-Frage und gehört auf dieselbe Liste.
+
+**Der Befund im Screenshot ist exakt greifbar.** Drei knopfartige Flächen in einer Bildecke,
+drei verschiedene Abschlüsse:
+
+| Fläche | heute | Quelle |
+|---|---|---|
+| „Neuigkeiten" / „Hinweise" | `--radius-sm` = **5 px** | [`legal-dialog.css:449`](../../../css/components/legal-dialog.css) |
+| Zoom `+` / `−` | **4 px** | `css/third-party/leaflet.css:286` (`.leaflet-bar`) |
+| „Alle anzeigen" | `--radius-md` = **8 px** | Hausregel |
+
+**Es gibt hier nichts zu entscheiden — die Designsprache hat es schon entschieden.** AGENTS.md
+§12: *„Buttons … radius `--radius-md`"*. Zwei der drei folgen ihr nicht. Die Panel-Hülle
+dagegen ist richtig (`--radius-sm`, laut `tokens.css` „mirrored panel shell + tiniest chips") —
+**der Unterschied Panel↔Knopf ist gewollt, der Unterschied Knopf↔Knopf nicht.**
+
+### Der Umfang dahinter
+
+| | Frontend-CSS |
+|---|---:|
+| `border-radius` **mit** Token | 167 |
+| `border-radius` **ohne** Token | **135** |
+| verschiedene harte Werte | **11** — bei drei definierten Stufen |
+
+Aufschlüsselung der harten Werte: `6px` (24×) · `999px` (22×) · `8px` (21×) · `50%` (20×) ·
+`4px` (11×) · `0` (9×) · `5px` (5×) · `12px` (5×) · dazu 3px, 2px, 10px, 9px, 7px, 1px.
+
+💣 **26 davon schreiben den Wert eines Tokens von Hand ab** — 21× `8px` (das ist `--radius-md`)
+und 5× `5px` (das ist `--radius-sm`). Die sehen heute richtig aus und sind genau die Sorte
+Divergenz, vor der §12 warnt: wer den Token je verstellt, verstellt sie nicht mit.
+
+### Drei Schritte, absteigend nach Sicherheit
+
+1. **Die 26 abgeschriebenen Werte werden Token.** Mechanisch, **null sichtbare Änderung**, und
+   das ist beweisbar (gerechneter Wert vorher = nachher). Der billigste Teil.
+2. **Knopfartige Flächen auf `--radius-md`**, wie §12 es sagt — das ist der sichtbare Teil und
+   der, den der Owner gemeldet hat.
+3. **`999px` und `50%` werden einzeln beurteilt, nicht gefegt.** Ein runder Punkt, ein
+   Wappenrahmen, ein Zählerkreis dürfen rund sein; ein *Knopf* darf es nach §12 nicht („no
+   pill shapes"). Das ist eine Durchsicht von 42 Stellen, kein Suchen-und-Ersetzen.
+
+⚠️ **Der Zoom-Abschluss steht in einer Fremddatei.** `css/third-party/leaflet.css` wird **nicht**
+angefasst; die Korrektur gehört in die eigene Ebene — `map-layout.css` überschreibt dort schon
+heute die Zoom-**Farben**, das ist der Präzedenzfall und der richtige Ort. 🔧 Nebenbei: nach §7
+C2 verschwindet der Zoom am Finger ohnehin, dieser Punkt ist also rein für den Zeiger.
+
+🔴 **Ein dokumentierter Sonderfall bleibt stehen:**
+[`editor-page.css:408`](../../../css/components/editor-page.css) hält fest, dass dort `6px` der
+**absichtliche** Wert ist und *nicht* `--radius-sm` (5) oder `--radius-md` (8). Er liegt
+ohnehin im Editor und damit außerhalb des Umfangs — aber wer die Zählung oben als Arbeitsliste
+liest, muss ihn kennen. ⚠️ Er ist auch der Beleg dafür, dass die 135 **nicht** alle Fehler
+sind; die Liste ist ein Ausgangspunkt für eine Durchsicht, keine Abarbeitungsvorschrift.
+
+---
+
 ## 8. Verworfen: der Planer als Blatt von unten
 
 Der erste Entwurf schlug vor, `#search` am Telefon von **unten** einfahren zu lassen, in drei
@@ -431,6 +491,7 @@ keine Seite).
 | 6 | **C3a** Trefferboden Punkte | — | Dorf bei Zoom 4 treffbar, ohne dass ein Tipp auf leere Karte einen Ort weit weg öffnet |
 | 7 | **C3c** Linien *(optional)* | C3b | ein Weg am Finger treffbar; **Gegenprobe: eine Grafschaft neben einem Weg öffnet weiter die Grafschaft** |
 | — | **C3d** Flächen | — | nichts zu tun (§7 C3d) |
+| 8 | **D** Abschlüsse (§7b) | — | **Zeiger-Sache.** D1 (26 Token) beweisbar ohne Bildänderung; D2: die drei Knöpfe der Bildecke tragen einen Abschluss; D3: keine Pille an einem Knopf |
 | — | **B** Blatt | verworfen (§8) | — |
 
 ⚠️ **C3b vor C3a**, obwohl beide dasselbe Ziel haben: der breite Name nimmt dem Boden unter dem
@@ -476,6 +537,12 @@ Inhalt):
 8. **Flächen bleiben unberührt.** Weder `regionsPane` noch die `ecosystemPane*` bekommen eine
    Trefferzugabe, und C3c hat einen Deckel. Mutation: ein Boden auf einem Polygon-Layer ⇒ rot
    (Owner-Bedingung 2026-08-10).
+9. **Kein Token-Wert steht doppelt.** Keine Frontend-CSS-Datei schreibt `border-radius: 8px`
+   oder `5px` als Literal — das sind die Werte von `--radius-md` und `--radius-sm`. Mutation:
+   eines der 26 zurückschreiben ⇒ rot. ⚠️ Die Prüfung liest nur `border-radius`-**Deklarationen**
+   und schneidet Kommentare heraus: `editor-page.css` **beschreibt** den 6-px-Sonderfall in
+   Prosa und nennt dabei beide Tokenwerte — die Falle aus §10 unten, hier bereits gestellt
+   (meine eigene Zählung hat die Kommentarzeile zuerst mitgezählt).
 
 💣 **Beim Schreiben dieser Zusicherungen:** in diesem Haus haben Quelltext-Tests schon dreimal
 auf den erklärenden **Kommentar** angeschlagen statt auf den Code (AGENTS.md §11,
