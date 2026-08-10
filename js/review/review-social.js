@@ -689,12 +689,15 @@
 		editingId = null;
 	}
 
-	function publish() {
-		const button = el("social-publish");
+	// asDraft: der Beitrag landet in der Box statt hinauszugehen. EIN Weg für beides, weil sich sonst
+	// zwei Fassungen desselben Formulars auseinanderentwickeln -- der Unterschied ist genau ein Feld.
+	function publish(asDraft) {
+		const button = el(asDraft ? "social-draft" : "social-publish");
 		if (button) { button.disabled = true; }
 
 		const body = {
 			action: "create",
+			draft: asDraft === true,
 			// Wahlfrei, und sie geht nur an „Neuigkeiten" -- deshalb zählt sie auch nicht im Zähler
 			// unten, der die Zeichenlimits der Netze bewacht.
 			title: (el("social-title") || { value: "" }).value,
@@ -784,7 +787,11 @@
 		}
 
 		const publishButton = el("social-publish");
-		if (publishButton) { publishButton.addEventListener("click", publish); }
+		// Ohne die Hülle: ein Klick-Ereignis als erstes Argument waere `asDraft` und damit wahr --
+		// jeder „Veröffentlichen" wuerde still zum Entwurf.
+		if (publishButton) { publishButton.addEventListener("click", function () { publish(false); }); }
+		const draftButton = el("social-draft");
+		if (draftButton) { draftButton.addEventListener("click", function () { publish(true); }); }
 
 		const connectGo = el("social-connect-go");
 		if (connectGo) { connectGo.addEventListener("click", submitConnect); }

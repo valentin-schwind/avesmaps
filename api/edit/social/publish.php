@@ -99,6 +99,15 @@ try {
         avesmapsErrorResponse(400, 'invalid_request', 'Das Bild muss über den Upload kommen.');
     }
 
+    // Die Entwurfs-Box (Owner-Entscheid 10.08.2026). Ein Beitrag muss nicht sofort hinaus: er kann
+    // liegen bleiben, bearbeitet und später freigegeben werden. Bis dahin ist er ein `proposal` --
+    // derselbe Zustand, in dem auch die Routine einliefert, und dieselben drei Knöpfe in der Liste.
+    //
+    // 🔴 EIN Zustand für beide Herkünfte, nicht zwei. Ein eigener `draft` neben `proposal` waere
+    // dieselbe Sache unter zwei Namen: die Liste müsste beide filtern, die Freigabe beide kennen, und
+    // beim naechsten Zustand liefen sie auseinander. Woher er kommt, steht in `origin`.
+    $isDraft = ($request['draft'] ?? false) === true;
+
     $postId = avesmapsSocialCreatePost($pdo, [
         // Die Titelzeile ist WAHLFREI und geht nur an den Kanal „Neuigkeiten" -- die Netze kennen
         // keine Überschrift. Sie zählt deshalb auch nicht zum Zeichenlimit der Netze.
@@ -110,10 +119,18 @@ try {
         'media_license' => (string) ($request['media_license'] ?? ''),
         'media_source' => (string) ($request['media_source'] ?? ''),
         'origin' => 'editor',
-        'state' => 'released',
+        'state' => $isDraft ? 'proposal' : 'released',
         'author_user_id' => (int) ($user['id'] ?? 0),
         'author_name' => (string) ($user['username'] ?? ''),
     ], $selected);
+
+    // 🔴 Ein Entwurf wird NICHT versendet. Der Rücksprung steht vor dem Versand und nicht als Zweig
+    // darin: so kann kein späterer Zweig versehentlich daran vorbeilaufen, und die Zeile darunter
+    // bedeutet ohne Ausnahme „das geht jetzt raus".
+    if ($isDraft) {
+        avesmapsJsonResponse(200, ['ok' => true, 'post_id' => $postId, 'state' => 'proposal',
+            'results' => []]);
+    }
 
     $dispatch = avesmapsSocialDispatch($pdo, $postId, $config);
     // The response carries the per-channel outcome, not one boolean: the hub reports "Instagram ✓,
