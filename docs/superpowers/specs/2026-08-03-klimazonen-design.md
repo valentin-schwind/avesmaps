@@ -385,3 +385,54 @@ Umbenennung gleicht die Anzeige an das an, was die Fenstertitel längst sagen.
 Verwandt: [[oekosystem-terrain-routing]], [[landschaften-flaeche-label-kopplung]],
 [[landschaften-editor-siebter]], [[insel-inselgruppe-taxonomie]],
 [[ortsart-place-kind-feld]].
+
+---
+
+## 14. Nachtrag (2026-08-03, nach dem Bau) — die Identität einer Trennlinie
+
+> Dieser Abschnitt ist **kein** Teil des ursprünglichen Entwurfs. Er hält fest, was
+> beim Bau dazukam und was der Entwurf oben deshalb noch nicht sagt. Bis zum
+> 2026-08-10 stand er ausschließlich in AGENTS.md §11 — also in einer Datei, die
+> niemand liest, der an den Klimazonen arbeitet.
+
+**Es sind acht Zonen, nicht sieben.** Am 2026-08-03 kam `trockene_subtropen`
+(`sort_order` 55) zwischen die winterfeuchten Subtropen und die subtropische Zone.
+Die §§3 und 4 oben zählen noch sieben Zonen und sechs Trennlinien; die Zahl ist
+**Daten**, nicht Code, und steht in `AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED`. Genau
+darum sind die `sort_order` in Zehnerschritten vergeben — damit Einschieben möglich
+bleibt, ohne bestehende Werte anzufassen.
+
+💣 **Eine Zone einzuschieben darf keine vorhandene Grenze bewegen.** Bis zum
+2026-08-03 löschte der Abgleich bei jeder Änderung der Zonenzahl **alle** Linien und
+verteilte sie gleichmäßig neu. Eine einzige neue Saatzeile hätte damit **jede von Hand
+gezogene Klimagrenze vernichtet** — und zwar lautlos, denn hinterher liegen ja Linien
+da, nur eben die falschen.
+
+**Die Behebung ist eine Identität, kein Sonderfall.** Jede Trennlinie trägt seither
+`south_type_key` — den Schlüssel der Zone **darunter**. Eine Trennlinie *ist* die
+Nordküste ihrer Südzone, und genau die soll beim Einschieben stehenbleiben. Der
+Abgleich hält Vorhandenes byteweise fest und legt **nur Fehlendes** an. Bewacht von
+`climate-insert-zone-test.php` (sqlite).
+
+⚠️ **Zwei Reihenfolgen, die tragen:**
+
+- Das Nachtragen der Spalte `south_type_key` steht in `EnsureTables` **vor**
+  `avesmapsEcosystemSeedRegionTypes()`. Andersherum kennt die Vokabeltabelle die neue
+  Zone schon, und die Zuordnung der Linien zu ihren Südzonen ist um eine Stelle
+  verschoben — jede Linie bekäme die Identität ihrer Nachbarin.
+- Die Saat läuft im **Schreib**-Dispatcher (`climate_get`), **nie in `EnsureTables`**.
+  `EnsureTables` hebt die Revision nicht, und der Bestand käme beim Client als 304 an.
+
+⚠️ Die Zonen tragen **kein `map_features`-Label**: ihr Name wird von der Ebene selbst
+gezeichnet. Sie sind damit der einzige `type_key`, der vom Label-Subtyp-Zwang
+ausgenommen ist.
+
+💣 **`map_revision` deckt die Klimazonen im ETag NICHT ab.** Eine gezogene Trennlinie
+verschiebt die Zone jedes Ortes, ohne `map_revision` anzufassen. `avesmapsClimateReadStamp()`
+steht deshalb mit im ETag-Seed von `map-features.php` — siehe
+`2026-08-03-klimazone-infobox-design.md`.
+
+**Offen (🔧 Owner):** die Bodenregel `SEASON_GROUND_TABLE` (`js/routing/season-ground.js`
+und ihr PHP-Zwilling) kennt weiterhin **sieben** Zonen. In den trockenen Subtropen
+greift daher nie ein Bodenabzug. Für eine Trockenzone plausibel, aber **übersehen, nicht
+entschieden** — Memory `klimazone-trockene-subtropen-ohne-boden`.
