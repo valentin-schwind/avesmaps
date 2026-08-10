@@ -78,12 +78,26 @@ deklarativ in `api/_internal/social/channels.php`. Die **Zugangsdaten** stehen a
 ```
 'social' => [
     'app_token'  => '…',              // gated die Endpunkte, NICHT der Netz-Token
-    'instagram'  => ['user_id' => '…', 'access_token' => '…', 'expires_at' => …],
-    'facebook'   => ['page_id'  => '…', 'access_token' => '…'],
-    'mastodon'   => ['base_url' => '…', 'access_token' => '…'],
     'enabled'    => true,             // Killschalter, siehe §8
+    'instagram'  => ['user_id' => '…', 'app_id' => '…', 'app_secret' => '…'],
+    'facebook'   => ['page_id'  => '…'],
+    'mastodon'   => ['base_url' => '…'],
 ],
 ```
+
+🔴 **Der rotierende Zugangs-Token steht in der DATENBANK, nicht hier** (Owner-Entscheid 10.08.2026;
+Tabelle `social_token`, Spalten `channel_key · access_token · expires_at · refreshed_at`). Ein Token,
+der sich alle paar Wochen selbst erneuert, kann nicht in einer von Hand gepflegten PHP-Datei wohnen:
+der Server müsste PHP-Quelltext parsen und zurückschreiben, und der erste misslungene Schreibvorgang
+hinterließe eine kaputte Konfiguration, die die ganze Seite mitnimmt. Also die Teilung:
+`config.local.php` trägt, was sich **nie** ändert (App-Kennung, App-Geheimnis, der eigene
+`app_token` der Endpunkte, der Killschalter), die Datenbank trägt, was **umläuft**. Auf die Datenbank
+hat nur der Owner Zugriff.
+
+⚠️ Für die Verfügbarkeitsprüfung zählt deshalb **beides**: ein Kanal gilt als eingerichtet, wenn er
+eine Token-Zeile **oder** einen Token in der Konfiguration hat — **und** das, wodurch er adressiert
+wird (`user_id` · `page_id` · `base_url`). Ein Token ohne Adresse erreicht niemanden, und das erst
+beim Absenden zu merken heißt: ein öffentlich gescheiterter Beitrag.
 
 **Ein Kanal in der Oberfläche = eine Zeile.** Serverseitig braucht jeder Dienst trotzdem einen
 eigenen Adapter (`api/_internal/social/adapters/<key>.php`), weil die APIs verschieden sind —
@@ -171,6 +185,14 @@ Ein Beitrag, N Ziele — genau deshalb, weil der Status je Kanal eigenständig i
 lange nicht im Namen des Projekts an die Öffentlichkeit. Die beiden Rechte trennen sich hier
 sauber, und die Trennung ist billig — eine Zeile in der Rechteprüfung.
 
+⚠️ **In Stufe 1 deckt sich `social` mit `admin`** (`avesmapsUserCan`, live 10.08.2026). Das
+Rechtemodell kennt nur die drei Rollen `admin · editor · reviewer` und **keine Rechtematrix je
+Person** — enger geht es also nicht, ohne das Modell zu erweitern. Das ist die enge **Startwahl**,
+nicht die Definition der Fähigkeit. Sie auf namentliche Editoren zu öffnen ist eine Spalte
+`users.can_social` plus dieselbe eine Zeile, und **kein Aufrufer ändert sich dabei**, weil alle
+schon durch `avesmapsUserCan(…, 'social')` gehen. Genau dafür hat sie jetzt schon einen eigenen
+Namen bekommen, statt überall `admin` hinzuschreiben.
+
 ## 8. Betrieb
 
 **Token-Verlängerung.** Instagram-Tokens laufen nach 60 Tagen ab, lassen sich aber programmatisch
@@ -226,7 +248,7 @@ getrennt, wenn Bild nachweislich läuft.
 | | Stand |
 |---|---|
 | Meta-App „Avesmaps" | `1037557352198584`, Anwendungsfälle Instagram + Seiten, **kein** App-Review, **keine** Unternehmensverifizierung |
-| Berechtigungen | `instagram_basic`, `instagram_content_publish`, `pages_manage_posts`, `pages_read_engagement`, `pages_show_list`, `business_management` |
+| Berechtigungen | `instagram_basic`, `instagram_content_publish`, `pages_manage_posts`, `pages_read_engagement`, `pages_show_list`, `business_management` — ⚠️ das ist der **Facebook-Login**-Satz, siehe unten |
 | Instagram `@avesmaps` | Unternehmenskonto, ID `17841434373040202`, im Business-Portfolio |
 | Facebook-Seite „Avesmaps" | ID `61592910429900`, Asset `1322710140914682` — 🔧 **blockiert**: Der Owner hat nur Aufgabenzugriff, für die Instagram-Verknüpfung braucht es *uneingeschränkte Kontrolle*; wer sie hat, ist offen |
 | Mastodon | noch kein Konto |
@@ -235,3 +257,54 @@ getrennt, wenn Bild nachweislich läuft.
 persönliches Profil, verstößt als Projektauftritt gegen Facebooks Regeln und kann nicht per API
 bespielt werden. Der Link in der „Folge uns"-Kachel auf avesmaps.de zeigt derzeit dorthin und
 gehört auf `61592910429900` umgestellt.
+
+### 12.1 Die drei Entscheidungen vom 10.08.2026
+
+**1. Instagram geht über „API-Einrichtung mit Instagram-Login" — ohne Facebook-Seite.**
+Der Name meint den **Einrichtungsweg**, nicht eine laufende Anmeldung: einmal im Browser bestätigen,
+Code gegen einen Kurzzeit-, den gegen einen Langzeit-Token tauschen, ablegen, nie wieder eine Maske.
+Dasselbe Muster wie beim Discord-Bot. ⚠️ Dieser Weg spricht `graph.instagram.com` an, **nicht**
+`graph.facebook.com`, und hat **eigene Rechtenamen** (`instagram_business_basic`,
+`instagram_business_content_publish`) — die oben gelisteten gehören zum Facebook-Login-Weg. Die
+genauen Namen sind vor dem Bau des Adapters (Stufe 2) einmal gegen Metas aktuelle Doku abzugleichen;
+Meta tauft sowas gern um, und ein falscher Rechtename kostet eine Stunde Rätselraten.
+
+💣 **Der Zähler darf nie durchlaufen.** Der Langzeit-Token gilt 60 Tage und wird per
+`ig_refresh_token` verlängert. Verstreichen 60 Tage ohne Verlängerung, ist er tot und die
+„einmalige" Einrichtung fängt von vorn an — dann wäre „einmalig" still gelogen. Verlängert wird
+deshalb um **Tag 35**, nicht um Tag 58, und ein Fehlschlag meldet nach Discord (§8). ⚠️ Zweite Falle:
+`ig_refresh_token` verlangt einen mindestens **24 Stunden alten** Token. Die Routine läuft direkt
+nach der Einrichtung einmal ins Leere und darf das **nicht** als Fehler melden.
+
+**2. Facebook ist zu MESSEN, nicht zu vermuten.** *Uneingeschränkte Kontrolle* verlangt Meta für die
+**Instagram-Verknüpfung**. Zum **Posten** auf der Seite genügt dagegen die Aufgabe *Inhalte
+erstellen* (`CREATE_CONTENT`). Ob der Owner sie hat, sagt eine einzige Anfrage im Graph-API-Explorer:
+
+```
+GET /me/accounts?fields=name,id,tasks
+```
+
+Steht bei „Avesmaps" ein `CREATE_CONTENT` im `tasks`-Feld, ist Facebook offen und der Blocker betraf
+nur den Umweg über die Seite — den wir mit Entscheidung 1 ohnehin nicht mehr gehen. Steht es nicht
+drin, ist Facebook wirklich zu, und die einzige Lösung ist, den Inhaber der Seite zu finden.
+🔧 **Solange das nicht gemessen ist, gilt Facebook als offen, nicht als blockiert.**
+
+**3. Der rotierende Token steht in der Datenbank** — begründet in §3.
+
+### 12.2 Was Stufe 1 bewusst NICHT enthält
+
+Damit niemand es für vergessen hält. **Live seit 10.08.2026** ist alles aus §11 Stufe 1: Reiter,
+Hub, Register, Endpunkte, Bild-Pipeline, Status je Kanal, Rechteabfrage, Probe-Kanal, Freigabe.
+Nicht enthalten sind:
+
+- **Kein echter Kanal.** Instagram, Facebook und Mastodon stehen im Register und erscheinen
+  ausgegraut als „noch nicht eingerichtet". Ihre Adapter sind Stufe 2. 🔴 Ein fehlender Adapter ist
+  `null`, nie ein stiller Leerlauf, der Erfolg meldet — sonst stünde „gesendet" an einem Kanal, auf
+  dem nichts steht.
+- **Kein Kartenausschnitt, kein Video.** Beide Knöpfe stehen sichtbar und abgeschaltet da. Video ist
+  laut §11 ohnehin Stufe 3; der Kartenausschnitt braucht eine eigene Aufnahme (Leaflet mischt
+  Kachel-`<img>` und Canvas-Ebenen) und ist damit eigene Arbeit, kein Nebeneffekt der Bild-Pipeline.
+- **Keine Token-Verlängerung.** Die Tabelle steht, die Erneuerung braucht einen Adapter und kommt
+  mit ihm.
+- **Keine Zeitplanung.** Spalte `scheduled_for` und Status `geplant` existieren, es gibt nur noch
+  keinen Läufer, der sie abarbeitet.
