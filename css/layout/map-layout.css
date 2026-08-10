@@ -12,10 +12,8 @@ body {
 	position: absolute;
 	top: 10px;
 	left: 0;
-	/* Die Gasse laesst der Randlasche Platz -- ohne sie ragen von ihren 30px auf einem 360er
-	   Schirm 10px ins Bild, und man bekommt das offene Panel kaum wieder zu.
-	   ⚠️ Das fruehere `max-width: calc(100vw - 10px)` ist damit ueberfluessig: min() deckelt schon. */
-	width: min(350px, calc(100vw - var(--avesmaps-panel-gutter)));
+	width: 350px;
+	max-width: calc(100vw - 10px);
 	max-height: 95vh;
 	display: flex;
 	flex-direction: column;
@@ -48,19 +46,9 @@ body {
 }
 
 
-/* Am Telefon laeuft der Planer von Kante zu Kante und scrollt IN SICH.
-   💣 Vorher stand hier `max-height: calc(140dvh - 20px)`. 140dvh ist mehr als der Schirm -- die
-   Grenze griff also NIE, das Panel scrollte nicht, und stattdessen scrollte die SEITE: gemessen
-   auf 360x640 ragten 136px unter den Rand und die Karte fuhr weg. `#search` traegt bereits
-   `overflow-y: auto`; es fehlte nur eine Hoehe, an der das greift.
-   ⚠️ Die 140 war kein Versehen, sondern ein Ausweichen vor dem Scrollbalken im Panel. Der ist am
-   Telefon das kleinere Uebel: er liegt ueber einem Panel, das man ohnehin scrollt, waehrend die
-   wegfahrende Karte den Bezugspunkt kostet. */
 @media (max-width: 640px) {
 	#search {
-		top: 0;
-		height: 100dvh;
-		max-height: none;
+		max-height: calc(140dvh - 20px);
 	}
 
 	#overview {
@@ -138,24 +126,4 @@ body {
 .leaflet-control-zoom a.leaflet-disabled {
 	background-color: var(--color-disabled-bg);
 	color: var(--color-disabled-text);
-}
-
-/* Am Finger ist die Zwei-Finger-Geste die Zoomhilfe; zwei 26px-Kacheln daneben sind ein Mausrelikt,
-   das Kartenflaeche kostet (Owner 2026-08-10). Der Platz, den sie raeumen, geht an den Suchknopf.
-   ⚠️ AUSGEBLENDET, nicht bei `L.control.zoom(...).addTo(map)` weggelassen: die Platzierungsregel
-   `.avesmaps-infopanel-mode .leaflet-control-zoom` in infopanel.css stuende sonst als tote
-   Zusicherung da, und js/app/__tests__/map-corner-actions.test.js prueft sie. */
-@media (pointer: coarse) {
-	.leaflet-control-zoom {
-		display: none;
-	}
-}
-
-/* Leaflets eigener 4px-Abschluss (css/third-party/leaflet.css, .leaflet-bar) war der dritte in der
-   unteren rechten Ecke -- neben 5px an den Eckknoepfen und 8px an den Dialogknoepfen. AGENTS.md §12
-   gibt Knoepfen --radius-md; hier gilt dasselbe.
-   ⚠️ UEBERSCHRIEBEN, nicht dort geaendert: Fremddateien werden im Haus nie bearbeitet -- und die
-   Zoom-FARBEN liegen aus demselben Grund schon in dieser Datei. */
-.leaflet-control-zoom {
-	border-radius: var(--radius-md);
 }

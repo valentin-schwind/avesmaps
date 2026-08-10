@@ -21,10 +21,10 @@
 	grid-template-columns: 24px minmax(0, 1fr) 26px;
 	align-items: center;
 	gap: 4px;
-	min-height: max(36px, var(--tap-min));
+	min-height: 36px;
 	padding: 3px 4px;
 	border: 1px solid var(--color-border);
-	border-radius: var(--radius-md);
+	border-radius: 8px;
 	background: var(--color-panel);
 	box-shadow: 0 3px 8px rgba(52, 41, 32, 0.08);
 	transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
@@ -43,8 +43,8 @@
 
 .waypoint-drag-handle,
 .remove-waypoint {
-	width: var(--control-h-sm);
-	height: var(--control-h-sm);
+	width: 24px;
+	height: 24px;
 	border: 0;
 	border-radius: var(--radius-md);
 	background: transparent;
@@ -74,7 +74,7 @@
 
 .waypoint-input {
 	width: 100%;
-	height: var(--control-h);
+	height: 30px;
 	min-width: 0;
 	border: 0;
 	border-radius: var(--radius-md);
@@ -105,9 +105,9 @@
 }
 
 .input-options button {
-	min-height: var(--control-h);
+	min-height: 32px;
 	border: 1px solid var(--color-button-border);
-	border-radius: var(--radius-md);
+	border-radius: 8px;
 	background: var(--color-button);
 	color: var(--color-button-text);
 	cursor: pointer;
@@ -170,7 +170,7 @@
 	justify-content: center;
 	gap: 8px;
 	width: 100%;
-	min-height: var(--control-h);
+	min-height: 32px;
 	/* Full-width "Ziel hinzufügen" action button (replaces the old icon-only "+" and the removed
 	   "Suche" button). The "+" glyph is still drawn via ::before/::after (crisp, font-metric
 	   independent) but now sits on the LEFT, ahead of the label; the left padding reserves room for
@@ -354,7 +354,7 @@
 	   Zugeklappt -- also sobald eine Route steht und die Automatik greift -- sind es auch bei fuenf
 	   Wegpunkten nur 559 px. Der Engpass ist deshalb der Zwischenzustand „mehrere Ziele getippt,
 	   noch keine Route". Wer hier eine VIERTE Optionszeile plant, misst vorher nach. */
-	min-height: var(--control-h-sm);
+	min-height: 24px;
 	margin: 0;
 	padding: 0;
 	border: 0;
@@ -608,16 +608,12 @@
    ungebremstes <select> ist je nach Plattform 2-4 px hoeher als das Zahlenfeld daneben. */
 .route-planner-options-panel input[type="number"],
 .route-planner-options-panel select {
-	height: var(--control-h-field);
+	height: 25px;
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
 	background: var(--color-panel);
 	color: var(--color-text);
 	font: inherit;
-	/* NACH `font: inherit`, nicht davor: die Kurzform setzt font-size mit und wuerde diese Zeile
-	   sonst ueberschreiben. Ohne sie erben die Felder die 12px der umgebenden Zeile -- und unter
-	   16px zoomt iOS beim Fokus hinein, ohne zurueckzukehren. */
-	font-size: var(--font-size-control);
 	padding: 0 4px;
 	box-sizing: border-box;
 }
@@ -659,14 +655,8 @@
 	align-items: center;
 	gap: 6px;
 	color: var(--color-text);
-	/* Am Zeiger dieselben 12px wie bisher; am Finger hebt der Token sie auf die iOS-Schwelle.
-	   Die Selects in diesen Zeilen erben von hier (sie tragen `font: inherit`). */
-	font-size: var(--font-size-control);
+	font-size: 12px;
 	line-height: 1.25;
-	/* Das Klickziel ist die ZEILE, nicht das Kaestchen darin: ein <input type="checkbox"> ist
-	   nativ 14x14 und verzoege die Zeile, wenn man es aufblaest. Am Finger hebt --tap-min die
-	   Zeile auf 44px; am Zeiger ist der Token `auto` und aendert nichts. */
-	min-height: var(--tap-min);
 }
 
 .display-options__row[hidden] {
@@ -752,10 +742,7 @@
 
 .display-options__row--wrap label,
 .transport-filter-label {
-	/* 💣 DIESE Regel gewinnt, nicht die weiter oben: gleiche Spezifitaet, spaeter in der Datei.
-	   Ein --tap-min oben wurde hier auf `auto` zurueckgesetzt und blieb wirkungslos (gemessen:
-	   Zeile blieb 20px statt 44). Am Zeiger bleibt `auto` der Wert -- der Token IST dort auto. */
-	min-height: var(--tap-min);
+	min-height: auto;
 	padding: 0;
 	border: 0;
 	border-radius: 0;
@@ -860,7 +847,7 @@
 	min-height: 32px;
 	padding: 2px 22px 2px 6px;
 	border: 1px solid var(--color-border);
-	border-radius: var(--radius-md);
+	border-radius: 8px;
 	background: var(--color-panel);
 	color: var(--color-text);
 	cursor: pointer;
@@ -1492,26 +1479,4 @@
 .route-plan-entry--chained:last-child::after,
 .route-plan-entry--chained:not(:has(~ .route-plan-entry--chained))::after {
 	content: none;
-}
-/* ── Das Wegpunktfeld am Finger ───────────────────────────────────────────────────────────────
-   💣 Die EINE Ausnahme von „Masse stehen in tokens.css, Komponenten lesen sie nur". Zwei Gruende,
-   beide am 10.08.2026 an der laufenden Seite gemessen (nicht aus der Kaskade gelesen):
-
-   (1) `input.waypoint-input`, nicht `.waypoint-input`. Die Klassenregel weiter oben in DIESER
-       Datei gewinnt nicht: das Feld rendert 13,33px statt der dort stehenden 15px. Nachgewiesen
-       durch Einspritzen beider Fassungen in die laufende Seite -- `.waypoint-input` bewegt
-       nichts, `input.waypoint-input` setzt sich durch. Ohne die hoehere Spezifitaet bliebe die
-       iOS-Schwelle am wichtigsten Feld des Planers wirkungslos, und zwar lautlos.
-
-   (2) Deshalb NUR am groben Zeiger. Eine Regel, die auch am Zeiger gewinnt, verschoebe das Feld
-       dort von 13,33px auf 12px -- eine sichtbare Desktop-Aenderung, und die ist in diesem
-       Vorhaben ausgeschlossen. So bleibt der Zeiger auf den Pixel, wie er war.
-
-   🔧 WARUM die Klassenregel verliert, ist offen: die CSSOM des Pruef-Browsers meldete gar keine
-   passende Regel, obwohl die ausgelieferte Datei sie enthaelt. Fuer diesen Zweck ist das egal --
-   die Wirkung ist gemessen. Wer es aufklaert, darf diese Regel gegen eine saubere tauschen. */
-@media (pointer: coarse) {
-	input.waypoint-input {
-		font-size: var(--font-size-control);
-	}
 }
