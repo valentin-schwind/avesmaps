@@ -12,8 +12,10 @@ body {
 	position: absolute;
 	top: 10px;
 	left: 0;
-	width: 350px;
-	max-width: calc(100vw - 10px);
+	/* Die Gasse laesst der Randlasche Platz -- ohne sie ragen von ihren 30px auf einem 360er
+	   Schirm 10px ins Bild, und man bekommt das offene Panel kaum wieder zu.
+	   ⚠️ Das fruehere `max-width: calc(100vw - 10px)` ist damit ueberfluessig: min() deckelt schon. */
+	width: min(350px, calc(100vw - var(--avesmaps-panel-gutter)));
 	max-height: 95vh;
 	display: flex;
 	flex-direction: column;
@@ -46,9 +48,19 @@ body {
 }
 
 
+/* Am Telefon laeuft der Planer von Kante zu Kante und scrollt IN SICH.
+   💣 Vorher stand hier `max-height: calc(140dvh - 20px)`. 140dvh ist mehr als der Schirm -- die
+   Grenze griff also NIE, das Panel scrollte nicht, und stattdessen scrollte die SEITE: gemessen
+   auf 360x640 ragten 136px unter den Rand und die Karte fuhr weg. `#search` traegt bereits
+   `overflow-y: auto`; es fehlte nur eine Hoehe, an der das greift.
+   ⚠️ Die 140 war kein Versehen, sondern ein Ausweichen vor dem Scrollbalken im Panel. Der ist am
+   Telefon das kleinere Uebel: er liegt ueber einem Panel, das man ohnehin scrollt, waehrend die
+   wegfahrende Karte den Bezugspunkt kostet. */
 @media (max-width: 640px) {
 	#search {
-		max-height: calc(140dvh - 20px);
+		top: 0;
+		height: 100dvh;
+		max-height: none;
 	}
 
 	#overview {

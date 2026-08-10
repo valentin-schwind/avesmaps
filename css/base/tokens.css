@@ -438,6 +438,16 @@
 	--space-20: 22px;
 	--space-24: 26px;
 
+	/* Die Randlasche der beiden Kartenpanels (Routenplaner links, Info rechts) und die Gasse, die
+	   ein offenes Panel ihr stehen lassen muss, damit sie greifbar bleibt.
+	   💣 Die Gasse ist ABGELEITET, nicht gewaehlt. Als freie Zahl war sie es einmal nicht: von der
+	   30px-Lasche des Planers standen auf einem 360px-Schirm 10px im Bild, weil das Panel starr
+	   350px breit war. Aus der Laschenbreite gerechnet kann die Gasse diesen Fehler nicht mehr
+	   annehmen. BEIDE Panels lesen sie -- zwei aehnliche Formeln waeren zwei Zahlen, die beim
+	   naechsten Anfassen auseinanderlaufen. */
+	--avesmaps-tab-w: 30px;
+	--avesmaps-panel-gutter: calc(var(--avesmaps-tab-w) + var(--space-12));
+
 	/* Radius — 3 rungs; the old 4/6/7/9 fold to the nearest (controls → md) */
 	--radius-sm: 5px;   /* mirrored panel shell + tiniest chips */
 	--radius-md: 8px;   /* all controls: buttons, inputs, selects, pills, rows */

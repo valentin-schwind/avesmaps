@@ -10,7 +10,9 @@
 /* Panel-Breite als Variable (Mode-Klasse liegt auf <html>): Panel, Rand-Tab UND die nach
    links neben die Panel-Kante gesetzten Karten-Kontrollen (Zoom + "Hinweise") teilen sie sich. */
 .avesmaps-infopanel-mode {
-	--avesmaps-ip-w: min(400px, calc(100vw - 64px));
+	/* Gasse als Token (tokens.css): dieselbe Zahl, die der Routenplaner liest -- sie laesst der
+	   Randlasche Platz und ist aus deren Breite abgeleitet, nicht frei gewaehlt. */
+	--avesmaps-ip-w: min(400px, calc(100vw - var(--avesmaps-panel-gutter)));
 }
 
 .avesmaps-infopanel {
@@ -673,4 +675,13 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
    Infobox -- top:10px teilen sich beide ohnehin. */
 .avesmaps-infopanel-mode #review-panel {
 	bottom: 14px;
+}
+
+/* Am Telefon randlos in der Hoehe -- dieselbe Regel wie beim Routenplaner (map-layout.css) und
+   aus demselben Grund: das Panel soll in SICH scrollen, statt die Seite scrollen zu lassen. */
+@media (max-width: 640px) {
+	.avesmaps-infopanel {
+		top: 0;
+		bottom: 0;
+	}
 }

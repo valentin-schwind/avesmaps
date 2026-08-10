@@ -83,4 +83,36 @@ assert.ok(!/maximum-scale|user-scalable/.test(viewport[0]),
 	"das Viewport-Meta sperrt das Aufziehen NICHT -- das naehme allen die Zoomgeste, also genau die,"
 	+ " die am Finger die einzige Zoomhilfe ist. Neuere iOS-Fassungen ignorieren es ohnehin.");
 
+// ---- Die Gasse: EINE Zahl, und ABGELEITET --------------------------------------------------------
+const layout = withoutComments(read("css", "layout", "map-layout.css"));
+const infopanelCss = withoutComments(read("css", "features", "infopanel.css"));
+
+const gutter = tokens.match(/--avesmaps-panel-gutter:\s*([^;]+);/);
+assert.ok(gutter, "tokens.css definiert --avesmaps-panel-gutter");
+assert.ok(/var\(--avesmaps-tab-w\)/.test(gutter[1]),
+	"die Gasse rechnet sich aus der LASCHENBREITE, nicht aus einer freien Zahl -- sonst kann sie"
+	+ " jederzeit wieder unter die 30px der Lasche rutschen und sie anschneiden. Genau das ist"
+	+ " heute der Fall: von der 30px-Lasche des Planers stehen auf 360px Schirm 10px im Bild.");
+
+[["map-layout.css", layout], ["infopanel.css", infopanelCss]].forEach(([name, css]) => {
+	assert.ok(!/100vw\s*-\s*\d+px/.test(css),
+		`${name} rechnet die Gasse NICHT von Hand (100vw - Npx) -- beide Panels lesen denselben Token,`
+		+ " sonst laufen die zwei Zahlen beim naechsten Anfassen auseinander");
+});
+assert.ok(/var\(--avesmaps-panel-gutter\)/.test(layout), "#search liest die Gasse");
+assert.ok(/var\(--avesmaps-panel-gutter\)/.test(infopanelCss), "das Infopanel liest die Gasse");
+
+// ---- 140dvh kommt nicht zurueck -------------------------------------------------------------------
+const schmal = layout.match(/@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*?\n\}/);
+assert.ok(schmal, "map-layout.css hat den Schmal-Block");
+const maxH = schmal[0].match(/#search[^{]*\{[^}]*max-height:\s*([^;]+);/);
+if (maxH) {
+	assert.ok(!/1[0-9]{2}dvh/.test(maxH[1]),
+		`#search traegt am Telefon max-height ${maxH[1].trim()} -- ueber 100dvh greift die Grenze nie,`
+		+ " das Panel scrollt nicht, und stattdessen scrollt die SEITE: gemessen auf 360x640 ragten"
+		+ " 136px unter den Rand und die Karte fuhr weg");
+}
+assert.ok(/#search\s*\{[^}]*height:\s*100dvh/.test(schmal[0]),
+	"#search laeuft am Telefon ueber die volle Hoehe -- daran haengt, dass sein overflow-y greift");
+
 console.log("touch-scale tests passed");
