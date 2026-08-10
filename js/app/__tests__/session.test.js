@@ -14,7 +14,7 @@ const {
 } = require("../session.js");
 
 const ANONYMOUS = { authenticated: false, username: null, role: null,
-	capabilities: { admin: false, edit: false, review: false } };
+	capabilities: { admin: false, edit: false, review: false, social: false } };
 
 // ---- the gate --------------------------------------------------------------------------------------
 
@@ -56,11 +56,28 @@ assert.deepStrictEqual(normalizeSessionPayload({ ok: false }), ANONYMOUS,
 	"an error envelope normalises to anonymous");
 assert.deepStrictEqual(
 	normalizeSessionPayload({ ok: true, authenticated: true, username: "vali", role: "admin",
-		capabilities: { admin: true, edit: true, review: true } }),
+		capabilities: { admin: true, edit: true, review: true, social: true } }),
 	{ authenticated: true, username: "vali", role: "admin",
-		capabilities: { admin: true, edit: true, review: true } },
+		capabilities: { admin: true, edit: true, review: true, social: true } },
 	"a good answer travels through unchanged, minus the envelope");
 assert.strictEqual(normalizeSessionPayload({ ok: true, authenticated: true, capabilities: { admin: "yes" } })
 	.capabilities.admin, false, "a non-boolean capability normalises to false, not to truthy");
+
+// ---- 'social': publishing in the name of the project ------------------------------------------------
+
+// 💣 Same rule as admin/edit/review, and it matters more here: this one opens a window that posts
+// PUBLICLY and irreversibly. A JSON-parsed error page or a proxy writing "1" must never open it.
+assert.strictEqual(normalizeSessionPayload({ ok: true, capabilities: { social: true } })
+	.capabilities.social, true, "social passes when the server really says true");
+assert.strictEqual(normalizeSessionPayload({ ok: true, capabilities: { social: "1" } })
+	.capabilities.social, false, "a string is not a permission");
+assert.strictEqual(normalizeSessionPayload({ ok: true, capabilities: { social: 1 } })
+	.capabilities.social, false, "nor is a 1");
+assert.strictEqual(normalizeSessionPayload({ ok: true, capabilities: {} })
+	.capabilities.social, false, "missing means no");
+assert.strictEqual(normalizeSessionPayload(null).capabilities.social, false, "no payload means no");
+// Being an admin in the answer is not enough on its own -- the flag is the gate, the role is not.
+assert.strictEqual(normalizeSessionPayload({ ok: true, role: "admin", capabilities: { admin: true } })
+	.capabilities.social, false, "the role string alone does not grant social");
 
 console.log("session.test.js: all asserts passed");

@@ -37,7 +37,7 @@ $anonymous = avesmapsSessionPayload(null);
 assert($anonymous['authenticated'] === false, 'no session -> not authenticated');
 assert($anonymous['username'] === null, 'no session -> no username');
 assert($anonymous['role'] === null, 'no session -> no role');
-assert($anonymous['capabilities'] === ['admin' => false, 'edit' => false, 'review' => false],
+assert($anonymous['capabilities'] === ['admin' => false, 'edit' => false, 'review' => false, 'social' => false],
     'no session -> every capability is false');
 
 // 🔴 The one that guards the public map: an anonymous visitor is never an admin, so the landscape
@@ -50,24 +50,24 @@ $admin = avesmapsSessionPayload(['id' => 7, 'username' => 'vali', 'role' => 'adm
 assert($admin['authenticated'] === true, 'a session -> authenticated');
 assert($admin['username'] === 'vali', 'the username travels');
 assert($admin['role'] === 'admin', 'the role travels');
-assert($admin['capabilities'] === ['admin' => true, 'edit' => true, 'review' => true],
-    'admin holds all three capabilities');
+assert($admin['capabilities'] === ['admin' => true, 'edit' => true, 'review' => true, 'social' => true],
+    'admin holds all four capabilities');
 
 $editor = avesmapsSessionPayload(['id' => 8, 'username' => 'edi', 'role' => 'editor']);
-assert($editor['capabilities'] === ['admin' => false, 'edit' => true, 'review' => true],
-    'editor may edit and review, but is not admin');
+assert($editor['capabilities'] === ['admin' => false, 'edit' => true, 'review' => true, 'social' => false],
+    'editor may edit and review, but is neither admin nor may they publish');
 
 // 🔴 "Die Reviewer werden zur gegebenen Zeit Zugriff bekommen" (owner, 2026-07-30) -- zur gegebenen
 // Zeit, nicht heute. A reviewer is not an admin and does not get the layer.
 $reviewer = avesmapsSessionPayload(['id' => 9, 'username' => 'revi', 'role' => 'reviewer']);
-assert($reviewer['capabilities'] === ['admin' => false, 'edit' => false, 'review' => true],
+assert($reviewer['capabilities'] === ['admin' => false, 'edit' => false, 'review' => true, 'social' => false],
     'reviewer may only review');
 
 // ---- malformed sessions fail CLOSED -------------------------------------------------------------
 
 // A role the deployment does not know grants nothing. Fail closed, never open.
 $unknownRole = avesmapsSessionPayload(['id' => 1, 'username' => 'x', 'role' => 'superuser']);
-assert($unknownRole['capabilities'] === ['admin' => false, 'edit' => false, 'review' => false],
+assert($unknownRole['capabilities'] === ['admin' => false, 'edit' => false, 'review' => false, 'social' => false],
     'an unknown role grants nothing');
 assert($unknownRole['role'] === null, 'an unknown role is not reported back as if it were valid');
 assert($unknownRole['authenticated'] === true, 'but the session itself is still a session');
@@ -75,6 +75,29 @@ assert($unknownRole['authenticated'] === true, 'but the session itself is still 
 // A session row without a role is the same case.
 $roleless = avesmapsSessionPayload(['id' => 1, 'username' => 'x']);
 assert($roleless['capabilities']['admin'] === false, 'a roleless session is not admin');
+
+// ---- the capability 'social' (Social-Media-Hub, Entwurf §7) --------------------------------------
+
+// 🔴 Its OWN capability, deliberately not a synonym for 'edit': maintaining the map and speaking
+// publicly under the project's name are different powers, and one must be grantable without the
+// other. Today it coincides with 'admin' because the role model has no per-user grid -- that is the
+// narrow starting choice, NOT the definition. Widening it to named editors is a users.can_social
+// column plus one line in avesmapsUserCan; no caller changes, because every caller already asks
+// avesmapsUserCan(..., 'social'). That is the whole reason it got a name of its own now.
+assert(avesmapsUserCan(['role' => 'admin'], 'social') === true,
+    'admin may publish');
+assert(avesmapsUserCan(['role' => 'editor'], 'social') === false,
+    'an editor may tend the map, but not speak in the name of the project');
+assert(avesmapsUserCan(['role' => 'reviewer'], 'social') === false,
+    'a reviewer even less so');
+assert(avesmapsUserCan(['role' => ''], 'social') === false,
+    'an unknown role wins nothing -- fails closed, never open');
+
+assert($admin['capabilities']['social'] === true,
+    'the rights channel carries social, otherwise the client cannot hide the tab');
+assert($editor['capabilities']['social'] === false,
+    'and it carries it as FALSE, not as missing -- an absent key reads as undefined in the client');
+assert($anonymous['capabilities']['social'] === false, 'anonymous: false');
 
 // ---- nothing else leaks -------------------------------------------------------------------------
 

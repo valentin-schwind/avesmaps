@@ -26,7 +26,7 @@
 		authenticated: false,
 		username: null,
 		role: null,
-		capabilities: Object.freeze({ admin: false, edit: false, review: false }),
+		capabilities: Object.freeze({ admin: false, edit: false, review: false, social: false }),
 	});
 
 	// Nur echtes `true` zählt. Eine als JSON geparste Fehlerseite, ein Proxy, der "0" statt false
@@ -40,7 +40,7 @@
 			authenticated: false,
 			username: null,
 			role: null,
-			capabilities: { admin: false, edit: false, review: false },
+			capabilities: { admin: false, edit: false, review: false, social: false },
 		};
 	}
 
@@ -58,6 +58,10 @@
 				admin: hasCapabilities && strictBoolean(capabilities.admin),
 				edit: hasCapabilities && strictBoolean(capabilities.edit),
 				review: hasCapabilities && strictBoolean(capabilities.review),
+				// Veröffentlichen im Namen des Projekts (Social-Media-Hub). Derselbe strenge Riegel wie
+				// oben, und hier wiegt er am schwersten: was dieser Reiter freischaltet, geht öffentlich
+				// und unwiderruflich raus.
+				social: hasCapabilities && strictBoolean(capabilities.social),
 			},
 		};
 	}

@@ -87,6 +87,16 @@ function avesmapsUserCan(array $user, string $capability): bool {
         'admin' => $role === 'admin',
         'edit' => in_array($role, ['admin', 'editor'], true),
         'review' => in_array($role, ['admin', 'editor', 'reviewer'], true),
+        // Publishing in the name of the project (social media hub, Entwurf §7). Deliberately its own
+        // capability rather than a synonym for 'edit': tending the map and speaking publicly under the
+        // project's name are different powers, and one must be grantable without the other.
+        //
+        // Today it coincides with 'admin' because the role model knows only roles and has no per-user
+        // grid. That is the narrow STARTING choice, not the definition. Widening it to named editors is
+        // a users.can_social column plus this one line -- and NO caller changes, because every caller
+        // already asks avesmapsUserCan(..., 'social'). Writing 'admin' at each call site instead would
+        // have made that widening a rebuild.
+        'social' => $role === 'admin',
         default => false,
     };
 }
@@ -116,6 +126,7 @@ function avesmapsSessionPayload(?array $user): array {
             'admin' => $isKnownRole && avesmapsUserCan($user, 'admin'),
             'edit' => $isKnownRole && avesmapsUserCan($user, 'edit'),
             'review' => $isKnownRole && avesmapsUserCan($user, 'review'),
+            'social' => $isKnownRole && avesmapsUserCan($user, 'social'),
         ],
     ];
 }
