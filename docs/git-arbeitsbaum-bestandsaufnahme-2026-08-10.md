@@ -23,7 +23,7 @@ Arbeit ist und was Rückstand.
 |---|---|
 | Worktrees registriert | 20 (16 unter `.claude/worktrees/`, + Hauptbaum + 3 im Temp) |
 | Belegter Platz `.claude/worktrees/` | **0,72 GB** in 16.452 Dateien |
-| Verwaiste Verzeichnisse | **7 — alle leer (0 Dateien)** |
+| Verwaiste Verzeichnisse | 7 — alle leer · **am 10.08. gelöscht, siehe §3** |
 | Lokale Branches | 118, davon **100 in `origin/master` enthalten** |
 | Commits, die **nirgends** in master stehen | **15** (16 Einträge, einer doppelt), auf 8 Branches — als Tag gesichert |
 
@@ -89,9 +89,9 @@ Funktion aussieht und nicht nach einem Einzelfix. Im Worktree liegt zusätzlich
 `coat-public-domain-policy` hält fest, dass öffentlich nur `public_domain` angezeigt
 wird — dieser Commit erweitert die Regel um CC0 und ist seit dem 17.07. draußen.
 
-## 3. Verwaiste Verzeichnisse
+## 3. ✅ Verwaiste Verzeichnisse — gelöscht am 2026-08-10
 
-Sieben Verzeichnisse unter `.claude/worktrees/` sind git **nicht mehr bekannt**, stehen
+Sieben Verzeichnisse unter `.claude/worktrees/` waren git **nicht mehr bekannt**, standen
 aber noch auf der Platte:
 
 ```
@@ -109,7 +109,25 @@ Messen kam für alle sieben derselbe Wert heraus, ohne jeden Hinweis darauf, das
 Frage gar nicht beantwortet wurde. Dieselbe Fehlerklasse, die der `.gitignore`-Kommentar
 schon einmal festhält (zwei Sitzungen zählten Treffer über 57 Kopien, ohne es zu merken).
 
-Löschen ist gefahrlos (leere Ordner), aber es ist eine Entscheidung des Owners.
+**Erledigt am 2026-08-10** (Owner-Entscheid). Vor dem Löschen neu gemessen — der Baum
+hatte sich an diesem Tag schon zweimal verändert —, diesmal mit `-Force`, damit
+versteckte Dateien mitzählen: alle sieben waren mit 0 Einträgen wirklich leer. Der
+Löschlauf trug einen dreifachen Riegel (nicht vorhanden / doch registriert / nicht leer
+⇒ überspringen); alle sieben gingen glatt durch, `git worktree prune` fand nichts mehr
+zu bereinigen, und alle 20 registrierten Worktrees antworten weiter auf
+`git rev-parse --git-dir`.
+
+**Der Beweis, dass es die richtige Klasse Fehler beendet:**
+
+```
+$ git -C .claude/worktrees/fahrplan-fix status --porcelain
+fatal: cannot change to '.claude/worktrees/fahrplan-fix': No such file or directory
+```
+
+Vorher lieferte derselbe Aufruf klaglos den Zustand des Hauptbaums. Ein lauter Fehler
+ist die bessere Antwort als eine plausible Zahl zur falschen Frage.
+
+Dauerhaft festgehalten in der Memory `git-worktree-waise-meldet-hauptbaum`.
 
 ## 4. Branches
 
@@ -145,8 +163,7 @@ lesen ist die Regel, an der in diesem Repo das selektive Stagen hängt (AGENTS.m
 
 Nach Wirkung geordnet, alles offen:
 
-1. **Die 7 leeren Waisen löschen.** Kein Datenverlust möglich, beendet eine Klasse
-   stiller Fehlmessungen.
+1. ~~**Die 7 leeren Waisen löschen.**~~ ✅ erledigt 2026-08-10, siehe §3.
 2. **`worktree-landschaften-v5` entscheiden.** Sechs Commits vom 28./29.07., die einzige
    zusammenhängende unfertige Funktion. Weiterbauen oder verwerfen — liegenlassen ist die
    einzige Option, die nichts entscheidet.
