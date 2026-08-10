@@ -200,6 +200,16 @@
 	padding: 11px 18px;
 }
 
+/* 🔴 Die beiden Wege aus dem Fenster sind GLEICH GROSS (Owner 11.08.2026): Parken und Senden sind
+   zwei ernstgemeinte Ausgaenge, und ein kleiner Knopf neben einem grossen liest sich wie eine
+   Notloesung neben der richtigen Antwort. Der Unterschied bleibt die FUELLUNG -- gefuellt ist die
+   Haupthandlung, weich das Parken --, nicht die Groesse. */
+#social-draft {
+	min-height: 40px;
+	min-width: 16rem;
+	padding: 11px 18px;
+}
+
 /* ⚠️ `.wiki-sync-panel__start` ist `width: 100%` -- richtig fuer den Hauptknopf oben im Reiter, falsch
    ueberall dort, wo er neben etwas anderem steht. Deshalb NICHT eine eigene gefuellte Knopfklasse
    erfinden (die driftet), sondern dieselbe nehmen und nur die Breite zuruecknehmen: in der Fusszeile
@@ -484,7 +494,9 @@
    deshalb ein Textknopf, kein gefuellter. */
 .social-hub__connect-open {
 	display: block;
-	margin-top: 8px;
+	/* Eingerueckt auf die Textspalte der Zeile: Kontrollkaestchen (13px) plus dessen Abstand (8px).
+	   So steht der Knopf unter „Zugang laeuft nie ab" und nicht unter dem Haekchen. */
+	margin: 4px 0 0 21px;
 	border: 0;
 	background: none;
 	padding: 0 2px;
@@ -505,9 +517,26 @@
 	cursor: pointer;
 }
 
-.social-hub__radio:first-of-type,
-.social-hub__channel:first-child {
+.social-hub__radio:first-of-type {
 	border-top: 0;
+}
+
+/* 💣 Die Trennlinie sitzt an der ZEILE, nicht mehr am Label darin. Seit der Einrichtungsknopf in der
+   Zeile seines Kanals steht (Owner 11.08.2026), ist eine Kanalzeile ein <div> mit dem <label> als
+   erstem Kind -- `.social-hub__channel:first-child` haette damit auf JEDE Zeile gepasst und allen
+   die Linie genommen. */
+.social-hub__channel-row {
+	border-top: 1px solid var(--color-divider);
+	padding: 6px 0;
+}
+
+.social-hub__channel-row:first-child {
+	border-top: 0;
+}
+
+.social-hub__channel-row .social-hub__channel {
+	border-top: 0;
+	padding: 0;
 }
 
 .social-hub__radio span,

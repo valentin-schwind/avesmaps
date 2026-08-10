@@ -512,8 +512,16 @@
 		host.textContent = "";
 
 		channels.forEach(function (channel) {
-			const row = document.createElement("label");
-			row.className = "social-hub__channel" + (channel.configured ? "" : " social-hub__channel--off");
+			// 💣 Die Zeile ist ein DIV, das Kontrollkästchen samt Text ein <label> DARIN. Der
+			// Einrichtungsknopf steht daneben, ausserhalb des Labels: läge er darin, würde jeder Klick
+			// auf ihn den Kanal an- und abhaken -- und ein Knopf im Label ist obendrein ungültiges HTML.
+			// (Owner 11.08.2026: der Knopf gehört in die Zeile seines Kanals, nicht unter die Liste.)
+			const row = document.createElement("div");
+			row.className = "social-hub__channel-row";
+
+			const label = document.createElement("label");
+			label.className = "social-hub__channel"
+				+ (channel.configured ? "" : " social-hub__channel--off");
 
 			const box = document.createElement("input");
 			box.type = "checkbox";
@@ -544,8 +552,8 @@
 			}
 			meta.textContent = parts.join(" · ");
 
-			const label = document.createElement("span");
-			label.append(name, meta);
+			const stack = document.createElement("span");
+			stack.append(name, meta);
 
 			// Der Ablauf steht in EIGENER Zeile, nicht in der Aufzaehlung: ein Datum ist eine
 			// Vorwarnung und darf nicht zwischen Zeichenlimits untergehen. „Nie" bleibt unauffaellig,
@@ -557,27 +565,28 @@
 					? "social-hub__channel-meta"
 					: "social-hub__channel-expiry";
 				line.textContent = expiry;
-				label.appendChild(line);
+				stack.appendChild(line);
 			}
-			row.append(box, label);
-			host.appendChild(row);
-		});
+			label.append(box, stack);
+			row.appendChild(label);
 
-		// Der Aufmacher für die Einrichtung, je einrichtbarem Kanal einer. 💣 Bewusst UNTER der Liste
-		// und nicht in der Zeile: die Zeile ist ein <label> für ihr Kontrollkästchen, ein Knopf darin
-		// würde beim Klick den Kanal an- und abhaken (und wäre ungültiges HTML obendrein).
-		channels.forEach(function (channel) {
-			if (!channel.connectable) { return; }
-			const open = document.createElement("button");
-			open.type = "button";
-			open.className = "social-hub__connect-open";
-			// „Erneuern" statt „einrichten", sobald ein Zugang steht: der Knopf verschwindet nicht,
-			// weil ein Token ersetzt werden können muss -- aber er soll nicht behaupten, es fehle noch
-			// etwas.
-			open.textContent = "🔑 Zugang zu " + channel.label
-				+ (channel.configured ? " erneuern" : " einrichten");
-			open.addEventListener("click", function () { openConnect(channel); });
-			host.appendChild(open);
+			// Der Einrichtungsknopf steht in der Zeile SEINES Kanals -- dort, wo auch „Zugang läuft nie
+			// ab" steht, also neben der Aussage, die er ändert. Unter der Liste war er von dem Kanal
+			// getrennt, um den es geht.
+			if (channel.connectable) {
+				const open = document.createElement("button");
+				open.type = "button";
+				open.className = "social-hub__connect-open";
+				// „Erneuern" statt „einrichten", sobald ein Zugang steht: der Knopf verschwindet nicht,
+				// weil ein Token ersetzt werden können muss -- aber er soll nicht behaupten, es fehle
+				// noch etwas.
+				open.textContent = "🔑 Zugang zu " + channel.label
+					+ (channel.configured ? " erneuern" : " einrichten");
+				open.addEventListener("click", function () { openConnect(channel); });
+				row.appendChild(open);
+			}
+
+			host.appendChild(row);
 		});
 
 		const hint = el("social-channel-hint");
