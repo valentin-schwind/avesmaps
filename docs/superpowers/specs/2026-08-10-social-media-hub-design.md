@@ -113,6 +113,50 @@ entgegennehmen und `{ok, remote_id}` oder `{ok:false, error}` zurückgeben.
 Fehlt zu einem Kanal der Zugang, erscheint er **ausgegraut und nicht anhakbar** („noch nicht
 eingerichtet"), statt zu verschwinden. Wer die Oberfläche sieht, soll wissen, was möglich wäre.
 
+### 3.2 „Zugang einrichten" — der Server holt den Token selbst
+
+Ein Kanal-Zugang entsteht über **einen** Knopf im Hub, unter der Kanalliste. Der Editor fügt **einen**
+kurzlebigen Nutzer-Token aus dem Graph-API-Explorer ein; alles Weitere macht der Server:
+tauschen (`fb_exchange_token`) → `GET /me/accounts` → nachprüfen (`debug_token`) → ablegen.
+Endpunkt `api/edit/social/connect.php` (Fähigkeit `social`), Kern `api/_internal/social/connect.php`.
+
+**Warum überhaupt.** Am 10.08.2026 wurde derselbe Zugang von Hand über drei Werkzeuge eingerichtet —
+Explorer, Debugger, phpMyAdmin — und dabei landete **dreimal** etwas Falsches in `social_token`.
+Zwei davon fielen nicht auf: der Seiten-Token aus einem **kurzlebigen** Nutzer-Token (tot nach einer
+Stunde) und der **langlebige Nutzer**-Token selbst (tot am 09.10.2026). Beide sehen aus wie der
+richtige, beide werden gespeichert, beide posten. Der Unterschied ist eine Zahl in einer Antwort, die
+niemand aufruft. Genau deshalb ruft sie jetzt der Server auf.
+
+💣 **Fünf Riegel, und gespeichert wird nur, was alle fünf besteht** (`connect-test.php`, jede Mutation
+tötet ihre Zusicherung):
+
+1. **`expires_at === 0`** ist die EINZIGE Zusage „läuft nie ab". Jede andere Zahl ist ein Datum, an
+   dem der Kanal ohne Vorwarnung aufhört.
+2. **`type === 'PAGE'`**, nicht `USER`. Ein Nutzer-Token trägt dieselben Rechte und sieht überall
+   gleich aus.
+3. **Ein fehlendes `expires_at` ist kein Freibrief.** Die Prüfung fällt geschlossen aus: keine
+   Antwort ist kein Nachweis.
+4. **Die Seite wird über die KENNUNG gesucht, nie über den Namen.** Es gibt mehrere Auftritte namens
+   „Avesmaps"; über den Namen erwischt man die alte Seite, die zuerst in der Liste steht.
+5. **`pages_manage_posts` muss dabei sein**, sonst wäre der Zugang eingerichtet und trotzdem stumm —
+   und das fiele erst beim ersten Beitrag auf, also öffentlich.
+
+Schlägt einer an, bleibt die Tabelle, wie sie war, und die Absage nennt den **gemessenen** Grund.
+Fehlt die Seite in `/me/accounts`, nennt sie sogar den Weg (Business-Integrationen → „Ansehen und
+bearbeiten" → unter *Pages* die Seite anhaken) — daran gingen am 10.08.2026 zwei Stunden verloren.
+
+🔴 **Kein Token verlässt den Server** — nicht in der Antwort, nicht in einer Fehlermeldung. Zurück
+gehen der Name der Seite und „läuft nie ab". Der eingefügte reist im **POST-Rumpf**, nie in der
+Adresse (Abfragezeichenfolgen landen in Server-Protokollen), und das Feld ist maskiert und wird nach
+dem Absenden geleert.
+
+⚠️ **Vollautomatisch geht das nicht und soll es nicht.** Meta verlangt einmal eine menschliche
+Zustimmung im Browser — das ist der Sinn der Sache. Weg ist alles *danach*.
+
+⚠️ Welche Kanäle diesen Weg haben, steht als `connect` im **Register** (§3), nicht im Client. Zum
+Browser reist nur `connectable` — DASS es geht, nie WIE. Heute: `facebook`. Instagram bekommt einen
+eigenen Weg (`graph.instagram.com`, andere Rechtenamen, §12.1).
+
 ### 3.0 Der Kanal „Neuigkeiten" — avesmaps selbst
 
 Ein Kanal muss nicht nach draußen führen. **„Neuigkeiten"** (Schlüssel `changelog`) schreibt in
