@@ -3,12 +3,18 @@
 **Stand:** 2026-08-10 · **Gemessen:** live auf avesmaps.de bei 375×812 und 360×640, DPR 2,
 `pointer: coarse` · **Owner-Abstimmung:** 2026-08-10 — Zoomtasten entfallen (§7 C2), die
 schwebende Box entfällt (§5.3), Panels in voller Höhe mit den vorhandenen Laschen statt eines
-Schließkreuzes (§5.1–5.2); das „Blatt von unten" ist damit verworfen (§8)
+Schließkreuzes (§5.1–5.2), die iOS-Schwelle vorgezogen (§6 A1), die Suche nimmt den Sitz des
+Zooms (§7 C1), Trefferflächen **insgesamt** unter der Bedingung „Flächen bleiben unberührt"
+(§7 C3a–d), Ortsnamen klickbar **auch am Desktop** (§7 C3b); das „Blatt von unten" ist
+verworfen (§8)
 
 > Umfang: **nur das Frontend.** Die Editoren (`css/pages/*`, `edit/`, `html/*-editor.html`)
 > bleiben unberührt — dort wird am Schreibtisch gearbeitet. Wo eine Regel unter
 > `@media (pointer: coarse)` steht, greift sie auf einem Tablet auch im Editor; das ist
 > hingenommen, aber nicht Gegenstand der Abnahme.
+>
+> ⚠️ **Eine Maßnahme ist ausdrücklich nicht auf das Telefon beschränkt:** klickbare Ortsnamen
+> (§7 C3b, Owner 2026-08-10) gelten auch am Zeiger und werden auch dort abgenommen.
 
 ---
 
@@ -304,7 +310,7 @@ selben Zug an die Steuerhöhe gebunden statt neu geraten. ⚠️ Sie hängt an `
 `.avesmaps-infopanel-mode` allein — die Modusklasse sitzt an `<html>` **und** `<body>`, und die
 body-Kopie überschriebe sonst den schmalen Fall (AGENTS.md §11, genau so schon einmal gemessen).
 
-### C3 — Orte antippbar machen
+### C3a — Punkte: der Trefferboden für Ortsmarker
 
 Der Trefferkreis ist heute `core · 1,33 + 3` px
 ([`location-canvas-layer.js:297`](../../../js/map-features/map-features-location-canvas-layer.js),
@@ -323,9 +329,78 @@ technisch harmlos — die Schleife nimmt ohnehin den **nächsten** Treffer —, 
 Boden lässt einen Tipp auf leere Karte einen Ort weit weg öffnen. 16 px (32 px Ø) ist der
 Startwert; er ist zu messen, nicht zu glauben.
 
-**Alternative, eleganter, teurer:** Trefferfläche = Marker **∪** Namenslabel. Das Label ist
-breit und bereits klickbar ([`map-features-labels.js:524`](../../../js/map-features/map-features-labels.js)),
-womit ein Dorf ohne jede neue Zahl fingergroß würde. Eigener Schritt.
+### C3b — Ortsnamen werden klickbar, **auch am Desktop** *(Owner-Entscheid 2026-08-10)*
+
+🔴 **Korrektur zum ersten Entwurf.** Dort stand, das Ortslabel sei „breit und bereits klickbar".
+Das gilt für **Regions**labels (`.map-label`). Der **Ortsname** ist doppelt gesperrt:
+`interactive: false` am Marker
+([`location-name-labels.js:155`](../../../js/map-features/map-features-location-name-labels.js))
+**und** `pointer-events: none` im CSS. Und zwar absichtlich — der Kommentar in
+[`map-labels.css:508`](../../../css/features/map-labels.css) sagt warum:
+
+> „`.location-name-label` teilt sich jene Regel und bleibt bewusst inert: dort ist der
+> Siedlungs-MARKER das Klickziel, nicht seine Beschriftung — beide klickbar zu machen hiesse,
+> zwei Treffer uebereinanderzulegen."
+
+**Diese Begründung trägt hier nicht, und das ist der ganze Punkt.** Zwei Treffer übereinander
+sind ein Problem, wenn sie **verschiedene** Dinge öffnen. Marker und Name eines Ortes sind
+dasselbe Ding: „Gareth" und der Punkt darunter führen beide nach Gareth. Es sind keine zwei
+Ziele, sondern **ein Ziel mit zwei Teilen** — und der zweite ist der breitere.
+
+**Umzustellen:** `interactive: true`, `pointer-events: auto`, und ein Klickpfad, der **exakt
+denselben** Aufruf macht wie der Marker (nicht ein zweiter Popup-Bauer daneben — sonst laufen
+die beiden Auskünfte über einen Ort auseinander).
+
+✅ **Kein Geisterklick bei verdeckten Namen:** `.is-colliding` ist `display: none`
+([`map-labels.css:45`](../../../css/features/map-labels.css)), nicht `opacity: 0`. Ein
+weggekollidiertes Label ist aus dem Trefferbaum heraus — die Falle, die es hier geben könnte,
+gibt es nicht.
+
+⚠️ **Der Bearbeitungsmodus ist gesondert zu prüfen.** `body.edit-mode .map-label` setzt schon
+heute `cursor: move` + `pointer-events: auto` fürs Ziehen. Ortsnamen bekommen dort erstmals
+beides — der Klickpfad darf das Ziehen nicht abfangen.
+
+⚠️ **Kein `pointer: coarse`-Riegel.** Owner ausdrücklich: auch am Zeiger. Damit gehört dieser
+Punkt **nicht** in die Fingerschicht und wird auch am Desktop abgenommen.
+
+### C3c — Linien: ja, aber sparsam
+
+Nur **202 von ~5.650** Wegen sind überhaupt klickbar
+(`interactive: IS_EDIT_MODE || pathHasWiki(path)`). Die klickbare Breite ist die der Kontur —
+bei Zoom 3 gemessen: 5,85 px für die dicksten, 2,4 px, 1,2 px für die dünnsten. Am Finger
+(~2,5 mm bei 5,85 px) ist das nicht zu treffen.
+
+💣 **Hier kostet jeder Pixel etwas, anders als bei Punkten.** Ein Weg ist ein Streifen quer
+über die Karte. Gibt man ihm 44 px Trefferbreite, gehört ein Band von ±19 px links und rechts
+**jedes** Weges nicht mehr dem Gebiet darunter. Bei 202 sichtbaren Wegen ist die Karte damit
+mit Wege-Bändern gepflastert, und ein Tipp auf eine Grafschaft trifft die Straße, die zufällig
+hindurchläuft. Das ist genau das, was der Owner ausgeschlossen hat.
+
+**Vorschlag:** kein flacher Boden, sondern ein **Vielfaches der gezeichneten Breite**, gedeckelt
+— `hitWeight = min(20, max(gezeichnet, gezeichnet × 3))`. Das erhält die Rangfolge
+(Reichsstraße breit, Pfad schmal), lässt das Band überall schmaler als die halbe Fingerbreite
+und nimmt dem Gebiet darunter ~7 px statt ~19. ⚠️ Der Faktor und der Deckel sind **zu messen**;
+gebaut wird er als unsichtbare dritte Linie über der Kontur, nicht durch Verbreitern der
+sichtbaren (sonst ändert sich das Kartenbild).
+
+🔧 **Falls dir auch das zu viel Eingriff ist:** C3c weglassen und nur C3a + C3b bauen. Ein Weg
+trägt seinen Namen als Label, und Labels werden mit C3b ohnehin klickbar — dann ist der
+**Name** das Trefferziel des Weges, und die Fläche darunter bleibt vollständig unangetastet.
+Das ist die sparsamste Fassung und sie erfüllt deine Bedingung ohne jede Abwägung.
+
+### C3d — Flächen bleiben, wie sie sind
+
+Territorien, Landschaften, Klimabänder: **keine Änderung, und es gibt auch keine zu machen.**
+Die Trefferfläche eines Polygons *ist* seine Fläche — ein „Boden" hieße, sie nach außen zu
+schieben und den Nachbarn zu bestehlen. Bei geschachtelten Gebieten wäre das aktiv schädlich;
+die bekannte Eigenheit „Eltern-Hülle frisst Klicks der Kinder" ist genau dieser Fehler, nur
+schon vorhanden.
+
+✅ **Die Bedingung des Owners ist strukturell erfüllt, nicht nur zugesagt.** Die Pane-Reihenfolge
+ordnet die Flächen ohnehin ganz unten ein — gemessen: `regionsPane` 200, `ecosystemPane`
+250–253, gegen `roadsPane` 400, `locationCanvasPane` 499, `labelsPane` 650. Punkte und Namen
+liegen darüber und nehmen ihnen nichts, was sie nicht heute schon nähmen. **Nur C3c greift
+wirklich in die Fläche darunter** — deshalb steht dort ein Deckel und ein Ausstieg.
 
 ## 8. Verworfen: der Planer als Blatt von unten
 
@@ -352,8 +427,15 @@ keine Seite).
 | 2 | **0** Panels (§5.1–5.3) | — | 360×640, 5 Wegpunkte: Panel läuft randlos, scrollt in sich, Seite nicht; Lasche 30 von 30 px sichtbar; ein Tipp auf einen Ort öffnet **eine** Fläche |
 | 3 | **A** Maßschicht (Rest) | 0 | kein Bedienelement des Fingerwegs unter 44 px; Desktop 1280×800 **pixelgleich** |
 | 4 | **C2 → C1** Ecke | A | erst räumt der Zoom, dann zieht die Suche ein — in dieser Reihenfolge, sonst stehen kurz drei Dinge übereinander |
-| 5 | **C3** Trefferboden | — | Dorf bei Zoom 4 treffbar, ohne dass ein Tipp auf leere Karte einen Ort weit weg öffnet |
+| 5 | **C3b** Ortsnamen klickbar | — | **auch am Desktop:** Klick auf „Gareth" öffnet dasselbe wie der Punkt darunter; ein weggekollidierter Name fängt nichts; Ziehen im Editmodus unverändert |
+| 6 | **C3a** Trefferboden Punkte | — | Dorf bei Zoom 4 treffbar, ohne dass ein Tipp auf leere Karte einen Ort weit weg öffnet |
+| 7 | **C3c** Linien *(optional)* | C3b | ein Weg am Finger treffbar; **Gegenprobe: eine Grafschaft neben einem Weg öffnet weiter die Grafschaft** |
+| — | **C3d** Flächen | — | nichts zu tun (§7 C3d) |
 | — | **B** Blatt | verworfen (§8) | — |
+
+⚠️ **C3b vor C3a**, obwohl beide dasselbe Ziel haben: der breite Name nimmt dem Boden unter dem
+Punkt einen Teil seiner Arbeit ab. Wer zuerst den Boden setzt, misst ihn gegen eine Karte, auf
+der das Label noch nicht hilft — und wählt ihn zu groß.
 
 💣 **A1 ist von A abtrennbar, der Rest nicht.** Die Schriftgröße wächst nach innen und rührt
 das Höhenbudget aus §4 nicht an — sie kann vor Block 0 gehen. Jede **Höhe** dagegen wartet auf
@@ -385,8 +467,15 @@ Inhalt):
    `location-marker-entry.js` hängt an einer Zeigerprüfung, der in `location-lookup.js`
    **nicht**. Mutation: den Riegel auch dorthin ⇒ rot („nächster Ort" verlöre seine Ausgabe,
    §5.3).
-6. **Der Trefferboden steht einmal.** Der Ausdruck aus C3 kommt in
+6. **Der Trefferboden steht einmal.** Der Ausdruck aus C3a kommt in
    `location-canvas-layer.js` **einmal** vor (heute zweimal).
+7. **Name und Punkt öffnen dasselbe.** Der Klickpfad des Ortslabels ruft **denselben** Bauer wie
+   der Marker — kein zweiter Popup-Aufbau daneben. Mutation: eigener Aufruf im Label-Pfad ⇒ rot.
+   Das ist die Zusicherung, die C3b überhaupt vertretbar macht: zwei Trefferflächen sind nur
+   dann ein Ziel, wenn sie nachweislich dieselbe Auskunft öffnen.
+8. **Flächen bleiben unberührt.** Weder `regionsPane` noch die `ecosystemPane*` bekommen eine
+   Trefferzugabe, und C3c hat einen Deckel. Mutation: ein Boden auf einem Polygon-Layer ⇒ rot
+   (Owner-Bedingung 2026-08-10).
 
 💣 **Beim Schreiben dieser Zusicherungen:** in diesem Haus haben Quelltext-Tests schon dreimal
 auf den erklärenden **Kommentar** angeschlagen statt auf den Code (AGENTS.md §11,
