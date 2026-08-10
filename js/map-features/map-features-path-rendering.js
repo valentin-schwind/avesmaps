@@ -239,6 +239,15 @@ function updatePathLayerStyle(path) {
 	const colors = getPathStyleColors(path);
 	path._pathLines[0]?.setStyle({ color: colors.outline, weight: colors.outlineWeight, opacity: colors.outlineOpacity });
 	path._pathLines[1]?.setStyle({ color: colors.center, weight: colors.centerWeight });
+	// Das Trefferband entsteht erst ab der Schwelle -- und nur, wenn der Weg auf dieser Stufe
+	// ueberhaupt gezeichnet wird. Beide Bedingungen aus EINER Quelle: getPathWidthScale entscheidet
+	// schon heute ueber die Sichtbarkeit (map-features-display-mode.js). Ein Band an einem Weg, den
+	// es hier nicht gibt, waere ein Klick ins Nichts.
+	// ⚠️ normalizePathSubtype, derselbe Weg zum Subtyp wie in getPathStyleColors -- kein zweiter.
+	const hitZoom = map.getZoom();
+	const hitSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+	const hitVisible = hitZoom >= AVESMAPS_PATH_HIT_MIN_ZOOM && getPathWidthScale(hitSubtype, hitZoom) > 0;
+	path._pathLines[2]?.setStyle({ weight: hitVisible ? AVESMAPS_PATH_HIT_WEIGHT : 0 });
 	refreshPathLayerText(path);
 }
 
@@ -333,6 +342,21 @@ function createPathLayer(path) {
 		lineCap: "round",
 		lineJoin: "round",
 	});
+	// Unsichtbares Trefferband: eigene Linie, NICHT die Kontur verbreitert -- sonst aendert sich das
+	// Kartenbild. Breite setzt updatePathLayerStyle je Zoomstufe (0 unterhalb der Schwelle).
+	// ✅ Klick-Handler und Geometrie bekommt sie geschenkt: beides verteilen die forEach-Schleifen
+	// ueber path._pathLines weiter unten, und dort ist sie als drittes Element dabei.
+	const roadHit = L.polyline(latLngCoords, {
+		pane: "roadsPane",
+		renderer: getVectorRenderer("roadsPane"),
+		color: "#000000",
+		weight: 0,
+		opacity: 0,
+		interactive: IS_EDIT_MODE || pathHasWiki(path),
+		bubblingMouseEvents: false,
+		lineCap: "round",
+		lineJoin: "round",
+	});
 	const pathLabelLine = L.polyline(getReadablePathLabelLatLngCoordinates(getPathLabelVisualLatLngCoordinates(path.geometry.coordinates)), {
 		pane: "labelsPane",
 		color: "transparent",
@@ -346,9 +370,9 @@ function createPathLayer(path) {
 	// Die Label-Linie kommt NICHT in den umschaltbaren Group (sonst verschwände das Label, sobald der Pfad
 	// ausgeblendet wird). syncPathVisibility hält sie dauerhaft auf der Karte; refreshPathLayerText entscheidet
 	// über die Text-Sichtbarkeit (Zoom + Label-Schalter) -> Fluss-Labels bleiben auch ohne Fluss-Pfade sichtbar.
-	const layerGroup = L.layerGroup([roadOutline, roadCenter]);
+	const layerGroup = L.layerGroup([roadOutline, roadCenter, roadHit]);
 	path._layerGroup = layerGroup;
-	path._pathLines = [roadOutline, roadCenter];
+	path._pathLines = [roadOutline, roadCenter, roadHit];
 	path._pathLabelLine = pathLabelLine;
 	if (IS_EDIT_MODE) {
 		path._pathLines.forEach((line) => {

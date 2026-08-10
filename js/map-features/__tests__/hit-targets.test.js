@@ -94,4 +94,34 @@ assert.ok(Number(boden[1]) <= 18,
 assert.ok(/pointer:\s*coarse/.test(canvasLayer),
 	"und er gilt nur am groben Zeiger -- am Zeiger trifft man einen 5px-Punkt genau genug");
 
+// ---- Das Wege-Band: erst ab der Zoomschwelle ------------------------------------------------------
+const config = withoutComments(read("js", "config.js"));
+const schwelle = config.match(/AVESMAPS_PATH_HIT_MIN_ZOOM\s*=\s*(\d+)/);
+assert.ok(schwelle, "die Zoomschwelle steht als benannte Konstante in config.js");
+assert.ok(Number(schwelle[1]) >= 4,
+	`die Schwelle ist ${schwelle[1]} -- darunter gehoert die Flaeche dem Gebiet, nicht dem Weg.`
+	+ " Im Ueberblick sucht man Gebiete und Staedte; dort kostet ein Band am meisten, weil eine"
+	+ " Baronie dann ein Fingernagelfeld ist (Owner-Bedingung 2026-08-10).");
+const band = config.match(/AVESMAPS_PATH_HIT_WEIGHT\s*=\s*(\d+)/);
+assert.ok(band && Number(band[1]) <= 24,
+	`das Band ist ${band ? band[1] + "px" : "nicht gesetzt"} -- breiter nimmt es dem Gebiet darunter`
+	+ " zu viel. Fuer eine LINIE reicht 24: Genauigkeit braucht es nur quer, laengs ist das Ziel"
+	+ " unbegrenzt.");
+
+const pathRendering = withoutComments(read("js", "map-features", "map-features-path-rendering.js"));
+assert.ok(/AVESMAPS_PATH_HIT_MIN_ZOOM/.test(pathRendering), "das Rendering liest die Schwelle");
+assert.ok(/getPathWidthScale\s*\([^)]*\)\s*>\s*0/.test(pathRendering),
+	"und es fragt DIESELBE Sichtbarkeitsbedingung wie die Darstellung (getPathWidthScale > 0)"
+	+ " -- ein Trefferband an einem Weg, den es auf dieser Stufe gar nicht gibt, waere ein Klick"
+	+ " ins Nichts");
+
+// 🔴 Flaechen bekommen NIE eine Zugabe (Owner-Bedingung 2026-08-10). Die Trefferflaeche eines
+// Polygons IST seine Flaeche; ein Boden hiesse, sie nach aussen zu schieben und den Nachbarn zu
+// bestehlen -- bei geschachtelten Gebieten waere das aktiv schaedlich.
+["map-features-ecosystem-rendering.js", "map-features.js"].forEach((file) => {
+	const src = withoutComments(read("js", "map-features", file));
+	assert.ok(!/HIT_FLOOR|HIT_WEIGHT|hitRadius/.test(src),
+		`${file} gibt Polygonen keine Trefferzugabe (Owner-Bedingung 2026-08-10)`);
+});
+
 console.log("hit-targets tests passed");

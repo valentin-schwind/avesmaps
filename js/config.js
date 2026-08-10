@@ -563,6 +563,24 @@ const PATH_WIDTH_SCALE = {
 	Gebirgspass: { 0: 0, 1: 0, 2: 0.1, 3: 0.4, 4: 0.6, 5: 1, 6: 1.2 },
 	Wuestenpfad: { 0: 0, 1: 0, 2: 0.1, 3: 0.4, 4: 0.6, 5: 1, 6: 1.2 },
 };
+// Trefferband der Wege: eine UNSICHTBARE Linie ueber der Kontur, damit ein Weg am Finger anfassbar
+// ist, ohne dass sich das Kartenbild aendert.
+//
+// 💣 "Bei hohem Zoom sind die Wege ohnehin breit genug" stimmt NICHT. Gerechnet aus
+// PATH_OUTLINE_WEIGHTS x PATH_WIDTH_SCALE misst bei der HOECHSTEN Stufe ein Pfad 3,6px und eine
+// Strasse 4,8px; nur die Reichsstrasse kommt auf 13. Kein Weg erreicht je aus eigener Kraft
+// Fingergroesse -- die Zugabe wird auf JEDER sichtbaren Stufe gebraucht.
+//
+// 🔴 Die Schwelle sagt deshalb etwas anderes, und genau darum steht sie hier: nicht "hier ist der
+// Weg breit", sondern "hier sucht man den Weg". Im Ueberblick sucht man Gebiete und Staedte -- und
+// dort kostet das Band am meisten, weil eine Baronie dann ein Fingernagelfeld ist. Unterhalb dieser
+// Stufe aendert sich am Trefferverhalten der Karte NICHTS (Owner-Bedingung 2026-08-10).
+//
+// ⚠️ 24px klingt schmal, ist es fuer eine LINIE aber nicht: Genauigkeit braucht es nur quer dazu,
+// laengs ist das Ziel unbegrenzt. Dem Gebiet darunter nimmt es +-12px statt +-19px bei 44.
+const AVESMAPS_PATH_HIT_MIN_ZOOM = 4;
+const AVESMAPS_PATH_HIT_WEIGHT = 24;
+
 function getPathWidthScale(subtype, zoom) {
 	const bySubtype = PATH_WIDTH_SCALE[subtype];
 	if (!bySubtype) {
