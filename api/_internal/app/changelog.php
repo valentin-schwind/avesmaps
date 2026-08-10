@@ -335,6 +335,37 @@ function avesmapsChangelogPrepareEntries(array $rows): array
 }
 
 /**
+ * Der Anschluss fuer die Routine `avesmaps-feature-updates`: der Commit, bis zu dem der Verlauf
+ * reicht. Sie liest ihn und nimmt danach `git log <ref>..origin/master` -- der Verlauf hinkt oft
+ * weiter hinterher als ein Lauf, also kann sie sich nicht auf „die letzten zwei Tage" verlassen.
+ *
+ * 💣 DER ANKER MUSS EIN COMMIT SEIN. Uebersprungen wird deshalb alles, was keiner ist: `seed` (der
+ * Startbestand) und jede NAMENSRAUM-Referenz mit Doppelpunkt. Der Hub-Kanal „Neuigkeiten" schreibt
+ * `social:<id>` -- und der erste Beitrag, der von dort in den Verlauf geht, stuende oben. Die Routine
+ * liefe dann `git log social:42..origin/master`, bekaeme „unknown revision" und schriebe **dauerhaft
+ * nichts mehr**, weil jeder weitere Lauf denselben kaputten Anker liest.
+ *
+ * 🔴 Und es faellt nicht auf: ein Verlauf ohne neue Eintraege sieht genauso aus wie einer, in dem es
+ * nichts Neues gab. Der Doppelpunkt-Filter statt einer Liste bekannter Praefixe ist Absicht -- der
+ * naechste Schreiber, der seine Referenzen benennt, ist damit von selbst mitgeschuetzt.
+ *
+ * @param array<int, array<string, mixed>> $rows Die Eintraege, JUENGSTER zuerst.
+ */
+function avesmapsChangelogLatestSourceRef(array $rows): string
+{
+    foreach ($rows as $row) {
+        $ref = trim((string) (is_array($row) ? ($row['source_ref'] ?? '') : ''));
+        if ($ref === '' || $ref === 'seed' || str_contains($ref, ':')) {
+            continue;
+        }
+
+        return $ref;
+    }
+
+    return '';
+}
+
+/**
  * Liest die veroeffentlichten Eintraege. Gibt `null` zurueck, wenn die Tabelle (noch) nicht
  * existiert -- der Aufrufer faellt dann auf die Saat zurueck. Legt NICHTS an: siehe Dateikopf.
  *

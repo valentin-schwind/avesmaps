@@ -108,4 +108,35 @@ assert($prepared[0]['date'] === '2026-08-03', 'oben der jüngste Eintrag');
 assert($prepared[count($prepared) - 1]['date'] === '2026-04-22', 'unten der Projektstart');
 
 echo "changelog seed ok (" . count($seed) . " Meilensteine)\n";
+// ---- der Anker fuer die Routine ----------------------------------------------------------------
+
+// Die Routine liest `latest_source_ref` und laeuft danach `git log <ref>..origin/master`. Was hier
+// durchrutscht, ist kein Anzeigefehler, sondern ein dauerhaft stummer Verlauf.
+assert(avesmapsChangelogLatestSourceRef([
+    ['source_ref' => '1feb92a5'],
+    ['source_ref' => 'c5ab0601'],
+]) === '1feb92a5', 'der juengste Commit gewinnt');
+
+// 💣 DER FALL, DER DAS AUSLOEST: ein Beitrag aus dem Hub-Kanal „Neuigkeiten" steht oben. Ohne diesen
+// Filter liefe die Routine `git log social:42..origin/master` -- „unknown revision" -- und schriebe
+// von da an NIE wieder etwas, weil jeder weitere Lauf denselben kaputten Anker liest.
+assert(avesmapsChangelogLatestSourceRef([
+    ['source_ref' => 'social:42'],
+    ['source_ref' => 'c5ab0601'],
+]) === 'c5ab0601', 'eine social:-Referenz wird uebersprungen, der Commit darunter gewinnt');
+
+assert(avesmapsChangelogLatestSourceRef([['source_ref' => 'seed'], ['source_ref' => 'c5ab0601']])
+    === 'c5ab0601', 'und `seed` weiterhin auch');
+
+// Der Doppelpunkt-Filter statt einer Liste bekannter Praefixe: der naechste Schreiber, der seine
+// Referenzen benennt, ist von selbst mitgeschuetzt.
+assert(avesmapsChangelogLatestSourceRef([['source_ref' => 'irgendwas:7'], ['source_ref' => 'abc1234']])
+    === 'abc1234', 'jede Namensraum-Referenz wird uebersprungen, nicht nur social:');
+
+assert(avesmapsChangelogLatestSourceRef([['source_ref' => '  1feb92a5  ']]) === '1feb92a5',
+    'Leerraum wird abgeschnitten -- sonst waere der Anker eine Revision mit Leerzeichen');
+assert(avesmapsChangelogLatestSourceRef([['source_ref' => 'social:1'], ['source_ref' => 'seed']]) === '',
+    'gibt es gar keinen Commit, ist die Antwort leer -- die Routine faengt dann beim Anfang an');
+assert(avesmapsChangelogLatestSourceRef([]) === '', 'und bei leerem Verlauf ebenso');
+
 echo "changelog ok\n";

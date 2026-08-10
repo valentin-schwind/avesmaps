@@ -155,17 +155,11 @@ try {
                  ORDER BY entry_date DESC, sort_order ASC, id ASC'
             )->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-            // Der Anschluss für die Routine: der source_ref des JÜNGSTEN Eintrags, der einen hat.
-            // "seed" zählt nicht als Commit — nach dem Startbestand fängt sie beim Anfang an und
-            // lässt sich vom Datum des obersten Eintrags leiten.
-            $latestSourceRef = '';
-            foreach ($rows as $row) {
-                $ref = trim((string) ($row['source_ref'] ?? ''));
-                if ($ref !== '' && $ref !== 'seed') {
-                    $latestSourceRef = $ref;
-                    break;
-                }
-            }
+            // Der Anschluss für die Routine. Die Regel steht in avesmapsChangelogLatestSourceRef --
+            // dort, wo sie geprüft werden kann, und nicht hier mitten im Endpunkt: was sie
+            // überspringen muss (`seed`, `social:<id>`), ist der Unterschied zwischen einem
+            // funktionierenden und einem dauerhaft stummen Verlauf.
+            $latestSourceRef = avesmapsChangelogLatestSourceRef($rows);
 
             avesmapsJsonResponse(200, [
                 'ok' => true,
