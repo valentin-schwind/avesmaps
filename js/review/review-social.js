@@ -70,6 +70,24 @@
 		return left + " / " + limit.max_chars + " (" + limit.label + ")";
 	}
 
+	// Wann laeuft der Zugang eines Kanals ab? DREI Zustaende, und der Unterschied zwischen zweien davon
+	// ist der ganze Sinn dieser Zeile.
+	//
+	// 💣 null heisst „keine gespeicherte Zeile", also NICHTWISSEN -- niemals „laeuft nie ab". Der Token
+	// kann in der Konfiguration stehen, wo niemand nach einem Ablauf gefragt hat. Eine Zusage ohne
+	// Messung ist genau der Fehler, der am 10.08.2026 zweimal einen Zugang stillschweigend sterben
+	// liess: er sah funktionsfaehig aus, bis er es nicht mehr war.
+	function formatExpiry(value) {
+		if (value === "never") { return "Zugang läuft nie ab"; }
+		if (!value) { return ""; }
+		const parsed = new Date(String(value).replace(" ", "T"));
+		// Unlesbares Datum: lieber den Rohwert zeigen als „Invalid Date" -- und auf keinen Fall
+		// stillschweigend auf „nie" zurueckfallen.
+		return "Zugang läuft ab: " + (isNaN(parsed.getTime())
+			? String(value)
+			: parsed.toLocaleDateString("de-DE"));
+	}
+
 	// 🔴 Ein Beitrag, dessen Verfasser verloren ging, darf nie so lesen, als haette die Automatik ihn
 	// geschrieben. Der Unterschied zwischen „ein Mensch hat das entschieden" und „eine Routine hat es
 	// vorgeschlagen" ist der Sinn des Kennzeichens.
@@ -434,6 +452,19 @@
 
 			const label = document.createElement("span");
 			label.append(name, meta);
+
+			// Der Ablauf steht in EIGENER Zeile, nicht in der Aufzaehlung: ein Datum ist eine
+			// Vorwarnung und darf nicht zwischen Zeichenlimits untergehen. „Nie" bleibt unauffaellig,
+			// ein Datum bekommt den Warnton -- der Kanal hoert an diesem Tag ohne Zutun auf.
+			const expiry = formatExpiry(channel.access_expires);
+			if (expiry !== "") {
+				const line = document.createElement("small");
+				line.className = channel.access_expires === "never"
+					? "social-hub__channel-meta"
+					: "social-hub__channel-expiry";
+				line.textContent = expiry;
+				label.appendChild(line);
+			}
 			row.append(box, label);
 			host.appendChild(row);
 		});
@@ -778,6 +809,7 @@
 	}
 
 	if (typeof module !== "undefined" && module.exports) {
-		module.exports = { chipClass, chipLabel, canRetry, strictestLimit, formatCount, postAuthorLabel };
+		module.exports = { chipClass, chipLabel, canRetry, strictestLimit, formatCount, postAuthorLabel,
+			formatExpiry };
 	}
 })();

@@ -230,7 +230,7 @@
 	display: flex;
 	align-items: baseline;
 	gap: 8px;
-	padding: 14px 18px;
+	padding: 16px 24px;
 	border-bottom: 1px solid var(--color-divider);
 }
 
@@ -264,8 +264,12 @@
 	/* Links Inhalt, rechts Kanäle (Entwurf §2.3). Unter 720px fallen sie untereinander, sonst wird
 	   die schmale Spalte zur Rutsche. */
 	grid-template-columns: minmax(0, 1fr) 300px;
-	gap: 20px;
-	padding: 16px 18px;
+	gap: 24px;
+	/* 🔴 24px zum Rand, nicht 18: der Owner hat das am 10.08.2026 dreimal angemahnt. Ein Fenster
+	   dieser Breite mit knappem Innenmass liest sich gedraengt, und die Kanalspalte klebte an der
+	   Kante. Kopf, Rumpf und Fuss teilen denselben Wert -- ein Fenster hat EIN Innenmass, sonst
+	   springt die linke Kante beim Scrollen. */
+	padding: 20px 24px;
 	overflow-y: auto;
 }
 
@@ -441,6 +445,15 @@
 	color: var(--color-text-muted);
 }
 
+/* Ein Ablaufdatum am Zugang ist eine Vorwarnung, kein Fehler: Warnton, nicht Fehlerton. Auf weichem
+   Grund gilt dieselbe Regel wie fuer die Marken oben -- -soft-text, nie --color-warning direkt. */
+.social-hub__channel-expiry {
+	display: block;
+	margin-top: 2px;
+	font-size: 12px;
+	color: var(--color-warning-soft-text);
+}
+
 .social-hub__channel-name {
 	color: var(--color-text-strong);
 	font-weight: 600;
@@ -461,7 +474,7 @@
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	padding: 12px 18px;
+	padding: 16px 24px;
 	border-top: 1px solid var(--color-divider);
 }
 

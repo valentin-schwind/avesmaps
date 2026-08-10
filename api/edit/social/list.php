@@ -32,6 +32,9 @@ try {
 
     $social = is_array($config['social'] ?? null) ? $config['social'] : [];
     $tokenKeys = avesmapsSocialTokenKeys($pdo);
+    // Wann der Zugang je Kanal abläuft. Eine zweite Abfrage auf dieselbe kleine Tabelle, damit die
+    // Verfügbarkeitsprüfung ihre Schlüsselliste behält -- sie hat einen anderen Zweck als die Anzeige.
+    $tokenExpiry = avesmapsSocialTokenExpiryMap($pdo);
 
     $posts = [];
     foreach (avesmapsSocialListPosts($pdo, 50) as $row) {
@@ -72,7 +75,7 @@ try {
 
     avesmapsJsonResponse(200, [
         'ok' => true,
-        'channels' => avesmapsSocialChannelList($social, $tokenKeys),
+        'channels' => avesmapsSocialChannelList($social, $tokenKeys, $tokenExpiry),
         'vocabulary' => AVESMAPS_SOCIAL_HASHTAG_VOCABULARY,
         // The kill switch travels so the hub can SAY that sending is off, instead of letting an editor
         // write a post and discover it at the end (Entwurf §8).

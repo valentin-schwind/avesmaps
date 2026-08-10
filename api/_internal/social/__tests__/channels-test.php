@@ -127,9 +127,35 @@ foreach ($list as $row) {
     assert(!isset($row['access_token']), 'no access token ever leaves the server in the channel list');
     assert(!isset($row['app_secret']), 'no app secret either');
     assert(array_keys($row) === ['key', 'label', 'account', 'note', 'max_chars', 'max_hashtags',
-        'requires_media', 'shows_media', 'clickable_links', 'configured', 'connectable'],
-        'the row carries exactly these eleven keys -- a field added here reaches the browser');
+        'requires_media', 'shows_media', 'clickable_links', 'configured', 'connectable',
+        'access_expires'],
+        'the row carries exactly these twelve keys -- a field added here reaches the browser');
 }
+
+// ---- wann der Zugang ablaeuft ----------------------------------------------------------------------
+
+// 💣 DREI Zustaende, nicht zwei. Ohne Zeile wissen wir NICHTS -- der Token kann in der Konfiguration
+// stehen. Das als „laeuft nie ab" anzuzeigen waere eine Behauptung ohne Messung, und genau die kostete
+// am 10.08.2026 zwei Anlaeufe.
+$mitAblauf = avesmapsSocialChannelList(
+    ['facebook' => ['page_id' => '1'], 'mastodon' => ['base_url' => 'https://x']],
+    ['facebook', 'mastodon'],
+    ['facebook' => null, 'mastodon' => '2026-10-09 12:00:00']
+);
+// ⚠️ Eigener Name: $byKey traegt weiter unten noch die erste Liste, und ein stilles Ueberschreiben
+// haette die dortigen Zusicherungen gegen die falschen Daten laufen lassen.
+$byAblauf = [];
+foreach ($mitAblauf as $row) {
+    $byAblauf[$row['key']] = $row;
+}
+assert($byAblauf['facebook']['access_expires'] === 'never',
+    'eine Zeile OHNE Ablaufdatum ist die Zusage „laeuft nie ab"');
+assert($byAblauf['mastodon']['access_expires'] === '2026-10-09 12:00:00',
+    'eine Zeile MIT Datum reicht das Datum durch -- es ist eine Vorwarnung, kein Fehler');
+assert($byAblauf['instagram']['access_expires'] === null,
+    'ein Kanal ohne Zeile ist NULL und niemals „never" -- Nichtwissen ist keine Zusage');
+assert($byAblauf['probe']['access_expires'] === null,
+    'auch die Probe: sie ist nutzbar, aber sie hat keinen Zugang, dessen Ablauf man kennen koennte');
 
 // ---- der Einrichtungsweg ---------------------------------------------------------------------------
 

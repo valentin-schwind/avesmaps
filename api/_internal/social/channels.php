@@ -162,7 +162,7 @@ function avesmapsSocialChannelIsConfigured(string $key, array $socialConfig, arr
  * @param list<string>         $tokenKeys
  * @return list<array<string, mixed>>
  */
-function avesmapsSocialChannelList(array $socialConfig, array $tokenKeys): array
+function avesmapsSocialChannelList(array $socialConfig, array $tokenKeys, array $tokenExpiry = []): array
 {
     $list = [];
     foreach (AVESMAPS_SOCIAL_CHANNELS as $key => $channel) {
@@ -184,6 +184,14 @@ function avesmapsSocialChannelList(array $socialConfig, array $tokenKeys): array
             // Kann der Server den Zugang selbst herstellen? Nur DASS es geht reist mit, nie WIE --
             // der Weg samt App-Geheimnis bleibt serverseitig.
             'connectable' => ($channel['connect'] ?? null) !== null,
+            // 💣 DREI Zustände, nicht zwei. 'never' ist eine Zusage, null ist deren ABWESENHEIT --
+            // kein gespeicherter Zugang, also auch kein Wissen über seinen Ablauf (der Token kann in
+            // der Konfiguration stehen). Die beiden zusammenzuwerfen hieße, „läuft nie ab" zu
+            // behaupten, wo niemand nachgesehen hat -- und genau diese Behauptung kostete am
+            // 10.08.2026 zwei Anläufe. Ein Datum ist eine Vorwarnung, kein Fehler.
+            'access_expires' => array_key_exists($key, $tokenExpiry)
+                ? ($tokenExpiry[$key] === null ? 'never' : (string) $tokenExpiry[$key])
+                : null,
         ];
     }
 

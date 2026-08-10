@@ -16,6 +16,7 @@ const {
 	strictestLimit,
 	formatCount,
 	postAuthorLabel,
+	formatExpiry,
 } = require("../review-social.js");
 
 // ---- the status a chip shows ---------------------------------------------------------------------
@@ -93,5 +94,27 @@ assert.strictEqual(postAuthorLabel({ origin: "editor", author: "Valentin" }), "V
 assert.strictEqual(postAuthorLabel({ origin: "editor", author: "" }), "Unbekannt");
 assert.strictEqual(postAuthorLabel({ origin: "routine", author: "" }), "Automatisch",
 	"bei der Routine ist der Name dagegen ohnehin nur ein Etikett");
+
+// ---- wann der Zugang abläuft ------------------------------------------------------------------------
+
+assert.strictEqual(formatExpiry("never"), "Zugang läuft nie ab");
+
+// 💣 DIE gefaehrliche Verwechslung. null heisst „keine gespeicherte Zeile" -- also Nichtwissen, denn
+// der Token kann in der Konfiguration stehen. Wuerde das als „läuft nie ab" erscheinen, stuende eine
+// Zusage da, die niemand gemessen hat: genau so starb am 10.08.2026 zweimal ein Zugang lautlos.
+assert.strictEqual(formatExpiry(null), "",
+	"ohne gespeicherte Zeile steht da NICHTS, niemals eine Zusage");
+assert.strictEqual(formatExpiry(undefined), "", "und bei fehlendem Feld ebenso");
+assert.strictEqual(formatExpiry(""), "", "und beim leeren Wert auch");
+
+// Ein Datum ist eine Vorwarnung und muss lesbar sein.
+assert.ok(formatExpiry("2026-10-09 12:00:00").startsWith("Zugang läuft ab: "),
+	"ein Datum wird als Ablauf ausgewiesen");
+assert.ok(formatExpiry("2026-10-09 12:00:00").includes("2026"),
+	"und traegt das Jahr, sonst raet man das Jahrzehnt");
+
+// Unlesbares faellt NICHT auf „nie" zurueck -- lieber der Rohwert als eine falsche Zusage.
+assert.strictEqual(formatExpiry("kaputt"), "Zugang läuft ab: kaputt",
+	"ein unlesbares Datum bleibt sichtbar und faellt nie auf die Zusage zurueck");
 
 console.log("social-list.test: OK");

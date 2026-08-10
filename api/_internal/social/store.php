@@ -328,6 +328,35 @@ function avesmapsSocialTokenMap(PDO $pdo): array
     return $map;
 }
 
+/**
+ * Wann läuft der gespeicherte Zugang je Kanal ab? channel_key => Datum oder null („läuft nie ab").
+ *
+ * 💣 Ein Kanal, der hier FEHLT, ist nicht dasselbe wie einer mit null. Fehlen heißt „keine Zeile" --
+ * der Token steht dann in der Konfiguration und über seinen Ablauf wissen wir nichts. Beides auf
+ * dieselbe Anzeige zu werfen hieße, „läuft nie ab" zu behaupten, wo niemand nachgesehen hat. Der
+ * Aufrufer unterscheidet mit array_key_exists.
+ *
+ * ⚠️ Läuft wie die beiden Nachbarn OHNE DDL: dies ist ein Lesepfad (AGENTS.md §10).
+ *
+ * @return array<string, string|null>
+ */
+function avesmapsSocialTokenExpiryMap(PDO $pdo): array
+{
+    try {
+        $rows = $pdo->query('SELECT channel_key, expires_at FROM social_token')
+            ->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (PDOException) {
+        return [];
+    }
+
+    $map = [];
+    foreach ($rows as $row) {
+        $map[(string) $row['channel_key']] = $row['expires_at'] === null ? null : (string) $row['expires_at'];
+    }
+
+    return $map;
+}
+
 /** @return array{access_token: string, expires_at: ?string, refreshed_at: ?string}|null */
 function avesmapsSocialTokenGet(PDO $pdo, string $channelKey): ?array
 {
