@@ -332,6 +332,17 @@
 		host.textContent = "";
 
 		const drafts = (posts || []).filter(isDraft);
+
+		// Der Zähler steht in der Überschrift, nicht als eigene Zeile: er ist eine Eigenschaft der
+		// Liste, keine Aussage für sich. Bei null bleibt er weg -- „0 warten" über „Keine Entwürfe"
+		// wäre dieselbe Auskunft zweimal.
+		const counter = el("social-drafts-count");
+		if (counter) {
+			counter.textContent = drafts.length
+				? " " + drafts.length + (drafts.length === 1 ? " wartet" : " warten")
+				: "";
+		}
+
 		if (!drafts.length) {
 			const empty = document.createElement("p");
 			empty.className = "social-hub__hint";
@@ -342,7 +353,10 @@
 
 		drafts.forEach(function (post) {
 			const row = document.createElement("div");
-			row.className = "social-hub__draft";
+			// Der goldene Streifen kennzeichnet den Vorschlag der Routine -- dasselbe Zeichen wie in
+			// der Panel-Liste, damit man nicht zweimal lernen muss, was „automatisch" aussieht.
+			row.className = "social-hub__draft"
+				+ (post.origin === "routine" ? " social-hub__draft--auto" : "");
 
 			const when = document.createElement("span");
 			when.className = "social-hub__draft-when";
@@ -560,8 +574,8 @@
 			// „Erneuern" statt „einrichten", sobald ein Zugang steht: der Knopf verschwindet nicht,
 			// weil ein Token ersetzt werden können muss -- aber er soll nicht behaupten, es fehle noch
 			// etwas.
-			open.textContent = (channel.configured ? "🔑 " + channel.label + "-Zugang erneuern"
-				: "🔑 " + channel.label + "-Zugang einrichten");
+			open.textContent = "🔑 Zugang zu " + channel.label
+				+ (channel.configured ? " erneuern" : " einrichten");
 			open.addEventListener("click", function () { openConnect(channel); });
 			host.appendChild(open);
 		});
@@ -595,7 +609,7 @@
 		const box = el("social-connect");
 		const name = el("social-connect-channel");
 		const field = el("social-connect-token");
-		if (name) { name.textContent = " — " + channel.label; }
+		if (name) { name.textContent = " zu " + channel.label; }
 		if (field) { field.value = ""; }
 		connectResult("", "");
 		if (box) { box.hidden = false; }

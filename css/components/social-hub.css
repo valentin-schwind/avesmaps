@@ -230,7 +230,9 @@
 .social-hub {
 	display: flex;
 	flex-direction: column;
-	width: min(960px, 100%);
+	/* 1180 statt 960 seit dem Umbau auf drei Spalten (Owner 11.08.2026). Bei 960 blieben dem Textfeld
+	   rund 290 px -- zu wenig fuer einen Beitrag, den man vor dem Absenden lesen koennen will. */
+	width: min(1180px, 100%);
 	max-height: 100%;
 	overflow: hidden;
 	border: 1px solid var(--color-button-soft-border);
@@ -274,12 +276,11 @@
 
 .social-hub__body {
 	display: grid;
-	/* Links Inhalt, rechts Kanäle (Entwurf §2.3). Unter 720px fallen sie untereinander, sonst wird
-	   die schmale Spalte zur Rutsche. */
-	/* Die rechte Spalte traegt seit 11.08.2026 zweierlei -- Kanaele UND die wartenden Entwuerfe --,
-	   also bekommt sie Platz und die linke gibt ihn ab (Owner-Wunsch). 360 statt 300: eine
-	   Entwurfszeile mit zwei Knoepfen darunter bricht sonst dreizeilig um. */
-	grid-template-columns: minmax(0, 1fr) 360px;
+	/* DREI Spalten seit 11.08.2026 (Owner, Mockup docs/social-hub-mockup-3spalten.html): links der
+	   Inhalt, in der Mitte die Kanaele, rechts die wartenden Entwuerfe. Beim Schreiben zaehlen genau
+	   diese drei Dinge gleichzeitig -- was ich schreibe, wohin es geht, was noch offen ist; unter-
+	   einander waere das dritte immer weggescrollt. */
+	grid-template-columns: minmax(0, 1fr) 300px 320px;
 	gap: 24px;
 	/* 🔴 24px zum Rand, nicht 18: der Owner hat das am 10.08.2026 dreimal angemahnt. Ein Fenster
 	   dieser Breite mit knappem Innenmass liest sich gedraengt, und die Kanalspalte klebte an der
@@ -289,9 +290,30 @@
 	overflow-y: auto;
 }
 
-@media (max-width: 720px) {
+/* Die Trennung zwischen den Spalten ist eine LINIE, kein Kasten -- dieselbe Gruppierung wie sonst
+   ueberall (docs/design-language.md). Sie sitzt an der jeweils folgenden Spalte, damit die erste
+   keine bekommt und niemand eine :first-child-Ausnahme pflegen muss. */
+.social-hub__side,
+.social-hub__drafts {
+	border-left: 1px solid var(--color-divider);
+	padding-left: 24px;
+}
+
+/* Unter 1180 px (plus 2x20 px Huellen-Polster) passen drei Spalten nicht mehr nebeneinander: dann
+   fallen ALLE drei untereinander -- die Regel, die dieses Fenster unter 720 px schon kannte.
+   ⚠️ Die Trennlinie muss dabei von links nach OBEN wandern, sonst zieht sie sich als senkrechter
+   Strich durch den gestapelten Inhalt. */
+@media (max-width: 1240px) {
 	.social-hub__body {
 		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.social-hub__side,
+	.social-hub__drafts {
+		border-left: 0;
+		border-top: 1px solid var(--color-divider);
+		padding-left: 0;
+		padding-top: 14px;
 	}
 }
 
@@ -401,14 +423,6 @@
 	color: var(--color-success-soft-text);
 }
 
-/* Die wartenden Entwuerfe in der rechten Spalte. Abgetrennt durch eine Linie, nicht durch einen
-   Kasten -- gruppiert wird in diesem Projekt durch Trenner (docs/design-language.md). */
-.social-hub__drafts {
-	margin-top: 14px;
-	padding-top: 10px;
-	border-top: 1px solid var(--color-divider);
-}
-
 .social-hub__draft {
 	padding: 8px 0;
 	border-top: 1px solid var(--color-divider);
@@ -416,6 +430,13 @@
 
 .social-hub__draft:first-child {
 	border-top: 0;
+}
+
+/* Dasselbe Zeichen wie .social-post--proposal in der Panel-Liste: ein warmer Streifen links sagt
+   „das kommt von der Routine", ohne einen Rahmen zu ziehen. */
+.social-hub__draft--auto {
+	border-left: 3px solid var(--color-warning);
+	padding-left: 10px;
 }
 
 .social-hub__draft-when {

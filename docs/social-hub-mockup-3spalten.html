@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Social-Media-Hub, drei Spalten</title>
+<style>
+/* 💣 Standalone-Mockup: die Token-Kette (css/base/tokens.css) wird hier NICHT geladen,
+   die Werte stehen deshalb im Dokument. Sie sind 1:1 aus tokens.css kopiert — wer sie
+   dort aendert, aendert sie hier NICHT mit. Das Mockup ist ein Bild, kein Bauteil. */
+:root {
+	--color-panel: #fffdf9;
+	--color-panel-soft: #faf6ee;
+	--color-panel-muted: #f1ece1;
+	--color-text: #2e271e;
+	--color-text-strong: #3c3327;
+	--color-text-muted: #706557;
+	--color-border: #ddd3c3;
+	--color-divider: rgba(125, 115, 96, 0.30);
+	--color-button: #5b5548;
+	--color-button-border: #635b4d;
+	--color-button-text: #f6efe1;
+	--color-button-soft: #efe9db;
+	--color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0;
+	--color-accent: #bfa03a;
+	--color-accent-strong: #9c7f22;
+	--color-link: #8f7326;
+	--color-warning-soft-text: #7a5a1a;
+	--color-success-soft-text: #3f6b3a;
+	--radius-md: 8px;
+	--radius-lg: 10px;
+	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.38);
+}
+* { box-sizing: border-box; }
+body {
+	margin: 0; padding: 32px 24px 64px;
+	background: #e9e2d4; color: var(--color-text);
+	font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+}
+.page { max-width: 1240px; margin: 0 auto; }
+h1 { font-size: 22px; margin: 0 0 6px; color: var(--color-text-strong); }
+.lede { margin: 0 0 28px; color: var(--color-text-muted); max-width: 74ch; }
+.note { max-width: 82ch; margin: 26px 0 0; color: var(--color-text-muted); font-size: 13px; }
+.note strong { color: var(--color-text-strong); }
+.note li { margin-bottom: 6px; }
+
+/* ---- das Fenster (Nachbau von .social-hub) --------------------------------------------------- */
+.hub {
+	width: 1180px; max-width: 100%;
+	display: flex; flex-direction: column;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-dialog);
+	overflow: hidden;
+}
+.hub__head {
+	display: flex; align-items: baseline; gap: 8px;
+	padding: 16px 24px; border-bottom: 1px solid var(--color-divider);
+}
+.hub__head h2 { margin: 0; font-size: 17px; color: var(--color-text-strong); }
+.muted { color: var(--color-text-muted); font-size: 13px; }
+.hub__close { margin-left: auto; color: var(--color-text-muted); font-size: 18px; }
+
+/* 🔴 DIE AENDERUNG: drei Spalten statt zwei. Links Inhalt, MITTE Kanaele, rechts Entwuerfe. */
+.hub__body {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 300px 320px;
+	gap: 24px;
+	padding: 20px 24px;
+}
+.hub__col + .hub__col { border-left: 1px solid var(--color-divider); padding-left: 24px; }
+
+.label {
+	display: block; margin: 14px 0 6px;
+	font-size: 12px; font-weight: 600; letter-spacing: .02em;
+	color: var(--color-text-muted); text-transform: uppercase;
+}
+.hub__col > .label:first-child { margin-top: 0; }
+.label small { font-weight: 400; text-transform: none; letter-spacing: 0; opacity: .85; }
+
+input[type=text], textarea {
+	width: 100%; padding: 8px 10px;
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+	background: var(--color-panel-soft); color: var(--color-text); font: inherit;
+}
+textarea { height: 110px; resize: vertical; }
+.hint { margin: 6px 0 0; font-size: 12px; color: var(--color-text-muted); }
+.count { margin-top: 6px; font-size: 12px; color: var(--color-text-muted); }
+.warn { margin: 10px 0 0; font-size: 12px; color: var(--color-warning-soft-text); }
+.ok { color: var(--color-success-soft-text); }
+
+.chipline { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.vocab {
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+	background: var(--color-panel-soft); color: var(--color-button-soft-text);
+	padding: 2px 8px; font-size: 12px;
+}
+.soft {
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	padding: 4px 10px; font: inherit;
+}
+.soft--mini { font-size: 12px; padding: 2px 8px; }
+.filled {
+	border: 1px solid var(--color-button-border); border-radius: var(--radius-md);
+	background: var(--color-button); color: var(--color-button-text);
+	padding: 11px 18px; min-height: 40px; min-width: 16rem;
+}
+
+.row { display: flex; gap: 8px; padding: 8px 0; border-top: 1px solid var(--color-divider); }
+.row:first-of-type { border-top: 0; }
+.row input { margin-top: 3px; }
+.row strong { display: block; color: var(--color-text-strong); font-weight: 600; }
+.row small { display: block; font-size: 12px; color: var(--color-text-muted); }
+.row--off strong, .row--off small { opacity: .5; }
+.link { color: var(--color-link); font-size: 12px; text-decoration: underline; display: inline-block; margin-top: 8px; }
+
+/* ---- die Entwuerfe (rechte Spalte) ------------------------------------------------------------ */
+.draft { padding: 10px 0; border-top: 1px solid var(--color-divider); }
+.draft:first-of-type { border-top: 0; }
+.draft__when { display: block; font-size: 12px; color: var(--color-text-muted); }
+.draft__text { margin: 2px 0 6px; overflow-wrap: anywhere; }
+.draft__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.draft--auto { border-left: 3px solid var(--color-accent); padding-left: 10px; }
+
+.hub__foot {
+	display: flex; align-items: center; gap: 10px;
+	padding: 16px 24px; border-top: 1px solid var(--color-divider);
+}
+.spacer { flex: 1 1 auto; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Social-Media-Hub — drei Spalten</h1>
+<p class="lede">Links das Formular, in der Mitte die Kanäle, rechts die wartenden Entwürfe.
+Gegenüber dem heutigen Stand wandern die Entwürfe aus der rechten Spalte in eine eigene dritte,
+und das Fenster wird von 960 auf 1180 px breiter — sonst nimmt die dritte Spalte dem Textfeld
+den Platz weg.</p>
+
+<div class="hub">
+	<div class="hub__head">
+		<h2>Social Media Hub</h2>
+		<span class="muted">— Beitrag verfassen</span>
+		<span class="hub__close">✕</span>
+	</div>
+
+	<div class="hub__body">
+
+		<!-- ---- links: der Inhalt ---------------------------------------------------------- -->
+		<div class="hub__col">
+			<label class="label">Titelzeile <small>nur für Neuigkeiten</small></label>
+			<input type="text" placeholder="Überschrift der Neuigkeit — leer lassen, dann gilt die erste Textzeile">
+			<p class="hint">Wird ausschließlich im Fenster Neuigkeiten auf avesmaps.de verwendet. Instagram,
+			Facebook und Mastodon kennen keine Überschrift — dort erscheint nur der Text unten.</p>
+
+			<label class="label">Text</label>
+			<textarea>Aventurien hat jetzt Klimazonen: von den polaren Weiten des Nordens bis in die tropischen Regenwälder im Süden. Bei Orten, Regionen und Wegen steht die Zone direkt in der Infobox — praktisch, wenn man wissen will, was einen unterwegs erwartet.
+
+Zu sehen auf https://avesmaps.de</textarea>
+			<p class="count">243 + 24 Hashtags = 267 / 500 (Probe)</p>
+
+			<label class="label">Hashtags</label>
+			<input type="text" value="#DSA #Aventurien">
+			<div class="chipline">
+				<span class="vocab">#DSA</span><span class="vocab">#Aventurien</span>
+				<span class="vocab">#Rollenspiel</span><span class="vocab">#TDE</span>
+				<span class="vocab">#PnP</span><span class="vocab">#Karte</span>
+				<span class="vocab">#Fanprojekt</span><span class="vocab">#DasSchwarzeAuge</span>
+			</div>
+
+			<label class="label">Bild</label>
+			<div class="chipline">
+				<button class="soft">⬆ Eigene Datei</button>
+				<button class="soft" disabled>✂ Kartenausschnitt</button>
+				<button class="soft" disabled>🎬 Video</button>
+			</div>
+
+			<label class="label">Herkunft und Rechte</label>
+			<div class="row"><input type="radio" checked><span><strong>Eigenes Werk / Avesmaps-Karte</strong>
+				<small>selbst erstellt oder aus der Karte aufgenommen</small></span></div>
+			<div class="row"><input type="radio"><span><strong>Freie Lizenz</strong>
+				<small>gemeinfrei oder CC — Quelle angeben</small></span></div>
+			<p class="warn">Keine Scans aus DSA-Publikationen, keine Ulisses-Artworks. Das Projekt läuft unter
+			den Fan-Richtlinien — was hier rausgeht, steht öffentlich unter dem Namen Avesmaps und lässt
+			sich nicht zurückholen.</p>
+		</div>
+
+		<!-- ---- Mitte: die Kanaele --------------------------------------------------------- -->
+		<div class="hub__col">
+			<label class="label">Kanäle</label>
+
+			<div class="row"><input type="checkbox" checked><span><strong>Probe</strong>
+				<small>nur intern — sendet nichts · max. 500 Zeichen</small></span></div>
+			<div class="row"><input type="checkbox"><span><strong>Neuigkeiten</strong>
+				<small>auf avesmaps.de · nutzt die Titelzeile · Bild wird nicht übernommen ·
+				max. 2000 Zeichen · keine Hashtags</small></span></div>
+			<div class="row row--off"><input type="checkbox" disabled><span><strong>Instagram</strong>
+				<small>noch nicht eingerichtet</small></span></div>
+			<div class="row"><input type="checkbox" checked><span><strong>Facebook</strong>
+				<small>Seite Avesmaps · max. 63206 Zeichen</small>
+				<small class="ok">Zugang läuft nie ab</small></span></div>
+			<div class="row row--off"><input type="checkbox" disabled><span><strong>Mastodon</strong>
+				<small>noch nicht eingerichtet</small></span></div>
+
+			<a class="link" href="#">🔑 Facebook-Zugang erneuern</a>
+			<p class="warn">Instagram braucht ein Bild — ohne Anhang bleibt der Kanal gesperrt.</p>
+		</div>
+
+		<!-- ---- rechts: die Entwuerfe ------------------------------------------------------ -->
+		<div class="hub__col">
+			<label class="label">Entwürfe <small>3 warten</small></label>
+
+			<div class="draft draft--auto">
+				<span class="draft__when">Automatisch · 11.08.2026, 10:07</span>
+				<p class="draft__text">Der Routenplaner rechnet jetzt auch quer durchs Gelände: Rechtsklick
+				auf einen beliebigen Punkt der Karte …</p>
+				<div class="draft__actions">
+					<button class="soft soft--mini">Veröffentlichen</button>
+					<button class="soft soft--mini">Bearbeiten</button>
+				</div>
+			</div>
+
+			<div class="draft">
+				<span class="draft__when">valentin · 10.08.2026, 23:47</span>
+				<p class="draft__text">Neue Stadtkarten im Bestand — diesmal aus dem Bornland, mit
+				Quellenangabe und Lizenzhinweis.</p>
+				<div class="draft__actions">
+					<button class="soft soft--mini">Veröffentlichen</button>
+					<button class="soft soft--mini">Bearbeiten</button>
+				</div>
+			</div>
+
+			<div class="draft">
+				<span class="draft__when">mara · 09.08.2026, 18:12</span>
+				<p class="draft__text">Kleiner Hinweis für Kartograffen: die Wege-Labels folgen jetzt der
+				Straße statt daneben zu kleben.</p>
+				<div class="draft__actions">
+					<button class="soft soft--mini">Veröffentlichen</button>
+					<button class="soft soft--mini">Bearbeiten</button>
+				</div>
+			</div>
+
+			<p class="hint">Ein Entwurf geht an die Kanäle, die beim Anlegen angehakt waren — nicht an
+			die, die gerade in der Mitte stehen.</p>
+		</div>
+
+	</div>
+
+	<div class="hub__foot">
+		<span class="muted">Geht an 2 Kanäle · als Avesmaps, nicht unter deinem Namen</span>
+		<span class="spacer"></span>
+		<button class="soft">Als Entwurf speichern</button>
+		<button class="filled">Veröffentlichen</button>
+	</div>
+</div>
+
+<div class="note">
+	<p><strong>Was sich gegenüber heute ändert</strong></p>
+	<ul>
+		<li>Die Entwürfe bekommen eine <strong>eigene Spalte</strong> statt unter den Kanälen zu hängen.
+			Damit stehen die drei Dinge nebeneinander, die man beim Schreiben im Blick hat: was ich
+			schreibe, wohin es geht, was schon wartet.</li>
+		<li>Das Fenster wird <strong>1180 px statt 960</strong> breit. Bei 960 blieben dem Textfeld rund
+			290 px — zu wenig für einen Beitrag, den man vor dem Absenden lesen können will.</li>
+		<li>Die Spalten trennt eine <strong>Linie, kein Kasten</strong> — dieselbe Gruppierung wie sonst
+			überall im Projekt.</li>
+	</ul>
+	<p>⚠️ <strong>Offen:</strong> unter 1180 px Fensterbreite muss die dritte Spalte irgendwohin. Zwei
+	Möglichkeiten: alle drei untereinander (wie heute schon unter 720 px), oder die Entwürfe wandern
+	zurück unter die Kanäle. Sag, was dir lieber ist — im Zweifel nehme ich das erste, weil es die
+	Regel ist, die dieses Fenster schon kennt.</p>
+	<p class="muted">Mockup, kein Bauteil: die Farbwerte sind aus <code>css/base/tokens.css</code>
+	kopiert und ändern sich dort nicht mit.</p>
+</div>
+
+</div>
+</body>
+</html>

@@ -2005,12 +2005,6 @@
 						<label class="social-hub__label">Kanäle</label>
 						<div id="social-channels"></div>
 						<p id="social-channel-hint" class="social-hub__warn"></p>
-						<!-- Die Entwuerfe stehen im Fenster selbst, nicht nur im Panel dahinter: wer hier schreibt, will
-						     sehen, was schon wartet -- und einen davon mit einem Klick hinauslassen koennen. -->
-						<div class="social-hub__drafts">
-							<label class="social-hub__label">Entwürfe</label>
-							<div id="social-hub-drafts"></div>
-						</div>
 						<div id="social-connect" class="social-hub__connect" hidden>
 							<label class="social-hub__label" for="social-connect-token">Zugang einrichten<span class="social-hub__label-note" id="social-connect-channel"></span></label>
 							<!-- Der Server macht Tausch, Seiten-Token und Nachpruefung. Hier hinein gehoert nur der
@@ -2024,6 +2018,17 @@
 							</div>
 							<p id="social-connect-result" class="social-hub__hint"></p>
 						</div>
+					</div>
+					<!-- Dritte Spalte: was schon wartet. Sie steht NEBEN den Kanaelen und nicht darunter, weil
+					     beim Schreiben drei Dinge gleichzeitig zaehlen -- was ich schreibe, wohin es geht, was
+					     noch offen ist. Untereinander waere das dritte immer weggescrollt. -->
+					<div class="social-hub__drafts">
+						<label class="social-hub__label">Entwürfe<span class="social-hub__label-note" id="social-drafts-count"></span></label>
+						<div id="social-hub-drafts"></div>
+						<!-- 💣 Der Satz ist kein Beiwerk: ohne ihn liest man die Kanalspalte links daneben als
+						     Einstellung fuer den Knopf hier -- und der erste, der das tut, veroeffentlicht
+						     woandershin als gedacht. -->
+						<p class="social-hub__hint">Ein Entwurf geht an die Kanäle, die beim Anlegen angehakt waren — nicht an die, die gerade nebenan stehen.</p>
 					</div>
 				</div>
 				<div class="social-hub__foot">
