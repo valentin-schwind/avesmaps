@@ -21,11 +21,11 @@ Arbeit ist und was Rückstand.
 
 | Befund | Zahl |
 |---|---|
-| Worktrees registriert | 20 (16 unter `.claude/worktrees/`, + Hauptbaum + 3 im Temp) |
-| Belegter Platz `.claude/worktrees/` | **0,72 GB** in 16.452 Dateien |
-| Verwaiste Verzeichnisse | 7 — alle leer · **am 10.08. gelöscht, siehe §3** |
-| Lokale Branches | 118, davon **100 in `origin/master` enthalten** |
-| Commits, die **nirgends** in master stehen | **15** (16 Einträge, einer doppelt), auf 8 Branches — als Tag gesichert |
+| Worktrees registriert | 20 (16 unter `.claude/worktrees/`, + Hauptbaum + 3 im Temp) · **jetzt 7, siehe §9** |
+| Belegter Platz `.claude/worktrees/` | 0,72 GB in 16.452 Dateien · **jetzt 0,11 GB** |
+| Verwaiste Verzeichnisse | 7 — alle leer · **gelöscht, siehe §3** |
+| Lokale Branches | 118, davon 100 in `origin/master` enthalten · **jetzt 20, siehe §9** |
+| Commits, die **nirgends** in master stehen | 15 auf 8 Branches, als Tag gesichert · **jetzt 9 auf 6, siehe §9** |
 
 Der Projektzustand selbst ist gesund: keine getrackte Datei ungesichert geändert,
 **122 PHP- und 93 JS-Tests grün**.
@@ -185,3 +185,59 @@ ls .claude/worktrees/                                         # was auf der Plat
 
 Die Differenz der letzten beiden Zeilen sind die Waisen aus Abschnitt 3.
 Ob ein Branch wirklich etwas trägt, sagt **nur** `git cherry origin/master <branch>`.
+
+---
+
+## 9. Nachtrag: was der Owner am 2026-08-10 entschieden hat
+
+| | vorher | nachher |
+|---|---|---|
+| Lokale Branches | 118 | **20** |
+| Worktrees (registriert) | 20 | **7** |
+| Platz `.claude/worktrees/` | 2,08 GB (Sitzungsbeginn) | **0,11 GB** |
+| Ungesicherte Commits | 15 auf 8 Branches | **9 auf 6** |
+
+**Verworfen (Owner-Entscheid):**
+
+- **`worktree-landschaften-v5`** (6 Commits, `bd4f0f6b`) — Worktree, Branch und Tag.
+  „Die Daten sind da." Mit weg ist die uncommittete `tools/ecosystem/ledger-meer.json.bak`.
+- **`fix(wappen): CC0 is a waiver`** (`6eea70ca`) — **war ohnehin überholt.** Die Wirkung
+  steht längst in master (`api/_internal/wiki/sync-monitor-licenses.php:124`), und mit dem
+  **breiteren** Muster: master erkennt `{{CC 0}}` *und* `{{CC|0}}`, der Commit nur die erste
+  Form. `git cherry` konnte das nicht sehen, weil es in einer anderen Datei mit anderem
+  Regex neu gebaut wurde — andere patch-id, gleiche Wirkung. ⚠️ **Merke:** „nicht in master"
+  laut `git cherry` heißt *nicht* „die Wirkung fehlt". Bei einem Fix immer gegen den
+  Produktivpfad prüfen, nicht nur gegen die Commit-Liste.
+
+**Branches:** 91 mit `git branch -d` gelöscht (verweigert alles Ungemergte). Neun blieben
+stehen — vier zu Recht, weil in einem Worktree ausgecheckt; **fünf nur, weil sie ihrem
+eigenen veralteten Remote-Branch vorauslaufen.** Für die fünf per `git cherry` belegt:
+**0 eigene Commits**, danach mit `-D` gelöscht. Die Remote-Branches auf GitHub sind
+unangetastet — das wäre eine eigene Entscheidung.
+
+**Worktrees:** 11 entfernt, **3 behalten**, weil dort echte uncommittete Arbeit liegt:
+`bridge-cse_0173…` (Shoplink-Crawl), `drachenflug-summe` und `landschaften-editor`
+(verify-Seiten). 💣 Die `water-trial-test.php`-Änderung in sechs weiteren war **kein**
+Grund zum Behalten: die hängen auf älteren Commits, also stand dort noch der Phantom-Diff
+aus §6. Vor dem Entfernen je Worktree geprüft, dass nach `tr -d '\r'` Byte-Gleichheit
+besteht — erst dann entfernt.
+
+⚠️ **Eine neue Waise entstand während des Abbaus** (`brave-khorana-3e15e9`, leer, ohne
+`.git`). Sie liess sich nicht löschen: **von einem anderen Prozess belegt**. Eine
+Nachbarsitzung arbeitet daran — stehengelassen, nicht erzwungen.
+
+⚠️ **Im Hauptbaum lag während der ganzen Aktion fremde uncommittete Arbeit**
+(`css/components/legal-dialog.css`, `index.html`, `js/app/i18n-en.js`, 57 Zeilen). Nicht
+angefasst. Genau dafür ist die Regel da, `git status` zuerst zu lesen — und genau deshalb
+war das Aufräumen des Rauschens (§6, `verify-*`) die Voraussetzung dafür, sie überhaupt zu
+sehen.
+
+**Was noch gesichert liegt:** 9 Commits auf 6 Tags —
+`gallant-mahavira-709025`, `keen-kapitsa-a325e8`, `nice-shamir-e6fdb3`,
+`worktree-agent-a1aaa9a54a7a0aa03`, `worktree-bridge-cse_01JYY6…` (2),
+`youthful-goodall-666497` (3).
+
+**Offen geblieben:** die 6 roten `.mjs`-Tests unter `tools/` (von 21). Sie sind seit
+2026-08-05 bewusst nicht im CI-Gate — der Workflow sagt das selbst — und am 2026-08-10
+unverändert rot. Reparieren und aufnehmen, oder stilllegen: ein Test, an dessen Rot man
+sich gewöhnt, bewacht nichts.
