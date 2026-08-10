@@ -80,10 +80,16 @@ deklarativ in `api/_internal/social/channels.php`. Die **Zugangsdaten** stehen a
     'app_token'  => '…',              // gated die Endpunkte, NICHT der Netz-Token
     'enabled'    => true,             // Killschalter, siehe §8
     'instagram'  => ['user_id' => '…', 'app_id' => '…', 'app_secret' => '…'],
-    'facebook'   => ['page_id'  => '…'],
+    'facebook'   => ['page_id' => '…', 'app_id' => '…', 'app_secret' => '…'],
     'mastodon'   => ['base_url' => '…'],
 ],
 ```
+
+⚠️ `facebook.graph_version` ist wahlfrei und überschreibt die im Adapter gepinnte Fassung. Meta nimmt
+eine Graph-Fassung rund zwei Jahre nach ihrer Freigabe außer Betrieb; gepinnt ist `v25.0` (frei seit
+18.02.2026, nutzbar bis 29.07.2028, am 10.08.2026 an Metas Changelog gemessen). Der Schlüssel steht
+da, damit ein Sprung eine Konfigurationszeile ist und kein Deploy. Eine **unversionierte** Adresse
+wäre das Gegenteil: dann würde Metas Umstellung zu unserer, ohne dass hier jemand etwas tut.
 
 🔴 **Der rotierende Zugangs-Token steht in der DATENBANK, nicht hier** (Owner-Entscheid 10.08.2026;
 Tabelle `social_token`, Spalten `channel_key · access_token · expires_at · refreshed_at`). Ein Token,
@@ -250,13 +256,25 @@ getrennt, wenn Bild nachweislich läuft.
 | Meta-App „Avesmaps" | `1037557352198584`, Anwendungsfälle Instagram + Seiten, **kein** App-Review, **keine** Unternehmensverifizierung |
 | Berechtigungen | `instagram_basic`, `instagram_content_publish`, `pages_manage_posts`, `pages_read_engagement`, `pages_show_list`, `business_management` — ⚠️ das ist der **Facebook-Login**-Satz, siehe unten |
 | Instagram `@avesmaps` | Unternehmenskonto, ID `17841434373040202`, im Business-Portfolio |
-| Facebook-Seite „Avesmaps" | ID `61592910429900`, Asset `1322710140914682` — 🔧 **blockiert**: Der Owner hat nur Aufgabenzugriff, für die Instagram-Verknüpfung braucht es *uneingeschränkte Kontrolle*; wer sie hat, ist offen |
+| Facebook-Seite „Avesmaps" | **neu am 10.08.2026**, `facebook.com/avesmaps`, unter dem eigenen Konto des Owners. Profil-ID `61593145741175`, Graph-ID `1240150995850875` — siehe die zwei Kennungen unten. Die Seitenliste bietet „Beitrag erstellen" an, also liegt `CREATE_CONTENT` vor |
 | Mastodon | noch kein Konto |
 
-⚠️ Das Facebook-Profil „Aves Maps" (`61593292284323`) ist **nicht** die Seite. Es ist ein
-persönliches Profil, verstößt als Projektauftritt gegen Facebooks Regeln und kann nicht per API
-bespielt werden. Der Link in der „Folge uns"-Kachel auf avesmaps.de zeigt derzeit dorthin und
-gehört auf `61592910429900` umgestellt.
+🔴 **Eine Seite hat ZWEI Kennungen, und die Graph-API meint die zweite.** Seiten der „neuen
+Seitenerfahrung" tragen eine Profil-ID in der `6159…`-Form — das ist die, die in `profile.php?id=`
+steht und die man im Browser sieht — und daneben eine klassische Seiten-ID (`delegate_page`), und
+**nur die zweite ist der Knoten, den ein Seiten-Token adressiert.** Genau diese Doppelung steckte
+schon in der alten Zeile: was hier als „Asset `1322710140914682`" notiert war, war nie ein Asset,
+sondern die Graph-ID der alten Seite. Wer die `6159…`-Zahl in `social.facebook.page_id` schreibt,
+bekommt von Meta einen Fehler statt eines Beitrags. 🔧 **Maßgeblich ist, was
+`GET /me/accounts?fields=name,id,tasks` als `id` zurückgibt** — was dort steht, ist per Definition
+der richtige Knoten; die beiden Zahlen oben sind aus der Seite ausgelesen, nicht aus der API.
+
+⚠️ **Altlasten, vom Owner zu löschen:** die alte Seite `61592910429900` und das persönliche Profil
+„Aves Maps" `61593292284323`. Das Profil war nie die Seite — es verstößt als Projektauftritt gegen
+Facebooks Regeln und ist per API nicht bespielbar. Die „Folge uns"-Kachel zeigte bis 10.08.2026
+dorthin und steht seither auf `facebook.com/avesmaps`. ⚠️ Dort steht bewusst der **Namenspfad**, nicht
+eine der beiden Zahlen: er ist lesbar, und er überlebt es, wenn Meta die Kennungen der Seite noch
+einmal umstellt.
 
 ### 12.1 Die drei Entscheidungen vom 10.08.2026
 
@@ -287,7 +305,13 @@ GET /me/accounts?fields=name,id,tasks
 Steht bei „Avesmaps" ein `CREATE_CONTENT` im `tasks`-Feld, ist Facebook offen und der Blocker betraf
 nur den Umweg über die Seite — den wir mit Entscheidung 1 ohnehin nicht mehr gehen. Steht es nicht
 drin, ist Facebook wirklich zu, und die einzige Lösung ist, den Inhaber der Seite zu finden.
-🔧 **Solange das nicht gemessen ist, gilt Facebook als offen, nicht als blockiert.**
+
+✅ **Gemessen am 10.08.2026 — und die Frage hat sich anders erledigt, als sie gestellt war.** Der Owner
+hat eine **neue** Seite unter dem eigenen Konto angelegt (`facebook.com/avesmaps`), womit der alte
+Zugriffsstreit gegenstandslos ist. Die Seitenliste führt sie mit „Beitrag erstellen" — genau das
+Erkennungszeichen, dessen Fehlen („Seite verwalten") die alte Vermutung ausgelöst hatte. Was die
+Messung **stattdessen** zutage förderte, ist die Zwei-Kennungen-Falle oben: die eigentliche
+Fehlerquelle war nie das Recht, sondern die Frage, welche der beiden Zahlen die Graph-API meint.
 
 **3. Der rotierende Token steht in der Datenbank** — begründet in §3.
 
@@ -300,7 +324,8 @@ Nicht enthalten sind:
 - **Kein echter Kanal.** Instagram, Facebook und Mastodon stehen im Register und erscheinen
   ausgegraut als „noch nicht eingerichtet". Ihre Adapter sind Stufe 2. 🔴 Ein fehlender Adapter ist
   `null`, nie ein stiller Leerlauf, der Erfolg meldet — sonst stünde „gesendet" an einem Kanal, auf
-  dem nichts steht.
+  dem nichts steht. **Nachtrag 10.08.2026:** Facebook hat seinen Adapter bekommen (§12.3); Instagram
+  und Mastodon sind weiter `null`.
 - **Kein Kartenausschnitt, kein Video.** Beide Knöpfe stehen sichtbar und abgeschaltet da. Video ist
   laut §11 ohnehin Stufe 3; der Kartenausschnitt braucht eine eigene Aufnahme (Leaflet mischt
   Kachel-`<img>` und Canvas-Ebenen) und ist damit eigene Arbeit, kein Nebeneffekt der Bild-Pipeline.
@@ -308,3 +333,50 @@ Nicht enthalten sind:
   mit ihm.
 - **Keine Zeitplanung.** Spalte `scheduled_for` und Status `geplant` existieren, es gibt nur noch
   keinen Läufer, der sie abarbeitet.
+
+### 12.3 Der Facebook-Adapter (10.08.2026)
+
+Der erste echte Kanal. `api/_internal/social/adapters/facebook.php`, eingetragen in
+`avesmapsSocialAdapterFor`. Ein Beitrag **mit** Bild geht an `POST /{page_id}/photos`, einer **ohne**
+an `POST /{page_id}/feed`.
+
+Was der Adapter braucht, steht an **zwei** Orten, und das ist Absicht (§3): die Seiten-Kennung in
+`social.facebook.page_id` in `api/config.local.php`, der Seiten-Token in der Zeile
+`channel_key = 'facebook'` der Tabelle `social_token`. Fehlt eines von beidem, nennt die Absage
+**genau die fehlende Stelle** — „nicht eingerichtet" wäre wahr und nutzlos, denn welche der beiden
+Hälften fehlt, ist die ganze Frage.
+
+💣 **Fünf Fallen, alle im Adapter begründet und in `publish-test.php` festgenagelt:**
+
+1. **Ein SEITEN-Token, und niemals `/me`.** Der Token entsteht, indem man `GET /me/accounts` mit
+   einem **langlebigen NUTZER**-Token abfragt — erst dann läuft der Seiten-Token seinerseits nie ab.
+   Jede Anfrage adressiert die Seite über ihre Kennung. `/me/feed` wäre kürzer und würde an dem Tag,
+   an dem der abgelegte Token doch ein Nutzer-Token ist, den Projektbeitrag **öffentlich auf dem
+   privaten Profil des Owners** veröffentlichen. Es gibt im Adapter keinen Rückfall auf `/me`.
+2. **Der Token gehört in den Rumpf, nie in die Adresse.** Graph nimmt `?access_token=…`, und so
+   zeigen es die meisten Beispiele; eine Abfragezeichenfolge landet in Server-Protokollen und in
+   jedem Fehlertext. Ein abgeflossener Seiten-Token postet als Avesmaps, bis ihn jemand von Hand
+   entzieht.
+3. **`caption` bei `/photos`, `message` bei `/feed`.** Die Asymmetrie ist Metas. Schickt man
+   `message` an `/photos`, wird es **angenommen und verworfen** — das Bild steht ohne ein Wort des
+   Textes da, und nichts meldet einen Fehler.
+4. **`post_id` vor `id`.** `/photos` antwortet mit beidem; `id` ist das **Foto**. Wer es speichert,
+   führt in der Liste eine Kennung, die den sichtbaren Beitrag weder öffnet noch löscht.
+5. **Keine Kennung zurück heißt nicht gesendet.** Ein Fehlerobjekt, ein leerer Rumpf, HTTP 200 ohne
+   `id` — alles gilt als Fehlschlag. „Gesendet" ist in der Liste das Versprechen, dass etwas
+   öffentlich steht (§2.2). Aus demselben Grund folgt der Adapter **keiner Weiterleitung**: auf einem
+   POST würde curl den Rumpf samt Token noch einmal senden, wohin auch immer.
+
+⚠️ Metas Fehlertext wandert unverändert in die Zeile — er *ist* die Diagnose, und ihn hinter „Fehler
+beim Senden" zu verstecken macht aus fünf Minuten eine Stunde. Zwei Codes bekommen einen Zusatz, weil
+ihr Wortlaut die Ursache nicht nennt: **190** (Token ungültig → Zeile in `social_token` ersetzen) und
+**200/10** (Recht fehlt → `CREATE_CONTENT` bzw. `pages_manage_posts`, und der Token muss ein
+Seiten-Token sein).
+
+⚠️ **Eine Zeitüberschreitung ist der zweideutige Fall** — der Beitrag *kann* draußen sein. Er zählt
+als Fehlschlag, aber der Text sagt es: erst auf der Seite nachsehen, dann „Erneut" drücken. Sonst ist
+der zweite Versuch ein Doppelbeitrag, und den kann man auf keinem Netz nachträglich zusammenführen.
+
+⚠️ **Der Token gilt für keine Verlängerung.** Ein Seiten-Token aus einem langlebigen Nutzer-Token
+läuft nicht ab; `expires_at` bleibt darum `NULL`. Das ist der Unterschied zu Instagram (§12.1), wo
+der Zähler durchlaufen kann — hier gibt es keinen.
