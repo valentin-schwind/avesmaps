@@ -88,6 +88,16 @@
 			: parsed.toLocaleDateString("de-DE"));
 	}
 
+	// Was ueber einem wartenden Beitrag steht. 💣 Es gibt seit der Entwurfs-Box ZWEI Herkuenfte im
+	// selben Zustand `proposal`: die Routine schlaegt vor, ein Editor parkt. Der Satz „Vorschlag der
+	// Routine" stand hier fest verdrahtet und war ab dem ersten Editor-Entwurf schlicht falsch --
+	// sichtbar falsch, ueber dem eigenen Text. Deshalb entscheidet `origin`, nicht der Zustand.
+	function proposalNote(post) {
+		return (post && post.origin === "routine")
+			? "Vorschlag der Routine — wartet auf Freigabe."
+			: "Entwurf — noch nicht veröffentlicht.";
+	}
+
 	// 🔴 Ein Beitrag, dessen Verfasser verloren ging, darf nie so lesen, als haette die Automatik ihn
 	// geschrieben. Der Unterschied zwischen „ein Mensch hat das entschieden" und „eine Routine hat es
 	// vorgeschlagen" ist der Sinn des Kennzeichens.
@@ -265,7 +275,7 @@
 			if (post.state === "proposal") {
 				const note = document.createElement("p");
 				note.className = "social-post__note";
-				note.textContent = "Vorschlag der Routine — wartet auf Freigabe.";
+				note.textContent = proposalNote(post);
 				item.appendChild(note);
 				renderProposalActions(post, item);
 			}
@@ -817,6 +827,6 @@
 
 	if (typeof module !== "undefined" && module.exports) {
 		module.exports = { chipClass, chipLabel, canRetry, strictestLimit, formatCount, postAuthorLabel,
-			formatExpiry };
+			formatExpiry, proposalNote };
 	}
 })();

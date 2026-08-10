@@ -17,6 +17,7 @@ const {
 	formatCount,
 	postAuthorLabel,
 	formatExpiry,
+	proposalNote,
 } = require("../review-social.js");
 
 // ---- the status a chip shows ---------------------------------------------------------------------
@@ -116,5 +117,17 @@ assert.ok(formatExpiry("2026-10-09 12:00:00").includes("2026"),
 // Unlesbares faellt NICHT auf „nie" zurueck -- lieber der Rohwert als eine falsche Zusage.
 assert.strictEqual(formatExpiry("kaputt"), "Zugang läuft ab: kaputt",
 	"ein unlesbares Datum bleibt sichtbar und faellt nie auf die Zusage zurueck");
+
+// ---- was ueber einem wartenden Beitrag steht ---------------------------------------------------------
+
+// 💣 ZWEI Herkuenfte im selben Zustand `proposal`: die Routine schlaegt vor, ein Editor parkt.
+// Der Satz "Vorschlag der Routine" stand fest verdrahtet und war ab dem ersten Editor-Entwurf
+// sichtbar falsch -- ueber dem eigenen Text.
+assert.strictEqual(proposalNote({ origin: "routine" }), "Vorschlag der Routine — wartet auf Freigabe.");
+assert.strictEqual(proposalNote({ origin: "editor" }), "Entwurf — noch nicht veröffentlicht.",
+	"ein Editor-Entwurf darf nie so lesen, als haette die Routine ihn vorgeschlagen");
+assert.strictEqual(proposalNote({}), "Entwurf — noch nicht veröffentlicht.",
+	"ohne Herkunft faellt es auf den Menschen zurueck, nicht auf die Automatik");
+assert.strictEqual(proposalNote(null), "Entwurf — noch nicht veröffentlicht.");
 
 console.log("social-list.test: OK");
