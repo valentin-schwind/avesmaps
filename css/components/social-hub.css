@@ -168,6 +168,16 @@
 	padding: 2px 8px;
 }
 
+/* Die beiden Hauptknoepfe des Hubs: Klasse und Farben kommen aus `.wiki-sync-panel__start` (derselbe
+   gefuellte Knopf wie in jedem anderen Reiter), nur das Innenmass ist hier groesser. Die Basisregel
+   setzt var(--space-4) var(--space-6) = 6px 8px, und das ist fuer einen 400 px breiten Knopf mit
+   zentrierter Schrift zu eng -- der Text klebt oben und unten an der Kante. */
+#social-open-hub,
+#social-publish {
+	min-height: 40px;
+	padding: 11px 18px;
+}
+
 /* ⚠️ `.wiki-sync-panel__start` ist `width: 100%` -- richtig fuer den Hauptknopf oben im Reiter, falsch
    ueberall dort, wo er neben etwas anderem steht. Deshalb NICHT eine eigene gefuellte Knopfklasse
    erfinden (die driftet), sondern dieselbe nehmen und nur die Breite zuruecknehmen: in der Fusszeile
