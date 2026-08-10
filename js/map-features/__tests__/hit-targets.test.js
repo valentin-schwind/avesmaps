@@ -78,4 +78,20 @@ assert.ok(/\.location-name-label\.is-colliding[\s\S]{0,200}?display:\s*none/.tes
 	"ein weggekollidiertes Label ist display:none und faengt deshalb keinen Klick"
 	+ " -- mit opacity:0 gaebe es Geisterklicks auf unsichtbaren Namen");
 
+// ---- Der Trefferboden steht EINMAL ----------------------------------------------------------------
+const canvasLayer = withoutComments(read("js", "map-features", "map-features-location-canvas-layer.js"));
+const ausdruecke = canvasLayer.match(/\(1\s*\+\s*LOCATION_MARKER_CONTOUR_RATIO\)/g) || [];
+assert.strictEqual(ausdruecke.length, 1,
+	`der Trefferradius wird ${ausdruecke.length}x gerechnet -- er gehoert in EINE Funktion. Vorher`
+	+ " standen zwei Kopien da (Klick und Mauszeiger), und zwei Kopien driften auseinander.");
+assert.ok(/function locationCanvasHitRadius\s*\(/.test(canvasLayer),
+	"und diese Funktion heisst locationCanvasHitRadius");
+const boden = canvasLayer.match(/AVESMAPS_LOCATION_TOUCH_HIT_FLOOR\s*=\s*([0-9.]+)/);
+assert.ok(boden, "der Boden steht als benannte Konstante");
+assert.ok(Number(boden[1]) <= 18,
+	`der Boden ist ${boden[1]}px -- ueber ~18 oeffnet bei 4.653 Orten ein Tipp auf leere Karte einen`
+	+ " Ort weit weg. Der klickbare Ortsname traegt den Rest.");
+assert.ok(/pointer:\s*coarse/.test(canvasLayer),
+	"und er gilt nur am groben Zeiger -- am Zeiger trifft man einen 5px-Punkt genau genug");
+
 console.log("hit-targets tests passed");

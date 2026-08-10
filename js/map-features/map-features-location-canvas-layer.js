@@ -18,6 +18,33 @@ const LOCATION_CANVAS_MARKERS_ENABLED = (() => {
 
 const LOCATION_CANVAS_TYPES = new Set(["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"]);
 
+// Wie weit neben einem Punkt ein Klick noch zaehlt.
+//
+// 💣 Die gezeichnete Groesse reicht am Finger auf KEINER Zoomstufe: ein Dorf misst bei Zoom 6
+// (dort endet das Markerschema) 24px Trefferdurchmesser, eine Metropole erreicht Fingergroesse
+// erst ab Zoom 5. Deshalb ein Boden -- aber ein kleiner.
+//
+// ⚠️ 16, nicht 22: bei 4.653 Orten ueberlappen sich die Kreise sonst grossflaechig. Technisch
+// harmlos (beide Schleifen unten nehmen den NAECHSTEN Treffer), aber ein zu grosser Boden laesst
+// einen Tipp auf leere Karte einen Ort weit weg oeffnen. Den Rest traegt der klickbare Ortsname
+// (map-features-location-name-labels.js) -- er ist der breite Teil desselben Ziels.
+const AVESMAPS_LOCATION_TOUCH_HIT_FLOOR = 16;
+const AVESMAPS_LOCATION_HIT_SLACK = 3;
+
+// 🔴 EINE Stelle. Vorher stand derselbe Ausdruck zweimal in der Datei -- einmal fuer den Klick,
+// einmal fuer den Mauszeiger. Zwei Kopien einer Trefferregel driften auseinander, und der Fehler
+// zeigt sich dann als "der Zeiger wird zur Hand, aber der Klick tut nichts".
+function locationCanvasHitRadius(core) {
+	const gezeichnet = core * (1 + LOCATION_MARKER_CONTOUR_RATIO) + AVESMAPS_LOCATION_HIT_SLACK;
+	let groberZeiger = false;
+	try {
+		groberZeiger = window.matchMedia("(pointer: coarse)").matches;
+	} catch (error) {
+		groberZeiger = false;
+	}
+	return groberZeiger ? Math.max(gezeichnet, AVESMAPS_LOCATION_TOUCH_HIT_FLOOR) : gezeichnet;
+}
+
 // Active/clicked settlement highlight (Owner: the active location's marker fills gold-yellow). The
 // active id lives in runtime-state (activeLocationPublicId). These helpers set/clear it, repaint the
 // canvas, and toggle a DOM-marker class so BOTH render paths follow. Reading the token (not a hardcode)
@@ -294,7 +321,7 @@ const locationCanvasLayer = {
 			}
 			const containerPoint = this._map.latLngToContainerPoint(item.latLng);
 			const distance = Math.hypot(containerPoint.x - point.x, containerPoint.y - point.y);
-			const hitRadius = item.core * (1 + LOCATION_MARKER_CONTOUR_RATIO) + 3;
+			const hitRadius = locationCanvasHitRadius(item.core);
 			if (distance <= hitRadius && distance < hitDistance) {
 				hit = item;
 				hitDistance = distance;
@@ -364,7 +391,7 @@ const locationCanvasLayer = {
 			const containerPoint = this._map.latLngToContainerPoint(item.latLng);
 			const dx = containerPoint.x - point.x;
 			const dy = containerPoint.y - point.y;
-			const hitRadius = item.core * (1 + LOCATION_MARKER_CONTOUR_RATIO) + 3;
+			const hitRadius = locationCanvasHitRadius(item.core);
 			if (dx * dx + dy * dy <= hitRadius * hitRadius) {
 				over = true;
 				break;
