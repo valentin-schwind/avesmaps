@@ -226,6 +226,18 @@ function refreshLocationMarkerPopup(markerEntry) {
 	// In infopanel mode the bound popup is the slim FLOATING box (the panel holds the full info). Lazy
 	// content so the slim variant is built up front -> no full-box flash before the popupopen handler runs.
 	const infopanelMode = typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE;
+	// Am Telefon deckt das Infopanel die Karte, und die schwebende Box liegt dahinter: gemessen auf
+	// 360x640 beginnt sie bei x=13 und ist 334px breit, das Panel beginnt bei x=64 -- 283 von 334px
+	// sind verdeckt, uebrig bleibt ein 51px-Streifen mit dem Anfang des Namens. Ausgerechnet ihr
+	// Zweck ("sehen, WO der Ort liegt") laesst sich dort am wenigsten einloesen, weil das bisschen
+	// Karte links von ihr liegt. Also: eine Flaeche, das Panel.
+	//
+	// 🔴 NUR hier. Der zweite Aufrufer von { floating: true } ist "naechster Ort"
+	// (map-features-location-lookup.js) -- dort ist dieselbe Box die EINZIGE Antwortflaeche, und ein
+	// Riegel naehme dem Werkzeug seine Ausgabe. Ein Test haelt fest, dass er dort NICHT steht.
+	const floatingBoxFitsBesideInfopanel = !(typeof avesmapsIsPhoneViewport === "function"
+		&& avesmapsIsPhoneViewport());
+	const useFloatingBox = infopanelMode && floatingBoxFitsBesideInfopanel;
 	// Popup-Inhalt LAZY binden (Leaflet akzeptiert eine Content-Funktion): das HTML entsteht erst beim
 	// Öffnen. Vorher wurde es hier für JEDEN Marker beim Start gebaut (~3000 × Infobox/Buttons/Bewertungs-
 	// Markup) und beim Öffnen via popupopen ohnehin neu gesetzt -> reiner Startup-Ballast.
@@ -236,8 +248,8 @@ function refreshLocationMarkerPopup(markerEntry) {
 	// Kein CSS setzt je flex-direction auf die Aktionsleiste; es war immer nur der fehlende Breiten-Anker
 	// (dieselbe Diagnose wie 36ac9a2b bei den Kontinent-Labels). Jede schwebende Box bekommt jetzt dieselbe.
 	markerEntry.marker.bindPopup(
-		() => buildLocationMarkerPopupHtml(markerEntry, infopanelMode ? { floating: true } : undefined),
-		{ minWidth: 320, maxWidth: 400, maxHeight, className: infopanelMode ? "settlement-popup floating-location-popup" : "settlement-popup" }
+		() => buildLocationMarkerPopupHtml(markerEntry, useFloatingBox ? { floating: true } : undefined),
+		{ minWidth: 320, maxWidth: 400, maxHeight, className: useFloatingBox ? "settlement-popup floating-location-popup" : "settlement-popup" }
 	);
 	// Inhalt bei jedem Öffnen neu setzen -> Route-Button spiegelt den aktuellen Zustand
 	// (Ort bereits Wegpunkt? -> "Reiseziel entfernen"). Nur EINMAL pro Marker binden.
