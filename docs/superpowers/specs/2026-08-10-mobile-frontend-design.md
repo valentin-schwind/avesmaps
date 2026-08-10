@@ -1,7 +1,9 @@
 # Das Frontend am Telefon — Fingermaße, Höhenbudget, und der Weg zur Karte
 
 **Stand:** 2026-08-10 · **Gemessen:** live auf avesmaps.de bei 375×812 und 360×640, DPR 2,
-`pointer: coarse` · **Owner-Abstimmung:** offen
+`pointer: coarse` · **Owner-Abstimmung:** 2026-08-10 — Zoomtasten entfallen (§7 C2), die
+schwebende Box entfällt (§5.3), Panels in voller Höhe mit den vorhandenen Laschen statt eines
+Schließkreuzes (§5.1–5.2); das „Blatt von unten" ist damit verworfen (§8)
 
 > Umfang: **nur das Frontend.** Die Editoren (`css/pages/*`, `edit/`, `html/*-editor.html`)
 > bleiben unberührt — dort wird am Schreibtisch gearbeitet. Wo eine Regel unter
@@ -83,26 +85,75 @@ scrollt **nicht**, und stattdessen scrollt die **Seite**. Gemessen auf 360×640:
 | Panel scrollt | nein | **ja** (731 → 620) |
 | **Seite** scrollt (Karte fährt weg) | **ja** | nein |
 
-**Daraus folgt die Reihenfolge des ganzen Vorhabens:** erst der Riegel, dann die Fingermaße.
-Andersherum wächst der Planer von 766 px auf über 1.000 und die halbe Oberfläche wird
-unerreichbar.
+**Daraus folgt die Reihenfolge des ganzen Vorhabens:** erst bekommt der Planer eine Höhe, in
+der er scrollen *kann*, dann die Fingermaße. Andersherum wächst er von 766 px auf über 1.000 px
+und die halbe Oberfläche wird unerreichbar.
 
 ---
 
-## 5. Block 0 — Der Riegel (Voraussetzung, ~3 Zeilen)
+## 5. Block 0 — Die Panels am Telefon *(Owner-Entscheid 2026-08-10)*
 
-Am Telefon endet der Planer am unteren Bildrand und scrollt in sich selbst.
+Drei Festlegungen, die zusammengehören. Sie ersetzen das ursprünglich vorgeschlagene „Blatt von
+unten" (§8) durch die einfachere Form, die die Oberfläche schon kennt.
+
+### 5.1 In der Höhe Vollbild
+
+Beide Panels laufen am Telefon von Kante zu Kante und scrollen in sich selbst:
 
 ```
 @media (max-width: 640px) {
-    #search { max-height: calc(100dvh - 20px); }   /* war: 140dvh */
+    #search { top: 0; height: 100dvh; max-height: none; }   /* war: top 10, max-height 140dvh */
+    .avesmaps-infopanel { top: 0; bottom: 0; }              /* war: top 10, bottom 14 */
 }
 ```
 
-⚠️ Die 140 war kein Versehen, sondern ein Ausweichen vor genau dem Scrollbalken, den §4
-beschreibt. Der Balken ist am Telefon aber das kleinere Übel: er liegt über einem Panel, das
-man ohnehin scrollt — die wegfahrende Karte kostet den Bezugspunkt. `#overview` behält seine
-eigene Grenze (`min(80vh, 100dvh − 320px)`), scrollt also weiter für sich; das bleibt.
+Das löst §4 nebenbei und sauberer als eine korrigierte `max-height`: `#search` trägt bereits
+`overflow-y: auto`, es fehlte nur eine Höhe, an der das greift. ⚠️ Die 140 dvh war kein
+Versehen, sondern ein Ausweichen vor dem Scrollbalken aus §4. Der Balken ist am Telefon das
+kleinere Übel — er liegt über einem Panel, das man ohnehin scrollt, während die wegfahrende
+Karte den Bezugspunkt kostet. `#overview` behält seine eigene Grenze und scrollt weiter für
+sich.
+
+### 5.2 Die 64-px-Gasse — und warum kein X nötig ist
+
+Zur Wahl stand ein Schließkreuz oder die vorhandenen Randlaschen. **Die Laschen genügen — es
+fehlt ihnen nur die Gasse**, und die Messung sagt, warum es heute nicht so aussieht:
+
+| auf 360 px Schirm | Panelbreite | Lasche auf dem Schirm |
+|---|---:|---:|
+| Infopanel (`min(400px, 100vw − 64px)`) | 296 px | **30 von 30 px** |
+| Routenplaner (fest `350px`) | 350 px | **10 von 30 px** |
+
+Die Lasche des Planers ist 30 px breit und sitzt bei `left: 350px` — auf einem 360er Schirm
+ragen zwei Drittel davon aus dem Bild. Das Infopanel hat die Lösung längst: eine Breitenformel,
+die 64 px stehen lässt. Der Planer bekommt dieselbe:
+
+```
+#search { width: min(350px, calc(100vw - 64px)); }
+```
+
+💣 **Eine Formel für beide Panels, nicht zwei ähnliche.** Sie gehört als Token neben
+`--avesmaps-ip-w` (`--avesmaps-panel-gutter: 64px`), sonst laufen die beiden Zahlen beim
+nächsten Anfassen auseinander — genau das Muster, vor dem AGENTS.md §12 warnt. Ein X wäre
+danach der **zweite** Weg hinaus und damit eine Bedienfrage mehr, keine weniger.
+
+### 5.3 Die schwebende Box entfällt am Telefon
+
+Ein Tipp auf einen Ort öffnet heute **zweierlei**: die schlanke schwebende Box auf der Karte
+*und* das gefüllte Infopanel
+([`location-marker-entry.js:239`](../../../js/map-features/map-features-location-marker-entry.js)
+— „leave the floating box OPEN on the map"). Die Box misst `minWidth: 320` / `maxWidth: 400`;
+das Panel daneben ist auf 360 px Schirm 296 px breit. **Die Box liegt vollständig dahinter.**
+
+Am groben Zeiger entfällt sie: der Aufruf übergibt `{ floating: true }` nur noch, wenn Platz
+dafür ist. Das Panel trägt ohnehin die vollständige Auskunft, die Box nur Kopf, Route/Teilen
+und die Bewertungszeile.
+
+🔴 **Nicht mitreißen: `location-lookup.js:342`.** Der zweite Aufrufer von `{ floating: true }`
+ist „nächster Ort" — dort ist die Box die **einzige** Antwortfläche, kein Doppel. Sie fällt
+unter dieselbe Verdeckung (`.slim-location-popup` geht unter 760 px auf volle Breite), aber die
+Abhilfe ist eine andere und gehört in einen eigenen Schritt. Wer hier pauschal nach
+`floating: true` greift, nimmt dem Werkzeug seine Ausgabe.
 
 ## 6. Block A — Die Maßschicht in den Tokens
 
@@ -187,21 +238,30 @@ Eckbund `#map-corner-actions`. ⚠️ Dann stapelt der Bund unter 599 px dreifac
 (AGENTS.md §11), und [`map-corner-actions.test.js`](../../../js/app/__tests__/map-corner-actions.test.js)
 hält sie fest.
 
-### C2 — Zoomtasten in Fingergröße
+### C2 — Die Zoomtasten entfallen *(Owner-Entscheid 2026-08-10)*
 
-`.avesmaps-infopanel-mode .leaflet-control-zoom a` steht auf 26 px — auf ausdrücklichen
-Owner-Wunsch („gerne kleiner"). Unter `pointer: coarse` auf `--tap-min`; der Wunsch bleibt
-damit für die Maus gültig.
+Nicht vergrößern — **weglassen**. Am Finger ist die Zwei-Finger-Geste die Zoomhilfe; zwei
+26-px-Kacheln daneben sind ein Mausrelikt, das Kartenfläche kostet.
 
-💣 **Hier greifen A und C ineinander, und die Richtung ist leicht zu verwechseln.** Der Zoom
-liest den Bund (`bottom: calc(12px + var(--avesmaps-corner-stack))`), nicht umgekehrt — ein
-größerer Zoom wächst also nach oben und lässt den Bund in Ruhe. Aber „Neuigkeiten" und
-„Hinweise" sind heute **31 px** hoch; sobald Block A ihnen `--tap-min` gibt, stimmt die 40 in
-`--avesmaps-corner-stack` nicht mehr, und der Zoom setzt sich auf die Knopfreihe. Die Zahl
-gehört deshalb im selben Zug an die Steuerhöhe gebunden statt neu geraten. ⚠️ Sie hängt an
-`:root`, **nicht** an `.avesmaps-infopanel-mode` allein — die Modusklasse sitzt an `<html>`
-**und** `<body>`, und die body-Kopie überschriebe sonst den schmalen Fall (AGENTS.md §11, genau
-so schon einmal gemessen).
+```
+@media (pointer: coarse) { .leaflet-control-zoom { display: none; } }
+```
+
+⚠️ **Ausblenden, nicht weglassen bei `L.control.zoom(...).addTo(map)`**
+([`bootstrap.js:134`](../../../js/app/bootstrap.js)). Der Control bleibt am Zeiger, und
+[`map-corner-actions.test.js`](../../../js/app/__tests__/map-corner-actions.test.js) prüft, dass
+`.avesmaps-infopanel-mode .leaflet-control-zoom` in `infopanel.css` platziert wird — eine
+JS-seitige Entscheidung ließe die Regel als tote Zusicherung stehen.
+
+✅ **Das löst einen Konflikt auf, den A und C sonst gehabt hätten.** „Neuigkeiten" und
+„Hinweise" sind heute 31 px hoch; sobald Block A ihnen `--tap-min` gibt, stimmt die 40 px in
+`--avesmaps-corner-stack` nicht mehr — und der Zoom, der seinen Abstand aus dieser Zahl
+rechnet, säße auf der Knopfreihe. Fällt der Zoom am Finger weg, liest die Zahl dort niemand
+mehr; sie gilt nur noch am Zeiger, wo Block A nichts ändert. **Der Bund braucht trotzdem seine
+Höhe** — er wächst mit `--tap-min` von 31 auf 44 px, und `--avesmaps-corner-stack` gehört im
+selben Zug an die Steuerhöhe gebunden statt neu geraten. ⚠️ Sie hängt an `:root`, **nicht** an
+`.avesmaps-infopanel-mode` allein — die Modusklasse sitzt an `<html>` **und** `<body>`, und die
+body-Kopie überschriebe sonst den schmalen Fall (AGENTS.md §11, genau so schon einmal gemessen).
 
 ### C3 — Orte antippbar machen
 
@@ -226,20 +286,20 @@ Startwert; er ist zu messen, nicht zu glauben.
 breit und bereits klickbar ([`map-features-labels.js:524`](../../../js/map-features/map-features-labels.js)),
 womit ein Dorf ohne jede neue Zahl fingergroß würde. Eigener Schritt.
 
-## 8. Block B — Der Planer als Blatt von unten *(eigene Sitzung)*
+## 8. Verworfen: der Planer als Blatt von unten
 
-Am Telefon ist der Planer 350 px breit und lässt **10 px Karte** übrig: man plant blind. Die
-Form stimmt nicht — eine Seitenleiste ist eine Desktopform.
+Der erste Entwurf schlug vor, `#search` am Telefon von **unten** einfahren zu lassen, in drei
+Rasten (Griff · halb · ganz). **Zurückgestellt am 2026-08-10 zugunsten von §5.**
 
-**Richtung:** auf `avesmapsIsPhoneViewport()` fährt `#search` von **unten** statt von links, in
-drei Rasten — Griff (~72 px, Zusammenfassung plus „Route planen") · halb (50 dvh) · ganz
-(90 dvh). Die Karte bleibt oben sichtbar, und `getRouteFitBoundsOptions` bekäme erstmals einen
-sinnvollen `paddingBottomRight` statt der heutigen Null.
+Der Grund ist nicht Aufwand, sondern Sparsamkeit: das Blatt hätte einen zweiten Öffnungs- und
+Schließmechanismus neben die vorhandenen Randlaschen gestellt, eine neue Rasten-Logik gebraucht
+und `getRouteFitBoundsOptions`, `--avesmaps-corner-stack` sowie die jQuery-`animate({left})`
+angefasst. §5 erreicht dasselbe Ziel — Panel in voller Höhe, Karte nicht verdeckt, ein Weg
+hinein und hinaus — mit einer Breitenformel, die im Haus schon steht.
 
-Das ist der größte Eingriff (Lasche, jQuery-`animate({left})`, `#overview`-Grenze, Fokus,
-`--avesmaps-corner-stack`) und gehört **nicht** in dieselbe Sitzung wie 0 / A / C. Hier steht
-er nur, damit A und C ihn nicht verbauen: **beide dürfen keine Regel schreiben, die „links"
-oder „350 px" voraussetzt.**
+⚠️ Sollte es später doch kommen, ist die Vorbedingung dieselbe wie vorher: **keine Regel
+schreiben, die „links" oder „350 px" voraussetzt.** §5.2 erfüllt das bereits (die Formel nennt
+keine Seite).
 
 ---
 
@@ -247,10 +307,10 @@ oder „350 px" voraussetzt.**
 
 | | Block | hängt an | Abnahme |
 |---|---|---|---|
-| 1 | **0** Riegel | — | 360×640, 5 Wegpunkte: Panel scrollt, Seite nicht, Karte steht |
+| 1 | **0** Panels (§5.1–5.3) | — | 360×640, 5 Wegpunkte: Panel läuft randlos, scrollt in sich, Seite nicht; Lasche 30 von 30 px sichtbar; ein Tipp auf einen Ort öffnet **eine** Fläche |
 | 2 | **A** Maßschicht | 0 | kein Bedienelement des Fingerwegs unter 44 px; Desktop 1280×800 **pixelgleich** |
-| 3 | **C1–C3** Karte | — | Suche mit einem Tipp erreichbar; Zoom ≥ 44 px; Dorf bei Zoom 4 treffbar |
-| — | **B** Blatt | eigene Sitzung | — |
+| 3 | **C1–C3** Karte | — | Suche mit einem Tipp erreichbar; kein Zoom-Control am Finger; Dorf bei Zoom 4 treffbar |
+| — | **B** Blatt | verworfen (§8) | — |
 
 **Die Desktop-Gegenprobe ist die wichtigste Abnahme des ganzen Vorhabens.** Alles unter
 `pointer: coarse` darf am Zeiger nachweislich nichts ändern — das Höhenbudget aus §4 hängt
@@ -261,14 +321,21 @@ daran.
 Quelltext-Tests im Haus-Muster (`js/app/__tests__/*.test.js` lesen CSS und behaupten über den
 Inhalt):
 
-1. **Der Riegel bleibt.** `#search` trägt unter 640 px eine `max-height`, die `100dvh` nicht
-   übersteigt. Mutation: zurück auf `140dvh` ⇒ rot.
-2. **Kein zweiter Ort für Steuermaße.** Es gibt genau **einen** `@media (pointer: coarse)`-Block
+1. **Die Gasse ist EINE Zahl.** Der 64-px-Rand steht als Token, und **beide** Panelbreiten
+   lesen ihn. Mutation: eine zweite Datei schreibt `100vw - 64px` von Hand ⇒ rot. Das ist die
+   Zusicherung, die §5.2 überhaupt trägt — zwei Formeln driften, ein Token nicht.
+2. **`140dvh` kommt nicht zurück.** `#search` trägt unter 640 px keine `max-height` über
+   `100dvh`. Mutation: die alte Regel wieder eingesetzt ⇒ rot.
+3. **Kein zweiter Ort für Steuermaße.** Es gibt genau **einen** `@media (pointer: coarse)`-Block
    mit `--control-h*`, und er steht in `tokens.css`. Mutation: dieselben Token in einer zweiten
    Datei ⇒ rot.
-3. **Die iOS-Schwelle.** `--font-size-control` ist unter `pointer: coarse` ≥ 16 px, und keine
+4. **Die iOS-Schwelle.** `--font-size-control` ist unter `pointer: coarse` ≥ 16 px, und keine
    umgestellte Komponente schreibt daneben noch eine eigene `font-size` auf ein Feld.
-4. **Der Trefferboden steht einmal.** Der Ausdruck aus C3 kommt in
+5. **Die schwebende Box hat zwei Aufrufer, und nur einer wird still.** `{ floating: true }` in
+   `location-marker-entry.js` hängt an einer Zeigerprüfung, der in `location-lookup.js`
+   **nicht**. Mutation: den Riegel auch dorthin ⇒ rot („nächster Ort" verlöre seine Ausgabe,
+   §5.3).
+6. **Der Trefferboden steht einmal.** Der Ausdruck aus C3 kommt in
    `location-canvas-layer.js` **einmal** vor (heute zweimal).
 
 💣 **Beim Schreiben dieser Zusicherungen:** in diesem Haus haben Quelltext-Tests schon dreimal
