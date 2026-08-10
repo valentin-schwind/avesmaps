@@ -2284,10 +2284,27 @@
 						     DIESER Seite (Begruendung in css/components/legal-dialog.css). Fenster +
 						     Liste: js/app/changelog-dialog.js. -->
 						<div class="legal-dialog__actions">
+							<!-- Die linke Kachel traegt ALLE Kanaele, und sie tut es in zwei Gewichten: Discord
+							     behaelt seinen beschrifteten Knopf, die uebrigen stehen als Icons daneben.
+							     Das ist die Knopf-Hierarchie aus AGENTS.md §12 auf einen Kasten angewandt --
+							     die Einladung, in der geredet wird, wiegt mehr als die zum Zuschauen.
+							     💣 So waechst das Fenster NICHT mit der Kanalzahl: ein weiterer Kanal ist ein
+							     Icon von 32 px in derselben Zeile, keine dritte Kachel und keine neue Reihe.
+							     Gemessen am 10.08.2026: bis SECHS Kanaele bleibt die Zeile einzeilig, ab dem
+							     siebten bricht sie um -- ohne ueberzulaufen. Genau daran ist der erste
+							     Entwurf gescheitert -- eine eigene Kachel je Kanal haette das Kachelfeld vor
+							     den ersten Textabschnitt geschoben.
+							     🔴 Die Kanalnamen tragen KEIN data-i18n: „Instagram" und „Facebook" sind
+							     Eigennamen und heissen auf Englisch genauso. Sie stehen im aria-label, weil
+							     ein Icon-Knopf sonst namenlos vorgelesen wuerde. -->
 							<div class="legal-action">
-								<h3 class="legal-action__title" data-i18n="legal.discord.lead">Discord</h3>
-								<p class="legal-action__body" data-i18n="legal.discord.body">Fragen, Feedback oder einfach mitreden? Die Avesmaps-Community trifft sich auf Discord.</p>
-								<a class="legal-action__button" href="https://discord.gg/BSHEEpn6UX" target="_blank" rel="noopener noreferrer" data-i18n="legal.discord.action">Zur Community</a>
+								<h3 class="legal-action__title" data-i18n="legal.social.lead">Mitreden und folgen</h3>
+								<p class="legal-action__body" data-i18n="legal.social.body">Fragen, Feedback oder einfach mitreden? Die Avesmaps-Community trifft sich auf Discord. Auf unseren Kanälen zeigen wir, was gerade entsteht.</p>
+								<div class="legal-action__channels">
+									<a class="legal-action__button" href="https://discord.gg/BSHEEpn6UX" target="_blank" rel="noopener noreferrer" data-i18n="legal.discord.action">Zur Community</a>
+									<a class="legal-action__icon" href="https://www.instagram.com/avesmaps/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" title="Avesmaps auf Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg></a>
+									<a class="legal-action__icon" href="https://www.facebook.com/profile.php?id=61593292284323" target="_blank" rel="noopener noreferrer" aria-label="Facebook" title="Avesmaps auf Facebook"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M13.5 21.9v-8.2h2.8l.5-3.2h-3.3V8.4c0-.9.3-1.6 1.6-1.6h1.8V3.9c-.3 0-1.4-.1-2.6-.1-2.6 0-4.4 1.6-4.4 4.5v2.2H7.1v3.2h2.8v8.2z"/></svg></a>
+								</div>
 							</div>
 							<div class="legal-action">
 								<h3 class="legal-action__title" data-i18n="changelog.callout.lead">Was ist neu?</h3>

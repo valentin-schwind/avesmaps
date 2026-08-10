@@ -743,9 +743,14 @@ window.AVESMAPS_I18N_EN = {
 	"legal.liability.availability.lead": "Availability and use.",
 	"legal.liability.availability.body": "There is no claim to constant, uninterrupted or error-free availability of the website. The map, search and route planner are intended for playful, private use in the fictional world of Aventurien and give no guarantee of real-world applicability, routing or distances. Use of the features offered is at your own risk.",
 	"legal.group.contact": "Contact and imprint",
-	"legal.discord.lead": "Discord",
-	"legal.discord.body": "Questions, feedback or just want to chat? The Avesmaps community meets on Discord.",
 	"legal.discord.action": "Join the community",
+	// "legal.discord.lead" and ".body" went with the tile they used to title: Discord, Instagram
+	// and Facebook now share one. The channel names themselves are proper nouns and carry no key —
+	// they read the same in every language and live in each icon's aria-label. The sentence names
+	// only Discord, the one channel with a labelled button; the others it covers as "our channels",
+	// so it survives the next one.
+	"legal.social.lead": "Chat and follow",
+	"legal.social.body": "Questions, feedback or just want to chat? The Avesmaps community meets on Discord. On our channels we show what is taking shape right now.",
 	"legal.contact.discord": "Or reach us directly in the Avesmaps community on Discord:",
 	"legal.stylizedMap.lead": "Stylized map.",
 	"legal.stylizedMap.body": "The terrain map was produced from the original Aventurien map in several steps: it was cut into tiles, stripped of all lettering, and redrawn tile by tile by an image AI as a painted terrain map. So that nothing would shift, every tile was then put back precisely onto the geometry of the original — coastlines, rivers, paths and borders lie where they lay before, and nothing was added that was not already there. Land and water surfaces were prepared separately and merged again, the red settlement markers of the original map were carried along as their own strand, the result was finished by hand and finally cut into the tiles of the six zoom levels (32,768 × 32,768 pixels).",

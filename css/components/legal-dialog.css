@@ -179,6 +179,76 @@
 	transform: none;
 }
 
+/* Die Kanalzeile am Kachelboden: der beschriftete Discord-Knopf, danach je Kanal ein Icon.
+   💣 `align-self: stretch` ist tragend: .legal-action steht auf `align-items: flex-start`, und
+   ohne die Ausnahme schrumpfte die Zeile auf ihre Inhaltsbreite und BRAECHE NIE UM -- der siebte
+   Kanal liefe seitlich aus der Kachel heraus, statt in die naechste Zeile zu rutschen. Mit ihr
+   fuellt die Zeile die Kachelbreite und `flex-wrap` traegt jeden weiteren Kanal von selbst.
+   `align-items: center` haelt Knopf und Icons auf einer Mittellinie, auch wenn sich die Knopfhoehe
+   mit der Schriftgroesse einmal aendert. */
+.legal-dialog__content .legal-action__channels {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	align-self: stretch;
+	gap: 8px;
+	margin-top: 3px;
+}
+
+/* Der Abstand gehoert der Zeile, nicht mehr dem einzelnen Knopf: sonst zaehlte bei einem Umbruch
+   `margin-top: 3px` je Zeile zum `gap` dazu und die zweite Kanalzeile saesse tiefer als die erste.
+   Zwei Klassen im Selektor schlagen die eine der Grundregel. */
+.legal-dialog__content .legal-action__channels .legal-action__button {
+	margin-top: 0;
+}
+
+/* Ein Kanal ohne eigenen Satz ist ein Icon -- gleiche Huelle wie der weiche Knopf daneben, nur
+   quadratisch. `currentColor` im SVG ist der Grund, warum hier keine Markenfarbe steht: das
+   Fenster ist warm-braun und die Designsprache verbietet Blau (AGENTS.md §12), ein
+   Facebook-blaues Logo waere der Fremdkoerper, den die Regel meint. Einfarbig ist zugleich die
+   Fassung, die die Markenrichtlinien der Dienste fuer solche Faelle ausdruecklich vorsehen. */
+.legal-dialog__content .legal-action__icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	text-decoration: none;
+	transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+}
+
+.legal-dialog__content .legal-action__icon svg {
+	display: block;
+	width: 18px;
+	height: 18px;
+}
+
+.legal-dialog__content .legal-action__icon:hover,
+.legal-dialog__content .legal-action__icon:focus-visible {
+	background: var(--color-button-soft-hover);
+	box-shadow: var(--shadow-button-hover);
+	transform: translateY(-1px);
+}
+
+.legal-dialog__content .legal-action__icon:active {
+	background: var(--color-button-soft-active);
+	box-shadow: none;
+	transform: none;
+}
+
+/* 💣 Die einzige Ausnahme von „externe Links tragen ein ↗" (AGENTS.md §12), und sie ist eng: ein
+   Icon-Knopf hat keinen Text, an den sich der Pfeil haengen koennte -- er saesse als zweites
+   Zeichen neben einem 18-px-Glyph und machte aus dem Quadrat einen Klumpen. Dass der Weg nach
+   draussen fuehrt, sagt hier das Markenzeichen selbst; den Namen traegt das aria-label. Der
+   beschriftete Discord-Knopf daneben behaelt sein ↗ und muss es behalten. */
+.legal-dialog__content .legal-action__icon[target="_blank"]::after {
+	content: none;
+}
+
 /* Die acht Abschnitte des Fensters. Zugeklappt sind sie sein Inhaltsverzeichnis, aufgeklappt sein
    Inhalt -- deshalb traegt der Abschnitt (`<details>`) die Trennlinie und nicht mehr die Ueberschrift.
    💣 Das ist kein Verschieben aus Geschmack: im `<details>` ist das `<summary>` IMMER erstes Kind, die
