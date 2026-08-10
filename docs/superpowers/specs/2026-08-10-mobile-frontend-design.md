@@ -206,10 +206,28 @@ an dem Steuermaße stehen — genau die Divergenz, vor der AGENTS.md §12 warnt 
 generierte `-inline.css` dreimal vorgeführt hat. Ein Token, den alle lesen, kann nicht
 auseinanderlaufen.
 
+### A1 — Die iOS-Schwelle zuerst *(Owner 2026-08-10: „wichtiger Punkt")*
+
+Von allem in diesem Entwurf ist dies der kleinste Handgriff mit der größten Wirkung, und er
+steht deshalb **vor** den Höhen: `--font-size-control` auf 16 px am groben Zeiger. Darunter
+zoomt Safari beim Fokus in jedes Feld hinein und **kehrt nicht zurück** — der Nutzer landet in
+einer vergrößerten Karte, die er von Hand zurückschieben muss, und zwar bei jeder einzelnen
+Eingabe: Wegpunkt, Stunden/Tag, Reisetag, Monat, Unterkunft.
+
 ⚠️ **Die Schriftgröße muss dort stehen, wo sie gewinnt.** Ein Basisselektor
 (`input, select { font-size: 16px }`) verliert gegen jede Komponentenregel
 (`.planner-lodging__select { font-size: 12px }`, 0,1,0 gegen 0,0,1). Deshalb liest die
 Komponente `var(--font-size-control)` und die Fingerschicht hebt den Token — nicht umgekehrt.
+
+🔴 **Nicht über `maximum-scale=1` / `user-scalable=no` im Viewport-Meta.** Das ist der erste
+Vorschlag, den man zu diesem Problem findet, und er ist falsch: er nimmt **allen** das
+Aufziehen der Karte, also genau die Geste, die nach §7 C2 die einzige Zoomhilfe ist — und
+neuere iOS-Fassungen ignorieren ihn ohnehin. Der heutige Tag (`width=device-width,
+initial-scale=1.0`) bleibt unangetastet.
+
+⚠️ **16 px ist eine Schwelle, kein Richtwert** — 15,5 px zoomt. Wer den Token später „aus
+Gründen der Dichte" auf 15 senkt, holt den Fehler vollständig zurück, ohne dass es auffällt,
+solange niemand ein iPhone anfasst. Zusicherung 4 in §10 bewacht genau das.
 
 ⚠️ **Das Höhenbudget aus §4 wird damit am Desktop nicht angefasst** (`pointer: fine` ⇒ alle
 Werte unverändert). Am Telefon wächst der Planer — und darf das, weil Block 0 vorher greift.
@@ -226,17 +244,40 @@ Kontextmenü-Eintrag „Suchen" per Rechtsklick bzw. Langdruck. Am Telefon gibt 
 und ein Langdruck ist eine unsichtbare Geste. Ausgerechnet die Fläche, die als einzige schon
 Handymaße hat, ist die am schwersten erreichbare.
 
-**Vorschlag: eine Suchleiste oben**, volle Breite minus Rand, links um die Breite der
-Routenplaner-Lasche eingerückt (30 px), nur unter `pointer: coarse` sichtbar. Sie ist kein
-zweites Suchfeld — ein Tippen öffnet das bestehende Spotlight-Overlay. Oben, weil dort jede
-Kartenanwendung sie hat und weil die untere rechte Ecke bereits Zoom, „Neuigkeiten" und
-„Hinweise" trägt.
+**Der Einwand des Owners ist berechtigt: es ist kein Platz für einen Suchknopf.** Aber es wird
+gerade welcher frei. Mit §7 C2 verlässt der Zoom-Control die untere rechte Ecke — 30 × 56 px,
+direkt über dem Knopfbund, im Daumenbereich einer Hand.
 
-**Alternative** (falls der Owner die Kartenfläche oben frei halten will): ein dritter Knopf im
-Eckbund `#map-corner-actions`. ⚠️ Dann stapelt der Bund unter 599 px dreifach, und
-`--avesmaps-corner-stack` muss mitwachsen — die Zahl ist bewusst die **eine** Stelle dafür
-(AGENTS.md §11), und [`map-corner-actions.test.js`](../../../js/app/__tests__/map-corner-actions.test.js)
-hält sie fest.
+**Vorschlag: die Suche nimmt den Sitz, den der Zoom räumt.** Ein Knopf von 48 × 48 px an genau
+der Stelle, an der heute `+`/`−` stehen, nur unter `pointer: coarse`. Die Rechnung geht auf,
+weil es ein **Tausch** ist und keine Zugabe: die Zahl der Bedienelemente auf der Karte bleibt
+gleich, die Fläche praktisch auch (1.680 gegen 2.304 px²), und die Mechanik steht schon — der
+Knopf setzt sich mit `bottom: calc(12px + var(--avesmaps-corner-stack))` über den Bund, so wie
+der Zoom es tat.
+
+Gestalt nach Hausrecht (AGENTS.md §12): **quadratisch mit `--radius-md`, keine Pille**, und als
+einziges Element auf der Karte **gefüllt** (`--color-button`) — „Neuigkeiten" und „Hinweise"
+sind weich/outline. Damit trägt die Ecke sichtbar eine Rangfolge: eine Handlung, zwei Verweise.
+Nur eine Lupe, dazu `aria-label="Suchen"`; ein Wort daneben bräuchte Breite, die es nicht gibt.
+
+⚠️ **Der Knopf öffnet nichts Neues.** Er ruft `openSpotlightSearch()` — dieselbe Fläche, die
+schon 50 px hoch ist und mit 20 px setzt. Es entsteht kein zweites Suchfeld.
+
+⚠️ **Bei offenem Panel verschwindet er mit dem Rest der Kartenbedienung.** Am Telefon läuft ein
+offenes Panel über die volle Höhe und lässt 64 px Karte (§5) — dort ist kein Knopf mehr sinnvoll
+bedienbar. 🔧 Wie sich der Eckbund heute bei offenem Infopanel verhält, ist **nicht belegt**:
+die Regel `right: calc(var(--avesmaps-ip-w) + 12px)` griff in der Simulation nicht (gerechnet
+308 px, gemessen 12 px), aber die Simulation bekam das Panel auch nicht wirklich auf. Vor dem
+Bauen im echten Ablauf messen — davon hängt ab, ob „ausblenden" eine Änderung ist oder nur das
+Festschreiben dessen, was ohnehin passiert.
+
+**Verworfene Alternativen.** *Eine Suchleiste oben* (der erste Entwurf): kostet dauerhaft
+Kartenhöhe, auch wenn niemand sucht. *Ein dritter Knopf im Bund*: „Suchen · Neuigkeiten ·
+Hinweise" misst ~250 px, stapelt unter 599 px dreifach — und die Suche stünde optisch als
+dritter Verweis da statt als die eine Handlung. ⚠️ Der Bund bliebe dann auch an
+`--avesmaps-corner-stack` gebunden, das
+[`map-corner-actions.test.js`](../../../js/app/__tests__/map-corner-actions.test.js) festhält.
+*Die Geste beibehalten und erklären*: ein Langdruck, den man erklären muss, ist keiner.
 
 ### C2 — Die Zoomtasten entfallen *(Owner-Entscheid 2026-08-10)*
 
@@ -307,10 +348,16 @@ keine Seite).
 
 | | Block | hängt an | Abnahme |
 |---|---|---|---|
-| 1 | **0** Panels (§5.1–5.3) | — | 360×640, 5 Wegpunkte: Panel läuft randlos, scrollt in sich, Seite nicht; Lasche 30 von 30 px sichtbar; ein Tipp auf einen Ort öffnet **eine** Fläche |
-| 2 | **A** Maßschicht | 0 | kein Bedienelement des Fingerwegs unter 44 px; Desktop 1280×800 **pixelgleich** |
-| 3 | **C1–C3** Karte | — | Suche mit einem Tipp erreichbar; kein Zoom-Control am Finger; Dorf bei Zoom 4 treffbar |
+| 1 | **A1** iOS-Schwelle (§6) | — | iPhone: Fokus in jedes Feld des Planers, **kein** Hineinzoomen. Der billigste Schritt, deshalb der erste |
+| 2 | **0** Panels (§5.1–5.3) | — | 360×640, 5 Wegpunkte: Panel läuft randlos, scrollt in sich, Seite nicht; Lasche 30 von 30 px sichtbar; ein Tipp auf einen Ort öffnet **eine** Fläche |
+| 3 | **A** Maßschicht (Rest) | 0 | kein Bedienelement des Fingerwegs unter 44 px; Desktop 1280×800 **pixelgleich** |
+| 4 | **C2 → C1** Ecke | A | erst räumt der Zoom, dann zieht die Suche ein — in dieser Reihenfolge, sonst stehen kurz drei Dinge übereinander |
+| 5 | **C3** Trefferboden | — | Dorf bei Zoom 4 treffbar, ohne dass ein Tipp auf leere Karte einen Ort weit weg öffnet |
 | — | **B** Blatt | verworfen (§8) | — |
+
+💣 **A1 ist von A abtrennbar, der Rest nicht.** Die Schriftgröße wächst nach innen und rührt
+das Höhenbudget aus §4 nicht an — sie kann vor Block 0 gehen. Jede **Höhe** dagegen wartet auf
+Block 0.
 
 **Die Desktop-Gegenprobe ist die wichtigste Abnahme des ganzen Vorhabens.** Alles unter
 `pointer: coarse` darf am Zeiger nachweislich nichts ändern — das Höhenbudget aus §4 hängt
@@ -329,8 +376,11 @@ Inhalt):
 3. **Kein zweiter Ort für Steuermaße.** Es gibt genau **einen** `@media (pointer: coarse)`-Block
    mit `--control-h*`, und er steht in `tokens.css`. Mutation: dieselben Token in einer zweiten
    Datei ⇒ rot.
-4. **Die iOS-Schwelle.** `--font-size-control` ist unter `pointer: coarse` ≥ 16 px, und keine
-   umgestellte Komponente schreibt daneben noch eine eigene `font-size` auf ein Feld.
+4. **Die iOS-Schwelle.** `--font-size-control` ist unter `pointer: coarse` **≥ 16 px** (nicht
+   „gesetzt", sondern der Wert), und keine umgestellte Komponente schreibt daneben noch eine
+   eigene `font-size` auf ein Feld. Zweite Hälfte: `index.html` trägt **kein**
+   `maximum-scale` / `user-scalable` im Viewport-Meta — der falsche Fix aus §6 A1 darf nicht
+   still nachwachsen. Mutation: Token auf 15 px ⇒ rot; `maximum-scale=1` ergänzt ⇒ rot.
 5. **Die schwebende Box hat zwei Aufrufer, und nur einer wird still.** `{ floating: true }` in
    `location-marker-entry.js` hängt an einer Zeigerprüfung, der in `location-lookup.js`
    **nicht**. Mutation: den Riegel auch dorthin ⇒ rot („nächster Ort" verlöre seine Ausgabe,
