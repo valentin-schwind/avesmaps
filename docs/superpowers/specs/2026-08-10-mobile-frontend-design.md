@@ -378,17 +378,53 @@ bei Zoom 3 gemessen: 5,85 px für die dicksten, 2,4 px, 1,2 px für die dünnste
 mit Wege-Bändern gepflastert, und ein Tipp auf eine Grafschaft trifft die Straße, die zufällig
 hindurchläuft. Das ist genau das, was der Owner ausgeschlossen hat.
 
-**Vorschlag:** kein flacher Boden, sondern ein **Vielfaches der gezeichneten Breite**, gedeckelt
-— `hitWeight = min(20, max(gezeichnet, gezeichnet × 3))`. Das erhält die Rangfolge
-(Reichsstraße breit, Pfad schmal), lässt das Band überall schmaler als die halbe Fingerbreite
-und nimmt dem Gebiet darunter ~7 px statt ~19. ⚠️ Der Faktor und der Deckel sind **zu messen**;
-gebaut wird er als unsichtbare dritte Linie über der Kontur, nicht durch Verbreitern der
-sichtbaren (sonst ändert sich das Kartenbild).
+**Owner-Entscheid 2026-08-10: „klickbare Wege bei hohen Zoomstufen."** Das löst die Abwägung —
+aber die Zahlen dazu widerlegen die Begründung, die man vermuten würde.
 
-🔧 **Falls dir auch das zu viel Eingriff ist:** C3c weglassen und nur C3a + C3b bauen. Ein Weg
-trägt seinen Namen als Label, und Labels werden mit C3b ohnehin klickbar — dann ist der
-**Name** das Trefferziel des Weges, und die Fläche darunter bleibt vollständig unangetastet.
-Das ist die sparsamste Fassung und sie erfüllt deine Bedingung ohne jede Abwägung.
+**Die gezeichneten Konturbreiten, exakt** (`PATH_OUTLINE_WEIGHTS × PATH_WIDTH_SCALE`, beide in
+[`config.js:526/558`](../../../js/config.js); die Kontur ist die klickbare Linie):
+
+| Subtyp | Basis | z2 | z3 | z4 | z5 | z6 |
+|---|---:|---:|---:|---:|---:|---:|
+| Reichsstraße | 6,5 | 1,95 | 5,85 | 7,80 | 11,70 | **13,00** |
+| Straße | 4 | 1,20 | 2,40 | 2,40 | 4,00 | **4,80** |
+| Weg | 4 | 0,80 | 2,40 | 2,40 | 4,00 | **4,80** |
+| Pfad · Gebirgspass · Wüstenpfad | 3 | 0,30 | 1,20 | 1,80 | 3,00 | **3,60** |
+
+(z0/z1 stehen fast überall auf 0 — dort ist der Weg gar nicht gezeichnet.)
+
+💣 **„Bei hohem Zoom sind sie ohnehin breit genug" ist falsch.** Bei der höchsten Stufe misst
+ein Pfad **3,6 px** und eine Straße **4,8 px**; nur die Reichsstraße kommt auf 13. Kein Weg
+erreicht je aus eigener Kraft Fingergröße. Die Zugabe wird also auf **jeder** Stufe gebraucht,
+auf der ein Weg überhaupt sichtbar ist.
+
+✅ **Der Zoom-Riegel bleibt trotzdem richtig — aus dem anderen Grund.** Er ist keine Aussage
+über die Breite des Weges, sondern über die **Absicht des Betrachters**: im Überblick sucht man
+Gebiete und Städte, im Detail den Weg. Und genau dort kostet das Band am wenigsten, weil eine
+Baronie dann den halben Schirm füllt statt ein Fingernagelfeld zu sein.
+
+**Vorschlag: ab Zoom 4 ein Trefferband von 24 px, darunter gar keine Zugabe.** Unterhalb
+gewinnt weiter die Fläche — das ist die Überblicksansicht, und dort hat der Owner-Vorbehalt
+Vorrang.
+
+⚠️ **24 px klingt schmal, ist es für eine Linie aber nicht.** Bei einem Punkt braucht man
+Genauigkeit in beiden Richtungen; bei einer Linie **nur quer dazu** — längs ist das Ziel
+unbegrenzt. Ein 24-px-Band trifft sich deshalb erheblich leichter als ein 24-px-Punkt, und es
+nimmt dem Gebiet darunter ±12 px statt ±19.
+
+⚠️ **Gebaut als unsichtbare dritte Linie über der Kontur**, nicht durch Verbreitern der
+sichtbaren — sonst ändert sich das Kartenbild. Die beiden vorhandenen Linien
+([`path-rendering.js:318/329`](../../../js/map-features/map-features-path-rendering.js))
+bleiben, wie sie sind.
+
+⚠️ **Der Riegel gehört an dieselbe Zoomzahl wie die Sichtbarkeit**, nicht an eine zweite
+daneben: `getPathWidthScale(subtype, zoom) > 0` entscheidet schon heute, ob ein Weg überhaupt
+auf der Karte ist ([`display-mode.js:38`](../../../js/map-features/map-features-display-mode.js)).
+Ein Trefferband an einem Weg, den es auf dieser Stufe nicht gibt, wäre ein Klick ins Nichts.
+
+🔧 **Beide Zeiger, vorerst.** Eine 4,8 px breite Straße ist auch mit der Maus eine Fummelei; der
+Riegel ist der Zoom, nicht der Zeiger. Fühlt es sich am Desktop zu gierig an, ist ein
+zusätzlicher `pointer: coarse`-Riegel ein Einzeiler — andersherum wäre es eine Neuvermessung.
 
 ### C3d — Flächen bleiben, wie sie sind
 
@@ -489,7 +525,7 @@ keine Seite).
 | 4 | **C2 → C1** Ecke | A | erst räumt der Zoom, dann zieht die Suche ein — in dieser Reihenfolge, sonst stehen kurz drei Dinge übereinander |
 | 5 | **C3b** Ortsnamen klickbar | — | **auch am Desktop:** Klick auf „Gareth" öffnet dasselbe wie der Punkt darunter; ein weggekollidierter Name fängt nichts; Ziehen im Editmodus unverändert |
 | 6 | **C3a** Trefferboden Punkte | — | Dorf bei Zoom 4 treffbar, ohne dass ein Tipp auf leere Karte einen Ort weit weg öffnet |
-| 7 | **C3c** Linien *(optional)* | C3b | ein Weg am Finger treffbar; **Gegenprobe: eine Grafschaft neben einem Weg öffnet weiter die Grafschaft** |
+| 7 | **C3c** Linien ab Zoom 4 | C3b | ein Weg am Finger treffbar; **Gegenproben: bei Zoom 3 ändert sich nichts, und bei Zoom 5 öffnet eine Grafschaft neben einem Weg weiter die Grafschaft** |
 | — | **C3d** Flächen | — | nichts zu tun (§7 C3d) |
 | 8 | **D** Abschlüsse (§7b) | — | **Zeiger-Sache.** D1 (26 Token) beweisbar ohne Bildänderung; D2: die drei Knöpfe der Bildecke tragen einen Abschluss; D3: keine Pille an einem Knopf |
 | — | **B** Blatt | verworfen (§8) | — |
@@ -535,8 +571,12 @@ Inhalt):
    Das ist die Zusicherung, die C3b überhaupt vertretbar macht: zwei Trefferflächen sind nur
    dann ein Ziel, wenn sie nachweislich dieselbe Auskunft öffnen.
 8. **Flächen bleiben unberührt.** Weder `regionsPane` noch die `ecosystemPane*` bekommen eine
-   Trefferzugabe, und C3c hat einen Deckel. Mutation: ein Boden auf einem Polygon-Layer ⇒ rot
-   (Owner-Bedingung 2026-08-10).
+   Trefferzugabe. Mutation: ein Boden auf einem Polygon-Layer ⇒ rot (Owner-Bedingung
+   2026-08-10). Zweite Hälfte: das Trefferband der Wege **entsteht erst ab der Zoomschwelle**
+   und liest dieselbe Sichtbarkeitsfrage wie die Darstellung
+   (`getPathWidthScale(...) > 0`) — Mutation: Schwelle entfernt oder eigene Zoomzahl daneben
+   ⇒ rot. Das ist die Zusicherung, die den Owner-Vorbehalt trägt: unterhalb Zoom 4 darf sich
+   am Trefferverhalten der Karte **nichts** ändern.
 9. **Kein Token-Wert steht doppelt.** Keine Frontend-CSS-Datei schreibt `border-radius: 8px`
    oder `5px` als Literal — das sind die Werte von `--radius-md` und `--radius-sm`. Mutation:
    eines der 26 zurückschreiben ⇒ rot. ⚠️ Die Prüfung liest nur `border-radius`-**Deklarationen**
