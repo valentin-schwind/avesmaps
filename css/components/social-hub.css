@@ -1,0 +1,160 @@
+/* Social-Media-Hub -- die Liste im Reiter „Community → Social Media" und das Hub-Fenster
+   (Entwurf docs/superpowers/specs/2026-08-10-social-media-hub-design.md §2).
+
+   ⚠️ EINE ZEILENHANDLUNG IST NIE DIE HAUPTHANDLUNG (AGENTS.md §12). „Erneut" steht potenziell in
+   jeder fehlgeschlagenen Zeile und ist deshalb weich; gefuellt sind allein „Social Media Hub
+   oeffnen" oben und „Veroeffentlichen" in der Fusszeile des Fensters.
+
+   💣 DIE MARKEN STEHEN AUF WEICHEM GRUND. Dort faellt --color-danger im Dunkelmodus auf 3,84:1 und
+   reisst die Lesbarkeitsschwelle (AA = 4,5); genau dafuer gibt es die -soft-text-Varianten
+   (--color-danger-soft-text: 5,56 dunkel / 7,86 hell). Ein Fehlerhinweis ist die eine Zeile, die man
+   garantiert lesen koennen muss -- also nirgends hier --color-danger oder --color-success als
+   Textfarbe, auch wenn Nachbarbauteile das tun: die stehen auf --color-panel, nicht auf -soft. */
+
+/* ---- die Liste ------------------------------------------------------------------------------- */
+
+.social-post {
+	border-top: 1px solid var(--color-divider);
+	padding: 10px 0;
+}
+
+.social-post:first-child {
+	border-top: 0;
+}
+
+.social-post--proposal {
+	/* Ein Vorschlag ist noch nicht draussen. Der warme Streifen links sagt das, ohne einen Rahmen zu
+	   ziehen -- gruppiert wird in diesem Projekt durch Trenner, nicht durch Kaesten. */
+	border-left: 3px solid var(--color-warning);
+	padding-left: 10px;
+}
+
+.social-post__top {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	margin-bottom: 4px;
+}
+
+.social-post__who {
+	font-weight: 600;
+	color: var(--color-text-strong);
+}
+
+.social-post__who--auto {
+	color: var(--color-text-muted);
+	font-weight: 500;
+}
+
+.social-post__date {
+	font-size: 12px;
+	color: var(--color-text-muted);
+}
+
+.social-post__text {
+	margin: 0 0 6px;
+	color: var(--color-text);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.social-post__note {
+	margin: 0 0 6px;
+	font-size: 12px;
+	color: var(--color-warning-soft-text);
+}
+
+.social-post__actions {
+	margin-bottom: 8px;
+}
+
+/* Was der Probe-Kanal gesendet haette. <details> ist nativ und bleibt es: nur so findet Strg+F den
+   Text auch im ZUgeklappten Kasten und klappt ihn selbst auf. */
+.social-post__payload {
+	margin-top: 6px;
+	font-size: 12px;
+}
+
+.social-post__payload > summary {
+	cursor: pointer;
+	color: var(--color-link);
+}
+
+.social-post__payload > pre {
+	margin: 6px 0 0;
+	padding: 8px;
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-divider);
+	border-radius: var(--radius-md);
+	/* Der Kasten scrollt fuer sich; die Panel-Spalte ist schmal und darf keine waagerechte
+	   Bildlaufleiste bekommen. */
+	overflow-x: auto;
+	white-space: pre;
+}
+
+/* ---- die Statusmarken ------------------------------------------------------------------------- */
+
+.social-chips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+}
+
+.social-chip {
+	display: inline-flex;
+	align-items: center;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	padding: 2px 8px;
+	font-size: 12px;
+	background: var(--color-panel-soft);
+	color: var(--color-text);
+}
+
+.social-chip--ok {
+	background: var(--color-success-soft);
+	border-color: var(--color-success-soft-border);
+	color: var(--color-success-soft-text);
+}
+
+.social-chip--err {
+	background: var(--color-danger-soft);
+	border-color: var(--color-danger-soft-border);
+	color: var(--color-danger-soft-text);
+}
+
+.social-chip--wait {
+	color: var(--color-text-muted);
+}
+
+/* ---- weiche Knoepfe ---------------------------------------------------------------------------- */
+
+.social-hub__soft {
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	padding: 4px 10px;
+	font: inherit;
+	cursor: pointer;
+}
+
+.social-hub__soft:hover:not(:disabled) {
+	background: var(--color-button-soft-hover);
+}
+
+.social-hub__soft:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+
+.social-hub__soft--mini {
+	font-size: 12px;
+	padding: 2px 8px;
+}
+
+.social-hub__primary--mini {
+	font-size: 12px;
+	padding: 3px 10px;
+}
