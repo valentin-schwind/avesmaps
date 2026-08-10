@@ -152,9 +152,25 @@ function createLocationNameLabelEntry(markerEntry) {
 	// Siedlungs-Labels gerastert (ein einzelner ~5s-Longtask), obwohl bei Zoom 0 nur ~40 sichtbar sind.
 	const marker = L.marker(markerEntry.location.coordinates, {
 		icon: L.divIcon({ className: "location-name-label", html: "", iconSize: [0, 0], iconAnchor: [0, 0] }),
-		interactive: false,
+		// 💣 Bis 2026-08-10 stand hier `interactive: false`, mit der Begruendung, Marker und Name
+		// waeren "zwei Treffer uebereinander". Das gilt fuer zwei ZIELE -- Punkt und Name eines
+		// Ortes sind aber EIN Ziel mit zwei Teilen, und der Name ist der breitere. Ein Dorf misst
+		// als Punkt bei Zoom 6 (dort endet das Groessenschema) nur 24px Trefferdurchmesser und
+		// erreicht auf KEINER Stufe Fingergroesse; sein Name schon.
+		// ⚠️ Gilt an BEIDEN Zeigern (Owner-Entscheid): auch mit der Maus ist ein 5px-Punkt eine
+		// Fummelei. Deshalb kein pointer-coarse-Riegel.
+		interactive: true,
 		keyboard: false,
 		pane: "labelsPane",
+	});
+	// 🔴 DERSELBE Einspeiser, den der Marker beim popupopen ruft
+	// (map-features-location-marker-entry.js). Hier wird KEIN Popup gebaut: zwei Bauer waeren zwei
+	// Auskuenfte ueber denselben Ort, und genau das macht aus "ein Ziel mit zwei Teilen" wieder
+	// zwei Ziele. Ein Test haelt fest, dass buildLocationMarkerPopupHtml hier nicht vorkommt.
+	marker.on("click", () => {
+		if (typeof window.avesmapsShowLocationInInfopanel === "function") {
+			window.avesmapsShowLocationInInfopanel(markerEntry);
+		}
 	});
 	return { markerEntry, marker };
 }

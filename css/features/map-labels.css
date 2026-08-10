@@ -500,16 +500,25 @@ body.edit-mode .map-label img {
 	color: #fff;
 }
 
-/* Region-/Landschafts-Labels sind im ANSICHTSMODUS anklickbar und oeffnen das Infopanel -- ALLE, nicht
-   mehr nur die mit Wiki-Zuweisung (Spec §5.2). Ohne Wiki zeigt das Panel Name, Typ, Kartensammlung und
-   Abenteuer; bis hierher war so ein Label komplett inert, und der Klick fiel durch auf das, was darunter
-   lag.
+/* Region-/Landschafts-Labels UND Ortsnamen sind im ANSICHTSMODUS anklickbar und oeffnen das
+   Infopanel -- bei den Regionen ALLE, nicht mehr nur die mit Wiki-Zuweisung (Spec §5.2). Ohne Wiki
+   zeigt das Panel Name, Typ, Kartensammlung und Literatur; bis dahin war so ein Label komplett
+   inert, und der Klick fiel durch auf das, was darunter lag.
 
-   Hebt das pointer-events:none der Basisregel oben gezielt fuer .map-label auf. .location-name-label
-   teilt sich jene Regel und bleibt bewusst inert: dort ist der Siedlungs-MARKER das Klickziel, nicht
-   seine Beschriftung -- beide klickbar zu machen hiesse, zwei Treffer uebereinanderzulegen. */
+   💣 `.location-name-label` war bis 2026-08-10 bewusst AUSGENOMMEN, mit der Begruendung, der
+   Siedlungs-MARKER sei das Klickziel und beide klickbar zu machen hiesse, "zwei Treffer
+   uebereinanderzulegen". Umgedreht auf Owner-Entscheid: das gilt fuer zwei ZIELE. Punkt und Name
+   eines Ortes sind EIN Ziel mit zwei Teilen -- beide oeffnen ueber denselben Einspeiser denselben
+   Ort --, und der Name ist der breitere Teil. Ein Dorf erreicht als Punkt auf keiner Zoomstufe
+   Fingergroesse.
+   ⚠️ Gilt an BEIDEN Zeigern (Owner): auch mit der Maus ist ein 5px-Punkt eine Fummelei.
+   ✅ Kein Geisterklick: ein weggekollidiertes Label ist `display: none` (Regel weiter oben), nicht
+   `opacity: 0` -- es ist damit aus dem Trefferbaum heraus. */
 .map-label,
-.map-label span {
+.map-label span,
+.location-name-label,
+.location-name-label span,
+.location-name-label img {
 	pointer-events: auto;
 	cursor: pointer;
 }
