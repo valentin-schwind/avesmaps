@@ -235,6 +235,30 @@ is the default, English is opt-in. Therefore:
   parallel sessions remembering, and a wrong handbook is worse than none (it went
   from written to materially wrong in **13 days**, 2026-07-07 → 07-20, back when
   it was nobody's job).
+- 💣 **Sichtbare Änderungen an der Oberfläche gehen EINZELN live, und der Owner sieht jede.**
+  Ein Commit, ein Push, sein Blick — dann der nächste. Kein Bündel.
+  Am 10.08.2026 gingen neun Mobil-Commits am Stück auf die Live-Seite; vier Regressionen waren
+  darin, gemeldet vom Telefon des Owners („irgendwie is mobil jetzt alles kaputt"), Rückbau war
+  die einzige schnelle Antwort. Der Auftrag hatte „Aufgabe für Aufgabe, Halt nach jeder"
+  gelautet; ein späteres „zieh alles durch" meint das Tempo, **nicht** den Wegfall des Blicks.
+  ⚠️ Gilt für alles, was ein Besucher sieht — Layout, Bedienelemente, Kartenbedienung. Nicht
+  für Tests, Doku und reine Innenumbauten.
+- 💣 **Abnahme heißt ABLAUF, nicht Maß.** Eine Prüfseite, die Rechtecke misst, ist kein Beleg,
+  dass etwas funktioniert — sie belegt nur, dass eine Zahl stimmt. Vor „fertig" werden die
+  echten Handgriffe ausgeführt und benannt: das Ding anklicken, das Panel aufziehen, den
+  Suchtreffer wählen, die Infobox öffnen. Genau diese drei Handgriffe waren am 10.08. kaputt,
+  während sämtliche Maßtabellen grün waren. ⚠️ Was ein Emulator nicht beantworten kann
+  (Bildschirmtastatur, echtes Touch-Verhalten), wird als offene Frage gemeldet, nicht als
+  bestanden.
+- 💣 **Der eigene Entwurf ist die Abnahmeliste.** Jede Zeile mit 💣 / ⚠️ / 🔴 in Spec und Plan
+  wird vor „fertig" einzeln abgehakt — erfüllt, oder ausdrücklich verworfen mit Begründung.
+  Zwei der vier Regressionen vom 10.08. standen wörtlich als Warnung im eigenen Entwurf
+  (`--avesmaps-corner-stack` an die Steuerhöhe binden; die versprochene Animation) und wurden
+  nicht gebaut. Es fehlte kein Wissen, sondern das Abhaken.
+  ⭐ Dafür gibt es zwei Sub-Agenten: **`usability-konsistenz`** (vor jedem Commit: Entwurf gegen
+  Diff, gekoppelte Werte, gewinnt die Regel überhaupt?) und **`usability-design`** (vor dem
+  Push: Mockup gegen gebauten Zustand, Designsprache, Rangfolge in hell UND dunkel). Sie
+  ersetzen das Abhaken nicht, sie fangen das, was man selbst überliest.
 - **Secrets:** `api/config.local.php` is gitignored and must never be committed.
   No production dumps, reports, audit logs, tokens or credentials in the repo.
 - **Legal:** DSA assets follow the Ulisses fan guidelines (see `NOTICE.md`).
