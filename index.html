@@ -2290,8 +2290,11 @@
 							     die Einladung, in der geredet wird, wiegt mehr als die zum Zuschauen.
 							     💣 So waechst das Fenster NICHT mit der Kanalzahl: ein weiterer Kanal ist ein
 							     Icon von 32 px in derselben Zeile, keine dritte Kachel und keine neue Reihe.
-							     Gemessen am 10.08.2026: bis SECHS Kanaele bleibt die Zeile einzeilig, ab dem
-							     siebten bricht sie um -- ohne ueberzulaufen. Genau daran ist der erste
+							     Gemessen am 10.08.2026, und die Zahl haengt an der SPRACHE, weil der
+							     beschriftete Knopf sie mitbringt: deutsch bleiben sechs Kanaele einzeilig
+							     („Zur Community", 159 px), englisch fuenf („Join the community", 180 px).
+							     Danach bricht die Zeile um, ohne ueberzulaufen -- verlassen sollte man sich
+							     also auf fuenf, nicht auf sechs. Genau daran ist der erste
 							     Entwurf gescheitert -- eine eigene Kachel je Kanal haette das Kachelfeld vor
 							     den ersten Textabschnitt geschoben.
 							     🔴 Die Kanalnamen tragen KEIN data-i18n: „Instagram" und „Facebook" sind
@@ -2301,7 +2304,11 @@
 								<h3 class="legal-action__title" data-i18n="legal.social.lead">Mitreden und folgen</h3>
 								<p class="legal-action__body" data-i18n="legal.social.body">Fragen, Feedback oder einfach mitreden? Die Avesmaps-Community trifft sich auf Discord. Auf unseren Kanälen zeigen wir, was gerade entsteht.</p>
 								<div class="legal-action__channels">
-									<a class="legal-action__button" href="https://discord.gg/BSHEEpn6UX" target="_blank" rel="noopener noreferrer" data-i18n="legal.discord.action">Zur Community</a>
+									<!-- 💣 Das data-i18n sitzt am <span> um den Text, NICHT am <a>: die Sprachtabelle
+									     setzt `el.textContent = v` (js/app/i18n.js), und das raeumte das SVG im selben
+									     Element ersatzlos weg. Der Knopf stuende dann ohne Zeichen da -- und zwar nur
+									     auf Englisch, also genau dort, wo es niemandem auffaellt. -->
+									<a class="legal-action__button" href="https://discord.gg/BSHEEpn6UX" target="_blank" rel="noopener noreferrer"><svg class="legal-action__glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M19.3 5.6A16 16 0 0 0 15.4 4.4l-.2.4a12 12 0 0 0-6.4 0l-.2-.4a16 16 0 0 0-3.9 1.2C2.3 9.3 1.6 12.9 2 16.4a16 16 0 0 0 4.8 2.4l.9-1.5a10 10 0 0 1-1.5-.7l.4-.3a11.4 11.4 0 0 0 9.8 0l.4.3a10 10 0 0 1-1.5.7l.9 1.5a16 16 0 0 0 4.8-2.4c.5-4-.6-7.6-2.7-10.8ZM8.7 14.3c-.9 0-1.7-.9-1.7-1.9s.8-1.9 1.7-1.9 1.7.9 1.7 1.9-.7 1.9-1.7 1.9Zm6.6 0c-.9 0-1.7-.9-1.7-1.9s.8-1.9 1.7-1.9 1.7.9 1.7 1.9-.7 1.9-1.7 1.9Z"/></svg><span data-i18n="legal.discord.action">Zur Community</span></a>
 									<a class="legal-action__icon" href="https://www.instagram.com/avesmaps/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" title="Avesmaps auf Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg></a>
 									<a class="legal-action__icon" href="https://www.facebook.com/profile.php?id=61593292284323" target="_blank" rel="noopener noreferrer" aria-label="Facebook" title="Avesmaps auf Facebook"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M13.5 21.9v-8.2h2.8l.5-3.2h-3.3V8.4c0-.9.3-1.6 1.6-1.6h1.8V3.9c-.3 0-1.4-.1-2.6-.1-2.6 0-4.4 1.6-4.4 4.5v2.2H7.1v3.2h2.8v8.2z"/></svg></a>
 								</div>

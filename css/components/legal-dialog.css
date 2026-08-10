@@ -202,6 +202,19 @@
 	margin-top: 0;
 }
 
+/* Das Zeichen IM beschrifteten Knopf (Discord). Bewusst `inline-block` statt Flexbox auf dem
+   Knopf: der Knopf traegt sein ↗ als `::after`, und in einem Flex-Kasten wuerde der Pfeil zum
+   eigenen Flex-Item und der `gap` risse ihn vom Wort weg. So bleibt der Knopf ein normaler
+   Textkasten -- Zeichen, Wort, Pfeil in einer Zeile, wie zuvor. `vertical-align` setzt das
+   Glyph auf die Schriftlinie; ohne den Wert saesse es auf der Grundlinie und damit zu hoch. */
+.legal-dialog__content .legal-action__glyph {
+	display: inline-block;
+	width: 16px;
+	height: 16px;
+	margin-right: 6px;
+	vertical-align: -3px;
+}
+
 /* Ein Kanal ohne eigenen Satz ist ein Icon -- gleiche Huelle wie der weiche Knopf daneben, nur
    quadratisch. `currentColor` im SVG ist der Grund, warum hier keine Markenfarbe steht: das
    Fenster ist warm-braun und die Designsprache verbietet Blau (AGENTS.md §12), ein
