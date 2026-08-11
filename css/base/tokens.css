@@ -466,6 +466,13 @@
 	--shadow-button-hover-strong: 0 5px 12px rgba(52, 41, 32, 0.22);
 
 	--z-map-ui: 1000;
+	/* Der Routenplaner liegt UEBER der uebrigen Kartenbedienung (Owner 11.08.2026: "der
+	   routenplaner soll ueber den buttons auf der karte liegen"). Vorher trugen beide
+	   --z-map-ui, und dann entscheidet die Reihenfolge im Markup -- der Knopfbund steht spaeter
+	   und lag deshalb obenauf, mitten im Panelinhalt.
+	   ⚠️ Unter dem Infopanel (1080) und dem Editorpanel (1100): die beiden decken den Planer
+	   weiterhin zu, wenn sie aufgehen. */
+	--z-map-panel: 1010;
 	--z-dialog: 1450;
 	--z-dialog-high: 1460;
 	/* Editor overlays (the iframe tools: territory, settlement, adventure, citymap, wiki-sync).

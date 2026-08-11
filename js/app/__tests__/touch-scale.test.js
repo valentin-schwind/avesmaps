@@ -311,6 +311,30 @@ assert.ok(/avesmapsIsPhoneViewport/.test(lift[0]) && /removeProperty/.test(lift[
 assert.ok(/new ResizeObserver\(syncMapScaleBandLift\)/.test(uiControls),
 	"ein ResizeObserver haengt an der Zeile -- sie stapelt bei offener Infobox und wird hoeher");
 
+// ---- Der Routenplaner liegt ueber der Kartenbedienung --------------------------------------------
+//
+// Owner 11.08.2026: "der routenplaner soll ueber den buttons auf der karte liegen". Gemessen trugen
+// #search und #map-corner-actions BEIDE --z-map-ui (1000) -- bei gleichem z-index entscheidet die
+// Reihenfolge im Markup, und der Bund steht spaeter. Er lag deshalb mitten im Panelinhalt.
+const layoutCssZ = withoutComments(read("css", "layout", "map-layout.css"));
+const legalCssZ = withoutComments(read("css", "components", "legal-dialog.css"));
+const planerZ = tokens.match(/--z-map-panel:\s*(\d+)/);
+const kartenZ = tokens.match(/--z-map-ui:\s*(\d+)/);
+assert.ok(planerZ && kartenZ, "beide Stufen stehen in tokens.css");
+assert.ok(Number(planerZ[1]) > Number(kartenZ[1]),
+	`--z-map-panel (${planerZ[1]}) liegt ueber --z-map-ui (${kartenZ[1]})`);
+// ⚠️ Und unter den beiden Panels, die den Planer zudecken duerfen.
+assert.ok(Number(planerZ[1]) < 1080,
+	`--z-map-panel (${planerZ[1]}) bleibt unter dem Infopanel (1080) und dem Editorpanel (1100)`);
+["#search", "#toggle-button"].forEach((selector) => {
+	const rule = layoutCssZ.match(new RegExp("^" + escapeRe(selector) + "\\s*\\{([^}]*)\\}", "m"));
+	assert.ok(rule && /z-index:\s*var\(--z-map-panel\)/.test(rule[1]),
+		`${selector} liegt auf --z-map-panel -- der Planer UND seine Lasche, sonst verschwindet die`
+		+ " Lasche unter dem Bund, sobald sie sich ueberschneiden");
+});
+assert.ok(/#map-corner-actions\s*\{[^}]*z-index:\s*var\(--z-map-ui\)/.test(legalCssZ),
+	"der Knopfbund bleibt auf --z-map-ui -- er ist die Kartenbedienung, nicht das Panel");
+
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
 assert.ok(viewport, "index.html traegt ein Viewport-Meta");

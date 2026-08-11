@@ -25,7 +25,7 @@ body {
 	background: var(--color-panel);
 	box-shadow: var(--shadow-panel);
 	box-sizing: border-box;
-	z-index: var(--z-map-ui);
+	z-index: var(--z-map-panel);
 }
 #toggle-button {
 	position: fixed;
@@ -42,7 +42,7 @@ body {
 	font-size: 13px;
 	text-orientation: mixed;
 	writing-mode: vertical-rl;
-	z-index: var(--z-map-ui);
+	z-index: var(--z-map-panel);
 }
 
 
