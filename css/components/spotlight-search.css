@@ -163,7 +163,11 @@
 @media (pointer: coarse) {
 	#spotlight-search-overlay {
 		align-items: flex-end;
-		padding: var(--space-16) var(--space-10) var(--space-10);
+		/* Der untere Abstand kommt aus dem gemessenen Rechteck der Suchkachel
+		   (positionSpotlightAtSearchTile) -- so klappt das Feld AUS der Lupe auf statt darunter.
+		   Ohne die Variable (Zeiger, oder Kachel unsichtbar) bleibt der normale Rand. */
+		padding: var(--space-16) var(--space-10)
+			calc(var(--avesmaps-spotlight-bottom, var(--space-10)) + var(--avesmaps-keyboard-inset, 0px));
 	}
 
 	.spotlight-search {

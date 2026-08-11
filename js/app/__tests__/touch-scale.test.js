@@ -211,6 +211,26 @@ const oeffner = spotlightJs.match(/function openSpotlightSearch\([\s\S]*?\n\}/);
 assert.ok(oeffner, "der Oeffner ist auffindbar");
 assert.ok(oeffner[0].indexOf("overlay.hidden = false") < oeffner[0].indexOf("animateSpotlightFromSearchTile()"),
 	"aufgerufen wird sie NACH dem Sichtbarmachen -- vorher hat das Fenster kein Rechteck");
+// ---- Das Fenster sitzt AUF der Kachel, nicht am Bildrand -----------------------------------------
+//
+// 💣 Ohne das klappt das Feld UNTERHALB der Lupe auf statt aus ihr heraus -- gemessen: gleiche
+// rechte Kante, aber 38px senkrechter Versatz. Owner 11.08.2026: "kannst du die position gleich
+// lassen? nur die groesse und damit nur die linke seite soll sich nach links ausbreiten".
+assert.ok(/function positionSpotlightAtSearchTile\s*\(/.test(spotlightJs),
+	"die Lage des Fensters wird an der Kachel ausgerichtet");
+const lage = spotlightJs.match(/function positionSpotlightAtSearchTile\s*\([\s\S]*?\n\}/);
+assert.ok(/getBoundingClientRect\(\)/.test(lage[0]),
+	"und zwar aus ihrem GEMESSENEN Rechteck -- rechnen hiesse Bundabstand + Zeilenhoehe + Luecke,"
+	+ " drei Zahlen ohne Token, die beim naechsten Wachsen still auseinanderlaufen");
+assert.ok(/--avesmaps-spotlight-bottom/.test(lage[0]) && !/padding-bottom/.test(lage[0]),
+	"ueber eine eigene CSS-Variable, nicht ueber padding-bottom");
+assert.ok(/--avesmaps-keyboard-inset/.test(spotlightJs)
+	&& !/style\.paddingBottom/.test(spotlightJs),
+	"und die Tastatur schreibt eine ZWEITE Variable -- zwei Schreiber auf derselben Eigenschaft"
+	+ " hiessen, dass der letzte gewinnt");
+assert.ok(spotlightJs.indexOf("positionSpotlightAtSearchTile()") < spotlightJs.lastIndexOf("animateSpotlightFromSearchTile()"),
+	"die Lage steht, BEVOR die Bewegung misst");
+
 assert.ok(/visualViewport/.test(spotlightJs),
 	"das Feld haengt an der SICHThoehe: iOS schrumpft den Layout-Viewport bei offener Tastatur"
 	+ " nicht, ein unten verankertes Feld verschwaende sonst dahinter");

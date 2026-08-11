@@ -76,6 +76,33 @@ function isSpotlightSearchOpen() {
 	return Boolean(overlay && !overlay.hidden);
 }
 
+// Das Suchfenster sitzt am Finger auf der HOEHE der Suchkachel, nicht am unteren Bildrand.
+//
+// 💣 Ohne das klappt das Feld UNTERHALB der Lupe auf statt aus ihr heraus -- gemessen am
+// 11.08.2026: gleiche rechte Kante (968), aber 38px senkrechter Versatz. Die Lupe schwebte ueber
+// einem Feld, das woanders aufging.
+//
+// ⚠️ Der Abstand wird aus dem Rechteck der KACHEL gelesen, nicht ausgerechnet. Rechnen hiesse hier:
+// Bundabstand + Hoehe der Verweiszeile + Luecke -- drei Zahlen, von denen keine ein Token ist und
+// die beim naechsten Wachsen des Bundes still auseinanderlaufen. Genau dieser Fehlertyp hat am
+// 10.08. den Suchknopf 8px in den Bund gesetzt.
+// ⚠️ Als eigene CSS-Variable, damit die Tastatur-Kopplung weiter unten NICHT dasselbe
+// padding-bottom ueberschreibt -- sonst gewaenne, wer zuletzt schreibt.
+function positionSpotlightAtSearchTile() {
+	const overlay = document.getElementById("spotlight-search-overlay");
+	const tile = document.getElementById("map-search-button");
+	if (!overlay || !tile) {
+		return;
+	}
+	const kachel = tile.getBoundingClientRect();
+	if (!kachel.width) {                    // am Zeiger unsichtbar -> Fenster bleibt, wo es ist
+		overlay.style.removeProperty("--avesmaps-spotlight-bottom");
+		return;
+	}
+	overlay.style.setProperty("--avesmaps-spotlight-bottom",
+		`${Math.round(Math.max(0, window.innerHeight - kachel.bottom))}px`);
+}
+
 // Das Feld klappt nach LINKS auf, das Zeichen bleibt stehen (Owner 11.08.2026: "die animation
 // soll so aussehen dass sich das textfeld aufklappt und links verbreitet und das icon an der
 // stelle bleibt").
@@ -133,6 +160,8 @@ function openSpotlightSearch(initialValue = "") {
 	updateSpotlightSearchResults();
 	syncModalDialogBodyState();
 	// NACH `overlay.hidden = false`: vorher hat das Fenster kein Rechteck, das man messen koennte.
+	// Und die Lage VOR der Bewegung -- die misst das Fenster und braucht es an seinem Platz.
+	positionSpotlightAtSearchTile();
 	animateSpotlightFromSearchTile();
 	window.requestAnimationFrame(() => {
 		input.focus();
@@ -1160,9 +1189,9 @@ function normalizeSpotlightSearchText(value) {
 	}
 	const sync = () => {
 		const verdeckt = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
-		overlay.style.paddingBottom = verdeckt > 0
-			? `calc(var(--space-10) + ${Math.round(verdeckt)}px)`
-			: "";
+		// EIGENE Variable, nicht padding-bottom: das setzt schon positionSpotlightAtSearchTile, und
+		// zwei Schreiber auf derselben Eigenschaft heissen, dass der letzte gewinnt.
+		overlay.style.setProperty("--avesmaps-keyboard-inset", `${Math.round(verdeckt)}px`);
 	};
 	viewport.addEventListener("resize", sync);
 	viewport.addEventListener("scroll", sync);
