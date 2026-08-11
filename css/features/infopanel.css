@@ -19,9 +19,12 @@
 	   (die frueher hartkodierten 14px hingen nach dem --space +2px-Global bei 18px Body-Padding). */
 	--infopanel-pad-x: 18px;
 	position: fixed;
-	top: 10px;
+	/* Aus den Token (css/base/tokens.css): unten IMMER buendig mit dem Knopfbund, weil beide
+	   --avesmaps-edge-gap lesen -- hier stand vorher eine eigene 14, und das Panel endete sichtbar
+	   2px ueber „Hinweise". Am Telefon laufen beide Werte auf 0, das Panel also von Kante zu Kante. */
+	top: var(--avesmaps-panel-inset-top);
 	right: 0;
-	bottom: 14px;
+	bottom: var(--avesmaps-panel-inset-bottom);
 	width: var(--avesmaps-ip-w);
 	z-index: 1080; /* ueber der Karten-UI (1000), unter dem Editor-Panel (1100) */
 	display: flex;
@@ -397,14 +400,14 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 .avesmaps-infopanel-mode #map-corner-actions {
 	left: auto;
 	right: 12px;
-	bottom: 12px;
+	bottom: var(--avesmaps-edge-gap);
 	transition: right 0.22s ease;
 }
 .avesmaps-infopanel-mode .leaflet-control-zoom {
 	position: fixed;
 	left: auto;
 	right: 12px;
-	bottom: calc(12px + var(--avesmaps-corner-stack)); /* ueber dem Knopfbund */
+	bottom: calc(var(--avesmaps-edge-gap) + var(--avesmaps-corner-stack)); /* ueber dem Knopfbund */
 	margin: 0;
 	z-index: 1000;
 	transition: right 0.22s ease;
@@ -676,8 +679,11 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 /* (Die fruehere .is-hidden-right-Regel fuer den Editor-Tab ist jetzt durch das Rand-Tab-Andocken
    oben abgeloest -- die Tabs folgen der offenen Panel-Kante bzw. der Bildschirmkante.) */
 /* Editor-Panel auf dieselbe Hoehe wie das Infopanel bringen (Owner-Vorgabe): gleicher unterer Abstand
-   wie die Infobox (bottom:14px). Der Editor endet sonst bei bottom:64px und ist damit kuerzer als die
-   Infobox -- top:10px teilen sich beide ohnehin. */
+   wie die Infobox. Der Editor endet sonst bei bottom:64px und ist damit kuerzer als die Infobox --
+   top:10px teilen sich beide ohnehin.
+   ⚠️ Seit dem 11.08.2026 steht hier der Token statt der abgeschriebenen 14: die Vorgabe „gleicher
+   Abstand wie die Infobox" war als Zahl formuliert und haette beim naechsten Anfassen der Infobox
+   still aufgehoert zu gelten. Jetzt kann sie das nicht mehr. */
 .avesmaps-infopanel-mode #review-panel {
-	bottom: 14px;
+	bottom: var(--avesmaps-panel-inset-bottom);
 }

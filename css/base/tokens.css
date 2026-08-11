@@ -482,6 +482,18 @@
 	--avesmaps-tab-top: 30px;
 	--avesmaps-tab-h: 140px;
 
+	/* Der Abstand zum Kartenrand -- EINE Zahl fuer alles, was unten an der Karte klebt: der
+	   Knopfbund („Neuigkeiten"/„Hinweise"), der Zoom darueber und die beiden Panels.
+	   💣 Sie standen vorher als 12 gegen 14 nebeneinander, und man sah es: das Infopanel endete
+	   2px ueber „Hinweise" (Owner 11.08.2026, am Zeiger gemessen 786 gegen 788). Zwei Zahlen, die
+	   dasselbe meinen -- genau der Fall aus AGENTS.md §12. */
+	--avesmaps-edge-gap: 12px;
+	/* Die Panels leiten ihren unteren Rand DARAUS ab, statt ihn zu waehlen. Damit kann das
+	   Infopanel gar nicht mehr neben dem Knopfbund enden, und wer den Kartenrand aendert, aendert
+	   beide. Oben haben sie einen eigenen Wert -- dort steht nichts, mit dem sie fluchten muessten. */
+	--avesmaps-panel-inset-top: 10px;
+	--avesmaps-panel-inset-bottom: var(--avesmaps-edge-gap);
+
 	/* Elevation */
 	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
 	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.38);
@@ -539,6 +551,12 @@
 html.avesmaps-phone {
 	--avesmaps-tab-top: 0px;
 	--avesmaps-tab-h: 100dvh;
+	/* Und die Panels laufen ebenfalls von Kante zu Kante (Owner 11.08.2026: „im mobile full
+	   height"). Nur SIE -- --avesmaps-edge-gap bleibt bei 12px, sonst klebte der Knopfbund am
+	   Bildschirmrand. Deshalb hat der Panel-Rand einen eigenen Token, statt der Kartenrand-Zahl
+	   direkt zu folgen: am Zeiger ist er von ihr abgeleitet, am Telefon faellt er weg. */
+	--avesmaps-panel-inset-top: 0px;
+	--avesmaps-panel-inset-bottom: 0px;
 }
 
 /* Dark theme — opt-in (set data-theme="dark" on :root). Same warm family,

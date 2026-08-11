@@ -69,9 +69,12 @@ assert.ok(knopfRegel, "beide Knoepfe teilen sich EINE Aussehen-Regel");
 const cssOhneKommentar = withoutComments(infopanelCss);
 const zoomRegel = cssOhneKommentar.match(/\.avesmaps-infopanel-mode \.leaflet-control-zoom \{([\s\S]*?)\r?\n\}/);
 assert.ok(zoomRegel, "der Zoom wird in infopanel.css platziert");
+// ⚠️ Seit dem 11.08.2026 sind BEIDE Summanden Token. Die 12 stand vorher als Literal hier und ein
+// zweites Mal am Knopfbund -- und ein drittes Mal als 14 am Infopanel, weshalb das Panel sichtbar
+// 2px neben „Hinweise" endete (Owner-Meldung). Der Kartenrand heisst jetzt --avesmaps-edge-gap.
 assert.ok(
-	/bottom:\s*calc\(12px \+ var\(--avesmaps-corner-stack\)\)/.test(zoomRegel[1]),
-	"und rechnet seinen Abstand aus --avesmaps-corner-stack, statt eine Zahl zu kennen"
+	/bottom:\s*calc\(var\(--avesmaps-edge-gap\) \+ var\(--avesmaps-corner-stack\)\)/.test(zoomRegel[1]),
+	"und rechnet seinen Abstand aus Kartenrand + --avesmaps-corner-stack, statt eine Zahl zu kennen"
 );
 
 // 💣 Faengt den gemessenen Fehlgriff vom 09.08.2026: die Modus-Klasse haengt an <html> UND <body>.

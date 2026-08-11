@@ -714,6 +714,47 @@ assert.ok(/--avesmaps-tab-h:\s*100dvh/.test(telefonBlock[1]),
 assert.strictEqual((tokens.match(/html\.avesmaps-phone\s*\{/g) || []).length, 1,
 	"und es gibt genau EINEN solchen Block in tokens.css -- zwei waeren zwei Wahrheiten");
 
+// ---- Der Rand zur Karte ist EINE Zahl, und der Panel-Rand ist daraus ABGELEITET ------------------
+//
+// Owner 11.08.2026: „hinweise und der untere rand vom infopanel sind 3px auseinander -> gleich
+// abschliessen" (gemessen waren es 2: Panel 786, Knopfbund 788). Ursache waren zwei Zahlen, die
+// dasselbe meinten -- `bottom: 14px` am Panel gegen `bottom: 12px` am Bund.
+assert.ok(/--avesmaps-edge-gap:\s*[0-9.]+px/.test(tokens),
+	"--avesmaps-edge-gap steht in tokens.css -- der Abstand zum Kartenrand");
+// 💣 ABGELEITET, nicht abgeschrieben. Ein zweites `12px` sähe heute richtig aus und liefe beim
+// naechsten Anfassen auseinander -- genau so ist die 14 entstanden.
+assert.ok(/--avesmaps-panel-inset-bottom:\s*var\(--avesmaps-edge-gap\)/.test(tokens),
+	"der untere Panel-Rand RECHNET sich aus dem Kartenrand -- als eigene Zahl koennte er wieder"
+	+ " danebenliegen, und genau das war der gemeldete Versatz");
+
+const KANTEN_LESER = [
+	[infopanelCss, ".avesmaps-infopanel", "bottom", "--avesmaps-panel-inset-bottom", "Infopanel"],
+	[infopanelCss, ".avesmaps-infopanel", "top", "--avesmaps-panel-inset-top", "Infopanel oben"],
+	[legalCss, "#map-corner-actions", "bottom", "--avesmaps-edge-gap", "Knopfbund"],
+];
+KANTEN_LESER.forEach(([css, selector, eigenschaft, token, name]) => {
+	const regel = css.match(new RegExp(escapeRe(selector) + "\\s*\\{([^}]*)\\}"));
+	assert.ok(regel, `die Regel fuer ${name} ist auffindbar`);
+	assert.ok(new RegExp(eigenschaft + ":\\s*var\\(" + escapeRe(token) + "\\)").test(regel[1]),
+		`${name}: \`${eigenschaft}\` liest ${token} statt einer eigenen Zahl`);
+});
+// Das Editorpanel haengt per Owner-Vorgabe am selben unteren Rand wie die Infobox. Die Vorgabe war
+// als ZAHL formuliert und haette beim naechsten Anfassen still aufgehoert zu gelten.
+assert.ok(/#review-panel\s*\{[^}]*bottom:\s*var\(--avesmaps-panel-inset-bottom\)/.test(infopanelCss),
+	"das Editorpanel liest denselben Panel-Rand -- die Kopplung steht jetzt im Code, nicht nur im Kommentar");
+// Und der Zoom rechnet seinen Abstand ebenfalls daraus, statt die 12 ein drittes Mal zu kennen.
+assert.ok(/bottom:\s*calc\(var\(--avesmaps-edge-gap\)\s*\+\s*var\(--avesmaps-corner-stack\)\)/.test(infopanelCss),
+	"der Zoom rechnet Kartenrand + Stapelhoehe, statt die Zahl abzuschreiben");
+
+// 🔴 Am Telefon fallen NUR die Panel-Raender weg, nicht der Kartenrand. Owner: „im mobile full
+// height" -- das gilt den Panels. Zoege der Telefon-Block auch --avesmaps-edge-gap auf 0, klebten
+// „Neuigkeiten" und „Hinweise" am Bildschirmrand.
+assert.ok(/--avesmaps-panel-inset-top:\s*0/.test(telefonBlock[1])
+	&& /--avesmaps-panel-inset-bottom:\s*0/.test(telefonBlock[1]),
+	"am Telefon laufen die Panels von Kante zu Kante");
+assert.ok(!/--avesmaps-edge-gap\s*:/.test(telefonBlock[1]),
+	"...aber der KARTENRAND bleibt stehen -- sonst klebte der Knopfbund am Bildschirmrand");
+
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
 assert.ok(viewport, "index.html traegt ein Viewport-Meta");

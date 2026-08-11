@@ -510,7 +510,9 @@
 #map-corner-actions {
 	position: fixed;
 	right: 12px;
-	bottom: 12px;
+	/* Der Kartenrand als Token: das Infopanel leitet SEINEN unteren Rand daraus ab, damit die beiden
+	   nie wieder nebeneinander enden (sie standen als 12 gegen 14 da, sichtbar 2px versetzt). */
+	bottom: var(--avesmaps-edge-gap);
 	z-index: var(--z-map-ui);
 	display: flex;
 	/* 💣 SPALTE, und das ist der ganze Trick: die Suchkachel liegt ueber den beiden Verweisen, ohne
