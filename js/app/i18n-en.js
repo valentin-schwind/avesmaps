@@ -257,6 +257,11 @@ window.AVESMAPS_I18N_EN = {
 	// Keyed by the <option> value, not by the German label -- unlike "deregraphic", which is historically
 	// keyed view.mode.standard. Admin-only mode (js/app/session.js).
 	"view.mode.ecosystem": "Landscapes",
+	// The view tile in the map corner (?layerPanelActive=1). Its cells take their words from the
+	// <option> above and are translated with them; only these two sentences are its own, so they
+	// live here instead of being glued together in JS (AGENTS.md §8).
+	"view.tile.title": "View: {name}",
+	"view.tile.aria": "Choose view, currently {name}",
 
 	// --- Landschaften (Erprobung): the layer switch above the map (V3.0). The three kind values stay
 	//     German in the DATA (domain vocabulary, AGENTS.md §2) -- only their LABELS are translated. ---

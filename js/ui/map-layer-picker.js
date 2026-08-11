@@ -101,8 +101,19 @@
 
 			knopf.innerHTML = "";
 			knopf.appendChild(zelle(aktuelle, false, false));
-			knopf.title = "Ansicht: " + aktuelle.name;
-			knopf.setAttribute("aria-label", "Ansicht wählen, aktuell " + aktuelle.name);
+			// Die Namen der Ansichten kommen aus den <option> und sind damit schon uebersetzt.
+			// Diese beiden Saetze sind die einzigen eigenen -- sie gehoeren in die Tabelle, nicht
+			// aus Wortstuecken zusammengeklebt (AGENTS.md §8).
+			var uebersetze = (typeof tr === "function")
+				? tr
+				: function (schluessel, vorgabe, werte) {
+					return String(vorgabe).replace(/\{(\w+)\}/g, function (treffer, k) {
+						return Object.prototype.hasOwnProperty.call(werte || {}, k) ? werte[k] : treffer;
+					});
+				};
+			knopf.title = uebersetze("view.tile.title", "Ansicht: {name}", { name: aktuelle.name });
+			knopf.setAttribute("aria-label",
+				uebersetze("view.tile.aria", "Ansicht wählen, aktuell {name}", { name: aktuelle.name }));
 
 			// 💣 DIE AKTIVE ANSICHT STEHT ZULETZT. Nur dadurch faellt sie im Raster auf den Fleck
 			// der zugeklappten Kachel (beide haengen mit derselben Polsterung an derselben Ecke,
