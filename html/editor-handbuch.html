@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 11.08.2026</span>
+		<span class="hb-topbar__meta">Stand: 12.08.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -249,8 +249,8 @@
 						<li><a href="#bug-system" data-keywords="discord fehler bug idee frage offen erledigt bot">Das automatische Bug-System</a></li>
 						<li><a href="#meldungen" data-keywords="community änderung vorschlagen position melden report bearbeitet erledigt offen alle filter wiederfinden angenommen verworfen begründung änderungswunsch beschreibung">Meldungen</a></li>
 						<li><a href="#bewertungen" data-keywords="sterne rating community">Bewertungen</a></li>
-						<li><a href="#mails" data-keywords="postfach kontakt empfangen gesendet">Mails</a></li>
-						<li><a href="#social" data-keywords="social media hub veröffentlichen posten beitrag kanal kanäle instagram facebook mastodon neuigkeiten probe hashtags bild zugang token entwurf vorschlag routine freigeben verwerfen erneut">Social Media</a></li>
+						<li><a href="#mails" data-keywords="postfach kontakt empfangen gesendet papierkorb löschen">Mails</a></li>
+						<li><a href="#social" data-keywords="social media hub veröffentlichen posten beitrag kanal kanäle instagram facebook mastodon neuigkeiten probe hashtags bild zugang token entwurf vorschlag routine freigeben verwerfen erneut bildbeschreibung kennungen konsole">Social Media</a></li>
 						<li><a href="#aenderungen" data-keywords="audit protokoll rückgängig undo redo wiederherstellen strg+z verlauf meldung angenommen verworfen zurückgestellt">Änderungen</a></li>
 						<li><a href="#status" data-keywords="präsenz aktivität">Status</a>
 							<ul>
@@ -319,7 +319,7 @@
 					<img src="screenshots/02-editor-panel.png" alt="Das Editor-Panel mit den Reitern Meldungen, Aenderungen, WikiSync und Status sowie der Statuszeile mit dem Link auf das Handbuch" />
 					<figcaption>Das „Editor"-Panel mit seinen vier Reitern; oben die Statuszeile mit dem Link <strong>„📖 Handbuch"</strong> auf diese Seite. <em>(Die Aufnahme ist älter — dort heißt der Link noch „Tutorial" und der erste Reiter noch „Meldungen".)</em></figcaption>
 				</figure>
-				<p>Oben rechts in der App sitzen außerdem der <strong>Hell/Dunkel-Umschalter</strong> und der <strong>DE|EN-Sprachumschalter</strong>. Beide gelten nur für deine Ansicht und ändern nichts an den Daten.</p>
+				<p>In der oberen rechten Ecke des <strong>Routenplaners</strong> — also der Leiste am linken Bildrand, nicht am Rand des Fensters — sitzen außerdem der <strong>Hell/Dunkel-Umschalter</strong> und der <strong>DE|EN-Sprachumschalter</strong>. Beide gelten nur für deine Ansicht und ändern nichts an den Daten.</p>
 				<div class="hb-note hb-tip"><strong>Jedes Fenster lässt sich verschieben.</strong> Pack einen Dialog an seiner <strong>Titelzeile</strong> und zieh ihn beiseite — hilfreich, wenn er genau über der Stelle liegt, die du gerade bearbeitest. Ein <strong>Doppelklick auf den Titel</strong> holt ihn zurück in die Mitte. Das gilt für alle Fenster, auch die großen Editoren; Knöpfe und Suchfelder in der Kopfzeile bleiben dabei bedienbar. Ausgenommen ist allein die Spotlight-Suche. Am Touchgerät gibt es das nicht — dort füllen die Fenster ohnehin den Schirm.</div>
 
 				<h3 id="wikisync-navigation" class="hb-sub">So findest du dich im WikiSync-Reiter zurecht</h3>
@@ -336,8 +336,8 @@
 				<p>Es gibt drei Rollen. Sie bestimmen, was du darfst:</p>
 				<ul class="hb-steps">
 					<li><strong>reviewer</strong> — darf Meldungen und Bewertungen prüfen.</li>
-					<li><strong>editor</strong> — darf zusätzlich die Karte bearbeiten (Orte, Wege, Territorien, Wiki-Verknüpfung …).</li>
-					<li><strong>admin</strong> — darf alles, inkl. Verwaltung (z.&nbsp;B. Konten anlegen), das <strong>Datenbank-Backup</strong> und das Veröffentlichen über <a href="#social">Social Media</a>.</li>
+					<li><strong>editor</strong> — darf zusätzlich die Karte bearbeiten (Orte, Wege, Territorien, Wiki-Verknüpfung …) und seit dem 11. August über <a href="#social">Social Media</a> im Namen des Projekts veröffentlichen.</li>
+					<li><strong>admin</strong> — darf alles, inkl. Verwaltung (z.&nbsp;B. Konten anlegen) und das <strong>Datenbank-Backup</strong>.</li>
 				</ul>
 				<div class="hb-note hb-tip"><strong>Admins ziehen den Abzug direkt aus der Kopfzeile.</strong> Neben <em>„📖 Handbuch"</em> steht dort <strong>„💾 Datenbank-Backup"</strong>. Ein Klick auf <strong>„Backup erstellen"</strong> zieht einen vollständigen Abzug der Datenbank — Schema <em>und</em> Daten — als gepackte <code>.sql.gz</code>-Datei und lädt sie herunter; einspielen lässt sie sich unverändert per <code>mysql</code> oder über den Import von phpMyAdmin. Der Lauf geht in kleinen Schritten, damit er nicht an den PHP-Grenzen des Webhostings scheitert: <strong>den Tab offen lassen, bis 100&nbsp;% erreicht sind</strong>. Der Haken <em>„WikiSync-Zwischenspeicher überspringen"</em> macht die Datei kleiner. <strong>Editoren sehen den Link nicht</strong> — ein solcher Abzug enthält auch Passwort-Hashes, alle Share-Links und alle Meldungen.</div>
 				<div class="hb-diagram">
@@ -1163,33 +1163,38 @@
 
 				<h3 id="mails" class="hb-sub">Mails</h3>
 				<p class="hb-path"><strong>Editor → Community → Mails</strong></p>
-				<p>Das Postfach der Seite mit den Ansichten <strong>Empfangen</strong> und <strong>Gesendet</strong> und einem ↻ zum Nachladen. Hier landet, was über das Kontaktformular hereinkommt.</p>
+				<p>Das Postfach der Seite mit den Ansichten <strong>Empfangen</strong> und <strong>Gesendet</strong> und einem ↻ zum Nachladen. Hier landet, was über das Kontaktformular hereinkommt. Ein Klick auf eine empfangene Mail klappt sie direkt unter ihrer Zeile auf, ein zweiter wieder zu; die <strong>gesendeten</strong> Mails klappen seit dem 11. August genauso auf — zugeklappt bleiben Adressat, Betreff, Datum und die erste Zeile lesbar.</p>
+				<div class="hb-note hb-tip"><strong>Der 🗑 neben einer empfangenen Mail löscht nichts.</strong> Er verschiebt sie in den <em>Papierkorb-Ordner des Postfachs</em> — zurückholen kannst du sie dort mit jedem Mailprogramm. Findet der Server keinen Papierkorb-Ordner, bleibt die Mail liegen und sagt es; er legt keinen an und rät keinen Namen.</div>
 
 				<h3 id="social" class="hb-sub">Social Media</h3>
 				<p class="hb-path"><strong>Editor → Community → Social Media</strong></p>
 				<p>Von hier aus spricht das Projekt nach draußen: ein Text, Hashtags und ein Bild gehen in einem Zug an mehrere Netze. Der Knopf <strong>„✎ Social Media Hub öffnen"</strong> öffnet das Fenster, darunter steht die Liste der bisherigen Beiträge.</p>
-				<div class="hb-note hb-warn"><strong>Diesen Reiter siehst du nur mit dem Recht dazu.</strong> Die Karte zu pflegen und öffentlich unter dem Namen des Projekts zu sprechen sind zwei verschiedene Rechte (siehe <a href="#rollen">Rollen &amp; Rechte</a>). Gepostet wird immer das <em>Konto des Projekts</em>, nie dein persönliches; wer gedrückt hat, steht nur intern. Und es lässt sich nicht zurückholen — <strong>keine Scans aus DSA-Publikationen, keine Ulisses-Artworks</strong>, das Projekt läuft unter den Fan-Richtlinien.</div>
+				<div class="hb-note hb-warn"><strong>Editoren und Admins sehen diesen Reiter, Reviewer nicht.</strong> Seit dem 11. August steht der Hub jedem Editor offen; wer die Karte nur prüft, spricht damit noch nicht für das Projekt. Die Karte zu pflegen und öffentlich unter dem Namen des Projekts zu sprechen bleiben getrennte Rechte (siehe <a href="#rollen">Rollen &amp; Rechte</a>). Gepostet wird immer das <em>Konto des Projekts</em>, nie dein persönliches; wer gedrückt hat, steht nur intern. Und es lässt sich nicht zurückholen — <strong>keine Scans aus DSA-Publikationen, keine Ulisses-Artworks</strong>, das Projekt läuft unter den Fan-Richtlinien.</div>
 
 				<h4>Die Kanäle</h4>
-				<p>Rechts im Fenster hakst du an, wohin der Beitrag geht. Jeder Kanal hat eigene Grenzen, und <strong>die Hashtags zählen zum Zeichenlimit</strong> — die Zählung unter dem Textfeld weist sie deshalb getrennt aus („168 + 24 Hashtags = 192") und misst gegen den <em>strengsten</em> der angehakten Kanäle.</p>
+				<p>Rechts im Fenster hakst du an, wohin der Beitrag geht. Jeder Kanal hat eigene Grenzen, und <strong>die Hashtags zählen zum Zeichenlimit</strong> — die Zählung unter dem Textfeld weist sie deshalb getrennt aus und nennt gleich dazu, wogegen sie misst: <em>„168 + 24 Hashtags = 192 von 500 Zeichen (engster Kanal: Probe)"</em>. Häkelst du einen strengeren Kanal dazu, sinkt die Grenze.</p>
 				<table class="hb-table">
 					<tr><th>Kanal</th><th>Wohin</th><th>Zeichen</th><th>Hashtags</th></tr>
 					<tr><td><strong>Probe</strong></td><td>nirgends — legt nur ab, was sie gesendet hätte</td><td>500</td><td>2</td></tr>
 					<tr><td><strong>Neuigkeiten</strong></td><td>das Fenster „Neuigkeiten" auf avesmaps.de</td><td>2.000</td><td>keine</td></tr>
 					<tr><td><strong>Instagram</strong></td><td>@avesmaps</td><td>2.200</td><td>frei</td></tr>
 					<tr><td><strong>Facebook</strong></td><td>die Seite Avesmaps</td><td>63.206</td><td>2</td></tr>
-					<tr><td><strong>Mastodon</strong></td><td>noch kein Konto</td><td>500</td><td>4</td></tr>
+					<tr><td><strong>Mastodon</strong></td><td>@Avesmaps@rollenspiel.social</td><td>500</td><td>4</td></tr>
 				</table>
 				<div class="hb-note hb-tip"><strong>Fang mit der Probe an — sie ist vorangehakt.</strong> Sie läuft die <em>ganze</em> Kette durch (Rechteprüfung, Bildwandlung, Zuschnitt, Textbau je Kanal) und legt am Ende ab, was sie gesendet hätte, statt zu senden; in der Liste klappst du das unter <em>„Probe: Was gesendet worden wäre"</em> auf. Ihre Grenzen sind die strengsten aller echten Kanäle — was die Probe besteht, besteht überall.</div>
-				<div class="hb-note hb-tip"><strong>Ein Kanal ohne Zugang ist ausgegraut</strong> und trägt statt des Kontos den Vermerk <em>„noch nicht eingerichtet"</em>; steht der Zugang, zeigt die Zeile, <strong>wann er abläuft</strong>. Einrichten kannst du ihn im Fenster selbst — <strong>„🔑 &lt;Kanal&gt;-Zugang einrichten"</strong>, den Rest macht der Server, und er legt nur ab, was nachweislich nie abläuft. <strong>Probe</strong> und <strong>Neuigkeiten</strong> brauchen nie einen Zugang.</div>
+				<div class="hb-note hb-tip"><strong>Ein Kanal ohne Zugang ist ausgegraut</strong> und trägt statt des Kontos den Vermerk <em>„noch nicht eingerichtet"</em>; steht der Zugang, zeigt die Zeile, <strong>wann er abläuft</strong>. Einrichten kannst du ihn in der Zeile des Kanals selbst — <strong>„🔑 Zugang zu &lt;Kanal&gt; einrichten"</strong>; steht schon einer, heißt derselbe Knopf <strong>„… erneuern"</strong>. Du fügst dort nur den kurzlebigen Token ein, alles Weitere macht der Server, und er legt nur ab, was nachweislich nie abläuft. <strong>Probe</strong> und <strong>Neuigkeiten</strong> brauchen nie einen Zugang.</div>
+				<div class="hb-note hb-tip"><strong>Wo kam der Token noch mal her?</strong> Ein Zugang wird einmal eingerichtet und dann monatelang nicht angefasst. Damit an dem Tag, an dem doch jemand ran muss, nicht in Notizen und fremden Menüs gesucht wird, steht alles im Fenster unter dem zugeklappten <strong>„Konten, Kennungen und Konsolen"</strong>: je Kanal die Kennungen zum Abschreiben und die Verweise auf Profil, Token-Konsole und Freigaben. Zugeklappt findet Strg+F den Text trotzdem.</div>
 				<div class="hb-note hb-warn"><strong>Instagram ohne Bild bleibt gesperrt</strong> — dort geht kein reiner Text. Umgekehrt gilt für <strong>Neuigkeiten</strong>: nur dieser Kanal nutzt die <strong>Titelzeile</strong> (die Netze kennen keine Überschrift), und ein Bild übernimmt er nicht.</div>
+				<div class="hb-note hb-tip"><strong>Hängt ein Bild dran, schreib die <em>Bildbeschreibung</em> dazu.</strong> Das Feld darunter geht als Bildbeschreibung an <strong>Mastodon</strong> und wird Screenreadern vorgelesen. Beschreibe das <em>Bild</em>, nicht den Beitrag — „Kartenausschnitt des Bornlands mit den neuen Reichsstraßen" statt „Neue Wege".</div>
 
 				<h4>Der Status gehört dem Kanal, nicht dem Beitrag</h4>
-				<p>Ein Beitrag geht an mehrere Netze, und jedes kann für sich scheitern. Deshalb trägt jede Zeile der Liste <em>eine Marke je Kanal</em>: <strong>„… ✓"</strong>, <strong>„… — wartet"</strong>, <strong>„… — geplant"</strong> oder <strong>„… — Fehler"</strong>, den Fehlertext zeigt der Tooltip. Nur eine gescheiterte Marke bekommt den Knopf <strong>„Erneut"</strong>, und der wiederholt <em>genau diesen einen</em> Kanal — ein bereits gesendeter wäre auf Instagram ein Doppelbeitrag. Grün heißt „es steht draußen"; alles Unklare zeigt „wartet", nie einen Erfolg.</p>
+				<p>Ein Beitrag geht an mehrere Netze, und jedes kann für sich scheitern. Deshalb trägt jede Zeile der Liste <em>eine Marke je Kanal</em>: <strong>„… ✓"</strong>, <strong>„… — wartet"</strong>, <strong>„… — geplant"</strong> oder <strong>„… — Fehler"</strong>, den Fehlertext zeigt der Tooltip. Nur eine gescheiterte Marke bekommt den Knopf <strong>„Erneut"</strong>, und der wiederholt <em>genau diesen einen</em> Kanal — ein bereits gesendeter wäre auf Instagram ein Doppelbeitrag. Grün heißt „es steht draußen"; alles Unklare zeigt „wartet", nie einen Erfolg. Kennt das Netz die Adresse des fertigen Beitrags, ist die Marke selbst der Link dorthin (<strong>„… ✓ ↗"</strong>) — fehlt der Pfeil, heißt das nur, dass keine Adresse zurückkam, nicht dass der Beitrag fehlt.</p>
 
 				<h4>Entwürfe und die Vorschläge der Routine</h4>
-				<p>Ein Beitrag muss nicht sofort hinaus: <strong>„Als Entwurf speichern"</strong> legt ihn in dieselbe Liste, ohne zu senden — darüber steht dann <em>„Entwurf — noch nicht veröffentlicht."</em>. Dort landen auch die Beiträge, die die <strong>Routine</strong> selbst vorschlägt; die tragen <strong>„Automatisch"</strong> als Verfasser und den Satz <em>„Vorschlag der Routine — wartet auf Freigabe."</em>.</p>
+				<p>Ein Beitrag muss nicht sofort hinaus: <strong>„Als Entwurf speichern"</strong> legt ihn in dieselbe Liste, ohne zu senden — darüber steht dann <em>„Entwurf — noch nicht veröffentlicht."</em>. Das Fenster <em>bleibt dabei offen</em> (der Knopf meldet kurz <strong>„Gespeichert ✓"</strong>), und jedes weitere Speichern ändert denselben Entwurf, statt einen zweiten anzulegen. Dort landen auch die Beiträge, die die <strong>Routine</strong> selbst vorschlägt; die tragen <strong>„Automatisch"</strong> als Verfasser und den Satz <em>„Vorschlag der Routine — wartet auf Freigabe."</em>.</p>
 				<p>Beide warten auf einen Menschen und haben dieselben drei Knöpfe: <strong>„Freigeben und veröffentlichen"</strong>, <strong>„Bearbeiten"</strong> (öffnet das Hub-Fenster zum Überarbeiten) und <strong>„Verwerfen"</strong>. <strong>Nichts geht automatisch raus</strong> — auch was die Routine schreibt, steht erst draußen, wenn jemand freigegeben hat.</p>
+				<p>Dieselben Entwürfe stehen seit dem 11. August auch <em>im Fenster selbst</em>, in der dritten Spalte <strong>„Entwürfe"</strong> neben den Kanälen — mit denselben Handgriffen (dort heißt der erste schlicht <strong>„Veröffentlichen"</strong>). So siehst du beim Schreiben, was noch offen ist, ohne das Fenster zu schließen.</p>
+				<div class="hb-note hb-warn"><strong>Ein Entwurf geht an die Kanäle, die beim <em>Anlegen</em> angehakt waren</strong> — nicht an die, die gerade in der Spalte daneben stehen. Willst du das ändern, nimm <strong>„Bearbeiten"</strong>: das holt den Entwurf vollständig ins Formular zurück, samt Kanälen, Bild, Bildbeschreibung und Lizenzangabe. <strong>„Verwerfen"</strong> fragt nicht nach und ist endgültig — einen verworfenen Vorschlag der Routine bringt der nächste Lauf <em>nicht</em> wieder.</div>
 
 				<h3 id="aenderungen" class="hb-sub">Änderungen</h3>
 				<p class="hb-path"><strong>Editor → Änderungen</strong></p>
