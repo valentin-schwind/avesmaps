@@ -283,13 +283,21 @@ Ein Beitrag, N Ziele — genau deshalb, weil der Status je Kanal eigenständig i
 lange nicht im Namen des Projekts an die Öffentlichkeit. Die beiden Rechte trennen sich hier
 sauber, und die Trennung ist billig — eine Zeile in der Rechteprüfung.
 
-⚠️ **In Stufe 1 deckt sich `social` mit `admin`** (`avesmapsUserCan`, live 10.08.2026). Das
-Rechtemodell kennt nur die drei Rollen `admin · editor · reviewer` und **keine Rechtematrix je
-Person** — enger geht es also nicht, ohne das Modell zu erweitern. Das ist die enge **Startwahl**,
-nicht die Definition der Fähigkeit. Sie auf namentliche Editoren zu öffnen ist eine Spalte
-`users.can_social` plus dieselbe eine Zeile, und **kein Aufrufer ändert sich dabei**, weil alle
-schon durch `avesmapsUserCan(…, 'social')` gehen. Genau dafür hat sie jetzt schon einen eigenen
-Namen bekommen, statt überall `admin` hinzuschreiben.
+✅ **Seit 11.08.2026 gilt `social` für admin UND editor** (`avesmapsUserCan`; Owner: „das social
+media hub für alle Editoren freischalten"). In Stufe 1 hatte sie sich mit `admin` gedeckt — die enge
+**Startwahl**, nicht die Definition. Die Öffnung kostete genau **eine Zeile** in der Rechteprüfung
+und **keinen Aufrufer**, weil alle schon durch `avesmapsUserCan(…, 'social')` gehen; genau dafür
+hatte die Fähigkeit von Anfang an einen eigenen Namen statt überall `admin`.
+
+⚠️ **Reviewer bleiben draußen.** Wer die Karte prüft, spricht damit noch nicht für das Projekt. Dass
+`social` und `edit` heute dieselben zwei Rollen nennen, ist ein Zufall dieser Öffnung und **keine
+Verschmelzung** — das Rechtemodell kennt nur die drei Rollen `admin · editor · reviewer` und **keine
+Rechtematrix je Person**; jemanden namentlich freizuschalten bräuchte weiterhin eine Spalte
+`users.can_social`.
+
+⚠️ **Editoren sehen damit auch „Zugang einrichten"** (§3.2). Umleiten können sie nichts: die Seite
+wird über die **konfigurierte Kennung** gesucht, und gespeichert wird nur, was alle fünf Riegel
+besteht — ein nie ablaufender SEITEN-Token mit den je Kanal geforderten Rechten.
 
 ## 8. Betrieb
 

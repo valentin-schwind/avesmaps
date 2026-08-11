@@ -54,8 +54,8 @@ assert($admin['capabilities'] === ['admin' => true, 'edit' => true, 'review' => 
     'admin holds all four capabilities');
 
 $editor = avesmapsSessionPayload(['id' => 8, 'username' => 'edi', 'role' => 'editor']);
-assert($editor['capabilities'] === ['admin' => false, 'edit' => true, 'review' => true, 'social' => false],
-    'editor may edit and review, but is neither admin nor may they publish');
+assert($editor['capabilities'] === ['admin' => false, 'edit' => true, 'review' => true, 'social' => true],
+    'editor may edit, review and publish -- everything except admin');
 
 // 🔴 "Die Reviewer werden zur gegebenen Zeit Zugriff bekommen" (owner, 2026-07-30) -- zur gegebenen
 // Zeit, nicht heute. A reviewer is not an admin and does not get the layer.
@@ -78,24 +78,24 @@ assert($roleless['capabilities']['admin'] === false, 'a roleless session is not 
 
 // ---- the capability 'social' (Social-Media-Hub, Entwurf §7) --------------------------------------
 
-// 🔴 Its OWN capability, deliberately not a synonym for 'edit': maintaining the map and speaking
-// publicly under the project's name are different powers, and one must be grantable without the
-// other. Today it coincides with 'admin' because the role model has no per-user grid -- that is the
-// narrow starting choice, NOT the definition. Widening it to named editors is a users.can_social
-// column plus one line in avesmapsUserCan; no caller changes, because every caller already asks
-// avesmapsUserCan(..., 'social'). That is the whole reason it got a name of its own now.
+// 🔴 Its OWN capability, never an alias of 'edit': maintaining the map and speaking publicly under
+// the project's name are different powers, and one must stay revocable without the other. That both
+// name the same two roles today is a coincidence of the widening, not a merge.
+//
+// Widened from admin-only to admins AND editors on 2026-08-11 (owner). It stops at editors -- a
+// reviewer checks the map, they do not speak for the project. Per-PERSON grants need a new column.
 assert(avesmapsUserCan(['role' => 'admin'], 'social') === true,
     'admin may publish');
-assert(avesmapsUserCan(['role' => 'editor'], 'social') === false,
-    'an editor may tend the map, but not speak in the name of the project');
+assert(avesmapsUserCan(['role' => 'editor'], 'social') === true,
+    'an editor may speak in the name of the project too (widened 2026-08-11)');
 assert(avesmapsUserCan(['role' => 'reviewer'], 'social') === false,
-    'a reviewer even less so');
+    'but a reviewer does not -- the widening stopped at editors');
 assert(avesmapsUserCan(['role' => ''], 'social') === false,
     'an unknown role wins nothing -- fails closed, never open');
 
 assert($admin['capabilities']['social'] === true,
     'the rights channel carries social, otherwise the client cannot hide the tab');
-assert($editor['capabilities']['social'] === false,
+assert($reviewer['capabilities']['social'] === false,
     'and it carries it as FALSE, not as missing -- an absent key reads as undefined in the client');
 assert($anonymous['capabilities']['social'] === false, 'anonymous: false');
 

@@ -497,7 +497,7 @@
 				// steht womöglich erst nach dieser Zeile, und der Reiter zeigt für immer „Beiträge
 				// werden geladen …" über einer leeren Liste. Ein Wettlauf, den man nicht gewinnt,
 				// indem man ihn genauer timt -- also gar nicht erst antreten. Die Abfrage kostet
-				// einen Aufruf beim Öffnen des Editors, und den auch nur für Admins.
+				// einen Aufruf beim Öffnen des Editors, und den auch nur für die, die den Reiter haben.
 				load(false);
 				// Der Klick bleibt als Auffrischung: wer den Reiter noch einmal anfasst, will sehen,
 				// was inzwischen dazugekommen ist.
