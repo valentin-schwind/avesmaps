@@ -539,7 +539,17 @@
 	}
 }
 
-/* Am Telefon laufen die PANELS von Kante zu Kante -- die Randlaschen NICHT.
+/* 💣 DER STEMPEL DIESER DATEI WIRD AUS DEM REPO GERECHNET, HOCHGELADEN WIRD NUR DER PUSH-DIFF.
+   Am 11.08.2026 scheiterte der Deploy dieser Datei an einem roten Test -- hochgeladen wurde
+   nichts. Der naechste, erfolgreiche Lauf trug ihren NEUEN Inhaltsstempel ins HTML, ohne sie
+   selbst mitzunehmen: `tokens.css?v=903dace7de` lieferte zweieinhalb Stunden den ALTEN Inhalt,
+   und jeder Browser hat genau den unter dieser Adresse gecacht. Ein spaeterer Voll-Deploy
+   repariert das NICHT -- er laedt die richtige Datei unter dieselbe, laengst vergiftete Adresse.
+   Heilung ist nur eine INHALTSAENDERUNG (neuer Hash = neue Adresse); dieser Absatz ist sie.
+   ⚠️ Merkmal des Falls: der Server liefert mit Cache-Umgehung das Richtige, die Seite zeigt das
+   Falsche, und das HTML ist NICHT veraltet (docs/asset-caching-and-versioning.md).
+
+   Am Telefon laufen die PANELS von Kante zu Kante -- die Randlaschen NICHT.
    🔴 Das war am 11.08.2026 fuer wenige Stunden anders und ist zurueckgenommen: „von oben nach
    unten durchgehen" galt dem PANEL, nicht seinem Reiter (Owner, nach dem Ansehen: „das Tab sollte
    nicht veraendert werden, ich meinte dass das Panel selbst von oben nach unten gehen soll"). Eine
