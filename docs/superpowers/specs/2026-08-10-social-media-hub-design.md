@@ -587,11 +587,20 @@ DIESER Kanal braucht**.
    Fehler — nie Erfolg. Der Behälter verfällt von allein (24 h), es bleibt also nichts aufzuräumen,
    und der Fehlertext sagt das, damit niemand in der Datenbank nach Leichen sucht.
 2. **Dazwischen muss der Behälter fertig sein.** Wer sofort veröffentlicht, bekommt **Fehler 9007
-   („Media ID is not available")** — Instagram hat das Bild noch nicht verarbeitet. Der Adapter fragt
-   `GET /{creation-id}?fields=status_code` ab, bis `FINISHED` kommt. ⚠️ **Gedeckelt**, weil das im
-   Veröffentlichen-Request auf STRATO läuft: höchstens vier Versuche mit kurzer Pause, zusammen unter
-   zehn Sekunden. Läuft der Deckel ab, ist es ein Fehlschlag mit Namen, kein stilles Weitermachen.
-   `ERROR` als Status bricht sofort ab, statt den Deckel abzuwarten.
+   („Media ID is not available")** — Instagram hat das Bild noch nicht verarbeitet. Der Adapter
+   **wiederholt dann den Veröffentlichen-Schritt**, höchstens dreimal mit anderthalb Sekunden Pause.
+   🔴 **9007 ist der EINZIGE wiederholbare Fehler**, und zwar weil er das Gegenteil eines verlorenen
+   Erfolgs beweist: Instagram rechnet noch, also steht nichts draußen. Jeden anderen Fehlschlag zu
+   wiederholen hiesse, einen zweiten öffentlichen Beitrag zu riskieren — und ein Doppelbeitrag auf
+   Instagram lässt sich nur löschen, nie zusammenführen. ⚠️ **Gedeckelt**, weil das im
+   Veröffentlichen-Request auf STRATO läuft: jede gehaltene Sekunde ist ein gehaltener PHP-Worker.
+
+   ⚠️ **Korrektur am 11.08.2026, beim Bauen gefunden.** Hier stand zuerst, der Adapter frage
+   `GET /{creation-id}?fields=status_code` ab, bis `FINISHED` kommt — der Weg, den Metas Doku für
+   Videos beschreibt. Er ist hier der schlechtere: die Statusabfrage ist ein **GET**, und ein GET
+   trägt den Token zwangsläufig in der **Adresse** — also in jedes Server-Protokoll, entgegen Falle 4,
+   die im selben Absatz steht. Die Wiederholung kommt ohne das aus, ist genauso gedeckelt und erfährt
+   dasselbe: 9007 *ist* die Antwort „noch nicht fertig".
 3. **Ohne Bild kein Beitrag.** `requires_media` steht schon im Register und greift in
    `avesmapsSocialCheckTarget` — der Adapter verlässt sich trotzdem nicht darauf und weigert sich
    selbst. Zwei Riegel, weil der eine im Register durch eine Zeile Datenänderung fallen kann.
@@ -618,7 +627,17 @@ aufs Seitenverhältnis zu und **verkleinerte nie** — ein großer Kartenausschn
 Auflösung hinaus. Metas eigene Doku nennt keine Obergrenze, verbreitete Angaben Dritter nennen 8 MB;
 ein Fehlschlag daran wäre erst als API-Fehler nach dem Absenden sichtbar geworden. Der Deckel gilt
 **allen** Kanälen, weil es eine Datei für alle ist (§5) — bei Facebook ist der Unterschied nicht zu
-sehen, und die Alternative wäre eine zweite Datei je Kanal gewesen.
+sehen, und die Alternative wäre eine zweite Datei je Kanal gewesen. Verkleinert wird **proportional
+und nur nach unten**: was schon unter dem Deckel liegt, wird nicht angefasst, denn Neuberechnen
+kostet Schärfe. Gemeldet werden die Maße **nach** der Verkleinerung — der Hub zeigt sie an und die
+Zeile „✓ Passt für …" urteilt nach ihnen.
+
+⚠️ Der naheliegende Riegel gegen die Rundung der neuen Höhe wäre **unerreichbarer Code** und steht
+deshalb bewusst nicht da. Nach dem Zuschnitt liegt das Verhältnis in [0,8 … 1,91], also
+`cropHöhe · 1440 / cropBreite` in [753,9 … 1800,0]; gerundet [754 … 1800], und 1440 darüber ergibt
+[0,800 … 1,910] — wieder im Fenster. Der Spielraum kommt daher, dass der Deckel um Größenordnungen
+über einem Pixel liegt; bei einem sehr kleinen Deckel gälte das nicht mehr. Die Rechnung steht im
+Code, der Wächter ist die Schleife in `media-test.php`.
 
 ### 12.5 Der Mastodon-Adapter (11.08.2026)
 
