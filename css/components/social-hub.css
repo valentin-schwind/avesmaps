@@ -533,9 +533,14 @@
 /* Der Verweis in die Konsole des Netzes. Steht in der Zeile seines Kanals, rechts oben -- er gehoert
    zum Kanal, nicht zur Liste, und er ist Nachschlagewerk, nicht Handlung: deshalb ein leiser
    Textlink und kein Knopf. */
+/* 💣 NICHT float mit negativem Rand: die Zeile ist unterschiedlich hoch (Ablaufdatum, Sperr-Grund,
+   Einrichtungsknopf kommen je nach Kanal dazu), und der Link rutschte bei Instagram mitten in den
+   Satz „braucht ein Bild". Stattdessen absolut oben rechts -- und die Zeile bekommt rechts so viel
+   Innenmass, dass ihr Text gar nicht erst darunterlaufen kann. */
 .social-hub__channel-api {
-	float: right;
-	margin-top: -18px;
+	position: absolute;
+	top: 6px;
+	right: 0;
 	color: var(--color-link);
 	font-size: 11px;
 	text-decoration: none;
@@ -579,8 +584,10 @@
    erstem Kind -- `.social-hub__channel:first-child` haette damit auf JEDE Zeile gepasst und allen
    die Linie genommen. */
 .social-hub__channel-row {
+	position: relative;
 	border-top: 1px solid var(--color-divider);
-	padding: 6px 0;
+	/* Rechts Platz für „API ↗" (siehe unten): ohne ihn liefe der Kanaltext darunter durch. */
+	padding: 6px 46px 6px 0;
 }
 
 .social-hub__channel-row:first-child {
