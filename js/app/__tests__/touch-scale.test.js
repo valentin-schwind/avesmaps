@@ -169,6 +169,52 @@ assert.ok(/L\.control\.zoom\(/.test(bootstrapJs),
 assert.ok(/openSpotlightSearch\s*\(/.test(bootstrapJs),
 	"die Kachel ruft die vorhandene Suche, statt eine zweite zu bauen");
 
+// ---- Die Lupe waechst zum Feld -------------------------------------------------------------------
+//
+// Drei Dinge, die EINE Bewegung ergeben: das Fenster sitzt am Finger unten (sonst floege es quer
+// statt zu wachsen), die Bewegung selbst geht vom Rechteck der Kachel aus, und die Tastatur darf
+// das Feld nicht verdecken.
+const spotlightCss = withoutComments(read("css", "components", "spotlight-search.css"));
+assert.ok(/@media\s*\(pointer:\s*coarse\)[\s\S]*?align-items:\s*flex-end/.test(spotlightCss),
+	"am Finger ist das Suchfenster UNTEN verankert -- dort sitzt die Kachel, die es oeffnet");
+assert.ok(/\.spotlight-search__results\s*\{\s*order:\s*1/.test(spotlightCss)
+	&& /\.spotlight-search__input\s*\{\s*order:\s*2/.test(spotlightCss),
+	"und die Treffer wachsen per `order` nach oben -- NICHT per flex-direction: column-reverse,"
+	+ " das erwischte auch die versteckte Ueberschrift und die Statuszeile");
+
+const spotlightJs = withoutComments(read("js", "ui", "spotlight-search.js"));
+assert.ok(/function animateSpotlightFromSearchTile\s*\(/.test(spotlightJs),
+	"es gibt die Bewegung ueberhaupt -- sie war beim ersten Anlauf versprochen und nie gebaut");
+const flip = spotlightJs.match(/function animateSpotlightFromSearchTile\s*\([\s\S]*?\n\}/);
+assert.ok(/getElementById\("map-search-button"\)/.test(flip[0]),
+	"und sie misst sich an der KACHEL, nicht an einem geratenen Punkt");
+// 💣 Reveal, NICHT Skalierung. Eine Skalierung quetscht den Text im ersten Bild zusammen und zieht
+// ihn auseinander; clip-path schiebt nur die Kante und laesst die Schrift unangetastet. Owner
+// 11.08.2026: "das textfeld klappt auf und verbreitet sich links, das icon bleibt an der stelle".
+assert.ok(/clipPath/.test(flip[0]) && !/scale\(/.test(flip[0]),
+	"die Bewegung ist ein clip-path-Reveal von rechts nach links, keine Skalierung");
+// Das "Zeichen bleibt stehen" macht KEINE zweite Lupe im Feld -- es haelt die Kachel oben.
+assert.ok(/#spotlight-search-overlay:not\(\[hidden\]\)\s*~\s*#map-corner-actions #map-search-button/
+	.test(spotlightCss),
+	"die Kachel liegt waehrend des Oeffnens UEBER dem Fenster -- sie ist das Zeichen, das bleibt");
+assert.ok(!/modal-dialog-open/.test(spotlightCss),
+	"und zwar ueber den Geschwister-Selektor: die Klasse `modal-dialog-open` gilt fuer JEDES"
+	+ " Fenster und stellte die Kachel damit auch ueber die Hinweise");
+assert.ok(/prefers-reduced-motion/.test(flip[0]),
+	"wer Bewegung abbestellt hat, bekommt den Endzustand ohne Weg dorthin");
+assert.ok(/pointer:\s*coarse/.test(flip[0]),
+	"und am Zeiger laeuft sie nicht -- dort gibt es keine Kachel, von der aus etwas wachsen koennte");
+// 💣 Im OEFFNER nachsehen, nicht in der ganzen Datei: die Funktionsdefinition steht weiter oben und
+// enthaelt denselben Namen -- eine Suche ueber die ganze Datei findet immer sie zuerst und meldet
+// gruen, egal wo der Aufruf steht. Genau so war diese Zusicherung zuerst geschrieben.
+const oeffner = spotlightJs.match(/function openSpotlightSearch\([\s\S]*?\n\}/);
+assert.ok(oeffner, "der Oeffner ist auffindbar");
+assert.ok(oeffner[0].indexOf("overlay.hidden = false") < oeffner[0].indexOf("animateSpotlightFromSearchTile()"),
+	"aufgerufen wird sie NACH dem Sichtbarmachen -- vorher hat das Fenster kein Rechteck");
+assert.ok(/visualViewport/.test(spotlightJs),
+	"das Feld haengt an der SICHThoehe: iOS schrumpft den Layout-Viewport bei offener Tastatur"
+	+ " nicht, ein unten verankertes Feld verschwaende sonst dahinter");
+
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
 assert.ok(viewport, "index.html traegt ein Viewport-Meta");

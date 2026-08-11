@@ -153,3 +153,37 @@
 	font-size: 11px;
 	opacity: 0.68;
 }
+
+/* ── Am Finger: das Suchfenster sitzt UNTEN ───────────────────────────────────────────────────
+   Dort sitzt die Suchkachel, die es oeffnet, und dort ist der Daumen. Das ist die Voraussetzung
+   dafuer, dass die Lupe zum Feld WAECHST statt quer ueber den Schirm zu fliegen (die Bewegung
+   selbst steht in js/ui/spotlight-search.js).
+   ⚠️ Ueber `order`, NICHT ueber `flex-direction: column-reverse`: die Umkehrung erwischte auch die
+   visuell versteckte Ueberschrift und die Statuszeile und wuerfe sie an unerwartete Stellen. */
+@media (pointer: coarse) {
+	#spotlight-search-overlay {
+		align-items: flex-end;
+		padding: var(--space-16) var(--space-10) var(--space-10);
+	}
+
+	.spotlight-search {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+	}
+	/* Feld unten, Treffer wachsen darueber nach oben. */
+	.spotlight-search__results { order: 1; }
+	.spotlight-search__input { order: 2; }
+	.spotlight-search__status { order: 3; }
+
+	/* 💣 Die Suchkachel bleibt SICHTBAR, waehrend das Feld nach links aufklappt -- sie ist das
+	   Zeichen, das stehenbleibt (Owner 11.08.2026). Deshalb ueber dem Fenster statt darunter.
+	   Es braucht dafuer keine zweite Lupe im Feld: die rechte Kante der Kachel und die des
+	   Fensters fallen zusammen (beide 12px vom Rand), sie sitzt also genau auf dem Ende, aus dem
+	   das Feld herauswaechst.
+	   ⚠️ Ueber den Geschwister-Selektor, nicht ueber eine Klasse am <body>: `modal-dialog-open`
+	   gilt fuer JEDES Fenster -- damit stuende die Kachel auch ueber den Hinweisen. */
+	#spotlight-search-overlay:not([hidden]) ~ #map-corner-actions #map-search-button {
+		z-index: var(--z-dialog-high);
+	}
+}

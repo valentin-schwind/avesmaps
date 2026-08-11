@@ -76,6 +76,52 @@ function isSpotlightSearchOpen() {
 	return Boolean(overlay && !overlay.hidden);
 }
 
+// Das Feld klappt nach LINKS auf, das Zeichen bleibt stehen (Owner 11.08.2026: "die animation
+// soll so aussehen dass sich das textfeld aufklappt und links verbreitet und das icon an der
+// stelle bleibt").
+//
+// Umgesetzt als REVEAL, nicht als Skalierung: `clip-path: inset(...)` gibt das Fenster von rechts
+// nach links frei. Der Unterschied ist sichtbar -- eine Skalierung quetscht den Text im ersten
+// Bild zusammen und zieht ihn auseinander, ein Reveal laesst ihn unangetastet und schiebt nur die
+// Kante. Und weil geclippt statt transformiert wird, laeuft es auf dem Compositor.
+//
+// Das "Zeichen bleibt stehen" macht KEINE zweite Lupe: die Suchkachel selbst bleibt sichtbar und
+// liegt waehrenddessen ueber dem Fenster (css/components/spotlight-search.css). Ihre rechte Kante
+// und die des Fensters fallen zusammen -- beide 12px vom Rand --, sie sitzt also genau auf dem
+// Ende, aus dem das Feld herauswaechst.
+//
+// ⚠️ Nur am groben Zeiger: am Zeiger gibt es gar keine Kachel, aus der etwas wachsen koennte.
+// ⚠️ 220ms ist dieselbe Dauer wie die Panel-Slides des Hauses (infopanel.css, review-panel.css).
+// 🔴 `prefers-reduced-motion` respektiert: wer Bewegung abbestellt hat, bekommt den Endzustand.
+function animateSpotlightFromSearchTile() {
+	const dialog = document.getElementById("spotlight-search-dialog");
+	const tile = document.getElementById("map-search-button");
+	if (!dialog || !tile || typeof dialog.animate !== "function") {
+		return;
+	}
+	try {
+		if (!window.matchMedia("(pointer: coarse)").matches
+			|| window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			return;
+		}
+	} catch (error) {
+		return;
+	}
+	const kachel = tile.getBoundingClientRect();
+	const fenster = dialog.getBoundingClientRect();
+	// Kachel unsichtbar (Zeiger) oder Fenster noch ohne Mass -> nichts zu enthuellen.
+	if (!kachel.width || !fenster.width) {
+		return;
+	}
+	// So breit ist das Fenster im ersten Bild: genau die Kachel an seinem rechten Ende.
+	const offen = Math.max(0, fenster.width - Math.min(kachel.width, fenster.width));
+	const radius = window.getComputedStyle(dialog).borderRadius || "0px";
+	dialog.animate([
+		{ clipPath: `inset(0 0 0 ${Math.round(offen)}px round ${radius})` },
+		{ clipPath: `inset(0 0 0 0 round ${radius})` },
+	], { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" });
+}
+
 function openSpotlightSearch(initialValue = "") {
 	const { overlay, input } = getSpotlightSearchElements();
 	if (!overlay || !input) {
@@ -86,6 +132,8 @@ function openSpotlightSearch(initialValue = "") {
 	input.value = initialValue;
 	updateSpotlightSearchResults();
 	syncModalDialogBodyState();
+	// NACH `overlay.hidden = false`: vorher hat das Fenster kein Rechteck, das man messen koennte.
+	animateSpotlightFromSearchTile();
 	window.requestAnimationFrame(() => {
 		input.focus();
 		input.select();
@@ -1098,3 +1146,25 @@ function normalizeSpotlightSearchText(value) {
 }
 
 // (Spotlight focus/navigation moved to spotlight-search-focus.js - M5 split.)
+
+// 💣 Die Bildschirmtastatur ist der eine Haken an einem unten verankerten Feld: iOS schrumpft den
+// Layout-Viewport NICHT, wenn sie aufgeht -- der untere Rand zeigt weiter auf den Bildschirmrand,
+// und das Feld verschwindet dahinter. Die tatsaechlich sichtbare Hoehe kennt nur visualViewport.
+// ⚠️ Nur am groben Zeiger verdrahtet: am Zeiger verdeckt keine Tastatur etwas, und das Fenster
+// steht dort ohnehin oben (css/components/spotlight-search.css).
+(function keepSpotlightAboveKeyboard() {
+	const overlay = document.getElementById("spotlight-search-overlay");
+	const viewport = window.visualViewport;
+	if (!overlay || !viewport || !window.matchMedia("(pointer: coarse)").matches) {
+		return;
+	}
+	const sync = () => {
+		const verdeckt = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+		overlay.style.paddingBottom = verdeckt > 0
+			? `calc(var(--space-10) + ${Math.round(verdeckt)}px)`
+			: "";
+	};
+	viewport.addEventListener("resize", sync);
+	viewport.addEventListener("scroll", sync);
+	sync();
+})();
