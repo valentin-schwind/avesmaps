@@ -1185,17 +1185,26 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    `.ecosystem-pane--resting path` would LOSE that cascade and the pale layers would still swallow
    clicks -- which is the whole failure this design exists to prevent. Hence the .leaflet-pane in the
    selector: three classes beat two. */
-/* THE OPACITY MATRIX (Owner, in flight — fourth pass 2026-07-27) — fill / contour:
+/* THE OPACITY MATRIX (Owner, in flight — fifth pass 2026-08-11) — fill / contour:
 
      the two layers that are NOT active  |   0% /   0%   (gone, not merely pale)
-     active layer, area not selected     |  60% /  70%
-     active layer, area selected         |  40% / 100%, white contour
+     active layer, area not selected     |  72% /  70%
+     active layer, area selected         |  72% / 100%, white contour
 
-   ⚠️ The SELECTED area is deliberately the more TRANSPARENT one now -- the earlier passes had it the
-   other way round. The owner's reason is the one thing a fill cannot do at high opacity: "man sollte
-   den Untergrund noch sehen". The area under the pen is the one whose terrain you need to read, so it
-   is the one that lets the map through; the rest may sit solid, because nobody is tracing them.
-   These two numbers are being tuned by eye and will move again -- they are two literals, on purpose.
+   🔴 DIE AUSWAHL ÄNDERT DIE FÜLLUNG NICHT MEHR (Owner 2026-08-11: „beim Editieren von Regionen z. B.
+   mit dem Pinsel ändert sich nach dem ersten Mausklick plötzlich die Transparenz -- diese sollte
+   bleiben"). Was eine Fläche gewählt sein lässt, sagt jetzt allein die Kontur.
+
+   Die vierte Fassung liess die gewählte Fläche auf 0,4 abfallen, damit „man den Untergrund noch sehen"
+   kann. Das trug, solange die übrigen bei 0,6 lagen -- ein knapper Unterschied. Am 2026-08-04 ging die
+   ruhende Füllung auf 0,72 („die Farben kräftiger"), die 0,4 blieb stehen, und aus dem knappen
+   Unterschied wurde ein Absturz um 44 %: die eine Fläche, an der gerade gearbeitet wird, blasste beim
+   ersten Klick sichtbar ab. Nachgemessen auf der Live-Karte am 2026-08-11 (0,72 → 0,40).
+
+   💣 WER HIER WIEDER EINE ZAHL FÜR „GEWÄHLT" EINTRÄGT, ZIEHT ZWEI STELLEN MIT. Die derographische Ebene
+   trug dafür eine eigene Ausnahme (`:not(.ecosystem-area--selected)`, weiter unten), damit ihre gewählte
+   Fläche auf 0,4 STIEG statt bei 0,16 zu bleiben; sie ist mit dieser Fassung entfallen. Genau diese
+   Kopplung wurde 2026-08-04 einseitig nachgezogen, und daraus entstand der gemeldete Sprung.
 
    ⭐ ONE set of numbers for all three kinds. The two earlier passes gave each layer its own row and
    the derographic one a special case; this pass removes both, because the resting layers are no longer
@@ -1258,14 +1267,17 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	stroke-dasharray: 7 5;
 }
 
-/* The selected area comes forward: 50% fill, full contour, and that contour turns WHITE so it reads on
-   every one of the nine ground tones without needing a variant per kind. One class more than the rules
-   above, so it wins regardless of source order.
+/* Die gewählte Fläche sagt es allein über ihre KONTUR: voll deckend und WEISS, damit sie auf jedem der
+   neun Grundtöne liest, ohne eine Spielart je Ebene zu brauchen. Eine Klasse mehr als die Regeln
+   darüber, sie gewinnt also unabhängig von der Reihenfolge im Stylesheet.
 
-   🪤 Leaflet writes stroke/fill as SVG presentation ATTRIBUTES, which CSS outranks -- which is why both
-   the contour and its opacity can be set here without a second set of numbers in ecosystemAreaStyle(). */
+   🔴 UND KEINE FÜLLUNG (Owner 2026-08-11). Hier stand `fill-opacity: 0.4` -- die Begründung und der
+   Messwert stehen an der Matrix weiter oben. Wer die Zahl zurückholt, holt auch die Kopplung an die
+   derographische Ausnahme zurück.
+
+   🪤 Leaflet writes stroke/fill as SVG presentation ATTRIBUTES, which CSS outranks -- which is why the
+   contour can be set here without a second set of numbers in ecosystemAreaStyle(). */
 .ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--selected {
-	fill-opacity: 0.4;
 	stroke: var(--color-ecosystem-selected-outline);
 	stroke-opacity: 1;
 }
@@ -1310,13 +1322,14 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    🪤 Nur die FÜLLUNG. Die gestrichelte Kontur behält ihre 0.7 -- wo ein Behälter aufhört, ist genau die
    Auskunft, die diese Ebene gibt; nur sein Inneres darf nichts zudecken.
 
-   Die ANGEKLICKTE Fläche ist ausgenommen: sie behält ihre Auswahl-Darstellung, sonst verlöre man beim
-   Hineinklicken genau das Stück aus den Augen, das man gerade meint. Drei Klassen plus :not schlagen
-   die allgemeine Regel weiter oben (zwei). */
+   Die ANGEKLICKTE Fläche war bis 2026-08-11 ausgenommen (`:not(.ecosystem-area--selected)`) und stieg
+   damit auf 0,4. Sie ist es nicht mehr: „die Transparenz sollte bleiben" (Owner) gilt hier genauso, und
+   in Wahrheit sass die Ausnahme nur da, weil die Auswahl überhaupt eine eigene Füllung hatte. Verloren
+   geht nichts -- die weisse, voll deckende Kontur sagt weiterhin, welches Stück gemeint ist. */
 /* 0,16 statt 0,1 (Owner 2026-08-04, „kräftiger"). Die derographische Ebene nimmt sich weiterhin am
    weitesten zurück -- sie ist der Behälter, nicht die Landschaft --, aber bei 0,1 war sie auf dem
    helleren Untergrund kaum noch eine Aussage. */
-.ecosystem-pane--derographisch.ecosystem-pane--active > svg path.leaflet-interactive:not(.ecosystem-area--selected) {
+.ecosystem-pane--derographisch.ecosystem-pane--active > svg path.leaflet-interactive {
 	fill-opacity: 0.16;
 }
 
