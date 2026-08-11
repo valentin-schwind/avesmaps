@@ -718,5 +718,16 @@ const TRANSPORT_ICON_PATHS = {
 		fastShip: "icons/Schnellsegler.webp",
 		galley: "icons/Galeere.webp",
 	},
+	// Reisemonat und Unterbringung sind DASSELBE Bedienelement wie die Transportmittel darueber
+	// (Owner 11.08.2026, mit Pfeil im Bild: die zwei Auswahlfelder sollen aussehen wie
+	// „Lastensegler"). Gleiche Hoehe und gleiche Schrift fallen damit nicht durch abgeschriebene
+	// Zahlen zusammen, sondern weil es ein Bauteil ist.
+	// 💣 Leer, und das ist die Anmeldung: ICON_TRANSPORT_SELECT_IDS liest die SCHLUESSEL dieser
+	// Tabelle. Eine zweite Liste „welche Selects sind Comboboxen" gaebe es damit nicht -- sie waere
+	// genau die, die beim naechsten Eintrag vergessen wird.
+	// ⚠️ Kein Zeichen: fuer dreizehn Monate und vier Unterkuenfte gibt es keins, und ein erfundener
+	// Platzhalter waere schlechter als keiner. createTransportOptionButton laesst das <img> dann weg.
+	travelStartMonth: {},
+	travelLodging: {},
 };
 const ICON_TRANSPORT_SELECT_IDS = Object.keys(TRANSPORT_ICON_PATHS);

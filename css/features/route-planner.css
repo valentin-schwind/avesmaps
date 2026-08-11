@@ -631,12 +631,9 @@
 	width: 40px;
 }
 
-/* Nimmt sich den Rest der Zeile, statt auf eine feste Breite gedeckelt zu sein: „Unbekannt (keine
-   Jahreszeiten)" ist der laengste Eintrag und wurde bei 172 px abgeschnitten. */
-.planner-travel-start__month {
-	flex: 1 1 auto;
-	min-width: 0;
-}
+/* Die Breite von Monat und Unterbringung steht seit dem 11.08.2026 an EINER Stelle, bei
+   .route-planner-options-panel__row--combobox weiter unten -- beide sind dieselbe Combobox, und
+   zwei aehnliche Regeln waren genau das, was sie auf 192 gegen 176 px auseinandertrieb. */
 
 /* 💣 Ohne Monat hat der Tag keine Bedeutung, und das MUSS man sehen. `disabled` allein reicht im
    dunklen Thema nicht -- der Browser graut ein helles Feld sichtbar aus, ein dunkles kaum. */
@@ -835,6 +832,29 @@
    #transport-options so the Derographie select (space-between row) is untouched. */
 #transport-options .transport-select-with-icon {
 	width: 100%;
+}
+
+/* Reisemonat und Unterbringung sind seit dem 11.08.2026 dieselbe Combobox wie die Transportmittel
+   (Owner mit Pfeil im Bild: „soll aussehen wie Lastensegler"). Damit sie die Zeile ausfuellen statt
+   bei ihrer Textbreite stehenzubleiben, muessen ZWEI Dinge wachsen: das <label> -- es ist
+   inline-flex und schrumpft sonst um seinen Inhalt, es gaebe also gar keinen freien Platz zum
+   Wachsen -- und die Huelle darin.
+   💣 (0,2,0), nicht (0,1,0). `.transport-select-with-icon` setzt feste 192px und steht direkt
+   darueber; eine gleichspezifische Regel WEITER OBEN in der Datei verliert gegen sie. Genau so
+   gemessen, bevor diese Regel entstand: der Monat blieb bei 192px (die feste Breite gewann), die
+   Unterbringung landete bei 176px (ihre Regel stand zufaellig weiter unten und gewann) -- zwei
+   Werte fuer dasselbe Ding, und keiner davon der gewollte.
+   ⚠️ `min-width: 0` ist das, was aus dem Ueberlauf ein Kuerzen mit „…" macht: „Unbekannt (keine
+   Jahreszeiten)" ist der laengste Eintrag und schob die Zeile am 11.08.2026 gemessen 45px aus dem
+   Panel, weil Flex-Elemente ohne diese Zeile nicht unter ihre Inhaltsbreite koennen. */
+.route-planner-options-panel__row--combobox > label {
+	flex: 1 1 auto;
+}
+
+.route-planner-options-panel__row--combobox .transport-select-with-icon {
+	flex: 1 1 auto;
+	width: auto;
+	min-width: 0;
 }
 
 .transport-native-select {
@@ -1351,11 +1371,10 @@
 	font-size: 11px;
 	line-height: 1.3;
 }
-/* Die Unterbringung traegt lange Optionstexte („Bett im Gemeinschaftszimmer"). Ohne Deckel schiebt
-   das Auswahlfeld die schmale Optionsspalte quer. */
-.planner-lodging__select {
-	max-width: 100%;
-}
+/* Die Unterbringung traegt lange Optionstexte („Bett im Gemeinschaftszimmer") und braucht deshalb
+   einen Deckel, sonst schiebt sie die schmale Optionsspalte quer. Seit dem 11.08.2026 kommt der aus
+   derselben Regel wie beim Monat (.route-planner-options-panel__row--combobox) -- eine eigene Klasse
+   hier waere die zweite Formel fuer dasselbe Ding. */
 /* Landschaften und Hoehenunterschiede laufen ueber die ganze Breite: die Namensliste bzw. der
    Erfassungsvermerk brauchen den Umbruch, ein Wert in Spalte 2 waere dort nur eine Klemme. */
 /* Der Erfassungsvermerk als eigene, leise Zeile. Gemessen bei 350 px Panelbreite: die Zahlen passen

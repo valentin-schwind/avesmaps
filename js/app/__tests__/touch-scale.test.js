@@ -18,7 +18,10 @@ const read = (...parts) => fs.readFileSync(path.join(ROOT, ...parts), "utf8");
  *  Kommentar ist deshalb kein Beweis, sondern die haeufigste Art, einen gruenen Test zu bauen,
  *  der nichts haelt. In diesem Repo sind schon vier Zusicherungen darauf hereingefallen. */
 function withoutComments(source) {
-	return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+	return source
+		.replace(/<!--[\s\S]*?-->/g, "")
+		.replace(/\/\*[\s\S]*?\*\//g, "")
+		.replace(/^[ \t]*\/\/.*$/gm, "");
 }
 
 function escapeRe(value) {
@@ -374,6 +377,12 @@ assert.ok(kuerzt && /text-overflow:\s*ellipsis/.test(kuerzt[1]) && /overflow:\s*
 // Betriebssystems und malt seinen Text mit DESSEN Schrift -- gemeldet wird trotzdem brav die
 // CSS-Vorgabe. Owner 11.08.2026: "bist du dir sicher, dass die gleich gross sind? ... die schriften
 // mein ich". Waren sie nicht. Erst `appearance: none` gibt die Schrift an die Seite zurueck.
+// ⚠️ NACHTRAG 11.08.2026: seit Monat und Unterbringung Comboboxen sind, ist im Optionsteil des
+// Planers KEIN sichtbares <select> mehr uebrig -- die beiden stecken versteckt in ihren Huellen. Die
+// folgenden drei Zusicherungen halten damit eine Regel fest, die im Moment nichts BEMALT. Sie bleiben
+// trotzdem stehen: sie sind der Bauplan fuer das naechste native Auswahlfeld, das hier landet, und
+// die Chevron-Zusicherung darunter gilt weiterhin dem Meldedialog, der eins hat. Die lebende
+// Zusicherung fuer die zwei ist der Abschnitt „Reisemonat und Unterbringung SIND die Combobox".
 // 💣 Ueber den INHALT gesucht, nicht ueber den Zeilenanfang. `.route-planner-options-panel select`
 // steht auch als ZWEITE Zeile einer Selektorliste (zusammen mit input[type=number]) -- ein
 // ^-Anker greift die und liefert den falschen Rumpf. Das ist in dieser Datei die dritte
@@ -395,6 +404,129 @@ const reportCss = withoutComments(read("css", "components", "location-report-dia
 	assert.ok(!/background-image:\s*url\("data:image\/svg/.test(css),
 		`${name} traegt den Pfeil NICHT als eigenen Data-URI -- beide lesen den Token`);
 });
+
+// ---- Reisemonat und Unterbringung SIND die Combobox, sie sehen ihr nicht nur aehnlich -----------
+//
+// Owner 11.08.2026, mit Pfeil im Bild von den zwei Auswahlfeldern auf „Lastensegler". Gleiche Hoehe
+// (32) und gleiche Schrift (14) fallen deshalb nicht durch abgeschriebene Zahlen zusammen, sondern
+// weil es ein Bauteil ist. Genau das haelt dieser Abschnitt fest -- eine Zusicherung auf „height:
+// 32px" waere die Divergenz, die sie verhindern soll.
+// (`uiControls` ist weiter oben schon gelesen -- eine zweite Deklaration desselben Namens ist auf
+//  oberster Ebene ein Syntaxfehler, kein stiller Ueberschreiber.)
+const config = withoutComments(read("js", "config.js"));
+
+// 💣 Die Anmeldung ist ABGELEITET: es gibt keine zweite Liste „welche Selects sind Comboboxen",
+// die man beim naechsten Eintrag vergessen koennte.
+assert.ok(/const ICON_TRANSPORT_SELECT_IDS\s*=\s*Object\.keys\(TRANSPORT_ICON_PATHS\)/.test(config),
+	"ICON_TRANSPORT_SELECT_IDS liest die SCHLUESSEL von TRANSPORT_ICON_PATHS -- eine zweite,"
+	+ " handgepflegte Liste waere die, die beim naechsten Eintrag vergessen wird");
+
+const iconTabelle = config.match(/const TRANSPORT_ICON_PATHS\s*=\s*\{[\s\S]*?\n\};/);
+assert.ok(iconTabelle, "TRANSPORT_ICON_PATHS ist auffindbar");
+["travelStartMonth", "travelLodging"].forEach((selectId) => {
+	const eintrag = iconTabelle[0].match(new RegExp(escapeRe(selectId) + ":\\s*\\{([^}]*)\\}"));
+	assert.ok(eintrag,
+		`${selectId} steht in TRANSPORT_ICON_PATHS -- ohne den Eintrag ist es kein Bauteil, sondern`
+		+ " wieder ein natives Auswahlfeld, das nur so aussieht");
+	assert.strictEqual(eintrag[1].trim(), "",
+		`${selectId} traegt KEINE Zeichen -- fuer dreizehn Monate und vier Unterkuenfte gibt es keine,`
+		+ " und ein erfundener Platzhalter waere schlechter als keiner");
+});
+
+// 💣 Das Zeichen ist damit optional, und das <img> darf nur entstehen, wenn es eine Quelle gibt:
+// ein <img> ohne src ist kein leerer Platz, sondern das kaputte Bildsymbol des Browsers.
+const optionBauer = uiControls.match(/function createTransportOptionButton\([\s\S]*?\n\}/);
+assert.ok(optionBauer, "createTransportOptionButton ist auffindbar");
+assert.ok(/if \(iconPath\) \{[\s\S]*?createElement\("img"\)/.test(optionBauer[0]),
+	"das <img> entsteht nur, WENN es einen Pfad gibt -- sonst baut die Liste dreizehn kaputte"
+	+ " Bildsymbole, und `alt=\"\"` versteckt die nur vor Vorleseprogrammen, nicht vor dem Auge");
+
+// 🔴 DIE tragende Zusicherung dieses Abschnitts. jQuerys `trigger("change")` ruft NUR jQuery-gebundene
+// Zuhoerer auf; native `addEventListener("change")` bleiben stumm. Das Haus weiss das
+// (js/app/visitor-tracking.js umgeht es), und am 11.08.2026 haben zwei native Zuhoerer es sofort
+// vorgefuehrt: der Reisetag blieb nach der Monatswahl ausgegraut (map-features-waypoints.js:64) und
+// die Kopfzeile der eingeklappten Gruppe zeigte weiter „ohne Reisebeginn"
+// (map-features-planner-groups.js:252). Beides lautlos -- die Combobox selbst sah richtig aus.
+const uebernahme = uiControls.match(/menuElement\.addEventListener\("click",[\s\S]*?\n\t\}\);/);
+assert.ok(uebernahme, "die Uebernahme einer Auswahl ist auffindbar");
+assert.ok(/dispatchEvent\(new Event\("change",\s*\{\s*bubbles:\s*true\s*\}\)\)/.test(uebernahme[0]),
+	"die Auswahl schickt ein ECHTES change-Ereignis -- es erreicht native UND jQuery-Zuhoerer,"
+	+ " und jeden genau einmal (jQuery haengt seine selbst an einen nativen)");
+assert.ok(!/\.trigger\("change"\)/.test(uebernahme[0]),
+	"und NICHT jQuerys synthetisches trigger(\"change\") daneben -- zwei Ausloeser waeren doppeltes"
+	+ " Feuern fuer jeden jQuery-Zuhoerer");
+
+// 💣 Ueber den RUMPF gesucht und mit gestrippten Kommentaren: `withoutComments` schneidet seit dem
+// 11.08.2026 auch <!-- --> heraus. Der erklaerende Kommentar neben dem Monat nennt selbst
+// `transport-native-select` und `<select>` -- ohne das Strippen haette diese Zusicherung ihn
+// gefunden statt des Markups. In dieser Datei ist das die fuenfte Zusicherung dieser Bauart.
+// Die dritte Spalte ist die ZAHL der Eintraege. 💣 Sie steht hier, weil „traegt ueberhaupt ein
+// <option>" nicht beisst: die Mutation „eine Option geloescht" lief damit gruen durch, und genau so
+// verschwindet ein Monat, ohne dass es jemandem auffaellt -- die Combobox sieht weiter richtig aus.
+// 13 = „Unbekannt (keine Jahreszeiten)" + die zwoelf aventurischen Monate; die zwoelf sind gesetzt,
+// die vier Unterkuenfte sind eine Wahl. Wer eine Stufe ergaenzt, aendert die Zahl hier mit -- das ist
+// die Absicht, nicht der Preis.
+const NEUE_COMBOBOXEN = [
+	["travelStartMonth", "Reisemonat", 13],
+	["travelLodging", "Unterbringung", 4],
+];
+// 💣 NICHT per `[\s\S]*?` von einem `<div class="transport-select-with-icon">` zur id gesucht: das
+// Muster griff die ERSTE Huelle der Datei -- eine Transport-Huelle, die ein <img> traegt -- und lief
+// von dort bis hierher. Die Zusicherung „kein <img>" meldete damit rot an der richtigen Stelle aus
+// dem falschen Grund. Stattdessen an den Huellen zerteilt und jede an ihrem eigenen Ende beschnitten.
+const HUELLEN_START = '<div class="transport-select-with-icon';
+// 💣 ERST beschneiden, DANN suchen -- nicht umgekehrt. Andersherum reicht das letzte Stueck bis zum
+// Dateiende, und die id findet sich dann auch in einer FREMDEN Huelle: waere das Markup wieder
+// unverpackt, meldete der Test „Knopf und Menue fehlen" statt „gar keine Huelle" und schickte den
+// naechsten an die falsche Stelle. (Er wuerde rot -- aber aus dem falschen Grund, und das ist die
+// halbe Miete eines Tests.)
+function huelleVon(selectId) {
+	return indexHtml.split(HUELLEN_START)
+		.map((teil) => {
+			// Bis zum Ende des Menues: das ist das letzte Kind der Huelle, danach faengt fremdes Markup an.
+			const menue = teil.indexOf('class="transport-combobox__menu"');
+			return menue < 0 ? "" : teil.slice(0, teil.indexOf("</div>", menue) + 6);
+		})
+		.find((huelle) => new RegExp('id="' + escapeRe(selectId) + '"').test(huelle)) || null;
+}
+
+NEUE_COMBOBOXEN.forEach(([selectId, name, eintraege]) => {
+	const huelle = huelleVon(selectId);
+	assert.ok(huelle, `${name} steckt in der Huelle .transport-icon-select`);
+	assert.ok(new RegExp('id="' + escapeRe(selectId) + '" class="transport-native-select"').test(huelle),
+		`${name}: das <select> traegt transport-native-select (display: none) -- es BLEIBT die Wahrheit`
+		+ " und wird nur versteckt");
+	assert.ok(new RegExp('id="' + escapeRe(selectId) + 'Button" class="transport-combobox"').test(huelle)
+		&& new RegExp('id="' + escapeRe(selectId) + 'Menu" class="transport-combobox__menu"').test(huelle),
+		`${name} hat Knopf und Menue des Bauteils`);
+	assert.ok(!/<img/.test(huelle),
+		`${name} traegt kein <img> -- die vier Transportmittel haben eins, diese beiden nicht`);
+	assert.strictEqual((huelle.match(/<option\s/g) || []).length, eintraege,
+		`${name}: ${eintraege} Eintraege stehen als <option> im MARKUP. 🔴 Acht Stellen lesen`
+		+ " `.options`, um an die Namen zu kommen (route-plan-calendar.js, review-path-seasons.js,"
+		+ " map-features-layer-state.js ...) -- eine Liste in JS waere die zweite Wahrheit, und ein"
+		+ " einzelner fehlender Eintrag faellt an der Combobox nicht auf");
+});
+
+// 💣 EINE Breitenregel fuer beide, und sie muss gewinnen. Gemessen, bevor es sie gab: der Monat blieb
+// bei 192px (die festen 192 von .transport-select-with-icon gewannen, weil die Regel weiter unten
+// stand), die Unterbringung landete bei 176px (ihre Regel stand zufaellig noch weiter unten) -- zwei
+// Werte fuer dasselbe Ding. Deshalb prueft das hier die SPEZIFITAET, nicht die blosse Anwesenheit.
+const breitenRegel = planner.match(
+	/\.route-planner-options-panel__row--combobox \.transport-select-with-icon\s*\{([^}]*)\}/);
+assert.ok(breitenRegel,
+	"eine Regel mit ZWEI Klassen (0,2,0) setzt die Breite -- eine mit einer Klasse verlaeuft sich"
+	+ " gegen .transport-select-with-icon (feste 192px)");
+assert.ok(/width:\s*auto/.test(breitenRegel[1]) && /flex:\s*1 1 auto/.test(breitenRegel[1])
+	&& /min-width:\s*0/.test(breitenRegel[1]),
+	"sie loescht die feste Breite, laesst wachsen, und min-width: 0 macht aus dem Ueberlauf ein"
+	+ " Kuerzen mit …");
+assert.ok(/\.route-planner-options-panel__row--combobox > label\s*\{[^}]*flex:\s*1 1 auto/.test(planner),
+	"und das <label> waechst mit -- es ist inline-flex und schrumpft sonst um seinen Inhalt, es"
+	+ " gaebe also gar keinen freien Platz, in den die Huelle wachsen koennte");
+assert.ok(!/\.planner-travel-start__month\s*\{/.test(planner) && !/\.planner-lodging__select\s*\{/.test(planner),
+	"die zwei alten Einzelregeln sind WEG -- sie waren die zwei aehnlichen Formeln, die 192 gegen 176"
+	+ " ergaben");
 
 // ---- Der Planer hat eine Hoehe, an der sein overflow-y greift ------------------------------------
 //

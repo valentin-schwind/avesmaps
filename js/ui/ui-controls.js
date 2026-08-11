@@ -445,7 +445,6 @@ function syncTransportControls() {
 
 function createTransportOptionButton(selectId, optionElement) {
 	const optionButton = document.createElement("button");
-	const iconElement = document.createElement("img");
 	const labelElement = document.createElement("span");
 
 	optionButton.type = "button";
@@ -454,12 +453,22 @@ function createTransportOptionButton(selectId, optionElement) {
 	optionButton.setAttribute("role", "option");
 	optionButton.disabled = Boolean(optionElement.disabled);
 
-	iconElement.className = "transport-option-inline-icon";
-	iconElement.alt = "";
-	setVersionedIconSource(iconElement, getTransportIconPath(selectId, optionElement.value));
-
 	labelElement.textContent = optionElement.textContent;
-	optionButton.append(iconElement, labelElement);
+
+	// 💣 Das Zeichen ist OPTIONAL, seit Reisemonat und Unterbringung dieselbe Combobox tragen
+	// (TRANSPORT_ICON_PATHS in js/config.js: leerer Eintrag = angemeldet, aber ohne Zeichen). Ein
+	// <img> ohne Quelle waere kein leerer Platz, sondern das kaputte Bildsymbol des Browsers --
+	// und `alt=""` versteckt es nur fuer Vorleseprogramme, nicht fuer das Auge.
+	const iconPath = getTransportIconPath(selectId, optionElement.value);
+	if (iconPath) {
+		const iconElement = document.createElement("img");
+		iconElement.className = "transport-option-inline-icon";
+		iconElement.alt = "";
+		setVersionedIconSource(iconElement, iconPath);
+		optionButton.append(iconElement, labelElement);
+	} else {
+		optionButton.append(labelElement);
+	}
 
 	return optionButton;
 }
@@ -533,7 +542,21 @@ function initializeTransportIconSelect(selectId) {
 			return;
 		}
 
-		$(`#${selectId}`).val(optionButton.dataset.transportValue).trigger("change");
+		// 💣 EIN ECHTES Ereignis, nicht jQuerys synthetisches. `$(...).trigger("change")` ruft nur
+		// jQuery-gebundene Zuhoerer auf und erreicht native `addEventListener("change")` NIE -- das
+		// Haus weiss das seit jeher und hat es an einer Stelle umgangen (visitor-tracking.js: „Bind
+		// with jQuery so we catch both"), statt es hier zu beheben. Ein natives Ereignis erreicht
+		// BEIDE Sorten, und jede genau einmal: jQuery haengt seine Zuhoerer selbst an einen nativen.
+		// Gemessen am 11.08.2026, als Reisemonat und Unterbringung Comboboxen wurden -- beide haengen
+		// an nativen Zuhoerern, und beide blieben lautlos stehen:
+		//   map-features-waypoints.js:64  -> der Reisetag blieb nach der Monatswahl ausgegraut, und
+		//                                    redrawRoutePlan() lief nicht (Etappendatum stand still)
+		//   map-features-planner-groups.js:252 -> die Kopfzeile der eingeklappten Gruppe zeigte
+		//                                    weiter „ohne Reisebeginn"
+		// ⚠️ Additiv: jQuery-Zuhoerer feuerten vorher und feuern jetzt, unveraendert einmal. Neu ist
+		// nur, dass die nativen ueberhaupt etwas hoeren.
+		control.selectElement.value = optionButton.dataset.transportValue || "";
+		control.selectElement.dispatchEvent(new Event("change", { bubbles: true }));
 		closeTransportMenu(selectId);
 		control.buttonElement.focus();
 	});

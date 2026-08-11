@@ -2314,9 +2314,16 @@
 			     weil route-request.js weder Monat noch Tag an POST /api/route/ schickt, kennt die WEGWAHL die
 			     Jahreszeit ueberhaupt nicht -- daher der Satz zur Route. Wer beides anschliesst, erweitert diesen
 			     Text wieder. -->
-			<div class="route-planner-options-panel__row route-planner-options-panel__row--field">
+			<div class="route-planner-options-panel__row route-planner-options-panel__row--field route-planner-options-panel__row--combobox">
 				<label title="Aufbruchstag und aventurischer Monat. Der Kalender läuft entlang der Route mit, und die Jahreszeit verlängert jede Etappe, deren Boden sie aufweicht oder vereist. Die Route selbst wird ohne diesen Abzug gesucht. Ohne Monat rechnet der Planer wie bisher." data-i18n-title="planner.travelStart.title">
-					<span data-i18n="planner.travelStartLabel">Reisebeginn:</span> <input type="number" id="travelStartDay" class="planner-travel-start__day" value="1" min="1" max="30" step="1" /> <select id="travelStartMonth" class="planner-travel-start__month">
+					<span data-i18n="planner.travelStartLabel">Reisebeginn:</span> <input type="number" id="travelStartDay" class="planner-travel-start__day" value="1" min="1" max="30" step="1" /> <div class="transport-select-with-icon transport-icon-select">
+					<!-- 💣 Das <select> BLEIBT und ist die Wahrheit -- es ist nur versteckt
+					     (.transport-native-select). Acht Stellen im Code lesen seine `.options`, um an
+					     die zwoelf Monatsnamen zu kommen (route-plan-calendar.js, review-path-seasons.js,
+					     map-features-layer-state.js ...); der Knopf daneben ist bloss seine Darstellung.
+					     Wer das <select> gegen eine Liste in JS tauscht, baut die zweite Wahrheit ein,
+					     vor der jeder dieser acht Kommentare warnt. -->
+					<select id="travelStartMonth" class="transport-native-select" aria-label="Reisemonat">
 						<option value="" data-i18n="planner.travelStart.none">Unbekannt (keine Jahreszeiten)</option>
 						<option value="praios" data-i18n="planner.travelStart.month.praios">Praios (Sommer)</option>
 						<option value="rondra" data-i18n="planner.travelStart.month.rondra">Rondra (Sommer)</option>
@@ -2331,6 +2338,11 @@
 						<option value="ingerimm" data-i18n="planner.travelStart.month.ingerimm">Ingerimm (Frühling)</option>
 						<option value="rahja" data-i18n="planner.travelStart.month.rahja">Rahja (Frühling)</option>
 					</select>
+					<button type="button" id="travelStartMonthButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="travelStartMonthMenu">
+						<span id="travelStartMonthLabel" class="transport-combobox__label">Unbekannt (keine Jahreszeiten)</span>
+					</button>
+					<div id="travelStartMonthMenu" class="transport-combobox__menu" role="listbox" aria-label="Reisemonat" hidden></div>
+					</div>
 				</label>
 			</div>
 			<!-- Reisekosten: die EINZIGE Eingabe. Gerechnet wird immer JE PERSON (Owner 2026-08-03) --
@@ -2339,14 +2351,20 @@
 			     (TRAVEL_COST_MOUNTS_PER_TRAVELLER), ist also auch keine Eingabe. Die Stufen sind die
 			     Zeilen der Preistabelle im DSA5-Regelwerk S. 382, gebuendelt; „im Freien" kostet nichts
 			     und ist ausdruecklich eine WAHL, nicht nur der Notfall ohne Herberge. -->
-			<div class="route-planner-options-panel__row route-planner-options-panel__row--field">
+			<div class="route-planner-options-panel__row route-planner-options-panel__row--field route-planner-options-panel__row--combobox">
 				<label title="Wie die Gruppe übernachtet, wo eine Unterkunft erreichbar ist. Auf Pfaden, Pässen, Wüstenpfaden und querfeldein wird immer im Freien geschlafen. Die Wahl bestimmt auch, wie ein Zöllner die Reisenden veranschlagt." data-i18n-title="planner.lodging.title">
-					<span data-i18n="planner.lodgingLabel">Unterbringung:</span> <select id="travelLodging" class="planner-lodging__select">
+					<span data-i18n="planner.lodgingLabel">Unterbringung:</span> <div class="transport-select-with-icon transport-icon-select">
+					<select id="travelLodging" class="transport-native-select" aria-label="Unterbringung">
 						<option value="frei" data-i18n="planner.lodging.frei">im Freien/Zelt</option>
 						<option value="strohsack" data-i18n="planner.lodging.strohsack">Schlafsaal</option>
 						<option value="bett" selected data-i18n="planner.lodging.bett">Gemeinschaftszimmer</option>
 						<option value="zimmer" data-i18n="planner.lodging.zimmer">Einzelzimmer</option>
 					</select>
+					<button type="button" id="travelLodgingButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="travelLodgingMenu">
+						<span id="travelLodgingLabel" class="transport-combobox__label">Gemeinschaftszimmer</span>
+					</button>
+					<div id="travelLodgingMenu" class="transport-combobox__menu" role="listbox" aria-label="Unterbringung" hidden></div>
+					</div>
 				</label>
 			</div>
 				</div>
