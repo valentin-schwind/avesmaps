@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup v5 — die Kachel faltet sich auf</title>
+<style>
+:root {
+	--color-panel: #fffdf9; --color-page: #f3ece0;
+	--color-text: #2e271e; --color-text-muted: #706557;
+	--color-border: #ddd3c3; --color-border-strong: #cdbfa8;
+	--color-divider: rgba(125, 115, 96, 0.30);
+	--color-link: #8f7326; --color-hover-wash: rgba(191, 160, 58, 0.14);
+	--radius-sm: 5px; --radius-md: 8px; --radius-lg: 10px;
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+[data-theme="dark"] {
+	--color-panel: #312e26; --color-page: #1e1b16;
+	--color-text: #eee7da; --color-text-muted: #b4a895;
+	--color-border: #514a3c; --color-border-strong: #615a49;
+	--color-divider: rgba(207, 197, 171, 0.24);
+	--color-link: #d7c38b; --color-hover-wash: rgba(207, 183, 103, 0.18);
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 28px 32px 60px; font: 15px/1.55 Georgia, "Times New Roman", serif; background: var(--color-page); color: var(--color-text); }
+h1 { font-size: 24px; margin: 0 0 6px; }
+h2 { font-size: 17px; margin: 34px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--color-divider); }
+p { max-width: 62em; }
+.muted { color: var(--color-text-muted); }
+.stage-row { display: flex; flex-wrap: wrap; gap: 26px; align-items: flex-start; }
+.stage__caption { font-size: 13px; color: var(--color-text-muted); margin-bottom: 6px; max-width: 620px; }
+
+.map { position: relative; width: 620px; height: 420px; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--color-border); background-size: cover; background-position: center; }
+.map--phone { width: 375px; height: 520px; }
+.corner { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.corner__row { display: flex; align-items: flex-end; gap: 6px; }
+
+/* Der Anker traegt beide Zustaende uebereinander. */
+.layer-anchor { position: relative; }
+
+.tile, .linkbtn {
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
+	color: var(--color-text);
+	box-shadow: var(--shadow-panel);
+	cursor: pointer;
+	font: 13px/1.2 Georgia, serif;
+	text-align: center;
+}
+.linkbtn { padding: 7px 10px; }
+.tile:hover, .linkbtn:hover { background-color: var(--color-panel); background-image: linear-gradient(var(--color-hover-wash), var(--color-hover-wash)); }
+.tile--search { width: 48px; height: 48px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.tile--search svg { width: 22px; height: 22px; }
+
+/* 💣 Zugeklappte Kachel und aufgeklapptes Raster tragen DIESELBE Polsterung (5px) und
+   denselben Rahmen und haengen an DERSELBEN Ecke. Nur deshalb liegt die letzte Rasterzelle
+   exakt auf der Kachel. Wer eine der beiden Zahlen aendert, aendert beide. */
+.tile--layer { padding: 5px; display: block; }
+.viewbar {
+	position: absolute; right: 0; bottom: 0;
+	padding: 5px; margin: 0;
+	display: grid; grid-template-columns: repeat(3, auto); gap: 6px;
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-panel);
+}
+.viewbar[hidden], .tile--layer[hidden] { display: none; }
+
+/* Eine Zelle sieht zugeklappt wie aufgeklappt gleich aus -- sonst spraenge das Bild beim Klick. */
+.cell { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 60px; border: 0; background: none; padding: 0; cursor: pointer; font: 10px/1.15 Georgia, serif; color: var(--color-text-muted); }
+.cell__img { position: relative; display: block; width: 60px; height: 60px; border-radius: 3px; overflow: hidden; border: 2px solid transparent; }
+.cell__img img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cell__label { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewbar .cell:hover .cell__img { border-color: var(--color-border-strong); }
+.cell.is-active .cell__img { border-color: var(--color-link); }
+.cell.is-active .cell__label { color: var(--color-link); }
+.prov { position: absolute; top: 2px; right: 3px; color: #e8c34a; font-size: 14px; line-height: 1; text-shadow: 0 0 3px rgba(0,0,0,.85); }
+
+table { border-collapse: collapse; margin-top: 10px; }
+td, th { padding: 8px 12px; border-bottom: 1px solid var(--color-divider); text-align: left; vertical-align: middle; font-size: 14px; }
+td img { border-radius: var(--radius-sm); display: block; }
+code { font: 12px/1.4 Consolas, monospace; color: var(--color-text-muted); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: var(--radius-sm); font-size: 12px; }
+.badge--echt { background: rgba(110, 150, 90, .22); }
+.badge--prov { background: rgba(210, 160, 60, .22); }
+.themeswitch { position: fixed; top: 12px; right: 16px; padding: 6px 12px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-panel); color: var(--color-text); cursor: pointer; font: 13px Georgia, serif; z-index: 5; }
+.note { border-left: 3px solid var(--color-link); padding: 2px 0 2px 14px; margin: 16px 0; max-width: 62em; }
+</style>
+</head>
+<body>
+<button type="button" class="themeswitch" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'">hell / dunkel</button>
+
+<h1>Die Kachel faltet sich auf <span class="muted" style="font-size:16px">— v5, endgültiger Satz</span></h1>
+<p class="muted">Mockup zum Entwurf <code>docs/superpowers/specs/2026-08-11-ansichts-kacheln-design.md</code> · 11.08.2026</p>
+
+<div class="note">
+<strong>Alle sechs Bilder sind endgültig</strong> und liegen unter <code>icons/layer-tiles/</code>.
+Vier stammen aus der laufenden Karte — aufgenommen wurden nur die Ebenen, die die Ansicht ausmacht,
+die Namens-Ebenen waren nie dabei. „Politisch" und „Landschaften" kommen vom Owner.
+</div>
+
+<div class="note">
+<strong>Die eingestellte Ansicht bleibt auf ihrem Fleck.</strong> Beim Aufklappen entfalten sich die
+anderen fünf nach oben und nach links um sie herum; die gewählte rutscht beim Zuklappen nicht, sie
+<em>ist</em> schon dort. Klick die Kachel an und wähle etwas — die untere rechte Zelle bewegt sich nie.
+</div>
+
+<h2>Am Zeiger</h2>
+<div class="stage-row"><div class="stage">
+	<div class="stage__caption">620 × 420, Maße 1:1.</div>
+	<div class="map" style="background-image: url(../tiles/stylized/3/map_17_-17.webp)" data-mock></div>
+</div></div>
+
+<h2>Am Telefon</h2>
+<div class="stage-row"><div class="stage">
+	<div class="stage__caption">375 px breit. Dasselbe Raster — eine Form, nicht zwei. Es baut 204 × 168 px und bleibt weit vom linken Rand.</div>
+	<div class="map map--phone" style="background-image: url(../tiles/stylized/3/map_17_-17.webp)" data-mock></div>
+</div></div>
+
+<h2>Woher die Bilder kommen</h2>
+<p>Vier Aufnahmen stammen aus der laufenden Karte, zwei vom Owner. <em>Kraftlinien</em> zeigt eine
+Linie samt Nodix über der echten Entsättigung der Ansicht (<code>saturate(0.1) brightness(0.6)</code>,
+dieselben Werte wie <code>syncPowerlineMapTint</code>). Kein Bild trägt einen Namen.</p>
+<table>
+<tr><th>Bild</th><th>Ansicht</th><th>Kachel</th><th>Stand</th></tr>
+<tr><td><img src="../icons/layer-tiles/none.webp" width="60" height="60" alt="" /></td><td><strong>Nur Karte</strong><br><code>none</code></td><td><code>Gebirge &middot; 628/628 &middot; Zoom 5</code></td><td><span class="badge badge--echt">echt</span></td></tr>
+<tr><td><img src="../icons/layer-tiles/original.webp" width="60" height="60" alt="" /></td><td><strong>Original</strong><br><code>original</code></td><td><code>alte Karte &middot; 660/476 &middot; Zoom 5</code></td><td><span class="badge badge--echt">echt</span></td></tr>
+<tr><td><img src="../icons/layer-tiles/political.webp" width="60" height="60" alt="" /></td><td><strong>Politisch</strong><br><code>political</code></td><td><code>stylized 74,-70</code></td><td><span class="badge badge--prov">Datenebene fehlt</span></td></tr>
+<tr><td><img src="../icons/layer-tiles/deregraphic.webp" width="60" height="60" alt="" /></td><td><strong>Standard</strong><br><code>deregraphic</code></td><td><code>stylized 64,-58</code></td><td><span class="badge badge--prov">Datenebene fehlt</span></td></tr>
+<tr><td><img src="../icons/layer-tiles/powerlines.webp" width="60" height="60" alt="" /></td><td><strong>Kraftlinien</strong><br><code>powerlines</code></td><td><code>Linie + Nodix &middot; 534/555 &middot; Zoom 5</code></td><td><span class="badge badge--echt">echt</span></td></tr>
+<tr><td><img src="../icons/layer-tiles/ecosystem.webp" width="60" height="60" alt="" /></td><td><strong>Landschaften</strong><br><code>ecosystem</code></td><td><code>stylized 68,-74</code></td><td><span class="badge badge--prov">Datenebene fehlt</span></td></tr>
+
+</table>
+
+<script>
+var VIEWS = [{"key":"none","name":"Nur Karte","prov":false},{"key":"original","name":"Original","prov":false},{"key":"political","name":"Politisch","prov":true},{"key":"deregraphic","name":"Standard","prov":true},{"key":"powerlines","name":"Kraftlinien","prov":false},{"key":"ecosystem","name":"Landschaften","prov":true}];
+var ICONS = {"none":"../icons/layer-tiles/none.webp","original":"../icons/layer-tiles/original.webp","political":"../icons/layer-tiles/political.webp","deregraphic":"../icons/layer-tiles/deregraphic.webp","powerlines":"../icons/layer-tiles/powerlines.webp","ecosystem":"../icons/layer-tiles/ecosystem.webp"};
+
+function cell(view, active, inMenu) {
+	var b = document.createElement('button');
+	b.type = 'button';
+	b.className = 'cell' + (active ? ' is-active' : '');
+	b.dataset.key = view.key;
+	if (inMenu) { b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(active)); }
+	var img = document.createElement('span');
+	img.className = 'cell__img';
+	img.innerHTML = '<img src="' + ICONS[view.key] + '" alt="" />' + (view.prov ? '<span class="prov" title="Datenebene fehlt noch">&#9679;</span>' : '');
+	var label = document.createElement('span');
+	label.className = 'cell__label';
+	label.textContent = view.name;
+	b.appendChild(img);
+	b.appendChild(label);
+	return b;
+}
+
+function buildCorner(map) {
+	var active = 'deregraphic';
+	var corner = document.createElement('div');
+	corner.className = 'corner';
+	corner.innerHTML =
+		'<div class="layer-anchor">' +
+			'<div class="viewbar" role="radiogroup" aria-label="Ansicht" hidden></div>' +
+			'<button type="button" class="tile tile--layer" title="Ansicht wählen" aria-expanded="false"></button>' +
+		'</div>' +
+		'<button type="button" class="tile tile--search" title="Suchen" aria-label="Suchen">' +
+			'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M15.5 15.5 21 21"></path></svg>' +
+		'</button>' +
+		'<div class="corner__row">' +
+			'<button type="button" class="linkbtn">Neuigkeiten</button>' +
+			'<button type="button" class="linkbtn">Hinweise</button>' +
+		'</div>';
+	map.appendChild(corner);
+
+	var bar = corner.querySelector('.viewbar');
+	var tile = corner.querySelector('.tile--layer');
+
+	function render() {
+		var cur = VIEWS.filter(function (v) { return v.key === active; })[0];
+		tile.innerHTML = '';
+		tile.appendChild(cell(cur, false, false));
+
+		// 💣 Die aktive Ansicht steht ZULETZT -- dadurch faellt sie auf die zugeklappte Kachel.
+		bar.innerHTML = '';
+		VIEWS.filter(function (v) { return v.key !== active; }).forEach(function (v) {
+			bar.appendChild(cell(v, false, true));
+		});
+		bar.appendChild(cell(cur, true, true));
+
+		bar.querySelectorAll('.cell').forEach(function (c) {
+			c.addEventListener('click', function (e) {
+				e.stopPropagation();
+				active = c.dataset.key;
+				render();
+				close();
+			});
+		});
+	}
+
+	function close() { bar.hidden = true; tile.hidden = false; tile.setAttribute('aria-expanded', 'false'); }
+	function open() { bar.hidden = false; tile.hidden = true; tile.setAttribute('aria-expanded', 'true'); }
+
+	tile.addEventListener('click', function (e) { e.stopPropagation(); open(); });
+	map.addEventListener('click', close);
+	document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { close(); } });
+
+	render();
+	close();
+}
+
+document.querySelectorAll('[data-mock]').forEach(buildCorner);
+</script>
+</body>
+</html>

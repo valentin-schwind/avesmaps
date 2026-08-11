@@ -16,19 +16,23 @@ es ist.
 
 | | heute | mit Kacheln |
 |---|---|---|
-| Ort | Seitenleiste `#search`, Zeile „Derographie" | Ecke unten rechts, unter der Suchkachel |
-| Form | Auswahlbox mit Symbol + Namen | Kachel, die eine Reihe von sechs Kacheln aufklappt |
+| Ort | Seitenleiste `#search`, Zeile „Derographie" | Ecke unten rechts, über der Suchkachel |
+| Form | Auswahlbox mit Symbol + Namen | Kachel, die sich zu einem 2 × 3-Raster auffaltet |
 | Sichtbar ohne Planer | nein | ja |
-| Bild je Ansicht | gezeichnetes Symbol (`icons/*Karte.webp`) | Ausschnitt der echten Karte in dieser Ansicht |
+| Bild je Ansicht | gezeichnetes Symbol (`icons/*Karte.webp`) | Kartenausschnitt in dieser Ansicht (`icons/layer-tiles/`) |
 
 Die sechs Ansichten selbst ändern sich **nicht**: `none` (Nur Karte),
 `original`, `political`, `deregraphic` (Standard), `powerlines`, `ecosystem`.
 
 ## 2 · Wo es sitzt
 
-Neue Kachel `#map-layer-button` als **zweite Zeile** des Bundes
-`#map-corner-actions` (`index.html`): Suche oben, Ansichten darunter, dann die
-Reihe „Neuigkeiten / Hinweise".
+Neue Kachel `#map-layer-button` im Bund `#map-corner-actions` (`index.html`),
+**über** dem Suchknopf: Ansichten oben, Suche darunter, dann die Reihe
+„Neuigkeiten / Hinweise".
+
+Die Reihenfolge ist eine Entscheidung, keine Laune (Owner 11.08.2026): so wächst
+das Menü der Kachel ungestört nach oben, während das Suchfeld seinen Weg nach
+links behält. Umgekehrt hätte sich beides in die Quere kommen können.
 
 Farbe, Kontur, Radius und Schatten kommen aus der **bestehenden gemeinsamen
 Regel** (`css/components/legal-dialog.css`, heute `#map-search-button,
@@ -47,23 +51,33 @@ Regel** (`css/components/legal-dialog.css`, heute `#map-search-button,
 > **gemessen**, nicht gerechnet — und die Abnahme sieht auf den Zoom, nicht nur
 > auf die Kachel.
 
-## 3 · Verhalten
+## 3 · Verhalten — die Kachel IST das Menü
 
-**Zugeklappt** zeigt die Kachel das Bild der **aktiven** Ansicht. Sie ist damit
-zugleich die Statusanzeige — man sieht, worin man steckt, ohne zu klicken.
+**Zugeklappt** ist sie eine Kachel: das Bild der aktiven Ansicht, ihr Name
+darunter (wie bei Google Maps). Sie ist damit zugleich die Statusanzeige.
 
-**Klick** fährt sechs Kacheln nach links aus. Jede trägt ihr Bild und ihren
-Namen darunter: „Politisch" und „Landschaften" sind aus einem Daumennagel nicht
-erratbar, die Namen bleiben stehen. Die aktive Kachel ist golden gerahmt.
+**Aufgeklappt** entfaltet sie sich zu einem **2 × 3-Raster** nach oben und nach
+links — weg vom Bildschirmrand. Dieselbe Form am Zeiger wie am Telefon; das
+Raster baut 204 × 168 px und passt auch auf 375 px Breite.
 
-**Schließen** durch: erneuter Klick auf die Kachel, Klick auf eine Ansicht,
-`Esc`, oder Klick irgendwo auf die Karte.
+> 💣 **Die eingestellte Ansicht bleibt beim Aufklappen auf ihrem Fleck** (Owner
+> 11.08.2026: „die Position der Kachel darf sich nicht verändern"). Erreicht wird
+> das **ohne eine einzige gerechnete Zahl**: die aktive Ansicht ist immer die
+> **letzte Zelle** des Rasters, und das Raster hängt mit derselben Polsterung,
+> demselben Rahmen und derselben Ecke wie die zugeklappte Kachel. Beide Kästen
+> enden am selben Punkt, also *muss* die letzte Zelle auf der Kachel liegen.
+> Ein Versatz wäre die Zahl, die beim nächsten Größenwechsel danebenliegt —
+> dieselbe Falle wie `--avesmaps-corner-stack` am 10.08.2026. Die übrigen fünf
+> füllen die Zellen davor in ihrer festen Reihenfolge.
 
-**Schmale Schirme:** die Reihe bricht auf 2×3 um. Sechs Kacheln mit Namen sind
-breiter als ein Telefon.
+Jede Zelle trägt Bild und Namen: „Politisch" und „Landschaften" sind aus einem
+Daumennagel nicht erratbar. Die aktive Zelle ist golden gerahmt.
 
-**Tastatur:** die Kacheln sind eine Einfachauswahl (`role="radiogroup"`, je
-Kachel `role="radio"` mit `aria-checked`), Pfeiltasten wandern darin.
+**Schließen** durch: Klick auf eine Ansicht, `Esc`, oder Klick irgendwo auf die
+Karte.
+
+**Tastatur:** die Zellen sind eine Einfachauswahl (`role="radiogroup"`, je Zelle
+`role="radio"` mit `aria-checked`), Pfeiltasten wandern darin.
 
 > 💣 **Keine eigene Tastenbelegung.** Die sechs Ansichten hängen schon an
 > `O P K N L I`, und die Liste `SHORTCUTS` in `js/app/keyboard-shortcuts.js` ist
@@ -90,48 +104,51 @@ teilbarer Zustand. Gelesen wird er tolerant (`1`, `true`, leer = an).
 
 ## 5 · Die Icons
 
-Sechs Bilder, 128 px (für 64 px Anzeige), als WebP unter `icons/layer-tiles/`.
-Statisch — wie bei Google Maps, deren Ebenen-Kacheln ebenfalls fertige Bilder
-sind und keine lebenden Karten.
+Sechs Bilder, 128 px, WebP, unter `icons/layer-tiles/`. Statisch — wie bei Google Maps, deren
+Ebenen-Kacheln ebenfalls fertige Bilder sind und keine lebenden Karten.
 
-**Hergestellt aus der echten Karte.** Die Kachelpyramide liegt im Repo
-(`tiles/stylized`, `tiles/old`, Zoom 0–5). Umrechnung:
+**Vier davon sind Aufnahmen der laufenden Karte**, je Ansicht an einem eigenen Ort (Owner
+11.08.2026). **Zwei sind vom Owner gestaltet**: „Politisch" (Grenzen mit einem
+Avesmaps-Wappen statt eines echten — nennt kein Reich und ist trotzdem etwas fürs Auge) und
+„Landschaften" (Waldinseln, Fluss, Steppe und Meer in einem Bild). Werkzeug, Orte und
+Wiederholanleitung: **`tools/layer-tiles/`**.
 
-```
-Kanten je Zoom z:  4 · 2^z          (z0 = 4×4 … z5 = 128×128)
-1 Kachel entspricht: 256 / 2^z Karteneinheiten
-Kachel (x, r) deckt: x·U … (x+1)·U  waagerecht
-                     r·U … (r+1)·U  senkrecht
-```
+| Ansicht | Bild | Herkunft |
+|---|---|---|
+| Nur Karte | `none.webp` | Aufnahme, Gebirge 628/628 Zoom 5 — bewusst menschenleer |
+| Original | `original.webp` | Aufnahme, alte Karte 660/476 Zoom 5 |
+| Politisch | `political.webp` | Owner |
+| Standard | `deregraphic.webp` | Aufnahme, Straßen + Orte 534/555 Zoom 5 |
+| Kraftlinien | `powerlines.webp` | Aufnahme, Linie + Nodix 534/555 Zoom 5 |
+| Landschaften | `ecosystem.webp` | Owner |
 
-💣 Die Dateien tragen ein **negatives** y (`map_<x>_-<reihe>.webp`, AGENTS.md
-§10), und die Reihen beginnen bei **1**, nicht bei 0.
+**Anonym ist eine Frage der EBENEN, nicht des Ortes.** Aufgenommen wird eine Allowlist von Leaflet-
+Panes; die Namens-Panes (`regionLabels`, `labels`, `pathLabelCanvas`, `mapDecorations`) stehen nicht
+darin. Was nicht in der Liste steht, kann keinen Namen ins Bild tragen — das ist die ganze Regel,
+und sie hält, ohne dass jemand den Ausschnitt prüfen muss.
 
-**Anonym — und wo das nichts kostet.** Namen sind auf dieser Karte **keine
-Bilddaten**: sie sind Canvas-Overlays, die vor der Aufnahme abgeschaltet werden.
-Der stilisierte Kachelsatz trägt nachweislich keine einzige Schrift (geprüft an
-der zusammengesetzten Gesamtkarte). Für fünf der sechs Ansichten ist Anonymität
-damit geschenkt.
+> 💣 **Die Gebietsnamen SIND Bilder.** In der `regionLabels`-Pane liegen die Namen als `data:`-PNG
+> (gerasterter Text, 429 von 508 Bildern), die Wappen dagegen als Datei unter `/uploads/wappen/`.
+> Ein „alle Bilder dieser Pane zeichnen" — die naheliegende Art, Wappen ohne Namen zu bekommen —
+> holt jeden Namen zurück. Gefiltert wird nach der **Bildquelle**.
 
-> 💣 **„Original" ist die Ausnahme, und dort hilft kein Schalter.** Der alte
-> Kachelsatz ist ein Scan mit **eingebrannter** Schrift, über Land dicht. Anonym
-> wird dieses Bild allein durch die **Wahl des Ausschnitts** — Waldinneres,
-> Gebirge, Küstenlinie ohne Ortsnamen. Darauf, dass Schrift bei 64 px ohnehin
-> Matsch ist, verlassen wir uns nicht.
+> 💣 **Jede Datenebene baut sich stufenweise auf, die politische Außengrenze zuletzt** (AGENTS.md
+> §10). Eine Aufnahme nach fester Wartezeit mischt neue Farben mit alten Grenzen: die weißen
+> Konturen laufen quer durch die Flächen. Genau daran scheiterten die ersten Aufnahmen, gesehen vom
+> Owner („die politischen Grenzen sind nicht in den Farbregionen"), nicht vom Werkzeug. Gewartet
+> wird jetzt, **bis sich die Ebene nicht mehr ändert**, und die Konsole warnt, wenn es nicht ruhig
+> wurde.
 
-**Je Ansicht ein eigener Ort** (Entscheidung des Owners, 11.08.2026): Politisch
-an einem Grenzverlauf, Landschaften an einer Vegetationskante, Kraftlinien an
-einer Linie, und so fort. Die Kandidaten werden **vor** der Festlegung als
-Mockup gezeigt.
+> 💣 **Statische Bilder veralten stumm.** Ändert sich der Kartenstil, zeigen die Icons weiter die
+> alte Karte, und niemandem fällt es auf — ein Icon sieht immer *irgendwie* plausibel aus. Deshalb
+> liegt das Aufnahme-Werkzeug samt Anlässen im Repo (`tools/layer-tiles/README.md`) und nicht in
+> einer Sitzung.
 
-> 💣 **Statische Bilder veralten stumm.** Ändert sich der Kartenstil, zeigen die
-> Kacheln weiter die alte Karte, und niemand bemerkt es — dieselbe Bauart, mit
-> der der Änderungsverlauf fünf Tage lang seine Saat zeigte. Das
-> Aufnahmeverfahren kommt deshalb als Werkzeug samt Notiz ins Repo, nicht als
-> einmaliger Handgriff.
+⚠️ Für „Original" gilt zusätzlich die Ortswahl: der alte Kachelsatz ist ein Scan mit **eingebrannter**
+Schrift, über Land dicht. Dort hilft keine Ebenen-Liste, nur ein schriftfreier Ausschnitt.
 
-⚠️ Die `?v=`-Stempel der neuen Bilder setzt der Deploy von allein (alles, was von
-`index.html` aus erreichbar ist). **Niemals von Hand schreiben** (AGENTS.md §7).
+⚠️ Die `?v=`-Stempel der Bilder setzt der Deploy von allein (alles, was von `index.html` aus
+erreichbar ist). **Niemals von Hand schreiben** (AGENTS.md §7).
 
 ## 6 · Was nicht gebaut wird
 
@@ -166,8 +183,12 @@ wird als offene Frage gemeldet, nicht als bestanden.
 
 ## 8 · Offene Punkte
 
-- **Die sechs Orte.** Werden am Mockup entschieden, nicht hier.
-- **Kachelgröße.** 64 px ist der Vorschlag; am Mockup zu prüfen, ob ein
-  Kartenausschnitt darin noch etwas erzählt.
 - **Wohin nach der Erprobung.** Fällt die Auswahlbox ganz weg oder bleibt sie
   für den Planer? Erst nach dem Blick des Owners auf den gebauten Zustand.
+- **Die Kachelgröße im Menü** steht bei 60 px (Bild) plus Name; die zugeklappte
+  Kachel trägt dasselbe Maß, weil beide dieselbe Zelle sind. Am gebauten Zustand
+  zu prüfen, nicht am Mockup.
+
+Entschieden und nicht mehr offen: die sechs Orte (Mockup v5, 11.08.2026), die
+Form des Menüs (2 × 3, faltet sich aus der Kachel), die Lage (über der Suche).
+Mockup: `docs/layer-kacheln-mockup.html`.
