@@ -539,11 +539,55 @@
 			if (publish) { publish.disabled = over || text === "" || keys.length === 0; }
 		}
 
+		updateLinkNote(caption, keys);
+
 		const foot = el("social-foot-note");
 		if (foot) {
 			foot.textContent = "Geht an " + keys.length + (keys.length === 1 ? " Kanal" : " Kanäle")
 				+ " · als Avesmaps, nicht unter deinem Namen";
 		}
+	}
+
+	// Eine Adresse im Text, die auf einem angehakten Kanal nicht klickbar ist.
+	//
+	// 💣 Absichtlich grob: eine Adresse mit Schema oder www ist eindeutig, und daneben nur eine kurze
+	// Liste gebräuchlicher Endungen. Jede TLD der Welt zu kennen hiesse, „z.B." und „Nr.de" mitzufangen
+	// -- ein Hinweis, der bei jedem zweiten Text aufpoppt, ist einer, den niemand mehr liest.
+	const SOCIAL_LINK_PATTERN = /(https?:\/\/\S+|\bwww\.\S+|\b[a-z0-9][a-z0-9-]*\.(?:de|com|org|net|eu|io|info)\b)/i;
+
+	// 🔴 HINWEIS, NICHT RIEGEL. Der Text wird nicht umgeschrieben und das Senden nicht gesperrt:
+	// „Karte auf avesmaps.de" ist als blosser Satz völlig in Ordnung, und ein still umgeschriebener
+	// Text wäre der grössere Schaden. Gemeint ist der eine Fall, der wehtut -- „mehr dazu unter
+	// <Adresse>" als Aufforderung, die auf Instagram ins Leere zeigt.
+	//
+	// ⚠️ Welche Kanäle betroffen sind, sagt das REGISTER (`clickable_links`), nicht eine Schlüsselliste
+	// hier. Sonst kennt der Browser eine Zuordnung, die der Server nicht kennt, und der nächste Kanal
+	// ohne klickbare Links bekommt seinen Hinweis nie.
+	// Rein und exportiert: der Satz, oder "" wenn keiner faellig ist. Die DOM-Haelfte darunter trifft
+	// keine Entscheidung mehr -- so ist das, was schiefgehen kann, unter Test.
+	function linkNoteText(caption, keys, list) {
+		const betroffen = (list || []).filter(function (channel) {
+			return keys.indexOf(channel.key) !== -1 && channel.clickable_links === false;
+		});
+		if (!betroffen.length || !SOCIAL_LINK_PATTERN.test(caption || "")) { return ""; }
+
+		const namen = betroffen.map(function (channel) { return channel.label; });
+		const liste = namen.length === 1 ? namen[0]
+			: namen.slice(0, -1).join(", ") + " und " + namen[namen.length - 1];
+
+		return "Im Text steht eine Adresse. " + liste
+			+ (namen.length === 1 ? " macht" : " machen")
+			+ " daraus keinen Link — sie steht dort als Text, den niemand antippen kann. "
+			// Einfache Anfuehrungszeichen als Begrenzer, weil der Satz selbst welche traegt.
+			+ 'Der Beitrag geht trotzdem raus; nur „mehr dazu unter …" wäre dort eine leere Zusage.';
+	}
+
+	function updateLinkNote(caption, keys) {
+		const note = el("social-link-note");
+		if (!note) { return; }
+		const text = linkNoteText(caption, keys, channels);
+		note.textContent = text;
+		note.hidden = text === "";
 	}
 
 	function renderChannels() {
@@ -1088,6 +1132,6 @@
 
 	if (typeof module !== "undefined" && module.exports) {
 		module.exports = { chipClass, chipLabel, canRetry, strictestLimit, formatCount, postAuthorLabel,
-			formatExpiry, proposalNote, isDraft };
+			formatExpiry, proposalNote, isDraft, linkNoteText };
 	}
 })();

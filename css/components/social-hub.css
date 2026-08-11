@@ -380,6 +380,15 @@
 	font-weight: 600;
 }
 
+/* Ein HINWEIS, keine Absage: bernstein, nicht rot. Rot gehoert dem, was das Senden verhindert
+   (--count--over daneben tut genau das); hier geht der Beitrag durch, er trifft drueben nur nicht die
+   Erwartung. Die beiden Toene nebeneinander sind der ganze Unterschied. */
+.social-hub__link-note {
+	margin: 6px 0 0;
+	font-size: 12px;
+	color: var(--color-warning-soft-text);
+}
+
 .social-hub__vocabulary {
 	margin-top: 8px;
 }

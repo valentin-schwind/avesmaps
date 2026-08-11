@@ -19,6 +19,7 @@ const {
 	formatExpiry,
 	proposalNote,
 	isDraft,
+	linkNoteText,
 } = require("../review-social.js");
 
 // ---- the status a chip shows ---------------------------------------------------------------------
@@ -141,5 +142,57 @@ assert.strictEqual(isDraft({ state: "released" }), false);
 assert.strictEqual(isDraft({ state: "discarded" }), false);
 assert.strictEqual(isDraft({}), false, "ohne Zustand faellt es zu -- nicht auf");
 assert.strictEqual(isDraft(null), false);
+
+// ---- der Hinweis auf nicht klickbare Links --------------------------------------------------------
+
+const KANAELE = [
+	{ key: "instagram", label: "Instagram", clickable_links: false },
+	{ key: "facebook", label: "Facebook", clickable_links: true },
+	{ key: "probe", label: "Probe", clickable_links: true },
+	{ key: "zweiter", label: "Zweiter", clickable_links: false },
+];
+const hinweis = (text, keys) => linkNoteText(text, keys, KANAELE);
+
+// 🔴 HINWEIS, KEIN RIEGEL: die Funktion liefert einen SATZ, sie aendert den Text nicht und sperrt
+// nichts. Wer hier je ein true/false zum Sperren einbaut, verbietet „Karte auf avesmaps.de".
+assert.ok(hinweis("Mehr dazu auf avesmaps.de", ["instagram"]).length > 0,
+	"Adresse plus Instagram ergibt einen Hinweis");
+assert.ok(hinweis("Mehr dazu auf avesmaps.de", ["instagram"]).includes("Instagram"),
+	"und er nennt den Kanal, denn die Liste kann mehrere tragen");
+
+// ⚠️ Der Kanal entscheidet ueber clickable_links aus dem REGISTER, nicht ueber seinen Schluessel.
+assert.strictEqual(hinweis("Mehr dazu auf avesmaps.de", ["facebook"]), "",
+	"derselbe Text an Facebook: kein Hinweis, dort ist es ein Link");
+assert.strictEqual(hinweis("Heute neue Wege eingetragen", ["instagram"]), "",
+	"Instagram ohne Adresse im Text: kein Hinweis");
+assert.strictEqual(hinweis("Mehr dazu auf avesmaps.de", []), "", "ohne angehakten Kanal auch nicht");
+
+// Mehrere betroffene Kanaele werden aufgezaehlt, und das Verb geht mit.
+const zwei = hinweis("siehe avesmaps.de", ["instagram", "zweiter"]);
+assert.ok(zwei.includes("Instagram und Zweiter"), "beide betroffenen Kanaele werden genannt");
+assert.ok(zwei.includes("machen"), "und im Plural");
+assert.ok(hinweis("siehe avesmaps.de", ["instagram"]).includes("macht"), "im Singular entsprechend");
+
+// Was als Adresse zaehlt.
+assert.ok(hinweis("https://avesmaps.de/?s=abc", ["instagram"]).length > 0, "mit Schema");
+assert.ok(hinweis("www.avesmaps.de", ["instagram"]).length > 0, "mit www");
+assert.ok(hinweis("schau auf example.com vorbei", ["instagram"]).length > 0, "blosse Domain");
+
+// 💣 Und was NICHT: ein Hinweis, der bei jedem zweiten deutschen Satz aufpoppt, ist einer, den
+// niemand mehr liest. Deshalb nur gaengige Endungen statt aller TLDs der Welt.
+assert.strictEqual(hinweis("z.B. drei neue Wege", ["instagram"]), "", "z.B. ist keine Adresse");
+assert.strictEqual(hinweis("Kosch u.a. ergaenzt", ["instagram"]), "", "u.a. auch nicht");
+assert.strictEqual(hinweis("Der Ort heisst Havena, Nr.7", ["instagram"]), "", "und eine Nummer nicht");
+// 💣 Der Fall, der die ENGE Endungsliste rechtfertigt: ein vergessenes Leerzeichen nach dem Punkt.
+// „Gareth.Danach" sieht fuer ein Muster mit beliebiger Endung wie eine Domain aus -- und ein
+// getippter Beitrag hat so etwas schnell. Mit der Liste ist es keine.
+assert.strictEqual(hinweis("Der Weg endet in Gareth.Danach kommt Punin", ["instagram"]), "",
+	"ein fehlendes Leerzeichen nach dem Punkt ist keine Adresse");
+assert.strictEqual(hinweis("Neue Wege eingetragen.Weitere folgen", ["instagram"]), "",
+	"und ein zusammengelaufener Satz auch nicht");
+assert.strictEqual(hinweis("", ["instagram"]), "", "leerer Text: nichts");
+assert.strictEqual(hinweis(null, ["instagram"]), "", "und null stuerzt nicht ab");
+assert.strictEqual(linkNoteText("avesmaps.de", ["instagram"], null), "",
+	"ohne Kanalliste ebenfalls nicht -- der Hub laedt sie nach, sie kann kurz fehlen");
 
 console.log("social-list.test: OK");
