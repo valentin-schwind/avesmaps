@@ -2416,6 +2416,24 @@
 					<circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M15.5 15.5 21 21"></path>
 				</svg>
 			</button>
+			<!-- Die Ansichts-Kachel (Erprobung ?layerPanelActive=1). Sie steht UNTER dem Suchknopf
+			     (Owner 11.08.2026, nach dem ersten Ausprobieren).
+			     💣 Das Menue steht IM FLUSS, es schwebt nicht. Ein schwebendes Menue legte sich beim
+			     Aufklappen ueber die Zoom-Knoepfe -- die verschwanden schlicht dahinter. Im Fluss
+			     waechst stattdessen der Bund, und der Zoom darueber liest dessen GEMESSENE Hoehe
+			     (syncMapCornerStack) und rueckt von allein mit. Am Telefon schiebt das Menue
+			     ausserdem den Suchknopf nach oben und laesst ihn beim Zuklappen zurueckfallen.
+			     💣 Die eingestellte Ansicht bleibt beim Aufklappen trotzdem auf ihrem Fleck: Kachel
+			     und Menue tragen dieselbe Polsterung, sind beide rechtsbuendig und haben dieselbe
+			     Unterkante -- und die aktive Ansicht ist immer die LETZTE Zelle. Kein Versatz wird
+			     gerechnet.
+			     Die Zellen baut js/ui/map-layer-picker.js aus den <option> der Auswahlbox; hier
+			     steht bewusst KEINE Liste der sechs Ansichten -- die gaebe es dann zweimal.
+			     Entwurf: docs/superpowers/specs/2026-08-11-ansichts-kacheln-design.md -->
+			<div id="map-layer-picker" class="map-layer-picker" hidden>
+				<div id="map-layer-menu" class="map-layer-picker__menu" role="radiogroup" aria-label="Ansicht" data-i18n-aria-label="view.mode.aria" hidden></div>
+				<button type="button" id="map-layer-button" class="map-layer-picker__tile" aria-haspopup="true" aria-expanded="false" aria-label="Ansicht wählen"></button>
+			</div>
 			<!-- Die beiden Verweise bleiben nebeneinander; die Kachel liegt DARUEBER.
 			     💣 Diese Zeile ist der Grund, warum die Kachel ohne eine einzige Zahl ueber ihnen
 			     sitzt: der Bund ist eine Spalte, die Verweise sind ihre zweite Reihe. Ein
@@ -3036,6 +3054,10 @@
 		<script src="js/map-features/map-features-citymaps.js"></script>
 		<script src="js/map-features/map-features-citymaps-dialog.js"></script>
 		<script src="js/map-features/map-features-citymaps-suggest.js"></script>
+		<!-- Die Ansichts-Kachel in der Kartenecke (?layerPanelActive=1). Nach display-mode.js und
+		     ui-controls.js: sie ruft setSelectedMapLayerMode nur auf Klick, misst aber beim Start
+		     den gewachsenen Knopfbund nach (syncMapCornerStack). -->
+		<script src="js/ui/map-layer-picker.js"></script>
 		<!-- Tastaturbefehle. Bewusst als LETZTES: die Datei schaltet Leaflets eigene
 		     Tastatursteuerung ab und baut die Tabelle in den Hinweisen -- beides setzt voraus, dass
 		     die Karte und das Fenster schon stehen. Die Wirkungen selbst ruft sie ohnehin erst beim

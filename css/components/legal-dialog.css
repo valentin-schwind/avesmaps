@@ -544,6 +544,7 @@
    waeren. Wer sie herausloest und die Werte kopiert, baut die Divergenz ein, die AGENTS.md §12
    beschreibt. Owner 11.08.2026: "kachel aber farbe und outline wie Hinweise bzw Neuigkeiten". */
 #map-search-button,
+#map-layer-button,
 #legal-button,
 #news-button {
 	padding: 7px 10px;
@@ -566,6 +567,8 @@
    drei Knoepfe blieb sie unter dem Zeiger stumm. Wer den einen Selektor ergaenzt, ergaenzt beide. */
 #map-search-button:hover,
 #map-search-button:focus-visible,
+#map-layer-button:hover,
+#map-layer-button:focus-visible,
 #legal-button:hover,
 #legal-button:focus-visible,
 #news-button:hover,

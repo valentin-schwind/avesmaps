@@ -1,0 +1,149 @@
+/* Die Ansichts-Kachel in der Kartenecke (Pruef-Schalter ?layerPanelActive=1).
+   Entwurf: docs/superpowers/specs/2026-08-11-ansichts-kacheln-design.md
+
+   Farbe, Kontur, Radius und Schatten kommen NICHT von hier, sondern aus der gemeinsamen Regel
+   der Eckknoepfe in css/components/legal-dialog.css, wo #map-layer-button mit drinsteht. Hier
+   steht nur, was diese Kachel von den Nachbarn unterscheidet -- dieselbe Aufteilung wie bei der
+   Suchkachel. Wer die Werte hierher kopiert, baut die Divergenz ein, die AGENTS.md §12 beschreibt. */
+
+/* Die Huelle traegt beide Zustaende -- immer nur einer ist da. Rechtsbuendig wie der ganze Bund,
+   damit Kachel und Raster dieselbe rechte Kante haben. */
+.map-layer-picker {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+}
+
+.map-layer-picker[hidden] {
+	display: none;
+}
+
+/* 💣 DIE KACHEL DARF SICH BEIM AUFKLAPPEN NICHT BEWEGEN (Owner 11.08.2026), und das steht und
+   faellt mit diesen zwei Zahlen: Kachel und Raster tragen DIESELBE Polsterung (5px) und
+   denselben Rahmen (1px aus der gemeinsamen Regel) und haengen an DERSELBEN Ecke (right/bottom 0).
+   Beide Kaesten enden damit am selben Punkt -- und weil die AKTIVE Ansicht immer die LETZTE Zelle
+   des Rasters ist (map-layer-picker.js), liegt sie zwangslaeufig auf dem Fleck der Kachel.
+   Es wird KEIN Versatz gerechnet. Genau so eine gerechnete Zahl lag am 10.08.2026 um 8px daneben
+   (--avesmaps-corner-stack), als die Eckknoepfe wuchsen und sie stehenblieb.
+   ⚠️ Wer die Polsterung an einer der beiden Stellen aendert, aendert beide. */
+#map-layer-button {
+	display: block;
+	padding: 5px;
+}
+
+/* 💣 IM FLUSS, NICHT SCHWEBEND. Der erste Entwurf liess das Raster ueber der Ecke schweben --
+   und es legte sich beim Aufklappen ueber die Zoom-Knoepfe, die dahinter schlicht verschwanden
+   (Owner 11.08.2026). Im Fluss waechst stattdessen der Bund; der Zoom darueber haengt an dessen
+   GEMESSENER Hoehe (syncMapCornerStack in js/ui/ui-controls.js) und rueckt von allein mit.
+   Am Telefon schiebt das hohe 2x3-Raster ausserdem den Suchknopf nach oben -- gewollt, und
+   ebenfalls ohne eine gerechnete Zahl. */
+.map-layer-picker__menu {
+	margin: 0;
+	padding: 5px;
+	display: grid;
+	/* Am Zeiger eine Reihe, am Telefon 2x3 (Owner 11.08.2026). Die Regel darunter bleibt in
+	   beiden Faellen dieselbe: die letzte Zelle ist die aktive und liegt auf der Kachel. */
+	grid-template-columns: repeat(6, auto);
+	gap: 6px;
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-panel);
+	/* Kurze Blende beim Aufklappen (Owner 11.08.2026: „animiertes schnelles fading").
+	   ⚠️ `display` laesst sich nicht ueberblenden -- das Raster wird deshalb erst sichtbar
+	   geschaltet und im naechsten Bild angeblendet (js/ui/map-layer-picker.js). Ohne diesen
+	   Umweg spraenge es ohne Blende ins Bild. */
+	opacity: 0;
+	transform: translateY(4px);
+	transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.map-layer-picker__menu.is-open {
+	opacity: 1;
+	transform: none;
+}
+
+/* ⚠️ Muss NACH der display-Regel stehen: `[hidden]` allein verliert gegen `display: grid`. */
+.map-layer-picker__menu[hidden] {
+	display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.map-layer-picker__menu {
+		transition: none;
+		transform: none;
+	}
+}
+
+/* 402px braucht die Reihe. Unterhalb davon bricht sie auf 2x3 (204px) -- eine Form, zwei
+   Aufteilungen, kein zweiter Bauplan. */
+@media (max-width: 560px) {
+	.map-layer-picker__menu {
+		grid-template-columns: repeat(3, auto);
+	}
+}
+
+/* Eine Zelle sieht zugeklappt wie aufgeklappt gleich aus -- sonst spraenge das Bild beim Klick. */
+.map-layer-picker__cell {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 3px;
+	width: 60px;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--color-text-muted);
+	font-family: inherit;
+	font-size: 10px;
+	line-height: 1.15;
+	cursor: pointer;
+}
+
+.map-layer-picker__thumb {
+	display: block;
+	width: 48px;
+	height: 48px;
+	border: 2px solid transparent;
+	border-radius: var(--radius-sm);
+	overflow: hidden;
+}
+
+.map-layer-picker__thumb img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.map-layer-picker__label {
+	display: block;
+	width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.map-layer-picker__menu .map-layer-picker__cell:hover .map-layer-picker__thumb,
+.map-layer-picker__menu .map-layer-picker__cell:focus-visible .map-layer-picker__thumb {
+	border-color: var(--color-border-strong);
+}
+
+.map-layer-picker__cell:focus-visible {
+	outline: none;
+}
+
+.map-layer-picker__cell.is-active .map-layer-picker__thumb {
+	border-color: var(--color-link);
+}
+
+.map-layer-picker__cell.is-active .map-layer-picker__label {
+	color: var(--color-link);
+}
+
+/* Aufgeklappt traegt die Kachel denselben Schimmer wie ein ueberfahrener Eckknopf -- sie ist
+   der offene Schalter, nicht ein zweiter Zustand mit eigenem Aussehen. */
+#map-layer-button[aria-expanded="true"] {
+	background-color: var(--color-panel);
+	background-image: linear-gradient(var(--color-hover-wash), var(--color-hover-wash));
+}
