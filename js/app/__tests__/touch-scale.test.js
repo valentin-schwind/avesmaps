@@ -396,6 +396,47 @@ const reportCss = withoutComments(read("css", "components", "location-report-dia
 		`${name} traegt den Pfeil NICHT als eigenen Data-URI -- beide lesen den Token`);
 });
 
+// ---- Der Planer hat eine Hoehe, an der sein overflow-y greift ------------------------------------
+//
+// Zusicherung 2 aus dem Entwurf (§10): „140dvh kommt nicht zurueck." Gemessen auf 360x640 stand das
+// Panel 766px hoch in einem 640er Schirm, 136px hingen unter dem Rand, und sein Scrollweg war 0 --
+// stattdessen scrollte die SEITE und trug die Karte weg.
+const schmalBlock = layoutCss.match(/@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*?\r?\n\}/);
+assert.ok(schmalBlock, "map-layout.css traegt den Block fuer schmale Schirme");
+const suchRegel = schmalBlock[0].match(/#search\s*\{([^}]*)\}/);
+assert.ok(suchRegel, "und darin eine Regel fuer #search");
+
+const deckel = suchRegel[1].match(/max-height:\s*calc\(\s*([0-9.]+)dvh\s*-\s*([0-9.]+)px\s*\)/);
+assert.ok(deckel, "#search bekommt dort einen max-height-Deckel in dvh");
+assert.ok(Number(deckel[1]) <= 100,
+	`der Deckel steht bei ${deckel[1]}dvh -- ueber 100 ist er hoeher als der Schirm und greift NIE.`
+	+ " Genau das war die 140dvh: eine Grenze, die nie zog, und ein Panel, das nicht scrollte.");
+
+// 💣 Die Kopplung, an der die Kette haengt: der Abzug muss den oberen Abstand DECKEN. Sonst endet das
+// Panel wieder unter dem Bildrand -- der Fehler kaeme mit einem Deckel zurueck, der korrekt aussieht.
+const basisRegel = layoutCss.replace(schmalBlock[0], "").match(/#search\s*\{([^}]*)\}/);
+assert.ok(basisRegel, "die Grundregel von #search ist auffindbar");
+const obenAb = basisRegel[1].match(/top:\s*([0-9.]+)px/);
+assert.ok(obenAb, "sie setzt einen oberen Abstand");
+assert.ok(Number(deckel[2]) >= Number(obenAb[1]),
+	`der Deckel zieht ${deckel[2]}px ab, das Panel beginnt aber ${obenAb[1]}px unter der Oberkante`
+	+ " -- weniger abzuziehen als der Abstand betraegt, laesst es wieder unten hinausragen");
+assert.ok(/overflow-y:\s*auto/.test(basisRegel[1]),
+	"...und die Grundregel scrollt ueberhaupt -- der Deckel allein taete sonst nichts");
+
+// 🔴 Ein DECKEL, keine feste Hoehe, und der Ankerpunkt bleibt stehen. `top: 0; height: 100dvh` war der
+// Versuch vom 10.08.2026: er schiebt das Panel auch mit wenig Inhalt an beide Kanten, und daran hing
+// die Kettenreaktion (Kartenecke unter dem Panel, Lasche entkoppelt, Stapelzahl der Ecke veraltet).
+// 💣 Ueber die Deklarations-NAMEN geprueft, nicht per Regex auf "height:" -- `max-height` enthaelt das
+// Wort und liefe einer naiven Suche als Treffer durch.
+const gesetzt = suchRegel[1].split(";").map((d) => d.split(":")[0].trim()).filter(Boolean);
+["height", "top", "bottom"].forEach((eigenschaft) => {
+	assert.ok(!gesetzt.includes(eigenschaft),
+		`der schmale Fall setzt \`${eigenschaft}\` NICHT -- er gibt dem Panel nur einen Deckel.`
+		+ " Eine feste Hoehe oder ein verschobener Anker zieht die Kartenecke, die Lasche und die"
+		+ " Stapelzahl hinter sich her; ein max-height bewegt nachweislich keins davon.");
+});
+
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
 assert.ok(viewport, "index.html traegt ein Viewport-Meta");

@@ -47,8 +47,19 @@ body {
 
 
 @media (max-width: 640px) {
+	/* 💣 Eine Hoehe, an der das `overflow-y: auto` von oben endlich GREIFT. Die 140dvh war ein
+	   Ausweichen vor dem Scrollbalken -- aber 140% des Schirms sind mehr als der Schirm, die
+	   Grenze griff also nie. Gemessen auf 360x640: Panel 766px hoch, 136px unter dem Rand,
+	   Panel-Scrollweg 0 -- stattdessen scrollte die SEITE (Dokument 776px) und trug die Karte
+	   weg. Mit dem Deckel: 620px hoch, Scrollweg 111px, Dokument wieder 640px.
+	   `top` ist 10px, also laesst 100dvh - 20px unten dieselben 10px stehen.
+	   🔴 Ein DECKEL, keine feste Hoehe. `top: 0; height: 100dvh` (Versuch vom 10.08.2026)
+	   schiebt das Panel auch mit wenig Inhalt an beide Kanten -- daran hing die Kettenreaktion:
+	   die fest positionierte Kartenecke lag darunter, die Lasche war entkoppelt, die
+	   Stapelzahl der Ecke veraltet. Ein max-height bewegt nichts davon: Bund, Verweiszeile,
+	   Suchkachel, Massstabsskala und Lasche sind vorher wie nachher pixelgleich gemessen. */
 	#search {
-		max-height: calc(140dvh - 20px);
+		max-height: calc(100dvh - 20px);
 	}
 
 	#overview {
