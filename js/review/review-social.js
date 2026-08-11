@@ -887,6 +887,11 @@
 		if (tags) { tags.value = post ? (post.hashtags || "") : ""; }
 		const file = el("social-file");
 		if (file) { file.value = ""; }
+		// Wie Titel, Text und Hashtags: ein wiederhergestellter Entwurf bringt seine Bildbeschreibung
+		// mit. Ohne diese Zeile stuende beim zweiten Speichern ein Bild ohne Beschreibung da, und der
+		// Editor haette den Verlust nicht gesehen -- das Feld sieht leer genauso aus wie nie gefuellt.
+		const alt = el("social-alt");
+		if (alt) { alt.value = post ? (post.media_alt || "") : ""; }
 
 		// Lizenz und Quelle gehören zum Bild: ohne sie stünde ein wiederhergestellter Entwurf mit
 		// freier Lizenz plötzlich als „eigenes Werk" da -- eine Rechteangabe, die niemand gemacht hat.
@@ -940,6 +945,9 @@
 			media_url: media ? media.url : "",
 			media_license: (document.querySelector("input[name=social-license]:checked") || {}).value || "",
 			media_source: (el("social-source") || { value: "" }).value,
+			// Die Bildbeschreibung reist IMMER mit, auch ohne Bild -- der Server haengt sie an den
+			// Beitrag, und wer erst beschreibt und dann das Bild waehlt, verlaere sie sonst.
+			media_alt: (el("social-alt") || { value: "" }).value,
 		};
 
 		// 🔴 Ein bearbeiteter Entwurf wird GEÄNDERT, nicht durch einen neuen ersetzt. Bis 11.08.2026

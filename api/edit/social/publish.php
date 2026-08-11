@@ -127,6 +127,7 @@ try {
             'media_kind' => $mediaUrl === '' ? '' : 'image',
             'media_license' => (string) ($request['media_license'] ?? ''),
             'media_source' => (string) ($request['media_source'] ?? ''),
+            'media_alt' => (string) ($request['media_alt'] ?? ''),
         ], $selected);
         if (!$ok) {
             // Kein 404: die id gibt es meist sehr wohl -- sie ist nur kein Entwurf mehr. Der Satz sagt
@@ -150,6 +151,10 @@ try {
         'media_kind' => $mediaUrl === '' ? '' : 'image',
         'media_license' => (string) ($request['media_license'] ?? ''),
         'media_source' => (string) ($request['media_source'] ?? ''),
+        // Die Bildbeschreibung geht an die Netze, die sie kennen (Mastodon heute, Instagram spaeter).
+        // Leer ist erlaubt: dann wird KEINE gesendet, statt eine erfundene -- ein Screenreader, dem
+        // man den Beitragstext als Bildbeschreibung vorliest, hoert denselben Satz zweimal.
+        'media_alt' => (string) ($request['media_alt'] ?? ''),
         'origin' => 'editor',
         'state' => $isDraft ? 'proposal' : 'released',
         'author_user_id' => (int) ($user['id'] ?? 0),

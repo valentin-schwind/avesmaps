@@ -39,6 +39,7 @@ function avesmapsSocialEnsureTables(PDO $pdo): void
             media_kind VARCHAR(16) NOT NULL DEFAULT '',
             media_license VARCHAR(32) NOT NULL DEFAULT '',
             media_source VARCHAR(300) NOT NULL DEFAULT '',
+            media_alt VARCHAR(500) NOT NULL DEFAULT '',
             origin VARCHAR(16) NOT NULL DEFAULT 'editor',
             state VARCHAR(16) NOT NULL DEFAULT 'released',
             author_user_id INT UNSIGNED NULL DEFAULT NULL,
@@ -91,6 +92,19 @@ function avesmapsSocialEnsureTables(PDO $pdo): void
     if ($existingColumns !== [] && !isset($existingColumns['title'])) {
         $pdo->exec("ALTER TABLE social_post ADD COLUMN title VARCHAR(190) NOT NULL DEFAULT '' AFTER id");
     }
+    // ⚠️ EIGENE Bedingung je Spalte, nicht eine gemeinsame. Ein Bestand, der `title` bereits hat,
+    // haette bei einem gemeinsamen Wenn auch `media_alt` uebersprungen -- und die fehlende Spalte
+    // faellt erst beim ersten Schreibvorgang auf, mit einem SQL-Fehler statt einer Nachruestung.
+    //
+    // `media_alt` kam am 11.08.2026 mit dem Mastodon-Adapter dazu: die Bildbeschreibung, die
+    // Screenreader vorlesen. Sie gehoert zum BILD, nicht zum Text -- deshalb eine eigene Spalte und
+    // nicht ein zweiter Zweck fuer `media_source` (das ist die Rechteangabe).
+    if ($existingColumns !== [] && !isset($existingColumns['media_alt'])) {
+        $pdo->exec(
+            "ALTER TABLE social_post ADD COLUMN media_alt VARCHAR(500) NOT NULL DEFAULT ''
+             AFTER media_source"
+        );
+    }
 
     // TEXT, not VARCHAR(255): an Instagram long-lived token is already ~200 characters and Meta has
     // lengthened them before. A token truncated by the column is a token that fails at send time with
@@ -133,9 +147,10 @@ function avesmapsSocialCreatePost(PDO $pdo, array $post, array $channelKeys): in
     try {
         $insert = $pdo->prepare(
             'INSERT INTO social_post
-                (title, body, hashtags, media_url, media_kind, media_license, media_source,
+                (title, body, hashtags, media_url, media_kind, media_license, media_source, media_alt,
                  origin, state, author_user_id, author_name, source_ref, scheduled_for)
              VALUES (:title, :body, :hashtags, :media_url, :media_kind, :media_license, :media_source,
+                     :media_alt,
                      :origin, :state, :author_user_id, :author_name, :source_ref, :scheduled_for)'
         );
         $authorId = (int) ($post['author_user_id'] ?? 0);
@@ -150,6 +165,10 @@ function avesmapsSocialCreatePost(PDO $pdo, array $post, array $channelKeys): in
             'media_kind' => (string) ($post['media_kind'] ?? ''),
             'media_license' => (string) ($post['media_license'] ?? ''),
             'media_source' => (string) ($post['media_source'] ?? ''),
+            // Am Rand beschnitten wie die Titelzeile: die Spalte ist VARCHAR(500), Mastodon nimmt
+            // 1500. Wer mehr tippt, verliert das Ende -- eine Bildbeschreibung ist kein Fliesstext,
+            // und eine Absage mitten im Absenden waere hier der schlechtere Tausch.
+            'media_alt' => mb_substr(trim((string) ($post['media_alt'] ?? '')), 0, 500),
             'origin' => (string) ($post['origin'] ?? 'editor'),
             'state' => $state,
             // The routine has no user; 0 would claim user number zero exists.
@@ -266,7 +285,8 @@ function avesmapsSocialUpdateProposal(PDO $pdo, int $id, array $post, array $cha
         $update = $pdo->prepare(
             "UPDATE social_post
                 SET title = :title, body = :body, hashtags = :hashtags, media_url = :media_url,
-                    media_kind = :media_kind, media_license = :media_license, media_source = :media_source
+                    media_kind = :media_kind, media_license = :media_license,
+                    media_source = :media_source, media_alt = :media_alt
               WHERE id = :id AND state = 'proposal'"
         );
         $update->execute([
@@ -277,6 +297,7 @@ function avesmapsSocialUpdateProposal(PDO $pdo, int $id, array $post, array $cha
             'media_kind' => (string) ($post['media_kind'] ?? ''),
             'media_license' => (string) ($post['media_license'] ?? ''),
             'media_source' => (string) ($post['media_source'] ?? ''),
+            'media_alt' => mb_substr(trim((string) ($post['media_alt'] ?? '')), 0, 500),
             'id' => $id,
         ]);
         if ($update->rowCount() === 0) {

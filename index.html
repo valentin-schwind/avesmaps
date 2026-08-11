@@ -2001,6 +2001,14 @@
 						</div>
 						<div id="social-media-info" class="social-hub__media"></div>
 
+						<!-- Die Bildbeschreibung gehoert zum BILD, nicht zum Text: Screenreader lesen sie
+						     statt des Bildes vor, und Mastodon markiert ein Bild ohne sie sichtbar als
+						     unbeschrieben. Leer ist erlaubt und sendet dann KEINE -- den Beitragstext als
+						     Beschreibung durchzureichen hiesse, denselben Satz zweimal vorzulesen. -->
+						<label class="social-hub__label" for="social-alt">Bildbeschreibung <span class="social-hub__label-note">nur wenn ein Bild dranhängt</span></label>
+						<input id="social-alt" type="text" maxlength="500" autocomplete="off" placeholder="Was ist auf dem Bild zu sehen?">
+						<p class="social-hub__hint">Wird auf <strong>Mastodon</strong> als Bildbeschreibung mitgeschickt und Screenreadern vorgelesen. Beschreibe das Bild, nicht den Beitrag — „Kartenausschnitt des Bornlands mit den neuen Reichsstraßen" statt „Neue Wege".</p>
+
 						<label class="social-hub__label">Herkunft und Rechte</label>
 						<label class="social-hub__radio"><input type="radio" name="social-license" value="own_work" checked><span><strong>Eigenes Werk / Avesmaps-Karte</strong><small>selbst erstellt oder aus der Karte aufgenommen</small></span></label>
 						<label class="social-hub__radio"><input type="radio" name="social-license" value="free_license"><span><strong>Freie Lizenz</strong><small>gemeinfrei oder CC — Quelle angeben</small></span></label>
