@@ -854,7 +854,7 @@
 	background: var(--color-panel);
 	color: var(--color-text);
 	cursor: pointer;
-	font-size: var(--font-size-control);
+	font-size: var(--font-size-dropdown);
 	text-align: left;
 	box-shadow: 0 2px 5px rgba(52, 41, 32, 0.08);
 }
@@ -891,7 +891,7 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	font-size: var(--font-size-control);
+	font-size: var(--font-size-dropdown);
 }
 
 .transport-combobox__menu {
@@ -926,7 +926,7 @@
 
 .transport-combobox__option span {
 	overflow: visible;
-	font-size: var(--font-size-control);
+	font-size: var(--font-size-dropdown);
 }
 
 .transport-combobox__option:hover,
@@ -1501,4 +1501,32 @@
 	input.waypoint-input {
 		font-size: var(--font-size-control);
 	}
+}
+
+/* Die nativen Auswahlfelder sind DROPDOWNS und tragen deren Groesse -- die Zahlenfelder daneben
+   bleiben auf --font-size-control, weil sie die iOS-Schwelle brauchen (Tippen, nicht Waehlen).
+   💣 Deshalb steht das hier unten und nicht in der gemeinsamen Regel: dort haengen beide Sorten
+   zusammen, und genau die Trennung ist der Punkt. */
+.route-planner-options-panel select {
+	font-size: var(--font-size-dropdown);
+}
+
+/* ── Ueberlaeufe enden mit „…", statt aus dem Panel zu brechen ────────────────────────────────
+   Owner 11.08.2026: "dann ueberlaeufe mit … fixen".
+
+   💣 Das Kuerzen allein reicht NICHT. Gemessen auf 360px Schirm ragte die Reisebeginn-Zeile 45px
+   ueber den Panelrand: das Auswahlfeld darf zwar schrumpfen (min-width: 0), aber die Zeile und das
+   <label> darum tragen als Flex-Elemente `min-width: auto` -- und damit koennen sie nicht unter
+   ihre Inhaltsbreite. Sie schieben hinaus, statt das Feld zu kuerzen. Erst `min-width: 0` an der
+   Kette macht aus dem Ueberlauf ein Kuerzen. */
+.route-planner-options-panel__row,
+.route-planner-options-panel__row > label {
+	min-width: 0;
+}
+
+.route-planner-options-panel select,
+.transport-combobox__label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }

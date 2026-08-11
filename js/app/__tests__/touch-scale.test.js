@@ -335,24 +335,38 @@ assert.ok(Number(planerZ[1]) < 1080,
 assert.ok(/#map-corner-actions\s*\{[^}]*z-index:\s*var\(--z-map-ui\)/.test(legalCssZ),
 	"der Knopfbund bleibt auf --z-map-ui -- er ist die Kartenbedienung, nicht das Panel");
 
-// ---- Alle Dropdowns des Planers tragen EINE Schriftgroesse ---------------------------------------
+// ---- Alle Dropdowns tragen EINE Groesse -- und die ist NICHT die iOS-Schwelle -------------------
 //
-// Owner 11.08.2026: "die unterschiedlichen schriftgroessen der dropdowns". Gemessen am Telefon:
-// nachgebaute Comboboxen 12px, native Auswahlfelder 16px -- die iOS-Schwelle hob nur die FELDER an
-// (ein <button> loest kein iOS-Zoom aus und war deshalb bewusst aussen vor), womit im selben Panel
-// zwei Sorten Dropdown verschieden gross beschriftet waren.
-//
-// ⚠️ Der sichtbare Text steckt in `.transport-combobox__label`, nicht am Knopf -- eine Zusicherung
-// auf `.transport-combobox` allein liefe an der Beschriftung vorbei.
+// Owner 11.08.2026: erst "die unterschiedlichen schriftgroessen der dropdowns", dann "alle auf 14px".
+// 💣 Deshalb ein EIGENER Token. --font-size-control traegt die iOS-Schwelle (>=16px, sonst zoomt
+// Safari beim Fokus in ein Eingabefeld). Haette man den auf 14 gesetzt, waeren Wegpunktfeld und
+// Zahlenfelder mit unter die Schwelle gerutscht -- also genau das zurueckgeholt, was zwei Commits
+// vorher behoben wurde.
+const dropdownGroesse = tokens.match(/--font-size-dropdown:\s*([0-9.]+)px/);
+assert.ok(dropdownGroesse, "tokens.css definiert --font-size-dropdown");
+assert.ok(dropdownGroesse[1] !== controlFont[1],
+	"und zwar getrennt von der iOS-Schwelle -- ein gemeinsamer Token zoege die Eingabefelder mit");
 [".transport-combobox", ".transport-combobox__label", ".transport-combobox__option span"]
 	.forEach((selector) => {
 		const rule = planner.match(new RegExp("^" + escapeRe(selector) + "\\s*\\{([^}]*)\\}", "m"));
 		assert.ok(rule, `Regel fuer ${selector} gefunden`);
-		const groesse = rule[1].match(/font-size:\s*([^;]+);/);
-		assert.ok(groesse && /var\(--font-size-control\)/.test(groesse[1]),
-			`${selector} liest --font-size-control statt "${groesse ? groesse[1].trim() : "nichts"}"`
-			+ " -- sonst stehen im Planer zwei Sorten Dropdown mit verschieden grosser Schrift");
+		assert.ok(/font-size:\s*var\(--font-size-dropdown\)/.test(rule[1]),
+			`${selector} liest --font-size-dropdown -- der sichtbare Text der Combobox steckt im __label,`
+			+ " eine Zusicherung nur auf dem Knopf liefe daran vorbei");
 	});
+assert.ok(/\.route-planner-options-panel select \{[^}]*font-size:\s*var\(--font-size-dropdown\)/.test(planner),
+	"die nativen Auswahlfelder ebenfalls -- sie sind Dropdowns, keine Tippfelder");
+
+// ---- Ueberlaeufe kuerzen mit „…", statt aus dem Panel zu brechen ---------------------------------
+//
+// 💣 Das Kuerzen allein reicht nicht: gemessen ragte die Reisebeginn-Zeile auf 360px Schirm 45px
+// hinaus, weil Zeile und <label> als Flex-Elemente `min-width: auto` tragen und damit nicht unter
+// ihre Inhaltsbreite koennen. Erst min-width: 0 an der Kette macht aus dem Ueberlauf ein Kuerzen.
+assert.ok(/\.route-planner-options-panel__row,[\s\S]{0,80}label \{[^}]*min-width:\s*0/.test(planner),
+	"Zeile UND label duerfen schrumpfen -- sonst schieben sie hinaus, statt zu kuerzen");
+const kuerzt = planner.match(/\.route-planner-options-panel select,[\s\S]{0,60}\{([^}]*)\}/);
+assert.ok(kuerzt && /text-overflow:\s*ellipsis/.test(kuerzt[1]) && /overflow:\s*hidden/.test(kuerzt[1]),
+	"und der Ueberhang endet mit … (ellipsis braucht overflow: hidden)");
 
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);

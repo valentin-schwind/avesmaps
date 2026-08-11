@@ -27,6 +27,16 @@
 	   waechst dort nach innen. Beschriftungszeilen mitzuheben machte das Panel hoeher -- und dessen
 	   Hoehenbudget ist eine eigene, groessere Frage. */
 	--font-size-control: var(--font-size-small);
+	/* Schriftgroesse der DROPDOWNS -- eigener Wert, nicht --font-size-control (Owner 11.08.2026:
+	   "alle auf 14px").
+	   💣 Getrennt, weil --font-size-control die iOS-SCHWELLE traegt: unter 16px zoomt Safari beim
+	   Fokus in ein Eingabefeld und kehrt nicht zurueck. Ein gemeinsamer Token auf 14 haette das
+	   Wegpunktfeld und die Zahlenfelder mit unter die Schwelle gezogen -- also genau das
+	   zurueckgeholt, was zwei Commits vorher behoben wurde.
+	   ⚠️ Fuer die nachgebauten Comboboxen ist 14 unbedenklich (<button>, kein Fokus-Zoom). Fuer
+	   die zwei nativen <select> ist es NICHT geprueft -- ob iOS auch dort zoomt, sagt nur ein
+	   echtes Geraet. */
+	--font-size-dropdown: 14px;
 	--leading-tight: 1.15;      /* titles / display */
 	--leading-snug: 1.25;       /* controls / labels */
 	--leading-normal: 1.45;     /* reading body */
