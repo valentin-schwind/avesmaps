@@ -671,6 +671,49 @@ assert.strictEqual(rufeGesamt, rufeInSync,
 	+ " soll es nicht geben: sync() ist der eine Haken, durch den jedes Aufgehen laeuft. Eine zweite"
 	+ " Stelle ist der Anfang der Divergenz, gegen die er ueberhaupt gewaehlt wurde.");
 
+// ---- Die beiden Randlaschen: EIN Bauteil, EIN Satz Maße ------------------------------------------
+//
+// Owner 11.08.2026: „sowohl das routenplaner-tab als auch das infopanel-tab von oben nach unten
+// durchgehen (keine raender/spalten oben und unten mehr)" -- nur am Telefon.
+// 💣 Sie sind seit jeher gleich gebaut, standen aber mit denselben drei Zahlen in ZWEI Dateien. Am
+// Telefon haette die Hoehe an beiden Enden zugleich wandern muessen -- genau die Divergenz, vor der
+// AGENTS.md §12 warnt. Jetzt lesen beide dieselben Token, und der Telefonfall steht an EINER Stelle.
+const TAB_TOKEN = ["--avesmaps-tab-top", "--avesmaps-tab-h", "--avesmaps-tab-w"];
+TAB_TOKEN.forEach((name) => {
+	assert.ok(new RegExp(escapeRe(name) + ":\\s*[^;]+;").test(tokens),
+		`${name} steht in tokens.css`);
+});
+
+const infopanelCss = withoutComments(read("css", "features", "infopanel.css"));
+[["#toggle-button", layoutCss, "Routenplaner-Lasche"],
+ [".avesmaps-infopanel__handle", infopanelCss, "Info-Lasche"]].forEach(([selector, css, name]) => {
+	const regel = css.match(new RegExp(escapeRe(selector) + "\\s*\\{([^}]*)\\}"));
+	assert.ok(regel, `die Regel fuer die ${name} ist auffindbar`);
+	[["top", "--avesmaps-tab-top"], ["height", "--avesmaps-tab-h"], ["width", "--avesmaps-tab-w"]]
+		.forEach(([eigenschaft, token]) => {
+			assert.ok(new RegExp(eigenschaft + ":\\s*var\\(" + escapeRe(token) + "\\)").test(regel[1]),
+				`${name}: \`${eigenschaft}\` liest ${token} statt einer eigenen Zahl -- sonst wandert die`
+				+ " eine Lasche am Telefon und die andere bleibt stehen");
+		});
+	// 💣 Ohne das sitzt die Beschriftung auf voller Hoehe am oberen Rand: bei `writing-mode:
+	// vertical-rl` ist die Zeilenachse senkrecht, `text-align` richtet also nach oben/unten aus.
+	assert.ok(/text-align:\s*center/.test(regel[1]),
+		`${name}: die Beschriftung steht mittig -- auf 100dvh klebte sie sonst oben`);
+});
+
+// 💣 Der Telefonfall haengt an der KLASSE, nicht an einer Media-Query. „Telefon" ist in diesem Haus
+// EINE Definition: avesmapsIsPhoneViewport() misst `pointer: coarse` UND die KURZSEITE (<= 600px) und
+// setzt `html.avesmaps-phone`. Eine Breiten-Query traefe ein quer gehaltenes Telefon nicht und ein
+// Tablet zu viel.
+const telefonBlock = tokens.match(/html\.avesmaps-phone\s*\{([^}]*)\}/);
+assert.ok(telefonBlock, "tokens.css traegt den Telefon-Block fuer die Laschen");
+assert.ok(/--avesmaps-tab-top:\s*0/.test(telefonBlock[1]),
+	"am Telefon beginnt die Lasche an der Oberkante");
+assert.ok(/--avesmaps-tab-h:\s*100dvh/.test(telefonBlock[1]),
+	"...und laeuft bis zur Unterkante -- 100dvh, nicht 100vh: sonst regiert die Browserleiste hinein");
+assert.strictEqual((tokens.match(/html\.avesmaps-phone\s*\{/g) || []).length, 1,
+	"und es gibt genau EINEN solchen Block in tokens.css -- zwei waeren zwei Wahrheiten");
+
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
 assert.ok(viewport, "index.html traegt ein Viewport-Meta");

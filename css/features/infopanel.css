@@ -319,11 +319,16 @@
    sitzt buendig an der linken Panel-Kante. Wird per JS ausgeblendet, wenn das Panel leer ist. */
 .avesmaps-infopanel__handle {
 	position: fixed;
-	top: 30px;
+	/* Maße aus den Token (css/base/tokens.css) -- dieselben, die #toggle-button liest. Am Telefon
+	   laufen beide von Kante zu Kante, und das steht dort an EINER Stelle. */
+	top: var(--avesmaps-tab-top);
 	right: var(--avesmaps-ip-w);
 	z-index: 1081;
-	width: 30px;
-	height: 140px;
+	width: var(--avesmaps-tab-w);
+	height: var(--avesmaps-tab-h);
+	/* Auf voller Hoehe saesse die Beschriftung sonst oben: bei `writing-mode: vertical-rl` ist die
+	   Zeilenachse senkrecht, `text-align` richtet also nach oben/unten aus. */
+	text-align: center;
 	padding: 0;
 	border: none;
 	background-color: var(--color-button);

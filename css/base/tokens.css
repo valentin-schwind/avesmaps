@@ -474,6 +474,14 @@
 	--icon-2xl: 48px;   /* infobox type icon (coat fallback) */
 	--icon-hero: 130px; /* coat / logo hero */
 
+	/* Die beiden Randlaschen -- „Routenplaner" links (#toggle-button, css/layout/map-layout.css) und
+	   „Info" rechts (.avesmaps-infopanel__handle, css/features/infopanel.css). Sie sind seit jeher
+	   gleich gebaut, standen aber mit denselben drei Zahlen in ZWEI Dateien; das ist die Divergenz
+	   aus AGENTS.md §12, und am Telefon musste sie an beiden Enden zugleich wandern. */
+	--avesmaps-tab-w: 30px;
+	--avesmaps-tab-top: 30px;
+	--avesmaps-tab-h: 140px;
+
 	/* Elevation */
 	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
 	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.38);
@@ -517,6 +525,20 @@
 	:root {
 		--font-size-control: 16px;
 	}
+}
+
+/* Am Telefon laufen beide Randlaschen von Kante zu Kante -- kein Rand oben, keiner unten
+   (Owner 11.08.2026: „von oben nach unten durchgehen, keine raender/spalten oben und unten mehr").
+   💣 An `html.avesmaps-phone`, NICHT an einer Media-Query: „Telefon" ist in diesem Haus EINE
+   Definition -- avesmapsIsPhoneViewport() (pointer: coarse UND Kurzseite <= 600px) setzt die Klasse,
+   das CSS liest sie. Eine zweite Fassung als Breiten-Query traefe ein quer gehaltenes Telefon nicht
+   und ein Tablet zu viel.
+   ⚠️ Hier stehen nur die WERTE. Beide Laschen lesen sie in ihren eigenen Dateien -- eine Regel, die
+   von hier aus auf `#toggle-button` und `.avesmaps-infopanel__handle` zielte, waere ein dritter Ort,
+   an dem ihre Maße stehen. */
+html.avesmaps-phone {
+	--avesmaps-tab-top: 0px;
+	--avesmaps-tab-h: 100dvh;
 }
 
 /* Dark theme — opt-in (set data-theme="dark" on :root). Same warm family,

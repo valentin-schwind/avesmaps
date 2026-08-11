@@ -27,12 +27,18 @@ body {
 	box-sizing: border-box;
 	z-index: var(--z-map-panel);
 }
+/* Maße aus den Token (css/base/tokens.css): die Lasche „Info" an der rechten Kante ist dasselbe
+   Bauteil und liest dieselben. Am Telefon laeuft die Lasche von Kante zu Kante -- der Token
+   wechselt dort, nicht diese Regel. */
 #toggle-button {
 	position: fixed;
-	top: 30px;
+	top: var(--avesmaps-tab-top);
 	left: 350px;
-	width: 30px;
-	height: 140px;
+	width: var(--avesmaps-tab-w);
+	height: var(--avesmaps-tab-h);
+	/* Auf voller Hoehe wandert die Beschriftung sonst an den oberen Rand: bei `writing-mode:
+	   vertical-rl` ist die Zeilenachse senkrecht, `text-align` richtet also nach oben/unten aus. */
+	text-align: center;
 	border: none;
 	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 	background-color: var(--color-button);
