@@ -1980,6 +1980,9 @@
 
 						<label class="social-hub__label" for="social-hashtags">Hashtags</label>
 						<input id="social-hashtags" type="text" autocomplete="off" placeholder="#DSA #Aventurien">
+						<!-- Wie viele Tags welcher Kanal vertraegt. Gebaut aus dem Register (max_hashtags),
+						     nicht von Hand geschrieben -- sonst steht die Zahl an zwei Stellen. -->
+						<p id="social-hashtag-note" class="social-hub__hint"></p>
 						<!-- Ein Vorrat projektweiter Tags zum Anklicken. Ohne ihn tippt jeder etwas anderes
 						     und #dsa5 / #DSA5 / #dasschwarzeauge sind drei Toepfe, die niemand mehr findet. -->
 						<div id="social-vocabulary" class="social-chips social-hub__vocabulary"></div>
@@ -2004,7 +2007,6 @@
 					<div class="social-hub__side">
 						<label class="social-hub__label">Kanäle</label>
 						<div id="social-channels"></div>
-						<p id="social-channel-hint" class="social-hub__warn"></p>
 						<div id="social-connect" class="social-hub__connect" hidden>
 							<label class="social-hub__label" for="social-connect-token">Zugang einrichten<span class="social-hub__label-note" id="social-connect-channel"></span></label>
 							<!-- Der Server macht Tausch, Seiten-Token und Nachpruefung. Hier hinein gehoert nur der

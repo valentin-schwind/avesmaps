@@ -593,6 +593,12 @@
 			}
 			meta.textContent = parts.join(" · ");
 
+			// 💣 Der Grund gehört zu dem, was er sperrt. „Instagram braucht ein Bild" stand als eine
+			// Warnung UNTER der ganzen Liste -- also neben vier Kanälen, für die sie nicht gilt, und
+			// weit weg von dem ausgegrauten Kästchen, das sie erklärt. Jetzt steht sie in der Zeile
+			// des Kanals, und zwar nur dann, wenn sie zutrifft.
+			const blocked = channel.requires_media && !media && channel.configured;
+
 			const stack = document.createElement("span");
 			stack.append(name, meta);
 
@@ -608,6 +614,14 @@
 				line.textContent = expiry;
 				stack.appendChild(line);
 			}
+
+			if (blocked) {
+				const why = document.createElement("small");
+				why.className = "social-hub__channel-expiry";
+				why.textContent = "braucht ein Bild — ohne Anhang gesperrt";
+				stack.appendChild(why);
+			}
+
 			label.append(box, stack);
 			row.appendChild(label);
 
@@ -630,13 +644,22 @@
 			host.appendChild(row);
 		});
 
-		const hint = el("social-channel-hint");
-		if (hint) {
-			hint.textContent = media
-				? ""
-				: "Instagram braucht ein Bild — ohne Anhang bleibt der Kanal gesperrt.";
-		}
+		renderHashtagNote();
 		updateCount();
+	}
+
+	// Wie viele Hashtags welcher Kanal verträgt -- aus dem Register, nicht von Hand geschrieben.
+	// 💣 `null` heißt ALLE und `0` heißt KEINE; beides als Zahl anzuzeigen („null", „0") wäre an der
+	// einen Stelle unverständlich und an der anderen falsch gelesen (0 sieht aus wie „unbegrenzt").
+	function renderHashtagNote() {
+		const note = el("social-hashtag-note");
+		if (!note) { return; }
+		const parts = channels.map(function (channel) {
+			const max = channel.max_hashtags;
+			const wieviel = (max === null || max === undefined) ? "alle" : (max === 0 ? "keine" : max);
+			return channel.label + " " + wieviel;
+		});
+		note.textContent = parts.length ? "Je Kanal: " + parts.join(" · ") : "";
 	}
 
 	// ---- einen Zugang einrichten ---------------------------------------------------------------------
