@@ -32,6 +32,19 @@ body {
    an der gegenueberliegenden Kante (Owner 11.08.2026: „ich meinte dass das Panel selbst von oben
    nach unten gehen soll"). Bis dahin las nur das Infopanel sie; hier standen `top` und
    `max-height` als eigene Zahlen, und der Planer blieb deshalb mitten im Bild stehen.
+
+   🔴 DAS GEHT GEGEN DIE WARNUNG WEITER UNTEN, UND ZWAR MIT ABSICHT. Der Deckel-Kommentar im
+   640px-Block haelt fest, dass `top: 0; height: 100dvh` am 10.08.2026 eine Kettenreaktion
+   ausloeste (Kartenecke unter dem Panel, Lasche entkoppelt, Stapelzahl veraltet). Der Owner hat
+   das am 12.08.2026 erneut entschieden, nachdem ihm die Warnung vorgelegen hat. Zwei Unterschiede
+   zum damaligen Versuch: es ist `top`+`bottom` statt einer festen `height`, und es haengt an
+   `html.avesmaps-phone` statt an einer Breiten-Query. Wer hier wieder anfasst, misst zuerst die
+   drei Symptome nach -- sie sind der Grund, warum die Warnung steht.
+
+   💣 Diese Datei war schon einmal unter ihrem eigenen Stempel vergiftet: der Deploy vom
+   11.08.2026 21:11 scheiterte an einem roten Test, der naechste Lauf trug ihren NEUEN Hash ins
+   HTML ohne sie selbst -- `?v=7b509a85e1` lieferte stundenlang die alte Fassung. Heilung ist nur
+   eine Inhaltsaenderung (siehe css/base/tokens.css, wo derselbe Fall ausfuehrlich steht).
    ⚠️ NUR am Telefon. Am Zeiger bleibt das Panel so hoch wie sein Inhalt (das `max-height: 95vh`
    oben) -- waeren `top` UND `bottom` immer gesetzt, stuende auch eine leere Route ueber die
    volle Bildschirmhoehe. */
