@@ -19,6 +19,7 @@ require_once __DIR__ . '/store.php';
 require_once __DIR__ . '/adapters/probe.php';
 require_once __DIR__ . '/adapters/changelog.php';
 require_once __DIR__ . '/adapters/facebook.php';
+require_once __DIR__ . '/adapters/instagram.php';
 
 /**
  * May this post go to this channel? Returns the refusal as GERMAN text -- it lands in the editor's
@@ -67,6 +68,8 @@ function avesmapsSocialAdapterFor(string $key): ?callable
         // Der einzige Kanal, der auf avesmaps SELBST veröffentlicht (Fenster „Neuigkeiten").
         'changelog' => 'avesmapsSocialAdapterChangelog',
         'facebook' => 'avesmapsSocialAdapterFacebook',
+        // Läuft über DIESELBE Seite und denselben Seiten-Token wie Facebook (Entwurf §12.4).
+        'instagram' => 'avesmapsSocialAdapterInstagram',
         default => null,
     };
 }
