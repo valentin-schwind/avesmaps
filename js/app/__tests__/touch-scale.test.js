@@ -235,6 +235,45 @@ assert.ok(/visualViewport/.test(spotlightJs),
 	"das Feld haengt an der SICHThoehe: iOS schrumpft den Layout-Viewport bei offener Tastatur"
 	+ " nicht, ein unten verankertes Feld verschwaende sonst dahinter");
 
+// ---- Am Telefon schwebt nichts mehr ueber der Karte -----------------------------------------------
+//
+// Owner 11.08.2026: "alle floating infoboxen im mobilformat nicht mehr zeigen".
+const runtimeState = withoutComments(read("js", "app", "runtime-state.js"));
+const popupCss = withoutComments(read("css", "features", "location-popups-markers.css"));
+
+// EINE Definition von "Telefon": die Klasse kommt aus avesmapsIsPhoneViewport(), das CSS liest sie.
+assert.ok(/classList\.toggle\("avesmaps-phone",\s*avesmapsIsPhoneViewport\(\)\)/.test(runtimeState),
+	"die Klasse `avesmaps-phone` kommt aus avesmapsIsPhoneViewport() -- eine zweite Fassung als"
+	+ " Media-Query waere schon nicht dasselbe: die Heuristik misst die KURZSEITE, also auch die"
+	+ " Hoehe, und traefe ein quer gehaltenes Telefon nicht");
+["resize", "orientationchange"].forEach((ereignis) => {
+	assert.ok(new RegExp(`addEventListener\\("${ereignis}"`).test(runtimeState),
+		`und wird bei "${ereignis}" nachgezogen -- ein gedrehtes Telefon bleibt eins`);
+});
+
+// 💣 VERSTECKT, nicht am Oeffnen gehindert. Die Panel-Fuellung haengt bei Siedlungen am `popupopen`
+// des Markers: wer das Oeffnen abschneidet, bekommt kein Popup UND kein Panel.
+assert.ok(/html\.avesmaps-phone \.leaflet-popup\s*\{[^}]*display:\s*none/.test(popupCss),
+	"alle schwebenden Boxen sind am Telefon versteckt -- EINE Regel auf Leaflets gemeinsamer Huelle,"
+	+ " nicht zwanzig geriegelte Aufrufstellen");
+const markerEntryJs = withoutComments(read("js", "map-features", "map-features-location-marker-entry.js"));
+assert.ok(/on\("popupopen"/.test(markerEntryJs) && /avesmapsShowLocationInInfopanel/.test(markerEntryJs),
+	"...und genau deshalb: das Panel einer Siedlung wird im popupopen gefuellt");
+["js/app/bootstrap.js", "js/map-features/map-features-location-marker-entry.js"].forEach((rel) => {
+	const src = withoutComments(read(...rel.split("/")));
+	assert.ok(!/map\.openPopup\s*=/.test(src),
+		`${rel} haengt sich NICHT in map.openPopup -- das Oeffnen zu schlucken naehme dem Panel`
+		+ " seinen Ausloeser (so gebaut am 10.08., am selben Tag zurueckgerollt)");
+});
+
+// 🔴 Die eine Flaeche, deren EINZIGE Ausgabe die Box war, wird umgeleitet statt versteckt.
+const lookupJs = withoutComments(read("js", "map-features", "map-features-location-lookup.js"));
+const box = lookupJs.match(/function openFloatingLocationBoxForMarkerEntry\([\s\S]*?\n\}/);
+assert.ok(box, "die schwebende Box von \"naechster Ort\" ist auffindbar");
+assert.ok(/avesmapsIsPhoneViewport\(\)/.test(box[0]) && /avesmapsShowLocationInInfopanel/.test(box[0]),
+	"sie fuellt am Telefon das PANEL, statt eine versteckte Box zu oeffnen -- sonst taete ein Klick"
+	+ " auf die Karte dort sichtbar nichts");
+
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
 assert.ok(viewport, "index.html traegt ein Viewport-Meta");

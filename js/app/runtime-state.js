@@ -250,3 +250,20 @@ function avesmapsIsPhoneViewport() {
 		return false;
 	}
 }
+
+// Die EINE Definition von "Telefon" fuer CSS. `avesmapsIsPhoneViewport()` oben ist die Wahrheit;
+// diese Klasse traegt sie ins Stylesheet, damit dort nicht eine zweite Fassung als Media-Query
+// entsteht ("(pointer: coarse) and (max-width: 600px)" waere schon nicht dasselbe -- die Heuristik
+// misst die KURZSEITE, also auch die Hoehe, und traefe ein quer gehaltenes Telefon nicht).
+// ⚠️ Wird bei Groessenaenderung und Drehung nachgezogen: ein gedrehtes Telefon bleibt ein Telefon,
+// ein auf Telefonbreite gezogenes Desktopfenster wird keins (der Zeiger bleibt fein).
+function avesmapsSyncPhoneViewportClass() {
+	try {
+		document.documentElement.classList.toggle("avesmaps-phone", avesmapsIsPhoneViewport());
+	} catch (error) {
+		/* noop -- die Klasse ist eine Zutat, kein Fundament */
+	}
+}
+avesmapsSyncPhoneViewportClass();
+window.addEventListener("resize", avesmapsSyncPhoneViewportClass);
+window.addEventListener("orientationchange", avesmapsSyncPhoneViewportClass);

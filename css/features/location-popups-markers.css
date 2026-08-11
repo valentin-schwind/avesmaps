@@ -968,3 +968,24 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 .location-popup__editor-warning strong {
 	color: var(--color-danger);
 }
+
+/* ── Am Telefon schwebt nichts mehr ueber der Karte ───────────────────────────────────────────
+   Owner 11.08.2026: "alle floating infoboxen im mobilformat nicht mehr zeigen. das betrifft orte
+   direkt antippen, die spotlightsuche oder sonst irgendwas."
+
+   💣 VERSTECKT, nicht am Oeffnen gehindert -- und das ist der ganze Kniff. Die Fuellung des
+   Infopanels haengt bei Siedlungen am `popupopen` des Markers
+   (map-features-location-marker-entry.js): wer das Oeffnen abschneidet, bekommt kein Popup UND
+   kein Panel. Genau dieser Fehler wurde am 10.08. gebaut und am selben Tag zurueckgerollt -- damals
+   von der anderen Seite, indem nur der INHALT der Box getauscht wurde und sie trotzdem aufging.
+   So laeuft der ganze Lebenszyklus weiter (popupopen, Bewertungen nachladen, Schliessen), nur
+   sichtbar ist er nicht.
+
+   ⚠️ EINE Regel fuer ALLE Boxen: `.leaflet-popup` ist Leaflets gemeinsame Huelle -- Siedlungen,
+   Wege, Kraftlinien, Regionen, "naechster Ort", Teilen-Nadel. Die zwanzig Aufrufstellen einzeln zu
+   riegeln waere genau die Streuung, an der der erste Anlauf gescheitert ist.
+   ⚠️ Die Klasse kommt aus avesmapsIsPhoneViewport() (js/app/runtime-state.js), damit es nicht eine
+   zweite Fassung von "Telefon" als Media-Query gibt. */
+html.avesmaps-phone .leaflet-popup {
+	display: none;
+}

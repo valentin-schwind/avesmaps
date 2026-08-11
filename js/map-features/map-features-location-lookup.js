@@ -324,6 +324,15 @@ function openFloatingLocationBoxForMarkerEntry(markerEntry) {
 	if (!markerEntry || typeof map === "undefined" || !map || typeof buildLocationMarkerPopupHtml !== "function") {
 		return false;
 	}
+	// 🔴 Am Telefon ist diese Box die EINZIGE Ausgabe dieses Weges -- anders als bei einer Siedlung,
+	// deren Panel am `popupopen` haengt und deshalb auch dann gefuellt wird, wenn die Box nur
+	// versteckt ist (css/features/location-popups-markers.css). Wuerde sie hier bloss versteckt,
+	// taete ein Klick auf die Karte sichtbar NICHTS. Also: statt der Box das Panel.
+	if (typeof avesmapsIsPhoneViewport === "function" && avesmapsIsPhoneViewport()
+		&& typeof window.avesmapsShowLocationInInfopanel === "function") {
+		window.avesmapsShowLocationInInfopanel(markerEntry);
+		return true;
+	}
 	let latlng = null;
 	if (markerEntry.marker && typeof markerEntry.marker.getLatLng === "function") {
 		latlng = markerEntry.marker.getLatLng();
