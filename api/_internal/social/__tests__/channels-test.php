@@ -208,7 +208,7 @@ $byKonsole = [];
 foreach ($mitKonto as $row) {
     $byKonsole[$row['key']] = $row;
 }
-assert($byKonsole['facebook']['admin_url'] === 'https://developers.facebook.com/apps/1037557352198584/',
+assert($byKonsole['facebook']['admin_url'] === 'https://developers.facebook.com/tools/explorer/1037557352198584/',
     'die App-Kennung wird eingesetzt');
 // ⚠️ Instagram zeigt auf DIESELBE Meta-App -- die Kennung steht nur unter `facebook`. Deshalb nennt
 // die Vorlage den Kanal ausdruecklich, statt „der eigene Block" zu meinen.
@@ -220,7 +220,7 @@ assert($byKonsole['mastodon']['admin_url'] === 'https://rollenspiel.social/setti
 assert($byKonsole['probe']['admin_url'] === '', 'die Probe hat keine Konsole');
 
 // 💣 Fehlt ein Baustein, kommt LEER zurueck -- nie eine halb gefuellte Adresse. Ein Link auf
-// `.../apps/{facebook.app_id}/` sieht aus wie einer, fuehrt ins Leere, und wer ihn anklickt, sucht den
+// `.../explorer/{facebook.app_id}/` sieht aus wie einer, fuehrt ins Leere, und wer ihn anklickt, sucht den
 // Fehler bei Meta statt in der eigenen Konfiguration.
 $ohne = avesmapsSocialChannelList([], [], []);
 foreach ($ohne as $row) {

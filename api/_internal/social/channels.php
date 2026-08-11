@@ -81,7 +81,7 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     // Instagram-Rechte gar nicht trägt. Genau so lag es am 10.08.2026 in der Tabelle.
     'instagram' => [
         'label' => 'Instagram',
-        'admin_url' => 'https://developers.facebook.com/apps/{facebook.app_id}/',
+        'admin_url' => 'https://developers.facebook.com/tools/explorer/{facebook.app_id}/',
         'icon' => '📷',
         'account' => '@avesmaps',
         'connect' => 'facebook_page',
@@ -104,7 +104,7 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     // Zugang als einer, der erst beim ersten öffentlichen Beitrag auffliegt.
     'facebook' => [
         'label' => 'Facebook',
-        'admin_url' => 'https://developers.facebook.com/apps/{facebook.app_id}/',
+        'admin_url' => 'https://developers.facebook.com/tools/explorer/{facebook.app_id}/',
         'icon' => '📘',
         'account' => 'Seite Avesmaps',
         'connect' => 'facebook_page',
@@ -196,12 +196,16 @@ function avesmapsSocialChannelIsConfigured(string $key, array $socialConfig, arr
 }
 
 /**
- * Die Adresse der Konsole, in der man den Zugang dieses Kanals verwaltet -- oder '' wenn es keine
+ * Die Adresse der Stelle, an der man den TOKEN dieses Kanals herbekommt -- oder '' wenn es keine
  * gibt oder ein Baustein fehlt.
  *
  * Die Vorlage steht als `admin_url` im Register und trägt Platzhalter der Form `{kanal.schluessel}`,
  * die aus der Konfiguration gefüllt werden. Beides zusammen, weil die Adresse aus BEIDEM entsteht:
  * die Form gehört zum Netz (die kennt das Register), der Wert zum Konto (den kennt nur der Server).
+ *
+ * ⚠️ Bei Meta ist das der **Graph API Explorer**, NICHT das App-Dashboard. Im Dashboard stehen
+ * Einstellungen und das App-Geheimnis; der Knopf „Generate Access Token" steht nur im Explorer.
+ * Der erste Anlauf zeigte aufs Dashboard, und der Owner suchte dort vergeblich (11.08.2026).
  *
  * 💣 Bleibt ein Platzhalter offen, kommt '' zurück -- NIE eine halb gefüllte Adresse. Ein Link auf
  * `.../apps/{facebook.app_id}/` sieht aus wie ein Link, führt aber ins Leere, und wer ihn anklickt,
