@@ -2348,8 +2348,9 @@
 			<!-- Die Suchkachel. Sie ist der einzige sichtbare Weg in die Suche am Telefon -- sonst
 			     haengt sie am Tastenkuerzel (F / Leertaste) und am Langdruck-Kontextmenue, und ein
 			     Telefon hat weder Tastatur noch eine sichtbare Geste.
-			     💣 Sie steht IM Bund, nicht darueber, und traegt Farbe, Kontur und Radius der beiden
-			     Nachbarn -- dieselbe Regel, nicht abgeschriebene Werte (Owner 11.08.2026). Ein
+			     💣 Sie liegt UEBER den beiden Verweisen (Owner 11.08.2026: "sie kann auch ueber den
+			     anderen beiden liegen", "groesser war super"), traegt aber deren Farbe, Kontur und
+			     Radius -- dieselbe Regel, nicht abgeschriebene Werte. Ein
 			     gefuellter Knopf trug seine Rangfolge im Dunkelmodus ohnehin nicht: dort liegen
 			     --color-button (#6b6456) und --color-panel (#312e26) beide im selben Braun.
 			     Sichtbar nur am groben Zeiger; am Zeiger oeffnet F / Leertaste die Suche. -->
@@ -2358,16 +2359,23 @@
 					<circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M15.5 15.5 21 21"></path>
 				</svg>
 			</button>
-			<button type="button" id="news-button" aria-haspopup="dialog" aria-controls="changelog-dialog" data-i18n="legal.news">Neuigkeiten</button>
-			<!-- 💣 EIN LINK, KEIN KNOPF -- und das ist der ganze Punkt (Owner 06.08.2026, Befund A24).
-			     Das Fenster „Hinweise" oeffnet nur JavaScript. Ohne JavaScript waren damit Impressum UND
-			     Datenschutzerklaerung unerreichbar, also genau die beiden Angaben, die § 5 DDG und
-			     Art. 13 DSGVO „unmittelbar erreichbar" verlangen. Als <a> traegt derselbe Knopf ein Ziel:
-			     mit JavaScript oeffnet er das Fenster (bootstrap.js ruft preventDefault), ohne
-			     JavaScript fuehrt er auf html/impressum.html, das beide Abschnitte wortgleich traegt.
-			     🔴 Fiele das preventDefault weg, oeffnete ein Klick das Fenster UND verliesse die Karte
-			     -- mitsamt der gerade geplanten Route. Der Test haelt es fest. -->
-			<a id="legal-button" href="/html/impressum.html" aria-haspopup="dialog" aria-controls="legal-dialog" aria-expanded="false" data-i18n="legal.button">Hinweise</a>
+			<!-- Die beiden Verweise bleiben nebeneinander; die Kachel liegt DARUEBER.
+			     💣 Diese Zeile ist der Grund, warum die Kachel ohne eine einzige Zahl ueber ihnen
+			     sitzt: der Bund ist eine Spalte, die Verweise sind ihre zweite Reihe. Ein
+			     `bottom`-Abstand haette --avesmaps-corner-stack lesen muessen, und genau die Zahl
+			     lag am 10.08.2026 um 8px daneben, als die Knoepfe wuchsen. -->
+			<div class="map-corner-actions__row">
+				<button type="button" id="news-button" aria-haspopup="dialog" aria-controls="changelog-dialog" data-i18n="legal.news">Neuigkeiten</button>
+				<!-- 💣 EIN LINK, KEIN KNOPF -- und das ist der ganze Punkt (Owner 06.08.2026, Befund A24).
+				     Das Fenster „Hinweise" oeffnet nur JavaScript. Ohne JavaScript waren damit Impressum UND
+				     Datenschutzerklaerung unerreichbar, also genau die beiden Angaben, die § 5 DDG und
+				     Art. 13 DSGVO „unmittelbar erreichbar" verlangen. Als <a> traegt derselbe Knopf ein Ziel:
+				     mit JavaScript oeffnet er das Fenster (bootstrap.js ruft preventDefault), ohne
+				     JavaScript fuehrt er auf html/impressum.html, das beide Abschnitte wortgleich traegt.
+				     🔴 Fiele das preventDefault weg, oeffnete ein Klick das Fenster UND verliesse die Karte
+				     -- mitsamt der gerade geplanten Route. Der Test haelt es fest. -->
+				<a id="legal-button" href="/html/impressum.html" aria-haspopup="dialog" aria-controls="legal-dialog" aria-expanded="false" data-i18n="legal.button">Hinweise</a>
+			</div>
 		</div>
 		<div id="legal-overlay" hidden>
 			<div id="legal-dialog" class="legal-dialog" role="dialog" aria-modal="true" aria-labelledby="legal-title" tabindex="-1">

@@ -419,7 +419,9 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	:root.avesmaps-infopanel-mode.avesmaps-infopanel-open {
 		--avesmaps-corner-stack: 78px;
 	}
-	.avesmaps-infopanel-mode.avesmaps-infopanel-open #map-corner-actions {
+	/* Der Bund ist seit der Suchkachel ohnehin eine Spalte -- gestapelt wird hier deshalb seine
+	   VERWEIS-Zeile, nicht der Bund selbst. Wirkung und Hoehe bleiben dieselben. */
+	.avesmaps-infopanel-mode.avesmaps-infopanel-open #map-corner-actions .map-corner-actions__row {
 		flex-direction: column;
 	}
 }

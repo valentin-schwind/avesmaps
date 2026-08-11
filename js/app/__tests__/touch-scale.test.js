@@ -133,16 +133,25 @@ assert.ok(eigen, "und hat einen eigenen Block fuer das, was eine Kachel ausmacht
 	assert.ok(!new RegExp(escapeRe(prop)).test(eigen[1]),
 		`der Kachel-Block setzt ${prop} NICHT selbst -- das kommt aus der gemeinsamen Regel`);
 });
-// 💣 Die Kachel darf ihre Hoehe NICHT selbst setzen -- sie entsteht aus der gemeinsamen
-// Schriftgroesse und der gemeinsamen Luft. Eine eigene Zahl hier waere eine Kopie, die beim
-// naechsten Wachsen des Bundes stehenbleibt.
-// ⚠️ Und NICHT ueber align-self: stretch + aspect-ratio: der Bund hat keine eigene Hoehe, das ist
-// ein Zirkel -- gemessen wurde die Kachel damit 302x302 und sprengte die Reihe.
-assert.ok(!/(^|[^-])height:/.test(eigen[1]) && !/aspect-ratio/.test(eigen[1]),
-	"die Kachel setzt weder height noch aspect-ratio -- ihre Hoehe entsteht aus Schrift und Luft"
-	+ " der gemeinsamen Regel und waechst mit dem Bund mit");
-assert.ok(/padding:\s*7px;/.test(eigen[1]),
-	"waagerecht dieselbe Luft wie senkrecht -- das ist der einzige Unterschied zu den Textknoepfen");
+// Die Kachel ist seit dem 11.08. FREI von der Reihe (Owner: "sie muss nich ihren partnern
+// gleichen, sie kann auch ueber den anderen beiden liegen" + "groesser war super") -- sie darf
+// deshalb Fingermass tragen statt sich an 32px zu binden.
+// 💣 Aber ihre LAGE wird nirgends gerechnet: der Bund ist eine Spalte, die beiden Verweise sind
+// seine zweite Reihe. Ein `bottom`-Abstand haette --avesmaps-corner-stack lesen muessen, und genau
+// die Zahl lag am 10.08. um 8px daneben, als die Knoepfe wuchsen und sie stehenblieb.
+assert.ok(/width:\s*48px/.test(eigen[1]) && /height:\s*48px/.test(eigen[1]),
+	"die Kachel traegt Fingermass (48x48) -- sie muss ihren Nachbarn nicht mehr gleichen");
+assert.ok(!/aspect-ratio/.test(eigen[1]) && !/align-self/.test(eigen[1]),
+	"und koppelt sich NICHT ueber aspect-ratio/align-self an die Reihe -- das ist ein Zirkel (der Bund"
+	+ " hat keine eigene Hoehe), gemessen wurde die Kachel damit 302x302");
+assert.ok(!/bottom:/.test(eigen[1]) && !/avesmaps-corner-stack/.test(eigen[1]),
+	"und rechnet ihren Abstand zum Bund NICHT aus -- sie ist die erste Reihe einer Spalte");
+
+const bundRegel = legalCss.match(/^#map-corner-actions\s*\{([^}]*)\}/m);
+assert.ok(bundRegel && /flex-direction:\s*column/.test(bundRegel[1]),
+	"der Bund ist eine SPALTE -- daran haengt, dass die Kachel ohne Zahl ueber den Verweisen liegt");
+assert.ok(/\.map-corner-actions__row/.test(legalCss) && /map-corner-actions__row/.test(indexHtml),
+	"und die beiden Verweise stehen in einer eigenen Zeile darunter");
 
 const indexSuch = indexHtml.indexOf('id="map-search-button"');
 const indexBund = indexHtml.indexOf('id="map-corner-actions"');
