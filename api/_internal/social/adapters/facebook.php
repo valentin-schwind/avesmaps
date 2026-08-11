@@ -131,7 +131,12 @@ function avesmapsSocialFacebookReadResponse(int $status, string $body): array
             . ' ohne id). Es gilt als nicht gesendet.'];
     }
 
-    return ['ok' => true, 'remote_id' => $remoteId];
+    // Die Adresse ist bei Facebook ABLEITBAR und wird deshalb nicht extra erfragt: `post_id` hat die
+    // Form „<seite>_<beitrag>", und facebook.com/<post_id> löst genau darauf auf. ⚠️ Nur bei einem
+    // POST-id, nicht bei einer Foto-id -- deshalb steht die Ableitung hier unten, nachdem post_id
+    // gegenüber id gewonnen hat, und nicht oben neben dem Lesen.
+    return ['ok' => true, 'remote_id' => $remoteId,
+        'remote_url' => 'https://www.facebook.com/' . rawurlencode($remoteId)];
 }
 
 /**

@@ -210,6 +210,43 @@ function avesmapsSocialInstagramShouldRetryPublish(array $outcome, int $attempt)
  * @param array<string, string> $fields
  * @return array{status: int, body: string|null, error: string}
  */
+/**
+ * Die öffentliche Adresse eines veröffentlichten Beitrags, oder '' wenn sie sich nicht ermitteln
+ * lässt. Wirft NIE und meldet keinen Fehler nach oben: der Beitrag steht zu diesem Zeitpunkt schon
+ * draußen (siehe die Begründung an der Aufrufstelle).
+ *
+ * ⚠️ Eigene Anfrage, weil `permalink` beim Veröffentlichen nicht mitkommt und der Kurzcode sich aus
+ * der Medien-Kennung nicht herleiten lässt.
+ */
+function avesmapsSocialInstagramPermalink(string $mediaId, string $token, string $graphVersion): string
+{
+    if ($mediaId === '' || !function_exists('curl_init')) {
+        return '';
+    }
+    $handle = curl_init('https://graph.facebook.com/' . $graphVersion . '/' . rawurlencode($mediaId)
+        . '?fields=permalink');
+    if ($handle === false) {
+        return '';
+    }
+    curl_setopt_array($handle, [
+        CURLOPT_RETURNTRANSFER => true,
+        // Kurz: der Beitrag ist durch, das hier ist nur noch Beiwerk -- es darf die Anfrage des
+        // Editors nicht spürbar verlängern und keinen PHP-Worker binden (AGENTS.md §10).
+        CURLOPT_TIMEOUT => 8,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $token],
+    ]);
+    $body = curl_exec($handle);
+    curl_close($handle);
+
+    $data = is_string($body) ? json_decode($body, true) : null;
+
+    return is_array($data) ? trim((string) ($data['permalink'] ?? '')) : '';
+}
+
 function avesmapsSocialInstagramPost(string $url, array $fields, string $token): array
 {
     $handle = curl_init($url);
@@ -319,7 +356,16 @@ function avesmapsSocialAdapterInstagram(
     }
 
     if (($outcome['ok'] ?? false) === true) {
-        return ['ok' => true, 'remote_id' => (string) ($outcome['remote_id'] ?? '')];
+        $mediaId = (string) ($outcome['remote_id'] ?? '');
+
+        // 🔴 Die Adresse muss ERFRAGT werden und darf den Erfolg NICHT gefährden. Instagram vergibt
+        // einen Kurzcode (instagram.com/p/<code>), der sich aus der Medien-Kennung nicht ableiten
+        // lässt -- anders als bei Facebook und Mastodon. Der Beitrag ist an dieser Stelle bereits
+        // veröffentlicht; schlägt die Nachfrage fehl, fehlt nur der Link. Ihn zum Fehler zu machen
+        // hiesse: „nicht gesendet" über einem Beitrag, der öffentlich steht -- und der nächste Klick
+        // auf „Erneut" wäre ein Doppelbeitrag, den man auf Instagram nur löschen kann.
+        return ['ok' => true, 'remote_id' => $mediaId,
+            'remote_url' => avesmapsSocialInstagramPermalink($mediaId, $token, $version)];
     }
 
     return ['ok' => false, 'error' => (string) ($outcome['error'] ?? 'Unbekannter Fehler.')];

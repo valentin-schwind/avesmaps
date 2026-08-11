@@ -63,6 +63,7 @@ function avesmapsSocialEnsureTables(PDO $pdo): void
             channel_key VARCHAR(32) NOT NULL,
             status VARCHAR(16) NOT NULL DEFAULT 'pending',
             remote_id VARCHAR(190) NOT NULL DEFAULT '',
+            remote_url VARCHAR(500) NOT NULL DEFAULT '',
             error VARCHAR(500) NOT NULL DEFAULT '',
             sent_payload MEDIUMTEXT NULL DEFAULT NULL,
             attempted_at DATETIME(3) NULL DEFAULT NULL,
@@ -103,6 +104,30 @@ function avesmapsSocialEnsureTables(PDO $pdo): void
         $pdo->exec(
             "ALTER TABLE social_post ADD COLUMN media_alt VARCHAR(500) NOT NULL DEFAULT ''
              AFTER media_source"
+        );
+    }
+
+    // `remote_url` kam am 11.08.2026 dazu: die Adresse des veröffentlichten Beitrags. ⚠️ Eigene
+    // Bedingung und eigene information_schema-Abfrage, weil sie an der ANDEREN Tabelle hängt.
+    //
+    // 🔴 Sie ist LEER, wenn wir sie nicht kennen -- nie geraten. Facebook und Mastodon nennen ihre
+    // Adresse (bzw. sie ist eindeutig ableitbar), Instagram vergibt einen Kurzcode, der sich aus der
+    // Kennung NICHT herleiten lässt. Eine erfundene Adresse führt ins Leere, und ein Link, der 404
+    // liefert, ist schlimmer als kein Link: er behauptet, der Beitrag sei weg.
+    $targetColumns = [];
+    $targetStatement = $pdo->query(
+        "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'social_post_target'"
+    );
+    if ($targetStatement !== false) {
+        foreach ($targetStatement->fetchAll(PDO::FETCH_COLUMN) as $existingColumn) {
+            $targetColumns[(string) $existingColumn] = true;
+        }
+    }
+    if ($targetColumns !== [] && !isset($targetColumns['remote_url'])) {
+        $pdo->exec(
+            "ALTER TABLE social_post_target ADD COLUMN remote_url VARCHAR(500) NOT NULL DEFAULT ''
+             AFTER remote_id"
         );
     }
 
@@ -353,7 +378,8 @@ function avesmapsSocialSetPostState(PDO $pdo, int $id, string $state): void
  * Write the outcome of ONE channel. Never touches the others -- that separation is the entire point
  * of the two-table model (Entwurf §2.2).
  *
- * @param array{status?: string, remote_id?: string, error?: string, sent_payload?: string|null} $fields
+ * @param array{status?: string, remote_id?: string, remote_url?: string, error?: string,
+ *               sent_payload?: string|null} $fields
  */
 function avesmapsSocialUpdateTarget(PDO $pdo, int $postId, string $channelKey, array $fields): void
 {
@@ -362,6 +388,7 @@ function avesmapsSocialUpdateTarget(PDO $pdo, int $postId, string $channelKey, a
         'UPDATE social_post_target
             SET status = :status,
                 remote_id = :remote_id,
+                remote_url = :remote_url,
                 error = :error,
                 sent_payload = :sent_payload,
                 attempted_at = CURRENT_TIMESTAMP(3)
@@ -369,6 +396,9 @@ function avesmapsSocialUpdateTarget(PDO $pdo, int $postId, string $channelKey, a
     )->execute([
         'status' => (string) ($fields['status'] ?? 'pending'),
         'remote_id' => mb_substr((string) ($fields['remote_id'] ?? ''), 0, 190),
+        // Leer heisst „kennen wir nicht", nicht „gibt es nicht": Instagram nennt seine Adresse erst
+        // auf Nachfrage, und die kann fehlschlagen, ohne dass der Beitrag deshalb weg waere.
+        'remote_url' => mb_substr((string) ($fields['remote_url'] ?? ''), 0, 500),
         // Truncated, not rejected: an adapter's error text is not ours to bound, and a failed UPDATE
         // would lose the very diagnosis the editor needs to decide whether to retry.
         'error' => mb_substr((string) ($fields['error'] ?? ''), 0, 500),

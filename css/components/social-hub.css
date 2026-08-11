@@ -164,6 +164,19 @@
 	color: var(--color-text-muted);
 }
 
+/* Eine Marke, die zum Beitrag fuehrt. ⚠️ KEINE eigene Farbe: sie behaelt den Ton ihres Zustands
+   (gruen = gesendet), sonst konkurrierten zwei Aussagen in einem Element. Dass sie anklickbar ist,
+   sagen Zeiger und Unterstreichung beim Ueberfahren -- plus das ↗ aus der Hausregel. */
+.social-chip--link {
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.social-chip--link:hover {
+	text-decoration: underline;
+	border-color: var(--color-button-soft-border);
+}
+
 /* ---- weiche Knoepfe ---------------------------------------------------------------------------- */
 
 .social-hub__soft {

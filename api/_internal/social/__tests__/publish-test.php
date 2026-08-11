@@ -175,6 +175,18 @@ assert(($ok['ok'] ?? false) === true && ($ok['remote_id'] ?? '') === '111', 'an 
 $photo = avesmapsSocialFacebookReadResponse(200, '{"id":"777","post_id":"9876_54321"}');
 assert(($photo['remote_id'] ?? '') === '9876_54321', 'the POST id wins over the photo id');
 
+// Die Adresse wird aus der POST-id abgeleitet, nicht aus der Foto-id -- sonst zeigte der Link auf das
+// Bild statt auf den Beitrag.
+assert(($photo['remote_url'] ?? '') === 'https://www.facebook.com/9876_54321',
+    'facebook.com/<post_id> ist die Adresse des Beitrags');
+assert(mb_strpos((string) ($photo['remote_url'] ?? ''), '777') === false,
+    'und die Foto-id taucht darin nicht auf');
+
+// 🔴 Ohne Erfolg keine Adresse: ein Link an einem gescheiterten Ziel behauptete, es gaebe dort etwas
+// zu sehen.
+assert(!isset(avesmapsSocialFacebookReadResponse(400, '{"error":{"message":"x","code":190}}')['remote_url']),
+    'eine Absage traegt keine Adresse');
+
 // Fails closed, three ways -- an unknown state is never "gesendet" (Entwurf §2.2).
 $noId = avesmapsSocialFacebookReadResponse(200, '{}');
 assert(($noId['ok'] ?? true) === false, 'HTTP 200 without an id is NOT sent');

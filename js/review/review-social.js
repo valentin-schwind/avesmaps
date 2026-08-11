@@ -146,10 +146,24 @@
 		return isNaN(parsed.getTime()) ? raw : parsed.toLocaleString("de-DE");
 	}
 
+	// 🔴 Ein Link entsteht NUR aus einer Adresse, die der Kanal selbst genannt hat -- nie geraten.
+	// Facebook und Mastodon nennen ihre, Instagram wird danach gefragt, und wenn die Frage
+	// fehlschlägt, bleibt die Marke eben eine Marke. Eine erfundene Adresse, die 404 liefert,
+	// behauptet, der Beitrag sei weg -- das ist schlimmer als gar kein Link.
 	function makeChip(target) {
-		const chip = document.createElement("span");
-		chip.className = chipClass(target.status);
+		const url = (target && target.remote_url) || "";
+		const chip = document.createElement(url !== "" ? "a" : "span");
+		chip.className = chipClass(target.status) + (url !== "" ? " social-chip--link" : "");
 		chip.textContent = chipLabel(target);
+		if (url !== "") {
+			chip.href = url;
+			chip.target = "_blank";
+			chip.rel = "noopener noreferrer";
+			// Der Pfeil ist Hausregel für Verweise nach draußen (AGENTS.md §12).
+			chip.textContent = chipLabel(target) + " ↗";
+			chip.title = "Beitrag ansehen: " + url;
+		}
+		// ⚠️ Der Fehlertext gewinnt über den Adress-Hinweis: er ist der Grund, warum jemand hinsieht.
 		if (target.error) { chip.title = target.error; }
 		return chip;
 	}

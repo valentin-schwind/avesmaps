@@ -205,6 +205,8 @@ function avesmapsSocialDispatch(PDO $pdo, int $postId, array $config, ?string $o
             ? [
                 'status' => 'sent',
                 'remote_id' => (string) ($outcome['remote_id'] ?? ''),
+                // Leer, wenn der Kanal seine Adresse nicht nennt -- nie geraten (siehe store.php).
+                'remote_url' => (string) ($outcome['remote_url'] ?? ''),
                 'error' => '',
                 'sent_payload' => $outcome['payload'] ?? null,
             ]

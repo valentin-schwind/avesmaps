@@ -49,6 +49,9 @@ try {
                 'status' => (string) $target['status'],
                 'error' => (string) $target['error'],
                 'remote_id' => (string) $target['remote_id'],
+                // Die Adresse des veroeffentlichten Beitrags, oder '' wenn der Kanal keine nennt.
+                // Der Client macht daraus einen Link -- und laesst ihn weg, wenn nichts dasteht.
+                'remote_url' => (string) ($target['remote_url'] ?? ''),
                 // Only the probe fills this. It is what makes the rehearsal inspectable (Entwurf §10).
                 'sent_payload' => $target['sent_payload'] === null ? null : (string) $target['sent_payload'],
             ];

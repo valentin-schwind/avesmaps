@@ -242,7 +242,11 @@ function avesmapsSocialMastodonReadStatus(int $status, string $body): array
             . ' ohne id). Es gilt als nicht gesendet.'];
     }
 
-    return ['ok' => true, 'remote_id' => $remoteId];
+    // Mastodon nennt die Adresse gleich mit -- `url` ist die kanonische, oeffentlich erreichbare.
+    // Sie wird NICHT aus id und Instanz zusammengebaut: bei einem geteilten Beitrag zeigt `url` auf
+    // den Ursprungsserver, eine selbstgebaute Adresse auf den eigenen, und der antwortet dann 404.
+    return ['ok' => true, 'remote_id' => $remoteId,
+        'remote_url' => trim((string) ($data['url'] ?? ''))];
 }
 
 /**
