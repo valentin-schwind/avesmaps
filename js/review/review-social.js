@@ -387,7 +387,24 @@
 			open.textContent = "Bearbeiten";
 			open.addEventListener("click", function () { openHub(post); });
 
-			actions.append(send, open);
+			const drop = document.createElement("button");
+			drop.type = "button";
+			drop.className = "social-hub__soft social-hub__soft--mini";
+			drop.textContent = "Verwerfen";
+			// Ohne Rückfrage: ein Entwurf war nie öffentlich, und ein Dialog vor jeder Verwerfung
+			// erzieht nur dazu, ihn wegzuklicken. ⚠️ Gelöscht wird auch nichts -- der Beitrag bekommt
+			// den Zustand `discarded` und verschwindet aus der Liste; die Zeile bleibt in der Tabelle.
+			// 💣 Bei einem Routine-Vorschlag ist das trotzdem endgültig: er behält seinen `source_ref`
+			// (den Commit), und genau daran erkennt der Dublettenschutz, dass dieser Stand schon
+			// vorgeschlagen war. Der nächste Lauf schlägt ihn NICHT erneut vor -- „Verwerfen" heißt
+			// „nein", nicht „später nochmal fragen".
+			drop.addEventListener("click", function () {
+				drop.disabled = true;
+				drop.textContent = "…";
+				decideProposal(post.id, "discard");
+			});
+
+			actions.append(send, open, drop);
 			row.append(when, text, actions);
 			host.appendChild(row);
 		});
