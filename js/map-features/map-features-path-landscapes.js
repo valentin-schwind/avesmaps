@@ -381,6 +381,61 @@ function avesmapsPathLandscapesRowMarkup(line) {
 	return '<div class="region-info-box__row"><dt>Führt durch</dt><dd>' + names + "</dd></div>";
 }
 
+// Waren / Fauna / Flora eines WEGES -- aus den Landschaften, durch die er führt (Owner 2026-08-12).
+//
+// 🔴 Ein Weg hat KEINE eigene Flora. `lore_place` führt Regions- und Ortsnamen aus Wiki-Infoboxen;
+// eine Straße steht dort praktisch nie. Was ein Leser wissen will, ist, was in den Gegenden wächst,
+// durch die der Weg läuft -- und das ist genau die Liste, die eine Zeile höher schon als „Führt
+// durch" steht. Dieselbe Ableitung benutzt die Routen-Etappe seit 2026-07-29
+// (js/routing/route-plan.js), nur mit `kinds: "flora|fauna"`: die Etappenliste ist die Kurzfassung,
+// die Weg-Infobox der ausführliche Ort und zeigt deshalb ALLE DREI Arten.
+//
+// 💣 Die Klimabänder sind hier nie dabei. `buildLandscapeLine` (wantClimate = false) hat sie schon
+// aussortiert -- über `buildClimateLine` gerechnet stünde in der Box „Flora der Gemäßigten Zone".
+//
+// 💣 HIER WIRD NICHT GELADEN. buildLoreMarkup liefert einen leeren, markierten Container; gefüllt
+// wird er vom Beobachter in map-features-lore.js, der auf `document.documentElement` hört und
+// deshalb auch einen erst per innerHTML entstandenen Container findet. Ein eigener Abruf an dieser
+// Stelle wäre wieder das Fan-out vom 2026-07-21.
+//
+// 💣 DER NAME IST DIE LANDSCHAFT, NIE DER WEG. Er wird nicht nur zur Zierde weitergereicht: der
+// „+N"-Dialog überschreibt damit seine Gruppen („Direkt in …", „Aus Untergebieten"). Mit dem
+// Wegnamen stand dort am 2026-08-12 in der Abnahme wörtlich „Direkt in Reichsstraße
+// Gareth–Elenvina" -- und das Bräubier steht in Weiden, nicht in der Straße. Dieselben Namen wie
+// die Zeile „Führt durch" darüber, derselbe Trenner, also erkennt der Leser sie sofort wieder.
+function avesmapsPathLandscapesLoreMarkup(line) {
+	if (typeof buildLoreMarkup !== "function" || !line || !line.length) {
+		return "";
+	}
+	var keys = landscapeWikiKeyList(line);
+	if (!keys) {
+		return "";   // Landschaften ohne Wiki-Zuweisung -- kein Schlüssel, also auch kein Abruf
+	}
+	// Nur die Landschaften, die auch einen Schlüssel beigesteuert haben: eine unverlinkte Fläche
+	// steht in „Führt durch", aber nichts von ihr steckt in dieser Antwort.
+	var named = line.filter(function (entry) { return entry && entry.wikiKey; })
+		.map(function (entry) { return entry.name; }).join(" · ");
+	return buildLoreMarkup({ key: keys, name: named });
+}
+
+// Alle drei Blöcke der Weg-Infobox in EINER festgelegten Reihenfolge.
+//
+// 💣 DIE REIHENFOLGE IST TRAGEND: Führt durch -> Waren/Fauna/Flora -> Klimazone. „Die Klimazone
+// steht direkt unter Flora" ist eine Owner-Entscheidung vom 2026-08-03 und gilt an allen vier
+// Oberflächen (Ort, Landschaftsregion, Herrschaftsgebiet, Weg). Sie steht hier als eigene Funktion
+// und nicht als Verkettung im Beobachter, damit ein Test sie festnageln kann -- im Beobachter läge
+// sie hinter einem DOM und einem Abruf und wäre nur noch durch Hinsehen zu prüfen.
+//
+// "" wenn es nichts zu sagen gibt: keine Landschaft UND keine Zone -> keine Zeile, kein „keine
+// Angabe". Der Lore-Container zählt dabei NICHT mit -- er kommt leer auf die Welt und füllt sich
+// erst nach seinem Abruf, ein Weg allein mit ihm hätte also eine leere Box behauptet.
+function avesmapsPathLandscapesInfoboxMarkup(lineMarkup, loreMarkup, climateMarkup) {
+	if (!lineMarkup && !climateMarkup) {
+		return "";
+	}
+	return String(lineMarkup || "") + String(loreMarkup || "") + String(climateMarkup || "");
+}
+
 // ---- the observer ---------------------------------------------------------------------------
 // 💣 THE FETCH DOES NOT START WHEN THE MARKUP IS BUILT. bindPopup gets finished HTML for every one
 // of 5.655 ways while the map is still assembling -- a fetch at that point would be 5.655
@@ -408,10 +463,15 @@ function avesmapsPathLandscapesFillPending() {
 				var climateMarkup = (climate.length && typeof avesmapsClimateRowForLandscapeEntries === "function")
 					? avesmapsClimateRowForLandscapeEntries(climate)
 					: "";
-				if (!line.length && climateMarkup === "") {
+				var markup = avesmapsPathLandscapesInfoboxMarkup(
+					line.length ? avesmapsPathLandscapesRowMarkup(line) : "",
+					avesmapsPathLandscapesLoreMarkup(line),
+					climateMarkup
+				);
+				if (markup === "") {
 					return;   // nothing to say -- the rows stay absent, no „keine Angabe"
 				}
-				container.innerHTML = (line.length ? avesmapsPathLandscapesRowMarkup(line) : "") + climateMarkup;
+				container.innerHTML = markup;
 			});
 		})(element);
 	}
@@ -443,6 +503,8 @@ if (typeof module !== "undefined" && module.exports) {
 		AVESMAPS_LANDSCAPE_FULL_SHARE,
 		buildLandscapeLine,
 		buildClimateLine,
+		avesmapsPathLandscapesLoreMarkup,
+		avesmapsPathLandscapesInfoboxMarkup,
 		formatLandscapesForInfobox,
 		formatLandscapesForPlanner,
 		formatLandscapesForMapLinks,

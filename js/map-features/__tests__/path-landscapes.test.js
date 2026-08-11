@@ -255,3 +255,97 @@ console.log("OK: path-landscapes builder, writers and the per-leg independence")
 })();
 
 console.log("OK: Klimazonen bleiben aus der Landschaftszeile draussen -- und kommen als eigene Zeile heraus");
+
+// ---- Waren / Fauna / Flora am Weg (Owner 2026-08-12) ----------------------------------------
+// Ein Weg hat keine eigene Flora -- er erbt sie von den Landschaften, durch die er fuehrt. Der
+// Baustein liefert nur den leeren, markierten Container samt Schluesselliste; gefuellt wird er vom
+// Beobachter in map-features-lore.js. Geprueft wird deshalb, WELCHE Schluessel drinstehen -- und vor
+// allem, dass die Klimabaender NICHT dabei sind.
+//
+// buildLoreMarkup ist ein Browser-Global ohne module.exports; runInThisContext installiert es echt,
+// damit der require()-te Modulcode es ueber die Scope-Kette findet -- dieselbe Bauart wie
+// lore-key.test.js. Ein selbstgebauter Stub wuerde genau die Zeile ersetzen, um die es geht.
+(function loreAmWeg() {
+	const fs = require("fs");
+	const path = require("path");
+	const vm = require("vm");
+	const { avesmapsPathLandscapesLoreMarkup } = require("../map-features-path-landscapes.js");
+
+	global.window = {
+		location: { search: "" },
+		localStorage: { getItem: () => null, setItem() {} },
+		setTimeout: () => 0,
+		clearTimeout() {},
+	};
+	global.document = { querySelectorAll: () => [], addEventListener() {}, documentElement: {} };
+	global.MutationObserver = function () { this.observe = () => {}; };
+	global.AbortController = function () { this.abort = () => {}; this.signal = null; };
+	const loreFile = path.join(__dirname, "..", "map-features-lore.js");
+	vm.runInThisContext(fs.readFileSync(loreFile, "utf8"), { filename: loreFile });
+
+	const payload = {
+		landscapes: {
+			"r-weiden": { name: "Weiden", art: "Region", kind: "derographisch", wiki_key: "weiden" },
+			"r-forst": { name: "Reichsforst", art: "Wald", kind: "vegetation", wiki_key: "reichsforst" },
+			"r-anon": { name: "See-042", art: "See", kind: "topographie", wiki_key: "" },
+			"k-gem": { name: "Gemäßigte Zone", art: "Gemäßigte Zone", kind: "klima", wiki_key: "gemaessigte-zone" },
+		},
+		paths: {
+			"w-1": { length: 10, in: [["r-weiden", 10], ["r-forst", 7], ["k-gem", 10]] },
+			"w-2": { length: 10, in: [["r-anon", 10]] },
+			"w-3": { length: 10, in: [["k-gem", 10]] },
+			"w-4": { length: 10, in: [["r-weiden", 10], ["r-anon", 10]] },
+		},
+	};
+	const markup = avesmapsPathLandscapesLoreMarkup(buildLandscapeLine(["w-1"], payload));
+	assert(markup.indexOf('data-lore-fetch="weiden,reichsforst"') >= 0,
+		"beide Landschaften des Weges gehen als EIN Abruf hinaus: " + markup);
+	assert(markup.indexOf("gemaessigte-zone") < 0,
+		"💣 die Klimazone gehoert NICHT dazu -- sonst staende hier die Flora eines Rechenbandes");
+	assert(markup.indexOf('data-lore-kinds=""') >= 0,
+		"alle drei Arten am Weg (Owner 2026-08-12) -- anders als die Etappe, die auf flora|fauna kappt");
+	// 💣 Der Name ist die LANDSCHAFT, nie der Weg: der „+N"-Dialog ueberschreibt damit seine Gruppen,
+	// und „Direkt in Reichsstraße Gareth–Elenvina" waere schlicht falsch -- das Braeubier steht in
+	// Weiden. In der Abnahme am 2026-08-12 stand genau dieser Satz auf dem Schirm.
+	assert(markup.indexOf('data-lore-name="Weiden · Reichsforst"') >= 0,
+		"die Landschaften benennen den Dialog, nicht der Weg: " + markup);
+
+	// Eine unverlinkte Flaeche steht zwar in „Fuehrt durch", steuert aber nichts zur Antwort bei --
+	// sie darf den Dialog deshalb auch nicht mitbenennen.
+	const gemischt = avesmapsPathLandscapesLoreMarkup(buildLandscapeLine(["w-4"], payload));
+	assert(gemischt.indexOf('data-lore-name="Weiden"') >= 0,
+		"nur die Landschaft mit Schluessel benennt den Dialog: " + gemischt);
+
+	assert.strictEqual(avesmapsPathLandscapesLoreMarkup(buildLandscapeLine(["w-2"], payload)), "",
+		"eine Landschaft ohne Wiki-Schluessel ergibt keinen Container und keinen Abruf");
+	assert.strictEqual(avesmapsPathLandscapesLoreMarkup(buildLandscapeLine(["w-3"], payload)), "",
+		"ein Weg, der NUR durch ein Klimaband laeuft, hat keine Landschaft -- also auch keine Lore");
+	assert.strictEqual(avesmapsPathLandscapesLoreMarkup([]), "",
+		"leere Liste -> gar nichts, kein leeres Feld in der Box");
+})();
+
+console.log("OK: Waren/Fauna/Flora am Weg kommen aus seinen Landschaften -- ohne die Klimabaender");
+
+// ---- die Reihenfolge der drei Bloecke -------------------------------------------------------
+// 💣 Fuehrt durch -> Waren/Fauna/Flora -> Klimazone. „Die Klimazone steht direkt unter Flora" ist
+// eine Owner-Entscheidung vom 2026-08-03 und gilt an allen vier Oberflaechen. Vertauscht sieht die
+// Box unauffaellig aus -- alle Zeilen sind da, nur eine steht falsch -- und genau deshalb steht die
+// Verkettung als eigene Funktion da, statt im Beobachter hinter DOM und Abruf zu verschwinden.
+(function reihenfolgeDerBloecke() {
+	const { avesmapsPathLandscapesInfoboxMarkup } = require("../map-features-path-landscapes.js");
+
+	const alles = avesmapsPathLandscapesInfoboxMarkup("<DURCH>", "<LORE>", "<KLIMA>");
+	assert.strictEqual(alles, "<DURCH><LORE><KLIMA>", "Fuehrt durch, dann die Lore, dann die Klimazone");
+	assert(alles.indexOf("<LORE>") < alles.indexOf("<KLIMA>"),
+		"💣 die Klimazone steht UNTER Flora, nie darueber");
+
+	assert.strictEqual(avesmapsPathLandscapesInfoboxMarkup("", "<LORE>", ""), "",
+		"nur ein leerer Lore-Container -> gar keine Box: er fuellt sich erst nach seinem Abruf, "
+		+ "und bis dahin haette er eine leere Feldliste behauptet");
+	assert.strictEqual(avesmapsPathLandscapesInfoboxMarkup("", "", "<KLIMA>"), "<KLIMA>",
+		"eine Klimazone allein traegt die Box (ein Weg ohne benannte Landschaft)");
+	assert.strictEqual(avesmapsPathLandscapesInfoboxMarkup("<DURCH>", "", ""), "<DURCH>",
+		"und „Fuehrt durch" + '" allein ebenso');
+})();
+
+console.log("OK: Fuehrt durch -> Waren/Fauna/Flora -> Klimazone, in dieser Reihenfolge");
