@@ -165,8 +165,18 @@ assert($byAblauf['probe']['access_expires'] === null,
 // Nur DASS es geht reist mit, nie WIE: der Weg braucht das App-Geheimnis und bleibt serverseitig.
 assert($byKey['facebook']['connectable'] === true, 'Facebook kann sich selbst einrichten');
 assert($byKey['probe']['connectable'] === false, 'die Probe hat keinen Zugang und braucht keinen');
-assert($byKey['instagram']['connectable'] === false,
-    'Instagram noch nicht -- der Weg dorthin ist ein anderer (graph.instagram.com, eigene Rechtenamen)');
+// 💣 Instagram ist seit 11.08.2026 einrichtbar, und zwar ueber DENSELBEN Weg wie Facebook: es haengt
+// als instagram_business_account an derselben Seite (Entwurf §12.4, gemessen). Der frueher hier
+// erwartete eigene Weg (graph.instagram.com, eigene Rechtenamen) ist damit verworfen.
+assert($byKey['instagram']['connectable'] === true, 'Instagram inzwischen auch, ueber die Seite');
+// 🔴 Die geforderten Rechte bleiben SERVERSEITIG. Sie stehen im Register, aber nicht in der Liste,
+// die in den Browser reist -- dort waeren sie eine Landkarte der App-Rechte fuer jeden Mitleser.
+assert(!array_key_exists('connect_scopes', $byKey['instagram']),
+    'die geforderten Rechte reisen NICHT zum Client');
+assert((AVESMAPS_SOCIAL_CHANNELS['instagram']['connect_scopes'] ?? []) === ['instagram_basic', 'instagram_content_publish'],
+    'im Register stehen sie aber, und zwar die Instagram-eigenen');
+assert((AVESMAPS_SOCIAL_CHANNELS['facebook']['connect_scopes'] ?? []) === ['pages_manage_posts'],
+    'und Facebook fordert etwas anderes, obwohl es derselbe Token ist');
 
 // 🔴 „Einrichtbar" heisst NICHT „eingerichtet". Facebook ist beides getrennt: der Knopf steht auch
 // da, wenn noch kein Token existiert -- genau dafuer ist er da -- und verschwindet danach nicht,

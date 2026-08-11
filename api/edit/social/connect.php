@@ -48,7 +48,9 @@ try {
 
     $social = is_array($config['social'] ?? null) ? $config['social'] : [];
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
-    $result = avesmapsSocialConnectFacebook($pdo, $social, $token);
+    // Der Kanal reist mit: derselbe Weg über dieselbe Seite legt den Token je nach Kanal unter einem
+    // anderen Schlüssel ab und verlangt andere Rechte (Entwurf §12.4).
+    $result = avesmapsSocialConnectFacebook($pdo, $social, $token, $channel);
 
     if (($result['ok'] ?? false) !== true) {
         // 400, nicht 500: das ist fast immer eine Sache der Konfiguration oder der Freigabe, und der

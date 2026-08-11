@@ -111,8 +111,40 @@ assert(avesmapsSocialFacebookPickPage([], PAGE) === null, 'und eine leere Antwor
 
 assert(avesmapsSocialConnectSupports('facebook') === true, 'Facebook kennt diesen Weg');
 assert(avesmapsSocialConnectSupports('probe') === false, 'die Probe braucht keinen');
-assert(avesmapsSocialConnectSupports('instagram') === false, 'Instagram noch nicht');
+// Seit 11.08.2026: Instagram hängt an derselben Seite und geht deshalb denselben Weg (Entwurf §12.4).
+assert(avesmapsSocialConnectSupports('instagram') === true, 'Instagram inzwischen auch');
 assert(avesmapsSocialConnectSupports('gibtsnicht') === false, 'ein unbekannter Schlüssel schon gar nicht');
+
+// ---- 💣 die Rechte hängen am KANAL, nicht am Weg ----------------------------------------------------
+
+// Beide Kanäle teilen sich Seite, App und Token -- und verlangen trotzdem Verschiedenes. Ein Token,
+// der Facebook bedienen kann, ist für Instagram nicht automatisch gut genug; genau dieser Token lag
+// am 10.08.2026 in der Tabelle.
+$igScopes = ['instagram_basic', 'instagram_content_publish'];
+
+assert(avesmapsSocialFacebookVerifyPageToken(gutFall(), PAGE, $igScopes) !== null,
+    'der Facebook-taugliche Token (nur pages_*) wird für Instagram ABGELEHNT');
+$fehlt = avesmapsSocialFacebookVerifyPageToken(gutFall(), PAGE, $igScopes);
+assert(mb_strpos((string) $fehlt, 'instagram_basic') !== false
+    && mb_strpos((string) $fehlt, 'instagram_content_publish') !== false,
+    'und die Absage nennt BEIDE fehlenden Rechte beim Namen -- „eine Berechtigung fehlt" schickt sonst jeden in dieselbe Suche');
+
+$mitInstagram = gutFall(['scopes' => ['pages_show_list', 'instagram_basic', 'instagram_content_publish']]);
+assert(avesmapsSocialFacebookVerifyPageToken($mitInstagram, PAGE, $igScopes) === null,
+    'mit beiden Instagram-Rechten geht derselbe Token durch');
+assert(avesmapsSocialFacebookVerifyPageToken($mitInstagram, PAGE) !== null,
+    'derselbe Token taugt umgekehrt NICHT für Facebook -- ihm fehlt pages_manage_posts');
+
+$nurEins = gutFall(['scopes' => ['instagram_basic']]);
+assert(avesmapsSocialFacebookVerifyPageToken($nurEins, PAGE, $igScopes) !== null,
+    'ein Recht von zweien reicht nicht: es wird JEDES einzeln geprüft, nicht irgendeines');
+assert(mb_strpos((string) avesmapsSocialFacebookVerifyPageToken($nurEins, PAGE, $igScopes), 'instagram_basic') === false,
+    'und benannt wird nur, was FEHLT -- das vorhandene Recht mitzunennen wäre eine falsche Fährte');
+
+// Der Riegel davor gilt weiter: ein ablaufender Token wird auch mit allen Rechten nicht abgelegt.
+assert(avesmapsSocialFacebookVerifyPageToken(
+    gutFall(['expires_at' => 1799999999, 'scopes' => $igScopes]), PAGE, $igScopes) !== null,
+    'die Ablauf-Prüfung steht unabhängig von den Rechten');
 
 // ---- Metas Fehlertext ------------------------------------------------------------------------------
 

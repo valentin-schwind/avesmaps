@@ -71,11 +71,21 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'shows_media' => false,
         'clickable_links' => true,
     ],
+    // 🔴 Instagram wird über die FACEBOOK-SEITE eingerichtet und bedient (Entwurf §12.4). @avesmaps
+    // hängt als `instagram_business_account` an der Seite, also ist es derselbe Wirt, dieselbe App und
+    // derselbe Seiten-Token wie bei Facebook -- und der läuft nicht ab. Deshalb `facebook_page`,
+    // obwohl hier „Instagram" steht.
+    //
+    // 💣 EIGENE Token-Zeile, obwohl es derselbe Token ist. Läse Instagram Facebooks Zeile mit, meldete
+    // der Hub den Kanal als eingerichtet, sobald Facebook es ist -- auch wenn dieser Token die beiden
+    // Instagram-Rechte gar nicht trägt. Genau so lag es am 10.08.2026 in der Tabelle.
     'instagram' => [
         'label' => 'Instagram',
         'icon' => '📷',
         'account' => '@avesmaps',
-        'note' => '',
+        'connect' => 'facebook_page',
+        'connect_scopes' => ['instagram_basic', 'instagram_content_publish'],
+        'note' => 'läuft über die Facebook-Seite',
         'max_chars' => 2200,
         'max_hashtags' => null,
         'requires_media' => true,
@@ -86,11 +96,17 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     // den Zugang selbst herstellen (api/_internal/social/connect.php) und der Hub zeigt „einrichten".
     // Fehlt der Schlüssel, gibt es keinen -- dann bleibt nur die Konfiguration von Hand. Er steht im
     // Register und nicht im Client, weil sonst der Browser entscheiden müsste, was der Server kann.
+    //
+    // 💣 `connect_scopes` sind die Rechte, die der Token für DIESEN Kanal vorweisen muss, und sie
+    // stehen je Kanal, nicht einmal für den Weg: Facebook und Instagram teilen sich Seite, App und
+    // Token, brauchen aber verschiedene Rechte. Ein Token ohne sie wird NICHT abgelegt -- lieber kein
+    // Zugang als einer, der erst beim ersten öffentlichen Beitrag auffliegt.
     'facebook' => [
         'label' => 'Facebook',
         'icon' => '📘',
         'account' => 'Seite Avesmaps',
         'connect' => 'facebook_page',
+        'connect_scopes' => ['pages_manage_posts'],
         'note' => '',
         'max_chars' => 63206,
         'max_hashtags' => 2,

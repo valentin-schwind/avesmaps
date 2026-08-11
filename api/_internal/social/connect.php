@@ -122,11 +122,19 @@ function avesmapsSocialFacebookPickPage(array $accounts, string $pageId): ?array
  * fehlendes Feld ist kein Freibrief -- Metas Antwort ohne `expires_at` beweist nicht "läuft nie ab",
  * sie beweist gar nichts.
  *
- * @param array<string, mixed> $debug Die Antwort von /debug_token.
+ * @param array<string, mixed> $debug          Die Antwort von /debug_token.
+ * @param list<string>         $requiredScopes Die Rechte, die DIESER Kanal braucht (Register,
+ *                                             `connect_scopes`). Facebook und Instagram hängen an
+ *                                             derselben Seite und demselben Token, verlangen aber
+ *                                             Verschiedenes -- deshalb ein Parameter und keine feste
+ *                                             Liste in dieser Funktion.
  * @return string|null Deutsche Absage, oder null wenn alles stimmt.
  */
-function avesmapsSocialFacebookVerifyPageToken(array $debug, string $pageId): ?string
-{
+function avesmapsSocialFacebookVerifyPageToken(
+    array $debug,
+    string $pageId,
+    array $requiredScopes = ['pages_manage_posts']
+): ?string {
     $data = is_array($debug['data'] ?? null) ? $debug['data'] : null;
     if ($data === null) {
         return 'Facebook konnte den Token nicht prüfen. Es wurde nichts gespeichert.';
@@ -165,11 +173,19 @@ function avesmapsSocialFacebookVerifyPageToken(array $debug, string $pageId): ?s
     }
 
     // Ohne Schreibrecht wäre der Zugang eingerichtet und trotzdem stumm; das fällt sonst erst beim
-    // ersten Beitrag auf.
+    // ersten Beitrag auf. ⚠️ Geprüft wird JEDES geforderte Recht einzeln, und die Absage nennt die
+    // fehlenden beim Namen: „es fehlt eine Berechtigung" schickt sonst jeden in dieselbe Suche.
     $scopes = is_array($data['scopes'] ?? null) ? $data['scopes'] : [];
-    if (!in_array('pages_manage_posts', $scopes, true)) {
-        return 'Dem Token fehlt pages_manage_posts — er könnte lesen, aber nichts veröffentlichen. '
-            . 'Es wurde nichts gespeichert.';
+    $missing = [];
+    foreach ($requiredScopes as $scope) {
+        if (!in_array($scope, $scopes, true)) {
+            $missing[] = $scope;
+        }
+    }
+    if ($missing !== []) {
+        return 'Dem Token fehlt ' . implode(' und ', $missing) . ' — er könnte lesen, aber nichts '
+            . 'veröffentlichen. Im Graph-API-Explorer das Recht anhaken, den Token neu erzeugen und '
+            . 'es noch einmal versuchen. Es wurde nichts gespeichert.';
     }
 
     return null;
@@ -178,11 +194,41 @@ function avesmapsSocialFacebookVerifyPageToken(array $debug, string $pageId): ?s
 /**
  * Der ganze Weg: kurzlebiger Nutzer-Token hinein, geprüfter Seiten-Token in `social_token`.
  *
- * @param array<string, mixed> $social Der 'social'-Block der Konfiguration.
+ * 🔴 App und Seite stehen IMMER unter `social.facebook`, auch wenn Instagram eingerichtet wird. Es
+ * gibt genau eine Meta-App und genau eine Seite; Instagram hängt als `instagram_business_account` an
+ * dieser Seite (Entwurf §12.4). Die Werte je Kanal zu verdoppeln hiesse, sie zweimal pflegen zu
+ * müssen und beim nächsten Kennungswechsel eine der beiden Stellen zu vergessen.
+ *
+ * Kanalabhängig sind nur zwei Dinge: unter welchem Schlüssel abgelegt wird, und welche Rechte der
+ * Token dafür vorweisen muss.
+ *
+ * @param array<string, mixed> $social     Der 'social'-Block der Konfiguration.
+ * @param string               $channelKey Der Kanal, für den abgelegt wird ('facebook'|'instagram').
  * @return array{ok: bool, error?: string, page_name?: string, page_id?: string}
  */
-function avesmapsSocialConnectFacebook(PDO $pdo, array $social, string $shortLivedToken): array
-{
+function avesmapsSocialConnectFacebook(
+    PDO $pdo,
+    array $social,
+    string $shortLivedToken,
+    string $channelKey = 'facebook'
+): array {
+    $channel = avesmapsSocialChannel($channelKey);
+    if ($channel === null || ($channel['connect'] ?? null) !== 'facebook_page') {
+        return ['ok' => false, 'error' => 'Für diesen Kanal gibt es keine Einrichtung über die Seite.'];
+    }
+    $requiredScopes = is_array($channel['connect_scopes'] ?? null)
+        ? array_values($channel['connect_scopes'])
+        : ['pages_manage_posts'];
+
+    // ⚠️ Der Kanal braucht ausser dem Token noch das, WOMIT er adressiert wird. Fehlt es, wäre der
+    // Zugang eingerichtet und der Kanal bliebe trotzdem ausgegraut -- eine Erfolgsmeldung, der nichts
+    // folgt. Deshalb hier, vor dem ersten Netzaufruf.
+    $ownSettings = is_array($social[$channelKey] ?? null) ? $social[$channelKey] : [];
+    if ($channelKey === 'instagram' && trim((string) ($ownSettings['user_id'] ?? '')) === '') {
+        return ['ok' => false, 'error' => 'In api/config.local.php fehlt social.instagram.user_id — '
+            . 'die Kennung des Instagram-Kontos. Ohne sie bliebe der Kanal auch mit Token ausgegraut.'];
+    }
+
     $settings = is_array($social['facebook'] ?? null) ? $social['facebook'] : [];
     $appId = trim((string) ($settings['app_id'] ?? ''));
     $appSecret = trim((string) ($settings['app_secret'] ?? ''));
@@ -249,13 +295,14 @@ function avesmapsSocialConnectFacebook(PDO $pdo, array $social, string $shortLiv
     if ($error !== null) {
         return ['ok' => false, 'error' => 'Die Nachprüfung schlug fehl. ' . $error];
     }
-    $refusal = avesmapsSocialFacebookVerifyPageToken($debug['data'], $pageId);
+    $refusal = avesmapsSocialFacebookVerifyPageToken($debug['data'], $pageId, $requiredScopes);
     if ($refusal !== null) {
         return ['ok' => false, 'error' => $refusal];
     }
 
-    // Erst jetzt. expires_at bleibt NULL -- das ist hier nicht "unbekannt", sondern nachgewiesen "nie".
-    avesmapsSocialTokenSet($pdo, 'facebook', $page['access_token'], null);
+    // Erst jetzt, und unter DEM Schlüssel, für den geprüft wurde. expires_at bleibt NULL -- das ist
+    // hier nicht "unbekannt", sondern nachgewiesen "nie".
+    avesmapsSocialTokenSet($pdo, $channelKey, $page['access_token'], null);
 
     return ['ok' => true, 'page_name' => $page['name'], 'page_id' => $pageId];
 }
