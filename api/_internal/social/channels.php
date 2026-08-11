@@ -98,10 +98,23 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'shows_media' => true,
         'clickable_links' => true,
     ],
+    // 💣 DIE ZEICHENZAHL IST INSTANZABHÄNGIG, NICHT 500 PER GESETZ. Jede Mastodon-Instanz stellt sie
+    // selbst ein; es gibt Instanzen mit 1 500 und mit 5 000. Die 500 hier sind deshalb GEMESSEN, nicht
+    // geglaubt: `GET https://rollenspiel.social/api/v2/instance` ->
+    // configuration.statuses.max_characters = 500, abgefragt am 11.08.2026 gegen Mastodon 4.6.5.
+    // Wer die Instanz wechselt, misst neu -- eine geerbte Zahl waere ein Beitrag, der oeffentlich
+    // abprallt, oder einer, der unnoetig gekuerzt wird.
+    //
+    // 🔧 OFFEN, bewusst: dieselbe Antwort nennt `characters_reserved_per_url = 23` -- Mastodon zaehlt
+    // JEDE Verknuepfung als 23 Zeichen, auch eine kuerzere. Unser Zaehler zaehlt sie echt. Bei langen
+    // Adressen sind wir damit strenger als noetig (harmlos); nur bei einer sehr kurzen (avesmaps.de =
+    // 11) sind wir zu grosszuegig, und ein Beitrag in den letzten zwoelf Zeichen vor 500 kann drueben
+    // abprallen. Der Adapter erklaert diesen 422 im Klartext. Es hier zu beheben hiesse, den
+    // GEMEINSAMEN Zaehler (compose.php) und die Oberflaeche mitzuaendern -- eigene Arbeit.
     'mastodon' => [
         'label' => 'Mastodon',
         'icon' => '🐘',
-        'account' => 'noch kein Konto',
+        'account' => '@Avesmaps@rollenspiel.social',
         'note' => '',
         'max_chars' => 500,
         'max_hashtags' => 4,

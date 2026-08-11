@@ -98,8 +98,8 @@ assert(is_callable(avesmapsSocialAdapterFor('facebook')), 'and facebook, live si
 // 🔴 A missing adapter is NULL, never a silent no-op that reports success. A no-op would mark
 // Instagram "gesendet" with nothing on Instagram -- the single worst failure mode this design exists
 // to avoid, and the one nobody would ever catch by looking at the panel.
+assert(is_callable(avesmapsSocialAdapterFor('mastodon')), 'and mastodon, live since 11.08.2026');
 assert(is_callable(avesmapsSocialAdapterFor('instagram')), 'and instagram, live since 11.08.2026');
-assert(avesmapsSocialAdapterFor('mastodon') === null, 'nor mastodon');
 assert(avesmapsSocialAdapterFor('nope') === null, 'an unknown key has none either');
 
 // ---- the adapter context ---------------------------------------------------------------------------

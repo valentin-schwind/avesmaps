@@ -20,6 +20,7 @@ require_once __DIR__ . '/adapters/probe.php';
 require_once __DIR__ . '/adapters/changelog.php';
 require_once __DIR__ . '/adapters/facebook.php';
 require_once __DIR__ . '/adapters/instagram.php';
+require_once __DIR__ . '/adapters/mastodon.php';
 
 /**
  * May this post go to this channel? Returns the refusal as GERMAN text -- it lands in the editor's
@@ -70,6 +71,8 @@ function avesmapsSocialAdapterFor(string $key): ?callable
         'facebook' => 'avesmapsSocialAdapterFacebook',
         // Läuft über DIESELBE Seite und denselben Seiten-Token wie Facebook (Entwurf §12.4).
         'instagram' => 'avesmapsSocialAdapterInstagram',
+        // Das einzige Netz mit einem Wiederhol-Riegel: Idempotency-Key (Entwurf §12.5).
+        'mastodon' => 'avesmapsSocialAdapterMastodon',
         default => null,
     };
 }
