@@ -138,4 +138,66 @@ $before = $untouched;
 avesmapsClimateApplyToFeatures($untouched, [], []);
 assert($untouched === $before, 'without bands and without shares nothing is added');
 
+// ---- der Territorien-Leser (Owner 2026-08-12) ------------------------------------------------
+// Er liest, was „Zugehoerigkeit rechnen" laengst geschrieben hat: ecosystem_region_territory, seit
+// dem 2026-08-03 gefuellt und bis heute ohne Leser. Gegen sqlite, weil die Abfrage gewoehnliches
+// SQL ist -- und weil es lokal keine MySQL gibt (php-js-test-commands).
+if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
+    fwrite(STDERR, "FATAL: the pdo_sqlite driver is missing -- this half would silently pass" . PHP_EOL);
+    exit(1);
+}
+
+$pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+
+// 🔴 Die leere Antwort kommt VOR dem Anlegen der Tabellen: „das Feature wurde nie eingerichtet"
+// darf keine 500 werden (Purity-Vertrag oben in dieser Datei).
+assert(avesmapsClimateReadTerritoryZones($pdo, 't-1') === [],
+    'ohne Oekosystem-Tabellen: leere Liste, kein Fehler');
+
+$pdo->exec('CREATE TABLE ecosystem_region (id INTEGER PRIMARY KEY, kind TEXT, region_type TEXT, is_active INTEGER)');
+$pdo->exec('CREATE TABLE ecosystem_region_type (kind TEXT, type_key TEXT, label TEXT, sort_order INTEGER)');
+$pdo->exec('CREATE TABLE ecosystem_region_territory (region_id INTEGER, territory_public_id TEXT, share REAL, is_aggregate INTEGER)');
+
+// Drei Klimabaender (Nord -> Sued), eine gewoehnliche Landschaft und ein abgeschaltetes Band.
+$pdo->exec("INSERT INTO ecosystem_region (id, kind, region_type, is_active) VALUES
+    (1, 'klima', 'polar', 1), (2, 'klima', 'gemaessigt', 1), (3, 'klima', 'tropisch', 1),
+    (4, 'vegetation', 'wald', 1), (5, 'klima', 'abgeschaltet', 0)");
+$pdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, label, sort_order) VALUES
+    ('klima', 'polar', 'Polare Zone', 1), ('klima', 'gemaessigt', 'Gemaessigte Zone', 2),
+    ('klima', 'tropisch', 'Tropische Zone', 3)");
+$pdo->exec("INSERT INTO ecosystem_region_territory (region_id, territory_public_id, share, is_aggregate) VALUES
+    (2, 'reich', 0.62, 0), (1, 'reich', 0.35, 0), (3, 'reich', 0.02, 0),
+    (4, 'reich', 0.90, 0), (5, 'reich', 0.80, 0),
+    (1, 'baronie', 0.50, 1), (3, 'baronie', 0.50, 1),
+    (4, 'nur-wald', 1.00, 0)");
+
+$reich = avesmapsClimateReadTerritoryZones($pdo, 'reich');
+assert($reich === [['gemaessigt', 0.62], ['polar', 0.35]],
+    'groesster Anteil zuerst; der 2-%-Splitter faellt unter die 5-%-Schwelle, die Landschaft (90 %!) '
+    . 'und das abgeschaltete Band (80 %!) fallen ganz heraus: ' . json_encode($reich));
+
+// 💣 Eine LANDSCHAFT ist keine Klimazone. Seit die Baender gewoehnliche ecosystem_area-Zeilen sind,
+// haengen beide in derselben Tabelle -- ohne kind = 'klima' staende „wald" in der Klimazeile.
+assert(avesmapsClimateReadTerritoryZones($pdo, 'nur-wald') === [],
+    'ein Gebiet, das nur Landschaften trifft, hat keine Klimazeile');
+
+// ⚠️ is_aggregate wird NICHT gefiltert: die Huelle eines Aggregats IST die gemessene Flaeche, und
+// der Primaerschluessel (region_id, territory_public_id) laesst je Band ohnehin nur eine Zeile zu.
+assert(count(avesmapsClimateReadTerritoryZones($pdo, 'baronie')) === 2,
+    'ein Aggregat bekommt seine Zonen wie jedes andere Gebiet');
+
+// Gleichstand entscheidet sort_order, also Nord vor Sued -- sonst tauschten zwei Haelften eines
+// Reiches zwischen zwei Anfragen die Plaetze. Eingefuegt wird absichtlich Sued VOR Nord.
+$pdo->exec("INSERT INTO ecosystem_region_territory (region_id, territory_public_id, share, is_aggregate)
+    VALUES (3, 'halbe', 0.5, 0), (1, 'halbe', 0.5, 0)");
+assert(avesmapsClimateReadTerritoryZones($pdo, 'halbe') === [['polar', 0.5], ['tropisch', 0.5]],
+    'bei gleichem Anteil entscheidet Nord vor Sued, nicht die Zeilenreihenfolge');
+
+assert(avesmapsClimateReadTerritoryZones($pdo, 'gibt-es-nicht') === [], 'ein unbekanntes Gebiet: leer');
+assert(avesmapsClimateReadTerritoryZones($pdo, '   ') === [], 'ein leerer Schluessel: leere Liste');
+// Der trim() ist die eigentliche Aussage des Riegels und wird hier gemessen: ungetrimmt fiele die
+// Abfrage auf einen Schluessel mit Leerzeichen und faende nichts -- eine stille Fehlanzeige.
+assert(avesmapsClimateReadTerritoryZones($pdo, '  reich  ') === [['gemaessigt', 0.62], ['polar', 0.35]],
+    'Leerzeichen um den Schluessel werden abgeschnitten, nicht mitgesucht');
+
 fwrite(STDOUT, "climate-membership-test: OK\n");

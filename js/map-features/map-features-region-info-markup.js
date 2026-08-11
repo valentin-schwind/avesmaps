@@ -139,6 +139,23 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 		// wiki_key; die zweite Renderrunde liefert ihn nach.
 		(typeof buildLoreMarkup === "function" && typeof avesmapsLorePlaceRefFromRegion === "function"
 			? buildLoreMarkup(Object.assign(avesmapsLorePlaceRefFromRegion(regionEntry) || {}, { tradeGoods: f.trade_goods || "" }))
+			: ""),
+		// „Klimazone" DIREKT unter Flora (Owner 2026-08-03), wie am Ort, an der Landschaftsregion und
+		// am Weg. Derselbe Zeilenbauer -- vier eigene sähen am Anfang gleich aus und wären nach dem
+		// zweiten Feinschliff vier verschiedene Zeilen (AGENTS.md §12).
+		//
+		// 🔴 EINZIGE Quelle ist territory-detail.php, und das ist Absicht, keine Lücke: den Anteil
+		// eines Gebiets an einer Zone kennt nur der Zugehörigkeitslauf (ecosystem_region_territory),
+		// und dieser Abruf holt ihn EINMAL beim Öffnen eines Panels statt ~1.400-mal im 21-MB-Payload.
+		// Der Kartenpayload hängt `climate_zones` ausschließlich an LABELS
+		// (avesmapsClimateApplyToFeatures) -- eine Landschaftsregion bekommt ihre Zeile deshalb dort
+		// (map-features-labels.js) und nicht hier; ein Rückgriff auf `regionEntry` fände nichts und
+		// sähe nur so aus, als wäre der Fall bedacht.
+		//
+		// Vor dem Detail-Abruf gibt es noch nichts; die zweite Renderrunde liefert es nach. Genau wie
+		// bei den Lore-Zeilen darüber.
+		(typeof avesmapsClimateRowForShares === "function" && detail
+			? avesmapsClimateRowForShares(detail.climate_zones)
 			: "")
 	].join("");
 

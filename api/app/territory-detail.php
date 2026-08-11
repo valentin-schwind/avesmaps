@@ -14,6 +14,7 @@ declare(strict_types=1);
 require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/coat-url.php';
 require_once __DIR__ . '/../_internal/app/coat-display.php';
+require_once __DIR__ . '/../_internal/app/climate-membership.php';
 
 const AVESMAPS_TERRITORY_DETAIL_STAGING_TABLE = 'political_territory_wiki_test';
 const AVESMAPS_TERRITORY_DETAIL_MODEL_TABLE = 'wiki_territory_model';
@@ -184,13 +185,30 @@ try {
         $coat['attribution'] = '';
     }
 
-    avesmapsJsonResponse(200, [
+    // Die Zeile „Klimazone" (Owner 2026-08-12). Sie reist hier mit statt im Kartenpayload: dieser
+    // Abruf passiert EINMAL beim Öffnen eines Panels, der Payload dagegen bei jedem Kartenaufbau --
+    // 21 MB, in denen ~1.400 Gebiete ihre Zonen mittrügen, um sie fast nie zu zeigen.
+    //
+    // Nur SCHLÜSSEL und Anteil, nie der Zonenname: den löst der Client aus dem Vokabular des
+    // Kartenpayloads auf (avesmapsClimateSetVocabulary), genau wie bei Ort und Region. Sonst hätte
+    // eine umbenannte Zone zwei Wahrheiten, je nachdem, welche Antwort älter ist.
+    //
+    // Fehlt der Schlüssel im Feld, entfällt es GANZ -- ein leeres Feld ist auf dem Client nicht von
+    // „noch nicht gerechnet" zu unterscheiden, und die Zeile soll dann gar nicht erst entstehen.
+    $climateZones = $publicId === '' ? [] : avesmapsClimateReadTerritoryZones($pdo, $publicId);
+
+    $response = [
         'ok' => true,
         'territory' => $publicId,
         'wiki_key' => $wikiKey,
         'fields' => $fields,
         'coat' => $coat,
-    ]);
+    ];
+    if ($climateZones !== []) {
+        $response['climate_zones'] = $climateZones;
+    }
+
+    avesmapsJsonResponse(200, $response);
 } catch (Throwable $error) {
     avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
 }

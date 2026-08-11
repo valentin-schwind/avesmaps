@@ -272,6 +272,76 @@ function avesmapsClimateReadRegionZones(PDO $pdo): array
 }
 
 /**
+ * Which climate zones ONE political territory lies in, from the same stored intersect.
+ *
+ * 🔴 SAME RUN, SAME RULE, DIFFERENT TABLE. "Zugehörigkeit rechnen" writes two results side by side:
+ * region x region into ecosystem_region_overlap (read above) and region x TERRITORY into
+ * ecosystem_region_territory. Since the climate bands became ordinary ecosystem_area rows
+ * (2026-08-03) every territory falls into its zones in that same loop -- the numbers have been
+ * sitting there ever since, and this function is the first reader they ever got. Recomputing them
+ * from the territory geometry would be a second answer to the same question; see the note above
+ * avesmapsClimateReadRegionZones for what that costs.
+ *
+ * Per TERRITORY, not for all of them: this feeds api/app/territory-detail.php, which is fetched once
+ * when a panel opens, and idx_ecosystem_territory makes it a single index lookup. The region variant
+ * reads the whole table because it rides on the map payload, where one query for 4.650 features
+ * beats 4.650 queries.
+ *
+ * ⚠️ `share` is the fraction of the SMALLER of the two areas (computeTerritoryHits in
+ * html/landschaften-editor.html). A band covers a seventh of the map, every territory is smaller --
+ * so the smaller one IS the territory and the number reads as "this much of the realm lies in that
+ * zone", which is what the row says.
+ *
+ * ⚠️ No is_aggregate filter, and none is needed: the primary key is (region_id, territory_public_id),
+ * so a territory holds at most ONE row per band whichever geometry the run measured.
+ *
+ * @return list<array{0: string, 1: float}> [[zone key, share], ...], biggest share first
+ */
+function avesmapsClimateReadTerritoryZones(PDO $pdo, string $territoryPublicId): array
+{
+    $territoryPublicId = trim($territoryPublicId);
+    if ($territoryPublicId === '') {
+        return [];
+    }
+
+    try {
+        $statement = $pdo->prepare(
+            "SELECT k.region_type AS zone_key,
+                    COALESCE(t.sort_order, 0) AS sort_order,
+                    rt.share
+               FROM ecosystem_region_territory rt
+               JOIN ecosystem_region k ON k.id = rt.region_id AND k.is_active = 1 AND k.kind = 'klima'
+               LEFT JOIN ecosystem_region_type t ON t.kind = 'klima' AND t.type_key = k.region_type
+              WHERE rt.territory_public_id = :territory"
+        );
+        $statement->execute(['territory' => $territoryPublicId]);
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable) {
+        return [];   // ecosystem tables absent -> no row, never a 500 (purity note at the top)
+    }
+
+    $zones = [];
+    $order = [];
+    foreach ($rows as $row) {
+        $zoneKey = trim((string) ($row['zone_key'] ?? ''));
+        $share = (float) ($row['share'] ?? 0);
+        if ($zoneKey === '' || $share < AVESMAPS_CLIMATE_REGION_MIN_SHARE) {
+            continue;
+        }
+        $zones[] = [$zoneKey, round(min(1.0, $share), 4)];
+        $order[$zoneKey] = (int) ($row['sort_order'] ?? 0);
+    }
+
+    // Biggest share first, ties north to south -- the same order as a region's row, so a realm and a
+    // forest inside it never list the same two zones the other way round.
+    usort($zones, static function (array $left, array $right) use ($order): int {
+        return $right[1] <=> $left[1] ?: ($order[$left[0]] ?? 0) <=> ($order[$right[0]] ?? 0);
+    });
+
+    return $zones;
+}
+
+/**
  * What has to change for a cached payload to be wrong about climate -- folded into the ETag.
  *
  * 💣 map_revision DOES NOT COVER THIS, and that is the whole reason this function exists. Dragging a

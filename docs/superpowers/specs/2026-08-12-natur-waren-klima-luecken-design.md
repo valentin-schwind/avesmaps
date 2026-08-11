@@ -55,8 +55,8 @@ kein neuer Request, keine zusätzliche Ladezeit.
 Client: eine Zeile in `createRegionWikiInfoBoxMarkup()` hinter dem Lore-Container:
 
 ```js
-(typeof avesmapsClimateRowForShares === "function"
-    ? avesmapsClimateRowForShares((detail && detail.climate_zones) || f.climate_zones)
+(typeof avesmapsClimateRowForShares === "function" && detail
+    ? avesmapsClimateRowForShares(detail.climate_zones)
     : "")
 ```
 
@@ -64,10 +64,12 @@ Client: eine Zeile in `createRegionWikiInfoBoxMarkup()` hinter dem Lore-Containe
 über das Vokabular aus dem Kartenpayload auf (`avesmapsClimateSetVocabulary`), genau wie bei Ort
 und Region. Der Server liefert Schlüssel + Anteil, nichts sonst.
 
-⭐ **Die Funktion nimmt auch `f.climate_zones` an.** `createRegionWikiInfoBoxMarkup` bedient
-nicht nur politische Territorien, sondern auch Landschaftsregionen, die über ihre Fläche statt
-über ihr Label geöffnet werden (`regionEntry.source === "map_feature"`). Deren Zonen stehen im
-Kartenpayload. Ein Selektor, der nur `detail` liest, ließe diesen Fall stumm.
+⚠️ **EINE Quelle, nicht zwei — korrigiert beim Bauen (2026-08-12).** Der erste Entwurf sah einen
+Rückfall auf `regionEntry.climate_zones` vor, für Landschaftsregionen, die über ihre Fläche statt
+über ihr Label geöffnet werden. **Das Feld gibt es nicht:** `avesmapsClimateApplyToFeatures` hängt
+`climate_zones` ausschließlich an Features vom Typ `label`. Der Rückfall hätte nie etwas gefunden
+und nur so ausgesehen, als sei der Fall bedacht. Landschaftsregionen bekommen ihre Zeile dort, wo
+die Daten liegen — an ihrem Label (`map-features-labels.js`).
 
 ### Fallen
 
@@ -126,6 +128,13 @@ den der Beobachter in `map-features-lore.js` füllt, sobald er im DOM steht. Der
 auf `document.documentElement`, also greift er auch für einen Container, der erst nachträglich
 per `innerHTML` entsteht. Ein eigener Abruf an dieser Stelle wäre das Fan-out, das am
 2026-07-21 den PHP-Pool gesättigt hat.
+
+💣 **Der „+N"-Dialog wird nach den LANDSCHAFTEN benannt, nie nach dem Weg** — gefunden erst in
+der Abnahme (2026-08-12), nicht beim Entwerfen. Der `name`, den `buildLoreMarkup` bekommt,
+überschreibt auch die Gruppen des Dialogs; mit dem Wegnamen stand dort wörtlich „Direkt in
+Reichsstraße Gareth–Elenvina", und das Bräubier steht in Weiden, nicht in der Straße. Genannt
+werden nur die Landschaften, die auch einen Schlüssel beigesteuert haben — eine unverlinkte
+Fläche steht zwar in „Führt durch", trägt aber nichts zu dieser Antwort bei.
 
 ### Alle drei Arten, nicht zwei
 
