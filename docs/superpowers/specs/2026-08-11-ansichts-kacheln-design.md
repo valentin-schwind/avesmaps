@@ -26,64 +26,67 @@ Die sechs Ansichten selbst ändern sich **nicht**: `none` (Nur Karte),
 
 ## 2 · Wo es sitzt
 
-Neue Kachel `#map-layer-button` im Bund `#map-corner-actions` (`index.html`),
-**über** dem Suchknopf: Ansichten oben, Suche darunter, dann die Reihe
-„Neuigkeiten / Hinweise".
-
-Die Reihenfolge ist eine Entscheidung, keine Laune (Owner 11.08.2026): so wächst
-das Menü der Kachel ungestört nach oben, während das Suchfeld seinen Weg nach
-links behält. Umgekehrt hätte sich beides in die Quere kommen können.
+Kachel `#map-layer-button` im Bund `#map-corner-actions` (`index.html`), **unter**
+dem Suchknopf: Suche oben, Ansichten darunter, dann die Reihe „Neuigkeiten /
+Hinweise".
 
 Farbe, Kontur, Radius und Schatten kommen aus der **bestehenden gemeinsamen
-Regel** (`css/components/legal-dialog.css`, heute `#map-search-button,
-#legal-button, #news-button`). Der Selektor wird **erweitert**, die Werte werden
-**nicht abgeschrieben** — dazu steht die Begründung direkt über der Regel.
+Regel** (`css/components/legal-dialog.css`). Der Selektor wird **erweitert**, die
+Werte werden **nicht abgeschrieben**.
 
 > 💣 **Es sind ZWEI Regeln, nicht eine.** Die Grundregel und die Hover-Regel zwei
 > Absätze darunter. Am 11.08.2026 stand die Suchkachel in der ersten und fehlte
-> in der zweiten: sie sah richtig aus und blieb unter dem Zeiger stumm. Wer einen
-> Selektor ergänzt, ergänzt beide.
-
-> 💣 **Der Bund wächst um eine Zeile, und der Zoom darüber muss das merken.** Wie
-> hoch der Bund baut, sagt `--avesmaps-corner-stack`; `syncMapCornerStack`
-> (`js/ui/ui-controls.js`) misst und schreibt sie. Genau diese Kopplung lag am
-> 10.08.2026 um 8 px daneben, als die Knöpfe wuchsen. Die neue Zeile wird
-> **gemessen**, nicht gerechnet — und die Abnahme sieht auf den Zoom, nicht nur
-> auf die Kachel.
+> in der zweiten: sie sah richtig aus und blieb unter dem Zeiger stumm.
+> `touch-scale.test.js` prüft seither **beide** Listen für **jeden** Eckknopf.
 
 ## 3 · Verhalten — die Kachel IST das Menü
 
 **Zugeklappt** ist sie eine Kachel: das Bild der aktiven Ansicht, ihr Name
-darunter (wie bei Google Maps). Sie ist damit zugleich die Statusanzeige.
+darunter. Sie ist damit zugleich die Statusanzeige.
 
-**Aufgeklappt** entfaltet sie sich zu einem **2 × 3-Raster** nach oben und nach
-links — weg vom Bildschirmrand. Dieselbe Form am Zeiger wie am Telefon; das
-Raster baut 204 × 168 px und passt auch auf 375 px Breite.
+**Aufgeklappt** faltet sie sich auf: am Zeiger eine **Reihe zu sechst** (402 px),
+am Telefon **2 × 3** (204 × 168 px). Eine Form, zwei Aufteilungen — der Umbruch
+ist eine einzige Media-Query auf `grid-template-columns`.
 
 > 💣 **Die eingestellte Ansicht bleibt beim Aufklappen auf ihrem Fleck** (Owner
-> 11.08.2026: „die Position der Kachel darf sich nicht verändern"). Erreicht wird
-> das **ohne eine einzige gerechnete Zahl**: die aktive Ansicht ist immer die
-> **letzte Zelle** des Rasters, und das Raster hängt mit derselben Polsterung,
-> demselben Rahmen und derselben Ecke wie die zugeklappte Kachel. Beide Kästen
-> enden am selben Punkt, also *muss* die letzte Zelle auf der Kachel liegen.
-> Ein Versatz wäre die Zahl, die beim nächsten Größenwechsel danebenliegt —
-> dieselbe Falle wie `--avesmaps-corner-stack` am 10.08.2026. Die übrigen fünf
-> füllen die Zellen davor in ihrer festen Reihenfolge.
+> 11.08.2026). Erreicht **ohne eine gerechnete Zahl**: die aktive Ansicht ist
+> immer die **letzte Zelle**, und Kachel wie Raster tragen dieselbe Polsterung,
+> denselben Rahmen und dieselbe Unterkante. Beide Kästen enden am selben Punkt,
+> also *muss* die letzte Zelle auf der Kachel liegen. Gemessen: `[1140, 899,
+> 60, 63]` vor wie nach dem Klick. Ein Versatz wäre die Zahl, die beim nächsten
+> Größenwechsel danebenliegt — dieselbe Falle wie `--avesmaps-corner-stack`.
 
-Jede Zelle trägt Bild und Namen: „Politisch" und „Landschaften" sind aus einem
-Daumennagel nicht erratbar. Die aktive Zelle ist golden gerahmt.
+> 💣 **Das Raster steht IM FLUSS, es schwebt nicht.** Der erste Bau ließ es über
+> der Ecke schweben — und es legte sich beim Aufklappen über die Zoom-Knöpfe, die
+> dahinter schlicht verschwanden (vom Owner gesehen, nicht vom Test). Im Fluss
+> wächst stattdessen der Bund, und der Zoom liest dessen **gemessene** Höhe.
+> Gemessen: Stack = Bundhöhe + 6 in allen drei Zuständen (zu 166/172, auf
+> 235/241, wieder zu 165/171).
+> ⚠️ Es gibt dafür einen `ResizeObserver` — der wird aber erst zum nächsten Bild
+> zugestellt, und die Höhe ändert sich **jetzt**. Deshalb misst der Picker beim
+> Auf- und Zuklappen zusätzlich von Hand nach.
 
-**Schließen** durch: Klick auf eine Ansicht, `Esc`, oder Klick irgendwo auf die
-Karte.
+**Am Telefon** schiebt das hohe Raster den Suchknopf nach oben (gemessen 635 →
+567) und lässt ihn beim Zuklappen zurückfallen — ebenfalls ohne eine Zahl, das
+tut der Fluss von allein.
 
-**Tastatur:** die Zellen sind eine Einfachauswahl (`role="radiogroup"`, je Zelle
-`role="radio"` mit `aria-checked`), Pfeiltasten wandern darin.
+**Blende:** 120 ms Ein-/Ausblenden mit 4 px Versatz. ⚠️ `display` lässt sich nicht
+überblenden — das Raster wird erst sichtbar geschaltet und im **nächsten Bild**
+angeblendet. Und die Kachel kommt erst **nach** der Ausblende zurück: wären beide
+gleichzeitig im Fluss, wäre der Bund kurz doppelt hoch und der Suchknopf ruckte.
+`prefers-reduced-motion` schaltet die Blende ab.
 
-> 💣 **Keine eigene Tastenbelegung.** Die sechs Ansichten hängen schon an
-> `O P K N L I`, und die Liste `SHORTCUTS` in `js/app/keyboard-shortcuts.js` ist
-> laut AGENTS.md die **einzige** Quelle — sie ist zugleich die Belegung und der
-> Bauplan der Tabelle unter „Hinweise → Bedienhilfen". Wer hier eine Taste
-> verdrahtet, baut die Divergenz ein, die dort verhindert werden soll.
+**Schließen** durch: Klick auf eine Ansicht, `Esc`, oder Klick auf die Karte.
+
+**Tastatur:** Einfachauswahl (`role="radiogroup"`, je Zelle `role="radio"` mit
+`aria-checked`), Pfeiltasten wandern darin.
+
+> 💣 **Keine eigene Tastenbelegung.** Die sechs Ansichten hängen an `O P K N L I`,
+> und `SHORTCUTS` in `js/app/keyboard-shortcuts.js` ist die **einzige** Quelle.
+
+⚠️ Eine gesperrte Ansicht bleibt gesperrt: fehlt der Politik-Endpunkt, ist das
+`<option>` `disabled` — und die Zelle ist es genauso, wie der Knopf der
+Auswahlbox. Die Wahrheit steht im `<option>`, die Zelle ist nur seine Darstellung.
 
 ## 4 · Der Zustand — es gibt keinen zweiten
 
