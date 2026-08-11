@@ -136,12 +136,40 @@ Groß-/Kleinschreibung, Präfixpfade, feste Vorgabe, und der Fall **kein Ordner 
 und der Sprung aus „beantwortet" werden **nach dem Deploy im eingeloggten Editor durchgeklickt** und
 am Papierkorb-Ordner des Postfachs gegengeprüft — nicht am Statuscode allein.
 
-## 6. Berührte Dateien
+## 6. Nachtrag: derselbe Fehler im Ordner „Gesendet" (2026-08-11)
+
+Der Blick des Owners in die STRATO-Einstellungen (Standardordner: *Sent Items*, *Trash*, *Drafts*,
+*Spam*) hat den Papierkorb bestätigt — und nebenbei einen stillen Fehler von 2026-07-03 aufgedeckt:
+
+Nach jeder Antwort legt der Endpunkt eine Kopie in den Gesendet-Ordner, damit ein echtes
+Mailprogramm sie auch sieht. Das Ziel war das **Literal `'Sent'`** — dieses Postfach nennt den
+Ordner aber **`Sent Items`**. 💣 `imap_append` ist als „bestenfalls" mit `@` geschrieben, sein
+Fehlschlag also unsichtbar: **jede Antwort meldete Erfolg, und keine Kopie kam je an.** Fünf Wochen
+lang, ohne dass irgendetwas in der Oberfläche darauf hätte hinweisen können.
+
+Behoben mit derselben Mechanik wie beim Papierkorb: `avesmapsImapResolveFolder()` ist jetzt der
+gemeinsame Kern, `AVESMAPS_IMAP_SENT_NAMES` die zweite Kandidatenliste.
+
+⚠️ **`Sent Items` steht in der Rangfolge VOR `Sent`.** Trägt ein Postfach beide Ordner (zwei
+Mailprogramme, zwei Gewohnheiten), lässt sich aus IMAP allein nicht ableiten, welcher der echte ist —
+die Reihenfolge ist deshalb an **dieses** Postfach gebunden, dessen Servereinstellung `Sent Items`
+lautet.
+
+⚠️ **„Ich konnte nicht nachsehen" ist nicht „es gibt keinen".** Liefert `imap_list` gar nichts
+(Rechte, Serverlaune), bleibt es beim historischen `'Sent'`; nur eine echte Ordnerliste **ohne**
+Gesendet-Ordner lässt die Kopie aus. Der Unterschied hängt an `$folders === []` und ist eigens
+getestet.
+
+🔴 Die Antwort selbst ist davon nie betroffen: sie geht über SMTP raus und steht in `mail_reply` —
+der Reiter „Gesendet" in Avesmaps zeigte auch vorher alles. Es fehlte nur die Kopie im Postfach.
+
+## 7. Berührte Dateien
 
 | Datei | Änderung |
 |---|---|
-| `api/_internal/mail/imap.php` | Ordner-Auflösung, Verschieben, `\Deleted`-Filter in der Liste |
-| `api/edit/mail/mailbox.php` | Aktion `trash` (POST, `edit`) |
+| `api/_internal/mail/imap.php` | Ordner-Auflösung (Papierkorb **und** Gesendet), Verschieben, `\Deleted`-Filter in der Liste |
+| `api/edit/mail/mailbox.php` | Aktion `trash` (POST, `edit`); Antwortkopie in den gefundenen Gesendet-Ordner |
 | `js/review/review-mail.js` | Zeilen-Hülle + Papierkorb; `<details>` in „Gesendet"; Sprung klappt auf |
 | `css/features/mail-inbox.css` | Knopf, Hülle, `<summary>`-Optik, Vorschauzeile |
 | `api/_internal/mail/__tests__/imap-trash-mailbox-test.php` | neu |
+| `api/_internal/mail/__tests__/imap-sent-mailbox-test.php` | neu (Nachtrag §6) |

@@ -67,8 +67,13 @@ try {
             ]);
             $replyId = (int) $pdo->lastInsertId();
 
-            // Best-effort: drop a copy into the Sent folder so a real mail client sees it too.
-            @imap_append($imap, $imapCfg['ref'] . $imapCfg['sent_mailbox'], avesmapsMailBuildMessage($env), "\\Seen");
+            // Best-effort: drop a copy into the Sent folder so a real mail client sees it too. The
+            // folder name is discovered, not assumed -- this mailbox calls it "Sent Items", and the
+            // literal "Sent" used here until 2026-08-11 quietly appended nowhere.
+            $sentMailbox = avesmapsImapSentMailbox($imap, $imapCfg);
+            if ($sentMailbox !== '') {
+                @imap_append($imap, $imapCfg['ref'] . $sentMailbox, avesmapsMailBuildMessage($env), "\\Seen");
+            }
 
             $ok = str_starts_with($deliveryStatus, 'smtp_sent') || $deliveryStatus === 'mail_sent';
             avesmapsJsonResponse($ok ? 200 : 502, [

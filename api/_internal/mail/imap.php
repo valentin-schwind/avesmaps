@@ -14,7 +14,9 @@ function avesmapsResolveImapConfig(array $config): array {
     return [
         'ref' => '{' . $host . ':' . $port . $flags . '}',
         'mailbox' => trim((string) ($imap['mailbox'] ?? 'INBOX')),
-        'sent_mailbox' => trim((string) ($imap['sent_mailbox'] ?? 'Sent')),
+        // Both empty on purpose: sent and trash folders are DISCOVERED from the real folder list
+        // (see avesmapsImapResolveFolder), never guessed. A configured value still wins.
+        'sent_mailbox' => trim((string) ($imap['sent_mailbox'] ?? '')),
         // Empty on purpose: the trash folder is DISCOVERED (see avesmapsImapResolveTrashMailbox),
         // never guessed. An explicit config value wins over discovery.
         'trash_mailbox' => trim((string) ($imap['trash_mailbox'] ?? '')),
@@ -114,14 +116,18 @@ function avesmapsImapMarkSeen($imap, int $uid): void {
     @imap_setflag_full($imap, (string) $uid, '\\Seen', ST_UID);
 }
 
-// --- Trash ----------------------------------------------------------------------------
-// Moving a message out of the inbox needs the NAME of the trash folder, and there is no standard
-// one: Trash / Papierkorb / Deleted Items / INBOX.Trash are all in the wild, and ext-imap does not
-// expose the SPECIAL-USE \Trash attribute. Guessing is the dangerous option -- IMAP servers create
-// a missing mailbox on demand, so a wrong guess files the mail into a folder nobody ever opens and
-// reports success. So: read the real folder list and match against it, or refuse.
+// --- Special folders (trash, sent) -----------------------------------------------------
+// Addressing a folder other than INBOX needs its NAME, and there is no standard one: Trash /
+// Papierkorb / Deleted Items and Sent / Sent Items / Gesendet are all in the wild, and ext-imap does
+// not expose the SPECIAL-USE attributes (\Trash, \Sent). Guessing is the dangerous option -- IMAP
+// servers create a missing mailbox on demand, so a wrong guess files the mail into a folder nobody
+// ever opens and reports success. So: read the real folder list and match against it, or refuse.
 
 const AVESMAPS_IMAP_TRASH_NAMES = ['trash', 'papierkorb', 'deleted items', 'deleted messages', 'deleted'];
+// "Sent Items" first, not "Sent": this app talks to exactly ONE mailbox, and that mailbox's own
+// default-sent-folder setting is "Sent Items" (STRATO, verified 2026-08-11). A mailbox that carries
+// both folders is otherwise unresolvable from IMAP alone.
+const AVESMAPS_IMAP_SENT_NAMES = ['sent items', 'sent', 'gesendet', 'gesendete objekte', 'gesendete nachrichten', 'sent messages'];
 
 function avesmapsImapListFolders($imap, string $ref): array {
     $list = @imap_list($imap, $ref, '*');
@@ -129,13 +135,13 @@ function avesmapsImapListFolders($imap, string $ref): array {
 }
 
 /**
- * Pick the trash folder out of an imap_list() result. Entries are fully qualified
+ * Pick a special folder out of an imap_list() result. Entries are fully qualified
  * ("{imap.example.org:993/imap/ssl}INBOX.Trash"); the connect reference is stripped and only the
- * LAST path segment is compared, case-insensitively, preferring earlier AVESMAPS_IMAP_TRASH_NAMES
- * entries. An explicitly configured name wins outright. Returns '' when the mailbox has no trash
- * folder -- the caller MUST refuse then, never fall back to a name.
+ * LAST path segment is compared, case-insensitively, preferring earlier $candidates entries. An
+ * explicitly configured name wins outright. Returns '' when the mailbox has no such folder -- the
+ * caller MUST handle that, never fall back to an invented name.
  */
-function avesmapsImapResolveTrashMailbox(array $folders, string $configured = ''): string {
+function avesmapsImapResolveFolder(array $folders, array $candidates, string $configured = ''): string {
     if (trim($configured) !== '') { return trim($configured); }
     $best = '';
     $bestRank = PHP_INT_MAX;
@@ -144,12 +150,40 @@ function avesmapsImapResolveTrashMailbox(array $folders, string $configured = ''
         if (trim($name) === '') { continue; }
         $segments = preg_split('#[./]#', $name);
         $leaf = strtolower(trim((string) end($segments)));
-        $rank = array_search($leaf, AVESMAPS_IMAP_TRASH_NAMES, true);
+        $rank = array_search($leaf, $candidates, true);
         if ($rank === false || $rank >= $bestRank) { continue; }
         $best = $name;
         $bestRank = (int) $rank;
     }
     return $best;
+}
+
+function avesmapsImapResolveTrashMailbox(array $folders, string $configured = ''): string {
+    return avesmapsImapResolveFolder($folders, AVESMAPS_IMAP_TRASH_NAMES, $configured);
+}
+
+function avesmapsImapResolveSentMailbox(array $folders, string $configured = ''): string {
+    return avesmapsImapResolveFolder($folders, AVESMAPS_IMAP_SENT_NAMES, $configured);
+}
+
+/**
+ * The mailbox a copy of an outgoing reply is filed into, so a real mail client sees it too.
+ * Returns '' when this mailbox demonstrably has no sent folder -- then the copy is skipped rather
+ * than creating a stray folder (the reply itself is sent regardless, and logged in mail_reply).
+ */
+function avesmapsImapSentMailboxFrom(array $folders, string $configured = ''): string {
+    $sent = avesmapsImapResolveSentMailbox($folders, $configured);
+    // No listing at all (rights, server quirk) is NOT the same as "this mailbox has no sent
+    // folder": we did not get to look. Keep the historical literal instead of dropping the copy.
+    if ($sent === '' && $folders === []) { return 'Sent'; }
+    return $sent;
+}
+
+function avesmapsImapSentMailbox($imap, array $imapCfg): string {
+    return avesmapsImapSentMailboxFrom(
+        avesmapsImapListFolders($imap, (string) ($imapCfg['ref'] ?? '')),
+        (string) ($imapCfg['sent_mailbox'] ?? '')
+    );
 }
 
 function avesmapsImapMoveToTrash($imap, int $uid, string $trashMailbox): bool {
