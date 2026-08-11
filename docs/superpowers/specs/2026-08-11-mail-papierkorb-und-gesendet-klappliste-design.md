@@ -119,6 +119,15 @@ daneben — die beiden Reiter dürfen nicht auseinanderlaufen.
 ⚠️ Das `<summary>`-Dreieck des Browsers wird abgeschaltet (`::-webkit-details-marker` +
 `list-style: none`), sonst springt die Zeile gegenüber der Postfach-Zeile ein.
 
+💣 **`display: block` am `<summary>` ist tragend, nicht der Vorgabewert** (nachgetragen 2026-08-11,
+nachdem es live kaputt aussah). `css/pages/political-territory-wiki-tree.css` Z. 25 setzt
+`details > summary { display: flex }` **ohne jede Klasse**; die Datei ist in `index.html` direkt
+verlinkt, die Regel gilt also für **jedes `<details>` der Seite**. Ohne Gegenregel standen Adressat,
+Betreff, Datum und Vorschau nebeneinander in einer Zeile, die Vorschau auf 24 px gequetscht.
+⚠️ Die Abnahme hatte das nicht gefangen, weil sie die fünf Angaben über `textContent` prüfte — und
+`textContent` ist gegen nebeneinander/untereinander blind. **Bei Listen wird ab jetzt die Geometrie
+behauptet** (Kinder stapeln: `top` streng wachsend, `left` gleich), nicht nur der Text.
+
 ### 4.3 ⚠️ Der Sprung aus „✓ beantwortet" muss aufklappen
 
 `jumpToSent()` wechselt in den Reiter und scrollt zur Antwort. Bleibt die Ziel-Zeile zugeklappt,
