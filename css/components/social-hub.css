@@ -342,12 +342,8 @@
 	margin-top: 0;
 }
 
-/* ⚠️ `password` gehoert mit in diese Liste: das Token-Feld der Einrichtung ist maskiert (es steht ein
-   Zugangsdatum drin, und der Hub wird beim Einrichten auch mal geteilt oder abfotografiert). Ohne den
-   Selektor faellt genau dieses eine Feld aus der Formensprache -- ohne Fehler, nur haesslich. */
 .social-hub__body textarea,
-.social-hub__body input[type="text"],
-.social-hub__body input[type="password"] {
+.social-hub__body input[type="text"] {
 	width: 100%;
 	padding: 8px 10px;
 	border: 1px solid var(--color-button-soft-border);
@@ -478,6 +474,15 @@
 	overflow-wrap: anywhere;
 }
 
+/* Wohin der Entwurf gehen soll. Dieselben Marken wie in der Panel-Liste, im ruhigen „wartet"-Ton --
+   gesendet ist hier noch nichts, und Gruen hiesse „es steht draussen". */
+.social-hub__draft-marks {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-bottom: 6px;
+}
+
 .social-hub__draft-actions {
 	display: flex;
 	flex-wrap: wrap;
@@ -598,4 +603,15 @@
 
 .social-hub__spacer {
 	flex: 1 1 auto;
+}
+
+/* Das Token-Feld ist maskiert, aber KEIN `type="password"` (Owner 11.08.2026: Chrome bot bei jedem
+   „Als Entwurf speichern" das Speichern eines Passworts an und griff sich sogar den Text aus dem
+   Beitragsfeld als Nutzernamen). Es ist auch keins: hier wird nichts angemeldet, sondern einmal ein
+   Zugangsdatum durchgereicht, das der Server danach behaelt und das Feld sofort leert.
+   ⚠️ `-webkit-text-security` kennt Firefox nicht -- dort steht der Token beim Einfuegen sichtbar.
+   Das ist Schulterblick-Schutz, keine Sicherheitsmassnahme; die liegt darin, dass er nur einmal
+   eingefuegt und sofort geleert wird. */
+#social-connect-token {
+	-webkit-text-security: disc;
 }

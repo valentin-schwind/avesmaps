@@ -14,6 +14,12 @@ declare(strict_types=1);
 // table, because a token the server refreshes by itself cannot live in a hand-edited PHP file
 // (owner decision 2026-08-10). Everything in this file is safe to render into the browser.
 //
+// 💣 DAS ICON IST DATEN, KEIN CODE. Es steht hier neben der Beschriftung und nicht als
+// Schluesselliste im Client -- sonst kennt der Browser eine Zuordnung, die der Server nicht kennt,
+// und der naechste Kanal bekommt seins an einer zweiten Stelle (oder gar nicht). Es ist Schmuck:
+// die Bedeutung traegt die Beschriftung daneben, denn fuer Netze gibt es keine Emoji, die man
+// erraten koennte.
+//
 // 💣 max_hashtags === null means ALL, not "many". Instagram takes every tag; writing 30 here would be
 // a limit nobody imposed, and the composer would silently truncate the editor's tags.
 
@@ -32,6 +38,7 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     // the picture path is exercised simply by attaching one.
     'probe' => [
         'label' => 'Probe',
+        'icon' => '🧪',
         'account' => 'nur intern — sendet nichts',
         'note' => '',
         'max_chars' => 500,
@@ -53,6 +60,7 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     // niemand nach Schlagworten durchsucht. max_hashtags = 0 kappt sie, statt sie mitzuschleppen.
     'changelog' => [
         'label' => 'Neuigkeiten',
+        'icon' => '📰',
         'account' => 'auf avesmaps.de',
         'note' => 'nutzt die Titelzeile · Bild wird nicht übernommen',
         // Die Überschrift ist VARCHAR(190); der Rumpf ist TEXT. 2 000 Zeichen sind reichlich für
@@ -65,6 +73,7 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     ],
     'instagram' => [
         'label' => 'Instagram',
+        'icon' => '📷',
         'account' => '@avesmaps',
         'note' => '',
         'max_chars' => 2200,
@@ -79,6 +88,7 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     // Register und nicht im Client, weil sonst der Browser entscheiden müsste, was der Server kann.
     'facebook' => [
         'label' => 'Facebook',
+        'icon' => '📘',
         'account' => 'Seite Avesmaps',
         'connect' => 'facebook_page',
         'note' => '',
@@ -90,6 +100,7 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     ],
     'mastodon' => [
         'label' => 'Mastodon',
+        'icon' => '🐘',
         'account' => 'noch kein Konto',
         'note' => '',
         'max_chars' => 500,
@@ -169,6 +180,7 @@ function avesmapsSocialChannelList(array $socialConfig, array $tokenKeys, array 
         $list[] = [
             'key' => $key,
             'label' => $channel['label'],
+            'icon' => $channel['icon'],
             'account' => $channel['account'],
             'note' => $channel['note'],
             'max_chars' => $channel['max_chars'],

@@ -126,10 +126,13 @@ assert($byKey['instagram']['requires_media'] === true,
 foreach ($list as $row) {
     assert(!isset($row['access_token']), 'no access token ever leaves the server in the channel list');
     assert(!isset($row['app_secret']), 'no app secret either');
-    assert(array_keys($row) === ['key', 'label', 'account', 'note', 'max_chars', 'max_hashtags',
-        'requires_media', 'shows_media', 'clickable_links', 'configured', 'connectable',
-        'access_expires'],
-        'the row carries exactly these twelve keys -- a field added here reaches the browser');
+    assert(array_keys($row) === ['key', 'label', 'icon', 'account', 'note', 'max_chars',
+        'max_hashtags', 'requires_media', 'shows_media', 'clickable_links', 'configured',
+        'connectable', 'access_expires'],
+        'the row carries exactly these thirteen keys -- a field added here reaches the browser');
+    // Das Icon ist Schmuck, aber es muss DA sein: eine leere Marke in der Entwurfsliste sieht aus
+    // wie ein Darstellungsfehler, nicht wie ein fehlendes Feld.
+    assert($row['icon'] !== '', 'jeder Kanal hat ein Icon (' . $row['key'] . ')');
 }
 
 // ---- wann der Zugang ablaeuft ----------------------------------------------------------------------

@@ -366,6 +366,23 @@
 			text.className = "social-hub__draft-text";
 			text.textContent = post.title ? post.title : (post.text || "");
 
+			// Wohin dieser Entwurf gehen soll. 💣 Icon UND Beschriftung: für Netze gibt es keine Emoji,
+			// die man erraten kann -- 📘 heißt nicht „Facebook", es steht nur daneben. Die Zuordnung
+			// kommt aus dem Register (`icon`), nicht aus einer Schlüsselliste hier, sonst kennt der
+			// Browser eine Zuordnung, die der Server nicht kennt.
+			const marks = document.createElement("div");
+			marks.className = "social-hub__draft-marks";
+			(post.targets || []).forEach(function (target) {
+				const channel = channels.filter(function (c) { return c.key === target.channel; })[0];
+				const mark = document.createElement("span");
+				mark.className = "social-chip social-chip--wait";
+				// Ein Kanal, den das Register nicht mehr kennt, behält seinen Schlüssel -- lieber ein
+				// technischer Name als eine leere Marke, die wie ein Darstellungsfehler aussieht.
+				mark.textContent = (channel && channel.icon ? channel.icon + " " : "")
+					+ (channel ? channel.label : target.channel);
+				marks.appendChild(mark);
+			});
+
 			const actions = document.createElement("div");
 			actions.className = "social-hub__draft-actions";
 
@@ -405,7 +422,7 @@
 			});
 
 			actions.append(send, open, drop);
-			row.append(when, text, actions);
+			row.append(when, text, marks, actions);
 			host.appendChild(row);
 		});
 	}
