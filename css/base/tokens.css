@@ -539,8 +539,12 @@
 	}
 }
 
-/* Am Telefon laufen beide Randlaschen von Kante zu Kante -- kein Rand oben, keiner unten
-   (Owner 11.08.2026: „von oben nach unten durchgehen, keine raender/spalten oben und unten mehr").
+/* Am Telefon laufen die PANELS von Kante zu Kante -- die Randlaschen NICHT.
+   🔴 Das war am 11.08.2026 fuer wenige Stunden anders und ist zurueckgenommen: „von oben nach
+   unten durchgehen" galt dem PANEL, nicht seinem Reiter (Owner, nach dem Ansehen: „das Tab sollte
+   nicht veraendert werden, ich meinte dass das Panel selbst von oben nach unten gehen soll"). Eine
+   Lasche ueber die volle Bildschirmhoehe ist ein 100-dvh-Balken neben der Karte. Die Reiter behalten
+   deshalb ihre Grundwerte (--avesmaps-tab-top/-h in :root), auch am Telefon.
    💣 An `html.avesmaps-phone`, NICHT an einer Media-Query: „Telefon" ist in diesem Haus EINE
    Definition -- avesmapsIsPhoneViewport() (pointer: coarse UND Kurzseite <= 600px) setzt die Klasse,
    das CSS liest sie. Eine zweite Fassung als Breiten-Query traefe ein quer gehaltenes Telefon nicht
@@ -549,9 +553,7 @@
    von hier aus auf `#toggle-button` und `.avesmaps-infopanel__handle` zielte, waere ein dritter Ort,
    an dem ihre Maße stehen. */
 html.avesmaps-phone {
-	--avesmaps-tab-top: 0px;
-	--avesmaps-tab-h: 100dvh;
-	/* Und die Panels laufen ebenfalls von Kante zu Kante (Owner 11.08.2026: „im mobile full
+	/* Die Panels laufen von Kante zu Kante (Owner 11.08.2026: „im mobile full
 	   height"). Nur SIE -- --avesmaps-edge-gap bleibt bei 12px, sonst klebte der Knopfbund am
 	   Bildschirmrand. Deshalb hat der Panel-Rand einen eigenen Token, statt der Kartenrand-Zahl
 	   direkt zu folgen: am Zeiger ist er von ihr abgeleitet, am Telefon faellt er weg. */

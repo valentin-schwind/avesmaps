@@ -126,10 +126,26 @@ DIALOG_FELDER.forEach(([rel, selector, name]) => {
 // Knopf trug seine Rangfolge im Dunkelmodus ohnehin nicht: dort liegen --color-button (#6b6456) und
 // --color-panel (#312e26) beide im selben Braun.
 const legalCss = withoutComments(read("css", "components", "legal-dialog.css"));
-const gemeinsam = legalCss.match(/^#map-search-button,\s*\r?\n#legal-button,\s*\r?\n#news-button\s*\{/m);
-assert.ok(gemeinsam,
-	"die Suchkachel steht in DERSELBEN Regel wie #legal-button und #news-button -- kopierte Werte"
-	+ " waeren die Divergenz, vor der AGENTS.md §12 warnt");
+// 💣 ES SIND ZWEI REGELN, NICHT EINE: die Grundregel (Farbe, Kontur, Radius, Schatten) und die
+// Hover-Regel zwei Absaetze darunter. Am 11.08.2026 stand die Suchkachel in der ersten und fehlte
+// in der zweiten -- sie sah richtig aus und blieb unter dem Zeiger stumm. Genau das faengt diese
+// Pruefung ab, und zwar fuer JEDEN Eckknopf: die Liste waechst mit, die Regel bleibt dieselbe.
+// (Vorher stand hier ein Abgleich auf die woertliche Dreier-Liste. Der biss zwar, aber er biss
+// auch den, der einen VIERTEN Eckknopf richtig eintrug.)
+const ECKKNOEPFE = ["#map-search-button", "#map-layer-button", "#legal-button", "#news-button"];
+const selektorlisten = Array.from(legalCss.matchAll(/([^{}]*#news-button[^{}]*?)\{/g)).map((m) => m[1]);
+const grundregel = selektorlisten.find((liste) => !/:hover/.test(liste));
+const hoverregel = selektorlisten.find((liste) => /:hover/.test(liste));
+assert.ok(grundregel, "es gibt eine gemeinsame Grundregel der Eckknoepfe");
+assert.ok(hoverregel, "und eine gemeinsame Hover-Regel");
+ECKKNOEPFE.forEach((id) => {
+	assert.ok(grundregel.includes(id),
+		`${id} steht in der GEMEINSAMEN Grundregel -- kopierte Werte waeren die Divergenz, vor der`
+		+ " AGENTS.md §12 warnt");
+	assert.ok(hoverregel.includes(id + ":hover"),
+		`${id} steht auch in der Hover-Regel -- sonst sieht der Knopf richtig aus und bleibt unter`
+		+ " dem Zeiger stumm (so geschehen am 11.08.2026)");
+});
 const eigen = legalCss.match(/^#map-search-button\s*\{([^}]*)\}/m);
 assert.ok(eigen, "und hat einen eigenen Block fuer das, was eine Kachel ausmacht");
 ["background", "border:", "border-radius", "box-shadow", "color:"].forEach((prop) => {
@@ -706,11 +722,25 @@ const infopanelCss = withoutComments(read("css", "features", "infopanel.css"));
 // setzt `html.avesmaps-phone`. Eine Breiten-Query traefe ein quer gehaltenes Telefon nicht und ein
 // Tablet zu viel.
 const telefonBlock = tokens.match(/html\.avesmaps-phone\s*\{([^}]*)\}/);
-assert.ok(telefonBlock, "tokens.css traegt den Telefon-Block fuer die Laschen");
-assert.ok(/--avesmaps-tab-top:\s*0/.test(telefonBlock[1]),
-	"am Telefon beginnt die Lasche an der Oberkante");
-assert.ok(/--avesmaps-tab-h:\s*100dvh/.test(telefonBlock[1]),
-	"...und laeuft bis zur Unterkante -- 100dvh, nicht 100vh: sonst regiert die Browserleiste hinein");
+assert.ok(telefonBlock, "tokens.css traegt den Telefon-Block");
+// 🔴 Am Telefon laufen die PANELS von Kante zu Kante -- die LASCHEN nicht. Am 11.08.2026 galt fuer
+// wenige Stunden beides; „von oben nach unten durchgehen" war dem Panel gemeint, nicht seinem
+// Reiter (Owner: „das Tab sollte nicht veraendert werden"). Eine Lasche ueber 100dvh ist ein
+// Balken neben der Karte. Diese Pruefung haelt die Ruecknahme fest.
+assert.ok(/--avesmaps-panel-inset-top:\s*0/.test(telefonBlock[1])
+	&& /--avesmaps-panel-inset-bottom:\s*0/.test(telefonBlock[1]),
+	"am Telefon laufen die PANELS von Kante zu Kante");
+assert.ok(!/--avesmaps-tab-(top|h)\s*:/.test(telefonBlock[1]),
+	"...und die LASCHEN nicht -- die Reiter behalten ihre Grundwerte, sonst steht ein 100dvh-Balken"
+	+ " neben der Karte (zurueckgenommen am 11.08.2026)");
+// Der Routenplaner las die Panel-Token lange NICHT: `top: 10px` und `max-height: 95vh` standen als
+// eigene Zahlen in map-layout.css, und er blieb deshalb mitten im Bild stehen, waehrend das
+// Infopanel gegenueber schon an der Kante klebte.
+const planerAmTelefon = layoutCss.match(/html\.avesmaps-phone\s+#search\s*\{([^}]*)\}/);
+assert.ok(planerAmTelefon, "der Routenplaner hat eine Telefon-Regel");
+assert.ok(/top:\s*var\(--avesmaps-panel-inset-top\)/.test(planerAmTelefon[1])
+	&& /bottom:\s*var\(--avesmaps-panel-inset-bottom\)/.test(planerAmTelefon[1]),
+	"und liest darin DIESELBEN Token wie das Infopanel gegenueber -- eigene Zahlen liefen auseinander");
 assert.strictEqual((tokens.match(/html\.avesmaps-phone\s*\{/g) || []).length, 1,
 	"und es gibt genau EINEN solchen Block in tokens.css -- zwei waeren zwei Wahrheiten");
 

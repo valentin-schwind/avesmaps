@@ -27,6 +27,20 @@ body {
 	box-sizing: border-box;
 	z-index: var(--z-map-panel);
 }
+
+/* Am Telefon laeuft der Routenplaner von Kante zu Kante -- aus denselben Token wie das Infopanel
+   an der gegenueberliegenden Kante (Owner 11.08.2026: „ich meinte dass das Panel selbst von oben
+   nach unten gehen soll"). Bis dahin las nur das Infopanel sie; hier standen `top` und
+   `max-height` als eigene Zahlen, und der Planer blieb deshalb mitten im Bild stehen.
+   ⚠️ NUR am Telefon. Am Zeiger bleibt das Panel so hoch wie sein Inhalt (das `max-height: 95vh`
+   oben) -- waeren `top` UND `bottom` immer gesetzt, stuende auch eine leere Route ueber die
+   volle Bildschirmhoehe. */
+html.avesmaps-phone #search {
+	top: var(--avesmaps-panel-inset-top);
+	bottom: var(--avesmaps-panel-inset-bottom);
+	max-height: none;
+}
+
 /* Maße aus den Token (css/base/tokens.css): die Lasche „Info" an der rechten Kante ist dasselbe
    Bauteil und liest dieselben. Am Telefon laeuft die Lasche von Kante zu Kante -- der Token
    wechselt dort, nicht diese Regel. */
