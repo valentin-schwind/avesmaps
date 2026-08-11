@@ -245,6 +245,79 @@ function avesmapsSocialListPosts(PDO $pdo, int $limit = 50): array
     return $posts;
 }
 
+/**
+ * Einen wartenden Entwurf ÄNDERN, statt ihn durch einen neuen zu ersetzen.
+ *
+ * 🔴 NUR `proposal`. Der Zustand steht in der WHERE-Bedingung, nicht bloß in einer Prüfung davor:
+ * ein bereits veröffentlichter Beitrag ist draußen, und sein Text hier nachträglich zu ändern
+ * hieße, dass die Liste etwas anderes zeigt als das, was auf Facebook steht. Zwischen einem
+ * gelesenen Zustand und einem geschriebenen liegt ein Moment -- die Datenbank entscheidet.
+ *
+ * @param array<string, mixed> $post
+ * @param list<string>         $channelKeys
+ * @return bool false, wenn es keinen wartenden Entwurf mit dieser id gibt.
+ */
+function avesmapsSocialUpdateProposal(PDO $pdo, int $id, array $post, array $channelKeys): bool
+{
+    avesmapsSocialEnsureTables($pdo);
+
+    $pdo->beginTransaction();
+    try {
+        $update = $pdo->prepare(
+            "UPDATE social_post
+                SET title = :title, body = :body, hashtags = :hashtags, media_url = :media_url,
+                    media_kind = :media_kind, media_license = :media_license, media_source = :media_source
+              WHERE id = :id AND state = 'proposal'"
+        );
+        $update->execute([
+            'title' => (string) ($post['title'] ?? ''),
+            'body' => (string) ($post['body'] ?? ''),
+            'hashtags' => (string) ($post['hashtags'] ?? ''),
+            'media_url' => (string) ($post['media_url'] ?? ''),
+            'media_kind' => (string) ($post['media_kind'] ?? ''),
+            'media_license' => (string) ($post['media_license'] ?? ''),
+            'media_source' => (string) ($post['media_source'] ?? ''),
+            'id' => $id,
+        ]);
+        if ($update->rowCount() === 0) {
+            // rowCount 0 heißt entweder „gibt es nicht", „ist kein Entwurf mehr" ODER „nichts
+            // geändert". Deshalb wird danach noch einmal nachgesehen, statt hier abzubrechen: ein
+            // Speichern ohne Textänderung, aber mit anderen Kanälen, ist ein völlig normaler Fall.
+            $check = $pdo->prepare("SELECT id FROM social_post WHERE id = :id AND state = 'proposal'");
+            $check->execute(['id' => $id]);
+            if ($check->fetchColumn() === false) {
+                $pdo->rollBack();
+
+                return false;
+            }
+        }
+
+        // Die Ziele werden ERSETZT, nicht ergänzt: der Editor hat gerade entschieden, wohin der
+        // Beitrag geht, und ein abgehaktes Häkchen muss ein Ziel entfernen können. Zulässig ist das
+        // nur, solange nichts gesendet wurde -- und das ist bei `proposal` gegeben.
+        $pdo->prepare('DELETE FROM social_post_target WHERE post_id = :id')->execute(['id' => $id]);
+        $target = $pdo->prepare(
+            'INSERT INTO social_post_target (post_id, channel_key, status) VALUES (:pid, :key, :status)'
+        );
+        $status = ($post['scheduled_for'] ?? null) === null ? 'pending' : 'scheduled';
+        foreach ($channelKeys as $key) {
+            if (avesmapsSocialChannel((string) $key) === null) {
+                continue;
+            }
+            $target->execute(['pid' => $id, 'key' => (string) $key, 'status' => $status]);
+        }
+
+        $pdo->commit();
+
+        return true;
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $error;
+    }
+}
+
 function avesmapsSocialSetPostState(PDO $pdo, int $id, string $state): void
 {
     if (!in_array($state, AVESMAPS_SOCIAL_POST_STATES, true)) {

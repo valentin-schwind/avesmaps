@@ -422,6 +422,17 @@
 	color: var(--color-text-muted);
 }
 
+/* Die Vorschau. Klein genug, dass sie das Formular nicht auseinanderzieht, gross genug, dass man
+   erkennt, WAS man da mitschickt -- ein Beitrag geht oeffentlich unter dem Namen des Projekts raus. */
+.social-hub__media-thumb {
+	display: block;
+	max-width: 100%;
+	max-height: 140px;
+	margin: 8px 0 6px;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+}
+
 .social-hub__media-line {
 	display: flex;
 	flex-wrap: wrap;

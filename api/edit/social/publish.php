@@ -63,7 +63,7 @@ try {
         ]);
     }
 
-    if ($action !== 'create') {
+    if ($action !== 'create' && $action !== 'update') {
         avesmapsErrorResponse(400, 'invalid_request', 'Unbekannte Aktion.');
     }
 
@@ -107,6 +107,38 @@ try {
     // dieselbe Sache unter zwei Namen: die Liste müsste beide filtern, die Freigabe beide kennen, und
     // beim naechsten Zustand liefen sie auseinander. Woher er kommt, steht in `origin`.
     $isDraft = ($request['draft'] ?? false) === true;
+
+    // ---- einen wartenden Entwurf ÄNDERN ------------------------------------------------------------
+    //
+    // 🔴 Ändern, nicht ersetzen. Bis 11.08.2026 verwarf der Client den alten Entwurf und legte einen
+    // neuen an -- richtig für einen bereits VERÖFFENTLICHTEN Beitrag (dort soll sichtbar bleiben, dass
+    // jemand eingegriffen hat), falsch für einen Entwurf: der bekam bei jedem Speichern ein neues
+    // Datum und eine neue id, und wer zweimal speicherte, sah zwei Beiträge entstehen.
+    if ($action === 'update') {
+        $id = (int) ($request['id'] ?? 0);
+        if ($id <= 0) {
+            avesmapsErrorResponse(400, 'invalid_request', 'id fehlt.');
+        }
+        $ok = avesmapsSocialUpdateProposal($pdo, $id, [
+            'title' => (string) ($request['title'] ?? ''),
+            'body' => $text,
+            'hashtags' => implode(' ', avesmapsSocialNormalizeHashtags($request['hashtags'] ?? [])),
+            'media_url' => $mediaUrl,
+            'media_kind' => $mediaUrl === '' ? '' : 'image',
+            'media_license' => (string) ($request['media_license'] ?? ''),
+            'media_source' => (string) ($request['media_source'] ?? ''),
+        ], $selected);
+        if (!$ok) {
+            // Kein 404: die id gibt es meist sehr wohl -- sie ist nur kein Entwurf mehr. Der Satz sagt
+            // das, weil „nicht gefunden" jemanden auf die Suche nach einem Datenverlust schickt.
+            avesmapsErrorResponse(409, 'not_a_draft',
+                'Dieser Beitrag ist kein wartender Entwurf mehr — vermutlich wurde er inzwischen '
+                . 'veröffentlicht oder verworfen. Bitte die Liste neu laden.');
+        }
+
+        avesmapsJsonResponse(200, ['ok' => true, 'post_id' => $id, 'state' => 'proposal',
+            'results' => []]);
+    }
 
     $postId = avesmapsSocialCreatePost($pdo, [
         // Die Titelzeile ist WAHLFREI und geht nur an den Kanal „Neuigkeiten" -- die Netze kennen

@@ -461,6 +461,10 @@
 
 	let media = null;      // { url, width, height, cropped, fits: [...] }
 	let editingId = null;  // gesetzt, wenn ein Vorschlag bearbeitet wird
+	// Die Kanäle eines wiederhergestellten Entwurfs. `null` heisst „keine Vorgabe" -- dann gilt der
+	// Startwert (nur die Probe). Eine LEERE Liste ist etwas anderes und muss es bleiben: ein Entwurf
+	// ohne Ziel darf nicht stillschweigend wieder eines bekommen.
+	let pendingChannels = null;
 
 	function el(id) { return document.getElementById(id); }
 
@@ -548,7 +552,10 @@
 			box.disabled = !channel.configured;
 			// Instagram ohne Bild bleibt gesperrt: dort ist ein Beitrag ohne Bild kein Beitrag.
 			if (channel.requires_media && !media) { box.disabled = true; }
-			box.checked = channel.configured && !box.disabled && channel.key === "probe";
+			// Mit Vorgabe (ein Entwurf wurde geöffnet) gilt sie; ohne fällt es auf die Probe zurück.
+			box.checked = channel.configured && !box.disabled && (pendingChannels === null
+				? channel.key === "probe"
+				: pendingChannels.indexOf(channel.key) !== -1);
 			box.addEventListener("change", updateCount);
 
 			const name = document.createElement("span");
@@ -718,13 +725,49 @@
 		host.textContent = "";
 		if (!media) { return; }
 
+		// Das Bild SEHEN, nicht nur seine Maße lesen. Ein Beitrag geht öffentlich unter dem Namen des
+		// Projekts hinaus; wer ihn absendet, soll vorher erkennen können, was daran hängt.
+		const thumb = document.createElement("img");
+		thumb.className = "social-hub__media-thumb";
+		thumb.src = media.url;
+		thumb.alt = "";
+		host.appendChild(thumb);
+
+		// 💣 Ein aus einem Entwurf WIEDERHERGESTELLTES Bild hat keine Messwerte: Maße, Größe und die
+		// Kanalliste entstehen beim Hochladen und stehen nirgends gespeichert. Ohne diese Weiche liefe
+		// `media.fits.indexOf` auf null -- und der ganze Medienbereich bliebe leer, weil die Ausnahme
+		// den Rest der Funktion mitnimmt. Behauptet wird deshalb nichts, was nicht gemessen wurde.
+		const measured = media.fits !== null && media.fits !== undefined;
+
 		const line = document.createElement("div");
 		line.className = "social-hub__media-line";
 		const size = document.createElement("small");
-		size.textContent = media.width + " × " + media.height
-			+ (media.cropped ? " (zugeschnitten)" : "")
-			+ " · " + Math.round(media.bytes / 1024) + " kB · JPEG";
+		size.textContent = measured
+			? media.width + " × " + media.height
+				+ (media.cropped ? " (zugeschnitten)" : "")
+				+ " · " + Math.round(media.bytes / 1024) + " kB · JPEG"
+			: "Bild aus dem Entwurf";
 		const fits = document.createElement("small");
+		if (!measured) {
+			fits.className = "social-hub__hint";
+			// Kein „✓ Passt für …" ohne Messung: das Häkchen ist eine Zusage, und eine ungeprüfte
+			// Zusage ist schlimmer als keine.
+			fits.textContent = "beim Hochladen bereits geprüft";
+			const removeOld = document.createElement("button");
+			removeOld.type = "button";
+			removeOld.className = "social-hub__soft social-hub__soft--mini";
+			removeOld.textContent = "Entfernen";
+			removeOld.addEventListener("click", function () {
+				media = null;
+				const file = el("social-file");
+				if (file) { file.value = ""; }
+				renderMedia();
+				renderChannels();
+			});
+			line.append(size, fits, removeOld);
+			host.appendChild(line);
+			return;
+		}
 		// Sagt VOR dem Absenden, was durchgeht -- statt hinterher einen API-Fehler zu zeigen.
 		// `shows_media` kommt aus dem Register: Probe und Neuigkeiten zeigen das Bild gar nicht, und
 		// sie hier zu nennen wäre ein Versprechen, das der Kanal nicht einlöst. Die Entscheidung
@@ -781,7 +824,19 @@
 		if (!overlay) { return; }
 
 		editingId = post && post.state === "proposal" ? post.id : null;
-		media = null;
+
+		// 💣 Ein Entwurf wird VOLLSTÄNDIG wiederhergestellt, nicht nur sein Text. Bis 11.08.2026 kamen
+		// Titel, Text und Hashtags zurück -- Bild, Lizenz und vor allem die ANGEHAKTEN KANÄLE nicht.
+		// Wer einen Entwurf für Facebook öffnete und speicherte, hatte danach einen für die Probe: die
+		// Kanalliste fällt ohne Vorgabe auf ihren Startwert zurück, und das sieht aus wie eine
+		// Einstellung, nicht wie ein Verlust.
+		media = post && post.media_url
+			? { url: post.media_url, width: 0, height: 0, fits: null }
+			: null;
+		pendingChannels = post && post.targets
+			? post.targets.map(function (target) { return target.channel; })
+			: null;
+
 		const title = el("social-title");
 		const text = el("social-text");
 		const tags = el("social-hashtags");
@@ -791,9 +846,21 @@
 		const file = el("social-file");
 		if (file) { file.value = ""; }
 
+		// Lizenz und Quelle gehören zum Bild: ohne sie stünde ein wiederhergestellter Entwurf mit
+		// freier Lizenz plötzlich als „eigenes Werk" da -- eine Rechteangabe, die niemand gemacht hat.
+		const license = post && post.media_license ? post.media_license : "own_work";
+		Array.prototype.forEach.call(document.querySelectorAll("input[name=social-license]"), function (radio) {
+			radio.checked = radio.value === license;
+		});
+		const source = el("social-source");
+		if (source) {
+			source.value = post ? (post.media_source || "") : "";
+			source.hidden = license !== "free_license";
+		}
+
 		const subtitle = el("social-hub-subtitle");
 		if (subtitle) {
-			subtitle.textContent = editingId ? "— Vorschlag bearbeiten" : "— Beitrag verfassen";
+			subtitle.textContent = editingId ? "— Entwurf bearbeiten" : "— Beitrag verfassen";
 		}
 
 		renderVocabulary();
@@ -808,6 +875,9 @@
 		const overlay = el("social-hub-overlay");
 		if (overlay) { overlay.hidden = true; }
 		editingId = null;
+		// Zurück auf „keine Vorgabe": sonst brächte das nächste, frisch geöffnete Fenster die Kanäle
+		// des zuletzt bearbeiteten Entwurfs mit.
+		pendingChannels = null;
 	}
 
 	// asDraft: der Beitrag landet in der Box statt hinauszugehen. EIN Weg für beides, weil sich sonst
@@ -830,22 +900,32 @@
 			media_source: (el("social-source") || { value: "" }).value,
 		};
 
-		// Ein bearbeiteter Vorschlag wird als neuer Beitrag gesendet und der alte verworfen -- so ist
-		// im Verlauf sichtbar, dass jemand eingegriffen hat, statt dass der Vorschlag sich still ändert.
-		const discardFirst = editingId
-			? api("/api/edit/social/publish.php", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ action: "discard", id: editingId }),
-			})
-			: Promise.resolve(null);
+		// 🔴 Ein bearbeiteter Entwurf wird GEÄNDERT, nicht durch einen neuen ersetzt. Bis 11.08.2026
+		// verwarf der Client den alten und legte einen zweiten an -- der bekam dabei ein neues Datum
+		// und eine neue id, und wer zweimal speicherte, sah einen Entwurf entstehen, statt seinen zu
+		// behalten.
+		if (editingId) {
+			body.action = "update";
+			body.id = editingId;
+		}
 
-		return discardFirst.then(function () {
-			return api("/api/edit/social/publish.php", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(body),
-			});
+		const send = api("/api/edit/social/publish.php", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(body),
+		});
+
+		// „Veröffentlichen" an einem Entwurf heißt: erst die Änderung sichern, DANN freigeben. Zwei
+		// Schritte, weil das Ändern nie sendet -- so kann kein halb gespeicherter Text hinausgehen.
+		return send.then(function (response) {
+			if (!asDraft && editingId && response && response.ok) {
+				return api("/api/edit/social/publish.php", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ action: "approve", id: editingId }),
+				});
+			}
+			return response;
 		}).then(function (response) {
 			if (button) { button.disabled = false; }
 			if (!response || !response.ok) {

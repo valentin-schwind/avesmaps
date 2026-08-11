@@ -61,6 +61,9 @@ try {
             'hashtags' => (string) $row['hashtags'],
             'media_url' => (string) $row['media_url'],
             'media_license' => (string) $row['media_license'],
+            // Die Quellenangabe reist mit, damit „Bearbeiten" sie wiederherstellen kann -- ohne sie
+            // stuende beim Speichern eines Entwurfs mit freier Lizenz ploetzlich keine Quelle mehr da.
+            'media_source' => (string) ($row['media_source'] ?? ''),
             'origin' => (string) $row['origin'],
             'state' => (string) $row['state'],
             // The author is INTERNAL (Entwurf §2.3): posts go out as Avesmaps, never under a personal
