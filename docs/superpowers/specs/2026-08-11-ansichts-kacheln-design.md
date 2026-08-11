@@ -186,12 +186,22 @@ wird als offene Frage gemeldet, nicht als bestanden.
 
 ## 8 · Offene Punkte
 
-- **Wohin nach der Erprobung.** Fällt die Auswahlbox ganz weg oder bleibt sie
-  für den Planer? Erst nach dem Blick des Owners auf den gebauten Zustand.
-- **Die Kachelgröße im Menü** steht bei 60 px (Bild) plus Name; die zugeklappte
-  Kachel trägt dasselbe Maß, weil beide dieselbe Zelle sind. Am gebauten Zustand
-  zu prüfen, nicht am Mockup.
+🔧 **Nur noch einer: der Prüf-Schalter.** Fällt `?layerPanelActive=1` weg — und
+mit ihm die Auswahlbox im Planer — oder bleiben beide? Das ist eine
+Owner-Entscheidung: ohne Schalter sehen ALLE Besucher die Kachel und finden die
+Zeile „Derographie" nicht mehr an ihrem Platz.
 
-Entschieden und nicht mehr offen: die sechs Orte (Mockup v5, 11.08.2026), die
-Form des Menüs (2 × 3, faltet sich aus der Kachel), die Lage (über der Suche).
-Mockup: `docs/layer-kacheln-mockup.html`.
+Erledigt und nicht mehr offen:
+
+- die sechs Orte und Bilder (`icons/layer-tiles/`, Werkzeug in `tools/layer-tiles/`);
+- die Form: Reihe zu sechst am Zeiger, 2 × 3 am Telefon, Kachel unter der Suche;
+- die Zellenbreite: **66 px**, gebunden an das längste Wort („Landschaften"), nicht
+  an das Bild — bei 60 stand überall „Landschaft…";
+- die Blende: Hülle blendet, Zellen bewegen sich, die aktive nie;
+- Englisch: die Namen kommen aus den `<option>` und werden mit ihnen übersetzt,
+  Tooltip und Vorlese-Text stehen als `view.tile.*` in der Tabelle;
+- die vier Kopplungen hängen an einem Test (`js/ui/__tests__/map-layer-picker.test.js`),
+  fünf Mutationen gegengeprüft.
+
+Mockup: `docs/layer-kacheln-mockup.html` — es liest die echten Stilregeln ein und
+kann deshalb nicht vom gebauten Zustand abweichen.
