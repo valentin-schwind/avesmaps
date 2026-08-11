@@ -598,6 +598,10 @@
 	background: var(--color-panel);
 	color: var(--color-text);
 	font: inherit;
+	/* NACH `font: inherit`: die Kurzform setzt font-size mit und ueberschriebe die Zeile sonst.
+	   ⚠️ Diese Felder haben KEINE feste Hoehe -- sie wachsen am Finger mit der Schrift. Anders als
+	      beim Routenplaner ist das hier unschaedlich: der Dialog scrollt (overflow-y: auto). */
+	font-size: var(--font-size-control);
 }
 
 .legal-contact textarea {

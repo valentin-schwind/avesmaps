@@ -81,6 +81,41 @@ assert.ok(!/var\(--font-size-control\)/.test(zeilenRegel[1]),
 	"die Beschriftungszeilen lesen den Token NICHT -- sie haben keine feste Hoehe und wuerden den"
 	+ " Planer am Telefon wachsen lassen");
 
+// ---- Die uebrigen Besucher-Fenster mit Eingabefeldern --------------------------------------------
+//
+// Die Schwelle gilt UEBERALL, wo ein Besucher tippt -- nicht nur im Routenplaner. Drei Fenster
+// haben eigene Formulare; das Bewertungsformular teilt sich die Regeln des Meldedialogs
+// (es traegt class="location-report-form"), deshalb sind es drei Regeln und nicht vier.
+//
+// ⚠️ Anders als die Planerfelder haben diese KEINE feste Hoehe -- sie wachsen am Finger mit der
+// Schrift. Hier unschaedlich, weil alle drei Fenster scrollen; im Planer waere es das nicht
+// gewesen (dessen Hoehenbudget ist eine eigene Frage).
+const DIALOG_FELDER = [
+	["css/components/legal-dialog.css", ".legal-contact input", "Kontaktformular"],
+	["css/components/location-report-dialog.css", ".location-report-form__field input",
+		"Meldedialog + Bewertungsformular"],
+	["css/components/location-report-dialog.css", ".report-sources__add input[type=\"text\"]",
+		"Quellen-Unterformular"],
+];
+DIALOG_FELDER.forEach(([rel, selector, name]) => {
+	const css = withoutComments(read(...rel.split("/")));
+	const rule = css.match(new RegExp("^" + escapeRe(selector) + "[\\s\\S]*?\\{([^}]*)\\}", "m"));
+	assert.ok(rule, `Feldregel fuer ${name} gefunden (${selector})`);
+	assert.ok(/font-size:\s*var\(--font-size-control\)/.test(rule[1]),
+		`${name} liest --font-size-control -- sonst zoomt iOS beim Fokus in das Feld`);
+	assert.ok(rule[1].indexOf("font: inherit") < rule[1].indexOf("font-size:"),
+		`${name}: die Schwelle steht NACH \`font: inherit\` -- die Kurzform setzt font-size mit`);
+});
+
+// Und die Fenster muessen scrollen, sonst waere das Wachsen der Felder ein Ueberlauf.
+[["css/components/location-report-dialog.css", "Meldedialog"],
+ ["css/features/location-reviews.css", "Bewertungen"],
+ ["css/components/legal-dialog.css", "Hinweise"]].forEach(([rel, name]) => {
+	const css = withoutComments(read(...rel.split("/")));
+	assert.ok(/overflow-y:\s*auto/.test(css),
+		`${name} scrollt -- daran haengt, dass die groesseren Felder nicht ueberlaufen`);
+});
+
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
 assert.ok(viewport, "index.html traegt ein Viewport-Meta");
