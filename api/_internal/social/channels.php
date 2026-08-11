@@ -62,6 +62,9 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'label' => 'Neuigkeiten',
         'icon' => '📰',
         'account' => 'auf avesmaps.de',
+        'links' => [
+            ['label' => 'Fenster ansehen', 'url' => 'https://avesmaps.de/'],
+        ],
         'note' => 'nutzt die Titelzeile · Bild wird nicht übernommen',
         // Die Überschrift ist VARCHAR(190); der Rumpf ist TEXT. 2 000 Zeichen sind reichlich für
         // eine Meldung und halten das Fenster lesbar.
@@ -81,7 +84,16 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     // Instagram-Rechte gar nicht trägt. Genau so lag es am 10.08.2026 in der Tabelle.
     'instagram' => [
         'label' => 'Instagram',
-        'admin_url' => 'https://developers.facebook.com/tools/explorer/{facebook.app_id}/',
+        'links' => [
+            ['label' => 'Profil', 'url' => 'https://www.instagram.com/avesmaps/'],
+            ['label' => 'Token holen', 'url' => 'https://developers.facebook.com/tools/explorer/{facebook.app_id}/'],
+            ['label' => 'Token prüfen', 'url' => 'https://developers.facebook.com/tools/debug/accesstoken/'],
+            ['label' => 'Freigaben der App', 'url' => 'https://www.facebook.com/settings?tab=business_tools'],
+        ],
+        'facts' => [
+            ['label' => 'Instagram-Kennung', 'value' => '{instagram.user_id}'],
+            ['label' => 'über Seite', 'value' => '{facebook.page_id}'],
+        ],
         'icon' => '📷',
         'account' => '@avesmaps',
         'connect' => 'facebook_page',
@@ -104,7 +116,17 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     // Zugang als einer, der erst beim ersten öffentlichen Beitrag auffliegt.
     'facebook' => [
         'label' => 'Facebook',
-        'admin_url' => 'https://developers.facebook.com/tools/explorer/{facebook.app_id}/',
+        'links' => [
+            ['label' => 'Seite', 'url' => 'https://www.facebook.com/avesmaps'],
+            ['label' => 'Token holen', 'url' => 'https://developers.facebook.com/tools/explorer/{facebook.app_id}/'],
+            ['label' => 'Token prüfen', 'url' => 'https://developers.facebook.com/tools/debug/accesstoken/'],
+            ['label' => 'Freigaben der App', 'url' => 'https://www.facebook.com/settings?tab=business_tools'],
+            ['label' => 'App-Einstellungen', 'url' => 'https://developers.facebook.com/apps/{facebook.app_id}/settings/basic/'],
+        ],
+        'facts' => [
+            ['label' => 'Seiten-Kennung (Graph)', 'value' => '{facebook.page_id}'],
+            ['label' => 'App', 'value' => '{facebook.app_id}'],
+        ],
         'icon' => '📘',
         'account' => 'Seite Avesmaps',
         'connect' => 'facebook_page',
@@ -131,7 +153,13 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     // GEMEINSAMEN Zaehler (compose.php) und die Oberflaeche mitzuaendern -- eigene Arbeit.
     'mastodon' => [
         'label' => 'Mastodon',
-        'admin_url' => '{mastodon.base_url}/settings/applications',
+        'links' => [
+            ['label' => 'Profil', 'url' => '{mastodon.base_url}/@Avesmaps'],
+            ['label' => 'Token holen', 'url' => '{mastodon.base_url}/settings/applications'],
+        ],
+        'facts' => [
+            ['label' => 'Instanz', 'value' => '{mastodon.base_url}'],
+        ],
         'icon' => '🐘',
         'account' => '@Avesmaps@rollenspiel.social',
         'note' => '',
@@ -216,7 +244,7 @@ function avesmapsSocialChannelIsConfigured(string $key, array $socialConfig, arr
  *
  * @param array<string, mixed> $socialConfig
  */
-function avesmapsSocialChannelAdminUrl(?string $template, array $socialConfig): string
+function avesmapsSocialChannelResolve(?string $template, array $socialConfig): string
 {
     $template = trim((string) $template);
     if ($template === '') {
@@ -239,6 +267,39 @@ function avesmapsSocialChannelAdminUrl(?string $template, array $socialConfig): 
     );
 
     return $offen ? '' : $url;
+}
+
+/**
+ * Die Verweise bzw. Kennungen eines Kanals, mit den Werten aus der Konfiguration gefüllt.
+ *
+ * 🔴 DAS IST DER PLATZ, AN DEM MAN IN SECHS MONATEN NACHSIEHT (Owner 11.08.2026). Ein Zugang wird
+ * einmal eingerichtet und dann sehr lange nicht mehr angefasst -- und genau dann weiß niemand mehr,
+ * welche Seite, welche Kennung, wo der Token herkommt und wo man ihn prüft. Deshalb steht es
+ * gesammelt im Hub und nicht verteilt in Notizen, Chatverläufen und Metas Menüs.
+ *
+ * 💣 Ein Eintrag, dessen Platzhalter sich nicht füllen lässt, FÄLLT WEG -- er wird nicht halb
+ * angezeigt. „Instanz: {mastodon.base_url}" wäre eine Zeile, die aussieht wie eine Auskunft und
+ * keine ist.
+ *
+ * @param list<array{label: string, url?: string, value?: string}>|null $entries
+ * @param array<string, mixed>                                         $socialConfig
+ * @return list<array{label: string, url?: string, value?: string}>
+ */
+function avesmapsSocialChannelResolveList(?array $entries, array $socialConfig, string $field): array
+{
+    $out = [];
+    foreach (is_array($entries) ? $entries : [] as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $wert = avesmapsSocialChannelResolve((string) ($entry[$field] ?? ''), $socialConfig);
+        if ($wert === '') {
+            continue;
+        }
+        $out[] = ['label' => (string) ($entry['label'] ?? ''), $field => $wert];
+    }
+
+    return $out;
 }
 
 /**
@@ -276,7 +337,8 @@ function avesmapsSocialChannelList(array $socialConfig, array $tokenKeys, array 
             'connectable' => ($channel['connect'] ?? null) !== null,
             // Wo man den Zugang dieses Kanals verwaltet. Leer, wenn es keine Konsole gibt oder ein
             // Baustein fehlt -- der Client zeigt dann keinen Link (siehe avesmapsSocialChannelAdminUrl).
-            'admin_url' => avesmapsSocialChannelAdminUrl($channel['admin_url'] ?? null, $socialConfig),
+            'links' => avesmapsSocialChannelResolveList($channel['links'] ?? null, $socialConfig, 'url'),
+            'facts' => avesmapsSocialChannelResolveList($channel['facts'] ?? null, $socialConfig, 'value'),
             // 💣 DREI Zustände, nicht zwei. 'never' ist eine Zusage, null ist deren ABWESENHEIT --
             // kein gespeicherter Zugang, also auch kein Wissen über seinen Ablauf (der Token kann in
             // der Konfiguration stehen). Die beiden zusammenzuwerfen hieße, „läuft nie ab" zu

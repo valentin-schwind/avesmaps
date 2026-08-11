@@ -128,8 +128,8 @@ foreach ($list as $row) {
     assert(!isset($row['app_secret']), 'no app secret either');
     assert(array_keys($row) === ['key', 'label', 'icon', 'account', 'note', 'max_chars',
         'max_hashtags', 'requires_media', 'shows_media', 'clickable_links', 'configured',
-        'connectable', 'admin_url', 'access_expires'],
-        'the row carries exactly these fourteen keys -- a field added here reaches the browser');
+        'connectable', 'links', 'facts', 'access_expires'],
+        'the row carries exactly these fifteen keys -- a field added here reaches the browser');
     // 🔴 `connect_scopes` steht im Register, darf aber NICHT mitreisen: was ein Token vorweisen muss,
     // ist eine Serverentscheidung. Im Browser waere es eine Liste, die jemand fuer eine Einstellung
     // haelt.
@@ -197,41 +197,72 @@ foreach ($onlyMastodon as $row) {
 assert($byKey['mastodon']['configured'] === true, 'mastodon is configured');
 assert($byKey['instagram']['configured'] === false, 'instagram is not, and does not borrow it');
 
-// ---- die Konsole je Kanal ------------------------------------------------------------------------
+// ---- Konten, Kennungen, Konsolen -------------------------------------------------------------
 
-$mitKonto = avesmapsSocialChannelList(
-    ['facebook' => ['app_id' => '1037557352198584'], 'mastodon' => ['base_url' => 'https://rollenspiel.social/']],
-    [],
-    []
-);
-$byKonsole = [];
+// 🔴 Der Platz, an dem man in SECHS MONATEN nachsieht (Owner 11.08.2026). Ein Zugang wird einmal
+// eingerichtet und dann sehr lange nicht mehr angefasst; was hier fehlt, sucht spaeter jemand in
+// Notizen, Chatverlaeufen und Metas Menues.
+$mitKonto = avesmapsSocialChannelList([
+    'facebook' => ['app_id' => 'APP1', 'page_id' => 'PAGE1'],
+    'instagram' => ['user_id' => 'IG1'],
+    'mastodon' => ['base_url' => 'https://rollenspiel.social/'],
+], [], []);
+$byKonto = [];
 foreach ($mitKonto as $row) {
-    $byKonsole[$row['key']] = $row;
+    $byKonto[$row['key']] = $row;
 }
-assert($byKonsole['facebook']['admin_url'] === 'https://developers.facebook.com/tools/explorer/1037557352198584/',
-    'die App-Kennung wird eingesetzt');
-// ⚠️ Instagram zeigt auf DIESELBE Meta-App -- die Kennung steht nur unter `facebook`. Deshalb nennt
-// die Vorlage den Kanal ausdruecklich, statt „der eigene Block" zu meinen.
-assert($byKonsole['instagram']['admin_url'] === $byKonsole['facebook']['admin_url'],
-    'Instagram und Facebook teilen sich die Konsole');
-// Der Schraegstrich am Ende der Instanz darf sich nicht verdoppeln.
-assert($byKonsole['mastodon']['admin_url'] === 'https://rollenspiel.social/settings/applications',
-    'die Instanz-Adresse wird eingesetzt, ohne doppelten Schraegstrich');
-assert($byKonsole['probe']['admin_url'] === '', 'die Probe hat keine Konsole');
 
-// 💣 Fehlt ein Baustein, kommt LEER zurueck -- nie eine halb gefuellte Adresse. Ein Link auf
-// `.../explorer/{facebook.app_id}/` sieht aus wie einer, fuehrt ins Leere, und wer ihn anklickt, sucht den
-// Fehler bei Meta statt in der eigenen Konfiguration.
+$fbLinks = [];
+foreach ($byKonto['facebook']['links'] as $link) {
+    $fbLinks[$link['label']] = $link['url'];
+}
+// ⚠️ „Token holen" fuehrt in den EXPLORER. Im App-Dashboard stehen nur Einstellungen und das
+// App-Geheimnis -- den Knopf „Generate Access Token" gibt es dort nicht, und der Owner suchte ihn
+// dort vergeblich (11.08.2026).
+assert($fbLinks['Token holen'] === 'https://developers.facebook.com/tools/explorer/APP1/',
+    'Token holen fuehrt in den Explorer, nicht ins Dashboard');
+assert(isset($fbLinks['Seite']), 'die Seite selbst steht auch dabei -- man will auch mal nachsehen');
+
+$fbFacts = [];
+foreach ($byKonto['facebook']['facts'] as $fact) {
+    $fbFacts[$fact['label']] = $fact['value'];
+}
+assert(in_array('PAGE1', $fbFacts, true), 'die Seiten-Kennung steht zum Abschreiben da');
+
+$mLinks = [];
+foreach ($byKonto['mastodon']['links'] as $link) {
+    $mLinks[$link['label']] = $link['url'];
+}
+// Der Schraegstrich am Ende der Instanz darf sich nicht verdoppeln.
+assert($mLinks['Token holen'] === 'https://rollenspiel.social/settings/applications',
+    'die Instanz-Adresse wird eingesetzt, ohne doppelten Schraegstrich');
+
+assert($byKonto['probe']['links'] === [] && $byKonto['probe']['facts'] === [],
+    'die Probe hat kein Konto und deshalb auch nichts nachzuschlagen');
+
+// 💣 Ein Eintrag, dessen Platzhalter sich nicht fuellen laesst, FAELLT WEG -- er wird nicht halb
+// angezeigt. „Instanz: {mastodon.base_url}" waere eine Zeile, die aussieht wie eine Auskunft und
+// keine ist.
 $ohne = avesmapsSocialChannelList([], [], []);
 foreach ($ohne as $row) {
-    assert(mb_strpos($row['admin_url'], '{') === false,
-        $row['key'] . ': kein offener Platzhalter in der Adresse');
+    foreach ($row['links'] as $link) {
+        assert(mb_strpos($link['url'], '{') === false,
+            $row['key'] . ': kein offener Platzhalter im Link');
+    }
+    foreach ($row['facts'] as $fact) {
+        assert(mb_strpos($fact['value'], '{') === false,
+            $row['key'] . ': kein offener Platzhalter in der Kennung');
+    }
 }
 $byOhne = [];
 foreach ($ohne as $row) {
     $byOhne[$row['key']] = $row;
 }
-assert($byOhne['mastodon']['admin_url'] === '', 'ohne Instanz keine Adresse');
-assert($byOhne['facebook']['admin_url'] === '', 'ohne App-Kennung keine Adresse');
+assert($byOhne['mastodon']['links'] === [], 'ohne Instanz kein einziger Mastodon-Link');
+assert($byOhne['facebook']['facts'] === [], 'ohne Kennungen keine Kennungszeilen');
+// Ein Link OHNE Platzhalter bleibt trotzdem stehen -- er braucht keine Konfiguration. Sonst waere
+// die Seite selbst weg, nur weil die App-Kennung fehlt.
+assert(count($byOhne['facebook']['links']) === 3,
+    'Seite, Token-Pruefer und Freigaben stehen auch ohne App-Kennung da');
 
 fwrite(STDOUT, "channels-test: OK\n");

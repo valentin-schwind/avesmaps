@@ -530,26 +530,6 @@
    der Zeile: das Label gehoert seinem Kontrollkaestchen, und ein Klick auf den Knopf haette den Kanal
    an- und abgehakt. Ausserdem ist eine Zeilenhandlung nie die Haupthandlung (AGENTS.md §12) --
    deshalb ein Textknopf, kein gefuellter. */
-/* Der Verweis in die Konsole des Netzes. Steht in der Zeile seines Kanals, rechts oben -- er gehoert
-   zum Kanal, nicht zur Liste, und er ist Nachschlagewerk, nicht Handlung: deshalb ein leiser
-   Textlink und kein Knopf. */
-/* 💣 NICHT float mit negativem Rand: die Zeile ist unterschiedlich hoch (Ablaufdatum, Sperr-Grund,
-   Einrichtungsknopf kommen je nach Kanal dazu), und der Link rutschte bei Instagram mitten in den
-   Satz „braucht ein Bild". Stattdessen absolut oben rechts -- und die Zeile bekommt rechts so viel
-   Innenmass, dass ihr Text gar nicht erst darunterlaufen kann. */
-.social-hub__channel-api {
-	position: absolute;
-	top: 6px;
-	right: 0;
-	color: var(--color-link);
-	font-size: 11px;
-	text-decoration: none;
-}
-
-.social-hub__channel-api:hover {
-	text-decoration: underline;
-}
-
 .social-hub__connect-open {
 	display: block;
 	/* Eingerueckt auf die Textspalte der Zeile: Kontrollkaestchen (13px) plus dessen Abstand (8px).
@@ -586,8 +566,7 @@
 .social-hub__channel-row {
 	position: relative;
 	border-top: 1px solid var(--color-divider);
-	/* Rechts Platz für „API ↗" (siehe unten): ohne ihn liefe der Kanaltext darunter durch. */
-	padding: 6px 46px 6px 0;
+	padding: 6px 0;
 }
 
 .social-hub__channel-row:first-child {
@@ -658,4 +637,56 @@
    eingefuegt und sofort geleert wird. */
 #social-connect-token {
 	-webkit-text-security: disc;
+}
+
+/* Nachschlagen: Konten, Kennungen, Konsolen. Zugeklappt, weil es Wartung ist und nicht die
+   Handlung, fuer die das Fenster geoeffnet wurde -- aber nativ, damit Strg+F den Text auch im
+   zugeklappten Zustand findet (AGENTS.md §11). */
+.social-hub__where {
+	margin-top: 14px;
+	padding-top: 10px;
+	border-top: 1px solid var(--color-divider);
+}
+
+.social-hub__where > summary {
+	cursor: pointer;
+	color: var(--color-link);
+	font-size: 12px;
+}
+
+.social-hub__where-channel {
+	margin-top: 10px;
+	font-size: 12px;
+}
+
+.social-hub__where-channel > strong {
+	display: block;
+	color: var(--color-text-strong);
+}
+
+.social-hub__where-fact {
+	color: var(--color-text-muted);
+}
+
+/* Die Kennung ist zum ABSCHREIBEN da: Festbreitenschrift, damit 1 und l sich unterscheiden. */
+.social-hub__where-fact code {
+	font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+	color: var(--color-text);
+	user-select: all;
+}
+
+.social-hub__where-links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	margin-top: 3px;
+}
+
+.social-hub__where-links a {
+	color: var(--color-link);
+	text-decoration: none;
+}
+
+.social-hub__where-links a:hover {
+	text-decoration: underline;
 }

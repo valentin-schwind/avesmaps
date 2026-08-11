@@ -685,21 +685,6 @@
 			label.append(box, stack);
 			row.appendChild(label);
 
-			// Die Konsole des Netzes -- die Stelle, an der man Token und Rechte verwaltet. Sie steht
-			// hier, weil man sie sonst nicht wiederfindet: Meta und Mastodon verstecken sie beide
-			// hinter mehreren Klicks, und man braucht sie genau dann, wenn etwas klemmt.
-			// ⚠️ Nur wenn der Server eine liefert. Fehlt ein Baustein in der Konfiguration, kommt ''
-			// zurück statt einer halb gefüllten Adresse (avesmapsSocialChannelAdminUrl).
-			if (channel.admin_url) {
-				const api = document.createElement("a");
-				api.className = "social-hub__channel-api";
-				api.href = channel.admin_url;
-				api.target = "_blank";
-				api.rel = "noopener noreferrer";
-				api.textContent = "API ↗";
-				api.title = channel.label + "-Konsole: " + channel.admin_url;
-				row.appendChild(api);
-			}
 
 			// Der Einrichtungsknopf steht in der Zeile SEINES Kanals -- dort, wo auch „Zugang läuft nie
 			// ab" steht, also neben der Aussage, die er ändert. Unter der Liste war er von dem Kanal
@@ -721,7 +706,65 @@
 		});
 
 		renderHashtagNote();
+		renderWhere();
 		updateCount();
+	}
+
+	// 🔴 Der Nachschlage-Abschnitt: wo das Konto liegt, welche Kennung es trägt, wo der Token
+	// herkommt. Ein Zugang wird einmal eingerichtet und dann sehr lange nicht mehr angefasst -- und
+	// genau dann weiß niemand mehr, wonach er überhaupt sucht. Deshalb gesammelt an EINER Stelle,
+	// statt verteilt auf Notizen, Chatverläufe und Metas Menüs.
+	//
+	// ⚠️ Gebaut wird nur, was der Server liefert: Verweise und Kennungen, deren Platzhalter sich aus
+	// der Konfiguration füllen ließen. Ein Kanal ohne beides bekommt keinen Block -- eine Überschrift
+	// über nichts sieht aus wie ein Fehler.
+	function renderWhere() {
+		const host = el("social-where");
+		if (!host) { return; }
+		host.textContent = "";
+
+		channels.forEach(function (channel) {
+			const links = channel.links || [];
+			const facts = channel.facts || [];
+			if (!links.length && !facts.length) { return; }
+
+			const block = document.createElement("div");
+			block.className = "social-hub__where-channel";
+
+			const name = document.createElement("strong");
+			name.textContent = (channel.icon ? channel.icon + " " : "") + channel.label;
+			block.appendChild(name);
+
+			facts.forEach(function (fact) {
+				const line = document.createElement("div");
+				line.className = "social-hub__where-fact";
+				const label = document.createElement("span");
+				label.textContent = fact.label + ": ";
+				// Die Kennung ist zum ABSCHREIBEN da -- Festbreitenschrift, damit 1 und l sich
+				// unterscheiden. Genau daran ging am 10.08.2026 eine halbe Stunde verloren.
+				const value = document.createElement("code");
+				value.textContent = fact.value;
+				line.append(label, value);
+				block.appendChild(line);
+			});
+
+			if (links.length) {
+				const row = document.createElement("div");
+				row.className = "social-hub__where-links";
+				links.forEach(function (link) {
+					const a = document.createElement("a");
+					a.href = link.url;
+					a.target = "_blank";
+					a.rel = "noopener noreferrer";
+					a.textContent = link.label + " ↗";
+					a.title = link.url;
+					row.appendChild(a);
+				});
+				block.appendChild(row);
+			}
+
+			host.appendChild(block);
+		});
 	}
 
 	// Wie viele Hashtags welcher Kanal verträgt -- aus dem Register, nicht von Hand geschrieben.
