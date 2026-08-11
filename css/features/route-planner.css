@@ -854,7 +854,7 @@
 	background: var(--color-panel);
 	color: var(--color-text);
 	cursor: pointer;
-	font-size: 13px;
+	font-size: var(--font-size-control);
 	text-align: left;
 	box-shadow: 0 2px 5px rgba(52, 41, 32, 0.08);
 }
@@ -879,12 +879,19 @@
 	outline: none;
 }
 
+/* 💣 Der SICHTBARE Text der Combobox steckt hier, nicht am Knopf -- und er liest denselben
+   Token wie die nativen Auswahlfelder. Sonst stehen im Planer zwei Sorten Dropdown
+   nebeneinander, die verschieden gross beschriftet sind: gemessen 12px hier gegen 16px am
+   <select>, nachdem die iOS-Schwelle nur die Felder anhob (Owner 11.08.2026: "die
+   unterschiedlichen schriftgroessen der dropdowns").
+   ⚠️ Am Zeiger ist der Token --font-size-small (12px) -- also genau der Wert, der hier
+   vorher stand. Am Zeiger aendert sich nichts. */
 .transport-combobox__label {
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	font-size: 12px;
+	font-size: var(--font-size-control);
 }
 
 .transport-combobox__menu {
@@ -919,7 +926,7 @@
 
 .transport-combobox__option span {
 	overflow: visible;
-	font-size: 12px;
+	font-size: var(--font-size-control);
 }
 
 .transport-combobox__option:hover,

@@ -335,6 +335,25 @@ assert.ok(Number(planerZ[1]) < 1080,
 assert.ok(/#map-corner-actions\s*\{[^}]*z-index:\s*var\(--z-map-ui\)/.test(legalCssZ),
 	"der Knopfbund bleibt auf --z-map-ui -- er ist die Kartenbedienung, nicht das Panel");
 
+// ---- Alle Dropdowns des Planers tragen EINE Schriftgroesse ---------------------------------------
+//
+// Owner 11.08.2026: "die unterschiedlichen schriftgroessen der dropdowns". Gemessen am Telefon:
+// nachgebaute Comboboxen 12px, native Auswahlfelder 16px -- die iOS-Schwelle hob nur die FELDER an
+// (ein <button> loest kein iOS-Zoom aus und war deshalb bewusst aussen vor), womit im selben Panel
+// zwei Sorten Dropdown verschieden gross beschriftet waren.
+//
+// ⚠️ Der sichtbare Text steckt in `.transport-combobox__label`, nicht am Knopf -- eine Zusicherung
+// auf `.transport-combobox` allein liefe an der Beschriftung vorbei.
+[".transport-combobox", ".transport-combobox__label", ".transport-combobox__option span"]
+	.forEach((selector) => {
+		const rule = planner.match(new RegExp("^" + escapeRe(selector) + "\\s*\\{([^}]*)\\}", "m"));
+		assert.ok(rule, `Regel fuer ${selector} gefunden`);
+		const groesse = rule[1].match(/font-size:\s*([^;]+);/);
+		assert.ok(groesse && /var\(--font-size-control\)/.test(groesse[1]),
+			`${selector} liest --font-size-control statt "${groesse ? groesse[1].trim() : "nichts"}"`
+			+ " -- sonst stehen im Planer zwei Sorten Dropdown mit verschieden grosser Schrift");
+	});
+
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
 assert.ok(viewport, "index.html traegt ein Viewport-Meta");
