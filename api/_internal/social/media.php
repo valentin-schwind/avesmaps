@@ -29,6 +29,13 @@ const AVESMAPS_SOCIAL_MEDIA_TYPES = [
 const AVESMAPS_SOCIAL_MIN_RATIO = 0.8;
 const AVESMAPS_SOCIAL_MAX_RATIO = 1.91;
 const AVESMAPS_SOCIAL_JPEG_QUALITY = 88;
+// 💣 A CAP, not a target. Until 11.08.2026 the pipeline cropped but never SCALED, so a large map
+// excerpt travelled at full resolution -- and a picture the network refuses only shows up as an API
+// error after the editor pressed publish. Metas own docs name no ceiling; the figures in circulation
+// are 8 MB and a display width around 1440. This is therefore a safety margin chosen on the loose
+// side, not a measured limit: at 1440 nothing visible is lost on any of the channels, and the JPEG
+// lands far below any plausible size ceiling.
+const AVESMAPS_SOCIAL_MEDIA_MAX_WIDTH = 1440;
 // No .htaccess belongs in this directory and none may be added: Meta LOADS the picture from its
 // public URL, it cannot be attached to the request (Entwurf §5).
 const AVESMAPS_SOCIAL_UPLOAD_DIR = '/uploads/social';
@@ -79,7 +86,24 @@ function avesmapsSocialEncodeImageBytes(string $bytes): array
         $offsetX = (int) floor(($width - $cropWidth) / 2);
         $offsetY = (int) floor(($height - $cropHeight) / 2);
 
-        $dst = imagecreatetruecolor($cropWidth, $cropHeight);
+        // The cap, applied AFTER the crop and proportionally -- scaling is not squashing, same rule as
+        // above. Anything already inside the cap is left untouched: resampling costs sharpness, and a
+        // picture that does not need it should keep it.
+        $targetWidth = $cropWidth;
+        $targetHeight = $cropHeight;
+        if ($cropWidth > AVESMAPS_SOCIAL_MEDIA_MAX_WIDTH) {
+            $targetWidth = AVESMAPS_SOCIAL_MEDIA_MAX_WIDTH;
+            $targetHeight = max(1, (int) round($cropHeight * $targetWidth / $cropWidth));
+            // ⚠️ The rounding here CANNOT undo the crop, and that is worth writing down because the
+            // obvious defensive clamp against it is unreachable code. After the crop the ratio lies in
+            // [0.8, 1.91], so cropHeight * 1440 / cropWidth lies in [753.9, 1800.0]; rounding takes
+            // that to [754, 1800], and 1440 over that range is [0.800, 1.910] -- inside the window
+            // again. The margin comes from the cap being far larger than one pixel. It stops holding
+            // if AVESMAPS_SOCIAL_MEDIA_MAX_WIDTH is ever made small (a cap of, say, 20 px would round
+            // coarsely enough to matter); the loop in media-test.php is the regression guard.
+        }
+
+        $dst = imagecreatetruecolor($targetWidth, $targetHeight);
         if ($dst === false) {
             return $empty;
         }
@@ -91,11 +115,17 @@ function avesmapsSocialEncodeImageBytes(string $bytes): array
             if ($white === false) {
                 return $empty;
             }
-            imagefilledrectangle($dst, 0, 0, $cropWidth - 1, $cropHeight - 1, $white);
+            imagefilledrectangle($dst, 0, 0, $targetWidth - 1, $targetHeight - 1, $white);
             // Blending ON, so semi-transparent pixels mix WITH the white below instead of replacing it.
             imagealphablending($dst, true);
-            // imagecopy, not imagecopyresampled: same pixel scale, so this is a crop and nothing else.
-            if (!imagecopy($dst, $src, 0, 0, $offsetX, $offsetY, $cropWidth, $cropHeight)) {
+            // imagecopy while nothing shrinks -- same pixel scale, so it is a crop and nothing else.
+            // Only a picture over the cap goes through imagecopyresampled, which interpolates: at 1:1
+            // that would cost sharpness for no reason, which is why it is not simply used always.
+            $copied = ($targetWidth === $cropWidth && $targetHeight === $cropHeight)
+                ? imagecopy($dst, $src, 0, 0, $offsetX, $offsetY, $cropWidth, $cropHeight)
+                : imagecopyresampled($dst, $src, 0, 0, $offsetX, $offsetY,
+                    $targetWidth, $targetHeight, $cropWidth, $cropHeight);
+            if (!$copied) {
                 return $empty;
             }
 
@@ -109,8 +139,13 @@ function avesmapsSocialEncodeImageBytes(string $bytes): array
             return [
                 'bytes' => $out,
                 'ext' => 'jpg',
-                'width' => $cropWidth,
-                'height' => $cropHeight,
+                // The FINAL measurements, not the cropped ones: the hub shows them and
+                // avesmapsSocialMediaFitsChannels judges by them. Reporting the pre-scale size would
+                // be a "✓ Passt für Instagram" about a picture that no longer exists.
+                'width' => $targetWidth,
+                'height' => $targetHeight,
+                // 'cropped' stays about the CROP. Scaling loses no content, so calling it cropped
+                // would warn the editor about a cut that never happened.
                 'cropped' => $cropped,
             ];
         } finally {

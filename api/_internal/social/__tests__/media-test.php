@@ -132,6 +132,64 @@ assert(in_array('facebook', $panorama, true), 'but facebook still takes it');
 $broken = avesmapsSocialMediaFitsChannels(100, 0);
 assert(!in_array('instagram', $broken, true), 'an unmeasurable picture never counts as fitting instagram');
 
+// ---- 💣 der Deckel auf der Breite (11.08.2026) ------------------------------------------------------
+
+// Die Pipeline schnitt bis dahin nur zu und VERKLEINERTE nie -- ein grosser Kartenausschnitt ging in
+// voller Aufloesung hinaus. Instagram nimmt das nicht beliebig an, und der Fehlschlag waere erst nach
+// dem Absenden sichtbar geworden, als API-Fehler.
+$riesig = avesmapsSocialEncodeImageBytes(avesmapsTestMakePng(3000, 2000));
+assert($riesig['width'] === AVESMAPS_SOCIAL_MEDIA_MAX_WIDTH,
+    'ein zu breites Bild wird auf die Deckelbreite gebracht');
+assert($riesig['height'] > 0 && $riesig['height'] < 2000, 'und die Hoehe geht proportional mit');
+
+// 🔴 PROPORTIONAL, nicht gestaucht -- dieselbe Regel wie beim Zuschnitt. 3000x2000 ist 1.5 und liegt
+// im erlaubten Fenster, wird also nicht beschnitten; das Verhaeltnis muss die Verkleinerung exakt
+// ueberleben, sonst ist die Karte verzerrt.
+$vorher = 3000 / 2000;
+$nachher = $riesig['width'] / $riesig['height'];
+assert(abs($vorher - $nachher) < 0.01, 'das Seitenverhaeltnis ueberlebt die Verkleinerung');
+assert($riesig['cropped'] === false, 'und verkleinern ist kein Beschneiden -- 1.5 liegt im Fenster');
+
+// Ein Bild UNTER dem Deckel wird nicht angefasst: Verkleinern kostet Schaerfe, und wer sie nicht
+// braucht, soll sie behalten.
+$klein = avesmapsSocialEncodeImageBytes(avesmapsTestMakePng(800, 600));
+assert($klein['width'] === 800 && $klein['height'] === 600, 'ein kleines Bild bleibt unveraendert');
+$genau = avesmapsSocialEncodeImageBytes(avesmapsTestMakePng(AVESMAPS_SOCIAL_MEDIA_MAX_WIDTH, 1000));
+assert($genau['width'] === AVESMAPS_SOCIAL_MEDIA_MAX_WIDTH && $genau['height'] === 1000,
+    'genau auf dem Deckel wird ebenfalls nicht angefasst -- die Grenze ist einschliesslich');
+
+// 💣 DIE GEMELDETEN MASSE MUESSEN DIE DER DATEI SEIN. Der Hub zeigt sie an und
+// avesmapsSocialMediaFitsChannels urteilt nach ihnen -- weichen sie von den echten ab, steht ein
+// „✓ Passt fuer Instagram" ueber einem Bild, das es so nicht gibt. Deshalb wird hier die erzeugte
+// Datei WIEDER GEOEFFNET und gemessen, statt der Rueckgabe zu glauben.
+function avesmapsTestEchteMasse(string $jpeg): array
+{
+    $bild = imagecreatefromstring($jpeg);
+    assert($bild !== false, 'das Ergebnis ist ein lesbares Bild');
+    $masse = [imagesx($bild), imagesy($bild)];
+    imagedestroy($bild);
+
+    return $masse;
+}
+
+// 💣 DIE VERKLEINERUNG DARF DEN ZUSCHNITT NICHT WIEDER KAPUTTMACHEN. Erst wird ins Fenster
+// geschnitten, dann verkleinert. Waere der Deckel klein genug, koennte die gerundete Hoehe das
+// Verhaeltnis wieder aus dem Fenster schieben; bei 1440 kann sie es nicht (Rechnung in media.php).
+// Diese Schleife ist der Waechter dafuer.
+foreach ([[3000, 5000], [4000, 1000], [2001, 2500], [3333, 1748], [1441, 1801]] as [$w, $h]) {
+    $r = avesmapsSocialEncodeImageBytes(avesmapsTestMakePng($w, $h));
+    assert($r['width'] > 0 && $r['height'] > 0, "{$w}x{$h}: kommt ueberhaupt heraus");
+    assert($r['width'] <= AVESMAPS_SOCIAL_MEDIA_MAX_WIDTH, "{$w}x{$h}: haelt den Deckel ein");
+    assert(in_array('instagram', avesmapsSocialMediaFitsChannels($r['width'], $r['height']), true),
+        "{$w}x{$h}: liegt nach Zuschnitt UND Verkleinerung immer noch im Instagram-Fenster");
+    assert(avesmapsTestEchteMasse($r['bytes']) === [$r['width'], $r['height']],
+        "{$w}x{$h}: die gemeldeten Masse sind die der Datei -- kein weisser Rand, keine Notluege");
+}
+assert(avesmapsTestEchteMasse($riesig['bytes']) === [$riesig['width'], $riesig['height']],
+    'auch beim grossen Bild stimmen Meldung und Datei ueberein');
+assert(avesmapsTestEchteMasse($klein['bytes']) === [800, 600],
+    'und ein kleines Bild kommt Pixel fuer Pixel in seiner Groesse heraus');
+
 // ---- a broken upload -------------------------------------------------------------------------------------
 
 $garbage = avesmapsSocialEncodeImageBytes('this is not a picture');
