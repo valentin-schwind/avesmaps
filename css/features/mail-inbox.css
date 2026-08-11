@@ -42,7 +42,12 @@
    subject, date, sender, first line), expanded they show the full text. The browser's own
    disclosure triangle is removed so the entry lines up with an inbox row next door. */
 .mail-inbox__sent { cursor: default; }
-.mail-inbox__sent > summary { cursor: pointer; list-style: none; }
+/* 💣 `display: block` ist hier TRAGEND, nicht der Vorgabewert. `css/pages/political-territory-wiki-tree.css`
+   setzt `details > summary { display: flex }` voellig ungebunden -- die Regel gehoert dem Wiki-Baum des
+   Territorien-Editors, gilt aber fuer JEDES <details> der Seite, weil sie keine Klasse traegt. Ohne die
+   Gegenregel stehen Adressat, Betreff, Datum und Vorschau NEBENeinander in einer Zeile statt untereinander.
+   Wer sie loescht, baut genau das wieder ein. */
+.mail-inbox__sent > summary { display: block; cursor: pointer; list-style: none; }
 .mail-inbox__sent > summary::-webkit-details-marker { display: none; }
 .mail-inbox__sent[open] > summary { margin-bottom: 6px; }
 .mail-inbox__sent[open] { border-color: var(--color-border-strong); background: var(--color-panel-muted); }
