@@ -211,7 +211,7 @@ fort, statt eine sichtbare Dublette im öffentlichen Fenster anzulegen.
 |---|---|---|---|---|---|
 | Instagram | 2 200 | alle | **Pflicht** | nein | **nur JPEG**, 4:5 … 1,91:1 |
 | Facebook | ~63 000 | 2 | optional | ja | JPEG/PNG |
-| Mastodon | 500 (instanzabhängig) | 4 | optional | ja | JPEG/PNG/WebP |
+| Mastodon | 500 **gemessen** (instanzabhängig) | 4 | optional | ja | JPEG/PNG/WebP |
 
 💣 **Instagram nimmt kein PNG.** Der häufigste Stolperstein, und er fällt erst beim Absenden auf.
 Hochgeladene PNGs werden deshalb serverseitig zu JPEG gewandelt und bei Bedarf auf ein zulässiges
@@ -382,7 +382,7 @@ getrennt, wenn Bild nachweislich läuft.
 | Berechtigungen | `instagram_basic`, `instagram_content_publish`, `pages_manage_posts`, `pages_read_engagement`, `pages_show_list`, `business_management` — der **Facebook-Login**-Satz, und seit §12.4 der richtige für **beide** Kanäle |
 | Instagram `@avesmaps` | Unternehmenskonto, ID `17841434373040202`, im Business-Portfolio |
 | Facebook-Seite „Avesmaps" | **neu am 10.08.2026**, `facebook.com/avesmaps`, unter dem eigenen Konto des Owners. Profil-ID `61593145741175`, Graph-ID `1240150995850875` — siehe die zwei Kennungen unten. Die Seitenliste bietet „Beitrag erstellen" an, also liegt `CREATE_CONTENT` vor |
-| Mastodon | noch kein Konto |
+| Mastodon | **`@Avesmaps@rollenspiel.social`**, angelegt 11.08.2026 (Konto-ID `117073953417022480`). Deutschsprachige Pen&Paper-Instanz, Mastodon 4.6.5, 406 aktive Nutzer/Monat, 500 Zeichen — alles gemessen, siehe §12.5. Zugang steht in `api/config.local.php`, nicht in `social_token`: der Schlüssel läuft nicht ab |
 
 🔴 **Eine Seite hat ZWEI Kennungen, und die Graph-API meint die zweite.** Seiten der „neuen
 Seitenerfahrung" tragen eine Profil-ID in der `6159…`-Form — das ist die, die in `profile.php?id=`
@@ -619,3 +619,104 @@ Auflösung hinaus. Metas eigene Doku nennt keine Obergrenze, verbreitete Angaben
 ein Fehlschlag daran wäre erst als API-Fehler nach dem Absenden sichtbar geworden. Der Deckel gilt
 **allen** Kanälen, weil es eine Datei für alle ist (§5) — bei Facebook ist der Unterschied nicht zu
 sehen, und die Alternative wäre eine zweite Datei je Kanal gewesen.
+
+### 12.5 Der Mastodon-Adapter (11.08.2026)
+
+Der dritte echte Kanal, und der einzige, dessen Konto **kein Konzern** vergibt.
+`api/_internal/social/adapters/mastodon.php`, eingetragen in `avesmapsSocialAdapterFor`. Ein Beitrag
+**mit** Bild geht in zwei Schritten hinaus — `POST /api/v2/media` (multipart, Feld `file`, dazu die
+Bildbeschreibung) liefert eine `id`, die dann als `media_ids` an `POST /api/v1/statuses` geht. Ein
+Beitrag **ohne** Bild ist nur der zweite Schritt.
+
+**Das Konto: `@Avesmaps@rollenspiel.social`** (angelegt 11.08.2026). Gewählt wurde eine
+deutschsprachige Pen&Paper-Instanz, nicht die größte — auf Mastodon hängt die Reichweite nicht am
+Server: wer folgt, folgt von überall, und Hashtags laufen durchs ganze Netz. Der Server entscheidet
+über Adresse, Moderation und Fortbestand. ⚠️ Er wird von **einer Privatperson** betrieben (406 aktive
+Nutzer im Monat, gemessen 11.08.2026); das ist der bewusst in Kauf genommene Preis. Ein Wechsel kostet
+später eine Zeile `base_url`, einen neuen Schlüssel und Mastodons eigenen Kontoumzug — die alten
+Beiträge zögen **nicht** mit um.
+
+**Zugang, und warum es hier keinen `connect`-Knopf gibt.** Mastodons Schlüssel läuft **nicht ab**;
+damit greift die Regel aus §3 in ihrer anderen Richtung — *rotiert = Datenbank, fest = Konfiguration*.
+Beides steht deshalb in `api/config.local.php`: `social.mastodon.base_url` und
+`social.mastodon.access_token`. Eine Zeile in `social_token` würde ebenso funktionieren
+(`avesmapsSocialAdapterContext` bevorzugt sie), sie hat hier nur keinen Zweck. Angelegt wird der
+Schlüssel von Hand unter *Einstellungen → Entwicklung → Neue Anwendung*, mit **genau zwei** Rechten:
+`write:statuses` und `write:media`. Lesen und Folgen braucht der Hub nicht, und ein Recht, das man
+nicht vergibt, kann auch nicht missbraucht werden.
+
+🔴 **Der Schlüssel gehört dem Konto, das ihn anlegt.** Wer die Anwendung angemeldet als Privatperson
+erstellt, bekommt einen Schlüssel, der als Privatperson veröffentlicht — dieselbe Falle wie Facebooks
+`/me` (§12.3), nur ohne Vorwarnung, weil hier keine Kennung mitgeschickt wird, an der es auffiele. Es
+gibt keinen technischen Riegel dagegen; die Gegenprobe ist, den ersten echten Beitrag auf dem Profil
+von `@Avesmaps` **anzusehen**.
+
+⭐ **Der einzige Kanal mit einem Wiederhol-Riegel.** Mastodon achtet auf einen `Idempotency-Key`: eine
+zweite Anfrage mit einem bereits gesehenen Schlüssel bekommt den **ursprünglichen** Beitrag zurück,
+statt einen zweiten anzulegen. Der Schlüssel wird aus der `post_id` abgeleitet und ist damit über alle
+Versuche derselbe. Das dreht den zweideutigen Fall um: wo Facebook nach einer Zeitüberschreitung sagt
+„erst nachsehen, dann erneut" (§12.3), sagt Mastodon „erneut senden ist gefahrlos".
+⚠️ Bewusst **ohne** Textprüfsumme im Schlüssel: ein Schlüssel, der sich mit dem Text ändert, wäre genau
+dann neu, wenn jemand einen zeitüberschrittenen Beitrag korrigiert und noch einmal schickt — also im
+einzigen Fall, für den es ihn gibt. Ein *gescheiterter* Versuch legt keinen Beitrag an und merkt sich
+keinen Schlüssel; ein geänderter Wiederholversuch nach echtem Fehler geht daher normal hinaus.
+
+💣 **Sechs Fallen, alle im Adapter begründet und in `mastodon-adapter-test.php` mutationsgeprüft:**
+
+1. **Mastodon meldet Fehler als STRING, Facebook als OBJEKT.** Dort `{"error":{"message":…,"code":…}}`,
+   hier `{"error":"Validation failed: …"}`. Wer den Facebook-Leser abschreibt, dessen
+   `is_array($data['error'])` greift nie — die Antwort fällt in den „keine id"-Zweig und ist damit
+   **zufällig richtig** (nicht gesendet), aber Mastodons eigener Satz ist weg und mit ihm die Diagnose.
+   Genau diese Mutation überlebte den ersten Testentwurf; beweiskräftig ist deshalb nicht
+   `ok === false`, sondern dass der **Text** durchkommt.
+2. **`base_url` ist die INSTANZ, nicht das Profil.** Was in der Adresszeile steht, ist
+   `https://rollenspiel.social/@Avesmaps` — und das ist das Naheliegende zum Einfügen. Mit Pfad entstünde
+   `…/@Avesmaps/api/v1/statuses`, also ein 404, den man dann dem Schlüssel anlasten würde. Alles nach dem
+   Wirt fällt weg; `http` wird auf `https` gehoben, weil ein Bearer-Token über eine offene Verbindung ein
+   abgeflossener Token ist.
+3. **`202` beim Bild heißt „noch nicht verarbeitet", nicht „fertig".** Mastodon antwortet 200, wenn der
+   Anhang bereit ist, und 202, wenn er noch läuft. Wer die `id` dann sofort anhängt, bekommt einen 422,
+   dessen Text vom **Beitrag** redet und nicht vom Bild. Also wird gewartet (`GET /api/v1/media/:id`,
+   dreimal, je eine Sekunde) und im Zweifel **nichts** gesendet.
+4. **`media_ids` muss eine LISTE sein.** `http_build_query` schreibt ein Array als `media_ids[0]=…`, und
+   Rack liest das als **Hash** mit dem Schlüssel „0", den Mastodon zurückweist. Der Status geht deshalb
+   als **JSON** hinaus — der Bild-Upload ist der einzige Aufruf, der multipart bleibt, weil er eine Datei
+   trägt.
+5. **Die Bildbeschreibung gehört an den UPLOAD, nicht an den Status.** `/api/v1/statuses` hat kein
+   solches Feld; dort gesendet wird sie angenommen und verworfen, und das Bild steht als unbeschrieben da.
+6. **Keine `id` zurück heißt NICHT gesendet** — wie überall (§2.2). Der Adapter folgt aus demselben
+   Grund wie Facebook **keiner Weiterleitung**: auf einem POST würde curl den Rumpf samt Schlüssel noch
+   einmal senden, wohin auch immer.
+
+💣 **Die 500 Zeichen sind INSTANZABHÄNGIG, kein Gesetz.** Jede Instanz stellt sie selbst ein; es gibt
+welche mit 1 500 und mit 5 000. Der Wert im Register ist deshalb **gemessen** —
+`GET https://rollenspiel.social/api/v2/instance` → `configuration.statuses.max_characters = 500`, am
+11.08.2026 gegen Mastodon 4.6.5 abgefragt. Wer die Instanz wechselt, misst neu.
+
+🔧 **Offen, bewusst:** dieselbe Antwort nennt `characters_reserved_per_url = 23`. **Mastodon zählt jede
+Verknüpfung als 23 Zeichen**, auch eine kürzere. Unser Zähler zählt sie echt und ist damit bei langen
+Adressen strenger als nötig (harmlos); nur bei einer sehr kurzen (`avesmaps.de` = 11) sind wir zu
+großzügig, und ein Beitrag in den letzten zwölf Zeichen vor 500 kann drüben abprallen. Der Adapter
+erklärt diesen 422 im Klartext. Es zu beheben hieße, den **gemeinsamen** Zähler (`compose.php`) und die
+Oberfläche mitzuändern — eigene Arbeit, nicht ein Nebeneffekt dieses Adapters.
+
+⚠️ **`language = de`** reist mit. Ohne das rät Mastodon aus dem Kontovorgabewert, und wer seine
+Zeitleiste nach Sprache filtert, sieht den Beitrag im falschen Topf.
+
+### 12.6 Das Feld „Bildbeschreibung" (11.08.2026)
+
+Kam mit dem Mastodon-Adapter, gilt aber allen Kanälen, die eine kennen. Ein Eingabefeld im Hub unter
+dem Bild, Spalte `social_post.media_alt` (VARCHAR(500), nachgerüstet).
+
+⚠️ **Leer ist erlaubt und sendet dann KEINE.** Den Beitragstext ersatzweise als Bildbeschreibung
+durchzureichen wäre schlechter als nichts: ein Screenreader liest denselben Satz dann zweimal vor.
+Mastodons eigene Markierung „ohne Beschreibung" ist die ehrlichere Auskunft.
+
+💣 **Eigene Bedingung bei der Nachrüstung.** `CREATE TABLE IF NOT EXISTS` rührt eine bestehende Tabelle
+nicht an, also hängt `avesmapsSocialEnsureTables` die Spalte per `ALTER TABLE` an — mit einem **eigenen**
+Wenn neben dem von `title`. Ein gemeinsames hätte bei jedem Bestand, der `title` bereits hat, auch
+`media_alt` übersprungen, und das fiele erst beim ersten Schreibvorgang auf, als SQL-Fehler.
+
+⚠️ Sie reist in `list.php` mit zurück, damit „Bearbeiten" sie wiederherstellt — sonst verlöre ein
+Entwurf beim zweiten Speichern still seine Bildbeschreibung, und ein leeres Feld sieht genauso aus wie
+ein nie gefülltes.
