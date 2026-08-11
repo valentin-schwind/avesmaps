@@ -128,8 +128,12 @@ foreach ($list as $row) {
     assert(!isset($row['app_secret']), 'no app secret either');
     assert(array_keys($row) === ['key', 'label', 'icon', 'account', 'note', 'max_chars',
         'max_hashtags', 'requires_media', 'shows_media', 'clickable_links', 'configured',
-        'connectable', 'access_expires'],
-        'the row carries exactly these thirteen keys -- a field added here reaches the browser');
+        'connectable', 'admin_url', 'access_expires'],
+        'the row carries exactly these fourteen keys -- a field added here reaches the browser');
+    // 🔴 `connect_scopes` steht im Register, darf aber NICHT mitreisen: was ein Token vorweisen muss,
+    // ist eine Serverentscheidung. Im Browser waere es eine Liste, die jemand fuer eine Einstellung
+    // haelt.
+    assert(!isset($row['connect_scopes']), 'die Rechteliste bleibt serverseitig');
     // Das Icon ist Schmuck, aber es muss DA sein: eine leere Marke in der Entwurfsliste sieht aus
     // wie ein Darstellungsfehler, nicht wie ein fehlendes Feld.
     assert($row['icon'] !== '', 'jeder Kanal hat ein Icon (' . $row['key'] . ')');
@@ -192,5 +196,42 @@ foreach ($onlyMastodon as $row) {
 }
 assert($byKey['mastodon']['configured'] === true, 'mastodon is configured');
 assert($byKey['instagram']['configured'] === false, 'instagram is not, and does not borrow it');
+
+// ---- die Konsole je Kanal ------------------------------------------------------------------------
+
+$mitKonto = avesmapsSocialChannelList(
+    ['facebook' => ['app_id' => '1037557352198584'], 'mastodon' => ['base_url' => 'https://rollenspiel.social/']],
+    [],
+    []
+);
+$byKonsole = [];
+foreach ($mitKonto as $row) {
+    $byKonsole[$row['key']] = $row;
+}
+assert($byKonsole['facebook']['admin_url'] === 'https://developers.facebook.com/apps/1037557352198584/',
+    'die App-Kennung wird eingesetzt');
+// ⚠️ Instagram zeigt auf DIESELBE Meta-App -- die Kennung steht nur unter `facebook`. Deshalb nennt
+// die Vorlage den Kanal ausdruecklich, statt „der eigene Block" zu meinen.
+assert($byKonsole['instagram']['admin_url'] === $byKonsole['facebook']['admin_url'],
+    'Instagram und Facebook teilen sich die Konsole');
+// Der Schraegstrich am Ende der Instanz darf sich nicht verdoppeln.
+assert($byKonsole['mastodon']['admin_url'] === 'https://rollenspiel.social/settings/applications',
+    'die Instanz-Adresse wird eingesetzt, ohne doppelten Schraegstrich');
+assert($byKonsole['probe']['admin_url'] === '', 'die Probe hat keine Konsole');
+
+// 💣 Fehlt ein Baustein, kommt LEER zurueck -- nie eine halb gefuellte Adresse. Ein Link auf
+// `.../apps/{facebook.app_id}/` sieht aus wie einer, fuehrt ins Leere, und wer ihn anklickt, sucht den
+// Fehler bei Meta statt in der eigenen Konfiguration.
+$ohne = avesmapsSocialChannelList([], [], []);
+foreach ($ohne as $row) {
+    assert(mb_strpos($row['admin_url'], '{') === false,
+        $row['key'] . ': kein offener Platzhalter in der Adresse');
+}
+$byOhne = [];
+foreach ($ohne as $row) {
+    $byOhne[$row['key']] = $row;
+}
+assert($byOhne['mastodon']['admin_url'] === '', 'ohne Instanz keine Adresse');
+assert($byOhne['facebook']['admin_url'] === '', 'ohne App-Kennung keine Adresse');
 
 fwrite(STDOUT, "channels-test: OK\n");

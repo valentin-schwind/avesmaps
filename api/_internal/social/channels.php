@@ -81,6 +81,7 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     // Instagram-Rechte gar nicht trägt. Genau so lag es am 10.08.2026 in der Tabelle.
     'instagram' => [
         'label' => 'Instagram',
+        'admin_url' => 'https://developers.facebook.com/apps/{facebook.app_id}/',
         'icon' => '📷',
         'account' => '@avesmaps',
         'connect' => 'facebook_page',
@@ -103,6 +104,7 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     // Zugang als einer, der erst beim ersten öffentlichen Beitrag auffliegt.
     'facebook' => [
         'label' => 'Facebook',
+        'admin_url' => 'https://developers.facebook.com/apps/{facebook.app_id}/',
         'icon' => '📘',
         'account' => 'Seite Avesmaps',
         'connect' => 'facebook_page',
@@ -129,6 +131,7 @@ const AVESMAPS_SOCIAL_CHANNELS = [
     // GEMEINSAMEN Zaehler (compose.php) und die Oberflaeche mitzuaendern -- eigene Arbeit.
     'mastodon' => [
         'label' => 'Mastodon',
+        'admin_url' => '{mastodon.base_url}/settings/applications',
         'icon' => '🐘',
         'account' => '@Avesmaps@rollenspiel.social',
         'note' => '',
@@ -193,6 +196,48 @@ function avesmapsSocialChannelIsConfigured(string $key, array $socialConfig, arr
 }
 
 /**
+ * Die Adresse der Konsole, in der man den Zugang dieses Kanals verwaltet -- oder '' wenn es keine
+ * gibt oder ein Baustein fehlt.
+ *
+ * Die Vorlage steht als `admin_url` im Register und trägt Platzhalter der Form `{kanal.schluessel}`,
+ * die aus der Konfiguration gefüllt werden. Beides zusammen, weil die Adresse aus BEIDEM entsteht:
+ * die Form gehört zum Netz (die kennt das Register), der Wert zum Konto (den kennt nur der Server).
+ *
+ * 💣 Bleibt ein Platzhalter offen, kommt '' zurück -- NIE eine halb gefüllte Adresse. Ein Link auf
+ * `.../apps/{facebook.app_id}/` sieht aus wie ein Link, führt aber ins Leere, und wer ihn anklickt,
+ * sucht den Fehler bei Meta statt in der eigenen Konfiguration.
+ *
+ * ⚠️ Instagram und Facebook zeigen auf DIESELBE Meta-App -- die Kennung steht nur unter `facebook`.
+ * Deshalb nennt die Vorlage den Kanal ausdrücklich, statt „der eigene Block" zu meinen.
+ *
+ * @param array<string, mixed> $socialConfig
+ */
+function avesmapsSocialChannelAdminUrl(?string $template, array $socialConfig): string
+{
+    $template = trim((string) $template);
+    if ($template === '') {
+        return '';
+    }
+
+    $offen = false;
+    $url = (string) preg_replace_callback(
+        '/\{([a-z_]+)\.([a-z_]+)\}/',
+        static function (array $treffer) use ($socialConfig, &$offen): string {
+            $entry = is_array($socialConfig[$treffer[1]] ?? null) ? $socialConfig[$treffer[1]] : [];
+            $wert = trim((string) ($entry[$treffer[2]] ?? ''));
+            if ($wert === '') {
+                $offen = true;
+            }
+
+            return rtrim($wert, '/');
+        },
+        $template
+    );
+
+    return $offen ? '' : $url;
+}
+
+/**
  * The list the editor panel renders: every channel with its limits, and whether it can be used.
  *
  * 🔴 Carries NO credential -- this travels to the client. The keys below are pinned by
@@ -225,6 +270,9 @@ function avesmapsSocialChannelList(array $socialConfig, array $tokenKeys, array 
             // Kann der Server den Zugang selbst herstellen? Nur DASS es geht reist mit, nie WIE --
             // der Weg samt App-Geheimnis bleibt serverseitig.
             'connectable' => ($channel['connect'] ?? null) !== null,
+            // Wo man den Zugang dieses Kanals verwaltet. Leer, wenn es keine Konsole gibt oder ein
+            // Baustein fehlt -- der Client zeigt dann keinen Link (siehe avesmapsSocialChannelAdminUrl).
+            'admin_url' => avesmapsSocialChannelAdminUrl($channel['admin_url'] ?? null, $socialConfig),
             // 💣 DREI Zustände, nicht zwei. 'never' ist eine Zusage, null ist deren ABWESENHEIT --
             // kein gespeicherter Zugang, also auch kein Wissen über seinen Ablauf (der Token kann in
             // der Konfiguration stehen). Die beiden zusammenzuwerfen hieße, „läuft nie ab" zu

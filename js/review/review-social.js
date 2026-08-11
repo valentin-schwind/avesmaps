@@ -685,6 +685,22 @@
 			label.append(box, stack);
 			row.appendChild(label);
 
+			// Die Konsole des Netzes -- die Stelle, an der man Token und Rechte verwaltet. Sie steht
+			// hier, weil man sie sonst nicht wiederfindet: Meta und Mastodon verstecken sie beide
+			// hinter mehreren Klicks, und man braucht sie genau dann, wenn etwas klemmt.
+			// ⚠️ Nur wenn der Server eine liefert. Fehlt ein Baustein in der Konfiguration, kommt ''
+			// zurück statt einer halb gefüllten Adresse (avesmapsSocialChannelAdminUrl).
+			if (channel.admin_url) {
+				const api = document.createElement("a");
+				api.className = "social-hub__channel-api";
+				api.href = channel.admin_url;
+				api.target = "_blank";
+				api.rel = "noopener noreferrer";
+				api.textContent = "API ↗";
+				api.title = channel.label + "-Konsole: " + channel.admin_url;
+				row.appendChild(api);
+			}
+
 			// Der Einrichtungsknopf steht in der Zeile SEINES Kanals -- dort, wo auch „Zugang läuft nie
 			// ab" steht, also neben der Aussage, die er ändert. Unter der Liste war er von dem Kanal
 			// getrennt, um den es geht.

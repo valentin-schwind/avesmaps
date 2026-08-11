@@ -530,6 +530,21 @@
    der Zeile: das Label gehoert seinem Kontrollkaestchen, und ein Klick auf den Knopf haette den Kanal
    an- und abgehakt. Ausserdem ist eine Zeilenhandlung nie die Haupthandlung (AGENTS.md §12) --
    deshalb ein Textknopf, kein gefuellter. */
+/* Der Verweis in die Konsole des Netzes. Steht in der Zeile seines Kanals, rechts oben -- er gehoert
+   zum Kanal, nicht zur Liste, und er ist Nachschlagewerk, nicht Handlung: deshalb ein leiser
+   Textlink und kein Knopf. */
+.social-hub__channel-api {
+	float: right;
+	margin-top: -18px;
+	color: var(--color-link);
+	font-size: 11px;
+	text-decoration: none;
+}
+
+.social-hub__channel-api:hover {
+	text-decoration: underline;
+}
+
 .social-hub__connect-open {
 	display: block;
 	/* Eingerueckt auf die Textspalte der Zeile: Kontrollkaestchen (13px) plus dessen Abstand (8px).
