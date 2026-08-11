@@ -1503,13 +1503,6 @@
 	}
 }
 
-/* Die nativen Auswahlfelder sind DROPDOWNS und tragen deren Groesse -- die Zahlenfelder daneben
-   bleiben auf --font-size-control, weil sie die iOS-Schwelle brauchen (Tippen, nicht Waehlen).
-   💣 Deshalb steht das hier unten und nicht in der gemeinsamen Regel: dort haengen beide Sorten
-   zusammen, und genau die Trennung ist der Punkt. */
-.route-planner-options-panel select {
-	font-size: var(--font-size-dropdown);
-}
 
 /* ── Ueberlaeufe enden mit „…", statt aus dem Panel zu brechen ────────────────────────────────
    Owner 11.08.2026: "dann ueberlaeufe mit … fixen".
@@ -1529,4 +1522,32 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+/* ── Die Auswahlfelder sehen aus wie die Comboboxen daneben ───────────────────────────────────
+   Owner 11.08.2026: "bist du dir sicher, dass die gleich groß sind? ... die schriften mein ich".
+
+   💣 Waren sie NICHT -- und `getComputedStyle` hat es verschwiegen. Beide meldeten brav
+   `Faculty Glyphic, 14px`, aber `appearance` stand auf `auto`: ein natives <select> ist ein
+   Widget des Betriebssystems, und das malt seinen Text mit SEINER Schrift, egal was im
+   Stylesheet steht. Gemessen wurde also die Vorgabe, gesehen hat der Owner das Ergebnis. Die
+   Comboboxen daneben sind <button> und halten sich an die Vorgabe -- daher der Unterschied.
+
+   Der Meldedialog loest das seit jeher mit `appearance: none` plus eigenem Pfeil; das Zeichen
+   liegt seit heute als Token in tokens.css, damit es nicht zweimal existiert.
+   ⚠️ Diese Regel steht am Dateiende, nicht oben bei der gemeinsamen Feldregel: die setzt
+   `padding: 0 4px` und wuerde das rechte Polster fuer den Pfeil sonst wieder ueberschreiben. */
+.route-planner-options-panel select {
+	/* Die Auswahlfelder sind DROPDOWNS und tragen deren Groesse -- die Zahlenfelder daneben
+	   bleiben auf --font-size-control, weil sie die iOS-Schwelle brauchen (Tippen, nicht Waehlen).
+	   💣 EINE Regel je Selektor: vorher standen zwei `.route-planner-options-panel select`-Regeln
+	   in dieser Datei, und eine Zusicherung, die nach dem Selektor sucht, findet immer die erste.
+	   Genau daran ist der Test zuerst gescheitert. */
+	font-size: var(--font-size-dropdown);
+	appearance: none;
+	-webkit-appearance: none;
+	padding-right: 22px;
+	background-image: var(--avesmaps-select-chevron);
+	background-repeat: no-repeat;
+	background-position: right 9px center;
 }

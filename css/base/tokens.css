@@ -37,6 +37,13 @@
 	   die zwei nativen <select> ist es NICHT geprueft -- ob iOS auch dort zoomt, sagt nur ein
 	   echtes Geraet. */
 	--font-size-dropdown: 14px;
+
+	/* Der Pfeil unserer Auswahlfelder. 💣 Als Token, weil ihn ZWEI Stellen brauchen (Meldedialog
+	   und Routenplaner) und ein zweiter Data-URI genau die Divergenz waere, vor der §12 warnt --
+	   zwei Bilder, deren Farbe getrennt altert.
+	   ⚠️ Die Fuellung steht als Hex im Bild, nicht als currentColor: ein background-image kann
+	   currentColor nicht erben. Der Wert ist --color-text-muted. */
+	--avesmaps-select-chevron: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='8'%20height='6'%3E%3Cpath%20d='M0%200l4%205%204-5z'%20fill='%23706557'/%3E%3C/svg%3E");
 	--leading-tight: 1.15;      /* titles / display */
 	--leading-snug: 1.25;       /* controls / labels */
 	--leading-normal: 1.45;     /* reading body */

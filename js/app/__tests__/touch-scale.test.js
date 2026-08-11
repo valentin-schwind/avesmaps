@@ -368,6 +368,34 @@ const kuerzt = planner.match(/\.route-planner-options-panel select,[\s\S]{0,60}\
 assert.ok(kuerzt && /text-overflow:\s*ellipsis/.test(kuerzt[1]) && /overflow:\s*hidden/.test(kuerzt[1]),
 	"und der Ueberhang endet mit … (ellipsis braucht overflow: hidden)");
 
+// ---- Die Auswahlfelder tragen unsere Schrift, nicht die des Betriebssystems ----------------------
+//
+// 💣 `getComputedStyle` verschweigt das: ein natives <select> (appearance: auto) ist ein Widget des
+// Betriebssystems und malt seinen Text mit DESSEN Schrift -- gemeldet wird trotzdem brav die
+// CSS-Vorgabe. Owner 11.08.2026: "bist du dir sicher, dass die gleich gross sind? ... die schriften
+// mein ich". Waren sie nicht. Erst `appearance: none` gibt die Schrift an die Seite zurueck.
+// 💣 Ueber den INHALT gesucht, nicht ueber den Zeilenanfang. `.route-planner-options-panel select`
+// steht auch als ZWEITE Zeile einer Selektorliste (zusammen mit input[type=number]) -- ein
+// ^-Anker greift die und liefert den falschen Rumpf. Das ist in dieser Datei die dritte
+// Zusicherung, die auf genau diese Weise danebengriff (vorher .planner-group__toggle und
+// .transport-combobox); wer hier eine neue schreibt, sucht nach dem Rumpf, nicht nach der Zeile.
+const planerSelect = planner.match(
+	/\.route-planner-options-panel select \{([^}]*appearance:\s*none[^}]*)\}/);
+assert.ok(planerSelect, "die Auswahlfelder des Planers haben eine eigene Regel mit appearance");
+assert.ok(/appearance:\s*none/.test(planerSelect[1]) && /-webkit-appearance:\s*none/.test(planerSelect[1]),
+	"sie sind KEIN natives Systemwidget mehr -- sonst malt das System den Text");
+assert.ok(/background-image:\s*var\(--avesmaps-select-chevron\)/.test(planerSelect[1]),
+	"und tragen den Pfeil aus dem Token");
+
+// 💣 EIN Zeichen, nicht zwei. Zwei Data-URIs waeren zwei Bilder, deren Farbe getrennt altert.
+const chevron = tokens.match(/--avesmaps-select-chevron:\s*url\(/);
+assert.ok(chevron, "das Pfeil-Zeichen steht als Token in tokens.css");
+const reportCss = withoutComments(read("css", "components", "location-report-dialog.css"));
+[["route-planner.css", planner], ["location-report-dialog.css", reportCss]].forEach(([name, css]) => {
+	assert.ok(!/background-image:\s*url\("data:image\/svg/.test(css),
+		`${name} traegt den Pfeil NICHT als eigenen Data-URI -- beide lesen den Token`);
+});
+
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
 assert.ok(viewport, "index.html traegt ein Viewport-Meta");

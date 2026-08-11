@@ -145,7 +145,7 @@
 	appearance: none;
 	-webkit-appearance: none;
 	padding-right: 22px;
-	background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='8'%20height='6'%3E%3Cpath%20d='M0%200l4%205%204-5z'%20fill='%23706557'/%3E%3C/svg%3E");
+	background-image: var(--avesmaps-select-chevron);
 	background-repeat: no-repeat;
 	background-position: right 9px center;
 }
