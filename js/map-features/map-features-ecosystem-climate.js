@@ -363,6 +363,14 @@ function drawClimateZoneNames() {
 					L.DomEvent.stopPropagation(event.originalEvent);
 				}
 				setHighlightedEcosystemRegion(regionPublicId);
+				// 🔴 Und dasselbe Panel, das ein Klick auf das Band selbst öffnet (Owner 2026-08-12).
+				// Ohne diese Zeile wäre der Name das einzige Ding, das WENIGER tut als die Fläche unter
+				// ihm -- und er ist gerade als ihr Griff gedacht.
+				// ⚠️ Er kennt seine Fläche schon (`area`), also derselbe Aufruf; die Frage, ob überhaupt
+				// (Leser oder Editor), steckt in showEcosystemAreaInfopanel.
+				if (typeof showEcosystemAreaInfopanel === "function") {
+					showEcosystemAreaInfopanel(area);
+				}
 			});
 			// Überfahren zeigt dasselbe wie ein Klick, nur geliehen (Owner 2026-08-04). Das ist der
 			// eigentliche „man kann hier klicken"-Hinweis: das Band selbst antwortet.

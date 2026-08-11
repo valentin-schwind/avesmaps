@@ -368,18 +368,152 @@ if (typeof document !== "undefined" && !document.__avesmapsEcosystemHighlightBou
 // Der Zusatz „· Erprobung" ist am 2026-07-28 entfallen (Owner: „das Erprobungs-Kennzeichen kann
 // insgesamt raus — die brauchen wir weder in den Flächen noch im Derographiemenü"). Die Spalte
 // `is_trial` bleibt vorerst in der Datenbank; sie wird hier nur nicht mehr angezeigt.
+// Name und Art einer Fläche in lesbarer Form -- EINE Stelle, mehrere Leser (Schwebezettel, Panel-
+// Rückfall). Getrennt gepflegt driften sie auseinander, und dann nennt der Zettel etwas anderes als die
+// Überschrift, die auf ihn folgt.
+function ecosystemAreaDisplayName(area) {
+	return String(area?.region_name || "").trim() || "Ohne Namen";
+}
+
+function ecosystemAreaTypeLabel(area) {
+	return String(area?.region_type_label || area?.region_type || "").trim()
+		|| ECOSYSTEM_KIND_LABELS[area?.kind] || String(area?.kind || "").trim();
+}
+
 function formatEcosystemAreaTooltip(area) {
-	const regionName = String(area?.region_name || "").trim() || "Ohne Namen";
+	const regionName = ecosystemAreaDisplayName(area);
 	// Die ART, und sonst die Ebene. Owner 2026-08-03: „Eisenwald (Gebirge)" reicht -- die Ebene und
 	// die Zählung „· Flächen (3) und Labels (2)" sind aus dem Zettel raus. Wer zeichnet, weiss in
 	// welcher Ebene er arbeitet, und wie viele Teile eine Region hat, sagt ihr Dialog.
 	// ⚠️ Die Ebene bleibt der Rückfall: eine Fläche ohne Art ist ein gültiger Zustand (der Dialog
 	// bietet ihn als „— keine Vegetation —" an), und „Namenlos ()" wäre schlechter als gar keine
 	// Klammer.
-	const typeLabel = String(area?.region_type_label || area?.region_type || "").trim()
-		|| ECOSYSTEM_KIND_LABELS[area?.kind] || String(area?.kind || "").trim();
+	const typeLabel = ecosystemAreaTypeLabel(area);
 
 	return typeLabel ? `${regionName} (${typeLabel})` : regionName;
+}
+
+// ---- Der Klick auf eine Fläche: wer beantwortet ihn? -----------------------------------------------
+//
+// 🔴 IM FRONTEND BEANTWORTET EIN KLICK AUF DIE FLÄCHE DASSELBE WIE EINER AUF IHR LABEL (Owner
+// 2026-08-12: „ein Klick auf die Regionen soll auch das Infopanel öffnen"). Bis dahin leuchtete die
+// Fläche nur und ein Schwebezettel nannte ihren Namen -- dieselbe Frage mit zwei Antworten, und die
+// schlechtere traf den weitaus grösseren Anfasser: eine Fläche ist tausendmal grösser als ihr Schriftzug.
+// Entwurf: docs/superpowers/specs/2026-08-12-landschaften-flaechenklick-infopanel-design.md
+//
+// 🔴 EINE FRAGE FÜR LEUCHTEN UND PANEL (§5.2). Beide sind die Antwort auf DIESELBE Geste; an zwei
+// getrennten Bedingungen hängend liessen sie sich auseinander pflegen, und der Klick täte danach die
+// Hälfte. Der Editor beantwortet denselben Klick mit „daran arbeite ich" -- Auswahl, Griffe, Ziel der
+// Werkzeuge -- und bekommt deshalb keins von beidem.
+//
+// ⚠️ Wortgleich zur Bedingung, die die Hervorhebung seit 2026-08-04 trägt, inklusive ihrer Lesart bei
+// fehlendem Nachbarn (dann passiert nichts). Hier steht sie nur EINMAL statt zweimal ausgeschrieben.
+function isEcosystemReaderClick() {
+	return typeof canOperateEcosystemLayers === "function" && !canOperateEcosystemLayers();
+}
+
+// Welche Quelle füllt das Panel: das Label der Fläche, oder die Fläche selbst?
+//
+// 🔴 DIE WAHL IST DIE REGEL, DAS MARKUP NUR IHRE AUSGABE. Deshalb hier getrennt vom Bauen: diese
+// Funktion entscheidet ohne Leaflet, ohne DOM und ohne die Markup-Bauer -- und ist damit prüfbar, ohne
+// dass ein Stub die Antwort vorwegnimmt. Zusammengelegt bewiese ein Test „es kam Markup", nicht „es kam
+// das richtige".
+//
+// Das primäre Label reist mit der Fläche mit (`label_public_id`, aus `ecosystem_region` --
+// avesmapsEcosystemReadAreas). Es muss also nichts geraten und nichts nachgeladen werden.
+//
+// 💣 EIN ZEIGER IST KEIN LABEL: `ecosystem_region.label_public_id` überlebt ein von Hand gelöschtes
+// Label. Der Rückfall auf die Fläche fängt deshalb DREI Zustände in einem einzigen Zweig -- kein
+// primäres Label, toter Zeiger, Label nicht im geladenen Bestand. Keiner braucht eine eigene Frage:
+// wer nicht gefunden wird, bekommt das Flächen-Panel.
+function ecosystemAreaInfoSource(area, labels) {
+	if (!area) {
+		return null;
+	}
+	const labelPublicId = String(area.label_public_id || "");
+	const list = Array.isArray(labels) ? labels : [];
+	const label = labelPublicId
+		? list.find((row) => String(row?.publicId || "") === labelPublicId)
+		: null;
+
+	return label ? { kind: "label", label } : { kind: "area", area };
+}
+
+// Das Panel-Markup zur gewählten Quelle.
+//
+// ⚠️ KEIN eigener Bauplan und KEIN eigener Bildkatalog. Der Label-Zweig ruft denselben Bauer wie der
+// Label-Klick; der Rückfall nutzt dieselbe Hülle (`locationPopupMarkup`) und dieselbe Bildtabelle
+// (`regionHeaderImageBasename`, deren Rückfall „region" ein gültiges Bild ist). Ein zweites Markup wäre
+// die Divergenz, gegen die dieses Feature überhaupt gebaut wurde.
+function ecosystemAreaInfoMarkup(source) {
+	if (!source) {
+		return "";
+	}
+	if (source.kind === "label") {
+		return typeof buildRegionLabelViewPopupHtml === "function"
+			? buildRegionLabelViewPopupHtml(source.label)
+			: "";
+	}
+	if (typeof locationPopupMarkup !== "function") {
+		return "";
+	}
+	// Name + Art, also wörtlich das, was bis heute im Schwebezettel stand -- nur an dem Ort, an dem der
+	// Leser Auskunft erwartet. Mehr weiss die Fläche nicht: Wiki-Zeilen hängen am Label, und wo eines
+	// ist, greift der Zweig darüber.
+	const name = ecosystemAreaDisplayName(source.area);
+	const typeLabel = ecosystemAreaTypeLabel(source.area);
+	// Die Ebene als zweites Wort im Untertitel: „Gebirge · Topographie", dieselbe Bauart wie bei einer
+	// Siedlung („Metropole · Hauptstadt von X").
+	// ⚠️ NUR wenn sie etwas Neues sagt. Eine Fläche ohne Art trägt die Ebene schon als ihre Art
+	// (ecosystemAreaTypeLabel fällt darauf zurück) -- „Klimazonen · Klimazonen" wäre das Ergebnis einer
+	// Ableitung, die sich selbst nicht wiedererkennt.
+	const kindLabel = ECOSYSTEM_KIND_LABELS[source.area?.kind] || "";
+	const suffix = kindLabel && kindLabel !== typeLabel && typeof escapeHtml === "function"
+		? escapeHtml(kindLabel)
+		: "";
+	const headerImg = typeof infoHeaderImageMarkup === "function" && typeof regionHeaderImageBasename === "function"
+		? infoHeaderImageMarkup(regionHeaderImageBasename(typeLabel), name, typeLabel, null, null, suffix)
+		: "";
+
+	return locationPopupMarkup({
+		name,
+		locationTypeLabel: typeLabel,
+		headerImageMarkup: headerImg,
+		showHeaderIcon: false,
+		compact: true,
+		showType: Boolean(typeLabel),
+		showDescription: false,
+		showWikiLink: false,
+	});
+}
+
+// Zeigt das Panel zu dieser Fläche. Rückgabe: hat es etwas gezeigt? Der Aufrufer entscheidet daran, ob
+// sein Schwebezettel noch nötig ist -- zwei Meldungen mit demselben Satz sind eine zu viel.
+//
+// 💣 KEIN panTo. Der Label-Klick zentriert die Karte; hier wäre das falsch -- der Leser klickt auf das,
+// was er ohnehin vor sich hat, und ein Sprung unter dem Zeiger ist Lärm. Der Unterschied ist gewollt
+// und darf nicht „vereinheitlicht" werden (§5.1).
+function showEcosystemAreaInfopanel(area) {
+	if (!isEcosystemReaderClick()) {
+		return false;
+	}
+	// Ohne Panel-Modus gibt es kein Ziel, und dann bleibt alles wie zuvor -- so hält es der Label-Klick
+	// auch (map-features-labels.js).
+	if (typeof IS_INFOPANEL_MODE === "undefined" || !IS_INFOPANEL_MODE
+		|| typeof window === "undefined" || typeof window.avesmapsShowInfopanel !== "function") {
+		return false;
+	}
+	const source = ecosystemAreaInfoSource(area, typeof labelData === "undefined" ? [] : labelData);
+	const markup = ecosystemAreaInfoMarkup(source);
+	if (!markup) {
+		return false;
+	}
+	const activeName = source.kind === "label"
+		? (source.label.text || (source.label.wikiRegion && source.label.wikiRegion.name) || "")
+		: ecosystemAreaDisplayName(area);
+	window.avesmapsShowInfopanel(markup, activeName);
+
+	return true;
 }
 
 // ---- Stapelreihenfolge (Owner 2026-07-28, Punkt 9) --------------------------------------------------
@@ -574,12 +708,23 @@ function buildEcosystemAreaLayer(area) {
 		//
 		// Der Editor behält stattdessen seine Auswahl: dort heisst ein Klick „daran arbeite ich", und
 		// zwei Konturen mit verschiedener Bedeutung auf einer Fläche sagen nichts mehr.
-		if (typeof canOperateEcosystemLayers === "function" && !canOperateEcosystemLayers()
-			&& typeof setHighlightedEcosystemRegion === "function") {
-			setHighlightedEcosystemRegion(area.region_public_id || "");
+		//
+		// 🔴 UND SEIT 2026-08-12 GEHT DABEI DAS INFOPANEL AUF -- dieselbe Auskunft, die ein Klick auf
+		// das Label schon immer gab (Owner: „ein Klick auf die Regionen soll auch das Infopanel
+		// öffnen"). 💣 An DERSELBEN Frage wie das Leuchten (`isEcosystemReaderClick`), nicht an einer
+		// zweiten daneben: es ist EINE Geste, und zwei Bedingungen liessen sich auseinander pflegen --
+		// danach täte der Klick die Hälfte.
+		let zeigtPanel = false;
+		if (isEcosystemReaderClick()) {
+			if (typeof setHighlightedEcosystemRegion === "function") {
+				setHighlightedEcosystemRegion(area.region_public_id || "");
+			}
+			zeigtPanel = showEcosystemAreaInfopanel(area);
 		}
 		setSelectedEcosystemArea(area.public_id);
-		if (typeof showFeedbackToast === "function") {
+		// Der Schwebezettel nur noch dort, wo KEIN Panel aufgeht: er sagt denselben Satz, den das Panel
+		// als Überschrift trägt. Im Editor bleibt er stehen -- dort ist er die einzige Rückmeldung.
+		if (!zeigtPanel && typeof showFeedbackToast === "function") {
 			showFeedbackToast(formatEcosystemAreaTooltip(area));
 		}
 	});
