@@ -77,6 +77,31 @@ assert.ok(
 	"und rechnet seinen Abstand aus Kartenrand + --avesmaps-corner-stack, statt eine Zahl zu kennen"
 );
 
+// ---- Der Bund weicht einem Panel aus, das WIRKLICH da ist ----------------------------------------
+//
+// 💣 `avesmaps-infopanel-open` wird im Bearbeiten-Modus BEDINGUNGSLOS gesetzt (`open || editActive`
+// in map-features-infopanel.js) -- die Annahme war „im Edit-Mode belegt der Editor die rechte Kante
+// dauerhaft". Er tut es nicht: zugeklappt faehrt er hinaus, die Klasse bleibt, und der Knopfbund
+// stand mitten auf der Karte neben einer Panelkante, die es nicht mehr gab (Owner-Foto 11.08.2026;
+// gemessen bei 1393px: Bund 805..981, Panelkante 1393 -- 412px vom rechten Rand).
+// `avesmaps-any-panel-open` beantwortet die Frage, die hier gestellt ist, und wird schon so
+// gerechnet (infoOpen || editorActive). Die Rand-Laschen lesen sie seit jeher.
+const verschiebung = cssOhneKommentar.match(
+	/([^{}]*)\{\s*right:\s*calc\(var\(--avesmaps-ip-w\) \+ 12px\)/);
+assert.ok(verschiebung, "die Regel, die Bund und Zoom neben die Panelkante setzt, ist auffindbar");
+assert.ok(/avesmaps-any-panel-open/.test(verschiebung[1]),
+	"sie haengt an `avesmaps-any-panel-open` -- der Klasse, die verschwindet, wenn das Panel zufaehrt");
+assert.ok(!/avesmaps-infopanel-open/.test(verschiebung[1]),
+	"und NICHT an `avesmaps-infopanel-open`: die steht im Bearbeiten-Modus immer, auch ohne Panel,"
+	+ " und strandet den Bund dann mitten auf der Karte");
+// Dieselbe Bedingung fuer das Stapeln: eng ist die Ecke, wenn ein Panel Platz nimmt -- nicht, wenn
+// der Edit-Modus es bloss behauptet.
+assert.ok(
+	/\.avesmaps-any-panel-open #map-corner-actions \.map-corner-actions__row \{\s*flex-direction:\s*column/
+		.test(cssOhneKommentar),
+	"und das Stapeln haengt an derselben Klasse -- sonst stapelt der Bund fuer ein Panel, das fehlt"
+);
+
 // 💣 Faengt den gemessenen Fehlgriff vom 09.08.2026: die Modus-Klasse haengt an <html> UND <body>.
 // Ohne :root schreibt <body> die Zahl ein zweites Mal auf den Grundwert und uebersteuert damit den
 // schmalen Fall -- der Zoom bleibt sitzen, der gestapelte Bund laeuft in ihn hinein.

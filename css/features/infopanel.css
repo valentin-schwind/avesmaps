@@ -418,8 +418,20 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	z-index: 1000;
 	transition: right 0.22s ease;
 }
-.avesmaps-infopanel-mode.avesmaps-infopanel-open #map-corner-actions,
-.avesmaps-infopanel-mode.avesmaps-infopanel-open .leaflet-control-zoom {
+/* 💣 `avesmaps-any-panel-open`, NICHT `avesmaps-infopanel-open`. Die zweite Klasse wird im
+   Bearbeiten-Modus BEDINGUNGSLOS gesetzt (`open || editActive` in map-features-infopanel.js) -- die
+   Annahme dahinter war „im Edit-Mode belegt der Editor die rechte Kante dauerhaft". Er tut es nicht:
+   klappt man ihn zu, faehrt er hinaus, die Klasse bleibt, und der Knopfbund steht mitten auf der
+   Karte neben einer Panelkante, die es nicht mehr gibt. Gemessen am 11.08.2026 bei 1393px:
+   Editor offen  -> Bund 805..981, Panelkante 993 (12px Luft, richtig)
+   Editor zu     -> Bund 805..981, Panelkante 1393 (412px vom rechten Rand, gestrandet)
+   `avesmaps-any-panel-open` beantwortet die Frage, die hier wirklich gestellt ist -- „belegt gerade
+   ein Panel die rechte Kante?" -- und wird schon so gerechnet (infoOpen || editorActive). Die
+   Rand-Laschen darueber lesen sie seit jeher; der Knopfbund hat sie nur nie bekommen.
+   ✅ Im Frontend aendert sich dadurch nichts: ohne Edit-Mode sind beide Klassen dasselbe (beide
+   bedeuten dort „das Infopanel ist offen"). */
+.avesmaps-infopanel-mode.avesmaps-any-panel-open #map-corner-actions,
+.avesmaps-infopanel-mode.avesmaps-any-panel-open .leaflet-control-zoom {
 	right: calc(var(--avesmaps-ip-w) + 12px);
 }
 
@@ -435,7 +447,10 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 @media (max-width: 599px) {
 	/* Der Bund ist seit der Suchkachel ohnehin eine Spalte -- gestapelt wird hier deshalb seine
 	   VERWEIS-Zeile, nicht der Bund selbst. Wirkung und Hoehe bleiben dieselben. */
-	.avesmaps-infopanel-mode.avesmaps-infopanel-open #map-corner-actions .map-corner-actions__row {
+	/* ⚠️ Dieselbe Klasse wie beim Verschieben darueber: gestapelt wird, wenn die Ecke eng ist, und eng
+	   ist sie genau dann, wenn ein Panel wirklich Platz nimmt -- nicht, wenn der Edit-Modus es bloss
+	   behauptet. */
+	.avesmaps-infopanel-mode.avesmaps-any-panel-open #map-corner-actions .map-corner-actions__row {
 		flex-direction: column;
 	}
 }
