@@ -89,7 +89,10 @@
 	flex-direction: column;
 	align-items: center;
 	gap: 3px;
-	width: 60px;
+	/* 66, nicht 60: „Landschaften" ist das laengste der sechs Woerter und wurde bei 60 als
+	   „Landschaft…" abgeschnitten. Die Zahl haengt also am Wort, nicht am Bild (das bleibt 48).
+	   Die Reihe misst damit 438px am Zeiger, das Raster 222px am Telefon -- beides passt. */
+	width: 66px;
 	padding: 0;
 	border: 0;
 	background: none;

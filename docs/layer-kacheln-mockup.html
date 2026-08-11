@@ -698,6 +698,75 @@ html.avesmaps-phone {
 	--shadow-button-hover-strong: 0 5px 12px rgba(0, 0, 0, 0.5);
 }
 
+/* ===== base/reset.css ===== */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	min-height: 100%;
+}
+
+[hidden] {
+	display: none !important;
+}
+
+/* ===== base/base.css ===== */
+html,
+body,
+button,
+input,
+select,
+textarea {
+	font-family: var(--font-ui);
+}
+
+body {
+	font-size: 10pt;
+	color: var(--color-text);
+}
+
+/* Scrollbars follow the theme everywhere: color-scheme tells the browser which native
+   chrome (incl. default scrollbars) to render; scrollbar-color/-width covers Firefox +
+   modern Chromium and is inherited, so setting it once on :root reaches every scroll
+   container. The WebKit pseudo-elements are NOT inherited, so `*` is needed to reach
+   nested scroll areas (review lists, editor trees, dialogs). */
+:root {
+	color-scheme: light;
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+:root[data-theme="dark"] {
+	color-scheme: dark;
+}
+*::-webkit-scrollbar {
+	width: 7px;
+	height: 7px;
+}
+*::-webkit-scrollbar-track {
+	background: var(--color-scrollbar-track);
+}
+*::-webkit-scrollbar-thumb {
+	background: var(--color-scrollbar-thumb);
+	border-radius: var(--radius-sm);
+}
+*::-webkit-scrollbar-thumb:hover {
+	background: var(--color-scrollbar-thumb-hover);
+}
+
+* {
+	font-family: "Faculty Glyphic", "Arial", sans-serif !important;
+	/* Faculty Glyphic ships only Regular — a font-weight:700 gets browser-synthesised
+	   (faux-bold), which renders fuzzy / "bleedy". Synthesis off app-wide; emphasis
+	   comes from colour (--color-text-strong / --color-accent-strong), not weight. */
+	font-synthesis-weight: none;
+}
+
 /* ===== components/legal-dialog.css ===== */
 /* 860 x 940 statt 680 x 760 (Owner 2026-08-05). Seit die acht Abschnitte zugeklappt sind, ist das
    Fenster ein Verzeichnis, und ein Verzeichnis will man GANZ sehen: der zugeklappte Bestand misst
@@ -1506,7 +1575,10 @@ html.avesmaps-phone {
 	flex-direction: column;
 	align-items: center;
 	gap: 3px;
-	width: 60px;
+	/* 66, nicht 60: „Landschaften" ist das laengste der sechs Woerter und wurde bei 60 als
+	   „Landschaft…" abgeschnitten. Die Zahl haengt also am Wort, nicht am Bild (das bleibt 48).
+	   Die Reihe misst damit 438px am Zeiger, das Raster 222px am Telefon -- beides passt. */
+	width: 66px;
 	padding: 0;
 	border: 0;
 	background: none;
