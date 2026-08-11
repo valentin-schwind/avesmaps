@@ -2259,7 +2259,6 @@
 				</div>
 				</div>
 			</div>
-			<button id="toggle-button" data-i18n="planner.toggle">Routenplaner</button>
 			<!-- Die Gruppe steht im MARKUP, nicht im Skript. Bis 2026-08-03 baute
 			     enhanceRoutePlannerOptionPanel() sie zur Laufzeit und schob die Zeilen hinein --
 			     bis dahin standen sie nackt untereinander, ohne Rahmen, Kopfzeile und ⓘ. Auf einer
@@ -2371,6 +2370,17 @@
 			</section>
 			<div id="overview" data-i18n="planner.overview.default">Wegpunkte und Dauer der Reise werden hier angezeigt.</div>
 		</div>
+		<!-- 🔴 Die Randlasche steht NEBEN dem Panel, nicht darin. Bis zum 11.08.2026 war sie ein Kind
+		     von #search -- und das ging gut, solange #search nie wirklich scrollte. Seit es eine
+		     Hoehe hat, an der sein `overflow-y: auto` greift, ist es ein Scroll-Container, und iOS
+		     bindet ein `position: fixed` DARIN an dessen Kasten statt an den Bildschirm: zugeklappt
+		     sitzt #search bei left: -350px und nahm die Lasche mit, aufgeklappt lag sie bei 350..380
+		     ausserhalb der 0..350 des Panels und wurde von `overflow-x: hidden` weggeschnitten. In
+		     beiden Zustaenden unsichtbar -- auf dem Telefon des Owners fotografiert, waehrend Chrome
+		     sie brav anzeigte (Blink folgt hier der Spezifikation, WebKit nicht).
+		     ⚠️ Die Lasche des Infopanels (`avesmaps-infopanel__handle`) haengt seit jeher direkt am
+		     <body> und war deshalb auf demselben Foto zu sehen. Das ist die Bauart, die traegt. -->
+		<button id="toggle-button" data-i18n="planner.toggle">Routenplaner</button>
 		<!-- Die Ecke unten rechts ist EIN Bund, kein einzelner Knopf mehr: „Neuigkeiten" steht links
 		     neben „Hinweise", beide wandern gemeinsam nach links, wenn die Infobox aufgeht. Wird es
 		     eng (offene Infobox auf schmalem Schirm), stapelt der Bund -- „Neuigkeiten" nach oben,

@@ -556,6 +556,29 @@ assert.ok(Number(deckel[2]) >= Number(obenAb[1]),
 assert.ok(/overflow-y:\s*auto/.test(basisRegel[1]),
 	"...und die Grundregel scrollt ueberhaupt -- der Deckel allein taete sonst nichts");
 
+// 🔴 UND DIE FOLGE, DIE DER DECKEL HATTE: #search ist seither ein echter Scroll-Container. Was darin
+// `position: fixed` steht, bindet iOS an dessen KASTEN statt an den Bildschirm -- Chrome nicht, das
+// folgt hier der Spezifikation. Die Randlasche war ein Kind von #search und verschwand deshalb am
+// 11.08.2026 auf dem Telefon des Owners in BEIDEN Zustaenden: zugeklappt sitzt #search bei
+// left: -350px und nahm sie mit, aufgeklappt lag sie bei 350..380 ausserhalb der 0..350 des Panels
+// und wurde von `overflow-x: hidden` weggeschnitten. Sie steht jetzt NEBEN dem Panel, so wie
+// `avesmaps-infopanel__handle` seit jeher direkt am <body> haengt -- die Lasche, die auf demselben
+// Foto zu sehen war.
+// 💣 Ueber die div-BILANZ geprueft, nicht per Regex auf Verschachtelung: eine Bilanz von -1 heisst,
+// dass zwischen dem oeffnenden Tag von #search und der Lasche ein </div> mehr steht als <div> --
+// #search ist also zu. Kommentare sind vorher raus, sonst zaehlt Prosa mit.
+const searchOffen = indexHtml.indexOf('<div id="search"');
+const laschePos = indexHtml.indexOf('<button id="toggle-button"');
+assert.ok(searchOffen > -1 && laschePos > searchOffen,
+	"#search und die Randlasche sind im Markup auffindbar, in dieser Reihenfolge");
+const dazwischen = indexHtml.slice(searchOffen + '<div id="search"'.length, laschePos);
+const divBilanz = (dazwischen.match(/<div\b/g) || []).length - (dazwischen.match(/<\/div>/g) || []).length;
+assert.ok(divBilanz <= -1,
+	`die Randlasche steht INNERHALB von #search (div-Bilanz ${divBilanz}, erwartet <= -1). Seit #search`
+	+ " einen Deckel hat, scrollt es -- und ein `position: fixed` in einem Scroll-Container ist auf iOS"
+	+ " an dessen Kasten gebunden, nicht an den Bildschirm. Die Lasche war damit unsichtbar, in beiden"
+	+ " Zustaenden. Sie gehoert NEBEN das Panel, wie avesmaps-infopanel__handle.");
+
 // 🔴 Ein DECKEL, keine feste Hoehe, und der Ankerpunkt bleibt stehen. `top: 0; height: 100dvh` war der
 // Versuch vom 10.08.2026: er schiebt das Panel auch mit wenig Inhalt an beide Kanten, und daran hing
 // die Kettenreaktion (Kartenecke unter dem Panel, Lasche entkoppelt, Stapelzahl der Ecke veraltet).
