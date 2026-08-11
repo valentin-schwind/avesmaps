@@ -561,6 +561,11 @@
 	white-space: nowrap;
 }
 
+/* 💣 DIESELBEN DREI wie in der Grundregel oben -- und genau hier fehlte die Kachel. Sie stand seit
+   dem 11.08.2026 in der Grundregel (Farbe, Kontur, Radius), aber nicht in dieser: als einziger der
+   drei Knoepfe blieb sie unter dem Zeiger stumm. Wer den einen Selektor ergaenzt, ergaenzt beide. */
+#map-search-button:hover,
+#map-search-button:focus-visible,
 #legal-button:hover,
 #legal-button:focus-visible,
 #news-button:hover,
