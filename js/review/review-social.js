@@ -979,7 +979,27 @@
 				}
 				return;
 			}
-			closeHub();
+			// 🔴 Ein Entwurf schliesst das Fenster NICHT. Speichern ist hier kein Abschluss, sondern
+			// ein Zwischenstand -- meistens will man gleich weiterschreiben. Nur „Veröffentlichen"
+			// beendet die Arbeit, und deshalb nur dort das Schliessen.
+			if (!asDraft) {
+				closeHub();
+				load(true);
+				return;
+			}
+
+			// 💣 Ab jetzt wird DIESER Entwurf bearbeitet. Ohne das legte der zweite Klick auf
+			// „Speichern" einen zweiten Entwurf an -- genau der Fehler, der eben behoben wurde, nur
+			// eine Ebene weiter: das Fenster bleibt offen, also bleibt auch der Beitrag derselbe.
+			if (response.post_id) { editingId = response.post_id; }
+			const subtitle = el("social-hub-subtitle");
+			if (subtitle) { subtitle.textContent = "— Entwurf bearbeiten"; }
+
+			// Rueckmeldung IM Knopf: das Fenster bleibt stehen, sonst passierte sichtbar nichts.
+			if (button) {
+				button.textContent = "Gespeichert ✓";
+				window.setTimeout(function () { button.textContent = "Als Entwurf speichern"; }, 1800);
+			}
 			load(true);
 		});
 	}
