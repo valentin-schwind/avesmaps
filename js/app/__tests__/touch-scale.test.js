@@ -621,6 +621,56 @@ const overviewGesetzt = overviewRegel[1].split(";").map((d) => d.split(":")[0].t
 assert.ok(!/#overview/.test(schmalBlock[0]),
 	"der Block fuer schmale Schirme setzt KEINE eigene Hoehengrenze fuer #overview mehr");
 
+// ---- Am Telefon ist nur EIN Panel offen ----------------------------------------------------------
+//
+// Owner 11.08.2026 mit Foto: das Infopanel lag ueber dem aufgeklappten Routenplaner. Am Zeiger duerfen
+// beide nebeneinander stehen -- dort ist Platz.
+const plannerToggle = withoutComments(read("js", "ui", "route-planner-toggle.js"));
+const infopanelJs = withoutComments(read("js", "map-features", "map-features-infopanel.js"));
+
+// 💣 EIN Weg fuer beide Richtungen. Vorher stand die Bewegung nur im Klick-Zuhoerer; ein zweiter
+// Aufrufer haette sie abschreiben muessen, und zwei Fassungen derselben Animation laufen auseinander.
+const fahrweg = plannerToggle.match(/function setRoutePlannerCollapsed\([\s\S]*?\n\}/);
+assert.ok(fahrweg, "es gibt EINEN Weg, den Planer auf- und zuzufahren");
+assert.ok(/if \(collapsed === isSearchPanelHidden\) \{\s*return;/.test(fahrweg[0]),
+	"🔴 der Riegel gegen Ping-Pong: schon in diesem Zustand -> nichts tun. Ohne ihn ruft der Planer"
+	+ " beim Aufgehen das Infopanel zu, dessen sync() ruft hierher zurueck, und das schaukelt sich auf.");
+assert.ok(/if \(!collapsed &&[\s\S]{0,220}avesmapsIsPhoneViewport\(\)[\s\S]{0,220}avesmapsInfopanelCollapse\(\)/
+	.test(fahrweg[0]),
+	"nur beim AUFgehen (!collapsed) und nur am Telefon wird das Infopanel eingeklappt -- Einklappen"
+	+ " loest nie ein Aufklappen aus, das ist die zweite Haelfte des Ping-Pong-Riegels");
+assert.ok(/window\.avesmapsCollapseRoutePlanner = function/.test(plannerToggle),
+	"und es gibt das Gegenstueck, das das Infopanel rufen kann");
+assert.ok(/\$\("#toggle-button"\)\.off\("click"\)\.on\("click",[\s\S]{0,160}setRoutePlannerCollapsed\(/
+	.test(plannerToggle),
+	"die Lasche geht durch denselben Weg -- nicht an ihm vorbei");
+
+// 💣 Der Haken des Infopanels sitzt in sync() -- der EINEN Stelle, durch die jedes Aufgehen laeuft
+// (Ort, Weg, Region, Kraftlinie, Route, Etappe). Sechzehn geriegelte Show-*-Funktionen waeren
+// sechzehn Gelegenheiten, die naechste zu vergessen.
+const syncFn = infopanelJs.match(/function sync\(\) \{[\s\S]*?\n\t\}/);
+assert.ok(syncFn, "sync() des Infopanels ist auffindbar");
+assert.ok(/avesmapsCollapseRoutePlanner\(\)/.test(syncFn[0]),
+	"sync() klappt den Planer ein, wenn das Infopanel aufgeht");
+assert.ok(/avesmapsIsPhoneViewport\(\)/.test(syncFn[0]),
+	"...aber nur am Telefon -- am Zeiger bleiben beide offen (nachgemessen 1280x800)");
+// 💣 Nur am UEBERGANG. sync() laeuft bei JEDEM Inhaltswechsel; ohne den Vergleich mit dem vorherigen
+// Stand faehrt der Planer auch dann zu, wenn das Panel laengst offen ist -- wer ihn daneben aufzieht,
+// saehe ihn sofort wieder zufallen.
+assert.ok(/if \(open && !wasOpen &&/.test(syncFn[0]),
+	"und nur am UEBERGANG zu -> auf, nicht bei jedem sync()");
+assert.ok(/wasOpen = open;/.test(syncFn[0]) && /var wasOpen = false;/.test(infopanelJs),
+	"der vorherige Stand wird dafuer gefuehrt");
+// 💣 Gezaehlt wird, ob der Name AUSSERHALB von sync() vorkommt -- nicht, wie oft er insgesamt steht:
+// im Haken selbst steht er zweimal (Riegel `typeof ... === "function"` und Aufruf), das ist richtig
+// so. Eine feste Zahl waere hier eine Zusicherung auf die Schreibweise statt auf die Regel.
+const rufeGesamt = (infopanelJs.match(/avesmapsCollapseRoutePlanner/g) || []).length;
+const rufeInSync = (syncFn[0].match(/avesmapsCollapseRoutePlanner/g) || []).length;
+assert.strictEqual(rufeGesamt, rufeInSync,
+	`avesmapsCollapseRoutePlanner steht ${rufeGesamt - rufeInSync}x AUSSERHALB von sync(). Genau das`
+	+ " soll es nicht geben: sync() ist der eine Haken, durch den jedes Aufgehen laeuft. Eine zweite"
+	+ " Stelle ist der Anfang der Divergenz, gegen die er ueberhaupt gewaehlt wurde.");
+
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
 assert.ok(viewport, "index.html traegt ein Viewport-Meta");

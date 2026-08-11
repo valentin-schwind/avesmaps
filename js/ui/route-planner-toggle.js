@@ -173,16 +173,42 @@ normalizeRouteDistanceLabels();
 enableWaypointTouchSorting();
 enableBlankEditMapStyle();
 
-$("#toggle-button").off("click").on("click", () => {
-    const panelWidth = getRoutePlannerPanelWidth();
-    const leftPos = isSearchPanelHidden ? "0px" : `-${panelWidth}px`;
-    const btnPos = isSearchPanelHidden ? `${panelWidth}px` : "0px";
+/**
+ * Der EINE Weg, den Planer auf- und zuzufahren -- die Lasche und das Infopanel gehen beide hier
+ * durch. Vorher stand die Bewegung nur im Klick-Zuhoerer, und ein zweiter Aufrufer haette sie
+ * abschreiben muessen.
+ * 💣 Der Riegel oben ist tragend, nicht bloss Sparsamkeit: am Telefon ruft dieser Weg beim AUFgehen
+ * das Infopanel zum Einklappen, und dessen sync() ruft beim Aufgehen hierher zurueck. Ohne "ist
+ * schon so -> nichts tun" waere das ein Ping-Pong. Einklappen loest deshalb NIE ein Aufklappen aus:
+ * jede Richtung schliesst nur den anderen, sie oeffnet ihn nie.
+ */
+function setRoutePlannerCollapsed(collapsed) {
+    if (collapsed === isSearchPanelHidden) {
+        return;
+    }
 
+    const panelWidth = getRoutePlannerPanelWidth();
     // 220ms = dieselbe Dauer wie die CSS-transform-Slides von Info-Panel + Editor (infopanel.css /
     // review-panel.css) -- damit fahren alle Panels einheitlich schnell aus/ein.
-    $("#search").stop(true).animate({ left: leftPos }, 220);
-    $("#toggle-button").stop(true).animate({ left: btnPos }, 220);
-    isSearchPanelHidden = !isSearchPanelHidden;
+    $("#search").stop(true).animate({ left: collapsed ? `-${panelWidth}px` : "0px" }, 220);
+    $("#toggle-button").stop(true).animate({ left: collapsed ? "0px" : `${panelWidth}px` }, 220);
+    isSearchPanelHidden = collapsed;
+
+    // Am Telefon ist immer nur EIN Panel offen (Owner 11.08.2026, mit Foto: Infopanel lag ueber dem
+    // Planer). Am Zeiger duerfen sie nebeneinander stehen -- dort ist Platz dafuer.
+    if (!collapsed && typeof avesmapsIsPhoneViewport === "function" && avesmapsIsPhoneViewport()
+        && typeof window.avesmapsInfopanelCollapse === "function") {
+        window.avesmapsInfopanelCollapse();
+    }
+}
+
+/** Gegenstueck fuer das Infopanel: es klappt den Planer ein, wenn es selbst aufgeht. */
+window.avesmapsCollapseRoutePlanner = function () {
+    setRoutePlannerCollapsed(true);
+};
+
+$("#toggle-button").off("click").on("click", () => {
+    setRoutePlannerCollapsed(!isSearchPanelHidden);
 });
 
 // Auf dem Smartphone den Routenplaner standardmaessig eingeklappt starten (mehr Karte sichtbar;

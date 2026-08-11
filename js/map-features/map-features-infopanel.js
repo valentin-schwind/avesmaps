@@ -135,6 +135,8 @@
 	// Detektor (unten) vergleicht ihn vor/nach einem Karten-Klick: bleibt er gleich, wurde nichts
 	// getroffen -> Leerklick.
 	var openSeq = 0;
+	// Der vorherige Offen-Stand, damit sync() den UEBERGANG zu -> auf erkennt (siehe unten).
+	var wasOpen = false;
 
 	function sync() {
 		var open = hasContent && !collapsed;
@@ -150,6 +152,21 @@
 		var editActive = (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE);
 		document.documentElement.classList.toggle("avesmaps-infopanel-open", open || editActive);
 		updateEdgeTabDock();
+
+		// Am Telefon ist immer nur EIN Panel offen (Owner 11.08.2026, mit Foto: das Infopanel lag
+		// ueber dem aufgeklappten Routenplaner). Am Zeiger bleibt alles, wie es war -- dort ist Platz
+		// fuer beide.
+		// 💣 Der Haken sitzt HIER, in sync(), und nicht in den sechzehn Show-*-Funktionen: durch diese
+		// eine Stelle laeuft jedes Aufgehen -- Ort, Weg, Region, Kraftlinie, Route, Etappe. Sechzehn
+		// geriegelte Aufrufstellen waeren sechzehn Gelegenheiten, die naechste zu vergessen.
+		// 💣 Und nur am UEBERGANG zu -> auf. sync() laeuft bei jedem Inhaltswechsel; ohne den
+		// Vergleich mit dem vorherigen Stand kaeme der Ruf auch dann, wenn das Panel laengst offen
+		// ist -- und ein Nutzer, der den Planer daneben aufzieht, saehe ihn sofort wieder zufallen.
+		if (open && !wasOpen && typeof avesmapsIsPhoneViewport === "function" && avesmapsIsPhoneViewport()
+			&& typeof window.avesmapsCollapseRoutePlanner === "function") {
+			window.avesmapsCollapseRoutePlanner();
+		}
+		wasOpen = open;
 	}
 
 	// Rand-Tabs (Info/Editor) docken an die rechte BILDSCHIRMkante, wenn KEIN Panel offen ist. Sonst
