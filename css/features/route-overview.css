@@ -1,8 +1,21 @@
 /* The computed route stays a framed panel (owner: a box fits here, unlike the
    option groups which are divider-grouped). */
+/* 💣 KEIN eigener Rollbalken, und NICHT schrumpfbar. Beides gehoerte zusammen und war derselbe
+   Fehler: als Flex-Kind von #search mit dem voreingestellten `flex-shrink: 1` war diese Box der
+   STOSSDAEMPFER des Panels -- alles, was ueber dessen Deckel ging, wurde aus ihr herausgequetscht.
+   Gemessen am 11.08.2026 bei 1280x800: 60 -> 33 px, und die zwei Zeilen „Wegpunkte und Dauer der
+   Reise werden hier angezeigt." musste man in einem 33-px-Kasten scrollen (Owner mit Foto vom
+   Telefon: „kaum eine Mindesthoehe ... man muss scrollen fuer 2 Zeilen Text").
+   Eine `min-height` braucht es deshalb NICHT: ohne Schrumpfen ist die Box so hoch wie ihr Inhalt.
+   Gescrollt wird eine Ebene hoeher -- #search hat seinen Deckel und sein `overflow-y: auto`
+   (css/layout/map-layout.css). Owner: „das routenergebnis feld muss eigentlich nicht scrollbar
+   sein denn der ganze routenplaner hat einen scrollbalken."
+   ⚠️ Damit faellt auch der WAAGERECHTE Rollbalken weg -- er entstand nur als Nebenwirkung: liegt
+   eine Achse auf `auto`, rechnet die andere ihr `visible` in `auto` um. Wogegen er schuetzte (ein
+   zu breites Kostenraster) loest seit 2026-08-03 `overflow-wrap: anywhere` an
+   .route-plan-summary__note (css/features/route-planner.css). */
 #overview {
-	max-height: min(80vh, calc(100dvh - 320px));
-	overflow-y: auto;
+	flex: 0 0 auto;
 	/* Kein eigener margin-top mehr: #search ist eine Flex-Spalte mit 5 px Abstand zwischen ALLEN
 	   Kindern, der Rand kam obendrauf und machte aus 5 px hier 11. Die 6 px gehen an die
 	   Routenoptionen darueber, die mehr Luft zwischen ihren Zeilen brauchen (Owner 2026-08-02) --

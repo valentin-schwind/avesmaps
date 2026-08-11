@@ -62,9 +62,10 @@ body {
 		max-height: calc(100dvh - 20px);
 	}
 
-	#overview {
-		max-height: calc(100dvh - 320px);
-	}
+	/* 🔴 Hier stand eine zweite Hoehengrenze fuer #overview. Sie ist weg, weil die Box seit dem
+	   11.08.2026 gar nicht mehr fuer sich scrollt -- gescrollt wird #search, eine Ebene hoeher, und
+	   zwar genau ueber den Deckel darueber. Zwei Grenzen fuer dasselbe Kind waeren wieder die zwei
+	   Formeln, die auseinanderlaufen (Begruendung in css/features/route-overview.css). */
 }
 
 /* The header is the Avesmaps logo image (frameless). The H1 + tagline stay in

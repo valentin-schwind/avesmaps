@@ -592,6 +592,35 @@ const gesetzt = suchRegel[1].split(";").map((d) => d.split(":")[0].trim()).filte
 		+ " Stapelzahl hinter sich her; ein max-height bewegt nachweislich keins davon.");
 });
 
+// ---- Die Etappen-Box ist kein Stossdaempfer, und sie scrollt nicht fuer sich ---------------------
+//
+// Owner 11.08.2026 mit Foto vom Telefon: „das kleine platzhalter feld fuer die etappen hat kaum eine
+// mindesthoehe und man muss scrollen fuer 2 zeilen text ... das routenergebnis feld muss eigentlich
+// nicht scrollbar sein denn der ganze routenplaner hat einen scrollbalken."
+// 💣 Das war EIN Fehler mit zwei Gesichtern: als Flex-Kind von #search mit dem voreingestellten
+// `flex-shrink: 1` war #overview der STOSSDAEMPFER des Panels -- alles ueber dessen Deckel wurde aus
+// ihr herausgequetscht (gemessen 60 -> 33px) --, und ihr eigener `overflow-y: auto` machte daraus
+// einen zweiten Rollbalken statt sichtbaren Text. Ohne Schrumpfen braucht sie keine `min-height`:
+// sie ist so hoch wie ihr Inhalt (nachgemessen 60px bei 58px Inhalt, kein eigener Rollbalken).
+const overviewCss = withoutComments(read("css", "features", "route-overview.css"));
+const overviewRegel = overviewCss.match(/#overview\s*\{([^}]*)\}/);
+assert.ok(overviewRegel, "die Regel fuer #overview ist auffindbar");
+assert.ok(/flex:\s*0 0 auto/.test(overviewRegel[1]),
+	"#overview schrumpft NICHT (flex: 0 0 auto) -- mit flex-shrink: 1 ist es der Stossdaempfer des"
+	+ " Panels, und zwei Zeilen Text landen in einem 33px-Kasten");
+const overviewGesetzt = overviewRegel[1].split(";").map((d) => d.split(":")[0].trim());
+["overflow", "overflow-y", "overflow-x", "max-height"].forEach((eigenschaft) => {
+	assert.ok(!overviewGesetzt.includes(eigenschaft),
+		`#overview setzt \`${eigenschaft}\` NICHT -- gedeckelt und gescrollt wird eine Ebene hoeher, bei`
+		+ " #search. Zwei Rollbalken uebereinander sind genau der Zustand, den der Owner gemeldet hat."
+		+ " ⚠️ Eine Achse auf `auto` rechnet das `visible` der anderen in `auto` um -- eine einzelne"
+		+ " overflow-Zeile bringt den zweiten Balken also in BEIDEN Richtungen zurueck.");
+});
+// 💣 Und die zweite Grenze im schmalen Fall ist ebenfalls weg: zwei Formeln fuer dieselbe Box sind
+// die, von denen man die eine vergisst.
+assert.ok(!/#overview/.test(schmalBlock[0]),
+	"der Block fuer schmale Schirme setzt KEINE eigene Hoehengrenze fuer #overview mehr");
+
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
 assert.ok(viewport, "index.html traegt ein Viewport-Meta");
