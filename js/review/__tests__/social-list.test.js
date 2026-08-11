@@ -78,10 +78,10 @@ assert.strictEqual(strictestLimit(CHANNELS, ["gibtsnicht"]).max_chars, null,
 // 💣 The line the whole hashtag design hangs on: tags are shown SEPARATELY because four of them are
 // quickly 60 characters, and against Mastodon's 500 that is more than a tenth.
 assert.strictEqual(formatCount(168, 61, { label: "Mastodon", max_chars: 500 }),
-	"168 + 61 Hashtags = 229 / 500 (Mastodon)",
+	"168 + 61 Hashtags = 229 von 500 Zeichen (engster Kanal: Mastodon)",
 	"der Zaehler weist Text und Hashtags getrennt aus und nennt den engsten Kanal");
 assert.strictEqual(formatCount(168, 0, { label: "Mastodon", max_chars: 500 }),
-	"168 / 500 (Mastodon)",
+	"168 von 500 Zeichen (engster Kanal: Mastodon)",
 	"ohne Hashtags keine Hashtag-Haelfte -- '168 + 0' liest sich wie ein Fehler");
 assert.strictEqual(formatCount(168, 61, { label: "", max_chars: null }),
 	"168 + 61 Hashtags = 229 Zeichen",

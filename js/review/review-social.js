@@ -67,7 +67,9 @@
 		if (!limit || limit.max_chars === null || limit.max_chars === undefined) {
 			return left + " Zeichen";
 		}
-		return left + " / " + limit.max_chars + " (" + limit.label + ")";
+		// „267 / 500 (Probe)" war eine Formel, die man erst entziffern muss: woher die 500 kommt und
+		// was der Kanal in der Klammer damit zu tun hat, stand nirgends. Jetzt sagt die Zeile es.
+		return left + " von " + limit.max_chars + " Zeichen (engster Kanal: " + limit.label + ")";
 	}
 
 	// Wann laeuft der Zugang eines Kanals ab? DREI Zustaende, und der Unterschied zwischen zweien davon
