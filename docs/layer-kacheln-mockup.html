@@ -1538,14 +1538,32 @@ body {
 	/* Kurze Blende beim Aufklappen (Owner 11.08.2026: „animiertes schnelles fading").
 	   ⚠️ `display` laesst sich nicht ueberblenden -- das Raster wird deshalb erst sichtbar
 	   geschaltet und im naechsten Bild angeblendet (js/ui/map-layer-picker.js). Ohne diesen
-	   Umweg spraenge es ohne Blende ins Bild. */
+	   Umweg spraenge es ohne Blende ins Bild.
+	   💣 Die HUELLE blendet nur, sie BEWEGT sich nicht. Solange die Bewegung hier stand, machte
+	   die aktive Zelle sie mit -- und ausgerechnet die sitzt auf dem Fleck der zugeklappten
+	   Kachel. Das sah aus, als wackelte der Knopf beim Aufklappen auf und ab (Owner 12.08.2026).
+	   Die Bewegung gehoert deshalb an die ZELLEN, und die aktive ist davon ausgenommen. */
 	opacity: 0;
-	transform: translateY(4px);
-	transition: opacity 120ms ease, transform 120ms ease;
+	transition: opacity 120ms ease;
 }
 
 .map-layer-picker__menu.is-open {
 	opacity: 1;
+}
+
+/* Die uebrigen fuenf duerfen sich hereinschieben -- sie kommen ja aus dem Nichts. */
+.map-layer-picker__menu .map-layer-picker__cell {
+	transform: translateY(4px);
+	transition: transform 120ms ease;
+}
+
+.map-layer-picker__menu.is-open .map-layer-picker__cell {
+	transform: none;
+}
+
+/* 💣 Die aktive Zelle NIE. Sie ist dieselbe Stelle wie die zugeklappte Kachel -- was sich dort
+   bewegt, liest sich als wackelnder Knopf, nicht als aufklappendes Menue. */
+.map-layer-picker__menu .map-layer-picker__cell.is-active {
 	transform: none;
 }
 
@@ -1554,14 +1572,17 @@ body {
 	display: none;
 }
 
+/* ⚠️ Beide Zeilen: die Blende sitzt an der Huelle, die Bewegung an den Zellen. Stuende hier nur
+   die Huelle, schoeben sich die Zellen weiter herein. */
 @media (prefers-reduced-motion: reduce) {
-	.map-layer-picker__menu {
+	.map-layer-picker__menu,
+	.map-layer-picker__menu .map-layer-picker__cell {
 		transition: none;
 		transform: none;
 	}
 }
 
-/* 402px braucht die Reihe. Unterhalb davon bricht sie auf 2x3 (204px) -- eine Form, zwei
+/* 437px braucht die Reihe. Unterhalb davon bricht sie auf 2x3 (221px) -- eine Form, zwei
    Aufteilungen, kein zweiter Bauplan. */
 @media (max-width: 560px) {
 	.map-layer-picker__menu {
