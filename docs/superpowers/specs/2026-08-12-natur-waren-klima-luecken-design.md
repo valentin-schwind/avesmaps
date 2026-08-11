@@ -1,8 +1,9 @@
-# Waren · Fauna · Flora · Klimazone — die zwei fehlenden Felder
+# Waren · Fauna · Flora · Klimazone — die fehlenden Felder schliessen
 
 **Stand:** 2026-08-12 · Owner-Auftrag: „Waren / Fauna / Flora / Klimazone sollen — sofern
 verfügbar und nicht schon vorhanden — bei allen Features im Infopanel angezeigt werden:
-Territorien, Regionen, Siedlungen, Wege."
+Territorien, Regionen, Siedlungen, Wege." — nachgeschoben am selben Tag: „zieh etappen
+nach, die sollen auch alle 4 anzeigen", „aber nicht im routenplaner sondern im infopanel".
 
 ## 1. Was schon steht
 
@@ -23,9 +24,17 @@ Gemessen am Code (2026-08-12):
 Also **zwei** Lücken, nicht acht. Beide Zeilen existieren fertig; es fehlt jeweils nur der
 Zulieferer.
 
-⚠️ Eine fünfte Oberfläche gibt es auch: die Routen-**Etappe** (`js/routing/route-plan.js:489`).
-Sie bleibt unangetastet — dort hat der Owner am 2026-07-29 ausdrücklich nur Flora und Fauna
-gewollt („Flora und Fauna is richtig"), und sie ist die kurze Erzählung, nicht der Beleg.
+Es gibt eine **fünfte** Oberfläche: die Infobox einer Routen-**Etappe**
+(`buildRouteLegPopupHtml` in `js/routing/route-plan.js`). Sie zeigte Flora und Fauna, aber keine
+Waren und keine Klimazone.
+
+🔴 **Nachgezogen am selben Tag (Owner 2026-08-12: „zieh etappen nach, die sollen auch alle 4
+anzeigen").** Das hebt zwei frühere Entscheidungen auf — „Flora und Fauna is richtig" (2026-07-29,
+keine Waren) und „der Routenplaner bekommt keine Klimazeile" (2026-08-03). Siehe §3b.
+
+⚠️ **„Etappe" heißt die INFOBOX, nicht die Zeile im Reiseplan** (Owner-Präzisierung im selben
+Atemzug: „aber nicht im routenplaner sondern im infopanel"). Die Etappen-Zeile in der Planer-Liste
+baut `fillRoutePlanLandscapes` und bleibt unberührt: sie ist die Erzählung, die Infobox der Beleg.
 
 ## 2. Lücke A — Klimazone am Herrschaftsgebiet
 
@@ -120,7 +129,7 @@ Führt durch → [Waren · Fauna · Flora] → Klimazone
 ```
 
 💣 **Die Reihenfolge ist tragend.** „Klimazone steht direkt unter Flora" ist eine
-Owner-Entscheidung vom 2026-08-03 und gilt an allen vier Stellen. Wer die Lore-Zeilen hinter
+Owner-Entscheidung vom 2026-08-03 und gilt an allen fünf Stellen. Wer die Lore-Zeilen hinter
 die Klimazeile hängt, bricht sie genau hier.
 
 💣 **`buildLoreMarkup()` lädt nicht selbst** — es liefert einen leeren, markierten Container,
@@ -138,10 +147,8 @@ Fläche steht zwar in „Führt durch", trägt aber nichts zu dieser Antwort bei
 
 ### Alle drei Arten, nicht zwei
 
-Owner 2026-08-12: **alle drei** (Waren, Fauna, Flora) am Weg. Also **kein** `kinds`-Filter —
-anders als bei der Routen-Etappe, die bewusst auf `"flora|fauna"` beschränkt bleibt. Begründung
-des Unterschieds: An einer Handelsstraße sind die Waren der durchquerten Gegenden eine echte
-Aussage; die Etappenliste im Reiseplan ist eine Kurzfassung und soll knapp bleiben.
+Owner 2026-08-12: **alle drei** (Waren, Fauna, Flora) am Weg. Also **kein** `kinds`-Filter. Die
+Routen-Etappe zog am selben Tag nach (§3b) — es gibt jetzt keine Oberfläche mehr, die kappt.
 
 ### Fallen
 
@@ -154,15 +161,41 @@ mit `wantClimate = true` ginge, bekäme „Flora der Gemäßigten Zone".
 kein Abruf. „Wir wissen nichts" gehört nicht als leeres Feld in die Box — dieselbe Regel wie bei
 allen anderen Lore-Zeilen.
 
+## 3b. Nachtrag — die Routen-Etappe (Owner 2026-08-12, nach dem Bau von A und B)
+
+„zieh etappen nach, die sollen auch alle 4 anzeigen" — **aber nur die Infobox**, nicht die
+Etappenliste im Reiseplan. Damit fällt die letzte Ausnahme: **alle fünf** Oberflächen zeigen jetzt
+Waren · Fauna · Flora · Klimazone in dieser Reihenfolge.
+
+Umgesetzt in `buildRouteLegPopupHtml` (`js/routing/route-plan.js`), und zwar **über denselben
+Baustein wie der Weg** (`avesmapsPathLandscapesLoreMarkup`) statt über einen zweiten
+`buildLoreMarkup`-Aufruf mit eigenen Argumenten. Damit erbt die Etappe auch die Dialog-Benennung
+nach den Landschaften, ohne dass jemand daran denken muss.
+
+💣 **Die Klimazeile hängt NICHT an `landscapes.length`.** Sie ist die andere Hälfte desselben
+Verschnitts (`buildClimateLine`), und eine Etappe über offenes Meer trägt keine Landschaft, aber
+sehr wohl eine Zone — genau dort wäre sie das Einzige, was die Box zu sagen hätte, und genau dort
+fiele sie unter der naheliegenden Verschachtelung weg. Im Test als eigener Fall festgenagelt.
+
+⚠️ **Zwei aufgehobene Entscheidungen, beide ausdrücklich:** „Flora und Fauna is richtig"
+(2026-07-29, keine Waren an der Etappe) und „der Routenplaner bekommt keine Klimazeile"
+(2026-08-03). Wer die alten Begründungen in `docs/superpowers/specs/2026-08-03-klimazone-infobox-design.md`
+liest, findet dort noch die frühere Fassung.
+
+Test: `js/routing/__tests__/route-leg-lore-klima.test.js`, Mutationsprobe 5/5 rot bei Regelbruch
+(Klimazeile entfernt · `kinds` wieder gekappt · Reihenfolge vertauscht · Klimazeile an
+`landscapes.length` gehängt · Dialogname wieder die Etappe).
+
 ## 4. Was NICHT dazugehört
 
 - **Spezies** bleibt ausgeblendet (Owner 2026-07-21: das Feld `Regionen` der
   `{{Infobox Spezies}}` ist im Wiki zu schlecht gepflegt). Die Daten bleiben in Katalog,
   Editor und Endpoint.
-- **Die Routen-Etappe** behält Flora + Fauna ohne Waren (§1).
-- **Kein Reise-Effekt.** Die Klimazone am Territorium ist eine Anzeige, keine Rechengröße für
-  die Route.
-- **Keine neue Tabelle, kein neuer Endpunkt.** Beide Lücken werden aus vorhandenen Daten über
+- **Die Etappen-ZEILE im Reiseplan** (`fillRoutePlanLandscapes`) bleibt, wie sie ist — nackte
+  Namen, keine Prozente, keine Lore. Sie ist die Erzählung, die Infobox der Beleg.
+- **Kein Reise-Effekt.** Die Klimazone am Territorium und an der Etappe ist eine Anzeige, keine
+  Rechengröße für die Route.
+- **Keine neue Tabelle, kein neuer Endpunkt.** Alle drei Lücken werden aus vorhandenen Daten über
   vorhandene Abrufe geschlossen.
 
 ## 5. Abnahme
@@ -174,7 +207,9 @@ Die Handgriffe, nicht die Maßtabellen (AGENTS.md §9):
    Klimazone.
 2. Auf ein **Herrschaftsgebiet** klicken → Infopanel → unter Flora steht „Klimazone".
 3. Gegenprobe **Siedlung** und **Landschaftsregion**: unverändert.
-4. Gegenprobe **Reiseplan-Etappe**: weiterhin nur Flora + Fauna, keine Waren.
+4. **Reiseplan-Etappe:** Route bauen, Etappe anklicken, Infopanel -> unter „Führt durch" stehen
+   Waren/Fauna/Flora, darunter die Klimazone. Eine Seeweg-Etappe zeigt nur die Klimazone.
+   Gegenprobe: die Etappen-**Zeile** in der Planer-Liste bleibt unverändert (nackte Namen).
 5. Hell UND dunkel, Infopanel UND schwebendes Popup.
 
 Unit-Tests: `js/map-features/__tests__/path-landscapes.test.js` (Reihenfolge der drei Blöcke)

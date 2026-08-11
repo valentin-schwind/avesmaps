@@ -471,8 +471,10 @@ function buildRouteLegPopupHtml(entry) {
 	// Vollstaendig und MIT Prozenten, auch wenn die Zeile im Plan geschwiegen hat: die Liste ist die
 	// Erzaehlung, die Infobox der Beleg.
 	let loreMarkup = "";
+	let climateMarkup = "";
 	if (typeof avesmapsPathLandscapesLineFor === "function") {
-		const landscapes = avesmapsPathLandscapesLineFor(routeEntryPathIds(entry, currentRouteSegments));
+		const pathIds = routeEntryPathIds(entry, currentRouteSegments);
+		const landscapes = avesmapsPathLandscapesLineFor(pathIds);
 		if (landscapes.length) {
 			// formatLandscapesForInfobox liefert MARKUP (Name als Wiki-Link, wo es einen gibt) und
 			// escapt selbst -- hier wird nicht ein zweites Mal escapt, sonst stuenden die Tags als Text da.
@@ -483,12 +485,30 @@ function buildRouteLegPopupHtml(entry) {
 					: markup;
 			}).join(" · ");
 			rows += `<div class="region-info-box__row"><dt>${escapeHtml(tr("planner.leg.through", "Führt durch"))}</dt><dd>${names}</dd></div>`;
-			// Flora und Fauna der genannten Landschaften -- EIN Abruf fuer alle zusammen, und
-			// ausdruecklich ohne die Waren-Zeile (Owner 2026-07-29: „Flora und Fauna is richtig").
-			const wikiKeys = landscapeWikiKeyList(landscapes);
-			if (wikiKeys && typeof buildLoreMarkup === "function") {
-				loreMarkup = buildLoreMarkup({ key: wikiKeys, name: title, kinds: "flora|fauna" });
+			// Waren / Fauna / Flora der genannten Landschaften -- EIN Abruf fuer alle zusammen.
+			//
+			// 🔴 DERSELBE BAUSTEIN WIE DIE WEG-INFOBOX (map-features-path-landscapes.js), nicht ein
+			// zweiter daneben. Beide leiten dieselbe Sache aus derselben Liste ab; zwei Aufrufe von
+			// buildLoreMarkup mit je eigenen Argumenten saehen am Anfang gleich aus und waeren nach
+			// dem naechsten Feinschliff zwei verschiedene Zeilen (AGENTS.md §12).
+			//
+			// Bis 2026-08-12 stand hier `kinds: "flora|fauna"` -- die Waren-Zeile war am 2026-07-29
+			// ausdruecklich ausgenommen („Flora und Fauna is richtig"). Owner 2026-08-12: „die sollen
+			// auch alle 4 anzeigen", also alle Arten wie ueberall sonst.
+			//
+			// Und der Name des „+N"-Dialogs ist die LANDSCHAFT, nicht die Etappe: mit `title` stand in
+			// seinen Gruppen „Direkt in <Etappentitel>", und was dort steht, steht in Weiden, nicht in
+			// der Etappe.
+			if (typeof avesmapsPathLandscapesLoreMarkup === "function") {
+				loreMarkup = avesmapsPathLandscapesLoreMarkup(landscapes);
 			}
+		}
+		// Die Klimazone haengt NICHT an `landscapes.length`: sie ist die andere Haelfte desselben
+		// Verschnitts (buildClimateLine), und eine Etappe ueber offenes Meer traegt keine Landschaft,
+		// aber sehr wohl eine Zone. Sie kaeme sonst genau dort nicht, wo sie das Einzige waere.
+		if (typeof avesmapsPathLandscapesClimateLineFor === "function"
+			&& typeof avesmapsClimateRowForLandscapeEntries === "function") {
+			climateMarkup = avesmapsClimateRowForLandscapeEntries(avesmapsPathLandscapesClimateLineFor(pathIds));
 		}
 	}
 	return locationPopupMarkup({
@@ -500,7 +520,9 @@ function buildRouteLegPopupHtml(entry) {
 		showDescription: false,
 		showWikiLink: false,
 		showType: Boolean(subtitle),
-		actionsMarkup: `<div class="region-info-box region-info-box--settlement"><dl class="region-info-box__data">${rows}${loreMarkup}</dl></div>`,
+		// 💣 REIHENFOLGE: Führt durch -> Waren/Fauna/Flora -> Klimazone. „Die Klimazone steht direkt
+		// unter Flora" ist eine Owner-Entscheidung vom 2026-08-03 und gilt an allen fünf Oberflächen.
+		actionsMarkup: `<div class="region-info-box region-info-box--settlement"><dl class="region-info-box__data">${rows}${loreMarkup}${climateMarkup}</dl></div>`,
 	});
 }
 
