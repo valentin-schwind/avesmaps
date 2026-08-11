@@ -379,7 +379,7 @@ getrennt, wenn Bild nachweislich läuft.
 | | Stand |
 |---|---|
 | Meta-App „Avesmaps" | `1037557352198584`, Anwendungsfälle Instagram + Seiten, **kein** App-Review, **keine** Unternehmensverifizierung |
-| Berechtigungen | `instagram_basic`, `instagram_content_publish`, `pages_manage_posts`, `pages_read_engagement`, `pages_show_list`, `business_management` — ⚠️ das ist der **Facebook-Login**-Satz, siehe unten |
+| Berechtigungen | `instagram_basic`, `instagram_content_publish`, `pages_manage_posts`, `pages_read_engagement`, `pages_show_list`, `business_management` — der **Facebook-Login**-Satz, und seit §12.4 der richtige für **beide** Kanäle |
 | Instagram `@avesmaps` | Unternehmenskonto, ID `17841434373040202`, im Business-Portfolio |
 | Facebook-Seite „Avesmaps" | **neu am 10.08.2026**, `facebook.com/avesmaps`, unter dem eigenen Konto des Owners. Profil-ID `61593145741175`, Graph-ID `1240150995850875` — siehe die zwei Kennungen unten. Die Seitenliste bietet „Beitrag erstellen" an, also liegt `CREATE_CONTENT` vor |
 | Mastodon | noch kein Konto |
@@ -418,6 +418,14 @@ einmal umstellt.
 ### 12.1 Die drei Entscheidungen vom 10.08.2026
 
 **1. Instagram geht über „API-Einrichtung mit Instagram-Login" — ohne Facebook-Seite.**
+
+> 🔴 **VERWORFEN am 11.08.2026, nachdem gemessen wurde.** Instagram hängt inzwischen an der Seite,
+> und damit ist der Seiten-Weg offen: derselbe Wirt, derselbe Token, **kein Ablauf**. Der Beleg und
+> die Begründung stehen in **§12.4**. Der Absatz bleibt stehen, weil er die Lage vor der Messung
+> festhält — die Entscheidung war für den damaligen Stand richtig, nur war der Stand ein anderer.
+> ⚠️ Wer diesen Weg je wieder braucht (etwa weil Meta die Verknüpfung löst), findet unten alles
+> Nötige; die Rechtenamen sind dann erneut gegen Metas Doku zu prüfen.
+
 Der Name meint den **Einrichtungsweg**, nicht eine laufende Anmeldung: einmal im Browser bestätigen,
 Code gegen einen Kurzzeit-, den gegen einen Langzeit-Token tauschen, ablegen, nie wieder eine Maske.
 Dasselbe Muster wie beim Discord-Bot. ⚠️ Dieser Weg spricht `graph.instagram.com` an, **nicht**
@@ -463,13 +471,16 @@ Nicht enthalten sind:
 - **Kein echter Kanal.** Instagram, Facebook und Mastodon stehen im Register und erscheinen
   ausgegraut als „noch nicht eingerichtet". Ihre Adapter sind Stufe 2. 🔴 Ein fehlender Adapter ist
   `null`, nie ein stiller Leerlauf, der Erfolg meldet — sonst stünde „gesendet" an einem Kanal, auf
-  dem nichts steht. **Nachtrag 10.08.2026:** Facebook hat seinen Adapter bekommen (§12.3); Instagram
-  und Mastodon sind weiter `null`.
+  dem nichts steht. **Nachtrag 10.08.2026:** Facebook hat seinen Adapter bekommen (§12.3).
+  **Nachtrag 11.08.2026:** Instagram ebenfalls (§12.4). Mastodon ist weiter `null` — dort gibt es
+  noch nicht einmal ein Konto.
 - **Kein Kartenausschnitt, kein Video.** Beide Knöpfe stehen sichtbar und abgeschaltet da. Video ist
   laut §11 ohnehin Stufe 3; der Kartenausschnitt braucht eine eigene Aufnahme (Leaflet mischt
   Kachel-`<img>` und Canvas-Ebenen) und ist damit eigene Arbeit, kein Nebeneffekt der Bild-Pipeline.
 - **Keine Token-Verlängerung.** Die Tabelle steht, die Erneuerung braucht einen Adapter und kommt
-  mit ihm.
+  mit ihm. **Nachtrag 11.08.2026:** und sie kam mit keinem — beide lebenden Kanäle hängen am
+  Seiten-Token, der nicht abläuft (§12.4). Gebraucht wird sie erst von einem Netz, dessen Token
+  rotiert. `access_expires` meldet für sie „läuft nie ab", und das ist nachgewiesen, nicht behauptet.
 - **Keine Zeitplanung.** Spalte `scheduled_for` und Status `geplant` existieren, es gibt nur noch
   keinen Läufer, der sie abarbeitet.
 
@@ -517,5 +528,94 @@ als Fehlschlag, aber der Text sagt es: erst auf der Seite nachsehen, dann „Ern
 der zweite Versuch ein Doppelbeitrag, und den kann man auf keinem Netz nachträglich zusammenführen.
 
 ⚠️ **Der Token gilt für keine Verlängerung.** Ein Seiten-Token aus einem langlebigen Nutzer-Token
-läuft nicht ab; `expires_at` bleibt darum `NULL`. Das ist der Unterschied zu Instagram (§12.1), wo
-der Zähler durchlaufen kann — hier gibt es keinen.
+läuft nicht ab; `expires_at` bleibt darum `NULL`. Seit §12.4 gilt das für Instagram genauso — beide
+Kanäle hängen am selben Seiten-Token, und einen Zähler gibt es an keinem von beiden.
+
+### 12.4 Der Instagram-Adapter (11.08.2026)
+
+Instagram läuft **über die Facebook-Seite**, nicht über den in §12.1 beschriebenen Instagram-Login.
+Das ist eine bewusste Abweichung vom eigenen Entwurf, und sie steht auf zwei Messungen, nicht auf
+einer Vermutung. Beide am 11.08.2026 im Graph-API-Explorer, App „Avesmaps":
+
+```
+GET /1240150995850875?fields=name,instagram_business_account
+→ { "name": "Avesmaps",
+    "instagram_business_account": { "id": "17841434373040202" },
+    "id": "1240150995850875" }
+
+GET /17841434373040202?fields=username,name,media_count      [mit SEITEN-Token]
+→ { "username": "avesmaps", "name": "Avesmaps", "media_count": 3,
+    "id": "17841434373040202" }
+```
+
+💣 **Die erste Messung lügt ohne `instagram_basic`.** Genau dieselbe Anfrage mit einem Token, der nur
+die vier `pages_*`-Rechte trug, lieferte `{"name":"Avesmaps","id":"1240150995850875"}` — **das Feld
+fehlte einfach**, ohne Fehler, ohne Hinweis. Das liest sich wie „Instagram hängt nicht an der Seite"
+und heißt in Wahrheit „ich darf nicht nachsehen". Wer diese Messung je wiederholt, hakt das Recht
+**vorher** an; sonst misst er die Rechte seines Tokens und hält das Ergebnis für einen Befund über
+das Konto.
+
+Die **zweite** Messung ist die, auf die es ankommt: der Adapter arbeitet mit dem Seiten-Token, nicht
+mit einem Nutzer-Token. Dass die Verknüpfung *besteht*, sagt noch nicht, dass der Seiten-Token sie
+*erreicht*. Er tut es.
+
+**Warum das dem Weg aus §12.1 vorzuziehen ist:** derselbe Wirt (`graph.facebook.com`), derselbe
+Token wie Facebook, **läuft nie ab**. Damit entfallen ersatzlos: der 60-Tage-Zähler, die Erneuerung
+um Tag 35, der Läufer, der sie ausführt, dessen Überwachung, und die Sonderregel, dass
+`ig_refresh_token` einen ≥24 h alten Token verlangt (also direkt nach der Einrichtung einmal ins
+Leere läuft, ohne dass das ein Fehler wäre). Fünf bewegliche Teile gegen null. ⚠️ Der Preis: hängt
+Meta die Verknüpfung eines Tages aus, ist Instagram stumm, bis sie wieder steht — §12.1 bleibt
+deshalb als beschriebener Rückweg stehen.
+
+**Zwei Orte, wie bei Facebook (§3):** die Konto-Kennung in `social.instagram.user_id` in
+`api/config.local.php`, der Token in der Zeile `channel_key = 'instagram'` von `social_token`.
+
+🔴 **Eine EIGENE Token-Zeile, obwohl es derselbe Token ist wie Facebooks.** Naheliegend wäre, den
+Facebook-Token mitzulesen. Dann meldete der Hub Instagram aber als „eingerichtet", sobald Facebook
+eingerichtet ist — auch wenn dieser Token die Instagram-Rechte gar nicht trägt, was am 10.08.2026
+genau der Fall war: der damals abgelegte Seiten-Token wurde mit vier `pages_*`-Rechten geholt und
+kann Facebook, aber nicht Instagram. Ein Kanal, der grün meldet und beim ersten Beitrag auffliegt,
+ist die eine Sache, die §2.2 verbietet. Die eigene Zeile kostet einen Klick mehr („Zugang einrichten"
+zweimal, derselbe Token eingefügt) und kauft dafür, dass **je Kanal die Rechte geprüft werden, die
+DIESER Kanal braucht**.
+
+💣 **Sechs Fallen, alle im Adapter begründet und in `instagram-adapter-test.php` festgenagelt:**
+
+1. **ZWEI Schritte, und der erste allein ist nichts.** `POST /{ig-user-id}/media` mit `image_url` und
+   `caption` liefert eine `creation_id`; erst `POST /{ig-user-id}/media_publish` mit `creation_id`
+   veröffentlicht. Ein Lauf, der nach Schritt 1 abbricht, hat **nichts veröffentlicht** und meldet
+   Fehler — nie Erfolg. Der Behälter verfällt von allein (24 h), es bleibt also nichts aufzuräumen,
+   und der Fehlertext sagt das, damit niemand in der Datenbank nach Leichen sucht.
+2. **Dazwischen muss der Behälter fertig sein.** Wer sofort veröffentlicht, bekommt **Fehler 9007
+   („Media ID is not available")** — Instagram hat das Bild noch nicht verarbeitet. Der Adapter fragt
+   `GET /{creation-id}?fields=status_code` ab, bis `FINISHED` kommt. ⚠️ **Gedeckelt**, weil das im
+   Veröffentlichen-Request auf STRATO läuft: höchstens vier Versuche mit kurzer Pause, zusammen unter
+   zehn Sekunden. Läuft der Deckel ab, ist es ein Fehlschlag mit Namen, kein stilles Weitermachen.
+   `ERROR` als Status bricht sofort ab, statt den Deckel abzuwarten.
+3. **Ohne Bild kein Beitrag.** `requires_media` steht schon im Register und greift in
+   `avesmapsSocialCheckTarget` — der Adapter verlässt sich trotzdem nicht darauf und weigert sich
+   selbst. Zwei Riegel, weil der eine im Register durch eine Zeile Datenänderung fallen kann.
+4. **Der Token gehört in den Rumpf, nie in die Adresse** — dieselbe Begründung wie bei Facebook
+   (§12.3 Falle 2), derselbe Token, dieselbe Wirkung, wenn er abfließt.
+5. **Keine Kennung zurück heißt nicht gesendet.** Fehlerobjekt, leerer Rumpf, HTTP 200 ohne `id`:
+   alles Fehlschlag. Gilt für **beide** Schritte getrennt.
+6. **JPEG, und nichts anderes.** Metas Doku ist an der Stelle unmissverständlich („JPEG is the only
+   image format supported"). Die Pipeline (§5) wandelt ohnehin alles um — die Falle ist nicht, es zu
+   vergessen, sondern zu glauben, ein PNG käme „schon irgendwie" durch.
+
+⚠️ **Rate limit: 100 per API veröffentlichte Beiträge in 24 Stunden.** Weit weg von allem, was dieses
+Projekt tut; hier notiert, damit niemand es später messen muss.
+
+⚠️ **Links sind auf Instagram nicht klickbar** — `clickable_links: false` steht seit Stufe 1 im
+Register, war aber bis dahin ein reiner Anzeigewert. Der Hub weist jetzt darauf hin, **wenn** im Text
+eine Adresse steht und Instagram angehakt ist. 🔴 Er schreibt nichts um und sperrt nichts: „Karte auf
+avesmaps.de" ist als bloßer Satz völlig in Ordnung, und ein still umgeschriebener Text wäre der
+größere Schaden. Der Hinweis richtet sich an den einen Fall, der wehtut — „mehr dazu unter <Adresse>"
+als Aufforderung, die auf Instagram ins Leere zeigt.
+
+💣 **Die Bildbreite ist seit 11.08.2026 auf 1440 px gedeckelt.** Die Pipeline schnitt bis dahin nur
+aufs Seitenverhältnis zu und **verkleinerte nie** — ein großer Kartenausschnitt ging in voller
+Auflösung hinaus. Metas eigene Doku nennt keine Obergrenze, verbreitete Angaben Dritter nennen 8 MB;
+ein Fehlschlag daran wäre erst als API-Fehler nach dem Absenden sichtbar geworden. Der Deckel gilt
+**allen** Kanälen, weil es eine Datei für alle ist (§5) — bei Facebook ist der Unterschied nicht zu
+sehen, und die Alternative wäre eine zweite Datei je Kanal gewesen.
