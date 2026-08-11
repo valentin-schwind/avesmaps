@@ -677,8 +677,16 @@
    mit. Genau die Kopplung, die beim --avesmaps-corner-stack gefehlt hat und 8px danebenlag.
    ⚠️ Nur am groben Zeiger sichtbar: am Zeiger oeffnet F / Leertaste die Suche, und dort steht
    ausserdem der Zoom-Control in dieser Ecke (map-layout.css blendet ihn am Finger aus). */
+/* ⚠️ Seit dem 11.08.2026 auch am ZEIGER sichtbar (Owner: „der Suchen button kommt uebrigens gut an,
+   wir wollen dass der auch schnell aufm desktop verfuegbar ist"). Sie sitzt dort zwischen dem Zoom
+   und den beiden Verweisknoepfen -- ohne dass eine Lage gerechnet wird: der Bund ist eine Spalte,
+   die Kachel ihre erste Zeile, und der Zoom darueber liest die GEMESSENE Bundhoehe
+   (syncMapCornerStack in js/ui/ui-controls.js).
+   ⚠️ Am Zeiger oeffnet sie dasselbe Fenster, aber OHNE die Aufklapp-Bewegung -- die steigt bei
+   `!matchMedia("(pointer: coarse)")` aus (js/ui/spotlight-search.js). Owner: „hier brauchen wir
+   nicht die animation, dass sich die spotlight suche oeffnet reicht vollkommen." */
 #map-search-button {
-	display: none;
+	display: inline-flex;
 	/* 48x48: Fingermass. Sie muss ihren Nachbarn nicht mehr gleichen (Owner 11.08.2026), also darf
 	   sie so gross sein, wie ein Daumen sie braucht -- 32px waren es vorher, weil sie sich an der
 	   Reihe mass. Farbe, Kontur, Radius und Schatten kommen weiter aus der gemeinsamen Regel oben.
@@ -695,9 +703,4 @@
 	width: 22px;
 	height: 22px;
 	display: block;
-}
-@media (pointer: coarse) {
-	#map-search-button {
-		display: inline-flex;
-	}
 }

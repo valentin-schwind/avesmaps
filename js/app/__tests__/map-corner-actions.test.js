@@ -89,8 +89,16 @@ assert.ok(
 // stapelt der Bund, ohne dass die Zahl mitwaechst, ueberdeckt der Zoom die obere Reihe.
 const engerFall = cssOhneKommentar.match(/@media \(max-width: 599px\) \{([\s\S]*?)\r?\n\}\s*$/);
 assert.ok(engerFall, "es gibt den engen Fall");
-assert.ok(/--avesmaps-corner-stack:\s*78px/.test(engerFall[1]), "er hebt die Zahl");
 assert.ok(/flex-direction:\s*column/.test(engerFall[1]), "und stapelt den Bund");
+// 🔴 Hier stand `--avesmaps-corner-stack: 78px` -- eine ZWEITE Handzahl neben der 40 im Grundwert.
+// Seit dem 11.08.2026 misst syncMapCornerStack (js/ui/ui-controls.js) den Bund und schreibt die
+// Hoehe auf <html>; der Zoom erfaehrt das Stapeln also vom Bund selbst. Die Zusicherung dreht sich
+// damit um: im engen Fall darf gar KEINE Zahl mehr stehen, sonst gibt es wieder zwei Wahrheiten.
+assert.ok(
+	!/--avesmaps-corner-stack:/.test(engerFall[1]),
+	"und zwar OHNE eigene Zahl -- die Bundhoehe wird gemessen (syncMapCornerStack), nicht gepflegt."
+	+ " Genau diese Zahl lag am 10.08.2026 um 8px daneben, als die Knoepfe wuchsen."
+);
 assert.ok(
 	!/flex-wrap/.test(cssOhneKommentar),
 	"und zwar ohne flex-wrap -- ein Umbruch entschiede die Hoehe allein, und der Zoom erfuehre es nie"

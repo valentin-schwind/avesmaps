@@ -94,8 +94,18 @@ function positionSpotlightAtSearchTile() {
 	if (!overlay || !tile) {
 		return;
 	}
+	// 💣 Dieser Riegel las bis zum 11.08.2026 die BREITE der Kachel: sie war am Zeiger `display: none`,
+	// also 0 breit, und daraus wurde „wir sind am Zeiger" geschlossen. Seit die Kachel auch am Zeiger
+	// steht, ist das schlicht falsch. Der Riegel fragt jetzt, was er meint.
+	// ⚠️ Folgenlos war es nur zufaellig: `--avesmaps-spotlight-bottom` wird ausschliesslich im
+	// `@media (pointer: coarse)`-Block von spotlight-search.css gelesen. Auf Glueck zu bauen ist keine
+	// Regel -- am Zeiger steht das Suchfenster mittig und soll sich an nichts anheften.
+	if (!window.matchMedia("(pointer: coarse)").matches) {
+		overlay.style.removeProperty("--avesmaps-spotlight-bottom");
+		return;
+	}
 	const kachel = tile.getBoundingClientRect();
-	if (!kachel.width) {                    // am Zeiger unsichtbar -> Fenster bleibt, wo es ist
+	if (!kachel.width) {                    // Kachel (noch) nicht gelayoutet -> Fenster bleibt, wo es ist
 		overlay.style.removeProperty("--avesmaps-spotlight-bottom");
 		return;
 	}

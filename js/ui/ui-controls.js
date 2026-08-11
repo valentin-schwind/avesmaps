@@ -77,17 +77,55 @@ function syncMapScaleBandLift() {
 		`${Math.round(Math.max(0, window.innerHeight - zeile.top) + 6)}px`);
 }
 
+/**
+ * Wie hoch der Knopfbund unten rechts baut -- der Zoom rechnet seinen Abstand daraus
+ * (`bottom: calc(var(--avesmaps-edge-gap) + var(--avesmaps-corner-stack))`, css/features/infopanel.css).
+ *
+ * 💣 GEMESSEN, nicht gepflegt. Die Zahl stand bis zum 11.08.2026 als 40px im Stylesheet, mit einer
+ * zweiten Fassung (78px) fuer den schmalen Fall -- also zwei Handzahlen fuer eine Hoehe, die der
+ * INHALT bestimmt. Am 10.08. lag sie schon einmal um 8px daneben, als die Knoepfe wuchsen und sie
+ * stehenblieb; mit der Suchkachel am Zeiger (48px) waeren es 54 gewesen und der Zoom haette auf ihr
+ * gesessen. Was gemessen wird, kann nicht danebenliegen.
+ * ⚠️ Als Inline-Stil auf <html>: das schlaegt sowohl die :root-Grundregel als auch die Media-Query
+ * des schmalen Falls, ohne dass irgendwo ein !important noetig waere.
+ */
+function syncMapCornerStack() {
+	const bund = document.getElementById("map-corner-actions");
+	if (!bund) {
+		return;
+	}
+	const hoehe = Math.round(bund.getBoundingClientRect().height);
+	if (!hoehe) {
+		return; // noch nicht gelayoutet -- die Grundregel im Stylesheet traegt so lange
+	}
+	// Der Bund selbst plus die Luft, die der Zoom zu ihm haelt (dieselben 6px wie zwischen den
+	// Bund-Zeilen -- `gap` in css/components/legal-dialog.css).
+	document.documentElement.style.setProperty("--avesmaps-corner-stack", `${hoehe + 6}px`);
+}
+
 let mapScaleBandLiftObserver = null;
+let mapCornerStackObserver = null;
 function watchMapScaleBandLift() {
 	syncMapScaleBandLift();
+	syncMapCornerStack();
 	const row = document.querySelector(".map-corner-actions__row");
-	if (!row || mapScaleBandLiftObserver || typeof ResizeObserver !== "function") {
+	const bund = document.getElementById("map-corner-actions");
+	if (typeof ResizeObserver !== "function") {
+		return;
+	}
+	if (bund && !mapCornerStackObserver) {
+		mapCornerStackObserver = new ResizeObserver(syncMapCornerStack);
+		mapCornerStackObserver.observe(bund);
+	}
+	if (!row || mapScaleBandLiftObserver) {
 		return;
 	}
 	mapScaleBandLiftObserver = new ResizeObserver(syncMapScaleBandLift);
 	mapScaleBandLiftObserver.observe(row);
 	window.addEventListener("resize", syncMapScaleBandLift);
 	window.addEventListener("orientationchange", syncMapScaleBandLift);
+	window.addEventListener("resize", syncMapCornerStack);
+	window.addEventListener("orientationchange", syncMapCornerStack);
 }
 
 function addMapScaleBandControl() {

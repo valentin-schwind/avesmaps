@@ -394,6 +394,12 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
    Zahl ein zweites Mal auf 40px und uebersteuerte damit die 78px, die der schmale Fall weiter
    unten auf <html> setzt -- der Zoom bliebe sitzen und der gestapelte Bund liefe in ihn hinein.
    Genau so gemessen, bevor diese Zeile entstand. */
+/* 🔴 NUR NOCH DER VORLAUF. Seit dem 11.08.2026 misst syncMapCornerStack (js/ui/ui-controls.js) die
+   echte Bundhoehe und schreibt sie als Inline-Stil auf <html> -- das schlaegt diese Regel und den
+   schmalen Fall weiter unten. Der Wert hier traegt nur die Millisekunden bis zur ersten Messung.
+   💣 Er ist deshalb bewusst NICHT mehr nachzupflegen, wenn der Bund waechst: genau das ist am
+   10.08.2026 unterblieben (die Zahl lag 8px daneben, als die Knoepfe wuchsen), und mit der
+   Suchkachel am Zeiger waeren es 54 geworden. Wer hier eine Zahl korrigiert, behandelt das Symptom. */
 :root.avesmaps-infopanel-mode {
 	--avesmaps-corner-stack: 40px;
 }
@@ -421,12 +427,12 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
    Rand (Owner 09.08.2026: „A normal und C wenn zu eng“). Eng ist genau EIN Fall -- offene Infobox
    auf schmalem Schirm. Sonst ist die Ecke immer breit genug: die Zeile misst ~175px, links vom
    Panel bleiben 100vw - --avesmaps-ip-w - 24px, und das unterschreitet 175px erst unterhalb von
-   600px Fensterbreite. Kein flex-wrap: dann entschiede der Umbruch allein, wie hoch der Bund baut,
-   und der Zoom darueber erfuehre es nie. So haengen Stapel und Zoom an DERSELBEN Bedingung. */
+   600px Fensterbreite.
+   🔴 Hier stand bis zum 11.08.2026 eine ZWEITE Handzahl (78px), damit der Zoom das Stapeln erfaehrt.
+   Sie ist weg: syncMapCornerStack misst den Bund und schreibt die Hoehe auf <html>, also erfaehrt es
+   der Zoom vom Bund selbst, statt dass zwei Zahlen einander hinterherlaufen. Kein flex-wrap
+   trotzdem: ein Umbruch waere eine dritte Stelle, an der sich die Hoehe entscheidet. */
 @media (max-width: 599px) {
-	:root.avesmaps-infopanel-mode.avesmaps-infopanel-open {
-		--avesmaps-corner-stack: 78px;
-	}
 	/* Der Bund ist seit der Suchkachel ohnehin eine Spalte -- gestapelt wird hier deshalb seine
 	   VERWEIS-Zeile, nicht der Bund selbst. Wirkung und Hoehe bleiben dieselben. */
 	.avesmaps-infopanel-mode.avesmaps-infopanel-open #map-corner-actions .map-corner-actions__row {

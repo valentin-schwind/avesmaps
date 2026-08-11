@@ -755,6 +755,50 @@ assert.ok(/--avesmaps-panel-inset-top:\s*0/.test(telefonBlock[1])
 assert.ok(!/--avesmaps-edge-gap\s*:/.test(telefonBlock[1]),
 	"...aber der KARTENRAND bleibt stehen -- sonst klebte der Knopfbund am Bildschirmrand");
 
+// ---- Die Suchkachel steht auch am Zeiger, und der Zoom weicht ihr MESSEND aus --------------------
+//
+// Owner 11.08.2026: „der Suchen button kommt uebrigens gut an, wir wollen dass der auch schnell aufm
+// desktop verfuegbar ist und die kachel zwischen zoom und den hinweisbuttons platzieren. allerdings
+// brauchen wir hier nicht die animation."
+const kachelRegel = legalCss.match(/^#map-search-button\s*\{([^}]*)\}/m);
+assert.ok(kachelRegel && /display:\s*inline-flex/.test(kachelRegel[1]),
+	"die Suchkachel ist sichtbar -- an BEIDEN Zeigern");
+assert.ok(!/@media\s*\(pointer:\s*coarse\)\s*\{[^}]*#map-search-button/.test(legalCss),
+	"und nicht mehr per (pointer: coarse) freigeschaltet -- der Riegel ist weg, nicht umgedreht");
+
+// 💣 DIE ZAHL WIRD GEMESSEN, NICHT GEPFLEGT. Der Bund ist mit der Kachel von 32 auf 86px gewachsen;
+// der Zoom rechnet seinen Abstand aus --avesmaps-corner-stack. Stand die Zahl weiter als Literal im
+// Stylesheet, saesse er mitten auf der Kachel -- dieselbe Falle wie am 10.08.2026, nur groesser
+// (damals 8px daneben). Gemessen nach dem Umbau: Zoom 640..696, Kachel 702..750, Verweise 756..788,
+// Ueberlappung 0.
+const stapel = uiControls.match(/function syncMapCornerStack\(\)[\s\S]*?\n\}/);
+assert.ok(stapel, "es gibt die Messung der Bundhoehe");
+assert.ok(/getElementById\("map-corner-actions"\)/.test(stapel[0])
+	&& /getBoundingClientRect\(\)\.height/.test(stapel[0]),
+	"sie misst den BUND selbst -- ausrechnen hiesse Kachelhoehe + Luecke + Zeilenhoehe, drei Zahlen,"
+	+ " von denen die naechste wieder vergessen wird");
+assert.ok(/documentElement\.style\.setProperty\("--avesmaps-corner-stack"/.test(stapel[0]),
+	"und schreibt sie als Inline-Stil auf <html> -- das schlaegt Grundwert UND Media-Query ohne !important");
+assert.ok(/new ResizeObserver\(syncMapCornerStack\)/.test(uiControls),
+	"ein ResizeObserver haengt am Bund -- er waechst im Betrieb (gestapelte Verweiszeile bei offener"
+	+ " Infobox auf schmalem Schirm)");
+
+// 💣 Der zweite Fund desselben Umbaus: `positionSpotlightAtSearchTile` schloss aus der BREITE der
+// Kachel auf den Zeiger (sie war dort `display: none`, also 0 breit). Seit sie auch am Zeiger steht,
+// ist das falsch. Folgenlos war es nur zufaellig -- die Variable wird ausschliesslich im
+// (pointer: coarse)-Block gelesen.
+const lageFn = spotlightJs.match(/function positionSpotlightAtSearchTile\s*\([\s\S]*?\n\}/);
+assert.ok(lageFn && /matchMedia\("\(pointer: coarse\)"\)\.matches/.test(lageFn[0]),
+	"die Verankerung am Kachelrechteck fragt den ZEIGER, nicht die Kachelbreite");
+assert.ok(lageFn[0].indexOf("matchMedia") < lageFn[0].indexOf("getBoundingClientRect"),
+	"und zwar BEVOR sie misst -- sonst haengt das Ergebnis wieder daran, ob die Kachel gerade da ist");
+
+// ⚠️ Die Aufklapp-Bewegung bleibt am Finger. Owner: „hier brauchen wir nicht die animation, dass sich
+// die spotlight suche oeffnet reicht vollkommen." Am Zeiger nachgemessen: 0 laufende Animationen am
+// Dialog, clip-path `none` -- und am Telefon laeuft sie weiter (220ms, clipPath).
+assert.ok(/pointer:\s*coarse/.test(flip[0]),
+	"die Bewegung laeuft nur am groben Zeiger");
+
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
 assert.ok(viewport, "index.html traegt ein Viewport-Meta");
