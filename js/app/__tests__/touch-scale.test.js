@@ -274,6 +274,31 @@ assert.ok(/avesmapsIsPhoneViewport\(\)/.test(box[0]) && /avesmapsShowLocationInI
 	"sie fuellt am Telefon das PANEL, statt eine versteckte Box zu oeffnen -- sonst taete ein Klick"
 	+ " auf die Karte dort sichtbar nichts");
 
+// ---- Die Massstabsskala steht ueber den beiden Verweisknoepfen -----------------------------------
+//
+// Owner 11.08.2026: "schueb nach oben, aber nur ueber die zwei buttons. es is ok wenn es vom
+// suchfeld verdeckt werden sollte." Gemessen war die Ueberlappung 61x32px (Skala x 47..314 auf
+// 360px Schirm, Bund x 253..348) -- die Skala ist mittig verankert und bei Zoom 3 volle 267px breit.
+const uiControls = withoutComments(read("js", "ui", "ui-controls.js"));
+const scaleCss = withoutComments(read("css", "features", "map-scale-band.css"));
+assert.ok(/margin-bottom:\s*var\(--avesmaps-scale-lift,\s*18px\)/.test(scaleCss),
+	"die Skala liest den Hub und faellt ohne ihn auf die alten 18px zurueck -- am Zeiger aendert"
+	+ " sich damit nichts");
+const lift = uiControls.match(/function syncMapScaleBandLift\(\)[\s\S]*?\n\}/);
+assert.ok(lift, "es gibt den Hub");
+assert.ok(/\.map-corner-actions__row/.test(lift[0]) && !/#map-corner-actions"/.test(lift[0]),
+	"er misst die VERWEIS-ZEILE, nicht den ganzen Bund -- die Suchkachel darf die Skala anschneiden,"
+	+ " die beiden Knoepfe nicht");
+assert.ok(/getBoundingClientRect\(\)/.test(lift[0]),
+	"und zwar gemessen: ausrechnen hiesse Bundabstand + Kachelhoehe + Luecke + Zeilenhoehe, vier"
+	+ " Zahlen ohne Token");
+assert.ok(/avesmapsIsPhoneViewport/.test(lift[0]) && /removeProperty/.test(lift[0]),
+	"am Zeiger wird der Hub wieder entfernt, nicht bloss nicht gesetzt");
+// 💣 Die Zeilenhoehe aendert sich im Betrieb (offene Infobox auf schmalem Schirm -> die Knoepfe
+// stapeln, 32px wird 70px). Ein fester Hub waere genau dann falsch, wenn das Panel aufgeht.
+assert.ok(/new ResizeObserver\(syncMapScaleBandLift\)/.test(uiControls),
+	"ein ResizeObserver haengt an der Zeile -- sie stapelt bei offener Infobox und wird hoeher");
+
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
 assert.ok(viewport, "index.html traegt ein Viewport-Meta");

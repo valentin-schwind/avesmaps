@@ -46,6 +46,50 @@ function syncMapScaleBand(controlElement) {
 	}
 }
 
+// Die Massstabsskala am Telefon ueber die beiden Verweisknoepfe heben.
+//
+// 💣 Gemessen, nicht gerechnet -- und zwar an der VERWEIS-ZEILE, nicht am ganzen Knopfbund. Owner
+// 11.08.2026: "schueb nach oben, aber nur ueber die zwei buttons. es is ok wenn es vom suchfeld
+// verdeckt werden sollte." Die Suchkachel darf die Skala also anschneiden; die beiden Knoepfe
+// nicht. Ausrechnen hiesse Bundabstand + Kachelhoehe + Luecke + Zeilenhoehe -- vier Zahlen, von
+// denen keine ein Token ist.
+//
+// ⚠️ Die Zeilenhoehe AENDERT SICH im Betrieb: bei offener Infobox auf schmalem Schirm stapeln die
+// beiden Knoepfe (32px -> 70px). Deshalb haengt hier ein ResizeObserver an der Zeile und nicht
+// bloss ein Aufruf beim Zoomen -- ein fester Hub waere genau dann falsch, wenn das Panel aufgeht.
+function syncMapScaleBandLift() {
+	const band = document.querySelector(".map-scale-band");
+	if (!band) {
+		return;
+	}
+	const row = document.querySelector(".map-corner-actions__row");
+	const istTelefon = typeof avesmapsIsPhoneViewport === "function" && avesmapsIsPhoneViewport();
+	if (!istTelefon || !row) {
+		band.style.removeProperty("--avesmaps-scale-lift");
+		return;
+	}
+	const zeile = row.getBoundingClientRect();
+	if (!zeile.height) {
+		return;
+	}
+	// Unterkante der Skala knapp ueber die Oberkante der Verweis-Zeile.
+	band.style.setProperty("--avesmaps-scale-lift",
+		`${Math.round(Math.max(0, window.innerHeight - zeile.top) + 6)}px`);
+}
+
+let mapScaleBandLiftObserver = null;
+function watchMapScaleBandLift() {
+	syncMapScaleBandLift();
+	const row = document.querySelector(".map-corner-actions__row");
+	if (!row || mapScaleBandLiftObserver || typeof ResizeObserver !== "function") {
+		return;
+	}
+	mapScaleBandLiftObserver = new ResizeObserver(syncMapScaleBandLift);
+	mapScaleBandLiftObserver.observe(row);
+	window.addEventListener("resize", syncMapScaleBandLift);
+	window.addEventListener("orientationchange", syncMapScaleBandLift);
+}
+
 function addMapScaleBandControl() {
 	const scaleBandControl = L.control({ position: "bottomleft" });
 	scaleBandControl.onAdd = () => {
@@ -57,7 +101,10 @@ function addMapScaleBandControl() {
 		container.innerHTML = `<div class="map-scale-band__bar" aria-hidden="true">${tickMarkup}</div><div class="map-scale-band__label"></div>`;
 		L.DomEvent.disableClickPropagation(container);
 		syncMapScaleBand(container);
-		map.on("zoomend resize", () => syncMapScaleBand(container));
+		map.on("zoomend resize", () => {
+			syncMapScaleBand(container);
+			syncMapScaleBandLift();
+		});
 		return container;
 	};
 	scaleBandControl.addTo(map);
@@ -66,6 +113,7 @@ function addMapScaleBandControl() {
 function initializeMapDecorations() {
 	Object.values(MAP_DECORATION_CONFIG).forEach(addMapDecorationOverlay);
 	addMapScaleBandControl();
+	watchMapScaleBandLift();
 }
 
 function getDistanceMeasurementMidpoint(startLatLng, endLatLng) {

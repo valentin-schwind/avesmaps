@@ -8,7 +8,10 @@
 	flex-direction: column;
 	align-items: center;
 	gap: 5px;
-	margin-bottom: 18px;
+	/* Am Telefon hebt der gemessene Hub die Skala ueber die beiden Verweisknoepfe
+	   (syncMapScaleBandLift in js/ui/ui-controls.js). Ohne ihn -- also am Zeiger -- bleiben es
+	   die 18px, die hier immer standen. Die Suchkachel darf sie anschneiden (Owner). */
+	margin-bottom: var(--avesmaps-scale-lift, 18px);
 	padding: 0;
 	color: #ffffff;
 	pointer-events: none;
