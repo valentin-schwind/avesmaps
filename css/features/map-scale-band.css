@@ -8,10 +8,12 @@
 	flex-direction: column;
 	align-items: center;
 	gap: 5px;
-	/* Am Telefon hebt der gemessene Hub die Skala ueber die beiden Verweisknoepfe
-	   (syncMapScaleBandLift in js/ui/ui-controls.js). Ohne ihn -- also am Zeiger -- bleiben es
-	   die 18px, die hier immer standen. Die Suchkachel darf sie anschneiden (Owner). */
-	margin-bottom: var(--avesmaps-scale-lift, 18px);
+	/* 💣 Diese Zeile ist WIRKUNGSLOS und war es immer: Leaflet setzt
+	   `.leaflet-bottom .leaflet-control { margin-bottom: 10px }` -- (0,2,0) gegen die (0,1,0)
+	   hier. Die Skala sitzt also auf 10px, nicht auf 18. Sie bleibt stehen, weil sie den
+	   gemeinten Wert dokumentiert; wer sie wirksam machen will, braucht die Spezifitaet der
+	   Regel am Dateiende. */
+	margin-bottom: 18px;
 	padding: 0;
 	color: #ffffff;
 	pointer-events: none;
@@ -60,4 +62,20 @@
 	font-size: 11px;
 	line-height: 1;
 	white-space: nowrap;
+}
+
+/* ── Der Hub am Telefon ───────────────────────────────────────────────────────────────────────
+   💣 Diese Spezifitaet ist der ganze Punkt: Leaflet setzt `.leaflet-bottom .leaflet-control`
+   (0,2,0) auf margin-bottom: 10px. Eine Regel an `.map-scale-band` allein (0,1,0) verliert --
+   genau daran ist der erste Anlauf am 11.08.2026 gescheitert, und die Abnahme hat es NICHT
+   gefangen, weil sie die Regel mit !important eingespritzt hat. Gepruefte und ausgelieferte
+   Fassung waren nicht dieselbe.
+   Hier: html.avesmaps-phone + .leaflet-bottom.leaflet-left + .map-scale-band = (0,4,0).
+
+   ⚠️ Am Zeiger fehlt die Klasse, also greift diese Regel dort gar nicht und Leaflets 10px bleiben
+   unangetastet -- kein Pixel Unterschied am Desktop.
+   Den Wert setzt syncMapScaleBandLift (js/ui/ui-controls.js) aus dem gemessenen Rechteck der
+   Verweis-Zeile; ohne ihn faellt es auf Leaflets Abstand zurueck. */
+html.avesmaps-phone .leaflet-bottom.leaflet-left .map-scale-band {
+	margin-bottom: var(--avesmaps-scale-lift, 10px);
 }

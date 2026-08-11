@@ -281,9 +281,21 @@ assert.ok(/avesmapsIsPhoneViewport\(\)/.test(box[0]) && /avesmapsShowLocationInI
 // 360px Schirm, Bund x 253..348) -- die Skala ist mittig verankert und bei Zoom 3 volle 267px breit.
 const uiControls = withoutComments(read("js", "ui", "ui-controls.js"));
 const scaleCss = withoutComments(read("css", "features", "map-scale-band.css"));
-assert.ok(/margin-bottom:\s*var\(--avesmaps-scale-lift,\s*18px\)/.test(scaleCss),
-	"die Skala liest den Hub und faellt ohne ihn auf die alten 18px zurueck -- am Zeiger aendert"
-	+ " sich damit nichts");
+// 💣 Die Regel muss Leaflet SCHLAGEN. `.leaflet-bottom .leaflet-control { margin-bottom: 10px }`
+// ist (0,2,0); eine Regel an `.map-scale-band` allein ist (0,1,0) und verliert -- genau daran ist
+// der erste Anlauf am 11.08.2026 gescheitert. Die Abnahme hat es NICHT gefangen, weil sie die Regel
+// mit !important in die Seite eingespritzt hat: gepruefte und ausgelieferte Fassung waren nicht
+// dieselbe. Deshalb prueft diese Zusicherung die SPEZIFITAET, nicht die blosse Anwesenheit.
+const hubRegel = scaleCss.match(/^html\.avesmaps-phone [^{]*\.map-scale-band\s*\{([^}]*)\}/m);
+assert.ok(hubRegel,
+	"der Hub steht in einer Regel, die mit html.avesmaps-phone qualifiziert ist");
+assert.ok(/\.leaflet-bottom/.test(hubRegel[0]),
+	"...und mit .leaflet-bottom -- sonst gewinnt Leaflets `.leaflet-bottom .leaflet-control` (0,2,0)");
+assert.ok(/margin-bottom:\s*var\(--avesmaps-scale-lift/.test(hubRegel[1]),
+	"sie liest den gemessenen Hub");
+assert.ok(!/!important/.test(scaleCss),
+	"und braucht dafuer KEIN !important -- die Spezifitaet reicht, und genau !important war der"
+	+ " Unterschied zwischen der geprueften und der ausgelieferten Fassung");
 const lift = uiControls.match(/function syncMapScaleBandLift\(\)[\s\S]*?\n\}/);
 assert.ok(lift, "es gibt den Hub");
 assert.ok(/\.map-corner-actions__row/.test(lift[0]) && !/#map-corner-actions"/.test(lift[0]),
