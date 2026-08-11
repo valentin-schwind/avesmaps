@@ -525,6 +525,11 @@
    ⚠️ Aus demselben Grund steht `line-height` ausgeschrieben: ein <button> bringt `normal` mit, ein
    <a> erbt die Zeilenhoehe des Dokuments. Ohne die Zeile waeren die beiden nebeneinander
    unterschiedlich hoch -- und das faellt erst auf, wenn sie es sind. */
+/* 💣 DREI Elemente, EINE Regel. Die Suchkachel traegt Farbe, Kontur, Radius und Schatten der
+   beiden Verweisknoepfe, weil sie hier mit drinsteht -- nicht, weil die Werte abgeschrieben
+   waeren. Wer sie herausloest und die Werte kopiert, baut die Divergenz ein, die AGENTS.md §12
+   beschreibt. Owner 11.08.2026: "kachel aber farbe und outline wie Hinweise bzw Neuigkeiten". */
+#map-search-button,
 #legal-button,
 #news-button {
 	padding: 7px 10px;
@@ -650,4 +655,36 @@
 
 .legal-contact__status[data-tone="error"] {
 	color: var(--color-danger);
+}
+
+/* Was die Kachel von den beiden Textknoepfen unterscheidet -- und sonst nichts.
+   ⚠️ `align-self: stretch` + `aspect-ratio: 1`: die Kachel ist damit exakt so hoch wie die Reihe
+   und quadratisch, OHNE eine eigene Zahl. Waechst der Bund spaeter auf Fingergroesse, waechst sie
+   mit. Genau die Kopplung, die beim --avesmaps-corner-stack gefehlt hat und 8px danebenlag.
+   ⚠️ Nur am groben Zeiger sichtbar: am Zeiger oeffnet F / Leertaste die Suche, und dort steht
+   ausserdem der Zoom-Control in dieser Ecke (map-layout.css blendet ihn am Finger aus). */
+#map-search-button {
+	display: none;
+	/* 💣 Die Hoehe wird NICHT gesetzt, sie ENTSTEHT -- aus denselben Werten wie bei den beiden
+	   Textknoepfen: gemeinsame font-size (13px) x line-height (1,2) + die 7px Luft oben/unten aus
+	   der gemeinsamen Regel. Waechst der Bund spaeter auf Fingergroesse, waechst die Kachel mit,
+	   ohne dass hier eine Zahl nachgezogen werden muesste.
+	   ⚠️ Der erste Versuch nahm `align-self: stretch` + `aspect-ratio: 1`. Das ist ein Zirkel --
+	   der Bund hat keine eigene Hoehe, er bekommt sie vom Inhalt. Gemessen wurde die Kachel
+	   302x302 und sprengte die ganze Reihe. Nicht annehmen, messen.
+	   Einziger Unterschied zu den Nachbarn: waagerecht dieselbe Luft wie senkrecht -> quadratisch. */
+	padding: 7px;
+	align-items: center;
+	justify-content: center;
+}
+#map-search-button svg {
+	/* In em, damit das Zeichen an der gemeinsamen Schriftgroesse haengt und nicht an einer Kopie. */
+	width: 1.2em;
+	height: 1.2em;
+	display: block;
+}
+@media (pointer: coarse) {
+	#map-search-button {
+		display: inline-flex;
+	}
 }

@@ -2345,6 +2345,19 @@
 		     ⚠️ Die beiden sind absichtlich UNGLEICHE Elemente: „Neuigkeiten" ist ein <button>, weil
 		     sein Ziel auf DIESER Seite liegt, „Hinweise" ein <a> -- Begruendung direkt daran. -->
 		<div id="map-corner-actions">
+			<!-- Die Suchkachel. Sie ist der einzige sichtbare Weg in die Suche am Telefon -- sonst
+			     haengt sie am Tastenkuerzel (F / Leertaste) und am Langdruck-Kontextmenue, und ein
+			     Telefon hat weder Tastatur noch eine sichtbare Geste.
+			     💣 Sie steht IM Bund, nicht darueber, und traegt Farbe, Kontur und Radius der beiden
+			     Nachbarn -- dieselbe Regel, nicht abgeschriebene Werte (Owner 11.08.2026). Ein
+			     gefuellter Knopf trug seine Rangfolge im Dunkelmodus ohnehin nicht: dort liegen
+			     --color-button (#6b6456) und --color-panel (#312e26) beide im selben Braun.
+			     Sichtbar nur am groben Zeiger; am Zeiger oeffnet F / Leertaste die Suche. -->
+			<button type="button" id="map-search-button" aria-label="Suchen" data-i18n-aria-label="spotlight.title">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+					<circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M15.5 15.5 21 21"></path>
+				</svg>
+			</button>
 			<button type="button" id="news-button" aria-haspopup="dialog" aria-controls="changelog-dialog" data-i18n="legal.news">Neuigkeiten</button>
 			<!-- 💣 EIN LINK, KEIN KNOPF -- und das ist der ganze Punkt (Owner 06.08.2026, Befund A24).
 			     Das Fenster „Hinweise" oeffnet nur JavaScript. Ohne JavaScript waren damit Impressum UND

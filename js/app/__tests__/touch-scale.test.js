@@ -116,6 +116,50 @@ DIALOG_FELDER.forEach(([rel, selector, name]) => {
 		`${name} scrollt -- daran haengt, dass die groesseren Felder nicht ueberlaufen`);
 });
 
+// ---- Die Suchkachel: EINE Regel mit ihren Nachbarn ------------------------------------------------
+//
+// Owner 11.08.2026: "kachel aber farbe und outline wie Hinweise bzw Neuigkeiten". Das ist erfuellt,
+// indem sie in DERSELBEN Regel steht -- nicht, indem die Werte abgeschrieben sind. Ein gefuellter
+// Knopf trug seine Rangfolge im Dunkelmodus ohnehin nicht: dort liegen --color-button (#6b6456) und
+// --color-panel (#312e26) beide im selben Braun.
+const legalCss = withoutComments(read("css", "components", "legal-dialog.css"));
+const gemeinsam = legalCss.match(/^#map-search-button,\s*\r?\n#legal-button,\s*\r?\n#news-button\s*\{/m);
+assert.ok(gemeinsam,
+	"die Suchkachel steht in DERSELBEN Regel wie #legal-button und #news-button -- kopierte Werte"
+	+ " waeren die Divergenz, vor der AGENTS.md §12 warnt");
+const eigen = legalCss.match(/^#map-search-button\s*\{([^}]*)\}/m);
+assert.ok(eigen, "und hat einen eigenen Block fuer das, was eine Kachel ausmacht");
+["background", "border:", "border-radius", "box-shadow", "color:"].forEach((prop) => {
+	assert.ok(!new RegExp(escapeRe(prop)).test(eigen[1]),
+		`der Kachel-Block setzt ${prop} NICHT selbst -- das kommt aus der gemeinsamen Regel`);
+});
+// 💣 Die Kachel darf ihre Hoehe NICHT selbst setzen -- sie entsteht aus der gemeinsamen
+// Schriftgroesse und der gemeinsamen Luft. Eine eigene Zahl hier waere eine Kopie, die beim
+// naechsten Wachsen des Bundes stehenbleibt.
+// ⚠️ Und NICHT ueber align-self: stretch + aspect-ratio: der Bund hat keine eigene Hoehe, das ist
+// ein Zirkel -- gemessen wurde die Kachel damit 302x302 und sprengte die Reihe.
+assert.ok(!/(^|[^-])height:/.test(eigen[1]) && !/aspect-ratio/.test(eigen[1]),
+	"die Kachel setzt weder height noch aspect-ratio -- ihre Hoehe entsteht aus Schrift und Luft"
+	+ " der gemeinsamen Regel und waechst mit dem Bund mit");
+assert.ok(/padding:\s*7px;/.test(eigen[1]),
+	"waagerecht dieselbe Luft wie senkrecht -- das ist der einzige Unterschied zu den Textknoepfen");
+
+const indexSuch = indexHtml.indexOf('id="map-search-button"');
+const indexBund = indexHtml.indexOf('id="map-corner-actions"');
+const indexNews = indexHtml.indexOf('id="news-button"');
+assert.ok(indexBund > -1 && indexSuch > indexBund && indexSuch < indexNews,
+	"und sie steht IM Bund, als erstes Element vor \"Neuigkeiten\"");
+
+const layoutCss = withoutComments(read("css", "layout", "map-layout.css"));
+assert.ok(/@media\s*\(pointer:\s*coarse\)[\s\S]*?\.leaflet-control-zoom[^}]*display:\s*none/.test(layoutCss),
+	"der Zoom-Control wird am Finger ausgeblendet -- er und die Kachel teilen sich die Ecke nie");
+const bootstrapJs = withoutComments(read("js", "app", "bootstrap.js"));
+assert.ok(/L\.control\.zoom\(/.test(bootstrapJs),
+	"...aber weiterhin ANGELEGT: sonst stuende die Platzierungsregel in infopanel.css als tote"
+	+ " Zusicherung da, die map-corner-actions.test.js prueft");
+assert.ok(/openSpotlightSearch\s*\(/.test(bootstrapJs),
+	"die Kachel ruft die vorhandene Suche, statt eine zweite zu bauen");
+
 // ---- Der falsche Fix darf nicht nachwachsen ------------------------------------------------------
 const viewport = indexHtml.match(/<meta\s+name="viewport"[^>]*>/);
 assert.ok(viewport, "index.html traegt ein Viewport-Meta");
