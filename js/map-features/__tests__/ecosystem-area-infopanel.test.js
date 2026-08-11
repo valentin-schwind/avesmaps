@@ -98,11 +98,27 @@ assert(letzterKopf && letzterKopf.subtitle === "Gebirge" && letzterKopf.suffix =
 	"die Ebene steht als zweites Wort neben der Art: " + JSON.stringify(letzterKopf));
 assert(letzterKopf.basename === "bild-gebirge", "und das Kopfbild kommt aus der ART, nicht aus der Ebene");
 
-// ⚠️ NUR wenn sie etwas Neues sagt. Eine Fläche ohne Art trägt die Ebene bereits ALS Art -- sonst
-// stünde dort „Klimazonen · Klimazonen", das Ergebnis einer Ableitung, die sich selbst nicht erkennt.
+// 💣 KEIN WORT ZWEIMAL, UND KEINES AUS DER ÜBERSCHRIFT. Beide Wiederholungen kommen in den echten
+// Landschaftsdaten vor, und beide standen am 2026-08-12 live auf dem Schirm, während sämtliche
+// Unit-Tests grün waren. Sie sind der Grund, warum aus zwei Sonderfragen eine Liste wurde.
 context.ecosystemAreaInfoMarkup(context.ecosystemAreaInfoSource({ region_name: "Gemäßigte Zone", kind: "klima" }, []));
 assert(letzterKopf.subtitle === "Klimazonen" && letzterKopf.suffix === "",
-	"⚠️ die Ebene wiederholt sich nicht, wenn sie schon die Art ist: " + JSON.stringify(letzterKopf));
+	"💣 die Ebene wiederholt sich nicht, wenn sie schon die Art ist: " + JSON.stringify(letzterKopf));
+
+// Der live gefundene Fall: die Region HEISST wie ihre Art. Ungefiltert las sich das Panel
+// „Gemäßigte Zone / Gemäßigte Zone · Klimazonen".
+context.ecosystemAreaInfoMarkup(context.ecosystemAreaInfoSource(
+	{ region_name: "Gemäßigte Zone", region_type_label: "Gemäßigte Zone", kind: "klima" }, []));
+assert(letzterKopf.title === "Gemäßigte Zone" && letzterKopf.subtitle === "Klimazonen" && letzterKopf.suffix === "",
+	"💣 die Art verschwindet, wenn sie den Namen wiederholt: " + JSON.stringify(letzterKopf));
+// 🔴 Das Kopfbild kommt trotzdem aus der ART -- es bebildert, WAS die Fläche ist.
+assert(letzterKopf.basename === "bild-gemäßigte zone", "und das Kopfbild bleibt an der Art: " + letzterKopf.basename);
+
+// Und die Gegenprobe: sagen beide etwas Eigenes, stehen auch beide da.
+context.ecosystemAreaInfoMarkup(context.ecosystemAreaInfoSource(
+	{ region_name: "Caldaia", region_type_label: "Hochebene", kind: "topographie" }, []));
+assert(letzterKopf.subtitle === "Hochebene" && letzterKopf.suffix === "Topographie",
+	"zwei verschiedene Wörter bleiben beide stehen: " + JSON.stringify(letzterKopf));
 
 // ---- Der Riegel: Leser ja, Editor nein --------------------------------------------------------------
 // 🔴 EINE Frage für Leuchten UND Panel. Beide hängen an `isEcosystemReaderClick` -- an zwei getrennten

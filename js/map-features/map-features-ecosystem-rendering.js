@@ -462,17 +462,34 @@ function ecosystemAreaInfoMarkup(source) {
 	// ist, greift der Zweig darüber.
 	const name = ecosystemAreaDisplayName(source.area);
 	const typeLabel = ecosystemAreaTypeLabel(source.area);
-	// Die Ebene als zweites Wort im Untertitel: „Gebirge · Topographie", dieselbe Bauart wie bei einer
-	// Siedlung („Metropole · Hauptstadt von X").
-	// ⚠️ NUR wenn sie etwas Neues sagt. Eine Fläche ohne Art trägt die Ebene schon als ihre Art
-	// (ecosystemAreaTypeLabel fällt darauf zurück) -- „Klimazonen · Klimazonen" wäre das Ergebnis einer
-	// Ableitung, die sich selbst nicht wiedererkennt.
+	// Untertitel: Art und Ebene, „Gebirge · Topographie" -- dieselbe Bauart wie bei einer Siedlung
+	// („Metropole · Hauptstadt von X").
+	//
+	// 💣 JEDES WORT NUR EINMAL, UND KEINES, DAS SCHON IN DER ÜBERSCHRIFT STEHT. Die Landschaftsdaten
+	// lassen beide Wiederholungen zu, und beide standen live auf dem Schirm:
+	//   · Name = Art -- „Gemäßigte Zone" heisst so UND ist von dieser Art. Ungefiltert las sich das
+	//     Panel „Gemäßigte Zone / Gemäßigte Zone · Klimazonen".
+	//   · Art = Ebene -- eine Fläche ohne eigene Art trägt die Ebene bereits als ihre Art (siehe
+	//     ecosystemAreaTypeLabel), und daraus wurde „Klimazonen · Klimazonen".
+	// Deshalb hier eine Liste, die sich selbst bereinigt, statt zweier Sonderfragen: die Regel ist
+	// „sag nichts zweimal", nicht „prüfe diese beiden Paare".
+	//
+	// ⚠️ Gefunden erst im echten Durchlauf auf der Karte -- die Unit-Tests waren dabei alle grün.
 	const kindLabel = ECOSYSTEM_KIND_LABELS[source.area?.kind] || "";
-	const suffix = kindLabel && kindLabel !== typeLabel && typeof escapeHtml === "function"
-		? escapeHtml(kindLabel)
-		: "";
+	const untertitelTeile = [typeLabel, kindLabel]
+		.map((wort) => String(wort || "").trim())
+		.filter((wort, index, liste) => wort !== "" && wort !== name && liste.indexOf(wort) === index);
+	// 🔴 Das Kopfbild kommt aus der ART, auch wenn die im Untertitel weggefiltert wurde: es bebildert,
+	// WAS die Fläche ist, nicht was danebensteht.
 	const headerImg = typeof infoHeaderImageMarkup === "function" && typeof regionHeaderImageBasename === "function"
-		? infoHeaderImageMarkup(regionHeaderImageBasename(typeLabel), name, typeLabel, null, null, suffix)
+		? infoHeaderImageMarkup(
+			regionHeaderImageBasename(typeLabel),
+			name,
+			untertitelTeile[0] || "",
+			null,
+			null,
+			untertitelTeile[1] && typeof escapeHtml === "function" ? escapeHtml(untertitelTeile[1]) : ""
+		)
 		: "";
 
 	return locationPopupMarkup({

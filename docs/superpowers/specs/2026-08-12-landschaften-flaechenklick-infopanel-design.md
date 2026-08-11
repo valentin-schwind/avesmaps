@@ -29,9 +29,19 @@ nichts geraten und nichts nachgeladen werden.
    `locationPopupMarkup`-Hülle und mit demselben `regionHeaderImageBasename()`. Der Untertitel liest
    sich „Gebirge · Topographie" — dieselbe Bauart wie bei einer Siedlung („Metropole · Hauptstadt von X").
 
-   ⚠️ **Die Ebene nur, wenn sie etwas Neues sagt.** Eine Fläche ohne Art trägt die Ebene bereits *als*
-   ihre Art (`ecosystemAreaTypeLabel` fällt darauf zurück); sonst stünde dort „Klimazonen · Klimazonen"
-   — das Ergebnis einer Ableitung, die sich selbst nicht wiedererkennt.
+   💣 **Kein Wort zweimal, und keines, das schon in der Überschrift steht.** Die Landschaftsdaten
+   lassen **beide** Wiederholungen zu, und beide standen live auf dem Schirm:
+   - **Name = Art** — „Gemäßigte Zone" *heisst* so und *ist* von dieser Art. Ungefiltert las sich das
+     Panel „Gemäßigte Zone / Gemäßigte Zone · Klimazonen".
+   - **Art = Ebene** — eine Fläche ohne eigene Art trägt die Ebene bereits als ihre Art
+     (`ecosystemAreaTypeLabel` fällt darauf zurück), und daraus wurde „Klimazonen · Klimazonen".
+
+   Deshalb eine Liste, die sich selbst bereinigt, statt zweier Sonderfragen: die Regel heisst „sag
+   nichts zweimal", nicht „prüfe diese beiden Paare".
+
+   ⚠️ **Gefunden erst im echten Durchlauf auf der Karte** — die Unit-Tests waren dabei sämtlich grün,
+   und die zweite der beiden Wiederholungen hatte ich sogar ausdrücklich abgefangen. Genau der Beleg
+   für „Abnahme heisst Ablauf, nicht Maß".
 
    ⚠️ **Das Kopfbild kommt aus der ART, nie aus der Ebene.** `regionHeaderImageBasename` ist dieselbe
    Tabelle, die das Label befragt; ihr Rückfall („region") ist ein gültiges Bild. Kein zweiter Katalog.
