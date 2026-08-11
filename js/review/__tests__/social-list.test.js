@@ -20,7 +20,49 @@ const {
 	proposalNote,
 	isDraft,
 	linkNoteText,
+	applyCapabilityTo,
 } = require("../review-social.js");
+
+// ---- der Riegel muss BEIDE Richtungen schalten --------------------------------------------------------
+
+// 💣 Der Fehler, den dieser Test festnagelt (gemeldet 11.08.2026, „das social media hub geht in vielen
+// fällen nicht auf"): der Riegel setzte `hidden = true`, wenn das Recht fehlt, und nahm es NIE zurueck.
+// Beim Start ist der Client immer anonym -- der erste Lauf versteckte also den Abschnitt, und der
+// zweite (nach der Session-Antwort) holte nur den REITER zurueck. Ergebnis: Reiter da, anklickbar,
+// unterstrichen -- und darunter nichts.
+//
+// 🔴 Warum die Reiter-Kaskade das nicht heilt: `css/base/reset.css` setzt
+// `[hidden] { display: none !important }`. Das `!important` schlaegt
+// `.wiki-sync-panel__tab-panel.is-active { display: flex }`, also hilft kein Klick und keine Klasse.
+// Ein `hidden`, das einmal gesetzt wurde, ist endgueltig, bis jemand es zuruecknimmt.
+//
+// ⚠️ Warum es „in vielen Faellen" ging und in anderen nicht: AvesmapsSession.load() liefert ein
+// GETEILTES, zwischengespeichertes Versprechen. War es beim Start dieses Moduls schon aufgeloest,
+// sah der erste Lauf das Recht bereits und setzte `hidden` gar nicht erst. Ladereihenfolge entschied.
+const gate = { tab: { hidden: false }, section: { hidden: false } };
+
+applyCapabilityTo(gate.tab, gate.section, false);
+assert.strictEqual(gate.tab.hidden, true, "ohne Recht ist der Reiter weg");
+assert.strictEqual(gate.section.hidden, true, "und der Abschnitt auch");
+
+applyCapabilityTo(gate.tab, gate.section, true);
+assert.strictEqual(gate.tab.hidden, false, "mit Recht kommt der Reiter zurueck");
+assert.strictEqual(gate.section.hidden, false,
+	"UND der Abschnitt -- das war der Fehler: er blieb versteckt, und wegen [hidden]!important " +
+	"half kein Klick auf den Reiter");
+
+// Der Rueckweg zaehlt genauso: wer das Recht verliert, verliert beides wieder.
+applyCapabilityTo(gate.tab, gate.section, false);
+assert.strictEqual(gate.section.hidden, true, "und zurueck geht es auch");
+
+// Faellt geschlossen aus: alles ausser echtem `true` versteckt.
+const strict = { tab: { hidden: false }, section: { hidden: false } };
+applyCapabilityTo(strict.tab, strict.section, undefined);
+assert.strictEqual(strict.section.hidden, true, "ohne Angabe bleibt zu");
+
+// Fehlende Elemente duerfen nicht stuerzen -- das Markup kann fehlen, wenn jemand den Reiter entfernt.
+assert.doesNotThrow(() => applyCapabilityTo(null, null, true), "fehlende Elemente stuerzen nicht");
+assert.strictEqual(applyCapabilityTo(null, null, true), true, "und der Rueckgabewert bleibt das Recht");
 
 // ---- the status a chip shows ---------------------------------------------------------------------
 

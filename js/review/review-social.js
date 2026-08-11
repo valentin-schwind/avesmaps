@@ -448,15 +448,40 @@
 	// 🔴 Fällt GESCHLOSSEN aus, wie bei der Landschaftsebene: bis die Antwort da ist -- und für immer,
 	// wenn sie nie kommt -- bleibt der Reiter weg. Er schaltet ein Fenster frei, das öffentlich und
 	// unwiderruflich sendet; ein zu früh gezeigter Knopf wäre schlimmer als ein spät gezeigter.
+	// 💣 BEIDE Richtungen, und beide Elemente. Bis zum 11.08.2026 stand hier
+	// `if (section && !may) { section.hidden = true; }` — gesetzt, nie zurückgenommen. Beim Start ist
+	// der Client IMMER anonym (die Session kommt asynchron), also versteckte der erste Lauf den
+	// Abschnitt, und der zweite holte nur den Reiter zurück. Ergebnis: ein Reiter, der da ist, sich
+	// anklicken lässt, unterstrichen wird — und darunter nichts.
+	//
+	// 🔴 Und die Reiter-Kaskade heilt das NICHT: `css/base/reset.css` setzt
+	// `[hidden] { display: none !important }`. Das `!important` schlägt
+	// `.wiki-sync-panel__tab-panel.is-active { display: flex }` — ein einmal gesetztes `hidden` ist
+	// endgültig, bis jemand es zurücknimmt. Kein Klick und keine Klasse kommen dagegen an.
+	//
+	// ⚠️ Dass es „in vielen Fällen" ging: `AvesmapsSession.load()` gibt ein GETEILTES, gecachtes
+	// Versprechen zurück. War es beim Start dieses Moduls schon aufgelöst, sah der erste Lauf das
+	// Recht bereits und setzte `hidden` gar nicht erst. Die Ladereihenfolge entschied — genau die
+	// Art Fehler, die beim Entwickler nie und beim Owner ständig auftritt.
+	//
+	// Rein gehalten (nimmt irgendetwas mit einer `hidden`-Eigenschaft), damit die Symmetrie
+	// unter Test steht: js/review/__tests__/social-list.test.js.
+	function applyCapabilityTo(tab, section, may) {
+		const granted = may === true;
+		if (tab) { tab.hidden = !granted; }
+		if (section) { section.hidden = !granted; }
+		return granted;
+	}
+
 	function applyCapability() {
 		const may = !!(typeof window !== "undefined"
 			&& window.AvesmapsSession
 			&& window.AvesmapsSession.current().capabilities.social);
-		const tab = document.querySelector('[data-review-subtab="social"]');
-		const section = document.querySelector('[data-review-subtab-section="social"]');
-		if (tab) { tab.hidden = !may; }
-		if (section && !may) { section.hidden = true; }
-		return may;
+		return applyCapabilityTo(
+			document.querySelector('[data-review-subtab="social"]'),
+			document.querySelector('[data-review-subtab-section="social"]'),
+			may
+		);
 	}
 
 	function boot() {
@@ -608,6 +633,20 @@
 		const host = el("social-channels");
 		if (!host) { return; }
 		host.textContent = "";
+
+		// Kein Kanal heißt IMMER: die Liste kam nicht an. Das Register liefert stets alle Kanäle, auch
+		// die ohne Zugang. Ohne diesen Satz stünde die Spalte leer da und „Veröffentlichen" wäre
+		// gesperrt, ohne dass irgendwo steht warum -- dieselbe Art stiller Zustand, an der der Reiter
+		// selbst schon einmal hing (11.08.2026).
+		if (!channels.length) {
+			const empty = document.createElement("p");
+			empty.className = "social-hub__warn";
+			empty.textContent = "Die Kanalliste konnte nicht geladen werden. "
+				+ "Fenster schließen, Reiter neu anklicken — bleibt es dabei, antwortet der Server nicht.";
+			host.appendChild(empty);
+			updateCount();
+			return;
+		}
 
 		channels.forEach(function (channel) {
 			// 💣 Die Zeile ist ein DIV, das Kontrollkästchen samt Text ein <label> DARIN. Der
@@ -1205,6 +1244,6 @@
 
 	if (typeof module !== "undefined" && module.exports) {
 		module.exports = { chipClass, chipLabel, canRetry, strictestLimit, formatCount, postAuthorLabel,
-			formatExpiry, proposalNote, isDraft, linkNoteText };
+			formatExpiry, proposalNote, isDraft, linkNoteText, applyCapabilityTo };
 	}
 })();
