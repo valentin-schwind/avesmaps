@@ -195,6 +195,12 @@ try {
     //
     // Fehlt der Schlüssel im Feld, entfällt es GANZ -- ein leeres Feld ist auf dem Client nicht von
     // „noch nicht gerechnet" zu unterscheiden, und die Zeile soll dann gar nicht erst entstehen.
+    //
+    // ⚠️ NUR im ?territory=-Zweig, nicht im ?wiki_key=-Zweig, und das ist Absicht:
+    // ecosystem_region_territory kennt ausschließlich public_ids, und der wiki_key-Zweig bedient den
+    // Territorien-EDITOR, der diese Zeile gar nicht zeichnet (die Karte fragt immer mit public_id,
+    // map-features-infopanel.js). Eine Auflösung wiki_key -> public_id wäre eine zusätzliche Abfrage
+    // für einen Leser, den es nicht gibt.
     $climateZones = $publicId === '' ? [] : avesmapsClimateReadTerritoryZones($pdo, $publicId);
 
     $response = [
