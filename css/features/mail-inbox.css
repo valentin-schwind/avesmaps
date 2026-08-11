@@ -20,11 +20,35 @@
 .mail-inbox__item.is-highlighted { border-color: var(--color-success); box-shadow: 0 0 0 2px rgba(27, 175, 122, 0.28); }
 .mail-inbox__item.is-open { border-color: var(--color-border-strong); background: var(--color-panel-muted); }
 .mail-inbox__item.is-unread .mail-inbox__from { font-weight: 700; }
+/* Inbox row = list entry + its row action. The entry is a <button>, so the trash button cannot
+   sit inside it (a button inside a button is invalid HTML); this wrapper is what makes the pair
+   legal. The inline detail card is inserted after the WRAPPER, not after the entry. */
+.mail-inbox__row { display: flex; align-items: stretch; gap: 6px; }
+.mail-inbox__row > .mail-inbox__item { flex: 1 1 auto; min-width: 0; }
+.mail-inbox__row.is-trashing { opacity: 0.55; }
+/* Soft/outline, never filled: an action inside a LIST ROW is never the page's main action
+   (AGENTS.md §12) — and this list is 40 rows long. The danger tone belongs to the intent, so it
+   only appears on hover, not in the resting state. */
+.mail-inbox__trash { flex: 0 0 auto; width: 34px; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; font: inherit; line-height: 1; appearance: none; -webkit-appearance: none; border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md); background: var(--color-button-soft); color: var(--color-button-soft-text); }
+.mail-inbox__trash:hover { border-color: var(--color-danger-soft-border); background: var(--color-danger-soft); color: var(--color-danger-soft-text); }
+.mail-inbox__trash:disabled { cursor: default; opacity: 0.5; }
+.mail-inbox__trash-error { display: inline-block; margin-left: 6px; font-size: 11px; color: var(--color-danger); }
 .mail-inbox__from { color: var(--color-text-strong); }
 .mail-inbox__subject { color: var(--color-text-muted); }
 .mail-inbox__meta { color: var(--color-text-muted); font-size: 12px; }
 .mail-inbox__badge { display: inline-block; margin-left: 6px; font-size: 11px; color: var(--color-success); cursor: pointer; }
 .mail-inbox__badge:hover { text-decoration: underline; }
+/* Sent entries are <details>: collapsed they stay a readable one-entry summary (recipient,
+   subject, date, sender, first line), expanded they show the full text. The browser's own
+   disclosure triangle is removed so the entry lines up with an inbox row next door. */
+.mail-inbox__sent { cursor: default; }
+.mail-inbox__sent > summary { cursor: pointer; list-style: none; }
+.mail-inbox__sent > summary::-webkit-details-marker { display: none; }
+.mail-inbox__sent[open] > summary { margin-bottom: 6px; }
+.mail-inbox__sent[open] { border-color: var(--color-border-strong); background: var(--color-panel-muted); }
+.mail-inbox__preview { color: var(--color-text-muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Once open, the full text is right below — the teaser would only repeat its first line. */
+.mail-inbox__sent[open] .mail-inbox__preview { display: none; }
 /* Inline detail card that expands directly under the clicked list entry (accordion). */
 .mail-inbox__detail { border: 1px solid var(--color-border-strong); border-radius: 8px; background: var(--color-panel); padding: 10px 12px; }
 .mail-inbox__body { white-space: pre-wrap; word-break: break-word; color: var(--color-text); }

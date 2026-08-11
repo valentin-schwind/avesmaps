@@ -15,6 +15,9 @@ function avesmapsResolveImapConfig(array $config): array {
         'ref' => '{' . $host . ':' . $port . $flags . '}',
         'mailbox' => trim((string) ($imap['mailbox'] ?? 'INBOX')),
         'sent_mailbox' => trim((string) ($imap['sent_mailbox'] ?? 'Sent')),
+        // Empty on purpose: the trash folder is DISCOVERED (see avesmapsImapResolveTrashMailbox),
+        // never guessed. An explicit config value wins over discovery.
+        'trash_mailbox' => trim((string) ($imap['trash_mailbox'] ?? '')),
         'username' => trim((string) ($imap['username'] ?? $smtp['username'] ?? '')),
         'password' => (string) ($imap['password'] ?? $smtp['password'] ?? ''),
     ];
@@ -75,6 +78,10 @@ function avesmapsImapListRecent($imap, int $limit): array {
     if (!is_array($overview)) { return []; }
     $rows = [];
     foreach (array_reverse($overview) as $o) {
+        // Second safety net behind the expunge in avesmapsImapMoveToTrash(): a message that is
+        // flagged \Deleted has already been moved away (its copy lives in Trash). If the expunge
+        // failed, showing it here would be a zombie the editor can neither read nor get rid of.
+        if (!empty($o->deleted)) { continue; }
         $from = isset($o->from) ? avesmapsImapDecodeMime((string) $o->from) : '';
         $subject = isset($o->subject) ? avesmapsImapDecodeMime((string) $o->subject) : '';
         $rows[] = [
@@ -105,6 +112,55 @@ function avesmapsImapMessageMeta($imap, int $uid): ?array {
 
 function avesmapsImapMarkSeen($imap, int $uid): void {
     @imap_setflag_full($imap, (string) $uid, '\\Seen', ST_UID);
+}
+
+// --- Trash ----------------------------------------------------------------------------
+// Moving a message out of the inbox needs the NAME of the trash folder, and there is no standard
+// one: Trash / Papierkorb / Deleted Items / INBOX.Trash are all in the wild, and ext-imap does not
+// expose the SPECIAL-USE \Trash attribute. Guessing is the dangerous option -- IMAP servers create
+// a missing mailbox on demand, so a wrong guess files the mail into a folder nobody ever opens and
+// reports success. So: read the real folder list and match against it, or refuse.
+
+const AVESMAPS_IMAP_TRASH_NAMES = ['trash', 'papierkorb', 'deleted items', 'deleted messages', 'deleted'];
+
+function avesmapsImapListFolders($imap, string $ref): array {
+    $list = @imap_list($imap, $ref, '*');
+    return is_array($list) ? array_map(static fn($v) => (string) $v, $list) : [];
+}
+
+/**
+ * Pick the trash folder out of an imap_list() result. Entries are fully qualified
+ * ("{imap.example.org:993/imap/ssl}INBOX.Trash"); the connect reference is stripped and only the
+ * LAST path segment is compared, case-insensitively, preferring earlier AVESMAPS_IMAP_TRASH_NAMES
+ * entries. An explicitly configured name wins outright. Returns '' when the mailbox has no trash
+ * folder -- the caller MUST refuse then, never fall back to a name.
+ */
+function avesmapsImapResolveTrashMailbox(array $folders, string $configured = ''): string {
+    if (trim($configured) !== '') { return trim($configured); }
+    $best = '';
+    $bestRank = PHP_INT_MAX;
+    foreach ($folders as $folder) {
+        $name = (string) preg_replace('/^\{[^}]*\}/', '', (string) $folder);
+        if (trim($name) === '') { continue; }
+        $segments = preg_split('#[./]#', $name);
+        $leaf = strtolower(trim((string) end($segments)));
+        $rank = array_search($leaf, AVESMAPS_IMAP_TRASH_NAMES, true);
+        if ($rank === false || $rank >= $bestRank) { continue; }
+        $best = $name;
+        $bestRank = (int) $rank;
+    }
+    return $best;
+}
+
+function avesmapsImapMoveToTrash($imap, int $uid, string $trashMailbox): bool {
+    if ($uid <= 0 || trim($trashMailbox) === '') { return false; }
+    if (!@imap_mail_move($imap, (string) $uid, $trashMailbox, CP_UID)) { return false; }
+    // imap_mail_move only COPIES and flags the source \Deleted. Without the expunge the message
+    // stays in the inbox (struck through in a mail client) while its copy sits in Trash.
+    // Known cost: expunge drops EVERY \Deleted-flagged message of this mailbox, including ones a
+    // mail client flagged but did not remove yet -- ext-imap has no targeted UID EXPUNGE.
+    @imap_expunge($imap);
+    return true;
 }
 
 function avesmapsImapDecodePart(string $raw, $part): string {

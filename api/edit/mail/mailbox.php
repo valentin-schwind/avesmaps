@@ -77,6 +77,32 @@ try {
                 'deliveryStatus' => $deliveryStatus,
             ]);
         }
+        if ($action === 'trash') {
+            if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
+                avesmapsErrorResponse(405, 'method_not_allowed', 'Trash requires POST.');
+            }
+            $payload = avesmapsReadJsonRequest();
+            $uid = (int) ($payload['uid'] ?? 0);
+            if ($uid <= 0) {
+                avesmapsErrorResponse(400, 'invalid_request', 'uid is required.');
+            }
+            if (avesmapsImapMessageMeta($imap, $uid) === null) {
+                avesmapsErrorResponse(404, 'not_found', 'Message not found.');
+            }
+            // Never guess the folder name: an unknown trash folder is a refusal, not a fallback
+            // (an invented name would be created by the server and swallow the mail silently).
+            $trash = avesmapsImapResolveTrashMailbox(
+                avesmapsImapListFolders($imap, $imapCfg['ref']),
+                (string) ($imapCfg['trash_mailbox'] ?? '')
+            );
+            if ($trash === '') {
+                avesmapsErrorResponse(422, 'no_trash_mailbox', 'This mailbox has no trash folder.');
+            }
+            if (!avesmapsImapMoveToTrash($imap, $uid, $trash)) {
+                avesmapsErrorResponse(502, 'trash_move_failed', 'The message could not be moved to the trash folder.');
+            }
+            avesmapsJsonResponse(200, ['ok' => true, 'uid' => $uid, 'mailbox' => $trash]);
+        }
         if ($action === 'image') {
             $uid = (int) ($_GET['uid'] ?? 0);
             $section = (string) ($_GET['part'] ?? '');
