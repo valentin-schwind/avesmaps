@@ -183,6 +183,19 @@
 	flex: 0 0 auto;
 }
 
+/* Die aufklappbare Fusszeile der Ausreisserliste (js/review/review-path-sync.js). Sie hatte bis zum
+   12.08.2026 ueberhaupt keine eigene Regel und hat ihr Aussehen komplett von der damals
+   klassenlosen `details > summary`-Regel aus `political-territory-wiki-tree.css` geerbt. Jetzt
+   steht es hier -- unveraendert, damit die Bindung der Baum-Regel nichts sichtbar verschiebt. */
+.review-panel__resolved-outliers > summary {
+	cursor: pointer;
+	list-style: none;
+}
+
+.review-panel__resolved-outliers > summary::-webkit-details-marker {
+	display: none;
+}
+
 .route-plan-summary {
 	display: block;
 	width: 100%;

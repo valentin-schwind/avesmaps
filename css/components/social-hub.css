@@ -111,9 +111,17 @@
 	font-size: 12px;
 }
 
+/* `list-style: none` steht hier, seit die Baum-Regel in `political-territory-wiki-tree.css` an
+   `.tree-node` gebunden ist (12.08.2026): bis dahin hat dieser Kasten sein marker-loses Aussehen
+   von dort GEERBT, ohne es je zu bestellen. Ausgeschrieben, damit die Zeile so aussieht wie bisher. */
 .social-post__payload > summary {
 	cursor: pointer;
 	color: var(--color-link);
+	list-style: none;
+}
+
+.social-post__payload > summary::-webkit-details-marker {
+	display: none;
 }
 
 .social-post__payload > pre {
@@ -648,10 +656,16 @@
 	border-top: 1px solid var(--color-divider);
 }
 
+/* Wie oben bei `.social-post__payload > summary`: das fehlende Dreieck war geerbt, jetzt steht es da. */
 .social-hub__where > summary {
 	cursor: pointer;
 	color: var(--color-link);
 	font-size: 12px;
+	list-style: none;
+}
+
+.social-hub__where > summary::-webkit-details-marker {
+	display: none;
 }
 
 .social-hub__where-channel {

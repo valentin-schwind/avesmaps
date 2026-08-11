@@ -86,7 +86,12 @@ h3 {
 	margin: 3px 0;
 }
 
-details > summary {
+/* 💣 Gebunden bleiben -- dieselbe Regel und dieselbe Begruendung wie in
+   `css/pages/political-territory-wiki-tree.css` (dort ausfuehrlich). Dieses Blatt liegt zwar nur auf
+   der eigenstaendigen Editorseite, wird aber von `tools/scope_editor_css.js` MIT in das Bauprodukt
+   `political-territory-editor-inline.css` gezogen -- und das laeuft im eingebetteten Editor, also in
+   `index.html`. Ungebunden erwischt sie von dort aus jedes <details> im Editor-Wirt. */
+.tree-node details > summary {
 	display: flex;
 	align-items: center;
 	gap: 3px;
@@ -94,7 +99,7 @@ details > summary {
 	list-style: none;
 }
 
-details > summary::-webkit-details-marker {
+.tree-node details > summary::-webkit-details-marker {
 	display: none;
 }
 
@@ -119,7 +124,7 @@ details > summary::-webkit-details-marker {
 	transition: transform 0.12s ease;
 }
 
-details[open] > summary .tree-toggle::before {
+.tree-node details[open] > summary .tree-toggle::before {
 	transform: rotate(90deg);
 }
 

@@ -90,7 +90,12 @@
 	margin: 3px 0;
 }
 
-#political-territory-editor-host details > summary {
+/* 💣 Gebunden bleiben -- dieselbe Regel und dieselbe Begruendung wie in
+   `css/pages/political-territory-wiki-tree.css` (dort ausfuehrlich). Dieses Blatt liegt zwar nur auf
+   der eigenstaendigen Editorseite, wird aber von `tools/scope_editor_css.js` MIT in das Bauprodukt
+   `political-territory-editor-inline.css` gezogen -- und das laeuft im eingebetteten Editor, also in
+   `index.html`. Ungebunden erwischt sie von dort aus jedes <details> im Editor-Wirt. */
+#political-territory-editor-host .tree-node details > summary {
 	display: flex;
 	align-items: center;
 	gap: 3px;
@@ -98,7 +103,7 @@
 	list-style: none;
 }
 
-#political-territory-editor-host details > summary::-webkit-details-marker {
+#political-territory-editor-host .tree-node details > summary::-webkit-details-marker {
 	display: none;
 }
 
@@ -123,7 +128,7 @@
 	transition: transform 0.12s ease;
 }
 
-#political-territory-editor-host details[open] > summary .tree-toggle::before {
+#political-territory-editor-host .tree-node details[open] > summary .tree-toggle::before {
 	transform: rotate(90deg);
 }
 
@@ -1788,7 +1793,16 @@
 	margin: 3px 0;
 }
 
-#political-territory-editor-host details > summary {
+/* 💣 An `.tree-node` GEBUNDEN, und das muss so bleiben. Diese Datei ist in `index.html` direkt
+   verlinkt (Z. 51), eine klassenlose `details > summary`-Regel gilt deshalb fuer JEDES <details>
+   der ganzen Seite -- Hinweise-Fenster, Social-Hub, WikiSync-Listen, Postfach. Genau das war sie
+   bis zum 12.08.2026, und am 11.08. hat sie den gesendeten Mails im Postfach Adressat, Betreff,
+   Datum und Vorschau NEBENeinander in eine Zeile gelegt (behelfsweise behoben mit einer Gegenregel
+   in `css/features/mail-inbox.css`, Commit b57210e0). Der Praefix ist die eigentliche Behebung.
+   ⚠️ Nicht nur `display` haengt daran: `list-style: none` nimmt dem <summary> auch das
+   Aufklapp-Dreieck. Wer die Bindung zurueckdreht, loescht es wieder ueberall auf der Seite.
+   Bewacht von `js/app/__tests__/details-summary-scope.test.js`. */
+#political-territory-editor-host .tree-node details > summary {
 	display: flex;
 	align-items: center;
 	gap: 3px;
@@ -1796,7 +1810,7 @@
 	list-style: none;
 }
 
-#political-territory-editor-host details > summary::-webkit-details-marker {
+#political-territory-editor-host .tree-node details > summary::-webkit-details-marker {
 	display: none;
 }
 
@@ -1821,7 +1835,7 @@
 	transition: transform 0.12s ease;
 }
 
-#political-territory-editor-host details[open] > summary .tree-toggle::before {
+#political-territory-editor-host .tree-node details[open] > summary .tree-toggle::before {
 	transform: rotate(90deg);
 }
 
