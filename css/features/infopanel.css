@@ -358,6 +358,22 @@
 	right: 0;
 }
 
+/* Am Telefon gibt es die Lasche im Frontend nicht (Owner 12.08.2026). Dort ist sie ein Reiter ueber
+   der Karte, der nur EINE Sache kann -- das Panel zuklappen, was ein Tipp auf die freie Karte
+   ohnehin tut. Im EDIT-Modus bleibt sie: dort ist sie der zweite Reiter neben „Editor" und damit der
+   Weg zwischen zwei Panels, nicht bloss ein Schalter.
+   ⚠️ Damit ist der Tipp auf den Kartenstreifen neben dem Panel der einzige Weg, es am Telefon
+   zuzuklappen. So abgenommen; kommt die Frage wieder, gehoert ein „✕" in den Panelkopf -- nicht die
+   Lasche zurueck.
+   💣 `body:not(.edit-mode)`, nicht `html:not(...)`: die Klasse setzt
+   js/map-features/map-features-political-territory-loader.js auf den BODY, und die Lasche haengt
+   selbst direkt am body. Ohne !important, weil das JS im Sichtbarkeitsfall
+   `handle.style.display = ""` schreibt (also nichts) und nur im Leerfall ein Inline-`none` -- beide
+   Faelle enden hier richtig. */
+html.avesmaps-phone body:not(.edit-mode) .avesmaps-infopanel__handle {
+	display: none;
+}
+
 /* ---- Rand-Tab-Andocken (Fix fuer schmale Fenster) ----
    Ist KEIN Panel offen, docken beide Rand-Tabs (Info + Editor) an die rechte BILDSCHIRMkante (right:0) --
    sonst klebten sie an der linken Panel-Kante (right:var(--ip-w)), die in schmalen Fenstern weit links

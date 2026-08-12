@@ -80,6 +80,37 @@ html.avesmaps-phone #search {
 	z-index: var(--z-map-panel);
 }
 
+/* Am Telefon ist die Lasche ein kleiner Pfeilgriff statt eines beschrifteten Balkens: mittig an der
+   Kante, mit einem schmalen Schattenband an genau der Seite, unter der sie hervorkommt (Owner
+   12.08.2026, am Entwurf abgenommen -- der 30x140-Balken verdeckte am Telefon zu viel Karte). Die
+   MASSE stehen in css/base/tokens.css, hier steht nur die Form.
+   💣 Das Wort bleibt im Knopf und wird nur unsichtbar (`font-size: 0`). „Routenplaner" ist sein
+   zugaenglicher Name und der Anker seiner Uebersetzung (`data-i18n` in index.html) -- wer es durch
+   den Pfeil ERSETZT, nimmt es beiden weg, und auf dem Bildschirm sieht das identisch aus.
+   💣 Die Pfeilrichtung liest `html.avesmaps-planner-collapsed` (js/ui/route-planner-toggle.js).
+   Gleiche Bauart wie `avesmaps-any-panel-open`: den Zustand kennt das JS, die Form das CSS. Ohne die
+   Klasse zeigt der Pfeil „zu" -- und das ist die richtige Richtung fuer den Fall, dass sie nie
+   gesetzt wurde, denn am Zeiger greift diese ganze Regel ohnehin nicht. */
+html.avesmaps-phone #toggle-button {
+	top: 50%;
+	transform: translateY(-50%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 0 var(--radius-md) var(--radius-md) 0;
+	writing-mode: horizontal-tb;
+	font-size: 0;
+	background-image: var(--avesmaps-tab-edge-shade);
+}
+html.avesmaps-phone #toggle-button::before {
+	content: "\2039";
+	font-size: 30px;
+	line-height: 1;
+}
+html.avesmaps-phone.avesmaps-planner-collapsed #toggle-button::before {
+	content: "\203A";
+}
+
 
 @media (max-width: 640px) {
 	/* 💣 Eine Hoehe, an der das `overflow-y: auto` von oben endlich GREIFT. Die 140dvh war ein

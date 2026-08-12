@@ -146,10 +146,21 @@ ECKKNOEPFE.forEach((id) => {
 		`${id} steht auch in der Hover-Regel -- sonst sieht der Knopf richtig aus und bleibt unter`
 		+ " dem Zeiger stumm (so geschehen am 11.08.2026)");
 });
-const eigen = legalCss.match(/^#map-search-button\s*\{([^}]*)\}/m);
-assert.ok(eigen, "und hat einen eigenen Block fuer das, was eine Kachel ausmacht");
+// ⚠️ Der Block darf MEHRERE Knoepfe nennen und tut es seit dem 12.08.2026 auch: der Anzeige-Knopf
+// (Auge) steht mit drin, damit die zwei 48er-Kacheln nicht zwei Quellen fuer dieselbe Groesse
+// haben. Gesucht wird deshalb der Block, in dessen Selektorliste die Suchkachel VORKOMMT -- nicht
+// einer, der nur aus ihr besteht. Die woertliche Fassung hat drei Deploys rot gemacht, obwohl an
+// der Regel nichts falsch war.
+// ⚠️ Und es ist nicht die ERSTE Regel mit diesem Selektor -- das ist die gemeinsame Grundregel
+// von weiter oben. Gesucht ist die, die das Fingermass traegt.
+const kachelBloecke = Array.from(legalCss.matchAll(/([^{}]*#map-search-button[^{}]*)\{([^}]*)\}/g));
+const eigen = kachelBloecke.find((b) => /width:\s*48px/.test(b[2]) && !/:hover|:focus/.test(b[1]));
+const kachelBlock = eigen ? eigen[2] : "";   // [1] ist die Selektorliste, [2] der Rumpf
+assert.ok(eigen,
+	"und hat einen eigenen Block fuer das, was eine Kachel ausmacht (48x48) -- ggf. gemeinsam mit"
+	+ " ihren gleich grossen Nachbarn, die Selektorliste darf wachsen");
 ["background", "border:", "border-radius", "box-shadow", "color:"].forEach((prop) => {
-	assert.ok(!new RegExp(escapeRe(prop)).test(eigen[1]),
+	assert.ok(!new RegExp(escapeRe(prop)).test(kachelBlock),
 		`der Kachel-Block setzt ${prop} NICHT selbst -- das kommt aus der gemeinsamen Regel`);
 });
 // Die Kachel ist seit dem 11.08. FREI von der Reihe (Owner: "sie muss nich ihren partnern
@@ -158,12 +169,12 @@ assert.ok(eigen, "und hat einen eigenen Block fuer das, was eine Kachel ausmacht
 // 💣 Aber ihre LAGE wird nirgends gerechnet: der Bund ist eine Spalte, die beiden Verweise sind
 // seine zweite Reihe. Ein `bottom`-Abstand haette --avesmaps-corner-stack lesen muessen, und genau
 // die Zahl lag am 10.08. um 8px daneben, als die Knoepfe wuchsen und sie stehenblieb.
-assert.ok(/width:\s*48px/.test(eigen[1]) && /height:\s*48px/.test(eigen[1]),
+assert.ok(/width:\s*48px/.test(kachelBlock) && /height:\s*48px/.test(kachelBlock),
 	"die Kachel traegt Fingermass (48x48) -- sie muss ihren Nachbarn nicht mehr gleichen");
-assert.ok(!/aspect-ratio/.test(eigen[1]) && !/align-self/.test(eigen[1]),
+assert.ok(!/aspect-ratio/.test(kachelBlock) && !/align-self/.test(kachelBlock),
 	"und koppelt sich NICHT ueber aspect-ratio/align-self an die Reihe -- das ist ein Zirkel (der Bund"
 	+ " hat keine eigene Hoehe), gemessen wurde die Kachel damit 302x302");
-assert.ok(!/bottom:/.test(eigen[1]) && !/avesmaps-corner-stack/.test(eigen[1]),
+assert.ok(!/bottom:/.test(kachelBlock) && !/avesmaps-corner-stack/.test(kachelBlock),
 	"und rechnet ihren Abstand zum Bund NICHT aus -- sie ist die erste Reihe einer Spalte");
 
 const bundRegel = legalCss.match(/^#map-corner-actions\s*\{([^}]*)\}/m);
@@ -730,9 +741,21 @@ assert.ok(telefonBlock, "tokens.css traegt den Telefon-Block");
 assert.ok(/--avesmaps-panel-inset-top:\s*0/.test(telefonBlock[1])
 	&& /--avesmaps-panel-inset-bottom:\s*0/.test(telefonBlock[1]),
 	"am Telefon laufen die PANELS von Kante zu Kante");
-assert.ok(!/--avesmaps-tab-(top|h)\s*:/.test(telefonBlock[1]),
-	"...und die LASCHEN nicht -- die Reiter behalten ihre Grundwerte, sonst steht ein 100dvh-Balken"
-	+ " neben der Karte (zurueckgenommen am 11.08.2026)");
+assert.ok(!/--avesmaps-tab-top\s*:/.test(telefonBlock[1]),
+	"...und die LASCHEN fangen am Telefon dort an, wo sie ueberall anfangen -- der Griff des Planers"
+	+ " rueckt seit dem 12.08.2026 in die Mitte, aber das ist eine LAGE (top: 50% + translate) und"
+	+ " keine zweite Zahl (css/layout/map-layout.css)");
+// 🔴 Die Lehre vom 11.08.2026 in ihrer haltbaren Form: die Lasche darf am Telefon KLEINER werden
+// (der Pfeilgriff vom 12.08.2026, Owner am Entwurf abgenommen), aber nie ein Anteil des Schirms --
+// genau das war der 100dvh-Balken neben der Karte.
+const telefonHoehe = telefonBlock[1].match(/--avesmaps-tab-h:\s*([0-9.]+)(px|dvh|vh|%|em|rem)/);
+const grundHoehe = tokens.match(/--avesmaps-tab-h:\s*([0-9.]+)px/);
+assert.ok(telefonHoehe && grundHoehe, "beide Hoehen der Lasche sind auffindbar");
+assert.strictEqual(telefonHoehe[2], "px",
+	`die Telefon-Hoehe der Lasche steht in px (gefunden: ${telefonHoehe[2]}) -- ein Anteil des`
+	+ " Schirms macht daraus wieder den Balken vom 11.08.2026");
+assert.ok(Number(telefonHoehe[1]) < Number(grundHoehe[1]),
+	`...und sie ist kleiner als am Zeiger (${telefonHoehe[1]} < ${grundHoehe[1]})`);
 // Der Routenplaner las die Panel-Token lange NICHT: `top: 10px` und `max-height: 95vh` standen als
 // eigene Zahlen in map-layout.css, und er blieb deshalb mitten im Bild stehen, waehrend das
 // Infopanel gegenueber schon an der Kante klebte.
@@ -790,8 +813,13 @@ assert.ok(!/--avesmaps-edge-gap\s*:/.test(telefonBlock[1]),
 // Owner 11.08.2026: „der Suchen button kommt uebrigens gut an, wir wollen dass der auch schnell aufm
 // desktop verfuegbar ist und die kachel zwischen zoom und den hinweisbuttons platzieren. allerdings
 // brauchen wir hier nicht die animation."
-const kachelRegel = legalCss.match(/^#map-search-button\s*\{([^}]*)\}/m);
-assert.ok(kachelRegel && /display:\s*inline-flex/.test(kachelRegel[1]),
+// ⚠️ Die Kachel darf in einer SELEKTORLISTE stehen -- seit dem 12.08.2026 tut sie das (der
+// Anzeige-Knopf ist ihr Nachbar in derselben Spalte und teilt sich ihre Groesse). Die Zusicherung
+// suchte vorher eine Regel, die mit `#map-search-button {` beginnt, und wurde von dem Komma rot,
+// obwohl die Kachel unveraendert sichtbar ist. Geprueft wird deshalb: IRGENDEINE Regel, deren
+// Selektorliste mit ihr anfaengt, macht sie sichtbar.
+const kachelRegeln = legalCss.match(/^#map-search-button[^{]*\{[^}]*\}/gm) || [];
+assert.ok(kachelRegeln.some((regel) => /display:\s*inline-flex/.test(regel)),
 	"die Suchkachel ist sichtbar -- an BEIDEN Zeigern");
 assert.ok(!/@media\s*\(pointer:\s*coarse\)\s*\{[^}]*#map-search-button/.test(legalCss),
 	"und nicht mehr per (pointer: coarse) freigeschaltet -- der Riegel ist weg, nicht umgedreht");
@@ -835,5 +863,58 @@ assert.ok(viewport, "index.html traegt ein Viewport-Meta");
 assert.ok(!/maximum-scale|user-scalable/.test(viewport[0]),
 	"das Viewport-Meta sperrt das Aufziehen NICHT -- das naehme allen die Zoomgeste, und neuere"
 	+ " iOS-Fassungen ignorieren es ohnehin");
+
+// ---- Die Randlaschen am Telefon (12.08.2026) -----------------------------------------------------
+//
+// Zwei Entscheidungen des Owners, am Entwurf abgenommen: die Info-Lasche gibt es im Frontend nicht
+// mehr, und die Lasche des Planers ist ein kleiner Pfeilgriff statt eines beschrifteten Balkens.
+//
+// ⚠️ NUR im Frontend. Im Edit-Modus ist die Info-Lasche der zweite Reiter neben „Editor" -- ohne sie
+// gaebe es dort keinen Weg zurueck ins Infopanel. Deshalb wird die QUALIFIZIERUNG geprueft, nicht
+// bloss, dass irgendwo ein display:none steht.
+const infoLasche = infopanelCss.match(/^html\.avesmaps-phone [^{]*\.avesmaps-infopanel__handle\s*\{([^}]*)\}/m);
+assert.ok(infoLasche, "es gibt eine Telefon-Regel fuer die Info-Lasche");
+assert.ok(/display:\s*none/.test(infoLasche[1]),
+	"sie versteckt die Lasche am Telefon");
+assert.ok(/body:not\(\.edit-mode\)/.test(infoLasche[0]),
+	"...und zwar nur im Frontend. `body`, weil map-features-political-territory-loader.js die Klasse"
+	+ " `edit-mode` auf den BODY setzt -- an <html> gehaengt greift die Ausnahme nie und die Lasche"
+	+ " waere auch im Editor weg, wo sie der Weg zwischen zwei Panels ist");
+
+// 💣 Das Wort bleibt im Knopf. Es ist sein zugaenglicher Name und der Anker seiner Uebersetzung; ein
+// Pfeil, der es ERSETZT, sieht auf dem Schirm identisch aus und nimmt beides weg.
+assert.ok(/id="toggle-button"[^>]*data-i18n="planner\.toggle"[^>]*>\s*Routenplaner/.test(indexHtml),
+	"der Knopf traegt weiterhin sein Wort samt i18n-Anker");
+const phoneGriff = layoutCss.match(/^html\.avesmaps-phone #toggle-button\s*\{([^}]*)\}/m);
+assert.ok(phoneGriff, "es gibt eine Telefon-Regel fuer die Lasche des Planers");
+assert.ok(/font-size:\s*0/.test(phoneGriff[1]),
+	"...die das Wort unsichtbar macht, statt es aus dem Markup zu nehmen");
+assert.ok(/^html\.avesmaps-phone #toggle-button::before\s*\{[^}]*content:/m.test(layoutCss),
+	"der Pfeil kommt aus ::before -- er ist Schmuck, kein Inhalt");
+
+// 💣 Die Richtung IST der Zustand. Sie haengt an einer Klasse, die das JS setzt; zeigt der Pfeil in
+// die falsche Richtung, sieht sonst nichts falsch aus -- deshalb beide Enden geprueft.
+assert.ok(/^html\.avesmaps-phone\.avesmaps-planner-collapsed #toggle-button::before\s*\{[^}]*content:/m.test(layoutCss),
+	"der zugeklappte Zustand hat seine eigene Pfeilrichtung");
+assert.ok(/function markRoutePlannerCollapsed[\s\S]{0,400}classList\.toggle\("avesmaps-planner-collapsed"/.test(plannerToggle),
+	"und die Klasse kommt aus markRoutePlannerCollapsed");
+const zustandsSchreiber = (plannerToggle.match(/isSearchPanelHidden\s*=(?!=)/g) || []).length;
+assert.strictEqual(zustandsSchreiber, 1,
+	`der Zustand wird an genau EINER Stelle geschrieben (gefunden: ${zustandsSchreiber}). Variable und`
+	+ " Klasse gehoeren zusammen -- eine zweite Zuweisung daneben laesst die Klasse zurueck, und dann"
+	+ " zeigt der Pfeil verkehrt herum, ohne dass irgendetwas anderes auffaellt");
+
+// ⚠️ Die MASSE stehen in tokens.css, die FORM in map-layout.css -- dieselbe Trennung wie bei den
+// Grundwerten. Eine Breite in der Telefonregel waere der dritte Ort, an dem Laschenmaße stehen.
+const phoneTokens = tokens.match(/^html\.avesmaps-phone\s*\{([^}]*)\}/m);
+assert.ok(phoneTokens && /--avesmaps-tab-w:\s*[0-9.]+px/.test(phoneTokens[1]) && /--avesmaps-tab-h:\s*[0-9.]+px/.test(phoneTokens[1]),
+	"die Telefon-Maße der Lasche stehen in tokens.css (die Groessenlehre dazu steht oben)");
+["width", "height"].forEach((eigenschaft) => {
+	assert.ok(!new RegExp(`(^|;)\\s*${eigenschaft}:`).test(phoneGriff[1]),
+		`die Telefonregel setzt \`${eigenschaft}\` NICHT selbst -- sie liest die Token`);
+});
+assert.ok(/--avesmaps-tab-edge-shade:\s*linear-gradient/.test(tokens)
+	&& /background-image:\s*var\(--avesmaps-tab-edge-shade\)/.test(phoneGriff[1]),
+	"der Kantenschatten ist ein Token und wird als solcher gelesen -- keine Farbe von Hand (AGENTS.md §12)");
 
 console.log("touch-scale tests passed");

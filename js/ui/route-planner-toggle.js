@@ -182,6 +182,18 @@ enableBlankEditMapStyle();
  * schon so -> nichts tun" waere das ein Ping-Pong. Einklappen loest deshalb NIE ein Aufklappen aus:
  * jede Richtung schliesst nur den anderen, sie oeffnet ihn nie.
  */
+/**
+ * Der Zustand des Planers wird an EINER Stelle festgehalten: in der Variablen, die das JS liest, und
+ * in der Klasse, die das CSS liest. Am Telefon ist die Lasche seit dem 12.08.2026 ein Pfeil, und
+ * seine RICHTUNG ist dieser Zustand (css/layout/map-layout.css) -- fehlt die Klasse, zeigt der Pfeil
+ * verkehrt herum, und sonst sieht nichts falsch aus. Genau deshalb stehen beide hier zusammen und
+ * nicht an den zwei Stellen, die den Planer zufahren.
+ */
+function markRoutePlannerCollapsed(collapsed) {
+    isSearchPanelHidden = collapsed;
+    document.documentElement.classList.toggle("avesmaps-planner-collapsed", collapsed);
+}
+
 function setRoutePlannerCollapsed(collapsed) {
     if (collapsed === isSearchPanelHidden) {
         return;
@@ -192,7 +204,7 @@ function setRoutePlannerCollapsed(collapsed) {
     // review-panel.css) -- damit fahren alle Panels einheitlich schnell aus/ein.
     $("#search").stop(true).animate({ left: collapsed ? `-${panelWidth}px` : "0px" }, 220);
     $("#toggle-button").stop(true).animate({ left: collapsed ? "0px" : `${panelWidth}px` }, 220);
-    isSearchPanelHidden = collapsed;
+    markRoutePlannerCollapsed(collapsed);
 
     // Am Telefon ist immer nur EIN Panel offen (Owner 11.08.2026, mit Foto: Infopanel lag ueber dem
     // Planer). Am Zeiger duerfen sie nebeneinander stehen -- dort ist Platz dafuer.
@@ -220,5 +232,5 @@ $("#toggle-button").off("click").on("click", () => {
     const panelWidth = getRoutePlannerPanelWidth();
     $("#search").css("left", `-${panelWidth}px`);
     $("#toggle-button").css("left", "0px");
-    isSearchPanelHidden = true;
+    markRoutePlannerCollapsed(true);
 })();

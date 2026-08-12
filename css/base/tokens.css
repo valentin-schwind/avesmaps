@@ -481,6 +481,14 @@
 	--avesmaps-tab-w: 30px;
 	--avesmaps-tab-top: 30px;
 	--avesmaps-tab-h: 140px;
+	/* Der Kantenschatten der Telefon-Lasche: ein schmales dunkles Band an genau der Kante, unter der
+	   sie hervorkommt -- ausdruecklich KEIN Verlauf ueber die volle Breite (Owner 12.08.2026, am
+	   Entwurf entschieden: „nicht ueber die volle breite, sondern dass es so aussieht wenn die lasche
+	   unter dem panel sitzt"). Als fertiges Bild und nicht als Farbe, weil erst die drei Stopps
+	   zusammen die Aussage sind; einzeln waeren es drei Zahlen, die auseinanderlaufen koennen.
+	   ⚠️ Derselbe Wert in hell und dunkel: er verdunkelt den Knopfgrund, statt eine eigene Farbe zu
+	   setzen, und beide Knopfgruende sind warme Brauntoene. */
+	--avesmaps-tab-edge-shade: linear-gradient(90deg, rgba(18, 15, 10, 0.36) 0, rgba(18, 15, 10, 0.17) 5px, rgba(18, 15, 10, 0) 13px);
 
 	/* Der Abstand zum Kartenrand -- EINE Zahl fuer alles, was unten an der Karte klebt: der
 	   Knopfbund („Neuigkeiten"/„Hinweise"), der Zoom darueber und die beiden Panels.
@@ -559,8 +567,12 @@
    🔴 Das war am 11.08.2026 fuer wenige Stunden anders und ist zurueckgenommen: „von oben nach
    unten durchgehen" galt dem PANEL, nicht seinem Reiter (Owner, nach dem Ansehen: „das Tab sollte
    nicht veraendert werden, ich meinte dass das Panel selbst von oben nach unten gehen soll"). Eine
-   Lasche ueber die volle Bildschirmhoehe ist ein 100-dvh-Balken neben der Karte. Die Reiter behalten
-   deshalb ihre Grundwerte (--avesmaps-tab-top/-h in :root), auch am Telefon.
+   Lasche ueber die volle Bildschirmhoehe ist ein 100-dvh-Balken neben der Karte.
+   ⚠️ Seit dem 12.08.2026 ist die Lasche des Planers am Telefon KLEINER als am Zeiger (26x56 statt
+   30x140, Werte unten) und sitzt mittig statt oben -- also das Gegenteil jener Aenderung, nicht sie
+   noch einmal: der Owner hat den kleinen Pfeilgriff am Entwurf abgenommen, weil der beschriftete
+   Balken am Telefon zu viel Karte verdeckt. `--avesmaps-tab-top` gilt dort deshalb nur noch der
+   Info-Lasche (die im Frontend ohnehin weg ist, also praktisch nur dem Edit-Modus).
    💣 An `html.avesmaps-phone`, NICHT an einer Media-Query: „Telefon" ist in diesem Haus EINE
    Definition -- avesmapsIsPhoneViewport() (pointer: coarse UND Kurzseite <= 600px) setzt die Klasse,
    das CSS liest sie. Eine zweite Fassung als Breiten-Query traefe ein quer gehaltenes Telefon nicht
@@ -575,6 +587,15 @@ html.avesmaps-phone {
 	   direkt zu folgen: am Zeiger ist er von ihr abgeleitet, am Telefon faellt er weg. */
 	--avesmaps-panel-inset-top: 0px;
 	--avesmaps-panel-inset-bottom: 0px;
+
+	/* Die Randlasche ist am Telefon ein kleiner Pfeilgriff statt eines beschrifteten Balkens (Owner
+	   12.08.2026, am Entwurf abgenommen). Nur die MASSE stehen hier; die Form -- Pfeil statt Wort,
+	   mittig statt oben, Kantenschatten -- steht bei der Lasche selbst in css/layout/map-layout.css.
+	   ⚠️ Beide Laschen lesen die Werte. Im Frontend ist die Info-Lasche am Telefon ohnehin weg
+	   (css/features/infopanel.css); im Edit-Modus bleibt sie und traegt ihr Wort auch in der
+	   kleineren Form -- „Info" misst gemessene 24px und passt in die 56. */
+	--avesmaps-tab-w: 26px;
+	--avesmaps-tab-h: 56px;
 }
 
 /* Dark theme — opt-in (set data-theme="dark" on :root). Same warm family,
