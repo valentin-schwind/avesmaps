@@ -76,11 +76,18 @@
  * 💣 OBEN, NICHT UNTEN. Unter der Vorschau stehend wanderte sie beim Aufklappen nach oben, weil die
  * Vorschau wich — der Satz sprang, und mit ihm der Öffner (Owner 2026-08-12). Oben rührt sie sich
  * nie: darunter tauscht nur der Block von drei Namen auf alle. */
+/* 💣 UMBRECHEN DARF SIE, ABER ALS GANZES. Am Telefon ist die Wertspalte ~116px breit; „126
+ * Handelswaren gelistet" und „zuklappen" passen dort nicht nebeneinander. Ohne `flex-wrap` brach der
+ * SATZ um und der Öffner blieb neben seiner ersten Hälfte stehen -- „126 Handelswaren  zuklappen" /
+ * „gelistet" (Owner 12.08.2026, mit Foto). Mit `wrap` + `margin-left: auto` am Öffner rutscht dieser
+ * als Ganzes in die zweite Zeile und bleibt rechtsbündig.
+ * ⚠️ `justify-content: space-between` ist damit weg: bei einer umgebrochenen Zeile verteilte es die
+ * Reste, statt den Öffner rechts zu halten. Das `auto`-Margin tut beides, in beiden Fällen. */
 .infobox-lid__foot {
 	display: flex;
-	justify-content: space-between;
+	flex-wrap: wrap;
 	align-items: baseline;
-	gap: 10px;
+	gap: 2px 10px;
 	margin-bottom: 5px;
 	font-size: 11px;
 }
@@ -99,6 +106,7 @@
 }
 
 .infobox-lid__more {
+	margin-left: auto;
 	color: var(--color-link);
 	border-bottom: 1px solid currentColor;
 	white-space: nowrap;

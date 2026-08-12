@@ -250,6 +250,28 @@ var AVESMAPS_LORE_GROUPS = [
 	{ key: "rank3", label: "Überall in Aventurien" },
 ];
 
+// Ab wann eine Gruppe zugeklappt startet, und ab wann ihre Namen Buchstabenmarken bekommen
+// (Owner 12.08.2026, an der Reichsstrasse 2 mit 126 Handelswaren entschieden).
+//
+// ⭐ ZWEI Schwellen, weil zwei verschiedene Fragen: „ist die ZEILE zu lang?" entscheidet sich an der
+// Gesamtzahl (dann klappen die Gruppen zu), „ist die GRUPPE zu lang zum Lesen?" an ihrer eigenen
+// (dann kommen Marken). Eine Etappe mit 12 Tierarten sieht damit aus wie bisher; nur die grossen
+// Faelle werden gebaendigt.
+var AVESMAPS_LORE_GROUP_LID_MIN = 25;
+var AVESMAPS_LORE_LETTER_MIN = 30;
+
+// Der Buchstabe, unter dem ein Name einsortiert wird. Umlaute fallen auf ihren Grundbuchstaben
+// (Ä -> A), sonst haette „Älbler" eine eigene Marke hinter Z.
+function avesmapsLoreLetterOf(name) {
+	var first = String(name || "").trim().charAt(0);
+	if (!first) {
+		return "#";
+	}
+	var folded = first.normalize ? first.normalize("NFD").replace(/[̀-ͯ]/g, "") : first;
+	folded = folded.toUpperCase();
+	return /[A-Z]/.test(folded) ? folded : "#";
+}
+
 function avesmapsLoreGroupOf(entry) {
 	if ((entry.relations || []).indexOf("herkunft") >= 0) {
 		return "origin";
@@ -272,26 +294,80 @@ function avesmapsLoreGroupedMarkup(entries, lead) {
 	// Die Freitext-Handelswaren führen die erste Gruppe an -- erst die Gattungen der Gegend
 	// („Vieh, Holz, Wolltuch"), dann die Stücke mit Namen („Bräubier"). Getrennt lasen sie sich wie
 	// ein widersprüchlicher Doppeleintrag (Owner 2026-07-22).
-	var leadMarkup = (lead || []).map(avesmapsLoreNameMarkup);
+	var leadItems = lead || [];
 
 	var used = AVESMAPS_LORE_GROUPS.filter(function (group) {
 		return (buckets[group.key] || []).length > 0;
 	});
 	var single = used.length <= 1;
+	// Zugeklappt startet eine Gruppe erst, wenn die ZEILE lang ist -- nicht die Gruppe. Sonst
+	// verstecke ich bei „3 Waren, davon 2 von hier" zwei Namen hinter einem Klick.
+	var klappen = !single && (leadItems.length + (entries || []).length) >= AVESMAPS_LORE_GROUP_LID_MIN;
 
 	var out = "";
 	used.forEach(function (group, index) {
-		var names = (buckets[group.key] || []).map(avesmapsLoreNameMarkup);
+		var items = (buckets[group.key] || []).slice();
 		if (index === 0) {
-			names = leadMarkup.concat(names);
+			// Die Freitext-Handelswaren gehören in die erste Gruppe, nicht daneben (Owner
+			// 2026-07-22) -- und ab den Buchstabenmarken reihen sie sich mit ein, statt vorneweg
+			// zu stehen: getrennt lasen sie sich wie ein widersprüchlicher Doppeleintrag, und
+			// genau das war der Grund, sie zusammenzulegen.
+			items = leadItems.concat(items);
 		}
-		out += (single ? "" : '<span class="avesmaps-lore__group">' + avesmapsLoreEscape(group.label) + "</span>")
-			+ '<span class="avesmaps-lore__names">' + names.join(", ") + "</span>";
+		var inhalt = avesmapsLoreNamesBlockMarkup(items);
+		if (single) {
+			out += inhalt;
+			return;
+		}
+		var kopf = '<span class="avesmaps-lore__gruppe-name">' + avesmapsLoreEscape(group.label) + "</span>"
+			+ '<span class="avesmaps-lore__gruppe-zahl">' + items.length + "</span>";
+		out += klappen
+			// 💣 Natives <details> wie beim Deckel selbst: nur so findet Strg+F einen Namen in einer
+			// ZUgeklappten Gruppe und klappt sie auf. Die erste Gruppe steht offen -- bei den Waren
+			// ist das „Von hier", die stärkste Aussage über den Ort.
+			? '<details class="avesmaps-lore__gruppe"' + (index === 0 ? " open" : "") + ">"
+				+ '<summary class="avesmaps-lore__gruppe-kopf">' + kopf + "</summary>" + inhalt + "</details>"
+			: '<div class="avesmaps-lore__gruppe avesmaps-lore__gruppe--fest">'
+				+ '<div class="avesmaps-lore__gruppe-kopf">' + kopf + "</div>" + inhalt + "</div>";
 	});
-	if (out === "" && leadMarkup.length) {
-		out = '<span class="avesmaps-lore__names">' + leadMarkup.join(", ") + "</span>";
+	if (out === "" && leadItems.length) {
+		out = avesmapsLoreNamesBlockMarkup(leadItems);
 	}
 	return out;
+}
+
+// Die Namen EINER Gruppe. Wenige stehen als Komma-Liste da, wie bisher; viele bekommen
+// Buchstabenmarken und laufen in Spalten (Owner 12.08.2026, an 126 Handelswaren entschieden).
+//
+// ⭐ `columns: 2 150px` im Stylesheet ist EINE Regel für beide Fälle: am Telefon ist für eine zweite
+// Spalte kein Platz, also fällt es von selbst auf eine zurück. Eine Breiten-Query wäre eine zweite
+// Fassung von „schmal" -- genau die Divergenz, vor der AGENTS.md §12 warnt.
+//
+// 💣 Sortiert wird mit `localeCompare(…, "de")`, nicht mit `<`: sonst stünde „Älbler" hinter „Zwerg"
+// und bekäme eine eigene Marke am Ende, während seine Marke „A" heißt.
+function avesmapsLoreNamesBlockMarkup(items) {
+	var list = items || [];
+	if (list.length < AVESMAPS_LORE_LETTER_MIN) {
+		return '<span class="avesmaps-lore__names">' + list.map(avesmapsLoreNameMarkup).join(", ") + "</span>";
+	}
+	var sorted = list.slice().sort(function (left, right) {
+		return String((left && left.name) || "").localeCompare(String((right && right.name) || ""), "de");
+	});
+	var blocks = [];
+	var current = null;
+	sorted.forEach(function (item) {
+		var letter = avesmapsLoreLetterOf(item && item.name);
+		if (!current || current.letter !== letter) {
+			current = { letter: letter, names: [] };
+			blocks.push(current);
+		}
+		current.names.push(avesmapsLoreNameMarkup(item));
+	});
+	return '<div class="avesmaps-lore__spalten">' + blocks.map(function (block) {
+		return '<div class="avesmaps-lore__buchstabenblock">'
+			+ '<span class="avesmaps-lore__buchstabe">' + avesmapsLoreEscape(block.letter) + "</span>"
+			+ '<span class="avesmaps-lore__names">' + block.names.join(", ") + "</span></div>";
+	}).join("") + "</div>";
 }
 
 // EINE Infobox-Zeile im Hausformat (.region-info-box__row + dt/dd) -- ihr Wert ist ein Deckel.

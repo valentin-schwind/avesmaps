@@ -28,17 +28,91 @@
    wird per Beschriftung und Abstand, nicht per Kasten (docs/design-language.md §Trenner).
    ⚠️ Bei nur EINER Gruppe entfällt ihre Überschrift schon im Markup: eine einzige Gruppe
    gliedert nichts. */
-.avesmaps-lore__group {
+/* 🔴 Die Überschrift war bis zum 12.08.2026 eine blasse Kleinversalzeile (0.72rem, grau, gesperrt).
+   Zwischen zwei Blöcken goldener Namen ging sie unter -- Owner: „Von hier und Direkt hier geht etwas
+   unter". Jetzt: Textgröße, Textfarbe, eine Trennlinie darüber (gruppiert wird per Linie, nicht per
+   Kasten -- docs/design-language.md) und die ANZAHL dahinter. Die Anzahl ist der eigentliche Gewinn:
+   „Direkt hier 98" sagt vorher, was einen erwartet. */
+.avesmaps-lore__gruppe {
 	display: block;
-	margin: 0.45rem 0 0.15rem;
-	font-size: 0.72rem;
-	letter-spacing: 0.05em;
-	text-transform: uppercase;
+	border-top: 1px solid var(--color-divider);
+	margin-top: var(--space-6);
+	padding-top: var(--space-4);
+}
+
+.avesmaps-lore__gruppe:first-child {
+	margin-top: 0;
+}
+
+.avesmaps-lore__gruppe-kopf {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-4);
+	list-style: none;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--color-text-strong);
+}
+
+/* 💣 Nur die KLAPPBARE Gruppe fühlt sich wie ein Bedienelement an. Bei wenigen Einträgen steht die
+   Überschrift als reines <div> da (avesmapsLoreGroupedMarkup) -- ein Zeiger darauf verspräche ein
+   Aufklappen, das es dort nicht gibt. Gleiche Regel wie beim statischen Deckel. */
+details.avesmaps-lore__gruppe > .avesmaps-lore__gruppe-kopf {
+	cursor: pointer;
+}
+
+.avesmaps-lore__gruppe-kopf::-webkit-details-marker {
+	display: none;
+}
+
+.avesmaps-lore__gruppe-zahl {
+	color: var(--color-text-muted);
+	font-weight: 400;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Der Pfeil steht im STYLESHEET, nicht im Markup: er beschreibt einen Zustand, den das <details>
+   selbst führt -- im Markup wäre er eine zweite Stelle, die ihn kennt. */
+details.avesmaps-lore__gruppe > .avesmaps-lore__gruppe-kopf::after {
+	content: "\25B8";
+	margin-left: auto;
 	color: var(--color-text-muted);
 }
 
-.avesmaps-lore__group:first-child {
-	margin-top: 0;
+details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
+	content: "\25BE";
+}
+
+/* 🔴 HIER STANDEN ZWEI SPALTEN, und sie sind wieder heraus. `columns: 2 150px` erzwingt in Chrome
+   die Zwei, auch wenn kein Platz ist -- GEMESSEN am 12.08.2026: Wertspalte 171px am Telefon und
+   ~244px am Zeiger, macht Spalten von 80 bzw. 116px, in denen jeder zweite Name umbricht
+   („Brindâler Mädchentraube"). Platz für zwei Spalten gäbe es erst, wenn der aufgeklappte Wert die
+   volle Panelbreite bekäme -- und das hiesse, die tabellarische Form aufzugeben, die derselbe Owner
+   am selben Tag ausdrücklich behalten wollte. Die Buchstabenmarken bleiben, die Spalten nicht. */
+.avesmaps-lore__spalten {
+	display: block;
+	margin-top: var(--space-2);
+}
+
+/* ⚠️ `break-inside: avoid` bleibt stehen, obwohl hier gerade nicht umbrochen wird: bekommt dieser
+   Block je einen breiteren Ort (Dialog, zweispaltiger Auszug), risse ein Spaltenumbruch sonst die
+   Marke „B" von ihren B-Namen. Es kostet nichts und verhindert genau den einen Fehler. */
+.avesmaps-lore__buchstabenblock {
+	break-inside: avoid;
+	display: flex;
+	gap: var(--space-4);
+	margin-bottom: var(--space-2);
+}
+
+/* Feste schmale Spalte, damit alle Namen an derselben Kante beginnen -- genau das, was der Kachel
+   „+43" gefehlt hat: eine Stelle, an der das Auge sucht. */
+.avesmaps-lore__buchstabe {
+	flex: 0 0 auto;
+	min-width: 12px;
+	color: var(--color-text-muted);
+	font-size: 11px;
+	font-weight: 500;
+	line-height: 1.45;
 }
 
 .avesmaps-lore__names {

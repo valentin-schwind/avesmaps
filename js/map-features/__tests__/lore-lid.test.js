@@ -124,4 +124,50 @@ assert.ok(doppelt.indexOf("Handelsware gelistet") >= 0, "und einmal ist Einzahl:
 assert.strictEqual(avesmapsLoreInfoRowMarkup(zeile("ware"), [], 0, "punin", null), "",
 	"ohne Eintraege keine Zeile -- kein leerer Deckel mit „0 Handelswaren gelistet\"");
 
+// ---- lange Listen: Gruppen klappen, Namen bekommen Buchstabenmarken (Owner 12.08.2026) ---------
+//
+// Owner an der Reichsstrasse 2 mit 126 Handelswaren: „ich hab so lange listen wie hier ... Von hier
+// und Direkt hier geht etwas unter". Zwei Schwellen, zwei verschiedene Fragen: die ZEILE ist zu langeZeile
+// (dann klappen die Gruppen zu), die GRUPPE ist zu langeZeile zum Lesen (dann kommen Marken).
+const reihe = (anzahl, praefix, opts) => Array.from({ length: anzahl }, (_, i) =>
+	ware(praefix + " " + String.fromCharCode(65 + (i % 26)) + i, opts));
+
+// 33 Eintraege in zwei Gruppen -> die Gruppen klappen, die erste steht offen.
+const langeZeile = avesmapsLoreInfoRowMarkup(zeile("ware"),
+	reihe(20, "Herkunft", { relations: ["herkunft"] }).concat(reihe(13, "Nahdran")), 33, "punin", null);
+assert.ok(/<details class="avesmaps-lore__gruppe" open>/.test(langeZeile),
+	"die erste Gruppe steht offen -- bei den Waren ist das „Von hier\", die staerkste Aussage");
+assert.strictEqual((langeZeile.match(/<details class="avesmaps-lore__gruppe"/g) || []).length, 2,
+	"beide Gruppen sind klappbar");
+assert.strictEqual((langeZeile.match(/<details class="avesmaps-lore__gruppe" open>/g) || []).length, 1,
+	"...aber nur EINE offen, sonst waere das Klappen wirkungslos");
+// 💣 Die Anzahl gehoert in den Kopf: „Direkt hier 98" sagt vorher, was einen erwartet.
+assert.ok(/avesmaps-lore__gruppe-zahl">20</.test(langeZeile) && /avesmaps-lore__gruppe-zahl">13</.test(langeZeile),
+	"jede Gruppe nennt ihre Anzahl: " + langeZeile.slice(0, 300));
+
+// Wenige Eintraege in zwei Gruppen -> Ueberschrift samt Anzahl, aber KEIN Klappen.
+const kurz = avesmapsLoreInfoRowMarkup(zeile("ware"),
+	reihe(3, "Herkunft", { relations: ["herkunft"] }).concat(reihe(4, "Nahdran")), 7, "punin", null);
+assert.ok(kurz.indexOf("<details class=\"avesmaps-lore__gruppe\"") < 0,
+	"bei sieben Eintraegen klappt nichts -- sonst verstecke ich vier Namen hinter einem Klick");
+assert.ok(/avesmaps-lore__gruppe--fest/.test(kurz) && /avesmaps-lore__gruppe-zahl">3</.test(kurz),
+	"...die Ueberschrift mit Anzahl steht trotzdem da: " + kurz.slice(0, 200));
+
+// Buchstabenmarken: erst ab der eigenen Schwelle, und dann sortiert.
+assert.ok(/avesmaps-lore__buchstabe">/.test(
+	avesmapsLoreInfoRowMarkup(zeile("ware"), reihe(40, "Ware"), 40, "punin", null)),
+	"40 Eintraege in einer Gruppe bekommen Marken");
+assert.ok(!/avesmaps-lore__buchstabe">/.test(
+	avesmapsLoreInfoRowMarkup(zeile("ware"), reihe(12, "Ware"), 12, "punin", null)),
+	"12 nicht -- eine kurze Liste braucht keine Wegweiser");
+// 💣 Umlaute fallen auf ihren Grundbuchstaben, sonst stuende „Aelbler\" unter einer eigenen Marke
+// hinter Z -- localeCompare sortiert ihn nach vorn, die Marke muesste also auch „A\" heissen.
+assert.strictEqual(avesmapsLoreLetterOf("Älbler"), "A", "Ae faellt auf A");
+assert.strictEqual(avesmapsLoreLetterOf("Über"), "U", "Ue faellt auf U");
+assert.strictEqual(avesmapsLoreLetterOf("3-Zack"), "#", "was kein Buchstabe ist, sammelt sich unter #");
+const sortiert = avesmapsLoreInfoRowMarkup(zeile("ware"),
+	[ware("Zwerg")].concat(reihe(35, "Ware")).concat([ware("Älbler")]), 37, "punin", null);
+assert.ok(sortiert.indexOf("Älbler") < sortiert.indexOf("Zwerg"),
+	"sortiert wird deutsch: Aelbler vor Zwerg");
+
 console.log("OK: die Lore-Zeilen sind Deckel -- EIN Satz, keine Namen zugeklappt, Gliederung nach Naehe");
