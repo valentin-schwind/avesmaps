@@ -192,6 +192,16 @@ enableBlankEditMapStyle();
 function markRoutePlannerCollapsed(collapsed) {
     isSearchPanelHidden = collapsed;
     document.documentElement.classList.toggle("avesmaps-planner-collapsed", collapsed);
+    /**
+     * 💣 Der OFFEN-Anker ist eine eigene Klasse, kein `:not(.avesmaps-planner-collapsed)`.
+     * Zwei Klassen, aber weiterhin EINE Stelle -- und das ist der Punkt: bis diese Funktion das
+     * erste Mal laeuft, traegt <html> KEINE der beiden. Eine `:not()`-Regel gaelte in diesem
+     * Fenster als „offen" und blendete am Telefon den Knopfbund weg, bevor
+     * collapseRoutePlannerOnPhone() ihn zurueckholt -- ein Flackern beim Laden, das nur auf
+     * langsamen Geraeten auffaellt und dort jedes Mal.
+     * Die Regel dazu steht in css/layout/map-layout.css (nur am Telefon).
+     */
+    document.documentElement.classList.toggle("avesmaps-planner-open", !collapsed);
 }
 
 function setRoutePlannerCollapsed(collapsed) {

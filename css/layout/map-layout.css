@@ -132,6 +132,30 @@ html.avesmaps-phone.avesmaps-planner-collapsed #toggle-button::before {
 	content: "\203A";
 }
 
+/* Am Telefon blendet der Knopfbund aus, solange der ROUTENPLANER offen ist -- genau wie er es
+   schon tut, wenn die Infobox offen ist (Owner 12.08.2026). Dort bleibt neben dem Panel nur ein
+   schmaler Streifen Karte, und ein Knopfbund darin steht im Weg, ohne dass jemand ihn erreichen
+   will: solange ein Panel offen ist, gehoert die Aufmerksamkeit ihm. Faehrt es zu, kommen die
+   Knoepfe zurueck.
+   ⚠️ NUR am Telefon (Owner ausdruecklich). Am Zeiger stehen Planer und Ecke nebeneinander, dort
+   gibt es nichts auszublenden -- und der Planer ist dort von Anfang an offen.
+   💣 Dieselben drei Eigenschaften wie beim Infopanel, und aus demselben Grund KEIN `display: none`:
+   syncMapCornerStack (js/ui/ui-controls.js) misst die Bundhoehe mit getBoundingClientRect() und
+   schreibt sie als --avesmaps-corner-stack auf <html>; ein ausgeblendeter Bund misst 0, und der
+   Guard `if (!hoehe) return` liesse die veraltete Zahl stehen. Verborgen, aber gelayoutet, misst
+   sich weiter richtig.
+   ⚠️ `visibility` schaltet erst NACH der Blende (0s linear 0.22s), sonst ist der Bund weg, bevor
+   er verblasst ist. `pointer-events: none` gehoert dazu: ein unsichtbarer Knopf, der Tipper
+   schluckt, ist schlimmer als ein sichtbarer.
+   ⚠️ Ein offenes Anzeige-Menue faehrt mit aus -- es schliesst sich aber ohnehin schon: der Klick
+   auf die Lasche erreicht den Dokument-Zuhoerer in js/ui/map-display-menu.js. */
+html.avesmaps-phone.avesmaps-planner-open #map-corner-actions {
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+	transition: opacity 0.22s ease, visibility 0s linear 0.22s;
+}
+
 
 @media (max-width: 640px) {
 	/* 💣 Eine Hoehe, an der das `overflow-y: auto` von oben endlich GREIFT. Die 140dvh war ein

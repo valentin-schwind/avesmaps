@@ -148,4 +148,33 @@ assert.ok(
 assert.ok(/lastOpener = button;/.test(jsOhneKommentar), "der zuletzt benutzte Oeffner wird gemerkt");
 assert.ok(/lastOpener\.focus\(\);/.test(jsOhneKommentar), "und bekommt den Fokus beim Schliessen zurueck");
 
+// ---- Am Telefon weicht der Bund AUCH dem Routenplaner ---------------------------------------------
+//
+// 💣 Faengt: die Regel faellt weg, und am Telefon steht der Knopfbund auf dem schmalen Streifen
+// Karte neben dem offenen Planer -- derselbe Fall, den die Infobox-Regel in infopanel.css schon
+// loest (Owner 12.08.2026: „ebenfalls wie beim ausklappen vom infopanel").
+const layoutCssRoh = withoutComments(read("css", "layout", "map-layout.css"));
+const plannerAusblenden = layoutCssRoh.match(/html\.avesmaps-phone\.avesmaps-planner-open #map-corner-actions \{[^}]*\}/);
+assert.ok(plannerAusblenden,
+	"am Telefon blendet der Bund aus, solange der Routenplaner offen ist");
+
+// 💣 Faengt: jemand ersetzt es durch `display: none`. syncMapCornerStack misst den Bund mit
+// getBoundingClientRect() und schreibt die Hoehe auf <html>; ein weggeschalteter Bund misst 0,
+// der Guard `if (!hoehe) return` liesse die veraltete Zahl stehen, und der Zoom saesse falsch.
+assert.ok(!/display:\s*none/.test(plannerAusblenden[0]),
+	"und zwar verborgen-aber-gelayoutet (opacity/visibility), NIE per display: none");
+assert.ok(/opacity:\s*0/.test(plannerAusblenden[0]) && /visibility:\s*hidden/.test(plannerAusblenden[0]),
+	"mit beiden Eigenschaften -- opacity allein liesse ihn Tipper schlucken");
+assert.ok(/pointer-events:\s*none/.test(plannerAusblenden[0]),
+	"und ohne Zeigerfang");
+
+// 💣 Faengt: die Regel haengt wieder an `:not(.avesmaps-planner-collapsed)`. Bis
+// markRoutePlannerCollapsed() das erste Mal laeuft, traegt <html> KEINE der beiden Klassen -- eine
+// :not()-Regel gaelte in diesem Fenster als „offen" und blendete den Bund beim Laden kurz weg.
+assert.ok(!/:not\(\.avesmaps-planner-collapsed\)[^{]*#map-corner-actions/.test(layoutCssRoh),
+	"der OFFEN-Zustand wird positiv angesprochen, nicht ueber :not()");
+const plannerToggleJs = withoutComments(read("js", "ui", "route-planner-toggle.js"));
+assert.ok(/classList\.toggle\("avesmaps-planner-open"/.test(plannerToggleJs),
+	"und die Klasse wird an derselben Stelle gesetzt wie ihr Gegenstueck");
+
 console.log("map-corner-actions ok");
