@@ -151,15 +151,20 @@ function syncPowerlineMapTint() {
 	container.style.filter = active ? getLeyMapFilter() : "";
 }
 
-// Die zwei Editor-Haken ("Labels"/"Grenzen") folgen dem Modus: bei jedem Moduswechsel werden sie auf
+// Die zwei Haken ("Labels"/"Grenzen") folgen dem Modus: bei jedem Moduswechsel werden sie auf
 // das gesetzt, was der neue Modus von sich aus zeigt. Damit aendert ein Moduswechsel das Kartenbild
 // GENAU so wie bisher -- die Haken sind eine Abweichung NACH dem Wechsel, kein Dauer-Uebersteuern.
 // (Owner 2026-07-26: das bisherige Verhalten bleibt; Politisch behaelt seine Grenzdarstellung.)
+//
+// 🔴 Der Ausstieg bei !IS_EDIT_MODE ist am 12.08.2026 gefallen, und das ist keine Erweiterung,
+// sondern die Bedingung dafuer, dass §9 des Entwurfs ueberhaupt gilt: seit die beiden Haken im
+// Anzeige-Menue an der Karte stehen, wuerden sie sonst als EINZIGE ueber den Ansichtswechsel
+// stehenbleiben, waehrend Wege und Fluesse daneben zuruecksetzen (applyFrontendLayerModeDefaults).
+// Zwei Schalter im selben Menue mit zwei verschiedenen Regeln -- und die eine unsichtbar.
+// ⚠️ Die beiden Listen stehen in js/config.js neben MAP_LABEL_MODES / BOUNDARY_OVERLAY_MODES, weil
+// die ZEICHNER dieselben lesen. Eine zweite Kopie hier liefe genau dort auseinander, wo es
+// niemandem auffiele.
 function syncEditorDisplayTogglesToMode(mode) {
-	if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
-		return;
-	}
-
 	$("#toggleMapLabels").prop("checked", MAP_LABEL_MODES.includes(mode));
 	$("#toggleTerritoryBorders").prop("checked", BOUNDARY_OVERLAY_MODES.includes(mode));
 }

@@ -485,13 +485,17 @@
 		// diese Sperre blieben beim Moduswechsel die alten Linien stehen (regionData bleibt bestehen).
 		// Kraftlinien-Modus zeigt KEINE Grenzen mehr (nur Karte entsättigt + Kraftlinien + Nodices).
 		const currentMapLayerMode = typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "political";
-		// Der "Grenzen"-Haken (nur Edit-Modus) uebersteuert den Modus in BEIDE Richtungen: Haken aus
-		// nimmt die Grenzen auch dort weg, wo der Modus sie zeigt; Haken an zeichnet sie auch dort, wo
-		// er sie sonst unterdrueckt. IS_EDIT_MODE ist hier garantiert da -- js/config.js laedt frueher
-		// als diese Datei, und die Pruefung laeuft erst zur Aufrufzeit.
-		// ⚠️ Haken an in "none"/"powerlines" zeichnet nur, was bereits geladen IST: das Laden haengt an
-		// TERRITORY_BOUNDARY_MODES (political-territory-loader.js), das dieser Haken nicht anfasst.
-		const editorOverride = IS_EDIT_MODE ? document.getElementById("toggleTerritoryBorders")?.checked : null;
+		// Der "Grenzen"-Haken uebersteuert den Modus in BEIDE Richtungen: Haken aus nimmt die Grenzen
+		// auch dort weg, wo der Modus sie zeigt; Haken an zeichnet sie auch dort, wo er sie sonst
+		// unterdrueckt.
+		// 🔴 Der Vorbehalt `IS_EDIT_MODE ?` ist am 12.08.2026 gefallen -- der Haken steht seither fuer
+		// jeden Besucher im Anzeige-Menue an der Karte. `?? null` bleibt: fehlt das Element, entscheidet
+		// der Modus allein, genau wie vorher.
+		// ⚠️ Haken an in "none"/"original"/"powerlines" zeichnet nur, was bereits geladen IST: das Laden
+		// haengt an TERRITORY_BOUNDARY_MODES (political-territory-loader.js), das dieser Haken nicht
+		// anfasst. Deshalb graut das Anzeige-Menue die Zeile in genau diesen Ansichten aus, statt einen
+		// Schalter anzubieten, der sichtbar nichts tut (js/ui/map-display-menu.js).
+		const editorOverride = document.getElementById("toggleTerritoryBorders")?.checked ?? null;
 		if (editorOverride === false) {
 			return;
 		}

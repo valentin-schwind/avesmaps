@@ -114,7 +114,11 @@ const menueJs = withoutComments(read("js", "ui", "map-display-menu.js"));
 assert.ok(/syncMapCornerStack/.test(menueJs),
 	"map-display-menu.js misst den Knopfbund nach jedem Auf- und Zuklappen nach");
 const menueCss = withoutComments(read("css", "components", "map-display-menu.css"));
-assert.ok(!/position:\s*(absolute|fixed)/.test(menueCss),
+// ⚠️ Geprueft wird die HUELLE, nicht die Datei: ein `position: absolute` weiter unten ist legitim
+// (die Zustands-Checkbox wird so aus dem Bild genommen, ohne ihre Semantik zu verlieren).
+const huelleRegel = menueCss.match(/\n\.map-display-menu \{[^}]*\}/);
+assert.ok(huelleRegel, "die Regel .map-display-menu existiert");
+assert.ok(!/position:\s*(absolute|fixed)/.test(huelleRegel[0]),
 	"und das Menue steht im Fluss, nicht schwebend");
 
 // 💣 Faengt: der Zustand des Menues haengt wieder an `hidden` oder an der Klasse `is-open`.
@@ -147,6 +151,67 @@ assert.ok(/document\.addEventListener\("click",[\s\S]*?\}, true\);/.test(menueJs
 assert.ok(/max-height:\s*min\(/.test(menueCss),
 	"das Menue hat einen Deckel (max-height), relativ zur Schirmhoehe");
 assert.ok(/overflow-y:\s*auto/.test(menueCss), "und scrollt darin selbst");
+
+// ---- Die vier Ebenen sind umgezogen und wirken im Frontend ----------------------------------------
+//
+// 💣 Faengt: eine Zeile wird im Menue NACHGEBAUT statt umgezogen. Dann gibt es die Checkbox
+// zweimal, und welcher Zustand gilt, haengt davon ab, welche zuletzt angefasst wurde -- die
+// URL-Persistenz und `$("#togglePaths").is(":checked")` treffen die falsche.
+["togglePaths", "toggleMapLabels", "toggleTerritoryBorders", "toggleRivers"].forEach((id) => {
+	const treffer = indexHtml.match(new RegExp(`id="${id}"`, "g")) || [];
+	assert.strictEqual(treffer.length, 1, `#${id} steht GENAU einmal im Dokument`);
+	assert.ok(menue[0].includes(`id="${id}"`), `#${id} steht im Anzeige-Menue`);
+});
+
+// 💣 Faengt: aus dem <label> wird ein <div> mit eigenem Knopf. Das Auge ist DARSTELLUNG, die
+// Checkbox ist der Zustand -- umschliesst das Label beide, kommen Klickflaeche, Tastatur,
+// Fokusreihenfolge und Vorlesbarkeit vom Browser. Ein nachgebauter Knopf muesste alles vier
+// selbst mitbringen und haette es beim ersten Mal halb.
+const ebenenGruppe = indexHtml.match(/<div class="map-display-menu__group" id="display-group-layers">[\s\S]*?\r?\n\t\t\t\t<\/div>/);
+assert.ok(ebenenGruppe, "die Gruppe Ebenen steht im Menue");
+assert.strictEqual((ebenenGruppe[0].match(/<label class="map-display-menu__row"/g) || []).length, 4,
+	"und traegt vier Zeilen, jede ein <label>");
+assert.ok(!/<button/.test(ebenenGruppe[0]),
+	"ohne eigenen Knopf -- das Label schaltet die Checkbox nativ");
+
+// 💣 Faengt: der Zustand wird per `display: none` verborgen. Dann ist die Checkbox nicht mehr
+// fokussierbar, und die Zeile ist mit der Tastatur unerreichbar -- unsichtbar sein und
+// unbedienbar sein sind zwei verschiedene Dinge.
+const stateRegel = menueCss.match(/\.map-display-menu__state \{[^}]*\}/);
+assert.ok(stateRegel, "die Zustands-Checkbox hat eine eigene Regel");
+assert.ok(!/display:\s*none/.test(stateRegel[0]) && !/visibility:\s*hidden/.test(stateRegel[0]),
+	"und wird nicht per display/visibility entfernt -- sie muss fokussierbar bleiben");
+
+// 💣 Faengt: das Auge folgt nicht mehr der Checkbox, sondern einem zweiten Zustand in JavaScript.
+// Genau dann laufen Anzeige und Wirkung auseinander, sobald der Zustand von woanders kommt --
+// Moduswechsel, geteilter Link, Tastenkuerzel.
+assert.ok(/\.map-display-menu__state:checked/.test(menueCss),
+	"das Auge folgt der Checkbox per :checked, nicht einem eigenen Zustand");
+
+// ---- Die zwei Overrides gelten jetzt auch im Frontend ---------------------------------------------
+//
+// 💣 Faengt: der Umbau bleibt auf halbem Weg stehen. Die Haken waeren sichtbar, aenderten
+// ausserhalb des Bearbeiten-Modus aber nichts -- ein Schalter, der luegt.
+const labelsJs = withoutComments(read("js", "map-features", "map-features-labels.js"));
+const labelOverride = labelsJs.match(/function isMapLabelEditorOverrideActive\(\)[\s\S]*?\n\}/);
+assert.ok(labelOverride, "isMapLabelEditorOverrideActive existiert");
+assert.ok(!/IS_EDIT_MODE/.test(labelOverride[0]),
+	"und haengt den Labels-Haken nicht mehr am Bearbeiten-Modus auf");
+
+const boundaryJs = withoutComments(read("js", "map-features", "map-features-boundary-canvas-overlay.js"));
+const boundaryOverride = boundaryJs.match(/const editorOverride = [^;]*;/);
+assert.ok(boundaryOverride, "der Grenzen-Haken wird gelesen");
+assert.ok(!/IS_EDIT_MODE/.test(boundaryOverride[0]),
+	"und ebenfalls ohne Vorbehalt auf den Bearbeiten-Modus");
+
+// 💣 Faengt: §9 des Entwurfs kippt („die Ansicht gewinnt"). Ohne diese Aenderung bliebe ein
+// umgelegter Labels-/Grenzen-Haken ueber den Ansichtswechsel stehen, waehrend Wege und Fluesse
+// zurueckspringen -- zwei Schalter im selben Menue mit zwei verschiedenen Regeln.
+const displayModeJs = withoutComments(read("js", "map-features", "map-features-display-mode.js"));
+const syncFn = displayModeJs.match(/function syncEditorDisplayTogglesToMode\(mode\)[\s\S]*?\n\}/);
+assert.ok(syncFn, "syncEditorDisplayTogglesToMode existiert");
+assert.ok(!/IS_EDIT_MODE/.test(syncFn[0]),
+	"und setzt die beiden Haken auch im Frontend beim Moduswechsel");
 
 // ---- Die Breite haengt am Routenplaner, nicht an einer zweiten Zahl --------------------------------
 //

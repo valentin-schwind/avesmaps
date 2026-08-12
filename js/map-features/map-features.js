@@ -66,17 +66,14 @@ if (IS_EDIT_MODE) {
 	// (Sichtbarkeit wird dort vom Kartenmodus gesetzt, siehe applyFrontendLayerModeDefaults).
 	// ⚠️ Die ZEILE zuerst: sie ist seit dem 12.08.2026 selbst versteckt, damit die Huelle
 	// .display-options im Frontend ganz wegfaellt (sonst bliebe dort ein leerer Streifen mit zwei
-	// Trennlinien stehen). Ohne diese Zeile blieben die drei Haken darunter unsichtbar, obwohl sie
-	// einzeln aufgedeckt werden -- ein versteckter Vorfahr gewinnt.
+	// Trennlinien stehen). Ohne diese Zeile bliebe der Haken darunter unsichtbar, obwohl er
+	// einzeln aufgedeckt wird -- ein versteckter Vorfahr gewinnt.
+	// 🔴 Hier standen bis zum 12.08.2026 auch Wege, Fluesse, Labels und Grenzen. Die vier stehen
+	// jetzt im Anzeige-Menue an der Karte und sind fuer JEDEN Besucher sichtbar -- sie brauchen
+	// kein Aufdecken mehr. „Seewege" bleibt: der Haken ist ausserhalb des Bearbeiten-Modus
+	// wirkungslos verdrahtet (showSeaPaths in map-features-display-mode.js).
 	$("#displayOptionsToggleRow").prop("hidden", false);
 	$("#toggleSeaPathsControl").prop("hidden", false);
-	$("#togglePathsControl").prop("hidden", false);
-	$("#toggleRiversControl").prop("hidden", false);
-	// Labels und Territoriengrenzen stehen beim Zeichnen im Weg -- beim Landschaften- wie beim
-	// Territorien-Zeichnen. Beide Haken uebersteuern den Modus in BEIDE Richtungen und gibt es nur
-	// im Edit-Modus; im Frontend bestimmt weiter allein der Kartenmodus, was sichtbar ist.
-	$("#toggleMapLabelsControl").prop("hidden", false);
-	$("#toggleTerritoryBordersControl").prop("hidden", false);
 	// V12: „Geschwindigkeit" zeigt auf der geplanten Route, wo Gelände und Strömung bremsen — damit
 	// ein Editor sieht, dass sein Gebirge einen Effekt hat. Nur im Editmodus: im Frontend wäre es eine
 	// Fachanzeige ohne Anlass, und die Erklärung dazu steht im Tempo-Dialog.

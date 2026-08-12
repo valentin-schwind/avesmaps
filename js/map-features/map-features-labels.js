@@ -710,9 +710,13 @@ function setLabelMoveActive(entry, isActive) {
 // Label pro Sync (jeder Zoom, jeder Move). Das ELEMENT zu cachen waere die falsche Reparatur: es
 // haengt in einem hidden-Container, den der Moduswechsel umschaltet.
 // Dreiwertig wie beim Grenzen-Haken: true = zeigen, false = verbergen, null = kein Haken da
-// (Frontend) -> allein der Modus entscheidet, exakt wie bisher.
+// -> allein der Modus entscheidet.
+// 🔴 Der Vorbehalt `IS_EDIT_MODE ?` ist am 12.08.2026 gefallen: der Haken steht seither fuer
+// JEDEN Besucher im Anzeige-Menue an der Karte (#map-display-menu). Die Dreiwertigkeit bleibt
+// aber tragend -- `?? null` faengt den Fall, dass das Element gar nicht da ist (fremde Seite,
+// halber Deploy). Dann entscheidet der Modus allein, genau wie vor diesem Datum.
 function isMapLabelEditorOverrideActive() {
-	return IS_EDIT_MODE ? document.getElementById("toggleMapLabels")?.checked : null;
+	return document.getElementById("toggleMapLabels")?.checked ?? null;
 }
 
 // „nur Labels mit Region" — Edit-Mode und nur mit eingeschaltetem Landschaftsmodul (bootstrap.js).
