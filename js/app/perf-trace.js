@@ -147,9 +147,121 @@
 		}));
 	});
 
-	window.__perftrace = { stats, installAll, targets: GLOBAL_TARGETS };
+	// ---- Startlauf (Owner 12.08.2026) --------------------------------------------------------------
+	//
+	// Gemessen wurde am 12.08.2026 EIN Block von 13,8 s Hauptfaden waehrend des Starts -- aber nicht,
+	// WORIN. Der Datenabruf selbst ist es nicht (18,4 MB, davon 2,1 s Server, 0,33 s Leitung, 0,07 s
+	// JSON.parse), also liegt die Zeit im Aufbau. Dieselbe Wrap-Technik wie oben, nur an der anderen
+	// Klammer: der Zoom hat `zoomstart`/`zoomend`, der Start hat „ab jetzt" bis `avesmaps:map-ready`.
+	//
+	// 💣 Die Bauer laufen in der `.then`-Kette von routeDataRequest (js/routing/routing.js), also
+	// ASYNCHRON und erst nach dem Abruf. Diese Datei laeuft direkt nach bootstrap.js, lange davor --
+	// das Wrappen kommt also rechtzeitig. Waere es andersherum, saehe die Tabelle einfach leer aus.
+	// ⚠️ Eigener Zaehlspeicher: `stats` gehoert dem Zoom und wird bei jedem `zoomstart` geleert.
+	const bootStats = Object.create(null);
+	const BOOT_TARGETS = [
+		"updateMapDataStatus",
+		"prepareLocationData",   // ~2.800 Marker, baut jedes Popup-Markup vorab
+		"preparePowerlineData",
+		"prepareLabelData",
+		"preparePathData",       // ~4.900 Wege, baut jedes Weg-Popup vorab
+		"prepareRegionData",
+		"applyPlannerStateFromUrl",
+		"applyDisplayOptions",
+		"focusMapOnActiveTargets",
+		"updateMapView",
+		"startLiveMapUpdates",
+		"loadPoliticalTerritoryLayer", // laeuft in `deregraphic` mit -- die Grenzen der Standardansicht
+	];
+	const bootStartMs = performance.now();
+	let bootLongestTaskMs = 0;
+	let bootActive = true;
+
+	// 💣 Was hier NICHT gewrappt werden konnte, wird GEMELDET, nicht verschwiegen. Eine Funktion, die
+	// als `const` im lexikalischen Modulscope steht, ist keine window-Eigenschaft und laesst sich so
+	// nicht abfangen -- ihre Zeile fehlte dann einfach in der Tabelle, und die fehlende Zeile sieht
+	// aus wie „kostet nichts". Genau die Zeile waere aber der Verdaechtige.
+	const nichtGewrappt = [];
+	const bootTimeline = [];
+	BOOT_TARGETS.forEach((name) => {
+		const current = window[name];
+		if (typeof current !== "function") {
+			nichtGewrappt.push(name);
+			return;
+		}
+		window[name] = function perfTracedBoot() {
+			const start = performance.now();
+			try {
+				return current.apply(this, arguments);
+			} finally {
+				const ende = performance.now();
+				const entry = bootStats[name] || (bootStats[name] = { ms: 0, calls: 0 });
+				entry.ms += ende - start;
+				entry.calls += 1;
+				bootTimeline.push({ name, start, ende });
+			}
+		};
+	});
+
+	try {
+		new PerformanceObserver((list) => {
+			for (const entry of list.getEntries()) {
+				if (bootActive && entry.duration > bootLongestTaskMs) {
+					bootLongestTaskMs = entry.duration;
+				}
+			}
+		}).observe({ entryTypes: ["longtask"] });
+	} catch (error) {
+		/* longtask unsupported -> Wandzeit und Aufschluesselung tragen allein */
+	}
+
+	document.addEventListener("avesmaps:map-ready", function onBootReady() {
+		document.removeEventListener("avesmaps:map-ready", onBootReady);
+		bootActive = false;
+		const wallMs = performance.now() - bootStartMs;
+		const rows = Object.keys(bootStats)
+			.map((label) => ({ fn: label, ms: Math.round(bootStats[label].ms * 10) / 10, calls: bootStats[label].calls }))
+			.sort((a, b) => b.ms - a.ms);
+		const erfasst = rows.reduce((summe, zeile) => summe + zeile.ms, 0);
+		console.log(
+			`%c[perftrace] START | wall ${wallMs.toFixed(0)}ms | laengste Task ${bootLongestTaskMs.toFixed(0)}ms`
+			+ ` | erfasst ${erfasst.toFixed(0)}ms (Rest: Abruf, Leaflet, Rendern)`,
+			"color:#ff5f82;font-weight:bold"
+		);
+		if (rows.length) {
+			console.table(rows);
+		} else {
+			console.log("[perftrace] keine erfassten Startfunktionen -- lief perf-trace.js zu spaet?");
+		}
+		// 💣 Die LUECKEN sind der eigentliche Fund. Die drei schwersten Bauer -- prepareLocationData,
+		// preparePowerlineData, preparePathData -- sind `const` im globalen LEXIKALISCHEN Scope und
+		// damit keine window-Eigenschaften: sie lassen sich nicht abfangen (gemessen 12.08.2026).
+		// Ihre Zeit steht deshalb nicht in der Tabelle, sondern zwischen zwei Zeilen davon. Die
+		// Reihenfolge in der `.then`-Kette von routing.js ist fest, also ist jede Luecke zuordenbar:
+		// updateMapDataStatus -> [prepareLocationData, preparePowerlineData] -> prepareLabelData ->
+		// [preparePathData] -> prepareRegionData -> ...
+		const nachStart = bootTimeline.slice().sort((a, b) => a.start - b.start);
+		const luecken = [];
+		for (let i = 1; i < nachStart.length; i += 1) {
+			const luecke = nachStart[i].start - nachStart[i - 1].ende;
+			if (luecke > 50) {
+				luecken.push({ zwischen: `${nachStart[i - 1].name} -> ${nachStart[i].name}`, ms: Math.round(luecke) });
+			}
+		}
+		if (luecken.length) {
+			console.log("%c[perftrace] Luecken > 50ms (hier laufen die nicht abfangbaren Bauer):", "color:#ff5f82;font-weight:bold");
+			console.table(luecken.sort((a, b) => b.ms - a.ms));
+		}
+		if (nichtGewrappt.length) {
+			console.warn("[perftrace] nicht direkt messbar (kein window-Eintrag) -- ihre Zeit steckt in den"
+				+ " Luecken oben:", nichtGewrappt.join(", "));
+		}
+	});
+
+	window.__perftrace = { stats, bootStats, bootTimeline, installAll, targets: GLOBAL_TARGETS, bootTargets: BOOT_TARGETS };
 	console.log(
-		"%c[perftrace] aktiv -- einmal an der ruckelnden Stelle reinzoomen, dann die Tabelle ablesen (groesste 'ms'-Zeile = Verursacher).",
+		"%c[perftrace] aktiv -- die START-Tabelle kommt von selbst, sobald die Karte fertig ist."
+		+ " Fuer den Zoom: einmal an der ruckelnden Stelle reinzoomen (groesste 'ms'-Zeile = Verursacher).",
 		"color:#ff5f82;font-weight:bold"
 	);
 })();
