@@ -90,4 +90,52 @@ $topographieWald = ['public_id' => 'x', 'kind' => 'topographie', 'region_type' =
 $vegetationWald = $term(['types' => [['kind' => 'vegetation', 'region_type' => 'wald']]]);
 assert(avesmapsLoreRuleTermMatchesArea($vegetationWald, $topographieWald, $zones) === false);
 
+// Zwei Waelder, ein Gebirge -- und ein Ort, der in Wald UND Gebirge liegt ("Bergwald").
+$areas = [$farindel, $finster, $alkra];
+$places = [
+    ['public_id' => 'p1', 'area_public_ids' => ['a1'], 'zone' => 'gemaessigt'],          // nur im Wald
+    ['public_id' => 'p2', 'area_public_ids' => ['a1', 'a2'], 'zone' => 'gemaessigt'],    // Wald UND Gebirge
+    ['public_id' => 'p3', 'area_public_ids' => ['a2'], 'zone' => 'boreal'],              // nur Gebirge, Nordteil
+    ['public_id' => 'p4', 'area_public_ids' => ['a3'], 'zone' => 'subtropen_winterfeucht'],
+];
+$ids = static fn (array $out, string $bucket): array => $out[$bucket];
+
+$waldTerm = $term(['types' => [['kind' => 'vegetation', 'region_type' => 'wald']],
+    'climate_from' => 'boreal', 'climate_to' => 'gemaessigt', 'join_op' => 'und']);
+$gebirgeTerm = $term(['types' => [['kind' => 'topographie', 'region_type' => 'gebirge']], 'join_op' => 'und']);
+
+// EINE Bedingung.
+$nur = avesmapsLoreRuleEvaluate([$waldTerm], $areas, $places, $zones);
+assert($ids($nur, 'areas') === ['a1']);
+assert($ids($nur, 'places') === ['p1', 'p2']);
+
+// 💣 UND WIRKT AUF DER ERGEBNISMENGE. Keine Flaeche ist Wald UND Gebirge -- eine
+// ecosystem_region hat genau ein kind und einen region_type. Ein ORT kann in beiden liegen.
+$und = avesmapsLoreRuleEvaluate([$waldTerm, $gebirgeTerm], $areas, $places, $zones);
+assert($ids($und, 'areas') === []);
+assert($ids($und, 'places') === ['p2']);
+
+// ODER vereinigt.
+$oder = avesmapsLoreRuleEvaluate([$waldTerm, $term(['types' => [['kind' => 'topographie', 'region_type' => 'gebirge']], 'join_op' => 'oder'])], $areas, $places, $zones);
+assert($ids($oder, 'areas') === ['a1', 'a2']);
+assert($ids($oder, 'places') === ['p1', 'p2', 'p3']);
+
+// 💣 EINE SIEDLUNG IST EIN PUNKT: sie zaehlt nur, wenn sie SELBST in der Zone liegt --
+// auch wenn ihre Flaeche die Zone bloss beruehrt. Der Finsterkamm beruehrt boreal und
+// gemaessigt; „Gebirge + boreal" nimmt davon nur p3, nicht p2.
+$gebirgeBoreal = $term(['types' => [['kind' => 'topographie', 'region_type' => 'gebirge']],
+    'climate_from' => 'boreal', 'climate_to' => 'boreal', 'join_op' => 'und']);
+$schnitt = avesmapsLoreRuleEvaluate([$gebirgeBoreal], $areas, $places, $zones);
+assert($ids($schnitt, 'areas') === ['a2']);
+assert($ids($schnitt, 'places') === ['p3']);
+
+// Von links nach rechts, ohne Klammern: (Wald UND Gebirge) ODER Alkrawald.
+$alkraTerm = $term(['area_public_id' => 'a3', 'join_op' => 'oder']);
+$kette = avesmapsLoreRuleEvaluate([$waldTerm, $gebirgeTerm, $alkraTerm], $areas, $places, $zones);
+assert($ids($kette, 'areas') === ['a3']);
+assert($ids($kette, 'places') === ['p2', 'p4']);
+
+// Keine Bedingung -> nichts. Der Aufrufer bekommt eine leere Antwort, keine Ausnahme.
+assert(avesmapsLoreRuleEvaluate([], $areas, $places, $zones) === ['areas' => [], 'places' => []]);
+
 echo "lore-rule: OK\n";

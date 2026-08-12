@@ -98,3 +98,84 @@ function avesmapsLoreRuleTermMatchesArea(array $term, array $area, array $ordere
 
     return true;
 }
+
+/**
+ * PURE: was trifft die ganze Kette?
+ *
+ * 🔴 UND WIRKT AUF DER ERGEBNISMENGE, NICHT AUF DER FLAECHE (Entwurf §3.1). Eine
+ * ecosystem_region hat genau EIN kind und EINEN region_type -- keine Flaeche ist Wald
+ * *und* Gebirge, „Wald UND Gebirge" liefert daher 0 Flaechen. Ein ORT dagegen kann in
+ * beiden liegen; live sind das 22. Die 0 ist die richtige Antwort und wird nicht
+ * wegdefiniert; der Editor zeigt beide Zahlen nebeneinander.
+ *
+ * Ausgewertet wird strikt von LINKS NACH RECHTS ohne Klammern -- dieselbe Reihenfolge wie
+ * im Editor, sonst zeigt die Vorschau etwas anderes als die Infobox.
+ *
+ * 💣 Eine SIEDLUNG ist ein Punkt und wird gegen die Zone EINZELN geprueft, nie ueber ihre
+ * Flaeche. „Teilweise in der Zone" gibt es nur bei Flaechen. Beim Finsterkamm ist das der
+ * Unterschied zwischen 44 und 4.
+ *
+ * @param list<array<string,mixed>> $terms
+ * @param list<array<string,mixed>> $areas
+ * @param list<array<string,mixed>> $places
+ * @param list<string> $orderedZoneKeys
+ * @return array{areas: list<string>, places: list<string>}
+ */
+function avesmapsLoreRuleEvaluate(array $terms, array $areas, array $places, array $orderedZoneKeys): array
+{
+    if ($terms === []) {
+        return ['areas' => [], 'places' => []];
+    }
+
+    $areaResult = null;
+    $placeResult = null;
+
+    foreach (array_values($terms) as $index => $term) {
+        $termAreas = [];
+        foreach ($areas as $area) {
+            if (avesmapsLoreRuleTermMatchesArea($term, $area, $orderedZoneKeys)) {
+                $termAreas[(string) ($area['public_id'] ?? '')] = true;
+            }
+        }
+
+        $zoneKeys = avesmapsLoreRuleZoneKeys($orderedZoneKeys, $term['climate_from'] ?? null, $term['climate_to'] ?? null);
+        $termPlaces = [];
+        foreach ($places as $place) {
+            if ($zoneKeys !== [] && !in_array((string) ($place['zone'] ?? ''), $zoneKeys, true)) {
+                continue;
+            }
+            foreach ((array) ($place['area_public_ids'] ?? []) as $areaId) {
+                if (isset($termAreas[(string) $areaId])) {
+                    $termPlaces[(string) ($place['public_id'] ?? '')] = true;
+                    break;
+                }
+            }
+        }
+
+        if ($index === 0) {
+            $areaResult = $termAreas;
+            $placeResult = $termPlaces;
+            continue;
+        }
+
+        $join = (string) ($term['join_op'] ?? 'und');
+        $areaResult = $join === 'oder' ? ($areaResult + $termAreas) : array_intersect_key($areaResult, $termAreas);
+        $placeResult = $join === 'oder' ? ($placeResult + $termPlaces) : array_intersect_key($placeResult, $termPlaces);
+    }
+
+    // In der Reihenfolge der EINGABE zurueck, nicht in der des Treffens: eine Liste, die
+    // je nach Bedingung anders sortiert ist, liest sich wie ein Fehler.
+    $order = static function (array $rows, array $set): array {
+        $out = [];
+        foreach ($rows as $row) {
+            $id = (string) ($row['public_id'] ?? '');
+            if (isset($set[$id])) {
+                $out[] = $id;
+            }
+        }
+
+        return $out;
+    };
+
+    return ['areas' => $order($areas, $areaResult ?? []), 'places' => $order($places, $placeResult ?? [])];
+}
