@@ -434,6 +434,40 @@ prüfbar — dasselbe Muster wie `avesmapsBuildLoreSearchEntries`.
   im Text → Regel) wäre Raterei mit dem Anschein von Daten.
 - **Reise-Wirkung** — eine Regel sagt, wo etwas vorkommt, nicht wie man dort reist.
 
+## 10a. Stand der Umsetzung
+
+**Sitzung 1 ist live seit 13.08.2026** (`ea72ad4` … `0ee2135`, 12 Commits): Schema, die reine
+Auswertung, die Leser, `location_ecosystem` im Zugehörigkeits-Lauf und die drei
+Editor-Aktionen `preview_rule` / `save_rule` / `delete_rule`. **An der Oberfläche hat sich
+nichts geändert** — das war Absicht. Bauplan und Ausführungsprotokoll:
+`docs/superpowers/plans/2026-08-12-lebensraum-regel-sitzung-1.md` (mit einer Tabelle der fünf
+Planfehler am Kopf).
+
+⚠️ **Was Sitzung 1 nicht beweisen konnte:** es gibt lokal keine MySQL-Instanz. Alle Abfragen
+in `lore-rule-store.php` sind gegen ein nachgebautes sqlite-Schema grün; ob die Spalten scharf
+wirklich so heißen, zeigt erst der erste `preview_rule`-Aufruf. Zweimal lag die Vorlage dabei
+schon daneben (`climate_zone_key`, `is_crossing`). Ebenfalls zu beobachten: der erste
+„Zugehörigkeit rechnen"-Lauf nach dem Deploy muss `completed: true` melden, und `location_rows`
+darf dabei `0` sein — die Zeilen sendet erst Sitzung 2.
+
+**Aus Sitzung 1 mitgenommen, für Sitzung 2:**
+
+- Es gibt **keinen Weg, eine gespeicherte Regel zurückzulesen.** `avesmapsLoreRuleReadForEntry`
+  existiert, hat aber keinen Aufrufer, und die Aktion `detail` trägt Regeln nicht. Der
+  Regeleditor braucht das als Erstes.
+- `preview_rule` antwortet mit **jedem** Treffer namentlich — eine großzügige Regel liefert 777
+  Flächen und ~2.800 Siedlungen in einem JSON. Für die Oberfläche besser Zahlen plus eine
+  gedeckelte Stichprobe.
+- `save_rule` und `delete_rule` schreiben **keine Protokollzeile**, während `remove_place` im
+  selben Endpunkt eine schreibt. Eine gelöschte Regel hinterlässt bisher keine Spur.
+- Die Dauer einer Vorschau auf echtem Bestand ist ungemessen (777 Flächen plus ~2.782
+  Punkt-in-Polygon-Tests). **Einmal** messen, nie in einer Schleife (AGENTS.md §10).
+
+💣 **Für Sitzung 3:** `avesmapsLoreRuleReadPlaces` rechnet die Zone je Ort mit
+Punkt-in-Polygon. Für die Editor-Vorschau ist das vertretbar; auf dem öffentlichen Lesepfad
+wäre es genau das, was §5 verbietet. Diese Funktion darf **nicht** unverändert in die Infobox
+wandern.
+
 ## 11. Offene Punkte
 
 - 🔧 **Namensbasierte Ortszuordnung in `lore_place`** (§3.4). Betrifft fünf bekannte
