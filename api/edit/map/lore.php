@@ -11,6 +11,9 @@ declare(strict_types=1);
 // POST { action: "set_field",    wiki_key, field, value }          -> Feld übersteuern (leer = Übersteuerung aufheben)
 // POST { action: "set_status",   wiki_key, status }                -> active | suppressed
 // POST { action: "set_kind_enabled", kind, enabled }               -> Art oeffentlich an/aus (OHNE wiki_key)
+// POST { action: "preview_rule", wiki_key, terms }                -> was die Regel traefe (schreibt NICHTS)
+// POST { action: "save_rule",    wiki_key, terms, relation?, rule_id? } -> anlegen oder ersetzen
+// POST { action: "delete_rule",  wiki_key, rule_id }              -> Regel entfernen
 //
 // Alle Schreibaktionen sind capability-gated ('edit') wie jeder Editor-Schreibpfad.
 
@@ -22,6 +25,9 @@ require_once __DIR__ . '/../../_internal/political/territory.php';
 require_once __DIR__ . '/../../_internal/app/lore.php';
 // avesmapsAppSettingSet -- explizit, nicht auf function_exists verlassen.
 require_once __DIR__ . '/../../_internal/app/app-setting.php';
+// Die Lebensraum-Regel: reine Auswertung und Ablage getrennt.
+require_once __DIR__ . '/../../_internal/app/lore-rule.php';
+require_once __DIR__ . '/../../_internal/app/lore-rule-store.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -53,6 +59,39 @@ try {
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
+
+    /**
+     * Bedingungen aus dem Rumpf, auf die Form gebracht, die lore-rule.php erwartet.
+     *
+     * 💣 Der Riegel steht HIER, serverseitig, nicht nur am ausgegrauten Knopf: eine Regel,
+     * deren Bedingungen alle leer sind, traefe ALLES. Dieselbe Lehre wie beim Loeschriegel
+     * der Uebernahme-Vorschau.
+     */
+    $readTerms = static function (array $payload): array {
+        $out = [];
+        foreach ((array) ($payload['terms'] ?? []) as $raw) {
+            $types = [];
+            foreach ((array) ($raw['types'] ?? []) as $type) {
+                $kind = avesmapsNormalizeSingleLine((string) ($type['kind'] ?? ''), 20);
+                $regionType = avesmapsNormalizeSingleLine((string) ($type['region_type'] ?? ''), 60);
+                if ($kind !== '' && $regionType !== '') {
+                    $types[] = ['kind' => $kind, 'region_type' => $regionType];
+                }
+            }
+            $areaId = avesmapsNormalizeSingleLine((string) ($raw['area_public_id'] ?? ''), 36);
+            $from = avesmapsNormalizeSingleLine((string) ($raw['climate_from'] ?? ''), 60);
+            $to = avesmapsNormalizeSingleLine((string) ($raw['climate_to'] ?? ''), 60);
+            $out[] = [
+                'join_op' => ((string) ($raw['join_op'] ?? 'und')) === 'oder' ? 'oder' : 'und',
+                'area_public_id' => $areaId === '' ? null : $areaId,
+                'climate_from' => ($from === '' || $to === '') ? null : $from,
+                'climate_to' => ($from === '' || $to === '') ? null : $to,
+                'types' => $types,
+            ];
+        }
+
+        return $out;
+    };
 
     switch ($action) {
         case 'detail':
@@ -132,6 +171,77 @@ try {
                 'kinds' => avesmapsLoreEnabledKinds($pdo),
             ]);
             // no break
+
+        case 'preview_rule': {
+            // Schreibt NICHTS -- die Vorschau ist reine Rechnung. Dieselbe Trennung wie bei
+            // der Uebernahme-Vorschau: die Rechen-Haelfte fasst keine Nutztabelle an.
+            $terms = $readTerms($payload);
+            $result = avesmapsLoreRuleEvaluate(
+                $terms,
+                $areas = avesmapsLoreRuleReadAreas($pdo),
+                $places = avesmapsLoreRuleReadPlaces($pdo),
+                avesmapsLoreRuleOrderedZoneKeys($pdo)
+            );
+            $named = static function (array $rows, array $ids): array {
+                $byId = [];
+                foreach ($rows as $row) {
+                    $byId[(string) $row['public_id']] = (string) ($row['name'] ?? '');
+                }
+                $out = [];
+                foreach ($ids as $id) {
+                    $out[] = ['public_id' => $id, 'name' => $byId[$id] ?? ''];
+                }
+
+                return $out;
+            };
+            avesmapsJsonResponse(200, [
+                'ok' => true,
+                'areas' => $named($areas, $result['areas']),
+                'places' => $named($places, $result['places']),
+                'counts' => ['areas' => count($result['areas']), 'places' => count($result['places'])],
+            ]);
+            break;
+        }
+
+        case 'save_rule': {
+            $terms = $readTerms($payload);
+            if ($terms === []) {
+                avesmapsErrorResponse(400, 'rule_empty', 'Eine Regel braucht mindestens eine Bedingung.');
+            }
+            $allEmpty = true;
+            foreach ($terms as $term) {
+                if (!avesmapsLoreRuleTermIsEmpty($term)) {
+                    $allEmpty = false;
+                    break;
+                }
+            }
+            if ($allEmpty) {
+                avesmapsErrorResponse(400, 'rule_matches_everything', 'Ohne eine Einschraenkung traefe die Regel alles.');
+            }
+            avesmapsLoreRuleEnsureTables($pdo);
+            $relation = avesmapsNormalizeSingleLine((string) ($payload['relation'] ?? 'verbreitung'), 20);
+            $ruleId = (int) ($payload['rule_id'] ?? 0);
+            $saved = avesmapsLoreRuleSave(
+                $pdo,
+                $wikiKey,
+                $terms,
+                $relation === '' ? 'verbreitung' : $relation,
+                (int) ($user['id'] ?? 0) ?: null,
+                $ruleId > 0 ? $ruleId : null
+            );
+            avesmapsJsonResponse(200, ['ok' => true, 'rule_id' => $saved]);
+            break;
+        }
+
+        case 'delete_rule': {
+            avesmapsLoreRuleEnsureTables($pdo);
+            $ruleId = (int) ($payload['rule_id'] ?? 0);
+            if ($ruleId <= 0) {
+                avesmapsErrorResponse(400, 'invalid_request', 'rule_id ist erforderlich.');
+            }
+            avesmapsJsonResponse(200, ['ok' => avesmapsLoreRuleDelete($pdo, $ruleId)]);
+            break;
+        }
 
         default:
             avesmapsErrorResponse(400, 'unknown_action', 'Diese Aktion ist unbekannt.');
