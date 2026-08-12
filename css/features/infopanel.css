@@ -8,9 +8,21 @@
    Popup-Inhalt ist ohnehin fuer weissen Grund gebaut. */
 
 /* Panel-Breite als Variable (Mode-Klasse liegt auf <html>): Panel, Rand-Tab UND die nach
-   links neben die Panel-Kante gesetzten Karten-Kontrollen (Zoom + "Hinweise") teilen sie sich. */
+   links neben die Panel-Kante gesetzten Karten-Kontrollen (Zoom + "Hinweise") teilen sie sich.
+
+   💣 Der zweite Wert ist der Rand, den das Panel am Telefon stehen laesst -- und er war bis zum
+   12.08.2026 mit 64px mehr als doppelt so breit wie der des Routenplaners gegenueber. Gemessen bei
+   375px Schirm: Planer 350px breit, 25px Karte rechts daneben; Infopanel nur 311px, 64px Karte
+   links daneben. Owner: „wenn das ausgeklappt ist, ist links mehr platz wie beim routenplaner
+   rechts ... kannst du dem infopanel mehr platz geben?"
+   Jetzt bleibt derselbe Kartenrand stehen, den in dieser Ecke ohnehin alles liest
+   (--avesmaps-edge-gap, beidseitig gedacht = 24px). Das Panel gewinnt damit am Telefon 40px
+   Inhaltsbreite, ohne eine neue Zahl einzufuehren.
+   ⚠️ Der 400px-Deckel bleibt unangetastet: er greift ab ~424px Schirmbreite und bestimmt das Panel
+   am Zeiger. Geaendert hat sich NUR das Verhalten auf schmalen Schirmen -- genau dort, wo der
+   Unterschied zu sehen war. */
 .avesmaps-infopanel-mode {
-	--avesmaps-ip-w: min(400px, calc(100vw - 64px));
+	--avesmaps-ip-w: min(400px, calc(100vw - var(--avesmaps-edge-gap) * 2));
 }
 
 .avesmaps-infopanel {
