@@ -108,11 +108,20 @@ const einfach = avesmapsLoreInfoRowMarkup(zeile("fauna"),
 assert.ok(einfach.indexOf("Direkt hier") < 0,
 	"eine einzige Gruppe bekommt keine Ueberschrift: " + einfach);
 
-// ---- die Freitext-Handelswaren fuehren --------------------------------------------------------
-// Erst die Gattungen der Gegend („Vieh, Holz"), dann die Stuecke mit Namen (Owner 2026-07-22).
+// ---- die Freitext-Handelswaren gehoeren in dieselbe Gruppe ------------------------------------
+// Die Gattungen der Gegend („Vieh, Holz") und die Stuecke mit Namen („Braeubier") sind EINE Liste,
+// nicht zwei (Owner 2026-07-22): getrennt lasen sie sich wie ein widersprüchlicher Doppeleintrag.
+//
+// 🪤 Ihre SONDERSTELLUNG VORNEWEG ist mit der Schwelle 0 entfallen, und zwar zwangslaeufig: wo
+// Buchstabenmarken stehen, ist die Ordnung das Alphabet, und ein „vorne" gibt es darin nicht.
+// Bis zum 12.08.2026 fiel das nicht auf, weil kurze Listen ohne Marken auskamen. Der Test behauptet
+// deshalb jetzt, was gilt -- beide sind da, in einer Liste, alphabetisch.
 const mitLead = avesmapsLoreInfoRowMarkup(zeile("ware"), [ware("Bräubier")], 1, "punin",
 	[{ name: "Vieh", wiki_url: "" }, { name: "Holz", wiki_url: "" }]);
-assert.ok(mitLead.indexOf("Vieh") < mitLead.indexOf("Bräubier"), "die Gattungen stehen vorn");
+assert.ok(mitLead.indexOf("Vieh") >= 0 && mitLead.indexOf("Holz") >= 0 && mitLead.indexOf("Bräubier") >= 0,
+	"Gattungen und benannte Stuecke stehen in derselben Liste: " + mitLead);
+assert.ok(mitLead.indexOf("Bräubier") < mitLead.indexOf("Holz"),
+	"und zwar alphabetisch, nicht nach Herkunft der Angabe: " + mitLead);
 assert.ok(mitLead.indexOf("Handelswaren gelistet") >= 0, "und zaehlen mit: " + mitLead);
 // Doppelungen: „Salz" kann in beiden Quellen stehen und darf nur einmal erscheinen.
 const doppelt = avesmapsLoreInfoRowMarkup(zeile("ware"), [ware("Salz")], 1, "punin",
@@ -153,13 +162,20 @@ assert.ok(kurz.indexOf("<details class=\"avesmaps-lore__gruppe\"") < 0,
 assert.ok(/avesmaps-lore__gruppe--fest/.test(kurz) && /avesmaps-lore__gruppe-zahl">3</.test(kurz),
 	"...die Ueberschrift mit Anzahl steht trotzdem da: " + kurz.slice(0, 200));
 
-// Buchstabenmarken: erst ab der eigenen Schwelle, und dann sortiert.
+// 🔴 Buchstabenmarken IMMER -- Schwelle 0 (Owner 12.08.2026: „es macht mein durchblättern keinen
+// sinn dass in einem menü welche dranstehen und im andern nicht"). Der Weg war 30 → 10 → 0.
+// ⭐ Eine Schwelle spart Platz im Einzelfall und kostet Verlaesslichkeit ueber die Flaeche.
+assert.strictEqual(AVESMAPS_LORE_LETTER_MIN, 0, "die Schwelle steht auf 0, also immer");
 assert.ok(/avesmaps-lore__buchstabe">/.test(
 	avesmapsLoreInfoRowMarkup(zeile("ware"), reihe(40, "Ware"), 40, "punin", null)),
 	"40 Eintraege in einer Gruppe bekommen Marken");
-assert.ok(!/avesmaps-lore__buchstabe">/.test(
+assert.ok(/avesmaps-lore__buchstabe">/.test(
 	avesmapsLoreInfoRowMarkup(zeile("ware"), reihe(6, "Ware"), 6, "punin", null)),
-	"sechs nicht -- eine kurze Liste braucht keine Wegweiser (Schwelle 10, Owner 12.08.2026)");
+	"💣 und sechs auch -- sonst haengt es vom Zufall ab, ob eine Infobox Marken zeigt");
+// Bis hinunter zu EINEM Namen: genau der Fall, bei dem eine Schwelle am verlockendsten waere.
+const eineMarke = avesmapsLoreInfoRowMarkup(zeile("fauna"), [ware("Griswolf")], 1, "punin", null);
+assert.ok(/avesmaps-lore__buchstabe">G</.test(eineMarke),
+	"💣 auch ein einziger Name bekommt seine Marke: " + eineMarke);
 // 💣 Umlaute fallen auf ihren Grundbuchstaben, sonst stuende „Aelbler\" unter einer eigenen Marke
 // hinter Z -- localeCompare sortiert ihn nach vorn, die Marke muesste also auch „A\" heissen.
 assert.strictEqual(avesmapsLoreLetterOf("Älbler"), "A", "Ae faellt auf A");

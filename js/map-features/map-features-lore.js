@@ -258,10 +258,22 @@ var AVESMAPS_LORE_GROUPS = [
 // (dann kommen Marken). Eine Etappe mit 12 Tierarten sieht damit aus wie bisher; nur die grossen
 // Faelle werden gebaendigt.
 var AVESMAPS_LORE_GROUP_LID_MIN = 25;
-// 🔧 Owner 12.08.2026 von 30 auf 10 gesenkt („dann könnten wir aber auch mal … die schwelle auf
-// 10"): bei 30 sah er die Marken an seinem Beispiel nie -- die Reichsstrasse 2 traegt in ihrer
-// groessten Gruppe sechs Waren.
-var AVESMAPS_LORE_LETTER_MIN = 10;
+// 🔴 NULL, also IMMER -- jede Gruppe bekommt ihre Buchstabenmarken, egal wie klein sie ist.
+//
+// Der Weg dahin: 30 → 10 → 0, alle drei am selben Tag vom Owner entschieden. Bei 30 sah er die
+// Marken an seinem Beispiel nie; bei 10 sah er sie mal so, mal so. Sein Befund zu 0
+// (12.08.2026): „es macht mein durchblättern keinen sinn dass in einem menü welche dranstehen und
+// im andern nicht."
+//
+// ⭐ Das ist derselbe Gedanke, der schon den statischen Deckel abgeschafft hat: **eine Schwelle
+// spart Platz im Einzelfall und kostet Verlässlichkeit über die Fläche.** Wer durch zwanzig
+// Infoboxen blättert, sieht nicht zwanzig sinnvoll abgestufte Sonderfälle, sondern ein Bauteil,
+// das sich nicht entscheiden kann. Die Marke bei drei Namen ist überflüssig -- aber sie steht da,
+// wo das Auge sie erwartet, und das ist mehr wert.
+//
+// ⚠️ Bleibt eine Schraube, weil die andere (AVESMAPS_LORE_GROUP_LID_MIN) eine ANDERE Frage
+// beantwortet: „ist die ZEILE zu lang?" gegen „wie lese ich diese GRUPPE?".
+var AVESMAPS_LORE_LETTER_MIN = 0;
 
 // Der Buchstabe, unter dem ein Name einsortiert wird. Umlaute fallen auf ihren Grundbuchstaben
 // (Ä -> A), sonst haette „Älbler" eine eigene Marke hinter Z.
@@ -350,6 +362,12 @@ function avesmapsLoreGroupedMarkup(entries, lead) {
 // und bekäme eine eigene Marke am Ende, während seine Marke „A" heißt.
 function avesmapsLoreNamesBlockMarkup(items) {
 	var list = items || [];
+	// ⚠️ Leere Liste zuerst: bei Schwelle 0 greift der Komma-Zweig nie mehr, und ohne diesen Riegel
+	// entstünde ein leerer Spalten-Kasten. Erreichbar ist der Fall heute nicht (leere Gruppen werden
+	// vorher aussortiert) -- er kostet eine Zeile und schließt die Lücke, die die 0 aufgemacht hat.
+	if (list.length === 0) {
+		return "";
+	}
 	if (list.length < AVESMAPS_LORE_LETTER_MIN) {
 		return '<span class="avesmaps-lore__names">' + list.map(avesmapsLoreNameMarkup).join(", ") + "</span>";
 	}
