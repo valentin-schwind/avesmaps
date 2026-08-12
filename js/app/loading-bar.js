@@ -144,14 +144,32 @@
 		refresh();
 	}
 
+	// Der Startlauf hat genau EINEN Anfang und EIN Ende, und beides weiss nur diese Datei. Deshalb
+	// haengt hier neben dem Balken auch die Klasse `avesmaps-booting` auf <html>: die Kartenknoepfe
+	// warten darunter, bis es etwas zu bedienen gibt (Owner 12.08.2026 -- „kann man nicht buttons
+	// anzeigen nachdem alles geladen hat?"). Welche Knoepfe das sind, steht im Stylesheet
+	// (css/features/loading-bar.css); hier steht nur, WANN.
+	// 💣 Ein zweiter Zuhoerer auf `avesmaps:map-ready` waere die falsche Loesung gewesen: das Event
+	// kann feuern, BEVOR ein spaeter geladenes Skript ueberhaupt parst (siehe den Vermerk in
+	// map-features-infopanel.js) -- der zweite Zuhoerer haette es verpasst und die Knoepfe fuer
+	// immer versteckt. Diese Datei laedt frueh und traegt das Sicherheitsnetz schon.
+	function bootBeenden() {
+		document.documentElement.classList.remove("avesmaps-booting");
+		dec("boot");
+	}
+
 	// Boot job (B): active until the map data is applied.
 	inc("boot");
+	document.documentElement.classList.add("avesmaps-booting");
 	document.addEventListener("avesmaps:map-ready", function onReady() {
 		document.removeEventListener("avesmaps:map-ready", onReady);
-		dec("boot");
+		bootBeenden();
 	});
 	// Safety net: never let the boot bar hang forever (e.g. if the data load errors before dispatching ready).
-	window.setTimeout(() => dec("boot"), 20000);
+	// 🔴 Es traegt jetzt mehr als den Balken: laeuft es nicht, blieben die Knoepfe unerreichbar. Der
+	// Datenload feuert `map-ready` zwar im `.finally()`, also auch bei einem Fehler -- aber ein Skript,
+	// das vorher stirbt, kommt dort nie an.
+	window.setTimeout(bootBeenden, 20000);
 
 	// Tile job (A): wire a Leaflet tile layer's loading/load events. "load" fires when ALL current tiles are
 	// loaded, so clearing on it is correct regardless of how many "loading" events fired.
