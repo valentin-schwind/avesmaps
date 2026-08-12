@@ -28,6 +28,13 @@ body {
 	box-shadow: var(--shadow-panel);
 	box-sizing: border-box;
 	z-index: var(--z-map-panel);
+	/* Womit der Planer beim Start hereinfaehrt (die Startstellung setzt css/features/loading-bar.css).
+	   💣 `transform`, NICHT `left`: das Auf- und Zuklappen animiert `left` inline per jQuery
+	   (js/ui/route-planner-toggle.js, 220ms in vielen Schritten). Eine CSS-Transition auf derselben
+	   Eigenschaft interpolierte jeden dieser Schritte noch einmal -- die Lasche liefe dem Panel
+	   hinterher. Auf `transform` stossen die beiden nicht zusammen.
+	   ⚠️ Dieselben 220ms wie die Slides von Infopanel und Editor. */
+	transition: transform 0.22s ease;
 }
 
 /* Am Telefon laeuft der Routenplaner von Kante zu Kante -- aus denselben Token wie das Infopanel
@@ -78,6 +85,10 @@ html.avesmaps-phone #search {
 	text-orientation: mixed;
 	writing-mode: vertical-rl;
 	z-index: var(--z-map-panel);
+	/* Faehrt beim Start mit dem Panel herein -- sie steht NEBEN ihm, nicht darin, also erreicht sie
+	   dessen `transform` nicht (Begruendung in css/features/loading-bar.css). Gleiche Dauer wie dort,
+	   sonst kaeme eins von beiden zuerst an. */
+	transition: transform 0.22s ease;
 }
 
 /* Am Telefon ist die Lasche ein kleiner Pfeilgriff statt eines beschrifteten Balkens: mittig an der

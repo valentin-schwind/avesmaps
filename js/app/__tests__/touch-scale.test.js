@@ -767,6 +767,38 @@ assert.ok(/top:\s*var\(--avesmaps-panel-inset-top\)/.test(planerAmTelefon[1])
 assert.strictEqual((tokens.match(/html\.avesmaps-phone\s*\{/g) || []).length, 1,
 	"und es gibt genau EINEN solchen Block in tokens.css -- zwei waeren zwei Wahrheiten");
 
+// ---- Der Planer faehrt beim Start herein, und seine Lasche faehrt MIT (12.08.2026) ---------------
+//
+// Owner: „das ganze panel von links nach rechts reinfaehrt, wenn das laden fertig ist."
+// 💣 Die Lasche steht NEBEN dem Panel, nicht darin (siehe die div-Bilanz weiter oben) -- ein
+// `transform` am Panel erreicht sie also nicht. Gemessen blieb sie bei 350..380 stehen und schwebte
+// frei auf der Karte, waehrend der Planer draussen war. Beide gehoeren deshalb in DIESELBE Regel:
+// zwei Regeln mit derselben Verschiebung waeren zwei Zahlen, die auseinanderlaufen koennen.
+const ladeCss = withoutComments(read("css", "features", "loading-bar.css"));
+const einfahrt = ladeCss.match(/^html:not\(\.avesmaps-phone\)\.avesmaps-booting #search,\s*html:not\(\.avesmaps-phone\)\.avesmaps-booting #toggle-button\s*\{([^}]*)\}/m);
+assert.ok(einfahrt,
+	"Panel UND Lasche stehen in derselben Startstellungs-Regel -- die Lasche haengt nicht im Panel,"
+	+ " sie muss eigens mitbewegt werden");
+assert.ok(/transform:\s*translateX\(calc\(-1 \* var\(--avesmaps-planner-width\)\)\)/.test(einfahrt[1]),
+	"...und beide um dieselbe Panelbreite, aus dem Token statt als Zahl");
+// ⚠️ `transform`, nicht `left`: das Auf- und Zuklappen animiert `left` inline per jQuery, eine
+// CSS-Transition darauf interpolierte jeden Schritt ein zweites Mal.
+["#search", "#toggle-button"].forEach((selektor) => {
+	const regel = layoutCss.match(new RegExp("^" + escapeRe(selektor) + "\\s*\\{([^}]*)\\}", "m"));
+	assert.ok(regel && /transition:[^;]*transform 0\.22s/.test(regel[1]),
+		`${selektor} faehrt in 0.22s -- gleiche Dauer fuer beide, sonst kommt eins zuerst an`);
+	assert.ok(!/transition:[^;]*[^-]left\s/.test(regel[1]),
+		`${selektor} laesst \`left\` in Ruhe -- das animiert jQuery`);
+});
+// 🔴 Und die Klasse muss wieder fallen, egal was passiert: das Sicherheitsnetz in loading-bar.js
+// traegt seit dem 12.08.2026 mehr als den Balken.
+const ladeJs = withoutComments(read("js", "app", "loading-bar.js"));
+assert.ok(/function bootBeenden\(\)[\s\S]{0,200}classList\.remove\("avesmaps-booting"\)/.test(ladeJs),
+	"es gibt EINE Stelle, die den Startlauf beendet");
+assert.ok(/setTimeout\(bootBeenden,\s*\d+\)/.test(ladeJs),
+	"...und das Zeitnetz ruft SIE, nicht nur dec('boot') -- sonst bliebe der Planer bei einem Fehler"
+	+ " draussen und der Knopfbund unsichtbar");
+
 // ---- Der Rand zur Karte ist EINE Zahl, und der Panel-Rand ist daraus ABGELEITET ------------------
 //
 // Owner 11.08.2026: „hinweise und der untere rand vom infopanel sind 3px auseinander -> gleich

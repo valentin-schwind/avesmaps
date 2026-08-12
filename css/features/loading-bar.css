@@ -46,15 +46,39 @@
    (syncMapCornerStack schreibt --avesmaps-corner-stack aus seiner Hoehe), und ein ausgeblendeter
    Bund misst 0. Gleiche Begruendung wie beim Ausblenden hinter der offenen Infobox
    (css/features/infopanel.css).
-   ⚠️ Der Routenplaner bleibt stehen. Er IST der Inhalt der Seite, seine Felder nehmen schon Text
-   entgegen, und am Telefon ist er ohnehin eingeklappt.
+   ⚠️ NUR der Knopfbund in der Kartenecke. Die beiden Randlaschen standen hier bis zum 12.08.2026
+   mit drin und sind wieder heraus (Owner: „ich meinte nicht, dass die tab-lasche nachgeladen wird")
+   -- eine Lasche, die aufploppt, ist genau das Nachladen, das nicht gemeint war. Der Planer selbst
+   faehrt stattdessen herein, siehe die Regel darunter.
    ⚠️ Kein Riegel gegen Tastaturbefehle: die Knoepfe sind nur unsichtbar, nicht abgeschaltet --
    was sie tun, tut auch der laufende Code weiter, sobald es etwas zu tun gibt. */
-html.avesmaps-booting #map-corner-actions,
-html.avesmaps-booting #toggle-button,
-html.avesmaps-booting .avesmaps-infopanel__handle {
+html.avesmaps-booting #map-corner-actions {
 	opacity: 0;
 	visibility: hidden;
 	pointer-events: none;
 	transition: opacity 0.22s ease, visibility 0s linear 0.22s;
+}
+
+/* ---- Und der Routenplaner faehrt herein, wenn die Daten da sind ----------------------------
+   Owner 12.08.2026: „das ganze panel von links nach rechts reinfaehrt, wenn das laden fertig ist."
+   Startstellung ist ganz links draussen; faellt die Klasse, gleitet er auf seinen Platz. Die Dauer
+   steht bei ihm selbst (css/layout/map-layout.css) -- hier steht nur, WO er anfaengt.
+   💣 Die Lasche braucht ihre EIGENE Verschiebung. Sie steht NEBEN dem Panel, nicht darin (seit
+   11.08.2026 -- als Kind des scrollenden #search war sie auf iOS an dessen Kasten gebunden und
+   verschwand ganz; die Zusicherung dazu steht in js/app/__tests__/touch-scale.test.js). Ein
+   `transform` am Panel erreicht sie deshalb nicht: gemessen blieb sie bei 350..380 stehen und
+   schwebte frei auf der Karte, waehrend der Planer draussen war. Beide bewegen sich um dieselbe
+   Panelbreite, also um denselben Token.
+   💣 Am Telefon NICHT: dort startet der Planer eingeklappt (route-planner-toggle.js), es gibt also
+   nichts hereinzufahren. Die Lasche wuerde nur doppelt nach aussen wandern und am Ende auf ihren
+   Platz springen -- genau das Aufploppen, das hier vermieden werden soll.
+   ⚠️ Bekannte Luecke, klein und bewusst: `avesmaps-phone` setzt runtime-state.js, das am ENDE des
+   Body steht -- diese Datei laeuft im Kopf. Bis dahin gilt die Regel auch am Telefon. Der Planer
+   selbst wird aber erst 750 Zeilen HTML vor runtime-state.js ueberhaupt geparst, das Fenster ist
+   also wenige Millisekunden lang und liegt vor dem ersten Bild. Es zu schliessen hiesse, entweder
+   die Ladereihenfolge umzustellen (sie ist ein Vertrag) oder die Telefon-Heuristik hier ein zweites
+   Mal hinzuschreiben -- und dass es davon nur EINE gibt, ist eine Zusicherung mit eigenem Test. */
+html:not(.avesmaps-phone).avesmaps-booting #search,
+html:not(.avesmaps-phone).avesmaps-booting #toggle-button {
+	transform: translateX(calc(-1 * var(--avesmaps-planner-width)));
 }
