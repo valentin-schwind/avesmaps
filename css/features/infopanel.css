@@ -305,6 +305,16 @@
 .avesmaps-infopanel__body {
 	flex: 1;
 	overflow-y: auto;
+	/* 💣 DER PLATZ FÜR DEN ROLLBALKEN STEHT IMMER BEREIT. Ohne das erscheint er in dem Moment, in dem
+	   ein Deckel aufklappt, nimmt sich ~15px BREITE -- und damit ändern sich schlagartig ALLE
+	   Abmessungen im Panel: jede Zeile bricht neu um, die Tabelle rutscht, der Inhalt springt unter
+	   dem Finger weg (Owner 12.08.2026: „beim aufklappen taucht die scrollbar auf, die alle
+	   abmessungen verändert"). Mit `stable` ist die Rinne von Anfang an da; ob der Balken drinsteht,
+	   ändert nichts mehr an der Breite.
+	   ⚠️ Das kostet die 15px auch dann, wenn nichts zu rollen ist -- in diesem Panel ist der Inhalt
+	   fast immer länger als der Schirm, der Fall ist also selten und ein fester Rand allemal besser
+	   als eine Breite, die sich beim Antippen ändert. */
+	scrollbar-gutter: stable;
 	overflow-x: hidden;
 	padding: var(--space-12) var(--infopanel-pad-x) var(--space-16);
 }

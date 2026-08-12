@@ -767,6 +767,19 @@ assert.ok(/top:\s*var\(--avesmaps-panel-inset-top\)/.test(planerAmTelefon[1])
 assert.strictEqual((tokens.match(/html\.avesmaps-phone\s*\{/g) || []).length, 1,
 	"und es gibt genau EINEN solchen Block in tokens.css -- zwei waeren zwei Wahrheiten");
 
+// ---- Der Rollbalken darf die Breite nicht verschieben (12.08.2026) ------------------------------
+//
+// Owner: „beim aufklappen taucht die scrollbar auf, die alle abmessungen veraendert." Gemessen im
+// Panel: ohne Rinne springt die Inhaltsbreite beim Erscheinen des Balkens von 400 auf 385px -- jede
+// Zeile bricht neu um, die Tabelle rutscht, und zwar genau in dem Moment, in dem der Finger etwas
+// aufklappt. Mit `stable` ist der Platz von Anfang an da: gemessener Sprung 0px.
+const panelBody = infopanelCss.match(/^\.avesmaps-infopanel__body\s*\{([^}]*)\}/m);
+assert.ok(panelBody, "der Panel-Koerper ist auffindbar");
+assert.ok(/overflow-y:\s*auto/.test(panelBody[1]), "er rollt");
+assert.ok(/scrollbar-gutter:\s*stable/.test(panelBody[1]),
+	"...und haelt den Platz dafuer IMMER frei -- sonst aendert das Aufklappen eines Deckels die"
+	+ " Breite aller Zeilen darin");
+
 // ---- Der Planer faehrt beim Start herein, und seine Lasche faehrt MIT (12.08.2026) ---------------
 //
 // Owner: „das ganze panel von links nach rechts reinfaehrt, wenn das laden fertig ist."
