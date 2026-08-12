@@ -131,6 +131,44 @@ assert.ok(/wert === null[\s\S]{0,120}return false/.test(riegel),
 assert.ok(/if \(abgeschaltet\(\)\)/.test(js),
 	"...und der Aufruf fragt entsprechend auf ABGESCHALTET ab, nicht auf eingeschaltet");
 
+// ---- 6c. Das Aufklappen beim Ueberfahren gilt NUR am Zeiger ---------------------------------------
+//
+// 💣 Die Bedingung ist `hover: hover` UND `pointer: fine`. Ein Touchgeraet meldet beim Tippen oft
+// ein synthetisches Hover: das Menue ginge beim ersten Antippen auf, und derselbe Tipp liefe in
+// die Zelle, die dann zufaellig unter dem Finger liegt. `pointer: fine` allein trifft den Stift
+// mit, `hover: hover` allein manche Touch-Browser.
+const schwebe = js.slice(js.indexOf("var amZeiger"), js.indexOf("document.addEventListener"));
+assert.ok(/hover:\s*hover/.test(schwebe) && /pointer:\s*fine/.test(schwebe),
+	"das Ueberfahren haengt an BEIDEN Merkmalen -- sonst klappt es am Finger beim Tippen auf");
+assert.ok(/mouseenter/.test(schwebe) && /mouseleave/.test(schwebe),
+	"es reagiert auf Betreten UND Verlassen der Huelle");
+assert.ok(/setTimeout[\s\S]{0,200}\d{2,4}\)/.test(schwebe),
+	"mit Verzoegerungen -- sofort waere es ein Aufklappen im Vorbeifahren zum Zoom");
+
+// 💣 Beim Ueberfahren wird NICHT fokussiert: ein Fokus ohne Zutun springt mit der Seite zum
+// Element und nimmt der Tastatur ihre Stelle. Nur Klick und Tastatur fokussieren.
+assert.ok(/function oeffne\(mitFokus\)/.test(js) && /if \(!mitFokus\) \{[\s\S]{0,40}return;/.test(js),
+	"oeffne() fokussiert nur auf Verlangen");
+assert.ok(/oeffne\(false\)/.test(schwebe),
+	"...und das Ueberfahren verlangt es nicht");
+assert.ok(/oeffne\(true\)/.test(js),
+	"...der Klick dagegen schon");
+
+// 💣 Nach einer Auswahl steht der Zeiger noch ueber dem Bund. Ohne Riegel klappte das Menue
+// sofort wieder auf -- er faellt erst beim Verlassen.
+//
+// ⚠️ Beide Ausschnitte sind ENG gefasst. Weiter gefasst fand die erste Zusicherung den Riegel im
+// Klick-Handler und die zweite die Deklaration `var schwebeGesperrt = false` -- beide waren dann
+// gruen, obwohl die geprueften Zeilen entfernt waren (gemessen per Mutation).
+const waehlen = js.slice(js.indexOf("function waehle"), js.indexOf("knopf.addEventListener"));
+assert.ok(/schwebeGesperrt = true/.test(waehlen),
+	"eine Auswahl verriegelt das Ueberfahren -- sonst klappt das Menue sofort wieder auf, weil der"
+	+ " Zeiger noch ueber dem Bund steht");
+const verlassen = js.slice(js.indexOf('huelle.addEventListener("mouseleave"'));
+assert.ok(/schwebeGesperrt = false/.test(verlassen.slice(0, 400)),
+	"...und das Verlassen der Huelle loest den Riegel wieder -- sonst bliebe er bis zum naechsten"
+	+ " Klick liegen und das Ueberfahren waere tot");
+
 // ---- 7. Der Zustand bleibt das <select> -----------------------------------------------------------
 assert.ok(/dispatchEvent\(new Event\("change"/.test(js),
 	"ein Klick geht ueber das change-Ereignis der Auswahlbox -- derselbe Weg, den auch sie nimmt");

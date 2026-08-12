@@ -173,7 +173,7 @@
 			}, 140);
 		}
 
-		function oeffne() {
+		function oeffne(mitFokus) {
 			window.clearTimeout(blendeTimer);
 			zeichne();
 			menue.hidden = false;
@@ -185,6 +185,12 @@
 			window.requestAnimationFrame(function () {
 				menue.classList.add("is-open");
 			});
+			// 💣 Beim Ueberfahren wird NICHT fokussiert. Ein Fokus ohne Zutun springt mit der Seite
+			// zum Element und nimmt der Tastatur ihre Stelle -- wer gerade tippt, verliert sie an ein
+			// Menue, das er nur gestreift hat. Nur Klick und Tastatur fokussieren.
+			if (!mitFokus) {
+				return;
+			}
 			var aktiv = menue.querySelector(".map-layer-picker__cell.is-active");
 			if (aktiv) {
 				aktiv.focus();
@@ -192,6 +198,9 @@
 		}
 
 		function waehle(modus) {
+			// Nach einer Auswahl steht der Zeiger noch ueber dem Bund. Ohne diesen Riegel klappte
+			// das Menue sofort wieder auf -- er faellt erst, wenn der Zeiger die Huelle verlaesst.
+			schwebeGesperrt = true;
 			if (!modus || modus === aktiveAnsicht()) {
 				schliesse();
 				return;
@@ -207,7 +216,59 @@
 
 		knopf.addEventListener("click", function (ereignis) {
 			ereignis.stopPropagation();
-			if (offen()) { schliesse(); } else { oeffne(); }
+			if (offen()) {
+				schwebeGesperrt = true;   // zugeklickt heisst zu -- nicht sofort wieder aufschweben
+				schliesse();
+			} else {
+				oeffne(true);
+			}
+		});
+
+		/*
+		 * Am Zeiger klappt die Kachel schon beim Ueberfahren auf (Owner 12.08.2026).
+		 *
+		 * 🔴 NUR am Zeiger, und die Bedingung ist `hover: hover` UND `pointer: fine`. Ein
+		 * Touchgeraet meldet beim Tippen oft ein synthetisches Hover: das Menue ginge beim ersten
+		 * Antippen auf und der Klick liefe gleich in die Zelle darunter, die dann zufaellig dort
+		 * liegt. `pointer: fine` allein reicht nicht (Stift), `hover: hover` allein auch nicht.
+		 *
+		 * 💣 Drei Kleinigkeiten, ohne die es nervt statt hilft:
+		 *  - eine kurze Verzoegerung vor dem Aufklappen, sonst geht es auf, wenn man mit der Maus
+		 *    nur zum Zoom oder zu „Hinweise" hinueberfaehrt;
+		 *  - eine laengere Gnadenfrist beim Verlassen, sonst faellt es zu, waehrend man von der
+		 *    Kachel zur zweiten Rasterzeile zieht;
+		 *  - nach einer Auswahl ein RIEGEL bis zum Verlassen: der Zeiger steht danach noch ueber
+		 *    dem Bund, und ohne den Riegel klappte das Menue sofort wieder auf.
+		 */
+		var amZeiger = window.matchMedia
+			? window.matchMedia("(hover: hover) and (pointer: fine)")
+			: null;
+		var schwebeTimer = null;
+		var schwebeGesperrt = false;
+
+		function schwebenErlaubt() {
+			return Boolean(amZeiger && amZeiger.matches) && !schwebeGesperrt;
+		}
+
+		huelle.addEventListener("mouseenter", function () {
+			window.clearTimeout(schwebeTimer);
+			if (!schwebenErlaubt() || offen()) {
+				return;
+			}
+			schwebeTimer = window.setTimeout(function () {
+				if (schwebenErlaubt() && !offen()) { oeffne(false); }
+			}, 140);
+		});
+
+		huelle.addEventListener("mouseleave", function () {
+			window.clearTimeout(schwebeTimer);
+			schwebeGesperrt = false;   // der Riegel gilt nur, solange der Zeiger draufsteht
+			if (!Boolean(amZeiger && amZeiger.matches) || !offen()) {
+				return;
+			}
+			schwebeTimer = window.setTimeout(function () {
+				if (offen()) { schliesse(); }
+			}, 260);
 		});
 
 		menue.addEventListener("click", function (ereignis) {
