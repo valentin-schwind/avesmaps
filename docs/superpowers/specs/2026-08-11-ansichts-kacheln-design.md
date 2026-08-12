@@ -1,14 +1,17 @@
-# Ansichts-Kacheln statt Auswahlbox (`?layerPanelActive=1`)
+# Ansichts-Kacheln statt Auswahlbox
 
-**Stand:** 11.08.2026 · **Zustand:** Entwurf, Erprobung hinter einem Prüf-Schalter
+**Stand:** 12.08.2026 · **Zustand:** gebaut und live für jeden Besucher
 
 Die sechs Ansichten der Karte („Derographie") stecken heute in einer Auswahlbox
 in der Seitenleiste des Routenplaners. Wer die Karte ansieht, ohne den Planer
 aufzuklappen, findet sie nicht. Dieser Entwurf stellt sie als Kacheln in die
 Ecke der Karte — dieselbe Bewegung, die Google Maps für seine Ebenen benutzt.
 
-Erprobt wird hinter `?layerPanelActive=1`. Ohne den Schalter bleibt alles, wie
-es ist.
+🔴 **Live seit dem 12.08.2026 für jeden Besucher** (Owner: „geh live mit dem
+jetzigen") — und damit ist die Zeile „Derographie" aus dem Routenplaner
+verschwunden. `?layerPanelActive=0` holt beides zurück: der Notausgang, falls
+etwas schiefgeht, ohne Deploy. Er wirkt nur in der Adresse, die ihn trägt — ein
+globales Abschalten wäre die Sorte stiller Ausfall, die niemandem auffällt.
 
 ---
 
@@ -186,22 +189,22 @@ wird als offene Frage gemeldet, nicht als bestanden.
 
 ## 8 · Offene Punkte
 
-🔧 **Nur noch einer: der Prüf-Schalter.** Fällt `?layerPanelActive=1` weg — und
-mit ihm die Auswahlbox im Planer — oder bleiben beide? Das ist eine
-Owner-Entscheidung: ohne Schalter sehen ALLE Besucher die Kachel und finden die
-Zeile „Derographie" nicht mehr an ihrem Platz.
+Keine mehr. Die letzte — ob der Prüf-Schalter fällt — hat der Owner am
+12.08.2026 entschieden: er fällt, die Kachel gilt für alle, der Parameter bleibt
+als Notausgang (`=0`).
 
-Erledigt und nicht mehr offen:
+Entschieden und gebaut:
 
 - die sechs Orte und Bilder (`icons/layer-tiles/`, Werkzeug in `tools/layer-tiles/`);
 - die Form: Reihe zu sechst am Zeiger, 2 × 3 am Telefon, Kachel unter der Suche;
-- die Zellenbreite: **66 px**, gebunden an das längste Wort („Landschaften"), nicht
-  an das Bild — bei 60 stand überall „Landschaft…";
-- die Blende: Hülle blendet, Zellen bewegen sich, die aktive nie;
-- Englisch: die Namen kommen aus den `<option>` und werden mit ihnen übersetzt,
-  Tooltip und Vorlese-Text stehen als `view.tile.*` in der Tabelle;
-- die vier Kopplungen hängen an einem Test (`js/ui/__tests__/map-layer-picker.test.js`),
-  fünf Mutationen gegengeprüft.
+- die Zellenbreite **66 px**, gebunden an das längste Wort („Landschaften");
+- die Blende: **an der Hülle wird nichts animiert**, Blende und Bewegung sitzen an
+  den Zellen, die aktive ist von beidem ausgenommen. Diesen Fehler gab es zweimal
+  (erst als Wackeln, dann als Flackern), beide Male gesehen vom Owner;
+- Englisch: die Namen kommen aus den `<option>`, Tooltip und Vorlese-Text als
+  `view.tile.*` in der Tabelle;
+- der Editmodus bekommt sie ohne eigenen Schalter — sie hing nie am Modus.
 
-Mockup: `docs/layer-kacheln-mockup.html` — es liest die echten Stilregeln ein und
-kann deshalb nicht vom gebauten Zustand abweichen.
+Getestet: `js/ui/__tests__/map-layer-picker.test.js`, jede Zusicherung mit einer
+Mutation gegengeprüft. Mockup: `docs/layer-kacheln-mockup.html` (liest die echten
+Stilregeln ein und kann deshalb nicht abweichen).

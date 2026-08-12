@@ -1,6 +1,6 @@
 /*
- * Die Ansichts-Kachel in der Kartenecke -- Erprobung hinter ?layerPanelActive=1.
- * Entwurf: docs/superpowers/specs/2026-08-11-ansichts-kacheln-design.md
+ * Die Ansichts-Kachel in der Kartenecke -- seit 12.08.2026 fuer JEDEN Besucher, nicht mehr hinter
+ * einem Pruef-Schalter. Entwurf: docs/superpowers/specs/2026-08-11-ansichts-kacheln-design.md
  *
  * Die Kachel IST das Menue: zugeklappt zeigt sie die eingestellte Ansicht, aufgeklappt faltet sie
  * sich zu allen sechs auf -- am Zeiger als Reihe, am Telefon als 2x3 (das entscheidet CSS).
@@ -10,17 +10,24 @@
 
 	var WURZEL = "icons/layer-tiles/";
 
-	function anEinschalter() {
+	/**
+	 * 🔴 `?layerPanelActive=0` ist der NOTAUSGANG, nicht mehr der Einschalter. Die Kachel laeuft
+	 * seit dem 12.08.2026 von sich aus (Owner: „geh live mit dem jetzigen"), und mit ihr
+	 * verschwindet die Zeile „Derographie" aus dem Routenplaner. Geht damit etwas schief, holt
+	 * dieser eine Parameter die Auswahlbox zurueck, ohne dass jemand deployen muss.
+	 * ⚠️ Ein AUSschalter, kein Notaus fuer alle: er wirkt nur in der Adresse, die ihn traegt.
+	 * Ein globales Abschalten waere die Sorte stiller Ausfall, die niemandem auffaellt.
+	 */
+	function abgeschaltet() {
 		try {
 			var wert = new URLSearchParams(window.location.search).get("layerPanelActive");
 			if (wert === null) {
-				return false;
+				return false; // ohne Parameter: an
 			}
-			// Tolerant lesen wie der Rest der Adresszeile (?x=1, ?x=true, ?x= leer).
 			if (typeof parseBooleanQueryParam === "function") {
-				return parseBooleanQueryParam(wert, true);
+				return !parseBooleanQueryParam(wert, true);
 			}
-			return wert !== "0" && wert !== "false";
+			return wert === "0" || wert === "false";
 		} catch (e) {
 			return false;
 		}
@@ -273,7 +280,7 @@
 		}
 	}
 
-	if (!anEinschalter()) {
+	if (abgeschaltet()) {
 		return;
 	}
 	if (document.readyState === "loading") {

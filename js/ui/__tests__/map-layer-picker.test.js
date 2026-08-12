@@ -117,6 +117,20 @@ assert.ok(/mapLayerModeSelect/.test(js) && /\.options/.test(js),
 assert.ok(!/(powerlines|ecosystem|deregraphic)\s*:/.test(js),
 	"...und auch keine zweite Tabelle der Modus-Schluessel");
 
+// ---- 6b. Sie laeuft von sich aus, der Parameter ist der NOTAUSGANG -------------------------------
+//
+// 🔴 Seit dem 12.08.2026 sieht JEDER Besucher die Kachel (Owner: „geh live mit dem jetzigen"), und
+// mit ihr verschwindet die Zeile „Derographie" aus dem Routenplaner. `?layerPanelActive=0` holt
+// beides zurueck, ohne dass jemand deployen muss. Wer die Bedingung wieder umdreht, nimmt allen
+// Besuchern die Kachel und merkt es nicht -- die Seite sieht ohne sie voellig normal aus.
+assert.ok(/function abgeschaltet/.test(js) && !/function anEinschalter/.test(js),
+	"der Parameter ist der Ausschalter, nicht der Einschalter");
+const riegel = js.slice(js.indexOf("function abgeschaltet"), js.indexOf("function ansichten"));
+assert.ok(/wert === null[\s\S]{0,120}return false/.test(riegel),
+	"ohne Parameter laeuft die Kachel -- fehlt er, ist die Antwort `nicht abgeschaltet`");
+assert.ok(/if \(abgeschaltet\(\)\)/.test(js),
+	"...und der Aufruf fragt entsprechend auf ABGESCHALTET ab, nicht auf eingeschaltet");
+
 // ---- 7. Der Zustand bleibt das <select> -----------------------------------------------------------
 assert.ok(/dispatchEvent\(new Event\("change"/.test(js),
 	"ein Klick geht ueber das change-Ereignis der Auswahlbox -- derselbe Weg, den auch sie nimmt");

@@ -1,7 +1,8 @@
 # Die Ansichts-Icons (`icons/layer-tiles/`)
 
 Sechs Bilder, 128 px, WebP — je eines für die sechs Derographie-Ansichten. Sie sitzen auf der
-Ansichts-Kachel in der Kartenecke (`?layerPanelActive=1`, Entwurf:
+Ansichts-Kachel in der Kartenecke (live fuer jeden Besucher seit 12.08.2026; Notausgang
+`?layerPanelActive=0`. Entwurf:
 `docs/superpowers/specs/2026-08-11-ansichts-kacheln-design.md`).
 
 | Datei | Ansicht | Herkunft |
