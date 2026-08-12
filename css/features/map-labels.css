@@ -474,12 +474,13 @@ body.edit-mode .map-label img {
 	margin-top: 6px;
 }
 
-@media (max-width: 420px) {
-	.region-info-box__row {
-		grid-template-columns: minmax(0, 1fr);
-		gap: 2px;
-	}
-}
+/* 🔴 Hier stand bis zum 12.08.2026 ein Umbruch auf EINE Spalte unterhalb von 420px -- die Zeile
+   stapelte dort Beschriftung UEBER Wert, und damit sah dieselbe Infobox je nach Telefonbreite
+   verschieden aus. Owner 12.08.2026: die Tabellenform gilt in JEDER Breite.
+   Sie traegt das auch: die Beschriftungsspalte misst 96px, auf einem 320px-Telefon (Panel 256px,
+   Inhalt 220px) bleiben dem Wert 116px, und ein langer Wert bricht INNERHALB seiner Spalte um --
+   das loest die Tabelle nicht auf. ⚠️ Wird es irgendwann doch zu eng, wird die BESCHRIFTUNGS-Spalte
+   schmaler; flach gelegt wird die Zeile nicht wieder. */
 
 /* Datenleichen-Konturen (Editor-Diagnose): Legacy-map_features-Regionen */
 .legacy-leiche-label.leaflet-tooltip {
