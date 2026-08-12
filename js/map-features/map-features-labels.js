@@ -711,6 +711,8 @@ function setLabelMoveActive(entry, isActive) {
 // haengt in einem hidden-Container, den der Moduswechsel umschaltet.
 // Dreiwertig wie beim Grenzen-Haken: true = zeigen, false = verbergen, null = kein Haken da
 // -> allein der Modus entscheidet.
+// ⚠️ Diese Datei stand am 12.08.2026 in ihrer ALTEN Fassung auf dem Server (fuenf gescheiterte
+// Deploys), der Labels-Haken wirkte im Frontend also noch nicht. Nur eine Inhaltsaenderung heilt.
 // 🔴 Der Vorbehalt `IS_EDIT_MODE ?` ist am 12.08.2026 gefallen: der Haken steht seither fuer
 // JEDEN Besucher im Anzeige-Menue an der Karte (#map-display-menu). Die Dreiwertigkeit bleibt
 // aber tragend -- `?? null` faengt den Fall, dass das Element gar nicht da ist (fremde Seite,

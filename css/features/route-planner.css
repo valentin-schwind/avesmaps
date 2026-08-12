@@ -524,6 +524,9 @@
 	border-bottom: 1px solid var(--color-divider);
 }
 
+/* ⚠️ Diese Datei stand am 12.08.2026 in ihrer ALTEN Fassung auf dem Server -- die Regel darunter
+   fehlte dort, und der leere Streifen im Routenplaner war live noch da, obwohl er behoben war.
+   Folge von fuenf gescheiterten Deploys; nur eine Inhaltsaenderung heilt das. */
 /* 💣 Seit die Schalter am 12.08.2026 in das Anzeige-Menue an der Karte gezogen sind, ist diese
    Huelle im Frontend LEER -- sie traegt nur noch die versteckte Derographie-Zeile, die das
    <select> mit dem Zustand der Ansicht haelt. Ohne diese Regel bliebe genau das stehen, was der

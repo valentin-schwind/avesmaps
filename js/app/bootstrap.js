@@ -341,6 +341,9 @@ activeMapStyle = getInitialMapStyle();
 baseTileLayer = createBaseTileLayer(activeMapStyle).addTo(map);
 
 if (IS_EDIT_MODE) {
+    // ⚠️ Diese Datei stand am 12.08.2026 in ihrer ALTEN Fassung auf dem Server (fuenf gescheiterte
+    // Deploys), die Editor-Gruppen im Anzeige-Menue blieben also verborgen. Nur eine
+    // Inhaltsaenderung heilt einen vergifteten Asset-Stempel.
     // 🔴 Beide Gruppen stehen seit dem 12.08.2026 im Anzeige-Menue an der Karte
     // (#map-display-menu), nicht mehr im Routenplaner. Aufgedeckt wird die GRUPPE, nicht nur ihr
     // Inhalt: sonst stuende im Frontend eine goldene Ueberschrift ueber einer Trennlinie ueber

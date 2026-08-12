@@ -539,6 +539,9 @@
    ⚠️ Aus demselben Grund steht `line-height` ausgeschrieben: ein <button> bringt `normal` mit, ein
    <a> erbt die Zeilenhoehe des Dokuments. Ohne die Zeile waeren die beiden nebeneinander
    unterschiedlich hoch -- und das faellt erst auf, wenn sie es sind. */
+/* ⚠️ Diese Datei stand am 12.08.2026 in ihrer ALTEN Fassung auf dem Server (ohne den
+   Anzeige-Knopf), obwohl der Commit laengst durch war -- Folge von fuenf gescheiterten Deploys.
+   Nur eine Inhaltsaenderung heilt das; siehe css/components/map-display-menu.css. */
 /* 💣 FUENF Elemente, EINE Regel. Such-, Anzeige- und Ansichts-Knopf tragen Farbe, Kontur, Radius
    und Schatten der beiden Verweisknoepfe, weil sie hier mit drinstehen -- nicht, weil die Werte
    abgeschrieben waeren. Wer einen herausloest und die Werte kopiert, baut die Divergenz ein, die

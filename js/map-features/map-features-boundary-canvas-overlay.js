@@ -488,6 +488,8 @@
 		// Der "Grenzen"-Haken uebersteuert den Modus in BEIDE Richtungen: Haken aus nimmt die Grenzen
 		// auch dort weg, wo der Modus sie zeigt; Haken an zeichnet sie auch dort, wo er sie sonst
 		// unterdrueckt.
+		// ⚠️ Diese Datei stand am 12.08.2026 in ihrer ALTEN Fassung auf dem Server (fuenf gescheiterte
+		// Deploys), der Grenzen-Haken wirkte im Frontend also noch nicht. Nur eine Inhaltsaenderung heilt.
 		// 🔴 Der Vorbehalt `IS_EDIT_MODE ?` ist am 12.08.2026 gefallen -- der Haken steht seither fuer
 		// jeden Besucher im Anzeige-Menue an der Karte. `?? null` bleibt: fehlt das Element, entscheidet
 		// der Modus allein, genau wie vorher.

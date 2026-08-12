@@ -2,6 +2,11 @@
  * Das Anzeige-Menue (Auge) in der Kartenecke -- was auf der Karte zu sehen ist.
  * Entwurf: docs/superpowers/specs/2026-08-12-anzeige-menue-design.md
  *
+ * 💣 Diese Datei lag am 12.08.2026 mit HTTP 404 auf dem Server, waehrend index.html sie schon
+ * anforderte -- das Menue stand also da und tat NICHTS. Ursache: fuenf Deploys scheiterten an
+ * einem roten Test, und der naechste gruene Lauf hielt die Datei fuer bereits hochgeladen.
+ * Geheilt hat das nur eine INHALTSAENDERUNG; dieser Absatz ist sie.
+ *
  * 💣 Diese Datei bedient das Menue, sie besitzt die Schalter NICHT. Die Ortsklassen und die
  * Ebenen-Haken sind aus dem Routenplaner UMGEZOGEN und behalten ihre IDs; ihre Verdrahtung
  * (map-features.js, display-mode.js, die URL-Persistenz) laeuft unveraendert weiter. Wer hier

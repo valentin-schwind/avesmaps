@@ -70,6 +70,9 @@ function installVisitorTrackingHooks() {
 		jq("#mapLayerModeSelect").on("change", function () {
 			trackVisitorEvent("map_mode", String(jq(this).val() || ""));
 		});
+		// ⚠️ This file sat on the server in its OLD form on 2026-08-12 (after five failed deploys),
+		// so the tracking really did stop counting for a while — the very failure the comment below
+		// describes. Only a content change heals a poisoned asset stamp.
 		// 💣 TWO roots, and both are load-bearing. The display switches moved out of `.display-options`
 		// into the map's own `#map-display-menu` on 2026-08-12; a delegation left behind on the old
 		// container keeps working silently — it just never fires again. No error, no warning, only a
