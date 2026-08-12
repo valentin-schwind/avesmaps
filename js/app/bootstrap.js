@@ -22,9 +22,27 @@
 // Zoom" on the continent label again moves this line with it, or the two drift apart silently.
 const AVESMAPS_DEFAULT_MAP_CENTER = [497.28, 520.5]; // [lat, lng] = [y, x], the label's map_features row
 const AVESMAPS_DEFAULT_MAP_ZOOM = 3;
+/**
+ * Am Telefon eine Stufe weiter heraus (Owner 12.08.2026: „kannst du die standardzoomstufe für mobil
+ * geräte eins runtersetzen? dann sieht man bisschen mehr"). Auf einem Schirm von 375px zeigt Zoom 3
+ * einen Ausschnitt, der am Zeiger dreimal so breit ist -- dieselbe Zahl bedeutet dort schlicht
+ * weniger Karte.
+ * ⚠️ DAMIT WEICHT DER START AM TELEFON BEWUSST VON DER SUCHE AB. Der Absatz darüber haelt fest,
+ * warum beide bisher gleich waren: wer ankommt und dann „Aventurien" sucht, landete sonst an zwei
+ * verschiedenen Stellen, und genau das war 2026-08-05 die Meldung. Am Telefon fliegt die Suche
+ * weiterhin auf 3, dieser Start auf 2 -- der Unterschied ist eine Zoomstufe auf demselben
+ * Mittelpunkt, nicht ein anderer Ort. Wer die Meldung wiederkommen sieht, dreht ZUERST hier zurueck.
+ * ⚠️ avesmapsIsPhoneViewport() steht in js/app/runtime-state.js und ist hier verfuegbar: index.html
+ * laedt sie lange vor bootstrap.js. Der typeof-Riegel faengt trotzdem den Fall, dass jemand die
+ * Reihenfolge aendert -- dann gilt der Zeiger-Wert, und das ist der harmlosere Ausgang.
+ */
+function avesmapsDefaultMapZoom() {
+    const istTelefon = typeof avesmapsIsPhoneViewport === "function" && avesmapsIsPhoneViewport();
+    return istTelefon ? Math.max(0, AVESMAPS_DEFAULT_MAP_ZOOM - 1) : AVESMAPS_DEFAULT_MAP_ZOOM;
+}
 function getInitialEditMapView() {
     if (!IS_EDIT_MODE) {
-        return { center: AVESMAPS_DEFAULT_MAP_CENTER, zoom: AVESMAPS_DEFAULT_MAP_ZOOM };
+        return { center: AVESMAPS_DEFAULT_MAP_CENTER, zoom: avesmapsDefaultMapZoom() };
     }
     try {
         const raw = window.localStorage?.getItem(EDIT_MODE_MAP_VIEW_STORAGE_KEY);
@@ -43,7 +61,10 @@ function getInitialEditMapView() {
     } catch (error) {
         // Corrupt JSON or blocked storage -> fall through to the default, no console noise.
     }
-    return { center: AVESMAPS_DEFAULT_MAP_CENTER, zoom: AVESMAPS_DEFAULT_MAP_ZOOM };
+    // ⚠️ Derselbe Rueckfall wie im Frontend, inklusive der Telefon-Stufe: der Editor hat sonst beim
+    // allerersten Aufruf (noch kein gespeicherter Ausschnitt) einen anderen Start als die Karte
+    // daneben -- ein Unterschied, den niemand erklaeren koennte.
+    return { center: AVESMAPS_DEFAULT_MAP_CENTER, zoom: avesmapsDefaultMapZoom() };
 }
 const avesmapsInitialMapView = getInitialEditMapView();
 

@@ -256,7 +256,17 @@
 	   fällt ecosystemAreaColor() auf --color-ecosystem-klima zurück und alle sieben Bänder sehen gleich
 	   aus -- dieselbe Falle, die bei `insel` 251 Flächen zu Gebirgen gemacht hätte.
 	   Die kühlen Töne sind dieselbe bewusste Ausnahme von „kein Blau" wie See und Meer darüber:
-	   gemalte KARTENDATEN, nicht UI-Chrom (§12). Gepinnt, sie liegen auf den immer hellen Kacheln. */
+	   gemalte KARTENDATEN, nicht UI-Chrom (§12). Gepinnt, sie liegen auf den immer hellen Kacheln.
+
+	   💣 HIER STAND EIN ÜBERZÄHLIGES KOMMENTARENDE (seit 2026-08-03, gefunden am 12.08.2026). Der
+	   Absatz darunter war damit kein Kommentar mehr, sondern Text mitten im :root-Block -- und der
+	   CSS-Parser verwirft ab dort bis zum nächsten Semikolon. Verschluckt hat das GENAU EINE Zeile:
+	   `--color-ecosystem-klima`, den Rückfallton, den der Absatz oben als tragend beschreibt. Live
+	   gemessen war er neun Tage lang nicht definiert, während alle sieben Bänder daneben standen.
+	   ⚠️ So etwas fällt nie von selbst auf: Es gibt keine Fehlermeldung, die Datei sieht richtig
+	   aus, und der Fehler zeigt sich erst, wenn ausgerechnet der Rückfall gebraucht wird. Gewacht
+	   wird jetzt von js/app/__tests__/css-comment-balance.test.js.
+
 	   Owner 2026-08-03, zweiter Durchgang: „etwas stärker". Die ganze Rampe eine Stufe kräftiger, und
 	   das kalte Ende am deutlichsten -- #e6eef3 war auf den hellen Kacheln bei jeder Deckkraft fast
 	   unsichtbar, was die Polare Zone praktisch unbeschriftet liess. Die Reihenfolge kalt→warm und der

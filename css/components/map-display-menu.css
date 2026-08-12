@@ -6,7 +6,7 @@
    naechste gruene Lauf hielt sie fuer bereits aktuell. Geheilt hat das nur eine INHALTSAENDERUNG --
    dieser Absatz ist sie. Wer eine Datei nach einem Deploy-Fehlschlag vermisst, sucht nicht den
    Fehler in der Datei, sondern vergleicht `fetch(url+'?cb='+Date.now())` gegen `fetch(url)`.
-   Siehe docs/asset-caching-and-versioning.md. */
+   Siehe docs/asset-caching-and-versioning.md.
 
    Farbe, Kontur, Radius und Schatten des KNOPFES kommen NICHT von hier, sondern aus der
    gemeinsamen Eckknopf-Regel in css/components/legal-dialog.css, wo #map-display-button mit
