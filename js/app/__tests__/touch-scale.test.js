@@ -787,6 +787,19 @@ assert.ok(planerKasten && /overflow-y:\s*auto/.test(planerKasten[1]), "der Plane
 assert.ok(/scrollbar-gutter:\s*stable/.test(planerKasten[1]),
 	"...und haelt den Platz fuer seinen Rollbalken ebenfalls frei");
 
+// 💣 Und die Rinne liegt auf BEIDEN Seiten. `stable` allein reserviert sie nur dort, wo der Balken
+// sitzt, und ZUSAETZLICH zum Padding -- gemessen am 12.08.2026: 10px frei links gegen 25px rechts.
+// Der Owner sah es sofort („rechts etwas mehr platz als links"). `both-edges` ist die einzige
+// Fassung, die beides zugleich haelt: symmetrischer Innenabstand UND keine springende Breite.
+// ⚠️ Dazu `scrollbar-width: thin` -- sonst kostet die Symmetrie das Doppelte (25px je Seite statt
+// rund 18px), und das ist bei einem 350px-Panel ein sichtbarer Rahmen.
+[[panelBody[1], "Infopanel"], [planerKasten[1], "Routenplaner"]].forEach(([regel, name]) => {
+	assert.ok(/scrollbar-gutter:\s*stable\s+both-edges/.test(regel),
+		`${name}: die Rinne liegt auf beiden Seiten (both-edges) -- sonst steht der Inhalt schief`);
+	assert.ok(/scrollbar-width:\s*thin/.test(regel),
+		`${name}: mit duennem Balken, sonst kostet die Symmetrie 25px je Seite`);
+});
+
 // ---- Der Planer faehrt beim Start herein, und seine Lasche faehrt MIT (12.08.2026) ---------------
 //
 // Owner: „das ganze panel von links nach rechts reinfaehrt, wenn das laden fertig ist."

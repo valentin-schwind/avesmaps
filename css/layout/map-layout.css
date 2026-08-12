@@ -29,8 +29,17 @@ body {
 	   dann hier). Mit `stable` steht der Platz von Anfang an; ob der Balken drin ist, aendert nichts
 	   mehr an der Breite.
 	   ⚠️ Beide Rollkaesten der Karte tragen die Regel. Sie hier wegzulassen hiesse, denselben Fehler
-	   an der einen Stelle zu beheben und an der anderen stehen zu lassen. */
-	scrollbar-gutter: stable;
+	   an der einen Stelle zu beheben und an der anderen stehen zu lassen.
+	   💣 `both-edges`, nicht bloss `stable` (Owner 12.08.2026: „durch das hinzufügen des
+	   scrollbalkens ist jetzt rechts etwas mehr platz als links"). Die Rinne kommt ZUSAETZLICH zum
+	   Padding und nur auf der Balkenseite -- gemessen 10px frei links gegen 25px rechts. `both-edges`
+	   reserviert sie beidseitig, und erst damit stimmt der Innenabstand wieder.
+	   ⚠️ Dazu `scrollbar-width: thin`, sonst kostet die Symmetrie das Doppelte: mit dem vollen
+	   15px-Balken waeren es 25px Rand je Seite, mit dem duennen rund 18px.
+	   ⚠️ Auf Touch-Geraeten ist der Balken ein Overlay und misst 0 -- dort aendern diese zwei Zeilen
+	   nichts, weder am Rand noch am Platz. Sie gelten dem Zeiger. */
+	scrollbar-gutter: stable both-edges;
+	scrollbar-width: thin;
 	padding: 10px;
 	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 	background: var(--color-panel);
