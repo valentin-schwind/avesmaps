@@ -39,3 +39,62 @@ function avesmapsLoreRuleZoneKeys(array $orderedZoneKeys, ?string $from, ?string
 
     return array_slice($keys, $low, $high - $low + 1);
 }
+
+/**
+ * PURE: hat diese Bedingung ueberhaupt eine Einschraenkung?
+ *
+ * 💣 Eine Regel, deren Bedingungen alle leer sind, trifft ALLES. Das ist keine Regel,
+ * sondern ein Versehen -- der Schreibpfad lehnt sie ab (Task 6), und zwar serverseitig,
+ * nicht nur am ausgegrauten Knopf.
+ */
+function avesmapsLoreRuleTermIsEmpty(array $term): bool
+{
+    return ($term['area_public_id'] ?? null) === null
+        && ($term['types'] ?? []) === []
+        && ($term['climate_from'] ?? null) === null;
+}
+
+/**
+ * PURE: trifft diese Bedingung diese Flaeche?
+ *
+ * Die drei Felder sind drei verschiedene Fragen an dasselbe Ding und daher UND-verknuepft:
+ * „heisst so" (Identitaet) · „ist von dieser Art" (mehrere = ODER) · „liegt in dieser Zone".
+ * Ein leeres Feld fragt nicht.
+ *
+ * ⚠️ `$area['zones']` sind die Zonen, die die Flaeche BERUEHRT (>= 5 % Anteil, dieselbe
+ * Schwelle wie die Infobox-Zeile). Fuer eine Flaeche genuegt das Beruehren -- die Aussage
+ * ist „hier waechst es", nicht „hier waechst es ueberall". Fuer eine SIEDLUNG gilt das
+ * NICHT, siehe avesmapsLoreRuleEvaluate.
+ *
+ * @param list<string> $orderedZoneKeys
+ */
+function avesmapsLoreRuleTermMatchesArea(array $term, array $area, array $orderedZoneKeys): bool
+{
+    $wanted = $term['area_public_id'] ?? null;
+    if ($wanted !== null && (string) ($area['public_id'] ?? '') !== $wanted) {
+        return false;
+    }
+
+    $types = $term['types'] ?? [];
+    if ($types !== []) {
+        $kind = (string) ($area['kind'] ?? '');
+        $regionType = (string) ($area['region_type'] ?? '');
+        $hit = false;
+        foreach ($types as $type) {
+            if ((string) ($type['kind'] ?? '') === $kind && (string) ($type['region_type'] ?? '') === $regionType) {
+                $hit = true;
+                break;
+            }
+        }
+        if (!$hit) {
+            return false;
+        }
+    }
+
+    $zoneKeys = avesmapsLoreRuleZoneKeys($orderedZoneKeys, $term['climate_from'] ?? null, $term['climate_to'] ?? null);
+    if ($zoneKeys !== [] && array_intersect($zoneKeys, (array) ($area['zones'] ?? [])) === []) {
+        return false;
+    }
+
+    return true;
+}

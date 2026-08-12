@@ -26,4 +26,49 @@ $mit = ['polar', 'subpolar', 'boreal', 'NEUE_ZONE', 'gemaessigt', 'subtropen_win
     'trockene_subtropen', 'subtropisch', 'tropisch'];
 assert(avesmapsLoreRuleZoneKeys($mit, 'boreal', 'gemaessigt') === ['boreal', 'NEUE_ZONE', 'gemaessigt']);
 
+$farindel = ['public_id' => 'a1', 'kind' => 'vegetation', 'region_type' => 'wald', 'zones' => ['gemaessigt']];
+$finster  = ['public_id' => 'a2', 'kind' => 'topographie', 'region_type' => 'gebirge', 'zones' => ['boreal', 'gemaessigt']];
+$alkra    = ['public_id' => 'a3', 'kind' => 'vegetation', 'region_type' => 'wald', 'zones' => ['subtropen_winterfeucht']];
+
+$term = static fn (array $overrides = []): array => array_merge(
+    ['area_public_id' => null, 'types' => [], 'climate_from' => null, 'climate_to' => null],
+    $overrides
+);
+
+// Leere Bedingung trifft alles -- und sagt das auch ueber sich selbst.
+assert(avesmapsLoreRuleTermIsEmpty($term()) === true);
+assert(avesmapsLoreRuleTermMatchesArea($term(), $farindel, $zones) === true);
+
+// Art allein.
+$wald = $term(['types' => [['kind' => 'vegetation', 'region_type' => 'wald']]]);
+assert(avesmapsLoreRuleTermIsEmpty($wald) === false);
+assert(avesmapsLoreRuleTermMatchesArea($wald, $farindel, $zones) === true);
+assert(avesmapsLoreRuleTermMatchesArea($wald, $finster, $zones) === false);
+
+// Mehrere Arten sind ein ODER.
+$waldOderGebirge = $term(['types' => [
+    ['kind' => 'vegetation', 'region_type' => 'wald'],
+    ['kind' => 'topographie', 'region_type' => 'gebirge'],
+]]);
+assert(avesmapsLoreRuleTermMatchesArea($waldOderGebirge, $finster, $zones) === true);
+
+// Art UND Klima. Der Alkrawald ist ein Wald, aber im falschen Band.
+$nordwald = $term([
+    'types' => [['kind' => 'vegetation', 'region_type' => 'wald']],
+    'climate_from' => 'boreal', 'climate_to' => 'gemaessigt',
+]);
+assert(avesmapsLoreRuleTermMatchesArea($nordwald, $farindel, $zones) === true);
+assert(avesmapsLoreRuleTermMatchesArea($nordwald, $alkra, $zones) === false);
+
+// 💣 Eine FLAECHE genuegt, wenn sie die Zone BERUEHRT -- der Finsterkamm liegt in zwei.
+$boreal = $term(['climate_from' => 'boreal', 'climate_to' => 'boreal']);
+assert(avesmapsLoreRuleTermMatchesArea($boreal, $finster, $zones) === true);
+assert(avesmapsLoreRuleTermMatchesArea($boreal, $farindel, $zones) === false);
+
+// 💣 IDENTITAET IST DIE public_id, NIE DER NAME. Live tragen fuenf Namen doppelt, vier
+// davon ueber Ebenen hinweg ("Noerdlicher Eisenwald" ist Gebirge UND Wald).
+$genau = $term(['area_public_id' => 'a1']);
+assert(avesmapsLoreRuleTermMatchesArea($genau, $farindel, $zones) === true);
+assert(avesmapsLoreRuleTermMatchesArea($genau, $finster, $zones) === false);
+
 echo "lore-rule: OK\n";
