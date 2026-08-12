@@ -105,11 +105,25 @@
 	font-variant-numeric: tabular-nums;
 }
 
+/* Der Öffner ist ein Pfeil, kein Wort (Owner 12.08.2026). Seine RICHTUNG ist der Zustand, und den
+ * führt das <details> -- deshalb steht er hier und nicht im Markup: dort wäre er eine zweite Stelle,
+ * die den Zustand kennt, und genau die musste vorher per JavaScript nachgezogen werden.
+ * ⚠️ Keine Unterstreichung mehr: sie gehörte zum Wort. Ein unterstrichener Pfeil sieht aus wie ein
+ * durchgestrichenes Zeichen. */
 .infobox-lid__more {
 	margin-left: auto;
 	color: var(--color-link);
-	border-bottom: 1px solid currentColor;
 	white-space: nowrap;
+	font-size: 13px;
+	line-height: 1;
+}
+
+.infobox-lid__more::after {
+	content: "\25BE";
+}
+
+.infobox-lid[open] .infobox-lid__more::after {
+	content: "\25B4";
 }
 
 .infobox-lid:hover .infobox-lid__more {

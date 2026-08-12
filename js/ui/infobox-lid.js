@@ -95,11 +95,23 @@ function buildInfoboxLid(spec) {
 			+ "</div>";
 	}
 
-	var openLabel = typeof tr === "function" ? tr("infobox.lid.showAll", "alle anzeigen") : "alle anzeigen";
+	// 🔴 EIN PFEIL, KEIN WORT (Owner 12.08.2026: „nimm den pfeil"). Vorher stand hier „alle anzeigen"
+	// und beim Aufklappen „zuklappen" -- ein schiefes Paar (das eine nennt eine Menge, das andere
+	// einen Zustand) und dazu verschieden lang, weshalb der Öffner beim Umschalten waagerecht rutschte.
+	// Der Pfeil rutscht nie, bricht nie um und wiederholt sich vier- bis fünfmal je Infobox, ohne
+	// laut zu werden. Er spricht damit dieselbe Sprache wie die Gruppenköpfe darunter.
+	//
+	// 💣 Er steht im STYLESHEET, nicht hier: seine Richtung IST der Zustand, und den führt das
+	// <details> selbst. Im Markup wäre er eine zweite Stelle, die ihn kennt -- genau die, die vorher
+	// per JavaScript nachgezogen werden musste (avesmapsInfoboxLidSync, ersatzlos entfallen).
+	//
+	// ⚠️ Der zugängliche Name geht dabei NICHT verloren: er kommt vom <summary>, und das trägt den
+	// Satz („126 Handelswaren gelistet"). Den Auf-/Zu-Zustand meldet <details> von sich aus. Der
+	// Pfeil ist reine Zier und deshalb `aria-hidden` -- vorgelesen wäre er ein „Dreieck nach unten".
 	return '<details class="infobox-lid">'
 		+ '<summary class="infobox-lid__summary">'
 		+ '<span class="infobox-lid__foot">' + prose
-		+ '<span class="infobox-lid__more">' + avesmapsInfoboxLidEscape(openLabel) + "</span>"
+		+ '<span class="infobox-lid__more" aria-hidden="true"></span>'
 		+ "</span>"
 		// 💣 Ohne Vorschau KEIN leerer Kasten. Die Lore-Zeilen geben seit 2026-08-12 keine mehr her
 		// (zugeklappt steht dort nur der Satz, Owner: „ohne weitere Angaben"), und ein leeres
@@ -111,27 +123,18 @@ function buildInfoboxLid(spec) {
 		+ "</details>";
 }
 
-// Beschriftung und Nachlauf-Klasse an den tatsächlichen Zustand angleichen. Idempotent -- ein zweiter
-// Lauf schreibt dasselbe.
-function avesmapsInfoboxLidSync(lid) {
-	if (!lid) {
-		return;
-	}
-	var more = lid.querySelector(".infobox-lid__more");
-	if (more) {
-		more.textContent = lid.open
-			? (typeof tr === "function" ? tr("infobox.lid.collapse", "zuklappen") : "zuklappen")
-			: (typeof tr === "function" ? tr("infobox.lid.showAll", "alle anzeigen") : "alle anzeigen");
-	}
-}
-
+// 🔴 HIER STAND avesmapsInfoboxLidSync -- die Funktion, die die Beschriftung zwischen „alle
+// anzeigen" und „zuklappen" umschrieb. Sie ist mit dem Wort entfallen (Owner 12.08.2026): der Pfeil
+// steht im Stylesheet und liest `[open]` direkt, also gibt es nichts mehr nachzuziehen. Das war der
+// einzige Grund, warum der Zustand an ZWEI Stellen bekannt sein musste.
+//
 // 💣 EIN Handler für das ganze Dokument, EINMAL registriert. Ein Handler je geöffnetem Panel hätte
 // sich gestapelt -- dieselbe Falle wie beim Spoiler-Sammelschalter der Kartensammlung und beim
 // „+N"-Knopf der Lore-Zeilen.
 //
 // `toggle` feuert NACH der Zustandsänderung und auch dann, wenn die Seitensuche das <details>
-// aufgeklappt hat -- ein Klick-Handler allein bekäme genau diesen Fall nicht mit und ließe die
-// Beschriftung auf „alle anzeigen" stehen, während der Inhalt offen ist.
+// aufgeklappt hat. Er bleibt deshalb stehen, obwohl die Beschriftung weg ist: die Animation hängt
+// an ihm.
 if (typeof document !== "undefined" && !document.__avesmapsInfoboxLidBound) {
 	document.__avesmapsInfoboxLidBound = true;
 
@@ -140,7 +143,6 @@ if (typeof document !== "undefined" && !document.__avesmapsInfoboxLidBound) {
 		if (!lid || !lid.classList || !lid.classList.contains("infobox-lid")) {
 			return;
 		}
-		avesmapsInfoboxLidSync(lid);
 		if (!lid.open) {
 			lid.classList.remove("is-collapsed");
 			return;
@@ -176,8 +178,7 @@ if (typeof document !== "undefined" && !document.__avesmapsInfoboxLidBound) {
 		window.setTimeout(function () {
 			lid.open = false;
 			lid.classList.remove("is-collapsed");
-			avesmapsInfoboxLidSync(lid);
-		}, AVESMAPS_INFOBOX_LID_ANIM_MS);
+			}, AVESMAPS_INFOBOX_LID_ANIM_MS);
 	});
 }
 

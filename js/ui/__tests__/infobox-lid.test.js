@@ -48,8 +48,13 @@ assert.ok(auf.includes("Eichenau"), "der volle Inhalt steht von Anfang an im Mar
 // zweites Escaping machte aus jedem Link sichtbare Tags.
 assert.ok(auf.includes('<a href="#">Trallop</a>'), "vorgefertigtes Markup bleibt Markup");
 
-assert.ok(auf.includes("alle anzeigen"), "der Oeffner ist ein Wort, keine Zahl");
-assert.ok(auf.includes("33"), "und die Zahl steht im Satz daneben");
+// 🔴 Der Oeffner ist seit dem 12.08.2026 ein PFEIL, kein Wort (Owner: „nimm den pfeil"). Er steht
+// im Stylesheet und liest `[open]` -- im Markup ist er ein leeres, `aria-hidden` gesetztes Zeichen.
+// Der zugaengliche Name kommt vom <summary>, das den Satz traegt; der Zustand von <details> selbst.
+assert.ok(/<span class="infobox-lid__more" aria-hidden="true"><\/span>/.test(auf),
+	"der Oeffner ist ein leeres, verstecktes Zeichen -- der Pfeil kommt aus dem Stylesheet: " + auf);
+assert.ok(!/alle anzeigen|zuklappen/.test(auf), "und kein Wort mehr im Markup");
+assert.ok(auf.includes("33"), "die Zahl steht im Satz daneben");
 
 // ---- der statische Deckel --------------------------------------------------------------------
 // Es steht schon alles da: der Satz bleibt (er ist eine Angabe), der Oeffner entfaellt (er waere
@@ -60,7 +65,7 @@ const statisch = buildInfoboxLid({
 	openable: false,
 });
 assert.ok(!statisch.includes("<details"), "kein <details> ohne etwas zu zeigen: " + statisch);
-assert.ok(!statisch.includes("alle anzeigen"), "und kein Oeffner");
+assert.ok(!statisch.includes("infobox-lid__more"), "und kein Oeffner");
 assert.ok(statisch.includes("infobox-lid--static"), "aber als Deckel erkennbar (Hover haengt daran)");
 assert.ok(statisch.includes("Tierart lebt hier"), "der Satz bleibt, in der Einzahl");
 
