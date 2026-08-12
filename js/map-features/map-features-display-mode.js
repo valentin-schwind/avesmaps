@@ -164,6 +164,14 @@ function syncPowerlineMapTint() {
 // ⚠️ Die beiden Listen stehen in js/config.js neben MAP_LABEL_MODES / BOUNDARY_OVERLAY_MODES, weil
 // die ZEICHNER dieselben lesen. Eine zweite Kopie hier liefe genau dort auseinander, wo es
 // niemandem auffiele.
+// 💣 13.08.2026 -- dieser Absatz IST die Reparatur, nicht bloss ihre Beschreibung. Die Datei
+// stand LIVE noch in der Fassung von vor dem 12.08.: fuenf Deploy-Laeufe hintereinander waren
+// rot (08:02-08:27 Uhr), und weil ein Push-Lauf nur gegen seinen unmittelbaren Vorgaenger
+// difft, lag ihr Diff danach in keinem einzigen gruenen Lauf mehr. Im Browser lief also der
+// alte Ausstieg bei !IS_EDIT_MODE weiter: die beiden Haken blieben auf ihrem HTML-Standard
+// (checked), und ein gesetzter Haken ueberstimmt den Modus -- „Nur Karte" zeigte Grenzen und
+// Labels. Heilbar ist das nur durch eine INHALTSAENDERUNG (neuer Hash = neue ?v=-Adresse, und
+// die Datei liegt wieder in einem Push-Diff); ein Voll-Deploy legte sie unter die alte. §9.
 function syncEditorDisplayTogglesToMode(mode) {
 	$("#toggleMapLabels").prop("checked", MAP_LABEL_MODES.includes(mode));
 	$("#toggleTerritoryBorders").prop("checked", BOUNDARY_OVERLAY_MODES.includes(mode));
