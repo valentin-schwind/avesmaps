@@ -775,6 +775,13 @@ assert.strictEqual((tokens.match(/html\.avesmaps-phone\s*\{/g) || []).length, 1,
 // frei auf der Karte, waehrend der Planer draussen war. Beide gehoeren deshalb in DIESELBE Regel:
 // zwei Regeln mit derselben Verschiebung waeren zwei Zahlen, die auseinanderlaufen koennen.
 const ladeCss = withoutComments(read("css", "features", "loading-bar.css"));
+// ⚠️ Knopfbund UND Zoom warten gemeinsam (Owner 12.08.2026). Sie wandern schon gemeinsam, wenn die
+// Infobox aufgeht (infopanel.css) -- zwei Regeln fuer dasselbe Warten liefen beim naechsten Anfassen
+// auseinander.
+const wartende = ladeCss.match(/^html\.avesmaps-booting #map-corner-actions,\s*html\.avesmaps-booting \.leaflet-control-zoom\s*\{([^}]*)\}/m);
+assert.ok(wartende, "Knopfbund und Zoom stehen in DERSELBEN Warteregel");
+assert.ok(/opacity:\s*0/.test(wartende[1]) && !/display:\s*none/.test(wartende[1]),
+	"...und warten ausgeblendet, nicht ausgebaut -- der Bund wird gemessen (syncMapCornerStack)");
 const einfahrt = ladeCss.match(/^html:not\(\.avesmaps-phone\)\.avesmaps-booting #search,\s*html:not\(\.avesmaps-phone\)\.avesmaps-booting #toggle-button\s*\{([^}]*)\}/m);
 assert.ok(einfahrt,
 	"Panel UND Lasche stehen in derselben Startstellungs-Regel -- die Lasche haengt nicht im Panel,"

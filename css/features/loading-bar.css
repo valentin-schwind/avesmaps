@@ -46,13 +46,18 @@
    (syncMapCornerStack schreibt --avesmaps-corner-stack aus seiner Hoehe), und ein ausgeblendeter
    Bund misst 0. Gleiche Begruendung wie beim Ausblenden hinter der offenen Infobox
    (css/features/infopanel.css).
-   ⚠️ NUR der Knopfbund in der Kartenecke. Die beiden Randlaschen standen hier bis zum 12.08.2026
-   mit drin und sind wieder heraus (Owner: „ich meinte nicht, dass die tab-lasche nachgeladen wird")
-   -- eine Lasche, die aufploppt, ist genau das Nachladen, das nicht gemeint war. Der Planer selbst
-   faehrt stattdessen herein, siehe die Regel darunter.
+   ⚠️ Der Knopfbund UND der Zoom (Owner 12.08.2026: „kannst du ausserdem die zoom +/- buttons in die
+   nachladekaskade aufnehmen"). Beide wandern ohnehin schon gemeinsam, wenn die Infobox aufgeht
+   (css/features/infopanel.css) -- sie warten jetzt auch gemeinsam. Am groben Zeiger ist der Zoom
+   ganz ausgeblendet (css/layout/map-layout.css), dort greift die Regel auf nichts.
+   ⚠️ Die beiden Randlaschen standen hier bis zum 12.08.2026 mit drin und sind wieder heraus (Owner:
+   „ich meinte nicht, dass die tab-lasche nachgeladen wird") -- eine Lasche, die aufploppt, ist genau
+   das Nachladen, das nicht gemeint war. Der Planer selbst faehrt stattdessen herein, siehe die Regel
+   darunter.
    ⚠️ Kein Riegel gegen Tastaturbefehle: die Knoepfe sind nur unsichtbar, nicht abgeschaltet --
    was sie tun, tut auch der laufende Code weiter, sobald es etwas zu tun gibt. */
-html.avesmaps-booting #map-corner-actions {
+html.avesmaps-booting #map-corner-actions,
+html.avesmaps-booting .leaflet-control-zoom {
 	opacity: 0;
 	visibility: hidden;
 	pointer-events: none;
