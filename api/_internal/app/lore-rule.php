@@ -179,3 +179,40 @@ function avesmapsLoreRuleEvaluate(array $terms, array $areas, array $places, arr
 
     return ['areas' => $order($areas, $areaResult ?? []), 'places' => $order($places, $placeResult ?? [])];
 }
+
+/**
+ * PURE: trifft diese Kette ALLES -- also gar nichts ein?
+ *
+ * 💣 Fix-Runde 2: eine Kette ist schon dann wertlos, wenn IRGENDEINE ihrer Bedingungen leer
+ * ist, nicht erst, wenn ALLE es sind. Eine leere Bedingung trifft jede Flaeche (siehe
+ * avesmapsLoreRuleTermMatchesArea: kein `area_public_id`, keine `types`, keine Klimaspanne
+ * heisst "true" fuer jede Flaeche). Steht daneben eine gefuellte Bedingung mit
+ * `join_op = 'oder'`, bleibt die Vereinigung trotzdem "alles" -- die gefuellte Bedingung
+ * schraenkt nichts mehr ein, sie kommt nur noch OBENDRAUF. Dieses Payload kam durch den
+ * ERSTEN (inline) Riegel aus Runde 1 und traf trotzdem den ganzen Bestand:
+ * `[ {}, { "join_op": "oder", "area_public_id": "…" } ]`
+ *
+ * Und selbst mit `join_op = 'und'` ist eine leere Bedingung kein Grenzfall, sondern ein
+ * Versehen: sie schraenkt nichts ein und gehoert nicht in die Kette. Deshalb genuegt EINE
+ * leere Bedingung, ganz gleich mit welchem `join_op`, um die ganze Kette abzulehnen.
+ *
+ * Diese Funktion ist der einzige Ort, an dem der Critical-Riegel lebt -- der Endpunkt ruft
+ * sie nur noch auf, statt die Schleife selbst nachzubauen (die inline im Endpunkt-Code
+ * lokal ohne Datenbank+Anmeldung nicht automatisiert pruefbar war, siehe Fix-Runde 1).
+ *
+ * @param list<array<string,mixed>> $terms
+ */
+function avesmapsLoreRuleChainIsUnbounded(array $terms): bool
+{
+    if ($terms === []) {
+        return true;
+    }
+
+    foreach ($terms as $term) {
+        if (avesmapsLoreRuleTermIsEmpty($term)) {
+            return true;
+        }
+    }
+
+    return false;
+}

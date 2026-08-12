@@ -149,4 +149,26 @@ $reihenfolge = avesmapsLoreRuleEvaluate([$nurAlkra, $nurFarindel], $areas, $plac
 assert($ids($reihenfolge, 'areas') === ['a1', 'a3']);
 assert($ids($reihenfolge, 'places') === ['p1', 'p2', 'p4']);
 
+// ---------------------------------------------------------------------------------------
+// Fix-Runde 2: avesmapsLoreRuleChainIsUnbounded -- der Critical-Riegel gegen "trifft
+// alles", jetzt als reine, beweisbare Funktion statt inline im Endpunkt (Fix-Runde 1).
+// ---------------------------------------------------------------------------------------
+
+assert(avesmapsLoreRuleChainIsUnbounded([]) === true);
+assert(avesmapsLoreRuleChainIsUnbounded([$term(), $term()]) === true);
+
+// 💣 GENAU DAS BEFUND-1-PAYLOAD: eine leere Bedingung neben einer gefuellten, mit 'oder' --
+// kam durch den ersten (inline) Riegel aus Runde 1, weil der nur "ALLE leer" pruefte.
+assert(avesmapsLoreRuleChainIsUnbounded([$term(), $term(['area_public_id' => 'a1', 'join_op' => 'oder'])]) === true);
+
+// Dieselbe leere Bedingung, aber mit 'und': auch dort ein Versehen, nicht nur bei 'oder' --
+// sie schraenkt nichts ein und gehoert nicht in die Kette.
+assert(avesmapsLoreRuleChainIsUnbounded([$term(), $term(['area_public_id' => 'a1', 'join_op' => 'und'])]) === true);
+
+// Jede Bedingung traegt etwas -> nicht unbounded.
+assert(avesmapsLoreRuleChainIsUnbounded([
+    $term(['area_public_id' => 'a1']),
+    $term(['types' => [['kind' => 'vegetation', 'region_type' => 'wald']], 'join_op' => 'oder']),
+]) === false);
+
 echo "lore-rule: OK\n";

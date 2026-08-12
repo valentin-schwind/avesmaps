@@ -205,17 +205,11 @@ try {
             if ($terms === []) {
                 avesmapsErrorResponse(400, 'rule_empty', 'Eine Regel braucht mindestens eine Bedingung.');
             }
-            // 💣 Fix-Runde 1, Befund 1: JEDE einzelne Bedingung muss etwas einschraenken, nicht
-            // nur "sind nicht ALLE leer". Eine leere Bedingung ist bei 'und' zwar wirkungslos,
-            // aber bei 'oder' sammelt sie den GANZEN Bestand ein (avesmapsLoreRuleTermMatchesArea
-            // liefert fuer sie immer true, und die Vereinigung mit "true fuer alles" bleibt
-            // "alles"). Eine Pruefung auf "alle leer" haette dieses Payload durchgelassen:
-            // [{}, {join_op:'oder', area_public_id:'<echte id>'}] -- die erste, leere
-            // Bedingung allein reicht, um trotz der zweiten den ganzen Bestand zu treffen.
-            foreach ($terms as $term) {
-                if (avesmapsLoreRuleTermIsEmpty($term)) {
-                    avesmapsErrorResponse(400, 'rule_matches_everything', 'Ohne eine Einschraenkung traefe die Regel alles.');
-                }
+            // 💣 Fix-Runde 2: der Riegel selbst lebt jetzt in der reinen, testbaren Funktion
+            // avesmapsLoreRuleChainIsUnbounded (lore-rule.php) -- inline (Fix-Runde 1) war er
+            // ohne Datenbank+Anmeldung nicht automatisiert beweisbar. Hier nur noch der Aufruf.
+            if (avesmapsLoreRuleChainIsUnbounded($terms)) {
+                avesmapsErrorResponse(400, 'rule_matches_everything', 'Ohne eine Einschraenkung traefe die Regel alles.');
             }
             avesmapsLoreRuleEnsureTables($pdo);
             $relation = avesmapsNormalizeSingleLine((string) ($payload['relation'] ?? 'verbreitung'), 20);
