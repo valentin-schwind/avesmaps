@@ -1,0 +1,144 @@
+/* Der Deckel — eine Infobox-Zelle, die eine lange Angabe eindampft und auf Klick aufklappt.
+ * Owner 2026-08-12, am Entwurf entschieden („4 is mega, das wollen wir").
+ *
+ * 🔴 WARUM ÜBERHAUPT: die Zahl am Ende einer umbrechenden Liste („+43") wurde übersehen — sie stand
+ * bei jeder Zeile woanders und sah aus wie ein Abzeichen, obwohl sie ein Knopf war. Der Deckel gibt
+ * ihr eine feste Stelle (die Fußzeile) und einen Satz statt einer Zahl („11 Waren werden hier
+ * gehandelt"). Die Regel dahinter: je weniger eingedampft dasteht, desto sichtbarer der Öffner.
+ *
+ * 💣 EIN <details>, KEIN SELBSTGEBAUTES KLAPPEN. Damit kommen Fokus, Enter/Leertaste, aria-expanded
+ * und — der eigentliche Grund — die Seitensuche vom Element selbst: Strg+F findet Text in einem
+ * ZUgeklappten <details> und klappt es auf. Dieselbe Begründung wie beim Fenster „Hinweise"
+ * (docs/superpowers/specs/2026-08-05-hinweise-inhaltsverzeichnis-design.md).
+ *
+ * 💣 JEDE Regel hier trägt eine KLASSE. Eine klassenlose `details > summary`-Regel galt bis zum
+ * 2026-08-12 für die ganze Seite und legte den gesendeten Mails im Postfach alle Felder nebeneinander;
+ * seither wacht js/app/__tests__/details-summary-scope.test.js darüber. `[open]` und ein Wirt-Selektor
+ * zählen dort ausdrücklich NICHT als Bindung.
+ *
+ * ⚠️ Der Deckel sitzt in der Zelle einer .region-info-box__row — die tabellarische Form bleibt
+ * (Owner 2026-08-12: „am lesbarsten ist immer noch die tabellarische Form"). Er ersetzt nur den Wert,
+ * nie die Zeile.
+ */
+
+.infobox-lid {
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-divider);
+	border-radius: var(--radius-md);
+	padding: 7px 9px 6px;
+	transition: background .15s ease, border-color .15s ease;
+}
+
+/* ⚠️ Nur der ÖFFENBARE Deckel reagiert. Ein statischer (alles steht schon da) darf sich nicht wie ein
+ * Bedienelement anfühlen -- sonst lernt das Auge das Gegenteil von dem, was der Deckel beibringen soll. */
+.infobox-lid:not(.infobox-lid--static):hover,
+.infobox-lid:not(.infobox-lid--static):focus-within {
+	background: var(--color-panel-active);
+	border-color: var(--color-button-soft-border);
+}
+
+/* 💣 `display: block` und `list-style: none` stehen hier AUSGESCHRIEBEN, obwohl beides einmal global
+ * galt: Vorschau und Fußzeile müssen untereinander stehen, und geerbtes `display: flex` legte sie
+ * nebeneinander in eine Restspalte. Das ist genau der Schaden vom 2026-08-11 im Postfach. */
+.infobox-lid__summary {
+	display: block;
+	list-style: none;
+	cursor: pointer;
+	min-width: 0;
+}
+
+.infobox-lid__summary::-webkit-details-marker {
+	display: none;
+}
+
+/* Der Fokusring gehört dem summary, nicht dem Deckel: er ist das, was die Tastatur anspringt. */
+.infobox-lid__summary:focus-visible {
+	outline: 2px solid var(--color-link);
+	outline-offset: 2px;
+	border-radius: calc(var(--radius-md) - 3px);
+}
+
+/* Die eingedampfte Fassung. Verschwindet beim Aufklappen — der volle Inhalt tritt an ihre Stelle,
+ * statt sich darunter zu stapeln (sonst stünde der Anfang zweimal da). */
+.infobox-lid__preview {
+	display: block;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.infobox-lid[open] .infobox-lid__preview {
+	display: none;
+}
+
+/* Die Fußzeile: links der Satz, rechts der Öffner. Sie steht IMMER an derselben Stelle — das ist der
+ * ganze Punkt des Deckels. */
+.infobox-lid__foot {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 10px;
+	margin-top: 6px;
+	font-size: 11px;
+}
+
+.infobox-lid__prose {
+	color: var(--color-text-muted);
+	min-width: 0;
+}
+
+/* Die Zahl ist die einzige Stelle mit Textfarbe — sie soll aus dem Satz herausstechen, ohne dass der
+ * Satz laut wird. Tabellenziffern, damit zwei Deckel untereinander nicht verspringen. */
+.infobox-lid__count {
+	color: var(--color-text-strong);
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+
+.infobox-lid__more {
+	color: var(--color-link);
+	border-bottom: 1px solid currentColor;
+	white-space: nowrap;
+}
+
+.infobox-lid:hover .infobox-lid__more {
+	color: var(--color-link-hover);
+}
+
+/* Der volle Inhalt. `grid-template-rows: 0fr -> 1fr` ist der einzige Weg, auf eine UNBEKANNTE Höhe zu
+ * animieren, ohne sie vorher zu messen — und gemessen werden könnte sie hier nicht, weil der Inhalt
+ * je nach Panelbreite anders umbricht. Das overflow: hidden am Kind ist tragend, sonst quillt der
+ * Text im Zustand 0fr heraus. */
+.infobox-lid__full {
+	display: grid;
+	grid-template-rows: 0fr;
+	transition: grid-template-rows .32s cubic-bezier(.4, 0, .2, 1);
+}
+
+.infobox-lid__full > * {
+	overflow: hidden;
+	min-width: 0;
+}
+
+/* 🔴 OFFEN HEISST SICHTBAR, UND ZWAR OHNE EINE ZEILE JAVASCRIPT. Das ist die tragende Regel dieses
+ * Blattes, und sie steht hier, weil die erste Fassung es andersherum hatte: dort schaltete erst eine
+ * Klasse aus einem requestAnimationFrame auf 1fr um. In der Abnahme am 2026-08-12 feuerte rAF nicht
+ * (die Pane war zugeklappt) — das <details> war offen, die Beschriftung sagte „zuklappen", und der
+ * Inhalt hatte Höhe 0. Ein Nutzer in einem Hintergrund-Tab hätte dasselbe gesehen: ein Deckel, der
+ * sich öffnet und nichts zeigt. Seither ist die Animation nur noch ein Zusatz, der wegbrechen darf. */
+.infobox-lid[open] .infobox-lid__full {
+	grid-template-rows: 1fr;
+}
+
+/* Der Zusatz: eine VORÜBERGEHENDE Unterdrückung, aus der die Bewegung entsteht — beim Aufklappen für
+ * einen Bildaufbau lang, beim Zuklappen für die Dauer des Übergangs. Höhere Spezifität als die Regel
+ * darüber, damit die Reihenfolge im Blatt nicht mitentscheidet. */
+.infobox-lid[open].is-collapsed .infobox-lid__full {
+	grid-template-rows: 0fr;
+}
+
+/* ⚠️ Wer keine Bewegung will, bekommt keine — die Angabe bleibt dieselbe, nur ohne Übergang. */
+@media (prefers-reduced-motion: reduce) {
+	.infobox-lid__full {
+		transition: none;
+	}
+}

@@ -1,0 +1,72 @@
+// Der Deckel (Owner 2026-08-12, „4 is mega, das wollen wir").
+//
+// Geprueft wird das MARKUP -- das Auf- und Zuklappen selbst gehoert dem nativen <details> und wird
+// auf der Pruefseite mit echter CSS-Kette abgenommen, nicht hier: eine Hoehe hat in node niemand.
+const assert = require("assert");
+const { buildInfoboxLid, avesmapsInfoboxLidProse } = require("../infobox-lid.js");
+
+// ---- der Satz -------------------------------------------------------------------------------
+// 💣 Einzahl und Mehrzahl. „1 Tierarten leben hier" ist der Satz, den es NIE geben darf, und er
+// entsteht von selbst, sobald jemand nur den Plural hinterlegt.
+assert.ok(avesmapsInfoboxLidProse(11, "Ware wird hier gehandelt", "Waren werden hier gehandelt")
+	.includes("Waren werden hier gehandelt"), "Mehrzahl bei 11");
+assert.ok(avesmapsInfoboxLidProse(1, "Ware wird hier gehandelt", "Waren werden hier gehandelt")
+	.includes("Ware wird hier gehandelt"), "Einzahl bei 1");
+assert.ok(avesmapsInfoboxLidProse(0, "Ort auf dem Weg", "Orte auf dem Weg")
+	.includes("Orte auf dem Weg"), "null ist Mehrzahl, nicht Einzahl");
+
+// 🔴 Die Zahl ist ein eigenes Stueck, kein in den Satz geklebter String -- nur so kann sie eine
+// eigene Farbe und Tabellenziffern tragen.
+const satz = avesmapsInfoboxLidProse(33, "Ort auf dem Weg", "Orte auf dem Weg");
+assert.ok(satz.includes('<span class="infobox-lid__count">33</span>'),
+	"die Zahl steht ausgezeichnet im Satz: " + satz);
+
+// Der Satz kommt aus dem Wiki-nahen Umfeld nicht, aber die Zahl schon aus einer Rechnung -- und der
+// Satz selbst wird escaped, damit eine spaetere Uebersetzung keine Luecke reisst.
+assert.ok(!avesmapsInfoboxLidProse(2, "x", '<img src=x onerror=alert(1)>').includes("<img"),
+	"der Satz wird escaped");
+
+// ---- der oeffenbare Deckel ------------------------------------------------------------------
+const auf = buildInfoboxLid({
+	preview: '<a href="#">Trallop</a> → … → <a href="#">Punin</a>',
+	full: '<a href="#">Trallop</a> → <a href="#">Eichenau</a> → <a href="#">Punin</a>',
+	count: 33,
+	singular: "Ort auf dem Weg",
+	plural: "Orte auf dem Weg",
+});
+
+// 💣 NATIVES <details>. Der Grund ist die Seitensuche: Strg+F findet Text in einem zugeklappten
+// <details> und klappt es selbst auf. Ein selbstgebautes Klappen mit display:none nimmt ihr den Text.
+assert.ok(auf.startsWith("<details class=\"infobox-lid\">"), "ein natives <details>: " + auf.slice(0, 60));
+assert.ok(auf.includes('<summary class="infobox-lid__summary">'), "mit einem summary");
+
+// 💣 Der volle Inhalt liegt IM DOKUMENT, nicht erst nach dem Klick -- sonst faende die Seitensuche
+// ihn nie. Das ist der ganze Unterschied zum „+N"-Fenster, das er ersetzt.
+assert.ok(auf.includes("Eichenau"), "der volle Inhalt steht von Anfang an im Markup");
+
+// 💣 preview und full werden NICHT nachgeescapet: sie kommen aus Bauern, die selbst escapen. Ein
+// zweites Escaping machte aus jedem Link sichtbare Tags.
+assert.ok(auf.includes('<a href="#">Trallop</a>'), "vorgefertigtes Markup bleibt Markup");
+
+assert.ok(auf.includes("alle anzeigen"), "der Oeffner ist ein Wort, keine Zahl");
+assert.ok(auf.includes("33"), "und die Zahl steht im Satz daneben");
+
+// ---- der statische Deckel --------------------------------------------------------------------
+// Es steht schon alles da: der Satz bleibt (er ist eine Angabe), der Oeffner entfaellt (er waere
+// eine Aufforderung ins Leere), und ein <details> gaebe es auch nicht.
+const statisch = buildInfoboxLid({
+	preview: "Griswolf", full: "Griswolf", count: 1,
+	singular: "Tierart lebt hier", plural: "Tierarten leben hier",
+	openable: false,
+});
+assert.ok(!statisch.includes("<details"), "kein <details> ohne etwas zu zeigen: " + statisch);
+assert.ok(!statisch.includes("alle anzeigen"), "und kein Oeffner");
+assert.ok(statisch.includes("infobox-lid--static"), "aber als Deckel erkennbar (Hover haengt daran)");
+assert.ok(statisch.includes("Tierart lebt hier"), "der Satz bleibt, in der Einzahl");
+
+// ---- nichts zu sagen --------------------------------------------------------------------------
+assert.strictEqual(buildInfoboxLid(null), "", "ohne Angabe kein Deckel");
+assert.strictEqual(buildInfoboxLid({ preview: "", full: "", count: 0 }), "",
+	"ohne Inhalt kein Deckel -- kein leerer Kasten mit „0 Orte auf dem Weg\"");
+
+console.log("OK: der Deckel -- <details>, Einzahl/Mehrzahl, statisch ohne Oeffner");

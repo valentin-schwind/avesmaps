@@ -2,6 +2,46 @@ function pathHasWiki(path) {
 	return Boolean(path && path.properties && path.properties.wiki_path && path.properties.wiki_path.wiki_key);
 }
 
+// Ab so vielen Stationen lohnt der Deckel. Darunter spart das Eindampfen nichts: die Vorschau zeigt
+// erste → … → letzte, also zwei Namen plus Auslassung — bei vier Stationen ist das keine Ersparnis,
+// nur ein Klick mehr. Gemessen an der Reichsstraße 2: 33 Stationen, elf Zeilen in einem 250 px
+// schmalen Panel; das war der Anlass (Owner 2026-08-12).
+const PATH_VERLAUF_LID_MIN_STATIONS = 5;
+
+// „Verlauf" als Deckel: eingedampft auf erste → … → letzte, mit dem Satz „33 Orte auf dem Weg"
+// darunter (Owner 2026-08-12, sein Wortlaut).
+//
+// ⚠️ Der volle Inhalt ist das UNVERÄNDERTE Markup von linkifyPathVerlauf -- die Fly-to-Verlinkungen
+// der Stationen bleiben also, wie sie sind. Der Deckel ordnet nur an, er baut nicht um.
+//
+// 💣 Die Vorschau linkifiziert erste und letzte Station EINZELN, statt aus dem fertigen Markup zu
+// schneiden. Ein Schnitt in fertiges HTML zerlegt Tags; und `linkifyPathVerlauf` ist auf genau diesen
+// Trenner ausgelegt, nimmt also einen einzelnen Namen genauso an wie eine ganze Kette.
+function pathVerlaufLidMarkup(verlauf, fullMarkup) {
+	if (typeof buildInfoboxLid !== "function") {
+		return "";   // Bauteil (noch) nicht geladen -> der Aufrufer bleibt bei seiner alten Zeile
+	}
+	const stations = String(verlauf || "").split(" → ").map((part) => part.trim()).filter(Boolean);
+	if (stations.length === 0) {
+		return "";
+	}
+	const openable = stations.length >= PATH_VERLAUF_LID_MIN_STATIONS;
+	const link = (station) => (typeof linkifyPathVerlauf === "function"
+		? (linkifyPathVerlauf(station) || escapeHtml(station))
+		: escapeHtml(station));
+	const preview = openable
+		? `${link(stations[0])} → … → ${link(stations[stations.length - 1])}`
+		: fullMarkup;
+	return buildInfoboxLid({
+		preview,
+		full: fullMarkup,
+		count: stations.length,
+		singular: tr("infobox.lid.stationsOne", "Ort auf dem Weg"),
+		plural: tr("infobox.lid.stationsMany", "Orte auf dem Weg"),
+		openable,
+	});
+}
+
 // Infobox eines Wiki-Wegs (Fluss/Strasse) — gleiche .region-info-box-Struktur wie Regionen/Gebiete.
 function pathWikiInfoboxMarkup(path) {
 	const wiki = (path.properties && path.properties.wiki_path) || {};
@@ -29,7 +69,13 @@ function pathWikiInfoboxMarkup(path) {
 	let rows = "";
 	rows += lageHtml ? rowHtml("Lage", lageHtml) : row("Lage", wiki.lage);
 	rows += row("Länge", wiki.laenge);
-	rows += verlaufHtml ? rowHtml("Verlauf", verlaufHtml) : row("Verlauf", wiki.verlauf);
+	// „Verlauf" im Deckel, wenn er lang ist. ⚠️ Der Rückfall ist zweistufig und beide Stufen tragen:
+	// ohne Fly-to-Links (Seeweg) gibt es kein verlaufHtml und die escapende `row` übernimmt; ohne das
+	// Bauteil liefert pathVerlaufLidMarkup "" und es bleibt bei der Zeile von vorher.
+	const verlaufLid = verlaufHtml ? pathVerlaufLidMarkup(wiki.verlauf, verlaufHtml) : "";
+	rows += verlaufLid
+		? rowHtml("Verlauf", verlaufLid)
+		: (verlaufHtml ? rowHtml("Verlauf", verlaufHtml) : row("Verlauf", wiki.verlauf));
 	rows += row("Beschreibung", typeof settlementFirstSentence === "function" ? settlementFirstSentence(wiki.description) : String(wiki.description || "").trim());
 	// Multi-source system: paths get a source line for the FIRST time here (previously the wiki
 	// credit only rendered when a wiki article was linked at all). Rendered synchronously from the
