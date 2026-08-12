@@ -101,7 +101,11 @@ function buildInfoboxLid(spec) {
 		+ '<span class="infobox-lid__foot">' + prose
 		+ '<span class="infobox-lid__more">' + avesmapsInfoboxLidEscape(openLabel) + "</span>"
 		+ "</span>"
-		+ '<span class="infobox-lid__preview">' + preview + "</span>"
+		// 💣 Ohne Vorschau KEIN leerer Kasten. Die Lore-Zeilen geben seit 2026-08-12 keine mehr her
+		// (zugeklappt steht dort nur der Satz, Owner: „ohne weitere Angaben"), und ein leeres
+		// display:block-Element setzte trotzdem eine Zeilenhöhe an -- eine Lücke, die niemand bestellt
+		// hat. „Verlauf" behält seine Vorschau und damit dieses Element.
+		+ (preview ? '<span class="infobox-lid__preview">' + preview + "</span>" : "")
 		+ "</summary>"
 		+ '<div class="infobox-lid__full"><div>' + full + "</div></div>"
 		+ "</details>";

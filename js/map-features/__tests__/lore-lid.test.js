@@ -25,52 +25,67 @@ load("..", "map-features-lore.js");
 
 const ware = (name, opts) => Object.assign({ name, wiki_url: "", rank: 0, relations: ["verbreitung"] }, opts || {});
 const zeile = (kind) => AVESMAPS_LORE_ROWS.find((r) => r.kind === kind);
+// Der zugeklappte Teil ist alles VOR dem vollen Inhalt.
+const zu = (markup) => markup.slice(0, markup.indexOf("infobox-lid__full"));
 
 // ---- die Saetze -------------------------------------------------------------------------------
-// 💣 Sie muessen an FUENF Oberflaechen stimmen (Ort, Region, Herrschaftsgebiet, Weg, Etappe).
-// „in der Naehe" liest sich an einer Strasse richtig, bei einem Koenigreich aber schief.
+// 🔴 EIN Satz je Zeile, und er gilt in BEIDEN Zustaenden (Owner 2026-08-12: „11 Handelswaren
+// gelistet sollte es auch heissen, wenn es zugeklappt is … und wenn es aufgeklappt ist"). Eine
+// kurze Zwischenfassung hatte zwei Saetze und tauschte sie beim Aufklappen -- dieselbe Unruhe wie
+// ein springender Satz, nur in Worten statt in Pixeln.
 AVESMAPS_LORE_ROWS.forEach((row) => {
 	assert.ok(row.singular && row.plural, row.kind + " braucht beide Zahlformen");
-	assert.ok(!/in der Nähe|auf dem Weg/.test(row.plural),
-		"kein ortsgebundenes Wort in einem Satz, der an fuenf Flaechen steht: " + row.plural);
+	assert.ok(!row.singularShut && !row.pluralShut,
+		"💣 keine zweite Satzfassung fuer den offenen Zustand: " + row.kind);
+	// Die Saetze sagen, was ERFASST ist -- kein ortsgebundenes Wort, denn dieselbe Zeile steht an
+	// fuenf Oberflaechen (Ort, Region, Herrschaftsgebiet, Weg, Etappe).
+	assert.ok(!/in der Nähe|auf dem Weg|\bhier\b/.test(row.plural),
+		"kein Ortswort im Satz: " + row.plural);
 });
 
-// ---- wenig: alles steht da, kein Oeffner ------------------------------------------------------
+// ---- wenig: klappt GENAUSO ein ----------------------------------------------------------------
+// ⭐ Kein statischer Sonderfall mehr. Owner 2026-08-12 zu einer Fauna-Zeile mit zwei Namen: „auch
+// 2 Tierarten leben hier / Bergloewe, Griswolf <- einklappen". Der Gewinn ist nicht der Platz bei
+// zwei Namen, sondern dass alle Zeilen einer Box gleich aussehen und sich gleich verhalten.
 const wenig = avesmapsLoreInfoRowMarkup(zeile("flora"), [ware("Espe"), ware("Weide")], 2, "punin", null);
-assert.ok(wenig.indexOf("infobox-lid--static") >= 0, "zwei Pflanzen brauchen keinen Oeffner: " + wenig);
-assert.ok(wenig.indexOf("2 Pflanzenarten wachsen hier") >= 0 || wenig.indexOf("Pflanzenarten wachsen hier") >= 0,
-	"aber den Satz: " + wenig);
-assert.ok(wenig.indexOf("Espe") >= 0 && wenig.indexOf("Weide") >= 0, "und beide Namen");
+assert.ok(wenig.indexOf("infobox-lid--static") < 0, "💣 kein statischer Deckel mehr: " + wenig);
+assert.ok(wenig.indexOf("<details") >= 0, "auch zwei Pflanzen bekommen einen Oeffner");
+assert.ok(wenig.indexOf("2") >= 0 && wenig.indexOf("Pflanzenarten gesehen") >= 0,
+	"mit dem Satz: " + wenig);
+assert.ok(wenig.indexOf("Espe") >= 0 && wenig.indexOf("Weide") >= 0, "die Namen im Aufgeklappten");
+assert.ok(zu(wenig).indexOf("Espe") < 0, "aber nicht im zugeklappten Teil: " + zu(wenig));
 
 // Einzahl
 const eins = avesmapsLoreInfoRowMarkup(zeile("fauna"), [ware("Griswolf")], 1, "punin", null);
-assert.ok(eins.indexOf("Tierart lebt hier") >= 0, "💣 Einzahl, nie „1 Tierarten leben hier\": " + eins);
+assert.ok(eins.indexOf("Tierart beobachtet") >= 0,
+	"💣 Einzahl, nie „1 Tierarten beobachtet\": " + eins);
 
-// ---- viel: eingedampft mit Oeffner ------------------------------------------------------------
+// ---- viel ------------------------------------------------------------------------------------
 const viele = [];
 for (let i = 0; i < 11; i++) { viele.push(ware("Ware" + i)); }
 const lang = avesmapsLoreInfoRowMarkup(zeile("ware"), viele, 11, "punin", null);
-assert.ok(lang.indexOf("<details") >= 0, "elf Waren bekommen einen oeffenbaren Deckel");
-assert.ok(lang.indexOf("11 Waren werden hier gehandelt") >= 0
-	|| lang.indexOf("Waren werden hier gehandelt") >= 0, "mit dem Satz");
-// 💣 Die Vorschau zeigt DREI Namen, nicht acht. Acht von 51 waren zu wenig fuer eine Liste und zu
-// viel, um den Oeffner noch zu sehen -- das war der Anlass.
-// ⚠️ Der Satz steht seit 2026-08-12 VOR der Vorschau (sonst springt er beim Aufklappen), die
-// Vorschau also zwischen ihm und dem vollen Inhalt. Wer hier gegen __foot schneidet, schneidet
-// rueckwaerts und bekommt einen leeren String -- der dann jede Zusicherung besteht.
-const vorschau = lang.slice(lang.indexOf("infobox-lid__preview"), lang.indexOf("infobox-lid__full"));
-assert.ok(vorschau.length > 0, "der Vorschau-Ausschnitt darf nicht leer sein");
-assert.strictEqual((vorschau.match(/Ware\d/g) || []).length, 3,
-	"genau drei Namen in der Vorschau: " + vorschau);
+assert.ok(lang.indexOf("<details") >= 0, "elf Waren bekommen einen Deckel");
+assert.ok(lang.indexOf("Handelswaren gelistet") >= 0, "mit dem Satz");
+
+// 💣 ZUGEKLAPPT STEHT KEIN EINZIGER NAME DA (Owner: „ohne weitere Angaben"). Die Zeile ist dann nur
+// ihr Satz plus der Oeffner. Vorher acht Namen, dann drei, jetzt keine -- jeder Schritt machte den
+// Oeffner sichtbarer, weil weniger daneben stand.
+assert.ok(zu(lang).length > 0, "der zugeklappte Ausschnitt darf nicht leer sein");
+assert.ok(zu(lang).indexOf("infobox-lid__preview") < 0, "keine Vorschau: " + zu(lang));
+assert.strictEqual((zu(lang).match(/Ware\d/g) || []).length, 0, "kein Name: " + zu(lang));
+
+// Der Satz steht GENAU EINMAL im Markup -- nicht je Zustand einmal.
+assert.strictEqual((lang.match(/Handelswaren gelistet/g) || []).length, 1,
+	"ein Satz, eine Stelle: " + lang);
+assert.ok(lang.indexOf("werden hier gehandelt") < 0,
+	"💣 keine zweite Fassung fuer den offenen Zustand: " + lang);
+
 // ...aber ALLE elf stehen im Dokument, sonst faende die Seitensuche sie nicht.
 assert.ok(lang.indexOf("Ware10") >= 0, "der volle Inhalt ist von Anfang an da");
 
 // ---- die Gliederung nach Naehe ----------------------------------------------------------------
-// 🔴 Gemessen am Live-Bestand: Herkunft gibt es NUR bei Waren (3 von 51); Fauna und Flora tragen
-// im Wiki ausschliesslich Verbreitung. Deshalb ist „Von hier" ein Zusatz und der Rang die Regel.
-// ⚠️ Die Reihenfolge ist ABSICHT: der kontinentweite Eintrag steht VORN. Stuende er hinten, kaeme er
-// ohnehin nicht in die Vorschau (die nimmt nur drei), und die Zusicherung darunter pruefte nichts --
-// genau das war sie in der ersten Fassung, die Mutationsprobe hat es aufgedeckt.
+// 🔴 Gemessen am Live-Bestand: Herkunft gibt es NUR bei Waren (3 von 51); Fauna und Flora tragen im
+// Wiki ausschliesslich Verbreitung. Deshalb ist „Von hier" ein Zusatz und der Rang die Regel.
 const gemischt = [
 	ware("Perricumer Salz", { rank: 3 }),
 	ware("Garether Bier", { relations: ["herkunft"] }),
@@ -83,19 +98,13 @@ const grp = avesmapsLoreInfoRowMarkup(zeile("ware"), gemischt, 6, "punin", null)
 	assert.ok(grp.indexOf(label) >= 0, "die Gruppe „" + label + "\" fehlt: " + grp);
 });
 // 💣 Ein Eintrag mit Herkunft steht NUR in „Von hier", nicht zusaetzlich in seiner Rang-Gruppe.
-// Gezaehlt wird im AUFGEKLAPPTEN Teil: in der Vorschau darf derselbe Name natuerlich noch einmal
-// auftauchen, das ist ja ihr Zweck.
-const voll = grp.slice(grp.indexOf("infobox-lid__full"));
-assert.strictEqual((voll.match(/Garether Bier/g) || []).length, 1,
-	"kein Doppeleintrag im Aufgeklappten: " + voll);
-// 💣 Die kontinentweiten bleiben aus der VORSCHAU heraus -- was ueberall gilt, sagt ueber diesen
-// Ort nichts. Im Aufgeklappten stehen sie unter ihrer Ueberschrift.
-const vorschau2 = grp.slice(grp.indexOf("infobox-lid__preview"), grp.indexOf("infobox-lid__full"));
-assert.ok(vorschau2.indexOf("Perricumer Salz") < 0, "rank 3 nicht in der Vorschau: " + vorschau2);
+assert.strictEqual((grp.match(/Garether Bier/g) || []).length, 1, "kein Doppeleintrag: " + grp);
+assert.ok(zu(grp).length > 0 && zu(grp).indexOf("Garether Bier") < 0,
+	"und zugeklappt steht ueberhaupt kein Name da: " + zu(grp));
 
 // Eine EINZIGE Gruppe gliedert nichts -- dann steht auch ihre Ueberschrift nicht da.
 const einfach = avesmapsLoreInfoRowMarkup(zeile("fauna"),
-	[ware("A"), ware("B"), ware("C"), ware("D"), ware("E"), ware("F")], 6, "punin", null);
+	[ware("A"), ware("B"), ware("C")], 3, "punin", null);
 assert.ok(einfach.indexOf("Direkt hier") < 0,
 	"eine einzige Gruppe bekommt keine Ueberschrift: " + einfach);
 
@@ -104,15 +113,15 @@ assert.ok(einfach.indexOf("Direkt hier") < 0,
 const mitLead = avesmapsLoreInfoRowMarkup(zeile("ware"), [ware("Bräubier")], 1, "punin",
 	[{ name: "Vieh", wiki_url: "" }, { name: "Holz", wiki_url: "" }]);
 assert.ok(mitLead.indexOf("Vieh") < mitLead.indexOf("Bräubier"), "die Gattungen stehen vorn");
-assert.ok(mitLead.indexOf("3 ") >= 0 || mitLead.indexOf("Waren werden hier gehandelt") >= 0,
-	"und zaehlen mit: " + mitLead);
+assert.ok(mitLead.indexOf("Handelswaren gelistet") >= 0, "und zaehlen mit: " + mitLead);
 // Doppelungen: „Salz" kann in beiden Quellen stehen und darf nur einmal erscheinen.
 const doppelt = avesmapsLoreInfoRowMarkup(zeile("ware"), [ware("Salz")], 1, "punin",
 	[{ name: "Salz", wiki_url: "" }]);
 assert.strictEqual((doppelt.match(/Salz/g) || []).length, 1, "Salz nur einmal: " + doppelt);
+assert.ok(doppelt.indexOf("Handelsware gelistet") >= 0, "und einmal ist Einzahl: " + doppelt);
 
 // ---- nichts zu sagen --------------------------------------------------------------------------
 assert.strictEqual(avesmapsLoreInfoRowMarkup(zeile("ware"), [], 0, "punin", null), "",
-	"ohne Eintraege keine Zeile -- kein leerer Deckel mit „0 Waren\"");
+	"ohne Eintraege keine Zeile -- kein leerer Deckel mit „0 Handelswaren gelistet\"");
 
-console.log("OK: die Lore-Zeilen sind Deckel -- Saetze, Vorschau von drei, Gliederung nach Naehe");
+console.log("OK: die Lore-Zeilen sind Deckel -- EIN Satz, keine Namen zugeklappt, Gliederung nach Naehe");

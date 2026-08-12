@@ -45,28 +45,42 @@ zwei verschiedene Deckel — so sind Infobox und Routenplaner einmal auseinander
 | | Mehrzahl | Einzahl |
 |---|---|---|
 | Verlauf | 33 **Orte auf dem Weg** | 1 Ort auf dem Weg |
-| Waren | 11 **Waren werden hier gehandelt** | 1 Ware wird hier gehandelt |
-| Fauna | 19 **Tierarten leben hier** | 1 Tierart lebt hier |
-| Flora | 13 **Pflanzenarten wachsen hier** | 1 Pflanzenart wächst hier |
+| Waren | 11 **Handelswaren gelistet** | 1 Handelsware gelistet |
+| Fauna | 10 **Tierarten beobachtet** | 1 Tierart beobachtet |
+| Flora | 12 **Pflanzenarten gesehen** | 1 Pflanzenart gesehen |
 
-⚠️ **„hier", nicht „in der Nähe"** — mein einziger Eingriff in seinen Wortlaut. Dieselbe Zeile steht
-an **fünf** Oberflächen (Siedlung, Landschaftsregion, Herrschaftsgebiet, Weg, Routen-Etappe);
-„leben in der Nähe" liest sich an einer Straße richtig, bei einem Königreich aber schief — dort leben
-sie darin. „auf dem Weg" durfte bleiben: *Verlauf* gibt es nur am Weg.
+🔴 **EIN Satz je Zeile, und er gilt in BEIDEN Zuständen** — zugeklappt wie aufgeklappt (Owner
+2026-08-12: „11 Handelswaren gelistet sollte es auch heißen, wenn es zugeklappt is … und wenn es
+aufgeklappt ist"). Eine Zwischenfassung hatte ZWEI Sätze und tauschte sie beim Aufklappen („…
+gelistet" → „… werden hier gehandelt"). Das ist dieselbe Unruhe wie der springende Satz von zwei
+Stunden vorher, nur in Worten statt in Pixeln: **was an derselben Stelle steht, soll auch dasselbe
+sagen.** Die Mechanik dafür wurde gebaut, gemessen und wieder ausgebaut.
 
-💣 **Einzahl und Mehrzahl sind Pflicht.** „1 Tierarten leben hier" entsteht von selbst, sobald jemand
+⭐ Die Sätze sagen, was **erfasst** ist — eine Aussage über den Datenbestand, nicht über den Ort.
+„gelistet / beobachtet / gesehen" trägt beide Zustände. Die frühere Fassung („werden hier gehandelt
+/ leben hier / wachsen hier") war eine Aussage über den Ort; sie war aufgeklappt schöner und
+zugeklappt zu lang, und genau dieser Kompromiss war der Fehler.
+
+⚠️ **Kein Ortswort** („hier", „in der Nähe", „auf dem Weg") in den Lore-Sätzen: dieselbe Zeile steht
+an fünf Oberflächen, und was an einer Straße stimmt, liegt bei einem Königreich daneben. Im Test
+festgenagelt. „auf dem Weg" darf bleiben — *Verlauf* gibt es nur am Weg.
+
+💣 **Einzahl und Mehrzahl sind Pflicht.** „1 Tierarten beobachtet" entsteht von selbst, sobald jemand
 nur den Plural hinterlegt.
 
 ### Wann öffenbar, wann nicht
 
-- **Verlauf:** ab 5 Stationen (`PATH_VERLAUF_LID_MIN_STATIONS`). Darunter spart das Eindampfen
-  nichts — die Vorschau zeigt erste → … → letzte, also zwei Namen plus Auslassung.
-- **Lore:** ab 6 Einträgen (`AVESMAPS_LORE_LID_MIN`), Vorschau 3 Namen
-  (`AVESMAPS_LORE_PREVIEW_NAMES`). Darunter steht alles da; ein Öffner für zwei versteckte Namen ist
-  genau das „+2", das den Anlass gab.
-- Ein **statischer** Deckel behält seinen Satz (das ist eine Angabe) und verliert den Öffner (der wäre
-  eine Aufforderung ins Leere). Er reagiert auch nicht auf Hover — sonst lernt das Auge das Gegenteil
-  von dem, was der Deckel beibringen soll.
+- **Lore: IMMER.** Jede Zeile ist ein Deckel, der aufklappt — auch bei zwei Einträgen (Owner
+  2026-08-12: „auch 2 Tierarten leben hier / Berglöwe, Griswolf ← einklappen"). ⭐ Der Gewinn ist
+  nicht der gesparte Platz bei zwei Namen, sondern dass **alle Zeilen einer Box gleich aussehen und
+  sich gleich verhalten**. Ein Auge, das an drei Zeilen dasselbe lernt, muss bei der vierten nicht
+  raten. Die frühere Grenze `AVESMAPS_LORE_LID_MIN` ist ersatzlos entfallen.
+- **Zugeklappt steht KEIN Name da** (Owner: „ohne weitere Angaben") — nur der Satz und der Öffner.
+  ⭐ Der Weg dahin ging von acht Namen über drei zu null; jeder Schritt machte den Öffner sichtbarer,
+  weil weniger daneben stand. `AVESMAPS_LORE_PREVIEW_NAMES` ist ebenfalls entfallen.
+- **Verlauf:** unverändert (Owner: „verlauf kann bleiben"). Vorschau *erste → … → letzte* ab
+  5 Stationen (`PATH_VERLAUF_LID_MIN_STATIONS`); darunter ein statischer Deckel ohne Öffner. Er ist
+  damit der einzige verbliebene Nutzer des statischen Zweigs.
 
 ## 3. Die Fallen
 

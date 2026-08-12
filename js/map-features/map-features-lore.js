@@ -183,10 +183,22 @@ function avesmapsLoreFetch(placeKey, full, titles, goods) {
 // Landschaftsregion, Herrschaftsgebiet, Weg und Routen-Etappe. „Tierarten leben in der Nähe" liest
 // sich an einer Straße richtig, bei einem Königreich aber schief; dort leben sie darin. „hier" trägt
 // Punkt, Fläche und Linie gleichermaßen.
+// Der Satz je Zeile, in Einzahl und Mehrzahl (Owner 2026-08-12: „können wir die title kürzen?").
+//
+// 🔴 EIN Satz, und er gilt in BEIDEN Zuständen -- zugeklappt wie aufgeklappt (Owner: „11
+// Handelswaren gelistet sollte es auch heißen, wenn es zugeklappt is … und wenn es aufgeklappt
+// ist"). Eine kurze Zwischenfassung hatte zwei Sätze und tauschte sie beim Aufklappen; das ist
+// dieselbe Unruhe wie der springende Satz von zwei Stunden vorher, nur in Worten statt in Pixeln.
+// Was an derselben Stelle steht, soll auch dasselbe sagen.
+//
+// ⭐ Die Sätze sagen, was ERFASST ist -- eine Aussage über den Datenbestand, nicht über den Ort.
+// „gelistet / beobachtet / gesehen" trägt beide Zustände; „werden hier gehandelt / leben hier"
+// wäre aufgeklappt schöner gewesen und zugeklappt zu lang, und genau dieser Kompromiss war der
+// Fehler.
 var AVESMAPS_LORE_ROWS = [
-	{ kind: "ware", label: "Waren", singular: "Ware wird hier gehandelt", plural: "Waren werden hier gehandelt" },
-	{ kind: "fauna", label: "Fauna", singular: "Tierart lebt hier", plural: "Tierarten leben hier" },
-	{ kind: "flora", label: "Flora", singular: "Pflanzenart wächst hier", plural: "Pflanzenarten wachsen hier" },
+	{ kind: "ware", label: "Waren", singular: "Handelsware gelistet", plural: "Handelswaren gelistet" },
+	{ kind: "fauna", label: "Fauna", singular: "Tierart beobachtet", plural: "Tierarten beobachtet" },
+	{ kind: "flora", label: "Flora", singular: "Pflanzenart gesehen", plural: "Pflanzenarten gesehen" },
 ];
 
 // EINE Infobox-Zeile im Hausformat (.region-info-box__row + dt/dd), damit sie sich in
@@ -197,18 +209,22 @@ var AVESMAPS_LORE_ROWS = [
 // was überall gilt, sagt über diesen Ort nichts. Im AUFGEKLAPPTEN stehen sie weiterhin, dort unter
 // ihrer eigenen Überschrift, wo die Einordnung mitgeliefert wird.
 
-// So viele Namen zeigt die eingedampfte Fassung. Bewusst wenig: je kürzer die zugeklappte Zeile,
-// desto sichtbarer der Öffner darin -- das war der ganze Befund vom 2026-08-12 („die Leute sehen
-// nicht, dass sie draufklicken können"). Acht von 51 waren zu wenig für eine Liste und zu viel, um
-// den Öffner noch zu sehen.
-var AVESMAPS_LORE_PREVIEW_NAMES = 3;
+// 🪤 Hier standen bis zum 2026-08-12 ZWEI Stellschrauben, und beide sind weg:
+//
+//   AVESMAPS_LORE_PREVIEW_NAMES -- wie viele Namen zugeklappt dastanden. Erst 8, dann 3, jetzt
+//   keine: zugeklappt trägt die Zeile nur ihren knappen Satz (Owner: „ohne weitere Angaben").
+//
+//   AVESMAPS_LORE_LID_MIN -- ab wann ein Deckel überhaupt aufklappte. Darunter stand alles offen da,
+//   ein Deckel ohne Öffner. Owner 2026-08-12 zu genau so einer Zeile: „auch 2 Tierarten leben hier /
+//   Berglöwe, Griswolf <- einklappen".
+//
+// ⭐ JEDE Lore-Zeile ist jetzt ein Deckel, der aufklappt -- unabhängig davon, ob zwei Namen darin
+// stecken oder einundfünfzig. Der Gewinn ist nicht der gesparte Platz bei zwei Namen, sondern dass
+// alle Zeilen einer Box GLEICH aussehen und sich gleich verhalten. Ein Auge, das an drei Zeilen
+// dasselbe lernt, muss bei der vierten nicht raten.
 
-// Ab so vielen Einträgen lohnt das Eindampfen. Darunter steht ohnehin alles da, und ein Öffner für
-// zwei versteckte Namen ist genau das „+2", das den Anlass gab.
-var AVESMAPS_LORE_LID_MIN = 6;
-
-// Ein Name als Markup -- verlinkt, wo es einen Wiki-Artikel gibt. EINE Stelle, damit ein Eintrag in
-// der Vorschau nicht anders aussieht als im Aufgeklappten.
+// Ein Name als Markup -- verlinkt, wo es einen Wiki-Artikel gibt. EINE Stelle, damit ein Eintrag im
+// statischen Deckel nicht anders aussieht als im aufgeklappten.
 function avesmapsLoreNameMarkup(item) {
 	var href = avesmapsLoreSafeUrl(item && item.wiki_url);
 	var name = avesmapsLoreEscape(item && item.name);
@@ -302,19 +318,20 @@ function avesmapsLoreInfoRowMarkup(row, entries, total, placeKey, extras) {
 	// Grenze wieder einzöge. Ein Satz, der mehr verspricht als das Aufgeklappte zeigt, ist genau die
 	// stille Lüge, die niemand bemerkt.
 	var count = lead.length + all.length;
-	var local = all.filter(function (entry) { return Number(entry && entry.rank) < 3; });
-	var previewItems = lead.concat(local).slice(0, AVESMAPS_LORE_PREVIEW_NAMES);
-	var openable = count >= AVESMAPS_LORE_LID_MIN;
 
+	// 🔴 ZUGEKLAPPT STEHEN KEINE NAMEN DA (Owner 2026-08-12: „ohne weitere Angaben"). Die Zeile ist
+	// dann nur ihr knapper Satz -- „11 Handelswaren gelistet" -- und der Öffner daneben. Aufgeklappt
+	// tritt der volle Satz an dieselbe Stelle und darunter die Gruppen.
+	//
+	// ⭐ OHNE AUSNAHME, auch bei zwei Einträgen (Owner 2026-08-12: „auch 2 Tierarten leben hier /
+	// Berglöwe, Griswolf <- einklappen"). Der Gewinn ist nicht der Platz, sondern dass alle Zeilen
+	// einer Box gleich aussehen und sich gleich verhalten.
 	var lid = buildInfoboxLid({
-		preview: openable
-			? previewItems.map(avesmapsLoreNameMarkup).join(", ") + " …"
-			: avesmapsLoreGroupedMarkup(all, lead),
+		preview: "",
 		full: avesmapsLoreGroupedMarkup(all, lead),
 		count: count,
 		singular: row.singular,
 		plural: row.plural,
-		openable: openable,
 	});
 	return '<div class="region-info-box__row avesmaps-lore__row"><dt>' + avesmapsLoreEscape(row.label)
 		+ "</dt><dd>" + lid + "</dd></div>";
