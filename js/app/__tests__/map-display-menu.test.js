@@ -252,6 +252,53 @@ const mapFeaturesJs = withoutComments(read("js", "map-features", "map-features.j
 assert.ok(/#displayOptionsToggleRow/.test(mapFeaturesJs),
 	"der Bearbeiten-Modus deckt die Haken-ZEILE mit auf, nicht nur die Haken darin");
 
+// ---- Der Riegel: was eine Ansicht ohnehin sperrt, ist ausgegraut ----------------------------------
+//
+// 💣 Faengt: die Tabelle wird zur if-Kette, oder ein Modus fehlt darin. Genau dieser Fehler liess
+// FRONTEND_LAYER_MODE_DEFAULTS bis 2026-08-05 zwei Ansichten die Lage ihres VORGAENGERS erben --
+// dieselbe Ansicht sah verschieden aus, je nachdem woher man kam. Alle sechs muessen dastehen,
+// auch die mit leerem Eintrag: „hier ist nichts gesperrt" ist eine Aussage, kein Weglassen.
+const gesperrtTabelle = menueJs.match(/var GESPERRT = \{[\s\S]*?\n\t\};/);
+assert.ok(gesperrtTabelle, "map-display-menu.js traegt die Tabelle GESPERRT");
+["none", "original", "deregraphic", "political", "powerlines", "ecosystem"].forEach((modus) => {
+	assert.ok(new RegExp(`\\b${modus}\\s*:`).test(gesperrtTabelle[0]),
+		`und darin einen Eintrag fuer die Ansicht "${modus}"`);
+});
+
+// 💣 Faengt: die Grenzen-Sperre wird vergessen. In diesen drei Ansichten laedt
+// map-features-political-territory-loader.js (TERRITORY_BOUNDARY_MODES) gar keine
+// Territoriumsdaten -- der Haken haette nichts zum Zeichnen und taete sichtbar nichts.
+["none", "original", "powerlines"].forEach((modus) => {
+	const eintrag = gesperrtTabelle[0].match(new RegExp(`${modus}\\s*:\\s*\\{[^}]*\\}`));
+	assert.ok(eintrag && /toggleTerritoryBorders/.test(eintrag[0]),
+		`"${modus}" sperrt den Grenzen-Haken (dort sind keine Territorien geladen)`);
+});
+
+// 💣 Faengt: die Kraftlinien-Sperre wird vergessen. shouldShowPathOnMap steigt fuer "powerlines"
+// VOR jeder Haken-Pruefung aus, shouldShowLocationMarker zeigt dort nur Nodices -- vier Schalter,
+// die sich umlegen liessen und sichtbar nichts taeten.
+const powerlinesEintrag = gesperrtTabelle[0].match(/powerlines\s*:\s*\{[^}]*\}/);
+assert.ok(powerlinesEintrag, "der Eintrag fuer powerlines existiert");
+["togglePaths", "toggleRivers", "toggleTerritoryBorders"].forEach((id) => {
+	assert.ok(powerlinesEintrag[0].includes(id), `powerlines sperrt #${id}`);
+});
+assert.ok(/orte|places/.test(powerlinesEintrag[0]), "und die Ortsklassen");
+
+// 💣 Faengt: der Riegel wird EINMAL beim Aufbau gesetzt und friert ein. Ab dem naechsten
+// Ansichtswechsel waere er gelogen -- genau der Fehler, den die Transport-Combobox schon hatte.
+// Ein Moduswechsel feuert KEIN Ereignis (setSelectedMapLayerMode setzt den Wert per jQuery .val(),
+// und das feuert nichts); beobachtet wird deshalb die Beschriftung, die bei jedem Wechsel neu
+// geschrieben wird -- derselbe Weg wie in js/ui/map-layer-picker.js.
+assert.ok(/mapLayerModeLabel/.test(menueJs),
+	"der Riegel haengt an der Beschriftung der Auswahlbox, die sich bei JEDEM Wechsel aendert");
+assert.ok(/MutationObserver/.test(menueJs),
+	"und wird ueber einen MutationObserver nachgezogen, nicht einmalig gesetzt");
+
+// 💣 Faengt: gesperrt wird nur optisch. Ein ausgegrauter, aber klickbarer Schalter ist schlimmer
+// als ein normaler -- er sieht kaputt aus UND tut nichts.
+assert.ok(/\.disabled = /.test(menueJs) || /disabled",\s*(true|false)/.test(menueJs),
+	"die Sperre setzt `disabled`, nicht nur eine Klasse");
+
 // ---- Kein hartkodierter Farbwert ------------------------------------------------------------------
 //
 // 💣 Faengt: AGENTS.md §12. Ein Literal hier ist die Divergenz, die Infobox und Routenplaner

@@ -209,6 +209,44 @@
 	opacity: 0.4;
 }
 
+/* ═══ Gesperrt: was die aktuelle Ansicht ohnehin nicht zeigen kann ══════════════════════════
+   Nicht jeder Schalter wirkt in jeder Ansicht -- „Grenzen" hat in „Nur Karte" nichts zu zeichnen,
+   weil dort gar keine Territoriumsdaten geladen werden, und die Kraftlinien-Ansicht sperrt Wege,
+   Fluesse und Orte von sich aus. Das ist die Bauart, kein Fehler; aber ein Schalter, der sich
+   umlegen laesst und sichtbar nichts tut, liest sich als kaputt.
+   ⚠️ Der Grund steht im `title` der Zeile -- ein Riegel ohne Begruendung liest sich ebenfalls wie
+   ein Fehler, nur ein leiserer. */
+.map-display-menu__row.is-locked,
+.map-display-menu__group.is-locked {
+	color: var(--color-disabled-text);
+	cursor: not-allowed;
+}
+
+.map-display-menu__row.is-locked:hover {
+	background: none;
+}
+
+.map-display-menu__row.is-locked .map-display-menu__name,
+.map-display-menu__row.is-locked .map-display-menu__eye {
+	color: var(--color-disabled-text);
+}
+
+.map-display-menu__row.is-locked .map-display-menu__glyph,
+.map-display-menu__group.is-locked .location-toggle {
+	opacity: 0.25;
+}
+
+/* Der gesperrte Ortsknopf nimmt weder Zeiger noch Hover an -- `disabled` allein genuegt dem
+   <button> zwar, aber der Schwebe-Effekt der Nachbarregel wuerde sonst trotzdem greifen. */
+.map-display-menu__group.is-locked .location-toggle {
+	cursor: not-allowed;
+}
+
+.map-display-menu__group.is-locked .location-toggle:hover {
+	transform: none;
+	opacity: 0.25;
+}
+
 /* ═══ Die sechs Ortsklassen ═════════════════════════════════════════════════════════════════
    💣 UMGEZOGEN aus css/features/route-planner.css (12.08.2026), samt ihrer Regeln. Dort hingen
    sie an `.display-options .location-toggle` -- ein Selektor, der nach dem Umzug ins Leere

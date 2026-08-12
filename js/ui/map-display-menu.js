@@ -10,6 +10,46 @@
 (function initMapDisplayMenu() {
 	"use strict";
 
+	/**
+	 * 💣 EINE TABELLE, VOLLSTAENDIG -- alle sechs Ansichten, auch die mit leerem Eintrag.
+	 * „Hier ist nichts gesperrt" ist eine Aussage, kein Weglassen. Genau dieser Unterschied liess
+	 * FRONTEND_LAYER_MODE_DEFAULTS bis zum 05.08.2026 zwei Ansichten die Lage ihres VORGAENGERS
+	 * erben: dieselbe Ansicht sah verschieden aus, je nachdem woher man kam.
+	 *
+	 * Ein Eintrag heisst: dieser Schalter kann in dieser Ansicht NICHTS bewirken. Er wird dann
+	 * ausgegraut und nennt den Grund -- statt sich umlegen zu lassen und sichtbar nichts zu tun.
+	 * Die Gruende stehen im Code und sind NICHT Teil dieses Menues:
+	 *   • Grenzen -- TERRITORY_BOUNDARY_MODES (map-features-political-territory-loader.js:18) laedt
+	 *     die Territoriumsdaten nur in political/deregraphic/ecosystem. Anderswo haette der
+	 *     Zeichner nichts zu zeichnen.
+	 *   • Kraftlinien -- shouldShowPathOnMap steigt fuer "powerlines" VOR jeder Haken-Pruefung aus
+	 *     („Magiersicht"), und shouldShowLocationMarker zeigt dort nur Nodices.
+	 */
+	var GESPERRT = {
+		none:        { toggleTerritoryBorders: "borders" },
+		original:    { toggleTerritoryBorders: "borders" },
+		deregraphic: {},
+		political:   {},
+		powerlines:  {
+			togglePaths: "powerlines",
+			toggleRivers: "powerlines",
+			toggleTerritoryBorders: "powerlines",
+			orte: "powerlines"
+		},
+		ecosystem:   {}
+	};
+
+	/** Die Begruendungen. Sie stehen im Titel der gesperrten Zeile -- ein Riegel ohne Grund liest
+	 *  sich wie ein Fehler. */
+	var GRUND = {
+		borders: ["display.disabled.borders", "In dieser Ansicht sind keine Gebietsgrenzen geladen."],
+		powerlines: ["display.disabled.powerlines", "Die Kraftlinien-Ansicht zeigt nur Nodices und Kraftlinien."]
+	};
+
+	function uebersetze(schluessel, vorgabe) {
+		return (typeof tr === "function") ? tr(schluessel, vorgabe) : vorgabe;
+	}
+
 	function start() {
 		var knopf = document.getElementById("map-display-button");
 		var menue = document.getElementById("map-display-menu");
@@ -114,6 +154,74 @@
 				schliesse(true);
 			}
 		});
+
+		/**
+		 * Graut aus, was die aktuelle Ansicht ohnehin sperrt.
+		 * ⚠️ Eine UNBEKANNTE Ansicht sperrt nichts. Ein Modus, der nicht in GESPERRT steht, heisst
+		 * „die Tabelle hinkt hinterher" -- dann lieber alles bedienbar lassen als etwas grundlos
+		 * verriegeln. Ein zu viel gesperrter Schalter ist der teurere Fehler: er sieht kaputt aus
+		 * und laesst sich nicht widerlegen.
+		 */
+		function setzeRiegel() {
+			var modus = (typeof getSelectedMapLayerMode === "function") ? getSelectedMapLayerMode() : "";
+			var gesperrt = GESPERRT[modus] || {};
+
+			["togglePaths", "toggleMapLabels", "toggleTerritoryBorders", "toggleRivers", "toggleSeaPaths"].forEach(function (id) {
+				var box = document.getElementById(id);
+				var zeile = box && box.closest(".map-display-menu__row");
+				if (!zeile) {
+					return; // steht (noch) nicht im Menue
+				}
+				var grund = gesperrt[id];
+				// 💣 `disabled`, nicht nur eine Klasse. Ein ausgegrauter, aber klickbarer Schalter ist
+				// schlimmer als ein normaler: er sieht kaputt aus UND tut etwas.
+				box.disabled = Boolean(grund);
+				zeile.classList.toggle("is-locked", Boolean(grund));
+				if (grund) {
+					zeile.setAttribute("aria-disabled", "true");
+					zeile.title = uebersetze(GRUND[grund][0], GRUND[grund][1]);
+				} else {
+					zeile.removeAttribute("aria-disabled");
+					zeile.removeAttribute("title");
+				}
+			});
+
+			// Die Ortsklassen sind Knoepfe, keine Haken -- gesperrt wird die ganze Gruppe auf einmal.
+			var orteGruppe = document.getElementById("display-group-places");
+			var orteGrund = gesperrt.orte;
+			if (orteGruppe) {
+				orteGruppe.classList.toggle("is-locked", Boolean(orteGrund));
+				if (orteGrund) {
+					orteGruppe.title = uebersetze(GRUND[orteGrund][0], GRUND[orteGrund][1]);
+				} else {
+					orteGruppe.removeAttribute("title");
+				}
+				Array.prototype.forEach.call(orteGruppe.querySelectorAll(".location-toggle"), function (b) {
+					b.disabled = Boolean(orteGrund);
+				});
+			}
+		}
+
+		/**
+		 * 💣 DER RIEGEL WIRD BEI JEDEM ANSICHTSWECHSEL NEU GESETZT, nicht einmal beim Aufbau. Ein
+		 * beim Aufbau eingefrorenes `disabled` waere ab dem naechsten Wechsel gelogen -- genau der
+		 * Fehler, den die Transport-Combobox schon einmal hatte.
+		 * ⚠️ Einen Moduswechsel gibt es als Ereignis NICHT: setSelectedMapLayerMode setzt den Wert
+		 * mit jQuery `.val()`, und das feuert nichts. Beobachtet wird deshalb die Beschriftung der
+		 * Auswahlbox -- syncTransportControl schreibt sie bei JEDEM Wechsel neu, egal ob er von der
+		 * Ansichts-Kachel, einem Tastenkuerzel oder einem geteilten Link kommt. Kein zweiter
+		 * Zustand, nur ein Zuhoerer an der Stelle, die sich ohnehin aendert (derselbe Weg wie in
+		 * js/ui/map-layer-picker.js).
+		 */
+		var beschriftung = document.getElementById("mapLayerModeLabel");
+		if (beschriftung && typeof MutationObserver === "function") {
+			new MutationObserver(setzeRiegel).observe(beschriftung, {
+				childList: true,
+				characterData: true,
+				subtree: true
+			});
+		}
+		setzeRiegel();
 
 		// Zugeklappt starten und den Bund einmal nachmessen: er ist um eine Knopfreihe gewachsen.
 		schliesse();
