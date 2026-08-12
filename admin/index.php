@@ -179,6 +179,9 @@ function avesmapsAdminRoleOptions(string $selectedRole): string {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Avesmaps Admin</title>
+    <!-- robots.txt has disallowed /admin/ all along, but only in the "*" group -- which the
+         named AI crawlers never read. This tag holds regardless of the group. -->
+    <meta name="robots" content="noindex, nofollow" />
     <link rel="stylesheet" href="../css/pages/admin.css?v=20260720-grid" />
 </head>
 

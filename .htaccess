@@ -38,6 +38,17 @@ Options -Indexes
 # damit die aktuellen ?v=-Hashes immer ankommen. Bilder/Fonts: moderates Caching.
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    # --- Commercial SEO backlink scrapers: 403 --------------------------------------
+    # They crawl completely and return nothing to this project. First rule in the file so a
+    # blocked request costs one regex, not a redirect chain plus PHP.
+    # NOTE: Deliberately absent: facebookexternalhit, Discordbot, Twitterbot, WhatsApp and the
+    #    Mastodon fetcher -- the social hub needs their link previews. Absent as well:
+    #    Bytespider and ImagesiftBot, because welcoming AI crawlers is an owner decision
+    #    (see the GEO allow list in robots.txt), not an oversight.
+    # NOTE: A user agent is a self-declaration. This stops the honest heavy hitters; it is not
+    #    a defence against anything that actually wants in.
+    RewriteCond %{HTTP_USER_AGENT} (AhrefsBot|SemrushBot|MJ12bot|DotBot|BLEXBot|DataForSeoBot|Barkrowler|serpstatbot|MegaIndex|SeekportBot|ZoominfoBot) [NC]
+    RewriteRule ^ - [F,L]
     # --- Canonical host: www -> non-www (+ https). Loop-safe: nach dem Redirect ist der Host die
     #     non-www-Variante, die ^www\. nicht mehr matcht -> kein Loop moeglich. ---
     RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
@@ -46,12 +57,22 @@ Options -Indexes
     #     fuer echtes https (verifiziert: HTTPS=on, Port 443) -> feuert nur bei echtem http. ---
     RewriteCond %{HTTPS} off
     RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+    # --- Safety net for crawlers that skip robots.txt but honour headers -------------
+    # Data endpoints, map tiles and uploaded images carry no indexable text: the page's
+    # indexable content sits statically in index.html (h1, FAQ, JSON-LD), not in the map
+    # payload. Same mechanism as VERSIONED_ASSET below -- mod_rewrite sets the variable,
+    # mod_headers reads it, so no second module is needed.
+    RewriteCond %{REQUEST_URI} ^/(api|tiles|uploads)/ [NC]
+    RewriteRule ^ - [E=AVESMAPS_NOINDEX:1]
     # Markiere Anfragen an .js/.css MIT ?v=... als versioniert.
     RewriteCond %{QUERY_STRING} (^|&)v=
     RewriteRule \.(?:js|css)$ - [E=VERSIONED_ASSET:1]
 </IfModule>
 
 <IfModule mod_headers.c>
+    # Set by the rewrite rule above for /api/, /tiles/ and /uploads/.
+    Header set X-Robots-Tag "noindex" env=AVESMAPS_NOINDEX
+
     <FilesMatch "\.(?:js|css)$">
         # Versioniert (?v=hash): ewig + immutable cachen.
         Header set Cache-Control "public, max-age=31536000, immutable" env=VERSIONED_ASSET

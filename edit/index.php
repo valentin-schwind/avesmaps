@@ -65,6 +65,9 @@ $mapIframeSrc = '../index.html?' . htmlspecialchars($mapIframeQuery, ENT_QUOTES,
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Avesmaps Edit</title>
+    <!-- The edit shell answers 200 to anyone. robots.txt keeps crawlers off /edit/, and this
+         tag catches whoever ignores it -- both, because either alone leaves a gap. -->
+    <meta name="robots" content="noindex, nofollow" />
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump this whenever edit.css changes,
          or editors keep the cached stylesheet. See AGENTS.md sec.7. -->
