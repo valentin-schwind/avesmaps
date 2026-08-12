@@ -2153,45 +2153,13 @@
 				     baut zwei Bedienelemente fuer einen Zustand und legt nebenbei die Zifferntasten
 				     um (js/app/keyboard-shortcuts.js zaehlt die DOM-Reihenfolge).
 				     Entwurf: docs/superpowers/specs/2026-08-12-anzeige-menue-design.md -->
-				<!-- ⚠️ `hidden` an der ZEILE, nicht nur an den Haken darin. Sie ist ein direktes Kind
-				     von .display-options, und daran haengt die Regel, die die ganze Huelle wegnimmt,
-				     solange kein Kind sichtbar ist (css/features/route-planner.css, :has()). Ohne
-				     das `hidden` bliebe im Frontend ein leerer Streifen mit zwei Trennlinien
-				     zwischen Kopf und Wegpunkten stehen -- gemeldet vom Owner am 12.08.2026. -->
-				<div class="display-options__row display-options__row--wrap" id="displayOptionsToggleRow" hidden>
-					<!-- 💣 HIER STANDEN Wege, Labels, Grenzen und Fluesse. Sie sind am 12.08.2026 in die
-					     Gruppe „Ebenen" des Anzeige-Menues gezogen und wirken seither auch im Frontend.
-					     „Seewege" bleibt vorerst hier: der Haken ist ausserhalb des Bearbeiten-Modus
-					     wirkungslos verdrahtet (showSeaPaths in map-features-display-mode.js). -->
-					<label id="toggleSeaPathsControl" hidden><input type="checkbox" id="toggleSeaPaths" /> Seewege</label>
-				</div>
-				<!-- Die Pruef-Haekchen gibt es nur im Bearbeiten-Modus, und sie tun etwas anderes als die
-				     fuenf darueber: die sagen, was die Karte ZEIGT, diese sagen, was an ihr NICHT STIMMT.
-				     Bis dahin standen alle zehn in derselben Flow-Zeile und sahen gleich wichtig aus.
-				     Jetzt: eigene Gruppe mit Trenner + Mini-Ueberschrift (AGENTS.md §12) und ein festes
-				     Zweispalten-Raster -- der Flow-Umbruch brach die Liste an zufaelligen Stellen um.
-				     💣 Die Reihenfolge im DOM IST die Reihenfolge auf dem Schirm (Raster fuellt zeilenweise)
-				     und damit auch die Tab-Reihenfolge -- wer hier umsortiert, sortiert alles drei um.
-				     Ueberschrift und Raster hebt js/app/bootstrap.js auf, die Haken einzeln (eines haengt
-				     zusaetzlich am Landschaftsmodul). -->
-				<p id="editorChecksTitle" class="display-options__group-title" hidden>Prüfen</p>
-				<div id="editorChecks" class="display-options__grid" hidden>
-					<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" /> Kreuzungen</label>
-					<label id="toggleNodixControl" hidden><input type="checkbox" id="toggleNodix" /> Nodices</label>
-					<label id="toggleUnconnectedControl" hidden><input type="checkbox" id="toggleUnconnected" /> Unverbunden</label>
-					<!-- Blendet Beschriftungen aus, an denen KEINE Landschaftsfläche hängt: beim Nacharbeiten
-					     der Regionen ist genau das die Restliste. -->
-					<label id="toggleLabelsWithRegionControl" hidden><input type="checkbox" id="toggleLabelsWithRegion" /> nur Labels mit Region</label>
-					<label id="toggleSparseCrossingsControl" hidden><input type="checkbox" id="toggleSparseCrossings" /> Kreuzungen ≤ 2 Wege</label>
-				</div>
-				<label id="mapStyleControl" class="display-options__row display-options__select-row" hidden
-					>Mapstil
-					<select id="mapStyleSelect" class="display-options__select" aria-label="Mapstil">
-						<option value="stylized">Stylized</option>
-						<option value="old">Original</option>
-						<option value="politics">Politics</option>
-					</select>
-				</label>
+				<!-- 💣 UND HIER STANDEN Wege, Labels, Grenzen, Fluesse, Seewege, die Gruppe „Pruefen"
+				     und der Mapstil. Alle sieben sind am 12.08.2026 ins Anzeige-Menue gezogen. Was
+				     ueber diesem Kommentar steht, ist der ganze Rest -- und das ist Absicht:
+				     🔴 .display-options traegt jetzt NUR NOCH die Derographie-Zeile, und die ist
+				     versteckt. Genau deshalb faellt die Huelle im Frontend ganz weg
+				     (css/features/route-planner.css, :has()) und der leere Streifen zwischen Kopf und
+				     Wegpunkten mit ihr. Wer hier wieder etwas einsetzt, holt ihn zurueck. -->
 			</div>
 
 			<!-- Waypoints -->
@@ -2461,6 +2429,76 @@
 						<span class="map-display-menu__name" data-i18n="display.layer.rivers">Flüsse</span>
 						<input type="checkbox" id="toggleRivers" class="map-display-menu__state" />
 						<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
+					</label>
+					<!-- ⚠️ „Seewege" ist eine Kartenebene wie die vier darueber und steht deshalb in
+					     DERSELBEN Gruppe -- eine eigene Gruppe „Seewege" mit einer einzigen Zeile
+					     „Seewege" waere eine Ueberschrift, die ihren Inhalt wiederholt. Versteckt ist
+					     nur die ZEILE: der Haken ist ausserhalb des Bearbeiten-Modus wirkungslos
+					     verdrahtet (showSeaPaths in map-features-display-mode.js haengt fest an
+					     IS_EDIT_MODE), und ein sichtbarer Schalter ohne Wirkung luegt. -->
+					<label class="map-display-menu__row" id="toggleSeaPathsControl" hidden>
+						<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"></path><path d="M12 6l6 6H6l6-6z"></path><path d="M3 17c2 2 4 2 6 0s4-2 6 0 4 2 6 0"></path></svg></span>
+						<span class="map-display-menu__name" data-i18n="display.layer.seapaths">Seewege</span>
+						<input type="checkbox" id="toggleSeaPaths" class="map-display-menu__state" />
+						<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
+					</label>
+				</div>
+				<!-- Die Pruef-Haken tun etwas anderes als die Ebenen darueber: die sagen, was die Karte
+				     ZEIGT, diese sagen, was an ihr NICHT STIMMT. Deshalb eine eigene Gruppe.
+				     💣 Die Reihenfolge im DOM IST die Reihenfolge auf dem Schirm und damit auch die
+				     Tab-Reihenfolge -- wer hier umsortiert, sortiert beides um.
+				     💣 Die GRUPPE traegt `hidden`, nicht nur die Haken darin. Sonst stuende im
+				     Frontend eine goldene Ueberschrift ueber einer Trennlinie ueber nichts. Die Haken
+				     behalten ihres trotzdem: „nur Labels mit Region" haengt zusaetzlich am
+				     Landschaftsmodul und wird von applyEcosystemAccess() nachgereicht. -->
+				<div class="map-display-menu__group" id="display-group-checks" hidden>
+					<p class="map-display-menu__title" data-i18n="display.group.checks">Prüfen<span class="map-display-menu__editor-hint" data-i18n="display.editorOnly">nur Editoren</span></p>
+					<div id="editorChecks">
+						<label class="map-display-menu__row" id="toggleCrossingsControl" hidden>
+							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M16 16l5 5"></path></svg></span>
+							<span class="map-display-menu__name">Kreuzungen</span>
+							<input type="checkbox" id="toggleCrossings" class="map-display-menu__state" />
+							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
+						</label>
+						<label class="map-display-menu__row" id="toggleNodixControl" hidden>
+							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M16 16l5 5"></path></svg></span>
+							<span class="map-display-menu__name">Nodices</span>
+							<input type="checkbox" id="toggleNodix" class="map-display-menu__state" />
+							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
+						</label>
+						<label class="map-display-menu__row" id="toggleUnconnectedControl" hidden>
+							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M16 16l5 5"></path></svg></span>
+							<span class="map-display-menu__name">Unverbunden</span>
+							<input type="checkbox" id="toggleUnconnected" class="map-display-menu__state" />
+							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
+						</label>
+						<!-- Blendet Beschriftungen aus, an denen KEINE Landschaftsfläche hängt: beim
+						     Nacharbeiten der Regionen ist genau das die Restliste. -->
+						<label class="map-display-menu__row" id="toggleLabelsWithRegionControl" hidden>
+							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M16 16l5 5"></path></svg></span>
+							<span class="map-display-menu__name">nur Labels mit Region</span>
+							<input type="checkbox" id="toggleLabelsWithRegion" class="map-display-menu__state" />
+							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
+						</label>
+						<label class="map-display-menu__row" id="toggleSparseCrossingsControl" hidden>
+							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M16 16l5 5"></path></svg></span>
+							<span class="map-display-menu__name">Kreuzungen ≤ 2 Wege</span>
+							<input type="checkbox" id="toggleSparseCrossings" class="map-display-menu__state" />
+							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
+						</label>
+					</div>
+				</div>
+				<!-- 💣 Der Mapstil hat seine display-options__*-Klassen beim Umzug ABGELEGT: er steht
+				     nicht mehr in den Anzeigeoptionen, und ein Bauteil, das die Regeln seines alten
+				     Hauses mitschleppt, ist ein Selektor, den spaeter niemand mehr findet. -->
+				<div class="map-display-menu__group" id="display-group-mapstyle" hidden>
+					<p class="map-display-menu__title" data-i18n="display.group.mapstyle">Mapstil<span class="map-display-menu__editor-hint" data-i18n="display.editorOnly">nur Editoren</span></p>
+					<label id="mapStyleControl">
+						<select id="mapStyleSelect" class="map-display-menu__select" aria-label="Mapstil">
+							<option value="stylized">Stylized</option>
+							<option value="old">Original</option>
+							<option value="politics">Politics</option>
+						</select>
 					</label>
 				</div>
 			</div>

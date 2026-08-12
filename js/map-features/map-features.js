@@ -64,15 +64,13 @@ $("#toggleTerritoryBorders").change(() => window.AvesmapsBoundaryCanvasOverlay?.
 if (IS_EDIT_MODE) {
 	// Im Editmode bleiben Wege/Flüsse/Seewege als Haken steuerbar; im Frontend sind sie ausgeblendet
 	// (Sichtbarkeit wird dort vom Kartenmodus gesetzt, siehe applyFrontendLayerModeDefaults).
-	// ⚠️ Die ZEILE zuerst: sie ist seit dem 12.08.2026 selbst versteckt, damit die Huelle
-	// .display-options im Frontend ganz wegfaellt (sonst bliebe dort ein leerer Streifen mit zwei
-	// Trennlinien stehen). Ohne diese Zeile bliebe der Haken darunter unsichtbar, obwohl er
-	// einzeln aufgedeckt wird -- ein versteckter Vorfahr gewinnt.
 	// 🔴 Hier standen bis zum 12.08.2026 auch Wege, Fluesse, Labels und Grenzen. Die vier stehen
 	// jetzt im Anzeige-Menue an der Karte und sind fuer JEDEN Besucher sichtbar -- sie brauchen
-	// kein Aufdecken mehr. „Seewege" bleibt: der Haken ist ausserhalb des Bearbeiten-Modus
-	// wirkungslos verdrahtet (showSeaPaths in map-features-display-mode.js).
-	$("#displayOptionsToggleRow").prop("hidden", false);
+	// kein Aufdecken mehr. „Seewege" bleibt als einziges: der Haken ist ausserhalb des
+	// Bearbeiten-Modus wirkungslos verdrahtet (showSeaPaths in map-features-display-mode.js
+	// haengt fest an IS_EDIT_MODE), und ein sichtbarer Schalter ohne Wirkung luegt.
+	// ⚠️ Nur die ZEILE, nicht ihre Gruppe: „Seewege" steht in der Gruppe „Ebenen", die auch im
+	// Frontend sichtbar ist. Ihre Nachbarn Wege/Labels/Grenzen/Fluesse haengen nicht daran.
 	$("#toggleSeaPathsControl").prop("hidden", false);
 	// V12: „Geschwindigkeit" zeigt auf der geplanten Route, wo Gelände und Strömung bremsen — damit
 	// ein Editor sieht, dass sein Gebirge einen Effekt hat. Nur im Editmodus: im Frontend wäre es eine

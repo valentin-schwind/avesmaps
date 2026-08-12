@@ -33,6 +33,11 @@
 		powerlines:  {
 			togglePaths: "powerlines",
 			toggleRivers: "powerlines",
+			// ⚠️ Seewege gehoeren dazu: sie sind Pfade, und shouldShowPathOnMap steigt fuer
+			// "powerlines" VOR der Unterscheidung nach Wegart aus. Sie fehlten hier zunaechst,
+			// weil sie erst mit dem Editor-Teil ins Menue kamen -- genau die Sorte Luecke, gegen
+			// die eine vollstaendige Tabelle steht.
+			toggleSeaPaths: "powerlines",
 			toggleTerritoryBorders: "powerlines",
 			orte: "powerlines"
 		},

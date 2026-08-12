@@ -112,6 +112,50 @@
 	text-transform: uppercase;
 }
 
+/* Das Merkmal „nur Editoren" an einer Gruppenueberschrift. Es traegt die Pillen-Token und nimmt
+   die Sperrung und Grossschreibung der Ueberschrift ausdruecklich zurueck -- sonst laese es sich
+   als zweite Ueberschrift statt als Anmerkung. */
+.map-display-menu__editor-hint {
+	margin-left: var(--space-6);
+	padding: 0 var(--space-4);
+	border: 1px solid var(--color-pill-border);
+	border-radius: var(--radius-md);
+	background: var(--color-pill);
+	color: var(--color-pill-text);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-regular);
+	letter-spacing: 0;
+	text-transform: none;
+}
+
+/* Der Mapstil. ⚠️ Die Auswahlbox hat beim Umzug ihre display-options__*-Klassen abgelegt und
+   bringt ihr Aussehen jetzt selbst mit -- die Token sind dieselben (Designsprache: flache
+   Auswahlfelder auf --color-panel, nie das graue Systemfeld). */
+#mapStyleControl {
+	display: block;
+}
+
+.map-display-menu__select {
+	width: 100%;
+	padding: var(--space-6) var(--space-8);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	color: var(--color-text);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-body);
+}
+
+.map-display-menu__select:hover {
+	border-color: var(--color-border-strong);
+}
+
+.map-display-menu__select:focus-visible {
+	border-color: var(--color-border-strong);
+	box-shadow: var(--focus-ring);
+	outline: none;
+}
+
 /* ═══ Eine Ebenen-Zeile ═════════════════════════════════════════════════════════════════════
    Aufbau: Sinnbild -- Name -- (Zustand) -- Auge. Das <label> umschliesst alles, deshalb schaltet
    ein Klick irgendwo in der Zeile die Checkbox; Tastatur, Fokus und Vorlesbarkeit kommen vom

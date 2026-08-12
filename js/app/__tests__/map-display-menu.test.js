@@ -169,8 +169,8 @@ assert.ok(/overflow-y:\s*auto/.test(menueCss), "und scrollt darin selbst");
 // selbst mitbringen und haette es beim ersten Mal halb.
 const ebenenGruppe = indexHtml.match(/<div class="map-display-menu__group" id="display-group-layers">[\s\S]*?\r?\n\t\t\t\t<\/div>/);
 assert.ok(ebenenGruppe, "die Gruppe Ebenen steht im Menue");
-assert.strictEqual((ebenenGruppe[0].match(/<label class="map-display-menu__row"/g) || []).length, 4,
-	"und traegt vier Zeilen, jede ein <label>");
+assert.strictEqual((ebenenGruppe[0].match(/<label class="map-display-menu__row"/g) || []).length, 5,
+	"und traegt fuenf Zeilen, jede ein <label> (vier oeffentliche + Seewege fuer Editoren)");
 assert.ok(!/<button/.test(ebenenGruppe[0]),
 	"ohne eigenen Knopf -- das Label schaltet die Checkbox nativ");
 
@@ -239,18 +239,11 @@ const plannerCss = withoutComments(read("css", "features", "route-planner.css"))
 assert.ok(/\.display-options:not\(:has\(> :not\(\[hidden\]\)\)\)\s*\{\s*display:\s*none/.test(plannerCss),
 	".display-options faellt weg, solange kein direktes Kind sichtbar ist");
 
-// 💣 Faengt: die Haken-Zeile verliert ihr `hidden`. Sie ist ein direktes Kind -- ohne das Attribut
-// haelt sie die Huelle offen, obwohl jeder Haken darin versteckt ist, und die Luecke ist zurueck.
-const toggleRow = indexHtml.match(/<div class="display-options__row display-options__row--wrap"[^>]*>/);
-assert.ok(toggleRow, "die Haken-Zeile existiert");
-assert.ok(/id="displayOptionsToggleRow"/.test(toggleRow[0]), "und traegt eine ID");
-assert.ok(/\shidden(\s|>)/.test(toggleRow[0]), "und startet versteckt");
-
-// 💣 Faengt: der Bearbeiten-Modus deckt die Haken einzeln auf, aber nicht ihre Zeile -- dann
-// blieben sie unsichtbar, denn ein versteckter Vorfahr gewinnt.
-const mapFeaturesJs = withoutComments(read("js", "map-features", "map-features.js"));
-assert.ok(/#displayOptionsToggleRow/.test(mapFeaturesJs),
-	"der Bearbeiten-Modus deckt die Haken-ZEILE mit auf, nicht nur die Haken darin");
+// 💣 Faengt: jemand setzt wieder ein sichtbares Element in .display-options. Die Regel oben greift
+// nur, solange KEIN direktes Kind sichtbar ist -- ein einziges genuegt, und der leere Streifen ist
+// zurueck. Die Derographie-Zeile ist die eine erlaubte Ausnahme, und die traegt ihr `hidden` von
+// js/ui/map-layer-picker.js.
+// (Der Vollstaendigkeits-Test dazu steht weiter unten bei den Editor-Gruppen.)
 
 // ---- Der Riegel: was eine Ansicht ohnehin sperrt, ist ausgegraut ----------------------------------
 //
@@ -279,7 +272,10 @@ assert.ok(gesperrtTabelle, "map-display-menu.js traegt die Tabelle GESPERRT");
 // die sich umlegen liessen und sichtbar nichts taeten.
 const powerlinesEintrag = gesperrtTabelle[0].match(/powerlines\s*:\s*\{[^}]*\}/);
 assert.ok(powerlinesEintrag, "der Eintrag fuer powerlines existiert");
-["togglePaths", "toggleRivers", "toggleTerritoryBorders"].forEach((id) => {
+// ⚠️ toggleSeaPaths gehoert dazu -- Seewege sind Pfade, und shouldShowPathOnMap steigt fuer
+// "powerlines" VOR der Unterscheidung nach Wegart aus. Sie fehlten zunaechst, weil sie erst mit
+// dem Editor-Teil ins Menue kamen: genau die Luecke, gegen die eine vollstaendige Tabelle steht.
+["togglePaths", "toggleRivers", "toggleSeaPaths", "toggleTerritoryBorders"].forEach((id) => {
 	assert.ok(powerlinesEintrag[0].includes(id), `powerlines sperrt #${id}`);
 });
 assert.ok(/orte|places/.test(powerlinesEintrag[0]), "und die Ortsklassen");
@@ -298,6 +294,64 @@ assert.ok(/MutationObserver/.test(menueJs),
 // als ein normaler -- er sieht kaputt aus UND tut nichts.
 assert.ok(/\.disabled = /.test(menueJs) || /disabled",\s*(true|false)/.test(menueJs),
 	"die Sperre setzt `disabled`, nicht nur eine Klasse");
+
+// ---- Der Editor-Teil: eigene Gruppen, die als GANZES mitverstecken --------------------------------
+//
+// 💣 Faengt: die Haken sind versteckt, ihre Gruppe nicht. Dann stuende im Frontend eine goldene
+// Ueberschrift ueber einer Trennlinie ueber nichts. Fuer „Pruefen" war das frueher geloest (die
+// Ueberschrift hing am Bearbeiten-Modus, nicht an den Haken darin) -- die zwei neuen Gruppen
+// brauchen dieselbe Behandlung.
+["display-group-checks", "display-group-mapstyle"].forEach((id) => {
+	const huelle = indexHtml.match(new RegExp(`<div class="map-display-menu__group" id="${id}"[^>]*>`));
+	assert.ok(huelle, `die Gruppe #${id} steht im Menue`);
+	assert.ok(/\shidden(\s|>)/.test(huelle[0]), `und startet versteckt (nur Editoren)`);
+	assert.ok(menue[0].includes(`id="${id}"`), `und liegt innerhalb von #map-display-menu`);
+});
+
+// 💣 Faengt: „Seewege" bekommt eine EIGENE Gruppe. Es ist eine Kartenebene wie die vier darueber
+// und gehoert in dieselbe Gruppe -- eine Gruppe „Seewege" mit einer einzigen Zeile „Seewege" waere
+// eine Ueberschrift, die ihren Inhalt wiederholt. Nur die ZEILE ist versteckt, nicht die Gruppe.
+const seewegeZeile = indexHtml.match(/<label class="map-display-menu__row" id="toggleSeaPathsControl"[^>]*>/);
+assert.ok(seewegeZeile, "die Seewege-Zeile ist eine gewoehnliche Ebenen-Zeile");
+assert.ok(/\shidden(\s|>)/.test(seewegeZeile[0]), "und startet versteckt (nur Editoren)");
+assert.ok(ebenenGruppe[0].includes('id="toggleSeaPathsControl"'),
+	"und steht in der Gruppe Ebenen, nicht in einer eigenen");
+
+// 💣 Faengt: der Bearbeiten-Modus deckt die Haken auf, aber nicht ihre Gruppe -- dann blieben sie
+// unsichtbar, denn ein versteckter Vorfahr gewinnt. Genau dieser Fall hat schon einmal Zeit
+// gekostet (#displayOptionsToggleRow, 12.08.2026).
+const bootstrapJs = withoutComments(read("js", "app", "bootstrap.js"));
+const mapFeaturesJs = withoutComments(read("js", "map-features", "map-features.js"));
+["display-group-checks", "display-group-mapstyle"].forEach((id) => {
+	assert.ok(bootstrapJs.includes(id) || mapFeaturesJs.includes(id),
+		`der Bearbeiten-Modus deckt die Gruppe #${id} auf`);
+});
+assert.ok(mapFeaturesJs.includes("#toggleSeaPathsControl"),
+	"und die Seewege-ZEILE (ihre Gruppe ist auch im Frontend sichtbar)");
+
+// 💣 Faengt: der Mapstil wandert mit und behaelt seine .display-options__*-Klassen. Er stuende
+// dann nicht mehr in den Anzeigeoptionen, truege aber weiter deren Regeln -- ein Bauteil, das
+// aussieht wie ein Gast im falschen Haus, und ein Selektor, den niemand mehr findet.
+const mapstyle = indexHtml.match(/<label id="mapStyleControl"[^>]*>/);
+assert.ok(mapstyle, "#mapStyleControl existiert");
+assert.ok(!/display-options__/.test(mapstyle[0]),
+	"und hat seine display-options-Klassen beim Umzug abgelegt");
+
+// 💣 Faengt: .display-options behaelt einen sichtbaren Rest und der leere Streifen im Routenplaner
+// ist zurueck. Nach dem Umzug ALLER Schalter darf dort nur noch die Derographie-Zeile stehen.
+const huelleInhalt = indexHtml.match(/<div class="display-options">([\s\S]*?)\r?\n\t\t\t<\/div>/);
+assert.ok(huelleInhalt, ".display-options existiert");
+// Was dort NICHT mehr stehen darf -- jedes einzelne haelt die Huelle offen und bringt den leeren
+// Streifen zwischen Kopf und Wegpunkten zurueck.
+["togglePaths", "toggleRivers", "toggleSeaPaths", "toggleMapLabels", "toggleTerritoryBorders",
+ "toggleCrossings", "toggleNodix", "toggleUnconnected", "toggleLabelsWithRegion",
+ "toggleSparseCrossings", "mapStyleSelect", "location-toggle"].forEach((was) => {
+	assert.ok(!huelleInhalt[1].includes(was),
+		`"${was}" ist aus .display-options ausgezogen`);
+});
+// Und was dort bleiben MUSS.
+assert.ok(huelleInhalt[1].includes('id="mapLayerModeSelect"'),
+	"die Derographie-Auswahlbox bleibt -- sie IST der Zustand der Ansicht");
 
 // ---- Kein hartkodierter Farbwert ------------------------------------------------------------------
 //

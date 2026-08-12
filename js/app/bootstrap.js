@@ -341,13 +341,15 @@ activeMapStyle = getInitialMapStyle();
 baseTileLayer = createBaseTileLayer(activeMapStyle).addTo(map);
 
 if (IS_EDIT_MODE) {
-    document.getElementById("mapStyleControl")?.removeAttribute("hidden");
+    // 🔴 Beide Gruppen stehen seit dem 12.08.2026 im Anzeige-Menue an der Karte
+    // (#map-display-menu), nicht mehr im Routenplaner. Aufgedeckt wird die GRUPPE, nicht nur ihr
+    // Inhalt: sonst stuende im Frontend eine goldene Ueberschrift ueber einer Trennlinie ueber
+    // nichts. Die Haken darin behalten ihr eigenes `hidden` -- „nur Labels mit Region" haengt
+    // zusaetzlich am Landschaftsmodul und wird weiter unten nachgereicht.
+    document.getElementById("display-group-mapstyle")?.removeAttribute("hidden");
     document.getElementById("mapStyleSelect").value = activeMapStyle;
     document.querySelector('.map-context-menu__group[data-context-action="add-here"]')?.removeAttribute("hidden");
-    // Die Gruppe „Prüfen" -- Ueberschrift und Raster. Ohne sie stuende hier ein leerer Trenner,
-    // deshalb haengen beide am Bearbeiten-Modus und nicht an den einzelnen Haken darin.
-    document.getElementById("editorChecksTitle")?.removeAttribute("hidden");
-    document.getElementById("editorChecks")?.removeAttribute("hidden");
+    document.getElementById("display-group-checks")?.removeAttribute("hidden");
     document.getElementById("toggleCrossingsControl")?.removeAttribute("hidden");
     document.getElementById("toggleCrossings")?.removeAttribute("disabled");
     document.getElementById("toggleUnconnectedControl")?.removeAttribute("hidden");

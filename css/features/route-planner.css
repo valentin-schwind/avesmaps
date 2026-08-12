@@ -537,7 +537,9 @@
    (Haken, „Pruefen", Mapstil) und bei ?layerPanelActive=0. Deshalb :has() und kein Schalter in
    JavaScript, der beide Faelle einzeln kennen muesste.
    ⚠️ Geprueft werden die DIREKTEN Kinder. Jedes muss sein `hidden` selbst tragen -- ein Container
-   ohne, dessen Inhalt versteckt ist, haelt die Huelle offen (deshalb #displayOptionsToggleRow). */
+   ohne, dessen Inhalt versteckt ist, haelt die Huelle offen. Seit dem Umzug ALLER Schalter steht
+   dort nur noch die Derographie-Zeile, und die versteckt js/ui/map-layer-picker.js. Wer hier ein
+   weiteres Element einsetzt, holt den leeren Streifen zurueck. */
 .display-options:not(:has(> :not([hidden]))) {
 	display: none;
 }
