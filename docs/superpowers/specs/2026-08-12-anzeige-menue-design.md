@@ -385,6 +385,60 @@ Dokument), nicht über einen Eingriff in dessen Code.
 
 ---
 
+## 15a. Nachtrag von nach dem Bau (12.08.2026)
+
+Zwei Stellen dieses Entwurfs hat der Bau widerlegt. Sie stehen hier, statt oben
+stillschweigend korrigiert zu werden — der Entwurf ist die Abnahmeliste, und eine
+Abweichung ohne Begründung ist genau das, was ihn wertlos macht.
+
+**§5 — der „Preis der Entscheidung" entfällt.** Der Entwurf plante den Auge-Schalter
+als eigenen `<button aria-pressed>` und nahm dafür in Kauf, Tastatur, Zustandsansage und
+Vorlesbarkeit selbst mitbringen zu müssen. Gebaut ist stattdessen **ein `<label>`, das
+Sinnbild, Namen, Checkbox und Auge umschließt**: Das Auge ist reine Darstellung
+(`:has(.map-display-menu__state:checked)`), der Zustand bleibt die Checkbox mit ihrer
+alten ID. Klickfläche, Fokusreihenfolge, Tastatur und Vorlesbarkeit kommen damit vom
+Browser, und der Bestand (`$("#togglePaths").is(":checked")`, URL-Persistenz) merkt
+nichts. Der Aufpreis war vermeidbar.
+⚠️ Die Checkbox wird deshalb **aus dem Bild genommen, nicht versteckt** — `display: none`
+nähme ihr den Fokus und machte die Zeile mit der Tastatur unerreichbar.
+
+**§4/§10 — „Seewege" bekommt KEINE eigene Gruppe.** Der Bauplan sah eine vor; das war
+falsch. Seewege sind eine Kartenebene wie Wege und Flüsse und stehen in derselben Gruppe
+„Ebenen" — eine Überschrift „Seewege" über einer einzigen Zeile „Seewege" hätte nur sich
+selbst wiederholt. Versteckt ist die **Zeile**, nicht die Gruppe (§10 gilt unverändert
+für „Prüfen" und „Mapstil", die beide mehr als eine Zeile tragen).
+💣 Der Riegel aus §8 musste dafür nachziehen: Seewege sind Pfade, die Kraftlinien-Ansicht
+sperrt sie also mit. Sie fehlten zunächst in der Tabelle, weil sie erst mit dem
+Editor-Teil ins Menü kamen — genau die Lücke, gegen die eine vollständige Tabelle steht.
+
+**Zwei Fallen, die der Entwurf nicht kannte** und die der Bau gefunden hat:
+
+- **Das Aussehen der Ortsklassen hing an `.display-options .location-toggle`.** Wären nur
+  die Knöpfe umgezogen, hätten sie ihr Design verloren, ohne dass irgendwo eine Zeile
+  fehlt — sie wären unformatiert dagestanden. Die Regeln sind mit nach
+  `css/components/map-display-menu.css` gezogen. **Regeln gehören zu ihrem Bauteil.**
+- **`data-i18n` setzt `textContent`** (`js/app/i18n.js:68`). An einer Überschrift, die ein
+  Kind trägt, löscht es dieses Kind — hier das Merkmal „nur Editoren", und zwar erst beim
+  ersten `?lang=en`. Auf Deutsch ist der Fehler unsichtbar.
+
+## 15b. Was gemessen wurde
+
+| Punkt aus §14 | Ergebnis |
+|---|---|
+| Menü auf, Zoom rückt mit | Bund +275 px, Zoom −275 px — exakt gekoppelt |
+| Zeile klicken | Checkbox kippt, Auge und Textfarbe folgen, `change` erreicht den Bestand |
+| Ansichtswechsel | alle sechs Ansichten setzen ihre Vorgaben; Hand-Abweichung springt zurück |
+| Kraftlinien | Wege, Flüsse, Seewege, Grenzen, Orte gesperrt mit Grund; Labels frei |
+| beide Menüs | Auge schließt das Ansichts-Menü und umgekehrt |
+| Telefon im Editor | 557 px Inhalt im 406-px-Deckel, scrollt; Bund 631 px, Oberkante 169 px |
+| Routenplaner | Lücke von 27 px auf 5 px (der normale Panel-Abstand) |
+| `?togglePaths=0` | Haken aus, Auge durchgestrichen |
+| hell/dunkel | beide tragen, inkl. Gold und Auge-Ton |
+
+🔧 **Nicht geprüft:** ob die Wege beim Schließen des Auges wirklich von der Karte
+verschwinden. Der lokale Server hat keine Kartendaten; belegt ist nur, dass das
+`change`-Ereignis den Bestandspfad erreicht. Das ist ein Handgriff für den Owner.
+
 ## 16. Offene Frage an den Owner
 
 🔧 **Die Ortsklassen verschwinden aus dem Routenplaner.** Das ist so entschieden
