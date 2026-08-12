@@ -429,11 +429,16 @@ function avesmapsPathLandscapesLoreMarkup(line) {
 // "" wenn es nichts zu sagen gibt: keine Landschaft UND keine Zone -> keine Zeile, kein „keine
 // Angabe". Der Lore-Container zählt dabei NICHT mit -- er kommt leer auf die Welt und füllt sich
 // erst nach seinem Abruf, ein Weg allein mit ihm hätte also eine leere Box behauptet.
-function avesmapsPathLandscapesInfoboxMarkup(lineMarkup, loreMarkup, climateMarkup) {
-	if (!lineMarkup && !climateMarkup) {
+// 💣 `existing` ist die Verlauf-Zeile, die map-features-path-rendering.js dem Container schon
+// mitgegeben hat -- sie steht zwischen „Führt durch" und den Lore-Zeilen (Owner 2026-08-12:
+// „Verlauf" gehört unter „Führt durch"). Sie darf NIE verlorengehen: wird nichts anderes gebaut,
+// bleibt genau sie stehen, und deshalb ist der Riegel darunter an ihr mitbeteiligt.
+function avesmapsPathLandscapesInfoboxMarkup(lineMarkup, loreMarkup, climateMarkup, existing) {
+	var vorhanden = String(existing || "");
+	if (!lineMarkup && !climateMarkup && !vorhanden) {
 		return "";
 	}
-	return String(lineMarkup || "") + String(loreMarkup || "") + String(climateMarkup || "");
+	return String(lineMarkup || "") + vorhanden + String(loreMarkup || "") + String(climateMarkup || "");
 }
 
 // ---- the observer ---------------------------------------------------------------------------
@@ -454,6 +459,9 @@ function avesmapsPathLandscapesFillPending() {
 			if (!pathId) {
 				return;
 			}
+			// Was der Bauer schon hineingelegt hat (die Verlauf-Zeile) -- JETZT lesen, bevor irgendein
+			// innerHTML sie überschreibt.
+			var vorhanden = container.innerHTML;
 			avesmapsPathLandscapesEnsure([pathId]).then(function () {
 				var line = avesmapsPathLandscapesLineFor([pathId]);
 				// Die Klimazone kommt aus DEMSELBEN Abruf und bekommt ihre eigene Zeile darunter --
@@ -466,10 +474,11 @@ function avesmapsPathLandscapesFillPending() {
 				var markup = avesmapsPathLandscapesInfoboxMarkup(
 					line.length ? avesmapsPathLandscapesRowMarkup(line) : "",
 					avesmapsPathLandscapesLoreMarkup(line),
-					climateMarkup
+					climateMarkup,
+					vorhanden
 				);
-				if (markup === "") {
-					return;   // nothing to say -- the rows stay absent, no „keine Angabe"
+				if (markup === "" || markup === vorhanden) {
+					return;   // nichts Neues zu sagen -- der Verlauf steht ohnehin schon da
 				}
 				container.innerHTML = markup;
 			});

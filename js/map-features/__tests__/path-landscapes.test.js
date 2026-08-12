@@ -349,3 +349,35 @@ console.log("OK: Waren/Fauna/Flora am Weg kommen aus seinen Landschaften -- ohne
 })();
 
 console.log("OK: Fuehrt durch -> Waren/Fauna/Flora -> Klimazone, in dieser Reihenfolge");
+
+// ---- „Verlauf" liegt unter „Fuehrt durch" (Owner 2026-08-12) ---------------------------------
+// 💣 Die Verlauf-Zeile wird dem Container von map-features-path-rendering.js als ANFANGSINHALT
+// mitgegeben, weil „Fuehrt durch" erst nach einem Abruf entsteht und ganz am Ende der Feldliste
+// sitzt. Der Beobachter schiebt es davor und den Rest dahinter.
+(function verlaufUnterFuehrtDurch() {
+	const { avesmapsPathLandscapesInfoboxMarkup } = require("../map-features-path-landscapes.js");
+
+	const alles = avesmapsPathLandscapesInfoboxMarkup("<DURCH>", "<LORE>", "<KLIMA>", "<VERLAUF>");
+	assert.strictEqual(alles, "<DURCH><VERLAUF><LORE><KLIMA>",
+		"Fuehrt durch -> Verlauf -> Waren/Fauna/Flora -> Klimazone");
+
+	// 💣 Der Verlauf darf NIE verlorengehen -- er steht schon im Container, und wenn der Abruf nichts
+	// bringt, ist er das Einzige, was die Zeile hat. Ein leerer Platzhalter waere bei jedem
+	// Netzfehler eine verschwundene Zeile.
+	assert.strictEqual(avesmapsPathLandscapesInfoboxMarkup("", "", "", "<VERLAUF>"), "<VERLAUF>",
+		"ohne Landschaften und ohne Zone bleibt der Verlauf stehen");
+	assert.strictEqual(avesmapsPathLandscapesInfoboxMarkup("", "", "", ""), "",
+		"und ohne alles bleibt es leer");
+	// ⚠️ Der Riegel „ein leerer Lore-Container zaehlt nicht als Inhalt" gilt weiterhin -- aber nur
+	// dort, wo er greifen KANN: ohne Landschaften liefert avesmapsPathLandscapesLoreMarkup ohnehin
+	// "", die Kombination (kein „Fuehrt durch", aber Lore) kommt also gar nicht vor. Geprueft wird
+	// deshalb der Fall, der auftritt: kein Verlauf, kein Fuehrt durch, nur der leere Container.
+	assert.strictEqual(avesmapsPathLandscapesInfoboxMarkup("", "<LORE>", "", ""), "",
+		"ein leerer Lore-Container allein traegt keine Box");
+
+	// Ein Weg OHNE Verlauf (kein Wiki-Feld) verhaelt sich wie bisher.
+	assert.strictEqual(avesmapsPathLandscapesInfoboxMarkup("<DURCH>", "<LORE>", "<KLIMA>", ""),
+		"<DURCH><LORE><KLIMA>", "ohne Verlauf bleibt die alte Reihenfolge");
+})();
+
+console.log("OK: Verlauf steht unter „Fuehrt durch\" und geht nie verloren");

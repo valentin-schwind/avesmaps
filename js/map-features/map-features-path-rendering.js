@@ -72,8 +72,19 @@ function pathWikiInfoboxMarkup(path) {
 	// „Verlauf" im Deckel, wenn er lang ist. ⚠️ Der Rückfall ist zweistufig und beide Stufen tragen:
 	// ohne Fly-to-Links (Seeweg) gibt es kein verlaufHtml und die escapende `row` übernimmt; ohne das
 	// Bauteil liefert pathVerlaufLidMarkup "" und es bleibt bei der Zeile von vorher.
+	//
+	// 🔴 DIE ZEILE STEHT NICHT HIER, SONDERN IM LANDSCHAFTS-CONTAINER. Owner 2026-08-12: „Verlauf"
+	// gehört unter „Führt durch" -- und das entsteht erst nach einem Abruf, ganz am Ende der
+	// Feldliste. Statt die fertige Zeile hier einzusetzen, wird sie dem Container als Anfangsinhalt
+	// mitgegeben; der Beobachter schiebt „Führt durch" davor und den Rest dahinter
+	// (avesmapsPathLandscapesFillPending).
+	//
+	// ⭐ Der Nebengewinn ist der eigentliche Grund, es SO zu lösen und nicht über einen zweiten
+	// Container: bleibt der Abruf aus oder scheitert er, steht der Verlauf trotzdem da -- er ist ja
+	// schon drin. Ein leerer Platzhalter, den erst der Beobachter füllt, wäre bei jedem Netzfehler
+	// eine verschwundene Zeile.
 	const verlaufLid = verlaufHtml ? pathVerlaufLidMarkup(wiki.verlauf, verlaufHtml) : "";
-	rows += verlaufLid
+	const verlaufRow = verlaufLid
 		? rowHtml("Verlauf", verlaufLid)
 		: (verlaufHtml ? rowHtml("Verlauf", verlaufHtml) : row("Verlauf", wiki.verlauf));
 	rows += row("Beschreibung", typeof settlementFirstSentence === "function" ? settlementFirstSentence(wiki.description) : String(wiki.description || "").trim());
@@ -93,7 +104,9 @@ function pathWikiInfoboxMarkup(path) {
 	// DOM steht -- also erst, wenn jemand die Infobox geoeffnet hat.
 	// Ohne eigene Huelle (display:contents wie .avesmaps-lore-rows): er sitzt mitten in der Feldliste
 	// und seine Kinder sollen direkt ins Zeilenraster greifen, statt es zu brechen.
-	const landscapeContainer = `<div class="avesmaps-path-landscapes" data-path-landscapes="${escapeHtml(getPathPublicId(path))}"></div>`;
+	// Der Container kommt NICHT leer: der Verlauf steht schon darin (siehe oben). Der Beobachter liest
+	// ihn als „das, was hier bereits steht" und ordnet drumherum an.
+	const landscapeContainer = `<div class="avesmaps-path-landscapes" data-path-landscapes="${escapeHtml(getPathPublicId(path))}">${verlaufRow}</div>`;
 	return (
 		'<div class="region-info-box region-info-box--settlement">' +
 		`<dl class="region-info-box__data">${rows}${landscapeContainer}</dl>` +
