@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 12.08.2026</span>
+		<span class="hb-topbar__meta">Stand: 13.08.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -275,7 +275,7 @@
 				<li><a href="#nachschlagen" data-keywords="referenz listen tabelle">Nachschlagen</a>
 					<ul>
 						<li><a href="#n-listen" data-keywords="wegtyp ortsgröße transportmittel kategorie quellentyp auswahl vulkan tal insel inselgruppe">Die Auswahllisten</a></li>
-						<li><a href="#n-haekchen" data-keywords="unverbunden kreuzungen mapstil prüfen ring nodices labels beschriftungen grenzen ausblenden kartenoptionen">Die Prüf-Häkchen</a></li>
+						<li><a href="#n-haekchen" data-keywords="unverbunden kreuzungen mapstil prüfen ring nodices labels beschriftungen grenzen ausblenden kartenoptionen anzeige anzeige-menü auge ebenen orte ortsklassen seewege flüsse wege ausgegraut gesperrt">Die Prüf-Häkchen</a></li>
 						<li><a href="#n-menues" data-keywords="rechtsklick kontextmenü hinzufügen anlegen gebiet hierher reisen route messen">Die beiden Kontextmenüs</a></li>
 						<li><a href="#n-editoren" data-keywords="menüband kachel syncen links prüfen vorschauen overlay regionen landschaften wege">Die acht Sync-Editoren</a></li>
 						<li><a href="#n-glossar" data-keywords="bf dump nodix schraffur staging namensgruppe begriffe kreuzung querfeldein">Glossar</a></li>
@@ -962,7 +962,7 @@
 						<text x="655" y="806" font-size="12" text-anchor="middle" fill="var(--hb-good)">ein Weg bindet den Ort ans Netz an</text>
 					</svg>
 				</div>
-				<div class="hb-note hb-check"><strong>Selbst prüfen:</strong> Im Bearbeiten-Modus markieren die Häkchen <strong>„Unverbunden"</strong> (pinker Ring) und <strong>„Kreuzungen ≤ 2 Wege"</strong> (türkiser Ring) genau diese Fehler direkt auf der Karte. Alle neun Häkchen stehen unter <a href="#n-haekchen">Die Prüf-Häkchen</a>.</div>
+				<div class="hb-note hb-check"><strong>Selbst prüfen:</strong> Im Bearbeiten-Modus markieren die Häkchen <strong>„Unverbunden"</strong> (pinker Ring) und <strong>„Kreuzungen ≤ 2 Wege"</strong> (türkiser Ring) genau diese Fehler direkt auf der Karte. Alle zehn Häkchen stehen unter <a href="#n-haekchen">Die Prüf-Häkchen</a> — seit dem 12.08.2026 im Anzeige-Menü an der Karte, nicht mehr im Routenplaner.</div>
 				<p>Die Wege-Liste im WikiSync-Reiter hat drei Ansichten mehr als die anderen Sorten: <strong>„Konflikte"</strong>, <strong>„Ausreißer"</strong> und <strong>„Flussrichtung unbekannt"</strong> — alle drei fertige Arbeitslisten.</p>
 				<p><strong>„Ausreißer"</strong> findet rein geometrisch Segmente, die weitab vom Rest ihres Weges liegen — also vermutlich dem falschen Wiki-Weg zugeordnet sind. Kennt das Wiki einen Verlauf, gleicht die Liste zusätzlich damit ab: Klumpen, die dem Verlauf sauber folgen, sortiert sie von selbst aus, mehrdeutige bleiben mit einem Hinweis stehen. Ein Klick auf eine Zeile hebt den <em>ganzen</em> Weg auf der Karte hervor; das abliegende Stück fällt darin von selbst auf. Gehört ein Klumpen doch zum Weg, nimmst du ihn mit <strong>„gehört zum Weg"</strong> dauerhaft aus der Liste — er taucht erst wieder auf, wenn der Weg neu gezeichnet wird. Sonst korrigierst du von Hand, Segment für Segment: einen Sammelknopf, der alle Treffer auf einmal umschreibt, gibt es bewusst nicht.</p>
 
@@ -1388,11 +1388,11 @@
 				</table>
 
 				<h3 id="n-haekchen" class="hb-sub">Die Prüf-Häkchen</h3>
-				<p>Nur im Bearbeiten-Modus, unten bei den Kartenoptionen. Sie ändern nichts — sie zeigen nur.</p>
-				<p>Sie stehen in <strong>zwei Gruppen</strong>, und der Unterschied ist der Blick: Die obere Reihe sagt, was die Karte <em>zeigt</em>. Darunter, hinter einem Trenner mit der Überschrift <strong>„Prüfen"</strong> und in zwei Spalten, stehen die, die zeigen, was an der Karte <em>nicht stimmt</em>.</p>
+				<p>Sie stehen seit dem 12.08.2026 im <strong>Anzeige-Menü</strong> an der Karte, nicht mehr unten im Routenplaner. Aufgeklappt wird es über den Knopf mit dem <strong>Auge</strong>: rechte <em>untere</em> Ecke der Karte, ganz oben im Knopfbund — über der Lupe und der Ansichts-Kachel. Sie ändern nichts an den Daten, sie zeigen nur.</p>
+				<p>Das Menü hat <strong>vier Gruppen</strong>, und der Unterschied ist der Blick. <strong>„Orte"</strong> (die sechs Ortsklassen als Bildknöpfe) und <strong>„Ebenen"</strong> sagen, was die Karte <em>zeigt</em> — die beiden sieht jeder Besucher. <strong>„Prüfen"</strong> zeigt in zwei Spalten, was an der Karte <em>nicht stimmt</em>, und <strong>„Mapstil"</strong> wechselt den Kartengrund; beide tragen neben der Überschrift den Zusatz <em>„nur Editoren"</em> und stehen erst im Bearbeiten-Modus da.</p>
 				<table class="hb-table">
 					<tr><th>Häkchen</th><th>Zeigt</th></tr>
-					<tr><td><strong>Wege</strong> / <strong>Flüsse</strong> / <strong>Seewege</strong></td><td>Die Linien der jeweiligen Sorte.</td></tr>
+					<tr><td><strong>Wege</strong> / <strong>Flüsse</strong> / <strong>Seewege</strong></td><td>Die Linien der jeweiligen Sorte. <strong>Seewege</strong> ist als einzige Zeile der Gruppe „Ebenen" auf den Bearbeiten-Modus beschränkt — außerhalb wäre der Haken wirkungslos.</td></tr>
 					<tr><td><strong>Labels</strong></td><td>Die Beschriftungen der Karte. <em>Übersteuert den Kartenmodus in beide Richtungen:</em> abgehakt sind sie weg, wo der Modus sie zeigen würde — angehakt da, wo er sie unterdrückt.</td></tr>
 					<tr><td><strong>Grenzen</strong></td><td>Die Territoriengrenzen, ebenfalls als Übersteuerung des Modus. Beide Haken gibt es, weil Beschriftungen und Grenzen beim Zeichnen im Weg stehen.</td></tr>
 					<tr><td><strong>Kreuzungen</strong></td><td>Alle Knotenpunkte des Wegenetzes.</td></tr>
@@ -1400,9 +1400,10 @@
 					<tr><td><strong>Kreuzungen ≤ 2 Wege</strong></td><td><em>Türkiser Ring:</em> Kreuzung, die nichts verbindet (Regel 2).</td></tr>
 					<tr><td><strong>Nodices</strong></td><td>Als Nodix markierte Objekte.</td></tr>
 					<tr><td><strong>nur Labels mit Region</strong></td><td>Blendet alle Beschriftungen aus, an denen <em>keine</em> Landschaftsfläche hängt — was stehen bleibt, ist die Restliste zum Nacharbeiten. Steht nur da, wenn die Landschaften-Ebene eingeschaltet ist.</td></tr>
-					<tr><td><strong>Mapstil</strong></td><td>Kein Häkchen, sondern eine Auswahl: Stylized · Original · Politics.</td></tr>
+					<tr><td><strong>Mapstil</strong></td><td>Kein Häkchen, sondern eine Auswahl: Stylized · Original · Politics. Sie hat im Menü eine eigene Gruppe.</td></tr>
 				</table>
 				<p>Trägt ein Marker beide Fehler, gewinnt der pinke Ring — es wird immer nur einer gezeigt.</p>
+				<div class="hb-note hb-tip"><strong>Ein ausgegrauter Schalter ist nicht kaputt.</strong> Manche Ansichten sperren einen Schalter ohnehin — dann ist seine Zeile grau und nennt im Titel den Grund. <strong>Kraftlinien</strong> sperrt Wege, Flüsse, Seewege, Grenzen und die Ortsklassen (dort zeichnet die „Magiersicht" nichts davon), <strong>Nur Karte</strong> und <strong>Original</strong> sperren die Grenzen, weil in diesen Ansichten gar keine Gebietsdaten geladen werden. Sein Zustand bleibt dabei unangetastet: Zurück in einer Ansicht, in der er wirkt, steht er wieder so, wie du ihn gelassen hast.</div>
 				<div class="hb-note hb-tip"><strong>„Labels" und „Grenzen" halten nicht über einen Moduswechsel hinweg.</strong> Bei jedem Wechsel des Kartenmodus springen beide auf das zurück, was der neue Modus von sich aus zeigt. Sie sind eine Abweichung <em>nach</em> dem Wechsel, kein Dauerzustand — ein Moduswechsel verändert das Kartenbild also genau so wie eh und je.</div>
 
 				<h3 id="n-menues" class="hb-sub">Die beiden Kontextmenüs</h3>
