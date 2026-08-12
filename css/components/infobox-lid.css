@@ -92,6 +92,17 @@
 	font-size: 11px;
 }
 
+/* 💣 DER ABSTAND NACH UNTEN GEHÖRT DEM, WAS DARUNTER STEHT -- steht nichts darunter, gehört er
+ * niemandem. Zugeklappt und ohne Vorschau (so sind alle Lore-Zeilen seit dem 12.08.2026) war die
+ * Kopfzeile das letzte Element im Kasten, und ihre 5px kamen zum unteren Polster hinzu: gemessen
+ * 8px über dem Satz, 12px darunter. Owner: „kannst du das padding der ausklapp dinger unten noch
+ * gleichmäßiger anpassen ... also der zusammengeklappten".
+ * ⚠️ `:last-child` ist die Bedingung, nicht `:not([open])` allein: „Verlauf" trägt auch zugeklappt
+ * eine Vorschau, und DIE braucht den Abstand weiterhin. */
+.infobox-lid:not([open]) .infobox-lid__foot:last-child {
+	margin-bottom: 0;
+}
+
 .infobox-lid__prose {
 	color: var(--color-text-muted);
 	min-width: 0;

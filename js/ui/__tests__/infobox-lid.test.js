@@ -98,3 +98,19 @@ assert.ok(stabilStatisch.indexOf("infobox-lid__foot") < stabilStatisch.indexOf("
 	"auch im statischen Deckel steht der Satz oben -- sonst saehen die beiden verschieden aus");
 
 console.log("OK: der Satz steht oben und bleibt beim Aufklappen an seiner Stelle");
+
+// ---- der zugeklappte Deckel schliesst unten so ab wie oben -------------------------------------
+//
+// Owner 12.08.2026: „kannst du das padding der ausklapp dinger unten noch gleichmaessiger anpassen
+// ... also der zusammengeklappten" (die aufgeklappten waren bereits recht). Ursache war der
+// `margin-bottom` der Kopfzeile: zugeklappt und ohne Vorschau ist sie das LETZTE Element im Kasten,
+// ihre 5px kamen also zum unteren Polster hinzu -- gemessen 8px ueber dem Satz, 12px darunter.
+// Danach 8 zu 7, also derselbe Abschluss wie im aufgeklappten Zustand.
+//
+// 💣 Die Bedingung ist `:last-child`, NICHT `:not([open])` allein: „Verlauf" traegt auch zugeklappt
+// eine Vorschau, und die braucht den Abstand weiterhin.
+const lidCss = require("fs").readFileSync(
+	require("path").join(__dirname, "..", "..", "..", "css", "components", "infobox-lid.css"), "utf8");
+assert.ok(/\.infobox-lid:not\(\[open\]\) \.infobox-lid__foot:last-child\s*\{[^}]*margin-bottom:\s*0/.test(lidCss),
+	"zugeklappt und ohne Vorschau traegt die Kopfzeile keinen Abstand nach unten");
+console.log("OK: zugeklappt schliesst der Deckel unten wie oben ab");
