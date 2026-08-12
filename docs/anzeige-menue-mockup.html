@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Anzeige-Menü (Auge) – Mockup, 2026-08-12</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, Absicht: docs/-Datei, per file:// geoeffnet. Geladen werden die ECHTEN
+     Stylesheets — das Mockup zeigt die tatsaechliche Designsprache, nicht meine Auslegung davon.
+     legal-dialog.css traegt die gemeinsame Eckknopf-Regel (#map-search-button, #map-layer-button,
+     #news-button, #legal-button) — deshalb sehen die Knoepfe hier aus wie live. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/legal-dialog.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   NUR das Neue. Vorschlag fuer css/components/map-display-menu.css.
+   Kein hartkodierter Farbwert, kein hartkodierter Radius (AGENTS.md §12).
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ---- Mockup-Rahmen (faellt beim Bau weg) -------------------------------------------------- */
+body {
+	margin: 0;
+	padding: 28px 20px 80px;
+	background: var(--color-page-bg);
+	color: var(--color-text);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-body);
+}
+.mock-wrap { max-width: 1400px; margin: 0 auto; }
+.mock-lead { max-width: 760px; margin: 0 auto 26px; }
+.mock-lead h1 { margin: 0 0 6px; font-size: var(--font-size-display); color: var(--color-text-strong); }
+.mock-lead p { margin: 0 0 8px; color: var(--color-text-muted); line-height: var(--leading-normal); }
+.mock-lead code { background: var(--color-panel-soft); padding: 1px 4px; border-radius: var(--radius-sm); }
+
+.mock-bar {
+	display: flex; gap: var(--space-8); justify-content: center;
+	margin: 0 auto var(--space-24); flex-wrap: wrap;
+}
+.mock-bar button {
+	padding: var(--space-6) var(--space-12);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font-family: var(--font-ui); font-size: var(--font-size-body);
+	cursor: pointer;
+}
+.mock-bar button[aria-pressed="true"] {
+	background: var(--color-button); color: var(--color-button-text);
+	border-color: var(--color-button-border);
+}
+
+.mock-cols { display: flex; flex-wrap: wrap; gap: var(--space-24); align-items: flex-start; justify-content: center; }
+.mock-col { flex: 0 0 auto; }
+.mock-caption {
+	margin: 0 0 var(--space-4);
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+.mock-sub { margin: 0 0 var(--space-10); color: var(--color-text-muted); font-size: var(--font-size-caption); line-height: var(--leading-snug); max-width: 300px; min-height: 2.6em; }
+.mock-note { margin: var(--space-10) 0 0; color: var(--color-text-muted); font-size: var(--font-size-caption); line-height: var(--leading-normal); max-width: 300px; }
+.mock-measure { margin: var(--space-6) 0 0; color: var(--color-text-muted); font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); }
+.mock-section-head {
+	margin: 46px auto var(--space-16); max-width: 760px;
+	border-top: 1px solid var(--color-divider); padding-top: var(--space-20);
+}
+.mock-section-head h2 { margin: 0 0 var(--space-6); font-size: var(--font-size-subhead); color: var(--color-text-strong); }
+.mock-section-head p { margin: 0; color: var(--color-text-muted); line-height: var(--leading-normal); }
+
+/* Die Buehne: ein Kartenausschnitt, damit Bundhoehe und Ueberdeckung sichtbar werden.
+   Der Verlauf ist NUR Buehne — die echte Karte sind Kacheln. */
+.stage {
+	position: relative;
+	/* 300x660: der sichtbare Bereich eines schmalen Telefons im Hochformat (iPhone SE/13 mini
+	   abzueglich Browserleisten). Die Buehne muss ECHT sein, sonst misst das Mockup Unsinn. */
+	--stage-h: 660px;
+	width: 300px; height: var(--stage-h);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	overflow: hidden;
+	background:
+		repeating-linear-gradient(115deg, rgba(120,100,70,0.07) 0 2px, transparent 2px 26px),
+		repeating-linear-gradient(30deg, rgba(120,100,70,0.05) 0 2px, transparent 2px 34px),
+		linear-gradient(160deg, #e9dcc2, #d8c8a6 55%, #cbbb95);
+}
+.stage--wide { width: 420px; }
+/* Zoom-Knoepfe als Nachbar: sie sind der Grund, warum das Menue im FLUSS steht. */
+.stage__zoom {
+	position: absolute; right: 12px;
+	bottom: calc(var(--stack, 120px) + 12px);
+	display: flex; flex-direction: column;
+	border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm);
+	background: var(--color-panel); box-shadow: var(--shadow-panel); overflow: hidden;
+}
+.stage__zoom span { width: 30px; height: 30px; display: grid; place-items: center; color: var(--color-text); }
+.stage__zoom span + span { border-top: 1px solid var(--color-border); }
+/* Der Bund selbst — dieselbe Bauart wie #map-corner-actions, hier nur absolut statt fixed. */
+.stage__corner {
+	position: absolute; right: 12px; bottom: 12px;
+	display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+}
+.stage__row { display: flex; align-items: flex-end; gap: 6px; }
+.stage__row a, .stage__row button {
+	padding: 7px 10px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm);
+	background: var(--color-panel); color: var(--color-text); box-shadow: var(--shadow-panel);
+	font-family: var(--font-ui); font-size: var(--font-size-body); line-height: var(--leading-snug);
+	text-decoration: none; white-space: nowrap; cursor: pointer;
+}
+/* Die Ansichts-Kachel, zugeklappt — sie bleibt im Bund und ist hier nur Kulisse. */
+.stage__tile {
+	display: flex; flex-direction: column; align-items: center; gap: 3px;
+	width: 66px; padding: 5px;
+	border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm);
+	background: var(--color-panel); box-shadow: var(--shadow-panel);
+	color: var(--color-text-muted); font-size: var(--font-size-caption); line-height: var(--leading-tight);
+}
+.stage__tile img { width: 48px; height: 48px; border-radius: var(--radius-sm); object-fit: cover; display: block; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   DAS NEUE BAUTEIL — der Auge-Knopf und sein Klappmenue
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* Der Knopf. Farbe, Kontur, Radius und Schatten kommen NICHT von hier, sondern aus der
+   gemeinsamen Eckknopf-Regel in legal-dialog.css -- dort muss #map-display-button ergaenzt
+   werden, in BEIDEN Selektorlisten (Grundregel und :hover/:focus-visible).
+   💣 Genau dieses Ergaenzen wurde bei der Ansichts-Kachel einmal halb vergessen: sie stand in
+   der Grundregel, aber nicht in der Hover-Regel, und blieb als einzige unter dem Zeiger stumm. */
+.display-button {
+	display: inline-flex; align-items: center; justify-content: center;
+	width: 48px; height: 48px; padding: 0;
+	/* Diese vier Zeilen simulieren im Mockup die gemeinsame Regel: */
+	border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm);
+	background: var(--color-panel); color: var(--color-text); box-shadow: var(--shadow-panel);
+	cursor: pointer;
+}
+.display-button svg { width: 24px; height: 24px; display: block; }
+.display-button[aria-expanded="true"] {
+	background-color: var(--color-panel);
+	background-image: linear-gradient(var(--color-hover-wash), var(--color-hover-wash));
+}
+
+/* Das Menue. IM FLUSS, nicht schwebend -- derselbe Beschluss wie bei der Ansichts-Kachel:
+   ein schwebendes Menue legte sich ueber die Zoom-Knoepfe. Im Fluss waechst der Bund, und der
+   Zoom darueber liest dessen GEMESSENE Hoehe (syncMapCornerStack). */
+.display-menu {
+	width: 232px;
+	padding: var(--space-10);
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-panel);
+	color: var(--color-text);
+	text-align: left;
+	/* 💣 Der Deckel. Ohne ihn waechst der Bund im Editor ueber den halben Schirm.
+	   Die Zahl ist relativ zur Schirmhoehe, nicht absolut -- ein fester Wert liegt auf dem
+	   naechsten Geraet daneben. Im Bau: `min(50vh, 420px)`; hier an die Buehne gebunden,
+	   weil die Buehne nicht der Schirm ist. */
+	max-height: min(calc(var(--stage-h, 660px) * 0.50), 420px);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+.display-menu[hidden] { display: none; }
+
+/* Gruppieren per Trenner + Ueberschrift, nicht per Rahmen (AGENTS.md §12).
+   Der Trenner laeuft full-bleed: negativer Seitenrand = Polsterung des Menues. */
+.display-menu__group + .display-menu__group {
+	margin-top: var(--space-10);
+	padding-top: var(--space-10);
+	border-top: 1px solid var(--color-divider);
+	margin-left: calc(var(--space-10) * -1);
+	margin-right: calc(var(--space-10) * -1);
+	padding-left: var(--space-10);
+	padding-right: var(--space-10);
+}
+.display-menu__title {
+	margin: 0 0 var(--space-6);
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+/* --- Die sechs Ortsklassen: Symbolreihe, wie heute im Routenplaner ------------------------- */
+.display-menu__places { display: flex; gap: var(--space-4); }
+.place-toggle {
+	flex: 1 1 0; min-width: 0;
+	display: grid; place-items: center;
+	padding: var(--space-4) 0;
+	border: 1px solid transparent; border-radius: var(--radius-md);
+	background: none; cursor: pointer;
+}
+.place-toggle img { width: 28px; height: 28px; object-fit: contain; display: block; }
+.place-toggle:hover { background: var(--color-hover-wash); border-color: var(--color-border-strong); }
+/* AUS ist der auffaellige Zustand -- entsaettigt und blass, damit „fehlt" sofort lesbar ist. */
+.place-toggle[aria-pressed="false"] img { filter: grayscale(1); opacity: 0.32; }
+.place-toggle[aria-pressed="true"] { background: var(--color-active-wash); border-color: var(--color-border-strong); }
+
+/* --- Eine Ebenen-Zeile -------------------------------------------------------------------- */
+.layer-row {
+	display: flex; align-items: center; gap: var(--space-8);
+	padding: var(--space-4) var(--space-6);
+	margin: 0 calc(var(--space-6) * -1);
+	border-radius: var(--radius-md);
+	cursor: pointer;
+	font-size: var(--font-size-body);
+	line-height: var(--leading-snug);
+}
+.layer-row:hover { background: var(--color-hover-wash); }
+.layer-row__glyph { width: var(--icon-md); height: var(--icon-md); flex: 0 0 auto; color: var(--color-text-muted); }
+.layer-row__glyph svg { width: 100%; height: 100%; display: block; }
+.layer-row__text { flex: 1 1 auto; min-width: 0; }
+.layer-row input[type="checkbox"] { flex: 0 0 auto; margin: 0; accent-color: var(--color-accent-strong); width: 15px; height: 15px; }
+.layer-row--off .layer-row__text { color: var(--color-text-muted); }
+.layer-row--off .layer-row__glyph { opacity: 0.4; }
+
+/* --- Variante B: das Auge als Schalter in jeder Zeile -------------------------------------- */
+.eye-switch {
+	flex: 0 0 auto; width: 26px; height: 22px; display: grid; place-items: center;
+	border: 0; background: none; padding: 0; color: var(--color-accent-strong); cursor: pointer;
+}
+.eye-switch svg { width: 20px; height: 20px; display: block; }
+.layer-row--off .eye-switch { color: var(--color-text-muted); opacity: 0.55; }
+
+/* --- Variante C: Kacheln in der Formensprache der Ansichts-Kachel -------------------------- */
+.tile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6); }
+.layer-tile {
+	display: flex; flex-direction: column; align-items: center; gap: 3px;
+	padding: var(--space-6) 2px;
+	border: 2px solid transparent; border-radius: var(--radius-md);
+	background: none; cursor: pointer;
+	color: var(--color-text-muted); font-size: var(--font-size-caption); line-height: var(--leading-tight);
+	font-family: var(--font-ui);
+}
+.layer-tile__art { width: 34px; height: 34px; display: grid; place-items: center; }
+.layer-tile__art img { width: 30px; height: 30px; object-fit: contain; }
+.layer-tile__art svg { width: 26px; height: 26px; }
+.layer-tile[aria-pressed="true"] { border-color: var(--color-link); color: var(--color-link); }
+.layer-tile[aria-pressed="false"] .layer-tile__art { filter: grayscale(1); opacity: 0.32; }
+.layer-tile:hover { background: var(--color-hover-wash); }
+
+/* --- Variante D: zweispaltig, gegen die Hoehe ---------------------------------------------- */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--space-8); }
+.two-col .layer-row { margin: 0; padding: var(--space-4) var(--space-6); }
+
+/* --- Der Editor-Teil: dieselben Bauteile, nur mehr davon ---------------------------------- */
+.display-menu__select {
+	width: 100%;
+	padding: var(--space-6) var(--space-8);
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	background: var(--color-panel); color: var(--color-text);
+	font-family: var(--font-ui); font-size: var(--font-size-body);
+}
+.editor-badge {
+	display: inline-block; margin-left: var(--space-6);
+	padding: 0 var(--space-4);
+	border: 1px solid var(--color-pill-border); border-radius: var(--radius-md);
+	background: var(--color-pill); color: var(--color-pill-text);
+	font-size: var(--font-size-caption); font-weight: var(--font-weight-regular);
+	letter-spacing: 0; text-transform: none;
+}
+</style>
+</head>
+<body>
+<div class="mock-wrap">
+
+<div class="mock-lead">
+	<h1>Anzeige-Menü (Auge) — vier Ideen</h1>
+	<p>Ein neuer Knopf mit Auge, <strong>über</strong> dem Suchknopf im Eckbund. Er klappt ein Menü auf,
+	in dem sich Ortsklassen und Kartenebenen einzeln ein- und ausblenden lassen — im Frontend zehn
+	Schalter, für Editoren zusätzlich Seewege, die Gruppe „Prüfen" und der Mapstil.</p>
+	<p>Die Bühne ist ein Kartenausschnitt (300 × 660&nbsp;px — ein schmales Telefon im Hochformat, der
+	engste Fall). Zoom-Knöpfe stehen mit
+	drauf: sie sind der Grund, warum das Menü <em>im Fluss</em> steht und nicht schwebt. Alle Farben,
+	Abstände und Radien kommen aus <code>tokens.css</code>; die Eckknöpfe tragen die echte gemeinsame
+	Regel aus <code>legal-dialog.css</code>.</p>
+</div>
+
+<div class="mock-bar">
+	<button type="button" id="themeBtn" aria-pressed="false">🌙 Dunkel</button>
+	<button type="button" id="openBtn" aria-pressed="true">Menüs aufgeklappt</button>
+	<button type="button" id="editorBtn" aria-pressed="false">Editor-Ansicht (alle Schalter)</button>
+</div>
+
+<div class="mock-cols" id="variants"></div>
+
+<div class="mock-section-head">
+	<h2>Was das Mockup beantworten soll</h2>
+	<p><strong>1. Höhe.</strong> Schalte oben auf „Editor-Ansicht": der Bund wächst auf einem Telefon
+	fast über den ganzen Schirm. Deshalb hat das Menü einen Deckel (<code>max-height: min(50vh, 420px)</code>)
+	und scrollt darin selbst. Ohne Deckel schöbe es Suchknopf und Ansichts-Kachel aus dem Bild.</p>
+	<p><strong>2. Ablesbarkeit von „aus".</strong> In allen vier Varianten ist <em>aus</em> der auffällige
+	Zustand — entsättigt und blass. Wer die Karte leerräumt, muss auf einen Blick sehen, was er
+	weggenommen hat, sonst liest sich eine leere Karte wie ein Fehler.</p>
+	<p><strong>3. Motiv.</strong> Variante B zieht das Auge vom Knopf in jede Zeile durch. Variante C
+	spricht dieselbe Kachel-Sprache wie das Ansichts-Menü direkt darunter — die Frage ist, ob zwei
+	Kachelraster übereinander sich gegenseitig entwerten.</p>
+</div>
+
+</div>
+
+<script>
+/* ═══ Mockup-Motor: baut die vier Varianten aus einer Beschreibung ═══════════════════════════
+   Bewusst datengetrieben — die Schalterliste steht EINMAL da, damit die Varianten sich wirklich
+   nur in der Darstellung unterscheiden und nicht versehentlich auch im Inhalt. */
+
+var GLYPH = {
+	auge: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>',
+	augeZu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4l18 16"/><path d="M2 12s3.8-6.5 10-6.5c1.7 0 3.2.5 4.4 1.1M21.4 9.6c.4.5.6.9.6.9s-3.8 6.5-10 6.5c-1.2 0-2.3-.2-3.3-.6"/></svg>',
+	wege: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 20c3-1 3.5-5 6-8s5.5-3 10-8"/></svg>',
+	labels: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17.5L9 6l5 11.5"/><path d="M5.7 14h6.6"/><path d="M17 17.5V10"/><circle cx="19.6" cy="17.5" r="2.4"/></svg>',
+	grenzen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-dasharray="3.4 3"><path d="M3 18c3.5 0 4-4.5 7.5-4.5S15 18 21 6"/></svg>',
+	fluesse: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M2 9c2.5-2.4 4.5 2.4 7 0s4.5 2.4 7 0 4.5 2.4 6 .6"/><path d="M2 16c2.5-2.4 4.5 2.4 7 0s4.5 2.4 7 0 4.5 2.4 6 .6"/></svg>',
+	seewege: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M12 6l6 6H6l6-6z"/><path d="M3 17c2 2 4 2 6 0s4-2 6 0 4 2 6 0"/></svg>',
+	pruefen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M16 16l5 5"/></svg>'
+};
+
+var ORTE = [
+	{ key: "metropole",  icon: "metropole",  name: "Metropolen" },
+	{ key: "grossstadt", icon: "grossstadt", name: "Großstädte" },
+	{ key: "stadt",      icon: "stadt",      name: "Städte" },
+	{ key: "kleinstadt", icon: "kleinstadt", name: "Kleinstädte" },
+	{ key: "dorf",       icon: "dorf",       name: "Dörfer" },
+	{ key: "gebaeude",   icon: "bauwerk",    name: "Bauwerke" }
+];
+
+var EBENEN = [
+	{ key: "wege",     glyph: "wege",     name: "Wege",   an: true  },
+	{ key: "labels",   glyph: "labels",   name: "Labels", an: true  },
+	{ key: "grenzen",  glyph: "grenzen",  name: "Grenzen", an: false },
+	{ key: "fluesse",  glyph: "fluesse",  name: "Flüsse", an: false }
+];
+
+var EDITOR_EBENEN = [
+	{ key: "seewege", glyph: "seewege", name: "Seewege", an: false }
+];
+
+var PRUEFEN = [
+	{ key: "kreuzungen",  name: "Kreuzungen",           an: false },
+	{ key: "nodices",     name: "Nodices",              an: false },
+	{ key: "unverbunden", name: "Unverbunden",          an: false },
+	{ key: "labelsregion", name: "nur Labels mit Region", an: false },
+	{ key: "sparse",      name: "Kreuzungen ≤ 2 Wege", an: false }
+];
+
+var VARIANTEN = [
+	{
+		id: "a", titel: "A · Zeilen mit Haken",
+		sub: "Die nüchternste Form: Symbol, Name, Haken. Nichts Neues zu lernen — dieselben Zeilen, die der Editor heute schon kennt.",
+		note: "✅ Billigste Umsetzung: die fünf vorhandenen <label>+<input> ziehen unverändert um, jede ID bleibt. ⚠️ Das Auge steht nur auf dem Knopf, nicht im Menü — das Motiv verpufft nach dem ersten Klick.",
+		bauEbene: function (e) { return zeileHaken(e); },
+		bauOrte: function () { return orteReihe(); }
+	},
+	{
+		id: "b", titel: "B · Auge in jeder Zeile",
+		sub: "Statt eines Hakens ein Auge, das sich schließt. Das Motiv des Knopfes zieht sich durch bis in die letzte Zeile.",
+		note: "✅ Ein Blick genügt: geschlossene Augen sind die Liste dessen, was fehlt. ⚠️ Ein eigenes Bedienelement statt einer Checkbox — Tastatur, aria-pressed und Vorlesbarkeit muss es selbst mitbringen.",
+		bauEbene: function (e) { return zeileAuge(e); },
+		bauOrte: function () { return orteReihe(); }
+	},
+	{
+		id: "c", titel: "C · Kacheln",
+		sub: "Dieselbe Formensprache wie das Ansichts-Menü direkt darunter: Bild oben, Wort darunter, aktiv in Gold.",
+		note: "✅ Ein Haus, eine Sprache — und mit dem Finger groß genug zu treffen. ⚠️ Zwei Kachelraster übereinander: die Ansichts-Kacheln sind eine Einfachauswahl, diese hier zehn unabhängige Schalter. Gleiche Form, ungleiche Bedeutung — das ist die Falle.",
+		bauEbene: null,
+		bauOrte: null,
+		kacheln: true
+	},
+	{
+		id: "d", titel: "D · Zweispaltig",
+		sub: "Wie A, aber die Ebenen stehen paarweise nebeneinander. Gegen die Höhe gebaut.",
+		note: "✅ Spart im Editor ~110&nbsp;px Bundhöhe — genau da, wo es eng wird. ⚠️ „nur Labels mit Region\" und „Kreuzungen ≤ 2 Wege\" passen in keine halbe Spalte; sie müssten über beide laufen, und die Ordnung bekommt eine Ausnahme.",
+		bauEbene: function (e) { return zeileHaken(e); },
+		bauOrte: function () { return orteReihe(); },
+		zweispaltig: true
+	}
+];
+
+/* ---- Bauteile ---------------------------------------------------------------------------- */
+
+function orteReihe() {
+	return '<div class="display-menu__places">' + ORTE.map(function (o, i) {
+		var an = i !== 5; /* Bauwerke aus -- damit „aus" im Bild vorkommt */
+		return '<button type="button" class="place-toggle" aria-pressed="' + an + '" title="' + o.name + '">'
+			+ '<img src="../icons/realistic/' + o.icon + '.webp" alt="' + o.name + '">'
+			+ '</button>';
+	}).join("") + '</div>';
+}
+
+function ortekacheln() {
+	return '<div class="tile-grid">' + ORTE.map(function (o, i) {
+		var an = i !== 5;
+		return '<button type="button" class="layer-tile" aria-pressed="' + an + '">'
+			+ '<span class="layer-tile__art"><img src="../icons/realistic/' + o.icon + '.webp" alt=""></span>'
+			+ '<span>' + o.name + '</span></button>';
+	}).join("") + '</div>';
+}
+
+function ebenenKacheln(liste) {
+	return '<div class="tile-grid">' + liste.map(function (e) {
+		return '<button type="button" class="layer-tile" aria-pressed="' + e.an + '">'
+			+ '<span class="layer-tile__art">' + GLYPH[e.glyph] + '</span>'
+			+ '<span>' + e.name + '</span></button>';
+	}).join("") + '</div>';
+}
+
+function zeileHaken(e) {
+	return '<label class="layer-row' + (e.an ? "" : " layer-row--off") + '">'
+		+ (e.glyph ? '<span class="layer-row__glyph">' + GLYPH[e.glyph] + '</span>' : '<span class="layer-row__glyph">' + GLYPH.pruefen + '</span>')
+		+ '<span class="layer-row__text">' + e.name + '</span>'
+		+ '<input type="checkbox"' + (e.an ? " checked" : "") + '>'
+		+ '</label>';
+}
+
+function zeileAuge(e) {
+	return '<div class="layer-row' + (e.an ? "" : " layer-row--off") + '">'
+		+ (e.glyph ? '<span class="layer-row__glyph">' + GLYPH[e.glyph] + '</span>' : '<span class="layer-row__glyph">' + GLYPH.pruefen + '</span>')
+		+ '<span class="layer-row__text">' + e.name + '</span>'
+		+ '<button type="button" class="eye-switch" aria-pressed="' + e.an + '" aria-label="' + e.name + '">'
+		+ (e.an ? GLYPH.auge : GLYPH.augeZu) + '</button></div>';
+}
+
+function gruppe(titel, inhalt, editor) {
+	return '<div class="display-menu__group"><p class="display-menu__title">' + titel
+		+ (editor ? '<span class="editor-badge">nur Editoren</span>' : "")
+		+ '</p>' + inhalt + '</div>';
+}
+
+function bauMenue(v, editor) {
+	var teile = [];
+
+	if (v.kacheln) {
+		teile.push(gruppe("Orte", ortekacheln(), false));
+		teile.push(gruppe("Ebenen", ebenenKacheln(EBENEN), false));
+		if (editor) {
+			teile.push(gruppe("Ebenen · Editor", ebenenKacheln(EDITOR_EBENEN), true));
+		}
+	} else {
+		teile.push(gruppe("Orte", v.bauOrte(), false));
+		var ebenenHtml = EBENEN.map(v.bauEbene).join("");
+		teile.push(gruppe("Ebenen", v.zweispaltig ? '<div class="two-col">' + ebenenHtml + '</div>' : ebenenHtml, false));
+		if (editor) {
+			teile.push(gruppe("Seewege", EDITOR_EBENEN.map(v.bauEbene).join(""), true));
+		}
+	}
+
+	if (editor) {
+		var pruefHtml = PRUEFEN.map(function (p) {
+			return v.kacheln || !v.bauEbene ? zeileHaken(p) : v.bauEbene(p);
+		}).join("");
+		teile.push(gruppe("Prüfen", v.zweispaltig ? '<div class="two-col">' + pruefHtml + '</div>' : pruefHtml, true));
+		teile.push(gruppe("Mapstil", '<select class="display-menu__select">'
+			+ '<option>Stylized</option><option>Original</option><option>Politics</option></select>', true));
+	}
+
+	return '<div class="display-menu">' + teile.join("") + '</div>';
+}
+
+function bauBuehne(v, offen, editor) {
+	return '<div class="stage' + (editor ? " stage--tall" : "") + '">'
+		+ '<div class="stage__zoom"><span>+</span><span>−</span></div>'
+		+ '<div class="stage__corner">'
+		+ (offen ? bauMenue(v, editor) : "")
+		+ '<button type="button" class="display-button" aria-expanded="' + offen + '" aria-label="Anzeige">' + GLYPH.auge + '</button>'
+		+ '<button type="button" class="display-button" aria-label="Suchen" style="border-radius:var(--radius-sm)">'
+		+ '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button>'
+		+ '<div class="stage__tile"><img src="../icons/layer-tiles/deregraphic.webp" alt=""><span>Standard</span></div>'
+		+ '<div class="stage__row"><button type="button">Neuigkeiten</button><a href="#">Hinweise</a></div>'
+		+ '</div></div>';
+}
+
+function zeichne() {
+	var offen = document.getElementById("openBtn").getAttribute("aria-pressed") === "true";
+	var editor = document.getElementById("editorBtn").getAttribute("aria-pressed") === "true";
+	document.getElementById("variants").innerHTML = VARIANTEN.map(function (v) {
+		return '<div class="mock-col">'
+			+ '<p class="mock-caption">' + v.titel + '</p>'
+			+ '<p class="mock-sub">' + v.sub + '</p>'
+			+ bauBuehne(v, offen, editor)
+			+ '<p class="mock-note">' + v.note + '</p>'
+			+ '</div>';
+	}).join("");
+
+	/* Die Bundhoehe messen und ausweisen -- die Zahl ist der eigentliche Befund. */
+	requestAnimationFrame(function () {
+		document.querySelectorAll(".mock-col").forEach(function (col) {
+			var bund = col.querySelector(".stage__corner");
+			var stage = col.querySelector(".stage");
+			if (!bund || !stage) { return; }
+			var h = Math.round(bund.getBoundingClientRect().height);
+			var anteil = Math.round((h / stage.getBoundingClientRect().height) * 100);
+			var p = document.createElement("p");
+			p.className = "mock-measure";
+			p.textContent = "Bundhöhe: " + h + " px (" + anteil + " % der Bühne)";
+			col.insertBefore(p, col.querySelector(".mock-note"));
+			/* Der Zoom haengt an der gemessenen Hoehe -- genau wie live (syncMapCornerStack). */
+			stage.style.setProperty("--stack", h + "px");
+		});
+	});
+}
+
+document.getElementById("themeBtn").addEventListener("click", function () {
+	var dark = document.documentElement.getAttribute("data-theme") === "dark";
+	if (dark) { document.documentElement.removeAttribute("data-theme"); }
+	else { document.documentElement.setAttribute("data-theme", "dark"); }
+	this.setAttribute("aria-pressed", dark ? "false" : "true");
+	this.textContent = dark ? "\u{1F319} Dunkel" : "☀️ Hell";
+});
+["openBtn", "editorBtn"].forEach(function (id) {
+	document.getElementById(id).addEventListener("click", function () {
+		this.setAttribute("aria-pressed", this.getAttribute("aria-pressed") === "true" ? "false" : "true");
+		zeichne();
+	});
+});
+
+/* Im Mockup schalten die Schalter wirklich -- sonst sieht man den Aus-Zustand nie in Bewegung. */
+document.addEventListener("click", function (ev) {
+	var t = ev.target.closest(".place-toggle, .layer-tile, .eye-switch");
+	if (!t) { return; }
+	var an = t.getAttribute("aria-pressed") === "true";
+	t.setAttribute("aria-pressed", an ? "false" : "true");
+	if (t.classList.contains("eye-switch")) {
+		t.innerHTML = an ? GLYPH.augeZu : GLYPH.auge;
+		t.closest(".layer-row").classList.toggle("layer-row--off", an);
+	}
+});
+document.addEventListener("change", function (ev) {
+	if (ev.target.matches('.layer-row input[type="checkbox"]')) {
+		ev.target.closest(".layer-row").classList.toggle("layer-row--off", !ev.target.checked);
+	}
+});
+
+var themeIsDark = document.documentElement.getAttribute("data-theme") === "dark";
+document.getElementById("themeBtn").setAttribute("aria-pressed", themeIsDark ? "true" : "false");
+document.getElementById("themeBtn").textContent = themeIsDark ? "☀️ Hell" : "\u{1F319} Dunkel";
+zeichne();
+</script>
+</body>
+</html>
