@@ -70,16 +70,6 @@ var AVESMAPS_LORE_TIMEOUT_MS = 8000;
 // placeKey -> { data } | { pending: Promise }. Ein Ort wird höchstens einmal geholt.
 var avesmapsLoreCache = new Map();
 
-// Sektionen in Anzeigereihenfolge + ihre Überschriften. Reihenfolge ist bewusst
-// Pflanzen -> Tiere -> Waren: Flora/Fauna sind die dichteren, aussagekräftigeren Daten,
-// Handelswaren sind breiter gestreut (rund die Hälfte trägt gar keinen Ort).
-var AVESMAPS_LORE_SECTIONS = [
-	{ kind: "flora", label: "Pflanzen" },
-	{ kind: "fauna", label: "Tiere" },
-	{ kind: "spezies", label: "Spezies" },
-	{ kind: "ware", label: "Handelswaren" },
-];
-
 function avesmapsLoreEscape(value) {
 	return String(value == null ? "" : value)
 		.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -125,45 +115,6 @@ var AVESMAPS_LORE_URL_PREFIX = "https://de.wiki-aventurica.de/";
 function avesmapsLoreSafeUrl(raw) {
 	var url = String(raw == null ? "" : raw).trim();
 	return url.indexOf(AVESMAPS_LORE_URL_PREFIX) === 0 ? url : "";
-}
-
-// EIN Listeneintrag -- von der Sektion UND vom „alle anzeigen"-Handler genutzt, damit
-// die aufgeklappte Liste nicht anders aussieht als die kurze.
-function avesmapsLoreItemMarkup(entry) {
-	var name = avesmapsLoreEscape(entry && entry.name);
-	var href = avesmapsLoreSafeUrl(entry && entry.wiki_url);
-	var link = href
-		? '<a class="avesmaps-lore__name" href="' + avesmapsLoreEscape(href) + '" target="_blank" rel="noopener">' + name + " ↗</a>"
-		: '<span class="avesmaps-lore__name">' + name + "</span>";
-	var meta = avesmapsLoreRenderWikiText((entry && (entry.typ || entry.gruppe)) || "");
-	return '<li class="avesmaps-lore__item">' + link
-		+ (meta ? ' <span class="avesmaps-lore__meta">' + meta + "</span>" : "")
-		+ "</li>";
-}
-
-// Wandelt Wiki-Rohmarkup eines Feldwerts in echte Links um: „[[Laubbaum]]" wird
-// klickbar, „[[Inseln im Nebel (Globule)|Inseln im Nebel]]" zeigt den Anzeigetext.
-// Alles außerhalb der Klammern bleibt Text (und wird escaped).
-function avesmapsLoreRenderWikiText(raw) {
-	var text = String(raw == null ? "" : raw);
-	if (!text) {
-		return "";
-	}
-	var out = "";
-	var lastIndex = 0;
-	var pattern = /\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g;
-	var match;
-	while ((match = pattern.exec(text)) !== null) {
-		out += avesmapsLoreEscape(text.slice(lastIndex, match.index));
-		var target = match[1].trim();
-		var label = (match[2] || match[1]).trim();
-		var href = "https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(target.replace(/ /g, "_")).replace(/%2F/g, "/");
-		out += '<a class="avesmaps-lore__link" href="' + avesmapsLoreEscape(href) + '" target="_blank" rel="noopener">'
-			+ avesmapsLoreEscape(label) + "</a>";
-		lastIndex = pattern.lastIndex;
-	}
-	out += avesmapsLoreEscape(text.slice(lastIndex));
-	return out;
 }
 
 // Holt die Lore eines Ortes (einmal je Ort). Mehrere Schlüssel werden kommagetrennt
@@ -226,91 +177,147 @@ function avesmapsLoreFetch(placeKey, full, titles, goods) {
 // Die Daten bleiben vollständig erhalten: Katalog, Editor-Reiter und der Endpoint
 // führen Spezies weiter. Nur die öffentliche Anzeige verzichtet darauf, bis die
 // Pflege im Wiki besser ist.
+// Der Satz unter jedem Deckel, in Mehrzahl und Einzahl (Owner 2026-08-12, sein Wortlaut).
+//
+// ⚠️ „hier" und nicht „in der Nähe": dieselbe Zeile steht an FÜNF Oberflächen -- Siedlung,
+// Landschaftsregion, Herrschaftsgebiet, Weg und Routen-Etappe. „Tierarten leben in der Nähe" liest
+// sich an einer Straße richtig, bei einem Königreich aber schief; dort leben sie darin. „hier" trägt
+// Punkt, Fläche und Linie gleichermaßen.
 var AVESMAPS_LORE_ROWS = [
-	{ kind: "ware", label: "Waren" },
-	{ kind: "fauna", label: "Fauna" },
-	{ kind: "flora", label: "Flora" },
+	{ kind: "ware", label: "Waren", singular: "Ware wird hier gehandelt", plural: "Waren werden hier gehandelt" },
+	{ kind: "fauna", label: "Fauna", singular: "Tierart lebt hier", plural: "Tierarten leben hier" },
+	{ kind: "flora", label: "Flora", singular: "Pflanzenart wächst hier", plural: "Pflanzenarten wachsen hier" },
 ];
 
 // EINE Infobox-Zeile im Hausformat (.region-info-box__row + dt/dd), damit sie sich in
 // die bestehende Feldliste einreiht statt daneben zu stehen. Leere Arten entfallen.
 //
-// 💣 KONTINENTWEITE EINTRÄGE (rank 3) KOMMEN HIER NICHT VOR. „Tiefzwerg" ist für ganz
-// [[Aventurien]] gelistet und erschien deshalb bei JEDEM Ort -- bei Spezies meist als
-// einziger Eintrag, weil dort wenig Spezifisches existiert. Formal richtig, praktisch
-// wertlos: was überall gilt, sagt über diesen Ort nichts. Im Dialog („+N") stehen sie
-// weiterhin, dort ist Platz für die Einordnung.
-function avesmapsLoreInfoRowMarkup(row, entries, total, placeKey, extras) {
-	entries = (entries || []).filter(function (entry) {
-		return Number(entry && entry.rank) < 3;
-	});
-	// extras = die Freitext-Handelswaren der Infobox, VOR den katalogisierten Waren.
-	// Erst die Gattungen der Gegend („Vieh, Holz, Wolltuch"), dann die Stücke mit Namen
-	// („Bräubier"). Zwei getrennte Zeilen lasen sich wie ein widersprüchlicher
-	// Doppeleintrag; zusammen ergeben sie einen Gedanken. Verlinkt wird, was einen
-	// Artikel hat -- so bleibt trotz Verschmelzung sichtbar, was belegt ist.
-	var lead = (extras || []).map(function (item) {
-		var href = avesmapsLoreSafeUrl(item && item.wiki_url);
-		var name = avesmapsLoreEscape(item && item.name);
-		return href
-			? '<a class="avesmaps-lore__name" href="' + avesmapsLoreEscape(href) + '" target="_blank" rel="noopener">' + name + "</a>"
-			: name;
-	});
-	if (entries.length === 0 && lead.length === 0) {
-		return "";
-	}
+// 💣 KONTINENTWEITE EINTRÄGE (rank 3) STEHEN NICHT IN DER VORSCHAU. „Tiefzwerg" ist für ganz
+// [[Aventurien]] gelistet und erschien deshalb bei JEDEM Ort -- formal richtig, praktisch wertlos:
+// was überall gilt, sagt über diesen Ort nichts. Im AUFGEKLAPPTEN stehen sie weiterhin, dort unter
+// ihrer eigenen Überschrift, wo die Einordnung mitgeliefert wird.
 
-	// Doppelungen vermeiden: „Salz" kann in beiden Quellen stehen.
+// So viele Namen zeigt die eingedampfte Fassung. Bewusst wenig: je kürzer die zugeklappte Zeile,
+// desto sichtbarer der Öffner darin -- das war der ganze Befund vom 2026-08-12 („die Leute sehen
+// nicht, dass sie draufklicken können"). Acht von 51 waren zu wenig für eine Liste und zu viel, um
+// den Öffner noch zu sehen.
+var AVESMAPS_LORE_PREVIEW_NAMES = 3;
+
+// Ab so vielen Einträgen lohnt das Eindampfen. Darunter steht ohnehin alles da, und ein Öffner für
+// zwei versteckte Namen ist genau das „+2", das den Anlass gab.
+var AVESMAPS_LORE_LID_MIN = 6;
+
+// Ein Name als Markup -- verlinkt, wo es einen Wiki-Artikel gibt. EINE Stelle, damit ein Eintrag in
+// der Vorschau nicht anders aussieht als im Aufgeklappten.
+function avesmapsLoreNameMarkup(item) {
+	var href = avesmapsLoreSafeUrl(item && item.wiki_url);
+	var name = avesmapsLoreEscape(item && item.name);
+	return href
+		? '<a class="avesmaps-lore__name" href="' + avesmapsLoreEscape(href) + '" target="_blank" rel="noopener">' + name + "</a>"
+		: name;
+}
+
+// Die Gliederung des aufgeklappten Inhalts (Owner 2026-08-12: „geht das nicht überall?").
+//
+// 🔴 NACH NÄHE, UND DAS GILT FÜR ALLE DREI ARTEN. Gemessen am Live-Bestand: von 21 Tierarten und
+// 10 Pflanzen trägt im Wiki KEINE eine Herkunft, alle nur eine Verbreitung -- „Von hier / Hier
+// erhältlich" dort hinzuschreiben wäre eine erfundene Unterscheidung. Was überall trägt, ist der
+// Rang: direkt hier, aus einem Untergebiet, oder überall in Aventurien.
+//
+// ⭐ „Von hier" ist der ZUSATZ, den nur die Waren hergeben (relation `herkunft`, 3 von 51 an der
+// gemessenen Etappe) -- und weil das die stärkste Aussage über einen Ort ist, steht sie oben. Ein
+// Eintrag mit Herkunft erscheint NUR dort, nie zusätzlich in seiner Rang-Gruppe.
+var AVESMAPS_LORE_GROUPS = [
+	{ key: "origin", label: "Von hier" },
+	{ key: "rank0", label: "Direkt hier" },
+	{ key: "rank1", label: "Aus Untergebieten" },
+	{ key: "rank3", label: "Überall in Aventurien" },
+];
+
+function avesmapsLoreGroupOf(entry) {
+	if ((entry.relations || []).indexOf("herkunft") >= 0) {
+		return "origin";
+	}
+	var rank = Number(entry && entry.rank);
+	return rank >= 3 ? "rank3" : (rank >= 1 ? "rank1" : "rank0");
+}
+
+// Der volle Inhalt eines Deckels: alle Einträge, nach Nähe gegliedert.
+//
+// ⚠️ Eine leere Gruppe entfällt samt Überschrift -- eine Überschrift ohne Inhalt ist kein Aufbau,
+// sondern Lärm. Bei den meisten Orten bleibt genau eine Gruppe übrig, und dann steht deren
+// Überschrift auch nicht da: eine einzige Gruppe gliedert nichts.
+function avesmapsLoreGroupedMarkup(entries, lead) {
+	var buckets = {};
+	(entries || []).forEach(function (entry) {
+		var key = avesmapsLoreGroupOf(entry);
+		(buckets[key] = buckets[key] || []).push(entry);
+	});
+	// Die Freitext-Handelswaren führen die erste Gruppe an -- erst die Gattungen der Gegend
+	// („Vieh, Holz, Wolltuch"), dann die Stücke mit Namen („Bräubier"). Getrennt lasen sie sich wie
+	// ein widersprüchlicher Doppeleintrag (Owner 2026-07-22).
+	var leadMarkup = (lead || []).map(avesmapsLoreNameMarkup);
+
+	var used = AVESMAPS_LORE_GROUPS.filter(function (group) {
+		return (buckets[group.key] || []).length > 0;
+	});
+	var single = used.length <= 1;
+
+	var out = "";
+	used.forEach(function (group, index) {
+		var names = (buckets[group.key] || []).map(avesmapsLoreNameMarkup);
+		if (index === 0) {
+			names = leadMarkup.concat(names);
+		}
+		out += (single ? "" : '<span class="avesmaps-lore__group">' + avesmapsLoreEscape(group.label) + "</span>")
+			+ '<span class="avesmaps-lore__names">' + names.join(", ") + "</span>";
+	});
+	if (out === "" && leadMarkup.length) {
+		out = '<span class="avesmaps-lore__names">' + leadMarkup.join(", ") + "</span>";
+	}
+	return out;
+}
+
+// EINE Infobox-Zeile im Hausformat (.region-info-box__row + dt/dd) -- ihr Wert ist ein Deckel.
+function avesmapsLoreInfoRowMarkup(row, entries, total, placeKey, extras) {
+	if (typeof buildInfoboxLid !== "function") {
+		return "";   // Bauteil nicht geladen: lieber keine Zeile als eine kaputte
+	}
+	var all = entries || [];
+	// Doppelungen vermeiden: „Salz" kann als Freitext-Ware UND im Katalog stehen.
 	var seen = {};
 	(extras || []).forEach(function (item) {
 		seen[String((item && item.name) || "").toLowerCase()] = true;
 	});
-	entries = entries.filter(function (entry) {
+	all = all.filter(function (entry) {
 		return !seen[String((entry && entry.name) || "").toLowerCase()];
 	});
-
-	var names = lead.concat(entries.slice(0, 8).map(function (entry) {
-		var href = avesmapsLoreSafeUrl(entry && entry.wiki_url);
-		var name = avesmapsLoreEscape(entry && entry.name);
-		return href
-			? '<a class="avesmaps-lore__name" href="' + avesmapsLoreEscape(href) + '" target="_blank" rel="noopener">' + name + "</a>"
-			: name;
-	})).join(", ");
-	// Der Zähler bezieht sich auf die GESAMTZAHL inklusive der hier ausgeblendeten
-	// kontinentweiten -- der Dialog zeigt sie ja.
-	var rest = total - Math.min(entries.length, 8);
-	var more = rest > 0
-		? ' <button type="button" class="avesmaps-lore__more" data-lore-more="' + avesmapsLoreEscape(placeKey)
-			+ '" data-lore-kind="' + avesmapsLoreEscape(row.kind)
-			+ '" data-lore-rest="' + rest + '" title="Alle ' + total + " anzeigen\">+" + rest + "</button>"
-		: "";
-	return '<div class="region-info-box__row avesmaps-lore__row"><dt>' + avesmapsLoreEscape(row.label)
-		+ "</dt><dd>" + names + more + "</dd></div>";
-}
-
-// Eine Sektion als HTML. Leere Sektionen entfallen -- eine Überschrift ohne Inhalt ist
-// keine Information, sondern Lärm.
-function avesmapsLoreSectionMarkup(section, entries, total, placeName, placeKey) {
-	if (!entries || entries.length === 0) {
+	var lead = extras || [];
+	if (all.length === 0 && lead.length === 0) {
 		return "";
 	}
-	// gruppe/typ tragen Wiki-Markup ([[Laubbaum]]) -- als Link gerendert ist das ein
-	// Gewinn: von „Espe" führt ein Klick zu „Laubbaum".
-	var items = entries.map(avesmapsLoreItemMarkup).join("");
 
-	var more = "";
-	if (total > entries.length) {
-		more = '<button type="button" class="avesmaps-lore__more" data-lore-more="' + avesmapsLoreEscape(placeKey)
-			+ '" data-lore-kind="' + avesmapsLoreEscape(section.kind) + '">alle ' + total + " anzeigen</button>";
-	}
+	// 🔴 DIE ZAHL IM SATZ IST, WAS AUFGEKLAPPT DASTEHT -- nicht die Serverzahl `total`. Seit der
+	// Abruf vollständig ist (full=1), sind beide gleich; auseinander liefen sie nur, wenn jemand die
+	// Grenze wieder einzöge. Ein Satz, der mehr verspricht als das Aufgeklappte zeigt, ist genau die
+	// stille Lüge, die niemand bemerkt.
+	var count = lead.length + all.length;
+	var local = all.filter(function (entry) { return Number(entry && entry.rank) < 3; });
+	var previewItems = lead.concat(local).slice(0, AVESMAPS_LORE_PREVIEW_NAMES);
+	var openable = count >= AVESMAPS_LORE_LID_MIN;
 
-	return '<div class="avesmaps-lore__section">'
-		+ '<h4 class="avesmaps-lore__heading">' + avesmapsLoreEscape(section.label)
-		+ (placeName ? " in " + avesmapsLoreEscape(placeName) : "")
-		+ ' <span class="avesmaps-lore__count">(' + total + ")</span></h4>"
-		+ '<ul class="avesmaps-lore__list">' + items + "</ul>"
-		+ more
-		+ "</div>";
+	var lid = buildInfoboxLid({
+		preview: openable
+			? previewItems.map(avesmapsLoreNameMarkup).join(", ") + " …"
+			: avesmapsLoreGroupedMarkup(all, lead),
+		full: avesmapsLoreGroupedMarkup(all, lead),
+		count: count,
+		singular: row.singular,
+		plural: row.plural,
+		openable: openable,
+	});
+	return '<div class="region-info-box__row avesmaps-lore__row"><dt>' + avesmapsLoreEscape(row.label)
+		+ "</dt><dd>" + lid + "</dd></div>";
 }
 
 // Füllt jeden offenen Container dieses Ortes. Wird nach dem Abruf aufgerufen und ist
@@ -384,7 +391,13 @@ function avesmapsLoreLoadPendingContainers() {
 			var name = element.getAttribute("data-lore-name") || "";
 			avesmapsLoreFetch(
 				element.getAttribute("data-lore-fetch") || "",
-				false,
+				// 🔴 VOLLSTÄNDIG, seit der Deckel den „+N"-Dialog ersetzt hat (2026-08-12). Der Deckel
+				// trägt seinen ganzen Inhalt im Dokument -- nur so findet ihn Strg+F im zugeklappten
+				// Zustand, und nur so kann er ohne zweiten Abruf aufklappen. Es ist derselbe EINE
+				// Abruf wie vorher: `full` steuert allein, ob der Server seine Liste noch beschneidet
+				// (array_slice in avesmapsLoreReadForPlaces), nicht wie er sie holt. Die Abfrage ist
+				// Zeile für Zeile dieselbe, nur die Antwort ist länger.
+				true,
 				element.getAttribute("data-lore-titles") || "",
 				element.getAttribute("data-lore-goods") || ""
 			).then(function (data) {
@@ -486,112 +499,6 @@ function buildLoreMarkup(placeRef) {
 		+ '" data-lore-titles="' + avesmapsLoreEscape(titles) + '"></div>';
 }
 
-// „+N" öffnet die vollständige Liste in einem Dialog, statt die Infobox-Zeile
-// aufzublähen -- 93 Waren gehören nicht in eine Tabellenzeile.
-//
-// Der Dialog wird bei jedem Öffnen NEU aufgebaut und beim Schließen entfernt. Ein
-// dauerhaft vorgehaltenes Element hätte zwei bekannte Fallen: gestapelte Handler bei
-// wiederholtem Öffnen (Kartensammlungs-Spoiler) und eine 0×0-Pane, wenn es einmal
-// leer gerendert wurde.
-var AVESMAPS_LORE_DIALOG_LABELS = { ware: "Waren", fauna: "Fauna", flora: "Flora", spezies: "Spezies" };
-
-function avesmapsLoreCloseDialog() {
-	var existing = document.getElementById("avesmaps-lore-dialog");
-	if (existing) {
-		existing.remove();
-	}
-	document.removeEventListener("keydown", avesmapsLoreDialogKeydown);
-}
-
-function avesmapsLoreDialogKeydown(event) {
-	if (event.key === "Escape") {
-		avesmapsLoreCloseDialog();
-	}
-}
-
-// EIN Dialog für ALLE Arten (Owner 2026-07-22). Vorher hatte jede Zeile ihren eigenen,
-// und wer Flora und Fauna vergleichen wollte, musste zweimal öffnen und schließen.
-// Jetzt: eine Übersicht des Ortes, nach Art gegliedert, die aufgerufene Art zuerst.
-function avesmapsLoreDialogSectionMarkup(kind, list, placeName) {
-	if (!list || !list.length) {
-		return "";
-	}
-	// Innerhalb einer Art nach Spezifität gruppieren -- genau die Unterscheidung, die
-	// der Zeile fehlt: was gilt hier, was gilt überall.
-	var groups = [
-		{ rank: 0, label: placeName ? "Direkt in " + placeName : "Direkt hier" },
-		{ rank: 1, label: "Aus Untergebieten" },
-		// Rang 2 (Obergebiete) wird nicht mehr eingesammelt -- die Gruppe bleibt nur
-		// stehen, falls noch alte Daten in einem offenen Panel liegen.
-		{ rank: 2, label: "Aus Obergebieten" },
-		{ rank: 3, label: "Aventurienweit" },
-	];
-	var body = "";
-	groups.forEach(function (group) {
-		var members = list.filter(function (entry) { return Number(entry.rank) === group.rank; });
-		if (!members.length) {
-			return;
-		}
-		body += '<h5 class="avesmaps-lore-dialog__group">' + avesmapsLoreEscape(group.label)
-			+ ' <span class="avesmaps-lore__count">(' + members.length + ")</span></h5>"
-			+ '<ul class="avesmaps-lore-dialog__list">'
-			+ members.map(function (entry) {
-				var href = avesmapsLoreSafeUrl(entry.wiki_url);
-				var name = avesmapsLoreEscape(entry.name);
-				var meta = avesmapsLoreRenderWikiText(entry.typ || entry.gruppe || "");
-				var via = entry.place_title && Number(entry.rank) > 0
-					? ' <span class="avesmaps-lore__meta">über ' + avesmapsLoreEscape(entry.place_title) + "</span>"
-					: "";
-				return "<li>" + (href
-					? '<a class="avesmaps-lore__name" href="' + avesmapsLoreEscape(href) + '" target="_blank" rel="noopener">' + name + " ↗</a>"
-					: name)
-					+ (meta ? ' <span class="avesmaps-lore__meta">' + meta + "</span>" : "")
-					+ via + "</li>";
-			}).join("")
-			+ "</ul>";
-	});
-
-	return '<h4 class="avesmaps-lore-dialog__kind">' + avesmapsLoreEscape(AVESMAPS_LORE_DIALOG_LABELS[kind] || kind)
-		+ ' <span class="avesmaps-lore__count">(' + list.length + ")</span></h4>" + body;
-}
-
-function avesmapsLoreOpenDialog(kind, sections, placeName) {
-	avesmapsLoreCloseDialog();
-
-	// Die angeklickte Art zuerst, der Rest in gewohnter Reihenfolge darunter.
-	var order = [kind].concat(AVESMAPS_LORE_ROWS.map(function (row) { return row.kind; })
-		.filter(function (other) { return other !== kind; }));
-
-	var body = "";
-	var total = 0;
-	order.forEach(function (currentKind) {
-		var list = (sections && sections[currentKind]) || [];
-		total += list.length;
-		body += avesmapsLoreDialogSectionMarkup(currentKind, list, placeName);
-	});
-
-	var title = placeName ? "Natur & Waren in " + placeName : "Natur & Waren";
-	var overlay = document.createElement("div");
-	overlay.id = "avesmaps-lore-dialog";
-	overlay.className = "avesmaps-lore-dialog";
-	overlay.innerHTML = '<div class="avesmaps-lore-dialog__box" role="dialog" aria-modal="true">'
-		+ '<div class="avesmaps-lore-dialog__head">'
-		+ '<strong>' + avesmapsLoreEscape(title) + ' <span class="avesmaps-lore__count">(' + total + ")</span></strong>"
-		+ '<button type="button" class="avesmaps-lore-dialog__close" aria-label="Schließen">×</button>'
-		+ "</div>"
-		+ '<div class="avesmaps-lore-dialog__body">' + body + "</div>"
-		+ "</div>";
-	document.body.appendChild(overlay);
-	document.addEventListener("keydown", avesmapsLoreDialogKeydown);
-
-	overlay.addEventListener("click", function (event) {
-		// Klick auf den Hintergrund oder das × schließt; Klicks im Kasten nicht.
-		if (event.target === overlay || (event.target.closest && event.target.closest(".avesmaps-lore-dialog__close"))) {
-			avesmapsLoreCloseDialog();
-		}
-	});
-}
-
 // Ortsreferenz einer SIEDLUNG. Zwei Wege, beide gebraucht:
 //   1. die Siedlung selbst -- manche sind direkt gelistet (Ork nennt „Thorwal (Siedlung)")
 //   2. ihr Territorium aus dem Raycast -- darüber erreicht sie die Lore ihrer Region,
@@ -619,42 +526,4 @@ function avesmapsLorePlaceRefFromLocation(location) {
 		titles: titles.join("|"),
 		name: wiki.name || location.name || "",
 	};
-}
-
-// „alle N anzeigen": holt die vollständige Liste und ersetzt die Sektion an Ort und
-// Stelle. Document-Delegation, damit es im schwebenden Popup wie im Infopanel wirkt --
-// und BEWUSST nur ein Handler, einmal registriert: ein Handler je Öffnung hätte sich
-// gestapelt (dieselbe Falle wie beim Spoiler-Sammelschalter der Kartensammlung).
-if (typeof document !== "undefined" && !document.__avesmapsLoreMoreBound) {
-	document.__avesmapsLoreMoreBound = true;
-	document.addEventListener("click", function (event) {
-		var button = event.target && event.target.closest ? event.target.closest("[data-lore-more]") : null;
-		if (!button) {
-			return;
-		}
-		event.preventDefault();
-		var placeKey = button.getAttribute("data-lore-more") || "";
-		var kind = button.getAttribute("data-lore-kind") || "";
-		if (!placeKey || !kind) {
-			return;
-		}
-		// Der Abruf braucht den ECHTEN Schlüssel, nicht die Container-Id: bei einer
-		// reinen Titel-Anfrage sind die beiden verschieden.
-		var host = button.closest ? button.closest("[data-lore-place]") : null;
-		var fetchKey = host ? (host.getAttribute("data-lore-fetch") || placeKey) : placeKey;
-		var fetchTitles = host ? (host.getAttribute("data-lore-titles") || "") : "";
-		var label = (host && host.getAttribute("data-lore-name")) || "";
-		button.disabled = true;
-		button.textContent = "…";
-		avesmapsLoreFetch(fetchKey, true, fetchTitles, host ? (host.getAttribute("data-lore-goods") || "") : "").then(function (data) {
-			button.disabled = false;
-			button.textContent = "+" + (button.getAttribute("data-lore-rest") || "");
-			// ALLE Sektionen an den Dialog, nicht nur die angeklickte -- er zeigt jetzt
-			// die ganze Natur & Waren des Ortes, die geklickte Art oben.
-			if (!data || !data.sections) {
-				return;
-			}
-			avesmapsLoreOpenDialog(kind, data.sections, label);
-		});
-	});
 }

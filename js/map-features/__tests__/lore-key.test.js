@@ -38,6 +38,12 @@ global.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ o
 global.MutationObserver = function () { this.observe = () => {}; };
 global.AbortController = function () { this.abort = () => {}; this.signal = null; };
 
+// Die Lore-Zeilen sind seit 2026-08-12 Deckel (js/ui/infobox-lid.js). Ohne das Bauteil liefert
+// avesmapsLoreInfoRowMarkup bewusst "" -- der Test prüfte dann den Riegel statt der Zeile.
+const lidFile = path.join(__dirname, "..", "..", "ui", "infobox-lid.js");
+vm.runInThisContext(fs.readFileSync(lidFile, "utf8"), { filename: lidFile });
+assert.strictEqual(typeof buildInfoboxLid, "function", "das Deckel-Bauteil muss geladen sein");
+
 const loreFile = path.join(__dirname, "..", "map-features-lore.js");
 vm.runInThisContext(fs.readFileSync(loreFile, "utf8"), { filename: loreFile });
 

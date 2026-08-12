@@ -23,89 +23,37 @@
 	line-height: 1.45;
 }
 
-.avesmaps-lore__row .avesmaps-lore__more {
-	margin: 0 0 0 0.25rem;
-	padding: 0 0.35rem;
-	font-size: 0.8rem;
-	vertical-align: baseline;
-}
-
-.avesmaps-lore__section {
-	/* Volle Breite trennen wie die übrigen Infobox-Abschnitte: negativer Seitenrand in
-	   Höhe des Panel-Paddings, damit die Linie randlos durchläuft (siehe
-	   docs/design-language.md §Trenner). */
-	border-top: 1px solid var(--color-divider);
-	margin: 0.75rem -0.75rem 0;
-	padding: 0.75rem 0.75rem 0;
-}
-
-.avesmaps-lore__heading {
-	margin: 0 0 0.4rem;
-	font-size: 0.95rem;
-	font-weight: 600;
-	color: var(--color-text);
-}
-
-.avesmaps-lore__count {
+/* Die Gruppen im AUFGEKLAPPTEN Deckel: „Von hier" / „Direkt hier" / „Aus Untergebieten" /
+   „Überall in Aventurien" (Owner 2026-08-12). Eine Überschrift, darunter die Namen -- gruppiert
+   wird per Beschriftung und Abstand, nicht per Kasten (docs/design-language.md §Trenner).
+   ⚠️ Bei nur EINER Gruppe entfällt ihre Überschrift schon im Markup: eine einzige Gruppe
+   gliedert nichts. */
+.avesmaps-lore__group {
+	display: block;
+	margin: 0.45rem 0 0.15rem;
+	font-size: 0.72rem;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
 	color: var(--color-text-muted);
-	font-weight: 400;
 }
 
-.avesmaps-lore__list {
-	margin: 0;
-	padding: 0;
-	list-style: none;
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.25rem 0.75rem;
+.avesmaps-lore__group:first-child {
+	margin-top: 0;
 }
 
-.avesmaps-lore__item {
-	/* Die Einträge fließen nebeneinander: eine Region hat schnell 40 Waren, und 40
-	   Zeilen untereinander wären eine Wand statt einer Liste. */
-	display: inline-flex;
-	align-items: baseline;
-	gap: 0.3rem;
-	max-width: 100%;
+.avesmaps-lore__names {
+	display: block;
+	overflow-wrap: anywhere;
 }
 
-.avesmaps-lore__name,
-.avesmaps-lore__link {
+.avesmaps-lore__name {
 	color: var(--color-link);
 	text-decoration: none;
 }
 
-.avesmaps-lore__name:hover,
-.avesmaps-lore__link:hover {
+.avesmaps-lore__name:hover {
 	color: var(--color-link-hover);
 	text-decoration: underline;
-}
-
-.avesmaps-lore__meta {
-	color: var(--color-text-muted);
-	font-size: 0.85em;
-}
-
-.avesmaps-lore__more {
-	margin-top: 0.5rem;
-	padding: 0.25rem 0.6rem;
-	border: 1px solid var(--color-divider);
-	border-radius: var(--radius-md);
-	background: var(--color-button-soft);
-	color: var(--color-text);
-	font: inherit;
-	font-size: 0.85rem;
-	cursor: pointer;
-}
-
-.avesmaps-lore__more:hover:not(:disabled) {
-	border-color: var(--color-link);
-	color: var(--color-link);
-}
-
-.avesmaps-lore__more:disabled {
-	opacity: 0.6;
-	cursor: default;
 }
 
 /* ---- Verkehrswege: Namen, die zur Straße auf der Karte springen ----
@@ -129,79 +77,6 @@
 }
 
 /* ---- „+N"-Dialog: die vollständige Liste, nach Spezifität gruppiert ---- */
-
-.avesmaps-lore-dialog {
-	position: fixed;
-	inset: 0;
-	z-index: var(--z-modal);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 1rem;
-	/* Derselbe Schleier wie hinter den übrigen Editor-Dialogen. */
-	background: var(--color-scrim-dialog);
-}
-
-.avesmaps-lore-dialog__box {
-	display: flex;
-	flex-direction: column;
-	width: min(34rem, 100%);
-	max-height: min(80vh, 40rem);
-	border: 1px solid var(--color-divider);
-	border-radius: var(--radius-md);
-	background: var(--color-panel);
-	color: var(--color-text);
-	box-shadow: 0 8px 32px var(--color-scrim);
-}
-
-.avesmaps-lore-dialog__head {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 0.5rem;
-	padding: 0.6rem 0.75rem;
-	border-bottom: 1px solid var(--color-divider);
-}
-
-.avesmaps-lore-dialog__close {
-	border: 0;
-	background: none;
-	color: var(--color-text-muted);
-	font-size: 1.3rem;
-	line-height: 1;
-	cursor: pointer;
-	padding: 0 0.25rem;
-}
-
-.avesmaps-lore-dialog__close:hover {
-	color: var(--color-text);
-}
-
-.avesmaps-lore-dialog__body {
-	overflow-y: auto;
-	padding: 0.5rem 0.75rem 0.75rem;
-}
-
-.avesmaps-lore-dialog__group {
-	margin: 0.75rem 0 0.3rem;
-	font-size: 0.85rem;
-	color: var(--color-text-muted);
-	font-weight: 600;
-}
-
-.avesmaps-lore-dialog__group:first-child {
-	margin-top: 0;
-}
-
-.avesmaps-lore-dialog__list {
-	margin: 0;
-	padding: 0;
-	list-style: none;
-	display: flex;
-	flex-direction: column;
-	gap: 0.15rem;
-	line-height: 1.5;
-}
 
 /* Das Fenster erbt .wiki-sync-conflicts-dialog und damit dessen 1000px -- eine Breite, die
    fuer die Falliste des Konfliktzentrums gedacht ist, nicht fuer drei Spalten. Neben vier
