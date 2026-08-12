@@ -71,4 +71,23 @@ $genau = $term(['area_public_id' => 'a1']);
 assert(avesmapsLoreRuleTermMatchesArea($genau, $farindel, $zones) === true);
 assert(avesmapsLoreRuleTermMatchesArea($genau, $finster, $zones) === false);
 
+// 💣 ODER haengt der Treffer am ersten Element? Bedingung: [wald, gebirge], Flaeche: wald.
+// Wenn die Schleife $hit bei jeder Iteration zuruecksetzen wuerde, waere nur der letzte Treffer
+// (gebirge) entscheidend und die Waldfläche würde nicht treffen.
+$waldAmAnfang = $term(['types' => [
+    ['kind' => 'vegetation', 'region_type' => 'wald'],
+    ['kind' => 'topographie', 'region_type' => 'gebirge'],
+]]);
+assert(avesmapsLoreRuleTermMatchesArea($waldAmAnfang, $farindel, $zones) === true);
+assert(avesmapsLoreRuleTermMatchesArea($waldAmAnfang, $alkra, $zones) === true);
+// Negativfall: Flaeche passt zu KEINEM der Typen.
+assert(avesmapsLoreRuleTermMatchesArea($waldAmAnfang, ['public_id' => 'x', 'kind' => 'topographie', 'region_type' => 'steppe', 'zones' => []], $zones) === false);
+
+// 💣 Entkopplung: kind und region_type sind UNABHAENGIG. Eine Fläche mit kind=topographie,
+// region_type=wald existiert nicht live, aber die Bedingung muss BEIDE Felder prüfen, nicht nur
+// eines. Eine Bedingung (vegetation, wald) darf diese Fläche nicht treffen.
+$topographieWald = ['public_id' => 'x', 'kind' => 'topographie', 'region_type' => 'wald', 'zones' => []];
+$vegetationWald = $term(['types' => [['kind' => 'vegetation', 'region_type' => 'wald']]]);
+assert(avesmapsLoreRuleTermMatchesArea($vegetationWald, $topographieWald, $zones) === false);
+
 echo "lore-rule: OK\n";
