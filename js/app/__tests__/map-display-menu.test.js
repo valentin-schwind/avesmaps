@@ -148,6 +148,45 @@ assert.ok(/max-height:\s*min\(/.test(menueCss),
 	"das Menue hat einen Deckel (max-height), relativ zur Schirmhoehe");
 assert.ok(/overflow-y:\s*auto/.test(menueCss), "und scrollt darin selbst");
 
+// ---- Die Breite haengt am Routenplaner, nicht an einer zweiten Zahl --------------------------------
+//
+// 💣 Faengt: jemand schreibt die 350 hier noch einmal hin. Zwei Zahlen, die dasselbe meinen, laufen
+// beim ersten Anfassen auseinander -- genau der Fall aus AGENTS.md §12, und derselbe, der
+// --avesmaps-edge-gap seinen Kommentar eingebracht hat (12 gegen 14, sichtbar 2px versetzt).
+assert.ok(/width:\s*var\(--avesmaps-planner-width\)/.test(menueCss),
+	"das Menue misst sich am Token --avesmaps-planner-width, nicht an einer eigenen Zahl");
+const layoutCss = withoutComments(read("css", "layout", "map-layout.css"));
+assert.ok(/width:\s*var\(--avesmaps-planner-width\)/.test(layoutCss),
+	"und der Routenplaner selbst benutzt dasselbe Token");
+assert.ok(/--avesmaps-planner-width:\s*\d/.test(read("css", "base", "tokens.css")),
+	"das Token ist in tokens.css definiert");
+
+// 💣 Faengt: die Telefon-Breite faellt weg. Owner 12.08.2026: am Telefon die Breite des Schirms.
+assert.ok(/@media \(max-width: 560px\)[\s\S]*?width:\s*calc\(100vw/.test(menueCss),
+	"am Telefon nimmt das Menue die Schirmbreite");
+
+// ---- Die leere Huelle im Routenplaner faellt weg ---------------------------------------------------
+//
+// 💣 Faengt: die Regel verschwindet, und im Frontend steht wieder ein leerer Streifen mit ZWEI
+// Trennlinien zwischen Kopf und Wegpunkten (gemeldet vom Owner am 12.08.2026, nachdem die
+// Schalter ausgezogen waren).
+const plannerCss = withoutComments(read("css", "features", "route-planner.css"));
+assert.ok(/\.display-options:not\(:has\(> :not\(\[hidden\]\)\)\)\s*\{\s*display:\s*none/.test(plannerCss),
+	".display-options faellt weg, solange kein direktes Kind sichtbar ist");
+
+// 💣 Faengt: die Haken-Zeile verliert ihr `hidden`. Sie ist ein direktes Kind -- ohne das Attribut
+// haelt sie die Huelle offen, obwohl jeder Haken darin versteckt ist, und die Luecke ist zurueck.
+const toggleRow = indexHtml.match(/<div class="display-options__row display-options__row--wrap"[^>]*>/);
+assert.ok(toggleRow, "die Haken-Zeile existiert");
+assert.ok(/id="displayOptionsToggleRow"/.test(toggleRow[0]), "und traegt eine ID");
+assert.ok(/\shidden(\s|>)/.test(toggleRow[0]), "und startet versteckt");
+
+// 💣 Faengt: der Bearbeiten-Modus deckt die Haken einzeln auf, aber nicht ihre Zeile -- dann
+// blieben sie unsichtbar, denn ein versteckter Vorfahr gewinnt.
+const mapFeaturesJs = withoutComments(read("js", "map-features", "map-features.js"));
+assert.ok(/#displayOptionsToggleRow/.test(mapFeaturesJs),
+	"der Bearbeiten-Modus deckt die Haken-ZEILE mit auf, nicht nur die Haken darin");
+
 // ---- Kein hartkodierter Farbwert ------------------------------------------------------------------
 //
 // 💣 Faengt: AGENTS.md §12. Ein Literal hier ist die Divergenz, die Infobox und Routenplaner

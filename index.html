@@ -2153,7 +2153,12 @@
 				     baut zwei Bedienelemente fuer einen Zustand und legt nebenbei die Zifferntasten
 				     um (js/app/keyboard-shortcuts.js zaehlt die DOM-Reihenfolge).
 				     Entwurf: docs/superpowers/specs/2026-08-12-anzeige-menue-design.md -->
-				<div class="display-options__row display-options__row--wrap">
+				<!-- ⚠️ `hidden` an der ZEILE, nicht nur an den Haken darin. Sie ist ein direktes Kind
+				     von .display-options, und daran haengt die Regel, die die ganze Huelle wegnimmt,
+				     solange kein Kind sichtbar ist (css/features/route-planner.css, :has()). Ohne
+				     das `hidden` bliebe im Frontend ein leerer Streifen mit zwei Trennlinien
+				     zwischen Kopf und Wegpunkten stehen -- gemeldet vom Owner am 12.08.2026. -->
+				<div class="display-options__row display-options__row--wrap" id="displayOptionsToggleRow" hidden>
 					<label id="togglePathsControl" hidden><input type="checkbox" id="togglePaths" /> Wege</label>
 					<label id="toggleMapLabelsControl" hidden><input type="checkbox" id="toggleMapLabels" checked /> Labels</label>
 					<label id="toggleTerritoryBordersControl" hidden><input type="checkbox" id="toggleTerritoryBorders" checked /> Grenzen</label>

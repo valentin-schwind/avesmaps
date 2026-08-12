@@ -12,7 +12,9 @@ body {
 	position: absolute;
 	top: 10px;
 	left: 0;
-	width: 350px;
+	/* ⚠️ Die Zahl steht als Token in css/base/tokens.css: das Anzeige-Menue in der Kartenecke
+	   misst sich seit dem 12.08.2026 an genau dieser Breite. */
+	width: var(--avesmaps-planner-width);
 	max-width: calc(100vw - 10px);
 	max-height: 95vh;
 	display: flex;

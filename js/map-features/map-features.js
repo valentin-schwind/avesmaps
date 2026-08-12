@@ -64,6 +64,11 @@ $("#toggleTerritoryBorders").change(() => window.AvesmapsBoundaryCanvasOverlay?.
 if (IS_EDIT_MODE) {
 	// Im Editmode bleiben Wege/Flüsse/Seewege als Haken steuerbar; im Frontend sind sie ausgeblendet
 	// (Sichtbarkeit wird dort vom Kartenmodus gesetzt, siehe applyFrontendLayerModeDefaults).
+	// ⚠️ Die ZEILE zuerst: sie ist seit dem 12.08.2026 selbst versteckt, damit die Huelle
+	// .display-options im Frontend ganz wegfaellt (sonst bliebe dort ein leerer Streifen mit zwei
+	// Trennlinien stehen). Ohne diese Zeile blieben die drei Haken darunter unsichtbar, obwohl sie
+	// einzeln aufgedeckt werden -- ein versteckter Vorfahr gewinnt.
+	$("#displayOptionsToggleRow").prop("hidden", false);
 	$("#toggleSeaPathsControl").prop("hidden", false);
 	$("#togglePathsControl").prop("hidden", false);
 	$("#toggleRiversControl").prop("hidden", false);

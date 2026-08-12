@@ -493,6 +493,12 @@
 	   beide. Oben haben sie einen eigenen Wert -- dort steht nichts, mit dem sie fluchten muessten. */
 	--avesmaps-panel-inset-top: 10px;
 	--avesmaps-panel-inset-bottom: var(--avesmaps-edge-gap);
+	/* Die Breite des Routenplaners (#search) -- und seit dem 12.08.2026 auch die des
+	   Anzeige-Menues in der Kartenecke (Owner: „auf dem desktop etwa die breite des
+	   routenplaners"). Bei dieser Breite stehen die sechs Ortsklassen nebeneinander, ohne sich zu
+	   quetschen. Zwei Zahlen, die dasselbe meinen, laufen beim ersten Anfassen auseinander --
+	   derselbe Fall wie --avesmaps-edge-gap darueber. */
+	--avesmaps-planner-width: 350px;
 
 	/* Elevation */
 	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);

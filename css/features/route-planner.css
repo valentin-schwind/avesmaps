@@ -524,6 +524,24 @@
 	border-bottom: 1px solid var(--color-divider);
 }
 
+/* 💣 Seit die Schalter am 12.08.2026 in das Anzeige-Menue an der Karte gezogen sind, ist diese
+   Huelle im Frontend LEER -- sie traegt nur noch die versteckte Derographie-Zeile, die das
+   <select> mit dem Zustand der Ansicht haelt. Ohne diese Regel bliebe genau das stehen, was der
+   Owner gemeldet hat: ein leerer Streifen zwischen Kopf und Wegpunkten, mit ZWEI Trennlinien
+   (border-top aus der Sammelregel oben, border-bottom aus der Regel direkt darueber) und der
+   Polsterung dazwischen.
+   🔴 Die Huelle bleibt im DOM. `display: none` nimmt ihr nur den Platz -- jQuery `.val()` liest
+   das <select> unveraendert, der geteilte Link kommt weiter an, und der Notausgang
+   ?layerPanelActive=0 findet die Zeile, die er zurueckholt.
+   ⚠️ Und sie kommt VON SELBST zurueck, sobald wieder ein Kind sichtbar ist: im Bearbeiten-Modus
+   (Haken, „Pruefen", Mapstil) und bei ?layerPanelActive=0. Deshalb :has() und kein Schalter in
+   JavaScript, der beide Faelle einzeln kennen muesste.
+   ⚠️ Geprueft werden die DIREKTEN Kinder. Jedes muss sein `hidden` selbst tragen -- ein Container
+   ohne, dessen Inhalt versteckt ist, haelt die Huelle offen (deshalb #displayOptionsToggleRow). */
+.display-options:not(:has(> :not([hidden]))) {
+	display: none;
+}
+
 .route-planner-options-panel__title,
 .transport-options__title,
 .route-plan-legs__title {

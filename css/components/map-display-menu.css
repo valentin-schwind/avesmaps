@@ -20,9 +20,13 @@
    (syncMapCornerStack in js/ui/ui-controls.js) und rueckt von allein mit. Deshalb steht hier
    KEIN position: absolute und kein position: fixed -- ein Test haelt das fest. */
 .map-display-menu {
-	width: 232px;
-	/* Am schmalen Telefon bleibt der Kartenrand stehen, statt dass das Menue ihn wegdrueckt. */
-	max-width: calc(100vw - var(--space-24));
+	/* Am Zeiger so breit wie der Routenplaner (Owner 12.08.2026: „auf dem desktop etwa die breite
+	   des routenplaners -- dann passen die ort-toggles in eine reihe"). Die Zahl steht als Token,
+	   nicht hier: zwei Quellen fuer dieselbe Breite laufen beim ersten Anfassen auseinander. */
+	width: var(--avesmaps-planner-width);
+	/* Der Kartenrand bleibt beidseitig stehen, statt dass das Menue ihn wegdrueckt -- links
+	   derselbe Abstand wie rechts, wo der Bund haengt. */
+	max-width: calc(100vw - 2 * var(--avesmaps-edge-gap));
 	padding: var(--space-10);
 	border: 1px solid var(--color-border-strong);
 	border-radius: var(--radius-sm);
@@ -56,6 +60,19 @@
 /* ⚠️ Muss NACH der Grundregel stehen: `[hidden]` allein verliert gegen ein spaeteres `display`. */
 .map-display-menu[hidden] {
 	display: none;
+}
+
+/* Am Telefon nimmt das Menue die Breite des Schirms (Owner 12.08.2026: „das klappmenü kann auf
+   mobil geräten die breite vom bildschirm annehmen"). Der Kartenrand bleibt beidseitig stehen --
+   rechts haengt der Bund daran, links waere eine bis an die Kante laufende Flaeche der einzige
+   Kasten der Oberflaeche ohne Rand.
+   ⚠️ Dieselbe Grenze wie beim Ansichts-Menue nebenan (560px). Zwei verschiedene Umbruchpunkte in
+   derselben Ecke sieht man sofort: die beiden Menuees waeren auf einer Handvoll Geraetebreiten
+   unterschiedlich breit. */
+@media (max-width: 560px) {
+	.map-display-menu {
+		width: calc(100vw - 2 * var(--avesmaps-edge-gap));
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {
