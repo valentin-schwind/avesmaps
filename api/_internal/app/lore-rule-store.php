@@ -239,7 +239,7 @@ function avesmapsLoreRuleReadAreas(PDO $pdo): array
     try {
         $statement = $pdo->query(
             "SELECT r.public_id, r.kind, r.region_type, r.name,
-                    k.region_type AS zone_key
+                    k.region_type AS zone_key, o.share
                FROM ecosystem_region r
                LEFT JOIN ecosystem_region_overlap o ON o.region_id = r.id
                LEFT JOIN ecosystem_region k ON k.id = o.other_region_id AND k.kind = 'klima' AND k.is_active = 1
@@ -264,7 +264,15 @@ function avesmapsLoreRuleReadAreas(PDO $pdo): array
             ];
         }
         $zone = trim((string) ($row['zone_key'] ?? ''));
-        if ($zone !== '' && !in_array($zone, $byId[$publicId]['zones'], true)) {
+        $share = (float) ($row['share'] ?? 0);
+        // ⚠️ Dieselbe Schwelle wie die Infobox-Zeile "Klimazone" und ihre Schwesterfunktion
+        // avesmapsClimateReadRegionZones (climate-membership.php): unterhalb von
+        // AVESMAPS_CLIMATE_REGION_MIN_SHARE ist eine Randberuehrung Rauschen, keine
+        // Zugehoerigkeit. `share` ist der Anteil der KLEINEREN der beiden Flaechen -- fuer
+        // eine gewoehnliche Flaeche (kleiner als ein Klimaband) heisst das "so viel liegt in
+        // dieser Zone" (siehe dort fuer die ausfuehrliche Begruendung).
+        if ($zone !== '' && $share >= AVESMAPS_CLIMATE_REGION_MIN_SHARE
+            && !in_array($zone, $byId[$publicId]['zones'], true)) {
             $byId[$publicId]['zones'][] = $zone;
         }
     }
@@ -323,8 +331,11 @@ function avesmapsLoreRuleReadPlaces(PDO $pdo): array
                 'name' => (string) ($row['name'] ?? ''),
             ]);
             if ($isCrossing) {
-                // Als geloescht/ausgeschlossen markieren, damit spaetere Zeilen derselben
-                // Kreuzung (mehrere Flaechen) sie nicht wieder aufleben lassen.
+                // Kreuzungen bleiben draussen. Der Eintrag wird auf null gesetzt (statt
+                // gar keinen anzulegen), damit die naechste isset()-Pruefung fuer dieselbe
+                // public_id (eine Kreuzung kann in mehreren Flaechen liegen, also mehrere
+                // Zeilen haben) sofort "schon entschieden" liest, statt die Kreuzungs-
+                // pruefung je Zeile zu wiederholen.
                 $byId[$publicId] = null;
                 continue;
             }

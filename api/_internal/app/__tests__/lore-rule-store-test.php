@@ -109,4 +109,147 @@ $pdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, label, sort_order
 
 assert(avesmapsLoreRuleOrderedZoneKeys($pdo) === ['polar', 'boreal', 'tropisch']);
 
+// ---------------------------------------------------------------------------------------
+// Fix-Runde 1, Befund 2: ReadAreas und ReadPlaces gegen ECHTE Zeilen, nicht nur den leeren
+// Pfad. Ein Klimaband ist im echten System eine ganz gewoehnliche ecosystem_area-Zeile mit
+// kind='klima' -- genauso hier nachgebaut, keine Sonderkonstruktion.
+// ---------------------------------------------------------------------------------------
+
+$pdo->exec(
+    'CREATE TABLE ecosystem_region (
+        id INTEGER PRIMARY KEY,
+        public_id VARCHAR(36) NOT NULL,
+        kind VARCHAR(16) NOT NULL,
+        region_type VARCHAR(40) NULL,
+        name VARCHAR(190) NOT NULL DEFAULT \'\',
+        is_active TINYINT(1) NOT NULL DEFAULT 1
+    )'
+);
+$regionStmt = $pdo->prepare(
+    'INSERT INTO ecosystem_region (id, public_id, kind, region_type, name, is_active) VALUES (?, ?, ?, ?, ?, 1)'
+);
+$regionStmt->execute([1, 'area-farindel', 'vegetation', 'wald', 'Farindel']);
+$regionStmt->execute([2, 'area-finster', 'topographie', 'gebirge', 'Finsterkamm']);
+$regionStmt->execute([3, 'klima-boreal-region', 'klima', 'boreal', 'Boreale Zone (Band)']);
+$regionStmt->execute([4, 'klima-subpolar-region', 'klima', 'subpolar', 'Subpolare Zone (Band)']);
+
+$pdo->exec(
+    'CREATE TABLE ecosystem_region_overlap (
+        region_id INTEGER NOT NULL,
+        other_region_id INTEGER NOT NULL,
+        share REAL NOT NULL
+    )'
+);
+$overlapStmt = $pdo->prepare(
+    'INSERT INTO ecosystem_region_overlap (region_id, other_region_id, share) VALUES (?, ?, ?)'
+);
+$overlapStmt->execute([1, 3, 0.6]);  // Farindel beruehrt boreal deutlich
+$overlapStmt->execute([1, 4, 0.5]);  // Farindel beruehrt AUCH subpolar -- zwei Zonen, EINE Flaeche
+// 💣 Befund 1 (Fix-Runde 1): Finster streift boreal nur mit 2 % -- UNTER
+// AVESMAPS_CLIMATE_REGION_MIN_SHARE (5 %). Das ist Rauschen, keine Zugehoerigkeit.
+$overlapStmt->execute([2, 3, 0.02]);
+
+$areas = avesmapsLoreRuleReadAreas($pdo);
+// Nur die zwei ECHTEN Flaechen -- die Klimabaender selbst (Zeilen 3, 4) sind kind='klima'
+// und fallen ueber r.kind <> 'klima' heraus. Zaehlt zugleich das Gegenteil von Mutation D:
+// eine Flaeche mit zwei Zonen ist EIN Eintrag, nicht zwei.
+assert(count($areas) === 2);
+$areasById = array_column($areas, null, 'public_id');
+assert(array_key_exists('area-farindel', $areasById));
+assert(array_key_exists('area-finster', $areasById));
+assert(!array_key_exists('klima-boreal-region', $areasById));
+assert(!array_key_exists('klima-subpolar-region', $areasById));
+
+$farindelZones = $areasById['area-farindel']['zones'];
+sort($farindelZones);
+assert($farindelZones === ['boreal', 'subpolar']);
+// Befund 1: 2 % ist unter der Schwelle -- Finster "beruehrt" boreal in diesem Sinne nicht.
+assert($areasById['area-finster']['zones'] === []);
+
+// --- avesmapsLoreRuleReadPlaces -----------------------------------------------------
+
+$pdo->exec(
+    'CREATE TABLE ecosystem_area (
+        id INTEGER PRIMARY KEY,
+        public_id VARCHAR(36) NOT NULL,
+        region_id INTEGER NOT NULL,
+        min_y REAL NOT NULL DEFAULT 0,
+        max_y REAL NOT NULL DEFAULT 0,
+        geometry_geojson TEXT NOT NULL DEFAULT \'{}\',
+        is_active TINYINT(1) NOT NULL DEFAULT 1
+    )'
+);
+$areaStmt = $pdo->prepare(
+    'INSERT INTO ecosystem_area (id, public_id, region_id, min_y, max_y, geometry_geojson, is_active)
+     VALUES (?, ?, ?, ?, ?, ?, 1)'
+);
+$areaStmt->execute([1, 'geom-farindel-1', 1, 0, 0, '{}']);
+$areaStmt->execute([2, 'geom-finster-1', 2, 0, 0, '{}']);
+// Das Klimaband "boreal" ist selbst eine ecosystem_area-Zeile (kind='klima' ueber ihre
+// Region) -- Rechteck y:500..600 ueber die volle Kartenbreite.
+$borealPolygon = json_encode([
+    'type' => 'Polygon',
+    'coordinates' => [[[0, 500], [1024, 500], [1024, 600], [0, 600], [0, 500]]],
+]);
+$areaStmt->execute([3, 'geom-klima-boreal-1', 3, 500, 600, $borealPolygon]);
+
+$pdo->exec(
+    'CREATE TABLE location_ecosystem (
+        location_id INTEGER NOT NULL,
+        area_id INTEGER NOT NULL
+    )'
+);
+$linkStmt = $pdo->prepare('INSERT INTO location_ecosystem (location_id, area_id) VALUES (?, ?)');
+$linkStmt->execute([101, 1]); // Ort A -> Farindel
+$linkStmt->execute([101, 2]); // Ort A -> AUCH Finsterkamm: zwei Flaechen, EIN Ort
+$linkStmt->execute([102, 1]); // Ort B -> nur Farindel
+$linkStmt->execute([103, 1]); // "Kreuzung" -> Farindel (muss trotzdem draussen bleiben)
+
+$pdo->exec(
+    'CREATE TABLE map_features (
+        id INTEGER PRIMARY KEY,
+        public_id VARCHAR(36) NOT NULL,
+        name VARCHAR(190) NOT NULL DEFAULT \'\',
+        feature_type VARCHAR(20) NOT NULL,
+        feature_subtype VARCHAR(40) NULL,
+        geometry_json TEXT NOT NULL DEFAULT \'{}\',
+        is_active TINYINT(1) NOT NULL DEFAULT 1
+    )'
+);
+$featureStmt = $pdo->prepare(
+    'INSERT INTO map_features (id, public_id, name, feature_type, feature_subtype, geometry_json, is_active)
+     VALUES (?, ?, ?, ?, ?, ?, 1)'
+);
+// x = 900 (klar AUSSERHALB des Bandes, faellt aber nirgends ein, da das Band die volle
+// Breite deckt), y = 550 (INNERHALB 500..600). Bewusst x != y und beide klar auf
+// verschiedenen Seiten der Bandgrenze -- ein vertauschtes x/y (Mutation C) kippt das
+// Ergebnis von 'boreal' auf '' um, statt zufaellig gleich zu bleiben.
+$featureStmt->execute([101, 'ort-a', 'Nordfeste', 'location', 'dorf', json_encode(['type' => 'Point', 'coordinates' => [900, 550]])]);
+// y = 100: klar AUSSERHALB des Bandes.
+$featureStmt->execute([102, 'ort-b', 'Suedfeste', 'location', 'dorf', json_encode(['type' => 'Point', 'coordinates' => [500, 100]])]);
+// 💣 Legacy-Kreuzung: feature_type bleibt 'location' (besteht den SQL-Filter unveraendert),
+// aber feature_subtype verraet sie als Kreuzung -- GENAU der Fall, fuer den es das
+// Praedikat avesmapsRoutePropertiesAreCrossing gibt statt eines Namensvergleichs
+// (network-data.php:105-130). Koordinate absichtlich IM Band: ein fehlendes oder
+// entferntes Kreuzungs-Praedikat (Mutation B) liesse sie faelschlich als Treffer
+// in 'boreal' durch.
+$featureStmt->execute([103, 'kreuzung-y', 'Kreuzung', 'location', 'crossing', json_encode(['type' => 'Point', 'coordinates' => [500, 550]])]);
+
+$places = avesmapsLoreRuleReadPlaces($pdo);
+// Drei Orte in map_features, aber die Kreuzung bleibt draussen.
+assert(count($places) === 2);
+$placesById = array_column($places, null, 'public_id');
+assert(!array_key_exists('kreuzung-y', $placesById));
+
+$ortA = $placesById['ort-a'];
+$ortAAreas = $ortA['area_public_ids'];
+sort($ortAAreas);
+// Zwei Flaechen, keine Dublette.
+assert($ortAAreas === ['area-farindel', 'area-finster']);
+assert($ortA['zone'] === 'boreal');
+
+$ortB = $placesById['ort-b'];
+assert($ortB['area_public_ids'] === ['area-farindel']);
+assert($ortB['zone'] === '');
+
 echo "lore-rule-store: OK\n";
