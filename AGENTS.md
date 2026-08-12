@@ -259,6 +259,20 @@ is the default, English is opt-in. Therefore:
   Diff, gekoppelte Werte, gewinnt die Regel überhaupt?) und **`usability-design`** (vor dem
   Push: Mockup gegen gebauten Zustand, Designsprache, Rangfolge in hell UND dunkel). Sie
   ersetzen das Abhaken nicht, sie fangen das, was man selbst überliest.
+- 💣 **Vor dem Push läuft das GANZE Testfeld, nicht die eigenen Tests.** Der Deploy ist
+  ein Tor: ein einziger roter Test lädt **nichts** hoch. Am 12.08.2026 brach eine
+  erweiterte Selektorliste in `legal-dialog.css` einen Test in
+  `js/app/__tests__/touch-scale.test.js`, der wörtlich einen Block nur für die Suchkachel
+  erwartete — an der Regel war nichts falsch, und fünf Deploys hintereinander fielen aus.
+  Wer nur seine eigenen Tests laufen lässt, sieht so etwas nie: die Datei, die bricht,
+  gehört jemand anderem. Der Lauf ist der aus dem Workflow:
+  `for t in $(find js tools -path '*__tests__*' -name '*.test.js'); do node "$t"; done`
+  (PHP analog mit `-d zend.assertions=1`).
+  ⚠️ **Und danach: der Fehlschlag vergiftet den `?v=`-Stempel.** Der nächste grüne Lauf
+  hält die nie hochgeladenen Dateien für aktuell — live standen zwei davon auf HTTP 404
+  und sechs in alter Fassung, während `index.html` schon die neue anforderte. Nur eine
+  **Inhaltsänderung** heilt das. Diagnose: `fetch(url+'?cb='+Date.now())` gegen
+  `fetch(url)` (siehe `docs/asset-caching-and-versioning.md`).
 - **Secrets:** `api/config.local.php` is gitignored and must never be committed.
   No production dumps, reports, audit logs, tokens or credentials in the repo.
 - **Legal:** DSA assets follow the Ulisses fan guidelines (see `NOTICE.md`).
