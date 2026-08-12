@@ -73,13 +73,41 @@ assert((int) $pdo->query('SELECT COUNT(*) FROM lore_rule_term_type')->fetchColum
 // Ein anderer Eintrag sieht die Regel nicht.
 assert(avesmapsLoreRuleReadForEntry($pdo, 'wirselkraut') === []);
 
-assert(avesmapsLoreRuleDelete($pdo, $ruleId) === true);
+// ---------------------------------------------------------------------------------------
+// Fix-Runde 1, Befund 2: Besitzpruefung. Eine rule_id gehoert zu GENAU einem Eintrag --
+// weder Loeschen noch Ueberschreiben duerfen ueber einen falschen entry_wiki_key eine
+// fremde Regel treffen. $ruleId gehoert an dieser Stelle 'vierblattrige-einbeere' und
+// traegt genau EINE Bedingung (siehe der Ersetzen-Test oben).
+// ---------------------------------------------------------------------------------------
+
+// Loeschen mit einem FREMDEN Eintragsschluessel: die Regel gehoert 'vierblattrige-einbeere',
+// nicht 'wirselkraut'. Erwartet: false, und die Regel samt ihrer Bedingung bleibt UNANGETASTET
+// -- nicht nur die Kopfzeile, auch ihre Kindzeile (sonst waere eine halb geloeschte fremde
+// Regel das Ergebnis, schlimmer als eine ganz stehen gelassene).
+assert(avesmapsLoreRuleDelete($pdo, $ruleId, 'wirselkraut') === false);
+$stillThere = avesmapsLoreRuleReadForEntry($pdo, 'vierblattrige-einbeere');
+assert(count($stillThere) === 1 && count($stillThere[0]['terms']) === 1);
+
+// Speichern auf dieselbe rule_id, aber mit einem FREMDEN Eintragsschluessel: kein stilles
+// Umbenennen/Anlegen -- ein klarer Fehler, und die fremde Regel bleibt exakt wie sie war.
+$threwOnForeignSave = false;
+try {
+    avesmapsLoreRuleSave($pdo, 'wirselkraut', [$terms[1]], 'verbreitung', 7, $ruleId);
+} catch (InvalidArgumentException) {
+    $threwOnForeignSave = true;
+}
+assert($threwOnForeignSave === true);
+$stillThere = avesmapsLoreRuleReadForEntry($pdo, 'vierblattrige-einbeere');
+assert(count($stillThere) === 1 && count($stillThere[0]['terms']) === 1);
+assert(avesmapsLoreRuleReadForEntry($pdo, 'wirselkraut') === []);
+
+assert(avesmapsLoreRuleDelete($pdo, $ruleId, 'vierblattrige-einbeere') === true);
 assert(avesmapsLoreRuleReadForEntry($pdo, 'vierblattrige-einbeere') === []);
 // Zaehlt die Kindtabellen DIREKT -- eine geloeschte Kopfzeile liefert schon [] zurueck,
 // ganz gleich ob ihre Kinder noch in lore_rule_term/lore_rule_term_type liegen.
 assert((int) $pdo->query('SELECT COUNT(*) FROM lore_rule_term')->fetchColumn() === 0);
 assert((int) $pdo->query('SELECT COUNT(*) FROM lore_rule_term_type')->fetchColumn() === 0);
-assert(avesmapsLoreRuleDelete($pdo, $ruleId) === false);
+assert(avesmapsLoreRuleDelete($pdo, $ruleId, 'vierblattrige-einbeere') === false);
 
 // Die drei Leser antworten auf einer Datenbank OHNE Oekosystem-Tabellen mit leeren Listen
 // statt mit einer Ausnahme. 💣 Sie laufen spaeter auf dem oeffentlichen Lesepfad; „nie

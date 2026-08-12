@@ -94,6 +94,19 @@ function avesmapsLoreRuleSave(
         $insert->execute(['wk' => $entryWikiKey, 'rel' => $relation, 'user' => $userId]);
         $ruleId = (int) $pdo->lastInsertId();
     } else {
+        // 💣 Fix-Runde 1, Befund 2: eine fremde rule_id darf nie die Bedingungen einer Regel
+        // ueberschreiben, die einem ANDEREN Eintrag gehoert. Das ist kein stilles Anlegen
+        // einer neuen Regel unter falschem Namen, sondern ein Fehler -- der Aufrufer hat sich
+        // vertan (oder schlimmeres), und das gehoert ihm gemeldet, nicht verschluckt.
+        $owner = $pdo->prepare('SELECT entry_wiki_key FROM lore_rule WHERE id = :id');
+        $owner->execute(['id' => $ruleId]);
+        $ownerKey = $owner->fetchColumn();
+        if ($ownerKey === false || (string) $ownerKey !== $entryWikiKey) {
+            throw new InvalidArgumentException(
+                'lore_rule ' . $ruleId . ' gehoert nicht zu entry_wiki_key "' . $entryWikiKey . '".'
+            );
+        }
+
         $update = $pdo->prepare('UPDATE lore_rule SET relation = :rel WHERE id = :id');
         $update->execute(['rel' => $relation, 'id' => $ruleId]);
     }
@@ -183,17 +196,33 @@ function avesmapsLoreRuleReadForEntry(PDO $pdo, string $entryWikiKey): array
     return $out;
 }
 
-/** Loescht eine Regel samt ihrer Bedingungen. false = es gab sie nicht. */
-function avesmapsLoreRuleDelete(PDO $pdo, int $ruleId): bool
+/**
+ * Loescht eine Regel samt ihrer Bedingungen. false = es gab sie nicht ODER sie gehoert
+ * einem ANDEREN Eintrag.
+ *
+ * 💣 Fix-Runde 1, Befund 2: der Eintragsschluessel ist Pflicht und steht in JEDER
+ * Loesch-Anweisung, nicht nur in einer vorgelagerten Pruefung -- sonst koennten die
+ * KIND-Zeilen (Bedingungen) einer fremden Regel schon verschwinden, waehrend ihre
+ * Kopf-Zeile wegen des falschen Schluessels stehen bleibt. Eine halb geloeschte fremde
+ * Regel waere schlimmer als eine ganz unangetastete.
+ */
+function avesmapsLoreRuleDelete(PDO $pdo, int $ruleId, string $entryWikiKey): bool
 {
-    $terms = $pdo->prepare('SELECT id FROM lore_rule_term WHERE rule_id = :id');
-    $terms->execute(['id' => $ruleId]);
+    $terms = $pdo->prepare(
+        'SELECT t.id FROM lore_rule_term t
+           JOIN lore_rule r ON r.id = t.rule_id
+          WHERE t.rule_id = :id AND r.entry_wiki_key = :wk'
+    );
+    $terms->execute(['id' => $ruleId, 'wk' => $entryWikiKey]);
     foreach ($terms->fetchAll(PDO::FETCH_COLUMN) ?: [] as $termId) {
         $pdo->prepare('DELETE FROM lore_rule_term_type WHERE term_id = :id')->execute(['id' => $termId]);
     }
-    $pdo->prepare('DELETE FROM lore_rule_term WHERE rule_id = :id')->execute(['id' => $ruleId]);
-    $delete = $pdo->prepare('DELETE FROM lore_rule WHERE id = :id');
-    $delete->execute(['id' => $ruleId]);
+    $pdo->prepare(
+        'DELETE FROM lore_rule_term WHERE rule_id = :id
+           AND rule_id IN (SELECT id FROM lore_rule WHERE id = :id AND entry_wiki_key = :wk)'
+    )->execute(['id' => $ruleId, 'wk' => $entryWikiKey]);
+    $delete = $pdo->prepare('DELETE FROM lore_rule WHERE id = :id AND entry_wiki_key = :wk');
+    $delete->execute(['id' => $ruleId, 'wk' => $entryWikiKey]);
 
     return $delete->rowCount() > 0;
 }
