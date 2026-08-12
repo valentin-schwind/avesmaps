@@ -81,4 +81,32 @@ assert((int) $pdo->query('SELECT COUNT(*) FROM lore_rule_term')->fetchColumn() =
 assert((int) $pdo->query('SELECT COUNT(*) FROM lore_rule_term_type')->fetchColumn() === 0);
 assert(avesmapsLoreRuleDelete($pdo, $ruleId) === false);
 
+// Die drei Leser antworten auf einer Datenbank OHNE Oekosystem-Tabellen mit leeren Listen
+// statt mit einer Ausnahme. 💣 Sie laufen spaeter auf dem oeffentlichen Lesepfad; „nie
+// eingerichtet" darf dort kein 500 werden -- dieselbe Zusage wie avesmapsClimateReadBands.
+assert(avesmapsLoreRuleReadAreas($pdo) === []);
+assert(avesmapsLoreRuleReadPlaces($pdo) === []);
+assert(avesmapsLoreRuleOrderedZoneKeys($pdo) === []);
+
+// 🔴 Die REIHENFOLGE ist die Aussage, nicht Kosmetik: absichtlich AUSSER der Reihe (und
+// nicht alphabetisch) eingefuegt, damit ein Test, der bloss die Einfuegereihenfolge oder
+// das Alphabet spiegelt, nicht zufaellig besteht -- er muss ECHT nach sort_order sortieren.
+$pdo->exec(
+    'CREATE TABLE ecosystem_region_type (
+        kind VARCHAR(16) NOT NULL,
+        type_key VARCHAR(40) NOT NULL,
+        label VARCHAR(190) NOT NULL,
+        sort_order INT NOT NULL DEFAULT 0,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        PRIMARY KEY (kind, type_key)
+    )'
+);
+$pdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, label, sort_order) VALUES ('klima', 'tropisch', 'Tropische Zone', 80)");
+$pdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, label, sort_order) VALUES ('klima', 'polar', 'Polare Zone', 10)");
+$pdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, label, sort_order) VALUES ('klima', 'boreal', 'Boreale Zone', 30)");
+// Andere kind -- darf nicht mitkommen.
+$pdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, label, sort_order) VALUES ('vegetation', 'wald', 'Wald', 5)");
+
+assert(avesmapsLoreRuleOrderedZoneKeys($pdo) === ['polar', 'boreal', 'tropisch']);
+
 echo "lore-rule-store: OK\n";

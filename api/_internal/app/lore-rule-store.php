@@ -14,6 +14,13 @@ declare(strict_types=1);
 // delete+insert neu an und fasst nur origin='wiki' an -- eine Regel mit origin='wiki'
 // waere beim naechsten „Vorkommen syncen" weg. Der Sync kennt diese Tabellen nicht.
 
+// Fuer avesmapsLoreRuleReadPlaces: die Klimazone eines Ortes ist keine gespeicherte Spalte,
+// sondern wird aus den Baendern gerechnet (dieselbe Wahrheit wie die Infobox-Zeile
+// "Klimazone", avesmapsClimateApplyToFeatures). Und "ist eine Kreuzung" ist ein Praedikat,
+// keine Spalte -- dasselbe Praedikat wie das Routennetz, nicht der Name.
+require_once __DIR__ . '/climate-membership.php';
+require_once __DIR__ . '/../routing/network-data.php';
+
 /** Selbstheilendes Schema. NUR aus Editor-Zweigen aufrufen, nie im heissen Lesepfad. */
 function avesmapsLoreRuleEnsureTables(PDO $pdo): void
 {
@@ -189,4 +196,161 @@ function avesmapsLoreRuleDelete(PDO $pdo, int $ruleId): bool
     $delete->execute(['id' => $ruleId]);
 
     return $delete->rowCount() > 0;
+}
+
+/**
+ * Die Zonenschluessel in ihrer sort_order, Nord nach Sued.
+ *
+ * 🔴 Die REIHENFOLGE ist die Aussage, nicht Kosmetik: aus ihr entsteht die Spanne zwischen
+ * zwei Endpunkten. Deshalb wird sie gelesen und nie im Code wiederholt.
+ *
+ * @return list<string>
+ */
+function avesmapsLoreRuleOrderedZoneKeys(PDO $pdo): array
+{
+    try {
+        $statement = $pdo->query(
+            "SELECT type_key FROM ecosystem_region_type
+              WHERE kind = 'klima' ORDER BY sort_order ASC, type_key ASC"
+        );
+        $rows = $statement === false ? [] : $statement->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable) {
+        return [];
+    }
+
+    return array_map('strval', $rows ?: []);
+}
+
+/**
+ * Alle Landschaftsflaechen mit Art und den Klimazonen, die sie BERUEHREN.
+ *
+ * 🔴 Die Zonen kommen aus ecosystem_region_overlap -- dem Ergebnis von „Zugehoerigkeit
+ * rechnen" --, nicht aus einer zweiten Rechnung. Zwei Antworten auf dieselbe Frage wuerden
+ * beim ersten Regelwechsel auseinanderlaufen (dieselbe Begruendung wie in
+ * avesmapsClimateReadRegionZones).
+ *
+ * ⚠️ Klimabaender selbst sind KEINE Flaechen im Sinne einer Regel und fallen heraus:
+ * „alle Flaechen der Borealen Zone" darf nicht das Band selbst treffen.
+ *
+ * @return list<array{public_id: string, kind: string, region_type: string, name: string, zones: list<string>}>
+ */
+function avesmapsLoreRuleReadAreas(PDO $pdo): array
+{
+    try {
+        $statement = $pdo->query(
+            "SELECT r.public_id, r.kind, r.region_type, r.name,
+                    k.region_type AS zone_key
+               FROM ecosystem_region r
+               LEFT JOIN ecosystem_region_overlap o ON o.region_id = r.id
+               LEFT JOIN ecosystem_region k ON k.id = o.other_region_id AND k.kind = 'klima' AND k.is_active = 1
+              WHERE r.is_active = 1 AND r.kind <> 'klima' AND r.region_type IS NOT NULL
+              ORDER BY r.name, r.public_id"
+        );
+        $rows = $statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable) {
+        return [];
+    }
+
+    $byId = [];
+    foreach ($rows ?: [] as $row) {
+        $publicId = (string) $row['public_id'];
+        if (!isset($byId[$publicId])) {
+            $byId[$publicId] = [
+                'public_id' => $publicId,
+                'kind' => (string) $row['kind'],
+                'region_type' => (string) $row['region_type'],
+                'name' => (string) ($row['name'] ?? ''),
+                'zones' => [],
+            ];
+        }
+        $zone = trim((string) ($row['zone_key'] ?? ''));
+        if ($zone !== '' && !in_array($zone, $byId[$publicId]['zones'], true)) {
+            $byId[$publicId]['zones'][] = $zone;
+        }
+    }
+
+    return array_values($byId);
+}
+
+/**
+ * Alle Siedlungen mit ihren Flaechen und ihrer EIGENEN Klimazone.
+ *
+ * 💣 Eine Siedlung ist ein PUNKT: `zone` ist genau eine, nicht eine Liste. Ihre Flaeche
+ * kann mehrere Zonen beruehren -- die Siedlung nie. Beim Finsterkamm ist das der
+ * Unterschied zwischen 44 und 4 (Entwurf §3.3).
+ *
+ * Kreuzungen sind keine Orte und bleiben draussen.
+ *
+ * 🔴 KORREKTUR gegen den urspruenglichen Bauplan: `climate_zone_key` und `is_crossing` sind
+ * KEINE Spalten von map_features (Spaltenliste: avesmapsFetchFeatureByIdForUpdate,
+ * api/_internal/map/features.php:442). Die Zone kommt aus den Klimabaendern
+ * (avesmapsClimateReadBands/avesmapsClimateZoneKeyAt, climate-membership.php -- dieselbe
+ * Wahrheit wie die Infobox-Zeile "Klimazone"), "ist Kreuzung" aus dem Praedikat
+ * avesmapsRoutePropertiesAreCrossing (network-data.php), nicht aus einer Spalte oder dem
+ * Namen.
+ *
+ * @return list<array{public_id: string, name: string, area_public_ids: list<string>, zone: string}>
+ */
+function avesmapsLoreRuleReadPlaces(PDO $pdo): array
+{
+    try {
+        // Einmal je Aufruf geholt, nie je Zeile -- dieselbe Regel wie fuer die Baender in
+        // avesmapsClimateApplyToFeatures.
+        $bands = avesmapsClimateReadBands($pdo);
+
+        $statement = $pdo->query(
+            "SELECT f.public_id, f.name, f.feature_type, f.feature_subtype, f.geometry_json,
+                    r.public_id AS area_public_id
+               FROM map_features f
+               JOIN location_ecosystem le ON le.location_id = f.id
+               JOIN ecosystem_area a ON a.id = le.area_id AND a.is_active = 1
+               JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
+              WHERE f.feature_type = 'location' AND f.is_active = 1
+              ORDER BY f.name, f.public_id"
+        );
+        $rows = $statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable) {
+        return [];
+    }
+
+    $byId = [];
+    foreach ($rows ?: [] as $row) {
+        $publicId = (string) $row['public_id'];
+        if (!isset($byId[$publicId])) {
+            $isCrossing = avesmapsRoutePropertiesAreCrossing([
+                'feature_type' => (string) ($row['feature_type'] ?? ''),
+                'feature_subtype' => (string) ($row['feature_subtype'] ?? ''),
+                'name' => (string) ($row['name'] ?? ''),
+            ]);
+            if ($isCrossing) {
+                // Als geloescht/ausgeschlossen markieren, damit spaetere Zeilen derselben
+                // Kreuzung (mehrere Flaechen) sie nicht wieder aufleben lassen.
+                $byId[$publicId] = null;
+                continue;
+            }
+
+            $geometry = json_decode((string) ($row['geometry_json'] ?? ''), true);
+            $coordinates = is_array($geometry) ? ($geometry['coordinates'] ?? null) : null;
+            $x = is_array($coordinates) ? (float) ($coordinates[0] ?? 0.0) : 0.0;
+            $y = is_array($coordinates) ? (float) ($coordinates[1] ?? 0.0) : 0.0;
+
+            $byId[$publicId] = [
+                'public_id' => $publicId,
+                'name' => (string) ($row['name'] ?? ''),
+                'area_public_ids' => [],
+                'zone' => avesmapsClimateZoneKeyAt($bands, $x, $y),
+            ];
+        }
+
+        if ($byId[$publicId] === null) {
+            continue;
+        }
+
+        $areaId = (string) ($row['area_public_id'] ?? '');
+        if ($areaId !== '' && !in_array($areaId, $byId[$publicId]['area_public_ids'], true)) {
+            $byId[$publicId]['area_public_ids'][] = $areaId;
+        }
+    }
+
+    return array_values(array_filter($byId, static fn (?array $place): bool => $place !== null));
 }
