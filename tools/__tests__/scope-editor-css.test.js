@@ -43,6 +43,21 @@ const EDITOR_HTML = path.join(ROOT, "html", "political-territory-editor.html");
 	if (after !== before) {
 		fs.writeFileSync(GENERATED, before, "utf8"); // Baum unveraendert lassen, der Test meldet nur
 	}
+	// 💣 Zuerst die Zeilenenden, denn sie erklaeren einen Unterschied, den der Vergleich
+	// darunter nur zeigt. Bis zum 12.08.2026 schrieb der Erzeuger Kopf und Trennkommentare
+	// fest mit "\n", den Rumpf dagegen mit den Zeilenenden der Quellen. Auf einem
+	// Windows-Checkout (CRLF) wich die Ausgabe damit in elf Zeilen von der Datei ab -- ohne
+	// dass ein Zeichen Gestaltung anders war, und der einzige Riegel gegen Hand-Aenderungen
+	// am Bauprodukt stand bei jedem auf rot. Diese Zusicherung beisst auf JEDER Plattform,
+	// der zeichengenaue Vergleich darunter nur auf Windows.
+	const gemischt = after.includes("\r\n") && /(^|[^\r])\n/.test(after);
+	assert.ok(
+		!gemischt,
+		"tools/scope_editor_css.js schreibt gemischte Zeilenenden (CRLF und LF in derselben\n" +
+		"    Datei). Jede Zeile, die der Erzeuger selbst beisteuert, muss die Zeilenenden des\n" +
+		"    Rumpfes benutzen -- siehe `const NL` dort."
+	);
+
 	assert.strictEqual(
 		after,
 		before,
