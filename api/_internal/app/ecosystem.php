@@ -705,16 +705,38 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
+    // 💣 C1 (Review 2026-08-12): location_rows was written straight into the CREATE TABLE above.
+    // CREATE TABLE IF NOT EXISTS heals the FIRST case only -- this table already existed on the
+    // server (the run predates the Lebensraum-Regel), so the literal column declaration is a no-op
+    // there, and avesmapsPathEcosystemCommit's UPDATE ... SET location_rows = :location fails with
+    // "Unknown column", AFTER avesmapsPathEcosystemBegin has already cleared the tables. Same
+    // information_schema-driven ALTER as the four columns above.
+    $stampColumnExists = static function (PDO $pdo, string $column): bool {
+        $statement = $pdo->prepare(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ecosystem_assignment_stamp' AND COLUMN_NAME = :c"
+        );
+        $statement->execute(['c' => $column]);
+
+        return $statement !== false && (int) $statement->fetchColumn() > 0;
+    };
+    if (!$stampColumnExists($pdo, 'location_rows')) {
+        $pdo->exec('ALTER TABLE ecosystem_assignment_stamp ADD COLUMN location_rows INT UNSIGNED NOT NULL DEFAULT 0');
+    }
+
     // Siedlung -> Flaeche, Vorbild path_ecosystem. Gefuellt vom selben Lauf
     // („Zugehoerigkeit rechnen"), gebraucht von der Lebensraum-Regel: ohne sie weiss
     // niemand, in welchem Wald eine Stadt steht.
     // ⚠️ Die Klimazone der Siedlung steht NICHT hier -- die stempelt
     // avesmapsClimateApplyToFeatures ohnehin in den Payload, und eine zweite Ablage waere
     // eine zweite Wahrheit.
+    // 💣 M6 (Review 2026-08-12): area_id matches ecosystem_area.id (INT UNSIGNED), not
+    // location_id's map_features.id (BIGINT UNSIGNED) -- path_ecosystem.area_id already gets this
+    // right. Fixed now, while the table is empty; a later fix would need a migration.
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS location_ecosystem (
             location_id BIGINT UNSIGNED NOT NULL,
-            area_id     BIGINT UNSIGNED NOT NULL,
+            area_id     INT UNSIGNED NOT NULL,
             PRIMARY KEY (location_id, area_id),
             KEY idx_location_ecosystem_area (area_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"

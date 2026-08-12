@@ -17,6 +17,15 @@ declare(strict_types=1);
 //
 // Alle Schreibaktionen sind capability-gated ('edit') wie jeder Editor-Schreibpfad.
 
+// I3: ein Deckel gegen einen Worker, der beliebig lange laeuft -- preview_rule wertet die
+// GANZE Regel EINMAL JE BEDINGUNG aus (avesmapsLoreRuleEvaluate, ~2.782 Flaechen+Orte). Auf
+// STRATO-Shared-Hosting haelt ein zu grosses Payload sonst einen Worker unbegrenzt fest.
+// Abgelehnt, nicht still gekappt: eine stumm gekuerzte Regel wuerde etwas anderes rechnen als
+// der Editor zeigt, ohne dass es jemand merkt. Vorbild: AVESMAPS_PATH_ECOSYSTEM_CHUNK_MAX
+// (path-ecosystem.php).
+const AVESMAPS_LORE_RULE_MAX_TERMS = 25;
+const AVESMAPS_LORE_RULE_MAX_TYPES_PER_TERM = 40;
+
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/app/lore-edit.php';
 // avesmapsPoliticalSlug für die Ortsschlüssel beim Zuordnen.
@@ -67,20 +76,64 @@ try {
      * deren Bedingungen alle leer sind, traefe ALLES. Dieselbe Lehre wie beim Loeschriegel
      * der Uebernahme-Vorschau.
      */
-    $readTerms = static function (array $payload): array {
+    $readTerms = static function (array $payload) use ($pdo): array {
+        $rawTerms = (array) ($payload['terms'] ?? []);
+        if (count($rawTerms) > AVESMAPS_LORE_RULE_MAX_TERMS) {
+            avesmapsErrorResponse(
+                400,
+                'too_many_terms',
+                'Eine Regel darf hoechstens ' . AVESMAPS_LORE_RULE_MAX_TERMS . ' Bedingungen haben.'
+            );
+        }
+
+        // I1: die echte Zonenliste, EINMAL geholt, nicht je Bedingung -- gebraucht, um einen
+        // unbekannten Klimaschluessel zu erkennen (siehe unten).
+        $zoneKeys = avesmapsLoreRuleOrderedZoneKeys($pdo);
+
         $out = [];
-        foreach ((array) ($payload['terms'] ?? []) as $raw) {
+        foreach ($rawTerms as $raw) {
+            $rawTypes = (array) ($raw['types'] ?? []);
+            if (count($rawTypes) > AVESMAPS_LORE_RULE_MAX_TYPES_PER_TERM) {
+                avesmapsErrorResponse(
+                    400,
+                    'too_many_types',
+                    'Eine Bedingung darf hoechstens ' . AVESMAPS_LORE_RULE_MAX_TYPES_PER_TERM . ' Landschaftsarten haben.'
+                );
+            }
+
             $types = [];
-            foreach ((array) ($raw['types'] ?? []) as $type) {
+            // I2: je Bedingung DEDUPLIZIEREN -- lore_rule_term_type hat PRIMARY KEY
+            // (term_id, kind, region_type) und der INSERT in avesmapsLoreRuleSave kennt kein
+            // ON DUPLICATE KEY; ein doppelter Typ wuerfe dort mitten in der Ersetzung.
+            $seenTypes = [];
+            foreach ($rawTypes as $type) {
                 $kind = avesmapsNormalizeSingleLine((string) ($type['kind'] ?? ''), 20);
                 $regionType = avesmapsNormalizeSingleLine((string) ($type['region_type'] ?? ''), 60);
-                if ($kind !== '' && $regionType !== '') {
-                    $types[] = ['kind' => $kind, 'region_type' => $regionType];
+                if ($kind === '' || $regionType === '') {
+                    continue;
                 }
+                $seenKey = $kind . '|' . $regionType;
+                if (isset($seenTypes[$seenKey])) {
+                    continue;
+                }
+                $seenTypes[$seenKey] = true;
+                $types[] = ['kind' => $kind, 'region_type' => $regionType];
             }
             $areaId = avesmapsNormalizeSingleLine((string) ($raw['area_public_id'] ?? ''), 36);
             $from = avesmapsNormalizeSingleLine((string) ($raw['climate_from'] ?? ''), 60);
             $to = avesmapsNormalizeSingleLine((string) ($raw['climate_to'] ?? ''), 60);
+            // I1: ein UNBEKANNTER Zonenschluessel heisst fuer avesmapsLoreRuleZoneKeys "keine
+            // Einschraenkung" ([] zurueck), aber avesmapsLoreRuleTermIsEmpty fragt nur, ob
+            // climate_from !== null -- ein erfundener Schluessel kaeme so am Riegel
+            // (avesmapsLoreRuleChainIsUnbounded) vorbei und traefe trotzdem alles. Ein
+            // unbekannter Schluessel IST keine Einschraenkung, also wird er hier zu null
+            // gesaeubert, damit der vorhandene Riegel ihn als leer erkennt.
+            if ($from !== '' && !in_array($from, $zoneKeys, true)) {
+                $from = '';
+            }
+            if ($to !== '' && !in_array($to, $zoneKeys, true)) {
+                $to = '';
+            }
             $out[] = [
                 'join_op' => ((string) ($raw['join_op'] ?? 'und')) === 'oder' ? 'oder' : 'und',
                 'area_public_id' => $areaId === '' ? null : $areaId,
@@ -176,6 +229,18 @@ try {
             // Schreibt NICHTS -- die Vorschau ist reine Rechnung. Dieselbe Trennung wie bei
             // der Uebernahme-Vorschau: die Rechen-Haelfte fasst keine Nutztabelle an.
             $terms = $readTerms($payload);
+            // M2: leere Bedingungen ergeben beweisbar eine leere Antwort
+            // (avesmapsLoreRuleEvaluate) -- der Kurzschluss spart das Laden ALLER Flaechen und
+            // ALLER Siedlungen (inklusive ~2.782 Punkt-in-Polygon-Tests) fuer ein Ergebnis, das
+            // ohnehin [] ist.
+            if ($terms === []) {
+                avesmapsJsonResponse(200, [
+                    'ok' => true,
+                    'areas' => [],
+                    'places' => [],
+                    'counts' => ['areas' => 0, 'places' => 0],
+                ]);
+            }
             $areas = avesmapsLoreRuleReadAreas($pdo);
             $places = avesmapsLoreRuleReadPlaces($pdo);
             $result = avesmapsLoreRuleEvaluate($terms, $areas, $places, avesmapsLoreRuleOrderedZoneKeys($pdo));
@@ -212,13 +277,17 @@ try {
                 avesmapsErrorResponse(400, 'rule_matches_everything', 'Ohne eine Einschraenkung traefe die Regel alles.');
             }
             avesmapsLoreRuleEnsureTables($pdo);
-            $relation = avesmapsNormalizeSingleLine((string) ($payload['relation'] ?? 'verbreitung'), 20);
+            // I4: dieselbe Weisse Liste mit Rueckfall wie avesmapsLoreAddPlace
+            // (lore-edit.php) -- keine zweite Kopie mit eigener Meinung.
+            $relation = avesmapsLoreNormalizeRelation(
+                avesmapsNormalizeSingleLine((string) ($payload['relation'] ?? 'verbreitung'), 20)
+            );
             $ruleId = (int) ($payload['rule_id'] ?? 0);
             $saved = avesmapsLoreRuleSave(
                 $pdo,
                 $wikiKey,
                 $terms,
-                $relation === '' ? 'verbreitung' : $relation,
+                $relation,
                 (int) ($user['id'] ?? 0) ?: null,
                 $ruleId > 0 ? $ruleId : null
             );

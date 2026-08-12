@@ -30,6 +30,17 @@ const AVESMAPS_LORE_EDITABLE_FIELDS = ['name', 'gruppe', 'typ', 'lebensraum', 's
 /** Zustände, die ein Eintrag annehmen darf. */
 const AVESMAPS_LORE_ENTRY_STATES = ['active', 'suppressed'];
 
+/** Erlaubte Zuordnungsarten Ort<->Eintrag, mit Rückfall auf 'verbreitung' bei allem Unbekannten.
+ * Einzige Quelle -- auch für die Lebensraum-Regel (api/edit/map/lore.php, save_rule), damit
+ * `relation` dort nicht ungeprüft gespeichert wird und keine zweite Kopie mit eigener Meinung
+ * entsteht. */
+function avesmapsLoreNormalizeRelation(string $relation): string
+{
+    return in_array($relation, ['verbreitung', 'vorkommen', 'herkunft', 'regionen'], true)
+        ? $relation
+        : 'verbreitung';
+}
+
 /**
  * Vollständige Editoransicht eines Eintrags: Stammdaten und ALLE Orte (auch die
  * unterdrückten -- der Editor muss seine eigenen Grabsteine sehen können).
@@ -118,9 +129,7 @@ function avesmapsLoreAddPlace(PDO $pdo, string $entryKey, string $placeTitle, st
     if ($placeKey === '') {
         return ['ok' => false, 'error' => 'invalid_place'];
     }
-    if (!in_array($relation, ['verbreitung', 'vorkommen', 'herkunft', 'regionen'], true)) {
-        $relation = 'verbreitung';
-    }
+    $relation = avesmapsLoreNormalizeRelation($relation);
 
     $existing = $pdo->prepare(
         'SELECT origin, status FROM lore_place

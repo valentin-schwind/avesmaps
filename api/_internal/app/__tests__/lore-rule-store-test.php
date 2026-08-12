@@ -134,6 +134,11 @@ $pdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, label, sort_order
 $pdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, label, sort_order) VALUES ('klima', 'boreal', 'Boreale Zone', 30)");
 // Andere kind -- darf nicht mitkommen.
 $pdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, label, sort_order) VALUES ('vegetation', 'wald', 'Wald', 5)");
+// M1: eine STILLGELEGTE Zone (is_active = 0) darf die Reihenfolge nicht verbreitern -- sie
+// wuerde sonst jede Spanne, die sie ueberbrueckt, lautlos vergroessern. sort_order 20 liegt
+// bewusst ZWISCHEN polar (10) und boreal (30): ohne "AND is_active = 1" erschiene 'subpolar'
+// zwischen den beiden und die Assertion unten schluege fehl.
+$pdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, label, sort_order, is_active) VALUES ('klima', 'subpolar', 'Subpolare Zone', 20, 0)");
 
 assert(avesmapsLoreRuleOrderedZoneKeys($pdo) === ['polar', 'boreal', 'tropisch']);
 
@@ -279,5 +284,49 @@ assert($ortA['zone'] === 'boreal');
 $ortB = $placesById['ort-b'];
 assert($ortB['area_public_ids'] === ['area-farindel']);
 assert($ortB['zone'] === '');
+
+// ---------------------------------------------------------------------------------------
+// I2: eine Speicherung, die MITTENDRIN scheitert, darf die alte Kette nicht zerstoeren.
+// lore_rule_term_type hat PRIMARY KEY (term_id, kind, region_type) und der INSERT kennt
+// kein ON DUPLICATE KEY -- ein Term mit demselben Typ zweimal (den lore.php's
+// Endpunkt-Riegel eigentlich dedupliziert, hier aber bewusst UNGEFILTERT direkt an den
+// Store gereicht wird, um den Store selbst zu pruefen) verletzt den PRIMARY KEY beim
+// zweiten INSERT -- GENAU der Fehlerfall, den die Transaktion auffangen muss.
+// ---------------------------------------------------------------------------------------
+$baseline = [
+    ['area_public_id' => null, 'join_op' => 'und',
+     'types' => [['kind' => 'vegetation', 'region_type' => 'steppe']],
+     'climate_from' => null, 'climate_to' => null],
+];
+$survivorId = avesmapsLoreRuleSave($pdo, 'zwergenschatten', $baseline, 'verbreitung', 3);
+assert($survivorId > 0);
+
+$broken = [
+    ['area_public_id' => null, 'join_op' => 'und',
+     // Derselbe Typ zweimal an EINER Bedingung -- verletzt den PRIMARY KEY beim zweiten INSERT.
+     'types' => [
+         ['kind' => 'vegetation', 'region_type' => 'wald'],
+         ['kind' => 'vegetation', 'region_type' => 'wald'],
+     ],
+     'climate_from' => null, 'climate_to' => null],
+];
+$threwMidSave = false;
+try {
+    avesmapsLoreRuleSave($pdo, 'zwergenschatten', $broken, 'verbreitung', 3, $survivorId);
+} catch (Throwable) {
+    $threwMidSave = true;
+}
+assert($threwMidSave === true);
+
+// Die ALTE Kette steht noch -- unangetastet, nicht geloescht, nicht halb ersetzt. Ohne
+// Transaktion waere die alte 'steppe'-Bedingung schon geloescht und die neue nur zur
+// Haelfte da (der Term samt seinem ERSTEN Typ, ohne den zweiten).
+$survived = avesmapsLoreRuleReadForEntry($pdo, 'zwergenschatten');
+assert(count($survived) === 1 && count($survived[0]['terms']) === 1);
+assert(count($survived[0]['terms'][0]['types']) === 1);
+assert($survived[0]['terms'][0]['types'][0]['region_type'] === 'steppe');
+// Auch die Kindtabellen DIREKT gezaehlt -- kein Rest der gescheiterten Ersetzung haengt herum.
+assert((int) $pdo->query('SELECT COUNT(*) FROM lore_rule_term')->fetchColumn() === 1);
+assert((int) $pdo->query('SELECT COUNT(*) FROM lore_rule_term_type')->fetchColumn() === 1);
 
 echo "lore-rule-store: OK\n";

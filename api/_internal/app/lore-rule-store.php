@@ -86,62 +86,76 @@ function avesmapsLoreRuleSave(
     ?int $userId,
     ?int $ruleId = null
 ): int {
-    if ($ruleId === null) {
-        $insert = $pdo->prepare(
-            'INSERT INTO lore_rule (entry_wiki_key, relation, origin, status, created_by)
-             VALUES (:wk, :rel, \'manual\', \'active\', :user)'
-        );
-        $insert->execute(['wk' => $entryWikiKey, 'rel' => $relation, 'user' => $userId]);
-        $ruleId = (int) $pdo->lastInsertId();
-    } else {
-        // 💣 Fix-Runde 1, Befund 2: eine fremde rule_id darf nie die Bedingungen einer Regel
-        // ueberschreiben, die einem ANDEREN Eintrag gehoert. Das ist kein stilles Anlegen
-        // einer neuen Regel unter falschem Namen, sondern ein Fehler -- der Aufrufer hat sich
-        // vertan (oder schlimmeres), und das gehoert ihm gemeldet, nicht verschluckt.
-        $owner = $pdo->prepare('SELECT entry_wiki_key FROM lore_rule WHERE id = :id');
-        $owner->execute(['id' => $ruleId]);
-        $ownerKey = $owner->fetchColumn();
-        if ($ownerKey === false || (string) $ownerKey !== $entryWikiKey) {
-            throw new InvalidArgumentException(
-                'lore_rule ' . $ruleId . ' gehoert nicht zu entry_wiki_key "' . $entryWikiKey . '".'
+    // I2: alles ab hier ist EIN Ersetzen -- alte Bedingungen weg, neue rein -- und das darf
+    // nicht auf halbem Weg stehen bleiben. Ohne Transaktion legt lore_rule_term_type's
+    // PRIMARY KEY (term_id, kind, region_type) genau das offen: ein INSERT ohne ON DUPLICATE
+    // KEY wirft bei einem doppelten Typ, und zu dem Zeitpunkt waeren die alten Bedingungen
+    // schon geloescht. Das DDL laeuft VOR diesem Aufruf (avesmapsLoreRuleEnsureTables im
+    // Endpunkt), also keine Implicit-Commit-Falle durch ein ALTER mitten in der Transaktion.
+    $pdo->beginTransaction();
+    try {
+        if ($ruleId === null) {
+            $insert = $pdo->prepare(
+                'INSERT INTO lore_rule (entry_wiki_key, relation, origin, status, created_by)
+                 VALUES (:wk, :rel, \'manual\', \'active\', :user)'
             );
+            $insert->execute(['wk' => $entryWikiKey, 'rel' => $relation, 'user' => $userId]);
+            $ruleId = (int) $pdo->lastInsertId();
+        } else {
+            // 💣 Fix-Runde 1, Befund 2: eine fremde rule_id darf nie die Bedingungen einer Regel
+            // ueberschreiben, die einem ANDEREN Eintrag gehoert. Das ist kein stilles Anlegen
+            // einer neuen Regel unter falschem Namen, sondern ein Fehler -- der Aufrufer hat sich
+            // vertan (oder schlimmeres), und das gehoert ihm gemeldet, nicht verschluckt.
+            $owner = $pdo->prepare('SELECT entry_wiki_key FROM lore_rule WHERE id = :id');
+            $owner->execute(['id' => $ruleId]);
+            $ownerKey = $owner->fetchColumn();
+            if ($ownerKey === false || (string) $ownerKey !== $entryWikiKey) {
+                throw new InvalidArgumentException(
+                    'lore_rule ' . $ruleId . ' gehoert nicht zu entry_wiki_key "' . $entryWikiKey . '".'
+                );
+            }
+
+            $update = $pdo->prepare('UPDATE lore_rule SET relation = :rel WHERE id = :id');
+            $update->execute(['rel' => $relation, 'id' => $ruleId]);
         }
 
-        $update = $pdo->prepare('UPDATE lore_rule SET relation = :rel WHERE id = :id');
-        $update->execute(['rel' => $relation, 'id' => $ruleId]);
-    }
+        $oldTerms = $pdo->prepare('SELECT id FROM lore_rule_term WHERE rule_id = :id');
+        $oldTerms->execute(['id' => $ruleId]);
+        foreach ($oldTerms->fetchAll(PDO::FETCH_COLUMN) ?: [] as $termId) {
+            $pdo->prepare('DELETE FROM lore_rule_term_type WHERE term_id = :id')->execute(['id' => $termId]);
+        }
+        $pdo->prepare('DELETE FROM lore_rule_term WHERE rule_id = :id')->execute(['id' => $ruleId]);
 
-    $oldTerms = $pdo->prepare('SELECT id FROM lore_rule_term WHERE rule_id = :id');
-    $oldTerms->execute(['id' => $ruleId]);
-    foreach ($oldTerms->fetchAll(PDO::FETCH_COLUMN) ?: [] as $termId) {
-        $pdo->prepare('DELETE FROM lore_rule_term_type WHERE term_id = :id')->execute(['id' => $termId]);
-    }
-    $pdo->prepare('DELETE FROM lore_rule_term WHERE rule_id = :id')->execute(['id' => $ruleId]);
-
-    $insertTerm = $pdo->prepare(
-        'INSERT INTO lore_rule_term (rule_id, seq, join_op, area_public_id, climate_from, climate_to)
-         VALUES (:rule, :seq, :join, :area, :from, :to)'
-    );
-    $insertType = $pdo->prepare(
-        'INSERT INTO lore_rule_term_type (term_id, kind, region_type) VALUES (:term, :kind, :type)'
-    );
-    foreach (array_values($terms) as $seq => $term) {
-        $insertTerm->execute([
-            'rule' => $ruleId,
-            'seq' => $seq,
-            'join' => ($term['join_op'] ?? 'und') === 'oder' ? 'oder' : 'und',
-            'area' => $term['area_public_id'] ?? null,
-            'from' => $term['climate_from'] ?? null,
-            'to' => $term['climate_to'] ?? null,
-        ]);
-        $termId = (int) $pdo->lastInsertId();
-        foreach ((array) ($term['types'] ?? []) as $type) {
-            $insertType->execute([
-                'term' => $termId,
-                'kind' => (string) ($type['kind'] ?? ''),
-                'type' => (string) ($type['region_type'] ?? ''),
+        $insertTerm = $pdo->prepare(
+            'INSERT INTO lore_rule_term (rule_id, seq, join_op, area_public_id, climate_from, climate_to)
+             VALUES (:rule, :seq, :join, :area, :from, :to)'
+        );
+        $insertType = $pdo->prepare(
+            'INSERT INTO lore_rule_term_type (term_id, kind, region_type) VALUES (:term, :kind, :type)'
+        );
+        foreach (array_values($terms) as $seq => $term) {
+            $insertTerm->execute([
+                'rule' => $ruleId,
+                'seq' => $seq,
+                'join' => ($term['join_op'] ?? 'und') === 'oder' ? 'oder' : 'und',
+                'area' => $term['area_public_id'] ?? null,
+                'from' => $term['climate_from'] ?? null,
+                'to' => $term['climate_to'] ?? null,
             ]);
+            $termId = (int) $pdo->lastInsertId();
+            foreach ((array) ($term['types'] ?? []) as $type) {
+                $insertType->execute([
+                    'term' => $termId,
+                    'kind' => (string) ($type['kind'] ?? ''),
+                    'type' => (string) ($type['region_type'] ?? ''),
+                ]);
+            }
         }
+
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
     }
 
     return $ruleId;
@@ -208,21 +222,31 @@ function avesmapsLoreRuleReadForEntry(PDO $pdo, string $entryWikiKey): array
  */
 function avesmapsLoreRuleDelete(PDO $pdo, int $ruleId, string $entryWikiKey): bool
 {
-    $terms = $pdo->prepare(
-        'SELECT t.id FROM lore_rule_term t
-           JOIN lore_rule r ON r.id = t.rule_id
-          WHERE t.rule_id = :id AND r.entry_wiki_key = :wk'
-    );
-    $terms->execute(['id' => $ruleId, 'wk' => $entryWikiKey]);
-    foreach ($terms->fetchAll(PDO::FETCH_COLUMN) ?: [] as $termId) {
-        $pdo->prepare('DELETE FROM lore_rule_term_type WHERE term_id = :id')->execute(['id' => $termId]);
+    // I2: dieselbe Transaktions-Zusage wie avesmapsLoreRuleSave -- drei Anweisungen, die
+    // zusammengehoeren, duerfen nicht halb durchlaufen. Das DDL laeuft VOR diesem Aufruf.
+    $pdo->beginTransaction();
+    try {
+        $terms = $pdo->prepare(
+            'SELECT t.id FROM lore_rule_term t
+               JOIN lore_rule r ON r.id = t.rule_id
+              WHERE t.rule_id = :id AND r.entry_wiki_key = :wk'
+        );
+        $terms->execute(['id' => $ruleId, 'wk' => $entryWikiKey]);
+        foreach ($terms->fetchAll(PDO::FETCH_COLUMN) ?: [] as $termId) {
+            $pdo->prepare('DELETE FROM lore_rule_term_type WHERE term_id = :id')->execute(['id' => $termId]);
+        }
+        $pdo->prepare(
+            'DELETE FROM lore_rule_term WHERE rule_id = :id
+               AND rule_id IN (SELECT id FROM lore_rule WHERE id = :id AND entry_wiki_key = :wk)'
+        )->execute(['id' => $ruleId, 'wk' => $entryWikiKey]);
+        $delete = $pdo->prepare('DELETE FROM lore_rule WHERE id = :id AND entry_wiki_key = :wk');
+        $delete->execute(['id' => $ruleId, 'wk' => $entryWikiKey]);
+
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
     }
-    $pdo->prepare(
-        'DELETE FROM lore_rule_term WHERE rule_id = :id
-           AND rule_id IN (SELECT id FROM lore_rule WHERE id = :id AND entry_wiki_key = :wk)'
-    )->execute(['id' => $ruleId, 'wk' => $entryWikiKey]);
-    $delete = $pdo->prepare('DELETE FROM lore_rule WHERE id = :id AND entry_wiki_key = :wk');
-    $delete->execute(['id' => $ruleId, 'wk' => $entryWikiKey]);
 
     return $delete->rowCount() > 0;
 }
@@ -238,9 +262,12 @@ function avesmapsLoreRuleDelete(PDO $pdo, int $ruleId, string $entryWikiKey): bo
 function avesmapsLoreRuleOrderedZoneKeys(PDO $pdo): array
 {
     try {
+        // M1: AND is_active = 1 wie die kanonische Klima-Abfrage (avesmapsClimateReadBands) --
+        // eine stillgelegte Zone wuerde sonst jede Spanne, die sie ueberbrueckt, lautlos
+        // verbreitern.
         $statement = $pdo->query(
             "SELECT type_key FROM ecosystem_region_type
-              WHERE kind = 'klima' ORDER BY sort_order ASC, type_key ASC"
+              WHERE kind = 'klima' AND is_active = 1 ORDER BY sort_order ASC, type_key ASC"
         );
         $rows = $statement === false ? [] : $statement->fetchAll(PDO::FETCH_COLUMN);
     } catch (Throwable) {
@@ -266,11 +293,19 @@ function avesmapsLoreRuleOrderedZoneKeys(PDO $pdo): array
 function avesmapsLoreRuleReadAreas(PDO $pdo): array
 {
     try {
+        // ⚠️ The redundant-looking IN (...) is what keeps this off the WHOLE ecosystem_region_overlap
+        // table -- same reasoning and the same fix as avesmapsClimateReadRegionZones
+        // (climate-membership.php): the table holds every pair of regions that touch, both
+        // directions, thousands of rows, and only a handful involve a climate band. The join alone
+        // would filter correctly but scan everything; the IN lets idx_ecosystem_overlap_other do
+        // the work.
         $statement = $pdo->query(
             "SELECT r.public_id, r.kind, r.region_type, r.name,
                     k.region_type AS zone_key, o.share
                FROM ecosystem_region r
-               LEFT JOIN ecosystem_region_overlap o ON o.region_id = r.id
+               LEFT JOIN ecosystem_region_overlap o
+                 ON o.region_id = r.id
+                AND o.other_region_id IN (SELECT id FROM ecosystem_region WHERE kind = 'klima' AND is_active = 1)
                LEFT JOIN ecosystem_region k ON k.id = o.other_region_id AND k.kind = 'klima' AND k.is_active = 1
               WHERE r.is_active = 1 AND r.kind <> 'klima' AND r.region_type IS NOT NULL
               ORDER BY r.name, r.public_id"

@@ -262,7 +262,9 @@ function avesmapsPathEcosystemChunk(PDO $pdo, array $payload): array
             // Siedlung -> Flaeche. Wie bei den Wegzeilen kommen die ids aus dem Client als
             // public_id und werden hier aufgeloest; unaufloesbare Zeilen zaehlen als skipped,
             // nicht als Fehler (eine Flaeche kann waehrend des Laufs geloescht worden sein).
-            $locationIds = avesmapsPathEcosystemIdMap($pdo, 'map_features', array_column($rows, 'location'), "feature_type = 'location'");
+            // I6: is_active = 1 wie im path-Zweig zwei Zeilen darueber -- eine geloeschte
+            // Siedlung darf keine Zuordnung mehr bekommen.
+            $locationIds = avesmapsPathEcosystemIdMap($pdo, 'map_features', array_column($rows, 'location'), "feature_type = 'location' AND is_active = 1");
             $areaIds = avesmapsPathEcosystemIdMap($pdo, 'ecosystem_area', array_column($rows, 'area'), 'is_active = 1');
             $insert = $pdo->prepare(
                 'INSERT INTO location_ecosystem (location_id, area_id) VALUES (:location, :area)
@@ -385,6 +387,7 @@ function avesmapsPathEcosystemStatus(PDO $pdo): array
             'territory_rows' => (int) $stamp['territory_rows'],
             'path_rows_chord' => (int) $stamp['path_rows_chord'],
             'path_rows_curve' => (int) $stamp['path_rows_curve'],
+            'location_rows' => (int) $stamp['location_rows'],
             'duration_ms' => (int) $stamp['duration_ms'],
             'completed' => (int) $stamp['completed'] === 1,
             'computed_at' => (string) $stamp['computed_at'],
