@@ -11,6 +11,29 @@
 **Entwurf:** `docs/superpowers/specs/2026-08-12-vorkommen-lebensraum-regel-design.md`
 **Mockups:** `docs/vorkommen-regeleditor-mockup.html`, `docs/vorkommen-klimazonen-mockup.html`
 
+---
+
+## 🔴 Korrekturen nach der Ausführung (13.08.2026)
+
+Dieser Plan wurde ausgeführt. **Fünf Stellen darin waren falsch** — sie stehen unten
+unverändert, damit die Aufgabenbeschreibung lesbar bleibt, sind aber hier richtiggestellt.
+Wer den Plan erneut ausführt, liest zuerst diesen Abschnitt.
+
+| # | Wo | Was falsch war | Richtig |
+|---|---|---|---|
+| 1 | Task 5, `avesmapsLoreRuleReadPlaces` | Liest `f.climate_zone_key` und `f.is_crossing` als Spalten von `map_features`. **Beide gibt es nicht.** | Die Klimazone wird gerechnet: `avesmapsClimateZoneKeyAt($bands, $x, $y)` mit `$bands` **einmal je Aufruf** aus `avesmapsClimateReadBands($pdo)` (`api/_internal/app/climate-membership.php`). Koordinaten aus `geometry_json` (GeoJSON Point). Kreuzungen über das Prädikat `avesmapsRoutePropertiesAreCrossing` (`api/_internal/routing/network-data.php`), nie über den Namen. |
+| 2 | Task 5, `avesmapsLoreRuleReadAreas` | **Keine Anteilsschwelle** auf `ecosystem_region_overlap` — jede Randberührung zählte als „liegt in dieser Zone". Widerspricht Entwurf §3.3 und dem Docblock von `avesmapsLoreRuleTermMatchesArea`. | `o.share` mitselektieren und gegen `AVESMAPS_CLIMATE_REGION_MIN_SHARE` prüfen. Vorbild: `avesmapsClimateReadRegionZones` in derselben Datei. |
+| 3 | Task 6, Normalisierung | Übersieht die vorgeschaltete Weiße Liste erlaubter `kind`-Werte (`in_array($kind, ['path','overlap','territory'], true)`). Ohne Ergänzung ist der neue `location`-Zweig unerreichbar. | `'location'` in die Liste aufnehmen. Ein unbekanntes `kind` muss weiterhin abgewiesen werden. |
+| 4 | Task 6, Schreibzweig | Der Location-Lookup filtert nicht auf `is_active = 1` — anders als der Pfad-Zweig daneben und anders als jeder andere `feature_type='location'`-Leser im Repo. Eine soft-gelöschte Siedlung könnte in `location_ecosystem` landen. | `"feature_type = 'location' AND is_active = 1"`. ⚠️ **Noch offen**, siehe Ledger. |
+| 5 | Task 7, `save_rule` / `delete_rule` | (a) Der Riegel `rule_matches_everything` prüfte nur „sind ALLE Bedingungen leer" — **eine** leere Bedingung trifft schon jede Fläche, und mit `join_op='oder'` daneben bleibt die Vereinigung „alles". (b) `delete_rule` nahm `wiki_key` entgegen und benutzte es nie; `save_rule` hatte dasselbe Loch über eine fremde `rule_id`. | (a) **Jede** Bedingung muss etwas einschränken — `avesmapsLoreRuleChainIsUnbounded`, rein und getestet. (b) Der Eintragsschlüssel gehört als Pflichtparameter an den Engpass in `lore-rule-store.php`, nicht an den Aufrufer. |
+
+💣 **Die Lehre, die über diesen Plan hinausgeht:** vier der fünf Fehler betrafen etwas, das
+der Plan als fertigen Code hinschrieb, ohne dass es je gelaufen war. Ein Codeblock in einem
+Bauplan liest sich wie eine Zusicherung und ist doch nur eine Vermutung. Was gegen ein
+bestehendes Schema oder eine bestehende Funktion greift, gehört im Plan als **Prüfbefehl**
+markiert, nicht als Code — so wie es Task 5 an einer Stelle schon tat und damit den ersten
+Fehler noch vor dem Bauen abfing.
+
 ## Zuschnitt: drei Sitzungen
 
 | Sitzung | Inhalt | Sichtbar? |
