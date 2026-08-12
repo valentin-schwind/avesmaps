@@ -2145,28 +2145,14 @@
 						<div id="mapLayerModeMenu" class="transport-combobox__menu" role="listbox" aria-label="Derographie" data-i18n-aria-label="view.mode.aria" hidden></div>
 					</div>
 				</label>
-				<div class="display-options__row">
-					<div class="location-toggle-group" role="group" aria-label="Ortsklassen anzeigen" data-i18n-aria-label="layer.toggleGroup">
-						<button type="button" class="location-toggle" data-location-type="metropole" title="Metropolen anzeigen oder ausblenden" aria-label="Metropolen anzeigen oder ausblenden" data-i18n-title="layer.toggle.metropole" data-i18n-aria-label="layer.toggle.metropole">
-							<img class="location-toggle__icon" src="icons/realistic/metropole.webp" data-source-src="icons/realistic/metropole.webp" alt="" />
-						</button>
-						<button type="button" class="location-toggle" data-location-type="grossstadt" title="Großstädte anzeigen oder ausblenden" aria-label="Großstädte anzeigen oder ausblenden" data-i18n-title="layer.toggle.grossstadt" data-i18n-aria-label="layer.toggle.grossstadt">
-							<img class="location-toggle__icon" src="icons/realistic/grossstadt.webp" data-source-src="icons/realistic/grossstadt.webp" alt="" />
-						</button>
-						<button type="button" class="location-toggle" data-location-type="stadt" title="Städte anzeigen oder ausblenden" aria-label="Städte anzeigen oder ausblenden" data-i18n-title="layer.toggle.stadt" data-i18n-aria-label="layer.toggle.stadt">
-							<img class="location-toggle__icon" src="icons/realistic/stadt.webp" data-source-src="icons/realistic/stadt.webp" alt="" />
-						</button>
-						<button type="button" class="location-toggle" data-location-type="kleinstadt" title="Kleinstädte anzeigen oder ausblenden" aria-label="Kleinstädte anzeigen oder ausblenden" data-i18n-title="layer.toggle.kleinstadt" data-i18n-aria-label="layer.toggle.kleinstadt">
-							<img class="location-toggle__icon" src="icons/realistic/kleinstadt.webp" data-source-src="icons/realistic/kleinstadt.webp" alt="" />
-						</button>
-						<button type="button" class="location-toggle" data-location-type="dorf" title="Dörfer anzeigen oder ausblenden" aria-label="Dörfer anzeigen oder ausblenden" data-i18n-title="layer.toggle.dorf" data-i18n-aria-label="layer.toggle.dorf">
-							<img class="location-toggle__icon" src="icons/realistic/dorf.webp" data-source-src="icons/realistic/dorf.webp" alt="" />
-						</button>
-						<button type="button" class="location-toggle" data-location-type="gebaeude" title="Besondere Bauwerke/Stätten anzeigen oder ausblenden" aria-label="Besondere Bauwerke/Stätten anzeigen oder ausblenden" data-i18n-title="layer.toggle.gebaeude" data-i18n-aria-label="layer.toggle.gebaeude">
-							<img class="location-toggle__icon" src="icons/realistic/bauwerk.webp" data-source-src="icons/realistic/bauwerk.webp" alt="" />
-						</button>
-					</div>
-				</div>
+				<!-- 💣 HIER STANDEN DIE SECHS ORTSKLASSEN. Sie sind am 12.08.2026 in das Anzeige-Menue
+				     an der Karte gezogen (#map-display-menu, weiter unten in dieser Datei) -- sie sind
+				     eine Karteneinstellung und gehoeren zur Karte, nicht zwischen Reiseziel und
+				     Transportmittel. UMGEZOGEN, nicht kopiert: es gibt sie genau einmal im Dokument,
+				     mit denselben IDs und in derselben Reihenfolge. Wer sie hier wieder einsetzt,
+				     baut zwei Bedienelemente fuer einen Zustand und legt nebenbei die Zifferntasten
+				     um (js/app/keyboard-shortcuts.js zaehlt die DOM-Reihenfolge).
+				     Entwurf: docs/superpowers/specs/2026-08-12-anzeige-menue-design.md -->
 				<div class="display-options__row display-options__row--wrap">
 					<label id="togglePathsControl" hidden><input type="checkbox" id="togglePaths" /> Wege</label>
 					<label id="toggleMapLabelsControl" hidden><input type="checkbox" id="toggleMapLabels" checked /> Labels</label>
@@ -2402,6 +2388,53 @@
 		     ⚠️ Die beiden sind absichtlich UNGLEICHE Elemente: „Neuigkeiten" ist ein <button>, weil
 		     sein Ziel auf DIESER Seite liegt, „Hinweise" ein <a> -- Begruendung direkt daran. -->
 		<div id="map-corner-actions">
+			<!-- Das Anzeige-Menue. Es steht GANZ OBEN im Bund, ueber dem Suchknopf (Owner 12.08.2026:
+			     „ein eigenes neues menü über dem suchen button").
+			     💣 Das Menue steht IM FLUSS, es schwebt nicht -- derselbe Beschluss wie beim
+			     Ansichts-Menue darunter und aus demselben Grund: ein schwebendes Menue legte sich
+			     beim Aufklappen ueber die Zoom-Knoepfe, die schlicht dahinter verschwanden. Im Fluss
+			     waechst stattdessen der Bund, und der Zoom darueber liest dessen GEMESSENE Hoehe
+			     (syncMapCornerStack) und rueckt von allein mit.
+			     💣 Die sechs Ortsklassen darin sind aus dem Routenplaner UMGEZOGEN, nicht kopiert:
+			     dieselben IDs, dieselbe Reihenfolge, genau einmal im Dokument. Daran haengt der
+			     ganze vorhandene Sichtbarkeitspfad -- und die Zifferntasten 1..6, die die n-te in
+			     DOM-Reihenfolge treffen (js/app/keyboard-shortcuts.js).
+			     Entwurf: docs/superpowers/specs/2026-08-12-anzeige-menue-design.md -->
+			<div id="map-display-menu" class="map-display-menu" role="group" aria-label="Anzeige einstellen" data-i18n-aria-label="display.menu.aria" hidden>
+				<div class="map-display-menu__group" id="display-group-places">
+					<p class="map-display-menu__title" data-i18n="display.group.places">Orte</p>
+					<div class="location-toggle-group" role="group" aria-label="Ortsklassen anzeigen" data-i18n-aria-label="layer.toggleGroup">
+						<button type="button" class="location-toggle" data-location-type="metropole" title="Metropolen anzeigen oder ausblenden" aria-label="Metropolen anzeigen oder ausblenden" data-i18n-title="layer.toggle.metropole" data-i18n-aria-label="layer.toggle.metropole">
+							<img class="location-toggle__icon" src="icons/realistic/metropole.webp" data-source-src="icons/realistic/metropole.webp" alt="" />
+						</button>
+						<button type="button" class="location-toggle" data-location-type="grossstadt" title="Großstädte anzeigen oder ausblenden" aria-label="Großstädte anzeigen oder ausblenden" data-i18n-title="layer.toggle.grossstadt" data-i18n-aria-label="layer.toggle.grossstadt">
+							<img class="location-toggle__icon" src="icons/realistic/grossstadt.webp" data-source-src="icons/realistic/grossstadt.webp" alt="" />
+						</button>
+						<button type="button" class="location-toggle" data-location-type="stadt" title="Städte anzeigen oder ausblenden" aria-label="Städte anzeigen oder ausblenden" data-i18n-title="layer.toggle.stadt" data-i18n-aria-label="layer.toggle.stadt">
+							<img class="location-toggle__icon" src="icons/realistic/stadt.webp" data-source-src="icons/realistic/stadt.webp" alt="" />
+						</button>
+						<button type="button" class="location-toggle" data-location-type="kleinstadt" title="Kleinstädte anzeigen oder ausblenden" aria-label="Kleinstädte anzeigen oder ausblenden" data-i18n-title="layer.toggle.kleinstadt" data-i18n-aria-label="layer.toggle.kleinstadt">
+							<img class="location-toggle__icon" src="icons/realistic/kleinstadt.webp" data-source-src="icons/realistic/kleinstadt.webp" alt="" />
+						</button>
+						<button type="button" class="location-toggle" data-location-type="dorf" title="Dörfer anzeigen oder ausblenden" aria-label="Dörfer anzeigen oder ausblenden" data-i18n-title="layer.toggle.dorf" data-i18n-aria-label="layer.toggle.dorf">
+							<img class="location-toggle__icon" src="icons/realistic/dorf.webp" data-source-src="icons/realistic/dorf.webp" alt="" />
+						</button>
+						<button type="button" class="location-toggle" data-location-type="gebaeude" title="Besondere Bauwerke/Stätten anzeigen oder ausblenden" aria-label="Besondere Bauwerke/Stätten anzeigen oder ausblenden" data-i18n-title="layer.toggle.gebaeude" data-i18n-aria-label="layer.toggle.gebaeude">
+							<img class="location-toggle__icon" src="icons/realistic/bauwerk.webp" data-source-src="icons/realistic/bauwerk.webp" alt="" />
+						</button>
+					</div>
+				</div>
+			</div>
+			<!-- 💣 Farbe, Kontur, Radius und Schatten kommen NICHT von hier, sondern aus der
+			     gemeinsamen Eckknopf-Regel in css/components/legal-dialog.css, wo dieser Knopf mit
+			     drinsteht -- in BEIDEN Listen, der Grundregel und der Hover-/Fokus-Regel. Genau das
+			     ging bei der Ansichts-Kachel einmal halb daneben: sie stand in der Grundregel, nicht
+			     in der Hover-Regel, und blieb als einziger der Knoepfe unter dem Zeiger stumm. -->
+			<button type="button" id="map-display-button" class="map-display-menu__button" aria-haspopup="true" aria-expanded="false" title="Anzeige" data-i18n-title="display.menu.title" aria-label="Anzeige einstellen" data-i18n-aria-label="display.menu.aria">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle>
+				</svg>
+			</button>
 			<!-- Die Suchkachel. Sie ist der einzige sichtbare Weg in die Suche am Telefon -- sonst
 			     haengt sie am Tastenkuerzel (F / Leertaste) und am Langdruck-Kontextmenue, und ein
 			     Telefon hat weder Tastatur noch eine sichtbare Geste.
@@ -3061,6 +3094,10 @@
 		     ui-controls.js: sie ruft setSelectedMapLayerMode nur auf Klick, misst aber beim Start
 		     den gewachsenen Knopfbund nach (syncMapCornerStack). -->
 		<script src="js/ui/map-layer-picker.js"></script>
+		<!-- Das Anzeige-Menue (Auge) in der Kartenecke. Wie die Ansichts-Kachel nach
+		     display-mode.js und ui-controls.js: es misst beim Auf- und Zuklappen den Knopfbund
+		     nach (syncMapCornerStack) und liest den Kartenmodus fuer seinen Riegel. -->
+		<script src="js/ui/map-display-menu.js"></script>
 		<!-- Tastaturbefehle. Bewusst als LETZTES: die Datei schaltet Leaflets eigene
 		     Tastatursteuerung ab und baut die Tabelle in den Hinweisen -- beides setzt voraus, dass
 		     die Karte und das Fenster schon stehen. Die Wirkungen selbst ruft sie ohnehin erst beim

@@ -750,58 +750,14 @@
 	box-sizing: border-box;
 }
 
-.location-toggle-group {
-	display: grid;
-	grid-template-columns: repeat(6, minmax(0, 1fr));
-	gap: 3px;
-	width: 100%;
-}
-
-.display-options .location-toggle {
-	appearance: none;
-	-webkit-appearance: none;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 0;
-	margin: 0;
-	border: 1px solid transparent;
-	border-radius: var(--radius-md);
-	background: transparent;
-	box-shadow: none;
-	cursor: pointer;
-	line-height: 1;
-	opacity: 0.3;
-	transition: opacity 0.12s ease, transform 0.12s ease;
-}
-
-.display-options .location-toggle__icon {
-	display: block;
-	width: var(--icon-xl);
-	height: var(--icon-xl);
-	object-fit: contain;
-	pointer-events: none;
-	user-select: none;
-}
-
-.display-options .location-toggle.is-active,
-.display-options .location-toggle.is-active.is-hover-preview,
-.display-options .location-toggle.is-active:hover,
-.display-options .location-toggle.is-active:focus-visible {
-	opacity: 1;
-}
-
-.display-options .location-toggle.is-hover-preview,
-.display-options .location-toggle:hover,
-.display-options .location-toggle:focus-visible {
-	background: transparent;
-	opacity: 0.7;
-	outline: none;
-}
-
-.display-options .location-toggle:hover {
-	transform: translateY(-1px);
-}
+/* 💣 HIER STANDEN DIE REGELN DER SECHS ORTSKLASSEN (.location-toggle-group, .location-toggle,
+   -__icon und ihre Zustaende). Sie sind am 12.08.2026 mit ihrem Bauteil nach
+   css/components/map-display-menu.css gezogen -- die Knoepfe stehen seither im Anzeige-Menue an
+   der Karte, nicht mehr im Routenplaner.
+   ⚠️ Sie hingen an `.display-options .location-toggle`. Waeren nur die Knoepfe umgezogen und
+   die Regeln hiergeblieben, haette der Selektor lautlos ins Leere gegriffen: die Knoepfe waeren
+   unformatiert dagestanden, ohne dass irgendwo eine Zeile fehlt. Regeln gehoeren zu ihrem
+   Bauteil. */
 
 .transport-filter-label {
 	display: inline-flex;

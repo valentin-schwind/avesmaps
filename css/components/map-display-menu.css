@@ -1,0 +1,158 @@
+/* Das Anzeige-Menue (Auge) in der Kartenecke -- was auf der Karte zu sehen ist.
+   Entwurf: docs/superpowers/specs/2026-08-12-anzeige-menue-design.md
+
+   Farbe, Kontur, Radius und Schatten des KNOPFES kommen NICHT von hier, sondern aus der
+   gemeinsamen Eckknopf-Regel in css/components/legal-dialog.css, wo #map-display-button mit
+   drinsteht -- in beiden Listen. Hier steht nur, was dieses Menue von seinen Nachbarn
+   unterscheidet; dieselbe Aufteilung wie bei der Ansichts-Kachel. Wer die Werte hierher
+   kopiert, baut die Divergenz ein, die AGENTS.md §12 beschreibt. */
+
+/* Aufgeklappt traegt der Knopf denselben Schimmer wie ein ueberfahrener Eckknopf -- er ist der
+   offene Schalter, nicht ein zweiter Zustand mit eigenem Aussehen. */
+#map-display-button[aria-expanded="true"] {
+	background-color: var(--color-panel);
+	background-image: linear-gradient(var(--color-hover-wash), var(--color-hover-wash));
+}
+
+/* 💣 IM FLUSS, NICHT SCHWEBEND. Beim Ansichts-Menue legte sich ein schwebendes Raster beim
+   Aufklappen ueber die Zoom-Knoepfe, die schlicht dahinter verschwanden (Owner 11.08.2026). Im
+   Fluss waechst stattdessen der Bund; der Zoom darueber haengt an dessen GEMESSENER Hoehe
+   (syncMapCornerStack in js/ui/ui-controls.js) und rueckt von allein mit. Deshalb steht hier
+   KEIN position: absolute und kein position: fixed -- ein Test haelt das fest. */
+.map-display-menu {
+	width: 232px;
+	/* Am schmalen Telefon bleibt der Kartenrand stehen, statt dass das Menue ihn wegdrueckt. */
+	max-width: calc(100vw - var(--space-24));
+	padding: var(--space-10);
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-panel);
+	color: var(--color-text);
+	text-align: left;
+	/* 💣 DER DECKEL. Im Bearbeiten-Modus ist der Inhalt ueber 650px hoch (gemessen am Mockup);
+	   ohne ihn schoebe das Menue Suchknopf, Ansichts-Kachel und beide Verweise aus dem Bild.
+	   ⚠️ Relativ zur Schirmhoehe, nicht absolut -- ein fester Wert liegt auf dem naechsten
+	   Geraet daneben. `overscroll-behavior` haelt das Scrollen im Kasten, sonst schwenkt am Ende
+	   der Liste die Karte darunter weiter. */
+	max-height: min(50vh, 420px);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	/* Kurze Blende beim Aufklappen, wie beim Ansichts-Menue.
+	   ⚠️ Anders als dort darf sie hier an der HUELLE sitzen: beim Ansichts-Menue liegt die aktive
+	   Zelle auf dem Fleck der zugeklappten Kachel, und alles, was sich dort bewegt, liest sich als
+	   wackelnder Knopf. Dieses Menue hat keine solche Kopplung -- der Knopf bleibt sichtbar
+	   darunter stehen. */
+	opacity: 0;
+	transform: translateY(4px);
+	transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.map-display-menu.is-open {
+	opacity: 1;
+	transform: none;
+}
+
+/* ⚠️ Muss NACH der Grundregel stehen: `[hidden]` allein verliert gegen ein spaeteres `display`. */
+.map-display-menu[hidden] {
+	display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.map-display-menu {
+		transition: none;
+		transform: none;
+	}
+}
+
+/* Gruppieren per Trenner + Ueberschrift, nicht per Rahmen (AGENTS.md §12). Der Trenner laeuft
+   full-bleed: negativer Seitenrand = Polsterung des Menues, damit die Linie von Kante zu Kante
+   geht statt in der Luft zu enden. */
+.map-display-menu__group + .map-display-menu__group {
+	margin-top: var(--space-10);
+	padding-top: var(--space-10);
+	border-top: 1px solid var(--color-divider);
+	margin-left: calc(var(--space-10) * -1);
+	margin-right: calc(var(--space-10) * -1);
+	padding-left: var(--space-10);
+	padding-right: var(--space-10);
+}
+
+/* ⚠️ Eine versteckte Gruppe darf keinen Trenner hinterlassen. `[hidden]` schaltet sie ganz weg;
+   die Regel oben greift dann fuer die naechste sichtbare Gruppe, weil `+` das DOM-Geschwister
+   meint und ein display:none-Element zwar uebersprungen aussieht, aber als Geschwister zaehlt --
+   deshalb hier ausdruecklich. */
+.map-display-menu__group[hidden] {
+	display: none;
+}
+
+.map-display-menu__title {
+	margin: 0 0 var(--space-6);
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+/* ═══ Die sechs Ortsklassen ═════════════════════════════════════════════════════════════════
+   💣 UMGEZOGEN aus css/features/route-planner.css (12.08.2026), samt ihrer Regeln. Dort hingen
+   sie an `.display-options .location-toggle` -- ein Selektor, der nach dem Umzug ins Leere
+   greift. Die Knoepfe haetten ihr Aussehen verloren, ohne dass eine Zeile "fehlt": sie waeren
+   nur unformatiert dagestanden. Owner 12.08.2026: „das design/die funktionalität der
+   stadtgrößen beibehalten". Deshalb ziehen die Regeln mit und stehen jetzt bei ihrem Bauteil.
+   ⚠️ Ohne `.display-options`-Vorfahre: das Bauteil gehoert dem Menue, nicht mehr dem Planer. */
+.location-toggle-group {
+	display: grid;
+	grid-template-columns: repeat(6, minmax(0, 1fr));
+	gap: 3px;
+	width: 100%;
+}
+
+.location-toggle {
+	appearance: none;
+	-webkit-appearance: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	margin: 0;
+	border: 1px solid transparent;
+	border-radius: var(--radius-md);
+	background: transparent;
+	box-shadow: none;
+	cursor: pointer;
+	line-height: 1;
+	/* AUS ist der auffaellige Zustand: wer die Karte leerraeumt, muss auf einen Blick sehen, was
+	   er weggenommen hat -- sonst liest sich eine leere Karte wie ein Fehler. */
+	opacity: 0.3;
+	transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.location-toggle__icon {
+	display: block;
+	width: var(--icon-xl);
+	height: var(--icon-xl);
+	object-fit: contain;
+	pointer-events: none;
+	user-select: none;
+}
+
+.location-toggle.is-active,
+.location-toggle.is-active.is-hover-preview,
+.location-toggle.is-active:hover,
+.location-toggle.is-active:focus-visible {
+	opacity: 1;
+}
+
+.location-toggle.is-hover-preview,
+.location-toggle:hover,
+.location-toggle:focus-visible {
+	background: transparent;
+	opacity: 0.7;
+	outline: none;
+}
+
+.location-toggle:hover {
+	transform: translateY(-1px);
+}

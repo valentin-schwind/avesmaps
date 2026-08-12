@@ -539,11 +539,13 @@
    ⚠️ Aus demselben Grund steht `line-height` ausgeschrieben: ein <button> bringt `normal` mit, ein
    <a> erbt die Zeilenhoehe des Dokuments. Ohne die Zeile waeren die beiden nebeneinander
    unterschiedlich hoch -- und das faellt erst auf, wenn sie es sind. */
-/* 💣 DREI Elemente, EINE Regel. Die Suchkachel traegt Farbe, Kontur, Radius und Schatten der
-   beiden Verweisknoepfe, weil sie hier mit drinsteht -- nicht, weil die Werte abgeschrieben
-   waeren. Wer sie herausloest und die Werte kopiert, baut die Divergenz ein, die AGENTS.md §12
-   beschreibt. Owner 11.08.2026: "kachel aber farbe und outline wie Hinweise bzw Neuigkeiten". */
+/* 💣 FUENF Elemente, EINE Regel. Such-, Anzeige- und Ansichts-Knopf tragen Farbe, Kontur, Radius
+   und Schatten der beiden Verweisknoepfe, weil sie hier mit drinstehen -- nicht, weil die Werte
+   abgeschrieben waeren. Wer einen herausloest und die Werte kopiert, baut die Divergenz ein, die
+   AGENTS.md §12 beschreibt. Owner 11.08.2026: "kachel aber farbe und outline wie Hinweise bzw
+   Neuigkeiten". */
 #map-search-button,
+#map-display-button,
 #map-layer-button,
 #legal-button,
 #news-button {
@@ -562,11 +564,15 @@
 	white-space: nowrap;
 }
 
-/* 💣 DIESELBEN DREI wie in der Grundregel oben -- und genau hier fehlte die Kachel. Sie stand seit
+/* 💣 DIESELBEN FUENF wie in der Grundregel oben -- und genau hier fehlte die Kachel. Sie stand seit
    dem 11.08.2026 in der Grundregel (Farbe, Kontur, Radius), aber nicht in dieser: als einziger der
-   drei Knoepfe blieb sie unter dem Zeiger stumm. Wer den einen Selektor ergaenzt, ergaenzt beide. */
+   Knoepfe blieb sie unter dem Zeiger stumm. Wer den einen Selektor ergaenzt, ergaenzt beide.
+   ⚠️ js/app/__tests__/map-display-menu.test.js prueft beide Listen -- der Anzeige-Knopf ist am
+   12.08.2026 aus demselben Grund mit einem Test gekommen, nicht nur mit einer Zeile. */
 #map-search-button:hover,
 #map-search-button:focus-visible,
+#map-display-button:hover,
+#map-display-button:focus-visible,
 #map-layer-button:hover,
 #map-layer-button:focus-visible,
 #legal-button:hover,
@@ -693,7 +699,11 @@
    ⚠️ Am Zeiger oeffnet sie dasselbe Fenster, aber OHNE die Aufklapp-Bewegung -- die steigt bei
    `!matchMedia("(pointer: coarse)")` aus (js/ui/spotlight-search.js). Owner: „hier brauchen wir
    nicht die animation, dass sich die spotlight suche oeffnet reicht vollkommen." */
-#map-search-button {
+/* ⚠️ Der Anzeige-Knopf (Auge, seit 12.08.2026) steht hier mit drin, nicht in einer eigenen Regel:
+   die beiden sind Nachbarn in derselben Spalte, und zwei Knoepfe nebeneinander mit zwei Quellen
+   fuer dieselbe Groesse laufen beim ersten Anfassen auseinander. */
+#map-search-button,
+#map-display-button {
 	display: inline-flex;
 	/* 48x48: Fingermass. Sie muss ihren Nachbarn nicht mehr gleichen (Owner 11.08.2026), also darf
 	   sie so gross sein, wie ein Daumen sie braucht -- 32px waren es vorher, weil sie sich an der
@@ -710,5 +720,10 @@
 #map-search-button svg {
 	width: 22px;
 	height: 22px;
+	display: block;
+}
+#map-display-button svg {
+	width: var(--icon-lg);
+	height: var(--icon-lg);
 	display: block;
 }

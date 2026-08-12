@@ -70,12 +70,18 @@ function installVisitorTrackingHooks() {
 		jq("#mapLayerModeSelect").on("change", function () {
 			trackVisitorEvent("map_mode", String(jq(this).val() || ""));
 		});
-		jq(".display-options").on("change", "input[type=checkbox]", function () {
+		// 💣 TWO roots, and both are load-bearing. The display switches moved out of `.display-options`
+		// into the map's own `#map-display-menu` on 2026-08-12; a delegation left behind on the old
+		// container keeps working silently — it just never fires again. No error, no warning, only a
+		// statistic that stops counting from one day on.
+		// ⚠️ And NOT `document`: `input[type=checkbox]` would then also match #allowLand, #allowRiver
+		// and every other checkbox on the page, turning a display statistic into a click statistic.
+		jq(".display-options, #map-display-menu").on("change", "input[type=checkbox]", function () {
 			trackVisitorEvent("display_toggle", (this.id || this.name || "toggle") + ":" + (this.checked ? "on" : "off"));
 		});
 		// The settlement-class toggles are <button class="location-toggle">, not checkboxes; the app sets the
 		// "is-active" class on click, so read the resulting state on the next tick.
-		jq(".display-options").on("click", ".location-toggle", function () {
+		jq(".display-options, #map-display-menu").on("click", ".location-toggle", function () {
 			const button = this;
 			const type = button.dataset.locationType || "ort";
 			window.setTimeout(function () {
