@@ -353,6 +353,36 @@ assert.ok(huelleInhalt, ".display-options existiert");
 assert.ok(huelleInhalt[1].includes('id="mapLayerModeSelect"'),
 	"die Derographie-Auswahlbox bleibt -- sie IST der Zustand der Ansicht");
 
+// ---- Die Beschriftungen stehen in der Sprachtabelle ------------------------------------------------
+//
+// 💣 Faengt: eine deutsche Zeichenkette wird ins Markup geklebt und ist damit von der geplanten
+// englischen Fassung (M8) nicht mehr erreichbar (AGENTS.md §8).
+const i18n = read("js", "app", "i18n-en.js");
+["display.menu.title", "display.menu.aria", "display.group.places", "display.group.layers",
+ "display.group.checks", "display.group.mapstyle", "display.editorOnly",
+ "display.layer.paths", "display.layer.labels", "display.layer.borders",
+ "display.layer.rivers", "display.layer.seapaths",
+ "display.disabled.borders", "display.disabled.powerlines"].forEach((key) => {
+	assert.ok(new RegExp(`"${key.replace(/\./g, "\\.")}"\\s*:`).test(i18n),
+		`der i18n-Schluessel ${key} ist auf Englisch hinterlegt`);
+	assert.ok(indexHtml.includes(key) || menueJs.includes(key),
+		`und ${key} wird auch benutzt`);
+});
+
+// 💣 Faengt: ein `data-i18n` an einer Ueberschrift, die noch ein Kind traegt. Es setzt
+// `textContent` (js/app/i18n.js:68) und wuerde das Merkmal „nur Editoren" beim ersten ?lang=en
+// mitloeschen -- ein Fehler, der auf Deutsch unsichtbar ist und deshalb praktisch nie auffaellt.
+const titel = menue[0].match(/<p class="map-display-menu__title"[^>]*>[\s\S]*?<\/p>/g) || [];
+assert.ok(titel.length >= 4, "es gibt die vier Gruppen-Ueberschriften");
+titel.forEach((ganz) => {
+	const oeffnend = ganz.slice(0, ganz.indexOf(">") + 1);
+	const hatKind = /<span/.test(ganz.slice(oeffnend.length));
+	if (hatKind) {
+		assert.ok(!/data-i18n=/.test(oeffnend),
+			`eine Ueberschrift MIT Kind traegt data-i18n nie selbst: ${oeffnend}`);
+	}
+});
+
 // ---- Kein hartkodierter Farbwert ------------------------------------------------------------------
 //
 // 💣 Faengt: AGENTS.md §12. Ein Literal hier ist die Divergenz, die Infobox und Routenplaner

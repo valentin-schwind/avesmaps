@@ -263,6 +263,26 @@ window.AVESMAPS_I18N_EN = {
 	"view.tile.title": "View: {name}",
 	"view.tile.aria": "Choose view, currently {name}",
 
+	// --- the display menu (eye) in the map corner: what is drawn on the map ---
+	// The six location-class buttons inside it keep their own "layer.toggle.*" keys further down;
+	// these are the menu's own words.
+	"display.menu.title": "Display",
+	"display.menu.aria": "Choose what the map shows",
+	"display.group.places": "Places",
+	"display.group.layers": "Layers",
+	"display.group.checks": "Checks",
+	"display.group.mapstyle": "Map style",
+	"display.editorOnly": "editors only",
+	"display.layer.paths": "Roads",
+	"display.layer.labels": "Labels",
+	"display.layer.borders": "Borders",
+	"display.layer.rivers": "Rivers",
+	"display.layer.seapaths": "Sea routes",
+	// Why a switch is greyed out. A lock without a reason reads like a bug — these two sentences
+	// are the reason, and they name the cause, not the symptom.
+	"display.disabled.borders": "No territory borders are loaded in this view.",
+	"display.disabled.powerlines": "The ley-line view shows only nodices and ley lines.",
+
 	// --- Landschaften (Erprobung): the layer switch above the map (V3.0). The three kind values stay
 	//     German in the DATA (domain vocabulary, AGENTS.md §2) -- only their LABELS are translated. ---
 	"ecosystem.layerSwitch.aria": "Landscape layer",
