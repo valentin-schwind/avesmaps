@@ -22,6 +22,15 @@ body {
 	gap: 5px;
 	overflow-x: hidden;
 	overflow-y: auto;
+	/* 💣 DIESELBE RINNE WIE IM INFOPANEL (css/features/infopanel.css). Ohne sie erscheint der
+	   Rollbalken erst, wenn der Inhalt waechst -- beim Aufklappen einer Planergruppe, beim Eintreffen
+	   einer Route -- und nimmt sich dabei ~15px BREITE. Jede Zeile darin bricht in dem Moment neu um,
+	   waehrend der Finger noch auf dem Schalter liegt (Owner 12.08.2026, erst im Infopanel gemeldet,
+	   dann hier). Mit `stable` steht der Platz von Anfang an; ob der Balken drin ist, aendert nichts
+	   mehr an der Breite.
+	   ⚠️ Beide Rollkaesten der Karte tragen die Regel. Sie hier wegzulassen hiesse, denselben Fehler
+	   an der einen Stelle zu beheben und an der anderen stehen zu lassen. */
+	scrollbar-gutter: stable;
 	padding: 10px;
 	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 	background: var(--color-panel);

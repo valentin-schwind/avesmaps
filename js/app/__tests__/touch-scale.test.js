@@ -779,6 +779,13 @@ assert.ok(/overflow-y:\s*auto/.test(panelBody[1]), "er rollt");
 assert.ok(/scrollbar-gutter:\s*stable/.test(panelBody[1]),
 	"...und haelt den Platz dafuer IMMER frei -- sonst aendert das Aufklappen eines Deckels die"
 	+ " Breite aller Zeilen darin");
+// ⚠️ BEIDE Rollkaesten der Karte, nicht nur der gemeldete. Der Planer klappt seine Gruppen genauso
+// auf und bekommt genauso eine Route hineingeschrieben; die Regel an einer Stelle zu setzen hiesse,
+// denselben Fehler halb zu beheben.
+const planerKasten = layoutCss.match(/^#search\s*\{([^}]*)\}/m);
+assert.ok(planerKasten && /overflow-y:\s*auto/.test(planerKasten[1]), "der Planer rollt");
+assert.ok(/scrollbar-gutter:\s*stable/.test(planerKasten[1]),
+	"...und haelt den Platz fuer seinen Rollbalken ebenfalls frei");
 
 // ---- Der Planer faehrt beim Start herein, und seine Lasche faehrt MIT (12.08.2026) ---------------
 //
