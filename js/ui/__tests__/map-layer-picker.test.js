@@ -66,18 +66,37 @@ assert.ok(/\[hidden\]\s*\{[^}]*display:\s*none\s*!important/.test(reset),
 	"und reset.css setzt [hidden] global mit !important durch -- daran haengt, dass die zugeklappte"
 	+ " Kachel beim Aufklappen wirklich aus dem Fluss geht");
 
-// ---- 4. Die aktive Zelle bewegt sich nicht -------------------------------------------------------
+// ---- 4. Die aktive Zelle steht still -- in BEIDEN Eigenschaften ----------------------------------
+//
+// 💣 Diesen Fehler hat es zweimal gegeben, und beide Male hat ihn der Owner gesehen, nicht das
+// Werkzeug: erst als Bewegung an der Huelle (der Knopf „wackelte" beim Aufklappen), dann als
+// Blende an der Huelle (er blinkte weg und wieder her -- gemessen war die Kachel `display: none`
+// UND das Raster `opacity: 0` im selben Augenblick, der Fleck also leer). Beides trifft
+// unweigerlich die aktive Zelle, weil sie ein KIND der Huelle ist. Deshalb wird an der Huelle
+// nichts animiert.
 const aktiveZelle = regel(".map-layer-picker__menu .map-layer-picker__cell.is-active");
-assert.ok(/transform:\s*none/.test(aktiveZelle),
-	"die aktive Zelle traegt KEINE Bewegung -- sie sitzt auf dem Fleck der zugeklappten Kachel, und"
-	+ " was sich dort bewegt, liest sich als wackelnder Knopf (Owner 12.08.2026)");
-assert.ok(!/transform:/.test(raster),
-	"...und die Huelle auch nicht, sonst macht die aktive Zelle die Bewegung wieder mit");
+["transform", "opacity"].forEach((eigenschaft) => {
+	const erwartet = eigenschaft === "transform" ? "none" : "1";
+	assert.ok(new RegExp(eigenschaft + ":\\s*" + erwartet).test(aktiveZelle),
+		`die aktive Zelle steht bei \`${eigenschaft}\` fest -- sie sitzt auf dem Fleck der`
+		+ " zugeklappten Kachel: was sich dort bewegt, liest sich als wackelnder Knopf, und was dort"
+		+ " verschwindet, als Flackern (Owner 12.08.2026, beide Male)");
+	assert.ok(!new RegExp(eigenschaft + ":").test(raster),
+		`...und die Huelle setzt \`${eigenschaft}\` NICHT -- als Elternteil zoege sie die aktive`
+		+ " Zelle sonst wieder mit");
+});
+assert.ok(/transition:\s*none/.test(aktiveZelle),
+	"und sie hat gar keinen Uebergang -- ein spaeter hinzugefuegter faende sonst wieder etwas zum"
+	+ " Animieren");
+const bewegteZelle = regel(".map-layer-picker__menu .map-layer-picker__cell");
+assert.ok(/opacity:\s*0/.test(bewegteZelle) && /transform:\s*translateY/.test(bewegteZelle),
+	"die uebrigen fuenf blenden auf und schieben sich herein -- sie kommen aus dem Nichts, sie"
+	+ " duerfen es");
 const sparsam = css.match(/@media\s*\(prefers-reduced-motion[^)]*\)\s*\{([\s\S]*?)\n\}/);
 assert.ok(sparsam, "es gibt einen Block fuer prefers-reduced-motion");
-assert.ok(/\.map-layer-picker__menu\s*,/.test(sparsam[1]) && /map-layer-picker__cell/.test(sparsam[1]),
-	"der Sparsam-Block nennt BEIDE Stellen -- die Blende sitzt an der Huelle, die Bewegung an den"
-	+ " Zellen; nur die Huelle zu nennen liesse die Zellen weiter hereinschieben");
+assert.ok(/map-layer-picker__cell/.test(sparsam[1]),
+	"der Sparsam-Block nennt die ZELLEN -- dort sitzen Blende und Bewegung, seit die Huelle nichts"
+	+ " mehr animiert");
 
 // ---- 5. Die aktive Ansicht wird ZULETZT gezeichnet ------------------------------------------------
 const zeichnen = js.slice(js.indexOf("function zeichne"), js.indexOf("function offen"));

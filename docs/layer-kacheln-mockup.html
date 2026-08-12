@@ -548,7 +548,17 @@
 	}
 }
 
-/* Am Telefon laufen die PANELS von Kante zu Kante -- die Randlaschen NICHT.
+/* 💣 DER STEMPEL DIESER DATEI WIRD AUS DEM REPO GERECHNET, HOCHGELADEN WIRD NUR DER PUSH-DIFF.
+   Am 11.08.2026 scheiterte der Deploy dieser Datei an einem roten Test -- hochgeladen wurde
+   nichts. Der naechste, erfolgreiche Lauf trug ihren NEUEN Inhaltsstempel ins HTML, ohne sie
+   selbst mitzunehmen: `tokens.css?v=903dace7de` lieferte zweieinhalb Stunden den ALTEN Inhalt,
+   und jeder Browser hat genau den unter dieser Adresse gecacht. Ein spaeterer Voll-Deploy
+   repariert das NICHT -- er laedt die richtige Datei unter dieselbe, laengst vergiftete Adresse.
+   Heilung ist nur eine INHALTSAENDERUNG (neuer Hash = neue Adresse); dieser Absatz ist sie.
+   ⚠️ Merkmal des Falls: der Server liefert mit Cache-Umgehung das Richtige, die Seite zeigt das
+   Falsche, und das HTML ist NICHT veraltet (docs/asset-caching-and-versioning.md).
+
+   Am Telefon laufen die PANELS von Kante zu Kante -- die Randlaschen NICHT.
    🔴 Das war am 11.08.2026 fuer wenige Stunden anders und ist zurueckgenommen: „von oben nach
    unten durchgehen" galt dem PANEL, nicht seinem Reiter (Owner, nach dem Ansehen: „das Tab sollte
    nicht veraendert werden, ich meinte dass das Panel selbst von oben nach unten gehen soll"). Eine
@@ -1539,32 +1549,36 @@ body {
 	   ⚠️ `display` laesst sich nicht ueberblenden -- das Raster wird deshalb erst sichtbar
 	   geschaltet und im naechsten Bild angeblendet (js/ui/map-layer-picker.js). Ohne diesen
 	   Umweg spraenge es ohne Blende ins Bild.
-	   💣 Die HUELLE blendet nur, sie BEWEGT sich nicht. Solange die Bewegung hier stand, machte
-	   die aktive Zelle sie mit -- und ausgerechnet die sitzt auf dem Fleck der zugeklappten
-	   Kachel. Das sah aus, als wackelte der Knopf beim Aufklappen auf und ab (Owner 12.08.2026).
-	   Die Bewegung gehoert deshalb an die ZELLEN, und die aktive ist davon ausgenommen. */
-	opacity: 0;
-	transition: opacity 120ms ease;
+	   💣 AN DER HUELLE WIRD NICHTS ANIMIERT -- weder Bewegung noch Blende. Beides machte die
+	   aktive Zelle sonst mit, und ausgerechnet die sitzt auf dem Fleck der zugeklappten Kachel.
+	   Es hat den Fehler ZWEIMAL gegeben: erst als Bewegung (der Knopf „wackelte" beim Aufklappen,
+	   Owner 12.08.2026), dann als Deckkraft (er blinkte weg und wieder her -- gemessen: Kachel
+	   `display: none` UND Raster `opacity: 0` im selben Augenblick, der Fleck also leer, beim
+	   Zuklappen sogar 140 ms lang). Deshalb sitzen BEIDE an den Zellen, und die aktive ist von
+	   beidem ausgenommen. Die Huelle traegt nur ihren Kasten. */
+	transition: none;
 }
 
-.map-layer-picker__menu.is-open {
-	opacity: 1;
-}
-
-/* Die uebrigen fuenf duerfen sich hereinschieben -- sie kommen ja aus dem Nichts. */
+/* Die uebrigen fuenf blenden auf und schieben sich herein -- sie kommen ja aus dem Nichts. */
 .map-layer-picker__menu .map-layer-picker__cell {
+	opacity: 0;
 	transform: translateY(4px);
-	transition: transform 120ms ease;
+	transition: opacity 120ms ease, transform 120ms ease;
 }
 
 .map-layer-picker__menu.is-open .map-layer-picker__cell {
+	opacity: 1;
 	transform: none;
 }
 
-/* 💣 Die aktive Zelle NIE. Sie ist dieselbe Stelle wie die zugeklappte Kachel -- was sich dort
-   bewegt, liest sich als wackelnder Knopf, nicht als aufklappendes Menue. */
+/* 💣 Die aktive Zelle NIE, in keiner der beiden Eigenschaften. Sie ist dieselbe Stelle wie die
+   zugeklappte Kachel: was sich dort bewegt, liest sich als wackelnder Knopf -- und was dort
+   verschwindet und wiederkommt, als Flackern. Sie steht von der ersten bis zur letzten
+   Millisekunde unveraendert da, und genau das laesst das Ganze wie ein Auffalten aussehen. */
 .map-layer-picker__menu .map-layer-picker__cell.is-active {
+	opacity: 1;
 	transform: none;
+	transition: none;
 }
 
 /* ⚠️ Muss NACH der display-Regel stehen: `[hidden]` allein verliert gegen `display: grid`. */
@@ -1572,10 +1586,10 @@ body {
 	display: none;
 }
 
-/* ⚠️ Beide Zeilen: die Blende sitzt an der Huelle, die Bewegung an den Zellen. Stuende hier nur
-   die Huelle, schoeben sich die Zellen weiter herein. */
+/* ⚠️ Blende UND Bewegung sitzen an den Zellen -- hier stehen deshalb die Zellen, nicht die
+   Huelle. Die Deckkraft wird nicht auf 1 gezwungen: das erledigt `.is-open`, und ohne Uebergang
+   ist es ein Sprung statt einer Blende. Genau das will dieser Block. */
 @media (prefers-reduced-motion: reduce) {
-	.map-layer-picker__menu,
 	.map-layer-picker__menu .map-layer-picker__cell {
 		transition: none;
 		transform: none;
