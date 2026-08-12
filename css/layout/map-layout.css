@@ -141,6 +141,25 @@ html.avesmaps-phone.avesmaps-planner-collapsed #toggle-button::before {
 	padding: var(--space-2) 0 0;
 }
 
+/* EIN durchgehender Trenner zwischen Kopf und erstem Wegpunkt (Owner 12.08.2026). Bis zum
+   Anzeige-Menue trug ihn `.display-options` als ihre Unterkante; seit die Huelle im Frontend ganz
+   wegfaellt (route-planner.css, `:has()`), nahm sie ihn mit -- Logo und Wegpunkte standen ohne
+   Grenze uebereinander.
+   💣 Als ::after und NICHT als `border-bottom` am Kopf: der Kopf hat kein seitliches Padding, ein
+   randloser Rahmen an ihm braeuchte also `margin: 0 -12px` + `padding: 0 12px` -- und `.project-
+   summary__tagline` zieht ihrerseits `-1 * --space-10` nach aussen, um nicht umzubrechen
+   (`white-space: nowrap`). Die Zeile ruecke damit 12px nach innen und stiesse an ihre eigene
+   Grenze. Das ::after aendert am Kopf-Layout nichts und haengt die Linie nur an.
+   ⚠️ EINE Linie, nicht zwei. Traegt `.display-options` je wieder etwas (der Notausgang
+   `?layerPanelActive=0` holt die Derographie-Zeile zurueck), kommt ihre eigene Unterkante hinzu --
+   die trennt dann aber SIE von den Wegpunkten, eine andere Grenze an einer anderen Stelle. */
+.project-summary::after {
+	content: "";
+	display: block;
+	margin: var(--space-10) calc(-1 * var(--space-10)) 0;
+	border-bottom: 1px solid var(--color-divider);
+}
+
 .project-summary__title {
 	margin: 0;
 	line-height: 0;
