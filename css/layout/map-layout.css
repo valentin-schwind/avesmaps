@@ -117,6 +117,16 @@ html.avesmaps-phone #toggle-button::before {
 	content: "\2039";
 	font-size: 30px;
 	line-height: 1;
+	/* 💣 GEMESSEN, nicht geschaetzt (12.08.2026, Owner: „und den pfeil zentrieren?"): die Tinte
+	   dieses Zeichens fuellt nur 8x13 px seiner 10x30-Textbox und sitzt darin 3 px zu TIEF. Flex
+	   zentriert die BOX, nicht die Form -- rechnerisch stimmte alles, sichtbar stand der Pfeil
+	   unter der Mitte des Griffs.
+	   ⚠️ Relativ zur Schriftgroesse (3/30 = 0.1em), damit die Korrektur mitwaechst, wenn jemand
+	   den Griff groesser macht. Eine feste Pixelzahl waere beim naechsten Anfassen wieder falsch.
+	   ⭐ Dauerhaft richtig waere ein SVG statt eines Schriftzeichens: docs/design-language.md
+	   verlangt fuer Chevrons ohnehin einen einheitlichen Umriss-Satz („Stop mixing CSS shapes and
+	   unicode characters"). Das ist ein eigener Umbau -- bis dahin traegt diese eine Zahl. */
+	transform: translateY(-0.1em);
 }
 html.avesmaps-phone.avesmaps-planner-collapsed #toggle-button::before {
 	content: "\203A";

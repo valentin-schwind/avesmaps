@@ -105,21 +105,28 @@ assert.ok(/#map-display-menu/.test(tracking),
 assert.ok(!/jq\(document\)\.on\("change", "input\[type=checkbox\]"/.test(tracking),
 	"aber nicht vom ganzen Dokument aus");
 
-// ---- Das Menue haengt im Fluss und misst den Bund nach --------------------------------------------
+// ---- Das Menue SCHWEBT ueber dem Bund --------------------------------------------------------------
 //
-// 💣 Faengt: das Menue wird schwebend gebaut. Beim Ansichts-Menue legte sich genau das ueber die
-// Zoom-Knoepfe, die schlicht dahinter verschwanden (Owner 11.08.2026). Im Fluss waechst der Bund,
-// und der Zoom darueber liest dessen GEMESSENE Hoehe.
+// 🔴 Owner 12.08.2026, nach dem Blick auf die gebaute Fassung: „kannst du das menü über das andere
+// zeugs legen". Das kehrt die Regel um, die beim Ansichts-Menue nebenan gilt -- dort steht das
+// Raster im Fluss. Der Grund fuer den Unterschied: dieses Menue ist mit bis zu 18 Zeilen ein
+// Vielfaches hoeher als die sechs Kacheln; im Fluss schob es den ganzen Bund nach oben und
+// verdeckte dabei MEHR Karte, als es schwebend je ueberlagern kann.
 const menueJs = withoutComments(read("js", "ui", "map-display-menu.js"));
-assert.ok(/syncMapCornerStack/.test(menueJs),
-	"map-display-menu.js misst den Knopfbund nach jedem Auf- und Zuklappen nach");
 const menueCss = withoutComments(read("css", "components", "map-display-menu.css"));
-// ⚠️ Geprueft wird die HUELLE, nicht die Datei: ein `position: absolute` weiter unten ist legitim
-// (die Zustands-Checkbox wird so aus dem Bild genommen, ohne ihre Semantik zu verlieren).
 const huelleRegel = menueCss.match(/\n\.map-display-menu \{[^}]*\}/);
 assert.ok(huelleRegel, "die Regel .map-display-menu existiert");
-assert.ok(!/position:\s*(absolute|fixed)/.test(huelleRegel[0]),
-	"und das Menue steht im Fluss, nicht schwebend");
+assert.ok(/position:\s*absolute/.test(huelleRegel[0]),
+	"das Menue schwebt (Owner 12.08.2026) statt den Bund zu verlaengern");
+
+// 💣 Faengt: der Bezugspunkt rutscht vom BUND auf den Knopf. `bottom: 100%` an einem Bezug, der
+// nur den Knopf umfasst, setzte das Menue mitten in den Bund -- ueber die Suchkachel und die
+// Ansichts-Kachel, die dann unbedienbar darunter laegen.
+assert.ok(/bottom:\s*100%/.test(huelleRegel[0]),
+	"und zwar ueber dem GESAMTEN Bund (bottom: 100% gegen #map-corner-actions)");
+const legalCssRoh = withoutComments(legalCss);
+assert.ok(/#map-corner-actions\s*\{[^}]*position:\s*fixed/.test(legalCssRoh),
+	"#map-corner-actions traegt die Positionierung -- er ist der Bezug des schwebenden Menues");
 
 // 💣 Faengt: der Zustand des Menues haengt wieder an `hidden` oder an der Klasse `is-open`.
 // Beides ist WAHR, aber zu spaet: `hidden` springt erst nach der 120-ms-Blende um, `is-open` erst

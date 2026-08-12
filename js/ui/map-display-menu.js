@@ -83,11 +83,12 @@
 		}
 
 		/**
-		 * 💣 Der Zoom ueber dem Bund haengt an dessen GEMESSENER Hoehe. Es gibt dafuer schon einen
-		 * ResizeObserver, aber der wird wie jede Bildschleife erst zum naechsten Bild zugestellt --
-		 * und beim Auf- und Zuklappen aendert sich die Hoehe genau JETZT. Einmal zu oft messen ist
-		 * harmlos, einmal zu spaet laesst den Zoom auf dem Bund sitzen (der 8-px-Fehler vom
-		 * 10.08.2026).
+		 * Der Zoom ueber dem Bund haengt an dessen GEMESSENER Hoehe.
+		 * ⚠️ Seit das Menue schwebt (Owner 12.08.2026), aendert das Auf- und Zuklappen die Bundhoehe
+		 * nicht mehr -- dieser Aufruf ist damit meist folgenlos. Er bleibt trotzdem: der Bund
+		 * enthaelt weiter Elemente, die ihre Hoehe aendern koennen (Ansichts-Menue, Sprache,
+		 * Umbruch der Verweiszeile), und einmal zu oft messen ist harmlos. Einmal zu spaet laesst
+		 * den Zoom auf dem Bund sitzen -- der 8-px-Fehler vom 10.08.2026.
 		 */
 		function misstDenBund() {
 			if (typeof syncMapCornerStack === "function") {

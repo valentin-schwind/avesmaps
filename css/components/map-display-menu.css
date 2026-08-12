@@ -14,6 +14,18 @@
    unterscheidet; dieselbe Aufteilung wie bei der Ansichts-Kachel. Wer die Werte hierher
    kopiert, baut die Divergenz ein, die AGENTS.md §12 beschreibt. */
 
+/* 💣 DER BUND WIRD ANGEHOBEN, NICHT DAS MENUE. #map-corner-actions traegt selbst einen z-index
+   (--z-map-ui) und ist damit ein eigener STAPELKONTEXT -- ein z-index am Menue darin kann daraus
+   nicht ausbrechen und bleibt hinter allem, was hoeher steht. Konkret: die Routenplaner-Lasche
+   (--z-map-panel, 1010) lag ueber dem schwebenden Menue und schnitt ihm am Telefon die Zeile
+   „EBENEN" an (gemessen 12.08.2026 mit elementFromPoint).
+   ⚠️ Und nur SOLANGE ES OFFEN IST. Ein dauerhaft angehobener Bund laege auch dann ueber der
+   Lasche, wenn gar nichts aufgeklappt ist -- er soll sie nicht verdraengen, sondern sich fuer die
+   Dauer eines Menues davorschieben. */
+#map-corner-actions:has(.map-display-menu:not([hidden])) {
+	z-index: var(--z-map-menu);
+}
+
 /* Aufgeklappt traegt der Knopf denselben Schimmer wie ein ueberfahrener Eckknopf -- er ist der
    offene Schalter, nicht ein zweiter Zustand mit eigenem Aussehen. */
 #map-display-button[aria-expanded="true"] {
@@ -21,12 +33,24 @@
 	background-image: linear-gradient(var(--color-hover-wash), var(--color-hover-wash));
 }
 
-/* 💣 IM FLUSS, NICHT SCHWEBEND. Beim Ansichts-Menue legte sich ein schwebendes Raster beim
-   Aufklappen ueber die Zoom-Knoepfe, die schlicht dahinter verschwanden (Owner 11.08.2026). Im
-   Fluss waechst stattdessen der Bund; der Zoom darueber haengt an dessen GEMESSENER Hoehe
-   (syncMapCornerStack in js/ui/ui-controls.js) und rueckt von allein mit. Deshalb steht hier
-   KEIN position: absolute und kein position: fixed -- ein Test haelt das fest. */
+/* 🔴 ES SCHWEBT -- Owner 12.08.2026, nach dem ersten Blick auf die gebaute Fassung
+   („kannst du das menü über das andere zeugs legen").
+   Das ist die ausdrueckliche Umkehr der Regel, die beim Ansichts-Menue nebenan gilt. Dort steht
+   das Raster IM FLUSS, weil ein schwebendes sich ueber die Zoom-Knoepfe legte (Owner 11.08.2026).
+   Hier wiegt das andere schwerer: dieses Menue ist mit bis zu 18 Zeilen ein Vielfaches hoeher als
+   die sechs Ansichts-Kacheln. Im Fluss schob es den ganzen Bund nach oben, verdeckte dabei mehr
+   Karte als es je ueberlagern koennte, und liess Suchknopf und Kachel wandern.
+   ⚠️ Der Preis ist derselbe wie damals und bleibt bestehen: solange das Menue offen ist, liegt es
+   ueber den Zoom-Knoepfen. Das ist der bewusste Tausch -- ein Menue ist ein kurzer Zustand, die
+   Bundhoehe war ein dauernder.
+   ⚠️ Bezug ist der BUND (#map-corner-actions, position: fixed), nicht der Knopf: `bottom: 100%`
+   setzt das Menue damit ueber den GESAMTEN Bund statt mitten hinein. Deshalb verdeckt es weder
+   den Auge-Knopf noch die Suchkachel darunter. */
 .map-display-menu {
+	position: absolute;
+	right: 0;
+	bottom: 100%;
+	margin-bottom: 6px;
 	/* Am Zeiger so breit wie der Routenplaner (Owner 12.08.2026: „auf dem desktop etwa die breite
 	   des routenplaners -- dann passen die ort-toggles in eine reihe"). Die Zahl steht als Token,
 	   nicht hier: zwei Quellen fuer dieselbe Breite laufen beim ersten Anfassen auseinander. */

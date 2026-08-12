@@ -507,6 +507,11 @@
 	   quetschen. Zwei Zahlen, die dasselbe meinen, laufen beim ersten Anfassen auseinander --
 	   derselbe Fall wie --avesmaps-edge-gap darueber. */
 	--avesmaps-planner-width: 350px;
+	/* Eine Sprosse ueber --z-map-panel (1010): ein GEOEFFNETES Menue in der Kartenecke. Es
+	   schwebt seit dem 12.08.2026 ueber der Karte und ueberlappt dabei die Routenplaner-Lasche,
+	   die sonst darueber laege und ihm die erste Zeile abschneidet.
+	   ⚠️ Nur fuer den offenen Zustand gedacht -- der Bund selbst bleibt auf --z-map-ui. */
+	--z-map-menu: 1020;
 
 	/* Elevation */
 	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
