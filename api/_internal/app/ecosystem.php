@@ -695,12 +695,28 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
             territory_rows INT UNSIGNED NOT NULL,
             path_rows_chord INT UNSIGNED NOT NULL,
             path_rows_curve INT UNSIGNED NOT NULL,
+            location_rows INT UNSIGNED NOT NULL DEFAULT 0,
             duration_ms INT UNSIGNED NOT NULL,
             run_token CHAR(36) NULL,
             completed TINYINT(1) NOT NULL DEFAULT 0,
             computed_by BIGINT UNSIGNED NULL,
             computed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
             PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    // Siedlung -> Flaeche, Vorbild path_ecosystem. Gefuellt vom selben Lauf
+    // („Zugehoerigkeit rechnen"), gebraucht von der Lebensraum-Regel: ohne sie weiss
+    // niemand, in welchem Wald eine Stadt steht.
+    // ⚠️ Die Klimazone der Siedlung steht NICHT hier -- die stempelt
+    // avesmapsClimateApplyToFeatures ohnehin in den Payload, und eine zweite Ablage waere
+    // eine zweite Wahrheit.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS location_ecosystem (
+            location_id BIGINT UNSIGNED NOT NULL,
+            area_id     BIGINT UNSIGNED NOT NULL,
+            PRIMARY KEY (location_id, area_id),
+            KEY idx_location_ecosystem_area (area_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 

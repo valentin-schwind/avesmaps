@@ -49,8 +49,8 @@ function avesmapsPathEcosystemTokenMatches(?string $current, string $offered): b
  */
 function avesmapsPathEcosystemNormalizeRows(string $kind, mixed $rows): array
 {
-    if (!in_array($kind, ['path', 'overlap', 'territory'], true)) {
-        throw new InvalidArgumentException('kind must be path, overlap or territory.');
+    if (!in_array($kind, ['path', 'overlap', 'territory', 'location'], true)) {
+        throw new InvalidArgumentException('kind must be path, overlap, territory or location.');
     }
     if ($rows === null || $rows === '') {
         return [];
@@ -121,6 +121,16 @@ function avesmapsPathEcosystemNormalizeRows(string $kind, mixed $rows): array
             continue;
         }
 
+        if ($kind === 'location') {
+            // Zwei public_ids, sonst nichts -- eine Siedlung liegt in einer Flaeche oder nicht,
+            // es gibt keinen Anteil und keine Reihenfolge.
+            $normalized[] = [
+                'location' => $readId($row['location'] ?? null, 'location'),
+                'area' => $readId($row['area'] ?? null, 'area'),
+            ];
+            continue;
+        }
+
         $normalized[] = [
             'region' => $readId($row['region'] ?? null, 'region'),
             'territory' => $readId($row['territory'] ?? null, 'territory'),
@@ -154,6 +164,7 @@ function avesmapsPathEcosystemBegin(PDO $pdo, int $userId): array
         $pdo->exec('DELETE FROM path_ecosystem');
         $pdo->exec('DELETE FROM ecosystem_region_overlap');
         $pdo->exec('DELETE FROM ecosystem_region_territory');
+        $pdo->exec('DELETE FROM location_ecosystem');
         $statement = $pdo->prepare(
             'INSERT INTO ecosystem_assignment_stamp
                  (id, ecosystem_revision, map_revision, area_count, path_count, overlap_rows,
@@ -247,6 +258,24 @@ function avesmapsPathEcosystemChunk(PDO $pdo, array $payload): array
                 ]);
                 $written++;
             }
+        } elseif ($kind === 'location') {
+            // Siedlung -> Flaeche. Wie bei den Wegzeilen kommen die ids aus dem Client als
+            // public_id und werden hier aufgeloest; unaufloesbare Zeilen zaehlen als skipped,
+            // nicht als Fehler (eine Flaeche kann waehrend des Laufs geloescht worden sein).
+            $locationIds = avesmapsPathEcosystemIdMap($pdo, 'map_features', array_column($rows, 'location'), "feature_type = 'location'");
+            $areaIds = avesmapsPathEcosystemIdMap($pdo, 'ecosystem_area', array_column($rows, 'area'), 'is_active = 1');
+            $insert = $pdo->prepare(
+                'INSERT INTO location_ecosystem (location_id, area_id) VALUES (:location, :area)
+                 ON DUPLICATE KEY UPDATE location_id = VALUES(location_id)'
+            );
+            foreach ($rows as $row) {
+                if (!isset($locationIds[$row['location']], $areaIds[$row['area']])) {
+                    $skipped++;
+                    continue;
+                }
+                $insert->execute(['location' => $locationIds[$row['location']], 'area' => $areaIds[$row['area']]]);
+                $written++;
+            }
         } elseif ($kind === 'overlap') {
             $regionIds = avesmapsPathEcosystemIdMap(
                 $pdo,
@@ -314,7 +343,7 @@ function avesmapsPathEcosystemCommit(PDO $pdo, array $payload, int $userId): arr
         'UPDATE ecosystem_assignment_stamp
             SET ecosystem_revision = :eco, map_revision = :map, area_count = :areas, path_count = :paths,
                 overlap_rows = :overlap, territory_rows = :territory,
-                path_rows_chord = :chord, path_rows_curve = :curve,
+                path_rows_chord = :chord, path_rows_curve = :curve, location_rows = :location,
                 duration_ms = :duration, completed = 1, computed_by = :user, computed_at = CURRENT_TIMESTAMP(3)
           WHERE id = 1'
     );
@@ -327,6 +356,7 @@ function avesmapsPathEcosystemCommit(PDO $pdo, array $payload, int $userId): arr
         'territory' => $count('SELECT COUNT(*) FROM ecosystem_region_territory'),
         'chord' => $count('SELECT COUNT(*) FROM path_ecosystem WHERE basis = 0'),
         'curve' => $count('SELECT COUNT(*) FROM path_ecosystem WHERE basis = 1'),
+        'location' => $count('SELECT COUNT(*) FROM location_ecosystem'),
         'duration' => max(0, (int) ($payload['duration_ms'] ?? 0)),
         'user' => $userId > 0 ? $userId : null,
     ]);
