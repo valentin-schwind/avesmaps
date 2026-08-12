@@ -917,4 +917,26 @@ assert.ok(/--avesmaps-tab-edge-shade:\s*linear-gradient/.test(tokens)
 	&& /background-image:\s*var\(--avesmaps-tab-edge-shade\)/.test(phoneGriff[1]),
 	"der Kantenschatten ist ein Token und wird als solcher gelesen -- keine Farbe von Hand (AGENTS.md §12)");
 
+// ---- Der Knopfbund blendet am Telefon aus, waehrend die Infobox offen ist (12.08.2026) ----------
+//
+// Owner: „solang es ausgefahren ist koennen die items auch ausgeblendet werden (mit der bewegung
+// nach links) und wieder eingeblendet werden wenn das infopanel zurueck nach rechts faehrt."
+const bundAmTelefon = infopanelCss.match(/^html\.avesmaps-phone\.avesmaps-any-panel-open #map-corner-actions\s*\{([^}]*)\}/m);
+assert.ok(bundAmTelefon, "es gibt eine Telefon-Regel fuer den Knopfbund bei offenem Panel");
+assert.ok(/opacity:\s*0/.test(bundAmTelefon[1]) && /visibility:\s*hidden/.test(bundAmTelefon[1]),
+	"sie blendet ihn aus");
+// 💣 DIE Falle dieser Regel. syncMapCornerStack misst `getBoundingClientRect().height` und schreibt
+// sie als --avesmaps-corner-stack auf <html>; `display: none` misst 0, der Guard `if (!hoehe)
+// return` liesse die veraltete Zahl stehen, und der Zoom saesse beim naechsten Wachsen des Bundes
+// falsch. Verborgen, aber gelayoutet, misst sich weiter richtig -- gemessen: 219 zu, 256 offen.
+assert.ok(!/display:\s*none/.test(bundAmTelefon[1]),
+	"...aber NIEMALS mit display:none -- der Bund muss messbar bleiben (syncMapCornerStack)");
+assert.ok(/pointer-events:\s*none/.test(bundAmTelefon[1]),
+	"...und schluckt keine Tipper, solange er unsichtbar ist");
+// ⚠️ Blende und Weg gehoeren zusammen: dieselbe Dauer, sonst ist der Bund weg, bevor er drueben ist.
+const bundGrund = infopanelCss.match(/^\.avesmaps-infopanel-mode #map-corner-actions\s*\{([^}]*)\}/m);
+assert.ok(bundGrund && /transition:[^;]*right 0\.22s[^;]*opacity 0\.22s/.test(bundGrund[1]),
+	"Weg und Blende laufen gleich lang (0.22s), und zwar schon in der Grundregel -- sonst blendet er"
+	+ " nur in eine Richtung weich");
+
 console.log("touch-scale tests passed");

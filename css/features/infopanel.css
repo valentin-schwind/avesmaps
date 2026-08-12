@@ -423,7 +423,10 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	left: auto;
 	right: 12px;
 	bottom: var(--avesmaps-edge-gap);
-	transition: right 0.22s ease;
+	/* `opacity` faehrt mit, weil der Bund am Telefon nicht bloss wandert, sondern dabei ausblendet
+	   (Regel weiter unten) -- beides muss dieselbe Dauer haben, sonst laufen Weg und Blende
+	   auseinander. */
+	transition: right 0.22s ease, opacity 0.22s ease;
 }
 .avesmaps-infopanel-mode .leaflet-control-zoom {
 	position: fixed;
@@ -449,6 +452,28 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 .avesmaps-infopanel-mode.avesmaps-any-panel-open #map-corner-actions,
 .avesmaps-infopanel-mode.avesmaps-any-panel-open .leaflet-control-zoom {
 	right: calc(var(--avesmaps-ip-w) + 12px);
+}
+
+/* Am Telefon WANDERT der Bund nicht nur nach links, er blendet dabei aus (Owner 12.08.2026). Dort
+   bleibt neben dem Panel ein Streifen von 64px, und ein Knopfbund darin steht auf der Karte, ohne
+   dass jemand ihn erreichen will -- solange die Infobox offen ist, gehoert die Aufmerksamkeit ihr.
+   Zurueck faehrt das Panel, zurueck kommen die Knoepfe.
+   💣 `opacity`/`visibility`, NIEMALS `display: none`. syncMapCornerStack (js/ui/ui-controls.js)
+   misst die Bundhoehe mit `getBoundingClientRect()` und schreibt sie als --avesmaps-corner-stack
+   auf <html>; ein ausgeblendeter Bund misst 0, und der Guard `if (!hoehe) return` liesse die
+   veraltete Zahl stehen. Verborgen, aber gelayoutet, misst sich weiter richtig.
+   ⚠️ `visibility` schaltet erst NACH der Blende (0s linear 0.22s) -- sonst ist der Bund weg, bevor
+   er verblasst ist. Beim Einblenden greift die Regel gar nicht mehr, also ist er sofort wieder da
+   und blendet auf. `pointer-events: none` gehoert dazu: ein unsichtbarer Knopf, der Tipper
+   schluckt, ist schlimmer als ein sichtbarer.
+   ⚠️ Der Zoom steht hier nicht mit drin -- am groben Zeiger ist er ohnehin ausgeblendet
+   (css/layout/map-layout.css); ihn hier noch einmal zu verstecken waere eine zweite Regel fuer
+   dasselbe. */
+html.avesmaps-phone.avesmaps-any-panel-open #map-corner-actions {
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+	transition: right 0.22s ease, opacity 0.22s ease, visibility 0s linear 0.22s;
 }
 
 /* Wird es in der Ecke eng, stapelt der Bund: „Neuigkeiten“ nach oben, „Hinweise“ bleibt unten am
