@@ -83,14 +83,18 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	content: "\25BE";
 }
 
-/* 🔴 HIER STANDEN ZWEI SPALTEN, und sie sind wieder heraus. `columns: 2 150px` erzwingt in Chrome
-   die Zwei, auch wenn kein Platz ist -- GEMESSEN am 12.08.2026: Wertspalte 171px am Telefon und
-   ~244px am Zeiger, macht Spalten von 80 bzw. 116px, in denen jeder zweite Name umbricht
-   („Brindâler Mädchentraube"). Platz für zwei Spalten gäbe es erst, wenn der aufgeklappte Wert die
-   volle Panelbreite bekäme -- und das hiesse, die tabellarische Form aufzugeben, die derselbe Owner
-   am selben Tag ausdrücklich behalten wollte. Die Buchstabenmarken bleiben, die Spalten nicht. */
+/* ZWEI SPALTEN, ABER ERST AB 110px JE SPALTE (Owner 12.08.2026: „dann könnten wir aber auch mal 2
+   spaltig probieren").
+   💣 Die Mindestbreite ist der ganze Trick, und sie ist gemessen, nicht geschätzt. Hart `columns: 2`
+   ergibt am Telefon Spalten von 64px -- von 23 Buchstabenblöcken brachen 22 um, die Liste wurde
+   höher statt kürzer. Am Zeiger sind es 109px, und dort brach von den kurzen Namen der
+   Reichsstrasse KEIN einziger um. Also: zwei Spalten, wo sie tragen, eine, wo nicht -- und die
+   Grenze zieht der Browser selbst.
+   ⚠️ `column-fill: balance` ist Vorgabe und hier richtig: bei `auto` liefe die erste Spalte voll und
+   die zweite bliebe fast leer. */
 .avesmaps-lore__spalten {
-	display: block;
+	columns: 2 105px;
+	column-gap: var(--space-6);
 	margin-top: var(--space-2);
 }
 

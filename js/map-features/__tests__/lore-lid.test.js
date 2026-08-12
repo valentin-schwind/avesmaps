@@ -158,8 +158,8 @@ assert.ok(/avesmaps-lore__buchstabe">/.test(
 	avesmapsLoreInfoRowMarkup(zeile("ware"), reihe(40, "Ware"), 40, "punin", null)),
 	"40 Eintraege in einer Gruppe bekommen Marken");
 assert.ok(!/avesmaps-lore__buchstabe">/.test(
-	avesmapsLoreInfoRowMarkup(zeile("ware"), reihe(12, "Ware"), 12, "punin", null)),
-	"12 nicht -- eine kurze Liste braucht keine Wegweiser");
+	avesmapsLoreInfoRowMarkup(zeile("ware"), reihe(6, "Ware"), 6, "punin", null)),
+	"sechs nicht -- eine kurze Liste braucht keine Wegweiser (Schwelle 10, Owner 12.08.2026)");
 // 💣 Umlaute fallen auf ihren Grundbuchstaben, sonst stuende „Aelbler\" unter einer eigenen Marke
 // hinter Z -- localeCompare sortiert ihn nach vorn, die Marke muesste also auch „A\" heissen.
 assert.strictEqual(avesmapsLoreLetterOf("Älbler"), "A", "Ae faellt auf A");

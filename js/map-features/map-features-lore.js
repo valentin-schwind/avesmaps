@@ -258,7 +258,10 @@ var AVESMAPS_LORE_GROUPS = [
 // (dann kommen Marken). Eine Etappe mit 12 Tierarten sieht damit aus wie bisher; nur die grossen
 // Faelle werden gebaendigt.
 var AVESMAPS_LORE_GROUP_LID_MIN = 25;
-var AVESMAPS_LORE_LETTER_MIN = 30;
+// 🔧 Owner 12.08.2026 von 30 auf 10 gesenkt („dann könnten wir aber auch mal … die schwelle auf
+// 10"): bei 30 sah er die Marken an seinem Beispiel nie -- die Reichsstrasse 2 traegt in ihrer
+// groessten Gruppe sechs Waren.
+var AVESMAPS_LORE_LETTER_MIN = 10;
 
 // Der Buchstabe, unter dem ein Name einsortiert wird. Umlaute fallen auf ihren Grundbuchstaben
 // (Ä -> A), sonst haette „Älbler" eine eigene Marke hinter Z.
