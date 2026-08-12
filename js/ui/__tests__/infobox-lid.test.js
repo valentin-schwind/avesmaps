@@ -70,3 +70,26 @@ assert.strictEqual(buildInfoboxLid({ preview: "", full: "", count: 0 }), "",
 	"ohne Inhalt kein Deckel -- kein leerer Kasten mit „0 Orte auf dem Weg\"");
 
 console.log("OK: der Deckel -- <details>, Einzahl/Mehrzahl, statisch ohne Oeffner");
+
+// ---- der Satz steht OBEN (Owner 2026-08-12) ---------------------------------------------------
+// 💣 Sonst springt er beim Aufklappen: unter der Vorschau stehend wandert er nach oben, sobald die
+// Vorschau weicht -- derselbe Satz an zwei Stellen, je nach Zustand. Oben ruehrt er sich nie.
+// „waer schoen, wenn die Woerter moeglichst stabil an der Stelle bleiben."
+const stabil = buildInfoboxLid({
+	preview: "VORSCHAU", full: "VOLL", count: 11,
+	singular: "Ware wird hier gehandelt", plural: "Waren werden hier gehandelt",
+});
+assert.ok(stabil.indexOf("infobox-lid__foot") < stabil.indexOf("infobox-lid__preview"),
+	"💣 der Satz steht VOR der Vorschau, sonst springt er beim Aufklappen: " + stabil);
+assert.ok(stabil.indexOf("infobox-lid__preview") < stabil.indexOf("infobox-lid__full"),
+	"und die Vorschau vor dem vollen Inhalt");
+
+const stabilStatisch = buildInfoboxLid({
+	preview: "VORSCHAU", full: "VORSCHAU", count: 2,
+	singular: "Pflanzenart wächst hier", plural: "Pflanzenarten wachsen hier",
+	openable: false,
+});
+assert.ok(stabilStatisch.indexOf("infobox-lid__foot") < stabilStatisch.indexOf("infobox-lid__preview"),
+	"auch im statischen Deckel steht der Satz oben -- sonst saehen die beiden verschieden aus");
+
+console.log("OK: der Satz steht oben und bleibt beim Aufklappen an seiner Stelle");

@@ -55,7 +55,11 @@ assert.ok(lang.indexOf("11 Waren werden hier gehandelt") >= 0
 	|| lang.indexOf("Waren werden hier gehandelt") >= 0, "mit dem Satz");
 // 💣 Die Vorschau zeigt DREI Namen, nicht acht. Acht von 51 waren zu wenig fuer eine Liste und zu
 // viel, um den Oeffner noch zu sehen -- das war der Anlass.
-const vorschau = lang.slice(lang.indexOf("infobox-lid__preview"), lang.indexOf("infobox-lid__foot"));
+// ⚠️ Der Satz steht seit 2026-08-12 VOR der Vorschau (sonst springt er beim Aufklappen), die
+// Vorschau also zwischen ihm und dem vollen Inhalt. Wer hier gegen __foot schneidet, schneidet
+// rueckwaerts und bekommt einen leeren String -- der dann jede Zusicherung besteht.
+const vorschau = lang.slice(lang.indexOf("infobox-lid__preview"), lang.indexOf("infobox-lid__full"));
+assert.ok(vorschau.length > 0, "der Vorschau-Ausschnitt darf nicht leer sein");
 assert.strictEqual((vorschau.match(/Ware\d/g) || []).length, 3,
 	"genau drei Namen in der Vorschau: " + vorschau);
 // ...aber ALLE elf stehen im Dokument, sonst faende die Seitensuche sie nicht.
@@ -86,7 +90,7 @@ assert.strictEqual((voll.match(/Garether Bier/g) || []).length, 1,
 	"kein Doppeleintrag im Aufgeklappten: " + voll);
 // 💣 Die kontinentweiten bleiben aus der VORSCHAU heraus -- was ueberall gilt, sagt ueber diesen
 // Ort nichts. Im Aufgeklappten stehen sie unter ihrer Ueberschrift.
-const vorschau2 = grp.slice(grp.indexOf("infobox-lid__preview"), grp.indexOf("infobox-lid__foot"));
+const vorschau2 = grp.slice(grp.indexOf("infobox-lid__preview"), grp.indexOf("infobox-lid__full"));
 assert.ok(vorschau2.indexOf("Perricumer Salz") < 0, "rank 3 nicht in der Vorschau: " + vorschau2);
 
 // Eine EINZIGE Gruppe gliedert nichts -- dann steht auch ihre Ueberschrift nicht da.

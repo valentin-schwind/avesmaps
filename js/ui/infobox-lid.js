@@ -77,22 +77,32 @@ function buildInfoboxLid(spec) {
 	var count = Number(spec.count) || 0;
 	var prose = avesmapsInfoboxLidProse(count, spec.singular || "", spec.plural || "");
 
-	// Nichts zu öffnen: der Deckel bleibt, weil sein Satz eine ANGABE ist und keine Aufforderung --
-	// aber ohne „alle anzeigen" und ohne <details>, das nichts zu zeigen hätte.
+	// 💣 DER SATZ STEHT OBEN, NICHT UNTEN -- und das ist keine Geschmacksfrage, sondern der Grund,
+	// warum beim Aufklappen nichts springt. Unter der Vorschau stehend wanderte er nach oben, sobald
+	// die Vorschau wich: derselbe Satz an zwei verschiedenen Stellen, je nach Zustand (Owner
+	// 2026-08-12: „wär schön, wenn die Wörter möglichst stabil an der Stelle bleiben").
+	//
+	// Oben ist er außerdem eine Überschrift („11 Waren werden hier gehandelt", darunter Beispiele),
+	// und der Öffner sitzt dort, wo er hingehört: an einer festen Stelle, die das Auge erwarten kann.
+	// Das war von Anfang an das Argument gegen die alte Kachel am Listenende.
+	//
+	// ⚠️ Die Zeile heißt weiterhin `__foot` -- der Name steht in Prüfseiten, im Entwurf und im
+	// Gedächtnis. Ihn mitzudrehen hieße, alle drei nachzuziehen, um nichts zu gewinnen.
 	if (spec.openable === false) {
 		return '<div class="infobox-lid infobox-lid--static">'
-			+ '<div class="infobox-lid__preview">' + preview + "</div>"
 			+ '<div class="infobox-lid__foot">' + prose + "</div>"
+			+ '<div class="infobox-lid__preview">' + preview + "</div>"
 			+ "</div>";
 	}
 
 	var openLabel = typeof tr === "function" ? tr("infobox.lid.showAll", "alle anzeigen") : "alle anzeigen";
 	return '<details class="infobox-lid">'
 		+ '<summary class="infobox-lid__summary">'
-		+ '<span class="infobox-lid__preview">' + preview + "</span>"
 		+ '<span class="infobox-lid__foot">' + prose
 		+ '<span class="infobox-lid__more">' + avesmapsInfoboxLidEscape(openLabel) + "</span>"
-		+ "</span></summary>"
+		+ "</span>"
+		+ '<span class="infobox-lid__preview">' + preview + "</span>"
+		+ "</summary>"
 		+ '<div class="infobox-lid__full"><div>' + full + "</div></div>"
 		+ "</details>";
 }

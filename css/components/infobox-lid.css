@@ -70,14 +70,18 @@
 	display: none;
 }
 
-/* Die Fußzeile: links der Satz, rechts der Öffner. Sie steht IMMER an derselben Stelle — das ist der
- * ganze Punkt des Deckels. */
+/* Die Kopfzeile: links der Satz, rechts der Öffner. Sie steht IMMER an derselben Stelle — das ist der
+ * ganze Punkt des Deckels.
+ *
+ * 💣 OBEN, NICHT UNTEN. Unter der Vorschau stehend wanderte sie beim Aufklappen nach oben, weil die
+ * Vorschau wich — der Satz sprang, und mit ihm der Öffner (Owner 2026-08-12). Oben rührt sie sich
+ * nie: darunter tauscht nur der Block von drei Namen auf alle. */
 .infobox-lid__foot {
 	display: flex;
 	justify-content: space-between;
 	align-items: baseline;
 	gap: 10px;
-	margin-top: 6px;
+	margin-bottom: 5px;
 	font-size: 11px;
 }
 
