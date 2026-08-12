@@ -138,4 +138,15 @@ assert($ids($kette, 'places') === ['p2', 'p4']);
 // Keine Bedingung -> nichts. Der Aufrufer bekommt eine leere Antwort, keine Ausnahme.
 assert(avesmapsLoreRuleEvaluate([], $areas, $places, $zones) === ['areas' => [], 'places' => []]);
 
+// 💣 AUSGABEREIHENFOLGE: die zweite Bedingung trifft ein Element, das im Eingabe-Array VOR
+// dem ersten Treffer steht -- sonst faellt die Akkumulationsreihenfolge zufaellig mit der
+// Eingabereihenfolge zusammen. Erste Bedingung trifft nur a3 (letztes Element in $areas),
+// zweite (ODER) nur a1 (erstes Element). Roh akkumuliert (array_keys ueber die Vereinigung)
+// kaeme a3 vor a1 -- die Zusage ist aber die Reihenfolge der EINGABE.
+$nurAlkra = $term(['area_public_id' => 'a3']);
+$nurFarindel = $term(['area_public_id' => 'a1', 'join_op' => 'oder']);
+$reihenfolge = avesmapsLoreRuleEvaluate([$nurAlkra, $nurFarindel], $areas, $places, $zones);
+assert($ids($reihenfolge, 'areas') === ['a1', 'a3']);
+assert($ids($reihenfolge, 'places') === ['p1', 'p2', 'p4']);
+
 echo "lore-rule: OK\n";
