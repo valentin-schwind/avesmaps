@@ -27,6 +27,51 @@
 	box-sizing: border-box;
 }
 
+/* ═══ Am ZEIGER scrollt nur diese Box, nicht das ganze Panel (Owner 12.08.2026) ═══════════════
+   Der Auslöser war der Rollbalken des Panels: er springt beim Erscheinen und schiebt JEDE Zeile
+   des Planers um. Am Zeiger ist in der Höhe genug Platz, das anders zu lösen -- die Eingaben oben
+   stehen fest, und nur das Ergebnis rollt. Owner: „auf dem desktop haben wir in der höhe genug
+   platz NUR die reiseübersicht (und co.) scrollen zu lassen."
+
+   💣 DAS IST NICHT DER ZUSTAND VOR DEM 11.08.2026, auch wenn es so aussieht. Damals scrollte diese
+   Box, WEIL sie mit dem voreingestellten `flex-shrink: 1` zum Stossdaempfer des Panels wurde: alles
+   ueber dem Deckel wurde aus ihr herausgequetscht (gemessen 60 -> 33 px), und in dem Rest musste
+   man fuer zwei Zeilen Text scrollen. Der Unterschied liegt in EINER Zeile: `min-height`. Sie
+   nimmt jetzt den uebrigen Platz und rollt DARIN -- sie wird nicht mehr in ihn hineingequetscht.
+   Wer die Mindesthoehe entfernt, holt den Fehler von damals zurueck, und zwar genau so aussehend.
+
+   💣 NUR MIT ERGEBNIS -- `:has(*)`. Leer traegt die Box nur einen Textknoten („Wegpunkte und Dauer
+   der Reise werden hier angezeigt."), gefuellt echte Elemente. Ohne Route bleibt sie damit so
+   kompakt wie bisher (Owner ausdruecklich: „da soll das zunächst die box sein, die sie jetzt
+   ist"); ein leerer Kasten von 220px Hoehe unter den Eingabefeldern waere das Gegenteil davon.
+   ⚠️ „Route wird berechnet..." und „Keine Route gefunden" setzt route-engine.js per `.text()` --
+   auch reine Textknoten. Beide Zwischenzustaende bleiben deshalb kompakt, und die Box waechst
+   genau einmal: wenn wirklich ein Plan dasteht.
+
+   ⚠️ NUR am Zeiger. Am Telefon laeuft das Panel ohnehin von Kante zu Kante und scrollt als Ganzes
+   -- dort ist eine zweite Rollflaeche darin nur ein zweiter Balken (Owner: „mobilgeräte: der
+   scrollbalken geht über das gesamte panel wie jetzt").
+   ⚠️ Der Deckel des Panels (`overflow-y: auto` an #search) BLEIBT als Netz. Sind schon die
+   Eingabefelder hoeher als der Schirm -- viele Wegpunkte, aufgeklappte Gruppen --, muss das Panel
+   selbst rollen koennen. Dann stehen zwei Balken uebereinander; das ist der seltene Fall, fuer den
+   das richtig ist. */
+html:not(.avesmaps-phone) #overview:has(*) {
+	flex: 1 1 auto;
+	/* Der Boden gegen den Stossdaempfer von 2026-08-11 -- und GEMESSEN, nicht gegriffen.
+	   💣 Er darf nicht zu hoch sein, sonst erzwingt er genau das, was er ersetzen soll: der Kopf des
+	   Planers (Logo, Wegpunkte, Transportmittel, Reiseoptionen) misst 571px, bei einem 800px-Fenster
+	   bleiben der Uebersicht davon 129px. Ein Boden von 220px haette das Panel dort um 31px rollen
+	   lassen -- zwei Balken uebereinander bei einer sehr verbreiteten Fenstergroesse.
+	   120px liegt darunter und zugleich weit ueber den 33px, in die diese Box am 11.08.2026
+	   zusammengedrueckt wurde. Bei 800px nimmt sie damit die vollen 129px und das Panel bleibt
+	   ruhig; erst bei flacheren Fenstern greift der Boden, und dann rollt das Panel mit -- richtig
+	   so, dort ist es wirklich zu eng.
+	   ⚠️ Wer diese Zahl hebt, misst zuerst den Kopf nach: er ist der Grund, warum sie so klein ist.
+	   Der eigentliche Hebel waere dort, nicht hier. */
+	min-height: 120px;
+	overflow-y: auto;
+}
+
 #overview:empty {
 	display: none;
 }

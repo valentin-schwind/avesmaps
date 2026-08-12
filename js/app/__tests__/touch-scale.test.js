@@ -648,6 +648,34 @@ const overviewGesetzt = overviewRegel[1].split(";").map((d) => d.split(":")[0].t
 assert.ok(!/#overview/.test(schmalBlock[0]),
 	"der Block fuer schmale Schirme setzt KEINE eigene Hoehengrenze fuer #overview mehr");
 
+// ---- Am ZEIGER rollt nur die Uebersicht, und nur mit Ergebnis (12.08.2026) -----------------------
+//
+// Owner: „auf dem desktop haben wir in der höhe genug platz NUR die reiseübersicht (und co.)
+// scrollen zu lassen." Der Rollbalken des Panels springt beim Erscheinen und schiebt JEDE Zeile um;
+// rollt nur das Ergebnis, trifft der Sprung eine Box.
+const eigenerLauf = overviewCss.match(/html:not\(\.avesmaps-phone\) #overview:has\(\*\)\s*\{([^}]*)\}/);
+assert.ok(eigenerLauf, "am Zeiger rollt die Uebersicht fuer sich, sobald ein Ergebnis drinsteht");
+assert.ok(/overflow-y:\s*auto/.test(eigenerLauf[1]), "...sie rollt");
+assert.ok(/flex:\s*1 1 auto/.test(eigenerLauf[1]), "...und nimmt den uebrigen Platz");
+
+// 💣 DIE MINDESTHOEHE IST DER GANZE UNTERSCHIED ZUM FEHLER VOM 11.08.2026. Damals rollte diese Box
+// auch -- weil sie mit `flex-shrink: 1` zum Stossdaempfer wurde und alles ueber dem Panel-Deckel aus
+// ihr herausgequetscht wurde (60 -> 33px, zwei Zeilen Text in einem 33px-Kasten). Mit `flex: 1 1
+// auto` OHNE Boden waere exakt das zurueck. Der Boden ist die Zeile, die „nimmt Platz" von
+// „wird zusammengedrueckt" unterscheidet.
+assert.ok(/min-height:\s*\d/.test(eigenerLauf[1]),
+	"...und hat einen BODEN -- ohne ihn ist sie wieder der Stossdaempfer des Panels (11.08.2026)");
+
+// 💣 `:has(*)`, nicht pauschal: ohne Route traegt die Box nur einen Textknoten und soll so kompakt
+// bleiben wie bisher (Owner: „da soll das zunächst die box sein, die sie jetzt ist"). Ein leerer
+// 220px-Kasten unter den Eingabefeldern waere das Gegenteil.
+assert.ok(/#overview:has\(\*\)/.test(overviewCss),
+	"die Regel greift nur mit Ergebnis im Kasten, nicht im leeren Zustand");
+// ⚠️ Und nur am Zeiger: am Telefon rollt das ganze Panel, eine zweite Rollflaeche darin waere ein
+// zweiter Balken.
+assert.ok(/html:not\(\.avesmaps-phone\)/.test(eigenerLauf.input.slice(0, eigenerLauf.index + 60)),
+	"und nur am Zeiger -- am Telefon rollt das Panel als Ganzes");
+
 // ---- Am Telefon ist nur EIN Panel offen ----------------------------------------------------------
 //
 // Owner 11.08.2026 mit Foto: das Infopanel lag ueber dem aufgeklappten Routenplaner. Am Zeiger duerfen
@@ -782,23 +810,29 @@ assert.ok(/scrollbar-gutter:\s*stable/.test(panelBody[1]),
 // ⚠️ BEIDE Rollkaesten der Karte, nicht nur der gemeldete. Der Planer klappt seine Gruppen genauso
 // auf und bekommt genauso eine Route hineingeschrieben; die Regel an einer Stelle zu setzen hiesse,
 // denselben Fehler halb zu beheben.
-const planerKasten = layoutCss.match(/^#search\s*\{([^}]*)\}/m);
-assert.ok(planerKasten && /overflow-y:\s*auto/.test(planerKasten[1]), "der Planer rollt");
-assert.ok(/scrollbar-gutter:\s*stable/.test(planerKasten[1]),
-	"...und haelt den Platz fuer seinen Rollbalken ebenfalls frei");
+// 💣 Und zwar `stable`, NICHT `both-edges`. Die Rinne kommt zusaetzlich zum Padding und nur auf der
+// Balkenseite, der Inhalt steht also schief -- das ist hier bewusst in Kauf genommen. `both-edges`
+// heilt die Schieflage und kostet den Rand ein zweites Mal (gemessen 28px je Seite statt 18/33);
+// im Routenplaner nebenan war genau das dem Owner zu breit (12.08.2026, „bisschen arg breit ist es
+// schon jetzt links und rechts"). In DIESEM Panel wiegt der ruhige Umbruch schwerer: es klappt bei
+// jedem Deckel auf und zu.
+assert.ok(!/both-edges/.test(panelBody[1]),
+	"...aber nur auf der Balkenseite -- both-edges kostet den Rand ein zweites Mal");
 
-// 💣 Und die Rinne liegt auf BEIDEN Seiten. `stable` allein reserviert sie nur dort, wo der Balken
-// sitzt, und ZUSAETZLICH zum Padding -- gemessen am 12.08.2026: 10px frei links gegen 25px rechts.
-// Der Owner sah es sofort („rechts etwas mehr platz als links"). `both-edges` ist die einzige
-// Fassung, die beides zugleich haelt: symmetrischer Innenabstand UND keine springende Breite.
-// ⚠️ Dazu `scrollbar-width: thin` -- sonst kostet die Symmetrie das Doppelte (25px je Seite statt
-// rund 18px), und das ist bei einem 350px-Panel ein sichtbarer Rahmen.
-[[panelBody[1], "Infopanel"], [planerKasten[1], "Routenplaner"]].forEach(([regel, name]) => {
-	assert.ok(/scrollbar-gutter:\s*stable\s+both-edges/.test(regel),
-		`${name}: die Rinne liegt auf beiden Seiten (both-edges) -- sonst steht der Inhalt schief`);
-	assert.ok(/scrollbar-width:\s*thin/.test(regel),
-		`${name}: mit duennem Balken, sonst kostet die Symmetrie 25px je Seite`);
-});
+// ---- Der Routenplaner hat KEINE Rinne, und das ist eine Entscheidung ------------------------------
+//
+// 🔴 Hier stand am 12.08.2026 fuer wenige Stunden dieselbe Rinne. Sie ist weg, weil bei nativen
+// Balken nicht alle drei Wuensche zugleich gehen: symmetrisch, ohne Sprung, schmal. `stable` allein
+// stellte den Inhalt schief (10px links gegen 25px rechts), `both-edges` machte beide Raender 20px
+// breit -- „bisschen arg breit". Von den dreien ist der SPRUNG der ertraeglichste, deshalb faellt
+// die Rinne (Owner: „wir akzeptieren, dass die inhalte nach innen verrutschen").
+// ⭐ Am Zeiger stellt sich die Frage ohnehin nicht mehr: dort rollt nur noch die Reiseuebersicht
+// (siehe unten), der Sprung trifft also eine Box statt jeder Zeile des Planers.
+const planerKasten = layoutCss.match(/^#search\s*\{([^}]*)\}/m);
+assert.ok(planerKasten && /overflow-y:\s*auto/.test(planerKasten[1]),
+	"der Planer rollt weiterhin -- als Netz fuer den Fall, dass schon die Eingaben zu hoch sind");
+assert.ok(!/scrollbar-gutter/.test(planerKasten[1]),
+	"...aber ohne reservierte Rinne: der Balken darf Platz nehmen, wenn er kommt");
 
 // ---- Der Planer faehrt beim Start herein, und seine Lasche faehrt MIT (12.08.2026) ---------------
 //

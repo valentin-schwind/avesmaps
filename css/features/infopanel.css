@@ -314,16 +314,15 @@
 	   ⚠️ Das kostet die 15px auch dann, wenn nichts zu rollen ist -- in diesem Panel ist der Inhalt
 	   fast immer länger als der Schirm, der Fall ist also selten und ein fester Rand allemal besser
 	   als eine Breite, die sich beim Antippen ändert.
-	   💣 `both-edges`, nicht bloss `stable` (Owner 12.08.2026: „durch das hinzufügen des
-	   scrollbalkens ist jetzt rechts etwas mehr platz als links"). Die Rinne kommt ZUSÄTZLICH zum
-	   Padding und nur auf der Balkenseite -- gemessen 10px frei links gegen 25px rechts. `both-edges`
-	   reserviert sie auf beiden Seiten, und erst damit stimmt der Innenabstand wieder.
-	   ⚠️ Dazu `scrollbar-width: thin`, sonst kostet die Symmetrie das Doppelte: mit dem vollen
-	   15px-Balken wären es 25px Rand je Seite, mit dem dünnen rund 18px.
-	   ⚠️ Auf Touch-Geräten ist der Balken ein Overlay und misst 0 -- dort ändert diese Zeile nichts,
+	   ⚠️ `stable`, NICHT `both-edges`. Die Rinne liegt damit nur auf der Balkenseite, der Inhalt
+	   steht also um ihre Breite aus der Mitte (gemessen 18px frei links gegen 33px rechts). Das ist
+	   bewusst in Kauf genommen: `both-edges` heilt die Schieflage, kostet den Rand aber ein zweites
+	   Mal, und im Routenplaner nebenan war genau das dem Owner zu breit (12.08.2026, „bisschen arg
+	   breit ist es schon jetzt links und rechts"). Hier wiegt der ruhige Umbruch schwerer als der
+	   symmetrische Rand -- dieses Panel klappt bei jedem Deckel auf und zu.
+	   ⚠️ Auf Touch-Geräten ist der Balken ein Overlay und misst 0 -- dort ändert die Zeile nichts,
 	   weder am Rand noch am Platz. Sie gilt dem Zeiger. */
-	scrollbar-gutter: stable both-edges;
-	scrollbar-width: thin;
+	scrollbar-gutter: stable;
 	overflow-x: hidden;
 	padding: var(--space-12) var(--infopanel-pad-x) var(--space-16);
 }
