@@ -33,7 +33,10 @@ function buildSuggestChangeButtonSpec(ctx) {
 	};
 	return {
 		label: ctx.label || "Änderung vorschlagen",
-		iconMarkup: '<img class="location-popup__action-img" src="img/menu/brief.webp?v=1" alt="" width="20" height="20" />',
+		// Brief + Feder + Tintenfass (Owner 2026-08-13). Der reine Brief ist seit demselben Tag das
+		// Zeichen fuers ABSCHICKEN ("Vorschlag senden"); hier wird noch geschrieben, nicht gesendet.
+		// Kein ?v=: neuer Dateiname, also gibt es nichts zu entwerten.
+		iconMarkup: '<img class="location-popup__action-img" src="img/menu/vorschlag.webp" alt="" width="20" height="20" />',
 		attributes: attributes,
 	};
 }

@@ -22,7 +22,10 @@ assert.strictEqual(s.attributes["data-report-type"], "location");
 assert.strictEqual(s.attributes["data-size"], "grossstadt");
 assert.strictEqual(s.attributes["data-lat"], "500.5");
 assert.strictEqual(s.attributes["data-lng"], "300");
-assert.ok(s.iconMarkup.includes("img/menu/brief.webp"));
+// 💣 Brief + Feder + Tintenfass, NICHT der reine Brief: der ist seit dem 13.08.2026 das Zeichen fuers
+//    ABSCHICKEN ("Vorschlag senden", map-features-citymaps-suggest.js). Hier wird noch geschrieben.
+assert.ok(s.iconMarkup.includes("img/menu/vorschlag.webp"), "das Vorschlags-Symbol, nicht der Brief");
+assert.ok(!s.iconMarkup.includes("brief.webp"), "und ausdruecklich nicht der Brief");
 
 // Non-settlement (territory): no size attribute; no coords -> no lat/lng.
 const t = buildSuggestChangeButtonSpec({ entityType: "territory", entityId: "terr-9", name: "Kosch", reportType: "territorium" });

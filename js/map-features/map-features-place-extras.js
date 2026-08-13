@@ -296,7 +296,7 @@ function buildCityMapsSectionMarkup(placeName, maps, opts) {
 		+ '<div class="avesmaps-citymaps__scroll">' + cards + '</div>'
 		+ '<div class="avesmaps-citymaps__actions location-popup__actions">'
 		+ '<button type="button" class="location-popup__action-button avesmaps-citymaps__all">'
-		+ '<img class="location-popup__action-img" src="img/menu/kartensammlung.webp" alt="" width="20" height="20" />'
+		+ '<img class="location-popup__action-img" src="img/menu/stadtkarten.webp" alt="" width="20" height="20" />'
 		+ placeExtrasEscape(tr("cityMaps.all", "Kartensammlung anzeigen")) + '</button>'
 		+ suggestButton
 		+ '</div>'
@@ -943,7 +943,7 @@ function buildGameLiteratureSectionMarkup(placeName, beginnt, play, covers, opts
 	var listMarkup = '<div class="avesmaps-adv__list">' + cards + '</div>';
 
 	var alleMarkup = (hasBeginnt || hasPlay || hasCovers) ? '<div class="avesmaps-adv__actions location-popup__actions"><button type="button" class="location-popup__action-button avesmaps-adv__all">'
-		+ '<img class="location-popup__action-img" src="img/menu/literatur.webp?v=2" alt="" width="20" height="20" />'
+		+ '<img class="location-popup__action-img" src="img/menu/buch.webp" alt="" width="20" height="20" />'
 		+ placeExtrasEscape(tr("gameLiterature.all", "Literatur anzeigen")) + '</button></div>' : "";
 
 	var creditMarkup = avesmapsGameLiteratureCreditMarkup();
@@ -1094,7 +1094,7 @@ function buildFloatingGameLiteratureButtonMarkup(location, publicId) {
 	}
 	return popupActionButtonMarkup({
 		label: tr("gameLiterature.label", "Literatur"),
-		iconMarkup: '<img class="location-popup__action-img" src="img/menu/literatur.webp?v=2" alt="" width="20" height="20" />',
+		iconMarkup: '<img class="location-popup__action-img" src="img/menu/buch.webp" alt="" width="20" height="20" />',
 		attributes: attributes,
 	});
 }
@@ -1123,7 +1123,7 @@ function buildFloatingCityMapsButtonMarkup(location, publicId) {
 		// sauber in zwei Zeilen statt zu ueberlaufen. Kein Eingriff in die geteilte hyphens:auto-Regel (die
 		// ist bewusst nur fuer Fliesstext, nicht Buttons/Kacheln).
 		label: tr("cityMaps.buttonLabel", "Karten­sammlung"),
-		iconMarkup: '<img class="location-popup__action-img" src="img/menu/kartensammlung.webp" alt="" width="20" height="20" />',
+		iconMarkup: '<img class="location-popup__action-img" src="img/menu/stadtkarten.webp" alt="" width="20" height="20" />',
 		attributes: attributes,
 	});
 }
