@@ -649,9 +649,15 @@ function buildLoreMarkup(placeRef) {
 	// gefüllt. Nur aktiv, wenn Identität da ist -- ohne sie bleibt der Schlüssel exakt wie
 	// vor dieser Änderung. Landet in einem HTML-Attribut und einem CSS-Attributselektor,
 	// deshalb dieselbe Filterung/Kürzung wie beim Titel-Zweig oben.
+	//
+	// 💣 SYMMETRISCH zu avesmapsLoreRequestKey: beide Felder tragen UNABHÄNGIG voneinander
+	// bei, nicht als Entweder-Oder. Ein Entweder-Oder (nur `area` ODER `location`) ließe
+	// zwei Container mit gleichem `key` + `area`, aber verschiedener `location` wieder auf
+	// denselben Selektor fallen -- heute unerreichbar (kein Aufrufer setzt beide), aber
+	// Task 4 bringt drei weitere `area`-Aufrufstellen, und dann ist es keine Theorie mehr.
 	if (area || location) {
-		var identityTag = area ? "a-" + area : "l-" + location;
-		containerKey = (containerKey + "-" + identityTag).replace(/[^a-z0-9_-]+/gi, "-").toLowerCase().slice(0, 190);
+		var identityTag = (area ? "-a-" + area : "") + (location ? "-l-" + location : "");
+		containerKey = (containerKey + identityTag).replace(/[^a-z0-9_-]+/gi, "-").toLowerCase().slice(0, 190);
 	}
 	var name = (placeRef && (placeRef.name || placeRef.displayName)) || "";
 	// 💣 HIER WIRD NICHT GELADEN. buildLoreMarkup() läuft für JEDES Label schon beim
