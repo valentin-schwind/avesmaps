@@ -372,10 +372,18 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 	// Der Ortsschlüssel geht als TITEL an den Server, der sluggt (Umlaut-Falle, siehe
 	// api/app/lore.php) -- wiki_key wird mitgegeben, falls er im Payload steht.
 	if (typeof buildLoreMarkup === "function") {
+		// Vorkommen-Regeln haengen an der REGION, nicht an einer einzelnen Flaeche/einem Label --
+		// ecosystemRegionOfLabel liest beide Richtungen der 1:N-Beziehung (Label->eigene Region ODER
+		// Region->primaeres Label) und liefert deren Objekt. Ohne Fläche bleibt es null: dann bleibt
+		// area leer und buildLoreMarkup verhaelt sich exakt wie vor dieser Aenderung.
+		const ecosystemRegion = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(label) : null;
 		rows += buildLoreMarkup({
 			key: wiki.wiki_key || "",
 			titles: typeof avesmapsLoreTitleFromUrl === "function" ? avesmapsLoreTitleFromUrl(wiki.wiki_url || "") : "",
 			name: name,
+			// 💣 area traegt die public_id der REGION (ecosystem_region.public_id), nicht die einer
+			// Flaeche -- ecosystemRegionOfLabel liefert genau die richtige. Nicht "korrigieren".
+			area: ecosystemRegion ? String(ecosystemRegion.public_id || "") : "",
 		});
 	}
 	// „Klimazone" DIREKT unter Flora (Owner 2026-08-03) -- dieselbe Zeile, derselbe Bauer wie am Ort
