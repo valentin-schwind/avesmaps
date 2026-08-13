@@ -51,8 +51,26 @@
 .va-row__track { flex: 1; height: 8px; background: var(--color-panel-muted); border-radius: 4px; overflow: hidden; }
 /* Chart-Serienfarben (#2a78d6 / #4a3aa7 …) sind eine kategoriale Datenpalette,
    bewusst kein UI-Token -> Designsprache-Ausnahme (Owner 2026-07-11). */
-.va-row__fill { height: 100%; border-radius: 4px; background: #2a78d6; }
+/* 💣 `display: block` ist tragend, nicht Kosmetik. .va-row__fill ist ein <span>, und auf ein
+   Inline-Element wirken `width` und `height` NICHT -- die Prozentbreite, die vaBars() als
+   Inline-Style schreibt, war korrekt gerechnet und wurde vom Layout ignoriert. Alle acht
+   Balkenlisten (Referrer, Routen, Orte, Transportmittel, ...) standen dadurch unsichtbar da,
+   waehrend die Zahl daneben stimmte. Der Gegenbeweis ist .va-geo-fill weiter oben: dieselbe
+   Bauart, aber mit der Zeile -- und genau diese Liste war nie kaputt. */
+.va-row__fill { display: block; height: 100%; border-radius: 4px; background: #2a78d6; }
 .va-row__val { color: var(--color-text-muted); font-size: 12px; min-width: 34px; text-align: right; }
+/* „Aktivste Zeiten": 7 Zeilen zu 24 Zellen, darueber eine Stundenzeile. Die Zellfarbe bleibt
+   als Inline-Style im Markup (sie ist datengetrieben), alles andere haengt hier an Tokens --
+   die Beschriftungen standen bis 2026-08-13 mit rohem #8a7355 im JS. */
+.va-heat { display: flex; flex-direction: column; gap: 2px; }
+.va-heat__row { display: flex; gap: 2px; align-items: center; }
+.va-heat__day { flex: 0 0 18px; font-size: 10px; color: var(--color-text-muted); }
+.va-heat__cells { display: flex; gap: 2px; flex: 1; }
+.va-heat__cell { flex: 1; min-width: 0; height: 13px; border-radius: 2px; }
+.va-heat__hours { margin-bottom: 3px; }
+/* min-width: 0 laesst die 24 Spalten gleich breit bleiben; nur jede dritte traegt eine Zahl,
+   die deshalb ueber ihre ~11,8 px breite Zelle hinausragen darf, ohne an eine Nachbarin zu stossen. */
+.va-heat__hour { flex: 1; min-width: 0; font-size: 9px; line-height: 1; text-align: center; white-space: nowrap; color: var(--color-text-muted); }
 .va-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .va-storage { font-size: 12px; color: var(--color-text-muted); }
 .va-off { padding: 24px 12px; text-align: center; color: var(--color-text-muted); font-size: 13px; }

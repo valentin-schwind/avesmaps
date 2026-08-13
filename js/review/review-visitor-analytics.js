@@ -105,6 +105,7 @@ function vaLine(daily) {
 	const line = (arr) => arr.map((v, i) => (i ? "L" : "M") + xAt(i).toFixed(1) + " " + yAt(v).toFixed(1)).join(" ");
 	const dots = (arr, color) => arr.map((v, i) => `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="2.6" fill="${color}"/>`).join("");
 	const fmtDate = (s) => { const p = String(s).split("-"); return p.length === 3 ? p[2] + "." + p[1] + "." : String(s); };
+	const fmtFullDate = (s) => { const p = String(s).split("-"); return p.length === 3 ? p[2] + "." + p[1] + "." + p[0] : String(s); };
 	const axes = `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + plotH}" stroke="#e7d8c6" stroke-width="1"/><line x1="${padL}" y1="${padT + plotH}" x2="${w - padR}" y2="${padT + plotH}" stroke="#e7d8c6" stroke-width="1"/>`;
 	const yLabels = `<text x="${padL - 4}" y="${(padT + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="#8a7355">${max.toLocaleString("de-DE")}</text><text x="${padL - 4}" y="${(padT + plotH).toFixed(1)}" text-anchor="end" font-size="10" fill="#8a7355">0</text>`;
 	let xLabels = "";
@@ -112,29 +113,78 @@ function vaLine(daily) {
 		const idxs = data.length <= 5 ? data.map((d, i) => i) : [0, Math.floor((data.length - 1) / 2), data.length - 1];
 		xLabels = idxs.map((i) => `<text x="${xAt(i).toFixed(1)}" y="${(h - 8).toFixed(1)}" text-anchor="middle" font-size="10" fill="#8a7355">${fmtDate(data[i].day)}</text>`).join("");
 	}
-	return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="Aufrufe und eindeutige Besucher über Zeit">${axes}${yLabels}${xLabels}<path d="${line(views)}" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round"/><path d="${line(uniq)}" fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round"/>${dots(views, "#2a78d6")}${dots(uniq, "#1baf7a")}</svg>`;
+	// Die Zahlen zum einzelnen Tag stehen im <title> eines unsichtbaren Feldes ueber die volle
+	// Diagrammhoehe. Drei Kleinigkeiten daran sind tragend:
+	// 💣 Die Punkte selbst taugen nicht als Mausziel (r=2.6) -- das Feld ist eine Spaltenbreite breit.
+	// 💣 fill="transparent", NICHT fill="none": nur eine Fuellung faengt Zeigerereignisse, "none"
+	//    laesst sie durch und der Tooltip erschiene nie.
+	// 💣 Die Felder stehen als Letztes im Markup -- SVG kennt kein z-index, es gewinnt die
+	//    Dokumentreihenfolge, sonst liegen sie unter den Kurven.
+	const slot = n <= 1 ? plotW : plotW / (n - 1);
+	const hovers = data.map((d, i) => {
+		const x0 = Math.max(padL, xAt(i) - slot / 2);
+		const x1 = Math.min(w - padR, xAt(i) + slot / 2);
+		const label = fmtFullDate(d.day)
+			+ " — Aufrufe: " + (Number(d.views) || 0).toLocaleString("de-DE")
+			+ " · Eindeutige: " + (Number(d.uniques) || 0).toLocaleString("de-DE");
+		return `<rect x="${x0.toFixed(1)}" y="${padT}" width="${Math.max(0, x1 - x0).toFixed(1)}" height="${plotH}" fill="transparent"><title>${vaEscape(label)}</title></rect>`;
+	}).join("");
+	return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="Aufrufe und eindeutige Besucher über Zeit">${axes}${yLabels}${xLabels}<path d="${line(views)}" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round"/><path d="${line(uniq)}" fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round"/>${dots(views, "#2a78d6")}${dots(uniq, "#1baf7a")}${hovers}</svg>`;
+}
+
+const VA_HEAT_DAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+// Montag oben, Sonntag unten -- die Woche, wie ein Kalender sie zeigt.
+const VA_HEAT_ROW_ORDER = [1, 2, 3, 4, 5, 6, 0];
+// Jede dritte Stunde. Bei 400 px Panelbreite bleiben ~11,8 px je Spalte; 24 Zahlen passen nicht.
+const VA_HEAT_HOUR_TICKS = [0, 3, 6, 9, 12, 15, 18, 21];
+
+// 💣 Die Stunde steht als UTC in der Datenbank -- api/app/track.php schreibt `(int) gmdate('G')`.
+// Eine beschriftete Achse waere damit im deutschen Sommer durchgehend ZWEI Stunden falsch, also
+// wird auf die Zeitzone des Browsers umgerechnet.
+// ⚠️ Der Versatz von heute gilt fuer den ganzen Zeitraum. Ueber die Sommerzeitgrenze hinweg liegt
+// die Achse damit um eine Stunde daneben -- harmloser als die zwei Stunden, die sie sonst dauerhaft
+// danebenlaege.
+function vaLocalHourShift(now) {
+	// getTimezoneOffset() zaehlt Minuten HINTER UTC (Berlin im Sommer: -120), daher das Vorzeichen.
+	// Gerundet, weil die Eimer ganze Stunden sind -- Zonen mit halber Stunde (IST) rutschen auf die
+	// naechste, was bei einer Heatmap dieser Aufloesung nichts austraegt.
+	return Math.round(-(now || new Date()).getTimezoneOffset() / 60);
+}
+
+// 💣 Der Versatz nimmt den WOCHENTAG mit: UTC Montag 23 Uhr ist Dienstag 1 Uhr. Ohne den Uebertrag
+// waere die Stunde richtig und die Zeile falsch.
+function vaHeatmapGrid(rows, shift) {
+	const grid = {};
+	(rows || []).forEach((r) => {
+		const utcDay = (((Number(r.dow) - 1) % 7) + 7) % 7; // MySQL DAYOFWEEK: 1 = Sonntag
+		const local = (Number(r.hour) || 0) + Number(shift || 0);
+		const hour = ((local % 24) + 24) % 24;
+		const day = (((utcDay + Math.floor(local / 24)) % 7) + 7) % 7;
+		const key = day + "_" + hour;
+		grid[key] = (grid[key] || 0) + (Number(r.c) || 0);
+	});
+	return grid;
 }
 
 function vaHeatmap(rows) {
-	const grid = {};
-	(rows || []).forEach((r) => { grid[(Number(r.dow) - 1) + "_" + Number(r.hour)] = Number(r.c) || 0; });
+	const grid = vaHeatmapGrid(rows, vaLocalHourShift());
 	const max = Math.max.apply(null, Object.values(grid).concat([1]));
-	const days = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
-	let html = '<div style="display:flex;flex-direction:column;gap:2px">';
-	for (let d = 1; d < 7; d++) {
-		html += `<div style="display:flex;gap:2px;align-items:center"><span style="width:18px;font-size:10px;color:#8a7355">${days[d]}</span><div style="display:flex;gap:2px;flex:1">`;
-		for (let hh = 0; hh < 24; hh++) {
-			const t = (grid[d + "_" + hh] || 0) / max;
-			html += `<div title="${days[d]} ${hh} Uhr" style="flex:1;height:13px;border-radius:2px;background:rgba(42,120,214,${(0.06 + t * 0.9).toFixed(2)})"></div>`;
-		}
-		html += "</div></div>";
-	}
-	html += `<div style="display:flex;gap:2px;align-items:center"><span style="width:18px;font-size:10px;color:#8a7355">${days[0]}</span><div style="display:flex;gap:2px;flex:1">`;
+	let hours = "";
 	for (let hh = 0; hh < 24; hh++) {
-		const t = (grid["0_" + hh] || 0) / max;
-		html += `<div style="flex:1;height:13px;border-radius:2px;background:rgba(42,120,214,${(0.06 + t * 0.9).toFixed(2)})"></div>`;
+		hours += `<span class="va-heat__hour">${VA_HEAT_HOUR_TICKS.indexOf(hh) === -1 ? "" : hh}</span>`;
 	}
-	return html + "</div></div></div>";
+	const head = `<div class="va-heat__row va-heat__hours"><span class="va-heat__day"></span><div class="va-heat__cells">${hours}</div></div>`;
+	const body = VA_HEAT_ROW_ORDER.map((d) => {
+		let cells = "";
+		for (let hh = 0; hh < 24; hh++) {
+			const count = grid[d + "_" + hh] || 0;
+			const tone = (0.06 + (count / max) * 0.9).toFixed(2);
+			// Auch die Sonntagszeile traegt ihr title -- sie war als einzige ohne gebaut.
+			cells += `<span class="va-heat__cell" title="${VA_HEAT_DAYS[d]} ${hh}–${hh + 1} Uhr: ${count}" style="background:rgba(42,120,214,${tone})"></span>`;
+		}
+		return `<div class="va-heat__row"><span class="va-heat__day">${VA_HEAT_DAYS[d]}</span><div class="va-heat__cells">${cells}</div></div>`;
+	}).join("");
+	return `<div class="va-heat">${head}${body}</div>`;
 }
 
 function vaDonut(rows, cols) {
@@ -173,14 +223,33 @@ function vaFeed(items) {
 	).join("");
 }
 
-const VA_MAP_MODE_LABELS = { none: "Nur Karte", political: "Politisch", deregraphic: "Standard", powerlines: "Kraftlinien" };
 const VA_TOGGLE_LABELS = {
 	metropole: "Metropolen", grossstadt: "Großstädte", stadt: "Städte", kleinstadt: "Kleinstädte", dorf: "Dörfer", gebaeude: "Bauwerke",
 	togglePaths: "Wege", toggleRivers: "Flüsse", toggleSeaPaths: "Seewege", toggleCrossings: "Kreuzungen", toggleNodix: "Nodices"
 };
 
-function vaPrettyMapMode(slug) {
-	return VA_MAP_MODE_LABELS[String(slug)] || String(slug || "");
+// 💣 Die sechs Ansichten stehen NUR in den <option> von #mapLayerModeSelect -- das <select> ist der
+// Zustand, die Ansichts-Kachel liest es ebenfalls dort (AGENTS.md §11). Hier stand bis 2026-08-13
+// eine zweite Tabelle, und sie ist genau so auseinandergelaufen, wie die Regel es verhindern soll:
+// sie kannte vier der sechs, also erschienen „original" und „ecosystem" mit ihrem internen
+// Schluessel in der Statistik. Das Dashboard laeuft im selben Dokument wie das <select>.
+function vaMapModeLabels() {
+	const labels = {};
+	document.querySelectorAll("#mapLayerModeSelect option").forEach((option) => {
+		const value = String(option.value || "");
+		const text = String(option.textContent || "").trim();
+		if (value !== "" && text !== "") {
+			labels[value] = text;
+		}
+	});
+	return labels;
+}
+
+// ⚠️ Ein zurueckgezogener Modus hat keine <option> mehr und faellt auf seinen Schluessel zurueck.
+// Das ist gewollt: ein roher Schluessel ist ehrlicher als eine geratene Beschriftung.
+function vaPrettyMapMode(slug, labels) {
+	const key = String(slug === null || slug === undefined ? "" : slug);
+	return (labels || vaMapModeLabels())[key] || key;
 }
 
 function vaPrettyToggle(dimension) {
@@ -276,7 +345,7 @@ function renderVisitorDashboard(mount, data) {
 		+ `<div class="va-kpi"><div class="va-kpi__label">Routen</div><div class="va-kpi__value">${routes.toLocaleString("de-DE")}</div></div>`
 		+ `</div>`
 		+ `<div class="va-card"><div class="va-card__label">Aktivität über Zeit</div>${vaLine(m.daily)}<div class="va-chartlegend"><span><i style="background:#2a78d6"></i>Aufrufe</span><span><i style="background:#1baf7a"></i>Eindeutige</span></div></div>`
-		+ `<div class="va-card"><div class="va-card__label">Aktivste Zeiten</div>${vaHeatmap(m.heatmap)}</div>`
+		+ `<div class="va-card"><div class="va-card__label">Aktivste Zeiten (Ortszeit)</div>${vaHeatmap(m.heatmap)}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Top-Suchbegriffe</div>${vaBars(m.search, "#2a78d6")}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Herkunft</div><div id="visitor-geo-map"></div><div class="va-geo-legend"><span>wenige</span><span class="va-geo-scale"><i style="background:rgba(42,120,214,0.12)"></i><i style="background:rgba(42,120,214,0.38)"></i><i style="background:rgba(42,120,214,0.64)"></i><i style="background:rgba(42,120,214,0.9)"></i></span><span>viele Klicks</span></div><div class="va-geo-clabel">Andere Länder<span class="va-geo-key"><i style="background:#1baf7a"></i>echte<i style="background:#888780"></i>Bots</span></div><div id="visitor-geo-countries"></div></div>`
 		+ `<div class="va-card"><div class="va-card__label">Referrer</div>${vaBars(m.referrer, "#4a3aa7")}</div>`
