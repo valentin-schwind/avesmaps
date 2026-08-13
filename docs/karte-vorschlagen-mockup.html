@@ -1,0 +1,1302 @@
+<!doctype html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup — „Karte vorschlagen“ neu strukturiert</title>
+<style>
+/* ============================================================================
+   Mockup: der Community-Dialog „Karte vorschlagen“ (und sein Geschwister
+   „Neuer Fundort“) — links der heutige Stand, rechts der Entwurf.
+   Die Token unten sind WÖRTLICH css/base/tokens.css, damit das Bild nicht
+   von der echten Oberfläche abweichen kann.
+   ========================================================================== */
+
+/* ===== css/base/tokens.css (eingebettet) ===== */
+/* Avesmaps design tokens — the single source of truth for the shared warm,
+   aventurian visual language. Never hardcode a colour, size, radius, spacing, or
+   divider in a component; add or reuse a token here. See docs/design-language.md.
+
+   Palette direction: C ("Heller / Papier") — light neutral parchment, warm
+   taupe-brown controls, restrained coat-gold. No blue anywhere.
+
+   Themes: light is the default (:root). Dark is OPT-IN via
+   :root[data-theme="dark"] — deliberately NOT prefers-color-scheme, because the
+   map tiles are light and auto-dark panels would clash over them. Wiring a
+   toggle is a separate feature; the language only defines the values. */
+
+:root {
+	--font-ui: "Faculty Glyphic", "Arial", sans-serif;
+
+	/* Typography scale — 7 rungs, 11px floor (see "Typography" in the doc) */
+	--font-size-caption: 11px;  /* labels, pills, meta — the floor */
+	--font-size-small: 12px;    /* dense body — the workhorse */
+	--font-size-body: 13px;     /* default controls / body */
+	--font-size-reading: 14px;  /* comfortable reading */
+	--font-size-subhead: 16px;  /* subheaders */
+	--font-size-title: 20px;    /* dialog / panel titles */
+	--font-size-display: 22px;  /* infobox hero name */
+	/* Schriftgroesse der EINGABEFELDER -- getrennt von der Lese-Skala oben, weil sie am Finger
+	   auf die iOS-Schwelle springt (siehe den (pointer: coarse)-Block unter diesem :root).
+	   ⚠️ Gilt den FELDERN, nicht ihren Beschriftungen: die Felder haben feste Hoehen, die Schrift
+	   waechst dort nach innen. Beschriftungszeilen mitzuheben machte das Panel hoeher -- und dessen
+	   Hoehenbudget ist eine eigene, groessere Frage. */
+	--font-size-control: var(--font-size-small);
+	/* Schriftgroesse der DROPDOWNS -- eigener Wert, nicht --font-size-control (Owner 11.08.2026:
+	   "alle auf 14px").
+	   💣 Getrennt, weil --font-size-control die iOS-SCHWELLE traegt: unter 16px zoomt Safari beim
+	   Fokus in ein Eingabefeld und kehrt nicht zurueck. Ein gemeinsamer Token auf 14 haette das
+	   Wegpunktfeld und die Zahlenfelder mit unter die Schwelle gezogen -- also genau das
+	   zurueckgeholt, was zwei Commits vorher behoben wurde.
+	   ⚠️ Fuer die nachgebauten Comboboxen ist 14 unbedenklich (<button>, kein Fokus-Zoom). Fuer
+	   die zwei nativen <select> ist es NICHT geprueft -- ob iOS auch dort zoomt, sagt nur ein
+	   echtes Geraet. */
+	--font-size-dropdown: 14px;
+
+	/* Der Pfeil unserer Auswahlfelder. 💣 Als Token, weil ihn ZWEI Stellen brauchen (Meldedialog
+	   und Routenplaner) und ein zweiter Data-URI genau die Divergenz waere, vor der §12 warnt --
+	   zwei Bilder, deren Farbe getrennt altert.
+	   ⚠️ Die Fuellung steht als Hex im Bild, nicht als currentColor: ein background-image kann
+	   currentColor nicht erben. Der Wert ist --color-text-muted. */
+	--avesmaps-select-chevron: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='8'%20height='6'%3E%3Cpath%20d='M0%200l4%205%204-5z'%20fill='%23706557'/%3E%3C/svg%3E");
+	--leading-tight: 1.15;      /* titles / display */
+	--leading-snug: 1.25;       /* controls / labels */
+	--leading-normal: 1.45;     /* reading body */
+	--font-weight-regular: 400;
+	--font-weight-bold: 700;    /* two weights only — no 500 / 600 / 800 */
+
+	/* Surfaces */
+	--color-page-bg: #f3f0e8;        /* app canvas behind the panels */
+	--color-page-bg-deep: #2b2721;   /* deep surround (editor backdrop) */
+	--color-panel: #fffdf9;          /* white card (infobox, route planner) */
+	--color-panel-soft: #faf6ee;     /* softly grouped background */
+	--color-panel-muted: #f1ece1;    /* muted inset (coat frame, wells) */
+	/* The SELECTED row of a list or rail. One step further from the panel than -muted, in the
+	   direction that reads as "pressed" in each theme: darker on light, lighter on dark. -muted
+	   alone was too close to the panel to find the active row at a glance. */
+	--color-panel-active: #e7ddc9;
+
+	/* Text */
+	--color-text: #2e271e;
+	--color-text-strong: #3c3327;    /* titles, emphasised labels */
+	--color-text-muted: #706557;     /* subtitles, captions, meta */
+	--color-placeholder: #9a8f7e;    /* input placeholder — lighter than muted */
+
+	/* Lines */
+	--color-border: #ddd3c3;         /* hairline around controls */
+	--color-border-strong: #cdbfa8;  /* hover / emphasised control edge */
+	--color-divider: rgba(125, 115, 96, 0.30); /* section separator — same everywhere */
+
+	/* Button · primary (filled) — the one main action per surface */
+	--color-button: #5b5548;
+	--color-button-border: #635b4d;
+	--color-button-text: #f6efe1;
+	--color-button-hover: #6a6353;         /* hover — lighter */
+	--color-button-active: #4c473b;        /* pressed — darker */
+
+	/* Button · secondary (soft / outline) — e.g. "Link teilen" */
+	--color-button-soft: #efe9db;
+	--color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0;
+	--color-button-soft-hover: #e7ddc9;
+	--color-button-soft-active: #ddd1b9;
+
+	/* Accent = coat-of-arms gold; links in warm gold-brown (NEVER blue) */
+	--color-accent: #bfa03a;
+	--color-accent-strong: #9c7f22;
+	--color-link: #8f7326;
+	--color-link-hover: #6f5a1c;
+
+	/* Secondary accent-brown — the WikiSync/label-path-location edit dialogs' own
+	   accent (links, active tabs, focus rings), distinct from the app-wide
+	   --color-accent-strong gold but from the same warm family. */
+	--color-accent-brown: #7a5a3a;
+	--color-accent-brown-hover: #5f4429;
+	--color-accent-brown-soft: #9a7a5a;
+	--color-accent-brown-text: #fff;
+	--color-accent-brown-focus: rgba(122, 90, 58, 0.18);
+
+	/* Pills / tags (e.g. publication sources) */
+	--color-pill: #f3ecd9;
+	--color-pill-border: #d7c7a2;
+	--color-pill-text: #675024;
+
+	--color-danger: #9d3a2e;
+	--color-success: #2f7d3a;             /* status: success (e.g. contact form) */
+	/* Halo around a presence dot (online editor, live visitor count) — the ring that
+	   lifts a 9px dot off the panel without giving it a border. */
+	--color-success-halo: rgba(79, 159, 74, 0.16);
+	--color-muted-halo: rgba(161, 140, 116, 0.16);
+	/* Soft status surfaces — the pale tinted fills for accept/reject buttons and status pills in the
+	   editor (Meldungen, WikiSync). --color-success/-danger above are the solid text colours; these carry
+	   a full bg/border/text set so the buttons follow the theme instead of staying light in dark mode. */
+	--color-success-soft: #eef6e2;
+	--color-success-soft-border: #a9c07f;
+	--color-success-soft-text: #3c5a1c;
+	--color-danger-soft: #fbeae6;
+	--color-danger-soft-border: #d3a79c;
+	--color-danger-soft-text: #8a2d22;
+	/* Link status — the reachability marker behind an external link (linkchecker). "online" reuses the
+	   success green so the two never drift apart; "offline" is a muted warm grey, NOT a red: a link that
+	   has gone is a fact worth noting, not an error the reader can act on. Deliberately not
+	   --color-map-presence*, which is pinned identical in both themes because it sits on the always-light
+	   map tiles — these markers live in panels and must follow the theme. */
+	--color-status-online: var(--color-success);
+	--color-status-offline: #8b8478;
+	/* Status: warning (amber) — the third status colour next to --color-success/--color-danger,
+	   used by the WikiSync + settlement editors (coverage gaps, attribution-required licences,
+	   values diverging from the wiki). --color-warning is the solid text/border/dot value;
+	   -soft* is the pale filled badge (hint boxes, "Lücke" badges); -strong* is the filled
+	   ACTIVE warn chip. */
+	--color-warning: #b8860b;
+	--color-warning-soft: #faeeda;
+	--color-warning-soft-border: #ef9f27;
+	--color-warning-soft-text: #854f0b;
+	--color-warning-strong: #f4c869;
+	--color-warning-strong-text: #4a3300;
+	/* Route waypoints — ONE language across map, route planner and infopanel (Owner): every waypoint is
+	   red, the destination is a teardrop, and the SELECTED one turns gold-yellow. Red means "waypoint",
+	   gold means "selected" — never "which position in the route".
+	   These stay the SAME in both themes on purpose: the same mark appears on the always-light map tiles
+	   and on the dark panels, and it must read as the same thing in both places. */
+	--color-marker-waypoint: #e33b35;      /* heraldic red — matches the red settlement markers */
+	--color-marker-waypoint-core: #2e2119; /* the dark "eye" + outline inside the mark */
+	--color-marker-waypoint-ring: #dcb877; /* the gold ring (map marker only — invisible below ~16px) */
+
+	/* Review stars — the rating glyphs (infobox summary + write-dialog picker). Warm coat-gold,
+	   not a generic yellow; `-muted` is the empty-star track. */
+	--color-star: #e0a528;
+	--color-star-muted: #d9c7a6;
+
+	/* Active/selected map location — the clicked settlement's marker fills gold-yellow (Owner). Also the
+	   SELECTED route waypoint (see above). The marker sits on the always-light map tiles, so the dark
+	   value stays the same warm gold. */
+	--color-marker-active: #f0b429;
+
+	/* Editor-Markierungswerkzeuge (Discord #25) -- kräftige Warnringe um Marker, je ein Ton pro
+	   Befund: pink = "Unverbunden" (gar keine Anbindung), türkis = "Kreuzungen ≤ 2 Wege"
+	   (überflüssiger Knoten). Pinned wie --color-marker-waypoint oben: die Ringe sitzen auf den
+	   IMMER-hellen Kartenkacheln, nicht auf einem Theme-Panel, also kein Dark-Override. */
+	--color-marker-unconnected-ring: #e0559a;
+	--color-marker-sparse-crossing-ring: #0fb9b1;
+	/* Discord #43 -- bernstein = "offenes Wegende": ein per Strg vom Ort getrenntes Wegende, das noch
+	   an nichts haengt. Gleiche Begruendung wie oben (helle Kacheln, kein Dark-Override). Bewusst
+	   NICHT --color-accent: das Gold markiert waehrend des Ziehens den Marker, das Bernstein danach
+	   die zurueckgebliebene Luecke -- zwei Zustaende, zwei Toene. */
+	--color-marker-open-path-end-ring: #e8850c;
+
+	/* "Edit in progress" blue -- the ring of every drag handle on the map (.path-edit-handle-marker__dot
+	   in css/features/path-editor.css, used by the path, region and landscape editors). This is one of
+	   the two documented no-blue EXCEPTIONS in docs/design-language.md: it encodes a STATE, not chrome,
+	   and must not be "corrected" to a warm tone. It is a token so the contour of an area being edited
+	   can say the same thing in the same colour instead of writing the literal a second time. Pinned:
+	   drawn on the always-light map tiles. */
+	--color-edit-handle: #1452f7;
+	/* Dieselbe Ausnahme, eine Stufe leiser: die Unterflächen einer mehrteiligen Landschaftsfläche, die
+	   GERADE NICHT gemeint sind. Die gemeinte trägt --color-edit-handle, die übrigen dieses dunklere
+	   Blau — man sieht damit auf einen Blick, aus wie vielen Stücken die Fläche besteht und welches der
+	   nächste Klick trifft (Owner 2026-07-27). Gepinnt, liegt auf hellen Kacheln. */
+	--color-edit-handle-muted: #0b2a80;
+
+	/* Landschaften (Erprobung), colours per Owner 2026-07-26. All three layers are on at once, so the
+	   tones must stay tellable apart -- but they are not three peers: the derographic layer draws
+	   administrative CONTAINERS (grey, and unfilled while it rests), topography draws relief, and only
+	   vegetation carries real ground cover, which is why it is the one that gets a tone per type
+	   instead of a single colour. Pinned in both themes for the same reason as the marker rings above:
+	   these are painted ON the always-light map tiles, never on a themed panel. */
+	--color-ecosystem-derographisch: #575757; /* neutral grey -- regions, islands, continents */
+	/* Placeholder. The height map (high -> white) replaces this per the concept; until then one
+	   brown-grey stands in for the whole relief layer. */
+	--color-ecosystem-topographie: #7a6c5e;   /* brown-grey -- mountains, hills, coast, sea */
+	/* CONTOURS for those two, markedly darker than their own fill (Owner 2026-07-26). Only these two
+	   have one: vegetation carries a tone per type, and its contour follows that tone -- see
+	   ecosystemAreaColor(). A missing token here means "use the fill colour", which is what keeps the
+	   rule one rule instead of a second table.
+	   ⚠️ The topographic contour is a neutral dark SLATE, not the brown it started as: since that layer
+	   gained a tone per type it has to sit on brown-grey, grey-green, blue, dark blue and turquoise
+	   alike, and a brown line on a sea reads as dirt. One line per LAYER is still the rule -- the point
+	   of the dark contour is "this is where the area ends", and that answer must not change per type. */
+	--color-ecosystem-derographisch-contour: #2e2e2e;
+	--color-ecosystem-topographie-contour: #2b3138;
+	/* Owner 2026-07-29: „die Konturen der Vegetationsflächen dunkler". Bis hierher hatte die Vegetation
+	   als EINZIGE Ebene keinen eigenen Konturton und erbte deshalb ihre Füllfarbe -- ein Waldrand war
+	   waldgrün auf waldgrün und verschwand. Ein dunkles Blattgrün statt des Grau-Blaus der Topographie:
+	   die Kante gehört zur Ebene, nicht zum Fels. */
+	--color-ecosystem-vegetation-contour: #22351c;
+	/* The fallback for a vegetation region with no type set. The per-type tones below win when the
+	   region has one; they are looked up BY RULE from the type_key
+	   (--color-ecosystem-<kind>-<type_key with _ as ->), so a newly seeded type needs a token here
+	   and nothing else -- there is no list of them in the client to keep in sync. */
+	--color-ecosystem-vegetation: #5f7d33;
+	--color-ecosystem-vegetation-wald: #3f6b2c;             /* dense forest */
+	--color-ecosystem-vegetation-suempfe-moore: #2f4a2a;    /* swamp and moor, dark green */
+	--color-ecosystem-vegetation-steppe: #a8bd8a;           /* steppe, pale green */
+	--color-ecosystem-vegetation-tundra: #6f9d94;           /* tundra, blue-green */
+	--color-ecosystem-vegetation-auenlandschaft: #4f9e35;   /* floodplain, vivid green */
+	--color-ecosystem-vegetation-wueste: #e0c74e;           /* desert, yellow */
+	--color-ecosystem-vegetation-graslandschaft: #8fbf6a;   /* grassland, soft green */
+	--color-ecosystem-vegetation-flussland-flusstal: #4a8f6b; /* river land and valley, green with a water cast */
+	--color-ecosystem-vegetation-dschungel: #1e7d32;        /* jungle, deep saturated tropical green */
+	--color-ecosystem-vegetation-wuestenoase: #2fa88c;      /* desert oasis, teal-green -- water in the sand */
+
+	/* Topography per type, same rule (Owner 2026-07-27). Until today the whole layer was one brown-grey;
+	   it draws relief AND water, and those two do not share a colour in any map anyone has ever read.
+	   💣 THE BLUES ARE A DELIBERATE, PERMANENT EXCEPTION TO "no blue" (§12) -- do not "correct" them in a
+	   token sweep. The no-blue rule is about UI chrome: panels, controls, links, menus. These are DATA
+	   painted on the map, in the same category as the analytics chart's categorical palette and the
+	   heraldic red of the route markers, and the map's own rivers have been blue all along. A sea drawn
+	   in warm brown would be unreadable to every editor who has ever seen a map. */
+	--color-ecosystem-topographie-gebirge: #7a6c5e;         /* mountains, brown-grey */
+	--color-ecosystem-topographie-huegelland: #7d8f6e;      /* hills, grey-green */
+	--color-ecosystem-topographie-see: #4a86b8;             /* lake, blue */
+	--color-ecosystem-topographie-meer: #2d5f8a;            /* sea, dark blue */
+	--color-ecosystem-topographie-kueste: #3f9e9a;          /* coast, turquoise */
+	--color-ecosystem-topographie-wadi: #9b8a5c;            /* wadi, sand with an olive cast -- a bed that is dry most of the time */
+	--color-ecosystem-topographie-schlucht: #5c5148;        /* gorge, dark rock -- deliberately darker than the mountains: it reads as depth */
+	--color-ecosystem-topographie-hochebene: #9a9b82;       /* plateau, pale grey-green -- high but flat, lighter than the hills */
+	--color-ecosystem-topographie-tiefebene: #6f7a55;       /* lowland, deeper warm olive -- the plateau's counterpart, low and lush */
+	--color-ecosystem-topographie-tal: #6b7266;             /* valley, shaded green-grey -- an incision like the gorge, but wide and walkable */
+	--color-ecosystem-topographie-flussdelta: #5e8f86;      /* river delta, silted teal -- water and deposited land, duller than the coast's turquoise */
+	/* Owner 2026-07-30, the day `insel` moved from derographisch to topographie. 🔴 NOT optional: without
+	   this token ecosystemAreaColor() falls back to --color-ecosystem-topographie, which IS the mountain
+	   brown-grey -- all 251 islands would render as mountains. Sandy beige-olive: reads as LAND against
+	   see (#4a86b8) and meer (#2d5f8a), and stays apart from gebirge (#7a6c5e) and hochebene (#9a9b82). */
+	--color-ecosystem-topographie-insel: #b2a273;           /* island, sandy beige-olive -- dry land ringed by water */
+
+	/* Klimazonen (Owner 2026-08-03). Sieben Bänder von Nord nach Süd, abgeleitet aus sechs
+	   Trennlinien. Bewusst KEINE Grün-Skala: Grün gehört der Vegetation, und die beiden Ebenen müssen
+	   nebeneinander unterscheidbar bleiben. Dies ist eine reine TEMPERATURSKALA -- Eis, blass, neutral,
+	   gold, warm --, die von selbst „oben kalt, unten heiss" liest.
+	   💣 Die Namensregel ist bindend: --color-ecosystem-klima-<type_key mit - statt _>. Fehlt ein Ton,
+	   fällt ecosystemAreaColor() auf --color-ecosystem-klima zurück und alle sieben Bänder sehen gleich
+	   aus -- dieselbe Falle, die bei `insel` 251 Flächen zu Gebirgen gemacht hätte.
+	   Die kühlen Töne sind dieselbe bewusste Ausnahme von „kein Blau" wie See und Meer darüber:
+	   gemalte KARTENDATEN, nicht UI-Chrom (§12). Gepinnt, sie liegen auf den immer hellen Kacheln.
+
+	   💣 HIER STAND EIN ÜBERZÄHLIGES KOMMENTARENDE (seit 2026-08-03, gefunden am 12.08.2026). Der
+	   Absatz darunter war damit kein Kommentar mehr, sondern Text mitten im :root-Block -- und der
+	   CSS-Parser verwirft ab dort bis zum nächsten Semikolon. Verschluckt hat das GENAU EINE Zeile:
+	   `--color-ecosystem-klima`, den Rückfallton, den der Absatz oben als tragend beschreibt. Live
+	   gemessen war er neun Tage lang nicht definiert, während alle sieben Bänder daneben standen.
+	   ⚠️ So etwas fällt nie von selbst auf: Es gibt keine Fehlermeldung, die Datei sieht richtig
+	   aus, und der Fehler zeigt sich erst, wenn ausgerechnet der Rückfall gebraucht wird. Gewacht
+	   wird jetzt von js/app/__tests__/css-comment-balance.test.js.
+
+	   Owner 2026-08-03, zweiter Durchgang: „etwas stärker". Die ganze Rampe eine Stufe kräftiger, und
+	   das kalte Ende am deutlichsten -- #e6eef3 war auf den hellen Kacheln bei jeder Deckkraft fast
+	   unsichtbar, was die Polare Zone praktisch unbeschriftet liess. Die Reihenfolge kalt→warm und der
+	   neutrale Ton in der Mitte bleiben; nur der Kontrast zwischen benachbarten Zonen wächst. */
+	--color-ecosystem-klima: #bfc888;                       /* fallback -- the middle of the ramp */
+	--color-ecosystem-klima-polar: #cfe0eb;                 /* polar, pale ice */
+	--color-ecosystem-klima-subpolar: #a2c3d1;              /* subpolar, ice blue */
+	--color-ecosystem-klima-boreal: #7aada9;                /* boreal, cold teal */
+	--color-ecosystem-klima-gemaessigt: #bfc888;            /* temperate, neutral olive */
+	--color-ecosystem-klima-subtropen-winterfeucht: #dcb857; /* winter-wet subtropics, warm gold */
+	/* Owner 2026-08-03, nachtraeglich zwischen die beiden geschoben. Der Unterschied zur Nachbarin
+	   darueber ist die FEUCHTE, nicht die Temperatur -- deshalb ein entsaettigter Sandton statt einer
+	   weiteren Stufe auf der Warm-Rampe. Er liegt zwischen Gold (#dcb857) und Ocker (#d98f3c) und
+	   unterscheidet sich von beiden durch die Blässe, nicht durch den Farbton: zwischen zwei so nahen
+	   Nachbarn ist das der einzige Platz, der noch frei war. */
+	--color-ecosystem-klima-trockene-subtropen: #cdb083;    /* dry subtropics, dusty sand */
+	--color-ecosystem-klima-subtropisch: #d98f3c;           /* subtropical, orange ochre */
+	--color-ecosystem-klima-tropisch: #c65e2e;              /* tropical, warm terracotta */
+	/* Die Trennlinie. Ein neutrales Dunkel, das auf allen acht Tönen sitzt -- dieselbe Begründung wie
+	   beim topographischen Konturton: wo eine Zone aufhört, ist genau die Auskunft dieser Ebene, und
+	   die darf ihre Farbe nicht je Zone wechseln.
+	   🪤 Der ZONENNAME hatte hier bis 2026-08-05 einen eigenen Ton (--color-ecosystem-klima-label,
+	   #33302b). Er trägt jetzt den Ton SEINER Zone und holt ihn über dieselbe Regel wie die Füllung
+	   ihres Bandes (ecosystemAreaColor) -- je Zone steht der Ton schon oben, ein zweiter wäre die
+	   Kopie, die beim Einschieben einer neunten Zone zurückfiele. */
+	--color-ecosystem-klima-divider: #2b3138;
+	/* Der dunkle Saum hinter dem Zonennamen (Owner 2026-08-05: „vielleicht den halo dunkel machen wie
+	   beim rest"). Bis dahin war es umgekehrt -- dunkle Schrift, heller Saum. Seit der Name den Ton
+	   seiner Zone trägt, geht das nicht mehr: die Rampe reicht von fast weissem Polareis bis zu warmem
+	   Ocker, und ein heller Saum liesse das kalte Ende auf den hellen Kacheln verschwinden. Ein dunkler
+	   trennt alle acht Töne vom Grund -- dieselbe Bauart wie bei den Karten-Labels, deren Halo
+	   ebenfalls rgba(0, 0, 0, 0.85) ist (`glow` in map-features-labels.js), nur als text-shadow statt
+	   im Canvas gezeichnet. Halbtransparent, damit er ein Saum bleibt und kein Kasten. */
+	--color-ecosystem-klima-label-halo: rgba(0, 0, 0, 0.85);
+
+	/* Höhenrampe (V8). Fünf Stufen vom Gebirgsfuss bis zum Firn, aus dem Prototyp
+	   (html/landschaften-modell.html:589) übernommen -- dort standen sie als rohe RGB-Tripel im Code,
+	   was AGENTS.md §12 verbietet. Warme Erdtöne, kein Blau: das Relief ist gemalte Karte, nicht
+	   Datenvisualisierung, und es liegt neben Pergament und Wappengold.
+	   🔴 UMGESTELLT (Owner 2026-07-28): Graustufen auf ABSOLUTER Skala, als Schleier über die
+	   Topographieflächen gelegt -- 0 Schritt schwarz, HEIGHT_WHITE_SCHRITT weiss
+	   (map-features-ecosystem-height-render.js). Vorher war es eine warme Fünf-Farben-Rampe, RELATIV
+	   zum höchsten Gipfel DERSELBEN Fläche.
+	   Der Grund für den Wechsel: relativ skaliert sah ein 2.600er Bergland aus wie ein 5.200er Wall --
+	   die Farbe war innerhalb eines Gebirges lesbar, zwischen zweien aber bedeutungslos. Absolut
+	   skaliert bedeutet ein Grauwert überall dasselbe.
+	   💣 Der Preis steht hier, weil er beim Umstellen bestritten wurde und wieder bestritten werden
+	   wird: je höher der Weisspunkt, desto dunkler und flacher wird ALLES darunter. Bei 15.000 Schritt
+	   und einem Livebestand, dessen Gipfel per Vorgabe auf 5.000 stehen, bleibt der grösste Teil der
+	   Karte im unteren Drittel der Rampe. Das ist die eine Zahl, an der man dreht -- nicht die Farben. */
+	/* 🔴 Der untere Anschlag ist die GRUNDFARBE DER FLÄCHE, nicht Schwarz (Owner 2026-07-28). Damit
+	   ändert sich beim Aktivieren am Gebirgsfuss nichts sichtbar und es entsteht der Eindruck, dass
+	   nur das Höhenmodell dazukommt -- vorher wurde ein warm brauner Zug zu einem dunklen Fleck.
+	   Der Wert spiegelt --color-ecosystem-topographie-gebirge; wer den ändert, ändert auch diesen. */
+	/* 🔴 Die FÜNF Stützstellen des Prototyps (html/landschaften-modell.html:589), auf Owner-Wunsch
+	   2026-07-28 wieder eingesetzt -- dort standen sie als rohe RGB-Tripel im Code, was AGENTS.md §12
+	   verbietet. Warme Erdtöne vom Gebirgsfuss bis zum Firn, kein Blau: das Relief ist gemalte Karte.
+
+	   🔴 FARBE UND DECKKRAFT SIND ZWEI DINGE, und das ist der Kern dieser Fassung. Die Farbe kommt aus
+	   dieser Rampe, die Deckkraft aus derselben Höhe: 0 Schritt = durchsichtig, 5.000 = voll. Am
+	   Gebirgsfuss ist der Schleier deshalb unsichtbar, und welche Farbe dort steht, spielt keine Rolle
+	   -- nach oben hin verdichtet er sich und die Rampe kommt zum Vorschein.
+
+	   Die Abstände sind ungleich, so wie im Prototyp: der Übergang ins Firn sitzt spät (0,8), damit
+	   nicht jeder Mittelhang schon weiss wird. */
+	--color-ecosystem-height-0: #b0be9e;                    /* 0 % -- Fuss, fahles Grün */
+	--color-ecosystem-height-1: #c6be96;                    /* 25 % -- untere Hänge, Sand */
+	--color-ecosystem-height-2: #bea37c;                    /* 55 % -- Mittellage, Braun */
+	--color-ecosystem-height-3: #d6c4b2;                    /* 80 % -- Hochlage, helles Braun */
+	--color-ecosystem-height-4: #f7f3ee;                    /* 100 % -- Firn, fast Weiss */
+	/* Deckkraft des Höhenschleiers. Er liegt ÜBER den Flächenfüllungen (Pane 420 über 250), also
+	   entscheidet dieser Wert, wie viel Regionsfarbe noch durchkommt. */
+	--opacity-ecosystem-height: 0.55;
+	/* Selection contour (Owner 2026-07-26): a SELECTED area is outlined in white, an area whose corners
+	   are open for editing in the handle blue above. Two states, two contours -- the same principle as
+	   the two marker rings further up, and the reason the fill keeps its own tone in both cases: the
+	   colour says "which area", the contour says "what can I do with it". White because it reads on
+	   every one of the ten ground tones below/above it; pinned for the usual reason (light tiles). */
+	--color-ecosystem-selected-outline: #ffffff;
+	/* Das Ziel, über dem die Maus bei einer laufenden booleschen Operation steht. Blasses Gold, damit es
+	   sich von der weissen Auswahlkontur darüber unterscheidet und trotzdem auf allen zehn Grundtönen
+	   liest. Wert übernommen aus der Territorien-Hervorhebung, die ihn hartkodiert im setStyle stehen
+	   hat (map-features-region-pending-highlight.js:16) -- hier steht er einmal als Token, damit die
+	   beiden Ebenen nicht auseinanderlaufen. Gepinnt wie die Nachbarn: liegt auf hellen Kacheln. */
+	--color-ecosystem-target-outline: #fff4a3;
+	/* The paper the map is drawn on. The "Untergrund" slider fades the base tiles out towards THIS, so
+	   at 0% the frame looks like no base map at all and the drawn areas stand alone (Owner 2026-07-26).
+	   Pinned white, deliberately NOT --color-panel: this is map surface, not a panel, and in the dark
+	   theme a themed value would fade the tiles into near-black instead of clearing them away. */
+	/* Was hinter den ausgeblassten Kacheln durchscheint. 🔴 NICHT MEHR WEISS (Owner 2026-08-04: „kann man
+	   den Untergrund etwas dunkler ... machen?"). Reines Weiss hinter 25 % Kachel ergab eine fast leere
+	   Seite, auf der auch kräftige Flächenfarben blass wirkten -- der Untergrund nahm ihnen den Kontrast
+	   von unten. Ein warmes Pergamentgrau ist der Ton, gegen den die Landschaftsfarben stehen, statt in
+	   ihm zu verschwinden; es bleibt heller als jede Flächenfarbe und damit Hintergrund. */
+	--color-ecosystem-underground: #d3cec2;
+
+	/* Modal scrim (behind centred dialogs) */
+	--color-scrim: rgba(38, 28, 16, 0.5);
+
+	/* Editor dialog overlays (report/edit/wiki-sync/path/powerline/label/region) — a
+	   darker, denser scrim than --color-scrim above. Pinned: same in both themes. */
+	--color-scrim-dialog: rgba(20, 16, 12, 0.56);
+	/* Full-bleed territory editor overlay — stronger still, paired with backdrop blur. */
+	--color-scrim-editor: rgba(20, 16, 12, 0.6);
+	/* Spotlight search overlay — lighter + blurred, keeps the map visible behind it. */
+	--color-scrim-light: rgba(18, 15, 12, 0.34);
+	/* Spoiler lid on a Kartensammlung card (Spec §3.7). Unlike every scrim above it does not sit BEHIND a
+	   dialog but ON a card, over already-blurred content: dense enough that the title underneath stays
+	   unreadable, light enough to read as a lid rather than a hole. Pinned + its own text colour: it
+	   always covers card content and always carries light text, so a themed --color-text-strong would go
+	   dark-on-dark in the light theme. */
+	--color-scrim-spoiler: rgba(20, 16, 12, 0.62);
+	--color-scrim-spoiler-text: #f4ece0;
+
+	/* Territory-editor sticky header — translucent panel + backdrop-filter blur
+	   so scrolled content shows through faintly. */
+	--color-panel-translucent: rgba(255, 253, 249, 0.96);
+
+	/* Travel-speed tiers — the functional ampel in the speed-matrix dialog. A data
+	   highlight, not chrome. 💣 THIS ONE IS THEMED (see the dark block below): it was
+	   pinned across both themes until 2026-08-04, and the pale light-theme fills then
+	   stood at 11:1 against the dark dialog — three glaring blocks instead of a tinted
+	   table. The dark set repeats the LIGHT theme's own relationship (fill ~1.5:1 over
+	   its panel), which is what makes it read as the same component. */
+	--color-tier-fast-bg: #d2e5ad;
+	--color-tier-fast-text: #2b5407;
+	--color-tier-mid-bg: #f2ddb0;
+	--color-tier-mid-text: #6b3d07;
+	--color-tier-slow-bg: #f3cfcf;
+	--color-tier-slow-text: #7a1c1c;
+
+	/* Territory-editor "on map" presence indicator (tree/legend swatch ring). A
+	   data highlight (not chrome), deliberately identical in both themes. */
+	--color-map-presence: #6a7f3a;
+	--color-map-presence-text: #2f6b3a; /* darker text variant of the above, same pinning rule */
+
+	/* Territory-assignment picker (parent-tree/tabs/breadcrumb "active" rows) —
+	   translucent white overlays that sit ONLY on the --color-button solid fill,
+	   never on a page surface. --color-button stays mid-dark in both themes, so
+	   these are deliberately identical in both (no dark override needed). */
+	--color-on-button-muted: rgba(255, 255, 255, 0.8);    /* secondary/meta text on the fill */
+	--color-on-button-hairline: rgba(255, 255, 255, 0.25); /* faint divider/chip-bg on the fill */
+
+	/* Interaction & focus (see "Button states" in the doc) */
+	--color-focus: rgba(191, 160, 58, 0.45);      /* gold focus glow */
+	--focus-ring: 0 0 0 3px var(--color-focus);   /* compose with the element's shadow, don't replace it */
+	--color-hover-wash: rgba(191, 160, 58, 0.14); /* row / option hover */
+	--color-active-wash: rgba(191, 160, 58, 0.24);/* selected row */
+
+	/* ---- Chart series (categorical) -----------------------------------------------------------
+	 * FOUR slots, assigned in fixed order, never cycled. Introduced 2026-08-02 for the way editor's
+	 * „Funktionen anzeigen" window -- the first surface in this project that draws several data
+	 * series at once.
+	 *
+	 * 💣 FOUR IS THE CEILING, AND IT IS A MEASURED ONE. These were not picked by eye: the palette
+	 *    was run through an OKLab/ΔE validator with protanopia, deuteranopia and tritanopia
+	 *    simulation against the real chart surfaces (--color-panel-soft, light and dark). Lightness
+	 *    band, chroma floor, normal-vision separation (ΔE 18,1 light / 15,7 dark) and contrast all
+	 *    pass. The red-green pair does NOT: ΔE 4,8 light and 1,0 dark against a target of 8.
+	 *
+	 * 🔴 That failure cannot be fixed with better hues, and it is the price of AGENTS.md §12's „no
+	 *    blue". Red and green ARE the red-green confusion axis, and the one hue that separates
+	 *    cleanly there is the forbidden one. Seven warm earth tones were tried first and scored
+	 *    worse (ΔE 1,3) -- two of them indistinguishable even with full colour vision.
+	 *
+	 * ⭐ THEREFORE COLOUR NEVER CARRIES IDENTITY ALONE on these charts. Whoever uses these tokens
+	 *    also ships a second encoding -- stroke pattern per series, plus small multiples so that
+	 *    rarely more than four series share one picture. A fifth series is refused, never given an
+	 *    invented fifth hue.
+	 */
+	--color-chart-1: #c9821c;  /* gold-orange */
+	--color-chart-2: #a02a24;  /* brick red   */
+	--color-chart-3: #2f7d3a;  /* leaf green  */
+	--color-chart-4: #6b4a8f;  /* plum        */
+	--color-check-accent: var(--color-accent-strong); /* checkbox/radio checked mark + border */
+	--color-check-fill: var(--color-active-wash);      /* checkbox/radio checked fill */
+	--color-disabled-bg: #ece7dd;
+	--color-disabled-text: #a99f8e;
+	--color-disabled-border: #dcd3c4;
+
+	/* Scrollbars — thin, theme-aware track/thumb (Firefox scrollbar-color + WebKit
+	   pseudo-elements), applied globally in base.css. */
+	--color-scrollbar-thumb: rgba(141, 121, 98, 0.4);
+	--color-scrollbar-thumb-hover: rgba(141, 121, 98, 0.6);
+	--color-scrollbar-track: transparent;
+
+	/* Spacing scale — value-named steps; use a token, never a stray px */
+	/* Owner: alle Spacing-Vars global +2px (mehr Luft überall). Die Namen (2/4/6/…)
+	   bleiben als Skala-Stufen; die WERTE tragen +2. App-weit + reversibel. */
+	--space-2: 4px;
+	--space-4: 6px;
+	--space-6: 8px;
+	--space-8: 10px;
+	--space-10: 12px;
+	--space-12: 14px;
+	--space-16: 18px;
+	--space-20: 22px;
+	--space-24: 26px;
+
+	/* Radius — 3 rungs; the old 4/6/7/9 fold to the nearest (controls → md) */
+	--radius-sm: 5px;   /* mirrored panel shell + tiniest chips */
+	--radius-md: 8px;   /* all controls: buttons, inputs, selects, pills, rows */
+	--radius-lg: 10px;  /* menus, cards, autocomplete */
+
+	/* Divider rhythm — symmetric space above & below a section line (on-scale) */
+	--divider-gap: var(--space-12);       /* reading sections (infobox) */
+	--divider-gap-tight: var(--space-6);  /* dense control groups (route planner) */
+
+	/* Icon sizes — one scale for UI glyphs (sm/md) AND the existing colour
+	   imagery (lg..hero: transport, type toggles, coats) so sizes stop drifting */
+	--icon-sm: 16px;    /* dense inline glyph */
+	--icon-md: 20px;    /* standard UI glyph */
+	--icon-lg: 24px;    /* inline content icon — transport mode */
+	--icon-xl: 46px;    /* map-display type toggle — fills the wider 350px route-planner cell */
+	--icon-2xl: 48px;   /* infobox type icon (coat fallback) */
+	--icon-hero: 130px; /* coat / logo hero */
+
+	/* Die beiden Randlaschen -- „Routenplaner" links (#toggle-button, css/layout/map-layout.css) und
+	   „Info" rechts (.avesmaps-infopanel__handle, css/features/infopanel.css). Sie sind seit jeher
+	   gleich gebaut, standen aber mit denselben drei Zahlen in ZWEI Dateien; das ist die Divergenz
+	   aus AGENTS.md §12, und am Telefon musste sie an beiden Enden zugleich wandern. */
+	--avesmaps-tab-w: 30px;
+	--avesmaps-tab-top: 30px;
+	--avesmaps-tab-h: 140px;
+	/* Der Kantenschatten der Telefon-Lasche: ein schmales dunkles Band an genau der Kante, unter der
+	   sie hervorkommt -- ausdruecklich KEIN Verlauf ueber die volle Breite (Owner 12.08.2026, am
+	   Entwurf entschieden: „nicht ueber die volle breite, sondern dass es so aussieht wenn die lasche
+	   unter dem panel sitzt"). Als fertiges Bild und nicht als Farbe, weil erst die drei Stopps
+	   zusammen die Aussage sind; einzeln waeren es drei Zahlen, die auseinanderlaufen koennen.
+	   ⚠️ Derselbe Wert in hell und dunkel: er verdunkelt den Knopfgrund, statt eine eigene Farbe zu
+	   setzen, und beide Knopfgruende sind warme Brauntoene. */
+	--avesmaps-tab-edge-shade: linear-gradient(90deg, rgba(18, 15, 10, 0.36) 0, rgba(18, 15, 10, 0.17) 5px, rgba(18, 15, 10, 0) 13px);
+
+	/* Der Abstand zum Kartenrand -- EINE Zahl fuer alles, was unten an der Karte klebt: der
+	   Knopfbund („Neuigkeiten"/„Hinweise"), der Zoom darueber und die beiden Panels.
+	   💣 Sie standen vorher als 12 gegen 14 nebeneinander, und man sah es: das Infopanel endete
+	   2px ueber „Hinweise" (Owner 11.08.2026, am Zeiger gemessen 786 gegen 788). Zwei Zahlen, die
+	   dasselbe meinen -- genau der Fall aus AGENTS.md §12. */
+	--avesmaps-edge-gap: 12px;
+	/* Die Panels leiten ihren unteren Rand DARAUS ab, statt ihn zu waehlen. Damit kann das
+	   Infopanel gar nicht mehr neben dem Knopfbund enden, und wer den Kartenrand aendert, aendert
+	   beide. Oben haben sie einen eigenen Wert -- dort steht nichts, mit dem sie fluchten muessten. */
+	--avesmaps-panel-inset-top: 10px;
+	--avesmaps-panel-inset-bottom: var(--avesmaps-edge-gap);
+	/* Die Breite des Routenplaners (#search) -- und seit dem 12.08.2026 auch die des
+	   Anzeige-Menues in der Kartenecke (Owner: „auf dem desktop etwa die breite des
+	   routenplaners"). Bei dieser Breite stehen die sechs Ortsklassen nebeneinander, ohne sich zu
+	   quetschen. Zwei Zahlen, die dasselbe meinen, laufen beim ersten Anfassen auseinander --
+	   derselbe Fall wie --avesmaps-edge-gap darueber. */
+	--avesmaps-planner-width: 350px;
+	/* Eine Sprosse ueber --z-map-panel (1010): ein GEOEFFNETES Menue in der Kartenecke. Es
+	   schwebt seit dem 12.08.2026 ueber der Karte und ueberlappt dabei die Routenplaner-Lasche,
+	   die sonst darueber laege und ihm die erste Zeile abschneidet.
+	   ⚠️ Nur fuer den offenen Zustand gedacht -- der Bund selbst bleibt auf --z-map-ui. */
+	--z-map-menu: 1020;
+
+	/* Elevation */
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
+	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.38);
+	/* Button hover lift — warm brown drop, one step stronger for the filled main action. Matches the
+	   route-planner buttons (which still inline these values; migrate them to these tokens later). */
+	--shadow-button-hover: 0 4px 10px rgba(52, 41, 32, 0.14);
+	--shadow-button-hover-strong: 0 5px 12px rgba(52, 41, 32, 0.22);
+
+	--z-map-ui: 1000;
+	/* Der Routenplaner liegt UEBER der uebrigen Kartenbedienung (Owner 11.08.2026: "der
+	   routenplaner soll ueber den buttons auf der karte liegen"). Vorher trugen beide
+	   --z-map-ui, und dann entscheidet die Reihenfolge im Markup -- der Knopfbund steht spaeter
+	   und lag deshalb obenauf, mitten im Panelinhalt.
+	   ⚠️ Unter dem Infopanel (1080) und dem Editorpanel (1100): die beiden decken den Planer
+	   weiterhin zu, wenn sie aufgehen. */
+	--z-map-panel: 1010;
+	--z-dialog: 1450;
+	--z-dialog-high: 1460;
+	/* Editor overlays (the iframe tools: territory, settlement, adventure, citymap, wiki-sync).
+	   Above --z-dialog-high so an editor overlay always clears the map context menu sitting there. */
+	--z-editor-overlay: 1500;
+	/* A dialog opened FROM an editor overlay ("Alle anzeigen") — must clear --z-editor-overlay. */
+	--z-dialog-over-editor: 3000;
+	/* Typeahead dropdowns. Must clear --z-editor-overlay: the source autocomplete opens from an
+	   add-row that lives INSIDE the editor overlays. Also carries the route planner's jQuery-UI
+	   menu (.ui-autocomplete), which must out-rank jquery-ui.css's .ui-front (z-index: 100). */
+	--z-autocomplete: 1600;
+	--z-modal: 5000; /* full-screen modal overlay — above --z-autocomplete */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   DIE IOS-SCHWELLE — der EINE Ort, an dem die Feldschrift fuer grobe Zeiger steht.
+   💣 Unter 16px faehrt Safari beim Fokus in jedes Feld hinein und kehrt NICHT zurueck -- bei
+   jeder einzelnen Eingabe. 16 ist eine Schwelle, kein Richtwert: 15,5px zoomt noch.
+   🔴 NICHT ueber maximum-scale / user-scalable im Viewport-Meta loesen: das naehme allen das
+   Aufziehen der Karte, und neuere iOS-Fassungen ignorieren es ohnehin.
+   ⚠️ `pointer: coarse` meint den PRIMAEREN Zeiger -- ein Laptop mit Touchscreen und Maus meldet
+   `fine` und bleibt unberuehrt.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+@media (pointer: coarse) {
+	:root {
+		--font-size-control: 16px;
+	}
+}
+
+/* 💣 DER STEMPEL DIESER DATEI WIRD AUS DEM REPO GERECHNET, HOCHGELADEN WIRD NUR DER PUSH-DIFF.
+   Am 11.08.2026 scheiterte der Deploy dieser Datei an einem roten Test -- hochgeladen wurde
+   nichts. Der naechste, erfolgreiche Lauf trug ihren NEUEN Inhaltsstempel ins HTML, ohne sie
+   selbst mitzunehmen: `tokens.css?v=903dace7de` lieferte zweieinhalb Stunden den ALTEN Inhalt,
+   und jeder Browser hat genau den unter dieser Adresse gecacht. Ein spaeterer Voll-Deploy
+   repariert das NICHT -- er laedt die richtige Datei unter dieselbe, laengst vergiftete Adresse.
+   Heilung ist nur eine INHALTSAENDERUNG (neuer Hash = neue Adresse); dieser Absatz ist sie.
+   ⚠️ Merkmal des Falls: der Server liefert mit Cache-Umgehung das Richtige, die Seite zeigt das
+   Falsche, und das HTML ist NICHT veraltet (docs/asset-caching-and-versioning.md).
+
+   Am Telefon laufen die PANELS von Kante zu Kante -- die Randlaschen NICHT.
+   🔴 Das war am 11.08.2026 fuer wenige Stunden anders und ist zurueckgenommen: „von oben nach
+   unten durchgehen" galt dem PANEL, nicht seinem Reiter (Owner, nach dem Ansehen: „das Tab sollte
+   nicht veraendert werden, ich meinte dass das Panel selbst von oben nach unten gehen soll"). Eine
+   Lasche ueber die volle Bildschirmhoehe ist ein 100-dvh-Balken neben der Karte.
+   ⚠️ Seit dem 12.08.2026 ist die Lasche des Planers am Telefon KLEINER als am Zeiger (26x56 statt
+   30x140, Werte unten) und sitzt mittig statt oben -- also das Gegenteil jener Aenderung, nicht sie
+   noch einmal: der Owner hat den kleinen Pfeilgriff am Entwurf abgenommen, weil der beschriftete
+   Balken am Telefon zu viel Karte verdeckt. `--avesmaps-tab-top` gilt dort deshalb nur noch der
+   Info-Lasche (die im Frontend ohnehin weg ist, also praktisch nur dem Edit-Modus).
+   💣 An `html.avesmaps-phone`, NICHT an einer Media-Query: „Telefon" ist in diesem Haus EINE
+   Definition -- avesmapsIsPhoneViewport() (pointer: coarse UND Kurzseite <= 600px) setzt die Klasse,
+   das CSS liest sie. Eine zweite Fassung als Breiten-Query traefe ein quer gehaltenes Telefon nicht
+   und ein Tablet zu viel.
+   ⚠️ Hier stehen nur die WERTE. Beide Laschen lesen sie in ihren eigenen Dateien -- eine Regel, die
+   von hier aus auf `#toggle-button` und `.avesmaps-infopanel__handle` zielte, waere ein dritter Ort,
+   an dem ihre Maße stehen. */
+html.avesmaps-phone {
+	/* Die Panels laufen von Kante zu Kante (Owner 11.08.2026: „im mobile full
+	   height"). Nur SIE -- --avesmaps-edge-gap bleibt bei 12px, sonst klebte der Knopfbund am
+	   Bildschirmrand. Deshalb hat der Panel-Rand einen eigenen Token, statt der Kartenrand-Zahl
+	   direkt zu folgen: am Zeiger ist er von ihr abgeleitet, am Telefon faellt er weg. */
+	--avesmaps-panel-inset-top: 0px;
+	--avesmaps-panel-inset-bottom: 0px;
+
+	/* Die Randlasche ist am Telefon ein kleiner Pfeilgriff statt eines beschrifteten Balkens (Owner
+	   12.08.2026, am Entwurf abgenommen). Nur die MASSE stehen hier; die Form -- Pfeil statt Wort,
+	   mittig statt oben, Kantenschatten -- steht bei der Lasche selbst in css/layout/map-layout.css.
+	   ⚠️ Beide Laschen lesen die Werte. Im Frontend ist die Info-Lasche am Telefon ohnehin weg
+	   (css/features/infopanel.css); im Edit-Modus bleibt sie und traegt ihr Wort auch in der
+	   kleineren Form -- „Info" misst gemessene 24px und passt in die 56. */
+	--avesmaps-tab-w: 26px;
+	--avesmaps-tab-h: 56px;
+}
+
+/* Dark theme — opt-in (set data-theme="dark" on :root). Same warm family,
+   deep parchment-brown canvas, cream text; the gold is lightly desaturated
+   (~12% less than the light gold) so it stays calm on dark instead of shouting. */
+:root[data-theme="dark"] {
+	--color-page-bg: #211f19;
+	--color-page-bg-deep: #181611;
+	--color-panel: #312e26;
+	--color-panel-soft: #37342b;
+	--color-panel-muted: #39352b;
+	/* Lighter than the panel here -- the same "pressed" reading, mirrored for dark. */
+	--color-panel-active: #4c4636;
+
+	--color-text: #eee7da;
+	--color-text-strong: #f5f0e4;
+	--color-text-muted: #b4a895;
+	--color-placeholder: #7b7467;
+
+	--color-border: #514a3c;
+	--color-border-strong: #615a49;
+	--color-divider: rgba(207, 197, 171, 0.24);
+
+	--color-button: #6b6456;
+	--color-button-border: #7a7361;
+	--color-button-text: #f5ebd7;
+	/* Hover geht hier DUNKLER, anders als im hellen Thema. Auf dunklem Grund steht
+	   cremefarbene Schrift auf dem Knopf: ein hellerer Hover senkt den Kontrast, statt
+	   ihn zu heben. Der alte Wert #797264 lag bei 4,03:1 gegen --color-button-text und
+	   damit unter WCAG AA (4,5) -- sichtbar an jeder Sync-Kachel. Jetzt 6,05:1.
+	   Die 1px-Anhebung und der staerkere Schatten tragen das Hover-Signal. */
+	--color-button-hover: #5e5749;
+	/* Muss mitwandern: der bisherige Wert #5d5648 lag praktisch auf dem neuen Hover
+	   und waere nicht mehr davon zu unterscheiden gewesen. Jetzt 7,46:1. */
+	--color-button-active: #4f4a3d;
+
+	--color-button-soft: #3a362c;
+	--color-button-soft-text: #eae1cf;
+	--color-button-soft-border: #585142;
+	--color-button-soft-hover: #453f32;
+	--color-button-soft-active: #4e4739;
+
+	--color-accent: #cfb767;
+	--color-accent-strong: #dcc77e;
+	--color-link: #d7c38b;
+	--color-link-hover: #e3d39f;
+
+	--color-accent-brown: #c9a97e;
+	--color-accent-brown-hover: #dcbe97;
+	--color-accent-brown-soft: #a3835c;
+	--color-accent-brown-text: #241d14;
+	--color-accent-brown-focus: rgba(201, 169, 126, 0.25);
+
+	--color-pill: #3b3522;
+	--color-pill-border: #5c5237;
+	--color-pill-text: #e7d7a5;
+
+	--color-danger: #d27566;
+	--color-success: #7cc48a;
+	--color-success-halo: rgba(124, 196, 138, 0.22);
+	--color-muted-halo: rgba(180, 168, 149, 0.20);
+	--color-success-soft: #2c3a24;
+	--color-success-soft-border: #4d6b3a;
+	--color-success-soft-text: #9cd39a;
+	--color-danger-soft: #3f2a26;
+	--color-danger-soft-border: #6b463f;
+	--color-danger-soft-text: #e29c8f;
+	--color-warning: #e0b45c;
+	--color-warning-soft: #3b3122;
+	--color-warning-soft-border: #6d5629;
+	--color-warning-soft-text: #e9c684;
+	--color-warning-strong: #c79a3c;
+	--color-warning-strong-text: #241d14;
+	/* Link status, dark: the muted grey lifts so it stays legible on the deep panel. --color-status-online
+	   needs no override -- it is var(--color-success), which is re-pointed just above. */
+	--color-status-offline: #9a9184;
+	/* No dark override for the waypoint marks (or the --color-marker-*-ring editor marks below) on
+	   purpose -- the SAME mark appears on the always-light map tiles and on the dark panels; a
+	   theme-shifted red would make the planner (or the editor) disagree with the map. */
+
+	--color-panel-translucent: rgba(49, 46, 38, 0.96);
+
+	/* Travel-speed tiers, dark — deep warm fills with a light tint of their own hue, so the
+	   ampel stays readable as green/amber/red without lighting up the dialog. Measured on
+	   --color-panel #312e26: text 6,5–7,4:1 (AA is 4,5) and all three fills sit ~1,5:1 over
+	   the panel, the same modest lift the light theme has. */
+	--color-tier-fast-bg: #3f5326;
+	--color-tier-fast-text: #d3e9ac;
+	--color-tier-mid-bg: #5d4720;
+	--color-tier-mid-text: #f2dcab;
+	--color-tier-slow-bg: #753831;
+	--color-tier-slow-text: #f7d4ce;
+
+	/* Review stars, dark: the gold stays warm; the empty track darkens so it doesn't glare on the
+	   deep panel (a light beige track would read almost as bright as a filled star). */
+	--color-star: #e6b850;
+	--color-star-muted: #6f6552;
+	--color-marker-active: #f0b429;
+
+	--color-focus: rgba(207, 183, 103, 0.5);
+	--color-hover-wash: rgba(207, 183, 103, 0.18);
+	--color-active-wash: rgba(207, 183, 103, 0.30);
+
+	/* Chart series, dark. NOT an automatic lightening of the light steps -- these were re-validated
+	   against the dark chart surface (#37342b) as their own palette. The dark lightness band is
+	   narrower (L 0,48-0,67 vs 0,43-0,77), and the first attempts sat above it. Same ceiling of
+	   four, same obligation to a second encoding. */
+	--color-chart-1: #b58c10;
+	--color-chart-2: #c74a55;
+	--color-chart-3: #2f9647;
+	--color-chart-4: #8f5fc4;
+	/* Checkbox/radio checked, dark: the gold read as muddy + too yellow (owner). Use a
+	   markedly desaturated gold and a solid subtle fill instead of the translucent wash. */
+	--color-check-accent: #aaa598;
+	--color-check-fill: var(--color-panel-soft);
+	--color-disabled-bg: #322f27;
+	--color-disabled-text: #6e685c;
+	--color-disabled-border: #433e33;
+
+	/* Scrollbars, dark: same warm-brown family as --color-text-muted, lightened so the
+	   thumb still shows up against the deep panel. */
+	--color-scrollbar-thumb: rgba(180, 168, 149, 0.35);
+	--color-scrollbar-thumb-hover: rgba(180, 168, 149, 0.55);
+
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.45);
+	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.6);
+	--shadow-button-hover: 0 4px 10px rgba(0, 0, 0, 0.38);
+	--shadow-button-hover-strong: 0 5px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* ===== Mockup-Rahmen (gehört NICHT zum Produkt) ===== */
+* { box-sizing: border-box; }
+body {
+	margin: 0;
+	padding: var(--space-16);
+	background: var(--color-page-bg-deep, #e8e1d4);
+	color: var(--color-text);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-reading);
+}
+.page { max-width: 1240px; margin: 0 auto; }
+.page__head {
+	display: flex; align-items: flex-start; justify-content: space-between;
+	gap: var(--space-10); margin-bottom: var(--space-12);
+}
+.page h1 { margin: 0 0 var(--space-4); font-size: var(--font-size-title); color: var(--color-text-strong); }
+.page__sub { margin: 0; font-size: var(--font-size-small); color: var(--color-text-muted); max-width: 70ch; line-height: var(--leading-normal); }
+.themebtn {
+	flex: 0 0 auto; padding: var(--space-4) var(--space-10);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	font: inherit; font-size: var(--font-size-body); font-weight: var(--font-weight-bold); cursor: pointer;
+}
+.cols { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: var(--space-16); align-items: start; }
+@media (max-width: 1080px) { .cols { grid-template-columns: 1fr; } }
+.col__label {
+	margin: 0 0 var(--space-6); font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-muted);
+}
+.col__label b { color: var(--color-accent-strong); }
+.notes {
+	margin: var(--space-20) 0 0; padding: var(--space-10) var(--space-12);
+	background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+}
+.notes h2 { margin: 0 0 var(--space-6); font-size: var(--font-size-subhead); color: var(--color-text-strong); }
+.notes ul { margin: 0 0 var(--space-10); padding-left: 1.2em; }
+.notes li { margin-bottom: var(--space-4); font-size: var(--font-size-small); line-height: var(--leading-normal); }
+.notes p { margin: 0 0 var(--space-6); font-size: var(--font-size-small); line-height: var(--leading-normal); }
+.sep { margin: var(--space-24) 0 var(--space-12); border: 0; border-top: 1px solid var(--color-border); }
+
+/* Die Dialoghülle .avesmaps-adv-dialog__box — im Mockup unverändert übernommen,
+   sie gehört drei Dialogen gemeinsam und wird NICHT angefasst. */
+.box {
+	display: flex; flex-direction: column;
+	width: 100%; max-height: 78vh;
+	background: var(--color-panel); color: var(--color-text-strong);
+	border-radius: 10px; box-shadow: var(--shadow-dialog); overflow: hidden;
+}
+.box__head {
+	flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+	padding: 13px 16px; border-bottom: 1px solid var(--color-divider);
+	font-size: 15px; font-weight: 700;
+}
+.box__close {
+	appearance: none; border: none; background: transparent; font-size: 18px; line-height: 1;
+	color: var(--color-text-muted); cursor: pointer; padding: 3px 7px; border-radius: 5px;
+}
+
+/* ==========================================================================
+   VORHER — die Regeln von heute (css/features/place-extras.css), 1:1
+   ========================================================================== */
+.old .citymap-suggest__body { flex: 1 1 auto; overflow-y: auto; padding: 0 16px 14px; }
+.old .citymap-suggest__notice {
+	margin: 0 0 14px; padding: 10px 12px; background: var(--color-panel-muted);
+	border-radius: var(--radius-md); font-size: 12.5px; line-height: 1.55; color: var(--color-text);
+}
+.old .citymap-suggest__why { margin: 0 0 10px; font-size: 12px; line-height: 1.5; color: var(--color-text-muted); }
+.old .citymap-suggest__group { border-top: 1px solid var(--color-divider); margin: 0 -16px; padding: 14px 16px; }
+.old .citymap-suggest__notice + .citymap-suggest__group { border-top: 0; padding-top: 0; }
+.old .citymap-suggest__grouptitle {
+	margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+	text-transform: uppercase; color: var(--color-text-muted);
+}
+.old .citymap-suggest__summary {
+	display: flex; align-items: center; gap: 8px; padding: 2px 0; list-style: none;
+	font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+	color: var(--color-text-muted); cursor: pointer;
+}
+.old .citymap-suggest__summary::-webkit-details-marker { display: none; }
+.old .citymap-suggest__summary::before { content: "\203A"; display: inline-block; font-size: 14px; line-height: 1; transition: transform .12s ease; }
+.old .citymap-suggest__group--fold[open] > .citymap-suggest__summary::before { transform: rotate(90deg); }
+.old .citymap-suggest__optional { font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 11.5px; }
+.old .citymap-suggest__group--fold > .citymap-suggest__why { margin-top: 8px; }
+.old .citymap-suggest__field { display: block; margin-bottom: 8px; }
+.old .citymap-suggest__field > span { display: block; margin-bottom: 3px; font-size: 12px; color: var(--color-text-strong); }
+.old .citymap-suggest__field input,
+.old .citymap-suggest__field select {
+	width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--color-panel);
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	font: inherit; font-size: 13px; color: var(--color-text);
+}
+.old .citymap-suggest__field input:focus,
+.old .citymap-suggest__field select:focus { border-color: var(--color-border-strong); outline: none; }
+.old .citymap-suggest__hint { margin: 4px 0 0; font-size: 11.5px; color: var(--color-text-muted); }
+.old .citymap-suggest__types {
+	display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+	gap: 4px 10px; font-size: 12.5px; color: var(--color-text);
+}
+.old .citymap-suggest__check { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--color-text); }
+.old .citymap-suggest__status { margin: 10px 0 0; font-size: 12px; color: var(--color-text-muted); }
+.old .citymap-suggest__actions { display: flex; gap: 8px; margin-top: 14px; }
+.old .citymap-suggest__submit,
+.old .citymap-suggest__cancel {
+	padding: 7px 16px; appearance: none; border-radius: var(--radius-md);
+	font: inherit; cursor: pointer; transition: background-color .12s ease;
+}
+.old .citymap-suggest__submit { background: var(--color-button); border: 1px solid var(--color-button-border); color: var(--color-button-text); }
+.old .citymap-suggest__cancel { background: var(--color-button-soft); border: 1px solid var(--color-button-soft-border); color: var(--color-button-soft-text); }
+.old .citymap-fundort__head,
+.old .citymap-fundort__row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.4fr) 110px; gap: 6px; align-items: center; }
+.old .citymap-fundort__head { margin-bottom: 4px; font-size: 12px; color: var(--color-text-strong); }
+.old .citymap-fundort__row { margin-bottom: 6px; }
+.old .citymap-fundort__input {
+	width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--color-panel);
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	font: inherit; font-size: 13px; color: var(--color-text);
+}
+
+/* ==========================================================================
+   NACHHER — der Entwurf. Nur Token, keine Literale (AGENTS.md §12).
+   ========================================================================== */
+.new .citymap-suggest__body {
+	flex: 1 1 auto; overflow-y: auto;
+	display: flex; flex-direction: column; gap: var(--space-8);
+	padding: var(--space-10) var(--space-16) var(--space-12);
+}
+/* Die Zusage bleibt ein eingelassenes Feld — sie ist kein Abschnitt. */
+.new .citymap-suggest__notice {
+	margin: 0; padding: var(--space-8) var(--space-10);
+	background: var(--color-panel-muted); border-radius: var(--radius-md);
+	font-size: var(--font-size-small); line-height: var(--leading-normal); color: var(--color-text);
+}
+/* Abschnitt = gerahmte Kachel mit Goldtitel, genau wie .report-section im
+   Dialog „Änderung vorschlagen“. Kein display:flex, weil derselbe Kasten auch
+   als <details> auftritt. */
+.new .citymap-suggest__group {
+	padding: var(--space-6) var(--space-10) var(--space-10);
+	border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+	background: var(--color-panel-soft);
+}
+.new .citymap-suggest__grouptitle,
+.new .citymap-suggest__summary {
+	display: flex; align-items: center; gap: var(--space-4);
+	margin: 0 0 var(--space-6);
+	font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
+	letter-spacing: 0.03em; text-transform: uppercase;
+	line-height: var(--leading-snug); color: var(--color-accent-strong);
+}
+.new .citymap-suggest__summary { margin-bottom: 0; list-style: none; cursor: pointer; }
+.new .citymap-suggest__summary::-webkit-details-marker { display: none; }
+.new .citymap-suggest__summary::before {
+	content: "\203A"; display: inline-block; font-size: var(--font-size-body); line-height: 1;
+	color: var(--color-text-muted); transition: transform .12s ease;
+}
+.new .citymap-suggest__group--fold[open] > .citymap-suggest__summary { margin-bottom: var(--space-6); }
+.new .citymap-suggest__group--fold[open] > .citymap-suggest__summary::before { transform: rotate(90deg); }
+.new .citymap-suggest__summary:hover .citymap-suggest__summary-text { text-decoration: underline; }
+.new .citymap-suggest__summary:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-md); }
+.new .citymap-suggest__optional {
+	margin-left: auto; font-weight: var(--font-weight-regular); letter-spacing: 0;
+	text-transform: none; font-size: var(--font-size-caption); color: var(--color-text-muted);
+}
+.new .citymap-suggest__why {
+	margin: 0 0 var(--space-6); font-size: var(--font-size-small);
+	line-height: var(--leading-snug); color: var(--color-text-muted);
+}
+.new .citymap-suggest__field { display: flex; flex-direction: column; gap: var(--space-2); margin: 0 0 var(--space-6); }
+.new .citymap-suggest__field > span {
+	font-size: var(--font-size-small); font-weight: var(--font-weight-bold); color: var(--color-text-strong);
+}
+.new .citymap-suggest__req { color: var(--color-accent-strong); }
+.new .citymap-suggest__field input,
+.new .citymap-suggest__field select,
+.new .citymap-suggest__field textarea {
+	width: 100%; box-sizing: border-box;
+	padding: var(--space-4) var(--space-6);
+	background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	font: inherit; font-size: var(--font-size-control); color: var(--color-text);
+}
+/* Kein grauer OS-Dropdown mehr — flaches Panelfeld + eigener Chevron, wie im Meldedialog. */
+.new .citymap-suggest__field select {
+	appearance: none; -webkit-appearance: none; padding-right: 22px;
+	background-image: var(--avesmaps-select-chevron); background-repeat: no-repeat; background-position: right 9px center;
+}
+.new .citymap-suggest__field textarea { min-height: 66px; resize: vertical; line-height: var(--leading-normal); }
+.new .citymap-suggest__field input:hover,
+.new .citymap-suggest__field select:hover,
+.new .citymap-suggest__field textarea:hover { border-color: var(--color-border-strong); }
+.new .citymap-suggest__field input:focus,
+.new .citymap-suggest__field select:focus,
+.new .citymap-suggest__field textarea:focus {
+	border-color: var(--color-border-strong); outline: none; box-shadow: var(--focus-ring);
+}
+.new .citymap-suggest__field input::placeholder,
+.new .citymap-suggest__field textarea::placeholder { color: var(--color-placeholder); }
+/* Zusammengehörende Zahlenpaare nebeneinander (Gültig ab/bis, Breite/Höhe). */
+.new .citymap-suggest__pair { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 0 var(--space-6); }
+.new .citymap-suggest__hint {
+	margin: 0 0 var(--space-6); font-size: var(--font-size-caption);
+	line-height: var(--leading-snug); color: var(--color-text-muted);
+}
+.new .citymap-suggest__hint:last-child { margin-bottom: 0; }
+.new .citymap-suggest__check {
+	display: flex; align-items: center; gap: var(--space-4);
+	font-size: var(--font-size-small); color: var(--color-text);
+}
+/* Die sechs Eigenschaften: eine Zeile je Eigenschaft, Antwort als
+   Dreierschalter statt als Auswahlbox — sechs Dropdowns untereinander sind
+   der Punkt, an dem das Formular heute unlesbar wird. */
+.new .citymap-suggest__props { display: flex; flex-direction: column; gap: var(--space-2); }
+.new .citymap-suggest__prop { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: var(--space-6); }
+.new .citymap-suggest__prop > span { font-size: var(--font-size-small); color: var(--color-text); }
+.new .citymap-suggest__tri {
+	display: inline-flex; background: var(--color-panel);
+	border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;
+}
+.new .citymap-suggest__tri input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.new .citymap-suggest__tri span {
+	display: block; padding: var(--space-2) var(--space-6);
+	font-size: var(--font-size-caption); line-height: var(--leading-snug);
+	color: var(--color-text-muted); cursor: pointer;
+}
+.new .citymap-suggest__tri label + label span { border-left: 1px solid var(--color-border); }
+.new .citymap-suggest__tri span:hover { background: var(--color-hover-wash); }
+.new .citymap-suggest__tri input:checked + span {
+	background: var(--color-active-wash); color: var(--color-text-strong); font-weight: var(--font-weight-bold);
+}
+.new .citymap-suggest__tri input:focus-visible + span { box-shadow: var(--focus-ring); }
+.new .citymap-suggest__types {
+	display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+	gap: var(--space-2) var(--space-8); font-size: var(--font-size-small); color: var(--color-text);
+}
+.new .citymap-suggest__types label { display: flex; align-items: center; gap: var(--space-4); }
+.new .citymap-suggest__status {
+	margin: 0; font-size: var(--font-size-small); line-height: var(--leading-snug); color: var(--color-text-muted);
+}
+.new .citymap-suggest__status:empty { display: none; }
+/* Knöpfe rechts, Abbrechen links vom gefüllten Hauptknopf — wie überall sonst. */
+.new .citymap-suggest__actions { display: flex; justify-content: flex-end; gap: var(--space-8); }
+.new .citymap-suggest__submit,
+.new .citymap-suggest__cancel {
+	padding: var(--space-6) var(--space-12); appearance: none; border-radius: var(--radius-md);
+	font: inherit; font-size: var(--font-size-body); font-weight: var(--font-weight-bold); cursor: pointer;
+	transition: background .12s ease, box-shadow .12s ease, transform .12s ease;
+}
+.new .citymap-suggest__submit { background: var(--color-button); border: 1px solid var(--color-button-border); color: var(--color-button-text); }
+.new .citymap-suggest__submit:hover { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); transform: translateY(-1px); }
+.new .citymap-suggest__submit:active { background: var(--color-button-active); box-shadow: none; transform: none; }
+.new .citymap-suggest__submit:focus-visible { outline: none; background: var(--color-button-hover); box-shadow: var(--focus-ring), var(--shadow-button-hover-strong); transform: translateY(-1px); }
+.new .citymap-suggest__cancel { background: var(--color-button-soft); border: 1px solid var(--color-button-soft-border); color: var(--color-button-soft-text); }
+.new .citymap-suggest__cancel:hover { background: var(--color-button-soft-hover); box-shadow: var(--shadow-button-hover); transform: translateY(-1px); }
+.new .citymap-suggest__cancel:active { background: var(--color-button-soft-active); box-shadow: none; transform: none; }
+.new .citymap-suggest__cancel:focus-visible { outline: none; background: var(--color-button-soft-hover); box-shadow: var(--focus-ring), var(--shadow-button-hover); transform: translateY(-1px); }
+/* „Neuer Fundort“: dieselbe Sprache, die Spaltenköpfe auf demselben Raster. */
+.new .citymap-fundort__head,
+.new .citymap-fundort__row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.4fr) 108px; gap: var(--space-4); align-items: center; }
+.new .citymap-fundort__head {
+	margin-bottom: var(--space-2); font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
+	letter-spacing: 0.03em; text-transform: uppercase; color: var(--color-text-muted);
+}
+.new .citymap-fundort__row { margin-bottom: var(--space-4); }
+.new .citymap-fundort__input {
+	width: 100%; box-sizing: border-box; padding: var(--space-4) var(--space-6);
+	background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	font: inherit; font-size: var(--font-size-control); color: var(--color-text);
+}
+.new select.citymap-fundort__input {
+	appearance: none; -webkit-appearance: none; padding-right: 22px;
+	background-image: var(--avesmaps-select-chevron); background-repeat: no-repeat; background-position: right 9px center;
+}
+.new .citymap-fundort__input:hover { border-color: var(--color-border-strong); }
+.new .citymap-fundort__input:focus { border-color: var(--color-border-strong); outline: none; box-shadow: var(--focus-ring); }
+.new .citymap-fundort__add { display: flex; }
+@media (max-width: 520px) {
+	.new .citymap-suggest__pair { grid-template-columns: 1fr; }
+	.new .citymap-fundort__head { display: none; }
+	.new .citymap-fundort__row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+	<div class="page__head">
+		<div>
+			<h1>„Karte vorschlagen“ — Entwurf</h1>
+			<p class="page__sub">Links der heutige Stand, rechts der Vorschlag. Beide Formulare sind hier <b>komplett aufgeklappt</b> gezeigt, damit man sie vergleichen kann — beim Öffnen steht weiterhin nur der Pflichtteil offen. Die Dialoghülle (Kopfzeile, Rahmen, Schatten) ist unverändert: sie gehört drei Dialogen gemeinsam.</p>
+		</div>
+		<button class="themebtn" type="button" id="themebtn">Dunkel</button>
+	</div>
+
+	<div class="cols">
+		<!-- ============================ VORHER ============================ -->
+		<div>
+			<p class="col__label">Vorher — heute live</p>
+			<div class="box old citymap-suggest">
+				<div class="box__head"><span>Karte vorschlagen – Gareth</span><button class="box__close" type="button">✕</button></div>
+				<form class="citymap-suggest__body">
+					<p class="citymap-suggest__notice">Du musst nicht alles ausfüllen. Pflicht sind nur Titel, Link und Quelle. Alles Weitere ist freiwillig — es erspart uns aber das Nachschlagen, und deine Karte erscheint schneller. Was du offen lässt, tragen wir nach oder lassen es weg.</p>
+
+					<div class="citymap-suggest__group">
+						<p class="citymap-suggest__grouptitle">Das brauchen wir</p>
+						<p class="citymap-suggest__why">Ohne diese drei können wir die Karte weder finden noch prüfen.</p>
+						<label class="citymap-suggest__field"><span>Titel *</span><input type="text" placeholder="Gareth — Gesamtplan" /></label>
+						<label class="citymap-suggest__field"><span>Karten-Link (extern) *</span><input type="url" placeholder="https://www.ulisses-ebooks.de/de/product/120516/…" /></label>
+						<label class="citymap-suggest__field"><span>Quelle *</span><input type="text" placeholder="Herz des Reiches" /></label>
+						<p class="citymap-suggest__hint">Wo die Karte erschienen ist — Buch, Bote, Website. Nicht, wer sie gezeichnet hat: das ist der Urheber, unter „Mehr zur Karte“.</p>
+					</div>
+
+					<details class="citymap-suggest__group citymap-suggest__group--fold" open>
+						<summary class="citymap-suggest__summary">Mehr zur Quelle <span class="citymap-suggest__optional">optional</span></summary>
+						<p class="citymap-suggest__why">Seite und Link ersparen uns das Blättern.</p>
+						<label class="citymap-suggest__field"><span>Link zur Quelle (F-Shop / Wiki)</span><input type="url" placeholder="https://www.ulisses-ebooks.de/de/product/…" /></label>
+						<label class="citymap-suggest__field"><span>Seite(n)</span><input type="text" placeholder="S. 42–43" /></label>
+						<label class="citymap-suggest__field"><span>Art der Quelle</span><select><option>Regionalspielhilfe</option><option>Abenteuer</option><option>Aventurischer Bote</option><option>Quellenband</option><option>Roman</option><option>Briefspiel</option><option>Regelbuch</option><option selected>Sonstiges</option></select></label>
+						<label class="citymap-suggest__check"><input type="checkbox" /> <span>offizielle Quelle</span></label>
+					</details>
+
+					<details class="citymap-suggest__group citymap-suggest__group--fold" open>
+						<summary class="citymap-suggest__summary">Mehr zur Karte <span class="citymap-suggest__optional">optional</span></summary>
+						<p class="citymap-suggest__why">Je mehr hier steht, desto weniger müssen wir nachschlagen.</p>
+						<label class="citymap-suggest__field"><span>Vorschau-Link (extern)</span><input type="url" placeholder="https://www.ulisses-ebooks.de/images/…" /></label>
+						<label class="citymap-suggest__field"><span>Urheber</span><input type="text" placeholder="Hannah Möllmann" /></label>
+						<label class="citymap-suggest__field"><span>Notiz</span><input type="text" placeholder="Beilage der Box, unbeschriftete Variante dabei" /></label>
+						<p class="citymap-suggest__hint">Ein Vorschaubild zeigen wir erst, wenn wir die Lizenz geprüft haben. Weißt du etwas dazu (z. B. „ist meine eigene Karte“), schreib es bitte in die Notiz.</p>
+						<label class="citymap-suggest__field"><span>Art</span><select><option>— unbekannt —</option><option>Politisch</option><option>Derographisch</option><option>Topologisch</option><option>Skizze</option></select></label>
+						<label class="citymap-suggest__field"><span>Gültig ab (BF)</span><input type="number" placeholder="1027" /></label>
+						<label class="citymap-suggest__field"><span>Gültig bis (BF)</span><input type="number" placeholder="1045" /></label>
+						<label class="citymap-suggest__field"><span>Breite (px)</span><input type="number" placeholder="2000" /></label>
+						<label class="citymap-suggest__field"><span>Höhe (px)</span><input type="number" placeholder="1500" /></label>
+					</details>
+
+					<details class="citymap-suggest__group citymap-suggest__group--fold" open>
+						<summary class="citymap-suggest__summary">Eigenschaften und Typ <span class="citymap-suggest__optional">optional</span></summary>
+						<p class="citymap-suggest__why">Danach filtern die Leser. Was hier fehlt, taucht in keinem Filter auf.</p>
+						<label class="citymap-suggest__field"><span>farbig</span><select><option>unbekannt</option><option>ja</option><option>nein</option></select></label>
+						<label class="citymap-suggest__field"><span>mehrstöckig</span><select><option>unbekannt</option><option>ja</option><option>nein</option></select></label>
+						<label class="citymap-suggest__field"><span>beschriftet (Legende)</span><select><option>unbekannt</option><option>ja</option><option>nein</option></select></label>
+						<label class="citymap-suggest__field"><span>offiziell</span><select><option>unbekannt</option><option>ja</option><option>nein</option></select></label>
+						<label class="citymap-suggest__field"><span>Spoiler (Spielinhalte)</span><select><option>unbekannt</option><option>ja</option><option>nein</option></select></label>
+						<label class="citymap-suggest__field"><span>kostenpflichtig</span><select><option>unbekannt</option><option>ja</option><option>nein</option></select></label>
+						<p class="citymap-suggest__hint">„unbekannt“ ist eine gültige Antwort: die Eigenschaft wird dann gar nicht gezeigt, statt ein erfundenes „nein“.</p>
+						<div class="citymap-suggest__types">
+							<label><input type="checkbox" /> Ortsplan</label><label><input type="checkbox" /> Stadtplan</label><label><input type="checkbox" /> Bezirk</label><label><input type="checkbox" /> Viertel</label><label><input type="checkbox" /> Lageplan</label><label><input type="checkbox" /> Übersicht</label><label><input type="checkbox" /> Schauplatz</label><label><input type="checkbox" /> Grundriss</label><label><input type="checkbox" /> Befestigungen</label><label><input type="checkbox" /> Dungeon</label><label><input type="checkbox" /> Höhlen</label><label><input type="checkbox" /> Krypten</label><label><input type="checkbox" /> Katakomben</label><label><input type="checkbox" /> Schatzkarte</label><label><input type="checkbox" /> Region</label><label><input type="checkbox" /> Sonstige</label>
+						</div>
+					</details>
+
+					<details class="citymap-suggest__group citymap-suggest__group--fold" open>
+						<summary class="citymap-suggest__summary">Dein Name <span class="citymap-suggest__optional">optional</span></summary>
+						<p class="citymap-suggest__why">Nur, falls du genannt werden willst.</p>
+						<label class="citymap-suggest__field"><span>Dein Name/Pseudonym</span><input type="text" placeholder="Alrik aus Gareth" /></label>
+					</details>
+
+					<div class="citymap-suggest__actions">
+						<button type="button" class="citymap-suggest__submit">Vorschlag senden</button>
+						<button type="button" class="citymap-suggest__cancel">Abbrechen</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<!-- ============================ NACHHER ============================ -->
+		<div>
+			<p class="col__label">Nachher — <b>Entwurf</b></p>
+			<div class="box new citymap-suggest">
+				<div class="box__head"><span>Karte vorschlagen – Gareth</span><button class="box__close" type="button">✕</button></div>
+				<form class="citymap-suggest__body">
+					<p class="citymap-suggest__notice">Du musst nicht alles ausfüllen. Pflicht sind nur Titel, Link und Quelle. Alles Weitere ist freiwillig — es erspart uns aber das Nachschlagen, und deine Karte erscheint schneller. Was du offen lässt, tragen wir nach oder lassen es weg.</p>
+
+					<div class="citymap-suggest__group">
+						<p class="citymap-suggest__grouptitle">Das brauchen wir</p>
+						<p class="citymap-suggest__why">Ohne diese drei können wir die Karte weder finden noch prüfen.</p>
+						<label class="citymap-suggest__field"><span>Titel <span class="citymap-suggest__req">*</span></span><input type="text" placeholder="Gareth — Gesamtplan" /></label>
+						<label class="citymap-suggest__field"><span>Karten-Link (extern) <span class="citymap-suggest__req">*</span></span><input type="url" placeholder="https://www.ulisses-ebooks.de/de/product/120516/…" /></label>
+						<label class="citymap-suggest__field"><span>Quelle <span class="citymap-suggest__req">*</span></span><input type="text" placeholder="Herz des Reiches" /></label>
+						<p class="citymap-suggest__hint">Wo die Karte erschienen ist — Buch, Bote, Website. Nicht, wer sie gezeichnet hat: das ist der Urheber, unter „Mehr zur Karte“.</p>
+					</div>
+
+					<details class="citymap-suggest__group citymap-suggest__group--fold" open>
+						<summary class="citymap-suggest__summary"><span class="citymap-suggest__summary-text">Mehr zur Quelle</span> <span class="citymap-suggest__optional">optional</span></summary>
+						<p class="citymap-suggest__why">Seite und Link ersparen uns das Blättern.</p>
+						<label class="citymap-suggest__field"><span>Link zur Quelle (F-Shop / Wiki)</span><input type="url" placeholder="https://www.ulisses-ebooks.de/de/product/…" /></label>
+						<div class="citymap-suggest__pair">
+							<label class="citymap-suggest__field"><span>Seite(n)</span><input type="text" placeholder="S. 42–43" /></label>
+							<label class="citymap-suggest__field"><span>Art der Quelle</span><select><option>Regionalspielhilfe</option><option>Abenteuer</option><option>Aventurischer Bote</option><option>Quellenband</option><option>Roman</option><option>Briefspiel</option><option>Regelbuch</option><option selected>Sonstiges</option></select></label>
+						</div>
+						<label class="citymap-suggest__check"><input type="checkbox" /> <span>offizielle Quelle</span></label>
+					</details>
+
+					<details class="citymap-suggest__group citymap-suggest__group--fold" open>
+						<summary class="citymap-suggest__summary"><span class="citymap-suggest__summary-text">Mehr zur Karte</span> <span class="citymap-suggest__optional">optional</span></summary>
+						<p class="citymap-suggest__why">Je mehr hier steht, desto weniger müssen wir nachschlagen.</p>
+						<label class="citymap-suggest__field"><span>Vorschau-Link (extern)</span><input type="url" placeholder="https://www.ulisses-ebooks.de/images/…" /></label>
+						<div class="citymap-suggest__pair">
+							<label class="citymap-suggest__field"><span>Urheber</span><input type="text" placeholder="Hannah Möllmann" /></label>
+							<label class="citymap-suggest__field"><span>Art</span><select><option>— unbekannt —</option><option>Politisch</option><option>Derographisch</option><option>Topologisch</option><option>Skizze</option></select></label>
+						</div>
+						<div class="citymap-suggest__pair">
+							<label class="citymap-suggest__field"><span>Gültig ab (BF)</span><input type="number" placeholder="1027" /></label>
+							<label class="citymap-suggest__field"><span>Gültig bis (BF)</span><input type="number" placeholder="1045" /></label>
+						</div>
+						<div class="citymap-suggest__pair">
+							<label class="citymap-suggest__field"><span>Breite (px)</span><input type="number" placeholder="2000" /></label>
+							<label class="citymap-suggest__field"><span>Höhe (px)</span><input type="number" placeholder="1500" /></label>
+						</div>
+						<label class="citymap-suggest__field"><span>Notiz</span><textarea placeholder="Beilage der Box, unbeschriftete Variante dabei"></textarea></label>
+						<p class="citymap-suggest__hint">Ein Vorschaubild zeigen wir erst, wenn wir die Lizenz geprüft haben. Weißt du etwas dazu (z. B. „ist meine eigene Karte“), schreib es bitte in die Notiz.</p>
+					</details>
+
+					<details class="citymap-suggest__group citymap-suggest__group--fold" open>
+						<summary class="citymap-suggest__summary"><span class="citymap-suggest__summary-text">Eigenschaften</span> <span class="citymap-suggest__optional">optional</span></summary>
+						<p class="citymap-suggest__why">Danach filtern die Leser. Was hier fehlt, taucht in keinem Filter auf.</p>
+						<div class="citymap-suggest__props">
+							<div class="citymap-suggest__prop"><span>farbig</span><span class="citymap-suggest__tri"><label><input type="radio" name="p1" checked /><span>unbekannt</span></label><label><input type="radio" name="p1" /><span>ja</span></label><label><input type="radio" name="p1" /><span>nein</span></label></span></div>
+							<div class="citymap-suggest__prop"><span>mehrstöckig</span><span class="citymap-suggest__tri"><label><input type="radio" name="p2" checked /><span>unbekannt</span></label><label><input type="radio" name="p2" /><span>ja</span></label><label><input type="radio" name="p2" /><span>nein</span></label></span></div>
+							<div class="citymap-suggest__prop"><span>beschriftet (Legende)</span><span class="citymap-suggest__tri"><label><input type="radio" name="p3" /><span>unbekannt</span></label><label><input type="radio" name="p3" checked /><span>ja</span></label><label><input type="radio" name="p3" /><span>nein</span></label></span></div>
+							<div class="citymap-suggest__prop"><span>offiziell</span><span class="citymap-suggest__tri"><label><input type="radio" name="p4" /><span>unbekannt</span></label><label><input type="radio" name="p4" checked /><span>ja</span></label><label><input type="radio" name="p4" /><span>nein</span></label></span></div>
+							<div class="citymap-suggest__prop"><span>Spoiler (Spielinhalte)</span><span class="citymap-suggest__tri"><label><input type="radio" name="p5" /><span>unbekannt</span></label><label><input type="radio" name="p5" /><span>ja</span></label><label><input type="radio" name="p5" checked /><span>nein</span></label></span></div>
+							<div class="citymap-suggest__prop"><span>kostenpflichtig</span><span class="citymap-suggest__tri"><label><input type="radio" name="p6" checked /><span>unbekannt</span></label><label><input type="radio" name="p6" /><span>ja</span></label><label><input type="radio" name="p6" /><span>nein</span></label></span></div>
+						</div>
+						<p class="citymap-suggest__hint" style="margin-top: var(--space-6)">„unbekannt“ ist eine gültige Antwort: die Eigenschaft wird dann gar nicht gezeigt, statt ein erfundenes „nein“.</p>
+					</details>
+
+					<details class="citymap-suggest__group citymap-suggest__group--fold" open>
+						<summary class="citymap-suggest__summary"><span class="citymap-suggest__summary-text">Kartentyp</span> <span class="citymap-suggest__optional">optional</span></summary>
+						<p class="citymap-suggest__why">Mehrfachauswahl — eine Karte kann Stadtplan und Befestigungen zugleich sein.</p>
+						<div class="citymap-suggest__types">
+							<label><input type="checkbox" /> Ortsplan</label><label><input type="checkbox" checked /> Stadtplan</label><label><input type="checkbox" /> Bezirk</label><label><input type="checkbox" /> Viertel</label><label><input type="checkbox" /> Lageplan</label><label><input type="checkbox" checked /> Übersicht</label><label><input type="checkbox" /> Schauplatz</label><label><input type="checkbox" /> Grundriss</label><label><input type="checkbox" /> Befestigungen</label><label><input type="checkbox" /> Dungeon</label><label><input type="checkbox" /> Höhlen</label><label><input type="checkbox" /> Krypten</label><label><input type="checkbox" /> Katakomben</label><label><input type="checkbox" /> Schatzkarte</label><label><input type="checkbox" /> Region</label><label><input type="checkbox" /> Sonstige</label>
+						</div>
+					</details>
+
+					<details class="citymap-suggest__group citymap-suggest__group--fold" open>
+						<summary class="citymap-suggest__summary"><span class="citymap-suggest__summary-text">Dein Name</span> <span class="citymap-suggest__optional">optional</span></summary>
+						<p class="citymap-suggest__why">Nur, falls du genannt werden willst.</p>
+						<label class="citymap-suggest__field" style="margin-bottom:0"><span>Dein Name/Pseudonym</span><input type="text" placeholder="Alrik aus Gareth" /></label>
+					</details>
+
+					<div class="citymap-suggest__actions">
+						<button type="button" class="citymap-suggest__cancel">Abbrechen</button>
+						<button type="button" class="citymap-suggest__submit">Vorschlag senden</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<hr class="sep" />
+
+	<div class="cols">
+		<div>
+			<p class="col__label">Vorher — „Neuer Fundort“</p>
+			<div class="box old citymap-suggest">
+				<div class="box__head"><span>Neuer Fundort – Gareth, Gesamtplan</span><button class="box__close" type="button">✕</button></div>
+				<form class="citymap-suggest__body">
+					<p class="citymap-suggest__notice">Kennst du eine weitere Stelle, an der es diese Karte gibt? Bezeichnung und Link genügen — die Bezeichnung ist das, was der Leser anklickt, also die Fundstelle selbst („Wiki-Aventurica“), nicht die Karte.</p>
+					<div class="citymap-suggest__group">
+						<div class="citymap-fundort__head"><span>Bezeichnung *</span><span>Link *</span><span>kostenpflichtig</span></div>
+						<div class="citymap-fundort__row">
+							<input class="citymap-fundort__input" type="text" placeholder="Wiki-Aventurica" />
+							<input class="citymap-fundort__input" type="url" placeholder="https://de.wiki-aventurica.de/wiki/…" />
+							<select class="citymap-fundort__input"><option>unbekannt</option><option>ja</option><option>nein</option></select>
+						</div>
+						<div><button type="button" class="citymap-suggest__cancel">+ weiterer Fundort</button></div>
+						<p class="citymap-suggest__hint">„kostenpflichtig“ hängt am Link, nicht an der Karte: derselbe Band ist im Shop bezahlt und auf seiner Wiki-Seite frei. Weißt du es nicht, lass „unbekannt“ stehen — wir raten nicht über fremdes Geld.</p>
+					</div>
+					<details class="citymap-suggest__group citymap-suggest__group--fold" open>
+						<summary class="citymap-suggest__summary">Notiz und Name <span class="citymap-suggest__optional">optional</span></summary>
+						<p class="citymap-suggest__why">Nur, falls du uns etwas mitgeben oder genannt werden willst.</p>
+						<label class="citymap-suggest__field"><span>Notiz an die Redaktion</span><input type="text" placeholder="Dort liegt die Karte frei einsehbar." /></label>
+						<label class="citymap-suggest__field"><span>Dein Name/Pseudonym</span><input type="text" placeholder="Alrik aus Gareth" /></label>
+					</details>
+					<div class="citymap-suggest__actions">
+						<button type="button" class="citymap-suggest__submit">Vorschlag senden</button>
+						<button type="button" class="citymap-suggest__cancel">Abbrechen</button>
+					</div>
+				</form>
+			</div>
+		</div>
+		<div>
+			<p class="col__label">Nachher — <b>„Neuer Fundort“</b></p>
+			<div class="box new citymap-suggest">
+				<div class="box__head"><span>Neuer Fundort – Gareth, Gesamtplan</span><button class="box__close" type="button">✕</button></div>
+				<form class="citymap-suggest__body">
+					<p class="citymap-suggest__notice">Kennst du eine weitere Stelle, an der es diese Karte gibt? Bezeichnung und Link genügen — die Bezeichnung ist das, was der Leser anklickt, also die Fundstelle selbst („Wiki-Aventurica“), nicht die Karte.</p>
+					<div class="citymap-suggest__group">
+						<p class="citymap-suggest__grouptitle">Wo gibt es die Karte?</p>
+						<div class="citymap-fundort__head"><span>Bezeichnung <span class="citymap-suggest__req">*</span></span><span>Link <span class="citymap-suggest__req">*</span></span><span>kostenpflichtig</span></div>
+						<div class="citymap-fundort__row">
+							<input class="citymap-fundort__input" type="text" placeholder="Wiki-Aventurica" />
+							<input class="citymap-fundort__input" type="url" placeholder="https://de.wiki-aventurica.de/wiki/…" />
+							<select class="citymap-fundort__input"><option>unbekannt</option><option>ja</option><option>nein</option></select>
+						</div>
+						<div class="citymap-fundort__add"><button type="button" class="citymap-suggest__cancel">+ weiterer Fundort</button></div>
+						<p class="citymap-suggest__hint" style="margin-top: var(--space-6)">„kostenpflichtig“ hängt am Link, nicht an der Karte: derselbe Band ist im Shop bezahlt und auf seiner Wiki-Seite frei. Weißt du es nicht, lass „unbekannt“ stehen — wir raten nicht über fremdes Geld.</p>
+					</div>
+					<details class="citymap-suggest__group citymap-suggest__group--fold" open>
+						<summary class="citymap-suggest__summary"><span class="citymap-suggest__summary-text">Notiz und Name</span> <span class="citymap-suggest__optional">optional</span></summary>
+						<p class="citymap-suggest__why">Nur, falls du uns etwas mitgeben oder genannt werden willst.</p>
+						<label class="citymap-suggest__field"><span>Notiz an die Redaktion</span><textarea placeholder="Dort liegt die Karte frei einsehbar."></textarea></label>
+						<label class="citymap-suggest__field" style="margin-bottom:0"><span>Dein Name/Pseudonym</span><input type="text" placeholder="Alrik aus Gareth" /></label>
+					</details>
+					<div class="citymap-suggest__actions">
+						<button type="button" class="citymap-suggest__cancel">Abbrechen</button>
+						<button type="button" class="citymap-suggest__submit">Vorschlag senden</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<div class="notes">
+		<h2>Was sich ändert</h2>
+		<p><b>Struktur — lesbar wie „Änderung vorschlagen“</b></p>
+		<ul>
+			<li>Jeder Abschnitt ist eine <b>gerahmte Kachel mit goldenem Titel</b> — dieselbe Behandlung wie <code>.report-section</code> im Melde-/Änderungsdialog. Heute sind es graue Kleinbuchstaben­zeilen ohne Rahmen, also gar keine sichtbare Hierarchie.</li>
+			<li><b>„Eigenschaften und Typ“ wird geteilt</b> in „Eigenschaften“ und „Kartentyp“. Das war der schwerste Block: sechs Dropdowns plus sechzehn Häkchen in einer Gruppe.</li>
+			<li>Die sechs Eigenschaften werden zu <b>Dreierschaltern</b> (unbekannt · ja · nein) in einer Zeile je Eigenschaft — statt sechs vollbreiter Auswahlboxen untereinander. Eine Antwort ist ein Klick, und man sieht alle sechs Antworten auf einen Blick.</li>
+			<li>Zusammengehörende Felder stehen <b>nebeneinander</b>: Seite(n)+Art der Quelle, Urheber+Art, Gültig ab+bis, Breite+Höhe. Das spart vier volle Zeilen.</li>
+			<li>Die <b>Notiz wird ein mehrzeiliges Feld</b>. Sie darf 2000 Zeichen lang sein und war bisher eine einzeilige Zeile.</li>
+			<li>Das <b>Pflicht-Sternchen ist golden</b> statt unsichtbar im Fließtext.</li>
+			<li>Die Knöpfe stehen <b>rechts, „Abbrechen“ links vom gefüllten „Vorschlag senden“</b> — wie in jedem anderen Dialog. Heute stehen sie links und in umgekehrter Reihenfolge.</li>
+		</ul>
+		<p><b>Designsprache (AGENTS.md §12)</b> — heute verletzt, im Entwurf behoben:</p>
+		<ul>
+			<li>Schriftgrößen <code>11.5px</code> / <code>12.5px</code> gibt es in der Skala gar nicht → auf die sieben Stufen (<code>--font-size-caption</code> … <code>-title</code>).</li>
+			<li><code>font-weight: 600</code> ist verboten (nur 400 und 700) → <code>--font-weight-bold</code>.</li>
+			<li>Abstände <code>3px</code> / <code>7px</code> / <code>14px</code> / <code>16px</code> als Literale → <code>--space-*</code>.</li>
+			<li>Abschnittstitel waren gedämpft-grau → <code>--color-accent-strong</code> (Gold), wie überall sonst.</li>
+			<li>Die Auswahlboxen waren <b>native graue OS-Controls</b> → flaches Panelfeld + eigener Chevron (<code>--avesmaps-select-chevron</code>).</li>
+			<li>Kein Fokusring an Feldern und Knöpfen, keine Hover-Anhebung, kein Aktiv-Zustand → die vollständige Knopf-Zustandsleiter mit <code>--focus-ring</code> und <code>--shadow-button-hover*</code>.</li>
+			<li>Zeilenhöhen <code>1.5</code> / <code>1.55</code> → <code>--leading-snug</code> / <code>--leading-normal</code>.</li>
+		</ul>
+		<p><b>Unangetastet:</b> die Dialoghülle (Kopfzeile, Rahmen, Schatten) — sie gehört auch dem Kartensammlungs- und dem Literatur-Dialog; die Texte und die Reihenfolge der Pflichtfelder; und die Regel „beim Öffnen ist nur der Pflichtteil offen“.</p>
+	</div>
+</div>
+<script>
+document.getElementById("themebtn").addEventListener("click", function () {
+	var root = document.documentElement;
+	var dark = root.getAttribute("data-theme") === "dark";
+	root.setAttribute("data-theme", dark ? "light" : "dark");
+	this.textContent = dark ? "Dunkel" : "Hell";
+});
+</script>
+</body>
+</html>

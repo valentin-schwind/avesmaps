@@ -658,75 +658,68 @@
 	background: var(--color-button-soft-hover);
 }
 
-/* ---- "Karte vorschlagen": der Community-Dialog (§3.8) ---- */
-/* Teilt sich die Hülle .avesmaps-adv-dialog mit den Karten-/Abenteuerdialogen; nur der Inhalt ist eigen. */
+/* ---- "Karte vorschlagen" + "Neuer Fundort": die Community-Dialoge (§3.8) ---- */
+/* Teilt sich die Huelle .avesmaps-adv-dialog mit den Karten-/Literatur-Dialogen; nur der Inhalt ist eigen.
+   Ein Abschnitt traegt dieselbe Behandlung wie .report-section im Dialog "Aenderung vorschlagen"
+   (css/components/location-report-dialog.css): gerahmte Kachel auf --color-panel-soft mit goldenem Titel.
+   Das ist die dort vom Owner beschlossene Kachel-Ausnahme zur Trenner-Regel -- und weil
+   Geschwister-Abschnitte EINE Behandlung teilen (AGENTS.md §12), tragen sie hier alle.
+   💣 Eigene Klasse statt .report-section, weil derselbe Kasten auch als <details> auftritt: ein
+   display:flex auf <details> ist nicht ueberall verlaesslich. Aendert sich .report-section, muss diese
+   Kachel mitwandern -- sie ist eine Kopie der WERTE, nicht der Regel. */
 .citymap-suggest .avesmaps-adv-dialog__box {
 	width: min(560px, 100%);
 }
 .citymap-suggest__body {
 	flex: 1 1 auto;
 	overflow-y: auto;
-	padding: 0 16px 14px;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-8);
+	padding: var(--space-10) var(--space-16) var(--space-12);
 }
-/* Hinweisfeld (§3.8, Owner 2026-07-17): „du musst nicht alles ausfüllen“. Als eingelassenes Feld
-   (--color-panel-muted = „muted inset“), damit es als Zusage gelesen wird und nicht als Warnung — ein
-   Danger-Ton wäre hier genau falsch. Kein Rahmenkasten sonst: die Fläche IST die Gruppierung. */
+/* Hinweisfeld (§3.8, Owner 2026-07-17): "du musst nicht alles ausfuellen". Als eingelassenes Feld
+   (--color-panel-muted = "muted inset"), damit es als Zusage gelesen wird und nicht als Warnung -- ein
+   Danger-Ton waere hier genau falsch. Bewusst KEINE Kachel: es ist kein Abschnitt, sondern die Zusage
+   ueber allen Abschnitten. */
 .citymap-suggest__notice {
-	margin: 0 0 14px;
-	padding: 10px 12px;
+	margin: 0;
+	padding: var(--space-8) var(--space-10);
 	background: var(--color-panel-muted);
 	border-radius: var(--radius-md);
-	font-size: 12.5px;
-	line-height: 1.55;
+	font-size: var(--font-size-small);
+	line-height: var(--leading-normal);
 	color: var(--color-text);
 }
-/* „Warum hilft uns das“ über jeder Gruppe. Muted: es erklärt, es fordert nicht. */
-.citymap-suggest__why {
-	margin: 0 0 10px;
-	font-size: 12px;
-	line-height: 1.5;
-	color: var(--color-text-muted);
-}
-/* Gruppierung per Trenner + Überschrift, nicht per Rahmenkasten (Designsprache §12). Eine Linie je
-   Gruppe, randlos von Rand zu Rand: negative Seitenmargin = Padding der Box (16px). */
-/* Eine Linie je Gruppe, randlos von Rand zu Rand: negative Seitenmargin = Padding der Box (16px).
-   Symmetrisches Padding, damit der Trenner oben WIE unten Luft hat — mit `12px 16px 0` klebte die Linie
-   direkt unter dem Text der Gruppe darüber. */
 .citymap-suggest__group {
-	border-top: 1px solid var(--color-divider);
-	margin: 0 -16px;
-	padding: 14px 16px;
+	padding: var(--space-6) var(--space-10) var(--space-10);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-panel-soft);
 }
-/* Die erste Gruppe braucht keine Linie: das Hinweisfeld darüber trennt schon.
-   NICHT :first-of-type — das zählt PRO TAGNAME. Solange alle Gruppen <div> waren, traf es nur die erste;
-   seit die eingeklappten <details> sind, war die erste von IHNEN ebenfalls ein :first-of-type und verlor
-   Trenner und Abstand still mit. Der Nachbarschafts-Selektor sagt, was gemeint ist, und ist gegen den
-   nächsten Tagwechsel immun. */
-.citymap-suggest__notice + .citymap-suggest__group {
-	border-top: 0;
-	padding-top: 0;
+/* Zugeklappt ist die Kachel nur ihre Ueberschrift -- dann gehoert unten dieselbe Luft hin wie oben,
+   sonst steht die Zeile sichtbar zu hoch im Kasten. */
+.citymap-suggest__group--fold:not([open]) {
+	padding-bottom: var(--space-6);
 }
-.citymap-suggest__grouptitle {
-	margin: 0 0 8px;
-	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	color: var(--color-text-muted);
-}
-/* Eingeklappte Gruppe: das Eingeklapptsein IST die Aussage „optional“ (Owner 2026-07-17). Die Zeile liest
-   sich wie ein Gruppentitel — nur eben aufklappbar; der Melder soll keinen Modus lernen müssen. */
+.citymap-suggest__grouptitle,
 .citymap-suggest__summary {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 2px 0;
-	list-style: none;
-	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 0.04em;
+	gap: var(--space-4);
+	margin: 0 0 var(--space-6);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.03em;
 	text-transform: uppercase;
-	color: var(--color-text-muted);
+	line-height: var(--leading-snug);
+	color: var(--color-accent-strong);
+}
+/* Eingeklappte Gruppe: das Eingeklapptsein IST die Aussage "optional" (Owner 2026-07-17). Die Zeile liest
+   sich wie ein Gruppentitel -- nur eben aufklappbar; der Melder soll keinen Modus lernen muessen. */
+.citymap-suggest__summary {
+	margin-bottom: 0;
+	list-style: none;
 	cursor: pointer;
 }
 .citymap-suggest__summary::-webkit-details-marker {
@@ -737,160 +730,337 @@
 .citymap-suggest__summary::before {
 	content: "›";
 	display: inline-block;
-	font-size: 14px;
+	font-size: var(--font-size-body);
 	line-height: 1;
+	color: var(--color-text-muted);
 	transition: transform 0.12s ease;
+}
+.citymap-suggest__group--fold[open] > .citymap-suggest__summary {
+	margin-bottom: var(--space-6);
 }
 .citymap-suggest__group--fold[open] > .citymap-suggest__summary::before {
 	transform: rotate(90deg);
 }
-.citymap-suggest__summary:hover {
-	color: var(--color-text-strong);
+/* Der Titel ist gold und bleibt es beim Ueberfahren -- die Rueckmeldung gibt die Unterstreichung, nicht
+   ein zweiter Goldton (eine Rolle, eine Farbe). */
+.citymap-suggest__summary:hover .citymap-suggest__summary-text {
+	text-decoration: underline;
 }
-/* Kleingeschrieben und ungesperrt — es ist ein Zusatz zur Überschrift, kein zweites Label. */
+.citymap-suggest__summary:focus-visible {
+	outline: none;
+	border-radius: var(--radius-md);
+	box-shadow: var(--focus-ring);
+}
+/* Kleingeschrieben und ungesperrt -- es ist ein Zusatz zur Ueberschrift, kein zweites Label. Rechts
+   ausgerichtet, damit die Ueberschriften aller Abschnitte auf einer Kante beginnen. */
 .citymap-suggest__optional {
-	font-weight: 400;
+	margin-left: auto;
+	font-weight: var(--font-weight-regular);
 	letter-spacing: 0;
 	text-transform: none;
-	font-size: 11.5px;
-}
-.citymap-suggest__group--fold > .citymap-suggest__why {
-	margin-top: 8px;
-}
-.citymap-suggest__field {
-	display: block;
-	margin-bottom: 8px;
-}
-.citymap-suggest__field > span {
-	display: block;
-	margin-bottom: 3px;
-	font-size: 12px;
-	color: var(--color-text-strong);
-}
-.citymap-suggest__field input,
-.citymap-suggest__field select {
-	width: 100%;
-	box-sizing: border-box;
-	padding: 6px 8px;
-	background: var(--color-panel);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-md);
-	font: inherit;
-	font-size: 13px;
-	color: var(--color-text);
-}
-.citymap-suggest__field input:focus,
-.citymap-suggest__field select:focus {
-	border-color: var(--color-border-strong);
-	outline: none;
-}
-.citymap-suggest__hint {
-	margin: 4px 0 0;
-	font-size: 11.5px;
+	font-size: var(--font-size-caption);
 	color: var(--color-text-muted);
 }
-.citymap-suggest__types {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-	gap: 4px 10px;
-	font-size: 12.5px;
-	color: var(--color-text);
+/* "Warum hilft uns das" ueber jeder Gruppe. Muted: es erklaert, es fordert nicht. */
+.citymap-suggest__why {
+	margin: 0 0 var(--space-6);
+	font-size: var(--font-size-small);
+	line-height: var(--leading-snug);
+	color: var(--color-text-muted);
 }
-
-/* ---- „Neuer Fundort": Bezeichnung | Link | kostenpflichtig je Zeile ----
-   Die Ueberschrift sitzt auf DEMSELBEN Grid wie die Zeilen, damit eine Spaltenbeschriftung nicht von ihrer
-   Spalte wegwandern kann -- gleiche Loesung wie im Editor. Unter ~380px stapeln die drei, statt die Selects
-   auf Briefmarkenbreite zu quetschen. */
-.citymap-fundort__head,
-.citymap-fundort__row {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 110px;
-	gap: 6px;
-	align-items: center;
+.citymap-suggest__field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	margin: 0 0 var(--space-6);
 }
-.citymap-fundort__head {
-	margin-bottom: 4px;
-	font-size: 12px;
+.citymap-suggest__field:last-child {
+	margin-bottom: 0;
+}
+.citymap-suggest__field > span {
+	font-size: var(--font-size-small);
+	font-weight: var(--font-weight-bold);
 	color: var(--color-text-strong);
 }
-.citymap-fundort__row {
-	margin-bottom: 6px;
+/* Das Pflicht-Sternchen ist eine Auszeichnung, kein Text: Gold, damit es ueberhaupt auffaellt. */
+.citymap-suggest__req {
+	color: var(--color-accent-strong);
 }
-.citymap-fundort__input {
+.citymap-suggest__field input,
+.citymap-suggest__field select,
+.citymap-suggest__field textarea {
 	width: 100%;
 	box-sizing: border-box;
-	padding: 6px 8px;
+	padding: var(--space-4) var(--space-6);
 	background: var(--color-panel);
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
 	font: inherit;
-	font-size: 13px;
+	/* NACH `font: inherit`: die Kurzform setzt font-size mit und ueberschriebe die Zeile sonst. */
+	font-size: var(--font-size-control);
 	color: var(--color-text);
 }
-.citymap-fundort__input:focus {
+/* Kein grauer OS-Dropdown: flaches Panelfeld + eigener Chevron, wie im Meldedialog (AGENTS.md §12).
+   background-image kann currentColor nicht erben -> muted als data-URI-Fuellung aus tokens.css. */
+.citymap-suggest__field select,
+select.citymap-fundort__input {
+	appearance: none;
+	-webkit-appearance: none;
+	padding-right: 22px;
+	background-image: var(--avesmaps-select-chevron);
+	background-repeat: no-repeat;
+	background-position: right 9px center;
+}
+/* Die Notiz darf 2000 Zeichen lang sein -- in einer einzeiligen Zeile sieht der Melder davon 40. */
+.citymap-suggest__field textarea {
+	min-height: 66px;
+	resize: vertical;
+	line-height: var(--leading-normal);
+}
+.citymap-suggest__field input::placeholder,
+.citymap-suggest__field textarea::placeholder {
+	color: var(--color-placeholder);
+}
+.citymap-suggest__field input:hover,
+.citymap-suggest__field select:hover,
+.citymap-suggest__field textarea:hover {
+	border-color: var(--color-border-strong);
+}
+.citymap-suggest__field input:focus,
+.citymap-suggest__field select:focus,
+.citymap-suggest__field textarea:focus {
 	border-color: var(--color-border-strong);
 	outline: none;
+	box-shadow: var(--focus-ring);
 }
-@media (max-width: 380px) {
-	.citymap-fundort__head {
-		display: none; /* gestapelt beschriften die Platzhalter selbst */
-	}
-	.citymap-fundort__row {
-		grid-template-columns: minmax(0, 1fr);
-	}
+/* Zwei zusammengehoerende Felder nebeneinander (Seite/Quellenart, Gueltig ab/bis, Breite/Hoehe).
+   minmax(0,1fr) statt 1fr: sonst sprengt ein langer Platzhalter die Spalte und der rechte Innenabstand
+   faellt kleiner aus als der linke (AGENTS.md §12, symmetrische Einzuege). */
+.citymap-suggest__pair {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 0 var(--space-6);
+}
+.citymap-suggest__hint {
+	margin: 0 0 var(--space-6);
+	font-size: var(--font-size-caption);
+	line-height: var(--leading-snug);
+	color: var(--color-text-muted);
+}
+.citymap-suggest__hint:last-child {
+	margin-bottom: 0;
 }
 .citymap-suggest__check {
 	display: flex;
 	align-items: center;
-	gap: 6px;
-	font-size: 12.5px;
+	gap: var(--space-4);
+	font-size: var(--font-size-small);
 	color: var(--color-text);
+}
+/* Die sechs Eigenschaften: eine Zeile je Eigenschaft, die Antwort als Dreierschalter. Sechs vollbreite
+   Auswahlboxen untereinander waren die Stelle, an der das Formular unlesbar wurde -- so steht die Frage
+   links, die Antwort rechts, und alle sechs Antworten sind auf einen Blick da. */
+.citymap-suggest__props {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+.citymap-suggest__prop {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: var(--space-6);
+}
+.citymap-suggest__prop > span {
+	font-size: var(--font-size-small);
+	color: var(--color-text);
+}
+.citymap-suggest__tri {
+	display: inline-flex;
+	background: var(--color-panel);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+}
+/* Die Radios sind da, nur unsichtbar: Tastatur, Screenreader und form.reset() bleiben damit die des
+   Browsers. display:none haette sie aus der Tastaturfolge genommen. */
+.citymap-suggest__tri input {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+}
+.citymap-suggest__tri span {
+	display: block;
+	padding: var(--space-2) var(--space-6);
+	font-size: var(--font-size-caption);
+	line-height: var(--leading-snug);
+	color: var(--color-text-muted);
+	cursor: pointer;
+}
+.citymap-suggest__tri label + label span {
+	border-left: 1px solid var(--color-border);
+}
+.citymap-suggest__tri span:hover {
+	background: var(--color-hover-wash);
+}
+.citymap-suggest__tri input:checked + span {
+	background: var(--color-active-wash);
+	color: var(--color-text-strong);
+	font-weight: var(--font-weight-bold);
+}
+.citymap-suggest__tri input:focus-visible + span {
+	box-shadow: var(--focus-ring);
+}
+.citymap-suggest__types {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+	gap: var(--space-2) var(--space-8);
+	font-size: var(--font-size-small);
+	color: var(--color-text);
+}
+.citymap-suggest__types label {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
 }
 .citymap-suggest__status:empty {
 	display: none;
 }
 .citymap-suggest__status {
-	margin: 10px 0 0;
-	font-size: 12px;
+	margin: 0;
+	font-size: var(--font-size-small);
+	line-height: var(--leading-snug);
 	color: var(--color-text-muted);
 }
 .citymap-suggest__status[data-state="error"] {
 	color: var(--color-danger);
 }
+/* Knoepfe rechts, "Abbrechen" links vom gefuellten Hauptknopf -- wie in jedem anderen Dialog. */
 .citymap-suggest__actions {
 	display: flex;
-	gap: 8px;
-	margin-top: 14px;
+	justify-content: flex-end;
+	gap: var(--space-8);
 }
 .citymap-suggest__submit,
 .citymap-suggest__cancel {
-	padding: 7px 16px;
+	padding: var(--space-6) var(--space-12);
 	appearance: none;
 	border-radius: var(--radius-md);
 	font: inherit;
-	font-size: 13px;
+	font-size: var(--font-size-body);
+	font-weight: var(--font-weight-bold);
 	cursor: pointer;
-	transition: background-color 0.12s ease;
+	transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
+/* Knopf-Zustaende (docs/design-language.md): Hover = Farbwechsel + 1px Anhebung + warmer Schatten,
+   Aktiv faellt flach zurueck, focus-visible legt den Goldring ZUSAETZLICH zum Schatten. */
 .citymap-suggest__submit {
 	background: var(--color-button);
 	border: 1px solid var(--color-button-border);
 	color: var(--color-button-text);
 }
-.citymap-suggest__submit:hover {
+.citymap-suggest__submit:not(:disabled):hover {
 	background: var(--color-button-hover);
+	box-shadow: var(--shadow-button-hover-strong);
+	transform: translateY(-1px);
+}
+.citymap-suggest__submit:not(:disabled):focus-visible {
+	background: var(--color-button-hover);
+	box-shadow: var(--focus-ring), var(--shadow-button-hover-strong);
+	transform: translateY(-1px);
+	outline: none;
+}
+.citymap-suggest__submit:not(:disabled):active {
+	background: var(--color-button-active);
+	box-shadow: none;
+	transform: none;
 }
 .citymap-suggest__submit:disabled {
-	opacity: 0.6;
-	cursor: default;
+	background: var(--color-disabled-bg);
+	border-color: var(--color-disabled-border);
+	color: var(--color-disabled-text);
+	box-shadow: none;
+	cursor: wait;
 }
 .citymap-suggest__cancel {
 	background: var(--color-button-soft);
 	border: 1px solid var(--color-button-soft-border);
 	color: var(--color-button-soft-text);
 }
-.citymap-suggest__cancel:hover {
+.citymap-suggest__cancel:not(:disabled):hover {
 	background: var(--color-button-soft-hover);
+	box-shadow: var(--shadow-button-hover);
+	transform: translateY(-1px);
+}
+.citymap-suggest__cancel:not(:disabled):focus-visible {
+	background: var(--color-button-soft-hover);
+	box-shadow: var(--focus-ring), var(--shadow-button-hover);
+	transform: translateY(-1px);
+	outline: none;
+}
+.citymap-suggest__cancel:not(:disabled):active {
+	background: var(--color-button-soft-active);
+	box-shadow: none;
+	transform: none;
+}
+/* ---- "Neuer Fundort": dieselbe Sprache, drei Spalten ----
+   Die Ueberschrift sitzt auf DEMSELBEN Grid wie die Zeilen, damit eine Spaltenbeschriftung nicht von
+   ihrer Spalte wegwandern kann -- gleiche Loesung wie im Editor. Unter 520px stapeln die drei, statt die
+   Auswahlbox auf Briefmarkenbreite zu quetschen. */
+.citymap-fundort__head,
+.citymap-fundort__row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 108px;
+	gap: var(--space-4);
+	align-items: center;
+}
+.citymap-fundort__head {
+	margin-bottom: var(--space-2);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+	color: var(--color-text-muted);
+}
+.citymap-fundort__row {
+	margin-bottom: var(--space-4);
+}
+.citymap-fundort__input {
+	width: 100%;
+	box-sizing: border-box;
+	padding: var(--space-4) var(--space-6);
+	background: var(--color-panel);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	font: inherit;
+	font-size: var(--font-size-control);
+	color: var(--color-text);
+}
+.citymap-fundort__input::placeholder {
+	color: var(--color-placeholder);
+}
+.citymap-fundort__input:hover {
+	border-color: var(--color-border-strong);
+}
+.citymap-fundort__input:focus {
+	border-color: var(--color-border-strong);
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+.citymap-fundort__add {
+	display: flex;
+}
+@media (max-width: 520px) {
+	.citymap-suggest__pair {
+		grid-template-columns: 1fr;
+	}
+	.citymap-fundort__head {
+		display: none; /* gestapelt beschriften die Platzhalter selbst */
+	}
+	.citymap-fundort__row {
+		grid-template-columns: minmax(0, 1fr);
+	}
 }
 
 /* ---- eine Karten-Zeile ----
