@@ -122,22 +122,44 @@ assert.ok(/color:\s*currentColor/.test(glyphRegel[0]),
 assert.ok(!/--color-button-text/.test(glyphRegel[0]),
 	"und greift ausdruecklich NICHT zum Token des gefuellten Knopfes");
 
-// ---- 💣 DIE KOPPLUNG: die Vier-Spalten-Regel muss das Band MITNENNEN ---------------------------
+// ---- Das Raster: vier gleich breite Spalten --------------------------------------------------
 //
-// Die Regel verlangt ein DIREKTES Kind von .location-popup. Die Editor-Kacheln haengen eine Ebene
-// tiefer. Wer die Selektorliste anfasst und das Band vergisst, bekommt starre 90px zurueck:
-// 4x90 + 24px Luecke = 384 > 380 verfuegbar -- es passen nur noch DREI, waehrend die Reihe darueber
-// vier zeigt. Sichtbar sofort, aber leicht als „ist halt so" abgetan. Genau so gemessen, bevor die
-// zweite Selektorzeile da war.
+// 💣 `minmax(0, 1fr)`, NICHT `1fr`. Ein blosses `1fr` heisst `minmax(auto, 1fr)`, und dieses `auto`
+// ist die MINDESTBREITE DES INHALTS -- die Kachel mit dem laengsten Wort macht ihre Spalte breiter
+// als die uebrigen. Gemessen 70/70/81/74 statt viermal derselben Zahl, also genau der Fehler, den
+// das Raster beheben soll, nur leiser als der Riesenknopf davor.
 const regeln = css.match(/[^{}]+\{[^}]*\}/g) || [];
-const direktKind = regeln.filter((r) => r.includes(".location-popup > .location-popup__actions > .location-popup__action-button"));
-assert.ok(direktKind.length >= 2,
-	`es gibt die Direkt-Kind-Regeln der Kachelbreite (gefunden: ${direktKind.length})`);
-direktKind.forEach((regel) => {
-	const kopf = regel.slice(0, regel.indexOf("{")).trim();
-	assert.ok(regel.includes(".location-popup__editor-band > .location-popup__actions > .location-popup__action-button"),
-		`diese Breitenregel nennt das Editor-Band mit, sonst bricht es auf drei Kacheln um:\n  ${kopf}`);
+const rasterRegeln = regeln.filter((r) => /grid-template-columns:\s*repeat\(4/.test(r));
+assert.ok(rasterRegeln.length >= 1, "es gibt die Vier-Spalten-Regel der Kachelbaender");
+rasterRegeln.forEach((regel) => {
+	assert.ok(/repeat\(4,\s*minmax\(0,\s*1fr\)\)/.test(regel),
+		"vier Spalten mit minmax(0, 1fr) -- ein blosses 1fr laesst das laengste Wort seine Spalte aufblaehen");
 });
+
+// 💣 DIE KOPPLUNG: jeder Behaelter, dessen Haupt-Kachelleiste das Raster bekommt, muss sein
+// Editor-BAND mitnennen. Die Kacheln des Bandes haengen eine Ebene tiefer -- ohne die zweite
+// Selektorzeile bleibt das Band eine Flex-Zeile mit starren 90px, waehrend die Reihe darueber im
+// Raster steht. Sichtbar sofort, aber leicht als „ist halt so" abgetan; genau so gemessen, als das
+// Band neu war. Der Test hat das dritte Vorkommen (die schlanke Box) selbst gefunden.
+const rasterKopf = rasterRegeln.map((r) => r.slice(0, r.indexOf("{"))).join(",");
+const behaelter = [...rasterKopf.matchAll(/([.\w-]+)\s+\.location-popup\s*>\s*\.location-popup__actions/g)]
+	.map((m) => m[1]);
+assert.ok(behaelter.length >= 3,
+	`die Haupt-Kachelleisten stehen im Raster (gefunden: ${behaelter.join(", ") || "keine"})`);
+behaelter.forEach((praefix) => {
+	assert.ok(rasterKopf.includes(`${praefix} .location-popup__editor-band > .location-popup__actions`),
+		`${praefix} nennt sein Editor-Band mit, sonst faellt es aus dem Raster`);
+});
+
+// 💣 Und die verschachtelte Bewertungszeile ist KEIN Raster. Sie traegt dieselbe Klasse
+// `.location-popup__actions`, ist aber ein Knopf neben der Sternebewertung -- ein Raster darin
+// risse die Zeile auseinander. Faengt einen zu weit gefassten Selektor.
+const bewertungsRegel = regeln.find((r) => /\.location-reviews\s+\.location-popup__actions\s*\{/.test(r));
+assert.ok(bewertungsRegel, "die Bewertungszeile hat ihre eigene Regel");
+assert.ok(/display:\s*flex/.test(bewertungsRegel),
+	"und bleibt eine Flex-Zeile, kein Raster");
+assert.ok(!rasterKopf.includes(".location-reviews"),
+	"das Raster fasst die Bewertungszeile nicht mit an");
 
 // Und das Band selbst hat seine Trennlinie.
 assert.ok(/\.location-popup__editor-band\s*\{[^}]*border-top:\s*1px solid var\(--color-divider\)/.test(css),

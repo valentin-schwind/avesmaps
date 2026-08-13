@@ -28,6 +28,9 @@ const POPUP_ACTION_GLYPHS = {
 	verlauf: "✎",      // ✎  wie "Grenzen bearbeiten" -- die Linie selbst anfassen
 	loeschen: "✕",     // ✕  wie "Loeschen"
 	fluss: "⇄",        // ⇄  Richtungswechsel
+	// ⧉ zwei versetzte Rechtecke, die Vokabel fuers Verdoppeln. Der einzige Neuzugang ohne Vorbild
+	// im Kontextmenue -- dort wird nichts dupliziert, es gibt also keins abzuschreiben.
+	duplizieren: "⧉",
 };
 
 function popupActionGlyphMarkup(key) {
@@ -49,7 +52,11 @@ function popupActionGlyphMarkup(key) {
 // `textContent` und loescht an einem Element mit Kindern die Kinder mit (js/app/i18n.js). Hier
 // baut zwar JS und nicht die Uebersetzungsschleife -- aber die Form ist dieselbe wie in
 // index.html, und wer sie spaeter mit einem Schluessel versieht, faellt sonst genau dort hinein.
-function locationPopupEditorBandMarkup(actionButtons = []) {
+// `noteMarkup` ist eine Zeile, die UNTER der Ueberschrift und ueber den Kacheln steht -- heute genau
+// ein Nutzer: die Aufforderung „Durch Flaeche ersetzen" am Label ohne Landschaftsflaeche. Sie gehoert
+// INS Band, nicht davor: davor stuende sie oberhalb der Trennlinie und damit sichtbar ausserhalb der
+// Gruppe, zu der sie gehoert.
+function locationPopupEditorBandMarkup(actionButtons = [], noteMarkup = "") {
 	const buttons = actionButtons.filter(Boolean);
 	if (!buttons.length) {
 		return "";
@@ -58,6 +65,7 @@ function locationPopupEditorBandMarkup(actionButtons = []) {
 	const merkmal = escapeHtml(tr("ui.editorOnly", "nur Editoren"));
 	return '<div class="location-popup__editor-band">'
 		+ `<p class="location-popup__editor-band-title"><span>${titel}</span><span class="avesmaps-scope-hint">${merkmal}</span></p>`
+		+ (noteMarkup || "")
 		+ locationPopupActionsMarkup(buttons)
 		+ "</div>";
 }
@@ -651,12 +659,16 @@ function crossingActionsMarkup(name, publicId) {
 	]);
 }
 
-// 🔧 OFFEN (13.08.2026): dieses Popup gehoert wie die Kreuzung ganz dem Editor, hat aber als
-// einziges davon noch KEINE Symbole. Absicht, nicht vergessen: fuer „Label duplizieren" gibt es im
-// aventurischen Satz kein Bild, und drei illustrierte Kacheln neben einer nackten sind genau der
-// Zustand, den diese Etappe abschafft. Entweder alle vier oder keine -- es wartet auf den Pinsel
-// des Owners (im Bogen unter „Fehlt noch" vermerkt: Label, Kreuzung, Backup, Handbuch).
-function labelActionsMarkup(publicId) {
+// Das Label-Popup traegt sein Editier-Band wie Ort, Weg und Kraftlinie (Owner 14.08.2026: „bei den
+// labels kommts nicht").
+//
+// 🔴 Es ist der EINE Fall, in dem das Merkmal auch auf einer reinen Editor-Oberflaeche steht -- und
+// zwar aus einem Grund, der hier und nirgends sonst gilt: dieses Popup hat seinen Hinweis schon
+// IMMER getragen, nur in einer anderen Form. Ueber den Kacheln stand fett „Nur fuer Editoren:
+// Durch Flaeche ersetzen" (labelPopupMarkup weiter unten). Damit gab es zwei Vokabeln fuer dieselbe
+// Aussage; die Pille ist die des Hauses, also erbt sie den Satz und der fette Vorspann faellt weg.
+// Die Kreuzung daneben hat nie einen solchen Hinweis getragen und bekommt deshalb auch keinen.
+function labelActionsMarkup(publicId, noteMarkup = "") {
 	if (!IS_EDIT_MODE || !publicId) {
 		return "";
 	}
@@ -666,6 +678,7 @@ function labelActionsMarkup(publicId) {
 		actionButtons.push(
 			popupActionButtonMarkup({
 				label: pendingPowerlineCreationStart ? "Kraftlinie abschließen" : "Neue Kraftlinie",
+				iconMarkup: popupActionGlyphMarkup("kraftlinie"),
 				attributes: {
 					"data-popup-action": pendingPowerlineCreationStart ? "finish-powerline-at-location" : "start-powerline-from-location",
 					"data-public-id": publicId,
@@ -678,6 +691,7 @@ function labelActionsMarkup(publicId) {
 		popupActionButtonMarkup({
 			label: "Label verschieben",
 			className: "location-popup__action-button--accent",
+			iconMarkup: popupActionGlyphMarkup("verschieben"),
 			attributes: {
 				"data-popup-action": "start-label-edit",
 				"data-public-id": publicId,
@@ -685,6 +699,7 @@ function labelActionsMarkup(publicId) {
 		}),
 		popupActionButtonMarkup({
 			label: "Bearbeiten",
+			iconMarkup: popupActionGlyphMarkup("bearbeiten"),
 			attributes: {
 				"data-popup-action": "edit-label-details",
 				"data-public-id": publicId,
@@ -692,6 +707,10 @@ function labelActionsMarkup(publicId) {
 		}),
 		popupActionButtonMarkup({
 			label: "Label duplizieren",
+			// ⧉ zwei versetzte Rechtecke -- die Vokabel fuers Verdoppeln. Sie stand bisher nicht im
+			// Satz, weil das Kontextmenue nichts dupliziert; das Zeichen ist damit der einzige
+			// Neuzugang und steht deshalb in POPUP_ACTION_GLYPHS, nicht hier im Text.
+			iconMarkup: popupActionGlyphMarkup("duplizieren"),
 			attributes: {
 				"data-popup-action": "duplicate-label",
 				"data-public-id": publicId,
@@ -700,6 +719,7 @@ function labelActionsMarkup(publicId) {
 		popupActionButtonMarkup({
 			label: "Label löschen",
 			className: "location-popup__action-button--danger",
+			iconMarkup: popupActionGlyphMarkup("loeschen"),
 			attributes: {
 				"data-popup-action": "delete-label",
 				"data-public-id": publicId,
@@ -707,7 +727,7 @@ function labelActionsMarkup(publicId) {
 		}),
 	);
 
-	return locationPopupActionsMarkup(actionButtons);
+	return locationPopupEditorBandMarkup(actionButtons, noteMarkup);
 }
 
 function waypointRemoveActionMarkup(waypointId) {
@@ -883,9 +903,14 @@ function labelPopupMarkup(entry) {
 	// Aufforderung ginge an alle 62 Gipfel des Bestands, wo sie nirgends richtig ist. Die Topographie
 	// UEBERNIMMT diese Orte (oekosystem-editor-leitfaden.md §1.4, „Punkt moduliert Flaeche"); ersetzt
 	// wird an ihnen nichts, ergaenzt nur die Hoehe.
+	//
+	// 🔴 Der fette Vorspann „Nur für Editoren:" ist am 14.08.2026 GEFALLEN, der Satz nicht. Das Band
+	// darunter sagt dasselbe in der Form des Hauses (Überschrift + Pille), und zwei Vokabeln für eine
+	// Aussage sind genau das, was diese Reihe von Änderungen abschafft. Übrig bleibt die Aufforderung
+	// selbst -- sie ist der Inhalt, „nur für Editoren" war nur die Adresse.
 	const istGipfel = typeof isEcosystemPeakSubtype === "function" && isEcosystemPeakSubtype(entry.label?.labelType);
 	const warnung = regionPublicId === "" && !istGipfel
-		? '<p class="location-popup__editor-warning"><strong>Nur für Editoren:</strong> Durch Fläche ersetzen</p>'
+		? '<p class="location-popup__editor-warning">Durch Fläche ersetzen</p>'
 		: "";
 
 	return locationPopupMarkup({
@@ -896,7 +921,7 @@ function labelPopupMarkup(entry) {
 		showType: true,
 		showDescription: false,
 		showWikiLink: false,
-		actionsMarkup: warnung + labelActionsMarkup(entry.label.publicId),
+		actionsMarkup: labelActionsMarkup(entry.label.publicId, warnung),
 	});
 }
 

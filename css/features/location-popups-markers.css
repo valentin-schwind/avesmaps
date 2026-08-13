@@ -300,63 +300,59 @@
    Icon-Kachel, Icon zentriert OBEN, Label zentriert darunter, feste Kachelgroesse. Forward-kompatibel:
    neue Buttons (Karten/Abenteuer) werden automatisch Kacheln. Fuellhierarchie (Hauptaktion accent)
    bleibt. Design-Regel dokumentiert in docs/design-language.md §12. */
-.floating-location-popup .location-popup__actions,
-.avesmaps-infopanel .location-popup__actions {
+/* ═══ Das Kachel-RASTER: vier gleich breite Spalten, immer ═══════════════════════════════════════
+   Owner 14.08.2026 („A festes raster mit 4 spalten"), und es loest ein Problem, das groesser war als
+   sein Anlass. Bis dahin trugen die Kacheln `flex: 1 1 <ein Viertel>`; das `flex-grow: 1` darin sagt
+   „fuell die Zeile aus". In einer VOLLEN Zeile teilen sich vier den Rest -- in einer angebrochenen
+   bekommt ihn EINE allein. Gemessen an der 400px-Box: 89 89 89 89 / 380. Die Kachel „Ort loeschen"
+   war damit mal 89 und mal 380 px breit, je nachdem wie viele Geschwister sie zufaellig hatte.
+   Der riesige Knopf war nur der Fall, in dem es auffiel.
+
+   ⭐ Und das Raster steht am BEHAELTER, nicht als flex-basis an jedem Kind. Vorher lag dieselbe
+   Absicht in VIER Selektorlisten (schwebende Box, Panel, schlanke Box, Gebiets-Infobox), und jede
+   davon musste beim Editor-Band einzeln nachgezogen werden -- eine waere fast vergessen worden.
+
+   💣 `minmax(0, 1fr)`, NICHT `1fr`. Ein blosses `1fr` heisst `minmax(auto, 1fr)`, und dieses `auto`
+   ist die MINDESTBREITE DES INHALTS: die Kachel mit dem laengsten Wort macht ihre Spalte breiter als
+   die drei anderen. Gemessen 70/70/81/74 statt viermal derselben Zahl -- also genau der Fehler, den
+   das Raster beheben soll, nur leiser.
+
+   💣 NUR die Haupt-Aktionsleisten, adressiert ueber das direkte Kind ihres Behaelters. Dieselbe
+   Klasse `.location-popup__actions` traegt auch die Bewertungszeile („Bewertung schreiben" neben der
+   Sternebewertung); ein Raster darin risse diese Zeile auseinander. Das Editor-Band steht mit in der
+   Liste -- seine Kacheln haengen eine Ebene tiefer und waeren sonst nicht erfasst. */
+.floating-location-popup .location-popup > .location-popup__actions,
+.floating-location-popup .location-popup__editor-band > .location-popup__actions,
+.avesmaps-infopanel .location-popup > .location-popup__actions,
+.avesmaps-infopanel .location-popup__editor-band > .location-popup__actions,
+.slim-location-popup .location-popup > .location-popup__actions,
+.slim-location-popup .location-popup__editor-band > .location-popup__actions,
+.region-info-box > .location-popup__actions {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
 	gap: 8px;
-	/* Owner: das Menue bricht NICHT um -- die Kacheln bleiben in EINER Zeile und schrumpfen bei Bedarf
-	   minimal (flex-shrink der Kacheln), statt in eine zweite Reihe zu springen. */
-	flex-wrap: nowrap;
 }
-/* Edit mode adds many more actions (Neuer Weg, Neue Kraftlinie, Ort verschieben/loeschen, Bearbeiten, ...)
-   than the handful in view mode -- 9+ fixed-width tiles overflow the single nowrap row and spill out of the
-   box. In edit mode let the tiles WRAP into further rows so they stay inside the box. View mode keeps the
-   one-row layout above (few tiles, Owner: kein Umbruch). */
-body.edit-mode .floating-location-popup .location-popup__actions,
-body.edit-mode .avesmaps-infopanel .location-popup__actions {
-	flex-wrap: wrap;
-}
-/* Owner: Kacheln fuellen IMMER die volle Zeilenbreite, egal wie viele eine Zeile abbekommt -- gleich breit
-   UND randvoll zugleich (kein festes Spalten-Grid: das liesse eine unvollstaendige letzte Zeile mit Luecke
-   rechts stehen). Scoped auf die HAUPT-Aktionen (direktes Kind von .location-popup), damit die
-   verschachtelten Bewertungs-Aktionen ("Bewertung schreiben") eine normale Inline-Zeile bleiben.
-   Rechtes Panel (breiter, variable Breite), BEIDE Modi: im View-Modus (wenige Kacheln, kein Umbruch)
-   fuellt flex-grow die eine Zeile randvoll; im Edit-Modus (viele Kacheln) bricht flex-wrap anhand der
-   Basisbreite 90px um, danach verteilt flex-grow den Rest gleichmaessig je Zeile. */
-/* 💣 Das Editor-Band steht MIT in dieser Liste, nicht in einer eigenen Regel daneben. Der Selektor
-   verlangt ein DIREKTES Kind, und die Editor-Kacheln haengen seit dem 13.08.2026 eine Ebene tiefer
-   (.location-popup__editor-band). Ohne die zweite Zeile fallen sie auf die starren 90px der
-   Basisregel zurueck: 4x90 + 24px Luecke = 384 > 380 verfuegbar, es passen nur noch DREI -- waehrend
-   die Reihe darueber vier zeigt. Genau so gemessen, bevor diese Zeile da war. */
+
+/* Im Raster bestimmt die Spalte die Breite -- die feste `width: 90px` der Basisregel weiter unten
+   wuerde sie ueberstimmen und die Kacheln wieder alle gleich schmal an den linken Rand druecken. */
+.floating-location-popup .location-popup > .location-popup__actions > .location-popup__action-button,
+.floating-location-popup .location-popup__editor-band > .location-popup__actions > .location-popup__action-button,
 .avesmaps-infopanel .location-popup > .location-popup__actions > .location-popup__action-button,
-.avesmaps-infopanel .location-popup__editor-band > .location-popup__actions > .location-popup__action-button {
-	flex: 1 1 90px;
-	width: auto;
-}
-/* Schwebende Box (Owner: bei direktem Klick immer 4 Spalten): feste Spaltenzahl statt natuerlichem Umbruch,
-   damit sich die Kachel-Reihen nicht je nach Popup-Breite mal auf 3, mal auf 4 pro Zeile aufteilen.
-   Prozentuale Basisbreite mit Gap-Ausgleich (calc((100% - 3*Gap)/4)) erzwingt exakt 4 pro Zeile; flex-grow
-   bleibt aktiv, damit eine unvollstaendige letzte Zeile trotzdem randvoll auswaechst. */
-body.edit-mode .floating-location-popup .location-popup > .location-popup__actions > .location-popup__action-button,
-body.edit-mode .floating-location-popup .location-popup__editor-band > .location-popup__actions > .location-popup__action-button {
-	flex: 1 1 calc((100% - 24px) / 4);
-	width: auto;
-}
-/* "Nächsten Ort finden"-Box: sie traegt die Kachel-Optik (floating-location-popup), ist mit 400px aber
-   deutlich breiter als die schwebende Wegpunkt-Box (310px) -- drei 90px-Kacheln stuenden dort links
-   gedraengt und liessen rechts eine Luecke. Wie im Panel: gleich breit UND randvoll (Owner-Regel). */
+.avesmaps-infopanel .location-popup__editor-band > .location-popup__actions > .location-popup__action-button,
 .slim-location-popup .location-popup > .location-popup__actions > .location-popup__action-button,
-.slim-location-popup .location-popup__editor-band > .location-popup__actions > .location-popup__action-button {
-	flex: 1 1 90px;
+.slim-location-popup .location-popup__editor-band > .location-popup__actions > .location-popup__action-button,
+.region-info-box > .location-popup__actions > .location-popup__action-button {
 	width: auto;
 }
-/* Regionen/Herrschaftsgebiete (Spec §4.3): ihre Aktionsleiste haengt in einer .region-info-box, NICHT in
-   einer .location-popup -- createRegionWikiInfoBoxMarkup baut keinen solchen Wrapper. Die Child-Selektoren
-   oben matchen dort also NIE, und die Kacheln blieben auf den starren 90px der Basisregel darunter stehen,
-   statt die Zeile zu fuellen. Das ist derselbe Fall wie bei .slim-location-popup, deshalb dieselbe Regel.
-   (Die LABEL-Regionen sind nicht betroffen: die laufen durch locationPopupMarkup und haben den Wrapper.) */
-.region-info-box > .location-popup__actions > .location-popup__action-button {
-	flex: 1 1 90px;
-	width: auto;
+
+/* Die verschachtelte Bewertungszeile bleibt eine Flex-Zeile -- sie ist KEIN Kachelband, sondern ein
+   Knopf neben der Sternebewertung. Ohne diese Zeile erbte sie das Raster ueber
+   `.floating-location-popup .location-popup__actions` von frueher; jetzt trifft sie kein Selektor
+   mehr, aber die Absicht steht hier, damit der naechste sie nicht versehentlich einsammelt. */
+.floating-location-popup .location-reviews .location-popup__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
 }
 .floating-location-popup .location-popup__action-button,
 .avesmaps-infopanel .location-popup__action-button {
@@ -1068,23 +1064,23 @@ body.edit-mode .floating-location-popup .location-popup__editor-band > .location
 	white-space: nowrap;
 }
 
-/* 🔴 „Nur für Editoren: Durch Fläche ersetzen" — im schwebenden Label-Menü, und NUR bei Labels, an
-   denen keine Landschaftsfläche hängt (Owner 2026-07-28). Es steht dort, wo bis dahin die Wiki-Infobox
-   stand: die gehört ins Infopanel, nicht ein zweites Mal in einen schwebenden Kasten. Rot aus dem
-   Token, nie als Literal (AGENTS.md §12). */
+/* 🔴 „Durch Fläche ersetzen" — im schwebenden Label-Menü, und NUR bei Labels, an denen keine
+   Landschaftsfläche hängt (Owner 2026-07-28). Es steht dort, wo bis dahin die Wiki-Infobox stand:
+   die gehört ins Infopanel, nicht ein zweites Mal in einen schwebenden Kasten. Rot aus dem Token,
+   nie als Literal (AGENTS.md §12).
+   🔴 Seit dem 14.08.2026 steht die Zeile IM Editier-Band, unter dessen Überschrift. Der fette
+   Vorspann „Nur für Editoren:" ist damit gefallen — das Merkmal daneben sagt dasselbe in der Form
+   des Hauses, und zwei Vokabeln für eine Aussage sind genau das, was diese Reihe abschafft.
+   Die Regel für das `strong` darin ist mit ihm entfallen, nicht danebengelassen. */
 .location-popup__editor-warning {
-	margin: 0 0 var(--space-sm, 8px);
-	padding: var(--space-xs, 6px) var(--space-sm, 8px);
+	margin: 0 0 var(--space-8);
+	padding: var(--space-6) var(--space-8);
 	border: 1px solid var(--color-danger-soft-border);
 	border-radius: var(--radius-md);
 	background: var(--color-danger-soft);
 	color: var(--color-danger-soft-text);
 	font-size: 0.85rem;
 	line-height: 1.35;
-}
-
-.location-popup__editor-warning strong {
-	color: var(--color-danger);
 }
 
 /* ── Am Telefon schwebt nichts mehr ueber der Karte ───────────────────────────────────────────
