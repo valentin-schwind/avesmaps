@@ -49,6 +49,7 @@ function ladePopups({ editMode }) {
  *  ein Treffer im Kommentar waere also kein Beweis. */
 const css = read("css", "features", "location-popups-markers.css")
 	.replace(/\/\*[\s\S]*?\*\//g, "");
+const infopanelCss = read("css", "features", "infopanel.css").replace(/\/\*[\s\S]*?\*\//g, "");
 
 // ---- Ohne Bearbeiten-Modus entsteht KEIN Band ------------------------------------------------
 //
@@ -161,9 +162,48 @@ assert.ok(/display:\s*flex/.test(bewertungsRegel),
 assert.ok(!rasterKopf.includes(".location-reviews"),
 	"das Raster fasst die Bewertungszeile nicht mit an");
 
-// Und das Band selbst hat seine Trennlinie.
-assert.ok(/\.location-popup__editor-band\s*\{[^}]*border-top:\s*1px solid var\(--color-divider\)/.test(css),
-	"das Band traegt den Trenner aus dem Token, nicht aus einem Literal");
+// ---- Der Trenner: EINER, und nur wenn es etwas zu trennen gibt -------------------------------
+//
+// 🔴 Owner 14.08.2026: „nur wenn da andere buttons sind (drüber) ein trenner zwischen den anderen
+// buttons und dem Bearbeiten nur Editoren" -- und „keine doppelstriche".
+//
+// 💣 Die Linie haengt am GESCHWISTER-Selektor, nicht am Band selbst. Am Band selbst stuende sie
+// auch dort, wo nichts darueber ist (Kreuzung, Label) -- eine Linie am oberen Rand des Kastens,
+// die sich als Rahmen liest.
+const bandBasis = regeln.find((r) => r.slice(0, r.indexOf("{")).trim() === ".location-popup__editor-band");
+assert.ok(bandBasis, "es gibt die Grundregel des Bandes");
+assert.ok(!/border-top:/.test(bandBasis),
+	"das Band traegt seine Linie NICHT unbedingt -- sonst haette auch die Kreuzung eine");
+const bandNachKacheln = regeln.find((r) => r.slice(0, r.indexOf("{")).trim() === ".location-popup__actions + .location-popup__editor-band");
+assert.ok(bandNachKacheln && /border-top:\s*1px solid var\(--color-divider\)/.test(bandNachKacheln),
+	"sondern nur, wenn eine Kachelreihe davor steht -- aus dem Token, nicht aus einem Literal");
+
+// 💣 Und zwischen Ueberschrift und ihren eigenen Kacheln NIE eine. Die Abschnitts-Regeln der
+// Kaesten geben JEDER `.location-popup__actions` eine Linie darueber; die Leiste im Band ist aber
+// kein Abschnitt, sondern der Inhalt eines Abschnitts. Beide Kaesten nehmen sie deshalb aus.
+const bandLeiste = regeln.find((r) => /\.location-popup__editor-band > \.location-popup__actions\s*\{/.test(r));
+assert.ok(bandLeiste && /border-top:\s*none/.test(bandLeiste),
+	"die Kachelreihe IM Band hat ausdruecklich keine Linie darueber");
+[
+	{ selektor: ".slim-location-popup .location-popup__actions", quelle: css, datei: "location-popups-markers.css" },
+	{ selektor: ".avesmaps-infopanel .location-popup__actions", quelle: infopanelCss, datei: "infopanel.css" },
+].forEach(({ selektor, quelle, datei }) => {
+	// Jedes Vorkommen des Selektors muss von `:not(...)` gefolgt sein. Ein nacktes Vorkommen ist die
+	// zu breite Fassung, die auch die Leiste im Band trifft.
+	const stellen = quelle.split(selektor).slice(1);
+	stellen.forEach((rest) => {
+		assert.ok(rest.startsWith(":not("),
+			`${datei}: „${selektor}" nimmt das Band aus (:not(.location-popup__editor-band > *)) -- sonst`
+			+ ` bekommt die Kachelreihe im Band eine Linie ueber sich`);
+	});
+});
+
+// 💣 KEINE DOPPELSTRICHE. Im Panel trug die Aktionsleiste bis dahin eine Linie DARUNTER -- zusammen
+// mit der neuen Linie ueber dem Band waren das zwei parallele Striche, 22 px auseinander (der Owner
+// hat sie im Screenshot rot markiert). Die Linie gehoert dem Band; die Leiste gibt sie ab, sobald
+// eines folgt. Ohne Band -- der oeffentliche Fall -- bleibt sie, wo sie war.
+assert.ok(/\.location-popup__actions:has\(\+ \.location-popup__editor-band\)[^{]*\{[^}]*border-bottom:\s*none/.test(infopanelCss),
+	"folgt ein Band, gibt die Aktionsleiste im Panel ihre untere Linie ab");
 
 // ---- Weg und Kraftlinie benutzen DASSELBE Band ------------------------------------------------
 //

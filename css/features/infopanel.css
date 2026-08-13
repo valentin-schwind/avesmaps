@@ -577,9 +577,14 @@ html.avesmaps-phone.avesmaps-any-panel-open #map-corner-actions {
 /* Alle Abschnitts-Trenner laufen randlos ueber die volle Panel-Breite (Owner-Regel: durchgehende
    Linien). Der Body hat 14px horizontales Padding; die eingespeisten .location-popup-Trenner waeren
    sonst inset, weil die settlement-popup-Regeln hier keinen .settlement-popup-Vorfahren finden. */
+/* ⚠️ Auch hier das Editor-Band ausgenommen: die Regel macht ABSCHNITTE randlos, und das Band ist
+   der Abschnitt -- es bringt seine randlosen Raender selbst mit. Die Leiste darin bekaeme sonst
+   eine ZWEITE, verschachtelte Full-bleed-Verschiebung. Sie hebt sich heute zufaellig auf (beide
+   Regeln setzen Rand und Polsterung im gleichen Betrag), aber genau solche Paare gehen auseinander,
+   sobald jemand eine der beiden Polsterungen anfasst. */
 .avesmaps-infopanel .region-info-box--settlement,
 .avesmaps-infopanel .feature-sources,
-.avesmaps-infopanel .location-popup__actions,
+.avesmaps-infopanel .location-popup__actions:not(.location-popup__editor-band > *),
 .avesmaps-infopanel .location-popup__breadcrumb,
 .avesmaps-infopanel .location-reviews,
 .avesmaps-infopanel .avesmaps-citymaps,
@@ -703,7 +708,13 @@ html.avesmaps-phone.avesmaps-any-panel-open #map-corner-actions {
 /* Aktionsleiste ("Link teilen" / "Reiseziel") IMMER mit Trenner darueber (Owner) -- einheitlich in
    allen Typen. Bei Territorien/Regionen/Wegen fehlte er, weil die settlement-scoped +-Regel (region-
    sync.css) im Panel keinen .settlement-popup-Vorfahren findet. */
-.avesmaps-infopanel .location-popup__actions {
+/* 💣 `:not(… > *)` nimmt die Kachelreihe IM Editor-Band aus. Die Regel meint die Aktionsleiste als
+   eigenen ABSCHNITT; die Leiste im Band ist aber der Inhalt eines Abschnitts, und ihre geerbte Linie
+   stand genau zwischen „Bearbeiten — nur Editoren" und den Kacheln darunter, wo der Owner am
+   14.08.2026 keine will. Die Ausnahme steht HIER, an der zu breiten Regel -- eine Gegenregel im
+   anderen Blatt haette nicht einmal gegriffen: infopanel.css wird nach location-popups-markers.css
+   geladen und gewinnt bei gleicher Spezifitaet. */
+.avesmaps-infopanel .location-popup__actions:not(.location-popup__editor-band > *) {
 	margin-top: 11px;
 	padding-top: 11px;
 	border-top: 1px solid var(--color-divider);
@@ -733,6 +744,23 @@ html.avesmaps-phone.avesmaps-any-panel-open #map-corner-actions {
 	margin-bottom: 12px;
 	border-bottom: 1px solid var(--color-divider);
 }
+/* 💣 KEINE DOPPELSTRICHE (Owner 14.08.2026, mit rotem Strich im Screenshot markiert).
+   Die beiden Regeln darueber geben der Aktionsleiste eine Linie DARUNTER -- sie sollte die
+   Button-Sektion von den Daten trennen. Folgt aber das Editier-Band, steht zwischen den beiden
+   Sektionen jetzt dessen eigene Linie DARUEBER: zwei parallele Striche, 22 px auseinander.
+   Die Linie gehoert genau EINEM von beiden, und zwar dem BAND -- es bringt sie in jedem Kasten mit,
+   die Regeln hier nur im Panel. Also gibt die Aktionsleiste sie ab, sobald ein Band folgt; ohne Band
+   (der oeffentliche Fall) bleibt alles wie bisher.
+   ⚠️ `:has()` ist hier die genaue Vokabel: „wenn ein Band folgt". Ein `+`-Selektor am Band haette
+   die Linie nur dort weggenommen, wo sie ohnehin nicht doppelt war. */
+.avesmaps-infopanel .location-popup__header + .location-popup__actions:has(+ .location-popup__editor-band),
+.avesmaps-infopanel .region-info-box__header + .location-popup__actions:has(+ .location-popup__editor-band),
+.avesmaps-infopanel .info-header + .location-popup__actions:has(+ .location-popup__editor-band) {
+	padding-bottom: 0;
+	margin-bottom: 0;
+	border-bottom: none;
+}
+
 /* Ein Scrollbalken fuer die gesamte Spalte (Owner-Vorgabe): die popup-eigene Bewertungs-Scrollbox
    (max-height in location-reviews.css) im Panel aufheben, damit die Bewertungen mitfliessen. */
 .avesmaps-infopanel .location-reviews__list {

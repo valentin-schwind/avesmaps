@@ -239,14 +239,19 @@
    Name/Typ (Builder rendert ihn nur bei vorhandener Beschreibung) sowie je eine Linie ueber Quelle und
    Aktionen. Offset -10px = das horizontale Content-Padding der .location-popup. So sieht die Box aus wie
    das normale settlement-popup (dort -14px bei 14px Padding). */
+/* 💣 `:not(… > *)` nimmt die Kachelreihe IM Editor-Band aus -- beide Male. Die Regeln meinen die
+   Aktionsleiste als eigenen ABSCHNITT der Box; die Leiste im Band ist der Inhalt eines Abschnitts.
+   Ohne die Ausnahme bekaeme sie randlose Seitenraender (also die doppelte Full-bleed-Verschiebung,
+   das Band hat sie schon) UND eine Linie zwischen „Bearbeiten — nur Editoren" und ihren Kacheln,
+   wo der Owner am 14.08.2026 ausdruecklich keine will. */
 .slim-location-popup .location-popup__divider,
 .slim-location-popup .feature-sources,
-.slim-location-popup .location-popup__actions {
+.slim-location-popup .location-popup__actions:not(.location-popup__editor-band > *) {
 	margin-left: -10px;
 	margin-right: -10px;
 }
 .slim-location-popup .feature-sources,
-.slim-location-popup .location-popup__actions {
+.slim-location-popup .location-popup__actions:not(.location-popup__editor-band > *) {
 	margin-top: 10px;
 	padding-top: 10px;
 	padding-left: 10px;
@@ -570,26 +575,43 @@
 	margin-bottom: 4px;
 }
 
-/* Das Band der Editor-Kacheln: Trennlinie + Ueberschrift + Merkmal „nur Editoren", dieselbe
+/* Das Band der Editor-Kacheln: Ueberschrift + Merkmal „nur Editoren" + die Kacheln, dieselbe
    Grammatik wie die Gruppen im Anzeige-Menue (css/components/map-display-menu.css).
-   Der Trenner laeuft full-bleed -- negativer Seitenrand = Polsterung der Box --, damit die Linie
-   von Kante zu Kante geht statt in der Luft zu enden (docs/design-language.md).
    ⚠️ Die 10px sind die Polsterung von .location-popup weiter oben in dieser Datei; wer sie dort
    aendert, aendert sie hier mit. Kein Token, weil auch die Polsterung dort keins ist. */
 .location-popup__editor-band {
 	margin-top: 10px;
-	padding-top: 8px;
-	border-top: 1px solid var(--color-divider);
 	margin-left: -10px;
 	margin-right: -10px;
 	padding-left: 10px;
 	padding-right: 10px;
 }
 
+/* 🔴 EINE Linie, und nur wenn es etwas zu trennen gibt (Owner 14.08.2026: „nur wenn da andere
+   buttons sind (drüber) ein trenner zwischen den anderen buttons und dem Bearbeiten nur Editoren").
+   Sie steht also ausschliesslich zwischen einer VORHERGEHENDEN Kachelreihe und der Ueberschrift --
+   nie zwischen Ueberschrift und ihren eigenen Kacheln, und gar nicht, wenn das Band das erste im
+   Kasten ist (Kreuzung, Label: dort gibt es nichts darueber, eine Linie am oberen Rand liest sich
+   als Rahmen).
+   Full-bleed ueber die negativen Seitenraender oben, damit die Linie von Kante zu Kante geht statt
+   in der Luft zu enden (docs/design-language.md). */
+.location-popup__actions + .location-popup__editor-band {
+	padding-top: 8px;
+	border-top: 1px solid var(--color-divider);
+}
+
 /* Die erste Kachelreihe im Band braucht keinen zweiten Abstand nach oben -- den bringt schon die
-   Ueberschrift mit. Ohne das stuende zwischen Ueberschrift und Kacheln eine doppelte Luecke. */
+   Ueberschrift mit. Ohne das stuende zwischen Ueberschrift und Kacheln eine doppelte Luecke.
+   💣 UND keinen Trenner: die Abschnitts-Regeln der einzelnen Kaesten (slim-Popup weiter oben,
+   Infopanel in css/features/infopanel.css) geben JEDER `.location-popup__actions` eine Linie
+   darueber -- gedacht fuer die Aktionsleiste als eigenen Abschnitt. Die Leiste IM Band ist aber
+   kein Abschnitt, sie ist der Inhalt eines Abschnitts, und die geerbte Linie stand genau dort, wo
+   der Owner keine will. Beide Regeln nehmen das Band jetzt aus; diese Zeile ist der Rueckhalt fuer
+   den naechsten Kasten, der eine solche Abschnitts-Regel mitbringt. */
 .location-popup__editor-band > .location-popup__actions {
 	margin-top: 0;
+	padding-top: 0;
+	border-top: none;
 }
 
 .location-popup__editor-band-title {
