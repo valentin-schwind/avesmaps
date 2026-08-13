@@ -187,21 +187,38 @@ assert.ok(/\.location-popup__editor-band\s*\{[^}]*border-top:\s*1px solid var\(-
 		`${wer} sammelt sie stattdessen in editorButtons (${rel})`);
 });
 
-// ---- Das Kreuzungs-Popup bekommt KEIN Merkmal -------------------------------------------------
+// ---- JEDE Gruppe von Editor-Kacheln traegt ihr Band -------------------------------------------
 //
-// 🔴 Absicht, kein Versaeumnis: die Leiste existiert ausserhalb des Bearbeiten-Modus gar nicht
-// (crossingActionsMarkup gibt "" zurueck). Ein Schild ueber einer Liste, die ein Besucher nie
-// sieht, ist eine Auskunft an niemanden -- das Merkmal traegt nur, wo es auch fehlen kann.
-// Faengt: jemand „vervollstaendigt" die Kennzeichnung und haengt es ueberall hin.
-const kreuzung = editor.crossingActionsMarkup("Kreuzung-1482", "cr-1");
-assert.ok(kreuzung.includes("location-popup__action-button"), "die Kreuzung hat ihre Kacheln");
-assert.ok(!kreuzung.includes("avesmaps-scope-hint"),
-	"aber KEIN Merkmal -- ein Besucher sieht diese Leiste ohnehin nie");
-assert.strictEqual(besucher.crossingActionsMarkup("Kreuzung-1482", "cr-1"), "",
-	"und ausserhalb des Bearbeiten-Modus entsteht sie gar nicht erst");
-(kreuzung.match(/<button[\s\S]*?<\/button>/g) || []).forEach((kachel) => {
-	assert.ok(kachel.includes("location-popup__action-glyph"),
-		`jede Kreuzungs-Kachel traegt ein Zeichen: ${kachel.slice(0, 120)}`);
+// 🔴 Die Regel hat sich am 14.08.2026 geaendert (Owner: „achte auch nochmal darauf, dass die
+// editoren-trenner/hinweise auch bei kreuzungen oder labels etc kommen"). Vorher galt: das Merkmal
+// traegt nur, wo es auch FEHLEN kann -- eine Kreuzung gehoert ganz dem Editor, also sag es ihm
+// nicht. Fuer sich richtig, und trotzdem falsch herum gedacht: ein Editor sieht diese Popups
+// NEBENEINANDER, und wo drei ein Band tragen und eines nicht, liest sich das Fehlen als
+// Unfertigkeit statt als Aussage. Jetzt ausnahmslos: eine Gruppe von Editor-Kacheln hat ihr Band.
+//
+// 💣 Faengt den Rueckfall an genau den beiden Popups, die es zuletzt nachgeholt haben.
+[
+	["Kreuzung", () => editor.crossingActionsMarkup("Kreuzung-1482", "cr-1"), () => besucher.crossingActionsMarkup("Kreuzung-1482", "cr-1")],
+	["Label", () => editor.labelActionsMarkup("lab-1"), () => besucher.labelActionsMarkup("lab-1")],
+].forEach(([wer, imEditor, alsBesucher]) => {
+	const markup = imEditor();
+	assert.ok(markup.includes("location-popup__editor-band"), `${wer}: die Kacheln stehen im Band`);
+	assert.ok(markup.includes('<span class="avesmaps-scope-hint">'), `${wer}: mit dem Merkmal`);
+	assert.strictEqual(alsBesucher(), "",
+		`${wer}: und ausserhalb des Bearbeiten-Modus entsteht gar nichts`);
+	(markup.match(/<button[\s\S]*?<\/button>/g) || []).forEach((kachel) => {
+		assert.ok(kachel.includes("location-popup__action-glyph"),
+			`${wer}: jede Kachel traegt ein Zeichen: ${kachel.slice(0, 120)}`);
+	});
 });
+
+// Und die Zeile im Band („Durch Flaeche ersetzen" am Label ohne Flaeche) steht UNTER der
+// Ueberschrift, nicht davor -- davor stuende sie oberhalb der Trennlinie und damit sichtbar
+// ausserhalb der Gruppe, zu der sie gehoert.
+const mitHinweis = editor.labelActionsMarkup("lab-1", '<p class="location-popup__editor-warning">Durch Fläche ersetzen</p>');
+assert.ok(mitHinweis.indexOf("editor-warning") > mitHinweis.indexOf("editor-band-title"),
+	"der Hinweis steht IM Band, unter dessen Ueberschrift");
+assert.ok(!mitHinweis.includes("Nur für Editoren:"),
+	"und der alte fette Vorspann ist weg -- das Merkmal sagt dasselbe in der Form des Hauses");
 
 console.log("popup-editor-band ok");

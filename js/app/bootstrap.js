@@ -782,6 +782,18 @@ function openMapContextMenu(latlng, clientX, clientY) {
         return;
     }
 
+    // 💣 Wer ein Menue oeffnet, schliesst die anderen. Die beiden Nachbarn taten das laengst
+    // (openRegionContextMenu ruft closeMapContextMenu, das Flaechenmenue ebenso) -- nur hier fehlte
+    // die Gegenrichtung, und genau die ist der Weg, den Strg+Rechtsklick nimmt: das Flaechen- bzw.
+    // Gebietsmenue steigt ohne `stop` aus, dieses hier geht auf, und das andere blieb daneben stehen.
+    // Owner-Screenshot vom 14.08.2026 zeigt beide uebereinander.
+    // ⚠️ Ueber die oeffentliche Schnittstelle des Flaechenmenues, nicht an seinem DOM vorbei -- es
+    // raeumt beim Schliessen mehr auf als nur `hidden` (Auswahl, Zettel).
+    if (typeof closeRegionContextMenu === "function") {
+        closeRegionContextMenu();
+    }
+    window.AvesmapsEcosystemAreaMenu?.close?.();
+
     pendingContextMenuLatLng = L.latLng(latlng);
     setMapContextMenuAnchor(pendingContextMenuLatLng);
     syncDistanceMeasurementContextMenuAction();

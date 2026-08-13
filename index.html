@@ -348,6 +348,16 @@
 			<button type="button" class="map-context-menu__item" data-region-context-action="intersection">Neues von anderem ausschneiden</button>
 			<button type="button" class="map-context-menu__item" data-region-context-action="extract">Neues Gebiet herausloesen</button>
 			<button type="button" class="map-context-menu__item map-context-menu__item--danger" data-region-context-action="delete">Löschen</button>
+				<!-- Der Notausgang, dort wo man ihn braucht. Wo die Karte flächendeckend mit Gebieten
+				     belegt ist, gibt es keine freie Stelle mehr für „Hierher reisen", „Entfernung
+				     messen", „Suchen" oder „Hier melden" -- Strg+Rechtsklick erzwingt das Kartenmenü
+				     (Handler in js/map-features/map-features.js). Ein Kürzel ohne sichtbaren Hinweis
+				     wird nicht gefunden, und ein Notausgang, den niemand kennt, ist keiner.
+				     🔴 Wortgleich mit dem Zettel im Flächenmenü der Landschaften
+				     (map-features-ecosystem-context-action.js, `ecosystem.ctxmenu.mapMenuHint`) --
+				     zwei Sätze für dieselbe Geste wären zwei Vokabeln. Kein <button>: es ist eine
+				     Auskunft, nichts zum Anklicken. -->
+				<div class="map-context-menu__hint" data-i18n="ctxmenu.mapMenuHint">Strg + Rechtsklick: Kartenmenü</div>
 		</div>
 		<div id="political-territory-editor-overlay" class="political-territory-editor-overlay" hidden>
 			<div id="political-territory-editor-dialog" class="political-territory-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="political-territory-editor-title" tabindex="-1">

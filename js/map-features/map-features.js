@@ -537,6 +537,18 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 		startRegionGeometryEdit(selectedRegionEntry, selectedLayer);
 	});
 	polygon.on("contextmenu", (event) => {
+		// 🔴 STRG + RECHTSKLICK ERZWINGT DAS KARTENMENUE (Owner 14.08.2026), genau wie in der
+		// Landschaften-Ebene (map-features-ecosystem-rendering.js). Grund ist derselbe: wo die Karte
+		// flaechendeckend mit Gebieten belegt ist, gibt es keine freie Stelle mehr, an der man
+		// „Hierher reisen", „Entfernung messen", „Suchen" oder „Hier melden" noch erreichen koennte.
+		//
+		// 🪤 OHNE `stop` aussteigen, nicht mit. Genau das reicht das Ereignis an map.on("contextmenu")
+		// weiter, und DORT wird preventDefault gerufen -- das Browsermenue bleibt also weg, ohne dass
+		// diese Zeile es selbst unterdruecken muesste. Ein `L.DomEvent.stop` hier taete das Gegenteil
+		// von dem, was der Griff bezweckt.
+		if (event?.originalEvent?.ctrlKey || event?.originalEvent?.metaKey) {
+			return;
+		}
 		L.DomEvent.stop(event);
 		const selection = resolveOverlappingRegionLayerSelection(event.latlng, polygon);
 		const selectedLayer = selection.layer || polygon;

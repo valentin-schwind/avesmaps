@@ -607,17 +607,21 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 	return locationPopupActionsMarkup(actionButtons) + locationPopupEditorBandMarkup(editorButtons);
 }
 
-// 🔴 Hier KEIN Editor-Band und kein Merkmal, obwohl jede Kachel eine Editor-Aktion ist -- gerade
-// deshalb. Die Funktion gibt ausserhalb des Bearbeiten-Modus "" zurueck: ein Besucher sieht diese
-// Leiste nie. Ein Schild „nur Editoren" ueber einer Liste, die sonst gar nicht existiert, ist eine
-// Auskunft an niemanden; es traegt nur dort, wo es auch FEHLEN kann. Die Symbole kommen trotzdem,
-// die sind kein Hinweis, sondern Lesbarkeit.
+// 🔴 Auch hier das Band, seit dem 14.08.2026 (Owner: „achte auch nochmal darauf, dass die
+// editoren-trenner/hinweise auch bei kreuzungen oder labels etc kommen").
+//
+// Damit ist die Regel eine andere als die, mit der diese Reihe begann. Sie hiess: das Merkmal traegt
+// nur, wo es auch FEHLEN kann -- eine Kreuzung gehoert ganz dem Editor, also sage es ihm nicht. Die
+// Regel war fuer sich richtig und trotzdem falsch herum gedacht: ein Editor sieht diese Popups
+// NEBENEINANDER, Ort, Weg, Label, Kreuzung, und wo drei ein Band tragen und eines nicht, liest sich
+// das Fehlen als Unfertigkeit, nicht als Aussage. Die neue Regel ist einfacher und gilt ausnahmslos:
+// EINE GRUPPE VON EDITOR-KACHELN TRAEGT IHR BAND, egal wer sonst noch zusieht.
 function crossingActionsMarkup(name, publicId) {
 	if (!IS_EDIT_MODE || !publicId) {
 		return "";
 	}
 
-	return locationPopupActionsMarkup([
+	return locationPopupEditorBandMarkup([
 		popupActionButtonMarkup({
 			label: "Zu Ort konvertieren",
 			// Der Ortspunkt: aus dem Knoten wird ein Ort. Dasselbe Zeichen wie „Neuer Ort" im Kartenmenue.

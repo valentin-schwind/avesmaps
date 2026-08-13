@@ -427,7 +427,11 @@
 		// kennt, ist keiner. Kein <button>: es ist eine Auskunft, nichts zum Anklicken.
 		const hint = document.createElement("div");
 		hint.className = "map-context-menu__hint";
-		hint.textContent = label("ecosystem.ctxmenu.mapMenuHint", "Strg + Rechtsklick: Kartenmenü");
+		// 🔴 `ctxmenu.mapMenuHint`, NICHT `ecosystem.ctxmenu.*`: seit dem 14.08.2026 trägt das
+		// Herrschaftsgebiete-Menü denselben Zettel (index.html), und ein Satz gehört EINEM Schlüssel.
+		// Der alte, ebenennahe Name hatte ohnehin nie eine englische Fassung -- der Umzug kostet also
+		// keine Abdeckung, ein zweiter Schlüssel hätte aber zwei Übersetzungen desselben Satzes ergeben.
+		hint.textContent = label("ctxmenu.mapMenuHint", "Strg + Rechtsklick: Kartenmenü");
 		menu.appendChild(hint);
 
 		const sibling = document.getElementById("region-context-menu") || document.getElementById("map-context-menu");
