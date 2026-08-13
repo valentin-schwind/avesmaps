@@ -23,6 +23,17 @@ const term = (over) => Object.assign(
 	over
 );
 
+// Der Landschaftsart-Katalog kommt seit Fix-Runde 1 vom Server (api/edit/map/ecosystem.php, Aktion
+// "region_types" -> avesmapsListEcosystemRegionTypes()) und liegt im Modulzustand
+// avesmapsLoreRuleTypeLabels, geschluesselt "<kind>|<type_key>". Hier direkt gesetzt, wie
+// avesmapsLoreRuleLoadTypeLabels() ihn nach einem echten Abruf ablegen wuerde -- ohne echten Fetch
+// im vm-Sandkasten. "auenlandschaft" bleibt absichtlich DRAUSSEN: der Fall dafuer steht weiter unten.
+context.avesmapsLoreRuleTypeLabels = {
+	"vegetation|wald": "Wald",
+	"vegetation|suempfe_moore": "Sümpfe und Moore",
+	"topographie|gebirge": "Gebirge",
+};
+
 // Eine Bedingung, zwei Felder: Art UND Klima.
 const einfach = { id: 1, relation: "verbreitung", terms: [term({
 	types: [{ kind: "vegetation", region_type: "wald" }],
@@ -72,5 +83,23 @@ assert.ok(markup.includes("&lt;img"), "er steht escaped drin");
 // Eine leere Regel gibt es nicht -- der Server laesst sie nicht zu. Der Satzbauer darf trotzdem
 // nicht werfen, sonst reisst eine kaputte Datenzeile die ganze Liste ab.
 assert.doesNotThrow(() => context.avesmapsLoreRuleSentence({ id: 5, relation: "", terms: [] }, zoneLabels));
+
+// 💣 Befund 1 (Fix-Runde 1): eine Art im Katalog erscheint mit ihrer ECHTEN Beschriftung; eine, die
+// der Katalog nicht kennt, erscheint als ROHER SCHLUESSEL -- nie als Vermutung. Bewusst
+// "auenlandschaft": der verworfene erste Textumbau (ue -> ü, angewandt auf den ganzen Schluessel)
+// traf mitten im Wort ("a-U-E-nlandschaft") und schrieb "Aünlandschaft" -- sichtbar falsches
+// Deutsch, das aussah, als waere es richtig. Kein Textumbau mehr: ein unbekannter Schluessel bleibt
+// unbekannt und sichtbar roh, statt geraten und falsch.
+const bekannteUndUnbekannteArt = { id: 7, relation: "verbreitung", terms: [term({
+	types: [
+		{ kind: "vegetation", region_type: "wald" },
+		{ kind: "vegetation", region_type: "auenlandschaft" },
+	],
+})] };
+const satzArten = context.avesmapsLoreRuleSentence(bekannteUndUnbekannteArt, zoneLabels);
+assert.ok(satzArten.includes("Wald"), "die bekannte Art zeigt ihre Katalog-Beschriftung");
+assert.ok(satzArten.includes("auenlandschaft"), "die unbekannte Art zeigt den rohen Schluessel");
+assert.ok(!satzArten.includes("Aünlandschaft") && !satzArten.includes("Auenlandschaft"),
+	"kein geratener Textumbau -- weder das kaputte noch ein zufaellig richtig aussehendes Ergebnis");
 
 console.log("lore-rule-ui: OK");

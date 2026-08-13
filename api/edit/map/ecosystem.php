@@ -59,6 +59,9 @@ try {
         // "which region does my next area go into" is an editor question and does not widen the public
         // surface. Optional filter: kind.
         'list_regions' => avesmapsListEcosystemRegions($pdo, $payload),
+        // Task 5/6 (Vorkommen-Regelkarte): dieselbe Art-Vokabel wie list_regions, aber ohne die
+        // Regionenliste -- eine Beschriftungskarte für 26 Arten muss nicht 777 Regionen mitladen.
+        'region_types' => avesmapsListEcosystemRegionTypes($pdo),
         // V6: the WikiSync -> Regionen list's second source -- which landscape regions, and how many
         // areas, hang on each wiki_region_key. Same capability gate, same reasoning as list_regions.
         'regions_by_wiki_key' => avesmapsListEcosystemRegionsByWikiKey($pdo, $payload),

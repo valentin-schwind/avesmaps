@@ -668,38 +668,61 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	min-width: 0;
 }
 
-/* ---- Regelkarte in der Vorkommen-Liste (Lebensraum-Regel, Sitzung 2 Task 5) ----------------------
-   Gleichrangig mit einer Ortskarte, in derselben <ul class="lore-detail__places"> -- kein eigener
-   Abschnitt, kein eigener Kasten (js/review/review-lore-rule.js). Dieselben Masse wie
-   .lore-detail__place weiter oben, nur unter eigenem Namen: diese Datei wird nur ans Ende angehängt,
-   die bestehende Regel bleibt unangetastet. */
-.lore-detail__rule {
+/* ---- Regelkarte in der Vorkommen-Liste (Lebensraum-Regel, Sitzung 2 Task 5, Fix-Runde 1) ----------
+   Vorbild: docs/vorkommen-klimazonen-mockup.html, Abschnitt „Die Liste bekommt einen zweiten
+   Eintragstyp" -- dort im Kommentar: „Sie ist bewusst KEIN anderer Kasten: eine Regel steht
+   gleichrangig neben einem Ort". Der Karten-<li> trägt deshalb .lore-detail__place/-place-main
+   direkt (weiter oben in dieser Datei) wie eine Ortskarte -- kein eigener Kasten hier. Nur der
+   INHALT ist anders, mit dem Präfix dieser Liste statt dem rule__* aus dem Mockup. */
+.lore-detail__rule-title {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-4);
+	flex: 1 1 100%;
+	font-weight: var(--font-weight-bold);
+}
+
+.lore-detail__rule-lines {
 	display: flex;
 	flex-direction: column;
-	gap: var(--space-4);
-	padding: var(--space-6) var(--space-8);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-md);
-	background: var(--color-panel-soft);
+	gap: 2px;
+	flex: 1 1 100%;
+	margin-top: var(--space-2);
 }
 
-.lore-detail__rule-main {
+.lore-detail__rule-line {
 	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
 	gap: var(--space-6);
+	font-size: var(--font-size-small);
 }
 
-/* Der Satz darf umbrechen -- eine Regel mit mehreren Bedingungen wird schnell länger als eine
-   300px-Spalte, und ein abgeschnittener Satz ist Kauderwelsch statt einer Regel. */
-.lore-detail__rule-sentence {
-	margin: 0;
-	flex: 1 1 220px;
-	min-width: 0;
-}
-
-.lore-detail__rule-meta {
-	flex: 0 0 auto;
+/* Feste Breite, keine Skala -- eine Ausrichtungsspalte für die Feldnamen ("Fläche"/"Landschaft"/
+   "Klima"), kein Design-Wert im Sinn von §12 (keine Farbe/Radius/Trenner). */
+.lore-detail__rule-layer {
+	flex: 0 0 96px;
 	color: var(--color-text-muted);
+}
+
+/* Die Marke ZWISCHEN zwei Bedingungen -- ihr eigenes join_op, wie der Joiner im Regeleditor-Mockup. */
+.lore-detail__rule-and,
+.lore-detail__rule-or-tag {
+	align-self: flex-start;
+	padding: 0 var(--space-4);
+	border: 1px solid var(--color-accent-strong);
+	border-radius: var(--radius-sm);
+	color: var(--color-accent-strong);
 	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.04em;
+}
+
+.lore-detail__rule-or-tag {
+	border-color: var(--color-border);
+	color: var(--color-text-muted);
+}
+
+/* Das "oder" INNERHALB einer Landschaft-Zeile (mehrere Arten) -- gedämpft, kein Rahmen, damit es
+   sich von der Bedingungs-Marke oben unterscheidet. */
+.lore-detail__rule-or {
+	color: var(--color-text-muted);
 }

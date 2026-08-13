@@ -3275,12 +3275,15 @@ function openLoreDetail(wikiKey) {
 	// Zurueck auf Anfang: eine Erfolgsmeldung vom vorigen Eintrag ueber dem neuen stehen zu
 	// lassen, behauptet etwas ueber diesen hier.
 	setLoreDialogStatus();
-	// Regeln und Stammdaten getrennt geladen (verschiedene Endpunkte, Task 1 vs. der bestehende
-	// "detail"), aber gemeinsam abgewartet: renderLoreDetail braucht avesmapsLoreRuleCurrent()
-	// schon beim ERSTEN Aufbau, nicht erst beim naechsten Neuaufbau.
+	// Stammdaten, Regeln UND der Landschaftsart-Katalog getrennt geladen (drei verschiedene
+	// Endpunkte/Aktionen), aber gemeinsam abgewartet: renderLoreDetail braucht avesmapsLoreRuleCurrent()
+	// UND avesmapsLoreRuleTypeLabels schon beim ERSTEN Aufbau, nicht erst beim naechsten Neuaufbau.
+	// avesmapsLoreRuleLoadTypeLabels() holt den Katalog nur EINMAL pro Seitenleben (Fix-Runde 1,
+	// Befund 1) -- ein zweites Oeffnen eines anderen Eintrags loest keinen zweiten Abruf aus.
 	Promise.all([
 		loreEditAction("detail", { wiki_key: wikiKey }),
 		(typeof avesmapsLoreRuleLoad === "function") ? avesmapsLoreRuleLoad(wikiKey) : Promise.resolve([]),
+		(typeof avesmapsLoreRuleLoadTypeLabels === "function") ? avesmapsLoreRuleLoadTypeLabels() : Promise.resolve({}),
 	]).then(function (results) {
 		var data = results[0];
 		if (avesmapsLoreDetailKey !== wikiKey) { return; }

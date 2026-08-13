@@ -6,33 +6,48 @@
 // api/edit/map/lore.php (action "list_rules") bereits liefert: [{ id, relation, terms: [...] }],
 // jede Bedingung als { join_op, area_public_id, area_name, climate_from, climate_to, types }.
 //
-// 💣 KEINE Beschriftungsliste der Landschaftsarten in dieser Datei (AGENTS.md §12 -- „nichts
-// doppelt pflegen"). Nachgesehen für Schritt 5 des Aufgabenzettels: weder api/app/map-features.php
-// noch die Antwort von "list_rules" liefern eine Art-Beschriftung mit; der einzige Katalog dafür
-// (ecosystem_region_type.label) reist heute NUR je Fläche eingebettet (api/app/ecosystem-areas.php,
-// Feld region_type_label) oder über den editor-eigenen, rechtegebundenen "list_regions"-Aufruf --
-// beides zu schwer für eine reine Anzeigekarte, und api/ darf diese Aufgabe nicht anfassen. Bis eine
-// spätere Aufgabe (Task 6 braucht den echten Katalog ohnehin für seine Auswahlliste) eine schmale
-// Quelle dafür nachliefert, leitet avesmapsLoreRuleHumanizeTypeKey() die Beschriftung TEXTUELL aus
-// dem stabilen Schlüssel her (derselbe ASCII-Fold wie beim Schlüssel selbst, AGENTS.md §5) -- keine
-// Tabelle, die veralten könnte, weil sie keinen einzigen Schlüssel im Voraus kennt. Für eine bewusst
-// UMBENANNTE Beschriftung (Präzedenzfall "trockene_subtropen" -> "Subtropische Steppenzone",
-// api/_internal/app/ecosystem.php:198-204) liest sich das nicht falsch, nur nicht so schön wie das
-// Original -- besser als ein roher Schlüssel in der Liste.
+// 💣 KEINE Beschriftungsliste der Landschaftsarten in dieser Datei (AGENTS.md §12). Fix-Runde 1
+// (Befund 1) hat den ersten Versuch hier -- eine TEXTUELLE Rückfaltung des Schlüssels -- widerlegt:
+// gegen den echten Katalog geprüft, riet sie bei 2 von 26 Arten sichtbar falsches Deutsch
+// ("Aünlandschaft" für auenlandschaft, "Flussland und Flusstal" statt "Flussland/Flusstal" für
+// flussland_flusstal) -- eine Vermutung über eine Namensregel, die es nicht gibt, ist schlimmer als
+// ein roher Schlüssel, weil sie richtig AUSSIEHT. Seit Fix-Runde 1 gilt: der Katalog kommt vom
+// Server (api/edit/map/ecosystem.php, Aktion "region_types" -> avesmapsListEcosystemRegionTypes(),
+// die den bereits vorhandenen avesmapsEcosystemReadRegionTypeLabels()-Bestand wiederverwendet). Kennt
+// der Katalog einen Schlüssel nicht (noch nicht geladen, oder wirklich unbekannt), zeigt die Karte
+// den ROHEN SCHLÜSSEL -- nie eine Vermutung.
 //
-// Klimazonen-Beschriftungen dagegen haben bereits einen echten, ungeteilten Katalog:
-// avesmapsClimateZoneLabels (js/map-features/map-features-climate-row.js), gefüllt aus dem
-// Kartenpayload (climate_zones) über avesmapsClimateSetVocabulary(). Der Aufrufer in
-// review-wiki-sync.js reicht ihn als zoneLabels durch -- diese Datei baut dafür keinen zweiten.
+// Klimazonen haben dagegen bereits einen echten, ungeteilten Katalog: avesmapsClimateZoneLabels
+// (js/map-features/map-features-climate-row.js), gefüllt aus dem Kartenpayload (climate_zones) über
+// avesmapsClimateSetVocabulary(). Der Aufrufer in review-wiki-sync.js reicht ihn als zoneLabels durch
+// -- diese Datei baut dafür keinen zweiten.
+//
+// Kartengestalt (Fix-Runde 1, Befund 2): das ursprünglich verlinkte Mockup
+// (docs/vorkommen-regeleditor-mockup.html) ist der Regel-EDITOR (Task 6) und zeigt keine zugeklappte
+// Karte. Die zeigt docs/vorkommen-klimazonen-mockup.html, Abschnitt „Die Liste bekommt einen zweiten
+// Eintragstyp": KEIN eigener Kasten -- die Karte trägt dieselben Klassen wie eine Ortskarte
+// (.lore-detail__place/.lore-detail__place-main), nur der Inhalt in .lore-detail__place-main ist
+// anders (Titel, Zeilen „Fläche"/„Landschaft"/„Klima", die „von Hand"-Pille). Übernommen; die
+// Trefferzahl ist im Mockup eine CLIENT-SEITIGE Demo über alle 777 Flächen -- `list_rules` liefert
+// sie nicht, und sie neu zu rechnen wäre die schwere Owner-Aktion, die Task 7 („+ Rechenstand")
+// vorbehalten ist. Die Zeile bleibt bis dahin weg statt eine erfundene Zahl zu zeigen.
 
 "use strict";
 
 var AVESMAPS_LORE_RULE_ENDPOINT = "api/edit/map/lore.php";
+var AVESMAPS_LORE_RULE_ECOSYSTEM_ENDPOINT = "api/edit/map/ecosystem.php";
 
 // Modulzustand: die zuletzt geladenen Regeln EINES Eintrags. Ein Neuaufbau der Detailmaske (etwa
 // nach dem Hinzufügen eines Ortes, dessen Antwort nur `entry` trägt, keine Regeln) braucht dadurch
 // keinen zweiten Abruf, solange der offene Eintrag derselbe bleibt.
 var avesmapsLoreRuleModuleState = { wikiKey: "", rules: [] };
+
+// Modulzustand: der Landschaftsart-Katalog, "<kind>|<type_key>" => Beschriftung. Einmal pro Seitenleben
+// geholt (AVESMAPS_LORE_RULE_TYPE_LABELS_LOADED sperrt gegen wiederholte Aufrufe, dieselbe STRATO-
+// Vorsicht wie überall -- AGENTS.md), danach rein aus dem Modulzustand gelesen. Leer, bis geladen --
+// ein unbekannter Schlüssel zeigt sich dann selbst (siehe avesmapsLoreRuleTypeLabel).
+var avesmapsLoreRuleTypeLabels = {};
+var avesmapsLoreRuleTypeLabelsLoaded = false;
 
 // Die zuletzt geladenen Regeln des angegebenen Eintrags -- leer, wenn keine geladen sind oder ein
 // ANDERER Eintrag inzwischen offen ist (kein Zeigen fremder Regeln beim schnellen Weiterklicken).
@@ -64,30 +79,83 @@ function avesmapsLoreRuleLoad(wikiKey) {
 		});
 }
 
-// ---- Beschriftung einer Landschaftsart ohne echten Katalog (siehe Dateikopf) -----------------------
-// "wald" -> "Wald" · "suempfe_moore" -> "Sümpfe und Moore" · "gebirge" -> "Gebirge". Falzt denselben
-// ue/oe/ae-ASCII-Ersatz zurück, den der Schlüssel selbst schon trägt (AGENTS.md §5), und macht den
-// Unterstrich als "und" lesbar. Kein Zugriff auf irgendeine Artenliste -- rein textuell.
-function avesmapsLoreRuleHumanizeTypeKey(rawKey) {
-	var words = String(rawKey || "").split("_").filter(Boolean);
-	if (!words.length) {
-		return "";
+// Holt EINMAL den Landschaftsart-Katalog (POST region_types, api/edit/map/ecosystem.php) und legt ihn
+// im Modulzustand ab. Weitere Aufrufe liefern denselben Bestand ohne erneuten Netzzugriff --
+// dieselbe Vorsicht wie bei jedem Ökosystem-Aufruf (AGENTS.md, STRATO). Ein Fehlschlag lässt den
+// Katalog leer (nicht: wirft) und wird ebenfalls als "geladen" markiert, damit ein 401 nicht bei
+// jedem Kartenaufbau erneut angefragt wird -- der Rückfall (roher Schlüssel) trägt das mit.
+function avesmapsLoreRuleLoadTypeLabels() {
+	if (avesmapsLoreRuleTypeLabelsLoaded) {
+		return Promise.resolve(avesmapsLoreRuleTypeLabels);
 	}
-	return words
-		.map(function (word) {
-			var unfolded = word.replace(/ue/g, "ü").replace(/oe/g, "ö").replace(/ae/g, "ä");
-			return unfolded.charAt(0).toUpperCase() + unfolded.slice(1);
-		})
-		.join(" und ");
+	return fetch(AVESMAPS_LORE_RULE_ECOSYSTEM_ENDPOINT, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json", Accept: "application/json" },
+		body: JSON.stringify({ action: "region_types" }),
+	})
+		.then(function (response) { return response.json(); })
+		.catch(function () { return null; })
+		.then(function (data) {
+			avesmapsLoreRuleTypeLabelsLoaded = true;
+			var rows = (data && data.ok === true && Array.isArray(data.region_types)) ? data.region_types : [];
+			var labels = {};
+			rows.forEach(function (row) {
+				var key = String((row && row.kind) || "") + "|" + String((row && row.type_key) || "");
+				labels[key] = String((row && row.label) || (row && row.type_key) || "");
+			});
+			avesmapsLoreRuleTypeLabels = labels;
+			return avesmapsLoreRuleTypeLabels;
+		});
 }
 
-// Eine Klimazonen-Beschriftung: der echte Katalog (zoneLabels, siehe Dateikopf) geht vor, der
-// Textumbau ist nur der Rückfall für einen Schlüssel, den der Aufrufer (noch) nicht kennt.
+// Die Beschriftung EINER Landschaftsart-Angabe ({kind, region_type}). Kennt der Katalog den
+// Schlüssel nicht (noch nicht geladen, Katalog leer, oder wirklich unbekannt), zeigt sich der ROHE
+// SCHLÜSSEL -- kein Textumbau (Fix-Runde 1, Befund 1: eine geratene Beschriftung sieht richtig aus
+// und ist es nicht; ein roher Schlüssel sieht offensichtlich nach Rohdaten aus).
+function avesmapsLoreRuleTypeLabel(type) {
+	var kind = String((type && type.kind) || "");
+	var regionType = String((type && type.region_type) || "");
+	if (!regionType) {
+		return "";
+	}
+	var key = kind + "|" + regionType;
+	return (avesmapsLoreRuleTypeLabels && avesmapsLoreRuleTypeLabels[key]) || regionType;
+}
+
+// Eine Klimazonen-Beschriftung: der echte Katalog (zoneLabels, siehe Dateikopf) geht vor; kennt er
+// den Schlüssel nicht, zeigt sich ebenfalls der rohe Schlüssel, aus demselben Grund wie oben.
 function avesmapsLoreRuleZoneLabel(zoneKey, zoneLabels) {
 	if (!zoneKey) {
 		return "";
 	}
-	return (zoneLabels && zoneLabels[zoneKey]) || avesmapsLoreRuleHumanizeTypeKey(zoneKey);
+	return (zoneLabels && zoneLabels[zoneKey]) || zoneKey;
+}
+
+// ---- Die drei Felder EINER Bedingung, aufgelöst (rein) --------------------------------------------
+//
+// Die EINZIGE Ableitung aus einer Bedingung -- Satzbauer und Kartenzeilen lesen beide von hier, nie
+// zwei getrennte Parser derselben Daten (Vorbild: der Kommentar bei render() in
+// docs/vorkommen-klimazonen-mockup.html, „eine zweite Ableitung wäre genau die Stelle, an der Anzeige
+// und Wirkung auseinanderlaufen"). Werte sind bereits escaped.
+function avesmapsLoreRuleTermFields(term, zoneLabels) {
+	var areaName = escapeHtml(String((term && term.area_name) || "").trim());
+
+	var types = (term && Array.isArray(term.types)) ? term.types : [];
+	var typeLabels = types.map(function (type) { return escapeHtml(avesmapsLoreRuleTypeLabel(type)); });
+
+	var climateFrom = (term && term.climate_from) || null;
+	var climateTo = (term && term.climate_to) || null;
+	var climate = null;
+	if (climateFrom && climateTo) {
+		climate = {
+			from: escapeHtml(avesmapsLoreRuleZoneLabel(climateFrom, zoneLabels)),
+			to: escapeHtml(avesmapsLoreRuleZoneLabel(climateTo, zoneLabels)),
+			isSpan: climateFrom !== climateTo,
+		};
+	}
+
+	return { areaName: areaName, typeLabels: typeLabels, climate: climate };
 }
 
 // ---- Satzbauer (rein) --------------------------------------------------------------------------------
@@ -96,29 +164,19 @@ function avesmapsLoreRuleZoneLabel(zoneKey, zoneLabels) {
 // mehrere = ODER), Klimaspanne ("im Klima X liegt" bzw. "im Klima zwischen X und Y liegt" -- nie bei
 // gleichem Anfang und Ende). Folgt docs/vorkommen-regeleditor-mockup.html Zeilen 748-766.
 function avesmapsLoreRuleTermSentence(term, zoneLabels) {
+	var fields = avesmapsLoreRuleTermFields(term, zoneLabels);
 	var bits = [];
 
-	var areaName = String((term && term.area_name) || "").trim();
-	if (areaName) {
-		bits.push("<b>" + escapeHtml(areaName) + "</b> heißt");
+	if (fields.areaName) {
+		bits.push("<b>" + fields.areaName + "</b> heißt");
 	}
-
-	var types = (term && Array.isArray(term.types)) ? term.types : [];
-	if (types.length) {
-		var typeLabels = types.map(function (type) {
-			return escapeHtml(avesmapsLoreRuleHumanizeTypeKey(String((type && type.region_type) || "")));
-		});
-		bits.push("<b>" + typeLabels.join("</b> oder <b>") + "</b> ist");
+	if (fields.typeLabels.length) {
+		bits.push("<b>" + fields.typeLabels.join("</b> oder <b>") + "</b> ist");
 	}
-
-	var climateFrom = (term && term.climate_from) || null;
-	var climateTo = (term && term.climate_to) || null;
-	if (climateFrom && climateTo) {
-		var fromLabel = escapeHtml(avesmapsLoreRuleZoneLabel(climateFrom, zoneLabels));
-		var toLabel = escapeHtml(avesmapsLoreRuleZoneLabel(climateTo, zoneLabels));
-		bits.push(climateFrom === climateTo
-			? "im Klima <b>" + fromLabel + "</b> liegt"
-			: "im Klima zwischen <b>" + fromLabel + "</b> und <b>" + toLabel + "</b> liegt");
+	if (fields.climate) {
+		bits.push(fields.climate.isSpan
+			? "im Klima zwischen <b>" + fields.climate.from + "</b> und <b>" + fields.climate.to + "</b> liegt"
+			: "im Klima <b>" + fields.climate.from + "</b> liegt");
 	}
 
 	return bits.length ? bits.join(" und ") : "alles";
@@ -142,23 +200,66 @@ function avesmapsLoreRuleSentence(rule, zoneLabels) {
 	return "Die Regel liest sich: etwas, das " + sentence + ".";
 }
 
+// ---- Zeilen EINER Bedingung für die Kartenansicht (rein) -----------------------------------------
+//
+// docs/vorkommen-klimazonen-mockup.html render(): "Fläche" (falls benannt), "Landschaft" (mehrere
+// Arten mit einem gedämpften „oder" verbunden, KEIN fett -- das Fett ist dem Satzbauer vorbehalten,
+// die Karte listet nur), "Klima" (eine Zone oder "von — bis" bei einer Spanne).
+function avesmapsLoreRuleTermLines(term, zoneLabels) {
+	var fields = avesmapsLoreRuleTermFields(term, zoneLabels);
+	var lines = [];
+
+	if (fields.areaName) {
+		lines.push(["Fläche", fields.areaName]);
+	}
+	if (fields.typeLabels.length) {
+		lines.push(["Landschaft", fields.typeLabels.join('<span class="lore-detail__rule-or"> oder </span>')]);
+	}
+	if (fields.climate) {
+		lines.push(["Klima", fields.climate.isSpan
+			? fields.climate.from + " — " + fields.climate.to
+			: fields.climate.from]);
+	}
+
+	return lines;
+}
+
 // ---- Markup: eine Regelkarte, gleichrangig mit einer Ortskarte ---------------------------------------
 //
-// 💣 Klassen tragen das Präfix der Ortsliste (lore-detail__*), nicht rule__* wie im Mockup -- die
-// Karte gehört zu ihren Nachbarn in derselben <ul class="lore-detail__places">, nicht in einen
-// eigenen Abschnitt (Brief Schritt 1). .lore-detail__pill ist dieselbe Pille wie bei einer Ortskarte
-// ("Wiki"/"manuell"), hier ohne is-manual: eine Regel hat keine Wiki-Herkunft, jede ist von Hand
-// angelegt -- das Etikett würde auf jeder Karte stehen und nichts mehr unterscheiden.
+// 💣 KEIN eigener Kasten: dieselben Wrapper-Klassen wie eine Ortskarte (.lore-detail__place /
+// .lore-detail__place-main, siehe docs/vorkommen-klimazonen-mockup.html Kommentar „Sie ist bewusst
+// KEIN anderer Kasten"). Nur der INHALT in .lore-detail__place-main ist anders: Titel, die
+// Bedingungszeilen (mit ihrem eigenen join_op als Marke zwischen den Bedingungen), Herkunftszeile
+// (relation, wie bei einer Ortskarte) und die „von Hand"-Pille -- jede Regel ist von Hand angelegt,
+// das Wiki liefert keine (docs/superpowers/specs/2026-08-12-vorkommen-lebensraum-regel-design.md §10).
 function avesmapsLoreRuleCardMarkup(rule, zoneLabels) {
-	var sentence = avesmapsLoreRuleSentence(rule, zoneLabels);
-	var termCount = (rule && Array.isArray(rule.terms)) ? rule.terms.length : 0;
-	var countLabel = termCount === 1 ? "1 Bedingung" : termCount + " Bedingungen";
+	var terms = (rule && Array.isArray(rule.terms)) ? rule.terms : [];
+	var relation = escapeHtml(String((rule && rule.relation) || ""));
 
-	return '<li class="lore-detail__rule">'
-		+ '<div class="lore-detail__rule-main">'
-		+ '<span class="lore-detail__pill">Regel</span>'
-		+ '<p class="lore-detail__rule-sentence">' + sentence + "</p>"
-		+ '<span class="lore-detail__rule-meta">' + escapeHtml(countLabel) + "</span>"
+	var lineBlocks = terms.map(function (term, index) {
+		var lines = avesmapsLoreRuleTermLines(term || {}, zoneLabels);
+		var joinTag = "";
+		if (index > 0) {
+			var isOder = term && term.join_op === "oder";
+			joinTag = '<span class="lore-detail__rule-' + (isOder ? "or-tag" : "and") + '">'
+				+ (isOder ? "ODER" : "UND") + "</span>";
+		}
+		var lineHtml = lines.length
+			? lines.map(function (line) {
+				return '<span class="lore-detail__rule-line"><span class="lore-detail__rule-layer">' + line[0]
+					+ "</span><span>" + line[1] + "</span></span>";
+			}).join("")
+			: '<span class="lore-detail__rule-line"><span class="lore-detail__rule-layer">—</span>'
+				+ "<span>nichts eingeschränkt</span></span>";
+		return joinTag + lineHtml;
+	}).join("");
+
+	return '<li class="lore-detail__place">'
+		+ '<div class="lore-detail__place-main">'
+		+ '<span class="lore-detail__rule-title">Regel</span>'
+		+ '<div class="lore-detail__rule-lines">' + lineBlocks + "</div>"
+		+ (relation ? '<span class="lore-detail__place-meta">' + relation + "</span>" : "")
+		+ '<span class="lore-detail__pill is-manual">von Hand</span>'
 		+ "</div>"
 		+ "</li>";
 }
@@ -169,6 +270,5 @@ if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		avesmapsLoreRuleSentence: avesmapsLoreRuleSentence,
 		avesmapsLoreRuleCardMarkup: avesmapsLoreRuleCardMarkup,
-		avesmapsLoreRuleHumanizeTypeKey: avesmapsLoreRuleHumanizeTypeKey,
 	};
 }

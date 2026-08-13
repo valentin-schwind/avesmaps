@@ -1626,6 +1626,46 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
     return ['regions' => $regions, 'region_types' => avesmapsEcosystemReadRegionTypes($pdo, $params['kind'] ?? null)];
 }
 
+// ---- read path: the region-type vocabulary ALONE, no regions (Vorkommen-Regelkarte, Task 5/6) --------
+// Dieselbe Quelle wie `list_regions` (region_types) -- NICHT nachgebaut --, aber ohne die Regionenliste
+// mitzuladen: eine Beschriftungskarte für 26 Arten braucht nicht 777 Regionen im selben Aufruf. Gleiches
+// Rechtegatter wie list_regions, aus demselben Grund (Kommentar dort): welche Art es gibt, ist eine
+// Editor-Frage, keine öffentliche. Task 6 (Regeleditor, Auswahlliste) und die Regelkarte in der
+// Vorkommen-Liste (Task 5, js/review/review-lore-rule.js) teilen sich diese eine Aktion.
+function avesmapsListEcosystemRegionTypes(PDO $pdo): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $counts = avesmapsEcosystemReadRegionTypeAreaCounts($pdo);
+    $types = avesmapsEcosystemReadRegionTypes($pdo, null);
+    foreach ($types as $index => $type) {
+        $key = $type['kind'] . '|' . $type['type_key'];
+        $types[$index]['area_count'] = $counts[$key] ?? 0;
+    }
+
+    return ['region_types' => $types];
+}
+
+// Wie viele AKTIVE Flächen jede Art trägt -- "<kind>|<type_key>" => Anzahl. Eine Abfrage über
+// ecosystem_area x ecosystem_region, dasselbe Muster wie avesmapsEcosystemReadRegionAreaCounts
+// (oben, nach Region gruppiert), hier nach Art gruppiert.
+function avesmapsEcosystemReadRegionTypeAreaCounts(PDO $pdo): array
+{
+    $statement = $pdo->query(
+        'SELECT r.kind, r.region_type, COUNT(*) AS area_count
+           FROM ecosystem_area a
+           INNER JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
+          WHERE a.is_active = 1 AND r.region_type IS NOT NULL'
+        . ' GROUP BY r.kind, r.region_type'
+    );
+    $counts = [];
+    foreach ($statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $counts[((string) $row['kind']) . '|' . ((string) $row['region_type'])] = (int) $row['area_count'];
+    }
+
+    return $counts;
+}
+
 // ---- read path: which landscape regions hang on which wiki region (plan V6) ---------------------------
 // Pure grouping over region rows -- no PDO, so the unit test can reach it without a database.
 //
