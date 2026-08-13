@@ -352,6 +352,14 @@
 	   hat (map-features-region-pending-highlight.js:16) -- hier steht er einmal als Token, damit die
 	   beiden Ebenen nicht auseinanderlaufen. Gepinnt wie die Nachbarn: liegt auf hellen Kacheln. */
 	--color-ecosystem-target-outline: #fff4a3;
+	/* 💣 DIE BREITE DES TREFFERBANDES STEHT EINMAL, WEIL SIE ZWEI REGELN TRAEGT (Owner 2026-08-14, 12px).
+	   Waehrend einer booleschen Zielwahl trifft nicht mehr die Fuellung, sondern allein die Kontur
+	   (`pointer-events: stroke`) -- und `stroke` misst sein Trefferfeld an `stroke-width`. Die Zahl ist
+	   damit KEINE Verzierung, sondern der Anfasser selbst: sie steht an der Band-Regel UND an der
+	   Hervorhebung der Flaeche unter dem Zeiger (.ecosystem-area--target). Getrennt gepflegt schrumpfte
+	   das Band im Augenblick des Ueberfahrens auf die alten 5px -- also genau dann, wenn der Zeiger schon
+	   daraufsteht, und der Treffer ginge unter der Hand verloren. Guard: ecosystem-pick-band.test.js. */
+	--ecosystem-pick-band-width: 12px;
 	/* The paper the map is drawn on. The "Untergrund" slider fades the base tiles out towards THIS, so
 	   at 0% the frame looks like no base map at all and the drawn areas stand alone (Owner 2026-07-26).
 	   Pinned white, deliberately NOT --color-panel: this is map surface, not a panel, and in the dark

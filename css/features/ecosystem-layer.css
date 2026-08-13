@@ -1285,12 +1285,18 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 /* Läuft eine boolesche Operation und die Maus steht über einer möglichen ZIELfläche, bekommt sie eine
    goldene Kontur -- dieselbe Auskunft, die das Herrschaftsgebiete-Menü seit je gibt („welche erwische
    ich, wenn ich jetzt klicke"). Zwei Klassen, damit sie die weisse Auswahlkontur schlägt: die Quelle
-   ist ausgewählt, das Ziel darf trotzdem anders aussehen. */
+   ist ausgewählt, das Ziel darf trotzdem anders aussehen.
+
+   💣 DIE BREITE IST DIESELBE WIE DIE DES TREFFERBANDES, und das ist keine Kosmetik. Seit die Zielwahl
+   über die KONTUR trifft (`pointer-events: stroke`, weiter unten), IST diese Zahl das Trefferfeld.
+   Stünde hier weiterhin die alte 5, schrumpfte der Anfasser genau in dem Augenblick, in dem der Zeiger
+   ihn erreicht -- man verlöre den Treffer unter der Hand. Deshalb der gemeinsame Token; wer ihn hier
+   durch eine Zahl ersetzt, baut den Sprung wieder ein. */
 .ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--target,
 .ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--selected.ecosystem-area--target {
 	stroke: var(--color-ecosystem-target-outline);
 	stroke-opacity: 1;
-	stroke-width: 5;
+	stroke-width: var(--ecosystem-pick-band-width);
 	fill-opacity: 0.5;
 }
 
@@ -1492,19 +1498,78 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    die goldene Zielkontur, bevor geklickt wird. Ausserdem ist der Zustand ausdrücklich betreten — man hat
    eine Operation gewählt und wird aufgefordert, das Ziel anzuklicken.
 
-   Blasser als die aktive Ebene (0.3/0.55 gegen 0.6/0.7): sie sind Ziele, nicht die Arbeitsfläche.
-   Die Werte gehen über --eco-fill/--eco-contour auf der Pane, wie jeder Zustand hier oben; nur
-   pointer-events muss am Pfad stehen, weil es Leaflets eigene Regel überstimmen muss.
+   Blasser als die aktive Ebene: sie sind Ziele, nicht die Arbeitsfläche. Die Werte gehen über
+   --eco-fill/--eco-contour auf der Pane, wie jeder Zustand hier oben; nur pointer-events muss am Pfad
+   stehen, weil es Leaflets eigene Regel überstimmen muss.
 
-   🪤 Zwei Klassen schlagen das `.ecosystem-pane { --eco-fill: 0 }` darüber, vier Klassen die
-   pointer-events-Regel darüber (die hat drei). */
+   🪤 Zwei Klassen schlagen das `.ecosystem-pane { --eco-fill: 0 }` darüber. */
 .ecosystem-pane--resting.ecosystem-pane--picking {
 	--eco-fill: 0.3;
+}
+
+/* ---- NICHT DIE FLÄCHE TRIFFT, SONDERN DIE KONTUR (Owner 2026-08-14, Bug #69) -----------------------
+   💣 DIE PANE-REIHENFOLGE WAR DIE „PRIORITÄT", UND SIE IST NICHT EINSTELLBAR. Die vier Ebenen liegen in
+   Panes mit fester z-index-Leiter (bootstrap.js: derographisch 250 · Vegetation 251 · Topographie 252 ·
+   Klima 253). Solange nur EINE Ebene antwortet, stört das nicht. Die Zielwahl weckt aber alle
+   (setLayerPicking) -- und ab da entschied allein die Leiter, WELCHE Fläche ein Klick trifft. Eine
+   Fläche, über der irgendwo eine andere liegt, war unerreichbar: gemeldet als „ich kann die Vegetation
+   mit nichts vereinigen, es liegt immer was drüber". Innerhalb einer Ebene ist das gelöst
+   (ecosystemStackingOrder stapelt gross unten, klein oben); ZWISCHEN den Ebenen sortierte nichts.
+
+   Die Antwort ist nicht eine zweite Reihenfolge zum Pflegen, sondern ein anderes Trefferfeld: für die
+   Dauer der Zielwahl nimmt die FÜLLUNG keine Klicks mehr an, sondern allein das Band der Kontur.
+   Ein Deckel blockiert damit nur noch dort, wo seine EIGENE Kante läuft -- alles andere fällt durch,
+   und jede Fläche bleibt über ihren eigenen Rand erreichbar, auch vollständig überdeckte.
+   Nachgemessen mit elementFromPoint an einer Fläche, die komplett unter einer grösseren einer höheren
+   Ebene liegt: Klick auf ihre Kontur traf vorher den Deckel, jetzt sie selbst.
+
+   🔴 NUR WÄHREND DER ZIELWAHL (Owner). Dauerhaft wäre es ein Rückschritt: eine Fläche wird sonst durch
+   einen Klick in ihre MITTE gewählt, und im Frontend hängt daran seit 2026-08-12 das Infopanel.
+   Während der Zielwahl ist es umgekehrt -- da ist die Kante die Aussage, nicht die Fläche.
+
+   🪤 `pointer-events: stroke` misst sein Trefferfeld an `stroke-width` und fragt NICHT, ob die Kante
+   gemalt ist. Die Breite ist damit der Anfasser selbst; sie steht als Token, weil die Hervorhebung
+   unter dem Zeiger (.ecosystem-area--target) dieselbe Zahl lesen muss.
+
+   🪤 Klima ist überall ausgenommen -- es kann kein Ziel sein (avesmapsClimateAssertNotDerived), und ein
+   kartenbreites Leuchtband über allem wäre genau der Deckel, den diese Regel abschafft. Der `:not` ist
+   zugleich der Grund, warum die Regel der Klima-Pane nicht ausweichen muss: sie trifft sie gar nicht. */
+.ecosystem-pane--picking > svg path.leaflet-interactive {
+	stroke: var(--color-ecosystem-target-outline);
+	stroke-width: var(--ecosystem-pick-band-width);
+}
+
+/* Der leuchtende Rand (Owner 2026-08-14). Halbdeckendes Gold sagt „hier kannst du anfassen"; die Fläche
+   unter dem Zeiger geht auf volle Deckung (.ecosystem-area--target weiter oben) und die Quelle behält
+   ihr Weiss -- drei Zustände, eine Farbe pro Bedeutung.
+
+   💣 EINE ZAHL FÜR BEIDE FÄLLE, deshalb die Selektorliste statt zweier Regeln. Die aktive Ebene braucht
+   den Rand genauso wie die ruhenden: der gemeldete Fall war Vegetation ↔ Vegetation, also zweimal
+   dieselbe Pane.
+
+   🪤 FÜNF Klassen im ersten Selektor, und das ist kein Zufall: er muss
+   `.ecosystem-pane--active.ecosystem-pane--editable:not(.ecosystem-pane--showall)` (vier) schlagen.
+   Sonst bliebe ausgerechnet „Alle" ohne Kontur -- der Modus, in dem man Überlappungen ansieht --, und
+   ohne Kontur gibt es hier nichts mehr zu treffen. Genau so war es gemeldet. */
+.ecosystem-pane--active.ecosystem-pane--editable.ecosystem-pane--picking:not(.ecosystem-pane--klima),
+.ecosystem-pane--resting.ecosystem-pane--picking:not(.ecosystem-pane--klima) {
 	--eco-contour: 0.55;
 }
 
+/* Die ruhenden Ebenen antworten -- über ihr Band. `auto` stand hier bis 2026-08-14 und meinte die
+   Füllung. Vier Klassen schlagen Leaflets eigene Regel; die Klima-Regel darüber hat fünf und behält
+   ihr `none`. */
 .leaflet-pane.ecosystem-pane--resting.ecosystem-pane--picking > svg path.leaflet-interactive {
-	pointer-events: auto;
+	pointer-events: stroke;
+	cursor: pointer;
+}
+
+/* Und die aktive Ebene ebenso. Eigene Regel, weil die darüber nur die ruhenden meint und Leaflets
+   `pointer-events: auto` (zwei Klassen) sonst stehen bliebe -- dann träfe im gemeldeten Fall
+   weiterhin die Füllung. Der `:not` hält die Klima-Pane heraus, deren „none"-Regel in „Alle" ebenfalls
+   vier Klassen hat: ohne ihn entschiede die Reihenfolge im Stylesheet. */
+.leaflet-pane.ecosystem-pane--active.ecosystem-pane--picking:not(.ecosystem-pane--klima) > svg path.leaflet-interactive {
+	pointer-events: stroke;
 	cursor: pointer;
 }
 
