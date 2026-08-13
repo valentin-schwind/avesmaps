@@ -128,4 +128,16 @@ assert(avesmapsSocialNormalizeHashtags(AVESMAPS_SOCIAL_HASHTAG_VOCABULARY) === A
     'and every entry in it is ALREADY canonical -- a vocabulary the normaliser rewrites would seed '
     . 'exactly the divergence it exists to prevent');
 
+// 🔴 Two owner rulings about REACH (13.08.2026), pinned here because both look like typos to anyone
+// who does not know them -- and a helpful "fix" would put them back without a word.
+$lowercased = array_map('strtolower', AVESMAPS_SOCIAL_HASHTAG_VOCABULARY);
+assert(!in_array('#dsa', $lowercased, true),
+    'no #DSA in the offered vocabulary: the three letters are shared with too much else. The '
+    . 'unambiguous name is what we offer instead');
+assert(in_array('#DasSchwarzeAuge', AVESMAPS_SOCIAL_HASHTAG_VOCABULARY, true),
+    'and it IS offered -- dropping #DSA without it would leave the project untaggable');
+assert(in_array('#PnPde', AVESMAPS_SOCIAL_HASHTAG_VOCABULARY, true)
+    && !in_array('#pnp', $lowercased, true),
+    'the German-language pen-and-paper tag, not the worldwide one');
+
 fwrite(STDOUT, "compose-test: OK\n");

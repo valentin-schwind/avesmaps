@@ -228,9 +228,18 @@ Eigenes Feld, ausgeliefert wird im Text — die APIs kennen kein Hashtag-Feld. G
 weil die Netze Verschiedenes vertragen: Instagram alle, Facebook 2, Mastodon 4 (Zahl steht je
 Kanal im Register). Jeder Kanal bekommt die ersten so vielen.
 
-Ein Vorrat projektweiter Tags (`#DSA`, `#Aventurien`, `#Rollenspiel`, `#TDE`, …) steht zum
-Anklicken bereit. Grund: Sonst tippt jeder etwas anderes, und `#dsa5` / `#DSA5` /
+Ein Vorrat projektweiter Tags (`#DasSchwarzeAuge`, `#Aventurien`, `#Rollenspiel`, `#TDE`, …) steht
+zum Anklicken bereit. Grund: Sonst tippt jeder etwas anderes, und `#dsa5` / `#DSA5` /
 `#dasschwarzeauge` sind drei Töpfe.
+
+🔴 **Zwei Owner-Entscheide zur REICHWEITE (13.08.2026), beide im Vorrat festgenagelt** (`compose-test.php`):
+
+- **Kein `#DSA`.** Die drei Buchstaben teilen sich zu viel anderes, als dass ein Beitrag darunter noch
+  gefunden würde; eindeutig ist `#DasSchwarzeAuge`, und genau deshalb steht das im Vorrat.
+- **`#PnPde` statt `#PnP`** — der deutschsprachige Pen-&-Paper-Tag, nicht der weltweite.
+
+⚠️ Beide sehen für jeden, der sie nicht kennt, wie Tippfehler aus. Ein hilfreiches „Zurückkorrigieren"
+wäre wortlos — deshalb liegt die Begründung im Code neben der Liste, und der Test beißt.
 
 ⚠️ **Hashtags zählen zum Zeichenlimit.** Vier Tags sind schnell 60 Zeichen — bei Mastodons 500 über
 ein Zehntel. Der Zähler weist sie getrennt aus („168 + 61 Hashtags = 229 / 500") und zeigt immer

@@ -21,15 +21,18 @@ require_once __DIR__ . '/channels.php';
 // ⚠️ Every entry here must ALREADY be canonical under avesmapsSocialNormalizeHashtags -- a vocabulary
 // the normaliser rewrites would seed exactly the divergence it exists to prevent. compose-test.php
 // asserts that.
+// 🔴 Two owner rulings, 2026-08-13, both about REACH -- do not "restore" either as a tidy-up:
+//   · '#PnPde' instead of '#PnP': the German-language pen-and-paper tag, not the worldwide one.
+//   · NO '#DSA'. The three letters are shared with too much else to still find us; the unambiguous
+//     name is '#DasSchwarzeAuge', which is why it stays in the list.
 const AVESMAPS_SOCIAL_HASHTAG_VOCABULARY = [
-    '#DSA',
+    '#DasSchwarzeAuge',
     '#Aventurien',
     '#Rollenspiel',
     '#TDE',
-    '#PnP',
+    '#PnPde',
     '#Karte',
     '#Fanprojekt',
-    '#DasSchwarzeAuge',
 ];
 
 // A blank line between text and tags: it is what every network's own composer produces, and it keeps
