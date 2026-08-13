@@ -675,21 +675,36 @@ Pinsel mehr, sie bekommt ✚ bzw. ✥ aus dem vorhandenen Satz.</p>
 	dem vorhandenen Satz — sie kann sofort gebaut werden, statt auf den Pinsel zu warten.
 </div>
 
-<h2><span class="num">9 —</span> Reihenfolge, falls gebaut wird</h2>
-<p>Nach der Hausregel geht jede sichtbare Änderung einzeln live und der Owner sieht jede
-(AGENTS.md&nbsp;§9). Vorgeschlagene Etappen, jede für sich abnehmbar:</p>
+<h2><span class="num">9 —</span> Stand: gebaut am 13.08.2026</h2>
+<p>Jede Etappe ging als eigener Commit live (AGENTS.md&nbsp;§9). <strong>Fünf von sechs sind
+fertig; Etappe&nbsp;5 wartet auf eine Entscheidung</strong> — die Begründung steht unter der
+Tabelle.</p>
 <table class="tbl">
 	<tr><th>#</th><th>Etappe</th><th>Sichtbar für</th></tr>
-	<tr><td>1</td><td>Merkmal wird hausweit (<code>.avesmaps-scope-hint</code>, <code>ui.editorOnly</code>/<code>ui.adminOnly</code>) — Anzeige-Menü zieht auf die neue Klasse um</td><td class="no">niemanden (gleiches Bild)</td></tr>
-	<tr><td>2</td><td>Editor-Band in der Orts-Infobox + Zeichen für die vier Kacheln; dabei die zwei neuen Bilder (Literatur, Kartensammlung) anschließen</td><td class="yes">Editoren <span class="muted">(die zwei Symbole: jeden)</span></td></tr>
-	<tr><td>3</td><td>Dasselbe Band an Weg und Kraftlinie; Zeichen am Kreuzungs-Popup</td><td class="yes">Editoren</td></tr>
-	<tr><td>4</td><td>Kartenmenü: Trenner unter „Hier hinzufügen“ + Merkmal <span class="muted">(kein Umzug — Owner 13.08.)</span></td><td class="yes">Editoren</td></tr>
-	<tr><td>5</td><td>Gebiets- und Flächenmenü gruppieren (beide gemeinsam, nie eins allein)</td><td class="yes">Editoren</td></tr>
-	<tr><td>6</td><td>Editor-Hülle: „nur Admins“ + die beiden Emoji ersetzen</td><td class="yes">Admins</td></tr>
+	<tr><td>✅&nbsp;1</td><td>Merkmal wird hausweit (<code>.avesmaps-scope-hint</code>, <code>ui.editorOnly</code>/<code>ui.adminOnly</code>) — Anzeige-Menü zieht auf die neue Klasse um</td><td class="no">niemanden (gleiches Bild)</td></tr>
+	<tr><td>✅&nbsp;2</td><td>Editor-Band in der Orts-Infobox + Zeichen für die vier Kacheln; dabei die zwei neuen Bilder (Literatur, Kartensammlung) anschließen</td><td class="yes">Editoren <span class="muted">(die zwei Symbole: jeden)</span></td></tr>
+	<tr><td>✅&nbsp;3</td><td>Dasselbe Band an Weg und Kraftlinie; Zeichen am Kreuzungs-Popup</td><td class="yes">Editoren</td></tr>
+	<tr><td>✅&nbsp;4</td><td>Kartenmenü: Trenner unter „Hier hinzufügen“ + Merkmal <span class="muted">(kein Umzug — Owner 13.08.)</span></td><td class="yes">Editoren</td></tr>
+	<tr><td>🔧&nbsp;5</td><td>Gebiets- und Flächenmenü gruppieren (beide gemeinsam, nie eins allein)</td><td class="no">— offen, siehe unten</td></tr>
+	<tr><td>✅&nbsp;6</td><td>Editor-Hülle: „nur Admins“ + die beiden Emoji ersetzen</td><td class="yes">Admins</td></tr>
 </table>
-<p class="muted">⚠️ Etappe&nbsp;2 trägt eine Besucher-Änderung huckepack (die zwei neuen Symbole an
-„Literatur“ und „Kartensammlung“). Wenn dir das zu viel auf einmal ist, gehen sie als eigener,
-allererster Schritt vorweg — sie hängen an nichts von alledem.</p>
+<div class="rule">
+	<strong>🔧 Warum Etappe&nbsp;5 nicht gebaut wurde.</strong> Die Etappe sagt selbst: <em>beide
+	gemeinsam, nie eins allein.</em> Das Gebietsmenü steht als festes Markup in <code>index.html</code>
+	— dort wären die drei Gruppen eine halbe Stunde Arbeit. Das <strong>Flächenmenü der Landschaften
+	baut sich zur Ladezeit selbst zusammen</strong>: sechs Dateien melden ihre Einträge über
+	<code>addEntry</code> an, und die Reihenfolge ergibt sich aus der Skript-Reihenfolge in
+	<code>index.html</code> plus der Regel „alles Zerstörende ans Ende“. Es gibt dort gar keinen
+	Begriff von Abschnitten.
+	<br><br>
+	Einen einzuführen ist machbar — aber dann muss jemand entscheiden, <em>wohin</em> Pinsel,
+	Radiergummi, „Fläche vereinfachen“, „Kopieren …“, „aus Territoriumsgrenze“ und „Höhenpunkt setzen“
+	gehören. Das ist deine Vokabel, nicht meine. Nur das Gebietsmenü zu gruppieren hätte genau die
+	Divergenz gebaut, vor der das CSS an dieser Stelle ausdrücklich warnt: <em>„Editoren dürfen nicht
+	zwei Vokabulare für dieselbe Geste lernen.“</em>
+</div>
+<p class="muted">⚠️ Etappe&nbsp;2 trug eine Besucher-Änderung huckepack: die zwei neuen Bilder an
+„Literatur“ und „Kartensammlung“ sieht jeder, nicht nur Editoren.</p>
 
 </div>
 </body>
