@@ -33,6 +33,30 @@
 	margin-top: 12px;
 }
 
+/* 💣 „Bewertung schreiben" ist eine KACHEL wie die drei oben und muss die Zeile fuellen (Owner
+ * 2026-08-12: „den bewertungsbutton groesser (Kachelstil)"). Sie blieb klein, weil die Regeln in
+ * location-popups-markers.css als KIND-Selektoren geschrieben sind
+ * (`.location-popup > .location-popup__actions > …`) -- dieses Band haengt aber in
+ * `.location-reviews__write`, nie direkt in einer `.location-popup`. Damit fiel sie auf die
+ * Basisregel zurueck und war so breit wie ihr Text.
+ *
+ * ⚠️ Exakt derselbe Fall wie bei den Regionen (Kommentar dort: „ihre Aktionsleiste haengt in einer
+ * .region-info-box, NICHT in einer .location-popup"). Dieselbe Ursache, dieselbe Loesung, damit die
+ * beiden Stellen nicht auseinanderlaufen. */
+.location-reviews__write .location-popup__actions > .location-popup__action-button {
+	flex: 1 1 90px;
+	width: auto;
+}
+
+/* Die Ueberschrift „Bewertung zu {Ort} (1)" -- gleiche Groesse und Staerke wie
+ * „Kartensammlung von {Ort}" und „Literatur zu {Ort}" (css/features/place-extras.css). Das Klappen,
+ * das Dreieck und der Zaehlerton kommen aus css/components/infobox-section.css. */
+.location-reviews__head {
+	font-size: var(--font-size-subhead);
+	font-weight: 700;
+	color: var(--color-text-strong);
+}
+
 /* ===== Bewertungs-Bereich in der Infobox ===== */
 .location-reviews {
 	margin-top: 10px;

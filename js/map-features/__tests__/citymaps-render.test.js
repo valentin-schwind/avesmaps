@@ -122,7 +122,14 @@ const section = buildCityMapsSectionMarkup("Gareth", [
   { public_id: "m1", title: "A", map_url: "https://e.org/1" },
   { public_id: "m2", title: "B", map_url: "https://e.org/2" },
 ], {});
-assert.ok(section.includes('class="avesmaps-citymaps"'), "section carries the divider class from place-extras.css");
+// ⚠️ Die Klasse steht seit 2026-08-12 nicht mehr allein: der Abschnitt ist ein <details open> und
+// traegt daneben `infobox-section` fuer das Klappen (Owner: „alle 3 titel eingeklappt werden
+// koennen"). Geprueft wird deshalb die KLASSE, nicht das ganze Attribut -- und beides einzeln.
+assert.ok(/class="avesmaps-citymaps[ "]/.test(section), "section carries the divider class from place-extras.css");
+assert.ok(section.startsWith("<details") && section.includes(" open"),
+	"💣 der Abschnitt ist ein <details>, und er steht offen da: " + section.slice(0, 80));
+assert.ok(section.includes("infobox-section__head") && section.includes("<summary"),
+	"die Ueberschrift ist das <summary> mit dem gemeinsamen Klapp-Bauteil");
 assert.ok(section.includes("Kartensammlung von Gareth"), "heading names the place");
 assert.ok(section.includes(">(2)<"), "heading counts the maps");
 assert.ok(section.includes("avesmaps-citymaps__all"), "section offers 'Alle anzeigen'");

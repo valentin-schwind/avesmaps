@@ -1,0 +1,60 @@
+/* Ein Abschnitt im Infopanel, den man zuklappen kann — Kartensammlung, Literatur, Bewertung.
+ * Owner 2026-08-12: „alle 3 titel eingeklappt werden können (dreieckchen), aber standardmäßig
+ * ausgeklappt sind."
+ *
+ * 🔴 EINE Regel für alle drei. Die drei Blöcke sind an drei Stellen gebaut
+ * (map-features-place-extras.js zweimal, js/community/location-reviews.js einmal) und trugen bisher
+ * drei eigene Überschriften-Stile. Dieselbe Geste an drei Stellen einzeln nachzubauen ist genau die
+ * Divergenz, vor der AGENTS.md §12 warnt — hier hängen sie an einem gemeinsamen Klassenpaar und
+ * behalten daneben ihre eigenen Klassen für alles Blockspezifische.
+ *
+ * 💣 Natives <details open>, kein selbstgebautes Klappen. Strg+F findet Text in einem ZUgeklappten
+ * <details> und klappt es selbst auf; Fokus, Enter/Leertaste und aria-expanded kommen ebenfalls vom
+ * Element. Dieselbe Begründung wie beim Deckel und beim Fenster „Hinweise".
+ *
+ * 💣 Jede Regel trägt eine KLASSE. Eine klassenlose `details > summary`-Regel galt bis zum
+ * 2026-08-12 für die ganze Seite und legte den gesendeten Mails im Postfach alle Felder
+ * nebeneinander; `js/app/__tests__/details-summary-scope.test.js` wacht darüber.
+ */
+
+.infobox-section__head {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-4);
+	list-style: none;
+	cursor: pointer;
+}
+
+.infobox-section__head::-webkit-details-marker {
+	display: none;
+}
+
+/* Der Pfeil steht im STYLESHEET, nicht im Markup: er beschreibt einen Zustand, den das <details>
+ * selbst führt — im Markup wäre er eine zweite Stelle, die ihn kennt und irgendwann nicht mehr
+ * stimmt. Wortgleich zu den Lore-Gruppen (css/features/lore.css), damit ein Panel nicht zwei
+ * verschiedene Dreiecke zeigt. */
+.infobox-section__head::after {
+	content: "\25B8";
+	margin-left: auto;
+	color: var(--color-text-muted);
+	font-size: 0.85em;
+}
+
+.infobox-section[open] > .infobox-section__head::after {
+	content: "\25BE";
+}
+
+.infobox-section__head:focus-visible {
+	outline: 2px solid var(--color-link);
+	outline-offset: 2px;
+	border-radius: calc(var(--radius-md) - 3px);
+}
+
+/* ⚠️ Der Zähler gehört zur Überschrift, nicht zum Inhalt — er bleibt beim Zuklappen sichtbar und ist
+ * dann das Einzige, was den Abschnitt noch beschreibt. Die drei Blöcke bringen ihre eigenen
+ * Zähler-Klassen mit; hier steht nur, was sie gemeinsam haben. */
+.infobox-section__count {
+	color: var(--color-text-muted);
+	font-weight: 400;
+	font-variant-numeric: tabular-nums;
+}

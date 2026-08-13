@@ -266,16 +266,21 @@ function buildCityMapsSectionMarkup(placeName, maps, opts) {
 	// Die Lizenz-Fussnote reist MIT den Covern, nicht hinter ihnen her: sie ist die Bedingung, unter der
 	// wir sie ueberhaupt zeigen duerfen (Ulisses-Fanrichtlinien, NOTICE.md).
 	var creditMarkup = cityMapsHaveVisibleCover(maps) ? avesmapsCitymapCreditMarkup() : "";
-	return '<div class="avesmaps-citymaps"' + scopeAttr + placeAttr + '>'
-		+ '<div class="avesmaps-citymaps__head">' + tr("cityMaps.headingIn", "Kartensammlung von {place}", { place: placeExtrasEscape(name) })
-		+ ' <span class="avesmaps-citymaps__count">(' + placeExtrasEscape((maps || []).length) + ')</span></div>'
+	// 💣 <details open>, nicht <div>: der Abschnitt laesst sich zuklappen und steht offen da (Owner
+	// 2026-08-12). Die alten Klassen bleiben BEIDE dran -- `.avesmaps-citymaps__head` liest
+	// map-features-citymaps-dialog.js aus, um den Dialogtitel abzuleiten, und jede Blockregel im
+	// Stylesheet haengt daran. Neu ist nur das gemeinsame Paar aus css/components/infobox-section.css.
+	return '<details class="avesmaps-citymaps infobox-section" open' + scopeAttr + placeAttr + '>'
+		+ '<summary class="avesmaps-citymaps__head infobox-section__head">'
+		+ tr("cityMaps.headingIn", "Kartensammlung von {place}", { place: placeExtrasEscape(name) })
+		+ ' <span class="avesmaps-citymaps__count">(' + placeExtrasEscape((maps || []).length) + ')</span></summary>'
 		+ '<div class="avesmaps-citymaps__scroll">' + cards + '</div>'
 		+ '<div class="avesmaps-citymaps__actions">'
 		+ '<button type="button" class="avesmaps-citymaps__all">' + placeExtrasEscape(tr("cityMaps.all", "Alle anzeigen")) + '</button>'
 		+ suggestButton
 		+ '</div>'
 		+ creditMarkup
-		+ '</div>';
+		+ '</details>';
 }
 
 // Die Pflichtangabe nur, wenn hier wirklich ein Verlagscover haengt (Owner-Regel + NOTICE.md). Praeziser
@@ -926,14 +931,17 @@ function buildGameLiteratureSectionMarkup(placeName, beginnt, play, covers, opts
 	var terrAttr = opts.territoryKey ? ' data-adv-scope="territory" data-adv-territory-key="' + placeExtrasEscape(opts.territoryKey) + '"' : "";
 	// Die Orts-id reist mit, damit der leere Dialog von HIER aus das naechste Abenteuer suchen kann.
 	var placeIdAttr = opts.placeId ? ' data-adv-place-id="' + placeExtrasEscape(opts.placeId) + '"' : "";
-	return '<div class="avesmaps-adv"' + terrAttr + placeIdAttr + '>'
-		+ '<div class="avesmaps-adv__head">' + tr("gameLiterature.heading", "Literatur zu {place}", { place: placeExtrasEscape(name) }) + countMarkup + '</div>'
+	// 💣 <details open> wie die Kartensammlung -- siehe dort. `.avesmaps-adv__head` bleibt als Klasse
+	// dran: map-features-game-literature-dialog.js liest sie fuer den Dialogtitel aus.
+	return '<details class="avesmaps-adv infobox-section" open' + terrAttr + placeIdAttr + '>'
+		+ '<summary class="avesmaps-adv__head infobox-section__head">'
+		+ tr("gameLiterature.heading", "Literatur zu {place}", { place: placeExtrasEscape(name) }) + countMarkup + '</summary>'
 		+ noteMarkup
 		+ emptyHint
 		+ listMarkup
 		+ alleMarkup
 		+ creditMarkup
-		+ '</div>';
+		+ '</details>';
 }
 
 // Siedlung: die "beginnt hier"/"spielt hier"/"beschreibt"-Werke dieses Orts (Phase 1). Delegiert an den

@@ -155,6 +155,26 @@ function reviewSlotAttrEscape(value) {
 	return String(value).replace(/["\\]/g, "\\$&");
 }
 
+// Der Abschnitt „Bewertung zu {Ort} (N)" -- derselbe Titel und dieselbe Klappmechanik wie
+// „Kartensammlung von {Ort}" und „Literatur zu {Ort}" (Owner 2026-08-12: „analog dazu will ich unten
+// denselben Titel").
+//
+// 🔴 Die drei Abschnitte teilen sich `infobox-section` (css/components/infobox-section.css). Der
+// Titel wurde hier NICHT nachgebaut, sondern nach demselben Muster gesetzt: Substantiv + Ort +
+// Anzahl in Klammern. Wer eines der drei aendert, sieht am gemeinsamen Bauteil, dass es drei sind.
+//
+// ⚠️ „Bewertung" bleibt in der EINZAHL, auch bei fuenf -- wie „Kartensammlung" und „Literatur" ist es
+// hier der Name der Rubrik, nicht die Zahl der Stuecke. Die steht in der Klammer.
+function reviewSectionHeadMarkup(name, count) {
+	const title = name
+		? tr("review.headingIn", "Bewertung zu {place}", { place: name })
+		: tr("review.heading", "Bewertung");
+	return '<summary class="location-reviews__head infobox-section__head">'
+		+ escapeHtml(title)
+		+ ' <span class="location-reviews__count infobox-section__count">(' + escapeHtml(String(count || 0)) + ")</span>"
+		+ "</summary>";
+}
+
 // Lädt + rendert die Bewertungen eines Ortes in einen Slot-Container der Infobox.
 function hydrateLocationReviews(slotEl) {
 	if (!slotEl) {
@@ -192,9 +212,15 @@ function hydrateLocationReviews(slotEl) {
 					+ "</div>";
 				return;
 			}
-			slotEl.innerHTML = reviewSummaryMarkup(data.average, data.count)
+			// 💣 Der Abschnitt ist ein <details open>: zuklappbar, aber offen (Owner 2026-08-12).
+			// Er wird HIER gebaut, nicht im Slot-Markup, weil erst die Antwort die Anzahl kennt --
+			// und die gehoert in die Ueberschrift, wo sie auch zugeklappt sichtbar bleibt.
+			slotEl.innerHTML = '<details class="infobox-section" open>'
+				+ reviewSectionHeadMarkup(reviewsName, data.count)
+				+ reviewSummaryMarkup(data.average, data.count)
 				+ reviewsListMarkup(reviews, editable)
-				+ reviewWriteButtonMarkup(publicId, reviewsName);
+				+ reviewWriteButtonMarkup(publicId, reviewsName)
+				+ "</details>";
 		})
 		.catch(() => {
 			slotEl.innerHTML = reviewWriteButtonMarkup(publicId, reviewsName);
