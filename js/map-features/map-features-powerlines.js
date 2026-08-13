@@ -373,24 +373,30 @@ function createPowerlinePopupMarkup(powerline) {
 			if (suggestSpec) {
 				buttons.push(popupActionButtonMarkup(suggestSpec));
 			}
+			// Ab hier, was nur ein Editor sieht -- eigenes Band unter der Trennlinie, wie bei Ort
+			// und Weg (locationPopupEditorBandMarkup in js/ui/popups.js).
+			const editorButtons = [];
 			if (IS_EDIT_MODE) {
-				buttons.push(popupActionButtonMarkup({
+				editorButtons.push(popupActionButtonMarkup({
 					label: "Bearbeiten",
+					iconMarkup: popupActionGlyphMarkup("bearbeiten"),
 					attributes: {
 						"data-popup-action": "edit-powerline-details",
 						"data-public-id": getPowerlinePublicId(powerline),
 					},
 				}));
-				buttons.push(popupActionButtonMarkup({
+				editorButtons.push(popupActionButtonMarkup({
 					label: "Kraftlinie löschen",
 					className: "location-popup__action-button--danger",
+					iconMarkup: popupActionGlyphMarkup("loeschen"),
 					attributes: {
 						"data-popup-action": "delete-powerline",
 						"data-public-id": getPowerlinePublicId(powerline),
 					},
 				}));
 			}
-			return buttons.length ? locationPopupActionsMarkup(buttons) : "";
+			return (buttons.length ? locationPopupActionsMarkup(buttons) : "")
+				+ locationPopupEditorBandMarkup(editorButtons);
 		})() + powerlineInfoboxMarkup(powerline),
 	});
 }

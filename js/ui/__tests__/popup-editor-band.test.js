@@ -45,6 +45,11 @@ function ladePopups({ editMode }) {
 	return sandbox;
 }
 
+/** Das Blatt ohne Kommentare -- in dieser Datei erklaert die Prosa genau das, wonach gesucht wird,
+ *  ein Treffer im Kommentar waere also kein Beweis. */
+const css = read("css", "features", "location-popups-markers.css")
+	.replace(/\/\*[\s\S]*?\*\//g, "");
+
 // ---- Ohne Bearbeiten-Modus entsteht KEIN Band ------------------------------------------------
 //
 // 💣 Faengt die haesslichste Form des Fehlers: eine goldene Ueberschrift „nur Editoren" ueber einer
@@ -91,14 +96,31 @@ assert.ok(/<span class="avesmaps-scope-hint">nur Editoren<\/span>/.test(titel[0]
 // ---- Jede Editor-Kachel traegt ein Symbol -----------------------------------------------------
 //
 // 💣 Genau das war der Ausgangszustand: vier illustrierte Kacheln oben, vier nackte Textkacheln
-// darunter. Eine neue Editor-Aktion ohne Symbol stellt ihn Stueck fuer Stueck wieder her.
+// darunter. Eine neue Editor-Aktion ohne Zeichen stellt ihn Stueck fuer Stueck wieder her.
+//
+// 🔴 Und es ist ein ZEICHEN, kein Bild (Owner 13.08.2026: „nimm die monochromen icons"). Der
+// Zweiklang des Hauses: farbiges Bild fuer das, was jeden angeht -- mageres Zeichen fuers Werkzeug.
+// Faengt den Rueckfall auf `.location-popup__action-img`, der fuer sich voellig richtig aussieht.
 const bandMarkup = editorMarkup.slice(bandAt);
 const kacheln = bandMarkup.match(/<button[\s\S]*?<\/button>/g) || [];
 assert.ok(kacheln.length >= 4, `das Band traegt Kacheln (gefunden: ${kacheln.length})`);
 kacheln.forEach((kachel) => {
-	assert.ok(kachel.includes("location-popup__action-img"),
-		`jede Kachel im Band traegt ein Symbol: ${kachel.slice(0, 120)}`);
+	assert.ok(kachel.includes("location-popup__action-glyph"),
+		`jede Kachel im Band traegt ein Zeichen: ${kachel.slice(0, 120)}`);
+	assert.ok(!kachel.includes("location-popup__action-img"),
+		`und KEIN farbiges Bild: ${kachel.slice(0, 120)}`);
 });
+
+// 💣 Das Zeichen erbt die Schriftfarbe des Knopfes. `.location-popup__action-icon` nebenan tut das
+// NICHT -- es traegt `var(--color-button-text)`, die helle Schrift des GEFUELLTEN Knopfes, und auf
+// einem weichen Knopf ergibt das Weiss auf Beige. Genau so stand die monochrome Variante im
+// Entwurf, und genau das hat der Owner gesehen: „den monochromen seh ich nix, weil die weiss sind".
+const glyphRegel = css.match(/\.location-popup__action-glyph\s*\{[^}]*\}/);
+assert.ok(glyphRegel, "es gibt die Regel fuer das Editor-Zeichen");
+assert.ok(/color:\s*currentColor/.test(glyphRegel[0]),
+	"das Zeichen erbt die Schriftfarbe des Knopfes (currentColor), nicht --color-button-text");
+assert.ok(!/--color-button-text/.test(glyphRegel[0]),
+	"und greift ausdruecklich NICHT zum Token des gefuellten Knopfes");
 
 // ---- 💣 DIE KOPPLUNG: die Vier-Spalten-Regel muss das Band MITNENNEN ---------------------------
 //
@@ -107,8 +129,6 @@ kacheln.forEach((kachel) => {
 // 4x90 + 24px Luecke = 384 > 380 verfuegbar -- es passen nur noch DREI, waehrend die Reihe darueber
 // vier zeigt. Sichtbar sofort, aber leicht als „ist halt so" abgetan. Genau so gemessen, bevor die
 // zweite Selektorzeile da war.
-const css = read("css", "features", "location-popups-markers.css")
-	.replace(/\/\*[\s\S]*?\*\//g, "");
 const regeln = css.match(/[^{}]+\{[^}]*\}/g) || [];
 const direktKind = regeln.filter((r) => r.includes(".location-popup > .location-popup__actions > .location-popup__action-button"));
 assert.ok(direktKind.length >= 2,
@@ -122,5 +142,44 @@ direktKind.forEach((regel) => {
 // Und das Band selbst hat seine Trennlinie.
 assert.ok(/\.location-popup__editor-band\s*\{[^}]*border-top:\s*1px solid var\(--color-divider\)/.test(css),
 	"das Band traegt den Trenner aus dem Token, nicht aus einem Literal");
+
+// ---- Weg und Kraftlinie benutzen DASSELBE Band ------------------------------------------------
+//
+// 💣 Faengt die Divergenz, bevor sie entsteht: diese beiden bauen ihre Aktionsleiste selbst
+// zusammen (eigene IIFE im Popup-Aufruf) und koennten sich jederzeit ein eigenes Band schnitzen
+// oder ihre Editier-Kacheln wieder in die obere Reihe schieben. Beide Fehler sehen fuer sich
+// richtig aus -- auffallen wuerde erst, dass drei Infoboxen drei verschiedene Sprachen sprechen.
+[
+	["js/map-features/map-features-path-rendering.js", "der Weg"],
+	["js/map-features/map-features-powerlines.js", "die Kraftlinie"],
+].forEach(([rel, wer]) => {
+	const quelle = fs.readFileSync(path.join(ROOT, rel), "utf8");
+	assert.ok(quelle.includes("locationPopupEditorBandMarkup("),
+		`${wer} benutzt das gemeinsame Band, statt sich eins zu bauen (${rel})`);
+	// Der IS_EDIT_MODE-Block darf nur noch in die Editor-Liste schieben.
+	const block = quelle.match(/if \(IS_EDIT_MODE\) \{[\s\S]*?\n\t{3}\}/);
+	assert.ok(block, `${wer} hat den erwarteten IS_EDIT_MODE-Block (${rel})`);
+	assert.ok(!/\bbuttons\.push\(/.test(block[0]),
+		`${wer} schiebt im Bearbeiten-Zweig NICHTS mehr in die obere Reihe (${rel})`);
+	assert.ok(/\beditorButtons\.push\(/.test(block[0]),
+		`${wer} sammelt sie stattdessen in editorButtons (${rel})`);
+});
+
+// ---- Das Kreuzungs-Popup bekommt KEIN Merkmal -------------------------------------------------
+//
+// 🔴 Absicht, kein Versaeumnis: die Leiste existiert ausserhalb des Bearbeiten-Modus gar nicht
+// (crossingActionsMarkup gibt "" zurueck). Ein Schild ueber einer Liste, die ein Besucher nie
+// sieht, ist eine Auskunft an niemanden -- das Merkmal traegt nur, wo es auch fehlen kann.
+// Faengt: jemand „vervollstaendigt" die Kennzeichnung und haengt es ueberall hin.
+const kreuzung = editor.crossingActionsMarkup("Kreuzung-1482", "cr-1");
+assert.ok(kreuzung.includes("location-popup__action-button"), "die Kreuzung hat ihre Kacheln");
+assert.ok(!kreuzung.includes("avesmaps-scope-hint"),
+	"aber KEIN Merkmal -- ein Besucher sieht diese Leiste ohnehin nie");
+assert.strictEqual(besucher.crossingActionsMarkup("Kreuzung-1482", "cr-1"), "",
+	"und ausserhalb des Bearbeiten-Modus entsteht sie gar nicht erst");
+(kreuzung.match(/<button[\s\S]*?<\/button>/g) || []).forEach((kachel) => {
+	assert.ok(kachel.includes("location-popup__action-glyph"),
+		`jede Kreuzungs-Kachel traegt ein Zeichen: ${kachel.slice(0, 120)}`);
+});
 
 console.log("popup-editor-band ok");

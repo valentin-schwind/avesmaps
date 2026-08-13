@@ -211,43 +211,57 @@ function createPathPopupMarkup(path) {
 			if (suggestSpec) {
 				buttons.push(popupActionButtonMarkup(suggestSpec));
 			}
+			// Ab hier, was nur ein Editor sieht -- eigene Liste, eigenes Band unter der Trennlinie
+			// (locationPopupEditorBandMarkup in js/ui/popups.js). Bis zum 13.08.2026 standen diese
+			// drei bis vier Kacheln ununterscheidbar neben "Link teilen".
+			const editorButtons = [];
 			if (IS_EDIT_MODE) {
 				// Fluss-Shortcut: Stroemung direkt am Segment umkehren/festlegen, ohne den
 				// "Weg bearbeiten"-Dialog (weg-weite Wirkung wie die Panel-Buttons).
 				if (pathType === "Flussweg" && typeof pathFlowShortcutLabelFor === "function") {
-					buttons.push(popupActionButtonMarkup({
+					editorButtons.push(popupActionButtonMarkup({
 						label: pathFlowShortcutLabelFor(path),
 						className: "location-popup__action-button--accent",
+						iconMarkup: popupActionGlyphMarkup("fluss"),
 						attributes: {
 							"data-popup-action": "flip-river-flow",
 							"data-public-id": getPathPublicId(path),
 						},
 					}));
 				}
-				buttons.push(popupActionButtonMarkup({
+				editorButtons.push(popupActionButtonMarkup({
 					label: "Bearbeiten",
+					// Dasselbe Zahnrad wie am Ort: dieselbe Geste an einem anderen Gegenstand.
+					iconMarkup: popupActionGlyphMarkup("bearbeiten"),
 					attributes: {
 						"data-popup-action": "edit-path-details",
 						"data-public-id": getPathPublicId(path),
 					},
 				}));
-				buttons.push(popupActionButtonMarkup({
+				editorButtons.push(popupActionButtonMarkup({
 					label: "Verlauf bearbeiten",
+					// Der Stift, nicht das Zahnrad: hier werden keine Eigenschaften geaendert, sondern
+					// die LINIE angefasst -- genau die Trennung, die das Kontextmenue zwischen
+					// „Grenzen bearbeiten" (✎) und „Territoriumseditor oeffnen" (⚙) macht. Die beiden
+					// Kacheln stehen nebeneinander und muessen sich auf einen Blick unterscheiden.
+					iconMarkup: popupActionGlyphMarkup("verlauf"),
 					attributes: {
 						"data-popup-action": "edit-path-geometry",
 						"data-public-id": getPathPublicId(path),
 					},
 				}));
-				buttons.push(popupActionButtonMarkup({
+				editorButtons.push(popupActionButtonMarkup({
 					label: "Weg löschen",
 					className: "location-popup__action-button--danger",
+					iconMarkup: popupActionGlyphMarkup("loeschen"),
 					attributes: {
 						"data-popup-action": "delete-path",
 						"data-public-id": getPathPublicId(path),
 					},
 				}));
 			}
-			return buttons.length ? locationPopupActionsMarkup(buttons) : "";
+			return (buttons.length ? locationPopupActionsMarkup(buttons) : "")
+				+ locationPopupEditorBandMarkup(editorButtons);
 		})() + pathWikiInfoboxMarkup(path),
 	});
 }

@@ -11,11 +11,31 @@ function locationPopupActionsMarkup(actionButtons = []) {
 	return `<div class="location-popup__actions">${actionButtons.join("")}</div>`;
 }
 
-// Das Symbol einer Kachel als Bild aus dem aventurischen Satz. Eine Stelle, damit die Pfade nicht
-// an einem Dutzend Aufrufern kleben und beim naechsten Umbenennen einzeln gesucht werden muessen.
-// Farbige Illustration -> ausdruecklich KEIN currentColor (docs/design-language.md sec. Icons).
-function popupActionIconMarkup(src) {
-	return `<img class="location-popup__action-img" src="${escapeHtml(src)}" alt="" width="20" height="20" />`;
+// Das Zeichen einer EDITOR-Kachel. Owner 13.08.2026: „nimm die monochromen icons" -- das ist der
+// Zweiklang, den das Kartenmenue seit Monaten spricht (css/components/map-context-menu-icons.css
+// gibt den Besucher-Eintraegen farbige Bilder, map-context-menu.css den Editor-Eintraegen magere
+// Zeichen). Die Kachelleiste redet ab jetzt dieselbe Sprache.
+//
+// 🔴 Die GLYPHEN sind dieselben wie im Kontextmenue, Zeichen fuer Zeichen -- ✥ verschieben,
+// ⚙ Eigenschaften, ✎ Geometrie, ✕ loeschen, ━ Weg, ● Ort. Ein Editor darf nicht zwei Vokabulare
+// fuer dieselbe Geste lernen, nur weil sie einmal in einem Menue und einmal auf einer Kachel steht.
+const POPUP_ACTION_GLYPHS = {
+	weg: "━",          // ━  wie "Neuer Weg" im Kartenmenue
+	kraftlinie: "↯",   // ↯  eine Linie aus Kraft; im Kartenmenue gibt es dafuer keinen Eintrag
+	ort: "●",          // ●  wie "Neuer Ort"
+	verschieben: "✥",  // ✥  wie "Verschieben"
+	bearbeiten: "⚙",   // ⚙  wie "Territoriumseditor oeffnen" -- Eigenschaften, nicht Geometrie
+	verlauf: "✎",      // ✎  wie "Grenzen bearbeiten" -- die Linie selbst anfassen
+	loeschen: "✕",     // ✕  wie "Loeschen"
+	fluss: "⇄",        // ⇄  Richtungswechsel
+};
+
+function popupActionGlyphMarkup(key) {
+	const zeichen = POPUP_ACTION_GLYPHS[key];
+	if (!zeichen) {
+		return "";
+	}
+	return `<span class="location-popup__action-glyph" aria-hidden="true">${zeichen}</span>`;
 }
 
 // Die Kacheln, die nur ein Editor sieht, stehen UNTER einer Trennlinie und unter einer
@@ -415,7 +435,7 @@ function pathCreationActionButtonsMarkup(publicId) {
 	// Alle drei meinen denselben Gegenstand -- einen Weg --, also tragen sie dasselbe Symbol.
 	// Ein eigenes Bild je Schritt („anfangen", „weiterfuehren", „abschliessen") waere drei
 	// Vokabeln fuer eine Sache; was der Schritt ist, sagt die Beschriftung.
-	const wegIcon = popupActionIconMarkup("icons/landweg.webp");
+	const wegIcon = popupActionGlyphMarkup("weg");
 	if (pendingPathCreationStart) {
 		return [
 			popupActionButtonMarkup({
@@ -532,7 +552,7 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 			editorButtons.push(
 				popupActionButtonMarkup({
 					label: pendingPowerlineCreationStart ? "Kraftlinie abschließen" : "Neue Kraftlinie",
-					iconMarkup: popupActionIconMarkup("icons/kraftlinien.webp"),
+					iconMarkup: popupActionGlyphMarkup("kraftlinie"),
 					attributes: {
 						"data-popup-action": pendingPowerlineCreationStart ? "finish-powerline-at-location" : "start-powerline-from-location",
 						"data-public-id": publicId,
@@ -543,9 +563,7 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 		editorButtons.push(
 			popupActionButtonMarkup({
 				label: "Ort verschieben",
-				// Die Banner-Standarte aus dem Owner-Satz: ein Zeichen, das man in den Boden steckt.
-				// Sie lag seit dem 12.07.2026 ungenutzt im Repo.
-				iconMarkup: popupActionIconMarkup("img/menu/markierung.webp"),
+				iconMarkup: popupActionGlyphMarkup("verschieben"),
 				attributes: {
 					"data-popup-action": "start-location-edit",
 					"data-location-name": name,
@@ -556,7 +574,7 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 		editorButtons.push(
 			popupActionButtonMarkup({
 				label: "Bearbeiten",
-				iconMarkup: popupActionIconMarkup("icons/feder.webp"),
+				iconMarkup: popupActionGlyphMarkup("bearbeiten"),
 				attributes: {
 					"data-popup-action": "edit-location-details",
 					"data-location-name": name,
@@ -568,7 +586,7 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 			popupActionButtonMarkup({
 				label: "Ort löschen",
 				className: "location-popup__action-button--danger",
-				iconMarkup: popupActionIconMarkup("img/menu/papierkorb.webp"),
+				iconMarkup: popupActionGlyphMarkup("loeschen"),
 				attributes: {
 					"data-popup-action": "delete-location",
 					"data-location-name": name,
@@ -581,6 +599,11 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 	return locationPopupActionsMarkup(actionButtons) + locationPopupEditorBandMarkup(editorButtons);
 }
 
+// 🔴 Hier KEIN Editor-Band und kein Merkmal, obwohl jede Kachel eine Editor-Aktion ist -- gerade
+// deshalb. Die Funktion gibt ausserhalb des Bearbeiten-Modus "" zurueck: ein Besucher sieht diese
+// Leiste nie. Ein Schild „nur Editoren" ueber einer Liste, die sonst gar nicht existiert, ist eine
+// Auskunft an niemanden; es traegt nur dort, wo es auch FEHLEN kann. Die Symbole kommen trotzdem,
+// die sind kein Hinweis, sondern Lesbarkeit.
 function crossingActionsMarkup(name, publicId) {
 	if (!IS_EDIT_MODE || !publicId) {
 		return "";
@@ -589,6 +612,8 @@ function crossingActionsMarkup(name, publicId) {
 	return locationPopupActionsMarkup([
 		popupActionButtonMarkup({
 			label: "Zu Ort konvertieren",
+			// Der Ortspunkt: aus dem Knoten wird ein Ort. Dasselbe Zeichen wie „Neuer Ort" im Kartenmenue.
+			iconMarkup: popupActionGlyphMarkup("ort"),
 			attributes: {
 				"data-popup-action": "convert-crossing-to-location",
 				"data-public-id": publicId,
@@ -597,6 +622,7 @@ function crossingActionsMarkup(name, publicId) {
 		...pathCreationActionButtonsMarkup(publicId),
 		popupActionButtonMarkup({
 			label: pendingPowerlineCreationStart ? "Kraftlinie abschließen" : "Neue Kraftlinie",
+			iconMarkup: popupActionGlyphMarkup("kraftlinie"),
 			attributes: {
 				"data-popup-action": pendingPowerlineCreationStart ? "finish-powerline-at-location" : "start-powerline-from-location",
 				"data-public-id": publicId,
@@ -604,6 +630,8 @@ function crossingActionsMarkup(name, publicId) {
 		}),
 		popupActionButtonMarkup({
 			label: "Kreuzung verschieben",
+			// Dasselbe Zeichen wie „Ort verschieben": dieselbe Geste, anderer Gegenstand.
+			iconMarkup: popupActionGlyphMarkup("verschieben"),
 			attributes: {
 				"data-popup-action": "start-location-edit",
 				"data-location-name": name,
@@ -613,6 +641,7 @@ function crossingActionsMarkup(name, publicId) {
 		popupActionButtonMarkup({
 			label: "Kreuzung löschen",
 			className: "location-popup__action-button--danger",
+			iconMarkup: popupActionGlyphMarkup("loeschen"),
 			attributes: {
 				"data-popup-action": "delete-location",
 				"data-location-name": name,
@@ -622,6 +651,11 @@ function crossingActionsMarkup(name, publicId) {
 	]);
 }
 
+// 🔧 OFFEN (13.08.2026): dieses Popup gehoert wie die Kreuzung ganz dem Editor, hat aber als
+// einziges davon noch KEINE Symbole. Absicht, nicht vergessen: fuer „Label duplizieren" gibt es im
+// aventurischen Satz kein Bild, und drei illustrierte Kacheln neben einer nackten sind genau der
+// Zustand, den diese Etappe abschafft. Entweder alle vier oder keine -- es wartet auf den Pinsel
+// des Owners (im Bogen unter „Fehlt noch" vermerkt: Label, Kreuzung, Backup, Handbuch).
 function labelActionsMarkup(publicId) {
 	if (!IS_EDIT_MODE || !publicId) {
 		return "";

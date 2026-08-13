@@ -658,6 +658,39 @@ body.edit-mode .floating-location-popup .location-popup__editor-band > .location
 	height: 36px;
 }
 
+/* Das Zeichen einer EDITOR-Kachel (Owner 13.08.2026: „nimm die monochromen icons").
+   Der Zweiklang des Hauses, wie er im Kartenmenue seit Monaten gewachsen ist: farbiges Bild fuer
+   das, was jeden angeht -- mageres Zeichen fuer das Werkzeug.
+
+   💣 `color: currentColor`, NICHT `var(--color-button-text)` wie beim Nachbarn
+   `.location-popup__action-icon` darueber. Dieses Token ist die HELLE Schrift des GEFUELLTEN
+   Knopfes; auf einem weichen Knopf ergibt es Weiss auf Beige, also nichts. Beim Nachbarn stimmt
+   es, weil er nur am gefuellten „+" und am roten „✕" haengt -- hier haengen die Zeichen an weichen
+   UND gefuellten UND roten Knoepfen, und currentColor ist das einzige, was in allen drei stimmt.
+   Genau diese Verwechslung hat der Owner am Entwurf gesehen, bevor eine Zeile Code stand.
+
+   Der Slot ist so gross wie der Bild-Slot daneben (36px): in einer Reihe stehen Bild-Kacheln und
+   Zeichen-Kacheln nebeneinander, und zwei verschiedene Slot-Groessen liessen die Beschriftungen
+   auf unterschiedlichen Hoehen sitzen. Das ZEICHEN darin ist kleiner als der Slot -- eine Glyphe
+   auf 36px waere ein Klotz neben einer Illustration. */
+.location-popup__action-glyph {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	color: currentColor;
+	font-size: 16px;
+	font-weight: var(--font-weight-bold);
+	line-height: 1;
+}
+.floating-location-popup .location-popup__action-button .location-popup__action-glyph,
+.avesmaps-infopanel .location-popup__action-button .location-popup__action-glyph {
+	width: 36px;
+	height: 36px;
+	font-size: 24px;
+}
+
 .location-popup__action-button:hover,
 .location-popup__action-button:focus-visible {
 	border-color: var(--color-button-soft-border);

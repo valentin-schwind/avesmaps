@@ -305,7 +305,7 @@ Die zweite Reihe ist zusätzlich die einzige ohne Symbole: nackter Text unter vi
 	</div>
 
 	<div class="col">
-		<p class="col__cap col__cap--new">✅ Entschieden — farbige Symbole</p>
+		<p class="col__cap">Verworfen — farbige Symbole <span class="avesmaps-scope-hint">Owner 13.08.</span></p>
 		<div class="boxframe floating-location-popup">
 			<div class="location-popup">
 				<div class="location-popup__header">
@@ -324,10 +324,10 @@ Die zweite Reihe ist zusätzlich die einzige ohne Symbole: nackter Text unter vi
 				<div class="location-popup__editor-band">
 					<p class="location-popup__editor-band-title">Bearbeiten <span class="avesmaps-scope-hint">nur Editoren</span></p>
 					<div class="location-popup__actions">
-						<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/landweg.webp" alt="">Neuer Weg</button>
-						<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/markierung.webp" alt="">Ort verschieben</button>
-						<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/feder.webp" alt="">Bearbeiten</button>
-						<button class="location-popup__action-button location-popup__action-button--danger" type="button"><img class="location-popup__action-img" src="../img/menu/papierkorb.webp" alt="">Ort löschen</button>
+						<button class="location-popup__action-button" type="button"><span class="location-popup__action-glyph">━</span>Neuer Weg</button>
+						<button class="location-popup__action-button" type="button"><span class="location-popup__action-glyph">✥</span>Ort verschieben</button>
+						<button class="location-popup__action-button" type="button"><span class="location-popup__action-glyph">⚙</span>Bearbeiten</button>
+						<button class="location-popup__action-button location-popup__action-button--danger" type="button"><span class="location-popup__action-glyph">✕</span>Ort löschen</button>
 					</div>
 				</div>
 			</div>
@@ -335,8 +335,8 @@ Die zweite Reihe ist zusätzlich die einzige ohne Symbole: nackter Text unter vi
 	</div>
 
 	<div class="col">
-		<p class="col__cap">Verworfen — monochrome Zeichen <span class="avesmaps-scope-hint">Owner 13.08.</span></p>
-		<div class="boxframe floating-location-popup" style="opacity:.55">
+		<p class="col__cap col__cap--new">✅ Entschieden — monochrome Zeichen</p>
+		<div class="boxframe floating-location-popup">
 			<div class="location-popup">
 				<div class="location-popup__header">
 					<img class="location-popup__icon location-popup__icon--realistic" src="../icons/realistic/dorf.webp" alt="">
@@ -360,10 +360,10 @@ Die zweite Reihe ist zusätzlich die einzige ohne Symbole: nackter Text unter vi
 						     das nie auf, weil die Klasse dort nur am gefuellten „+" und am roten „✕" haengt.
 						     Hier korrigiert auf `currentColor`, damit die verworfene Variante wenigstens ehrlich
 						     dasteht. -->
-						<button class="location-popup__action-button" type="button"><span class="location-popup__action-icon" style="color:currentColor">━</span>Neuer Weg</button>
-						<button class="location-popup__action-button" type="button"><span class="location-popup__action-icon" style="color:currentColor">✥</span>Ort verschieben</button>
-						<button class="location-popup__action-button" type="button"><span class="location-popup__action-icon" style="color:currentColor">✎</span>Bearbeiten</button>
-						<button class="location-popup__action-button location-popup__action-button--danger" type="button"><span class="location-popup__action-icon">✕</span>Ort löschen</button>
+						<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/landweg.webp" alt="">Neuer Weg</button>
+						<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/markierung.webp" alt="">Ort verschieben</button>
+						<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/feder.webp" alt="">Bearbeiten</button>
+						<button class="location-popup__action-button location-popup__action-button--danger" type="button"><img class="location-popup__action-img" src="../img/menu/papierkorb.webp" alt="">Ort löschen</button>
 					</div>
 				</div>
 			</div>
@@ -371,15 +371,22 @@ Die zweite Reihe ist zusätzlich die einzige ohne Symbole: nackter Text unter vi
 	</div>
 </div>
 
-<p style="margin-top:18px"><strong>Entschieden am 13.08.: farbig.</strong> Die vier Kacheln darüber sind
-farbige Illustrationen; eine Reihe magerer Zeichen darunter liest sich nicht als „andere Rolle“, sondern
-als „hier fehlt noch was“ — und genau das ist der heutige Zustand. Die Auskunft „nur für dich“ trägt
-bereits Trenner + Merkmal; das Symbol muss sie nicht ein zweites Mal geben.</p>
-<p><strong>Die monochrome Spalte war zusätzlich falsch gezeichnet</strong> (Owner: „den monochromen seh
-ich nix, weil die weiß sind“): die Glyphen hingen in <code>.location-popup__action-icon</code>, und die
-Klasse trägt die <em>helle Schrift des gefüllten Knopfes</em>. Auf einem weichen Knopf ist das im hellen
-Thema Weiß auf Beige. ⚠️ Kein Fehler im Programm — dort hängt die Klasse nur am gefüllten „+“ und am
-roten „✕“, wo die Farbe stimmt. Nur hier im Bogen war sie am falschen Knopf; oben korrigiert.</p>
+<p style="margin-top:18px"><strong>Entschieden am 13.08.: monochrom</strong> (Owner: „nimm die monochromen
+icons“). Damit spricht die Kachelleiste dieselbe Sprache wie das Kartenmenün darunter in §4:
+<em>farbiges Bild für das, was jeden angeht — mageres Zeichen fürs Werkzeug.</em> Der Zweiklang gilt jetzt
+im ganzen Haus, nicht nur an einer Stelle.</p>
+<p>💣 <strong>Die monochrome Spalte war zunächst falsch gezeichnet</strong> — und hätte die Entscheidung
+beinahe gekippt (Owner: „den monochromen seh ich nix, weil die weiß sind“): die Glyphen hingen in
+<code>.location-popup__action-icon</code>, und die Klasse trägt die <em>helle Schrift des gefüllten
+Knopfes</em>. Auf einem weichen Knopf ist das im hellen Thema Weiß auf Beige. Das gebaute Zeichen hängt
+deshalb in einer eigenen Klasse <code>.location-popup__action-glyph</code> mit
+<code>color: currentColor</code> — dem einzigen Wert, der auf dem weichen, dem gefüllten <em>und</em> dem
+roten Knopf stimmt. ⚠️ Kein Fehler im Programm: dort hängt die alte Klasse nur am gefüllten „+“ und am
+roten „✕“, wo ihre Farbe richtig ist.</p>
+<p class="muted">Die Zeichen sind <strong>dieselben wie im Kontextmenü</strong>, Zeichen für Zeichen:
+━ Weg · ● Ort · ✥ verschieben · ⚙ Eigenschaften · ✎ Geometrie · ✕ löschen. Ein Editor soll nicht zwei
+Vokabulare für dieselbe Geste lernen, nur weil sie einmal in einem Menü und einmal auf einer Kachel
+steht.</p>
 
 
 <h2><span class="num">3 —</span> Dasselbe Band an Weg, Kreuzung, Kraftlinie</h2>
@@ -406,9 +413,9 @@ Die Kreuzung ist der Gegenfall: sie gehört <em>ganz</em> dem Editor, ein Merkma
 				<div class="location-popup__editor-band">
 					<p class="location-popup__editor-band-title">Bearbeiten <span class="avesmaps-scope-hint">nur Editoren</span></p>
 					<div class="location-popup__actions">
-						<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/feder.webp" alt="">Bearbeiten</button>
-						<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/Pfad.webp" alt="">Verlauf bearbeiten</button>
-						<button class="location-popup__action-button location-popup__action-button--danger" type="button"><img class="location-popup__action-img" src="../img/menu/papierkorb.webp" alt="">Weg löschen</button>
+						<button class="location-popup__action-button" type="button"><span class="location-popup__action-glyph">⚙</span>Bearbeiten</button>
+						<button class="location-popup__action-button" type="button"><span class="location-popup__action-glyph">✎</span>Verlauf bearbeiten</button>
+						<button class="location-popup__action-button location-popup__action-button--danger" type="button"><span class="location-popup__action-glyph">✕</span>Weg löschen</button>
 					</div>
 				</div>
 			</div>
@@ -416,7 +423,7 @@ Die Kreuzung ist der Gegenfall: sie gehört <em>ganz</em> dem Editor, ein Merkma
 	</div>
 
 	<div class="col">
-		<p class="col__cap col__cap--new">Kreuzung — kein Merkmal, nur Symbole</p>
+		<p class="col__cap col__cap--new">Kreuzung — kein Merkmal, nur Zeichen</p>
 		<div class="boxframe floating-location-popup">
 			<div class="location-popup">
 				<div class="location-popup__header">
@@ -426,11 +433,11 @@ Die Kreuzung ist der Gegenfall: sie gehört <em>ganz</em> dem Editor, ein Merkma
 					</div>
 				</div>
 				<div class="location-popup__actions">
-					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/dorf.webp" alt="">Zu Ort konvertieren</button>
-					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/landweg.webp" alt="">Neuer Weg</button>
-					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/kraftlinien.webp" alt="">Neue Kraftlinie</button>
-					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/markierung.webp" alt="">Verschieben</button>
-					<button class="location-popup__action-button location-popup__action-button--danger" type="button"><img class="location-popup__action-img" src="../img/menu/papierkorb.webp" alt="">Löschen</button>
+					<button class="location-popup__action-button" type="button"><span class="location-popup__action-glyph">●</span>Zu Ort konvertieren</button>
+					<button class="location-popup__action-button" type="button"><span class="location-popup__action-glyph">━</span>Neuer Weg</button>
+					<button class="location-popup__action-button" type="button"><span class="location-popup__action-glyph">↯</span>Neue Kraftlinie</button>
+					<button class="location-popup__action-button" type="button"><span class="location-popup__action-glyph">✥</span>Verschieben</button>
+					<button class="location-popup__action-button location-popup__action-button--danger" type="button"><span class="location-popup__action-glyph">✕</span>Löschen</button>
 				</div>
 			</div>
 		</div>
@@ -595,17 +602,34 @@ aventurischen Vokabeln (§8).</p>
 
 <h2><span class="num">8 —</span> Die Symbole: was da ist, was fehlt, was heute gemalt wurde</h2>
 
-<h3>Bereits im Haus und sofort verwendbar</h3>
+<h3>Die Zeichen der Editor-Kacheln — dieselben wie im Kontextmenü</h3>
 <div class="iconboard">
-	<div class="iconcard"><img src="../icons/feder.webp" alt=""><b>feder</b><span>→ „Bearbeiten“<br>(heute: Karte vorschlagen)</span></div>
-	<div class="iconcard"><img src="../img/menu/papierkorb.webp" alt=""><b>papierkorb</b><span>→ jedes „Löschen“<br>(heute frisch importiert)</span></div>
-	<div class="iconcard"><img src="../img/menu/markierung.webp" alt=""><b>markierung</b><span>→ „verschieben“<br>💣 seit 12.07. <b>unbenutzt</b></span></div>
-	<div class="iconcard"><img src="../icons/kraftlinien.webp" alt=""><b>kraftlinien</b><span>→ „Neue Kraftlinie“</span></div>
-	<div class="iconcard"><img src="../icons/landweg.webp" alt=""><b>landweg</b><span>→ „Neuer Weg“</span></div>
-	<div class="iconcard"><img src="../icons/Pfad.webp" alt=""><b>Pfad</b><span>→ „Verlauf bearbeiten“</span></div>
-	<div class="iconcard"><img src="../icons/dorf.webp" alt=""><b>dorf</b><span>→ „Zu Ort konvertieren“</span></div>
-	<div class="iconcard"><img src="../icons/sextant.webp" alt=""><b>sextant</b><span>„Anzeigen“ (live)</span></div>
+	<div class="iconcard"><span class="glyph">━</span><b>Weg</b><span>„Neuer Weg“, weiterführen, abschließen</span></div>
+	<div class="iconcard"><span class="glyph">●</span><b>Ort</b><span>„Zu Ort konvertieren“</span></div>
+	<div class="iconcard"><span class="glyph">↯</span><b>Kraftlinie</b><span>„Neue Kraftlinie“</span></div>
+	<div class="iconcard"><span class="glyph">✥</span><b>verschieben</b><span>Ort, Kreuzung</span></div>
+	<div class="iconcard"><span class="glyph">⚙</span><b>Eigenschaften</b><span>„Bearbeiten“</span></div>
+	<div class="iconcard"><span class="glyph">✎</span><b>Geometrie</b><span>„Verlauf bearbeiten“</span></div>
+	<div class="iconcard"><span class="glyph">✕</span><b>löschen</b><span>Ort, Weg, Kraftlinie, Kreuzung</span></div>
+	<div class="iconcard"><span class="glyph">⇄</span><b>Richtung</b><span>Flusslauf umkehren</span></div>
 </div>
+<p class="muted">💣 Nur <b>↯</b> und <b>⇄</b> sind neu — die übrigen sechs stehen Zeichen für Zeichen so
+im Kontextmenü (<code>css/components/map-context-menu.css</code>). Für Kraftlinien und Flussrichtung gibt
+es dort keinen Eintrag, also auch kein Vorbild.</p>
+
+<h3>Farbige Bilder bleiben, wo sie hingehören — bei dem, was jeden angeht</h3>
+<div class="iconboard">
+	<div class="iconcard"><img src="../img/menu/linkteilen.webp" alt=""><b>linkteilen</b><span>„Link teilen“</span></div>
+	<div class="iconcard"><img src="../img/menu/vorschlag.webp" alt=""><b>vorschlag</b><span>„Änderungen vorschlagen“</span></div>
+	<div class="iconcard"><img src="../icons/sextant.webp" alt=""><b>sextant</b><span>„Anzeigen“</span></div>
+	<div class="iconcard"><img src="../img/menu/bewertung.webp" alt=""><b>bewertung</b><span>„Bewertung schreiben“</span></div>
+	<div class="iconcard"><img src="../img/menu/papierkorb.webp" alt=""><b>papierkorb</b><span>„Markierung entfernen“<br>(Besucher-Aktion)</span></div>
+	<div class="iconcard"><img src="../icons/feder.webp" alt=""><b>feder</b><span>„Karte vorschlagen“</span></div>
+</div>
+<p class="muted">⚠️ <code>markierung.webp</code>, <code>landweg</code>, <code>Pfad</code>,
+<code>dorf</code> und <code>kraftlinien</code> waren im ersten Entwurf für die Editor-Kacheln
+vorgesehen und sind mit dem Entscheid vom 13.08. wieder frei. <code>markierung.webp</code> liegt damit
+weiterhin unbenutzt im Repo — seit dem 12.07.2026.</p>
 
 <h3>✅ Heute vom Owner gemalt und eingeholt — sie ersetzen die beiden alten</h3>
 <div class="iconboard">
@@ -631,21 +655,24 @@ werden müsste — ein neuer Name macht die Zwischenrunde überflüssig. ⚠️ 
 „Link teilen“ (Kachel) und „Stelle markieren und teilen“ (Kartenmenü) — beides Besucher-Oberflächen,
 also unabhängig von dieser Sache.</p>
 
-<h3>Fehlt noch — Owner-Pinsel oder Zeichen</h3>
+<h3>Fehlt noch</h3>
 <div class="iconboard">
-	<div class="iconcard iconcard--missing"><span class="glyph">✚</span><b>Kreuzung</b><span>„Neue Kreuzung“, „Kreuzung verschieben“</span></div>
-	<div class="iconcard iconcard--missing"><span class="glyph">A</span><b>Label</b><span>„Neues freies Label“</span></div>
-	<div class="iconcard iconcard--missing"><span class="glyph">🗄</span><b>Backup</b><span>Truhe/Siegel statt 💾</span></div>
-	<div class="iconcard iconcard--missing"><span class="glyph">📖</span><b>Handbuch</b><span>literatur.webp reicht evtl.</span></div>
+	<div class="iconcard iconcard--missing"><span class="glyph">?</span><b>Label duplizieren</b><span>das Label-Popup hat als einziges reine Editor-Box noch keine Zeichen — für „duplizieren“ gibt es keins</span></div>
+	<div class="iconcard iconcard--missing"><span class="glyph">💾</span><b>Backup</b><span>Emoji in der Editor-Hülle (§6)</span></div>
+	<div class="iconcard iconcard--missing"><span class="glyph">📖</span><b>Handbuch</b><span>Emoji in der Editor-Hülle (§6)</span></div>
 </div>
+<p class="muted">⭐ Der Entscheid für Zeichen hat die Liste kürzer gemacht: „Kreuzung“ braucht keinen
+Pinsel mehr, sie bekommt ✚ bzw. ✥ aus dem vorhandenen Satz.</p>
 
 <div class="rule" style="margin-top:22px">
-	<strong>Der Zweiklang, als Regel formuliert:</strong><br>
-	<strong>Kachelband</strong> (Infobox/Popup) → <em>farbige</em> Bilder für alle Kacheln, auch die des
-	Editors. Trenner und Merkmal tragen die Auskunft, das Symbol muss sie nicht wiederholen.<br>
-	<strong>Kontextmenü</strong> → <em>Farbe für jedermann-Einträge, monochromes Zeichen fürs Werkzeug.</em>
-	So ist es dort seit Monaten gewachsen, und es liest sich auf 18&nbsp;px besser als zwanzig
-	Miniatur-Illustrationen untereinander.
+	<strong>Der Zweiklang, als Regel formuliert</strong> (Owner 13.08.2026, gilt jetzt überall):<br>
+	<strong>Farbiges Bild</strong> für das, was <em>jeden</em> angeht — Link teilen, Literatur,
+	Kartensammlung, Änderungen vorschlagen, Bewertung.<br>
+	<strong>Monochromes Zeichen</strong> für das <em>Werkzeug</em> — jede Kachel und jeder Menüeintrag,
+	den nur ein Editor sieht.<br>
+	So ist es im Kartenmenü seit Monaten gewachsen; seit heute gilt es auch für die Kachelleiste. Der
+	Nebengewinn: eine neue Editor-Aktion braucht keine gemalte Illustration mehr, sondern ein Zeichen aus
+	dem vorhandenen Satz — sie kann sofort gebaut werden, statt auf den Pinsel zu warten.
 </div>
 
 <h2><span class="num">9 —</span> Reihenfolge, falls gebaut wird</h2>
@@ -654,8 +681,8 @@ also unabhängig von dieser Sache.</p>
 <table class="tbl">
 	<tr><th>#</th><th>Etappe</th><th>Sichtbar für</th></tr>
 	<tr><td>1</td><td>Merkmal wird hausweit (<code>.avesmaps-scope-hint</code>, <code>ui.editorOnly</code>/<code>ui.adminOnly</code>) — Anzeige-Menü zieht auf die neue Klasse um</td><td class="no">niemanden (gleiches Bild)</td></tr>
-	<tr><td>2</td><td>Editor-Band in der Orts-Infobox + Symbole für die vier Kacheln; dabei die zwei neuen Symbole anschließen</td><td class="yes">Editoren <span class="muted">(die zwei Symbole: jeden)</span></td></tr>
-	<tr><td>3</td><td>Dasselbe Band an Weg und Kraftlinie; Symbole am Kreuzungs-Popup</td><td class="yes">Editoren</td></tr>
+	<tr><td>2</td><td>Editor-Band in der Orts-Infobox + Zeichen für die vier Kacheln; dabei die zwei neuen Bilder (Literatur, Kartensammlung) anschließen</td><td class="yes">Editoren <span class="muted">(die zwei Symbole: jeden)</span></td></tr>
+	<tr><td>3</td><td>Dasselbe Band an Weg und Kraftlinie; Zeichen am Kreuzungs-Popup</td><td class="yes">Editoren</td></tr>
 	<tr><td>4</td><td>Kartenmenü: Trenner unter „Hier hinzufügen“ + Merkmal <span class="muted">(kein Umzug — Owner 13.08.)</span></td><td class="yes">Editoren</td></tr>
 	<tr><td>5</td><td>Gebiets- und Flächenmenü gruppieren (beide gemeinsam, nie eins allein)</td><td class="yes">Editoren</td></tr>
 	<tr><td>6</td><td>Editor-Hülle: „nur Admins“ + die beiden Emoji ersetzen</td><td class="yes">Admins</td></tr>

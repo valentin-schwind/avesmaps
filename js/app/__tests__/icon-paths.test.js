@@ -82,7 +82,7 @@ const ERWARTET = {
 	// Neuer Dateiname statt Ueberschreiben -- die alten trugen ein handgeschriebenes ?v=.
 	"img/menu/literatur.webp": "Literatur",
 	"img/menu/kartensammlung.webp": "Kartensammlung",
-	"icons/feder.webp": "Karte vorschlagen und Bearbeiten",
+	"icons/feder.webp": "Karte vorschlagen",
 };
 Object.entries(ERWARTET).forEach(([rel, wofuer]) => {
 	assert.ok(fs.existsSync(path.join(ROOT, rel)), rel + " (" + wofuer + ") liegt im Repo");
