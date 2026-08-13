@@ -375,18 +375,24 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 	font-size: 20px;
 	line-height: 1;
 }
-/* Bewertungszeile: "Bewertung schreiben" bleibt ein normaler inline-Button, KEINE Kachel (beide Kontexte);
-   dessen Icon behaelt die Inline-Groesse (kein fester Kachel-Icon-Slot). */
-.floating-location-popup .location-reviews .location-popup__action-button,
-.avesmaps-infopanel .location-reviews .location-popup__action-button {
+/* Bewertungszeile in der SCHWEBENDEN Box: "Bewertung schreiben" bleibt dort ein normaler
+   inline-Button, KEINE Kachel; sein Icon behaelt die Inline-Groesse (kein fester Kachel-Icon-Slot).
+   Grund: dort steht er in `.location-reviews__compact-row` NEBEN der Sternebewertung -- eine Kachel
+   spraengte diese Zeile.
+
+   🔴 IM PANEL GILT DAS SEIT 2026-08-12 NICHT MEHR (Owner: "den bewertungsbutton groesser
+   (Kachelstil)"). Dort steht er allein am Ende eines Abschnitts, direkt unter "Alle anzeigen" und
+   "Karte vorschlagen", die seit demselben Tag ebenfalls Kacheln sind -- als einziger Inline-Button
+   waere er der Ausreisser. Die Selektorzeile fuer `.avesmaps-infopanel` ist deshalb hier ENTFALLEN,
+   nicht ueberschrieben: eine Gegenregel haette zwei Wahrheiten hinterlassen. */
+.floating-location-popup .location-reviews .location-popup__action-button {
 	flex-direction: row;
 	width: auto;
 	min-height: 0;
 	padding: 5px 10px;
 	white-space: nowrap;
 }
-.floating-location-popup .location-reviews .location-popup__action-button .location-popup__action-icon,
-.avesmaps-infopanel .location-reviews .location-popup__action-button .location-popup__action-icon {
+.floating-location-popup .location-reviews .location-popup__action-button .location-popup__action-icon {
 	width: auto;
 	height: auto;
 	font-size: inherit;
