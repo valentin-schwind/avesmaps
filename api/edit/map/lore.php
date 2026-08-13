@@ -14,6 +14,7 @@ declare(strict_types=1);
 // POST { action: "preview_rule", wiki_key, terms }                -> was die Regel traefe (schreibt NICHTS)
 // POST { action: "save_rule",    wiki_key, terms, relation?, rule_id? } -> anlegen oder ersetzen
 // POST { action: "delete_rule",  wiki_key, rule_id }              -> Regel entfernen
+// POST { action: "list_rules",   wiki_key }                       -> alle Regeln des Eintrags
 //
 // Alle Schreibaktionen sind capability-gated ('edit') wie jeder Editor-Schreibpfad.
 
@@ -305,6 +306,16 @@ try {
             // aus einem FREMDEN Eintrag darf hier nicht durchkommen. Der Riegel selbst sitzt
             // in avesmapsLoreRuleDelete (WHERE-Klausel), nicht erst hier am Aufrufer.
             avesmapsJsonResponse(200, ['ok' => avesmapsLoreRuleDelete($pdo, $ruleId, $wikiKey)]);
+            break;
+        }
+
+        case 'list_rules': {
+            // Lesen, also KEIN avesmapsLoreRuleEnsureTables -- fehlen die Tabellen, gibt es
+            // schlicht keine Regeln. Ein DDL im Lesezweig waere die Last aus AGENTS.md §10.
+            avesmapsJsonResponse(200, [
+                'ok' => true,
+                'rules' => avesmapsLoreRuleReadForEntryWithNames($pdo, $wikiKey),
+            ]);
             break;
         }
 

@@ -429,3 +429,70 @@ function avesmapsLoreRuleReadPlaces(PDO $pdo): array
 
     return array_values(array_filter($byId, static fn (?array $place): bool => $place !== null));
 }
+
+/**
+ * Wie avesmapsLoreRuleReadForEntry, aber jede Bedingung traegt den NAMEN ihrer Flaeche.
+ *
+ * Wozu: der Editor zeigt „Farindelwald", nicht eine public_id. Der Name hier dazuzulegen kostet
+ * EINE zusaetzliche Abfrage fuer die ganze Antwort -- ihn in der Oberflaeche je Bedingung
+ * nachzuschlagen waere ein Abruf je Zeile.
+ *
+ * ⚠️ Eine geloeschte oder deaktivierte Flaeche laesst die Bedingung STEHEN und den Namen leer.
+ * Die Regel ist eine Aussage des Editors, kein Verweis, der mitstirbt; sie verschwinden zu
+ * lassen waere stiller Datenverlust.
+ *
+ * 💣 avesmapsLoreRuleReadForEntry faengt eine fehlende lore_rule-Tabelle NICHT selbst ab
+ * (Sitzung 1 baute die Selbstheilung hinter avesmapsLoreRuleEnsureTables, nicht in den
+ * Leser) -- sie wirft. Diese Funktion laeuft aber auf demselben oeffentlichen Lesepfad wie
+ * die drei Leser oben (avesmapsLoreRuleReadAreas & Co.) und muss dieselbe Zusage halten:
+ * "nie eingerichtet" wird eine leere Liste, kein 500.
+ *
+ * @return list<array{id: int, relation: string, terms: list<array<string,mixed>>}>
+ */
+function avesmapsLoreRuleReadForEntryWithNames(PDO $pdo, string $entryWikiKey): array
+{
+    try {
+        $rules = avesmapsLoreRuleReadForEntry($pdo, $entryWikiKey);
+        if ($rules === []) {
+            return [];
+        }
+
+        $wanted = [];
+        foreach ($rules as $rule) {
+            foreach ($rule['terms'] as $term) {
+                $areaId = $term['area_public_id'] ?? null;
+                if ($areaId !== null && $areaId !== '') {
+                    $wanted[$areaId] = true;
+                }
+            }
+        }
+
+        $names = [];
+        if ($wanted !== []) {
+            $keys = array_keys($wanted);
+            $placeholders = implode(',', array_fill(0, count($keys), '?'));
+            $statement = $pdo->prepare(
+                'SELECT public_id, name FROM ecosystem_region
+                  WHERE is_active = 1 AND public_id IN (' . $placeholders . ')'
+            );
+            $statement->execute($keys);
+            foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+                $names[(string) $row['public_id']] = (string) ($row['name'] ?? '');
+            }
+        }
+
+        foreach ($rules as $ruleIndex => $rule) {
+            foreach ($rule['terms'] as $termIndex => $term) {
+                $areaId = (string) ($term['area_public_id'] ?? '');
+                // 💣 Ueber den SCHLUESSEL zuordnen, nie ueber den Index: eine Bedingung ohne
+                // Flaeche bekaeme sonst den Namen ihrer Nachbarin.
+                $rules[$ruleIndex]['terms'][$termIndex]['area_name'] = $names[$areaId] ?? '';
+            }
+        }
+
+        return $rules;
+    } catch (Throwable) {
+        // Tabellen fehlen (lore_rule oder ecosystem_region) -> keine Regeln, kein 500.
+        return [];
+    }
+}

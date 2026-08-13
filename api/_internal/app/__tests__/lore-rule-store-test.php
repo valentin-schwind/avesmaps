@@ -329,4 +329,72 @@ assert($survived[0]['terms'][0]['types'][0]['region_type'] === 'steppe');
 assert((int) $pdo->query('SELECT COUNT(*) FROM lore_rule_term')->fetchColumn() === 1);
 assert((int) $pdo->query('SELECT COUNT(*) FROM lore_rule_term_type')->fetchColumn() === 1);
 
+// ---------------------------------------------------------------------------------------
+// avesmapsLoreRuleReadForEntryWithNames -- dieselben Regeln, aber mit Flaechennamen.
+// ---------------------------------------------------------------------------------------
+
+// Der Editor zeigt „Farindelwald", nicht eine public_id. Der Name kommt beim Lesen dazu,
+// damit die Oberflaeche nicht je Bedingung einen zweiten Abruf machen muss.
+$pdo->exec("INSERT INTO ecosystem_region (id, public_id, name, kind, region_type, is_active)
+            VALUES (901, 'area-farindel-2', 'Farindelwald', 'vegetation', 'wald', 1)");
+$named = avesmapsLoreRuleSave($pdo, 'namenstest', [
+    ['join_op' => 'und', 'area_public_id' => 'area-farindel-2',
+     'climate_from' => null, 'climate_to' => null, 'types' => []],
+    ['join_op' => 'oder', 'area_public_id' => null,
+     'climate_from' => null, 'climate_to' => null,
+     'types' => [['kind' => 'vegetation', 'region_type' => 'wald']]],
+], 'verbreitung', 7);
+
+$withNames = avesmapsLoreRuleReadForEntryWithNames($pdo, 'namenstest');
+assert(count($withNames) === 1);
+assert($withNames[0]['id'] === $named);
+assert($withNames[0]['terms'][0]['area_name'] === 'Farindelwald');
+// 💣 Eine Bedingung OHNE Flaeche bekommt einen leeren Namen, nie den der Nachbarbedingung --
+// genau das passiert, wenn man die Namen ueber den Index statt ueber den Schluessel zuordnet.
+assert($withNames[0]['terms'][1]['area_name'] === '');
+// Und die uebrigen Felder bleiben unangetastet, die Oberflaeche baut daraus die Kette.
+assert($withNames[0]['terms'][1]['types'][0]['region_type'] === 'wald');
+assert($withNames[0]['terms'][1]['join_op'] === 'oder');
+
+// Eine geloeschte Flaeche laesst die Regel stehen und den Namen leer -- nicht die Regel
+// verschwinden. Sie ist eine Aussage des Editors, kein Verweis, der mitstirbt.
+$pdo->exec("UPDATE ecosystem_region SET is_active = 0 WHERE id = 901");
+$after = avesmapsLoreRuleReadForEntryWithNames($pdo, 'namenstest');
+assert(count($after) === 1 && $after[0]['terms'][0]['area_public_id'] === 'area-farindel-2');
+assert($after[0]['terms'][0]['area_name'] === '');
+
+// 💣 Mutationsprobe fuer "ueber den Index statt den Schluessel": der Test oben hat nur EINE
+// benannte Flaeche im ganzen Regelsatz, also trifft eine index-basierte Zuordnung durch
+// puren Zufall trotzdem zu (nur ein Eintrag in $names, der zweite Term faellt out-of-range
+// auf '' zurueck -- richtig, aber aus dem falschen Grund). Erst ZWEI Flaechen an ZWEI
+// verschiedenen Bedingungen zeigen die Verwechslung: id 902 wird VOR id 903 angelegt, seq
+// aber ABSICHTLICH gegenlaeufig (Term 0 zeigt auf die id-902-Flaeche NICHT... s.u.) -- die
+// SELECT ... WHERE public_id IN (...) liefert ohne ORDER BY die Zeilen in rowid-Reihenfolge
+// (902 vor 903), waehrend die Bedingungen sie in der ANDEREN Reihenfolge referenzieren. Eine
+// index-basierte Zuordnung haengt so den Namen der jeweils falschen Flaeche an.
+$pdo->exec("INSERT INTO ecosystem_region (id, public_id, name, kind, region_type, is_active)
+            VALUES (902, 'area-erst-902', 'ErstName', 'vegetation', 'wald', 1)");
+$pdo->exec("INSERT INTO ecosystem_region (id, public_id, name, kind, region_type, is_active)
+            VALUES (903, 'area-zweit-903', 'ZweitName', 'vegetation', 'steppe', 1)");
+$swapped = avesmapsLoreRuleSave($pdo, 'namensvertauschung', [
+    ['join_op' => 'und', 'area_public_id' => 'area-zweit-903',
+     'climate_from' => null, 'climate_to' => null, 'types' => []],
+    ['join_op' => 'und', 'area_public_id' => 'area-erst-902',
+     'climate_from' => null, 'climate_to' => null, 'types' => []],
+], 'verbreitung', 7);
+$swappedRead = avesmapsLoreRuleReadForEntryWithNames($pdo, 'namensvertauschung');
+assert($swappedRead[0]['terms'][0]['area_public_id'] === 'area-zweit-903');
+assert($swappedRead[0]['terms'][0]['area_name'] === 'ZweitName');
+assert($swappedRead[0]['terms'][1]['area_public_id'] === 'area-erst-902');
+assert($swappedRead[0]['terms'][1]['area_name'] === 'ErstName');
+
+// 💣 avesmapsLoreRuleReadForEntry faengt eine fehlende Tabelle NICHT selbst ab (sie wirft
+// beim SELECT auf lore_rule -- Sitzung 1 baute die Selbstheilung hinter EnsureTables, nicht
+// in den Leser). avesmapsLoreRuleReadForEntryWithNames laeuft aber auf demselben
+// oeffentlichen Lesepfad wie die drei Leser oben (avesmapsLoreRuleReadAreas & Co.) und muss
+// dieselbe Zusage halten: "nie eingerichtet" wird eine leere Liste, kein 500.
+$freshPdo = new PDO('sqlite::memory:');
+$freshPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+assert(avesmapsLoreRuleReadForEntryWithNames($freshPdo, 'irgendwas') === []);
+
 echo "lore-rule-store: OK\n";
