@@ -2959,6 +2959,10 @@
 		     openSyncPlanSheet(). Kein DOM auf oberster Ebene, also kostet die Reihenfolge nichts außer
 		     der Gewissheit, dass die Funktion da ist, wenn der erste Abgleich fertig wird. -->
 		<script src="js/review/sync-plan-sheet.js"></script>
+		<!-- Die Regelkarten der Vorkommen-Liste (Lebensraum-Regel, Sitzung 2 Task 5). Nach
+		     js/app/utils.js (escapeHtml), VOR review-wiki-sync.js: dessen openLoreDetail/
+		     renderLoreDetail rufen avesmapsLoreRuleLoad/-CardMarkup schon beim Aufbau der Liste. -->
+		<script src="js/review/review-lore-rule.js"></script>
 		<script src="js/review/review-wiki-sync.js"></script>
 		<script src="js/review/review-link-check.js"></script>
 		<script src="js/review/review-citymap-autoget.js"></script>

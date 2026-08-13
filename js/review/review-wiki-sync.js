@@ -3158,6 +3158,10 @@ function renderLoreDetail(entry) {
 	(entry.places || []).forEach(function (place) {
 		(place.status === "suppressed" ? tombs : live).push(place);
 	});
+	// Die zuletzt geladenen Regeln DIESES Eintrags -- openLoreDetail holt sie zusammen mit den
+	// Stammdaten; ein Neuaufbau durch add_place/remove_place/set_field (die nur `entry` liefern)
+	// liest hier weiter dieselben, ohne erneuten Abruf (Modulzustand in review-lore-rule.js).
+	var rules = (typeof avesmapsLoreRuleCurrent === "function") ? avesmapsLoreRuleCurrent(avesmapsLoreDetailKey) : [];
 
 	// Eine Ortskarte, nicht eine Tabellenzeile -- gerahmt wie die Ortskarten im
 	// Abenteuereditor, mit der Herkunft als Pille statt als Fließtext.
@@ -3215,12 +3219,28 @@ function renderLoreDetail(entry) {
 		+ "</div>"
 
 		+ '<div class="lore-detail__col lore-detail__col--places">'
-		+ '<h5 class="lore-detail__section">Orte (' + live.length + ")</h5>"
+		// „Vorkommen" statt „Orte": die Ueberschrift zaehlt seit Task 5 auch die Regelkarten mit,
+		// die direkt darunter in DERSELBEN Liste stehen (avesmapsLoreRuleCurrent, module state in
+		// review-lore-rule.js -- geladen von openLoreDetail, ueberlebt einen Neuaufbau ohne
+		// erneuten Abruf).
+		+ '<h5 class="lore-detail__section">Vorkommen (' + (live.length + rules.length) + ")</h5>"
 		+ '<div class="lore-detail__add">'
 		+ '<input type="text" id="lore-add-place" class="lore-detail__input" placeholder="Ort, Region oder Gebiet …" autocomplete="off">'
 		+ '<button type="button" class="lore-detail__place-btn" id="lore-add-place-btn">+ Ort</button>'
+		// Task 6 gibt diesem Knopf seine Funktion. Hier nur der Platz daneben, gesperrt --
+		// AGENTS.md §12: keine Handlung ohne Wirkung anbieten.
+		+ '<button type="button" class="lore-detail__place-btn" id="lore-add-rule-btn" disabled title="folgt">+ Regel</button>'
 		+ "</div>"
-		+ (live.length ? '<ul class="lore-detail__places">' + live.map(function (p) { return placeRow(p, false); }).join("") + "</ul>"
+		+ ((live.length || rules.length)
+			? '<ul class="lore-detail__places">'
+				+ live.map(function (p) { return placeRow(p, false); }).join("")
+				// Regelkarten NACH den Ortskarten, gleichrangig in derselben <ul> (Brief Schritt 1).
+				// zoneLabels = der bestehende Klimazonen-Katalog (js/map-features/map-features-
+				// climate-row.js), nicht neu gebaut -- siehe Dateikopf von review-lore-rule.js.
+				+ rules.map(function (r) {
+					return avesmapsLoreRuleCardMarkup(r, typeof avesmapsClimateZoneLabels !== "undefined" ? avesmapsClimateZoneLabels : {});
+				}).join("")
+				+ "</ul>"
 			: '<p class="lore-detail__hint">Noch keinem Ort zugeordnet.</p>')
 		+ (tombs.length
 			? '<h5 class="lore-detail__section">Entfernte Wiki-Orte (' + tombs.length + ")</h5>"
@@ -3255,7 +3275,14 @@ function openLoreDetail(wikiKey) {
 	// Zurueck auf Anfang: eine Erfolgsmeldung vom vorigen Eintrag ueber dem neuen stehen zu
 	// lassen, behauptet etwas ueber diesen hier.
 	setLoreDialogStatus();
-	loreEditAction("detail", { wiki_key: wikiKey }).then(function (data) {
+	// Regeln und Stammdaten getrennt geladen (verschiedene Endpunkte, Task 1 vs. der bestehende
+	// "detail"), aber gemeinsam abgewartet: renderLoreDetail braucht avesmapsLoreRuleCurrent()
+	// schon beim ERSTEN Aufbau, nicht erst beim naechsten Neuaufbau.
+	Promise.all([
+		loreEditAction("detail", { wiki_key: wikiKey }),
+		(typeof avesmapsLoreRuleLoad === "function") ? avesmapsLoreRuleLoad(wikiKey) : Promise.resolve([]),
+	]).then(function (results) {
+		var data = results[0];
 		if (avesmapsLoreDetailKey !== wikiKey) { return; }
 		if (!data || data.ok !== true || !data.entry) {
 			// 401 = nicht eingeloggt. Das ist die häufigste Ursache und verdient eine
