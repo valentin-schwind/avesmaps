@@ -171,4 +171,37 @@ $keys = array_keys($hits);
 sort($keys);
 assert($keys === ['einbeere', 'raffranke'], 'oder verknuepft, nicht heimlich und -- Gebirge verfehlt, Wald trifft');
 
+// --- Fix-Runde 1, Befund 1: die Kette rechnet LINKS NACH RECHTS, nicht mit Praezedenz --------
+// 'raffranke' hat nur EINEN Verknuepfer -- bei einem einzigen Operator liefern links-nach-rechts
+// und "und bindet staerker als oder" (Praezedenz, die Lesart aus Python/C/SQL) dasselbe Ergebnis,
+// die Reihenfolge ist an ihr also gar nicht pruefbar. Erst DREI Bedingungen trennen die beiden
+// Lesarten: T1 trifft, T2 (davor 'oder') trifft nicht, T3 (davor 'und') trifft nicht.
+//   links-nach-rechts: (T1 oder T2) und T3 = (wahr oder falsch) und falsch = FALSCH
+//   Praezedenz:        T1 oder (T2 und T3) = wahr oder (falsch und falsch) = WAHR
+// Waere der Lesepfad Praezedenz und der Editor (avesmapsLoreRuleEvaluate) links-nach-rechts,
+// zeigte die Vorschau bei denselben Daten etwas anderes als die Infobox -- ohne Fehlermeldung.
+// T3 ist eine IDENTITAET (nicht Klima): avesmapsLoreRuleOrderedZoneKeys fragt
+// ecosystem_region_type ab, eine Tabelle, die dieses sqlite-Fixture nie anlegt -- die Abfrage
+// wirft, der Fang liefert [], und eine leere Zonenliste macht jede Klimaspanne zu "keine
+// Einschraenkung" (avesmapsLoreRuleZoneKeys) statt zu "trifft nicht". Eine Identitaetsbedingung
+// braucht das nicht und ist hier deshalb das robustere Gegenbeispiel.
+avesmapsLoreRuleSave($pdo, 'wurzelkraut', [
+    // T1: Gebirge -- trifft den Finsterkamm (kind=topographie, region_type=gebirge).
+    ['join_op' => 'und', 'area_public_id' => null,
+        'types' => [['kind' => 'topographie', 'region_type' => 'gebirge']],
+        'climate_from' => null, 'climate_to' => null],
+    // T2, davor 'oder': Wald -- verfehlt den Finsterkamm (der ist Gebirge, nicht Wald).
+    ['join_op' => 'oder', 'area_public_id' => null,
+        'types' => [['kind' => 'vegetation', 'region_type' => 'wald']],
+        'climate_from' => null, 'climate_to' => null],
+    // T3, davor 'und': "ist der Farindel" (a1) -- verfehlt den Finsterkamm (a2).
+    ['join_op' => 'und', 'area_public_id' => 'a1',
+        'types' => [],
+        'climate_from' => null, 'climate_to' => null],
+], 'verbreitung', 7);
+
+$hits = avesmapsLoreRuleEntriesForSubject($pdo, avesmapsLoreRuleSubjectFromArea($finsterkamm));
+assert(!array_key_exists('wurzelkraut', $hits),
+    'links-nach-rechts liefert FALSCH -- eine Praezedenz-Auswertung liefert hier WAHR und faellt durch');
+
 echo "lore-rule-match: OK\n";
