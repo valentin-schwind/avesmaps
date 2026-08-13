@@ -523,6 +523,11 @@ function wireFilters() {
 //     and it hangs on the raster tracing's simplify_ratio instead of on the geography.
 //   * Measured 47 ms for the whole live stock (124 areas x 20 regions) WITH the bounding-box
 //     pre-filter, which discards 94 % of the pairs before any clipping runs.
+// 🔴 Owner-Entscheid 2026-08-13 (Weg 3 der offenen Schwellen-Frage): dieselbe Sache steht auch bei
+// AVESMAPS_CLIMATE_REGION_MIN_SHARE (0,05) in api/_internal/app/climate-membership.php, aber weil
+// HIER unter 0,10 gar nichts erst gespeichert wird, ist die dortige 5-%-Pruefung unterhalb von 10 %
+// wirkungslos -- effektiv gilt ueberall 0,10. Beide Zahlen bleiben bewusst so; wer eine aendert,
+// muss die andere mitdenken.
 const RAYCAST_THRESHOLD = 0.10;
 const AREAS_API = "/api/app/ecosystem-areas.php";   // no bbox = the whole stock, with geometry
 
@@ -535,6 +540,9 @@ let territories = null;          // [{publicId, name, type, parentId, isAggregat
 let territoryHits = null;        // Map<region_public_id, [{territory, share}]>
 let territoryNote = "";
 let ecosystemRevision = null;    // the cache key: every write bumps it, so the answer self-expires
+
+const LOCATIONS_API = "/api/locations/";   // der stabile oeffentliche Vertrag: x/y + is_crossing
+let allLocations = null;         // null = in dieser Sitzung noch nicht geholt
 
 // ---- V9: Wege × Flächen ------------------------------------------------------------------------
 // Das dritte Ergebnis desselben Knopfes, und das einzige, das die öffentliche Karte später lesen
@@ -796,6 +804,18 @@ async function loadAreas() {
 	return Array.isArray(data.areas) ? data.areas : [];
 }
 
+// V-Regel (Sitzung 2): die Orte kommen aus dem STABILEN Vertrag, nicht aus einer eigenen
+// Abfrage. Er liefert die Koordinaten und beantwortet „ist das eine Kreuzung" mit demselben
+// Praedikat wie das Routennetz -- ein Namensvergleich waere hier schon zweimal falsch gewesen.
+async function loadLocations() {
+	const response = await fetch(LOCATIONS_API, { credentials: "same-origin", headers: { Accept: "application/json" } });
+	const data = await response.json();
+	if (!response.ok || data.ok === false) {
+		throw new Error((data.error && data.error.message) || ("HTTP " + response.status));
+	}
+	return (Array.isArray(data.locations) ? data.locations : []).filter((entry) => entry && entry.is_crossing !== true);
+}
+
 // V9. Nur hinter dem ausdrücklichen Klick und höchstens einmal je Sitzung -- dieselbe Regel, unter
 // der hier schon der Sieben-Zoom-Fächer an den Politik-Layer steht. Rund 1,5 MB gegen die 17,79 MB
 // der vollen Kartennutzlast, deshalb ein eigener Endpunkt statt map-features.php.
@@ -920,6 +940,28 @@ function overlapRowsFromRaycast() {
 	return out;
 }
 
+// Siedlung -> Flaeche. Ein Ort ist ein Punkt: er liegt in einer Flaeche oder nicht, es gibt
+// keinen Anteil. Deshalb Punkt-in-Polygon statt Verschneidung.
+// 💣 Der Kasten-Vorfilter ist nicht Kosmetik, sondern der Grund, dass das laeuft: ohne ihn sind
+// es 2.782 Orte x ~830 Flaechen = 2,3 Millionen Polygontests. Dieselbe Ueberlegung wie bei
+// boundsOverlap im Raycast oben.
+function locationRowsFromAreas(locations, areas) {
+	const out = [];
+	(locations || []).forEach((location) => {
+		const coordinates = location && location.coordinates;
+		const x = Number(coordinates && coordinates.x);
+		const y = Number(coordinates && coordinates.y);
+		if (!Number.isFinite(x) || !Number.isFinite(y)) { return; }
+		(areas || []).forEach((area) => {
+			const bounds = area && area.bounds;
+			if (!bounds || x < bounds.min_x || x > bounds.max_x || y < bounds.min_y || y > bounds.max_y) { return; }
+			if (!pointInGeometry([x, y], area.geometry)) { return; }
+			out.push({ location: String(location.public_id || ""), area: String(area.public_id || "") });
+		});
+	});
+	return out;
+}
+
 function territoryRowsFromHits() {
 	const out = [];
 	(territoryHits || new Map()).forEach((hits, regionId) => {
@@ -938,7 +980,7 @@ function territoryRowsFromHits() {
 	return out;
 }
 
-async function saveAssignments(pathRows, overlapRows, territoryRows, durationMs, onProgress) {
+async function saveAssignments(pathRows, overlapRows, territoryRows, locationRows, durationMs, onProgress) {
 	const begun = await ecoPost("assignment_begin", {});
 	const runToken = String(begun.run_token || "");
 	if (runToken === "") { throw new Error("Der Server hat kein Lauf-Kennzeichen geliefert."); }
@@ -952,6 +994,7 @@ async function saveAssignments(pathRows, overlapRows, territoryRows, durationMs,
 	slice("overlap", overlapRows);
 	slice("territory", territoryRows);
 	slice("path", pathRows);
+	slice("location", locationRows);
 
 	let skipped = 0;
 	for (let index = 0; index < batches.length; index += 1) {
@@ -993,7 +1036,7 @@ function renderAssignmentTile() {
 		return;
 	}
 	const wegabschnitte = stamp.path_rows_chord + stamp.path_rows_curve;
-	info.textContent = wegabschnitte + " Wegabschnitte · "
+	info.textContent = wegabschnitte + " Wegabschnitte · " + stamp.location_rows + " Orte · "
 		+ (stamp.duration_ms / 1000).toFixed(1).replace(".", ",") + " s";
 }
 
@@ -1743,10 +1786,18 @@ async function runRaycast(options) {
 				setStatus("Wege × Flächen … " + done + "/" + total);
 			});
 
+			// Sitzung 2: das vierte Ergebnis desselben Knopfes -- Siedlung -> Fläche.
+			if (allLocations === null) {
+				setStatus("Orte werden geladen …");
+				allLocations = await loadLocations();
+			}
+			setStatus("Orte werden zugeordnet …");
+			const locationRows = locationRowsFromAreas(allLocations, allAreas);
+
 			setStatus("Wird gespeichert …");
 			shareClamped = 0;
 			const saved = await saveAssignments(
-				pathAssignments.rows, overlapRowsFromRaycast(), territoryRowsFromHits(),
+				pathAssignments.rows, overlapRowsFromRaycast(), territoryRowsFromHits(), locationRows,
 				pathAssignments.stats.chordMs + pathAssignments.stats.curveMs,
 				(done, total) => setStatus("Speichert … " + done + "/" + total)
 			);

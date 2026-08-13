@@ -28,6 +28,12 @@ declare(strict_types=1);
 // Below this share a zone is not named on a region. Same threshold and same reasoning as
 // AVESMAPS_LANDSCAPE_MIN_SHARE in map-features-path-landscapes.js: a sliver of a neighbouring band is
 // noise, and a row that lists four zones for a forest answers nothing.
+//
+// 🔴 Owner decision 2026-08-13 (open-threshold question, path 3): RAYCAST_THRESHOLD in
+// html/landschaften-editor.html is 0.10, and it decides what gets STORED, before this file ever
+// reads anything -- so this 0.05 read-side filter is inert below 0.10; the effective threshold
+// everywhere is 0.10. Both numbers stay as they are; whoever changes one must think through the
+// other.
 const AVESMAPS_CLIMATE_REGION_MIN_SHARE = 0.05;
 
 /**
