@@ -36,8 +36,8 @@
 		return typeof window.tr === "function" ? window.tr(key, germanDefault, params) : germanDefault;
 	}
 
-	// „Reisegruppe zu Fuss (4 Meilen/h)" -> „Reisegruppe zu Fuss". In der Kopfzeile ist die
-	// Geschwindigkeit Beiwerk und kostet die Haelfte der Breite.
+	// „Firun (Winter)" -> „Firun". Was in Klammern steht, ist im Aufklapper hilfreich und in der
+	// Kopfzeile Ballast. Die Transportnamen tragen seit 13.08.2026 selbst keine Klammer mehr.
 	function withoutParenthetical(text) {
 		return String(text || "").replace(/\s*\([^)]*\)\s*$/, "").trim();
 	}
