@@ -367,10 +367,11 @@ assert($after[0]['terms'][0]['area_name'] === '');
 // benannte Flaeche im ganzen Regelsatz, also trifft eine index-basierte Zuordnung durch
 // puren Zufall trotzdem zu (nur ein Eintrag in $names, der zweite Term faellt out-of-range
 // auf '' zurueck -- richtig, aber aus dem falschen Grund). Erst ZWEI Flaechen an ZWEI
-// verschiedenen Bedingungen zeigen die Verwechslung: id 902 wird VOR id 903 angelegt, seq
-// aber ABSICHTLICH gegenlaeufig (Term 0 zeigt auf die id-902-Flaeche NICHT... s.u.) -- die
-// SELECT ... WHERE public_id IN (...) liefert ohne ORDER BY die Zeilen in rowid-Reihenfolge
-// (902 vor 903), waehrend die Bedingungen sie in der ANDEREN Reihenfolge referenzieren. Eine
+// verschiedenen Bedingungen zeigen die Verwechslung: die Namensabfrage sortiert per
+// ORDER BY public_id (siehe lore-rule-store.php), also 'area-erst-902' (ErstName) VOR
+// 'area-zweit-903' (ZweitName) -- deterministisch, nicht auf sqlite's ungesicherte
+// IN(...)-ohne-ORDER-BY-Reihenfolge angewiesen. Die Bedingungen referenzieren die beiden
+// Flaechen in der GEGENLAEUFIGEN Reihenfolge (Term 0 -> zweit, Term 1 -> erst). Eine
 // index-basierte Zuordnung haengt so den Namen der jeweils falschen Flaeche an.
 $pdo->exec("INSERT INTO ecosystem_region (id, public_id, name, kind, region_type, is_active)
             VALUES (902, 'area-erst-902', 'ErstName', 'vegetation', 'wald', 1)");
@@ -392,9 +393,60 @@ assert($swappedRead[0]['terms'][1]['area_name'] === 'ErstName');
 // beim SELECT auf lore_rule -- Sitzung 1 baute die Selbstheilung hinter EnsureTables, nicht
 // in den Leser). avesmapsLoreRuleReadForEntryWithNames laeuft aber auf demselben
 // oeffentlichen Lesepfad wie die drei Leser oben (avesmapsLoreRuleReadAreas & Co.) und muss
-// dieselbe Zusage halten: "nie eingerichtet" wird eine leere Liste, kein 500.
+// dieselbe Zusage halten: "nie eingerichtet" wird eine leere Liste, kein 500. Dieser Fall hat
+// WEDER lore_rule NOCH ecosystem_region -- schon avesmapsLoreRuleReadForEntry wirft, die
+// Funktion kommt gar nicht bis zur Namensabfrage. Er deckt NICHT den Fall ab, dass nur
+// ecosystem_region fehlt (siehe den Block direkt darunter) -- das ist eine andere Lücke.
 $freshPdo = new PDO('sqlite::memory:');
 $freshPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 assert(avesmapsLoreRuleReadForEntryWithNames($freshPdo, 'irgendwas') === []);
+
+// ---------------------------------------------------------------------------------------
+// Fix-Runde 1, Befund (Important): der eigentliche Fall, den $freshPdo NICHT sieht --
+// lore_rule-Tabellen UND eine gespeicherte Regel EXISTIEREN, ecosystem_region fehlt GANZ
+// (nie angelegt, nicht bloss leer). Erwartet: die Regel kommt zurueck, nur ihr Name ist leer.
+// Ein GEMEINSAMES try/catch ueber die ganze Funktion (die urspruengliche Fix-Runde-1-Version)
+// wuerde hier faelschlich [] liefern, weil die Namensabfrage wirft, nachdem die Regeln schon
+// gelesen sind -- die Mutation direkt danach (Schritt 5, Fix-Runde 2) beweist das.
+// Nicht dieselbe Pruefung wie $freshPdo oben: dort wirft schon der ERSTE Schritt
+// (avesmapsLoreRuleReadForEntry), hier erst der ZWEITE (die Namensabfrage).
+// ---------------------------------------------------------------------------------------
+$pdoNoEcosystem = new PDO('sqlite::memory:');
+$pdoNoEcosystem->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+avesmapsLoreRuleEnsureTables($pdoNoEcosystem);
+$ruleWithoutEcosystem = avesmapsLoreRuleSave($pdoNoEcosystem, 'ohne-oekosystem', [
+    ['join_op' => 'und', 'area_public_id' => 'area-irgendwo',
+     'climate_from' => null, 'climate_to' => null, 'types' => []],
+], 'verbreitung', 7);
+$withoutEcosystem = avesmapsLoreRuleReadForEntryWithNames($pdoNoEcosystem, 'ohne-oekosystem');
+assert(count($withoutEcosystem) === 1);
+assert($withoutEcosystem[0]['id'] === $ruleWithoutEcosystem);
+assert($withoutEcosystem[0]['terms'][0]['area_public_id'] === 'area-irgendwo');
+assert($withoutEcosystem[0]['terms'][0]['area_name'] === '');
+
+// ---------------------------------------------------------------------------------------
+// Kleinbefund: ZWEI Regeln am selben Eintrag -- alle Tests oben nutzen genau eine. Zwei
+// separate avesmapsLoreRuleSave-Aufrufe OHNE rule_id legen zwei eigenstaendige Regelzeilen
+// an; beide muessen zurueckkommen und JEDE ihren eigenen Flaechennamen tragen, nicht
+// versehentlich den der anderen.
+// ---------------------------------------------------------------------------------------
+$pdo->exec("INSERT INTO ecosystem_region (id, public_id, name, kind, region_type, is_active)
+            VALUES (906, 'area-erle-906', 'Erlenhain', 'vegetation', 'wald', 1)");
+$pdo->exec("INSERT INTO ecosystem_region (id, public_id, name, kind, region_type, is_active)
+            VALUES (907, 'area-tanne-907', 'Tannenwald', 'vegetation', 'wald', 1)");
+$ruleOne = avesmapsLoreRuleSave($pdo, 'zweiregeln', [
+    ['join_op' => 'und', 'area_public_id' => 'area-erle-906',
+     'climate_from' => null, 'climate_to' => null, 'types' => []],
+], 'verbreitung', 7);
+$ruleTwo = avesmapsLoreRuleSave($pdo, 'zweiregeln', [
+    ['join_op' => 'und', 'area_public_id' => 'area-tanne-907',
+     'climate_from' => null, 'climate_to' => null, 'types' => []],
+], 'verbreitung', 7);
+assert($ruleOne !== $ruleTwo);
+$twoRules = avesmapsLoreRuleReadForEntryWithNames($pdo, 'zweiregeln');
+assert(count($twoRules) === 2);
+$twoRulesById = array_column($twoRules, null, 'id');
+assert($twoRulesById[$ruleOne]['terms'][0]['area_name'] === 'Erlenhain');
+assert($twoRulesById[$ruleTwo]['terms'][0]['area_name'] === 'Tannenwald');
 
 echo "lore-rule-store: OK\n";

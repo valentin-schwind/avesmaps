@@ -439,13 +439,19 @@ function avesmapsLoreRuleReadPlaces(PDO $pdo): array
  *
  * ⚠️ Eine geloeschte oder deaktivierte Flaeche laesst die Bedingung STEHEN und den Namen leer.
  * Die Regel ist eine Aussage des Editors, kein Verweis, der mitstirbt; sie verschwinden zu
- * lassen waere stiller Datenverlust.
+ * lassen waere stiller Datenverlust. Aus demselben Grund gilt das auch, wenn die
+ * ecosystem_region-Tabelle GANZ fehlt: die Namensabfrage wirft dann, aber die Regeln selbst
+ * sind laengst gelesen und bleiben stehen -- nur ihre Namen sind leer.
  *
- * 💣 avesmapsLoreRuleReadForEntry faengt eine fehlende lore_rule-Tabelle NICHT selbst ab
- * (Sitzung 1 baute die Selbstheilung hinter avesmapsLoreRuleEnsureTables, nicht in den
- * Leser) -- sie wirft. Diese Funktion laeuft aber auf demselben oeffentlichen Lesepfad wie
- * die drei Leser oben (avesmapsLoreRuleReadAreas & Co.) und muss dieselbe Zusage halten:
- * "nie eingerichtet" wird eine leere Liste, kein 500.
+ * 💣 ZWEI GETRENNTE Kapselungen, absichtlich nicht eine gemeinsame ueber die ganze Funktion:
+ * eine fehlende lore_rule-Tabelle bedeutet "keine Regeln" (avesmapsLoreRuleReadForEntry faengt
+ * das NICHT selbst ab -- Sitzung 1 baute die Selbstheilung hinter avesmapsLoreRuleEnsureTables,
+ * nicht in den Leser -- sie wirft), eine fehlende ecosystem_region-Tabelle bedeutet "keine
+ * Namen, aber die Regeln bleiben lesbar". Ein gemeinsames try/catch um beides wuerfe die
+ * bereits gelesenen Regeln weg, sobald nur die Namensabfrage scheitert -- genau der Fehler aus
+ * Fix-Runde 1: "Fehlen die Oekosystem-Tabellen, gibt es keine Namen -- aber die Regeln bleiben
+ * lesbar" wurde durch ein gemeinsames catch zu "Fehlen lore_rule ODER ecosystem_region, gibt es
+ * keine Regeln".
  *
  * @return list<array{id: int, relation: string, terms: list<array<string,mixed>>}>
  */
@@ -453,46 +459,56 @@ function avesmapsLoreRuleReadForEntryWithNames(PDO $pdo, string $entryWikiKey): 
 {
     try {
         $rules = avesmapsLoreRuleReadForEntry($pdo, $entryWikiKey);
-        if ($rules === []) {
-            return [];
-        }
+    } catch (Throwable) {
+        // lore_rule (oder eine ihrer Kindtabellen) fehlt -> keine Regeln, kein 500. Diese
+        // Tabellen laufen NIE ohne die anderen -- sie werden gemeinsam von
+        // avesmapsLoreRuleEnsureTables angelegt --, ein Scheitern hier heisst also "die
+        // Lebensraum-Regel-Tabellen sind nie eingerichtet worden".
+        return [];
+    }
+    if ($rules === []) {
+        return [];
+    }
 
-        $wanted = [];
-        foreach ($rules as $rule) {
-            foreach ($rule['terms'] as $term) {
-                $areaId = $term['area_public_id'] ?? null;
-                if ($areaId !== null && $areaId !== '') {
-                    $wanted[$areaId] = true;
-                }
+    $wanted = [];
+    foreach ($rules as $rule) {
+        foreach ($rule['terms'] as $term) {
+            $areaId = $term['area_public_id'] ?? null;
+            if ($areaId !== null && $areaId !== '') {
+                $wanted[$areaId] = true;
             }
         }
+    }
 
-        $names = [];
-        if ($wanted !== []) {
+    $names = [];
+    if ($wanted !== []) {
+        try {
             $keys = array_keys($wanted);
             $placeholders = implode(',', array_fill(0, count($keys), '?'));
             $statement = $pdo->prepare(
                 'SELECT public_id, name FROM ecosystem_region
-                  WHERE is_active = 1 AND public_id IN (' . $placeholders . ')'
+                  WHERE is_active = 1 AND public_id IN (' . $placeholders . ')
+                  ORDER BY public_id'
             );
             $statement->execute($keys);
             foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
                 $names[(string) $row['public_id']] = (string) ($row['name'] ?? '');
             }
+        } catch (Throwable) {
+            // Oekosystem-Tabellen fehlen -> keine Namen, aber die Regeln bleiben lesbar. Diese
+            // Kapselung ist EIGENSTAENDIG von der oberen: sie darf die schon gelesenen $rules
+            // nicht wegwerfen, nur die Namen leer lassen.
         }
-
-        foreach ($rules as $ruleIndex => $rule) {
-            foreach ($rule['terms'] as $termIndex => $term) {
-                $areaId = (string) ($term['area_public_id'] ?? '');
-                // 💣 Ueber den SCHLUESSEL zuordnen, nie ueber den Index: eine Bedingung ohne
-                // Flaeche bekaeme sonst den Namen ihrer Nachbarin.
-                $rules[$ruleIndex]['terms'][$termIndex]['area_name'] = $names[$areaId] ?? '';
-            }
-        }
-
-        return $rules;
-    } catch (Throwable) {
-        // Tabellen fehlen (lore_rule oder ecosystem_region) -> keine Regeln, kein 500.
-        return [];
     }
+
+    foreach ($rules as $ruleIndex => $rule) {
+        foreach ($rule['terms'] as $termIndex => $term) {
+            $areaId = (string) ($term['area_public_id'] ?? '');
+            // 💣 Ueber den SCHLUESSEL zuordnen, nie ueber den Index: eine Bedingung ohne
+            // Flaeche bekaeme sonst den Namen ihrer Nachbarin.
+            $rules[$ruleIndex]['terms'][$termIndex]['area_name'] = $names[$areaId] ?? '';
+        }
+    }
+
+    return $rules;
 }
