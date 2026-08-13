@@ -71,7 +71,7 @@ $mapIframeSrc = '../index.html?' . htmlspecialchars($mapIframeQuery, ENT_QUOTES,
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump this whenever edit.css changes,
          or editors keep the cached stylesheet. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/edit.css?v=20260813-scopehint" />
+    <link rel="stylesheet" href="../css/pages/edit.css?v=20260813-adminhinweis" />
 </head>
 
 <body class="edit-page">
@@ -106,12 +106,22 @@ $mapIframeSrc = '../index.html?' . htmlspecialchars($mapIframeQuery, ENT_QUOTES,
                     <!-- Permanent entry point. The other one lives at the end of the map's data
                          status line, inside the editor panel, so it is invisible until that panel
                          is opened. Root-relative is fine here: this page is the top-level shell,
-                         not the map iframe. -->
+                         not the map iframe.
+                         🔧 OFFEN (13.08.2026): the two emoji in this bar (📖 and 💾) are the last
+                         unicode symbols on an editor surface. Deliberately left: the house rule since
+                         today is a MONOCHROME glyph for editor tools, and the shared set has no sign
+                         for "handbook" or "backup" -- inventing two would be inventing vocabulary.
+                         Listed as open in docs/editor-kennzeichnung-mockup.html. -->
                     <a class="edit-shell__handbook" href="/html/editor-handbuch.html" target="_blank" rel="noopener" title="Editor-Handbuch öffnen" aria-label="Handbuch">📖 Handbuch</a>
                     <?php if (avesmapsUserCan($currentUser, 'admin')) : ?>
                         <!-- Admin only, not editors: a full dump carries users.password_hash, every
-                             share link and every report. The endpoint enforces the same gate. -->
-                        <a class="edit-shell__toplink" href="/edit/backup.php" target="_blank" rel="noopener" title="Vollständiges Datenbank-Backup erstellen und herunterladen" aria-label="Datenbank-Backup">💾 Datenbank-Backup</a>
+                             share link and every report. The endpoint enforces the same gate.
+                             The "nur Admins" marker says so out loud: an editor never sees this link,
+                             so an admin standing next to one had no way of knowing which of the two
+                             entries in this bar the other person is missing. Same component as the
+                             editor marker on the map (css/components/scope-hint.css) -- one word
+                             changes, the form does not. -->
+                        <a class="edit-shell__toplink" href="/edit/backup.php" target="_blank" rel="noopener" title="Vollständiges Datenbank-Backup erstellen und herunterladen" aria-label="Datenbank-Backup">💾 Datenbank-Backup <span class="avesmaps-scope-hint">nur Admins</span></a>
                     <?php endif; ?>
                     <form method="post" action="./">
                         <input type="hidden" name="action" value="logout" />

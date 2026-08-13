@@ -129,7 +129,13 @@
 	gap: 8px;
 }
 
-.edit-shell__bar span {
+/* Die gedaempfte Nebenzeile links: „vali | admin" unter dem Titel.
+   💣 Der Selektor hiess bis zum 13.08.2026 `.edit-shell__bar span` und traf damit JEDES span der
+   Leiste -- auch das Merkmal „nur Admins" im Backup-Link, das daraufhin in Grau statt in seiner
+   Pillenfarbe stand. Mit (0,1,1) schlug er die Regel des Merkmals (0,1,0), und zwar unabhaengig
+   von der Ladereihenfolge: es sah fast richtig aus, war aber die falsche Farbe. Gemessen, nicht
+   vermutet. Jetzt trifft er nur noch, was er meint -- ein direktes Kind des Titelblocks. */
+.edit-shell__bar > div:first-child > span {
 	color: var(--color-text-muted);
 	font-size: 12px;
 }

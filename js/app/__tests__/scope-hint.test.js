@@ -58,8 +58,16 @@ alleCss.concat([path.join(ROOT, "index.html")]).forEach((p) => {
 // und zwar nur dort, also genau da, wo man beim Prueft am seltensten hinsieht.
 assert.ok(read("css", "styles.css").includes('@import url("components/scope-hint.css")'),
 	"die Karte (styles.css) laedt das Blatt");
-assert.ok(read("css", "pages", "edit.css").includes('@import url("../components/scope-hint.css")'),
+const editCss = read("css", "pages", "edit.css");
+assert.ok(editCss.includes('@import url("../components/scope-hint.css")'),
 	"die Editor-Huelle (edit.css) laedt es ebenfalls -- sie kennt styles.css nicht");
+
+// 💣 Und eine Nachbarregel darf das Merkmal nicht ueberstimmen. `.edit-shell__bar span` traf mit
+// (0,1,1) JEDES span der Kopfzeile -- auch das Merkmal (0,1,0) -- und faerbte es grau statt in
+// seine Pillenfarbe. Unabhaengig von der Ladereihenfolge, also durch kein Umsortieren zu heilen:
+// es sah fast richtig aus und war die falsche Farbe. Gemessen am 13.08.2026, nicht vermutet.
+assert.ok(!/(^|[\s,>+~])\.edit-shell__bar\s+span\s*[,{]/m.test(withoutComments(editCss)),
+	"kein pauschales `.edit-shell__bar span` -- das ueberstimmt das Merkmal in der Kopfzeile");
 
 // ---- Die Sprachschluessel liegen auf Englisch vor ---------------------------------------------
 //
