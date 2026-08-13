@@ -244,6 +244,9 @@ window.AVESMAPS_I18N_EN = {
 	"planner.cost.source": "Tolls and passage follow the Geographia Aventurica; bed, board and fodder come from the DSA5 core rules and the Kodex der Helden. 1 Dukat = 10 Silbertaler = 100 Heller.",
 
 	// --- map context menu (public actions) ---
+	// The heading over the editor-only group. It stays at the TOP of the menu (Owner 2026-08-13);
+	// the divider therefore sits BELOW the group, not above it.
+	"ctxmenu.groupAdd": "Add",
 	"ctxmenu.sharePin": "Mark and share this spot",
 	"ctxmenu.shareMapLink": "🔗 Copy link to this route",
 	"ctxmenu.reportLocation": "Report here...",

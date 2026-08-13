@@ -24,6 +24,43 @@
 	width: 100%;
 }
 
+/* Die Ueberschrift ueber der Editor-Gruppe, mit dem Merkmal „nur Editoren" daneben. Dieselbe Form
+   wie die Gruppen-Ueberschriften im Anzeige-Menue (css/components/map-display-menu.css). */
+.map-context-menu__title {
+	margin: 0 0 var(--space-2);
+	padding: var(--space-2) var(--space-10) 0;
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+/* 💣 EIN Zustand, nicht zwei: sichtbar ist die Ueberschrift genau dann, wenn ihre Gruppe es ist.
+   bootstrap.js nimmt der Gruppe im Bearbeiten-Modus ihr `hidden`; die Ueberschrift leitet sich
+   davon ab, statt ein eigenes zu bekommen. Ein zweites `hidden` haette genau einen Aufrufer --
+   und beim naechsten Umbau einen zu wenig, dann stuende eine goldene Zeile ueber nichts. */
+.map-context-menu__title:has(+ .map-context-menu__group[hidden]) {
+	display: none;
+}
+
+/* Die Editor-Gruppe BLEIBT oben (Owner 2026-08-13), der Trenner steht deshalb UNTER ihr. Oben
+   waere er eine Linie am oberen Rand des Menues und laese sich als Rahmen, nicht als Trennung.
+   ⚠️ Bewusst OHNE die full-bleed-Randtrickserei der anderen Trenner: die Gruppe ist der
+   Positionsanker des Untermenues (`.map-context-submenu { left: 100% }`) und der unsichtbaren
+   Hover-Bruecke (`::after`, ebenfalls `left: 100%`). Ein negativer Seitenrand schoebe beide um
+   diesen Betrag nach rechts, und man haette zwei Werte, die fuer immer zusammen wandern muessen.
+   Die Polsterung des Menues ist 6 px -- der Unterschied zu einer randlosen Linie ist auf diesem
+   schmalen Kasten nicht zu sehen, die Kopplung dagegen sehr wohl zu vergessen. */
+.map-context-menu__group--editor {
+	margin-bottom: var(--space-6);
+	padding-bottom: var(--space-6);
+	border-bottom: 1px solid var(--color-divider);
+}
+
+/* Und eine versteckte Gruppe hinterlaesst keinen Trenner: `[hidden]` schaltet sie komplett weg
+   (Regel weiter oben, `display: none !important`), also faellt auch ihre Linie mit. */
+
 .map-context-menu__item {
 	width: 100%;
 	display: grid;
