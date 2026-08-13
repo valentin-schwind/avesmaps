@@ -239,7 +239,7 @@
 						<li><a href="#kraftlinien" data-keywords="kraftlinie nodix madas haar ader sumus segment verbindet quellen wiki-link löschen abschnitt lösen">Kraftlinien</a></li>
 						<li><a href="#wege" data-keywords="straße strasse pfad fluss seeweg kreuzung verlauf geometrie strömung transportmittel gangbar gangbarkeit saisonal jahreszeit pass winter routing teilen lage innerorts außerorts filter wege-editor wege bearbeiten höhenprofil wegprofile abschnitte">Wege</a></li>
 						<li><a href="#abenteuer" data-keywords="literatur abenteuer roman kurzgeschichte regionalspielhilfe spielhilfe cover spoiler shop edition schauplatz produkte publikationen materialien">Literatur</a></li>
-						<li><a href="#kartensammlungen" data-keywords="stadtplan karte vorschau fundort maßstab verlag kostenpflichtig produkte publikationen materialien lizenz hochladen upload webp eigene kreation">Kartensammlungen</a></li>
+						<li><a href="#kartensammlungen" data-keywords="stadtplan karte vorschau fundort maßstab verlag kostenpflichtig produkte publikationen materialien lizenz hochladen upload webp eigene kreation neu anlegen neue karte titel doppelt autoget genehmigung erteilt orte zuordnen breite höhe pixel">Kartensammlungen</a></li>
 						<li><a href="#natur-waren" data-keywords="vorkommen natur waren flora fauna spezies handelswaren lore pflanzen tiere lebensraum gruppe verbreitung materialien filter trichter kontinent aventurien myranor herkunft ortsangabe quelle">Vorkommen</a></li>
 					</ul>
 				</li>
@@ -1009,6 +1009,18 @@
 
 				<h3 id="kartensammlungen" class="hb-sub">Kartensammlungen</h3>
 				<p>Veröffentlichte Karten und Stadtpläne — wo es sie gibt, in welchem Buch, in welchem Maßstab.</p>
+
+				<h5>Eine neue Karte anlegen — der Weg von vorn</h5>
+				<p>Diese Reihenfolge kommt von den Editoren, die die Sammlung aufgebaut haben. Sie spart die zwei Umwege, die sonst jeder einmal geht.</p>
+				<ol class="hb-steps">
+					<li><strong>Erst suchen, dann anlegen.</strong> Im WikiSync-Reiter <strong>„Karten"</strong> wählen, <strong>„Karten bearbeiten"</strong> öffnen und links im Feld <em>„Karte suchen …"</em> nach dem <em>Ortsnamen</em> sehen, ob es die Karte oder ihren Link schon gibt. Doppelt angelegte Karten sind der häufigste Fehler hier.</li>
+					<li><strong>Gibt es sie nicht: „+ Neu".</strong> Das Formular zeigt dann nur zwei Felder — <strong>Titel</strong> und <strong>Karten-Link</strong>. Mehr geht in diesem Schritt nicht; rechts steht bis zum Speichern <em>„Erst speichern, dann Orte zuordnen."</em></li>
+					<li><strong>Den Titel möglichst unverändert übernehmen</strong>, so wie ihn die Quelle schreibt — darum heißen etliche Einträge „2011 – …". Der Titel ist das, woran eine zweite Editorin später erkennt, dass es die Karte schon gibt; eine schöner formulierte Fassung nimmt ihr genau diese Probe weg.</li>
+					<li><strong>„Speichern" — und das Fenster schließt sich.</strong> Das ist so gebaut, kein Fehler. Öffne es wieder und ruf die neue Karte über die Suche auf: Jetzt steht das ganze Formular offen.</li>
+					<li><strong>Rechts zuerst: zuordnen.</strong> Über <strong>„+ Ort"</strong> hängst du die Karte an ihre Stadt. Es müssen keine Orte sein — <em>Ort, Territorium, Region und Weg</em> gehen alle, und ein Territorium wirkt auf seinen ganzen Unterbaum.</li>
+					<li><strong>Dann die mittlere Spalte</strong>, und dort so viel wie möglich: ausdrücklich auch <strong>Breite (px)</strong> und <strong>Höhe (px)</strong> des Scans.</li>
+					<li><strong>Speichern und nachsehen.</strong> Ob die Karte wirklich am richtigen Ort hängt, zeigt dir nicht der Editor, sondern die Karte selbst — Ort oder Region anklicken und im Infopanel die <strong>Kartensammlung</strong> öffnen.</li>
+				</ol>
 				<p>Unter <strong>„Identität"</strong> stehen Titel, der Karten-Link und <strong>„Urheber"</strong> bzw. <strong>„Verlag"</strong> — zwei verschiedene Dinge: der Urheber hat die Karte <em>gezeichnet</em>, der Verlag hat den Band <em>gedruckt</em>. Unter <strong>„Einordnung"</strong> folgen Art, Gültigkeit in BF und das <strong>Format</strong>, also die Größe des gedruckten Blatts, wie das Wiki sie schreibt („A2", „33,5x25,5"). Breite und Höhe daneben sind Pixel eines Scans und füllen sich beim Upload von selbst.</p>
 
 				<h5>Wo gibt es die Karte?</h5>
@@ -1019,7 +1031,8 @@
 				<h5>Vorschaubild</h5>
 				<p>Öffentlich erscheint eine Vorschau nur bei fünf Lizenzen: <strong>Public Domain</strong>, <strong>CC0</strong>, <strong>Von uns KI-generiert</strong>, <strong>Genehmigung erteilt</strong> und <strong>Eigene Kreation</strong>. Der Knopf <strong>„Hochladen…"</strong> steht immer da; die Lizenz, die im Feld <em>darunter</em> steht, reist mit dem Bild mit — Lizenz wählen und hochladen ist ein Handgriff, du musst nicht vorher speichern. Ist sie keine der fünf, weist der Server das Bild ab und legt gar nichts erst an.</p>
 				<p>Zwei Bilder je Karte, mit verschiedenen Regeln: das <strong>Vorschaubild</strong> wird beim Hochladen auf 400 Pixel längste Kante verkleinert und in WebP umgewandelt (ein GIF bleibt unangetastet) — aus einem 1200×600-PNG wird also ein 400×200-WebP, das ist kein Fehler. <strong>„Karte (eigenes Bild)"</strong> daneben ist die vollständige Karte zum Hineinzoomen und wird <em>genau so</em> abgelegt, wie du sie hochlädst. Nach oben schließt beide dieselbe Grenze: 12 MB je Datei.</p>
-				<div class="hb-note hb-tip"><strong>„⤓ Autoget" holt kein veröffentlichbares Bild.</strong> Es sucht auf der verlinkten Seite eine Vorschau und legt sie <em>nur für den Editor</em> ab — fremdes Material, das nie öffentlich erscheint. Der Karten-Link selbst wird dagegen immer angezeigt; nur das Bild hängt an der Lizenz.</div>
+				<div class="hb-note hb-tip"><strong>„⤓ Autoget" holt kein veröffentlichbares Bild.</strong> Es sucht auf der verlinkten Seite eine Vorschau und legt sie <em>nur für den Editor</em> ab — fremdes Material, das nie öffentlich erscheint. Du erkennst es an der Marke <strong>„Autoget · nur intern"</strong> unter dem Bild. Der Karten-Link selbst wird dagegen immer angezeigt; nur das Bild hängt an der Lizenz.</div>
+				<div class="hb-note hb-warn"><strong>Autoget ersetzt das Hochladen nicht — auch nicht mit der richtigen Lizenz.</strong> Führt der Karten-Link auf eine <strong>offizielle Publikation im Wiki Aventurica</strong>, ist <strong>„Genehmigung erteilt"</strong> die Lizenz, unter der das Vorschaubild öffentlich stehen darf; bei Portalen wie DeviantArt oder ArtStation gilt das nicht, dort bleibt es beim bloßen Link. Öffentlich erscheint aber immer nur ein <em>eigener Upload</em> über <strong>„Hochladen…"</strong>. Ein Autoget-Bild bleibt intern, egal welche Lizenz danebensteht — die Lizenzauswahl macht es nicht veröffentlichbar.</div>
 				<p>Aus der Community kommen zwei Sorten Beiträge: <strong>„Karte vorschlagen"</strong> (eine ganz neue Karte) und <strong>„+ Neuer Fundort"</strong> (eine weitere Stelle für eine bekannte Karte). Beide erscheinen erst nach deiner Freigabe im Reiter <a href="#meldungen">Meldungen</a> — bei einer neuen Karte heißt der Knopf dort <strong>„Anlegen"</strong>, bei Fundorten <strong>„Ergänzen"</strong>. Fremde Fundorte kannst du nicht löschen, nur <strong>„Unterdrücken"</strong>; das wirkt sofort, ohne Speichern.</p>
 
 				<h3 id="natur-waren" class="hb-sub">Vorkommen</h3>
@@ -1237,8 +1250,14 @@
 				<div class="hb-diagram hb-diagram--wide">
 					<!-- Vertical position = zoom band, not tree depth. That is the whole point: the two
 					     Grafschaften on the left sit one band lower than the one on the right, because
-					     their branch is one level deeper. Grafschaft C therefore spans two bands. -->
-					<svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Territorien-Hierarchie mit Zoom-Baendern. Links eine Zoom-Achse mit vier waagerechten Baendern: Zoom 0 bis 1 enthaelt das Kaiserreich, Zoom 2 das Koenigreich, Zoom 3 die beiden Grafschaften unter dem Koenigreich, Zoom 4 bis 6 alle Baronien. Die Grafschaft, die direkt am Kaiserreich haengt, reicht ueber die Baender 2 und 3, weil ihr Ast eine Ebene flacher ist.">
+					     their branch is one level deeper. The flat branch's Baronien therefore span two
+					     bands (5-6) while the deep branch's sit in band 6 alone.
+					     💣 The numbers follow rule B -- defaultEditorZoomRange in
+					     js/territory/territory-wiki-tree.js, identical to the server's
+					     avesmapsPoliticalDefaultAssignmentZoomRange. NOT defaultWikiSyncTerritoryZoomRange
+					     (territory-drag-assignment.js), which is a third, diverging table; the handbook
+					     documented THAT one until 13.08.2026 (owner: "B gilt"). -->
+					<svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Territorien-Hierarchie mit Zoom-Baendern. Links eine Zoom-Achse mit vier waagerechten Baendern: Zoom 0 bis 2 enthaelt das Kaiserreich, Zoom 3 bis 4 das Koenigreich, Zoom 5 die beiden Grafschaften unter dem Koenigreich, Zoom 6 deren Baronien. Die Grafschaft, die direkt am Kaiserreich haengt, steht im Band Zoom 3 bis 4 neben dem Koenigreich, weil ihr Ast eine Ebene flacher ist; ihre drei Baronien reichen ueber die Baender Zoom 5 und Zoom 6.">
 						<defs>
 							<marker id="hb-h-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
 								<path d="M0 0 L6 3 L0 6 Z" fill="var(--hb-accent)" />
@@ -1254,10 +1273,10 @@
 						<line x1="112" y1="22" x2="112" y2="288" stroke="var(--hb-divider)" stroke-width="1" />
 						<g font-size="11" text-anchor="end" fill="var(--hb-muted)">
 							<text x="104" y="18" font-weight="700">sichtbar bei</text>
-							<text x="104" y="64">Zoom 0–1</text>
-							<text x="104" y="124">Zoom 2</text>
-							<text x="104" y="184">Zoom 3</text>
-							<text x="104" y="252">Zoom 4–6</text>
+							<text x="104" y="64">Zoom 0–2</text>
+							<text x="104" y="124">Zoom 3–4</text>
+							<text x="104" y="184">Zoom 5</text>
+							<text x="104" y="252">Zoom 6</text>
 						</g>
 
 						<g font-size="13" text-anchor="middle" fill="var(--hb-fg)">
@@ -1269,11 +1288,11 @@
 							<text x="215" y="185">Grafschaft</text>
 							<rect x="363" y="161" width="124" height="38" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
 							<text x="425" y="185">Grafschaft</text>
-							<!-- Spans bands 2 and 3: its own branch is only three levels deep, so the
-							     default rule gives it 2-3 instead of 3-3. -->
-							<rect x="658" y="101" width="124" height="98" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="720" y="145">Grafschaft</text>
-							<text x="720" y="163" font-size="11" fill="var(--hb-muted)">Zoom 2–3</text>
+							<!-- Sits in band 3-4, level with the Koenigreich although it ranks below it: its
+							     own branch is only three levels deep, so rule B (defaultEditorZoomRange,
+							     js/territory/territory-wiki-tree.js) gives index 1 of a 3-chain 3-4. -->
+							<rect x="658" y="101" width="124" height="38" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="720" y="125">Grafschaft</text>
 						</g>
 						<g font-size="12" text-anchor="middle" fill="var(--hb-fg)">
 							<rect x="123" y="225" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
@@ -1284,12 +1303,18 @@
 							<text x="375" y="248">Baronie</text>
 							<rect x="433" y="225" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
 							<text x="475" y="248">Baronie</text>
-							<rect x="578" y="225" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="620" y="248">Baronie</text>
-							<rect x="678" y="225" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="720" y="248">Baronie</text>
-							<rect x="778" y="225" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="820" y="248">Baronie</text>
+							<!-- The flat branch's Baronien are the LAST link of a 3-chain and therefore get
+							     5-6: they span both lower bands and show up one zoom step earlier than
+							     their counterparts on the left, which are the last link of a 4-chain (6-6). -->
+							<rect x="578" y="161" width="84" height="100" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="620" y="205">Baronie</text>
+							<text x="620" y="223" font-size="11" fill="var(--hb-muted)">Zoom 5–6</text>
+							<rect x="678" y="161" width="84" height="100" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="720" y="205">Baronie</text>
+							<text x="720" y="223" font-size="11" fill="var(--hb-muted)">Zoom 5–6</text>
+							<rect x="778" y="161" width="84" height="100" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="820" y="205">Baronie</text>
+							<text x="820" y="223" font-size="11" fill="var(--hb-muted)">Zoom 5–6</text>
 						</g>
 
 						<g stroke="var(--hb-accent)" stroke-width="2" fill="none">
@@ -1301,25 +1326,26 @@
 							<path d="M215 199 L215 212 L265 212 L265 225" marker-end="url(#hb-h-arrow)" />
 							<path d="M425 199 L425 212 L375 212 L375 225" marker-end="url(#hb-h-arrow)" />
 							<path d="M425 199 L425 212 L475 212 L475 225" marker-end="url(#hb-h-arrow)" />
-							<path d="M720 199 L720 212 L620 212 L620 225" marker-end="url(#hb-h-arrow)" />
-							<path d="M720 199 L720 225" marker-end="url(#hb-h-arrow)" />
-							<path d="M720 199 L720 212 L820 212 L820 225" marker-end="url(#hb-h-arrow)" />
+							<path d="M720 139 L720 150 L620 150 L620 161" marker-end="url(#hb-h-arrow)" />
+							<path d="M720 139 L720 161" marker-end="url(#hb-h-arrow)" />
+							<path d="M720 139 L720 150 L820 150 L820 161" marker-end="url(#hb-h-arrow)" />
 						</g>
 					</svg>
 				</div>
-				<p>Die waagerechten Bänder sagen, <strong>ab wann ein Gebiet auf der Karte erscheint</strong>. Ganz herausgezoomt siehst du nur das Kaiserreich; je weiter du hineinzoomst, desto feiner wird die Einteilung, bis bei Zoom 4 die Baronien dazukommen. So bleibt die Karte auf jeder Stufe lesbar, statt alle Ebenen übereinanderzustapeln.</p>
-				<p><strong>Die Bänder richten sich nach der Tiefe des Astes, nicht nach dem Rang.</strong> Im Bild siehst du das an den drei Grafschaften: Die beiden links stehen in einem vier Ebenen tiefen Ast und bekommen darum Zoom 3. Die rechte hängt direkt am Kaiserreich — ihr Ast ist nur drei Ebenen tief, also rückt sie auf <strong>Zoom 2–3</strong> vor und füllt die Lücke, die sonst bei Zoom 2 entstünde. Beide Zweige enden bei ihren Baronien wieder gemeinsam bei Zoom 4–6.</p>
+				<p>Die waagerechten Bänder sagen, <strong>ab wann ein Gebiet auf der Karte erscheint</strong>. Ganz herausgezoomt siehst du nur das Kaiserreich; je weiter du hineinzoomst, desto feiner wird die Einteilung, bis ganz unten die Baronien dazukommen. So bleibt die Karte auf jeder Stufe lesbar, statt alle Ebenen übereinanderzustapeln.</p>
+				<p><strong>Die Bänder richten sich nach der Tiefe des Astes, nicht nach dem Rang.</strong> Im Bild siehst du das an den drei Grafschaften: Die beiden links stehen in einem vier Ebenen tiefen Ast und bekommen darum <strong>Zoom 5</strong>. Die rechte hängt direkt am Kaiserreich — ihr Ast ist nur drei Ebenen tief, also rückt sie bis auf <strong>Zoom 3–4</strong> vor, auf dieselbe Stufe wie das Königreich nebenan, obwohl sie einen Rang darunter steht. Ihre Baronien erscheinen entsprechend früher (<strong>Zoom 5–6</strong>) als die des tiefen Astes, die erst bei Zoom 6 dazukommen.</p>
 				<p>Diese Standardwerte vergibt der Editor automatisch, gestaffelt nach der Anzahl Ebenen im Ast:</p>
 				<table class="hb-table">
 					<tr><th>Ebenen im Ast</th><th>Bänder von oben nach unten</th></tr>
 					<tr><td>1</td><td>0–6</td></tr>
-					<tr><td>2</td><td>0–1 · 2–6</td></tr>
-					<tr><td>3</td><td>0–1 · 2–3 · 4–6</td></tr>
-					<tr><td>4</td><td>0–1 · 2–2 · 3–3 · 4–6</td></tr>
-					<tr><td>5</td><td>0–1 · 2–2 · 3–3 · 4–4 · 5–6</td></tr>
-					<tr><td>6 und mehr</td><td>0–1 · 2–2 · 3–3 · 4–4 · 5–5 · 6–6</td></tr>
+					<tr><td>2</td><td>0–2 · 3–6</td></tr>
+					<tr><td>3</td><td>0–2 · 3–4 · 5–6</td></tr>
+					<tr><td>4</td><td>0–2 · 3–4 · 5–5 · 6–6</td></tr>
+					<tr><td>5</td><td>0–2 · 3–4 · 5–5 · 5–5 · 6–6</td></tr>
+					<tr><td>6 und mehr</td><td>0–2 · 3–4 · 5–5 · … · 5–5 · 6–6 — <em>jede weitere Zwischenebene bekommt ebenfalls 5–5</em></td></tr>
 				</table>
-				<div class="hb-note hb-tip"><strong>Die Bänder schließen lückenlos aneinander an.</strong> Ein Gebiet beginnt immer genau eine Zoomstufe nach dem Ende seines Elternteils. Darum bleibt bei einem flachen Ast keine Zoomstufe leer — dort wächst das Band des Kindes einfach nach oben. Du kannst die Werte pro Gebiet überschreiben; die Tabelle ist nur der Vorschlag, den der Editor macht.</div>
+				<div class="hb-note hb-tip"><strong>Bis zu vier Ebenen schließen die Bänder lückenlos aneinander an</strong> — 0–2, 3–4, 5, 6. Ein Gebiet beginnt dort genau eine Zoomstufe nach dem Ende seines Elternteils, und bei einem flachen Ast bleibt keine Zoomstufe leer: das Band des Kindes wächst einfach nach oben. <strong>Ab fünf Ebenen geht das nicht mehr auf</strong>, denn die Karte hat nur sieben Zoomstufen: Dann teilen sich <em>alle</em> Zwischenebenen dasselbe Band 5, und nur die unterste bekommt Zoom 6. Zwei Ränge erscheinen dort gleichzeitig — das ist kein Fehler, sondern das Ende des Vorrats.</div>
+				<div class="hb-note hb-warn"><strong>Deine eigenen Zoomwerte überleben keinen erneuten Zuordnungslauf.</strong> Du kannst die Werte pro Gebiet überschreiben, und die Tabelle ist nur der Vorschlag des Editors — aber sobald jemand im Wiki-Baum <em>irgendein</em> Gebiet dieser Kette neu zuordnet, setzt der Server die Zoomwerte für <strong>jedes</strong> Gebiet der Kette wieder auf die Vorgabe. Wenn eine von Hand gesetzte Stufe wichtig ist, prüf sie nach so einem Lauf noch einmal nach.</div>
 				<p>Zwei Begriffe, die dazugehören: Die <strong>Gültigkeit</strong> eines Gebiets steht in BF-Jahren („Bosparans Fall"), wobei <code>9999</code> heißt „bis heute nicht aufgelöst". Und <strong>umstrittene Gebiete</strong> — solche, die mehrere beanspruchen — erscheinen als Schraffur statt als Fläche.</p>
 
 				<h3 id="v-quellen" class="hb-sub">Quellen</h3>
