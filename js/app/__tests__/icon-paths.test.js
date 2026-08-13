@@ -45,6 +45,13 @@ const MUSTER = /src="((?:img|icons)\/[A-Za-z0-9_./-]+\.(?:webp|png|jpg|svg))(\?[
 const dateien = quelldateien(path.join(ROOT, "js"));
 assert.ok(dateien.length > 50, "genug Quelldateien gefunden (sonst hat der Lauf danebengegriffen)");
 
+// Die Seiten selbst zaehlen mit: seit dem 13.08.2026 steht ein <img> auch im Absende-Knopf des
+// Meldeformulars, und das wohnt in index.html, nicht im JavaScript.
+dateien.push(path.join(ROOT, "index.html"));
+fs.readdirSync(path.join(ROOT, "html"))
+	.filter((n) => n.endsWith(".html"))
+	.forEach((n) => dateien.push(path.join(ROOT, "html", n)));
+
 const gefunden = new Map(); // Pfad -> [Fundstellen]
 dateien.forEach((datei) => {
 	const quelle = fs.readFileSync(datei, "utf8");

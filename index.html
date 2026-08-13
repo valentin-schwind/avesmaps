@@ -1236,7 +1236,10 @@
 					<p id="location-report-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 					<div class="location-report-form__actions">
 						<button id="location-report-cancel" class="location-report-form__button location-report-form__button--secondary" type="button" data-i18n="report.cancel">Abbrechen</button>
-						<button id="location-report-submit" class="location-report-form__button location-report-form__button--primary" type="submit" data-i18n="report.submit">Melden</button>
+						<!-- 💣 data-i18n haengt am SPAN, nicht am Button: der Uebersetzer setzt textContent (js/app/i18n.js),
+						     und das loeschte das Bild bei jedem Sprachwechsel wieder weg. Aus demselben Grund traegt die
+						     Beschriftung eine eigene ID -- der Moduswechsel (Melden / Vorschlag senden) schreibt nur sie. -->
+						<button id="location-report-submit" class="location-report-form__button location-report-form__button--primary" type="submit"><img class="location-report-form__button-icon" src="img/menu/brief.webp?v=1" alt="" width="20" height="20" /><span id="location-report-submit-label" data-i18n="report.submit">Melden</span></button>
 					</div>
 				</form>
 			</div>

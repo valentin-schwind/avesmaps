@@ -421,6 +421,26 @@
 	border-color: var(--color-button-soft-border);
 }
 
+/* Das Brief-Symbol im Absende-Knopf (Owner 2026-08-13). Nur dieser eine Knopf traegt eins, deshalb
+   ueber seine ID statt ueber die Knopf-Klasse -- die tragen auch "Abbrechen" und "Neue Position
+   vorschlagen", und die sollen kein Symbol bekommen.
+   ⚠️ --icon-sm (16), nicht 20: der Knopf steht neben "Abbrechen", und ein 20-px-Bild machte ihn hoeher
+      als seinen Nachbarn (dieselbe Messung wie bei .citymap-suggest__icon in place-extras.css --
+      wandert der Wert dort, gehoert er hier mit). */
+#location-report-submit {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-4);
+}
+.location-report-form__button-icon {
+	flex: 0 0 auto;
+	width: var(--icon-sm);
+	height: var(--icon-sm);
+	object-fit: contain;
+	pointer-events: none;
+}
+
 /* Primary = the one filled main action (button hierarchy, see docs/design-language.md). */
 .location-report-form__button--primary {
 	background: var(--color-button);

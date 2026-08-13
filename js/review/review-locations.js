@@ -430,6 +430,13 @@ function applyChangeSuggestionContext(ctx) {
 	if (introEl) {
 		introEl.textContent = tr("report.changeIntro", "Schlage eine Änderung an diesem Element vor. Beschreibe möglichst genau, was geändert werden soll. Eine Quelle hilft uns sehr bei der Überprüfung der Änderung.");
 	}
+	// Der Absende-Knopf heisst im Aenderungsmodus wie in den Kartendialogen (Owner 2026-08-13). Im
+	// Meldemodus bleibt er "Melden" -- dort heisst die Ueberschrift woertlich "Karteneintrag melden".
+	// 💣 Nur das SPAN beschriften, nie den Button: dessen textContent zu setzen loeschte das Brief-Bild.
+	const submitLabel = document.getElementById("location-report-submit-label");
+	if (submitLabel) {
+		submitLabel.textContent = tr("report.changeSubmit", "Vorschlag senden");
+	}
 }
 
 // "Neue Position vorschlagen" (nur Aenderungsmodus): Dialog kurz ausblenden, Toast, EIN Kartenklick setzt die
@@ -497,6 +504,13 @@ function clearChangeSuggestionMode() {
 	const introEl = document.querySelector(".location-report-dialog__intro");
 	if (introEl) {
 		introEl.textContent = tr("report.intro", "Hilf mit, Avesmaps zu erweitern. Alle Meldungen werden gesammelt und geprüft. Bitte melde nur Einträge mit sicherer Quellenlage und beschreibe die Stelle, wenn die Position nicht eindeutig ist.");
+	}
+	// Gegenstueck zum Aenderungsmodus: zurueck auf "Melden". Ohne diese Zeile truege der naechste
+	// NEUE Eintrag die Beschriftung des vorherigen Aenderungsvorschlags -- die Dialoghuelle wird
+	// wiederverwendet, und genau so ist es bei Titel, Vorspann und Quellen-Label auch geregelt.
+	const submitLabel = document.getElementById("location-report-submit-label");
+	if (submitLabel) {
+		submitLabel.textContent = tr("report.submit", "Melden");
 	}
 }
 

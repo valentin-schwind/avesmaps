@@ -625,6 +625,7 @@ window.AVESMAPS_I18N_EN = {
 	"report.commentLabel": "Comment (for further description)",
 	"report.cancel": "Cancel",
 	"report.submit": "Report",
+	"report.changeSubmit": "Send suggestion",
 	"report.toastSubmitted": "Map entry has been reported.",
 	"report.statusSendFailed": "The report could not be sent.",
 	"report.statusNotConfigured": "The report form is not yet connected to the Avesmaps server.",
