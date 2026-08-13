@@ -931,7 +931,7 @@ function buildGameLiteratureSectionMarkup(placeName, beginnt, play, covers, opts
 	var listMarkup = '<div class="avesmaps-adv__list">' + cards + '</div>';
 
 	var alleMarkup = (hasBeginnt || hasPlay || hasCovers) ? '<div class="avesmaps-adv__actions location-popup__actions"><button type="button" class="location-popup__action-button avesmaps-adv__all">'
-		+ '<img class="location-popup__action-img" src="img/menu/literatur.webp" alt="" width="20" height="20" />'
+		+ '<img class="location-popup__action-img" src="img/menu/literatur.webp?v=2" alt="" width="20" height="20" />'
 		+ placeExtrasEscape(tr("gameLiterature.all", "Literatur anzeigen")) + '</button></div>' : "";
 
 	var creditMarkup = avesmapsGameLiteratureCreditMarkup();
@@ -1082,7 +1082,7 @@ function buildFloatingGameLiteratureButtonMarkup(location, publicId) {
 	}
 	return popupActionButtonMarkup({
 		label: tr("gameLiterature.label", "Literatur"),
-		iconMarkup: '<img class="location-popup__action-img" src="img/menu/literatur.webp" alt="" width="20" height="20" />',
+		iconMarkup: '<img class="location-popup__action-img" src="img/menu/literatur.webp?v=2" alt="" width="20" height="20" />',
 		attributes: attributes,
 	});
 }
