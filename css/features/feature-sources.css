@@ -299,7 +299,9 @@
 	color: var(--color-text-muted);
 	background: var(--color-panel-soft);
 	border: 1px solid var(--color-border);
-	border-radius: 999px;
+	/* 💣 KEINE Pille. Die Designsprache sagt „radius --radius-md; no pill shapes" (AGENTS.md §12);
+	   hier stand 999px. Owner 2026-08-12: „haben round borders". */
+	border-radius: var(--radius-md);
 	cursor: pointer;
 	user-select: none;
 }
@@ -324,8 +326,13 @@
 	margin-top: 9px;
 	max-height: 230px;
 	overflow-y: auto;
-	border: 1px solid var(--color-border);
-	border-radius: 7px;
+	/* 🔴 KEIN Kasten mehr um die Tabelle. Die Designsprache gruppiert „per Trenner, nicht per
+	   gerahmten Boxen" (AGENTS.md §12) -- der Rahmen samt 7px-Ecken (ein Literal, kein Token)
+	   sass um eine Tabelle, deren Zellen ohnehin schon auf die Textkante gepolstert sind. Owner
+	   2026-08-12: „entweder wir machen die tabelle abstandsgleich mit dem text oder entfernen die
+	   corners" -- hier beides: der Rahmen faellt, die Zellen sitzen buendig (siehe die
+	   Panel-Regel weiter oben, deren -1px-Ausgleich fuer genau diesen Rahmen da war).
+	   Der weiche Untergrund bleibt: er markiert den scrollbaren Bereich. */
 	background: var(--color-panel-soft);
 }
 /* Publikationen-Tabelle im rechten Panel nutzt die volle Infobox-Breite (Owner: nur die Breite der
@@ -342,8 +349,8 @@
    fuer den Wrapper-Rahmen -> 18px effektiver Einzug, exakt wie der Rest. Nur im Panel. */
 .avesmaps-infopanel .fs-src-table th,
 .avesmaps-infopanel .fs-src-table td {
-	padding-left: calc(var(--infopanel-pad-x) - 1px);
-	padding-right: calc(var(--infopanel-pad-x) - 1px);
+	padding-left: var(--infopanel-pad-x);
+	padding-right: var(--infopanel-pad-x);
 }
 .fs-src-table {
 	width: 100%;

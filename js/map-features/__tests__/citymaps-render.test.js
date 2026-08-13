@@ -133,6 +133,13 @@ assert.ok(section.includes("infobox-section__head") && section.includes("<summar
 assert.ok(section.includes("Kartensammlung von Gareth"), "heading names the place");
 assert.ok(section.includes(">(2)<"), "heading counts the maps");
 assert.ok(section.includes("avesmaps-citymaps__all"), "section offers 'Alle anzeigen'");
+// 💣 Die Knoepfe sind KACHELN (Owner 2026-08-12: „auch im kachelstil"). Sie tragen die echten
+// Klassen `location-popup__actions` / `location-popup__action-button` statt eines Nachbaus -- der hatte
+// `border-radius: 6px`, wo der Token 8px sagt, und war damit schon auseinandergelaufen.
+assert.ok(/class="location-popup__action-button avesmaps-citymaps__all"/.test(section),
+	"„Alle anzeigen“ ist eine Kachel: " + section.slice(0, 200));
+assert.ok(section.includes("avesmaps-citymaps__actions location-popup__actions"),
+	"und ihr Band ist das Kachelband -- daran haengen Abstand und Spaltenanordnung");
 // A territory block is tagged so the dialog can rebuild the same set.
 assert.ok(buildCityMapsSectionMarkup("Garetien", [{ public_id: "m", title: "T" }], { territoryKey: "wiki:Garetien" })
   .includes('data-citymap-territory-key="wiki:Garetien"'));

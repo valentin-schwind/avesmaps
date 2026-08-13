@@ -150,25 +150,22 @@
    EINZIGE Aktion und dort deshalb gefüllt (weiter unten).
    Ein gemeinsamer Selektor statt zweier Regeln: die beiden stehen nebeneinander, jede Abweichung sähe man
    sofort — und niemand müsste sie zweimal nachziehen. */
-.avesmaps-citymaps__all,
-.avesmaps-citymaps__suggest {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	padding: 5px 12px;
-	appearance: none;
-	background: var(--color-button-soft);
-	border: 1px solid var(--color-button-soft-border);
-	border-radius: 6px;
-	font: inherit;
-	font-size: 12px;
-	color: var(--color-button-soft-text);
-	cursor: pointer;
-	transition: background-color 0.12s ease;
-}
-.avesmaps-citymaps__all:hover,
-.avesmaps-citymaps__suggest:hover {
-	background: var(--color-button-soft-hover);
+/* 🪤 Hier stand bis zum 2026-08-12 ein NACHBAU der Kachel -- eigenes Padding, eigene Farben und
+   `border-radius: 6px`, wo der Token 8px sagt. Beide Knoepfe tragen jetzt
+   `location-popup__action-button` und bekommen Form, Farbe, Hover und die Spaltenanordnung des
+   Panels von dort (Owner 2026-08-12: „auch im kachelstil"). Wer hier wieder Knopf-Eigenschaften
+   hinschreibt, baut die zweite Fassung ein zweites Mal.
+
+   💣 Die Kacheln muessen die Zeile FUELLEN, und dafuer braucht es diese Regel: die Breitenregeln in
+   location-popups-markers.css sind KIND-Selektoren (`.location-popup > .location-popup__actions >
+   …`), diese Baender haengen aber in `.avesmaps-citymaps` bzw. `.avesmaps-adv`. Ohne sie blieben die
+   Kacheln auf ihrer Inhaltsbreite stehen (gemessen: 90 px in einem 400-px-Panel). Derselbe Fall wie
+   bei den Regionen, beim find-nearest-Kasten und beim Bewertungsknopf -- vier Stellen, eine
+   Ursache; wer eine fuenfte anlegt, faellt in dieselbe Grube. */
+.avesmaps-citymaps__actions > .location-popup__action-button,
+.avesmaps-adv__actions > .location-popup__action-button {
+	flex: 1 1 90px;
+	width: auto;
 }
 
 /* ---- Abenteuer in <Ort> ---- */
@@ -291,25 +288,7 @@
 	text-decoration: underline;
 }
 /* "Alle anzeigen" -> oeffnet den Dialog mit allen Abenteuern. */
-.avesmaps-adv__all {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	margin-top: 10px;
-	padding: 5px 12px;
-	appearance: none;
-	background: var(--color-button-soft);
-	border: 1px solid var(--color-button-soft-border);
-	border-radius: 6px;
-	font: inherit;
-	font-size: 12px;
-	color: var(--color-button-soft-text);
-	cursor: pointer;
-	transition: background-color 0.12s ease;
-}
-.avesmaps-adv__all:hover {
-	background: var(--color-button-soft-hover);
-}
+/* 🪤 Ebenfalls ein Nachbau, ebenfalls entfallen -- siehe die Kartensammlung weiter oben. */
 
 /* Aktionszeile unter dem beginnt-Streifen: "Alle anzeigen" + Spoiler-Button, umbrechend. */
 .avesmaps-adv__actions {

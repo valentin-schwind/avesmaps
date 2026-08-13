@@ -259,8 +259,14 @@ function buildCityMapsSectionMarkup(placeName, maps, opts) {
 	// Ohne Ortsreferenz kein Button: der Dialog fragt "Karte vorschlagen – <Ort>" und haenge den Vorschlag
 	// genau dort an. Ohne Ort waere er ein Formular ins Nichts. Faellt heute nie an (alle vier Aufrufer
 	// liefern einen Ort), aber der Zustand ist gueltig und darf nicht als kaputter Button erscheinen.
+	// 💣 KACHELN, keine Nachbauten (Owner 2026-08-12: „auch im kachelstil"). Die Klassen
+	// `location-popup__actions` / `location-popup__action-button` bringen Form, Farbe, Hover und die
+	// Spaltenanordnung des Panels mit; die eigenen Klassen bleiben daneben, weil die Klick-Handler an
+	// ihnen hängen. Die nachgebauten Knopf-Regeln in place-extras.css sind damit entfallen -- sie
+	// waren eine zweite Fassung derselben Kachel und schon auseinandergelaufen
+	// (`border-radius: 6px` gegen den Token --radius-md = 8px).
 	var suggestButton = place
-		? '<button type="button" class="avesmaps-citymaps__suggest"' + citymapPlaceAttrs(place, name) + '>'
+		? '<button type="button" class="location-popup__action-button avesmaps-citymaps__suggest"' + citymapPlaceAttrs(place, name) + '>'
 			+ placeExtrasEscape(tr("cityMaps.suggest", "Karte vorschlagen")) + '</button>'
 		: "";
 	// Die Lizenz-Fussnote reist MIT den Covern, nicht hinter ihnen her: sie ist die Bedingung, unter der
@@ -275,8 +281,8 @@ function buildCityMapsSectionMarkup(placeName, maps, opts) {
 		+ tr("cityMaps.headingIn", "Kartensammlung von {place}", { place: placeExtrasEscape(name) })
 		+ ' <span class="avesmaps-citymaps__count">(' + placeExtrasEscape((maps || []).length) + ')</span></summary>'
 		+ '<div class="avesmaps-citymaps__scroll">' + cards + '</div>'
-		+ '<div class="avesmaps-citymaps__actions">'
-		+ '<button type="button" class="avesmaps-citymaps__all">' + placeExtrasEscape(tr("cityMaps.all", "Alle anzeigen")) + '</button>'
+		+ '<div class="avesmaps-citymaps__actions location-popup__actions">'
+		+ '<button type="button" class="location-popup__action-button avesmaps-citymaps__all">' + placeExtrasEscape(tr("cityMaps.all", "Alle anzeigen")) + '</button>'
 		+ suggestButton
 		+ '</div>'
 		+ creditMarkup
@@ -921,7 +927,7 @@ function buildGameLiteratureSectionMarkup(placeName, beginnt, play, covers, opts
 	).map(function (e) { return buildGameLiteratureCardMarkup(e.a, e.role); }).join("");
 	var listMarkup = '<div class="avesmaps-adv__list">' + cards + '</div>';
 
-	var alleMarkup = (hasBeginnt || hasPlay || hasCovers) ? '<div class="avesmaps-adv__actions"><button type="button" class="avesmaps-adv__all">' + placeExtrasEscape(tr("gameLiterature.all", "Alle anzeigen")) + '</button></div>' : "";
+	var alleMarkup = (hasBeginnt || hasPlay || hasCovers) ? '<div class="avesmaps-adv__actions location-popup__actions"><button type="button" class="location-popup__action-button avesmaps-adv__all">' + placeExtrasEscape(tr("gameLiterature.all", "Alle anzeigen")) + '</button></div>' : "";
 
 	var creditMarkup = avesmapsGameLiteratureCreditMarkup();
 
