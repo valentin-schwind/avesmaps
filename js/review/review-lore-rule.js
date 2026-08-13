@@ -418,7 +418,7 @@ function avesmapsLoreRuleTermIsEmpty(term) {
    💣 Die Kombinationszeichen als \u-Escapes, nie als Literale: als Literale sind sie im
    Quelltext unsichtbar und ueberleben kein Werkzeug, das beim Kopieren normalisiert. */
 function avesmapsLoreRuleSearchKey(value) {
-	return String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+	return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
 		.replace(/ß/g, "ss")
 		.replace(/ue/g, "u").replace(/oe/g, "o").replace(/ae/g, "a")
 		.replace(/[^a-z0-9]+/g, " ").trim();
@@ -563,35 +563,10 @@ function avesmapsLoreRuleJoinerMarkup(term, index) {
 		+ "</select></div>";
 }
 
-// Das Markup EINER Bedingung: Flaechenname- und Landschaftsart-Suchfeld mit Marken darunter, der
-// Klimastreifen, „Bedingung entfernen". Die Suchfelder selbst bleiben normale <input>; die
-// Vorschlagsmechanik haengt avesmapsLoreRuleWireAutocomplete NACH dem Einsetzen ins DOM an
-// (jQuery-UI-Autocomplete braucht echte Knoten).
-function avesmapsLoreRuleTermMarkup(term, index, total) {
-	// 💣 Ein gewaehlter Eintrag, den die Suche wegfiltern wuerde (Katalog inzwischen geladen, Eintrag
-	// aber nicht mehr drin -- geloescht, deaktiviert, oder der Katalog ist noch leer), bleibt STEHEN
-	// und bekommt eine gestrichelte Kontur statt zu verschwinden: sonst waere er nicht mehr
-	// abwaehlbar, und die Regel truege eine Bedingung, die niemand sieht. Waehrend der Katalog noch
-	// leer ist (laedt gerade), gilt ein Eintrag als bekannt -- sonst blitzt jede Marke beim
-	// OEffnen kurz gestrichelt auf.
-	var areaToken = "";
-	if (term.area_public_id) {
-		var areaKnown = avesmapsLoreRuleAreaCatalog.length === 0
-			|| avesmapsLoreRuleAreaCatalog.some(function (area) { return area.public_id === term.area_public_id; });
-		areaToken = '<button type="button" class="lore-rule-token' + (areaKnown ? "" : " is-unlisted")
-			+ '" data-lore-rule-remove-area data-term-index="' + index + '">'
-			+ escapeHtml(term.area_name || term.area_public_id) + '<span class="lore-rule-token__x">×</span></button>';
-	}
-
-	var typeTokens = (term.types || []).map(function (type) {
-		var known = avesmapsLoreRuleTypeCatalog.length === 0
-			|| avesmapsLoreRuleTypeCatalog.some(function (row) { return row.kind === type.kind && row.region_type === type.region_type; });
-		var value = String(type.kind) + "/" + String(type.region_type);
-		return '<button type="button" class="lore-rule-token' + (known ? "" : " is-unlisted")
-			+ '" data-lore-rule-remove-type data-term-index="' + index + '" data-type-value="' + escapeHtml(value) + '">'
-			+ escapeHtml(avesmapsLoreRuleTypeLabel(type)) + '<span class="lore-rule-token__x">×</span></button>';
-	}).join("");
-
+// Die Klimaspanne EINER Bedingung, einmal berechnet -- von der vollen Bedingungs-Markup (unten) UND
+// vom billigen Neuzeichnen (avesmapsLoreRuleRepaintEditor) gebraucht. Eine zweite Berechnung derselben
+// Zahlen an zwei Stellen wäre genau die Divergenz, vor der AGENTS.md §12 warnt.
+function avesmapsLoreRuleTermClimateState(term) {
 	var zoneKeys = avesmapsLoreRuleZoneKeysOrdered();
 	var zoneLabels = avesmapsLoreRuleZoneLabelsGlobal();
 	var lowIndex = -1;
@@ -605,19 +580,63 @@ function avesmapsLoreRuleTermMarkup(term, index, total) {
 		}
 	}
 	var climateActive = lowIndex >= 0;
+	return {
+		zoneKeys: zoneKeys,
+		zoneLabels: zoneLabels,
+		lowIndex: lowIndex,
+		highIndex: highIndex,
+		climateActive: climateActive,
+		fromValue: climateActive ? term.climate_from : (zoneKeys[0] || ""),
+		toValue: climateActive ? term.climate_to : (zoneKeys[zoneKeys.length - 1] || ""),
+	};
+}
 
-	var stripHtml = zoneKeys.map(function (zoneKey, zoneIndex) {
-		var inside = climateActive && zoneIndex >= lowIndex && zoneIndex <= highIndex;
-		var isEnd = inside && (zoneIndex === lowIndex || zoneIndex === highIndex);
+// 💣 Ein gewaehlter Eintrag, den die Suche wegfiltern wuerde (Katalog inzwischen geladen, Eintrag aber
+// nicht mehr drin -- geloescht, deaktiviert, oder der Katalog ist noch leer), bleibt STEHEN und bekommt
+// eine gestrichelte Kontur statt zu verschwinden: sonst waere er nicht mehr abwaehlbar, und die Regel
+// truege eine Bedingung, die niemand sieht. Waehrend der Katalog noch leer ist (laedt gerade), gilt ein
+// Eintrag als bekannt -- sonst blitzt jede Marke beim OEffnen kurz gestrichelt auf.
+function avesmapsLoreRuleAreaTokenMarkup(term, index) {
+	if (!term.area_public_id) {
+		return "";
+	}
+	var areaKnown = avesmapsLoreRuleAreaCatalog.length === 0
+		|| avesmapsLoreRuleAreaCatalog.some(function (area) { return area.public_id === term.area_public_id; });
+	return '<button type="button" class="lore-rule-token' + (areaKnown ? "" : " is-unlisted")
+		+ '" data-lore-rule-remove-area data-term-index="' + index + '">'
+		+ escapeHtml(term.area_name || term.area_public_id) + '<span class="lore-rule-token__x">×</span></button>';
+}
+
+function avesmapsLoreRuleTypeTokensMarkup(term, index) {
+	return (term.types || []).map(function (type) {
+		var known = avesmapsLoreRuleTypeCatalog.length === 0
+			|| avesmapsLoreRuleTypeCatalog.some(function (row) { return row.kind === type.kind && row.region_type === type.region_type; });
+		var value = String(type.kind) + "/" + String(type.region_type);
+		return '<button type="button" class="lore-rule-token' + (known ? "" : " is-unlisted")
+			+ '" data-lore-rule-remove-type data-term-index="' + index + '" data-type-value="' + escapeHtml(value) + '">'
+			+ escapeHtml(avesmapsLoreRuleTypeLabel(type)) + '<span class="lore-rule-token__x">×</span></button>';
+	}).join("");
+}
+
+function avesmapsLoreRuleClimateStripMarkup(term, index, climateState) {
+	return climateState.zoneKeys.map(function (zoneKey, zoneIndex) {
+		var inside = climateState.climateActive && zoneIndex >= climateState.lowIndex && zoneIndex <= climateState.highIndex;
+		var isEnd = inside && (zoneIndex === climateState.lowIndex || zoneIndex === climateState.highIndex);
 		var cls = "lore-rule-climate__seg" + (inside ? " is-in" : "") + (isEnd ? " is-end" : "");
 		return '<button type="button" class="' + cls + '" data-lore-rule-climate-seg data-term-index="' + index
-			+ '" data-zone="' + escapeHtml(zoneKey) + '" title="' + escapeHtml(zoneLabels[zoneKey] || zoneKey) + '"></button>';
+			+ '" data-zone="' + escapeHtml(zoneKey) + '" title="' + escapeHtml(climateState.zoneLabels[zoneKey] || zoneKey) + '"></button>';
 	}).join("");
+}
 
-	var fromValue = climateActive ? term.climate_from : (zoneKeys[0] || "");
-	var toValue = climateActive ? term.climate_to : (zoneKeys[zoneKeys.length - 1] || "");
+// Das Markup EINER Bedingung: Flaechenname- und Landschaftsart-Suchfeld mit Marken darunter, der
+// Klimastreifen, „Bedingung entfernen". Die Suchfelder selbst bleiben normale <input>; die
+// Vorschlagsmechanik haengt avesmapsLoreRuleWireAutocomplete NACH dem Einsetzen ins DOM an
+// (jQuery-UI-Autocomplete braucht echte Knoten). Traegt data-term-index am AEUSSEREN Knoten, damit
+// avesmapsLoreRuleRepaintEditor diese Bedingung wiederfindet, ohne sie neu zu bauen.
+function avesmapsLoreRuleTermMarkup(term, index, total) {
+	var climateState = avesmapsLoreRuleTermClimateState(term);
 
-	return '<div class="lore-rule-term">'
+	return '<div class="lore-rule-term" data-lore-rule-term data-term-index="' + index + '">'
 		+ '<div class="lore-rule-term__head">'
 		+ '<span class="lore-rule-term__name">Bedingung ' + (index + 1) + "</span>"
 		+ '<button type="button" class="lore-rule-icon-btn" data-lore-rule-remove-term data-term-index="' + index + '"'
@@ -628,27 +647,29 @@ function avesmapsLoreRuleTermMarkup(term, index, total) {
 		+ '<span class="lore-rule-field__label">Flächenname</span>'
 		+ '<input type="text" class="lore-rule-input lore-rule-ac-input" data-lore-rule-area-input data-term-index="' + index + '"'
 		+ (term.area_public_id ? " hidden" : "") + ' placeholder="eine bestimmte Fläche suchen — leer = alle" autocomplete="off">'
-		+ '<span class="lore-rule-tokens">' + areaToken + "</span>"
+		+ '<span class="lore-rule-tokens" data-lore-rule-area-tokens>' + avesmapsLoreRuleAreaTokenMarkup(term, index) + "</span>"
 		+ "</label>"
 
 		+ '<label class="lore-rule-field">'
 		+ '<span class="lore-rule-field__label">Landschaftsart <span class="lore-rule-field__hint">— mehrere sind ein ODER</span></span>'
 		+ '<input type="text" class="lore-rule-input lore-rule-ac-input" data-lore-rule-type-input data-term-index="' + index + '"'
 		+ ' placeholder="Art suchen — Wald, Gebirge, oder Vegetation für die ganze Ebene …" autocomplete="off">'
-		+ '<span class="lore-rule-tokens">' + typeTokens + "</span>"
+		+ '<span class="lore-rule-tokens" data-lore-rule-type-tokens>' + avesmapsLoreRuleTypeTokensMarkup(term, index) + "</span>"
 		+ "</label>"
 
 		+ '<div class="lore-rule-field">'
 		+ '<span class="lore-rule-field__label">Klimazone <span class="lore-rule-field__hint">— eine Spanne</span></span>'
 		+ '<div class="lore-rule-climate">'
-		+ '<div class="lore-rule-climate__strip">' + stripHtml + "</div>"
+		+ '<div class="lore-rule-climate__strip" data-lore-rule-climate-strip>' + avesmapsLoreRuleClimateStripMarkup(term, index, climateState) + "</div>"
 		+ '<div class="lore-rule-climate__ends"><span>Norden</span><span>Süden</span></div>'
 		+ "</div>"
 		+ '<div class="lore-rule-row">'
 		+ '<select class="lore-rule-input" data-lore-rule-climate-select data-term-index="' + index + '" data-edge="from"'
-		+ (climateActive ? "" : " disabled") + ">" + avesmapsLoreRuleZoneOptionsMarkup(zoneKeys, zoneLabels, fromValue) + "</select>"
+		+ (climateState.climateActive ? "" : " disabled") + ">"
+		+ avesmapsLoreRuleZoneOptionsMarkup(climateState.zoneKeys, climateState.zoneLabels, climateState.fromValue) + "</select>"
 		+ '<select class="lore-rule-input" data-lore-rule-climate-select data-term-index="' + index + '" data-edge="to"'
-		+ (climateActive ? "" : " disabled") + ">" + avesmapsLoreRuleZoneOptionsMarkup(zoneKeys, zoneLabels, toValue) + "</select>"
+		+ (climateState.climateActive ? "" : " disabled") + ">"
+		+ avesmapsLoreRuleZoneOptionsMarkup(climateState.zoneKeys, climateState.zoneLabels, climateState.toValue) + "</select>"
 		+ '<button type="button" class="lore-rule-btn" data-lore-rule-climate-off data-term-index="' + index + '">egal</button>'
 		+ "</div>"
 		+ "</div>"
@@ -656,9 +677,13 @@ function avesmapsLoreRuleTermMarkup(term, index, total) {
 		+ "</div>";
 }
 
-// Zeichnet den gesamten Koerper aus dem Editorzustand neu: die Bedingungen mit ihren Verknuepfungs-
-// Marken, „+ Bedingung", der Satz (derselbe Satzbauer wie die Karte, avesmapsLoreRuleSentence -- EINE
-// Ableitung fuer beides), und die gesperrten Knoepfe „Regel übernehmen"/Trefferzahlen (Task 7).
+// Das TEURE Neuzeichnen: der ganze Koerper aus dem Editorzustand, per innerHTML. Nur fuer STRUKTURELLE
+// Aenderungen (Anzahl der Bedingungen aendert sich: oeffnen, „+ Bedingung", „Bedingung entfernen") --
+// jeder Aufruf wirft die vorhandenen <input>-Knoten weg und damit auch, was ein Anwender gerade
+// UNBESTAETIGT hineingetippt hat. Fuer alles andere: avesmapsLoreRuleRepaintEditor.
+// Vorbild: docs/vorkommen-regeleditor-mockup.html trennt renderAll() (voller Aufbau, nur bei
+// Anzahlaenderung) von refresh()/box._paint() (billiges Neuzeichnen bei jeder sonstigen Aenderung) --
+// genau dieselbe Trennung, uebertragen auf innerHTML statt DOM-Knoten.
 function avesmapsLoreRuleRenderEditor() {
 	if (!avesmapsLoreRuleEditor || !avesmapsLoreRuleEditorOverlayEl) {
 		return;
@@ -674,20 +699,14 @@ function avesmapsLoreRuleRenderEditor() {
 			+ avesmapsLoreRuleTermMarkup(term, index, state.terms.length);
 	}).join("");
 
-	var sentence = avesmapsLoreRuleSentence({ terms: state.terms }, avesmapsLoreRuleZoneLabelsGlobal());
-	var allEmpty = state.terms.every(avesmapsLoreRuleTermIsEmpty);
-	var countLabel = state.terms.length + (state.terms.length === 1 ? " Bedingung" : " Bedingungen");
-
 	body.innerHTML = '<p class="lore-rule-hint">Leeres Feld = keine Einschränkung. Innerhalb einer Bedingung gilt immer UND.</p>'
-		+ '<div class="lore-rule-terms">' + termsHtml + "</div>"
+		+ '<div class="lore-rule-terms" data-lore-rule-terms>' + termsHtml + "</div>"
 		+ '<div class="lore-rule-row">'
 		+ '<button type="button" class="lore-rule-btn" data-lore-rule-add-term>+ Bedingung</button>'
-		+ '<span class="lore-rule-hint">' + escapeHtml(countLabel) + "</span>"
+		+ '<span class="lore-rule-hint" data-lore-rule-count></span>'
 		+ "</div>"
-		+ '<p class="lore-rule-sentence">' + sentence + "</p>"
-		+ (allEmpty
-			? '<p class="lore-rule-hint lore-rule-hint--warn">Ohne eine einzige Einschränkung träfe die Regel alles — das ist keine Regel.</p>'
-			: "")
+		+ '<p class="lore-rule-sentence" data-lore-rule-sentence></p>'
+		+ '<p class="lore-rule-hint lore-rule-hint--warn" data-lore-rule-warn hidden></p>'
 		+ '<p class="lore-rule-hint">Trefferzahlen erscheinen beim Speichern.</p>'
 		+ '<div class="lore-rule-row lore-rule-row--end">'
 		+ '<button type="button" class="lore-rule-btn" data-lore-rule-cancel>Abbrechen</button>'
@@ -695,6 +714,84 @@ function avesmapsLoreRuleRenderEditor() {
 		+ "</div>";
 
 	avesmapsLoreRuleWireAutocomplete(body);
+	avesmapsLoreRuleRepaintDerived(body);
+}
+
+// Das BILLIGE Neuzeichnen: fasst pro Bedingung nur die Knoten an, die reine ABLEITUNGEN aus dem
+// Zustand sind (Marken, Klimastreifen, Klima-Auswahlfelder, Satz, Hinweiszeilen) -- nie die
+// Such-<input>-Felder selbst und nie ihre jQuery-UI-Autocomplete-Bindung. Ein Tippfeld, das gerade
+// unbestaetigten Text traegt, bleibt so unberuehrt, waehrend anderswo (auch in einer ANDEREN
+// Bedingung) geklickt wird. Setzt voraus, dass sich die ANZAHL der Bedingungen nicht geaendert hat --
+// dafuer ist avesmapsLoreRuleRenderEditor da.
+function avesmapsLoreRuleRepaintEditor() {
+	if (!avesmapsLoreRuleEditor || !avesmapsLoreRuleEditorOverlayEl) {
+		return;
+	}
+	var body = avesmapsLoreRuleEditorOverlayEl.querySelector("[data-lore-rule-body]");
+	if (!body) {
+		return;
+	}
+	var state = avesmapsLoreRuleEditor;
+
+	state.terms.forEach(function (term, index) {
+		var termEl = body.querySelector('[data-lore-rule-term][data-term-index="' + index + '"]');
+		if (!termEl) {
+			return;
+		}
+		var climateState = avesmapsLoreRuleTermClimateState(term);
+
+		var areaInput = termEl.querySelector("[data-lore-rule-area-input]");
+		if (areaInput) {
+			areaInput.hidden = Boolean(term.area_public_id);
+		}
+		var areaTokens = termEl.querySelector("[data-lore-rule-area-tokens]");
+		if (areaTokens) {
+			areaTokens.innerHTML = avesmapsLoreRuleAreaTokenMarkup(term, index);
+		}
+		var typeTokens = termEl.querySelector("[data-lore-rule-type-tokens]");
+		if (typeTokens) {
+			typeTokens.innerHTML = avesmapsLoreRuleTypeTokensMarkup(term, index);
+		}
+		var strip = termEl.querySelector("[data-lore-rule-climate-strip]");
+		if (strip) {
+			strip.innerHTML = avesmapsLoreRuleClimateStripMarkup(term, index, climateState);
+		}
+		var fromSelect = termEl.querySelector('[data-lore-rule-climate-select][data-edge="from"]');
+		if (fromSelect) {
+			fromSelect.disabled = !climateState.climateActive;
+			fromSelect.value = climateState.fromValue;
+		}
+		var toSelect = termEl.querySelector('[data-lore-rule-climate-select][data-edge="to"]');
+		if (toSelect) {
+			toSelect.disabled = !climateState.climateActive;
+			toSelect.value = climateState.toValue;
+		}
+	});
+
+	avesmapsLoreRuleRepaintDerived(body);
+}
+
+// Der Teil, der von KEINEM einzelnen <input> abhaengt -- Satz, Bedingungszahl, Leer-Warnung. Sowohl
+// die volle als auch die billige Neuzeichnung brauchen genau das, deshalb an einer Stelle.
+function avesmapsLoreRuleRepaintDerived(body) {
+	var state = avesmapsLoreRuleEditor;
+	if (!state) {
+		return;
+	}
+	var sentenceEl = body.querySelector("[data-lore-rule-sentence]");
+	if (sentenceEl) {
+		sentenceEl.innerHTML = avesmapsLoreRuleSentence({ terms: state.terms }, avesmapsLoreRuleZoneLabelsGlobal());
+	}
+	var countEl = body.querySelector("[data-lore-rule-count]");
+	if (countEl) {
+		countEl.textContent = state.terms.length + (state.terms.length === 1 ? " Bedingung" : " Bedingungen");
+	}
+	var warnEl = body.querySelector("[data-lore-rule-warn]");
+	if (warnEl) {
+		var allEmpty = state.terms.every(avesmapsLoreRuleTermIsEmpty);
+		warnEl.hidden = !allEmpty;
+		warnEl.textContent = allEmpty ? "Ohne eine einzige Einschränkung träfe die Regel alles — das ist keine Regel." : "";
+	}
 }
 
 // Haengt jQuery-UI-Autocomplete an die beiden Suchfelder JEDER Bedingung -- nach jedem Neuzeichnen
@@ -737,7 +834,10 @@ function avesmapsLoreRuleWireAutocomplete(body) {
 				}
 				term.area_public_id = ui.item.value;
 				term.area_name = ui.item.name;
-				avesmapsLoreRuleRenderEditor();
+				// Nur DIESES Feld leeren -- ein billiges Neuzeichnen ruehrt kein <input> an (Befund 2,
+				// Fix-Runde 1), also muss die eigene Eingabe hier explizit zurueckgesetzt werden.
+				inputEl.value = "";
+				avesmapsLoreRuleRepaintEditor();
 			},
 		}).on("focus", function () {
 			$(this).autocomplete("search", $(this).val());
@@ -771,7 +871,9 @@ function avesmapsLoreRuleWireAutocomplete(body) {
 					return;
 				}
 				avesmapsLoreRuleEditor.terms[termIndex] = avesmapsLoreRuleTermToggleType(avesmapsLoreRuleEditor.terms[termIndex], ui.item.value);
-				avesmapsLoreRuleRenderEditor();
+				// Nur DIESES Feld leeren, aus demselben Grund wie beim Flaechenname-Feld oben.
+				inputEl.value = "";
+				avesmapsLoreRuleRepaintEditor();
 			},
 		}).on("focus", function () {
 			$(this).autocomplete("search", $(this).val());
@@ -780,9 +882,16 @@ function avesmapsLoreRuleWireAutocomplete(body) {
 }
 
 // Der EINE delegierte Klick-Listener der Overlay-Huelle (an overlay gebunden, siehe
-// avesmapsLoreRuleEnsureEditorOverlay) -- deckt alles ab, was in avesmapsLoreRuleRenderEditor
-// gezeichnet wird. Jede Aenderung endet mit einem Neuzeichnen, damit Marken, Satz und Streifen
-// sofort den neuen Zustand zeigen.
+// avesmapsLoreRuleEnsureEditorOverlay) -- deckt alles ab, was avesmapsLoreRuleRenderEditor/
+// -RepaintEditor zeichnen.
+//
+// 💣 Fix-Runde 1, Befund 2: NUR „+ Bedingung" und „Bedingung entfernen" aendern die ANZAHL der
+// Bedingungen und rufen deshalb das TEURE avesmapsLoreRuleRenderEditor (wirft alle <input>-Knoten weg
+// und baut sie neu). Jede andere Aktion hier ruft das BILLIGE avesmapsLoreRuleRepaintEditor -- sonst
+// verliert ein Anwender, der in einer Bedingung tippt und dann in einer ANDEREN klickt, seinen noch
+// unbestaetigten Text: das volle Neuzeichnen kennt ihn nicht (er steht nur im <input>, nicht im
+// Zustand) und ersetzt den Knoten, der ihn traegt. Vorbild: docs/vorkommen-regeleditor-mockup.html
+// trennt renderAll() (nur bei Anzahlaenderung) von refresh()/box._paint() (bei allem anderen) genauso.
 function avesmapsLoreRuleHandleEditorClick(event) {
 	var target = event.target;
 	if (!target || !target.closest || !avesmapsLoreRuleEditor) {
@@ -815,7 +924,7 @@ function avesmapsLoreRuleHandleEditorClick(event) {
 			areaTerm.area_public_id = null;
 			areaTerm.area_name = "";
 		}
-		avesmapsLoreRuleRenderEditor();
+		avesmapsLoreRuleRepaintEditor();
 		return;
 	}
 
@@ -828,7 +937,7 @@ function avesmapsLoreRuleHandleEditorClick(event) {
 				removeTypeBtn.getAttribute("data-type-value") || ""
 			);
 		}
-		avesmapsLoreRuleRenderEditor();
+		avesmapsLoreRuleRepaintEditor();
 		return;
 	}
 
@@ -840,7 +949,7 @@ function avesmapsLoreRuleHandleEditorClick(event) {
 			offTerm.climate_to = null;
 		}
 		avesmapsLoreRuleEditor.pending = null;
-		avesmapsLoreRuleRenderEditor();
+		avesmapsLoreRuleRepaintEditor();
 		return;
 	}
 
@@ -864,7 +973,7 @@ function avesmapsLoreRuleHandleEditorClick(event) {
 				avesmapsLoreRuleEditor.pending = null;
 			}
 		}
-		avesmapsLoreRuleRenderEditor();
+		avesmapsLoreRuleRepaintEditor();
 	}
 }
 
@@ -874,12 +983,14 @@ function avesmapsLoreRuleHandleEditorChange(event) {
 		return;
 	}
 
+	// Beides hier aendert nichts an der ANZAHL der Bedingungen -- billiges Neuzeichnen genuegt
+	// (Fix-Runde 1, Befund 2; Begruendung am Kopf von avesmapsLoreRuleHandleEditorClick).
 	if (target.matches && target.matches("[data-lore-rule-join]")) {
 		var joinTerm = avesmapsLoreRuleEditor.terms[Number(target.getAttribute("data-term-index"))];
 		if (joinTerm) {
 			joinTerm.join_op = target.value === "oder" ? "oder" : "und";
 		}
-		avesmapsLoreRuleRenderEditor();
+		avesmapsLoreRuleRepaintEditor();
 		return;
 	}
 
@@ -893,7 +1004,7 @@ function avesmapsLoreRuleHandleEditorChange(event) {
 			}
 		}
 		avesmapsLoreRuleEditor.pending = null;
-		avesmapsLoreRuleRenderEditor();
+		avesmapsLoreRuleRepaintEditor();
 	}
 }
 

@@ -989,6 +989,13 @@ select.lore-rule-input {
 	gap: var(--space-2);
 }
 
+/* Fix-Runde 1, Befund 3: 2px bleibt bewusst UNTER der kleinsten Abstufung (--space-2, 4px) statt auf
+   sie zu gehen -- kein Design-Wert im Sinn von AGENTS.md §12 (keine Farbe/Radius/Trenner), sondern eine
+   Haarlinie, die acht 16px hohe Segmente noch als EINEN zusammenhaengenden Streifen lesbar haelt. Der
+   ganze Witz des Streifens ist die Nachbarschaft der Zonen ("eine Spanne braucht ihre Nachbarn", oben);
+   4px waeren ein Viertel der Segmenthoehe und zerlegten ihn optisch in acht einzelne Chips. Wert und
+   Begruendung wie im Mockup (docs/vorkommen-regeleditor-mockup.html: .climate__strip { gap: 2px }),
+   nicht neu erfunden. */
 .lore-rule-climate__strip {
 	display: flex;
 	gap: 2px;
