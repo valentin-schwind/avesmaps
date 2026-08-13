@@ -26,6 +26,14 @@ declare(strict_types=1);
 // (path-ecosystem.php).
 const AVESMAPS_LORE_RULE_MAX_TERMS = 25;
 const AVESMAPS_LORE_RULE_MAX_TYPES_PER_TERM = 40;
+/**
+ * Wie viele Namen die Vorschau je Liste mitschickt.
+ *
+ * 💣 Die ZAHL in `counts` bleibt vollstaendig, gekappt wird nur die Namensliste. Eine gekappte
+ * Zahl waere eine Luege ueber die Reichweite der Regel -- und genau die Reichweite ist der
+ * Riegel, den der Editor vor dem Speichern sehen soll.
+ */
+const AVESMAPS_LORE_RULE_PREVIEW_SAMPLE = 120;
 
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/app/lore-edit.php';
@@ -240,6 +248,7 @@ try {
                     'areas' => [],
                     'places' => [],
                     'counts' => ['areas' => 0, 'places' => 0],
+                    'sample' => AVESMAPS_LORE_RULE_PREVIEW_SAMPLE,
                 ]);
             }
             $areas = avesmapsLoreRuleReadAreas($pdo);
@@ -257,11 +266,13 @@ try {
 
                 return $out;
             };
+            $counts = ['areas' => count($result['areas']), 'places' => count($result['places'])];
             avesmapsJsonResponse(200, [
                 'ok' => true,
-                'areas' => $named($areas, $result['areas']),
-                'places' => $named($places, $result['places']),
-                'counts' => ['areas' => count($result['areas']), 'places' => count($result['places'])],
+                'areas' => $named($areas, array_slice($result['areas'], 0, AVESMAPS_LORE_RULE_PREVIEW_SAMPLE)),
+                'places' => $named($places, array_slice($result['places'], 0, AVESMAPS_LORE_RULE_PREVIEW_SAMPLE)),
+                'counts' => $counts,
+                'sample' => AVESMAPS_LORE_RULE_PREVIEW_SAMPLE,
             ]);
             break;
         }
