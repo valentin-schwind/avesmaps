@@ -33,6 +33,27 @@
 	margin-top: 12px;
 }
 
+/* 💣 KEIN Trenner zwischen den Bewertungen und ihrem Knopf (Owner 2026-08-12: „zwischen button und
+ * den bewertungen braucht es keinen trenner"). Er kam nicht von hier, sondern von der allgemeinen
+ * Regel `.avesmaps-infopanel .location-popup__actions { border-top }` — die gilt dem Kachelband
+ * unter dem Kopf, wo sie richtig ist, und traf dieses Band nur, weil es dieselbe Klasse trägt.
+ *
+ * ⚠️ Deshalb hier zurückgenommen und NICHT dort entfernt: die Regel oben trennt Kopf von Inhalt,
+ * diese hier steht INNERHALB eines Abschnitts, der seinen Trenner schon über der Überschrift hat.
+ * Ein zweiter mitten darin zerschneidet, was zusammengehört.
+ *
+ * 💣 DREI Klassen im Selektor, und das ist der ganze Punkt. `.avesmaps-infopanel
+ * .location-popup__actions` in infopanel.css hat zwei — und infopanel.css wird SPÄTER importiert
+ * (styles.css: 43 gegen 57). Bei gleicher Spezifität gewinnt das spätere Blatt, eine zweiklassige
+ * Gegenregel hier wäre also wirkungslos gewesen, ohne dass irgendetwas es gemeldet hätte. Genau
+ * diese Falle steht schon einmal in AGENTS.md §10 (political-territory-editor-columns.css). */
+.avesmaps-infopanel .location-reviews__write .location-popup__actions,
+.location-reviews__write .location-popup__actions {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: 0;
+}
+
 /* 💣 „Bewertung schreiben" ist eine KACHEL wie die drei oben und muss die Zeile fuellen (Owner
  * 2026-08-12: „den bewertungsbutton groesser (Kachelstil)"). Sie blieb klein, weil die Regeln in
  * location-popups-markers.css als KIND-Selektoren geschrieben sind
@@ -58,9 +79,16 @@
 }
 
 /* ===== Bewertungs-Bereich in der Infobox ===== */
+/* ⚠️ 12/11 px, WEIL die beiden Nachbarn das haben. Kartensammlung und Literatur stehen mit
+ * `margin-top: 12px; padding-top: 11px` über ihrem Trenner (css/features/infopanel.css); die
+ * Bewertungen standen mit 10/8 enger dran und lasen sich deshalb wie ein Anhängsel des Blocks
+ * darüber statt wie ein eigener Abschnitt — der Trenner war da, er saß nur zu dicht. Owner
+ * 2026-08-12: „zwischen dem literaturabschnitt und dem bewertungsabschnitt fehlt noch ein trenner."
+ * ⭐ Gemessen, nicht geraten: alle drei Linien sind identisch (0,67 px, dieselbe Farbe, randlos über
+ * 385 px) — der Unterschied lag allein im Abstand. */
 .location-reviews {
-	margin-top: 10px;
-	padding-top: 8px;
+	margin-top: 12px;
+	padding-top: 11px;
 	border-top: 1px solid var(--color-divider);
 	font-size: 12px;
 	color: var(--color-text);
