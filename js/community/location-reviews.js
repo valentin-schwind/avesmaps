@@ -140,7 +140,10 @@ function reviewWriteButtonMarkup(publicId, name) {
 	}
 	const button = popupActionButtonMarkup({
 		label: tr("popup.writeReview", "Bewertung schreiben"),
-		iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--review" aria-hidden="true">★</span>',
+		// Owner 2026-08-13: das Stern-Emoji weicht dem eigenen Symbol -- wie bei Kartensammlung und
+		// Literatur ein Bild aus img/menu, kein Zeichen aus der Schrift. Damit tragen alle Kacheln
+		// dieselbe Bauart, und der Stern haengt nicht mehr an der Emoji-Darstellung des Systems.
+		iconMarkup: '<img class="location-popup__action-img" src="img/menu/bewertung.webp" alt="" width="20" height="20" />',
 		attributes: {
 			"data-popup-action": "write-review",
 			"data-public-id": publicId,

@@ -22,11 +22,10 @@
 	color: transparent;
 }
 
-/* "★"-Icon im Bewertungs-Button. */
-.location-popup__action-icon--review {
-	color: var(--color-star);
-	font-size: 14px;
-}
+/* 🪤 Hier stand die Regel für das ★-Emoji im Bewertungs-Knopf. Er trägt seit 2026-08-13 ein
+   eigenes Bild (img/menu/bewertung.webp) wie Kartensammlung und Literatur; die Regel hatte
+   danach kein Markup mehr. --color-star lebt weiter -- die Sterne der Bewertungsanzeige
+   selbst sind unberührt. */
 
 /* "Bewertung schreiben" sitzt jetzt unten bei den Bewertungen (statt in der Aktionsleiste). */
 .location-reviews__write {

@@ -397,6 +397,14 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 	height: auto;
 	font-size: inherit;
 }
+/* 💣 Und dasselbe fuer das BILD, seit der Bewertungs-Knopf eines traegt (2026-08-13). Ohne diese
+   Zeile griffe die Kachel-Groesse von 36 px -- in der kompakten Zeile der schwebenden Box, wo der
+   Knopf NEBEN der Sternebewertung steht, spraengte das die Zeile. Die alte Regel darueber fasste
+   nur das Emoji und lief nach dem Tausch ins Leere. */
+.floating-location-popup .location-reviews .location-popup__action-button .location-popup__action-img {
+	width: 16px;
+	height: 16px;
+}
 /* Floating box: full-bleed divider ABOVE the rating row too (Owner round-2: two clean dividers --
    header|actions and actions|rating). Same -10px side offset + padding as the slim actions divider so it
    runs edge to edge; the stray inline divider on the nested "Bewertung schreiben" actions stays killed. */
