@@ -959,10 +959,6 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	font-size: var(--font-size-reading);
 }
 
-select.lore-rule-input {
-	font-size: var(--font-size-dropdown);
-}
-
 .lore-rule-input:disabled {
 	opacity: 0.6;
 }

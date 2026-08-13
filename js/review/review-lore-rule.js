@@ -532,14 +532,6 @@ function avesmapsLoreRuleZoneLabelsGlobal() {
 	return (typeof avesmapsClimateZoneLabels !== "undefined" && avesmapsClimateZoneLabels) || {};
 }
 
-// Baut die <option>-Liste einer Klima-Auswahlbox mit dem gewaehlten Wert markiert.
-function avesmapsLoreRuleZoneOptionsMarkup(zoneKeys, zoneLabels, selectedKey) {
-	return zoneKeys.map(function (zoneKey) {
-		return '<option value="' + escapeHtml(zoneKey) + '"' + (zoneKey === selectedKey ? " selected" : "") + ">"
-			+ escapeHtml(zoneLabels[zoneKey] || zoneKey) + "</option>";
-	}).join("");
-}
-
 // Baut die Overlay-Huelle EINMAL (Kopfzeile + Schliessen-Knopf + leerer Koerper) und haengt die
 // EINEN delegierten Klick-/Aenderungs-Listener an -- die Huelle bleibt stehen, nur ihr Koerper wird
 // bei jeder Zustandsaenderung neu gezeichnet (avesmapsLoreRuleRenderEditor). Rueckgabe: das
@@ -710,9 +702,24 @@ function avesmapsLoreRuleTermClimateState(term) {
 		lowIndex: lowIndex,
 		highIndex: highIndex,
 		climateActive: climateActive,
-		fromValue: climateActive ? term.climate_from : (zoneKeys[0] || ""),
-		toValue: climateActive ? term.climate_to : (zoneKeys[zoneKeys.length - 1] || ""),
 	};
+}
+
+// PURE: die Textzeile unter dem Klimastreifen (Owner-Wunsch, Fix-Runde 4 -- ersetzt die beiden
+// <select>-Felder, die bei einer einzelnen Zone denselben Wert doppelt zeigten und wie ein Fehler
+// aussahen). textContent, nicht innerHTML -- deshalb ueber avesmapsLoreRuleZoneLabel (RAW) statt
+// ueber die HTML-escapten Bausteine aus avesmapsLoreRuleTermFields/-Sentence: ein escapetes "&amp;"
+// erschiene in textContent woertlich statt als "&". Dieselbe Ableitung wie dort (Spanne = from !==
+// to), nur unescaped und ohne den Satzbau drumherum.
+function avesmapsLoreRuleTermClimateText(term, zoneLabels) {
+	var from = (term && term.climate_from) || null;
+	var to = (term && term.climate_to) || null;
+	if (!from || !to) {
+		return "Klima: egal";
+	}
+	var fromLabel = avesmapsLoreRuleZoneLabel(from, zoneLabels);
+	var toLabel = avesmapsLoreRuleZoneLabel(to, zoneLabels);
+	return from === to ? fromLabel : (fromLabel + " — " + toLabel);
 }
 
 // 💣 Ein gewaehlter Eintrag, den die Suche wegfiltern wuerde (Katalog inzwischen geladen, Eintrag aber
@@ -742,13 +749,19 @@ function avesmapsLoreRuleTypeTokensMarkup(term, index) {
 	}).join("");
 }
 
+// 💣 Fix-Runde 4: mit den beiden <select>-Feldern verschwand die einzige Moeglichkeit, die Spanne
+// OHNE Maus zu benennen -- `title` allein reicht einem Screenreader nicht (nur bei Hover/Fokus in
+// manchen Kombinationen vorgelesen, kein verlaesslicher zugaenglicher Name). `aria-label` traegt
+// denselben Zonennamen als verlaesslichen Namen; die Segmente sind normale <button>-Elemente und
+// damit ohnehin per Tab erreichbar und per Eingabetaste/Leertaste ausloesbar, das aendert sich nicht.
 function avesmapsLoreRuleClimateStripMarkup(term, index, climateState) {
 	return climateState.zoneKeys.map(function (zoneKey, zoneIndex) {
 		var inside = climateState.climateActive && zoneIndex >= climateState.lowIndex && zoneIndex <= climateState.highIndex;
 		var isEnd = inside && (zoneIndex === climateState.lowIndex || zoneIndex === climateState.highIndex);
 		var cls = "lore-rule-climate__seg" + (inside ? " is-in" : "") + (isEnd ? " is-end" : "");
+		var label = escapeHtml(climateState.zoneLabels[zoneKey] || zoneKey);
 		return '<button type="button" class="' + cls + '" data-lore-rule-climate-seg data-term-index="' + index
-			+ '" data-zone="' + escapeHtml(zoneKey) + '" title="' + escapeHtml(climateState.zoneLabels[zoneKey] || zoneKey) + '"></button>';
+			+ '" data-zone="' + escapeHtml(zoneKey) + '" title="' + label + '" aria-label="' + label + '"></button>';
 	}).join("");
 }
 
@@ -795,12 +808,11 @@ function avesmapsLoreRuleTermMarkup(term, index, total) {
 		+ '<div class="lore-rule-climate__ends"><span>Norden</span><span>Süden</span></div>'
 		+ "</div>"
 		+ '<div class="lore-rule-row">'
-		+ '<select class="lore-rule-input" data-lore-rule-climate-select data-term-index="' + index + '" data-edge="from"'
-		+ (climateState.climateActive ? "" : " disabled") + ">"
-		+ avesmapsLoreRuleZoneOptionsMarkup(climateState.zoneKeys, climateState.zoneLabels, climateState.fromValue) + "</select>"
-		+ '<select class="lore-rule-input" data-lore-rule-climate-select data-term-index="' + index + '" data-edge="to"'
-		+ (climateState.climateActive ? "" : " disabled") + ">"
-		+ avesmapsLoreRuleZoneOptionsMarkup(climateState.zoneKeys, climateState.zoneLabels, climateState.toValue) + "</select>"
+		// Owner-Wunsch (Fix-Runde 4): die beiden <select> raus -- bei einer einzelnen Zone zeigten
+		// sie denselben Wert doppelt und sahen wie ein Fehler aus, obwohl sie nur wiederholten, was
+		// Streifen und Satz schon sagten. Reiner Text (dieselbe Klasse wie jede andere Hinweiszeile
+		// dieses Fensters), gefuellt von avesmapsLoreRuleTermClimateText -- der Knopf "egal" bleibt.
+		+ '<span class="lore-rule-hint" data-lore-rule-climate-text>' + escapeHtml(avesmapsLoreRuleTermClimateText(term, climateState.zoneLabels)) + "</span>"
 		+ '<button type="button" class="lore-rule-btn" data-lore-rule-climate-off data-term-index="' + index + '">egal</button>'
 		+ "</div>"
 		+ "</div>"
@@ -929,15 +941,12 @@ function avesmapsLoreRuleRepaintEditor(scheduleFetch) {
 		if (strip) {
 			strip.innerHTML = avesmapsLoreRuleClimateStripMarkup(term, index, climateState);
 		}
-		var fromSelect = termEl.querySelector('[data-lore-rule-climate-select][data-edge="from"]');
-		if (fromSelect) {
-			fromSelect.disabled = !climateState.climateActive;
-			fromSelect.value = climateState.fromValue;
-		}
-		var toSelect = termEl.querySelector('[data-lore-rule-climate-select][data-edge="to"]');
-		if (toSelect) {
-			toSelect.disabled = !climateState.climateActive;
-			toSelect.value = climateState.toValue;
+		// Owner-Wunsch (Fix-Runde 4): die Textzeile aendert sich beim Klicken im Streifen mit --
+		// gehoert deshalb ins BILLIGE Neuzeichnen, nicht in den vollen Aufbau (⚠️ Auftrag). textContent,
+		// RAW -- siehe avesmapsLoreRuleTermClimateText.
+		var climateText = termEl.querySelector("[data-lore-rule-climate-text]");
+		if (climateText) {
+			climateText.textContent = avesmapsLoreRuleTermClimateText(term, climateState.zoneLabels);
 		}
 	});
 
@@ -1043,7 +1052,13 @@ function avesmapsLoreRuleFetchPreview() {
 		return;
 	}
 	var seq = ++avesmapsLoreRulePreviewSeq;
-	state.preview = Object.assign({}, state.preview, { loading: true, error: "" });
+	// 💣 Fix-Runde 4: `unbounded` ausdruecklich loeschen, nicht nur ueberschreiben lassen -- dieser
+	// Abruf laeuft nur, WEIL die Kette gerade beschraenkt geworden ist (avesmapsLoreRuleRepaintDerived
+	// ruft sonst gar nicht bis hierher durch), aber Object.assign mergt nur die drei genannten Felder
+	// AUF den alten state.preview. Ohne die explizite Loeschung ueberlebte ein `unbounded: true` vom
+	// vorigen (unbeschraenkten) Stand den ganzen Abruf, und avesmapsLoreRulePaintPreview zeigt "Noch
+	// keine Einschraenkung" waehrend laengst gerechnet wird -- dieselbe Sorte Fehler wie Befund 6.
+	state.preview = Object.assign({}, state.preview, { loading: true, error: "", unbounded: false });
 	avesmapsLoreRulePaintPreview(avesmapsLoreRuleEditorBodyEl());
 
 	avesmapsLoreRuleFetch(AVESMAPS_LORE_RULE_ENDPOINT, {
@@ -1706,27 +1721,16 @@ function avesmapsLoreRuleHandleEditorChange(event) {
 		return;
 	}
 
-	// Beides hier aendert nichts an der ANZAHL der Bedingungen -- billiges Neuzeichnen genuegt
-	// (Fix-Runde 1, Befund 2; Begruendung am Kopf von avesmapsLoreRuleHandleEditorClick).
+	// Aendert nichts an der ANZAHL der Bedingungen -- billiges Neuzeichnen genuegt (Fix-Runde 1,
+	// Befund 2; Begruendung am Kopf von avesmapsLoreRuleHandleEditorClick). Seit Fix-Runde 4 (Owner-
+	// Wunsch: Klimazonen-<select> raus, Textzeile rein) der EINZIGE "change"-Fall dieses Editors --
+	// die Klimaspanne setzt sich seither ausschliesslich ueber die Klicks im Streifen
+	// (avesmapsLoreRuleHandleEditorClick, data-lore-rule-climate-seg).
 	if (target.matches && target.matches("[data-lore-rule-join]")) {
 		var joinTerm = avesmapsLoreRuleEditor.terms[Number(target.getAttribute("data-term-index"))];
 		if (joinTerm) {
 			joinTerm.join_op = target.value === "oder" ? "oder" : "und";
 		}
-		avesmapsLoreRuleRepaintEditor();
-		return;
-	}
-
-	if (target.matches && target.matches("[data-lore-rule-climate-select]")) {
-		var climTerm = avesmapsLoreRuleEditor.terms[Number(target.getAttribute("data-term-index"))];
-		if (climTerm) {
-			if (target.getAttribute("data-edge") === "from") {
-				climTerm.climate_from = target.value;
-			} else {
-				climTerm.climate_to = target.value;
-			}
-		}
-		avesmapsLoreRuleEditor.pending = null;
 		avesmapsLoreRuleRepaintEditor();
 	}
 }
