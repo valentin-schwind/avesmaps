@@ -40,10 +40,18 @@
 	function t(key, fallback, vars) {
 		return typeof tr === "function" ? tr(key, fallback, vars) : fallback;
 	}
-	// Die Feder kommt aus map-features-place-extras.js -- EINE Quelle fuer Bild, Groesse und alt-Text.
+	// 💣 Hier steht der BRIEF, nicht die Feder (Owner 2026-08-13). Die beiden Zeichen sind verteilt nach
+	//    dem, was der Knopf TUT: die Feder an „… vorschlagen" (etwas aufschreiben), der Brief an
+	//    „… senden" (es abschicken). Wer hier auf die Feder zurueckgeht, hebt die Unterscheidung auf.
+	// Der Bauer wohnt in map-features-place-extras.js -- eine Stelle fuer Groesse und alt-Text.
 	// Riegel wie bei esc/t: fehlt die Datei, fehlt eben das Bild, und der Knopf bleibt bedienbar.
-	function quill() {
-		return typeof avesmapsCitymapQuillMarkup === "function" ? avesmapsCitymapQuillMarkup() : "";
+	// `?v=1` ist derselbe String wie in js/ui/suggest-change-button.js: dieselbe Datei, derselbe
+	// Cache-Eintrag. (Ein handgeschriebenes ?v= ist bei BILDERN aus dem JS die hiesige Praxis -- der
+	// Deploy-Stempel erreicht nur, was von index.html aus verlinkt ist, siehe AGENTS.md §7.)
+	function sendIcon() {
+		return typeof avesmapsCitymapActionIconMarkup === "function"
+			? avesmapsCitymapActionIconMarkup("img/menu/brief.webp?v=1")
+			: "";
 	}
 
 	// Spiegel der EINEN serverseitigen Definition (api/_internal/app/citymaps.php) — Slugs sind
@@ -277,7 +285,7 @@
 			// anderen Dialogs (docs/design-language.md, Knopf-Hierarchie).
 			+ '<div class="citymap-suggest__actions">'
 			+ '<button type="button" class="citymap-suggest__cancel" data-citymap-suggest-close>' + esc(t("cityMaps.suggestCancel", "Abbrechen")) + '</button>'
-			+ '<button type="submit" class="citymap-suggest__submit">' + quill() + esc(t("cityMaps.suggestSubmit", "Vorschlag senden")) + '</button>'
+			+ '<button type="submit" class="citymap-suggest__submit">' + sendIcon() + esc(t("cityMaps.suggestSubmit", "Vorschlag senden")) + '</button>'
 			+ '</div></form></div>';
 		document.body.appendChild(overlay);
 
@@ -598,7 +606,7 @@
 			+ '<p class="citymap-suggest__status" role="status" aria-live="polite"></p>'
 			+ '<div class="citymap-suggest__actions">'
 			+ '<button type="button" class="citymap-suggest__cancel" data-fundort-close>' + esc(t("cityMaps.suggestCancel", "Abbrechen")) + '</button>'
-			+ '<button type="submit" class="citymap-suggest__submit">' + quill() + esc(t("cityMaps.suggestSubmit", "Vorschlag senden")) + '</button>'
+			+ '<button type="submit" class="citymap-suggest__submit">' + sendIcon() + esc(t("cityMaps.suggestSubmit", "Vorschlag senden")) + '</button>'
 			+ '</div></form></div>';
 		document.body.appendChild(overlay);
 

@@ -203,27 +203,39 @@ assert.ok(/index === 0 \? " checked" : ""/.test(rowFn), "auch hier ist 'unbekann
 		"Hinweis nach ." + block + " bekommt Abstand nach oben");
 });
 // ---------------------------------------------------------------------------------------------
-// 9. Die Feder steht an JEDEM Vorschlags-Knopf, und sie kommt aus EINER Quelle. Vier Abschriften
-//    desselben <img> laufen auseinander -- genau so sind seinerzeit die nachgebauten Kachel-Regeln
-//    entstanden.
+// 9. Das Zeichen folgt dem, was der Knopf TUT (Owner 2026-08-13): die Feder an „… vorschlagen",
+//    der Brief an „… senden". Und beide kommen aus EINER Stelle -- vier Abschriften desselben <img>
+//    laufen auseinander, genau so sind seinerzeit die nachgebauten Kachel-Regeln entstanden.
 // ---------------------------------------------------------------------------------------------
 const dialogJs = ohneKommentare(read("js", "map-features", "map-features-citymaps-dialog.js"));
 const extrasJs = ohneKommentare(read("js", "map-features", "map-features-place-extras.js"));
-assert.ok(/function avesmapsCitymapQuillMarkup\(className\)/.test(extrasJs),
-	"es gibt genau eine Stelle, die das Feder-Bild baut");
-assert.ok(/icons\/feder\.webp/.test(extrasJs), "und sie zeigt auf icons/feder.webp");
+assert.ok(/function avesmapsCitymapActionIconMarkup\(src, className\)/.test(extrasJs),
+	"es gibt genau eine Stelle, die so ein <img> baut");
+// 💣 Der Bauer darf KEIN Bild fest verdrahten -- sonst tragen alle Knoepfe wieder dasselbe Zeichen.
+const bauer = extrasJs.slice(extrasJs.indexOf("function avesmapsCitymapActionIconMarkup"),
+	extrasJs.indexOf("function cityMapSafeUrl"));
+assert.ok(!/\.webp/.test(bauer), "der Bauer nennt kein Bild -- das tut der Aufrufer");
 [["map-features-place-extras.js", extrasJs], ["map-features-citymaps-dialog.js", dialogJs],
 	["map-features-citymaps-suggest.js", js]].forEach(([name, quelle]) => {
-	const eigene = (quelle.match(/<img[^>]*feder\.webp/g) || []).length;
-	const erlaubt = name === "map-features-place-extras.js" ? 1 : 0; // dort WOHNT der Bauer
-	assert.strictEqual(eigene, erlaubt, name + ": kein handgeschriebenes Feder-<img> daneben");
+	assert.strictEqual((quelle.match(/<img[^>]*(feder|brief)\.webp/g) || []).length, 0,
+		name + ": kein handgeschriebenes <img> neben dem Bauer");
 });
-// Beide Absende-Knoepfe und der Knopf in der Dialog-Fusszeile rufen den Bauer auf.
-assert.strictEqual((js.match(/quill\(\) \+ esc\(t\("cityMaps\.suggestSubmit"/g) || []).length, 2,
-	"beide 'Vorschlag senden' tragen die Feder");
-assert.ok(/avesmapsCitymapQuillMarkup\(\) \+ esc\(tr\("cityMaps\.suggest"/.test(dialogJs),
+// „senden" traegt den Brief -- beide Male.
+assert.strictEqual((js.match(/sendIcon\(\) \+ esc\(t\("cityMaps\.suggestSubmit"/g) || []).length, 2,
+	"beide 'Vorschlag senden' rufen sendIcon()");
+assert.ok(/avesmapsCitymapActionIconMarkup\("img\/menu\/brief\.webp/.test(js),
+	"und sendIcon() zeigt auf den Brief");
+assert.ok(!/feder\.webp/.test(js), "an 'senden' haengt KEINE Feder mehr");
+// „vorschlagen" traegt die Feder -- in der Sektion wie in der Dialog-Fusszeile.
+assert.ok(/avesmapsCitymapActionIconMarkup\("icons\/feder\.webp"\) \+ esc\(tr\("cityMaps\.suggest"/.test(dialogJs),
 	"'Karte vorschlagen' in der Dialog-Fusszeile traegt die Feder");
-const federRegel = (css.match(/\.citymap-suggest__quill \{([^}]*)\}/) || [])[1];
+assert.ok(/avesmapsCitymapActionIconMarkup\("icons\/feder\.webp", "location-popup__action-img"\)/.test(extrasJs),
+	"'Karte vorschlagen' in der Sektion traegt die Feder");
+// Und die Bilder gibt es wirklich -- ein Tippfehler im Pfad faellt sonst erst live auf.
+[["icons", "feder.webp"], ["img", "menu", "brief.webp"]].forEach((teile) => {
+	assert.ok(fs.existsSync(path.join(ROOT, ...teile)), teile.join("/") + " liegt im Repo");
+});
+const federRegel = (css.match(/\.citymap-suggest__icon \{([^}]*)\}/) || [])[1];
 assert.ok(federRegel !== undefined, "die Feder hat eine eigene Regel");
 assert.ok(/width:\s*var\(--icon-/.test(federRegel) && /height:\s*var\(--icon-/.test(federRegel),
 	"ihre Groesse kommt aus der Icon-Skala, nicht aus einer Zahl");

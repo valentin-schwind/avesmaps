@@ -1052,11 +1052,11 @@ select.citymap-fundort__input {
 	box-shadow: none;
 	transform: none;
 }
-/* ---- Die Feder an den Vorschlags-Knoepfen (Owner 2026-08-13) ----
-   Dieselbe Feder wie am Knopf im Kachelband des Infopanels, hier aber --icon-sm (16) statt der 20 dort:
-   der Absende-Knopf steht neben "Abbrechen", und mit 20px war er 3px hoeher als sein Nachbar --
-   zwei Knoepfe nebeneinander mit verschiedener Hoehe. align-items: stretch hilft nicht (ein <button>
-   dehnt sich nicht mit), 16px schon: beide messen dann 34px. 16 ist ohnehin die Stufe fuer dichte
+/* ---- Das Symbol an den Vorschlags-Knoepfen (Owner 2026-08-13) ----
+   Die Feder an "… vorschlagen", der Brief an "… senden" -- das Zeichen folgt dem, was der Knopf tut.
+   Groesse --icon-sm (16), nicht die 20 des Kachelbands: der Absende-Knopf steht neben "Abbrechen",
+   und mit 20px war er 3px hoeher als sein Nachbar (align-items: stretch hilft nicht, ein <button>
+   dehnt sich nicht mit). Mit 16 messen beide 34px -- und 16 ist ohnehin die Stufe fuer dichte
    Knopfzeilen (docs/design-language.md).
    ⚠️ Hier steht NUR, wie Bild und Text zueinander stehen. Fuellung, Hover und Fokus des
       Fusszeilen-Knopfes wohnen weiter oben bei seinem eigenen Selektor: zwei Regeln fuer einen Knopf,
@@ -1068,7 +1068,7 @@ select.citymap-fundort__input {
 	justify-content: center;
 	gap: var(--space-4);
 }
-.citymap-suggest__quill {
+.citymap-suggest__icon {
 	flex: 0 0 auto;
 	width: var(--icon-sm);
 	height: var(--icon-sm);

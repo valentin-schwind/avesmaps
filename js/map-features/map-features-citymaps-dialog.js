@@ -273,7 +273,7 @@
 				+ ' data-citymap-place-name="' + esc(section.getAttribute("data-citymap-place-name") || "") + '"'
 				+ ' data-citymap-place-id="' + esc(section.getAttribute("data-citymap-place-id") || "") + '"'
 				+ ' data-citymap-place-key="' + esc(section.getAttribute("data-citymap-place-key") || "") + '"'
-				+ '>' + avesmapsCitymapQuillMarkup() + esc(tr("cityMaps.suggest", "Karte vorschlagen")) + '</button>'
+				+ '>' + avesmapsCitymapActionIconMarkup("icons/feder.webp") + esc(tr("cityMaps.suggest", "Karte vorschlagen")) + '</button>'
 				+ '</span>');
 		}
 
