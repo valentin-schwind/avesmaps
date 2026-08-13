@@ -945,6 +945,17 @@ function overlapRowsFromRaycast() {
 // 💣 Der Kasten-Vorfilter ist nicht Kosmetik, sondern der Grund, dass das laeuft: ohne ihn sind
 // es 2.782 Orte x ~830 Flaechen = 2,3 Millionen Polygontests. Dieselbe Ueberlegung wie bei
 // boundsOverlap im Raycast oben.
+// 🔴 Fix-Runde 1 (2026-08-13): `kind === "klima"` wird NICHT gespeichert -- aus zwei Gruenden, nicht
+// nur einem:
+//   1. Kann nie treffen. avesmapsLoreRuleReadAreas (api/_internal/app/lore-rule-store.php:310)
+//      schliesst Klimabaender aus der Regel-Flaechenliste ausdruecklich aus (`r.kind <> 'klima'`) --
+//      eine Lebensraum-Regel wird nie gegen eine gespeicherte Klimazeile gejoint, sie waere totes
+//      Gewicht (bei ~2.800 Orten mehrere tausend Zeilen).
+//   2. Waere eine zweite Wahrheit. Die Klimazone eines Ortes ist ein Punkttest zur Lesezeit
+//      (avesmapsClimateZoneKeyAt) -- die EINE Quelle. Eine gespeicherte "Ort X liegt in Klimaband Y"
+//      waere eine zweite Antwort auf dieselbe Frage und liefe beim naechsten Rechenlauf auseinander,
+//      wenn sich eine Bandgrenze verschiebt. Derographisch/Vegetation/Topographie bleiben dagegen
+//      drin: eine Regel darf ausdruecklich auch diese Ebenen nennen (Kontinent, Region, Wald, Gebirge).
 function locationRowsFromAreas(locations, areas) {
 	const out = [];
 	(locations || []).forEach((location) => {
@@ -953,6 +964,7 @@ function locationRowsFromAreas(locations, areas) {
 		const y = Number(coordinates && coordinates.y);
 		if (!Number.isFinite(x) || !Number.isFinite(y)) { return; }
 		(areas || []).forEach((area) => {
+			if (area && area.kind === "klima") { return; }
 			const bounds = area && area.bounds;
 			if (!bounds || x < bounds.min_x || x > bounds.max_x || y < bounds.min_y || y > bounds.max_y) { return; }
 			if (!pointInGeometry([x, y], area.geometry)) { return; }
