@@ -50,6 +50,15 @@ assert(avesmapsLoreRuleTermMatchesSubject($gebirgeBoreal, $subjectNord, $zones) 
 assert(avesmapsLoreRuleTermMatchesSubject($gebirgeBoreal, $subjectSued, $zones) === false,
     'der Ort im Sueden faellt heraus, obwohl seine Flaeche boreal beruehrt');
 
+// --- Identitaet UND Art zusammen in EINER Bedingung -- beide muessen gelten --------------
+// Ohne diesen Fall kommt eine Mutation durch, die die Identitaets-Pruefung zum
+// Kurzschluss-ODER macht (fruehes `return` statt Glied der UND-Kette) und damit Art- und
+// Zonenpruefung ueberspringt: $subjectNord liegt in a2 (Identitaet trifft), ist aber
+// gebirge, nicht wald -- die Bedingung muss trotzdem false liefern.
+$a2NurWald = $term(['area_public_id' => 'a2', 'types' => [['kind' => 'vegetation', 'region_type' => 'wald']]]);
+assert(avesmapsLoreRuleTermMatchesSubject($a2NurWald, $subjectNord, $zones) === false,
+    'liegt in a2, ist aber gebirge -- Identitaet allein darf nicht reichen');
+
 // --- Mehrere Arten AN EINER Bedingung sind ODER-verknuepft -- nicht nur die erste zaehlt --
 // (Schritt 5: die urspruengliche Fassung dieser Datei hatte keinen Fall mit zwei Typen an
 // EINER Bedingung -- eine Implementierung, die nur types[0] prueft, kam ungestraft durch.)
@@ -68,6 +77,18 @@ $subjectBeide = avesmapsLoreRuleSubjectFromPlace($bergwald, $areasById);
 assert(count($subjectBeide['types']) === 2);
 assert(avesmapsLoreRuleTermMatchesSubject($wald, $subjectBeide, $zones) === true);
 assert(avesmapsLoreRuleTermMatchesSubject($gebirge, $subjectBeide, $zones) === true);
+
+// --- Die Reihenfolge der geerbten Arten folgt der FLAECHENLISTE, nicht der Flaechentabelle -
+// area_public_ids traegt hier absichtlich die UMGEKEHRTE Reihenfolge von $areasById (a1, a2),
+// damit eine Implementierung, die ueber $areasById statt ueber area_public_ids iteriert,
+// auffliegt -- ein Zaehl-Assert (count() === 2) sieht diesen Unterschied nicht, nur ein
+// Assert auf die Liste selbst.
+$umgekehrterBergwald = ['public_id' => 'p4', 'zone' => 'gemaessigt', 'area_public_ids' => ['a2', 'a1']];
+$subjectUmgekehrt = avesmapsLoreRuleSubjectFromPlace($umgekehrterBergwald, $areasById);
+assert($subjectUmgekehrt['types'] === [
+    ['kind' => 'topographie', 'region_type' => 'gebirge'],
+    ['kind' => 'vegetation', 'region_type' => 'wald'],
+], 'Reihenfolge folgt area_public_ids (a2 vor a1), nicht der Schluesselreihenfolge von $areasById');
 
 // --- Die Identitaets-Bedingung trifft nur die genannte FLAECHE -----------------------------
 // 💣 Eine Regel "Flaechenname = Farindelwald" trifft die Flaeche selbst. Ob sie auch die Orte

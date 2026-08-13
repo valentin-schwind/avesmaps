@@ -21,6 +21,11 @@ declare(strict_types=1);
 // "Klimazone" (avesmapsClimateZoneKeyAt/avesmapsClimateReadBands) und dieselbe Schwelle
 // (AVESMAPS_CLIMATE_REGION_MIN_SHARE), keine zweite Rechnung.
 require_once __DIR__ . '/climate-membership.php';
+// avesmapsLoreRuleTermMatchesSubject ruft avesmapsLoreRuleZoneKeys() -- die Funktion wohnt in
+// lore-rule.php, nicht hier. Ohne diese Zeile bindet ein Aufrufer, der nur diese Datei einbindet
+// (der oeffentliche Lesepfad tut genau das), eine unbekannte Funktion ein -- Fatal Error, HTTP
+// 500. Vorbild: lore-rule-store.php bindet ebenso jede Datei ein, aus der es eine Funktion ruft.
+require_once __DIR__ . '/lore-rule.php';
 
 /**
  * PURE: eine Flaeche als ihr eigenes Subjekt.
