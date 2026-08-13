@@ -102,4 +102,47 @@ assert.ok(satzArten.includes("auenlandschaft"), "die unbekannte Art zeigt den ro
 assert.ok(!satzArten.includes("Aünlandschaft") && !satzArten.includes("Auenlandschaft"),
 	"kein geratener Textumbau -- weder das kaputte noch ein zufaellig richtig aussehendes Ergebnis");
 
+// 💣 ZWEI Faltungen, nicht eine. NFD-Strippen macht aus „Wüste" ein „wuste", getippt wird aber
+// „wueste" -- beide Seiten muessen zusaetzlich durch ue/oe/ae -> u/o/a, sonst findet „wueste"
+// die Wueste NICHT. Im Mockup gemessen, nicht vermutet.
+const key = context.avesmapsLoreRuleSearchKey;
+assert.strictEqual(key("Wüste"), key("wueste"), "beide Schreibweisen treffen sich");
+assert.strictEqual(key("Sümpfe und Moore"), key("suempfe und moore"));
+assert.strictEqual(key("Große Fluss"), key("grosse fluss"), "das scharfe S faellt auf ss");
+assert.notStrictEqual(key("Wald"), key("Steppe"), "verschiedene Arten bleiben verschieden");
+
+// Arten an- und abwaehlen, ohne die uebrige Bedingung anzufassen.
+let t = term({ climate_from: "boreal", climate_to: "gemaessigt" });
+t = context.avesmapsLoreRuleTermToggleType(t, "vegetation/wald");
+assert.strictEqual(t.types.length, 1);
+assert.strictEqual(t.types[0].kind, "vegetation");
+assert.strictEqual(t.types[0].region_type, "wald");
+assert.strictEqual(t.climate_from, "boreal", "das Klima bleibt unberuehrt");
+
+t = context.avesmapsLoreRuleTermToggleType(t, "topographie/gebirge");
+assert.strictEqual(t.types.length, 2);
+t = context.avesmapsLoreRuleTermToggleType(t, "vegetation/wald");
+assert.strictEqual(t.types.length, 1, "dieselbe Art nochmal waehlt sie ab");
+assert.strictEqual(t.types[0].region_type, "gebirge", "und zwar die richtige");
+
+// 💣 Die vorigen Asserts biessen NICHT gegen `splice(0, 1)` statt `splice(at, 1)`: die abgewaehlte
+// Art (Wald) stand zufaellig an Index 0, ein falscher, fest auf 0 verdrahteter Index traf also
+// dieselbe. Erst eine Kette, in der die abgewaehlte Art NICHT die erste ist, zeigt, ob wirklich der
+// gefundene Index geloescht wird -- hier: Wald UND Gebirge stehen, ab-gewaehlt wird Gebirge (Index 1).
+let t2 = term({});
+t2 = context.avesmapsLoreRuleTermToggleType(t2, "vegetation/wald");
+t2 = context.avesmapsLoreRuleTermToggleType(t2, "topographie/gebirge");
+t2 = context.avesmapsLoreRuleTermToggleType(t2, "topographie/gebirge");
+assert.strictEqual(t2.types.length, 1, "die abgewaehlte Art (nicht die erste) ist weg");
+assert.strictEqual(t2.types[0].region_type, "wald", "die STEHENGEBLIEBENE Art ist die richtige");
+
+// 💣 Toggle gibt eine NEUE Bedingung zurueck und aendert das Original NICHT -- sonst haette eine
+// Karte, die dieselbe Bedingung noch zeigt, waehrend der Editor sie schon bearbeitet, den falschen
+// Stand. Das Original bleibt bei EINEM Eintrag (Wald), obwohl `t` inzwischen bei „Gebirge" steht.
+const original = term({ types: [{ kind: "vegetation", region_type: "wald" }] });
+const toggled = context.avesmapsLoreRuleTermToggleType(original, "topographie/gebirge");
+assert.strictEqual(original.types.length, 1, "das Original behaelt seine eine Art");
+assert.strictEqual(original.types[0].region_type, "wald", "und zwar die urspruengliche");
+assert.strictEqual(toggled.types.length, 2, "die Kopie traegt beide");
+
 console.log("lore-rule-ui: OK");

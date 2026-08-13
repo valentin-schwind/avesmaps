@@ -3227,9 +3227,9 @@ function renderLoreDetail(entry) {
 		+ '<div class="lore-detail__add">'
 		+ '<input type="text" id="lore-add-place" class="lore-detail__input" placeholder="Ort, Region oder Gebiet …" autocomplete="off">'
 		+ '<button type="button" class="lore-detail__place-btn" id="lore-add-place-btn">+ Ort</button>'
-		// Task 6 gibt diesem Knopf seine Funktion. Hier nur der Platz daneben, gesperrt --
-		// AGENTS.md §12: keine Handlung ohne Wirkung anbieten.
-		+ '<button type="button" class="lore-detail__place-btn" id="lore-add-rule-btn" disabled title="folgt">+ Regel</button>'
+		// Task 6: der Knopf oeffnet den Regeleditor (avesmapsLoreRuleOpenEditor,
+		// js/review/review-lore-rule.js) fuer eine NEUE Regel dieses Eintrags.
+		+ '<button type="button" class="lore-detail__place-btn" id="lore-add-rule-btn">+ Regel</button>'
 		+ "</div>"
 		+ ((live.length || rules.length)
 			? '<ul class="lore-detail__places">'
@@ -3385,6 +3385,14 @@ if (typeof document !== "undefined" && !document.__avesmapsLoreEditBound) {
 						setLoreDialogStatus(loreEditErrorText(data), "error");
 					}
 				});
+			return;
+		}
+		// Task 6: „+ Regel" oeffnet den Regeleditor (eigene Datei, siehe Kopf dieser Sektion) fuer eine
+		// neue Regel dieses Eintrags. rule === null ist dessen Zeichen fuer „neu, nicht bearbeiten".
+		if (target.closest("#lore-add-rule-btn") && avesmapsLoreDetailKey) {
+			if (typeof avesmapsLoreRuleOpenEditor === "function") {
+				avesmapsLoreRuleOpenEditor(avesmapsLoreDetailKey, null);
+			}
 		}
 	});
 

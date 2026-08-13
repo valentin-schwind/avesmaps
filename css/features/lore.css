@@ -726,3 +726,373 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 .lore-detail__rule-or {
 	color: var(--color-text-muted);
 }
+
+/* ---- Der Regeleditor (Sitzung 2, Task 6) ----------------------------------------------------------
+   Vorlage: docs/vorkommen-regeleditor-mockup.html. Eigene, schlanke Huelle statt der geteilten
+   .avm-editor-* Klassen (css/components/editor-shell.css): die sind fuer die VIER iframe-Editoren
+   gebaut (Siedlung, Literatur, Karten, Pfade) und ihre Masse (1400x880) sind fuer eine einspaltige
+   Bedingungskette zu breit. Dieselben Token wie dort (--z-editor-overlay, --color-scrim-editor,
+   --shadow-dialog, --color-border-strong), nur eigene, kleinere Masse. */
+.lore-rule-overlay[hidden] {
+	display: none !important;
+}
+
+.lore-rule-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: var(--z-editor-overlay);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--space-16);
+	background: var(--color-scrim-editor);
+}
+
+.lore-rule-dialog {
+	display: flex;
+	flex-direction: column;
+	width: min(720px, calc(100vw - 32px));
+	height: min(760px, calc(100vh - 32px));
+	overflow: hidden;
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-dialog);
+}
+
+.lore-rule-dialog:focus {
+	outline: none;
+}
+
+.lore-rule-dialog__header {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-10);
+	padding: var(--space-8) var(--space-12);
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-panel);
+}
+
+.lore-rule-dialog__header h2 {
+	margin: 0;
+	color: var(--color-text-strong);
+	font-size: var(--font-size-title);
+	line-height: var(--leading-tight);
+}
+
+.lore-rule-dialog__close {
+	flex: 0 0 auto;
+	width: 32px;
+	height: 32px;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-weight: var(--font-weight-bold);
+}
+
+.lore-rule-dialog__close:hover,
+.lore-rule-dialog__close:focus-visible {
+	background: var(--color-button-soft-hover);
+	outline: none;
+}
+
+.lore-rule-dialog__body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-10);
+	padding: var(--space-12);
+}
+
+.lore-rule-hint {
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+
+/* Der ehrliche Hinweis, dass ohne Einschraenkung alles getroffen wuerde -- Goldbraun statt Rot: eine
+   noch unfertige Bedingung ist ein Zwischenstand, kein Fehler (--color-link statt --color-danger, wie
+   AGENTS.md §12 „Kein Blau" es fuer Warnhinweise in diesem Haus immer schon hielt). */
+.lore-rule-hint--warn {
+	color: var(--color-link);
+}
+
+.lore-rule-terms {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-6);
+}
+
+/* Eine Bedingung: gerahmter Kasten auf dem Panelgrund, wie .term im Mockup. */
+.lore-rule-term {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-6);
+	padding: var(--space-8);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+}
+
+.lore-rule-term__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-6);
+}
+
+.lore-rule-term__name {
+	font-weight: var(--font-weight-bold);
+	font-size: var(--font-size-body);
+}
+
+.lore-rule-icon-btn {
+	flex: 0 0 auto;
+	min-width: 28px;
+	min-height: 28px;
+	padding: 0;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	cursor: pointer;
+}
+
+.lore-rule-icon-btn:hover:not(:disabled) {
+	background: var(--color-button-soft-hover);
+}
+
+.lore-rule-icon-btn:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+/* Die Verknuepfung ZWISCHEN zwei Bedingungen, auf einer Trennlinie -- sie ist eine Entscheidung,
+   kein Etikett (docs/vorkommen-regeleditor-mockup.html, .joiner). */
+.lore-rule-joiner {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	margin: 0;
+}
+
+.lore-rule-joiner::before,
+.lore-rule-joiner::after {
+	content: "";
+	flex: 1 1 auto;
+	border-top: 1px solid var(--color-divider);
+}
+
+.lore-rule-joiner__select {
+	min-height: 28px;
+	padding: 0 var(--space-6);
+	border: 1px solid var(--color-accent-strong);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
+	color: var(--color-accent-strong);
+	font: inherit;
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.04em;
+	cursor: pointer;
+}
+
+.lore-rule-field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.lore-rule-field__label {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+
+.lore-rule-field__hint {
+	color: var(--color-link);
+}
+
+.lore-rule-input {
+	min-height: 32px;
+	width: 100%;
+	box-sizing: border-box;
+	padding: 0 var(--space-6);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-input-bg, var(--color-button-soft));
+	color: var(--color-text);
+	font: inherit;
+	font-size: var(--font-size-reading);
+}
+
+select.lore-rule-input {
+	font-size: var(--font-size-dropdown);
+}
+
+.lore-rule-input:disabled {
+	opacity: 0.6;
+}
+
+/* Das Gewaehlte steht als Marke unter dem Feld -- sichtbar, einzeln wegklickbar (Mockup .tokens). */
+.lore-rule-tokens {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-4);
+}
+
+.lore-rule-tokens:empty {
+	display: none;
+}
+
+.lore-rule-token {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-4);
+	min-height: 26px;
+	padding: 0 var(--space-6);
+	border: 1px solid var(--color-accent-strong);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel-muted);
+	color: var(--color-accent-strong);
+	font: inherit;
+	font-size: var(--font-size-small);
+	cursor: pointer;
+}
+
+/* 💣 Ein gewaehlter Eintrag, den die Suche (nach frischem Katalog) wegfiltern wuerde -- geloescht,
+   deaktiviert, oder noch nicht im Katalog -- bleibt STEHEN statt zu verschwinden, sonst waere er
+   nicht mehr abwaehlbar. Gestrichelt statt durchgezogen macht sichtbar: dieser Eintrag steht nicht
+   (mehr) in der Vorschlagsliste. */
+.lore-rule-token.is-unlisted {
+	border-style: dashed;
+}
+
+.lore-rule-token__x {
+	color: var(--color-text-muted);
+}
+
+/* ---- Klimaspanne, waagerechter Streifen (Mockup .climate) ----
+   ⚠️ Hier BLEIBT die Auswahl sichtbar -- eine Spanne braucht ihre Nachbarn, sonst waehlt man ueber
+   ein Loch, das man nicht sieht (Brief: „Das Klima bleibt sichtbar, es wird nicht zur Suche"). Kein
+   Autocomplete auf diesem Feld. */
+.lore-rule-climate {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.lore-rule-climate__strip {
+	display: flex;
+	gap: 2px;
+}
+
+/* Acht feste Toene, EIN fester Satz (nicht wachsend wie die 26+ Landschaftsarten) -- derselbe
+   Rueckfall-Gedanke wie ecosystemAreaColor(): eine kuenftig eingeschobene Zone (wie
+   trockene_subtropen am 03.08.2026) faellt auf den Grundton zurueck, statt transparent zu bleiben. */
+.lore-rule-climate__seg {
+	flex: 1 1 0;
+	height: 16px;
+	min-width: 0;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	background: var(--color-ecosystem-klima);
+	cursor: pointer;
+	opacity: 0.35;
+}
+
+.lore-rule-climate__seg[data-zone="polar"] { background: var(--color-ecosystem-klima-polar); }
+.lore-rule-climate__seg[data-zone="subpolar"] { background: var(--color-ecosystem-klima-subpolar); }
+.lore-rule-climate__seg[data-zone="boreal"] { background: var(--color-ecosystem-klima-boreal); }
+.lore-rule-climate__seg[data-zone="gemaessigt"] { background: var(--color-ecosystem-klima-gemaessigt); }
+.lore-rule-climate__seg[data-zone="subtropen_winterfeucht"] { background: var(--color-ecosystem-klima-subtropen-winterfeucht); }
+.lore-rule-climate__seg[data-zone="trockene_subtropen"] { background: var(--color-ecosystem-klima-trockene-subtropen); }
+.lore-rule-climate__seg[data-zone="subtropisch"] { background: var(--color-ecosystem-klima-subtropisch); }
+.lore-rule-climate__seg[data-zone="tropisch"] { background: var(--color-ecosystem-klima-tropisch); }
+
+.lore-rule-climate__seg:hover {
+	opacity: 0.7;
+}
+
+.lore-rule-climate__seg.is-in {
+	opacity: 1;
+}
+
+.lore-rule-climate__seg.is-end {
+	border-color: var(--color-text);
+}
+
+.lore-rule-climate__ends {
+	display: flex;
+	justify-content: space-between;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+
+.lore-rule-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	flex-wrap: wrap;
+}
+
+.lore-rule-row--end {
+	justify-content: flex-end;
+	border-top: 1px solid var(--color-divider);
+	padding-top: var(--space-8);
+}
+
+/* Buttons ausserhalb einer Bedingung ("+ Bedingung", "Abbrechen", "egal") -- weich, wie jede
+   Nebenhandlung (AGENTS.md §12). */
+.lore-rule-btn {
+	min-height: 32px;
+	padding: 0 var(--space-8);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: var(--font-size-body);
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.lore-rule-btn:hover:not(:disabled) {
+	background: var(--color-button-soft-hover);
+}
+
+.lore-rule-btn:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+/* Die EINE Haupthandlung des Fensters ist gefuellt, alles andere weich (AGENTS.md §12). */
+.lore-rule-btn--primary {
+	border-color: var(--color-button-border);
+	background: var(--color-button);
+	color: var(--color-button-text);
+}
+
+.lore-rule-btn--primary:hover:not(:disabled) {
+	background: var(--color-button-hover);
+}
+
+.lore-rule-sentence {
+	margin: 0;
+	padding: var(--space-8);
+	border-left: 3px solid var(--color-accent-strong);
+	background: var(--color-panel-soft);
+	font-size: var(--font-size-small);
+}
+
+.lore-rule-sentence b {
+	color: var(--color-accent-strong);
+}
