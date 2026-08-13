@@ -536,8 +536,16 @@ function avesmapsLoreRuleOpenEditor(wikiKey, rule) {
 		// Der Editor kann inzwischen zu sein oder eine ANDERE Regel zeigen -- ein spaetes Nachladen
 		// darf dann nicht mehr zeichnen (dieselbe Vorsicht wie openLoreDetail gegen schnelles
 		// Weiterklicken).
+		//
+		// 💣 Fix-Runde 2, Befund 2 (Fortsetzung): billiges Neuzeichnen, NICHT das teure. Katalogdaten
+		// sind eingetroffen, die Zahl der Bedingungen hat sich nicht geaendert -- ein voller Neuaufbau
+		// wuerfe hier den Tipptext weg, den jemand waehrend des Abrufs eingegeben hat. Die einzige
+		// Wirkung dieses Nachlaufs ist, `is-unlisted` an bereits gesetzten Marken neu zu bewerten
+		// (der Katalog war beim ersten Zeichnen noch leer) -- genau das leistet
+		// avesmapsLoreRuleRepaintEditor ueber die beiden innerHTML-Zuweisungen an den
+		// Marken-Behaeltern, ohne die Eingabefelder anzufassen.
 		if (avesmapsLoreRuleEditor && avesmapsLoreRuleEditor.wikiKey === wikiKey) {
-			avesmapsLoreRuleRenderEditor();
+			avesmapsLoreRuleRepaintEditor();
 		}
 	});
 }
