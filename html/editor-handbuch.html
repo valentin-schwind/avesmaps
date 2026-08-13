@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 13.08.2026</span>
+		<span class="hb-topbar__meta">Stand: 14.08.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -224,7 +224,7 @@
 						<li><a href="#zugang" data-keywords="login passwort konto benutzername registrieren">Zugang &amp; Anmelden</a></li>
 						<li><a href="#orientierung" data-keywords="infopanel panel karte rechtsklick kontextmenü popup theme sprache fenster verschieben dialog titelzeile">Die drei Flächen</a></li>
 						<li><a href="#wikisync-navigation" data-keywords="wikisync auswahl reiter navigation syncen bearbeiten materialien vorkommen zuletzt gesynct datum knopf">So findest du dich im WikiSync-Reiter zurecht</a></li>
-						<li><a href="#rollen" data-keywords="rechte editor reviewer admin berechtigung">Rollen &amp; Rechte</a></li>
+						<li><a href="#rollen" data-keywords="rechte editor reviewer admin berechtigung nur editoren nur admins merkmal zusatz sichtbar">Rollen &amp; Rechte</a></li>
 						<li><a href="#regeln" data-keywords="etikette grundsätze wiki">Die goldenen Regeln</a></li>
 						<li><a href="#erster-durchlauf" data-keywords="tutorial übung anfang beispiel">Dein erster Durchlauf</a></li>
 					</ul>
@@ -240,7 +240,7 @@
 						<li><a href="#wege" data-keywords="straße strasse pfad fluss seeweg kreuzung verlauf geometrie strömung transportmittel gangbar gangbarkeit saisonal jahreszeit pass winter routing teilen lage innerorts außerorts filter wege-editor wege bearbeiten höhenprofil wegprofile abschnitte">Wege</a></li>
 						<li><a href="#abenteuer" data-keywords="literatur abenteuer roman kurzgeschichte regionalspielhilfe spielhilfe cover spoiler shop edition schauplatz produkte publikationen materialien">Literatur</a></li>
 						<li><a href="#kartensammlungen" data-keywords="stadtplan karte vorschau fundort maßstab verlag kostenpflichtig produkte publikationen materialien lizenz hochladen upload webp eigene kreation neu anlegen neue karte titel doppelt autoget genehmigung erteilt orte zuordnen breite höhe pixel">Kartensammlungen</a></li>
-						<li><a href="#natur-waren" data-keywords="vorkommen natur waren flora fauna spezies handelswaren lore pflanzen tiere lebensraum gruppe verbreitung materialien filter trichter kontinent aventurien myranor herkunft ortsangabe quelle">Vorkommen</a></li>
+						<li><a href="#natur-waren" data-keywords="vorkommen natur waren flora fauna spezies handelswaren lore pflanzen tiere lebensraum gruppe verbreitung materialien filter trichter kontinent aventurien myranor herkunft ortsangabe quelle regel bedingung klimazone klimaspanne landschaftsart fläche und oder trefferzahl">Vorkommen</a></li>
 					</ul>
 				</li>
 				<li><a href="#aufgaben" data-keywords="posteingang arbeit community">Aufgaben</a>
@@ -276,7 +276,7 @@
 					<ul>
 						<li><a href="#n-listen" data-keywords="wegtyp ortsgröße transportmittel kategorie quellentyp auswahl vulkan tal insel inselgruppe">Die Auswahllisten</a></li>
 						<li><a href="#n-haekchen" data-keywords="unverbunden kreuzungen mapstil prüfen ring nodices labels beschriftungen grenzen ausblenden kartenoptionen anzeige anzeige-menü auge ebenen orte ortsklassen seewege flüsse wege ausgegraut gesperrt">Die Prüf-Häkchen</a></li>
-						<li><a href="#n-menues" data-keywords="rechtsklick kontextmenü hinzufügen anlegen gebiet hierher reisen route messen">Die beiden Kontextmenüs</a></li>
+						<li><a href="#n-menues" data-keywords="rechtsklick kontextmenü hinzufügen anlegen gebiet hierher reisen route messen strg notausgang kartenmenü nur editoren">Die beiden Kontextmenüs</a></li>
 						<li><a href="#n-editoren" data-keywords="menüband kachel syncen links prüfen vorschauen overlay regionen landschaften wege">Die acht Sync-Editoren</a></li>
 						<li><a href="#n-glossar" data-keywords="bf dump nodix schraffur staging namensgruppe begriffe kreuzung querfeldein">Glossar</a></li>
 						<li><a href="#n-hilfe" data-keywords="discord kontakt support fragen">Hilfe &amp; Kontakt</a></li>
@@ -340,6 +340,7 @@
 					<li><strong>admin</strong> — darf alles, inkl. Verwaltung (z.&nbsp;B. Konten anlegen) und das <strong>Datenbank-Backup</strong>.</li>
 				</ul>
 				<div class="hb-note hb-tip"><strong>Admins ziehen den Abzug direkt aus der Kopfzeile.</strong> Neben <em>„📖 Handbuch"</em> steht dort <strong>„💾 Datenbank-Backup"</strong>. Ein Klick auf <strong>„Backup erstellen"</strong> zieht einen vollständigen Abzug der Datenbank — Schema <em>und</em> Daten — als gepackte <code>.sql.gz</code>-Datei und lädt sie herunter; einspielen lässt sie sich unverändert per <code>mysql</code> oder über den Import von phpMyAdmin. Der Lauf geht in kleinen Schritten, damit er nicht an den PHP-Grenzen des Webhostings scheitert: <strong>den Tab offen lassen, bis 100&nbsp;% erreicht sind</strong>. Der Haken <em>„WikiSync-Zwischenspeicher überspringen"</em> macht die Datei kleiner. <strong>Editoren sehen den Link nicht</strong> — ein solcher Abzug enthält auch Passwort-Hashes, alle Share-Links und alle Meldungen.</div>
+				<div class="hb-note hb-tip"><strong>Die Oberfläche sagt dir, was deiner Rolle gehört.</strong> Bedienelemente, die nicht jeder sieht, tragen neben ihrer Überschrift den Zusatz <em>„nur Editoren"</em>: im Infopanel eines Ortes, Weges, Labels, einer Kreuzung oder Kraftlinie über den Editier-Kacheln (Überschrift <em>„Bearbeiten"</em>), im Rechtsklick-Menü über <em>„Hier hinzufügen"</em> (Überschrift <em>„Anlegen"</em>) und im <a href="#n-haekchen">Anzeige-Menü</a> über den Gruppen „Prüfen" und „Mapstil". In der Kopfzeile trägt das Datenbank-Backup entsprechend <em>„nur Admins"</em>. Der Zusatz ist eine Auskunft, keine Sperre — du siehst ihn, weil du darfst. Er sagt dir, was ein Besucher an dieser Stelle <em>nicht</em> vorfindet, damit du nicht auf etwas verweist, das dein Gegenüber gar nicht hat.</div>
 				<div class="hb-diagram">
 					<svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Rollen und ihre Rechte">
 						<g font-size="14" font-weight="700" text-anchor="middle" fill="var(--hb-fg)">
@@ -386,7 +387,7 @@
 					<li>Melde dich an und öffne rechts das <strong>„Editor"</strong>-Panel. Steht in der Statuszeile <code>Map: SQL | Rev … | … Features</code>, sind die Daten geladen.</li>
 					<li>Such dir einen Ort, den du kennst — Rechtsklick auf die Karte → <strong>„Suchen"</strong>.</li>
 					<li><strong>Linksklick</strong> auf den Ort. Rechts öffnet sich das Infopanel mit allem, was zu ihm bekannt ist.</li>
-					<li>Klick im Infopanel auf <strong>„Bearbeiten"</strong>. Der Dialog <em>„Ort bearbeiten"</em> geht auf.</li>
+					<li>Klick im Infopanel auf <strong>„Bearbeiten"</strong> — die Kachel steht ganz unten, unter der Trennlinie <em>„Bearbeiten — nur Editoren"</em>. Der Dialog <em>„Ort bearbeiten"</em> geht auf.</li>
 					<li>Ändere etwas Kleines und Unstrittiges — etwa einen Tippfehler im Ortsnamen. Wenn nichts zu korrigieren ist, öffne einfach den Bereich <strong>„Wiki-Ort"</strong> und schau nach, ob eine Wiki-Seite verbunden ist.</li>
 					<li><strong>„Speichern"</strong>. Die Karte aktualisiert sich sofort, ohne dass du neu laden musst.</li>
 					<li>Wechsle im Editor-Panel auf den Reiter <strong>„Änderungen"</strong>. Deine Änderung steht ganz oben, mit deinem Namen und der Uhrzeit.</li>
@@ -739,6 +740,7 @@
 					<tr><td><strong>Fläche löschen</strong></td><td>Rot. Weg ist weg.</td></tr>
 				</table>
 				<p>Bei den vier Operationen mit zwei Beteiligten klickst du nach dem Menüeintrag die <strong>zweite Fläche</strong> an — auch auf einer <em>anderen</em> Ebene, ein See darf aus einem Wald geschnitten werden. <kbd>Esc</kbd> bricht ab. Zerfällt eine Fläche dabei in mehrere Teile, ist das erlaubt und kein Fehler; für die Teile gibt es dann <em>„Alle Unterflächen vereinigen"</em>, <em>„Unterfläche herauslösen"</em> und — ebenfalls rot — <em>„Unterfläche löschen"</em>.</p>
+				<div class="hb-note hb-tip"><strong>Beim Ziel zählt der Rand, nicht die Fläche</strong> — genau wie bei den <a href="#territorien">Territorien</a>. Solange eine der vier Operationen auf ihr Ziel wartet, nimmt nur noch die <em>Kontur</em> einer Fläche den Klick an; welche du gerade erwischst, sagt dir die goldene Kontur unter dem Zeiger. Der Grund: Die Ebenen liegen in fester Reihenfolge übereinander, und mitten hinein geklickt gewann immer die oberste — eine Fläche, über der irgendwo eine andere lag, war nicht zu treffen („es liegt immer was drüber"). Über den Rand erreichst du auch eine vollständig überdeckte. Außerhalb der Zielwahl bleibt alles beim Alten: Da trifft der Klick in die Mitte.</div>
 				<div class="hb-note hb-warn"><strong>Fläche und Beschriftung sind ein Ding.</strong> Löschst du die letzte Fläche einer Region, verschwindet die Region mit ihren Beschriftungen. Die Rückfrage sagt das vorher — lies sie.</div>
 				<h5>Der Steckbrief</h5>
 				<p>Unter <em>„Eigenschaften …"</em> steht oben die <strong>Identität</strong>: <em>Name</em>, <em>Art</em> (aus der Vokabelliste genau dieser Ebene), dazu die Haken <em>Auto-Name</em>, <em>Regionname anzeigen</em> und <em>Nodix</em>. Darunter das <strong>Gelände</strong> mit vier Werten — <em>Erhebungen</em>, <em>Erosion</em>, <em>Maximalhöhe</em> und <em>Durchschnittshöhe</em>. Sie formen, wie sich das Gelände anfühlt, und damit, wie lange man hindurch braucht; <strong>„Auf Automatik zurück"</strong> gibt einen Wert wieder an die Vorgabe der Art zurück. Jeder Wert steht als Schieberegler mit einem <strong>Zahlenfeld</strong> daneben — du kannst ziehen oder die Zahl eintippen. Beim Verlassen des Feldes rastet sie auf die Schrittweite des Reglers ein (bei den beiden Höhen 50, aus getippten 3.501 wird also 3.500) und wird auf dessen Grenzen geklemmt: kein verworfener Eintrag, sondern der Wert, den Regler und Vorschau ohnehin meinen.</p>
@@ -1050,11 +1052,24 @@
 
 				<h5>Einen Eintrag bearbeiten</h5>
 				<p>Überschreibbar sind <strong>Name</strong>, <strong>Gruppe</strong> (hieß bis zum 22.07.2026 „Art" — sie wurde umbenannt, weil sie mit den Arten-Reitern darüber nichts zu tun hat), <strong>Lebensraum</strong> und <strong>Weitere Namen</strong>, bei Waren zusätzlich der <strong>Gegenstandstyp</strong>. <strong>Es gibt keinen Speichern-Knopf</strong> — ein Feld wird gespeichert, sobald es den Fokus verliert. Ein überschriebenes Feld trägt danach die Marke <strong>„von Hand"</strong>.</p>
-				<p>Darunter die <strong>Orte</strong>. Einen neuen trägst du unten ins Feld <em>„Ort, Region oder Gebiet …"</em> und drückst <strong>„+ Ort"</strong>; das <strong>„×"</strong> am Ende einer Zeile nimmt einen wieder weg.</p>
+				<p>Darunter steht <strong>„Vorkommen"</strong> mit einer Zahl in Klammern — sie zählt die Ortszeilen <em>und</em> die Regelkarten darunter zusammen. Einen neuen Ort trägst du unten ins Feld <em>„Ort, Region oder Gebiet …"</em> und drückst <strong>„+ Ort"</strong>; das <strong>„×"</strong> am Ende einer Zeile nimmt einen wieder weg. Daneben sitzt <strong>„+ Regel"</strong> — siehe <a href="#lebensraum-regeln">Lebensraum-Regeln</a>.</p>
 				<p>Unter den Stammdaten stehen die <strong>Quellen</strong> — <strong>dieselbe Quellenverwaltung wie beim Ort, der Region, dem Weg und dem Gebiet</strong>, mit allem, was du von dort kennst: hinzufügen mit Titel, Link, Art und Seitenzahl, entfernen, und eine Vorschlagsliste, die den geteilten Quellenkatalog durchsucht. Was aus dem Publikationsteil des Wiki-Artikels stammt, steht unter <strong>„automatisch"</strong> — was du selbst einträgst, darunter.</p>
 				<div class="hb-note hb-tip"><strong>Nimm eine Quelle aus der Vorschlagsliste, wenn sie dort auftaucht.</strong> Dann hängt dein Eintrag an <em>demselben</em> Buch wie alle anderen, statt eine zweite Zeile für dasselbe Werk anzulegen. Der Katalog ist projektweit — ein Titel, den du hier sauber verknüpfst, ist überall sauber.</div>
 				<div class="hb-note hb-tip"><strong>Beim Ortsfeld gibt es keine Vorschlagsliste.</strong> Anders als die Quellen darüber und anders als beim Literatur-Editor ist es ein reines Textfeld — der Name muss also stimmen. Schau im Zweifel vorher nach, wie der Ort auf der Karte heißt.</div>
 				<div class="hb-note hb-warn"><strong>Was du von Hand tust, überlebt jeden weiteren Sync.</strong> Überschriebene Felder bleiben stehen. Ein entfernter Wiki-Ort wandert unter <strong>„Entfernte Wiki-Orte"</strong> und kommt nicht zurück, auch wenn das Wiki ihn weiter nennt — mit <strong>„wieder aufnehmen"</strong> holst du ihn selbst zurück. Dasselbe gilt für Quellen: eine entfernte Wiki-Quelle bleibt entfernt, eine selbst eingetragene bleibt stehen. Und ein Feld, das du wieder <em>leerst</em>, gibst du damit ans Wiki zurück: Beim nächsten Sync steht dort erneut der Wiki-Wert.</div>
+
+				<h5 id="lebensraum-regeln">Lebensraum-Regeln — statt hundert Orte einzeln</h5>
+				<p>Manches wächst nicht an drei Stellen, sondern überall dort, wo eine bestimmte Landschaft und ein bestimmtes Klima zusammenkommen. Dafür gibt es die <strong>Regel</strong>: Du beschreibst die Bedingung <em>einmal</em>, und der Eintrag erscheint von selbst bei jedem Ort und jeder Fläche, auf die sie zutrifft — ohne dass du sie einzeln einträgst. <strong>„+ Regel"</strong> unter der Liste öffnet den Regeleditor; <strong>„Bearbeiten"</strong> an einer bestehenden Regelkarte öffnet ihn wieder.</p>
+				<p>Eine Regel besteht aus einer oder mehreren <strong>Bedingungen</strong>, verknüpft mit <strong>UND</strong> oder <strong>ODER</strong>. Jede Bedingung hat drei Felder:</p>
+				<table class="hb-table">
+					<tr><th>Feld</th><th>Was es einschränkt</th></tr>
+					<tr><td><strong>Flächenname</strong></td><td>Eine bestimmte <a href="#landschaften">Landschaftsfläche</a>, über ein Suchfeld gewählt. Leer bedeutet: alle Flächen.</td></tr>
+					<tr><td><strong>Landschaftsart</strong></td><td>Wald, Gebirge, Wüste … Mehrere Marken nebeneinander bedeuten <em>ODER</em>. Der Name einer ganzen Ebene — etwa <em>Vegetation</em> — nimmt sie komplett.</td></tr>
+					<tr><td><strong>Klimazone</strong></td><td>Eine <em>Spanne</em> auf dem Streifen von Norden nach Süden: Der erste Klick setzt das eine Ende, der zweite das andere.</td></tr>
+				</table>
+				<p>Unten steht <strong>„Was die Regel trifft"</strong> — wie viele Flächen und Orte gerade zutreffen, mit dem Rechenweg je Bedingung. Die Zahl wird kurz nach jeder Änderung neu geholt; <em>„wird berechnet …"</em> ist also kein Fehler. <strong>„Regel übernehmen"</strong> speichert, <strong>„Regel löschen"</strong> nimmt sie wieder weg, <strong>„Abbrechen"</strong> verwirft.</p>
+				<div class="hb-note hb-warn"><strong>Jede einzelne Bedingung muss etwas einschränken.</strong> Nicht nur die Regel als Ganzes: Bleiben in <em>einer</em> Bedingung alle drei Felder leer, träfe die Regel alles, und gespeichert wird sie nicht. Der Editor sagt vorher, welche gemeint ist — <em>„Bedingung 2 schränkt nichts ein"</em> —, und die Trefferanzeige bleibt so lange auf <em>„Noch keine Einschränkung"</em> stehen. Entweder du füllst die Bedingung, oder du nimmst sie heraus.</div>
+				<div class="hb-note hb-tip"><strong>Regelkarten stehen in derselben Liste wie die Orte, hinter ihnen, und tragen die Marke „von Hand".</strong> Das ist richtig so: Eine Regel legst immer du an, nie der Wiki-Abgleich — sie überlebt darum jeden Sync. Eine Trefferzahl steht auf der Karte bewusst <em>nicht</em>; die siehst du nur im geöffneten Regeleditor, weil sie jedes Mal frisch über den ganzen Bestand gerechnet werden muss.</div>
 
 				<h5>Der Sync</h5>
 				<p>Ein Klick auf die 🚨-Kachel erledigt beides hintereinander: erst den Dump lesen, dann vergleichen. Der Fortschritt läuft in der Kachel selbst mit („Dump lesen … 12.000 Seiten · 900 Einträge", dann „vergleichen … 300/5100"), damit darunter nichts verspringt. <strong>Geschrieben wird dabei nichts.</strong> Am Ende steht, was der Lauf gefunden hat („17 Unterschiede — Vorschau offen: 4 neu, 11 geändert, 2 stillzulegen"), und die <a href="#uebernahme">Übernahme-Vorschau</a> geht auf. Erst dein <strong>„Übernehmen"</strong> darin schreibt — und erst danach steht ein neues Datum in „zuletzt gesynct".</p>
@@ -1437,7 +1452,7 @@
 				<h4>Das Karten-Menü</h4>
 				<p>Rechtsklick auf leere Karte, auf einen Ort, eine Kreuzung, eine Beschriftung oder einen Weg — überall <strong>dasselbe Menü</strong>.</p>
 				<ul class="hb-steps">
-					<li><strong>Hier hinzufügen</strong> (nur im Bearbeiten-Modus): Neuer Ort · Neue Kreuzung · Neuer Weg · Neues freies Label · Neues Herrschaftsgebiet</li>
+					<li><strong>Hier hinzufügen</strong> (nur im Bearbeiten-Modus, unter der Überschrift <em>„Anlegen — nur Editoren"</em>): Neuer Ort · Neue Kreuzung · Neuer Weg · Neues freies Label · Neues Herrschaftsgebiet</li>
 					<li><strong>Immer:</strong> Stelle markieren und teilen · Hier melden… · Suchen · Nächsten Ort finden · Hierher reisen · Entfernung messen</li>
 				</ul>
 				<p>Ein Eintrag erscheint nur situativ: <strong>„Neue Kreuzung und Weg teilen"</strong> beim Rechtsklick auf einen Zwischenknoten während „Verlauf bearbeiten".</p>
@@ -1449,6 +1464,7 @@
 				</figure>
 				<h4>Das Gebiets-Menü</h4>
 				<p>Rechtsklick auf ein Herrschaftsgebiet, nur im Bearbeiten-Modus: Grenzen bearbeiten · Territoriumseditor öffnen · Grenzen berechnen · Orte hier zuordnen · Infobox anzeigen · Verschieben · Gebiet zerschneiden · Mit anderem vereinigen · Von anderem ausschneiden (drei Varianten) · Neues Gebiet herauslösen · Löschen.</p>
+				<div class="hb-note hb-tip"><strong><kbd>Strg</kbd>+Rechtsklick holt statt dessen das Karten-Menü</strong> — am Fuß des Gebiets-Menüs steht der Hinweis darauf. Wo die Karte flächendeckend mit Gebieten belegt ist, gäbe es sonst keine freie Stelle mehr, an der „Hierher reisen", „Entfernung messen", „Suchen" oder „Hier melden" noch zu erreichen wären. Bei den <a href="#landschaften">Landschaften</a> gibt es denselben Griff schon länger, und er tut dort dasselbe.</div>
 
 				<h3 id="n-editoren" class="hb-sub">Die acht Sync-Editoren</h3>
 				<p>Alle acht öffnen sich aus dem Reiter <strong>WikiSync</strong> und sehen gleich aus: oben ein Menüband aus Kacheln, darunter Liste und Details. Die erste Kachel ist immer die scharfe Aktion und mit <strong>🚨</strong> markiert (beim Kraftlinien-Editor mit <strong>⚡</strong>).</p>
