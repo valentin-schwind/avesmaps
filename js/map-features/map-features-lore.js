@@ -117,14 +117,56 @@ function avesmapsLoreSafeUrl(raw) {
 	return url.indexOf(AVESMAPS_LORE_URL_PREFIX) === 0 ? url : "";
 }
 
-// Holt die Lore eines Ortes (einmal je Ort). Mehrere Schlüssel werden kommagetrennt
+// Der Abrufschlüssel des Lore-Panels -- eigene, prüfbare Funktion, weil sie ZWEIMAL
+// gebraucht wird: als Zwischenspeicher-Schlüssel hier UND als Container-Schlüssel in
+// buildLoreMarkup (dort selbst nachgebaut, siehe Kommentar an containerKey).
+//
+// 💣 Er muss die IDENTITÄT mittragen (area/location -- die public_id des Objekts, dessen
+// Infobox gerade gebaut wird): zwei Objekte können denselben Ortsschlüssel (`key`) haben
+// und trotzdem verschiedene Lebensraum-Regeln treffen -- eine Siedlung und die Fläche, in
+// der sie liegt, sind der Normalfall davon. Ein Schlüssel, der die Identität verschweigt,
+// liefert der Siedlung die Regeln ihrer Fläche (oder umgekehrt), sobald beide denselben
+// `key` tragen. Fehlt die Identität in BEIDEN Aufrufen, bleibt der Schlüssel unverändert
+// -- das alte Verhalten.
+function avesmapsLoreRequestKey(placeRef) {
+	var ref = placeRef || {};
+	var key = ref.key || "";
+	var titles = ref.titles || "";
+	var goods = ref.goods || "";
+	var area = ref.area || "";
+	var location = ref.location || "";
+	return key
+		+ (titles ? "|t:" + titles : "")
+		+ (goods ? "|g:" + goods : "")
+		+ (ref.full ? "|full" : "")
+		+ (area ? "|a:" + area : "")
+		+ (location ? "|l:" + location : "");
+}
+
+// Holt die Lore eines Ortes (einmal je Bezug). Mehrere Schlüssel werden kommagetrennt
 // übergeben -- so kann Abschnitt 3 die Territorienkette hereinreichen, ohne dass sich
 // hier etwas ändert.
-function avesmapsLoreFetch(placeKey, full, titles, goods) {
+//
+// request: { key, full, titles, goods, area, location } -- area/location sind die
+// IDENTITÄT (public_id) und optional; sie reisen sowohl in den Zwischenspeicher-Schlüssel
+// (avesmapsLoreRequestKey) als auch in die URL, damit der Server seine Lebensraum-Regeln
+// gegen das richtige Objekt prüfen kann.
+// 💣 `area` nimmt die public_id der REGION (Feld `region_public_id` in
+// api/app/ecosystem-areas.php), NICHT die der Fläche (Feld `public_id` dort) -- mit der
+// falschen ID antwortet der Server 200 und liefert lautlos nichts. Betrifft erst Task 4
+// (Flächen-Anbindung); diese Aufgabe setzt nur `location`.
+function avesmapsLoreFetch(request) {
 	if (!AVESMAPS_LORE_ENABLED) {
 		return Promise.resolve(null); // Not-Aus: kein Request, keine Zeile
 	}
-	var cacheKey = placeKey + (titles ? "|t:" + titles : "") + (goods ? "|g:" + goods : "") + (full ? "|full" : "");
+	var req = request || {};
+	var placeKey = req.key || "";
+	var full = req.full;
+	var titles = req.titles || "";
+	var goods = req.goods || "";
+	var area = req.area || "";
+	var location = req.location || "";
+	var cacheKey = avesmapsLoreRequestKey(req);
 	var cached = avesmapsLoreCache.get(cacheKey);
 	if (cached) {
 		return cached.pending || Promise.resolve(cached.data);
@@ -132,7 +174,9 @@ function avesmapsLoreFetch(placeKey, full, titles, goods) {
 	var url = AVESMAPS_LORE_API_URL + "?place=" + encodeURIComponent(placeKey)
 		+ (titles ? "&title=" + encodeURIComponent(titles) : "")
 		+ (goods ? "&goods=" + encodeURIComponent(goods) : "")
-		+ (full ? "&full=1" : "");
+		+ (full ? "&full=1" : "")
+		+ (area ? "&area=" + encodeURIComponent(area) : "")
+		+ (location ? "&location=" + encodeURIComponent(location) : "");
 	// Hartes Zeitlimit: ein hängender Request hält sonst bis zum Servertimeout einen
 	// PHP-Worker fest, und mehrere offene Panels legen damit die ganze API lahm.
 	var controller = typeof AbortController === "function" ? new AbortController() : null;
@@ -503,18 +547,22 @@ function avesmapsLoreLoadPendingContainers() {
 		(function (element) {
 			var containerKey = element.getAttribute("data-lore-place") || "";
 			var name = element.getAttribute("data-lore-name") || "";
-			avesmapsLoreFetch(
-				element.getAttribute("data-lore-fetch") || "",
+			avesmapsLoreFetch({
+				key: element.getAttribute("data-lore-fetch") || "",
 				// 🔴 VOLLSTÄNDIG, seit der Deckel den „+N"-Dialog ersetzt hat (2026-08-12). Der Deckel
 				// trägt seinen ganzen Inhalt im Dokument -- nur so findet ihn Strg+F im zugeklappten
 				// Zustand, und nur so kann er ohne zweiten Abruf aufklappen. Es ist derselbe EINE
 				// Abruf wie vorher: `full` steuert allein, ob der Server seine Liste noch beschneidet
 				// (array_slice in avesmapsLoreReadForPlaces), nicht wie er sie holt. Die Abfrage ist
 				// Zeile für Zeile dieselbe, nur die Antwort ist länger.
-				true,
-				element.getAttribute("data-lore-titles") || "",
-				element.getAttribute("data-lore-goods") || ""
-			).then(function (data) {
+				full: true,
+				titles: element.getAttribute("data-lore-titles") || "",
+				goods: element.getAttribute("data-lore-goods") || "",
+				// Identität: reist mit dem Container von buildLoreMarkup bis hierher, siehe
+				// data-lore-area/data-lore-location dort.
+				area: element.getAttribute("data-lore-area") || "",
+				location: element.getAttribute("data-lore-location") || "",
+			}).then(function (data) {
 				if (data && data.total > 0) {
 					avesmapsLoreFillContainers(containerKey, name, data);
 				}
@@ -573,8 +621,10 @@ function avesmapsLoreTitleFromUrl(wikiUrl) {
 }
 
 // Öffentlicher Einstieg: liefert SOFORT den (leeren) Container und stößt den Abruf an.
-// placeRef: { key, name, titles } -- key ist ein fertiger Server-Schlüssel, titles sind
-// Wiki-Titel, die der Server selbst sluggt (mit | getrennt).
+// placeRef: { key, name, titles, area, location } -- key ist ein fertiger Server-Schlüssel,
+// titles sind Wiki-Titel, die der Server selbst sluggt (mit | getrennt). area/location sind
+// die IDENTITÄT (public_id) des Objekts hinter diesem Container -- beide optional, siehe
+// avesmapsLoreRequestKey.
 function buildLoreMarkup(placeRef) {
 	if (!AVESMAPS_LORE_ENABLED) {
 		return ""; // Not-Aus: gar kein Container, also auch kein Abruf
@@ -584,8 +634,25 @@ function buildLoreMarkup(placeRef) {
 	if (!key && !titles) {
 		return "";
 	}
+	// Identität des Objekts, dessen Infobox dieser Container füllt -- public_id einer
+	// Landschaftsfläche (area) oder einer Siedlung (location). Optional, wie titles/goods
+	// unten: nur gesetzt, wenn der Aufrufer sie kennt (heute: avesmapsLorePlaceRefFromLocation).
+	var area = String((placeRef && placeRef.area) || "");
+	var location = String((placeRef && placeRef.location) || "");
 	// Container-Id: bei reiner Titel-Anfrage der Titel selbst, sonst der Schlüssel.
 	var containerKey = key || titles.replace(/[^a-z0-9_-]+/gi, "-").toLowerCase().slice(0, 190);
+	// 💣 Identität gehört IN den Container-Schlüssel, nicht nur in den Abruf (siehe
+	// avesmapsLoreRequestKey): avesmapsLoreFillContainers sucht Container über
+	// `[data-lore-place="<containerKey>"]`. Zwei Container mit gleichem Ortsschlüssel, aber
+	// verschiedener Identität (Siedlung + die Fläche, in der sie liegt, ist der Normalfall)
+	// träfen sonst denselben Selektor und würden beide mit der zuerst eintreffenden Antwort
+	// gefüllt. Nur aktiv, wenn Identität da ist -- ohne sie bleibt der Schlüssel exakt wie
+	// vor dieser Änderung. Landet in einem HTML-Attribut und einem CSS-Attributselektor,
+	// deshalb dieselbe Filterung/Kürzung wie beim Titel-Zweig oben.
+	if (area || location) {
+		var identityTag = area ? "a-" + area : "l-" + location;
+		containerKey = (containerKey + "-" + identityTag).replace(/[^a-z0-9_-]+/gi, "-").toLowerCase().slice(0, 190);
+	}
 	var name = (placeRef && (placeRef.name || placeRef.displayName)) || "";
 	// 💣 HIER WIRD NICHT GELADEN. buildLoreMarkup() läuft für JEDES Label schon beim
 	// Anlegen des Markers (map-features-labels.js:469 ruft bindPopup mit fertigem
@@ -610,6 +677,8 @@ function buildLoreMarkup(placeRef) {
 		+ '" data-lore-name="' + avesmapsLoreEscape(name)
 		+ '" data-lore-kinds="' + avesmapsLoreEscape(kinds)
 		+ '" data-lore-goods="' + avesmapsLoreEscape(goods)
+		+ '" data-lore-area="' + avesmapsLoreEscape(area)
+		+ '" data-lore-location="' + avesmapsLoreEscape(location)
 		+ '" data-lore-titles="' + avesmapsLoreEscape(titles) + '"></div>';
 }
 
@@ -639,5 +708,9 @@ function avesmapsLorePlaceRefFromLocation(location) {
 		key: territoryKey,
 		titles: titles.join("|"),
 		name: wiki.name || location.name || "",
+		// Identität der SIEDLUNG selbst (nicht die ihres Territoriums -- territoryKey oben
+		// ist der Ortsschlüssel, nicht die Identität). Der Server braucht sie, um seine
+		// Lebensraum-Regeln gegen genau dieses Objekt zu prüfen.
+		location: String(location.publicId || location.public_id || ""),
 	};
 }
