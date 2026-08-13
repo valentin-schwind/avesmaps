@@ -3162,6 +3162,10 @@ function renderLoreDetail(entry) {
 	// Stammdaten; ein Neuaufbau durch add_place/remove_place/set_field (die nur `entry` liefern)
 	// liest hier weiter dieselben, ohne erneuten Abruf (Modulzustand in review-lore-rule.js).
 	var rules = (typeof avesmapsLoreRuleCurrent === "function") ? avesmapsLoreRuleCurrent(avesmapsLoreDetailKey) : [];
+	// 💣 Fix-Runde 3, Befund 5 (review-lore-rule.js): ein gescheitertes list_rules liefert HIER
+	// still eine leere Liste (rules = []) -- ohne diesen Hinweis sieht das aus wie "keine Regeln",
+	// die Ueberschrift "Vorkommen (N)" zaehlt zu wenig, und ein Redakteur legt eine zweite Regel an.
+	var rulesFailed = (typeof avesmapsLoreRuleCurrentOk === "function") && !avesmapsLoreRuleCurrentOk(avesmapsLoreDetailKey);
 
 	// Eine Ortskarte, nicht eine Tabellenzeile -- gerahmt wie die Ortskarten im
 	// Abenteuereditor, mit der Herkunft als Pille statt als Fließtext.
@@ -3224,6 +3228,11 @@ function renderLoreDetail(entry) {
 		// review-lore-rule.js -- geladen von openLoreDetail, ueberlebt einen Neuaufbau ohne
 		// erneuten Abruf).
 		+ '<h5 class="lore-detail__section">Vorkommen (' + (live.length + rules.length) + ")</h5>"
+		// Befund 5 (review-lore-rule.js): sichtbar statt stumm -- die Zahl oben zaehlt bei einem
+		// gescheiterten list_rules zu wenig, weil `rules` dann [] ist, keine echte Null.
+		+ (rulesFailed
+			? '<p class="lore-detail__hint lore-detail__hint--warn">Regeln konnten nicht geladen werden — die Zahl oben zählt sie nicht mit.</p>'
+			: "")
 		+ '<div class="lore-detail__add">'
 		+ '<input type="text" id="lore-add-place" class="lore-detail__input" placeholder="Ort, Region oder Gebiet …" autocomplete="off">'
 		+ '<button type="button" class="lore-detail__place-btn" id="lore-add-place-btn">+ Ort</button>'

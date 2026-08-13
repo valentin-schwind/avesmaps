@@ -252,12 +252,14 @@ try {
                     'areas' => [],
                     'places' => [],
                     'counts' => ['areas' => 0, 'places' => 0],
+                    'terms' => [],
                     'sample' => AVESMAPS_LORE_RULE_PREVIEW_SAMPLE,
                 ]);
             }
             $areas = avesmapsLoreRuleReadAreas($pdo);
             $places = avesmapsLoreRuleReadPlaces($pdo);
-            $result = avesmapsLoreRuleEvaluate($terms, $areas, $places, avesmapsLoreRuleOrderedZoneKeys($pdo));
+            $zoneKeys = avesmapsLoreRuleOrderedZoneKeys($pdo);
+            $result = avesmapsLoreRuleEvaluate($terms, $areas, $places, $zoneKeys);
             $named = static function (array $rows, array $ids): array {
                 $byId = [];
                 foreach ($rows as $row) {
@@ -271,11 +273,25 @@ try {
                 return $out;
             };
             $counts = ['areas' => count($result['areas']), 'places' => count($result['places'])];
+            // Befund 7 (Fix-Runde 3): der Rechenweg -- je Bedingung EINZELN ausgewertet, ueber
+            // dieselben bereits geladenen $areas/$places (keine zweite Datenbankabfrage, keine
+            // zweite Punkt-in-Polygon-Rechnung). Eine Kette aus EINER Bedingung ist genau die
+            // Einzelauswertung: avesmapsLoreRuleEvaluate() mit einem einelementigen $terms-Array
+            // wertet nur diese eine Bedingung aus, ohne eine UND/ODER-Verknuepfung anzuwenden
+            // (siehe dort, $index === 0-Zweig). Bei max. AVESMAPS_LORE_RULE_MAX_TERMS = 25
+            // Bedingungen bleiben das 25 zusaetzliche Durchlaeufe ueber dieselben, bereits im
+            // Speicher stehenden Listen -- kein zweiter Lesezugriff auf die Datenbank.
+            $termCounts = [];
+            foreach ($terms as $term) {
+                $single = avesmapsLoreRuleEvaluate([$term], $areas, $places, $zoneKeys);
+                $termCounts[] = ['areas' => count($single['areas']), 'places' => count($single['places'])];
+            }
             avesmapsJsonResponse(200, [
                 'ok' => true,
                 'areas' => $named($areas, array_slice($result['areas'], 0, AVESMAPS_LORE_RULE_PREVIEW_SAMPLE)),
                 'places' => $named($places, array_slice($result['places'], 0, AVESMAPS_LORE_RULE_PREVIEW_SAMPLE)),
                 'counts' => $counts,
+                'terms' => $termCounts,
                 'sample' => AVESMAPS_LORE_RULE_PREVIEW_SAMPLE,
             ]);
             break;

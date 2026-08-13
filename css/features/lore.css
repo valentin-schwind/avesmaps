@@ -617,6 +617,13 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	font-size: var(--font-size-caption);
 }
 
+/* Fix-Runde 3, Befund 5 (review-lore-rule.js): ein gescheitertes list_rules ist eine Ablehnung,
+   keine Auskunft -- Rot statt Grau, dieselbe -soft-text-Variante wie .lore-rule-hint--error unten
+   (dort ausfuehrlich begruendet: --color-danger faellt im Dunkelmodus auf weichem Grund unter AA). */
+.lore-detail__hint--warn {
+	color: var(--color-danger-soft-text);
+}
+
 /* .lore-detail__sources gab es hier bis 2026-07-22 mit: die Quellen waren eine eigene
    Leseliste. Sie kommen jetzt aus dem geteilten Bauteil und tragen dessen .fs-*-Klassen
    (css/features/feature-sources.css) -- eine zweite Gestaltung dafuer waere genau die
@@ -848,9 +855,28 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	gap: var(--space-6);
 }
 
+/* Traegt Name UND Trefferzahl als EIN Block, damit .lore-rule-term__head (space-between) den
+   Entfernen-Knopf zuverlaessig ans rechte Ende schiebt -- mit drei direkten Kindern staende die
+   Trefferzahl sonst mittig statt neben dem Namen (Befund 7, Fix-Runde 3). */
+.lore-rule-term__title {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: var(--space-6);
+	min-width: 0;
+}
+
 .lore-rule-term__name {
 	font-weight: var(--font-weight-bold);
 	font-size: var(--font-size-body);
+}
+
+/* Die Trefferzahl EINER Bedingung im Kopf (Entwurf §6.1). Leer, solange keine Antwort da ist oder
+   die Kette unbeschraenkt ist -- avesmapsLoreRuleTermHitsText liefert dann "". */
+.lore-rule-term__hits {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	font-weight: var(--font-weight-regular);
 }
 
 .lore-rule-icon-btn {
@@ -1124,6 +1150,39 @@ select.lore-rule-input {
 	flex-wrap: wrap;
 }
 
+/* Befund 7 (Fix-Runde 3), Entwurf §6.1 „der Rechenweg": eine Zeile je Bedingung, der Operator
+   dazwischen, darunter fett das Ergebnis -- §3.1 "der Editor zeigt beide Zahlen nebeneinander,
+   damit man sieht, was man gebaut hat". Uebernommen aus docs/vorkommen-regeleditor-mockup.html
+   (.calc), mit den Haus-Tokens statt der Mockup-Platzhalter. Ein leeres <table> (kein <tbody>,
+   keine Zeile) bleibt unsichtbar -- kein eigener Leerzustand noetig, solange noch nichts geladen ist. */
+.lore-rule-calc {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--font-size-small);
+}
+
+.lore-rule-calc td {
+	padding: var(--space-2) 0;
+	border-bottom: 1px solid var(--color-divider);
+}
+
+.lore-rule-calc td:last-child,
+.lore-rule-calc td:nth-child(2) {
+	text-align: right;
+	white-space: nowrap;
+}
+
+.lore-rule-calc tr:last-child td {
+	border-bottom: none;
+	font-weight: var(--font-weight-bold);
+	color: var(--color-accent-strong);
+}
+
+.lore-rule-calc__op {
+	color: var(--color-accent-strong);
+	font-weight: var(--font-weight-bold);
+}
+
 .lore-rule-hits {
 	display: flex;
 	flex-direction: column;
@@ -1175,6 +1234,16 @@ select.lore-rule-input {
 	content: "";
 }
 
+/* Fix-Runde 3, „Zwei Kleinigkeiten": der Leerzustand ("Keine.") hatte bis hierhin faelschlich
+   `.is-auto` getragen -- jetzt seine eigene Klasse, sonst ist er optisch nicht von einer
+   automatisch benannten Flaeche zu unterscheiden. */
+.lore-rule-hits__item.is-empty {
+	color: var(--color-text-muted);
+}
+
+/* Entwurf §6.2: "Auto-benannte Flächen ... in der Trefferliste kursiv, damit man es vor dem
+   Speichern sieht." avesmapsLoreRuleIsAutoAreaName() erkennt das Muster <Wort>-<Ziffern>
+   ("Wald-001", "Fläche-026"); nur Flaechennamen werden geprueft, Siedlungsnamen nie. */
 .lore-rule-hits__item.is-auto {
 	color: var(--color-text-muted);
 	font-style: italic;

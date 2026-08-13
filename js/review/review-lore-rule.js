@@ -47,6 +47,20 @@
 var AVESMAPS_LORE_RULE_ENDPOINT = "api/edit/map/lore.php";
 var AVESMAPS_LORE_RULE_ECOSYSTEM_ENDPOINT = "api/edit/map/ecosystem.php";
 
+// 💣 Fix-Runde 3, Befund 1: JEDER Abruf braucht ein Zeitlimit -- derselbe Grund wie
+// review-wiki-sync.js:2601 (Nachbardatei desselben Features, gegen denselben Endpunkt): ein
+// haengender Request belegt bis zum Servertimeout einen PHP-Worker, mehrere davon saettigen den
+// ganzen Pool (so geschehen am 21.07.). avesmapsLoreFetchWithTimeout() (12s, AbortController) lebt
+// dort und laedt NACH dieser Datei (index.html) -- zur AUFRUFZEIT (ein Klick, nie beim Parsen) ist
+// sie laengst da. Der typeof-Rueckfall traegt trotzdem, fuer einen Test oder eine Seite ohne jene
+// Datei.
+function avesmapsLoreRuleFetch(url, options) {
+	if (typeof avesmapsLoreFetchWithTimeout === "function") {
+		return avesmapsLoreFetchWithTimeout(url, options);
+	}
+	return fetch(url, options);
+}
+
 // Task 7: Vorschau entprellt, nicht bei jedem Tastendruck/Klick -- preview_rule wertet die ganze
 // Regel gegen ~2.800 Flaechen+Orte aus (STRATO-Vorsicht, AGENTS.md). 450ms liegt in derselben
 // Groessenordnung wie die uebrigen Entpreller im Haus (250-800ms, siehe map-features-ecosystem-
@@ -61,7 +75,11 @@ var avesmapsLoreRulePreviewSeq = 0;
 // Modulzustand: die zuletzt geladenen Regeln EINES Eintrags. Ein Neuaufbau der Detailmaske (etwa
 // nach dem Hinzufügen eines Ortes, dessen Antwort nur `entry` trägt, keine Regeln) braucht dadurch
 // keinen zweiten Abruf, solange der offene Eintrag derselbe bleibt.
-var avesmapsLoreRuleModuleState = { wikiKey: "", rules: [] };
+// 💣 Fix-Runde 3, Befund 5: `ok` unterscheidet "wirklich keine Regeln" von "der Abruf ist
+// gescheitert" -- ohne das sah ein Netzfehler/401/eine kaputte Antwortform genauso aus wie ein
+// Eintrag ohne Regeln, die Ueberschrift "Vorkommen (N)" zaehlte zu wenig, und ein Redakteur legte
+// eine zweite Regel fuer dieselbe Sache an (siehe avesmapsLoreRuleCurrentOk).
+var avesmapsLoreRuleModuleState = { wikiKey: "", rules: [], ok: true };
 
 // Modulzustand: der Landschaftsart-Katalog, "<kind>|<type_key>" => Beschriftung. Einmal pro Seitenleben
 // geholt (AVESMAPS_LORE_RULE_TYPE_LABELS_LOADED sperrt gegen wiederholte Aufrufe, dieselbe STRATO-
@@ -91,16 +109,25 @@ function avesmapsLoreRuleCurrent(wikiKey) {
 	return avesmapsLoreRuleModuleState.wikiKey === wikiKey ? avesmapsLoreRuleModuleState.rules : [];
 }
 
+// Befund 5: ob der letzte list_rules-Abruf DIESES Eintrags gelang. `true`, solange kein anderer
+// Eintrag inzwischen offen ist -- ein noch nicht geladener/ein ANDERER Eintrag ist kein Fehlschlag,
+// nur noch keine Antwort (dieselbe Zurueckhaltung wie avesmapsLoreRuleCurrent oben).
+function avesmapsLoreRuleCurrentOk(wikiKey) {
+	return avesmapsLoreRuleModuleState.wikiKey === wikiKey ? avesmapsLoreRuleModuleState.ok !== false : true;
+}
+
 // Holt alle Regeln eines Eintrags (POST list_rules) und legt sie im Modulzustand ab. Liefert sie
 // zusätzlich als Promise, damit der Aufrufer im selben Zug weiterrendern kann. Ein Netzfehler, ein
 // 401 (nicht angemeldet) oder eine unerwartete Antwortform enden in einer LEEREN Liste, nie in einem
-// Wurf -- eine kaputt gelesene Regelzeile darf die Ortsliste daneben nicht mit reissen.
+// Wurf -- eine kaputt gelesene Regelzeile darf die Ortsliste daneben nicht mit reissen. 💣 Befund 5:
+// das darf aber nicht wie "dieser Eintrag hat keine Regeln" AUSSEHEN -- `ok` traegt den Unterschied
+// weiter, der Aufrufer (renderLoreDetail, review-wiki-sync.js) zeigt bei `false` eine eigene Zeile.
 function avesmapsLoreRuleLoad(wikiKey) {
 	if (!wikiKey) {
-		avesmapsLoreRuleModuleState = { wikiKey: "", rules: [] };
+		avesmapsLoreRuleModuleState = { wikiKey: "", rules: [], ok: true };
 		return Promise.resolve([]);
 	}
-	return fetch(AVESMAPS_LORE_RULE_ENDPOINT, {
+	return avesmapsLoreRuleFetch(AVESMAPS_LORE_RULE_ENDPOINT, {
 		method: "POST",
 		credentials: "same-origin",
 		headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -109,8 +136,9 @@ function avesmapsLoreRuleLoad(wikiKey) {
 		.then(function (response) { return response.json(); })
 		.catch(function () { return null; })
 		.then(function (data) {
-			var rules = (data && data.ok === true && Array.isArray(data.rules)) ? data.rules : [];
-			avesmapsLoreRuleModuleState = { wikiKey: wikiKey, rules: rules };
+			var ok = Boolean(data && data.ok === true && Array.isArray(data.rules));
+			var rules = ok ? data.rules : [];
+			avesmapsLoreRuleModuleState = { wikiKey: wikiKey, rules: rules, ok: ok };
 			return rules;
 		});
 }
@@ -124,7 +152,7 @@ function avesmapsLoreRuleLoadTypeLabels() {
 	if (avesmapsLoreRuleTypeLabelsLoaded) {
 		return Promise.resolve(avesmapsLoreRuleTypeLabels);
 	}
-	return fetch(AVESMAPS_LORE_RULE_ECOSYSTEM_ENDPOINT, {
+	return avesmapsLoreRuleFetch(AVESMAPS_LORE_RULE_ECOSYSTEM_ENDPOINT, {
 		method: "POST",
 		credentials: "same-origin",
 		headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -174,7 +202,7 @@ function avesmapsLoreRuleLoadAreaCatalog() {
 	if (avesmapsLoreRuleAreaCatalogPromise) {
 		return avesmapsLoreRuleAreaCatalogPromise;
 	}
-	avesmapsLoreRuleAreaCatalogPromise = fetch(AVESMAPS_LORE_RULE_ECOSYSTEM_ENDPOINT, {
+	avesmapsLoreRuleAreaCatalogPromise = avesmapsLoreRuleFetch(AVESMAPS_LORE_RULE_ECOSYSTEM_ENDPOINT, {
 		method: "POST",
 		credentials: "same-origin",
 		headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -198,7 +226,14 @@ function avesmapsLoreRuleLoadAreaCatalog() {
 						key: avesmapsLoreRuleSearchKey(name),
 					};
 				})
-				.filter(function (row) { return row.public_id !== "" && row.name !== ""; });
+				// 💣 Fix-Runde 3, Befund 4: 'klima' (die acht Klimabaender) sind KEINE Flaechen, die
+				// eine Regel treffen kann -- der Server schliesst sie in avesmapsLoreRuleReadAreas
+				// (lore-rule-store.php, "r.kind <> 'klima'") ausdruecklich aus, derselbe Fall wie
+				// beim Art-Katalog oben (avesmapsLoreRuleLoadTypeLabels filtert 'klima' schon
+				// heraus). list_regions liefert sie ohne kind-Filter trotzdem mit -- wer hier
+				// "Boreale Zone" waehlt, bekommt "0 Flaechen · 0 Siedlungen" ohne Erklaerung, weil
+				// der Server die Wahl gar nicht kennt.
+				.filter(function (row) { return row.public_id !== "" && row.name !== "" && row.kind !== "klima"; });
 			return avesmapsLoreRuleAreaCatalog;
 		});
 	return avesmapsLoreRuleAreaCatalogPromise;
@@ -379,10 +414,11 @@ function avesmapsLoreRuleCardMarkup(rule, zoneLabels) {
 // wie js/map-features/map-features-waypoints.js sie schon benutzt (initializeWaypointAutocomplete) --
 // dieselbe Regel gegen gemischte Eintragsarten (siehe unten, IMMER {label, value}).
 //
-// 💣 Trefferzahlen ("was die Regel trifft") sind NICHT Teil dieses Tasks -- preview_rule anzubinden
-// ist Task 7 ("Vorschau, Speichern, Löschen"). Dieser Editor baut die Bedingungskette und den Satz;
-// „Regel übernehmen" steht deshalb bewusst gesperrt da (title="folgt"), dieselbe Uebergabe wie beim
-// Knopf „+ Regel" selbst zwischen Task 5 und Task 6.
+// Trefferzahlen ("was die Regel trifft") sind seit Task 7 angebunden: preview_rule fuellt die
+// Vorschau (avesmapsLoreRulePaintPreview), den Rechenweg je Bedingung (Befund 7, Fix-Runde 3) und
+// den Zaehlplatz. „Regel übernehmen" ist entsprechend nicht mehr gesperrt -- der Riegel gegen eine
+// unspeicherbare Regel steht serverseitig (avesmapsLoreRuleChainIsUnbounded) und, seit Fix-Runde 3,
+// gespiegelt auch clientseitig (Befund 2/3, derselbe Funktionsname im Client).
 //
 // Zustand WAEHREND der Editor offen ist. null, wenn er zu ist -- das ist zugleich der Riegel gegen
 // verspaetete Klicks auf einen bereits geschlossenen Editor (siehe avesmapsLoreRuleHandleEditorClick).
@@ -431,6 +467,27 @@ function avesmapsLoreRuleTermIsEmpty(term) {
 	return (t.area_public_id === null || t.area_public_id === undefined)
 		&& (!Array.isArray(t.types) || t.types.length === 0)
 		&& (t.climate_from === null || t.climate_from === undefined);
+}
+
+// REIN: der Index der ERSTEN leeren Bedingung, oder -1. 💣 Fix-Runde 3, Befund 2: der Server
+// (avesmapsLoreRuleChainIsUnbounded, api/_internal/app/lore-rule.php) lehnt eine Kette ab, sobald
+// IRGENDEINE Bedingung leer ist -- nicht erst, wenn ALLE es sind. Eine leere Bedingung neben einer
+// gefuellten schraenkt die Kette nicht mehr ein (bei "oder" ist die Vereinigung trotzdem "alles",
+// bei "und" ist eine leere Bedingung ohnehin ein Versehen). Der fruehere Client-Test (`.every`)
+// warnte deshalb nie bei "Wald" + einer leeren zweiten Bedingung, obwohl der Server genau das mit
+// `rule_matches_everything` ablehnt -- der Redakteur bekam eine Ablehnung fuer etwas, das die
+// Oberflaeche nie beanstandet hatte. `.findIndex`, nicht `.some`: die Meldung nennt die betroffene
+// Bedingung (Befund 2 verlangt das ausdruecklich), nicht nur "irgendeine ist leer".
+function avesmapsLoreRuleFirstEmptyTermIndex(terms) {
+	return (terms || []).findIndex(avesmapsLoreRuleTermIsEmpty);
+}
+
+// REIN: spiegelt avesmapsLoreRuleChainIsUnbounded (api/_internal/app/lore-rule.php) -- derselbe
+// Test, derselbe Name. Befund 3: "+ Regel" oeffnet mit EINER leeren Bedingung, und ohne diesen
+// Vorabtest loeste das sofort preview_rule aus, die teuerste Anfrage des Hauses (~2.782
+// Flaechen+Orte), fuer ein Ergebnis, das der Server ohnehin ablehnen wuerde.
+function avesmapsLoreRuleChainIsUnbounded(terms) {
+	return !terms || !terms.length || avesmapsLoreRuleFirstEmptyTermIndex(terms) >= 0;
 }
 
 /* 💣 ZWEI Faltungen, nicht eine: NFD macht aus „Wüste" ein „wuste", getippt wird aber
@@ -548,7 +605,8 @@ function avesmapsLoreRuleOpenEditor(wikiKey, rule) {
 		pending: null,
 		// Task 7: das Ergebnis der letzten preview_rule-Antwort. `ok:false` mit leerem `error`
 		// heisst "noch keine Antwort da" (Ausgangszustand), nicht "die Vorschau ist gescheitert".
-		preview: { loading: false, ok: false, error: "", counts: null, areas: [], places: [], sample: 0 },
+		// `terms` (Befund 7, Fix-Runde 3): die Trefferzahl JE BEDINGUNG, parallel zu state.terms.
+		preview: { loading: false, ok: false, error: "", counts: null, areas: [], places: [], terms: [], sample: 0 },
 		// undefined = noch nicht abgefragt, null = Abruf gescheitert, sonst die volle Antwort von
 		// assignment_status ({stamp, current}). Getrennt vom Katalog-Promise.all unten -- ein
 		// Fehlschlag hier darf die beiden Kataloge nicht mit sich reissen (dieselbe Unabhaengigkeit
@@ -704,7 +762,14 @@ function avesmapsLoreRuleTermMarkup(term, index, total) {
 
 	return '<div class="lore-rule-term" data-lore-rule-term data-term-index="' + index + '">'
 		+ '<div class="lore-rule-term__head">'
+		+ '<span class="lore-rule-term__title">'
 		+ '<span class="lore-rule-term__name">Bedingung ' + (index + 1) + "</span>"
+		// Befund 7 (Fix-Runde 3, Entwurf §6.1: "eine eigene Trefferzahl im Kopf"). Leer beim
+		// Aufbau -- avesmapsLoreRulePaintPreview (billiges Neuzeichnen) fuellt sie, sobald die
+		// Vorschau eine Antwort mit `terms[index]` traegt. Nie hier direkt berechnet: der
+		// Rechenweg braucht den Server (STRATO-Vorsicht, dieselbe Zahl wie unten in der Vorschau).
+		+ '<span class="lore-rule-term__hits" data-lore-rule-term-hits></span>'
+		+ "</span>"
 		+ '<button type="button" class="lore-rule-icon-btn" data-lore-rule-remove-term data-term-index="' + index + '"'
 		+ (total < 2 ? " disabled" : "") + ' title="Bedingung entfernen">×</button>'
 		+ "</div>"
@@ -782,6 +847,10 @@ function avesmapsLoreRuleRenderEditor() {
 		+ '<span class="lore-rule-term__name">Was die Regel trifft</span>'
 		+ '<span class="lore-rule-hint" data-lore-rule-assignment-stamp></span>'
 		+ "</div>"
+		// Befund 7 (Fix-Runde 3), Entwurf §6.1 „der Rechenweg": eine Zeile je Bedingung, der
+		// Operator dazwischen, darunter das Ergebnis -- gefuellt von avesmapsLoreRuleCalcMarkup
+		// ueber avesmapsLoreRulePaintPreview, wie der Rest dieses Abschnitts.
+		+ '<table class="lore-rule-calc" data-lore-rule-calc></table>'
 		+ '<div class="lore-rule-hits">'
 		+ '<div class="lore-rule-hits__head">'
 		+ '<span class="lore-rule-hits__count" data-lore-rule-hits-areas-count></span>'
@@ -892,16 +961,42 @@ function avesmapsLoreRuleRepaintDerived(body, scheduleFetch) {
 	if (countEl) {
 		countEl.textContent = state.terms.length + (state.terms.length === 1 ? " Bedingung" : " Bedingungen");
 	}
+	// 💣 Fix-Runde 3, Befund 2: derselbe Test wie der Server (avesmapsLoreRuleChainIsUnbounded oben)
+	// -- die ERSTE leere Bedingung entscheidet, nicht "sind ALLE leer". Die Meldung nennt sie beim
+	// Namen ("Bedingung 2 schränkt nichts ein"), damit man nicht raten muss, welche gemeint ist.
+	var emptyIndex = avesmapsLoreRuleFirstEmptyTermIndex(state.terms);
 	var warnEl = body.querySelector("[data-lore-rule-warn]");
 	if (warnEl) {
-		var allEmpty = state.terms.every(avesmapsLoreRuleTermIsEmpty);
-		warnEl.hidden = !allEmpty;
-		warnEl.textContent = allEmpty ? "Ohne eine einzige Einschränkung träfe die Regel alles — das ist keine Regel." : "";
+		warnEl.hidden = emptyIndex < 0;
+		warnEl.textContent = emptyIndex < 0 ? "" : (state.terms.length === 1
+			? "Ohne eine einzige Einschränkung träfe die Regel alles — das ist keine Regel."
+			: "Bedingung " + (emptyIndex + 1) + " schränkt nichts ein — die Regel träfe damit alles.");
 	}
 
 	// Task 7: die Meldung des Servers (save_rule/delete_rule) -- nicht der ausgegraute Knopf ist
 	// die Wahrheit, siehe Dateikopf der Speicher-/Loeschfunktionen unten.
 	avesmapsLoreRulePaintSaveState(body);
+
+	// 💣 Fix-Runde 3, Befund 3: eine unbeschraenkte Kette speichert der Server ohnehin nicht
+	// (rule_matches_everything) -- ein preview_rule-Abruf dafuer waere die teuerste Anfrage des
+	// Hauses (~2.782 Flaechen+Orte) fuer ein von vornherein verworfenes Ergebnis. "+ Regel" oeffnet
+	// mit GENAU einer leeren Bedingung; ohne diese Bremse loeste das Oeffnen selbst schon einen
+	// Abruf aus. Ein noch laufender Entpreller wird verworfen, eine schon losgeschickte, aber noch
+	// nicht zurueckgekommene Anfrage durch die Sequenznummer entwertet (siehe
+	// avesmapsLoreRuleFetchPreview) -- der Zaehlplatz zeigt den Grund sofort, ohne zu warten.
+	if (avesmapsLoreRuleChainIsUnbounded(state.terms)) {
+		if (avesmapsLoreRulePreviewTimer) {
+			clearTimeout(avesmapsLoreRulePreviewTimer);
+			avesmapsLoreRulePreviewTimer = null;
+		}
+		avesmapsLoreRulePreviewSeq++;
+		state.preview = {
+			loading: false, ok: false, error: "", counts: null, areas: [], places: [], terms: [], sample: 0,
+			unbounded: true,
+		};
+		avesmapsLoreRulePaintPreview(body);
+		return;
+	}
 
 	// Die Vorschau zeigt den zuletzt bekannten Stand sofort (auch waehrend eine neue Anfrage noch
 	// entprellt wird) und stoesst danach eine frische an -- jede AENDERUNG AN DER KETTE laeuft durch
@@ -951,7 +1046,7 @@ function avesmapsLoreRuleFetchPreview() {
 	state.preview = Object.assign({}, state.preview, { loading: true, error: "" });
 	avesmapsLoreRulePaintPreview(avesmapsLoreRuleEditorBodyEl());
 
-	fetch(AVESMAPS_LORE_RULE_ENDPOINT, {
+	avesmapsLoreRuleFetch(AVESMAPS_LORE_RULE_ENDPOINT, {
 		method: "POST",
 		credentials: "same-origin",
 		headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -973,6 +1068,9 @@ function avesmapsLoreRuleFetchPreview() {
 					counts: data.counts || { areas: 0, places: 0 },
 					areas: Array.isArray(data.areas) ? data.areas : [],
 					places: Array.isArray(data.places) ? data.places : [],
+					// Befund 7: je Bedingung ihre eigene Trefferzahl, in derselben Reihenfolge wie
+					// state.terms -- vom Server mitgeliefert (api/edit/map/lore.php, preview_rule).
+					terms: Array.isArray(data.terms) ? data.terms : [],
 					sample: Number(data.sample) || 0,
 				};
 			} else {
@@ -983,6 +1081,7 @@ function avesmapsLoreRuleFetchPreview() {
 					counts: null,
 					areas: [],
 					places: [],
+					terms: [],
 					sample: 0,
 				};
 			}
@@ -1008,15 +1107,34 @@ function avesmapsLoreRuleResponseErrorMessage(data, fallbackRejected, fallbackNo
 	return fallbackRejected;
 }
 
+// PURE: erkennt eine automatisch vergebene Flaechenbenennung ("Wald-001", "Fläche-026") am Muster
+// <Wort>-<Ziffern> -- Entwurf §6.2: "Auto-benannte Flächen treffen die Regel mit, und in einer
+// Infobox stünde dann dieser Name. Kein Riegel -- sie sind echte Flächen --, aber in der
+// Trefferliste kursiv, damit man es vor dem Speichern sieht." Dasselbe Muster wie isAutoName() im
+// Mockup (docs/vorkommen-regeleditor-mockup.html), ohne dessen `!name`-Fall: ein FEHLENDER Name ist
+// hier ein eigener Fall ("(ohne Namen)", siehe avesmapsLoreRuleHitsListMarkup), kein Namensmuster.
+function avesmapsLoreRuleIsAutoAreaName(name) {
+	return /^[A-Za-zÄÖÜäöüß/-]+-\d+$/.test(String(name || ""));
+}
+
 // PURE: die Namensliste einer Trefferseite (Flaechen ODER Siedlungen). Escaped -- die Namen kommen
-// aus der Datenbank (AGENTS.md „Jeder Wert aus der Datenbank wird escaped").
-function avesmapsLoreRuleHitsListMarkup(rows) {
+// aus der Datenbank (AGENTS.md „Jeder Wert aus der Datenbank wird escaped"). checkAutoName (nur bei
+// Flaechen gesetzt, Befund „Zwei Kleinigkeiten"/Entwurf §6.2): eine automatisch vergebene
+// Flaechenbenennung erscheint kursiv (`is-auto`). Siedlungsnamen sind nie automatisch vergeben,
+// deshalb prueft die Ortsliste das Muster gar nicht erst. 💣 `is-auto` traegt seit Fix-Runde 3 NICHT
+// mehr den Leerzustand -- der hat jetzt seine eigene Klasse (`is-empty`), sonst waeren beide optisch
+// ununterscheidbar und die Kursivschrift saesse am falschen Fall.
+function avesmapsLoreRuleHitsListMarkup(rows, checkAutoName) {
 	if (!rows || !rows.length) {
-		return '<li class="lore-rule-hits__item is-auto">Keine.</li>';
+		return '<li class="lore-rule-hits__item is-empty">Keine.</li>';
 	}
 	return rows.map(function (row) {
-		var label = String((row && row.name) || (row && row.public_id) || "");
-		return '<li class="lore-rule-hits__item">' + escapeHtml(label) + "</li>";
+		var name = String((row && row.name) || "").trim();
+		// Entwurf-Mockup schreibt "(ohne Namen)" statt der rohen public_id -- eine UUID ist keine
+		// Auskunft, mit der ein Redakteur vor dem Speichern etwas anfangen kann.
+		var label = name || "(ohne Namen)";
+		var isAuto = Boolean(checkAutoName) && avesmapsLoreRuleIsAutoAreaName(name);
+		return '<li class="lore-rule-hits__item' + (isAuto ? " is-auto" : "") + '">' + escapeHtml(label) + "</li>";
 	}).join("");
 }
 
@@ -1056,12 +1174,23 @@ function avesmapsLoreRuleAssignmentStampText(response) {
 	return "Stand: " + avesmapsLoreRuleFormatStamp(run.computed_at) + (stale ? " · veraltet, bitte neu rechnen" : " · aktuell");
 }
 
+// REIN (auf Zustand): laeuft gerade ein Zugehoerigkeits-Lauf? 💣 Fix-Runde 3, Befund 6: waehrend
+// eines Laufs sind die Zuordnungstabellen leer -- preview_rule liefert dann ECHTE Nullen, die genau
+// so aussehen wie "diese Regel trifft nichts". avesmapsLoreRuleAssignmentStampText benennt das
+// bereits im Stempeltext ("Wird gerade gerechnet …"); derselbe Test hier unterdrueckt zusaetzlich
+// die ZAHLEN daneben (Trefferzahlen, Rechenweg, Bedingungskoepfe), damit niemand eine echte 0 fuer
+// eine berechnete 0 haelt.
+function avesmapsLoreRuleAssignmentRunning(state) {
+	var run = state && state.assignmentStamp && state.assignmentStamp.stamp;
+	return Boolean(run) && !run.completed;
+}
+
 // Holt EINMAL je Editor-Oeffnen den Stempel des letzten Zugehoerigkeits-Laufs (POST
 // assignment_status, api/edit/map/ecosystem.php). Ein Fehlschlag liefert `null` statt zu werfen --
 // dieselbe Vorsicht wie die beiden Kataloge oben, aus demselben Grund (ein 401 darf den Editor nicht
 // mit sich reissen).
 function avesmapsLoreRuleLoadAssignmentStamp() {
-	return fetch(AVESMAPS_LORE_RULE_ECOSYSTEM_ENDPOINT, {
+	return avesmapsLoreRuleFetch(AVESMAPS_LORE_RULE_ECOSYSTEM_ENDPOINT, {
 		method: "POST",
 		credentials: "same-origin",
 		headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -1072,27 +1201,93 @@ function avesmapsLoreRuleLoadAssignmentStamp() {
 		.then(function (data) { return (data && data.ok === true) ? data : null; });
 }
 
-// Malt NUR die Vorschau (Stempelzeile + beide Trefferlisten) -- nie die Sucheingaben oder ihre
-// Marken. Aufgerufen sowohl aus avesmapsLoreRuleRepaintDerived (jede Aenderung an der Kette) als
-// auch direkt nach einer preview_rule-/assignment_status-Antwort, OHNE den Umweg ueber
-// RepaintDerived: der wuerde erneut einen Vorschau-Abruf anstossen (Schleife).
+// PURE: die Trefferzahl EINER Bedingung fuer ihren Kopf (Befund 7, Entwurf §6.1: "je Bedingung ...
+// eine eigene Trefferzahl im Kopf"). `counts` ist state.preview.terms[index] -- vom Server, ueber
+// DIESELBEN bereits geladenen Flaechen/Orte wie die Gesamtzahl (siehe api/edit/map/lore.php,
+// preview_rule). `running` (Befund 6): waehrend eines Zugehoerigkeits-Laufs waere die Zahl eine
+// unverlaessliche Null, siehe avesmapsLoreRuleAssignmentRunning.
+function avesmapsLoreRuleTermHitsText(counts, running) {
+	if (running) {
+		return "wird neu gerechnet …";
+	}
+	if (!counts) {
+		return "";
+	}
+	var areas = Number(counts.areas) || 0;
+	var places = Number(counts.places) || 0;
+	return areas + (areas === 1 ? " Fläche" : " Flächen") + " · " + places + (places === 1 ? " Siedlung" : " Siedlungen");
+}
+
+// PURE: der Rechenweg -- eine Zeile je Bedingung mit ihrer Trefferzahl, der Operator dazwischen,
+// darunter FETT das Ergebnis (Entwurf §6.1 "Rechts daneben der Rechenweg ... darunter das
+// Ergebnis" und §3.1 "Der Editor zeigt beide Zahlen nebeneinander, damit man sieht, was man gebaut
+// hat"). Uebertragen aus docs/vorkommen-regeleditor-mockup.html (#calc/refresh()), mit den
+// Haus-Tokens statt der Mockup-Platzhalter, wie der Rest dieses Editors (Dateikopf). Keine
+// Escaping-Pflicht: `join_op` ist eine von zwei festverdrahteten Zeichenketten, die Zahlen sind
+// Zahlen -- keines der beiden traegt Text aus der Datenbank.
+function avesmapsLoreRuleCalcMarkup(state, running) {
+	var preview = state.preview || {};
+	if (preview.loading) {
+		return '<tr><td colspan="3">wird berechnet …</td></tr>';
+	}
+	if (running) {
+		return '<tr><td colspan="3">Wird gerade neu gerechnet — Zahlen währenddessen nicht verlässlich.</td></tr>';
+	}
+	if (!preview.ok || !Array.isArray(preview.terms) || preview.terms.length !== state.terms.length) {
+		return "";
+	}
+	var plural = function (n, one, many) { return n + (n === 1 ? " " + one : " " + many); };
+	var rows = state.terms.map(function (term, index) {
+		var counts = preview.terms[index] || { areas: 0, places: 0 };
+		var opRow = index > 0
+			? '<tr><td class="lore-rule-calc__op" colspan="3">' + (term.join_op === "oder" ? "ODER" : "UND") + "</td></tr>"
+			: "";
+		return opRow + "<tr><td>Bedingung " + (index + 1) + "</td><td>" + plural(Number(counts.areas) || 0, "Fläche", "Flächen")
+			+ "</td><td>" + plural(Number(counts.places) || 0, "Siedlung", "Siedlungen") + "</td></tr>";
+	}).join("");
+	var totalAreas = preview.counts ? Number(preview.counts.areas) || 0 : 0;
+	var totalPlaces = preview.counts ? Number(preview.counts.places) || 0 : 0;
+	return rows + "<tr><td>Ergebnis</td><td>" + plural(totalAreas, "Fläche", "Flächen")
+		+ "</td><td>" + plural(totalPlaces, "Siedlung", "Siedlungen") + "</td></tr>";
+}
+
+// Malt NUR die Vorschau (Stempelzeile + Rechenweg + Bedingungskoepfe + beide Trefferlisten) -- nie
+// die Sucheingaben oder ihre Marken. Aufgerufen sowohl aus avesmapsLoreRuleRepaintDerived (jede
+// Aenderung an der Kette) als auch direkt nach einer preview_rule-/assignment_status-Antwort, OHNE
+// den Umweg ueber RepaintDerived: der wuerde erneut einen Vorschau-Abruf anstossen (Schleife).
 function avesmapsLoreRulePaintPreview(body) {
 	var state = avesmapsLoreRuleEditor;
 	if (!state || !body) {
 		return;
 	}
 	var preview = state.preview || {};
+	var running = avesmapsLoreRuleAssignmentRunning(state);
 
 	var stampEl = body.querySelector("[data-lore-rule-assignment-stamp]");
 	if (stampEl) {
 		stampEl.textContent = avesmapsLoreRuleAssignmentStampText(state.assignmentStamp);
 	}
 
+	var calcEl = body.querySelector("[data-lore-rule-calc]");
+	if (calcEl) {
+		calcEl.innerHTML = avesmapsLoreRuleCalcMarkup(state, running);
+	}
+
+	state.terms.forEach(function (term, index) {
+		var hitsEl = body.querySelector('[data-lore-rule-term][data-term-index="' + index + '"] [data-lore-rule-term-hits]');
+		if (!hitsEl) {
+			return;
+		}
+		var counts = (preview.ok && Array.isArray(preview.terms)) ? preview.terms[index] : null;
+		hitsEl.textContent = preview.loading ? "" : avesmapsLoreRuleTermHitsText(counts, running);
+	});
+
 	var fields = [
 		{
 			countSel: "[data-lore-rule-hits-areas-count]", noteSel: "[data-lore-rule-hits-areas-note]",
 			listSel: "[data-lore-rule-hits-areas-list]", rows: preview.areas,
 			n: preview.counts ? preview.counts.areas : null, singular: " Fläche", plural: " Flächen",
+			checkAutoName: true,
 		},
 		{
 			countSel: "[data-lore-rule-hits-places-count]", noteSel: "[data-lore-rule-hits-places-note]",
@@ -1109,6 +1304,15 @@ function avesmapsLoreRulePaintPreview(body) {
 			return;
 		}
 
+		// Befund 3: der Client fragt gar nicht erst, wenn die Kette unbeschraenkt ist (siehe
+		// avesmapsLoreRuleRepaintDerived) -- der Zaehlplatz nennt den Grund statt eine geladene
+		// Zahl vorzutaeuschen.
+		if (preview.unbounded) {
+			countEl.textContent = "Noch keine Einschränkung";
+			if (noteEl) { noteEl.textContent = ""; }
+			if (listEl) { listEl.innerHTML = ""; }
+			return;
+		}
 		if (preview.loading) {
 			countEl.textContent = "wird berechnet …";
 			if (noteEl) { noteEl.textContent = ""; }
@@ -1127,6 +1331,15 @@ function avesmapsLoreRulePaintPreview(body) {
 			if (listEl) { listEl.innerHTML = ""; }
 			return;
 		}
+		// Befund 6: waehrend eines Zugehoerigkeits-Laufs sind die Zuordnungstabellen leer -- eine
+		// echte 0 waere hier nicht von einer BERECHNETEN 0 zu unterscheiden. Der Grund steht an der
+		// Stelle, an der sonst die Zahl stuende, nicht als stille Null.
+		if (running) {
+			countEl.textContent = "wird gerade neu gerechnet";
+			if (noteEl) { noteEl.textContent = "Zahlen währenddessen nicht verlässlich."; }
+			if (listEl) { listEl.innerHTML = ""; }
+			return;
+		}
 
 		var n = Number(field.n) || 0;
 		countEl.textContent = n + (n === 1 ? field.singular : field.plural);
@@ -1137,7 +1350,7 @@ function avesmapsLoreRulePaintPreview(body) {
 			noteEl.textContent = n > sample ? "zeigt nur die ersten " + sample : "";
 		}
 		if (listEl) {
-			listEl.innerHTML = avesmapsLoreRuleHitsListMarkup(field.rows);
+			listEl.innerHTML = avesmapsLoreRuleHitsListMarkup(field.rows, field.checkAutoName);
 		}
 	});
 }
@@ -1197,7 +1410,7 @@ function avesmapsLoreRuleSaveCurrentRule() {
 		payload.rule_id = state.ruleId;
 	}
 
-	fetch(AVESMAPS_LORE_RULE_ENDPOINT, {
+	avesmapsLoreRuleFetch(AVESMAPS_LORE_RULE_ENDPOINT, {
 		method: "POST",
 		credentials: "same-origin",
 		headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -1256,7 +1469,7 @@ function avesmapsLoreRuleDeleteCurrentRule() {
 	state.saveError = "";
 	avesmapsLoreRulePaintSaveState(avesmapsLoreRuleEditorBodyEl());
 
-	fetch(AVESMAPS_LORE_RULE_ENDPOINT, {
+	avesmapsLoreRuleFetch(AVESMAPS_LORE_RULE_ENDPOINT, {
 		method: "POST",
 		credentials: "same-origin",
 		headers: { "Content-Type": "application/json", Accept: "application/json" },
