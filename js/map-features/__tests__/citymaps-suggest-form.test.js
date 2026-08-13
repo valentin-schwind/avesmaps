@@ -202,6 +202,35 @@ assert.ok(/index === 0 \? " checked" : ""/.test(rowFn), "auch hier ist 'unbekann
 	assert.ok(new RegExp("\\." + block + " \\+ \\.citymap-suggest__hint").test(css),
 		"Hinweis nach ." + block + " bekommt Abstand nach oben");
 });
+// ---------------------------------------------------------------------------------------------
+// 9. Die Feder steht an JEDEM Vorschlags-Knopf, und sie kommt aus EINER Quelle. Vier Abschriften
+//    desselben <img> laufen auseinander -- genau so sind seinerzeit die nachgebauten Kachel-Regeln
+//    entstanden.
+// ---------------------------------------------------------------------------------------------
+const dialogJs = ohneKommentare(read("js", "map-features", "map-features-citymaps-dialog.js"));
+const extrasJs = ohneKommentare(read("js", "map-features", "map-features-place-extras.js"));
+assert.ok(/function avesmapsCitymapQuillMarkup\(className\)/.test(extrasJs),
+	"es gibt genau eine Stelle, die das Feder-Bild baut");
+assert.ok(/icons\/feder\.webp/.test(extrasJs), "und sie zeigt auf icons/feder.webp");
+[["map-features-place-extras.js", extrasJs], ["map-features-citymaps-dialog.js", dialogJs],
+	["map-features-citymaps-suggest.js", js]].forEach(([name, quelle]) => {
+	const eigene = (quelle.match(/<img[^>]*feder\.webp/g) || []).length;
+	const erlaubt = name === "map-features-place-extras.js" ? 1 : 0; // dort WOHNT der Bauer
+	assert.strictEqual(eigene, erlaubt, name + ": kein handgeschriebenes Feder-<img> daneben");
+});
+// Beide Absende-Knoepfe und der Knopf in der Dialog-Fusszeile rufen den Bauer auf.
+assert.strictEqual((js.match(/quill\(\) \+ esc\(t\("cityMaps\.suggestSubmit"/g) || []).length, 2,
+	"beide 'Vorschlag senden' tragen die Feder");
+assert.ok(/avesmapsCitymapQuillMarkup\(\) \+ esc\(tr\("cityMaps\.suggest"/.test(dialogJs),
+	"'Karte vorschlagen' in der Dialog-Fusszeile traegt die Feder");
+const federRegel = (css.match(/\.citymap-suggest__quill \{([^}]*)\}/) || [])[1];
+assert.ok(federRegel !== undefined, "die Feder hat eine eigene Regel");
+assert.ok(/width:\s*var\(--icon-/.test(federRegel) && /height:\s*var\(--icon-/.test(federRegel),
+	"ihre Groesse kommt aus der Icon-Skala, nicht aus einer Zahl");
+// 💣 16px, nicht 20: der Absende-Knopf steht neben "Abbrechen" und war mit 20 drei Pixel hoeher als
+//    sein Nachbar (align-items: stretch hilft nicht, ein <button> dehnt sich nicht mit). Gemessen.
+assert.ok(/--icon-sm/.test(federRegel), "und zwar --icon-sm, sonst wird der Knopf hoeher als sein Nachbar");
+
 // 💣 Die dritte Spur der Fundort-Zeile ist eine FESTE Laenge. Kopfzeile und Datenzeile sind zwei
 //    getrennte Gitter mit derselben Vorlage -- mit `auto` misst jedes seinen eigenen Inhalt (111px
 //    Ueberschrift gegen 137px Schalter) und die Spaltenbeschriftung wandert von ihrer Spalte weg.

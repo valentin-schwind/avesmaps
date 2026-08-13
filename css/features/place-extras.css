@@ -1052,6 +1052,29 @@ select.citymap-fundort__input {
 	box-shadow: none;
 	transform: none;
 }
+/* ---- Die Feder an den Vorschlags-Knoepfen (Owner 2026-08-13) ----
+   Dieselbe Feder wie am Knopf im Kachelband des Infopanels, hier aber --icon-sm (16) statt der 20 dort:
+   der Absende-Knopf steht neben "Abbrechen", und mit 20px war er 3px hoeher als sein Nachbar --
+   zwei Knoepfe nebeneinander mit verschiedener Hoehe. align-items: stretch hilft nicht (ein <button>
+   dehnt sich nicht mit), 16px schon: beide messen dann 34px. 16 ist ohnehin die Stufe fuer dichte
+   Knopfzeilen (docs/design-language.md).
+   ⚠️ Hier steht NUR, wie Bild und Text zueinander stehen. Fuellung, Hover und Fokus des
+      Fusszeilen-Knopfes wohnen weiter oben bei seinem eigenen Selektor: zwei Regeln fuer einen Knopf,
+      aber fuer zwei verschiedene Fragen. */
+.avesmaps-citymaps-dialog__foot .avesmaps-citymaps__suggest,
+.citymap-suggest__submit {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-4);
+}
+.citymap-suggest__quill {
+	flex: 0 0 auto;
+	width: var(--icon-sm);
+	height: var(--icon-sm);
+	object-fit: contain;
+	pointer-events: none;
+}
 /* ---- "Neuer Fundort": dieselbe Sprache, drei Spalten ----
    Die Ueberschrift sitzt auf DEMSELBEN Grid wie die Zeilen, damit eine Spaltenbeschriftung nicht von
    ihrer Spalte wegwandern kann -- gleiche Loesung wie im Editor. Unter 520px stapeln die drei, statt die

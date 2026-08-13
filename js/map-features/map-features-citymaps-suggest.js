@@ -40,6 +40,11 @@
 	function t(key, fallback, vars) {
 		return typeof tr === "function" ? tr(key, fallback, vars) : fallback;
 	}
+	// Die Feder kommt aus map-features-place-extras.js -- EINE Quelle fuer Bild, Groesse und alt-Text.
+	// Riegel wie bei esc/t: fehlt die Datei, fehlt eben das Bild, und der Knopf bleibt bedienbar.
+	function quill() {
+		return typeof avesmapsCitymapQuillMarkup === "function" ? avesmapsCitymapQuillMarkup() : "";
+	}
 
 	// Spiegel der EINEN serverseitigen Definition (api/_internal/app/citymaps.php) — Slugs sind
 	// Domäneninhalt und müssen Byte für Byte passen, die Labels sind deutsche UI. Identisch zum
@@ -272,7 +277,7 @@
 			// anderen Dialogs (docs/design-language.md, Knopf-Hierarchie).
 			+ '<div class="citymap-suggest__actions">'
 			+ '<button type="button" class="citymap-suggest__cancel" data-citymap-suggest-close>' + esc(t("cityMaps.suggestCancel", "Abbrechen")) + '</button>'
-			+ '<button type="submit" class="citymap-suggest__submit">' + esc(t("cityMaps.suggestSubmit", "Vorschlag senden")) + '</button>'
+			+ '<button type="submit" class="citymap-suggest__submit">' + quill() + esc(t("cityMaps.suggestSubmit", "Vorschlag senden")) + '</button>'
 			+ '</div></form></div>';
 		document.body.appendChild(overlay);
 
@@ -593,7 +598,7 @@
 			+ '<p class="citymap-suggest__status" role="status" aria-live="polite"></p>'
 			+ '<div class="citymap-suggest__actions">'
 			+ '<button type="button" class="citymap-suggest__cancel" data-fundort-close>' + esc(t("cityMaps.suggestCancel", "Abbrechen")) + '</button>'
-			+ '<button type="submit" class="citymap-suggest__submit">' + esc(t("cityMaps.suggestSubmit", "Vorschlag senden")) + '</button>'
+			+ '<button type="submit" class="citymap-suggest__submit">' + quill() + esc(t("cityMaps.suggestSubmit", "Vorschlag senden")) + '</button>'
 			+ '</div></form></div>';
 		document.body.appendChild(overlay);
 

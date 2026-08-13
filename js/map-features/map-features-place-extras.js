@@ -83,6 +83,18 @@ function placeExtrasEscape(value) {
 // href. The write path already refuses anything else (avesmapsCitymapNormalizeUrl, api/_internal/app/
 // citymaps.php) -- but getPlaceCityMaps also accepts a location.cityMaps payload that never passed
 // through it, so the render side does not take that on trust.
+// Die Feder an den Vorschlags-Knoepfen (Owner 2026-08-13: „den ganzen vorschlagen buttons kannst die
+// schoene feder geben"). EINE Stelle fuer Bild, Groesse und alt-Text: sie sitzt an vier Knoepfen in drei
+// Dateien, und vier Abschriften desselben <img> laufen genauso auseinander wie seinerzeit die
+// nachgebauten Kachel-Regeln in place-extras.css.
+// ⚠️ Die Klasse kommt vom AUFRUFER: im Kachelband ist es `location-popup__action-img` (die bringt dort
+//    ihre Zeilenfassung mit), an den flachen Knoepfen `citymap-suggest__quill`.
+// alt="" ist richtig -- der Knopf traegt seinen Namen als Text, ein Alternativtext wiederholte ihn nur.
+function avesmapsCitymapQuillMarkup(className) {
+	return '<img class="' + placeExtrasEscape(className || "citymap-suggest__quill") + '"'
+		+ ' src="icons/feder.webp" alt="" width="20" height="20" />';
+}
+
 function cityMapSafeUrl(value) {
 	var url = String(value == null ? "" : value).trim();
 	if (!url) {
@@ -267,7 +279,7 @@ function buildCityMapsSectionMarkup(placeName, maps, opts) {
 	// (`border-radius: 6px` gegen den Token --radius-md = 8px).
 	var suggestButton = place
 		? '<button type="button" class="location-popup__action-button avesmaps-citymaps__suggest"' + citymapPlaceAttrs(place, name) + '>'
-			+ '<img class="location-popup__action-img" src="icons/feder.webp" alt="" width="20" height="20" />'
+			+ avesmapsCitymapQuillMarkup("location-popup__action-img")
 			+ placeExtrasEscape(tr("cityMaps.suggest", "Karte vorschlagen")) + '</button>'
 		: "";
 	// Die Lizenz-Fussnote reist MIT den Covern, nicht hinter ihnen her: sie ist die Bedingung, unter der
