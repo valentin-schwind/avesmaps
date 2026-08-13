@@ -631,15 +631,22 @@ function buildLoreMarkup(placeRef) {
 	}
 	var key = avesmapsLoreNormalizeKey(placeRef && (placeRef.key || placeRef.wikiKey || placeRef.wiki_key));
 	var titles = (placeRef && placeRef.titles) || "";
-	if (!key && !titles) {
-		return "";
-	}
 	// Identität des Objekts, dessen Infobox dieser Container füllt -- public_id einer
 	// Landschaftsfläche (area) oder einer Siedlung (location). Optional, wie titles/goods
 	// unten: nur gesetzt, wenn der Aufrufer sie kennt (heute: avesmapsLorePlaceRefFromLocation).
 	var area = String((placeRef && placeRef.area) || "");
 	var location = String((placeRef && placeRef.location) || "");
-	// Container-Id: bei reiner Titel-Anfrage der Titel selbst, sonst der Schlüssel.
+	// 💣 Task 4b: der Riegel muss auch bei GESETZTER IDENTITÄT ohne key/titles öffnen -- ein Ort
+	// ganz ohne Wiki-Artikel hat weder key noch titles, aber seine public_id (location) reicht
+	// dem Server, um die Lebensraum-Regel gegen genau dieses Objekt zu prüfen
+	// (avesmapsLorePlaceRefFromLocation liefert seit dieser Aufgabe genau so ein placeRef).
+	// Fehlen alle vier, gibt es nichts, das der Server treffen könnte: "".
+	if (!key && !titles && !area && !location) {
+		return "";
+	}
+	// Container-Id: bei reiner Titel-Anfrage der Titel selbst, sonst der Schlüssel. Ohne beides
+	// (nur Identität) bleibt containerKey hier "" -- der Identitäts-Block direkt darunter macht
+	// ihn aus area/location allein eindeutig und stabil, siehe dort.
 	var containerKey = key || titles.replace(/[^a-z0-9_-]+/gi, "-").toLowerCase().slice(0, 190);
 	// 💣 Identität gehört IN den Container-Schlüssel, nicht nur in den Abruf (siehe
 	// avesmapsLoreRequestKey): avesmapsLoreFillContainers sucht Container über
@@ -707,16 +714,21 @@ function avesmapsLorePlaceRefFromLocation(location) {
 		location.territoryWikiKey || location.territory_wiki_key
 		|| (location.properties && location.properties.territory_wiki_key) || ""
 	);
-	if (!titles.length && !territoryKey) {
+	// Identität der SIEDLUNG selbst (nicht die ihres Territoriums -- territoryKey oben ist der
+	// Ortsschlüssel, nicht die Identität). Der Server braucht sie, um seine Lebensraum-Regeln
+	// gegen genau dieses Objekt zu prüfen.
+	var locationId = String(location.publicId || location.public_id || "");
+	// 💣 Task 4b: OHNE Wiki-Artikel und OHNE Territorium bleibt nur die public_id -- und die
+	// reicht dem Server (siehe api/app/lore.php), um die Lebensraum-Regel gegen den Ort zu
+	// prüfen. Das betrifft die MEHRHEIT der Siedlungen (2.885 von 4.883, gemessen): genau für
+	// sie wurde die Regel erfunden. Erst wenn auch die public_id fehlt, bleibt es bei null.
+	if (!titles.length && !territoryKey && !locationId) {
 		return null;
 	}
 	return {
 		key: territoryKey,
 		titles: titles.join("|"),
 		name: wiki.name || location.name || "",
-		// Identität der SIEDLUNG selbst (nicht die ihres Territoriums -- territoryKey oben
-		// ist der Ortsschlüssel, nicht die Identität). Der Server braucht sie, um seine
-		// Lebensraum-Regeln gegen genau dieses Objekt zu prüfen.
-		location: String(location.publicId || location.public_id || ""),
+		location: locationId,
 	};
 }

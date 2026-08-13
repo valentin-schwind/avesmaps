@@ -170,9 +170,6 @@ try {
         }
         $placeParameter = trim($placeParameter . ',' . implode(',', $fromTitles), ',');
     }
-    if ($placeParameter === '') {
-        avesmapsErrorResponse(400, 'place_required', 'Parameter "place" (wiki_key) oder "title" is required.');
-    }
     $placeKeys = [];
     foreach (explode(',', $placeParameter) as $candidate) {
         $candidate = trim($candidate);
@@ -182,8 +179,19 @@ try {
             $placeKeys[] = mb_strtolower($candidate, 'UTF-8');
         }
     }
-    if ($placeKeys === []) {
-        avesmapsErrorResponse(400, 'place_invalid', 'Parameter "place" holds no usable wiki_key.');
+    // Lebensraum-Regel (Sitzung 3, Task 4b): ?area=<public_id> oder ?location=<public_id> ist
+    // ein ebenso brauchbarer Anfragegrund wie ein Ortsschluessel -- genau fuer Orte OHNE
+    // Wiki-Artikel (2.885 von 4.883 Siedlungen, gemessen) wurde die Regel erfunden. Hier lesen,
+    // NICHT nochmal weiter unten aus $_GET: dieselben Werte an beiden Stellen, keine zweite
+    // Quelle. (string)-Cast VOR avesmapsNormalizeSingleLine: ihr Parameter ist ?string, und ein
+    // ?area[]=x wuerde als PHP-Array sonst einen TypeError werfen statt einen leeren/harmlosen
+    // Wert zu liefern -- derselbe Cast wie bei jedem anderen $_GET-Wert in dieser Datei.
+    $areaParameter = avesmapsNormalizeSingleLine((string) ($_GET['area'] ?? ''), 36);
+    $locationParameter = $areaParameter === ''
+        ? avesmapsNormalizeSingleLine((string) ($_GET['location'] ?? ''), 36)
+        : '';
+    if (!avesmapsLoreRequestHasSubject(implode(',', $placeKeys), $areaParameter, $locationParameter)) {
+        avesmapsErrorResponse(400, 'place_invalid', 'Parameter "place", "area" or "location" holds no usable value.');
     }
 
     // ?goods=Vieh|Holz|Salz -- freie Warennamen aus der Infobox-Zeile „Handelswaren",
@@ -226,16 +234,9 @@ try {
 
     $result = avesmapsLoreReadForPlaces($pdo, array_keys($ranks), $full ? 0 : AVESMAPS_LORE_PANEL_LIMIT, $ranks);
 
-    // Lebensraum-Regel (Sitzung 3): ?area=<public_id> ODER ?location=<public_id> liefert
-    // zusaetzlich die Eintraege, deren REGEL diese Flaeche/diesen Ort trifft -- dieselben
-    // sections, rank 1. 36 Zeichen: eine public_id ist ein UUID (CHAR(36)).
-    // (string)-Cast VOR avesmapsNormalizeSingleLine: ihr Parameter ist ?string, und ein
-    // ?area[]=x wuerde als PHP-Array sonst einen TypeError werfen statt einen leeren/harmlosen
-    // Wert zu liefern -- derselbe Cast wie bei jedem anderen $_GET-Wert in dieser Datei.
-    $areaParameter = avesmapsNormalizeSingleLine((string) ($_GET['area'] ?? ''), 36);
-    $locationParameter = $areaParameter === ''
-        ? avesmapsNormalizeSingleLine((string) ($_GET['location'] ?? ''), 36)
-        : '';
+    // Lebensraum-Regel (Sitzung 3): dieselben $areaParameter/$locationParameter wie beim
+    // Torwaechter oben -- nicht zweimal aus $_GET lesen. Liefert zusaetzlich die Eintraege,
+    // deren REGEL diese Flaeche/diesen Ort trifft -- dieselben sections, rank 1.
     if ($areaParameter !== '' || $locationParameter !== '') {
         // 🔴 Stempel VOR jeder Regelrechnung pruefen, mit einem NACKTEN SELECT -- nie ueber
         // avesmapsEcosystemEnsureTables (dessen information_schema-Sonden sind die Last, die den

@@ -31,6 +31,22 @@ const AVESMAPS_LORE_KINDS = ['flora', 'fauna', 'spezies', 'ware'];
 const AVESMAPS_LORE_PANEL_LIMIT = 10;
 
 /**
+ * Reine Torwaechter-Entscheidung des Lesepfads (api/app/lore.php): darf diese Anfrage
+ * ueberhaupt bedient werden, oder verdient sie den 400 "place_invalid"? (Task 4b, Schritt 1.)
+ *
+ * Drei bereits genormte Zeichenketten hinein -- der aus $placeKeys zusammengesetzte
+ * Ortsschluessel-String, area, location -- ein bool heraus. Keine Seiteneffekte, kein PDO,
+ * kein $_GET-Zugriff: darum isoliert testbar ohne HTTP- oder DB-Fixture. Ein brauchbarer
+ * Ortsschluessel ODER area ODER location genuegt; nur wenn alle drei leer sind, darf der
+ * Aufrufer den 400 werfen -- genau fuer Orte OHNE Wiki-Artikel (2.885 von 4.883 Siedlungen,
+ * gemessen) ist area/location der EINZIGE Anfragegrund.
+ */
+function avesmapsLoreRequestHasSubject(string $placeKeysJoined, string $areaParameter, string $locationParameter): bool
+{
+    return $placeKeysJoined !== '' || $areaParameter !== '' || $locationParameter !== '';
+}
+
+/**
  * Ist diese Art öffentlich sichtbar? Vier Schalter, einer je Art.
  *
  * Polarität wie bei citymaps_enabled/adventures_enabled: **Default AN**, nur ein

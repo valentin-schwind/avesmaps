@@ -74,6 +74,34 @@ const locationRef = placeRefFromLocation({ publicId: "settlement-1", territoryWi
 assert.strictEqual(locationRef && locationRef.location, "settlement-1",
 	"die Siedlungs-public_id muss als location-Feld mitreisen");
 
+// --- Task 4b: Siedlungen OHNE Wiki-Artikel erreichen die Regeln (2.885 von 4.883, gemessen) ---
+// avesmapsLorePlaceRefFromLocation gab bisher null zurueck, sobald weder ein Wiki-Titel noch ein
+// Territorium da war -- genau der Fall bei einem Ort ganz ohne Artikel. Die public_id allein muss
+// reichen: sie ist es, die der Server (api/app/lore.php) gegen die Lebensraum-Regel prueft.
+const bornwaldsteig = placeRefFromLocation({ publicId: "loc-1", name: "Bornwaldsteig" });
+assert.notStrictEqual(bornwaldsteig, null,
+	"ein Ort ganz ohne Wiki-Artikel/Territorium, aber MIT public_id, darf kein null mehr liefern");
+assert.strictEqual(bornwaldsteig && bornwaldsteig.location, "loc-1",
+	"die public_id muss als location-Feld mitreisen, auch ganz ohne Titel/Territorium");
+
+assert.strictEqual(placeRefFromLocation({ name: "Namenlos" }), null,
+	"ganz ohne publicId UND ohne Titel/Territorium bleibt es beim alten null");
+
+// buildLoreMarkup muss dieselbe Identitaet auch OHNE key/titles annehmen -- sonst kommt die neue
+// location aus avesmapsLorePlaceRefFromLocation nie im DOM/Abruf an.
+const locationOnlyMarkup = buildLoreMarkup({ location: "loc-1" });
+assert.ok(locationOnlyMarkup.indexOf('data-lore-location="loc-1"') >= 0,
+	"buildLoreMarkup muss die Identitaet auch OHNE key/titles als Attribut schreiben");
+assert.ok(placeOf(locationOnlyMarkup),
+	"der Container-Schluessel darf dabei nicht leer bleiben (eindeutig/stabil aus der Identitaet allein)");
+
+assert.strictEqual(buildLoreMarkup({}), "",
+	"ganz ohne jede Identitaet/Schluessel/Titel bleibt buildLoreMarkup weiterhin leer");
+
+const otherLocationOnlyMarkup = buildLoreMarkup({ location: "loc-2" });
+assert.notStrictEqual(placeOf(locationOnlyMarkup), placeOf(otherLocationOnlyMarkup),
+	"zwei Orte ohne Schluessel muessen trotzdem verschiedene Container treffen");
+
 // Runde-1-Befund 2: containerKey war ASYMMETRISCH zu avesmapsLoreRequestKey -- ein
 // Entweder-Oder (`area ? … : …`) statt zwei unabhaengiger Beitraege. Traegt ein placeRef
 // kuenftig BEIDE Felder (Task 4 bringt drei weitere area-Aufrufstellen), fiel der
@@ -143,6 +171,13 @@ Promise.resolve()
 	.then(() => {
 		assert.strictEqual(seenUrl.indexOf("&area="), -1, "ganz ohne Identitaet: kein &area= an der URL");
 		assert.strictEqual(seenUrl.indexOf("&location="), -1, "ganz ohne Identitaet: kein &location= an der URL");
+	})
+	// Task 4b: ein Ort ganz ohne Wiki-Artikel/Territorium hat leeren key -- die location muss
+	// trotzdem an der URL landen, sonst bleibt der Server-Aufruf fuer genau diese Orte tot.
+	.then(() => urlContext.avesmapsLoreFetch({ key: "", full: true, titles: "", goods: "", location: "loc-1" }))
+	.then(() => {
+		assert.ok(seenUrl.indexOf("&location=loc-1") >= 0,
+			"leerer key darf &location= nicht verhindern");
 	})
 	.then(() => {
 		console.log("lore-place-ref: OK");
