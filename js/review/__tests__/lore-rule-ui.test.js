@@ -145,4 +145,63 @@ assert.strictEqual(original.types.length, 1, "das Original behaelt seine eine Ar
 assert.strictEqual(original.types[0].region_type, "wald", "und zwar die urspruengliche");
 assert.strictEqual(toggled.types.length, 2, "die Kopie traegt beide");
 
+// ---- Task 7: Vorschau, Speichern, Löschen, Rechenstand ------------------------------------------
+
+// avesmapsLoreRuleFormatStamp: von Hand statt toLocaleString (ICU-unabhaengig), also mit
+// gepolsterten Werten geprueft -- ein vertauschtes Tag/Monat oder ein fehlendes Padding wuerde bei
+// zweistelligen Werten allein nicht auffallen.
+const fmt = context.avesmapsLoreRuleFormatStamp;
+assert.strictEqual(fmt("2026-08-03 07:05:12.345"), "03.08.2026 07:05", "Tag/Monat/Stunde/Minute gepolstert");
+assert.strictEqual(fmt("2026-12-31 23:59:00"), "31.12.2026 23:59", "zweistellige Werte bleiben richtig");
+assert.strictEqual(fmt(""), "", "ein leerer Wert wirft nicht, sondern bleibt leer");
+
+// avesmapsLoreRuleAssignmentStampText: „veraltet" ist ein VERGLEICH -- fresh und stale unterscheiden
+// sich hier NUR in einer einzelnen Revisionszahl, nicht im ganzen Objekt, damit ein Test, der die
+// beiden Zweige verwechselt, auch wirklich beisst (Memory „Test muss beißen").
+const stampText = context.avesmapsLoreRuleAssignmentStampText;
+const freshRun = {
+	stamp: { completed: true, ecosystem_revision: 5, map_revision: 9, computed_at: "2026-08-13 19:04:12.345" },
+	current: { ecosystem_revision: 5, map_revision: 9 },
+};
+assert.strictEqual(stampText(freshRun), "Stand: 13.08.2026 19:04 · aktuell");
+
+const staleRun = {
+	stamp: { completed: true, ecosystem_revision: 5, map_revision: 9, computed_at: "2026-08-09 22:31:00" },
+	current: { ecosystem_revision: 6, map_revision: 9 }, // nur ecosystem_revision weicht ab
+};
+assert.strictEqual(stampText(staleRun), "Stand: 09.08.2026 22:31 · veraltet, bitte neu rechnen");
+
+const staleRunMapOnly = {
+	stamp: { completed: true, ecosystem_revision: 5, map_revision: 9, computed_at: "2026-08-09 22:31:00" },
+	current: { ecosystem_revision: 5, map_revision: 10 }, // nur map_revision weicht ab
+};
+assert.ok(stampText(staleRunMapOnly).indexOf("veraltet") >= 0, "map_revision allein macht schon veraltet");
+
+assert.strictEqual(stampText({ stamp: { completed: false }, current: {} }), "Wird gerade gerechnet …",
+	"ein unvollstaendiger Lauf ist NIE aktuell/veraltet, sondern eigens benannt");
+assert.strictEqual(stampText({ stamp: null, current: {} }), "noch nicht gerechnet");
+assert.strictEqual(stampText(null), "", "ein gescheiterter Abruf behauptet nichts");
+assert.strictEqual(stampText(undefined), "", "noch nicht abgefragt behauptet ebenfalls nichts");
+
+// avesmapsLoreRuleResponseErrorMessage: Objekt-Fehler vor String-Fehler vor Fallback, und ein
+// gescheiterter Abruf (data === null) bekommt seinen EIGENEN Text statt des Ablehnungs-Fallbacks.
+const errText = context.avesmapsLoreRuleResponseErrorMessage;
+assert.strictEqual(errText(null, "abgelehnt", "keine Verbindung"), "keine Verbindung");
+assert.strictEqual(
+	errText({ ok: false, error: { code: "rule_matches_everything", message: "Ohne eine Einschraenkung träfe die Regel alles." } }, "abgelehnt", "keine Verbindung"),
+	"Ohne eine Einschraenkung träfe die Regel alles.",
+	"die Meldung des Servers geht vor dem Fallback"
+);
+assert.strictEqual(errText({ ok: false, error: "legacy_string_error" }, "abgelehnt", "keine Verbindung"), "legacy_string_error");
+assert.strictEqual(errText({ ok: false }, "abgelehnt", "keine Verbindung"), "abgelehnt",
+	"ohne jede Fehlerangabe (delete_rule: {ok:false} ohne error) greift der Ablehnungs-Fallback");
+
+// avesmapsLoreRuleHitsListMarkup: leer bleibt LESBAR, und ein Flaechen-/Ortsname aus der Datenbank
+// wird escaped -- dieselbe Falle wie beim Flaechennamen der Karte weiter oben.
+const hitsMarkup = context.avesmapsLoreRuleHitsListMarkup;
+assert.ok(hitsMarkup([]).includes("Keine."), "eine leere Trefferliste sagt das auch");
+const hitsBoese = hitsMarkup([{ public_id: "a1", name: '<img src=x onerror="alert(1)">' }]);
+assert.ok(!hitsBoese.includes("<img"), "der Name darf kein Markup einschleusen");
+assert.ok(hitsBoese.includes("&lt;img"), "er steht escaped drin");
+
 console.log("lore-rule-ui: OK");

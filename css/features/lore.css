@@ -1103,3 +1103,102 @@ select.lore-rule-input {
 .lore-rule-sentence b {
 	color: var(--color-accent-strong);
 }
+
+/* ---- Vorschau (Task 7): was die Regel trifft, plus der Rechenstand ---------------------------
+   Entprellt bei jeder Aenderung an der Kette gefuellt (avesmapsLoreRuleScheduleFetchPreview). Der
+   Stempel im Kopf ist ein VERGLEICH gegen den aktuellen Stand, keine Vermutung -- siehe
+   avesmapsLoreRuleAssignmentStampText. Klassen bewusst eigenstaendig (lore-rule-hits*, nicht das
+   generische .hits* aus docs/vorkommen-klimazonen-mockup.html): dieselbe Vorsilbe wie jede andere
+   Klasse dieses Editors. */
+.lore-rule-preview {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-8);
+}
+
+.lore-rule-preview__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-6);
+	flex-wrap: wrap;
+}
+
+.lore-rule-hits {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
+.lore-rule-hits__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-6);
+	flex-wrap: wrap;
+}
+
+.lore-rule-hits__count {
+	color: var(--color-accent-strong);
+	font-weight: var(--font-weight-bold);
+	font-size: var(--font-size-small);
+}
+
+.lore-rule-hits__box {
+	max-height: 140px;
+	overflow-y: auto;
+	padding: var(--space-6);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+}
+
+.lore-rule-hits__list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-4);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.lore-rule-hits__item {
+	font-size: var(--font-size-small);
+}
+
+.lore-rule-hits__item::after {
+	content: " ·";
+	color: var(--color-text-muted);
+}
+
+.lore-rule-hits__item:last-child::after {
+	content: "";
+}
+
+.lore-rule-hits__item.is-auto {
+	color: var(--color-text-muted);
+	font-style: italic;
+}
+
+/* Ein echter Fehlschlag (Vorschau/Speichern/Löschen) -- Rot statt Goldbraun, anders als
+   .lore-rule-hint--warn oben: das ist kein Zwischenstand, sondern eine Ablehnung. Dieselbe
+   -soft-text-Variante wie .lore-dlg__status[data-tone="error"] (Kopf dieser Datei), aus demselben
+   Kontrastgrund -- --color-danger faellt im Dunkelmodus auf einem weichen Grund unter AA. */
+.lore-rule-hint--error {
+	color: var(--color-danger-soft-text);
+}
+
+/* „Regel löschen" steht LINKS in der Fusszeile, Abbrechen/Übernehmen bleiben RECHTS (die Zeile
+   ist weiterhin justify-content: flex-end aus .lore-rule-row--end) -- ein auto-margin trennt die
+   Absicht rein visuell. Rot nur beim Hover, wie .mail-inbox__trash (css/features/mail-inbox.css):
+   eine Löschhandlung ist in Ruhe eine ganz normale weiche Handlung (AGENTS.md §12), der Warnton
+   gehoert der Absicht, nicht dem Ruhezustand. */
+.lore-rule-btn--danger {
+	margin-right: auto;
+}
+
+.lore-rule-btn--danger:hover:not(:disabled) {
+	border-color: var(--color-danger-soft-border);
+	background: var(--color-danger-soft);
+	color: var(--color-danger-soft-text);
+}
