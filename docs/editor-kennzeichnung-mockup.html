@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Editor-Kennzeichnung + Menü-Symbole – Mockup, 2026-08-13</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, Absicht: docs/-Datei, per file:// zu oeffnen. Geladen werden die ECHTEN
+     Stylesheets — das Mockup zeigt die tatsaechliche Designsprache, nicht meine Auslegung davon.
+     Deshalb sehen Kacheln, Kontextmenues und Merkmal hier aus wie live. -->
+<!-- 💣 reset.css MUSS mit: dort steht `box-sizing: border-box`. Ohne sie rechnet die
+     Vier-Spalten-Regel der Kacheln (calc((100% - 24px)/4)) an Polsterung und Rand vorbei und die
+     Box bricht auf drei um — genau die Falle „Standalone-Seite ohne base.css". -->
+<link rel="stylesheet" href="../css/base/reset.css">
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/features/location-popups-markers.css">
+<link rel="stylesheet" href="../css/components/map-context-menu.css">
+<link rel="stylesheet" href="../css/components/map-context-menu-icons.css">
+<link rel="stylesheet" href="../css/components/map-display-menu.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   NUR das Neue. Kein hartkodierter Farbwert, kein hartkodierter Radius (AGENTS.md §12).
+   Alles darunter ist entweder Mockup-Rahmen (faellt beim Bau weg) oder Vorschlag.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ─── VORSCHLAG 1: das Merkmal, hausweit ──────────────────────────────────────────────────────
+   Heute steht es als `.map-display-menu__editor-hint` im Anzeige-Menue. Sobald es an vier Stellen
+   haengt, ist ein bauteil-eigener Name die falsche Adresse — vier Kopien derselben Regel sind
+   die Divergenz, die AGENTS.md §12 meint. Deshalb EINE Klasse in einem gemeinsamen Blatt; die
+   alte Klasse faellt weg, sie wird nicht daneben stehen gelassen. */
+.avesmaps-scope-hint {
+	margin-left: var(--space-6);
+	padding: 0 var(--space-4);
+	border: 1px solid var(--color-pill-border);
+	border-radius: var(--radius-md);
+	background: var(--color-pill);
+	color: var(--color-pill-text);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-regular);
+	/* Nimmt Sperrung und Grossschreibung der Ueberschrift ausdruecklich zurueck — sonst laese es
+	   sich als zweite Ueberschrift statt als Anmerkung. */
+	letter-spacing: 0;
+	text-transform: none;
+	white-space: nowrap;
+	vertical-align: middle;
+}
+
+/* ─── VORSCHLAG 2: die Editor-Gruppe im Kachelband ────────────────────────────────────────────
+   Dieselbe Grammatik wie die Gruppen im Anzeige-Menue: Trennlinie + Ueberschrift + Merkmal.
+   Der Trenner laeuft full-bleed (negativer Seitenrand = Polsterung der Box), damit die Linie von
+   Kante zu Kante geht statt in der Luft zu enden — Regel aus docs/design-language.md. */
+.location-popup__editor-band {
+	margin-top: var(--space-10);
+	padding-top: var(--space-8);
+	border-top: 1px solid var(--color-divider);
+	margin-left: -10px;   /* = Polsterung von .location-popup */
+	margin-right: -10px;
+	padding-left: 10px;
+	padding-right: 10px;
+}
+.location-popup__editor-band-title {
+	margin: 0 0 var(--space-6);
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+/* 💣 Ohne diese Zeile behaelt das Band den Trenner, wenn ALLE Editor-Kacheln fehlen — eine goldene
+   Ueberschrift ueber einer Linie ueber nichts. Dieselbe Falle wie bei `display-group-checks`. */
+.location-popup__editor-band:empty,
+.location-popup__editor-band[hidden] { display: none; }
+
+/* 💣 DIE FALLE, DIE BEIM BAUEN ZUSCHNAPPT — hier bereits eingetreten und deshalb dokumentiert:
+   die Vier-Spalten-Regel der schwebenden Box ist mit DIREKTEM Kind geschrieben
+   (`… .location-popup > .location-popup__actions > .location-popup__action-button`,
+   location-popups-markers.css:333). Sobald die Editor-Kacheln in einem Band stecken, ist die
+   Leiste kein direktes Kind mehr, die Regel greift nicht, und die Kacheln fallen auf ihre starren
+   90 px zurueck: 4x90 + 24 Luecke = 384 > 380 verfuegbar -> es passen nur noch DREI, waehrend
+   die Reihe darueber vier zeigt. Sichtbar sofort, aber leicht als „ist halt so" abgetan.
+   Beim Bau gehoert das Band in DIESELBE Selektorliste, nicht in eine zweite Regel daneben. */
+body.edit-mode .floating-location-popup .location-popup__editor-band > .location-popup__actions > .location-popup__action-button {
+	flex: 1 1 calc((100% - 24px) / 4);
+	width: auto;
+}
+.avesmaps-infopanel .location-popup__editor-band > .location-popup__actions > .location-popup__action-button {
+	flex: 1 1 90px;
+	width: auto;
+}
+
+/* ─── VORSCHLAG 3: die Editor-Gruppe im Kontextmenue ──────────────────────────────────────────
+   Das Menue hat heute Gruppen (`.map-context-menu__group`), aber keine Ueberschrift und keinen
+   Trenner. Beides kommt hinzu; die Gruppe wandert dabei ans ENDE (siehe Text im Mockup). */
+.map-context-menu__group-title {
+	margin: var(--space-6) 0 var(--space-2);
+	padding: 0 var(--space-10);
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+.map-context-menu__group--editor {
+	margin-top: var(--space-6);
+	padding-top: var(--space-4);
+	border-top: 1px solid var(--color-divider);
+	margin-left: calc(var(--space-6) * -1);
+	margin-right: calc(var(--space-6) * -1);
+	padding-left: var(--space-6);
+	padding-right: var(--space-6);
+}
+
+/* ─── VORSCHLAG 4: Symbole fuer die Editor-Eintraege des Kartenmenues ─────────────────────────
+   Die sieben Besucher-Eintraege tragen seit je farbige Bilder (map-context-menu-icons.css), die
+   Editor-Eintraege monochrome Zeichen. Genau diesen Zweiklang vervollstaendigen wir — die vier
+   Eintraege unten haben heute gar nichts bzw. ein Emoji. */
+.mock-glyphfix [data-context-action="create-location"]::before { content: "\25CF"; }
+.mock-glyphfix [data-context-action="create-crossing"]::before { content: "\271A"; }
+.mock-glyphfix [data-context-action="create-path"]::before     { content: "\2501"; }
+.mock-glyphfix [data-context-action="create-label"]::before    { content: "\0041"; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   Mockup-Rahmen — faellt beim Bau weg.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+body {
+	margin: 0;
+	padding: 26px 20px 90px;
+	background: var(--color-page-bg);
+	color: var(--color-text);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-body);
+	line-height: var(--leading-normal);
+}
+.wrap { max-width: 1180px; margin: 0 auto; }
+h1 { margin: 0 0 6px; font-size: var(--font-size-display); color: var(--color-text-strong); }
+.lead { max-width: 820px; margin: 0 0 10px; color: var(--color-text-muted); }
+h2 {
+	margin: 44px 0 4px; font-size: var(--font-size-title); color: var(--color-text-strong);
+	padding-top: 14px; border-top: 1px solid var(--color-divider);
+}
+h2 .num { color: var(--color-accent-strong); font-weight: var(--font-weight-regular); }
+h3 { margin: 22px 0 6px; font-size: var(--font-size-body); color: var(--color-text-strong); }
+p { margin: 0 0 10px; max-width: 820px; }
+.muted { color: var(--color-text-muted); }
+code { background: var(--color-panel-soft); padding: 1px 4px; border-radius: var(--radius-sm); font-size: 12px; }
+
+.rule {
+	margin: 16px 0 8px; padding: 12px 16px;
+	border-left: 3px solid var(--color-accent-strong);
+	background: var(--color-panel-soft);
+	border-radius: var(--radius-sm);
+	max-width: 820px;
+}
+.rule strong { color: var(--color-text-strong); }
+
+.cols { display: flex; gap: 26px; flex-wrap: wrap; align-items: flex-start; margin: 14px 0 0; }
+.col { flex: 0 0 auto; }
+.col__cap {
+	margin: 0 0 8px; font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-muted);
+}
+.col__cap--new { color: var(--color-accent-strong); }
+
+/* Die schwebende Box: 400px wie live (minWidth 320 / maxWidth 400 in
+   map-features-location-marker-entry.js:240). */
+.boxframe {
+	width: 400px; border-radius: var(--radius-lg);
+	background: var(--color-panel); box-shadow: var(--shadow-panel);
+	overflow: hidden;
+}
+.boxframe .location-popup { max-width: none; }
+.ctxframe { position: static; display: inline-block; min-width: 240px; }
+
+table.tbl { border-collapse: collapse; width: 100%; max-width: 1000px; margin: 10px 0 4px; font-size: 13px; }
+table.tbl th, table.tbl td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--color-divider); vertical-align: top; }
+table.tbl th { color: var(--color-text-muted); font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: 0.05em; }
+td.yes { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+td.no { color: var(--color-text-muted); }
+
+.iconboard { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; max-width: 1000px; }
+.iconcard {
+	width: 118px; padding: 10px 6px; text-align: center;
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	background: var(--color-panel);
+}
+.iconcard img { width: 40px; height: 40px; object-fit: contain; display: block; margin: 0 auto 6px; }
+.iconcard .glyph { display: block; font-size: 26px; line-height: 40px; height: 40px; margin-bottom: 6px; color: var(--color-text-muted); }
+.iconcard b { display: block; font-size: 12px; color: var(--color-text-strong); }
+.iconcard span { display: block; font-size: 11px; color: var(--color-text-muted); margin-top: 2px; }
+.iconcard--missing { border-style: dashed; background: transparent; }
+.iconcard--new { border-color: var(--color-accent-strong); }
+
+.themebar { position: sticky; top: 0; z-index: 5; padding: 8px 0 14px; background: var(--color-page-bg); }
+.themebar button {
+	padding: var(--space-6) var(--space-12);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	font: inherit; font-size: 12px; font-weight: var(--font-weight-bold); cursor: pointer;
+}
+
+/* Kopfzeile der Editor-Huelle, nachgebaut (edit/index.php haengt an einer Anmeldung). */
+.shellbar {
+	display: flex; align-items: center; justify-content: space-between; gap: 20px;
+	padding: 10px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	background: var(--color-panel); max-width: 820px;
+}
+.shellbar__actions { display: flex; align-items: center; gap: 14px; font-size: 13px; }
+.shellbar a { color: var(--color-link); text-decoration: none; }
+</style>
+</head>
+<body class="edit-mode">
+<div class="wrap">
+
+<div class="themebar">
+	<button type="button" onclick="var d=document.documentElement;var dark=d.getAttribute('data-theme')==='dark';if(dark){d.removeAttribute('data-theme');localStorage.setItem('avesmaps-theme','light');}else{d.setAttribute('data-theme','dark');localStorage.setItem('avesmaps-theme','dark');}">hell / dunkel umschalten</button>
+</div>
+
+<h1>Editor-Kennzeichnung und Menü-Symbole</h1>
+<p class="lead">Entwurfsbogen, 13.08.2026. Das Anzeige-Menü (Auge) kennzeichnet seit dem 12.08. mit
+„nur Editoren“, was ein gewöhnlicher Besucher nicht sieht. Dieser Bogen zeigt, wo dasselbe Merkmal
+sonst noch trägt — und wo es <em>nicht</em> trägt, obwohl man es hinsetzen könnte.</p>
+
+<div class="rule">
+	<strong>Die Regel, ein Satz:</strong> Was nur Editoren sehen, steht <strong>unten</strong>,
+	hinter einer <strong>Trennlinie</strong>, unter einer <strong>Überschrift mit dem Merkmal</strong>.
+	Genau wie im Anzeige-Menü — kein zweites Muster.
+	<br><br>
+	<strong>Und die Gegenregel:</strong> Ein Merkmal ist nur dann eine Auskunft, wenn es auch
+	<em>fehlen</em> kann. Auf einer Oberfläche, die zu 100 % dem Editor gehört (Kreuzungs-Popup,
+	Gebiets-Menü, Editor-Panel), sagt „nur Editoren“ nichts — dort helfen Gruppierung und Symbole,
+	nicht ein Schild an jeder Tür.
+</div>
+
+
+<h2><span class="num">1 —</span> Das Merkmal, hausweit</h2>
+<p>Heute heißt es <code>.map-display-menu__editor-hint</code> und wohnt im Anzeige-Menü. Sobald es an
+vier Stellen hängt, ist ein bauteil-eigener Name die falsche Adresse. Vorschlag: <strong>eine</strong>
+Klasse <code>.avesmaps-scope-hint</code> in einem gemeinsamen Blatt, die alte fällt weg (nicht: bleibt
+daneben stehen). Zwei Wörter, dieselbe Form:</p>
+
+<p style="font-size:var(--font-size-caption);font-weight:var(--font-weight-bold);letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-strong);">
+	Prüfen <span class="avesmaps-scope-hint">nur Editoren</span>
+	&nbsp;&nbsp;&nbsp;
+	Datenpflege <span class="avesmaps-scope-hint">nur Admins</span>
+</p>
+<p class="muted">Sprachschlüssel: <code>ui.editorOnly</code> / <code>ui.adminOnly</code>.
+<code>display.editorOnly</code> geht darin auf. 💣 Der Text gehört in ein eigenes <code>&lt;span&gt;</code> —
+<code>data-i18n</code> setzt <code>textContent</code> und löscht am Elternelement die Kinder mit.</p>
+
+
+<h2><span class="num">2 —</span> Orts-Infobox: der Hauptfall</h2>
+<p>Acht Kacheln, vier davon für jeden, vier nur für Editoren — und nichts sagt, welche welche sind.
+Die zweite Reihe ist zusätzlich die einzige ohne Symbole: nackter Text unter vier Illustrationen.</p>
+
+<div class="cols">
+	<div class="col">
+		<p class="col__cap">Heute</p>
+		<div class="boxframe floating-location-popup">
+			<div class="location-popup">
+				<div class="location-popup__header">
+					<img class="location-popup__icon location-popup__icon--realistic" src="../icons/realistic/dorf.webp" alt="">
+					<div class="location-popup__title-group">
+						<div class="location-popup__name">Fährstation</div>
+						<div class="location-popup__type">Dorf · in Orkreich</div>
+					</div>
+				</div>
+				<div class="location-popup__actions">
+					<button class="location-popup__action-button location-popup__action-button--accent" type="button"><span class="location-popup__action-icon">+</span>Reiseziel hinzufügen</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/linkteilen.webp" alt="">Link teilen</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/buch.webp" alt="">Literatur</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/stadtkarten.webp" alt="">Karten&shy;sammlung</button>
+					<button class="location-popup__action-button" type="button">Neuer Weg</button>
+					<button class="location-popup__action-button" type="button">Ort verschieben</button>
+					<button class="location-popup__action-button" type="button">Bearbeiten</button>
+					<button class="location-popup__action-button location-popup__action-button--danger" type="button">Ort löschen</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="col">
+		<p class="col__cap col__cap--new">Vorschlag A — farbige Symbole (empfohlen)</p>
+		<div class="boxframe floating-location-popup">
+			<div class="location-popup">
+				<div class="location-popup__header">
+					<img class="location-popup__icon location-popup__icon--realistic" src="../icons/realistic/dorf.webp" alt="">
+					<div class="location-popup__title-group">
+						<div class="location-popup__name">Fährstation</div>
+						<div class="location-popup__type">Dorf · in Orkreich</div>
+					</div>
+				</div>
+				<div class="location-popup__actions">
+					<button class="location-popup__action-button location-popup__action-button--accent" type="button"><span class="location-popup__action-icon">+</span>Reiseziel hinzufügen</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/linkteilen.webp" alt="">Link teilen</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/buch.webp" alt="">Literatur</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/stadtkarten.webp" alt="">Karten&shy;sammlung</button>
+				</div>
+				<div class="location-popup__editor-band">
+					<p class="location-popup__editor-band-title">Bearbeiten <span class="avesmaps-scope-hint">nur Editoren</span></p>
+					<div class="location-popup__actions">
+						<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/landweg.webp" alt="">Neuer Weg</button>
+						<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/markierung.webp" alt="">Ort verschieben</button>
+						<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/feder.webp" alt="">Bearbeiten</button>
+						<button class="location-popup__action-button location-popup__action-button--danger" type="button"><img class="location-popup__action-img" src="../img/menu/papierkorb.webp" alt="">Ort löschen</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="col">
+		<p class="col__cap col__cap--new">Vorschlag B — monochrome Zeichen</p>
+		<div class="boxframe floating-location-popup">
+			<div class="location-popup">
+				<div class="location-popup__header">
+					<img class="location-popup__icon location-popup__icon--realistic" src="../icons/realistic/dorf.webp" alt="">
+					<div class="location-popup__title-group">
+						<div class="location-popup__name">Fährstation</div>
+						<div class="location-popup__type">Dorf · in Orkreich</div>
+					</div>
+				</div>
+				<div class="location-popup__actions">
+					<button class="location-popup__action-button location-popup__action-button--accent" type="button"><span class="location-popup__action-icon">+</span>Reiseziel hinzufügen</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/linkteilen.webp" alt="">Link teilen</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/buch.webp" alt="">Literatur</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/stadtkarten.webp" alt="">Karten&shy;sammlung</button>
+				</div>
+				<div class="location-popup__editor-band">
+					<p class="location-popup__editor-band-title">Bearbeiten <span class="avesmaps-scope-hint">nur Editoren</span></p>
+					<div class="location-popup__actions">
+						<button class="location-popup__action-button" type="button"><span class="location-popup__action-icon">━</span>Neuer Weg</button>
+						<button class="location-popup__action-button" type="button"><span class="location-popup__action-icon">✥</span>Ort verschieben</button>
+						<button class="location-popup__action-button" type="button"><span class="location-popup__action-icon">✎</span>Bearbeiten</button>
+						<button class="location-popup__action-button location-popup__action-button--danger" type="button"><span class="location-popup__action-icon">✕</span>Ort löschen</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<p style="margin-top:18px"><strong>Warum A:</strong> die vier Kacheln darüber sind farbige Illustrationen.
+Eine Reihe magerer Zeichen darunter liest sich nicht als „andere Rolle“, sondern als „hier fehlt noch was“ —
+und genau das ist der heutige Zustand. Die Auskunft „nur für dich“ trägt bereits Trenner + Merkmal;
+das Symbol muss sie nicht ein zweites Mal geben. <strong>B</strong> bleibt im Bogen, weil es im
+Kontextmenü genau richtig ist (§4) — dort ist die Farbe schon vergeben.</p>
+
+
+<h2><span class="num">3 —</span> Dasselbe Band an Weg, Kreuzung, Kraftlinie</h2>
+<p>Der Weg hat zwei Besucher-Kacheln und drei Editor-Kacheln — identischer Fall, identische Lösung.
+Die Kreuzung ist der Gegenfall: sie gehört <em>ganz</em> dem Editor, ein Merkmal sagt dort nichts.</p>
+
+<div class="cols">
+	<div class="col">
+		<p class="col__cap col__cap--new">Weg — Band wie beim Ort</p>
+		<div class="boxframe floating-location-popup">
+			<div class="location-popup">
+				<div class="location-popup__header">
+					<img class="location-popup__icon" src="../icons/Strasse.webp" alt="">
+					<div class="location-popup__title-group">
+						<div class="location-popup__name">Reichsstraße Gareth–Ferdok</div>
+						<div class="location-popup__type">Reichsstraße</div>
+					</div>
+				</div>
+				<div class="location-popup__actions">
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/sextant.webp" alt="">Anzeigen</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/linkteilen.webp" alt="">Link teilen</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/vorschlag.webp" alt="">Änderungen vorschlagen</button>
+				</div>
+				<div class="location-popup__editor-band">
+					<p class="location-popup__editor-band-title">Bearbeiten <span class="avesmaps-scope-hint">nur Editoren</span></p>
+					<div class="location-popup__actions">
+						<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/feder.webp" alt="">Bearbeiten</button>
+						<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/Pfad.webp" alt="">Verlauf bearbeiten</button>
+						<button class="location-popup__action-button location-popup__action-button--danger" type="button"><img class="location-popup__action-img" src="../img/menu/papierkorb.webp" alt="">Weg löschen</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="col">
+		<p class="col__cap col__cap--new">Kreuzung — kein Merkmal, nur Symbole</p>
+		<div class="boxframe floating-location-popup">
+			<div class="location-popup">
+				<div class="location-popup__header">
+					<div class="location-popup__title-group">
+						<div class="location-popup__name">Kreuzung-1482</div>
+						<div class="location-popup__type">Kreuzung · 3 Wege</div>
+					</div>
+				</div>
+				<div class="location-popup__actions">
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/dorf.webp" alt="">Zu Ort konvertieren</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/landweg.webp" alt="">Neuer Weg</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../icons/kraftlinien.webp" alt="">Neue Kraftlinie</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/markierung.webp" alt="">Verschieben</button>
+					<button class="location-popup__action-button location-popup__action-button--danger" type="button"><img class="location-popup__action-img" src="../img/menu/papierkorb.webp" alt="">Löschen</button>
+				</div>
+			</div>
+		</div>
+		<p class="muted" style="width:400px;margin-top:8px">Ein Besucher bekommt hier <em>gar keine</em>
+		Aktionsleiste (<code>crossingActionsMarkup</code> gibt außerhalb des Bearbeiten-Modus <code>""</code>
+		zurück). Ein Schild „nur Editoren“ über einer Liste, die sonst nicht existiert, ist eine Auskunft
+		an niemanden.</p>
+	</div>
+</div>
+
+
+<h2><span class="num">4 —</span> Kartenmenü (Rechtsklick): der Zweiklang, den es schon gibt</h2>
+<p>Nicht offensichtlich, aber im Code eindeutig: die <strong>sieben Besucher-Einträge tragen farbige
+aventurische Bilder</strong> (Feder&nbsp;&amp;&nbsp;Papier, Brief, Lupe, Fernrohr, Schuh, Lineal —
+<code>map-context-menu-icons.css</code>), die <strong>Editor-Einträge monochrome Zeichen</strong>
+(<code>map-context-menu.css</code>). Diese Sprache ist gewachsen, nicht beschlossen — aber sie
+funktioniert: <em>Farbe = für alle, Zeichen = Werkzeug.</em> Zwei Dinge fehlen ihr noch: das Merkmal,
+und die Editorgruppe steht <strong>oben</strong>, also vor allem, was jeden angeht.</p>
+
+<div class="cols">
+	<div class="col">
+		<p class="col__cap">Heute</p>
+		<div class="map-context-menu ctxframe">
+			<div class="map-context-menu__group">
+				<button type="button" class="map-context-menu__item map-context-menu__item--submenu" data-context-action="add-here">Hier hinzufügen</button>
+			</div>
+			<button type="button" class="map-context-menu__item" data-context-action="share-pin">Stelle markieren und teilen</button>
+			<button type="button" class="map-context-menu__item" data-context-action="report-location">Hier melden…</button>
+			<button type="button" class="map-context-menu__item" data-context-action="open-spotlight-search">Suchen</button>
+			<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">Nächsten Ort finden</button>
+			<button type="button" class="map-context-menu__item" data-context-action="travel-here">Hierher reisen</button>
+			<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">Entfernung messen</button>
+		</div>
+	</div>
+
+	<div class="col">
+		<p class="col__cap col__cap--new">Vorschlag — Gruppe nach unten, Merkmal, Trenner</p>
+		<div class="map-context-menu ctxframe">
+			<button type="button" class="map-context-menu__item" data-context-action="share-pin">Stelle markieren und teilen</button>
+			<button type="button" class="map-context-menu__item" data-context-action="report-location">Hier melden…</button>
+			<button type="button" class="map-context-menu__item" data-context-action="open-spotlight-search">Suchen</button>
+			<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">Nächsten Ort finden</button>
+			<button type="button" class="map-context-menu__item" data-context-action="travel-here">Hierher reisen</button>
+			<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">Entfernung messen</button>
+			<div class="map-context-menu__group map-context-menu__group--editor">
+				<p class="map-context-menu__group-title">Anlegen <span class="avesmaps-scope-hint">nur Editoren</span></p>
+				<button type="button" class="map-context-menu__item map-context-menu__item--submenu" data-context-action="add-here">Hier hinzufügen</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="col">
+		<p class="col__cap col__cap--new">Untermenü — die vier fehlenden Zeichen</p>
+		<div class="map-context-menu ctxframe mock-glyphfix">
+			<button type="button" class="map-context-menu__item" data-context-action="create-location">Neuer Ort</button>
+			<button type="button" class="map-context-menu__item" data-context-action="create-crossing">Neue Kreuzung</button>
+			<button type="button" class="map-context-menu__item" data-context-action="create-path">Neuer Weg</button>
+			<button type="button" class="map-context-menu__item" data-context-action="create-label">Neues freies Label</button>
+			<button type="button" class="map-context-menu__item" data-context-action="create-region">Neues Herrschaftsgebiet</button>
+		</div>
+		<p class="muted" style="width:240px;margin-top:8px">Diese fünf haben ihre Zeichen bereits — sie
+		stehen nur nie neben den farbigen, weil das Untermenü aufklappt. Der Zweiklang stimmt hier also
+		schon. 💣 Zwei Ausreißer gibt es trotzdem: <code>🖌</code> und <code>∿</code> im Flächenmenü sind
+		Emoji bzw. Sonderzeichen und rendern je nach Gerät farbig.</p>
+	</div>
+</div>
+
+<div class="rule">
+	<strong>⚠️ Der Haken an „Gruppe nach unten“:</strong> das Untermenü klappt nach rechts auf und ist
+	oben verankert (<code>.map-context-submenu { top: -5px }</code>). Ganz unten im Menü heißt das:
+	das Untermenü beginnt auf Höhe des letzten Eintrags und wächst nach unten aus dem Bildschirm.
+	Entweder bleibt die Gruppe oben (nur Trenner + Merkmal, kein Umzug), oder das Untermenü lernt,
+	nach oben auszuweichen. <strong>Das ist eine Entscheidung, keine Kleinigkeit</strong> — und der
+	Grund, warum dieser Punkt im Bogen getrennt steht.
+</div>
+
+
+<h2><span class="num">5 —</span> Gebiets- und Flächenmenü: kein Merkmal, aber Ordnung</h2>
+<p>Elf Einträge, alle für Editoren, ohne jede Gruppierung — Eigenschaften, Geometrie-Rechnungen und
+Löschen stehen als eine Liste untereinander. Hier hilft kein Schild, hier helfen Trenner.</p>
+
+<div class="cols">
+	<div class="col">
+		<p class="col__cap">Heute</p>
+		<div class="map-context-menu ctxframe">
+			<button type="button" class="map-context-menu__item" data-region-context-action="edit-geometry">Grenzen bearbeiten</button>
+			<button type="button" class="map-context-menu__item" data-region-context-action="edit-properties">Territoriumseditor öffnen</button>
+			<button type="button" class="map-context-menu__item" data-region-context-action="show-info">Infobox anzeigen</button>
+			<button type="button" class="map-context-menu__item" data-region-context-action="move">Verschieben</button>
+			<button type="button" class="map-context-menu__item" data-region-context-action="split">Gebiet zerschneiden</button>
+			<button type="button" class="map-context-menu__item" data-region-context-action="union">Mit anderem vereinigen</button>
+			<button type="button" class="map-context-menu__item" data-region-context-action="difference">Von anderem ausschneiden</button>
+			<button type="button" class="map-context-menu__item" data-region-context-action="intersection">Neues von anderem ausschneiden</button>
+			<button type="button" class="map-context-menu__item" data-region-context-action="extract">Neues Gebiet herauslösen</button>
+			<button type="button" class="map-context-menu__item map-context-menu__item--danger" data-region-context-action="delete">Löschen</button>
+		</div>
+	</div>
+	<div class="col">
+		<p class="col__cap col__cap--new">Vorschlag — drei Gruppen, dieselben Einträge</p>
+		<div class="map-context-menu ctxframe">
+			<p class="map-context-menu__group-title" style="margin-top:0">Dieses Gebiet</p>
+			<button type="button" class="map-context-menu__item" data-region-context-action="show-info">Infobox anzeigen</button>
+			<button type="button" class="map-context-menu__item" data-region-context-action="edit-properties">Territoriumseditor öffnen</button>
+			<button type="button" class="map-context-menu__item" data-region-context-action="edit-geometry">Grenzen bearbeiten</button>
+			<button type="button" class="map-context-menu__item" data-region-context-action="move">Verschieben</button>
+			<div class="map-context-menu__group map-context-menu__group--editor">
+				<p class="map-context-menu__group-title" style="margin-top:0">Mit einem anderen Gebiet</p>
+				<button type="button" class="map-context-menu__item" data-region-context-action="union">Mit anderem vereinigen</button>
+				<button type="button" class="map-context-menu__item" data-region-context-action="difference">Von anderem ausschneiden</button>
+				<button type="button" class="map-context-menu__item" data-region-context-action="intersection">Neues von anderem ausschneiden</button>
+				<button type="button" class="map-context-menu__item" data-region-context-action="split">Gebiet zerschneiden</button>
+				<button type="button" class="map-context-menu__item" data-region-context-action="extract">Neues Gebiet herauslösen</button>
+			</div>
+			<div class="map-context-menu__group map-context-menu__group--editor">
+				<button type="button" class="map-context-menu__item map-context-menu__item--danger" data-region-context-action="delete">Löschen</button>
+			</div>
+		</div>
+	</div>
+</div>
+<p class="muted">🔴 Das Flächenmenü der Landschaften trägt <em>dieselben</em> Zeichen und dieselbe
+Reihenfolge — ausdrücklich, damit Editoren nicht zwei Vokabulare für dieselbe Geste lernen
+(<code>map-context-menu-icons.css</code>). Wer hier gruppiert, gruppiert dort mit.</p>
+
+
+<h2><span class="num">6 —</span> Editor-Hülle: dasselbe Merkmal, anderes Wort</h2>
+<p>In der Kopfzeile von <code>edit/index.php</code> steht ein Eintrag, den Editoren <em>nicht</em>
+sehen: das Datenbank-Backup ist Admin-Sache (die Datei trägt Passwort-Hashes). Heute ist er von den
+anderen nicht zu unterscheiden — er ist einfach da oder nicht.</p>
+
+<div class="shellbar">
+	<div><strong>Avesmaps Edit</strong> <span class="muted">· vali | admin</span></div>
+	<div class="shellbar__actions">
+		<a href="#">📖 Handbuch</a>
+		<a href="#">💾 Datenbank-Backup <span class="avesmaps-scope-hint">nur Admins</span></a>
+		<span class="muted">Abmelden</span>
+	</div>
+</div>
+<p class="muted" style="margin-top:8px">Nebenbefund: die beiden Emoji <code>📖</code> und <code>💾</code>
+sind Fremdkörper im Haus — <code>icons/buch.webp</code> und ein Truhen-/Siegel-Symbol wären die
+aventurischen Vokabeln (§8).</p>
+
+
+<h2><span class="num">7 —</span> Wo das Merkmal <em>nicht</em> hingehört</h2>
+<table class="tbl">
+	<tr><th>Oberfläche</th><th>Mischung?</th><th>Vorschlag</th></tr>
+	<tr><td>Orts-Infobox / schwebende Box</td><td class="yes">4 + 4</td><td>Band + Merkmal + Symbole <b>(§2)</b></td></tr>
+	<tr><td>Weg-Infobox</td><td class="yes">3 + 3</td><td>dasselbe Band <b>(§3)</b></td></tr>
+	<tr><td>Kraftlinien-Infobox</td><td class="yes">2 + 2</td><td>dasselbe Band</td></tr>
+	<tr><td>Kartenmenü (Rechtsklick)</td><td class="yes">6 + 1 Gruppe</td><td>Trenner + Merkmal <b>(§4)</b></td></tr>
+	<tr><td>Anzeige-Menü (Auge)</td><td class="yes">5 + 2 Gruppen</td><td>✅ seit 12.08. fertig — das Vorbild</td></tr>
+	<tr><td>Bewertungen in der Infobox</td><td class="yes">Zeilenaktionen</td><td class="no">kein Merkmal. Die Moderationsknöpfe stehen <em>in</em> der Bewertungszeile, nicht in einem Menü — ein Schild über dem Abschnitt behauptete, der ganze Abschnitt sei Editorensache. Er ist es nicht.</td></tr>
+	<tr><td>Kreuzungs-Popup</td><td class="no">100 % Editor</td><td class="no">kein Merkmal, nur Symbole <b>(§3)</b></td></tr>
+	<tr><td>Gebiets-/Flächenmenü</td><td class="no">100 % Editor</td><td class="no">kein Merkmal, aber Gruppen <b>(§5)</b></td></tr>
+	<tr><td>Editor-Panel (4 Reiter)</td><td class="no">100 % Editor</td><td class="no">kein Merkmal</td></tr>
+	<tr><td>Editor-Hülle Kopfzeile</td><td class="yes">Editor + 1 Admin</td><td>„nur Admins“ <b>(§6)</b></td></tr>
+	<tr><td>Ansichts-Kachel, Routenplaner, Hinweise</td><td class="no">für jeden</td><td class="no">nichts zu tun</td></tr>
+</table>
+
+
+<h2><span class="num">8 —</span> Die Symbole: was da ist, was fehlt, was heute gemalt wurde</h2>
+
+<h3>Bereits im Haus und sofort verwendbar</h3>
+<div class="iconboard">
+	<div class="iconcard"><img src="../icons/feder.webp" alt=""><b>feder</b><span>→ „Bearbeiten“<br>(heute: Karte vorschlagen)</span></div>
+	<div class="iconcard"><img src="../img/menu/papierkorb.webp" alt=""><b>papierkorb</b><span>→ jedes „Löschen“<br>(heute frisch importiert)</span></div>
+	<div class="iconcard"><img src="../img/menu/markierung.webp" alt=""><b>markierung</b><span>→ „verschieben“<br>💣 seit 12.07. <b>unbenutzt</b></span></div>
+	<div class="iconcard"><img src="../icons/kraftlinien.webp" alt=""><b>kraftlinien</b><span>→ „Neue Kraftlinie“</span></div>
+	<div class="iconcard"><img src="../icons/landweg.webp" alt=""><b>landweg</b><span>→ „Neuer Weg“</span></div>
+	<div class="iconcard"><img src="../icons/Pfad.webp" alt=""><b>Pfad</b><span>→ „Verlauf bearbeiten“</span></div>
+	<div class="iconcard"><img src="../icons/dorf.webp" alt=""><b>dorf</b><span>→ „Zu Ort konvertieren“</span></div>
+	<div class="iconcard"><img src="../icons/sextant.webp" alt=""><b>sextant</b><span>„Anzeigen“ (live)</span></div>
+</div>
+
+<h3>Heute vom Owner gemalt, noch <em>nicht</em> im Repo</h3>
+<div class="iconboard">
+	<div class="iconcard iconcard--new iconcard--missing"><span class="glyph">?</span><b>Teilen.png</b><span>Neufassung von<br>linkteilen.webp?</span></div>
+	<div class="iconcard iconcard--new iconcard--missing"><span class="glyph">?</span><b>papierundfeder.png</b><span>Neufassung von<br>federundpapier.webp?</span></div>
+	<div class="iconcard iconcard--new iconcard--missing"><span class="glyph">?</span><b>literatur.png</b><span>ersetzt buch.webp?</span></div>
+	<div class="iconcard iconcard--new iconcard--missing"><span class="glyph">?</span><b>kartensammlung.png</b><span>ersetzt<br>stadtkarten.webp?</span></div>
+</div>
+<p class="muted">Alle vier liegen mit dem heutigen Datum in
+<code>C:\GIT\avesmaps-map-processing\icons\menu\</code>; fünf Geschwister von heute (Papierkorb, Buch,
+stadtkarten, Vorschlag, Bewertung) sind bereits konvertiert. 🔧 <strong>DU:</strong> Sind
+<code>literatur</code>/<code>kartensammlung</code> Ersatz für <code>buch</code>/<code>stadtkarten</code>
+oder etwas Eigenes?</p>
+
+<h3>Fehlt noch — Owner-Pinsel oder Zeichen</h3>
+<div class="iconboard">
+	<div class="iconcard iconcard--missing"><span class="glyph">✚</span><b>Kreuzung</b><span>„Neue Kreuzung“, „Kreuzung verschieben“</span></div>
+	<div class="iconcard iconcard--missing"><span class="glyph">A</span><b>Label</b><span>„Neues freies Label“</span></div>
+	<div class="iconcard iconcard--missing"><span class="glyph">🗄</span><b>Backup</b><span>Truhe/Siegel statt 💾</span></div>
+	<div class="iconcard iconcard--missing"><span class="glyph">📖</span><b>Handbuch</b><span>buch.webp reicht evtl.</span></div>
+</div>
+
+<div class="rule" style="margin-top:22px">
+	<strong>Der Zweiklang, als Regel formuliert:</strong><br>
+	<strong>Kachelband</strong> (Infobox/Popup) → <em>farbige</em> Bilder für alle Kacheln, auch die des
+	Editors. Trenner und Merkmal tragen die Auskunft, das Symbol muss sie nicht wiederholen.<br>
+	<strong>Kontextmenü</strong> → <em>Farbe für jedermann-Einträge, monochromes Zeichen fürs Werkzeug.</em>
+	So ist es dort seit Monaten gewachsen, und es liest sich auf 18&nbsp;px besser als zwanzig
+	Miniatur-Illustrationen untereinander.
+</div>
+
+<h2><span class="num">9 —</span> Reihenfolge, falls gebaut wird</h2>
+<p>Nach der Hausregel geht jede sichtbare Änderung einzeln live und der Owner sieht jede
+(AGENTS.md&nbsp;§9). Vorgeschlagene Etappen, jede für sich abnehmbar:</p>
+<table class="tbl">
+	<tr><th>#</th><th>Etappe</th><th>Sichtbar für</th></tr>
+	<tr><td>1</td><td>Merkmal wird hausweit (<code>.avesmaps-scope-hint</code>, <code>ui.editorOnly</code>/<code>ui.adminOnly</code>) — Anzeige-Menü zieht auf die neue Klasse um</td><td class="no">niemanden (gleiches Bild)</td></tr>
+	<tr><td>2</td><td>Editor-Band in der Orts-Infobox + Symbole für die vier Kacheln</td><td class="yes">Editoren</td></tr>
+	<tr><td>3</td><td>Dasselbe Band an Weg und Kraftlinie; Symbole am Kreuzungs-Popup</td><td class="yes">Editoren</td></tr>
+	<tr><td>4</td><td>Kartenmenü: Trenner + Merkmal (Umzug nach unten nur, wenn das Untermenü gelöst ist)</td><td class="yes">Editoren</td></tr>
+	<tr><td>5</td><td>Gebiets- und Flächenmenü gruppieren (beide gemeinsam, nie eins allein)</td><td class="yes">Editoren</td></tr>
+	<tr><td>6</td><td>Editor-Hülle: „nur Admins“ + die beiden Emoji ersetzen</td><td class="yes">Admins</td></tr>
+</table>
+
+</div>
+</body>
+</html>
