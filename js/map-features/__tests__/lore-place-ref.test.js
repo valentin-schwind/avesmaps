@@ -120,7 +120,12 @@ assert.notStrictEqual(
 	"und auch einen anderen als location allein"
 );
 
-// Regression, ohne Identitaet -- exakt die alten Werte (im Review gemessen):
+// Regression: buildLoreMarkup OHNE Identitaet -- ein gueltiger Fall fuer sich (ein Aufrufer, der
+// kein area/location mitgibt), aber NICHT das, was der reale Aufrufer heute liefert: seit Task 3
+// haengt avesmapsLorePlaceRefFromLocation IMMER `location` an, live also z. B.
+// `gareth-l-80558060-…` statt `gareth` (Fix-Runde 1, Befund 2 -- der Kommentar hier hiess bisher
+// faelschlich "im Review gemessen"). Die Werte unten pruefen nur buildLoreMarkup selbst, isoliert
+// von seinem echten Aufrufer.
 assert.strictEqual(placeOf(buildLoreMarkup({ key: "punin", name: "Punin" })), "punin",
 	"Regression: einfache Siedlung unveraendert");
 assert.strictEqual(

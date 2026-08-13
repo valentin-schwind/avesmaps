@@ -70,11 +70,16 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 		: "";
 	// Floating box (Owner, round 2): drop the ENTIRE attribute table too (no Einwohner/Oberhaupt/
 	// Beschreibung/source) -- the floating box is just header + route/share actions + the rating row.
+	// 💣 Fix-Runde 1 (Task 4b): OHNE Wiki-Artikel lief settlementWikiInfoboxMarkup nie -- und das ist
+	// die EINZIGE Stelle, die Vorkommen (Waren/Fauna/Flora) und Klimazone abruft/rendert. Betraf live
+	// 2.975 von 4.883 Siedlungen (61 %, gemessen), genau die Zielgruppe der Lebensraum-Regel. Der
+	// Sonst-Zweig bekommt jetzt dieselben Zeilen ueber settlementLoreOnlyInfoboxMarkup, OHNE den
+	// ganzen Wiki-Attributbauer aufzurufen (der wuerde eine leere Attributtabelle rendern).
 	const settlementInfobox = floating
 		? ""
 		: (hasWikiSettlement
 			? settlementWikiInfoboxMarkup(markerEntry.location, settlementSourceMarkup)
-			: (settlementSourceMarkup || `<div class="location-popup__nowiki">${escapeHtml(tr("popup.noSource", "Keine Quelle gefunden"))}</div>`));
+			: settlementLoreOnlyInfoboxMarkup(markerEntry.location, settlementSourceMarkup));
 	// Header icon: the floating box shows the realistic settlement illustration by SIZE (Owner: "ersetze
 	// das wappen durch die stadtgroesse"); everywhere else the coat of arms (only when public-domain/own).
 	const coatIconMarkup = floating
@@ -300,6 +305,42 @@ function settlementFirstSentence(text) {
 		sentence = sentence.slice(0, 220).trim() + " …";
 	}
 	return sentence;
+}
+
+// Siedlungen OHNE Wiki-Artikel (Fix-Runde 1, Task 4b): dieselben Vorkommen-/Klimazone-Zeilen wie
+// settlementWikiInfoboxMarkup, aber OHNE dessen Wiki-Attributbauer -- der wuerde bei einer Siedlung
+// ohne Wiki-Datensatz nur eine leere Attributtabelle rendern. Live betraf das 2.975 von 4.883
+// Siedlungen (61 %) -- genau die Zielgruppe der Lebensraum-Regel, denn eine Regel greift nur, wo
+// kein Wiki-Artikel die Vorkommen schon auflistet.
+//
+// 🔴 Reihenfolge Vorkommen -> Klimazone, dieselbe wie im Wiki-Zweig (Owner 2026-08-03: „Klimazone"
+// steht direkt unter Flora, an allen vier Oberflaechen).
+//
+// Kommen BEIDE leer heraus (kein Vorkommen-Container -- z. B. weil der Ort nicht einmal eine
+// public_id hat --, keine Klimazone bekannt), bleibt es beim heutigen Verhalten: die Quell-Zeile
+// bzw. „Keine Quelle gefunden". Kein leerer Kasten.
+//
+// ⚠️ Steht mindestens eine Zeile da, wird NICHT mehr auf „Keine Quelle gefunden" zurueckgefallen --
+// dieselbe Huelle wie settlementWikiInfoboxMarkup, die dort auch nur die rohe (ggf. leere)
+// sourceMarkup anhaengt. Der Hinweis „keine Quelle" beschreibt die Quellenlage, nicht „nichts zu
+// zeigen"; sobald die Regel Vorkommen liefert, ist da etwas zu zeigen.
+function settlementLoreOnlyInfoboxMarkup(location, sourceMarkup = "") {
+	let rows = "";
+	if (typeof buildLoreMarkup === "function" && typeof avesmapsLorePlaceRefFromLocation === "function") {
+		rows += buildLoreMarkup(avesmapsLorePlaceRefFromLocation(location));
+	}
+	if (typeof avesmapsClimateRowForKey === "function") {
+		rows += avesmapsClimateRowForKey(location.climateZone);
+	}
+	if (!rows) {
+		return sourceMarkup || `<div class="location-popup__nowiki">${escapeHtml(tr("popup.noSource", "Keine Quelle gefunden"))}</div>`;
+	}
+	return (
+		'<div class="region-info-box region-info-box--settlement">' +
+		`<dl class="region-info-box__data">${rows}</dl>` +
+		sourceMarkup +
+		"</div>"
+	);
 }
 
 // Infobox aus dem verbundenen Wiki-Siedlungs-Datensatz. Gleiche Struktur/Klassen wie die
