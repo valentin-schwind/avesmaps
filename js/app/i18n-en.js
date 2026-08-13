@@ -557,7 +557,7 @@ window.AVESMAPS_I18N_EN = {
 	"popup.labelTypeRegion": "Region",
 	"popup.labelNameFallback": "Label",
 	"popup.sharePinName": "Marked spot",
-	"popup.removeMarker": "🗑️ Remove marker",
+	"popup.removeMarker": "Remove marker",
 	"popup.wikiLinkSuffix": "in the Wiki Aventurica",
 	"popup.wikiLinkSuffixArrow": "in the Wiki-Aventurica ↗",
 	// Political context under the settlement type + the "Liegt in" hierarchy breadcrumb.

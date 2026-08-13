@@ -758,8 +758,13 @@ function locationPopupMarkup({
 	wikiUrl = "",
 	isRuined = false,
 	actionsMarkup = "",
+	// Zusatzklasse an der Popup-Huelle. Heute genau ein Nutzer: das Markierungs-Popup, das nur EINE
+	// Aktion hat und deshalb keine Kachel-Zeile braucht (siehe .location-popup--single-action in
+	// css/features/location-popups-markers.css).
+	extraClassName = "",
 }) {
-	const popupClassName = compact ? "location-popup location-popup--compact" : "location-popup";
+	const popupClassName = (compact ? "location-popup location-popup--compact" : "location-popup")
+		+ (extraClassName ? " " + extraClassName : "");
 	const nameClassName = isRuined ? "location-popup__name location-popup__name--ruined" : "location-popup__name";
 	return `
 		<div class="${popupClassName}">
@@ -840,12 +845,20 @@ function sharePinPopupMarkup() {
 		headerIconMarkup: sharePinPopupIconMarkup(),
 		showHeaderIcon: true,
 		compact: true,
+		// Genau eine Aktion -- dafuer ist die 90-px-Kachel die falsche Form (sie liesse den halben
+		// Bandbereich leer und waere fuer einen Knopf 86 px hoch). Die Klasse macht daraus eine Zeile.
+		extraClassName: "location-popup--single-action",
 		showType: false,
 		showDescription: false,
 		showWikiLink: false,
 		actionsMarkup: locationPopupActionsMarkup([
 			popupActionButtonMarkup({
-				label: tr("popup.removeMarker", "🗑️ Markierung entfernen"),
+				// Das Emoji stand bis zum 13.08.2026 IM Beschriftungstext -- damit war es ein Zeichen, das
+				// je nach Geraet anders aussieht, und es reiste durch die i18n-Tabelle mit. Jetzt ein Bild
+				// aus dem Owner-Set wie an jedem anderen Kachelknopf (docs/design-language.md: Symbole sind
+				// die vorhandenen Farbbilder, keine Unicode-Zeichen).
+				label: tr("popup.removeMarker", "Markierung entfernen"),
+				iconMarkup: '<img class="location-popup__action-img" src="img/menu/papierkorb.webp" alt="" width="20" height="20" />',
 				className: "location-popup__action-button--danger",
 				attributes: {
 					"data-popup-action": "remove-share-pin",

@@ -638,6 +638,38 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 	background: var(--color-button-hover);
 }
 
+/* ---- Popup mit GENAU EINER Aktion (heute: die gesetzte Markierung) ----
+   Die 90-px-Kachel ist hier die falsche Form: gemessen blieben 105 der 195 px des Bands leer, und fuer
+   einen einzigen Knopf war sie 86 px hoch. Stattdessen eine Zeile ueber die volle Breite -- Symbol links,
+   Beschriftung rechts. Das ist dieselbe Zeilenfassung, die das Infopanel fuer seine Baender benutzt
+   (.avesmaps-citymaps__actions in place-extras.css), und die Ausnahme, die docs/design-language.md fuer
+   einzelne Knoepfe ohnehin vorsieht (die Zeile 'Bewertung schreiben').
+   ⚠️ Der FUENFTE Ort mit der Frage, wie eine Kachel ihre Zeile fuellt (der Kommentar bei
+      .avesmaps-citymaps__actions in place-extras.css zaehlt vier). Hier faellt die Antwort anders aus:
+      es geht nicht um gleich breite Nachbarn, sondern um einen Knopf ganz ohne Nachbarn. */
+.location-popup--single-action > .location-popup__actions > .location-popup__action-button {
+	flex: 1 1 auto;
+	width: auto;
+	flex-direction: row;
+	justify-content: center;
+	min-height: 0;
+	padding: var(--space-6) var(--space-8);
+	gap: var(--space-6);
+}
+/* 20 px wie in der Zeilenfassung des Panels -- die 36 px der Kachel neben einer 12-px-Schrift machten das
+   Bild zur Hauptsache, und die Zeile bliebe so hoch wie die Kachel vorher. */
+.location-popup--single-action > .location-popup__actions > .location-popup__action-button .location-popup__action-img {
+	width: var(--icon-md);
+	height: var(--icon-md);
+	flex: 0 0 auto;
+}
+/* Oben so viel Luft, wie das Popup unten selbst hat (--space-8 ist sein Innenabstand): die Basisregel
+   setzt 8 oben und 4 unten, zusammen mit dem Innenabstand sass das Band sichtbar schief. Die Basisregel
+   bleibt unangetastet -- sie gehoert ALLEN Popups, und deren Abstaende stehen hier nicht zur Debatte. */
+.location-popup--single-action > .location-popup__actions {
+	margin: var(--space-8) 0 0;
+}
+
 .location-popup__action-button--danger {
 	border-color: var(--color-button-soft-border);
 	background: var(--color-button-soft);
