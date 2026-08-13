@@ -5,10 +5,13 @@ declare(strict_types=1);
 // Öffentlicher Lesezugriff auf Flora, Fauna, Spezies und Handelswaren.
 // Design: docs/flora-fauna-handelswaren-design.md.
 //
-// GET /api/app/lore.php?place=<wiki_key>[&full=1]
+// GET /api/app/lore.php?place=<wiki_key>[&full=1][&area=<public_id>|&location=<public_id>]
 //     -> { ok:true, place:"...", sections:{flora:[…],fauna:[…],spezies:[…],ware:[…]},
 //          counts:{flora:n,…}, total:n, limit:10 }
 //     full=1 liefert die vollständigen Listen (für den „alle anzeigen"-Dialog).
+//     area/location (Sitzung 3, Lebensraum-Regel): zusaetzlich zu den genannten Orten liefert
+//     eine Flaeche (area) oder ein Ort (location) die Eintraege, deren REGEL sie trifft --
+//     dieselben sections, rank 1. Hoechstens einer der beiden wirkt (area vor location).
 //
 // GET /api/app/lore.php?stats=1
 //     -> { ok:true, stats:{ entries:{…}, entries_total, places, sources, top_places:[…] } }
@@ -28,6 +31,10 @@ require_once __DIR__ . '/../_internal/political/territory.php';
 // Apostrophe wie Bindestriche weg -- eine Eigenbau-Variante trifft die beim Sync
 // geschriebenen match_key-Werte nicht zuverlässig.
 require_once __DIR__ . '/../_internal/wiki/sync.php';
+// avesmapsLoreRuleReadSubjectForArea/-Location + avesmapsLoreRuleEntriesForSubject fuer
+// ?area=/?location= (Lebensraum-Regel, Sitzung 3). Bindet climate-membership.php, lore-rule.php
+// und lore-rule-store.php selbst mit ein.
+require_once __DIR__ . '/../_internal/app/lore-rule-match.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -218,6 +225,48 @@ try {
     }
 
     $result = avesmapsLoreReadForPlaces($pdo, array_keys($ranks), $full ? 0 : AVESMAPS_LORE_PANEL_LIMIT, $ranks);
+
+    // Lebensraum-Regel (Sitzung 3): ?area=<public_id> ODER ?location=<public_id> liefert
+    // zusaetzlich die Eintraege, deren REGEL diese Flaeche/diesen Ort trifft -- dieselben
+    // sections, rank 1. 36 Zeichen: eine public_id ist ein UUID (CHAR(36)).
+    // (string)-Cast VOR avesmapsNormalizeSingleLine: ihr Parameter ist ?string, und ein
+    // ?area[]=x wuerde als PHP-Array sonst einen TypeError werfen statt einen leeren/harmlosen
+    // Wert zu liefern -- derselbe Cast wie bei jedem anderen $_GET-Wert in dieser Datei.
+    $areaParameter = avesmapsNormalizeSingleLine((string) ($_GET['area'] ?? ''), 36);
+    $locationParameter = $areaParameter === ''
+        ? avesmapsNormalizeSingleLine((string) ($_GET['location'] ?? ''), 36)
+        : '';
+    if ($areaParameter !== '' || $locationParameter !== '') {
+        // 🔴 Stempel VOR jeder Regelrechnung pruefen, mit einem NACKTEN SELECT -- nie ueber
+        // avesmapsEcosystemEnsureTables (dessen information_schema-Sonden sind die Last, die den
+        // PHP-Worker-Pool am 17.07.2026 erschoepft hat, AGENTS.md §10). completed = 0 heisst:
+        // waehrend eines "Zugehoerigkeit rechnen"-Laufs sind die Regeltabellen leer -- dann laeuft
+        // GAR KEIN Regelzweig, kein leerer Abschnitt, keine Zeile (ein leerer Abschnitt laese sich
+        // wie "hier waechst nichts").
+        $stampCompleted = false;
+        try {
+            $stampStatement = $pdo->query('SELECT completed FROM ecosystem_assignment_stamp WHERE id = 1');
+            $stampValue = $stampStatement === false ? false : $stampStatement->fetchColumn();
+            $stampCompleted = $stampValue !== false && (int) $stampValue === 1;
+        } catch (Throwable) {
+            $stampCompleted = false; // Tabelle fehlt (nie gerechnet) -> kein Regelzweig, kein 500
+        }
+
+        if ($stampCompleted) {
+            $subject = $areaParameter !== ''
+                ? avesmapsLoreRuleReadSubjectForArea($pdo, $areaParameter)
+                : avesmapsLoreRuleReadSubjectForLocation($pdo, $locationParameter);
+
+            if ($subject !== null) {
+                $ruleHits = avesmapsLoreRuleEntriesForSubject($pdo, $subject);
+                if ($ruleHits !== []) {
+                    $activeKinds = array_keys(array_filter(avesmapsLoreEnabledKinds($pdo)));
+                    $ruleRows = avesmapsLoreReadEntriesForRuleHits($pdo, $ruleHits, $activeKinds);
+                    $result = avesmapsLoreMergeRuleHitsIntoResult($result, $ruleRows, $full);
+                }
+            }
+        }
+    }
 
     avesmapsJsonResponse(200, [
         'ok' => true,

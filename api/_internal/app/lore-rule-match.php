@@ -26,6 +26,9 @@ require_once __DIR__ . '/climate-membership.php';
 // (der oeffentliche Lesepfad tut genau das), eine unbekannte Funktion ein -- Fatal Error, HTTP
 // 500. Vorbild: lore-rule-store.php bindet ebenso jede Datei ein, aus der es eine Funktion ruft.
 require_once __DIR__ . '/lore-rule.php';
+// Aus demselben Grund: avesmapsLoreRuleEntriesForSubject (ganz unten) ruft
+// avesmapsLoreRuleOrderedZoneKeys() -- die Funktion wohnt in lore-rule-store.php.
+require_once __DIR__ . '/lore-rule-store.php';
 
 /**
  * PURE: eine Flaeche als ihr eigenes Subjekt.
@@ -294,4 +297,141 @@ function avesmapsLoreRuleReadSubjectForLocation(PDO $pdo, string $locationPublic
     ];
 
     return avesmapsLoreRuleSubjectFromPlace($place, $areasById);
+}
+
+/**
+ * Alle aktiven Regeln ALLER Eintraege -- fuer den oeffentlichen Lesepfad, nicht fuer den Editor.
+ *
+ * Vorbild: avesmapsLoreRuleReadForEntry (lore-rule-store.php), aber ohne den Eintragsfilter und
+ * mit GENAU DREI Abfragen fuer den ganzen Bestand -- nie eine je Regel. Ein N+1 hier waere die
+ * Wiederholung des Vorfalls vom 17.07.2026 (siehe Kopfkommentar dieser Datei), nur mit Regeln
+ * statt Punkt-in-Polygon.
+ *
+ * 🔴 Kein DDL: kein avesmapsLoreRuleEnsureTables-Aufruf hier. Fehlt eine der drei Tabellen, gibt
+ * es eine leere Liste, nie einen Fehler -- derselbe Vertrag wie avesmapsLoreRuleOrderedZoneKeys.
+ *
+ * @return list<array{entry_wiki_key: string, relation: string, terms: list<array<string,mixed>>}>
+ */
+function avesmapsLoreRuleReadAllActive(PDO $pdo): array
+{
+    try {
+        $rules = $pdo->query(
+            "SELECT id, entry_wiki_key, relation FROM lore_rule
+              WHERE status = 'active' ORDER BY entry_wiki_key, sort_order, id"
+        );
+        $ruleRows = $rules === false ? [] : $rules->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable) {
+        return [];
+    }
+    if ($ruleRows === []) {
+        return [];
+    }
+
+    $ruleIds = array_map(static fn (array $row): int => (int) $row['id'], $ruleRows);
+    $rulePlaceholders = implode(',', array_fill(0, count($ruleIds), '?'));
+
+    try {
+        // Zweite Abfrage: alle Bedingungen aller Regeln auf einmal.
+        $termStatement = $pdo->prepare(
+            "SELECT id, rule_id, join_op, area_public_id, climate_from, climate_to
+               FROM lore_rule_term WHERE rule_id IN ($rulePlaceholders) ORDER BY rule_id, seq"
+        );
+        $termStatement->execute($ruleIds);
+        $termRows = $termStatement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        // Dritte Abfrage: alle Arten aller Bedingungen auf einmal -- nicht neu je Bedingung.
+        $typesByTerm = [];
+        $termIds = array_map(static fn (array $row): int => (int) $row['id'], $termRows);
+        if ($termIds !== []) {
+            $termPlaceholders = implode(',', array_fill(0, count($termIds), '?'));
+            $typeStatement = $pdo->prepare(
+                "SELECT term_id, kind, region_type FROM lore_rule_term_type
+                  WHERE term_id IN ($termPlaceholders) ORDER BY term_id, kind, region_type"
+            );
+            $typeStatement->execute($termIds);
+            foreach ($typeStatement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $typeRow) {
+                $typesByTerm[(int) $typeRow['term_id']][] = [
+                    'kind' => (string) $typeRow['kind'],
+                    'region_type' => (string) $typeRow['region_type'],
+                ];
+            }
+        }
+    } catch (Throwable) {
+        return [];
+    }
+
+    $termsByRule = [];
+    foreach ($termRows as $termRow) {
+        $termsByRule[(int) $termRow['rule_id']][] = [
+            'join_op' => (string) $termRow['join_op'],
+            'area_public_id' => $termRow['area_public_id'] !== null ? (string) $termRow['area_public_id'] : null,
+            'climate_from' => $termRow['climate_from'] !== null ? (string) $termRow['climate_from'] : null,
+            'climate_to' => $termRow['climate_to'] !== null ? (string) $termRow['climate_to'] : null,
+            'types' => $typesByTerm[(int) $termRow['id']] ?? [],
+        ];
+    }
+
+    $out = [];
+    foreach ($ruleRows as $row) {
+        $out[] = [
+            'entry_wiki_key' => (string) $row['entry_wiki_key'],
+            'relation' => (string) $row['relation'],
+            'terms' => $termsByRule[(int) $row['id']] ?? [],
+        ];
+    }
+
+    return $out;
+}
+
+/**
+ * Fuer EIN Subjekt: entry_wiki_key => relation aller aktiven Regeln, die es treffen.
+ *
+ * Holt den ganzen Regelbestand (avesmapsLoreRuleReadAllActive, drei Abfragen) und die
+ * Zonenreihenfolge (avesmapsLoreRuleOrderedZoneKeys) GENAU EINMAL je Aufruf, wertet beides dann
+ * rein in PHP gegen das eine Subjekt aus -- keine weitere Abfrage je Regel oder Bedingung.
+ *
+ * Kettenauswertung wie avesmapsLoreRuleEvaluate, aber fuer EIN Subjekt vereinfacht: wahr/falsch
+ * statt Mengen. 'und' ist logisches Und, 'oder' logisches Oder, ausgewertet strikt LINKS NACH
+ * RECHTS ohne Klammern -- dieselbe Reihenfolge wie im Editor, sonst zeigt die Vorschau etwas
+ * anderes als die Infobox.
+ *
+ * @param array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>} $subject
+ * @return array<string, string> entry_wiki_key => relation
+ */
+function avesmapsLoreRuleEntriesForSubject(PDO $pdo, array $subject): array
+{
+    $rules = avesmapsLoreRuleReadAllActive($pdo);
+    if ($rules === []) {
+        return [];
+    }
+
+    // Einmal je Aufruf geholt, nie je Regel und nie je Bedingung.
+    $orderedZoneKeys = avesmapsLoreRuleOrderedZoneKeys($pdo);
+
+    $out = [];
+    foreach ($rules as $rule) {
+        $terms = $rule['terms'];
+        if ($terms === []) {
+            // Eine Regel ohne Bedingungen ist ein Versehen (der Schreibpfad lehnt sie ab, siehe
+            // avesmapsLoreRuleChainIsUnbounded) -- trifft hier niemanden, statt "alles".
+            continue;
+        }
+
+        $result = null;
+        foreach (array_values($terms) as $index => $term) {
+            $matches = avesmapsLoreRuleTermMatchesSubject($term, $subject, $orderedZoneKeys);
+            if ($index === 0) {
+                $result = $matches;
+                continue;
+            }
+            $join = (string) ($term['join_op'] ?? 'und');
+            $result = $join === 'oder' ? ($result || $matches) : ($result && $matches);
+        }
+
+        if ($result === true) {
+            $out[$rule['entry_wiki_key']] = $rule['relation'];
+        }
+    }
+
+    return $out;
 }

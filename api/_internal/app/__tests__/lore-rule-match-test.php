@@ -102,4 +102,73 @@ assert(avesmapsLoreRuleTermMatchesSubject($nurFarindel, $subjectBeide, $zones) =
 // --- Leere Bedingung trifft alles, aber der Schreibriegel laesst sie gar nicht erst zu -----
 assert(avesmapsLoreRuleTermMatchesSubject($term(), $subjectArea, $zones) === true);
 
+// --- Der oeffentliche Lesepfad: aller Regelbestand + Treffer je Subjekt (PDO, sqlite) ---------
+require_once __DIR__ . '/../lore-rule-store.php';
+
+if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
+    fwrite(STDERR, "FATAL: the pdo_sqlite driver is missing -- this half would silently pass\n");
+    exit(1);
+}
+$pdo = new PDO('sqlite::memory:');
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+avesmapsLoreRuleEnsureTables($pdo);
+
+// Zwei Eintraege, zwei Regeln: die Einbeere will Wald im Norden, das Bergkraut will Gebirge.
+avesmapsLoreRuleSave($pdo, 'einbeere', [[
+    'join_op' => 'und', 'area_public_id' => null,
+    'types' => [['kind' => 'vegetation', 'region_type' => 'wald']],
+    'climate_from' => 'boreal', 'climate_to' => 'gemaessigt',
+]], 'verbreitung', 7);
+avesmapsLoreRuleSave($pdo, 'bergkraut', [[
+    'join_op' => 'und', 'area_public_id' => null,
+    'types' => [['kind' => 'topographie', 'region_type' => 'gebirge']],
+    'climate_from' => null, 'climate_to' => null,
+]], 'verbreitung', 7);
+
+$all = avesmapsLoreRuleReadAllActive($pdo);
+assert(count($all) === 2, 'beide Eintraege, in DREI Abfragen fuer den ganzen Bestand');
+
+// Der Farindelwald trifft die Einbeere, nicht das Bergkraut.
+$hits = avesmapsLoreRuleEntriesForSubject($pdo, avesmapsLoreRuleSubjectFromArea($farindel));
+assert(array_keys($hits) === ['einbeere']);
+assert($hits['einbeere'] === 'verbreitung');
+
+// Der Finsterkamm trifft das Bergkraut.
+$hits = avesmapsLoreRuleEntriesForSubject($pdo, avesmapsLoreRuleSubjectFromArea($finsterkamm));
+assert(array_keys($hits) === ['bergkraut']);
+
+// 💣 Der Bergwald-ORT trifft BEIDE -- er erbt die Arten beider Flaechen. Genau das ist die
+// Aussage des Modells, und genau sie faellt weg, wenn jemand die Vererbung wegoptimiert.
+$hits = avesmapsLoreRuleEntriesForSubject($pdo, avesmapsLoreRuleSubjectFromPlace($bergwald, $areasById));
+// ⚠️ Nicht sort($keys = array_keys($hits)) -- PHP 8.5 lehnt eine Zuweisung als Referenz-Argument
+// ab ("could not be passed by reference"), zwei Anweisungen statt einer.
+$keys = array_keys($hits);
+sort($keys);
+assert($keys === ['bergkraut', 'einbeere']);
+
+// Eine stillgelegte Regel trifft nichts mehr.
+$pdo->exec("UPDATE lore_rule SET status = 'suppressed' WHERE entry_wiki_key = 'bergkraut'");
+$hits = avesmapsLoreRuleEntriesForSubject($pdo, avesmapsLoreRuleSubjectFromArea($finsterkamm));
+assert($hits === []);
+
+// --- Erweiterung (Schritt 5): 'oder' muss wirklich ODER sein, nicht heimlich 'und' -----------
+// Keine der beiden Regeln oben hat mehr als EINE Bedingung -- eine Mutation, die join_op
+// ignoriert und immer 'und' nimmt, kommt an ihnen ungestraft vorbei (die erste Bedingung einer
+// Kette setzt das Ergebnis immer direkt, ganz gleich, welcher join_op an ihr steht). Diese Regel
+// hat ZWEI Bedingungen: die erste (Gebirge) verfehlt den Farindel (der ist Wald), die zweite
+// (Wald), mit 'oder' verknuepft, trifft ihn. "immer und" zwingt das Ergebnis auf false.
+avesmapsLoreRuleSave($pdo, 'raffranke', [
+    ['join_op' => 'und', 'area_public_id' => null,
+        'types' => [['kind' => 'topographie', 'region_type' => 'gebirge']],
+        'climate_from' => null, 'climate_to' => null],
+    ['join_op' => 'oder', 'area_public_id' => null,
+        'types' => [['kind' => 'vegetation', 'region_type' => 'wald']],
+        'climate_from' => null, 'climate_to' => null],
+], 'verbreitung', 7);
+
+$hits = avesmapsLoreRuleEntriesForSubject($pdo, avesmapsLoreRuleSubjectFromArea($farindel));
+$keys = array_keys($hits);
+sort($keys);
+assert($keys === ['einbeere', 'raffranke'], 'oder verknuepft, nicht heimlich und -- Gebirge verfehlt, Wald trifft');
+
 echo "lore-rule-match: OK\n";

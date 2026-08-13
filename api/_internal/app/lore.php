@@ -831,3 +831,129 @@ function avesmapsLoreReadForPlaces(PDO $pdo, array $placeKeys, int $limit = AVES
 
     return $out;
 }
+
+/**
+ * Zwilling zu avesmapsLoreReadForPlaces, aber fuer REGELTREFFER statt genannte Orte
+ * (Lebensraum-Regel, Sitzung 3): holt die Stammdaten (Name, wiki_url, gruppe, typ, lebensraum,
+ * kind) zu einer Menge entry_wiki_key => relation, IN EINER Abfrage. Die Zeilenform ist
+ * dieselbe wie in $byKind oben ('wiki_key', 'name', 'wiki_url', 'gruppe', 'typ', 'lebensraum',
+ * 'relations', 'place_title', 'rank' -- plus 'kind' zum Einsortieren), damit der Aufrufer sie
+ * mit demselben $seen/Rang-Verfahren einmischen kann, das dort schon fuer mehrfach hereinkommende
+ * Eintraege steht (api/app/lore.php, ?place=-Zweig).
+ *
+ * Ein Regeltreffer hat KEINEN Ort -- 'place_title' bleibt leer. 'rank' ist immer 1: spezifischer
+ * als "kontinentweit" (3), unspezifischer als "direkt am Ort" (0). Eine Regel sagt "hier passt
+ * die Umgebung", keine Aussage ueber ein Untergebiet (dort ebenfalls 1) -- die Gleichstellung
+ * mit Rang 1 ist Absicht, kein Zufall: beides ist ein indirekter, kein direkter Treffer.
+ *
+ * @param array<string,string> $ruleHits entry_wiki_key => relation (avesmapsLoreRuleEntriesForSubject)
+ * @param list<string> $activeKinds
+ * @return list<array{wiki_key:string, kind:string, name:string, wiki_url:string, gruppe:string, typ:string, lebensraum:string, relations:list<string>, place_title:string, rank:int}>
+ */
+function avesmapsLoreReadEntriesForRuleHits(PDO $pdo, array $ruleHits, array $activeKinds): array
+{
+    if ($ruleHits === [] || $activeKinds === []) {
+        return [];
+    }
+
+    $keys = array_keys($ruleHits);
+    $keyPlaceholders = implode(',', array_fill(0, count($keys), '?'));
+    $kindPlaceholders = implode(',', array_fill(0, count($activeKinds), '?'));
+
+    try {
+        $statement = $pdo->prepare(
+            'SELECT wiki_key, kind, name, wiki_url, gruppe, typ, lebensraum FROM lore_entry
+              WHERE status = \'active\' AND wiki_key IN (' . $keyPlaceholders . ')
+                AND kind IN (' . $kindPlaceholders . ')'
+        );
+        $statement->execute(array_merge($keys, $activeKinds));
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable) {
+        return []; // lore_entry fehlt (nie gesynct) -> keine Regeltreffer, kein 500
+    }
+
+    $out = [];
+    foreach ($rows as $row) {
+        $key = (string) $row['wiki_key'];
+        $out[] = [
+            'wiki_key' => $key,
+            'kind' => (string) $row['kind'],
+            'name' => (string) $row['name'],
+            'wiki_url' => (string) ($row['wiki_url'] ?? ''),
+            'gruppe' => (string) ($row['gruppe'] ?? ''),
+            'typ' => (string) ($row['typ'] ?? ''),
+            'lebensraum' => (string) ($row['lebensraum'] ?? ''),
+            'relations' => [(string) ($ruleHits[$key] ?? 'verbreitung')],
+            'place_title' => '',
+            'rank' => 1,
+        ];
+    }
+
+    return $out;
+}
+
+/**
+ * Mischt Regeltreffer (avesmapsLoreReadEntriesForRuleHits) in ein schon von
+ * avesmapsLoreReadForPlaces gebautes Ergebnis -- dasselbe $seen/Rang-Verfahren, das dort fuer
+ * mehrfach hereinkommende Eintraege steht (Duplikate ueber zwei Orte): ein Eintrag bleibt EINMAL
+ * drin, der kleinere (spezifischere) Rang gewinnt, seine Relationen werden vereinigt.
+ *
+ * Nach dem Einmischen wird jede betroffene Sektion neu sortiert (Rang, dann Name) und die
+ * Panel-Kappung erneut angewendet -- ohne Regeltreffer koennten sonst ueber dem Limit landen.
+ *
+ * @param array<string,mixed> $result wie von avesmapsLoreReadForPlaces zurueckgegeben
+ * @param list<array<string,mixed>> $ruleRows wie von avesmapsLoreReadEntriesForRuleHits zurueckgegeben
+ * @return array<string,mixed>
+ */
+function avesmapsLoreMergeRuleHitsIntoResult(array $result, array $ruleRows, bool $full): array
+{
+    if ($ruleRows === []) {
+        return $result;
+    }
+
+    // Index der schon vorhandenen Eintraege je Sektion -- dasselbe Verfahren wie $seen in
+    // avesmapsLoreReadForPlaces, nur ueber ein bereits fertiges Ergebnis statt roher Zeilen.
+    $seen = [];
+    foreach ($result['sections'] as $kind => $entries) {
+        foreach ($entries as $index => $entry) {
+            $seen[$kind][(string) ($entry['wiki_key'] ?? '')] = $index;
+        }
+    }
+
+    foreach ($ruleRows as $row) {
+        $kind = (string) $row['kind'];
+        $key = (string) $row['wiki_key'];
+        if (!isset($result['sections'][$kind])) {
+            continue; // Art nicht in AVESMAPS_LORE_KINDS (kann nicht vorkommen) oder abgeschaltet
+        }
+
+        if (isset($seen[$kind][$key])) {
+            $existingIndex = $seen[$kind][$key];
+            if ((int) $row['rank'] < (int) $result['sections'][$kind][$existingIndex]['rank']) {
+                $result['sections'][$kind][$existingIndex]['rank'] = $row['rank'];
+            }
+            foreach ($row['relations'] as $relation) {
+                if (!in_array($relation, $result['sections'][$kind][$existingIndex]['relations'], true)) {
+                    $result['sections'][$kind][$existingIndex]['relations'][] = $relation;
+                }
+            }
+            continue;
+        }
+
+        unset($row['kind']);
+        $seen[$kind][$key] = count($result['sections'][$kind]);
+        $result['sections'][$kind][] = $row;
+        $result['counts'][$kind] = ($result['counts'][$kind] ?? 0) + 1;
+        $result['total']++;
+    }
+
+    foreach (AVESMAPS_LORE_KINDS as $kind) {
+        $entries = $result['sections'][$kind] ?? [];
+        usort($entries, static function (array $a, array $b): int {
+            return $a['rank'] <=> $b['rank'] ?: strcasecmp($a['name'], $b['name']);
+        });
+        $result['sections'][$kind] = $full ? $entries : array_slice($entries, 0, AVESMAPS_LORE_PANEL_LIMIT);
+    }
+
+    return $result;
+}
