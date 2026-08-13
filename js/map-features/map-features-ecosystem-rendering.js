@@ -697,6 +697,12 @@ function buildEcosystemAreaLayer(area) {
 		if (window.AvesmapsEcosystemGeometryOps?.claimsMapClick?.()) {
 			return;
 		}
+		// 🔴 Dasselbe für „Grenze aus Territorien" (Fall #68): solange dieses Fenster offen ist, IST ein
+		// Kartenklick die Wahl eines Territoriums. Ohne diesen Ausstieg schluckte die Fläche darunter ihn,
+		// und da die Ebene fast lückenlos gezeichnet ist, gäbe es kaum eine Stelle, an der er ankäme.
+		if (window.AvesmapsEcosystemTerritoryImport?.claimsMapClick?.()) {
+			return;
+		}
 		if (event?.originalEvent && typeof L?.DomEvent?.stopPropagation === "function") {
 			L.DomEvent.stopPropagation(event);
 		}

@@ -1106,6 +1106,17 @@
 					     sagt, ob der Layer für dieses Gebiet die Außengrenze oder die rohe Grenze hergibt --
 					     wählen lässt sich das nicht (map-features-ecosystem-territory-import.js, Kopf). -->
 					<div id="ecosystem-import-list" class="ecosystem-import-dialog__list" role="group" aria-labelledby="ecosystem-import-title"></div>
+					<!-- Fall #68: die Karte ist das ZWEITE Auswahlwerkzeug -- Zeiger drüber zeigt das Gebiet,
+					     Klick nimmt es dazu, nochmal Klick wieder weg. Der Korb darunter ist die Antwort auf
+					     „wo sind meine Klicks hin": in 945 Baumzeilen fände sie niemand wieder.
+					     Die Reihenfolge ist Absicht (Owner 2026-08-14): erst das Werkzeug, dann das Ergebnis,
+					     und das Ergebnis steht direkt über dem Knopf, der es verbraucht. -->
+					<p id="ecosystem-import-hint" class="ecosystem-import-dialog__hint"></p>
+					<div class="ecosystem-import-dialog__baskethead">
+						<span id="ecosystem-import-basket-label" class="ecosystem-import-dialog__baskettitle"><span data-i18n="ecosystem.import.basketLabel">Gewählt</span> <span id="ecosystem-import-count">(0)</span></span>
+						<button id="ecosystem-import-clear" class="ecosystem-import-dialog__button ecosystem-import-dialog__clear" type="button" data-i18n="ecosystem.import.clear" disabled>Leeren</button>
+					</div>
+					<div id="ecosystem-import-basket" class="ecosystem-import-dialog__basket" role="group" aria-labelledby="ecosystem-import-basket-label"></div>
 					<p id="ecosystem-import-status" class="ecosystem-import-dialog__summary" role="status"></p>
 					<p id="ecosystem-import-error" class="ecosystem-import-dialog__error" role="alert" hidden></p>
 					<div class="ecosystem-import-dialog__actions">

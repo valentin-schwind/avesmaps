@@ -19,6 +19,9 @@ global.ecosystemGeometryParts = ecosystemGeometryParts;
 global.ecosystemGeometryArea = ecosystemGeometryArea;
 global.ecosystemGeometryBounds = ecosystemGeometryBounds;
 global.ecosystemBooleanGeometry = require("../map-features-ecosystem-boolean.js").ecosystemBooleanGeometry;
+// Die Trefferprüfung des Kartenklicks rechnet damit -- ebenfalls die echte, damit der Test nebenbei
+// beweist, dass beide Dateien dieselbe [x, y]-Reihenfolge meinen.
+global.pointInGeometry = require("../map-features-point-in-polygon.js").pointInGeometry;
 
 const {
 	territoryImportLabel,
@@ -31,6 +34,9 @@ const {
 	unionTerritoryImportGeometries,
 	roundImportGeometry,
 	formatImportSummary,
+	territoryImportHitAt,
+	territoryImportBasketEntries,
+	territoryImportOutlineRows,
 } = require("../map-features-ecosystem-territory-import.js");
 
 const box = (x1, y1, x2, y2) => ({
@@ -321,5 +327,96 @@ assert.match(summary, /2 Teile/);
 assert.match(summary, /8 Ecken/, "je Kasten vier Ecken, der Schlusspunkt zählt nicht mit");
 assert.match(summary, /4\.0 KB/);
 assert.match(formatImportSummary(1, box(0, 0, 1, 1), 0), /1 Gebiet · 1 Teil · 4 Ecken$/, "Einzahl, und ohne Nutzlast keine KB-Angabe");
+
+// ================================================================================================
+// Fall #68 -- Territorien per Kartenklick wählen. Auch hier gilt: bewiesen wird die RECHNUNG. Ob der
+// Klick die Karte erreicht, beantwortet nur der Browser.
+
+const hitCandidate = (publicId, depth, geometry) => ({ publicId, depth, geometry, bounds: ecosystemGeometryBounds(geometry) });
+
+// ----------------------------------------- DER KLICK NIMMT DAS TIEFSTE GEBIET ---
+// 💣 Nicht das erste und nicht das grösste: über der Baronie liegt das Fürstentum liegt das Reich.
+// Dieselbe Regel, nach der die Vorbelegung seit 2026-07-28 arbeitet -- jetzt für JEDEN Klick.
+const hitFeld = [
+	hitCandidate("reich", 0, box(0, 0, 100, 100)),
+	hitCandidate("fuerstentum", 1, box(0, 0, 50, 50)),
+	hitCandidate("baronie", 2, box(0, 0, 20, 20)),
+	hitCandidate("fern", 0, box(500, 500, 600, 600)),
+];
+assert.strictEqual(territoryImportHitAt([10, 10], hitFeld), "baronie", "drei übereinander -> das tiefste");
+assert.strictEqual(territoryImportHitAt([30, 30], hitFeld), "fuerstentum");
+assert.strictEqual(territoryImportHitAt([80, 80], hitFeld), "reich");
+assert.strictEqual(territoryImportHitAt([300, 300], hitFeld), "", "daneben ist nichts -- kein Ratespiel");
+assert.strictEqual(territoryImportHitAt([550, 550], hitFeld), "fern", "der Kastenfilter darf keinen Treffer verschlucken");
+
+// Die Reihenfolge im Feld darf nichts ändern: der Kasten ist eine Abkürzung, kein Kriterium.
+assert.strictEqual(territoryImportHitAt([10, 10], hitFeld.slice().reverse()), "baronie");
+
+// 🪤 Ohne Umschliessung wird trotzdem gerechnet. Ein fehlender Kasten macht ein Gebiet sonst lautlos
+// unklickbar -- die Abkürzung darf nie zum Riegel werden.
+assert.strictEqual(
+	territoryImportHitAt([10, 10], [{ publicId: "ohne-kasten", depth: 0, geometry: box(0, 0, 20, 20), bounds: null }]),
+	"ohne-kasten"
+);
+assert.strictEqual(territoryImportHitAt([NaN, 10], hitFeld), "");
+
+// ------------------------------------------------------------------ DER KORB ---
+const korbRows = buildTerritoryImportRows([
+	{ publicId: "r", name: "Mittelreich", type: "Reich", parentId: "" },
+	{ publicId: "f", name: "Fürstentum Kosch", type: "Fürstentum", parentId: "r" },
+	{ publicId: "a", name: "Baronie Angbar", type: "Baronie", parentId: "f" },
+	{ publicId: "b", name: "Baronie Schneehag", type: "Baronie", parentId: "f" },
+	{ publicId: "t", name: "Thorwal", type: "Reich", parentId: "" },
+]);
+const korbTiefen = territoryImportDescendants(korbRows);
+
+// Ein Häkchen am Fürstentum wählt DREI Gebiete -- der Korb zeigt EIN Kärtchen mit der Zahl dahinter.
+// 400 Kärtchen für ein angehaktes Reich wären kein Korb, sondern eine zweite Liste.
+assert.deepStrictEqual(
+	territoryImportBasketEntries(korbRows, new Set(["f", "a", "b"]), korbTiefen),
+	[{ publicId: "f", label: "Fürstentum Kosch", extra: 2 }]
+);
+
+// Zwei einzeln angeklickte Baronien sind zwei Kärtchen ohne Zusatz, in Baumreihenfolge.
+assert.deepStrictEqual(
+	territoryImportBasketEntries(korbRows, new Set(["a", "b"]), korbTiefen),
+	[{ publicId: "a", label: "Baronie Angbar", extra: 0 }, { publicId: "b", label: "Baronie Schneehag", extra: 0 }]
+);
+
+// 💣 Die Summe über alle Kärtchen (1 + extra) MUSS die Kopfzahl ergeben. Zwei verschiedene Zahlen für
+// „wie viele habe ich gewählt" sind genau der Widerspruch, den jemand als Fehler meldet.
+const gemischt = new Set(["f", "a", "b", "t"]);
+assert.strictEqual(
+	territoryImportBasketEntries(korbRows, gemischt, korbTiefen).reduce((summe, eintrag) => summe + 1 + eintrag.extra, 0),
+	gemischt.size
+);
+assert.deepStrictEqual(territoryImportBasketEntries(korbRows, new Set(), korbTiefen), []);
+
+// ------------------------------------------------------- WAS GEZEICHNET WIRD ---
+const umrissFeld = [
+	hitCandidate("gross", 0, box(0, 0, 100, 100)),
+	hitCandidate("mittel", 1, box(10, 10, 40, 40)),
+	hitCandidate("klein", 2, box(15, 15, 20, 20)),
+	hitCandidate("draussen", 0, box(900, 900, 1000, 1000)),
+];
+const sicht = { min_x: 0, min_y: 0, max_x: 200, max_y: 200 };
+assert.deepStrictEqual(
+	territoryImportOutlineRows(umrissFeld, sicht, 400).map((row) => row.publicId),
+	["gross", "mittel", "klein"],
+	"was den Ausschnitt schneidet, nach Fläche absteigend"
+);
+
+// Der Deckel nimmt die GROSSEN zuerst: bei ganzer Karte sieht man die Reiche, beim Hineinzoomen tauchen
+// die Baronien auf, weil weniger im Ausschnitt liegen.
+assert.deepStrictEqual(
+	territoryImportOutlineRows(umrissFeld, sicht, 2).map((row) => row.publicId),
+	["gross", "mittel"]
+);
+
+// Ein Gebiet, das den Ausschnitt nur BERÜHRT, gehört dazu -- sonst fehlte am Rand die halbe Grenze.
+assert.deepStrictEqual(
+	territoryImportOutlineRows(umrissFeld, { min_x: 100, min_y: 100, max_x: 150, max_y: 150 }, 400).map((row) => row.publicId),
+	["gross"]
+);
 
 console.log("ecosystem-territory-import: alle Prüfungen bestanden");

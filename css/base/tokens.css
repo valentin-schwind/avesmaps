@@ -170,6 +170,15 @@
 	   die zurueckgebliebene Luecke -- zwei Zustaende, zwei Toene. */
 	--color-marker-open-path-end-ring: #e8850c;
 
+	/* „Grenze aus Territorien" (Fall #68) -- die Territoriumsumrisse, solange das Fenster offen ist
+	   (leise), und der Umriss unter dem Zeiger (laut). Gepinnt wie die Ringe darueber: beides liegt auf
+	   den IMMER-hellen Kartenkacheln, ein Dark-Override machte sie dort unsichtbar.
+	   Bewusst NICHT --color-marker-active: das Gold traegt hier schon die Vorschau der GEWAEHLTEN
+	   Vereinigung. „Was ich treffen wuerde" und „was ich gewaehlt habe" duerfen nicht denselben Ton
+	   haben, sonst sagt keiner von beiden noch etwas. */
+	--color-import-outline: #8a7350;
+	--color-import-hover: #b4651a;
+
 	/* "Edit in progress" blue -- the ring of every drag handle on the map (.path-edit-handle-marker__dot
 	   in css/features/path-editor.css, used by the path, region and landscape editors). This is one of
 	   the two documented no-blue EXCEPTIONS in docs/design-language.md: it encodes a STATE, not chrome,

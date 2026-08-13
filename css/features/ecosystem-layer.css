@@ -916,6 +916,91 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	white-space: nowrap;
 }
 
+/* ---- Fall #68: der Korb ----------------------------------------------------------------------------
+   Die Geste steht über dem Korb, nicht darin: sie erklärt die KARTE, und die liegt daneben. */
+.ecosystem-import-dialog__hint {
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: var(--leading-snug);
+}
+
+.ecosystem-import-dialog__baskethead {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-8);
+}
+
+.ecosystem-import-dialog__baskettitle {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+}
+
+/* „Leeren" ist eine Zeilenhandlung, keine Haupthandlung (§12): weich, klein, nie gefüllt. Die
+   Haupthandlung dieses Fensters heisst „Einfügen" und steht unten. */
+.ecosystem-import-dialog__clear {
+	padding: var(--space-2) var(--space-8);
+	font-size: var(--font-size-small);
+}
+
+/* 🪤 KEIN Rahmen um den Korb. Gruppiert wird über Fläche und Linie, nicht über Kästen (§12) -- und die
+   Statuszeile direkt darunter trägt exakt denselben weichen Grund. Zwei Kästen übereinander mit
+   verschiedener Bauart lesen sich als zwei verschiedene Dinge. */
+.ecosystem-import-dialog__basket {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-6);
+	min-height: var(--space-24);
+	padding: var(--space-8);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel-soft);
+}
+
+/* Ein Kärtchen je WURZEL der Auswahl; „+3" heisst, dass drei Untergebiete mitgekommen sind. */
+.ecosystem-import-dialog__chip {
+	display: inline-flex;
+	align-items: baseline;
+	gap: var(--space-4);
+	padding: var(--space-2) var(--space-4) var(--space-2) var(--space-8);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font-size: var(--font-size-small);
+	line-height: var(--leading-snug);
+}
+
+.ecosystem-import-dialog__chipremove {
+	appearance: none;
+	-webkit-appearance: none;
+	padding: 0 var(--space-4);
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: none;
+	color: var(--color-text-muted);
+	cursor: pointer;
+	font: inherit;
+	line-height: 1;
+}
+
+.ecosystem-import-dialog__chipremove:hover {
+	color: var(--color-text-strong);
+}
+
+.ecosystem-import-dialog__chipremove:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+/* Das Namensschild am Zeiger, solange das Fenster offen ist. Es sitzt auf den IMMER-hellen
+   Kartenkacheln -- deshalb dieselbe gepinnte Farbe wie der Umriss darunter, kein Panel-Ton. */
+.leaflet-tooltip.ecosystem-import-hovertip {
+	border-color: var(--color-import-hover);
+	color: var(--color-text-strong);
+	font-size: var(--font-size-small);
+}
+
 /* Die Zahlen vor dem Schreiben (Gebiete, Teile, Ecken, Nutzlast). Auf dem weichen Grund trägt der Text
    die -muted-Variante, wie die Trockenlauf-Vorschau der Zuweisen-Fenster daneben. */
 .ecosystem-import-dialog__summary {

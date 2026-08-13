@@ -59,6 +59,10 @@
 	// 14,8 MB bei ungerundeten Koordinaten, die vierte Stelle halbiert das. Auf einer Karte von 1024
 	// Einheiten Breite liegt 0,0001 weit unter allem, was ein Zoom je zeigt.
 	const IMPORT_COORDINATE_DIGITS = 4;
+	// 💣 Wie viele Territoriumsumrisse höchstens gleichzeitig auf der Karte liegen. 945 Gebiete mit
+	// politischer Vertex-Dichte gleichzeitig zu zeichnen macht das Schieben zäh -- auch auf einer
+	// Leinwand. Gedeckelt wird nach Umschliessungs-Fläche, siehe territoryImportOutlineRows.
+	const IMPORT_OUTLINE_LIMIT = 400;
 
 	let importBound = false;
 	let importBusy = false;
@@ -76,6 +80,18 @@
 	// 💣 Gesetzt, wenn `create_region` geklappt hat und `create_area` nicht. Ohne das legte jeder erneute
 	// Versuch eine WEITERE leere Region an -- dieselbe Falle, die „Kopieren …" dokumentiert.
 	let importCreatedRegion = null;
+
+	// ---- Fall #68: die Karte als Auswahlwerkzeug -----------------------------------------------------
+	// Eine flache Liste {publicId, depth, geometry, bounds} -- einmal je Fensteröffnung gebaut, damit die
+	// Trefferprüfung bei jeder Zeigerbewegung nur noch vergleicht statt zu suchen.
+	let importCandidates = [];
+	let importOutlineLayer = null;
+	let importOutlineRenderer = null;
+	let importOutlineCapped = false;
+	let importHoverLayer = null;
+	let importHoverTooltip = null;
+	let importHoverId = "";
+	let importMapBound = false;
 
 	function label(key, german) {
 		return typeof tr === "function" ? tr(key, german) : german;
@@ -221,6 +237,94 @@
 		});
 
 		return list.filter((row) => keep.has(row.publicId));
+	}
+
+	// Welches Gebiet ein Punkt auf der Karte meint: das TIEFSTE, das ihn enthält. Über der Baronie liegt
+	// das Fürstentum liegt das Reich -- gemeint ist die Baronie, dieselbe Regel, nach der die Vorbelegung
+	// seit 2026-07-28 arbeitet (Entwurf 2026-08-14 §3.1). Wer das Fürstentum will, hakt es im Baum an.
+	//
+	// 💣 ERST DER KASTEN, DANN DAS POLYGON. Bei jeder Zeigerbewegung gegen 945 Polygone zu rechnen macht
+	// das Schieben zäh; die Umschliessung steht einmal beim Laden fest. Der Kasten ist eine ABKÜRZUNG,
+	// kein Kriterium: fehlt er, wird trotzdem gerechnet -- sonst wäre ein Gebiet ohne Kasten lautlos
+	// unklickbar, und das sähe aus wie „die Karte reagiert manchmal nicht".
+	//
+	// Der zweite Sparbetrieb ist der Tiefenvergleich VOR pointInGeometry: was das bisher Beste nicht
+	// schlagen kann, wird gar nicht erst geprüft.
+	function territoryImportHitAt(point, candidates) {
+		const x = Number(Array.isArray(point) ? point[0] : NaN);
+		const y = Number(Array.isArray(point) ? point[1] : NaN);
+		if (!Number.isFinite(x) || !Number.isFinite(y) || typeof pointInGeometry !== "function") {
+			return "";
+		}
+
+		let best = "";
+		let bestDepth = -1;
+		(Array.isArray(candidates) ? candidates : []).forEach((candidate) => {
+			const depth = Number(candidate?.depth) || 0;
+			if (depth <= bestDepth) {
+				return;
+			}
+			const bounds = candidate?.bounds;
+			if (bounds && (x < bounds.min_x || x > bounds.max_x || y < bounds.min_y || y > bounds.max_y)) {
+				return;
+			}
+			if (!candidate?.geometry || !pointInGeometry([x, y], candidate.geometry)) {
+				return;
+			}
+			best = String(candidate.publicId || "");
+			bestDepth = depth;
+		});
+
+		return best;
+	}
+
+	// Was der Korb zeigt: die WURZELN der Auswahl, nicht jede gewählte Zeile. Ein Häkchen an
+	// „Mittelreich" wählt ~400 Gebiete -- 400 Kärtchen wären kein Korb, sondern eine zweite Liste.
+	// Trägt eine Wurzel mitgewählte Nachfahren, steht die Zahl leise dahinter („+3").
+	//
+	// 💣 Die Summe über alle Kärtchen (1 + extra) ergibt die Kopfzahl, und die Kopfzahl ist die
+	// GESAMTZAHL -- dieselbe, die die Statuszeile daneben nennt. Zwei verschiedene Zahlen für „wie viele
+	// habe ich gewählt" sind genau der Widerspruch, den jemand als Fehler meldet.
+	function territoryImportBasketEntries(rows, selection, descendants) {
+		const chosen = selection instanceof Set ? selection : new Set(Array.isArray(selection) ? selection : []);
+		const byId = descendants instanceof Map ? descendants : new Map();
+
+		return (Array.isArray(rows) ? rows : [])
+			.filter((row) => chosen.has(row.publicId) && !chosen.has(row.parentId))
+			.map((row) => ({
+				publicId: row.publicId,
+				label: row.label,
+				extra: (byId.get(row.publicId) || []).filter((id) => chosen.has(id)).length,
+			}));
+	}
+
+	// Welche Umrisse gezeichnet werden, solange das Fenster offen ist: was den sichtbaren Ausschnitt
+	// SCHNEIDET (Berühren zählt -- sonst fehlte am Rand die halbe Grenze), nach Umschliessungs-Fläche
+	// absteigend, gedeckelt.
+	//
+	// ⚠️ Der Deckel ist eine Kappung, und Kappungen werden gesagt, nicht verschwiegen (die Hinweiszeile
+	// bittet dann ums Heranzoomen). Grösste zuerst heisst: bei ganzer Karte sieht man die Reiche, beim
+	// Hineinzoomen tauchen die Baronien auf, weil weniger im Ausschnitt liegen.
+	function territoryImportOutlineRows(candidates, view, limit) {
+		const max = Number(limit) > 0 ? Number(limit) : IMPORT_OUTLINE_LIMIT;
+		const areaOf = (candidate) => Math.max(0, candidate.bounds.max_x - candidate.bounds.min_x)
+			* Math.max(0, candidate.bounds.max_y - candidate.bounds.min_y);
+
+		return (Array.isArray(candidates) ? candidates : [])
+			.filter((candidate) => {
+				const bounds = candidate?.bounds;
+				if (!bounds) {
+					return false;
+				}
+				if (!view) {
+					return true;
+				}
+
+				return bounds.max_x >= view.min_x && bounds.min_x <= view.max_x
+					&& bounds.max_y >= view.min_y && bounds.min_y <= view.max_y;
+			})
+			.sort((left, right) => areaOf(right) - areaOf(left))
+			.slice(0, max);
 	}
 
 	// Nur Formen, die `create_area` annimmt. Der Server prüft richtig
@@ -504,12 +608,208 @@
 		// zweimal dasselbe Signal für „so sähe es aus".
 		importPreviewLayer = L.polygon(importGeometryToLatLngs(geometry), {
 			pane: "measurementPane",
-			color: getComputedStyle(document.documentElement).getPropertyValue("--color-marker-active").trim(),
+			color: importToken("--color-marker-active"),
 			weight: 2,
 			opacity: 0.95,
 			fillOpacity: 0.2,
 			interactive: false,
 		}).addTo(map);
+	}
+
+	function importToken(name) {
+		return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+	}
+
+	// ---- die Grenzen sichtbar machen ------------------------------------------------------------------
+	// 🔴 OHNE LINIEN WÄRE DAS ANKLICKEN BLINDFISCHEN. Im Landschaften-Editor ist von der politischen Ebene
+	// nichts zu sehen; solange dieses Fenster offen ist, liegen die Umrisse deshalb über der Karte.
+	//
+	// 💣 AUF EINER LEINWAND, NICHT ALS SVG. 945 Gebiete mit politischer Vertex-Dichte als SVG-Pfade lassen
+	// das Schieben ruckeln. `interactive: false` obendrein: angeklickt wird hier nichts -- die
+	// Trefferprüfung rechnet gegen die Geometrie, nicht gegen eine Ebene.
+
+	// Nur die Linien. Die Leinwand darunter bleibt -- siehe ensureImportOutlineRenderer.
+	function clearImportOutlineLayer() {
+		if (importOutlineLayer && typeof map !== "undefined" && map && map.hasLayer(importOutlineLayer)) {
+			map.removeLayer(importOutlineLayer);
+		}
+		importOutlineLayer = null;
+	}
+
+	// Linien UND Leinwand. Beim Schliessen des Fensters, sonst nie.
+	function clearImportOutlines() {
+		clearImportOutlineLayer();
+		if (importOutlineRenderer && typeof map !== "undefined" && map && map.hasLayer(importOutlineRenderer)) {
+			map.removeLayer(importOutlineRenderer);
+		}
+		importOutlineRenderer = null;
+	}
+
+	// 💣 EINE LEINWAND JE FENSTERSITZUNG, NICHT EINE JE NEUZEICHNUNG. `renderImportOutlines` läuft bei
+	// JEDEM Schieben und Zoomen; ein `L.canvas()` pro Lauf hängt sein <canvas> in die Pane und geht mit
+	// dem Entfernen der Linien-Gruppe NICHT wieder weg (ein Renderer ist eine eigene Ebene). Gemessen am
+	// 2026-08-14: schon nach einem Öffnen standen zwei leere Leinwände in measurementPane übereinander.
+	function ensureImportOutlineRenderer() {
+		if (!importOutlineRenderer) {
+			importOutlineRenderer = L.canvas({ pane: "measurementPane" });
+		}
+
+		return importOutlineRenderer;
+	}
+
+	// Der sichtbare Ausschnitt in KARTENkoordinaten. L.CRS.Simple: lng = x, lat = y (AGENTS.md §5).
+	function importViewBounds() {
+		if (typeof map === "undefined" || !map || typeof map.getBounds !== "function") {
+			return null;
+		}
+		const bounds = map.getBounds();
+
+		return { min_x: bounds.getWest(), max_x: bounds.getEast(), min_y: bounds.getSouth(), max_y: bounds.getNorth() };
+	}
+
+	function renderImportOutlines() {
+		clearImportOutlineLayer();
+		if (!isTerritoryImportDialogOpen() || typeof map === "undefined" || !map || typeof L === "undefined") {
+			return;
+		}
+
+		const visible = territoryImportOutlineRows(importCandidates, importViewBounds(), IMPORT_OUTLINE_LIMIT);
+		importOutlineCapped = visible.length >= IMPORT_OUTLINE_LIMIT;
+		const renderer = ensureImportOutlineRenderer();
+		importOutlineLayer = L.layerGroup();
+		const color = importToken("--color-import-outline");
+		visible.forEach((candidate) => {
+			L.polygon(importGeometryToLatLngs(candidate.geometry), {
+				pane: "measurementPane",
+				renderer,
+				color,
+				weight: 1,
+				opacity: 0.7,
+				fill: false,
+				interactive: false,
+			}).addTo(importOutlineLayer);
+		});
+		importOutlineLayer.addTo(map);
+		setImportHint();
+	}
+
+	// ---- was der Zeiger gerade trifft -----------------------------------------------------------------
+	// Der laute Umriss samt Namensschild. Er ist die Auflösung dafür, dass der Klick immer das TIEFSTE
+	// Gebiet nimmt: man sieht VOR dem Klick, was man bekäme.
+
+	function clearImportHover() {
+		if (typeof map !== "undefined" && map) {
+			if (importHoverLayer && map.hasLayer(importHoverLayer)) {
+				map.removeLayer(importHoverLayer);
+			}
+			if (importHoverTooltip && map.hasLayer(importHoverTooltip)) {
+				map.removeLayer(importHoverTooltip);
+			}
+		}
+		importHoverLayer = null;
+		importHoverTooltip = null;
+		importHoverId = "";
+	}
+
+	function renderImportHover(publicId, latlng) {
+		clearImportHover();
+		const geometry = importTerritoryById.get(publicId)?.geometry;
+		if (!geometry || typeof map === "undefined" || !map || typeof L === "undefined") {
+			return;
+		}
+
+		importHoverId = publicId;
+		const color = importToken("--color-import-hover");
+		importHoverLayer = L.polygon(importGeometryToLatLngs(geometry), {
+			pane: "measurementPane",
+			color,
+			weight: 2,
+			opacity: 0.95,
+			fillOpacity: 0.15,
+			interactive: false,
+		}).addTo(map);
+		// 🪤 Ein Zettel AN der Ebene ginge nicht: sie ist `interactive: false`, also kämen dort nie
+		// Mausereignisse an und ein `sticky`-Tooltip bliebe stumm. Er hängt deshalb frei an der Karte und
+		// bekommt seine Stelle bei jeder Bewegung gesetzt.
+		importHoverTooltip = L.tooltip({ direction: "right", offset: [12, 0], className: "ecosystem-import-hovertip" })
+			.setContent(importRowLabel(publicId))
+			.setLatLng(latlng || importHoverLayer.getBounds().getCenter())
+			.addTo(map);
+	}
+
+	function importRowLabel(publicId) {
+		return importRows.find((row) => row.publicId === publicId)?.label
+			|| territoryImportLabel(importTerritoryById.get(publicId));
+	}
+
+	// ---- Zeiger und Klick -----------------------------------------------------------------------------
+
+	function handleImportMapHover(event) {
+		if (!isTerritoryImportDialogOpen()) {
+			return;
+		}
+		const publicId = territoryImportHitAt([Number(event.latlng.lng), Number(event.latlng.lat)], importCandidates);
+		if (publicId !== importHoverId) {
+			renderImportHover(publicId, event.latlng);
+			return;
+		}
+		// Derselbe Treffer: nur der Zettel folgt. Den Umriss neu zu zeichnen kostete bei jeder Bewegung
+		// einen Ebenenwechsel und liesse ihn flackern.
+		importHoverTooltip?.setLatLng(event.latlng);
+	}
+
+	// 🔴 EIN KLICK NIMMT DAS GEBIET, NICHT SEINEN TEILBAUM (Entwurf §3.2). Unter dem Zeiger lag EIN
+	// Gebiet, nicht seine Untergliederung -- dieselbe Regel, nach der die Vorbelegung arbeitet. Das
+	// Häkchen im Baum bleibt dagegen der Weg, der den Teilbaum mitnimmt.
+	//
+	// 💣 Das ENTFERNEN ist der Spiegel und nimmt die mitgewählten Nachfahren mit. Sonst bliebe nach dem
+	// Abwählen eines angehakten Fürstentums seine Baronie im Korb stehen -- ein Häkchen, das niemand
+	// gesetzt hat und das man nur noch im Baum wiederfände.
+	function handleImportMapClick(event) {
+		if (!isTerritoryImportDialogOpen()) {
+			return;
+		}
+		const publicId = territoryImportHitAt([Number(event.latlng.lng), Number(event.latlng.lat)], importCandidates);
+		if (publicId === "") {
+			return;
+		}
+
+		if (importSelection.has(publicId)) {
+			setImportRowChecked(publicId, false);
+		} else {
+			importSelection.add(publicId);
+		}
+		syncImportCheckboxes();
+		syncImportSelection();
+		// 💣 LEAFLET SCHLIESST SEINE TOOLTIPS BEI JEDEM KARTENKLICK (`preclick` -> DivOverlay.close). Das
+		// Namensschild wäre also nach dem ersten Klick weg -- und weil der Zeiger noch über DEMSELBEN
+		// Gebiet steht, baut es keine Bewegung wieder auf: handleImportMapHover steigt bei gleichem
+		// Treffer aus. Es käme erst zurück, wenn man das Gebiet verlässt und neu betritt. Deshalb hier
+		// neu aufsetzen, gemessen am 2026-08-14 im Browser.
+		renderImportHover(publicId, event.latlng);
+	}
+
+	function bindImportMapPicking() {
+		if (importMapBound || typeof map === "undefined" || !map) {
+			return;
+		}
+		importMapBound = true;
+		map.on("mousemove", handleImportMapHover);
+		map.on("click", handleImportMapClick);
+		map.on("moveend", renderImportOutlines);
+		map.on("zoomend", renderImportOutlines);
+	}
+
+	function unbindImportMapPicking() {
+		if (!importMapBound || typeof map === "undefined" || !map) {
+			importMapBound = false;
+			return;
+		}
+		importMapBound = false;
+		map.off("mousemove", handleImportMapHover);
+		map.off("click", handleImportMapClick);
+		map.off("moveend", renderImportOutlines);
+		map.off("zoomend", renderImportOutlines);
 	}
 
 	// ---- der Dialog ----------------------------------------------------------------------------------
@@ -552,6 +852,9 @@
 		const entries = selectedImportEntries();
 		const saveButton = importElement("save");
 		setImportError("");
+		// Der Korb hängt hier mit drin und nicht an den drei Auslösern (Häkchen, Kärtchen-×, Kartenklick):
+		// eine Stelle, damit Karte, Korb, Zahl und Knopf nie auseinanderlaufen können.
+		renderImportBasket();
 
 		if (entries.length === 0) {
 			renderImportPreview(null);
@@ -577,6 +880,74 @@
 				saveButton.disabled = true;
 			}
 		}
+	}
+
+	// ---- der Korb -------------------------------------------------------------------------------------
+	// 🔴 OHNE IHN WÄREN DIE KLICKS UNAUFFINDBAR. Wer fünf Gebiete auf der Karte anklickt, findet die fünf
+	// Häkchen in 945 Baumzeilen nie wieder; der Korb ist die Antwort auf „wo sind meine Klicks hin".
+	function renderImportBasket() {
+		const basketElement = importElement("basket");
+		if (!basketElement) {
+			return;
+		}
+
+		const entries = territoryImportBasketEntries(importRows, importSelection, importDescendants);
+		const countElement = importElement("count");
+		if (countElement) {
+			// 💣 Die GESAMTZAHL, nicht die Zahl der Kärtchen -- sie muss der Statuszeile darunter
+			// entsprechen (Entwurf §3.3).
+			countElement.textContent = `(${importSelection.size})`;
+		}
+		const clearButton = importElement("clear");
+		if (clearButton) {
+			clearButton.disabled = importSelection.size === 0;
+		}
+
+		basketElement.innerHTML = "";
+		if (entries.length === 0) {
+			const empty = document.createElement("p");
+			empty.className = "ecosystem-import-dialog__empty";
+			empty.textContent = label("ecosystem.import.basketEmpty", "Noch nichts gewählt — auf der Karte anklicken oder oben suchen.");
+			basketElement.appendChild(empty);
+			return;
+		}
+
+		const fragment = document.createDocumentFragment();
+		entries.forEach((entry) => {
+			const chip = document.createElement("span");
+			chip.className = "ecosystem-import-dialog__chip";
+
+			const name = document.createElement("span");
+			// „+3" heisst: dieses Häkchen hat drei Untergebiete mitgenommen. Leise, aber gesagt -- sonst
+			// stimmte die Kopfzahl scheinbar nicht mit dem überein, was im Korb steht.
+			name.textContent = entry.extra > 0 ? `${entry.label} +${entry.extra}` : entry.label;
+
+			const remove = document.createElement("button");
+			// 🪤 `type="button"`: der Korb steht IM Formular, und ein Knopf ohne Typ schickt es ab -- das
+			// Entfernen eines Kärtchens legte sonst eine Fläche an.
+			remove.type = "button";
+			remove.className = "ecosystem-import-dialog__chipremove";
+			remove.setAttribute("data-import-remove", entry.publicId);
+			remove.setAttribute("aria-label", `${entry.label} ${label("ecosystem.import.chipRemoveAria", "entfernen")}`);
+			remove.textContent = "×";
+
+			chip.append(name, remove);
+			fragment.appendChild(chip);
+		});
+		basketElement.appendChild(fragment);
+	}
+
+	// Die Hinweiszeile sagt die Geste -- und, wenn gedeckelt wurde, dass nicht alle Grenzen gezeichnet
+	// sind. ⚠️ Eine stille Kappung liest sich wie „hier gibt es kein Gebiet".
+	function setImportHint() {
+		const hintElement = importElement("hint");
+		if (!hintElement) {
+			return;
+		}
+		const gesture = label("ecosystem.import.hint", "Auf der Karte anklicken wählt aus — nochmal anklicken nimmt wieder weg.");
+		hintElement.textContent = importOutlineCapped
+			? `${gesture} ${label("ecosystem.import.hintCapped", "Es sind nicht alle Grenzen gezeichnet — zum Sehen näher heranzoomen.")}`
+			: gesture;
 	}
 
 	// Ein Häkchen nimmt seinen ganzen Teilbaum mit: „nimm das Herzogtum" heisst das Herzogtum UND seine
@@ -687,29 +1058,33 @@
 	// dem Klickpunkt ist vorausgehakt. Bei 945 Gebieten ist das der Unterschied zwischen „anhaken" und
 	// „suchen". Nichts getroffen heisst nichts vorausgewählt -- kein Ratespiel.
 	function preselectTerritoryAt(latlng) {
-		if (!latlng || typeof pointInGeometry !== "function") {
+		if (!latlng) {
 			return;
 		}
 
-		const point = [Number(latlng.lng), Number(latlng.lat)];
-		if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) {
-			return;
-		}
-		const depthById = new Map(importRows.map((row) => [row.publicId, row.depth]));
-		let best = null;
-		importRows.forEach((row) => {
-			const geometry = importTerritoryById.get(row.publicId)?.geometry;
-			if (!geometry || !pointInGeometry(point, geometry)) {
-				return;
-			}
-			if (!best || (depthById.get(row.publicId) || 0) > (depthById.get(best) || 0)) {
-				best = row.publicId;
-			}
-		});
-		if (best) {
+		// Dieselbe Rechnung wie jeder Kartenklick (Fall #68) -- die Vorbelegung ist nur der erste davon.
+		const best = territoryImportHitAt([Number(latlng.lng), Number(latlng.lat)], importCandidates);
+		if (best !== "") {
 			// Ohne den Teilbaum: unter dem Cursor lag EIN Gebiet, nicht seine Untergliederung.
 			importSelection.add(best);
 		}
+	}
+
+	// Die flache Liste, gegen die Zeiger und Klick rechnen. Einmal je Fensteröffnung -- die Umschliessung
+	// je Gebiet ist der Grund, dass eine Zeigerbewegung nicht 945 Polygone anfassen muss.
+	function buildImportCandidates() {
+		importCandidates = importRows
+			.map((row) => {
+				const geometry = importTerritoryById.get(row.publicId)?.geometry || null;
+
+				return {
+					publicId: row.publicId,
+					depth: row.depth,
+					geometry,
+					bounds: geometry && typeof ecosystemGeometryBounds === "function" ? ecosystemGeometryBounds(geometry) : null,
+				};
+			})
+			.filter((candidate) => candidate.geometry);
 	}
 
 	async function openTerritoryImportDialog(latlng) {
@@ -727,6 +1102,10 @@
 		importSelection = new Set();
 		importRows = [];
 		importDescendants = new Map();
+		importCandidates = [];
+		importOutlineCapped = false;
+		setImportHint();
+		renderImportBasket();
 		renderImportKindOptions();
 		const filterInput = importElement("filter");
 		if (filterInput) {
@@ -754,9 +1133,14 @@
 			importTerritoryById = new Map(territories.map((territory) => [territory.publicId, territory]));
 			importRows = buildTerritoryImportRows(territories);
 			importDescendants = territoryImportDescendants(importRows);
+			buildImportCandidates();
 			preselectTerritoryAt(latlng);
 			renderImportTree();
 			syncImportSelection();
+			// 💣 ERST JETZT. Vor den Kandidaten gäbe es nichts zu zeichnen, und ein Karten-Haken vor dem
+			// Baum liesse einen schnellen Klick auf eine leere Liste rechnen.
+			renderImportOutlines();
+			bindImportMapPicking();
 		} catch (error) {
 			console.error("Territorien konnten nicht geladen werden:", error);
 			setImportStatus("");
@@ -781,7 +1165,15 @@
 			return;
 		}
 		overlayElement.hidden = true;
+		// 🪤 ZUERST verstecken, DANN abräumen. `isTerritoryImportDialogOpen()` ist der Riegel, an dem die
+		// Karten-Handler hängen -- läuft das Abräumen davor, kann eine noch zugestellte Bewegung den
+		// Schwebe-Umriss gleich wieder aufbauen und er bliebe über der Karte stehen.
+		unbindImportMapPicking();
+		clearImportOutlines();
+		clearImportHover();
 		clearImportPreview();
+		importCandidates = [];
+		importOutlineCapped = false;
 		importSelection = new Set();
 		importCreatedRegion = null;
 	}
@@ -1028,6 +1420,23 @@
 		importElement("cancel")?.addEventListener("click", closeTerritoryImportDialog);
 		importElement("form")?.addEventListener("submit", submitTerritoryImport);
 		importElement("filter")?.addEventListener("input", renderImportTree);
+		// Das × am Kärtchen nimmt das Gebiet SAMT seiner mitgewählten Nachfahren heraus -- dasselbe, was
+		// das Häkchen im Baum täte. Ein Kärtchen zu entfernen und drei stille Häkchen stehen zu lassen
+		// wäre der Zustand, den der Korb gerade abschaffen soll.
+		importElement("basket")?.addEventListener("click", (event) => {
+			const removeButton = event.target?.closest?.("[data-import-remove]");
+			if (!removeButton) {
+				return;
+			}
+			setImportRowChecked(removeButton.getAttribute("data-import-remove") || "", false);
+			syncImportCheckboxes();
+			syncImportSelection();
+		});
+		importElement("clear")?.addEventListener("click", () => {
+			importSelection = new Set();
+			syncImportCheckboxes();
+			syncImportSelection();
+		});
 		importElement("list")?.addEventListener("change", (event) => {
 			const checkbox = event.target?.closest?.("input[type=checkbox][data-territory]");
 			if (!checkbox) {
@@ -1100,6 +1509,12 @@
 			open: openTerritoryImportDialog,
 			close: closeTerritoryImportDialog,
 			isOpen: isTerritoryImportDialogOpen,
+			// 💣 DIE NAHT, OHNE DIE DER KLICK NIE ANKOMMT. Jede Landschaftsfläche ruft in ihrem
+			// Klick-Handler `L.DomEvent.stopPropagation` -- und seit die Ebene fast lückenlos gezeichnet
+			// ist, gibt es kaum noch freie Karte, auf der ein Klick daran vorbeikäme. Solange dieses
+			// Fenster offen ist, IST der Klick die Gebietswahl; map-features-ecosystem-rendering.js fragt
+			// das hier und steigt dann OHNE `stop` aus, genau wie bei den Geometrie-Operationen daneben.
+			claimsMapClick: isTerritoryImportDialogOpen,
 			// Für die Prüfung: die reine Rechnung, ohne Fenster und ohne Karte.
 			territoryImportLabel,
 			buildTerritoryImportRows,
@@ -1124,6 +1539,9 @@
 			roundImportRing,
 			roundImportGeometry,
 			formatImportSummary,
+			territoryImportHitAt,
+			territoryImportBasketEntries,
+			territoryImportOutlineRows,
 		};
 	}
 })();
