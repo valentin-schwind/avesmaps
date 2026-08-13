@@ -841,6 +841,16 @@ select.citymap-fundort__input {
 	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 	gap: 0 var(--space-6);
 }
+/* 💣 Ein Hinweis unter einem Feld gehoert zu diesem Feld und bleibt dicht daran. Folgt er dagegen
+   auf einen ganzen BLOCK (die Eigenschaften, die Typen, der Knopf "+ weiterer Fundort"), klebte er
+   ohne diese Regel daran fest -- genau das war im Entwurf als Abstand vorgesehen und beim Einbau
+   verlorengegangen (Owner 13.08.2026). Ueber Nachbarschaft statt pauschal, damit der erste Fall
+   dicht bleibt. */
+.citymap-suggest__props + .citymap-suggest__hint,
+.citymap-suggest__types + .citymap-suggest__hint,
+.citymap-fundort__add + .citymap-suggest__hint {
+	margin-top: var(--space-10);
+}
 .citymap-suggest__hint {
 	margin: 0 0 var(--space-6);
 	font-size: var(--font-size-caption);
@@ -863,7 +873,7 @@ select.citymap-fundort__input {
 .citymap-suggest__props {
 	display: flex;
 	flex-direction: column;
-	gap: var(--space-2);
+	gap: var(--space-4);
 }
 .citymap-suggest__prop {
 	display: grid;
@@ -1011,7 +1021,11 @@ select.citymap-fundort__input {
 .citymap-fundort__head,
 .citymap-fundort__row {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 108px;
+	/* 💣 Die dritte Spur ist eine FESTE Laenge, niemals auto. Kopfzeile und Datenzeile sind zwei
+	   getrennte Gitter mit derselben Vorlage -- mit auto misst jedes seinen eigenen Inhalt (111px
+	   Ueberschrift gegen 137px Schalter) und die Spaltenbeschriftung wandert von ihrer Spalte weg.
+	   152px = der Dreierschalter (137px) mit etwas Luft; die Ueberschrift passt darunter. */
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 152px;
 	gap: var(--space-4);
 	align-items: center;
 }
@@ -1048,10 +1062,31 @@ select.citymap-fundort__input {
 	outline: none;
 	box-shadow: var(--focus-ring);
 }
+/* Die dritte Spalte einer Fundort-Zeile: der Dreierschalter, gestapelt mit seiner Beschriftung
+   (die nur in der schmalen Ansicht sichtbar wird -- oben steht sonst der Spaltenkopf). */
+.citymap-fundort__paid {
+	display: flex;
+	align-items: center;
+}
+.citymap-fundort__paidlabel {
+	display: none;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
 .citymap-fundort__add {
 	display: flex;
 }
 @media (max-width: 520px) {
+	/* Gestapelt faellt der Spaltenkopf weg -- die Textfelder beschriften sich durch ihre Platzhalter,
+	   der Dreierschalter kann das nicht und bekommt seine eigene Zeile. */
+	.citymap-fundort__paidlabel {
+		display: block;
+	}
+	.citymap-fundort__paid {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--space-2);
+	}
 	.citymap-suggest__pair {
 		grid-template-columns: 1fr;
 	}

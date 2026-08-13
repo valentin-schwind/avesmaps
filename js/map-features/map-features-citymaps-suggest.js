@@ -524,17 +524,33 @@
 	// FUNDORT ist nicht QUELLE: hier steht, WO es die Karte gibt (ein Link), nicht, aus welchem WERK sie
 	// stammt. Deshalb hat dieser Dialog kein Quellenfeld -- und der Server nimmt fuer 'fundort' auch keins
 	// an: die URL ist ihr eigener Beleg.
+	// Die Antwort ist ein Dreierschalter, keine Auswahlbox -- dieselbe Bedienung wie bei den
+	// Eigenschaften im Vorschlagsformular (Owner 2026-08-13).
+	// 💣 Jede Zeile braucht einen EIGENEN Radio-Namen. Mit einem gemeinsamen waeren alle Fundorte EINE
+	//    Gruppe, und die Antwort der zweiten Zeile loeschte die der ersten -- ein Fehler, den man erst
+	//    beim zweiten Fundort sieht. Der Zaehler laeuft ueber die Lebenszeit der Seite und wird nie
+	//    zurueckgesetzt: er muss eindeutig sein, nicht klein.
+	var fundortRowSeq = 0;
 	function fundortRowMarkup() {
+		fundortRowSeq += 1;
+		var name = "citymap-fundort-paid-" + fundortRowSeq;
+		var paidLabel = t("cityMaps.fundortPaid", "kostenpflichtig");
 		return '<div class="citymap-fundort__row">'
 			+ '<input class="citymap-fundort__input" data-fundort-field="label" type="text" maxlength="200"'
 			+ ' placeholder="' + esc(t("cityMaps.fundortLabelPh", "Wiki-Aventurica")) + '" />'
 			+ '<input class="citymap-fundort__input" data-fundort-field="url" type="url" maxlength="500" inputmode="url"'
 			+ ' placeholder="' + esc(t("cityMaps.fundortUrlPh", "https://de.wiki-aventurica.de/wiki/…")) + '" />'
-			+ '<select class="citymap-fundort__input" data-fundort-field="is_paid">'
-			+ TRI.map(function (o) {
-				return '<option value="' + esc(o[0]) + '">' + esc(t("cityMaps.tri." + (o[0] || "unknown"), o[1])) + '</option>';
+			+ '<div class="citymap-fundort__paid">'
+			// Nur in der schmalen Ansicht sichtbar: dort faellt der Spaltenkopf weg, die beiden Textfelder
+			// beschriften sich durch ihre Platzhalter -- ein Schalter kann das nicht.
+			+ '<span class="citymap-fundort__paidlabel">' + esc(paidLabel) + '</span>'
+			+ '<span class="citymap-suggest__tri" role="radiogroup" aria-label="' + esc(paidLabel) + '">'
+			+ TRI.map(function (o, index) {
+				return '<label><input type="radio" name="' + esc(name) + '" value="' + esc(o[0]) + '"'
+					+ ' data-fundort-field="is_paid"' + (index === 0 ? " checked" : "") + ' />'
+					+ '<span>' + esc(t("cityMaps.tri." + (o[0] || "unknown"), o[1])) + '</span></label>';
 			}).join("")
-			+ '</select></div>';
+			+ '</span></div></div>';
 	}
 
 	function ensureFundortDialog() {
@@ -612,7 +628,8 @@
 		var out = [];
 		overlay.querySelectorAll(".citymap-fundort__row").forEach(function (row) {
 			var get = function (field) {
-				var el = row.querySelector('[data-fundort-field="' + field + '"]');
+				// is_paid steht am ANGEHAKTEN Radio, die beiden anderen am Feld selbst.
+				var el = row.querySelector('[data-fundort-field="' + field + '"]' + (field === "is_paid" ? ":checked" : ""));
 				return el ? String(el.value || "").trim() : "";
 			};
 			var label = get("label");

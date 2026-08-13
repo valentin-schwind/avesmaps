@@ -958,6 +958,13 @@ body {
 	line-height: var(--leading-snug); color: var(--color-text-muted);
 }
 .new .citymap-suggest__hint:last-child { margin-bottom: 0; }
+/* Ein Hinweis unter einem Feld bleibt an SEINEM Feld; folgt er auf einen ganzen Block, braucht er
+   Luft nach oben (Owner 13.08.2026 -- im ersten Einbau fehlte sie). */
+.new .citymap-suggest__props + .citymap-suggest__hint,
+.new .citymap-suggest__types + .citymap-suggest__hint,
+.new .citymap-fundort__add + .citymap-suggest__hint { margin-top: var(--space-10); }
+.new .citymap-fundort__paid { display: flex; align-items: center; }
+.new .citymap-fundort__paidlabel { display: none; font-size: var(--font-size-caption); color: var(--color-text-muted); }
 .new .citymap-suggest__check {
 	display: flex; align-items: center; gap: var(--space-4);
 	font-size: var(--font-size-small); color: var(--color-text);
@@ -965,7 +972,7 @@ body {
 /* Die sechs Eigenschaften: eine Zeile je Eigenschaft, Antwort als
    Dreierschalter statt als Auswahlbox — sechs Dropdowns untereinander sind
    der Punkt, an dem das Formular heute unlesbar wird. */
-.new .citymap-suggest__props { display: flex; flex-direction: column; gap: var(--space-2); }
+.new .citymap-suggest__props { display: flex; flex-direction: column; gap: var(--space-4); }
 .new .citymap-suggest__prop { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: var(--space-6); }
 .new .citymap-suggest__prop > span { font-size: var(--font-size-small); color: var(--color-text); }
 .new .citymap-suggest__tri {
@@ -1011,7 +1018,7 @@ body {
 .new .citymap-suggest__cancel:focus-visible { outline: none; background: var(--color-button-soft-hover); box-shadow: var(--focus-ring), var(--shadow-button-hover); transform: translateY(-1px); }
 /* „Neuer Fundort“: dieselbe Sprache, die Spaltenköpfe auf demselben Raster. */
 .new .citymap-fundort__head,
-.new .citymap-fundort__row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.4fr) 108px; gap: var(--space-4); align-items: center; }
+.new .citymap-fundort__row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.4fr) 152px; gap: var(--space-4); align-items: center; }
 .new .citymap-fundort__head {
 	margin-bottom: var(--space-2); font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
 	letter-spacing: 0.03em; text-transform: uppercase; color: var(--color-text-muted);
@@ -1175,7 +1182,7 @@ body {
 							<div class="citymap-suggest__prop"><span>Spoiler (Spielinhalte)</span><span class="citymap-suggest__tri"><label><input type="radio" name="p5" /><span>unbekannt</span></label><label><input type="radio" name="p5" /><span>ja</span></label><label><input type="radio" name="p5" checked /><span>nein</span></label></span></div>
 							<div class="citymap-suggest__prop"><span>kostenpflichtig</span><span class="citymap-suggest__tri"><label><input type="radio" name="p6" checked /><span>unbekannt</span></label><label><input type="radio" name="p6" /><span>ja</span></label><label><input type="radio" name="p6" /><span>nein</span></label></span></div>
 						</div>
-						<p class="citymap-suggest__hint" style="margin-top: var(--space-6)">„unbekannt“ ist eine gültige Antwort: die Eigenschaft wird dann gar nicht gezeigt, statt ein erfundenes „nein“.</p>
+						<p class="citymap-suggest__hint">„unbekannt“ ist eine gültige Antwort: die Eigenschaft wird dann gar nicht gezeigt, statt ein erfundenes „nein“.</p>
 					</details>
 
 					<details class="citymap-suggest__group citymap-suggest__group--fold" open>
@@ -1245,10 +1252,10 @@ body {
 						<div class="citymap-fundort__row">
 							<input class="citymap-fundort__input" type="text" placeholder="Wiki-Aventurica" />
 							<input class="citymap-fundort__input" type="url" placeholder="https://de.wiki-aventurica.de/wiki/…" />
-							<select class="citymap-fundort__input"><option>unbekannt</option><option>ja</option><option>nein</option></select>
+							<div class="citymap-fundort__paid"><span class="citymap-fundort__paidlabel">kostenpflichtig</span><span class="citymap-suggest__tri"><label><input type="radio" name="fp1" checked /><span>unbekannt</span></label><label><input type="radio" name="fp1" /><span>ja</span></label><label><input type="radio" name="fp1" /><span>nein</span></label></span></div>
 						</div>
 						<div class="citymap-fundort__add"><button type="button" class="citymap-suggest__cancel">+ weiterer Fundort</button></div>
-						<p class="citymap-suggest__hint" style="margin-top: var(--space-6)">„kostenpflichtig“ hängt am Link, nicht an der Karte: derselbe Band ist im Shop bezahlt und auf seiner Wiki-Seite frei. Weißt du es nicht, lass „unbekannt“ stehen — wir raten nicht über fremdes Geld.</p>
+						<p class="citymap-suggest__hint">„kostenpflichtig“ hängt am Link, nicht an der Karte: derselbe Band ist im Shop bezahlt und auf seiner Wiki-Seite frei. Weißt du es nicht, lass „unbekannt“ stehen — wir raten nicht über fremdes Geld.</p>
 					</div>
 					<details class="citymap-suggest__group citymap-suggest__group--fold" open>
 						<summary class="citymap-suggest__summary"><span class="citymap-suggest__summary-text">Notiz und Name</span> <span class="citymap-suggest__optional">optional</span></summary>

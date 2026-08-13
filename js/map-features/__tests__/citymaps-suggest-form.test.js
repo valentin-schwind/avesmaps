@@ -174,4 +174,48 @@ assert.ok(/--avesmaps-select-chevron/.test(css), "eigener Chevron statt des nati
 assert.ok((css.match(/citymap-suggest__(field|tri|submit|cancel|summary)[^{}]*\{[^{}]*--focus-ring/g) || []).length >= 4,
 	"Felder, Schalter und beide Knoepfe tragen den Fokusring");
 
+// ---------------------------------------------------------------------------------------------
+// 7. "kostenpflichtig" im Fundort-Dialog ist derselbe Dreierschalter -- und jede Zeile hat ihre
+//    EIGENE Radiogruppe. Mit einem gemeinsamen Namen loeschte die zweite Zeile die Antwort der
+//    ersten; das sieht man erst beim zweiten Fundort und nie beim ersten.
+// ---------------------------------------------------------------------------------------------
+const rowFn = js.slice(js.indexOf("function fundortRowMarkup()"), js.indexOf("function ensureFundortDialog()"));
+assert.ok(rowFn.includes("citymap-suggest__tri"), "die Fundort-Zeile benutzt den Dreierschalter");
+assert.ok(!/<select[^>]*data-fundort-field="is_paid"/.test(rowFn) && !rowFn.includes("<select"),
+	"keine Auswahlbox mehr fuer kostenpflichtig");
+// 💣 Der Zaehler muss in den NAMEN wandern. Nur zu pruefen, dass er hochgezaehlt wird, waere gruen,
+//    auch wenn der Name daneben eine Konstante ist -- und genau dann teilen sich alle Zeilen eine
+//    Gruppe. Also die Ableitung selbst behaupten.
+assert.ok(/fundortRowSeq \+= 1/.test(rowFn), "der Zaehler wird je Zeile hochgezaehlt");
+assert.ok(/var name = "[^"]*" \+ fundortRowSeq;/.test(rowFn), "und der Radio-Name wird AUS ihm gebildet");
+assert.ok(/name="' \+ esc\(name\)/.test(rowFn), "und dieser Name landet am Radio");
+assert.ok(/var fundortRowSeq = 0/.test(js), "der Zaehler wohnt AUSSERHALB der Funktion (sonst zaehlt er nie hoch)");
+assert.ok(/field === "is_paid" \? ":checked" : ""/.test(js),
+	"der Leser holt is_paid vom angehakten Radio, die anderen beiden vom Feld");
+assert.ok(/index === 0 \? " checked" : ""/.test(rowFn), "auch hier ist 'unbekannt' vorausgewaehlt");
+
+// ---------------------------------------------------------------------------------------------
+// 8. Ein Hinweis, der auf einen BLOCK folgt, braucht Luft nach oben. Stand im Entwurf, fiel beim
+//    Einbau heraus und wurde vom Owner gesehen (13.08.2026) -- deshalb hier festgenagelt.
+// ---------------------------------------------------------------------------------------------
+["citymap-suggest__props", "citymap-suggest__types", "citymap-fundort__add"].forEach((block) => {
+	assert.ok(new RegExp("\\." + block + " \\+ \\.citymap-suggest__hint").test(css),
+		"Hinweis nach ." + block + " bekommt Abstand nach oben");
+});
+// 💣 Die dritte Spur der Fundort-Zeile ist eine FESTE Laenge. Kopfzeile und Datenzeile sind zwei
+//    getrennte Gitter mit derselben Vorlage -- mit `auto` misst jedes seinen eigenen Inhalt (111px
+//    Ueberschrift gegen 137px Schalter) und die Spaltenbeschriftung wandert von ihrer Spalte weg.
+//    Genau das passierte beim Umbau auf den Dreierschalter und wurde in der Abnahme gemessen.
+const spur = (css.match(/\.citymap-fundort__head,\s*\.citymap-fundort__row \{[^}]*grid-template-columns:([^;]+);/) || [])[1];
+assert.ok(spur !== undefined, "die Rasterspalten der Fundort-Zeile stehen im CSS");
+assert.ok(/\b\d+px\s*$/.test(spur.trim()), "die dritte Spur ist eine feste Laenge, kein auto/fr", spur);
+
+// Und der andere Fall bleibt dicht: der Grundregel des Hinweises darf keine margin-top wachsen.
+// 💣 Am ZEILENANFANG verankert: ".citymap-suggest__hint {" steckt als Teilkette auch in der
+//    Nachbarschaftsregel darueber, und ein indexOf() greift dann die falsche Regel ab (und behauptet
+//    das Gegenteil).
+const hintRegel = (css.match(/^\.citymap-suggest__hint \{([^}]*)\}/m) || [])[1];
+assert.ok(hintRegel !== undefined, "die Grundregel des Hinweises steht auf einer eigenen Zeile");
+assert.ok(!/margin-top/.test(hintRegel), "der Hinweis UNTER einem Feld bleibt an seinem Feld");
+
 console.log("citymaps-suggest-form: alle Zusicherungen gehalten");
