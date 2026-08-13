@@ -46,6 +46,10 @@ require_once __DIR__ . '/../../_internal/app/app-setting.php';
 // Die Lebensraum-Regel: reine Auswertung und Ablage getrennt.
 require_once __DIR__ . '/../../_internal/app/lore-rule.php';
 require_once __DIR__ . '/../../_internal/app/lore-rule-store.php';
+// A16: dieselbe Protokollmechanik, die remove_place (avesmapsLoreRemovePlace, lore-edit.php) benutzt --
+// avesmapsLogCollectionDeletion, WHITELIST-gated ueber AVESMAPS_COLLECTION_AUDIT_ACTIONS. Keine zweite
+// Protokollmechanik fuer save_rule/delete_rule.
+require_once __DIR__ . '/../../_internal/map/collection-audit.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -303,6 +307,17 @@ try {
                 (int) ($user['id'] ?? 0) ?: null,
                 $ruleId > 0 ? $ruleId : null
             );
+            // A16: eine Zeile je gespeicherte Regel -- nur der Erfolg. avesmapsLoreRuleSave() wirft bei
+            // jedem Fehler (Throw statt Rueckgabe), der aeussere try/catch antwortet dann 500 und diese
+            // Zeile wird nie erreicht. Nur rule_id + Eintragsschluessel, nicht die ganze Bedingungskette
+            // (terms) -- ein Protokoll ist kein Speicherabbild.
+            avesmapsLogCollectionDeletion(
+                $pdo,
+                'lore_rule_save',
+                ['entity' => 'lore_rule', 'lore_entry_key' => $wikiKey],
+                ['entity' => 'lore_rule', 'name' => $wikiKey . ' · Regel #' . $saved, 'lore_entry_key' => $wikiKey, 'rule_id' => $saved],
+                $user
+            );
             avesmapsJsonResponse(200, ['ok' => true, 'rule_id' => $saved]);
             break;
         }
@@ -316,7 +331,15 @@ try {
             // Fix-Runde 1, Befund 2: der wiki_key des Aufrufs entscheidet mit -- eine rule_id
             // aus einem FREMDEN Eintrag darf hier nicht durchkommen. Der Riegel selbst sitzt
             // in avesmapsLoreRuleDelete (WHERE-Klausel), nicht erst hier am Aufrufer.
-            avesmapsJsonResponse(200, ['ok' => avesmapsLoreRuleDelete($pdo, $ruleId, $wikiKey)]);
+            $deleted = avesmapsLoreRuleDelete($pdo, $ruleId, $wikiKey);
+            // A16: nur protokollieren, wenn wirklich etwas gelöscht wurde -- avesmapsLoreRuleDelete()
+            // antwortet mit false statt zu werfen, wenn die rule_id nicht existiert oder einem anderen
+            // Eintrag gehört, und das ist kein Vorgang, der eine Protokollzeile verdient.
+            if ($deleted) {
+                $identity = ['entity' => 'lore_rule', 'name' => $wikiKey . ' · Regel #' . $ruleId, 'lore_entry_key' => $wikiKey, 'rule_id' => $ruleId];
+                avesmapsLogCollectionDeletion($pdo, 'lore_rule_delete', $identity, $identity + ['deleted' => true], $user);
+            }
+            avesmapsJsonResponse(200, ['ok' => $deleted]);
             break;
         }
 

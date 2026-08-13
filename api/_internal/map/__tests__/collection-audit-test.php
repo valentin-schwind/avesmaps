@@ -52,12 +52,16 @@ foreach (AVESMAPS_COLLECTION_AUDIT_ACTIONS as $action) {
 // ⚠️ apply_sync_plan (2026-08-06) is not a deletion but a confirmed Übernahme-Vorschau -- ONE row per
 // run, never one per entry. It sits in the same list because it is under the same no-undo rule, which
 // the loop above has just asserted for it along with the other four.
+//
+// lore_rule_save and lore_rule_delete (2026-08-13, Lebensraum-Regel task 3) are the same kind of
+// exception as apply_sync_plan: a save is not a deletion either, but lore_rule has no soft delete and
+// no undo columns, so both are under the same no-undo rule for the same reason.
 $expectedActions = ['delete_citymap', 'delete_adventure', 'delete_lore_place', 'suppress_lore_place',
-    'apply_sync_plan'];
+    'apply_sync_plan', 'lore_rule_save', 'lore_rule_delete'];
 sort($expectedActions);
 $actualActions = AVESMAPS_COLLECTION_AUDIT_ACTIONS;
 sort($actualActions);
-assert($actualActions === $expectedActions, 'the five actions the collection log knows');
+assert($actualActions === $expectedActions, 'the seven actions the collection log knows');
 
 assert(avesmapsCollectionAuditActionIsKnown('delete_citymap'), 'a known action passes');
 assert(!avesmapsCollectionAuditActionIsKnown('delete_feature'), 'a map-feature action is not one of ours');

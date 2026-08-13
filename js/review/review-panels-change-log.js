@@ -161,6 +161,9 @@ function formatChangeAction(action) {
 		delete_adventure: "Literatur-Eintrag gelöscht",
 		delete_lore_place: "Natur & Waren: Ort gelöscht",
 		suppress_lore_place: "Natur & Waren: Ort ausgeblendet",
+		// Die Lebensraum-Regel (2026-08-13): auch sie hat kein Kartenobjekt und keinen Weg zurück.
+		lore_rule_save: "Natur & Waren: Lebensraum-Regel gespeichert",
+		lore_rule_delete: "Natur & Waren: Lebensraum-Regel gelöscht",
 		// Eine bestätigte Übernahme-Vorschau: EINE Zeile je Lauf, nicht eine je Eintrag (Entwurf
 		// 2026-08-06 §4e) -- 46 Löschungen einzeln zu protokollieren würde dieses Protokoll, das nur
 		// 200 Zeilen behält, mit einem Klick leerräumen. Welcher Abgleich und mit welchem Ergebnis,

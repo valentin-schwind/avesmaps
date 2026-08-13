@@ -36,12 +36,19 @@ require_once __DIR__ . '/features.php';
 // this file for why it must never be one per entry). It is in this list, and therefore under the same
 // no-undo rule, for the same reason as its neighbours: the Übernahme has no way back either -- that is
 // A16 stage 3 and needs a soft delete these tables do not have.
+//
+// 'lore_rule_save' and 'lore_rule_delete' joined 2026-08-13 (Lebensraum-Regel, task 3 of the session):
+// like 'apply_sync_plan', a save is not a deletion, but it belongs under the same no-undo rule for the
+// same underlying reason -- lore_rule has no soft delete and no undo columns, so neither action could
+// ever become undoable regardless of what it is called.
 const AVESMAPS_COLLECTION_AUDIT_ACTIONS = [
     'delete_citymap',
     'delete_adventure',
     'delete_lore_place',
     'suppress_lore_place',
     'apply_sync_plan',
+    'lore_rule_save',
+    'lore_rule_delete',
 ];
 
 // 💣 THE KEYS THAT WOULD TURN AN HONEST ENTRY INTO A LYING ONE.
