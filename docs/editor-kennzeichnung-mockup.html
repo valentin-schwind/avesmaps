@@ -103,7 +103,20 @@ body.edit-mode .floating-location-popup .location-popup__editor-band > .location
 
 /* ─── VORSCHLAG 3: die Editor-Gruppe im Kontextmenue ──────────────────────────────────────────
    Das Menue hat heute Gruppen (`.map-context-menu__group`), aber keine Ueberschrift und keinen
-   Trenner. Beides kommt hinzu; die Gruppe wandert dabei ans ENDE (siehe Text im Mockup). */
+   Trenner. Beides kommt hinzu — die Gruppe BLEIBT aber, wo sie ist (Owner 13.08.2026).
+   💣 Deshalb steht der Trenner UNTER der Gruppe, nicht darueber: eine Linie ueber dem ersten
+   Element eines Menues traefe auf dessen Polsterung und laese sich als Rahmen, nicht als Trennung.
+   Die Gruppe unten in §5 traegt ihn umgekehrt oben — dasselbe Bauteil, zwei Lagen, zwei Regeln. */
+.map-context-menu__group--editor-top {
+	margin-bottom: var(--space-6);
+	padding-bottom: var(--space-4);
+	border-bottom: 1px solid var(--color-divider);
+	margin-left: calc(var(--space-6) * -1);
+	margin-right: calc(var(--space-6) * -1);
+	padding-left: var(--space-6);
+	padding-right: var(--space-6);
+}
+
 .map-context-menu__group-title {
 	margin: var(--space-6) 0 var(--space-2);
 	padding: 0 var(--space-10);
@@ -292,7 +305,7 @@ Die zweite Reihe ist zusätzlich die einzige ohne Symbole: nackter Text unter vi
 	</div>
 
 	<div class="col">
-		<p class="col__cap col__cap--new">Vorschlag A — farbige Symbole (empfohlen)</p>
+		<p class="col__cap col__cap--new">✅ Entschieden — farbige Symbole</p>
 		<div class="boxframe floating-location-popup">
 			<div class="location-popup">
 				<div class="location-popup__header">
@@ -305,8 +318,8 @@ Die zweite Reihe ist zusätzlich die einzige ohne Symbole: nackter Text unter vi
 				<div class="location-popup__actions">
 					<button class="location-popup__action-button location-popup__action-button--accent" type="button"><span class="location-popup__action-icon">+</span>Reiseziel hinzufügen</button>
 					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/linkteilen.webp" alt="">Link teilen</button>
-					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/buch.webp" alt="">Literatur</button>
-					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/stadtkarten.webp" alt="">Karten&shy;sammlung</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/literatur.webp" alt="">Literatur</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/kartensammlung.webp" alt="">Karten&shy;sammlung</button>
 				</div>
 				<div class="location-popup__editor-band">
 					<p class="location-popup__editor-band-title">Bearbeiten <span class="avesmaps-scope-hint">nur Editoren</span></p>
@@ -322,8 +335,8 @@ Die zweite Reihe ist zusätzlich die einzige ohne Symbole: nackter Text unter vi
 	</div>
 
 	<div class="col">
-		<p class="col__cap col__cap--new">Vorschlag B — monochrome Zeichen</p>
-		<div class="boxframe floating-location-popup">
+		<p class="col__cap">Verworfen — monochrome Zeichen <span class="avesmaps-scope-hint">Owner 13.08.</span></p>
+		<div class="boxframe floating-location-popup" style="opacity:.55">
 			<div class="location-popup">
 				<div class="location-popup__header">
 					<img class="location-popup__icon location-popup__icon--realistic" src="../icons/realistic/dorf.webp" alt="">
@@ -335,15 +348,21 @@ Die zweite Reihe ist zusätzlich die einzige ohne Symbole: nackter Text unter vi
 				<div class="location-popup__actions">
 					<button class="location-popup__action-button location-popup__action-button--accent" type="button"><span class="location-popup__action-icon">+</span>Reiseziel hinzufügen</button>
 					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/linkteilen.webp" alt="">Link teilen</button>
-					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/buch.webp" alt="">Literatur</button>
-					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/stadtkarten.webp" alt="">Karten&shy;sammlung</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/literatur.webp" alt="">Literatur</button>
+					<button class="location-popup__action-button" type="button"><img class="location-popup__action-img" src="../img/menu/kartensammlung.webp" alt="">Karten&shy;sammlung</button>
 				</div>
 				<div class="location-popup__editor-band">
 					<p class="location-popup__editor-band-title">Bearbeiten <span class="avesmaps-scope-hint">nur Editoren</span></p>
 					<div class="location-popup__actions">
-						<button class="location-popup__action-button" type="button"><span class="location-popup__action-icon">━</span>Neuer Weg</button>
-						<button class="location-popup__action-button" type="button"><span class="location-popup__action-icon">✥</span>Ort verschieben</button>
-						<button class="location-popup__action-button" type="button"><span class="location-popup__action-icon">✎</span>Bearbeiten</button>
+						<!-- 💣 Die Glyphen standen hier zuerst in `.location-popup__action-icon` — und die Klasse
+						     traegt `color: var(--color-button-text)`, den HELLEN Text des GEFUELLTEN Knopfes. Auf
+						     einem weichen Knopf ist das im hellen Thema Weiss auf Beige: unsichtbar. Live faellt
+						     das nie auf, weil die Klasse dort nur am gefuellten „+" und am roten „✕" haengt.
+						     Hier korrigiert auf `currentColor`, damit die verworfene Variante wenigstens ehrlich
+						     dasteht. -->
+						<button class="location-popup__action-button" type="button"><span class="location-popup__action-icon" style="color:currentColor">━</span>Neuer Weg</button>
+						<button class="location-popup__action-button" type="button"><span class="location-popup__action-icon" style="color:currentColor">✥</span>Ort verschieben</button>
+						<button class="location-popup__action-button" type="button"><span class="location-popup__action-icon" style="color:currentColor">✎</span>Bearbeiten</button>
 						<button class="location-popup__action-button location-popup__action-button--danger" type="button"><span class="location-popup__action-icon">✕</span>Ort löschen</button>
 					</div>
 				</div>
@@ -352,11 +371,15 @@ Die zweite Reihe ist zusätzlich die einzige ohne Symbole: nackter Text unter vi
 	</div>
 </div>
 
-<p style="margin-top:18px"><strong>Warum A:</strong> die vier Kacheln darüber sind farbige Illustrationen.
-Eine Reihe magerer Zeichen darunter liest sich nicht als „andere Rolle“, sondern als „hier fehlt noch was“ —
-und genau das ist der heutige Zustand. Die Auskunft „nur für dich“ trägt bereits Trenner + Merkmal;
-das Symbol muss sie nicht ein zweites Mal geben. <strong>B</strong> bleibt im Bogen, weil es im
-Kontextmenü genau richtig ist (§4) — dort ist die Farbe schon vergeben.</p>
+<p style="margin-top:18px"><strong>Entschieden am 13.08.: farbig.</strong> Die vier Kacheln darüber sind
+farbige Illustrationen; eine Reihe magerer Zeichen darunter liest sich nicht als „andere Rolle“, sondern
+als „hier fehlt noch was“ — und genau das ist der heutige Zustand. Die Auskunft „nur für dich“ trägt
+bereits Trenner + Merkmal; das Symbol muss sie nicht ein zweites Mal geben.</p>
+<p><strong>Die monochrome Spalte war zusätzlich falsch gezeichnet</strong> (Owner: „den monochromen seh
+ich nix, weil die weiß sind“): die Glyphen hingen in <code>.location-popup__action-icon</code>, und die
+Klasse trägt die <em>helle Schrift des gefüllten Knopfes</em>. Auf einem weichen Knopf ist das im hellen
+Thema Weiß auf Beige. ⚠️ Kein Fehler im Programm — dort hängt die Klasse nur am gefüllten „+“ und am
+roten „✕“, wo die Farbe stimmt. Nur hier im Bogen war sie am falschen Knopf; oben korrigiert.</p>
 
 
 <h2><span class="num">3 —</span> Dasselbe Band an Weg, Kreuzung, Kraftlinie</h2>
@@ -424,8 +447,12 @@ Die Kreuzung ist der Gegenfall: sie gehört <em>ganz</em> dem Editor, ein Merkma
 aventurische Bilder</strong> (Feder&nbsp;&amp;&nbsp;Papier, Brief, Lupe, Fernrohr, Schuh, Lineal —
 <code>map-context-menu-icons.css</code>), die <strong>Editor-Einträge monochrome Zeichen</strong>
 (<code>map-context-menu.css</code>). Diese Sprache ist gewachsen, nicht beschlossen — aber sie
-funktioniert: <em>Farbe = für alle, Zeichen = Werkzeug.</em> Zwei Dinge fehlen ihr noch: das Merkmal,
-und die Editorgruppe steht <strong>oben</strong>, also vor allem, was jeden angeht.</p>
+funktioniert: <em>Farbe = für alle, Zeichen = Werkzeug.</em> Ihr fehlt nur eines: das Merkmal.</p>
+<p>✅ <strong>Entschieden am 13.08.: „Hier hinzufügen“ bleibt oben</strong> — es kommen nur Trennlinie
+und Merkmal dazu. Damit ist auch der Haken vom Tisch, den ein Umzug nach unten mitgebracht hätte: das
+Untermenü klappt nach rechts auf und ist oben verankert (<code>.map-context-submenu { top: -5px }</code>),
+ganz unten wäre es aus dem Bildschirm gewachsen. Der Trenner steht deshalb <em>unter</em> der Gruppe,
+nicht darüber.</p>
 
 <div class="cols">
 	<div class="col">
@@ -444,18 +471,18 @@ und die Editorgruppe steht <strong>oben</strong>, also vor allem, was jeden ange
 	</div>
 
 	<div class="col">
-		<p class="col__cap col__cap--new">Vorschlag — Gruppe nach unten, Merkmal, Trenner</p>
+		<p class="col__cap col__cap--new">✅ Entschieden — oben bleiben, Merkmal + Trenner darunter</p>
 		<div class="map-context-menu ctxframe">
+			<div class="map-context-menu__group map-context-menu__group--editor-top">
+				<p class="map-context-menu__group-title" style="margin-top:0">Anlegen <span class="avesmaps-scope-hint">nur Editoren</span></p>
+				<button type="button" class="map-context-menu__item map-context-menu__item--submenu" data-context-action="add-here">Hier hinzufügen</button>
+			</div>
 			<button type="button" class="map-context-menu__item" data-context-action="share-pin">Stelle markieren und teilen</button>
 			<button type="button" class="map-context-menu__item" data-context-action="report-location">Hier melden…</button>
 			<button type="button" class="map-context-menu__item" data-context-action="open-spotlight-search">Suchen</button>
 			<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">Nächsten Ort finden</button>
 			<button type="button" class="map-context-menu__item" data-context-action="travel-here">Hierher reisen</button>
 			<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">Entfernung messen</button>
-			<div class="map-context-menu__group map-context-menu__group--editor">
-				<p class="map-context-menu__group-title">Anlegen <span class="avesmaps-scope-hint">nur Editoren</span></p>
-				<button type="button" class="map-context-menu__item map-context-menu__item--submenu" data-context-action="add-here">Hier hinzufügen</button>
-			</div>
 		</div>
 	</div>
 
@@ -476,12 +503,11 @@ und die Editorgruppe steht <strong>oben</strong>, also vor allem, was jeden ange
 </div>
 
 <div class="rule">
-	<strong>⚠️ Der Haken an „Gruppe nach unten“:</strong> das Untermenü klappt nach rechts auf und ist
-	oben verankert (<code>.map-context-submenu { top: -5px }</code>). Ganz unten im Menü heißt das:
-	das Untermenü beginnt auf Höhe des letzten Eintrags und wächst nach unten aus dem Bildschirm.
-	Entweder bleibt die Gruppe oben (nur Trenner + Merkmal, kein Umzug), oder das Untermenü lernt,
-	nach oben auszuweichen. <strong>Das ist eine Entscheidung, keine Kleinigkeit</strong> — und der
-	Grund, warum dieser Punkt im Bogen getrennt steht.
+	<strong>⚠️ Was der Verbleib oben kostet — und warum es trotzdem stimmt:</strong> die Editorgruppe
+	steht damit weiter <em>vor</em> allem, was jeden angeht. Genau das gleicht das Merkmal aus: die
+	Zeile sagt jetzt selbst, wem sie gehört, und ein Besucher sieht die Gruppe ohnehin nie
+	(<code>bootstrap.js</code> nimmt ihr das <code>hidden</code> erst im Bearbeiten-Modus). Der
+	Reihenfolge-Streit war also einer über eine Zeile, die genau eine Rolle je zu Gesicht bekommt.
 </div>
 
 
@@ -581,25 +607,36 @@ aventurischen Vokabeln (§8).</p>
 	<div class="iconcard"><img src="../icons/sextant.webp" alt=""><b>sextant</b><span>„Anzeigen“ (live)</span></div>
 </div>
 
-<h3>Heute vom Owner gemalt, noch <em>nicht</em> im Repo</h3>
+<h3>✅ Heute vom Owner gemalt und eingeholt — sie ersetzen die beiden alten</h3>
 <div class="iconboard">
-	<div class="iconcard iconcard--new iconcard--missing"><span class="glyph">?</span><b>Teilen.png</b><span>Neufassung von<br>linkteilen.webp?</span></div>
-	<div class="iconcard iconcard--new iconcard--missing"><span class="glyph">?</span><b>papierundfeder.png</b><span>Neufassung von<br>federundpapier.webp?</span></div>
-	<div class="iconcard iconcard--new iconcard--missing"><span class="glyph">?</span><b>literatur.png</b><span>ersetzt buch.webp?</span></div>
-	<div class="iconcard iconcard--new iconcard--missing"><span class="glyph">?</span><b>kartensammlung.png</b><span>ersetzt<br>stadtkarten.webp?</span></div>
+	<div class="iconcard iconcard--new"><img src="../img/menu/literatur.webp" alt=""><b>literatur</b><span>ersetzt <s>buch</s><br>Kachel „Literatur“</span></div>
+	<div class="iconcard iconcard--new"><img src="../img/menu/kartensammlung.webp" alt=""><b>kartensammlung</b><span>ersetzt <s>stadtkarten</s><br>Kachel „Kartensammlung“</span></div>
+	<div class="iconcard"><img src="../img/menu/buch.webp" alt=""><b>buch</b><span>bisher — wird abgelöst</span></div>
+	<div class="iconcard"><img src="../img/menu/stadtkarten.webp" alt=""><b>stadtkarten</b><span>bisher — wird abgelöst</span></div>
 </div>
-<p class="muted">Alle vier liegen mit dem heutigen Datum in
-<code>C:\GIT\avesmaps-map-processing\icons\menu\</code>; fünf Geschwister von heute (Papierkorb, Buch,
-stadtkarten, Vorschlag, Bewertung) sind bereits konvertiert. 🔧 <strong>DU:</strong> Sind
-<code>literatur</code>/<code>kartensammlung</code> Ersatz für <code>buch</code>/<code>stadtkarten</code>
-oder etwas Eigenes?</p>
+<p class="muted">Beide sind mit dem Hausrezept aus dem Quellordner geholt (getrimmt, 120&nbsp;px, auf
+128²&nbsp;transparent zentriert, Qualität 88) und liegen als <code>img/menu/literatur.webp</code> /
+<code>img/menu/kartensammlung.webp</code>. <strong>Eigener Dateiname statt Überschreiben</strong>: die
+alten tragen ein handgeschriebenes <code>?v=2</code> im Programmtext, das beim Überschreiben mitgezählt
+werden müsste — ein neuer Name macht die Zwischenrunde überflüssig. ⚠️ Die beiden alten bleiben liegen
+(der Deploy löscht nie), so wie <code>abenteuer</code>, <code>markierung</code> und
+<code>stadtkarte</code> schon.</p>
+
+<h3>Noch offen — zwei weitere von heute</h3>
+<div class="iconboard">
+	<div class="iconcard iconcard--missing"><span class="glyph">?</span><b>Teilen.png</b><span>Neufassung von<br>linkteilen.webp?</span></div>
+	<div class="iconcard iconcard--missing"><span class="glyph">?</span><b>papierundfeder.png</b><span>Neufassung von<br>federundpapier.webp?</span></div>
+</div>
+<p class="muted">🔧 <strong>DU:</strong> Sollen die beiden ihre Vorgänger auch ablösen? Sie hängen an
+„Link teilen“ (Kachel) und „Stelle markieren und teilen“ (Kartenmenü) — beides Besucher-Oberflächen,
+also unabhängig von dieser Sache.</p>
 
 <h3>Fehlt noch — Owner-Pinsel oder Zeichen</h3>
 <div class="iconboard">
 	<div class="iconcard iconcard--missing"><span class="glyph">✚</span><b>Kreuzung</b><span>„Neue Kreuzung“, „Kreuzung verschieben“</span></div>
 	<div class="iconcard iconcard--missing"><span class="glyph">A</span><b>Label</b><span>„Neues freies Label“</span></div>
 	<div class="iconcard iconcard--missing"><span class="glyph">🗄</span><b>Backup</b><span>Truhe/Siegel statt 💾</span></div>
-	<div class="iconcard iconcard--missing"><span class="glyph">📖</span><b>Handbuch</b><span>buch.webp reicht evtl.</span></div>
+	<div class="iconcard iconcard--missing"><span class="glyph">📖</span><b>Handbuch</b><span>literatur.webp reicht evtl.</span></div>
 </div>
 
 <div class="rule" style="margin-top:22px">
@@ -617,12 +654,15 @@ oder etwas Eigenes?</p>
 <table class="tbl">
 	<tr><th>#</th><th>Etappe</th><th>Sichtbar für</th></tr>
 	<tr><td>1</td><td>Merkmal wird hausweit (<code>.avesmaps-scope-hint</code>, <code>ui.editorOnly</code>/<code>ui.adminOnly</code>) — Anzeige-Menü zieht auf die neue Klasse um</td><td class="no">niemanden (gleiches Bild)</td></tr>
-	<tr><td>2</td><td>Editor-Band in der Orts-Infobox + Symbole für die vier Kacheln</td><td class="yes">Editoren</td></tr>
+	<tr><td>2</td><td>Editor-Band in der Orts-Infobox + Symbole für die vier Kacheln; dabei die zwei neuen Symbole anschließen</td><td class="yes">Editoren <span class="muted">(die zwei Symbole: jeden)</span></td></tr>
 	<tr><td>3</td><td>Dasselbe Band an Weg und Kraftlinie; Symbole am Kreuzungs-Popup</td><td class="yes">Editoren</td></tr>
-	<tr><td>4</td><td>Kartenmenü: Trenner + Merkmal (Umzug nach unten nur, wenn das Untermenü gelöst ist)</td><td class="yes">Editoren</td></tr>
+	<tr><td>4</td><td>Kartenmenü: Trenner unter „Hier hinzufügen“ + Merkmal <span class="muted">(kein Umzug — Owner 13.08.)</span></td><td class="yes">Editoren</td></tr>
 	<tr><td>5</td><td>Gebiets- und Flächenmenü gruppieren (beide gemeinsam, nie eins allein)</td><td class="yes">Editoren</td></tr>
 	<tr><td>6</td><td>Editor-Hülle: „nur Admins“ + die beiden Emoji ersetzen</td><td class="yes">Admins</td></tr>
 </table>
+<p class="muted">⚠️ Etappe&nbsp;2 trägt eine Besucher-Änderung huckepack (die zwei neuen Symbole an
+„Literatur“ und „Kartensammlung“). Wenn dir das zu viel auf einmal ist, gehen sie als eigener,
+allererster Schritt vorweg — sie hängen an nichts von alledem.</p>
 
 </div>
 </body>
