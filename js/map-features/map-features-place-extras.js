@@ -267,6 +267,7 @@ function buildCityMapsSectionMarkup(placeName, maps, opts) {
 	// (`border-radius: 6px` gegen den Token --radius-md = 8px).
 	var suggestButton = place
 		? '<button type="button" class="location-popup__action-button avesmaps-citymaps__suggest"' + citymapPlaceAttrs(place, name) + '>'
+			+ '<img class="location-popup__action-img" src="icons/feder.webp" alt="" width="20" height="20" />'
 			+ placeExtrasEscape(tr("cityMaps.suggest", "Karte vorschlagen")) + '</button>'
 		: "";
 	// Die Lizenz-Fussnote reist MIT den Covern, nicht hinter ihnen her: sie ist die Bedingung, unter der
@@ -282,7 +283,9 @@ function buildCityMapsSectionMarkup(placeName, maps, opts) {
 		+ ' <span class="avesmaps-citymaps__count">(' + placeExtrasEscape((maps || []).length) + ')</span></summary>'
 		+ '<div class="avesmaps-citymaps__scroll">' + cards + '</div>'
 		+ '<div class="avesmaps-citymaps__actions location-popup__actions">'
-		+ '<button type="button" class="location-popup__action-button avesmaps-citymaps__all">' + placeExtrasEscape(tr("cityMaps.all", "Alle anzeigen")) + '</button>'
+		+ '<button type="button" class="location-popup__action-button avesmaps-citymaps__all">'
+		+ '<img class="location-popup__action-img" src="img/menu/stadtkarte.webp" alt="" width="20" height="20" />'
+		+ placeExtrasEscape(tr("cityMaps.all", "Alle anzeigen")) + '</button>'
 		+ suggestButton
 		+ '</div>'
 		+ creditMarkup
@@ -927,7 +930,9 @@ function buildGameLiteratureSectionMarkup(placeName, beginnt, play, covers, opts
 	).map(function (e) { return buildGameLiteratureCardMarkup(e.a, e.role); }).join("");
 	var listMarkup = '<div class="avesmaps-adv__list">' + cards + '</div>';
 
-	var alleMarkup = (hasBeginnt || hasPlay || hasCovers) ? '<div class="avesmaps-adv__actions location-popup__actions"><button type="button" class="location-popup__action-button avesmaps-adv__all">' + placeExtrasEscape(tr("gameLiterature.all", "Alle anzeigen")) + '</button></div>' : "";
+	var alleMarkup = (hasBeginnt || hasPlay || hasCovers) ? '<div class="avesmaps-adv__actions location-popup__actions"><button type="button" class="location-popup__action-button avesmaps-adv__all">'
+		+ '<img class="location-popup__action-img" src="img/menu/abenteuer.webp" alt="" width="20" height="20" />'
+		+ placeExtrasEscape(tr("gameLiterature.all", "Alle anzeigen")) + '</button></div>' : "";
 
 	var creditMarkup = avesmapsGameLiteratureCreditMarkup();
 
