@@ -78,9 +78,11 @@ assert.deepStrictEqual(fehlend, [], "jeder genannte Bildpfad liegt auch im Repo"
 const ERWARTET = {
 	"img/menu/vorschlag.webp": "Aenderungen vorschlagen",
 	"img/menu/brief.webp": "Vorschlag senden",
-	"img/menu/buch.webp": "Literatur",
-	"img/menu/stadtkarten.webp": "Kartensammlung",
-	"icons/feder.webp": "Karte vorschlagen",
+	// Am 13.08.2026 vom Owner neu gezeichnet: literatur/kartensammlung loesen buch/stadtkarten ab.
+	// Neuer Dateiname statt Ueberschreiben -- die alten trugen ein handgeschriebenes ?v=.
+	"img/menu/literatur.webp": "Literatur",
+	"img/menu/kartensammlung.webp": "Kartensammlung",
+	"icons/feder.webp": "Karte vorschlagen und Bearbeiten",
 };
 Object.entries(ERWARTET).forEach(([rel, wofuer]) => {
 	assert.ok(fs.existsSync(path.join(ROOT, rel)), rel + " (" + wofuer + ") liegt im Repo");

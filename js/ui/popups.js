@@ -11,6 +11,37 @@ function locationPopupActionsMarkup(actionButtons = []) {
 	return `<div class="location-popup__actions">${actionButtons.join("")}</div>`;
 }
 
+// Das Symbol einer Kachel als Bild aus dem aventurischen Satz. Eine Stelle, damit die Pfade nicht
+// an einem Dutzend Aufrufern kleben und beim naechsten Umbenennen einzeln gesucht werden muessen.
+// Farbige Illustration -> ausdruecklich KEIN currentColor (docs/design-language.md sec. Icons).
+function popupActionIconMarkup(src) {
+	return `<img class="location-popup__action-img" src="${escapeHtml(src)}" alt="" width="20" height="20" />`;
+}
+
+// Die Kacheln, die nur ein Editor sieht, stehen UNTER einer Trennlinie und unter einer
+// Ueberschrift, die sagt, wem sie gehoeren -- dieselbe Grammatik wie die Gruppen im Anzeige-Menue.
+//
+// 💣 Der Aufrufer entscheidet, OB das Band entsteht: eine goldene Ueberschrift ueber einer Linie
+// ueber nichts ist schlimmer als gar keine Gruppe. Deshalb hier der leere String bei leerer Liste
+// und keine `:empty`-Regel im CSS, die dasselbe nachtraeglich wieder verstecken muesste.
+//
+// 💣 Das Merkmal steht in einem EIGENEN <span> neben dem Text, nicht im selben: `data-i18n` setzt
+// `textContent` und loescht an einem Element mit Kindern die Kinder mit (js/app/i18n.js). Hier
+// baut zwar JS und nicht die Uebersetzungsschleife -- aber die Form ist dieselbe wie in
+// index.html, und wer sie spaeter mit einem Schluessel versieht, faellt sonst genau dort hinein.
+function locationPopupEditorBandMarkup(actionButtons = []) {
+	const buttons = actionButtons.filter(Boolean);
+	if (!buttons.length) {
+		return "";
+	}
+	const titel = escapeHtml(tr("popup.editorBand", "Bearbeiten"));
+	const merkmal = escapeHtml(tr("ui.editorOnly", "nur Editoren"));
+	return '<div class="location-popup__editor-band">'
+		+ `<p class="location-popup__editor-band-title"><span>${titel}</span><span class="avesmaps-scope-hint">${merkmal}</span></p>`
+		+ locationPopupActionsMarkup(buttons)
+		+ "</div>";
+}
+
 // "Link teilen": kopiert einen direkten Link auf diese Stelle (Siedlung/Region), der beim
 // Öffnen hinfliegt und die Infobox triggert. Sichtbar in beiden Modi. Hat das Objekt einen
 // verknüpften Wiki-Artikel, bevorzugt buildPlaceShareLink (map-features-share-pin.js) den
@@ -381,11 +412,16 @@ function isEligiblePowerlineEndpoint(endpoint) {
 }
 
 function pathCreationActionButtonsMarkup(publicId) {
+	// Alle drei meinen denselben Gegenstand -- einen Weg --, also tragen sie dasselbe Symbol.
+	// Ein eigenes Bild je Schritt („anfangen", „weiterfuehren", „abschliessen") waere drei
+	// Vokabeln fuer eine Sache; was der Schritt ist, sagt die Beschriftung.
+	const wegIcon = popupActionIconMarkup("icons/landweg.webp");
 	if (pendingPathCreationStart) {
 		return [
 			popupActionButtonMarkup({
 				label: "Ort verbinden und Straße weiterführen",
 				className: "location-popup__action-button--accent",
+				iconMarkup: wegIcon,
 				attributes: {
 					"data-popup-action": "continue-path-at-location",
 					"data-public-id": publicId,
@@ -393,6 +429,7 @@ function pathCreationActionButtonsMarkup(publicId) {
 			}),
 			popupActionButtonMarkup({
 				label: "Weg abschließen",
+				iconMarkup: wegIcon,
 				attributes: {
 					"data-popup-action": "finish-path-at-location",
 					"data-public-id": publicId,
@@ -404,6 +441,7 @@ function pathCreationActionButtonsMarkup(publicId) {
 	return [
 		popupActionButtonMarkup({
 			label: "Neuer Weg",
+			iconMarkup: wegIcon,
 			attributes: {
 				"data-popup-action": "start-path-from-location",
 				"data-public-id": publicId,
@@ -477,8 +515,12 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 	// "Bewertung schreiben" wanderte nach unten zu den Bewertungen (js/community/location-reviews.js,
 	// reviewWriteButtonMarkup) -- daher hier nicht mehr in der Aktionsleiste.
 
+	// Ab hier die Kacheln, die NUR ein Editor sieht. Sie sammeln sich in einer eigenen Liste und
+	// landen unter einer Trennlinie mit dem Merkmal „nur Editoren" -- bis zum 13.08.2026 standen sie
+	// ununterscheidbar in derselben Reihe wie „Link teilen" und „Literatur".
+	const editorButtons = [];
 	if (IS_EDIT_MODE && publicId) {
-		actionButtons.push(...pathCreationActionButtonsMarkup(publicId));
+		editorButtons.push(...pathCreationActionButtonsMarkup(publicId));
 		if (isEligiblePowerlineEndpoint(getPowerlineEndpointByPublicId(publicId) || (location ? {
 			publicId,
 			name,
@@ -487,9 +529,10 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 			locationType: location.locationType,
 			featureKind: "location",
 		} : null))) {
-			actionButtons.push(
+			editorButtons.push(
 				popupActionButtonMarkup({
 					label: pendingPowerlineCreationStart ? "Kraftlinie abschließen" : "Neue Kraftlinie",
+					iconMarkup: popupActionIconMarkup("icons/kraftlinien.webp"),
 					attributes: {
 						"data-popup-action": pendingPowerlineCreationStart ? "finish-powerline-at-location" : "start-powerline-from-location",
 						"data-public-id": publicId,
@@ -497,9 +540,12 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 				})
 			);
 		}
-		actionButtons.push(
+		editorButtons.push(
 			popupActionButtonMarkup({
 				label: "Ort verschieben",
+				// Die Banner-Standarte aus dem Owner-Satz: ein Zeichen, das man in den Boden steckt.
+				// Sie lag seit dem 12.07.2026 ungenutzt im Repo.
+				iconMarkup: popupActionIconMarkup("img/menu/markierung.webp"),
 				attributes: {
 					"data-popup-action": "start-location-edit",
 					"data-location-name": name,
@@ -507,9 +553,10 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 				},
 			})
 		);
-		actionButtons.push(
+		editorButtons.push(
 			popupActionButtonMarkup({
 				label: "Bearbeiten",
+				iconMarkup: popupActionIconMarkup("icons/feder.webp"),
 				attributes: {
 					"data-popup-action": "edit-location-details",
 					"data-location-name": name,
@@ -517,10 +564,11 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 				},
 			})
 		);
-		actionButtons.push(
+		editorButtons.push(
 			popupActionButtonMarkup({
 				label: "Ort löschen",
 				className: "location-popup__action-button--danger",
+				iconMarkup: popupActionIconMarkup("img/menu/papierkorb.webp"),
 				attributes: {
 					"data-popup-action": "delete-location",
 					"data-location-name": name,
@@ -530,7 +578,7 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 		);
 	}
 
-	return locationPopupActionsMarkup(actionButtons);
+	return locationPopupActionsMarkup(actionButtons) + locationPopupEditorBandMarkup(editorButtons);
 }
 
 function crossingActionsMarkup(name, publicId) {

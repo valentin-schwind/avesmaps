@@ -322,7 +322,13 @@ body.edit-mode .avesmaps-infopanel .location-popup__actions {
    Rechtes Panel (breiter, variable Breite), BEIDE Modi: im View-Modus (wenige Kacheln, kein Umbruch)
    fuellt flex-grow die eine Zeile randvoll; im Edit-Modus (viele Kacheln) bricht flex-wrap anhand der
    Basisbreite 90px um, danach verteilt flex-grow den Rest gleichmaessig je Zeile. */
-.avesmaps-infopanel .location-popup > .location-popup__actions > .location-popup__action-button {
+/* 💣 Das Editor-Band steht MIT in dieser Liste, nicht in einer eigenen Regel daneben. Der Selektor
+   verlangt ein DIREKTES Kind, und die Editor-Kacheln haengen seit dem 13.08.2026 eine Ebene tiefer
+   (.location-popup__editor-band). Ohne die zweite Zeile fallen sie auf die starren 90px der
+   Basisregel zurueck: 4x90 + 24px Luecke = 384 > 380 verfuegbar, es passen nur noch DREI -- waehrend
+   die Reihe darueber vier zeigt. Genau so gemessen, bevor diese Zeile da war. */
+.avesmaps-infopanel .location-popup > .location-popup__actions > .location-popup__action-button,
+.avesmaps-infopanel .location-popup__editor-band > .location-popup__actions > .location-popup__action-button {
 	flex: 1 1 90px;
 	width: auto;
 }
@@ -330,14 +336,16 @@ body.edit-mode .avesmaps-infopanel .location-popup__actions {
    damit sich die Kachel-Reihen nicht je nach Popup-Breite mal auf 3, mal auf 4 pro Zeile aufteilen.
    Prozentuale Basisbreite mit Gap-Ausgleich (calc((100% - 3*Gap)/4)) erzwingt exakt 4 pro Zeile; flex-grow
    bleibt aktiv, damit eine unvollstaendige letzte Zeile trotzdem randvoll auswaechst. */
-body.edit-mode .floating-location-popup .location-popup > .location-popup__actions > .location-popup__action-button {
+body.edit-mode .floating-location-popup .location-popup > .location-popup__actions > .location-popup__action-button,
+body.edit-mode .floating-location-popup .location-popup__editor-band > .location-popup__actions > .location-popup__action-button {
 	flex: 1 1 calc((100% - 24px) / 4);
 	width: auto;
 }
 /* "Nächsten Ort finden"-Box: sie traegt die Kachel-Optik (floating-location-popup), ist mit 400px aber
    deutlich breiter als die schwebende Wegpunkt-Box (310px) -- drei 90px-Kacheln stuenden dort links
    gedraengt und liessen rechts eine Luecke. Wie im Panel: gleich breit UND randvoll (Owner-Regel). */
-.slim-location-popup .location-popup > .location-popup__actions > .location-popup__action-button {
+.slim-location-popup .location-popup > .location-popup__actions > .location-popup__action-button,
+.slim-location-popup .location-popup__editor-band > .location-popup__actions > .location-popup__action-button {
 	flex: 1 1 90px;
 	width: auto;
 }
@@ -564,6 +572,37 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 	gap: 6px;
 	margin-top: 8px;
 	margin-bottom: 4px;
+}
+
+/* Das Band der Editor-Kacheln: Trennlinie + Ueberschrift + Merkmal „nur Editoren", dieselbe
+   Grammatik wie die Gruppen im Anzeige-Menue (css/components/map-display-menu.css).
+   Der Trenner laeuft full-bleed -- negativer Seitenrand = Polsterung der Box --, damit die Linie
+   von Kante zu Kante geht statt in der Luft zu enden (docs/design-language.md).
+   ⚠️ Die 10px sind die Polsterung von .location-popup weiter oben in dieser Datei; wer sie dort
+   aendert, aendert sie hier mit. Kein Token, weil auch die Polsterung dort keins ist. */
+.location-popup__editor-band {
+	margin-top: 10px;
+	padding-top: 8px;
+	border-top: 1px solid var(--color-divider);
+	margin-left: -10px;
+	margin-right: -10px;
+	padding-left: 10px;
+	padding-right: 10px;
+}
+
+/* Die erste Kachelreihe im Band braucht keinen zweiten Abstand nach oben -- den bringt schon die
+   Ueberschrift mit. Ohne das stuende zwischen Ueberschrift und Kacheln eine doppelte Luecke. */
+.location-popup__editor-band > .location-popup__actions {
+	margin-top: 0;
+}
+
+.location-popup__editor-band-title {
+	margin: 0 0 6px;
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
 }
 
 .location-popup__action-button {
