@@ -183,7 +183,9 @@ const onlyCovers = buildGameLiteratureSectionMarkup("Bornland", [], [],
 assert.notStrictEqual(onlyCovers, "", "ein nur beschriebener Ort bekommt seinen Abschnitt");
 assert.ok(onlyCovers.includes('avesmaps-adv__count">(1)'));
 assert.ok(!onlyCovers.includes("Hier beginnt kein Abenteuer"), "kein Widerspruch ueber einer offenen Karte");
-assert.ok(onlyCovers.includes("Alle anzeigen"), "und der Dialog ist von dort aus erreichbar");
+// ⚠️ Die Beschriftung heisst seit 2026-08-12 „Literatur anzeigen" statt „Alle anzeigen"
+// (Owner): in einem Abschnitt namens „Literatur zu Gareth" sagte „Alle" nicht, WAS alle.
+assert.ok(onlyCovers.includes("Literatur anzeigen"), "und der Dialog ist von dort aus erreichbar");
 
 // Die Gegenprobe, damit der Hinweis nicht einfach verschwindet: wo NUR gespielt wird, steht er weiter.
 const onlyPlay = buildGameLiteratureSectionMarkup("Havena", [],

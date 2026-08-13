@@ -132,7 +132,10 @@ assert.ok(section.includes("infobox-section__head") && section.includes("<summar
 	"die Ueberschrift ist das <summary> mit dem gemeinsamen Klapp-Bauteil");
 assert.ok(section.includes("Kartensammlung von Gareth"), "heading names the place");
 assert.ok(section.includes(">(2)<"), "heading counts the maps");
-assert.ok(section.includes("avesmaps-citymaps__all"), "section offers 'Alle anzeigen'");
+assert.ok(section.includes("avesmaps-citymaps__all"), "section offers the all-maps button");
+// ⚠️ Die Beschriftung heisst seit 2026-08-12 „Kartensammlung anzeigen" (Owner): in einem
+// Abschnitt namens „Kartensammlung von Gareth" sagte „Alle anzeigen" nicht, WAS alle.
+assert.ok(section.includes("Kartensammlung anzeigen"), "und sie benennt, was sie zeigt");
 // 💣 Die Knoepfe sind KACHELN (Owner 2026-08-12: „auch im kachelstil"). Sie tragen die echten
 // Klassen `location-popup__actions` / `location-popup__action-button` statt eines Nachbaus -- der hatte
 // `border-radius: 6px`, wo der Token 8px sagt, und war damit schon auseinandergelaufen.

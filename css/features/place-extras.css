@@ -1080,3 +1080,45 @@
 		transition: none;
 	}
 }
+
+/* ---- Flache Abschnitts-Kacheln (Owner 2026-08-12) ----
+   „ok die kacheln sind doch etwas zu groß. kannst du das icon kleiner machen und vor den text
+   einzeilig platzieren, breite passt nur höhe reduzieren (nicht im schwebenden menü)."
+
+   🔴 NUR die Kacheln IN einem Abschnitt, nicht das Band unter dem Kopf. Der Unterschied ist die
+   Breite: das Kopfband stellt drei Kacheln nebeneinander (je ~111 px), da passt „Änderungen
+   vorschlagen" nur zweizeilig unter sein Symbol. Die Abschnitts-Kacheln sind 171–349 px breit --
+   dort steht Symbol und Text bequem in EINER Zeile, und die gesparte Höhe ist genau das, was der
+   Abschnitt nicht braucht.
+
+   ⚠️ Und ausdrücklich NICHT in der schwebenden Box: dort greift `.floating-location-popup`, das hier
+   nirgends vorkommt. Owner: „nicht im schwebenden menü".
+
+   ⚠️ Der Bewertungsknopf ist mitgemeint -- er steht seit demselben Tag als Kachel im selben Panel
+   und wäre als einziger hochkant der Ausreißer. */
+.avesmaps-infopanel .avesmaps-citymaps__actions > .location-popup__action-button,
+.avesmaps-infopanel .avesmaps-adv__actions > .location-popup__action-button,
+.avesmaps-infopanel .location-reviews__write .location-popup__action-button {
+	flex-direction: row;
+	gap: 7px;
+	min-height: 0;
+	padding: 7px 10px;
+	white-space: nowrap;
+}
+/* Das Symbol schrumpft von 36 auf 20 px -- die Größe, die es auch außerhalb der Kachel hat
+   (.location-popup__action-img). Ein 36-px-Bild neben einer 12-px-Schrift wäre das Bild als
+   Hauptsache, und die Zeile bliebe so hoch wie vorher. */
+.avesmaps-infopanel .avesmaps-citymaps__actions > .location-popup__action-button .location-popup__action-img,
+.avesmaps-infopanel .avesmaps-adv__actions > .location-popup__action-button .location-popup__action-img,
+.avesmaps-infopanel .location-reviews__write .location-popup__action-button .location-popup__action-img {
+	width: 20px;
+	height: 20px;
+	flex: 0 0 auto;
+}
+/* Der Stern der Bewertung ist kein Bild, sondern ein Glyph in einem 26-px-Slot -- der schrumpft mit,
+   sonst bliebe genau diese eine Kachel höher als ihre Nachbarn. */
+.avesmaps-infopanel .location-reviews__write .location-popup__action-button .location-popup__action-icon {
+	width: 20px;
+	height: 20px;
+	font-size: 16px;
+}
