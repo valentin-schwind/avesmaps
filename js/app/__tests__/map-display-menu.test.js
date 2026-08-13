@@ -366,7 +366,7 @@ assert.ok(huelleInhalt[1].includes('id="mapLayerModeSelect"'),
 // englischen Fassung (M8) nicht mehr erreichbar (AGENTS.md §8).
 const i18n = read("js", "app", "i18n-en.js");
 ["display.menu.title", "display.menu.aria", "display.group.places", "display.group.layers",
- "display.group.checks", "display.group.mapstyle", "display.editorOnly",
+ "display.group.checks", "display.group.mapstyle", "ui.editorOnly",
  "display.layer.paths", "display.layer.labels", "display.layer.borders",
  "display.layer.rivers", "display.layer.seapaths",
  "display.disabled.borders", "display.disabled.powerlines"].forEach((key) => {

@@ -2,6 +2,9 @@
 @import url("../base/tokens.css");
 @import url("../base/reset.css");
 @import url("../base/base.css");
+/* Das Merkmal „nur Admins" in der Kopfzeile. Diese Seite laedt kein styles.css, holt sich das
+   gemeinsame Blatt also selbst -- nicht abschreiben, es gibt genau eine Definition. */
+@import url("../components/scope-hint.css");
 
 .edit-page {
 	min-height: 100%;

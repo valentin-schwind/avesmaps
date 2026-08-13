@@ -143,21 +143,10 @@
 	text-transform: uppercase;
 }
 
-/* Das Merkmal „nur Editoren" an einer Gruppenueberschrift. Es traegt die Pillen-Token und nimmt
-   die Sperrung und Grossschreibung der Ueberschrift ausdruecklich zurueck -- sonst laese es sich
-   als zweite Ueberschrift statt als Anmerkung. */
-.map-display-menu__editor-hint {
-	margin-left: var(--space-6);
-	padding: 0 var(--space-4);
-	border: 1px solid var(--color-pill-border);
-	border-radius: var(--radius-md);
-	background: var(--color-pill);
-	color: var(--color-pill-text);
-	font-size: var(--font-size-caption);
-	font-weight: var(--font-weight-regular);
-	letter-spacing: 0;
-	text-transform: none;
-}
+/* Das Merkmal „nur Editoren" ist am 13.08.2026 hierher AUSGEZOGEN, nicht kopiert worden:
+   es steht jetzt als `.avesmaps-scope-hint` in css/components/scope-hint.css und haengt
+   ausserdem am Kachelband der Infobox, am Kartenmenue und an der Editor-Huelle. Eine
+   zurueckgelassene Zweitregel waere die zweite Wahrheit, die spaeter auseinanderlaeuft. */
 
 /* Der Mapstil. ⚠️ Die Auswahlbox hat beim Umzug ihre display-options__*-Klassen abgelegt und
    bringt ihr Aussehen jetzt selbst mit -- die Token sind dieselben (Designsprache: flache

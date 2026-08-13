@@ -4,6 +4,13 @@
  * Add entries here as coverage grows. Domain content is never keyed.
  */
 window.AVESMAPS_I18N_EN = {
+	// --- house-wide words that belong to no single component --------------------------------
+	// The scope hint on a group heading. It sits at four unrelated places (display menu, infobox
+	// tile band, map context menu, editor shell), so it carries a "ui." key rather than any one
+	// component's prefix. Was "display.editorOnly" until 2026-08-13, when it stopped being the
+	// display menu's private word. Lower case on purpose: it is an aside, not a heading.
+	"ui.editorOnly": "editors only",
+	"ui.adminOnly": "admins only",
 	// --- planner: static chrome (data-i18n) ---
 	"planner.addDestination": "Add destination",
 	"planner.addDestination.title": "Add destination",
@@ -272,7 +279,6 @@ window.AVESMAPS_I18N_EN = {
 	"display.group.layers": "Layers",
 	"display.group.checks": "Checks",
 	"display.group.mapstyle": "Map style",
-	"display.editorOnly": "editors only",
 	"display.layer.paths": "Roads",
 	"display.layer.labels": "Labels",
 	"display.layer.borders": "Borders",
