@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Die letzte Kachelreihe – Mockup, 2026-08-13</title>
+<script>
+  (function () {
+    var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+    var dark = s === "dark" || (s !== "light" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    if (dark) { document.documentElement.setAttribute("data-theme", "dark"); }
+  })();
+</script>
+<!-- Die ECHTEN Blätter, wie beim Entwurfsbogen — das Mockup zeigt die tatsächliche Designsprache.
+     💣 reset.css MUSS mit (box-sizing: border-box), sonst rechnet jede Breitenregel daneben. -->
+<link rel="stylesheet" href="../css/base/reset.css">
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/features/location-popups-markers.css">
+<link rel="stylesheet" href="../css/components/scope-hint.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   Die drei Vorschläge. Jeder greift NUR am Container, nicht an jeder Kachel — das ist schon
+   der halbe Gewinn: heute steht die Breite als flex-basis an jedem Kind, in vier Selektorlisten.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ---- A: festes Raster. Jede Kachel exakt ein Viertel, immer. --------------------------------- */
+/* 💣 `minmax(0, 1fr)`, NICHT `1fr`. Ein blosses `1fr` heisst `minmax(auto, 1fr)`, und dieses
+   `auto` ist die MINDESTBREITE des Inhalts -- eine Kachel mit langem Wort („Neue Kraftlinie")
+   macht ihre Spalte breiter als die drei anderen. Damit waeren die Kacheln wieder ungleich, also
+   genau der Fehler, den das Raster beheben soll. Beim ersten Bauen dieses Mockups gemessen:
+   70 / 70 / 81 / 74 px statt viermal derselben Zahl. */
+.opt-a .location-popup__actions {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 8px;
+}
+.opt-a .location-popup__action-button { width: auto; }
+
+/* ---- B: Wachstum gedeckelt. Kacheln füllen weiter, aber höchstens auf Doppelbreite. ---------- */
+.opt-b .location-popup__action-button {
+	max-width: calc((100% - 24px) / 4 * 2 + 8px);
+}
+
+/* ---- C: letzte Reihe zentriert. Wie A, nur mittig statt links. ------------------------------- */
+/* ⚠️ ACHT Spalten, jede Kachel ueber zwei. Vier Spalten reichen nicht: eine einzelne Kachel
+   liesse sich darauf nur in Spalte 2 ODER 3 setzen, also nie wirklich mittig -- und drei
+   Restkacheln schon gar nicht. Mit halben Spalten geht beides auf. Das ist der Preis von C:
+   das Raster muss doppelt so fein sein wie das, was man sieht, und drei Sonderregeln zaehlen
+   ab, wie viele in der letzten Reihe stehen. */
+.opt-c .location-popup__actions {
+	display: grid;
+	grid-template-columns: repeat(8, minmax(0, 1fr));   /* siehe 💣 bei A */
+	gap: 8px;
+}
+.opt-c .location-popup__action-button { width: auto; grid-column: span 2; }
+/* `:nth-child` von vorn sagt „erste der letzten Reihe", `:nth-last-child` von hinten, wie viele
+   noch folgen -- zusammen ergibt das die Zahl der Restkacheln, ohne dass JS mitzaehlt. */
+/* 💣 Immer `start / span 2`, NIE nur `grid-column-start`. Das Kurzwort `grid-column: span 2`
+   weiter oben setzt Anfang UND Ende; ein spaeteres `grid-column-start: 3` ueberschreibt den
+   Anfang und stellt das Ende auf `auto` zurueck -- die Kachel schrumpft lautlos auf EINE halbe
+   Spalte. Beim Bauen gemessen: 41 px statt 89, und zwar nur im Sechser-Fall. */
+.opt-c .location-popup__actions > :nth-child(4n+1):nth-last-child(1) { grid-column: 4 / span 2; }
+.opt-c .location-popup__actions > :nth-child(4n+1):nth-last-child(2) { grid-column: 3 / span 2; }
+.opt-c .location-popup__actions > :nth-child(4n+1):nth-last-child(3) { grid-column: 2 / span 2; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   Mockup-Rahmen — fällt beim Bau weg.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+body {
+	margin: 0; padding: 26px 20px 90px;
+	background: var(--color-page-bg); color: var(--color-text);
+	font-family: var(--font-ui); font-size: var(--font-size-body); line-height: var(--leading-normal);
+}
+.wrap { max-width: 1500px; margin: 0 auto; }
+h1 { margin: 0 0 6px; font-size: var(--font-size-display); color: var(--color-text-strong); }
+.lead { max-width: 820px; margin: 0 0 10px; color: var(--color-text-muted); }
+h2 { margin: 40px 0 4px; padding-top: 14px; border-top: 1px solid var(--color-divider); font-size: var(--font-size-title); color: var(--color-text-strong); }
+p { margin: 0 0 10px; max-width: 860px; }
+.muted { color: var(--color-text-muted); }
+code { background: var(--color-panel-soft); padding: 1px 4px; border-radius: var(--radius-sm); font-size: 12px; }
+.rule { margin: 16px 0 8px; padding: 12px 16px; border-left: 3px solid var(--color-accent-strong); background: var(--color-panel-soft); border-radius: var(--radius-sm); max-width: 860px; }
+.rule strong { color: var(--color-text-strong); }
+
+.grid { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; margin-top: 14px; }
+.spalte { flex: 0 0 auto; width: 400px; }
+.spalte__kopf { margin: 0 0 10px; font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+.spalte__kopf--jetzt { color: var(--color-danger); }
+.spalte__kopf--neu { color: var(--color-accent-strong); }
+.spalte__note { margin: 8px 0 0; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+
+.kasten { width: 400px; margin-bottom: 16px; border-radius: var(--radius-lg); background: var(--color-panel); box-shadow: var(--shadow-panel); padding: 10px; }
+.kasten .location-popup { max-width: none; padding: 0; background: none; }
+.kasten__zahl { margin: 0 0 6px; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+
+.themebar { position: sticky; top: 0; z-index: 5; padding: 8px 0 14px; background: var(--color-page-bg); }
+.themebar button { padding: var(--space-6) var(--space-12); border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md); background: var(--color-button-soft); color: var(--color-button-soft-text); font: inherit; font-size: 12px; font-weight: var(--font-weight-bold); cursor: pointer; }
+</style>
+</head>
+<body class="edit-mode">
+<div class="wrap">
+
+<div class="themebar">
+	<button type="button" onclick="var d=document.documentElement;if(d.getAttribute('data-theme')==='dark'){d.removeAttribute('data-theme');localStorage.setItem('avesmaps-theme','light');}else{d.setAttribute('data-theme','dark');localStorage.setItem('avesmaps-theme','dark');}">hell / dunkel umschalten</button>
+</div>
+
+<h1>Die letzte Kachelreihe</h1>
+<p class="lead">Bei fünf Kacheln stehen vier oben und eine allein darunter — und die wird
+vierfach so breit wie ihre Nachbarn. Drei Wege daraus, alle drei am selben Ort im CSS.</p>
+
+<div class="rule">
+	<strong>Woher es kommt:</strong> die Kacheln tragen <code>flex: 1 1 &lt;ein Viertel&gt;</code>.
+	Das <em>1</em> in der Mitte ist <code>flex-grow</code> — es sagt „füll die Zeile aus“. In einer
+	vollen Zeile teilen sich vier Kacheln den Rest, in einer angebrochenen bekommt ihn <strong>eine
+	allein</strong>. Der Kommentar an der Regel nennt das sogar als Absicht: „Kacheln füllen IMMER
+	die volle Zeilenbreite“ — geschrieben, als jede Zeile noch voll war.
+	<br><br>
+	<strong>Betroffen ist jede Zahl, die durch vier einen Rest lässt.</strong> Heute konkret: das
+	Kreuzungs-Popup (5), das Editier-Band eines Ortes, sobald „Neue Kraftlinie“ dazukommt (5), das
+	Label-Popup (5) und im rechten Panel jede Zeile, die zufällig einzeln umbricht.
+</div>
+
+<h2>Fünf Kacheln — der Fall, den du meinst</h2>
+<div class="grid">
+	<div class="spalte">
+		<p class="spalte__kopf spalte__kopf--jetzt">Heute</p>
+		<div class="kasten floating-location-popup"><div class="location-popup" data-demo="5"></div></div>
+		<p class="spalte__note">Die fünfte Kachel ist so breit wie die ganze Box, ihre Nachbarn ein Viertel davon.
+		Sie sieht dadurch aus wie die Hauptaktion, obwohl sie es nicht ist.</p>
+	</div>
+	<div class="spalte opt-a">
+		<p class="spalte__kopf spalte__kopf--neu">A — festes Raster <em>(empfohlen)</em></p>
+		<div class="kasten floating-location-popup"><div class="location-popup" data-demo="5"></div></div>
+		<p class="spalte__note">Jede Kachel exakt ein Viertel, immer und überall. Rechts bleibt Platz —
+		und der sagt die Wahrheit: die Reihe ist nicht voll.</p>
+	</div>
+	<div class="spalte opt-b">
+		<p class="spalte__kopf spalte__kopf--neu">B — Wachstum gedeckelt</p>
+		<div class="kasten floating-location-popup"><div class="location-popup" data-demo="5"></div></div>
+		<p class="spalte__note">Bleibt beim heutigen Verhalten, begrenzt es nur: höchstens
+		Doppelbreite. Eine Zeile mit zwei Kacheln füllt sich weiterhin ganz.</p>
+	</div>
+	<div class="spalte opt-c">
+		<p class="spalte__kopf spalte__kopf--neu">C — letzte Reihe zentriert</p>
+		<div class="kasten floating-location-popup"><div class="location-popup" data-demo="5"></div></div>
+		<p class="spalte__note">Wie A, nur rückt die angebrochene Reihe in die Mitte. Kein Loch am Rand — dafür braucht es
+		ein doppelt so feines Raster und drei Abzählregeln, und die Kacheln stehen nicht mehr in
+		einer Spaltenflucht.</p>
+	</div>
+</div>
+
+<h2>Alle Fälle nebeneinander: 4, 5, 6, 7 Kacheln</h2>
+<p class="muted">Erst hier sieht man, ob ein Weg trägt — der Sprung von 5 auf 6 ist bei
+Option&nbsp;B der interessante.</p>
+<div class="grid">
+	<div class="spalte">
+		<p class="spalte__kopf spalte__kopf--jetzt">Heute</p>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">4</p><div class="location-popup" data-demo="4"></div></div>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">5</p><div class="location-popup" data-demo="5"></div></div>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">6</p><div class="location-popup" data-demo="6"></div></div>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">7</p><div class="location-popup" data-demo="7"></div></div>
+	</div>
+	<div class="spalte opt-a">
+		<p class="spalte__kopf spalte__kopf--neu">A — festes Raster</p>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">4</p><div class="location-popup" data-demo="4"></div></div>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">5</p><div class="location-popup" data-demo="5"></div></div>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">6</p><div class="location-popup" data-demo="6"></div></div>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">7</p><div class="location-popup" data-demo="7"></div></div>
+	</div>
+	<div class="spalte opt-b">
+		<p class="spalte__kopf spalte__kopf--neu">B — Wachstum gedeckelt</p>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">4</p><div class="location-popup" data-demo="4"></div></div>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">5</p><div class="location-popup" data-demo="5"></div></div>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">6</p><div class="location-popup" data-demo="6"></div></div>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">7</p><div class="location-popup" data-demo="7"></div></div>
+	</div>
+	<div class="spalte opt-c">
+		<p class="spalte__kopf spalte__kopf--neu">C — letzte Reihe zentriert</p>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">4</p><div class="location-popup" data-demo="4"></div></div>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">5</p><div class="location-popup" data-demo="5"></div></div>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">6</p><div class="location-popup" data-demo="6"></div></div>
+		<div class="kasten floating-location-popup"><p class="kasten__zahl">7</p><div class="location-popup" data-demo="7"></div></div>
+	</div>
+</div>
+
+<h2>Warum ich A empfehle</h2>
+<div class="rule">
+	<strong>A ist die einzige Fassung, in der eine Kachel überall gleich groß ist.</strong> Heute
+	hängt ihre Breite davon ab, wie viele Geschwister sie hat und ob ihre Zeile voll wurde — dieselbe
+	Kachel „Ort löschen“ ist mal 79 und mal 340&nbsp;px breit. Das ist der eigentliche Fehler; der
+	riesige Knopf ist nur der Fall, in dem er auffällt.
+	<br><br>
+	<strong>Und sie macht das CSS kürzer, nicht länger.</strong> Die Breite steht dann EINMAL am
+	Behälter (<code>grid-template-columns</code>) statt als <code>flex-basis</code> an jedem Kind in
+	<em>vier</em> Selektorlisten — genau den vier, die beim Editor-Band einzeln nachgezogen werden
+	mussten und bei denen eine vergessen worden wäre, hätte der Test sie nicht gefunden.
+</div>
+<p><strong>Gegen A spricht</strong> der Platz rechts in der letzten Reihe. Der Kommentar im CSS nennt
+ihn ausdrücklich als Grund, damals kein Raster zu nehmen. Er ist bei fünf Kacheln drei Viertel einer
+Kachelbreite — sichtbar, aber ruhig; und er sagt etwas Wahres.</p>
+<p><strong>C</strong> nimmt ihm die Kante, kostet aber die Spaltenflucht: die letzte Reihe steht dann
+weder links noch unter den Kacheln darüber. <strong>B</strong> ist der kleinste Eingriff (eine Zeile)
+und behebt nur den Ausreißer, nicht die ungleichen Breiten.</p>
+
+<h2>💣 Was beim Bauen zu beachten wäre</h2>
+<ul style="max-width:860px">
+	<li><strong>Das rechte Panel ist breiter und variabel</strong> — dort sind vier feste Spalten
+	falsch. Es bräuchte <code>repeat(auto-fill, minmax(90px, 1fr))</code>: so viele gleich breite
+	Spalten, wie hineinpassen. Das ist die Raster-Entsprechung des heutigen
+	<code>flex: 1 1 90px</code>, nur ohne das Wachsen.</li>
+	<li><strong>Die verschachtelte Bewertungs-Zeile darf kein Raster werden.</strong>
+	<code>.location-popup__actions</code> trägt auch „Bewertung schreiben“ neben der Sternebewertung;
+	die heutigen Regeln halten sie mit <code>&gt;</code>-Kindselektoren heraus. Ein Raster am Behälter
+	braucht dieselbe Abgrenzung — sonst zerreißt es diese Zeile.</li>
+	<li><strong><code>minmax(0, 1fr)</code>, nicht <code>1fr</code>.</strong> Ein blosses
+	<code>1fr</code> bedeutet <code>minmax(auto, 1fr)</code>, und dieses <code>auto</code> ist die
+	Mindestbreite des Inhalts: die Kachel mit dem längsten Wort macht ihre Spalte breiter als die
+	übrigen — die Kacheln wären wieder ungleich, also genau der Fehler, den das Raster beheben soll.
+	Beim Bauen dieses Bogens gemessen: 70&nbsp;/&nbsp;70&nbsp;/&nbsp;81&nbsp;/&nbsp;74&nbsp;px statt
+	viermal derselben Zahl.</li>
+	<li><strong>Vier Aufrufer, nicht einer</strong>: schwebende Box, rechtes Panel, die schlanke
+	„Nächsten Ort finden“-Box und die Gebiets-Infobox. Alle vier tragen heute dieselbe Absicht in
+	vier Regeln.</li>
+</ul>
+
+<script>
+// Die Demo-Kacheln. Bewusst aus einer Liste gebaut statt zwanzigmal hingeschrieben:
+// so zeigen alle vier Spalten garantiert DASSELBE, und ein Tippfehler kann keine Option
+// besser aussehen lassen als die andere.
+const LABELS = [
+	["━", "Neuer Weg"], ["↯", "Neue Kraftlinie"], ["✥", "Ort verschieben"],
+	["⚙", "Bearbeiten"], ["✕", "Ort löschen"], ["●", "Zu Ort konvertieren"], ["✎", "Verlauf bearbeiten"],
+];
+document.querySelectorAll("[data-demo]").forEach((host) => {
+	const n = Number(host.getAttribute("data-demo"));
+	host.innerHTML = '<div class="location-popup__actions">' + LABELS.slice(0, n).map(([g, t], i) =>
+		'<button type="button" class="location-popup__action-button' + (i === n - 1 ? " location-popup__action-button--danger" : "") + '">'
+		+ '<span class="location-popup__action-glyph">' + g + "</span>" + t + "</button>").join("") + "</div>";
+});
+</script>
+
+</div>
+</body>
+</html>
