@@ -848,8 +848,17 @@ function avesmapsFindNearestClientLandPathAnchor(array $graph, float $px, float 
 // avesmapsCollectNearestClientComponentConnections, and for the same reason: never sort the full set.
 function avesmapsCollectNearestClientLandPathAnchors(array $graph, float $px, float $py, int $limit): array {
     if ($limit <= 0) return [];
-    $candidates = [];
-    $worst = INF;
+    // 💣 EIN KANDIDAT JE WEG, sonst ist die Auswahl eine Attrappe: die naechsten Fusspunkte liegen
+    // alle auf demselben Weg, ein paar Karteneinheiten auseinander -- lauter A*-Laeufe fuer
+    // praktisch denselben Ausstieg, und die schnelle Strasse zwei Taeler weiter waere nie dabei.
+    // Erst die Entdopplung macht aus „K Punkte" ein „K Strassen zur Auswahl".
+    // ⚠️ Sie faengt zugleich ab, dass jede Verbindung ZWEIMAL im Graphen steht: beide Richtungen
+    // teilen ein Objekt (client-graph.php:411-413), ohne sie stuende jeder Weg doppelt in der Liste.
+    // ⚠️ Die alte Abbruchschranke ($worst) entfaellt ersatzlos und das ist kein Rueckschritt: sie
+    // sparte nie eine Projektion, nur das Einsortieren. Die Karte kostet O(1) je Segment statt einer
+    // Einfuegung in eine sortierte Liste; bezahlt wird einmal am Ende mit einer Sortierung ueber die
+    // Zahl der Landwege.
+    $best = [];
     foreach ($graph as $fromName => $edges) {
         if (!is_array($edges)) continue;
         foreach ($edges as $toName => $connections) {
@@ -859,6 +868,7 @@ function avesmapsCollectNearestClientLandPathAnchors(array $graph, float $px, fl
                 if (!in_array((string) ($connection['route_type'] ?? ''), AVESMAPS_ROUTE_CLIENT_LAND_PATH_TYPES, true)) continue;
                 $coordinates = $connection['geometry']['coordinates'] ?? null;
                 if (!is_array($coordinates)) continue;
+                $pathKey = (string) ($connection['id'] ?? ($fromName . '->' . $toName));
                 $count = count($coordinates);
                 for ($i = 0; $i < $count - 1; $i++) {
                     $projection = avesmapsRouteProjectPointOnSegment(
@@ -866,15 +876,13 @@ function avesmapsCollectNearestClientLandPathAnchors(array $graph, float $px, fl
                         (float) ($coordinates[$i][0] ?? 0.0), (float) ($coordinates[$i][1] ?? 0.0),
                         (float) ($coordinates[$i + 1][0] ?? 0.0), (float) ($coordinates[$i + 1][1] ?? 0.0)
                     );
-                    if (count($candidates) >= $limit && $projection['distance'] >= $worst) continue;
+                    if (isset($best[$pathKey]) && (float) $best[$pathKey]['distance'] <= $projection['distance']) continue;
                     // Use the connection's STORED orientation (from/to match coordinates[0]/[last]),
                     // NOT the graph iteration keys: edges are stored in both directions with the same
                     // object, so the outer/inner keys can be the reverse of the geometry. Splitting
                     // with the reversed name would attach the sub-edges to the wrong endpoints and the
                     // drawn leg would jump to the far node (a gap between the anchor and the path).
-                    $position = count($candidates);
-                    while ($position > 0 && (float) $candidates[$position - 1]['distance'] > $projection['distance']) $position--;
-                    array_splice($candidates, $position, 0, [[
+                    $best[$pathKey] = [
                         'from' => (string) ($connection['from'] ?? $fromName),
                         'to' => (string) ($connection['to'] ?? $toName),
                         'connection' => $connection,
@@ -883,14 +891,16 @@ function avesmapsCollectNearestClientLandPathAnchors(array $graph, float $px, fl
                         'proj_x' => $projection['x'],
                         'proj_y' => $projection['y'],
                         'distance' => $projection['distance'],
-                    ]]);
-                    if (count($candidates) > $limit) array_pop($candidates);
-                    $worst = (float) $candidates[count($candidates) - 1]['distance'];
+                    ];
                 }
             }
         }
     }
-    return $candidates;
+
+    $candidates = array_values($best);
+    usort($candidates, static fn(array $a, array $b): int => $a['distance'] <=> $b['distance']);
+
+    return array_slice($candidates, 0, $limit);
 }
 
 function avesmapsRouteProjectPointOnSegment(float $px, float $py, float $ax, float $ay, float $bx, float $by): array {
