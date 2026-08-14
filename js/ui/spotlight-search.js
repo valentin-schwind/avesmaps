@@ -562,6 +562,18 @@ function resolveSpotlightLorePlace(byLorePlace, place) {
 //
 // The resolved place NAMES go into the row, up to three. They are the answer to the question the user
 // actually asked -- "wo gibt es das?" -- and putting them there means the reader often need not click.
+//
+// Task 8: `result.lore_places` mixes NAMED places (an editor's explicit statement) and Regelorte (a
+// Lebensraum-Regel's own hits) -- lore-search.php appends the second kind behind the first in the same
+// {title, wiki_key} shape, PLUS `region_public_id` on every Regelort and never on a named place
+// (api/_internal/app/lore-search.php:247-249). That field is now the distinguishing signal the old
+// comment here said did not exist. A Regelort keeps its `regionPublicId` even when
+// resolveSpotlightLorePlace finds nothing local for it (6 of 57 measured live -- auto-named areas
+// without a label or wiki key): unlike a named place, a region public id alone is enough to fetch and
+// draw its Fläche later (spotlight-search-focus.js, fetchSpotlightLandscapeAreasByRegion), so it is
+// kept instead of silently dropped. The dedupe key still prefers the LOCAL placeEntry id when one
+// exists, so a place that is both named AND rule-matched (same real Fläche reached two ways) still
+// collapses into one row, exactly as before this task.
 function buildLoreSpotlightEntry(result) {
 	const name = String(result.name || "");
 	if (!name) {
@@ -574,10 +586,20 @@ function buildLoreSpotlightEntry(result) {
 	const seen = new Set();
 	places.forEach((place) => {
 		const placeEntry = resolveSpotlightLorePlace(byLorePlace, place);
-		if (placeEntry && !seen.has(placeEntry.id)) {
-			seen.add(placeEntry.id);
-			resolved.push(placeEntry);
+		const regionPublicId = String((place && place.region_public_id) || "");
+		if (!placeEntry && !regionPublicId) {
+			return; // a named place without a local match has nothing to fly to or draw -- unchanged
 		}
+		const dedupeKey = placeEntry ? placeEntry.id : `rule-area:${regionPublicId}`;
+		if (seen.has(dedupeKey)) {
+			return;
+		}
+		seen.add(dedupeKey);
+		resolved.push({
+			...(placeEntry || {}),
+			name: placeEntry ? placeEntry.name : String((place && place.title) || ""),
+			regionPublicId,
+		});
 	});
 
 	const shown = resolved.slice(0, 3).map((placeEntry) => placeEntry.name);
@@ -591,6 +613,11 @@ function buildLoreSpotlightEntry(result) {
 		publicIds: [],
 		bounds: null,
 		lorePlaceEntries: resolved,
+		// Task 8: the union of climate zone keys this entry's rule(s) allow (lore-search.php's
+		// `rule_zones`, e.g. ["boreal","gemaessigt"]) -- one list for the whole entry, applied to every
+		// one of its Regelorte alike (see spotlightLoreAreaGeometryToDraw in spotlight-search-focus.js).
+		// [] for an entry with no rule, same as the server sends.
+		ruleZones: Array.isArray(result.rule_zones) ? result.rule_zones.map(String).filter(Boolean) : [],
 		placeHint: shown.join(" · ") + (rest > 0 ? ` +${rest}` : ""),
 		notOnMap: true,
 		// 31 % of occurrences carry no place at all and another 15 % name places the map does not have

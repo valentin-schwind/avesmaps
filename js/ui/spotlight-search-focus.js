@@ -425,7 +425,7 @@ function focusSpotlightLorePlaces(entry) {
 	// outlines with it and leave a hit that silently never upgrades. In front of it, the fetch is
 	// already in flight and lands regardless.
 	void upgradeSpotlightLoreHighlightToAreas(entry, places);
-	focusSpotlightLoreBounds(places, null);
+	focusSpotlightLoreBounds(places, null, null);
 }
 
 // A landscape covering more than this share of the whole map gets its OUTLINE but no fill, and is left
@@ -449,9 +449,16 @@ function isSpotlightLoreAreaOversized(area) {
 	return Number.isFinite(share) && share > SPOTLIGHT_LORE_AREA_FILL_MAX_MAP_SHARE;
 }
 
-// The landscape areas belonging to ONE place, or [] when there are none (yet). Only a label can have
-// them: an area hangs off `ecosystem_region.label_public_id`, and that is a map-features label id.
-function spotlightPlaceAreas(place, areasByLabel) {
+// The landscape areas belonging to ONE place, or [] when there are none (yet). Two independent ways in,
+// checked in this order:
+//   1. `place.regionPublicId` (a Regelort, Task 8) -- looked up by REGION, unconditionally, whatever
+//      `place.kind` happens to be (it may be "" for one the client never resolved locally at all).
+//   2. otherwise a landscape label -- unchanged: an area hangs off `ecosystem_region.label_public_id`,
+//      and that is a map-features label id.
+function spotlightPlaceAreas(place, areasByLabel, areasByRegion) {
+	if (areasByRegion && place.regionPublicId) {
+		return areasByRegion.get(String(place.regionPublicId)) || [];
+	}
 	if (!areasByLabel || place.kind !== "label") {
 		return [];
 	}
@@ -463,10 +470,10 @@ function spotlightPlaceAreas(place, areasByLabel) {
 // the upgrade is to show the Nebelmoor, not the word "Nebelmoor". An OVERSIZED area is skipped here even
 // though it is still drawn: letting the continent into the bbox would zoom out until the two landscapes
 // that actually answer the question are specks.
-function focusSpotlightLoreBounds(places, areasByLabel) {
+function focusSpotlightLoreBounds(places, areasByLabel, areasByRegion) {
 	let bounds = null;
 	places.forEach((place) => {
-		const framingAreas = spotlightPlaceAreas(place, areasByLabel).filter((area) => !isSpotlightLoreAreaOversized(area));
+		const framingAreas = spotlightPlaceAreas(place, areasByLabel, areasByRegion).filter((area) => !isSpotlightLoreAreaOversized(area));
 		if (framingAreas.length) {
 			framingAreas.forEach((area) => {
 				bounds = extendSpotlightBounds(bounds, L.latLngBounds(
@@ -531,6 +538,121 @@ async function fetchSpotlightLandscapeAreas(labelPublicIds) {
 	return areasByLabel.size ? areasByLabel : null;
 }
 
+// The landscape areas of the given REGIONS, grouped by region id -- companion to
+// fetchSpotlightLandscapeAreas above, for a Regelort (Task 8, Schritt 2). A Fläche belongs to exactly
+// ONE region, but a region carries MANY labels (the Reichsforst has two) -- asking by label can miss an
+// area sitting under a sibling label of the same region (measured: 853 areas, only 512 distinct
+// label_public_id). `?regions=` is unambiguous where `?labels=` is not.
+//
+// 🔴 Der Label-Weg bleibt für alles andere (genannte Orte, Territorien, Siedlungen haben keine
+// region_public_id) -- diese Funktion ERGÄNZT fetchSpotlightLandscapeAreas, ersetzt sie nicht. Zwei
+// Nachschlagekarten, absichtlich nicht eine umgebaute: die Gruppierung ist region_public_id statt
+// label_public_id, ein anderes Feld auf jeder Fläche.
+async function fetchSpotlightLandscapeAreasByRegion(regionPublicIds) {
+	if (typeof ECOSYSTEM_AREAS_API_URL !== "string" || !ECOSYSTEM_AREAS_API_URL
+		|| typeof ecosystemAreaLatLngs !== "function" || !regionPublicIds.length) {
+		return null;
+	}
+
+	let payload = null;
+	try {
+		const response = await fetch(
+			`${ECOSYSTEM_AREAS_API_URL}?regions=${encodeURIComponent(regionPublicIds.join(","))}`,
+			{ headers: { Accept: "application/json" } }
+		);
+		payload = response.ok ? await response.json() : null;
+	} catch (error) {
+		return null;
+	}
+	if (payload?.ok !== true || !Array.isArray(payload.areas) || !payload.areas.length) {
+		return null;
+	}
+
+	const areasByRegion = new Map();
+	payload.areas.forEach((area) => {
+		const regionPublicId = String(area?.region_public_id || "");
+		if (!regionPublicId) {
+			return;
+		}
+		if (!areasByRegion.has(regionPublicId)) {
+			areasByRegion.set(regionPublicId, []);
+		}
+		areasByRegion.get(regionPublicId).push(area);
+	});
+
+	return areasByRegion.size ? areasByRegion : null;
+}
+
+// The eight climate bands (kind=klima) alone, fetched ONCE PER SESSION and kept forever after --
+// never per search hit, never per Fläche (Task 8, Schritt 4; AGENTS.md §10: an earlier fan-out over
+// this same PHP worker pool once mimicked a DB outage). The promise itself is the cache: a second call
+// while the first is still in flight returns the SAME promise instead of firing a second request, and
+// a call after it settled returns the already-resolved value.
+//
+// `region_type` is the zone key on a klima area (polar, subpolar, boreal, gemaessigt,
+// subtropen_winterfeucht, trockene_subtropen, subtropisch, tropisch) -- see the brief's live probe
+// (18 232 Bytes for the eight bands alone, vs. 2 593 693 for the full payload).
+let spotlightClimateBandsPromise = null;
+
+async function fetchSpotlightClimateBands() {
+	if (spotlightClimateBandsPromise) {
+		return spotlightClimateBandsPromise;
+	}
+
+	spotlightClimateBandsPromise = (async () => {
+		if (typeof ECOSYSTEM_AREAS_API_URL !== "string" || !ECOSYSTEM_AREAS_API_URL) {
+			return null;
+		}
+		try {
+			const response = await fetch(`${ECOSYSTEM_AREAS_API_URL}?kind=klima`, { headers: { Accept: "application/json" } });
+			const payload = response.ok ? await response.json() : null;
+			if (payload?.ok !== true || !Array.isArray(payload.areas)) {
+				return null;
+			}
+			const bandsByZone = new Map();
+			payload.areas.forEach((area) => {
+				const zoneKey = String(area?.region_type || "");
+				if (zoneKey && area?.geometry) {
+					bandsByZone.set(zoneKey, area.geometry);
+				}
+			});
+			return bandsByZone.size ? bandsByZone : null;
+		} catch (error) {
+			return null;
+		}
+	})();
+
+	return spotlightClimateBandsPromise;
+}
+
+// PURE. Selects the climate bands a rule allows (`ruleZones`, e.g. ["boreal","gemaessigt"]) out of the
+// cached band map and unions them into ONE geometry -- the second argument
+// spotlightLoreIntersectGeometry has been waiting for. No bands, no ruleZones, or the boolean union
+// itself failing all mean the same thing here: `null`, which spotlightLoreIntersectGeometry already
+// reads as "keine Verschneidung, ganze Fläche" (Task 8, Schritt 4).
+function unionSpotlightClimateZones(ruleZones, bandsByZone) {
+	if (!bandsByZone || !Array.isArray(ruleZones) || !ruleZones.length) {
+		return null;
+	}
+
+	const geometries = ruleZones
+		.map((zoneKey) => bandsByZone.get(String(zoneKey)))
+		.filter(Boolean);
+	if (!geometries.length || typeof ecosystemBooleanGeometry !== "function") {
+		return null;
+	}
+
+	let union = geometries[0];
+	for (let index = 1; index < geometries.length; index += 1) {
+		try {
+			union = ecosystemBooleanGeometry("union", union, geometries[index]);
+		} catch (error) {
+			return union; // best effort: keep what unioned so far rather than losing the whole clip
+		}
+	}
+	return union;
+}
+
 // Outlines the ONE place a map or an adventure hangs on, after the flight has already happened. Unlike
 // an occurrence this never touches the framing -- focusSpotlightRegion/-Label just flew there, and a
 // second opinion on the viewport would only fight it.
@@ -541,7 +663,7 @@ async function fetchSpotlightLandscapeAreas(labelPublicIds) {
 // a ring to either would be noise on a hit that already says where it is.
 async function highlightSpotlightPlaceExtent(entry) {
 	if (entry.placeEntryKind === "region") {
-		highlightSpotlightPlaces([entry], null, { pointFallback: false });
+		highlightSpotlightPlaces([entry], null, null, { pointFallback: false });
 		return;
 	}
 	if (entry.placeEntryKind !== "label") {
@@ -556,7 +678,7 @@ async function highlightSpotlightPlaceExtent(entry) {
 
 	// `entry` is the place entry with its kind overwritten (buildPlaceBoundSpotlightEntry), so it cannot
 	// be matched by kind -- hand spotlightPlaceAreas the shape it expects instead.
-	highlightSpotlightPlaces([{ ...entry, kind: "label" }], areasByLabel, { pointFallback: false });
+	highlightSpotlightPlaces([{ ...entry, kind: "label" }], areasByLabel, null, { pointFallback: false });
 }
 
 // Replaces an occurrence's point markers with the OUTLINES of the landscapes it names, once the server
@@ -572,28 +694,41 @@ async function highlightSpotlightPlaceExtent(entry) {
 // A failure of any kind returns silently: the circles are already on the map, and an occurrence whose
 // outlines did not arrive is still a perfectly good hit.
 //
-// 💣 `places` mischt genannte Orte UND Regeltreffer, UNUNTERSCHEIDBAR: lore-search.php haengt
-// Regeltreffer absichtlich in DERSELBEN Form (title/wiki_key) hinter die genannten Orte an --
-// "the client cannot tell the two apart -- it never knew where a place came from"
-// (api/_internal/app/lore-search.php:264). highlightSpotlightPlaces ruft deshalb fuer JEDE Flaeche
-// hier spotlightLoreIntersectGeometry, faellt aber mangels Unterscheidung und mangels Bandgeometrie
-// (kein Client-Pfad kennt das Klimaband EINES Regeltreffers) immer auf die ganze Flaeche zurueck --
-// unveraendertes Verhalten, bis eine dieser beiden Luecken geschlossen ist.
+// Task 8: `places` still mischt genannte Orte UND Regeltreffer, aber nicht mehr UNUNTERSCHEIDBAR --
+// jeder Regeltreffer trägt jetzt `regionPublicId` (buildLoreSpotlightEntry, spotlight-search.js;
+// api/_internal/app/lore-search.php:247-249 liefert es am Regelort und NIE am genannten Ort). Das
+// schließt zwei Löcher zugleich:
+//   1. Ein Regeltreffer wird über `?regions=` geholt (fetchSpotlightLandscapeAreasByRegion), nicht über
+//      `?labels=` -- eine Region trägt mehrere Labels, der Label-Weg fand also nur die Fläche(n) unter
+//      GENAU dem einen Label, das der Client zufällig auflöste (Kringel-Meldung des Owners).
+//   2. Ein Regeltreffer, den der Client lokal gar nicht auflösen konnte (kein Label, kein Wiki-Schlüssel
+//      -- 6 von 57 gemessen), hat über seine bloße `regionPublicId` trotzdem eine Fläche.
+// Der Label-Weg bleibt unverändert für alles andere (genannte Orte, Territorien, Siedlungen).
 async function upgradeSpotlightLoreHighlightToAreas(entry, places) {
 	const labelPublicIds = places
-		.filter((place) => place.kind === "label")
+		.filter((place) => place.kind === "label" && !place.regionPublicId)
 		.map((place) => String(place.labelEntry?.label?.publicId || ""))
 		.filter(Boolean);
+	const regionPublicIds = [...new Set(
+		places.filter((place) => place.regionPublicId).map((place) => String(place.regionPublicId))
+	)];
 
-	const areasByLabel = await fetchSpotlightLandscapeAreas(labelPublicIds);
+	const [areasByLabel, areasByRegion, bandsByZone] = await Promise.all([
+		fetchSpotlightLandscapeAreas(labelPublicIds),
+		fetchSpotlightLandscapeAreasByRegion(regionPublicIds),
+		// The climate bands are only ever needed to clip a Regelort -- an occurrence made only of named
+		// places has no reason to trigger the one-per-session fetch at all.
+		regionPublicIds.length ? fetchSpotlightClimateBands() : Promise.resolve(null),
+	]);
 	// The user picked something else while this was in flight -- do not redraw over what they are looking
 	// at now. Same guard, same reason as openSpotlightCitymapsDialog above.
-	if (!areasByLabel || spotlightActiveSelectionId !== entry.id) {
+	if ((!areasByLabel && !areasByRegion) || spotlightActiveSelectionId !== entry.id) {
 		return;
 	}
 
-	highlightSpotlightPlaces(places, areasByLabel);
-	focusSpotlightLoreBounds(places, areasByLabel);
+	const bandGeometry = unionSpotlightClimateZones(entry.ruleZones, bandsByZone);
+	highlightSpotlightPlaces(places, areasByLabel, areasByRegion, { bandGeometry });
+	focusSpotlightLoreBounds(places, areasByLabel, areasByRegion);
 }
 
 // The bbox of a place entry, whatever shape it has: a territory brings its own bounds, a label or a
@@ -635,6 +770,23 @@ function spotlightLoreIntersectGeometry(areaGeometry, bandGeometry) {
 	}
 }
 
+// PURE. The geometry to actually draw for ONE Fläche of ONE occurrence place -- the single spot both
+// remaining Task-8 mutations (Schritt 5, #1 and #2) attack, so it stands alone and untangled from
+// Leaflet. A Regelort (`isRuleArea`) is clipped against the entry's climate-band union; a named place
+// is never clipped (it carries no rule and no rule_zones) -- passing `null` through
+// spotlightLoreIntersectGeometry there is exactly today's unclipped behaviour, unchanged.
+function spotlightLoreAreaGeometryToDraw(isRuleArea, areaGeometry, bandGeometry) {
+	return spotlightLoreIntersectGeometry(areaGeometry, isRuleArea ? bandGeometry : null);
+}
+
+// PURE. A Regelort never gets the point-circle fallback, geometry or not (Task 8, Schritt 3: "Ohne
+// Fläche kein Kringel für einen Regelort"). The circle mid-forest IS the bug the owner reported --
+// the notch fallback is for a place that really is a point (a settlement), never for a Fläche whose
+// geometry merely failed to arrive. A named place keeps the caller's own pointFallback flag.
+function spotlightLoreAllowsPointFallback(place, pointFallback) {
+	return Boolean(pointFallback) && !(place && place.regionPublicId);
+}
+
 // Marks each place of an occurrence in the same gold as a highlighted way, in the same pane. The style
 // constant is REUSED deliberately: a second colour literal is exactly what AGENTS.md §12 bans, and the
 // two highlights mean the same thing to the reader.
@@ -643,8 +795,9 @@ function spotlightLoreIntersectGeometry(areaGeometry, bandGeometry) {
 // regionPolygons) cannot take the highlight with it.
 // `pointFallback: false` means "outline or nothing": a place-bound hit (map, adventure) only ever wants
 // the SHAPE of its place. An occurrence keeps the fallback, because there the ring at a point is the
-// answer whenever no area exists -- and that is the majority of them.
-function highlightSpotlightPlaces(places, areasByLabel = null, { pointFallback = true } = {}) {
+// answer whenever no area exists -- and that is the majority of them (but never for a Regelort, see
+// spotlightLoreAllowsPointFallback above).
+function highlightSpotlightPlaces(places, areasByLabel = null, areasByRegion = null, { pointFallback = true, bandGeometry = null } = {}) {
 	// Drop the previous highlight BEFORE reassigning: the assignment overwrites the only handle on it,
 	// and an orphaned layer group hangs on the map until a reload. Same reason as in highlightSpotlightPaths.
 	if (spotlightHighlightLayer) {
@@ -653,20 +806,14 @@ function highlightSpotlightPlaces(places, areasByLabel = null, { pointFallback =
 
 	spotlightHighlightLayer = L.layerGroup();
 	places.forEach((place) => {
+		const isRuleArea = Boolean(place.regionPublicId);
 		// A landscape outline beats every other shape for this place: it IS the answer to "where does it
 		// occur?", where the label point only names it. An oversized one is drawn as a bare frame -- you
 		// can see that the occurrence spans the whole continent, without the continent covering the map.
-		const areas = spotlightPlaceAreas(place, areasByLabel);
+		const areas = spotlightPlaceAreas(place, areasByLabel, areasByRegion);
 		if (areas.length) {
 			areas.forEach((area) => {
-				// spotlightLoreIntersectGeometry faellt auf die GANZE Flaeche zurueck, solange keine
-				// Bandgeometrie beigegeben wird -- heute IMMER der Fall (siehe der Kommentar an der
-				// Funktion selbst): kein oeffentlicher Lesepfad liefert dem Client, welches Klimaband
-				// ein Regeltreffer traf, und ecosystem-areas.php hat kein `kind=`-Filter, um die acht
-				// Baender ohne die ganze ~1,5-MB-Ebene zu holen. `null` bleibt hier bewusst ein
-				// beschrifteter Platzhalter statt eines zweiten Abrufs -- der waere die Abrufwelle,
-				// die dieses Projekt schon einmal die PHP-Worker gekostet hat.
-				const geometry = spotlightLoreIntersectGeometry(area.geometry, null);
+				const geometry = spotlightLoreAreaGeometryToDraw(isRuleArea, area.geometry, bandGeometry);
 				if (!geometry) {
 					return;
 				}
@@ -697,7 +844,7 @@ function highlightSpotlightPlaces(places, areasByLabel = null, { pointFallback =
 			return;
 		}
 
-		if (!pointFallback) {
+		if (!spotlightLoreAllowsPointFallback(place, pointFallback)) {
 			return;
 		}
 
