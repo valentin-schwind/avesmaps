@@ -58,52 +58,143 @@ $layers = [
     // 14.08.2026 an 11.810 Features -- location, crossing, path, junction, label, powerline).
     // Was man dafür hielte, sind die Landschaften-Flächen.
     //
-    // Die Unterarten sind AM 14.08.2026 GEGEN DIE LIVE-API GEMESSEN, nicht erfunden. Die
-    // Zahlen in Klammern sind der damalige Stand -- sie sollen die Größenordnung zeigen,
-    // nicht exakt sein; das echte Zählwerk steht nach dem Bauen in der Tabelle unten.
+    // 🔴 ALLE Unterarten und Zahlen sind AM 14.08.2026 GEGEN DIE LIVE-API GEMESSEN, nicht
+    // erfunden. Die Zahlen zeigen die Größenordnung, sie sind keine Zusicherung -- das echte
+    // Zählwerk steht nach dem Bauen in der Tabelle unten.
+    //
+    // Der Baum hat drei Stufen, und die zweite und dritte beantworten VERSCHIEDENE Fragen:
+    // bei den Landschaften steuert die Art (Vegetation/Topographie/…) den ABRUF -- was nicht
+    // angehakt ist, wird gar nicht erst geladen --, der Geländetyp darunter das ZEICHNEN.
+    //
     // Herrschaftsgebiete bekommen bewusst KEINE Unterarten: alle 166 tragen denselben
     // type ('region'), es gäbe also genau ein Kästchen.
     [
         'key' => 'landschaften', 'label' => 'Landschaften & Küste',
         'note' => 'Kontinente, Inseln, Meere, Vegetation, Klimazonen',
-        'subLabel' => 'Ebenen (nicht Angehaktes wird gar nicht erst geladen)',
-        'subs' => [
-            ['value' => 'derographisch', 'label' => 'Derographisch', 'note' => '64'],
-            ['value' => 'vegetation', 'label' => 'Vegetation', 'note' => '145 &ndash; Wald, Steppe, Wüste …'],
-            ['value' => 'topographie', 'label' => 'Topographie', 'note' => '641 &ndash; Meer, See, Insel, Gebirge …'],
-            ['value' => 'klima', 'label' => 'Klimazonen', 'note' => '8'],
+        'childLabel' => 'Ebenen (nicht Angehaktes wird gar nicht erst geladen)',
+        'children' => [
+            [
+                'key' => 'derographisch', 'label' => 'Derographisch', 'note' => '64',
+                'childLabel' => 'Typen',
+                'children' => [
+                    // Der Rueckfall aus dem Bauer: 48 derographische plus 1 topographische Flaeche
+                    // tragen keinen region_type. EIN Kaestchen fuer beide -- der Topf ist artuebergreifend.
+                    ['key' => 'ohne_typ', 'label' => 'ohne Typ', 'note' => '49'],
+                    ['key' => 'region', 'label' => 'Region', 'note' => '14'],
+                    ['key' => 'kontinent', 'label' => 'Kontinent', 'note' => '1'],
+                    ['key' => 'inselgruppe', 'label' => 'Inselgruppe', 'note' => '1'],
+                ],
+            ],
+            [
+                'key' => 'vegetation', 'label' => 'Vegetation', 'note' => '145',
+                'childLabel' => 'Typen',
+                'children' => [
+                    ['key' => 'wald', 'label' => 'Wald', 'note' => '90'],
+                    ['key' => 'suempfe_moore', 'label' => 'Sümpfe & Moore', 'note' => '18'],
+                    ['key' => 'flussland_flusstal', 'label' => 'Flussland & Flusstal', 'note' => '15'],
+                    ['key' => 'wuestenoase', 'label' => 'Wüstenoase', 'note' => '9'],
+                    ['key' => 'steppe', 'label' => 'Steppe', 'note' => '4'],
+                    ['key' => 'graslandschaft', 'label' => 'Graslandschaft', 'note' => '4'],
+                    ['key' => 'wueste', 'label' => 'Wüste', 'note' => '3'],
+                    ['key' => 'auenlandschaft', 'label' => 'Auenlandschaft', 'note' => '2'],
+                ],
+            ],
+            [
+                'key' => 'topographie', 'label' => 'Topographie', 'note' => '641',
+                'childLabel' => 'Typen',
+                'children' => [
+                    ['key' => 'see', 'label' => 'See', 'note' => '298'],
+                    ['key' => 'insel', 'label' => 'Insel', 'note' => '222'],
+                    ['key' => 'gebirge', 'label' => 'Gebirge', 'note' => '59'],
+                    ['key' => 'meer', 'label' => 'Meer', 'note' => '32'],
+                    ['key' => 'huegelland', 'label' => 'Hügelland', 'note' => '9'],
+                    ['key' => 'tal', 'label' => 'Tal', 'note' => '6'],
+                    ['key' => 'tiefebene', 'label' => 'Tiefebene', 'note' => '4'],
+                    ['key' => 'wadi', 'label' => 'Wadi', 'note' => '4'],
+                    ['key' => 'hochebene', 'label' => 'Hochebene', 'note' => '3'],
+                    ['key' => 'flussdelta', 'label' => 'Flussdelta', 'note' => '2'],
+                    ['key' => 'kueste', 'label' => 'Küste', 'note' => '1'],
+                ],
+            ],
+            [
+                'key' => 'klima', 'label' => 'Klimazonen', 'note' => '8',
+                'childLabel' => 'Zonen',
+                'children' => [
+                    ['key' => 'polar', 'label' => 'Polar', 'note' => ''],
+                    ['key' => 'subpolar', 'label' => 'Subpolar', 'note' => ''],
+                    ['key' => 'boreal', 'label' => 'Boreal', 'note' => ''],
+                    ['key' => 'gemaessigt', 'label' => 'Gemäßigt', 'note' => ''],
+                    ['key' => 'subtropen_winterfeucht', 'label' => 'Subtropen, winterfeucht', 'note' => ''],
+                    ['key' => 'trockene_subtropen', 'label' => 'Trockene Subtropen', 'note' => ''],
+                    ['key' => 'subtropisch', 'label' => 'Subtropisch', 'note' => ''],
+                    ['key' => 'tropisch', 'label' => 'Tropisch', 'note' => ''],
+                ],
+            ],
         ],
     ],
-    ['key' => 'gebiete', 'label' => 'Herrschaftsgebiete', 'note' => 'die politischen Grenzen (166)', 'subs' => []],
+    ['key' => 'gebiete', 'label' => 'Herrschaftsgebiete', 'note' => 'die politischen Grenzen (166)'],
     [
         'key' => 'wege', 'label' => 'Wege', 'note' => '',
-        'subLabel' => 'Wegarten',
-        'subs' => [
-            ['value' => 'Reichsstrasse', 'label' => 'Reichsstraßen', 'note' => '352'],
-            ['value' => 'Strasse', 'label' => 'Straßen', 'note' => '1.026'],
-            ['value' => 'Weg', 'label' => 'Wege', 'note' => '365'],
-            ['value' => 'Pfad', 'label' => 'Pfade', 'note' => '1.557'],
-            ['value' => 'Gebirgspass', 'label' => 'Gebirgspässe', 'note' => '201'],
-            ['value' => 'Wuestenpfad', 'label' => 'Wüstenpfade', 'note' => '35'],
-            ['value' => 'Flussweg', 'label' => 'Flusswege', 'note' => '1.103'],
-            ['value' => 'Seeweg', 'label' => 'Seewege', 'note' => '1.286'],
+        'childLabel' => 'Wegarten',
+        'children' => [
+            ['key' => 'Reichsstrasse', 'label' => 'Reichsstraßen', 'note' => '352'],
+            ['key' => 'Strasse', 'label' => 'Straßen', 'note' => '1.026'],
+            ['key' => 'Weg', 'label' => 'Wege', 'note' => '365'],
+            ['key' => 'Pfad', 'label' => 'Pfade', 'note' => '1.557'],
+            ['key' => 'Gebirgspass', 'label' => 'Gebirgspässe', 'note' => '201'],
+            ['key' => 'Wuestenpfad', 'label' => 'Wüstenpfade', 'note' => '35'],
+            ['key' => 'Flussweg', 'label' => 'Flusswege', 'note' => '1.103'],
+            ['key' => 'Seeweg', 'label' => 'Seewege', 'note' => '1.286'],
         ],
     ],
-    ['key' => 'kraftlinien', 'label' => 'Kraftlinien', 'note' => '162', 'subs' => []],
+    ['key' => 'kraftlinien', 'label' => 'Kraftlinien', 'note' => '162'],
     [
         'key' => 'orte', 'label' => 'Orte', 'note' => '',
-        'subLabel' => 'Ortsgrößen',
-        'subs' => [
-            ['value' => 'metropole', 'label' => 'Metropolen', 'note' => '10'],
-            ['value' => 'grossstadt', 'label' => 'Großstädte', 'note' => '34'],
-            ['value' => 'stadt', 'label' => 'Städte', 'note' => '213'],
-            ['value' => 'kleinstadt', 'label' => 'Kleinstädte', 'note' => '309'],
-            ['value' => 'dorf', 'label' => 'Dörfer', 'note' => '1.945'],
-            ['value' => 'gebaeude', 'label' => 'Gebäude', 'note' => '288'],
+        'childLabel' => 'Ortsgrößen',
+        'children' => [
+            ['key' => 'metropole', 'label' => 'Metropolen', 'note' => '10'],
+            ['key' => 'grossstadt', 'label' => 'Großstädte', 'note' => '34'],
+            ['key' => 'stadt', 'label' => 'Städte', 'note' => '213'],
+            ['key' => 'kleinstadt', 'label' => 'Kleinstädte', 'note' => '309'],
+            ['key' => 'dorf', 'label' => 'Dörfer', 'note' => '1.945'],
+            ['key' => 'gebaeude', 'label' => 'Gebäude', 'note' => '288'],
         ],
     ],
-    ['key' => 'beschriftungen', 'label' => 'Beschriftungen', 'note' => 'als echter Text', 'subs' => []],
+    ['key' => 'beschriftungen', 'label' => 'Beschriftungen', 'note' => 'als echter Text'],
 ];
+
+/**
+ * Einen Knoten samt Kindern ausgeben. Der Pfad (`landschaften/topographie/see`) ist die
+ * Kennung im Baum; der `value` daneben trägt den ECHTEN Domänenschlüssel, der auch leer
+ * sein darf (48 Landschaftsflächen haben keinen region_type).
+ */
+$renderNode = static function (array $node, string $parentPath, int $depth) use (&$renderNode): void {
+    $key = (string) $node['key'];
+    $path = $parentPath === '' ? $key : $parentPath . '/' . $key;
+    $cls = $depth === 0 ? 'svgx-choice--layer' : ($depth === 1 ? 'svgx-choice--sub' : 'svgx-choice--leaf');
+    ?>
+    <label class="svgx-choice <?php echo $cls; ?>">
+        <input type="checkbox"
+               data-svgx-node="<?php echo htmlspecialchars($path, ENT_QUOTES, 'UTF-8'); ?>"
+               <?php if ($parentPath !== '') : ?>data-svgx-parent="<?php echo htmlspecialchars($parentPath, ENT_QUOTES, 'UTF-8'); ?>"<?php endif; ?>
+               value="<?php echo htmlspecialchars($key, ENT_QUOTES, 'UTF-8'); ?>" checked />
+        <span><?php echo htmlspecialchars((string) $node['label'], ENT_QUOTES, 'UTF-8'); ?>
+            <?php if (($node['note'] ?? '') !== '') : ?>
+                <span class="svgx-choice__note"><?php echo $node['note']; ?></span>
+            <?php endif; ?>
+        </span>
+    </label>
+    <?php if (!empty($node['children'])) : ?>
+        <div class="svgx-children svgx-children--<?php echo $depth; ?>">
+            <?php if (($node['childLabel'] ?? '') !== '') : ?>
+                <p class="svgx-children__title"><?php echo htmlspecialchars((string) $node['childLabel'], ENT_QUOTES, 'UTF-8'); ?></p>
+            <?php endif; ?>
+            <?php foreach ($node['children'] as $child) : ?>
+                <?php $renderNode($child, $path, $depth + 1); ?>
+            <?php endforeach; ?>
+        </div>
+    <?php endif;
+};
 
 ?><!DOCTYPE html>
 <html lang="de">
@@ -116,7 +207,7 @@ $layers = [
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
          or either script changes, or admins keep the cached files. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260814-svgexport-2" />
+    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260815-svgexport-3" />
 </head>
 
 <body class="edit-page">
@@ -196,32 +287,7 @@ $layers = [
                 <div class="svgx-group">
                     <h2 class="svgx-group__title">Welche Ebenen?</h2>
                     <?php foreach ($layers as $layer) : ?>
-                        <?php $key = htmlspecialchars($layer['key'], ENT_QUOTES, 'UTF-8'); ?>
-                        <div class="svgx-layer">
-                            <label class="svgx-choice svgx-choice--layer">
-                                <input type="checkbox" data-svgx-layer="<?php echo $key; ?>" checked />
-                                <span><?php echo htmlspecialchars($layer['label'], ENT_QUOTES, 'UTF-8'); ?>
-                                    <?php if ($layer['note'] !== '') : ?>
-                                        <span class="svgx-choice__note">&ndash; <?php echo $layer['note']; ?></span>
-                                    <?php endif; ?>
-                                </span>
-                            </label>
-                            <?php if (!empty($layer['subs'])) : ?>
-                                <div class="svgx-subs">
-                                    <p class="svgx-subs__title"><?php echo htmlspecialchars($layer['subLabel'] ?? '', ENT_QUOTES, 'UTF-8'); ?></p>
-                                    <?php foreach ($layer['subs'] as $sub) : ?>
-                                        <label class="svgx-choice svgx-choice--sub">
-                                            <input type="checkbox"
-                                                   data-svgx-sub="<?php echo $key; ?>"
-                                                   value="<?php echo htmlspecialchars($sub['value'], ENT_QUOTES, 'UTF-8'); ?>" checked />
-                                            <span><?php echo htmlspecialchars($sub['label'], ENT_QUOTES, 'UTF-8'); ?>
-                                                <span class="svgx-choice__note"><?php echo $sub['note']; ?></span>
-                                            </span>
-                                        </label>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
-                        </div>
+                        <div class="svgx-layer"><?php $renderNode($layer, '', 0); ?></div>
                     <?php endforeach; ?>
                 </div>
 
@@ -241,8 +307,8 @@ $layers = [
                 </table>
             </section>
         </main>
-        <script src="../js/pages/svg-export-build.js?v=20260814-svgexport-2"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260814-svgexport-2"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260815-svgexport-3"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260815-svgexport-3"></script>
     <?php endif; ?>
 </body>
 

@@ -25,36 +25,67 @@
 	// Ein Atemzug an den Browser, damit die Statuszeile mitläuft statt einzufrieren.
 	const atmen = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+	// Der Auswahlbaum ist generisch: jedes Kästchen kennt seinen Pfad
+	// (`landschaften/topographie/see`) und den seines Elternteils. Damit braucht keine
+	// Stufe eigenen Code -- eine vierte Stufe käme ohne Änderung hier aus.
+	const alleKnoten = () => [...document.querySelectorAll("[data-svgx-node]")];
+	const knoten = (pfad) => document.querySelector(`[data-svgx-node="${pfad}"]`);
+	const kinderVon = (pfad) => [...document.querySelectorAll(`[data-svgx-parent="${pfad}"]`)];
+
+	// Ebenen sind die Knoten ohne Elternteil.
 	function gewaehlteEbenen() {
 		const an = {};
-		document.querySelectorAll("[data-svgx-layer]").forEach((box) => {
-			an[box.getAttribute("data-svgx-layer")] = box.checked;
-		});
+		alleKnoten().filter((b) => !b.dataset.svgxParent)
+			.forEach((b) => { an[b.dataset.svgxNode] = b.checked; });
 		return an;
 	}
 
-	// {wege: {Seeweg: true, Pfad: false, …}, orte: {…}, landschaften: {…}}
-	// ⚠️ Nur ein ausdrückliches false schließt aus (siehe svgxSubgroupEnabled im Bauer):
-	// eine Unterart, die es hier nicht als Kästchen gibt, bleibt in der Datei.
+	// {wege: {Seeweg: true, …}, orte: {…}, landschaften: {topographie: …}, landschaftstypen: {see: …}}
+	// ⚠️ Nur ein ausdrückliches false schließt aus (svgxSubgroupEnabled im Bauer): eine Art,
+	// die es hier nicht als Kästchen gibt, bleibt in der Datei. So verschwindet keine
+	// Datenleiche lautlos, bloß weil sie in keiner Liste steht.
 	function gewaehlteUnterarten() {
 		const unter = {};
-		document.querySelectorAll("[data-svgx-sub]").forEach((box) => {
-			const ebene = box.getAttribute("data-svgx-sub");
-			if (!unter[ebene]) { unter[ebene] = {}; }
-			unter[ebene][box.value] = box.checked;
+		const setz = (topf, schluessel, wert) => {
+			if (!unter[topf]) { unter[topf] = {}; }
+			unter[topf][schluessel] = wert;
+		};
+		alleKnoten().forEach((b) => {
+			const teile = b.dataset.svgxNode.split("/");
+			if (teile.length === 2) {
+				// zweite Stufe: Wegart, Ortsgröße -- bei den Landschaften die Ebenen-Art
+				setz(teile[0], b.value, b.checked);
+			} else if (teile.length === 3 && teile[0] === "landschaften") {
+				// dritte Stufe: der Geländetyp, nach dem der Bauer die Flächen gruppiert.
+				// Er liegt in EINEM Topf über alle vier Arten hinweg, weil `region_type`
+				// die Gruppierung ist und die Art nur bestimmt, was geladen wird.
+				setz("landschaftstypen", b.value, b.checked);
+			}
 		});
 		return unter;
 	}
 
-	// Ein Häkchen an der Ebene setzt alle ihre Unterarten; sind nur einige an, zeigt die
-	// Ebene den Zwischenzustand -- sonst behauptet ein volles Häkchen etwas Falsches.
-	function ebeneNachKindernAusrichten(ebene) {
-		const haupt = document.querySelector(`[data-svgx-layer="${ebene}"]`);
-		const kinder = [...document.querySelectorAll(`[data-svgx-sub="${ebene}"]`)];
-		if (!haupt || kinder.length === 0) { return; }
-		const an = kinder.filter((k) => k.checked).length;
-		haupt.checked = an > 0;
-		haupt.indeterminate = an > 0 && an < kinder.length;
+	// Ein Häkchen setzt alles darunter; ist nur ein Teil an, zeigt der Elternteil den
+	// Zwischenzustand -- sonst behauptet ein volles Häkchen etwas Falsches.
+	function nachUntenSetzen(box) {
+		kinderVon(box.dataset.svgxNode).forEach((kind) => {
+			kind.checked = box.checked;
+			kind.indeterminate = false;
+			nachUntenSetzen(kind);
+		});
+	}
+
+	function nachObenAusrichten(box) {
+		const elternPfad = box.dataset.svgxParent;
+		if (!elternPfad) { return; }
+		const eltern = knoten(elternPfad);
+		if (!eltern) { return; }
+		const geschwister = kinderVon(elternPfad);
+		const an = geschwister.filter((g) => g.checked).length;
+		const halb = geschwister.some((g) => g.indeterminate);
+		eltern.checked = an > 0;
+		eltern.indeterminate = halb || (an > 0 && an < geschwister.length);
+		nachObenAusrichten(eltern);
 	}
 
 	function gewaehlterDialekt() {
@@ -174,11 +205,10 @@
 	}
 
 	function alleSetzen(zustand) {
-		document.querySelectorAll("[data-svgx-layer]").forEach((box) => {
+		alleKnoten().forEach((box) => {
 			box.checked = zustand;
 			box.indeterminate = false;
 		});
-		document.querySelectorAll("[data-svgx-sub]").forEach((box) => { box.checked = zustand; });
 	}
 
 	document.addEventListener("DOMContentLoaded", function () {
@@ -189,18 +219,12 @@
 		const keine = el("svgx-none");
 		if (keine) { keine.addEventListener("click", () => alleSetzen(false)); }
 
-		// Ebene an -> alle ihre Unterarten an, und umgekehrt.
-		document.querySelectorAll("[data-svgx-layer]").forEach((haupt) => {
-			const ebene = haupt.getAttribute("data-svgx-layer");
-			haupt.addEventListener("change", function () {
-				haupt.indeterminate = false;
-				document.querySelectorAll(`[data-svgx-sub="${ebene}"]`)
-					.forEach((kind) => { kind.checked = haupt.checked; });
-			});
-		});
-		document.querySelectorAll("[data-svgx-sub]").forEach((kind) => {
-			kind.addEventListener("change", function () {
-				ebeneNachKindernAusrichten(kind.getAttribute("data-svgx-sub"));
+		// Ein Zuhörer für den ganzen Baum, gleich auf welcher Stufe.
+		alleKnoten().forEach((box) => {
+			box.addEventListener("change", function () {
+				box.indeterminate = false;
+				nachUntenSetzen(box);
+				nachObenAusrichten(box);
 			});
 		});
 	});

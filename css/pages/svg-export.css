@@ -64,7 +64,10 @@
 	font-weight: 600;
 }
 
-.svgx-subs {
+/* Eine Stufe des Auswahlbaums. Die Einrückung plus die senkrechte Linie IST die
+   Hierarchie -- kein Rahmen, kein Kasten. Gilt für jede Tiefe gleich, damit eine
+   vierte Stufe ohne neue Regel auskäme. */
+.svgx-children {
 	margin: 4px 0 0 22px;
 	padding-left: 12px;
 	border-left: 1px solid var(--color-divider);
@@ -74,7 +77,14 @@
 	align-items: baseline;
 }
 
-.svgx-subs__title {
+/* Die dritte Stufe steht unter ihrer zweiten, also braucht sie die volle Breite. */
+.svgx-children--1 {
+	flex: 0 0 100%;
+	margin-top: 2px;
+	margin-bottom: 6px;
+}
+
+.svgx-children__title {
 	flex: 0 0 100%;
 	margin: 2px 0 2px 0;
 	font-size: 11px;
@@ -84,8 +94,14 @@
 }
 
 .svgx-choice--sub {
-	font-weight: 400;
+	font-weight: 500;
 	font-size: 13px;
+}
+
+.svgx-choice--leaf {
+	font-weight: 400;
+	font-size: 12.5px;
+	color: var(--color-text-muted);
 }
 
 .svgx-choices {

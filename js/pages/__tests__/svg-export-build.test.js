@@ -216,3 +216,37 @@ console.log("svg-export-build: ok");
 }
 
 console.log("svg-export-build (Unterarten): ok");
+
+// ---- 9. Landschaften: Geländetyp als dritte Auswahlstufe -------------------------------
+{
+	const flaeche = (typ, name, id) => ({
+		public_id: id, region_name: name, region_type: typ, kind: "topographie",
+		geometry: { type: "Polygon", coordinates: [[[0, 1024], [4, 1024], [4, 1020], [0, 1024]]] },
+	});
+	// ⚠️ FLACHE Objekte, ohne properties -- so liefert ecosystem-areas.php sie wirklich.
+	const eco = [flaeche("wald", "Der Wald", "e1"), flaeche("meer", "Das Meer", "e2"),
+		flaeche("", "Namenlos", "e3")];
+
+	const alles = B.svgxBuildDocument({ ecosystems: eco, dialect: D.INKSCAPE,
+		layers: { landschaften: true, gebiete: false, wege: false, kraftlinien: false,
+			orte: false, beschriftungen: false } });
+	assert.strictEqual(alles.stats.Landschaften, 3);
+	assert.ok(alles.parts.join("").includes("<title>Der Wald</title>"),
+		"der Name muss aus dem FLACHEN Objekt gelesen werden (region_name)");
+
+	// 💣 Eine Fläche ohne region_type landet unter 'ohne_typ' -- NICHT unter dem Namen
+	// ihrer Art. Sonst trüge sie einen Gruppennamen, den kein Kästchen kennt, und wäre
+	// nie abwählbar.
+	assert.ok(alles.detail.some((d) => d.group === "ohne_typ" && d.count === 1),
+		"typlose Flächen gehören in die Gruppe 'ohne_typ'");
+
+	const gefiltert = B.svgxBuildDocument({ ecosystems: eco, dialect: D.INKSCAPE,
+		layers: { landschaften: true, gebiete: false, wege: false, kraftlinien: false,
+			orte: false, beschriftungen: false },
+		subgroups: { landschaftstypen: { wald: true, meer: false, ohne_typ: false } } });
+	assert.strictEqual(gefiltert.stats.Landschaften, 1, "nur der Wald bleibt");
+	assert.ok(!gefiltert.parts.join("").includes("Das Meer"), "abgewählter Geländetyp muss fehlen");
+	assert.ok(!gefiltert.parts.join("").includes("Namenlos"), "'ohne_typ' muss abwählbar sein");
+}
+
+console.log("svg-export-build (Geländetypen): ok");

@@ -336,6 +336,7 @@ function svgxAreaLayer(options) {
 	let anzahl = 0;
 	const zaehler = {};
 	gruppen.forEach((flaechen, schluessel) => {
+		if (!svgxSubgroupEnabled(o.enabled, schluessel)) { return; }
 		stuecke.push(svgxGroupOpen({
 			name: schluessel || o.layerName,
 			id: `${o.layerId}-${svgxFoldAscii(schluessel).toLowerCase() || "ohne"}`,
@@ -356,7 +357,9 @@ function svgxAreaLayer(options) {
 			stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)} d="${d}">`
 				+ `<title>${svgxEscapeText(name)}</title></path>\n`);
 			anzahl += 1;
-			gruppen[schluessel || o.layerName] = (gruppen[schluessel || o.layerName] || 0) + 1;
+			// ⚠️ `zaehler`, NICHT `gruppen` -- letzteres ist die Map der Flächen. Eine Zahl
+			// dort abzulegen wirft keinen Fehler, sie ist nur für immer unauffindbar.
+			zaehler[schluessel || o.layerName] = (zaehler[schluessel || o.layerName] || 0) + 1;
 		});
 		stuecke.push(svgxGroupClose());
 	});
@@ -510,7 +513,15 @@ function svgxBuildDocument(options) {
 	if (an.landschaften !== false) {
 		nimm("Landschaften", svgxAreaLayer({
 			features: o.ecosystems, layerName: "Landschaften", layerId: "layer-landschaften",
-			groupBy: (f) => svgxProps(f).region_type || svgxProps(f).kind || "flaeche",
+			// 💣 Der Rückfall heißt `ohne_typ` und NICHT etwa der Name der Art. 49 Flächen
+			// tragen keinen region_type; fielen sie auf "topographie"/"derographisch"
+			// zurück, hätten sie einen Gruppennamen, den kein Kästchen kennt -- sie
+			// rutschten an jedem Filter vorbei und wären nie abwählbar.
+			groupBy: (f) => svgxProps(f).region_type || "ohne_typ",
+			// Die dritte Auswahlstufe: Geländetyp (wald, see, insel, gebirge …). Sie sitzt
+			// eine Ebene TIEFER als die vier Landschafts-Arten, weil die Arten den ABRUF
+			// steuern und die Typen das ZEICHNEN -- zwei verschiedene Fragen.
+			enabled: (o.subgroups || {}).landschaftstypen,
 			defaultFill: "#dfd6bd", fillOpacity: "0.85", dialect: dialect, seen: seen,
 		}));
 	}
