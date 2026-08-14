@@ -1249,7 +1249,7 @@
 	var TEMPO_GROUND_NOTES = {
 		aufgeweicht: "Abzug auf den Bodenfaktor", tauboden: "Abzug auf den Bodenfaktor",
 		leichter_schnee: "Abzug auf den Bodenfaktor", tiefschnee: "Abzug auf den Bodenfaktor",
-		eis: "Abzug auf den Bodenfaktor", untergrenze: "so tief kann kein Abzug druecken"
+		eis: "Abzug auf den Bodenfaktor", untergrenze: "so tief kann kein Abzug drücken"
 	};
 
 	function tempoNum(value) {
