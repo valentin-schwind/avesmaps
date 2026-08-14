@@ -24,7 +24,7 @@ window.AVESMAPS_I18N_EN = {
 	// V12, edit mode only.
 	"planner.showRouteSpeed": "Speed",
 	"planner.showRouteSpeed.title": "Arrows along the planned route: short and red-brown where terrain or current slow you down, long and green where you gain. The length shows the deviation from the way type's base speed, not the absolute speed.",
-	"planner.travelHours.title": "Travel hours per day; the rest of the day is spent resting. Applies to every mode except the fast sailer, which runs around the clock. 24 = travel without rest.",
+	"planner.travelHours.title": "Travel hours per day; the rest of the day is spent resting. A rest is only taken once the day's travel hours are used up and there is still road ahead. Applies to every mode except the fast sailer, which runs around the clock. 24 = travel without rest.",
 	// Umbenannt von "planner.travelHoursSuffix" (2026-08-03): die Beschriftung steht jetzt VOR dem
 	// Feld, damit sie dieselbe Grammatik spricht wie die Reisebeginn-Zeile darunter. Ein Schluessel
 	// namens "Suffix" waere danach schlicht falsch.
