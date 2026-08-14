@@ -43,6 +43,12 @@
 	function num(v) {
 		return Number(v).toLocaleString("de-DE");
 	}
+	// Fuer Zahlen im FLIESSTEXT. Die Matrix bleibt bei `num()` -- dort steht die Zahl allein in ihrer
+	// Zelle; im Satz steht sie neben englischen Woertern, und „2,3 miles/h" liest sich dort falsch.
+	function proseNum(v) {
+		const lang = typeof window !== "undefined" && window.avesmapsActiveLang === "en" ? "en-US" : "de-DE";
+		return Number(v).toLocaleString(lang);
+	}
 	function esc(s) {
 		return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 	}
@@ -82,6 +88,35 @@
 	}
 	function tierClass(v, bounds) {
 		return v >= bounds.fast ? "tsi-fast" : v >= bounds.mid ? "tsi-mid" : "tsi-slow";
+	}
+
+	// 💣 DIE QUERFELDEIN-SPANNE WIRD GERECHNET, NIE GETIPPT -- aus derselben Tabellenspalte, die
+	// gleich darueber steht. Als Literal war sie ZWEIMAL hintereinander still veraltet: „1,25-2,5
+	// Meilen/h" ueberlebte die Quellenangleichung (d9d7ab39, danach 0,96-1,6) und stand am
+	// 14.08.2026 noch immer da, als die Tempowerte-Migration (2ae79c2d) die Spalte auf ihren
+	// Quellenwert 0,75 der Strasse zog -- die echte Spanne ist seither 2,3-3,84. Ein Satz, der eine
+	// Zahl aus SPEED_TABLE nacherzaehlt, veraltet bei JEDER Kalibrierung; nur der Zugriff nicht.
+	// Dieselbe Lehre wie bei `landTierBounds` daruber.
+	//
+	// ⚠️ Gerechnet ueber LAND_MODES, also genau ueber die Zellen, die die Matrix zeigt. Die Kutsche
+	// faehrt nie querfeldein (`avesmapsClientRouteTransportOptions` verbietet die Wegart, config.js),
+	// traegt ihre Zelle aber mit und steht damit auch in der Matrix -- Spanne und Spalte sollen
+	// dasselbe sagen. Rechnerisch aendert sie nichts: 3,84 hat der leichte Reiter ohnehin.
+	//
+	// Leere Spalte -> leere Klammer, nicht „∞": dieselbe Ausweichlinie wie bei `waterModes`, wo eine
+	// fehlende Zahl die Beschriftung stehen laesst. „Das ist zaeh, darum ..." bleibt ein wahrer Satz.
+	function crossCountryRangeClause() {
+		let min = Infinity;
+		let max = -Infinity;
+		LAND_MODES.forEach((m) => {
+			const v = (SPEED_TABLE[m.key] || {}).Querfeldein;
+			if (typeof v !== "number" || !isFinite(v)) return;
+			if (v < min) min = v;
+			if (v > max) max = v;
+		});
+		if (!isFinite(min) || !isFinite(max)) return "";
+		const unit = esc(tr("transport.speedInfo.speedUnit", "Meilen/h"));
+		return " (" + proseNum(min) + "–" + proseNum(max) + "&nbsp;" + unit + ")";
 	}
 
 	function landTable() {
@@ -138,7 +173,7 @@
 			"</div>" +
 			'<div class="tsi-rules">' +
 			'<div class="tsi-rule">' + iconImg("icons/Rast.webp") + "<div>" + tr("transport.speedInfo.restRule", "<b>Rast.</b> Standardmäßig reist du 12 Stunden am Tag und rastest 12 Stunden (im Planer einstellbar). Das gilt an Land, auf Flüssen und auch für Lastensegler und Galeere — <b>nur der Schnellsegler</b> fährt rund um die Uhr.") + "</div></div>" +
-			'<div class="tsi-rule">' + iconImg("icons/Querfeldein.webp") + "<div>" + tr("transport.speedInfo.crossCountryRule", "<b>Querfeldein.</b> Fehlt zwischen zwei Orten ein echter Weg, schlägt sich die Route per Luftlinie durchs Gelände. Das ist zäh (1,25–2,5&nbsp;Meilen/h), darum bevorzugt die Berechnung selbst große Umwege über richtige Straßen und Pfade.") + "</div></div>" +
+			'<div class="tsi-rule">' + iconImg("icons/Querfeldein.webp") + "<div>" + tr("transport.speedInfo.crossCountryRule", "<b>Querfeldein.</b> Fehlt zwischen zwei Orten ein echter Weg, schlägt sich die Route per Luftlinie durchs Gelände. Das ist zäh{range}, darum bevorzugt die Berechnung selbst große Umwege über richtige Straßen und Pfade.", { range: crossCountryRangeClause() }) + "</div></div>" +
 			// V11. Spans both columns (.tsi-rule--wide): it is the longest of the three, and letting it
 			// run full width keeps the block at two rows instead of three.
 			// ⚠️ Shown unconditionally. It describes the map while `terrain_travel_enabled` is on, and

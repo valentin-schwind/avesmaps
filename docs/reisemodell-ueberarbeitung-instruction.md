@@ -170,17 +170,26 @@ Nachgezogen sind `seaNote`, `restRule`, `riverNote`, das Planerfeld („Reisestu
 Flüsse jetzt auch rasten), die ausgeschriebenen Geschwindigkeiten der Land-Auswahl und die
 englischen Entsprechungen in `js/app/i18n-en.js`.
 
-🔧 **Offen, gemessen am 2026-08-03** — beide in `js/routing/transport-speed-info.js`:
+🔧 **Offen, gemessen am 2026-08-03** — in `js/routing/transport-speed-info.js`:
 
 - `intro`: *„Eine gute Reichsstraße trägt dich **doppelt so schnell** wie ein **Gebirgspfad**."*
   Zwei Fehler in einem Satz: der Wegtyp heißt **Gebirgspass**, und das Verhältnis ist **2,7- bis
   3,0-fach** (Kutsche sogar 6,0×, weil sie auf Pässen zusätzlich halbiert).
-- `crossCountryRule`: *„Das ist zäh (**1,25–2,5** Meilen/h)"* — die Querfeldein-Spanne ist seit
-  `d9d7ab39` **0,96–1,6 Meilen/h**.
+
+✅ **`crossCountryRule` — erledigt am 2026-08-14.** Die Spanne wird nicht mehr getippt, sondern aus
+der Spalte `Querfeldein` von `SPEED_TABLE` gerechnet (`crossCountryRangeClause()`), deutsch wie
+englisch. 💣 **Als Literal war sie ZWEIMAL still veraltet**: „1,25–2,5 Meilen/h" überlebte die
+Quellenangleichung (`d9d7ab39`, danach 0,96–1,6) und stand immer noch da, als die
+Tempowerte-Migration (`2ae79c2d`) die Spalte auf ihren Quellenwert 0,75 der Straße zog — echte
+Spanne seither **2,3–3,84 Meilen/h**. Genau deshalb ist der Wert jetzt ein Zugriff und keine Zahl:
+er veraltet sonst bei **jeder** Kalibrierung im Fenster „Tempowerte".
 
 ⚠️ Der Wächter `api/_internal/routing/__tests__/terrain-text-claims-test.php` ist grün: er deckt
-den Steigungssatz, `riverNote`, `restRule` und `seaNote` ab — diese beiden Zahlen aber nicht. Wer
-sie korrigiert, sollte sie gleich mit in den Wächter nehmen.
+den Steigungssatz, `riverNote`, `restRule` und `seaNote` ab — die `intro`-Zahl oben aber nicht. Wer
+sie korrigiert, sollte sie gleich mit in den Wächter nehmen. Für den Querfeldein-Satz tut das seit
+dem 2026-08-14 `js/routing/__tests__/cross-country-range.test.js`: es rendert das Fenster in beiden
+Sprachen und hält den Satz gegen die Tabelle — und schlägt an, wenn jemand den Platzhalter wieder
+durch eine Zahl ersetzt.
 
 ### ✅ P6 — Der Wege-Editor
 

@@ -116,7 +116,7 @@ davon macht prüfbare Aussagen:
 | `landTravel` | Landreise | ⬜ offen |
 | `riverTravel`, `riverNote` | Fluss + Strömung | ⬜ offen |
 | `seaTravel`, `seaNote` | Seereise | ⬜ offen |
-| `crossCountryRule` | Querfeldein | ⬜ offen |
+| `crossCountryRule` | Querfeldein | ✅ 14.08.2026: Spanne wird aus `SPEED_TABLE` gerechnet, nicht mehr getippt (`cross-country-range.test.js`) |
 | `restRule` | Rasten | ⬜ offen |
 | `pathTypeHeader`, `intro`, `legend` | Wegtypen / Rahmen | ⬜ offen |
 

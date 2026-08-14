@@ -1033,7 +1033,10 @@ window.AVESMAPS_I18N_EN = {
 	"transport.speedInfo.seaTravel": "Sea travel",
 	"transport.speedInfo.seaNote": "Only the fast sailer runs day and night on a known route — no rest time is needed for it. The cargo sailer and the galley anchor at night and rest like travellers on land.",
 	"transport.speedInfo.restRule": "<b>Rest.</b> By default you travel 12 hours a day and rest 12 hours (adjustable in the planner). This applies on land, on rivers, and to the cargo sailer and the galley as well — <b>only the fast sailer</b> runs around the clock.",
-	"transport.speedInfo.crossCountryRule": "<b>Cross-country.</b> If there is no real path between two places, the route cuts straight across the terrain. This is slow (1.25–2.5&nbsp;miles/h), so the calculation itself prefers large detours over proper roads and trails.",
+	// `{range}` is filled by crossCountryRangeClause() in transport-speed-info.js from the Querfeldein
+	// column of SPEED_TABLE -- never type the numbers back in, they went stale twice as a literal.
+	"transport.speedInfo.crossCountryRule": "<b>Cross-country.</b> If there is no real path between two places, the route cuts straight across the terrain. This is slow{range}, so the calculation itself prefers large detours over proper roads and trails.",
+	"transport.speedInfo.speedUnit": "miles/h",
 	// V11. "Schritt" stays (see the note above on the DSA unit of length). The numbers are the curve
 	// itself, not a paraphrase: 300 Schritt of climb per mile is a gradient of 0,1 and the factor is
 	// 1 + 5 · gradient, so +50 %; the ceiling is the FACTOR_MAX of 4,0 at 1.800 Schritt per mile; the
