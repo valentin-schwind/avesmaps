@@ -499,7 +499,7 @@ function renderSettlementList() {
 	const tabsHost = wikiSyncViewTabsHostFor("locations");
 	if (tabsHost) {
 		const tab = (view, label, count) =>
-			`<button type="button" data-settlement-view="${view}" class="region-sync__viewtab${settlementListView === view ? " is-active" : ""}">${label} (${count})</button>`;
+			`<button type="button" data-settlement-view="${view}" class="region-sync__viewtab${settlementListView === view ? " is-active" : ""}">${label} (${avesmapsListBalanceNumber(count)})</button>`;
 		tabsHost.innerHTML = tab("all", "Alle", allCount) + tab("onmap", "Platziert", onMap) + tab("wiki", "Fehlt", wikiOnly);
 	}
 

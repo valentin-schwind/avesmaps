@@ -805,7 +805,13 @@
 			if (metaInfo.wikiUrl) {
 				if (shouldShowMetaText) {
 					const separator = document.createElement("span");
-					separator.textContent = ", ";
+					// ⚠️ Trennzeichen als OPTION, nicht fest: dieses Modul rendert BEIDE Baeume --
+					// den im WikiSync-Panel und den im Territorien-Editor
+					// (js/territory/territory-editor-embedded.js:343 ruft dasselbe renderTree).
+					// Das Panel bekam am 14.08.2026 " · " wie seine sieben Geschwisterlisten; der
+					// Editor bleibt bei ", ", weil er ausdruecklich ausserhalb dieses Umbaus steht
+					// (Entwurf 2026-08-14-wikisync-listen-vereinheitlichung §11 Nicht-Ziele).
+					separator.textContent = options.metaSeparator || ", ";
 					meta.appendChild(separator);
 				}
 				const wikiLink = document.createElement("a");

@@ -452,7 +452,7 @@ function renderWikiSyncTerritoryMapStatusTabs(total, placed, missing) {
 		return;
 	}
 	const tab = (view, label, count) =>
-		`<button type="button" data-territory-mapstatus="${view}" class="region-sync__viewtab${wikiSyncTerritoryMapStatus === view ? " is-active" : ""}">${label} (${count})</button>`;
+		`<button type="button" data-territory-mapstatus="${view}" class="region-sync__viewtab${wikiSyncTerritoryMapStatus === view ? " is-active" : ""}">${label} (${avesmapsListBalanceNumber(count)})</button>`;
 	host.innerHTML = tab("all", "Alle", total) + tab("placed", "Platziert", placed) + tab("missing", "Fehlt", missing);
 }
 
@@ -632,6 +632,10 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 			rowCount: visibleRowCount,
 			totalRowCount: rows.length,
 			searchText: wikiSyncTerritoryFilterQuery,
+			// „·" wie bei den sieben anderen Subjekten -- der Baum trennte als einziger mit „,".
+			// Als Option, weil dasselbe Modul auch den Territorien-EDITOR rendert, der ausserhalb
+			// dieses Umbaus steht.
+			metaSeparator: " · ",
 			itemClassName: "wiki-sync-territory-tree__item",
 			onItemClick: (node, event) => {
 				event.stopPropagation();
@@ -2766,8 +2770,14 @@ function renderLoreLastSynced(data) {
 	var stamp = typeof data.last_synced === "string" ? data.last_synced.trim() : "";
 	if (stamp) {
 		var parsed = new Date(stamp.replace(" ", "T") + "Z");
-		syncedEl.textContent = "Zuletzt gesynct: "
-			+ (isNaN(parsed.getTime()) ? stamp : parsed.toLocaleString("de-DE"));
+		// 💣 Stand als rohes toLocaleString und ergab „26.7.2026, 11:01:16" — als einziges der acht
+		// Subjekte. Die anderen sieben gehen durch formatWikiSyncKindSyncedText (dateStyle:medium +
+		// timeStyle:short) und zeigen „26.07.2026, 11:01". Derselbe Formatierer, dieselbe Angabe.
+		// ⚠️ Der Zeitstempel kommt UTC aus app_setting; das "Z" oben macht ihn lokal lesbar, und
+		// deshalb wird hier das GEPARSTE Datum weitergereicht, nicht der rohe String.
+		syncedEl.textContent = isNaN(parsed.getTime())
+			? "Zuletzt gesynct: " + stamp
+			: formatWikiSyncKindSyncedText({ completed_at: parsed.toISOString() });
 	} else {
 		syncedEl.textContent = "Noch nie gesynct";
 	}
@@ -3683,7 +3693,10 @@ function formatWikiSyncSettlementSummaryText() {
 		return "Keine Ortsdaten geladen";
 	}
 
-	return `${openCount} offen, ${deferredCount} zurückgestellt, ${archivedCount} archiviert`;
+	// „Fälle", weil es keine Orte sind: gezählt wird by_status der WikiSync-FÄLLE. Das Substantiv
+	// fehlte hier ganz, und über der Zeile steht „Alle (3434)" — wer die 3007 sah, hatte keinen
+	// Anhaltspunkt, wovon. Trenner „·" wie bei den sieben anderen Subjekten.
+	return `${openCount} Fälle offen · ${deferredCount} zurückgestellt · ${archivedCount} archiviert`;
 }
 
 function formatWikiSyncTerritorySummaryText() {

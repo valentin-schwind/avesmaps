@@ -112,7 +112,11 @@ async function loadRegionWikiSync() {
 		}
 		const s = data.summary || {};
 		if (summary) {
-			summary.textContent = `${s.considered || 0} Regionen · ${s.map_labels || 0} Karten-Labels`;
+			// „gesynct", nicht „Regionen": s.considered zählt, was der letzte Sync betrachtet hat
+			// (1851), nicht die Zeilen der Liste (1616). Seit die Bilanzzeile eine Zeile tiefer
+			// „1.616 Regionen" sagt, standen zwei verschiedene Zahlen unter demselben Wort
+			// untereinander. Owner 14.08.2026: „,1851 gesynct' ist klarer".
+			summary.textContent = `${s.considered || 0} gesynct · ${s.map_labels || 0} Karten-Labels`;
 		}
 		renderRegionSyncList();
 		void refreshRegionBergStatus();
@@ -219,7 +223,7 @@ function renderRegionSyncList() {
 	const tabsHost = wikiSyncViewTabsHostFor("regions");
 	if (tabsHost) {
 		const tab = (view, label, count) =>
-			`<button type="button" data-region-view="${view}" class="region-sync__viewtab${regionSyncView === view ? " is-active" : ""}">${label} (${count})</button>`;
+			`<button type="button" data-region-view="${view}" class="region-sync__viewtab${regionSyncView === view ? " is-active" : ""}">${label} (${avesmapsListBalanceNumber(count)})</button>`;
 		tabsHost.innerHTML =
 			tab("all", "Alle", missingCount + matchedCount + ambiguousCount + mapOnlyCount) +
 			tab("matched", "Platziert", matchedCount + ambiguousCount) +

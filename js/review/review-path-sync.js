@@ -182,7 +182,10 @@ async function loadPathWikiSync() {
 		pathSyncData = data;
 		const s = data.summary || {};
 		if (summary) {
-			summary.textContent = `${s.considered || 0} Wege · ${s.map_paths || 0} Karten-Segmente`;
+			// „gesynct", nicht „Wege" — dieselbe Kollision wie bei den Regionen: s.considered ist,
+			// was der letzte Sync betrachtet hat (601), die Bilanzzeile darunter nennt die Zeilen
+			// der Liste (4.225).
+			summary.textContent = `${s.considered || 0} gesynct · ${s.map_paths || 0} Karten-Segmente`;
 		}
 		renderPathSyncList();
 	} catch (error) {
@@ -308,7 +311,7 @@ function renderPathSyncList() {
 	const tabsHost = wikiSyncViewTabsHostFor("paths");
 	if (tabsHost) {
 		const tab = (view, label, count) =>
-			`<button type="button" data-path-view="${view}" class="region-sync__viewtab${pathSyncView === view ? " is-active" : ""}">${label} (${count})</button>`;
+			`<button type="button" data-path-view="${view}" class="region-sync__viewtab${pathSyncView === view ? " is-active" : ""}">${label} (${avesmapsListBalanceNumber(count)})</button>`;
 		tabsHost.innerHTML =
 			tab("all", "Alle", assignedCount + missingCount + mapOnlyCount) +
 			tab("assigned", "Platziert", assignedCount) +
