@@ -191,6 +191,61 @@ ecosystemTestThrows(static fn() => avesmapsEcosystemParseLabelFilter("a-1,b'2"),
 ecosystemTestThrows(static fn() => avesmapsEcosystemParseLabelFilter('a-1,b 2'), 'space inside an id');
 ecosystemTestThrows(static fn() => avesmapsEcosystemParseLabelFilter('a-1,' . str_repeat('x', 65)), 'over-long id');
 
+// ---- Task 7: the ?regions= filter --------------------------------------------------------------------
+// Added because a Fläche belongs to a REGION, and a region carries MANY labels -- 853 areas, only 512
+// distinct label_public_id (measured). Same shape, same validation, same null behaviour as ?labels=.
+assert(avesmapsEcosystemParseRegionFilter('') === null, 'no regions = no filter');
+assert(avesmapsEcosystemParseRegionFilter('   ') === null);
+assert(avesmapsEcosystemParseRegionFilter('a003b3da-8428-43a9-9333-dc2a06b501d0')
+    === ['a003b3da-8428-43a9-9333-dc2a06b501d0'], 'a 36-char region UUID fits the {1,64} alphabet');
+assert(avesmapsEcosystemParseRegionFilter(' a-1 , b-2 ,c-3 ') === ['a-1', 'b-2', 'c-3'], 'trimmed');
+assert(avesmapsEcosystemParseRegionFilter('a-1,,a-1,b-2') === ['a-1', 'b-2'], 'empty parts dropped, deduped');
+assert(count(avesmapsEcosystemParseRegionFilter(implode(',', array_map(
+    static fn(int $i): string => 'id-' . $i,
+    range(1, AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT + 20)
+)))) === AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT, 'capped, not rejected');
+ecosystemTestThrows(static fn() => avesmapsEcosystemParseRegionFilter("a-1,b'2"), 'quote in an id');
+ecosystemTestThrows(static fn() => avesmapsEcosystemParseRegionFilter('a-1,b 2'), 'space inside an id');
+ecosystemTestThrows(static fn() => avesmapsEcosystemParseRegionFilter('a-1,' . str_repeat('x', 65)), 'over-long id');
+
+// ---- Task 7: the ?kind= filter ------------------------------------------------------------------------
+// Exists so spotlightLoreIntersectGeometry can ask for the eight climate bands alone (~2.6 MB measured
+// for the full payload otherwise). Against a FIXED whitelist, not the free alphabet the two list filters
+// above use -- an unknown kind must be a 400, never an empty result that looks like "nothing there".
+assert(avesmapsEcosystemParseKindFilter('') === null, 'no kind = no filter');
+assert(avesmapsEcosystemParseKindFilter('   ') === null);
+assert(avesmapsEcosystemParseKindFilter('vegetation') === 'vegetation');
+assert(avesmapsEcosystemParseKindFilter('klima') === 'klima');
+ecosystemTestThrows(static fn() => avesmapsEcosystemParseKindFilter('wetter'), 'an unknown kind');
+ecosystemTestThrows(static fn() => avesmapsEcosystemParseKindFilter('Klima'), 'kind is case sensitive');
+// 💣 MUTATION TARGET: if the whitelist check is ever replaced with "let everything through", every
+// ecosystemTestThrows() call above stops throwing and this file goes red at the first one.
+foreach (AVESMAPS_ECOSYSTEM_KINDS as $knownKind) {
+    assert(avesmapsEcosystemParseKindFilter($knownKind) === $knownKind, "{$knownKind} is a known kind");
+}
+
+// ---- Task 7: the ETag seed (api/app/ecosystem-areas.php's avesmapsEcosystemAreasETag) -----------------
+// 🔴 EVERY payload-shaping query parameter belongs in the seed -- an ETag that ignores one hands a
+// client the wrong subset out of its own cache (file header of ecosystem-areas.php). Kept as a pure
+// function in THIS file specifically so that guarantee is provable locally: the endpoint file's request
+// handler runs a live DB connection on include, so it cannot be required by a test.
+assert(avesmapsEcosystemAreasETagSeed([]) === '|||', 'four empty segments when nothing is set');
+assert(avesmapsEcosystemAreasETagSeed(['bbox' => 'a']) === 'a|||');
+assert(avesmapsEcosystemAreasETagSeed(['labels' => 'b']) === '|b||');
+assert(avesmapsEcosystemAreasETagSeed(['regions' => 'c']) === '||c|');
+assert(avesmapsEcosystemAreasETagSeed(['kind' => 'd']) === '|||d');
+// 💣 MUTATION TARGET: if `regions` or `kind` is ever dropped from the seed, these four go red -- two
+// different values of the SAME parameter must produce two different seeds, and "set" must differ from
+// "unset" too (a parameter that seeds identically whether present or absent is not in the seed at all).
+assert(avesmapsEcosystemAreasETagSeed(['regions' => 'r1']) !== avesmapsEcosystemAreasETagSeed(['regions' => 'r2']),
+    'different ?regions= values must seed differently');
+assert(avesmapsEcosystemAreasETagSeed([]) !== avesmapsEcosystemAreasETagSeed(['regions' => 'x']),
+    'regions must be part of the seed at all');
+assert(avesmapsEcosystemAreasETagSeed(['kind' => 'vegetation']) !== avesmapsEcosystemAreasETagSeed(['kind' => 'klima']),
+    'different ?kind= values must seed differently');
+assert(avesmapsEcosystemAreasETagSeed([]) !== avesmapsEcosystemAreasETagSeed(['kind' => 'x']),
+    'kind must be part of the seed at all');
+
 // ---- the optimistic guard's reader -------------------------------------------------------------------
 // REQUIRED, not optional: an optional guard is exactly how it silently fails to apply, and the second of
 // two concurrent saves would win in silence.

@@ -313,15 +313,17 @@ function avesmapsBuildMapSearchResults(
     // $pdo, damit diese Funktion wie bisher ohne Datenbank testbar bleibt -- Vorbild:
     // $inSettlementRows-Zweig oben) und liest bei einer normalen Anfrage nur EINE kleine Zeile,
     // bevor sie ueberhaupt Flaechen oder Zonen anfasst.
-    $rulePlacesByEntry = $pdo !== null
+    // Task 7: derselbe Aufruf liefert jetzt zusaetzlich zones_by_entry (fuenfter Parameter unten).
+    $ruleData = $pdo !== null
         ? avesmapsFetchLoreRulePlacesByEntry($pdo, array_column($loreRows['entries'] ?? [], 'wiki_key'))
-        : [];
+        : ['places_by_entry' => [], 'zones_by_entry' => []];
     [$loreResults, $loreTotal] = avesmapsCollectSearchSection(
         avesmapsBuildLoreSearchEntries(
             $loreRows['entries'] ?? [],
             $loreRows['places_by_entry'] ?? [],
             AVESMAPS_LORE_SEARCH_KIND_LABELS,
-            $rulePlacesByEntry
+            $ruleData['places_by_entry'] ?? [],
+            $ruleData['zones_by_entry'] ?? []
         ),
         $normalizedQuery,
         'avesmapsLoreSearchCompare',

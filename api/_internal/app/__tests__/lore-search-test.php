@@ -194,26 +194,94 @@ $rulePdo->exec(
 $rulePdo->exec('CREATE TABLE ecosystem_assignment_stamp (id INTEGER PRIMARY KEY, completed INTEGER NOT NULL)');
 $rulePdo->exec('INSERT INTO ecosystem_assignment_stamp (id, completed) VALUES (1, 1)');
 
+// Task 7: fuer avesmapsLoreRuleOrderedZoneKeys, dieselben acht Klimazonen wie
+// AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED, Nord nach Sued.
+$rulePdo->exec(
+    'CREATE TABLE ecosystem_region_type (
+        kind VARCHAR(16) NOT NULL, type_key VARCHAR(40) NOT NULL, sort_order INTEGER NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1
+    )'
+);
+$typeStmt = $rulePdo->prepare(
+    'INSERT INTO ecosystem_region_type (kind, type_key, sort_order, is_active) VALUES (?, ?, ?, 1)'
+);
+foreach ([
+    ['klima', 'polar', 10], ['klima', 'subpolar', 20], ['klima', 'boreal', 30],
+    ['klima', 'gemaessigt', 40], ['klima', 'subtropen_winterfeucht', 50],
+    ['klima', 'trockene_subtropen', 55], ['klima', 'subtropisch', 60], ['klima', 'tropisch', 70],
+] as [$typeKind, $typeKey, $sortOrder]) {
+    $typeStmt->execute([$typeKind, $typeKey, $sortOrder]);
+}
+
 // --- Befund 1: der Kurzschluss -----------------------------------------------------------
 // 'einbeere' selbst haette eine passende Regel UND eine passende Flaeche -- aber es ist nicht
 // unter den GEFUNDENEN Eintraegen, also darf der Kurzschluss trotzdem nichts liefern.
-assert(avesmapsFetchLoreRulePlacesByEntry($rulePdo, ['andere-pflanze']) === [],
-    'einbeere ist nicht unter den gefundenen Eintraegen -- Kurzschluss muss trotz passender Regel [] liefern');
-// Keine gefundenen Eintraege ueberhaupt -> [] ohne jede Abfrage.
-assert(avesmapsFetchLoreRulePlacesByEntry($rulePdo, []) === []);
+//
+// Task 7: der Rueckgabewert ist jetzt EIN Umschlag ['places_by_entry' => ..., 'zones_by_entry' => ...]
+// statt der nackten places_by_entry-Liste -- der Kurzschluss liefert beide Haelften leer.
+assert(avesmapsFetchLoreRulePlacesByEntry($rulePdo, ['andere-pflanze'])
+    === ['places_by_entry' => [], 'zones_by_entry' => []],
+    'einbeere ist nicht unter den gefundenen Eintraegen -- Kurzschluss muss trotz passender Regel leer liefern');
+// Keine gefundenen Eintraege ueberhaupt -> leer ohne jede Abfrage.
+assert(avesmapsFetchLoreRulePlacesByEntry($rulePdo, []) === ['places_by_entry' => [], 'zones_by_entry' => []]);
 // Sobald 'einbeere' unter den gefundenen Eintraegen ist, rechnet der teure Teil und liefert
 // tatsaechlich die Flaeche -- der Kurzschluss unterdrueckt nicht mehr als noetig.
-$rulePlaces = avesmapsFetchLoreRulePlacesByEntry($rulePdo, ['einbeere']);
-assert(array_key_exists('einbeere', $rulePlaces));
-assert($rulePlaces['einbeere'] === [['title' => 'Farindel', 'wiki_key' => 'farindel']]);
+$ruleData = avesmapsFetchLoreRulePlacesByEntry($rulePdo, ['einbeere']);
+assert(array_key_exists('places_by_entry', $ruleData) && array_key_exists('zones_by_entry', $ruleData));
+assert(array_key_exists('einbeere', $ruleData['places_by_entry']));
+// 💣 Task 7, MUTATION TARGET 3: ein REGELORT traegt seine region_public_id ('a1' -- Farindel).
+assert($ruleData['places_by_entry']['einbeere']
+    === [['title' => 'Farindel', 'wiki_key' => 'farindel', 'region_public_id' => 'a1']],
+    'ein Regelort traegt seine region_public_id');
+// 'einbeere' hat KEINE Klimaspanne in ihrer Bedingung -> keine Zonen fuer sie.
+assert(($ruleData['zones_by_entry']['einbeere'] ?? []) === [], 'ohne Klimaspanne keine Zonen');
 
 // --- Befund 2: die geteilte Kettenauswertung ----------------------------------------------
 // 💣 Der eigentliche Beweis: eine Praezedenz-Mutation an avesmapsLoreRuleChainMatchesSubject
 // (der EINEN neuen gemeinsamen Stelle) muss DIESEN Test UND lore-rule-match-test.php gleichzeitig
 // rot machen -- das ist der Sinn der Zusammenlegung.
-$rulePlaces = avesmapsFetchLoreRulePlacesByEntry($rulePdo, ['wurzelkraut']);
-$wurzelkrautTitles = array_column($rulePlaces['wurzelkraut'] ?? [], 'title');
+$ruleData = avesmapsFetchLoreRulePlacesByEntry($rulePdo, ['wurzelkraut']);
+$wurzelkrautTitles = array_column($ruleData['places_by_entry']['wurzelkraut'] ?? [], 'title');
 assert(!in_array('Finsterkamm', $wurzelkrautTitles, true),
     'links-nach-rechts liefert FALSCH fuer Finsterkamm -- eine Praezedenz-Lesart liefert hier WAHR und faellt durch');
+
+// --- Task 7: rule_zones kommt aus der REGEL, nicht aus der Flaechenrechnung ---------------
+avesmapsLoreRuleSave($rulePdo, 'sonnenblume', [[
+    'join_op' => 'und', 'area_public_id' => null,
+    'types' => [],
+    'climate_from' => 'boreal', 'climate_to' => 'gemaessigt',
+]], 'verbreitung', 7);
+$sonnenblumeData = avesmapsFetchLoreRulePlacesByEntry($rulePdo, ['sonnenblume']);
+assert($sonnenblumeData['zones_by_entry']['sonnenblume'] === ['boreal', 'gemaessigt'],
+    'die erlaubten Zonen kommen aus der Klimaspanne der Regel, Nord nach Sued');
+
+// --- Task 7: avesmapsBuildLoreSearchEntries -- region_public_id nur am Regelort, rule_zones
+// nur am EINTRAG, nie am Ort -------------------------------------------------------------
+$task7Entries = avesmapsBuildLoreSearchEntries(
+    [['wiki_key' => 'einbeere', 'kind' => 'flora', 'name' => 'Einbeere', 'gruppe' => '', 'typ' => '']],
+    ['einbeere' => [['title' => 'Der Grosse Fluss', 'wiki_key' => 'der-grosse-fluss']]],
+    AVESMAPS_LORE_SEARCH_KIND_LABELS,
+    ['einbeere' => [['title' => 'Farindel', 'wiki_key' => 'farindel', 'region_public_id' => 'a1']]],
+    ['einbeere' => ['boreal', 'gemaessigt']]
+);
+$task7Places = $task7Entries[0]['lore_places'];
+// Der genannte Ort steht VORN (bestehende Rangfolge) und traegt keine region_public_id.
+assert($task7Places[0]['title'] === 'Der Grosse Fluss');
+assert(!array_key_exists('region_public_id', $task7Places[0]),
+    '💣 MUTATION TARGET 3: ein genannter Ort hat keine region_public_id -- er hat keine Region');
+assert($task7Places[1]['region_public_id'] === 'a1', 'der Regelort dahinter traegt seine region_public_id');
+// rule_zones sitzt am EINTRAG, nicht an einem der beiden Orte.
+assert($task7Entries[0]['rule_zones'] === ['boreal', 'gemaessigt'], 'rule_zones steht am Eintrag');
+foreach ($task7Places as $place) {
+    assert(!array_key_exists('rule_zones', $place),
+        '💣 MUTATION TARGET 4: rule_zones darf nicht je Ort stehen, nur je Eintrag');
+}
+// Ein Eintrag ohne Regel -> leere Liste, kein fehlendes Feld.
+$noRuleEntries = avesmapsBuildLoreSearchEntries(
+    [['wiki_key' => 'kein-ort', 'kind' => 'ware', 'name' => 'Ortlose Ware', 'gruppe' => '', 'typ' => '']],
+    [],
+    AVESMAPS_LORE_SEARCH_KIND_LABELS
+);
+assert($noRuleEntries[0]['rule_zones'] === [], 'ein Eintrag ohne Regel bekommt eine leere Zonenliste');
 
 echo "lore-search: OK\n";

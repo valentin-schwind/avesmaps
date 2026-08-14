@@ -171,4 +171,43 @@ assert(avesmapsLoreRuleChainIsUnbounded([
     $term(['types' => [['kind' => 'vegetation', 'region_type' => 'wald']], 'join_op' => 'oder']),
 ]) === false);
 
+// ---------------------------------------------------------------------------------------
+// Task 7: avesmapsLoreRuleZonesByEntry -- je EINTRAG die Vereinigung der Zonenschluessel,
+// die seine Regeln ueber alle Bedingungen erlauben, Nord nach Sued.
+// ---------------------------------------------------------------------------------------
+
+$rule = static fn (string $entryKey, array $terms): array => ['entry_wiki_key' => $entryKey, 'terms' => $terms];
+
+// Ein Eintrag ohne jede Regel taucht im Ergebnis gar nicht auf.
+assert(avesmapsLoreRuleZonesByEntry([], $zones) === []);
+
+// Eine Regel ohne Klimaspanne traegt nichts bei -- kein Schluessel fuer den Eintrag.
+assert(avesmapsLoreRuleZonesByEntry([$rule('einbeere', [$wald])], $zones) === []);
+
+// Eine Bedingung mit Klimaspanne: die Spanne selbst.
+assert(avesmapsLoreRuleZonesByEntry([$rule('einbeere', [$nordwald])], $zones)
+    === ['einbeere' => ['boreal', 'gemaessigt']]);
+
+// 💣 VEREINIGUNG UEBER MEHRERE BEDINGUNGEN DERSELBEN REGEL, nicht nur die letzte.
+$suedwald = $term(['climate_from' => 'subtropisch', 'climate_to' => 'tropisch', 'join_op' => 'oder']);
+assert(avesmapsLoreRuleZonesByEntry([$rule('einbeere', [$nordwald, $suedwald])], $zones)
+    === ['einbeere' => ['boreal', 'gemaessigt', 'subtropisch', 'tropisch']],
+    'Vereinigung ueber alle Bedingungen, Nord nach Sued sortiert -- nicht Einfuegereihenfolge');
+
+// 💣 VEREINIGUNG UEBER MEHRERE REGELN DESSELBEN EINTRAGS.
+assert(avesmapsLoreRuleZonesByEntry([
+    $rule('einbeere', [$nordwald]),
+    $rule('einbeere', [$suedwald]),
+], $zones) === ['einbeere' => ['boreal', 'gemaessigt', 'subtropisch', 'tropisch']],
+    'zwei Regeln desselben Eintrags vereinigen sich ebenso wie zwei Bedingungen einer Regel');
+
+// Ueberlappung wird nicht doppelt gezaehlt, und jeder Eintrag bekommt seine EIGENE Liste.
+assert(avesmapsLoreRuleZonesByEntry([
+    $rule('einbeere', [$nordwald]),
+    $rule('wurzelkraut', [$boreal]),
+], $zones) === [
+    'einbeere' => ['boreal', 'gemaessigt'],
+    'wurzelkraut' => ['boreal'],
+]);
+
 echo "lore-rule: OK\n";

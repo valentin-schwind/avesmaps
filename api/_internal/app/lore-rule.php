@@ -41,6 +41,53 @@ function avesmapsLoreRuleZoneKeys(array $orderedZoneKeys, ?string $from, ?string
 }
 
 /**
+ * PURE: fuer jeden Eintrag die Vereinigung der Zonenschluessel, die seine aktiven Regeln erlauben --
+ * ueber ALLE Bedingungen ALLER Regeln des Eintrags, Nord nach Sued sortiert (Task 7,
+ * api/_internal/app/lore-search.php, avesmapsFetchLoreRulePlacesByEntry).
+ *
+ * Eine Bedingung ohne Klimaspanne (climate_from/climate_to beide null) traegt nichts zur Vereinigung
+ * bei -- avesmapsLoreRuleZoneKeys gibt fuer sie schon [] zurueck, dieselbe Regel wie ueberall sonst in
+ * dieser Datei. Ein Eintrag OHNE jede Regel taucht im Ergebnis gar nicht auf; der Aufrufer liest das als
+ * leere Liste (`$out[$wikiKey] ?? []`), genau wie ein Eintrag ohne Ort schon heute [] fuer lore_places
+ * bekommt.
+ *
+ * ⚠️ JE EINTRAG, nicht je Bedingung und nicht je Flaeche: eine Regel mit drei Bedingungen liefert EINE
+ * vereinigte Liste, nicht drei separate.
+ *
+ * @param list<array{entry_wiki_key: string, terms: list<array<string,mixed>>}> $rules
+ * @param list<string> $orderedZoneKeys Nord nach Sued (avesmapsLoreRuleOrderedZoneKeys)
+ * @return array<string, list<string>> entry_wiki_key => Zonenschluessel Nord->Sued
+ */
+function avesmapsLoreRuleZonesByEntry(array $rules, array $orderedZoneKeys): array
+{
+    $setByEntry = [];
+    foreach ($rules as $rule) {
+        $entryKey = (string) ($rule['entry_wiki_key'] ?? '');
+        if ($entryKey === '') {
+            continue;
+        }
+        foreach ((array) ($rule['terms'] ?? []) as $term) {
+            $zoneKeys = avesmapsLoreRuleZoneKeys($orderedZoneKeys, $term['climate_from'] ?? null, $term['climate_to'] ?? null);
+            foreach ($zoneKeys as $zoneKey) {
+                $setByEntry[$entryKey][$zoneKey] = true;
+            }
+        }
+    }
+
+    $out = [];
+    foreach ($setByEntry as $entryKey => $zoneSet) {
+        // Nord->Sued: gefiltert aus der GEORDNETEN Liste, nicht aus der Einfuegereihenfolge der Menge --
+        // dieselbe Reihenfolgen-Zusage wie avesmapsLoreRuleZoneKeys selbst.
+        $out[$entryKey] = array_values(array_filter(
+            $orderedZoneKeys,
+            static fn (string $zoneKey): bool => isset($zoneSet[$zoneKey])
+        ));
+    }
+
+    return $out;
+}
+
+/**
  * PURE: hat diese Bedingung ueberhaupt eine Einschraenkung?
  *
  * 💣 Eine Regel, deren Bedingungen alle leer sind, trifft ALLES. Das ist keine Regel,

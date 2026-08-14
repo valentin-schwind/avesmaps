@@ -1082,6 +1082,105 @@ function avesmapsEcosystemParseLabelFilter(string $rawLabels): ?array
     return array_slice($labelPublicIds, 0, AVESMAPS_ECOSYSTEM_LABEL_FILTER_LIMIT);
 }
 
+/** Same reasoning as AVESMAPS_ECOSYSTEM_LABEL_FILTER_LIMIT: a request names a handful of regions. */
+const AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT = 25;
+
+/**
+ * Parse `?regions=<region_public_id>[,<region_public_id>…]` into a list of region public ids, or null
+ * for "no filter". Same shape, same validation, same null behaviour as
+ * avesmapsEcosystemParseLabelFilter -- copied deliberately rather than shared, because the two ask
+ * different questions of the same alphabet (Task 7 brief).
+ *
+ * Exists because a Fläche belongs to a REGION, but a region carries MANY labels (measured: 853 areas,
+ * only 512 distinct label_public_id). Resolving a search hit to one label and asking `?labels=` for it
+ * therefore misses every area whose label happens not to be that one -- the Spotlight occurrence
+ * highlight fell back to a point marker for 26 of 51 resolved Einbeere places for exactly this reason.
+ * Asking by REGION instead is unambiguous: one area belongs to exactly one region.
+ *
+ * ⚠️ A region public_id is a 36-character UUID -- the existing {1,64} alphabet already covers it, no
+ * new regex needed.
+ *
+ * @return list<string>|null
+ */
+function avesmapsEcosystemParseRegionFilter(string $rawRegions): ?array
+{
+    $normalized = trim($rawRegions);
+    if ($normalized === '') {
+        return null;
+    }
+
+    $regionPublicIds = [];
+    foreach (explode(',', $normalized) as $rawPublicId) {
+        $publicId = trim($rawPublicId);
+        if ($publicId === '') {
+            continue; // a trailing or doubled comma is sloppiness, not a bad request
+        }
+        if (preg_match('/^[A-Za-z0-9_-]{1,64}$/', $publicId) !== 1) {
+            throw new InvalidArgumentException('The regions parameter contains an invalid public id.');
+        }
+        if (!in_array($publicId, $regionPublicIds, true)) {
+            $regionPublicIds[] = $publicId;
+        }
+    }
+
+    if ($regionPublicIds === []) {
+        return null;
+    }
+
+    return array_slice($regionPublicIds, 0, AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT);
+}
+
+/**
+ * Parse `?kind=<derographisch|vegetation|topographie|klima>` into exactly one kind, or null for "no
+ * filter" (Task 7 brief). Against AVESMAPS_ECOSYSTEM_KINDS, a fixed whitelist -- NOT the free-alphabet
+ * regex the two list filters above use.
+ *
+ * 💣 An unknown kind is REJECTED (400), never silently treated as "matches nothing": a filter that
+ * quietly returns an empty result for a typo makes "there is nothing there" indistinguishable from
+ * "you misspelled the parameter". Exists so spotlightLoreIntersectGeometry can ask for the eight climate
+ * bands alone instead of the full ~2.6 MB layer.
+ *
+ * ⚠️ Deliberately NOT avesmapsEcosystemReadKind: that one is REQUIRED (throws on '' too) for the write
+ * path, where an absent kind is always a bad request. Here '' means "no filter", same polarity as bbox
+ * and labels.
+ */
+function avesmapsEcosystemParseKindFilter(string $rawKind): ?string
+{
+    $normalized = trim($rawKind);
+    if ($normalized === '') {
+        return null;
+    }
+
+    if (!in_array($normalized, AVESMAPS_ECOSYSTEM_KINDS, true)) {
+        throw new InvalidArgumentException('The kind parameter must be one of: ' . implode(', ', AVESMAPS_ECOSYSTEM_KINDS) . '.');
+    }
+
+    return $normalized;
+}
+
+/**
+ * PURE: the seed string every payload-shaping query parameter of api/app/ecosystem-areas.php folds
+ * into, for that endpoint's avesmapsEcosystemAreasETag to hash alongside the revision.
+ *
+ * 🔴 Kept HERE, not inline in the endpoint file, on purpose: ecosystem-areas.php's request handler runs
+ * on include (top-level try block, no function_exists guard), so a local test cannot require it without
+ * triggering a live DB connection -- the same reason avesmapsEcosystemETagMatches was pulled out of that
+ * file (see the comment there). Moving just the SEED here, and leaving the version/revision/hash
+ * wrapping in the endpoint, makes "a shaping parameter got left out of the seed" a local, provable
+ * regression instead of one only catchable on the live site.
+ *
+ * 💣 EVERY parameter that shapes the payload belongs here. bbox and labels already did; `regions` and
+ * `kind` (Task 7) are two more -- an ETag that ignores one hands a client the wrong subset out of its
+ * own cache (see the file header of ecosystem-areas.php, and AGENTS.md's ecosystem-areas.php entry).
+ */
+function avesmapsEcosystemAreasETagSeed(array $queryParams): string
+{
+    return (string) ($queryParams['bbox'] ?? '')
+        . '|' . (string) ($queryParams['labels'] ?? '')
+        . '|' . (string) ($queryParams['regions'] ?? '')
+        . '|' . (string) ($queryParams['kind'] ?? '');
+}
+
 // Validates a GeoJSON Polygon OR MultiPolygon (owner decision 1: a single area may itself be a
 // MultiPolygon) and returns the normalized geometry plus the bbox over ALL its parts.
 //
@@ -1219,7 +1318,13 @@ function avesmapsEcosystemReadExpectedRevision(mixed $value): int
 // soft-deleted region has to be invisible; the join answers that in the same breath as fetching the kind
 // (which lives on the region -- owner decision 1). House pattern:
 // api/_internal/political/territories-claims.php:199.
-function avesmapsEcosystemReadAreas(PDO $pdo, ?array $bbox = null, ?array $labelPublicIds = null): array
+function avesmapsEcosystemReadAreas(
+    PDO $pdo,
+    ?array $bbox = null,
+    ?array $labelPublicIds = null,
+    ?array $regionPublicIds = null,
+    ?string $kind = null
+): array
 {
     $where = ['a.is_active = 1'];
     $params = [];
@@ -1233,6 +1338,23 @@ function avesmapsEcosystemReadAreas(PDO $pdo, ?array $bbox = null, ?array $label
             $params['label_' . $index] = $labelPublicId;
         }
         $where[] = 'r.label_public_id IN (' . implode(', ', $placeholders) . ')';
+    }
+    // Task 7: a Fläche belongs to a REGION, and a region carries MANY labels -- asking by region is
+    // unambiguous where asking by label misses whichever areas happen to sit under a different one of
+    // the region's labels (measured: 853 areas, only 512 distinct label_public_id).
+    if ($regionPublicIds !== null && $regionPublicIds !== []) {
+        $placeholders = [];
+        foreach (array_values($regionPublicIds) as $index => $regionPublicId) {
+            $placeholders[] = ':region_' . $index;
+            $params['region_' . $index] = $regionPublicId;
+        }
+        $where[] = 'r.public_id IN (' . implode(', ', $placeholders) . ')';
+    }
+    // Task 7: spotlightLoreIntersectGeometry wants the eight climate bands alone, never the whole layer
+    // (~2.6 MB measured) just to get them.
+    if ($kind !== null) {
+        $where[] = 'r.kind = :kind_filter';
+        $params['kind_filter'] = $kind;
     }
     if ($bbox !== null) {
         // Overlap, not containment -- same four comparisons as api/app/map-features.php:134-137, so an

@@ -181,48 +181,62 @@ function avesmapsFetchLoreSearchRows(PDO $pdo, array $enabledKinds): array {
  * waere sonst nur in einer der beiden Kopien landbar gewesen und haette Suche und Infobox lautlos
  * auseinanderlaufen lassen).
  *
+ * Task 7 erweitert den Rueckgabewert um `zones_by_entry`: die Vereinigung der Klimazonen, die die
+ * Regeln eines Eintrags ueber ihre climate_from/climate_to-Bedingungen erlauben
+ * (avesmapsLoreRuleZonesByEntry, lore-rule.php). Diese Zonenliste ist eine Aussage ueber die REGEL
+ * selbst, nicht ueber gerechnete Flaechen-Ueberschneidungen -- sie haengt deshalb bewusst NICHT vom
+ * `ecosystem_assignment_stamp` ab: ist der Stempel nicht gesetzt (Kurzschluss weiter unten), bleiben
+ * die Flaechen leer, aber eine Regel mit einer Klimaspanne kennt ihre erlaubten Zonen trotzdem.
+ *
  * @param list<string> $foundEntryWikiKeys wiki_key der Eintraege, die dieser Suchlauf ueberhaupt
  *   anzeigen koennte (Aufrufstelle: array_column($loreRows['entries'], 'wiki_key'))
- * @return array<string, list<array{title: string, wiki_key: string}>> entry_wiki_key => Flaechen
+ * @return array{places_by_entry: array<string, list<array{title: string, wiki_key: string, region_public_id: string}>>,
+ *               zones_by_entry: array<string, list<string>>}
  */
 function avesmapsFetchLoreRulePlacesByEntry(PDO $pdo, array $foundEntryWikiKeys): array {
+    $empty = ['places_by_entry' => [], 'zones_by_entry' => []];
     if ($foundEntryWikiKeys === []) {
-        return [];
+        return $empty;
     }
 
     try {
         $activeStatement = $pdo->query("SELECT DISTINCT entry_wiki_key FROM lore_rule WHERE status = 'active'");
         $activeEntryKeys = $activeStatement === false ? [] : $activeStatement->fetchAll(PDO::FETCH_COLUMN);
     } catch (Throwable) {
-        return []; // Tabelle fehlt (nie eingerichtet) -> kein Regelzweig, kein 500
+        return $empty; // Tabelle fehlt (nie eingerichtet) -> kein Regelzweig, kein 500
     }
     if ($activeEntryKeys === [] || array_intersect($activeEntryKeys, $foundEntryWikiKeys) === []) {
-        return [];
+        return $empty;
     }
+
+    $rules = avesmapsLoreRuleReadAllActive($pdo);
+    if ($rules === []) {
+        return $empty;
+    }
+
+    // Einmal geholt, nie je Flaeche -- dieselbe Regel wie avesmapsLoreRuleEntriesForSubject.
+    $orderedZoneKeys = avesmapsLoreRuleOrderedZoneKeys($pdo);
+
+    // Task 7: die erlaubten Zonen je Eintrag sind eine Aussage ueber die REGEL, nicht ueber die
+    // gerechneten Flaechen -- deshalb VOR dem Stempel-Check berechnet, statt hinter ihm zu haengen.
+    $zonesByEntry = avesmapsLoreRuleZonesByEntry($rules, $orderedZoneKeys);
 
     try {
         $stampStatement = $pdo->query('SELECT completed FROM ecosystem_assignment_stamp WHERE id = 1');
         $stampValue = $stampStatement === false ? false : $stampStatement->fetchColumn();
         $stampCompleted = $stampValue !== false && (int) $stampValue === 1;
     } catch (Throwable) {
-        return []; // Tabelle fehlt (nie gerechnet) -> kein Regelzweig, kein 500
+        // Tabelle fehlt (nie gerechnet) -> keine Flaechen, aber die Zonen (reine Regel-Aussage) bleiben.
+        return ['places_by_entry' => [], 'zones_by_entry' => $zonesByEntry];
     }
     if (!$stampCompleted) {
-        return [];
-    }
-
-    $rules = avesmapsLoreRuleReadAllActive($pdo);
-    if ($rules === []) {
-        return [];
+        return ['places_by_entry' => [], 'zones_by_entry' => $zonesByEntry];
     }
 
     $areas = avesmapsLoreRuleReadAreas($pdo);
     if ($areas === []) {
-        return [];
+        return ['places_by_entry' => [], 'zones_by_entry' => $zonesByEntry];
     }
-
-    // Einmal geholt, nie je Flaeche -- dieselbe Regel wie avesmapsLoreRuleEntriesForSubject.
-    $orderedZoneKeys = avesmapsLoreRuleOrderedZoneKeys($pdo);
 
     $placesByEntry = [];
     foreach ($areas as $area) {
@@ -230,6 +244,9 @@ function avesmapsFetchLoreRulePlacesByEntry(PDO $pdo, array $foundEntryWikiKeys)
         $place = [
             'title' => (string) ($area['name'] ?? ''),
             'wiki_key' => (string) ($area['wiki_region_key'] ?? ''),
+            // Task 7: ein REGELORT bekommt seine region_public_id -- ein GENANNTER Ort
+            // (avesmapsFetchLoreSearchRows -> lore_place) hat keine, denn dort steht keine Region.
+            'region_public_id' => (string) ($area['public_id'] ?? ''),
         ];
 
         foreach ($rules as $rule) {
@@ -239,7 +256,7 @@ function avesmapsFetchLoreRulePlacesByEntry(PDO $pdo, array $foundEntryWikiKeys)
         }
     }
 
-    return $placesByEntry;
+    return ['places_by_entry' => $placesByEntry, 'zones_by_entry' => $zonesByEntry];
 }
 
 /**
@@ -264,16 +281,22 @@ function avesmapsLoreSearchStripWikiMarkup(string $value): string {
  * cannot tell the two apart -- it never knew where a place came from -- so no extra field marks
  * the origin here either.
  *
+ * $ruleZonesByEntry (Task 7) carries the UNION of climate zone keys an entry's rules allow, keyed by
+ * entry_wiki_key -- attached to the ENTRY as `rule_zones`, never to an individual place: 57 places times
+ * one identical zone list would be the same data 57 times over in the payload.
+ *
  * @param array<string, list<array{title: string, wiki_key: string}>> $placesByEntry
  * @param array<string, string> $kindLabels
- * @param array<string, list<array{title: string, wiki_key: string}>> $rulePlacesByEntry
+ * @param array<string, list<array{title: string, wiki_key: string, region_public_id?: string}>> $rulePlacesByEntry
+ * @param array<string, list<string>> $ruleZonesByEntry
  * @return list<array<string, mixed>>
  */
 function avesmapsBuildLoreSearchEntries(
     array $entryRows,
     array $placesByEntry,
     array $kindLabels,
-    array $rulePlacesByEntry = []
+    array $rulePlacesByEntry = [],
+    array $ruleZonesByEntry = []
 ): array {
     $entries = [];
     foreach ($entryRows as $row) {
@@ -306,6 +329,9 @@ function avesmapsBuildLoreSearchEntries(
             // Unresolved on purpose: title AND wiki key travel, the client picks the map object.
             'lore_places' => $places,
             'place_count' => count($places),
+            // Task 7: the union of zone keys this entry's rules allow, Nord->Sued, per ENTRY -- an
+            // entry without a rule gets [] (avesmapsLoreRuleZonesByEntry never emits a key for it).
+            'rule_zones' => $ruleZonesByEntry[$wikiKey] ?? [],
             'not_on_map' => true,
             'min_x' => 0.0,
             'min_y' => 0.0,
