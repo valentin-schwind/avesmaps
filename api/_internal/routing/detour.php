@@ -27,6 +27,15 @@ require_once __DIR__ . '/offroad-leg.php';
 // danach über die Zeit.
 const AVESMAPS_ROUTE_OFFROAD_DETOUR_THRESHOLD = 3.0;
 
+// Wie viele Sehnen höchstens gerechnet werden (Owner-Entscheid 14.08.2026: 3).
+//
+// 💣 DER DECKEL IST PFLICHT, NICHT FEINSCHLIFF. Eine Route mit n Knoten hat n(n+1)/2 Sehnen; bei 50
+// Etappen sind das 1.275. Der Vorfilter ist gratis -- Luftlinie und Teilstrecke liegen nach dem
+// ersten Dijkstra beide vor --, der A* ist es nicht (p50 14 ms je Lauf). Ohne Deckel wäre eine lange
+// Reise ein Lastproblem auf einem Shared Host, und genau dort hat dieses Projekt schon einmal die
+// PHP-Worker gesättigt.
+const AVESMAPS_ROUTE_OFFROAD_DETOUR_MAX_CHORDS = 3;
+
 /**
  * PURE: die tatsächlich gefahrene Strecke einer Route, aus den Etappen-Geometrien.
  *
@@ -71,6 +80,109 @@ function avesmapsRouteMeasureTravelledTime(array $segments): float
     }
 
     return $time;
+}
+
+/**
+ * PURE: die Knotenkette der gefundenen Route, in FAHRTRICHTUNG, mit Ort und laufender Summe.
+ *
+ * 💣 WEDER DIE GEOMETRIE NOCH `from`/`to` SIND ORIENTIERT. Beide Fahrtrichtungen einer Straße teilen
+ * ein einziges Verbindungsobjekt, und das behält die gespeicherte Zeichenrichtung
+ * (`client-graph.php:411-413` -- die Verlauf-Kette der Wege hängt daran). Wer die Kette aus
+ * `coordinates[0]` oder aus `from` liest, liest sie bei jeder zweiten Etappe verkehrt herum und
+ * bekommt Sehnen, die es nicht gibt. Deshalb wird beides *fortgeschrieben*: der nächste Knoten ist
+ * das Ende, das NICHT der aktuelle ist.
+ *
+ * Leeres Array heißt „nicht ableitbar" (Etappe ohne Geometrie, Kette reißt) -- dann gibt es keine
+ * Sehnen und der Auslöser verhält sich wie vor dem 14.08.2026.
+ */
+function avesmapsRouteChordChain(
+    array $segments,
+    array $fromPoint,
+    array $toPoint,
+    string $fromNode,
+    string $toNode
+): array {
+    $x = (float) ($fromPoint['x'] ?? 0.0);
+    $y = (float) ($fromPoint['y'] ?? 0.0);
+    $node = $fromNode;
+    $chain = [['name' => $node, 'x' => $x, 'y' => $y, 'time' => 0.0, 'distance' => 0.0]];
+    $time = 0.0;
+    $distance = 0.0;
+
+    foreach ($segments as $segment) {
+        if (!is_array($segment)) { return []; }
+        $coordinates = $segment['geometry']['coordinates'] ?? null;
+        if (!is_array($coordinates) || count($coordinates) < 2) { return []; }
+
+        $first = $coordinates[0];
+        $last = $coordinates[count($coordinates) - 1];
+        // Das entferntere Ende ist das, auf das die Reise zuläuft.
+        $toFirst = hypot((float) $first[0] - $x, (float) $first[1] - $y);
+        $toLast = hypot((float) $last[0] - $x, (float) $last[1] - $y);
+        $next = $toFirst <= $toLast ? $last : $first;
+
+        $from = (string) ($segment['from'] ?? '');
+        $to = (string) ($segment['to'] ?? '');
+        $nextName = $from === $node ? $to : ($to === $node ? $from : '');
+        if ($nextName === '') { return []; }
+
+        // 💣 Derselbe x25-Ausbau wie in avesmapsRouteMeasureTravelledTime: der Aufschlag der
+        // Notbrücken ist eine Abschreckung für den Dijkstra, keine Reisezeit. Eine Teilstrecke, die
+        // ihn mitschleppte, sähe so teuer aus, dass eine langsamere Sehne gewönne.
+        $factor = (float) ($segment['cost_factor'] ?? 1.0);
+        if ($factor <= 0.0) { $factor = 1.0; }
+        $time += (float) ($segment['time'] ?? 0.0) / $factor;
+        $distance += avesmapsCalculateClientRouteCoordinateDistance($coordinates);
+
+        $x = (float) $next[0];
+        $y = (float) $next[1];
+        $node = $nextName;
+        $chain[] = ['name' => $node, 'x' => $x, 'y' => $y, 'time' => $time, 'distance' => $distance];
+    }
+
+    if ($node !== $toNode) { return []; }
+    // Der letzte Knoten ist das Ziel -- seine Koordinate kommt vom Aufrufer, nicht aus der Geometrie
+    // (bei einem Kartenpunkt ist sie die einzige, die stimmt).
+    $chain[count($chain) - 1]['x'] = (float) ($toPoint['x'] ?? $x);
+    $chain[count($chain) - 1]['y'] = (float) ($toPoint['y'] ?? $y);
+
+    return $chain;
+}
+
+/**
+ * PURE: welche Sehnen der Kette überhaupt einen A*-Lauf verdienen, die besten zuerst.
+ *
+ * Zwei Schranken, beide ohne eine gerasterte Zelle: das VERHÄLTNIS (lohnt sich Nachrechnen?) und die
+ * BESTZEIT `Luftlinie / Tempo` (kann die Suche überhaupt gewinnen?). Die zweite ist zulässig, weil
+ * der A*-Weg nie kürzer als die Luftlinie ist und sein kleinster Faktor exakt 1,0 beträgt.
+ */
+function avesmapsRouteChordCandidates(array $chain, float $speed, float $threshold): array
+{
+    $candidates = [];
+    $last = count($chain) - 1;
+    for ($i = 0; $i < $last; $i++) {
+        for ($j = $i + 1; $j <= $last; $j++) {
+            $air = hypot($chain[$j]['x'] - $chain[$i]['x'], $chain[$j]['y'] - $chain[$i]['y']);
+            if ($air <= 1e-9) { continue; }
+            $graphDistance = $chain[$j]['distance'] - $chain[$i]['distance'];
+            $graphTime = $chain[$j]['time'] - $chain[$i]['time'];
+            $ratio = $graphDistance / $air;
+            if ($ratio <= $threshold) { continue; }
+            $best = $air / $speed;
+            if ($best >= $graphTime) { continue; }
+            $candidates[] = [
+                'from_index' => $i, 'to_index' => $j,
+                'from_node' => $chain[$i]['name'], 'to_node' => $chain[$j]['name'],
+                'air_distance' => $air, 'graph_distance' => $graphDistance, 'graph_cost_units' => $graphTime,
+                'ratio' => $ratio, 'best_possible_cost_units' => $best, 'gain' => $graphTime - $best,
+            ];
+        }
+    }
+    // Der größte mögliche Gewinn zuerst -- der Deckel schneidet dann die aussichtslosen ab, nicht die
+    // aussichtsreichen.
+    usort($candidates, static fn(array $a, array $b): int => $b['gain'] <=> $a['gain']);
+
+    return $candidates;
 }
 
 /**
@@ -128,12 +240,17 @@ function avesmapsMaybeOfferOffroadDetour(
         $report['reason'] = 'no_air_distance';
         return $report;
     }
-    if ($report['ratio'] <= AVESMAPS_ROUTE_OFFROAD_DETOUR_THRESHOLD) {
-        $report['reason'] = 'below_threshold';
-        return $report;
-    }
+    // `triggered` beschreibt weiterhin die Sehne über die GANZE Reise -- so steht es in jedem
+    // bisherigen Protokoll und in den Messungen der Instruction.
+    $report['triggered'] = $report['ratio'] > AVESMAPS_ROUTE_OFFROAD_DETOUR_THRESHOLD;
 
-    $report['triggered'] = true;
+    // ⚠️ ABER DER FRÜHE AUSSTIEG IST WEG (14.08.2026). Eine Reise, die im Ganzen harmlos aussieht,
+    // kann in der Mitte einen absurden Bogen fahren -- bei 1,5x gesamt und 8x auf einem Teilstück
+    // stieg der Auslöser vorher aus, bevor er das Teilstück je gesehen hatte. Die Kandidatensuche
+    // unten ist reine Arithmetik über eine Kette, die ohnehin vorliegt; teuer wird erst der A*, und
+    // den schneiden dieselben zwei Schranken ab wie vorher.
+    $chain = avesmapsRouteChordChain($segments, $fromPoint, $toPoint, $fromNode, $toNode);
+    $report['chord_nodes'] = array_column($chain, 'name');
 
     // ⭐ WAS DER QUERWEG BESTENFALLS SCHAFFT -- und das weiß man vor der Suche. Der A*-Weg ist nie
     // kürzer als die Luftlinie, und sein kleinster möglicher Faktor ist EXAKT 1,0: das
@@ -173,41 +290,88 @@ function avesmapsMaybeOfferOffroadDetour(
     // machte die Schranke unscharf, und unscharf heißt hier: sie schnitte einen Querweg ab, der
     // gewonnen hätte.
     $report['best_possible_cost_units'] = $air / (float) $speed;
-    if ($report['best_possible_cost_units'] >= $graphTime) {
-        $report['reason'] = 'cannot_win';
+
+    // Reißt die Kette (Etappe ohne Geometrie, Knotenname passt nicht), gibt es keine Sehnen. Dann
+    // bleibt genau das Verhalten von vor dem 14.08.2026 -- ein stiller Rückfall, kein Fehler.
+    if ($chain === []) {
+        $report['reason'] = $report['best_possible_cost_units'] >= $graphTime ? 'cannot_win' : 'no_chain';
         return $report;
     }
 
     // Ab hier kostet es. Ein eigener Kantenname, damit der Querweg zweier Kartenpunkte
     // (`offroad-direct`) nicht überschrieben wird, wenn beides in derselben Anfrage zusammentrifft.
-    $offroad = avesmapsConnectOffroadPoints(
-        $clientGraph, $request, $water, $pdo,
-        ['x' => $x1, 'y' => $y1], ['x' => $x2, 'y' => $y2],
-        $fromNode, $toNode, $terrainEnabled,
-        'offroad-detour'
-    );
-    if (empty($offroad['ok'])) {
-        // Kein trockener Weg durch die Kiste. Die gezeichnete Route bleibt die Antwort -- das ist
-        // dieselbe Owner-Entscheidung wie bei den Notbrücken: lieber der Umweg als eine Linie, die
-        // durchs Wasser führt.
-        $report['reason'] = (string) ($offroad['error'] ?? 'no_offroad_route');
+    //
+    // 🔴 UND ES IST NICHT MEHR EINE KANTE, SONDERN BIS ZU K (14.08.2026). Vorher hing hier genau
+    // `$fromNode -> $toNode`; damit hatte der Dijkstra zwei Angebote -- alles über Wege oder alles
+    // querfeldein -- und kein drittes. Salmingen -> Luring lief deshalb komplett querfeldein,
+    // obwohl die Reichsstraße 6 das letzte Drittel trägt. Der Kommentar unten versprach schon
+    // immer, er dürfe „ein Stück Straße, dann quer" wählen; erst jetzt KANN er es.
+    // Entwurf: docs/superpowers/specs/2026-08-14-querfeldein-teilstrecken-design.md
+    $candidates = avesmapsRouteChordCandidates($chain, (float) $speed, AVESMAPS_ROUTE_OFFROAD_DETOUR_THRESHOLD);
+    $report['chord_candidate_count'] = count($candidates);
+    $candidates = array_slice($candidates, 0, AVESMAPS_ROUTE_OFFROAD_DETOUR_MAX_CHORDS);
+
+    $chords = [];
+    $offered = 0;
+    $lastError = '';
+    foreach ($candidates as $candidate) {
+        // Die Sehne über die ganze Reise behält ihren angestammten Kantennamen -- er steht in jeder
+        // bisherigen Antwort als `edge_id` und in den Protokollen.
+        $isWhole = $candidate['from_index'] === 0 && $candidate['to_index'] === count($chain) - 1;
+        $connectionId = $isWhole
+            ? 'offroad-detour'
+            : sprintf('offroad-detour-%d-%d', $candidate['from_index'], $candidate['to_index']);
+
+        $offroad = avesmapsConnectOffroadPoints(
+            $clientGraph, $request, $water, $pdo,
+            ['x' => $chain[$candidate['from_index']]['x'], 'y' => $chain[$candidate['from_index']]['y']],
+            ['x' => $chain[$candidate['to_index']]['x'], 'y' => $chain[$candidate['to_index']]['y']],
+            $candidate['from_node'], $candidate['to_node'], $terrainEnabled,
+            $connectionId
+        );
+        if (empty($offroad['ok'])) {
+            // Kein trockener Weg durch die Kiste. Die gezeichnete Route bleibt die Antwort -- das ist
+            // dieselbe Owner-Entscheidung wie bei den Notbrücken: lieber der Umweg als eine Linie, die
+            // durchs Wasser führt.
+            $lastError = (string) ($offroad['error'] ?? 'no_offroad_route');
+            $chords[] = $candidate + ['connection_id' => $connectionId, 'offered' => false, 'reason' => $lastError];
+            continue;
+        }
+
+        // ⚠️ `offroad` heißt „ein A* IST gelaufen", nicht „er hat gewonnen" -- daran unterscheidet die
+        // Antwort `slower` von `cannot_win`, und daran hängt die Messung, wie oft die Suche leer
+        // läuft. Ein späterer Gewinner überschreibt den Verlierer, solange keiner gewonnen hat.
+        if ($offered === 0) { $report['offroad'] = $offroad; }
+
+        // 💣 DIE ZWEITE PRÜFUNG IST DIE ZEIT, und ohne sie wäre der Auslöser falsch. Ein Bogen von 3x
+        // ist gegen ein dreimal langsameres Gelände immer noch die schnellere Reise. Verliert der
+        // Querweg, wird die Kante wieder ausgehängt -- ein Angebot, das nie gewinnen kann, ist nur
+        // Gewicht im Graphen und würde bei „Kürzeste" sogar fälschlich gewinnen.
+        // ⚠️ Je Sehne gegen IHRE Teilstrecke, nie gegen die Zeit der ganzen Route: sonst schlüge eine
+        // kurze Abkürzung jede lange Reise.
+        if ((float) $offroad['cost_units'] >= $candidate['graph_cost_units']) {
+            avesmapsRemoveClientRouteConnection(
+                $clientGraph['graph'], $candidate['from_node'], $candidate['to_node'], $connectionId
+            );
+            $chords[] = $candidate + ['connection_id' => $connectionId, 'offered' => false, 'reason' => 'slower', 'offroad' => $offroad];
+            continue;
+        }
+
+        $chords[] = $candidate + ['connection_id' => $connectionId, 'offered' => true, 'reason' => 'offered', 'offroad' => $offroad];
+        // Der beste Lauf steht weiterhin unter `offroad` -- die Antwort und die Protokolle lesen ihn
+        // dort, und „der beste" ist nach der Sortierung der erste, der gewinnt.
+        if ($offered === 0) { $report['offroad'] = $offroad; }
+        $offered++;
+    }
+
+    $report['chords'] = $chords;
+    if ($offered > 0) {
+        $report['offered'] = true;
+        $report['reason'] = 'offered';
         return $report;
     }
 
-    // 💣 DIE ZWEITE PRÜFUNG IST DIE ZEIT, und ohne sie wäre der Auslöser falsch. Ein Bogen von 3x
-    // ist gegen ein dreimal langsameres Gelände immer noch die schnellere Reise. Verliert der
-    // Querweg, wird die Kante wieder ausgehängt -- ein Angebot, das nie gewinnen kann, ist nur
-    // Gewicht im Graphen und würde bei „Kürzeste" sogar fälschlich gewinnen.
-    if ((float) $offroad['cost_units'] >= $graphTime) {
-        avesmapsRemoveClientRouteConnection($clientGraph['graph'], $fromNode, $toNode, 'offroad-detour');
-        $report['reason'] = 'slower';
-        $report['offroad'] = $offroad;
-        return $report;
-    }
-
-    $report['offered'] = true;
-    $report['reason'] = 'offered';
-    $report['offroad'] = $offroad;
+    $report['reason'] = $chords === [] ? 'cannot_win' : ($lastError !== '' ? $lastError : 'slower');
 
     return $report;
 }
