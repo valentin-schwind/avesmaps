@@ -328,6 +328,38 @@ assert(in_array('LangA', $fussKnoten, true), 'die Ortschaften bleiben zur Wahl: 
 assert(abs((float) $fussReport['exit_nodes'][0]['air_distance'] - 4.0) < 1e-6,
     'Luftlinie zum Ausstieg: ' . $fussReport['exit_nodes'][0]['air_distance']);
 
+// ============================================================ Ein naher Fusspunkt verengt nichts
+
+// 💣 DER MASSSTAB DER SCHRANKE IST DER NAECHSTE ORTSKNOTEN, nie der naechste Kandidat ueberhaupt.
+// Live gemeldet am 14.08.2026 (Salmingen -> Kartenpunkt): ein zufaellig sehr naher Fusspunkt drueckte
+// die Reichweite auf 7,28 und schnitt damit einen Fusspunkt bei 7,61 weg -- waehrend eine ORTSCHAFT
+// bei 8,30 im Angebot blieb. Der weggeschnittene haette die Reise um rund 15 % verkuerzt.
+//
+// Nachbau: Strasse auf y = 10 wie oben. Der Punkt liegt bei (5, 40) -- 30 ueber der Strasse, also
+// weit; die Ortschaft A sitzt mit (5, 10) genau darunter. Ein ZWEITER Weg streift den Punkt dicht
+// (Abstand 1), liegt aber so, dass sein Fusspunkt nicht der einzige Kandidat sein darf.
+$massstabGraph = $buildGraph();
+$nebenweg = [
+    'distance' => 40.0, 'time' => 40.0 / $roadSpeed, 'route_type' => 'Pfad',
+    'transport_option' => 'groupFoot', 'id' => 'path-neben', 'from' => 'N1', 'to' => 'N2',
+    'geometry' => ['type' => 'LineString', 'coordinates' => [[-15.0, 41.0], [25.0, 41.0]]],
+];
+$massstabGraph['graph']['N1'] = [];
+$massstabGraph['graph']['N2'] = [];
+avesmapsAddClientCompatibleGraphConnection($massstabGraph['graph'], 'N1', 'N2', $nebenweg);
+avesmapsAddClientCompatibleGraphConnection($massstabGraph['graph'], 'N2', 'N1', $nebenweg);
+$massstabOrte = array_merge($locations, [$place('N1', -15.0, 41.0), $place('N2', 25.0, 41.0)]);
+
+$massstab = avesmapsAttachOffroadPointToGraph($massstabGraph, $massstabOrte, $request, $water, $land, null, 5.0, 40.0, '__offroad_to', false);
+assert($massstab['ok'] === true, 'der Punkt haengt: ' . json_encode($massstab));
+$massstabKnoten = array_column($massstab['exit_nodes'], 'node');
+// Der Fusspunkt auf dem Nebenweg liegt 1,0 entfernt -- er darf die Schranke NICHT auf 2,5 druecken.
+$fusspunkte = array_values(array_filter($massstabKnoten, static fn(string $n): bool => str_starts_with($n, AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX)));
+assert(count($fusspunkte) >= 2,
+    'auch der WEITERE Fusspunkt auf der Hauptstrasse bleibt im Angebot: ' . implode(', ', $massstabKnoten));
+assert(in_array('A', $massstabKnoten, true),
+    'und die Ortschaft darunter ebenfalls: ' . implode(', ', $massstabKnoten));
+
 // ============================================================ Die Schranke misst JE FAMILIE
 
 // 💣 EIN SEHR NAHER FUSSPUNKT DARF DIE ORTSCHAFTEN NICHT AUS DEM ANGEBOT DRAENGEN. Die

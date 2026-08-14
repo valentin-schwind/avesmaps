@@ -175,38 +175,41 @@ function avesmapsAttachOffroadPointToGraph(
     // Ort mitten in einem See), waere die Antwort sonst „kein Weg", obwohl der uebernaechste
     // gegangen waere. Also: erst die nahen, und nur wenn keiner traegt, alle.
     //
-    // 💣 UND SIE MISST JE FAMILIE, NICHT UEBER DEN GEMEINSAMEN TOPF. Die Schranke ist RELATIV
-    // (naechster x 2,5), und die beiden Familien haben voellig verschiedene Massstaebe: ein
-    // Fusspunkt liegt fast immer naeher als jede Ortschaft. Gemeinsam gerechnet schrumpft die
-    // Reichweite auf ein Vielfaches der Fusspunkt-Entfernung, und keine Ortschaft ueberlebt sie
-    // mehr. Live gemessen am 14.08.2026: ein Kartenpunkt 0,497 neben der Strasse bot nur noch
-    // diesen einen Ausstieg an (vorher vier) -- und die Reise wurde dadurch 2,8 % teurer.
-    $splitByReach = static function (array $set): array {
-        if ($set === []) { return [[], []]; }
-        $nearest = (float) $set[0]['distance'];
-        $reach = max($nearest * AVESMAPS_ROUTE_OFFROAD_EXIT_DISTANCE_FACTOR, $nearest);
-        $near = array_values(array_filter($set, static fn(array $c): bool => (float) $c['distance'] <= $reach + 1e-9));
-        return [$near, $set];
-    };
+    // 💣 UND IHR MASSSTAB IST DER NAECHSTE ORTSKNOTEN, nicht der naechste Kandidat ueberhaupt.
+    // Ihre Aufgabe ist die GROESSE DER SUCHKISTE, und die spannten seit jeher die Ortschaften auf;
+    // ein Fusspunkt liegt fast immer naeher und darf den Massstab deshalb nicht setzen.
+    //
+    // 🔴 BEIDE FALSCHEN FASSUNGEN SIND LIVE GEMESSEN, an einem Tag:
+    //   * Ueber den GEMEINSAMEN Topf (naechster Kandidat): ein Kartenpunkt 0,497 neben der Strasse
+    //     druckte die Reichweite auf 1,24 -- alle vier Ortschaften fielen aus dem Angebot, die
+    //     Reise wurde 2,8 % teurer.
+    //   * JE FAMILIE: ein zufaellig sehr naher Fusspunkt (2,911) druckte die Fusspunkt-Reichweite
+    //     auf 7,28 und schnitt damit den Fusspunkt bei 7,61 weg -- waehrend eine ORTSCHAFT bei 8,30
+    //     blieb, weil ihre Familie ihren eigenen, weiteren Massstab hatte. Genau dieser Fusspunkt
+    //     haette die Reise Salmingen -> Kartenpunkt um rund 15 % verkuerzt (Owner-Meldung).
+    //
+    // ⭐ Mit dem Ortsknoten als Massstab ist die Kiste exakt so gross wie vor dem 14.08.2026: die
+    // Ortschaften bestimmen sie wie immer, die Fusspunkte liegen darin und kosten nichts extra --
+    // und ein Fusspunkt, der WEITER liegt als diese Reichweite, wuerde die Kiste aufziehen und
+    // faellt zu Recht heraus.
+    $reference = $nodeCandidates !== []
+        ? (float) $nodeCandidates[0]['distance']
+        : (float) $anchorCandidates[0]['distance'];
+    $reach = max($reference * AVESMAPS_ROUTE_OFFROAD_EXIT_DISTANCE_FACTOR, $reference);
+
     // Ein Fusspunkt, der auf einem Endknoten liegt, TRAEGT dessen Namen (der Teiler gibt ihn dann
     // unveraendert zurueck) -- ohne Entdopplung liefe der A* zweimal zum selben Ziel.
-    $mergeStage = static function (array $a, array $b): array {
-        $byName = [];
-        foreach (array_merge($a, $b) as $candidate) {
-            $name = (string) $candidate['name'];
-            if (!isset($byName[$name]) || (float) $byName[$name]['distance'] > (float) $candidate['distance']) {
-                $byName[$name] = $candidate;
-            }
+    $byName = [];
+    foreach (array_merge($anchorCandidates, $nodeCandidates) as $candidate) {
+        $name = (string) $candidate['name'];
+        if (!isset($byName[$name]) || (float) $byName[$name]['distance'] > (float) $candidate['distance']) {
+            $byName[$name] = $candidate;
         }
-        $merged = array_values($byName);
-        usort($merged, static fn(array $x, array $y): int => $x['distance'] <=> $y['distance']);
-        return $merged;
-    };
+    }
+    $candidates = array_values($byName);
+    usort($candidates, static fn(array $a, array $b): int => $a['distance'] <=> $b['distance']);
 
-    [$nearAnchors, $allAnchors] = $splitByReach($anchorCandidates);
-    [$nearNodes, $allNodes] = $splitByReach($nodeCandidates);
-    $near = $mergeStage($nearAnchors, $nearNodes);
-    $candidates = $mergeStage($allAnchors, $allNodes);
+    $near = array_values(array_filter($candidates, static fn(array $c): bool => (float) $c['distance'] <= $reach + 1e-9));
     $stages = count($near) === count($candidates) ? [$near] : [$near, $candidates];
 
     // 🔴 EINE KISTE FUER ALLE KANDIDATEN, und deshalb auch nur EIN Satz Datenbankabfragen. Vorher
