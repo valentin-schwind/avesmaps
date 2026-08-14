@@ -480,15 +480,7 @@ function avesmapsRouteResolveEndpointPoint(array $locations, string $name, ?arra
     return null;
 }
 
-/** Eine Kante beider Richtungen wieder aus dem Graphen nehmen, an ihrer ID erkannt. */
-function avesmapsRemoveClientRouteConnection(array &$graph, string $fromNode, string $toNode, string $connectionId): void
-{
-    foreach ([[$fromNode, $toNode], [$toNode, $fromNode]] as [$a, $b]) {
-        if (!isset($graph[$a][$b]) || !is_array($graph[$a][$b])) { continue; }
-        $graph[$a][$b] = array_values(array_filter(
-            $graph[$a][$b],
-            static fn(array $connection): bool => (string) ($connection['id'] ?? '') !== $connectionId
-        ));
-        if ($graph[$a][$b] === []) { unset($graph[$a][$b]); }
-    }
-}
+// avesmapsRemoveClientRouteConnection() ist am 14.08.2026 nach client-graph.php gewandert: der
+// Teiler dort (avesmapsSplitClientPathAtAnchor) braucht sie ebenfalls, und die Abhaengigkeit laeuft
+// nur in eine Richtung -- detour.php -> offroad-leg.php -> client-graph.php. Zwei Abschriften
+// derselben Graph-Operation waeren zwei Abschriften zu viel.

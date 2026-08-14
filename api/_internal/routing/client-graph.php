@@ -28,6 +28,15 @@ const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR = 25.0;
 // you can trek cross-country to a road, not "to a river".
 const AVESMAPS_ROUTE_CLIENT_LAND_PATH_TYPES = ['Reichsstrasse', 'Strasse', 'Weg', 'Pfad', 'Gebirgspass', 'Wuestenpfad'];
 
+// 🔴 ZIFFERN, KEIN ANDERER SUFFIX. js/map-features/map-features.js:236 beschriftet genau
+// `__wp_anchor_\d+` als „Kreuzung", js/routing/route-engine.js:324 schlaegt dasselbe Muster
+// bewusst NICHT im Ortsbestand nach. Ein sprechenderer Name kostet beide Stellen.
+const AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX = '__wp_anchor_';
+// Wie viele Fusspunkte einem netzfernen Endpunkt hoechstens angeboten werden. Nach der Entdopplung
+// im Sammler sind das sechs VERSCHIEDENE Wege -- mehr echte Auswahl als die zwoelf Ortschaften, die
+// der Kartenpunkt bis zum 14.08.2026 bekam, und weniger A*-Laeufe.
+const AVESMAPS_ROUTE_CLIENT_ANCHOR_LIMIT = 6;
+
 // Sea routes mark a waypoint as water-bound (island / open-sea place). There is no coastline geometry
 // in the data (insel/meer/kueste are label points only), so a Seeweg edge is the reliable signal that
 // reaching this node requires crossing open water. Such nodes are NOT anchored to a land path: their
@@ -916,51 +925,93 @@ function avesmapsRouteProjectPointOnSegment(float $px, float $py, float $ax, flo
 // Splits the anchor path at the projected point P (unless P is an existing endpoint) and bridges the
 // waypoint to P with a Querfeldein edge. Sub-path edges are shared objects in both directions, like
 // the regular symmetric slice edges.
-function avesmapsAnchorClientWaypointToLandPath(array &$graph, string $waypointName, float $wx, float $wy, array $anchor, string $syntheticTransport, float $syntheticSpeed, int $waypointIndex): void {
-    $original = $anchor['connection'];
-    $coordinates = $original['geometry']['coordinates'] ?? [];
-    if (!is_array($coordinates) || count($coordinates) < 2) return;
+/**
+ * PURE: der naechste freie Anker-Index in DIESEM Graphen.
+ *
+ * 💣 KEIN ZAEHLER IM MODUL. Zwei Erzeuger vergeben Anker-Namen (der Wegpunkt-Anker und die
+ * Kartenpunkt-Anbindung); ein statischer Zaehler waere verborgener Zustand, den jeder Test
+ * zuruecksetzen muesste und den zu vergessen erst live auffiele. Der Graph weiss selbst, welche
+ * Namen vergeben sind, und die Suche ist eine Handvoll isset() je Anker.
+ */
+function avesmapsAllocateClientAnchorIndex(array $graph): int {
+    $index = 0;
+    while (isset($graph[AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX . $index])) { $index++; }
+    return $index;
+}
+
+/**
+ * Teilt den Weg eines Ankers an seinem Fusspunkt und liefert den Knoten, an dem dort angebunden
+ * wird. Faellt der Fusspunkt auf einen Endknoten, wird nicht geteilt und dieser Endknoten kommt
+ * zurueck -- der Aufrufer haengt seine Querfeldein-Kante dann direkt dorthin.
+ *
+ * 🔴 DIE URSPRUNGSKANTE WIRD ENTFERNT, sobald beide Haelften stehen. Bis zum 14.08.2026 blieb sie
+ * liegen; bei EINEM Anker je Anfrage war das harmlos. Bei mehreren nicht: der Sammler des naechsten
+ * Endpunkts saehe den ungeteilten Weg erneut, teilte ihn ein zweites Mal, und die beiden Fusspunkte
+ * haengen nebeneinander am selben Weg OHNE Verbindung untereinander -- die Reise zwischen ihnen
+ * liefe ueber den gemeinsamen Endknoten zurueck.
+ *
+ * 💣 „Sobald beide Haelften stehen" ist die Bedingung, nicht die Beschreibung. Faellt eine Haelfte
+ * weg, bliebe nach dem Entfernen eine LUECKE in der Strasse. Lieber eine ueberfluessige Dopplung
+ * als ein Netz, das an einer Stelle reisst, die niemand sucht.
+ */
+function avesmapsSplitClientPathAtAnchor(array &$graph, array $anchor, int $anchorIndex): string {
+    $original = $anchor['connection'] ?? null;
+    $fromName = (string) ($anchor['from'] ?? '');
+    $toName = (string) ($anchor['to'] ?? '');
+    $coordinates = is_array($original) ? ($original['geometry']['coordinates'] ?? []) : [];
+    if (!is_array($coordinates) || count($coordinates) < 2) return $fromName;
+
     $count = count($coordinates);
-    $i = (int) $anchor['segment_index'];
-    $t = (float) $anchor['t'];
-    $projX = (float) $anchor['proj_x'];
-    $projY = (float) $anchor['proj_y'];
-    $fromName = (string) $anchor['from'];
-    $toName = (string) $anchor['to'];
+    $i = (int) ($anchor['segment_index'] ?? 0);
+    $t = (float) ($anchor['t'] ?? 0.0);
+    $projX = (float) ($anchor['proj_x'] ?? 0.0);
+    $projY = (float) ($anchor['proj_y'] ?? 0.0);
     $epsilon = 1e-7;
 
-    if ($i === 0 && $t <= $epsilon) {
-        $anchorNodeName = $fromName;               // P == path start node
-    } elseif ($i === $count - 2 && $t >= 1.0 - $epsilon) {
-        $anchorNodeName = $toName;                  // P == path end node
-    } else {
-        $anchorNodeName = '__wp_anchor_' . $waypointIndex;
-        $graph[$anchorNodeName] ??= [];
+    if ($i === 0 && $t <= $epsilon) return $fromName;                       // P == Anfangsknoten
+    if ($i === $count - 2 && $t >= 1.0 - $epsilon) return $toName;          // P == Endknoten
 
-        $sliceFrom = array_slice($coordinates, 0, $i + 1);
-        if ($t > $epsilon) { $sliceFrom[] = [$projX, $projY]; }
-        $sliceTo = [];
-        if ($t < 1.0 - $epsilon) { $sliceTo[] = [$projX, $projY]; }
-        $sliceTo = array_merge($sliceTo, array_slice($coordinates, $i + 1));
+    $anchorNodeName = AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX . $anchorIndex;
+    $graph[$anchorNodeName] ??= [];
 
-        // V11: the parent's profile, cut at the projected point. `$i` is the segment being cut and
-        // `$t` the fraction of it that falls to the first piece.
-        [$profileFrom, $profileTo] = avesmapsRouteSplitTerrainProfile($original['terrain_profile'] ?? null, $i, $t);
+    $sliceFrom = array_slice($coordinates, 0, $i + 1);
+    if ($t > $epsilon) { $sliceFrom[] = [$projX, $projY]; }
+    $sliceTo = [];
+    if ($t < 1.0 - $epsilon) { $sliceTo[] = [$projX, $projY]; }
+    $sliceTo = array_merge($sliceTo, array_slice($coordinates, $i + 1));
 
-        if (count($sliceFrom) >= 2) {
-            $connectionFrom = avesmapsBuildClientRouteSubPathConnection($original, $fromName, $anchorNodeName, $sliceFrom, 'wp-slice-' . $waypointIndex . '-a', $profileFrom);
-            avesmapsAddClientCompatibleGraphConnection($graph, $fromName, $anchorNodeName, $connectionFrom);
-            avesmapsAddClientCompatibleGraphConnection($graph, $anchorNodeName, $fromName, avesmapsRouteReverseSubPathConnection($connectionFrom));
-        }
-        if (count($sliceTo) >= 2) {
-            $connectionTo = avesmapsBuildClientRouteSubPathConnection($original, $anchorNodeName, $toName, $sliceTo, 'wp-slice-' . $waypointIndex . '-b', $profileTo);
-            avesmapsAddClientCompatibleGraphConnection($graph, $anchorNodeName, $toName, $connectionTo);
-            avesmapsAddClientCompatibleGraphConnection($graph, $toName, $anchorNodeName, avesmapsRouteReverseSubPathConnection($connectionTo));
-        }
+    // V11: the parent's profile, cut at the projected point. `$i` is the segment being cut and
+    // `$t` the fraction of it that falls to the first piece.
+    [$profileFrom, $profileTo] = avesmapsRouteSplitTerrainProfile($original['terrain_profile'] ?? null, $i, $t);
+
+    $addedFrom = false;
+    $addedTo = false;
+    if (count($sliceFrom) >= 2) {
+        $connectionFrom = avesmapsBuildClientRouteSubPathConnection($original, $fromName, $anchorNodeName, $sliceFrom, 'wp-slice-' . $anchorIndex . '-a', $profileFrom);
+        avesmapsAddClientCompatibleGraphConnection($graph, $fromName, $anchorNodeName, $connectionFrom);
+        avesmapsAddClientCompatibleGraphConnection($graph, $anchorNodeName, $fromName, avesmapsRouteReverseSubPathConnection($connectionFrom));
+        $addedFrom = true;
+    }
+    if (count($sliceTo) >= 2) {
+        $connectionTo = avesmapsBuildClientRouteSubPathConnection($original, $anchorNodeName, $toName, $sliceTo, 'wp-slice-' . $anchorIndex . '-b', $profileTo);
+        avesmapsAddClientCompatibleGraphConnection($graph, $anchorNodeName, $toName, $connectionTo);
+        avesmapsAddClientCompatibleGraphConnection($graph, $toName, $anchorNodeName, avesmapsRouteReverseSubPathConnection($connectionTo));
+        $addedTo = true;
     }
 
-    if ($anchorNodeName === $waypointName) return;
+    if ($addedFrom && $addedTo) {
+        avesmapsRemoveClientRouteConnection($graph, $fromName, $toName, (string) ($original['id'] ?? ''));
+    }
 
+    return $anchorNodeName;
+}
+
+function avesmapsAnchorClientWaypointToLandPath(array &$graph, string $waypointName, float $wx, float $wy, array $anchor, string $syntheticTransport, float $syntheticSpeed, int $anchorIndex): void {
+    $anchorNodeName = avesmapsSplitClientPathAtAnchor($graph, $anchor, $anchorIndex);
+    if ($anchorNodeName === $waypointName || $anchorNodeName === '') return;
+
+    $projX = (float) ($anchor['proj_x'] ?? 0.0);
+    $projY = (float) ($anchor['proj_y'] ?? 0.0);
     $airDistance = hypot($wx - $projX, $wy - $projY);
     $cost = $airDistance * AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR;
     $connectionId = 'synthetic-' . $waypointName . '->' . $anchorNodeName;
@@ -1167,6 +1218,24 @@ function avesmapsGetClientCompatibleLocationDistance(array $firstLocation, array
 function avesmapsAddClientCompatibleGraphConnection(array &$graph, string $fromName, string $toName, array $connection): void {
     $graph[$fromName][$toName] ??= [];
     $graph[$fromName][$toName][] = $connection;
+}
+
+/**
+ * Eine Kante beider Richtungen wieder aus dem Graphen nehmen, an ihrer ID erkannt.
+ *
+ * Wohnte bis zum 14.08.2026 in detour.php; seit der Teiler sie ebenfalls braucht, steht sie hier --
+ * die Abhaengigkeit laeuft nur in eine Richtung (detour.php -> offroad-leg.php -> client-graph.php).
+ */
+function avesmapsRemoveClientRouteConnection(array &$graph, string $fromNode, string $toNode, string $connectionId): void
+{
+    foreach ([[$fromNode, $toNode], [$toNode, $fromNode]] as [$a, $b]) {
+        if (!isset($graph[$a][$b]) || !is_array($graph[$a][$b])) { continue; }
+        $graph[$a][$b] = array_values(array_filter(
+            $graph[$a][$b],
+            static fn(array $connection): bool => (string) ($connection['id'] ?? '') !== $connectionId
+        ));
+        if ($graph[$a][$b] === []) { unset($graph[$a][$b]); }
+    }
 }
 
 // Buckets the locations into 0.5-wide cells over route_x/route_y, so the endpoint lookup below can
