@@ -214,6 +214,26 @@ const carriage = SPEED_TABLE.horseCarriage;
 	);
 });
 
+// S. 120–123, „offenes Gelände": Querfeldein ist 0,75 der Straße — die EINE Spalte, die die
+// Migration vom 14.08.2026 auf ihren Quellenwert gezogen hat (Entwurf 2026-08-07-tempowerte §6.3).
+//
+// 🔴 UND DIE KONSTANTE MUSS ES MITTRAGEN, obwohl sie nur der Rückfall ist. Sie gilt für eine frische
+// Anlage, in der noch nichts gespeichert wurde; stünde dort weiter der alte Wert, verhielte sich eine
+// neue Datenbank anders als jede migrierte — und das ist die Art Unterschied, die niemandem auffällt,
+// bis eine Reisezeit nicht zu erklären ist.
+//
+// ⚠️ Die übrigen SECHS Wegtypen weichen weiterhin von der GA ab, und das ist Absicht: sie zurückzusetzen
+// verschöbe jede Reisezeit auf jeder Straße, und das entscheidet der Owner im Fenster, nicht ein Deploy.
+// Relativ zur Straße geprüft, damit eine spätere Umskalierung der ganzen Tabelle das hier überlebt.
+[["groupFoot", 3.07], ["lightWalker", 4.09], ["groupHorse", 3.58],
+	["lightRider", 5.12], ["caravan", 3.07], ["horseCarriage", 5.12]].forEach(([mode]) => {
+	const ratio = SPEED_TABLE[mode].Querfeldein / SPEED_TABLE[mode].Strasse;
+	assert.ok(
+		Math.abs(ratio - 0.75) < 0.005,
+		`${mode} muss querfeldein 0,75 der Straße fahren (GA S. 120-123, „offenes Gelände") — ist ${ratio.toFixed(3)}`
+	);
+});
+
 // ---- 3. die drei Spiegel tragen dieselben Zahlen ------------------------------------------------------
 // Der PHP-Spiegel wird als Text gelesen: seine Zeilen sind gleichförmig genug für einen Ausdruck,
 // und ein Test, der dafür PHP starten müsste, liefe in dieser Datei nicht.

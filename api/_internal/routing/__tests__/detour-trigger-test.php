@@ -12,9 +12,20 @@ declare(strict_types=1);
  * ⭐ Der Vorfilter ist gratis: Luftlinie und gefahrene Strecke liegen nach dem ersten Dijkstra beide
  * vor. Gemessen lösen 9,1 % der nahen Ortspaare aus; die übrigen 90,9 % zahlen nichts.
  *
- * 💣 Die Schwelle allein entscheidet NICHT. Querfeldein ist mit 1,25 gegen 4,0 auf der Straße gut
- * dreimal langsamer -- ein Bogen von genau 3x ist über die Zeit immer noch der bessere Weg. Deshalb
- * ist die zweite Prüfung die ZEIT, und Fall C hier ist genau der Fall, in dem sie greift.
+ * 💣 Die Schwelle allein entscheidet NICHT: die zweite Prüfung ist die ZEIT, und Fall D ist der Fall,
+ * in dem sie greift.
+ *
+ * 🔴 SEIT DEM 14.08.2026 GREIFT SIE AN LAND NICHT MEHR, und das ist eine gemessene Aussage, kein
+ * Verdacht. Die Zeitprobe kann eine Route nur retten, solange das TEMPOverhältnis über der Schwelle
+ * liegt: bei Querfeldein 0,96 stand die Straße mit 3,07/0,96 = 3,198 knapp über 3,0, und zwischen
+ * 3,0x und 3,198x lag ein schmales Band, in dem der Bogen zwar auslöste, aber zeitlich verlor. Mit
+ * dem Quellenwert 2,30 sind es 3,07/2,30 = 1,335 -- das Band ist LEER. Und es lässt sich an Land
+ * auch nicht wiederherstellen: das größte Landverhältnis überhaupt ist 5,59/2,30 = 2,43
+ * (Kutsche auf der Reichsstraße), immer noch unter 3,0.
+ * ⚠️ Damit entscheidet an Land allein die Schwelle. Auf dem Wasser bleibt die Zeitprobe scharf
+ * (Lastensegler 11,90/2,30 = 5,17), und Fall D steht deshalb seit dem 14.08.2026 auf einem Seeweg.
+ * 🔧 Ob die Schwelle 3,0 danach noch die richtige ist, ist eine Owner-Frage -- der Entwurf
+ * (2026-08-07-tempowerte §9) verlangt ausdrücklich, sie NACH dem Bau an echten Routen nachzumessen.
  *
  * Run from the repo root:
  *   php -d zend.assertions=1 -d assert.exception=1 api/_internal/routing/__tests__/detour-trigger-test.php
@@ -33,7 +44,7 @@ $place = static fn(string $name, float $x, float $y): array => [
     'name' => $name, 'route_x' => $x, 'route_y' => $y,
     'geometry' => ['type' => 'Point', 'coordinates' => [$x, $y]],
 ];
-$request = ['optimize' => 'fastest', 'transports' => ['land' => 'groupFoot', 'synthetic' => 'groupFoot'],
+$request = ['optimize' => 'fastest', 'transports' => ['land' => 'groupFoot', 'sea' => 'cargoShip', 'synthetic' => 'groupFoot'],
     'enabled_transports' => ['land' => true, 'river' => true, 'sea' => true]];
 
 // Eine Strasse aus einer Punktfolge -- Laenge und Zeit kommen aus der Geometrie, wie im echten Graphen.
@@ -43,14 +54,28 @@ $request = ['optimize' => 'fastest', 'transports' => ['land' => 'groupFoot', 'sy
 // Verhältnis von 3,2 auf 4,2 verschoben, und der Fall „gerechnet und doch verloren" wäre still in
 // den Nachbarzweig `cannot_win` gerutscht, ohne je rot zu werden.
 $roadSpeed = (float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['groupFoot']['Strasse'];
-$roadAlong = static function (array &$graph, string $from, string $to, array $points) use ($roadSpeed): void {
+$offroadSpeed = (float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['groupFoot']['Querfeldein'];
+$seaSpeed = (float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['cargoShip']['Seeweg'];
+
+// 🔴 DIE MESSUNG, DIE FALL D SEINEN SCHAUPLATZ VORSCHREIBT. Die Zeitprobe kann nur dort etwas
+// retten, wo das TEMPOverhaeltnis ueber der Schwelle liegt -- sonst gewinnt der Querweg, sobald die
+// Schwelle ueberhaupt anschlaegt, und die zweite Pruefung ist eine Zeile ohne Wirkung.
+assert($roadSpeed / $offroadSpeed < AVESMAPS_ROUTE_OFFROAD_DETOUR_THRESHOLD,
+    'an Land liegt das Tempoverhaeltnis unter der Schwelle: ' . round($roadSpeed / $offroadSpeed, 3)
+    . ' gegen ' . AVESMAPS_ROUTE_OFFROAD_DETOUR_THRESHOLD
+    . ' -- ist es wieder darueber, gehoert Fall D zurueck auf die Strasse und dieser Kommentar geaendert');
+assert($seaSpeed / $offroadSpeed > AVESMAPS_ROUTE_OFFROAD_DETOUR_THRESHOLD,
+    'auf dem Wasser liegt es darueber: ' . round($seaSpeed / $offroadSpeed, 3));
+
+$wayAlong = static function (array &$graph, string $from, string $to, array $points,
+                             string $routeType, string $transport, float $speed): void {
     $length = 0.0;
     for ($i = 1; $i < count($points); $i++) {
         $length += hypot($points[$i][0] - $points[$i - 1][0], $points[$i][1] - $points[$i - 1][1]);
     }
     $connection = [
-        'distance' => $length, 'time' => $length / $roadSpeed, 'route_type' => 'Strasse',
-        'transport_option' => 'groupFoot', 'id' => 'path-' . $from . $to, 'from' => $from, 'to' => $to,
+        'distance' => $length, 'time' => $length / $speed, 'route_type' => $routeType,
+        'transport_option' => $transport, 'id' => 'path-' . $from . $to, 'from' => $from, 'to' => $to,
         'geometry' => ['type' => 'LineString', 'coordinates' => $points],
     ];
     avesmapsAddClientCompatibleGraphConnection($graph, $from, $to, $connection);
@@ -58,6 +83,16 @@ $roadAlong = static function (array &$graph, string $from, string $to, array $po
     $reverse['from'] = $to; $reverse['to'] = $from;
     $reverse['geometry']['coordinates'] = array_reverse($points);
     avesmapsAddClientCompatibleGraphConnection($graph, $to, $from, $reverse);
+};
+
+// Die beiden Schauplätze, beide mit dem Tempo aus der Tabelle statt mit einer abgeschriebenen Zahl.
+$roadAlong = static function (array &$graph, string $from, string $to, array $points)
+    use ($wayAlong, $roadSpeed): void {
+    $wayAlong($graph, $from, $to, $points, 'Strasse', 'groupFoot', $roadSpeed);
+};
+$seaAlong = static function (array &$graph, string $from, string $to, array $points)
+    use ($wayAlong, $seaSpeed): void {
+    $wayAlong($graph, $from, $to, $points, 'Seeweg', 'cargoShip', $seaSpeed);
 };
 
 // ============================================================ A. das Mass ist die GEOMETRIE
@@ -131,12 +166,17 @@ assert($shipped['distance_units'] >= 10.0 - 1e-6, 'und ist mindestens die Luftli
 
 // ============================================================ D. ausgeloest, aber zeitlich unterlegen
 
-// 💣 DER FALL, DEN DIE SCHWELLE ALLEIN FALSCH ENTSCHIEDE. 3,1x Bogen: die Strasse ist laenger, aber
-// mit 4,0 gegen 1,25 immer noch schneller. Ohne die Zeitprobe wuerde hier eine langsamere Reise
+// 💣 DER FALL, DEN DIE SCHWELLE ALLEIN FALSCH ENTSCHIEDE. 3,1x Bogen: der Weg ist laenger, aber mit
+// 11,90 gegen 2,30 immer noch schneller. Ohne die Zeitprobe wuerde hier eine langsamere Reise
 // gewinnen, nur weil sie kuerzer aussieht.
+//
+// 🔴 EIN SEEWEG, SEIT DEM 14.08.2026 -- und das ist kein Ausweichen auf einen bequemeren Fall,
+// sondern der einzige, der es noch gibt. An Land ist das Tempoverhaeltnis seit dem Quellenwert
+// 1,335 und damit UNTER der Schwelle 3,0: sobald der Bogen ausloest, gewinnt der Querweg dort auch
+// ueber die Zeit. Die beiden Zusicherungen oben halten genau das fest.
 $graph = ['A' => [], 'B' => []];
-// 10,5 + 10 + 10,5 = 31 Einheiten fuer 10 Luftlinie: Verhaeltnis 3,1, Fahrzeit 7,75 gegen 8,0 quer.
-$roadAlong($graph, 'A', 'B', [[0.0, 0.0], [0.0, 10.5], [10.0, 10.5], [10.0, 0.0]]);
+// 10,5 + 10 + 10,5 = 31 Einheiten fuer 10 Luftlinie: Verhaeltnis 3,1, Fahrzeit 2,605 gegen 4,348 quer.
+$seaAlong($graph, 'A', 'B', [[0.0, 0.0], [0.0, 10.5], [10.0, 10.5], [10.0, 0.0]]);
 $clientGraph = ['graph' => $graph, 'statistics' => []];
 $route = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
 
@@ -162,29 +202,17 @@ assert(abs($after['cost'] - $route['cost']) < 1e-12, 'und kostet dasselbe');
 // `Luftlinie / Tempo` die Bestzeit, die er überhaupt erreichen könnte. Liegt schon die über der
 // Graph-Route, ist die Suche verlorene Arbeit -- eine Division statt einer Rasterung.
 //
-// ⭐ Praktisch trifft das Wasserwege: bei Tempo 4 auf der Strasse greift die Schranke nur zwischen
-// 3,0x und 3,2x, bei einem Seeweg mit Tempo 10 bis zum ACHTFACHEN Bogen. Genau dort läuft der A*
-// heute leer -- Flüsse mäandern, Küsten sind gebogen.
+// ⭐ Praktisch trifft das WASSERWEGE, und seit dem 14.08.2026 nur noch sie: an Land liegt das
+// Tempoverhaeltnis mit 1,335 unter der Schwelle, dort greift die Schranke ueberhaupt nicht mehr.
+// Auf dem Seeweg reicht sie mit 11,90/2,30 = 5,17 bis zum gut fuenffachen Bogen -- und genau dort
+// laeuft der A* sonst leer, denn Fluesse maeandern und Kuesten sind gebogen.
 $graph = ['A' => [], 'B' => []];
-$fluss = static function (array &$graph, string $from, string $to, array $points): void {
-    $length = 0.0;
-    for ($i = 1; $i < count($points); $i++) {
-        $length += hypot($points[$i][0] - $points[$i - 1][0], $points[$i][1] - $points[$i - 1][1]);
-    }
-    $connection = [
-        'distance' => $length, 'time' => $length / 10.0, 'route_type' => 'Seeweg',
-        'transport_option' => 'cargoShip', 'id' => 'sea-' . $from . $to, 'from' => $from, 'to' => $to,
-        'geometry' => ['type' => 'LineString', 'coordinates' => $points],
-    ];
-    avesmapsAddClientCompatibleGraphConnection($graph, $from, $to, $connection);
-    $reverse = $connection;
-    $reverse['from'] = $to; $reverse['to'] = $from;
-    $reverse['geometry']['coordinates'] = array_reverse($points);
-    avesmapsAddClientCompatibleGraphConnection($graph, $to, $from, $reverse);
-};
-// 50 Einheiten Seeweg fuer 10 Luftlinie: Verhaeltnis 5,0 -- weit ueber der Schwelle. Aber mit Tempo
-// 10 dauert die Fahrt 5,0, waehrend der Querweg bestenfalls 10/1,25 = 8,0 braucht.
-$fluss($graph, 'A', 'B', [[0.0, 0.0], [0.0, 20.0], [10.0, 20.0], [10.0, 0.0]]);
+// 🪤 KEINE ABGESCHRIEBENE 10,0 MEHR. Hier stand das Seetempo als feste Zahl, waehrend der Querweg
+// seines aus der Tabelle liest -- dieselbe Falle, vor der der Kommentar an $roadAlong warnt, und sie
+// haette diesen Fall bei der naechsten Eichung still in den Nachbarzweig rutschen lassen.
+// 40 Einheiten Seeweg fuer 10 Luftlinie: Verhaeltnis 4,0 -- ueber der Schwelle. Aber mit 11,90
+// dauert die Fahrt 3,36, waehrend der Querweg bestenfalls 10/2,30 = 4,35 braucht.
+$seaAlong($graph, 'A', 'B', [[0.0, 0.0], [0.0, 15.0], [10.0, 15.0], [10.0, 0.0]]);
 $clientGraph = ['graph' => $graph, 'statistics' => []];
 $route = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
 
@@ -226,15 +254,23 @@ assert($report['best_possible_cost_units'] < $report['graph_cost_units'],
 // schafft. Zwingt ihn ein Hindernis zum Bogen, verliert er trotzdem -- und das merkt man erst nach
 // der Suche. Dieser Fall bleibt teuer, und das ist der Preis dafuer, keinen gewinnenden Querweg
 // abzuschneiden.
+// 🔴 AUCH DIESER FALL STEHT SEIT DEM 14.08.2026 AUF DEM WASSER, aus demselben Grund wie D: an Land
+// gaebe es ihn nicht mehr. Damit ueberhaupt gesucht wird, muss die Bestzeit UNTER der Fahrzeit
+// liegen -- und damit der gefundene Weg dann doch verliert, muss die Fahrzeit unter ihm liegen. An
+// Land ist zwischen diesen beiden Schranken kein Platz mehr.
+// Gemessen, nicht geraten: Fahrzeit 4,706 · Bestzeit 4,348 · gefunden 5,686 -- 21 % Reserve.
 $graph = ['A' => [], 'B' => []];
-$roadAlong($graph, 'A', 'B', [[0.0, 0.0], [0.0, 12.0], [10.0, 12.0], [10.0, 0.0]]);   // 34 Einheiten
+$seaAlong($graph, 'A', 'B', [[0.0, 0.0], [0.0, 23.0], [10.0, 23.0], [10.0, 0.0]]);   // 56 Einheiten, 5,6x
 $clientGraph = ['graph' => $graph, 'statistics' => []];
 $route = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
 
 // Ein See quer zwischen beiden, der die direkte Linie sperrt, aber noerdlich einen Korridor laesst.
+// ⚠️ Die Oberkante 2,0 ist Teil der Pruefung: die Kiste reicht bis y = 3,0 (Rand = 30 % der
+// Luftlinie), der Korridor ist also eine Handbreit -- weiter zu, und der A* findet gar nichts, weiter
+// auf, und der Umweg wird zu billig, um noch zu verlieren.
 $sperre = avesmapsPrepareRouteAreas([[
-    'geometry' => ['type' => 'Polygon', 'coordinates' => [[[2.0, -10.0], [8.0, -10.0], [8.0, 1.0], [2.0, 1.0], [2.0, -10.0]]]],
-    'min_x' => 2.0, 'min_y' => -10.0, 'max_x' => 8.0, 'max_y' => 1.0,
+    'geometry' => ['type' => 'Polygon', 'coordinates' => [[[2.0, -10.0], [8.0, -10.0], [8.0, 2.0], [2.0, 2.0], [2.0, -10.0]]]],
+    'min_x' => 2.0, 'min_y' => -10.0, 'max_x' => 8.0, 'max_y' => 2.0,
 ]]);
 $report = avesmapsMaybeOfferOffroadDetour($clientGraph, $request, $sperre, null, $route['segments'],
     ['x' => 0.0, 'y' => 0.0], ['x' => 10.0, 'y' => 0.0], 'A', 'B', false);

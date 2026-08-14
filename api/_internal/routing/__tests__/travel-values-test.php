@@ -85,13 +85,20 @@ assert($werte['source'] === 'constant', 'und die Antwort sagt, woher sie kommt: 
 // Die Zahl, die als Unterzeile in der Kachel steht -- Status gehoert in den Knopf.
 $befund = avesmapsTravelValuesDeviations($werte);
 assert(isset($befund['path_factors']), 'der Befund nennt die Wegtypen');
-// 4.2 des Entwurfs: sechs der sieben weichen ab, nur die Strasse ist der Bezug.
-assert($befund['path_factors']['count'] === 6,
-    'sechs Wegtypen weichen heute von der GA ab: ' . $befund['path_factors']['count']);
-assert($nah($befund['path_factors']['values']['Querfeldein']['ours'], 0.313, 0.002),
-    'Querfeldein steht bei 0,313: ' . $befund['path_factors']['values']['Querfeldein']['ours']);
-assert($befund['path_factors']['values']['Querfeldein']['source'] === 0.75, 'die Quelle sagt 0,75');
+// 4.2 des Entwurfs: sechs der sieben wichen ab, nur die Strasse ist der Bezug.
+// 🔴 SEIT DEM 14.08.2026 SIND ES FUENF, und diese Zahl ist der ganze Stand des Vorhabens in einer
+// Ziffer: Querfeldein ist als EINZIGER Wegtyp auf seinen Quellenwert gezogen worden (Entwurf §6.3),
+// die uebrigen fuenf warten auf den Rücksetzer im Fenster. Faellt sie auf vier, hat jemand einen
+// zweiten Wegtyp angefasst -- und das verschiebt Reisezeiten auf gezeichneten Strassen, nicht nur
+// auf ungezeichnetem Boden.
+assert($befund['path_factors']['count'] === 5,
+    'fuenf Wegtypen weichen heute von der GA ab: ' . $befund['path_factors']['count']);
+assert(!isset($befund['path_factors']['values']['Querfeldein']),
+    'Querfeldein weicht NICHT mehr ab -- es steht seit dem 14.08.2026 auf der Quellenzeile 0,75');
 assert(!isset($befund['path_factors']['values']['Strasse']), 'die Strasse weicht nicht ab, sie IST der Bezug');
+// Und die fuenf, die noch offen sind, beim Namen genannt -- damit „fuenf" nicht irgendwelche fuenf sind.
+assert(array_keys($befund['path_factors']['values']) === ['Reichsstrasse', 'Weg', 'Pfad', 'Gebirgspass', 'Wuestenpfad'],
+    'die offenen fuenf: ' . implode(', ', array_keys($befund['path_factors']['values'])));
 
 // ============================================================ E. Der Ruecksetzer zieht auf das Produkt
 

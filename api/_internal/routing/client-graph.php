@@ -48,13 +48,24 @@ const AVESMAPS_ROUTE_CLIENT_SEA_ROUTE_TYPES = ['Seeweg'];
 // js/pages/wege-editor-model.js). The full derivation and the two rules encoded in the numbers --
 // the river's 12-hour travel day and the carriage's half speed on Weg/Gebirgspass -- are documented
 // there; do not change one side alone.
+//
+// 🔴 SIE IST DER RUECKFALL, NICHT MEHR DIE WAHRHEIT. Seit dem 14.08.2026 liest der Router
+// app_setting['travel_values'] (avesmapsTravelValuesSpeed); diese Tabelle gilt, wo nichts gespeichert
+// ist -- eine frische Anlage, jede Diagnose ohne PDO, jeder Unit-Test.
+// 💣 UND GENAU DESHALB MUSSTE `Querfeldein` MITWANDERN: 0,75 der Strasse statt 0,313 (GA S. 120-123,
+// „offenes Gelaende"), dieselbe Spalte, die die Migration in den Speicher geschrieben hat. Stuende hier
+// der alte Wert, verhielte sich eine frische Datenbank anders als jede migrierte -- und das ist die Art
+// Unterschied, die niemandem auffaellt, bis eine Reisezeit nicht zu erklaeren ist.
+// ⚠️ Die uebrigen SECHS Wegtypen weichen weiter von der Quelle ab, und das ist Absicht (Entwurf §5):
+// sie zurueckzusetzen verschoebe jede Reisezeit auf jeder Strasse, und das entscheidet der Owner im
+// Fenster „Tempowerte", nicht ein Deploy.
 const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
-    'groupFoot' => ['Reichsstrasse' => 3.45, 'Strasse' => 3.07, 'Weg' => 2.69, 'Pfad' => 2.3, 'Gebirgspass' => 1.15, 'Wuestenpfad' => 1.92, 'Querfeldein' => 0.96],
-    'lightWalker' => ['Reichsstrasse' => 4.5, 'Strasse' => 4.09, 'Weg' => 3.68, 'Pfad' => 3.27, 'Gebirgspass' => 1.64, 'Wuestenpfad' => 2.86, 'Querfeldein' => 1.39],
-    'groupHorse' => ['Reichsstrasse' => 3.86, 'Strasse' => 3.58, 'Weg' => 3.03, 'Pfad' => 2.48, 'Gebirgspass' => 1.38, 'Wuestenpfad' => 1.65, 'Querfeldein' => 1.16],
-    'lightRider' => ['Reichsstrasse' => 5.44, 'Strasse' => 5.12, 'Weg' => 4.48, 'Pfad' => 3.84, 'Gebirgspass' => 1.92, 'Wuestenpfad' => 2.56, 'Querfeldein' => 1.6],
-    'caravan' => ['Reichsstrasse' => 3.51, 'Strasse' => 3.07, 'Weg' => 2.63, 'Pfad' => 2.19, 'Gebirgspass' => 1.32, 'Wuestenpfad' => 1.75, 'Querfeldein' => 1.1],
-    'horseCarriage' => ['Reichsstrasse' => 5.59, 'Strasse' => 5.12, 'Weg' => 2.09, 'Pfad' => 2.79, 'Gebirgspass' => 0.93, 'Wuestenpfad' => 2.79, 'Querfeldein' => 1.58],
+    'groupFoot' => ['Reichsstrasse' => 3.45, 'Strasse' => 3.07, 'Weg' => 2.69, 'Pfad' => 2.3, 'Gebirgspass' => 1.15, 'Wuestenpfad' => 1.92, 'Querfeldein' => 2.3],
+    'lightWalker' => ['Reichsstrasse' => 4.5, 'Strasse' => 4.09, 'Weg' => 3.68, 'Pfad' => 3.27, 'Gebirgspass' => 1.64, 'Wuestenpfad' => 2.86, 'Querfeldein' => 3.07],
+    'groupHorse' => ['Reichsstrasse' => 3.86, 'Strasse' => 3.58, 'Weg' => 3.03, 'Pfad' => 2.48, 'Gebirgspass' => 1.38, 'Wuestenpfad' => 1.65, 'Querfeldein' => 2.69],
+    'lightRider' => ['Reichsstrasse' => 5.44, 'Strasse' => 5.12, 'Weg' => 4.48, 'Pfad' => 3.84, 'Gebirgspass' => 1.92, 'Wuestenpfad' => 2.56, 'Querfeldein' => 3.84],
+    'caravan' => ['Reichsstrasse' => 3.51, 'Strasse' => 3.07, 'Weg' => 2.63, 'Pfad' => 2.19, 'Gebirgspass' => 1.32, 'Wuestenpfad' => 1.75, 'Querfeldein' => 2.3],
+    'horseCarriage' => ['Reichsstrasse' => 5.59, 'Strasse' => 5.12, 'Weg' => 2.09, 'Pfad' => 2.79, 'Gebirgspass' => 0.93, 'Wuestenpfad' => 2.79, 'Querfeldein' => 3.84],
     'riverSailer' => ['Flussweg' => 6.0],
     'riverBarge' => ['Flussweg' => 4.0],
     'cargoShip' => ['Seeweg' => 11.9],

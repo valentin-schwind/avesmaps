@@ -121,18 +121,30 @@ const PATH_ENDPOINT_SNAP_DISTANCE_PX = 18;
 // Karrenwegen und Pässen nur halbe Geschwindigkeit". „Karrenweg" is our `Weg` -- the source lists
 // „Weg/Karrenweg" as one category at factor 0,8 and calls the carriage „riskant" there. Result
 // against Strasse: Weg 0,409 (source 0,8 x 0,5) and Gebirgspass 0,182 (source 0,4 x 0,5).
+//
+// 💣 DIE SPALTE `Querfeldein` STEHT SEIT DEM 14.08.2026 AUF IHREM QUELLENWERT: 0,75 der Straße
+// („offenes Gelände", S. 120-123), vorher 0,313. Sie ist die EINE Spalte, die die Tempowerte-Migration
+// gezogen hat (Entwurf docs/superpowers/specs/2026-08-07-tempowerte-design.md §6.3) -- die übrigen
+// sechs Wegtypen weichen weiterhin von der Quelle ab, und das bleibt so, bis der Owner sie im Fenster
+// „Tempowerte" zurücksetzt. Ein Deploy, der jede Reisezeit auf jeder Straße verschiebt, wäre keine
+// Nebenwirkung eines Wald-Features.
+// 🔴 DIESE TABELLE IST EIN SPIEGEL, NICHT DIE QUELLE. Die Regel besitzt der Server
+// (AVESMAPS_ROUTE_CLIENT_SPEED_TABLE plus app_setting['travel_values']); hier stehen dieselben Zahlen
+// für den Client-Router und die Anzeige. Bewacht von js/routing/__tests__/speed-table-and-rest-rule.test.js.
 const SPEED_TABLE = {
-	groupFoot: { Reichsstrasse: 3.45, Strasse: 3.07, Weg: 2.69, Pfad: 2.3, Gebirgspass: 1.15, Wuestenpfad: 1.92, Querfeldein: 0.96 },
-	lightWalker: { Reichsstrasse: 4.5, Strasse: 4.09, Weg: 3.68, Pfad: 3.27, Gebirgspass: 1.64, Wuestenpfad: 2.86, Querfeldein: 1.39 },
-	groupHorse: { Reichsstrasse: 3.86, Strasse: 3.58, Weg: 3.03, Pfad: 2.48, Gebirgspass: 1.38, Wuestenpfad: 1.65, Querfeldein: 1.16 },
-	lightRider: { Reichsstrasse: 5.44, Strasse: 5.12, Weg: 4.48, Pfad: 3.84, Gebirgspass: 1.92, Wuestenpfad: 2.56, Querfeldein: 1.6 },
-	caravan: { Reichsstrasse: 3.51, Strasse: 3.07, Weg: 2.63, Pfad: 2.19, Gebirgspass: 1.32, Wuestenpfad: 1.75, Querfeldein: 1.1 },
+	groupFoot: { Reichsstrasse: 3.45, Strasse: 3.07, Weg: 2.69, Pfad: 2.3, Gebirgspass: 1.15, Wuestenpfad: 1.92, Querfeldein: 2.3 },
+	lightWalker: { Reichsstrasse: 4.5, Strasse: 4.09, Weg: 3.68, Pfad: 3.27, Gebirgspass: 1.64, Wuestenpfad: 2.86, Querfeldein: 3.07 },
+	groupHorse: { Reichsstrasse: 3.86, Strasse: 3.58, Weg: 3.03, Pfad: 2.48, Gebirgspass: 1.38, Wuestenpfad: 1.65, Querfeldein: 2.69 },
+	lightRider: { Reichsstrasse: 5.44, Strasse: 5.12, Weg: 4.48, Pfad: 3.84, Gebirgspass: 1.92, Wuestenpfad: 2.56, Querfeldein: 3.84 },
+	caravan: { Reichsstrasse: 3.51, Strasse: 3.07, Weg: 2.63, Pfad: 2.19, Gebirgspass: 1.32, Wuestenpfad: 1.75, Querfeldein: 2.3 },
 	riverSailer: { Flussweg: 6.0 },
 	riverBarge: { Flussweg: 4.0 },
 	cargoShip: { Seeweg: 11.9 },
 	fastShip: { Seeweg: 12.4 },
 	galley: { Seeweg: 9.92 },
-	horseCarriage: { Reichsstrasse: 5.59, Strasse: 5.12, Weg: 2.09, Pfad: 2.79, Gebirgspass: 0.93, Wuestenpfad: 2.79, Querfeldein: 1.58 },
+	// ⚠️ Die Kutsche trägt ihre Querfeldein-Zelle mit und fährt trotzdem nie querfeldein: das verbietet
+	// die Wegart selbst (avesmapsClientRouteTransportOptions), eine Regel des Regelwerks, kein Tempo.
+	horseCarriage: { Reichsstrasse: 5.59, Strasse: 5.12, Weg: 2.09, Pfad: 2.79, Gebirgspass: 0.93, Wuestenpfad: 2.79, Querfeldein: 3.84 },
 };
 
 // ===== Reisekosten =====================================================================
