@@ -263,8 +263,78 @@ function wpPieceLengths(coordinates) {
 }
 
 // Node for the tests, plain globals for the editor page (no build step, AGENTS.md §3).
+/* ---- Tempowerte: was hat sich beim Speichern oder Zurücksetzen bewegt? ------------------------
+ *
+ * 🔴 DER ABSCHNITTS-RÜCKSETZER SCHREIBT SOFORT und fasst dabei Dutzende Zellen an. Ohne einen
+ * Vergleich vorher/nachher ist das ein Sprung ins Dunkle: die Zahlen stehen hinterher anders da,
+ * aber welche sich bewegt haben, sieht man nicht -- und rückgängig machen kann man ihn auch nicht.
+ * Owner-Befund vom 14.08.2026, wörtlich: „da standen 6 Werte weichen ab, jetzt hab ich rückgesetzt,
+ * aber weiß nicht welche Werte sich verändert haben."
+ *
+ * ⭐ Sie stehen HIER und nicht im Fenster: `wege-editor.js` ist DOM-Code in einem IIFE und hat
+ * deshalb keinen Verhaltenstest. Diese beiden sind reine Rechnung, also gehören sie in die Datei,
+ * die geprüft wird.
+ */
+
+/** Alle vier Sorten Tempowert in EINER flachen Karte: Schlüssel -> Zahl. */
+function wpTempoFlatValues(state) {
+	var flat = {};
+	if (!state) { return flat; }
+	var values = state.values || {};
+
+	var grid = values.grid || {};
+	Object.keys(grid).forEach(function (transport) {
+		var row = grid[transport] || {};
+		Object.keys(row).forEach(function (pathType) {
+			flat["grid:" + transport + ":" + pathType] = Number(row[pathType]);
+		});
+	});
+
+	// 💣 Die EBENE gehört in den Schlüssel: `wald` gibt es in `vegetation`, und nichts verbietet
+	// einer zweiten Ebene denselben Artnamen -- ohne sie verglichen sich zwei verschiedene Zeilen.
+	(state.landscapes || []).forEach(function (row) {
+		if (!row || row.factor === null || row.factor === undefined) { return; }
+		flat["ls:" + row.kind + ":" + row.type_key] = Number(row.factor);
+	});
+
+	var ground = values.ground_penalties || {};
+	Object.keys(ground).forEach(function (key) { flat["gr:" + key] = Number(ground[key]); });
+
+	["river_ratio", "calibration_target_miles"].forEach(function (key) {
+		if (values[key] === undefined || values[key] === null) { return; }
+		flat["ms:" + key] = Number(values[key]);
+	});
+
+	return flat;
+}
+
+/**
+ * Was sich zwischen zwei flachen Karten bewegt hat -- mit dem ALTEN Wert, nicht nur der Tatsache.
+ *
+ * ⚠️ Ein Wert ohne Vorher-Zahl ist keine Änderung, sondern ein neuer Wert: „von — auf 0,50" hilft
+ * niemandem, und beim ersten Laden wäre sonst jede Zelle eine Meldung.
+ * ⚠️ Rundungsrauschen zählt nicht. Ohne diese Schranke meldete jedes Speichern Dutzende Bewegungen,
+ * und die Anzeige wäre nach zwei Malen nur noch Rauschen, das man wegsieht.
+ */
+function wpTempoChanges(before, after) {
+	var changes = [];
+	if (!before || !after) { return changes; }
+	Object.keys(after).forEach(function (key) {
+		if (!(key in before)) { return; }
+		var from = Number(before[key]);
+		var to = Number(after[key]);
+		if (!isFinite(from) || !isFinite(to)) { return; }
+		if (Math.abs(from - to) < 0.0005) { return; }
+		changes.push({ key: key, from: from, to: to });
+	});
+
+	return changes;
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
+		wpTempoFlatValues: wpTempoFlatValues,
+		wpTempoChanges: wpTempoChanges,
 		WP_LKM_ASCENT_SCHRITT: WP_LKM_ASCENT_SCHRITT,
 		WP_LKM_DESCENT_SCHRITT: WP_LKM_DESCENT_SCHRITT,
 		WP_LKM_DESCENT_THRESHOLD: WP_LKM_DESCENT_THRESHOLD,

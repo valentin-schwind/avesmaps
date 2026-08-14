@@ -238,4 +238,70 @@ checks += 3;
 	checks++;
 }
 
+// ---- 11. Was hat sich beim Zurücksetzen bewegt? ---------------------------------------------
+//
+// 🔴 DER OWNER-BEFUND VOM 14.08.2026: „da standen 6 Werte weichen ab, jetzt hab ich rückgesetzt,
+// aber weiß nicht welche Werte sich verändert haben, weil das nicht ersichtlich war." Der
+// Abschnitts-Rücksetzer schreibt SOFORT und kann Dutzende Zellen anfassen -- ohne einen Vergleich
+// vorher/nachher ist das ein Sprung ins Dunkle, und rückgängig machen kann man ihn auch nicht.
+{
+	const zustand = (grid, ls, ground, misc) => ({
+		values: { grid: grid, ground_penalties: ground, river_ratio: misc.river_ratio,
+			calibration_target_miles: misc.calibration_target_miles },
+		landscapes: ls
+	});
+	const vorher = zustand(
+		{ groupFoot: { Strasse: 3.07, Querfeldein: 0.96 }, riverBarge: { Flussweg: 4 } },
+		[{ kind: "vegetation", type_key: "wald", factor: 0.5 },
+			{ kind: "topographie", type_key: "wadi", factor: 0.5 }],
+		{ tiefschnee: -0.2, untergrenze: 0.05 },
+		{ river_ratio: 2, calibration_target_miles: 30 }
+	);
+
+	// Alle vier Sorten in EINER flachen Karte -- der Vergleich darf keine davon vergessen.
+	const flach = M.wpTempoFlatValues(vorher);
+	assert.strictEqual(flach["grid:groupFoot:Strasse"], 3.07, "Rasterzelle");
+	assert.strictEqual(flach["ls:vegetation:wald"], 0.5, "Landschaft, mit ihrer Ebene im Schlüssel");
+	assert.strictEqual(flach["gr:tiefschnee"], -0.2, "Bodenabzug, Vorzeichen erhalten");
+	assert.strictEqual(flach["ms:river_ratio"], 2, "Einzelwert");
+	// Drei Rasterzellen, zwei Landschaften, zwei Bodenwerte, zwei Einzelwerte.
+	assert.strictEqual(Object.keys(flach).length, 9, "neun Werte insgesamt");
+	checks += 5;
+
+	// 💣 Die Landschaft braucht die EBENE im Schlüssel: `wald` gibt es in `vegetation`, und nichts
+	// verbietet einer zweiten Ebene denselben Artnamen. Ohne sie verglichen sich zwei Zeilen.
+	assert.ok("ls:topographie:wadi" in flach, "die Ebene steht im Schlüssel");
+	checks++;
+
+	const nachher = zustand(
+		{ groupFoot: { Strasse: 3.07, Querfeldein: 2.3 }, riverBarge: { Flussweg: 4 } },
+		[{ kind: "vegetation", type_key: "wald", factor: 0.35 },
+			{ kind: "topographie", type_key: "wadi", factor: 0.5 }],
+		{ tiefschnee: -0.3, untergrenze: 0.05 },
+		{ river_ratio: 2, calibration_target_miles: 30 }
+	);
+	const bewegt = M.wpTempoChanges(flach, M.wpTempoFlatValues(nachher));
+	assert.strictEqual(bewegt.length, 3, "drei Werte haben sich bewegt, nicht sieben");
+	const nachSchluessel = {};
+	bewegt.forEach((c) => { nachSchluessel[c.key] = c; });
+	assert.deepStrictEqual(nachSchluessel["grid:groupFoot:Querfeldein"], { key: "grid:groupFoot:Querfeldein", from: 0.96, to: 2.3 });
+	assert.strictEqual(nachSchluessel["ls:vegetation:wald"].from, 0.5, "der alte Wert reist mit -- sonst sieht man nur, DASS sich etwas bewegt hat");
+	assert.strictEqual(nachSchluessel["gr:tiefschnee"].to, -0.3, "auch ein negativer Wert zählt als Änderung");
+	checks += 4;
+
+	// Nichts bewegt heißt LEER, nicht null -- der Aufrufer soll zählen können, ohne zu prüfen.
+	assert.deepStrictEqual(M.wpTempoChanges(flach, flach), [], "gleicher Zustand, keine Änderung");
+	// ⚠️ Ein Wert, den es vorher gar nicht gab, ist keine Änderung, sondern ein neuer Wert: ohne
+	// Vorher-Zahl gäbe es nichts anzuzeigen, und „von — auf 0,5" hilft niemandem.
+	const neuerWert = M.wpTempoChanges({}, flach);
+	assert.deepStrictEqual(neuerWert, [], "ohne Vorher-Wert keine Meldung");
+	assert.deepStrictEqual(M.wpTempoChanges(null, flach), [], "und ohne Vorher-Zustand erst recht nicht");
+	checks += 3;
+
+	// Rundungsrauschen ist keine Änderung -- sonst meldete jedes Speichern Dutzende Bewegungen.
+	const fastGleich = Object.assign({}, flach, { "grid:groupFoot:Strasse": 3.0700001 });
+	assert.deepStrictEqual(M.wpTempoChanges(flach, fastGleich), [], "ein Millionstel ist keine Bewegung");
+	checks++;
+}
+
 console.log(`wege-editor-model: ${checks} Prüfungen bestanden.`);

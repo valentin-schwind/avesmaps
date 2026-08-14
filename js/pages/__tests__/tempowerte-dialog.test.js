@@ -165,6 +165,26 @@ assert.strictEqual(
 	"und zwar genau einmal"
 );
 
+// ---- 3e. Jede `wp-tempo__`-Klasse aus dem Fenster hat auch eine Regel ---------------------------
+
+// 💣 EINE KLASSE OHNE REGEL FAELLT NICHT AUF. Sie rendert -- nur ungestylt, und in einer Tabelle mit
+// fuenfundsiebzig Zeilen sieht man das nicht. Beim Bauen hiess die Marke im JS `wp-tempo__war` und im
+// CSS `wp-tempo__was`; ohne diese Pruefung waere sie farblos erschienen und niemandem aufgefallen.
+// (Dieselbe Zusicherung wie in tools/__tests__/scope-editor-css.test.js, nur fuer dieses Fenster.)
+const cssQuelle = read("css/pages/wege-editor.css");
+const klassen = new Set(
+	[...dialogFlach.matchAll(/class="([^"]*wp-tempo__[^"]*)"/g)]
+		.flatMap((m) => m[1].split(/\s+/))
+		.filter((c) => c.startsWith("wp-tempo__"))
+);
+assert.ok(klassen.size >= 8, "die Klassen wurden wirklich eingesammelt: " + klassen.size);
+klassen.forEach((klasse) => {
+	assert.ok(
+		cssQuelle.includes("." + klasse),
+		`\`${klasse}\` steht im Fenster, aber es gibt keine CSS-Regel dafuer`
+	);
+});
+
 // ---- 4. Alle sechs Abschnitte des Entwurfs stehen im Fenster ------------------------------------
 
 // §4: Tagesleistung + Wegtypen (das Raster), Landschaften, Boden, Fluss und Eichung, Befund, Gesperrt.

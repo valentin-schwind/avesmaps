@@ -1244,6 +1244,12 @@
 	// api/_internal/routing/travel-values.php; eine zweite Abschrift im Browser liefe auseinander,
 	// und der Rücksetzer rechnete dann etwas anderes als die Anzeige zeigt.
 	var tempoState = null;
+	// Der Stand VOR dem letzten Schreiben, flach. 🔴 Er ist die ganze Antwort auf „welche Werte haben
+	// sich verändert?": der Abschnitts-Rücksetzer schreibt sofort und fasst Dutzende Zellen an, und
+	// ohne diesen Vergleich sieht man hinterher nur andere Zahlen, nicht die Bewegung.
+	var tempoVorher = null;
+	// key -> alter Wert, nur für den letzten Schreibvorgang. Wird beim Neuladen geleert.
+	var tempoBewegt = {};
 
 	// Die elf Reisemittel in der Reihenfolge, in der sie im Planer stehen -- Land zuerst.
 	var TEMPO_TRANSPORT_LABELS = {
@@ -1290,6 +1296,16 @@
 			+ 'title="Auf den geladenen Wert zurück" aria-label="Auf den geladenen Wert zurück">↩</button></td>';
 	}
 
+	/* „war 3,45" hinter dem Feld — der alte Wert bleibt SICHTBAR, statt nur zu verschwinden.
+	 *
+	 * 🔴 Ohne ihn beantwortet ein Rücksetzer die Frage „was hat sich geändert?" nicht: hinterher
+	 * stehen andere Zahlen da, und welche das sind, muss man raten. Der Wert kommt aus dem Vergleich
+	 * vorher/nachher (wpTempoChanges), nicht aus dem Feld. */
+	function tempoWarMarke(key, stellen) {
+		if (!(key in tempoBewegt)) { return ""; }
+		return ' <span class="wp-tempo__war">war ' + num(tempoBewegt[key], stellen) + "</span>";
+	}
+
 	/* Eine einzelne Zahl ohne Tabelle drumherum -- Name, Eingabe, GA-Wert, was sie bedeutet. */
 	function tempoSingleRow(key, label, rawValue, sourceValue, note) {
 		var ours = Number(rawValue);
@@ -1298,7 +1314,8 @@
 		return "<tr" + (off ? ' class="is-off"' : "") + ">"
 			+ '<th scope="row">' + escapeHtml(label) + "</th>"
 			+ '<td><input type="number" step="0.01" min="0.01" class="wp-tempo__ms" data-key="'
-			+ escapeHtml(key) + '" data-loaded="' + ours.toFixed(2) + '" value="' + ours.toFixed(2) + '"></td>'
+			+ escapeHtml(key) + '" data-loaded="' + ours.toFixed(2) + '" value="' + ours.toFixed(2) + '">'
+			+ tempoWarMarke("ms:" + key, 2) + "</td>"
 			+ tempoUndoCell()
 			+ '<td class="wp-tempo__ga">' + (typeof sourceValue === "number" ? num(sourceValue, 2) : "—") + "</td>"
 			+ '<td class="wp-tempo__eff">' + escapeHtml(note) + "</td>"
@@ -1326,7 +1343,8 @@
 			+ "<th scope=\"row\">" + escapeHtml(TEMPO_PATH_LABELS[pathType] || pathType) + "</th>"
 			+ '<td><input type="number" step="0.01" min="0.01" class="wp-tempo__in" data-transport="'
 			+ escapeHtml(transport) + '" data-path="' + escapeHtml(pathType) + '" data-loaded="'
-			+ speed.toFixed(2) + '" value="' + speed.toFixed(2) + '"></td>'
+			+ speed.toFixed(2) + '" value="' + speed.toFixed(2) + '">'
+			+ tempoWarMarke("grid:" + transport + ":" + pathType, 2) + "</td>"
 			+ tempoUndoCell()
 			+ "<td class=\"wp-tempo__ga\">" + (sourceSpeed !== null ? num(sourceSpeed, 2) : "—") + "</td>"
 			+ "<td class=\"wp-tempo__eff\">" + num(perDay, 1) + " Mln/Tag</td>"
@@ -1447,7 +1465,8 @@
 					+ '<td><input type="number" step="0.001" min="0.001" class="wp-tempo__ls" data-kind="'
 					+ escapeHtml(row.kind) + '" data-key="' + escapeHtml(row.type_key) + '" value="'
 					+ (factor === null ? "" : factor.toFixed(3)) + '" data-loaded="'
-					+ (factor === null ? "" : factor.toFixed(3)) + '"></td>'
+					+ (factor === null ? "" : factor.toFixed(3)) + '">'
+					+ tempoWarMarke("ls:" + row.kind + ":" + row.type_key, 3) + "</td>"
 					+ tempoUndoCell()
 					+ '<td class="wp-tempo__ga">' + (hatQuelle ? num(row.source, 2) : "—") + "</td>"
 					+ '<td class="wp-tempo__eff">'
@@ -1480,7 +1499,8 @@
 			html += "<tr" + (off ? ' class="is-off"' : "") + ">"
 				+ '<th scope="row">' + escapeHtml(TEMPO_GROUND_LABELS[key]) + "</th>"
 				+ '<td><input type="number" step="0.01" class="wp-tempo__gr" data-key="'
-				+ escapeHtml(key) + '" data-loaded="' + ours.toFixed(2) + '" value="' + ours.toFixed(2) + '"></td>'
+				+ escapeHtml(key) + '" data-loaded="' + ours.toFixed(2) + '" value="' + ours.toFixed(2) + '">'
+				+ tempoWarMarke("gr:" + key, 2) + "</td>"
 				+ tempoUndoCell()
 				+ '<td class="wp-tempo__ga">' + (typeof ga === "number" ? num(ga, 2) : "—") + "</td>"
 				+ '<td class="wp-tempo__eff">' + escapeHtml(TEMPO_GROUND_NOTES[key] || "") + "</td>"
@@ -1572,6 +1592,15 @@
 			return false;
 		}
 		tempoState = data;
+		// 🔴 HIER ENTSTEHT DIE ANTWORT AUF „WAS HAT SICH GEÄNDERT?". `tempoVorher` wurde direkt vor
+		// dem Absenden gesetzt; jetzt liegt beides vor, also wird verglichen -- vor dem Zeichnen,
+		// damit die Zeilen ihre „war …"-Marke gleich mitbekommen.
+		tempoBewegt = {};
+		if (tempoVorher) {
+			wpTempoChanges(tempoVorher, wpTempoFlatValues(data)).forEach(function (c) {
+				tempoBewegt[c.key] = c.from;
+			});
+		}
 		renderTempo();
 		var total = data.deviations ? data.deviations.total : 0;
 		$("wpTempoInfo").textContent = total === 0
@@ -1581,6 +1610,10 @@
 	}
 
 	function loadTempo() {
+		// Ein frisches Laden hat kein Vorher -- sonst zeigte das Fenster beim Aufgehen Marken an,
+		// die von einer Sitzung von vorgestern stammen.
+		tempoVorher = null;
+		tempoBewegt = {};
 		tempoSetStatus("Wird geladen…", "");
 		postJson("/api/edit/map/travel-values.php", { action: "get" }).then(function (data) {
 			if (applyTempoResponse(data)) { tempoSetStatus("", ""); }
@@ -1632,17 +1665,54 @@
 			payload[input.getAttribute("data-key")] = value;
 		});
 
+		tempoVorher = wpTempoFlatValues(tempoState);
 		tempoSetStatus("Wird gespeichert…", "");
 		postJson("/api/edit/map/travel-values.php", payload).then(function (data) {
-			if (applyTempoResponse(data)) { tempoSetStatus("Gespeichert.", "ok"); }
+			if (applyTempoResponse(data)) { tempoSetStatus("Gespeichert — " + tempoBewegtText() + ".", "ok"); }
 		}).catch(function () { tempoSetStatus("Speichern fehlgeschlagen.", "bad"); });
+	}
+
+	/* Wie viele Werte sich beim letzten Schreiben bewegt haben — und die ersten beim Namen.
+	 *
+	 * ⚠️ Drei Namen, nicht alle: ein Rücksetzer fasst schnell fünfzig Zellen an, und eine Statuszeile
+	 * mit fünfzig Namen liest niemand. Die Zeilen selbst tragen ihr „war …", die Zeile hier sagt nur,
+	 * wie viel Bewegung es war und wo man anfangen soll zu schauen. */
+	function tempoBewegtText() {
+		var keys = Object.keys(tempoBewegt);
+		if (!keys.length) { return "nichts hat sich geändert"; }
+		var namen = keys.slice(0, 3).map(tempoSchluesselName);
+		return keys.length + (keys.length === 1 ? " Wert geändert" : " Werte geändert")
+			+ " (" + namen.join(", ") + (keys.length > namen.length ? " und weitere" : "") + ")";
+	}
+
+	/* Aus `grid:groupFoot:Strasse` wird „Reisegruppe zu Fuß · Straße". Ein Schlüssel im Klartext ist
+	 * keine Antwort, sondern eine zweite Frage. */
+	function tempoSchluesselName(key) {
+		var teile = key.split(":");
+		if (teile[0] === "grid") {
+			return (TEMPO_TRANSPORT_LABELS[teile[1]] || teile[1]) + " · " + (TEMPO_PATH_LABELS[teile[2]] || teile[2]);
+		}
+		if (teile[0] === "ls") {
+			var treffer = (tempoState && tempoState.landscapes || []).filter(function (r) {
+				return r.kind === teile[1] && r.type_key === teile[2];
+			})[0];
+			return treffer ? treffer.label : teile[2];
+		}
+		if (teile[0] === "gr") { return TEMPO_GROUND_LABELS[teile[1]] || teile[1]; }
+		return teile[1] === "river_ratio" ? "stromauf : stromab" : "Eichziel";
 	}
 
 	function resetTempo(section) {
 		if (!section) { return; }
+		// 🔴 DER RÜCKSETZER SCHREIBT SOFORT und kann Dutzende Zellen anfassen. Deshalb wird der Stand
+		// hier gemerkt: hinterher sagt die Zeile, wie viele sich bewegt haben, und jede betroffene
+		// Zeile trägt ihren alten Wert.
+		tempoVorher = wpTempoFlatValues(tempoState);
 		tempoSetStatus("Wird zurückgesetzt…", "");
 		postJson("/api/edit/map/travel-values.php", { action: "reset", section: section }).then(function (data) {
-			if (applyTempoResponse(data)) { tempoSetStatus("Auf die GA-Werte zurückgesetzt — noch nicht gespeichert? Doch: der Rücksetzer schreibt sofort.", "ok"); }
+			if (applyTempoResponse(data)) {
+				tempoSetStatus("Auf die GA-Werte zurückgesetzt und gespeichert — " + tempoBewegtText() + ".", "ok");
+			}
 		}).catch(function () { tempoSetStatus("Zurücksetzen fehlgeschlagen.", "bad"); });
 	}
 

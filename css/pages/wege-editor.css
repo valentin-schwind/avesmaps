@@ -320,6 +320,12 @@
 .wp-tempo__note code { font-size: inherit; color: var(--color-text); }
 .wp-tempo__day { font-weight: normal; color: var(--color-text-muted); }
 
+/* Eine Gruppe (ein Reisemittel, eine Landschaftsebene) — und zugleich ein Kind des zweispaltigen
+   Rasters. 💣 `min-width: 0` ist dort PFLICHT, nicht Feinschliff: ein Rasterkind steht auf
+   `min-width: auto`, und eine breite Tabelle darin sprengt ihre Spalte, statt umzubrechen. Dann
+   waeren die beiden Spalten ungleich breit — dieselbe Falle wie `flex: 1 1 0` ohne `min-width`. */
+.wp-tempo__grp { min-width: 0; }
+
 .wp-tempo__tbl { width: 100%; border-collapse: collapse; }
 .wp-tempo__tbl th,
 .wp-tempo__tbl td { padding: var(--space-2) var(--space-4); text-align: left; font-size: var(--font-size-caption); }
@@ -345,7 +351,14 @@
 	.wp-tempo__cols { grid-template-columns: minmax(0, 1fr); }
 }
 
-.wp-tempo__in { width: 5.5rem; }
+/* Alle VIER Eingabesorten gleich breit. 💣 Bis zum 14.08.2026 stand hier nur `.wp-tempo__in`, also
+   bekamen die Landschaften, der Boden und die beiden Einzelwerte die Vorgabebreite des Browsers --
+   in derselben Tabellenspalte, direkt untereinander. Aufgefallen ist es nicht am Hinsehen, sondern
+   an der Zusicherung „jede Klasse im Fenster hat eine Regel". */
+.wp-tempo__in,
+.wp-tempo__ls,
+.wp-tempo__gr,
+.wp-tempo__ms { width: 5.5rem; }
 
 /* Die Zeile, die sagt, ob die Wegfindung ueberhaupt Bodenfaktoren findet.
    🔴 Ein stiller Not-Aus ohne Anzeige ist ein Ausfall (Entwurf §7) -- deshalb steht sie GANZ OBEN
@@ -363,6 +376,17 @@
 /* Der Rücksetzer EINER Zeile. ⚠️ Er steht nur da, wenn der Wert abweicht: fuenfundsiebzig dauerhaft
    sichtbare Knoepfe in schmalen Spalten sind genau die Vervielfachung aus AGENTS.md §12. Die Zelle
    bleibt trotzdem immer da, damit die Spalten beim Tippen nicht springen. */
+/* „war 3,45" hinter dem Feld. 🔴 Es beantwortet die Frage, die ein Ruecksetzer sonst offen laesst:
+   welche Werte haben sich bewegt? Der Ton ist der Warnton, weil die Zeile eine ABWEICHUNG vom Stand
+   von eben meldet -- nicht die gedaempfte Notizfarbe, sonst sieht man sie in einer Tabelle mit
+   fuenfundsiebzig Zeilen nicht. Sie verschwindet beim naechsten Laden des Fensters. */
+.wp-tempo__war {
+	margin-left: var(--space-2);
+	font-size: var(--font-size-caption);
+	color: var(--color-warning);
+	white-space: nowrap;
+}
+
 .wp-tempo__undocell { width: 1.75rem; padding-left: 0; padding-right: 0; }
 .wp-tempo__undo {
 	visibility: hidden;
