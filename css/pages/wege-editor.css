@@ -21,6 +21,19 @@
  *    design.md §6a: 215 groups, 1547 objects). Ungrouped they were 26 identical-looking rows.
  *    The group row carries the name and the count; the segment rows are indented under it.
  */
+/* Die Art rechts in der Zeile trägt die Farbe, in der die KARTE diesen Wegtyp zeichnet — damit ist
+   die Liste zugleich ihre eigene Legende (Owner 14.08.2026: „die tags hier könnten farbe gebrauchen").
+   🔴 Die Farbe ersetzt NIE eine Angabe: das Wort („Flussweg") bleibt stehen. Wer Farben nicht
+   unterscheidet, verliert nichts — genau deshalb ist Farbe hier überhaupt vertretbar.
+   ⚠️ Reichsstraße, Straße und Weg bekommen keine: ihre Kartenfarben sind Weiß, Grau und Hellwarm,
+   als Text wäre das Rauschen statt Bedeutung. Sie bleiben auf der Schriftfarbe von .avm-row__kind. */
+.avm-row__kind--pfad        { color: var(--color-path-pfad); }
+.avm-row__kind--gebirgspass { color: var(--color-path-gebirgspass); }
+.avm-row__kind--wuestenpfad { color: var(--color-path-wuestenpfad); }
+.avm-row__kind--flussweg    { color: var(--color-path-flussweg); }
+.avm-row__kind--seeweg      { color: var(--color-path-seeweg); }
+.avm-row__kind--reichsstrasse { color: var(--color-text-strong); }
+
 /* Die Aufklapp-Spalte. 🔴 Sie ist für JEDE Zeile der obersten Ebene reserviert, auch für die
    ohne Aufklapp-Geste — ein Weg mit einem Abschnitt bekommt einen leeren Platzhalter derselben
    Klasse (js/pages/wege-editor.js, segmentRow). Ohne ihn begänne sein Name 20px weiter links als

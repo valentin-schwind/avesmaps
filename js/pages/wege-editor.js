@@ -96,6 +96,15 @@
 		element.className = "avm-status__text" + (tone ? " " + tone : "");
 	}
 
+	// Die Art-Beschriftung bekommt eine Klasse aus ihrem Subtyp-Schluessel, damit die Farbe im
+	// Stylesheet steht und nicht im JavaScript (AGENTS.md §12: keine Farbe im Code).
+	// ⚠️ PATH_SUBTYPE_KEYS sind stabile Datenschluessel und werden NICHT uebersetzt -- deshalb
+	// reicht ein Kleinschreiben, keine Zuordnungstabelle.
+	function subtypeClass(subtype) {
+		var key = String(subtype || "").toLowerCase();
+		return key ? " avm-row__kind--" + key : "";
+	}
+
 	function subtypeLabel(key) {
 		for (var i = 0; i < SUBTYPES.length; i++) {
 			if (SUBTYPES[i].key === key) { return SUBTYPES[i].label; }
@@ -239,7 +248,8 @@
 				+ '<div class="avm-row__text">'
 				+ '<div class="avm-row__l1"><span class="avm-row__name">' + escapeHtml(group.name)
 				+ "</span>"
-				+ '<span class="avm-row__kind">' + escapeHtml(subtypeLabel(group.feature_subtype)) + "</span></div>"
+				+ '<span class="avm-row__kind' + subtypeClass(group.feature_subtype) + '">'
+				+ escapeHtml(subtypeLabel(group.feature_subtype)) + "</span></div>"
 				+ second + "</div></div>";
 
 			if (!isOpen) { return head; }
@@ -278,7 +288,8 @@
 		// Ein Abschnitt trägt den Namen NICHT noch einmal -- er steht in der Gruppenzeile darüber.
 		var title = index === null
 			? '<span class="avm-row__name">' + escapeHtml(way.name) + "</span>"
-				+ '<span class="avm-row__kind">' + escapeHtml(subtypeLabel(way.feature_subtype)) + "</span>"
+				+ '<span class="avm-row__kind' + subtypeClass(way.feature_subtype) + '">'
+				+ escapeHtml(subtypeLabel(way.feature_subtype)) + "</span>"
 			: '<span class="avm-row__name">Abschnitt ' + index + "</span>";
 
 		// 🔴 Die Aufklapp-Spalte gehoert der LISTE, nicht der Zeile -- JEDE Zeile reserviert sie,

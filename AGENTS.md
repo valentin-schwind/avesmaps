@@ -373,8 +373,15 @@ Authoritative docs (being translated to English in M8):
 
 **One warm, *aventurian* visual language for every surface** — route planner
 (`#search`), infobox (`.avesmaps-infopanel`), dialogs, popups, editor. Warm
-browns + parchment + coat-of-arms gold. **No blue** (it reads as a foreign UI
-kit and is what made the panels diverge).
+browns + parchment + coat-of-arms gold. **No blue in the CHROME** — panels,
+controls, links, menus (it reads as a foreign UI kit and is what made the panels
+diverge). 🔴 Blue is allowed, and sometimes required, where colour encodes DATA
+rather than chrome: the Landschaften water tones, the analytics chart palette,
+the edit-in-progress handles, and the path-subtype colours of the Wege-Editor
+list (`--color-path-*`). `docs/design-language.md` has always said this
+("**No blue = UI chrome only**", with its own list of exceptions) — §12 stated
+the ban flatly and was therefore read as absolute. Wording aligned 14.08.2026
+after exactly that misreading; the rule itself is unchanged.
 
 **Hard rule: never hardcode a colour / radius / divider — always use a token
 from `css/base/tokens.css`.** Need a value with no token? Add the token first,

@@ -425,6 +425,28 @@
 	/* Territory-editor "on map" presence indicator (tree/legend swatch ring). A
 	   data highlight (not chrome), deliberately identical in both themes. */
 	--color-map-presence: #6a7f3a;
+
+	/* Wegarten — die Farbe, in der die KARTE diese Wegart zeichnet (map-features.js, centerColors).
+	   Sie machen die Art-Beschriftung in der Wegeliste zu einer Legende: man sieht dort, wie die
+	   Linie draußen aussieht.
+	   🔴 Es sind NICHT die Kartenwerte selbst. Die sind für eine LINIE auf heller Karte gewählt;
+	   als SCHRIFT auf Pergament fielen sie durch — Wüstenpfad kam auf 2,23 Kontrast, die
+	   Untergrenze für kleine Schrift ist 4,5. Diese Werte sind dieselben Farbtöne, so weit
+	   abgedunkelt, dass 4,6 erreicht ist — gerechnet gegen den GEMESSENEN Grund der Editorseite
+	   (#f3f0e8). 💣 Die erste Fassung rechnete gegen --color-panel-soft (#faf6ee) und landete bei
+	   4,27 bis 4,38: knapp daneben ist hier unbrauchbar, und nur die Messung in der echten Seite
+	   hat es gezeigt.
+	   ⚠️ Reichsstraße, Straße und Weg haben KEIN Token. Ihre Kartenfarben sind Weiß, Grau und
+	   Hellwarm — als Text wären das keine Farben, sondern Rauschen. Sie tragen die kräftige bzw.
+	   die gedämpfte Schriftfarbe.
+	   ⚠️ Blau bei Fluss- und Seeweg ist die Regel, nicht die Ausnahme: docs/design-language.md
+	   („No blue = UI chrome only") erlaubt es ausdrücklich, wo Farbe DATEN kodiert statt
+	   Bedienoberfläche — wie schon bei den Wassertönen der Landschaften-Ebene. */
+	--color-path-pfad: #86654e;
+	--color-path-gebirgspass: #965d52;
+	--color-path-wuestenpfad: #7b6a48;
+	--color-path-flussweg: #3f7191;
+	--color-path-seeweg: #296db9;
 	--color-map-presence-text: #2f6b3a; /* darker text variant of the above, same pinning rule */
 
 	/* Territory-assignment picker (parent-tree/tabs/breadcrumb "active" rows) —
@@ -679,6 +701,14 @@ html.avesmaps-phone {
 
 	--color-accent: #cfb767;
 	--color-accent-strong: #dcc77e;
+	/* Wegarten im dunklen Thema — dieselben Farbtöne, für den dunklen Panelgrund aufgehellt.
+	   Gemessen 4,7 bis 6,8 (die vorhandene gedämpfte Schrift liegt bei 5,3). */
+	--color-path-pfad: #c79a78;
+	--color-path-gebirgspass: #d99184;
+	--color-path-wuestenpfad: #d8bd85;
+	--color-path-flussweg: #7fc9f0;
+	--color-path-seeweg: #5aa6e0;
+
 	--color-link: #d7c38b;
 	--color-link-hover: #e3d39f;
 

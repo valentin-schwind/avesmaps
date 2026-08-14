@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Farbige Wegarten — Mockup</title>
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/base/base.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<link rel="stylesheet" href="../css/pages/wege-editor.css">
+<style>
+html { --panel: var(--color-panel); }
+body { margin: 0; padding: 28px; background: var(--color-page-bg); color: var(--color-text-strong);
+       font-family: "Faculty Glyphic", Arial, sans-serif; }
+h1 { font-size: 24px; margin: 0 0 4px; }
+h2 { font-size: var(--font-size-title); margin: 34px 0 4px; padding-bottom: 6px;
+     border-bottom: 1px solid var(--color-divider); }
+p { max-width: 76ch; color: var(--color-text-muted); font-size: var(--font-size-reading); }
+p b, li b { color: var(--color-text-strong); }
+ul { max-width: 76ch; color: var(--color-text-muted); font-size: var(--font-size-reading); }
+code { background: var(--color-panel-muted); padding: 1px 5px; border-radius: var(--radius-sm); font-size: 12.5px; }
+
+.reihe { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; margin-top: 14px; }
+.saeule { width: 400px; }
+.kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 7px;
+        font-size: var(--font-size-caption); font-weight: 700; letter-spacing: .06em;
+        text-transform: uppercase; color: var(--color-text-muted); }
+.kopf b { text-transform: none; letter-spacing: 0; font-size: var(--font-size-small); }
+.liste { border: 1px solid var(--color-border); border-radius: var(--radius-md);
+         background: var(--color-panel-soft); padding: 8px; }
+
+/* ---- A: Kartenecho, Wasser blau ------------------------------------------------------------- */
+.a .k-reichsstrasse { color: var(--color-text-strong); }
+.a .k-strasse       { color: var(--color-text-muted); }
+.a .k-weg           { color: var(--color-text-muted); }
+.a .k-pfad          { color: #c79a78; }
+.a .k-gebirgspass   { color: #d99184; }
+.a .k-wuestenpfad   { color: #d8bd85; }
+.a .k-flussweg      { color: #7fc9f0; }
+.a .k-seeweg        { color: #5aa6e0; }
+
+/* ---- B: warm, ohne Blau ---------------------------------------------------------------------- */
+.b .k-reichsstrasse { color: var(--color-text-strong); }
+.b .k-strasse       { color: var(--color-text-muted); }
+.b .k-weg           { color: var(--color-text-muted); }
+.b .k-pfad          { color: #c79a78; }
+.b .k-gebirgspass   { color: #d99184; }
+.b .k-wuestenpfad   { color: #d8bd85; }
+.b .k-flussweg      { color: #86bfae; }
+.b .k-seeweg        { color: #5f9d8c; }
+
+/* 🔴 HELLES THEMA: die Kartenfarben taugen hier NICHT als Text. Gemessen gegen den hellen
+   Panelgrund #faf6ee ergaben sie 2,23 (Wuestenpfad) bis 4,03 -- die Untergrenze fuer kleine
+   Schrift ist 4,5. Sie sind fuer eine LINIE auf heller Karte gewaehlt, nicht fuer SCHRIFT auf
+   Pergament. Diese Werte sind dieselben Farbtoene, nur so weit abgedunkelt, dass 4,5 erreicht
+   ist -- ausgerechnet, nicht geschaetzt. */
+:root:not([data-theme="dark"]) .a .k-pfad,        :root:not([data-theme="dark"]) .b .k-pfad        { color: #8d6a52; }
+:root:not([data-theme="dark"]) .a .k-gebirgspass, :root:not([data-theme="dark"]) .b .k-gebirgspass { color: #9c6256; }
+:root:not([data-theme="dark"]) .a .k-wuestenpfad, :root:not([data-theme="dark"]) .b .k-wuestenpfad { color: #7f6e4b; }
+:root:not([data-theme="dark"]) .a .k-flussweg { color: #417596; }
+:root:not([data-theme="dark"]) .a .k-seeweg   { color: #2b72c0; }
+:root:not([data-theme="dark"]) .b .k-flussweg { color: #3f7a68; }
+:root:not([data-theme="dark"]) .b .k-seeweg   { color: #2f6354; }
+
+.muster { display: flex; gap: 8px; align-items: center; margin: 3px 0; font-size: var(--font-size-caption); }
+.strich { width: 46px; height: 4px; border-radius: 2px; flex: 0 0 auto; }
+.tabelle { border-collapse: collapse; margin-top: 12px; font-size: var(--font-size-body); }
+.tabelle th, .tabelle td { text-align: left; padding: 5px 16px 5px 0; border-bottom: 1px solid var(--color-divider);
+                            color: var(--color-text-muted); }
+.tabelle th { color: var(--color-text-strong); }
+.hinweis { max-width: 76ch; margin: 16px 0; padding: 11px 14px; border-left: 3px solid var(--color-link);
+           background: var(--color-panel-soft); font-size: var(--font-size-body); color: var(--color-text-muted); }
+.hinweis b { color: var(--color-text-strong); }
+.hinweis--warn { border-left-color: var(--color-warning); }
+</style>
+</head>
+<body>
+
+<h1>Farbe für die Wegarten</h1>
+<p>Die Karte zeichnet jede der acht Wegarten bereits in einer eigenen Farbe
+(<code>js/map-features/map-features.js:249</code>). Wenn die Beschriftung rechts dieselbe Farbe trägt,
+ist sie <b>Information statt Dekoration</b>: man sieht in der Liste, wie die Linie auf der Karte aussieht.</p>
+
+<div class="hinweis hinweis--warn">
+<b>Nur eine Frage ist offen — und sie betrifft zwei der acht.</b><br>
+Fünf Kartenfarben sind bereits warm oder unbunt und passen zu AGENTS.md §12: Pfad braun, Gebirgspass
+rotbraun, Wüstenpfad sand, Reichsstraße weiß, Straße grau, Weg hellwarm.<br>
+<b>Flussweg und Seeweg sind blau.</b> §12 sagt „<b>No blue</b> (it reads as a foreign UI kit)". Diese
+Regel meint die <em>Bedienoberfläche</em> — Wasser auf einer Karte blau zu zeichnen ist Kartografie,
+kein fremder Baukasten. Aber die Beschriftung steht in der Oberfläche, nicht auf der Karte.
+Deshalb legst du das fest, nicht ich.
+</div>
+
+<h2>Die Farben der Karte</h2>
+<div class="muster"><span class="strich" style="background:#ffffff"></span> Reichsstraße <code>#ffffff</code></div>
+<div class="muster"><span class="strich" style="background:#8b8b8b"></span> Straße <code>#8b8b8b</code></div>
+<div class="muster"><span class="strich" style="background:#cec4ae"></span> Weg <code>#cec4ae</code></div>
+<div class="muster"><span class="strich" style="background:#9b755a"></span> Pfad <code>#9b755a</code></div>
+<div class="muster"><span class="strich" style="background:#a8695c"></span> Gebirgspass <code>#a8695c</code></div>
+<div class="muster"><span class="strich" style="background:#bea470"></span> Wüstenpfad <code>#bea470</code></div>
+<div class="muster"><span class="strich" style="background:#6ec6ff"></span> Flussweg <code>#6ec6ff</code></div>
+<div class="muster"><span class="strich" style="background:#2f7dd3"></span> Seeweg <code>#2f7dd3</code></div>
+<p>⚠️ Die Kartenwerte sind für eine <em>Linie auf hellem Grund</em> gewählt. Als <em>Text auf dem dunklen
+Panel</em> sind Pfad, Gebirgspass und Seeweg zu dunkel — sie werden aufgehellt, bleiben aber erkennbar
+dieselbe Farbe. Weiß, Grau und Hellwarm ergeben als Text keinen Sinn und bleiben schlicht die
+normale Schriftfarbe.</p>
+
+<div class="hinweis"><b>Gemessen, nicht geschätzt.</b> Im dunklen Thema tragen alle Werte (4,7 bis 6,8;
+zum Vergleich: die vorhandene gedämpfte Schrift liegt bei 5,3). Im <b>hellen</b> Thema fielen die
+Kartenfarben durch — Wüstenpfad auf 2,23, die Untergrenze für kleine Schrift ist 4,5. Sie sind für
+eine <em>Linie</em> auf heller Karte gewählt, nicht für <em>Schrift</em> auf Pergament. Das helle
+Thema bekommt deshalb dieselben Farbtöne, so weit abgedunkelt, dass 4,5 erreicht ist. Schalte oben
+rechts im Browser auf hell, um es zu sehen.</div>
+
+<h2>Die zwei Antworten</h2>
+<div class="reihe">
+
+  <div class="saeule a">
+    <div class="kopf"><span>A · Kartenecho</span><b style="color:#7fc9f0">Wasser bleibt blau</b></div>
+    <div class="liste">
+      <div class="avm-row"><span class="wp-group__twist">▸</span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Aarenstieg</span><span class="avm-row__kind k-gebirgspass">Gebirgspass</span></div><div class="avm-row__l2">2 Abschnitte · alle mit Profil</div></div></div>
+      <div class="avm-row"><span class="wp-group__twist"></span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Ahren</span><span class="avm-row__kind k-flussweg">Flussweg</span></div><div class="avm-row__l2 warn">≈ 13,1 Meilen · Strömung unbekannt</div></div></div>
+      <div class="avm-row"><span class="wp-group__twist"></span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Alte Silberstraße</span><span class="avm-row__kind k-strasse">Straße</span></div><div class="avm-row__l2">6 Abschnitte · 0 mit Profil</div></div></div>
+      <div class="avm-row"><span class="wp-group__twist"></span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Eherne Schwelle</span><span class="avm-row__kind k-reichsstrasse">Reichsstraße</span></div><div class="avm-row__l2">14 Abschnitte · alle mit Profil</div></div></div>
+      <div class="avm-row"><span class="wp-group__twist"></span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Khôm-Route</span><span class="avm-row__kind k-wuestenpfad">Wüstenpfad</span></div><div class="avm-row__l2 warn">≈ 88,2 Meilen · kein Profil</div></div></div>
+      <div class="avm-row"><span class="wp-group__twist"></span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Schmugglersteig</span><span class="avm-row__kind k-pfad">Pfad</span></div><div class="avm-row__l2">3 Abschnitte · 1 mit Profil</div></div></div>
+      <div class="avm-row"><span class="wp-group__twist"></span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Perlenmeer-Passage</span><span class="avm-row__kind k-seeweg">Seeweg</span></div><div class="avm-row__l2 warn">≈ 210,4 Meilen · Strömung unbekannt</div></div></div>
+      <div class="avm-row"><span class="wp-group__twist"></span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Alter Weg</span><span class="avm-row__kind k-weg">Weg</span></div><div class="avm-row__l2">6 Abschnitte · 1 mit Profil</div></div></div>
+    </div>
+    <p style="font-size:var(--font-size-body)">Die Beschriftung sagt dasselbe wie die Linie auf der Karte.
+    <b>Wasser ist auf einen Blick zu erkennen</b> — und die Wasserwege sind genau die, die
+    „Strömung unbekannt“ tragen.<br>⚠️ Bringt Blau in eine Oberfläche, die laut §12 keins haben soll.</p>
+  </div>
+
+  <div class="saeule b">
+    <div class="kopf"><span>B · Warm, ohne Blau</span><b style="color:#86bfae">Wasser wird grüngrau</b></div>
+    <div class="liste">
+      <div class="avm-row"><span class="wp-group__twist">▸</span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Aarenstieg</span><span class="avm-row__kind k-gebirgspass">Gebirgspass</span></div><div class="avm-row__l2">2 Abschnitte · alle mit Profil</div></div></div>
+      <div class="avm-row"><span class="wp-group__twist"></span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Ahren</span><span class="avm-row__kind k-flussweg">Flussweg</span></div><div class="avm-row__l2 warn">≈ 13,1 Meilen · Strömung unbekannt</div></div></div>
+      <div class="avm-row"><span class="wp-group__twist"></span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Alte Silberstraße</span><span class="avm-row__kind k-strasse">Straße</span></div><div class="avm-row__l2">6 Abschnitte · 0 mit Profil</div></div></div>
+      <div class="avm-row"><span class="wp-group__twist"></span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Eherne Schwelle</span><span class="avm-row__kind k-reichsstrasse">Reichsstraße</span></div><div class="avm-row__l2">14 Abschnitte · alle mit Profil</div></div></div>
+      <div class="avm-row"><span class="wp-group__twist"></span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Khôm-Route</span><span class="avm-row__kind k-wuestenpfad">Wüstenpfad</span></div><div class="avm-row__l2 warn">≈ 88,2 Meilen · kein Profil</div></div></div>
+      <div class="avm-row"><span class="wp-group__twist"></span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Schmugglersteig</span><span class="avm-row__kind k-pfad">Pfad</span></div><div class="avm-row__l2">3 Abschnitte · 1 mit Profil</div></div></div>
+      <div class="avm-row"><span class="wp-group__twist"></span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Perlenmeer-Passage</span><span class="avm-row__kind k-seeweg">Seeweg</span></div><div class="avm-row__l2 warn">≈ 210,4 Meilen · Strömung unbekannt</div></div></div>
+      <div class="avm-row"><span class="wp-group__twist"></span><div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">Alter Weg</span><span class="avm-row__kind k-weg">Weg</span></div><div class="avm-row__l2">6 Abschnitte · 1 mit Profil</div></div></div>
+    </div>
+    <p style="font-size:var(--font-size-body)">Hält §12 wörtlich ein und bleibt in der warmen Familie.<br>
+    ⚠️ Die Beschriftung stimmt dann <b>nicht mehr mit der Karte überein</b> — ein Fluss ist dort blau,
+    hier grüngrau. Damit ist die Farbe wieder Dekoration statt Information.</p>
+  </div>
+
+</div>
+
+<h2>Was in beiden Fällen gilt</h2>
+<ul>
+  <li><b>Drei Arten bleiben ohne eigene Farbe:</b> Reichsstraße, Straße und Weg. Ihre Kartenfarben sind
+      weiß, grau und hellwarm — als Text auf dem Panel wären das keine Farben, sondern Rauschen.
+      Reichsstraße bekommt die kräftige Schriftfarbe, die anderen beiden die gedämpfte.</li>
+  <li><b>Jeder Wert wird ein Token</b> (<code>--color-path-pfad</code> …) in <code>css/base/tokens.css</code>,
+      je einer für hell und dunkel. Kein Hexwert im Stylesheet — §12.</li>
+  <li><b>Die Farbe ersetzt keine Angabe.</b> Der Text „Flussweg“ bleibt stehen; wer Farben nicht
+      unterscheiden kann, verliert nichts. Das ist der Grund, warum die Farbe hier überhaupt vertretbar
+      ist — ohne den Text wäre sie die einzige Trägerin und damit unbrauchbar.</li>
+  <li><b>Es betrifft nur die Wegeliste im Editor</b> — nicht die Karte, nicht das Panel, nicht die
+      Infobox.</li>
+</ul>
+
+<p style="margin-top:30px;font-size:12px;opacity:.6">Mockup · 14.08.2026 · Token aus <code>css/base/tokens.css</code></p>
+
+</body>
+</html>
