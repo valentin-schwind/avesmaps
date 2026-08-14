@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WikiSync-Listen — eine Form für acht (Mockup)</title>
+<style>
+/* Die Werte stammen 1:1 aus css/base/tokens.css (dunkles Thema — die acht Listen
+   stehen im Editor-Panel, und das ist dunkel). Nichts hier ist geraten. */
+:root {
+	--panel:            #312e26;
+	--panel-soft:       #37342b;
+	--panel-muted:      #39352b;
+	--panel-active:     #4c4636;
+	--text-strong:      #f5f0e4;
+	--text-muted:       #b4a895;
+	--border:           #514a3c;
+	--border-strong:    #615a49;
+	--divider:          rgba(207, 197, 171, 0.24);
+	--button-soft:      #3a362c;
+	--button-soft-text: #eae1cf;
+	--button-soft-border: #585142;
+	--link:             #d7c38b;
+	--hover-wash:       rgba(207, 183, 103, 0.18);
+	--presence:         #6a7f3a;
+	--radius-sm: 5px;
+	--radius-md: 8px;
+
+	--font-size-caption: 11px;
+	--font-size-small:   12px;
+	--font-size-body:    13px;
+	--font-size-subhead: 16px;
+	--font-size-title:   20px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	padding: 32px 28px 80px;
+	background: #26241e;
+	color: var(--text-strong);
+	font-family: "Faculty Glyphic", Arial, sans-serif;
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+h1 { margin: 0 0 6px; font-size: 26px; font-weight: 700; }
+h2 {
+	margin: 44px 0 4px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--divider);
+	font-size: var(--font-size-title);
+	font-weight: 700;
+}
+h3 { margin: 24px 0 8px; font-size: var(--font-size-subhead); font-weight: 700; }
+p  { max-width: 78ch; margin: 8px 0; color: var(--text-muted); }
+p strong, li strong { color: var(--text-strong); }
+code {
+	padding: 1px 5px;
+	border-radius: var(--radius-sm);
+	background: var(--panel-muted);
+	color: var(--button-soft-text);
+	font-size: 12.5px;
+}
+ul { max-width: 78ch; color: var(--text-muted); padding-left: 20px; }
+li { margin: 5px 0; }
+
+/* ---- Gerüst des Vergleichs -------------------------------------------- */
+.compare {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 22px;
+	margin: 18px 0 8px;
+	align-items: flex-start;
+}
+.col { flex: 0 0 auto; width: 400px; }   /* echte Panelbreite: min(400px, …) */
+.col__cap {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 10px;
+	margin-bottom: 7px;
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.col__cap b { color: var(--text-strong); letter-spacing: 0; text-transform: none; font-size: var(--font-size-small); }
+.col--now  .col__cap b { color: #d09a7a; }
+.col--next .col__cap b { color: #a9bd72; }
+
+/* Das Panel selbst */
+.panel {
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--panel-soft);
+	overflow: hidden;
+}
+.panel__pad { padding: 10px; }
+
+/* Der Editor-Knopf oben, unverändert in beiden Spalten */
+.verb {
+	display: block;
+	width: 100%;
+	margin-bottom: 10px;
+	padding: 9px 10px;
+	border: 1px solid var(--button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--button-soft);
+	color: var(--button-soft-text);
+	font: inherit;
+	font-size: var(--font-size-body);
+	text-align: center;
+	cursor: pointer;
+}
+.verb small { display: block; font-size: var(--font-size-caption); color: var(--text-muted); font-weight: 400; }
+
+/* Ansichtsreiter */
+.views { display: flex; gap: 14px; margin-bottom: 8px; }
+.view {
+	padding: 3px 0 6px;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	background: none;
+	color: var(--text-muted);
+	font: inherit;
+	font-size: var(--font-size-body);
+	cursor: pointer;
+}
+.view.is-active { color: var(--text-strong); font-weight: 700; border-bottom-color: var(--link); }
+.view.is-off { opacity: 0.45; }
+
+/* Such- und Filterzeile */
+.searchrow { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.search {
+	flex: 1 1 auto;
+	min-width: 0;
+	padding: 9px 10px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--panel);
+	color: var(--text-muted);
+	font: inherit;
+	font-size: var(--font-size-body);
+}
+.filterbtn {
+	flex: 0 0 auto;
+	padding: 9px 12px;
+	border: 1px solid var(--button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--button-soft);
+	color: var(--button-soft-text);
+	font: inherit;
+	font-size: var(--font-size-body);
+}
+.count-inline { flex: 0 0 auto; font-size: var(--font-size-caption); color: var(--text-muted); }
+
+/* Die Subjektleiste — zeigt, unter welchem der acht Subjekte man steht */
+.rail {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	margin-bottom: 10px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+}
+.rail__cell {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 8px 10px;
+	border-right: 1px solid var(--border);
+	border-bottom: 1px solid var(--border);
+	background: var(--panel-soft);
+	color: var(--text-muted);
+	font-size: var(--font-size-body);
+}
+.rail__cell:nth-child(2n) { border-right: 0; }
+.rail__cell:nth-last-child(-n+2) { border-bottom: 0; }
+.rail__cell.is-active {
+	box-shadow: inset 3px 0 0 var(--link);
+	background: var(--panel-active);
+	color: var(--text-strong);
+	font-weight: 700;
+}
+.rail__cell span { opacity: .7; font-weight: 400; font-size: var(--font-size-caption); align-self: center; }
+
+/* Zusammenfassung / Bilanz */
+.summary-old { margin: 0 0 8px; font-size: var(--font-size-caption); color: var(--text-muted); }
+.balance {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 10px;
+	margin: 0 0 6px;
+	font-size: var(--font-size-caption);
+	color: var(--text-muted);
+}
+.balance b { font-weight: 700; color: var(--text-muted); }
+.hint {
+	margin: 7px 0 0;
+	font-size: var(--font-size-caption);
+	color: var(--text-muted);
+}
+
+/* ====== BAUART A — wie sie HEUTE ist ==================================== */
+.a-list { max-height: 370px; overflow-y: auto; }
+.a-row {
+	display: grid;
+	grid-template-columns: 16px minmax(0, 1fr);
+	column-gap: 7px;
+	row-gap: 7px;                 /* ← die 7px */
+	padding: 6px 8px;
+	border-bottom: 1px solid var(--panel-muted);   /* ← Füllfarbe als Linie */
+	cursor: pointer;
+}
+.a-row:hover { background: var(--panel-soft); }
+.a-row .grip { grid-column: 1; grid-row: 1 / span 2; align-self: center; color: var(--text-muted); font-size: 12px; letter-spacing: -1px; }
+.a-row .name {
+	grid-column: 2; grid-row: 1;
+	min-width: 0;
+	font-size: 13.33px;            /* geerbt aus body{10pt} — skalenfremd */
+	font-weight: 700;
+	line-height: 1.22;
+}
+.a-row .meta {
+	grid-column: 2; grid-row: 2;
+	font-size: 10.4px;             /* 0.78em — unter der 11px-Untergrenze */
+	font-weight: 700;
+	line-height: 1.2;
+	color: var(--text-muted);
+}
+/* Der Statuskreis haengt an .st — und NUR die fuenf Karten-Subjekte tragen die Klasse.
+   Literatur, Karten und Vorkommen haben kein „liegt auf der Karte", bekommen also
+   auch keinen Kreis. (Im ersten Wurf stand die ::after-Regel auf .n-row global und
+   malte den Kreis ueberall hin — genau die Divergenz, die hier weg soll.) */
+.a-row.st .name::after,
+.n-row.st .name::after {
+	content: "";
+	display: inline-block;
+	border-radius: 50%;
+	background: var(--panel);
+	border: 2px solid var(--presence);
+	box-sizing: border-box;
+	vertical-align: -2px;
+}
+.a-row.st .name::after { width: 13px; height: 13px; margin-left: 7px; }
+.a-row.st.on .name::after,   .n-row.st.on .name::after   { background: var(--presence); }
+.a-row.st.half .name::after, .n-row.st.half .name::after { background: linear-gradient(to right, var(--panel) 0 50%, var(--presence) 50% 100%); }
+
+/* ====== BAUART B — wie sie HEUTE ist ==================================== */
+.b-box {
+	max-height: 370px;
+	overflow-y: auto;
+	border: 1px solid var(--border);        /* ← der Kasten */
+	border-radius: var(--radius-md);
+	background: var(--panel);
+}
+.b-row {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	width: 100%;
+	padding: 5px 9px;
+	border: 0;
+	border-bottom: 1px solid var(--divider);
+	background: transparent;
+	text-align: left;
+	font: inherit;
+	cursor: pointer;
+}
+.b-row:last-child { border-bottom: 0; }
+.b-row:hover { background: var(--hover-wash); }
+.b-row .title { font-size: 12px; font-weight: 700; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.b-row .meta  { font-size: 11px; color: var(--text-muted); }
+
+/* ====== DIE VORGESCHLAGENE FORM ======================================== */
+/* Struktur von A. Maße und Farben aus der Skala bzw. den Token, die für
+   genau diesen Zweck benannt sind: --color-divider trennt, --color-hover-wash
+   ist die Zeilen-Überfahrt. */
+.n-list { max-height: 370px; overflow-y: auto; }
+.n-row {
+	display: grid;
+	grid-template-columns: 16px minmax(0, 1fr);
+	column-gap: 7px;
+	row-gap: 2px;                            /* 7 → 2 */
+	padding: 5px 8px;                        /* 6 → 5 */
+	border-bottom: 1px solid var(--divider); /* Füllfarbe → Trenn-Token */
+	cursor: pointer;
+}
+.n-row:hover { background: var(--hover-wash); }
+.n-row.no-grip { grid-template-columns: minmax(0, 1fr); }
+.n-row.no-grip .name { grid-column: 1; }
+.n-row.no-grip .meta { grid-column: 1; }
+.n-row .grip { grid-column: 1; grid-row: 1 / span 2; align-self: center; color: var(--text-muted); font-size: 12px; letter-spacing: -1px; }
+.n-row .name {
+	grid-column: 2; grid-row: 1;
+	min-width: 0;
+	font-size: var(--font-size-body);        /* 13px, auf der Skala */
+	font-weight: 700;
+	line-height: 1.22;
+}
+.n-row .meta {
+	grid-column: 2; grid-row: 2;
+	font-size: var(--font-size-caption);     /* 11px, die Untergrenze */
+	font-weight: 700;
+	line-height: 1.2;
+	color: var(--text-muted);
+}
+.n-row .name::after { width: 11px; height: 11px; margin-left: 6px; }
+
+/* Chips (Regionen/Wege) — gleiche Optik in beiden Spalten, nur enger im Vorschlag */
+.chipline { display: block; margin-top: 3px; font-weight: 700; }
+.chipline .lbl { color: var(--link); }
+.chip {
+	display: inline-block;
+	margin: 2px 3px 0 0;
+	padding: 2px 8px;
+	border: 1px solid var(--button-soft-border);
+	border-radius: 999px;
+	background: var(--button-soft);
+	color: var(--button-soft-text);
+	font-size: var(--font-size-caption);
+}
+.n-row .chip { padding: 1px 7px; }
+.chip--act { border-radius: var(--radius-md); }
+a.wiki { color: var(--link); text-decoration: none; }
+
+/* Baum (Territorien) */
+.tw { padding-left: 0; }
+.arrow { display: inline-block; width: 12px; color: var(--text-muted); font-size: 10px; }
+.a-row.tree, .n-row.tree { grid-template-columns: 12px 16px minmax(0, 1fr); }
+.a-row.tree .arrow, .n-row.tree .arrow { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
+.a-row.tree .grip,  .n-row.tree .grip  { grid-column: 2; }
+.a-row.tree .name,  .n-row.tree .name,
+.a-row.tree .meta,  .n-row.tree .meta  { grid-column: 3; }
+/* Territorien heute: inline-grid + max-content → Überfahrt nur so breit wie der Text, keine Trennlinie */
+.a-row.tree { display: inline-grid; width: max-content; max-width: 100%; border-bottom: 0; border-radius: 6px; }
+
+/* Messmarken */
+.ruler {
+	margin-top: 8px;
+	padding: 7px 10px;
+	border: 1px dashed var(--border-strong);
+	border-radius: var(--radius-sm);
+	font-size: var(--font-size-small);
+	color: var(--text-muted);
+}
+.ruler b { color: var(--text-strong); }
+.ruler .win { color: #a9bd72; font-weight: 700; }
+
+/* Notizkästen */
+.note {
+	max-width: 78ch;
+	margin: 14px 0;
+	padding: 11px 14px;
+	border-left: 3px solid var(--link);
+	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+	background: var(--panel-soft);
+	font-size: var(--font-size-body);
+	color: var(--text-muted);
+}
+.note b { color: var(--text-strong); }
+.note--warn { border-left-color: #d09a7a; }
+
+table { border-collapse: collapse; margin: 14px 0; font-size: var(--font-size-body); }
+th, td { padding: 6px 14px 6px 0; text-align: left; border-bottom: 1px solid var(--divider); color: var(--text-muted); }
+th { color: var(--text-strong); font-weight: 700; }
+td b { color: var(--text-strong); }
+.win { color: #a9bd72; font-weight: 700; }
+.lose { color: #d09a7a; }
+
+.opt {
+	width: 400px;
+	padding: 10px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--panel-soft);
+}
+.opt h4 { margin: 0 0 8px; font-size: var(--font-size-body); font-weight: 700; color: var(--text-strong); }
+.opt .verdict { margin: 8px 0 0; font-size: var(--font-size-caption); }
+</style>
+</head>
+<body>
+
+<h1>WikiSync-Listen — eine Form für acht</h1>
+<p>Mockup zur Frage „diese Listen sind im Design sehr unterschiedlich, siehst du eine Möglichkeit das zu
+vereinheitlichen?“ (Owner, 14.08.2026). <strong>Funktion und Informationen bleiben unverändert</strong> —
+hier ändert sich nur, wie es aussieht und wo eine Zahl steht.</p>
+
+<div class="note">
+<b>Der Befund vorweg: es sind nicht acht Designs, sondern zwei.</b><br>
+<b>Bauart A</b> (<code>.wikisync-itemlist .tree-item</code>) tragen Orte, Regionen, Wege und Kraftlinien —
+und Territorien trägt dieselbe Rezeptur ein zweites Mal in einer eigenen Datei.<br>
+<b>Bauart B</b> (<code>.wiki-sync-adv-picker__row</code>) tragen Literatur, Karten und Vorkommen.
+</div>
+
+
+<h2>1 · Die Zeile</h2>
+<p>Dieselben Orte, links wie es heute live steht, rechts der Vorschlag. Beide Spalten sind
+<strong>400px breit</strong> — die echte Panelbreite.</p>
+
+<div class="compare">
+
+	<div class="col col--now">
+		<div class="col__cap"><span>Heute</span><b>Bauart A</b></div>
+		<div class="panel"><div class="panel__pad">
+			<div class="views">
+				<button class="view is-active">Alle (3434)</button>
+				<button class="view">Platziert (2793)</button>
+				<button class="view">Fehlt (641)</button>
+			</div>
+			<p class="summary-old">3007 offen, 10 zurückgestellt, 793 archiviert</p>
+			<div class="searchrow">
+				<input class="search" value="Ort suchen …">
+				<span class="filterbtn">▽ Filter (1) ▾</span>
+			</div>
+			<div class="a-list">
+				<div class="a-row st on"><span class="grip">⠿</span><span class="name">A’Kr’Urabaal</span><span class="meta">Dorf · Meridiana · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="a-row st on"><span class="grip">⠿</span><span class="name">A’Laÿis Hiphon</span><span class="meta">Besondere Bauwerke/Stätten · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="a-row st on"><span class="grip">⠿</span><span class="name">A’Sarar</span><span class="meta">Dorf · Maraskan · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="a-row st on"><span class="grip">⠿</span><span class="name">Aaleinen</span><span class="meta">Dorf · Weiden · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="a-row st on"><span class="grip">⠿</span><span class="name">Aare</span><span class="meta">Dorf · Weiden · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="a-row st on"><span class="grip">⠿</span><span class="name">Abagund</span><span class="meta">Dorf · Albernia · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="a-row st on"><span class="grip">⠿</span><span class="name">Abbadom</span><span class="meta">Besondere Bauwerke/Stätten · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="a-row st half"><span class="grip">⠿</span><span class="name">Aberode</span><span class="meta">Dorf</span></div>
+				<div class="a-row st on"><span class="grip">⠿</span><span class="name">Abilacht</span><span class="meta">Stadt · Albernia · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="a-row st on"><span class="grip">⠿</span><span class="name">Abszint</span><span class="meta">Dorf · Tulamidenlande · <a class="wiki">Wiki ↗</a></span></div>
+			</div>
+		</div></div>
+		<div class="ruler">Zeilenhöhe <b>48,7px</b> (im Browser gemessen) · Name 13,33px <span class="lose">(skalenfremd)</span> · Meta 10,4px <span class="lose">(unter der 11px-Grenze)</span> · Trennlinie <code>--color-panel-muted</code> <span class="lose">(eine Füllfarbe)</span></div>
+	</div>
+
+	<div class="col col--next">
+		<div class="col__cap"><span>Vorschlag</span><b>A, kompakt</b></div>
+		<div class="panel"><div class="panel__pad">
+			<div class="views">
+				<button class="view is-active">Alle (3.434)</button>
+				<button class="view">Platziert (2.793)</button>
+				<button class="view">Fehlt (641)</button>
+			</div>
+			<p class="summary-old">3007 Fälle offen · 10 zurückgestellt · 793 archiviert</p>
+			<div class="searchrow">
+				<input class="search" value="Ort suchen …">
+				<span class="filterbtn">▽ Filter (1) ▾</span>
+			</div>
+			<p class="balance"><span>3.434 Orte</span></p>
+			<div class="n-list">
+				<div class="n-row st on"><span class="grip">⠿</span><span class="name">A’Kr’Urabaal</span><span class="meta">Dorf · Meridiana · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="n-row st on"><span class="grip">⠿</span><span class="name">A’Laÿis Hiphon</span><span class="meta">Besondere Bauwerke/Stätten · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="n-row st on"><span class="grip">⠿</span><span class="name">A’Sarar</span><span class="meta">Dorf · Maraskan · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="n-row st on"><span class="grip">⠿</span><span class="name">Aaleinen</span><span class="meta">Dorf · Weiden · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="n-row st on"><span class="grip">⠿</span><span class="name">Aare</span><span class="meta">Dorf · Weiden · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="n-row st on"><span class="grip">⠿</span><span class="name">Abagund</span><span class="meta">Dorf · Albernia · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="n-row st on"><span class="grip">⠿</span><span class="name">Abbadom</span><span class="meta">Besondere Bauwerke/Stätten · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="n-row st half"><span class="grip">⠿</span><span class="name">Aberode</span><span class="meta">Dorf</span></div>
+				<div class="n-row st on"><span class="grip">⠿</span><span class="name">Abilacht</span><span class="meta">Stadt · Albernia · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="n-row st on"><span class="grip">⠿</span><span class="name">Abszint</span><span class="meta">Dorf · Tulamidenlande · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="n-row st on"><span class="grip">⠿</span><span class="name">Abukir</span><span class="meta">Dorf · Khôm · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="n-row st half"><span class="grip">⠿</span><span class="name">Achaz-Dorf</span><span class="meta">Dorf · Echsensümpfe</span></div>
+			</div>
+		</div></div>
+		<div class="ruler">Zeilenhöhe <b>42,0px</b> (im Browser gemessen) <span class="win">− 14%</span> · Name <code>--font-size-body</code> 13px · Meta <code>--font-size-caption</code> 11px <span class="win">(besser lesbar als heute)</span> · Trennlinie <code>--color-divider</code></div>
+	</div>
+
+</div>
+
+<div class="note">
+<b>Wo die Höhe herkommt.</b> Nicht aus kleinerer Schrift — die Meta-Zeile <em>wächst</em> von 10,4px auf 11px.
+Sie kommt aus der Luft: Abstand Name↔Meta <b>7px → 2px</b>, Polsterung <b>6px → 5px</b>.
+Gemessen: <b>48,7px → 42,0px</b> — auf derselben Fläche stehen rund <b>16% mehr Zeilen</b>.
+</div>
+
+<div class="note note--warn">
+<b>⚠️ Die 7px sind kein Zufall</b> — <code>css/components/region-sync.css:928</code> sagt:
+„Zeilenabstand Name↔Meta einheitlich wie Siedlungen (sonst Regionen/Wege via <code>.region-sync__item</code> nur 2px)“.
+Jemand hat sie <em>bewusst</em> von 2 auf 7 gehoben, um zu vereinheitlichen. Auf 2 zurückzugehen dreht
+diese Entscheidung um. Das ist genau das, was hier gewollt ist — aber es soll ein Beschluss sein, kein Versehen.
+</div>
+
+
+<h2>2 · Die drei Sonderfälle</h2>
+<p>Drei Listen tragen mehr als Name und Meta. Sie behalten alles, was sie haben — sie erben nur dieselben Maße.</p>
+
+<h3>Regionen — die Zuweis-Zeilen</h3>
+<div class="compare">
+	<div class="col col--now">
+		<div class="col__cap"><span>Heute</span><b>Bauart A + Chips</b></div>
+		<div class="panel"><div class="panel__pad">
+			<div class="a-list" style="max-height:none">
+				<div class="a-row st on"><span class="grip"> </span><span class="name">Aarenfels</span><span class="meta">Berggipfel · Weiden: Schwarze Sichel · <a class="wiki">Wiki ↗</a>
+					<span class="chipline"><span class="lbl">Karte:</span> <span class="chip">Aarenfels (berggipfel)</span></span>
+					<span class="chipline">Fläche(n): — <span class="chip chip--act">Fläche zuweisen</span> <span class="chip chip--act">Label zuweisen</span></span></span></div>
+				<div class="a-row st on"><span class="grip"> </span><span class="name">Aaretal</span><span class="meta">Mittelaventurien · <a class="wiki">Wiki ↗</a>
+					<span class="chipline"><span class="lbl">Karte:</span> <span class="chip">Aaretal (tal)</span></span>
+					<span class="chipline">Fläche(n): — <span class="chip chip--act">Fläche zuweisen</span> <span class="chip chip--act">Label zuweisen</span></span></span></div>
+				<div class="a-row st on"><span class="grip"> </span><span class="name">Abagund 🖼</span><span class="meta">Heide · Albernia · <a class="wiki">Wiki ↗</a>
+					<span class="chipline"><span class="lbl">Karte:</span> <span class="chip">Abagund (huegelland)</span></span>
+					<span class="chipline">Fläche(n): <span class="chip">Abagund</span> <span class="chip chip--act">Fläche zuweisen</span> <span class="chip chip--act">Label zuweisen</span></span></span></div>
+			</div>
+		</div></div>
+	</div>
+	<div class="col col--next">
+		<div class="col__cap"><span>Vorschlag</span><b>gleiche Chips, engere Zeile</b></div>
+		<div class="panel"><div class="panel__pad">
+			<div class="n-list" style="max-height:none">
+				<div class="n-row st on"><span class="grip"> </span><span class="name">Aarenfels</span><span class="meta">Berggipfel · Weiden: Schwarze Sichel · <a class="wiki">Wiki ↗</a>
+					<span class="chipline"><span class="lbl">Karte:</span> <span class="chip">Aarenfels (berggipfel)</span></span>
+					<span class="chipline">Fläche(n): — <span class="chip chip--act">Fläche zuweisen</span> <span class="chip chip--act">Label zuweisen</span></span></span></div>
+				<div class="n-row st on"><span class="grip"> </span><span class="name">Aaretal</span><span class="meta">Mittelaventurien · <a class="wiki">Wiki ↗</a>
+					<span class="chipline"><span class="lbl">Karte:</span> <span class="chip">Aaretal (tal)</span></span>
+					<span class="chipline">Fläche(n): — <span class="chip chip--act">Fläche zuweisen</span> <span class="chip chip--act">Label zuweisen</span></span></span></div>
+				<div class="n-row st on"><span class="grip"> </span><span class="name">Abagund 🖼</span><span class="meta">Heide · Albernia · <a class="wiki">Wiki ↗</a>
+					<span class="chipline"><span class="lbl">Karte:</span> <span class="chip">Abagund (huegelland)</span></span>
+					<span class="chipline">Fläche(n): <span class="chip">Abagund</span> <span class="chip chip--act">Fläche zuweisen</span> <span class="chip chip--act">Label zuweisen</span></span></span></div>
+				<div class="n-row st"><span class="grip">⠿</span><span class="name">Adamantenland</span><span class="meta">Insel · Perlenmeer · <a class="wiki">Wiki ↗</a>
+					<span class="chipline">Fläche(n): — <span class="chip chip--act">Fläche zuweisen</span> <span class="chip chip--act">Label zuweisen</span></span></span></div>
+			</div>
+		</div></div>
+	</div>
+</div>
+
+<h3>Territorien — der Baum</h3>
+<div class="compare">
+	<div class="col col--now">
+		<div class="col__cap"><span>Heute</span><b>eigene Datei, eigene Regeln</b></div>
+		<div class="panel"><div class="panel__pad">
+			<p class="summary-old">1657 Knoten · 75 Wurzelknoten</p>
+			<div class="tw">
+				<div class="a-row st tree on"><span class="arrow">▶</span><span class="grip">⠿</span><span class="name">Alanfanisches Imperium</span><span class="meta">1009 BF – heute, <a class="wiki">Wiki ↗</a></span></div><br>
+				<div class="a-row st tree half"><span class="arrow">▶</span><span class="grip">⠿</span><span class="name">Fürstkomturei Tobimora</span><span class="meta">1022 BF – heute, <a class="wiki">Wiki ↗</a></span></div><br>
+				<div class="a-row st tree half"><span class="arrow">▶</span><span class="grip">⠿</span><span class="name">Gjalskerland</span><span class="meta"></span></div><br>
+				<div class="a-row st tree on"><span class="arrow">▶</span><span class="grip">⠿</span><span class="name">Großemirat Mengbilla</span><span class="meta">858 BF – heute, <a class="wiki">Wiki ↗</a></span></div>
+			</div>
+		</div></div>
+		<div class="ruler"><code>inline-grid</code> + <code>width: max-content</code> → die Überfahrt ist nur so breit wie der Text, und die Zeile hat <span class="lose">keine Trennlinie</span>. Meta-Trenner ist „<b>,</b>“ statt „<b>·</b>“.</div>
+	</div>
+	<div class="col col--next">
+		<div class="col__cap"><span>Vorschlag</span><b>dieselbe Zeile wie alle</b></div>
+		<div class="panel"><div class="panel__pad">
+			<div class="searchrow"><input class="search" value="Suchen …"><span class="filterbtn">▽ Filter (1) ▾</span></div>
+			<p class="summary-old">1657 Knoten gesynct · 75 Wurzelknoten</p>
+			<p class="balance"><span>1.038 Territorien</span></p>
+			<div class="tw">
+				<div class="n-row st tree on"><span class="arrow">▶</span><span class="grip">⠿</span><span class="name">Alanfanisches Imperium</span><span class="meta">1009 BF – heute · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="n-row st tree half"><span class="arrow">▶</span><span class="grip">⠿</span><span class="name">Fürstkomturei Tobimora</span><span class="meta">1022 BF – heute · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="n-row st tree half"><span class="arrow">▶</span><span class="grip">⠿</span><span class="name">Gjalskerland</span><span class="meta">—</span></div>
+				<div class="n-row st tree on"><span class="arrow">▶</span><span class="grip">⠿</span><span class="name">Großemirat Mengbilla</span><span class="meta">858 BF – heute · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="n-row st tree half"><span class="arrow">▶</span><span class="grip">⠿</span><span class="name">Heiliges Neues Kaiserreich vom Greifenthron zu Gareth</span><span class="meta">0 BF – heute · <a class="wiki">Wiki ↗</a></span></div>
+				<div class="n-row st tree on"><span class="arrow">▶</span><span class="grip">⠿</span><span class="name">Herzogtum Paavi</span><span class="meta">930 BF – heute · <a class="wiki">Wiki ↗</a></span></div>
+			</div>
+		</div></div>
+		<div class="ruler">Volle Zeilenbreite, Trennlinie wie überall. <span class="win">Die Einrückung des Baums bleibt</span> — sie ist Information, keine Zierde.</div>
+	</div>
+</div>
+
+<h3>Literatur / Karten / Vorkommen — der Kasten fällt weg</h3>
+<div class="compare">
+	<div class="col col--now">
+		<div class="col__cap"><span>Heute</span><b>Bauart B</b></div>
+		<div class="panel"><div class="panel__pad">
+			<div class="views">
+				<button class="view is-active">Alle (5.104)</button>
+				<button class="view">Fauna (1.382)</button>
+				<button class="view">Flora (1.004)</button>
+				<button class="view">Waren (2.531)</button>
+			</div>
+			<div class="searchrow">
+				<input class="search" value="Name oder Art suchen …">
+				<span class="filterbtn">▽ Filter ▾</span>
+				<span class="count-inline">200 von 1382</span>
+			</div>
+			<div class="b-box">
+				<button class="b-row"><span class="title">Aal</span><span class="meta">Fisch · Aventurien, Meer der Sieben Winde, Der Große Fluss</span></button>
+				<button class="b-row"><span class="title">Aalmutter</span><span class="meta">Fisch · Myranor, Meer der Schwimmenden Inseln</span></button>
+				<button class="b-row"><span class="title">Aaskäfer</span><span class="meta">Käfer · Aventurien</span></button>
+				<button class="b-row"><span class="title">Aaswolf</span><span class="meta">Wolf · Mittelaventurien, Nordaventurien, Schattenlande (Region)</span></button>
+				<button class="b-row"><span class="title">Abilachter Fleckvieh</span><span class="meta">Rind · Honinger Land, Abilacht, Herz des Kontinents</span></button>
+				<button class="b-row"><span class="title">Adler</span><span class="meta">Vogel · Aventurien</span></button>
+				<button class="b-row"><span class="title">Admiral</span><span class="meta">Schmetterling · Altoum</span></button>
+				<button class="b-row"><span class="title">Affe</span><span class="meta">Säugetier · Aventurien, Myranor, Uthuria</span></button>
+			</div>
+			<p class="hint">Klick auf einen Eintrag öffnet den Editor.</p>
+		</div></div>
+		<div class="ruler">Titel 12px, Meta 11px <span class="win">(auf der Skala, aber als harte Zahl)</span> · Kasten mit Rahmen · Zähler <span class="lose">in der Suchzeile</span> · Datum steht als „26.7.2026, 11:01:16“ da, überall sonst „07.08.2026, 11:12“</div>
+	</div>
+	<div class="col col--next">
+		<div class="col__cap"><span>Vorschlag</span><b>dieselbe Zeile wie Orte</b></div>
+		<div class="panel"><div class="panel__pad">
+			<div class="views">
+				<button class="view is-active">Alle (5.104)</button>
+				<button class="view">Fauna (1.382)</button>
+				<button class="view">Flora (1.004)</button>
+				<button class="view">Waren (2.531)</button>
+				<button class="view is-off">Spezies (187)</button>
+			</div>
+			<div class="searchrow">
+				<input class="search" value="Name oder Art suchen …">
+				<span class="filterbtn">▽ Filter ▾</span>
+			</div>
+			<p class="balance"><span>200 von 1.382 Fauna</span></p>
+			<div class="n-list">
+				<div class="n-row no-grip"><span class="name">Aal</span><span class="meta">Fisch · Aventurien, Meer der Sieben Winde, Der Große Fluss</span></div>
+				<div class="n-row no-grip"><span class="name">Aalmutter</span><span class="meta">Fisch · Myranor, Meer der Schwimmenden Inseln</span></div>
+				<div class="n-row no-grip"><span class="name">Aaskäfer</span><span class="meta">Käfer · Aventurien</span></div>
+				<div class="n-row no-grip"><span class="name">Aaswolf</span><span class="meta">Wolf · Mittelaventurien, Nordaventurien, Schattenlande (Region)</span></div>
+				<div class="n-row no-grip"><span class="name">Abilachter Fleckvieh</span><span class="meta">Rind · Honinger Land, Abilacht, Herz des Kontinents</span></div>
+				<div class="n-row no-grip"><span class="name">Adler</span><span class="meta">Vogel · Aventurien</span></div>
+				<div class="n-row no-grip"><span class="name">Admiral</span><span class="meta">Schmetterling · Altoum</span></div>
+				<div class="n-row no-grip"><span class="name">Affe</span><span class="meta">Säugetier · Aventurien, Myranor, Uthuria</span></div>
+				<div class="n-row no-grip"><span class="name">Al’Anfaner</span><span class="meta">Katze · Südaventurien</span></div>
+				<div class="n-row no-grip"><span class="name">Al’Kebir-Antilope</span><span class="meta">Antilope · Shadif (Steppe), Szintotal, Khôm</span></div>
+			</div>
+			<p class="hint">Klick auf einen Eintrag öffnet den Editor.</p>
+		</div></div>
+		<div class="ruler"><span class="win">Kein Statuskreis</span> — Literatur, Karten und Vorkommen haben kein „liegt auf der Karte“. Das ist Information, kein Schmuck, und bleibt weg. Die Hinweiszeile bleibt.</div>
+	</div>
+</div>
+
+
+<h2>3 · Die Bilanzzeile</h2>
+<p><b>Beschlossen (Owner, 14.08.2026):</b> eine Bilanzzeile unter der Suche —
+<strong>aber nur, was sich durch die Filterung ändert.</strong> Damit steht dort genau ein Satz,
+und dieser Satz bewegt sich beim Tippen. Was sich <em>nicht</em> bewegt (die Zahlen des letzten Syncs),
+bleibt als stille Zeile über der Suche stehen, wo es heute schon steht.</p>
+
+<div class="compare">
+
+	<div class="col">
+		<div class="col__cap"><span>Ungefiltert</span></div>
+		<div class="panel"><div class="panel__pad">
+			<nav class="rail">
+				<div class="rail__cell">Orte <span>07.08.</span></div>
+				<div class="rail__cell">Territorien <span>07.08.</span></div>
+				<div class="rail__cell is-active">Regionen <span>13.08.</span></div>
+				<div class="rail__cell">Wege <span>07.08.</span></div>
+				<div class="rail__cell">Kraftlinien <span>07.08.</span></div>
+				<div class="rail__cell">Literatur <span>07.08.</span></div>
+				<div class="rail__cell">Karten <span>26.07.</span></div>
+				<div class="rail__cell">Vorkommen <span>26.07.</span></div>
+			</nav>
+			<button class="verb">Regionen bearbeiten<small>Zuletzt gesynct: 13.08.2026, 04:42</small></button>
+			<div class="views">
+				<button class="view is-active">Alle (1.616)</button>
+				<button class="view">Platziert (566)</button>
+				<button class="view">Fehlt (805)</button>
+			</div>
+			<p class="summary-old">1851 gesynct · 831 Karten-Labels</p>
+			<div class="searchrow"><input class="search" value="Regionen suchen …"><span class="filterbtn">▽ Filter ▾</span></div>
+			<p class="balance"><span>1.616 Regionen</span></p>
+			<div class="n-list" style="max-height:none">
+				<div class="n-row st on"><span class="grip"> </span><span class="name">Aarenfels</span><span class="meta">Berggipfel · Weiden: Schwarze Sichel</span></div>
+				<div class="n-row st on"><span class="grip"> </span><span class="name">Aaretal</span><span class="meta">Mittelaventurien</span></div>
+				<div class="n-row st on"><span class="grip"> </span><span class="name">Abagund 🖼</span><span class="meta">Heide · Albernia</span></div>
+			</div>
+		</div></div>
+		<div class="ruler">Ohne Filter nennt die Bilanzzeile nur die Gesamtzahl. Sie ist <b>nie leer</b> — die Liste
+		springt beim ersten Tastendruck also nicht um eine Zeile.</div>
+	</div>
+
+	<div class="col">
+		<div class="col__cap"><span>Gefiltert — Suche „A“</span><b style="color:#a9bd72">nur diese Zeile bewegt sich</b></div>
+		<div class="panel"><div class="panel__pad">
+			<nav class="rail">
+				<div class="rail__cell">Orte <span>07.08.</span></div>
+				<div class="rail__cell">Territorien <span>07.08.</span></div>
+				<div class="rail__cell is-active">Regionen <span>13.08.</span></div>
+				<div class="rail__cell">Wege <span>07.08.</span></div>
+				<div class="rail__cell">Kraftlinien <span>07.08.</span></div>
+				<div class="rail__cell">Literatur <span>07.08.</span></div>
+				<div class="rail__cell">Karten <span>26.07.</span></div>
+				<div class="rail__cell">Vorkommen <span>26.07.</span></div>
+			</nav>
+			<button class="verb">Regionen bearbeiten<small>Zuletzt gesynct: 13.08.2026, 04:42</small></button>
+			<div class="views">
+				<button class="view is-active">Alle (1.616)</button>
+				<button class="view">Platziert (566)</button>
+				<button class="view">Fehlt (805)</button>
+			</div>
+			<p class="summary-old">1851 gesynct · 831 Karten-Labels</p>
+			<div class="searchrow"><input class="search" style="color:var(--text-strong)" value="A"><span class="filterbtn">▽ Filter ▾</span></div>
+			<p class="balance"><span style="color:var(--text-strong)"><b>103</b> von 1.616 Regionen</span></p>
+			<div class="n-list" style="max-height:none">
+				<div class="n-row st on"><span class="grip"> </span><span class="name">Aarenfels</span><span class="meta">Berggipfel · Weiden: Schwarze Sichel</span></div>
+				<div class="n-row st on"><span class="grip"> </span><span class="name">Aaretal</span><span class="meta">Mittelaventurien</span></div>
+				<div class="n-row st on"><span class="grip"> </span><span class="name">Abagund 🖼</span><span class="meta">Heide · Albernia</span></div>
+			</div>
+		</div></div>
+		<div class="ruler">Die stille Zeile rührt sich nicht — sie beschreibt den letzten Sync, nicht die
+		Anzeige. Genau deshalb steht sie nicht in der Bilanzzeile.</div>
+	</div>
+
+</div>
+
+<div class="note">
+<b>„1851 gesynct“ steht nie allein.</b> Das Wort „Regionen“ steht <b>dreimal</b> um die stille Zeile herum:
+in der Subjektleiste (hervorgehoben), im Knopf „Regionen bearbeiten“ direkt darüber, und in der
+Bilanzzeile direkt darunter. Diese Klammer hat jedes der acht Subjekte — der Knopf „<i>Subjekt</i> bearbeiten“
+existiert überall. <b>Deshalb darf die stille Zeile das Substantiv weglassen, wo es nur verwirren würde.</b>
+</div>
+
+<h3>So liest sie sich bei allen acht</h3>
+<p>Das Substantiv ist das Wort des Subjekts; bei Vorkommen das der gewählten Ansicht.
+Die gefilterten Zahlen sind <em>Beispiele</em> für die Suche „A“, keine gemessenen Werte.</p>
+<table>
+	<tr><th>Subjekt</th><th>Bilanzzeile, ungefiltert</th><th>Bilanzzeile, gefiltert</th><th>stille Zeile darüber</th></tr>
+	<tr><td><b>Orte</b></td><td>3.434 Orte</td><td>103 von 3.434 Orten</td><td>3007 <b>Fälle</b> offen · 10 zurückgestellt · 793 archiviert</td></tr>
+	<tr><td><b>Territorien</b></td><td>1.038 Territorien</td><td>41 von 1.038 Territorien</td><td>1657 Knoten <b>gesynct</b> · 75 Wurzelknoten</td></tr>
+	<tr><td><b>Regionen</b></td><td>1.616 Regionen</td><td>103 von 1.616 Regionen</td><td>1851 <b>gesynct</b> · 831 Karten-Labels</td></tr>
+	<tr><td><b>Wege</b></td><td>4.225 Wege</td><td>212 von 4.225 Wegen</td><td>601 <b>gesynct</b> · 5925 Karten-Segmente</td></tr>
+	<tr><td><b>Kraftlinien</b></td><td>59 Kraftlinien</td><td>4 von 59 Kraftlinien</td><td>162 Segmente</td></tr>
+	<tr><td><b>Literatur</b></td><td>1.957 Werke</td><td>96 von 1.957 Werken</td><td>—</td></tr>
+	<tr><td><b>Karten</b></td><td>523 Karten</td><td>24 von 523 Karten</td><td>—</td></tr>
+	<tr><td><b>Vorkommen</b></td><td>1.382 Fauna</td><td>200 von 1.382 Fauna</td><td>—</td></tr>
+</table>
+
+<h3>Was sich am Wortlaut der stillen Zeile ändert — und warum</h3>
+<table>
+	<tr><th>Subjekt</th><th>heute</th><th>danach</th><th>Grund (nachgelesen, nicht vermutet)</th></tr>
+	<tr><td><b>Orte</b></td><td>3007 offen, 10 zurückgestellt, 793 archiviert</td><td>3007 <b>Fälle</b> offen · …</td>
+		<td><code>review-wiki-sync.js:3641</code> liest <code>by_status</code> der WikiSync-<b>Fälle</b> — es sind keine Orte. Das Wort fehlte.</td></tr>
+	<tr><td><b>Regionen</b></td><td>1851 Regionen · 831 Karten-Labels</td><td>1851 <b>gesynct</b> · 831 Karten-Labels</td>
+		<td><code>review-region-sync.js:115</code> nimmt <code>s.considered</code> — beim letzten Sync betrachtet, nicht die 1.616 Zeilen der Liste.</td></tr>
+	<tr><td><b>Wege</b></td><td>601 Wege · 5925 Karten-Segmente</td><td>601 <b>gesynct</b> · 5925 Karten-Segmente</td>
+		<td><code>review-path-sync.js:185</code>, dasselbe <code>s.considered</code> (601 gegen 4.225 Zeilen).</td></tr>
+	<tr><td><b>Territorien</b></td><td>1657 Knoten · 75 Wurzelknoten</td><td>1657 Knoten <b>gesynct</b> · 75 Wurzelknoten</td>
+		<td><code>review-wiki-sync.js:3653</code> nimmt <code>wikiSyncTerritorySummary</code> — das gesynkte Modell, nicht die Liste.</td></tr>
+	<tr><td><b>Kraftlinien</b></td><td>59 Kraftlinien · 162 Segmente</td><td>162 Segmente</td>
+		<td><code>review-powerline-list.js:130</code> nimmt <code>groups.length</code> — <b>genau die Zahl, die künftig in der Bilanzzeile steht.</b> Sie zweimal untereinander zu schreiben wäre neu und falsch.</td></tr>
+</table>
+<p><b>Keine dieser Änderungen fasst eine Zahl an</b> — nur das Wort daneben. Die Kraftlinien-Zeile verliert
+eine Angabe, die eine Zeile tiefer wortgleich wiederkäme.</p>
+
+<div class="note">
+<b>Beschlossen (Owner, 14.08.2026): die stille Zeile benennt ihre Zahlen.</b>
+Der Reiter sagt „Alle (1616)“, die stille Zeile sagte „1851 <s>Regionen</s>“ — zwei verschiedene Dinge
+(<b>1616 Zeilen in der Liste</b> gegen <b>1851 beim letzten Sync betrachtete</b>), und untereinander
+gestellt fällt der Widerspruch erst auf. Sie heißt jetzt <b>„1851 gesynct“</b>.
+Bedingung des Owners: <i>nur, wenn klar ist, dass wir unter „Regionen“ sind</i> — siehe den Kasten
+über der Tabelle: das Wort steht dreimal drumherum.
+</div>
+
+
+<h2>4 · Was sich <em>nicht</em> ändert</h2>
+<ul>
+	<li>Jede Zeile behält jede Angabe, die sie heute trägt — Chips, Zuweis-Knöpfe, „Namen vereinheitlichen“, das 🖼-Abzeichen, die Baum-Einrückung, die Hinweiszeilen.</li>
+	<li><strong>Der Statuskreis bleibt genau dort, wo er heute steht</strong> — bei den fünf Karten-Subjekten. Literatur, Karten und Vorkommen bekommen keinen: sie haben kein „liegt auf der Karte“.</li>
+	<li><strong>Kraftlinien bekommt keinen Filtertrichter.</strong> Es ist heute die einzige Liste ohne, aber einen hinzuzufügen wäre neue Funktion — hier wird nichts erfunden. Das Suchfeld nimmt dort einfach die volle Breite.</li>
+	<li>Kein Knopf wandert, kein Reiter verschwindet, keine Zahl ändert ihren Wert.</li>
+</ul>
+
+<h3>Drei Kleinigkeiten, die dabei mitgeradezogen werden</h3>
+<table>
+	<tr><th>Heute</th><th>Danach</th><th>Warum</th></tr>
+	<tr><td>„1957 / 1957“ · „200 von 1382“</td><td><b>„1.957 Werke“ / „96 von 1.957 Werken“</b></td><td>Eine Schreibweise für dieselbe Angabe (siehe Abschnitt 3), mit Tausenderpunkt wie bei Vorkommen</td></tr>
+	<tr><td>„Alle (3434)“ vs. „Alle (5.104)“</td><td><b>„Alle (3.434)“</b></td><td>dito</td></tr>
+	<tr><td>Vorkommen: „26.7.2026, 11:01:16“</td><td><b>„26.07.2026, 11:01“</b></td><td><code>renderLoreLastSynced</code> nimmt <code>toLocaleString</code> roh; alle anderen gehen durch <code>formatWikiSyncKindSyncedText</code></td></tr>
+</table>
+
+<p style="margin-top:36px;font-size:12px;opacity:.6">Mockup · 14.08.2026 · Token aus <code>css/base/tokens.css</code> (dunkles Thema)</p>
+
+</body>
+</html>
