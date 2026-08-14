@@ -200,74 +200,28 @@ git commit -m "docs(svg-export): Payload vermessen -- Feldnamen, Wertemengen, No
 
 ---
 
-## Aufgabe 2: Die Wegefarben herausheben
+## Aufgabe 2: ~~Die Wegefarben herausheben~~ — ZURÜCKGENOMMEN
 
-Der Bauer braucht die acht Wegefarben, und sie liegen heute **in** einer
-zoomabhängigen Funktion. Erst herausheben, dann darauf bauen.
+> 🔴 **Diese Aufgabe wurde gebaut, ausgeliefert und am 14.08.2026 zurückgenommen**
+> (`f24cea84` + `63bb4796` → revert `07bb4b37`). Owner: „du sollst nicht an avesmaps
+> ändern, du sollst den Download-Knopf anbieten." Der Auftrag war ein Knopf für Admins,
+> kein Umbau an dem, was jeder Besucher sieht — und ein Werkzeug für eine Handvoll
+> Menschen rechtfertigt keinen Eingriff in die Kartendarstellung.
+>
+> `getPathStyleColors` hält seine Tabelle `centerColors` also weiterhin selbst.
+> **Nicht erneut herausheben.** Wer den Gedanken wiederhat: er war schon da, war
+> technisch richtig und wurde trotzdem verworfen.
 
-**Dateien:**
-- Ändern: `js/config.js` (neue Konstante neben `PATH_CENTER_WEIGHTS`)
-- Ändern: `js/map-features/map-features.js:249-258` (`centerColors` → Verweis)
-- Anlegen: `js/pages/__tests__/path-center-colors.test.js`
-
-**Schnittstellen:**
-- Liefert: `PATH_CENTER_COLORS` — Objekt, Schlüssel = die acht `PATH_SUBTYPE_KEYS`,
-  Werte = Hex-Strings. Aufgabe 5 liest es.
-
-- [ ] **Schritt 1: Den scheiternden Test schreiben**
-
-```js
-// js/pages/__tests__/path-center-colors.test.js
-// Die Wegefarben stehen an EINER Stelle. Vorher lagen sie in getPathStyleColors
-// (map-features.js), einer Funktion mit map.getZoom() -- unerreichbar für alles,
-// was ohne Karte rechnet. Dieser Test hält sie draußen.
-//
-// Lauf: node js/pages/__tests__/path-center-colors.test.js
-"use strict";
-const assert = require("assert");
-const fs = require("fs");
-const path = require("path");
-
-const configSrc = fs.readFileSync(path.join(__dirname, "../../config.js"), "utf8");
-const featuresSrc = fs.readFileSync(path.join(__dirname, "../../map-features/map-features.js"), "utf8");
-
-assert.ok(/const PATH_CENTER_COLORS\s*=/.test(configSrc),
-	"PATH_CENTER_COLORS muss in js/config.js stehen");
-
-const subtypes = ["Reichsstrasse", "Strasse", "Weg", "Pfad",
-	"Gebirgspass", "Wuestenpfad", "Flussweg", "Seeweg"];
-const block = configSrc.slice(configSrc.indexOf("const PATH_CENTER_COLORS"));
-subtypes.forEach((key) => {
-	assert.ok(new RegExp(`\\b${key}\\s*:`).test(block.slice(0, 600)),
-		`PATH_CENTER_COLORS muss ${key} führen`);
-});
-
-// 💣 Der Kern: die alte Tabelle darf NICHT als zweite Wahrheit stehenbleiben.
-assert.ok(!/const centerColors\s*=\s*\{[^}]*Reichsstrasse/.test(featuresSrc),
-	"getPathStyleColors darf keine eigene Farbtabelle mehr halten");
-assert.ok(/PATH_CENTER_COLORS/.test(featuresSrc),
-	"getPathStyleColors muss PATH_CENTER_COLORS lesen");
-
-console.log("path-center-colors: ok");
-```
-
-- [ ] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
-
-Lauf: `node js/pages/__tests__/path-center-colors.test.js`
-Erwartet: FEHLER, „PATH_CENTER_COLORS muss in js/config.js stehen"
-
-- [ ] **Schritt 3: Die Tabelle verschieben**
-
-In `js/config.js`, direkt neben `PATH_CENTER_WEIGHTS` — **dieselben acht Werte,
-keiner geändert** (aus `map-features.js:249-258` übernommen):
+**Stattdessen:** Der Bauer führt seine eigene Farbliste. Sie gehört in Aufgabe 5 und
+sieht so aus — dieselben acht Werte, abgeschrieben aus `map-features.js`:
 
 ```js
-// Die Mittellinienfarbe je Wegart. Lag bis 14.08.2026 als `centerColors` INNERHALB von
-// getPathStyleColors() -- unerreichbar für alles, was ohne map.getZoom() rechnet (der
-// SVG-Export). Hier ist die eine Wahrheit; getPathStyleColors liest sie von hier.
-// 🔴 Land-Wege außer Reichsstraßen sind heller + entsättigt, Reichsstraßen weiß,
-// Wasserwege (Flussweg/Seeweg) unverändert -- die Begründung stand an der alten Stelle.
-const PATH_CENTER_COLORS = {
+// Die Mittellinienfarbe je Wegart. 🔴 ABSCHRIFT aus getPathStyleColors()
+// (js/map-features/map-features.js) -- bewusst, nicht aus Versehen: die Karte wird
+// für dieses Werkzeug nicht angefasst (Owner 14.08.2026, revert 07bb4b37).
+// ⚠️ Ändert jemand dort eine Farbe, folgt der Export ihr NICHT. Wer das bemerkt,
+// gleicht hier von Hand ab -- und hebt nicht etwa die Tabelle heraus.
+const SVGX_WAY_COLORS = {
 	Reichsstrasse: "#ffffff",
 	Strasse: "#8b8b8b",
 	Weg: "#cec4ae",
@@ -279,36 +233,8 @@ const PATH_CENTER_COLORS = {
 };
 ```
 
-In `js/map-features/map-features.js` die lokale Tabelle löschen und die zwei
-Nutzungsstellen umbiegen:
-
-```js
-	const centerColors = PATH_CENTER_COLORS;
-```
-
-⚠️ `js/config.js` wird in `index.html` **vor** `map-features.js` geladen — die
-Ladereihenfolge ist ein Vertrag (AGENTS.md §3). Vor dem Commit einmal prüfen:
-`grep -n "config.js\|map-features/map-features.js" index.html`
-
-- [ ] **Schritt 4: Test laufen lassen, bestanden bestätigen**
-
-Lauf: `node js/pages/__tests__/path-center-colors.test.js`
-Erwartet: `path-center-colors: ok`
-
-- [ ] **Schritt 5: Auf der Karte hinsehen**
-
-🔧 **DU (Owner):** Das ist eine Änderung an der Kartendarstellung — sie soll per
-Konstruktion nichts ändern, aber „soll nichts ändern" ist keine Abnahme
-(AGENTS.md §9). Karte öffnen, hart neu laden, auf Wege sehen: Reichsstraßen weiß,
-Flüsse blau, nichts grau geworden.
-
-- [ ] **Schritt 6: Committen**
-
-```bash
-git status
-git add js/config.js js/map-features/map-features.js js/pages/__tests__/path-center-colors.test.js
-git commit -m "refactor(wege): die acht Wegefarben stehen in config.js, nicht mehr in getPathStyleColors"
-```
+⚠️ Die acht Schlüssel sind `PATH_SUBTYPE_KEYS`. Der Test in Aufgabe 5 prüft, dass es
+**genau** diese acht sind — fehlt einer, fehlt später eine ganze Gruppe im SVG.
 
 ---
 
@@ -682,7 +608,9 @@ git commit -m "feat(svg-export): zwei Dialekte -- Illustrator liest id, Inkscape
 > 💣 **`subtypes` wird HEREINGEREICHT, nicht abgeschrieben.** Es ist
 > `PATH_SUBTYPE_KEYS` aus `js/config.js` mit **acht** Werten. Ein früherer Entwurf
 > der Tabelle vergaß „Weg" — die Gruppe hätte einfach gefehlt, und niemand hätte
-> es gemerkt. Dasselbe gilt für die Farbtafel (`PATH_CENTER_COLORS`, Aufgabe 2).
+> es gemerkt. ⚠️ Die Farbtafel dagegen ist eine bewusste **Abschrift** —
+`SVGX_WAY_COLORS`, siehe Aufgabe 2 — weil die Karte für dieses Werkzeug nicht
+angefasst wird. Die acht Schlüssel müssen trotzdem `PATH_SUBTYPE_KEYS` sein.
 
 > ⚠️ **Flüsse sind keine eigene Ebene.** Sie sind Wege mit
 > `feature_subtype === "Flussweg"` und erscheinen als Untergruppe unter den Wegen

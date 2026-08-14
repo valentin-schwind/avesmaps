@@ -221,18 +221,25 @@ Kantenlänge — an **einer** Stelle im reinen Bauer, als benannte Konstante, ni
 verteilt über die Ebenen. Die Verhältnisse dafür stehen schon in
 `PATH_CENTER_WEIGHTS` / `PATH_OUTLINE_WEIGHTS` (`js/config.js`).
 
-> 💣 **Die Wegefarben stehen NICHT in den Token.** Sie liegen als Tabelle
-> `centerColors` **innerhalb** von `getPathStyleColors`
-> (`js/map-features/map-features.js:249`) — acht feste Hex-Werte in einer
-> Funktion, die `map.getZoom()` liest und damit für einen reinen Bauer
-> unbrauchbar ist. Abschreiben wäre die zweite Wahrheit über die Farbe jeder
-> Straße. **Also wird die Tabelle zuerst herausgehoben** nach `js/config.js`
-> (`PATH_CENTER_COLORS`, neben den schon dort liegenden `PATH_CENTER_WEIGHTS`),
-> und `getPathStyleColors` liest sie von dort — eine kleine, gezielte Änderung
-> an bestehendem Code, ohne die der Export gar nicht ehrlich gebaut werden kann.
-> ⚠️ Das ist eine Änderung an der **Kartendarstellung** und braucht deshalb den
-> Blick des Owners wie jede sichtbare Änderung (AGENTS.md §9) — auch wenn sie
-> per Konstruktion nichts ändert: dieselben acht Werte, nur woanders.
+> 🔴 **Die Wegefarben werden ABGESCHRIEBEN, und das ist ein bewusster Preis.**
+> Sie stehen nicht in den Token, sondern als Tabelle `centerColors` **innerhalb**
+> von `getPathStyleColors` (`js/map-features/map-features.js`) — acht feste
+> Hex-Werte in einer Funktion, die `map.getZoom()` liest und damit für einen
+> reinen Bauer unbrauchbar ist.
+>
+> Ein erster Anlauf hob die Tabelle nach `js/config.js` heraus, damit beide Seiten
+> **eine** Wahrheit lesen. Technisch richtig — und vom Owner am 14.08.2026
+> zurückgenommen (`07bb4b37`), mit dem Satz „du sollst nicht an avesmaps ändern,
+> du sollst den Download-Knopf anbieten". Der Auftrag war ein Knopf, kein Umbau der
+> Karte; ein Werkzeug für Admins rechtfertigt keinen Eingriff in das, was jeder
+> Besucher sieht.
+>
+> **Also führt der Export seine eigene Liste der acht Farben**, als benannte
+> Konstante an einer Stelle im Bauer, mit einem Kommentar, der auf die Quelle
+> zeigt. ⚠️ Damit ist eine Divergenz eingebaut: ändert jemand eine Wegefarbe auf
+> der Karte, folgt der Export ihr **nicht**. Das ist kein Versehen, sondern die
+> gewählte Seite des Tauschs — und der Grund, warum es hier steht und nicht
+> stillschweigend im Code.
 
 ## 7 · Koordinaten
 
