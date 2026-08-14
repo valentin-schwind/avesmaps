@@ -86,6 +86,60 @@
    Erfolgston kam beim ersten Anlauf nie durch. */
 .wp-tempo__real b.wp-tempo__check { color: var(--color-success); }
 .wp-tempo__real b.wp-tempo__check.is-off { color: var(--color-danger); }
+
+/* ---- DAS NEUE 3: die Legende ------------------------------------------------------------------
+   Sie nennt ALLE Zustaende, auch die, die gerade nicht vorkommen. Eine Legende, die nur zeigt, was
+   zufaellig auf dem Schirm ist, fehlt genau dann, wenn sie gebraucht wird -- naemlich wenn zum
+   ersten Mal etwas rot wird.
+   ⭐ Zwei Sorten Ton, und die Legende sagt es: GOLD ist Betonung (die Zahl, um die es geht), GRUEN
+   und ROT sind ein URTEIL (stimmt / stimmt nicht). Ohne diese Unterscheidung liest sich Gold wie
+   ein dritter Status. */
+.wp-tempo__legend {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+	gap: var(--space-4) var(--space-8);
+	margin: 0 0 var(--space-10);
+	padding: var(--space-6) var(--space-8);
+	border: 1px solid var(--color-divider);
+	border-radius: var(--radius-md);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+	line-height: var(--leading-normal);
+}
+.wp-tempo__legend > div { min-width: 0; }
+/* Die Probe zeigt die ECHTE typografische Behandlung, keinen Farbpunkt daneben: so, wie es in der
+   Zeile aussieht, erkennt man es in der Zeile wieder. */
+.wp-tempo__legend samp {
+	font-family: inherit;
+	font-weight: var(--font-weight-bold);
+	font-size: var(--font-size-body);
+}
+.wp-tempo__legend samp.is-value { color: var(--color-accent-strong); }
+.wp-tempo__legend samp.is-ok { color: var(--color-success); }
+.wp-tempo__legend samp.is-bad { color: var(--color-danger); }
+.wp-tempo__legend samp.is-warn { color: var(--color-warning); font-weight: normal; }
+.wp-tempo__legend samp.is-unknown { color: var(--color-text-muted); font-style: italic; font-weight: normal; }
+
+/* ---- DAS NEUE 4: Spaltenbeschriftungen --------------------------------------------------------
+   ⭐ Jede Gruppe ist eine EIGENE Tabelle, also braucht jede ihren eigenen Kopf -- eine Gruppe in
+   der rechten Spalte haette sonst keinen. Das ist auch der Grund, warum `scope="col"` hier zaehlt
+   und nicht Zierat ist: ohne ihn liest ein Screenreader elf kopflose Zahlenblöcke.
+   Der Kopf bleibt bewusst leise (Meta-Ton, Grundschrift): er soll die Spalte benennen, nicht mit
+   dem Gruppennamen darüber um Aufmerksamkeit streiten. */
+.wp-tempo__tbl thead th {
+	padding-top: 0;
+	padding-bottom: var(--space-2);
+	font-weight: normal;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+	border-bottom: 1px solid var(--color-divider);
+	text-align: left;
+	white-space: nowrap;
+}
+/* Die erste Datenzeile bringt ihre eigene Linie schon mit -- zwei uebereinander waeren ein Kasten,
+   und gruppiert wird hier durch EINE Linie (AGENTS.md §12). */
+.wp-tempo__tbl thead + tbody tr:first-child th,
+.wp-tempo__tbl thead + tbody tr:first-child td { border-top: none; }
 </style>
 </head>
 <body class="avm-editor-body">
@@ -112,12 +166,30 @@
   &mdash; die f&uuml;nf Schiffszeilen unten zeigen, wie es damit aussieht.
 </p>
 
+
+<div class="wp-tempo__legend">
+  <div><samp class="is-value">23,4</samp> &mdash; <b>Gold ist Betonung, kein Urteil:</b> das Ergebnis,
+    das die Eichung f&uuml;r diese Zeile ergibt. Die Zahl, um die es in der Spalte geht.</div>
+  <div><samp class="is-ok">30,0</samp> &mdash; <b>Gr&uuml;n: die Rechnung geht auf.</b> Die
+    Stra&szlig;enzeile trifft die GA-Tagesleistung ihres Reisemittels. So muss es sein, und nur die
+    Stra&szlig;enzeilen tragen dieses Urteil.</div>
+  <div><samp class="is-bad">29,2</samp> &mdash; <b>Rot: sie geht nicht auf.</b> <code>mean_G</code> im
+    Code passt nicht mehr zum gemessenen Mittel der Stra&szlig;en &mdash; die Tabelle steht auf einer
+    Eichung, die die Karte nicht mehr hat.</div>
+  <div><samp class="is-warn">1,10</samp> &mdash; <b>Warnton in der GA-Spalte:</b> unser Wert weicht
+    von der Quelle ab. Sagt nichts &uuml;ber richtig oder falsch &mdash; nur, dass hier jemand
+    bewusst anders entschieden hat.</div>
+  <div><samp class="is-unknown">nicht vermessen</samp> &mdash; kein H&ouml;henprofil, also
+    <b>keine Aussage</b>. Ausdr&uuml;cklich keine 1,0: das hie&szlig;e ebenes Gel&auml;nde, wo nur
+    nichts gemessen wurde.</div>
+</div>
+
 <div class="wp-tempo__sec">
 <div class="wp-tempo__cols">
 
 <div class="wp-tempo__grp">
   <h4>Reisegruppe zu Fuß<span class="wp-tempo__day">GA: 30 Meilen/Tag</span></h4>
-  <table class="wp-tempo__tbl"><tbody>
+  <table class="wp-tempo__tbl"><thead><tr><th scope="col">Wegtyp</th><th scope="col">unser Wert</th><th scope="col"></th><th scope="col">GA</th><th scope="col">auf dem Papier</th><th scope="col">auf unseren Wegen</th></tr></thead><tbody>
     <tr><th scope="row">Reichsstraße</th><td><input type="number" class="wp-tempo__in" value="3.38"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,38</td><td class="wp-tempo__eff">34,1 Mln/Tag</td><td class="wp-tempo__real"><b>33,4</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,021 · 148 von 352 Wegen vermessen</span></td></tr>
     <tr class="is-anchor"><th scope="row">Straße</th><td><input type="number" class="wp-tempo__in" value="3.07"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,07</td><td class="wp-tempo__eff">31,0 Mln/Tag</td><td class="wp-tempo__real"><b class="wp-tempo__check">30,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,032 · 431 von 1026 Wegen vermessen · trifft die GA-Tagesleistung ✓</span></td></tr>
     <tr><th scope="row">Weg (Karrenweg)</th><td><input type="number" class="wp-tempo__in" value="2.46"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,46</td><td class="wp-tempo__eff">24,8 Mln/Tag</td><td class="wp-tempo__real"><b>23,4</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,058 · 152 von 365 Wegen vermessen</span></td></tr>
@@ -130,7 +202,7 @@
 
 <div class="wp-tempo__grp">
   <h4>Zu Fuß<span class="wp-tempo__day">GA: 40 Meilen/Tag</span></h4>
-  <table class="wp-tempo__tbl"><tbody>
+  <table class="wp-tempo__tbl"><thead><tr><th scope="col">Wegtyp</th><th scope="col">unser Wert</th><th scope="col"></th><th scope="col">GA</th><th scope="col">auf dem Papier</th><th scope="col">auf unseren Wegen</th></tr></thead><tbody>
     <tr><th scope="row">Reichsstraße</th><td><input type="number" class="wp-tempo__in" value="4.50"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">4,50</td><td class="wp-tempo__eff">45,4 Mln/Tag</td><td class="wp-tempo__real"><b>44,4</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,021 · 148 von 352 Wegen vermessen</span></td></tr>
     <tr class="is-anchor"><th scope="row">Straße</th><td><input type="number" class="wp-tempo__in" value="4.09"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">4,09</td><td class="wp-tempo__eff">41,2 Mln/Tag</td><td class="wp-tempo__real"><b class="wp-tempo__check">40,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,032 · 431 von 1026 Wegen vermessen · trifft die GA-Tagesleistung ✓</span></td></tr>
     <tr><th scope="row">Weg (Karrenweg)</th><td><input type="number" class="wp-tempo__in" value="3.27"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,27</td><td class="wp-tempo__eff">33,0 Mln/Tag</td><td class="wp-tempo__real"><b>31,2</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,058 · 152 von 365 Wegen vermessen</span></td></tr>
@@ -143,7 +215,7 @@
 
 <div class="wp-tempo__grp">
   <h4>Reisegruppe beritten<span class="wp-tempo__day">GA: 35 Meilen/Tag — Tabelle S. 123</span></h4>
-  <table class="wp-tempo__tbl"><tbody>
+  <table class="wp-tempo__tbl"><thead><tr><th scope="col">Wegtyp</th><th scope="col">unser Wert</th><th scope="col"></th><th scope="col">GA</th><th scope="col">auf dem Papier</th><th scope="col">auf unseren Wegen</th></tr></thead><tbody>
     <tr><th scope="row">Reichsstraße</th><td><input type="number" class="wp-tempo__in" value="3.94"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,94</td><td class="wp-tempo__eff">39,7 Mln/Tag</td><td class="wp-tempo__real"><b>38,9</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,021 · 148 von 352 Wegen vermessen</span></td></tr>
     <tr class="is-anchor"><th scope="row">Straße</th><td><input type="number" class="wp-tempo__in" value="3.58"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,58</td><td class="wp-tempo__eff">36,1 Mln/Tag</td><td class="wp-tempo__real"><b class="wp-tempo__check">35,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,032 · 431 von 1026 Wegen vermessen · trifft die GA-Tagesleistung ✓</span></td></tr>
     <tr><th scope="row">Weg (Karrenweg)</th><td><input type="number" class="wp-tempo__in" value="2.87"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,87</td><td class="wp-tempo__eff">28,9 Mln/Tag</td><td class="wp-tempo__real"><b>27,4</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,058 · 152 von 365 Wegen vermessen</span></td></tr>
@@ -156,7 +228,7 @@
 
 <div class="wp-tempo__grp">
   <h4>Reiter<span class="wp-tempo__day">GA: 50 Meilen/Tag</span></h4>
-  <table class="wp-tempo__tbl"><tbody>
+  <table class="wp-tempo__tbl"><thead><tr><th scope="col">Wegtyp</th><th scope="col">unser Wert</th><th scope="col"></th><th scope="col">GA</th><th scope="col">auf dem Papier</th><th scope="col">auf unseren Wegen</th></tr></thead><tbody>
     <tr><th scope="row">Reichsstraße</th><td><input type="number" class="wp-tempo__in" value="5.63"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">5,63</td><td class="wp-tempo__eff">56,8 Mln/Tag</td><td class="wp-tempo__real"><b>55,6</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,021 · 148 von 352 Wegen vermessen</span></td></tr>
     <tr class="is-anchor"><th scope="row">Straße</th><td><input type="number" class="wp-tempo__in" value="5.12"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">5,12</td><td class="wp-tempo__eff">51,6 Mln/Tag</td><td class="wp-tempo__real"><b class="wp-tempo__check">50,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,032 · 431 von 1026 Wegen vermessen · trifft die GA-Tagesleistung ✓</span></td></tr>
     <tr><th scope="row">Weg (Karrenweg)</th><td><input type="number" class="wp-tempo__in" value="4.09"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">4,09</td><td class="wp-tempo__eff">41,2 Mln/Tag</td><td class="wp-tempo__real"><b>39,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,058 · 152 von 365 Wegen vermessen</span></td></tr>
@@ -169,7 +241,7 @@
 
 <div class="wp-tempo__grp">
   <h4>Karawane<span class="wp-tempo__day">GA: 30 Meilen/Tag</span></h4>
-  <table class="wp-tempo__tbl"><tbody>
+  <table class="wp-tempo__tbl"><thead><tr><th scope="col">Wegtyp</th><th scope="col">unser Wert</th><th scope="col"></th><th scope="col">GA</th><th scope="col">auf dem Papier</th><th scope="col">auf unseren Wegen</th></tr></thead><tbody>
     <tr><th scope="row">Reichsstraße</th><td><input type="number" class="wp-tempo__in" value="3.38"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,38</td><td class="wp-tempo__eff">34,1 Mln/Tag</td><td class="wp-tempo__real"><b>33,4</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,021 · 148 von 352 Wegen vermessen</span></td></tr>
     <tr class="is-anchor"><th scope="row">Straße</th><td><input type="number" class="wp-tempo__in" value="3.07"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,07</td><td class="wp-tempo__eff">31,0 Mln/Tag</td><td class="wp-tempo__real"><b class="wp-tempo__check">30,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,032 · 431 von 1026 Wegen vermessen · trifft die GA-Tagesleistung ✓</span></td></tr>
     <tr><th scope="row">Weg (Karrenweg)</th><td><input type="number" class="wp-tempo__in" value="2.46"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,46</td><td class="wp-tempo__eff">24,8 Mln/Tag</td><td class="wp-tempo__real"><b>23,4</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,058 · 152 von 365 Wegen vermessen</span></td></tr>
@@ -182,7 +254,7 @@
 
 <div class="wp-tempo__grp">
   <h4>Kutsche<span class="wp-tempo__day">GA: 50 Meilen/Tag</span></h4>
-  <table class="wp-tempo__tbl"><tbody>
+  <table class="wp-tempo__tbl"><thead><tr><th scope="col">Wegtyp</th><th scope="col">unser Wert</th><th scope="col"></th><th scope="col">GA</th><th scope="col">auf dem Papier</th><th scope="col">auf unseren Wegen</th></tr></thead><tbody>
     <tr><th scope="row">Reichsstraße</th><td><input type="number" class="wp-tempo__in" value="5.63"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">5,63</td><td class="wp-tempo__eff">56,8 Mln/Tag</td><td class="wp-tempo__real"><b>55,6</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,021 · 148 von 352 Wegen vermessen</span></td></tr>
     <tr class="is-anchor"><th scope="row">Straße</th><td><input type="number" class="wp-tempo__in" value="5.12"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">5,12</td><td class="wp-tempo__eff">51,6 Mln/Tag</td><td class="wp-tempo__real"><b class="wp-tempo__check">50,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,032 · 431 von 1026 Wegen vermessen · trifft die GA-Tagesleistung ✓</span></td></tr>
     <tr><th scope="row">Weg (Karrenweg)</th><td><input type="number" class="wp-tempo__in" value="2.05"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,05</td><td class="wp-tempo__eff">20,7 Mln/Tag</td><td class="wp-tempo__real"><b>19,5</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,058 · 152 von 365 Wegen vermessen</span></td></tr>
@@ -195,38 +267,64 @@
 
 <div class="wp-tempo__grp">
   <h4>Flusskahn<span class="wp-tempo__day">GA: 40 Meilen/Tag</span></h4>
-  <table class="wp-tempo__tbl"><tbody>
+  <table class="wp-tempo__tbl"><thead><tr><th scope="col">Wegtyp</th><th scope="col">unser Wert</th><th scope="col"></th><th scope="col">GA</th><th scope="col">auf dem Papier</th></tr></thead><tbody>
     <tr><th scope="row">Flussweg</th><td><input type="number" class="wp-tempo__in" value="4.00"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,97</td><td class="wp-tempo__eff">40,3 Mln/Tag</td></tr>
   </tbody></table>
 </div>
 
 <div class="wp-tempo__grp">
   <h4>Flusssegler<span class="wp-tempo__day">GA: 60 Meilen/Tag</span></h4>
-  <table class="wp-tempo__tbl"><tbody>
+  <table class="wp-tempo__tbl"><thead><tr><th scope="col">Wegtyp</th><th scope="col">unser Wert</th><th scope="col"></th><th scope="col">GA</th><th scope="col">auf dem Papier</th></tr></thead><tbody>
     <tr><th scope="row">Flussweg</th><td><input type="number" class="wp-tempo__in" value="6.00"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">5,95</td><td class="wp-tempo__eff">60,5 Mln/Tag</td></tr>
   </tbody></table>
 </div>
 
 <div class="wp-tempo__grp">
   <h4>Lastensegler<span class="wp-tempo__day">GA: 120 Meilen/Tag</span></h4>
-  <table class="wp-tempo__tbl"><tbody>
+  <table class="wp-tempo__tbl"><thead><tr><th scope="col">Wegtyp</th><th scope="col">unser Wert</th><th scope="col"></th><th scope="col">GA</th><th scope="col">auf dem Papier</th></tr></thead><tbody>
     <tr><th scope="row">Seeweg</th><td><input type="number" class="wp-tempo__in" value="11.90"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">11,90</td><td class="wp-tempo__eff">120,0 Mln/Tag</td></tr>
   </tbody></table>
 </div>
 
 <div class="wp-tempo__grp">
   <h4>Galeere<span class="wp-tempo__day">GA: 100 Meilen/Tag</span></h4>
-  <table class="wp-tempo__tbl"><tbody>
+  <table class="wp-tempo__tbl"><thead><tr><th scope="col">Wegtyp</th><th scope="col">unser Wert</th><th scope="col"></th><th scope="col">GA</th><th scope="col">auf dem Papier</th></tr></thead><tbody>
     <tr><th scope="row">Seeweg</th><td><input type="number" class="wp-tempo__in" value="9.92"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">9,92</td><td class="wp-tempo__eff">100,0 Mln/Tag</td></tr>
   </tbody></table>
 </div>
 
 <div class="wp-tempo__grp">
   <h4>Schnellsegler<span class="wp-tempo__day">GA: 250 Meilen/Tag, fährt nachts durch</span></h4>
-  <table class="wp-tempo__tbl"><tbody>
+  <table class="wp-tempo__tbl"><thead><tr><th scope="col">Wegtyp</th><th scope="col">unser Wert</th><th scope="col"></th><th scope="col">GA</th><th scope="col">auf dem Papier</th></tr></thead><tbody>
     <tr><th scope="row">Seeweg</th><td><input type="number" class="wp-tempo__in" value="12.40"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">12,40</td><td class="wp-tempo__eff">250,1 Mln/Tag</td></tr>
   </tbody></table>
 </div>
+</div>
+</div>
+
+
+<p class="mock-note" style="margin-top: 2rem">
+  <b>Damit die Legende etwas zum Zeigen hat</b> &mdash; dieselbe Fu&szlig;gruppe, aber die Karte hat
+  sich bewegt (Eichung misst jetzt &times;1,061) und jemand hat den Wegtyp-Faktor von Hand
+  ver&auml;ndert:
+</p>
+<div class="wp-tempo__sec">
+<div class="wp-tempo__grp" style="max-width: 44rem">
+  <h4>Reisegruppe zu Fu&szlig;<span class="wp-tempo__day">GA: 30 Meilen/Tag &mdash; Beispiel f&uuml;r die beiden Ausnahmezust&auml;nde</span></h4>
+  <table class="wp-tempo__tbl"><thead><tr><th scope="col">Wegtyp</th><th scope="col">unser Wert</th><th scope="col"></th><th scope="col">GA</th><th scope="col">auf dem Papier</th><th scope="col">auf unseren Wegen</th></tr></thead><tbody>
+    <tr class="is-anchor"><th scope="row">Stra&szlig;e</th>
+      <td><input type="number" class="wp-tempo__in" value="3.07"></td>
+      <td class="wp-tempo__undocell"></td>
+      <td class="wp-tempo__ga">3,07</td>
+      <td class="wp-tempo__eff">31,0 Mln/Tag</td>
+      <td class="wp-tempo__real"><b class="wp-tempo__check is-off">29,2</b> Mln/Tag<span class="wp-tempo__proof">gemessen &times;1,061 &middot; 431 von 1026 Wegen vermessen &middot; verfehlt die GA-Tagesleistung 30,0</span></td></tr>
+    <tr class="is-off"><th scope="row">Weg (Karrenweg)</th>
+      <td><input type="number" class="wp-tempo__in" value="2.90"></td>
+      <td class="wp-tempo__undocell"></td>
+      <td class="wp-tempo__ga">2,46</td>
+      <td class="wp-tempo__eff">29,2 Mln/Tag</td>
+      <td class="wp-tempo__real"><b>27,6</b> Mln/Tag<span class="wp-tempo__proof">gemessen &times;1,058 &middot; 152 von 365 Wegen vermessen</span></td></tr>
+  </tbody></table>
 </div>
 </div>
 
