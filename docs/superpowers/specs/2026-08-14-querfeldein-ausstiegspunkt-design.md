@@ -190,10 +190,30 @@ noch einen** Ausstieg an (vorher vier) und die Reise wurde 2,8 % teurer. Grund:
 die Schranke ist relativ (nächster × 2,5), und ein Fußpunkt liegt fast immer
 näher als jede Ortschaft; gemeinsam gerechnet überlebt sie keine Ortschaft mehr.
 
-⭐ **Die Schranke misst deshalb JE FAMILIE**, und die beiden nahen Mengen werden
-danach zusammengelegt. Der Kartenpunkt kostet damit so viel wie vorher plus die
-Fußpunkte — die Antwortzeit wird ohnehin vom Laden der Feature-Tabelle bestimmt
-(~1,5 s, Instruction C §5.8), nicht von den Suchläufen.
+🔴 **UND EINE DRITTE FASSUNG, AM SELBEN TAG VOM OWNER GEMELDET.** Hier stand „die
+Schranke misst JE FAMILIE". Auch das war falsch, nur andersherum: sie hängt dann
+am nächsten Kandidaten *dieser* Familie, und ein zufällig sehr naher Fußpunkt
+verengt sie für alle übrigen Fußpunkte. Gemessen an Salmingen → Kartenpunkt: ein
+Fußpunkt bei 2,911 drückte die Reichweite auf 7,28 und schnitt damit den
+Fußpunkt bei **7,61** weg — während eine Ortschaft bei **8,30** im Angebot blieb,
+weil ihre Familie ihren eigenen, weiteren Maßstab hatte. Über den
+weggeschnittenen Fußpunkt wäre die Reise rund 15 % kürzer gewesen, und genau
+diesen Bogen hat der Owner auf der Karte gesehen.
+
+⭐ **Richtig ist: EIN Maßstab, und das ist der nächste ORTSKNOTEN.** Die Aufgabe
+der Schranke ist die Größe der Suchkiste, und die spannten seit jeher die
+Ortschaften auf; ein Fußpunkt liegt fast immer näher und darf den Maßstab
+deshalb nicht setzen. Damit ist die Kiste exakt so groß wie vor dem 14.08.2026 —
+die Fußpunkte liegen darin und kosten nichts extra, und ein Fußpunkt, der weiter
+liegt als diese Reichweite, würde die Kiste aufziehen und fällt zu Recht heraus.
+Der Kartenpunkt kostet damit so viel wie vorher plus die Fußpunkte; die
+Antwortzeit wird ohnehin vom Laden der Feature-Tabelle bestimmt (~1,5 s,
+Instruction C §5.8), nicht von den Suchläufen.
+
+> 💣 **Die Lehre aus drei Anläufen an einem Tag:** eine RELATIVE Schranke braucht
+> einen Maßstab, der nicht mitwandert. Wer sie an „den nächsten Kandidaten"
+> hängt, ändert ihre Weite jedes Mal, wenn eine neue Kandidatenart dazukommt —
+> und merkt es erst an einer Route, die niemand nachgerechnet hat.
 
 ⚠️ **Rein serverseitig.** Einen Client-Zwilling des Ankers gibt es nicht; die
 beiden JS-Stellen oben lesen nur das Namensmuster. Es entsteht also keine
