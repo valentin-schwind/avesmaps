@@ -193,12 +193,23 @@ näher als jede Ortschaft; gemeinsam gerechnet überlebt sie keine Ortschaft meh
 🔴 **UND EINE DRITTE FASSUNG, AM SELBEN TAG VOM OWNER GEMELDET.** Hier stand „die
 Schranke misst JE FAMILIE". Auch das war falsch, nur andersherum: sie hängt dann
 am nächsten Kandidaten *dieser* Familie, und ein zufällig sehr naher Fußpunkt
-verengt sie für alle übrigen Fußpunkte. Gemessen an Salmingen → Kartenpunkt: ein
-Fußpunkt bei 2,911 drückte die Reichweite auf 7,28 und schnitt damit den
-Fußpunkt bei **7,61** weg — während eine Ortschaft bei **8,30** im Angebot blieb,
-weil ihre Familie ihren eigenen, weiteren Maßstab hatte. Über den
-weggeschnittenen Fußpunkt wäre die Reise rund 15 % kürzer gewesen, und genau
-diesen Bogen hat der Owner auf der Karte gesehen.
+verengt sie für alle übrigen Fußpunkte. Gemessen an einer Probe südlich von
+Salmingen: ein Fußpunkt bei 2,911 drückte die Reichweite auf 7,28 und schnitt
+damit den Fußpunkt bei **7,61** weg — während eine Ortschaft bei **8,30** im
+Angebot blieb, weil ihre Familie ihren eigenen, weiteren Maßstab hatte. Über den
+weggeschnittenen Fußpunkt war die Reise rund 15 % schneller.
+
+> 🪤 **DIE PROBE WAR NICHT DIE GEMELDETE STELLE, und das ist die zweite Lehre
+> dieses Abschnitts.** Der Kartenpunkt war aus der Wegpunkt-Beschriftung
+> abgetippt, und die zeigt `lat, lng`, während `to_point` `{x: lng, y: lat}`
+> erwartet (`applyMapPointRouteEndpoints`, `js/routing/route-travel-here.js`).
+> Gemessen wurde damit eine ganz andere Stelle der Karte als die, nach der der
+> Owner gefragt hatte — mehrere Erklärungsversuche in Folge gingen ins Leere
+> („Browser-Cache", „liegt am Transportmittel", „liegt an Kürzeste Route"), bis
+> die Etappenliste der Oberfläche die Zahlen dagegenhielt. Der Befund oben ist
+> davon unberührt: er ist an einer echten Stelle gemessen und sein Test ist
+> synthetisch. ⚠️ **Wer einen Kartenpunkt aus der Oberfläche in eine API-Probe
+> übernimmt, muss ihn drehen.**
 
 ⭐ **Richtig ist: EIN Maßstab, und das ist der nächste ORTSKNOTEN.** Die Aufgabe
 der Schranke ist die Größe der Suchkiste, und die spannten seit jeher die
