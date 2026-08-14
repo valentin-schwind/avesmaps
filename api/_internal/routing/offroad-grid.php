@@ -322,8 +322,11 @@ function avesmapsOffroadHeightAtCell(?string $plane, int $index): ?float
  * (avesmapsTerrainLeistungsFactor), never recomputed here.
  *
  * ⭐ THE HEURISTIC IS SHARP, and no measurement is needed to know it. The Leistungskilometer model
- * has no floor (`terrain-factor.php:60-63`: „THERE IS NO FLOOR ANY MORE"), and every seeded
- * offroad_factor is >= 1,00 -- so the smallest possible factor is EXACTLY 1,0 and
+ * has no floor (`terrain-factor.php:60-63`: „THERE IS NO FLOOR ANY MORE"), and the factor plane never
+ * carries anything below 1,0: since 2026-08-14 it is loaded as `Basis ÷ terrain_speed_factor` with the
+ * filter `terrain_speed_factor < Basis` (`offroad-data.php`), so the quotient is > 1 by construction --
+ * previously the same guarantee came from `offroad_factor > 1.00`. So the smallest possible factor is
+ * EXACTLY 1,0 and
  * `air line / speed` never overestimates. V14 §5.3 planned to measure the smallest occurring factor;
  * that measurement is void, because the answer is structural.
  *

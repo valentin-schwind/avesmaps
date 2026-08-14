@@ -256,7 +256,9 @@ function avesmapsMaybeOfferOffroadDetour(
     // ⭐ WAS DER QUERWEG BESTENFALLS SCHAFFT -- und das weiß man vor der Suche. Der A*-Weg ist nie
     // kürzer als die Luftlinie, und sein kleinster möglicher Faktor ist EXAKT 1,0: das
     // Leistungskilometer-Modell hat keinen Boden (`terrain-factor.php:60-63`) und Landschaftsfaktoren
-    // werden nur mit `offroad_factor > 1.00` geladen (`offroad-data.php:106`). Das ist dieselbe
+    // werden seit dem 14.08.2026 als `Basis ÷ terrain_speed_factor` geladen, gefiltert auf
+    // `terrain_speed_factor < Basis` (`offroad-data.php`) -- der Quotient ist damit von Bauart wegen
+    // > 1; vorher kam dieselbe Garantie aus `offroad_factor > 1.00`. Das ist dieselbe
     // Ungleichung, mit der `offroad-grid.php:315` die A*-Heuristik als zulässig begründet -- hier
     // einmal auf die ganze Strecke angewandt statt je Zelle.
     //

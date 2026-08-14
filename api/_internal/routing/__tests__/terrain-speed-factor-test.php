@@ -341,6 +341,18 @@ assert($ebene(null) === '', 'eine Art ohne eigene Aussage schreibt nichts in die
 assert($ebene(0.750) === '', 'genau offener Boden schreibt nichts in die Ebene');
 assert($ebene(0.900) === '', 'schneller als offener Boden schreibt nichts in die Ebene');
 
+// --- E5. 🔴 DIE UNGLEICHUNG, AUF DER ZWEI ANDERE DATEIEN STEHEN: der kleinste Faktor, den diese
+// Ebene je liefert, ist EXAKT 1,0. Daraus begruenden `offroad-grid.php` die Zulaessigkeit der
+// A*-Heuristik und `detour.php` seine Bestzeit-Schranke -- beide rechnen „Luftlinie ÷ Tempo" als
+// untere Grenze, und ein Faktor unter 1,0 machte beide still falsch. Bis zum 14.08.2026 kam die
+// Garantie aus `offroad_factor > 1.00`; seither aus `terrain_speed_factor < Basis`.
+foreach ([0.749, 0.700, 0.500, 0.200, 0.100, 0.040] as $faktor) {
+    $ebeneE5 = $ebene($faktor);
+    if ($ebeneE5 === '') { continue; }
+    $wert = avesmapsOffroadFactorAt($boxE, $ebeneE5, 5.0, 5.0);
+    assert($wert >= 1.0, "Faktor $faktor ergab den Multiplikator $wert -- unter 1,0 wird die A*-Heuristik unzulaessig");
+}
+
 // ============================================================ F. Die Ablageform, einmal im Haus
 
 // 💣 ZWEI SCHREIBER, EINE FORM. Der Endpunkt (api/edit/map/travel-values.php) und die Migration legen
