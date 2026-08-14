@@ -265,6 +265,19 @@ function handleSpotlightDocumentClick(event) {
 		return;
 	}
 
+	// A pan ends in a REAL DOM click: the browser fires it on the common ancestor of mousedown and
+	// mouseup, which during a drag is the map container, and from there it bubbles up to this
+	// document-level handler. Leaflet's own map.on("click") never sees it -- _findEventTargets drops
+	// click/preclick while _draggableMoved() holds -- so this handler alone wiped the yellow highlight
+	// on every pan, and the map handler next to it was innocent. Same signal, same guard:
+	// dragging.moved() stays true until the next mousedown (Draggable._onDown resets it), so the click
+	// that ENDS the pan is spared while the next click on empty map still clears. boxZoom joins for the
+	// same reason (shift-drag also ends in a click), exactly as in Leaflet's _draggableMoved. A dragged
+	// marker is deliberately not covered: map.dragging is false there, so that case stays as it was.
+	if (map.dragging?.moved() || map.boxZoom?.moved()) {
+		return;
+	}
+
 	// A detached target means the click hit UI that its own handler just removed from the DOM
 	// (e.g. a result button: selectSpotlightSearchEntry -> closeSpotlightSearch empties the result
 	// list BEFORE this document-level handler runs, so closest() can no longer see the overlay).
