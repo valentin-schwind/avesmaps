@@ -2656,12 +2656,14 @@ function avesmapsLoreListRowHtml(item) {
 	}
 	var href = String(item.wiki_url || "");
 	var safe = href.indexOf("https://de.wiki-aventurica.de/") === 0 ? href : "";
-	return '<button type="button" class="wiki-sync-adv-picker__row" data-lore-entry="'
+	// Dieselbe Zeile wie die fuenf Karten-Listen. KEIN has-map-status: Vorkommen hat kein
+	// "liegt auf der Karte".
+	return '<button type="button" class="tree-item" data-lore-entry="'
 		+ avesmapsLoreListEscape(item.wiki_key) + '"'
 		+ (safe ? ' data-lore-url="' + avesmapsLoreListEscape(safe) + '"' : "")
 		+ ' title="' + avesmapsLoreListEscape(item.name + " – klicken zum Bearbeiten") + '">'
-		+ '<span class="wiki-sync-adv-picker__title">' + avesmapsLoreListEscape(item.name) + "</span>"
-		+ '<span class="wiki-sync-adv-picker__meta">' + avesmapsLoreListEscape(meta) + "</span>"
+		+ '<span class="tree-item-name">' + avesmapsLoreListEscape(item.name) + "</span>"
+		+ '<span class="tree-item-meta">' + avesmapsLoreListEscape(meta) + "</span>"
 		+ "</button>";
 }
 
@@ -2706,7 +2708,7 @@ function renderLoreList(view, data, append) {
 			+ "</p>";
 		return;
 	}
-	// Dieselben Klassen wie die Abenteuer- und Kartenliste (wiki-sync-adv-picker__row),
+	// Dieselben Klassen wie die Abenteuer- und Kartenliste (jetzt .tree-item, seit 14.08.2026),
 	// damit die vier Listen im selben Reiter nicht drei verschiedene Zeilen zeigen.
 	scroll.innerHTML = items.map(avesmapsLoreListRowHtml).join("");
 	page.loaded = items.length;

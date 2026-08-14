@@ -73,9 +73,24 @@ checks++;
 // ⚠️ Sie stand auf --color-panel-muted. Das ist eine FLAECHENfarbe (#f1ece1 hell) und im hellen
 // Thema als Linie fast unsichtbar. --color-divider ist laut tokens.css "section separator --
 // same everywhere".
-assert.ok(/border-bottom:\s*1px solid var\(--color-divider\)/.test(rumpf),
-	"Der gemeinsamen Zeile fehlt die Trennlinie auf var(--color-divider). Eine Fuellfarbe wie "
+// ⚠️ Auf die WIRKUNG geprueft, nicht auf die Schreibweise: seit die drei <button>-Listen dieselbe
+// Zeile tragen, steht dort "border: 0 solid var(--color-divider); border-bottom-width: 1px"
+// statt der Kurzform -- ein Knopf bringt einen eigenen Rahmen mit, den ein blosses border-bottom
+// stehen liesse. Ein Test, der die Kurzform verlangt, verbietet die richtige Loesung.
+assert.ok(/border(-bottom)?:[^;]*var\(--color-divider\)/.test(rumpf),
+	"Der gemeinsamen Zeile fehlt die Trennfarbe var(--color-divider). Eine Fuellfarbe wie "
 	+ "--color-panel-muted als Linie zu benutzen ist genau der Griff, den AGENTS.md §12 verbietet.");
+checks++;
+assert.ok(/border-bottom-width:\s*1px/.test(rumpf) || /border-bottom:\s*1px/.test(rumpf),
+	"Der gemeinsamen Zeile fehlt die 1px starke untere Kante.");
+checks++;
+// ⚠️ Kommentare zuerst raus -- der Rumpf ERKLAERT, dass --color-panel-muted hier stand, und ein
+// naiver Test haelt die Erklaerung fuer den Verstoss. (Zum zweiten Mal in dieser Datei: dasselbe
+// passierte bei Pruefung 11. In einem Projekt, das seine Regeln im Stylesheet begruendet, muss
+// jeder CSS-Test die Kommentare entfernen, bevor er etwas verbietet.)
+const rumpfOhneKommentare = rumpf.replace(/\/\*[\s\S]*?\*\//g, "");
+assert.ok(!/--color-panel-muted/.test(rumpfOhneKommentare),
+	"Die Zeile benutzt wieder --color-panel-muted, eine Flaechenfarbe, als Linie.");
 checks++;
 
 // ---- 6. Die Maße der kompakten Zeile -----------------------------------------------------------
@@ -134,7 +149,65 @@ assert.ok(/background:\s*var\(--color-hover-wash\)/.test(hoverRumpf),
 	+ 'als "row / option hover". Vorher --color-panel-soft, eine Flaechenfarbe.');
 checks++;
 
-// ---- 9. Keine ID-Regel darf die geteilten Zeilenwerte noch einmal setzen -----------------------
+// ---- 9. Der Statuskreis gehoert NUR den fuenf Karten-Subjekten ---------------------------------
+// 🔴 Literatur, Karten und Vorkommen haben kein "liegt auf der Karte". Ein Kreis dort waere eine
+// Behauptung ueber Daten, die es nicht gibt -- sein FEHLEN ist die Information.
+// 💣 Die Regel darf deshalb nicht an ".tree-item" haengen: sobald die drei Listen dieselbe Zeile
+// tragen, bekaemen sie den Kreis automatisch mit. Beim ersten Entwurf des Mockups ist genau das
+// passiert, und gesehen hat es der Owner, nicht das Werkzeug.
+assert.ok(/\.tree-item\.has-map-status \.tree-item-name::after/.test(regionSync),
+	'Die Statuskreis-Regel haengt nicht an ".tree-item.has-map-status". An ".tree-item" allein '
+	+ "bekommen Literatur, Karten und Vorkommen einen Kreis, den ihre Daten nicht hergeben.");
+checks++;
+assert.ok(!/(^|[^-\w.])\.tree-item \.tree-item-name::after/m.test(regionSync),
+	"Es gibt noch eine Kreis-Regel ohne .has-map-status.");
+checks++;
+
+// ⚠️ Kraftlinien setzt als einziges Karten-Subjekt gar keinen .tree-map-status-Marker (0 Treffer in
+// review-powerline-list.js) und traegt trotzdem einen -- immer leeren -- Kreis. Deshalb ist die
+// Klasse ausdruecklich und nicht aus den Daten abgeleitet: ein datengetriebenes :has(.tree-map-status)
+// haette Kraftlinien den Kreis lautlos weggenommen, und das waere eine sichtbare Aenderung, die
+// niemand bestellt hat.
+const setztKlasse = [
+	["review-settlement-list.js", "js/review/review-settlement-list.js"],
+	["review-region-sync.js", "js/review/review-region-sync.js"],
+	["review-path-sync.js", "js/review/review-path-sync.js"],
+	["review-powerline-list.js", "js/review/review-powerline-list.js"],
+	["territory-wiki-tree.js", "js/territory/territory-wiki-tree.js"],
+];
+for (const [name, pfad] of setztKlasse) {
+	assert.ok(/has-map-status/.test(lies(...pfad.split("/"))),
+		`${name} setzt die Klasse "has-map-status" nicht mehr. Dann verliert dieses Subjekt seinen `
+		+ "Statuskreis -- und zwar lautlos, weil eine fehlende Klasse nichts wirft.");
+	checks++;
+}
+
+// ---- 10. Bauart B ist fort ----------------------------------------------------------------------
+const reviewPanel = lies("css", "features", "review-panel.css");
+assert.ok(!/\.wiki-sync-adv-picker__row\s*\{/.test(reviewPanel),
+	".wiki-sync-adv-picker__row existiert noch. Literatur, Karten und Vorkommen sollen die "
+	+ "gemeinsame Zeile tragen, nicht eine zweite Rezeptur mit eigenen Schriftgroessen.");
+checks++;
+
+const scrollRegel = reviewPanel.match(/\.wiki-sync-adv-picker__scroll\s*\{([\s\S]*?)\}/);
+assert.ok(scrollRegel, ".wiki-sync-adv-picker__scroll fehlt -- der Scroll-Behaelter wird noch gebraucht.");
+assert.ok(!/border:\s*1px solid/.test(scrollRegel[1]),
+	"Der Kasten um die Liste (.wiki-sync-adv-picker__scroll mit border) steht noch. Gruppiert wird "
+	+ "per Trennlinie, nicht per Rahmen (AGENTS.md §12).");
+checks += 2;
+
+// Die drei Renderer duerfen die alten Klassen nicht mehr schreiben.
+for (const [name, pfad] of [
+	["Literatur/Karten", "js/review/review-settlement-list.js"],
+	["Vorkommen", "js/review/review-wiki-sync.js"],
+]) {
+	assert.ok(!/wiki-sync-adv-picker__(row|title|meta)/.test(lies(...pfad.split("/"))),
+		`${name} schreibt noch die alten Klassen wiki-sync-adv-picker__row/__title/__meta. `
+		+ "Ohne Regel dahinter faellt die Zeile auf Browser-Voreinstellungen zurueck.");
+	checks++;
+}
+
+// ---- 11. Keine ID-Regel darf die geteilten Zeilenwerte noch einmal setzen ----------------------
 // 💣 GEFUNDEN BEIM UMBAU AM 14.08.2026. Es gab eine DRITTE Fassung derselben Werte:
 //   #region-sync-list .region-sync__item, #path-sync-list .region-sync__item
 //   { padding: 6px 8px; border-bottom: 1px solid var(--color-panel-muted); }

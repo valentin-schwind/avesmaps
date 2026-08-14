@@ -143,7 +143,7 @@ function renderPowerlineSyncList() {
 		const nodeCount = g.topology ? g.topology.adjacency.size : 0;
 		const span = avesmapsPowerlinePanelSpanText(g.topology);
 		const meta = nodeCount + " Nodices · " + g.segments.length + " Segmente" + (span ? " · " + span : "");
-		return '<div class="tree-item region-sync__item powerline-sync__item" data-powerline-name="' + esc(g.name) + '"'
+		return '<div class="tree-item has-map-status region-sync__item powerline-sync__item" data-powerline-name="' + esc(g.name) + '"'
 			+ ' title="Doppelklick: im Kraftlinienmodus auf diese Linie zoomen" style="cursor:pointer;">'
 			+ '<span class="tree-item-name">' + esc(g.name) + '</span>'
 			+ '<span class="tree-item-meta">' + esc(meta) + '</span>'

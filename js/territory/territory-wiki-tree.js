@@ -777,7 +777,7 @@
 
 	function renderTreeItem(node, options) {
 		const itemElement = document.createElement("span");
-		const classParts = [node.kind === "synthetic" ? "tree-item synthetic" : "tree-item"];
+		const classParts = [node.kind === "synthetic" ? "tree-item has-map-status synthetic" : "tree-item has-map-status"];
 		if (options.itemClassName) classParts.push(options.itemClassName);
 		itemElement.className = classParts.join(" ");
 		itemElement.draggable = options.enableDrag === true;

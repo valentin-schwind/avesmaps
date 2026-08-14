@@ -664,37 +664,17 @@
 	min-height: 0;
 	max-height: none;
 	overflow-y: auto;
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-md);
-	background: var(--color-panel);
+	/* 💣 Rahmen, Radius und eigene Fläche sind am 14.08.2026 entfallen. Sie waren das sichtbarste
+	   Merkmal der zweiten Bauart: Literatur, Karten und Vorkommen standen in einem Kasten, die
+	   übrigen fünf Listen nicht. AGENTS.md §12: gruppiert wird per Trennlinie, nicht per Rahmen.
+	   Die Zeilen kommen jetzt aus .wikisync-itemlist .tree-item (css/components/region-sync.css). */
 }
-.wiki-sync-adv-picker__row {
-	display: flex;
-	flex-direction: column;
-	gap: 1px;
-	width: 100%;
-	text-align: left;
-	font: inherit;
-	cursor: pointer;
-	background: transparent;
-	border: 0;
-	border-bottom: 1px solid var(--color-divider);
-	padding: 5px 9px;
-}
-.wiki-sync-adv-picker__row:last-child { border-bottom: 0; }
-.wiki-sync-adv-picker__row:hover { background: var(--color-hover-wash); }
-.wiki-sync-adv-picker__title {
-	font-size: 12px;
-	font-weight: 700;
-	color: var(--color-text-strong);
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-.wiki-sync-adv-picker__meta {
-	font-size: 11px;
-	color: var(--color-text-muted);
-}
+/* 💣 Hier stand die ZWEITE Listenzeilen-Rezeptur des Panels: .wiki-sync-adv-picker__row/__title/
+   __meta, mit eigener Polsterung (5/9 statt 6/8), festen Schriftgrößen (12px/11px statt der Token)
+   und einem Rahmenkasten drumherum. Literatur, Karten und Vorkommen sahen dadurch aus wie ein
+   anderes Programm als die übrigen fünf Listen — der Anlass für den Umbau am 14.08.2026.
+   Sie tragen jetzt .wikisync-itemlist .tree-item aus css/components/region-sync.css.
+   ⚠️ Hier NICHTS wieder hinzuschreiben. Gewacht von js/review/__tests__/wikisync-list-form.test.js. */
 
 .wiki-sync-panel__filter {
 	display: flex;

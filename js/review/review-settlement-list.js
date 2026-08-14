@@ -418,7 +418,7 @@ function renderSettlementRow(item) {
 	const dragAttrs = draggable
 		? ` draggable="true" data-settlement-title="${settlementListEscape(item.name)}" data-settlement-class="${settlementListEscape(item.settlement_class)}"`
 		: "";
-	const classes = "tree-item settlement-list__item" + (draggable ? " is-draggable" : "");
+	const classes = "tree-item has-map-status settlement-list__item" + (draggable ? " is-draggable" : "");
 	const title = draggable ? "Auf die Karte ziehen, um den Ort anzulegen" : "";
 
 	const metaParts = [];
@@ -1056,9 +1056,12 @@ function avesmapsRenderGameLiteraturePicker() {
 	scroll.innerHTML = rows.map(function (a) {
 		var meta = [a.edition, a.product_type].filter(Boolean).join(" · ");
 		var draft = a.status && a.status !== "approved" ? " · Entwurf" : "";
-		return '<button type="button" class="wiki-sync-adv-picker__row" data-adv-id="' + esc(a.public_id) + '" title="Doppelklick: im Literatur-Editor öffnen">'
-			+ '<span class="wiki-sync-adv-picker__title">' + esc(a.title || "(ohne Titel)") + '</span>'
-			+ '<span class="wiki-sync-adv-picker__meta">' + esc(meta + draft) + '</span>'
+		// Dieselbe Zeile wie die fuenf Karten-Listen (.tree-item, css/components/region-sync.css).
+		// KEIN has-map-status: Literatur hat kein "liegt auf der Karte", der fehlende Statuskreis
+		// ist hier die Information.
+		return '<button type="button" class="tree-item" data-adv-id="' + esc(a.public_id) + '" title="Doppelklick: im Literatur-Editor öffnen">'
+			+ '<span class="tree-item-name">' + esc(a.title || "(ohne Titel)") + '</span>'
+			+ '<span class="tree-item-meta">' + esc(meta + draft) + '</span>'
 			+ '</button>';
 	}).join("");
 }
@@ -1186,9 +1189,10 @@ function avesmapsRenderCitymapPicker() {
 		var origin = c.origin && c.origin !== "wiki" ? " · " + (c.origin === "community" ? "Community" : "eigen") : "";
 		var draft = c.status && c.status !== "approved" ? " · verborgen" : "";
 		var meta = [place, (c.types || []).join("/")].filter(Boolean).join(" · ");
-		return '<button type="button" class="wiki-sync-adv-picker__row" data-cm-id="' + esc(c.public_id) + '" title="Doppelklick: im Karteneditor öffnen">'
-			+ '<span class="wiki-sync-adv-picker__title">' + esc(c.title || "(ohne Titel)") + '</span>'
-			+ '<span class="wiki-sync-adv-picker__meta">' + esc(meta + origin + draft) + '</span>'
+		// Dieselbe Zeile wie die fuenf Karten-Listen. KEIN has-map-status -- siehe Literatur oben.
+		return '<button type="button" class="tree-item" data-cm-id="' + esc(c.public_id) + '" title="Doppelklick: im Karteneditor öffnen">'
+			+ '<span class="tree-item-name">' + esc(c.title || "(ohne Titel)") + '</span>'
+			+ '<span class="tree-item-meta">' + esc(meta + origin + draft) + '</span>'
 			+ '</button>';
 	}).join("");
 }

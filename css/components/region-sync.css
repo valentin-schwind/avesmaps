@@ -947,9 +947,17 @@
 	width: 100%;
 	box-sizing: border-box;
 	padding: 5px 8px;
-	/* War --color-panel-muted, eine FLÄCHENfarbe (#f1ece1 hell) und als Linie kaum sichtbar.
-	   --color-divider ist laut tokens.css "section separator — same everywhere". */
-	border-bottom: 1px solid var(--color-divider);
+	/* Die Trennlinie war --color-panel-muted, eine FLÄCHENfarbe (#f1ece1 hell) und als Linie kaum
+	   sichtbar. --color-divider ist laut tokens.css "section separator — same everywhere".
+	   ⚠️ Als border-width-0-Kurzform geschrieben, weil Literatur, Karten und Vorkommen ihre Zeilen
+	   als <button> rendern (Tastaturbedienung, die nicht verlorengehen darf) — der bringt einen
+	   eigenen Rahmen mit, den ein blosses border-bottom stehen liesse. */
+	border: 0 solid var(--color-divider);
+	border-bottom-width: 1px;
+	/* Ebenfalls für die <button>-Zeilen: sonst erben sie Systemschrift, Grauton und Zentrierung. */
+	background: transparent;
+	font: inherit;
+	text-align: left;
 	cursor: pointer;
 	color: var(--color-text-strong);
 }
@@ -982,9 +990,17 @@
 	font-weight: var(--font-weight-bold);
 	line-height: 1.22;
 }
-/* Kreis rechts neben dem Namen (wie im Territorien-Tree, via ::after). Grün = auf Karte. */
-.wikisync-itemlist .tree-item-name::after,
-#wiki-sync-territory-tree .tree-item-name::after {
+/* Kreis rechts neben dem Namen (via ::after). Grün = auf der Karte.
+   🔴 Er hängt an .has-map-status, NICHT an .tree-item. Nur die fünf Karten-Subjekte setzen die
+   Klasse; Literatur, Karten und Vorkommen haben kein "liegt auf der Karte", und ihr fehlender
+   Kreis ist Information, kein Mangel. Ohne diese Klasse bekämen sie ihn automatisch mit, sobald
+   sie dieselbe Zeile tragen — im ersten Entwurf des Mockups ist genau das passiert, und gesehen
+   hat es der Owner, nicht das Werkzeug.
+   ⚠️ Ausdrücklich gesetzt statt aus den Daten abgeleitet: Kraftlinien setzt als einziges
+   Karten-Subjekt gar keinen .tree-map-status-Marker und trägt trotzdem einen (immer leeren)
+   Kreis. Ein :has(.tree-map-status) hätte ihn dort lautlos entfernt. */
+.wikisync-itemlist .tree-item.has-map-status .tree-item-name::after,
+#wiki-sync-territory-tree .tree-item.has-map-status .tree-item-name::after {
 	content: "";
 	display: inline-block;
 	/* 11px statt 13px: neben einem 13px-Namen war der alte Kreis höher als dessen Versalhöhe und
@@ -1001,16 +1017,16 @@
 /* Nur Territorien kennt diesen Zustand: die Kinder liegen auf der Karte, das Gebiet selbst
    nicht. Die Füllung läuft deshalb andersherum als bei --own-only. Sie stand bisher allein in
    political-territory-wiki-tree.css und wäre beim Zusammenlegen sonst verlorengegangen. */
-.wikisync-itemlist .tree-item:has(.tree-map-status--children-only) .tree-item-name::after,
-#wiki-sync-territory-tree .tree-item:has(.tree-map-status--children-only) .tree-item-name::after {
+.wikisync-itemlist .tree-item.has-map-status:has(.tree-map-status--children-only) .tree-item-name::after,
+#wiki-sync-territory-tree .tree-item.has-map-status:has(.tree-map-status--children-only) .tree-item-name::after {
 	background: linear-gradient(to right, var(--color-map-presence) 0 50%, var(--color-panel) 50% 100%);
 }
-.wikisync-itemlist .tree-item:has(.tree-map-status--own-only) .tree-item-name::after,
-#wiki-sync-territory-tree .tree-item:has(.tree-map-status--own-only) .tree-item-name::after {
+.wikisync-itemlist .tree-item.has-map-status:has(.tree-map-status--own-only) .tree-item-name::after,
+#wiki-sync-territory-tree .tree-item.has-map-status:has(.tree-map-status--own-only) .tree-item-name::after {
 	background: linear-gradient(to right, var(--color-panel) 0 50%, var(--color-map-presence) 50% 100%);
 }
-.wikisync-itemlist .tree-item:has(.tree-map-status--all) .tree-item-name::after,
-#wiki-sync-territory-tree .tree-item:has(.tree-map-status--all) .tree-item-name::after {
+.wikisync-itemlist .tree-item.has-map-status:has(.tree-map-status--all) .tree-item-name::after,
+#wiki-sync-territory-tree .tree-item.has-map-status:has(.tree-map-status--all) .tree-item-name::after {
 	background: var(--color-map-presence);
 }
 .wikisync-itemlist .tree-item-meta,
@@ -1042,6 +1058,20 @@
 	display: block;
 	margin-top: 2px;
 }
+/* Listen OHNE Ziehgriff (Literatur, Karten, Vorkommen) geben die 16px-Spalte frei — in einem
+   400px breiten Panel ist sie dort verschenkte Breite.
+   🔴 INNERHALB einer Liste bleibt sie dagegen immer reserviert, auch wenn nur manche Zeilen
+   ziehbar sind: sonst rücken die nicht ziehbaren gegen die ziehbaren ein. Genau das hat der Owner
+   am 14.08.2026 an Adamantenland in der Regionenliste gesehen ("kein einrücken von
+   Adamentenland"). Die Regel gilt also der LISTE, nicht der Zeile. */
+.wikisync-itemlist--nodrag .tree-item {
+	grid-template-columns: minmax(0, 1fr);
+}
+.wikisync-itemlist--nodrag .tree-item-name,
+.wikisync-itemlist--nodrag .tree-item-meta {
+	grid-column: 1;
+}
+
 /* Der Status-Marker selbst ist unsichtbar; er steuert nur die Kreis-Füllung. */
 .wikisync-itemlist .tree-map-status,
 #wiki-sync-territory-tree .tree-map-status {

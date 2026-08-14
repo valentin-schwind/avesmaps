@@ -261,7 +261,7 @@ function renderRegionSyncList() {
 			const draggable = !onMap && row.wiki_key; // nur fehlende Regionen sind ziehbar
 			const handle = `<span class="drag-handle" aria-hidden="true">${draggable ? "⠿" : ""}</span>`;
 			const dragAttrs = draggable ? ` draggable="true" data-wiki-key="${regionSyncEscapeAttr(row.wiki_key)}"` : "";
-			const classes = "tree-item region-sync__item" + (draggable ? " region-sync__item--draggable" : "");
+			const classes = "tree-item has-map-status region-sync__item" + (draggable ? " region-sync__item--draggable" : "");
 			const title = draggable ? "Auf die Karte ziehen, um die Region anzulegen" : "";
 			const marker = `<span class="tree-map-status${onMap ? " tree-map-status--all" : ""}" aria-hidden="true"></span>`;
 			return (
