@@ -938,20 +938,26 @@
 	grid-template-rows: auto auto;
 	align-items: center;
 	column-gap: 7px;
-	/* Zeilenabstand Name<->Meta einheitlich wie Siedlungen (sonst Regionen/Wege via .region-sync__item nur 2px). */
-	row-gap: 7px;
+	/* 💣 War 7px. Der Kommentar hier begründete sie mit "einheitlich wie Siedlungen" — jemand hatte
+	   sie bewusst von 2 auf 7 gehoben, um zu vereinheitlichen. Owner 14.08.2026: "ja die 7px
+	   umdrehen". Jetzt haben ALLE Listen 2px, die Einheitlichkeit bleibt also gewahrt, nur enger.
+	   ⚠️ Von hier kommt die Höhe, NICHT aus kleinerer Schrift: die Meta-Zeile wächst gleichzeitig
+	   von 10,4px auf 11px. Gemessen 48,7px → 42,0px je Zeile. */
+	row-gap: 2px;
 	width: 100%;
 	box-sizing: border-box;
-	padding: 6px 8px;
+	padding: 5px 8px;
 	/* War --color-panel-muted, eine FLÄCHENfarbe (#f1ece1 hell) und als Linie kaum sichtbar.
 	   --color-divider ist laut tokens.css "section separator — same everywhere". */
 	border-bottom: 1px solid var(--color-divider);
 	cursor: pointer;
 	color: var(--color-text-strong);
 }
+/* --color-hover-wash, nicht --color-panel-soft: tokens.css beschreibt es wörtlich als
+   "row / option hover". --color-panel-soft ist eine Flächenfarbe für Gruppierungen. */
 .wikisync-itemlist .tree-item:hover,
 #wiki-sync-territory-tree .tree-item:hover {
-	background: var(--color-panel-soft);
+	background: var(--color-hover-wash);
 }
 .wikisync-itemlist .drag-handle,
 #wiki-sync-territory-tree .drag-handle {
@@ -968,6 +974,12 @@
 	grid-column: 2;
 	grid-row: 1;
 	min-width: 0;
+	/* Erbte vorher body{font-size:10pt} = 13,33px — kein Sprosse der Skala in tokens.css. */
+	font-size: var(--font-size-body);
+	/* ⚠️ Das Gewicht kam bisher aus der Basisregel .tree-item in political-territory-wiki-tree.css,
+	   also aus einer Regel, die dem Territorien-EDITOR gehört. Eine Panel-Zeile darf nicht davon
+	   abhängen, was eine fremde Oberfläche vererbt. */
+	font-weight: var(--font-weight-bold);
 	line-height: 1.22;
 }
 /* Kreis rechts neben dem Namen (wie im Territorien-Tree, via ::after). Grün = auf Karte. */
@@ -975,9 +987,11 @@
 #wiki-sync-territory-tree .tree-item-name::after {
 	content: "";
 	display: inline-block;
-	width: 13px;
-	height: 13px;
-	margin-left: 7px;
+	/* 11px statt 13px: neben einem 13px-Namen war der alte Kreis höher als dessen Versalhöhe und
+	   zog die Zeile auf. 🔧 Abgeleitet, nicht vom Owner beschlossen. */
+	width: 11px;
+	height: 11px;
+	margin-left: 6px;
 	vertical-align: -2px;
 	border: 2px solid var(--color-map-presence);
 	border-radius: 50%;
@@ -1003,8 +1017,12 @@
 #wiki-sync-territory-tree .tree-item-meta {
 	grid-column: 2;
 	grid-row: 2;
-	font-size: 0.78em;
-	font-weight: 600;
+	/* War 0.78em = 10,4px, UNTER der 11px-Untergrenze aus docs/design-language.md. Sie wächst hier. */
+	font-size: var(--font-size-caption);
+	/* War 600. tokens.css: "two weights only — no 500 / 600 / 800". Die gelöschte
+	   Territorien-Fassung benutzte bereits var(--font-weight-bold) — die beiden Kopien waren sich
+	   an dieser Stelle nicht einmal einig. */
+	font-weight: var(--font-weight-bold);
 	line-height: 1.2;
 	color: var(--color-text-muted);
 	white-space: normal;

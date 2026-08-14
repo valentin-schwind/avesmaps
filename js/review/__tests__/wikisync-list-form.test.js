@@ -78,7 +78,63 @@ assert.ok(/border-bottom:\s*1px solid var\(--color-divider\)/.test(rumpf),
 	+ "--color-panel-muted als Linie zu benutzen ist genau der Griff, den AGENTS.md §12 verbietet.");
 checks++;
 
-// ---- 6. Keine ID-Regel darf die geteilten Zeilenwerte noch einmal setzen -----------------------
+// ---- 6. Die Maße der kompakten Zeile -----------------------------------------------------------
+// 💣 Der Zeilenabstand war 7px und ist BEWUSST auf 2px zurueckgedreht (Owner 14.08.2026:
+// "ja die 7px umdrehen"). Der alte Kommentar in dieser Datei begruendete die 7px damit, sie seien
+// "einheitlich wie Siedlungen" -- das galt, solange Siedlungen 7px hatte. Jetzt haben alle 2px,
+// die Einheitlichkeit ist also gewahrt, nur enger. Gemessen 48,7px -> 42,0px je Zeile.
+assert.ok(/row-gap:\s*2px/.test(rumpf),
+	'Der gemeinsamen Zeile fehlt "row-gap: 2px" (war 7px). Daher kommt der groesste Teil der '
+	+ "Hoehenersparnis -- nicht aus kleinerer Schrift.");
+checks++;
+
+assert.ok(/padding:\s*5px 8px/.test(rumpf),
+	'Der gemeinsamen Zeile fehlt "padding: 5px 8px" (war 6px 8px).');
+checks++;
+
+// ---- 7. Die Schriftskala -- 11px ist die Untergrenze --------------------------------------------
+function regel(name) {
+	const m = regionSync.match(
+		new RegExp("\\.wikisync-itemlist " + name + ",\\s*\\r?\\n#wiki-sync-territory-tree " + name + "\\s*\\{([\\s\\S]*?)\\r?\\n\\}"));
+	assert.ok(m, `Die gemeinsame Regel fuer ".wikisync-itemlist ${name}" fehlt oder nennt nicht beide Selektoren.`);
+	return m[1];
+}
+
+const nameRumpf = regel("\\.tree-item-name");
+assert.ok(/font-size:\s*var\(--font-size-body\)/.test(nameRumpf),
+	"Der Name muss auf var(--font-size-body) = 13px stehen. Vorher erbte er body{font-size:10pt} "
+	+ "= 13,33px -- ein Wert, den die Skala in tokens.css gar nicht kennt.");
+checks++;
+assert.ok(/font-weight:\s*var\(--font-weight-bold\)/.test(nameRumpf),
+	"Der Name muss sein Gewicht selbst setzen. Es kam bisher aus der Basisregel .tree-item in "
+	+ "political-territory-wiki-tree.css -- also aus einer Regel, die dem Territorien-EDITOR gehoert. "
+	+ "Eine Panel-Zeile darf nicht davon abhaengen, was eine fremde Oberflaeche vererbt.");
+checks++;
+
+const metaRumpf = regel("\\.tree-item-meta");
+assert.ok(/font-size:\s*var\(--font-size-caption\)/.test(metaRumpf),
+	"Die Meta-Zeile muss auf var(--font-size-caption) = 11px stehen. Vorher 0.78em = 10,4px, also "
+	+ "UNTER der Untergrenze aus docs/design-language.md. Sie wird dabei GROESSER -- Kompaktheit "
+	+ "kommt aus der Polsterung, nie aus dem Unterschreiten der Schriftgrenze.");
+checks++;
+assert.ok(/font-weight:\s*var\(--font-weight-bold\)/.test(metaRumpf),
+	'Die Meta-Zeile stand auf "font-weight: 600". tokens.css sagt: "two weights only -- no 500 / '
+	+ '600 / 800". Die geloeschte Territorien-Fassung benutzte bereits var(--font-weight-bold); die '
+	+ "beiden Kopien waren sich hier nicht einmal einig.");
+checks++;
+
+assert.ok(!/font-size:\s*0\.78em/.test(regionSync),
+	'In region-sync.css steht wieder "font-size: 0.78em" (= 10,4px), unter der 11px-Untergrenze.');
+checks++;
+
+// ---- 8. Die Ueberfahrt liegt auf ihrem eigenen Token --------------------------------------------
+const hoverRumpf = regel("\\.tree-item:hover");
+assert.ok(/background:\s*var\(--color-hover-wash\)/.test(hoverRumpf),
+	"Die Ueberfahrt muss var(--color-hover-wash) sein -- tokens.css beschreibt das Token woertlich "
+	+ 'als "row / option hover". Vorher --color-panel-soft, eine Flaechenfarbe.');
+checks++;
+
+// ---- 9. Keine ID-Regel darf die geteilten Zeilenwerte noch einmal setzen -----------------------
 // 💣 GEFUNDEN BEIM UMBAU AM 14.08.2026. Es gab eine DRITTE Fassung derselben Werte:
 //   #region-sync-list .region-sync__item, #path-sync-list .region-sync__item
 //   { padding: 6px 8px; border-bottom: 1px solid var(--color-panel-muted); }
