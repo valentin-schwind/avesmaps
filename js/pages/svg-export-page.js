@@ -33,6 +33,30 @@
 		return an;
 	}
 
+	// {wege: {Seeweg: true, Pfad: false, …}, orte: {…}, landschaften: {…}}
+	// ⚠️ Nur ein ausdrückliches false schließt aus (siehe svgxSubgroupEnabled im Bauer):
+	// eine Unterart, die es hier nicht als Kästchen gibt, bleibt in der Datei.
+	function gewaehlteUnterarten() {
+		const unter = {};
+		document.querySelectorAll("[data-svgx-sub]").forEach((box) => {
+			const ebene = box.getAttribute("data-svgx-sub");
+			if (!unter[ebene]) { unter[ebene] = {}; }
+			unter[ebene][box.value] = box.checked;
+		});
+		return unter;
+	}
+
+	// Ein Häkchen an der Ebene setzt alle ihre Unterarten; sind nur einige an, zeigt die
+	// Ebene den Zwischenzustand -- sonst behauptet ein volles Häkchen etwas Falsches.
+	function ebeneNachKindernAusrichten(ebene) {
+		const haupt = document.querySelector(`[data-svgx-layer="${ebene}"]`);
+		const kinder = [...document.querySelectorAll(`[data-svgx-sub="${ebene}"]`)];
+		if (!haupt || kinder.length === 0) { return; }
+		const an = kinder.filter((k) => k.checked).length;
+		haupt.checked = an > 0;
+		haupt.indeterminate = an > 0 && an < kinder.length;
+	}
+
 	function gewaehlterDialekt() {
 		const gewaehlt = document.querySelector("[name=svgx-dialect]:checked");
 		return gewaehlt ? gewaehlt.value : "inkscape";
@@ -52,29 +76,31 @@
 		return `${d.getFullYear()}-${zwei(d.getMonth() + 1)}-${zwei(d.getDate())}`;
 	}
 
-	function statistikZeigen(stats, bytes) {
+	function zeile(tbody, text, wert, klasse) {
+		const tr = document.createElement("tr");
+		if (klasse) { tr.className = klasse; }
+		if (!wert) { tr.setAttribute("data-empty", "1"); }
+		const td1 = document.createElement("td");
+		td1.textContent = text;
+		const td2 = document.createElement("td");
+		td2.textContent = typeof wert === "number" ? wert.toLocaleString("de-DE") : String(wert);
+		tr.appendChild(td1);
+		tr.appendChild(td2);
+		tbody.appendChild(tr);
+	}
+
+	function statistikZeigen(stats, detail, bytes) {
 		const tbody = el("svgx-stats-body");
 		if (!tbody) { return; }
 		while (tbody.firstChild) { tbody.removeChild(tbody.firstChild); }
 		Object.entries(stats).forEach(([name, anzahl]) => {
-			const tr = document.createElement("tr");
-			if (!anzahl) { tr.setAttribute("data-empty", "1"); }
-			const td1 = document.createElement("td");
-			td1.textContent = name;
-			const td2 = document.createElement("td");
-			td2.textContent = anzahl.toLocaleString("de-DE");
-			tr.appendChild(td1);
-			tr.appendChild(td2);
-			tbody.appendChild(tr);
+			zeile(tbody, name, anzahl, "svgx-stats__layer");
+			// Die Untergruppen eingerückt darunter -- so steht hier, was die Datei WIRKLICH
+			// enthält, und nicht nur, was angehakt war.
+			(detail || []).filter((d) => d.layer === name)
+				.forEach((d) => zeile(tbody, d.group, d.count, "svgx-stats__group"));
 		});
-		const tr = document.createElement("tr");
-		const td1 = document.createElement("td");
-		td1.textContent = "Dateigröße";
-		const td2 = document.createElement("td");
-		td2.textContent = `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-		tr.appendChild(td1);
-		tr.appendChild(td2);
-		tbody.appendChild(tr);
+		zeile(tbody, "Dateigröße", `${(bytes / (1024 * 1024)).toFixed(1)} MB`, "svgx-stats__layer");
 		const tabelle = el("svgx-stats");
 		if (tabelle) { tabelle.hidden = false; }
 	}
@@ -83,6 +109,7 @@
 		const knopf = el("svgx-start");
 		if (knopf) { knopf.disabled = true; }
 		const an = gewaehlteEbenen();
+		const unterarten = gewaehlteUnterarten();
 		const dialekt = gewaehlterDialekt();
 
 		try {
@@ -100,7 +127,11 @@
 			let ecosystems = null;
 			if (an.landschaften) {
 				const gesammelt = [];
-				for (const kind of ENDPOINTS.ecosystemKinds) {
+				// Nur die angehakten Arten holen. Das spart hier echte Ladezeit, nicht nur
+				// Dateigröße: jede Art ist eine eigene Anfrage an einen teuren Endpunkt.
+				const arten = ENDPOINTS.ecosystemKinds.filter((k) => unterarten.landschaften
+					? unterarten.landschaften[k] !== false : true);
+				for (const kind of arten) {
 					status(`Landschaften werden geladen … (${kind})`);
 					const teil = await holen(`/api/app/ecosystem-areas.php?kind=${encodeURIComponent(kind)}`);
 					window.AvesmapsSvgExport.asFeatures(teil).forEach((f) => gesammelt.push(f));
@@ -116,13 +147,14 @@
 				territories: territories,
 				ecosystems: ecosystems,
 				layers: an,
+				subgroups: unterarten,
 				dialect: dialekt,
 			});
 
 			// Nie ein einziger Riesenstring durch Aneinanderhängen -- die Stückliste geht
 			// direkt in den Blob.
 			const blob = new Blob(ergebnis.parts, { type: "image/svg+xml;charset=utf-8" });
-			statistikZeigen(ergebnis.stats, blob.size);
+			statistikZeigen(ergebnis.stats, ergebnis.detail, blob.size);
 
 			const url = URL.createObjectURL(blob);
 			const a = document.createElement("a");
@@ -141,20 +173,35 @@
 		}
 	}
 
+	function alleSetzen(zustand) {
+		document.querySelectorAll("[data-svgx-layer]").forEach((box) => {
+			box.checked = zustand;
+			box.indeterminate = false;
+		});
+		document.querySelectorAll("[data-svgx-sub]").forEach((box) => { box.checked = zustand; });
+	}
+
 	document.addEventListener("DOMContentLoaded", function () {
 		const knopf = el("svgx-start");
 		if (knopf) { knopf.addEventListener("click", erzeugen); }
 		const alle = el("svgx-all");
-		if (alle) {
-			alle.addEventListener("click", function () {
-				document.querySelectorAll("[data-svgx-layer]").forEach((box) => { box.checked = true; });
-			});
-		}
+		if (alle) { alle.addEventListener("click", () => alleSetzen(true)); }
 		const keine = el("svgx-none");
-		if (keine) {
-			keine.addEventListener("click", function () {
-				document.querySelectorAll("[data-svgx-layer]").forEach((box) => { box.checked = false; });
+		if (keine) { keine.addEventListener("click", () => alleSetzen(false)); }
+
+		// Ebene an -> alle ihre Unterarten an, und umgekehrt.
+		document.querySelectorAll("[data-svgx-layer]").forEach((haupt) => {
+			const ebene = haupt.getAttribute("data-svgx-layer");
+			haupt.addEventListener("change", function () {
+				haupt.indeterminate = false;
+				document.querySelectorAll(`[data-svgx-sub="${ebene}"]`)
+					.forEach((kind) => { kind.checked = haupt.checked; });
 			});
-		}
+		});
+		document.querySelectorAll("[data-svgx-sub]").forEach((kind) => {
+			kind.addEventListener("change", function () {
+				ebeneNachKindernAusrichten(kind.getAttribute("data-svgx-sub"));
+			});
+		});
 	});
 }());

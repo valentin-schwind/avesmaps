@@ -54,6 +54,40 @@
 	color: var(--color-text-muted);
 }
 
+/* Eine Ebene mit ihren Unterarten: die Einrückung IST die Hierarchie -- kein Rahmen,
+   kein Kasten (design-language.md: gruppieren per Trenner und Überschrift). */
+.svgx-layer + .svgx-layer {
+	margin-top: 10px;
+}
+
+.svgx-choice--layer {
+	font-weight: 600;
+}
+
+.svgx-subs {
+	margin: 4px 0 0 22px;
+	padding-left: 12px;
+	border-left: 1px solid var(--color-divider);
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 18px;
+	align-items: baseline;
+}
+
+.svgx-subs__title {
+	flex: 0 0 100%;
+	margin: 2px 0 2px 0;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--color-text-muted);
+}
+
+.svgx-choice--sub {
+	font-weight: 400;
+	font-size: 13px;
+}
+
 .svgx-choices {
 	display: flex;
 	flex-wrap: wrap;
@@ -149,4 +183,19 @@
 
 .svgx-stats tr[data-empty="1"] td {
 	color: var(--color-text-muted);
+}
+
+.svgx-stats__layer td {
+	font-weight: 600;
+}
+
+/* Untergruppe: eingerückt und leichter -- dieselbe Hierarchie wie in der Auswahl oben. */
+.svgx-stats__group td {
+	font-weight: 400;
+	color: var(--color-text-muted);
+}
+
+.svgx-stats__group td:first-child {
+	padding-left: 16px;
+	border-bottom-color: transparent;
 }

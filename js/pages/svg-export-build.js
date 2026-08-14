@@ -244,6 +244,14 @@ function svgxAsFeatures(payload) {
 // Die Ebenen
 // ---------------------------------------------------------------------------------------
 
+// Ist diese Unterart angehakt? ⚠️ Nur ein ausdrückliches `false` schließt aus. Ein
+// unbekannter Schlüssel ist damit IMMER dabei -- in den Live-Daten sitzt z. B. ein Ort
+// mit der Ortsart `crossing` (Datenleiche, 1 von 2.800). Wer "nicht in der Liste" als
+// "nicht gewollt" liest, lässt solche Fälle lautlos verschwinden.
+function svgxSubgroupEnabled(enabled, key) {
+	return !enabled || enabled[key] !== false;
+}
+
 function svgxWayLayer(options) {
 	const o = options || {};
 	const nachArt = new Map();
@@ -257,12 +265,14 @@ function svgxWayLayer(options) {
 
 	const stuecke = [svgxLayerOpen({ name: "Wege", id: "layer-wege", dialect: o.dialect })];
 	let anzahl = 0;
+	const gruppen = {};
 	const arten = SVGX_WAY_SUBTYPES.concat([...nachArt.keys()].filter((a) => !SVGX_WAY_SUBTYPES.includes(a)));
 	arten.forEach((art) => {
 		const wege = nachArt.get(art);
 		// Eine leere Untergruppe wird gar nicht geschrieben: leere Ordner im Ebenenfenster
 		// lesen sich wie ein Fehler, obwohl nur nichts da war.
 		if (!wege || wege.length === 0) { return; }
+		if (!svgxSubgroupEnabled(o.enabled, art)) { return; }
 		stuecke.push(svgxGroupOpen({
 			name: art, id: `wege-${svgxFoldAscii(art).toLowerCase()}`, dialect: o.dialect,
 			attrs: {
@@ -284,10 +294,11 @@ function svgxWayLayer(options) {
 				+ `<title>${svgxEscapeText(name)}</title></path>\n`);
 			anzahl += 1;
 		});
+		gruppen[art] = wege.length;
 		stuecke.push(svgxGroupClose());
 	});
 	stuecke.push(svgxGroupClose());
-	return { parts: stuecke, count: anzahl };
+	return { parts: stuecke, count: anzahl, groups: gruppen };
 }
 
 function svgxPowerlineLayer(options) {
@@ -307,7 +318,7 @@ function svgxPowerlineLayer(options) {
 			+ `<title>${svgxEscapeText(name)}</title></path>\n`);
 	});
 	stuecke.push(svgxGroupClose());
-	return { parts: stuecke, count: linien.length };
+	return { parts: stuecke, count: linien.length, groups: {} };
 }
 
 function svgxAreaLayer(options) {
@@ -323,6 +334,7 @@ function svgxAreaLayer(options) {
 
 	const stuecke = [svgxLayerOpen({ name: o.layerName, id: o.layerId, dialect: o.dialect })];
 	let anzahl = 0;
+	const zaehler = {};
 	gruppen.forEach((flaechen, schluessel) => {
 		stuecke.push(svgxGroupOpen({
 			name: schluessel || o.layerName,
@@ -344,11 +356,12 @@ function svgxAreaLayer(options) {
 			stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)} d="${d}">`
 				+ `<title>${svgxEscapeText(name)}</title></path>\n`);
 			anzahl += 1;
+			gruppen[schluessel || o.layerName] = (gruppen[schluessel || o.layerName] || 0) + 1;
 		});
 		stuecke.push(svgxGroupClose());
 	});
 	stuecke.push(svgxGroupClose());
-	return { parts: stuecke, count: anzahl };
+	return { parts: stuecke, count: anzahl, groups: zaehler };
 }
 
 function svgxPlaceLayer(options) {
@@ -367,11 +380,13 @@ function svgxPlaceLayer(options) {
 
 	const stuecke = [svgxLayerOpen({ name: "Orte", id: "layer-orte", dialect: o.dialect })];
 	let anzahl = 0;
+	const gruppen = {};
 	const arten = kinds.map((k) => k.slug)
 		.concat([...nachArt.keys()].filter((a) => !kinds.some((k) => k.slug === a)));
 	arten.forEach((slug) => {
 		const orte = nachArt.get(slug);
 		if (!orte || orte.length === 0) { return; }
+		if (!svgxSubgroupEnabled(o.enabled, slug)) { return; }
 		const kind = kinds.find((k) => k.slug === slug) || { slug: slug, label: slug || "Ort", r: 0.8 };
 		stuecke.push(svgxGroupOpen({
 			name: kind.label || slug, id: `orte-${svgxFoldAscii(slug).toLowerCase() || "ohne"}`,
@@ -386,10 +401,11 @@ function svgxPlaceLayer(options) {
 				+ `<title>${svgxEscapeText(name)}</title></circle>\n`);
 			anzahl += 1;
 		});
+		gruppen[kind.label || slug] = orte.length;
 		stuecke.push(svgxGroupClose());
 	});
 	stuecke.push(svgxGroupClose());
-	return { parts: stuecke, count: anzahl };
+	return { parts: stuecke, count: anzahl, groups: gruppen };
 }
 
 function svgxLabelLayer(options) {
@@ -458,7 +474,7 @@ function svgxLabelLayer(options) {
 	stuecke.push(svgxGroupClose());
 
 	stuecke.push(svgxGroupClose());   // <- schließt die EBENE, nicht eine Untergruppe
-	return { parts: stuecke, count: anzahl };
+	return { parts: stuecke, count: anzahl, groups: {} };
 }
 
 // ---------------------------------------------------------------------------------------
@@ -476,8 +492,14 @@ function svgxBuildDocument(options) {
 	const parts = [svgxDocumentOpen(dialect)];
 	const stats = {};
 
+	const detail = [];
 	const nimm = (name, ergebnis) => {
 		stats[name] = ergebnis.count;
+		// Die Untergruppen mit ihren Zahlen -- die Seite zeigt sie eingerueckt an, damit
+		// sichtbar ist, was die Datei WIRKLICH enthaelt statt nur, was angehakt war.
+		Object.entries(ergebnis.groups || {}).forEach(([gruppe, anzahl]) => {
+			detail.push({ layer: name, group: gruppe, count: anzahl });
+		});
 		ergebnis.parts.forEach((p) => parts.push(p));
 	};
 
@@ -500,13 +522,15 @@ function svgxBuildDocument(options) {
 		}));
 	}
 	if (an.wege !== false) {
-		nimm("Wege", svgxWayLayer({ features: o.mapFeatures, dialect: dialect, seen: seen, wayIds: wayIds }));
+		nimm("Wege", svgxWayLayer({ features: o.mapFeatures, dialect: dialect, seen: seen,
+			wayIds: wayIds, enabled: (o.subgroups || {}).wege }));
 	}
 	if (an.kraftlinien !== false) {
 		nimm("Kraftlinien", svgxPowerlineLayer({ features: o.mapFeatures, dialect: dialect, seen: seen }));
 	}
 	if (an.orte !== false) {
-		nimm("Orte", svgxPlaceLayer({ features: o.mapFeatures, kinds: o.placeKinds, dialect: dialect, seen: seen }));
+		nimm("Orte", svgxPlaceLayer({ features: o.mapFeatures, kinds: o.placeKinds, dialect: dialect,
+			seen: seen, enabled: (o.subgroups || {}).orte }));
 	}
 	if (an.beschriftungen !== false) {
 		nimm("Beschriftungen", svgxLabelLayer({
@@ -515,7 +539,7 @@ function svgxBuildDocument(options) {
 	}
 
 	parts.push(svgxDocumentClose());
-	return { parts: parts, stats: stats };
+	return { parts: parts, stats: stats, detail: detail };
 }
 
 // Browserseite: EIN benannter Zugang für den Kitt. Die flachen Funktionen bleiben
@@ -550,6 +574,7 @@ if (typeof module !== "undefined" && module.exports) {
 		svgxAsFeatures: svgxAsFeatures,
 		svgxProps: svgxProps,
 		svgxNameOf: svgxNameOf,
+		svgxSubgroupEnabled: svgxSubgroupEnabled,
 		svgxWayLayer: svgxWayLayer,
 		svgxPowerlineLayer: svgxPowerlineLayer,
 		svgxAreaLayer: svgxAreaLayer,

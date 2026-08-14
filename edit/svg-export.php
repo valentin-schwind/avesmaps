@@ -57,12 +57,52 @@ $layers = [
     // ⚠️ KEINE Ebene "Regionen": der Payload führt keinen feature_type 'region' (gemessen
     // 14.08.2026 an 11.810 Features -- location, crossing, path, junction, label, powerline).
     // Was man dafür hielte, sind die Landschaften-Flächen.
-    ['key' => 'landschaften', 'label' => 'Landschaften & Küste', 'note' => 'Kontinente, Inseln, Meere, Vegetation, Klimazonen'],
-    ['key' => 'gebiete', 'label' => 'Herrschaftsgebiete', 'note' => 'die politischen Grenzen'],
-    ['key' => 'wege', 'label' => 'Wege', 'note' => 'nach Wegart gruppiert, Flüsse als „Flussweg"'],
-    ['key' => 'kraftlinien', 'label' => 'Kraftlinien', 'note' => ''],
-    ['key' => 'orte', 'label' => 'Orte', 'note' => 'nach Ortsart gruppiert'],
-    ['key' => 'beschriftungen', 'label' => 'Beschriftungen', 'note' => 'als echter Text'],
+    //
+    // Die Unterarten sind AM 14.08.2026 GEGEN DIE LIVE-API GEMESSEN, nicht erfunden. Die
+    // Zahlen in Klammern sind der damalige Stand -- sie sollen die Größenordnung zeigen,
+    // nicht exakt sein; das echte Zählwerk steht nach dem Bauen in der Tabelle unten.
+    // Herrschaftsgebiete bekommen bewusst KEINE Unterarten: alle 166 tragen denselben
+    // type ('region'), es gäbe also genau ein Kästchen.
+    [
+        'key' => 'landschaften', 'label' => 'Landschaften & Küste',
+        'note' => 'Kontinente, Inseln, Meere, Vegetation, Klimazonen',
+        'subLabel' => 'Ebenen (nicht Angehaktes wird gar nicht erst geladen)',
+        'subs' => [
+            ['value' => 'derographisch', 'label' => 'Derographisch', 'note' => '64'],
+            ['value' => 'vegetation', 'label' => 'Vegetation', 'note' => '145 &ndash; Wald, Steppe, Wüste …'],
+            ['value' => 'topographie', 'label' => 'Topographie', 'note' => '641 &ndash; Meer, See, Insel, Gebirge …'],
+            ['value' => 'klima', 'label' => 'Klimazonen', 'note' => '8'],
+        ],
+    ],
+    ['key' => 'gebiete', 'label' => 'Herrschaftsgebiete', 'note' => 'die politischen Grenzen (166)', 'subs' => []],
+    [
+        'key' => 'wege', 'label' => 'Wege', 'note' => '',
+        'subLabel' => 'Wegarten',
+        'subs' => [
+            ['value' => 'Reichsstrasse', 'label' => 'Reichsstraßen', 'note' => '352'],
+            ['value' => 'Strasse', 'label' => 'Straßen', 'note' => '1.026'],
+            ['value' => 'Weg', 'label' => 'Wege', 'note' => '365'],
+            ['value' => 'Pfad', 'label' => 'Pfade', 'note' => '1.557'],
+            ['value' => 'Gebirgspass', 'label' => 'Gebirgspässe', 'note' => '201'],
+            ['value' => 'Wuestenpfad', 'label' => 'Wüstenpfade', 'note' => '35'],
+            ['value' => 'Flussweg', 'label' => 'Flusswege', 'note' => '1.103'],
+            ['value' => 'Seeweg', 'label' => 'Seewege', 'note' => '1.286'],
+        ],
+    ],
+    ['key' => 'kraftlinien', 'label' => 'Kraftlinien', 'note' => '162', 'subs' => []],
+    [
+        'key' => 'orte', 'label' => 'Orte', 'note' => '',
+        'subLabel' => 'Ortsgrößen',
+        'subs' => [
+            ['value' => 'metropole', 'label' => 'Metropolen', 'note' => '10'],
+            ['value' => 'grossstadt', 'label' => 'Großstädte', 'note' => '34'],
+            ['value' => 'stadt', 'label' => 'Städte', 'note' => '213'],
+            ['value' => 'kleinstadt', 'label' => 'Kleinstädte', 'note' => '309'],
+            ['value' => 'dorf', 'label' => 'Dörfer', 'note' => '1.945'],
+            ['value' => 'gebaeude', 'label' => 'Gebäude', 'note' => '288'],
+        ],
+    ],
+    ['key' => 'beschriftungen', 'label' => 'Beschriftungen', 'note' => 'als echter Text', 'subs' => []],
 ];
 
 ?><!DOCTYPE html>
@@ -155,18 +195,34 @@ $layers = [
 
                 <div class="svgx-group">
                     <h2 class="svgx-group__title">Welche Ebenen?</h2>
-                    <fieldset class="svgx-choices">
-                        <?php foreach ($layers as $layer) : ?>
-                            <label class="svgx-choice">
-                                <input type="checkbox" data-svgx-layer="<?php echo htmlspecialchars($layer['key'], ENT_QUOTES, 'UTF-8'); ?>" checked />
+                    <?php foreach ($layers as $layer) : ?>
+                        <?php $key = htmlspecialchars($layer['key'], ENT_QUOTES, 'UTF-8'); ?>
+                        <div class="svgx-layer">
+                            <label class="svgx-choice svgx-choice--layer">
+                                <input type="checkbox" data-svgx-layer="<?php echo $key; ?>" checked />
                                 <span><?php echo htmlspecialchars($layer['label'], ENT_QUOTES, 'UTF-8'); ?>
                                     <?php if ($layer['note'] !== '') : ?>
-                                        <span class="svgx-choice__note">&ndash; <?php echo htmlspecialchars($layer['note'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                        <span class="svgx-choice__note">&ndash; <?php echo $layer['note']; ?></span>
                                     <?php endif; ?>
                                 </span>
                             </label>
-                        <?php endforeach; ?>
-                    </fieldset>
+                            <?php if (!empty($layer['subs'])) : ?>
+                                <div class="svgx-subs">
+                                    <p class="svgx-subs__title"><?php echo htmlspecialchars($layer['subLabel'] ?? '', ENT_QUOTES, 'UTF-8'); ?></p>
+                                    <?php foreach ($layer['subs'] as $sub) : ?>
+                                        <label class="svgx-choice svgx-choice--sub">
+                                            <input type="checkbox"
+                                                   data-svgx-sub="<?php echo $key; ?>"
+                                                   value="<?php echo htmlspecialchars($sub['value'], ENT_QUOTES, 'UTF-8'); ?>" checked />
+                                            <span><?php echo htmlspecialchars($sub['label'], ENT_QUOTES, 'UTF-8'); ?>
+                                                <span class="svgx-choice__note"><?php echo $sub['note']; ?></span>
+                                            </span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
 
                 <div class="svgx-actions">

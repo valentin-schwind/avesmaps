@@ -172,3 +172,47 @@ assert.deepStrictEqual(B.SVGX_WAY_COLORS, {
 }, "Wegefarben abweichend von der Abschrift aus map-features.js");
 
 console.log("svg-export-build: ok");
+
+// ---- 8. Unterarten einzeln abwählbar ---------------------------------------------------
+{
+	// Nur Flusswege, keine Reichsstraßen -- und die Orte ganz ohne Metropolen.
+	const { parts, stats, detail } = B.svgxBuildDocument({
+		mapFeatures: payload, dialect: D.INKSCAPE,
+		subgroups: { wege: { Reichsstrasse: false, Flussweg: true }, orte: { metropole: false } },
+	});
+	const svg = parts.join("");
+
+	assert.ok(!svg.includes('inkscape:label="Reichsstrasse"'), "abgewählte Wegart muss fehlen");
+	assert.ok(svg.includes('inkscape:label="Flussweg"'), "angehakte Wegart muss da sein");
+	assert.ok(!svg.includes("<title>Gareth</title>"), "abgewählte Ortsgröße muss fehlen");
+	assert.strictEqual(stats.Wege, 1, "Zählwerk folgt der Auswahl");
+	assert.strictEqual(stats.Orte, 0, "ohne Metropolen bleibt kein Ort übrig");
+
+	// 💣 Die abgewählte Reichsstraße darf auch keine BESCHRIFTUNG mehr hinterlassen --
+	// sonst zeigt ein textPath auf eine id, die es nicht mehr gibt.
+	const hrefs = [...svg.matchAll(/href="#([^"]+)"/g)].map((m) => m[1]);
+	hrefs.forEach((h) => {
+		assert.ok(svg.includes(`id="${h}"`),
+			`href="#${h}" zeigt ins Leere, nachdem seine Wegart abgewählt wurde`);
+	});
+
+	// Das Zählwerk führt die Untergruppen einzeln.
+	const wegGruppen = detail.filter((d) => d.layer === "Wege");
+	assert.deepStrictEqual(wegGruppen, [{ layer: "Wege", group: "Flussweg", count: 1 }],
+		"detail muss die Untergruppen mit ihren Zahlen führen");
+}
+
+// ⚠️ Nur ein ausdrückliches false schließt aus: eine unbekannte Unterart bleibt drin.
+// (In den Live-Daten trägt ein Ort die Ortsart 'crossing' -- eine Datenleiche, die nicht
+// lautlos verschwinden darf, bloß weil sie in keiner Kästchenliste steht.)
+{
+	const seltsam = { features: [{ properties: { feature_type: "location", feature_subtype: "crossing", name: "Seltsam", public_id: "x1" },
+		geometry: { type: "Point", coordinates: [10, 10] } }] };
+	const { stats } = B.svgxBuildDocument({
+		mapFeatures: seltsam, dialect: D.INKSCAPE,
+		subgroups: { orte: { metropole: true, dorf: true } },
+	});
+	assert.strictEqual(stats.Orte, 1, "eine unbekannte Ortsart darf nicht stillschweigend wegfallen");
+}
+
+console.log("svg-export-build (Unterarten): ok");
