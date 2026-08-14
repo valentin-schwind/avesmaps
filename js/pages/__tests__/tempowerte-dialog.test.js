@@ -212,4 +212,16 @@ assert.strictEqual(
 );
 assert.ok(!/wp-tempo__reset[^>]*is-primary/.test(dialog), "kein Ruecksetzer ist gefuellt");
 
+// ⚠️ Und die Leiste traegt BEIDE Haelften der Entscheidung. Verlaesst nur „Speichern" den Dialog,
+// wirkt die andere Seite tot -- genau diese Meldung kam am 17.07.2026 aus zwei anderen Editoren.
+assert.ok(tempoBox.includes('id="wpTempoCancel"'), "die Leiste hat ein Abbrechen");
+assert.ok(
+	/id="wpTempoCancel"(?![^>]*is-primary)/.test(tempoBox),
+	"und es ist NICHT der gefuellte Knopf -- die Haupthandlung bleibt Speichern"
+);
+assert.ok(
+	/function cancelTempo\(\)[\s\S]{0,900}hidden = true/.test(dialog),
+	"Abbrechen verwirft UND geht zu"
+);
+
 console.log("tempowerte-dialog.test.js: Fenster und Endpunkt sprechen dieselben Namen");

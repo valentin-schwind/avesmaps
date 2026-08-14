@@ -1233,6 +1233,7 @@
 			if (event.target === $("wpTempoOverlay")) { $("wpTempoOverlay").hidden = true; }
 		});
 		$("wpTempoSave").addEventListener("click", saveTempo);
+		$("wpTempoCancel").addEventListener("click", cancelTempo);
 
 		$("wpSync").addEventListener("click", runSync);
 	}
@@ -1700,6 +1701,32 @@
 		}
 		if (teile[0] === "gr") { return TEMPO_GROUND_LABELS[teile[1]] || teile[1]; }
 		return teile[1] === "river_ratio" ? "stromauf : stromab" : "Eichziel";
+	}
+
+	/* „Abbrechen": die ungespeicherten Eingaben verwerfen UND zugehen.
+	 *
+	 * ⚠️ ZWEI KNÖPFE IN EINER LEISTE SIND EINE ENTSCHEIDUNG — fertig oder abbrechen. Verlässt nur die
+	 * eine Hälfte den Dialog, wirkt die andere tot; genau diese Meldung kam am 17.07.2026 aus zwei
+	 * anderen Editoren („verwerfen geht nicht mehr" — der Knopf war nie kaputt, sein Nachbar hatte
+	 * sich geändert).
+	 *
+	 * 🔴 ES MACHT KEINEN RÜCKSETZER RÜCKGÄNGIG. Der schreibt sofort in die Datenbank; hier gibt es
+	 * nichts, was man zurücknehmen könnte. Was er getan hat, steht in der Meldung links daneben und an
+	 * den Zeilen („war …"). Echtes Undo braucht einen gespeicherten Vorzustand — Entwurf:
+	 * docs/superpowers/specs/2026-08-14-tempowerte-undo-design.md.
+	 *
+	 * 💣 Zurücksetzen VOR dem Schließen. Das Fenster wird nur `hidden`, nie zerstört -- ohne das
+	 * servierte das nächste Öffnen die eben verworfenen Eingaben zurück, bis der Server antwortet.
+	 */
+	function cancelTempo() {
+		var body = $("wpTempoBody");
+		Array.prototype.forEach.call(body.querySelectorAll("input[data-loaded]"), function (input) {
+			input.value = input.getAttribute("data-loaded");
+			var row = input.closest("tr");
+			if (row) { row.classList.remove("is-dirty"); }
+		});
+		tempoSetStatus("", "");
+		$("wpTempoOverlay").hidden = true;
 	}
 
 	function resetTempo(section) {

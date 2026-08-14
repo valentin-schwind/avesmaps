@@ -129,8 +129,14 @@
     <!-- ⭐ Dieselbe Speicherleiste wie die Liste darunter (.wp-savebar), nicht eine zweite: EIN
          gefüllter Knopf, die Meldung links daneben. Jeder Rücksetzer in den Abschnitten bleibt
          weich/outline — eine Abschnittshandlung ist nicht die Haupthandlung (AGENTS.md §12). -->
+    <!-- ⚠️ ZWEI KNÖPFE IN EINER LEISTE SIND EINE ENTSCHEIDUNG — fertig oder abbrechen. Verlässt nur
+         die eine Hälfte den Dialog, wirkt die andere tot (Hausbefund vom 17.07.2026, Literatur- und
+         Kartensammlungs-Editor). „Abbrechen" verwirft also UND geht zu.
+         🔴 Es verwirft nur die UNGESPEICHERTEN Eingaben. Ein Abschnitts-Rücksetzer hat da längst
+         geschrieben — was er getan hat, steht links daneben in der Meldung. -->
     <div class="wp-savebar">
       <span class="wp-savebar__msg" id="wpTempoStatus"></span>
+      <button type="button" id="wpTempoCancel">Abbrechen</button>
       <button type="button" class="is-primary" id="wpTempoSave">Speichern</button>
     </div>
   </div>
