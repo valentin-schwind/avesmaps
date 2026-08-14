@@ -959,28 +959,11 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
-	// „Kreuzung melden": legt eine Zeile in die Zwischenablage, mit der ein Editor dem Owner eine
-	// STELLE nennen kann statt einer Nummer, die sich verschiebt.
-	//
-	// 💣 Baut den Index NICHT. Die Armzahl ist Beiwerk und wird nur gelesen, wenn er ohnehin schon
-	// steht (ein Pruefhaken ist an); getLocationConnectivityIndex() hier aufzurufen hiesse, einen
-	// Popup-Klick mit einem Graphbau ueber 5929 Wege zu bezahlen.
+	// „Kreuzung melden": Aufbau/Zwischenablage/Toast stehen in reportCrossingWithFeedback
+	// (map-features-share-pin.js, neben buildSharePinLink/copySharePinLinkWithFeedback -- dort lebt
+	// das Pin-Link-Vokabular), derselbe Zuschnitt wie share-place-link gleich daneben.
 	if (action === "report-crossing") {
-		const publicId = this.dataset.publicId;
-		const markerEntry = publicId ? findLocationMarkerByPublicId(publicId) : null;
-		const koordinaten = markerEntry?.location?.coordinates;
-		if (Array.isArray(koordinaten)) {
-			const stelle = { lat: koordinaten[0], lng: koordinaten[1] };
-			const istMarkiert = locationConnectivityIndex
-				&& locationConnectivityIndex.sparseCrossings.has(publicId);
-			const befund = istMarkiert ? ` · ${SPARSE_CROSSING_WAY_COUNT} Arme` : "";
-			void copyTextToClipboard(`Kreuzung${befund} · ${buildSharePinLink(stelle)}`).then((didCopy) => {
-				showFeedbackToast(
-					didCopy ? "Kreuzung in die Zwischenablage kopiert." : "Konnte nicht automatisch kopiert werden.",
-					didCopy ? "success" : "warning"
-				);
-			});
-		}
+		void reportCrossingWithFeedback(this.dataset.publicId);
 		return;
 	}
 

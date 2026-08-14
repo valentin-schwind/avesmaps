@@ -218,6 +218,35 @@ async function copySharePinLinkWithFeedback(latlng) {
 	return didCopy;
 }
 
+// „Kreuzung melden": legt eine Zeile in die Zwischenablage, mit der ein Editor dem Owner eine
+// STELLE nennen kann statt einer Nummer, die sich verschiebt. „Kreuzung-2090" entsteht erst im
+// Browser als laufender Zaehler ueber die Payload-Reihenfolge (prepareLocationData,
+// js/routing/routing.js): legt jemand eine Kreuzung an, die frueher einsortiert, rutscht jede
+// folgende Nummer um eins. Als Meldung an den Owner waere sie damit unbrauchbar -- deshalb traegt
+// die Zeile die publicId/den Pin-Link, nie den angezeigten Namen.
+//
+// 💣 Baut den Index NICHT. Die Armzahl ist Beiwerk und wird nur gelesen, wenn er ohnehin schon
+// steht (ein Pruefhaken ist an); getLocationConnectivityIndex() hier aufzurufen hiesse, einen
+// Popup-Klick mit einem Graphbau ueber 5929 Wege zu bezahlen.
+async function reportCrossingWithFeedback(publicId) {
+	const markerEntry = publicId ? findLocationMarkerByPublicId(publicId) : null;
+	const koordinaten = markerEntry?.location?.coordinates;
+	if (!Array.isArray(koordinaten)) {
+		return false;
+	}
+
+	const stelle = { lat: koordinaten[0], lng: koordinaten[1] };
+	const istMarkiert = locationConnectivityIndex
+		&& locationConnectivityIndex.sparseCrossings.has(publicId);
+	const befund = istMarkiert ? ` · ${SPARSE_CROSSING_WAY_COUNT} Arme` : "";
+	const didCopy = await copyTextToClipboard(`Kreuzung${befund} · ${buildSharePinLink(stelle)}`);
+	showFeedbackToast(
+		didCopy ? "Kreuzung in die Zwischenablage kopiert." : "Konnte nicht automatisch kopiert werden.",
+		didCopy ? "success" : "warning"
+	);
+	return didCopy;
+}
+
 async function copyCurrentUrlToClipboardWithFeedback() {
 	const didCopy = await copyCurrentUrlToClipboard();
 	showFeedbackToast(
