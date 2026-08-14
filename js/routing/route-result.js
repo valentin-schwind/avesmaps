@@ -36,6 +36,65 @@ function countTransportTransfers(routeSteps) {
 	return transferCount;
 }
 
+/**
+ * The rest hours of every leg, in travel order.
+ *
+ * 💣 ONE COUNTER FOR THE WHOLE ROUTE, never one per leg. A rest portion falls due when the day's
+ * travel hours are used up AND there is still road ahead -- so three short legs share one travel
+ * day and a night can land in the middle of a leg. Computing it per leg instead gives a route made
+ * of short legs no night at all, however long it is: every number stays plausible and only the sum
+ * is nonsense. Until 2026-08-14 the rest was a PROPORTION of the travel time, which charged a full
+ * night for the part-day you already arrived on -- 10.6 hours of walking were reported as 21.2.
+ *
+ * 💣 THE PORTION IS BOOKED BEFORE THE NEXT STRETCH, never after the last one. That is the whole
+ * trick, and the reason no look-ahead is needed: a portion can only come into being while there is
+ * something left to travel. Booking it as soon as the day is full hangs a night behind the arrival
+ * of every journey that ends exactly on the day's last hour.
+ *
+ * @param {Array<{travelTime: number, exempt: boolean}>} entries legs in travel order; `exempt`
+ *        marks a leg that is slept through while moving (the fast sailer)
+ * @param {number} travelPerDay travel hours per day, > 0
+ * @param {boolean} includeRests false = travel round the clock, no rests at all
+ * @returns {number[]} rest hours per leg, same length and order
+ */
+function avesmapsRouteRestPortions(entries, travelPerDay, includeRests) {
+	const safeEntries = Array.isArray(entries) ? entries : [];
+	const dayHours = Number(travelPerDay) > 0 ? Number(travelPerDay) : 0.5;
+	const restPortion = Math.max(24 - dayHours, 0);
+	// The counter survives the whole loop -- that is what makes the rest belong to the route.
+	let hoursSinceRest = 0;
+
+	return safeEntries.map((entry) => {
+		if (entry && entry.exempt) {
+			// Slept aboard: the passage costs no rest time and leaves the traveller rested.
+			hoursSinceRest = 0;
+			return 0;
+		}
+
+		if (!includeRests) {
+			return 0;
+		}
+
+		let restTime = 0;
+		let remaining = Number(entry && entry.travelTime) || 0;
+		// The epsilon is not cosmetic: a leg boundary lands on the day's last hour through a chain
+		// of float subtractions, so `hoursSinceRest` arrives as 11.999999999999998 rather than 12.
+		// Without the tolerance that night is skipped, and the next stretch is 2e-15 hours long.
+		while (remaining > 1e-9) {
+			if (hoursSinceRest >= dayHours - 1e-9) {
+				restTime += restPortion;
+				hoursSinceRest = 0;
+			}
+
+			const stretch = Math.min(remaining, dayHours - hoursSinceRest);
+			hoursSinceRest += stretch;
+			remaining -= stretch;
+		}
+
+		return restTime;
+	});
+}
+
 function buildRouteSteps(routeNames, segments, options = {}) {
 	const includeRests = Boolean(options.includeRests);
 	const restHoursPerDay = Number.isFinite(Number(options.restHoursPerDay)) ? Number(options.restHoursPerDay) : 10;
