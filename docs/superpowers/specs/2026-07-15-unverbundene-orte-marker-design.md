@@ -2,7 +2,21 @@
 
 **Datum:** 2026-07-15
 **Discord-Fall:** #25 („Nur Backend: Orte/Kreuzungen ohne Wegeanbindung filtern", Thomas)
-**Status:** Entwurf — im Chat freigegeben, bereit für den Implementierungsplan
+**Status:** umgesetzt — 🔴 **„Darstellung & Scope" ist seit 2026-08-14 überholt.**
+
+> 🔴 **Überholt: der Haken RINGELT nicht mehr nur, er BLENDET EIN.** Der Abschnitt
+> „Darstellung & Scope" unten fordert „für jeden **tatsächlich sichtbaren** Knoten"
+> und leitet „sichtbar" aus der aktiven Ortsgrößenkaskade ab. Genau das hat der
+> Owner am 2026-08-14 umgedreht: ein Prüfhaken **zeigt seine Funde** — unabhängig
+> von den Ortsgrößen-Haken und unabhängig von der Zoomstufe (nur der Bildausschnitt
+> gilt weiter). Damit ist auch das Nicht-Ziel „Nodices bleiben außen vor" hinfällig
+> und die Bedingung „Kreuzungen nur bei aktivem `toggleCrossings`" gestrichen —
+> „Kreuzungen ≤ 2 Wege" wirkt seither allein. Maßgeblich ist
+> `resolveLocationCheckFinding` in
+> `js/map-features/map-features-location-marker-rendering.js` (Commit `5ec08c2d`),
+> festgenagelt von `js/map-features/__tests__/pruefhaken-sichtbarkeit.test.js`.
+> Alles Übrige an diesem Entwurf — Verbindungs-Definition, Schwellwert, Algorithmus,
+> Cache — gilt unverändert.
 
 ## Ziel
 
