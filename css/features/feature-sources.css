@@ -274,6 +274,17 @@
 	color: var(--color-text-muted);
 	white-space: nowrap;
 }
+/* Der Lizenzhinweis der Wiki-Texte (CC BY-SA 3.0), direkt hinter dem Wiki-Eintrag. Er steht NEBEN
+   einer Quelle, ist aber selbst keine -- deshalb kleiner und ungefettet, waehrend .fs-src-a fett ist.
+   💣 KEINE Farbe hier: `a[target="_blank"]` in css/features/links.css faerbt jeden externen Link
+   golden, mit !important. Eine Farbregel an dieser Klasse waere wirkungslos und saehe im Quelltext
+   trotzdem so aus, als griffe sie (gemessen: 11px und text-decoration kommen an, die Farbe nicht).
+   Wer ihn wirklich gedaempft will, traegt die Ausnahme DORT ein, wie die drei vorhandenen. */
+.fs-src-lic {
+	margin-left: 6px;
+	font-size: 11px;
+	white-space: nowrap;
+}
 /* "Publikationen:" + die Tabs "Offiziell (n)"/"Erwähnt (n)" bleiben in EINER Zeile (Owner-Vorgabe);
    passt es nicht, wird horizontal gescrollt statt umzubrechen. */
 .fs-src-pub {

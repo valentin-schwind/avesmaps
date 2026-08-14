@@ -108,6 +108,13 @@ function getWikiLocationLink(name, wikiUrlOverride = "") {
 	return null;
 }
 
+// 💣 Die Lizenz der Wiki-TEXTE, nicht die des Projekts. Wiki Aventurica stellt seine Textinhalte unter
+// CC BY-SA 3.0 und verlangt an jeder Kopie BEIDES: die Namensnennung (den Link auf den Artikel, den es
+// hier immer schon gab) und den Lizenzhinweis (seit 14.08.2026). Eine Kurzbeschreibung aus dem Wiki ist
+// eine solche Kopie. Der Programmcode daneben steht unter MIT -- zwei Lizenzen, zwei Gegenstaende, nie
+// vermischen (LICENSE-NOTICE.md).
+const WIKI_TEXT_LICENSE_URL = "https://creativecommons.org/licenses/by-sa/3.0/";
+
 // Gemeinsame Quellenangabe fuer WA-Inhalte in ALLEN oeffentlichen Infoboxen (Siedlung/Territorium/Landschaft):
 // die Kurzbeschreibungen stammen aus dem Wiki Aventurica -> Uebernahme kenntlich machen + "Mehr hier"-Link auf
 // den Artikel (wie bisher). Rendert nichts ohne URL.
@@ -115,9 +122,11 @@ function wikiSourceCreditMarkup(url, linkClass = "region-info-box__link") {
 	if (!url) {
 		return "";
 	}
-	const credit = tr("popup.wikiSourceCredit", "Informationen aus dem Wiki Aventurica.");
+	const credit = tr("popup.wikiSourceCredit", "Informationen aus dem Wiki Aventurica");
 	const more = tr("popup.wikiSourceMore", "Mehr hier");
-	return `<div class="wiki-source-credit">${escapeHtml(credit)} <a class="${escapeHtml(linkClass)}" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(more)}<span class="wiki-source-credit__arrow" aria-hidden="true"> &#8599;</span></a></div>`;
+	const license = tr("popup.wikiTextLicense", "CC BY-SA 3.0");
+	const licenseLink = `<a class="${escapeHtml(linkClass)}" href="${escapeHtml(WIKI_TEXT_LICENSE_URL)}" target="_blank" rel="noopener noreferrer">${escapeHtml(license)}<span class="wiki-source-credit__arrow" aria-hidden="true"> &#8599;</span></a>`;
+	return `<div class="wiki-source-credit">${escapeHtml(credit)} (${licenseLink}). <a class="${escapeHtml(linkClass)}" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(more)}<span class="wiki-source-credit__arrow" aria-hidden="true"> &#8599;</span></a></div>`;
 }
 
 function wikiLocationLinkMarkup(name, wikiUrlOverride = "") {
@@ -186,6 +195,9 @@ function renderFeatureSourceLine(entityType, entityPublicId, wikiUrl, linkClass,
 		linkClass,
 		officialTooltip: tr("popup.officialSource", "offizielle Quelle"),
 		wikiLabel: tr("popup.wiki", "Wiki Aventurica"),
+		// Haengt am Wiki-Eintrag der Zeile, nicht an der Zeile (siehe buildSourceListMarkup).
+		wikiLicenseLabel: tr("popup.wikiTextLicense", "CC BY-SA 3.0"),
+		wikiLicenseUrl: WIKI_TEXT_LICENSE_URL,
 		mentionTooltip: tr("popup.sourceMention", "nur Erwähnung"),
 		sourceLabelSingular: tr("popup.sourceSingular", "Quelle"),
 		sourceLabelPlural: tr("popup.sources", "Quellen"),

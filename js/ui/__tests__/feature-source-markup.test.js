@@ -52,4 +52,28 @@ assert.ok(erwPanel.includes("Historia Aventurica"), "erwaehnung in erw panel");
 const offPanel = html.slice(html.indexOf('data-fs-panel="off"'), html.indexOf('data-fs-panel="erw"'));
 assert.ok(offPanel.includes("Efferds Wogen") && offPanel.includes("Im Bann des Diamanten"), "substantive in off panel");
 
+// ---- Der Lizenzhinweis der Wiki-Texte (CC BY-SA 3.0) --------------------------------------------
+//
+// 💣 Er haengt am WIKI-Eintrag, nicht an der Zeile: die uebrigen Quellen (Publikationen,
+// Briefspiele, eigene) stehen NICHT unter dieser Lizenz, eine Fussnote unter der ganzen Zeile
+// behauptete es aber fuer alle. Und ohne Beschriftung/Adresse rendert er gar nichts -- der reine
+// Renderer behauptet keine Lizenz, die ihm niemand mitgegeben hat.
+const LIC = { wikiLabel: "Wiki Aventurica", wikiLicenseLabel: "CC BY-SA 3.0", wikiLicenseUrl: "https://cc/by-sa/3.0/" };
+
+let lic = buildSourceListMarkup("https://wiki/x", [], LIC);
+assert.ok(lic.includes("CC BY-SA 3.0") && lic.includes('href="https://cc/by-sa/3.0/"'), "Wiki-Eintrag traegt den Lizenzhinweis");
+assert.ok(/Wiki Aventurica[\s\S]*?CC BY-SA 3.0/.test(lic), "und zwar HINTER dem Wiki-Link");
+
+assert.ok(!buildSourceListMarkup("https://wiki/x", [], { wikiLabel: "Wiki Aventurica" }).includes("CC BY-SA"),
+	"ohne uebergebene Lizenz kein Hinweis");
+assert.ok(!buildSourceListMarkup("", [{ url: "https://vali/a", label: "Vali" }], LIC).includes("CC BY-SA"),
+	"ohne Wiki-Link kein Hinweis -- eine eigene Quelle steht nicht unter der Wiki-Lizenz");
+
+// ⚠️ Genau EINMAL, am Wiki-Eintrag -- nicht an jeder Quelle der Zeile.
+lic = buildSourceListMarkup("https://wiki/x", [
+  { url: "https://vali/a", label: "Vali's Almanach" },
+  { url: "https://f-shop/1", label: "Efferds Wogen", reference_kind: "ausfuehrlich" },
+], LIC);
+assert.strictEqual(lic.split("CC BY-SA 3.0").length - 1, 1, "der Hinweis steht genau einmal in der Zeile");
+
 console.log("feature-source-markup tests passed");

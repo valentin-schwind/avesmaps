@@ -25,6 +25,8 @@ var FEATURE_SOURCE_MARKUP_TYPE_LABELS = {
 function buildSourceListMarkup(wikiUrl, sources, opts) {
   opts = opts || {};
   var wikiLabel = opts.wikiLabel || "Wiki";
+  var wikiLicenseLabel = opts.wikiLicenseLabel || "";
+  var wikiLicenseUrl = opts.wikiLicenseUrl || "";
   var officialTooltip = opts.officialTooltip || "offizielle Quelle";
   var mentionTooltip = opts.mentionTooltip || "";
   var sourceLabelSingular = opts.sourceLabelSingular || "Quelle";
@@ -62,6 +64,16 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   var link = function (url, inner) {
     return '<a class="fs-src-a" href="' + esc(url) + '" target="_blank" rel="noopener">' + inner + ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>';
   };
+  // Gedaempfte Variante fuer den Lizenzhinweis: er steht NEBEN der Quelle, ist aber selbst keine.
+  // Ohne Beschriftung oder Adresse rendert er nichts -- der reine Renderer behauptet keine Lizenz,
+  // die ihm niemand mitgegeben hat.
+  var wikiLicenseMarkup = function () {
+    if (!wikiLicenseLabel || !wikiLicenseUrl) {
+      return "";
+    }
+    return '<a class="fs-src-lic" href="' + esc(wikiLicenseUrl) + '" target="_blank" rel="noopener">' +
+      esc(wikiLicenseLabel) + ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>';
+  };
 
   var list = Array.isArray(sources) ? sources.filter(function (s) { return s && (s.label || s.url); }) : [];
   // A wiki publication carries a reference_kind; anything without one is a direct/own source.
@@ -73,7 +85,12 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   // ----- Line 1: Quelle(n) — the wiki page link + direct/own sources -----
   var items = [];
   if (wikiUrl) {
-    items.push(link(wikiUrl, esc(wikiLabel)));
+    // 💣 Der Lizenzhinweis haengt am WIKI-Eintrag, nie an der Zeile. Wiki-Aventurica-TEXTE stehen
+    // unter CC BY-SA 3.0, die uebrigen Quellen daneben (Publikationen, Briefspiele, eigene) NICHT --
+    // eine Fussnote unter der ganzen Zeile behauptete die Lizenz fuer alle. Die Lizenz verlangt an
+    // jeder Kopie zweierlei: die Namensnennung (der Artikel-Link) UND den Lizenzhinweis; bis zum
+    // 14.08.2026 stand nur die erste Haelfte da.
+    items.push(link(wikiUrl, esc(wikiLabel)) + wikiLicenseMarkup());
   }
   direct.forEach(function (s) {
     var label = esc(s.label || s.url || "");
