@@ -43,13 +43,16 @@
      seven editor pages and a bare `body {}` would reach all of them. -->
 <body class="avm-editor-body">
 
-<!-- Menüband: FOUR tiles, all the same width. „Zugehörigkeit rechnen" is deliberately NOT here --
+<!-- Menüband: FIVE tiles, all the same width. „Zugehörigkeit rechnen" is deliberately NOT here --
      it stays in the landscape editor (owner 2026-08-02); column 2 links across instead.
-     Only the sync tile carries an icon and --primary (owner decision, ribbon session 2026-07-17). -->
+     Only the sync tile carries an icon and --primary (owner decision, ribbon session 2026-07-17).
+     💣 Die gleiche Breite ist bei FÜNF Kacheln neu zu prüfen: `flex: 1 1 0` ergibt mit `border-box`
+     UNgleiche Spalten, sobald Polsterung und Rahmen mitzählen. -->
 <div class="avm-ribbon-bar">
   <div class="avm-ribbon">
     <button type="button" class="avm-tile avm-tile--primary" id="wpSync" title="Übernimmt die Wege aus dem zuletzt gelesenen Dump in die Staging-Tabellen. Läuft im Hauptfenster; das Ergebnis erscheint hier in der Statuszeile."><span class="t1">🚨 Wege syncen</span><span class="t2" id="wpSyncInfo">Wege aus dem Wiki-Dump</span></button>
     <button type="button" class="avm-tile" id="wpProfiles" title="Leitet aus den gespeicherten Höhenrastern je Weg Anstieg und Gefälle ab. Läuft in Stücken auf dem Server; nichts davon wird beim Routen nachgerechnet."><span class="t1">Wegprofile rechnen</span><span class="t2" id="wpProfilesInfo">noch nicht gerechnet</span></button>
+    <button type="button" class="avm-tile" id="wpTempo" title="Die Zahlen aus der Geographia Aventurica, aus denen jede Reisezeit entsteht: Tagesleistung je Reisemittel, Geländefaktor je Wegtyp, Boden nach Jahreszeit. Einstellbar, mit Rücksetzer auf die Quellenwerte."><span class="t1">Tempowerte</span><span class="t2" id="wpTempoInfo">wird geladen…</span></button>
     <button type="button" class="avm-tile" id="wpCalibrate" title="Bestimmt den globalen Skalierungsfaktor c über alle Straßen und berichtet ihn. Ändert keine einzige Reisezeit."><span class="t1">Wegprofile kalibrieren</span><span class="t2" id="wpCalibrateInfo">noch nicht geeicht</span></button>
     <button type="button" class="avm-tile" id="wpFunctions" title="Zeigt das Reisemodell als Kurven: Zeitfaktor über Neigung, Meilen pro Stunde je Wegtyp und Transportmittel, die gemessene Datenlage und das Ergebnis der letzten Eichung."><span class="t1">Funktionen anzeigen</span><span class="t2">Modell als Kurven</span></button>
   </div>
@@ -109,6 +112,27 @@
       <button type="button" class="wp-modal__close" id="wpFnClose" aria-label="Schließen">✕</button>
     </div>
     <div class="wp-fn" id="wpFnBody"></div>
+  </div>
+</div>
+
+<!-- „Tempowerte" — die GA-Zahlen, aus denen jede Reisezeit entsteht.
+     Entwurf: docs/superpowers/specs/2026-08-07-tempowerte-design.md
+     🔴 Die GA-Tafel selbst steht im SERVER (api/_internal/routing/travel-values.php); hier stehen
+     nur die Werte, die von dort kommen. Zweimal gepflegt liefen sie auseinander. -->
+<div class="wp-modal" id="wpTempoOverlay" hidden>
+  <div class="wp-modal__box" role="dialog" aria-modal="true" aria-labelledby="wpTempoTitle">
+    <div class="wp-modal__head">
+      <h2 id="wpTempoTitle">Tempowerte — die Zahlen der Geographia Aventurica</h2>
+      <button type="button" class="wp-modal__close" id="wpTempoClose" aria-label="Schließen">✕</button>
+    </div>
+    <div class="wp-tempo" id="wpTempoBody"></div>
+    <!-- ⭐ Dieselbe Speicherleiste wie die Liste darunter (.wp-savebar), nicht eine zweite: EIN
+         gefüllter Knopf, die Meldung links daneben. Jeder Rücksetzer in den Abschnitten bleibt
+         weich/outline — eine Abschnittshandlung ist nicht die Haupthandlung (AGENTS.md §12). -->
+    <div class="wp-savebar">
+      <span class="wp-savebar__msg" id="wpTempoStatus"></span>
+      <button type="button" class="is-primary" id="wpTempoSave">Speichern</button>
+    </div>
   </div>
 </div>
 

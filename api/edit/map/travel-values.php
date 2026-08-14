@@ -1,0 +1,116 @@
+<?php
+
+declare(strict_types=1);
+
+// Die Tempowerte lesen, speichern und auf die GA zurücksetzen.
+// Entwurf: docs/superpowers/specs/2026-08-07-tempowerte-design.md §8.1
+//
+// 🔴 DIE GA-TAFEL STEHT IM SERVER (`avesmapsTravelValuesSourceTable`), nicht im Browser. `reset`
+// rechnet hier; läge die Tafel auch im Fenster, gäbe es sie zweimal und sie liefen auseinander.
+
+require __DIR__ . '/../../_internal/auth.php';
+require_once __DIR__ . '/../../_internal/app/app-setting.php';
+require_once __DIR__ . '/../../_internal/routing/travel-values.php';
+require_once __DIR__ . '/../../_internal/map/features.php';
+
+try {
+    $config = avesmapsLoadApiConfig(avesmapsApiRoot());
+
+    if (!avesmapsApplyCorsPolicy($config)) {
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf Tempowerte nicht bearbeiten.');
+    }
+
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'POST'));
+    if ($requestMethod === 'OPTIONS') {
+        avesmapsJsonResponse(204);
+    }
+    if ($requestMethod !== 'POST') {
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur POST ist fuer diesen Endpoint erlaubt.');
+    }
+
+    $user = avesmapsRequireUserWithCapability('edit');
+    $payload = avesmapsReadJsonRequest();
+    $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? 'get'), 40);
+
+    $pdo = avesmapsCreatePdo($config);
+    avesmapsAppSettingEnsureTable($pdo);
+
+    $values = avesmapsTravelValuesRead($pdo);
+    // Der Stand VOR der Änderung — das Protokoll braucht beide Seiten.
+    $before = $values['grid'];
+
+    if ($action === 'get') {
+        avesmapsJsonResponse(200, [
+            'ok' => true,
+            'values' => $values,
+            'source_table' => avesmapsTravelValuesSourceTable(),
+            'deviations' => avesmapsTravelValuesDeviations($values),
+        ]);
+    }
+
+    if ($action !== 'save' && $action !== 'reset') {
+        avesmapsErrorResponse(400, 'invalid_action', 'Unbekannte Aktion.');
+    }
+
+    if ($action === 'reset') {
+        $section = avesmapsNormalizeSingleLine((string) ($payload['section'] ?? ''), 40);
+        if (!in_array($section, ['day_miles', 'path_factors', 'ground', 'misc', 'all'], true)) {
+            avesmapsErrorResponse(400, 'invalid_section', 'Unbekannter Abschnitt.');
+        }
+        $values = avesmapsTravelValuesResetSection($values, $section);
+    } else {
+        // 💣 NUR ZELLEN, DIE ES SCHON GIBT, und nur positive Zahlen. Eine 0 oder ein leeres Feld
+        // wäre im Graphbau kein Fehler, sondern ein still übersprungener Weg — `resolveSpeed`
+        // steigt bei einem falschen Wert einfach aus und der Weg fehlt in der Route.
+        $incoming = is_array($payload['grid'] ?? null) ? $payload['grid'] : [];
+        foreach ($incoming as $transport => $row) {
+            if (!isset($values['grid'][$transport]) || !is_array($row)) { continue; }
+            foreach ($row as $pathType => $speed) {
+                if (!isset($values['grid'][$transport][$pathType])) { continue; }
+                $speed = is_string($speed) ? str_replace(',', '.', trim($speed)) : $speed;
+                if (!is_numeric($speed) || (float) $speed <= 0.0) { continue; }
+                $values['grid'][$transport][$pathType] = round((float) $speed, 2);
+            }
+        }
+    }
+
+    // 💣 EINE ZEILE, ATOMAR. Ein halb gespeichertes Tempo-Raster ist ein kaputter Router; ein
+    // JSON-Wert wird in einem Schreibvorgang geschrieben, sechsundzwanzig Zeilen einer
+    // Schlüssel-Wert-Tabelle nicht.
+    $stored = [
+        'grid' => $values['grid'],
+        'day_miles' => $values['day_miles'],
+        'path_factors' => $values['path_factors'],
+        'ground_penalties' => $values['ground_penalties'],
+        'river_ratio' => $values['river_ratio'],
+        'calibration_target_miles' => $values['calibration_target_miles'],
+    ];
+    avesmapsAppSettingSet($pdo, AVESMAPS_TRAVEL_VALUES_SETTING_KEY, json_encode($stored, JSON_UNESCAPED_UNICODE));
+
+    // ⚠️ `map_revision` wird NICHT gehoben — es ändert kein Kartenobjekt, und ein Sprung würde jeden
+    // Client die komplette Feature-Nutzlast neu laden lassen. Der Router liest den eigenen Stempel.
+    avesmapsAppSettingSet($pdo, AVESMAPS_TRAVEL_VALUES_SETTING_KEY . '_stamp', (string) time());
+
+    // Eine Protokollzeile je Speichern, nie eine je Wert. `feature_id = NULL` — es hängt an keinem
+    // Kartenobjekt.
+    if (function_exists('avesmapsWriteMapAuditLog')) {
+        avesmapsWriteMapAuditLog(
+            $pdo,
+            null,
+            'travel_values_' . $action,
+            (int) ($user['id'] ?? 0),
+            json_encode(['grid' => $before], JSON_UNESCAPED_UNICODE),
+            json_encode(['grid' => $values['grid'], 'section' => $payload['section'] ?? null], JSON_UNESCAPED_UNICODE)
+        );
+    }
+
+    $values = avesmapsTravelValuesRead($pdo);
+    avesmapsJsonResponse(200, [
+        'ok' => true,
+        'values' => $values,
+        'source_table' => avesmapsTravelValuesSourceTable(),
+        'deviations' => avesmapsTravelValuesDeviations($values),
+    ]);
+} catch (Throwable $error) {
+    avesmapsErrorResponse(500, 'server_error', 'Die Tempowerte konnten nicht verarbeitet werden.');
+}

@@ -1206,12 +1206,208 @@
 			if (event.target === $("wpFnOverlay")) { $("wpFnOverlay").hidden = true; }
 		});
 
+		$("wpTempo").addEventListener("click", function () {
+			$("wpTempoOverlay").hidden = false;
+			loadTempo();
+		});
+		$("wpTempoClose").addEventListener("click", function () { $("wpTempoOverlay").hidden = true; });
+		$("wpTempoOverlay").addEventListener("click", function (event) {
+			if (event.target === $("wpTempoOverlay")) { $("wpTempoOverlay").hidden = true; }
+		});
+		$("wpTempoSave").addEventListener("click", saveTempo);
+
 		$("wpSync").addEventListener("click", runSync);
+	}
+
+	// ── Tempowerte ────────────────────────────────────────────────────────────────────────────
+	// Entwurf: docs/superpowers/specs/2026-08-07-tempowerte-design.md
+	//
+	// 🔴 DIE GA-TAFEL KOMMT VOM SERVER und wird hier nie nachgeschlagen. Sie steht in
+	// api/_internal/routing/travel-values.php; eine zweite Abschrift im Browser liefe auseinander,
+	// und der Rücksetzer rechnete dann etwas anderes als die Anzeige zeigt.
+	var tempoState = null;
+
+	// Die elf Reisemittel in der Reihenfolge, in der sie im Planer stehen -- Land zuerst.
+	var TEMPO_TRANSPORT_LABELS = {
+		groupFoot: "Reisegruppe zu Fuß", lightWalker: "Zu Fuß", groupHorse: "Reisegruppe beritten",
+		lightRider: "Reiter", caravan: "Karawane", horseCarriage: "Kutsche",
+		riverBarge: "Flusskahn", riverSailer: "Flusssegler",
+		cargoShip: "Lastensegler", galley: "Galeere", fastShip: "Schnellsegler"
+	};
+	var TEMPO_PATH_LABELS = {
+		Reichsstrasse: "Reichsstraße", Strasse: "Straße", Weg: "Weg (Karrenweg)", Pfad: "Pfad",
+		Gebirgspass: "Gebirgspass", Wuestenpfad: "Wüstenpfad", Querfeldein: "Querfeldein",
+		Flussweg: "Flussweg", Seeweg: "Seeweg"
+	};
+
+	function tempoNum(value) {
+		var n = parseFloat(String(value).replace(",", "."));
+		return isFinite(n) ? n : null;
+	}
+
+	function tempoSetStatus(text, kind) {
+		var el = $("wpTempoStatus");
+		el.textContent = text || "";
+		el.className = "wp-savebar__msg" + (kind ? " " + kind : "");
+	}
+
+	/* Eine Zeile des Rasters: Name · unser Wert (Eingabe) · GA-Wert · die Wirkung.
+	 * ⚠️ Die Wirkung steht daneben, weil eine Zahl ohne ihre Folge keine Entscheidung erlaubt --
+	 * „0,96" sagt niemandem etwas, „0,96 Meilen/h, 11,5 Meilen am Reisetag" schon. */
+	function tempoGridRow(transport, pathType, rawSpeed, sourceSpeed, hours) {
+		// ⚠️ Durch Number() statt roh ins Attribut: der Wert kommt zwar aus der eigenen Antwort und
+		// hat dort schon ein round() gesehen, aber ein Zahlenfeld, das eine Zeichenkette einsetzt,
+		// ist genau die Stelle, an der später jemand ein Anführungszeichen unterbringt.
+		var speed = Number(rawSpeed);
+		if (!isFinite(speed)) { speed = 0; }
+		var perDay = speed * hours / 1.19;
+		var abweichung = (sourceSpeed !== null && Math.abs(speed - sourceSpeed) >= 0.005);
+		return '<tr' + (abweichung ? ' class="is-off"' : "") + ">"
+			+ "<th scope=\"row\">" + escapeHtml(TEMPO_PATH_LABELS[pathType] || pathType) + "</th>"
+			+ '<td><input type="number" step="0.01" min="0.01" class="wp-tempo__in" data-transport="'
+			+ escapeHtml(transport) + '" data-path="' + escapeHtml(pathType) + '" value="' + speed.toFixed(2) + '"></td>'
+			+ "<td class=\"wp-tempo__ga\">" + (sourceSpeed !== null ? sourceSpeed.toFixed(2) : "—") + "</td>"
+			+ "<td class=\"wp-tempo__eff\">" + perDay.toFixed(1) + " Mln/Tag</td>"
+			+ "</tr>";
+	}
+
+	function renderTempo() {
+		if (!tempoState) { return; }
+		var values = tempoState.values, src = tempoState.source_table, dev = tempoState.deviations;
+		var html = "";
+
+		// Abschnitt 1: das Raster. Es IST die Wahrheit (Entwurf §5) -- die zwei Listen darunter sind
+		// Anzeige, nicht Speicher.
+		html += '<div class="wp-tempo__sec"><h3>Raster: Reisemittel × Wegtyp</h3>'
+			+ '<p class="wp-tempo__note">Gespeichert wird genau diese Tabelle. Die Werte sind krumm, weil '
+			+ 'die <i>Geographia Aventurica</i> nie eine Geschwindigkeit nennt, sondern immer eine '
+			+ 'Tagesleistung: <code>Tempo = Tagesleistung × 1,032 × 1,19 ÷ Reisestunden</code>. '
+			+ 'Wer eine Zahl glattzieht, bricht die Zuordnung zur Quelle.</p>';
+
+		Object.keys(TEMPO_TRANSPORT_LABELS).forEach(function (transport) {
+			var row = values.grid[transport];
+			if (!row) { return; }
+			var isLand = ["riverBarge", "riverSailer", "cargoShip", "galley", "fastShip"].indexOf(transport) === -1;
+			var hours = transport === "fastShip" ? 24 : 12;
+			var dayMiles = src.day_miles[transport];
+			var road = dayMiles * (isLand ? 1.032 : 1) * 1.19 / hours;
+			html += '<div class="wp-tempo__grp"><h4>' + escapeHtml(TEMPO_TRANSPORT_LABELS[transport])
+				+ ' <span class="wp-tempo__day">GA: ' + dayMiles + " Meilen/Tag"
+				+ (transport === "fastShip" ? ", fährt nachts durch" : "")
+				+ (transport === "groupHorse" ? " — Tabelle S. 123; der Fließtext S. 118 sagt 40, die Quelle löst es nicht auf" : "")
+				+ "</span></h4><table class=\"wp-tempo__tbl\"><tbody>";
+			Object.keys(row).forEach(function (pathType) {
+				var gaFactor = src.path_factors[pathType];
+				var gaSpeed = null;
+				if (isLand && gaFactor) {
+					gaSpeed = road * gaFactor;
+					// 💣 Die Kutschenregel ist eine REGEL, kein Gelände (S. 123): halbe Geschwindigkeit
+					// auf Karrenweg und Pass. Ohne sie zeigte die GA-Spalte hier einen Wert, den der
+					// Rücksetzer nie schreibt.
+					if (transport === "horseCarriage" && (pathType === "Weg" || pathType === "Gebirgspass")) {
+						gaSpeed = gaSpeed * 0.5;
+					}
+				} else if (!isLand) {
+					gaSpeed = road;
+				}
+				html += tempoGridRow(transport, pathType, row[pathType], gaSpeed, hours);
+			});
+			html += "</tbody></table></div>";
+		});
+		html += '<button type="button" class="wp-tempo__reset" data-section="path_factors">'
+			+ "Alle Wegtypen auf die GA-Werte zurücksetzen</button></div>";
+
+		// Abschnitt 2: der Befund.
+		html += '<div class="wp-tempo__sec"><h3>Was von der Quelle abweicht</h3>';
+		if (dev.total === 0) {
+			html += '<p class="wp-tempo__note">Nichts — alle Werte entsprechen der Geographia Aventurica.</p>';
+		} else {
+			html += "<ul class=\"wp-tempo__dev\">";
+			Object.keys(dev.path_factors.values).forEach(function (pathType) {
+				var d = dev.path_factors.values[pathType];
+				html += "<li><b>" + escapeHtml(TEMPO_PATH_LABELS[pathType] || pathType) + "</b> — "
+					+ "Geländefaktor " + d.ours.toFixed(3) + " statt " + d.source.toFixed(2) + "</li>";
+			});
+			Object.keys(dev.day_miles.values).forEach(function (transport) {
+				var d = dev.day_miles.values[transport];
+				html += "<li><b>" + escapeHtml(TEMPO_TRANSPORT_LABELS[transport] || transport) + "</b> — "
+					+ d.ours.toFixed(1) + " statt " + d.source.toFixed(0) + " Meilen/Tag</li>";
+			});
+			html += "</ul>";
+		}
+		html += "</div>";
+
+		// Abschnitt 3: gesperrt — unsere Rechnung, nicht die Quelle.
+		html += '<div class="wp-tempo__sec"><h3>Nicht aus der Quelle — unsere Rechnung</h3>'
+			+ '<p class="wp-tempo__note">Diese Werte stehen <b>nicht</b> in der Geographia Aventurica. Sie '
+			+ "stehen hier, damit der Unterschied zwischen Quelle und eigener Rechnung sichtbar ist, und "
+			+ "sind deshalb nicht einstellbar.</p><ul class=\"wp-tempo__locked\">"
+			+ "<li>Zeitmaßstab <b>1,19</b></li>"
+			+ "<li>Steigungsausgleich <code>mean_G</code> <b>1,032</b> (gemessen)</li>"
+			+ "<li>Reisetag <b>12 h</b> — 24 h nur beim Schnellsegler (S. 131)</li>"
+			+ "<li>Leistungskilometer 100 / 150 / 20 % / Deckel 4,0 — Naismith mit Langmuirs Zusatz, "
+			+ "<b>kein</b> DSA-Kanon (§9, §27 führen dazu ausdrücklich nichts)</li>"
+			+ "<li>Aufschlag auf Reparaturkanten <b>×25</b> — ein Dijkstra-Gewicht, keine Reisezeit</li>"
+			+ "</ul></div>";
+
+		$("wpTempoBody").innerHTML = html;
+		Array.prototype.forEach.call($("wpTempoBody").querySelectorAll(".wp-tempo__reset"), function (btn) {
+			btn.addEventListener("click", function () { resetTempo(btn.getAttribute("data-section")); });
+		});
+	}
+
+	function applyTempoResponse(data) {
+		if (!data || !data.ok) {
+			tempoSetStatus("Die Tempowerte konnten nicht geladen werden.", "bad");
+			return false;
+		}
+		tempoState = data;
+		renderTempo();
+		var total = data.deviations ? data.deviations.total : 0;
+		$("wpTempoInfo").textContent = total === 0
+			? "alle Werte wie in der GA"
+			: total + (total === 1 ? " Wert weicht" : " Werte weichen") + " von der GA ab";
+		return true;
+	}
+
+	function loadTempo() {
+		tempoSetStatus("Wird geladen…", "");
+		postJson("/api/edit/map/travel-values.php", { action: "get" }).then(function (data) {
+			if (applyTempoResponse(data)) { tempoSetStatus("", ""); }
+		}).catch(function () { tempoSetStatus("Die Tempowerte konnten nicht geladen werden.", "bad"); });
+	}
+
+	function saveTempo() {
+		if (!tempoState) { return; }
+		// Nur das Raster reist -- alles andere ist Anzeige. Ein leeres oder unlesbares Feld wird
+		// ausgelassen, nicht als 0 geschickt: eine 0 im Raster ist kein Fehler, sondern ein still
+		// übersprungener Weg im Graphbau.
+		var grid = {};
+		Array.prototype.forEach.call($("wpTempoBody").querySelectorAll(".wp-tempo__in"), function (input) {
+			var value = tempoNum(input.value);
+			if (value === null || value <= 0) { return; }
+			var transport = input.getAttribute("data-transport"), pathType = input.getAttribute("data-path");
+			if (!grid[transport]) { grid[transport] = {}; }
+			grid[transport][pathType] = value;
+		});
+		tempoSetStatus("Wird gespeichert…", "");
+		postJson("/api/edit/map/travel-values.php", { action: "save", grid: grid }).then(function (data) {
+			if (applyTempoResponse(data)) { tempoSetStatus("Gespeichert.", "ok"); }
+		}).catch(function () { tempoSetStatus("Speichern fehlgeschlagen.", "bad"); });
+	}
+
+	function resetTempo(section) {
+		if (!section) { return; }
+		tempoSetStatus("Wird zurückgesetzt…", "");
+		postJson("/api/edit/map/travel-values.php", { action: "reset", section: section }).then(function (data) {
+			if (applyTempoResponse(data)) { tempoSetStatus("Auf die GA-Werte zurückgesetzt — noch nicht gespeichert? Doch: der Rücksetzer schreibt sofort.", "ok"); }
+		}).catch(function () { tempoSetStatus("Zurücksetzen fehlgeschlagen.", "bad"); });
 	}
 
 	function boot() {
 		wire();
 		refreshSyncedLabel();
+		loadTempo();
 		loadList();
 		ecoPost("terrain_profile_status", {}).then(function (status) {
 			renderProfileTile(status);

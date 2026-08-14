@@ -298,3 +298,51 @@
 	min-height: var(--avm-control-h);
 	padding: 0 var(--space-8);
 }
+
+/* ---- „Tempowerte": die GA-Zahlen, aus denen jede Reisezeit entsteht -------------------------
+   Entwurf: docs/superpowers/specs/2026-08-07-tempowerte-design.md §8.
+   Gruppiert wird durch TRENNLINIE UND ÜBERSCHRIFT, nicht durch gerahmte Kästen (AGENTS.md §12).
+   Kein hartkodierter Farbwert, kein hartkodierter Radius -- jeder Wert kommt aus einem Token. */
+.wp-tempo { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--avm-col-pad); }
+
+.wp-tempo__sec { padding-top: var(--space-8); }
+.wp-tempo__sec + .wp-tempo__sec { margin-top: var(--space-8); border-top: 1px solid var(--color-divider); }
+.wp-tempo__sec h3 { margin: 0 0 var(--space-4); font-size: var(--font-size-subhead); color: var(--color-text-strong); }
+.wp-tempo__sec h4 { margin: var(--space-6) 0 var(--space-2); font-size: var(--font-size-caption); color: var(--color-text-strong); }
+
+.wp-tempo__note { margin: 0 0 var(--space-6); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.wp-tempo__note code { font-size: inherit; color: var(--color-text); }
+.wp-tempo__day { font-weight: normal; color: var(--color-text-muted); }
+
+.wp-tempo__tbl { width: 100%; border-collapse: collapse; }
+.wp-tempo__tbl th,
+.wp-tempo__tbl td { padding: var(--space-2) var(--space-4); text-align: left; font-size: var(--font-size-caption); }
+.wp-tempo__tbl th { font-weight: normal; color: var(--color-text); }
+.wp-tempo__tbl tr + tr th,
+.wp-tempo__tbl tr + tr td { border-top: 1px solid var(--color-divider); }
+/* Eine Zelle, die von der Quelle abweicht -- der Ton kommt aus dem Status-Token, nicht aus einem
+   eigenen Rot: er sitzt hier auf der weichen Panel-Fläche und muss dort lesbar bleiben. */
+.wp-tempo__tbl tr.is-off .wp-tempo__ga { color: var(--color-warning); }
+
+.wp-tempo__in { width: 5.5rem; }
+.wp-tempo__ga,
+.wp-tempo__eff { color: var(--color-text-muted); white-space: nowrap; }
+
+.wp-tempo__dev,
+.wp-tempo__locked { margin: 0; padding-left: var(--space-8); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.wp-tempo__dev li,
+.wp-tempo__locked li { margin-bottom: var(--space-2); }
+
+/* ⚠️ Weich/outline, NIE gefüllt: der Rücksetzer ist eine Abschnittshandlung, nicht die
+   Haupthandlung des Fensters -- die heißt „Speichern" und steht allein in der Leiste unten. */
+.wp-tempo__reset {
+	margin-top: var(--space-6);
+	background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border);
+	color: var(--color-button-soft-text);
+	border-radius: var(--radius-md);
+	padding: var(--space-2) var(--space-6);
+	font-size: var(--font-size-caption);
+	cursor: pointer;
+}
+.wp-tempo__reset:hover { background: var(--color-button-soft-hover); }
