@@ -339,3 +339,22 @@ console.log("svg-export-build (keine Transparenz): ok");
 }
 
 console.log("svg-export-build (Strichstärken): ok");
+
+// ---- 14. Gebietsgrenzen sind auch nur Linien ------------------------------------------
+// ⚠️ Sie standen bis 15.08.2026 auf 0,4 = 12,8 px -- viermal zu dick, derselbe Schätzfehler
+// wie bei den Wegen, nur eine Zeile weiter unten und deshalb beim ersten Mal übersehen.
+// Deshalb prüft dieser Test die GANZE Datei und nicht nur die Wege.
+{
+	const terr = { features: [{ properties: { name: "Ein Reich", public_id: "t1", type: "region" },
+		geometry: { type: "Polygon", coordinates: [[[0, 1024], [8, 1024], [8, 1016], [0, 1024]]] } }] };
+	const svg = B.svgxBuildDocument({ mapFeatures: payload, territories: terr, dialect: D.INKSCAPE })
+		.parts.join("");
+	const staerken = [...new Set([...svg.matchAll(/stroke-width="([\d.]+)"/g)].map((m) => Number(m[1])))];
+	const dickste = Math.max(...staerken);
+	assert.ok(dickste <= 0.125 + 1e-9,
+		`keine Linie darf dicker sein als die Reichsstraße (0,125 = 4 px), dickste war `
+		+ `${dickste} = ${(dickste * 32).toFixed(1)} px`);
+	assert.ok(Math.abs(B.SVGX_BOUNDARY_WIDTH - 3 / 32) < 0.002, "Gebietsgrenze = 3 px der Karte");
+}
+
+console.log("svg-export-build (Grenzenstärke): ok");

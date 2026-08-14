@@ -62,6 +62,13 @@ const SVGX_WAY_WIDTHS = {
 
 const SVGX_POWERLINE_WIDTH = 0.078;   // wie eine Straße
 
+// Gebietsgrenzen. Die Karte staffelt sie nach Hierarchiestufe (map-features-boundary-style.js:
+// Reich 4 px, 2. Ebene 3, Grafschaft 2, tiefer 1) -- aber der Payload liefert alle 166 Gebiete
+// mit demselben `type` und OHNE Stufe. Eine Stärke muss also reichen, und das ist die mittlere.
+// ⚠️ Stand hier bis 15.08.2026 als 0,4 = 12,8 px, viermal zu dick; derselbe Schätzfehler wie
+// bei den Wegen, nur eine Zeile weiter unten und deshalb beim ersten Mal übersehen.
+const SVGX_BOUNDARY_WIDTH = 0.094;    // 3 px
+
 // Der Regler auf der Seite: 100 % = die Stärken oben, also der Kartenzustand.
 function svgxStrokeScale(scale) {
 	const wert = Number(scale);
@@ -383,7 +390,9 @@ function svgxAreaLayer(options) {
 				fill: (o.colors && o.colors[schluessel]) || o.defaultFill || "none",
 				"fill-rule": "evenodd",
 				stroke: o.stroke || "none",
-				"stroke-width": o.stroke ? "0.4" : "",
+				"stroke-width": o.stroke
+					? String(SVGX_BOUNDARY_WIDTH * svgxStrokeScale(o.strokeScale))
+					: "",
 			},
 		}));
 		flaechen.forEach((f) => {
@@ -576,7 +585,8 @@ function svgxBuildDocument(options) {
 		nimm("Herrschaftsgebiete", svgxAreaLayer({
 			features: o.territories, layerName: "Herrschaftsgebiete", layerId: "layer-gebiete",
 			groupBy: (f) => svgxProps(f).rank || svgxProps(f).type || "Gebiet",
-			defaultFill: "none", stroke: "#8a6a3f", dialect: dialect, seen: seen,
+			defaultFill: "none", stroke: "#8a6a3f", strokeScale: o.strokeScale,
+			dialect: dialect, seen: seen,
 		}));
 	}
 	if (an.wege !== false) {
@@ -619,6 +629,7 @@ if (typeof module !== "undefined" && module.exports) {
 		SVGX_WAY_SUBTYPES: SVGX_WAY_SUBTYPES,
 		SVGX_WAY_COLORS: SVGX_WAY_COLORS,
 		SVGX_WAY_WIDTHS: SVGX_WAY_WIDTHS,
+		SVGX_BOUNDARY_WIDTH: SVGX_BOUNDARY_WIDTH,
 		SVGX_PLACE_KINDS: SVGX_PLACE_KINDS,
 		svgxPoint: svgxPoint,
 		svgxEscapeText: svgxEscapeText,

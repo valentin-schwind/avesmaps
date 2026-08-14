@@ -207,7 +207,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
          or either script changes, or admins keep the cached files. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260815-svgexport-6" />
+    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260815-svgexport-7" />
 </head>
 
 <body class="edit-page">
@@ -294,7 +294,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                         </label>
                         <span class="svgx-size__presets">
                             <button type="button" class="svgx-secondary" data-svgx-size="8192">8.192</button>
-                            <button type="button" class="svgx-secondary" data-svgx-size="16384">16.384</button>
+                            <button type="button" class="svgx-secondary" data-svgx-size="16384">16.384 &middot; Photoshop</button>
                             <button type="button" class="svgx-secondary" data-svgx-size="32768">32.768</button>
                             <button type="button" class="svgx-secondary" data-svgx-size="65536">65.536</button>
                         </span>
@@ -305,6 +305,13 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                         1024&nbsp;&times;&nbsp;1024, also skaliert alles mit &ndash; Linien,
                         Punkte und Schrift. Auf die <strong>Dateigröße hat das keinen
                         Einfluss</strong>: eine Vektordatei speichert Formen, keine Bildpunkte.
+                    </p>
+                    <p class="svgx-hint">
+                        💣 <strong>Photoshop rastert nichts über 32k.</strong> Wer dort weiter
+                        arbeitet, nimmt <strong>16.384</strong> und skaliert hoch &ndash; das trifft
+                        die Umrisse genau, weil 16.384 ein glatter Teiler von 32.768 ist und jede
+                        Koordinate auf einem halben Bildpunkt landet statt dazwischen. Illustrator
+                        und Inkscape stört die Größe nicht, sie rastern gar nicht.
                     </p>
 
                     <div class="svgx-size" style="margin-top:12px">
@@ -352,8 +359,8 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                 </table>
             </section>
         </main>
-        <script src="../js/pages/svg-export-build.js?v=20260815-svgexport-6"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260815-svgexport-6"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260815-svgexport-7"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260815-svgexport-7"></script>
     <?php endif; ?>
 </body>
 
