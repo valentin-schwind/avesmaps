@@ -571,6 +571,14 @@ async function highlightSpotlightPlaceExtent(entry) {
 //
 // A failure of any kind returns silently: the circles are already on the map, and an occurrence whose
 // outlines did not arrive is still a perfectly good hit.
+//
+// 💣 `places` mischt genannte Orte UND Regeltreffer, UNUNTERSCHEIDBAR: lore-search.php haengt
+// Regeltreffer absichtlich in DERSELBEN Form (title/wiki_key) hinter die genannten Orte an --
+// "the client cannot tell the two apart -- it never knew where a place came from"
+// (api/_internal/app/lore-search.php:264). highlightSpotlightPlaces ruft deshalb fuer JEDE Flaeche
+// hier spotlightLoreIntersectGeometry, faellt aber mangels Unterscheidung und mangels Bandgeometrie
+// (kein Client-Pfad kennt das Klimaband EINES Regeltreffers) immer auf die ganze Flaeche zurueck --
+// unveraendertes Verhalten, bis eine dieser beiden Luecken geschlossen ist.
 async function upgradeSpotlightLoreHighlightToAreas(entry, places) {
 	const labelPublicIds = places
 		.filter((place) => place.kind === "label")
@@ -599,6 +607,34 @@ function getSpotlightPlaceBounds(place) {
 	return marker ? L.latLngBounds(marker.getLatLng(), marker.getLatLng()) : null;
 }
 
+// Ein Regeltreffer soll nur den TEIL einer Flaeche zeigen, den die Regel wirklich trifft -- beim
+// Finsterkamm der Unterschied zwischen dem ganzen Gebirge und seinem borealen Nordteil. Die
+// Verschneidung selbst ist NICHT neu: ecosystemBooleanGeometry (map-features-ecosystem-boolean.js)
+// ist dieselbe Funktion, die der Landschaften-Editor gegen Flaechen benutzt -- keine zweite Fassung.
+//
+// PURE, rein geometrisch: kein Fetch, keine Karte.
+// - Fehlt `bandGeometry` (null/undefined), war keine Bandgeometrie zu haben -- dann lieber die GANZE
+//   Flaeche zeigen als gar keine (Owner: "lieber zu viel hervorheben als gar nichts").
+// - Trifft die Flaeche das Band gar nicht, wirft ecosystemBooleanGeometry (eine leere Schnittmenge
+//   ist dort der Normalfall, nie ein Fehler -- dieselbe Ausnahme wie bei jeder anderen unmoeglichen
+//   Geometrieoperation im Editor). Das wird hier zu `null`, NIE zu einem leeren Polygon: ein leeres
+//   Polygon liesse die Zeichnung stumm nichts malen, und ein Treffer ohne sichtbare Wirkung sieht
+//   kaputt aus.
+function spotlightLoreIntersectGeometry(areaGeometry, bandGeometry) {
+	if (!bandGeometry) {
+		return areaGeometry;
+	}
+	if (typeof ecosystemBooleanGeometry !== "function") {
+		return areaGeometry;
+	}
+
+	try {
+		return ecosystemBooleanGeometry("intersection", areaGeometry, bandGeometry);
+	} catch (error) {
+		return null;
+	}
+}
+
 // Marks each place of an occurrence in the same gold as a highlighted way, in the same pane. The style
 // constant is REUSED deliberately: a second colour literal is exactly what AGENTS.md §12 bans, and the
 // two highlights mean the same thing to the reader.
@@ -623,7 +659,18 @@ function highlightSpotlightPlaces(places, areasByLabel = null, { pointFallback =
 		const areas = spotlightPlaceAreas(place, areasByLabel);
 		if (areas.length) {
 			areas.forEach((area) => {
-				const latlngs = ecosystemAreaLatLngs(area.geometry);
+				// spotlightLoreIntersectGeometry faellt auf die GANZE Flaeche zurueck, solange keine
+				// Bandgeometrie beigegeben wird -- heute IMMER der Fall (siehe der Kommentar an der
+				// Funktion selbst): kein oeffentlicher Lesepfad liefert dem Client, welches Klimaband
+				// ein Regeltreffer traf, und ecosystem-areas.php hat kein `kind=`-Filter, um die acht
+				// Baender ohne die ganze ~1,5-MB-Ebene zu holen. `null` bleibt hier bewusst ein
+				// beschrifteter Platzhalter statt eines zweiten Abrufs -- der waere die Abrufwelle,
+				// die dieses Projekt schon einmal die PHP-Worker gekostet hat.
+				const geometry = spotlightLoreIntersectGeometry(area.geometry, null);
+				if (!geometry) {
+					return;
+				}
+				const latlngs = ecosystemAreaLatLngs(geometry);
 				if (!latlngs) {
 					return;
 				}
