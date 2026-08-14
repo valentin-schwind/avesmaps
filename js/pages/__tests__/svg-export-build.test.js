@@ -105,7 +105,7 @@ const payload = {
 	assert.ok(svg.trimEnd().endsWith("</svg>"), "die Datei endet geschlossen");
 
 	// Alle sieben Ebenen, und zwar in ZEICHENreihenfolge.
-	const ebenen = ["layer-landschaften", "layer-regionen", "layer-gebiete", "layer-wege",
+	const ebenen = ["layer-landschaften", "layer-gebiete", "layer-wege",
 		"layer-kraftlinien", "layer-orte", "layer-beschriftungen"];
 	let pos = -1;
 	ebenen.forEach((id) => {
@@ -145,7 +145,7 @@ const payload = {
 {
 	const { parts } = B.svgxBuildDocument({
 		mapFeatures: payload, dialect: D.INKSCAPE,
-		layers: { landschaften: false, regionen: false, gebiete: false, wege: true,
+		layers: { landschaften: false, gebiete: false, wege: true,
 			kraftlinien: false, orte: false, beschriftungen: false },
 	});
 	const svg = parts.join("");

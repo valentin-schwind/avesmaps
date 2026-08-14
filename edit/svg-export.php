@@ -54,8 +54,10 @@ $isAdmin = $currentUser !== null && avesmapsUserCan($currentUser, 'admin');
  * The key is what the client reads back via data-svgx-layer.
  */
 $layers = [
+    // ⚠️ KEINE Ebene "Regionen": der Payload führt keinen feature_type 'region' (gemessen
+    // 14.08.2026 an 11.810 Features -- location, crossing, path, junction, label, powerline).
+    // Was man dafür hielte, sind die Landschaften-Flächen.
     ['key' => 'landschaften', 'label' => 'Landschaften & Küste', 'note' => 'Kontinente, Inseln, Meere, Vegetation, Klimazonen'],
-    ['key' => 'regionen', 'label' => 'Regionen', 'note' => 'die klassische Regionen-Ebene'],
     ['key' => 'gebiete', 'label' => 'Herrschaftsgebiete', 'note' => 'die politischen Grenzen'],
     ['key' => 'wege', 'label' => 'Wege', 'note' => 'nach Wegart gruppiert, Flüsse als „Flussweg"'],
     ['key' => 'kraftlinien', 'label' => 'Kraftlinien', 'note' => ''],

@@ -213,6 +213,22 @@ function svgxPolygonData(geometry) {
 // Features verschieden. Statt zu raten, welcher gerade welche Hülle benutzt, packen wir
 // tolerant aus -- und die Seite meldet die gefundene Anzahl, damit eine leere Ebene
 // sichtbar wird statt still zu bleiben.
+// 💣 Nicht jede Quelle verpackt ihre Felder in `properties`. Gemessen am 14.08.2026:
+// map-features.php liefert echte GeoJSON-Features (`properties` da), ecosystem-areas.php
+// liefert FLACHE Objekte (`region_name`, `region_type`, `geometry` direkt am Objekt).
+// Wer nur `f.properties.name` liest, bekommt dort still `undefined` -- die Flächen wären
+// gezeichnet, aber alle namenlos und in einer einzigen Gruppe.
+function svgxProps(feature) {
+	if (!feature) { return {}; }
+	return feature.properties || feature;
+}
+
+// Der Anzeigename, quer über die Quellen. Erste nicht-leere Angabe gewinnt.
+function svgxNameOf(feature) {
+	const p = svgxProps(feature);
+	return p.name || p.display_name || p.region_name || p.label_name || "";
+}
+
 function svgxAsFeatures(payload) {
 	if (!payload) { return []; }
 	if (Array.isArray(payload)) { return payload; }
@@ -323,8 +339,8 @@ function svgxAreaLayer(options) {
 		flaechen.forEach((f) => {
 			const d = svgxPolygonData(f.geometry);
 			if (!d) { return; }
-			const name = (f.properties && f.properties.name) || schluessel || o.layerName;
-			const id = svgxIdFor(name, f.properties && f.properties.public_id, o.dialect, o.seen);
+			const name = svgxNameOf(f) || schluessel || o.layerName;
+			const id = svgxIdFor(name, svgxProps(f).public_id, o.dialect, o.seen);
 			stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)} d="${d}">`
 				+ `<title>${svgxEscapeText(name)}</title></path>\n`);
 			anzahl += 1;
@@ -466,25 +482,20 @@ function svgxBuildDocument(options) {
 	};
 
 	// Reihenfolge = Zeichenreihenfolge. In SVG liegt das Erste unten.
+	// ⚠️ Es gibt KEINE Ebene "Regionen": im Payload existiert kein feature_type 'region'
+	// (gemessen 14.08.2026 an 11.810 Features -- location, crossing, path, junction, label,
+	// powerline). Die Flächen, die man dafür hielte, sind die Landschaften-Ebene.
 	if (an.landschaften !== false) {
 		nimm("Landschaften", svgxAreaLayer({
 			features: o.ecosystems, layerName: "Landschaften", layerId: "layer-landschaften",
-			groupBy: (f) => (f.properties && (f.properties.region_type || f.properties.kind)) || "flaeche",
+			groupBy: (f) => svgxProps(f).region_type || svgxProps(f).kind || "flaeche",
 			defaultFill: "#dfd6bd", fillOpacity: "0.85", dialect: dialect, seen: seen,
-		}));
-	}
-	if (an.regionen !== false) {
-		nimm("Regionen", svgxAreaLayer({
-			features: o.mapFeatures, layerName: "Regionen", layerId: "layer-regionen",
-			accept: (f) => f.properties && f.properties.feature_type === "region",
-			groupBy: () => "Region", defaultFill: "none", stroke: "#9a8a6a",
-			dialect: dialect, seen: seen,
 		}));
 	}
 	if (an.gebiete !== false) {
 		nimm("Herrschaftsgebiete", svgxAreaLayer({
 			features: o.territories, layerName: "Herrschaftsgebiete", layerId: "layer-gebiete",
-			groupBy: (f) => (f.properties && (f.properties.rank || f.properties.type)) || "Gebiet",
+			groupBy: (f) => svgxProps(f).rank || svgxProps(f).type || "Gebiet",
 			defaultFill: "none", stroke: "#8a6a3f", dialect: dialect, seen: seen,
 		}));
 	}
@@ -537,6 +548,8 @@ if (typeof module !== "undefined" && module.exports) {
 		svgxPathData: svgxPathData,
 		svgxPolygonData: svgxPolygonData,
 		svgxAsFeatures: svgxAsFeatures,
+		svgxProps: svgxProps,
+		svgxNameOf: svgxNameOf,
 		svgxWayLayer: svgxWayLayer,
 		svgxPowerlineLayer: svgxPowerlineLayer,
 		svgxAreaLayer: svgxAreaLayer,
