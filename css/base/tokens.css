@@ -159,7 +159,7 @@
 	--color-marker-active: #f0b429;
 
 	/* Editor-Markierungswerkzeuge (Discord #25) -- kräftige Warnringe um Marker, je ein Ton pro
-	   Befund: pink = "Unverbunden" (gar keine Anbindung), türkis = "Kreuzungen ≤ 2 Wege"
+	   Befund: pink = "Unverbunden" (gar keine Anbindung), türkis = "Kreuzungen mit 2 Wegen"
 	   (überflüssiger Knoten). Pinned wie --color-marker-waypoint oben: die Ringe sitzen auf den
 	   IMMER-hellen Kartenkacheln, nicht auf einem Theme-Panel, also kein Dark-Override. */
 	--color-marker-unconnected-ring: #e0559a;

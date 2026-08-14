@@ -212,4 +212,13 @@ locationConnectivityIndex = null;
 const nachLangerUeberdeckung = getSparseCrossingPublicIds();
 assert.strictEqual(nachLangerUeberdeckung.has("pid-Vlangquer"), false, "eine lange fremde Strecke durch den Punkt macht ihn ebenso untastbar");
 
+// --- Die Beschriftung ---------------------------------------------------------------------------
+// 💣 Sie traegt KEIN data-i18n (die Nachbarn im selben Menue schon) und steht in keiner
+// Uebersetzungstabelle -- hier wird Text ersetzt, kein Schluessel gepflegt. Der Waechter faengt das
+// „≤", das die alte Regel meinte.
+const indexHtml = fs.readFileSync(path.join(__dirname, "../../../index.html"), "utf8");
+assert.ok(indexHtml.includes("Kreuzungen mit 2 Wegen"), "die Menuezeile traegt die neue Beschriftung");
+assert.ok(!indexHtml.includes("Kreuzungen ≤ 2 Wege"), "und nicht mehr die alte");
+assert.ok(indexHtml.includes('id="toggleSparseCrossings"'), "🔴 die Kennung bleibt, nur die Beschriftung wandert");
+
 console.log("location connectivity index tests passed");

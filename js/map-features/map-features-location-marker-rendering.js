@@ -195,7 +195,7 @@ function createLocationVisibilityContext() {
 // Zoomstufe (siehe shouldShowLocationMarker). Waeren das zwei Funktionen, koennte ein Marker
 // eingeblendet sein OHNE Ring oder geringelt OHNE Grund -- die Divergenz ist hier baulich unmoeglich.
 //   Vorher (spec docs/superpowers/specs/2026-07-15-unverbundene-orte-marker-design.md) ringelte
-// "Unverbunden" nur, was die aktive Groessenkaskade ohnehin zeigte, und "Kreuzungen <= 2 Wege" tat
+// "Unverbunden" nur, was die aktive Groessenkaskade ohnehin zeigte, und "Kreuzungen mit 2 Wegen" tat
 // ohne "Kreuzungen" gar nichts. Genau die Orte, die man sucht, blieben damit unsichtbar; der
 // Nicht-Ziel-Satz "Nodices bleiben aussen vor" ist mit derselben Entscheidung hinfaellig -- ein
 // unverbundener Nodix IST eine Anbindungsluecke, und ohne "Unverbunden" ist die Menge sowieso null.
