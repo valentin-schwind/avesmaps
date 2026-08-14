@@ -192,4 +192,24 @@ const nachUeberdeckung = getSparseCrossingPublicIds();
 assert.strictEqual(nachUeberdeckung.has("pid-Vfrei"), true, "ohne fremden Weg darueber bleibt sie aufloesbar");
 assert.strictEqual(nachUeberdeckung.has("pid-Vquerbelegt"), false, "ein Weg, der darueber hinweglaeuft, macht sie untastbar");
 
+// --- Regel 2, lange Strecke: die Gitter-Abtastung darf die Mitte einer langen Fremdstrecke nicht auslassen -
+// 💣 Regression gegen eine Fuellung, die nur die zwei Endpunkte einer Strecke abtastet: "vlangquer" laeuft
+// 80 Einheiten weit ueber den Kreuzungspunkt hinaus, ohne dort einen Stuetzpunkt zu haben. Nur EndPUNKTE
+// abzutasten traefe die Zellen bei y=-40 und y=40, nie die bei y=0 -- der Punkt selbst bliebe unentdeckt
+// und die Kreuzung wuerde faelschlich aufloesbar.
+locationData = [
+	crossing("Vlangquer", 600, 0), loc("Vlqa", 601, 0), loc("Vlqb", 602, 0),
+];
+pathData = [
+	path_("vlq1", "Weg", [600, 0], [601, 0]),
+	path_("vlq2", "Weg", [600, 0], [602, 0]),
+	// laeuft weit ueber den Kreuzungspunkt hinaus -- ohne Vertex dort
+	path_("vlangquer", "Weg", [600, -40], [600, 40]),
+];
+powerlineData = [];
+locationConnectivityIndex = null;
+
+const nachLangerUeberdeckung = getSparseCrossingPublicIds();
+assert.strictEqual(nachLangerUeberdeckung.has("pid-Vlangquer"), false, "eine lange fremde Strecke durch den Punkt macht ihn ebenso untastbar");
+
 console.log("location connectivity index tests passed");

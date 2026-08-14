@@ -278,11 +278,22 @@ function countGraphNodePathEdges(graph, nodeName) {
     return collectGraphNodeArms(graph, nodeName).count;
 }
 
-// Alle Wegstrecken in ein Gitter, einmal je Indexbau. Ein Segment wird in JEDE Zelle gelegt, die
-// seine Huellbox beruehrt -- schraeg liegende Segmente haengen dadurch in ein paar Zellen zu viel,
-// was nur die Trefferliste laenger macht, nie kuerzer.
+// Alle Wegstrecken in ein Gitter, einmal je Indexbau. Ein Segment wird entlang seiner Laenge
+// abgetastet und in jede beruehrte Zelle eingetragen (dedupliziert gegen den letzten Schluessel,
+// eine gerade Strecke verlaesst eine Zelle nie, um spaeter in sie zurueckzukehren).
+// 💣 Eine Fuellung nach Huellbox statt entlang der Strecke kostete auf Live-Daten das ~40-fache an
+// Eintraegen (482.542 statt einer schlanken Zahl je Segment) -- ein einzelner langer, diagonaler
+// Seeweg (Seeweg-2042) allein fuellte 38.760 Zellen, weil eine Huellbox mit dx*dy waechst, eine
+// Strecke aber nur mit ihrer Laenge. Schrittweite = halbe Zellkante (SPARSE_CROSSING_SEGMENT_CELL / 2):
+// hasForeignPathOverPoint fragt eine 3x3-Zellnachbarschaft um den Punkt ab: liegen aufeinander-
+// folgende Abtastpunkte hoechstens einen halben Zellendurchmesser auseinander, faellt JEDER Punkt der
+// Strecke in die Zelle eines Abtastpunkts oder eine ihrer acht Nachbarn -- also immer innerhalb der
+// abgefragten 3x3-Nachbarschaft. Der Suchradius SPARSE_CROSSING_OVERLAY_DISTANCE (0,02) liegt weit
+// unter der Schrittweite, kann also selbst nichts aus dieser Nachbarschaft heraustragen. Wer eine der
+// beiden Zahlen aendert, muss diese Kopplung neu pruefen.
 function buildPathSegmentGrid() {
     const grid = new Map();
+    const step = SPARSE_CROSSING_SEGMENT_CELL / 2;
     pathData.forEach((pathFeature) => {
         const coordinates = pathFeature?.geometry?.coordinates;
         if (!Array.isArray(coordinates)) {
@@ -293,13 +304,16 @@ function buildPathSegmentGrid() {
             const [ax, ay] = coordinates[index - 1];
             const [bx, by] = coordinates[index];
             const segment = { pathId, ax, ay, bx, by };
-            const cellXFrom = Math.floor(Math.min(ax, bx) / SPARSE_CROSSING_SEGMENT_CELL);
-            const cellXTo = Math.floor(Math.max(ax, bx) / SPARSE_CROSSING_SEGMENT_CELL);
-            const cellYFrom = Math.floor(Math.min(ay, by) / SPARSE_CROSSING_SEGMENT_CELL);
-            const cellYTo = Math.floor(Math.max(ay, by) / SPARSE_CROSSING_SEGMENT_CELL);
-            for (let cellX = cellXFrom; cellX <= cellXTo; cellX++) {
-                for (let cellY = cellYFrom; cellY <= cellYTo; cellY++) {
-                    const key = `${cellX}|${cellY}`;
+            const segmentLength = Math.hypot(bx - ax, by - ay);
+            const sampleCount = Math.ceil(segmentLength / step) + 1;
+            let lastKey = null;
+            for (let sample = 0; sample < sampleCount; sample++) {
+                const t = sampleCount > 1 ? (sample / (sampleCount - 1)) : 0;
+                const x = ax + (t * (bx - ax));
+                const y = ay + (t * (by - ay));
+                const key = `${Math.floor(x / SPARSE_CROSSING_SEGMENT_CELL)}|${Math.floor(y / SPARSE_CROSSING_SEGMENT_CELL)}`;
+                if (key !== lastKey) {
+                    lastKey = key;
                     if (!grid.has(key)) {
                         grid.set(key, []);
                     }
