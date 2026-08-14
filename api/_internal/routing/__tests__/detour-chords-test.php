@@ -16,6 +16,13 @@ declare(strict_types=1);
  * 🔴 Der Kommentar in detour.php behauptete das Gegenteil („Er darf dabei auch etwas Drittes
  * wählen -- ein Stück Straße, dann quer"). Er DURFTE, aber er KONNTE nicht.
  *
+ * ⚠️ NOCH AM SELBEN TAG ÜBERHOLT: Salmingen -> Luring darf seit der Owner-Regel vom 14.08.2026
+ * überhaupt nicht mehr quer laufen -- beide Orte hängen am Wegenetz, und dann bleibt die Reise darauf
+ * („querfeldein sollen nur orte angefahren werden, die nicht mit dem straßennetz verbunden sind").
+ * Die Teilsehnen bleiben trotzdem richtig und nötig: sie tragen jetzt den Fall, für den es
+ * Querfeldein gibt -- den Ort OHNE Anschluss am fernen Ende eines Bogens. Die Fixture unten hängt A
+ * deshalb an eine Notbrücke statt an eine Straße; alles andere an ihr ist unverändert.
+ *
  * Run from the repo root:
  *   php -d zend.assertions=1 -d assert.exception=1 api/_internal/routing/__tests__/detour-chords-test.php
  */
@@ -36,13 +43,15 @@ $request = ['optimize' => 'fastest', 'transports' => ['land' => 'groupFoot', 'sy
 // nie einer festen Zahl. Ob eine Sehne gewinnt, entscheidet allein das Verhältnis zwischen
 // Straßen- und Querfeldein-Tempo -- und beide liest der Router aus derselben Tabelle.
 $roadSpeed = (float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['groupFoot']['Strasse'];
-$roadAlong = static function (array &$graph, string $from, string $to, array $points) use ($roadSpeed): void {
+$offroadSpeed = (float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['groupFoot']['Querfeldein'];
+$wayAlong = static function (array &$graph, string $from, string $to, array $points,
+                             string $routeType, float $speed): void {
     $length = 0.0;
     for ($i = 1; $i < count($points); $i++) {
         $length += hypot($points[$i][0] - $points[$i - 1][0], $points[$i][1] - $points[$i - 1][1]);
     }
     $connection = [
-        'distance' => $length, 'time' => $length / $roadSpeed, 'route_type' => 'Strasse',
+        'distance' => $length, 'time' => $length / $speed, 'route_type' => $routeType,
         'transport_option' => 'groupFoot', 'id' => 'path-' . $from . $to, 'from' => $from, 'to' => $to,
         'geometry' => ['type' => 'LineString', 'coordinates' => $points],
     ];
@@ -52,15 +61,30 @@ $roadAlong = static function (array &$graph, string $from, string $to, array $po
     // Startknoten -- wer die Knotenkette aus `coordinates[0]` liest, liest sie irgendwann verkehrt.
     avesmapsAddClientCompatibleGraphConnection($graph, $to, $from, $connection);
 };
+$roadAlong = static function (array &$graph, string $from, string $to, array $points)
+    use ($wayAlong, $roadSpeed): void {
+    $wayAlong($graph, $from, $to, $points, 'Strasse', $roadSpeed);
+};
+// Die Notbrücke der Komponentenbrücke: der einzige Faden eines Ortes OHNE Anschluss ans Wegenetz.
+$bridgeAlong = static function (array &$graph, string $from, string $to, array $points)
+    use ($wayAlong, $offroadSpeed): void {
+    $wayAlong($graph, $from, $to, $points, AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $offroadSpeed);
+};
 
 // ============================================================ Die Karte des Falls
 //
-//   A(0,0) --- U(50,50) --- B(0,20) --- C(0,30)
+//   A(0,0) ~~~ U(50,50) --- B(0,20) --- C(0,30)      (~~~ Notbrücke, --- Straße)
 //
-// A..B ist der absurde Bogen (141,4 Einheiten für 20 Luftlinie), B..C eine kerzengerade Straße.
+// A..B ist der absurde Bogen (129,0 Einheiten für 20 Luftlinie), B..C eine kerzengerade Straße.
 // Genau die Form von Salmingen -> [Umweg über Ferdok] -> Spinnried -> Luring.
+//
+// 🔴 A HÄNGT AN EINER NOTBRÜCKE, NICHT AN EINER STRASSE -- seit dem 14.08.2026 ist das die Bedingung
+// dafür, dass hier überhaupt eine Sehne entsteht (Owner-Regel, `detour.php`:
+// avesmapsRouteKeepChordsWithOffNetworkEnd). Zwischen zwei angebundenen Orten bleibt die Reise auf
+// dem Netz -- das hält Fall C2 in detour-trigger-test.php fest. Der Fall, den die Teilsehnen retten,
+// ist damit der ORT OHNE ANSCHLUSS am fernen Ende eines Bogens -- Gulbladdirstadir, nicht Salmingen.
 $graph = ['A' => [], 'U' => [], 'B' => [], 'C' => []];
-$roadAlong($graph, 'A', 'U', [[0.0, 0.0], [50.0, 50.0]]);
+$bridgeAlong($graph, 'A', 'U', [[0.0, 0.0], [50.0, 50.0]]);
 $roadAlong($graph, 'U', 'B', [[50.0, 50.0], [0.0, 20.0]]);
 $roadAlong($graph, 'B', 'C', [[0.0, 20.0], [0.0, 30.0]]);
 $clientGraph = ['graph' => $graph, 'statistics' => []];

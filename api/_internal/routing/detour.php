@@ -8,6 +8,11 @@ declare(strict_types=1);
 // prüft jede normal geplante Route und bietet dem Dijkstra einen Querweg an, wenn das gezeichnete
 // Netz einen absurden Bogen fährt.
 //
+// 🔴 UND ZWAR NUR NOCH ZU ORTEN OHNE ANSCHLUSS ANS WEGENETZ (Owner, 14.08.2026). Hängen beide Enden
+// einer Sehne an gezeichneten Wegen, bleibt die Reise auf ihnen -- auch bei einem absurden Bogen.
+// Die Regel steht bei avesmapsRouteKeepChordsWithOffNetworkEnd, samt der Messung, die sie ausgelöst
+// hat.
+//
 // PURITY CONTRACT: side-effect-free on include. Ohne PDO rechnet der A* auf flachem, landschaftslosem
 // Grund weiter -- dieselbe gewollte Ausfallart wie bei „Hierher reisen".
 //
@@ -22,10 +27,16 @@ require_once __DIR__ . '/travel-values.php';
 
 // Ab welchem Verhältnis „gefahrene Strecke : Luftlinie" überhaupt quer gerechnet wird.
 //
-// ⚠️ Die Schwelle entscheidet NICHT allein, und sie soll es auch nicht. Querfeldein ist mit 1,25
-// gegen 4,0 auf der Straße gut dreimal langsamer, ein Bogen von exakt 3x also über die Zeit immer
-// noch der bessere Weg. Die Schwelle sagt nur, wann sich das NACHRECHNEN lohnt; entschieden wird
-// danach über die Zeit.
+// 🔴 DIE SCHWELLE IST SEIT DEM 14.08.2026 DIE ZWEITE HÜRDE, NICHT DIE ERSTE. Davor steht die Regel
+// des Owners: eine Sehne, deren beide Enden am Wegenetz hängen, wird gar nicht erst gerechnet
+// (avesmapsRouteKeepChordsWithOffNetworkEnd). Was hier folgt, entscheidet also nur noch über Sehnen,
+// die einen Ort OHNE Anschluss erreichen.
+//
+// ⚠️ Und auch dort entscheidet die Schwelle nicht allein: sie sagt, wann sich das NACHRECHNEN lohnt;
+// danach entscheidet die Zeit. 💣 An Land ist diese zweite Prüfung seit dem Quellenwert 2,30 für
+// Querfeldein allerdings wirkungslos -- das Tempoverhältnis liegt bei 3,07/2,30 = 1,335 und damit
+// unter der Schwelle, ein ausgelöster Bogen gewinnt dort also auch über die Zeit. Scharf bleibt sie
+// auf dem Wasser (Lastensegler 11,90/2,30 = 5,17).
 const AVESMAPS_ROUTE_OFFROAD_DETOUR_THRESHOLD = 3.0;
 
 // Wie viele Sehnen höchstens gerechnet werden (Owner-Entscheid 14.08.2026: 3).
@@ -187,6 +198,53 @@ function avesmapsRouteChordCandidates(array $chain, float $speed, float $thresho
 }
 
 /**
+ * PURE: nur die Sehnen, an deren Ende ein Ort OHNE Anschluss ans Wegenetz steht.
+ *
+ * 🔴 DIE REGEL DES OWNERS, 14.08.2026, wörtlich: „querfeldein sollen nur orte angefahren werden, die
+ * nicht mit dem straßennetz verbunden sind". Hängen BEIDE Enden einer Sehne an gezeichneten Wegen,
+ * bleibt die Reise auf ihnen -- auch dann, wenn das Netz einen absurden Bogen fährt. Die Oberfläche
+ * verspricht das seit jeher („Fehlt zwischen zwei Orten ein echter Weg …",
+ * `transport.speedInfo.crossCountryRule`); der Auslöser hielt sich nur nicht daran.
+ *
+ * 💣 DAS IST EINE REGEL, KEIN SCHWELLENWERT -- und an der Schwelle zu drehen hätte den Fall
+ * verschoben statt entschieden. Live gemessen: Luring -> Salmingen lief quer (Kosten 3,38) statt über
+ * Ferdok (9,52), obwohl Salmingen am Talloner Hügelsteig und Spinnried an der Reichsstraße 6 hängt.
+ * Und die Zeitprobe kann das nicht mehr auffangen: mit dem Quellenwert 2,30 für Querfeldein liegt das
+ * Tempoverhältnis an Land bei 3,07/2,30 = 1,335, jeder Bogen über 3,0x gewinnt dort also auch über
+ * die Zeit.
+ *
+ * ⚠️ „Angebunden" heißt: der Knoten trägt die Kante einer gezeichneten LANDwegart
+ * (`AVESMAPS_ROUTE_CLIENT_LAND_PATH_TYPES`). Es ist bewusst dieselbe Prüfung, mit der
+ * `client-graph.php` entscheidet, ob ein Wegpunkt seinen Querfeldein-Anker bekommt -- zwei Begriffe
+ * von „hängt am Wegenetz" liefen auseinander, und dann wäre nicht mehr zu sagen, welcher gilt.
+ *
+ * ⭐ „Hierher reisen" bleibt davon unberührt, ohne einen Sonderfall zu brauchen: ein angeklickter
+ * Kartenpunkt (`__offroad_*`) hängt von Bauart wegen nur an seiner eigenen Querfeldein-Kante und ist
+ * damit nie angebunden. Dasselbe gilt für die Orte hinter einer Notbrücke -- genau die, um die es
+ * geht.
+ */
+function avesmapsRouteKeepChordsWithOffNetworkEnd(array $graph, array $candidates): array
+{
+    $onNetwork = [];
+    $kept = [];
+    foreach ($candidates as $candidate) {
+        $fromNode = (string) ($candidate['from_node'] ?? '');
+        $toNode = (string) ($candidate['to_node'] ?? '');
+        foreach ([$fromNode, $toNode] as $node) {
+            // Eine Kette hat wenige Knoten, aber viele Sehnen (n(n+1)/2) -- jeder Knoten wird deshalb
+            // einmal beurteilt, nicht einmal je Sehne.
+            $onNetwork[$node] ??= avesmapsClientNodeHasLandPathEdge($graph, $node);
+        }
+        if ($onNetwork[$fromNode] && $onNetwork[$toNode]) {
+            continue;
+        }
+        $kept[] = $candidate;
+    }
+
+    return $kept;
+}
+
+/**
  * Prüft die gefundene Route auf einen absurden Bogen und hängt bei Bedarf einen A*-Querweg als
  * ANGEBOT in den Graphen. Gibt einen Bericht zurück; ist `offered` wahr, muss der Aufrufer den
  * Dijkstra erneut laufen lassen.
@@ -312,6 +370,23 @@ function avesmapsMaybeOfferOffroadDetour(
     // Entwurf: docs/superpowers/specs/2026-08-14-querfeldein-teilstrecken-design.md
     $candidates = avesmapsRouteChordCandidates($chain, (float) $speed, AVESMAPS_ROUTE_OFFROAD_DETOUR_THRESHOLD);
     $report['chord_candidate_count'] = count($candidates);
+    // 🔴 Die Owner-Regel, und zwar VOR dem Deckel: sonst verbrauchten Sehnen zwischen zwei
+    // angebundenen Orten die drei Plätze, und die eine Sehne, die einen Ort ohne Anschluss erreicht,
+    // fiele als vierte heraus.
+    $candidates = avesmapsRouteKeepChordsWithOffNetworkEnd(
+        is_array($clientGraph['graph'] ?? null) ? $clientGraph['graph'] : [],
+        $candidates
+    );
+    $report['chord_offnetwork_count'] = count($candidates);
+    // ⭐ UND VOR DEM A*, nicht nach ihm. Der Vorfilter ist gratis, die Suche kostet p50 14 ms je Lauf;
+    // eine Regel, die erst das Ergebnis verwirft, wäre eine Verteuerung des Servers statt einer
+    // Ersparnis. `both_ends_on_network` unterscheidet diesen Ausgang von `cannot_win` (Schranke) und
+    // `slower` (gerechnet und verloren) -- sonst wäre in den Protokollen nicht mehr zu sehen, welche
+    // der drei Absagen gefallen ist.
+    if ($candidates === [] && $report['chord_candidate_count'] > 0) {
+        $report['reason'] = 'both_ends_on_network';
+        return $report;
+    }
     $candidates = array_slice($candidates, 0, AVESMAPS_ROUTE_OFFROAD_DETOUR_MAX_CHORDS);
 
     $chords = [];

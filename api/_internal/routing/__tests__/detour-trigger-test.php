@@ -94,6 +94,13 @@ $seaAlong = static function (array &$graph, string $from, string $to, array $poi
     use ($wayAlong, $seaSpeed): void {
     $wayAlong($graph, $from, $to, $points, 'Seeweg', 'cargoShip', $seaSpeed);
 };
+// Eine Notbruecke, wie sie avesmapsConnectClientCompatibleDetachedGraphComponents baut: der einzige
+// Faden, an dem ein Ort OHNE Anschluss ans Wegenetz haengt. Genau diese Orte sind es, fuer die es
+// Querfeldein ueberhaupt gibt -- und nur an ihnen darf der Ausloeser seit dem 14.08.2026 noch rechnen.
+$bridgeAlong = static function (array &$graph, string $from, string $to, array $points)
+    use ($wayAlong, $offroadSpeed): void {
+    $wayAlong($graph, $from, $to, $points, AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, 'groupFoot', $offroadSpeed);
+};
 
 // ============================================================ A. das Mass ist die GEOMETRIE
 
@@ -138,8 +145,15 @@ assert(!isset($clientGraph['graph']['A']['B'][1]), 'und keine Kante kommt hinzu'
 // ============================================================ C. der absurde Bogen wird gekappt
 
 // A -- U -- B: der Umweg fuehrt 50 Einheiten nach Nordost und wieder zurueck, fuer 10 Luftlinie.
+//
+// 🔴 UND A HAENGT AN EINER NOTBRUECKE, NICHT AN EINER STRASSE -- seit dem 14.08.2026 ist genau das
+// die Bedingung dafuer, dass hier ueberhaupt etwas gerechnet wird (Fall C2). A ist der Ort ohne
+// Anschluss ans Wegenetz, fuer den es Querfeldein gibt; der Bogen, den er dabei faehrt, ist der
+// Schauplatz Gulbladdirstadir -> Rekheim.
+// ⚠️ Ohne x25 im Gewicht: der Aufschlag ist eine Abschreckung fuer den Dijkstra, und der Bericht
+// rechnet ihn ohnehin per `cost_factor` heraus (Fall A). Die gemessene Zeit ist dieselbe.
 $graph = ['A' => [], 'U' => [], 'B' => []];
-$roadAlong($graph, 'A', 'U', [[0.0, 0.0], [50.0, 50.0]]);
+$bridgeAlong($graph, 'A', 'U', [[0.0, 0.0], [50.0, 50.0]]);
 $roadAlong($graph, 'U', 'B', [[50.0, 50.0], [10.0, 0.0]]);
 $clientGraph = ['graph' => $graph, 'statistics' => []];
 $route = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
@@ -163,6 +177,49 @@ assert($after['cost'] < $route['cost'], 'und sie ist billiger: ' . $after['cost'
 $shipped = avesmapsBuildClientRouteDiagnosticSegments($after['segments'])[0];
 assert(abs($shipped['cost_factor'] - 1.0) < 1e-9, 'die A*-Etappe traegt keinen Aufschlag');
 assert($shipped['distance_units'] >= 10.0 - 1e-6, 'und ist mindestens die Luftlinie: ' . $shipped['distance_units']);
+
+// ============================================================ C2. beide Enden am Wegenetz: nichts quer
+
+// 🔴 DIE OWNER-REGEL VOM 14.08.2026, woertlich: „querfeldein sollen nur orte angefahren werden, die
+// nicht mit dem straßennetz verbunden sind". Derselbe absurde Bogen wie in C -- aber A haengt jetzt
+// an einer Strasse statt an einer Notbruecke, und damit bleibt die Reise auf dem Netz.
+//
+// 💣 DAS IST EINE REGEL, KEIN SCHWELLENWERT, und deshalb steht sie VOR der Zeitprobe. Luring ->
+// Salmingen lief live quer (3,38 gegen 9,52 ueber Ferdok), obwohl beide Orte am Netz haengen. An der
+// Schwelle zu drehen haette den Fall nur verschoben: mit dem Quellenwert 2,30 fuer Querfeldein liegt
+// das Tempoverhaeltnis an Land bei 1,335, jeder Bogen ueber 3,0x gewinnt dort also auch zeitlich.
+$graph = ['A' => [], 'U' => [], 'B' => []];
+$roadAlong($graph, 'A', 'U', [[0.0, 0.0], [50.0, 50.0]]);
+$roadAlong($graph, 'U', 'B', [[50.0, 50.0], [10.0, 0.0]]);
+$clientGraph = ['graph' => $graph, 'statistics' => []];
+$route = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
+
+$report = avesmapsMaybeOfferOffroadDetour($clientGraph, $request, [], null, $route['segments'],
+    ['x' => 0.0, 'y' => 0.0], ['x' => 10.0, 'y' => 0.0], 'A', 'B', false);
+assert($report['triggered'] === true, 'der Bogen loest weiterhin aus: ' . $report['ratio']);
+assert($report['chord_candidate_count'] > 0, 'und es gaebe Sehnen zu rechnen: ' . $report['chord_candidate_count']);
+assert($report['chord_offnetwork_count'] === 0, 'aber keine davon erreicht einen Ort ohne Anschluss');
+assert($report['offered'] === false, 'also wird nichts angeboten');
+assert($report['reason'] === 'both_ends_on_network', 'und der Grund steht in der Antwort: ' . $report['reason']);
+// ⭐ OHNE EINE EINZIGE GERASTERTE ZELLE. Die Regel greift vor dem A*, nicht nach ihm -- sonst waere
+// sie eine Verteuerung des Servers statt einer Ersparnis.
+assert(!isset($report['offroad']), 'kein A*-Lauf');
+assert(!isset($clientGraph['graph']['A']['B']), 'und keine Kante kommt hinzu');
+
+$after = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
+assert(count($after['segments']) === 2, 'die Reise bleibt auf dem Netz: ' . count($after['segments']));
+assert(abs($after['cost'] - $route['cost']) < 1e-12, 'und kostet unveraendert dasselbe');
+
+// ⚠️ DIE GEGENPROBE ZUR REGEL: es liegt an den ENDEN, nicht daran, dass ueberhaupt nichts mehr
+// gerechnet wuerde. Derselbe Graph, ein Ziel Z ohne Anschluss -- und die Sehne kommt zurueck.
+$graph['Z'] = [];
+$bridgeAlong($graph, 'B', 'Z', [[10.0, 0.0], [10.0, 2.0]]);
+$clientGraph = ['graph' => $graph, 'statistics' => []];
+$route = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'Z', $request);
+$report = avesmapsMaybeOfferOffroadDetour($clientGraph, $request, [], null, $route['segments'],
+    ['x' => 0.0, 'y' => 0.0], ['x' => 10.0, 'y' => 2.0], 'A', 'Z', false);
+assert($report['chord_offnetwork_count'] > 0, 'Sehnen an den unangebundenen Ort bleiben');
+assert($report['offered'] === true, 'und werden angeboten: ' . $report['reason']);
 
 // ============================================================ D. ausgeloest, aber zeitlich unterlegen
 
@@ -237,8 +294,10 @@ assert(abs($after['cost'] - $route['cost']) < 1e-12, 'und kostet dasselbe');
 
 // ⚠️ Und die Gegenprobe: ein Bogen, den sie NICHT abfaengt, wird weiterhin gerechnet. Sonst waere
 // die Schranke zu scharf und schnitte gewinnende Querwege ab.
+// 🔴 A haengt wieder an der Notbruecke -- sonst kaeme die Absage schon aus der Owner-Regel (C2) und
+// diese Gegenprobe pruefte die Schranke gar nicht mehr.
 $graph = ['A' => [], 'U' => [], 'B' => []];
-$roadAlong($graph, 'A', 'U', [[0.0, 0.0], [50.0, 50.0]]);
+$bridgeAlong($graph, 'A', 'U', [[0.0, 0.0], [50.0, 50.0]]);
 $roadAlong($graph, 'U', 'B', [[50.0, 50.0], [10.0, 0.0]]);
 $clientGraph = ['graph' => $graph, 'statistics' => []];
 $route = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
@@ -289,8 +348,10 @@ $lake = avesmapsPrepareRouteAreas([[
     'geometry' => ['type' => 'Polygon', 'coordinates' => [[[-30.0, -30.0], [40.0, -30.0], [40.0, 40.0], [-30.0, 40.0], [-30.0, -30.0]]]],
     'min_x' => -30.0, 'min_y' => -30.0, 'max_x' => 40.0, 'max_y' => 40.0,
 ]]);
+// 🔴 A wieder an der Notbruecke: sonst sagte schon die Owner-Regel (C2) ab, und ob der A* das Wasser
+// achtet, waere hier gar nicht mehr gepruft.
 $graph = ['A' => [], 'U' => [], 'B' => []];
-$roadAlong($graph, 'A', 'U', [[0.0, 0.0], [50.0, 50.0]]);
+$bridgeAlong($graph, 'A', 'U', [[0.0, 0.0], [50.0, 50.0]]);
 $roadAlong($graph, 'U', 'B', [[50.0, 50.0], [10.0, 0.0]]);
 $clientGraph = ['graph' => $graph, 'statistics' => []];
 $route = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
