@@ -116,7 +116,10 @@ function avesmapsTravelValuesSourceTable(): array
         // ⚠️ Hügelland stammt aus der STEIGUNGStabelle (S. 122 f.), nicht aus der Geländetabelle.
         'landscapes' => [
             'wald' => 0.50, 'suempfe_moore' => 0.10, 'dschungel' => 0.20, 'wueste' => 0.50,
-            'tundra' => 0.70, 'steppe' => 0.75, 'grasland' => 0.75, 'gebirge' => 0.20,
+            // 🪤 `graslandschaft`, nicht `grasland`: der Schluessel ist der `type_key` der Datenbank
+            // (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED), keine Abkuerzung. Er hiess bis zum 14.08.2026
+            // `grasland` und traf damit keine einzige Zeile -- eine GA-Zahl ohne Wirkung.
+            'tundra' => 0.70, 'steppe' => 0.75, 'graslandschaft' => 0.75, 'gebirge' => 0.20,
             'huegelland' => 0.75,
         ],
         // GA S. 122 f. — Abzug auf den Boden nach Jahreszeit.
@@ -128,6 +131,22 @@ function avesmapsTravelValuesSourceTable(): array
         'river_ratio' => 2.0,
         'calibration_target_miles' => 30.0,
     ];
+}
+
+/**
+ * PURE: der Bezug, gegen den ein Landschaftsfaktor gemessen wird — die GA-Zeile „offenes Gelände".
+ *
+ * 💣 DIESELBE ZAHL TRÄGT ZWEI ROLLEN, und sie muss aus EINER Quelle kommen: sie ist der Wegtyp-Faktor
+ * `Querfeldein` (0,75 gegen die Straße) UND der Nullpunkt der Landschaftsspalte. `terrain_speed_factor`
+ * misst gegen genau diese Zeile: 0,75 heißt „wie offener Boden", 0,10 (Sumpf) heißt „siebeneinhalbmal
+ * langsamer als offener Boden". Wer sie an einer der beiden Stellen ändert und an der anderen nicht,
+ * verschiebt jede Landschaft gegen den Boden, auf dem sie liegt.
+ */
+function avesmapsTravelValuesOffroadBaseFactor(): float
+{
+    $base = (float) (avesmapsTravelValuesSourceTable()['path_factors']['Querfeldein'] ?? 0.0);
+
+    return $base > 0.0 ? $base : 0.75;
 }
 
 /**
@@ -209,6 +228,29 @@ function avesmapsTravelValuesRead(?PDO $pdo): array
         'river_ratio' => (float) ($stored['river_ratio'] ?? $fallback['river_ratio']),
         'calibration_target_miles' => (float) ($stored['calibration_target_miles'] ?? $fallback['calibration_target_miles']),
         'source' => 'stored',
+    ];
+}
+
+/**
+ * PURE: die Form, in der die Tempowerte abgelegt werden — genau sechs Schlüssel.
+ *
+ * 💣 ZWEI SCHREIBER, EINE FORM. Der Endpunkt (`api/edit/map/travel-values.php`) und die einmalige
+ * Migration (`travel-values-migration.php`) legen denselben Wert ab. Stünde die Liste zweimal da,
+ * fehlte beim nächsten neuen Abschnitt genau einer der beiden — und ein fehlender Schlüssel ist im
+ * Leser kein Fehler, sondern ein stiller Rückfall auf die Konstante.
+ *
+ * ⚠️ `source` bleibt draußen: es sagt, WOHER die Werte kamen (Speicher oder Konstante), und
+ * mitgespeichert wäre es beim nächsten Lesen eine Behauptung über sich selbst.
+ */
+function avesmapsTravelValuesStorableShape(array $values): array
+{
+    return [
+        'grid' => $values['grid'] ?? [],
+        'day_miles' => $values['day_miles'] ?? [],
+        'path_factors' => $values['path_factors'] ?? [],
+        'ground_penalties' => $values['ground_penalties'] ?? [],
+        'river_ratio' => $values['river_ratio'] ?? 0.0,
+        'calibration_target_miles' => $values['calibration_target_miles'] ?? 0.0,
     ];
 }
 

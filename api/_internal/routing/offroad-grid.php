@@ -46,9 +46,17 @@ const AVESMAPS_ROUTE_OFFROAD_BOX_MARGIN_MIN = 2.0;
 // the length IS a travel time, so it may not shrink because the drawing gets prettier.
 const AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS = 0.10;
 
-// Factors are carried as one byte per cell at this scale: 2,20 -> 110. The largest seeded
-// offroad_factor is 3,00 (suempfe_moore) -> 150, so 255 leaves room to 5,10.
-const AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE = 50.0;
+// Factors are carried as one byte per cell at this scale: 2,20 -> 55. The cap is 255 / scale.
+//
+// 💣 25 UND NICHT 50, seit dem 14.08.2026 (Entwurf 2026-08-07-tempowerte-design.md §7). Seit die
+// Ebene den Multiplikator „Basis ÷ terrain_speed_factor" traegt, ist der groesste Wert nicht mehr
+// der gesaete offroad_factor 3,00, sondern der Sumpf: 0,75 ÷ 0,10 = 7,50. Bei Maszstab 50 liegt der
+// Deckel bei 5,10 -- der Sumpf waere still gedeckelt und damit 32 % zu schnell, ohne Fehler und ohne
+// Warnung. Bei 25 liegt er bei 10,20, die Aufloesung bleibt 0,04.
+// ⚠️ Der Maszstab wird NICHT weiter gesenkt „fuer alle Faelle": ein Byte je Zelle ist die ganze
+// Sparsamkeit dieser Ebene, und jede Halbierung halbiert die Aufloesung mit.
+// Bewacht von __tests__/terrain-speed-factor-test.php (Abschnitt A).
+const AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE = 25.0;
 
 // 16 bit per cell, and the value IS the height in Schritt (V11 §3.2: no white point, no scaling).
 // 💣 65535 means „NO DATA", not „very high". `null` and `0` are different things all the way through
@@ -193,7 +201,7 @@ function avesmapsOffroadRasteriseBlocked(array $box, array $water): string
 }
 
 /**
- * PURE: ONE factor plane, one byte per cell, `chr(round(factor x 50))`; 0 means „nothing here".
+ * PURE: ONE factor plane, one byte per cell, `chr(round(factor x SCALE))`; 0 means „nothing here".
  *
  * $layers is a list of ['prepared' => <prepared areas>, 'factor' => float]. Within ONE plane the
  * larger factor wins, which is the same maximum rule the three planes are combined by.

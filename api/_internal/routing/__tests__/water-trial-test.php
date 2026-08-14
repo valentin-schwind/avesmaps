@@ -118,12 +118,15 @@ assert(count($land['areas']) === 2,
 // --- Gelaende: die Offroad-Faktorebene. Ein gestempeltes Gebirge muss den A* bremsen.
 $offPdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 $offPdo->exec('CREATE TABLE ecosystem_region (id INTEGER PRIMARY KEY, region_type TEXT, kind TEXT, is_active INTEGER)');
-$offPdo->exec('CREATE TABLE ecosystem_region_type (kind TEXT, type_key TEXT, offroad_factor REAL)');
+// ⚠️ `terrain_speed_factor` seit dem 14.08.2026 -- der Lader joint diese Spalte, nicht mehr
+// `offroad_factor` (Entwurf 2026-08-07-tempowerte-design.md §7). Eine Fixture ohne sie laesst die
+// Abfrage werfen, der try/catch faengt es, und der Test sieht „kein Gelaende" statt „falsche Spalte".
+$offPdo->exec('CREATE TABLE ecosystem_region_type (kind TEXT, type_key TEXT, offroad_factor REAL, terrain_speed_factor REAL)');
 $offPdo->exec('CREATE TABLE ecosystem_area (
     id INTEGER PRIMARY KEY, region_id INTEGER, geometry_geojson TEXT,
     min_x REAL, min_y REAL, max_x REAL, max_y REAL, is_active INTEGER, is_trial INTEGER)');
 $offPdo->exec("INSERT INTO ecosystem_region (id, region_type, kind, is_active) VALUES (1, 'gebirge', 'topographie', 1)");
-$offPdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, offroad_factor) VALUES ('topographie', 'gebirge', 2.50)");
+$offPdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, offroad_factor, terrain_speed_factor) VALUES ('topographie', 'gebirge', 2.50, 0.200)");
 $offPdo->prepare('INSERT INTO ecosystem_area
     (region_id, geometry_geojson, min_x, min_y, max_x, max_y, is_active, is_trial)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)')

@@ -77,14 +77,10 @@ try {
     // 💣 EINE ZEILE, ATOMAR. Ein halb gespeichertes Tempo-Raster ist ein kaputter Router; ein
     // JSON-Wert wird in einem Schreibvorgang geschrieben, sechsundzwanzig Zeilen einer
     // Schlüssel-Wert-Tabelle nicht.
-    $stored = [
-        'grid' => $values['grid'],
-        'day_miles' => $values['day_miles'],
-        'path_factors' => $values['path_factors'],
-        'ground_penalties' => $values['ground_penalties'],
-        'river_ratio' => $values['river_ratio'],
-        'calibration_target_miles' => $values['calibration_target_miles'],
-    ];
+    // ⚠️ Die Sechs-Schlüssel-Liste steht in avesmapsTravelValuesStorableShape und nur dort — die
+    // einmalige Migration legt denselben Wert ab, und zwei Abschriften liefen beim nächsten neuen
+    // Abschnitt auseinander.
+    $stored = avesmapsTravelValuesStorableShape($values);
     avesmapsAppSettingSet($pdo, AVESMAPS_TRAVEL_VALUES_SETTING_KEY, json_encode($stored, JSON_UNESCAPED_UNICODE));
 
     // ⚠️ `map_revision` wird NICHT gehoben — es ändert kein Kartenobjekt, und ein Sprung würde jeden

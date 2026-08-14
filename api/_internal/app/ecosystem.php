@@ -883,6 +883,34 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
     avesmapsEcosystemSeedRegionTypes($pdo);
 
     avesmapsEcosystemMoveIslandsToTopographie($pdo);
+
+    // ---- 2026-08-14: der Bodenfaktor der GA, als eigene Spalte an der Art ------------------------
+    //
+    // `terrain_speed_factor` sagt, wie schnell man auf DIESER Landschaft querfeldein vorankommt --
+    // gemessen gegen die Straße, genau wie jeder Wegtyp-Faktor (Wald 0,50, Sumpf 0,10, GA S. 120-123).
+    // Sie loest `offroad_factor` in seiner Rolle als Reisebremse ab: der war ein gewaehlter
+    // MULTIPLIKATOR ohne Quelle, dieser hier ist die Quellenzahl selbst.
+    //
+    // 🔴 NULL HEISST „KEINE EIGENE AUSSAGE" und wird gelesen wie offener Boden -- das ist NICHT
+    // dasselbe wie 0,750. Eine Art, die nie eingestellt wurde, unterscheidet sich von einer, die der
+    // Owner ausdruecklich auf „wie offenes Gelaende" gesetzt hat; nur so kann eine spaetere Saat
+    // nachtragen, ohne eine Entscheidung zu ueberschreiben. Dieselbe `null` ≠ `0`-Regel wie in V11.
+    //
+    // 💣 EIGENE SPALTENPRUEFUNG, ausdruecklich NICHT mit der von `offroad_factor` zusammengelegt --
+    // aus demselben Grund, den der Kommentar dort nennt: ein gemeinsamer „war etwas neu?"-Schalter
+    // faehrt die Saat ein zweites Mal ueber jeden Wert, den der Owner seither nachgeschaerft hat.
+    if (!$typeColumnExists($pdo, 'terrain_speed_factor')) {
+        $pdo->exec('ALTER TABLE ecosystem_region_type ADD COLUMN terrain_speed_factor DECIMAL(4,3) NULL');
+    }
+
+    // 🔴 NACH DER SAAT, und das ist Bedingung 2 aus Befund A35: vorher stuenden auf einer frischen
+    // Anlage null Zeilen in ecosystem_region_type, die Migration faende nichts, setzte trotzdem ihren
+    // Merker und waere fuer immer erledigt, ohne je etwas getan zu haben. Ihr eigener Riegel ist
+    // app_setting['travel_values_v1'] -- nicht „wurde gerade eine Spalte angelegt".
+    // 💣 Sie schreibt app_setting, und das ist DDL. Hier steht sie richtig: EnsureTables laeuft immer
+    // VOR einer Transaktion (siehe die Schreib-Handler weiter unten), nie darin.
+    require_once __DIR__ . '/../routing/travel-values-migration.php';
+    avesmapsTravelValuesMigrateOnce($pdo);
 }
 
 // ---- 2026-07-30: `insel` moves from derographisch to topographie ------------------------------------

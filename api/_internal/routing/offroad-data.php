@@ -8,12 +8,15 @@ declare(strict_types=1);
 // PURITY CONTRACT: side-effect-free on include. Every function takes a PDO explicitly, and every one
 // of them fails INERT -- an empty result means „the A* knows less", never „the route request 500s".
 //
-// 💣 NO DDL, NO information_schema PROBE. The ecosystem module owns these tables. `offroad_factor` is
-// read here for the first time in PHP (until now only the seed wrote it), so a database that predates
-// the column must simply yield no factors instead of an exception.
+// 💣 NO DDL, NO information_schema PROBE. The ecosystem module owns these tables. `terrain_speed_factor`
+// is read here and nowhere else in the routing path, so a database that predates the column must simply
+// yield no factors instead of an exception -- which is exactly what the try/catch below does.
 
 require_once __DIR__ . '/offroad-grid.php';
 require_once __DIR__ . '/../app/heightmap.php';
+// Fuer avesmapsTravelValuesOffroadBaseFactor(): der Bezug, gegen den ein Landschaftsfaktor gemessen
+// wird. Dieselbe Zahl ist der Wegtyp-Faktor `Querfeldein`, und sie darf nur EINMAL im Haus stehen.
+require_once __DIR__ . '/travel-values.php';
 
 // The three kinds that lie ON TOP of each other; one byte plane each (V11 §10.3).
 const AVESMAPS_ROUTE_OFFROAD_KINDS = ['derographisch', 'vegetation', 'topographie'];
@@ -91,23 +94,38 @@ function avesmapsOffroadCountHeightRasters(PDO $pdo): int
  * Gebirge fuer den A* unsichtbar, ohne dass irgendwo ein Fehler auftaucht -- genauso, wie es
  * `AND a.is_trial = 0` in water-areas.php mit dem Wasser getan hat. Zeilen selbst zaehlen.
  *
- * ⚠️ Areas WITHOUT a landscape type, and types without a factor, come back as 1,00 from the column
- * default and are simply not written into the plane.
+ * 🔴 SEIT DEM 14.08.2026 LIEST SIE `terrain_speed_factor`, NICHT MEHR `offroad_factor` (Entwurf
+ * 2026-08-07-tempowerte-design.md §7). Der Unterschied ist die LESART, nicht nur die Spalte:
+ * `offroad_factor` war ein gewaehlter Multiplikator („Gebirge bremst 2,2fach"), `terrain_speed_factor`
+ * ist die Quellenzahl der GA („auf Gebirge kommt man mit 0,20 der Strassenleistung voran", S. 120-123).
+ * Die Ebene traegt weiterhin den MULTIPLIKATOR, also `Basis ÷ Faktor` -- Gebirge 0,75 ÷ 0,20 = 3,75.
+ *
+ * 💣 DER FILTER IST „LANGSAMER ALS OFFENER BODEN", nicht „groesser als 1". Die Basis ist 0,75, nicht
+ * 1,00: eine Art mit genau 0,750 IST offener Boden und gehoert nicht in die Ebene, und eine mit 0,900
+ * waere schneller als er. `NULL` faellt heraus wie frueher die 1,00 -- es heisst „keine eigene
+ * Aussage", nicht „ausdruecklich wie offener Boden".
+ *
+ * ⚠️ Areas WITHOUT a landscape type, and types with no factor of their own, are simply not written
+ * into the plane and read as 1,0 everywhere.
  */
 function avesmapsOffroadLoadFactorPlane(PDO $pdo, array $box): string
 {
     try {
+        $base = avesmapsTravelValuesOffroadBaseFactor();
         $statement = $pdo->prepare(
-            'SELECT r.kind, a.geometry_geojson, a.min_x, a.min_y, a.max_x, a.max_y, t.offroad_factor
+            'SELECT r.kind, a.geometry_geojson, a.min_x, a.min_y, a.max_x, a.max_y, t.terrain_speed_factor
                FROM ecosystem_area a
                INNER JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
                INNER JOIN ecosystem_region_type t ON t.kind = r.kind AND t.type_key = r.region_type
               WHERE a.is_active = 1
-                AND t.offroad_factor > 1.00
+                AND t.terrain_speed_factor IS NOT NULL
+                AND t.terrain_speed_factor > 0
+                AND t.terrain_speed_factor < :base
                 AND a.min_x <= :max_x AND a.max_x >= :min_x
                 AND a.min_y <= :max_y AND a.max_y >= :min_y'
         );
         $statement->execute([
+            'base' => $base,
             'min_x' => $box['min_x'], 'min_y' => $box['min_y'],
             'max_x' => $box['max_x'], 'max_y' => $box['max_y'],
         ]);
@@ -118,13 +136,16 @@ function avesmapsOffroadLoadFactorPlane(PDO $pdo, array $box): string
             if (!in_array($kind, AVESMAPS_ROUTE_OFFROAD_KINDS, true)) { continue; }
             $geometry = json_decode((string) ($row['geometry_geojson'] ?? ''), true);
             if (!is_array($geometry)) { continue; }
+            $speedFactor = (float) $row['terrain_speed_factor'];
+            if ($speedFactor <= 0.0) { continue; }
             $byKind[$kind][] = [
                 'prepared' => avesmapsPrepareRouteAreas([[
                     'geometry' => $geometry,
                     'min_x' => (float) $row['min_x'], 'min_y' => (float) $row['min_y'],
                     'max_x' => (float) $row['max_x'], 'max_y' => (float) $row['max_y'],
                 ]]),
-                'factor' => (float) $row['offroad_factor'],
+                // Die Ebene traegt den Multiplikator, die Spalte die Quellenzahl.
+                'factor' => $base / $speedFactor,
             ];
         }
         if ($byKind === []) { return ''; }

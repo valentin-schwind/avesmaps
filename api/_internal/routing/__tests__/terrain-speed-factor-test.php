@@ -1,0 +1,371 @@
+<?php
+// api/_internal/routing/__tests__/terrain-speed-factor-test.php
+declare(strict_types=1);
+
+/**
+ * Schritt 2 der Tempowerte: die Landschaftsfaktoren als eigene Spalte, der Byte-Maßstab und der Lader.
+ * Entwurf: docs/superpowers/specs/2026-08-07-tempowerte-design.md §6, §7.
+ *
+ * 💣 DIE FAKTOREBENE TRÄGT EINEN FAKTOR ALS EIN BYTE. Bei Maßstab 50 liegt der Deckel bei 5,10 — und
+ * der Sumpf ergibt in der Multiplikator-Lesart 0,75 ÷ 0,10 = 7,50. Er würde stillschweigend
+ * gedeckelt und wäre 32 % zu schnell: kein Fehler, keine Warnung, nur eine falsche Reisezeit.
+ * Dieser Test ist beim alten Maßstab rot.
+ *
+ * Lauf aus dem Repo-Wurzelverzeichnis:
+ *   php -d zend.assertions=1 -d assert.exception=1 -d extension=php_pdo_sqlite.dll \
+ *       api/_internal/routing/__tests__/terrain-speed-factor-test.php
+ */
+
+if (ini_get('zend.assertions') !== '1') {
+    fwrite(STDERR, "FATAL: zend.assertions is '" . ini_get('zend.assertions') . "', not '1'.\n");
+    exit(2);
+}
+
+require_once __DIR__ . '/../offroad-grid.php';
+
+$nah = static fn(float $a, float $b, float $eps): bool => abs($a - $b) < $eps;
+
+// ============================================================ A. Der Byte-Maßstab
+
+// Die Kiste und EIN Rechteck, das sie ganz ausfüllt — die Ebene trägt dann überall denselben Faktor.
+$box = avesmapsBuildOffroadBox(1.0, 1.0, 9.0, 9.0);
+$feld = static function (float $factor) use ($box): array {
+    $ring = [[-100.0, -100.0], [200.0, -100.0], [200.0, 200.0], [-100.0, 200.0], [-100.0, -100.0]];
+
+    return [[
+        'prepared' => avesmapsPrepareRouteAreas([[
+            'geometry' => ['type' => 'Polygon', 'coordinates' => [$ring]],
+            'min_x' => -100.0, 'min_y' => -100.0, 'max_x' => 200.0, 'max_y' => 200.0,
+        ]]),
+        'factor' => $factor,
+    ]];
+};
+
+// Die Auflösung ist 1 ÷ Maßstab; ein Wert darf höchstens darum danebenliegen.
+$aufloesung = 1.0 / AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE;
+
+// 🔴 DER SUMPF IST DER GRUND FÜR DIESEN GANZEN TEST. 0,75 ÷ 0,10 = 7,50.
+$sumpf = avesmapsOffroadFactorAt($box, avesmapsOffroadRasteriseFactors($box, $feld(7.50)), 5.0, 5.0);
+assert(
+    $nah($sumpf, 7.50, $aufloesung),
+    'Sumpf-Multiplikator 7,50 kommt aus der Faktorebene zurueck, bekommen: ' . $sumpf
+    . ' -- bei Maszstab 50 ist der Deckel 5,10 und der Sumpf 32 % zu schnell'
+);
+
+// Die uebrigen GA-Landschaften, jede als Multiplikator 0,75 ÷ Faktor.
+foreach ([
+    'gebirge/dschungel 0,20' => 3.75,
+    'wald/wueste 0,50'       => 1.50,
+    'tundra 0,70'            => 1.0714285714,
+    'schlucht (abgeleitet)'  => 2.604,
+] as $name => $multiplikator) {
+    $zurueck = avesmapsOffroadFactorAt($box, avesmapsOffroadRasteriseFactors($box, $feld($multiplikator)), 5.0, 5.0);
+    assert($nah($zurueck, $multiplikator, $aufloesung), "$name: $multiplikator kam als $zurueck zurueck");
+}
+
+// Der Deckel selbst, als Aussage statt als Nebenwirkung: 255 Byte-Stufen mal die Auflösung.
+$deckel = 255.0 / AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE;
+assert($deckel >= 7.50, 'der Deckel der Faktorebene traegt den Sumpf: ' . $deckel);
+// ⚠️ Und er ist nicht beliebig gross: ein Byte je Zelle ist die ganze Sparsamkeit dieser Ebene
+// (33,2 gegen 1 Byte je Zelle), also wird der Maszstab nur so weit gesenkt, wie die Quelle es
+// verlangt. Bei 25 bleibt die Aufloesung 0,04 -- fein genug fuer Faktoren zwischen 1,0 und 7,5.
+assert($aufloesung <= 0.05, 'die Aufloesung bleibt feiner als 0,05: ' . $aufloesung);
+
+// ============================================================ B. Der Plan der Migration (rein)
+
+require_once __DIR__ . '/../travel-values-migration.php';
+
+// Der Bezug, gegen den jeder Landschaftsfaktor gemessen wird: die GA-Zeile „offenes Gelaende".
+$basis = avesmapsTravelValuesOffroadBaseFactor();
+assert($basis === 0.75, 'die Basis ist die Querfeldein-Zeile der GA: ' . $basis);
+
+// Die Arten, so wie sie live stehen: Schluessel, Ebene und der heute gesaete offroad_factor.
+$arten = [
+    ['topographie', 'gebirge', 2.20], ['topographie', 'see', 1.00], ['topographie', 'meer', 1.00],
+    ['topographie', 'kueste', 1.00], ['topographie', 'huegelland', 1.30], ['topographie', 'wadi', 1.50],
+    ['topographie', 'schlucht', 2.60], ['topographie', 'hochebene', 1.10], ['topographie', 'tiefebene', 1.00],
+    ['topographie', 'tal', 1.00], ['topographie', 'flussdelta', 2.00], ['topographie', 'insel', 1.00],
+    ['vegetation', 'wald', 1.40], ['vegetation', 'suempfe_moore', 3.00], ['vegetation', 'steppe', 1.10],
+    ['vegetation', 'tundra', 1.30], ['vegetation', 'auenlandschaft', 1.30], ['vegetation', 'wueste', 1.60],
+    ['vegetation', 'graslandschaft', 1.05], ['vegetation', 'flussland_flusstal', 1.00],
+    ['vegetation', 'dschungel', 2.40], ['vegetation', 'wuestenoase', 1.00],
+    // Die drei Ebenen, die KEINEN Bodenfaktor tragen -- sie duerfen im Plan nicht auftauchen.
+    ['derographisch', 'region', 1.00], ['derographisch', 'kontinent', 1.00], ['klima', 'polar', 1.00],
+];
+$zeilen = array_map(
+    static fn(array $a): array => ['kind' => $a[0], 'type_key' => $a[1], 'offroad_factor' => $a[2]],
+    $arten
+);
+
+$plan = avesmapsTravelValuesMigrationPlan($zeilen, ['grid' => AVESMAPS_ROUTE_CLIENT_SPEED_TABLE]);
+$faktoren = [];
+foreach ($plan['factors'] as $eintrag) { $faktoren[$eintrag['type_key']] = $eintrag['factor']; }
+
+// --- B1. Die NEUN mit Quellenzeile stehen auf ihrem GA-Wert, egal was ihr offroad_factor sagt.
+foreach ([
+    'wald' => 0.500, 'suempfe_moore' => 0.100, 'dschungel' => 0.200, 'wueste' => 0.500,
+    'tundra' => 0.700, 'steppe' => 0.750, 'graslandschaft' => 0.750, 'gebirge' => 0.200,
+    'huegelland' => 0.750,
+] as $schluessel => $erwartet) {
+    assert(isset($faktoren[$schluessel]), "$schluessel fehlt im Plan");
+    assert($nah($faktoren[$schluessel], $erwartet, 0.0005), "$schluessel: {$faktoren[$schluessel]} statt $erwartet");
+}
+
+// 🪤 `graslandschaft`, NICHT `grasland`. Der Schluessel in der GA-Tafel hiess bis zum 14.08.2026
+// `grasland` und traf damit keine einzige Zeile der Datenbank -- die Art waere still in den
+// Verhaeltnis-Zweig gefallen (0,75 ÷ 1,05 = 0,714 statt 0,750). Ein Tippfehler, den nur diese
+// Zusicherung sichtbar macht.
+assert(isset(avesmapsTravelValuesSourceTable()['landscapes']['graslandschaft']),
+    'die GA-Tafel kennt die Graslandschaft unter dem Schluessel der Datenbank');
+
+// --- B2. Die ELF ohne Quellenzeile behalten ihr VERHAELTNIS, nicht ihre Geschwindigkeit.
+foreach ([
+    'wadi' => 0.500,        // 0,75 ÷ 1,50
+    'schlucht' => 0.288,    // 0,75 ÷ 2,60
+    'flussdelta' => 0.375,  // 0,75 ÷ 2,00
+    'auenlandschaft' => 0.577,
+    'hochebene' => 0.682,
+    'kueste' => 0.750, 'tal' => 0.750, 'tiefebene' => 0.750, 'insel' => 0.750, 'wuestenoase' => 0.750,
+] as $schluessel => $erwartet) {
+    assert(isset($faktoren[$schluessel]), "$schluessel fehlt im Plan");
+    assert($nah($faktoren[$schluessel], $erwartet, 0.0005), "$schluessel: {$faktoren[$schluessel]} statt $erwartet");
+}
+
+// 💣 DIE ZUSICHERUNG, WEGEN DER DIE REGEL „Verhaeltnis" UND NICHT „verhaltensgleich" HEISST.
+// `flussland_flusstal` (15 Flaechen) steht auf offroad_factor 1,00, bremst also nicht. Wer seine
+// heutige ABSOLUTE Geschwindigkeit einfroere, liesse es bei 0,96 Meilen/h stehen, waehrend der
+// ungezeichnete Boden daneben auf 2,30 geht -- eine gezeichnete Aue waere ein Hindernis, WEIL
+// jemand sie gezeichnet hat.
+assert($nah($faktoren['flussland_flusstal'], 0.750, 0.0005),
+    'eine Aue ohne Bremswirkung ist genau so schnell wie offener Boden: ' . $faktoren['flussland_flusstal']);
+
+// --- B3. Wasser und die fremden Ebenen bekommen KEINE Zeile.
+// 💣 Das Meer sperrt V13, es bremst nicht. Ein Bodenfaktor auf `meer` waere eine zweite, leisere
+// Antwort auf dieselbe Frage -- und die beiden liefen auseinander.
+foreach (['see', 'meer', 'region', 'kontinent', 'polar'] as $schluessel) {
+    assert(!isset($faktoren[$schluessel]), "$schluessel darf keinen Bodenfaktor bekommen");
+}
+assert(count($plan['factors']) === 20,
+    'zwanzig Landschaftsarten tragen einen Bodenfaktor, bekommen: ' . count($plan['factors'])
+    . ' -- kommt eine Art dazu, ist das hier die Stelle, an der jemand ueber ihren Wert nachdenkt');
+
+// --- B4. Das Raster: NUR die Querfeldein-Spalte wandert.
+$raster = $plan['grid'];
+foreach (['groupFoot' => 2.30, 'lightWalker' => 3.07, 'groupHorse' => 2.69,
+          'lightRider' => 3.84, 'caravan' => 2.30, 'horseCarriage' => 3.84] as $mittel => $erwartet) {
+    assert($nah((float) $raster[$mittel]['Querfeldein'], $erwartet, 0.005),
+        "$mittel querfeldein: {$raster[$mittel]['Querfeldein']} statt $erwartet");
+}
+// ⚠️ Und sonst KEINE Zelle. „Ein Deploy, der jede Reisezeit auf jeder Strasse verschiebt, ist keine
+// Nebenwirkung eines Wald-Features" (Entwurf §5). Die Wegtypen setzt erst ein Klick im Fenster zurueck.
+foreach (AVESMAPS_ROUTE_CLIENT_SPEED_TABLE as $mittel => $zeile) {
+    foreach ($zeile as $wegtyp => $wert) {
+        if ($wegtyp === 'Querfeldein') { continue; }
+        assert($raster[$mittel][$wegtyp] === $wert, "$mittel/$wegtyp wurde angefasst und durfte nicht");
+    }
+}
+
+// ============================================================ C. Die Migration gegen sqlite
+
+if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
+    fwrite(STDERR, "FATAL: der pdo_sqlite-Treiber fehlt -- erneut mit -d extension=php_pdo_sqlite.dll\n");
+    exit(2);
+}
+
+require_once __DIR__ . '/../../app/ecosystem.php';
+
+// Die gesaeten offroad_factor-Werte, wortgleich aus avesmapsEcosystemEnsureTables (ecosystem.php).
+$offroad = [
+    'gebirge' => 2.20, 'huegelland' => 1.30, 'schlucht' => 2.60, 'wadi' => 1.50, 'hochebene' => 1.10,
+    'flussdelta' => 2.00, 'wald' => 1.40, 'dschungel' => 2.40, 'suempfe_moore' => 3.00,
+    'wueste' => 1.60, 'tundra' => 1.30, 'auenlandschaft' => 1.30, 'steppe' => 1.10,
+    'graslandschaft' => 1.05,
+];
+
+$frischeAnlage = static function () use ($offroad): PDO {
+    $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    $pdo->exec('CREATE TABLE ecosystem_region_type (
+        kind TEXT, type_key TEXT, label TEXT, sort_order INT, is_active INT DEFAULT 1,
+        offroad_factor REAL NOT NULL DEFAULT 1.00, terrain_speed_factor REAL DEFAULT NULL)');
+    $pdo->exec('CREATE TABLE app_setting (setting_key TEXT PRIMARY KEY, setting_value TEXT)');
+
+    // „Leere Tabelle -> Saat": die echte Saatliste, damit eine neue Landschaftsart hier auftaucht.
+    $insert = $pdo->prepare('INSERT INTO ecosystem_region_type
+        (kind, type_key, label, sort_order, offroad_factor) VALUES (?, ?, ?, ?, ?)');
+    foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortOrder]) {
+        $insert->execute([$kind, $typeKey, $label, $sortOrder, $offroad[$typeKey] ?? 1.00]);
+    }
+
+    return $pdo;
+};
+
+$spalte = static function (PDO $pdo): array {
+    $werte = [];
+    foreach ($pdo->query('SELECT type_key, terrain_speed_factor FROM ecosystem_region_type')
+                 ->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+        $werte[(string) $zeile['type_key']] = $zeile['terrain_speed_factor'];
+    }
+
+    return $werte;
+};
+
+// --- C1. Saat -> Migration: die zwanzig bekommen ihren Wert, alles andere bleibt NULL.
+$pdo = $frischeAnlage();
+$plan = avesmapsTravelValuesPlanFromDatabase($pdo);
+assert($plan !== null, 'auf einer gesaeten Tabelle findet die Migration ihre Arten');
+$geschrieben = avesmapsTravelValuesWriteLandscapeFactors($pdo, $plan['factors']);
+assert($geschrieben === 20, "zwanzig Zeilen geschrieben, bekommen: $geschrieben");
+
+$nachher = $spalte($pdo);
+assert($nah((float) $nachher['suempfe_moore'], 0.100, 0.0005), 'Sumpf 0,100: ' . $nachher['suempfe_moore']);
+assert($nah((float) $nachher['wald'], 0.500, 0.0005), 'Wald 0,500: ' . $nachher['wald']);
+assert($nah((float) $nachher['wadi'], 0.500, 0.0005), 'Wadi 0,500 (0,75 ÷ 1,50): ' . $nachher['wadi']);
+assert($nah((float) $nachher['graslandschaft'], 0.750, 0.0005),
+    'Graslandschaft 0,750 aus der Quelle, NICHT 0,714 aus dem Verhaeltnis: ' . $nachher['graslandschaft']);
+
+// 🔴 Wasser, Regionen und Klimabaender bleiben ohne Aussage.
+foreach (['see', 'meer', 'region', 'kontinent', 'polar', 'tropisch'] as $schluessel) {
+    assert($nachher[$schluessel] === null, "$schluessel bleibt NULL, steht aber auf " . var_export($nachher[$schluessel], true));
+}
+
+// --- C2. Ein von Hand nachgeschaerfter Wert ueberlebt einen zweiten Lauf.
+// 💣 DAS IST DER GRUND FUER DEN EIGENEN MERKER. Wuerde die Migration an „wurde eine Spalte angelegt"
+// haengen, faehre sie bei der naechsten Schemaaenderung ein zweites Mal ueber jede Entscheidung.
+$pdo2 = $frischeAnlage();
+$plan2 = avesmapsTravelValuesPlanFromDatabase($pdo2);
+avesmapsTravelValuesWriteLandscapeFactors($pdo2, $plan2['factors']);
+$pdo2->exec("UPDATE ecosystem_region_type SET terrain_speed_factor = 0.222 WHERE type_key = 'wald'");
+$zweiterLauf = avesmapsTravelValuesWriteLandscapeFactors($pdo2, $plan2['factors']);
+assert($zweiterLauf === 0, "ein zweiter Lauf schreibt nichts mehr, schrieb aber $zweiterLauf Zeilen");
+assert($nah((float) $spalte($pdo2)['wald'], 0.222, 0.0005),
+    'der Wert des Owners steht noch: ' . $spalte($pdo2)['wald']);
+
+// --- C3. Der Merker riegelt die ganze Migration ab.
+$pdo3 = $frischeAnlage();
+$pdo3->exec("INSERT INTO app_setting (setting_key, setting_value) VALUES ('travel_values_v1', '1')");
+assert(avesmapsTravelValuesMigrateOnce($pdo3) === false, 'bei gesetztem Merker laeuft sie nicht');
+foreach ($spalte($pdo3) as $schluessel => $wert) {
+    assert($wert === null, "$schluessel wurde trotz Merker beschrieben");
+}
+
+// --- C4. Eine leere Artentabelle setzt den Merker NICHT.
+// 🔴 Befund A35, woertlich: liefe die Migration VOR der Saat, faende sie null Zeilen, setzte trotzdem
+// ihren Merker und waere fuer immer erledigt, ohne je etwas getan zu haben.
+$leer = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$leer->exec('CREATE TABLE ecosystem_region_type (kind TEXT, type_key TEXT, offroad_factor REAL, terrain_speed_factor REAL)');
+$leer->exec('CREATE TABLE app_setting (setting_key TEXT PRIMARY KEY, setting_value TEXT)');
+assert(avesmapsTravelValuesMigrateOnce($leer) === false, 'ohne Arten laeuft sie nicht');
+assert($leer->query("SELECT COUNT(*) FROM app_setting WHERE setting_key = 'travel_values_v1'")->fetchColumn() === 0,
+    'und sie setzt dabei keinen Merker -- sonst waere sie fuer immer erledigt, ohne etwas getan zu haben');
+
+// ============================================================ D. Die Reihenfolge in EnsureTables
+
+// 💣 DREI BEDINGUNGEN AUS BEFUND A35, UND ALLE DREI MUESSEN HALTEN. Sie stehen in der Reihenfolge von
+// Anweisungen in einer Funktion, nicht in Daten -- pruefbar ist deshalb der Quelltext selbst. Genau
+// so wurde die Falle „DDL committet still" schon einmal ohne Datenbank nachgewiesen: die Reihenfolge
+// der Zeilennummern beantwortet die Frage.
+$quelle = (string) file_get_contents(__DIR__ . '/../../app/ecosystem.php');
+$start = strpos($quelle, 'function avesmapsEcosystemEnsureTables(PDO $pdo): void');
+assert($start !== false, 'avesmapsEcosystemEnsureTables ist auffindbar');
+// Bis zur naechsten Funktion auf Spaltenanfang -- das ist der Rumpf.
+$ende = strpos($quelle, "\nfunction ", $start + 10);
+$rumpf = substr($quelle, $start, ($ende === false ? strlen($quelle) : $ende) - $start);
+
+$stelle = static function (string $nadel) use ($rumpf): int {
+    $position = strpos($rumpf, $nadel);
+    assert($position !== false, "in avesmapsEcosystemEnsureTables fehlt: $nadel");
+
+    return (int) $position;
+};
+
+$saat = $stelle('avesmapsEcosystemSeedRegionTypes($pdo);');
+$suedschluessel = $stelle("ALTER TABLE ecosystem_climate_divider ADD COLUMN south_type_key");
+$spalteNeu = $stelle("ALTER TABLE ecosystem_region_type ADD COLUMN terrain_speed_factor");
+$migration = $stelle('avesmapsTravelValuesMigrateOnce($pdo);');
+
+// D1 -- der south_type_key-Nachtrag bleibt VOR der Saat.
+assert($suedschluessel < $saat, 'der south_type_key-Nachtrag steht vor avesmapsEcosystemSeedRegionTypes()');
+// D2 -- die Migration laeuft NACH der Saat, sonst trifft sie auf einer frischen Anlage null Zeilen.
+assert($migration > $saat, 'die Tempowerte-Migration laeuft nach der Saat');
+// D3 -- und nach dem ALTER, sonst schreibt sie in eine Spalte, die es nicht gibt.
+assert($spalteNeu < $migration, 'die Spalte wird angelegt, bevor die Migration sie beschreibt');
+// D4 -- 💣 DDL COMMITTET IMPLIZIT: in dieser Funktion darf keine Transaktion offen sein.
+assert(strpos($rumpf, 'beginTransaction') === false,
+    'avesmapsEcosystemEnsureTables oeffnet keine Transaktion -- ein ALTER darin committet sie still');
+
+// ============================================================ E. Der Lader liest die neue Spalte
+
+require_once __DIR__ . '/../offroad-data.php';
+
+$flaeche = static function (float $x, float $y): string {
+    return (string) json_encode(['type' => 'Polygon', 'coordinates' => [[
+        [$x, $y], [$x + 10.0, $y], [$x + 10.0, $y + 10.0], [$x, $y + 10.0], [$x, $y],
+    ]]]);
+};
+
+$ebene = static function (?float $faktor) use ($flaeche): string {
+    $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    $pdo->exec('CREATE TABLE ecosystem_region (id INTEGER PRIMARY KEY, region_type TEXT, kind TEXT, is_active INTEGER)');
+    $pdo->exec('CREATE TABLE ecosystem_region_type (kind TEXT, type_key TEXT, offroad_factor REAL, terrain_speed_factor REAL)');
+    $pdo->exec('CREATE TABLE ecosystem_area (id INTEGER PRIMARY KEY, region_id INTEGER, geometry_geojson TEXT,
+        min_x REAL, min_y REAL, max_x REAL, max_y REAL, is_active INTEGER, is_trial INTEGER)');
+    $pdo->exec("INSERT INTO ecosystem_region (id, region_type, kind, is_active) VALUES (1, 'gebirge', 'topographie', 1)");
+    // 💣 offroad_factor steht bewusst auf 2,20 -- dem heutigen Gebirgswert. Liest der Lader noch die
+    // alte Spalte, kommt hier 2,20 heraus statt des Werts, den terrain_speed_factor verlangt.
+    $pdo->prepare('INSERT INTO ecosystem_region_type (kind, type_key, offroad_factor, terrain_speed_factor) VALUES (?, ?, ?, ?)')
+        ->execute(['topographie', 'gebirge', 2.20, $faktor]);
+    $pdo->prepare('INSERT INTO ecosystem_area (region_id, geometry_geojson, min_x, min_y, max_x, max_y, is_active, is_trial)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)')->execute([1, $flaeche(0.0, 0.0), 0.0, 0.0, 10.0, 10.0, 1, 0]);
+
+    return avesmapsOffroadLoadFactorPlane($pdo, avesmapsBuildOffroadBox(1.0, 1.0, 9.0, 9.0));
+};
+
+$boxE = avesmapsBuildOffroadBox(1.0, 1.0, 9.0, 9.0);
+
+// --- E1. Der GA-Wert des Gebirges wird zum Multiplikator Basis ÷ Faktor.
+$gebirge = $ebene(0.200);
+assert($gebirge !== '', 'ein Gebirge mit Bodenfaktor liefert eine Ebene');
+$gemessen = avesmapsOffroadFactorAt($boxE, $gebirge, 5.0, 5.0);
+assert($nah($gemessen, 3.75, $aufloesung), "Gebirge 0,200 -> 0,75 ÷ 0,20 = 3,75, bekommen: $gemessen");
+
+// --- E2. Der Sumpf, der den Byte-Maszstab erzwungen hat, kommt heil durch den ganzen Weg.
+$sumpfEbene = avesmapsOffroadFactorAt($boxE, $ebene(0.100), 5.0, 5.0);
+assert($nah($sumpfEbene, 7.50, $aufloesung), "Sumpf 0,100 -> 7,50, bekommen: $sumpfEbene");
+
+// --- E3. NULL faellt heraus wie heute die 1,00 -- „keine eigene Aussage" bremst nicht.
+assert($ebene(null) === '', 'eine Art ohne eigene Aussage schreibt nichts in die Ebene');
+
+// --- E4. Und was nicht langsamer ist als offener Boden, ebenfalls.
+// 🔴 Der Filter ist „Faktor kleiner als die Basis", nicht „Faktor kleiner als 1". 0,750 IST offener
+// Boden; eine Zelle dafuer zu schreiben hiesse, den Bezug gegen sich selbst zu rechnen.
+assert($ebene(0.750) === '', 'genau offener Boden schreibt nichts in die Ebene');
+assert($ebene(0.900) === '', 'schneller als offener Boden schreibt nichts in die Ebene');
+
+// ============================================================ F. Die Ablageform, einmal im Haus
+
+// 💣 ZWEI SCHREIBER, EINE FORM. Der Endpunkt (api/edit/map/travel-values.php) und die Migration legen
+// denselben Wert ab. Stuende die Sechs-Schluessel-Liste zweimal da, fehlte beim naechsten neuen
+// Abschnitt genau einer der beiden -- und ein fehlender Schluessel ist im Leser kein Fehler, sondern
+// ein stiller Rueckfall auf die Konstante.
+$abgelegt = avesmapsTravelValuesStorableShape(avesmapsTravelValuesRead(null));
+assert(array_keys($abgelegt) === ['grid', 'day_miles', 'path_factors', 'ground_penalties',
+    'river_ratio', 'calibration_target_miles'],
+    'die Ablageform hat genau sechs Schluessel: ' . implode(', ', array_keys($abgelegt)));
+// ⚠️ `source` sagt, WOHER die Werte kamen (Speicher oder Konstante). Mitgespeichert waere es beim
+// naechsten Lesen eine Behauptung ueber sich selbst.
+assert(!array_key_exists('source', $abgelegt), '`source` wird nicht mitgespeichert');
+
+$endpunkt = (string) file_get_contents(__DIR__ . '/../../../edit/map/travel-values.php');
+assert(strpos($endpunkt, 'avesmapsTravelValuesStorableShape(') !== false,
+    'der Endpunkt legt ueber dieselbe Form ab wie die Migration');
+
+$migrationQuelle = (string) file_get_contents(__DIR__ . '/../travel-values-migration.php');
+assert(strpos($migrationQuelle, 'avesmapsTravelValuesStorableShape(') !== false,
+    'und die Migration ebenso');
+// Der Stempel, den der Routen-Endpunkt lesen soll: wer den Speicher aendert, hebt ihn -- sonst sieht
+// eine Migration spaeter aus wie „nie etwas geaendert".
+assert(strpos($migrationQuelle, "_stamp'") !== false || strpos($migrationQuelle, "_stamp\"") !== false
+    || strpos($migrationQuelle, "SETTING_KEY . '_stamp'") !== false,
+    'die Migration hebt den Tempo-Stempel mit');
+
+echo "terrain-speed-factor-test: A (Maszstab) + B (Plan) + C (Migration) + D (Reihenfolge) + E (Lader) + F (Ablageform) bestanden\n";
