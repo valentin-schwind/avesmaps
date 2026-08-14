@@ -21,6 +21,12 @@
  *    design.md §6a: 215 groups, 1547 objects). Ungrouped they were 26 identical-looking rows.
  *    The group row carries the name and the count; the segment rows are indented under it.
  */
+/* Die Aufklapp-Spalte. 🔴 Sie ist für JEDE Zeile der obersten Ebene reserviert, auch für die
+   ohne Aufklapp-Geste — ein Weg mit einem Abschnitt bekommt einen leeren Platzhalter derselben
+   Klasse (js/pages/wege-editor.js, segmentRow). Ohne ihn begänne sein Name 20px weiter links als
+   der eines mehrteiligen Weges direkt darüber, und die Liste sähe ausgefranst aus.
+   ⚠️ Nicht zu verwechseln mit .wp-segment weiter unten: dessen Einrückung ist Verschachtelung
+   (ein Abschnitt IN einer offenen Gruppe) und gehört genau dorthin. */
 .wp-group__twist {
 	flex: 0 0 auto;
 	width: 12px;

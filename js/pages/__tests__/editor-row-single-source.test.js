@@ -84,4 +84,28 @@ assert.ok(/\.avm-row__kind\s*\{[\s\S]*?font-size:\s*var\(--font-size-caption\)/.
 	".avm-row__kind muss auf var(--font-size-caption) stehen.");
 checks++;
 
+// ---- Die Aufklapp-Spalte gehoert der LISTE, nicht der Zeile ------------------------------------
+// 🔴 DIESELBE REGEL WIE BEI DEN ZIEHGRIFFEN IM PANEL, zweite Oberflaeche, zweiter Anlauf. Im
+// Wege-Editor tragen mehrteilige Wege einen Aufklapp-Pfeil (12px + 8px Abstand), einteilige nicht.
+// Ohne Platzhalter begann deren Name 20px weiter links -- der Owner hat es am 14.08.2026 gemeldet,
+// wortgleich zu seiner frueheren Meldung ueber Adamantenland in der Regionenliste.
+//
+// 💣 Der erste Anlauf reservierte die Spalte nur fuer die OBERSTE Ebene. Dadurch stand der
+// verschachtelte Abschnitt bei x=39, also LINKER als sein Gruppenkopf bei x=44 -- ein Kind linker
+// als sein Elternteil. Die Einrueckung von .wp-segment kommt OBENDRAUF, nicht anstelle der Spalte.
+// Gemessen nach der Korrektur: Gruppe und Einzelweg beide bei 44, Abschnitte bei 59.
+const wege = lies("js", "pages", "wege-editor.js");
+const platzhalter = wege.match(/var platzhalter = ([^;]+);/);
+assert.ok(platzhalter, "js/pages/wege-editor.js baut keinen Platzhalter fuer die Aufklapp-Spalte mehr.");
+checks++;
+assert.ok(!/\?/.test(platzhalter[1]),
+	"Der Platzhalter der Aufklapp-Spalte ist wieder an eine Bedingung geknuepft: "
+	+ platzhalter[1].trim() + "\nEr gilt JEDER Zeile der Liste. Nur der obersten Ebene reicht "
+	+ "nicht -- dann steht der verschachtelte Abschnitt linker als sein eigener Gruppenkopf.");
+checks++;
+assert.ok(/wp-group__twist/.test(platzhalter[1]),
+	"Der Platzhalter benutzt nicht mehr .wp-group__twist und hat damit nicht mehr die Breite der "
+	+ "echten Spalte.");
+checks++;
+
 console.log(`editor-row-single-source: ${checks} Pruefungen bestanden (${editoren.length} Editoren).`);

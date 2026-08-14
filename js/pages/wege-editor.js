@@ -281,9 +281,19 @@
 				+ '<span class="avm-row__kind">' + escapeHtml(subtypeLabel(way.feature_subtype)) + "</span>"
 			: '<span class="avm-row__name">Abschnitt ' + index + "</span>";
 
+		// 🔴 Die Aufklapp-Spalte gehoert der LISTE, nicht der Zeile -- JEDE Zeile reserviert sie,
+		// auch die ohne Aufklapp-Geste. Ohne Platzhalter beginnt der Name eines einteiligen Weges
+		// 20px weiter links als der eines mehrteiligen direkt darueber, und die Liste sieht
+		// ausgefranst aus (Owner 14.08.2026, dieselbe Meldung wie zuvor bei Adamantenland).
+		// ⚠️ AUCH der verschachtelte Abschnitt bekommt ihn. Ohne ihn stand sein Name bei x=39,
+		// also LINKER als der Gruppenkopf bei x=44, unter den er gehoert -- ein Kind linker als
+		// sein Elternteil. Die Einrueckung von .wp-segment (Rand + Linie) kommt OBENDRAUF, nicht
+		// anstelle der Spalte.
+		var platzhalter = '<span class="wp-group__twist" aria-hidden="true"></span>';
 		return '<div class="avm-row' + (index === null ? "" : " wp-segment")
 			+ (way.public_id === state.selected ? " is-selected" : "")
 			+ '" data-id="' + escapeHtml(way.public_id) + '" role="button" tabindex="0">'
+			+ platzhalter
 			+ '<div class="avm-row__text">'
 			+ '<div class="avm-row__l1">' + title + "</div>"
 			+ '<div class="avm-row__l2' + tone + '">' + escapeHtml(parts.join(" · ")) + "</div>"
