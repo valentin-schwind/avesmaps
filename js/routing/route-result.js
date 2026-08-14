@@ -76,7 +76,12 @@ function avesmapsRouteRestPortions(entries, travelPerDay, includeRests) {
 		}
 
 		let restTime = 0;
-		let remaining = Number(entry && entry.travelTime) || 0;
+		// 💣 `Number.isFinite`, not `|| 0`: `Number(Infinity) || 0` is `Infinity` (truthy) and the loop
+		// below only ever subtracts a finite `dayHours` per turn, so an Infinity travel time never
+		// brings `remaining` under the epsilon and the loop never returns. NaN and negative values
+		// fall to 0 the same way the `dayHours` fallback above already does.
+		const rawTravelTime = Number(entry && entry.travelTime);
+		let remaining = Number.isFinite(rawTravelTime) && rawTravelTime > 0 ? rawTravelTime : 0;
 		// The epsilon is not cosmetic: a leg boundary lands on the day's last hour through a chain
 		// of float subtractions, so `hoursSinceRest` arrives as 11.999999999999998 rather than 12.
 		// Without the tolerance that night is skipped, and the next stretch is 2e-15 hours long.

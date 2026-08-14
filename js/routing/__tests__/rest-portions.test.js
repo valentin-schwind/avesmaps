@@ -99,4 +99,19 @@ assert.deepStrictEqual(rests([leg(7)], 6), [18], "6 Reisestunden -> Portion von 
 	}
 );
 
+// ---- 9. Eine nicht-endliche Reisezeit haengt die Schleife nicht auf ---------------------------
+// 🔴 BEFUND AUS DER PRUEFUNG (Fix-Runde 1, 2026-08-14): `Number(Infinity) || 0` ist `Infinity`
+// (wahr), und die Schleife zieht je Durchlauf nur ein ENDLICHES `dayHours` ab -- ohne eigene
+// Schranke lief `remaining` nie unter das Epsilon, und der Aufruf kehrte nie zurueck (ein
+// eingefrorener Tab, sobald Aufgabe 2 das verdrahtet). Der Beweis ist nicht die Zahl, sondern dass
+// der Aufruf ueberhaupt zurueckkehrt: haengt er, wird die Zeitmessung nie erreicht.
+const beforeInfiniteCall = Date.now();
+const infiniteResult = avesmapsRouteRestPortions([leg(Infinity)], 12, true);
+const infiniteCallDurationMs = Date.now() - beforeInfiniteCall;
+assert.ok(
+	infiniteCallDurationMs < 1000,
+	`avesmapsRouteRestPortions muss zurueckkehren statt zu haengen, brauchte ${infiniteCallDurationMs} ms`
+);
+assert.deepStrictEqual(infiniteResult, [0], "eine nicht-endliche Reisezeit faellt auf 0, nicht auf eine Nacht");
+
 console.log("rest-portions.test.js: all assertions passed");
