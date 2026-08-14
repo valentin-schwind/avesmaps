@@ -72,10 +72,14 @@ const SYNTHETIC_ROUTE_DISTANCE_COST_FACTOR = 25.0;
 // über See evtl. kürzer"). Rein visuell, keine Auswirkung auf die Routenberechnung.
 const SYNTHETIC_ROUTE_LONG_LEG_WARN_DISTANCE = 20.0;
 const CROSSING_LOCATION_TYPE = "crossing";
-// Editor-Markierung "Kreuzungen <= 2 Wege" (Discord #25): eine echte Kreuzung verbindet mindestens
-// DREI Wege -- eine mit hoechstens so vielen ist ein ueberfluessiger Knoten (Sackgasse, Durchgangs-
-// punkt oder Datenleiche) und wird tuerkis umrandet. Gezaehlt werden gezeichnete Wege, nicht Nachbarn.
-const SPARSE_CROSSING_MAX_WAYS = 2;
+// Editor-Markierung "Kreuzungen mit 2 Wegen" (Discord #25, neu gefasst 2026-08-15): markiert wird
+// der AUFLOESBARE Durchgangsknoten -- ----X---- soll ---------- werden. Drei Bedingungen, alle in
+// computeLocationConnectivityIndex: genau so viele Arme wie hier steht, kein fremder Weg laeuft
+// ueber den Punkt hinweg, und beide Arme sind dieselbe Wegart.
+// 💣 GENAU, nicht hoechstens: null oder ein Arm ist eine Sackgasse bzw. Datenleiche und gehoert
+// nicht diesem Haken (die traegt der pinke „Unverbunden"-Ring). Der alte Name lautete
+// SPARSE_CROSSING_MAX_WAYS und sagte damit das Gegenteil des Vergleichs.
+const SPARSE_CROSSING_WAY_COUNT = 2;
 const PATH_SUBTYPE_KEYS = ["Reichsstrasse", "Strasse", "Weg", "Pfad", "Gebirgspass", "Wuestenpfad", "Flussweg", "Seeweg"];
 const PATH_ENDPOINT_SNAP_DISTANCE_PX = 18;
 

@@ -252,24 +252,39 @@ function createGraph(routeOptions, graphOptions = {}) {
     return graph;
 }
 
-// How many WAYS meet at a node -- the number of drawn paths, NOT the number of neighbours: two
-// separate paths between the same pair are two ways but one neighbour, and the sparse-crossing
-// marker must count them as two (a crossing joining two ways is redundant, whichever way they run).
-function countGraphNodePathEdges(graph, nodeName) {
+// Was an einem Knoten zusammenkommt: die Zahl der ARME (Teilkanten-Enden, nicht Nachbarn -- zwei
+// getrennte Wege zum selben Nachbarn sind zwei Arme), die beteiligten Wegarten und die Weg-ids.
+// Ein durchlaufender Weg liefert hier zwei Arme, weil er links und rechts je eine Teilkante hat.
+function collectGraphNodeArms(graph, nodeName) {
     const neighbours = graph[nodeName];
+    const arms = { count: 0, routeTypes: new Set(), pathIds: new Set() };
     if (!neighbours) {
-        return 0;
+        return arms;
     }
-    return Object.values(neighbours).reduce((total, connections) => total + connections.length, 0);
+    Object.values(neighbours).forEach((connections) => {
+        connections.forEach((connection) => {
+            arms.count++;
+            if (connection.routeType) {
+                arms.routeTypes.add(connection.routeType);
+            }
+            // „<pfad>#<n>" -> „<pfad>": Task 3 vergleicht gegen properties.id.
+            arms.pathIds.add(String(connection.id ?? "").split("#")[0]);
+        });
+    });
+    return arms;
+}
+
+function countGraphNodePathEdges(graph, nodeName) {
+    return collectGraphNodeArms(graph, nodeName).count;
 }
 
 // The editor's two marker tools (docs/superpowers/specs/2026-07-15-unverbundene-orte-marker-design.md,
 // Discord #25) share ONE pass over ONE connectivity graph -- building it twice for ~5200 paths would
 // be pure waste when both checkboxes are on:
 //   unconnected     -- 0 drawn ways AND not a powerline endpoint (an Anbindungsluecke).
-//   sparseCrossings -- a Kreuzung with <= SPARSE_CROSSING_MAX_WAYS ways (a redundant node: a real
-//                      crossing joins at least three). Powerlines don't count here -- a Kreuzung is
-//                      a way node, and Kraftlinien only ever attach to Nodices.
+//   sparseCrossings -- ein aufloesbarer Durchgangsknoten: genau SPARSE_CROSSING_WAY_COUNT Arme,
+//                      eine Wegart. Powerlines don't count here -- a Kreuzung is a way node, and
+//                      Kraftlinien only ever attach to Nodices.
 // Cached in locationConnectivityIndex (js/app/runtime-state.js); invalidated in
 // refreshPlannerAfterFeatureChange (js/routing/route-render.js) plus the two powerline mutation
 // sites that don't flow through it.
@@ -282,11 +297,14 @@ function computeLocationConnectivityIndex() {
         if (!location.publicId) {
             return;
         }
-        const wayCount = countGraphNodePathEdges(connectivityGraph, location.name);
-        if (!wayCount && !powerlineConnectedPublicIds.has(location.publicId)) {
+        const arms = collectGraphNodeArms(connectivityGraph, location.name);
+        if (!arms.count && !powerlineConnectedPublicIds.has(location.publicId)) {
             unconnected.add(location.publicId);
         }
-        if (isCrossingLocation(location) && wayCount <= SPARSE_CROSSING_MAX_WAYS) {
+        // Regel 1: genau zwei Arme. Regel 3: beide derselben Wegart. (Regel 2 folgt.)
+        if (isCrossingLocation(location)
+            && arms.count === SPARSE_CROSSING_WAY_COUNT
+            && arms.routeTypes.size === 1) {
             sparseCrossings.add(location.publicId);
         }
     });

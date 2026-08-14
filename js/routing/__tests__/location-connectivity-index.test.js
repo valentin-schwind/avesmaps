@@ -71,7 +71,11 @@ assert.strictEqual(unconnected.has("pid-E"), false, "a drawn but unbefahrbar riv
 assert.strictEqual(unconnected.has("pid-F"), false, "powerline endpoint counts as connected");
 
 const sparse = getSparseCrossingPublicIds();
-assert.deepStrictEqual([...sparse].sort(), ["pid-K0", "pid-K1", "pid-K2"], "crossings with <= 2 ways");
+// 🔴 Seit 2026-08-15: GENAU zwei Arme. K0 (null) und K1 (einer) sind Sackgasse bzw. Datenleiche und
+// gehoeren nicht mehr diesem Haken -- die 0-Arm-Faelle traegt der pinke „Unverbunden"-Ring.
+assert.deepStrictEqual([...sparse].sort(), ["pid-K2"], "genau zwei Arme, sonst nichts");
+assert.strictEqual(sparse.has("pid-K0"), false, "null Arme ist keine aufloesbare Kreuzung, sondern eine Leiche");
+assert.strictEqual(sparse.has("pid-K1"), false, "ein Arm ist eine Sackgasse, kein Durchgangsknoten");
 assert.strictEqual(sparse.has("pid-K3"), false, "a 3-way crossing is a real crossing");
 assert.strictEqual(sparse.has("pid-C"), false, "sparse marks CROSSINGS only, never settlements");
 
@@ -138,5 +142,25 @@ const dedupGraph = createGraph({}, { skipSyntheticConnections: true, transports:
 assert.strictEqual(countGraphNodePathEdges(dedupGraph, "Da"), 1, "ein doppelter Stuetzpunkt am Start darf keine Phantomarme erzeugen");
 assert.deepStrictEqual(Object.keys(dedupGraph.Da), ["Db"], "keine Selbstkante Da-Da im Graphen");
 assert.strictEqual(dedupGraph.Da.Db[0].id, "dd", "der Duplikat-Vertex faellt heraus, der Weg bleibt unsplit");
+
+// --- Regel 3: beide Arme derselben Wegart -------------------------------------------------------
+// 💣 Ein Knoten, an dem Pfad in Strasse uebergeht, traegt Information -- `----------` gaebe es dort
+// nicht, weil die zusammengelegte Linie eine Wegart verloere. Live sind das 31 von 126.
+locationData = [
+	crossing("Tgleich", 400, 0), loc("Tga", 401, 0), loc("Tgb", 402, 0),
+	crossing("Twechsel", 410, 0), loc("Twa", 411, 0), loc("Twb", 412, 0),
+];
+pathData = [
+	path_("tg1", "Weg", [400, 0], [401, 0]),
+	path_("tg2", "Weg", [400, 0], [402, 0]),
+	path_("tw1", "Pfad", [410, 0], [411, 0]),
+	path_("tw2", "Strasse", [410, 0], [412, 0]),
+];
+powerlineData = [];
+locationConnectivityIndex = null;
+
+const nachWegart = getSparseCrossingPublicIds();
+assert.strictEqual(nachWegart.has("pid-Tgleich"), true, "zwei Wege derselben Art sind aufloesbar");
+assert.strictEqual(nachWegart.has("pid-Twechsel"), false, "ein Artwechsel Pfad->Strasse ist ein tragender Knoten");
 
 console.log("location connectivity index tests passed");
