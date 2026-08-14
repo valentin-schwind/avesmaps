@@ -214,9 +214,12 @@ function handleMapPointRelocationContainerClick(event) {
 	completeMapPointRelocationAt(map.mouseEventToLatLng(event));
 }
 
-/** Ist das einer der drei Gruende, aus denen ein Kartenpunkt abgelehnt werden darf? */
+/** Ist das einer der Gruende, aus denen ein Kartenpunkt abgelehnt werden darf? */
 function isTravelHereErrorCode(code) {
-	return code === "point_not_on_land" || code === "no_exit_node" || code === "no_offroad_route";
+	return code === "point_not_on_land"
+		|| code === "no_exit_node"
+		|| code === "no_offroad_route"
+		|| code === "offroad_transport_not_allowed";
 }
 
 /**
@@ -234,6 +237,16 @@ function travelHereErrorMessage(errorCode) {
 	}
 	if (errorCode === "no_offroad_route") {
 		return tr("travelHere.error.noOffroadRoute", "Dorthin führt kein Weg über Land.");
+	}
+	// 💣 EIN EIGENER SATZ, WEIL DIE ABSAGE EINE ANDERE IST. Hier liegt es nicht am Punkt, sondern am
+	// Reisemittel: die Kutsche fährt querfeldein gar nicht, also hilft kein anderer Punkt. Mit
+	// „Dorthin führt kein Weg über Land" schickte die Meldung den Fragenden auf eine Klickjagd, die
+	// nie ausgeht -- der einzige Ausweg steht eine Zeile höher im Planer.
+	if (errorCode === "offroad_transport_not_allowed") {
+		return tr(
+			"travelHere.error.offroadTransportNotAllowed",
+			"Dieses Reisemittel fährt nicht querfeldein — ein frei gewählter Punkt ist nur mit einem anderen Reisemittel erreichbar."
+		);
 	}
 
 	return tr("travelHere.error.generic", "Die Reise dorthin konnte nicht berechnet werden.");

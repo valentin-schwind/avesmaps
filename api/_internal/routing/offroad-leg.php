@@ -85,6 +85,9 @@ function avesmapsFindNearestOffroadExitNodes(
  *
  * Returns a report; `ok` false carries a machine `error` code the caller turns into an API error:
  *   * `point_not_on_land`   -- §1, the only check that exists, and it guards ONLY this point
+ *   * `offroad_transport_not_allowed` -- das Regelwerk verbietet diesem Verkehrsmittel die Wegart
+ *                              (die Kutsche faehrt nicht querfeldein). Eine Absage ueber die
+ *                              ANFRAGE, nicht ueber den Punkt: kein anderer Punkt hilft.
  *   * `no_exit_node`        -- the graph is empty (no stock, or every domain switched off)
  *   * `no_offroad_route`    -- the A* found no dry way inside the box
  *
@@ -112,6 +115,20 @@ function avesmapsAttachOffroadPointToGraph(
     }
 
     $transport = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
+    // 🔴 ERZEUGER 3 VON 4, und bis zum 14.08.2026 einer der beiden ungesicherten. Die Wegart muss
+    // dieses Verkehrsmittel ueberhaupt tragen duerfen -- eine Kutsche faehrt nicht querfeldein.
+    //
+    // 💣 EIN TEMPO ZU HABEN IST KEINE ERLAUBNIS. Genau darauf ist dieser Erzeuger hereingefallen: er
+    // fragte nur die Tempotabelle, und dort steht fuer die Kutsche querfeldein 3,84. Die Sperre steht
+    // woanders (avesmapsClientRouteTransportOptions), also lief die Pruefung unten glatt durch und
+    // „Hierher reisen" fuhr die Kutsche quer ueber die Wiese -- live gemessen an diesem Tag: Luring
+    // auf einen Kartenpunkt, HTTP 200, zwei Etappen, eine davon Querfeldein.
+    //
+    // ⚠️ VOR der Ausstiegssuche, nicht danach: die teilt Wege (avesmapsSplitClientPathAtAnchor) und
+    // liesse sonst halbierte Wege in einem Graphen zurueck, der die Kante nie bekommt.
+    if ($transport !== null && !avesmapsIsClientTransportAllowedForPath(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $transport)) {
+        return ['ok' => false, 'error' => 'offroad_transport_not_allowed'];
+    }
     $speed = $transport === null
         ? null
         : avesmapsTravelValuesSpeed($transport, AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE);
@@ -357,6 +374,12 @@ function avesmapsConnectOffroadPoints(
     string $connectionId = 'offroad-direct'
 ): array {
     $transport = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
+    // 🔴 ERZEUGER 4 VON 4 -- die Zwillingspruefung zu der in avesmapsAttachOffroadPointToGraph, und
+    // sie zaehlt doppelt: an dieser Funktion haengen ZWEI Ausloeser, die direkte Kante zwischen zwei
+    // Kartenpunkten und die Sehnen des automatischen Umwegs (detour.php).
+    if ($transport !== null && !avesmapsIsClientTransportAllowedForPath(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $transport)) {
+        return ['ok' => false, 'error' => 'offroad_transport_not_allowed'];
+    }
     $speed = $transport === null
         ? null
         : avesmapsTravelValuesSpeed($transport, AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE);

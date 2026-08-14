@@ -83,10 +83,14 @@ for (const punktLatLng of [{ lat: 0, lng: 0 }, { lat: 1024, lng: 1024 }, { lat: 
 	assert.deepStrictEqual(gelesen.coordinates, [punktLatLng.lat, punktLatLng.lng], "und behaelt seine Stelle");
 }
 
-// ---- die drei Ablehnungsgruende -----------------------------------------------------------------
-// Nur diese drei bekommen einen deutschen Satz; alles andere ist ein echter Fehler und behaelt seine
+// ---- die vier Ablehnungsgruende -----------------------------------------------------------------
+// Nur diese vier bekommen einen deutschen Satz; alles andere ist ein echter Fehler und behaelt seine
 // eigene Meldung.
-for (const code of ["point_not_on_land", "no_exit_node", "no_offroad_route"]) {
+//
+// 💣 `offroad_transport_not_allowed` kam am 14.08.2026 dazu, mit dem Riegel in offroad-leg.php. Ein
+// Code, der HIER fehlt, faellt lautlos auf den generischen Satz zurueck -- und der Serverzweig, der
+// ihn schickt, saehe dann aus wie ein Programmfehler statt wie eine Auskunft.
+for (const code of ["point_not_on_land", "no_exit_node", "no_offroad_route", "offroad_transport_not_allowed"]) {
 	assert.strictEqual(isTravelHereErrorCode(code), true, `${code} ist eine Auskunft ueber die Welt`);
 	assert.notStrictEqual(travelHereErrorMessage(code), travelHereErrorMessage("generisch"), `${code} hat einen eigenen Satz`);
 }

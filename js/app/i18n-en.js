@@ -198,6 +198,7 @@ window.AVESMAPS_I18N_EN = {
 	"travelHere.error.notOnLand": "No overland route leads there — please pick a spot on land.",
 	"travelHere.error.noExitNode": "There is no waypoint nearby to set out from.",
 	"travelHere.error.noOffroadRoute": "No route leads there overland.",
+	"travelHere.error.offroadTransportNotAllowed": "This means of travel does not go cross-country — a freely chosen spot can only be reached with a different one.",
 	"travelHere.error.generic": "The journey there could not be calculated.",
 
 	"planner.unit.miles": "miles",

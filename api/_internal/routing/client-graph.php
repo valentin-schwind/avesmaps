@@ -10,6 +10,12 @@ require_once __DIR__ . '/terrain-calibration.php';
 require_once __DIR__ . '/travel-values.php';
 require_once __DIR__ . '/terrain-read.php';
 require_once __DIR__ . '/water-areas.php';
+// 💣 DIE TRANSPORTMITTEL-LISTEN STEHEN DORT, GELESEN WERDEN SIE HIER. avesmapsClientRouteTransport-
+// Options baut auf AVESMAPS_ROUTE_ALLOWED_{LAND,RIVER,SEA}_TRANSPORTS auf; solange nur Aufrufer
+// kamen, die vorher schon request.php eingebunden hatten, fiel das nicht auf. Der erste, der es
+// nicht tat -- offroad-leg.php, seit der Kutschensperre am 14.08.2026 -- starb an „Undefined
+// constant". request.php ist beim Einbinden nebenwirkungsfrei (nur Konstanten und Funktionen).
+require_once __DIR__ . '/request.php';
 
 const AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD = 0.5;
 // 💣 How close a way end must sit to a location to count as LYING ON it. The threshold above only
@@ -644,10 +650,21 @@ function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, a
     $transportOption = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
     $speed = $transportOption === null ? null : avesmapsTravelValuesSpeed($transportOption, AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE);
     if ($transportOption === null || $speed === null) return 0;
-    // 🔴 ERZEUGER 1 VON 2. Die Wegart darf dieses Transportmittel überhaupt tragen -- eine Kutsche
-    // fährt nicht querfeldein (avesmapsClientRouteTransportOptions). 💣 Der zweite Erzeuger ist der
-    // Wegpunkt-Anker weiter unten; nur einen zu sichern lässt die Sperre genau dort offen, wo der
-    // Nutzer selbst Punkte setzt -- derselbe Fehler, den V13 beim Wasser schon einmal gemacht hat.
+    // 🔴 ERZEUGER 1 VON 4. Die Wegart darf dieses Transportmittel überhaupt tragen -- eine Kutsche
+    // fährt nicht querfeldein (avesmapsClientRouteTransportOptions).
+    //
+    // 💣 VIER, NICHT ZWEI -- und hier stand bis zum 14.08.2026 „1 VON 2". Die Zahl war die Sperre:
+    // sie las sich wie eine vollständige Liste, also suchte niemand weiter. Die vollständige ist:
+    //   1. avesmapsConnectClientCompatibleDetachedGraphComponents -- die Komponentenbrücken (hier)
+    //   2. avesmapsConnectClientRouteWaypointsToNearestLandPath   -- der Wegpunkt-Anker (unten)
+    //   3. avesmapsAttachOffroadPointToGraph  (offroad-leg.php)   -- der angeklickte Kartenpunkt
+    //   4. avesmapsConnectOffroadPoints       (offroad-leg.php)   -- die direkte Kante zwischen zwei
+    //      Kartenpunkten, und über detour.php auch die Sehnen des automatischen Umwegs
+    // Genau 3 und 4 -- die vom NUTZER ausgelösten -- blieben offen und fuhren die Kutsche quer über
+    // die Wiese, bis es am 14.08.2026 live gemessen wurde. Dasselbe Muster, das V13 beim Wasser
+    // schon einmal gekostet hat.
+    // ⚠️ avesmapsFindOffroadPathBetween (synthetic-refine.php) ist KEIN fünfter: es biegt die
+    // Geometrie einer Kante, die einer dieser vier bereits gebaut -- und damit geprüft -- hat.
     if (!avesmapsIsClientTransportAllowedForPath(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $transportOption)) return 0;
 
     $locationLookup = avesmapsBuildClientCompatibleLocationLookup($locations);
@@ -739,7 +756,7 @@ function avesmapsConnectClientRouteWaypointsToNearestLandPath(array &$graph, arr
     if ($syntheticTransport === null || !is_numeric($syntheticSpeed) || (float) $syntheticSpeed <= 0.0) {
         return;
     }
-    // 🔴 ERZEUGER 2 VON 2 -- siehe die Zwillingsprüfung in
+    // 🔴 ERZEUGER 2 VON 4 -- die vollständige Liste der vier steht bei der Zwillingsprüfung in
     // avesmapsConnectClientCompatibleDetachedGraphComponents. Ein Wegpunkt mitten im Gelände ist für
     // eine Kutsche kein Ziel, und ohne diese Zeile wäre genau der vom Nutzer gesetzte Punkt das Loch
     // in der Sperre.
