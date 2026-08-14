@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Tempowerte + Eichung – Mockup (Abstimmung, 2026-08-14)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade: eine docs/-Datei, die per file:// geoeffnet wird. Geladen wird die ECHTE
+     CSS-Kette des Wege-Editors, damit das Mockup die tatsaechliche Designsprache zeigt und nicht
+     meine Auslegung davon. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<link rel="stylesheet" href="../css/pages/wege-editor.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   NUR das Neue. Vorschlag fuer css/pages/wege-editor.css, Abschnitt „Tempowerte".
+   Kein hartkodierter Farbwert, kein hartkodierter Radius (AGENTS.md §12).
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* 💣 DER BANNER IST PFLICHT, NICHT ZIERAT. Das Mockup vom 07.08. laedt dieselbe CSS-Kette, sah
+   deshalb aus wie die fertige Seite -- und der Owner hielt das Werkzeug fuer gebaut und wieder
+   verschwunden. Ein Mockup muss sich als solches zu erkennen geben. */
+.mock-banner {
+	position: sticky;
+	top: 0;
+	z-index: 5;
+	padding: var(--space-4) var(--space-10);
+	background: var(--color-warning-soft, var(--color-panel-soft));
+	border-bottom: 2px solid var(--color-warning);
+	color: var(--color-text-strong);
+	font-size: var(--font-size-caption);
+}
+.mock-banner b { color: var(--color-warning); }
+
+.mock-wrap { padding: var(--space-10); max-width: 78rem; margin: 0 auto; }
+.mock-note {
+	margin: 0 0 var(--space-8);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+	line-height: var(--leading-normal);
+}
+.mock-h { margin: var(--space-12) 0 var(--space-4); font-size: var(--font-size-subhead); color: var(--color-text-strong); }
+
+/* ---- DAS NEUE: die Spalte „auf unseren Wegen" ------------------------------------------------
+   Sie rechnet die Zeile ueber den GEMESSENEN mittleren Steigungsfaktor zurueck auf Meilen/Tag --
+   also das, was ein Reisender auf den gezeichneten Wegen dieses Typs wirklich schafft. */
+.wp-tempo__real { white-space: nowrap; color: var(--color-text); }
+.wp-tempo__real b { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+
+/* Der Beleg darunter: gemessener Faktor und wie viele Wege dahinterstehen.
+   ⚠️ Die Wegzahl gehoert dazu. Ein Mittel aus vier Wegen ist etwas anderes als eins aus
+   vierhundert, und ohne die Zahl sehen beide gleich aus -- dieselbe Begruendung wie bei der
+   Flaechenzahl in den Landschaften. */
+.wp-tempo__proof { display: block; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+
+/* 🔴 „nicht vermessen" ist KEINE 1,0. 44 % der Passstrecke hat kein Hoehenprofil; wer dort einen
+   Faktor 1,0 einsetzte, behauptete ebenes Gelaende, wo nur nichts gemessen wurde. */
+.wp-tempo__real.is-unknown { color: var(--color-text-muted); font-style: italic; }
+
+/* Die Strassenzeile IST die Selbstpruefung: dort muss das Eichziel stehen. */
+.wp-tempo__tbl tr.is-anchor th { color: var(--color-accent-strong); }
+/* 💣 MIT DEM ELEMENT DAVOR, sonst gewinnt `.wp-tempo__real b` (0,1,1) gegen `.wp-tempo__check`
+   (0,1,0) und der Erfolgston kommt nie durch. Beim ersten Anlauf war genau das der Fall: die
+   Ankerzeile stand im Akzentgold statt in Gruen, und am Bild sah man keinen Unterschied. */
+.wp-tempo__real b.wp-tempo__check { color: var(--color-success); }
+.wp-tempo__real b.wp-tempo__check.is-off { color: var(--color-danger); }
+</style>
+</head>
+<body class="avm-editor-body">
+
+<div class="mock-banner">
+  <b>MOCKUP — nichts davon ist gebaut.</b> Abstimmungsvorlage vom 14.08.2026 zur Frage
+  „kann man die Differenz zwischen Tempo und Eichung in den betreffenden Zeilen mitausgeben?".
+  Die Datei laedt die echte CSS-Kette des Wege-Editors, sieht deshalb aus wie das fertige Fenster
+  und ist es nicht.
+</div>
+
+<div class="mock-wrap">
+
+<p class="mock-note">
+  <b>Was echt ist und was nicht:</b> die Spalten <i>unser Wert</i>, <i>GA</i> und <i>auf dem Papier</i>
+  sind mit dem echten Servercode gerechnet und zeigen den Stand nach deinem Ruecksetzer.
+  Die <b>gemessenen Faktoren und Wegzahlen sind Beispielwerte</b> — die echten stehen in
+  <code>calibration_json</code>, und die kann ich ohne Anmeldung nicht lesen. Nur die Zahl 1,032 fuer
+  die Strasse ist echt: sie ist <code>mean_G</code>.
+</p>
+
+<h3 class="mock-h">Heute — fuenf Spalten</h3>
+<div class="wp-tempo__grp">
+  <h4>Reisegruppe zu Fuss <span class="wp-tempo__day">GA: 30 Meilen/Tag</span></h4>
+  <table class="wp-tempo__tbl"><tbody>
+    <tr><th scope="row">Reichsstrasse</th><td><input type="number" class="wp-tempo__in" value="3.38"></td>
+        <td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,38</td><td class="wp-tempo__eff">34,1 Mln/Tag</td></tr>
+    <tr><th scope="row">Strasse</th><td><input type="number" class="wp-tempo__in" value="3.07"></td>
+        <td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,07</td><td class="wp-tempo__eff">31,0 Mln/Tag</td></tr>
+    <tr><th scope="row">Gebirgspass</th><td><input type="number" class="wp-tempo__in" value="1.23"></td>
+        <td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">1,23</td><td class="wp-tempo__eff">12,4 Mln/Tag</td></tr>
+  </tbody></table>
+</div>
+
+<p class="mock-note">
+  „34,1 Mln/Tag" ist eine Rechnung <b>auf dem Papier</b>: Tempo mal Reisestunden, geteilt durch den
+  Zeitmassstab. Sie sagt nichts darueber, was auf den gezeichneten Wegen herauskommt — die sind nicht
+  eben. Genau diese Luecke fuellt die neue Spalte.
+</p>
+
+<h3 class="mock-h">Vorschlag — eine sechste Spalte: „auf unseren Wegen"</h3>
+<div class="wp-tempo__grp">
+  <h4>Reisegruppe zu Fuss <span class="wp-tempo__day">GA: 30 Meilen/Tag</span></h4>
+  <table class="wp-tempo__tbl"><tbody>
+
+    <tr>
+      <th scope="row">Reichsstrasse</th>
+      <td><input type="number" class="wp-tempo__in" value="3.38"></td>
+      <td class="wp-tempo__undocell"></td>
+      <td class="wp-tempo__ga">3,38</td>
+      <td class="wp-tempo__eff">34,1 Mln/Tag</td>
+      <td class="wp-tempo__real"><b>33,4</b> Mln/Tag
+        <span class="wp-tempo__proof">gemessen &times;1,021 &middot; 352 Wege</span></td>
+    </tr>
+
+    <!-- 🔴 DIE SELBSTPRUEFUNG. Hier MUSS das Eichziel stehen (30,0). Steht etwas anderes, ist
+         mean_G von der Karte weggelaufen -- und man sieht es an der Stelle, an der man ohnehin
+         hinschaut, statt in einem eigenen Alarm. -->
+    <tr class="is-anchor">
+      <th scope="row">Strasse</th>
+      <td><input type="number" class="wp-tempo__in" value="3.07"></td>
+      <td class="wp-tempo__undocell"></td>
+      <td class="wp-tempo__ga">3,07</td>
+      <td class="wp-tempo__eff">31,0 Mln/Tag</td>
+      <td class="wp-tempo__real"><b class="wp-tempo__check">30,0</b> Mln/Tag
+        <span class="wp-tempo__proof">gemessen &times;1,032 &middot; 1.026 Wege &middot; = Eichziel &check;</span></td>
+    </tr>
+
+    <tr>
+      <th scope="row">Weg (Karrenweg)</th>
+      <td><input type="number" class="wp-tempo__in" value="2.46"></td>
+      <td class="wp-tempo__undocell"></td>
+      <td class="wp-tempo__ga">2,46</td>
+      <td class="wp-tempo__eff">24,8 Mln/Tag</td>
+      <td class="wp-tempo__real"><b>23,4</b> Mln/Tag
+        <span class="wp-tempo__proof">gemessen &times;1,058 &middot; 365 Wege</span></td>
+    </tr>
+
+    <tr>
+      <th scope="row">Pfad</th>
+      <td><input type="number" class="wp-tempo__in" value="2.46"></td>
+      <td class="wp-tempo__undocell"></td>
+      <td class="wp-tempo__ga">2,46</td>
+      <td class="wp-tempo__eff">24,8 Mln/Tag</td>
+      <td class="wp-tempo__real"><b>23,1</b> Mln/Tag
+        <span class="wp-tempo__proof">gemessen &times;1,074 &middot; 1.557 Wege</span></td>
+    </tr>
+
+    <!-- ⚠️ ZWEI FAKTOREN, und beide gehoeren hin. Der Wegtyp-Faktor 0,4 enthaelt den Anstieg laut
+         Quelle schon; ohne den Pass-Ausgleich braemste die Steigungsebene ein zweites Mal. Wer hier
+         nur „×1,326" liest, haelt den Pass fuer doppelt bestraft. -->
+    <tr>
+      <th scope="row">Gebirgspass</th>
+      <td><input type="number" class="wp-tempo__in" value="1.23"></td>
+      <td class="wp-tempo__undocell"></td>
+      <td class="wp-tempo__ga">1,23</td>
+      <td class="wp-tempo__eff">12,4 Mln/Tag</td>
+      <td class="wp-tempo__real"><b>12,0</b> Mln/Tag
+        <span class="wp-tempo__proof">gemessen &times;1,326 &middot; nach Pass-Ausgleich &times;1,032 &middot; 201 Wege</span></td>
+    </tr>
+
+    <!-- 🔴 „nicht vermessen" ist KEINE 1,0. -->
+    <tr>
+      <th scope="row">Wuestenpfad</th>
+      <td><input type="number" class="wp-tempo__in" value="1.54"></td>
+      <td class="wp-tempo__undocell"></td>
+      <td class="wp-tempo__ga">1,54</td>
+      <td class="wp-tempo__eff">15,5 Mln/Tag</td>
+      <td class="wp-tempo__real is-unknown">nicht vermessen
+        <span class="wp-tempo__proof">35 Wege, keiner mit Hoehenprofil</span></td>
+    </tr>
+
+    <tr>
+      <th scope="row">Querfeldein</th>
+      <td><input type="number" class="wp-tempo__in" value="2.30"></td>
+      <td class="wp-tempo__undocell"></td>
+      <td class="wp-tempo__ga">2,30</td>
+      <td class="wp-tempo__eff">23,2 Mln/Tag</td>
+      <td class="wp-tempo__real is-unknown">kein gezeichneter Weg
+        <span class="wp-tempo__proof">Querfeldein rechnet der A* je Route</span></td>
+    </tr>
+
+  </tbody></table>
+</div>
+
+<h3 class="mock-h">Wenn die Eichung weglaeuft</h3>
+<p class="mock-note">
+  Derselbe Ausschnitt, aber die Karte hat sich bewegt: die Eichung misst jetzt &times;1,061 auf der
+  Strasse, waehrend <code>mean_G</code> im Code auf 1,032 steht. Die Strassenzeile trifft das
+  Eichziel nicht mehr — und sagt es.
+</p>
+<div class="wp-tempo__grp">
+  <table class="wp-tempo__tbl"><tbody>
+    <tr class="is-anchor">
+      <th scope="row">Strasse</th>
+      <td><input type="number" class="wp-tempo__in" value="3.07"></td>
+      <td class="wp-tempo__undocell"></td>
+      <td class="wp-tempo__ga">3,07</td>
+      <td class="wp-tempo__eff">31,0 Mln/Tag</td>
+      <td class="wp-tempo__real"><b class="wp-tempo__check is-off">29,2</b> Mln/Tag
+        <span class="wp-tempo__proof">gemessen &times;1,061 &middot; 1.113 Wege &middot;
+          Eichziel 30,0 verfehlt &mdash; <code>mean_G</code> steht auf 1,032</span></td>
+    </tr>
+  </tbody></table>
+</div>
+
+<h3 class="mock-h">Was das beantwortet</h3>
+<ul class="wp-tempo__locked">
+  <li><b>Die Strassenzeile wird zur Selbstpruefung.</b> Dort muss das Eichziel stehen. Kein separater
+      Alarm noetig — die Abweichung erscheint da, wo man ohnehin hinschaut.</li>
+  <li><b>Der Pass zeigt beide Faktoren.</b> Den gemessenen und den, der nach dem Ausgleich uebrig
+      bleibt. Ohne das liest sich der Pass wie doppelt bestraft.</li>
+  <li><b>Eine geaenderte Zahl wird sofort sichtbar.</b> Stellst du die Passgeschwindigkeit um, wandern
+      die letzten beiden Spalten mit, die Messangabe daneben bleibt stehen — man sieht in der Zeile,
+      dass der Wert nicht mehr aus der Quellenrechnung stammt.</li>
+</ul>
+
+<h3 class="mock-h">Offen — das entscheidest du</h3>
+<ul class="wp-tempo__locked">
+  <li><b>Nur anzeigen, oder auch nachziehen?</b> Diese Spalte macht die Abweichung <i>sichtbar</i>.
+      Sie behebt sie nicht: dafuer muesste <code>mean_G</code> die Eichung <i>lesen</i> statt sie
+      abzuschreiben. Beides ist moeglich, das eine schliesst das andere nicht aus.</li>
+  <li><b>Auch bei Wasser?</b> Fluss und See tragen kein Gelaende — dort waere die Spalte immer leer.
+      Vorschlag: bei Wasserzeilen gar keine Spalte statt einer Reihe Striche.</li>
+  <li><b>Sechs Spalten sind viel.</b> Bei zwei Tabellen nebeneinander wird es eng. Alternative: die
+      Messangabe nur als Titel beim Ueberfahren, nicht als eigene Zeile darunter.</li>
+</ul>
+
+</div>
+</body>
+</html>
