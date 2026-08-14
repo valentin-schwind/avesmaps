@@ -143,24 +143,24 @@
   .chip-toggle.warn.is-active { background:var(--color-warning-strong); border-color:var(--color-warning); color:var(--color-warning-strong-text); }
   #seTreeBypassHint { font-size:10px; color:var(--color-warning-soft-text); margin:0 0 6px; padding:3px 6px; background:var(--color-warning-soft); border:1px solid var(--color-warning-soft-border); border-radius:4px; }
   #seTreeBypassHint[hidden] { display:none; }
-  /* Siedlungs-Zeilen: zweizeilig, Zeile 2 = Zuordnungsstatus (gruen=zugeordnet, amber=Luecke). */
-  /* Radius auf das Token statt 5px (Spec §4.2 kennt nur --radius-sm und --radius-md). Abenteuer- und
-     Kartensammlungs-Editor tragen dieselbe Zeilengeometrie -- 4/6, --radius-md, transparenter Rahmen. */
-  .se-row { display:flex; align-items:center; gap:8px; padding:var(--avm-row-pad); border-radius:var(--radius-md); border:1px solid transparent; cursor:pointer; }
-  .se-row:hover { background:var(--color-hover-wash); }
-  .se-row.is-selected { background:var(--color-active-wash); border-color:var(--color-accent); }
-  .se-row-coat { flex:0 0 auto; width:22px; height:22px; border-radius:3px; object-fit:contain; background:var(--panel); border:1px solid var(--line2); }
+  /* 💣 Hier stand .se-row -- eine ABSCHRIFT von .avm-row (css/components/editor-page.css:450),
+     die diese Seite ohnehin laedt. Der Kommentar darueber sagte selbst, dass Literatur- und
+     Karteneditor "dieselbe Zeilengeometrie" tragen: man wusste es und schrieb sie trotzdem
+     dreimal. Beim Abschreiben rutschten .se-row-type und .se-row-l2 auf font-size:10px, unter
+     die 11px-Untergrenze aus docs/design-language.md -- und der Fehler wurde in den
+     Kraftlinien-Editor weiterkopiert. Entfernt am 14.08.2026.
+     Gewacht von js/pages/__tests__/editor-row-single-source.test.js.
+     Es bleibt NUR, was dem Ortseditor allein gehoert: */
+  /* Das Wappen links -- .avm-row kennt kein Bild in der Zeile. */
+  .se-row-coat { flex:0 0 auto; width:22px; height:22px; border-radius:var(--radius-sm); object-fit:contain; background:var(--panel); border:1px solid var(--line2); }
   .se-row-coat--empty { background:transparent; border-style:dashed; border-color:var(--line); opacity:.5; }
-  .se-row-text { flex:1 1 auto; min-width:0; }
-  .se-row-l1 { display:flex; align-items:baseline; gap:6px; }
-  .se-row-name { font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .se-row-type { font-size:10px; color:var(--mut); margin-left:auto; white-space:nowrap; }
-  .se-row-l2 { font-size:10px; margin-top:1px; display:flex; align-items:center; gap:4px; }
+  /* ⚠️ Zeile 2 traegt hier ZWEI Kinder (Territorium links, Bildzaehler rechts per margin-left:auto)
+     und muss deshalb ein Flex-Container sein. .avm-row__l2 ist ein Block mit Ellipse -- ein
+     blosses Umbenennen haette den Bildzaehler aus seiner rechten Ecke geworfen. Diese Klasse
+     macht NUR das Layout; Schriftgroesse und Farbe kommen von .avm-row__l2. */
+  .se-line2 { display:flex; align-items:center; gap:4px; }
   .se-row-terr { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .se-row-imgcount { flex:0 0 auto; margin-left:auto; color:var(--mut); white-space:nowrap; }
-  .se-row-l2.ok { color:var(--ok); }
-  .se-row-l2.warn { color:var(--warn); }
-  .se-row-l2.mut { color:var(--mut); }
   .se-empty, .se-loading, .se-error { color:var(--mut); padding:6px; }
   .se-error { color:var(--bad); }
   /* Siedlungs-Detailpanel (RECHTS): Wappen-Block oben, dann Gruppen "Identitaet" /
@@ -1049,7 +1049,7 @@ function rowSelectionKey(item) {
 function renderSettlementRowElement(item) {
 	const row = document.createElement("div");
 	const rowKey = rowSelectionKey(item);
-	row.className = "se-row" + (rowKey === selectedRowKey ? " is-selected" : "");
+	row.className = "avm-row" + (rowKey === selectedRowKey ? " is-selected" : "");
 	row.dataset.rowKey = rowKey;
 	row.dataset.publicId = item.public_id;
 
@@ -1072,18 +1072,18 @@ function renderSettlementRowElement(item) {
 	}
 
 	const textCol = document.createElement("div");
-	textCol.className = "se-row-text";
+	textCol.className = "avm-row__text";
 
 	const line1 = document.createElement("div");
-	line1.className = "se-row-l1";
+	line1.className = "avm-row__l1";
 	const name = document.createElement("span");
-	name.className = "se-row-name";
+	name.className = "avm-row__name";
 	name.textContent = item.name;
 	name.title = item.name;
 	line1.appendChild(name);
 	if (item.settlement_label) {
 		const type = document.createElement("span");
-		type.className = "se-row-type";
+		type.className = "avm-row__kind";
 		type.textContent = item.settlement_label;
 		line1.appendChild(type);
 	}
@@ -1094,13 +1094,13 @@ function renderSettlementRowElement(item) {
 	terr.className = "se-row-terr";
 	if (item.on_map !== true) {
 		// Wiki-only ("Fehlt"): not placed on the map yet, so there is no territory to assign.
-		line2.className = "se-row-l2 mut";
+		line2.className = "avm-row__l2 se-line2 mut";
 		terr.textContent = "○ nur Wiki (nicht platziert)";
 	} else if (item.territory_wiki_key) {
-		line2.className = "se-row-l2 ok";
+		line2.className = "avm-row__l2 se-line2 ok";
 		terr.textContent = "✓ " + territoryDisplayName(item.territory_wiki_key);
 	} else {
-		line2.className = "se-row-l2 warn";
+		line2.className = "avm-row__l2 se-line2 warn";
 		terr.textContent = "⚠ nicht zugeordnet";
 	}
 	line2.appendChild(terr);

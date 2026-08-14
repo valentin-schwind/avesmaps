@@ -66,18 +66,12 @@
   input[type=search] { height:var(--avm-control-h); padding:0 var(--space-6); flex:1; }
   .scrollbox { flex:1 1 auto; overflow:auto; min-height:0; background:var(--color-panel); border:1px solid var(--line); border-radius:6px; padding:4px; }
 
-  /* Listenzeilen (Referenz .se-row) */
-  .se-row { display:flex; align-items:center; gap:8px; padding:var(--avm-row-pad); border-radius:var(--radius-md); border:1px solid transparent; cursor:pointer; }
-  .se-row:hover { background:var(--color-hover-wash); }
-  .se-row.is-selected { background:var(--color-active-wash); border-color:var(--color-accent); }
-  .se-row-text { flex:1 1 auto; min-width:0; }
-  .se-row-l1 { display:flex; align-items:baseline; gap:6px; }
-  .se-row-name { font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .se-row-type { font-size:10px; color:var(--mut); margin-left:auto; white-space:nowrap; }
-  .se-row-l2 { font-size:10px; margin-top:1px; display:flex; align-items:center; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .se-row-l2.ok { color:var(--ok); }
-  .se-row-l2.warn { color:var(--warn); }
-  .se-row-l2.mut { color:var(--mut); }
+  /* 💣 Hier stand ein zweites .se-row, wortgleich abgeschrieben vom Ortseditor -- der Kommentar
+     darueber lautete "Listenzeilen (Referenz .se-row)" und benannte die Abschrift damit selbst.
+     Mitgekommen war font-size:10px, unter der 11px-Untergrenze (docs/design-language.md).
+     Diese Seite laedt css/components/editor-page.css: die Zeile heisst .avm-row und steht dort.
+     Entfernt am 14.08.2026, ersatzlos -- der Kraftlinien-Editor hatte keine eigenen Zusaetze.
+     Gewacht von js/pages/__tests__/editor-row-single-source.test.js. */
   .se-empty { color:var(--mut); padding:8px; }
   .se-error { color:var(--bad); padding:8px; }
 
@@ -309,14 +303,14 @@ function renderList() {
 	host.innerHTML = visible.map((l) => {
 		const nodeCount = l.topology ? l.topology.adjacency.size : 0;
 		const l2 = l.warnings.length > 0
-			? '<div class="se-row-l2 warn">⚠ ' + esc(l.warnings[0]) + "</div>"
-			: '<div class="se-row-l2 ok">' + nodeCount + " Nodices · " + l.segments.length + " Segmente · " + esc(spanText(l)) + "</div>";
-		return '<div class="se-row' + (l.name === selectedName ? " is-selected" : "") + '" data-name="' + esc(l.name) + '">'
-			+ '<div class="se-row-text"><div class="se-row-l1"><span class="se-row-name">' + esc(l.name) + '</span>'
-			+ '<span class="se-row-type">' + (l.topology ? shapeLabel(l.topology.shape) : "") + "</span></div>"
+			? '<div class="avm-row__l2 warn">⚠ ' + esc(l.warnings[0]) + "</div>"
+			: '<div class="avm-row__l2 ok">' + nodeCount + " Nodices · " + l.segments.length + " Segmente · " + esc(spanText(l)) + "</div>";
+		return '<div class="avm-row' + (l.name === selectedName ? " is-selected" : "") + '" data-name="' + esc(l.name) + '">'
+			+ '<div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">' + esc(l.name) + '</span>'
+			+ '<span class="avm-row__kind">' + (l.topology ? shapeLabel(l.topology.shape) : "") + "</span></div>"
 			+ l2 + "</div></div>";
 	}).join("");
-	host.querySelectorAll(".se-row").forEach((row) => {
+	host.querySelectorAll(".avm-row").forEach((row) => {
 		row.addEventListener("click", () => selectLine(row.getAttribute("data-name")));
 	});
 }
