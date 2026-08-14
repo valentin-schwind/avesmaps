@@ -1,0 +1,152 @@
+/* SVG-Export page (edit/svg-export.php).
+   Imports edit.css for the shared login panel + top bar, then adds only what this page
+   needs. Every colour, radius and divider comes from css/base/tokens.css -- see
+   docs/design-language.md: a literal value written twice is divergence waiting to happen. */
+@import url("edit.css");
+
+.svgx-shell {
+	min-height: 100vh;
+	display: grid;
+	grid-template-rows: auto 1fr;
+	background: var(--color-page-bg);
+}
+
+.svgx-panel {
+	width: min(920px, calc(100vw - 32px));
+	margin: 18px auto;
+	padding: 18px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-panel);
+	box-sizing: border-box;
+}
+
+.svgx-panel h1 {
+	margin: 0 0 6px 0;
+	font-size: 22px;
+	color: var(--color-text-strong);
+}
+
+.svgx-lead {
+	margin: 0 0 4px 0;
+	color: var(--color-text);
+}
+
+.svgx-hint {
+	margin: 0 0 14px 0;
+	color: var(--color-text-muted);
+	font-size: 13px;
+}
+
+/* Group by divider + heading, not by framed boxes (design-language.md). */
+.svgx-group {
+	border-top: 1px solid var(--color-divider);
+	padding-top: 12px;
+	margin-top: 14px;
+}
+
+.svgx-group__title {
+	margin: 0 0 8px 0;
+	font-size: 13px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--color-text-muted);
+}
+
+.svgx-choices {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 22px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.svgx-choice {
+	display: flex;
+	align-items: baseline;
+	gap: 7px;
+	cursor: pointer;
+	color: var(--color-text);
+}
+
+.svgx-choice input {
+	margin: 0;
+	flex: 0 0 auto;
+}
+
+.svgx-choice__note {
+	color: var(--color-text-muted);
+	font-size: 12px;
+}
+
+.svgx-actions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-top: 16px;
+}
+
+/* Main action filled, everything else soft/outline -- the button hierarchy. */
+.svgx-start {
+	padding: 8px 16px;
+	border: 1px solid var(--color-button-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	font: inherit;
+	cursor: pointer;
+}
+
+.svgx-start:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+
+.svgx-secondary {
+	padding: 8px 14px;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	cursor: pointer;
+}
+
+.svgx-status {
+	margin: 12px 0 0 0;
+	min-height: 1.4em;
+	color: var(--color-text);
+	font-variant-numeric: tabular-nums;
+}
+
+.svgx-status--error {
+	color: var(--color-danger, #a3402c);
+}
+
+/* Das Zählwerk: was die Datei wirklich enthält. Eine Ebene mit 0 steht hier sichtbar,
+   statt im Grafikprogramm vermisst zu werden. */
+.svgx-stats {
+	margin: 12px 0 0 0;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+.svgx-stats th,
+.svgx-stats td {
+	text-align: left;
+	padding: 3px 18px 3px 0;
+	border-bottom: 1px solid var(--color-divider);
+	color: var(--color-text);
+}
+
+.svgx-stats td:last-child {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+.svgx-stats tr[data-empty="1"] td {
+	color: var(--color-text-muted);
+}

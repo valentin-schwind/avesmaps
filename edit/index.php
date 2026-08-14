@@ -122,6 +122,11 @@ $mapIframeSrc = '../index.html?' . htmlspecialchars($mapIframeQuery, ENT_QUOTES,
                              editor marker on the map (css/components/scope-hint.css) -- one word
                              changes, the form does not. -->
                         <a class="edit-shell__toplink" href="/edit/backup.php" target="_blank" rel="noopener" title="Vollständiges Datenbank-Backup erstellen und herunterladen" aria-label="Datenbank-Backup">💾 Datenbank-Backup <span class="avesmaps-scope-hint">nur Admins</span></a>
+                        <!-- Monochrome glyph on purpose, not a third emoji: the house rule since
+                             13.08. is a monochrome sign for editor tools, and the two above are
+                             listed as an open point because no shared sign exists for "handbook"
+                             or "backup". For "download" one does exist -- nothing to invent. -->
+                        <a class="edit-shell__toplink" href="/edit/svg-export.php" target="_blank" rel="noopener" title="Die Karte als bearbeitbare Vektorgrafik herunterladen" aria-label="Karte als SVG">↧ Karte als SVG <span class="avesmaps-scope-hint">nur Admins</span></a>
                     <?php endif; ?>
                     <form method="post" action="./">
                         <input type="hidden" name="action" value="logout" />
