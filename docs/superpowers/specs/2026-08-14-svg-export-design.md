@@ -41,7 +41,7 @@ nicht sieht und ein Admin daneben sonst nicht wüsste, was dem anderen fehlt.
 `edit/backup.php` abgeschaut.
 
 Inhalt: eine Auswahl **für welches Programm** (siehe §4), eine Ankreuzliste der
-acht Ebenen (**alles vorangehäkelt**), darunter ein Knopf „SVG erzeugen" und
+sieben Ebenen (**alles vorangehäkelt**), darunter ein Knopf „SVG erzeugen" und
 eine Statuszeile. Kein Fortschrittsbalken mit
 Serverlauf wie beim Backup — hier rechnet der Browser, und der Weg ist kurz
 genug für eine Zeile Text.
@@ -56,18 +56,31 @@ genug für eine Zeile Text.
 
 ## 3 · Was in der Datei steht
 
-Acht Ebenen, in genau dieser Reihenfolge. In SVG liegt das Erste **unten**:
+Sieben Ebenen, in genau dieser Reihenfolge. In SVG liegt das Erste **unten**:
 
 | # | Ebene | Untergruppen | Quelle |
 |---|---|---|---|
 | 1 | Landschaften & Küste | Derographisch · Vegetation · Topographie · Klima | `ecosystem-areas.php?kind=…` |
 | 2 | Regionen | — | `map-features.php` |
 | 3 | Herrschaftsgebiete | nach Rang | `political-territories.php?action=layer` |
-| 4 | Flüsse | — | `map-features.php` |
-| 5 | Wege | Reichsstraße · Straße · Pfad · Gebirgspass · Wüstenpfad · Flussweg · Seeweg | `map-features.php` |
-| 6 | Kraftlinien | — | `map-features.php` |
-| 7 | Orte | Metropole · Großstadt · Stadt · Kleinstadt · Dorf · Gebäude | `map-features.php` |
-| 8 | Beschriftungen | Orte · Wege · Gebiete · Regionen | `map-features.php` |
+| 4 | Wege | die **acht** aus `PATH_SUBTYPE_KEYS` | `map-features.php` |
+| 5 | Kraftlinien | — | `map-features.php` |
+| 6 | Orte | die Ortsarten aus `api/app/place-kinds.php` | `map-features.php` |
+| 7 | Beschriftungen | Orte · Wege · Gebiete · Regionen | `map-features.php` |
+
+> 💣 **Die Untergruppen werden GELESEN, nicht abgeschrieben.** `PATH_SUBTYPE_KEYS`
+> (`js/config.js`) führt **acht** Werte — `Reichsstrasse, Strasse, Weg, Pfad,
+> Gebirgspass, Wuestenpfad, Flussweg, Seeweg`; ein erster Entwurf dieser Tabelle
+> hatte „Weg" schlicht vergessen, und niemand hätte die fehlende Gruppe je
+> bemerkt. Die Ortsarten sind ebenfalls **ein** Katalog (`place-kinds.php`), was
+> im Projekt schon einmal teuer gelernt wurde. Beide werden zur Laufzeit
+> gelesen; eine neue Wegart oder Ortsart taucht dann von selbst als Gruppe auf.
+
+> ⚠️ **„Flüsse" ist keine eigene Ebene** — in den Daten sind sie Wege mit
+> `feature_subtype === "Flussweg"` (das prüft auch
+> `map-features-river-flow-arrows.js` so). Sie erscheinen als **Untergruppe
+> `Flussweg`** unter den Wegen, zusammen mit `Seeweg`. Eine eigene Ebene daraus
+> zu machen hieße, ein zweites Mal zu entscheiden, was ein Fluss ist.
 
 **Die Untergruppen sind der eigentliche Nutzen.** Eine Farbe zu ändern trifft
 dann *alle Reichsstraßen* — nicht 462 einzeln angefasste Linien. Deshalb hängt
@@ -196,7 +209,21 @@ AGENTS.md §12 wörtlich: nie eine Farbe hartkodieren.
 Tabelle: die echten Stärken der Karte kommen aus der Zoomstufe, und eine
 Vektordatei hat keine. Also ein Satz fester Werte für 1024 Einheiten
 Kantenlänge — an **einer** Stelle im reinen Bauer, als benannte Konstante, nicht
-verteilt über die Ebenen.
+verteilt über die Ebenen. Die Verhältnisse dafür stehen schon in
+`PATH_CENTER_WEIGHTS` / `PATH_OUTLINE_WEIGHTS` (`js/config.js`).
+
+> 💣 **Die Wegefarben stehen NICHT in den Token.** Sie liegen als Tabelle
+> `centerColors` **innerhalb** von `getPathStyleColors`
+> (`js/map-features/map-features.js:249`) — acht feste Hex-Werte in einer
+> Funktion, die `map.getZoom()` liest und damit für einen reinen Bauer
+> unbrauchbar ist. Abschreiben wäre die zweite Wahrheit über die Farbe jeder
+> Straße. **Also wird die Tabelle zuerst herausgehoben** nach `js/config.js`
+> (`PATH_CENTER_COLORS`, neben den schon dort liegenden `PATH_CENTER_WEIGHTS`),
+> und `getPathStyleColors` liest sie von dort — eine kleine, gezielte Änderung
+> an bestehendem Code, ohne die der Export gar nicht ehrlich gebaut werden kann.
+> ⚠️ Das ist eine Änderung an der **Kartendarstellung** und braucht deshalb den
+> Blick des Owners wie jede sichtbare Änderung (AGENTS.md §9) — auch wenn sie
+> per Konstruktion nichts ändert: dieselben acht Werte, nur woanders.
 
 ## 7 · Koordinaten
 
@@ -282,7 +309,7 @@ erklären können, woher sie kommt und was damit erlaubt ist.
 
 In **beiden** Dialekten (der Test läuft zweimal, über dieselbe Prüfliste):
 
-- alle acht Ebenengruppen vorhanden, in der richtigen Reihenfolge
+- alle sieben Ebenengruppen vorhanden, in der richtigen Reihenfolge
 - jede `id` eindeutig — zwei gleichnamige Orte ergeben zwei `id`
 - der bekannte Punkt landet nach der Spiegelung, wo er hingehört
 - `<metadata>` führt die Lizenz, `<title>` trägt den echten Namen
@@ -295,7 +322,7 @@ In **beiden** Dialekten (der Test läuft zweimal, über dieselbe Prüfliste):
 
 Je Dialekt zusätzlich:
 
-- **Inkscape:** `inkscape:groupmode="layer"` an allen acht Ebenen,
+- **Inkscape:** `inkscape:groupmode="layer"` an allen sieben Ebenen,
   `inkscape:label` trägt die Umlaute unversehrt, `id` ist reines ASCII
 - **Illustrator:** **kein** `inkscape:`- und **kein** `sodipodi:`-Namensraum
   irgendwo in der Datei, `id` trägt den maskierten Namen
@@ -312,7 +339,7 @@ etwas taugt (AGENTS.md §9, „Abnahme heißt ABLAUF"):
 0. **Die Sonde aus §4 zuerst** — winzige Datei, beide Dialekte, beide
    Programme. Erst wenn die Maskierungstabelle belegt ist, wird der Rest gebaut.
 1. Beide Dateien erzeugen und herunterladen.
-2. `…-inkscape.svg` in **Inkscape**: acht Ebenen im Ebenenfenster, Namen
+2. `…-inkscape.svg` in **Inkscape**: sieben Ebenen im Ebenenfenster, Namen
    lesbar, Umlaute nicht zerschossen.
 3. `…-illustrator.svg` in **Illustrator**: Ebenen erkannt, Objektnamen lesbar
    statt Slug-Wurst.
