@@ -83,4 +83,51 @@ assert.ok(
 // nicht „nicht mehr erreichbar", und diese Zeile steht hier, damit niemand das eine fuer das
 // andere liest.
 
+// ---- Die MIT-Lizenz gilt dem CODE, nicht den Inhalten ------------------------------------------
+//
+// 💣 Zwei Absaetze im Fenster sprechen ueber Lizenzen, und sie koennen einander widersprechen:
+// „Keine freie Lizenz fuer DSA-Material" sagt, dass hier nichts frei lizenziert wird -- seit dem
+// 14.08.2026 steht aber der Programmcode unter MIT (LICENSE + LICENSE-NOTICE.md). Beide Saetze sind
+// fuer sich richtig; erst zusammen ergeben sie entweder eine saubere Grenze oder eine Unwahrheit.
+// Geprueft wird deshalb die GRENZE, nicht der einzelne Satz.
+const license = fs.readFileSync(path.join(ROOT, "LICENSE"), "utf8");
+assert.ok(license.includes("MIT License"), "LICENSE traegt den MIT-Text");
+assert.ok(
+	/ONLY to the original software source code/.test(license),
+	"und begrenzt ihn im Kopf ausdruecklich auf den Quellcode",
+);
+assert.ok(fs.existsSync(path.join(ROOT, "LICENSE-NOTICE.md")), "LICENSE-NOTICE.md steht daneben");
+
+const sourceCode = indexText("legal.sourceCode.body");
+assert.ok(sourceCode.includes("MIT-Lizenz"), "das Fenster nennt die MIT-Lizenz");
+assert.ok(
+	sourceCode.includes("Kartenkacheln") && sourceCode.includes("weder"),
+	"und sagt im selben Absatz, was sie NICHT erfasst",
+);
+assert.ok(
+	indexText("legal.noFreeLicense.body").includes("MIT-Lizenz"),
+	"der Absatz „Keine freie Lizenz“ nimmt den Code ausdruecklich aus",
+);
+assert.ok(
+	i18nEn.includes("open source under the MIT license"),
+	"die englische Fassung nimmt ihn ebenfalls aus",
+);
+
+// ⚠️ Der zweite Bruch in derselben Pauschale: uebernommene Wiki-Aventurica-Texte stehen unter
+// CC BY-SA 3.0, auch in bearbeiteter Form -- die Lizenz verlangt Namensnennung UND Lizenzhinweis.
+// Wer den Satz auf „gar nichts ist frei lizenziert" zurueckdreht, faellt hier auf.
+const wikiSync = indexText("legal.wikiSync.body");
+assert.ok(wikiSync.includes("CC BY-SA 3.0"), "die Lizenz der Wiki-Texte steht beim Namen");
+assert.ok(i18nEn.includes("licensed under CC BY-SA 3.0"), "auch in der englischen Fassung");
+
+// 💣 Der Bilder-Absatz sagte zu, dass „keine urheberrechtlich geschuetzten Inhalte" verwendet
+// werden. Das kann das Projekt nicht halten: Wiki-Texte und Cover SIND geschuetzt und lediglich
+// lizenziert. Ersetzt am 14.08.2026 durch die Berechtigungsformel -- eine Zusage, die traegt.
+const images = indexText("legal.images.body");
+assert.ok(
+	!images.includes("keine urheberrechtlich geschützten Inhalte verwendet"),
+	"das Fenster behauptet nicht mehr, gar keine geschuetzten Inhalte zu verwenden",
+);
+assert.ok(images.includes("ausreichende Berechtigung"), "sondern nennt die geprüfte Berechtigung");
+
 console.log("legal-texts ok");

@@ -166,6 +166,15 @@ If the frontend and the API do not run on the same origin, the frontend page mus
 - Changes to the map data basis must always be considered together with the matching import or generation step.
 - The updated state can then be served directly via the static web server.
 
+## License
+
+The **source code** of Avesmaps is MIT-licensed — see [`LICENSE`](LICENSE).
+
+The MIT license covers only the software written for this project. It does not
+cover the map tiles, the map and geo data, DSA-related texts, coats of arms,
+images or trademarks. What exactly is covered and what is not is listed in
+[`LICENSE-NOTICE.md`](LICENSE-NOTICE.md).
+
 ## Legal and sources
 
 Avesmaps is a fan project and uses DSA-related material in
@@ -173,6 +182,8 @@ accordance with the Ulisses fan guidelines.
 
 Important points for this repository:
 
+- MIT only for the project's own source code, never for the
+  DSA-related content ([`LICENSE-NOTICE.md`](LICENSE-NOTICE.md))
 - no blanket open-source license for DSA-related map, image and
   data assets
 - fan-project logo instead of official product logos

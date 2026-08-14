@@ -89,9 +89,10 @@ frei unter MIT, CC oder vergleichbaren Lizenzen weiterverwendet werden dürfen.
 Das Repository dient der Dokumentation und Veröffentlichung des Fanprojekts
 Avesmaps und nicht als allgemeines Materialarchiv für DSA-Inhalte.
 
-Soweit keine ausdrückliche separate Lizenzdatei etwas anderes regelt, verbleiben
-die Rechte an selbst erstelltem Code und selbst erstellten Projektinhalten beim
-jeweiligen Urheber.
+Der **selbst geschriebene Programmcode** steht unter der MIT-Lizenz
+(`LICENSE`). Welche Teile des Repositorys davon erfasst sind und welche
+ausdrücklich nicht, regelt `LICENSE-NOTICE.md`. Für alle übrigen selbst
+erstellten Projektinhalte verbleiben die Rechte beim jeweiligen Urheber.
 
 ## Markenhinweis
 
