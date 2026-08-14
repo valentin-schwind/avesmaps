@@ -288,7 +288,7 @@ function avesmapsLoreRuleOrderedZoneKeys(PDO $pdo): array
  * ⚠️ Klimabaender selbst sind KEINE Flaechen im Sinne einer Regel und fallen heraus:
  * „alle Flaechen der Borealen Zone" darf nicht das Band selbst treffen.
  *
- * @return list<array{public_id: string, kind: string, region_type: string, name: string, zones: list<string>}>
+ * @return list<array{public_id: string, kind: string, region_type: string, name: string, wiki_region_key: string, zones: list<string>}>
  */
 function avesmapsLoreRuleReadAreas(PDO $pdo): array
 {
@@ -299,8 +299,15 @@ function avesmapsLoreRuleReadAreas(PDO $pdo): array
         // directions, thousands of rows, and only a handful involve a climate band. The join alone
         // would filter correctly but scan everything; the IN lets idx_ecosystem_overlap_other do
         // the work.
+        //
+        // r.wiki_region_key rides along for avesmapsFetchLoreRulePlacesByEntry (lore-search.php,
+        // Task 5): a rule-matched area needs the SAME {title, wiki_key} shape as a named lore
+        // place, and the caller resolving these on the map (resolveSpotlightLorePlace) tries
+        // wk:<wiki_key> before falling back to the name. Nobody else that reads this list minds
+        // the extra column (avesmapsLoreRuleEvaluate only ever touches public_id/kind/region_type
+        // /zones).
         $statement = $pdo->query(
-            "SELECT r.public_id, r.kind, r.region_type, r.name,
+            "SELECT r.public_id, r.kind, r.region_type, r.name, r.wiki_region_key,
                     k.region_type AS zone_key, o.share
                FROM ecosystem_region r
                LEFT JOIN ecosystem_region_overlap o
@@ -324,6 +331,7 @@ function avesmapsLoreRuleReadAreas(PDO $pdo): array
                 'kind' => (string) $row['kind'],
                 'region_type' => (string) $row['region_type'],
                 'name' => (string) ($row['name'] ?? ''),
+                'wiki_region_key' => (string) ($row['wiki_region_key'] ?? ''),
                 'zones' => [],
             ];
         }

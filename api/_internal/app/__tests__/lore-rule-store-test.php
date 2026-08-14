@@ -155,16 +155,19 @@ $pdo->exec(
         kind VARCHAR(16) NOT NULL,
         region_type VARCHAR(40) NULL,
         name VARCHAR(190) NOT NULL DEFAULT \'\',
+        wiki_region_key VARCHAR(190) NULL,
         is_active TINYINT(1) NOT NULL DEFAULT 1
     )'
 );
 $regionStmt = $pdo->prepare(
-    'INSERT INTO ecosystem_region (id, public_id, kind, region_type, name, is_active) VALUES (?, ?, ?, ?, ?, 1)'
+    'INSERT INTO ecosystem_region (id, public_id, kind, region_type, name, wiki_region_key, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)'
 );
-$regionStmt->execute([1, 'area-farindel', 'vegetation', 'wald', 'Farindel']);
-$regionStmt->execute([2, 'area-finster', 'topographie', 'gebirge', 'Finsterkamm']);
-$regionStmt->execute([3, 'klima-boreal-region', 'klima', 'boreal', 'Boreale Zone (Band)']);
-$regionStmt->execute([4, 'klima-subpolar-region', 'klima', 'subpolar', 'Subpolare Zone (Band)']);
+// Farindel carries a wiki_region_key, Finster does NOT -- Task 5 (lore-search.php) relies on
+// exactly this asymmetry: a rule-matched area without a key still resolves via its name.
+$regionStmt->execute([1, 'area-farindel', 'vegetation', 'wald', 'Farindel', 'farindel']);
+$regionStmt->execute([2, 'area-finster', 'topographie', 'gebirge', 'Finsterkamm', null]);
+$regionStmt->execute([3, 'klima-boreal-region', 'klima', 'boreal', 'Boreale Zone (Band)', null]);
+$regionStmt->execute([4, 'klima-subpolar-region', 'klima', 'subpolar', 'Subpolare Zone (Band)', null]);
 
 $pdo->exec(
     'CREATE TABLE ecosystem_region_overlap (
@@ -198,6 +201,11 @@ sort($farindelZones);
 assert($farindelZones === ['boreal', 'subpolar']);
 // Befund 1: 2 % ist unter der Schwelle -- Finster "beruehrt" boreal in diesem Sinne nicht.
 assert($areasById['area-finster']['zones'] === []);
+
+// wiki_region_key reist mit (Task 5, lore-search.php) -- eine Flaeche ohne Schluessel liefert
+// '', kein NULL, dieselbe Regel wie jedes andere Textfeld in dieser Datei.
+assert($areasById['area-farindel']['wiki_region_key'] === 'farindel');
+assert($areasById['area-finster']['wiki_region_key'] === '');
 
 // --- avesmapsLoreRuleReadPlaces -----------------------------------------------------
 

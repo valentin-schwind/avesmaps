@@ -19,8 +19,18 @@ declare(strict_types=1);
 // -- the same choice citymap-search.php made with the citymap type table.
 //
 // The building function is PURE (rows in, entries out) so it is testable without a database.
-
+//
+// 💣 Task 5 (Regeln in der Suche) DOES require lore-rule-match.php -- and that is allowed, unlike
+// lore.php above, because it does not have the same cost. Measured before writing this line:
+// lore-rule-match.php, lore-rule-store.php, lore-rule.php and climate-membership.php carry NO
+// top-level code at all (only function/const/require_once/declare), and none of their readers
+// calls avesmapsLoreRuleEnsureTables (that DDL lives ONLY behind editor endpoints). Requiring the
+// file costs nothing at include time; the query cost is paid once per request in
+// avesmapsFetchLoreRulePlacesByEntry below, which reads the stamp with a bare SELECT (never
+// avesmapsEcosystemEnsureTables) and the whole rule/area inventory in a fixed number of queries --
+// never one per area.
 require_once __DIR__ . '/app-setting.php';
+require_once __DIR__ . '/lore-rule-match.php';
 
 // Mirrors AVESMAPS_LORE_KINDS in api/_internal/app/lore.php.
 const AVESMAPS_LORE_SEARCH_KINDS = ['flora', 'fauna', 'spezies', 'ware'];
@@ -142,6 +152,89 @@ function avesmapsFetchLoreSearchRows(PDO $pdo, array $enabledKinds): array {
 }
 
 /**
+ * Regeltreffer je Eintrag, als FLAECHEN -- fuer avesmapsBuildLoreSearchEntries's vierten
+ * Parameter (Task 5). Nur Flaechen, keine Siedlungen: die Live-Vorschau einer Regel trifft 56
+ * Flaechen UND 59 Siedlungen, macht 115 Namen in einer Suchzeile, die hoechstens drei zeigt --
+ * die Flaeche beantwortet "wo waechst das", die Siedlung ist ihre Innenausstattung.
+ *
+ * Fuer jede aktive Flaeche wird ihr Subjekt gebildet (avesmapsLoreRuleSubjectFromArea) und gegen
+ * jede aktive Regel geprueft (avesmapsLoreRuleTermMatchesSubject, dieselbe links-nach-rechts-Kette
+ * wie avesmapsLoreRuleEntriesForSubject) -- eine Schleife ueber ~830 Flaechen x wenige Regeln, REIN
+ * IM SPEICHER. Die Daten selbst kommen aus den vorhandenen Bulk-Lesern (avesmapsLoreRuleReadAreas,
+ * avesmapsLoreRuleReadAllActive, avesmapsLoreRuleOrderedZoneKeys) plus dem Stempel-Check -- ein
+ * fester Satz Abfragen fuer den GANZEN Bestand, NIE eine Abfrage je Flaeche.
+ *
+ * 🔴 completed = 0 heisst: waehrend eines "Zugehoerigkeit rechnen"-Laufs sind die Regeltabellen
+ * leer -> GAR KEINE Regelorte. Gelesen mit einem NACKTEN SELECT, wie api/app/lore.php es vormacht
+ * (dort im Kommentar begruendet) -- nie ueber avesmapsEcosystemEnsureTables, dessen
+ * information_schema-Sonden die Last sind, die den PHP-Worker-Pool am 17.07.2026 erschoepft hat
+ * (AGENTS.md §10). Eine fehlende Stempeltabelle (nie gerechnet) faellt ins selbe catch -> [].
+ *
+ * @return array<string, list<array{title: string, wiki_key: string}>> entry_wiki_key => Flaechen
+ */
+function avesmapsFetchLoreRulePlacesByEntry(PDO $pdo): array {
+    try {
+        $stampStatement = $pdo->query('SELECT completed FROM ecosystem_assignment_stamp WHERE id = 1');
+        $stampValue = $stampStatement === false ? false : $stampStatement->fetchColumn();
+        $stampCompleted = $stampValue !== false && (int) $stampValue === 1;
+    } catch (Throwable) {
+        return []; // Tabelle fehlt (nie gerechnet) -> kein Regelzweig, kein 500
+    }
+    if (!$stampCompleted) {
+        return [];
+    }
+
+    $rules = avesmapsLoreRuleReadAllActive($pdo);
+    if ($rules === []) {
+        return [];
+    }
+
+    $areas = avesmapsLoreRuleReadAreas($pdo);
+    if ($areas === []) {
+        return [];
+    }
+
+    // Einmal geholt, nie je Flaeche -- dieselbe Regel wie avesmapsLoreRuleEntriesForSubject.
+    $orderedZoneKeys = avesmapsLoreRuleOrderedZoneKeys($pdo);
+
+    $placesByEntry = [];
+    foreach ($areas as $area) {
+        $subject = avesmapsLoreRuleSubjectFromArea($area);
+        $place = [
+            'title' => (string) ($area['name'] ?? ''),
+            'wiki_key' => (string) ($area['wiki_region_key'] ?? ''),
+        ];
+
+        foreach ($rules as $rule) {
+            $terms = $rule['terms'];
+            if ($terms === []) {
+                // Eine Regel ohne Bedingungen ist ein Versehen (der Schreibpfad lehnt sie ab) --
+                // trifft hier niemanden, statt "alles" (dieselbe Kurzschluss-Regel wie
+                // avesmapsLoreRuleEntriesForSubject).
+                continue;
+            }
+
+            $result = null;
+            foreach (array_values($terms) as $index => $term) {
+                $matches = avesmapsLoreRuleTermMatchesSubject($term, $subject, $orderedZoneKeys);
+                if ($index === 0) {
+                    $result = $matches;
+                    continue;
+                }
+                $join = (string) ($term['join_op'] ?? 'und');
+                $result = $join === 'oder' ? ($result || $matches) : ($result && $matches);
+            }
+
+            if ($result === true) {
+                $placesByEntry[$rule['entry_wiki_key']][] = $place;
+            }
+        }
+    }
+
+    return $placesByEntry;
+}
+
+/**
  * "[[Fisch]]" -> "Fisch", "[[Seite|Anzeige]]" -> "Anzeige".
  *
  * gruppe and typ carry raw wiki links. Left in, the brackets become part of a search text nobody can
@@ -156,11 +249,24 @@ function avesmapsLoreSearchStripWikiMarkup(string $value): string {
 /**
  * PURE. Builds search entries from entry rows plus their places.
  *
+ * $rulePlacesByEntry carries the AREAS a Lebensraum-Regel matched for this entry (Task 5) --
+ * same {title, wiki_key} shape as $placesByEntry, appended BEHIND the named places, never in
+ * front: a named place is an editor's explicit statement, a rule hit is a derivation from it
+ * (same ordering as the infobox, avesmapsLoreMergeRuleHitsIntoResult in lore.php). The client
+ * cannot tell the two apart -- it never knew where a place came from -- so no extra field marks
+ * the origin here either.
+ *
  * @param array<string, list<array{title: string, wiki_key: string}>> $placesByEntry
  * @param array<string, string> $kindLabels
+ * @param array<string, list<array{title: string, wiki_key: string}>> $rulePlacesByEntry
  * @return list<array<string, mixed>>
  */
-function avesmapsBuildLoreSearchEntries(array $entryRows, array $placesByEntry, array $kindLabels): array {
+function avesmapsBuildLoreSearchEntries(
+    array $entryRows,
+    array $placesByEntry,
+    array $kindLabels,
+    array $rulePlacesByEntry = []
+): array {
     $entries = [];
     foreach ($entryRows as $row) {
         $name = trim((string) ($row['name'] ?? ''));
@@ -171,7 +277,8 @@ function avesmapsBuildLoreSearchEntries(array $entryRows, array $placesByEntry, 
 
         $kind = (string) ($row['kind'] ?? '');
         $kindLabel = $kindLabels[$kind] ?? $kind;
-        $places = $placesByEntry[$wikiKey] ?? [];
+        // Named places FIRST, rule-matched areas behind -- see the docblock above.
+        $places = array_merge($placesByEntry[$wikiKey] ?? [], $rulePlacesByEntry[$wikiKey] ?? []);
         $placeTitles = [];
         foreach ($places as $place) {
             $title = trim((string) ($place['title'] ?? ''));

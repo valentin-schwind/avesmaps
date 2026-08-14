@@ -111,4 +111,26 @@ assert(avesmapsLoreSearchEnabledKindsFromSettings([]) === ['flora', 'fauna', 'wa
 assert(avesmapsLoreSearchEnabledKindsFromSettings(['lore_kind_spezies_enabled' => '1']) === ['flora', 'fauna', 'spezies', 'ware']);
 assert(avesmapsLoreSearchEnabledKindsFromSettings(['lore_kind_flora_enabled' => '0']) === ['fauna', 'ware']);
 
+// Regeln reisen in derselben Ortsliste mit -- der Client hat nie gewusst, woher ein Ort kommt.
+$entries = avesmapsBuildLoreSearchEntries(
+    [['wiki_key' => 'einbeere', 'kind' => 'flora', 'name' => 'Einbeere', 'gruppe' => '', 'typ' => '']],
+    ['einbeere' => [['title' => 'Der Große Fluss', 'wiki_key' => 'der-grosse-fluss']]],
+    AVESMAPS_LORE_SEARCH_KIND_LABELS,
+    ['einbeere' => [['title' => 'Farindelwald', 'wiki_key' => 'farindelwald']]]
+);
+assert(count($entries) === 1);
+assert($entries[0]['place_count'] === 2, 'genannter Ort UND Regeltreffer zaehlen beide');
+$titles = array_column($entries[0]['lore_places'], 'title');
+assert(in_array('Der Große Fluss', $titles, true));
+assert(in_array('Farindelwald', $titles, true));
+// 💣 Der genannte Ort steht VORN. Er ist die ausdrueckliche Aussage eines Redakteurs; ein
+// Regeltreffer ist eine Ableitung. Dieselbe Rangfolge wie in der Infobox.
+assert($titles[0] === 'Der Große Fluss');
+// Und ein Eintrag ohne Regel bleibt, wie er war.
+assert(in_array('Der Große Fluss', array_column(avesmapsBuildLoreSearchEntries(
+    [['wiki_key' => 'einbeere', 'kind' => 'flora', 'name' => 'Einbeere', 'gruppe' => '', 'typ' => '']],
+    ['einbeere' => [['title' => 'Der Große Fluss', 'wiki_key' => 'der-grosse-fluss']]],
+    AVESMAPS_LORE_SEARCH_KIND_LABELS
+)[0]['lore_places'], 'title'), true));
+
 echo "lore-search: OK\n";
