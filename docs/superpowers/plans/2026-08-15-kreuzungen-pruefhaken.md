@@ -133,13 +133,26 @@ Den `transports === "all"`-Zweig in `addRegularPathToGraph` ersetzen (der Kommen
 		if (coordinateIndex) {
 			for (let index = 1; index < coordinates.length - 1; index++) {
 				const hit = coordinateIndex.get(buildConnectivityCoordinateKey(coordinates[index]));
-				if (hit) {
+				// 💣 Zwilling der Wache in avesmapsAddClientCompatiblePathConnection (client-graph.php:204-207):
+				// ein Stuetzpunkt, der auf denselben Ort faellt wie der zuletzt aufgenommene Knoten (z.B.
+				// ein doppelt gezeichneter Vertex direkt am Start), wird NICHT ein zweites Mal angehaengt --
+				// sonst zoege der Kantenbau unten eine Selbstkante und der Ort bekaeme zwei Phantomarme.
+				if (hit && hit.name !== nodeNames[nodeNames.length - 1]) {
 					nodeNames.push(hit.name);
 				}
 			}
 		}
 		nodeNames.push(endNode.name);
 		for (let index = 1; index < nodeNames.length; index++) {
+			// 💣 Zwilling der zweiten Wache (client-graph.php:223): das Wegende oben wird UNGEPRUEFT
+			// angehaengt, also kann erst hier noch ein Duplikat auftreten -- faellt der letzte innere
+			// Stuetzpunkt auf denselben Ort wie das Wegende, bleibt genau diese Teilkante aus. Der einfache
+			// Zwei-Punkt-Fall (nodeNames.length <= 2) bleibt unberuehrt: eine Selbstkante aus zwei echten
+			// Wegenden auf demselben Ort ist ein bestehendes, andernorts behandeltes Phaenomen (165 Faelle,
+			// siehe location-at-path-endpoint.test.js), keine neue Regel dieses Splits.
+			if (nodeNames.length > 2 && nodeNames[index - 1] === nodeNames[index]) {
+				continue;
+			}
 			// Teilkanten tragen „<pfad>#<n>", damit sie unterscheidbar bleiben; der Stamm vor dem
 			// „#" ist die Weg-id und wird in Task 3 zurueckgelesen.
 			const connection = {
