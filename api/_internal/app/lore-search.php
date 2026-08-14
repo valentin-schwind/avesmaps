@@ -157,22 +157,49 @@ function avesmapsFetchLoreSearchRows(PDO $pdo, array $enabledKinds): array {
  * Flaechen UND 59 Siedlungen, macht 115 Namen in einer Suchzeile, die hoechstens drei zeigt --
  * die Flaeche beantwortet "wo waechst das", die Siedlung ist ihre Innenausstattung.
  *
- * Fuer jede aktive Flaeche wird ihr Subjekt gebildet (avesmapsLoreRuleSubjectFromArea) und gegen
- * jede aktive Regel geprueft (avesmapsLoreRuleTermMatchesSubject, dieselbe links-nach-rechts-Kette
- * wie avesmapsLoreRuleEntriesForSubject) -- eine Schleife ueber ~830 Flaechen x wenige Regeln, REIN
- * IM SPEICHER. Die Daten selbst kommen aus den vorhandenen Bulk-Lesern (avesmapsLoreRuleReadAreas,
- * avesmapsLoreRuleReadAllActive, avesmapsLoreRuleOrderedZoneKeys) plus dem Stempel-Check -- ein
- * fester Satz Abfragen fuer den GANZEN Bestand, NIE eine Abfrage je Flaeche.
+ * 🔴 KURZSCHLUSS ZUERST (Fix-Runde 1, Befund 1 CRITICAL): dieser Pfad laeuft
+ * TASTENDRUCK-GETAKTET (map-search.php ist "the site's hottest public path"). Eine kleine
+ * Abfrage liest nur die entry_wiki_keys der aktiven Regeln (heute: eine Zeile); trifft KEINER
+ * davon einen der $foundEntryWikiKeys -- die Eintraege, die dieser Suchlauf ueberhaupt zeigen
+ * koennte ($loreRows['entries'] an der Aufrufstelle in map-search.php) --, kommt SOFORT [] zurueck:
+ * keine Flaechen, keine Zonen, KEIN Stempel-Check. Der teure Teil (ganzer Regelbestand mit
+ * Bedingungen, ganzer Flaechenbestand, Zonenreihenfolge, Schleife ueber ~830 Flaechen x wenige
+ * Regeln REIN IM SPEICHER) laeuft nur noch, wenn der Kurzschluss eine echte Moeglichkeit zeigt.
+ * Die allermeisten Anfragen kosten dann nur die eine kleine Abfrage oben.
  *
- * 🔴 completed = 0 heisst: waehrend eines "Zugehoerigkeit rechnen"-Laufs sind die Regeltabellen
- * leer -> GAR KEINE Regelorte. Gelesen mit einem NACKTEN SELECT, wie api/app/lore.php es vormacht
- * (dort im Kommentar begruendet) -- nie ueber avesmapsEcosystemEnsureTables, dessen
+ * 🔴 Der Stempel (completed) wird ERST NACH dem Kurzschluss gelesen, nicht davor -- sonst waere
+ * er selbst wieder eine Abfrage, die bei jedem Tastendruck liefe, auch wenn gar keine Regel in
+ * Frage kommt. completed = 0 heisst: waehrend eines "Zugehoerigkeit rechnen"-Laufs sind die
+ * Regeltabellen leer -> GAR KEINE Regelorte. Gelesen mit einem NACKTEN SELECT, wie api/app/lore.php
+ * es vormacht (dort im Kommentar begruendet) -- nie ueber avesmapsEcosystemEnsureTables, dessen
  * information_schema-Sonden die Last sind, die den PHP-Worker-Pool am 17.07.2026 erschoepft hat
  * (AGENTS.md §10). Eine fehlende Stempeltabelle (nie gerechnet) faellt ins selbe catch -> [].
  *
+ * Kettenauswertung ueber avesmapsLoreRuleChainMatchesSubject (lore-rule-match.php) -- Fix-Runde 1,
+ * Befund 2: dieselbe Funktion, die auch avesmapsLoreRuleEntriesForSubject benutzt, statt die
+ * links-nach-rechts-UND/ODER-Kette ein zweites Mal woertlich hinzuschreiben (Praezedenz-Regression
+ * waere sonst nur in einer der beiden Kopien landbar gewesen und haette Suche und Infobox lautlos
+ * auseinanderlaufen lassen).
+ *
+ * @param list<string> $foundEntryWikiKeys wiki_key der Eintraege, die dieser Suchlauf ueberhaupt
+ *   anzeigen koennte (Aufrufstelle: array_column($loreRows['entries'], 'wiki_key'))
  * @return array<string, list<array{title: string, wiki_key: string}>> entry_wiki_key => Flaechen
  */
-function avesmapsFetchLoreRulePlacesByEntry(PDO $pdo): array {
+function avesmapsFetchLoreRulePlacesByEntry(PDO $pdo, array $foundEntryWikiKeys): array {
+    if ($foundEntryWikiKeys === []) {
+        return [];
+    }
+
+    try {
+        $activeStatement = $pdo->query("SELECT DISTINCT entry_wiki_key FROM lore_rule WHERE status = 'active'");
+        $activeEntryKeys = $activeStatement === false ? [] : $activeStatement->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable) {
+        return []; // Tabelle fehlt (nie eingerichtet) -> kein Regelzweig, kein 500
+    }
+    if ($activeEntryKeys === [] || array_intersect($activeEntryKeys, $foundEntryWikiKeys) === []) {
+        return [];
+    }
+
     try {
         $stampStatement = $pdo->query('SELECT completed FROM ecosystem_assignment_stamp WHERE id = 1');
         $stampValue = $stampStatement === false ? false : $stampStatement->fetchColumn();
@@ -206,26 +233,7 @@ function avesmapsFetchLoreRulePlacesByEntry(PDO $pdo): array {
         ];
 
         foreach ($rules as $rule) {
-            $terms = $rule['terms'];
-            if ($terms === []) {
-                // Eine Regel ohne Bedingungen ist ein Versehen (der Schreibpfad lehnt sie ab) --
-                // trifft hier niemanden, statt "alles" (dieselbe Kurzschluss-Regel wie
-                // avesmapsLoreRuleEntriesForSubject).
-                continue;
-            }
-
-            $result = null;
-            foreach (array_values($terms) as $index => $term) {
-                $matches = avesmapsLoreRuleTermMatchesSubject($term, $subject, $orderedZoneKeys);
-                if ($index === 0) {
-                    $result = $matches;
-                    continue;
-                }
-                $join = (string) ($term['join_op'] ?? 'und');
-                $result = $join === 'oder' ? ($result || $matches) : ($result && $matches);
-            }
-
-            if ($result === true) {
+            if (avesmapsLoreRuleChainMatchesSubject($rule['terms'], $subject, $orderedZoneKeys)) {
                 $placesByEntry[$rule['entry_wiki_key']][] = $place;
             }
         }

@@ -384,16 +384,50 @@ function avesmapsLoreRuleReadAllActive(PDO $pdo): array
 }
 
 /**
+ * PURE: trifft die ganze Kette dieses Subjekt? Wahr/falsch statt Mengen -- dieselbe Kette wie
+ * avesmapsLoreRuleEvaluate, aber fuer EIN Subjekt vereinfacht. 'und' ist logisches Und, 'oder'
+ * logisches Oder, ausgewertet strikt LINKS NACH RECHTS ohne Klammern -- dieselbe Reihenfolge wie
+ * im Editor, sonst zeigt Suche/Infobox etwas anderes als die Vorschau. Eine Kette OHNE
+ * Bedingungen trifft niemanden, nicht "alles" (der Schreibpfad laesst so eine Regel gar nicht
+ * erst zu, siehe avesmapsLoreRuleChainIsUnbounded).
+ *
+ * 🔴 Fix-Runde 1 (Task 5, Befund 2): diese Auswertung stand vorher WOERTLICH ZWEIMAL im Code --
+ * hier und in api/_internal/app/lore-search.php. Genau diese Kette hat in dieser Sitzung schon
+ * einmal fast eine lautlose Divergenz erzeugt (Task 2, Fix-Runde 1: eine Praezedenz-Lesart
+ * "UND bindet staerker" ueberlebte die erste Testfassung); waere sie in nur EINER von zwei
+ * Kopien gelandet, haette die Suche etwas anderes gefunden als die Infobox zeigt, bei denselben
+ * Daten, ohne Fehlermeldung. Jetzt EINE Stelle, zwei Aufrufer.
+ *
+ * @param list<array<string,mixed>> $terms
+ * @param array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>} $subject
+ * @param list<string> $orderedZoneKeys
+ */
+function avesmapsLoreRuleChainMatchesSubject(array $terms, array $subject, array $orderedZoneKeys): bool
+{
+    if ($terms === []) {
+        return false;
+    }
+
+    $result = null;
+    foreach (array_values($terms) as $index => $term) {
+        $matches = avesmapsLoreRuleTermMatchesSubject($term, $subject, $orderedZoneKeys);
+        if ($index === 0) {
+            $result = $matches;
+            continue;
+        }
+        $join = (string) ($term['join_op'] ?? 'und');
+        $result = $join === 'oder' ? ($result || $matches) : ($result && $matches);
+    }
+
+    return $result === true;
+}
+
+/**
  * Fuer EIN Subjekt: entry_wiki_key => relation aller aktiven Regeln, die es treffen.
  *
  * Holt den ganzen Regelbestand (avesmapsLoreRuleReadAllActive, drei Abfragen) und die
  * Zonenreihenfolge (avesmapsLoreRuleOrderedZoneKeys) GENAU EINMAL je Aufruf, wertet beides dann
  * rein in PHP gegen das eine Subjekt aus -- keine weitere Abfrage je Regel oder Bedingung.
- *
- * Kettenauswertung wie avesmapsLoreRuleEvaluate, aber fuer EIN Subjekt vereinfacht: wahr/falsch
- * statt Mengen. 'und' ist logisches Und, 'oder' logisches Oder, ausgewertet strikt LINKS NACH
- * RECHTS ohne Klammern -- dieselbe Reihenfolge wie im Editor, sonst zeigt die Vorschau etwas
- * anderes als die Infobox.
  *
  * @param array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>} $subject
  * @return array<string, string> entry_wiki_key => relation
@@ -410,25 +444,7 @@ function avesmapsLoreRuleEntriesForSubject(PDO $pdo, array $subject): array
 
     $out = [];
     foreach ($rules as $rule) {
-        $terms = $rule['terms'];
-        if ($terms === []) {
-            // Eine Regel ohne Bedingungen ist ein Versehen (der Schreibpfad lehnt sie ab, siehe
-            // avesmapsLoreRuleChainIsUnbounded) -- trifft hier niemanden, statt "alles".
-            continue;
-        }
-
-        $result = null;
-        foreach (array_values($terms) as $index => $term) {
-            $matches = avesmapsLoreRuleTermMatchesSubject($term, $subject, $orderedZoneKeys);
-            if ($index === 0) {
-                $result = $matches;
-                continue;
-            }
-            $join = (string) ($term['join_op'] ?? 'und');
-            $result = $join === 'oder' ? ($result || $matches) : ($result && $matches);
-        }
-
-        if ($result === true) {
+        if (avesmapsLoreRuleChainMatchesSubject($rule['terms'], $subject, $orderedZoneKeys)) {
             $out[$rule['entry_wiki_key']] = $rule['relation'];
         }
     }

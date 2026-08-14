@@ -308,11 +308,20 @@ function avesmapsBuildMapSearchResults(
         AVESMAPS_GAME_LITERATURE_SEARCH_LIMIT
     );
 
+    // Task 5, Fix-Runde 1: Regeltreffer (Flaechen) reisen im vierten Parameter mit.
+    // avesmapsFetchLoreRulePlacesByEntry traegt seinen eigenen Kurzschluss (kein Aufruf ohne
+    // $pdo, damit diese Funktion wie bisher ohne Datenbank testbar bleibt -- Vorbild:
+    // $inSettlementRows-Zweig oben) und liest bei einer normalen Anfrage nur EINE kleine Zeile,
+    // bevor sie ueberhaupt Flaechen oder Zonen anfasst.
+    $rulePlacesByEntry = $pdo !== null
+        ? avesmapsFetchLoreRulePlacesByEntry($pdo, array_column($loreRows['entries'] ?? [], 'wiki_key'))
+        : [];
     [$loreResults, $loreTotal] = avesmapsCollectSearchSection(
         avesmapsBuildLoreSearchEntries(
             $loreRows['entries'] ?? [],
             $loreRows['places_by_entry'] ?? [],
-            AVESMAPS_LORE_SEARCH_KIND_LABELS
+            AVESMAPS_LORE_SEARCH_KIND_LABELS,
+            $rulePlacesByEntry
         ),
         $normalizedQuery,
         'avesmapsLoreSearchCompare',

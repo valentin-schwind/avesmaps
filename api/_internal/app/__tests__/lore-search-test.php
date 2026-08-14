@@ -133,4 +133,87 @@ assert(in_array('Der Große Fluss', array_column(avesmapsBuildLoreSearchEntries(
     AVESMAPS_LORE_SEARCH_KIND_LABELS
 )[0]['lore_places'], 'title'), true));
 
+// --- Fix-Runde 1: der PDO-Leser avesmapsFetchLoreRulePlacesByEntry -- Kurzschluss (Befund 1)
+// und die jetzt GETEILTE Kettenauswertung (Befund 2, avesmapsLoreRuleChainMatchesSubject in
+// lore-rule-match.php) -----------------------------------------------------------------------
+if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
+    fwrite(STDERR, "FATAL: the pdo_sqlite driver is missing -- this half would silently pass\n");
+    exit(1);
+}
+require_once __DIR__ . '/../lore-rule-store.php';
+
+$rulePdo = new PDO('sqlite::memory:');
+$rulePdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+avesmapsLoreRuleEnsureTables($rulePdo);
+
+// 'einbeere' matcht Farindel (vegetation/wald) ueber eine einfache Bedingung.
+avesmapsLoreRuleSave($rulePdo, 'einbeere', [[
+    'join_op' => 'und', 'area_public_id' => null,
+    'types' => [['kind' => 'vegetation', 'region_type' => 'wald']],
+    'climate_from' => null, 'climate_to' => null,
+]], 'verbreitung', 7);
+
+// 'wurzelkraut': DREI Bedingungen, dieselbe Beweisfigur wie lore-rule-match-test.php --
+// links-nach-rechts trifft Finsterkamm NICHT, eine Praezedenz-Lesart ("und bindet staerker")
+// WUERDE ihn treffen. T1 Gebirge (trifft Finsterkamm), T2 (davor 'oder') Wald (verfehlt
+// Finsterkamm), T3 (davor 'und') "ist Farindel" (verfehlt Finsterkamm).
+avesmapsLoreRuleSave($rulePdo, 'wurzelkraut', [
+    ['join_op' => 'und', 'area_public_id' => null,
+        'types' => [['kind' => 'topographie', 'region_type' => 'gebirge']],
+        'climate_from' => null, 'climate_to' => null],
+    ['join_op' => 'oder', 'area_public_id' => null,
+        'types' => [['kind' => 'vegetation', 'region_type' => 'wald']],
+        'climate_from' => null, 'climate_to' => null],
+    ['join_op' => 'und', 'area_public_id' => 'a1',
+        'types' => [],
+        'climate_from' => null, 'climate_to' => null],
+], 'verbreitung', 7);
+
+$rulePdo->exec(
+    'CREATE TABLE ecosystem_region (
+        id INTEGER PRIMARY KEY,
+        public_id VARCHAR(36) NOT NULL,
+        kind VARCHAR(16) NOT NULL,
+        region_type VARCHAR(40) NULL,
+        name VARCHAR(190) NOT NULL DEFAULT \'\',
+        wiki_region_key VARCHAR(190) NULL,
+        is_active TINYINT(1) NOT NULL DEFAULT 1
+    )'
+);
+$ruleRegionStmt = $rulePdo->prepare(
+    'INSERT INTO ecosystem_region (id, public_id, kind, region_type, name, wiki_region_key, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)'
+);
+$ruleRegionStmt->execute([1, 'a1', 'vegetation', 'wald', 'Farindel', 'farindel']);
+$ruleRegionStmt->execute([2, 'a2', 'topographie', 'gebirge', 'Finsterkamm', null]);
+
+$rulePdo->exec(
+    'CREATE TABLE ecosystem_region_overlap (
+        region_id INTEGER NOT NULL, other_region_id INTEGER NOT NULL, share REAL NOT NULL
+    )'
+);
+$rulePdo->exec('CREATE TABLE ecosystem_assignment_stamp (id INTEGER PRIMARY KEY, completed INTEGER NOT NULL)');
+$rulePdo->exec('INSERT INTO ecosystem_assignment_stamp (id, completed) VALUES (1, 1)');
+
+// --- Befund 1: der Kurzschluss -----------------------------------------------------------
+// 'einbeere' selbst haette eine passende Regel UND eine passende Flaeche -- aber es ist nicht
+// unter den GEFUNDENEN Eintraegen, also darf der Kurzschluss trotzdem nichts liefern.
+assert(avesmapsFetchLoreRulePlacesByEntry($rulePdo, ['andere-pflanze']) === [],
+    'einbeere ist nicht unter den gefundenen Eintraegen -- Kurzschluss muss trotz passender Regel [] liefern');
+// Keine gefundenen Eintraege ueberhaupt -> [] ohne jede Abfrage.
+assert(avesmapsFetchLoreRulePlacesByEntry($rulePdo, []) === []);
+// Sobald 'einbeere' unter den gefundenen Eintraegen ist, rechnet der teure Teil und liefert
+// tatsaechlich die Flaeche -- der Kurzschluss unterdrueckt nicht mehr als noetig.
+$rulePlaces = avesmapsFetchLoreRulePlacesByEntry($rulePdo, ['einbeere']);
+assert(array_key_exists('einbeere', $rulePlaces));
+assert($rulePlaces['einbeere'] === [['title' => 'Farindel', 'wiki_key' => 'farindel']]);
+
+// --- Befund 2: die geteilte Kettenauswertung ----------------------------------------------
+// 💣 Der eigentliche Beweis: eine Praezedenz-Mutation an avesmapsLoreRuleChainMatchesSubject
+// (der EINEN neuen gemeinsamen Stelle) muss DIESEN Test UND lore-rule-match-test.php gleichzeitig
+// rot machen -- das ist der Sinn der Zusammenlegung.
+$rulePlaces = avesmapsFetchLoreRulePlacesByEntry($rulePdo, ['wurzelkraut']);
+$wurzelkrautTitles = array_column($rulePlaces['wurzelkraut'] ?? [], 'title');
+assert(!in_array('Finsterkamm', $wurzelkrautTitles, true),
+    'links-nach-rechts liefert FALSCH fuer Finsterkamm -- eine Praezedenz-Lesart liefert hier WAHR und faellt durch');
+
 echo "lore-search: OK\n";
