@@ -248,8 +248,8 @@ function avesmapsRouteOptionsZoneFallbackLabel(zoneKey) {
 			tx("planner.optionsInfo.rest.title", "Reisestunden pro Tag"),
 			tx("planner.optionsInfo.tag.computes", "rechnet"), false,
 			'<p class="roi-text">' + tx("planner.optionsInfo.rest.body",
-				"Der Rest des Tages ist Rast, und die Rast wächst mit: <b>Tage = Reisezeit ÷ Reisestunden</b>, <b>Dauer = Tage × 24 h</b>. Die voreingestellten {hours} h strecken die reine Reisezeit damit auf das {factor}-fache, 24 heißt durchreisen.",
-				{ hours: num(hours, 0), factor: num(24 / hours, 1) }) + "</p>"
+				"Der Rest des Tages ist Rast — sie fällt aber in ganzen Portionen an, nicht anteilig: erst wenn die {hours} Reisestunden aufgebraucht sind <b>und noch Weg vor einem liegt</b>, kostet eine Nacht {restHours} h. Wer vorher ankommt, rastet gar nicht. Der Zähler läuft dabei über die ganze Route, nicht je Etappe; 24 heißt durchreisen.",
+				{ hours: num(hours, 0), restHours: num(24 - hours, 0) }) + "</p>"
 			+ '<p class="roi-text">' + tx("planner.optionsInfo.rest.note",
 				"<b>Nur der Schnellsegler fährt durch</b> — Lastensegler und Galeere ankern nachts und rasten wie an Land.") + "</p>");
 	}

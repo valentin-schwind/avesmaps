@@ -77,7 +77,7 @@ window.AVESMAPS_I18N_EN = {
 	"planner.optionsInfo.transfers.body": "Every change of transport costs <b>+{penalty}</b> in search weight — {penalty} hours under “Fastest”, {penalty} miles under “Shortest”.",
 	"planner.optionsInfo.transfers.note": "<b>A search weight, not a waiting time:</b> it steers the search and appears in none of the numbers shown.",
 	"planner.optionsInfo.rest.title": "Travel hours per day",
-	"planner.optionsInfo.rest.body": "The rest of the day is rest, and rest grows with the distance: <b>days = travel time ÷ travel hours</b>, <b>duration = days × 24 h</b>. The preset {hours} h therefore stretch the pure travel time to {factor} times, 24 means travelling around the clock.",
+	"planner.optionsInfo.rest.body": "The rest of the day is rest — but it falls due in whole portions, not proportionally: only once the {hours} travel hours are used up <b>and there is still road ahead</b> does a night cost {restHours} h. Arrive before that and you do not rest at all. The counter runs across the whole route, not per leg; 24 means travelling around the clock.",
 	"planner.optionsInfo.rest.note": "<b>Only the fast sailer keeps going</b> — cargo sailer and galley anchor at night and rest as on land.",
 	"planner.optionsInfo.start.title": "Departure date",
 	"planner.optionsInfo.start.body": "The calendar runs along the route — leg dates and day of arrival. And the season takes hold of the ground:",
