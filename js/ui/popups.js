@@ -673,6 +673,18 @@ function crossingActionsMarkup(name, publicId) {
 			},
 		}),
 		popupActionButtonMarkup({
+			// 💣 Die Kachel traegt die publicId, NICHT den angezeigten Namen. „Kreuzung-2090" entsteht
+			// erst im Browser als laufender Zaehler ueber die Payload-Reihenfolge (prepareLocationData,
+			// js/routing/routing.js): legt jemand eine Kreuzung an, die frueher einsortiert, rutscht
+			// jede folgende Nummer um eins. Als Meldung an den Owner waere sie damit unbrauchbar.
+			label: "Kreuzung melden",
+			iconMarkup: popupActionGlyphMarkup("bearbeiten"),
+			attributes: {
+				"data-popup-action": "report-crossing",
+				"data-public-id": publicId,
+			},
+		}),
+		popupActionButtonMarkup({
 			label: "Kreuzung löschen",
 			className: "location-popup__action-button--danger",
 			iconMarkup: popupActionGlyphMarkup("loeschen"),
