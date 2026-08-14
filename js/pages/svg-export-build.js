@@ -355,7 +355,6 @@ function svgxAreaLayer(options) {
 				"fill-rule": "evenodd",
 				stroke: o.stroke || "none",
 				"stroke-width": o.stroke ? "0.4" : "",
-				"fill-opacity": o.fillOpacity || "",
 			},
 		}));
 		flaechen.forEach((f) => {
@@ -535,9 +534,13 @@ function svgxBuildDocument(options) {
 			// (--color-ecosystem-<art>-<typ>). Der Kitt reicht sie herein, weil
 			// getComputedStyle ein DOM braucht und dieser Bauer keins hat.
 			colors: o.areaColors,
-			// 0,72 ist der Wert der Karte (--eco-fill in css/features/ecosystem-layer.css),
-			// nicht geschätzt. Ohne ihn sähen die Flächen kräftiger aus als im Frontend.
-			defaultFill: "#dfd6bd", fillOpacity: "0.72", dialect: dialect, seen: seen,
+			// 🔴 KEINE Deckkraft. Die Karte füllt mit 0,72 (--eco-fill), weil dort die
+			// Kacheln durchscheinen sollen -- hier nicht (Owner 15.08.2026). Eine
+			// halbdurchsichtige Fläche in einer Bearbeitungsdatei ist ein Ärgernis: sie
+			// mischt sich mit allem darunter, und wer sie sauber haben will, muss den Wert
+			// an jeder Gruppe einzeln zurücksetzen. Volle Deckung, Transparenz vergibt der
+			// Gestalter selbst.
+			defaultFill: "#dfd6bd", dialect: dialect, seen: seen,
 		}));
 	}
 	if (an.gebiete !== false) {

@@ -289,3 +289,24 @@ console.log("svg-export-build (Geländetypen): ok");
 }
 
 console.log("svg-export-build (Größe + Farben): ok");
+
+// ---- 12. Keine Transparenz ------------------------------------------------------------
+// 🔴 Owner 15.08.2026: keine Deckkraft in der Datei. Die Karte füllt mit 0,72, weil dort
+// die Kacheln durchscheinen sollen -- eine Bearbeitungsdatei will volle Deckung, sonst
+// mischt sich jede Fläche mit allem darunter.
+{
+	const eco = [{ public_id: "e1", region_name: "Ein See", region_type: "see", kind: "topographie",
+		geometry: { type: "Polygon", coordinates: [[[0, 1024], [4, 1024], [4, 1020], [0, 1024]]] } }];
+	const svg = B.svgxBuildDocument({ ecosystems: eco, areaColors: { see: "#4a86b8" }, dialect: D.INKSCAPE,
+		layers: { landschaften: true, gebiete: false, wege: false, kraftlinien: false,
+			orte: false, beschriftungen: false } }).parts.join("");
+	assert.ok(!/opacity/.test(svg), "die Datei darf nirgends eine Deckkraft tragen");
+}
+
+// Auch im vollen Dokument nicht, quer über alle Ebenen und beide Dialekte.
+[D.INKSCAPE, D.ILLUSTRATOR].forEach((dialect) => {
+	const svg = B.svgxBuildDocument({ mapFeatures: payload, dialect }).parts.join("");
+	assert.ok(!/opacity/.test(svg), `${dialect}: keine Deckkraft im ganzen Dokument`);
+});
+
+console.log("svg-export-build (keine Transparenz): ok");
