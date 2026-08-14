@@ -1,7 +1,26 @@
 # WikiSync-Listen — eine Form für acht
 
-**Entwurf · 14.08.2026 · Owner-Abnahme der Gestaltungsfragen erfolgt (siehe §3–§5)**
-Mockup: `docs/wikisync-listen-mockup.html`
+**Entwurf · 14.08.2026 · ✅ VOLLSTÄNDIG LIVE seit 14.08.2026**
+Mockup: `docs/wikisync-listen-mockup.html` · Bauplan:
+`docs/superpowers/plans/2026-08-14-wikisync-listen-vereinheitlichung.md`
+
+Sieben Schritte, jeder einzeln live und vom Owner angesehen: `18d0cde6` (Regel entdoppelt) ·
+`a6d20ed0` (kompakte Zeile) · `70f8d984` (Bauart B abgelöst) · `bcffc770` (Bilanzzeile) ·
+`454df4e5` (stille Zeile, Datum) · `edc2c20a` (Editoren `.se-row`) · `fd92eda6` (Editoren
+`.ae-item`/`.ce-item`).
+
+**Ergebnis: zwei Listenzeilen-Regeln statt sieben.** `.wikisync-itemlist .tree-item` (Panel) und
+`.avm-row` (Editoren), beide auf derselben Token-Skala. Gewacht von
+`js/review/__tests__/wikisync-list-form.test.js` (28 Prüfungen),
+`js/review/__tests__/wikisync-balance-line.test.js` (37) und
+`js/pages/__tests__/editor-row-single-source.test.js` (43, alle sechs Editoren).
+
+> 💣 **Beim Bauen kam eine DRITTE Panel-Kopie zum Vorschein**, die im Entwurf fehlte:
+> `#region-sync-list .region-sync__item, #path-sync-list .region-sync__item` setzte Polsterung und
+> Trennlinie noch einmal und **überstimmte** die geteilte Regel (ID = Spezifität (1,1,0) gegen
+> (0,2,0)). Zwei der acht Listen hörten also gar nicht auf die gemeinsame Regel — die kompakten
+> Maße wären dort wirkungslos geblieben, ohne Fehler und ohne Hinweis. Entfernt; Prüfung 11 des
+> Wachtests verbietet ihre Rückkehr.
 
 ---
 
