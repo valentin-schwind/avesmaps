@@ -57,21 +57,21 @@ for (const datei of editoren) {
 		checks++;
 	}
 
-	// ⚠️ Geprueft wird das ZEILEN-Umfeld, nicht die ganze Datei. Ein pauschales Verbot von
-	// font-size:10px waere hier falsch: der Wert steht in diesen Editoren auch an Abzeichen
-	// (.dt-badge), Hinweisen (.pl-hint, .dt-img-hint) und Baum-Pfeilen (.tree-toggle) -- alles
-	// ausserhalb dieser Aufgabe. Dass diese Stellen die 11px-Untergrenze ebenfalls unterschreiten,
-	// ist ein eigener Befund und eine eigene Entscheidung des Owners, kein Nebenprodukt hiervon.
-	// 🔧 Offen: ~6 Stellen je Editor, siehe die Meldung zum Umbau vom 14.08.2026.
-	const zeilenRegeln = [...html.matchAll(/\.(se|ae|ce)-(row|item|line)[\w-]*[^{]*\{([^}]*)\}/g)]
-		.map(([, , , koerper]) => koerper);
-	for (const koerper of zeilenRegeln) {
-		assert.ok(!/font-size:\s*10px/.test(koerper),
-			`${datei} setzt font-size:10px an einer Listenzeilen-Regel. Die Untergrenze ist 11px `
-			+ "= var(--font-size-caption) (docs/design-language.md). Genau dieser Wert ging beim "
-			+ "Abschreiben von .avm-row verloren und wurde weiterkopiert.");
-		checks++;
-	}
+	// ⚠️ Die 11px-Untergrenze gilt jetzt der GANZEN Editorseite, nicht nur der Listenzeile.
+	// Bis zum 14.08.2026 stand der Wert auch an Abzeichen (.dt-badge), Hinweisen (.pl-hint,
+	// .dt-img-hint, #seTreeBypassHint), Bild-Beschriftungen (.dt-img-ord, .dt-wappen-edit) und
+	// Pfeil-Glyphen (.tree-toggle, die ▲▼-Knoepfe) -- einer davon sogar auf 9px. Der Owner hat
+	// sie am 14.08.2026 mitgenommen ("ja mach die 10px auch noch").
+	// 🔴 Geprueft werden nur DEKLARATIONEN (mit Semikolon). Die Kommentare dieser Dateien
+	// erzaehlen die Geschichte des Werts und schreiben ihn woertlich hin -- ein Test, der sie
+	// mitliest, meldet die Begruendung als Verstoss. Genau das ist beim Panel-Wachtest zweimal
+	// passiert (js/review/__tests__/wikisync-list-form.test.js).
+	const zuKlein = html.match(/font-size:\s*(?:[0-9]|10|10\.5)px;/g) || [];
+	assert.deepStrictEqual(zuKlein, [],
+		`${datei} setzt eine Schriftgroesse unter 11px. Die Untergrenze ist `
+		+ "var(--font-size-caption) (docs/design-language.md, das dort ausdruecklich die 'alten "
+		+ "9-10,5px-Mikrogroessen' meint). Gefunden: " + zuKlein.join(" "));
+	checks++;
 }
 
 // ---- Das Original traegt die Skala --------------------------------------------------------------

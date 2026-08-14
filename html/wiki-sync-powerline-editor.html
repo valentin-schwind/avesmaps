@@ -84,7 +84,7 @@
   .dt-grid > div:not(.k) { padding:5px 0; color:var(--color-text); min-width:0; overflow-wrap:anywhere; }
   .dt-grid input[type=text], .dt-grid input[type=url], .dt-grid textarea { width:100%; padding:4px 6px; }
   .dt-grid textarea { resize:vertical; min-height:52px; }
-  .dt-badge { font-size:10px; color:var(--mut); border:1px solid var(--line2); border-radius:8px; padding:0 6px; white-space:nowrap; font-weight:normal; }
+  .dt-badge { font-size:var(--font-size-caption); color:var(--mut); border:1px solid var(--line2); border-radius:8px; padding:0 6px; white-space:nowrap; font-weight:normal; }
   .dt-badge.warn { color:var(--warn); border-color:var(--color-warning-soft-border); }
   .dt-link { color:var(--accent); text-decoration:none; }
   .dt-check { display:flex; align-items:center; gap:6px; padding:5px 0; font-size:12px; }
@@ -93,13 +93,13 @@
   .dt-msg { font-size:11px; }
   .dt-msg.ok { color:var(--ok); }
   .dt-msg.bad { color:var(--bad); }
-  .pl-hint { font-size:10px; color:var(--mut); margin-top:3px; }
+  .pl-hint { font-size:var(--font-size-caption); color:var(--mut); margin-top:3px; }
   .pl-hint b { color:var(--color-accent-strong); }
   .dt-empty { color:var(--mut); padding:10px 4px; }
 
   /* Nodices-Spalte (Domänenbegriff für die Knotenpunkte einer Kraftlinie) */
   .pl-topo-note { font-size:11px; color:var(--mut); background:var(--color-panel-soft); border:1px solid var(--line); border-left:3px solid var(--color-accent); border-radius:6px; padding:6px 9px; margin-bottom:8px; }
-  .pl-end-label { font-size:9px; color:var(--color-accent-strong); text-transform:uppercase; letter-spacing:.04em; margin:0 0 3px 2px; font-weight:bold; }
+  .pl-end-label { font-size:var(--font-size-caption); color:var(--color-accent-strong); text-transform:uppercase; letter-spacing:.04em; margin:0 0 3px 2px; font-weight:bold; }
   .pl-node { display:flex; align-items:center; gap:7px; padding:6px 8px; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-md); box-shadow:0 1px 2px rgba(0,0,0,.06); }
   .pl-node.is-end { border-color:var(--color-accent); }
   .pl-node-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
