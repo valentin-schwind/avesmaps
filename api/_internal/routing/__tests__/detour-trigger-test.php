@@ -318,3 +318,6 @@ $report = avesmapsMaybeOfferOffroadDetour($clientGraph, $request, [], null, [],
 assert($report['triggered'] === false, 'ohne Etappen gibt es nichts zu vergleichen');
 
 echo "OK detour-trigger-test\n";
+
+// 14.08.2026: mit js/config.js nachgeliefert -- der zugehoerige Deploy-Lauf wurde von einem
+// nachfolgenden Push abgebrochen, und der naechste gruene Lauf diffte ab dem abgebrochenen Stand.

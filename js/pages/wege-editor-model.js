@@ -34,6 +34,10 @@ var WP_MEILEN_PER_MAPUNIT = 3.0;
 // (api/_internal/routing/client-graph.php). Water transports are deliberately absent: the slope
 // factor is a LAND rule (avesmapsRouteTerrainAppliesTo) and a boat does not climb.
 //
+// ⚠️ 14.08.2026: auch diese Datei holt hier ihren Asset-Stempel nach -- ihr Deploy-Lauf wurde von einem
+// nachfolgenden Push abgebrochen, der Hash landete in der Seite, die Datei nicht auf dem Server.
+// Nur eine Inhaltsänderung heilt das; die ausführliche Begründung steht in js/config.js.
+//
 // 💣 `Querfeldein` steht seit dem 14.08.2026 auf 0,75 der Straße (GA S. 120-123, „offenes Gelände"),
 // vorher 0,313 -- die eine Spalte, die die Tempowerte-Migration gezogen hat. Die übrigen sechs
 // Wegtypen weichen weiterhin von der Quelle ab, und das bleibt so, bis der Owner sie im Fenster

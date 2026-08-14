@@ -283,3 +283,6 @@ Object.keys(editorSpeeds).forEach((mode) => {
 });
 
 console.log("speed-table-and-rest-rule.test.js: all assertions passed");
+
+// 14.08.2026: mit js/config.js nachgeliefert -- der zugehoerige Deploy-Lauf wurde von einem
+// nachfolgenden Push abgebrochen, und der naechste gruene Lauf diffte ab dem abgebrochenen Stand.

@@ -156,3 +156,6 @@ assert(avesmapsTravelValuesSpeed('groupFoot', 'Querfeldein') === AVESMAPS_ROUTE_
     'zuruecknehmen faellt auf die Konstante zurueck');
 
 echo "travel-values-test: aktiver Speicher geprüft\n";
+
+// 14.08.2026: mit js/config.js nachgeliefert -- der zugehoerige Deploy-Lauf wurde von einem
+// nachfolgenden Push abgebrochen, und der naechste gruene Lauf diffte ab dem abgebrochenen Stand.

@@ -128,6 +128,14 @@ const PATH_ENDPOINT_SNAP_DISTANCE_PX = 18;
 // sechs Wegtypen weichen weiterhin von der Quelle ab, und das bleibt so, bis der Owner sie im Fenster
 // „Tempowerte" zurücksetzt. Ein Deploy, der jede Reisezeit auf jeder Straße verschiebt, wäre keine
 // Nebenwirkung eines Wald-Features.
+// ⚠️ 14.08.2026: Diese Datei holt hier ihren ASSET-STEMPEL NACH. Der Deploy-Lauf zu `2ae79c2d` wurde
+// von einem nachfolgenden Push derselben Warteschlange abgebrochen; der nächste grüne Lauf schrieb den
+// neuen Inhalts-Hash in die index.html, ohne die Datei selbst mitzunehmen -- `js/config.js?v=7c0895ba7f`
+// lieferte danach die ALTE Fassung, und zwar dauerhaft, weil sich genau diese Adresse nie wieder ändert.
+// 💣 Ein Voll-Deploy heilt das NICHT: er legt die richtige Datei unter dieselbe vergiftete Adresse.
+// Nur eine INHALTSänderung heilt (neuer Hash = neue Adresse) -- deshalb steht dieser Absatz hier.
+// Diagnose: `fetch(url+'?cb='+Date.now())` gegen `fetch(url)`, siehe docs/asset-caching-and-versioning.md.
+//
 // 🔴 DIESE TABELLE IST EIN SPIEGEL, NICHT DIE QUELLE. Die Regel besitzt der Server
 // (AVESMAPS_ROUTE_CLIENT_SPEED_TABLE plus app_setting['travel_values']); hier stehen dieselben Zahlen
 // für den Client-Router und die Anzeige. Bewacht von js/routing/__tests__/speed-table-and-rest-rule.test.js.

@@ -49,6 +49,10 @@ const AVESMAPS_ROUTE_CLIENT_SEA_ROUTE_TYPES = ['Seeweg'];
 // the river's 12-hour travel day and the carriage's half speed on Weg/Gebirgspass -- are documented
 // there; do not change one side alone.
 //
+// ⚠️ 14.08.2026: Diese Datei wurde zusammen mit js/config.js nachgeliefert -- ihr Deploy-Lauf wurde von
+// einem nachfolgenden Push abgebrochen, und der naechste gruene Lauf diffte ab dem abgebrochenen Stand,
+// nahm sie also nie mit. PHP traegt keinen `?v=`-Stempel; hier genuegte der erneute Upload.
+//
 // 🔴 SIE IST DER RUECKFALL, NICHT MEHR DIE WAHRHEIT. Seit dem 14.08.2026 liest der Router
 // app_setting['travel_values'] (avesmapsTravelValuesSpeed); diese Tabelle gilt, wo nichts gespeichert
 // ist -- eine frische Anlage, jede Diagnose ohne PDO, jeder Unit-Test.
