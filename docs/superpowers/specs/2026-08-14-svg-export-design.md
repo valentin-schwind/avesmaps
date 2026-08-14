@@ -40,8 +40,9 @@ nicht sieht und ein Admin daneben sonst nicht wüsste, was dem anderen fehlt.
 `edit/svg-export.php`, in einem neuen Reiter geöffnet — Bauart und Riegel von
 `edit/backup.php` abgeschaut.
 
-Inhalt: eine Ankreuzliste der acht Ebenen (**alles vorangehäkelt**), darunter
-ein Knopf „SVG erzeugen" und eine Statuszeile. Kein Fortschrittsbalken mit
+Inhalt: eine Auswahl **für welches Programm** (siehe §4), eine Ankreuzliste der
+acht Ebenen (**alles vorangehäkelt**), darunter ein Knopf „SVG erzeugen" und
+eine Statuszeile. Kein Fortschrittsbalken mit
 Serverlauf wie beim Backup — hier rechnet der Browser, und der Weg ist kurz
 genug für eine Zeile Text.
 
@@ -89,29 +90,57 @@ Wegen.
 
 ## 4 · Wie die Elemente heißen
 
-Jedes Element trägt **drei** Namensträger, weil die beiden Zielprogramme
-verschiedene lesen:
+🔴 **Zwei Programme, zwei Dateien — das ist keine Bequemlichkeit, sondern ein
+echter Konflikt.** Illustrator liest den Objektnamen aus `id`. Inkscape liest ihn
+aus `inkscape:label`. `id` darf keine Leerzeichen enthalten und muss eindeutig
+sein; `inkscape:label` darf alles. Eine einzige Datei kann darum nur **einem**
+der beiden lesbare Namen zeigen — beim anderen stünde entweder eine Slug-Wurst
+oder gar nichts. (Owner, 14.08.2026: „erfahrungsgemäß kann Illustrator mit
+Inkscape-Files nix anfangen".)
+
+Also entscheidet man auf der Seite **vor** dem Erzeugen, wohin die Datei geht:
+
+| | **Für Illustrator** | **Für Inkscape** |
+|---|---|---|
+| Ebene wird zur Ebene durch | oberste Gruppenebene | `inkscape:groupmode="layer"` |
+| Objektname steht in | `id`, mit Adobes eigener Maskierung (`_x20_` für Leerzeichen) | `inkscape:label`, unverändert |
+| `id` ist | der maskierte Name, eindeutig gemacht | reiner ASCII-Slug |
+| `inkscape:`/`sodipodi:`-Namensraum | **gar nicht vorhanden** | vorhanden |
+| `<title>` | ja | ja |
+| Dateiname | `…-illustrator.svg` | `…-inkscape.svg` |
 
 ```svg
+<!-- Für Inkscape -->
 <g inkscape:groupmode="layer" inkscape:label="Wege" id="layer-wege">
-  <g inkscape:label="Reichsstraße" id="wege-reichsstrasse"
-     stroke="…" stroke-width="1.4" fill="none">
+  <g inkscape:label="Reichsstraße" id="wege-reichsstrasse" stroke="…" fill="none">
     <path id="weg-reichsstrasse-gareth-wehrheim-p1042"
           inkscape:label="Reichsstraße Gareth–Wehrheim"
           d="…"><title>Reichsstraße Gareth–Wehrheim</title></path>
+
+<!-- Für Illustrator -->
+<g id="Wege">
+  <g id="Reichsstraße" stroke="…" fill="none">
+    <path id="Reichsstraße_x20_Gareth-Wehrheim_x20__x28_p1042_x29_"
+          d="…"><title>Reichsstraße Gareth–Wehrheim</title></path>
 ```
 
-| Träger | wer liest ihn | Form |
-|---|---|---|
-| `id` | Illustrator (als Objektname), SVG selbst (für `<textPath href>`) | reines ASCII, eindeutig, mit angehängter öffentlicher Kennung |
-| `inkscape:label` | Inkscape (als Objektname) | der echte Name, mit Umlauten |
-| `<title>` | alles andere, Browser-Tooltip, Barrierefreiheit | der echte Name |
+**Es ist EIN Bauer mit einem Dialekt-Parameter, nicht zwei Bauer.** Geometrie,
+Ebenen, Reihenfolge, Farben und Linienstärken sind identisch — nur die
+Namenshülle unterscheidet sich. Zwei getrennte Bauwege wären zwei Wahrheiten,
+die auseinanderlaufen; genau das soll die Trennung *nicht* werden.
 
-Die Ebenengruppen tragen zusätzlich `inkscape:groupmode="layer"` — das ist es,
-was Inkscape aus einer Gruppe eine **Ebene** macht. Illustrator liest die oberste
-Gruppenebene ohnehin als Ebene.
+> 💣 **Erst messen, dann bauen.** Ob Illustrator `_x20_` beim Import wirklich
+> zurück in ein Leerzeichen verwandelt und was es mit `ü` und `–` (Halbgeviert)
+> in einer `id` macht, ist **Adobes Verhalten, nicht Spezifikation** — ich kann
+> es nicht aus dem Code herleiten und darf es nicht raten. Deshalb ist Schritt 0
+> des Bauplans eine **Sonde**: eine winzige Datei, zwei Ebenen, fünf Objekte,
+> mit Leerzeichen, Umlaut, Halbgeviert und Klammer im Namen, in beiden Dialekten.
+> Der Owner öffnet beide in beiden Programmen und sagt, was in der Ebenenliste
+> steht. Danach steht die Maskierungstabelle fest, und die 30-MB-Datei wird
+> einmal richtig gebaut statt dreimal falsch.
 
-> 💣 **Die ASCII-Faltung hier ist NICHT die `wiki_key`-Faltung.** Die
+> 💣 **Die ASCII-Faltung des Inkscape-Dialekts ist NICHT die
+> `wiki_key`-Faltung.** Die
 > (`avesmapsFoldToAscii`, `api/_internal/text/ascii-fold.php`) bildet den Server
 > nach: Umlaute verlieren ihren Grundbuchstaben, `Fürstentum Kosch` wird
 > `f-rstentum-kosch`. Sie darf laut AGENTS.md §5 nie „schöner" gemacht werden,
@@ -130,8 +159,15 @@ SVGs eigenen Mechanismus:
 <textPath href="#weg-reichsstrasse-gareth-wehrheim-p1042">Reichsstraße Gareth–Wehrheim</textPath>
 ```
 
-Das ist der Grund, warum die Wege-`id` stabil und ASCII sein muss: die
-Beschriftungsebene zeigt darauf. Beide Programme können `<textPath>`.
+Beide Programme können `<textPath>`.
+
+> 💣 **`id` und `href` sind EIN Wert, an zwei Stellen geschrieben.** Der
+> Dialekt aus §4 ändert die `id` des Weges — und wenn die Beschriftungsebene
+> ihre Verweise nicht mitändert, zeigt jeder `href` ins Leere und **die
+> komplette Beschriftungsebene ist unsichtbar**, in einer Datei, die ansonsten
+> tadellos aussieht. Also: **eine** Funktion erzeugt die `id`, und die
+> Beschriftungsebene ruft dieselbe Funktion auf, statt den Namen ein zweites Mal
+> zusammenzusetzen. Der Test prüft es direkt (§12).
 
 > ⚠️ **Exportiert werden ALLE Namen** — auch die, die die Karte gerade wegen
 > Kollision versteckt. „Wie die Karte aussieht" hat für Beschriftungen keine
@@ -187,7 +223,7 @@ sieht man einer 30-MB-Datei nicht an, bevor sie in einem Programm offen ist.
 |---|---|
 | `edit/svg-export.php` | Seite, Admin-Riegel, Ankreuzliste. Handgestempeltes `?v=` |
 | `css/pages/svg-export.css` | Stil, ausschließlich Token |
-| `js/pages/svg-export-build.js` | **Reiner Bauer:** Payloads + Auswahl → Liste von Textstücken. Kein DOM, kein `fetch`, kein `document` |
+| `js/pages/svg-export-build.js` | **Reiner Bauer:** Payloads + Ebenenauswahl + Farbtafel + **Dialekt** (§4) → Liste von Textstücken. Kein DOM, kein `fetch`, kein `document` |
 | `js/pages/svg-export-page.js` | Der Kitt: holen, Fortschritt, Blob, Download |
 | `js/pages/__tests__/svg-export-build.test.js` | Node-Test gegen den reinen Bauer |
 
@@ -216,7 +252,9 @@ Eintrag.
 4. `new Blob(teile)` aus der Stückliste — **nie** ein einziger 30-MB-String durch
    Aneinanderhängen.
 5. Download über `URL.createObjectURL` und `<a download>`, Dateiname
-   `avesmaps-karte-JJJJ-MM-TT.svg`, danach `revokeObjectURL`.
+   `avesmaps-karte-JJJJ-MM-TT-illustrator.svg` bzw. `…-inkscape.svg`, danach
+   `revokeObjectURL`. Der Dialekt steht **im Dateinamen**, weil die zwei
+   Dateien sonst im Download-Ordner nicht auseinanderzuhalten sind.
 
 ## 10 · Größe
 
@@ -242,13 +280,25 @@ erklären können, woher sie kommt und was damit erlaubt ist.
 
 **Der Test** (am kleinen, erfundenen Payload):
 
+In **beiden** Dialekten (der Test läuft zweimal, über dieselbe Prüfliste):
+
 - alle acht Ebenengruppen vorhanden, in der richtigen Reihenfolge
-- jede `id` eindeutig und reines ASCII
-- `inkscape:label` trägt die Umlaute unversehrt
+- jede `id` eindeutig — zwei gleichnamige Orte ergeben zwei `id`
 - der bekannte Punkt landet nach der Spiegelung, wo er hingehört
-- `<metadata>` führt die Lizenz
+- `<metadata>` führt die Lizenz, `<title>` trägt den echten Namen
 - eine **abgewählte** Ebene erzeugt keine Gruppe
-- `<textPath href>` zeigt auf eine `id`, die in der Datei wirklich existiert
+- 💣 **jeder `<textPath href>` löst auf eine `id` auf, die in derselben Datei
+  wirklich vorkommt** — das ist die Kopplung aus §5, und sie ist genau die Art
+  Fehler, die stumm eine ganze Ebene verschluckt
+- die Farbtafel, die hineingereicht wurde, steht an den Gruppen und **nicht** am
+  Einzelelement
+
+Je Dialekt zusätzlich:
+
+- **Inkscape:** `inkscape:groupmode="layer"` an allen acht Ebenen,
+  `inkscape:label` trägt die Umlaute unversehrt, `id` ist reines ASCII
+- **Illustrator:** **kein** `inkscape:`- und **kein** `sodipodi:`-Namensraum
+  irgendwo in der Datei, `id` trägt den maskierten Namen
 
 > 💣 **Vor dem Push das GANZE Testfeld, nicht nur dieses.** Ein roter Test lädt
 > **nichts** hoch — und der Fehlschlag vergiftet danach den `?v=`-Stempel, weil
@@ -259,18 +309,23 @@ erklären können, woher sie kommt und was damit erlaubt ist.
 **Die echten Handgriffe** — ein grüner Test ist kein Beleg, dass die Datei
 etwas taugt (AGENTS.md §9, „Abnahme heißt ABLAUF"):
 
-1. Datei erzeugen, herunterladen.
-2. In **Inkscape** öffnen: acht Ebenen im Ebenenfenster, Namen lesbar,
-   Umlaute nicht zerschossen.
-3. In **Illustrator** öffnen (falls verfügbar): Objektnamen da, Gruppen als
-   Ebenen erkannt.
+0. **Die Sonde aus §4 zuerst** — winzige Datei, beide Dialekte, beide
+   Programme. Erst wenn die Maskierungstabelle belegt ist, wird der Rest gebaut.
+1. Beide Dateien erzeugen und herunterladen.
+2. `…-inkscape.svg` in **Inkscape**: acht Ebenen im Ebenenfenster, Namen
+   lesbar, Umlaute nicht zerschossen.
+3. `…-illustrator.svg` in **Illustrator**: Ebenen erkannt, Objektnamen lesbar
+   statt Slug-Wurst.
 4. Karte **richtig herum** — Norden oben.
 5. Eine Gruppe anfassen: eine Farbänderung trifft alle Reichsstraßen auf einmal.
-6. Eine Ebene abwählen, neu erzeugen, prüfen dass sie fehlt und die Datei
+6. **Beschriftungen sichtbar** — die Probe auf die `href`-Kopplung aus §5, und
+   die einzige, die man wirklich sieht.
+7. Eine Ebene abwählen, neu erzeugen, prüfen dass sie fehlt und die Datei
    kleiner ist.
 
-⚠️ Steht kein Illustrator zur Verfügung, wird das als **offene Frage gemeldet**,
-nicht als bestanden.
+⭐ Der Owner hat **beide Programme** (14.08.2026) — die Abnahme ist also
+vollständig durchführbar, es bleibt kein Punkt offen. Schritt 0 und Schritt 3
+laufen über ihn, weil ich Illustrator nicht bedienen kann.
 
 ## 13 · Was ausdrücklich nicht gebaut wird
 
@@ -279,7 +334,11 @@ nicht als bestanden.
 - **kein serverseitiger Lauf** — PHP müsste das Aussehen der Karte ein zweites
   Mal festlegen (die Divergenz, gegen die §12 geschrieben ist), und ein 40-MB-
   String im PHP-Speicher auf STRATO ist genau die Falle aus CLAUDE.md
-- **kein zweiter, neutraler Stil** — zwei Stilpfade laufen auseinander
+- **kein zweiter, neutraler Stil** — zwei Stilpfade laufen auseinander. ⚠️ Der
+  Zieldialekt aus §4 ist *kein* zweiter Stil: er tauscht die Namenshülle, nicht
+  eine einzige Farbe, Linienstärke oder Koordinate. Wer ihn zum Anlass nimmt,
+  „für Illustrator noch schnell anders zu zeichnen", baut genau die Divergenz,
+  die hier ausgeschlossen sein soll
 - **kein Knopf auf der öffentlichen Karte** — das wäre eine sichtbare Änderung
   für jeden Besucher, für nichts
 - **keine Kreuzungen, kein PNG, keine Geometrie-Vereinfachung**
