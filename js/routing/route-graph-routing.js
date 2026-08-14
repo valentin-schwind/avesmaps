@@ -278,6 +278,72 @@ function countGraphNodePathEdges(graph, nodeName) {
     return collectGraphNodeArms(graph, nodeName).count;
 }
 
+// Alle Wegstrecken in ein Gitter, einmal je Indexbau. Ein Segment wird in JEDE Zelle gelegt, die
+// seine Huellbox beruehrt -- schraeg liegende Segmente haengen dadurch in ein paar Zellen zu viel,
+// was nur die Trefferliste laenger macht, nie kuerzer.
+function buildPathSegmentGrid() {
+    const grid = new Map();
+    pathData.forEach((pathFeature) => {
+        const coordinates = pathFeature?.geometry?.coordinates;
+        if (!Array.isArray(coordinates)) {
+            return;
+        }
+        const pathId = String(pathFeature.properties?.id ?? "");
+        for (let index = 1; index < coordinates.length; index++) {
+            const [ax, ay] = coordinates[index - 1];
+            const [bx, by] = coordinates[index];
+            const segment = { pathId, ax, ay, bx, by };
+            const cellXFrom = Math.floor(Math.min(ax, bx) / SPARSE_CROSSING_SEGMENT_CELL);
+            const cellXTo = Math.floor(Math.max(ax, bx) / SPARSE_CROSSING_SEGMENT_CELL);
+            const cellYFrom = Math.floor(Math.min(ay, by) / SPARSE_CROSSING_SEGMENT_CELL);
+            const cellYTo = Math.floor(Math.max(ay, by) / SPARSE_CROSSING_SEGMENT_CELL);
+            for (let cellX = cellXFrom; cellX <= cellXTo; cellX++) {
+                for (let cellY = cellYFrom; cellY <= cellYTo; cellY++) {
+                    const key = `${cellX}|${cellY}`;
+                    if (!grid.has(key)) {
+                        grid.set(key, []);
+                    }
+                    grid.get(key).push(segment);
+                }
+            }
+        }
+    });
+    return grid;
+}
+
+function distanceToSegment(px, py, ax, ay, bx, by) {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lengthSquared = (dx * dx) + (dy * dy);
+    if (!lengthSquared) {
+        return Math.hypot(px - ax, py - ay);
+    }
+    const rawT = (((px - ax) * dx) + ((py - ay) * dy)) / lengthSquared;
+    const t = Math.max(0, Math.min(1, rawT));
+    return Math.hypot(px - (ax + (t * dx)), py - (ay + (t * dy)));
+}
+
+// Laeuft ein Weg ueber den Punkt, der ihm KEINEN Arm gibt? Dann ist der Punkt kein Auflöse-Fall,
+// sondern ein fehlender Stuetzpunkt an jenem Weg -- der umgekehrte Handgriff.
+function hasForeignPathOverPoint(grid, lat, lng, ownPathIds) {
+    const cellX = Math.floor(lng / SPARSE_CROSSING_SEGMENT_CELL);
+    const cellY = Math.floor(lat / SPARSE_CROSSING_SEGMENT_CELL);
+    for (let offsetX = -1; offsetX <= 1; offsetX++) {
+        for (let offsetY = -1; offsetY <= 1; offsetY++) {
+            const segments = grid.get(`${cellX + offsetX}|${cellY + offsetY}`) || [];
+            for (const segment of segments) {
+                if (ownPathIds.has(segment.pathId)) {
+                    continue;
+                }
+                if (distanceToSegment(lng, lat, segment.ax, segment.ay, segment.bx, segment.by) < SPARSE_CROSSING_OVERLAY_DISTANCE) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 // The editor's two marker tools (docs/superpowers/specs/2026-07-15-unverbundene-orte-marker-design.md,
 // Discord #25) share ONE pass over ONE connectivity graph -- building it twice for ~5200 paths would
 // be pure waste when both checkboxes are on:
@@ -291,6 +357,7 @@ function countGraphNodePathEdges(graph, nodeName) {
 function computeLocationConnectivityIndex() {
     const connectivityGraph = createGraph({}, { skipSyntheticConnections: true, transports: "all" });
     const powerlineConnectedPublicIds = getPowerlineConnectedLocationPublicIds();
+    const segmentGrid = buildPathSegmentGrid();
     const unconnected = new Set();
     const sparseCrossings = new Set();
     locationData.forEach((location) => {
@@ -301,10 +368,12 @@ function computeLocationConnectivityIndex() {
         if (!arms.count && !powerlineConnectedPublicIds.has(location.publicId)) {
             unconnected.add(location.publicId);
         }
-        // Regel 1: genau zwei Arme. Regel 3: beide derselben Wegart. (Regel 2 folgt.)
+        // Regel 1: genau zwei Arme. Regel 2: kein fremder Weg laeuft ueber den Punkt hinweg.
+        // Regel 3: beide Arme derselben Wegart.
         if (isCrossingLocation(location)
             && arms.count === SPARSE_CROSSING_WAY_COUNT
-            && arms.routeTypes.size === 1) {
+            && arms.routeTypes.size === 1
+            && !hasForeignPathOverPoint(segmentGrid, location.coordinates[0], location.coordinates[1], arms.pathIds)) {
             sparseCrossings.add(location.publicId);
         }
     });

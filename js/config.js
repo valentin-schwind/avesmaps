@@ -80,6 +80,15 @@ const CROSSING_LOCATION_TYPE = "crossing";
 // nicht diesem Haken (die traegt der pinke „Unverbunden"-Ring). Der alte Name lautete
 // SPARSE_CROSSING_MAX_WAYS und sagte damit das Gegenteil des Vergleichs.
 const SPARSE_CROSSING_WAY_COUNT = 2;
+// Regel 2 des Hakens: naeher als das an einer FREMDEN Wegstrecke = der Weg laeuft ueber die Kreuzung
+// hinweg. 0,02 Einheiten sind 0,06 Meilen -- eng genug, dass eine danebenlaufende Parallelstrasse
+// nicht mitzaehlt, weit genug fuer die Zeichenungenauigkeit eines Editors.
+const SPARSE_CROSSING_OVERLAY_DISTANCE = 0.02;
+// Zellkante des Segment-Gitters. 💣 Ohne Gitter ist die Pruefung O(Kreuzungen x Segmente) und lief
+// gemessen sekundenlang (2090 x 5929) -- der Index wird bei JEDER Feature-Aenderung verworfen, im
+// Editor also oft. Die Zelle MUSS groesser sein als SPARSE_CROSSING_OVERLAY_DISTANCE, sonst reichen
+// die drei mal drei abgefragten Zellen nicht bis an den Suchradius heran.
+const SPARSE_CROSSING_SEGMENT_CELL = 0.5;
 const PATH_SUBTYPE_KEYS = ["Reichsstrasse", "Strasse", "Weg", "Pfad", "Gebirgspass", "Wuestenpfad", "Flussweg", "Seeweg"];
 const PATH_ENDPOINT_SNAP_DISTANCE_PX = 18;
 

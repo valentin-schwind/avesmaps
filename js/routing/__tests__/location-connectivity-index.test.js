@@ -168,4 +168,28 @@ const nachWegart = getSparseCrossingPublicIds();
 assert.strictEqual(nachWegart.has("pid-Tgleich"), true, "zwei Wege derselben Art sind aufloesbar");
 assert.strictEqual(nachWegart.has("pid-Twechsel"), false, "ein Artwechsel Pfad->Strasse ist ein tragender Knoten");
 
+// --- Regel 2: ein fremder Weg laeuft ueber den Punkt hinweg -------------------------------------
+// 💣 Vgeht hat zwei eigene Arme -- aber „vquer" zieht als gerade Strecke ueber sie hinweg, ohne dort
+// einen Stuetzpunkt zu haben. Weder Router noch Pruefhaken sehen diesen dritten Weg. Aufloesen waere
+// falsch herum: fehlt hier etwas, dann dem WEG ein Stuetzpunkt, nicht der Kreuzung ihr Dasein.
+locationData = [
+	crossing("Vfrei", 500, 0), loc("Vfa", 501, 0), loc("Vfb", 502, 0),
+	crossing("Vquerbelegt", 510, 0), loc("Vqa", 511, 0), loc("Vqb", 512, 0),
+	loc("Qstart", 510, -5), loc("Qziel", 510, 5),
+];
+pathData = [
+	path_("vf1", "Weg", [500, 0], [501, 0]),
+	path_("vf2", "Weg", [500, 0], [502, 0]),
+	path_("vq1", "Weg", [510, 0], [511, 0]),
+	path_("vq2", "Weg", [510, 0], [512, 0]),
+	// laeuft senkrecht durch (510,0) -- ohne Vertex dort
+	path_("vquer", "Weg", [510, -5], [510, 5]),
+];
+powerlineData = [];
+locationConnectivityIndex = null;
+
+const nachUeberdeckung = getSparseCrossingPublicIds();
+assert.strictEqual(nachUeberdeckung.has("pid-Vfrei"), true, "ohne fremden Weg darueber bleibt sie aufloesbar");
+assert.strictEqual(nachUeberdeckung.has("pid-Vquerbelegt"), false, "ein Weg, der darueber hinweglaeuft, macht sie untastbar");
+
 console.log("location connectivity index tests passed");
