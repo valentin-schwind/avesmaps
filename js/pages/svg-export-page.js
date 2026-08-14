@@ -10,7 +10,14 @@
 		territories: "/api/app/political-territories.php?action=layer",
 		// ⚠️ EINE Anfrage je Art, nie in einer Schleife über Werte: der Landschaften- und
 		// der Territorien-Endpunkt sind bekannte Perf-Brennpunkte auf dem Shared Hosting.
-		ecosystemKinds: ["derographisch", "vegetation", "topographie", "klima"],
+		//
+		// 💣 DIESE REIHENFOLGE IST DIE ZEICHENREIHENFOLGE, nicht Geschmack. Der Bauer
+		// gruppiert die Flächen in der Reihenfolge, in der sie ankommen, und in SVG liegt
+		// das Erste unten. Solange alles beige war, fiel das nicht auf; mit den echten
+		// Farben schon: die acht Klimabänder decken die GANZE Karte, kämen sie zuletzt,
+		// läge ein Farbschleier über Wald, Meer und Gebirge. Also von hinten nach vorn --
+		// Klima als Grund, dann die Behälter, dann der Bewuchs, zuoberst Wasser und Relief.
+		ecosystemKinds: ["klima", "derographisch", "vegetation", "topographie"],
 	};
 
 	const el = (id) => document.getElementById(id);
@@ -24,6 +31,39 @@
 
 	// Ein Atemzug an den Browser, damit die Statuszeile mitläuft statt einzufrieren.
 	const atmen = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+	// 🔴 Die Farbe JEDER Landschaftsfläche, nach DERSELBEN Regel, mit der die Karte sie
+	// ableitet (map-features-ecosystem-rendering.js, ecosystemAreaColor): erst der Token des
+	// Geländetyps, sonst der Token der Art. Also keine Abschrift, sondern dieselbe Quelle --
+	// ein neu eingeführter Typ braucht auch hier nur seinen Token in tokens.css, und der
+	// Export folgt von selbst. Wald grün, Wüste gelb, See blau, Meer dunkelblau.
+	// 💣 Der Unterstrich wird zum Bindestrich:
+	//    suempfe_moore -> --color-ecosystem-vegetation-suempfe-moore
+	// 💣 Gelesen wird HIER und nicht im Bauer: getComputedStyle braucht ein DOM, und der
+	// Bauer hat per Vertrag keins. Er bekommt die fertige Tafel gereicht.
+	function landschaftsFarben(features) {
+		const stil = getComputedStyle(document.documentElement);
+		const token = (name) => (stil.getPropertyValue(name) || "").trim();
+		const farben = {};
+		(features || []).forEach((f) => {
+			const p = f.properties || f;
+			const typ = p.region_type || "ohne_typ";
+			if (farben[typ]) { return; }
+			const art = p.kind || "";
+			farben[typ] = token(`--color-ecosystem-${art}-${typ.replace(/_/g, "-")}`)
+				|| token(`--color-ecosystem-${art}`)
+				|| "#dfd6bd";
+		});
+		return farben;
+	}
+
+	// Die gewünschte Kantenlänge in Bildpunkten. Leer oder unsinnig -> Standard.
+	function gewaehlteGroesse() {
+		const feld = el("svgx-size");
+		const wert = Math.round(Number(feld && feld.value));
+		if (!Number.isFinite(wert) || wert < 256) { return 32768; }
+		return Math.min(wert, 200000);
+	}
 
 	// Der Auswahlbaum ist generisch: jedes Kästchen kennt seinen Pfad
 	// (`landschaften/topographie/see`) und den seines Elternteils. Damit braucht keine
@@ -177,9 +217,11 @@
 				mapFeatures: mapFeatures,
 				territories: territories,
 				ecosystems: ecosystems,
+				areaColors: landschaftsFarben(ecosystems),
 				layers: an,
 				subgroups: unterarten,
 				dialect: dialekt,
+				sizePx: gewaehlteGroesse(),
 			});
 
 			// Nie ein einziger Riesenstring durch Aneinanderhängen -- die Stückliste geht
@@ -218,6 +260,21 @@
 		if (alle) { alle.addEventListener("click", () => alleSetzen(true)); }
 		const keine = el("svgx-none");
 		if (keine) { keine.addEventListener("click", () => alleSetzen(false)); }
+
+		// Größe: Schnellwahl schreibt ins Feld, das Feld spiegelt sich in die Anzeige.
+		const feld = el("svgx-size");
+		const echo = el("svgx-size-echo");
+		const spiegeln = () => {
+			if (echo) { echo.textContent = gewaehlteGroesse().toLocaleString("de-DE"); }
+		};
+		if (feld) { feld.addEventListener("input", spiegeln); }
+		document.querySelectorAll("[data-svgx-size]").forEach((knopf) => {
+			knopf.addEventListener("click", function () {
+				if (feld) { feld.value = knopf.getAttribute("data-svgx-size"); }
+				spiegeln();
+			});
+		});
+		spiegeln();
 
 		// Ein Zuhörer für den ganzen Baum, gleich auf welcher Stufe.
 		alleKnoten().forEach((box) => {

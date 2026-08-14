@@ -131,6 +131,48 @@
 	font-size: 12px;
 }
 
+.svgx-size {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+}
+
+.svgx-size__field {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--color-text);
+}
+
+.svgx-size__field input {
+	width: 8em;
+	padding: 5px 8px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-input-bg, var(--color-panel));
+	color: var(--color-text);
+	font: inherit;
+	font-variant-numeric: tabular-nums;
+}
+
+.svgx-size__unit {
+	color: var(--color-text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.svgx-size__presets {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.svgx-size__presets .svgx-secondary {
+	padding: 5px 10px;
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+}
+
 .svgx-actions {
 	display: flex;
 	align-items: center;

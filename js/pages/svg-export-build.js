@@ -158,7 +158,16 @@ function svgxGroupClose() {
 	return "</g>\n";
 }
 
-function svgxDocumentOpen(dialect) {
+// Die Ausgabegröße in Bildpunkten. 32768 ist der Standard -- bei 1024 Einheiten Kantenlänge
+// sind das 32 Punkte je Einheit, genug für großen Druck.
+const SVGX_DEFAULT_SIZE_PX = 32768;
+
+// 💣 Die GRÖSSE steht in width/height, der Zeichenraum bleibt IMMER 0…1024 im viewBox.
+// Nur so skaliert alles mit: Koordinaten, Strichstärken, Schriftgrößen. Wer stattdessen die
+// Koordinaten multiplizierte, müsste jede Strichstärke und jede Schrift einzeln mitrechnen --
+// und ein Vergessener fiele erst im Druck auf.
+function svgxDocumentOpen(dialect, sizePx) {
+	const groesse = Math.max(1, Math.round(Number(sizePx) || SVGX_DEFAULT_SIZE_PX));
 	const inkscapeNs = dialect === SVGX_DIALECTS.INKSCAPE
 		? ' xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"'
 		: "";
@@ -167,7 +176,7 @@ function svgxDocumentOpen(dialect) {
 		+ ' xmlns:xlink="http://www.w3.org/1999/xlink"'
 		+ inkscapeNs
 		+ ` viewBox="0 0 ${SVGX_VIEWBOX_SIZE} ${SVGX_VIEWBOX_SIZE}"`
-		+ ` width="${SVGX_VIEWBOX_SIZE}" height="${SVGX_VIEWBOX_SIZE}">\n`
+		+ ` width="${groesse}" height="${groesse}">\n`
 		// Die Lizenz reist mit: eine SVG geht nach draußen und muss ohne die Website
 		// erklären können, woher sie kommt und was erlaubt ist (wie fb763021).
 		+ "<metadata>\n"
@@ -492,7 +501,7 @@ function svgxBuildDocument(options) {
 	const an = o.layers || {};
 	const seen = new Set();
 	const wayIds = new Map();
-	const parts = [svgxDocumentOpen(dialect)];
+	const parts = [svgxDocumentOpen(dialect, o.sizePx)];
 	const stats = {};
 
 	const detail = [];
@@ -522,7 +531,13 @@ function svgxBuildDocument(options) {
 			// eine Ebene TIEFER als die vier Landschafts-Arten, weil die Arten den ABRUF
 			// steuern und die Typen das ZEICHNEN -- zwei verschiedene Fragen.
 			enabled: (o.subgroups || {}).landschaftstypen,
-			defaultFill: "#dfd6bd", fillOpacity: "0.85", dialect: dialect, seen: seen,
+			// Die Farbe je Geländetyp, gelesen aus denselben Token wie die Karte
+			// (--color-ecosystem-<art>-<typ>). Der Kitt reicht sie herein, weil
+			// getComputedStyle ein DOM braucht und dieser Bauer keins hat.
+			colors: o.areaColors,
+			// 0,72 ist der Wert der Karte (--eco-fill in css/features/ecosystem-layer.css),
+			// nicht geschätzt. Ohne ihn sähen die Flächen kräftiger aus als im Frontend.
+			defaultFill: "#dfd6bd", fillOpacity: "0.72", dialect: dialect, seen: seen,
 		}));
 	}
 	if (an.gebiete !== false) {

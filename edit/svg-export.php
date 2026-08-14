@@ -207,7 +207,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
          or either script changes, or admins keep the cached files. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260815-svgexport-3" />
+    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260815-svgexport-4" />
 </head>
 
 <body class="edit-page">
@@ -285,6 +285,30 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                 </div>
 
                 <div class="svgx-group">
+                    <h2 class="svgx-group__title">Wie groß?</h2>
+                    <div class="svgx-size">
+                        <label class="svgx-size__field">
+                            <span>Kantenlänge</span>
+                            <input type="number" id="svgx-size" value="32768" min="256" max="200000" step="1024" />
+                            <span class="svgx-size__unit">px &times; <span id="svgx-size-echo">32768</span> px</span>
+                        </label>
+                        <span class="svgx-size__presets">
+                            <button type="button" class="svgx-secondary" data-svgx-size="8192">8.192</button>
+                            <button type="button" class="svgx-secondary" data-svgx-size="16384">16.384</button>
+                            <button type="button" class="svgx-secondary" data-svgx-size="32768">32.768</button>
+                            <button type="button" class="svgx-secondary" data-svgx-size="65536">65.536</button>
+                        </span>
+                    </div>
+                    <p class="svgx-hint" style="margin-top:8px">
+                        Die Karte ist quadratisch, eine Zahl genügt. Sie steht in
+                        <code>width</code>/<code>height</code>; der Zeichenraum bleibt
+                        1024&nbsp;&times;&nbsp;1024, also skaliert alles mit &ndash; Linien,
+                        Punkte und Schrift. Auf die <strong>Dateigröße hat das keinen
+                        Einfluss</strong>: eine Vektordatei speichert Formen, keine Bildpunkte.
+                    </p>
+                </div>
+
+                <div class="svgx-group">
                     <h2 class="svgx-group__title">Welche Ebenen?</h2>
                     <?php foreach ($layers as $layer) : ?>
                         <div class="svgx-layer"><?php $renderNode($layer, '', 0); ?></div>
@@ -307,8 +331,8 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                 </table>
             </section>
         </main>
-        <script src="../js/pages/svg-export-build.js?v=20260815-svgexport-3"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260815-svgexport-3"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260815-svgexport-4"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260815-svgexport-4"></script>
     <?php endif; ?>
 </body>
 

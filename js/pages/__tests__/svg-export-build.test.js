@@ -250,3 +250,42 @@ console.log("svg-export-build (Unterarten): ok");
 }
 
 console.log("svg-export-build (Geländetypen): ok");
+
+// ---- 10. Ausgabegröße in Bildpunkten --------------------------------------------------
+{
+	// 💣 Die Größe steht in width/height, der Zeichenraum bleibt IMMER 0…1024 -- nur so
+	// skalieren Strichstärken und Schriften mit, ohne einzeln nachgerechnet zu werden.
+	const kopf = B.svgxDocumentOpen(D.INKSCAPE, 32768);
+	assert.ok(kopf.includes('width="32768" height="32768"'), "die Größe gehört in width/height");
+	assert.ok(kopf.includes('viewBox="0 0 1024 1024"'), "der Zeichenraum bleibt 1024");
+
+	assert.ok(B.svgxDocumentOpen(D.INKSCAPE).includes('width="32768"'),
+		"ohne Angabe gilt der Standard 32768");
+	assert.ok(B.svgxDocumentOpen(D.INKSCAPE, 4096).includes('width="4096" height="4096"'));
+	assert.ok(B.svgxDocumentOpen(D.INKSCAPE, 0).includes('width="32768"'),
+		"eine unsinnige Größe fällt auf den Standard zurück");
+
+	// Die Koordinaten dürfen sich durch die Größe NICHT ändern.
+	const a = B.svgxBuildDocument({ mapFeatures: payload, dialect: D.INKSCAPE, sizePx: 4096 }).parts.join("");
+	const b = B.svgxBuildDocument({ mapFeatures: payload, dialect: D.INKSCAPE, sizePx: 65536 }).parts.join("");
+	assert.strictEqual(a.replace(/width="\d+" height="\d+"/, ""), b.replace(/width="\d+" height="\d+"/, ""),
+		"außer width/height darf die Größe nichts verändern");
+}
+
+// ---- 11. Landschaftsfarben kommen von außen -------------------------------------------
+{
+	const eco = [{ public_id: "e1", region_name: "Ein See", region_type: "see", kind: "topographie",
+		geometry: { type: "Polygon", coordinates: [[[0, 1024], [4, 1024], [4, 1020], [0, 1024]]] } }];
+	const svg = B.svgxBuildDocument({ ecosystems: eco, dialect: D.INKSCAPE,
+		areaColors: { see: "#4a86b8" },
+		layers: { landschaften: true, gebiete: false, wege: false, kraftlinien: false,
+			orte: false, beschriftungen: false } }).parts.join("");
+	assert.ok(svg.includes('fill="#4a86b8"'), "die Farbe je Geländetyp muss an der Gruppe hängen");
+	// Ohne Tafel bleibt der neutrale Rückfall -- der Bauer erfindet keine Farbe.
+	const ohne = B.svgxBuildDocument({ ecosystems: eco, dialect: D.INKSCAPE,
+		layers: { landschaften: true, gebiete: false, wege: false, kraftlinien: false,
+			orte: false, beschriftungen: false } }).parts.join("");
+	assert.ok(!ohne.includes("#4a86b8"), "ohne Tafel darf keine Farbe aus dem Nichts kommen");
+}
+
+console.log("svg-export-build (Größe + Farben): ok");
