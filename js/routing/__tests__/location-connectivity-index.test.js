@@ -91,12 +91,16 @@ assert.deepStrictEqual([...rebuilt].sort(), ["pid-C", "pid-K0"]);
 locationData = [
 	loc("Sa", 200, 0), crossing("S1", 210, 0), loc("Sb", 220, 0),
 	loc("Ua", 300, 0), loc("Umitte", 310, 0), loc("Ub", 320, 0),
+	loc("Xa", 400, 0), loc("Xb", 410, 0),
 ];
 pathData = [
 	{ geometry: { type: "LineString", coordinates: [[200, 0], [210, 0], [220, 0]] },
 	  properties: { id: "sp", feature_subtype: "Weg" } },
 	{ geometry: { type: "LineString", coordinates: [[300, 0], [310, 0], [320, 0]] },
 	  properties: { id: "up", feature_subtype: "Weg" } },
+	// Zwei-Punkt-Weg OHNE inneren Stuetzpunkt -- der Kontrastfall zu "sp"/"up" fuer die id-Form.
+	{ geometry: { type: "LineString", coordinates: [[400, 0], [410, 0]] },
+	  properties: { id: "xy", feature_subtype: "Weg" } },
 ];
 powerlineData = [];
 locationConnectivityIndex = null;
@@ -109,5 +113,30 @@ assert.strictEqual(countGraphNodePathEdges(splitGraph, "Sa"), 1, "der Weganfang 
 // Und derselbe Split heilt den pinken Ring: ein ORT, der nur als Stuetzpunkt an einem Weg haengt,
 // ist nicht unverbunden. Live waren das 12 von 182.
 assert.strictEqual(getUnconnectedLocationPublicIds().has("pid-Umitte"), false, "ein aufliegender Ort haengt am Netz");
+
+// Die id-Form ist load-bearing: Task 3 liest den Weg-Stamm vor dem "#" zurueck. Ein geteilter Weg
+// zaehlt seine Teilkanten hoch, ein ungeteilter behaelt seine reine Weg-id.
+assert.strictEqual(splitGraph.Sa.S1[0].id, "sp#1", "erste Teilkante: Weg-Stamm plus Segmentnummer 1");
+assert.strictEqual(splitGraph.S1.Sb[0].id, "sp#2", "zweite Teilkante: Segmentnummer hochgezaehlt");
+assert.strictEqual(splitGraph.Xa.Xb[0].id, "xy", "ein Weg ohne inneren Stuetzpunkt behaelt seine reine Weg-id");
+
+// --- Die Wache gegen doppelte Stuetzpunkte -------------------------------------------------------
+// 💣 Zwilling der PHP-Wachen in client-graph.php:204-207 (beim Einsammeln) und :223 (vor jeder
+// Teilkante). Der Weg "dd" traegt einen inneren Vertex, der round-5 exakt auf denselben Ort faellt
+// wie sein eigener Start (ein doppelt gezeichneter Punkt) -- ohne die erste Wache wuerde das eine
+// Selbstkante Da-Da ziehen und Da zwei Phantomarme bescheren, obwohl der Weg tatsaechlich nur nach
+// Db fuehrt.
+locationData = [loc("Da", 500, 0), loc("Db", 520, 0)];
+pathData = [
+	{ geometry: { type: "LineString", coordinates: [[500, 0], [500, 0], [520, 0]] },
+	  properties: { id: "dd", feature_subtype: "Weg" } },
+];
+powerlineData = [];
+locationConnectivityIndex = null;
+
+const dedupGraph = createGraph({}, { skipSyntheticConnections: true, transports: "all" });
+assert.strictEqual(countGraphNodePathEdges(dedupGraph, "Da"), 1, "ein doppelter Stuetzpunkt am Start darf keine Phantomarme erzeugen");
+assert.deepStrictEqual(Object.keys(dedupGraph.Da), ["Db"], "keine Selbstkante Da-Da im Graphen");
+assert.strictEqual(dedupGraph.Da.Db[0].id, "dd", "der Duplikat-Vertex faellt heraus, der Weg bleibt unsplit");
 
 console.log("location connectivity index tests passed");
