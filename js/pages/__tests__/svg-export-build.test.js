@@ -310,3 +310,32 @@ console.log("svg-export-build (Größe + Farben): ok");
 });
 
 console.log("svg-export-build (keine Transparenz): ok");
+
+// ---- 13. Strichstärken: hergeleitet, nicht geschätzt -----------------------------------
+// 🔴 Die Karte zieht ihre Wege mit PATH_CENTER_WEIGHTS in BILDPUNKTEN bei voller Zoomstufe,
+// und volle Zoomstufe ist 1024 × 2^5 = 32.768 px -- die Standardgröße dieses Exports. Ein
+// Bildpunkt dort ist 1/32 Einheit hier. Der erste Satz war 7,2× zu dick (Owner 15.08.2026).
+{
+	const KARTE = { Reichsstrasse: 4, Strasse: 2.5, Weg: 2.5, Pfad: 1.5,
+		Gebirgspass: 1.5, Wuestenpfad: 1.5, Flussweg: 3, Seeweg: 3 };
+	const MASSSTAB = 32768 / 1024;   // = 32
+	Object.entries(KARTE).forEach(([art, px]) => {
+		const soll = px / MASSSTAB;
+		assert.ok(Math.abs(B.SVGX_WAY_WIDTHS[art] - soll) < 0.002,
+			`${art}: ${B.SVGX_WAY_WIDTHS[art]} Einheiten sind bei 32.768 px `
+			+ `${(B.SVGX_WAY_WIDTHS[art] * MASSSTAB).toFixed(2)} px, die Karte zieht ${px} px`);
+	});
+
+	// Der Regler multipliziert, 100 % lässt in Ruhe.
+	const bei = (skala) => {
+		const svg = B.svgxBuildDocument({ mapFeatures: payload, dialect: D.INKSCAPE,
+			strokeScale: skala }).parts.join("");
+		return Number((svg.match(/stroke-width="([\d.]+)"/) || [])[1]);
+	};
+	assert.ok(Math.abs(bei(1) - 0.125) < 1e-9, "100 % ist der Kartenzustand");
+	assert.ok(Math.abs(bei(0.5) - 0.0625) < 1e-9, "50 % halbiert");
+	assert.ok(Math.abs(bei(undefined) - 0.125) < 1e-9, "ohne Angabe gilt 100 %");
+	assert.ok(Math.abs(bei(0) - 0.125) < 1e-9, "0 ist unsinnig und fällt auf 100 % zurück");
+}
+
+console.log("svg-export-build (Strichstärken): ok");

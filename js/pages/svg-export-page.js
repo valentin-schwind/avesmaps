@@ -57,6 +57,14 @@
 		return farben;
 	}
 
+	// Die Linienstärke als Faktor. 100 % = der Kartenzustand (siehe SVGX_WAY_WIDTHS).
+	function gewaehlteStrichstaerke() {
+		const feld = el("svgx-stroke");
+		const wert = Number(feld && feld.value);
+		if (!Number.isFinite(wert) || wert <= 0) { return 1; }
+		return Math.min(Math.max(wert, 5), 400) / 100;
+	}
+
 	// Die gewünschte Kantenlänge in Bildpunkten. Leer oder unsinnig -> Standard.
 	function gewaehlteGroesse() {
 		const feld = el("svgx-size");
@@ -222,6 +230,7 @@
 				subgroups: unterarten,
 				dialect: dialekt,
 				sizePx: gewaehlteGroesse(),
+				strokeScale: gewaehlteStrichstaerke(),
 			});
 
 			// Nie ein einziger Riesenstring durch Aneinanderhängen -- die Stückliste geht
@@ -268,6 +277,12 @@
 			if (echo) { echo.textContent = gewaehlteGroesse().toLocaleString("de-DE"); }
 		};
 		if (feld) { feld.addEventListener("input", spiegeln); }
+		const strichFeld = el("svgx-stroke");
+		document.querySelectorAll("[data-svgx-stroke]").forEach((knopf) => {
+			knopf.addEventListener("click", function () {
+				if (strichFeld) { strichFeld.value = knopf.getAttribute("data-svgx-stroke"); }
+			});
+		});
 		document.querySelectorAll("[data-svgx-size]").forEach((knopf) => {
 			knopf.addEventListener("click", function () {
 				if (feld) { feld.value = knopf.getAttribute("data-svgx-size"); }

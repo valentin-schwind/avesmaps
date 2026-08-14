@@ -35,12 +35,38 @@ const SVGX_WAY_COLORS = {
 	Seeweg: "#2f7dd3",
 };
 
-// Strichstärken für 1024 Einheiten Kantenlänge. Die echten Stärken der Karte kommen aus
-// der Zoomstufe, und eine Vektordatei hat keine -- also ein fester Satz, an EINER Stelle.
+// 🔴 Strichstärken, HERGELEITET statt geschätzt (15.08.2026, nachdem der erste Satz 7,2×
+// zu dick war und der Owner es sah).
+//
+// Die Rechnung: die Karte zieht ihre Wege mit PATH_CENTER_WEIGHTS (js/config.js) in
+// BILDPUNKTEN bei voller Zoomstufe -- Reichsstrasse 4, Strasse/Weg 2,5, Pfad/Gebirgspass/
+// Wuestenpfad 1,5, Flussweg/Seeweg 3. Volle Zoomstufe ist 1024 × 2⁵ = 32.768 px, also genau
+// die Standardgröße dieses Exports. Ein Bildpunkt dort ist damit 1/32 Einheit hier:
+//
+//     Einheit = PATH_CENTER_WEIGHTS[art] / 32
+//
+// ⚠️ Die 32 sind SVGX_DEFAULT_SIZE_PX / SVGX_VIEWBOX_SIZE und nichts anderes. Wer die
+// Standardgröße ändert, ändert damit auch, worauf sich diese Zahlen beziehen -- die
+// Strichstärke bleibt in Einheiten, skaliert also mit, aber der VERGLEICH mit der Karte
+// gilt dann für die neue Größe.
 const SVGX_WAY_WIDTHS = {
-	Reichsstrasse: 0.9, Strasse: 0.7, Weg: 0.5, Pfad: 0.4,
-	Gebirgspass: 0.5, Wuestenpfad: 0.5, Flussweg: 0.6, Seeweg: 0.5,
+	Reichsstrasse: 0.125,   // 4    px
+	Strasse: 0.078,         // 2,5  px
+	Weg: 0.078,             // 2,5  px
+	Pfad: 0.047,            // 1,5  px
+	Gebirgspass: 0.047,     // 1,5  px
+	Wuestenpfad: 0.047,     // 1,5  px
+	Flussweg: 0.094,        // 3    px
+	Seeweg: 0.094,          // 3    px
 };
+
+const SVGX_POWERLINE_WIDTH = 0.078;   // wie eine Straße
+
+// Der Regler auf der Seite: 100 % = die Stärken oben, also der Kartenzustand.
+function svgxStrokeScale(scale) {
+	const wert = Number(scale);
+	return Number.isFinite(wert) && wert > 0 ? wert : 1;
+}
 
 // Ortsarten in Katalogreihenfolge, mit Punktgröße. Der Kitt darf eine gemessene Liste
 // hereinreichen; ohne sie gilt diese.
@@ -287,7 +313,7 @@ function svgxWayLayer(options) {
 			attrs: {
 				fill: "none",
 				stroke: SVGX_WAY_COLORS[art] || "#888888",
-				"stroke-width": String(SVGX_WAY_WIDTHS[art] || 0.5),
+				"stroke-width": String((SVGX_WAY_WIDTHS[art] || 0.078) * svgxStrokeScale(o.strokeScale)),
 				"stroke-linejoin": "round",
 				"stroke-linecap": "round",
 			},
@@ -317,7 +343,10 @@ function svgxPowerlineLayer(options) {
 			&& f.geometry && f.geometry.type === "LineString");
 	const stuecke = [svgxLayerOpen({
 		name: "Kraftlinien", id: "layer-kraftlinien", dialect: o.dialect,
-		attrs: { fill: "none", stroke: "#7a5ea8", "stroke-width": "0.5", "stroke-linejoin": "round" },
+		attrs: {
+			fill: "none", stroke: o.color || "#7a5ea8", "stroke-linejoin": "round",
+			"stroke-width": String(SVGX_POWERLINE_WIDTH * svgxStrokeScale(o.strokeScale)),
+		},
 	})];
 	linien.forEach((f) => {
 		const name = f.properties.name || "Kraftlinie";
@@ -552,10 +581,11 @@ function svgxBuildDocument(options) {
 	}
 	if (an.wege !== false) {
 		nimm("Wege", svgxWayLayer({ features: o.mapFeatures, dialect: dialect, seen: seen,
-			wayIds: wayIds, enabled: (o.subgroups || {}).wege }));
+			wayIds: wayIds, enabled: (o.subgroups || {}).wege, strokeScale: o.strokeScale }));
 	}
 	if (an.kraftlinien !== false) {
-		nimm("Kraftlinien", svgxPowerlineLayer({ features: o.mapFeatures, dialect: dialect, seen: seen }));
+		nimm("Kraftlinien", svgxPowerlineLayer({ features: o.mapFeatures, dialect: dialect, seen: seen,
+			strokeScale: o.strokeScale }));
 	}
 	if (an.orte !== false) {
 		nimm("Orte", svgxPlaceLayer({ features: o.mapFeatures, kinds: o.placeKinds, dialect: dialect,
@@ -588,6 +618,7 @@ if (typeof module !== "undefined" && module.exports) {
 		SVGX_DIALECTS: SVGX_DIALECTS,
 		SVGX_WAY_SUBTYPES: SVGX_WAY_SUBTYPES,
 		SVGX_WAY_COLORS: SVGX_WAY_COLORS,
+		SVGX_WAY_WIDTHS: SVGX_WAY_WIDTHS,
 		SVGX_PLACE_KINDS: SVGX_PLACE_KINDS,
 		svgxPoint: svgxPoint,
 		svgxEscapeText: svgxEscapeText,

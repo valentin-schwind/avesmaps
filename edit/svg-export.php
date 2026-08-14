@@ -207,7 +207,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
          or either script changes, or admins keep the cached files. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260815-svgexport-5" />
+    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260815-svgexport-6" />
 </head>
 
 <body class="edit-page">
@@ -306,6 +306,27 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                         Punkte und Schrift. Auf die <strong>Dateigröße hat das keinen
                         Einfluss</strong>: eine Vektordatei speichert Formen, keine Bildpunkte.
                     </p>
+
+                    <div class="svgx-size" style="margin-top:12px">
+                        <label class="svgx-size__field">
+                            <span>Linienstärke</span>
+                            <input type="number" id="svgx-stroke" value="100" min="5" max="400" step="5" />
+                            <span class="svgx-size__unit">%</span>
+                        </label>
+                        <span class="svgx-size__presets">
+                            <button type="button" class="svgx-secondary" data-svgx-stroke="50">50&nbsp;%</button>
+                            <button type="button" class="svgx-secondary" data-svgx-stroke="75">75&nbsp;%</button>
+                            <button type="button" class="svgx-secondary" data-svgx-stroke="100">100&nbsp;%</button>
+                            <button type="button" class="svgx-secondary" data-svgx-stroke="150">150&nbsp;%</button>
+                        </span>
+                    </div>
+                    <p class="svgx-hint" style="margin-top:8px">
+                        <strong>100&nbsp;% ist der Kartenzustand</strong>: die Stärken sind aus
+                        <code>PATH_CENTER_WEIGHTS</code> hergeleitet &ndash; die Karte zieht eine
+                        Reichsstraße bei voller Zoomstufe 4&nbsp;px breit, und volle Zoomstufe ist
+                        genau 32.768&nbsp;px. Reichsstraße 4&nbsp;px, Straße und Weg 2,5, Fluss- und
+                        Seeweg 3, Pfad, Gebirgspass und Wüstenpfad 1,5. Für Druck darf es dünner sein.
+                    </p>
                 </div>
 
                 <div class="svgx-group">
@@ -331,8 +352,8 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                 </table>
             </section>
         </main>
-        <script src="../js/pages/svg-export-build.js?v=20260815-svgexport-5"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260815-svgexport-5"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260815-svgexport-6"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260815-svgexport-6"></script>
     <?php endif; ?>
 </body>
 
