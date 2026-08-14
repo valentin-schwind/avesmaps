@@ -381,11 +381,14 @@
 	border-bottom: 1px solid var(--color-border);
 }
 
-#region-sync-list .region-sync__item,
-#path-sync-list .region-sync__item {
-	padding: 6px 8px;
-	border-bottom: 1px solid var(--color-panel-muted);
-}
+/* 💣 Hier stand eine DRITTE Fassung derselben zwei Werte:
+     #region-sync-list .region-sync__item, #path-sync-list .region-sync__item
+     { padding: 6px 8px; border-bottom: 1px solid var(--color-panel-muted); }
+   Die Zeilen der Regionen- und Wegeliste tragen BEIDE Klassen ("tree-item region-sync__item"),
+   und diese Regel hat mit der ID Spezifität (1,1,0) gegen (0,2,0) der geteilten. Sie gewann also
+   — zwei der acht Listen hörten in Wahrheit auf diesen Block, nicht auf die gemeinsame Regel.
+   Ersatzlos entfernt: sie setzte exakt dieselben Werte und war nur die dritte Stelle, an der man
+   sie hätte pflegen müssen. */
 
 .region-sync__handle {
 	color: var(--color-placeholder);
@@ -916,10 +919,20 @@
 	overflow-y: auto;
 	padding: 0;
 }
-/* Geteiltes Listen-Item-Layout (Siedlungen/Regionen/Wege) — übernimmt 1:1 die Struktur der
-   Territorien-Items (#wiki-sync-territory-tree .tree-item): Grid mit Drag-Handle in Spalte 1
-   (über beide Zeilen), Name+Kreis in Zeile 1, Meta+Wiki-Link in Zeile 2. */
-.wikisync-itemlist .tree-item {
+/* DIE Zeilenform der WikiSync-Listen im Panel — für alle fünf Karten-Subjekte, Territorien
+   eingeschlossen. Raster mit Ziehgriff in Spalte 1 (über beide Zeilen), Name+Kreis in Zeile 1,
+   Meta+Wiki-Link in Zeile 2.
+   💣 Bis 14.08.2026 stand dieselbe Rezeptur ein ZWEITES Mal in
+   css/pages/political-territory-wiki-tree.css:122 — der Kommentar hier sagte selbst, er übernehme
+   sie "1:1" — und ein DRITTES Mal weiter oben als ID-Regel für Regionen und Wege, die sie sogar
+   überstimmte. Drei Stellen, dreimal zu pflegen; daraus wuchs die Divergenz, die der Owner am
+   14.08.2026 gemeldet hat.
+   ⚠️ Beide Selektoren gehören an DIESE eine Regel: "#wiki-sync-territory-tree .tree-item" hat
+   Spezifität (1,1,0) und schlüge eine getrennte Regel mit (0,2,0) immer, egal in welcher
+   Reihenfolge die Dateien geladen werden. Umsortieren wirkt also nicht.
+   Gewacht von js/review/__tests__/wikisync-list-form.test.js. */
+.wikisync-itemlist .tree-item,
+#wiki-sync-territory-tree .tree-item {
 	display: grid;
 	grid-template-columns: 16px minmax(0, 1fr);
 	grid-template-rows: auto auto;
@@ -930,14 +943,18 @@
 	width: 100%;
 	box-sizing: border-box;
 	padding: 6px 8px;
-	border-bottom: 1px solid var(--color-panel-muted);
+	/* War --color-panel-muted, eine FLÄCHENfarbe (#f1ece1 hell) und als Linie kaum sichtbar.
+	   --color-divider ist laut tokens.css "section separator — same everywhere". */
+	border-bottom: 1px solid var(--color-divider);
 	cursor: pointer;
 	color: var(--color-text-strong);
 }
-.wikisync-itemlist .tree-item:hover {
+.wikisync-itemlist .tree-item:hover,
+#wiki-sync-territory-tree .tree-item:hover {
 	background: var(--color-panel-soft);
 }
-.wikisync-itemlist .drag-handle {
+.wikisync-itemlist .drag-handle,
+#wiki-sync-territory-tree .drag-handle {
 	grid-column: 1;
 	grid-row: 1 / span 2;
 	align-self: center;
@@ -946,14 +963,16 @@
 	letter-spacing: -1px;
 	cursor: grab;
 }
-.wikisync-itemlist .tree-item-name {
+.wikisync-itemlist .tree-item-name,
+#wiki-sync-territory-tree .tree-item-name {
 	grid-column: 2;
 	grid-row: 1;
 	min-width: 0;
 	line-height: 1.22;
 }
 /* Kreis rechts neben dem Namen (wie im Territorien-Tree, via ::after). Grün = auf Karte. */
-.wikisync-itemlist .tree-item-name::after {
+.wikisync-itemlist .tree-item-name::after,
+#wiki-sync-territory-tree .tree-item-name::after {
 	content: "";
 	display: inline-block;
 	width: 13px;
@@ -965,13 +984,23 @@
 	background: var(--color-panel);
 	box-sizing: border-box;
 }
-.wikisync-itemlist .tree-item:has(.tree-map-status--own-only) .tree-item-name::after {
+/* Nur Territorien kennt diesen Zustand: die Kinder liegen auf der Karte, das Gebiet selbst
+   nicht. Die Füllung läuft deshalb andersherum als bei --own-only. Sie stand bisher allein in
+   political-territory-wiki-tree.css und wäre beim Zusammenlegen sonst verlorengegangen. */
+.wikisync-itemlist .tree-item:has(.tree-map-status--children-only) .tree-item-name::after,
+#wiki-sync-territory-tree .tree-item:has(.tree-map-status--children-only) .tree-item-name::after {
+	background: linear-gradient(to right, var(--color-map-presence) 0 50%, var(--color-panel) 50% 100%);
+}
+.wikisync-itemlist .tree-item:has(.tree-map-status--own-only) .tree-item-name::after,
+#wiki-sync-territory-tree .tree-item:has(.tree-map-status--own-only) .tree-item-name::after {
 	background: linear-gradient(to right, var(--color-panel) 0 50%, var(--color-map-presence) 50% 100%);
 }
-.wikisync-itemlist .tree-item:has(.tree-map-status--all) .tree-item-name::after {
+.wikisync-itemlist .tree-item:has(.tree-map-status--all) .tree-item-name::after,
+#wiki-sync-territory-tree .tree-item:has(.tree-map-status--all) .tree-item-name::after {
 	background: var(--color-map-presence);
 }
-.wikisync-itemlist .tree-item-meta {
+.wikisync-itemlist .tree-item-meta,
+#wiki-sync-territory-tree .tree-item-meta {
 	grid-column: 2;
 	grid-row: 2;
 	font-size: 0.78em;
@@ -980,7 +1009,8 @@
 	color: var(--color-text-muted);
 	white-space: normal;
 }
-.wikisync-itemlist .tree-item-meta a {
+.wikisync-itemlist .tree-item-meta a,
+#wiki-sync-territory-tree .tree-item-meta a {
 	color: var(--link-color);
 	text-decoration: none;
 }
@@ -995,7 +1025,8 @@
 	margin-top: 2px;
 }
 /* Der Status-Marker selbst ist unsichtbar; er steuert nur die Kreis-Füllung. */
-.wikisync-itemlist .tree-map-status {
+.wikisync-itemlist .tree-map-status,
+#wiki-sync-territory-tree .tree-map-status {
 	display: none;
 }
 

@@ -1890,71 +1890,15 @@
 	white-space: nowrap;
 }
 
-#political-territory-editor-host #wiki-sync-territory-tree .tree-item {
-	display: inline-grid;
-	grid-template-columns: auto minmax(0, max-content);
-	grid-template-rows: auto auto;
-	align-items: center;
-	justify-content: start;
-	justify-items: start;
-	width: max-content;
-	max-width: 100%;
-	column-gap: 7px;
-	/* Zeilenabstand + Padding einheitlich wie die anderen WikiSync-Listen (Siedlungen-Referenz). */
-	row-gap: 7px;
-	padding: 6px 8px;
-}
-
-#political-territory-editor-host #wiki-sync-territory-tree .drag-handle {
-	grid-column: 1;
-	grid-row: 1 / span 2;
-	align-self: center;
-}
-
-#political-territory-editor-host #wiki-sync-territory-tree .tree-item-name {
-	grid-column: 2;
-	grid-row: 1;
-	line-height: 1.22;
-}
-
-#political-territory-editor-host #wiki-sync-territory-tree .tree-item-name::after {
-	content: "";
-	display: inline-block;
-	width: 13px;
-	height: 13px;
-	margin-left: 7px;
-	vertical-align: -2px;
-	border: 2px solid var(--color-map-presence);
-	border-radius: 50%;
-	background: var(--color-panel);
-	box-sizing: border-box;
-	color: var(--color-map-presence);
-}
-
-#political-territory-editor-host #wiki-sync-territory-tree .tree-item:has(.tree-map-status--children-only) .tree-item-name::after {
-	background: linear-gradient(to right, var(--color-map-presence) 0 50%, var(--color-panel) 50% 100%);
-}
-
-#political-territory-editor-host #wiki-sync-territory-tree .tree-item:has(.tree-map-status--own-only) .tree-item-name::after {
-	background: linear-gradient(to right, var(--color-panel) 0 50%, var(--color-map-presence) 50% 100%);
-}
-
-#political-territory-editor-host #wiki-sync-territory-tree .tree-item:has(.tree-map-status--all) .tree-item-name::after {
-	background: var(--color-map-presence);
-}
-
-#political-territory-editor-host #wiki-sync-territory-tree .tree-item-meta {
-	grid-column: 2;
-	grid-row: 2;
-	font-size: var(--font-size-caption);
-	font-weight: var(--font-weight-bold);
-	line-height: 1.2;
-	white-space: normal;
-}
-
-#political-territory-editor-host #wiki-sync-territory-tree .tree-map-status {
-	display: none;
-}
+/* Die Panel-Fassung der Baumzeile (#wiki-sync-territory-tree) stand hier bis 14.08.2026 und war
+   eine wortgleiche Zweitschrift von .wikisync-itemlist .tree-item. Beide stehen jetzt gemeinsam an
+   EINER Regel in css/components/region-sync.css.
+   ⚠️ Hier NICHTS wieder hinzuschreiben: die Regel dort nennt beide Selektoren, und eine ID-Regel
+   an dieser Stelle würde sie mit Spezifität (1,1,0) gegen (0,2,0) wieder überstimmen — also genau
+   den Zustand herstellen, der beseitigt wurde.
+   🔴 Die Basisregel ".tree-item" weiter oben bleibt: sie ist inline-flex mit cursor:grab und trägt
+   den Baum im Territorien-EDITOR, nicht im Panel.
+   Gewacht von js/review/__tests__/wikisync-list-form.test.js. */
 
 #political-territory-editor-host .tree-map-status,
 #political-territory-editor-host .legend-map-status {

@@ -75,6 +75,19 @@ Heute steht dieselbe Rezeptur zweimal: `.wikisync-itemlist .tree-item`
 (`css/components/region-sync.css:922`) und `#wiki-sync-territory-tree .tree-item`
 (`css/pages/political-territory-wiki-tree.css:122`). Diese Aufgabe legt sie zusammen.
 
+💣 **BEIM BAU AM 14.08.2026 KAM EINE DRITTE ZUM VORSCHEIN**, in derselben Datei ein paar hundert
+Zeilen höher:
+```css
+#region-sync-list .region-sync__item,
+#path-sync-list .region-sync__item { padding: 6px 8px; border-bottom: 1px solid var(--color-panel-muted); }
+```
+Die Zeilen der Regionen- und Wegeliste tragen **beide** Klassen (`"tree-item region-sync__item"`,
+1× in `review-region-sync.js`, 6× in `review-path-sync.js`), und diese Regel schlug mit (1,1,0) die
+geteilte mit (0,2,0). **Zwei der acht Listen hörten also gar nicht auf die gemeinsame Regel** — die
+kompakten Maße aus Aufgabe 2 wären dort wirkungslos geblieben, ohne Fehler und ohne Hinweis. Sie
+ist ersatzlos entfernt (sie setzte exakt dieselben Werte) und Prüfung 6 des Wachtests verbietet
+ihre Rückkehr.
+
 💣 **Die Reihenfolge rettet dich nicht.** `region-sync.css` steht in `index.html:52` *nach*
 `political-territory-wiki-tree.css:51`, aber `#wiki-sync-territory-tree .tree-item` hat
 Spezifität (1,1,0) gegen (0,2,0) — die ID gewinnt unabhängig von der Reihenfolge. Die beiden
@@ -248,7 +261,7 @@ Ohne diesen Schritt serviert der Browser den alten Editor (AGENTS.md §7).
 ```bash
 node js/review/__tests__/wikisync-list-form.test.js
 ```
-Erwartet: `wikisync-list-form: 5 Pruefungen bestanden.`
+Erwartet: `wikisync-list-form: 6 Pruefungen bestanden.`
 
 Dann das ganze Feld:
 ```bash
@@ -399,7 +412,7 @@ einem 13px-Namen ist höher als dessen Versalhöhe und zieht die Zeile auf):
 ```bash
 node js/review/__tests__/wikisync-list-form.test.js
 ```
-Erwartet: `wikisync-list-form: 11 Pruefungen bestanden.`
+Erwartet: `wikisync-list-form: 12 Pruefungen bestanden.`
 Dann das ganze Feld (Befehl oben).
 
 - [ ] **Schritt 5: Ablaufprüfung**
@@ -582,7 +595,7 @@ In `css/features/review-panel.css`: `.wiki-sync-adv-picker__row`, `__row:last-ch
 ```bash
 node js/review/__tests__/wikisync-list-form.test.js
 ```
-Erwartet: `wikisync-list-form: 14 Pruefungen bestanden.` Dann das ganze Feld.
+Erwartet: `wikisync-list-form: 15 Pruefungen bestanden.` Dann das ganze Feld.
 
 - [ ] **Schritt 8: Ablaufprüfung**
 
@@ -917,17 +930,18 @@ und Wege in `review-settlement-list.js`, `review-wiki-sync.js`, `review-region-s
 
 - [ ] **Schritt 4: Territorien-Meta trennt mit `·`**
 
-Die Stelle ist `js/territory/territory-wiki-tree.js:77`:
+💣 **Es sind ZWEI Kommas, nicht eines** (beim Bau von Aufgabe 1 im Renderer nachgelesen). Wer nur
+das erste ändert, lässt genau das sichtbare stehen — im Bildschirmfoto des Owners steht
+„1009 BF – heute**,** Wiki ↗", und das ist das zweite.
 
+`js/territory/territory-wiki-tree.js:77` — zwischen BF-Zeitraum und „ID n":
 ```js
-		return {
-			text: metaParts.join(", "),
+			text: metaParts.join(" · "),   // war ", "
 ```
-wird zu:
+
+`js/territory/territory-wiki-tree.js:808` — zwischen Meta-Text und dem Wiki-Link, **das sichtbare**:
 ```js
-		return {
-			// "·" wie bei den sieben anderen Subjekten. Die Kommas standen hier als einzige.
-			text: metaParts.join(" · "),
+					separator.textContent = " · ";   // war ", "
 ```
 
 💣 **Vorher prüfen, wer diesen Erzeuger sonst noch liest.** `territory-wiki-tree.js` ist ein
