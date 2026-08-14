@@ -445,4 +445,135 @@ assert(avesmapsTravelValuesStoredMatches($probe, $vollstaendig) === true,
 assert(AVESMAPS_TRAVEL_VALUES_MIGRATION_KEY === 'travel_values_v2',
     'der Merker ist travel_values_v2 -- v1 ist ein Grabstein, kein erledigter Lauf');
 
-echo "terrain-speed-factor-test: A (Maszstab) + B (Plan) + C (Migration) + D (Reihenfolge) + E (Lader) + F (Ablageform) + G (Speicherbreite) bestanden\n";
+// ============================================================ H. Die Landschaften im Fenster
+
+// Das Fenster zeigt die zwanzig Arten mit ihrem Wert, dem GA-Wert, der Wirkung und der Flaechenzahl
+// (Entwurf §4.3). Diese drei Funktionen sind das, was der Endpunkt dafuer braucht.
+
+$mitFlaechen = static function () use ($offroad): PDO {
+    $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    $pdo->exec('CREATE TABLE ecosystem_region_type (
+        kind TEXT, type_key TEXT, label TEXT, sort_order INT, is_active INT DEFAULT 1,
+        offroad_factor REAL NOT NULL DEFAULT 1.00, terrain_speed_factor REAL DEFAULT NULL)');
+    $pdo->exec('CREATE TABLE ecosystem_region (id INTEGER PRIMARY KEY, kind TEXT, region_type TEXT, is_active INT DEFAULT 1)');
+    $pdo->exec('CREATE TABLE ecosystem_area (id INTEGER PRIMARY KEY, region_id INT, is_active INT DEFAULT 1)');
+    $insert = $pdo->prepare('INSERT INTO ecosystem_region_type (kind, type_key, label, sort_order, offroad_factor) VALUES (?, ?, ?, ?, ?)');
+    foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortOrder]) {
+        $insert->execute([$kind, $typeKey, $label, $sortOrder, $offroad[$typeKey] ?? 1.00]);
+    }
+    // Drei Waldflaechen, eine davon still gelegt; eine Meerflaeche; ein stillgelegtes Gebirge.
+    $regionen = [[1, 'vegetation', 'wald', 1], [2, 'topographie', 'meer', 1], [3, 'topographie', 'gebirge', 0]];
+    foreach ($regionen as [$id, $kind, $typ, $aktiv]) {
+        $pdo->prepare('INSERT INTO ecosystem_region (id, kind, region_type, is_active) VALUES (?, ?, ?, ?)')
+            ->execute([$id, $kind, $typ, $aktiv]);
+    }
+    foreach ([[1, 1, 1], [2, 1, 1], [3, 1, 0], [4, 2, 1], [5, 3, 1]] as [$id, $region, $aktiv]) {
+        $pdo->prepare('INSERT INTO ecosystem_area (id, region_id, is_active) VALUES (?, ?, ?)')
+            ->execute([$id, $region, $aktiv]);
+    }
+
+    return $pdo;
+};
+
+$pdoH = $mitFlaechen();
+$plan = avesmapsTravelValuesPlanFromDatabase($pdoH);
+avesmapsTravelValuesWriteLandscapeFactors($pdoH, $plan['factors']);
+
+$liste = avesmapsTravelValuesReadLandscapes($pdoH);
+$nachSchluessel = [];
+foreach ($liste as $zeile) { $nachSchluessel[$zeile['type_key']] = $zeile; }
+
+// --- H1. Zwanzig Arten, jede mit dem, was die Zeile anzeigen soll.
+assert(count($liste) === 20, 'zwanzig Landschaftsarten im Fenster: ' . count($liste));
+foreach (['kind', 'type_key', 'label', 'factor', 'source', 'area_count'] as $feld) {
+    assert(array_key_exists($feld, $liste[0]), "jede Zeile traegt `$feld`");
+}
+assert($nachSchluessel['wald']['label'] === 'Wald', 'der Name kommt aus der Datenbank, nicht aus dem Browser');
+assert($nah((float) $nachSchluessel['wald']['factor'], 0.500, 0.0005), 'Wald steht auf 0,500');
+assert($nah((float) $nachSchluessel['wald']['source'], 0.500, 0.0005), 'und die Quelle sagt dasselbe');
+// 🔴 Die ELF ohne Quellenzeile haben KEINEN GA-Wert -- `null`, nicht 0,75. Sonst behauptete das
+// Fenster eine Quelle, die es fuer sie nicht gibt (Entwurf §4.3).
+assert($nachSchluessel['wadi']['source'] === null, 'das Wadi hat keine Quellenzeile');
+assert($nachSchluessel['kueste']['source'] === null, 'die Kueste ebenso wenig');
+
+// --- H2. Wasser und fremde Ebenen kommen gar nicht vor.
+foreach (['see', 'meer', 'region', 'kontinent', 'polar'] as $schluessel) {
+    assert(!isset($nachSchluessel[$schluessel]), "$schluessel gehoert nicht in die Liste");
+}
+
+// --- H3. Die Flaechenzahl ist die Zahl, die „ein Faktor ohne Flaeche ist eine Einstellung ohne
+// Wirkung" ueberhaupt sichtbar macht -- und sie zaehlt nur, was aktiv ist.
+assert($nachSchluessel['wald']['area_count'] === 2,
+    'zwei aktive Waldflaechen (die dritte ist still gelegt): ' . $nachSchluessel['wald']['area_count']);
+assert($nachSchluessel['gebirge']['area_count'] === 0,
+    'die Flaeche einer stillgelegten Region zaehlt nicht mit: ' . $nachSchluessel['gebirge']['area_count']);
+assert($nachSchluessel['tundra']['area_count'] === 0, 'Tundra hat live gar keine Flaeche -- und das soll man sehen');
+
+// --- H4. Schreiben: nur bekannte Paare, nur positive Zahlen, auf drei Stellen.
+$geschrieben = avesmapsTravelValuesWriteLandscapes($pdoH, [
+    ['kind' => 'vegetation', 'type_key' => 'wald', 'factor' => 0.4444],
+    ['kind' => 'vegetation', 'type_key' => 'gibtsnicht', 'factor' => 0.5],
+    ['kind' => 'vegetation', 'type_key' => 'steppe', 'factor' => 0],
+    ['kind' => 'vegetation', 'type_key' => 'tundra', 'factor' => -1],
+]);
+assert($geschrieben === 1, "nur die eine gueltige Zeile wird geschrieben: $geschrieben");
+$liste2 = [];
+foreach (avesmapsTravelValuesReadLandscapes($pdoH) as $z) { $liste2[$z['type_key']] = $z; }
+assert($nah((float) $liste2['wald']['factor'], 0.444, 0.0005), 'auf drei Stellen gerundet: ' . $liste2['wald']['factor']);
+// 💣 Eine 0 ist kein Wert, sondern eine Division durch null im Lader -- sie darf nie ankommen.
+assert($nah((float) $liste2['steppe']['factor'], 0.750, 0.0005), 'die 0 wurde ausgelassen, nicht geschrieben');
+
+// --- H5. Der Ruecksetzer zieht NUR die neun mit Quellenzeile.
+// ⚠️ „Die GA nennt fuer Kuesten und Flusslandschaften ausdruecklich KEINEN Landfaktor. Diese Zeilen
+// behalten den Wert des Owners, und der Ruecksetzer laesst sie stehen." (Entwurf §4.3)
+avesmapsTravelValuesWriteLandscapes($pdoH, [['kind' => 'topographie', 'type_key' => 'wadi', 'factor' => 0.111]]);
+$zurueckgesetzt = avesmapsTravelValuesResetLandscapes($pdoH);
+assert($zurueckgesetzt === 9, "neun Arten haben eine Quellenzeile: $zurueckgesetzt");
+$liste3 = [];
+foreach (avesmapsTravelValuesReadLandscapes($pdoH) as $z) { $liste3[$z['type_key']] = $z; }
+assert($nah((float) $liste3['wald']['factor'], 0.500, 0.0005), 'der Wald steht wieder auf der Quellenzeile');
+assert($nah((float) $liste3['wadi']['factor'], 0.111, 0.0005),
+    'das Wadi behaelt den Wert des Owners -- die Quelle sagt fuer es nichts: ' . $liste3['wadi']['factor']);
+
+// ============================================================ I. Was das Fenster schicken darf
+
+$basis = avesmapsTravelValuesRead(null);
+
+// --- I1. Das Raster: nur vorhandene Zellen, nur positive Zahlen, Komma erlaubt, auf zwei Stellen.
+$neu = avesmapsTravelValuesApplyIncoming($basis, ['grid' => [
+    'groupFoot' => ['Strasse' => '3,456', 'Querfeldein' => 0, 'GibtsNicht' => 5.0],
+    'gibtsNicht' => ['Strasse' => 9.9],
+]]);
+assert($nah($neu['grid']['groupFoot']['Strasse'], 3.46, 0.005), 'Komma gelesen, auf zwei Stellen: ' . $neu['grid']['groupFoot']['Strasse']);
+// 💣 Eine 0 im Raster ist kein Fehler, sondern ein still uebersprungener Weg im Graphbau.
+assert($neu['grid']['groupFoot']['Querfeldein'] === $basis['grid']['groupFoot']['Querfeldein'],
+    'die 0 wurde ausgelassen, nicht geschrieben');
+assert(!isset($neu['grid']['groupFoot']['GibtsNicht']), 'ein unbekannter Wegtyp kommt nicht dazu');
+assert(!isset($neu['grid']['gibtsNicht']), 'ein unbekanntes Reisemittel ebenso wenig');
+
+// --- I2. Boden nach Jahreszeit: die fuenf Abzuege sind NEGATIV, die Untergrenze ist POSITIV.
+// 💣 EIN VORZEICHENDREHER MACHT TIEFSCHNEE ZUM RUECKENWIND. Die Zahl sieht danach voellig normal
+// aus, und die Wirkung faellt erst jemandem auf, der im Winter eine Reisezeit nachrechnet.
+$boden = avesmapsTravelValuesApplyIncoming($basis, ['ground_penalties' => [
+    'tiefschnee' => -0.25, 'eis' => 0.20, 'untergrenze' => 0.08, 'aufgeweicht' => '-0,15',
+    'gibtsnicht' => -0.5,
+]]);
+assert($nah($boden['ground_penalties']['tiefschnee'], -0.25, 0.0005), 'Tiefschnee angenommen');
+assert($nah($boden['ground_penalties']['aufgeweicht'], -0.15, 0.0005), 'Komma gelesen: ' . $boden['ground_penalties']['aufgeweicht']);
+assert($nah($boden['ground_penalties']['eis'], $basis['ground_penalties']['eis'], 0.0005),
+    'ein positiver Abzug wird ABGELEHNT, nicht uebernommen -- er waere Rueckenwind');
+assert($nah($boden['ground_penalties']['untergrenze'], 0.08, 0.0005), 'die Untergrenze darf positiv sein');
+assert(!isset($boden['ground_penalties']['gibtsnicht']), 'ein unbekannter Bodenzustand kommt nicht dazu');
+
+// --- I3. Fluss und Eichung: positiv, sonst bleibt der alte Wert stehen.
+$misc = avesmapsTravelValuesApplyIncoming($basis, ['river_ratio' => '2,5', 'calibration_target_miles' => -1]);
+assert($nah($misc['river_ratio'], 2.5, 0.0005), 'stromauf:stromab angenommen: ' . $misc['river_ratio']);
+assert($nah($misc['calibration_target_miles'], $basis['calibration_target_miles'], 0.0005),
+    'ein negatives Eichziel wird abgelehnt');
+
+// --- I4. Ein leerer Rumpf aendert nichts. Das ist die Zusicherung fuer „Speichern" ohne Eingabe.
+$leerRein = avesmapsTravelValuesApplyIncoming($basis, []);
+assert($leerRein['grid'] == $basis['grid'], 'ohne Nutzlast bleibt das Raster, wie es war');
+assert($leerRein['ground_penalties'] == $basis['ground_penalties'], 'und der Boden ebenso');
+
+echo "terrain-speed-factor-test: A (Maszstab) + B (Plan) + C (Migration) + D (Reihenfolge) + E (Lader) + F (Ablageform) + G (Speicherbreite) + H (Landschaften) + I (Annahme) bestanden\n";

@@ -1240,9 +1240,35 @@
 		Flussweg: "Flussweg", Seeweg: "Seeweg"
 	};
 
+	// Die sechs Bodenzustaende (GA S. 122 f.). 🔴 Die Reihenfolge ist die der Quelle, nicht die des
+	// Alphabets -- die fuenf Abzuege, dann die Untergrenze, die als einzige positiv ist.
+	var TEMPO_GROUND_LABELS = {
+		aufgeweicht: "Aufgeweicht (Regen)", tauboden: "Tauboden", leichter_schnee: "Leichter Schnee",
+		tiefschnee: "Tiefschnee", eis: "Eis", untergrenze: "Untergrenze"
+	};
+	var TEMPO_GROUND_NOTES = {
+		aufgeweicht: "Abzug auf den Bodenfaktor", tauboden: "Abzug auf den Bodenfaktor",
+		leichter_schnee: "Abzug auf den Bodenfaktor", tiefschnee: "Abzug auf den Bodenfaktor",
+		eis: "Abzug auf den Bodenfaktor", untergrenze: "so tief kann kein Abzug druecken"
+	};
+
 	function tempoNum(value) {
 		var n = parseFloat(String(value).replace(",", "."));
 		return isFinite(n) ? n : null;
+	}
+
+	/* Eine einzelne Zahl ohne Tabelle drumherum -- Name, Eingabe, GA-Wert, was sie bedeutet. */
+	function tempoSingleRow(key, label, rawValue, sourceValue, note) {
+		var ours = Number(rawValue);
+		if (!isFinite(ours)) { ours = 0; }
+		var off = (typeof sourceValue === "number") && Math.abs(ours - sourceValue) >= 0.0005;
+		return "<tr" + (off ? ' class="is-off"' : "") + ">"
+			+ '<th scope="row">' + escapeHtml(label) + "</th>"
+			+ '<td><input type="number" step="0.01" min="0.01" class="wp-tempo__ms" data-key="'
+			+ escapeHtml(key) + '" value="' + ours.toFixed(2) + '"></td>'
+			+ '<td class="wp-tempo__ga">' + (typeof sourceValue === "number" ? sourceValue.toFixed(2) : "—") + "</td>"
+			+ '<td class="wp-tempo__eff">' + escapeHtml(note) + "</td>"
+			+ "</tr>";
 	}
 
 	function tempoSetStatus(text, kind) {
@@ -1274,6 +1300,9 @@
 	function renderTempo() {
 		if (!tempoState) { return; }
 		var values = tempoState.values, src = tempoState.source_table, dev = tempoState.deviations;
+		// Die Landschaften reisen NEBEN den Werten: sie stehen in einer eigenen Spalte an der
+		// Landschaftsart, nicht im JSON-Speicher. Eine leere Liste heisst „Spalte noch nicht angelegt".
+		var ls = Array.isArray(tempoState.landscapes) ? tempoState.landscapes : [];
 		var html = "";
 
 		// Abschnitt 1: das Raster. Es IST die Wahrheit (Entwurf §5) -- die zwei Listen darunter sind
@@ -1315,9 +1344,92 @@
 			html += "</tbody></table></div>";
 		});
 		html += '<button type="button" class="wp-tempo__reset" data-section="path_factors">'
-			+ "Alle Wegtypen auf die GA-Werte zurücksetzen</button></div>";
+			+ "Alle Wegtypen auf die GA-Werte zurücksetzen</button> "
+			+ '<button type="button" class="wp-tempo__reset" data-section="day_miles">'
+			+ "Alle Tagesleistungen zurücksetzen (auch Wasser)</button></div>";
 
-		// Abschnitt 2: der Befund.
+		// Abschnitt 2: die Landschaften. Sie stehen NICHT im Raster, sondern in einer eigenen Spalte
+		// an der Landschaftsart (ecosystem_region_type.terrain_speed_factor).
+		var roadFoot = Number((values.grid.groupFoot || {}).Strasse) || 0;
+		html += '<div class="wp-tempo__sec"><h3>Landschaften querfeldein</h3>'
+			+ '<p class="wp-tempo__note">Wie schnell man auf dieser Landschaft <b>querfeldein</b> '
+			+ "vorankommt, gemessen gegen die Straße — dieselbe Einheit wie ein Wegtyp-Faktor. "
+			+ "<b>0,75</b> ist offenes Gelände; <b>0,10</b> (Sumpf) ist siebeneinhalbmal langsamer "
+			+ "als das. Die Wirkung rechts gilt für die Reisegruppe zu Fuß.</p>";
+		if (!ls.length) {
+			html += '<p class="wp-tempo__note">Die Spalte ist auf dieser Anlage noch nicht angelegt. '
+				+ "Sie entsteht beim ersten Aufruf der Landschaften-Ebene.</p>";
+		} else {
+			html += "<table class=\"wp-tempo__tbl\"><tbody>";
+			ls.forEach(function (row) {
+				var factor = row.factor === null ? null : Number(row.factor);
+				// 💣 Der GA-Wert ist `null` für die elf ohne Quellenzeile — die Quelle nennt für
+				// Küsten und Flusslandschaften ausdrücklich keinen Faktor. Ein „0,75" hier behauptete
+				// eine Quelle, die es nicht gibt, und der Rücksetzer lässt sie deshalb auch stehen.
+				var hatQuelle = row.source !== null && row.source !== undefined;
+				var off = hatQuelle && factor !== null && Math.abs(factor - row.source) >= 0.0005;
+				var flaechen = row.area_count === 0
+					? "keine Fläche — wirkt nirgends"
+					: row.area_count + (row.area_count === 1 ? " Fläche" : " Flächen");
+				html += "<tr" + (off ? ' class="is-off"' : "") + ">"
+					+ '<th scope="row">' + escapeHtml(row.label) + "</th>"
+					+ '<td><input type="number" step="0.001" min="0.001" class="wp-tempo__ls" data-kind="'
+					+ escapeHtml(row.kind) + '" data-key="' + escapeHtml(row.type_key) + '" value="'
+					+ (factor === null ? "" : factor.toFixed(3)) + '"></td>'
+					+ '<td class="wp-tempo__ga">' + (hatQuelle ? Number(row.source).toFixed(2) : "—") + "</td>"
+					+ '<td class="wp-tempo__eff">'
+					+ (factor === null ? "—" : (roadFoot * factor).toFixed(2) + " Mln/h") + "</td>"
+					+ '<td class="wp-tempo__eff">' + escapeHtml(flaechen) + "</td>"
+					+ "</tr>";
+			});
+			html += "</tbody></table>"
+				+ '<p class="wp-tempo__note">Ein Strich in der GA-Spalte heißt: die <i>Geographia '
+				+ "Aventurica</i> nennt für diese Landschaft keinen Faktor. Diese Zeilen behalten "
+				+ "deinen Wert — der Rücksetzer unten lässt sie stehen.</p>"
+				+ '<button type="button" class="wp-tempo__reset" data-section="landscapes">'
+				+ "Landschaften mit Quellenzeile zurücksetzen</button>";
+		}
+		html += "</div>";
+
+		// Abschnitt 3: der Boden nach Jahreszeit.
+		html += '<div class="wp-tempo__sec"><h3>Boden nach Jahreszeit</h3>'
+			+ '<p class="wp-tempo__note">Abzüge auf den Bodenfaktor, wenn der Untergrund nachgibt '
+			+ "(GA S. 122 f.). Sie sind <b>negativ</b> — ein positiver Wert wäre Rückenwind und wird "
+			+ "abgelehnt. Die <b>Untergrenze</b> ist die Ausnahme: unter sie drückt kein Abzug.</p>"
+			+ "<table class=\"wp-tempo__tbl\"><tbody>";
+		Object.keys(TEMPO_GROUND_LABELS).forEach(function (key) {
+			if (!(key in (values.ground_penalties || {}))) { return; }
+			var ours = Number(values.ground_penalties[key]);
+			var ga = src.ground_penalties[key];
+			var off = (typeof ga === "number") && Math.abs(ours - ga) >= 0.0005;
+			html += "<tr" + (off ? ' class="is-off"' : "") + ">"
+				+ '<th scope="row">' + escapeHtml(TEMPO_GROUND_LABELS[key]) + "</th>"
+				+ '<td><input type="number" step="0.01" class="wp-tempo__gr" data-key="'
+				+ escapeHtml(key) + '" value="' + ours.toFixed(2) + '"></td>'
+				+ '<td class="wp-tempo__ga">' + (typeof ga === "number" ? ga.toFixed(2) : "—") + "</td>"
+				+ '<td class="wp-tempo__eff">' + escapeHtml(TEMPO_GROUND_NOTES[key] || "") + "</td>"
+				+ "</tr>";
+		});
+		html += "</tbody></table>"
+			+ '<p class="wp-tempo__note">⚠️ <b>Welche</b> Jahreszeit in welcher Klimazone welchen '
+			+ "Bodenzustand ergibt, ist <b>unsere</b> Tabelle und steht nicht in der Quelle — sie "
+			+ "wird hier deshalb nicht eingestellt.</p>"
+			+ '<button type="button" class="wp-tempo__reset" data-section="ground">'
+			+ "Boden auf die GA-Werte zurücksetzen</button></div>";
+
+		// Abschnitt 4: Fluss und Eichung.
+		html += '<div class="wp-tempo__sec"><h3>Fluss und Eichung</h3>'
+			+ '<p class="wp-tempo__note">Zwei Zahlen, die keine Tabelle brauchen.</p>'
+			+ "<table class=\"wp-tempo__tbl\"><tbody>"
+			+ tempoSingleRow("river_ratio", "stromauf : stromab", values.river_ratio, src.river_ratio,
+				"stromauf dauert " + Number(values.river_ratio).toFixed(2).replace(".", ",") + "-mal so lange (S. 129)")
+			+ tempoSingleRow("calibration_target_miles", "Eichziel Fußgruppe auf der Straße",
+				values.calibration_target_miles, src.calibration_target_miles, "Meilen am Reisetag (S. 123)")
+			+ "</tbody></table>"
+			+ '<button type="button" class="wp-tempo__reset" data-section="misc">'
+			+ "Beide auf die GA-Werte zurücksetzen</button></div>";
+
+		// Abschnitt 5: der Befund.
 		html += '<div class="wp-tempo__sec"><h3>Was von der Quelle abweicht</h3>';
 		if (dev.total === 0) {
 			html += '<p class="wp-tempo__note">Nichts — alle Werte entsprechen der Geographia Aventurica.</p>';
@@ -1337,7 +1449,7 @@
 		}
 		html += "</div>";
 
-		// Abschnitt 3: gesperrt — unsere Rechnung, nicht die Quelle.
+		// Abschnitt 6: gesperrt — unsere Rechnung, nicht die Quelle.
 		html += '<div class="wp-tempo__sec"><h3>Nicht aus der Quelle — unsere Rechnung</h3>'
 			+ '<p class="wp-tempo__note">Diese Werte stehen <b>nicht</b> in der Geographia Aventurica. Sie '
 			+ "stehen hier, damit der Unterschied zwischen Quelle und eigener Rechnung sichtbar ist, und "
@@ -1382,16 +1494,48 @@
 		// Nur das Raster reist -- alles andere ist Anzeige. Ein leeres oder unlesbares Feld wird
 		// ausgelassen, nicht als 0 geschickt: eine 0 im Raster ist kein Fehler, sondern ein still
 		// übersprungener Weg im Graphbau.
+		var body = $("wpTempoBody");
 		var grid = {};
-		Array.prototype.forEach.call($("wpTempoBody").querySelectorAll(".wp-tempo__in"), function (input) {
+		Array.prototype.forEach.call(body.querySelectorAll(".wp-tempo__in"), function (input) {
 			var value = tempoNum(input.value);
 			if (value === null || value <= 0) { return; }
 			var transport = input.getAttribute("data-transport"), pathType = input.getAttribute("data-path");
 			if (!grid[transport]) { grid[transport] = {}; }
 			grid[transport][pathType] = value;
 		});
+
+		// Die Landschaften reisen als LISTE, nicht als Objekt: ihr Schlüssel ist das Paar
+		// (Ebene, Art), und zwei Ebenen dürfen denselben Artnamen tragen.
+		var landscapes = [];
+		Array.prototype.forEach.call(body.querySelectorAll(".wp-tempo__ls"), function (input) {
+			var value = tempoNum(input.value);
+			if (value === null || value <= 0) { return; }
+			landscapes.push({
+				kind: input.getAttribute("data-kind"),
+				type_key: input.getAttribute("data-key"),
+				factor: value
+			});
+		});
+
+		// 💣 Beim Boden wird NICHT auf „> 0" gefiltert: die fünf Abzüge sind negativ. Was gültig ist,
+		// entscheidet der Server (avesmapsTravelValuesApplyIncoming) -- hier stünde die Regel sonst
+		// ein zweites Mal, und ein Vorzeichen wäre genau die Stelle, an der die beiden auseinanderliefen.
+		var ground = {};
+		Array.prototype.forEach.call(body.querySelectorAll(".wp-tempo__gr"), function (input) {
+			var value = tempoNum(input.value);
+			if (value === null) { return; }
+			ground[input.getAttribute("data-key")] = value;
+		});
+
+		var payload = { action: "save", grid: grid, landscapes: landscapes, ground_penalties: ground };
+		Array.prototype.forEach.call(body.querySelectorAll(".wp-tempo__ms"), function (input) {
+			var value = tempoNum(input.value);
+			if (value === null || value <= 0) { return; }
+			payload[input.getAttribute("data-key")] = value;
+		});
+
 		tempoSetStatus("Wird gespeichert…", "");
-		postJson("/api/edit/map/travel-values.php", { action: "save", grid: grid }).then(function (data) {
+		postJson("/api/edit/map/travel-values.php", payload).then(function (data) {
 			if (applyTempoResponse(data)) { tempoSetStatus("Gespeichert.", "ok"); }
 		}).catch(function () { tempoSetStatus("Speichern fehlgeschlagen.", "bad"); });
 	}

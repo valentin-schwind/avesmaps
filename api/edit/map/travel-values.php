@@ -46,10 +46,14 @@ try {
     // Der Stand VOR der Änderung — das Protokoll braucht beide Seiten.
     $before = $values['grid'];
 
+    // Die Landschaftsspalte lebt in `ecosystem_region_type`, nicht im JSON — sie reist getrennt.
+    // ⚠️ Fehlt die Spalte, kommt eine leere Liste; das Fenster sagt dann, dass sie noch nicht
+    // angelegt ist, statt einen leeren Abschnitt ohne Erklärung zu zeigen.
     if ($action === 'get') {
         avesmapsJsonResponse(200, [
             'ok' => true,
             'values' => $values,
+            'landscapes' => avesmapsTravelValuesReadLandscapes($pdo),
             'source_table' => avesmapsTravelValuesSourceTable(),
             'deviations' => avesmapsTravelValuesDeviations($values),
         ]);
@@ -61,23 +65,22 @@ try {
 
     if ($action === 'reset') {
         $section = avesmapsNormalizeSingleLine((string) ($payload['section'] ?? ''), 40);
-        if (!in_array($section, ['day_miles', 'path_factors', 'ground', 'misc', 'all'], true)) {
+        if (!in_array($section, ['day_miles', 'path_factors', 'landscapes', 'ground', 'misc', 'all'], true)) {
             avesmapsErrorResponse(400, 'invalid_section', 'Unbekannter Abschnitt.');
+        }
+        // 🔴 Die Landschaften stehen in ihrer eigenen Spalte, also setzt sie ihr eigener Rücksetzer
+        // zurück — und der fasst nur die NEUN mit Quellenzeile an (Entwurf §4.3).
+        if ($section === 'landscapes' || $section === 'all') {
+            avesmapsTravelValuesResetLandscapes($pdo);
         }
         $values = avesmapsTravelValuesResetSection($values, $section);
     } else {
-        // 💣 NUR ZELLEN, DIE ES SCHON GIBT, und nur positive Zahlen. Eine 0 oder ein leeres Feld
-        // wäre im Graphbau kein Fehler, sondern ein still übersprungener Weg — `resolveSpeed`
-        // steigt bei einem falschen Wert einfach aus und der Weg fehlt in der Route.
-        $incoming = is_array($payload['grid'] ?? null) ? $payload['grid'] : [];
-        foreach ($incoming as $transport => $row) {
-            if (!isset($values['grid'][$transport]) || !is_array($row)) { continue; }
-            foreach ($row as $pathType => $speed) {
-                if (!isset($values['grid'][$transport][$pathType])) { continue; }
-                $speed = is_string($speed) ? str_replace(',', '.', trim($speed)) : $speed;
-                if (!is_numeric($speed) || (float) $speed <= 0.0) { continue; }
-                $values['grid'][$transport][$pathType] = round((float) $speed, 2);
-            }
+        // 💣 NUR, WAS ES SCHON GIBT, und jede Zahl mit ihrem eigenen Vorzeichen-Sinn. Die Regel steht
+        // in avesmapsTravelValuesApplyIncoming und ist dort einzeln geprüft — hier stünde sie sonst
+        // ein zweites Mal, und die beiden liefen beim nächsten neuen Abschnitt auseinander.
+        $values = avesmapsTravelValuesApplyIncoming($values, $payload);
+        if (is_array($payload['landscapes'] ?? null)) {
+            avesmapsTravelValuesWriteLandscapes($pdo, $payload['landscapes']);
         }
     }
 
@@ -124,6 +127,7 @@ try {
     avesmapsJsonResponse(200, [
         'ok' => true,
         'values' => $values,
+        'landscapes' => avesmapsTravelValuesReadLandscapes($pdo),
         'source_table' => avesmapsTravelValuesSourceTable(),
         'deviations' => avesmapsTravelValuesDeviations($values),
     ]);

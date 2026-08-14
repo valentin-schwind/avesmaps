@@ -34,14 +34,9 @@ require_once __DIR__ . '/../app/app-setting.php';
 // fasst sie nicht an.
 const AVESMAPS_TRAVEL_VALUES_MIGRATION_KEY = 'travel_values_v2';
 
-// Die beiden Ebenen, deren Arten überhaupt Boden sind. `derographisch` benennt einen Landstrich
-// („Kosch"), `klima` ein Band — keins von beidem sagt etwas darüber, wie es sich dort läuft.
-const AVESMAPS_TRAVEL_VALUES_TERRAIN_KINDS = ['topographie', 'vegetation'];
-
-// 💣 WASSER BEKOMMT KEINEN BODENFAKTOR. `see` und `meer` SPERREN (V13), sie bremsen nicht: eine
-// Querfeldein-Kante entsteht dort gar nicht erst. Ein Faktor daneben wäre eine zweite, leisere
-// Antwort auf dieselbe Frage, und die beiden liefen auseinander.
-const AVESMAPS_TRAVEL_VALUES_WATER_TYPE_KEYS = ['see', 'meer'];
+// ⚠️ AVESMAPS_TRAVEL_VALUES_TERRAIN_KINDS und …_WATER_TYPE_KEYS stehen seit dem 14.08.2026 in
+// travel-values.php: das Fenster liest dieselbe Auswahl der zwanzig Arten wie diese Migration, und
+// zwei Listen wären zwei Antworten auf „welche Art trägt überhaupt einen Bodenfaktor".
 
 /**
  * PURE: was die Migration schreiben würde — je Landschaftsart ihr Faktor, dazu das neue Raster.

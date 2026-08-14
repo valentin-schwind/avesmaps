@@ -30,6 +30,15 @@ const AVESMAPS_TRAVEL_NIGHT_TRAVEL_TRANSPORT = 'fastShip';
 
 const AVESMAPS_TRAVEL_VALUES_SETTING_KEY = 'travel_values';
 
+// Die beiden Ebenen, deren Arten überhaupt Boden sind. `derographisch` benennt einen Landstrich
+// („Kosch"), `klima` ein Band — keins von beidem sagt etwas darüber, wie es sich dort läuft.
+const AVESMAPS_TRAVEL_VALUES_TERRAIN_KINDS = ['topographie', 'vegetation'];
+
+// 💣 WASSER BEKOMMT KEINEN BODENFAKTOR. `see` und `meer` SPERREN (V13), sie bremsen nicht: eine
+// Querfeldein-Kante entsteht dort gar nicht erst. Ein Faktor daneben wäre eine zweite, leisere
+// Antwort auf dieselbe Frage, und die beiden liefen auseinander.
+const AVESMAPS_TRAVEL_VALUES_WATER_TYPE_KEYS = ['see', 'meer'];
+
 /**
  * Der aktive Tempo-Speicher DIESER Anfrage.
  *
@@ -252,6 +261,197 @@ function avesmapsTravelValuesStorableShape(array $values): array
         'river_ratio' => $values['river_ratio'] ?? 0.0,
         'calibration_target_miles' => $values['calibration_target_miles'] ?? 0.0,
     ];
+}
+
+/**
+ * PURE: eine Zahl aus dem Fenster — Komma erlaubt, sonst `null`.
+ *
+ * ⚠️ Ein leeres Feld ist `null`, nicht 0. Der Unterschied trägt: eine 0 im Raster ist im Graphbau
+ * kein Fehler, sondern ein still übersprungener Weg.
+ */
+function avesmapsTravelValuesParseNumber(mixed $raw): ?float
+{
+    $raw = is_string($raw) ? str_replace(',', '.', trim($raw)) : $raw;
+    if (!is_numeric($raw)) { return null; }
+    $value = (float) $raw;
+
+    return is_finite($value) ? $value : null;
+}
+
+/**
+ * PURE: was das Fenster geschickt hat, auf die geltenden Werte gelegt — Zelle für Zelle geprüft.
+ *
+ * 💣 NUR, WAS ES SCHON GIBT, und jede Zahl mit ihrem eigenen Vorzeichen-Sinn:
+ *
+ * - **Raster:** nur vorhandene Reisemittel × Wegtypen, nur positive Zahlen. Eine 0 oder ein leeres
+ *   Feld wird ÜBERSPRUNGEN — `resolveSpeed` steigt bei einem falschen Wert aus, und der Weg fehlt
+ *   dann in der Route, ohne dass irgendwo ein Fehler auftaucht.
+ * - **Boden:** die fünf Abzüge sind NEGATIV, die `untergrenze` ist POSITIV. Ein Vorzeichendreher
+ *   machte Tiefschnee zum Rückenwind — die Zahl sähe danach völlig normal aus, und es fiele erst
+ *   jemandem auf, der im Winter eine Reisezeit nachrechnet.
+ * - **Fluss und Eichung:** positiv, sonst bleibt der alte Wert stehen.
+ *
+ * ⚠️ Was fehlt, bleibt unverändert. „Speichern" ohne Eingabe ändert deshalb nichts.
+ */
+function avesmapsTravelValuesApplyIncoming(array $values, array $payload): array
+{
+    $grid = is_array($values['grid'] ?? null) ? $values['grid'] : [];
+    foreach (is_array($payload['grid'] ?? null) ? $payload['grid'] : [] as $transport => $row) {
+        if (!isset($grid[$transport]) || !is_array($row)) { continue; }
+        foreach ($row as $pathType => $speed) {
+            if (!isset($grid[$transport][$pathType])) { continue; }
+            $parsed = avesmapsTravelValuesParseNumber($speed);
+            if ($parsed === null || $parsed <= 0.0) { continue; }
+            $grid[$transport][$pathType] = round($parsed, 2);
+        }
+    }
+    $values['grid'] = $grid;
+
+    $ground = is_array($values['ground_penalties'] ?? null) ? $values['ground_penalties'] : [];
+    foreach (is_array($payload['ground_penalties'] ?? null) ? $payload['ground_penalties'] : [] as $key => $raw) {
+        if (!array_key_exists($key, $ground)) { continue; }
+        $parsed = avesmapsTravelValuesParseNumber($raw);
+        if ($parsed === null) { continue; }
+        // 🔴 Die Untergrenze ist der einzige Wert dieser Liste, der über null liegen darf: sie ist
+        // der Boden, unter den kein Abzug drücken kann, keine Bremse.
+        $istUntergrenze = $key === 'untergrenze';
+        if ($istUntergrenze ? $parsed <= 0.0 : $parsed > 0.0) { continue; }
+        $ground[$key] = round($parsed, 3);
+    }
+    $values['ground_penalties'] = $ground;
+
+    foreach (['river_ratio', 'calibration_target_miles'] as $key) {
+        if (!array_key_exists($key, $payload)) { continue; }
+        $parsed = avesmapsTravelValuesParseNumber($payload[$key]);
+        if ($parsed === null || $parsed <= 0.0) { continue; }
+        $values[$key] = round($parsed, 3);
+    }
+
+    return $values;
+}
+
+/**
+ * Die zwanzig Landschaftsarten, wie sie im Fenster stehen — Wert, Quellenwert, Flächenzahl.
+ *
+ * ⭐ DIE FLÄCHENZAHL IST TEIL DER AUSSAGE, nicht Zierat: „ein Faktor ohne Fläche ist eine Einstellung
+ * ohne Wirkung, und das soll man sehen" (Entwurf §4.3). Live haben `dschungel` und `tundra` null
+ * Flächen — wer dort etwas einstellt, ändert nichts, und ohne die Zahl merkt er es nie.
+ *
+ * 🔴 `source` ist `null` für die ELF ohne Quellenzeile, nicht 0,75. Die GA nennt für Küsten und
+ * Flusslandschaften ausdrücklich KEINEN Landfaktor; eine 0,75 dort behauptete eine Quelle, die es
+ * nicht gibt — und der Rücksetzer ließe sie deshalb auch stehen.
+ *
+ * ⚠️ Fällt INERT aus: fehlt die Spalte (eine Anlage, auf der avesmapsEcosystemEnsureTables noch nie
+ * lief), kommt eine leere Liste zurück, kein 500. Das Fenster sagt dann, dass die Spalte fehlt.
+ *
+ * @return list<array{kind:string,type_key:string,label:string,factor:float|null,source:float|null,area_count:int}>
+ */
+function avesmapsTravelValuesReadLandscapes(PDO $pdo): array
+{
+    $source = avesmapsTravelValuesSourceTable()['landscapes'];
+    $platzhalter = implode(',', array_fill(0, count(AVESMAPS_TRAVEL_VALUES_TERRAIN_KINDS), '?'));
+
+    try {
+        $statement = $pdo->prepare(
+            'SELECT kind, type_key, label, terrain_speed_factor
+               FROM ecosystem_region_type
+              WHERE is_active = 1 AND kind IN (' . $platzhalter . ')
+              ORDER BY kind ASC, sort_order ASC'
+        );
+        $statement->execute(AVESMAPS_TRAVEL_VALUES_TERRAIN_KINDS);
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        // Eine Abfrage für alle Flächenzahlen, nicht eine je Art -- zwanzig Abfragen für zwanzig
+        // Zeilen wären genau das N+1, das AGENTS.md §10 beim Politik-Layer schon einmal aufführt.
+        $counts = [];
+        $countStatement = $pdo->query(
+            'SELECT r.kind AS k, r.region_type AS t, COUNT(*) AS n
+               FROM ecosystem_area a
+               INNER JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
+              WHERE a.is_active = 1
+              GROUP BY r.kind, r.region_type'
+        );
+        foreach ($countStatement === false ? [] : $countStatement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $counts[(string) $row['k'] . '|' . (string) $row['t']] = (int) $row['n'];
+        }
+    } catch (Throwable) {
+        return [];
+    }
+
+    $landscapes = [];
+    foreach ($rows as $row) {
+        $kind = (string) $row['kind'];
+        $typeKey = (string) $row['type_key'];
+        if (in_array($typeKey, AVESMAPS_TRAVEL_VALUES_WATER_TYPE_KEYS, true)) { continue; }
+        $factor = $row['terrain_speed_factor'];
+        $landscapes[] = [
+            'kind' => $kind,
+            'type_key' => $typeKey,
+            'label' => (string) $row['label'],
+            'factor' => $factor === null ? null : round((float) $factor, 3),
+            'source' => isset($source[$typeKey]) ? (float) $source[$typeKey] : null,
+            'area_count' => $counts[$kind . '|' . $typeKey] ?? 0,
+        ];
+    }
+
+    return $landscapes;
+}
+
+/**
+ * Landschaftsfaktoren schreiben — nur bekannte Paare, nur positive Zahlen. Gibt die Zeilenzahl zurück.
+ *
+ * 💣 EINE 0 IST KEIN WERT, SONDERN EINE DIVISION DURCH NULL. Der Lader rechnet `Basis ÷ Faktor`;
+ * käme dort eine 0 an, wäre das kein „sehr langsam", sondern ein Fehler mitten im Graphbau. Ein
+ * leeres oder unlesbares Feld wird deshalb ÜBERSPRUNGEN, nicht als 0 geschrieben — dieselbe Regel,
+ * nach der das Raster seine Zellen annimmt.
+ *
+ * @param list<array{kind?:string,type_key?:string,factor?:mixed}> $incoming
+ */
+function avesmapsTravelValuesWriteLandscapes(PDO $pdo, array $incoming): int
+{
+    $statement = $pdo->prepare(
+        'UPDATE ecosystem_region_type SET terrain_speed_factor = :f WHERE kind = :k AND type_key = :t'
+    );
+
+    $written = 0;
+    foreach ($incoming as $entry) {
+        if (!is_array($entry)) { continue; }
+        $kind = (string) ($entry['kind'] ?? '');
+        $typeKey = (string) ($entry['type_key'] ?? '');
+        if (!in_array($kind, AVESMAPS_TRAVEL_VALUES_TERRAIN_KINDS, true)) { continue; }
+        if (in_array($typeKey, AVESMAPS_TRAVEL_VALUES_WATER_TYPE_KEYS, true)) { continue; }
+        $factor = $entry['factor'] ?? null;
+        $factor = is_string($factor) ? str_replace(',', '.', trim($factor)) : $factor;
+        if (!is_numeric($factor) || (float) $factor <= 0.0) { continue; }
+
+        $statement->execute(['f' => round((float) $factor, 3), 'k' => $kind, 't' => $typeKey]);
+        $written += $statement->rowCount();
+    }
+
+    return $written;
+}
+
+/**
+ * Die Landschaften auf die GA zurücksetzen — die NEUN mit Quellenzeile, und nur die.
+ *
+ * 🔴 DIE ELF OHNE QUELLENZEILE BLEIBEN STEHEN. „Die GA nennt für Küsten und Flusslandschaften
+ * ausdrücklich keinen Landfaktor. Diese Zeilen behalten den Wert des Owners, und der Rücksetzer
+ * lässt sie stehen." (Entwurf §4.3) Ein Rücksetzer, der sie mitnähme, ersetzte eine Entscheidung
+ * durch eine Zahl, die niemand belegen kann.
+ */
+function avesmapsTravelValuesResetLandscapes(PDO $pdo): int
+{
+    $incoming = [];
+    foreach (avesmapsTravelValuesReadLandscapes($pdo) as $row) {
+        if ($row['source'] === null) { continue; }
+        $incoming[] = ['kind' => $row['kind'], 'type_key' => $row['type_key'], 'factor' => $row['source']];
+    }
+
+    // rowCount() zählt nur GEÄNDERTE Zeilen; hier ist die Zahl der ANGEFASSTEN gemeint, damit ein
+    // zweiter Rücksetzer nicht „0" meldet, obwohl er neun Zeilen bestätigt hat.
+    avesmapsTravelValuesWriteLandscapes($pdo, $incoming);
+
+    return count($incoming);
 }
 
 /**
