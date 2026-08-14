@@ -1082,12 +1082,25 @@ function avesmapsEcosystemParseLabelFilter(string $rawLabels): ?array
     return array_slice($labelPublicIds, 0, AVESMAPS_ECOSYSTEM_LABEL_FILTER_LIMIT);
 }
 
-/** Same reasoning as AVESMAPS_ECOSYSTEM_LABEL_FILTER_LIMIT: a request names a handful of regions. */
-const AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT = 25;
+// Fix-Runde 1 (2026-08-14, CRITICAL): 25 was the label filter's limit, copied without rethinking it
+// for a different purpose. A label filter names "a handful" of landscapes for a search hit; the region
+// filter is what a Lebensraum-Regel highlight draws ALL its matched areas through, and a rule names up
+// to 56 regions live (measured). 25 silently cut that to 25 -- 26 of 56 forests missing on the map,
+// `ok: true`, no sign anything was left out.
+//
+// 200 gives every rule measured today (56) more than 3x headroom while staying bounded: the WHOLE
+// stock is 856 areas in 2.593.693 bytes (~3 KB/area), so 200 is ~600 KB worst case, matching the
+// bbox-unfiltered layer's own order of magnitude rather than exceeding it.
+//
+// ⚠️ AVESMAPS_ECOSYSTEM_LABEL_FILTER_LIMIT stays at 25 on purpose -- its own reasoning (a Spotlight
+// hit names a couple of dozen landscapes) still holds, and the label path is no longer how a rule
+// highlight asks for its areas (that is `regions` now). That it ALSO caps silently is a pre-existing
+// finding, noted here but deliberately not touched by this fix.
+const AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT = 200;
 
 /**
- * Parse `?regions=<region_public_id>[,<region_public_id>…]` into a list of region public ids, or null
- * for "no filter". Same shape, same validation, same null behaviour as
+ * Parse `?regions=<region_public_id>[,<region_public_id>…]` into the region public ids to filter by,
+ * or null for "no filter". Same alphabet, same validation, same null-for-empty behaviour as
  * avesmapsEcosystemParseLabelFilter -- copied deliberately rather than shared, because the two ask
  * different questions of the same alphabet (Task 7 brief).
  *
@@ -1097,10 +1110,16 @@ const AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT = 25;
  * highlight fell back to a point marker for 26 of 51 resolved Einbeere places for exactly this reason.
  * Asking by REGION instead is unambiguous: one area belongs to exactly one region.
  *
+ * 🔴 Fix-Runde 1: unlike avesmapsEcosystemParseLabelFilter, this one does NOT cap silently.
+ * `truncated` tells the caller when more ids came in than AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT
+ * allows -- `ok: true` with a quarter of the data and no sign of it would be a false statement (the
+ * finding this fixes). The caller (api/app/ecosystem-areas.php) surfaces it as a top-level
+ * `truncated` field alongside `ok`.
+ *
  * ⚠️ A region public_id is a 36-character UUID -- the existing {1,64} alphabet already covers it, no
  * new regex needed.
  *
- * @return list<string>|null
+ * @return array{ids: list<string>, truncated: bool}|null null = no filter at all
  */
 function avesmapsEcosystemParseRegionFilter(string $rawRegions): ?array
 {
@@ -1127,7 +1146,10 @@ function avesmapsEcosystemParseRegionFilter(string $rawRegions): ?array
         return null;
     }
 
-    return array_slice($regionPublicIds, 0, AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT);
+    return [
+        'ids' => array_slice($regionPublicIds, 0, AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT),
+        'truncated' => count($regionPublicIds) > AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT,
+    ];
 }
 
 /**
@@ -1172,6 +1194,14 @@ function avesmapsEcosystemParseKindFilter(string $rawKind): ?string
  * 💣 EVERY parameter that shapes the payload belongs here. bbox and labels already did; `regions` and
  * `kind` (Task 7) are two more -- an ETag that ignores one hands a client the wrong subset out of its
  * own cache (see the file header of ecosystem-areas.php, and AGENTS.md's ecosystem-areas.php entry).
+ *
+ * ⚠️ Fix-Runde 1: the response also carries a `truncated` flag now (avesmapsEcosystemParseRegionFilter)
+ * -- deliberately NOT folded into this seed. `truncated` is a pure function of the raw `regions` STRING
+ * alone (count of valid, deduplicated ids > the limit), and that raw string is already in the seed
+ * below. Two requests that hash to the same seed therefore already have the same `regions` value and
+ * so the same `truncated` outcome -- adding it again would encode information the seed already carries,
+ * not new information. This is an explicit decision, not an oversight: unlike bbox/labels/regions/kind,
+ * `truncated` does not choose WHICH areas come back, only whether a "there is more" sign is attached.
  */
 function avesmapsEcosystemAreasETagSeed(array $queryParams): string
 {

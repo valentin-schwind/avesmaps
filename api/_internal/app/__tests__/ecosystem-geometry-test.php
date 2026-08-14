@@ -193,20 +193,42 @@ ecosystemTestThrows(static fn() => avesmapsEcosystemParseLabelFilter('a-1,' . st
 
 // ---- Task 7: the ?regions= filter --------------------------------------------------------------------
 // Added because a Fläche belongs to a REGION, and a region carries MANY labels -- 853 areas, only 512
-// distinct label_public_id (measured). Same shape, same validation, same null behaviour as ?labels=.
+// distinct label_public_id (measured). Same alphabet, same validation, same null-for-empty behaviour as
+// ?labels= -- but NOT the same return shape (Fix-Runde 1, see below): this one reports truncation.
 assert(avesmapsEcosystemParseRegionFilter('') === null, 'no regions = no filter');
 assert(avesmapsEcosystemParseRegionFilter('   ') === null);
 assert(avesmapsEcosystemParseRegionFilter('a003b3da-8428-43a9-9333-dc2a06b501d0')
-    === ['a003b3da-8428-43a9-9333-dc2a06b501d0'], 'a 36-char region UUID fits the {1,64} alphabet');
-assert(avesmapsEcosystemParseRegionFilter(' a-1 , b-2 ,c-3 ') === ['a-1', 'b-2', 'c-3'], 'trimmed');
-assert(avesmapsEcosystemParseRegionFilter('a-1,,a-1,b-2') === ['a-1', 'b-2'], 'empty parts dropped, deduped');
-assert(count(avesmapsEcosystemParseRegionFilter(implode(',', array_map(
-    static fn(int $i): string => 'id-' . $i,
-    range(1, AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT + 20)
-)))) === AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT, 'capped, not rejected');
+    === ['ids' => ['a003b3da-8428-43a9-9333-dc2a06b501d0'], 'truncated' => false],
+    'a 36-char region UUID fits the {1,64} alphabet');
+assert(avesmapsEcosystemParseRegionFilter(' a-1 , b-2 ,c-3 ')
+    === ['ids' => ['a-1', 'b-2', 'c-3'], 'truncated' => false], 'trimmed');
+assert(avesmapsEcosystemParseRegionFilter('a-1,,a-1,b-2')
+    === ['ids' => ['a-1', 'b-2'], 'truncated' => false], 'empty parts dropped, deduped');
 ecosystemTestThrows(static fn() => avesmapsEcosystemParseRegionFilter("a-1,b'2"), 'quote in an id');
 ecosystemTestThrows(static fn() => avesmapsEcosystemParseRegionFilter('a-1,b 2'), 'space inside an id');
 ecosystemTestThrows(static fn() => avesmapsEcosystemParseRegionFilter('a-1,' . str_repeat('x', 65)), 'over-long id');
+
+// ---- Fix-Runde 1 (CRITICAL): the limit and its signal --------------------------------------------
+// A Lebensraum-Regel names up to 56 regions live -- the ORIGINAL limit of 25 (copied from the label
+// filter without rethinking it for this purpose) silently cut that to 25, `ok: true`, no sign. Fixed
+// two ways: the limit is now 200 (>3x the measured 56), and a cut that still happens says so.
+assert(AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT === 200, 'the cap is 200, not the label filter\'s 25');
+// Exactly at the limit: not truncated.
+$atLimit = avesmapsEcosystemParseRegionFilter(implode(',', array_map(
+    static fn(int $i): string => 'id-' . $i,
+    range(1, AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT)
+)));
+assert(count($atLimit['ids']) === AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT);
+assert($atLimit['truncated'] === false, '💣 MUTATION TARGET: exactly the limit must NOT report truncation');
+// One MORE than the limit (56 live, well past 25 -- the exact shape of the finding): capped AND flagged.
+$overLimit = avesmapsEcosystemParseRegionFilter(implode(',', array_map(
+    static fn(int $i): string => 'id-' . $i,
+    range(1, AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT + 56)
+)));
+assert(count($overLimit['ids']) === AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT, 'still capped, not rejected');
+assert($overLimit['truncated'] === true,
+    '💣 MUTATION TARGET: more ids than the limit MUST be flagged -- ok:true with a quarter of the data '
+    . 'and no sign is the false statement this fixes');
 
 // ---- Task 7: the ?kind= filter ------------------------------------------------------------------------
 // Exists so spotlightLoreIntersectGeometry can ask for the eight climate bands alone (~2.6 MB measured

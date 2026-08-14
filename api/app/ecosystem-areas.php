@@ -7,8 +7,8 @@ declare(strict_types=1);
 //
 // GET /api/app/ecosystem-areas.php[?bbox=min_x,min_y,max_x,max_y][&labels=<label_public_id>,…]
 //   [&regions=<region_public_id>,…][&kind=<derographisch|vegetation|topographie|klima>]
-//   -> { ok:true, ecosystem_enabled:bool, revision:int, areas:[ { public_id, region_*, kind, geometry,
-//        bounds, geometry_revision, is_trial, updated_at } ] }
+//   -> { ok:true, ecosystem_enabled:bool, revision:int, truncated:bool, areas:[ { public_id, region_*,
+//        kind, geometry, bounds, geometry_revision, is_trial, updated_at } ] }
 //
 // Task 7 (2026-08-14): `regions` and `kind` joined `bbox`/`labels`. `regions` exists because a Fläche
 // belongs to a REGION, not a label, and a region carries MANY labels -- the Spotlight occurrence
@@ -16,6 +16,12 @@ declare(strict_types=1);
 // happened not to be the one carrying the area (measured: 26 of 51 resolved Einbeere places). `kind`
 // exists so spotlightLoreIntersectGeometry can ask for the eight climate bands alone instead of the
 // full ~2.6 MB payload it would otherwise need just to reach them.
+//
+// 🔴 Fix-Runde 1 (2026-08-14, CRITICAL): `?regions=` names every area a Lebensraum-Regel matched, and a
+// rule names up to 56 live -- the first cut of this filter borrowed the label filter's limit of 25 and
+// silently dropped the rest (`ok: true`, no sign, 26 of 56 forests missing on the map). The limit is now
+// 200 (avesmapsEcosystemParseRegionFilter, api/_internal/app/ecosystem.php) AND the cut is no longer
+// silent: `truncated` is true whenever more ids came in than the limit allows.
 //
 // Two templates, one half each (the plan names both, and for a reason):
 //   * api/app/citymaps.php  -- shape, kill switch, response envelope. It has NO ETag at all.
@@ -54,7 +60,12 @@ require_once __DIR__ . '/../_internal/app/ecosystem.php';
 // Baender und zeigte einen leeren Reiter „Klimazonen", waehrend der Server sie laengst hat. Das ist
 // derselbe Fall, den Version 4 schon einmal teuer gelernt hat: eine WERTaenderung braucht den Hub
 // genauso wie eine Formaenderung, weil der ETag aus Revision und dieser Zahl gesaet wird.
-const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 6;
+// 7 (2026-08-14, Fix-Runde 1): `truncated` joins the envelope. Same reasoning as version 3
+// (cascade_enabled): a warm client that never sees this NEW field cannot tell a complete answer from a
+// silently capped one -- exactly the CRITICAL finding this version fixes. Without the bump, a client
+// whose cached ETag still matches would keep reading `ok: true` with a quarter of the data and no way
+// to know.
+const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 7;
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -108,7 +119,13 @@ try {
     $labelPublicIds = avesmapsEcosystemParseLabelFilter((string) ($_GET['labels'] ?? ''));
     // Task 7: ask by REGION instead of by label -- a Fläche belongs to exactly one region, but a region
     // carries many labels, so a label-only ask can miss areas under a sibling label of the same region.
-    $regionPublicIds = avesmapsEcosystemParseRegionFilter((string) ($_GET['regions'] ?? ''));
+    //
+    // Fix-Runde 1: avesmapsEcosystemParseRegionFilter now returns {ids, truncated} rather than a plain
+    // list, or null for "no filter at all" -- unwrap both, because a null filter is not truncated by
+    // definition (there is nothing to cut).
+    $regionFilter = avesmapsEcosystemParseRegionFilter((string) ($_GET['regions'] ?? ''));
+    $regionPublicIds = $regionFilter['ids'] ?? null;
+    $regionsTruncated = $regionFilter['truncated'] ?? false;
     // Task 7: ask for one whole LAYER (e.g. the eight climate bands) without the rest of the payload.
     $kind = avesmapsEcosystemParseKindFilter((string) ($_GET['kind'] ?? ''));
 
@@ -120,6 +137,12 @@ try {
         // eine Rückfrage, die übertreibt, wird genauso schnell weggeklickt wie eine, die untertreibt.
         'cascade_enabled' => AVESMAPS_ECOSYSTEM_CASCADE_ENABLED,
         'revision' => $revision,
+        // 🔴 Fix-Runde 1 (CRITICAL): true whenever ?regions= named more ids than
+        // AVESMAPS_ECOSYSTEM_REGION_FILTER_LIMIT allows. `ok: true` with a quarter of the areas and no
+        // sign of it is a false statement -- this is that sign. Only `regions` can trigger it today
+        // (`kind` is a single value; `labels` keeps its own pre-existing, deliberately untouched limit,
+        // see the constant's comment).
+        'truncated' => $regionsTruncated,
         'areas' => avesmapsEcosystemReadAreas($pdo, $bbox, $labelPublicIds, $regionPublicIds, $kind),
     ]);
 } catch (InvalidArgumentException $exception) {
