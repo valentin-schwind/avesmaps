@@ -84,4 +84,30 @@ const rebuilt = getUnconnectedLocationPublicIds();
 assert.notStrictEqual(rebuilt, unconnected, "invalidation forces a fresh index");
 assert.deepStrictEqual([...rebuilt].sort(), ["pid-C", "pid-K0"]);
 
+// --- Der Split an aufliegenden Stuetzpunkten -----------------------------------------------------
+// 💣 S1 liegt als INNERER Vertex auf dem Weg s-p (200,0)->(220,0). Der Router sieht dort einen
+// vollwertigen Knoten (avesmapsAddClientCompatiblePathConnection splittet round-5), der Pruefhaken
+// sah bis 2026-08-15 gar nichts -- und markierte die Kreuzung als "hat keine Wege".
+locationData = [
+	loc("Sa", 200, 0), crossing("S1", 210, 0), loc("Sb", 220, 0),
+	loc("Ua", 300, 0), loc("Umitte", 310, 0), loc("Ub", 320, 0),
+];
+pathData = [
+	{ geometry: { type: "LineString", coordinates: [[200, 0], [210, 0], [220, 0]] },
+	  properties: { id: "sp", feature_subtype: "Weg" } },
+	{ geometry: { type: "LineString", coordinates: [[300, 0], [310, 0], [320, 0]] },
+	  properties: { id: "up", feature_subtype: "Weg" } },
+];
+powerlineData = [];
+locationConnectivityIndex = null;
+
+const splitGraph = createGraph({}, { skipSyntheticConnections: true, transports: "all" });
+assert.strictEqual(countGraphNodePathEdges(splitGraph, "S1"), 2, "eine aufliegende Kreuzung hat ZWEI Arme, nicht null");
+assert.deepStrictEqual(Object.keys(splitGraph.S1).sort(), ["Sa", "Sb"], "und sie fuehren zu beiden Seiten");
+assert.strictEqual(countGraphNodePathEdges(splitGraph, "Sa"), 1, "der Weganfang behaelt seinen einen Arm");
+
+// Und derselbe Split heilt den pinken Ring: ein ORT, der nur als Stuetzpunkt an einem Weg haengt,
+// ist nicht unverbunden. Live waren das 12 von 182.
+assert.strictEqual(getUnconnectedLocationPublicIds().has("pid-Umitte"), false, "ein aufliegender Ort haengt am Netz");
+
 console.log("location connectivity index tests passed");

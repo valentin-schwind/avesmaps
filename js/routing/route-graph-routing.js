@@ -108,6 +108,28 @@ function getRiverFlowTimeFactors(properties, routeType) {
     };
 }
 
+// Zwilling zu avesmapsAddClientCompatiblePathConnection (api/_internal/routing/client-graph.php):
+// derselbe round-5-Schluessel, damit Pruefhaken und Router dieselben Knoten sehen. Eine andere
+// Rundung hier waere eine zweite Wahrheit ueber denselben Punkt.
+function buildConnectivityCoordinateKey([x, y]) {
+    return `${Number(x).toFixed(5)}:${Number(y).toFixed(5)}`;
+}
+
+// ⚠️ Bei round-5-Kollision gewinnt der letzte Ort. Live sind das 5 Punkte, auf denen jeweils
+// mehrere Kreuzungen exakt uebereinander liegen -- fuer die Armzahl ist das gleichgueltig, weil
+// koinzidente Knoten ohnehin denselben Weg tragen.
+function buildLocationCoordinateIndex() {
+    const index = new Map();
+    locationData.forEach((location) => {
+        if (!Array.isArray(location?.coordinates)) {
+            return;
+        }
+        const [lat, lng] = location.coordinates;
+        index.set(buildConnectivityCoordinateKey([lng, lat]), location);
+    });
+    return index;
+}
+
 function addRegularPathToGraph(graph, pathFeature, routeOptions, graphOptions = {}) {
     const { geometry: { coordinates }, properties } = pathFeature;
     const startNode = getLocationAtPathEndpoint(coordinates[0]);
@@ -123,9 +145,32 @@ function addRegularPathToGraph(graph, pathFeature, routeOptions, graphOptions = 
         // The spec's original Kanten-Randfall (unbefahrbar = unverbunden) was dropped by the Owner
         // on 2026-07-16: river sources are drawn but impassable ("zu wilde Stroemung"), and flagging
         // them as unverbunden is a false positive. The tool hunts MISSING ways, not impassable ones.
-        const connection = { routeType: normalizePathSubtype(properties?.feature_subtype || properties?.name), id: properties.id };
-        addGraphConnection(graph, startNode.name, endNode.name, connection);
-        addGraphConnection(graph, endNode.name, startNode.name, connection);
+        const routeType = normalizePathSubtype(properties?.feature_subtype || properties?.name);
+        // 🔴 Knoten ENTLANG des Weges, nicht nur an seinen Enden: Start, jeder innere Stuetzpunkt,
+        // der round-5 exakt auf einem Ort liegt, dann das Ende. Genau diese Bauform erzeugt der
+        // Editor-Knopf „Ort verbinden und Strasse weiterfuehren" -- und sie war fuer den Pruefhaken
+        // unsichtbar, waehrend der Router laengst dort abbiegt.
+        const nodeNames = [startNode.name];
+        const coordinateIndex = graphOptions.locationCoordinateIndex;
+        if (coordinateIndex) {
+            for (let index = 1; index < coordinates.length - 1; index++) {
+                const hit = coordinateIndex.get(buildConnectivityCoordinateKey(coordinates[index]));
+                if (hit) {
+                    nodeNames.push(hit.name);
+                }
+            }
+        }
+        nodeNames.push(endNode.name);
+        for (let index = 1; index < nodeNames.length; index++) {
+            // Teilkanten tragen „<pfad>#<n>", damit sie unterscheidbar bleiben; der Stamm vor dem
+            // „#" ist die Weg-id und wird in Task 3 zurueckgelesen.
+            const connection = {
+                routeType,
+                id: nodeNames.length > 2 ? `${properties.id}#${index}` : properties.id,
+            };
+            addGraphConnection(graph, nodeNames[index - 1], nodeNames[index], connection);
+            addGraphConnection(graph, nodeNames[index], nodeNames[index - 1], connection);
+        }
         return;
     }
 
@@ -175,8 +220,13 @@ function createGraph(routeOptions, graphOptions = {}) {
     locationData.forEach((location) => {
         graph[location.name] = {};
     });
+    // Der Koordinaten-Index kostet nur den Konnektivitaets-Graphen etwas; der Routing-Zweig
+    // bekommt ihn nicht und bleibt damit Zeile fuer Zeile der alte.
+    const graphOptionsForPaths = graphOptions.transports === "all"
+        ? { ...graphOptions, locationCoordinateIndex: buildLocationCoordinateIndex() }
+        : graphOptions;
     pathData.forEach((pathFeature) => {
-        addRegularPathToGraph(graph, pathFeature, routeOptions, graphOptions);
+        addRegularPathToGraph(graph, pathFeature, routeOptions, graphOptionsForPaths);
     });
     if (!graphOptions.skipSyntheticConnections) {
         connectDetachedGraphComponents(graph, routeOptions);
