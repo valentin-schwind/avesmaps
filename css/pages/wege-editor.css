@@ -324,7 +324,53 @@
    eigenen Rot: er sitzt hier auf der weichen Panel-Fläche und muss dort lesbar bleiben. */
 .wp-tempo__tbl tr.is-off .wp-tempo__ga { color: var(--color-warning); }
 
+/* ZWEI Spalten, nicht „so viele wie passen".
+   💣 `repeat(auto-fit, minmax(24rem, 1fr))` sah richtig aus und war es nicht: dieses Fenster fuellt
+   den Bildschirm (`.wp-modal__box` ist 100 % breit), auf einem 1600er Monitor haetten sich VIER
+   Spalten ergeben -- die Tabellen waeren zu Streifen geworden. Gemessen im Vorschaufenster: bei
+   476 px eine Spalte, bei voller Breite vier. Also eine feste Zwei, und unterhalb von 980 px eine. */
+.wp-tempo__cols {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0 var(--space-8);
+	align-items: start;
+}
+@media (max-width: 980px) {
+	.wp-tempo__cols { grid-template-columns: minmax(0, 1fr); }
+}
+
 .wp-tempo__in { width: 5.5rem; }
+
+/* Die Zeile, die sagt, ob die Wegfindung ueberhaupt Bodenfaktoren findet.
+   🔴 Ein stiller Not-Aus ohne Anzeige ist ein Ausfall (Entwurf §7) -- deshalb steht sie GANZ OBEN
+   und traegt einen Statuston, nicht die gedaempfte Notizfarbe. */
+.wp-tempo__probe {
+	margin: 0 0 var(--space-6);
+	padding: var(--space-4) var(--space-6);
+	border-radius: var(--radius-md);
+	font-size: var(--font-size-caption);
+	border: 1px solid var(--color-divider);
+}
+.wp-tempo__probe.ok { color: var(--color-success); border-color: var(--color-success); }
+.wp-tempo__probe.bad { color: var(--color-danger); border-color: var(--color-danger); }
+
+/* Der Rücksetzer EINER Zeile. ⚠️ Er steht nur da, wenn der Wert abweicht: fuenfundsiebzig dauerhaft
+   sichtbare Knoepfe in schmalen Spalten sind genau die Vervielfachung aus AGENTS.md §12. Die Zelle
+   bleibt trotzdem immer da, damit die Spalten beim Tippen nicht springen. */
+.wp-tempo__undocell { width: 1.75rem; padding-left: 0; padding-right: 0; }
+.wp-tempo__undo {
+	visibility: hidden;
+	background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border);
+	color: var(--color-button-soft-text);
+	border-radius: var(--radius-md);
+	padding: 0 var(--space-2);
+	font-size: var(--font-size-caption);
+	line-height: 1.4;
+	cursor: pointer;
+}
+.wp-tempo__tbl tr.is-dirty .wp-tempo__undo { visibility: visible; }
+.wp-tempo__undo:hover { background: var(--color-button-soft-hover); }
 .wp-tempo__ga,
 .wp-tempo__eff { color: var(--color-text-muted); white-space: nowrap; }
 

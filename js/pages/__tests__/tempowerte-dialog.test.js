@@ -86,6 +86,39 @@ assert.ok(/wp-tempo__ls[\s\S]{0,400}data-kind/.test(dialog), "und zwar an der La
 assert.ok(library.includes("\$entry['kind']"), "der Server liest die Ebene");
 assert.ok(library.includes("\$entry['type_key']"), "und die Art");
 
+// ---- 3b. Die Bodenprobe: der Name muss auf beiden Seiten derselbe sein -------------------------
+
+// 🔴 Sie ist die Antwort auf den stillen Not-Aus (Entwurf §7). Heisst sie im Fenster anders als im
+// Endpunkt, ist das Feld schlicht `undefined` -- und die Zeile behauptet dann „nicht angelegt",
+// waehrend in Wahrheit alles in Ordnung ist. Ein falscher Alarm ist hier so schlimm wie keiner.
+assert.ok(dialog.includes("terrain_probe"), "das Fenster liest `terrain_probe`");
+assert.ok(endpoint.includes("'terrain_probe'"), "und der Endpunkt schickt es");
+assert.ok(
+	library.includes("function avesmapsTravelValuesTerrainProbe("),
+	"die Probe steht im Server, nicht als zweite Rechnung im Browser"
+);
+["checked", "known", "areas", "sample_label", "max_factor"].forEach((field) => {
+	assert.ok(dialog.includes("probe." + field), `das Fenster liest \`${field}\``);
+	assert.ok(library.includes("'" + field + "'"), `und der Server liefert \`${field}\``);
+});
+
+// ---- 3c. Der Ruecksetzer je Zeile ---------------------------------------------------------------
+
+// ⚠️ Er nimmt die eigene Eingabe zurueck, ohne Serveraufruf -- deshalb muss jedes Eingabefeld seinen
+// geladenen Wert bei sich tragen. Fehlt `data-loaded` an einem der vier Zeilenbauer, ist der Knopf
+// dort wirkungslos und setzt still auf "" statt auf den Wert.
+assert.strictEqual(
+	(dialog.match(/data-loaded="/g) || []).length,
+	4,
+	"alle vier Zeilenbauer (Raster, Landschaft, Boden, Einzelwert) tragen `data-loaded`"
+);
+assert.ok(dialog.includes("wp-tempo__undo"), "und es gibt den Zeilen-Ruecksetzer");
+const css = read("css/pages/wege-editor.css");
+assert.ok(
+	/tr\.is-dirty .wp-tempo__undo \{ visibility: visible/.test(css),
+	"er wird erst sichtbar, wenn der Wert abweicht — 75 dauerhafte Knoepfe waeren AGENTS.md §12"
+);
+
 // ---- 4. Alle sechs Abschnitte des Entwurfs stehen im Fenster ------------------------------------
 
 // §4: Tagesleistung + Wegtypen (das Raster), Landschaften, Boden, Fluss und Eichung, Befund, Gesperrt.

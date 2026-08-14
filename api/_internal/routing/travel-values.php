@@ -398,6 +398,74 @@ function avesmapsTravelValuesReadLandscapes(PDO $pdo): array
 }
 
 /**
+ * Findet der A* gerade Bodenfaktoren? — dieselbe Frage, die eine Route stellt, hier direkt gestellt.
+ *
+ * 🔴 GEGEN DEN STILLEN NOT-AUS. `avesmapsOffroadLoadFactorPlane` fällt bei JEDEM Fehler auf `''`
+ * zurück: fehlende Spalte, kaputte Geometrie, leergefilterte Abfrage sehen alle gleich aus, und der
+ * A* rechnet danach die ganze Welt als offenen Boden. Am 30.07.2026 war live genau das der Fall (alle
+ * 17 Gebirge trugen den Erprobungsstempel), und es fiel wochenlang niemandem auf. Ein stiller Not-Aus
+ * ohne Anzeige ist ein Ausfall — deshalb steht das Ergebnis als Zeile im Fenster.
+ *
+ * ⭐ SIE FÄHRT DEN ECHTEN LADER, nicht eine eigene Zählung. Eine zweite Rechnung bliebe grün, während
+ * der Weg, den der A* wirklich geht, leer zurückkommt — und genau diese Divergenz soll die Zeile ja
+ * ausschließen.
+ *
+ * ⚠️ EINE Kiste um EINE Fläche, nicht der ganze Bestand: die Frage ist „kommt überhaupt etwas an",
+ * und die beantwortet die stärkste Bremse im Bestand am schärfsten.
+ */
+function avesmapsTravelValuesTerrainProbe(PDO $pdo): array
+{
+    // Lazy: die A*-Kette gehört nicht in jeden Routenaufruf, der travel-values.php ohnehin lädt.
+    require_once __DIR__ . '/offroad-data.php';
+
+    $report = ['checked' => false, 'known' => false, 'areas' => 0, 'sample_label' => '', 'max_factor' => null];
+    $base = avesmapsTravelValuesOffroadBaseFactor();
+
+    try {
+        $statement = $pdo->prepare(
+            'SELECT t.label AS label, t.terrain_speed_factor AS factor,
+                    a.min_x AS min_x, a.min_y AS min_y, a.max_x AS max_x, a.max_y AS max_y
+               FROM ecosystem_area a
+               INNER JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
+               INNER JOIN ecosystem_region_type t ON t.kind = r.kind AND t.type_key = r.region_type
+              WHERE a.is_active = 1
+                AND t.terrain_speed_factor IS NOT NULL
+                AND t.terrain_speed_factor > 0
+                AND t.terrain_speed_factor < :base
+              ORDER BY t.terrain_speed_factor ASC'
+        );
+        $statement->execute(['base' => $base]);
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable) {
+        // Keine Spalte, keine Tabellen -- dann gibt es nichts zu prüfen und erst recht nichts zu
+        // behaupten. `checked` bleibt false, und das Fenster sagt genau das.
+        return $report;
+    }
+
+    $report['checked'] = true;
+    $report['areas'] = count($rows);
+    if ($rows === []) { return $report; }
+
+    $sample = $rows[0];
+    $report['sample_label'] = (string) $sample['label'];
+
+    try {
+        $centreX = ((float) $sample['min_x'] + (float) $sample['max_x']) / 2.0;
+        $centreY = ((float) $sample['min_y'] + (float) $sample['max_y']) / 2.0;
+        $box = avesmapsBuildOffroadBox($centreX, $centreY, $centreX, $centreY);
+        $plane = avesmapsOffroadLoadFactorPlane($pdo, $box);
+        if ($plane !== '') {
+            $report['known'] = true;
+            $report['max_factor'] = round(avesmapsOffroadFactorAt($box, $plane, $centreX, $centreY), 2);
+        }
+    } catch (Throwable) {
+        return $report;
+    }
+
+    return $report;
+}
+
+/**
  * Landschaftsfaktoren schreiben — nur bekannte Paare, nur positive Zahlen. Gibt die Zeilenzahl zurück.
  *
  * 💣 EINE 0 IST KEIN WERT, SONDERN EINE DIVISION DURCH NULL. Der Lader rechnet `Basis ÷ Faktor`;

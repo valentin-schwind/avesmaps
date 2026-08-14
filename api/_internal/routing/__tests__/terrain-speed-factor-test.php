@@ -576,4 +576,52 @@ $leerRein = avesmapsTravelValuesApplyIncoming($basis, []);
 assert($leerRein['grid'] == $basis['grid'], 'ohne Nutzlast bleibt das Raster, wie es war');
 assert($leerRein['ground_penalties'] == $basis['ground_penalties'], 'und der Boden ebenso');
 
-echo "terrain-speed-factor-test: A (Maszstab) + B (Plan) + C (Migration) + D (Reihenfolge) + E (Lader) + F (Ablageform) + G (Speicherbreite) + H (Landschaften) + I (Annahme) bestanden\n";
+// ============================================================ J. Die Probe „findet der A* Boden?"
+
+// 🔴 DER STILLE NOT-AUS. `avesmapsOffroadLoadFactorPlane` faellt bei JEDEM Fehler auf '' zurueck --
+// fehlende Spalte, kaputte Geometrie, leergefilterte Abfrage sehen alle gleich aus, und der A*
+// rechnet danach die ganze Welt als offenen Boden. Genau das ist am 30.07.2026 schon einmal
+// passiert (alle 17 Gebirge trugen den Erprobungsstempel) und fiel wochenlang niemandem auf.
+// Die Probe faehrt DENSELBEN Lader, den der A* faehrt -- nicht eine eigene Zaehlung, die gruen
+// bleibt, waehrend der echte Weg leer zurueckkommt.
+
+$mitGeometrie = static function (?float $waldFaktor): PDO {
+    $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    $pdo->exec('CREATE TABLE ecosystem_region_type (kind TEXT, type_key TEXT, label TEXT, sort_order INT,
+        is_active INT DEFAULT 1, offroad_factor REAL DEFAULT 1.0, terrain_speed_factor REAL DEFAULT NULL)');
+    $pdo->exec('CREATE TABLE ecosystem_region (id INTEGER PRIMARY KEY, kind TEXT, region_type TEXT, is_active INT DEFAULT 1)');
+    $pdo->exec('CREATE TABLE ecosystem_area (id INTEGER PRIMARY KEY, region_id INT, geometry_geojson TEXT,
+        min_x REAL, min_y REAL, max_x REAL, max_y REAL, is_active INT DEFAULT 1, is_trial INT DEFAULT 0)');
+    $pdo->prepare('INSERT INTO ecosystem_region_type (kind, type_key, label, sort_order, terrain_speed_factor) VALUES (?, ?, ?, ?, ?)')
+        ->execute(['vegetation', 'wald', 'Wald', 10, $waldFaktor]);
+    $pdo->exec("INSERT INTO ecosystem_region (id, kind, region_type, is_active) VALUES (1, 'vegetation', 'wald', 1)");
+    $ring = json_encode(['type' => 'Polygon', 'coordinates' => [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]]]);
+    $pdo->prepare('INSERT INTO ecosystem_area (id, region_id, geometry_geojson, min_x, min_y, max_x, max_y, is_active)
+        VALUES (1, 1, ?, 0, 0, 10, 10, 1)')->execute([$ring]);
+
+    return $pdo;
+};
+
+// --- J1. Gezeichneter Wald mit Faktor: die Ebene traegt etwas, und die Probe sagt WOMIT.
+$probe = avesmapsTravelValuesTerrainProbe($mitGeometrie(0.500));
+assert($probe['checked'] === true, 'die Probe ist gelaufen');
+assert($probe['known'] === true, 'sie hat Bodenfaktoren gefunden');
+assert($probe['areas'] === 1, 'eine bremsende Flaeche: ' . $probe['areas']);
+assert($probe['sample_label'] === 'Wald', 'und sie nennt, woran sie geprueft hat: ' . $probe['sample_label']);
+// Der staerkste Multiplikator, den sie in der Ebene gemessen hat -- 0,75 ÷ 0,50 = 1,50.
+assert($nah((float) $probe['max_factor'], 1.50, $aufloesung), 'staerkste Bremse 1,50: ' . $probe['max_factor']);
+
+// --- J2. Kein Faktor gesetzt: die Ebene ist leer, und DAS ist die Meldung, die gefehlt hat.
+$leer = avesmapsTravelValuesTerrainProbe($mitGeometrie(null));
+assert($leer['checked'] === true, 'auch dann ist die Probe gelaufen');
+assert($leer['known'] === false, 'aber sie hat nichts gefunden -- der A* rechnet mit offenem Boden');
+assert($leer['areas'] === 0, 'keine bremsende Flaeche: ' . $leer['areas']);
+
+// --- J3. Fehlende Spalte faellt INERT aus, nicht als 500 -- das Fenster soll trotzdem aufgehen.
+$ohneSpalte = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$ohneSpalte->exec('CREATE TABLE ecosystem_region_type (kind TEXT, type_key TEXT)');
+$kaputt = avesmapsTravelValuesTerrainProbe($ohneSpalte);
+assert($kaputt['checked'] === false, 'ohne Spalte gibt es nichts zu pruefen');
+assert($kaputt['known'] === false, 'und schon gar nichts zu behaupten');
+
+echo "terrain-speed-factor-test: A (Maszstab) + B (Plan) + C (Migration) + D (Reihenfolge) + E (Lader) + F (Ablageform) + G (Speicherbreite) + H (Landschaften) + I (Annahme) + J (Bodenprobe) bestanden\n";

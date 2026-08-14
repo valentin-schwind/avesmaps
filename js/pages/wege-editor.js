@@ -1257,6 +1257,21 @@
 		return isFinite(n) ? n : null;
 	}
 
+	/* Der kleine Rücksetzer einer EINZELNEN Zeile: zurück auf den Wert, mit dem das Fenster aufging.
+	 *
+	 * ⚠️ Er ist nicht der Abschnitts-Rücksetzer. Der zieht auf die GA-Werte und schreibt sofort;
+	 * dieser hier macht nur die eigene Eingabe rückgängig, ohne Serveraufruf -- und er wirkt auch für
+	 * die elf Landschaften, für die es gar keinen GA-Wert gibt.
+	 *
+	 * 💣 ER STEHT NUR DA, WENN DER WERT ABWEICHT. Fünfundsiebzig dauerhaft sichtbare Knöpfe in einer
+	 * schmalen Spalte sind genau die Vervielfachung, an der die WikiSync-Listen einmal gescheitert
+	 * sind (AGENTS.md §12: eine Zeilenhandlung ist nie die Haupthandlung). Sichtbar wird er über die
+	 * Klasse `is-dirty` an der Zeile, gesetzt beim Tippen. */
+	function tempoUndoCell() {
+		return '<td class="wp-tempo__undocell"><button type="button" class="wp-tempo__undo" '
+			+ 'title="Auf den geladenen Wert zurück" aria-label="Auf den geladenen Wert zurück">↩</button></td>';
+	}
+
 	/* Eine einzelne Zahl ohne Tabelle drumherum -- Name, Eingabe, GA-Wert, was sie bedeutet. */
 	function tempoSingleRow(key, label, rawValue, sourceValue, note) {
 		var ours = Number(rawValue);
@@ -1265,7 +1280,8 @@
 		return "<tr" + (off ? ' class="is-off"' : "") + ">"
 			+ '<th scope="row">' + escapeHtml(label) + "</th>"
 			+ '<td><input type="number" step="0.01" min="0.01" class="wp-tempo__ms" data-key="'
-			+ escapeHtml(key) + '" value="' + ours.toFixed(2) + '"></td>'
+			+ escapeHtml(key) + '" data-loaded="' + ours.toFixed(2) + '" value="' + ours.toFixed(2) + '"></td>'
+			+ tempoUndoCell()
 			+ '<td class="wp-tempo__ga">' + (typeof sourceValue === "number" ? sourceValue.toFixed(2) : "—") + "</td>"
 			+ '<td class="wp-tempo__eff">' + escapeHtml(note) + "</td>"
 			+ "</tr>";
@@ -1291,7 +1307,9 @@
 		return '<tr' + (abweichung ? ' class="is-off"' : "") + ">"
 			+ "<th scope=\"row\">" + escapeHtml(TEMPO_PATH_LABELS[pathType] || pathType) + "</th>"
 			+ '<td><input type="number" step="0.01" min="0.01" class="wp-tempo__in" data-transport="'
-			+ escapeHtml(transport) + '" data-path="' + escapeHtml(pathType) + '" value="' + speed.toFixed(2) + '"></td>'
+			+ escapeHtml(transport) + '" data-path="' + escapeHtml(pathType) + '" data-loaded="'
+			+ speed.toFixed(2) + '" value="' + speed.toFixed(2) + '"></td>'
+			+ tempoUndoCell()
 			+ "<td class=\"wp-tempo__ga\">" + (sourceSpeed !== null ? sourceSpeed.toFixed(2) : "—") + "</td>"
 			+ "<td class=\"wp-tempo__eff\">" + perDay.toFixed(1) + " Mln/Tag</td>"
 			+ "</tr>";
@@ -1305,13 +1323,41 @@
 		var ls = Array.isArray(tempoState.landscapes) ? tempoState.landscapes : [];
 		var html = "";
 
+		// 🔴 GANZ OBEN: findet der A* gerade Boden? Der Lader faellt bei JEDEM Fehler still auf „nichts
+		// bekannt" zurueck, und danach rechnet die Wegfindung die ganze Welt als offenes Gelaende.
+		// Genau das war am 30.07.2026 live der Fall und fiel wochenlang niemandem auf. Deshalb steht
+		// die Antwort hier und nicht in einem Protokoll.
+		var probe = tempoState.terrain_probe || {};
+		var probeText, probeKlasse;
+		if (!probe.checked) {
+			probeText = "Die Landschaftsspalte ist auf dieser Anlage noch nicht angelegt — die "
+				+ "Wegfindung rechnet überall mit offenem Boden.";
+			probeKlasse = "bad";
+		} else if (!probe.known) {
+			probeText = "Die Wegfindung findet KEINE Bodenfaktoren — sie rechnet überall mit offenem "
+				+ "Boden. Entweder trägt keine Landschaftsart einen Wert unter 0,75, oder es ist keine "
+				+ "bremsende Fläche gezeichnet.";
+			probeKlasse = "bad";
+		} else {
+			probeText = "Die Wegfindung findet Bodenfaktoren: " + probe.areas
+				+ (probe.areas === 1 ? " bremsende Fläche" : " bremsende Flächen") + ", geprüft an "
+				+ probe.sample_label + " (bremst " + Number(probe.max_factor).toFixed(2).replace(".", ",")
+				+ "-fach).";
+			probeKlasse = "ok";
+		}
+		html += '<p class="wp-tempo__probe ' + probeKlasse + '">' + escapeHtml(probeText) + "</p>";
+
 		// Abschnitt 1: das Raster. Es IST die Wahrheit (Entwurf §5) -- die zwei Listen darunter sind
 		// Anzeige, nicht Speicher.
 		html += '<div class="wp-tempo__sec"><h3>Raster: Reisemittel × Wegtyp</h3>'
 			+ '<p class="wp-tempo__note">Gespeichert wird genau diese Tabelle. Die Werte sind krumm, weil '
 			+ 'die <i>Geographia Aventurica</i> nie eine Geschwindigkeit nennt, sondern immer eine '
 			+ 'Tagesleistung: <code>Tempo = Tagesleistung × 1,032 × 1,19 ÷ Reisestunden</code>. '
-			+ 'Wer eine Zahl glattzieht, bricht die Zuordnung zur Quelle.</p>';
+			+ 'Wer eine Zahl glattzieht, bricht die Zuordnung zur Quelle.</p>'
+			// ⭐ Zwei Spalten, solange die Breite reicht: elf Gruppen untereinander waren eine
+			// Scrollstrecke, und die Tabellen sind schmal. `auto-fit` faellt am Telefon von selbst
+			// auf eine Spalte zurueck -- keine zweite Umbruchstelle, die jemand pflegen muesste.
+			+ '<div class="wp-tempo__cols">';
 
 		Object.keys(TEMPO_TRANSPORT_LABELS).forEach(function (transport) {
 			var row = values.grid[transport];
@@ -1343,7 +1389,8 @@
 			});
 			html += "</tbody></table></div>";
 		});
-		html += '<button type="button" class="wp-tempo__reset" data-section="path_factors">'
+		html += "</div>"
+			+ '<button type="button" class="wp-tempo__reset" data-section="path_factors">'
 			+ "Alle Wegtypen auf die GA-Werte zurücksetzen</button> "
 			+ '<button type="button" class="wp-tempo__reset" data-section="day_miles">'
 			+ "Alle Tagesleistungen zurücksetzen (auch Wasser)</button></div>";
@@ -1360,8 +1407,15 @@
 			html += '<p class="wp-tempo__note">Die Spalte ist auf dieser Anlage noch nicht angelegt. '
 				+ "Sie entsteht beim ersten Aufruf der Landschaften-Ebene.</p>";
 		} else {
-			html += "<table class=\"wp-tempo__tbl\"><tbody>";
-			ls.forEach(function (row) {
+			// Die Teilung ist inhaltlich, nicht willkuerlich: Topographie ist die FORM des Bodens,
+			// Vegetation seine DECKE -- dieselbe Unterscheidung, an der die Ebenen selbst haengen.
+			// Live sind es genau zehn und zehn.
+			html += '<div class="wp-tempo__cols">';
+			["topographie", "vegetation"].forEach(function (kind) {
+			html += '<div class="wp-tempo__grp"><h4>'
+				+ (kind === "topographie" ? "Topographie — die Form" : "Vegetation — die Decke")
+				+ "</h4><table class=\"wp-tempo__tbl\"><tbody>";
+			ls.filter(function (r) { return r.kind === kind; }).forEach(function (row) {
 				var factor = row.factor === null ? null : Number(row.factor);
 				// 💣 Der GA-Wert ist `null` für die elf ohne Quellenzeile — die Quelle nennt für
 				// Küsten und Flusslandschaften ausdrücklich keinen Faktor. Ein „0,75" hier behauptete
@@ -1375,14 +1429,18 @@
 					+ '<th scope="row">' + escapeHtml(row.label) + "</th>"
 					+ '<td><input type="number" step="0.001" min="0.001" class="wp-tempo__ls" data-kind="'
 					+ escapeHtml(row.kind) + '" data-key="' + escapeHtml(row.type_key) + '" value="'
+					+ (factor === null ? "" : factor.toFixed(3)) + '" data-loaded="'
 					+ (factor === null ? "" : factor.toFixed(3)) + '"></td>'
+					+ tempoUndoCell()
 					+ '<td class="wp-tempo__ga">' + (hatQuelle ? Number(row.source).toFixed(2) : "—") + "</td>"
 					+ '<td class="wp-tempo__eff">'
 					+ (factor === null ? "—" : (roadFoot * factor).toFixed(2) + " Mln/h") + "</td>"
 					+ '<td class="wp-tempo__eff">' + escapeHtml(flaechen) + "</td>"
 					+ "</tr>";
 			});
-			html += "</tbody></table>"
+			html += "</tbody></table></div>";
+			});
+			html += "</div>"
 				+ '<p class="wp-tempo__note">Ein Strich in der GA-Spalte heißt: die <i>Geographia '
 				+ "Aventurica</i> nennt für diese Landschaft keinen Faktor. Diese Zeilen behalten "
 				+ "deinen Wert — der Rücksetzer unten lässt sie stehen.</p>"
@@ -1405,7 +1463,8 @@
 			html += "<tr" + (off ? ' class="is-off"' : "") + ">"
 				+ '<th scope="row">' + escapeHtml(TEMPO_GROUND_LABELS[key]) + "</th>"
 				+ '<td><input type="number" step="0.01" class="wp-tempo__gr" data-key="'
-				+ escapeHtml(key) + '" value="' + ours.toFixed(2) + '"></td>'
+				+ escapeHtml(key) + '" data-loaded="' + ours.toFixed(2) + '" value="' + ours.toFixed(2) + '"></td>'
+				+ tempoUndoCell()
 				+ '<td class="wp-tempo__ga">' + (typeof ga === "number" ? ga.toFixed(2) : "—") + "</td>"
 				+ '<td class="wp-tempo__eff">' + escapeHtml(TEMPO_GROUND_NOTES[key] || "") + "</td>"
 				+ "</tr>";
@@ -1463,8 +1522,30 @@
 			+ "</ul></div>";
 
 		$("wpTempoBody").innerHTML = html;
-		Array.prototype.forEach.call($("wpTempoBody").querySelectorAll(".wp-tempo__reset"), function (btn) {
+		var body = $("wpTempoBody");
+		Array.prototype.forEach.call(body.querySelectorAll(".wp-tempo__reset"), function (btn) {
 			btn.addEventListener("click", function () { resetTempo(btn.getAttribute("data-section")); });
+		});
+
+		// ⭐ EIN Zuhörer am Kasten, nicht fünfundsiebzig an den Feldern. Die Zeile merkt sich ihren
+		// geladenen Wert im Feld selbst (`data-loaded`), also braucht das hier keinen zweiten Zustand.
+		var markiere = function (input) {
+			var row = input.closest("tr");
+			if (!row) { return; }
+			row.classList.toggle("is-dirty", input.value !== input.getAttribute("data-loaded"));
+		};
+		body.addEventListener("input", function (event) {
+			if (event.target && event.target.matches("input[data-loaded]")) { markiere(event.target); }
+		});
+		body.addEventListener("click", function (event) {
+			var btn = event.target && event.target.closest ? event.target.closest(".wp-tempo__undo") : null;
+			if (!btn) { return; }
+			var row = btn.closest("tr");
+			var input = row ? row.querySelector("input[data-loaded]") : null;
+			if (!input) { return; }
+			input.value = input.getAttribute("data-loaded");
+			markiere(input);
+			input.focus();
 		});
 	}
 

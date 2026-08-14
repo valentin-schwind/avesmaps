@@ -54,6 +54,9 @@ try {
             'ok' => true,
             'values' => $values,
             'landscapes' => avesmapsTravelValuesReadLandscapes($pdo),
+            // 🔴 Ein stiller Not-Aus ohne Anzeige ist ein Ausfall (Entwurf §7): die Probe fährt den
+            // echten Lader und sagt, ob der A* gerade überhaupt Bodenfaktoren findet.
+            'terrain_probe' => avesmapsTravelValuesTerrainProbe($pdo),
             'source_table' => avesmapsTravelValuesSourceTable(),
             'deviations' => avesmapsTravelValuesDeviations($values),
         ]);
