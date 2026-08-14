@@ -57,6 +57,8 @@ try {
             // 🔴 Ein stiller Not-Aus ohne Anzeige ist ein Ausfall (Entwurf §7): die Probe fährt den
             // echten Lader und sagt, ob der A* gerade überhaupt Bodenfaktoren findet.
             'terrain_probe' => avesmapsTravelValuesTerrainProbe($pdo),
+            // Die gemessene Seite neben die gerechnete: was die Eichung je Wegtyp sagt.
+            'calibration' => avesmapsTravelValuesCalibrationRows($pdo),
             'source_table' => avesmapsTravelValuesSourceTable(),
             'deviations' => avesmapsTravelValuesDeviations($values),
         ]);
@@ -131,6 +133,13 @@ try {
         'ok' => true,
         'values' => $values,
         'landscapes' => avesmapsTravelValuesReadLandscapes($pdo),
+        // 💣 DIESELBEN SCHLUESSEL WIE OBEN. Das Fenster zeichnet nach jedem Speichern aus DIESER
+        // Antwort neu; fehlte hier `terrain_probe`, fiele die Bodenprobe danach auf ihren Zweig
+        // „Spalte nicht angelegt" -- ein roter Alarm, ausgeloest durch ein erfolgreiches Speichern.
+        // Ein fehlender Schluessel ist im Client kein Fehler, sondern `undefined`, und `undefined`
+        // sieht dort aus wie eine Aussage. Bewacht von js/pages/__tests__/tempowerte-dialog.test.js.
+        'terrain_probe' => avesmapsTravelValuesTerrainProbe($pdo),
+        'calibration' => avesmapsTravelValuesCalibrationRows($pdo),
         'source_table' => avesmapsTravelValuesSourceTable(),
         'deviations' => avesmapsTravelValuesDeviations($values),
     ]);

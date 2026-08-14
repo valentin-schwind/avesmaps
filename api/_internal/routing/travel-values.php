@@ -398,6 +398,98 @@ function avesmapsTravelValuesReadLandscapes(PDO $pdo): array
 }
 
 /**
+ * PURE: was die Eichung je Wegtyp aussagt — gemessener Faktor, wirksamer Faktor, Wegzahlen.
+ *
+ * 🔴 DIE BRÜCKE, DIE BISHER FEHLTE. Die Eichung misst an UNSERER Karte, die Tempowerte stehen auf
+ * der Quelle; beide behaupten dasselbe („eine Fußgruppe schafft 30 Meilen am Tag auf unseren
+ * Straßen"), und niemand prüft, ob das aufgeht. Diese Funktion legt die gemessene Seite neben die
+ * gerechnete, damit das Fenster es zeigen kann.
+ *
+ * 💣 DER PASS TRÄGT ZWEI FAKTOREN. Sein Wegtyp-Faktor 0,4 enthält den Anstieg laut Quelle schon;
+ * ohne den Pass-Ausgleich bremste die Steigungsebene ein zweites Mal. Wer nur den gemessenen liest,
+ * hält ihn für doppelt bestraft — deshalb reisen beide Zahlen mit.
+ *
+ * 🔴 NULL VERMESSENE WEGE IST KEINE MESSUNG, sondern eine Lücke. `effective_factor` ist dann `null`,
+ * nie 1,0: eine 1,0 behauptete ebenes Gelände, wo nur nichts gemessen wurde — dieselbe Regel, wegen
+ * der der Pass-Ausgleich ausdrücklich nur auf vermessene Wege wirkt (44 % der Passstrecke hat kein
+ * Profil).
+ *
+ * @param array<string,int> $totals Wegtyp => wie viele Wege es im Bestand gibt
+ * @return array<string,array{mean_factor:float|null,effective_factor:float|null,measured_ways:int,total_ways:int}>
+ */
+function avesmapsTravelValuesCalibrationBySubtype(?array $calibration, array $totals): array
+{
+    require_once __DIR__ . '/terrain-calibration.php';
+
+    $bySubtype = is_array($calibration['by_subtype'] ?? null) ? $calibration['by_subtype'] : [];
+    $normalizer = avesmapsTerrainPassNormalizer($calibration);
+
+    // Jeder Wegtyp, den entweder der Bestand oder die Eichung kennt — die Zeile soll auch dann
+    // dastehen, wenn nur eine der beiden Seiten von ihr weiß.
+    $keys = array_unique(array_merge(array_keys($totals), array_keys($bySubtype)));
+    sort($keys);
+
+    $rows = [];
+    foreach ($keys as $subtype) {
+        $measured = (int) ($bySubtype[$subtype]['ways'] ?? 0);
+        $mean = $bySubtype[$subtype]['mean_factor'] ?? null;
+        $mean = ($measured > 0 && is_numeric($mean) && (float) $mean > 0.0) ? (float) $mean : null;
+
+        $effective = $mean;
+        if ($mean !== null && $subtype === AVESMAPS_TERRAIN_PASS_SUBTYPE && $normalizer > 0.0) {
+            $effective = $mean / $normalizer;
+        }
+
+        $rows[$subtype] = [
+            'mean_factor' => $mean === null ? null : round($mean, 3),
+            'effective_factor' => $effective === null ? null : round($effective, 3),
+            'measured_ways' => $measured,
+            'total_ways' => (int) ($totals[$subtype] ?? 0),
+        ];
+    }
+
+    return $rows;
+}
+
+/**
+ * Dieselbe Aussage, aus der Datenbank gelesen — Eichung plus Wegzahlen des Bestands.
+ *
+ * ⚠️ Fällt INERT aus: ohne Eichung, ohne Tabelle oder ohne Spalte kommt eine leere Liste, kein 500.
+ * Das Fenster zeigt dann keine Eichungsspalte statt einer Spalte voller Striche.
+ */
+function avesmapsTravelValuesCalibrationRows(PDO $pdo): array
+{
+    require_once __DIR__ . '/terrain-calibration.php';
+
+    try {
+        $calibration = avesmapsTerrainCalibrationRead($pdo);
+    } catch (Throwable) {
+        $calibration = null;
+    }
+
+    // Eine gruppierte Zählung über die Wege — sie beantwortet „35 Wege, keiner mit Höhenprofil",
+    // und ohne sie sagt „nicht vermessen" nicht, ob es den Wegtyp überhaupt gibt.
+    $totals = [];
+    try {
+        $statement = $pdo->query(
+            "SELECT feature_subtype AS s, COUNT(*) AS n
+               FROM map_features
+              WHERE feature_type = 'path' AND feature_subtype IS NOT NULL
+              GROUP BY feature_subtype"
+        );
+        foreach ($statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $totals[(string) $row['s']] = (int) $row['n'];
+        }
+    } catch (Throwable) {
+        $totals = [];
+    }
+
+    if ($calibration === null && $totals === []) { return []; }
+
+    return avesmapsTravelValuesCalibrationBySubtype($calibration, $totals);
+}
+
+/**
  * Findet der A* gerade Bodenfaktoren? — dieselbe Frage, die eine Route stellt, hier direkt gestellt.
  *
  * 🔴 GEGEN DEN STILLEN NOT-AUS. `avesmapsOffroadLoadFactorPlane` fällt bei JEDEM Fehler auf `''`

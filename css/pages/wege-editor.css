@@ -327,7 +327,26 @@
 .wp-tempo__sec { padding-top: var(--space-8); }
 .wp-tempo__sec + .wp-tempo__sec { margin-top: var(--space-8); border-top: 1px solid var(--color-divider); }
 .wp-tempo__sec h3 { margin: 0 0 var(--space-4); font-size: var(--font-size-subhead); color: var(--color-text-strong); }
-.wp-tempo__sec h4 { margin: var(--space-6) 0 var(--space-2); font-size: var(--font-size-caption); color: var(--color-text-strong); }
+/* 💣 Der Gruppenkopf stand auf --font-size-caption (11px) -- dem KLEINSTEN Token im Haus, dem Boden
+   fuer Etiketten und Meta. Damit war der Name des Reisemittels so gross wie die Zahlen darunter, und
+   die Gruppe hatte keinen Kopf, sondern eine weitere Zeile (Owner 14.08.2026).
+   ⚠️ --font-size-reading (14px) und nicht --font-size-subhead (16px): die Abschnittsueberschrift h3
+   steht auf 16, und h4 daneben zu setzen haette die Leiter eingeebnet. Drei Stufen: 16 / 14 / 11. */
+.wp-tempo__sec h4 {
+	margin: var(--space-10) 0 var(--space-3);
+	font-size: var(--font-size-reading);
+	font-weight: var(--font-weight-bold);
+	color: var(--color-text-strong);
+}
+/* Die GA-Angabe bleibt Beiwerk und faellt auf den Meta-Ton zurueck -- sonst waechst sie mit und der
+   Name gewinnt nichts. Eigene Zeile, damit lange Zusaetze den Kopf nicht auseinanderziehen. */
+.wp-tempo__sec h4 .wp-tempo__day {
+	display: block;
+	margin-top: var(--space-1);
+	font-size: var(--font-size-caption);
+	font-weight: normal;
+	color: var(--color-text-muted);
+}
 
 .wp-tempo__note { margin: 0 0 var(--space-6); font-size: var(--font-size-caption); color: var(--color-text-muted); }
 .wp-tempo__note code { font-size: inherit; color: var(--color-text); }
@@ -349,25 +368,99 @@
    eigenen Rot: er sitzt hier auf der weichen Panel-Fläche und muss dort lesbar bleiben. */
 .wp-tempo__tbl tr.is-off .wp-tempo__ga { color: var(--color-warning); }
 
-/* ZWEI Spalten, nicht „so viele wie passen".
-   💣 `repeat(auto-fit, minmax(24rem, 1fr))` sah richtig aus und war es nicht: dieses Fenster fuellt
-   den Bildschirm (`.wp-modal__box` ist 100 % breit), auf einem 1600er Monitor haetten sich VIER
-   Spalten ergeben -- die Tabellen waeren zu Streifen geworden. Gemessen im Vorschaufenster: bei
-   476 px eine Spalte, bei voller Breite vier. Also eine feste Zwei, und unterhalb von 980 px eine. */
+/* EINE Spalte -- seit dem 14.08.2026 wieder.
+   💣 Die Geschichte dieser drei Zeilen ist eine Warnung wert. Erst `repeat(auto-fit, minmax(24rem,
+   1fr))`: sah richtig aus, haette aber auf einem 1600er Monitor VIER Spalten ergeben, weil dieses
+   Fenster den Bildschirm fuellt. Dann eine feste Zwei -- richtig, solange die Tabellen fuenf Spalten
+   hatten. Mit der Eichungsspalte und den Kopfzeilen sind es sechs plus Kopf, und zwei davon
+   nebeneinander sind wieder zu eng (Owner 14.08.: „du kannst jetzt von 2 spalten wieder auf eine").
+   ⚠️ Die Huelle BLEIBT: sie traegt die Gruppierung der Landschaften (Topographie / Vegetation), die
+   jetzt eben untereinander stehen statt nebeneinander. Ohne sie muesste die Aufteilung im JS zurueck. */
 .wp-tempo__cols {
 	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 0 var(--space-8);
+	grid-template-columns: minmax(0, 1fr);
+	gap: 0;
 	align-items: start;
-}
-@media (max-width: 980px) {
-	.wp-tempo__cols { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Alle VIER Eingabesorten gleich breit. 💣 Bis zum 14.08.2026 stand hier nur `.wp-tempo__in`, also
    bekamen die Landschaften, der Boden und die beiden Einzelwerte die Vorgabebreite des Browsers --
    in derselben Tabellenspalte, direkt untereinander. Aufgefallen ist es nicht am Hinsehen, sondern
    an der Zusicherung „jede Klasse im Fenster hat eine Regel". */
+
+/* ---- Spaltenbeschriftungen -------------------------------------------------------------------
+   ⭐ Jede Gruppe ist eine EIGENE Tabelle, also traegt jede ihren eigenen Kopf. Genau deshalb zaehlt
+   `scope="col"` hier und ist kein Zierat: ohne ihn liest ein Screenreader elf kopflose Zahlenbloecke.
+   Der Kopf bleibt leise -- er benennt die Spalte und streitet nicht mit dem Gruppennamen darueber. */
+.wp-tempo__tbl thead th {
+	padding-top: 0;
+	padding-bottom: var(--space-2);
+	font-weight: normal;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+	border-bottom: 1px solid var(--color-divider);
+	text-align: left;
+	white-space: nowrap;
+}
+/* Die erste Datenzeile bringt ihre eigene Linie mit -- zwei uebereinander waeren ein Kasten, und
+   gruppiert wird hier durch EINE Linie (AGENTS.md §12). */
+.wp-tempo__tbl thead + tbody tr:first-child th,
+.wp-tempo__tbl thead + tbody tr:first-child td { border-top: none; }
+
+/* 💣 Die Hausregel fuer visuell versteckten Text steht in css/base/utilities.css -- die Datei wird
+   aber von KEINER Seite geladen (geprueft 14.08.2026). Deshalb steht sie hier, statt ein `<link>`
+   auf eine tote Datei zu setzen. In 1,75 rem passt kein Spaltenname, aber eine namenlose Spalte
+   zwischen zwei benannten ist fuer einen Screenreader eine Luecke. */
+.wp-tempo__sronly {
+	position: absolute;
+	width: 1px; height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+
+/* ---- „auf unseren Wegen": die gemessene Seite neben der gerechneten -------------------------- */
+.wp-tempo__real { white-space: nowrap; color: var(--color-text); }
+.wp-tempo__real b { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+.wp-tempo__proof { display: block; font-size: var(--font-size-caption);
+	color: var(--color-text-muted); white-space: normal; }
+/* 🔴 „nicht vermessen" ist KEINE 1,0 -- 44 % der Passstrecke hat kein Hoehenprofil. */
+.wp-tempo__real.is-unknown { color: var(--color-text-muted); font-style: italic; }
+.wp-tempo__tbl tr.is-anchor th { color: var(--color-accent-strong); }
+/* 💣 MIT dem Element davor: `.wp-tempo__real b` (0,1,1) schlaegt `.wp-tempo__check` (0,1,0), und der
+   Erfolgston kaeme sonst nie durch -- beim Mockup war genau das der Fall. */
+.wp-tempo__real b.wp-tempo__check { color: var(--color-success); }
+.wp-tempo__real b.wp-tempo__check.is-off { color: var(--color-danger); }
+
+/* ---- Die Legende -----------------------------------------------------------------------------
+   ⭐ Sie nennt ALLE Zustaende, auch die, die gerade nicht vorkommen. Eine Legende, die nur zeigt, was
+   zufaellig auf dem Schirm ist, fehlt genau dann, wenn sie gebraucht wird. */
+.wp-tempo__legend {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+	gap: var(--space-4) var(--space-8);
+	margin: 0 0 var(--space-10);
+	padding: var(--space-6) var(--space-8);
+	border: 1px solid var(--color-divider);
+	border-radius: var(--radius-md);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+	line-height: var(--leading-normal);
+}
+.wp-tempo__legend > div { min-width: 0; }
+/* Die Probe zeigt die ECHTE typografische Behandlung, keinen Farbpunkt daneben: so, wie es in der
+   Zeile aussieht, erkennt man es in der Zeile wieder. */
+.wp-tempo__legend samp {
+	font-family: inherit;
+	font-weight: var(--font-weight-bold);
+	font-size: var(--font-size-body);
+}
+.wp-tempo__legend samp.is-value { color: var(--color-accent-strong); }
+.wp-tempo__legend samp.is-ok { color: var(--color-success); }
+.wp-tempo__legend samp.is-bad { color: var(--color-danger); }
+.wp-tempo__legend samp.is-warn { color: var(--color-warning); font-weight: normal; }
+.wp-tempo__legend samp.is-unknown { color: var(--color-text-muted); font-style: italic; font-weight: normal; }
+
 .wp-tempo__in,
 .wp-tempo__ls,
 .wp-tempo__gr,

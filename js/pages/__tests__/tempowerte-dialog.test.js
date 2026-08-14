@@ -185,6 +185,31 @@ klassen.forEach((klasse) => {
 	);
 });
 
+// ---- 3f. BEIDE Antworten des Endpunkts tragen dieselben Schluessel -----------------------------
+
+// 💣 GEMESSEN AM EIGENEN FEHLER (14.08.2026). Der Endpunkt antwortet an ZWEI Stellen: auf `get` und
+// nach `save`/`reset`. Die zweite hatte `terrain_probe` nicht — und weil das Fenster nach jedem
+// Speichern aus derselben Antwort neu zeichnet, waere die Bodenprobe danach auf den Zweig
+// „Spalte nicht angelegt" gefallen: ein ROTER Alarm, ausgeloest durch ein erfolgreiches Speichern.
+// Ein fehlender Schluessel ist im Client kein Fehler, sondern `undefined` -- und `undefined` sieht
+// hier aus wie eine echte Aussage.
+{
+	const bloecke = [...endpoint.matchAll(/avesmapsJsonResponse\(200, \[([\s\S]*?)\n\s*\]\);/g)]
+		.map((m) => m[1]);
+	assert.strictEqual(bloecke.length, 2, "der Endpunkt antwortet an genau zwei Stellen mit 200");
+	const schluessel = bloecke.map((b) =>
+		[...b.matchAll(/'([a-z_]+)' =>/g)].map((m) => m[1]).sort());
+	assert.deepStrictEqual(
+		schluessel[0], schluessel[1],
+		"beide Antworten tragen dieselben Schluessel — sonst zeichnet das Fenster nach dem Speichern "
+		+ "aus einer aermeren Antwort neu:\n  get:  " + schluessel[0].join(", ")
+		+ "\n  save: " + schluessel[1].join(", ")
+	);
+	["values", "landscapes", "terrain_probe", "calibration", "source_table", "deviations"].forEach((k) => {
+		assert.ok(schluessel[0].includes(k), `beide Antworten tragen \`${k}\``);
+	});
+}
+
 // ---- 4. Alle sechs Abschnitte des Entwurfs stehen im Fenster ------------------------------------
 
 // §4: Tagesleistung + Wegtypen (das Raster), Landschaften, Boden, Fluss und Eichung, Befund, Gesperrt.

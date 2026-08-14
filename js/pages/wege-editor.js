@@ -1343,7 +1343,65 @@
 	/* Eine Zeile des Rasters: Name · unser Wert (Eingabe) · GA-Wert · die Wirkung.
 	 * ⚠️ Die Wirkung steht daneben, weil eine Zahl ohne ihre Folge keine Entscheidung erlaubt --
 	 * „0,96" sagt niemandem etwas, „0,96 Meilen/h, 11,5 Meilen am Reisetag" schon. */
-	function tempoGridRow(transport, pathType, rawSpeed, sourceSpeed, hours) {
+	/* Die Eichungs-Zelle: was auf UNSEREN gezeichneten Wegen dieses Typs herauskommt.
+	 *
+	 * 🔴 Sie legt die GEMESSENE Seite neben die gerechnete. Die Papierspalte daneben sagt, was die
+	 * Formel ergibt; diese sagt, was die Karte daraus macht -- und die Straßenzeile muss dabei genau
+	 * die GA-Tagesleistung ihres Reisemittels treffen. Tut sie das nicht, passt `mean_G` im Code
+	 * nicht mehr zum gemessenen Mittel der Straßen, und das faellt an sechs Zeilen gleichzeitig auf.
+	 *
+	 * ⚠️ `null` heisst NICHT VERMESSEN, nie 1,0. Eine 1,0 behauptete ebenes Gelände, wo nur nichts
+	 * gemessen wurde -- 44 % der Passstrecke hat kein Höhenprofil. */
+	function tempoCalibrationCell(pathType, perDay, gaDayMiles, isAnchor) {
+		var e = (tempoState && tempoState.calibration || {})[pathType];
+		if (!e || e.effective_factor === null || e.effective_factor === undefined) {
+			var grund = !e || !e.total_ways
+				? "kein gezeichneter Weg dieser Art"
+				: e.total_ways + " Wege, keiner mit Höhenprofil";
+			return '<td class="wp-tempo__real is-unknown">nicht vermessen'
+				+ '<span class="wp-tempo__proof">' + escapeHtml(grund) + "</span></td>";
+		}
+		var real = perDay / Number(e.effective_factor);
+		var beleg = "gemessen ×" + num(e.mean_factor, 3);
+		// 💣 BEIM PASS BEIDE FAKTOREN. Sein Wegtyp-Faktor 0,4 enthält den Anstieg laut Quelle schon;
+		// wer nur den gemessenen liest, hält ihn für doppelt bestraft.
+		if (Math.abs(Number(e.mean_factor) - Number(e.effective_factor)) >= 0.0005) {
+			beleg += " · nach Pass-Ausgleich ×" + num(e.effective_factor, 3);
+		}
+		beleg += " · " + e.measured_ways + (e.total_ways ? " von " + e.total_ways : "") + " Wegen vermessen";
+		var wert = num(real, 1);
+		if (isAnchor && gaDayMiles) {
+			var trifft = Math.abs(real - gaDayMiles) < 0.05;
+			beleg += trifft ? " · trifft die GA-Tagesleistung ✓" : " · verfehlt die GA-Tagesleistung " + num(gaDayMiles, 1);
+			// ⚠️ Die Klasse VOR dem Einsetzen fertig bauen, nicht im Attribut zusammenkleben. Wird sie
+			// dort aus zwei Stuecken geklebt, endet das Attribut im Quelltext mitten in einer
+			// JS-Zeichenkette -- und keine Suche nach Klassennamen findet sie mehr. Der Waechter
+			// „jede Klasse im Fenster hat eine CSS-Regel" lief genau darauf auf.
+			var klasse = trifft ? "wp-tempo__check" : "wp-tempo__check is-off";
+			wert = '<b class="' + klasse + '">' + wert + "</b>";
+		} else {
+			wert = "<b>" + wert + "</b>";
+		}
+		return '<td class="wp-tempo__real">' + wert + " Mln/Tag<span class=\"wp-tempo__proof\">"
+			+ escapeHtml(beleg) + "</span></td>";
+	}
+
+	/* Der Kopf einer Gruppentabelle. ⭐ Jede Gruppe ist eine EIGENE Tabelle, also braucht jede ihren
+	 * eigenen Kopf -- sonst stünde eine Gruppe ohne da. Genau deshalb zählt `scope="col"` hier.
+	 * ⚠️ Die Spalte des Zeilen-Rücksetzers bekommt einen VERSTECKTEN Namen: in 1,75 rem passt kein
+	 * Wort, aber ein Screenreader liest sonst eine namenlose Spalte zwischen zwei benannten. */
+	function tempoHead(mitEichung) {
+		return "<thead><tr>"
+			+ '<th scope="col">Wegtyp</th>'
+			+ '<th scope="col">unser Wert</th>'
+			+ '<th scope="col"><span class="wp-tempo__sronly">zurücksetzen</span></th>'
+			+ '<th scope="col">GA</th>'
+			+ '<th scope="col">auf dem Papier</th>'
+			+ (mitEichung ? '<th scope="col">auf unseren Wegen</th>' : "")
+			+ "</tr></thead>";
+	}
+
+	function tempoGridRow(transport, pathType, rawSpeed, sourceSpeed, hours, isLand, gaDayMiles) {
 		// ⚠️ Durch Number() statt roh ins Attribut: der Wert kommt zwar aus der eigenen Antwort und
 		// hat dort schon ein round() gesehen, aber ein Zahlenfeld, das eine Zeichenkette einsetzt,
 		// ist genau die Stelle, an der später jemand ein Anführungszeichen unterbringt.
@@ -1351,7 +1409,8 @@
 		if (!isFinite(speed)) { speed = 0; }
 		var perDay = speed * hours / 1.19;
 		var abweichung = (sourceSpeed !== null && Math.abs(speed - sourceSpeed) >= 0.005);
-		return '<tr' + (abweichung ? ' class="is-off"' : "") + ">"
+		var klassen = (abweichung ? "is-off" : "") + (isLand && pathType === "Strasse" ? " is-anchor" : "");
+		return "<tr" + (klassen.trim() ? ' class="' + klassen.trim() + '"' : "") + ">"
 			+ "<th scope=\"row\">" + escapeHtml(TEMPO_PATH_LABELS[pathType] || pathType) + "</th>"
 			+ '<td><input type="number" step="0.01" min="0.01" class="wp-tempo__in" data-transport="'
 			+ escapeHtml(transport) + '" data-path="' + escapeHtml(pathType) + '" data-loaded="'
@@ -1360,6 +1419,7 @@
 			+ tempoUndoCell()
 			+ "<td class=\"wp-tempo__ga\">" + (sourceSpeed !== null ? num(sourceSpeed, 2) : "—") + "</td>"
 			+ "<td class=\"wp-tempo__eff\">" + num(perDay, 1) + " Mln/Tag</td>"
+			+ (isLand ? tempoCalibrationCell(pathType, perDay, gaDayMiles, pathType === "Strasse") : "")
 			+ "</tr>";
 	}
 
@@ -1394,6 +1454,31 @@
 		}
 		html += '<p class="wp-tempo__probe ' + probeKlasse + '">' + escapeHtml(probeText) + "</p>";
 
+		// Die Legende. ⭐ Sie nennt ALLE Zustände, auch die, die gerade nicht vorkommen -- eine
+		// Legende, die nur zeigt, was zufällig auf dem Schirm ist, fehlt genau dann, wenn sie
+		// gebraucht wird: beim ersten Mal, dass etwas rot wird.
+		// ⭐ Und sie sagt den Unterschied: GOLD ist Betonung (die Zahl, um die es geht), GRÜN und ROT
+		// sind ein URTEIL. Ohne diesen Satz liest sich Gold wie ein dritter Status -- es ist aber der
+		// Hausakzent und heißt überall sonst „hier hinsehen", nicht „in Ordnung".
+		html += '<div class="wp-tempo__legend">'
+			+ '<div><samp class="is-value">23,4</samp> — <b>Gold ist Betonung, kein Urteil:</b> das '
+			+ "Ergebnis, das die Eichung für diese Zeile ergibt.</div>"
+			+ '<div><samp class="is-ok">30,0</samp> — <b>Grün: die Rechnung geht auf.</b> Die '
+			+ "Straßenzeile trifft die GA-Tagesleistung ihres Reisemittels. Nur die Straßenzeilen "
+			+ "tragen dieses Urteil.</div>"
+			+ '<div><samp class="is-bad">29,2</samp> — <b>Rot: sie geht nicht auf.</b> <code>mean_G</code> '
+			+ "im Code passt nicht mehr zum gemessenen Mittel der Straßen.</div>"
+			+ '<div><samp class="is-warn">1,10</samp> — <b>Warnton in der GA-Spalte:</b> unser Wert '
+			+ "weicht von der Quelle ab. Kein Urteil über richtig oder falsch — nur, dass hier jemand "
+			+ "bewusst anders entschieden hat.</div>"
+			+ '<div><button type="button" class="wp-tempo__undo" style="visibility:visible" tabindex="-1">↩</button>'
+			+ " — <b>erscheint nur an einer geänderten Zeile.</b> Er nimmt die eigene Eingabe zurück, "
+			+ "ohne Serveraufruf — auch dort, wo es gar keinen GA-Wert gibt.</div>"
+			+ '<div><samp class="is-unknown">nicht vermessen</samp> — kein Höhenprofil, also <b>keine '
+			+ "Aussage</b>. Ausdrücklich keine 1,0: das hieße ebenes Gelände, wo nur nichts gemessen "
+			+ "wurde.</div>"
+			+ "</div>";
+
 		// Abschnitt 1: das Raster. Es IST die Wahrheit (Entwurf §5) -- die zwei Listen darunter sind
 		// Anzeige, nicht Speicher.
 		html += '<div class="wp-tempo__sec"><h3>Raster: Reisemittel × Wegtyp</h3>'
@@ -1417,7 +1502,7 @@
 				+ ' <span class="wp-tempo__day">GA: ' + dayMiles + " Meilen/Tag"
 				+ (transport === "fastShip" ? ", fährt nachts durch" : "")
 				+ (transport === "groupHorse" ? " — Tabelle S. 123; der Fließtext S. 118 sagt 40, die Quelle löst es nicht auf" : "")
-				+ "</span></h4><table class=\"wp-tempo__tbl\"><tbody>";
+				+ "</span></h4><table class=\"wp-tempo__tbl\">" + tempoHead(isLand) + "<tbody>";
 			Object.keys(row).forEach(function (pathType) {
 				var gaFactor = src.path_factors[pathType];
 				var gaSpeed = null;
@@ -1432,7 +1517,7 @@
 				} else if (!isLand) {
 					gaSpeed = road;
 				}
-				html += tempoGridRow(transport, pathType, row[pathType], gaSpeed, hours);
+				html += tempoGridRow(transport, pathType, row[pathType], gaSpeed, hours, isLand, dayMiles);
 			});
 			html += "</tbody></table></div>";
 		});
@@ -1461,7 +1546,11 @@
 			["topographie", "vegetation"].forEach(function (kind) {
 			html += '<div class="wp-tempo__grp"><h4>'
 				+ (kind === "topographie" ? "Topographie — die Form" : "Vegetation — die Decke")
-				+ "</h4><table class=\"wp-tempo__tbl\"><tbody>";
+				+ '</h4><table class="wp-tempo__tbl"><thead><tr>'
+				+ '<th scope="col">Landschaft</th><th scope="col">unser Wert</th>'
+				+ '<th scope="col"><span class="wp-tempo__sronly">zurücksetzen</span></th>'
+				+ '<th scope="col">GA</th><th scope="col">Wirkung</th><th scope="col">Flächen</th>'
+				+ "</tr></thead><tbody>";
 			ls.filter(function (r) { return r.kind === kind; }).forEach(function (row) {
 				var factor = row.factor === null ? null : Number(row.factor);
 				// 💣 Der GA-Wert ist `null` für die elf ohne Quellenzeile — die Quelle nennt für
@@ -1502,7 +1591,11 @@
 			+ '<p class="wp-tempo__note">Abzüge auf den Bodenfaktor, wenn der Untergrund nachgibt '
 			+ "(GA S. 122 f.). Sie sind <b>negativ</b> — ein positiver Wert wäre Rückenwind und wird "
 			+ "abgelehnt. Die <b>Untergrenze</b> ist die Ausnahme: unter sie drückt kein Abzug.</p>"
-			+ "<table class=\"wp-tempo__tbl\"><tbody>";
+			+ '<table class="wp-tempo__tbl"><thead><tr>'
+			+ '<th scope="col">Bodenzustand</th><th scope="col">unser Wert</th>'
+			+ '<th scope="col"><span class="wp-tempo__sronly">zurücksetzen</span></th>'
+			+ '<th scope="col">GA</th><th scope="col">was er bewirkt</th>'
+			+ "</tr></thead><tbody>";
 		Object.keys(TEMPO_GROUND_LABELS).forEach(function (key) {
 			if (!(key in (values.ground_penalties || {}))) { return; }
 			var ours = Number(values.ground_penalties[key]);
@@ -1528,7 +1621,11 @@
 		// Abschnitt 4: Fluss und Eichung.
 		html += '<div class="wp-tempo__sec"><h3>Fluss und Eichung</h3>'
 			+ '<p class="wp-tempo__note">Zwei Zahlen, die keine Tabelle brauchen.</p>'
-			+ "<table class=\"wp-tempo__tbl\"><tbody>"
+			+ '<table class="wp-tempo__tbl"><thead><tr>'
+			+ '<th scope="col">Wert</th><th scope="col">unser Wert</th>'
+			+ '<th scope="col"><span class="wp-tempo__sronly">zurücksetzen</span></th>'
+			+ '<th scope="col">GA</th><th scope="col">was er bedeutet</th>'
+			+ "</tr></thead><tbody>"
 			+ tempoSingleRow("river_ratio", "stromauf : stromab", values.river_ratio, src.river_ratio,
 				"stromauf dauert " + num(values.river_ratio, 2) + "-mal so lange (S. 129)")
 			+ tempoSingleRow("calibration_target_miles", "Eichziel Fußgruppe auf der Straße",

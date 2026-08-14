@@ -624,4 +624,57 @@ $kaputt = avesmapsTravelValuesTerrainProbe($ohneSpalte);
 assert($kaputt['checked'] === false, 'ohne Spalte gibt es nichts zu pruefen');
 assert($kaputt['known'] === false, 'und schon gar nichts zu behaupten');
 
-echo "terrain-speed-factor-test: A (Maszstab) + B (Plan) + C (Migration) + D (Reihenfolge) + E (Lader) + F (Ablageform) + G (Speicherbreite) + H (Landschaften) + I (Annahme) + J (Bodenprobe) bestanden\n";
+// ============================================================ K. Was die Eichung je Wegtyp sagt
+
+// 🔴 DIE BRUECKE, DIE BISHER FEHLTE. Die Eichung misst an UNSERER Karte, die Tempowerte stehen auf
+// der Quelle -- beide behaupten „eine Fussgruppe schafft 30 Meilen am Tag auf unseren Strassen",
+// und niemand prueft, ob das aufgeht. Diese Funktion legt die gemessene Seite neben die gerechnete.
+
+$eichung = [
+    'by_subtype' => [
+        'Strasse'       => ['mean_factor' => 1.032, 'ways' => 431, 'relative_to_reference' => 1.0],
+        'Reichsstrasse' => ['mean_factor' => 1.021, 'ways' => 148, 'relative_to_reference' => 0.9893],
+        'Gebirgspass'   => ['mean_factor' => 1.326, 'ways' => 113, 'relative_to_reference' => 1.2849],
+        'Wuestenpfad'   => ['mean_factor' => 1.100, 'ways' => 0,   'relative_to_reference' => 1.066],
+    ],
+    'mean_reference_factor' => 1.032,
+];
+$gesamt = ['Strasse' => 1026, 'Reichsstrasse' => 352, 'Gebirgspass' => 201, 'Wuestenpfad' => 35, 'Pfad' => 1557];
+
+$eich = avesmapsTravelValuesCalibrationBySubtype($eichung, $gesamt);
+
+// --- K1. Ein gewoehnlicher Wegtyp: gemessener und wirksamer Faktor sind derselbe.
+assert($nah($eich['Reichsstrasse']['mean_factor'], 1.021, 0.0005), 'Reichsstrasse gemessen');
+assert($nah($eich['Reichsstrasse']['effective_factor'], 1.021, 0.0005), 'und wirksam dasselbe');
+assert($eich['Reichsstrasse']['measured_ways'] === 148, 'vermessene Wege');
+assert($eich['Reichsstrasse']['total_ways'] === 352, 'und wie viele es ueberhaupt gibt');
+
+// --- K2. 💣 DER PASS TRAEGT ZWEI FAKTOREN, und beide gehoeren angezeigt. Der Wegtyp-Faktor 0,4
+// enthaelt den Anstieg laut Quelle schon; ohne den Pass-Ausgleich braemste die Steigungsebene ein
+// zweites Mal. Wer nur den gemessenen liest, haelt den Pass fuer doppelt bestraft.
+assert($nah($eich['Gebirgspass']['mean_factor'], 1.326, 0.0005), 'Pass gemessen 1,326');
+assert($nah($eich['Gebirgspass']['effective_factor'], 1.032, 0.002),
+    'nach dem Ausgleich bleibt der Strassenmittelwert uebrig: ' . $eich['Gebirgspass']['effective_factor']);
+
+// --- K3. 🔴 NULL VERMESSENE WEGE IST KEINE MESSUNG. Der Wuestenpfad traegt zwar eine Zeile, aber
+// keinen einzigen vermessenen Weg -- ein Faktor daraus waere aus dem Nichts gerechnet.
+assert($eich['Wuestenpfad']['effective_factor'] === null,
+    'ohne vermessenen Weg gibt es keinen Faktor');
+assert($eich['Wuestenpfad']['total_ways'] === 35, 'die Gesamtzahl steht trotzdem da');
+
+// --- K4. Ein Wegtyp ohne Eichungszeile taucht mit seiner Gesamtzahl auf, ohne Faktor.
+assert(isset($eich['Pfad']), 'der Pfad fehlt der Eichung, nicht dem Bestand');
+assert($eich['Pfad']['effective_factor'] === null, 'und hat deshalb keinen Faktor');
+assert($eich['Pfad']['total_ways'] === 1557, 'aber seine Wegzahl');
+
+// --- K5. Ohne Eichung ueberhaupt: nur die Bestandszahlen, keine erfundene 1,0.
+$ohne = avesmapsTravelValuesCalibrationBySubtype(null, $gesamt);
+assert(count($ohne) === count($gesamt), 'alle Wegtypen des Bestands sind da');
+foreach ($ohne as $typ => $zeile) {
+    assert($zeile['effective_factor'] === null, "$typ hat ohne Eichung keinen Faktor");
+    assert($zeile['measured_ways'] === 0, "$typ hat ohne Eichung keine vermessenen Wege");
+}
+// 💣 Und gar nichts liefert gar nichts -- keine Zeile mit Nullen, die wie eine Messung aussaehe.
+assert(avesmapsTravelValuesCalibrationBySubtype(null, []) === [], 'ohne alles: leer');
+
+echo "terrain-speed-factor-test: A (Maszstab) + B (Plan) + C (Migration) + D (Reihenfolge) + E (Lader) + F (Ablageform) + G (Speicherbreite) + H (Landschaften) + I (Annahme) + J (Bodenprobe) + K (Eichung je Wegtyp) bestanden\n";
