@@ -116,7 +116,7 @@ $layers = [
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
          or either script changes, or admins keep the cached files. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260814-svgexport" />
+    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260814-svgexport-2" />
 </head>
 
 <body class="edit-page">
@@ -241,8 +241,8 @@ $layers = [
                 </table>
             </section>
         </main>
-        <script src="../js/pages/svg-export-build.js?v=20260814-svgexport"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260814-svgexport"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260814-svgexport-2"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260814-svgexport-2"></script>
     <?php endif; ?>
 </body>
 
