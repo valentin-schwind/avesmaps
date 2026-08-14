@@ -455,6 +455,15 @@ body.avm-editor-body {
 	border: 1px solid transparent;
 	border-radius: var(--radius-md);
 	cursor: pointer;
+	/* ⚠️ Literatur- und Karteneditor rendern ihre Zeilen als <button> (Tastaturbedienung, die
+	   nicht verlorengehen darf). Ohne diese fünf Zeilen bringt der Knopf Systemschrift, grauen
+	   Grund, eigenen Rahmen und Zentrierung mit. Auf einem <div> sind sie wirkungslos — Wege- und
+	   Landschaften-Editor merken davon nichts. */
+	width: 100%;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
 }
 
 .avm-row:hover { background: var(--color-hover-wash); }

@@ -171,8 +171,11 @@
      --radius-sm/-md -- damit Abenteuer sich nicht um einen Pixel von ihnen unterscheidet. Der
      fruehere negative Aussenrand (Fokusring-Trick) entfaellt: mit sichtbarer Kante muss der Rand
      genau sitzen, die 4px Innenpolsterung liefert jetzt der Kasten. */
-  .ae-list__scroll { flex: 1 1 auto; overflow: auto; min-height: 0;
-    background: var(--color-panel); border: 1px solid var(--color-border); border-radius: 6px; padding: var(--space-2); }
+  /* 💣 Rahmen, Radius und eigene Fläche sind am 14.08.2026 entfallen (der Radius stand ohnehin als
+     hartes 6px statt auf einem Token). Sie waren dasselbe Merkmal, das im Panel Literatur, Karten
+     und Vorkommen wie ein anderes Programm aussehen liess. AGENTS.md §12: gruppiert wird per
+     Trennlinie, nicht per Rahmen. */
+  .ae-list__scroll { flex: 1 1 auto; overflow: auto; min-height: 0; padding: var(--space-2); }
 
   /* ---- list filters (Typ / DSA-Version / Jahr / Cover / F-Shop / Region / Ort) ----------------- */
   /* Nur noch das Raster -- Rahmen, Grund, Radius und Schatten kommen jetzt von .type-filter__menu.
@@ -209,13 +212,11 @@
 
   /* Schwebende, gerundete Zeile wie .se-row im Vorbild -- Polsterung 4/6, Auswahl am Rahmen in
      --color-accent (vorher --color-border-strong, was gegen den Grund kaum zu sehen war). */
-  .ae-item {
-    display: flex; align-items: center; gap: var(--space-8); width: 100%; text-align: left; cursor: pointer; font: inherit;
-    background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
-    padding: var(--avm-row-pad); margin-bottom: 1px; line-height: var(--leading-tight);
-  }
-  .ae-item:hover { background: var(--color-hover-wash); }
-  .ae-item.is-selected { background: var(--color-active-wash); border-color: var(--color-accent); }
+  /* 💣 Hier stand .ae-item — die vierte Abschrift von .avm-row (css/components/editor-page.css),
+     die diese Seite ohnehin lädt, und wortgleicher Zwilling von .ce-item im Karteneditor. Es sind
+     dieselben zwei Subjekte, die auch im WikiSync-Panel ausgeschert sind. Entfernt am 14.08.2026.
+     Gewacht von js/pages/__tests__/editor-row-single-source.test.js.
+     Es bleibt NUR das Cover, das .avm-row nicht kennt: */
   .ae-item__thumb {
     flex: 0 0 auto; width: 32px; height: 45px; border: 1px solid var(--color-border);
     border-radius: var(--radius-sm); overflow: hidden; background: var(--color-panel-muted);
@@ -223,13 +224,12 @@
   }
   .ae-item__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .ae-item__thumb svg { width: 14px; height: 14px; }
-  .ae-item__text { min-width: 0; flex: 1 1 auto; }
-  .ae-item__l1 { display: flex; align-items: baseline; gap: var(--space-6); }
-  .ae-item__title { font-weight: var(--font-weight-bold); color: var(--color-text-strong);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ae-item__l2 { display: flex; align-items: center; gap: var(--space-6); margin-top: 1px;
-    font-size: var(--font-size-caption); color: var(--color-text-muted); }
-  .ae-item.is-draft .ae-item__title { color: var(--color-text-muted); font-style: italic; }
+  /* Die vier Innenregeln der Zeile (Textspalte, erste Zeile, Titel, zweite Zeile) sind entfallen —
+     Breite, Ausrichtung, Gewicht, Schriftgrösse und Farbe kommen jetzt aus den geteilten
+     .avm-row-Regeln. Sie zu BENENNEN statt zu löschen hätte örtliche Regeln unter dem geteilten
+     Namen erzeugt, die die geteilten überschatten: dieselbe Abschrift, nur mit neuem Etikett. */
+  /* Der Entwurfs-Zustand bleibt eigen: .avm-row kennt kein "noch nicht freigegeben". */
+  .avm-row.is-draft .avm-row__name { color: var(--color-text-muted); font-style: italic; }
   .ae-empty { color: var(--color-text-muted); padding: var(--space-8); }
 
   /* ---- detail column (layout C: head on top, Stammdaten | Orte side by side) ------------------- */
@@ -786,11 +786,11 @@
       const thumb = a.cover_url
         ? `<img src="${aeEscape(a.cover_url)}" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode(''))">`
         : AE_COVER_PH_SVG;
-      return `<button class="ae-item${a.public_id === state.selectedId ? " is-selected" : ""}${draft ? " is-draft" : ""}" data-id="${aeEscape(a.public_id)}">
+      return `<button class="avm-row${a.public_id === state.selectedId ? " is-selected" : ""}${draft ? " is-draft" : ""}" data-id="${aeEscape(a.public_id)}">
         <span class="ae-item__thumb">${thumb}</span>
-        <span class="ae-item__text">
-          <span class="ae-item__l1"><span class="ae-item__title">${aeEscape(a.title)}</span></span>
-          <span class="ae-item__l2"><span class="pill pill--kind">${aeEscape(PRODUCT_TYPE_LABEL[a.product_type] || a.product_type)}</span> ${aeEscape(a.bf_label || "—")} · ${a.place_count || 0} Orte${manual}</span>
+        <span class="avm-row__text">
+          <span class="avm-row__l1"><span class="avm-row__name">${aeEscape(a.title)}</span></span>
+          <span class="avm-row__l2"><span class="pill pill--kind">${aeEscape(PRODUCT_TYPE_LABEL[a.product_type] || a.product_type)}</span> ${aeEscape(a.bf_label || "—")} · ${a.place_count || 0} Orte${manual}</span>
         </span></button>`;
     }).join("") : `<p class="ae-empty">Keine Literatur.</p>`;
   }
@@ -1287,7 +1287,7 @@
   });
 
   document.getElementById("aeListScroll").addEventListener("click", (e) => {
-    const b = e.target.closest(".ae-item"); if (!b) return;
+    const b = e.target.closest(".avm-row"); if (!b) return;
     selectGameLiterature(b.dataset.id);
   });
 

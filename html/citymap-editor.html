@@ -202,28 +202,20 @@
   /* Gerahmter Scrollkasten wie #seList im Siedlungseditor (Vorbild): helleres --color-panel auf dem
      dunkleren Seitengrund, 1px-Kante, --radius-sm (die "panel shell"-Stufe). Das ist die warme
      Schichtung, an der die drei Spalten als eingefasste Flaechen lesbar werden statt flach zu laufen. */
-  .ce-list__scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-2); }
+  /* 💣 Rahmen, Radius und eigene Fläche sind am 14.08.2026 entfallen — siehe
+     game-literature-editor.html, dieselbe Änderung. AGENTS.md §12: gruppiert wird per Trennlinie,
+     nicht per Rahmen. */
+  .ce-list__scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; padding: var(--space-2); }
   /* Schwebende, gerundete Zeile wie .se-row im Vorbild und .ae-item im Abenteuer-Editor. Vorher
      randlos mit Trennlinie unten -- das war der auffaelligste Unterschied der beiden Editoren
      nebeneinander (Spec §3.1a). Der transparente Rahmen haelt die Zeile beim Auswaehlen ruhig:
      er ist immer da und wechselt nur die Farbe, sonst wuerde die Zeile um 2px springen. */
-  .ce-item {
-    display: flex;
-    gap: var(--space-8);
-    width: 100%;
-    padding: var(--avm-row-pad);
-    margin-bottom: 1px;
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-  .ce-item:hover { background: var(--color-hover-wash); }
-  .ce-item.is-selected { background: var(--color-active-wash); border-color: var(--color-accent); }
-  .ce-item.is-draft .ce-item__title { opacity: 0.6; font-style: italic; }
+  /* 💣 Hier stand .ce-item — der wortgleiche Zwilling von .ae-item im Literatur-Editor, beides
+     Abschriften von .avm-row (css/components/editor-page.css), das diese Seite ohnehin lädt.
+     Entfernt am 14.08.2026. Gewacht von js/pages/__tests__/editor-row-single-source.test.js. */
+  /* Der Entwurfs-Zustand bleibt eigen: .avm-row kennt kein "noch nicht freigegeben". */
+  .avm-row.is-draft .avm-row__name { opacity: 0.6; font-style: italic; }
+  /* Es bleibt nur das Vorschaubild — quer, anders als das hochkante Cover der Literatur: */
   .ce-item__thumb {
     flex: 0 0 auto;
     display: flex;
@@ -238,9 +230,10 @@
     color: var(--color-text-muted);
   }
   .ce-item__thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .ce-item__text { min-width: 0; }
-  .ce-item__title { font-weight: 700; }
-  .ce-item__l2 { display: block; margin-top: 2px; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+  /* Die drei Innenregeln der Zeile (Textspalte, Titel, zweite Zeile) sind entfallen — Breite,
+     Gewicht, Schriftgrösse und Farbe kommen jetzt aus den geteilten .avm-row-Regeln. Das Gewicht
+     stand hier als hartes 700 statt auf var(--font-weight-bold). Gelöscht, nicht umbenannt:
+     örtliche Regeln unter dem geteilten Namen wären dieselbe Abschrift mit neuem Etikett. */
   .ce-empty { padding: var(--space-12); color: var(--color-text-muted); }
 
   /* 2 statt auto: die Detailspalte traegt ZWEI Panels (Stammdaten + Orte), die Liste eines.
@@ -782,11 +775,11 @@
         ? `<img src="${ceEscape(c.thumb)}" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode(''))">`
         : CE_THUMB_PH_SVG;
       const types = (c.types || []).length ? `<span class="pill pill--kind">${ceEscape((c.types || []).length)} Typ(en)</span> ` : "";
-      return `<button class="ce-item${c.public_id === state.selectedId ? " is-selected" : ""}${draft ? " is-draft" : ""}" data-id="${ceEscape(c.public_id)}">
+      return `<button class="avm-row${c.public_id === state.selectedId ? " is-selected" : ""}${draft ? " is-draft" : ""}" data-id="${ceEscape(c.public_id)}">
         <span class="ce-item__thumb">${thumb}</span>
-        <span class="ce-item__text">
-          <span class="ce-item__title">${ceEscape(c.title)}</span>
-          <span class="ce-item__l2">${types}${c.place_count || 0} Orte${placeHitPill}${community}${draft ? ` <span class="pill pill--hidden">verborgen</span>` : ""}</span>
+        <span class="avm-row__text">
+          <span class="avm-row__name">${ceEscape(c.title)}</span>
+          <span class="avm-row__l2">${types}${c.place_count || 0} Orte${placeHitPill}${community}${draft ? ` <span class="pill pill--hidden">verborgen</span>` : ""}</span>
         </span></button>`;
     }).join("") : `<p class="ce-empty">Keine Karten.</p>`;
   }
@@ -1750,14 +1743,14 @@
 
   // Delegate on the STABLE container -- the rows are rebuilt by innerHTML.
   document.getElementById("ceListScroll").addEventListener("click", (e) => {
-    const b = e.target.closest(".ce-item");
+    const b = e.target.closest(".avm-row");
     if (b) selectCitymap(b.dataset.id);
   });
   // Spec §3.6 "Doppelklick öffnet die Karte": single click selects for editing (the sibling editor's
   // convention), double click opens the map itself in a new tab. Reading it as "opens the editor" would
   // be circular -- we are already in the editor.
   document.getElementById("ceListScroll").addEventListener("dblclick", (e) => {
-    const b = e.target.closest(".ce-item");
+    const b = e.target.closest(".avm-row");
     if (!b) return;
     const c = state.citymaps.find((x) => x.public_id === b.dataset.id);
     const url = c && (c.map_local_url || c.map_url);

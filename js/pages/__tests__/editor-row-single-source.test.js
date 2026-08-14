@@ -36,11 +36,8 @@ const editoren = [
 	"wiki-sync-powerline-editor.html",
 	"wege-editor.html",
 	"landschaften-editor.html",
-	// ⏳ Literatur- und Karteneditor kommen in Aufgabe 7 dazu (.ae-item / .ce-item). Sie stehen
-	// hier bewusst NICHT auskommentiert ohne Grund -- der Grund ist dieser Kommentar, damit
-	// niemand die Luecke fuer Absicht haelt:
-	// "game-literature-editor.html",
-	// "citymap-editor.html",
+	"game-literature-editor.html",
+	"citymap-editor.html",
 ];
 
 let checks = 0;
