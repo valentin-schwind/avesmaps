@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/terrain-factor.php';
 require_once __DIR__ . '/terrain-calibration.php';
+// Der Tempo-Speicher. ⚠️ Zirkulaer -- travel-values.php braucht die Konstante von hier, wir
+// brauchen seinen Leser. `require_once` loest das auf: der zweite Einstieg kehrt sofort zurueck,
+// und die Konstante wird erst im Funktionskoerper gelesen, also lange nach dem Laden.
+require_once __DIR__ . '/travel-values.php';
 require_once __DIR__ . '/terrain-read.php';
 require_once __DIR__ . '/water-areas.php';
 
@@ -140,8 +144,9 @@ function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locatio
     $transportOption = avesmapsResolveClientRouteTransportOption($routeType, $request);
     if ($transportOption === null || !avesmapsIsClientTransportAllowedForPath($routeType, $transportOption, $path)) return;
 
-    $speed = AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$transportOption][$routeType] ?? null;
-    if (!is_numeric($speed) || (float) $speed <= 0.0) return;
+    // Aus dem Tempo-Speicher DIESER Anfrage; ungefuellt ist das die Konstante (travel-values.php).
+    $speed = avesmapsTravelValuesSpeed($transportOption, $routeType);
+    if ($speed === null) return;
 
     $clientPathId = (string) ($path['client_path_id'] ?? '');
     if ($clientPathId === '') {
@@ -613,8 +618,8 @@ function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, a
     if (count($components) <= 1) return 0;
 
     $transportOption = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
-    $speed = AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$transportOption][AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE] ?? null;
-    if ($transportOption === null || !is_numeric($speed) || (float) $speed <= 0.0) return 0;
+    $speed = $transportOption === null ? null : avesmapsTravelValuesSpeed($transportOption, AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE);
+    if ($transportOption === null || $speed === null) return 0;
     // 🔴 ERZEUGER 1 VON 2. Die Wegart darf dieses Transportmittel überhaupt tragen -- eine Kutsche
     // fährt nicht querfeldein (avesmapsClientRouteTransportOptions). 💣 Der zweite Erzeuger ist der
     // Wegpunkt-Anker weiter unten; nur einen zu sichern lässt die Sperre genau dort offen, wo der
@@ -706,7 +711,7 @@ function avesmapsConnectClientRouteWaypointsToNearestLandPath(array &$graph, arr
         return;
     }
     $syntheticTransport = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
-    $syntheticSpeed = $syntheticTransport !== null ? (AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$syntheticTransport][AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE] ?? null) : null;
+    $syntheticSpeed = $syntheticTransport !== null ? avesmapsTravelValuesSpeed($syntheticTransport, AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE) : null;
     if ($syntheticTransport === null || !is_numeric($syntheticSpeed) || (float) $syntheticSpeed <= 0.0) {
         return;
     }

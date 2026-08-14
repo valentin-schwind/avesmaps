@@ -29,8 +29,10 @@ if (ini_get('zend.assertions') !== '1') {
     exit(2);
 }
 
-require __DIR__ . '/../client-graph.php';
-require __DIR__ . '/../travel-values.php';
+require_once __DIR__ . '/../client-graph.php';
+// require_once, nicht require: client-graph.php zieht travel-values.php seit dem
+// 14.08.2026 selbst -- ein zweites `require` waere eine Doppeldeklaration.
+require_once __DIR__ . '/../travel-values.php';
 
 $nah = static fn(float $a, float $b, float $eps = 0.005): bool => abs($a - $b) < $eps;
 
@@ -116,3 +118,34 @@ assert($nah($kutsche['Pfad'], $kutsche['Strasse'] * 0.80, 0.02), 'auf dem Pfad a
 assert($zurueck['grid']['riverSailer'] === $werte['grid']['riverSailer'], 'der Flusssegler bleibt, wie er war');
 
 echo "travel-values-test: alle Zusicherungen erfüllt\n";
+
+// ============================================================ F. Der aktive Speicher der Anfrage
+
+// 💣 SIEBEN LESESTELLEN IN FÜNF DATEIEN, UND KEINE HAT EINEN PDO. Die Tempotabelle wird tief im
+// Graphbau gelesen (`avesmapsAddClientCompatiblePathToGraph` und sechs weitere), und keiner dieser
+// Aufrufe bekommt eine Datenbankverbindung durchgereicht. Sie alle umzubauen hiesse, sieben
+// Signaturen und ihre Aufrufer zu aendern -- fuer einen Wert, der sich waehrend einer Anfrage nie
+// aendert. Stattdessen: EINMAL fuellen, danach lesen.
+avesmapsTravelValuesResetActive();
+assert(avesmapsTravelValuesSpeed('groupFoot', 'Strasse') === AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['groupFoot']['Strasse'],
+    'ungefuellt gilt die Konstante -- eine frische Anlage darf keine andere Zahl bekommen');
+
+// Gefuellt gilt der Speicher.
+$eigen = AVESMAPS_ROUTE_CLIENT_SPEED_TABLE;
+$eigen['groupFoot']['Querfeldein'] = 2.30;
+avesmapsTravelValuesPrimeGrid($eigen);
+assert(avesmapsTravelValuesSpeed('groupFoot', 'Querfeldein') === 2.30,
+    'nach dem Fuellen gilt der eingestellte Wert: ' . avesmapsTravelValuesSpeed('groupFoot', 'Querfeldein'));
+assert(avesmapsTravelValuesSpeed('groupFoot', 'Strasse') === $eigen['groupFoot']['Strasse'],
+    'und die uebrigen Zellen bleiben, wie sie waren');
+
+// ⚠️ Eine unbekannte Zelle ist null, NIE 0. Eine 0 waere im Graphbau keine Ausnahme, sondern eine
+// Division durch null -- die Aufrufer pruefen alle auf null und ueberspringen den Weg.
+assert(avesmapsTravelValuesSpeed('groupFoot', 'Seeweg') === null, 'die Fussgruppe hat keinen Seeweg');
+assert(avesmapsTravelValuesSpeed('gibtsNicht', 'Strasse') === null, 'ein unbekanntes Reisemittel ebenso');
+
+avesmapsTravelValuesResetActive();
+assert(avesmapsTravelValuesSpeed('groupFoot', 'Querfeldein') === AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['groupFoot']['Querfeldein'],
+    'zuruecknehmen faellt auf die Konstante zurueck');
+
+echo "travel-values-test: aktiver Speicher geprüft\n";

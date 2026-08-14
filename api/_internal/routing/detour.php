@@ -18,6 +18,7 @@ declare(strict_types=1);
 // und nah heißt kleine Kiste. Die Schwelle begrenzt die Kiste, ohne dass man sie begrenzen muss.
 
 require_once __DIR__ . '/offroad-leg.php';
+require_once __DIR__ . '/travel-values.php';
 
 // Ab welchem Verhältnis „gefahrene Strecke : Luftlinie" überhaupt quer gerechnet wird.
 //
@@ -279,7 +280,7 @@ function avesmapsMaybeOfferOffroadDetour(
     $transport = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
     $speed = $transport === null
         ? null
-        : (AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$transport][AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE] ?? null);
+        : avesmapsTravelValuesSpeed($transport, AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE);
     if ($speed === null || $speed <= 0.0) {
         // Querfeldein ist für dieses Verkehrsmittel gar nicht vorgesehen. Dann gibt es nichts
         // anzubieten -- und der A* würde unten ohnehin an derselben Stelle aussteigen.

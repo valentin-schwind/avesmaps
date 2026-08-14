@@ -16,6 +16,7 @@ declare(strict_types=1);
 // the leg's geometry exactly as they read a drawn way's.
 
 require_once __DIR__ . '/client-graph.php';
+require_once __DIR__ . '/travel-values.php';
 require_once __DIR__ . '/land-areas.php';
 require_once __DIR__ . '/offroad-data.php';
 require_once __DIR__ . '/offroad-grid.php';
@@ -113,7 +114,7 @@ function avesmapsAttachOffroadPointToGraph(
     $transport = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
     $speed = $transport === null
         ? null
-        : (AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$transport][AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE] ?? null);
+        : avesmapsTravelValuesSpeed($transport, AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE);
     if ($speed === null || $speed <= 0.0) {
         return ['ok' => false, 'error' => 'no_offroad_route'];
     }
@@ -300,7 +301,7 @@ function avesmapsConnectOffroadPoints(
     $transport = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
     $speed = $transport === null
         ? null
-        : (AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$transport][AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE] ?? null);
+        : avesmapsTravelValuesSpeed($transport, AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE);
     if ($speed === null || $speed <= 0.0) {
         return ['ok' => false, 'error' => 'no_offroad_route'];
     }

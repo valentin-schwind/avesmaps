@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/client-graph.php';
+// Der Tempo-Speicher dieser Anfrage -- gefuellt wird er unten, EINMAL, vor dem Graphbau.
+require_once __DIR__ . '/travel-values.php';
 require_once __DIR__ . '/terrain-read.php';
 // V14 „Hierher reisen": the land check and the cross-country A*. Both are inert unless a request
 // actually carries a map point, so an ordinary route pays for nothing here.
@@ -208,6 +210,11 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	// V13: open water, so a synthetic Querfeldein bridge cannot be built across the sea. Same PDO as
 	// terrain above -- no extra connection. Without a PDO this stays empty and V13 is simply inert,
 	// which is the designed failure mode (spec §4.1), not a silent hole.
+	// 🔴 EINMAL JE ANFRAGE, UND VOR DEM GRAPHBAU. Die Tempotabelle wird an sieben Stellen tief im
+	// Graphbau gelesen, von denen keine einen PDO hat (travel-values.php). Steht sie hier nicht,
+	// rechnet die ganze Anfrage mit der Konstante -- kein Fehler, aber die Einstellung des Owners
+	// waere wirkungslos, und das faellt niemandem auf.
+	avesmapsTravelValuesPrime($routePdo);
 	$water = $routePdo instanceof PDO ? avesmapsLoadRouteWater($config, $routePdo) : [];
 	$clientGraph = avesmapsBuildClientCompatibleRouteGraph($routeNetworkData, $request, $terrain, $water, $passNormalizer);
 

@@ -20,6 +20,7 @@ declare(strict_types=1);
 // PURITY CONTRACT: side-effect-free on include. Ohne PDO rechnet der A* flach weiter.
 
 require_once __DIR__ . '/offroad-leg.php';
+require_once __DIR__ . '/travel-values.php';
 
 /**
  * Ersetzt die geraden Sehnen der gefundenen Route durch A*-Wege. Gibt einen Bericht zurück; ist
@@ -114,7 +115,7 @@ function avesmapsFindOffroadPathBetween(
     $transport = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
     $speed = $transport === null
         ? null
-        : (AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$transport][AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE] ?? null);
+        : avesmapsTravelValuesSpeed($transport, AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE);
     if ($speed === null || $speed <= 0.0) { return null; }
 
     $box = avesmapsBuildOffroadBox($x1, $y1, $x2, $y2);

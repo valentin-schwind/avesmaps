@@ -31,6 +31,63 @@ const AVESMAPS_TRAVEL_NIGHT_TRAVEL_TRANSPORT = 'fastShip';
 const AVESMAPS_TRAVEL_VALUES_SETTING_KEY = 'travel_values';
 
 /**
+ * Der aktive Tempo-Speicher DIESER Anfrage.
+ *
+ * 💣 SIEBEN LESESTELLEN IN FÜNF DATEIEN, UND KEINE HAT EINEN PDO. Die Tabelle wird tief im Graphbau
+ * gelesen (`avesmapsAddClientCompatiblePathToGraph`, die beiden Querfeldein-Erzeuger, der
+ * Umweg-Auslöser, der A* und die Sehnen-Verfeinerung). Sie alle mit einer Verbindung zu versorgen
+ * hieße, sieben Signaturen und jeden ihrer Aufrufer zu ändern — für einen Wert, der sich während
+ * einer Anfrage nie ändert. Also: EINMAL füllen (`avesmapsTravelValuesPrime` in response.php),
+ * danach lesen.
+ *
+ * 🔴 Ungefüllt gilt die Konstante. Eine frische Anlage, jede Diagnose ohne PDO und jeder Unit-Test
+ * bekommen damit exakt das heutige Verhalten — der bloße Einbau verschiebt keine einzige Reisezeit.
+ */
+function &avesmapsTravelValuesActiveRef(): ?array
+{
+    static $active = null;
+
+    return $active;
+}
+
+/** Den Speicher dieser Anfrage füllen — einmal, aus der Datenbank. */
+function avesmapsTravelValuesPrime(?PDO $pdo): void
+{
+    $values = avesmapsTravelValuesRead($pdo);
+    avesmapsTravelValuesPrimeGrid(is_array($values['grid'] ?? null) ? $values['grid'] : []);
+}
+
+/** Denselben Speicher direkt setzen — für Tests und für den Endpunkt nach dem Schreiben. */
+function avesmapsTravelValuesPrimeGrid(array $grid): void
+{
+    $active = &avesmapsTravelValuesActiveRef();
+    $active = $grid === [] ? null : $grid;
+}
+
+/** Zurück auf die Konstante. */
+function avesmapsTravelValuesResetActive(): void
+{
+    $active = &avesmapsTravelValuesActiveRef();
+    $active = null;
+}
+
+/**
+ * Das Tempo einer Zelle — der EINZIGE Leser, den der Router benutzen soll.
+ *
+ * ⚠️ Eine unbekannte Zelle ist `null`, nie 0. Die Aufrufer prüfen alle auf null und überspringen den
+ * Weg; eine 0 wäre dort keine Ausnahme, sondern eine Division durch null.
+ */
+function avesmapsTravelValuesSpeed(string $transport, string $pathType): ?float
+{
+    $active = &avesmapsTravelValuesActiveRef();
+    $grid = is_array($active) ? $active : AVESMAPS_ROUTE_CLIENT_SPEED_TABLE;
+    $speed = $grid[$transport][$pathType] ?? null;
+    if (!is_numeric($speed) || (float) $speed <= 0.0) { return null; }
+
+    return (float) $speed;
+}
+
+/**
  * PURE: die Zahlen, die aus der *Geographia Aventurica* stammen — und nur die.
  *
  * ⚠️ Was aus einer Messung oder unserer Skalierung kommt (mean_G, Zeitmaßstab, Pass-Normalisierer,
