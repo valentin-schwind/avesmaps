@@ -14,15 +14,58 @@ declare(strict_types=1);
 // KILL-SWITCH POLARITY (convention, both features follow it): default ENABLED. Only an explicitly stored
 // '0' disables, so a flag that was never written works out of the box on a fresh deploy.
 
+// 💣 MEDIUMTEXT, NICHT VARCHAR(255) -- gemessen am 14.08.2026 an der Live-Anlage. Die 255 waren für
+// Kill-Switch-Flags („0"/„1") gedacht und haben dreieinhalb Monate gereicht; der erste Schlüssel mit
+// einem echten Wert, `travel_values`, ist über 1.400 Zeichen lang. MySQL schneidet außerhalb des
+// strikten Modus STILL ab: `json_decode` liefert danach NULL, der Leser fällt auf seine Konstante
+// zurück, und das ist von „es wurde nie etwas gespeichert" nicht zu unterscheiden. Genau so hat der
+// „Speichern"-Knopf des Tempowerte-Fensters seit dem 14.08.2026 nichts getan, ohne je zu klagen.
+// ⚠️ Eine bestehende Anlage heilt das NICHT von selbst: `CREATE TABLE IF NOT EXISTS` ist auf einer
+// vorhandenen Tabelle ein No-op. Dafür gibt es avesmapsAppSettingEnsureWideValue() weiter unten.
 function avesmapsAppSettingEnsureTable(PDO $pdo): void
 {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS app_setting (
             setting_key VARCHAR(64) NOT NULL PRIMARY KEY,
-            setting_value VARCHAR(255) NOT NULL,
+            setting_value MEDIUMTEXT NOT NULL,
             updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
+}
+
+/**
+ * Eine bestehende `app_setting`-Tabelle auf MEDIUMTEXT nachziehen — einmalig, mit einer Sonde davor.
+ *
+ * 🔴 NUR VON SCHREIBERN GROSSER WERTE AUFZURUFEN, nie aus avesmapsAppSettingGet/Set. Die
+ * information_schema-Sonde ist genau die Last, die AGENTS.md §10 für territories-endpoint.php
+ * aufführt und die am 2026-07-17 den PHP-Pool sättigte; auf dem Kill-Switch-Pfad wäre sie auf jedem
+ * Besucheraufruf. Die beiden Aufrufer (das Tempowerte-Fenster und seine Migration) sind kalte Pfade.
+ *
+ * 💣 DDL, ALSO NIE IN EINER TRANSAKTION — ein ALTER committet sie still (dieselbe Falle wie bei jedem
+ * `*EnsureTables`).
+ *
+ * ⚠️ Fällt INERT aus. Kann sie nicht sondieren oder nicht ändern, wird nur weiterhin abgeschnitten —
+ * und der Aufrufer merkt das an seiner eigenen Rückleseprobe, nicht an einer Ausnahme von hier.
+ * Verbreitern ist verlustfrei: MEDIUMTEXT fasst jeden Wert, der vorher hineinpasste.
+ */
+function avesmapsAppSettingEnsureWideValue(PDO $pdo): void
+{
+    try {
+        $statement = $pdo->prepare(
+            "SELECT DATA_TYPE FROM information_schema.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'app_setting' AND COLUMN_NAME = 'setting_value'"
+        );
+        $statement->execute();
+        $type = strtolower(trim((string) $statement->fetchColumn()));
+        // Leer heißt „die Tabelle gibt es hier nicht" (oder es ist gar kein MySQL) -- dann ist auch
+        // nichts nachzuziehen.
+        if ($type === '' || str_contains($type, 'text')) {
+            return;
+        }
+        $pdo->exec('ALTER TABLE app_setting MODIFY setting_value MEDIUMTEXT NOT NULL');
+    } catch (Throwable) {
+        return;
+    }
 }
 
 function avesmapsAppSettingGet(PDO $pdo, string $key, string $default = ''): string

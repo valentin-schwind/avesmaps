@@ -255,6 +255,36 @@ function avesmapsTravelValuesStorableShape(array $values): array
 }
 
 /**
+ * Steht der abgelegte Wert WIRKLICH da? Die Rückleseprobe, ohne die ein Merker nichts bezeugt.
+ *
+ * 💣 SIE EXISTIERT WEGEN EINES GEMESSENEN AUSFALLS (14.08.2026). `app_setting.setting_value` war
+ * VARCHAR(255), dieser Wert ist über 1.400 Zeichen lang, und MySQL schneidet außerhalb des strikten
+ * Modus STILL ab — kein Fehler, keine Ausnahme, keine Warnung. `avesmapsAppSettingSet` meldet dann
+ * Erfolg, der Leser findet danach kaputtes JSON und fällt auf seine Konstante zurück, und das ist von
+ * „es wurde nie etwas gespeichert" nicht zu unterscheiden. Beide Schreiber (Fenster und Migration)
+ * prüfen deshalb nach.
+ *
+ * 🔴 SIE STEHT HIER UND NICHT IN travel-values-migration.php: der Endpunkt bindet nur diese Datei ein,
+ * und eine Rückleseprobe, die der Schreiber nicht erreicht, ist ein Fatal statt einer Prüfung.
+ *
+ * ⭐ Geprüft wird die FORM, nicht die Byte-Gleichheit: MySQL darf Zahlen anders formatieren, aber ein
+ * abgeschnittener Wert ist kein JSON mehr und hat erst recht kein vollzähliges Raster.
+ */
+function avesmapsTravelValuesStoredMatches(PDO $pdo, array $stored): bool
+{
+    require_once __DIR__ . '/../app/app-setting.php';
+    $raw = avesmapsAppSettingGetWithoutDdl($pdo, AVESMAPS_TRAVEL_VALUES_SETTING_KEY, '');
+    if (trim($raw) === '') { return false; }
+
+    $back = json_decode($raw, true);
+    if (!is_array($back) || !is_array($back['grid'] ?? null)) { return false; }
+
+    $expected = is_array($stored['grid'] ?? null) ? $stored['grid'] : [];
+
+    return count($back['grid']) === count($expected);
+}
+
+/**
  * PURE: was heute von der Quelle abweicht — die Zahl, die als Unterzeile in der Kachel steht.
  *
  * ⭐ Status gehört in den Knopf (AGENTS.md §12): „6 Werte weichen von der GA ab" ist die

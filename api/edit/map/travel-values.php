@@ -80,8 +80,21 @@ try {
     // ⚠️ Die Sechs-Schlüssel-Liste steht in avesmapsTravelValuesStorableShape und nur dort — die
     // einmalige Migration legt denselben Wert ab, und zwei Abschriften liefen beim nächsten neuen
     // Abschnitt auseinander.
+    // 💣 UND DIE SPALTE MUSS IHN FASSEN. `setting_value` war VARCHAR(255), dieser Wert ist über 1.400
+    // Zeichen lang: MySQL schnitt ihn ausserhalb des strikten Modus STILL ab, `json_decode` lieferte
+    // danach NULL, und der Leser fiel auf seine Konstante zurück. Dieser Knopf hat vom 14.08.2026 an
+    // nichts getan und nie geklagt — was niemandem auffiel, weil „nichts ändert sich" der erwartete
+    // Zustand war. Gemessen an der Live-Anlage, nicht vermutet.
+    // ⚠️ DDL, also vor jedem Schreibvorgang und nie in einer Transaktion. Dieser Handler hat keine.
+    avesmapsAppSettingEnsureWideValue($pdo);
     $stored = avesmapsTravelValuesStorableShape($values);
     avesmapsAppSettingSet($pdo, AVESMAPS_TRAVEL_VALUES_SETTING_KEY, json_encode($stored, JSON_UNESCAPED_UNICODE));
+    if (!avesmapsTravelValuesStoredMatches($pdo, $stored)) {
+        // 🔴 Ein Speichern, das nicht ankommt, meldet das. Ein stiller Verlust ist genau der Ausfall,
+        // wegen dessen diese Zeile existiert.
+        avesmapsErrorResponse(500, 'travel_values_not_stored',
+            'Die Tempowerte konnten nicht vollständig gespeichert werden.');
+    }
 
     // ⚠️ `map_revision` wird NICHT gehoben — es ändert kein Kartenobjekt, und ein Sprung würde jeden
     // Client die komplette Feature-Nutzlast neu laden lassen. Der Router liest den eigenen Stempel.

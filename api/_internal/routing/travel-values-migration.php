@@ -25,7 +25,14 @@ declare(strict_types=1);
 require_once __DIR__ . '/travel-values.php';
 require_once __DIR__ . '/../app/app-setting.php';
 
-const AVESMAPS_TRAVEL_VALUES_MIGRATION_KEY = 'travel_values_v1';
+// 🔴 v2, UND v1 IST EIN GRABSTEIN. Der v1-Lauf ging am 14.08.2026 live und schrieb seine
+// Landschaftsspalte richtig — aber sein zweiter Schreibvorgang fiel in ein `VARCHAR(255)`, das ein
+// über 1.400 Zeichen langes JSON still abschnitt. Der Merker stand danach auf „erledigt", das
+// Ergebnis existierte zur Hälfte nicht. Ein neuer Schlüssel ist die ehrliche Antwort darauf: den
+// alten umzudeuten hiesse, sich auf einen Wert zu verlassen, der schon einmal gelogen hat.
+// Die Spaltenwerte sind davon unberührt — ihr Schreiber ist `IS NULL`-verriegelt, ein zweiter Lauf
+// fasst sie nicht an.
+const AVESMAPS_TRAVEL_VALUES_MIGRATION_KEY = 'travel_values_v2';
 
 // Die beiden Ebenen, deren Arten überhaupt Boden sind. `derographisch` benennt einen Landstrich
 // („Kosch"), `klima` ein Band — keins von beidem sagt etwas darüber, wie es sich dort läuft.
@@ -195,9 +202,18 @@ function avesmapsTravelValuesMigrateOnce(PDO $pdo): bool
 
     // 💣 EINE ZEILE JSON, ATOMAR. Ein halb gespeichertes Tempo-Raster ist ein kaputter Router
     // (Entwurf §6.2) — deshalb steht das Ganze in einem Wert und nicht in sechsundzwanzig Zeilen.
+    // 🔴 Und die Spalte muss ihn fassen: über 1.400 Zeichen gegen die ursprünglichen 255.
+    avesmapsAppSettingEnsureWideValue($pdo);
     $values['grid'] = $plan['grid'];
     $stored = avesmapsTravelValuesStorableShape($values);
     avesmapsAppSettingSet($pdo, AVESMAPS_TRAVEL_VALUES_SETTING_KEY, (string) json_encode($stored, JSON_UNESCAPED_UNICODE));
+
+    // 🔴 ERST LESEN, DANN ABHAKEN. Genau hier ging der v1-Lauf verloren: geschrieben, still
+    // abgeschnitten, Merker gesetzt — und damit für immer erledigt, ohne Ergebnis. Ein Merker darf
+    // nicht bezeugen, dass geschrieben WURDE, sondern nur, dass etwas DASTEHT.
+    if (!avesmapsTravelValuesStoredMatches($pdo, $stored)) {
+        return false;
+    }
 
     // Derselbe Stempel, den der Endpunkt beim Speichern hebt. Ohne ihn sähe die Migration für jeden
     // späteren Leser aus wie „am Speicher wurde nie etwas geändert".

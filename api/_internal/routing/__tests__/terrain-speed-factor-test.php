@@ -242,7 +242,8 @@ assert($nah((float) $spalte($pdo2)['wald'], 0.222, 0.0005),
 
 // --- C3. Der Merker riegelt die ganze Migration ab.
 $pdo3 = $frischeAnlage();
-$pdo3->exec("INSERT INTO app_setting (setting_key, setting_value) VALUES ('travel_values_v1', '1')");
+$pdo3->prepare('INSERT INTO app_setting (setting_key, setting_value) VALUES (?, ?)')
+    ->execute([AVESMAPS_TRAVEL_VALUES_MIGRATION_KEY, '1']);
 assert(avesmapsTravelValuesMigrateOnce($pdo3) === false, 'bei gesetztem Merker laeuft sie nicht');
 foreach ($spalte($pdo3) as $schluessel => $wert) {
     assert($wert === null, "$schluessel wurde trotz Merker beschrieben");
@@ -255,7 +256,9 @@ $leer = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMOD
 $leer->exec('CREATE TABLE ecosystem_region_type (kind TEXT, type_key TEXT, offroad_factor REAL, terrain_speed_factor REAL)');
 $leer->exec('CREATE TABLE app_setting (setting_key TEXT PRIMARY KEY, setting_value TEXT)');
 assert(avesmapsTravelValuesMigrateOnce($leer) === false, 'ohne Arten laeuft sie nicht');
-assert($leer->query("SELECT COUNT(*) FROM app_setting WHERE setting_key = 'travel_values_v1'")->fetchColumn() === 0,
+$merkerZaehler = $leer->prepare('SELECT COUNT(*) FROM app_setting WHERE setting_key = ?');
+$merkerZaehler->execute([AVESMAPS_TRAVEL_VALUES_MIGRATION_KEY]);
+assert((int) $merkerZaehler->fetchColumn() === 0,
     'und sie setzt dabei keinen Merker -- sonst waere sie fuer immer erledigt, ohne etwas getan zu haben');
 
 // ============================================================ D. Die Reihenfolge in EnsureTables
@@ -380,4 +383,66 @@ assert(strpos($migrationQuelle, "_stamp'") !== false || strpos($migrationQuelle,
     || strpos($migrationQuelle, "SETTING_KEY . '_stamp'") !== false,
     'die Migration hebt den Tempo-Stempel mit');
 
-echo "terrain-speed-factor-test: A (Maszstab) + B (Plan) + C (Migration) + D (Reihenfolge) + E (Lader) + F (Ablageform) bestanden\n";
+// ============================================================ G. Der Speicher muss den Wert fassen
+
+// 💣 GEMESSEN AM 14.08.2026 AN DER LIVE-ANLAGE, und es ist der Grund, warum Schritt 2 beim ersten
+// Deploy nur zur Haelfte wirkte: `app_setting.setting_value` war VARCHAR(255), das Tempo-JSON ist
+// ueber 1.400 Zeichen. MySQL schneidet ausserhalb des strikten Modus STILL ab, `json_decode` liefert
+// danach NULL, und avesmapsTravelValuesRead faellt auf die Konstante zurueck -- ohne Fehler, ohne
+// Warnung, und ununterscheidbar von „es wurde nie etwas gespeichert".
+// 🔴 Das traf den Endpunkt genauso: der „Speichern"-Knopf des Fensters schrieb seit dem 14.08.2026
+// denselben Wert in dieselbe Spalte und hat nie gewirkt. Dass niemandem etwas auffiel, liegt daran,
+// dass „nichts aendert sich" der erwartete Zustand war.
+$tempoJson = (string) json_encode(avesmapsTravelValuesStorableShape(avesmapsTravelValuesRead(null)), JSON_UNESCAPED_UNICODE);
+assert(strlen($tempoJson) > 255,
+    'das Tempo-JSON ist laenger als die alte Spalte -- Laenge: ' . strlen($tempoJson));
+assert(json_decode(substr($tempoJson, 0, 255), true) === null,
+    'und abgeschnitten ist es kein JSON mehr, sondern NULL -- genau der stille Rueckfall');
+
+// 🔴 BEIDE SCHREIBER MUESSEN DIE PRUEFUNG ERREICHEN. Der Endpunkt bindet `travel-values.php` ein,
+// aber NICHT `travel-values-migration.php` -- stuende die Rueckleseprobe dort, waere sie im Fenster
+// ein Fatal statt einer Pruefung. Der Unterprozess beweist es ohne die Requires dieses Tests.
+$travelValuesQuelle = (string) file_get_contents(__DIR__ . '/../travel-values.php');
+assert(strpos($travelValuesQuelle, 'function avesmapsTravelValuesStoredMatches(') !== false,
+    'die Rueckleseprobe wohnt in travel-values.php -- der Endpunkt bindet nur diese Datei ein');
+assert(strpos($migrationQuelle, 'function avesmapsTravelValuesStoredMatches(') === false,
+    'und nicht ein zweites Mal in der Migration');
+assert(strpos($endpunkt, 'avesmapsTravelValuesStoredMatches(') !== false,
+    'der Endpunkt prueft nach, ob sein Speichern angekommen ist');
+assert(strpos($endpunkt, 'avesmapsAppSettingEnsureWideValue(') !== false,
+    'und zieht die Spalte vorher nach');
+
+require_once __DIR__ . '/../../app/app-setting.php';
+$appSettingQuelle = (string) file_get_contents(__DIR__ . '/../../app/app-setting.php');
+assert(strpos($appSettingQuelle, 'setting_value VARCHAR(255)') === false,
+    'eine frische Anlage bekommt keine 255-Zeichen-Spalte mehr');
+assert(function_exists('avesmapsAppSettingEnsureWideValue'),
+    'und eine bestehende Anlage wird nachgezogen');
+
+// --- G1. Die Rueckleseprobe: erst wenn der Wert WIRKLICH dasteht, gilt die Migration als gelaufen.
+// 🔴 EIN SCHREIBVORGANG, DER STILL VERLORENGEHT, DARF KEINEN MERKER SETZEN. Sonst ist die Migration
+// „erledigt", ohne dass ihr Ergebnis existiert -- und genau das ist am 14.08.2026 live passiert.
+$probe = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$probe->exec('CREATE TABLE app_setting (setting_key TEXT PRIMARY KEY, setting_value TEXT)');
+$vollstaendig = avesmapsTravelValuesStorableShape(avesmapsTravelValuesRead(null));
+
+$setze = static function (PDO $pdo, string $wert): void {
+    $pdo->exec("DELETE FROM app_setting WHERE setting_key = 'travel_values'");
+    $pdo->prepare('INSERT INTO app_setting (setting_key, setting_value) VALUES (?, ?)')
+        ->execute(['travel_values', $wert]);
+};
+
+assert(avesmapsTravelValuesStoredMatches($probe, $vollstaendig) === false,
+    'ohne Zeile ist nichts gespeichert');
+$setze($probe, substr($tempoJson, 0, 255));
+assert(avesmapsTravelValuesStoredMatches($probe, $vollstaendig) === false,
+    'ein abgeschnittener Wert gilt NICHT als gespeichert -- er ist der Fall, der es nie gemerkt hat');
+$setze($probe, $tempoJson);
+assert(avesmapsTravelValuesStoredMatches($probe, $vollstaendig) === true,
+    'der vollstaendige Wert gilt als gespeichert');
+
+// --- G2. Der Merker heisst v2: v1 steht live auf '1' aus dem Lauf, dessen Ergebnis verlorenging.
+assert(AVESMAPS_TRAVEL_VALUES_MIGRATION_KEY === 'travel_values_v2',
+    'der Merker ist travel_values_v2 -- v1 ist ein Grabstein, kein erledigter Lauf');
+
+echo "terrain-speed-factor-test: A (Maszstab) + B (Plan) + C (Migration) + D (Reihenfolge) + E (Lader) + F (Ablageform) + G (Speicherbreite) bestanden\n";
