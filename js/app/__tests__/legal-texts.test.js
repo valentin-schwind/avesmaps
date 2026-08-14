@@ -130,4 +130,18 @@ assert.ok(
 );
 assert.ok(images.includes("ausreichende Berechtigung"), "sondern nennt die geprüfte Berechtigung");
 
+// ---- Die Kartenpaket-Lizenz REIST MIT ------------------------------------------------------------
+//
+// 💣 Die Lizenzvereinbarung zum Ulisses-Kartenpaket erlaubt die Bearbeitung des Kartenmaterials --
+// und verlangt dafuer woertlich, dass bei jeder Verbreitung „eine Kopie dieser Lizenz oder deren
+// vollstaendige Internetadresse in Form des Uniform-Resource-Identifier (URI)" beiliegt. Die Karte IST
+// die Verbreitung. Faellt der Verweis raus, faellt eine Lizenzbedingung weg -- und zwar lautlos, denn
+// die Karte sieht ohne ihn genauso aus. Er steht deshalb in BEIDEN Auslieferungen: im Fenster
+// „Hinweise" und in NOTICE.md.
+const KARTENPAKET_URI = "https://de.wiki-aventurica.de/wiki/Kartenpaket/Lizenz";
+assert.ok(indexHtml.includes(KARTENPAKET_URI), "das Hinweise-Fenster verlinkt die Kartenpaket-Lizenz");
+assert.ok(notice.includes(KARTENPAKET_URI), "NOTICE.md nennt dieselbe URI");
+assert.ok(indexText("legal.mapMaterial.body").includes("Kartenpaket"), "der Absatz nennt die Lizenz beim Namen");
+assert.ok(i18nEn.includes("Ulisses Kartenpaket"), "die englische Fassung ebenfalls");
+
 console.log("legal-texts ok");

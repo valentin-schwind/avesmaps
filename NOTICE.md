@@ -14,6 +14,17 @@ widersprechen.
 Das Projekt verwendet bearbeitetes offizielles DSA-Kartenmaterial sowie daraus
 abgeleitete Daten.
 
+Für offizielles DSA-Kartenmaterial von Ulisses ist die Lizenzvereinbarung zum
+Ulisses-Kartenpaket einschlägig. Sie erlaubt Vervielfältigung, Verbreitung und
+ausdrücklich auch Bearbeitungen, solange die Nutzung nicht-kommerziell bleibt und
+die Bearbeitung als Fanprojekt gekennzeichnet ist (DSA-FANPROJEKT-Logo);
+Unterlizenzen sind ausgeschlossen, und die eingeräumten Rechte erlöschen bei einem
+Verstoß. Die Lizenz verlangt ausdrücklich, dass bei jeder Verbreitung eine Kopie der
+Lizenz **oder ihre vollständige Internetadresse (URI)** beiliegt — deshalb steht sie
+hier und im Fenster „Hinweise" der Karte:
+
+- Lizenz-URI: https://de.wiki-aventurica.de/wiki/Kartenpaket/Lizenz
+
 Orts-, Kreuzungs- und Wegdaten wurden aus [avespfade.de](https://avespfade.de/)
 teilweise abgeleitet und ergänzt. Laut avespfade wurden einzelne Ortspositionen
 teils an das Dereglobus-Projekt angelehnt.
@@ -23,6 +34,7 @@ Quellen:
 - avespfade.de
 - Kartenmaterial:
   http://www.orkenspalter.de/filebase/index.php/File/46-Aventurienkarte-aus-Regionalplänen/
+- Kartenpaket-Lizenz (URI): https://de.wiki-aventurica.de/wiki/Kartenpaket/Lizenz
 
 ## Schriftarten
 
