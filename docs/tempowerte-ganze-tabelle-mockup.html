@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Tempowerte - ganze Tabelle mit Eichung - Mockup (2026-08-14)</title>
+<script>
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- RELATIVE Pfade: docs/-Datei. Geladen wird die ECHTE CSS-Kette des Wege-Editors, damit das
+     Mockup die tatsaechliche Designsprache zeigt und nicht meine Auslegung davon. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<link rel="stylesheet" href="../css/pages/wege-editor.css">
+<style>
+/* ===========================================================================================
+   NUR das Neue. Vorschlag fuer css/pages/wege-editor.css, Abschnitt „Tempowerte".
+   Kein hartkodierter Farbwert, kein hartkodierter Radius (AGENTS.md §12).
+   =========================================================================================== */
+
+/* BANNER IST PFLICHT. Das Mockup vom 07.08. laedt dieselbe CSS-Kette, sah deshalb aus wie die
+   fertige Seite -- und der Owner hielt das Werkzeug fuer gebaut und wieder verschwunden. */
+.mock-banner {
+	position: sticky; top: 0; z-index: 5;
+	padding: var(--space-4) var(--space-10);
+	background: var(--color-warning-soft, var(--color-panel-soft));
+	border-bottom: 2px solid var(--color-warning);
+	color: var(--color-text-strong);
+	font-size: var(--font-size-caption);
+}
+.mock-banner b { color: var(--color-warning); }
+.mock-wrap { padding: var(--space-10); }
+.mock-note { margin: 0 0 var(--space-8); font-size: var(--font-size-caption);
+	color: var(--color-text-muted); line-height: var(--leading-normal); max-width: 62rem; }
+
+/* ---- DAS NEUE 1: der Gruppenkopf eine Stufe hoeher ------------------------------------------
+   Er stand auf --font-size-caption (11px) -- dem KLEINSTEN Token im Haus, dem Boden fuer
+   Etiketten und Meta. Damit war der Name des Reisemittels so gross wie die Zahlen darunter, und
+   die Gruppe hatte keinen Kopf, sondern eine weitere Zeile. Jetzt --font-size-reading (14px):
+   eine Stufe UNTER der Abschnittsueberschrift (16px), eine ueber dem Tabellentext (11px). Die
+   Leiter bleibt dreistufig -- h4 auf 16px zu setzen haette sie eingeebnet. */
+.wp-tempo__sec h4 {
+	margin: var(--space-10) 0 var(--space-3);
+	font-size: var(--font-size-reading);
+	font-weight: var(--font-weight-bold);
+	color: var(--color-text-strong);
+}
+/* Die GA-Angabe bleibt Beiwerk und faellt auf den Meta-Ton zurueck -- sonst waechst sie mit und
+   der Name gewinnt nichts. Eigene Zeile, damit lange Zusaetze den Kopf nicht auseinanderziehen. */
+.wp-tempo__sec h4 .wp-tempo__day {
+	display: block;
+	margin-top: var(--space-1);
+	font-size: var(--font-size-caption);
+	font-weight: normal;
+	color: var(--color-text-muted);
+}
+
+/* ---- DAS NEUE 2: die Spalte "auf unseren Wegen" ---------------------------------------------- */
+.wp-tempo__real { white-space: nowrap; color: var(--color-text); }
+.wp-tempo__real b { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+.wp-tempo__proof { display: block; font-size: var(--font-size-caption);
+	color: var(--color-text-muted); white-space: normal; }
+/* "nicht vermessen" ist KEINE 1,0 -- 44 % der Passstrecke hat kein Hoehenprofil. */
+.wp-tempo__real.is-unknown { color: var(--color-text-muted); font-style: italic; }
+.wp-tempo__tbl tr.is-anchor th { color: var(--color-accent-strong); }
+/* MIT dem Element davor: .wp-tempo__real b (0,1,1) schlaegt .wp-tempo__check (0,1,0), und der
+   Erfolgston kam beim ersten Anlauf nie durch. */
+.wp-tempo__real b.wp-tempo__check { color: var(--color-success); }
+.wp-tempo__real b.wp-tempo__check.is-off { color: var(--color-danger); }
+</style>
+</head>
+<body class="avm-editor-body">
+
+<div class="mock-banner">
+  <b>MOCKUP &mdash; nichts davon ist gebaut.</b> Die GANZE Tabelle, alle elf Reisemittel, Stand nach
+  deinem R&uuml;cksetzer. Zwei Vorschl&auml;ge darin: gr&ouml;&szlig;ere Gruppenk&ouml;pfe und die
+  Spalte &bdquo;auf unseren Wegen&ldquo;.
+</div>
+
+<div class="mock-wrap">
+<p class="mock-note">
+  <b>Was echt ist:</b> <i>unser Wert</i>, <i>GA</i> und <i>auf dem Papier</i> sind mit dem
+  Servercode gerechnet, ebenso die Wegzahlen im Bestand (352 Reichsstra&szlig;en, 1.026 Stra&szlig;en,
+  365 Wege, 1.557 Pfade, 201 P&auml;sse, 35 W&uuml;stenpfade &mdash; aus <code>network_statistics</code>
+  vom 14.08.).<br>
+  <b>Was Beispiel ist:</b> die gemessenen Faktoren und wie viele Wege davon ein H&ouml;henprofil
+  haben. Die echten stehen in <code>calibration_json</code> und sind ohne Anmeldung nicht lesbar.
+  Nur die 1,032 der Stra&szlig;e ist echt &mdash; sie ist <code>mean_G</code>.
+</p>
+<p class="mock-note">
+  &#9888; <b>Wasser bekommt die Spalte nicht.</b> Fluss und See tragen kein Gel&auml;nde, dort w&auml;re
+  sie eine Reihe Striche. Das ist die offene Frage 2 von gestern, hier als Vorschlag entschieden
+  &mdash; die f&uuml;nf Schiffszeilen unten zeigen, wie es damit aussieht.
+</p>
+
+<div class="wp-tempo__sec">
+<div class="wp-tempo__cols">
+
+<div class="wp-tempo__grp">
+  <h4>Reisegruppe zu Fuß<span class="wp-tempo__day">GA: 30 Meilen/Tag</span></h4>
+  <table class="wp-tempo__tbl"><tbody>
+    <tr><th scope="row">Reichsstraße</th><td><input type="number" class="wp-tempo__in" value="3.38"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,38</td><td class="wp-tempo__eff">34,1 Mln/Tag</td><td class="wp-tempo__real"><b>33,4</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,021 · 148 von 352 Wegen vermessen</span></td></tr>
+    <tr class="is-anchor"><th scope="row">Straße</th><td><input type="number" class="wp-tempo__in" value="3.07"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,07</td><td class="wp-tempo__eff">31,0 Mln/Tag</td><td class="wp-tempo__real"><b class="wp-tempo__check">30,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,032 · 431 von 1026 Wegen vermessen · trifft die GA-Tagesleistung ✓</span></td></tr>
+    <tr><th scope="row">Weg (Karrenweg)</th><td><input type="number" class="wp-tempo__in" value="2.46"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,46</td><td class="wp-tempo__eff">24,8 Mln/Tag</td><td class="wp-tempo__real"><b>23,4</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,058 · 152 von 365 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Pfad</th><td><input type="number" class="wp-tempo__in" value="2.46"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,46</td><td class="wp-tempo__eff">24,8 Mln/Tag</td><td class="wp-tempo__real"><b>23,1</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,074 · 612 von 1557 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Gebirgspass</th><td><input type="number" class="wp-tempo__in" value="1.23"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">1,23</td><td class="wp-tempo__eff">12,4 Mln/Tag</td><td class="wp-tempo__real"><b>12,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,326 · nach Pass-Ausgleich ×1,032 · 113 von 201 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Wüstenpfad</th><td><input type="number" class="wp-tempo__in" value="1.54"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">1,54</td><td class="wp-tempo__eff">15,5 Mln/Tag</td><td class="wp-tempo__real is-unknown">nicht vermessen<span class="wp-tempo__proof">35 Wege, keiner mit Höhenprofil</span></td></tr>
+    <tr><th scope="row">Querfeldein</th><td><input type="number" class="wp-tempo__in" value="2.30"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,30</td><td class="wp-tempo__eff">23,2 Mln/Tag</td><td class="wp-tempo__real is-unknown">nicht vermessen<span class="wp-tempo__proof">kein gezeichneter Weg — der A* rechnet je Route</span></td></tr>
+  </tbody></table>
+</div>
+
+<div class="wp-tempo__grp">
+  <h4>Zu Fuß<span class="wp-tempo__day">GA: 40 Meilen/Tag</span></h4>
+  <table class="wp-tempo__tbl"><tbody>
+    <tr><th scope="row">Reichsstraße</th><td><input type="number" class="wp-tempo__in" value="4.50"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">4,50</td><td class="wp-tempo__eff">45,4 Mln/Tag</td><td class="wp-tempo__real"><b>44,4</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,021 · 148 von 352 Wegen vermessen</span></td></tr>
+    <tr class="is-anchor"><th scope="row">Straße</th><td><input type="number" class="wp-tempo__in" value="4.09"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">4,09</td><td class="wp-tempo__eff">41,2 Mln/Tag</td><td class="wp-tempo__real"><b class="wp-tempo__check">40,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,032 · 431 von 1026 Wegen vermessen · trifft die GA-Tagesleistung ✓</span></td></tr>
+    <tr><th scope="row">Weg (Karrenweg)</th><td><input type="number" class="wp-tempo__in" value="3.27"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,27</td><td class="wp-tempo__eff">33,0 Mln/Tag</td><td class="wp-tempo__real"><b>31,2</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,058 · 152 von 365 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Pfad</th><td><input type="number" class="wp-tempo__in" value="3.27"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,27</td><td class="wp-tempo__eff">33,0 Mln/Tag</td><td class="wp-tempo__real"><b>30,7</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,074 · 612 von 1557 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Gebirgspass</th><td><input type="number" class="wp-tempo__in" value="1.64"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">1,64</td><td class="wp-tempo__eff">16,5 Mln/Tag</td><td class="wp-tempo__real"><b>16,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,326 · nach Pass-Ausgleich ×1,032 · 113 von 201 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Wüstenpfad</th><td><input type="number" class="wp-tempo__in" value="2.05"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,05</td><td class="wp-tempo__eff">20,7 Mln/Tag</td><td class="wp-tempo__real is-unknown">nicht vermessen<span class="wp-tempo__proof">35 Wege, keiner mit Höhenprofil</span></td></tr>
+    <tr><th scope="row">Querfeldein</th><td><input type="number" class="wp-tempo__in" value="3.07"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,07</td><td class="wp-tempo__eff">31,0 Mln/Tag</td><td class="wp-tempo__real is-unknown">nicht vermessen<span class="wp-tempo__proof">kein gezeichneter Weg — der A* rechnet je Route</span></td></tr>
+  </tbody></table>
+</div>
+
+<div class="wp-tempo__grp">
+  <h4>Reisegruppe beritten<span class="wp-tempo__day">GA: 35 Meilen/Tag — Tabelle S. 123</span></h4>
+  <table class="wp-tempo__tbl"><tbody>
+    <tr><th scope="row">Reichsstraße</th><td><input type="number" class="wp-tempo__in" value="3.94"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,94</td><td class="wp-tempo__eff">39,7 Mln/Tag</td><td class="wp-tempo__real"><b>38,9</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,021 · 148 von 352 Wegen vermessen</span></td></tr>
+    <tr class="is-anchor"><th scope="row">Straße</th><td><input type="number" class="wp-tempo__in" value="3.58"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,58</td><td class="wp-tempo__eff">36,1 Mln/Tag</td><td class="wp-tempo__real"><b class="wp-tempo__check">35,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,032 · 431 von 1026 Wegen vermessen · trifft die GA-Tagesleistung ✓</span></td></tr>
+    <tr><th scope="row">Weg (Karrenweg)</th><td><input type="number" class="wp-tempo__in" value="2.87"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,87</td><td class="wp-tempo__eff">28,9 Mln/Tag</td><td class="wp-tempo__real"><b>27,4</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,058 · 152 von 365 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Pfad</th><td><input type="number" class="wp-tempo__in" value="2.87"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,87</td><td class="wp-tempo__eff">28,9 Mln/Tag</td><td class="wp-tempo__real"><b>26,9</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,074 · 612 von 1557 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Gebirgspass</th><td><input type="number" class="wp-tempo__in" value="1.43"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">1,43</td><td class="wp-tempo__eff">14,4 Mln/Tag</td><td class="wp-tempo__real"><b>14,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,326 · nach Pass-Ausgleich ×1,032 · 113 von 201 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Wüstenpfad</th><td><input type="number" class="wp-tempo__in" value="1.79"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">1,79</td><td class="wp-tempo__eff">18,1 Mln/Tag</td><td class="wp-tempo__real is-unknown">nicht vermessen<span class="wp-tempo__proof">35 Wege, keiner mit Höhenprofil</span></td></tr>
+    <tr><th scope="row">Querfeldein</th><td><input type="number" class="wp-tempo__in" value="2.69"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,69</td><td class="wp-tempo__eff">27,1 Mln/Tag</td><td class="wp-tempo__real is-unknown">nicht vermessen<span class="wp-tempo__proof">kein gezeichneter Weg — der A* rechnet je Route</span></td></tr>
+  </tbody></table>
+</div>
+
+<div class="wp-tempo__grp">
+  <h4>Reiter<span class="wp-tempo__day">GA: 50 Meilen/Tag</span></h4>
+  <table class="wp-tempo__tbl"><tbody>
+    <tr><th scope="row">Reichsstraße</th><td><input type="number" class="wp-tempo__in" value="5.63"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">5,63</td><td class="wp-tempo__eff">56,8 Mln/Tag</td><td class="wp-tempo__real"><b>55,6</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,021 · 148 von 352 Wegen vermessen</span></td></tr>
+    <tr class="is-anchor"><th scope="row">Straße</th><td><input type="number" class="wp-tempo__in" value="5.12"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">5,12</td><td class="wp-tempo__eff">51,6 Mln/Tag</td><td class="wp-tempo__real"><b class="wp-tempo__check">50,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,032 · 431 von 1026 Wegen vermessen · trifft die GA-Tagesleistung ✓</span></td></tr>
+    <tr><th scope="row">Weg (Karrenweg)</th><td><input type="number" class="wp-tempo__in" value="4.09"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">4,09</td><td class="wp-tempo__eff">41,2 Mln/Tag</td><td class="wp-tempo__real"><b>39,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,058 · 152 von 365 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Pfad</th><td><input type="number" class="wp-tempo__in" value="4.09"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">4,09</td><td class="wp-tempo__eff">41,2 Mln/Tag</td><td class="wp-tempo__real"><b>38,4</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,074 · 612 von 1557 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Gebirgspass</th><td><input type="number" class="wp-tempo__in" value="2.05"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,05</td><td class="wp-tempo__eff">20,7 Mln/Tag</td><td class="wp-tempo__real"><b>20,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,326 · nach Pass-Ausgleich ×1,032 · 113 von 201 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Wüstenpfad</th><td><input type="number" class="wp-tempo__in" value="2.56"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,56</td><td class="wp-tempo__eff">25,8 Mln/Tag</td><td class="wp-tempo__real is-unknown">nicht vermessen<span class="wp-tempo__proof">35 Wege, keiner mit Höhenprofil</span></td></tr>
+    <tr><th scope="row">Querfeldein</th><td><input type="number" class="wp-tempo__in" value="3.84"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,84</td><td class="wp-tempo__eff">38,7 Mln/Tag</td><td class="wp-tempo__real is-unknown">nicht vermessen<span class="wp-tempo__proof">kein gezeichneter Weg — der A* rechnet je Route</span></td></tr>
+  </tbody></table>
+</div>
+
+<div class="wp-tempo__grp">
+  <h4>Karawane<span class="wp-tempo__day">GA: 30 Meilen/Tag</span></h4>
+  <table class="wp-tempo__tbl"><tbody>
+    <tr><th scope="row">Reichsstraße</th><td><input type="number" class="wp-tempo__in" value="3.38"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,38</td><td class="wp-tempo__eff">34,1 Mln/Tag</td><td class="wp-tempo__real"><b>33,4</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,021 · 148 von 352 Wegen vermessen</span></td></tr>
+    <tr class="is-anchor"><th scope="row">Straße</th><td><input type="number" class="wp-tempo__in" value="3.07"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,07</td><td class="wp-tempo__eff">31,0 Mln/Tag</td><td class="wp-tempo__real"><b class="wp-tempo__check">30,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,032 · 431 von 1026 Wegen vermessen · trifft die GA-Tagesleistung ✓</span></td></tr>
+    <tr><th scope="row">Weg (Karrenweg)</th><td><input type="number" class="wp-tempo__in" value="2.46"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,46</td><td class="wp-tempo__eff">24,8 Mln/Tag</td><td class="wp-tempo__real"><b>23,4</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,058 · 152 von 365 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Pfad</th><td><input type="number" class="wp-tempo__in" value="2.46"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,46</td><td class="wp-tempo__eff">24,8 Mln/Tag</td><td class="wp-tempo__real"><b>23,1</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,074 · 612 von 1557 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Gebirgspass</th><td><input type="number" class="wp-tempo__in" value="1.23"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">1,23</td><td class="wp-tempo__eff">12,4 Mln/Tag</td><td class="wp-tempo__real"><b>12,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,326 · nach Pass-Ausgleich ×1,032 · 113 von 201 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Wüstenpfad</th><td><input type="number" class="wp-tempo__in" value="1.54"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">1,54</td><td class="wp-tempo__eff">15,5 Mln/Tag</td><td class="wp-tempo__real is-unknown">nicht vermessen<span class="wp-tempo__proof">35 Wege, keiner mit Höhenprofil</span></td></tr>
+    <tr><th scope="row">Querfeldein</th><td><input type="number" class="wp-tempo__in" value="2.30"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,30</td><td class="wp-tempo__eff">23,2 Mln/Tag</td><td class="wp-tempo__real is-unknown">nicht vermessen<span class="wp-tempo__proof">kein gezeichneter Weg — der A* rechnet je Route</span></td></tr>
+  </tbody></table>
+</div>
+
+<div class="wp-tempo__grp">
+  <h4>Kutsche<span class="wp-tempo__day">GA: 50 Meilen/Tag</span></h4>
+  <table class="wp-tempo__tbl"><tbody>
+    <tr><th scope="row">Reichsstraße</th><td><input type="number" class="wp-tempo__in" value="5.63"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">5,63</td><td class="wp-tempo__eff">56,8 Mln/Tag</td><td class="wp-tempo__real"><b>55,6</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,021 · 148 von 352 Wegen vermessen</span></td></tr>
+    <tr class="is-anchor"><th scope="row">Straße</th><td><input type="number" class="wp-tempo__in" value="5.12"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">5,12</td><td class="wp-tempo__eff">51,6 Mln/Tag</td><td class="wp-tempo__real"><b class="wp-tempo__check">50,0</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,032 · 431 von 1026 Wegen vermessen · trifft die GA-Tagesleistung ✓</span></td></tr>
+    <tr><th scope="row">Weg (Karrenweg)</th><td><input type="number" class="wp-tempo__in" value="2.05"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,05</td><td class="wp-tempo__eff">20,7 Mln/Tag</td><td class="wp-tempo__real"><b>19,5</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,058 · 152 von 365 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Pfad</th><td><input type="number" class="wp-tempo__in" value="4.09"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">4,09</td><td class="wp-tempo__eff">41,2 Mln/Tag</td><td class="wp-tempo__real"><b>38,4</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,074 · 612 von 1557 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Gebirgspass</th><td><input type="number" class="wp-tempo__in" value="1.03"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">1,02</td><td class="wp-tempo__eff">10,4 Mln/Tag</td><td class="wp-tempo__real"><b>10,1</b> Mln/Tag<span class="wp-tempo__proof">gemessen ×1,326 · nach Pass-Ausgleich ×1,032 · 113 von 201 Wegen vermessen</span></td></tr>
+    <tr><th scope="row">Wüstenpfad</th><td><input type="number" class="wp-tempo__in" value="2.56"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">2,56</td><td class="wp-tempo__eff">25,8 Mln/Tag</td><td class="wp-tempo__real is-unknown">nicht vermessen<span class="wp-tempo__proof">35 Wege, keiner mit Höhenprofil</span></td></tr>
+    <tr><th scope="row">Querfeldein</th><td><input type="number" class="wp-tempo__in" value="3.84"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,84</td><td class="wp-tempo__eff">38,7 Mln/Tag</td><td class="wp-tempo__real is-unknown">nicht vermessen<span class="wp-tempo__proof">kein gezeichneter Weg — der A* rechnet je Route</span></td></tr>
+  </tbody></table>
+</div>
+
+<div class="wp-tempo__grp">
+  <h4>Flusskahn<span class="wp-tempo__day">GA: 40 Meilen/Tag</span></h4>
+  <table class="wp-tempo__tbl"><tbody>
+    <tr><th scope="row">Flussweg</th><td><input type="number" class="wp-tempo__in" value="4.00"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">3,97</td><td class="wp-tempo__eff">40,3 Mln/Tag</td></tr>
+  </tbody></table>
+</div>
+
+<div class="wp-tempo__grp">
+  <h4>Flusssegler<span class="wp-tempo__day">GA: 60 Meilen/Tag</span></h4>
+  <table class="wp-tempo__tbl"><tbody>
+    <tr><th scope="row">Flussweg</th><td><input type="number" class="wp-tempo__in" value="6.00"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">5,95</td><td class="wp-tempo__eff">60,5 Mln/Tag</td></tr>
+  </tbody></table>
+</div>
+
+<div class="wp-tempo__grp">
+  <h4>Lastensegler<span class="wp-tempo__day">GA: 120 Meilen/Tag</span></h4>
+  <table class="wp-tempo__tbl"><tbody>
+    <tr><th scope="row">Seeweg</th><td><input type="number" class="wp-tempo__in" value="11.90"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">11,90</td><td class="wp-tempo__eff">120,0 Mln/Tag</td></tr>
+  </tbody></table>
+</div>
+
+<div class="wp-tempo__grp">
+  <h4>Galeere<span class="wp-tempo__day">GA: 100 Meilen/Tag</span></h4>
+  <table class="wp-tempo__tbl"><tbody>
+    <tr><th scope="row">Seeweg</th><td><input type="number" class="wp-tempo__in" value="9.92"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">9,92</td><td class="wp-tempo__eff">100,0 Mln/Tag</td></tr>
+  </tbody></table>
+</div>
+
+<div class="wp-tempo__grp">
+  <h4>Schnellsegler<span class="wp-tempo__day">GA: 250 Meilen/Tag, fährt nachts durch</span></h4>
+  <table class="wp-tempo__tbl"><tbody>
+    <tr><th scope="row">Seeweg</th><td><input type="number" class="wp-tempo__in" value="12.40"></td><td class="wp-tempo__undocell"></td><td class="wp-tempo__ga">12,40</td><td class="wp-tempo__eff">250,1 Mln/Tag</td></tr>
+  </tbody></table>
+</div>
+</div>
+</div>
+
+<p class="mock-note" style="margin-top: 2rem">
+  <b>Jede Stra&szlig;enzeile ist eine Selbstpr&uuml;fung.</b> Sie muss genau die GA-Tagesleistung
+  ihres Reisemittels treffen &mdash; 30,0 bei der Fu&szlig;gruppe, 40,0 zu Fu&szlig;, 50,0 beim
+  Reiter. Das ist kein Zufall, sondern die Gleichung: <code>Tempo &times; Stunden &divide;
+  Zeitma&szlig;stab &divide; gemessener Faktor</code> k&uuml;rzt sich genau dann zur Tagesleistung,
+  wenn <code>mean_G</code> im Code dem gemessenen Mittel der Stra&szlig;en entspricht. Weicht eine
+  dieser sechs Zahlen ab, ist <code>mean_G</code> von der Karte weggelaufen &mdash; sichtbar an
+  sechs Stellen gleichzeitig, ohne eigenen Alarm.<br>
+  Die Fu&szlig;gruppe hat zus&auml;tzlich Gewicht: ihre 30 sind das <b>Eichziel</b>, auf das die
+  Kalibrierung rechnet.
+</p>
+</div>
+</body>
+</html>
