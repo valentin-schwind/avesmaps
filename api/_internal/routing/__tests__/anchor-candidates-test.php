@@ -147,4 +147,28 @@ $kaputt = [
 avesmapsSplitClientPathAtAnchor($graph5, $kaputt, 0);
 assert(isset($graph5['A']['B']), 'ohne zwei vollstaendige Haelften bleibt die Ursprungskante stehen');
 
+// ============================================================ G. mehrere trockene Anker
+
+$graph6 = [];
+$road($graph6, 'A', 'B', [[0.0, 0.0], [10.0, 0.0]], 'path-eins');
+$road($graph6, 'C', 'D', [[0.0, 12.0], [10.0, 12.0]], 'path-zwei');
+
+$trocken = avesmapsFindNearestDryClientLandPathAnchors($graph6, 5.0, 4.0, [], 6);
+assert(count($trocken) === 2, 'beide Wege sind trocken erreichbar: ' . count($trocken));
+assert((string) $trocken[0]['connection']['id'] === 'path-eins', 'der naechste zuerst');
+
+// Ein Wasserband quer ueber den naechsten Weg: der faellt heraus, der zweite bleibt.
+$band = avesmapsPrepareRouteAreas([[
+    'geometry' => ['type' => 'Polygon', 'coordinates' => [[[-5.0, 1.0], [15.0, 1.0], [15.0, 3.0], [-5.0, 3.0], [-5.0, 1.0]]]],
+    'min_x' => -5.0, 'min_y' => 1.0, 'max_x' => 15.0, 'max_y' => 3.0,
+]]);
+$trockenMitSee = avesmapsFindNearestDryClientLandPathAnchors($graph6, 5.0, 4.0, $band, 6);
+$idsTrocken = array_map(static fn(array $c): string => (string) $c['connection']['id'], $trockenMitSee);
+assert($idsTrocken === ['path-zwei'], 'nur der trocken erreichbare Weg bleibt: ' . implode(',', $idsTrocken));
+
+// Und die Einzahl-Huelle liefert weiterhin genau den ersten davon.
+$einzeln = avesmapsFindNearestClientLandPathAnchor($graph6, 5.0, 4.0, $band);
+assert(is_array($einzeln) && (string) $einzeln['connection']['id'] === 'path-zwei',
+    'die Einzahl-Huelle bleibt, drei Tests haengen an ihr');
+
 echo "OK anchor-candidates-test\n";

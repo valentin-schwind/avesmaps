@@ -760,17 +760,31 @@ function avesmapsConnectClientRouteWaypointsToNearestLandPath(array &$graph, arr
         }
     }
 
-    foreach ($waypointNames as $waypointIndex => $name) {
+    foreach ($waypointNames as $name) {
         if (!isset($graph[$name])) continue;
         if (avesmapsClientNodeHasLandPathEdge($graph, $name)) continue;
         if (isset($seaBoundLocationNames[$name])) continue;
         $location = $locationLookup[$name] ?? null;
         if (!is_array($location)) continue;
+        // 🔴 K ANKER, NICHT EINER. Der naechste Fusspunkt ist nicht zwangslaeufig der beste: er kann
+        // auf einem Weg liegen, der von der falschen Seite kommt, und dann faehrt die Reise erst hin
+        // und wieder zurueck. Welcher gewinnt, entscheidet der Dijkstra -- wie ueberall sonst hier.
         // V13 §4.6: no dry anchor chord -> no anchor. The waypoint then keeps whatever the component
         // bridge gave it, which is nothing when that was wet too -- and "no route" is the answer.
-        $anchor = avesmapsFindNearestClientLandPathAnchor($graph, (float) $location['route_x'], (float) $location['route_y'], $water);
-        if ($anchor === null) continue;
-        avesmapsAnchorClientWaypointToLandPath($graph, $name, (float) $location['route_x'], (float) $location['route_y'], $anchor, (string) $syntheticTransport, (float) $syntheticSpeed, (int) $waypointIndex);
+        // 💣 EINMAL GESAMMELT, DANN GESETZT. Der erste Split veraendert den Graphen; ein zweiter
+        // Sammlerlauf saehe die frisch entstandenen Haelften als eigene Wege und haengte den
+        // Wegpunkt ein zweites Mal an dieselbe Strasse.
+        $anchors = avesmapsFindNearestDryClientLandPathAnchors(
+            $graph, (float) $location['route_x'], (float) $location['route_y'], $water,
+            AVESMAPS_ROUTE_CLIENT_ANCHOR_LIMIT
+        );
+        foreach ($anchors as $anchor) {
+            // 💣 Der Index kommt je Anker frisch aus dem GRAPHEN, nicht aus der Wegpunkt-Nummer:
+            // der vorige Anker hat gerade einen Knoten angelegt, und zwei Anker unter demselben
+            // Namen ueberschrieben einander.
+            $anchorIndex = avesmapsAllocateClientAnchorIndex($graph);
+            avesmapsAnchorClientWaypointToLandPath($graph, $name, (float) $location['route_x'], (float) $location['route_y'], $anchor, (string) $syntheticTransport, (float) $syntheticSpeed, $anchorIndex);
+        }
     }
 }
 
@@ -844,13 +858,29 @@ function avesmapsCollectClientSeaBoundLocationNames(array $networkData, array $l
  * the candidates unconditionally rather than in two stages -- it runs for at most three waypoints per
  * request, so the scan is not worth splitting.
  */
-function avesmapsFindNearestClientLandPathAnchor(array $graph, float $px, float $py, array $water = []): ?array {
+function avesmapsFindNearestDryClientLandPathAnchors(array $graph, float $px, float $py, array $water, int $limit): array {
+    if ($limit <= 0) return [];
+    // ⚠️ Der Sammler wird mit AVESMAPS_ROUTE_CLIENT_WATER_DRY_SEARCH_LIMIT befuellt, NICHT mit
+    // $limit -- sonst blieben bei nassen Fusspunkten keine trockenen mehr uebrig. Genau dafuer gibt
+    // es die Konstante.
+    $dry = [];
     foreach (avesmapsCollectNearestClientLandPathAnchors($graph, $px, $py, AVESMAPS_ROUTE_CLIENT_WATER_DRY_SEARCH_LIMIT) as $candidate) {
-        if (!avesmapsRouteChordCrossesWater($px, $py, (float) $candidate['proj_x'], (float) $candidate['proj_y'], $water)) {
-            return $candidate;
-        }
+        if (avesmapsRouteChordCrossesWater($px, $py, (float) $candidate['proj_x'], (float) $candidate['proj_y'], $water)) continue;
+        $dry[] = $candidate;
+        if (count($dry) >= $limit) break;
     }
-    return null;
+    return $dry;
+}
+
+/**
+ * Der naechste trockene Fusspunkt, oder null.
+ *
+ * ⚠️ Bleibt als Huelle bestehen, obwohl der Bestand seit dem 14.08.2026 mit der Mehrzahl arbeitet:
+ * water-bridge-test.php und synthetic-distance-report-test.php pruefen an ihr, dass der Wassertest
+ * greift. Sie zu loeschen hiesse, drei gruene Zusicherungen fuer nichts wegzuwerfen.
+ */
+function avesmapsFindNearestClientLandPathAnchor(array $graph, float $px, float $py, array $water = []): ?array {
+    return avesmapsFindNearestDryClientLandPathAnchors($graph, $px, $py, $water, 1)[0] ?? null;
 }
 
 // The $limit nearest projections, ascending by distance. Same insertion list as
