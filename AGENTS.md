@@ -299,6 +299,20 @@ is the default, English is opt-in. Therefore:
 - **Schema is in code, not `sql/`:** ~14 tables exist only as inline PHP DDL;
   `sql/` is a partial, partly-stale snapshot. `map_feature_relations` and
   `map_proposals` are defined but unused (dead schema).
+- 💣 **A silent MySQL truncation is indistinguishable from "nothing was ever
+  saved".** `app_setting.setting_value` was `VARCHAR(255)` — sized for kill-switch
+  flags (`"0"`/`"1"`) and fine for three months. The first key holding a real value,
+  `travel_values`, is **1414 characters**: outside strict mode MySQL cut it, the
+  reader's `json_decode` returned `NULL`, and every reader fell back to its constant.
+  No error, no exception, no warning — and the Tempowerte window's „Speichern"
+  therefore did nothing at all from 2026-08-14 until it was measured the same day.
+  Widened to `MEDIUMTEXT`; existing installs are pulled up by
+  `avesmapsAppSettingEnsureWideValue()` (⚠️ **call it only from writers of large
+  values** — its `information_schema` probe on the kill-switch path is exactly the
+  load §10 already lists). **The rule this leaves behind: a writer whose value
+  matters must READ IT BACK before treating the write as done** — a marker may only
+  attest that something *is there*, never that a write *was issued*
+  (`avesmapsTravelValuesStoredMatches`).
 - 💣 **`css/pages/political-territory-editor-inline.css` is a BUILD PRODUCT** —
   `tools/scope_editor_css.js` generates it from `political-territory-editor.css`,
   `-layout.css` and `political-territory-wiki-tree.css`. A rule written into it by
