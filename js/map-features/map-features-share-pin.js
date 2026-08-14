@@ -38,9 +38,14 @@ function setSharePin(latlng, { openPopup = false, syncUrl = true } = {}) {
 		title: "Geteilte Markierung",
 		keyboard: true,
 	})
-		.bindPopup(sharePinPopupMarkup(), {
+		// 🔴 `share-pin-menu`, NICHT `floating-location-popup` (Owner 14.08.2026: „design loeschen und
+		// nochmal beginnen"). Die zweite Klasse ist die Huelle des ORTSKASTENS -- 40-px-Symbol,
+		// 20-px-Titel, vierspaltiges Kachelraster. Die Markierung hat zwei Befehle und keinen Inhalt;
+		// sie traegt ihren eigenen Kasten (sharePinMenuMarkup in js/ui/popups.js, .share-pin-menu in
+		// css/features/location-popups-markers.css).
+		.bindPopup(sharePinMenuMarkup(), {
 			autoClose: false,
-			className: "floating-location-popup",
+			className: "share-pin-menu",
 		})
 		.addTo(map);
 

@@ -242,6 +242,17 @@ function locationIconMarkup(locationType, locationTypeLabel) {
 
 // Realistic settlement illustration by size (icons/realistic/) -- the floating-box header image
 // (Owner: "ersetze das wappen durch die stadtgroesse"). Full-colour asset, frameless, decorative.
+// Das Vier-Wege-Kreuz der „Verschieben"-Kachel. EINE Stelle, seit es zwei Knoepfe gibt, die es tragen:
+// der freie Kartenpunkt (buildRoutePopupHtml in js/routing/routing.js) und die gesetzte Markierung.
+// Als Inline-SVG statt als Glyph: fuer dieses Kreuz gibt es kein Zeichen, das in jeder Schrift sitzt,
+// und ein fehlendes Zeichen waere ein leeres Kaestchen. `currentColor` erbt die Farbe des Kachel-Slots.
+function popupMoveIconMarkup() {
+	return '<span class="location-popup__action-icon location-popup__action-icon--move" aria-hidden="true">'
+		+ '<svg viewBox="0 0 16 16" width="15" height="15" xmlns="http://www.w3.org/2000/svg">'
+		+ '<path fill="currentColor" d="M8 0.5 10.6 3.4H9.1v3.5h3.5V5.4L15.5 8l-2.9 2.6V9.1H9.1v3.5h1.5L8 15.5l-2.6-2.9h1.5V9.1H3.4v1.5L0.5 8l2.9-2.6v1.5h3.5V3.4H5.4z"/>'
+		+ "</svg></span>";
+}
+
 function settlementRealisticIconMarkup(locationType, locationTypeLabel) {
 	const path = (typeof LOCATION_REALISTIC_ICON_PATHS !== "undefined" && LOCATION_REALISTIC_ICON_PATHS[locationType])
 		|| (typeof LOCATION_REALISTIC_ICON_PATHS !== "undefined" ? LOCATION_REALISTIC_ICON_PATHS.dorf : "");
@@ -276,10 +287,6 @@ function sharePinVisualMarkup(rootClassName = "", { includeDot = true } = {}) {
 			<span class="share-pin-visual__flag-pole"></span>
 			<span class="share-pin-visual__flag"></span>
 		</span>`;
-}
-
-function sharePinPopupIconMarkup() {
-	return `<span class="location-popup__icon location-popup__icon--share-pin">${sharePinVisualMarkup("share-pin-visual--popup", { includeDot: false })}</span>`;
 }
 
 // Info-Header-Grafiken (Owner): 16:9-Landschaftsbild oben in der Infobox, der Titel liegt als Overlay
@@ -876,13 +883,8 @@ function locationPopupMarkup({
 	wikiUrl = "",
 	isRuined = false,
 	actionsMarkup = "",
-	// Zusatzklasse an der Popup-Huelle. Heute genau ein Nutzer: das Markierungs-Popup, das nur EINE
-	// Aktion hat und deshalb keine Kachel-Zeile braucht (siehe .location-popup--single-action in
-	// css/features/location-popups-markers.css).
-	extraClassName = "",
 }) {
-	const popupClassName = (compact ? "location-popup location-popup--compact" : "location-popup")
-		+ (extraClassName ? " " + extraClassName : "");
+	const popupClassName = compact ? "location-popup location-popup--compact" : "location-popup";
 	const nameClassName = isRuined ? "location-popup__name location-popup__name--ruined" : "location-popup__name";
 	return `
 		<div class="${popupClassName}">
@@ -960,33 +962,92 @@ function labelPopupSubtitle(label, region) {
 	return kategorie + " · " + teile.join(", ");
 }
 
-function sharePinPopupMarkup() {
-	return locationPopupMarkup({
-		name: tr("popup.sharePinName", "Markierte Stelle"),
-		locationType: "dorf",
-		locationTypeLabel: tr("popup.sharePinName", "Markierte Stelle"),
-		headerIconMarkup: sharePinPopupIconMarkup(),
-		showHeaderIcon: true,
-		compact: true,
-		// Genau eine Aktion -- dafuer ist die 90-px-Kachel die falsche Form (sie liesse den halben
-		// Bandbereich leer und waere fuer einen Knopf 86 px hoch). Die Klasse macht daraus eine Zeile.
-		extraClassName: "location-popup--single-action",
-		showType: false,
-		showDescription: false,
-		showWikiLink: false,
-		actionsMarkup: locationPopupActionsMarkup([
-			popupActionButtonMarkup({
-				// Das Emoji stand bis zum 13.08.2026 IM Beschriftungstext -- damit war es ein Zeichen, das
-				// je nach Geraet anders aussieht, und es reiste durch die i18n-Tabelle mit. Jetzt ein Bild
-				// aus dem Owner-Set wie an jedem anderen Kachelknopf (docs/design-language.md: Symbole sind
-				// die vorhandenen Farbbilder, keine Unicode-Zeichen).
-				label: tr("popup.removeMarker", "Markierung entfernen"),
-				iconMarkup: '<img class="location-popup__action-img" src="img/menu/papierkorb.webp" alt="" width="20" height="20" />',
-				className: "location-popup__action-button--danger",
-				attributes: {
-					"data-popup-action": "remove-share-pin",
-				},
-			}),
-		]),
-	});
+// ═══ Das Menue der gesetzten Markierung -- ein EIGENER Kasten ══════════════════════════════════
+// 🔴 Owner 14.08.2026, zum zehnten Mal gemeldet: „das floating menue der markierten stelle is
+// voellig kaputt, design loeschen und nochmal beginnen." Hier steht deshalb nicht die naechste
+// Ausnahme im Ortskasten, sondern ein eigener.
+//
+// WAS GELOESCHT WURDE UND WARUM: Bis heute baute diese Funktion `locationPopupMarkup` -- den Kasten
+// einer ORTSCHAFT -- und haengte ihn in dessen Huelle `floating-location-popup`. Der Markierung
+// hatte dieser Kasten nichts zu sagen: kein Name (nur „Markierte Stelle"), kein Typ, keine
+// Beschreibung, kein Wiki-Artikel, kein Wappen. Uebrig blieb sein RAHMEN, und der ist auf eine
+// Infobox von ~400 px mit vier Kacheln gebaut: 40-px-Symbol, 20-px-Titel und das vierspaltige
+// Kachelraster. Zwei Befehle in vier Spalten sind, gemessen im 215-px-Kasten, 43 px breit und 86 px
+// hoch -- dreizeilig umbrochene Beschriftungen neben einer halb leeren Bandhaelfte. Genau das Bild,
+// das der Owner meldet. Jede der zehn Runden davor hat an diesem geliehenen Rahmen geschraubt
+// (eine Sonderklasse fuer die Zeilenfassung, eigene Abstaende, ein zweites Layout); geschraubt
+// wurde jedes Mal am Symptom.
+//
+// DIE REGEL, DIE DAS BEENDET: 💣 DIE MARKIERUNG IST KEIN ORT. Sie ist ein Menue mit zwei Befehlen
+// und traegt deshalb ihren eigenen Kasten, der nur so viel Rahmen hat, wie sie Inhalt hat. Wer hier
+// das naechste Mal etwas anbaut, fragt zuerst, ob der Ortskasten es koennte -- und wenn ja, gehoert
+// es dorthin, nicht hierher.
+//
+// 🔴 UND ES BLEIBT BEI KACHELN (Owner 14.08.2026: „lass doch die kacheln"). Der Zwischenstand mit
+// gestapelten Zeilen ist damit erledigt -- die Beschwerde davor („braucht es keine riesige breite
+// bei 2 buttons") galt der BREITE, nicht der Kachel. Die kam auch nicht von der Kachelform, sondern
+// von ihrer festen Breite: 90 px sind das Mass der INFOBOX, wo bis zu vier Kacheln nebeneinander
+// gleich breit sein muessen. Zwei Woerter von 69 und 56 px liessen darin je gut 20 px leer, und der
+// Kasten wurde 208 px breit. Hier bemisst sich die Kachel deshalb an ihrer Beschriftung
+// (.share-pin-menu__actions in css/features/location-popups-markers.css) -- gleiche Form, gleiches
+// Symbol oben, gleiche Beschriftung darunter, nur kein Leerraum mehr.
+//
+// Die Klasse `location-popup__action-button` bleibt an den Knoepfen -- sie ist der Haken, an dem der
+// Delegations-Handler in js/routing/routing.js haengt, und die Kachelform des Hauses. Geliehen ist
+// hier also der KNOPF, nicht der Kasten.
+function sharePinMenuMarkup() {
+	return `
+		<div class="share-pin-menu__box">
+			<div class="share-pin-menu__header">
+				${sharePinVisualMarkup("share-pin-visual--popup", { includeDot: false })}
+				<span class="share-pin-menu__title">${escapeHtml(tr("popup.sharePinName", "Markierte Stelle"))}</span>
+			</div>
+			<div class="share-pin-menu__divider"></div>
+			<div class="share-pin-menu__actions">
+				${popupActionButtonMarkup({
+					// ZUERST, weil es die aufbauende Aktion ist und „Entfernen" die zerstoerende bleibt --
+					// eine Loeschkachel in der Mitte einer Reihe ist der Knopf, den man beim Zielen trifft.
+					//
+					// 🔴 DAS PLUS, nicht der Wanderschuh (Owner 14.08.2026: „das typische symbol für
+					// reiseziel hinzufügen ist das +"). Der Schuh steht im Kartenmenue an „Hierher reisen"
+					// und meint das REISEN; das Plus steht an „Reiseziel hinzufügen" und meint das
+					// HINZUFUEGEN zur Liste. Diese Kachel tut das zweite.
+					//
+					// ⭐ Und sie ist deshalb GANZ die Kachel, die es dafuer schon gibt
+					// (routeToggleActionButtonMarkup weiter oben in dieser Datei): dasselbe Plus, dieselbe
+					// Beschriftung aus derselben i18n-Zeile, dieselbe gefuellte Fuellung. Ein Ort und eine
+					// Markierung kommen auf demselben Weg in die Reise -- zwei Kacheln dafuer waeren zwei
+					// Vokabeln fuer eine Handlung, und genau daran hat der Owner das Symbol gemessen.
+					label: tr("popup.addToRoutePlain", "Reiseziel hinzufügen"),
+					className: "location-popup__action-button--accent",
+					iconMarkup: '<span class="location-popup__action-icon" aria-hidden="true">+</span>',
+					attributes: {
+						"data-popup-action": "travel-to-share-pin",
+					},
+				})}
+				${popupActionButtonMarkup({
+					// Vor dem Entfernen: wer danebengeklickt hat, will ruecken statt wegwerfen und neu setzen --
+					// dieselbe Reihenfolge und derselbe Ablauf wie am freien Kartenpunkt (buildRoutePopupHtml).
+					label: tr("popup.moveMarker", "Verschieben"),
+					iconMarkup: popupMoveIconMarkup(),
+					attributes: {
+						"data-popup-action": "move-share-pin",
+					},
+				})}
+				${popupActionButtonMarkup({
+					// EIN Verb, wie beim Nachbarn: der Kasten sagt oben schon, WORUM es geht („Markierte
+					// Stelle"), und „Markierung entfernen" wiederholte das Wort nur ein zweites Mal --
+					// und machte die Zeile laenger als sie sein muss, also den ganzen Kasten breiter.
+					// Das Bild kommt aus dem Owner-Set (img/menu/), nicht aus einem Emoji: ein Zeichen saehe
+					// auf jedem Geraet anders aus und reiste durch die i18n-Tabelle mit. 36 px wie im
+					// Kachel-Slot der Infobox (docs/design-language.md §12).
+					label: tr("popup.removeMarker", "Entfernen"),
+					iconMarkup: '<img class="location-popup__action-img" src="img/menu/papierkorb.webp" alt="" width="36" height="36" />',
+					className: "location-popup__action-button--danger",
+					attributes: {
+						"data-popup-action": "remove-share-pin",
+					},
+				})}
+			</div>
+		</div>`;
 }

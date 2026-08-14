@@ -70,13 +70,6 @@
 	height: 34px;
 }
 
-.location-popup__icon--share-pin {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	overflow: visible;
-}
-
 .location-popup__name {
 	font-size: 16px;
 	font-weight: bold;
@@ -649,8 +642,20 @@
 	line-height: 1;
 }
 
-/* Pfeilkreuz im "Verschieben"-Button (freier Kartenpunkt). Als SVG gezeichnet, nicht als Glyph -- es
-   erbt seine Farbe per currentColor aus dem Icon-Slot und braucht deshalb keine eigene Farbregel. */
+/* Pfeilkreuz im "Verschieben"-Button (freier Kartenpunkt UND gesetzte Markierung). Als SVG
+   gezeichnet, nicht als Glyph; das `fill="currentColor"` im Markup holt sich die Farbe von hier.
+
+   💣 `color: inherit` -- und damit NICHT das `--color-button-text` der Elternregel
+   `.location-popup__action-icon` daneben. Dieses Token ist die HELLE Schrift des GEFUELLTEN
+   Knopfes; das Kreuz haengt aber an einem WEICHEN. Gemessen im hellen Theme: Kreuz
+   rgb(246,239,225) auf Knopfgrund rgb(239,233,219) -- also nichts. Im dunklen Theme faellt es nicht
+   auf, weil hell auf dunkel zufaellig funktioniert; genau deshalb hat es bis hierher ueberlebt.
+   Es ist dieselbe Verwechslung, vor der der Kommentar bei `.location-popup__action-glyph` weiter
+   unten warnt -- die Warnung stand da, das Kreuz kam trotzdem mit dem falschen Token. */
+.location-popup__action-icon--move {
+	color: inherit;
+}
+
 .location-popup__action-icon--move > svg {
 	display: block;
 }
@@ -726,38 +731,6 @@
 .location-popup__action-button--accent:focus-visible {
 	border-color: var(--color-button-border);
 	background: var(--color-button-hover);
-}
-
-/* ---- Popup mit GENAU EINER Aktion (heute: die gesetzte Markierung) ----
-   Die 90-px-Kachel ist hier die falsche Form: gemessen blieben 105 der 195 px des Bands leer, und fuer
-   einen einzigen Knopf war sie 86 px hoch. Stattdessen eine Zeile ueber die volle Breite -- Symbol links,
-   Beschriftung rechts. Das ist dieselbe Zeilenfassung, die das Infopanel fuer seine Baender benutzt
-   (.avesmaps-citymaps__actions in place-extras.css), und die Ausnahme, die docs/design-language.md fuer
-   einzelne Knoepfe ohnehin vorsieht (die Zeile 'Bewertung schreiben').
-   ⚠️ Der FUENFTE Ort mit der Frage, wie eine Kachel ihre Zeile fuellt (der Kommentar bei
-      .avesmaps-citymaps__actions in place-extras.css zaehlt vier). Hier faellt die Antwort anders aus:
-      es geht nicht um gleich breite Nachbarn, sondern um einen Knopf ganz ohne Nachbarn. */
-.location-popup--single-action > .location-popup__actions > .location-popup__action-button {
-	flex: 1 1 auto;
-	width: auto;
-	flex-direction: row;
-	justify-content: center;
-	min-height: 0;
-	padding: var(--space-6) var(--space-8);
-	gap: var(--space-6);
-}
-/* 20 px wie in der Zeilenfassung des Panels -- die 36 px der Kachel neben einer 12-px-Schrift machten das
-   Bild zur Hauptsache, und die Zeile bliebe so hoch wie die Kachel vorher. */
-.location-popup--single-action > .location-popup__actions > .location-popup__action-button .location-popup__action-img {
-	width: var(--icon-md);
-	height: var(--icon-md);
-	flex: 0 0 auto;
-}
-/* Oben so viel Luft, wie das Popup unten selbst hat (--space-8 ist sein Innenabstand): die Basisregel
-   setzt 8 oben und 4 unten, zusammen mit dem Innenabstand sass das Band sichtbar schief. Die Basisregel
-   bleibt unangetastet -- sie gehoert ALLEN Popups, und deren Abstaende stehen hier nicht zur Debatte. */
-.location-popup--single-action > .location-popup__actions {
-	margin: var(--space-8) 0 0;
 }
 
 .location-popup__action-button--danger {
@@ -1006,6 +979,190 @@
 
 .open-path-ends-chip button:hover {
 	background: var(--color-button-soft-hover);
+}
+
+/* ═══ Das Menue der gesetzten Markierung ════════════════════════════════════════════════════════
+   🔴 Owner 14.08.2026 (zehnte Meldung): „design loeschen und nochmal beginnen." Was hier stand, war
+   kein eigenes Design -- es war der ORTSKASTEN (.location-popup in der Huelle
+   .floating-location-popup) mit Sonderregeln davor. Der Rahmen dort ist auf eine Infobox von
+   ~400 px mit vier Kacheln gebaut; die Markierung hat zwei Befehle und keinen Inhalt. Gemessen
+   kamen dabei 43 px breite, 86 px hohe Kacheln heraus (vier Spalten fuer zwei Knoepfe) unter einem
+   20-px-Titel neben einem 40-px-Symbol.
+
+   💣 DIE MARKIERUNG IST KEIN ORT -- deshalb erbt dieser Kasten NICHTS vom Ortskasten. Er nimmt sich
+   aus dem Haus genau zwei Dinge: die Token und den Knopf .location-popup__action-button in seiner
+   BASISFORM (Zeile: Symbol links, Beschriftung rechts) -- der ist zugleich der Haken, an dem der
+   Delegations-Handler in js/routing/routing.js haengt. Wer hier eine Regel mit `.location-popup`
+   im Selektor braucht, baut die Verwechslung von vorn auf.
+
+   ⚠️ KEINE Kacheln (Owner 14.08.2026: „braucht es keine riesige breite bei 2 buttons"). Die Kachel
+   ist die Form der INFOBOX: 90 px breit, Symbol oben, Beschriftung darunter -- fuer eine Leiste aus
+   vier Aktionen unter einem Ortsnamen. Zwei davon nebeneinander machten diesen Kasten 208 px breit,
+   fuer zwei Woerter. Hier stehen die Befehle als ZEILEN untereinander, wie im Kartenmenue
+   (css/components/map-context-menu.css) -- dasselbe Menue, aus dem die Markierung gesetzt wurde.
+   Der Kasten ist dann so breit wie sein laengstes Wort und nicht breiter. */
+.share-pin-menu {
+	/* Die Polsterung an EINER Stelle: der Trenner rechnet sie negativ zurueck, die Zeilen stehen
+	   darin. Wer sie aendert, aendert beides mit -- statt zwei Zahlen synchron zu halten. */
+	--share-pin-menu-pad: var(--space-6);
+	/* Der Platz, den Leaflets Schliesskreuz oben rechts beansprucht: 24x24 an `top:0; right:0`
+	   (css/third-party/leaflet.css). Es ist absolut positioniert, nimmt also KEINEN Fluss ein --
+	   die Kopfzeile muss ihn selbst freihalten. */
+	--share-pin-menu-close: 24px;
+}
+
+.share-pin-menu .leaflet-popup-content-wrapper,
+.share-pin-menu .leaflet-popup-tip {
+	background: var(--color-panel);
+	color: var(--color-text);
+}
+
+/* 💣 `padding: 0` an der Huelle -- und DAS ist der Grund, warum der Trenner „nicht durchging"
+   (Owner 14.08.2026). Leaflet gibt .leaflet-popup-content-wrapper von Haus aus `padding: 1px`
+   (css/third-party/leaflet.css). Der Trenner darin reicht dann zwar bis an die Kante seines
+   Kastens, aber dieser Kasten sitzt 1 px innerhalb der sichtbaren Huelle -- links UND rechts bleibt
+   ein Haarstrich Panelfarbe stehen, und die Linie endet sichtbar in der Luft. Gemessen war der
+   Trenner exakt so breit wie sein Kasten; der Fehler stand eine Ebene hoeher. Mit 0 sind
+   Kastenkante und sichtbare Kante dieselbe Kante, und der negative Seitenrand unten trifft sie. */
+.share-pin-menu .leaflet-popup-content-wrapper {
+	padding: 0;
+}
+
+/* Der Kasten polstert selbst (.share-pin-menu__box) -- die 10/5-px-Basisregel von
+   .leaflet-popup-content weiter oben in dieser Datei kaeme sonst obendrauf und die Polsterung
+   waere unten anders als oben. Dieselbe Nullung benutzt .slim-location-popup.
+
+   💣 Und `width: auto !important`, weil Leaflet die gemessene Breite INLINE schreibt: `_updateLayout`
+   misst den Inhalt und setzt `(width + 1) + 'px'`. Dieses eine Pixel landet komplett rechts --
+   gemessen 10 px Einzug links, 11 px rechts, und docs/design-language.md verlangt gleiche Einzuege
+   auf beiden Seiten. `auto` laesst statt dessen den Inhalt die Breite bestimmen: die laengste Zeile,
+   und die ist auf beiden Seiten gleich weit von der Kante entfernt. */
+.share-pin-menu .leaflet-popup-content {
+	width: auto !important;
+	margin: 0;
+}
+
+.share-pin-menu__box {
+	padding: var(--share-pin-menu-pad);
+	color: var(--color-text);
+	line-height: 1.35;
+}
+
+/* 💣 Die Kopfzeile haelt rechts den Platz des Schliesskreuzes frei. Solange der Kasten 208 px breit
+   war, fiel das nicht auf -- der Titel endete lange vorher. Seit er sich am laengsten Wort misst,
+   sass das ✕ mitten auf „Stelle" (gemessen 10 x 12 px Ueberdeckung). Der Kasten waechst dadurch um
+   diesen Betrag statt den Titel zu verdecken: das ist die richtige Reihenfolge, denn eine schmale
+   Box ist ein Ziel, ein verdeckter Titel ein Fehler. */
+.share-pin-menu__header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	padding: var(--space-2) var(--space-4);
+	padding-right: var(--share-pin-menu-close);
+}
+
+/* Ein Menuetitel, kein Ortsname: die Schriftgroesse der Kartenmenue-Zeile (13 px), nicht die 20 px
+   der Infobox. Er nennt, was angeklickt wurde -- deshalb tragen die Zeilen darunter blosse Verben
+   („Verschieben", „Entfernen") und wiederholen das Wort „Markierung" nicht. */
+.share-pin-menu__title {
+	color: var(--color-text-strong);
+	font-size: var(--font-size-body);
+	font-weight: var(--font-weight-bold);
+	white-space: nowrap;
+}
+
+/* Full-bleed ueber die negativen Seitenraender (= Polsterung des Kastens), damit die Linie von
+   Kante zu Kante geht statt in der Luft zu enden (docs/design-language.md, Trenner-Mechanik).
+   Zusammen mit `padding: 0` an der Huelle oben trifft sie die SICHTBARE Kante.
+   Symmetrisch: --divider-gap-tight, denn das hier ist eine dichte Befehlsgruppe, kein Lesetext. */
+.share-pin-menu__divider {
+	height: 1px;
+	margin: var(--divider-gap-tight) calc(-1 * var(--share-pin-menu-pad));
+	background: var(--color-divider);
+}
+
+/* ⭐ ZWEI KACHELN -- und die Breite kommt aus ihrer BESCHRIFTUNG, nicht aus einer festen Zahl.
+   Das ist die ganze Aenderung gegenueber der Infobox: dort ist die Kachel `width: 90px`, weil sie
+   in einer Leiste mit bis zu vier Geschwistern steht, die alle gleich breit sein muessen. Hier
+   stehen zwei, und die 90 px machten den Kasten 208 px breit -- fuer zwei Woerter von 69 und 56 px,
+   also gut 20 px Leerraum je Kachel (Owner 14.08.2026: „braucht es keine riesige breite bei 2
+   buttons").
+
+   💣 `width: max-content` am BAND, dazu `1fr`-Spalten UND die Deckelung an der Kachel weiter unten.
+   Die drei gehoeren zusammen, und zwar so:
+     · Ein Leaflet-Popup misst seinen Inhalt -- es gibt keine fertige Breite, die man aufteilen
+       koennte. `1fr` allein fiele deshalb auf die Mindestbreite zusammen (gemessen 45 px).
+     · `max-content` gibt dem Band zuerst eine Wunschbreite, und ERST DARIN gleichen die `1fr` alle
+       Spalten auf die BREITESTE an. Genau dieses Angleichen ist der Grund fuer max-content:
+       gemessen mit `min-content` bekam jede Spalte ihre eigene Zahl (75 / 83 / 69 px), und ungleiche
+       Nachbarn sind das, wogegen die Infobox ihr Raster ueberhaupt hat.
+     · Die Wunschbreite misst die Beschriftung UNGEBROCHEN -- „Als Reiseziel hinzufügen" waere 140 px
+       und der Kasten ueber 450. Deshalb deckelt die Kachel sich selbst auf die 90 px des Hauses;
+       darueber bricht die Beschriftung um, statt die Reihe auseinanderzuziehen.
+
+   ⭐ Und die Spaltenzahl steht NIRGENDS: `grid-auto-flow: column` macht so viele Spalten, wie
+   Kacheln da sind. Die vierte kostet damit keine CSS-Zeile mehr -- und niemand kann vergessen, eine
+   Zahl nachzuziehen (genau daran ist die geerbte Vierspalten-Regel der Infobox hier gescheitert). */
+.share-pin-menu__actions {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: 1fr;
+	gap: var(--space-6);
+	width: max-content;
+}
+
+/* Die Kachel des Hauses (docs/design-language.md §12): Symbol zentriert oben, Beschriftung zentriert
+   darunter.
+
+   ⭐ `max-width: 90px` statt der `width: 90px` der Basisregel -- und das ist der ganze Unterschied
+   zur Infobox. Dort ist die 90 eine FESTE Breite, weil bis zu vier Kacheln nebeneinander gleich
+   breit sein muessen; hier ist sie eine OBERGRENZE. Kurze Beschriftungen bleiben darunter (mit
+   „Verschieben" und „Entfernen" allein waren es 82,6 px), lange brechen an ihr um, statt die Reihe
+   ueber den Kasten hinauszuziehen. Dieselbe Zahl, aber sie deckelt, statt zu diktieren.
+
+   `white-space: normal` laesst diesen Umbruch ueberhaupt zu -- die Design-Sprache erlaubt der Kachel
+   ausdruecklich eine umbrechende Beschriftung.
+   ⚠️ Keine Silbentrennung (`hyphens`): die gilt im Haus fuer Fliesstext und Namen, ausdruecklich
+   NICHT fuer Knopfbeschriftungen. Umbrochen wird an Leerzeichen. */
+.share-pin-menu .location-popup__action-button {
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-start;
+	gap: var(--space-2);
+	width: auto;
+	max-width: 90px;
+	min-height: 60px;
+	padding: var(--space-6) var(--space-4);
+	text-align: center;
+	white-space: normal;
+	line-height: 1.15;
+}
+
+/* Gleich grosse Symbol-SLOTS ueber allen Kacheln (36 px wie in der Infobox): ein Zeichen („+", das
+   Verschieben-Kreuz) und ein farbiges Bild aus dem Owner-Set (Papierkorb) stehen hier nebeneinander,
+   und ohne festen Slot saessen ihre Beschriftungen auf unterschiedlichen Hoehen (Zweiklang der
+   Symbole: docs/design-language.md, „Icons -- zwei Klassen").
+   Die 24 px Schriftgroesse sind dieselben, die die Infobox ihren Zeichen-Kacheln im 36-px-Slot gibt
+   (.location-popup__action-glyph weiter oben) -- ein 16-px-Zeichen saehe darin verloren aus neben
+   einer 36-px-Illustration. */
+.share-pin-menu .location-popup__action-button .location-popup__action-icon,
+.share-pin-menu .location-popup__action-button .location-popup__action-img {
+	width: 36px;
+	height: 36px;
+	flex: 0 0 auto;
+}
+
+.share-pin-menu .location-popup__action-button .location-popup__action-icon {
+	font-size: 24px;
+}
+
+/* Das Kreuz traegt im Markup 15 px als Attribut (dort ist es ein Inline-Zeichen); in der Kachel
+   fuellt es den Slot, bleibt aber kleiner als das Bild daneben -- eine Glyphe auf 36 px waere ein
+   Klotz neben einer Illustration. */
+.share-pin-menu .location-popup__action-icon--move > svg {
+	width: 24px;
+	height: 24px;
+	margin: auto;
 }
 
 .share-pin-visual {

@@ -572,7 +572,11 @@ window.AVESMAPS_I18N_EN = {
 	"popup.labelTypeRegion": "Region",
 	"popup.labelNameFallback": "Label",
 	"popup.sharePinName": "Marked spot",
-	"popup.removeMarker": "Remove marker",
+	// Der Kasten sagt oben schon „Marked spot" (sharePinMenuMarkup) -- die beiden Verwaltungs-Kacheln
+	// sind deshalb blosse Verben. Die dritte Kachel („Reiseziel hinzufügen") hat KEINE eigene Zeile:
+	// sie benutzt popup.addToRoutePlain, dieselbe wie der gleichnamige Knopf an einer Ortschaft.
+	"popup.moveMarker": "Move",
+	"popup.removeMarker": "Remove",
 	"popup.wikiLinkSuffix": "in the Wiki Aventurica",
 	"popup.wikiLinkSuffixArrow": "in the Wiki-Aventurica ↗",
 	// Political context under the settlement type + the "Liegt in" hierarchy breadcrumb.

@@ -934,6 +934,30 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
+	// „Verschieben" an der gesetzten Markierung -- derselbe wartende Zustand wie am freien Kartenpunkt
+	// (beginRelocation in route-travel-here.js), nur ohne Kennung: die Markierung gibt es nur einmal.
+	if (action === "move-share-pin") {
+		if (typeof beginSharePinRelocation === "function") {
+			beginSharePinRelocation();
+		}
+		return;
+	}
+
+	// „Als Reiseziel hinzufuegen" an der gesetzten Markierung. Es ruft DIESELBE Funktion wie
+	// „Hierher reisen" im Kartenmenue (travelToMapPoint in route-travel-here.js) -- die traegt den
+	// Punkt als Wegpunkt ein und laesst den Planer rechnen. Ein eigener Routenweg fuer die Markierung
+	// waere ein zweiter neben dem des Planers, und genau den hat travelToMapPoint abgeschafft.
+	//
+	// 💣 Die Koordinaten kommen aus `sharePinCoordinates`, NICHT aus `contextMenuLatLng`: dieses Menue
+	// haengt am Marker, nicht an einem Rechtsklick -- contextMenuLatLng truege noch die Stelle des
+	// letzten Rechtsklicks irgendwo anders auf der Karte, und die Reise ginge dorthin.
+	if (action === "travel-to-share-pin") {
+		if (sharePinCoordinates && typeof travelToMapPoint === "function") {
+			void travelToMapPoint(sharePinCoordinates);
+		}
+		return;
+	}
+
 	if (action === "remove-share-pin") {
 		clearSharePin();
 		return;
@@ -1315,13 +1339,10 @@ function buildRoutePopupHtml(loc, { showRemoveAction = false, role = "" } = {}) 
 	if (showRemoveAction && loc.isMapPoint && loc.waypointId) {
 		buttons.push(popupActionButtonMarkup({
 			label: tr("popup.moveMapPoint", "Verschieben"),
-			// Als Inline-SVG statt als Glyph: fuer das Vier-Wege-Kreuz gibt es kein Zeichen, das in jeder
-			// Schrift sitzt, und ein fehlendes Icon waere ein leeres Kaestchen. `currentColor` erbt die
-			// Farbe des Kachel-Slots, wie das ✕ nebenan.
-			iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--move" aria-hidden="true">'
-				+ '<svg viewBox="0 0 16 16" width="15" height="15" xmlns="http://www.w3.org/2000/svg">'
-				+ '<path fill="currentColor" d="M8 0.5 10.6 3.4H9.1v3.5h3.5V5.4L15.5 8l-2.9 2.6V9.1H9.1v3.5h1.5L8 15.5l-2.6-2.9h1.5V9.1H3.4v1.5L0.5 8l2.9-2.6v1.5h3.5V3.4H5.4z"/>'
-				+ "</svg></span>",
+			// Das Kreuz wohnt seit dem 14.08.2026 in popupMoveIconMarkup() (js/ui/popups.js) -- die
+			// gesetzte Markierung traegt dieselbe Kachel, und zwei Abschriften desselben SVG laufen
+			// auseinander.
+			iconMarkup: popupMoveIconMarkup(),
 			attributes: { "data-popup-action": "move-map-point", "data-waypoint-id": loc.waypointId },
 		}));
 	}
@@ -1378,9 +1399,18 @@ function buildRoutePopupHtml(loc, { showRemoveAction = false, role = "" } = {}) 
 	// (Owner: "das icon der stadt 50x50"). Empty markup falls back to the default type icon in locationPopupMarkup.
 	// Waehlt die Illustration nach der SIEDLUNGSGROESSE -- also mit dem reinen Typ-Label ("Dorf"), nicht
 	// mit der um die Rolle ergaenzten Anzeige-Zeile.
-	const headerIcon = typeof settlementRealisticIconMarkup === "function"
-		? settlementRealisticIconMarkup(loc.locationType, settlementTypeLabel)
-		: "";
+	// 💣 Ein freier Kartenpunkt ist KEINE Ortschaft. settlementRealisticIconMarkup faellt bei unbekanntem
+	// Typ auf LOCATION_REALISTIC_ICON_PATHS.dorf zurueck (js/ui/popups.js) -- die Box behauptete damit ein
+	// Dorf an einer Stelle, an der nichts steht (Owner 2026-08-14: „das dorf symbol mach keinen sinn wenn
+	// man frei reist"). Er bekommt den Wanderschuh: dasselbe Zeichen, mit dem die Karte ohnehin „zu Fuss"
+	// und „hierher reisen" meint.
+	// Die Klasse bleibt --realistic, damit er dieselben 50x50 bekommt wie die Illustration daneben; alt=""
+	// ist richtig, denn der Name der Box nennt den Punkt bereits samt Koordinaten.
+	const headerIcon = loc.isMapPoint
+		? `<img class="location-popup__icon location-popup__icon--realistic" src="${escapeHtml(withAssetVersion("icons/schuh.webp"))}" alt="" />`
+		: (typeof settlementRealisticIconMarkup === "function"
+			? settlementRealisticIconMarkup(loc.locationType, settlementTypeLabel)
+			: "");
 	return locationPopupMarkup({
 		name: loc.name,
 		locationType: loc.locationType,
