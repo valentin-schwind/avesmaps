@@ -111,26 +111,29 @@ function buildRouteSteps(routeNames, segments, options = {}) {
 		? applyRouteSeasonGround(buildRoutePlanEntries(routeNames, segments), segments, options.departure, travelPerDay)
 		: buildRoutePlanEntries(routeNames, segments);
 
-	return planEntries.map((entry) => {
-		let restTime = 0;
-		// 💣 THE NIGHT PASSAGE BELONGS TO A SHIP, NOT TO THE SEA. S. 131 grants it by name to exactly
-		// two vessels -- the Schnellsegler (250 miles) and the Kurier-Dromone (200, which we do not
-		// model) -- and calls it a special case with conditions. The Lastensegler's own row is 120
-		// miles at 12 hours and the Galeere's is 70 at 8; both are coastal ships, of which the same
-		// page says they „ankern gewöhnlich nachts oder laufen einen Hafen an".
-		//
-		// This condition was keyed on the PATH TYPE until 2026-08-03 and handed the 24-hour day to
-		// every ship afloat: the Lastensegler ran 201,7 miles/day against a source row of 120, the
-		// Galeere 181,5 against 70. Only the Schnellsegler happened to land right (242 against 250),
-		// which is what made the error look like none. Same shape as the river bug it followed --
-		// right per hour, wrong per day.
-		const exemptFromRest = entry.type === "Seeweg"
-			&& resolveRouteStepTransport(entry, entry.type) === "fastShip";
-		if (includeRests && !exemptFromRest) {
-			const days = entry.travelTime / travelPerDay;
-			const totalSegmentHours = days * 24;
-			restTime = totalSegmentHours - entry.travelTime;
-		}
+	// 💣 THE NIGHT PASSAGE BELONGS TO A SHIP, NOT TO THE SEA. S. 131 grants it by name to exactly
+	// two vessels -- the Schnellsegler (250 miles) and the Kurier-Dromone (200, which we do not
+	// model) -- and calls it a special case with conditions. The Lastensegler's own row is 120
+	// miles at 12 hours and the Galeere's is 70 at 8; both are coastal ships, of which the same
+	// page says they „ankern gewöhnlich nachts oder laufen einen Hafen an".
+	//
+	// This condition was keyed on the PATH TYPE until 2026-08-03 and handed the 24-hour day to
+	// every ship afloat: the Lastensegler ran 201,7 miles/day against a source row of 120, the
+	// Galeere 181,5 against 70. Only the Schnellsegler happened to land right (242 against 250),
+	// which is what made the error look like none. Same shape as the river bug it followed --
+	// right per hour, wrong per day.
+	const exemptFlags = planEntries.map((entry) => entry.type === "Seeweg"
+		&& resolveRouteStepTransport(entry, entry.type) === "fastShip");
+	// 💣 ONE call for the WHOLE route, outside the map. The rest belongs to the journey, not to the
+	// row: three short legs share a travel day, and a night can fall in the middle of a leg.
+	const restPortions = avesmapsRouteRestPortions(
+		planEntries.map((entry, index) => ({ travelTime: entry.travelTime, exempt: exemptFlags[index] })),
+		travelPerDay,
+		includeRests
+	);
+
+	return planEntries.map((entry, index) => {
+		const restTime = restPortions[index];
 
 		return {
 			type: entry.type,

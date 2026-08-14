@@ -126,11 +126,24 @@ assert.ok(
 assert.ok(winter[0].season_ground, "die Etappe erklaert sich: ein Vermerk haengt dran");
 assert.strictEqual(winter[0].season_ground.condition, "schnee_leicht", "leichter Schnee im gemaessigten Winter");
 
-// 💣 Die Rast waechst mit: sie ist aus der Reisezeit gerechnet, nicht daneben.
-assert.ok(winter[0].rest_time > plain[0].rest_time, "mehr Reisezeit heisst mehr Rast");
+// 💣 DIE RAST WAECHST MIT -- ABER IN PORTIONEN, NICHT ANTEILIG (seit 14.08.2026). Der Winterabzug
+// verlaengert die vier Etappen von zusammen 122,4 auf 139,9 Reisestunden; das ist eine
+// Nachtgrenze mehr, also 10 gegen 11 Portionen zu je 12 Stunden.
+//
+// 🔴 AUF DER EINZELNEN ETAPPE IST DAS NICHT ZU SEHEN: Etappe 1 traegt in beiden Faellen 24
+// Stunden. Die alte Fassung dieses Tests verglich genau diese eine Etappe und waere seit dem
+// Umbau rot -- die Aussage „mehr Reisezeit heisst mehr Rast" gehoert der SUMME, weil die Rast der
+// Route gehoert und nicht der Zeile.
+const restOf = (list) => list.reduce((total, step) => total + step.rest_time, 0);
+const travelOf = (list) => list.reduce((total, step) => total + step.travel_time, 0);
+assert.ok(Math.abs(travelOf(plain) - 122.4) < 1e-9, `Grundlinie 122,4 Reisestunden, war ${travelOf(plain)}`);
+assert.strictEqual(restOf(plain), 120, `ohne Winter 10 Portionen zu 12 Stunden, waren ${restOf(plain)}`);
+assert.strictEqual(restOf(winter), 132, `mit Winter 11 Portionen, waren ${restOf(winter)}`);
+assert.ok(restOf(winter) > restOf(plain), "mehr Reisezeit heisst -- ueber die Grenze -- mehr Rast");
+// Die Gegenprobe zur alten Regel: die Rast ist keine Kopie der Reisezeit mehr.
 assert.ok(
-	Math.abs(winter[0].rest_time - winter[0].travel_time) < 1e-9,
-	"bei 12 Reisestunden am Tag ist Rast = Reisezeit"
+	Math.abs(restOf(winter) - travelOf(winter)) > 1,
+	`die Rast (${restOf(winter)}) darf nicht mehr die Reisezeit (${travelOf(winter)}) sein`
 );
 
 // ---- 🔴 Die SUMME traegt denselben Abzug wie ihre Etappen -------------------------------------------

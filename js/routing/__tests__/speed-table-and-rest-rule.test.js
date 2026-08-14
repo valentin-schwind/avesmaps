@@ -80,45 +80,66 @@ assert.strictEqual(TIME_SCALE_FACTOR, 1.19, "ohne den echten Zeitfaktor prüft d
 assert.ok(SPEED_TABLE && SPEED_TABLE.riverBarge, "ohne die echte Tempotabelle ebenso");
 
 // ---- 1. die Rastregel -----------------------------------------------------------------------------
-// Eine Etappe von 1 Karteneinheit = 3 Meilen der jeweiligen Wegart, mit 12 Reisestunden pro Tag
-// (die Voreinstellung des Planers: 12 Reise, 8 Schlaf, 4 Lager).
+// Eine Etappe von 300 Karteneinheiten = 900 Meilen der jeweiligen Wegart, mit 12 Reisestunden pro
+// Tag (die Voreinstellung des Planers: 12 Reise, 8 Schlaf, 4 Lager).
+//
+// 💣 DIE LAENGE IST TEIL DER PRUEFUNG. Seit dem 14.08.2026 faellt die Rast in ganzen Portionen an,
+// also erst jenseits eines Reisetages. Mit den frueheren 3 Meilen rastete NIEMAND mehr -- der Test
+// waere gruen gewesen und haette nichts mehr bewacht. 900 Meilen sind fuer jedes Reisemittel dieser
+// Tabelle mehr als ein Tagewerk, auch fuer den schnellsten Segler.
 const stepFor = (type, transport) => {
 	if (transport) {
 		chosenTransport = Object.assign({}, chosenTransport, { [type]: transport });
 	}
 	const steps = buildRouteSteps(["A", "B"], [{
-		geometry: { type: "LineString", coordinates: [[0, 0], [1, 0]] },
+		geometry: { type: "LineString", coordinates: [[0, 0], [300, 0]] },
 		properties: { feature_subtype: type, public_id: "s1" },
 	}], { includeRests: true, restHoursPerDay: 12 });
 	assert.strictEqual(steps.length, 1, `eine Etappe erwartet für ${type}`);
 	return steps[0];
 };
-const restsLikeItTravels = (step, what) => {
+// Fuer eine EINZELNE Etappe, die ausgeruht beginnt, ist die Zahl der Naechte geschlossen:
+// ceil(Reisezeit / Reisestunden) - 1.
+const expectedRest = (travelTime, travelPerDay) =>
+	Math.max(0, Math.ceil(travelTime / travelPerDay) - 1) * (24 - travelPerDay);
+const restsInPortions = (step, what) => {
 	assert.ok(step.travel_time > 0, `${what}: die Etappe hat überhaupt eine Reisezeit`);
+	// 🔴 DAS IST DER ZAHN. Wer ein Reisemittel wieder von der Rast ausnimmt, faellt hier auf 0.
+	assert.ok(step.rest_time > 0, `${what}: über 900 Meilen muss mindestens eine Nacht anfallen — ist ${step.rest_time}`);
 	assert.ok(
-		Math.abs(step.rest_time - step.travel_time) < 1e-12,
-		`${what}: bei 12 Reisestunden muss die Rast so lang sein wie die Reise — ist ${step.rest_time}`
+		Math.abs(step.rest_time - expectedRest(step.travel_time, 12)) < 1e-9,
+		`${what}: erwartet ${expectedRest(step.travel_time, 12)} Raststunden zu ${step.travel_time} Reisestunden `
+		+ `— sind ${step.rest_time}`
 	);
 };
 
 // 🔴 DAS IST DER TEST. Vor dem 2026-08-02 rastete der Fluss gar nicht.
-restsLikeItTravels(stepFor("Flussweg", "riverBarge"), "Flusskahn");
-restsLikeItTravels(stepFor("Weg", "groupFoot"), "Gruppe zu Fuß");
+restsInPortions(stepFor("Flussweg", "riverBarge"), "Flusskahn");
+restsInPortions(stepFor("Weg", "groupFoot"), "Gruppe zu Fuß");
 
 // 🔴 UND DAS IST DER ZWEITE. Bis zum 2026-08-03 hing die Ausnahme am WEGTYP, also bekam jedes Schiff
 // den 24-Stunden-Tag. S. 131 gibt ihn namentlich nur dem Schnellsegler (250 Meilen) und der
 // Kurier-Dromone (200, die wir nicht führen); der Lastensegler steht dort mit 120 bei 12 Stunden,
 // die Galeere mit 70 bei 8 — beides Küstenschiffe, die „gewöhnlich nachts vor Anker gehen".
-restsLikeItTravels(stepFor("Seeweg", "cargoShip"), "Lastensegler");
-restsLikeItTravels(stepFor("Seeweg", "galley"), "Galeere");
+restsInPortions(stepFor("Seeweg", "cargoShip"), "Lastensegler");
+restsInPortions(stepFor("Seeweg", "galley"), "Galeere");
 
 const fastSailer = stepFor("Seeweg", "fastShip");
 assert.ok(fastSailer.travel_time > 0, "der Schnellsegler hat eine Reisezeit");
 assert.strictEqual(fastSailer.rest_time, 0, "nur der Schnellsegler fährt rund um die Uhr");
 
+// 💣 Und die kurze Etappe rastet NICHT mehr: 3 Meilen sind fuer jedes Reisemittel weit unter einem
+// Reisetag. Genau das war bis zum 14.08.2026 anders -- dort stand hier die halbe Reisezeit als Rast.
+const shortLeg = buildRouteSteps(["A", "B"], [{
+	geometry: { type: "LineString", coordinates: [[0, 0], [1, 0]] },
+	properties: { feature_subtype: "Weg", public_id: "s1" },
+}], { includeRests: true, restHoursPerDay: 12 })[0];
+assert.ok(shortLeg.travel_time > 0 && shortLeg.travel_time < 12, "die kurze Etappe bleibt unter einem Reisetag");
+assert.strictEqual(shortLeg.rest_time, 0, "wer vor Ablauf des Reisetages ankommt, rastet nicht");
+
 // Ohne Rast im Planer (24 Reisestunden) rastet auch der Fluss nicht — der Schalter bleibt ein Schalter.
 const noRest = buildRouteSteps(["A", "B"], [{
-	geometry: { type: "LineString", coordinates: [[0, 0], [1, 0]] },
+	geometry: { type: "LineString", coordinates: [[0, 0], [300, 0]] },
 	properties: { feature_subtype: "Flussweg", public_id: "s1" },
 }], { includeRests: false, restHoursPerDay: 0 });
 assert.strictEqual(noRest[0].rest_time, 0, "ohne Rastwunsch rastet die Flussetappe nicht");
