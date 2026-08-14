@@ -1336,7 +1336,7 @@
 		button.className = "map-context-menu__item";
 		button.setAttribute(MENU_ATTRIBUTE, MENU_ACTION);
 		button.hidden = true;
-		button.textContent = label("ecosystem.ctxmenu.importTerritory", "Grenze aus Territorien …");
+		button.textContent = label("ecosystem.ctxmenu.importTerritory", "Grenzen aus Territorien importieren");
 
 		// Hinter die drei „Neue …"-Einträge: es ist derselbe Vorgang („eine neue Fläche entsteht"), nur
 		// mit einer anderen Herkunft der Ecken. Steht deren Modul noch nicht, landet der Eintrag hinter
@@ -1372,10 +1372,16 @@
 	// aufdeckt und seine Höhe MISST (js/app/bootstrap.js:701) -- danach zu schalten hiesse, eine Höhe zu
 	// klemmen, die nicht mehr stimmt. Dasselbe Tor wie bei den drei „Neue …"-Einträgen: der Eintrag ist
 	// der Weg IN die Ebene, also fragt er nur, ob dieser Zugang sie überhaupt benutzen darf.
+	// 🔴 Die Antwort kommt aus der EINEN Tabelle nebenan (ADD_HERE_BY_MODE in
+	// map-features-ecosystem-context-action.js), nicht aus einer zweiten Regel hier. Seit dem
+	// 14.08.2026 haengt „Hier hinzufuegen" an der Ansicht, und dieser Eintrag gehoert zu den
+	// Landschaften -- eine eigene Bedingung hier waere genau die Stelle, an der die beiden Listen
+	// spaeter auseinanderlaufen, ohne dass eine von beiden falsch aussieht.
+	// ⚠️ Rueckfall auf UNSICHTBAR, wenn die Nachbardatei (noch) nicht steht: ein Eintrag, der die
+	// Ansicht nicht kennt, steht lieber gar nicht da.
 	function syncImportMenuEntry() {
 		ensureImportMenuEntry();
-		const visible = (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE)
-			&& (typeof IS_ECOSYSTEM_ENABLED !== "undefined" && IS_ECOSYSTEM_ENABLED);
+		const visible = Boolean(window.avesmapsAddHereVisibility?.()?.importTerritory);
 		document.querySelectorAll(`[${MENU_ATTRIBUTE}="${MENU_ACTION}"]`).forEach((button) => {
 			button.hidden = !visible;
 		});

@@ -4,85 +4,104 @@ const assert = require("assert");
 // three below are the ones that carry a decision; everything else in that file is DOM wiring that needs
 // Leaflet, a document and a live map, and is verified in the browser instead (plan, global rule 7).
 const {
-	ecosystemMapMenuVisibility,
+	addHereMenuVisibility,
 	ecosystemAreaDeleteRequest,
 	formatEcosystemAreaDeleteConfirmation,
 	formatEcosystemAreaDeleteConsequence,
 } = require("../map-features-ecosystem-context-action.js");
 
-// ---- which entries the MAP menu shows ------------------------------------------------------------
-// 💣 The two rules pull in OPPOSITE directions and that is the whole point of testing them together.
-// "Neues Herrschaftsgebiet" is bound to ONE mode; the three "Neue ..." entries must NOT be, because they
-// are the way into their mode. Writing both as "only in my mode" is the plausible mistake, and it makes
-// the new entries unreachable from anywhere except the mode that no longer needs them.
+// ---- "Hier hinzufuegen": was in welcher ANSICHT angeboten wird -----------------------------------
+//
+// 🔴 Owner 14.08.2026: man legt an, was man SIEHT. Vier Ansichten, vier Listen -- und die Listen sind
+// die Abnahmebedingung, wortwoertlich so vom Owner genannt.
+//
+// 🔴 DAMIT FAELLT DIE ALTE ZUSICHERUNG, die genau hier stand: die drei "Neue ..."-Eintraege waren
+// bewusst NICHT an ihre Ansicht gebunden, weil sie der Weg IN die Ebene waren. Der Test behauptete
+// das Gegenteil dessen, was jetzt gilt -- er ist nicht angepasst worden, weil er stoerte, sondern
+// weil die Regel gewechselt hat. Wer ihn wieder umdreht, dreht eine Owner-Entscheidung um.
+
+const sichtbar = (ergebnis) => Object.entries(ergebnis).filter(([, v]) => v).map(([k]) => k).sort();
+const voll = { isEditMode: true, isEcosystemEnabled: true };
 
 assert.deepStrictEqual(
-	ecosystemMapMenuVisibility({ mode: "political", isEditMode: true, isEcosystemEnabled: true }),
-	{ createRegion: true, newArea: true, newPeak: false },
-	"political mode with the layer enabled: both offered -- but no peak entry, that needs the topography layer"
+	sichtbar(addHereMenuVisibility({ mode: "political", ...voll })),
+	["createRegion"],
+	"politische Ansicht: NUR Neues Herrschaftsgebiet"
 );
 
 assert.deepStrictEqual(
-	ecosystemMapMenuVisibility({ mode: "ecosystem", isEditMode: true, isEcosystemEnabled: true }),
-	{ createRegion: false, newArea: true, newPeak: false },
-	"in the landscape mode 'Neues Herrschaftsgebiet' is gone -- the owner's acceptance criterion"
+	sichtbar(addHereMenuVisibility({ mode: "ecosystem", ...voll, activeKind: "vegetation" })),
+	["importTerritory", "newArea"],
+	"Landschaften: die drei Ebenen-Eintraege + Grenzen aus Territorien importieren"
 );
 
 assert.deepStrictEqual(
-	ecosystemMapMenuVisibility({ mode: "none", isEditMode: true, isEcosystemEnabled: true }),
-	{ createRegion: false, newArea: true, newPeak: false },
-	"reachable from a neutral mode: the entry switches the mode itself"
+	sichtbar(addHereMenuVisibility({ mode: "deregraphic", ...voll })),
+	["createCrossing", "createLabel", "createLocation", "createPath", "splitPathAtNode"].sort(),
+	"Standard: Ort, Kreuzung, Weg, freies Label (+ die kontextabhaengige Wegteilung)"
 );
 
-// ?landschaften=1 missing -> the mode would be refused by setSelectedMapLayerMode, so an entry offering
-// it would silently drop the editor into the default mode.
 assert.deepStrictEqual(
-	ecosystemMapMenuVisibility({ mode: "political", isEditMode: true, isEcosystemEnabled: false }),
-	{ createRegion: true, newArea: false, newPeak: false },
-	"layer flag off: no landscape entries, political one untouched"
+	sichtbar(addHereMenuVisibility({ mode: "powerlines", ...voll })),
+	["createCrossing", "createLabel", "createLocation"].sort(),
+	"Kraftlinien: Ort, Kreuzung, freies Label -- KEIN Weg, den zeigt diese Ansicht nicht"
 );
+
+// 💣 Faengt den Rueckfall auf die alte Regel an der Stelle, an der er sich am ehesten einschleicht:
+// jemand haelt einen der Eintraege wieder fuer den "Weg in seine Ebene".
+["deregraphic", "powerlines", "political"].forEach((mode) => {
+	const s = sichtbar(addHereMenuVisibility({ mode, ...voll }));
+	assert.ok(!s.includes("newArea"), `${mode}: keine Landschafts-Eintraege -- man legt an, was man sieht`);
+	assert.ok(!s.includes("importTerritory"), `${mode}: auch kein Territorien-Import`);
+});
+assert.ok(!sichtbar(addHereMenuVisibility({ mode: "ecosystem", ...voll })).includes("createRegion"),
+	"Landschaften: kein Neues Herrschaftsgebiet");
+
+// 🪤 "Original" und "Nur Karte" zeigen weder Orte noch Wege -- dort ist die Liste LEER, und das ist
+// die Bedingung, unter der die ganze Gruppe samt Ueberschrift verschwindet.
+["original", "none"].forEach((mode) => {
+	assert.deepStrictEqual(sichtbar(addHereMenuVisibility({ mode, ...voll })), [],
+		`${mode}: gar nichts anzulegen -- die Gruppe faellt weg`);
+});
 
 // ---- "Hoehenpunkt setzen" (V8) --------------------------------------------------------------------
-// 🔴 UNLIKE the three "Neue ..." entries this one is bound to ONE layer, and deliberately so. A peak is
-// only visible, draggable and meaningful in the topography layer (oekosystem-editor-leitfaden.md §1.4);
-// offering it elsewhere would drop a working point into a layer that does not show it.
+// 🔴 Er haengt ZUSAETZLICH zur Ansicht an EINER Ebene: nur in der Topographie ist ein Gipfel sichtbar,
+// ziehbar und wirksam (oekosystem-editor-leitfaden.md §1.4).
 
+assert.ok(addHereMenuVisibility({ mode: "ecosystem", ...voll, activeKind: "topographie" }).newPeak,
+	"Topographie: der Gipfel-Eintrag wird angeboten");
+assert.ok(!addHereMenuVisibility({ mode: "ecosystem", ...voll, activeKind: "vegetation" }).newPeak,
+	"Vegetation: kein Gipfel -- er modulierte dort nichts");
+// 🪤 Die gemerkte Ebene allein genuegt nicht: sie sagt auch in der politischen Ansicht "topographie".
+assert.ok(!addHereMenuVisibility({ mode: "political", ...voll, activeKind: "topographie" }).newPeak,
+	"gemerkte Ebene ohne die Ansicht: kein Gipfel");
+
+// ---- die zwei Riegel, die ueber der Ansicht stehen ------------------------------------------------
+// ?landschaften=1 fehlt -> setSelectedMapLayerMode wuerde den Modus verweigern; ein Eintrag, der ihn
+// anboete, liesse den Editor still in der Standardansicht landen.
 assert.deepStrictEqual(
-	ecosystemMapMenuVisibility({ mode: "ecosystem", isEditMode: true, isEcosystemEnabled: true, activeKind: "topographie" }),
-	{ createRegion: false, newArea: true, newPeak: true },
-	"topography layer: the peak entry is offered"
+	sichtbar(addHereMenuVisibility({ mode: "ecosystem", isEditMode: true, isEcosystemEnabled: false })),
+	[],
+	"Ebenen-Flag aus: keine Landschafts-Eintraege, auch nicht in ihrer eigenen Ansicht"
+);
+assert.deepStrictEqual(
+	sichtbar(addHereMenuVisibility({ mode: "ecosystem", isEditMode: false, isEcosystemEnabled: true })),
+	[],
+	"kein Bearbeiten-Modus: nichts anzulegen"
+);
+// Ein Besucher sieht die Gruppe ohnehin nie (bootstrap.js nimmt ihr das `hidden` nur im Edit-Modus) --
+// dies ist der zweite Riegel. Die POLITISCHE Zeile haengt allein an der Ansicht, das ist Absicht:
+// ihr Riegel ist die Gruppe, nicht die Tabelle.
+assert.deepStrictEqual(
+	sichtbar(addHereMenuVisibility({ mode: "political", isEditMode: false, isEcosystemEnabled: true })),
+	["createRegion"],
+	"ohne Bearbeiten-Modus bleibt die politische Zeile in der Tabelle -- die Gruppe darueber sperrt"
 );
 
 assert.deepStrictEqual(
-	ecosystemMapMenuVisibility({ mode: "ecosystem", isEditMode: true, isEcosystemEnabled: true, activeKind: "vegetation" }),
-	{ createRegion: false, newArea: true, newPeak: false },
-	"vegetation layer: no peak entry -- a peak in a cover area modulates nothing"
-);
-
-assert.deepStrictEqual(
-	ecosystemMapMenuVisibility({ mode: "political", isEditMode: true, isEcosystemEnabled: true, activeKind: "topographie" }),
-	{ createRegion: true, newArea: true, newPeak: false },
-	"the remembered kind alone is not enough: outside the landscape mode there is no topography layer on screen"
-);
-
-assert.deepStrictEqual(
-	ecosystemMapMenuVisibility({ mode: "ecosystem", isEditMode: false, isEcosystemEnabled: true, activeKind: "topographie" }),
-	{ createRegion: false, newArea: false, newPeak: false },
-	"no edit mode: no peak entry either"
-);
-
-// A visitor without the edit mode never sees either -- the group itself stays hidden (bootstrap.js:297),
-// this is the second lock.
-assert.deepStrictEqual(
-	ecosystemMapMenuVisibility({ mode: "political", isEditMode: false, isEcosystemEnabled: true }),
-	{ createRegion: true, newArea: false, newPeak: false },
-	"no edit mode: no landscape entries"
-);
-
-assert.deepStrictEqual(
-	ecosystemMapMenuVisibility(),
-	{ createRegion: false, newArea: false, newPeak: false },
-	"called with nothing: shows nothing, rather than throwing during a right-click"
+	sichtbar(addHereMenuVisibility()),
+	[],
+	"ohne Argumente: zeigt nichts, statt beim Rechtsklick zu werfen"
 );
 
 // ---- the delete request -------------------------------------------------------------------------

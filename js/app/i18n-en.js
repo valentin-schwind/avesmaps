@@ -388,7 +388,7 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.ctxmenu.deleteArea": "Delete area",
 	"ecosystem.ctxmenu.sendTo": "Copy …",
 	"ecosystem.ctxmenu.properties": "Properties …",
-	"ecosystem.ctxmenu.importTerritory": "Boundary from territories …",
+	"ecosystem.ctxmenu.importTerritory": "Import boundaries from territories",
 
 	// --- Landschaften: editing an existing region's name, kind and wiki link (V6b). Deliberately NOT
 	//     the label dialog's strings: that one edits a map_features LABEL and carries size, rotation and

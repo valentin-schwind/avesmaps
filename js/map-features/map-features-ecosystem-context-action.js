@@ -87,32 +87,70 @@
 
 	// ---- pure helpers (unit-tested) ------------------------------------------------------------------
 
-	// Which entries of the MAP menu are shown. Both answers are decisions, not conveniences:
+	// ---- „Hier hinzufügen": was in welcher Ansicht angeboten wird ------------------------------------
 	//
-	//  - "Neues Herrschaftsgebiet" only in political mode (plan V3.4). It used to be offered in every
-	//    mode and forced the mode over on its own (map-features-region-crud.js:159); with a second
-	//    area-creating layer in the house that shortcut becomes a way to leave the layer you are working
-	//    in without noticing.
-	//  - The three "Neue ..." entries are NOT gated on the ecosystem mode -- they are the way INTO it,
-	//    so the gate is only "may this editor use the layer at all" (IS_EDIT_MODE + IS_ECOSYSTEM_ENABLED,
-	//    the same pair setSelectedMapLayerMode uses to allow the mode in the first place). Offering them
-	//    while the mode is refused would produce entries that switch to the default mode instead.
-	// 🔴 „Höhenpunkt setzen" (V8) folgt der GEGENTEILIGEN Regel zu den drei „Neue …"-Einträgen: es hängt
-	// an EINER Ebene. Die drei sind der Weg IN ihre Ebene und dürfen deshalb überall stehen; ein Gipfel
-	// dagegen ist nur in der Topographie sichtbar, ziehbar und wirksam (Leitfaden §1.4). Ihn anderswo
-	// anzubieten legte einen Arbeitspunkt in eine Ebene, die ihn gar nicht zeigt.
+	// 🔴 EINE Tabelle für ALLE Einträge des Untermenüs (Owner 14.08.2026). Sie steht in dieser Datei,
+	// obwohl die Hälfte der Einträge nicht den Landschaften gehört -- weil hier schon die Entscheidung
+	// für „Neues Herrschaftsgebiet" lag und weil hier die Einträge injiziert werden. Eine zweite
+	// Tabelle woanders wäre die Divergenz, bei der ein neuer Eintrag in einer Ansicht auftaucht und in
+	// der anderen fehlt, ohne dass eine der beiden Stellen falsch aussieht.
 	//
-	// 🪤 `activeKind` allein genügt nicht. Die Ebene wird gemerkt (localStorage), also sagt sie auch im
-	// politischen Modus noch „topographie" -- gemeint ist aber „welche Ebene liegt gerade auf dem
-	// Schirm". Deshalb UND `mode === "ecosystem"`.
-	function ecosystemMapMenuVisibility({ mode = "", isEditMode = false, isEcosystemEnabled = false, activeKind = "" } = {}) {
+	// Man legt an, was man SIEHT. Vorher stand in jeder Ansicht fast alles: in der politischen Ansicht
+	// „Neuer Weg", in den Kraftlinien „Neue Vegetation" -- Dinge, die man dort anlegen, aber nicht
+	// sehen konnte.
+	//
+	// 🔴 DAMIT FÄLLT EINE ALTE ENTSCHEIDUNG. Die drei „Neue …"-Einträge waren bewusst NICHT an ihre
+	// Ansicht gebunden: sie waren der Weg IN die Ebene (man wählte „Neue Vegetation" in der Standard-
+	// ansicht und landete zeichnend in den Landschaften). Der Owner will die Listen nach dem, was die
+	// Ansicht zeigt -- die Abkürzung entfällt also, man wechselt erst die Ansicht. `startNewEcosystemArea`
+	// schaltet den Modus weiterhin um; das ist jetzt bloss kein Sprung mehr, sondern eine Bestätigung.
+	//
+	// 🪤 „Original" und „Nur Karte" zeigen weder Orte noch Wege (MAP_LAYER_MODE_FEATURES in
+	// map-features-display-mode.js: `original: { orte: false, wege: false }`). Dort ist die Liste leer,
+	// und dann verschwindet die ganze Gruppe samt Überschrift -- ein „Hier hinzufügen", das ein leeres
+	// Untermenü aufklappt, ist schlimmer als keines.
+	const ADD_HERE_BY_MODE = {
+		political:   ["create-region"],
+		ecosystem:   ["new-area", "new-peak", "import-territory"],
+		deregraphic: ["create-location", "create-crossing", "split-path-at-node", "create-path", "create-label"],
+		powerlines:  ["create-location", "create-crossing", "create-label"],
+		original:    [],
+		none:        [],
+	};
+
+	// 🔴 „Höhenpunkt setzen" (V8) hat ZUSÄTZLICH zur Ansicht eine Ebene: er ist nur in der Topographie
+	// sichtbar, ziehbar und wirksam (Leitfaden §1.4). Ihn in Vegetation anzubieten legte einen
+	// Arbeitspunkt in eine Ebene, die ihn gar nicht zeigt.
+	//
+	// 🪤 `activeKind` allein genügt dafür nicht -- die Ebene wird gemerkt (localStorage) und sagt auch
+	// im politischen Modus noch „topographie". Deshalb steht sie in der Tabelle UND wird hier geprüft.
+	function addHereMenuVisibility({ mode = "", isEditMode = false, isEcosystemEnabled = false, activeKind = "" } = {}) {
+		const erlaubt = new Set(ADD_HERE_BY_MODE[String(mode)] || []);
 		const landscapeAllowed = Boolean(isEditMode) && Boolean(isEcosystemEnabled);
 
 		return {
-			createRegion: mode === "political",
-			newArea: landscapeAllowed,
-			newPeak: landscapeAllowed && mode === "ecosystem" && activeKind === "topographie",
+			createLocation: erlaubt.has("create-location"),
+			createCrossing: erlaubt.has("create-crossing"),
+			splitPathAtNode: erlaubt.has("split-path-at-node"),
+			createPath: erlaubt.has("create-path"),
+			createLabel: erlaubt.has("create-label"),
+			createRegion: erlaubt.has("create-region"),
+			newArea: erlaubt.has("new-area") && landscapeAllowed,
+			newPeak: erlaubt.has("new-peak") && landscapeAllowed && activeKind === "topographie",
+			importTerritory: erlaubt.has("import-territory") && landscapeAllowed,
 		};
+	}
+
+	// Der aktuelle Stand, aus den Globals gelesen -- der eine Ort, an dem die Frage beantwortet wird.
+	// Auch die Nachbardatei fuer den Territorien-Import fragt hier (statt sich eine zweite Regel zu
+	// bauen), obwohl ihr Eintrag ihr gehoert.
+	function currentAddHereVisibility() {
+		return addHereMenuVisibility({
+			mode: typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "",
+			isEditMode: typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE,
+			isEcosystemEnabled: typeof IS_ECOSYSTEM_ENABLED !== "undefined" && IS_ECOSYSTEM_ENABLED,
+			activeKind: typeof getActiveEcosystemLayerKind === "function" ? getActiveEcosystemLayerKind() : "",
+		});
 	}
 
 	// 💣 expected_revision IS MANDATORY. delete_area answers 400 without it and 409 with a stale one
@@ -252,23 +290,46 @@
 	// no longer matches the entries.
 	function syncMapContextMenuEntries() {
 		ensureNewAreaMenuEntries();
-		const visibility = ecosystemMapMenuVisibility({
-			mode: typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "",
-			isEditMode: typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE,
-			isEcosystemEnabled: typeof IS_ECOSYSTEM_ENABLED !== "undefined" && IS_ECOSYSTEM_ENABLED,
-			activeKind: typeof getActiveEcosystemLayerKind === "function" ? getActiveEcosystemLayerKind() : "",
-		});
+		const visibility = currentAddHereVisibility();
 		document.querySelectorAll(`[${NEW_AREA_ATTRIBUTE}="${NEW_PEAK_ACTION}"]`).forEach((button) => {
 			button.hidden = !visibility.newPeak;
 		});
-
-		const createRegionElement = document.querySelector('.map-context-submenu [data-context-action="create-region"]');
-		if (createRegionElement) {
-			createRegionElement.hidden = !visibility.createRegion;
-		}
 		document.querySelectorAll(`[${NEW_AREA_ATTRIBUTE}="${NEW_AREA_ACTION}"]`).forEach((button) => {
 			button.hidden = !visibility.newArea;
 		});
+
+		const submenu = document.querySelector('.map-context-menu__group[data-context-action="add-here"] .map-context-submenu');
+		if (!submenu) {
+			return;
+		}
+		const setzen = (action, sichtbar) => {
+			const el = submenu.querySelector(`[data-context-action="${action}"]`);
+			if (el) {
+				el.hidden = !sichtbar;
+			}
+		};
+		setzen("create-location", visibility.createLocation);
+		setzen("create-crossing", visibility.createCrossing);
+		setzen("create-path", visibility.createPath);
+		setzen("create-label", visibility.createLabel);
+		setzen("create-region", visibility.createRegion);
+
+		// 💣 „Neue Kreuzung und Weg teilen" hat einen ZWEITEN Riegel: syncPathSplitContextMenuAction
+		// (js/app/bootstrap.js) zeigt ihn nur, wenn der Rechtsklick wirklich einen Wegknoten getroffen
+		// hat. Die Ansicht darf ihn deshalb nur WEGNEHMEN, nie zeigen -- sonst stuende er in der
+		// Standardansicht auch ueber freier Karte, wo es nichts zu teilen gibt.
+		if (!visibility.splitPathAtNode) {
+			setzen("split-path-at-node", false);
+		}
+
+		// Erlaubt die Ansicht gar nichts, faellt die ganze Gruppe weg -- samt Ueberschrift, die per
+		// `:has()` an ihrem `hidden` haengt (css/components/map-context-menu.css). Ein „Hier
+		// hinzufuegen", das ein LEERES Untermenue aufklappt, ist schlimmer als keines.
+		const gruppe = document.querySelector('.map-context-menu__group[data-context-action="add-here"]');
+		if (gruppe && typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
+			const sichtbare = [...submenu.querySelectorAll(".map-context-menu__item")].filter((el) => !el.hidden);
+			gruppe.hidden = sichtbare.length === 0;
+		}
 	}
 
 	// "Neue <Ebene>" = switch to that layer and start drawing there. There is deliberately no
@@ -808,6 +869,17 @@
 		// harmless: it only toggles `hidden` on entries of a menu that stays closed in that case.
 		document.addEventListener("contextmenu", syncMapContextMenuEntries, true);
 
+		// 💣 UND NOCH EINMAL beim Oeffnen, aus openMapContextMenu heraus. Der Zuhoerer oben laeuft in
+		// der CAPTURE-Phase, also VOR `syncPathSplitContextMenuAction` -- und die schaltet „Neue
+		// Kreuzung und Weg teilen" danach wieder sichtbar, ohne die Ansicht zu kennen. Wer zuletzt
+		// schreibt, gewinnt; also schreibt die Ansicht zuletzt.
+		// ⚠️ Immer noch VOR dem Messen: openMapContextMenu ruft dies, bevor es `hidden` loest und die
+		// Hoehe klemmt. Eine spaetere Synchronisierung klemmte eine Hoehe, die nicht mehr stimmt.
+		window.avesmapsSyncAddHereMenu = syncMapContextMenuEntries;
+		// Die Nachbardatei fuer den Territorien-Import fragt hier nach ihrer Sichtbarkeit, statt sich
+		// eine zweite Regel zu bauen -- eine Tabelle, zwei Leser.
+		window.avesmapsAddHereVisibility = currentAddHereVisibility;
+
 		// Escape closes the menu. Deliberately quiet -- it does not stop propagation, so the layer's own
 		// Escape (which drops the selection, map-features-ecosystem-edit.js) still runs and the two
 		// together mean "never mind": menu gone, selection gone. That handler is registered earlier and
@@ -842,7 +914,7 @@
 
 	if (typeof module !== "undefined" && module.exports) {
 		module.exports = {
-			ecosystemMapMenuVisibility,
+			addHereMenuVisibility,
 			ecosystemAreaDeleteRequest,
 			formatEcosystemAreaDeleteConfirmation,
 			formatEcosystemAreaDeleteConsequence,

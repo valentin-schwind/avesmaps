@@ -801,6 +801,13 @@ function openMapContextMenu(latlng, clientX, clientY) {
     if (typeof syncShareLinkContextMenuAction === "function") {
         syncShareLinkContextMenuAction();
     }
+    // 💣 ZULETZT, und ausdruecklich NACH syncPathSplitContextMenuAction. Welche Anlege-Eintraege die
+    // aktuelle Ansicht ueberhaupt zeigt, entscheidet die Tabelle in
+    // js/map-features/map-features-ecosystem-context-action.js -- die schaltet auch „Neue Kreuzung und
+    // Weg teilen" weg, wenn die Ansicht keine Wege zeigt. Liefe sie vorher, machte die Zeile darueber
+    // den Eintrag gleich wieder sichtbar. Und immer noch VOR dem `hidden = false` darunter: erst danach
+    // wird die Hoehe gemessen und ins Sichtfenster geklemmt.
+    window.avesmapsSyncAddHereMenu?.();
     menuElement.hidden = false;
     menuElement.style.left = `${clientX + MAP_CONTEXT_MENU_OFFSET_X}px`;
     menuElement.style.top = `${clientY + MAP_CONTEXT_MENU_OFFSET_Y}px`;
