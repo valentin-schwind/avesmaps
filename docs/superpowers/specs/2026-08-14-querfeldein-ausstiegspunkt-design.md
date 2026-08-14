@@ -137,14 +137,25 @@ Zwei Aufrufer, eine Abschrift. Das ist der einzige Umbau am Bestand.
 
 | | Kandidaten | Kante entsteht durch | Wassertest |
 |---|---|---|---|
-| Kartenpunkt | K Fußpunkte, **Rückfall** auf die 12 Ortschaften | A\* je Kandidat, eine gemeinsame Suchkiste | der A\* selbst |
+| Kartenpunkt | K Fußpunkte **plus** die 12 Ortschaften, in EINEM Topf | A\* je Kandidat, eine gemeinsame Suchkiste | der A\* selbst |
 | Wegpunkt ohne Anbindung | K Fußpunkte (heute: 1) | gerade Querfeldein-Kante mit ×25, wie heute | je Sehne, wie heute |
 
-> ⭐ **Der Rückfall ist der Grund, warum das nichts kaputt machen kann.** Findet
-> kein Fußpunkt einen trockenen A\*-Weg, läuft die alte Ortschaften-Liste. Die
-> Antwort kann nie schlechter werden als heute, höchstens besser. Die
-> zweistufige Rettung des Bestands (nahe Menge über den Reichweitenfaktor 2,5,
-> dann alle) bleibt darin unverändert.
+> 🔴 **KORREKTUR VOM 14.08.2026, BEIM BAU GEFUNDEN.** Hier stand „K Fußpunkte,
+> **Rückfall** auf die 12 Ortschaften" — die Ortschaften also erst, wenn kein
+> Fußpunkt trägt. Das wäre in einem Fall **schlechter als der Stand davor**:
+> liegt der geklickte Punkt 4,6 Einheiten neben einer Hafenstadt, aber 40 von der
+> nächsten Straße, dann trägt der Fußpunkt — und die viel nähere Stadt käme nie
+> zur Wahl. Der Reisende liefe 40 Einheiten querfeldein statt 4,6.
+> Aufgefallen an `offroad-leg-test.php`, Abschnitt „a harbour town drawn just
+> inside a generously drawn coastline".
+>
+> ⭐ **Richtig ist EIN Topf, keine Rangfolge.** Beide Familien werden zusammen
+> nach Entfernung sortiert, über den Namen entdoppelt (ein Fußpunkt auf einem
+> Endknoten trägt dessen Namen) und gemeinsam durch die zweistufige Rettung des
+> Bestands geschickt (nahe Menge über den Reichweitenfaktor 2,5, dann alle).
+> Damit gilt die Zusage wieder, und zwar ohne Sonderfall: die Antwort kann nie
+> schlechter werden als vorher, weil jeder Kandidat von vorher weiterhin im
+> Angebot steht.
 
 **K = 6.** Nicht 12: mit der Entdopplung sind das sechs *verschiedene* Straßen,
 also mehr echte Auswahl als die zwölf Ortschaften je hatten. Der bestehende

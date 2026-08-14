@@ -71,13 +71,24 @@ $clientGraph = $buildGraph();
 // A point on land, 6 units north of the road near B.
 $report = avesmapsAttachOffroadPointToGraph($clientGraph, $locations, $request, $water, $land, null, 26.0, 16.0, '__offroad_to');
 assert($report['ok'] === true, 'a dry point must attach: ' . json_encode($report));
-assert($report['nearest_exit_node'] === 'B', 'der naechste GRAPHKNOTEN ist B, nicht ' . $report['nearest_exit_node']);
+// 🔴 SEIT DEM 14.08.2026 IST DER AUSSTIEG EIN PUNKT AUF DER STRASSE, KEINE ORTSCHAFT (Owner: „den
+// straßenpunkt zu nehmen, der am schnellste/kürzesten zum querfeldein punkt entfernt ist"). Hier
+// stand `=== 'B'`: der Punkt liegt 6 Einheiten NOERDLICH der Strasse, B aber 6,083 entfernt --
+// die Reise machte also einen Knick zum Ort, statt senkrecht abzubiegen.
+assert(str_starts_with((string) $report['nearest_exit_node'], AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX),
+    'der naechste Ausstieg ist ein Fusspunkt: ' . $report['nearest_exit_node']);
+assert(abs((float) $report['exit_nodes'][0]['air_distance'] - 6.0) < 1e-9,
+    'und zwar senkrecht auf die Strasse, nicht schraeg zum Ort: ' . $report['exit_nodes'][0]['air_distance']);
 
 // 🔴 MEHRERE AUSSTIEGE, NICHT EINER. Haengt der Punkt an genau einer Kante, muss jede Reise durch
 // diesen einen Knoten -- auch wenn sie gerade von dort kam. Der Owner hat genau das gemeldet: „er
 // geht immer nur zu einem bestimmten Pfadpunkt". Jetzt entscheidet der Dijkstra.
 assert($report['exit_nodes_connected'] >= 2, 'der Punkt haengt an mehreren Knoten: ' . $report['exit_nodes_connected']);
 $angebotene = array_column($report['exit_nodes'], 'node');
+// 🔴 UND DIE ORTSCHAFTEN BLEIBEN NEBEN DEN FUSSPUNKTEN IM ANGEBOT, nicht hinter ihnen. Eine
+// Staffelung waere in einem Fall schlechter als vorher: liegt der Punkt dicht neben einer Stadt,
+// aber weit von jeder Strasse, dann traegt der Fusspunkt -- und die viel naehere Stadt kaeme nie
+// zur Wahl. Der Hafen-Fall weiter unten haelt genau das fest.
 assert(in_array('B', $angebotene, true) && in_array('B2', $angebotene, true), 'B und B2 sind beide Ausstiege: ' . implode(', ', $angebotene));
 // ⚠️ Aber nicht JEDER Knoten: die Entfernungsschranke haelt die gemeinsame Suchkiste klein. A liegt
 // 21,8 Einheiten weg, das 3,6-fache des naechsten -- der zoege die Kiste auf, ohne je gewaehlt zu werden.
@@ -97,11 +108,13 @@ assert(count($last['geometry']['coordinates']) >= 2, 'the leg carries a real poi
 $coordinates = $last['geometry']['coordinates'];
 $end = $coordinates[count($coordinates) - 1];
 assert(abs($end[0] - 26.0) < 1e-9 && abs($end[1] - 16.0) < 1e-9, 'the line ends on the clicked point');
-assert(abs($coordinates[0][0] - 25.0) < 1e-9 && abs($coordinates[0][1] - 10.0) < 1e-9, 'and starts at the exit node');
+// ⚠️ (26, 10), nicht (25, 10): der Fusspunkt liegt SENKRECHT unter dem geklickten Punkt, der
+// Ortsknoten B laege eine Einheit daneben.
+assert(abs($coordinates[0][0] - 26.0) < 1e-9 && abs($coordinates[0][1] - 10.0) < 1e-9, 'and starts at the exit node');
 
 // 💣 NO x25 SURCHARGE. That factor exists to make repair bridges unattractive; this leg is the
 // journey the traveller asked for, and inflating it would make the reported time 25x wrong.
-$airLine = hypot(26.0 - 25.0, 16.0 - 10.0);
+$airLine = hypot(26.0 - 26.0, 16.0 - 10.0);
 assert($last['distance'] >= $airLine - 1e-9, 'the leg is at least the air line');
 assert($last['distance'] < $airLine * 2.0, 'and nowhere near a x25 surcharge: ' . $last['distance']);
 
@@ -199,7 +212,13 @@ assert($report['coarsened'] === false, 'and says it was not coarsened');
 $wahlGraph = $buildGraph();
 $wahl = avesmapsAttachOffroadPointToGraph($wahlGraph, $locations, $request, $water, $land, null, 29.0, 16.0, '__offroad_to');
 assert($wahl['ok'] === true, 'der Punkt haengt: ' . json_encode($wahl));
-assert($wahl['nearest_exit_node'] === 'B2', 'naechster Knoten ist B2');
+// ⚠️ Hier stand `=== 'B2'`. Seit dem 14.08.2026 ist der naechste Ausstieg der Fusspunkt senkrecht
+// unter dem Punkt (6,000) und nicht die schraege Linie zu B2 (6,083) -- B2 bleibt aber im Angebot,
+// und darum geht es unten.
+assert(str_starts_with((string) $wahl['nearest_exit_node'], AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX),
+    'naechster Ausstieg ist der Fusspunkt: ' . $wahl['nearest_exit_node']);
+assert(in_array('B2', array_column($wahl['exit_nodes'], 'node'), true),
+    'und B2 steht weiterhin zur Wahl: ' . implode(', ', array_column($wahl['exit_nodes'], 'node')));
 
 $vonC = avesmapsFindClientCompatibleRoute($wahlGraph, 'C', '__offroad_to', $request);
 $vonA = avesmapsFindClientCompatibleRoute($wahlGraph, 'A', '__offroad_to', $request);
@@ -262,5 +281,62 @@ foreach ([['x' => 1.0], 'nonsense', ['x' => 'abc', 'y' => 1.0], ['x' => INF, 'y'
     try { avesmapsRouteNormalizeOptionalPoint($bad, 'to_point'); } catch (InvalidArgumentException) { $refused = true; }
     assert($refused === true, 'a malformed point must be refused: ' . json_encode($bad));
 }
+
+// ============================================================ Ausstieg am Fusspunkt
+
+// Eine lange Strasse zwischen zwei FERNEN Ortschaften, der Kartenpunkt liegt in ihrer Mitte.
+// Bis zum 14.08.2026 waren nur A und B Ausstiegskandidaten -- die Reise lief also erst 50 Einheiten
+// die Strasse entlang, bevor sie 4 Einheiten querfeldein ging.
+// ⚠️ $land ist die Flaeche von oben (0..100); Wasser bleibt hier leer, damit der A* freie Bahn hat
+// -- geprueft wird der AUSSTIEG, nicht die Wassermeidung.
+$fussGraph = ['LangA' => [], 'LangB' => []];
+$fussWeg = [
+    'route_type' => 'Strasse', 'transport_option' => 'groupFoot',
+    'id' => 'path-lang', 'path_id' => 'path-lang', 'from' => 'LangA', 'to' => 'LangB',
+    'distance' => 100.0, 'time' => 100.0 / $roadSpeed,
+    'geometry' => ['type' => 'LineString', 'coordinates' => [[0.0, 30.0], [100.0, 30.0]]],
+];
+avesmapsAddClientCompatibleGraphConnection($fussGraph, 'LangA', 'LangB', $fussWeg);
+avesmapsAddClientCompatibleGraphConnection($fussGraph, 'LangB', 'LangA', $fussWeg);
+$fussLocations = [$place('LangA', 0.0, 30.0), $place('LangB', 100.0, 30.0)];
+$fussClientGraph = ['graph' => $fussGraph, 'statistics' => []];
+
+$fussReport = avesmapsAttachOffroadPointToGraph(
+    $fussClientGraph, $fussLocations, $request, [], $land, null, 50.0, 34.0, '__offroad_to', false
+);
+assert($fussReport['ok'] === true, 'der Kartenpunkt haengt am Netz: ' . json_encode($fussReport));
+
+// 🔴 DER AUSSTIEG IST EIN PUNKT AUF DER STRASSE, keine Ortschaft.
+$fussKnoten = array_map(static fn(array $e): string => (string) $e['node'], $fussReport['exit_nodes']);
+assert($fussKnoten !== [], 'es gibt einen Ausstieg');
+assert(str_starts_with($fussKnoten[0], AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX),
+    'und er ist ein Fusspunkt, keine Ortschaft: ' . $fussKnoten[0]);
+assert(!in_array('LangA', $fussKnoten, true) && !in_array('LangB', $fussKnoten, true),
+    'die fernen Ortschaften stehen nicht mehr im Angebot: ' . implode(',', $fussKnoten));
+// Und die Luftlinie zum Ausstieg ist die 4, nicht die 50.
+assert(abs((float) $fussReport['exit_nodes'][0]['air_distance'] - 4.0) < 1e-6,
+    'Luftlinie zum Ausstieg: ' . $fussReport['exit_nodes'][0]['air_distance']);
+
+// ============================================================ Rueckfall auf die Ortschaften
+
+// ⭐ DER RUECKFALL IST DER GRUND, WARUM DAS NICHTS KAPUTT MACHEN KANN. Ein Graph ganz OHNE Landweg
+// hat keine Fusspunkte -- dann muss die alte Ortschaftenliste greifen, sonst verschwaende eine
+// Route, die es heute gibt.
+$seeGraph = ['LangA' => [], 'LangB' => []];
+$seeWeg = [
+    'route_type' => 'Seeweg', 'transport_option' => 'cargoShip',
+    'id' => 'path-see', 'path_id' => 'path-see', 'from' => 'LangA', 'to' => 'LangB',
+    'distance' => 100.0, 'time' => 10.0,
+    'geometry' => ['type' => 'LineString', 'coordinates' => [[0.0, 30.0], [100.0, 30.0]]],
+];
+avesmapsAddClientCompatibleGraphConnection($seeGraph, 'LangA', 'LangB', $seeWeg);
+avesmapsAddClientCompatibleGraphConnection($seeGraph, 'LangB', 'LangA', $seeWeg);
+$seeClientGraph = ['graph' => $seeGraph, 'statistics' => []];
+$seeReport = avesmapsAttachOffroadPointToGraph(
+    $seeClientGraph, $fussLocations, $request, [], $land, null, 4.0, 34.0, '__offroad_to', false
+);
+assert($seeReport['ok'] === true, 'ohne Landweg greift der Rueckfall: ' . json_encode($seeReport));
+$seeKnoten = array_map(static fn(array $e): string => (string) $e['node'], $seeReport['exit_nodes']);
+assert(in_array('LangA', $seeKnoten, true), 'und bietet die Ortschaften an: ' . implode(',', $seeKnoten));
 
 echo "offroad-leg-test: OK\n";

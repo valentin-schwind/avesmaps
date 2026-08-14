@@ -660,6 +660,15 @@ git commit -m "feat(routing): ein Ort ohne Weganbindung bekommt sechs Fusspunkte
 - Consumes: `avesmapsCollectNearestClientLandPathAnchors(...)`, `avesmapsSplitClientPathAtAnchor(...)`, `avesmapsAllocateClientAnchorIndex(...)`, `AVESMAPS_ROUTE_CLIENT_ANCHOR_LIMIT`.
 - Produces: keine neue öffentliche Funktion. `avesmapsAttachOffroadPointToGraph` behält Signatur, Rückgabeschlüssel und alle `error`-Codes.
 
+> 🔴 **BEIM BAU KORRIGIERT (14.08.2026).** Schritt 3 unten beschreibt die Ortschaften als
+> **Rückfall** — erst die Fußpunkte, die Ortschaften nur, wenn keiner trägt. Das ist falsch und wäre
+> in einem Fall schlechter als der Stand davor: liegt der Punkt 4,6 Einheiten neben einer Hafenstadt,
+> aber 40 von der nächsten Straße, dann trägt der Fußpunkt — und die viel nähere Stadt käme nie zur
+> Wahl. Gebaut wurde deshalb **ein Topf**: beide Familien werden zusammengelegt, über den Namen
+> entdoppelt (ein Fußpunkt auf einem Endknoten trägt dessen Namen), nach Entfernung sortiert und
+> gemeinsam durch die bestehende zweistufige Rettung geschickt. Aufgefallen ist es an
+> `offroad-leg-test.php`, Abschnitt „a harbour town drawn just inside a generously drawn coastline".
+
 - [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
 
 An `api/_internal/routing/__tests__/offroad-leg-test.php` anhängen, vor der abschließenden `echo`-Zeile:

@@ -120,19 +120,58 @@ function avesmapsAttachOffroadPointToGraph(
     }
 
     $graph = is_array($clientGraph['graph'] ?? null) ? $clientGraph['graph'] : [];
-    $candidates = avesmapsFindNearestOffroadExitNodes($graph, $locations, $x, $y);
+
+    // 🔴 DIE AUSSTIEGE SIND PUNKTE AUF WEGEN, NICHT ORTSCHAFTEN (Owner, 14.08.2026: „den
+    // straßenpunkt zu nehmen, der am schnellste/kürzesten zum querfeldein punkt entfernt ist").
+    // Bis dahin waren die 12 naechsten ORTE die einzigen Kandidaten -- die Reise verliess die
+    // Strasse deshalb immer an einer Ortschaft, auch wenn sie hundert Meter weiter haette abbiegen
+    // koennen.
+    // 💣 Geteilt wird in $clientGraph['graph'], NICHT in $graph -- das ist eine Kopie, und ein Split
+    // darin waere nach der Funktion verschwunden.
+    $anchorCandidates = [];
+    foreach (avesmapsCollectNearestClientLandPathAnchors($graph, $x, $y, AVESMAPS_ROUTE_CLIENT_ANCHOR_LIMIT) as $anchor) {
+        $anchorIndex = avesmapsAllocateClientAnchorIndex($clientGraph['graph']);
+        $anchorNodeName = avesmapsSplitClientPathAtAnchor($clientGraph['graph'], $anchor, $anchorIndex);
+        if ($anchorNodeName === '') continue;
+        $anchorCandidates[] = [
+            'name' => $anchorNodeName,
+            'x' => (float) $anchor['proj_x'],
+            'y' => (float) $anchor['proj_y'],
+            'distance' => (float) $anchor['distance'],
+        ];
+    }
+
+    // 🔴 EIN TOPF, KEINE RANGFOLGE. Die Ortschaften bleiben Kandidaten NEBEN den Fusspunkten, nicht
+    // hinter ihnen. Eine Staffelung „erst Fusspunkte, Ortschaften nur wenn keiner traegt" waere in
+    // einem Fall schlechter als der Stand vor dem 14.08.2026: liegt der Punkt 4,6 Einheiten neben
+    // einer Hafenstadt, aber 40 von der naechsten Strasse, dann traegt der Fusspunkt -- und der
+    // Reisende liefe 40 Einheiten querfeldein statt 4,6. Wer gewinnt, entscheidet der Dijkstra,
+    // und dafuer muss beides im Angebot stehen.
+    $candidates = array_merge($anchorCandidates, avesmapsFindNearestOffroadExitNodes($graph, $locations, $x, $y));
     if ($candidates === []) {
         return ['ok' => false, 'error' => 'no_exit_node'];
     }
+    // Ein Fusspunkt, der auf einem Endknoten liegt, TRAEGT dessen Namen (der Teiler gibt ihn dann
+    // unveraendert zurueck) -- ohne Entdopplung liefe der A* zweimal zum selben Ziel.
+    $byName = [];
+    foreach ($candidates as $candidate) {
+        $name = (string) $candidate['name'];
+        if (!isset($byName[$name]) || (float) $byName[$name]['distance'] > (float) $candidate['distance']) {
+            $byName[$name] = $candidate;
+        }
+    }
+    $candidates = array_values($byName);
+    usort($candidates, static fn(array $a, array $b): int => $a['distance'] <=> $b['distance']);
 
     // ⚠️ ZWEI STUFEN, und die zweite ist eine Rettung, kein Luxus. Die Entfernungsschranke haelt die
     // gemeinsame Suchkiste klein -- sie spannt ueber den Punkt UND alle Kandidaten, ein weit
-    // entfernter Knoten zoege sie auf. Wenn aber KEINER der nahen Knoten querfeldein erreichbar ist
-    // (ein Ort mitten in einem See), waere die Antwort sonst „kein Weg", obwohl der uebernaechste
+    // entfernter Knoten zoege sie auf. Wenn aber KEINER der nahen querfeldein erreichbar ist (ein
+    // Ort mitten in einem See), waere die Antwort sonst „kein Weg", obwohl der uebernaechste
     // gegangen waere. Also: erst die nahen, und nur wenn keiner traegt, alle.
-    $nearest = $candidates[0]['distance'];
+    $nearest = (float) $candidates[0]['distance'];
     $reach = max($nearest * AVESMAPS_ROUTE_OFFROAD_EXIT_DISTANCE_FACTOR, $nearest);
-    $near = array_values(array_filter($candidates, static fn(array $c): bool => $c['distance'] <= $reach + 1e-9));
+    $near = array_values(array_filter($candidates, static fn(array $c): bool => (float) $c['distance'] <= $reach + 1e-9));
+    $stages = count($near) === count($candidates) ? [$near] : [$near, $candidates];
 
     // 🔴 EINE KISTE FUER ALLE KANDIDATEN, und deshalb auch nur EIN Satz Datenbankabfragen. Vorher
     // baute jeder Kandidat seine eigene Kiste und lud Gelaende und Hoehe erneut -- bei zwoelf
@@ -142,8 +181,8 @@ function avesmapsAttachOffroadPointToGraph(
     $factors = '';
     $exits = [];
     $offered = 0;
-    foreach ([$near, $candidates] as $stage => $set) {
-        if ($stage === 1 && ($exits !== [] || count($set) === count($near))) { break; }
+    foreach ($stages as $set) {
+        if ($exits !== []) { break; }
         $offered = count($set);
 
         $spanMinX = $x; $spanMaxX = $x; $spanMinY = $y; $spanMaxY = $y;
