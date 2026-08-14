@@ -114,4 +114,37 @@ assert.ok(
 );
 assert.deepStrictEqual(infiniteResult, [0], "eine nicht-endliche Reisezeit faellt auf 0, nicht auf eine Nacht");
 
+// ---- 10. Der Zaehler selbst, nicht nur der Wrapper darueber ------------------------------------
+// 🔴 SEIT DEM 14.08.2026 HAT DIE REGEL ZWEI VERBRAUCHER. `avesmapsRouteRestCounter` liefert einen
+// laufenden Zaehler; `buildRouteSteps` erzeugt daraus ZWEI Instanzen -- eine fuer die angezeigte
+// Rast, eine fuer die Kalenderuhr, an der `applyRouteSeasonGround` die Jahreszeit jeder Etappe
+// ablieset. Die tragende Annahme ist, dass zwei Instanzen derselben Regel ueber dieselben Etappen
+// dasselbe liefern. Bis hierher war der Zaehler nur ueber `avesmapsRouteRestPortions` mitgeprueft:
+// wer ihn direkt benutzt, haette keinen Test gehabt.
+assert.strictEqual(
+	typeof avesmapsRouteRestCounter,
+	"function",
+	"avesmapsRouteRestCounter muss in route-result.js stehen"
+);
+
+// Der Zustand wandert von Aufruf zu Aufruf -- das ist der ganze Zweck.
+const counter = avesmapsRouteRestCounter(12, true);
+assert.strictEqual(counter(8, false), 0, "acht Stunden fuellen den Tag noch nicht");
+assert.strictEqual(counter(8, false), 12, "die naechsten acht ueberschreiten ihn -- eine Portion");
+assert.strictEqual(counter(2, false), 0, "danach ist wieder Luft im Tag");
+
+// 🔴 Zwei Instanzen, dieselben Etappen, dasselbe Ergebnis. Genau darauf steht die Verdrahtung in
+// buildRouteSteps; laufen sie je auseinander, datiert die Uhr Etappen in die falsche Jahreszeit,
+// waehrend die angezeigte Rast stimmt -- ein Widerspruch, den niemand im Plan sehen kann.
+const sameRoute = [leg(20), leg(6, true), leg(9), leg(30), leg(1)];
+const viaWrapper = avesmapsRouteRestPortions(sameRoute, 12, true);
+const viaCounter = ((book) => sameRoute.map((entry) => book(entry.travelTime, entry.exempt)))(
+	avesmapsRouteRestCounter(12, true)
+);
+assert.deepStrictEqual(
+	viaCounter,
+	viaWrapper,
+	`zwei Instanzen derselben Regel muessen dasselbe liefern: ${viaCounter} gegen ${viaWrapper}`
+);
+
 console.log("rest-portions.test.js: all assertions passed");

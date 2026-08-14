@@ -209,4 +209,62 @@ global.avesmapsPathLandscapesStore = undefined;   // die Ablage ist noch gar nic
 const noStore = steps({ month: "firun", day: 1 });
 assert.ok(Math.abs(noStore[0].travel_time - baseline) < 1e-9, "ohne geladene Landschaften rechnet es wie bisher");
 
+// ---- 🔴 DIE UHR, DIE DIE JAHRESZEIT BESTIMMT, MUSS DIE PORTIONSRAST KENNEN ---------------------------
+// Welche Jahreszeit auf einer Etappe herrscht, haengt daran, wieviel KALENDERzeit bis dorthin
+// vergangen ist -- und Kalenderzeit ist Reisezeit PLUS Rast. Bis zum 14.08.2026 rechnete diese
+// Schleife dafuer `24 / Reisestunden` je Reisestunde, also die alte ANTEILIGE Regel. Die Uhr ging
+// damit vor, nie nach: sie buchte auch fuer den angebrochenen letzten Tag eine volle Nacht.
+//
+// 💣 DER FEHLER IST SELTEN UND DESHALB GEFAEHRLICH. Beide Uhren liegen weniger als eine Rastportion
+// auseinander; sichtbar wird das nur, wenn genau in dieses Fenster eine Jahreszeitgrenze faellt.
+// Von 360 Aufbruchstagen dieser Strecke trifft das GENAU EINEN -- den 26. Efferd. Wer den Fall
+// nicht sucht, sondern auf eine zufaellige Route hofft, findet ihn nie und haelt die Uhr fuer heil.
+//
+// Sechs Etappen zu 20 Reisestunden bei 12 Reisestunden am Tag, gemaessigte Zone.
+setZone("gemaessigt");
+const CLOCK_LEG_HOURS = 20;
+// Aus den Konstanten hergeleitet, nicht geraten: 1 Einheit = 3 Meilen, Zeit = Meilen / Tempo * Faktor.
+const clockUnits = (CLOCK_LEG_HOURS * SPEED_TABLE.groupFoot.Weg) / (TIME_SCALE_FACTOR * DISTANCE_SCALING_FACTOR);
+const clockNames = ["Aran", "Beran", "Ceran", "Deran", "Eran", "Feran", "Geran"];
+global.locationData = clockNames.map((name, index) => ({ name, coordinates: [0, index * clockUnits] }));
+const clockSegments = [0, 1, 2, 3, 4, 5].map((index) => ({
+	geometry: { type: "LineString", coordinates: [[index * clockUnits, 0], [(index + 1) * clockUnits, 0]] },
+	properties: { feature_subtype: "Weg", public_id: `c${index}` },
+}));
+[0, 1, 2, 3, 4, 5].forEach((index) => {
+	avesmapsPathLandscapesStore.paths[`c${index}`] = { length: clockUnits, in: [["z1", clockUnits]] };
+});
+const clockDeparture = { monthKey: "efferd", day: 26 };
+
+// Der ECHTE Weg: buildRouteSteps reicht seinen Rastzaehler in die Jahreszeitschleife durch.
+const clockSteps = buildRouteSteps(clockNames, clockSegments, {
+	includeRests: true, restHoursPerDay: 12, departure: clockDeparture,
+});
+assert.strictEqual(clockSteps.length, 6, `sechs Etappen erwartet, waren ${clockSteps.length}`);
+const clockConditions = clockSteps.map((step) => (step.season_ground ? step.season_ground.condition : "-"));
+assert.deepStrictEqual(
+	clockConditions,
+	["-", "-", "-", "-", "aufgeweicht", "aufgeweicht"],
+	`mit dem Rastzaehler faellt der Abzug erst auf Etappe 5 und 6, war: ${clockConditions.join(" · ")}`
+);
+
+// 🔴 DIE GEGENPROBE, und sie schreibt die alte Formel NICHT ab: `applyRouteSeasonGround` OHNE
+// Zaehler faellt selbst auf die anteilige Regel zurueck -- derselbe Code, den der Reiseplaner bis
+// zum 14.08.2026 fuhr. Waere die Durchreichung des Zaehlers je verloren, glichen sich beide Listen
+// wieder an und dieser Vergleich schlaegt an.
+const clockFallback = applyRouteSeasonGround(
+	buildRoutePlanEntries(clockNames, clockSegments), clockSegments, clockDeparture, 12
+);
+const fallbackConditions = clockFallback.map((entry) => (entry.seasonGround ? entry.seasonGround.condition : "-"));
+assert.deepStrictEqual(
+	fallbackConditions,
+	["-", "-", "-", "aufgeweicht", "aufgeweicht", "aufgeweicht"],
+	`die anteilige Uhr datiert Etappe 4 zu frueh in den weichen Boden, war: ${fallbackConditions.join(" · ")}`
+);
+assert.notDeepStrictEqual(
+	clockConditions,
+	fallbackConditions,
+	"beide Uhren duerfen nicht dasselbe liefern -- sonst prueft dieser Fall nichts"
+);
+
 console.log("route-season-ground-apply.test.js: all assertions passed");

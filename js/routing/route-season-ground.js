@@ -21,6 +21,10 @@
  * die schnellste ohne Boden.
  */
 
+// Einmal je Sitzung, nicht je Route: der Rueckfall auf die alte anteilige Uhr soll auffallen, aber
+// die Konsole nicht zumuellen (siehe applyRouteSeasonGround).
+let avesmapsSeasonGroundFallbackWarned = false;
+
 /**
  * Die Klimazone unter einer Etappe, oder "" wenn keine bekannt ist.
  *
@@ -84,21 +88,45 @@ function routeEntryClimateZone(entry, segments) {
  * @param {Array} planEntries Etappen aus buildRoutePlanEntries (werden VERAENDERT)
  * @param {Array} segments Die Segmente derselben Route (fuer die Zonensuche)
  * @param {object} departure {monthKey, day} aus dem Panel, oder null
- * @param {number} travelPerDay Reisestunden am Tag -- daraus wird aus Reisezeit Kalenderzeit
+ * @param {number} travelPerDay Reisestunden am Tag -- Rueckfall, falls kein Rastzaehler kommt
+ * @param {{bookRest?: function(number, number): number}} [options] `bookRest(index, travelTime)`
+ *        ist der laufende Rastzaehler des Aufrufers und liefert die Raststunden DIESER Etappe.
+ *        💣 Die Reihenfolge der zwei Zahlen ist die SPIEGELUNG von `bookLeg(travelTime, exempt)`
+ *        eine Ebene tiefer -- vertauscht wirft nichts, es rechnete nur lautlos mit einer
+ *        Reisezeit von 0..n und ohne Rast. `route-season-ground-apply.test.js` faengt das.
  */
-function applyRouteSeasonGround(planEntries, segments, departure, travelPerDay) {
+function applyRouteSeasonGround(planEntries, segments, departure, travelPerDay, options) {
 	const entries = Array.isArray(planEntries) ? planEntries : [];
 	if (!departure || !departure.monthKey
 		|| typeof travelCalendarAdvance !== "function"
 		|| typeof seasonGroundReport !== "function") {
 		return entries;
 	}
-	// Eine Reisestunde belegt 24/Reisestunden Kalenderstunden. Ohne brauchbaren Wert wird
-	// durchgereist -- dann sind beide gleich.
 	const perDay = Number.isFinite(Number(travelPerDay)) && Number(travelPerDay) > 0 ? Number(travelPerDay) : 24;
+	// 💣 KALENDERZEIT IST REISEZEIT PLUS RAST, UND DIE RAST FAELLT IN PORTIONEN AN. `bookRest` ist
+	// der Rastzaehler des Aufrufers (avesmapsRouteRestCounter): er sagt je Etappe, wieviele
+	// Raststunden auf ihr faellig werden, und traegt den angebrochenen Reisetag zur naechsten
+	// Etappe weiter. Er MUSS in derselben Reihenfolge und genau einmal je Etappe gerufen werden --
+	// er ist ein laufender Zaehler, keine Formel.
+	//
+	// ⚠️ Der Rueckfall darunter ist die alte anteilige Regel (`24 / Reisestunden` je Reisestunde).
+	// Sie ueberschaetzt: sie bucht auch fuer den angebrochenen letzten Tag eine volle Nacht, die Uhr
+	// geht also vor. Sie steht nur noch fuer Aufrufer ohne Zaehler da (die Node-Tests der Modul-
+	// schnittstelle); im Reiseplaner reicht `buildRouteSteps` den Zaehler immer mit.
+	//
+	// 💣 UND SIE SAGT BESCHEID. Ein stiller Rueckfall waere genau die Sorte Fehler, gegen die dieser
+	// Umbau steht: nach einem fehlgeschlagenen Deploy kann eine gecachte 4-Argument-Fassung dieser
+	// Datei auf eine neue route-result.js treffen (AGENTS §9, der vergiftete `?v=`-Stempel), und der
+	// Planer faehrt wortlos wieder die alte Uhr. Auffallen wuerde das erst an einer Route, die eine
+	// Jahreszeitgrenze streift -- also fast nie, und dann als Raetsel.
+	const bookRest = options && typeof options.bookRest === "function" ? options.bookRest : null;
+	if (!bookRest && !avesmapsSeasonGroundFallbackWarned && typeof console !== "undefined" && console.warn) {
+		avesmapsSeasonGroundFallbackWarned = true;
+		console.warn("applyRouteSeasonGround: kein Rastzaehler uebergeben -- Jahreszeit-Uhr rechnet anteilig (alte Regel).");
+	}
 	const calendarPerTravelHour = 24 / perDay;
 	let elapsedCalendarHours = 0;
-	entries.forEach((entry) => {
+	entries.forEach((entry, index) => {
 		const date = travelCalendarAdvance(departure.monthKey, departure.day, elapsedCalendarHours);
 		const season = date ? date.season : "";
 		const zoneKey = routeEntryClimateZone(entry, segments);
@@ -108,7 +136,11 @@ function applyRouteSeasonGround(planEntries, segments, departure, travelPerDay) 
 			entry.travelTime = entry.travelTime / report.speedFactor;
 			entry.seasonGround = report;
 		}
-		elapsedCalendarHours += entry.travelTime * calendarPerTravelHour;
+		// Erst NACH dem Bodenabzug buchen: die Rast dieser Etappe faellt auf ihre endgueltige
+		// Reisezeit an, nicht auf die vor dem Abzug.
+		elapsedCalendarHours += bookRest
+			? entry.travelTime + bookRest(index, entry.travelTime)
+			: entry.travelTime * calendarPerTravelHour;
 	});
 	return entries;
 }

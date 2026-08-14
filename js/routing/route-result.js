@@ -37,6 +37,65 @@ function countTransportTransfers(routeSteps) {
 }
 
 /**
+ * A running rest counter for ONE journey. Returns `bookLeg(travelTime, exempt)`, which reports the
+ * rest hours that fall due on that leg and carries the day's remaining travel hours over to the
+ * next call.
+ *
+ * 🔴 THIS IS THE ONLY PLACE THE RULE LIVES, and it is a factory rather than a plain function
+ * because it has TWO consumers that cannot share one instance: `buildRouteSteps` books the rest
+ * that gets displayed, and `applyRouteSeasonGround` books it a second time to know how much
+ * CALENDAR time has passed before each leg -- which decides that leg's season, which decides its
+ * ground penalty, which decides its travel time. Each consumer walks the same legs from a rested
+ * start, so two instances of one rule agree by construction. A second hand-written copy of the
+ * loop would not, and the divergence would show up as a leg dated into the wrong season.
+ *
+ * @param {number} travelPerDay travel hours per day, > 0
+ * @param {boolean} includeRests false = travel round the clock, no rests at all
+ * @returns {function(number, boolean): number} books one leg, returns its rest hours
+ */
+function avesmapsRouteRestCounter(travelPerDay, includeRests) {
+	const dayHours = Number(travelPerDay) > 0 ? Number(travelPerDay) : 0.5;
+	const restPortion = Math.max(24 - dayHours, 0);
+	// The counter survives every call -- that is what makes the rest belong to the route.
+	let hoursSinceRest = 0;
+
+	return function bookLeg(travelTime, exempt) {
+		if (exempt) {
+			// Slept aboard: the passage costs no rest time and leaves the traveller rested.
+			hoursSinceRest = 0;
+			return 0;
+		}
+
+		if (!includeRests) {
+			return 0;
+		}
+
+		let restTime = 0;
+		// 💣 `Number.isFinite`, not `|| 0`: `Number(Infinity) || 0` is `Infinity` (truthy) and the loop
+		// below only ever subtracts a finite `dayHours` per turn, so an Infinity travel time never
+		// brings `remaining` under the epsilon and the loop never returns. NaN and negative values
+		// fall to 0 the same way the `dayHours` fallback above already does.
+		const rawTravelTime = Number(travelTime);
+		let remaining = Number.isFinite(rawTravelTime) && rawTravelTime > 0 ? rawTravelTime : 0;
+		// The epsilon is not cosmetic: a leg boundary lands on the day's last hour through a chain
+		// of float subtractions, so `hoursSinceRest` arrives as 11.999999999999998 rather than 12.
+		// Without the tolerance that night is skipped, and the next stretch is 2e-15 hours long.
+		while (remaining > 1e-9) {
+			if (hoursSinceRest >= dayHours - 1e-9) {
+				restTime += restPortion;
+				hoursSinceRest = 0;
+			}
+
+			const stretch = Math.min(remaining, dayHours - hoursSinceRest);
+			hoursSinceRest += stretch;
+			remaining -= stretch;
+		}
+
+		return restTime;
+	};
+}
+
+/**
  * The rest hours of every leg, in travel order.
  *
  * 💣 ONE COUNTER FOR THE WHOLE ROUTE, never one per leg. A rest portion falls due when the day's
@@ -59,57 +118,16 @@ function countTransportTransfers(routeSteps) {
  */
 function avesmapsRouteRestPortions(entries, travelPerDay, includeRests) {
 	const safeEntries = Array.isArray(entries) ? entries : [];
-	const dayHours = Number(travelPerDay) > 0 ? Number(travelPerDay) : 0.5;
-	const restPortion = Math.max(24 - dayHours, 0);
-	// The counter survives the whole loop -- that is what makes the rest belong to the route.
-	let hoursSinceRest = 0;
+	const bookLeg = avesmapsRouteRestCounter(travelPerDay, includeRests);
 
-	return safeEntries.map((entry) => {
-		if (entry && entry.exempt) {
-			// Slept aboard: the passage costs no rest time and leaves the traveller rested.
-			hoursSinceRest = 0;
-			return 0;
-		}
-
-		if (!includeRests) {
-			return 0;
-		}
-
-		let restTime = 0;
-		// 💣 `Number.isFinite`, not `|| 0`: `Number(Infinity) || 0` is `Infinity` (truthy) and the loop
-		// below only ever subtracts a finite `dayHours` per turn, so an Infinity travel time never
-		// brings `remaining` under the epsilon and the loop never returns. NaN and negative values
-		// fall to 0 the same way the `dayHours` fallback above already does.
-		const rawTravelTime = Number(entry && entry.travelTime);
-		let remaining = Number.isFinite(rawTravelTime) && rawTravelTime > 0 ? rawTravelTime : 0;
-		// The epsilon is not cosmetic: a leg boundary lands on the day's last hour through a chain
-		// of float subtractions, so `hoursSinceRest` arrives as 11.999999999999998 rather than 12.
-		// Without the tolerance that night is skipped, and the next stretch is 2e-15 hours long.
-		while (remaining > 1e-9) {
-			if (hoursSinceRest >= dayHours - 1e-9) {
-				restTime += restPortion;
-				hoursSinceRest = 0;
-			}
-
-			const stretch = Math.min(remaining, dayHours - hoursSinceRest);
-			hoursSinceRest += stretch;
-			remaining -= stretch;
-		}
-
-		return restTime;
-	});
+	return safeEntries.map((entry) => bookLeg(entry && entry.travelTime, Boolean(entry && entry.exempt)));
 }
 
 function buildRouteSteps(routeNames, segments, options = {}) {
 	const includeRests = Boolean(options.includeRests);
 	const restHoursPerDay = Number.isFinite(Number(options.restHoursPerDay)) ? Number(options.restHoursPerDay) : 10;
 	const travelPerDay = Math.max(24 - restHoursPerDay, 0.5);
-	// Der Bodenabzug des Reisebeginns greift HIER, vor der Rastrechnung: dadurch waechst die Rast mit
-	// der verlaengerten Reisezeit, und jede Summe darueber zieht von selbst nach. Ohne Reisebeginn
-	// (options.departure fehlt) bleibt jede Zahl, wie sie war.
-	const planEntries = typeof applyRouteSeasonGround === "function"
-		? applyRouteSeasonGround(buildRoutePlanEntries(routeNames, segments), segments, options.departure, travelPerDay)
-		: buildRoutePlanEntries(routeNames, segments);
+	const planEntries = buildRoutePlanEntries(routeNames, segments);
 
 	// 💣 THE NIGHT PASSAGE BELONGS TO A SHIP, NOT TO THE SEA. S. 131 grants it by name to exactly
 	// two vessels -- the Schnellsegler (250 miles) and the Kurier-Dromone (200, which we do not
@@ -124,6 +142,30 @@ function buildRouteSteps(routeNames, segments, options = {}) {
 	// right per hour, wrong per day.
 	const exemptFlags = planEntries.map((entry) => entry.type === "Seeweg"
 		&& resolveRouteStepTransport(entry, entry.type) === "fastShip");
+
+	// Der Bodenabzug des Reisebeginns greift HIER, vor der Rastrechnung: dadurch waechst die Rast mit
+	// der verlaengerten Reisezeit, und jede Summe darueber zieht von selbst nach. Ohne Reisebeginn
+	// (options.departure fehlt) bleibt jede Zahl, wie sie war.
+	//
+	// 💣 UND ER BRAUCHT DEN RASTZAEHLER SELBST. Welche Jahreszeit auf einer Etappe herrscht, haengt
+	// daran, wieviel KALENDERzeit bis dorthin vergangen ist -- und Kalenderzeit ist Reisezeit PLUS
+	// Rast. Bis zum 14.08.2026 rechnete die Jahreszeitschleife dafuer `24 / Reisestunden` je
+	// Reisestunde, also die alte anteilige Regel: die Uhr ging damit vor, nie nach, weil sie auch
+	// fuer den angebrochenen letzten Tag eine volle Nacht buchte. Eine Etappe rutschte so zu frueh
+	// in die naechste Jahreszeit, bekam deren Bodenabzug -- und der falsche Abzug zog Rast, Summe,
+	// Ankunft und Kosten mit.
+	//
+	// Deshalb bekommt sie hier einen EIGENEN Zaehler derselben Regel. Nicht denselben wie unten:
+	// beide laufen ueber dieselben Etappen von einem ausgeruhten Start, ein gemeinsamer waere nach
+	// dem ersten Durchgang aufgebraucht. Zwei Instanzen einer Regel stimmen ueberein, zwei Kopien
+	// der Schleife nicht.
+	if (typeof applyRouteSeasonGround === "function") {
+		const bookCalendarRest = avesmapsRouteRestCounter(travelPerDay, includeRests);
+		applyRouteSeasonGround(planEntries, segments, options.departure, travelPerDay, {
+			bookRest: (index, travelTime) => bookCalendarRest(travelTime, exemptFlags[index]),
+		});
+	}
+
 	// 💣 ONE call for the WHOLE route, outside the map. The rest belongs to the journey, not to the
 	// row: three short legs share a travel day, and a night can fall in the middle of a leg.
 	const restPortions = avesmapsRouteRestPortions(
