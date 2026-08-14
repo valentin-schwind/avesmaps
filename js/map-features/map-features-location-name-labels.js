@@ -49,6 +49,18 @@ function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom(), visibilit
 		return Boolean(entry.publicId) && window.avesmapsSettlementMapFilterIds.has(entry.publicId);
 	}
 
+	// 💣 Ein Prüfhaken ZEIGT seine Funde (resolveLocationCheckFinding, Owner 2026-08-14) -- und ein
+	// eingeblendeter Ort OHNE Namen ist ein anonymer Punkt, den man einzeln anklicken muesste, um zu
+	// wissen, welche Anbindungsluecke man da gefunden hat. Genau dieselbe Zeile wie in
+	// shouldShowLocationMarker, damit Marker und Name nie auseinanderlaufen. Kreuzungen sind oben
+	// schon raus (sie tragen nie ein Label), es geht hier also nur um Orte. Die Grenzen des
+	// Ausschnitts prueft der Aufrufer, daher nur true.
+	// (Ohne typeof-Riegel: marker-rendering.js steht in index.html VOR dieser Datei -- ein Riegel
+	// wuerde einen Bruch dieser Ladereihenfolge in stumm ausbleibende Namen verwandeln.)
+	if (resolveLocationCheckFinding(entry, visibilityContext)) {
+		return true;
+	}
+
 	// Politische Ansicht: Hauptstadt-Namen der angezeigten Gebiete immer labeln (passend zu
 	// shouldShowLocationMarker -> Standard-Siedlungsanzeige im political-Modus). Der Aufrufer prueft die
 	// Viewport-Grenzen, daher hier nur true.

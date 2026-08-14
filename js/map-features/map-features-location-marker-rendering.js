@@ -189,29 +189,35 @@ function createLocationVisibilityContext() {
 	};
 }
 
-// Nicht-Ziel (spec docs/superpowers/specs/2026-07-15-unverbundene-orte-marker-design.md): Nodices
-// bleiben außen vor -- der Ring gilt nur fuer Marker, die ueber die normale Typ-Kaskade bzw.
-// "Kreuzungen" sichtbar sind, NIE nur ueber "Nodices".
-function isMarkerUnconnectedRingEligible(entry, visibilityContext) {
-	if (entry.locationType === CROSSING_LOCATION_TYPE) {
-		return visibilityContext.crossingsToggleChecked;
+// 💣 EIN PRUEFHAKEN ZEIGT SEINE FUNDE (Owner 2026-08-14). Diese eine Funktion beantwortet BEIDE
+// Fragen zugleich -- "welchen Warnring traegt der Marker" und "warum ist er ueberhaupt da": ein Fund
+// blendet seinen Marker ein, unabhaengig von den Ortsgroessen-Haken UND unabhaengig von der
+// Zoomstufe (siehe shouldShowLocationMarker). Waeren das zwei Funktionen, koennte ein Marker
+// eingeblendet sein OHNE Ring oder geringelt OHNE Grund -- die Divergenz ist hier baulich unmoeglich.
+//   Vorher (spec docs/superpowers/specs/2026-07-15-unverbundene-orte-marker-design.md) ringelte
+// "Unverbunden" nur, was die aktive Groessenkaskade ohnehin zeigte, und "Kreuzungen <= 2 Wege" tat
+// ohne "Kreuzungen" gar nichts. Genau die Orte, die man sucht, blieben damit unsichtbar; der
+// Nicht-Ziel-Satz "Nodices bleiben aussen vor" ist mit derselben Entscheidung hinfaellig -- ein
+// unverbundener Nodix IST eine Anbindungsluecke, und ohne "Unverbunden" ist die Menge sowieso null.
+// ⚠️ Hoechstens EIN Befund je Marker: eine Kreuzung ganz ohne Weg erfuellt beide Kriterien, aber die
+// fehlende Anbindung (pink) ist der gravierendere Befund und gewinnt gegen "ueberfluessige
+// Kreuzung" (tuerkis). Die Reihenfolge der beiden Bloecke IST diese Rangfolge.
+function resolveLocationCheckFinding(entry, visibilityContext = null) {
+	if (!IS_EDIT_MODE || !entry.publicId) {
+		return "";
 	}
-	return visibilityContext.isTypeVisible(entry.locationType);
-}
-
-// Welchen Warnring traegt dieser Marker? Hoechstens EINEN: eine Kreuzung ganz ohne Weg erfuellt
-// beide Kriterien, aber die fehlende Anbindung (pink) ist der gravierendere Befund und gewinnt
-// gegen "ueberfluessige Kreuzung" (tuerkis).
-function resolveMarkerRingModifier(entry, visibilityContext) {
-	if (visibilityContext.unconnectedPublicIds
-		&& isMarkerUnconnectedRingEligible(entry, visibilityContext)
-		&& visibilityContext.unconnectedPublicIds.has(entry.publicId)) {
+	const unconnectedPublicIds = visibilityContext
+		? visibilityContext.unconnectedPublicIds
+		: ($("#toggleUnconnected").is(":checked") ? getUnconnectedLocationPublicIds() : null);
+	if (unconnectedPublicIds && unconnectedPublicIds.has(entry.publicId)) {
 		return "unconnected";
 	}
-	if (visibilityContext.sparseCrossingPublicIds
+	const sparseCrossingPublicIds = visibilityContext
+		? visibilityContext.sparseCrossingPublicIds
+		: ($("#toggleSparseCrossings").is(":checked") ? getSparseCrossingPublicIds() : null);
+	if (sparseCrossingPublicIds
 		&& entry.locationType === CROSSING_LOCATION_TYPE
-		&& visibilityContext.crossingsToggleChecked
-		&& visibilityContext.sparseCrossingPublicIds.has(entry.publicId)) {
+		&& sparseCrossingPublicIds.has(entry.publicId)) {
 		return "sparse-crossing";
 	}
 	return "";
@@ -233,12 +239,23 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 	if (typeof nearestLookupPinnedMarkerEntry !== "undefined" && entry === nearestLookupPinnedMarkerEntry) {
 		return true;
 	}
+	// 💣 Ein Prüfhaken ZEIGT seine Funde (resolveLocationCheckFinding, Owner 2026-08-14): steht VOR der
+	// Kreuzungs- und der Typ-Kaskade, weil er beide aushebelt -- samt der Mindestzoomstufen weiter
+	// unten (Kleinstadt ab 1, Dorf ab 2, Bauwerk ab 3). Wer herauszoomt, um Anbindungsluecken zu
+	// suchen, versteckte sich sonst mit der Zoomstufe genau die Funde. Nur der Ausschnitt gilt weiter.
+	if (resolveLocationCheckFinding(entry, visibilityContext)) {
+		return isMarkerEntryInRenderBounds(entry, renderBounds);
+	}
+	// ⚠️ Diese Weiche steht (wie eh und je) VOR dem Kraftlinien-Modus: "Kreuzungen" hat dessen
+	// "nur Nodices" schon immer ueberstimmt. Die Pruefhaken darueber tun jetzt dasselbe -- alle drei
+	// verhalten sich gleich, statt dass einer als Sonderfall herausfaellt.
 	if (entry.locationType === CROSSING_LOCATION_TYPE) {
 		const crossingsToggleChecked = visibilityContext
 			? visibilityContext.crossingsToggleChecked
 			: IS_EDIT_MODE && $("#toggleCrossings").is(":checked");
+		// Ohne Zoomuntergrenze (Owner 2026-08-14, vorher >= 3): ein Haken, der nur auf drei von sechs
+		// Zoomstufen wirkt, sieht beim Herauszoomen wie ein Fehler aus.
 		return crossingsToggleChecked
-			&& zoomLevel >= 3
 			&& isMarkerEntryInRenderBounds(entry, renderBounds);
 	}
 
@@ -307,7 +324,7 @@ function syncLocationMarkerVisibility() {
 		// Icon nur neu bauen, wenn sich die Zoomstufe (= Markergroesse/-stil) ODER der Warnring
 		// seit dem letzten Bau fuer diesen Marker geaendert hat. Beim reinen Pannen bleibt das Icon
 		// identisch -> kein setIcon-Neuaufbau pro sichtbarem Marker pro moveend.
-		const ringModifier = resolveMarkerRingModifier(entry, visibilityContext);
+		const ringModifier = resolveLocationCheckFinding(entry, visibilityContext);
 		if (shouldShow && (entry.iconZoomLevel !== zoomLevel || entry._ringModifier !== ringModifier)) {
 			entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel, ringModifier));
 			entry.iconZoomLevel = zoomLevel;
