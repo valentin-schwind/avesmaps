@@ -5,13 +5,20 @@ declare(strict_types=1);
 // Öffentlicher Lesezugriff auf Flora, Fauna, Spezies und Handelswaren.
 // Design: docs/flora-fauna-handelswaren-design.md.
 //
-// GET /api/app/lore.php?place=<wiki_key>[&full=1][&area=<public_id>|&location=<public_id>]
+// GET /api/app/lore.php?place=<wiki_key>[&full=1][&area=<public_id[,public_id,…]>
+//                                                 |&location=<public_id>|&territory=<public_id>]
 //     -> { ok:true, place:"...", sections:{flora:[…],fauna:[…],spezies:[…],ware:[…]},
-//          counts:{flora:n,…}, total:n, limit:10 }
+//          counts:{flora:n,…}, total:n, limit:10, truncated:false }
 //     full=1 liefert die vollständigen Listen (für den „alle anzeigen"-Dialog).
-//     area/location (Sitzung 3, Lebensraum-Regel): zusaetzlich zu den genannten Orten liefert
-//     eine Flaeche (area) oder ein Ort (location) die Eintraege, deren REGEL sie trifft --
-//     dieselben sections, rank 1. Hoechstens einer der beiden wirkt (area vor location).
+//     area/location/territory (Sitzung 3, Lebensraum-Regel): zusaetzlich zu den genannten Orten
+//     liefern diese Parameter die Eintraege, deren REGEL sie treffen -- dieselben sections, rank 1.
+//     🔴 Feste Rangfolge, HOECHSTENS EINER wirkt: area vor location vor territory. Zwei gleichzeitig
+//     ist ein Programmfehler des Aufrufers, kein Sonderfall -- der erste gewinnt.
+//     area nimmt eine KOMMALISTE von Regions-public_id (Task 9: ein Weg oder eine Etappe beruehrt
+//     mehrere Flaechen; ihre Treffer werden VEREINIGT, nicht geschnitten). truncated meldet, ob mehr
+//     als AVESMAPS_LORE_RULE_AREA_LIMIT (25) genannt wurden -- nie eine stille Kappung.
+//     territory nimmt die public_id EINES Herrschaftsgebiets; der Server loest dessen Flaechen
+//     selbst auf (ecosystem_region_territory), denn ein Gebiet kennt seine Regions-IDs nicht.
 //
 // GET /api/app/lore.php?stats=1
 //     -> { ok:true, stats:{ entries:{…}, entries_total, places, sources, top_places:[…] } }
@@ -31,10 +38,18 @@ require_once __DIR__ . '/../_internal/political/territory.php';
 // Apostrophe wie Bindestriche weg -- eine Eigenbau-Variante trifft die beim Sync
 // geschriebenen match_key-Werte nicht zuverlässig.
 require_once __DIR__ . '/../_internal/wiki/sync.php';
-// avesmapsLoreRuleReadSubjectForArea/-Location + avesmapsLoreRuleEntriesForSubject fuer
-// ?area=/?location= (Lebensraum-Regel, Sitzung 3). Bindet climate-membership.php, lore-rule.php
-// und lore-rule-store.php selbst mit ein.
+// avesmapsLoreRuleReadSubjectForArea/-Location/avesmapsLoreRuleReadSubjectsForAreas/-Territory +
+// avesmapsLoreRuleEntriesForSubject(s) fuer ?area=/?location=/?territory= (Lebensraum-Regel,
+// Sitzung 3 + Task 9). Bindet climate-membership.php, lore-rule.php und lore-rule-store.php selbst
+// mit ein.
 require_once __DIR__ . '/../_internal/app/lore-rule-match.php';
+
+// Task 9, Schritt 1: bis zu AVESMAPS_LORE_RULE_AREA_LIMIT (25) Regionen als Kommaliste -- 36
+// Zeichen je UUID + Komma braucht bei 25 Stueck rund 925 Zeichen. Der Wert hier ist NUR eine
+// Sicherung gegen absurd lange Eingaben, kein zweiter Deckel: die eigentliche, SICHTBARE Grenze
+// (25, mit truncated-Zeichen) sitzt in avesmapsLoreRuleReadSubjectsForAreas -- dieser Wert liegt
+// bequem darueber, damit er praktisch nie zuerst greift.
+const AVESMAPS_LORE_AREA_PARAMETER_MAX_LENGTH = 1200;
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -179,19 +194,26 @@ try {
             $placeKeys[] = mb_strtolower($candidate, 'UTF-8');
         }
     }
-    // Lebensraum-Regel (Sitzung 3, Task 4b): ?area=<public_id> oder ?location=<public_id> ist
-    // ein ebenso brauchbarer Anfragegrund wie ein Ortsschluessel -- genau fuer Orte OHNE
-    // Wiki-Artikel (2.885 von 4.883 Siedlungen, gemessen) wurde die Regel erfunden. Hier lesen,
-    // NICHT nochmal weiter unten aus $_GET: dieselben Werte an beiden Stellen, keine zweite
-    // Quelle. (string)-Cast VOR avesmapsNormalizeSingleLine: ihr Parameter ist ?string, und ein
-    // ?area[]=x wuerde als PHP-Array sonst einen TypeError werfen statt einen leeren/harmlosen
-    // Wert zu liefern -- derselbe Cast wie bei jedem anderen $_GET-Wert in dieser Datei.
-    $areaParameter = avesmapsNormalizeSingleLine((string) ($_GET['area'] ?? ''), 36);
+    // Lebensraum-Regel (Sitzung 3, Task 4b; Task 9 fuegt territory hinzu): ?area=<public_id[,…]>,
+    // ?location=<public_id> oder ?territory=<public_id> ist ein ebenso brauchbarer Anfragegrund wie
+    // ein Ortsschluessel -- genau fuer Orte OHNE Wiki-Artikel (2.885 von 4.883 Siedlungen, gemessen)
+    // wurde die Regel erfunden. Hier lesen, NICHT nochmal weiter unten aus $_GET: dieselben Werte an
+    // beiden Stellen, keine zweite Quelle. (string)-Cast VOR avesmapsNormalizeSingleLine: ihr
+    // Parameter ist ?string, und ein ?area[]=x wuerde als PHP-Array sonst einen TypeError werfen
+    // statt einen leeren/harmlosen Wert zu liefern -- derselbe Cast wie bei jedem anderen
+    // $_GET-Wert in dieser Datei.
+    // 🔴 Feste Rangfolge, HOECHSTENS EINER wirkt: area vor location vor territory. Zwei gleichzeitig
+    // ist ein Programmfehler des Aufrufers, kein Sonderfall -- der erste gewinnt, die anderen werden
+    // gar nicht erst gelesen.
+    $areaParameter = avesmapsNormalizeSingleLine((string) ($_GET['area'] ?? ''), AVESMAPS_LORE_AREA_PARAMETER_MAX_LENGTH);
     $locationParameter = $areaParameter === ''
         ? avesmapsNormalizeSingleLine((string) ($_GET['location'] ?? ''), 36)
         : '';
-    if (!avesmapsLoreRequestHasSubject(implode(',', $placeKeys), $areaParameter, $locationParameter)) {
-        avesmapsErrorResponse(400, 'place_invalid', 'Parameter "place", "area" or "location" holds no usable value.');
+    $territoryParameter = ($areaParameter === '' && $locationParameter === '')
+        ? avesmapsNormalizeSingleLine((string) ($_GET['territory'] ?? ''), 36)
+        : '';
+    if (!avesmapsLoreRequestHasSubject(implode(',', $placeKeys), $areaParameter, $locationParameter, $territoryParameter)) {
+        avesmapsErrorResponse(400, 'place_invalid', 'Parameter "place", "area", "location" or "territory" holds no usable value.');
     }
 
     // ?goods=Vieh|Holz|Salz -- freie Warennamen aus der Infobox-Zeile „Handelswaren",
@@ -234,10 +256,15 @@ try {
 
     $result = avesmapsLoreReadForPlaces($pdo, array_keys($ranks), $full ? 0 : AVESMAPS_LORE_PANEL_LIMIT, $ranks);
 
-    // Lebensraum-Regel (Sitzung 3): dieselben $areaParameter/$locationParameter wie beim
-    // Torwaechter oben -- nicht zweimal aus $_GET lesen. Liefert zusaetzlich die Eintraege,
-    // deren REGEL diese Flaeche/diesen Ort trifft -- dieselben sections, rank 1.
-    if ($areaParameter !== '' || $locationParameter !== '') {
+    // Lebensraum-Regel (Sitzung 3; Task 9 fuegt territory + mehrere Regionen hinzu): dieselben
+    // $areaParameter/$locationParameter/$territoryParameter wie beim Torwaechter oben -- nicht
+    // zweimal aus $_GET lesen. Liefert zusaetzlich die Eintraege, deren REGEL diese Flaeche(n) /
+    // diesen Ort / dieses Gebiet trifft -- dieselben sections, rank 1.
+    // 💣 Ein Deckel, aber kein stiller (siehe AVESMAPS_LORE_RULE_AREA_LIMIT): truncated reist bis
+    // in die Antwort, damit ein Aufrufer mit zu vielen Flaechen es SEHEN kann, statt lautlos einen
+    // Teil seiner Treffer zu verlieren.
+    $ruleTruncated = false;
+    if ($areaParameter !== '' || $locationParameter !== '' || $territoryParameter !== '') {
         // 🔴 Stempel VOR jeder Regelrechnung pruefen, mit einem NACKTEN SELECT -- nie ueber
         // avesmapsEcosystemEnsureTables (dessen information_schema-Sonden sind die Last, die den
         // PHP-Worker-Pool am 17.07.2026 erschoepft hat, AGENTS.md §10). completed = 0 heisst:
@@ -254,12 +281,34 @@ try {
         }
 
         if ($stampCompleted) {
-            $subject = $areaParameter !== ''
-                ? avesmapsLoreRuleReadSubjectForArea($pdo, $areaParameter)
-                : avesmapsLoreRuleReadSubjectForLocation($pdo, $locationParameter);
+            $subjects = [];
+            if ($areaParameter !== '') {
+                // Task 9, Schritt 1: MEHRERE Regionen -- Weg und Etappe beruehren mehr als eine.
+                // Jede wird ihr eigenes Subjekt; avesmapsLoreRuleEntriesForSubjects unten vereinigt
+                // ihre Treffer (nicht schneidet sie -- ein Weg durch Wald UND Gebirge zeigt beides).
+                $areaIds = [];
+                foreach (explode(',', $areaParameter) as $candidate) {
+                    $candidate = trim($candidate);
+                    if ($candidate !== '' && !in_array($candidate, $areaIds, true)) {
+                        $areaIds[] = $candidate;
+                    }
+                }
+                $areasResult = avesmapsLoreRuleReadSubjectsForAreas($pdo, $areaIds);
+                $subjects = $areasResult['subjects'];
+                $ruleTruncated = $areasResult['truncated'];
+            } elseif ($locationParameter !== '') {
+                $locationSubject = avesmapsLoreRuleReadSubjectForLocation($pdo, $locationParameter);
+                $subjects = $locationSubject !== null ? [$locationSubject] : [];
+            } else {
+                // Task 9, Schritt 2: das Gebiet selbst hat keine Regions-IDs -- der Server loest sie
+                // ueber ecosystem_region_territory auf und macht daraus dieselben Subjekte wie oben.
+                $territoryResult = avesmapsLoreRuleReadSubjectsForTerritory($pdo, $territoryParameter);
+                $subjects = $territoryResult['subjects'];
+                $ruleTruncated = $territoryResult['truncated'];
+            }
 
-            if ($subject !== null) {
-                $ruleHits = avesmapsLoreRuleEntriesForSubject($pdo, $subject);
+            if ($subjects !== []) {
+                $ruleHits = avesmapsLoreRuleEntriesForSubjects($pdo, $subjects);
                 if ($ruleHits !== []) {
                     $activeKinds = array_keys(array_filter(avesmapsLoreEnabledKinds($pdo)));
                     $ruleRows = avesmapsLoreReadEntriesForRuleHits($pdo, $ruleHits, $activeKinds);
@@ -282,6 +331,10 @@ try {
         // Dieselben Namen in EINGABEREIHENFOLGE -- die Infobox-Zeile soll ihre gewohnte
         // Ordnung behalten, nicht die der Treffer.
         'goods_order' => $goodsOrder,
+        // Task 9: true, wenn ?area= oder ?territory= mehr als AVESMAPS_LORE_RULE_AREA_LIMIT (25)
+        // Flaechen ergab und der Rest gekappt wurde -- nie eine stille Kappung (siehe
+        // avesmapsLoreRuleReadSubjectsForAreas).
+        'truncated' => $ruleTruncated,
     ]);
 } catch (Throwable $error) {
     avesmapsErrorResponse(500, 'lore_failed', 'Lore konnte nicht geladen werden.');

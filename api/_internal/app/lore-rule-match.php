@@ -30,6 +30,14 @@ require_once __DIR__ . '/lore-rule.php';
 // avesmapsLoreRuleOrderedZoneKeys() -- die Funktion wohnt in lore-rule-store.php.
 require_once __DIR__ . '/lore-rule-store.php';
 
+// 🔴 Deckel, Task 9 Schritt 1: ein Weg oder eine Etappe beruehrt eine Handvoll Flaechen, nie
+// hunderte -- 25 reicht. Aber NIE STILL: dieselbe Falle wie bei avesmapsEcosystemParseRegionFilter
+// (ecosystem.php), die genau diese Woche 31 Waelder lautlos verschluckt hat, weil ein Filter einen
+// fremden Deckel samt Begruendung geerbt hatte, aber nicht dessen `truncated`-Feld.
+// avesmapsLoreRuleReadSubjectsForAreas gibt truncated MIT zurueck -- der Aufrufer (api/app/lore.php)
+// entscheidet, wie er es zeigt, aber er bekommt es zu sehen.
+const AVESMAPS_LORE_RULE_AREA_LIMIT = 25;
+
 /**
  * PURE: eine Flaeche als ihr eigenes Subjekt.
  *
@@ -300,6 +308,133 @@ function avesmapsLoreRuleReadSubjectForLocation(PDO $pdo, string $locationPublic
 }
 
 /**
+ * Liest MEHRERE Flaechen als Subjekte auf einmal -- Task 9 Schritt 1 (Weg, Etappe: sie beruehren
+ * mehr als eine Flaeche, anders als eine Landschaftsflaeche oder eine Siedlung).
+ *
+ * Vorbild: avesmapsLoreRuleReadAreas (lore-rule-store.php), dieselbe Form und dieselbe Schwelle
+ * (AVESMAPS_CLIMATE_REGION_MIN_SHARE), aber EINE Abfrage fuer GENAU die genannten public_id statt
+ * fuer den ganzen Bestand. Das redundant wirkende IN (SELECT id FROM ecosystem_region WHERE
+ * kind = 'klima' ...) ist von dort uebernommen und aus demselben Grund noetig (Index statt
+ * Tabellenscan auf ecosystem_region_overlap).
+ *
+ * 🔴 EINE Abfrage fuer alle genannten Flaechen, nie eine je Flaeche -- derselbe Grund wie im
+ * Kopfkommentar dieser Datei (PHP-Worker-Pool-Vorfall vom 17.07.2026).
+ *
+ * @param list<string> $areaPublicIds
+ * @return array{subjects: list<array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>}>, truncated: bool}
+ */
+function avesmapsLoreRuleReadSubjectsForAreas(PDO $pdo, array $areaPublicIds): array
+{
+    $ids = [];
+    foreach ($areaPublicIds as $candidate) {
+        $candidate = trim((string) $candidate);
+        if ($candidate !== '' && !in_array($candidate, $ids, true)) {
+            $ids[] = $candidate;
+        }
+    }
+    if ($ids === []) {
+        return ['subjects' => [], 'truncated' => false];
+    }
+
+    // 💣 Die Grenze gilt VOR der Abfrage, nicht danach -- eine Implementierung, die erst alles liest
+    // und dann wegwirft, haette denselben stillen Fehler nur eine Abfrage zu spaet. truncated wird
+    // hier gesetzt, nicht erst beim Aufrufer erraten.
+    $truncated = count($ids) > AVESMAPS_LORE_RULE_AREA_LIMIT;
+    $ids = array_slice($ids, 0, AVESMAPS_LORE_RULE_AREA_LIMIT);
+
+    try {
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $statement = $pdo->prepare(
+            "SELECT r.public_id, r.kind, r.region_type, k.region_type AS zone_key, o.share
+               FROM ecosystem_region r
+               LEFT JOIN ecosystem_region_overlap o
+                 ON o.region_id = r.id
+                AND o.other_region_id IN (SELECT id FROM ecosystem_region WHERE kind = 'klima' AND is_active = 1)
+               LEFT JOIN ecosystem_region k ON k.id = o.other_region_id AND k.kind = 'klima' AND k.is_active = 1
+              WHERE r.is_active = 1 AND r.kind <> 'klima' AND r.public_id IN ($placeholders)"
+        );
+        $statement->execute($ids);
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable) {
+        return ['subjects' => [], 'truncated' => $truncated];
+    }
+
+    $byId = [];
+    foreach (($rows ?: []) as $row) {
+        $publicId = (string) $row['public_id'];
+        if (!isset($byId[$publicId])) {
+            $byId[$publicId] = [
+                'public_id' => $publicId,
+                'kind' => (string) $row['kind'],
+                'region_type' => (string) $row['region_type'],
+                'zones' => [],
+            ];
+        }
+        $zone = trim((string) ($row['zone_key'] ?? ''));
+        $share = (float) ($row['share'] ?? 0);
+        if ($zone !== '' && $share >= AVESMAPS_CLIMATE_REGION_MIN_SHARE
+            && !in_array($zone, $byId[$publicId]['zones'], true)) {
+            $byId[$publicId]['zones'][] = $zone;
+        }
+    }
+
+    // Ausgabereihenfolge folgt der EINGABE ($ids), nicht der SQL-Zeilenreihenfolge -- eine
+    // public_id, die es nicht (mehr) gibt, faellt dabei einfach heraus.
+    $subjects = [];
+    foreach ($ids as $id) {
+        if (isset($byId[$id])) {
+            $subjects[] = avesmapsLoreRuleSubjectFromArea($byId[$id]);
+        }
+    }
+
+    return ['subjects' => $subjects, 'truncated' => $truncated];
+}
+
+/**
+ * Liest die Flaechen EINES Herrschaftsgebiets als Subjekte -- Task 9 Schritt 2. Ein Gebiet hat
+ * KEINE eigenen Regions-IDs (anders als Weg/Etappe, siehe Kopfkommentar der Datei); sie kommen aus
+ * ecosystem_region_territory, derselben Tabelle, die avesmapsClimateReadTerritoryZones
+ * (climate-membership.php) fuer die Klimazonen-Zeile schon liest -- hier nur NICHT auf
+ * kind = 'klima' eingeschraenkt, denn hier werden die Flaechen selbst gesucht, nicht ihre Zonen.
+ *
+ * ⚠️ Keine zweite Anteilsschwelle: AVESMAPS_CLIMATE_REGION_MIN_SHARE entscheidet hier wie dort, ob
+ * eine Flaeche das Gebiet ueberhaupt "beruehrt" -- nicht neu erfunden.
+ *
+ * Danach dieselben Subjekte wie Schritt 1 (avesmapsLoreRuleReadSubjectsForAreas): eine Flaeche, die
+ * ein Gebiet beruehrt, ist keine andere Flaeche als eine, die ein Weg beruehrt -- EINE Funktion,
+ * zwei Aufrufer, kein zweiter Subjekt-Bauer.
+ *
+ * @return array{subjects: list<array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>}>, truncated: bool}
+ */
+function avesmapsLoreRuleReadSubjectsForTerritory(PDO $pdo, string $territoryPublicId): array
+{
+    $territoryPublicId = trim($territoryPublicId);
+    if ($territoryPublicId === '') {
+        return ['subjects' => [], 'truncated' => false];
+    }
+
+    try {
+        $statement = $pdo->prepare(
+            "SELECT r.public_id
+               FROM ecosystem_region_territory rt
+               JOIN ecosystem_region r ON r.id = rt.region_id AND r.is_active = 1 AND r.kind <> 'klima'
+              WHERE rt.territory_public_id = :territory AND rt.share >= :threshold
+              ORDER BY rt.share DESC, r.public_id"
+        );
+        $statement->execute(['territory' => $territoryPublicId, 'threshold' => AVESMAPS_CLIMATE_REGION_MIN_SHARE]);
+        $areaIds = $statement->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable) {
+        return ['subjects' => [], 'truncated' => false];
+    }
+
+    if ($areaIds === false || $areaIds === []) {
+        return ['subjects' => [], 'truncated' => false];
+    }
+
+    return avesmapsLoreRuleReadSubjectsForAreas($pdo, array_map('strval', $areaIds));
+}
+
+/**
  * Alle aktiven Regeln ALLER Eintraege -- fuer den oeffentlichen Lesepfad, nicht fuer den Editor.
  *
  * Vorbild: avesmapsLoreRuleReadForEntry (lore-rule-store.php), aber ohne den Eintragsfilter und
@@ -423,31 +558,59 @@ function avesmapsLoreRuleChainMatchesSubject(array $terms, array $subject, array
 }
 
 /**
- * Fuer EIN Subjekt: entry_wiki_key => relation aller aktiven Regeln, die es treffen.
+ * Fuer MEHRERE Subjekte (Task 9: Weg, Etappe, Herrschaftsgebiet -- sie beruehren mehr als eine
+ * Flaeche): entry_wiki_key => relation aller aktiven Regeln, die IRGENDEINES der Subjekte treffen
+ * -- Vereinigung, nicht Schnitt. Ein Weg durch Wald UND Gebirge zeigt beides; eine Regel, die nur
+ * fuer den Wald-Abschnitt gilt, darf nicht daran scheitern, dass der Gebirgs-Abschnitt sie
+ * verfehlt.
  *
  * Holt den ganzen Regelbestand (avesmapsLoreRuleReadAllActive, drei Abfragen) und die
- * Zonenreihenfolge (avesmapsLoreRuleOrderedZoneKeys) GENAU EINMAL je Aufruf, wertet beides dann
- * rein in PHP gegen das eine Subjekt aus -- keine weitere Abfrage je Regel oder Bedingung.
+ * Zonenreihenfolge (avesmapsLoreRuleOrderedZoneKeys) GENAU EINMAL je Aufruf -- nicht je Subjekt
+ * und nicht je Regel --, wertet beides dann rein in PHP gegen jedes Subjekt aus.
+ *
+ * @param list<array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>}> $subjects
+ * @return array<string, string> entry_wiki_key => relation
+ */
+function avesmapsLoreRuleEntriesForSubjects(PDO $pdo, array $subjects): array
+{
+    if ($subjects === []) {
+        return [];
+    }
+
+    $rules = avesmapsLoreRuleReadAllActive($pdo);
+    if ($rules === []) {
+        return [];
+    }
+
+    // Einmal je Aufruf geholt, nie je Subjekt und nie je Regel.
+    $orderedZoneKeys = avesmapsLoreRuleOrderedZoneKeys($pdo);
+
+    $out = [];
+    foreach ($rules as $rule) {
+        foreach ($subjects as $subject) {
+            // 🔴 Ruft avesmapsLoreRuleChainMatchesSubject -- ruft sie, schreibt sie nicht ab (siehe
+            // Kopfkommentar dieser Datei: genau diese Kette stand einmal woertlich zweimal im Code,
+            // und eine Praezedenz-Lesart ueberlebte dabei die erste Testfassung in der einen Kopie).
+            if (avesmapsLoreRuleChainMatchesSubject($rule['terms'], $subject, $orderedZoneKeys)) {
+                $out[$rule['entry_wiki_key']] = $rule['relation'];
+                break; // Vereinigung: EIN Treffer reicht, die anderen Subjekte muessen nicht auch
+            }
+        }
+    }
+
+    return $out;
+}
+
+/**
+ * Fuer EIN Subjekt: entry_wiki_key => relation aller aktiven Regeln, die es treffen.
+ *
+ * Ein Sonderfall von avesmapsLoreRuleEntriesForSubjects mit genau einem Subjekt -- ruft sie, statt
+ * den Regelbestand-plus-Auswertung-Ablauf ein zweites Mal hinzuschreiben.
  *
  * @param array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>} $subject
  * @return array<string, string> entry_wiki_key => relation
  */
 function avesmapsLoreRuleEntriesForSubject(PDO $pdo, array $subject): array
 {
-    $rules = avesmapsLoreRuleReadAllActive($pdo);
-    if ($rules === []) {
-        return [];
-    }
-
-    // Einmal je Aufruf geholt, nie je Regel und nie je Bedingung.
-    $orderedZoneKeys = avesmapsLoreRuleOrderedZoneKeys($pdo);
-
-    $out = [];
-    foreach ($rules as $rule) {
-        if (avesmapsLoreRuleChainMatchesSubject($rule['terms'], $subject, $orderedZoneKeys)) {
-            $out[$rule['entry_wiki_key']] = $rule['relation'];
-        }
-    }
-
-    return $out;
+    return avesmapsLoreRuleEntriesForSubjects($pdo, [$subject]);
 }

@@ -300,6 +300,10 @@ console.log("OK: Klimazonen bleiben aus der Landschaftszeile draussen -- und kom
 	const markup = avesmapsPathLandscapesLoreMarkup(buildLandscapeLine(["w-1"], payload));
 	assert(markup.indexOf('data-lore-fetch="weiden,reichsforst"') >= 0,
 		"beide Landschaften des Weges gehen als EIN Abruf hinaus: " + markup);
+	// Task 9: BEIDE Regions-IDs gehen als area mit -- der Server soll die Regel gegen jede der
+	// beiden pruefen und die Treffer vereinigen (nicht nur gegen die erstgenannte).
+	assert(markup.indexOf('data-lore-area="r-weiden,r-forst"') >= 0,
+		"beide Regions-IDs reisen als area mit, nicht nur die erste: " + markup);
 	assert(markup.indexOf("gemaessigte-zone") < 0,
 		"💣 die Klimazone gehoert NICHT dazu -- sonst staende hier die Flora eines Rechenbandes");
 	assert(markup.indexOf('data-lore-kinds=""') >= 0,
@@ -316,8 +320,16 @@ console.log("OK: Klimazonen bleiben aus der Landschaftszeile draussen -- und kom
 	assert(gemischt.indexOf('data-lore-name="Weiden"') >= 0,
 		"nur die Landschaft mit Schluessel benennt den Dialog: " + gemischt);
 
-	assert.strictEqual(avesmapsPathLandscapesLoreMarkup(buildLandscapeLine(["w-2"], payload)), "",
-		"eine Landschaft ohne Wiki-Schluessel ergibt keinen Container und keinen Abruf");
+	// Task 9: eine Landschaft OHNE Wiki-Schluessel traegt trotzdem ihre Regions-ID -- die Regel kann
+	// sie treffen, auch ohne dass "Waren/Fauna/Flora" je einen Platznamen gefunden hat. Vorher gab
+	// es hier gar keinen Container; das war genau die Luecke, die Task 9 schliesst.
+	var w2Markup = avesmapsPathLandscapesLoreMarkup(buildLandscapeLine(["w-2"], payload));
+	assert(w2Markup.indexOf('data-lore-area="r-anon"') >= 0,
+		"keine Wiki-Zuweisung, aber die Regions-ID reist als area mit: " + w2Markup);
+	assert(w2Markup.indexOf('data-lore-fetch=""') >= 0,
+		"ohne Wiki-Schluessel bleibt der Ortsschluessel-Abruf leer -- nur die Regel kann noch treffen: " + w2Markup);
+	assert(w2Markup.indexOf('data-lore-name=""') >= 0,
+		"kein benannter Platz -- named bleibt leer, wie zuvor: " + w2Markup);
 	assert.strictEqual(avesmapsPathLandscapesLoreMarkup(buildLandscapeLine(["w-3"], payload)), "",
 		"ein Weg, der NUR durch ein Klimaband laeuft, hat keine Landschaft -- also auch keine Lore");
 	assert.strictEqual(avesmapsPathLandscapesLoreMarkup([]), "",

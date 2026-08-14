@@ -403,19 +403,29 @@ function avesmapsPathLandscapesRowMarkup(line) {
 // Wegnamen stand dort am 2026-08-12 in der Abnahme wörtlich „Direkt in Reichsstraße
 // Gareth–Elenvina" -- und das Bräubier steht in Weiden, nicht in der Straße. Dieselben Namen wie
 // die Zeile „Führt durch" darüber, derselbe Trenner, also erkennt der Leser sie sofort wieder.
+//
+// Task 9 (Lebensraum-Regel an Weg/Etappe): api/app/path-landscapes.php liefert die Regions-
+// public_id jeder Landschaft bereits als `entry.key` (map-features-path-landscapes.js:99 legt sie
+// genau dort ab) -- kein zweiter Serverabruf noetig, um sie zu beschaffen. Sie gehen ALS LISTE an
+// `area`, damit der Server die Lebensraum-Regel gegen JEDE beruehrte Flaeche prueft und die Treffer
+// vereinigt (ein Weg durch Wald UND Gebirge zeigt beides).
 function avesmapsPathLandscapesLoreMarkup(line) {
 	if (typeof buildLoreMarkup !== "function" || !line || !line.length) {
 		return "";
 	}
 	var keys = landscapeWikiKeyList(line);
-	if (!keys) {
-		return "";   // Landschaften ohne Wiki-Zuweisung -- kein Schlüssel, also auch kein Abruf
+	// ⚠️ Nur die mit nicht-leerem key: eine Landschaft ohne Regions-Zuordnung (sollte laut
+	// avesmapsPathLandscapeCollect nie vorkommen, siehe dort) darf keinen leeren area-Teil erzeugen.
+	var areaIds = line.filter(function (entry) { return entry && entry.key; })
+		.map(function (entry) { return entry.key; }).join(",");
+	if (!keys && !areaIds) {
+		return "";   // weder ein Wiki-Schluessel noch eine Regions-ID -- nichts, das der Server treffen koennte
 	}
 	// Nur die Landschaften, die auch einen Schlüssel beigesteuert haben: eine unverlinkte Fläche
-	// steht in „Führt durch", aber nichts von ihr steckt in dieser Antwort.
+	// steht in „Führt durch", aber nichts von ihr steckt in der NAMENS-Anzeige des „+N"-Dialogs.
 	var named = line.filter(function (entry) { return entry && entry.wikiKey; })
 		.map(function (entry) { return entry.name; }).join(" · ");
-	return buildLoreMarkup({ key: keys, name: named });
+	return buildLoreMarkup({ key: keys, name: named, area: areaIds });
 }
 
 // Alle drei Blöcke der Weg-Infobox in EINER festgelegten Reihenfolge.

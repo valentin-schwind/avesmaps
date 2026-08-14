@@ -32,18 +32,23 @@ const AVESMAPS_LORE_PANEL_LIMIT = 10;
 
 /**
  * Reine Torwaechter-Entscheidung des Lesepfads (api/app/lore.php): darf diese Anfrage
- * ueberhaupt bedient werden, oder verdient sie den 400 "place_invalid"? (Task 4b, Schritt 1.)
+ * ueberhaupt bedient werden, oder verdient sie den 400 "place_invalid"? (Task 4b, Schritt 1;
+ * territory dazugekommen in Task 9.)
  *
- * Drei bereits genormte Zeichenketten hinein -- der aus $placeKeys zusammengesetzte
- * Ortsschluessel-String, area, location -- ein bool heraus. Keine Seiteneffekte, kein PDO,
- * kein $_GET-Zugriff: darum isoliert testbar ohne HTTP- oder DB-Fixture. Ein brauchbarer
- * Ortsschluessel ODER area ODER location genuegt; nur wenn alle drei leer sind, darf der
- * Aufrufer den 400 werfen -- genau fuer Orte OHNE Wiki-Artikel (2.885 von 4.883 Siedlungen,
- * gemessen) ist area/location der EINZIGE Anfragegrund.
+ * VIER bereits genormte Zeichenketten hinein -- der aus $placeKeys zusammengesetzte
+ * Ortsschluessel-String, area, location, territory -- ein bool heraus. Keine Seiteneffekte, kein
+ * PDO, kein $_GET-Zugriff: darum isoliert testbar ohne HTTP- oder DB-Fixture. Ein brauchbarer
+ * Ortsschluessel ODER area ODER location ODER territory genuegt; nur wenn alle vier leer sind, darf
+ * der Aufrufer den 400 werfen -- genau fuer Orte OHNE Wiki-Artikel (2.885 von 4.883 Siedlungen,
+ * gemessen) ist area/location/territory der EINZIGE Anfragegrund.
  */
-function avesmapsLoreRequestHasSubject(string $placeKeysJoined, string $areaParameter, string $locationParameter): bool
-{
-    return $placeKeysJoined !== '' || $areaParameter !== '' || $locationParameter !== '';
+function avesmapsLoreRequestHasSubject(
+    string $placeKeysJoined,
+    string $areaParameter,
+    string $locationParameter,
+    string $territoryParameter = ''
+): bool {
+    return $placeKeysJoined !== '' || $areaParameter !== '' || $locationParameter !== '' || $territoryParameter !== '';
 }
 
 /**

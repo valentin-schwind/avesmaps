@@ -204,4 +204,100 @@ $hits = avesmapsLoreRuleEntriesForSubject($pdo, avesmapsLoreRuleSubjectFromArea(
 assert(!array_key_exists('wurzelkraut', $hits),
     'links-nach-rechts liefert FALSCH -- eine Praezedenz-Auswertung liefert hier WAHR und faellt durch');
 
+// --- Task 9: MEHRERE Regionen (Weg/Etappe) und ein Herrschaftsgebiet (ecosystem_region_territory) --
+// Zu diesem Zeitpunkt im Bestand aktiv: einbeere, raffranke, wurzelkraut (bergkraut steht seit oben
+// auf 'suppressed'). Gegen sqlite, dieselbe Fixture-Bauart wie lore-rule-store-test.php.
+$pdo->exec(
+    'CREATE TABLE ecosystem_region (
+        id INTEGER PRIMARY KEY, public_id VARCHAR(36) NOT NULL, kind VARCHAR(16) NOT NULL,
+        region_type VARCHAR(40) NULL, is_active TINYINT(1) NOT NULL DEFAULT 1
+    )'
+);
+$pdo->exec(
+    'CREATE TABLE ecosystem_region_overlap (
+        region_id INTEGER NOT NULL, other_region_id INTEGER NOT NULL, share REAL NOT NULL
+    )'
+);
+$pdo->exec(
+    'CREATE TABLE ecosystem_region_territory (
+        region_id INTEGER NOT NULL, territory_public_id VARCHAR(36) NOT NULL, share REAL NOT NULL,
+        is_aggregate TINYINT(1) NOT NULL DEFAULT 0
+    )'
+);
+$regionInsert = $pdo->prepare(
+    'INSERT INTO ecosystem_region (id, public_id, kind, region_type, is_active) VALUES (?, ?, ?, ?, 1)'
+);
+$regionInsert->execute([1, 'a1', 'vegetation', 'wald']);      // wie $farindel oben
+$regionInsert->execute([2, 'a2', 'topographie', 'gebirge']);  // wie $finsterkamm oben
+$regionInsert->execute([3, 'a3', 'vegetation', 'sumpf']);     // beruehrt terr-1 nur mit 2 %
+$regionInsert->execute([9, 'klima-boreal', 'klima', 'boreal']);
+
+// Realistisch mitgefuehrt (der LEFT JOIN auf ecosystem_region_overlap muss auch mit Zeilen
+// funktionieren), aber fuer die Rechnung hier folgenlos: ecosystem_region_type fehlt in dieser
+// Fixture, also liefert avesmapsLoreRuleOrderedZoneKeys() [] und jede Klimaspanne wird zu "keine
+// Einschraenkung" -- dieselbe Randbedingung, die weiter oben schon bei 'wurzelkraut' T3 galt.
+$pdo->prepare('INSERT INTO ecosystem_region_overlap (region_id, other_region_id, share) VALUES (?, ?, ?)')
+    ->execute([1, 9, 0.9]);
+
+$territoryInsert = $pdo->prepare(
+    'INSERT INTO ecosystem_region_territory (region_id, territory_public_id, share, is_aggregate) VALUES (?, ?, ?, 0)'
+);
+$territoryInsert->execute([1, 'terr-1', 0.8]);
+$territoryInsert->execute([2, 'terr-1', 0.3]);
+$territoryInsert->execute([3, 'terr-1', 0.02]); // unter AVESMAPS_CLIMATE_REGION_MIN_SHARE (5 %) -- muss draussen bleiben
+$territoryInsert->execute([9, 'terr-1', 0.5]);  // eine Klimazone selbst -- muss draussen bleiben (kind='klima')
+
+// --- Schritt 1: avesmapsLoreRuleReadSubjectsForAreas macht aus a1/a2 dieselben zwei Subjekte wie
+// oben (avesmapsLoreRuleSubjectFromArea($farindel)/($finsterkamm)), nur ueber eine echte Abfrage. --
+// 💣 MUTATION TARGET (1: "nur das erste Subjekt auswerten"): Reihenfolge ist ABSICHTLICH a2
+// (Gebirge) VOR a1 (Wald). a2 allein trifft nur 'raffranke'; a1 allein trifft alle drei aktiven
+// Regeln. Mit a1 zuerst saehe "nur das erste Subjekt" zufaellig richtig aus -- mit a2 zuerst faellt
+// das Fehlen von 'einbeere' und 'wurzelkraut' auf.
+$subjectsResult = avesmapsLoreRuleReadSubjectsForAreas($pdo, ['a2', 'a1']);
+assert(count($subjectsResult['subjects']) === 2, 'beide Flaechen werden zu Subjekten');
+assert($subjectsResult['truncated'] === false, 'zwei Flaechen -- weit unter dem Deckel');
+
+// 💣 MUTATION TARGET (2: "die Treffer schneiden statt vereinigen"): Schnitt von {raffranke} (a2)
+// und {einbeere, raffranke, wurzelkraut} (a1) waere {raffranke} -- derselbe falsche Wert wie bei
+// Mutation 1, aber aus einem anderen Grund (UND statt ODER ueber die Subjekte, nicht Ignorieren
+// eines Subjekts). Beide Mutationen faellt dieselbe Assertion auf.
+$multiHits = avesmapsLoreRuleEntriesForSubjects($pdo, $subjectsResult['subjects']);
+$multiKeys = array_keys($multiHits);
+sort($multiKeys);
+assert($multiKeys === ['einbeere', 'raffranke', 'wurzelkraut'],
+    'Vereinigung ueber BEIDE Subjekte -- ein Weg durch Wald UND Gebirge zeigt beides: ' . json_encode($multiKeys));
+
+// --- Schritt 1: der Deckel, aber NIE STILL -------------------------------------------------------
+// 28 unbekannte Phantom-Ids plus die zwei echten -- 30 insgesamt, ueber AVESMAPS_LORE_RULE_AREA_LIMIT
+// (25). Die zwei echten stehen VORN, bleiben also unter dem Deckel erhalten; das truncated-Zeichen
+// muss trotzdem stehen, weil mehr angefragt wurde, als verarbeitet wurde.
+$manyIds = array_merge(['a1', 'a2'], array_map(static fn (int $n): string => 'ghost-' . $n, range(1, 28)));
+assert(count($manyIds) === 30);
+$cappedResult = avesmapsLoreRuleReadSubjectsForAreas($pdo, $manyIds);
+assert(count($cappedResult['subjects']) === 2, 'die zwei echten Flaechen ueberleben die Kappung');
+// 💣 MUTATION TARGET (3: "den Deckel still kappen lassen, Zeichen weglassen"): dieselbe Falle wie
+// bei avesmapsEcosystemParseRegionFilter, die diese Woche 31 Waelder lautlos verschluckt hat.
+assert($cappedResult['truncated'] === true,
+    '30 angefragt, 25 verarbeitet -- das muss SICHTBAR sein, nicht still verschluckt');
+
+// --- Schritt 2: das Herrschaftsgebiet hat KEINE eigenen Regions-IDs -------------------------------
+// Der Server loest sie ueber ecosystem_region_territory auf und macht daraus dieselben Subjekte wie
+// Schritt 1 -- eine Flaeche, die ein Gebiet beruehrt, ist keine andere als eine, die ein Weg beruehrt.
+$territoryResult = avesmapsLoreRuleReadSubjectsForTerritory($pdo, 'terr-1');
+assert(count($territoryResult['subjects']) === 2,
+    'a1 und a2 beruehren das Gebiet ueber der Schwelle -- a3 (2 %) und die Klimazone (kind) fallen heraus');
+$territoryPublicIds = array_map(static fn (array $subject): string => $subject['public_id'], $territoryResult['subjects']);
+sort($territoryPublicIds);
+assert($territoryPublicIds === ['a1', 'a2']);
+assert($territoryResult['truncated'] === false);
+
+$territoryHits = avesmapsLoreRuleEntriesForSubjects($pdo, $territoryResult['subjects']);
+$territoryKeys = array_keys($territoryHits);
+sort($territoryKeys);
+assert($territoryKeys === ['einbeere', 'raffranke', 'wurzelkraut'],
+    'dieselben Subjekte wie Schritt 1 -- also dieselben Treffer: ' . json_encode($territoryKeys));
+
+// Ein unbekanntes Gebiet oder eines ganz ohne Flaechen: leer, kein Fehler, kein 500.
+assert(avesmapsLoreRuleReadSubjectsForTerritory($pdo, 'gibt-es-nicht') === ['subjects' => [], 'truncated' => false]);
+
 echo "lore-rule-match: OK\n";

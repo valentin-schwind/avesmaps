@@ -138,7 +138,14 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 		// hat -- ohne die Box neu zu bauen. Vor dem Detail-Fetch gibt es noch keinen
 		// wiki_key; die zweite Renderrunde liefert ihn nach.
 		(typeof buildLoreMarkup === "function" && typeof avesmapsLorePlaceRefFromRegion === "function"
-			? buildLoreMarkup(Object.assign(avesmapsLorePlaceRefFromRegion(regionEntry) || {}, { tradeGoods: f.trade_goods || "" }))
+			? buildLoreMarkup(Object.assign(avesmapsLorePlaceRefFromRegion(regionEntry) || {}, {
+				tradeGoods: f.trade_goods || "",
+				// Task 9, Schritt 3: ein Herrschaftsgebiet hat KEINE eigenen Regions-IDs (anders als
+				// Weg/Etappe) -- der Server loest sie selbst ueber ecosystem_region_territory auf
+				// (avesmapsLoreRuleReadSubjectsForTerritory). Dieselbe Kennung wie die Quellen-Zeile
+				// und der "Aendern vorschlagen"-Knopf weiter oben in dieser Funktion.
+				territory: regionEntry.territoryPublicId || regionEntry.publicId || "",
+			}))
 			: ""),
 		// „Klimazone" DIREKT unter Flora (Owner 2026-08-03), wie am Ort, an der Landschaftsregion und
 		// am Weg. Derselbe Zeilenbauer -- vier eigene sähen am Anfang gleich aus und wären nach dem

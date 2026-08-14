@@ -113,3 +113,29 @@ assert.ok(buildLoreMarkup({ key: "punin", name: "Punin" }).indexOf('data-lore-ki
 	"a caller that says nothing gets the empty choice, which means: all rows");
 
 console.log("OK: lore comma keys and the per-container row selection");
+
+// ---- Task 9: territory is a THIRD identity field, alongside area/location -------------------
+// 💣 MUTATION TARGET (4): territory left out of the cache key. Two requests that differ only in
+// territory must NOT collapse into the same cache entry -- a settlement and the territory it lies
+// in can share a `key` but trigger different habitat rules, and territory is the same kind of trap.
+assert.notStrictEqual(
+	avesmapsLoreRequestKey({ key: "punin", territory: "terr-1" }),
+	avesmapsLoreRequestKey({ key: "punin", territory: "terr-2" }),
+	"two different territories must not share a cache key"
+);
+assert.notStrictEqual(
+	avesmapsLoreRequestKey({ key: "punin", territory: "terr-1" }),
+	avesmapsLoreRequestKey({ key: "punin" }),
+	"a territory identity must not collapse into the plain key"
+);
+
+// 💣 MUTATION TARGET (5): territory not written as data-lore-territory (station 1 skipped). The
+// identity travels buildLoreMarkup -> data-lore-territory -> avesmapsLoreLoadPendingContainers reads
+// it back -> avesmapsLoreFetch takes it into the URL. Skip the first hop and the identity never
+// arrives, however faithfully the later stations read the (missing) attribute.
+assert.ok(
+	buildLoreMarkup({ territory: "terr-1" }).indexOf('data-lore-territory="terr-1"') >= 0,
+	"buildLoreMarkup must write the territory identity onto the container as data-lore-territory"
+);
+
+console.log("OK: territory travels the cache key and the container attribute (Task 9)");
