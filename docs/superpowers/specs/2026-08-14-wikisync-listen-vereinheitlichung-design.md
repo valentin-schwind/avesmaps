@@ -262,7 +262,56 @@ des Owners nach jedem.
 
 ---
 
-## 10 · Nicht-Ziele
+## 10 · Die Listen IN den Editorfenstern
+
+Owner, 14.08.2026: *„vergiss die Listen in den editoren nicht"*. Der Befund dort spiegelt §2 fast
+exakt — **und es sind dieselben zwei Subjekte, die ausscheren.**
+
+| Rezeptur | Ort | Wer sie benutzt |
+|---|---|---|
+| **`.avm-row`** — kanonisch, vollständig auf Token | `css/components/editor-page.css:450` | Wege-Editor (`wege-editor.css:51`, `js/pages/wege-editor.js`), Landschaften-Editor (`landschaften-editor.css:55,94`) |
+| **`.se-row`** — Kopie von `.avm-row`, **inline im HTML** | `html/wiki-sync-settlement-editor.html:149` | Ortseditor |
+| **`.se-row`** — *nochmal dieselbe Kopie, zweite Datei* | `html/wiki-sync-powerline-editor.html:70` | Kraftlinien-Editor |
+| **`.ae-item`** — andere Rezeptur, **inline im HTML** | `html/game-literature-editor.html:220` | Literatur-Editor |
+| **`.ce-item`** — *wortgleicher Zwilling von `.ae-item`* | `html/citymap-editor.html:237` | Karteneditor |
+
+💣 **Der Kraftlinien-Editor trägt den Beweis im eigenen Kommentar:** über seinem Block steht
+`/* Listenzeilen (Referenz .se-row) */` — er wurde abgeschrieben, nicht geteilt. Und `.se-row`
+selbst ist bereits eine Abschrift von `.avm-row`: gleiche `--avm-row-pad`, gleicher `--radius-md`,
+gleiche Überfahrt, gleicher Auswahlzustand.
+
+💣 **Die Abschriften haben denselben Fehler wie Bauart A im Panel:** `.se-row-type` und `.se-row-l2`
+setzen **`font-size: 10px`** hart — unter der 11px-Untergrenze. Das Original `.avm-row__kind` /
+`.avm-row__l2` benutzt korrekt `--font-size-caption`. Der Fehler entstand beim Abschreiben und wurde
+einmal weiterkopiert.
+
+⚠️ `.ae-item` / `.ce-item` sind die Editor-Fassung von **Bauart B**: Kasten um die Liste
+(`--color-border` + `--radius-md`), `border-bottom` je Zeile, `padding: var(--space-6) var(--space-8)`
+(8/10px statt 4/6px). Dieselben zwei Subjekte, dieselbe Abweichung, zweite Oberfläche.
+
+🔴 **Alle sechs Editoren laden bereits `css/components/editor-page.css` und `tokens.css`** (geprüft).
+`.avm-row` ist überall verfügbar — die vier Inline-Kopien sind reine Dopplung und können ersatzlos
+durch die geteilte Klasse abgelöst werden. Kein Editor braucht dafür ein neues Stylesheet.
+
+### Entscheidung: zwei Zeilenformen, nicht eine
+
+🔧 **Das ist meine Ableitung, nicht dein Beschluss — überstimmbar.**
+
+| | Panel-Zeile | Editor-Zeile |
+|---|---|---|
+| Regel | `.wikisync-itemlist .tree-item` | `.avm-row` |
+| Kontext | 400px breites Panel | Seitenspalte eines breiten Fensters, daneben ein Detailbereich |
+| Trägt | Statuskreis, Ziehgriff, Trennlinie | Vorschaubild/Wappen, **Auswahlzustand** (welche Zeile der Detailbereich zeigt) |
+
+Sie zu einer einzigen Komponente zu zwingen hieße, entweder dem Panel den Auswahlzustand
+aufzuladen, den es nicht hat, oder dem Editor den Statuskreis, den er nicht braucht.
+**Geteilt wird stattdessen die Skala und die Token** — kein 10px, kein 13,33px, keine Füllfarbe als
+Trennlinie, keine harte Zahl, wo ein Token existiert. Danach gibt es projektweit **zwei**
+Listenzeilen-Regeln statt heute **sieben**.
+
+---
+
+## 11 · Nicht-Ziele
 
 - Keine neue Funktion. Kein Filter für Kraftlinien, keine Sortierung, keine Mehrfachauswahl.
 - Keine Zahl ändert ihren Wert.
@@ -270,3 +319,9 @@ des Owners nach jedem.
 - Kein Umbau der Renderpfade. Die acht Listen bleiben acht Module; geteilt werden **die CSS-Regel**
   und **der Bilanzzeilen-Erzeuger**, nicht die Listenlogik.
 - `docs/design-language.md` wird nicht erweitert — dieser Umbau *befolgt* sie, er ändert sie nicht.
+- **Die Editorfenster bekommen keine Bilanzzeile.** §4 gilt dem Panel. Die Editoren haben eigene
+  Zähler (`#seListCount`, `#aeListCount`, `#ceListCount`) an eigenen Stellen; die anzufassen wäre
+  ein zweites Thema. Aus §10 wird dort **nur die Zeilenform und die Schriftskala** übernommen.
+- **Der Territorien-Editor (`html/political-territory-editor.html`) bleibt außen vor.** Er lädt
+  `editor-page.css` nicht, seine Liste ist der Herrschaftsgebiets-Baum, und sein Stylesheet ist das
+  Bauprodukt aus §7. Ihn mitzunehmen verdreifachte das Risiko für einen Nebenschauplatz.
