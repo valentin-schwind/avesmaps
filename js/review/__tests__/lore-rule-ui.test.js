@@ -171,6 +171,19 @@ const staleRun = {
 };
 assert.strictEqual(stampText(staleRun), "Stand: 09.08.2026 22:31 · veraltet, bitte neu rechnen");
 
+// avesmapsLoreRuleAssignmentIsStale: dieselbe Frage wie oben, aber als eigene Auskunft -- die
+// Stempelzeile SAGT "veraltet", der Link darunter BIETET die Abhilfe. Beide muessen aus DERSELBEN
+// Bedingung kommen, sonst steht irgendwann "aktuell" ueber einem Knopf zum Neurechnen.
+const isStale = context.avesmapsLoreRuleAssignmentIsStale;
+assert.strictEqual(isStale(freshRun), false, "gleiche Revisionen: nicht veraltet");
+assert.strictEqual(isStale(staleRun), true, "abweichende ecosystem_revision: veraltet");
+// 💣 Ein LAUFENDER Lauf ist nicht veraltet, sondern unfertig -- dort waere ein Link zum
+// Neustarten die falsche Einladung.
+assert.strictEqual(isStale({ stamp: { completed: false, ecosystem_revision: 5, map_revision: 9 }, current: { ecosystem_revision: 6, map_revision: 9 } }), false,
+	"waehrend eines Laufs: nicht veraltet, sondern unfertig");
+assert.strictEqual(isStale(null), false, "kein Abruf: keine Behauptung");
+assert.strictEqual(isStale({ current: { ecosystem_revision: 1, map_revision: 1 } }), false, "kein Stempel: keine Behauptung");
+
 const staleRunMapOnly = {
 	stamp: { completed: true, ecosystem_revision: 5, map_revision: 9, computed_at: "2026-08-09 22:31:00" },
 	current: { ecosystem_revision: 5, map_revision: 10 }, // nur map_revision weicht ab

@@ -1184,9 +1184,25 @@ function avesmapsLoreRuleAssignmentStampText(response) {
 	if (!run.completed) {
 		return "Wird gerade gerechnet …";
 	}
-	var current = response.current || {};
-	var stale = run.ecosystem_revision !== current.ecosystem_revision || run.map_revision !== current.map_revision;
-	return "Stand: " + avesmapsLoreRuleFormatStamp(run.computed_at) + (stale ? " · veraltet, bitte neu rechnen" : " · aktuell");
+	return "Stand: " + avesmapsLoreRuleFormatStamp(run.computed_at)
+		+ (avesmapsLoreRuleAssignmentIsStale(response) ? " · veraltet, bitte neu rechnen" : " · aktuell");
+}
+
+// PURE: ist die Zuordnung veraltet? EINE Stelle fuer den Vergleich, und zwar aus einem Grund:
+// die Stempelzeile SAGT es, der Link darunter BIETET die Abhilfe an -- stuenden die beiden auf
+// zwei Kopien derselben Bedingung, koennte irgendwann „aktuell" ueber einem Knopf stehen, der zum
+// Neurechnen auffordert. Genau diese Divergenz hat in dieser Sitzung schon einmal Suche und
+// Infobox auseinandergetrieben (avesmapsLoreRuleChainMatchesSubject).
+//
+// Ein laufender Lauf ist NICHT veraltet, sondern unfertig -- „Wird gerade gerechnet …" sagt das
+// bereits, und ein Link zum Neustarten waere dort die falsche Einladung.
+function avesmapsLoreRuleAssignmentIsStale(response) {
+	var run = response && response.stamp;
+	if (!run || !run.completed) {
+		return false;
+	}
+	var current = (response && response.current) || {};
+	return run.ecosystem_revision !== current.ecosystem_revision || run.map_revision !== current.map_revision;
 }
 
 // REIN (auf Zustand): laeuft gerade ein Zugehoerigkeits-Lauf? 💣 Fix-Runde 3, Befund 6: waehrend
@@ -1281,6 +1297,25 @@ function avesmapsLoreRulePaintPreview(body) {
 	var stampEl = body.querySelector("[data-lore-rule-assignment-stamp]");
 	if (stampEl) {
 		stampEl.textContent = avesmapsLoreRuleAssignmentStampText(state.assignmentStamp);
+		// Der Weg zur Abhilfe, und NUR wenn sie noetig ist (Owner 14.08.2026). Der Lauf selbst
+		// bekommt hier bewusst KEINEN Knopf: er leert vier Tabellen, bevor er sie neu fuellt, und
+		// waehrenddessen zeigen Infobox und Suche auf der ganzen Seite gar keine Regeltreffer. Ein
+		// zweiter Ausloeser an einer Stelle, an der er fast nie noetig ist, lockt zum
+		// „sicherheitshalber" Druecken -- eine Regel selbst braucht ihn NIE, sie rechnet bei jedem
+		// Aufruf frisch. Der Knopf bleibt also dort, wo seine Ursache sitzt: beim Zeichnen.
+		// textContent oben hat die Kinder ohnehin geleert, deshalb genuegt hier ein Anhaengen.
+		if (avesmapsLoreRuleAssignmentIsStale(state.assignmentStamp)
+			&& typeof window.openAvesmapsEcosystemEditorOverlay === "function") {
+			var openEl = document.createElement("button");
+			openEl.type = "button";
+			openEl.className = "lore-rule-hint__action";
+			openEl.textContent = "Im Landschaften-Editor öffnen";
+			openEl.addEventListener("click", function () {
+				window.openAvesmapsEcosystemEditorOverlay();
+			});
+			stampEl.appendChild(document.createTextNode(" "));
+			stampEl.appendChild(openEl);
+		}
 	}
 
 	var calcEl = body.querySelector("[data-lore-rule-calc]");

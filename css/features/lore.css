@@ -830,6 +830,24 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 .lore-rule-hint--warn {
 	color: var(--color-link);
 }
+/* Der Weg zum Landschaften-Editor, wenn die Zuordnung veraltet ist. Ein LINK, kein Knopf: die
+   Handlung dieser Zeile ist eine Auskunft ("hier geht es weiter"), nicht die Haupthandlung des
+   Fensters -- ein gefuellter Knopf in einer Statuszeile ist genau die Doppelung, die AGENTS.md §12
+   verbietet. Als <button> ausgezeichnet, weil er im Dokument bleibt und keine Adresse hat. */
+.lore-rule-hint__action {
+	appearance: none;
+	background: none;
+	border: 0;
+	padding: 0;
+	font: inherit;
+	color: var(--color-link);
+	text-decoration: underline;
+	cursor: pointer;
+}
+.lore-rule-hint__action:hover,
+.lore-rule-hint__action:focus-visible {
+	color: var(--color-link-hover);
+}
 
 .lore-rule-terms {
 	display: flex;
