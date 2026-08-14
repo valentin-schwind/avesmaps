@@ -526,6 +526,22 @@ const PATH_RENDER_CONFIG = {
 const PATH_OUTLINE_WEIGHTS = { Reichsstrasse: 6.5, Strasse: 4, Weg: 4, Pfad: 3, Gebirgspass: 3, Wuestenpfad: 3, Flussweg: 5, Seeweg: 5 };
 const PATH_CENTER_WEIGHTS = { Reichsstrasse: 4, Strasse: 2.5, Weg: 2.5, Pfad: 1.5, Gebirgspass: 1.5, Wuestenpfad: 1.5, Flussweg: 3, Seeweg: 3 };
 
+// Die Mittellinienfarbe je Wegart. Lag bis 14.08.2026 als `centerColors` INNERHALB von
+// getPathStyleColors() -- unerreichbar für alles, was ohne map.getZoom() rechnet (der
+// SVG-Export). Hier ist die eine Wahrheit; getPathStyleColors liest sie von hier.
+// 🔴 Land-Wege außer Reichsstraßen sind heller + entsättigt, Reichsstraßen weiß,
+// Wasserwege (Flussweg/Seeweg) unverändert -- die Begründung stand an der alten Stelle.
+const PATH_CENTER_COLORS = {
+	Reichsstrasse: "#ffffff",
+	Strasse: "#8b8b8b",
+	Weg: "#cec4ae",
+	Pfad: "#9b755a",
+	Gebirgspass: "#a8695c",
+	Wuestenpfad: "#bea470",
+	Flussweg: "#6ec6ff",
+	Seeweg: "#2f7dd3",
+};
+
 // Optionale Override-Matrix [Subtyp][Zoom] -> Konturbreite (px). Leer = Default-Logik (unverändert). Wird vom
 // ?pathwidthtune=1-Panel live befüllt. Ist für einen Subtyp+Zoom ein Override gesetzt, wird die Kontur dort
 // zusätzlich sichtbar gemacht (auch in der simplified-Stufe Zoom<=2, wo sie sonst Deckkraft 0 hätte).
