@@ -78,17 +78,34 @@
 	color: var(--color-text-muted);
 }
 
-/* Die Titelzeile eines Beitrags -- steht nur da, wenn es eine gibt (sie ist die Ausnahme, nicht die
-   Regel) und wird nur vom Kanal „Neuigkeiten" verwendet. */
-.social-post__title {
-	margin: 0 0 2px;
+/* Der Beitrag klappt auf Klick auf (14.08.2026). `<details>` ist nativ und bleibt es -- nur so findet
+   Strg+F den Text auch im ZUgeklappten Beitrag. */
+.social-post__body {
+	margin-bottom: 6px;
+}
+
+/* Die Klappzeile: die Titelzeile, wenn es eine gibt, sonst der Anfang des Textes (postSummaryText).
+   Sie traegt die Optik der frueheren `.social-post__title` -- in der Liste IST sie die Ueberschrift.
+   ⚠️ Das Dreieck des Elements bleibt stehen: es ist das einzige Zeichen dafuer, dass hier etwas
+   aufgeht. Ein `display: flex` oder `list-style: none` nimmt es weg (siehe `.social-post__payload`,
+   wo genau das gewollt ist). */
+.social-post__summary {
+	cursor: pointer;
 	font-weight: 600;
 	color: var(--color-text-strong);
 	overflow-wrap: anywhere;
 }
 
+/* ⚠️ Nur die Farbe, kein vollbreiter Streifen mit negativen Seitenraendern: die Panel-Spalte ist
+   schmal und haengt sich davon eine waagerechte Bildlaufleiste an. */
+.social-post__summary:hover {
+	color: var(--color-link);
+}
+
+/* Steht seit 14.08.2026 IM aufgeklappten `<details>`, deshalb der Abstand nach oben statt nach unten
+   -- den unteren traegt jetzt `.social-post__body`, sonst stuenden beide uebereinander. */
 .social-post__text {
-	margin: 0 0 6px;
+	margin: 4px 0 0;
 	color: var(--color-text);
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;

@@ -21,6 +21,7 @@ const {
 	isDraft,
 	linkNoteText,
 	applyCapabilityTo,
+	postSummaryText,
 } = require("../review-social.js");
 
 // ---- der Riegel muss BEIDE Richtungen schalten --------------------------------------------------------
@@ -236,5 +237,41 @@ assert.strictEqual(hinweis("", ["instagram"]), "", "leerer Text: nichts");
 assert.strictEqual(hinweis(null, ["instagram"]), "", "und null stuerzt nicht ab");
 assert.strictEqual(linkNoteText("avesmaps.de", ["instagram"], null), "",
 	"ohne Kanalliste ebenfalls nicht -- der Hub laedt sie nach, sie kann kurz fehlen");
+
+// ---- die Zeile, die zugeklappt dasteht ---------------------------------------------------------
+
+// Die Liste zeigt den Beitragstext seit 14.08.2026 erst auf Klick (`<details>`). Was ZUgeklappt
+// dasteht, entscheidet diese Funktion -- und sie darf NIE leer werden: ein leeres `<summary>` ist ein
+// unsichtbarer, aber klickbarer Streifen, und wer die Liste ueberfliegt, sieht nur noch Datum.
+assert.strictEqual(postSummaryText({ title: "Neue Anzeigemethoden", text: "Ihr könnt die Karte …" }),
+	"Neue Anzeigemethoden",
+	"gibt es eine Titelzeile, ist SIE die Klappzeile -- sonst stuende sie zweimal da");
+assert.strictEqual(postSummaryText({ title: "  Mit Rand  ", text: "egal" }), "Mit Rand",
+	"und sie wird getrimmt");
+
+// Ohne Titel traegt die erste Zeile die Auskunft -- dieselbe Regel wie beim Kanal „Neuigkeiten".
+assert.strictEqual(postSummaryText({ title: "", text: "Kurz und fertig." }), "Kurz und fertig.",
+	"ein kurzer einzeiliger Text steht ganz da, ohne Auslassungspunkte");
+assert.strictEqual(postSummaryText({ text: "Erste Zeile.\nZweite Zeile." }), "Erste Zeile. …",
+	"bei mehreren Zeilen sagen die Punkte, dass da noch etwas ist");
+
+// 💣 Gekuerzt wird an der WORTgrenze. Ein harter Schnitt mitten im Wort liest sich wie ein Datenfehler.
+const lang = postSummaryText({ text: "Ihr könnt die Karte jetzt freiräumen: Wege, Beschriftungen, "
+	+ "Grenzen und Flüsse lassen sich einzeln ausblenden." });
+assert.ok(lang.endsWith(" …"), "ein langer Text endet mit Auslassungspunkten");
+assert.ok(lang.length <= 82, "und bleibt kurz genug fuer eine Zeile: " + lang.length);
+assert.ok(!/\S…/.test(lang), "die Punkte haengen nie an einem abgeschnittenen Wortstueck: " + lang);
+assert.ok("Ihr könnt die Karte jetzt freiräumen: Wege, Beschriftungen, Grenzen und Flüsse lassen "
+	.startsWith(lang.slice(0, -2)), "und was dasteht, steht so auch im Text");
+
+// Ein Wort ohne jede Leerstelle darf nicht dazu fuehren, dass gar nichts gekuerzt wird.
+const wurm = postSummaryText({ text: "A".repeat(200) });
+assert.ok(wurm.length <= 82, "auch ein Wortwurm wird gekappt: " + wurm.length);
+
+// 🔴 Faellt nie auf Leer zurueck.
+assert.strictEqual(postSummaryText({ title: "", text: "" }), "Ohne Text");
+assert.strictEqual(postSummaryText({ title: "   ", text: "  \n " }), "Ohne Text",
+	"auch wenn nur Leerraum dasteht");
+assert.strictEqual(postSummaryText(null), "Ohne Text", "und nichts stuerzt nicht ab");
 
 console.log("social-list.test: OK");

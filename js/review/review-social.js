@@ -116,6 +116,43 @@
 		return author !== "" ? author : "Unbekannt";
 	}
 
+	// Wie viel von einem Beitrag zugeklappt dasteht. Grosszuegig, weil die Zeile umbrechen DARF --
+	// sie wird nicht abgeschnitten, sondern gekuerzt, und eine zu knappe Vorschau zwingt zum Aufklappen
+	// von allem, was die Klapperei erst recht sinnlos macht.
+	const SOCIAL_SUMMARY_MAX = 80;
+
+	// Die Klappzeile eines Beitrags (Owner-Wunsch 14.08.2026: „die nachricht erst bei einem klick
+	// aufklappen"). Die Liste trug bis dahin jeden Beitrag in voller Laenge -- bei fuenf Beitraegen
+	// waren das drei Bildschirmhoehen, in denen die Statusmarken untergingen.
+	//
+	// 💣 SIE DARF NIE LEER SEIN. Ein leeres `<summary>` ist ein unsichtbarer, aber klickbarer Streifen:
+	// die Liste sieht dann aus, als fehle der Beitrag, und niemand kommt auf die Idee, dorthin zu
+	// klicken. Deshalb der Rueckfall am Ende, obwohl der Server einen Text ohnehin erzwingt.
+	//
+	// ⚠️ Gibt es eine Titelzeile, gewinnt SIE -- sonst stuende sie zweimal untereinander, einmal als
+	// Klappzeile und einmal als erste Textzeile. Dieselbe Reihenfolge benutzt der Kanal „Neuigkeiten".
+	function postSummaryText(post) {
+		const title = String((post && post.title) || "").trim();
+		if (title !== "") { return title; }
+
+		const text = String((post && post.text) || "").trim();
+		if (text === "") { return "Ohne Text"; }
+
+		const firstLine = text.split("\n")[0].trim();
+		if (firstLine.length <= SOCIAL_SUMMARY_MAX) {
+			// Die Punkte sagen „da ist noch mehr" -- ohne sie liest sich eine kurze erste Zeile wie der
+			// ganze Beitrag, und man klappt nie auf.
+			return firstLine.length < text.length ? firstLine + " …" : firstLine;
+		}
+
+		// 💣 An der WORTgrenze, nicht auf dem Zeichen: ein Schnitt mitten im Wort liest sich wie ein
+		// Datenfehler. Nur wenn bis dahin gar keine Leerstelle kam (ein Wortwurm, eine lange Adresse),
+		// wird hart gekappt -- sonst stuende die Zeile in voller Laenge da.
+		const cut = firstLine.slice(0, SOCIAL_SUMMARY_MAX);
+		const space = cut.lastIndexOf(" ");
+		return (space >= 40 ? cut.slice(0, space) : cut).replace(/[\s.,;:!?-]+$/, "") + " …";
+	}
+
 	// ---- alles ab hier braucht ein Dokument -------------------------------------------------------
 
 	const hasDocument = typeof document !== "undefined";
@@ -284,20 +321,35 @@
 
 			item.append(top);
 
-			// Nur wenn es eine gibt. Ein leerer fetter Absatz über jedem Beitrag ohne Titelzeile wäre
-			// eine Zeile Rauschen je Eintrag -- und die Titelzeile ist die Ausnahme, nicht die Regel.
-			if (post.title) {
-				const heading = document.createElement("p");
-				heading.className = "social-post__title";
-				heading.textContent = post.title;
-				heading.title = "Titelzeile — erscheint nur im Fenster Neuigkeiten";
-				item.appendChild(heading);
+			// 💣 NATIV, und nichts anderes. Nur `<details>` lässt Strg+F den Text auch im ZUgeklappten
+			// Beitrag finden und klappt ihn dabei selbst auf; ein selbstgebautes Auf- und Zuklappen mit
+			// `hidden`/`display:none` nimmt der Seitensuche genau das weg, wonach man in dieser Liste
+			// sucht. Dieselbe Entscheidung wie beim Kasten des Probe-Kanals darunter und beim Fenster
+			// „Hinweise" (AGENTS.md §11). Fokus, Enter/Leertaste und `aria-expanded` kommen ebenfalls
+			// vom Element -- hier gehört kein JS hin.
+			const body = document.createElement("details");
+			body.className = "social-post__body";
+			// 🔴 Ein Beitrag, über dessen Veröffentlichung gerade entschieden wird, steht OFFEN. Die
+			// drei Knöpfe darunter senden öffentlich und unwiderruflich; „Freigeben und veröffentlichen"
+			// unter einer zugeklappten Zeile hiesse, blind freizugeben. Alles bereits Veröffentlichte
+			// ist dagegen Archiv und darf zu bleiben.
+			body.open = isDraft(post);
+
+			const summary = document.createElement("summary");
+			summary.className = "social-post__summary";
+			summary.textContent = postSummaryText(post);
+			// Der Hinweis gehört der Titelzeile, nicht der Klappzeile an sich -- er steht nur da, wenn
+			// die Klappzeile wirklich eine Titelzeile ist (siehe postSummaryText).
+			if (String(post.title || "").trim() !== "") {
+				summary.title = "Titelzeile — erscheint nur im Fenster Neuigkeiten";
 			}
 
 			const text = document.createElement("p");
 			text.className = "social-post__text";
 			text.textContent = post.text || "";
-			item.appendChild(text);
+
+			body.append(summary, text);
+			item.appendChild(body);
 
 			if (post.state === "proposal") {
 				const note = document.createElement("p");
@@ -1244,6 +1296,6 @@
 
 	if (typeof module !== "undefined" && module.exports) {
 		module.exports = { chipClass, chipLabel, canRetry, strictestLimit, formatCount, postAuthorLabel,
-			formatExpiry, proposalNote, isDraft, linkNoteText, applyCapabilityTo };
+			formatExpiry, proposalNote, isDraft, linkNoteText, applyCapabilityTo, postSummaryText };
 	}
 })();
