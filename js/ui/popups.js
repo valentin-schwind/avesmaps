@@ -112,7 +112,7 @@ function getWikiLocationLink(name, wikiUrlOverride = "") {
 // CC BY-SA 3.0 und verlangt an jeder Kopie BEIDES: die Namensnennung (den Link auf den Artikel, den es
 // hier immer schon gab) und den Lizenzhinweis (seit 14.08.2026). Eine Kurzbeschreibung aus dem Wiki ist
 // eine solche Kopie. Der Programmcode daneben steht unter MIT -- zwei Lizenzen, zwei Gegenstaende, nie
-// vermischen (LICENSE-NOTICE.md).
+// vermischen (LEGAL.md).
 const WIKI_TEXT_LICENSE_URL = "https://creativecommons.org/licenses/by-sa/3.0/";
 
 // Gemeinsame Quellenangabe fuer WA-Inhalte in ALLEN oeffentlichen Infoboxen (Siedlung/Territorium/Landschaft):

@@ -103,7 +103,7 @@ Avesmaps und nicht als allgemeines Materialarchiv für DSA-Inhalte.
 
 Der **selbst geschriebene Programmcode** steht unter der MIT-Lizenz
 (`LICENSE`). Welche Teile des Repositorys davon erfasst sind und welche
-ausdrücklich nicht, regelt `LICENSE-NOTICE.md`. Für alle übrigen selbst
+ausdrücklich nicht, regelt `LEGAL.md`. Für alle übrigen selbst
 erstellten Projektinhalte verbleiben die Rechte beim jeweiligen Urheber.
 
 ## Markenhinweis

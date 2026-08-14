@@ -173,7 +173,7 @@ The **source code** of Avesmaps is MIT-licensed — see [`LICENSE`](LICENSE).
 The MIT license covers only the software written for this project. It does not
 cover the map tiles, the map and geo data, DSA-related texts, coats of arms,
 images or trademarks. What exactly is covered and what is not is listed in
-[`LICENSE-NOTICE.md`](LICENSE-NOTICE.md).
+[`LEGAL.md`](LEGAL.md).
 
 ## Legal and sources
 
@@ -183,7 +183,7 @@ accordance with the Ulisses fan guidelines.
 Important points for this repository:
 
 - MIT only for the project's own source code, never for the
-  DSA-related content ([`LICENSE-NOTICE.md`](LICENSE-NOTICE.md))
+  DSA-related content ([`LEGAL.md`](LEGAL.md))
 - no blanket open-source license for DSA-related map, image and
   data assets
 - fan-project logo instead of official product logos

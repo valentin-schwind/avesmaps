@@ -3,14 +3,14 @@ Avesmaps — license of the software source code
 
 SCOPE: The MIT License below applies ONLY to the original software source code
 of Avesmaps — the JavaScript, PHP, CSS, HTML templates and tooling written for
-this project (see LICENSE-NOTICE.md for the exact list). Wherever this file
-says "the Software", it means that source code and nothing else.
+this project (see LEGAL.md for the exact list). Wherever this file says
+"the Software", it means that source code and nothing else.
 
 It does NOT apply to map tiles, map or geographic data, place and path data,
 names, descriptions, texts, images, coats of arms or trademarks relating to
 "Das Schwarze Auge" / "The Dark Eye" or Aventurien, nor to any third-party
 material bundled with this repository. Those parts are not open source; see
-LICENSE-NOTICE.md and NOTICE.md.
+LEGAL.md and NOTICE.md.
 
 
 MIT License

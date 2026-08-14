@@ -87,7 +87,7 @@ assert.ok(
 //
 // 💣 Zwei Absaetze im Fenster sprechen ueber Lizenzen, und sie koennen einander widersprechen:
 // „Keine freie Lizenz fuer DSA-Material" sagt, dass hier nichts frei lizenziert wird -- seit dem
-// 14.08.2026 steht aber der Programmcode unter MIT (LICENSE + LICENSE-NOTICE.md). Beide Saetze sind
+// 14.08.2026 steht aber der Programmcode unter MIT (LICENSE + LEGAL.md). Beide Saetze sind
 // fuer sich richtig; erst zusammen ergeben sie entweder eine saubere Grenze oder eine Unwahrheit.
 // Geprueft wird deshalb die GRENZE, nicht der einzelne Satz.
 const license = fs.readFileSync(path.join(ROOT, "LICENSE"), "utf8");
@@ -96,7 +96,11 @@ assert.ok(
 	/ONLY to the original software source code/.test(license),
 	"und begrenzt ihn im Kopf ausdruecklich auf den Quellcode",
 );
-assert.ok(fs.existsSync(path.join(ROOT, "LICENSE-NOTICE.md")), "LICENSE-NOTICE.md steht daneben");
+assert.ok(fs.existsSync(path.join(ROOT, "LEGAL.md")), "LEGAL.md steht daneben");
+// 💣 NICHT "LICENSE-NOTICE.md": GitHub erkennt jede Datei mit LICENSE-Praefix als Lizenz und zeigte
+// daraufhin ZWEI Reiter "License" am Repo an -- der zweite war diese Erklaerung. Der Name darf deshalb
+// nicht mit LICEN beginnen.
+assert.ok(!fs.existsSync(path.join(ROOT, "LICENSE-NOTICE.md")), "und nicht mehr unter dem alten Namen");
 
 const sourceCode = indexText("legal.sourceCode.body");
 assert.ok(sourceCode.includes("MIT-Lizenz"), "das Fenster nennt die MIT-Lizenz");
