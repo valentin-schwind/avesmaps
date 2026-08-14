@@ -5,9 +5,10 @@
  * wer im Firun aufbricht, kommt womoeglich im Tsa an. Deshalb wird hier je Etappe die bis dahin
  * verstrichene KALENDERzeit aufsummiert und daraus ihr Datum bestimmt.
  *
- * 💣 KALENDERzeit heisst travel_time + rest_time. Eine Etappe von 8 Reisestunden bei 12 Stunden am
- * Tag belegt 16 Stunden Kalender; wer nur die Reisezeit summiert, laesst jede Reise etwa doppelt so
- * frueh ankommen.
+ * 💣 KALENDERzeit heisst travel_time + rest_time, ETAPPE FUER ETAPPE. Wer nur die Reisezeit
+ * summiert, laesst jede mehrtaegige Reise viel zu frueh ankommen. Und wer die Rast statt dessen
+ * proportional aus der Summe herunterrechnet, trifft zwar die Ankunft, aber nicht die Zeilen
+ * dazwischen: die Rast faellt seit dem 14.08.2026 in ganzen Portionen an, nicht anteilig.
  *
  * Ohne gesetzten Reisebeginn liefert alles hier `null` und der Plan sieht aus wie bisher.
  */
@@ -82,15 +83,24 @@ function routePlanCalendar(steps, calendarFactor) {
 	if (!departure || !Array.isArray(steps) || typeof travelCalendarAdvance !== "function") {
 		return null;
 	}
-	// 💣 Die Rast steckt nicht in der Etappe, sondern in der Summe: die Planzeilen kennen nur
-	// travelTime. Der Faktor (Gesamtzeit / Reisezeit) verteilt sie proportional -- exakt, solange
-	// alle Etappen dieselbe Rastregel haben, und das tun sie ausser beim Schnellsegler.
+	// 💣 DIE RAST GEHOERT DER ETAPPE, DIE SIE TRAEGT -- und die Etappe kennt sie. Seit dem
+	// 14.08.2026 faellt die Rast in ganzen PORTIONEN an (avesmapsRouteRestPortions): eine Nacht
+	// liegt dort, wo der Reisetag aufgebraucht ist, nicht anteilig ueber alle Zeilen verschmiert.
+	// Der Faktor (Gesamtzeit / Reisezeit) war unter der alten Anteilsregel exakt und ist es seither
+	// NICHT mehr: sechs Etappen zu 20 Stunden datierten damit bis zu einen ganzen Tag daneben,
+	// waehrend Ankunft und Summe stimmten -- ein Fehler, den nur die Zeilen dazwischen zeigen.
+	//
+	// Der Faktor bleibt als Rueckfall fuer Aufrufer, die rohe `buildRoutePlanEntries` reichen: dort
+	// steht restTime ueberall auf 0, erkennbar an der Summe. Ist gar keine Rast gewuenscht, ist der
+	// Faktor ohnehin 1, und beide Wege fallen zusammen.
+	const restOf = (step) => Number(step.restTime !== undefined ? step.restTime : step.rest_time) || 0;
+	const stepsKnowTheirRest = steps.reduce((sum, step) => sum + restOf(step), 0) > 0;
 	const factor = Number.isFinite(Number(calendarFactor)) && Number(calendarFactor) > 0 ? Number(calendarFactor) : 1;
 	let elapsedHours = 0;
 	const legs = steps.map((step) => {
 		const start = travelCalendarAdvance(departure.monthKey, departure.day, elapsedHours);
 		const travelHours = Number(step.travelTime !== undefined ? step.travelTime : step.travel_time) || 0;
-		const calendarHours = travelHours * factor;
+		const calendarHours = stepsKnowTheirRest ? travelHours + restOf(step) : travelHours * factor;
 		elapsedHours += calendarHours;
 		const end = travelCalendarAdvance(departure.monthKey, departure.day, elapsedHours);
 		// Endet die Etappe am Tag, an dem sie begann, steht nur EIN Datum da -- „25.–25. Firun"

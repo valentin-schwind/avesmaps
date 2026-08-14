@@ -224,6 +224,52 @@ assert.ok(
 	`nach der Monatswahl muss das Datum ohne Routenneubau dastehen:\n${afterPick[0]}`
 );
 
+// ---- 🔴 DIE RAST FAELLT IN PORTIONEN, ALSO DARF SIE NICHT VERSCHMIERT WERDEN --------------------------
+// Bis zum 14.08.2026 rechnete `routePlanCalendar` die Kalenderzeit je Etappe als
+// `travelTime x (Gesamtzeit / Reisezeit)`. Unter der damaligen ANTEILIGEN Rastregel war das exakt.
+// Seit die Rast in ganzen Portionen anfaellt, ist es das nicht mehr: die Nacht liegt dort, wo der
+// Reisetag aufgebraucht ist, und nicht gleichmaessig ueber alle Zeilen verteilt.
+//
+// 💣 DER FEHLER VERSTECKT SICH IN DER MITTE. Ankunft und Summe stimmten auch vorher -- der Faktor
+// ist ueber die GANZE Route definitionsgemaess richtig. Falsch waren nur die Zeilen dazwischen,
+// und genau die pruefen die vier Etappen weiter oben NICHT: bei 30,6 Reisestunden je Etappe liegen
+// beide Rechnungen 0,25 Tage auseinander und runden auf denselben Tag. Es braucht eine Strecke, auf
+// der die Portionen ungleich fallen -- sechs Etappen zu 20 Stunden.
+//
+// Nachgerechnet, 12 Reisestunden am Tag, 120 Reisestunden gesamt, 9 Portionen zu 12 h = 108 h Rast:
+//   Rast je Etappe   12 · 24 · 12 · 24 · 24 · 12       (der Zaehler laeuft ueber die Route)
+//   Kalender je Et.   32 · 44 · 32 · 44 · 44 · 32   -> kumuliert 32 · 76 · 108 · 152 · 196 · 228 h
+//   in Tagen        1,33 · 3,17 · 4,5 · 6,33 · 8,17 · 9,5
+// Der alte Faktor (228/120 = 1,9) haette jede Etappe mit 38 h angesetzt: 1,58 · 3,17 · 4,75 · 6,33
+// · 7,92 · 9,5 -- Etappe 5 endete einen Tag zu frueh und Etappe 6 begann einen Tag zu frueh.
+const LEG_HOURS = 20;
+// Aus den Konstanten hergeleitet, nicht geraten: 1 Einheit = 3 Meilen, Zeit = Meilen / Tempo * Faktor.
+const legUnits = (LEG_HOURS * SPEED_TABLE.groupFoot.Weg) / (TIME_SCALE_FACTOR * DISTANCE_SCALING_FACTOR);
+const sixNames = ["Aran", "Beran", "Ceran", "Deran", "Eran", "Feran", "Geran"];
+global.locationData = sixNames.map((name, index) => ({ name, coordinates: [0, index * legUnits] }));
+const sixSegments = [0, 1, 2, 3, 4, 5].map((index) => ({
+	geometry: { type: "LineString", coordinates: [[index * legUnits, 0], [(index + 1) * legUnits, 0]] },
+	properties: { feature_subtype: "Weg", public_id: `q${index}` },
+}));
+travelStartMonthValue = "firun";
+travelStartDayValue = "25";
+global.getPlannerRestHoursPerDay = () => 12;
+showRoutePlan(sixNames, sixSegments);
+const sixLegs = appended.slice();
+assert.strictEqual(sixLegs.length, 6, `sechs Etappenzeilen erwartet, bekommen: ${sixLegs.length}`);
+
+const portionDates = ["25.–26. Firun", "26.–28. Firun", "28.–29. Firun", "29. Firun – 1. Tsa", "1.–3. Tsa", "3.–4. Tsa"];
+portionDates.forEach((label, index) => {
+	assert.ok(
+		sixLegs[index].includes(label),
+		`Etappe ${index + 1} muss „${label}" nennen.\nZeile war:\n${sixLegs[index]}`
+	);
+});
+// 🔴 Die Gegenprobe: genau die zwei Zeilen, die die alte proportionale Verteilung falsch datierte.
+// Ohne sie waere oben nicht zu erkennen, ob der Test die Regel prueft oder nur Zahlen abschreibt.
+assert.ok(!sixLegs[4].includes("1.–2. Tsa"), "Etappe 5 darf nicht mehr proportional datieren (1.–2. Tsa)");
+assert.ok(!sixLegs[5].includes("2.–4. Tsa"), "Etappe 6 darf nicht mehr proportional datieren (2.–4. Tsa)");
+
 // ... und wieder abwaehlen raeumt es weg, statt ein totes Datum stehenzulassen.
 travelStartMonthValue = "";
 redrawRoutePlan();
