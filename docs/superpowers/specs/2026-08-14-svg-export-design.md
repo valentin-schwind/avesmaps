@@ -118,7 +118,8 @@ Also entscheidet man auf der Seite **vor** dem Erzeugen, wohin die Datei geht:
 | Ebene wird zur Ebene durch | oberste Gruppenebene | `inkscape:groupmode="layer"` |
 | Objektname steht in | `id`, mit Adobes eigener Maskierung (`_x20_` für Leerzeichen) | `inkscape:label`, unverändert |
 | `id` ist | der maskierte Name, eindeutig gemacht | reiner ASCII-Slug |
-| `inkscape:`/`sodipodi:`-Namensraum | **gar nicht vorhanden** | vorhanden |
+| `inkscape:`-Namensraum | **gar nicht vorhanden** | `xmlns:inkscape` deklariert |
+| `sodipodi:`-Namensraum | gar nicht vorhanden | ⚠️ **auch nicht** — siehe unten |
 | `<title>` | ja | ja |
 | Dateiname | `…-illustrator.svg` | `…-inkscape.svg` |
 
@@ -136,6 +137,14 @@ Also entscheidet man auf der Seite **vor** dem Erzeugen, wohin die Datei geht:
     <path id="Reichsstraße_x20_Gareth-Wehrheim_x20__x28_p1042_x29_"
           d="…"><title>Reichsstraße Gareth–Wehrheim</title></path>
 ```
+
+> ⚠️ **`sodipodi:` wird in KEINEM der beiden Dialekte deklariert** (geklärt beim Bau
+> von Aufgabe 3, 14.08.2026 — die Zeile stand vorher missverständlich da). Das ist
+> Inkscapes Namensraum für **Dokument-Metadaten** (`sodipodi:namedview`: Zoomstufe,
+> Führungslinien, Fensterposition der letzten Sitzung) — nichts davon erzeugt ein
+> Export. Ein deklarierter, nie benutzter Namensraum ist Zierrat, den ein späterer
+> Leser für eine Zusicherung hält und „vervollständigt". Inkscape braucht ihn nicht,
+> um die Ebenen zu lesen; dafür reicht `inkscape:groupmode` und `inkscape:label`.
 
 **Es ist EIN Bauer mit einem Dialekt-Parameter, nicht zwei Bauer.** Geometrie,
 Ebenen, Reihenfolge, Farben und Linienstärken sind identisch — nur die
