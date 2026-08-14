@@ -127,14 +127,20 @@ function renderPowerlineSyncList() {
 	const summary = document.getElementById("powerline-sync-summary");
 	if (summary) {
 		const segCount = (typeof powerlineData !== "undefined" && Array.isArray(powerlineData)) ? powerlineData.length : 0;
-		summary.textContent = groups.length + " Kraftlinien · " + segCount + " Segmente";
+		// 💣 "N Kraftlinien" stand hier UND steht seit 14.08.2026 in der Bilanzzeile -- beides ist
+		// groups.length, also zweimal wortgleich untereinander. Hier bleiben die Segmente, die die
+		// Bilanzzeile nicht kennt. Keine Information verloren, nur die Dopplung.
+		summary.textContent = segCount + " Segmente";
 	}
 	if (groups.length === 0) {
+		avesmapsListBalanceRender("powerline-sync-balance", "Kraftlinien", 0, 0);
 		list.innerHTML = '<div class="wikisync-itemlist__empty" style="padding:8px;color:var(--color-text-muted);">Keine Kraftlinien geladen.</div>';
 		return;
 	}
 	const term = avesmapsPowerlineSyncFilterText.trim().toLowerCase();
 	const visible = term ? groups.filter((g) => g.name.toLowerCase().indexOf(term) !== -1) : groups;
+	// ⚠️ VOR dem "nichts gefunden"-Ausstieg: sonst steht bei 0 Treffern noch die alte Zahl da.
+	avesmapsListBalanceRender("powerline-sync-balance", "Kraftlinien", visible.length, groups.length);
 	if (visible.length === 0) {
 		list.innerHTML = '<div class="wikisync-itemlist__empty" style="padding:8px;color:var(--color-text-muted);">Nichts gefunden.</div>';
 		return;

@@ -676,6 +676,17 @@
    Sie tragen jetzt .wikisync-itemlist .tree-item aus css/components/region-sync.css.
    ⚠️ Hier NICHTS wieder hinzuschreiben. Gewacht von js/review/__tests__/wikisync-list-form.test.js. */
 
+/* Die Bilanzzeile — eine Zeile unter der Suche, bei allen acht Subjekten gleich.
+   🔴 Sie trägt NUR, was sich durch die Filterung ändert (Owner 14.08.2026: "aber nur wenn die
+   Bilanzzeile durch die filterung beeinflusst wird"). Die Zahlen des letzten Syncs bewegen sich
+   beim Tippen nicht und bleiben als stille Zeile ÜBER der Suche stehen.
+   Erzeuger: js/review/review-list-balance.js — EINER für alle acht. */
+.wiki-sync-balance {
+	margin: 0 10px 6px;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
 .wiki-sync-panel__filter {
 	display: flex;
 	align-items: stretch;

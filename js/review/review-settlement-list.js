@@ -477,6 +477,11 @@ function renderSettlementList() {
 	const items = counted
 		.filter((item) => settlementMatchesView(item, settlementListView))
 		.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "de"));
+	// Bilanzzeile: sichtbar = was in der Liste steht, gesamt = dieselbe Ansicht ohne Suche und
+	// Trichter. settlementListItems ist der ungefilterte Bestand (settlementItemsIgnoringView
+	// legt bereits alle Filter an, taugt hier also NICHT als "gesamt").
+	avesmapsListBalanceRender("settlement-list-balance", "Orte", items.length,
+		settlementListItems.filter((item) => settlementMatchesView(item, settlementListView)).length);
 	// Typ-Dropdown-Zähler an die aktuelle Basismenge (View+Suche) anpassen.
 	renderTypeFilter("settlement-type-filter-toggle", "settlement-type-filter-menu", settlementTypeOptions(), settlementTypeFilter);
 	// Der Unterabschnitt muss HIER mitgezeichnet werden, nicht nur beim Öffnen des
@@ -1044,10 +1049,11 @@ function avesmapsAdvFacetOptions(key) {
 function avesmapsRenderGameLiteraturePicker() {
 	var scroll = document.getElementById("wiki-sync-adv-scroll");
 	if (!scroll) { return; }
-	var countEl = document.getElementById("wiki-sync-adv-count");
 	var all = avesmapsAdvPickerCache || [];
 	var rows = avesmapsAdvFilteredRows(null);
-	if (countEl) { countEl.textContent = rows.length + " / " + all.length; }
+	// Stand als "1957 / 1957" rechts in der Suchzeile. Jetzt EIN Erzeuger fuer alle acht Listen
+	// (js/review/review-list-balance.js), und die Zeile steht unter der Suche.
+	avesmapsListBalanceRender("wiki-sync-adv-balance", "Werke", rows.length, all.length);
 	if (!rows.length) {
 		scroll.innerHTML = '<p class="wiki-sync-panel__summary">' + (all.length ? "Kein Treffer." : "Keine Literatur.") + '</p>';
 		return;
@@ -1164,10 +1170,9 @@ function avesmapsCmFacetOptions(key) {
 function avesmapsRenderCitymapPicker() {
 	var scroll = document.getElementById("wiki-sync-cm-scroll");
 	if (!scroll) { return; }
-	var countEl = document.getElementById("wiki-sync-cm-count");
 	var all = avesmapsCmPickerCache || [];
 	var rows = avesmapsCmFilteredRows(null);
-	if (countEl) { countEl.textContent = rows.length + " / " + all.length; }
+	avesmapsListBalanceRender("wiki-sync-cm-balance", "Karten", rows.length, all.length);
 	if (!rows.length) {
 		scroll.innerHTML = '<p class="wiki-sync-panel__summary">' + (all.length ? "Kein Treffer." : "Keine Karten.") + '</p>';
 		return;

@@ -518,6 +518,7 @@
 							<input id="path-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Wege suchen ..." aria-label="Wege durchsuchen" />
 								<div class="type-filter"><button type="button" id="path-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="path-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="path-type-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Lage</div><div id="path-scope-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="path-continent-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="path-source-filter-menu"></div></div></div></div>
 						</div>
+						<p class="wiki-sync-balance" id="path-sync-balance"></p>
 						<div id="path-sync-list" class="review-panel__list wikisync-itemlist"></div>
 					</div>
 					<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="adventures">
@@ -537,9 +538,10 @@
 						<div class="wiki-sync-adv-picker">
 							<div class="wiki-sync-adv-picker__top">
 								<input type="search" id="wiki-sync-adv-search" class="wiki-sync-adv-picker__search" placeholder="Literatur suchen …" autocomplete="off"><div class="type-filter"><button type="button" id="wiki-sync-adv-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="wiki-sync-adv-filter-menu" class="type-filter__menu" hidden></div></div>
-								<span class="wiki-sync-panel__summary" id="wiki-sync-adv-count"></span>
+								
 							</div>
-							<div class="wiki-sync-adv-picker__scroll wikisync-itemlist wikisync-itemlist--nodrag" id="wiki-sync-adv-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
+							<p class="wiki-sync-balance" id="wiki-sync-adv-balance"></p>
+									<div class="wiki-sync-adv-picker__scroll wikisync-itemlist wikisync-itemlist--nodrag" id="wiki-sync-adv-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
 							<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Literatur-Editor direkt dort.</p>
 						</div>
 						</div>
@@ -558,8 +560,9 @@
 								<div class="wiki-sync-adv-picker">
 									<div class="wiki-sync-adv-picker__top">
 										<input type="search" id="lore-list-search" class="wiki-sync-adv-picker__search" placeholder="Name oder Art suchen …" autocomplete="off"><div class="type-filter"><button type="button" id="lore-list-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="lore-list-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="lore-list-continent-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Herkunft</div><div id="lore-list-origin-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Ortsangabe</div><div id="lore-list-place-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="lore-list-source-menu"></div></div></div></div>
-										<span class="wiki-sync-panel__summary" id="lore-list-count"></span>
+										
 									</div>
+									<p class="wiki-sync-balance" id="lore-list-balance"></p>
 									<div class="wiki-sync-adv-picker__scroll wikisync-itemlist wikisync-itemlist--nodrag" id="lore-list-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen…</p></div>
 									<!-- Ersetzt die Liste, statt unter ihr aufzuklappen: ein Detail, das alles
 									     nach unten schiebt, verliert man aus den Augen. „Zurück" bringt die
@@ -583,9 +586,10 @@
 							<div class="wiki-sync-adv-picker">
 								<div class="wiki-sync-adv-picker__top">
 									<input type="search" id="wiki-sync-cm-search" class="wiki-sync-adv-picker__search" placeholder="Karte suchen …" autocomplete="off"><div class="type-filter"><button type="button" id="wiki-sync-cm-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="wiki-sync-cm-filter-menu" class="type-filter__menu" hidden></div></div>
-									<span class="wiki-sync-panel__summary" id="wiki-sync-cm-count"></span>
+									
 								</div>
-								<div class="wiki-sync-adv-picker__scroll wikisync-itemlist wikisync-itemlist--nodrag" id="wiki-sync-cm-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
+								<p class="wiki-sync-balance" id="wiki-sync-cm-balance"></p>
+									<div class="wiki-sync-adv-picker__scroll wikisync-itemlist wikisync-itemlist--nodrag" id="wiki-sync-cm-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
 								<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Karteneditor direkt dort.</p>
 							</div>
 						</div>
@@ -607,7 +611,8 @@
 							<div class="wiki-sync-panel__filter">
 								<input id="powerline-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Kraftlinie suchen …" aria-label="Kraftlinien durchsuchen" />
 							</div>
-							<div id="powerline-sync-list" class="review-panel__list wikisync-itemlist"></div>
+							<p class="wiki-sync-balance" id="powerline-sync-balance"></p>
+						<div id="powerline-sync-list" class="review-panel__list wikisync-itemlist"></div>
 						</div>
 						<!-- Regionen: siebter Editor (2026-07-27). Der Editor-Knopf ist der EINE Verbzeilen-Knopf
 						     des Subjekts (js/review/review-subjects.js); renderWikiSyncVerbs schiebt ihn an
@@ -630,6 +635,7 @@
 							<input id="region-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Regionen suchen ..." aria-label="Regionen durchsuchen" />
 							<div class="type-filter"><button type="button" id="region-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="region-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="region-type-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="region-continent-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="region-source-filter-menu"></div></div></div></div>
 						</div>
+						<p class="wiki-sync-balance" id="region-sync-balance"></p>
 						<div id="region-sync-list" class="review-panel__list wikisync-itemlist"></div>
 					</div>
 
@@ -662,7 +668,8 @@
 								<input id="settlement-list-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Ort suchen ..." aria-label="Orte durchsuchen" />
 								<div class="type-filter"><button type="button" id="settlement-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="settlement-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="settlement-type-filter-menu"></div></div><div class="type-filter__section type-filter__section--sub" id="settlement-scope-filter-section"><div class="type-filter__section-title">↳ Lage (nur Bauwerke)</div><div id="settlement-scope-filter-menu"></div></div><div class="type-filter__section type-filter__section--sub" id="settlement-building-type-filter-section"><div class="type-filter__section-title">↳ Art (nur Bauwerke)</div><div id="settlement-building-type-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="settlement-continent-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="settlement-source-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Wappen</div><div id="settlement-coat-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Bilder</div><div id="settlement-image-filter-menu"></div></div></div></div>
 							</div>
-							<div id="settlement-list" class="review-panel__list wikisync-itemlist"></div>
+							<p class="wiki-sync-balance" id="settlement-list-balance"></p>
+						<div id="settlement-list" class="review-panel__list wikisync-itemlist"></div>
 						</div>
 				</div>
 
@@ -690,6 +697,7 @@
 					     (oben, neben der Suche) statt als Zeile hier, wie bei den anderen Subjekten -- eine
 					     ausklappende Zeile schöbe den Baum nach unten. Gefüllt von avmFilterMenuAttach
 					     (js/ui/filter-menu.js), verdrahtet in review-wiki-sync.js. -->
+						<p class="wiki-sync-balance" id="wiki-sync-territory-balance"></p>
 						<div id="wiki-sync-territory-tree" class="tree-wrap wiki-sync-territory-tree" role="tree"></div>
 				</div>
 			</section>
@@ -2976,6 +2984,12 @@
 		<script src="js/review/review-feature-sources.js"></script>
 		<script src="js/review/review-core.js"></script>
 		<script src="js/review/review-status.js"></script>
+		<!-- Der EINE Bilanzzeilen-Erzeuger fuer alle acht WikiSync-Listen (Entwurf
+		     docs/superpowers/specs/2026-08-14-wikisync-listen-vereinheitlichung-design.md §4).
+		     Haengt von nichts ab -- reine Formatierung -- muss aber vor seinen Lesern stehen:
+		     review-settlement-list.js, review-region-sync.js, review-path-sync.js,
+		     review-powerline-list.js und review-wiki-sync.js rufen ihn beim ersten Rendern. -->
+		<script src="js/review/review-list-balance.js"></script>
 		<script src="js/review/review-pending.js"></script>
 		<!-- VOR review-paths.js: dessen syncPathTransportOptions ruft renderPathTransportSeasons. -->
 		<script src="js/review/review-path-seasons.js"></script>

@@ -622,6 +622,9 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 			root_count: Array.isArray(treeResult?.root?.children) ? treeResult.root.children.length : 0,
 		};
 
+		avesmapsListBalanceRender("wiki-sync-territory-balance", "Territorien",
+			visibleRowCount, Array.isArray(rows) ? rows.length : 0);
+
 		treeModule.renderTree({
 			container: treeElement,
 			root: treeResult.root,
@@ -2670,6 +2673,25 @@ function avesmapsLoreListRowHtml(item) {
 // Liste zeichnen. append=false ersetzt sie (Erst-Laden, Suche, Reiter-/Artwechsel);
 // append=true hängt die nächste Seite ans Ende, ohne das schon Gezeichnete anzufassen --
 // sonst springt die Scrollposition beim Nachladen.
+/**
+ * Das Substantiv der Bilanzzeile ist das Wort der GEWÄHLTEN ANSICHT (Fauna, Flora, Waren, …),
+ * nicht das des Subjekts -- „200 von 1.382 Fauna" statt „… Vorkommen".
+ * 💣 „Fauna" und „Flora" sind lateinisch und im Dativ unverändert; die Faustregel des Erzeugers
+ * (-n anhängen) machte daraus „Faunan". Deshalb geben sie ihren Dativ ausdrücklich mit.
+ */
+function avesmapsLoreBalanceWord() {
+	var kind = avesmapsLoreListKind.panel;
+	if (kind === "all" || !kind) {
+		return { wort: "Vorkommen", dativ: "Vorkommen" };
+	}
+	var tabs = (typeof wikiSyncSubjectViewTabs === "function") ? wikiSyncSubjectViewTabs("lore") : [];
+	var treffer = tabs.filter(function (t) { return t.key === kind; })[0];
+	var wort = (treffer && treffer.label) || "Vorkommen";
+	// Unveränderlich im Dativ Plural: lateinische Sammelbegriffe.
+	var starr = { Fauna: true, Flora: true, Spezies: true };
+	return { wort: wort, dativ: starr[wort] ? wort : undefined };
+}
+
 function renderLoreList(view, data, append) {
 	var ids = AVESMAPS_LORE_VIEWS[view] || AVESMAPS_LORE_VIEWS.panel;
 	var scroll = document.getElementById(ids.scroll);
@@ -2694,12 +2716,20 @@ function renderLoreList(view, data, append) {
 		if (counter) {
 			counter.textContent = page.loaded + " von " + page.total;
 		}
+		if (view === "panel") {
+			var w1 = avesmapsLoreBalanceWord();
+			avesmapsListBalanceRender("lore-list-balance", w1.wort, page.loaded, page.total, w1.dativ);
+		}
 		return;
 	}
 	page.loaded = 0;
 	if (items.length === 0) {
 		if (counter) {
 			counter.textContent = data ? ("0 von " + page.total) : "";
+		}
+		if (view === "panel") {
+			var w2 = avesmapsLoreBalanceWord();
+			avesmapsListBalanceRender("lore-list-balance", w2.wort, 0, data ? page.total : 0, w2.dativ);
 		}
 		scroll.innerHTML = '<p class="wiki-sync-panel__summary">'
 			+ (data && data.total === 0 && !data.q
@@ -2714,6 +2744,10 @@ function renderLoreList(view, data, append) {
 	page.loaded = items.length;
 	if (counter) {
 		counter.textContent = page.loaded + " von " + page.total;
+	}
+	if (view === "panel") {
+		var w3 = avesmapsLoreBalanceWord();
+		avesmapsListBalanceRender("lore-list-balance", w3.wort, page.loaded, page.total, w3.dativ);
 	}
 }
 

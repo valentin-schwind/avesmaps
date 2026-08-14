@@ -203,7 +203,10 @@ function renderRegionSyncList() {
 		return;
 	}
 	const summary = regionSyncData && regionSyncData.summary ? regionSyncData.summary : {};
-	const rows = regionSyncCurrentRows().filter(regionRowMatchesFilters);
+	const alleZeilen = regionSyncCurrentRows();
+	const rows = alleZeilen.filter(regionRowMatchesFilters);
+	// Bilanzzeile: sichtbar gegen gesamt DERSELBEN Ansicht (Alle/Platziert/Fehlt).
+	avesmapsListBalanceRender("region-sync-balance", "Regionen", rows.length, alleZeilen.length);
 
 	// Toggle-Tabs (Alle / Platziert / Fehlt) wie bei Siedlungen — im eigenen Container unter
 	// dem Suchfeld, nicht in der scrollbaren Liste. „Platziert" = Zugeordnet + Mehrfach.

@@ -340,7 +340,10 @@ function renderPathSyncList() {
 	}
 
 	const summary = (pathSyncData && pathSyncData.summary) || {};
-	const rows = pathSyncCurrentRows().filter(pathRowMatchesFilters);
+	const alleZeilen = pathSyncCurrentRows();
+	const rows = alleZeilen.filter(pathRowMatchesFilters);
+	// Bilanzzeile: sichtbar gegen gesamt DERSELBEN Ansicht.
+	avesmapsListBalanceRender("path-sync-balance", "Wege", rows.length, alleZeilen.length);
 
 	const candidate = (p) => `<button type="button" class="region-sync__cand" data-path-id="${pathSyncEscapeAttr((p && p.public_id) || "")}">${pathSyncEscapeText(p.name)}</button>`;
 	const items = rows
