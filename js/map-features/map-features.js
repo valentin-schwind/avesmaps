@@ -244,9 +244,18 @@ function getPathStyleColors(path) {
 	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
 	const simplifiedRender = Math.round(Number(map.getZoom())) <= PATH_RENDER_CONFIG.simplifiedMaxZoom;
 	const isReichsstrasse = pathSubtype === "Reichsstrasse";
-	// Mittellinienfarben je Wegart liegen in PATH_CENTER_COLORS (config.js) -- eine Wahrheit,
-	// auch für Rechner ohne Karte (z.B. den SVG-Export).
-	const centerColors = PATH_CENTER_COLORS;
+	// Land-Wege (außer Reichsstraßen) heller + entsättigt; Reichsstraßen weiß.
+	// Wasserwege (Flussweg/Seeweg) bleiben unverändert.
+	const centerColors = {
+		Reichsstrasse: "#ffffff",
+		Strasse: "#8b8b8b",
+		Weg: "#cec4ae",
+		Pfad: "#9b755a",
+		Gebirgspass: "#a8695c",
+		Wuestenpfad: "#bea470",
+		Flussweg: "#6ec6ff",
+		Seeweg: "#2f7dd3",
+	};
 
 	// Konturbreite: Default-Logik (Pro-Typ ab Zoom>simplifiedMaxZoom, simplified darunter) ODER, falls per
 	// ?pathwidthtune=1 gesetzt, der Override für diesen Subtyp+Zoom. Override macht die Kontur auch im
