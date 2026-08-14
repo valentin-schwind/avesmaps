@@ -164,6 +164,13 @@
 	   IMMER-hellen Kartenkacheln, nicht auf einem Theme-Panel, also kein Dark-Override. */
 	--color-marker-unconnected-ring: #e0559a;
 	--color-marker-sparse-crossing-ring: #0fb9b1;
+	/* Ringstärke, EIN Wert für beide Töne (Owner 14.08.2026: „ruhig dicker", vorher 4 px) — sonst
+	   driften pink und türkis auseinander, sobald jemand nur einen der beiden anfasst.
+	   ⚠️ Das Zeichen der Prüfzeile im Anzeige-Menü wiederholt den Ring als Legende, nimmt diesen Wert
+	   aber NICHT: sein 24er-viewBox schrumpft auf --icon-md, dort ist 7 px die falsche Zahl (und
+	   `var()` löst in `stroke-width` als Attribut ohnehin nicht auf). Es soll gleich aussehen, nicht
+	   gleich groß sein. */
+	--marker-check-ring-width: 7px;
 	/* Discord #43 -- bernstein = "offenes Wegende": ein per Strg vom Ort getrenntes Wegende, das noch
 	   an nichts haengt. Gleiche Begruendung wie oben (helle Kacheln, kein Dark-Override). Bewusst
 	   NICHT --color-accent: das Gold markiert waehrend des Ziehens den Marker, das Bernstein danach

@@ -850,10 +850,22 @@
 	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
 }
 
+/* 💣 Der Warnring ist die AUSSAGE, nicht die Verzierung -- deshalb ist er von dieser Vereinfachung
+   ausgenommen. Bis 14.08.2026 war er es nicht: `box-shadow: none !important` loeschte auf Zoom 0-3
+   (dort traegt jede Kreuzung --simple, siehe isSimpleMarker in
+   js/map-features/map-features-location-marker-rendering.js) auch den pinken und den tuerkisen Ring
+   mit -- gemessen 8 von 48 Kombinationen, und ausgerechnet die vier Zoomstufen, auf denen man nach
+   Anbindungsluecken sucht. Der Marker stand da, sein Befund nicht.
+   ⚠️ Die :not()-Kette gehoert NUR an den Schatten. `border: 0` und `filter: none` bleiben fuer alle
+   winzigen Marker zurueckgesetzt -- eine 2-px-Kontur auf einem 5-px-Punkt ist genau die Unschaerfe,
+   gegen die --simple ueberhaupt eingefuehrt wurde. */
 .location-visual-marker__shape--simple {
 	border: 0 !important;
-	box-shadow: none !important;
 	filter: none !important;
+}
+
+.location-visual-marker__shape--simple:not(.location-visual-marker__shape--unconnected):not(.location-visual-marker__shape--sparse-crossing) {
+	box-shadow: none !important;
 }
 
 .location-visual-marker__shape--circle,
@@ -906,15 +918,15 @@
 .location-visual-marker__shape--unconnected {
 	box-shadow:
 		0 0 0 1px rgba(0, 0, 0, 0.55),
-		0 0 0 5px var(--color-marker-unconnected-ring),
-		0 0 0 6px rgba(0, 0, 0, 0.35);
+		0 0 0 calc(1px + var(--marker-check-ring-width)) var(--color-marker-unconnected-ring),
+		0 0 0 calc(2px + var(--marker-check-ring-width)) rgba(0, 0, 0, 0.35);
 }
 
 .location-visual-marker__shape--sparse-crossing {
 	box-shadow:
 		0 0 0 1px rgba(0, 0, 0, 0.55),
-		0 0 0 5px var(--color-marker-sparse-crossing-ring),
-		0 0 0 6px rgba(0, 0, 0, 0.35);
+		0 0 0 calc(1px + var(--marker-check-ring-width)) var(--color-marker-sparse-crossing-ring),
+		0 0 0 calc(2px + var(--marker-check-ring-width)) rgba(0, 0, 0, 0.35);
 }
 
 /* Discord #43 -- "trennt ab": solange Strg beim Ziehen gedrueckt ist, traegt der gerade bearbeitete

@@ -2505,8 +2505,19 @@
 							<input type="checkbox" id="toggleNodix" class="map-display-menu__state" />
 							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
 						</label>
+						<!-- 💣 Das Zeichen IST der Marker, den dieser Haken erzeugt: dunkler Kern, farbiger Ring.
+						     Damit ist die Zeile zugleich die Legende -- ohne sie stehen fuenf identische Lupen
+						     da und die Farbe auf der Karte muss geraten werden. Deshalb KEIN
+						     `stroke="currentColor"` am Ring: die Farbe ist hier die Aussage, nicht die
+						     Verzierung. Der Riegel „Zeile aus -> Zeichen blass" (map-display-menu.css:272)
+						     wirkt weiter, er sitzt an der Deckkraft.
+						     ⚠️ `stroke-width` steht als feste SVG-Einheit da, NICHT als
+						     --marker-check-ring-width. Zwei Gruende, beide gemessen: `var()` loest in diesem
+						     Praesentationsattribut nicht auf (faellt auf 1 zurueck -- bei `stroke` sehr wohl),
+						     und 7 px waeren in einem auf --icon-md geschrumpften 24er-viewBox ohnehin die
+						     falsche Zahl. Gleich aussehen soll es, nicht gleich gross sein. -->
 						<label class="map-display-menu__row" id="toggleUnconnectedControl" hidden>
-							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M16 16l5 5"></path></svg></span>
+							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.5" fill="currentColor"></circle><circle cx="12" cy="12" r="8" stroke="var(--color-marker-unconnected-ring)" stroke-width="3.5"></circle></svg></span>
 							<span class="map-display-menu__name">Unverbunden</span>
 							<input type="checkbox" id="toggleUnconnected" class="map-display-menu__state" />
 							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
@@ -2519,8 +2530,9 @@
 							<input type="checkbox" id="toggleLabelsWithRegion" class="map-display-menu__state" />
 							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
 						</label>
+						<!-- Zeichen = Marker, siehe „Unverbunden" oben; hier der tuerkise Ton. -->
 						<label class="map-display-menu__row" id="toggleSparseCrossingsControl" hidden>
-							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M16 16l5 5"></path></svg></span>
+							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.5" fill="currentColor"></circle><circle cx="12" cy="12" r="8" stroke="var(--color-marker-sparse-crossing-ring)" stroke-width="3.5"></circle></svg></span>
 							<span class="map-display-menu__name">Kreuzungen ≤ 2 Wege</span>
 							<input type="checkbox" id="toggleSparseCrossings" class="map-display-menu__state" />
 							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
