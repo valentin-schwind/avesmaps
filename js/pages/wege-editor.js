@@ -75,6 +75,14 @@
 			.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 	}
 
+	/* Eine Zahl zum ANSEHEN — mit Komma.
+	 *
+	 * 💣 DAS FELD SCHREIBT SCHON KOMMA, DIE ANZEIGE DANEBEN SCHRIEB PUNKT. `input type="number"`
+	 * stellt seinen Wert in der Sprache des Browsers dar, also „3,45"; ein `toFixed()` daneben liefert
+	 * „3.38", und beide standen im Tempowerte-Fenster in derselben Zeile nebeneinander. In einer
+	 * deutschen Oberflaeche liest sich der Punkt als Tausendertrenner.
+	 * ⚠️ NUR fuer die Anzeige. Der Wert im `value`-Attribut bleibt mit Punkt -- `type="number"` nimmt
+	 * nichts anderes an, und ein Komma dort hiesse: das Feld ist beim Aufgehen leer. */
 	function num(value, digits) {
 		var n = Number(value);
 		if (!isFinite(n)) { return "—"; }
@@ -1282,7 +1290,7 @@
 			+ '<td><input type="number" step="0.01" min="0.01" class="wp-tempo__ms" data-key="'
 			+ escapeHtml(key) + '" data-loaded="' + ours.toFixed(2) + '" value="' + ours.toFixed(2) + '"></td>'
 			+ tempoUndoCell()
-			+ '<td class="wp-tempo__ga">' + (typeof sourceValue === "number" ? sourceValue.toFixed(2) : "—") + "</td>"
+			+ '<td class="wp-tempo__ga">' + (typeof sourceValue === "number" ? num(sourceValue, 2) : "—") + "</td>"
 			+ '<td class="wp-tempo__eff">' + escapeHtml(note) + "</td>"
 			+ "</tr>";
 	}
@@ -1310,8 +1318,8 @@
 			+ escapeHtml(transport) + '" data-path="' + escapeHtml(pathType) + '" data-loaded="'
 			+ speed.toFixed(2) + '" value="' + speed.toFixed(2) + '"></td>'
 			+ tempoUndoCell()
-			+ "<td class=\"wp-tempo__ga\">" + (sourceSpeed !== null ? sourceSpeed.toFixed(2) : "—") + "</td>"
-			+ "<td class=\"wp-tempo__eff\">" + perDay.toFixed(1) + " Mln/Tag</td>"
+			+ "<td class=\"wp-tempo__ga\">" + (sourceSpeed !== null ? num(sourceSpeed, 2) : "—") + "</td>"
+			+ "<td class=\"wp-tempo__eff\">" + num(perDay, 1) + " Mln/Tag</td>"
 			+ "</tr>";
 	}
 
@@ -1341,8 +1349,7 @@
 		} else {
 			probeText = "Die Wegfindung findet Bodenfaktoren: " + probe.areas
 				+ (probe.areas === 1 ? " bremsende Fläche" : " bremsende Flächen") + ", geprüft an "
-				+ probe.sample_label + " (bremst " + Number(probe.max_factor).toFixed(2).replace(".", ",")
-				+ "-fach).";
+				+ probe.sample_label + " (bremst " + num(probe.max_factor, 2) + "-fach).";
 			probeKlasse = "ok";
 		}
 		html += '<p class="wp-tempo__probe ' + probeKlasse + '">' + escapeHtml(probeText) + "</p>";
@@ -1432,9 +1439,9 @@
 					+ (factor === null ? "" : factor.toFixed(3)) + '" data-loaded="'
 					+ (factor === null ? "" : factor.toFixed(3)) + '"></td>'
 					+ tempoUndoCell()
-					+ '<td class="wp-tempo__ga">' + (hatQuelle ? Number(row.source).toFixed(2) : "—") + "</td>"
+					+ '<td class="wp-tempo__ga">' + (hatQuelle ? num(row.source, 2) : "—") + "</td>"
 					+ '<td class="wp-tempo__eff">'
-					+ (factor === null ? "—" : (roadFoot * factor).toFixed(2) + " Mln/h") + "</td>"
+					+ (factor === null ? "—" : num(roadFoot * factor, 2) + " Mln/h") + "</td>"
 					+ '<td class="wp-tempo__eff">' + escapeHtml(flaechen) + "</td>"
 					+ "</tr>";
 			});
@@ -1465,7 +1472,7 @@
 				+ '<td><input type="number" step="0.01" class="wp-tempo__gr" data-key="'
 				+ escapeHtml(key) + '" data-loaded="' + ours.toFixed(2) + '" value="' + ours.toFixed(2) + '"></td>'
 				+ tempoUndoCell()
-				+ '<td class="wp-tempo__ga">' + (typeof ga === "number" ? ga.toFixed(2) : "—") + "</td>"
+				+ '<td class="wp-tempo__ga">' + (typeof ga === "number" ? num(ga, 2) : "—") + "</td>"
 				+ '<td class="wp-tempo__eff">' + escapeHtml(TEMPO_GROUND_NOTES[key] || "") + "</td>"
 				+ "</tr>";
 		});
@@ -1481,7 +1488,7 @@
 			+ '<p class="wp-tempo__note">Zwei Zahlen, die keine Tabelle brauchen.</p>'
 			+ "<table class=\"wp-tempo__tbl\"><tbody>"
 			+ tempoSingleRow("river_ratio", "stromauf : stromab", values.river_ratio, src.river_ratio,
-				"stromauf dauert " + Number(values.river_ratio).toFixed(2).replace(".", ",") + "-mal so lange (S. 129)")
+				"stromauf dauert " + num(values.river_ratio, 2) + "-mal so lange (S. 129)")
 			+ tempoSingleRow("calibration_target_miles", "Eichziel Fußgruppe auf der Straße",
 				values.calibration_target_miles, src.calibration_target_miles, "Meilen am Reisetag (S. 123)")
 			+ "</tbody></table>"
@@ -1497,12 +1504,12 @@
 			Object.keys(dev.path_factors.values).forEach(function (pathType) {
 				var d = dev.path_factors.values[pathType];
 				html += "<li><b>" + escapeHtml(TEMPO_PATH_LABELS[pathType] || pathType) + "</b> — "
-					+ "Geländefaktor " + d.ours.toFixed(3) + " statt " + d.source.toFixed(2) + "</li>";
+					+ "Geländefaktor " + num(d.ours, 3) + " statt " + num(d.source, 2) + "</li>";
 			});
 			Object.keys(dev.day_miles.values).forEach(function (transport) {
 				var d = dev.day_miles.values[transport];
 				html += "<li><b>" + escapeHtml(TEMPO_TRANSPORT_LABELS[transport] || transport) + "</b> — "
-					+ d.ours.toFixed(1) + " statt " + d.source.toFixed(0) + " Meilen/Tag</li>";
+					+ num(d.ours, 1) + " statt " + num(d.source, 0) + " Meilen/Tag</li>";
 			});
 			html += "</ul>";
 		}

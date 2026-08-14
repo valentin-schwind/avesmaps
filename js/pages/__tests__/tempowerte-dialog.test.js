@@ -119,6 +119,52 @@ assert.ok(
 	"er wird erst sichtbar, wenn der Wert abweicht — 75 dauerhafte Knoepfe waeren AGENTS.md §12"
 );
 
+// ---- 3d. Anzeigezellen tragen ein KOMMA, nicht einen Punkt -------------------------------------
+
+// 💣 DAS FELD SCHREIBT SCHON KOMMA. `input type="number"` stellt seinen Wert in der Sprache des
+// Browsers dar, also „3,45"; ein `toFixed()` daneben liefert „3.38", und beide standen im Fenster
+// in DERSELBEN ZEILE nebeneinander. In einer deutschen Oberflaeche liest sich der Punkt als
+// Tausendertrenner -- „1.124" ist dann nicht 1,124, sondern tausendeinhundertvierundzwanzig.
+// ⚠️ Geprueft wird nur die ANZEIGE. Im `value`-Attribut MUSS der Punkt stehen: `type="number"` nimmt
+// nichts anderes an, und ein Komma dort hiesse, das Feld ist beim Aufgehen leer.
+// 🪤 Die Klasse steht im Quelltext in ZWEI Schreibweisen -- `'<td class="…">'` und
+// `"<td class=\"…\">"`. Ein Suchmuster auf die eine findet die andere nicht, und der Waechter waere
+// gruen geblieben, waehrend die Haelfte der Zellen ungeprueft ist. (Genau so ist er beim Bauen zuerst
+// durchgefallen: die Falsifikationsprobe blieb gruen.) Deshalb die Escapes vorher aufloesen.
+const dialogFlach = dialog.replace(/\\"/g, '"');
+["wp-tempo__ga", "wp-tempo__eff"].forEach((cellClass) => {
+	let from = 0;
+	let gefunden = 0;
+	for (;;) {
+		const at = dialogFlach.indexOf(cellClass + '">', from);
+		if (at === -1) { break; }
+		gefunden++;
+		const ausdruck = dialogFlach.slice(at, at + 160);
+		assert.ok(
+			!/\.toFixed\(/.test(ausdruck),
+			`eine \`${cellClass}\`-Zelle formatiert mit toFixed statt num() — dort steht dann ein Punkt `
+			+ `neben dem Komma des Eingabefelds:\n  ${ausdruck.slice(0, 120)}`
+		);
+		from = at + 1;
+	}
+	// ⭐ Und der Waechter muss ueberhaupt etwas gefunden haben -- eine leere Schleife ist gruen und
+	// prueft nichts. Genau daran ist er beim ersten Versuch gescheitert.
+	assert.ok(gefunden >= 3, `\`${cellClass}\` wurde wirklich gefunden (${gefunden} Zellen)`);
+});
+
+// ⭐ Und zwar ueber die Funktion, die es im Haus schon gibt. Eine zweite Zahlenformatierung in
+// derselben Datei ist genau die Doppelung, die spaeter auseinanderlaeuft -- sie war beim Bauen
+// schon einmal da und ist wieder raus.
+assert.ok(
+	/function num\(value, digits\)/.test(dialog),
+	"die Formatierung heisst num() und steht einmal in der Datei"
+);
+assert.strictEqual(
+	(dialog.match(/function num\(/g) || []).length,
+	1,
+	"und zwar genau einmal"
+);
+
 // ---- 4. Alle sechs Abschnitte des Entwurfs stehen im Fenster ------------------------------------
 
 // §4: Tagesleistung + Wegtypen (das Raster), Landschaften, Boden, Fluss und Eichung, Befund, Gesperrt.
