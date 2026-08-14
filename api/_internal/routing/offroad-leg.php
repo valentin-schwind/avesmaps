@@ -147,30 +147,49 @@ function avesmapsAttachOffroadPointToGraph(
     // einer Hafenstadt, aber 40 von der naechsten Strasse, dann traegt der Fusspunkt -- und der
     // Reisende liefe 40 Einheiten querfeldein statt 4,6. Wer gewinnt, entscheidet der Dijkstra,
     // und dafuer muss beides im Angebot stehen.
-    $candidates = array_merge($anchorCandidates, avesmapsFindNearestOffroadExitNodes($graph, $locations, $x, $y));
-    if ($candidates === []) {
+    $nodeCandidates = avesmapsFindNearestOffroadExitNodes($graph, $locations, $x, $y);
+    if ($anchorCandidates === [] && $nodeCandidates === []) {
         return ['ok' => false, 'error' => 'no_exit_node'];
     }
-    // Ein Fusspunkt, der auf einem Endknoten liegt, TRAEGT dessen Namen (der Teiler gibt ihn dann
-    // unveraendert zurueck) -- ohne Entdopplung liefe der A* zweimal zum selben Ziel.
-    $byName = [];
-    foreach ($candidates as $candidate) {
-        $name = (string) $candidate['name'];
-        if (!isset($byName[$name]) || (float) $byName[$name]['distance'] > (float) $candidate['distance']) {
-            $byName[$name] = $candidate;
-        }
-    }
-    $candidates = array_values($byName);
-    usort($candidates, static fn(array $a, array $b): int => $a['distance'] <=> $b['distance']);
 
     // ⚠️ ZWEI STUFEN, und die zweite ist eine Rettung, kein Luxus. Die Entfernungsschranke haelt die
     // gemeinsame Suchkiste klein -- sie spannt ueber den Punkt UND alle Kandidaten, ein weit
     // entfernter Knoten zoege sie auf. Wenn aber KEINER der nahen querfeldein erreichbar ist (ein
     // Ort mitten in einem See), waere die Antwort sonst „kein Weg", obwohl der uebernaechste
     // gegangen waere. Also: erst die nahen, und nur wenn keiner traegt, alle.
-    $nearest = (float) $candidates[0]['distance'];
-    $reach = max($nearest * AVESMAPS_ROUTE_OFFROAD_EXIT_DISTANCE_FACTOR, $nearest);
-    $near = array_values(array_filter($candidates, static fn(array $c): bool => (float) $c['distance'] <= $reach + 1e-9));
+    //
+    // 💣 UND SIE MISST JE FAMILIE, NICHT UEBER DEN GEMEINSAMEN TOPF. Die Schranke ist RELATIV
+    // (naechster x 2,5), und die beiden Familien haben voellig verschiedene Massstaebe: ein
+    // Fusspunkt liegt fast immer naeher als jede Ortschaft. Gemeinsam gerechnet schrumpft die
+    // Reichweite auf ein Vielfaches der Fusspunkt-Entfernung, und keine Ortschaft ueberlebt sie
+    // mehr. Live gemessen am 14.08.2026: ein Kartenpunkt 0,497 neben der Strasse bot nur noch
+    // diesen einen Ausstieg an (vorher vier) -- und die Reise wurde dadurch 2,8 % teurer.
+    $splitByReach = static function (array $set): array {
+        if ($set === []) { return [[], []]; }
+        $nearest = (float) $set[0]['distance'];
+        $reach = max($nearest * AVESMAPS_ROUTE_OFFROAD_EXIT_DISTANCE_FACTOR, $nearest);
+        $near = array_values(array_filter($set, static fn(array $c): bool => (float) $c['distance'] <= $reach + 1e-9));
+        return [$near, $set];
+    };
+    // Ein Fusspunkt, der auf einem Endknoten liegt, TRAEGT dessen Namen (der Teiler gibt ihn dann
+    // unveraendert zurueck) -- ohne Entdopplung liefe der A* zweimal zum selben Ziel.
+    $mergeStage = static function (array $a, array $b): array {
+        $byName = [];
+        foreach (array_merge($a, $b) as $candidate) {
+            $name = (string) $candidate['name'];
+            if (!isset($byName[$name]) || (float) $byName[$name]['distance'] > (float) $candidate['distance']) {
+                $byName[$name] = $candidate;
+            }
+        }
+        $merged = array_values($byName);
+        usort($merged, static fn(array $x, array $y): int => $x['distance'] <=> $y['distance']);
+        return $merged;
+    };
+
+    [$nearAnchors, $allAnchors] = $splitByReach($anchorCandidates);
+    [$nearNodes, $allNodes] = $splitByReach($nodeCandidates);
+    $near = $mergeStage($nearAnchors, $nearNodes);
+    $candidates = $mergeStage($allAnchors, $allNodes);
     $stages = count($near) === count($candidates) ? [$near] : [$near, $candidates];
 
     // 🔴 EINE KISTE FUER ALLE KANDIDATEN, und deshalb auch nur EIN Satz Datenbankabfragen. Vorher

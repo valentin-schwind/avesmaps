@@ -668,6 +668,15 @@ git commit -m "feat(routing): ein Ort ohne Weganbindung bekommt sechs Fusspunkte
 > entdoppelt (ein Fußpunkt auf einem Endknoten trägt dessen Namen), nach Entfernung sortiert und
 > gemeinsam durch die bestehende zweistufige Rettung geschickt. Aufgefallen ist es an
 > `offroad-leg-test.php`, Abschnitt „a harbour town drawn just inside a generously drawn coastline".
+>
+> 🔴 **UND EINE ZWEITE KORREKTUR, LIVE GEMESSEN.** Die Reichweitenschranke (nächster × 2,5) darf
+> **nicht** über den gemeinsamen Topf rechnen: ein Fußpunkt liegt fast immer näher als jede
+> Ortschaft, die Reichweite schrumpft dadurch auf ein Vielfaches der Fußpunkt-Entfernung, und keine
+> Ortschaft überlebt sie mehr. Gemessen: ein Kartenpunkt 0,497 neben der Straße bot **nur noch
+> diesen einen** Ausstieg an (vorher vier) und die Reise wurde 2,8 % teurer. Gebaut ist deshalb eine
+> Schranke **je Familie**; die beiden nahen Mengen werden danach zusammengelegt. Damit fällt auch
+> die Kostenaussage in Schritt „Kosten": der Kartenpunkt wird nicht billiger, sondern kostet so viel
+> wie vorher plus die Fußpunkte.
 
 - [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
 

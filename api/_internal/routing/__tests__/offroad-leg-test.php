@@ -178,7 +178,16 @@ assert($fromDrowned['ok'] === true, 'a place inside water is never refused for b
 assert($fromDrowned['exit_nodes_connected'] >= 1, 'mindestens ein Ausstieg bleibt erreichbar');
 assert(!in_array('B', array_column($fromDrowned['exit_nodes'], 'node'), true),
     'B ist als Ausstieg unerreichbar und faellt weg -- verworfen wurde die KANTE, nicht der Ort');
-assert(in_array('A', array_column($fromDrowned['exit_nodes'], 'node'), true), 'A traegt die Reise');
+// ⚠️ Hier stand „A traegt die Reise". Seit dem 14.08.2026 traegt sie ein FUSSPUNKT: der Punkt liegt
+// 40 Einheiten ueber der Strasse, A dagegen 69,6 entfernt -- die Suche geht also weiter als vorher,
+// nur an eine bessere Stelle. Die Aussage des Falls bleibt dieselbe: B wurde nie als ORT verworfen,
+// nur seine Kante fand keinen trockenen Weg.
+$ertrunkeneAusstiege = array_column($fromDrowned['exit_nodes'], 'node');
+assert($ertrunkeneAusstiege !== [], 'die Suche findet einen Ausstieg: ' . implode(', ', $ertrunkeneAusstiege));
+$abstandZuA = hypot(62.0 - 5.0, 50.0 - 10.0);
+assert((float) $fromDrowned['exit_nodes'][0]['air_distance'] <= $abstandZuA + 1e-9,
+    'und zwar keinen schlechteren als die ferne Ortschaft A: '
+    . $fromDrowned['exit_nodes'][0]['air_distance'] . ' gegen ' . $abstandZuA);
 
 // 💣 THE REAL CASE IS THE OTHER ONE: a harbour town drawn just inside a generously drawn coastline.
 // Belhanka and Kuslik are that, and V13 measured the slop at 1,0 map unit. Such a node must be a
@@ -311,11 +320,36 @@ $fussKnoten = array_map(static fn(array $e): string => (string) $e['node'], $fus
 assert($fussKnoten !== [], 'es gibt einen Ausstieg');
 assert(str_starts_with($fussKnoten[0], AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX),
     'und er ist ein Fusspunkt, keine Ortschaft: ' . $fussKnoten[0]);
-assert(!in_array('LangA', $fussKnoten, true) && !in_array('LangB', $fussKnoten, true),
-    'die fernen Ortschaften stehen nicht mehr im Angebot: ' . implode(',', $fussKnoten));
+// ⚠️ Die fernen Ortschaften bleiben trotzdem im Angebot -- die Schranke misst je Familie, und
+// innerhalb der Ortschaften sind diese beiden die naechsten. Das ist gewollt: welcher Ausstieg die
+// guenstigste GESAMTREISE ergibt, entscheidet der Dijkstra, nicht die Luftlinie.
+assert(in_array('LangA', $fussKnoten, true), 'die Ortschaften bleiben zur Wahl: ' . implode(',', $fussKnoten));
 // Und die Luftlinie zum Ausstieg ist die 4, nicht die 50.
 assert(abs((float) $fussReport['exit_nodes'][0]['air_distance'] - 4.0) < 1e-6,
     'Luftlinie zum Ausstieg: ' . $fussReport['exit_nodes'][0]['air_distance']);
+
+// ============================================================ Die Schranke misst JE FAMILIE
+
+// 💣 EIN SEHR NAHER FUSSPUNKT DARF DIE ORTSCHAFTEN NICHT AUS DEM ANGEBOT DRAENGEN. Die
+// Reichweitenschranke ist RELATIV (naechster x 2,5), und die beiden Familien haben voellig
+// verschiedene Massstaebe: ein Fusspunkt liegt fast immer naeher als jede Ortschaft. Ueber einen
+// gemeinsamen Topf gerechnet schrumpft die Reichweite damit auf ein Vielfaches der Fusspunkt-
+// Entfernung -- und keine Ortschaft ueberlebt sie mehr.
+// 🔴 Live gemessen am 14.08.2026: ein Kartenpunkt 0,497 neben der Strasse bot NUR noch diesen einen
+// Ausstieg an (vorher vier), und die Reise wurde dadurch um 2,8 % teurer -- genau die Verschlechterung,
+// die der Entwurf ausschliesst.
+$familienGraph = $buildGraph();
+// Punkt 0,2 ueber der Strasse: Fusspunkt bei 0,200, Ortschaft B bei 1,020, B2 bei 4,030.
+$familien = avesmapsAttachOffroadPointToGraph($familienGraph, $locations, $request, $water, $land, null, 26.0, 10.2, '__offroad_to');
+assert($familien['ok'] === true, 'der Punkt haengt: ' . json_encode($familien));
+$familienKnoten = array_column($familien['exit_nodes'], 'node');
+assert(str_starts_with((string) $familien['nearest_exit_node'], AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX),
+    'der Fusspunkt ist der naechste: ' . $familien['nearest_exit_node']);
+assert(in_array('B', $familienKnoten, true),
+    'und die nahe Ortschaft steht trotzdem im Angebot: ' . implode(', ', $familienKnoten));
+// ⚠️ Aber die Schranke wirkt weiterhin -- B2 liegt das Vierfache von B entfernt und bleibt draussen.
+assert(!in_array('B2', $familienKnoten, true),
+    'die entfernte Ortschaft bleibt draussen: ' . implode(', ', $familienKnoten));
 
 // ============================================================ Rueckfall auf die Ortschaften
 

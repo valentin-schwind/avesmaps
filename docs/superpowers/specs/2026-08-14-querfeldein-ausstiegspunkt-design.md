@@ -177,13 +177,23 @@ Die Reihenfolge bleibt, wie sie ist.
 | | heute | danach |
 |---|---|---|
 | Sammler-Durchläufe je Anfrage | bis 3 (Wegpunkte) | bis 5 (+2 Kartenpunkte) |
-| A\*-Läufe je Kartenpunkt | bis 12 | bis **6**, Rückfall nur im Notfall |
+| A\*-Läufe je Kartenpunkt | bis 12 | bis **18** (12 Ortschaften + 6 Fußpunkte), meist deutlich weniger |
 | zusätzliche Knoten je Anfrage | bis 3 | bis ~30, gegen ~5.900 Wege |
 
-⭐ **Der Kartenpunkt wird billiger, nicht teurer.** Der Sammler-Durchlauf kommt
-zweimal öfter vor — er läuft heute schon bei jeder Anfrage, und die Antwortzeit
-wird vom Laden der Feature-Tabelle bestimmt (~1,5 s, Instruction C §5.8), nicht
-von ihm.
+🔴 **KORREKTUR VOM 14.08.2026, LIVE GEMESSEN.** Hier stand „bis **6**, Rückfall
+nur im Notfall" und „⭐ Der Kartenpunkt wird billiger, nicht teurer". Beides fiel
+mit der Rückfall-Korrektur oben: liegen beide Familien in einem Topf, laufen im
+schlechtesten Fall beide. Der Versuch, das über die gemeinsame
+Reichweitenschranke einzufangen, hat live genau die Verschlechterung erzeugt,
+die der Entwurf ausschließt — ein Kartenpunkt 0,497 neben der Straße bot **nur
+noch einen** Ausstieg an (vorher vier) und die Reise wurde 2,8 % teurer. Grund:
+die Schranke ist relativ (nächster × 2,5), und ein Fußpunkt liegt fast immer
+näher als jede Ortschaft; gemeinsam gerechnet überlebt sie keine Ortschaft mehr.
+
+⭐ **Die Schranke misst deshalb JE FAMILIE**, und die beiden nahen Mengen werden
+danach zusammengelegt. Der Kartenpunkt kostet damit so viel wie vorher plus die
+Fußpunkte — die Antwortzeit wird ohnehin vom Laden der Feature-Tabelle bestimmt
+(~1,5 s, Instruction C §5.8), nicht von den Suchläufen.
 
 ⚠️ **Rein serverseitig.** Einen Client-Zwilling des Ankers gibt es nicht; die
 beiden JS-Stellen oben lesen nur das Namensmuster. Es entsteht also keine
