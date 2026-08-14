@@ -848,6 +848,14 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 .lore-rule-hint__action:focus-visible {
 	color: var(--color-link-hover);
 }
+/* Der geteilte Fokusring, nicht nur ein Farbwechsel -- ein Rahmenloser Knopf haette sonst als
+   einziges Fokuszeichen einen Farbton, und der traegt bei dieser Schriftgroesse nicht.
+   Vorbild: .location-reviews__count-link:focus-visible. */
+.lore-rule-hint__action:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+	border-radius: var(--radius-sm);
+}
 
 .lore-rule-terms {
 	display: flex;
