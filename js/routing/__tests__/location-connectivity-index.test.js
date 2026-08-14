@@ -124,6 +124,11 @@ assert.strictEqual(splitGraph.Sa.S1[0].id, "sp#1", "erste Teilkante: Weg-Stamm p
 assert.strictEqual(splitGraph.S1.Sb[0].id, "sp#2", "zweite Teilkante: Segmentnummer hochgezaehlt");
 assert.strictEqual(splitGraph.Xa.Xb[0].id, "xy", "ein Weg ohne inneren Stuetzpunkt behaelt seine reine Weg-id");
 
+// collectGraphNodeArms().pathIds muss denselben Stamm liefern, egal ob der Weg gesplittet wurde oder
+// nicht -- genau die Eigenschaft, auf die sich Task 3 verlaesst (Vergleich gegen properties.id).
+assert.deepStrictEqual(collectGraphNodeArms(splitGraph, "S1").pathIds, new Set(["sp"]), "beide Teilkanten-Enden an S1 tragen denselben Weg-Stamm, nicht die id#n-Form");
+assert.deepStrictEqual(collectGraphNodeArms(splitGraph, "Xa").pathIds, new Set(["xy"]), "ein ungeteilter Weg liefert seine reine id als Stamm");
+
 // --- Die Wache gegen doppelte Stuetzpunkte -------------------------------------------------------
 // 💣 Zwilling der PHP-Wachen in client-graph.php:204-207 (beim Einsammeln) und :223 (vor jeder
 // Teilkante). Der Weg "dd" traegt einen inneren Vertex, der round-5 exakt auf denselben Ort faellt
