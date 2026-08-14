@@ -32,7 +32,14 @@ try {
     $payload = avesmapsReadJsonRequest();
     $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? 'get'), 40);
 
-    $pdo = avesmapsCreatePdo($config);
+    // 💣 DER TEILBAUM, NICHT DIE GANZE KONFIGURATION. `avesmapsCreatePdo(array $databaseConfig)` nimmt
+    // ein Array, und `$config` IST eins -- PHP beschwert sich also nicht. Drinnen sind dann `driver`,
+    // `host`, `port`, `name` und `user` allesamt leer, die Funktion wirft, und der `catch (Throwable)`
+    // am Ende dieser Datei macht daraus ein generisches 500. Genau so hat dieses Fenster vom Tag
+    // seiner Veroeffentlichung an (14.08.2026) NIE geladen: „Die Tempowerte konnten nicht geladen
+    // werden." haengt im Client an einem `.catch`, und dort sehen Netzfehler, 500 und kaputtes JSON
+    // gleich aus. Bewacht von api/_internal/__tests__/create-pdo-argument-test.php.
+    $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsAppSettingEnsureTable($pdo);
 
     $values = avesmapsTravelValuesRead($pdo);
