@@ -247,4 +247,48 @@ assert($again[0]['fingerprint'] === $shared[0]['fingerprint']);
 $allPrints = array_merge(array_column($shared, 'fingerprint'), array_column($collapsed, 'fingerprint'));
 assert(count($allPrints) === count(array_unique($allPrints)));
 
+
+// --- Die Verbtexte sagen die REICHWEITE ---------------------------------------------------------
+// 🔴 Seit dem 15.08.2026 fasst jeder schreibende Knopf bei Wegen und Kraftlinien die ganze Linie.
+// "Nur dieses Objekt verliert die Verknuepfung" war danach schlicht falsch, und ein Editor, der es
+// erst nach dem Klick erfaehrt, hat keine Entscheidung getroffen, sondern eine Ueberraschung erlebt.
+//
+// ⚠️ Geprueft wird auf die DEUTSCHEN Woerter, nicht auf AVESMAPS_CONFLICT_SEGMENTED_TYPES:
+// 'path'/'powerline' sind Datenschluessel, "Weg"/"Kraftlinie" ist die Sprache des Editors, und
+// zwischen beiden gibt es keine Ableitung, nur eine Uebersetzung. Kommt eine dritte segmentierte
+// Art hinzu, faellt das hier NICHT auf -- dann gehoert sie in beide Listen von Hand.
+$catalog = avesmapsConflictRuleCatalog();
+$verbsById = [];
+foreach ($catalog as $rule) {
+    $verbsById[$rule['id']] = [];
+    foreach ($rule['verbs'] ?? [] as $verb) {
+        $verbsById[$rule['id']][$verb['label']] = (string) $verb['effect'];
+    }
+}
+
+// Die drei Knoepfe am geteilten Artikel -- alle drei schreiben, alle drei fassen die Linie.
+foreach (['Behält den Link', 'Trennen', 'Kein Wiki-Eintrag'] as $label) {
+    $effect = $verbsById['wiki.shared_article'][$label] ?? '';
+    assert($effect !== '', 'Verb "' . $label . '" ist beschrieben');
+    assert(str_contains($effect, 'Kraftlinie'), 'Verb "' . $label . '" nennt die Kraftlinie');
+    assert(str_contains($effect, 'Weg'), 'Verb "' . $label . '" nennt den Weg');
+}
+
+// 💣 Der Satz, der falsch wurde. Er darf nicht zurueckkehren.
+assert(
+    !str_contains($verbsById['wiki.shared_article']['Trennen'], 'Nur dieses Objekt'),
+    '"Nur dieses Objekt" ist seit der Reichweitenaenderung unwahr'
+);
+// ⚠️ Und die Gegenrichtung gehoert dazu: bei Ort, Region und Territorium bleibt es bei einem
+// Objekt. Ohne diese Haelfte liest sich der Satz, als traefe jeder Klick immer viele Zeilen.
+assert(str_contains($verbsById['wiki.shared_article']['Trennen'], 'nur dieses eine Objekt'));
+
+// Der einzige schreibende Knopf der Beobachtungsliste -- er fehlte in ihrer Verbliste ganz.
+$uebernehmen = $verbsById['wiki.missing_key']['Artikel übernehmen'] ?? '';
+assert($uebernehmen !== '', '"Artikel übernehmen" ist beschrieben');
+assert(str_contains($uebernehmen, 'Kraftlinie') && str_contains($uebernehmen, 'Weg'));
+// Er laesst Zeilen aus, die schon etwas tragen -- und meldet sie. Das gehoert in den Text, sonst
+// liest sich das Ergebnis wie ein halb misslungener Klick.
+assert(str_contains($uebernehmen, 'unangetastet'));
+
 fwrite(STDOUT, "conflict-rules-test: alle Zusicherungen erfuellt\n");

@@ -465,10 +465,15 @@ function avesmapsConflictRuleCatalog(): array {
             // cosmetic: only the second one sticks, because the enrichment keeps proposing a link for
             // any name it can match. Without this spelled out, an editor picks the weaker verb and
             // the link quietly returns -- which is Discord #38 all over again.
+            // 🔴 Die REICHWEITE gehört in jeden dieser Sätze (Owner 15.08.2026). Ein Weg und eine
+            // Kraftlinie sind viele Zeilen mit einem Namen, und seit dem 15.08.2026 fasst jeder
+            // dieser Knöpfe die ganze Linie — „Nur dieses Objekt“ war danach schlicht falsch. Wer
+            // erst nach dem Klick erfährt, dass er 26 Segmente bewegt hat, hat keine Entscheidung
+            // getroffen, sondern eine Überraschung erlebt.
             'verbs' => [
-                ['label' => 'Behält den Link', 'effect' => 'Dieses Objekt bleibt mit dem Artikel verknüpft. Alle anderen in diesem Fall verlieren ihre Verknüpfung.'],
-                ['label' => 'Trennen', 'effect' => 'Nur dieses Objekt verliert die Verknüpfung. Achtung: Trägt es einen Namen, der zu einem Wiki-Artikel passt, kann der Server ihn später erneut vorschlagen.'],
-                ['label' => 'Kein Wiki-Eintrag', 'effect' => 'Trennt UND hält fest, dass es im Wiki nichts dazu gibt. Nur so bleibt die Trennung dauerhaft — nichts wird mehr vorgeschlagen.'],
+                ['label' => 'Behält den Link', 'effect' => 'Dieses Objekt bleibt mit dem Artikel verknüpft, alle anderen in diesem Fall verlieren ihre Verknüpfung. Bei einem Weg oder einer Kraftlinie gilt beides für die ganze Linie: der Behalter behält sie mit allen seinen Segmenten, die anderen verlieren sie mit allen ihren.'],
+                ['label' => 'Trennen', 'effect' => 'Dieses Objekt verliert die Verknüpfung — bei einem Weg oder einer Kraftlinie die ganze Linie mit allen ihren Segmenten, bei Orten, Regionen und Territorien nur dieses eine Objekt. Achtung: Trägt es einen Namen, der zu einem Wiki-Artikel passt, kann der Server ihn später erneut vorschlagen.'],
+                ['label' => 'Kein Wiki-Eintrag', 'effect' => 'Trennt UND hält fest, dass es im Wiki nichts dazu gibt — bei einem Weg oder einer Kraftlinie für die ganze Linie, sonst für dieses eine Objekt. Nur so bleibt die Trennung dauerhaft — nichts wird mehr vorgeschlagen.'],
                 ['label' => 'Genehmigt', 'effect' => 'Der Fund stimmt, die Lage ist aber richtig so — etwa ein Meer aus zwei Buchten, die beide beschriftet werden müssen. Ändert die Daten nicht und taucht nicht wieder unter „Wichtig“ auf.'],
                 ['label' => 'Zurückstellen / Archivieren', 'effect' => 'Ändern die Daten nicht. Zurückgestellt heißt „später“, archiviert heißt „bewusst so gelassen, aber weiterhin falsch“ — beides bleibt auffindbar und umkehrbar.'],
             ],
@@ -484,6 +489,11 @@ function avesmapsConflictRuleCatalog(): array {
             'severity' => AVESMAPS_CONFLICT_UNVERIFIED,
             'actions' => ['defer', 'ignore'],
             'verbs' => [
+                // Der einzige Knopf dieser Gruppe, der Daten schreibt -- er fehlte in dieser Liste,
+                // und seit dem 15.08.2026 reicht er über die ganze Linie. Genau hier ist die
+                // Reichweite am wenigsten zu erraten: die Fälle sind nach Namen zusammengefasst,
+                // am Knopf steht also „6 Segmente“, und der Klick meint sie auch alle.
+                ['label' => 'Artikel übernehmen', 'effect' => 'Verknüpft dieses Objekt mit dem gefundenen Artikel — bei einem Weg oder einer Kraftlinie alle Segmente der Linie, sonst dieses eine Objekt. Teile, die bereits eine Verknüpfung tragen, bleiben unangetastet und werden hinterher genannt.'],
                 ['label' => 'Zurückstellen', 'effect' => 'Nimmt den Eintrag aus „Offen“, holt ihn aber zurück, sobald sich am Objekt etwas ändert.'],
                 ['label' => 'Archivieren', 'effect' => 'Bewusst so gelassen. Bleibt unter „Archiviert“ auffindbar und lässt sich jederzeit wieder öffnen.'],
             ],
