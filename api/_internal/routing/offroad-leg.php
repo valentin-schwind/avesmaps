@@ -263,6 +263,9 @@ function avesmapsAttachOffroadPointToGraph(
     $factors = '';
     $exits = [];
     $offered = 0;
+    $unreachable = 0;
+    $nearestAir = null;
+    $kandidaten = [];
     foreach ([$reach, INF] as $stageLimit) {
         if ($exits !== []) { break; }
         $set = $buildCandidates($stageLimit);
@@ -322,9 +325,26 @@ function avesmapsAttachOffroadPointToGraph(
         //
         // ⚠️ Die Reise auf dem Netz bis dorthin sucht weiterhin der Dijkstra. Er entscheidet, WIE
         // man zum Abgangspunkt kommt -- nur nicht mehr, WANN man den Weg verlaesst.
+        // 💣 UND ER SAGT, WIE VIELE NAEHERE ER UEBERSPRINGEN MUSSTE. Ohne diese Zahl ist die Antwort
+        // nicht von „es gab nichts Naeheres" zu unterscheiden -- und genau das kostete am 16.08.2026
+        // vier Messungen: ein Zielpunkt neben Pfalz Albengau stieg 17,4 Meilen entfernt aus und lief
+        // dadurch das 3,3-Fache der Luftlinie, weil die naeheren Kandidaten querfeldein unerreichbar
+        // waren (ein Fluss dazwischen). Der Bericht nannte nur den GEWAEHLTEN.
+        $nearestAir = $set !== [] ? (float) $set[array_key_first($set)]['distance'] : null;
+        // ⭐ ALLE gerechneten Kandidaten mit ihrem Befund -- nicht nur der gewaehlte. Genau diese
+        // Liste beantwortet die Frage "warum nicht der Weg da drueben": entweder er steht gar nicht
+        // drin (dann ist die Kandidatenauswahl zu eng), oder er steht drin und war unerreichbar
+        // (dann liegt ein Hindernis dazwischen). Ohne sie sind die beiden Faelle nicht zu trennen.
+        foreach ($set as $index => $candidate) {
+            $kandidaten[] = [
+                'node' => (string) $candidate['name'],
+                'air_distance' => (float) $candidate['distance'],
+                'reachable' => isset($paths[$index]),
+            ];
+        }
         foreach ($set as $index => $candidate) {
             $path = $paths[$index] ?? null;
-            if ($path === null) { continue; }
+            if ($path === null) { $unreachable++; continue; }
 
             avesmapsAddOffroadEdge($clientGraph['graph'], $candidate['name'], $nodeName, $path, (string) $transport, 'offroad-' . $nodeName . '-' . $index);
             $exits[] = [
@@ -343,6 +363,9 @@ function avesmapsAttachOffroadPointToGraph(
             'ok' => false, 'error' => 'no_offroad_route',
             'cell_mapunits' => $box['cell'], 'cell_count' => $box['cell_count'],
             'exit_nodes_offered' => $offered,
+            'exit_unreachable' => $unreachable,
+            'exit_nearest_air' => $nearestAir,
+            'exit_candidates' => $kandidaten,
             'exit_vertices_capped' => $verticesCapped,
         ];
     }
@@ -355,6 +378,13 @@ function avesmapsAttachOffroadPointToGraph(
         // demselben Pfadpunkt" und „er sucht sich einen aus".
         'exit_nodes' => $exits,
         'exit_nodes_offered' => $offered,
+        // 🔴 WIE VIELE NAEHERE UNERREICHBAR WAREN. Ist das > 0, liegt zwischen dem Punkt und
+        // seinem naechsten Netzpunkt ein Hindernis -- seit dem 15.08.2026 kann das ein FLUSS
+        // sein. Ohne diese Zahl liest sich eine weite Anbindung wie eine schlechte Wahl,
+        // obwohl sie die einzige moegliche war.
+        'exit_unreachable' => $unreachable,
+        'exit_nearest_air' => $nearestAir,
+        'exit_candidates' => $kandidaten,
         'exit_vertices_capped' => $verticesCapped,
         'exit_nodes_connected' => count($exits),
         'nearest_exit_node' => $exits[0]['node'] ?? '',
