@@ -146,4 +146,42 @@ assert(count($rebuilt) === 2);
 assert(isset($rebuilt[avesmapsConflictArticleKey('https://de.wiki-aventurica.de/wiki/Hexenband')]));
 
 
+// --- avesmapsWikiPowerlineDecideSegments: die REINE Entscheidung, ohne PDO ------------------
+// Deckt die zwei vom Aufgabenblatt als 💣 markierten Stellen mutationsscharf ab, die bislang nur
+// in der datenbankgebundenen Schleife lebten und deshalb von keinem Test erreicht wurden. Hausform
+// wie api/_internal/conflicts/core.php: reiner Kern, duenne Datenbankschale.
+$segmentRows = [
+    // Zuweisung: die Linie heisst ANDERS als der Artikel -- matched_keys muss den Schluessel des
+    // ARTIKELS tragen (Satinavs Ketten), nicht den der Linie (Satinavs Kette I). Mutationstoeter 1.
+    ['id' => 101, 'name' => 'Satinavs Kette I', 'properties' => ['wiki_url' => $satinav['nest']['wiki_url']]],
+    // Nur der Merker faellt, das Nest bleibt exakt gleich -- muss TROTZDEM geschrieben werden.
+    // Mutationstoeter 2.
+    ['id' => 102, 'name' => 'Hexenband', 'properties' => ['wiki_no_article' => true, 'wiki_powerline' => $hexenband['nest']]],
+    // Gegenprobe zu 102: kein Merker, kein Wandel -- darf NICHT geschrieben werden.
+    ['id' => 103, 'name' => 'Hexenband', 'properties' => ['wiki_powerline' => $hexenband['nest']]],
+];
+$decided = avesmapsWikiPowerlineDecideSegments($segmentRows, $byMatchKey, $byArticleKey);
+
+$satinavKey = avesmapsWikiSyncCreateMatchKey('Satinavs Ketten');
+$lineOwnKey = avesmapsWikiSyncCreateMatchKey('Satinavs Kette I');
+$hexenbandKey = avesmapsWikiSyncCreateMatchKey('Hexenband');
+
+// Mutationstoeter 1: der Schluessel gehoert dem ARTIKEL, nie der Linie -- und beide Segmente (101
+// per Zuweisung, 102/103 per Namenstreffer) liefern ihn.
+assert(isset($decided['matched_keys'][$satinavKey]));
+assert(!isset($decided['matched_keys'][$lineOwnKey]));
+assert(isset($decided['matched_keys'][$hexenbandKey]));
+
+$writeIds = array_map(static fn(array $write): int => $write['id'], $decided['writes']);
+sort($writeIds);
+// Mutationstoeter 2: 102 (reiner Merker-Fall) MUSS geschrieben werden, obwohl das Nest gleich
+// bleibt; die Gegenprobe 103 (kein Merker, kein Wandel) darf es NICHT. 101 kommt hinzu, weil die
+// Zuweisung dort ein frisches Nest bringt (Aktion "linked").
+assert($writeIds === [101, 102]);
+assert($decided['no_article_reopened'] === ['Hexenband']);
+assert($decided['counts']['unchanged'] === 1);
+assert($decided['counts']['linked'] === 1);
+assert($decided['claims_unresolved'] === 0);
+assert($decided['claims_orphaned'] === []);
+
 fwrite(STDOUT, "powerline-claim-test: alle Zusicherungen erfuellt\n");
