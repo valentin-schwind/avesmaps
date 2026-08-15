@@ -905,7 +905,7 @@
 		0 2px 8px rgba(0, 0, 0, 0.28);
 }
 
-/* Editor-Markierungswerkzeuge (#25) -- pink = "Unverbunden", türkis = "Kreuzungen ≤ 2 Wege". Ein
+/* Editor-Markierungswerkzeuge (#25) -- pink = "Unverbunden", türkis = "Kreuzungen mit 2 Wegen". Ein
    Marker traegt hoechstens EINEN Ring (das JS entscheidet, siehe resolveMarkerRingModifier). Muss
    NACH --capital/--crossing im Stylesheet stehen, damit die Regel bei Kombination gewinnt. Nur
    box-shadow-Ringe, kein Blur/Filter (Perf, wie jeder andere Marker-Ring in dieser Datei). */

@@ -3,10 +3,10 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
-// „Ein Prüfhaken ZEIGT seine Funde“ (Owner 2026-08-14): „Unverbunden“, „Kreuzungen ≤ 2 Wege“ und
+// „Ein Prüfhaken ZEIGT seine Funde“ (Owner 2026-08-14): „Unverbunden“, „Kreuzungen mit 2 Wegen“ und
 // „Kreuzungen“ blenden ihre Treffer ein -- unabhaengig davon, welche Ortsgroessen eingeschaltet sind,
 // und unabhaengig von der Zoomstufe. Vorher ringelte „Unverbunden“ nur, was die Groessenkaskade
-// ohnehin zeigte, „Kreuzungen ≤ 2 Wege“ tat ohne „Kreuzungen“ gar nichts, und Kreuzungen erschienen
+// ohnehin zeigte, „Kreuzungen mit 2 Wegen“ tat ohne „Kreuzungen“ gar nichts, und Kreuzungen erschienen
 // erst ab Zoom 3 -- also blieben genau die gesuchten Orte unsichtbar.
 //
 // runInThisContext statt vm-Sandbox: dieselbe Technik wie settlement-infobox-without-wiki.test.js --
@@ -79,11 +79,11 @@ const verbunden = { locationType: "dorf", name: "Angebunden", publicId: "dorf-2"
 assert.strictEqual(showMarker(verbunden, 5), false, "der Haken zeigt seine FUNDE, nicht alle Orte");
 assert.strictEqual(showLabel(verbunden, 5), false, "... und benennt auch nur diese");
 
-// --- 4. „Kreuzungen ≤ 2 Wege“ wirkt allein, ohne „Kreuzungen“ ------------------------------------
+// --- 4. „Kreuzungen mit 2 Wegen“ wirkt allein, ohne „Kreuzungen“ ---------------------------------
 reset();
 sparseCrossingIds.add("kr-7");
 checkedToggles.add("#toggleSparseCrossings");
-assert.strictEqual(showMarker(crossing, 5), true, "„Kreuzungen ≤ 2 Wege“ muss ohne „Kreuzungen“ wirken -- vorher tat der Haken allein gar nichts");
+assert.strictEqual(showMarker(crossing, 5), true, "„Kreuzungen mit 2 Wegen“ muss ohne „Kreuzungen“ wirken -- vorher tat der Haken allein gar nichts");
 assert.strictEqual(showMarker(crossing, 0), true, "auch hier ohne Zoomuntergrenze");
 assert.strictEqual(resolveLocationCheckFinding(crossing, createLocationVisibilityContext()), "sparse-crossing");
 
