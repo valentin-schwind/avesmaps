@@ -371,6 +371,9 @@
 <!-- Die Übernahme-Vorschau. Gewöhnliches Skript ohne App-Globals und ohne Griff ins Elternfenster --
      deshalb funktioniert diese Seite auch, wenn sie per window.open in einem eigenen Fenster steht. -->
 <script src="/js/review/sync-plan-sheet.js"></script>
+<!-- Die Speicher-Entscheidung der Override-Maske (Fall #72). Herausgelöst, weil das Inline-Skript
+     dieser Seite ohne Browser nicht prüfbar ist und der Fehler genau dort saß. -->
+<script src="/js/review/wiki-model-override-save.js"></script>
 <script>
 const API = '/api/edit/wiki/sync-monitor.php';
 // Offline-Dump endpoint (api/edit/wiki/dump.php). "Syncen" drives its sync_kind
@@ -730,7 +733,10 @@ function periodFromBf(n){
   return '';
 }
 function isOvr(n,k){ return !!(n.overrides && Object.prototype.hasOwnProperty.call(n.overrides,k)); }
-function wikiVal(n,k){ const v=n[k]; return v==null?'':String(v); }
+// 💣 NICHT n[k] lesen: der Server faltet Override bzw. Default in `name`/`continent` hinein
+// (sync-monitor-tree.php). Ein eigener Knoten verglich damit seinen Override mit sich selbst,
+// und "gleich" hiess "loeschen" -> Fall #72. Der rohe Stand kommt aus wiki_name/wiki_continent.
+function wikiVal(n,k){ return avesmapsWikiModelRawValue(n,k); }
 function effVal(n,k){ return isOvr(n,k)?String(n.overrides[k]==null?'':n.overrides[k]):wikiVal(n,k); }
 // Effektives Wappen/Lizenz/Urheber = Override ?? Wiki-Stand (Wappen-Override per #3/#4 oder set_field_override).
 function effCoat(n){ return isOvr(n,'coat_of_arms_url')?String(n.overrides.coat_of_arms_url||''):(n.coat_of_arms_url||''); }
@@ -878,15 +884,29 @@ async function saveEdits(){
   const n=BYKEY.get(selectedKey); if(!n) return;
   busy(true);
   try{
+    // 💣 Der Ausgangswert steht im DOM selbst: renderEditForm rendert value= bzw. selected=,
+    // also sind defaultValue/defaultSelected genau der Stand, den der Benutzer vorgefunden hat.
+    // Kein zweiter Zustand daneben, der auseinanderlaufen koennte. Ein unangetastetes Feld wird
+    // gar nicht erst eingereicht -- daran starb der Anzeigename eigener Knoten (Fall #72).
+    const felder=[];
     for(const inp of document.querySelectorAll('#detailBody .dt-in')){
       const fk=inp.dataset.fk;
       if(!fk) continue;
       if(fk==='capital_name' && pendingCapital!==undefined) continue; // unten zusammen mit dem Link gesetzt
-      const val=inp.value, wiki=wikiVal(n,fk), ov=isOvr(n,fk);
-      // Kontinent-Dropdown: leere Wahl ("— (Wiki)") = kein Override -> ggf. löschen, nie "" schreiben.
-      if(fk==='continent' && val===''){ if(ov) await api('clear_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:fk}}); continue; }
-      if(val===wiki){ if(ov) await api('clear_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:fk}}); }
-      else { await api('set_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:fk,value:val}}); }
+      let initial;
+      if(inp.tagName==='SELECT'){
+        const vorgewaehlt=Array.from(inp.options).find(o=>o.defaultSelected);
+        initial=vorgewaehlt?vorgewaehlt.value:'';
+      } else {
+        initial=inp.defaultValue;
+      }
+      // clearWhenEmpty: "— (Wiki)" beim Kontinent heisst KEIN Override, nie ein leerer Override.
+      felder.push({key:fk, value:inp.value, initialValue:initial, clearWhenEmpty:fk==='continent'});
+    }
+    for(const call of avesmapsWikiModelPlanOverrideSaves(n, felder)){
+      const body={wiki_key:n.wiki_key, field_key:call.fieldKey};
+      if(call.action==='set_field_override') body.value=call.value;
+      await api(call.action,{method:'POST',body});
     }
     // Zeit-Controls: Gegründet=founded_start_bf, Aufgelöst=dissolved_end_bf (leer/besteht = '')
     const readBf=(which)=>{ const inp=document.querySelector('#detailBody .dt-bf[data-bf="'+which+'"]'); const sel=document.querySelector('#detailBody .dt-bf-sign[data-bf-sign="'+which+'"]'); if(!inp) return undefined; const raw=inp.value.trim(); if(raw==='') return null; const x=Math.abs(parseInt(raw,10)); if(isNaN(x)) return null; return (sel&&sel.value==='vbf')?-x:x; };

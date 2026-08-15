@@ -191,10 +191,18 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
                 : ((isset($overrides['name']) && trim((string) $overrides['name']) !== '')
                     ? trim((string) $overrides['name'])
                     : (string) $row['wiki_key']),
+            // 💣 Der ROHE Staging-Name, getrennt vom gefalteten 'name' darueber. Die Override-
+            // Maske vergleicht den eingetippten Wert gegen den Wiki-Stand; laese sie dafuer
+            // 'name', verglichen sie bei einem eigenen Knoten den Override mit sich selbst und
+            // loeschten ihn als "unveraendert" (Fall #72). Leer heisst hier: es gibt keinen.
+            'wiki_name' => (string) ($row['name'] ?? ''),
             'type' => (string) ($row['type'] ?? ''),
             // Eigene Knoten haben keinen Staging-Kontinent -> Default Aventurien, sonst filtert der
             // Editor-Kontinentfilter (Default Aventurien) sie raus. Override gewinnt im Frontend.
             'continent' => (avesmapsWikiSyncMonitorIsCustomNodeKey((string) $row['wiki_key']) && trim((string) ($row['continent'] ?? '')) === '') ? 'Aventurien' : (string) ($row['continent'] ?? ''),
+            // Der rohe Kontinent, aus demselben Grund wie 'wiki_name' oben: der Default
+            // 'Aventurien' ist Anzeige, kein Wiki-Stand, und darf keinen Override loeschen.
+            'wiki_continent' => (string) ($row['continent'] ?? ''),
             'affiliation_raw' => (string) ($row['affiliation_raw'] ?? ''),
             'wiki_url' => (string) ($row['wiki_url'] ?? ''),
             'founded_text' => (string) ($row['founded_text'] ?? ''),
