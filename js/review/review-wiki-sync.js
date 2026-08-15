@@ -2568,10 +2568,19 @@ var AVESMAPS_LORE_VIEWS = {
 	panel: {
 		scroll: "lore-list-scroll", search: "lore-list-search", count: "lore-list-count",
 		tabAttr: "data-lore-kind", countAttr: "data-lore-count",
+		// Die PANEL-Zeile: flach, Trennlinie, keine Rundung -- dieselbe wie in den sieben
+		// Nachbarlisten des Reiters (.wikisync-itemlist .tree-item, region-sync.css).
+		rowForm: "tree",
 	},
 	dialog: {
 		scroll: "lore-dlg-scroll", search: "lore-dlg-search", count: "lore-dlg-count",
 		tabAttr: "data-lore-dlg-kind", countAttr: "data-lore-dlg-count",
+		// Die EDITOR-Zeile: schwebend, gerundet, gewählt mit goldenem Rahmen (.avm-row,
+		// css/components/editor-row.css). Owner 2026-08-15 „angleichen", nachdem er das Fenster
+		// neben Karten- und Literatureditor gesehen hat: es IST ein Editorfenster und trug als
+		// einziges die Panel-Zeile. 💣 Die Nachbarschaft entscheidet, nicht die Datenquelle --
+		// Reiter und Fenster sieht man nie gleichzeitig, zwei Editorfenster sehr wohl.
+		rowForm: "avm",
 	},
 };
 
@@ -2676,7 +2685,13 @@ function avesmapsLoreListPlain(value) {
 // showKind: NUR in der Ansicht „Alle". ⚠️ Dort ist die Art die wichtigste Auskunft der Zeile --
 // „Bräubier" (Ware) und „Bräuwurm" (Fauna) stehen sonst ununterscheidbar untereinander. In
 // „Fauna" wäre dasselbe Wort in jeder einzelnen Zeile bloß Lärm, deshalb steht es dort nicht.
-function avesmapsLoreListRowHtml(item, showKind) {
+//
+// form: „tree" für den Reiter, „avm" für das Fenster (siehe AVESMAPS_LORE_VIEWS.rowForm).
+// 🔴 Zwei FORMEN, EIN Inhalt: Name, Meta-Zeile, Schlüssel und Titel werden genau einmal gebaut,
+// nur die Hülle unterscheidet sich. Wer hier eine Angabe nur in einen Zweig schreibt, hat die
+// beiden Listen auseinandergetrieben -- und das fällt niemandem auf, weil man sie nie
+// nebeneinander sieht.
+function avesmapsLoreListRowHtml(item, showKind, form) {
 	var art = avesmapsLoreListPlain(item.typ || item.gruppe || "");
 	var places = Array.isArray(item.places) ? item.places : [];
 	// Die Orte SELBST statt einer Zahl -- danach ist die Zeile erst brauchbar:
@@ -2698,14 +2713,31 @@ function avesmapsLoreListRowHtml(item, showKind) {
 	}
 	var href = String(item.wiki_url || "");
 	var safe = href.indexOf("https://de.wiki-aventurica.de/") === 0 ? href : "";
-	// Dieselbe Zeile wie die fuenf Karten-Listen. KEIN has-map-status: Vorkommen hat kein
-	// "liegt auf der Karte".
-	return '<button type="button" class="tree-item" data-lore-entry="'
-		+ avesmapsLoreListEscape(item.wiki_key) + '"'
+	// Alles, was die Zeile SAGT, steht hier -- und zwar einmal für beide Formen.
+	var name = avesmapsLoreListEscape(item.name);
+	var metaHtml = avesmapsLoreListEscape(meta);
+	var gemeinsam = ' data-lore-entry="' + avesmapsLoreListEscape(item.wiki_key) + '"'
 		+ (safe ? ' data-lore-url="' + avesmapsLoreListEscape(safe) + '"' : "")
-		+ ' title="' + avesmapsLoreListEscape(item.name + " – klicken zum Bearbeiten") + '">'
-		+ '<span class="tree-item-name">' + avesmapsLoreListEscape(item.name) + "</span>"
-		+ '<span class="tree-item-meta">' + avesmapsLoreListEscape(meta) + "</span>"
+		+ ' title="' + avesmapsLoreListEscape(item.name + " – klicken zum Bearbeiten") + '"';
+
+	if (form === "avm") {
+		// Die Editor-Zeile der Nachbarfenster, Bauteil für Bauteil aus dem Karteneditor
+		// (html/citymap-editor.html, renderList). ⭐ Der gewählte Eintrag ist hier MARKIERT --
+		// das leistet der transparente 1px-Rahmen der Klasse, der beim Auswählen nur die Farbe
+		// wechselt. Im Reiter gibt es das nicht, dort öffnet ein Klick ja das Fenster.
+		return '<button type="button" class="avm-row'
+			+ (item.wiki_key && item.wiki_key === avesmapsLoreDetailKey ? " is-selected" : "") + '"'
+			+ gemeinsam + ">"
+			+ '<span class="avm-row__text">'
+			+ '<span class="avm-row__name">' + name + "</span>"
+			+ '<span class="avm-row__l2">' + metaHtml + "</span>"
+			+ "</span></button>";
+	}
+	// Dieselbe Zeile wie die sieben Nachbarlisten im Reiter. KEIN has-map-status: Vorkommen hat
+	// kein "liegt auf der Karte".
+	return '<button type="button" class="tree-item"' + gemeinsam + ">"
+		+ '<span class="tree-item-name">' + name + "</span>"
+		+ '<span class="tree-item-meta">' + metaHtml + "</span>"
 		+ "</button>";
 }
 
@@ -2744,7 +2776,7 @@ function renderLoreList(view, data, append) {
 	// durch, und der landete in showKind: Zeile 0 ohne Art, jede weitere mit. Deshalb überall
 	// eine eigene Funktion, die nur das übergibt, was gemeint ist.
 	var showKind = avesmapsLoreListKind[view] === "all";
-	function zeile(item) { return avesmapsLoreListRowHtml(item, showKind); }
+	function zeile(item) { return avesmapsLoreListRowHtml(item, showKind, ids.rowForm); }
 	if (data && typeof data.total !== "undefined") {
 		page.total = Number(data.total) || 0;
 	}
@@ -3251,8 +3283,28 @@ function avesmapsLoreShowDetailResting() {
 	if (placesTitle) { placesTitle.textContent = "Vorkommen"; }
 }
 
+/**
+ * Die offene Zeile in der FENSTER-Liste markieren.
+ *
+ * Ohne diesen Griff bliebe der goldene Rahmen aus, bis die Liste zufällig neu gezeichnet wird --
+ * die Editor-Zeile hätte ihr auffälligstes Merkmal dann nur auf dem Papier. Beim Nachladen
+ * (Endlos-Scroll) kommt die Markierung von selbst mit: avesmapsLoreListRowHtml liest denselben
+ * Schlüssel.
+ *
+ * 🔴 Nur das Fenster. Im Reiter öffnet ein Klick das Fenster; dort gibt es keinen „offenen"
+ * Eintrag, den man markieren könnte, und die Panel-Zeile kennt die Klasse auch nicht.
+ */
+function avesmapsLoreMarkSelectedRow() {
+	var scroll = document.getElementById(AVESMAPS_LORE_VIEWS.dialog.scroll);
+	if (!scroll) { return; }
+	scroll.querySelectorAll("[data-lore-entry]").forEach(function (row) {
+		row.classList.toggle("is-selected", row.getAttribute("data-lore-entry") === avesmapsLoreDetailKey);
+	});
+}
+
 function closeLoreDetail() {
 	avesmapsLoreDetailKey = "";
+	avesmapsLoreMarkSelectedRow();
 	// „Zurück" leert die Maske, schließt aber NICHT das Fenster: Menüband und Liste
 	// daneben bleiben bedienbar. Beide rechten Spalten fallen in ihren Ruhezustand zurück --
 	// mit Titel, damit dort keine namenlose Fläche steht.
@@ -3415,6 +3467,7 @@ function openLoreDetail(wikiKey) {
 	// Der Editor lebt im Fenster. Die Liste im Reiter bleibt stehen -- nach dem Schließen
 	// macht man dort weiter, wo man war, statt Suchbegriff und Scrollstand zu verlieren.
 	setWikiSyncLoreDialogOpen(true);
+	avesmapsLoreMarkSelectedRow();
 	avesmapsLoreDetachSourceEditor();
 	// Der Ladezustand steht in BEIDEN Kästen und in der Kopfzeile. Bliebe der vorige Eintrag
 	// in einem davon stehen, behauptete er, zum gerade geladenen zu gehören.

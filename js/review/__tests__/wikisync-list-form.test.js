@@ -249,10 +249,20 @@ checks++;
 // .tree-item, die Panel-Liste #lore-list-scroll bekam die Klasse, ihre Zwillingsliste im
 // Vorkommen-Fenster nicht. Beide werden von DERSELBEN Funktion gefuellt
 // (avesmapsLoreListRowHtml ueber AVESMAPS_LORE_VIEWS), also kann es gar nicht bei einer bleiben.
+// 🔴 #lore-dlg-scroll (Auswahlspalte im Vorkommen-FENSTER) steht hier bewusst NICHT mehr. Sie hat
+// am 15.08.2026 auf die EDITOR-Zeile gewechselt (.avm-row, css/components/editor-row.css), weil das
+// Fenster neben Karten-, Literatur- und Ortseditor steht und die alle schwebende gerundete Zeilen
+// zeigen (Owner: „angleichen"). Ihr Wachtest ist js/pages/__tests__/editor-row-single-source.test.js.
+// ⚠️ Wer sie hier wieder einträgt, verlangt zwei Zeilenformen für einen Container.
 const indexHtml = lies("index.html");
 const listenContainer = [
 	{ id: "lore-list-scroll", wo: "Reiter „Vorkommen“ im WikiSync-Panel" },
-	{ id: "lore-dlg-scroll", wo: "Auswahlspalte im Fenster „Vorkommen bearbeiten“" },
+	{ id: "settlement-list", wo: "Ortsliste im WikiSync-Panel" },
+	{ id: "region-sync-list", wo: "Regionenliste im WikiSync-Panel" },
+	{ id: "path-sync-list", wo: "Wegeliste im WikiSync-Panel" },
+	{ id: "powerline-sync-list", wo: "Kraftlinienliste im WikiSync-Panel" },
+	{ id: "wiki-sync-adv-scroll", wo: "Literaturliste im WikiSync-Panel" },
+	{ id: "wiki-sync-cm-scroll", wo: "Kartenliste im WikiSync-Panel" },
 ];
 for (const { id, wo } of listenContainer) {
 	const treffer = indexHtml.match(new RegExp(`<div[^>]*id="${id}"[^>]*>`))

@@ -132,8 +132,8 @@ const eintrag = {
 	wiki_key: "wiki:braeubier", name: "Bräubier", kind: "ware", typ: "[[Bier]]",
 	places: ["Weiden", "Kosch"], place_count: 2, origin: "wiki", wiki_url: "",
 };
-const inAlle = context.avesmapsLoreListRowHtml(eintrag, true);
-const inWaren = context.avesmapsLoreListRowHtml(eintrag, false);
+const inAlle = context.avesmapsLoreListRowHtml(eintrag, true, "tree");
+const inWaren = context.avesmapsLoreListRowHtml(eintrag, false, "tree");
 assert.ok(inAlle.includes("Ware · Bier · Weiden, Kosch"),
 	"in „Alle“ fuehrt die Art die Meta-Zeile an -- „Bräubier“ und „Bräuwurm“ sind sonst nicht "
 	+ "zu unterscheiden. Ist: " + inAlle);
@@ -155,6 +155,51 @@ assert.ok(!/items\.map\(avesmapsLoreListRowHtml\)/.test(jsCode),
 assert.strictEqual((jsCode.match(/items\.map\(zeile\)/g) || []).length, 2,
 	"BEIDE Zeichenwege (Erst-Laden und Nachladen) gehen ueber dieselbe Zeilen-Funktion -- sonst "
 	+ "zeigt die nachgeladene Seite andere Zeilen als die erste");
+
+// ---- 5b. Zwei FORMEN, ein Inhalt -------------------------------------------------------------
+// Der Reiter zeigt die Panel-Zeile (flach, Trennlinie), das Fenster die Editor-Zeile (schwebend,
+// gerundet) -- weil das Fenster neben Karten-, Literatur- und Ortseditor steht und nicht neben
+// dem Reiter (Owner 2026-08-15: „angleichen"). Welche Form gilt, entscheidet die ANSICHT.
+assert.strictEqual(context.AVESMAPS_LORE_VIEWS.panel.rowForm, "tree",
+	"der Reiter zeigt die Panel-Zeile wie seine sieben Nachbarlisten");
+assert.strictEqual(context.AVESMAPS_LORE_VIEWS.dialog.rowForm, "avm",
+	"das Fenster zeigt die Editor-Zeile wie die uebrigen Editorfenster");
+
+const alsEditorzeile = context.avesmapsLoreListRowHtml(eintrag, true, "avm");
+assert.ok(/class="avm-row"/.test(alsEditorzeile), "die Fensterzeile ist eine .avm-row");
+assert.ok(/avm-row__name">Bräubier</.test(alsEditorzeile), "Name in .avm-row__name");
+assert.ok(/avm-row__l2">Ware · Bier · Weiden, Kosch</.test(alsEditorzeile),
+	"Meta-Zeile in .avm-row__l2, mit derselben Angabe wie im Reiter. Ist: " + alsEditorzeile);
+assert.ok(!/tree-item/.test(alsEditorzeile), "keine Panel-Klassen in der Fensterzeile");
+assert.ok(/tree-item-name">Bräubier</.test(inAlle) && !/avm-row/.test(inAlle),
+	"und umgekehrt: die Reiterzeile bleibt .tree-item");
+
+// 🔴 EIN Inhalt. Beide Formen muessen dieselben Angaben tragen -- wer eine nur in einen Zweig
+// schreibt, hat die Listen auseinandergetrieben, und das sieht niemand, weil man sie nie
+// nebeneinander sieht. Verglichen wird der reine Text ohne Huelle.
+const nurText = (html) => html.replace(/<[^>]*>/g, "").trim();
+assert.strictEqual(nurText(alsEditorzeile), nurText(inAlle),
+	"Reiter- und Fensterzeile sagen nicht dasselbe:\n  Reiter:  " + nurText(inAlle)
+	+ "\n  Fenster: " + nurText(alsEditorzeile));
+for (const merkmal of ['data-lore-entry="wiki:braeubier"', 'title="Bräubier – klicken zum Bearbeiten"']) {
+	assert.ok(alsEditorzeile.includes(merkmal) && inAlle.includes(merkmal),
+		`beide Formen tragen ${merkmal} -- daran haengt der Klick-Handler`);
+}
+
+// ⭐ Der offene Eintrag ist im Fenster MARKIERT. Das leistet der transparente 1px-Rahmen der
+// Klasse, der beim Auswaehlen nur die Farbe wechselt (deshalb springt die Zeile nicht).
+context.avesmapsLoreDetailKey = "wiki:braeubier";
+assert.ok(/class="avm-row is-selected"/.test(context.avesmapsLoreListRowHtml(eintrag, true, "avm")),
+	"der offene Eintrag traegt is-selected");
+assert.ok(!/is-selected/.test(context.avesmapsLoreListRowHtml(
+	Object.assign({}, eintrag, { wiki_key: "wiki:anderes" }), true, "avm")),
+	"ein anderer Eintrag nicht");
+// 💣 Leerer Schluessel darf NICHT jede Zeile markieren -- ein Eintrag ohne wiki_key waere sonst
+// dauerhaft „offen", sobald nichts geoeffnet ist.
+context.avesmapsLoreDetailKey = "";
+assert.ok(!/is-selected/.test(context.avesmapsLoreListRowHtml(
+	Object.assign({}, eintrag, { wiki_key: "" }), true, "avm")),
+	"ohne offenen Eintrag ist keine Zeile markiert, auch keine ohne Schluessel");
 
 // ---- 6. Die Leichen sind wirklich weg ---------------------------------------------------------
 // Ein zurueckgebliebener Verweis auf die alte Struktur faellt nicht auf: er wirft nicht, er tut

@@ -75,13 +75,50 @@ for (const datei of editoren) {
 }
 
 // ---- Das Original traegt die Skala --------------------------------------------------------------
-const editorPage = lies("css", "components", "editor-page.css");
-assert.ok(/\.avm-row__l2\s*\{[\s\S]*?font-size:\s*var\(--font-size-caption\)/.test(editorPage),
+// 🔴 Es steht seit 2026-08-15 in css/components/editor-row.css, NICHT mehr in editor-page.css.
+// Grund: der Vorkommeneditor ist der einzige der sieben, der kein iframe ist -- er lebt als Dialog
+// in index.html und sieht editor-page.css nie, soll aber dieselbe Zeile zeigen wie die
+// Nachbarfenster (Owner 2026-08-15: „angleichen"). Die Regel steht weiterhin GENAU EINMAL; nur die
+// Datei erreichen jetzt beide Welten.
+const editorRow = lies("css", "components", "editor-row.css");
+assert.ok(/\.avm-row__l2\s*\{[\s\S]*?font-size:\s*var\(--font-size-caption\)/.test(editorRow),
 	".avm-row__l2 muss auf var(--font-size-caption) stehen -- sonst hat die Vereinheitlichung "
 	+ "den Fehler der Abschriften uebernommen statt ihn zu beheben.");
 checks++;
-assert.ok(/\.avm-row__kind\s*\{[\s\S]*?font-size:\s*var\(--font-size-caption\)/.test(editorPage),
+assert.ok(/\.avm-row__kind\s*\{[\s\S]*?font-size:\s*var\(--font-size-caption\)/.test(editorRow),
 	".avm-row__kind muss auf var(--font-size-caption) stehen.");
+checks++;
+
+// ---- Eine Datei, ZWEI Wege hinein ---------------------------------------------------------------
+// 💣 Faellt einer der beiden Importe weg, verschwindet die Zeile in EINER Welt -- lautlos. In der
+// App saehe die Vorkommen-Liste wieder aus wie eine Panel-Liste, in den Editorseiten haetten die
+// Zeilen ueberhaupt keine Form mehr. Beides wirft nicht.
+const editorPage = lies("css", "components", "editor-page.css");
+assert.ok(/@import\s+url\("editor-row\.css"\)/.test(editorPage),
+	"editor-page.css importiert editor-row.css nicht mehr -- damit haetten die sechs Editorseiten "
+	+ "keine Listenzeile.");
+checks++;
+assert.ok(/@import\s+url\("components\/editor-row\.css"\)/.test(lies("css", "styles.css")),
+	"css/styles.css importiert components/editor-row.css nicht mehr -- damit faellt die "
+	+ "Auswahlliste im Vorkommen-Fenster auf die Panel-Form zurueck.");
+checks++;
+// ⚠️ Ein @import gilt nur VOR jeder Regel (nur Kommentare duerfen davor stehen). Steht er weiter
+// unten, ignorieren ihn die Browser stillschweigend -- die Datei sieht dann korrekt aus und wirkt
+// trotzdem nicht.
+const vorImport = editorPage.slice(0, editorPage.indexOf('@import url("editor-row.css")'));
+assert.ok(!/[^\s]\s*\{/.test(vorImport.replace(/\/\*[\s\S]*?\*\//g, "")),
+	"In editor-page.css steht eine Regel VOR dem @import. Ein @import nach der ersten Regel wird "
+	+ "ignoriert -- die Editorseiten haetten dann keine Listenzeile, ohne jede Fehlermeldung.");
+checks++;
+
+// ---- Keine Editor-Kurznamen in der geteilten Datei ----------------------------------------------
+// 💣 --mut/--ok/--warn sind lokale Aliase aus editor-page.css und existieren in index.html NICHT.
+// Eine ungueltige var() macht `color` zu `inherit`: die Meta-Zeile waere im Vorkommen-Fenster
+// still nicht mehr gedaempft, und zwar genau dort, wo niemand danach sucht.
+const kurznamen = editorRow.replace(/\/\*[\s\S]*?\*\//g, "").match(/var\(--(mut|ok|warn|bad|fg|line|soft|panel|bg|accent)\b/g) || [];
+assert.deepStrictEqual(kurznamen, [],
+	"editor-row.css benutzt einen Editor-Kurznamen. Die Datei wird auch von der App geladen, wo es "
+	+ "die Aliase nicht gibt -- hier gehoert das echte Token hin. Gefunden: " + kurznamen.join(" "));
 checks++;
 
 // ---- Die Aufklapp-Spalte gehoert der LISTE, nicht der Zeile ------------------------------------

@@ -1,0 +1,87 @@
+/* Die Listenzeile der Editoren — `.avm-row`. EINE Datei, weil sie an ZWEI Orten gebraucht wird.
+ *
+ * 💣 Sie stand bis 2026-08-15 in css/components/editor-page.css, und das laden nur die
+ *    Editor-SEITEN in html/. Der Vorkommeneditor ist aber der einzige der sieben, der kein iframe
+ *    ist — er lebt als Dialog in index.html. Seine Auswahlliste trug deshalb die PANEL-Zeile
+ *    (`.wikisync-itemlist .tree-item`: flach, Trennlinie, keine Rundung), während die Listen der
+ *    Nachbarfenster (Orte, Karten, Literatur, Kraftlinien, Landschaften, Wege) schwebende
+ *    gerundete Zeilen zeigten. Owner 2026-08-15, nachdem er sie nebeneinander gesehen hat:
+ *    „angleichen".
+ *
+ * 🔴 Abschreiben war keine Option. Genau daraus ist die Divergenz gewachsen, die die
+ *    Vereinheitlichung vom 14.08.2026 beseitigt hat (sieben Zeilenformen, vier davon Abschriften
+ *    voneinander). Die Regel steht deshalb weiterhin GENAU EINMAL — nur eben in einer Datei, die
+ *    beide Welten erreichen: css/styles.css importiert sie für die App, editor-page.css für die
+ *    sechs Editorseiten. Gewacht von js/pages/__tests__/editor-row-single-source.test.js.
+ *
+ * ⚠️ Hier stehen die ECHTEN Tokens, nicht die Kurznamen `--mut`/`--ok`/`--warn`. Die sind lokale
+ *    Aliase aus editor-page.css und existieren in index.html nicht; eine ungültige `var()` macht
+ *    `color` zu `inherit`, und die Meta-Zeile wäre im Fenster still nicht mehr gedämpft. Die
+ *    Aliase zeigen ohnehin genau auf diese Tokens, für die Editorseiten ändert sich also nichts —
+ *    und editor-page.css sagt selbst: „NEW rules should reach for the real token".
+ */
+
+/* ---- List rows (Spec §3.1a rule 2) ----------------------------------------------------------
+ * The row FLOATS -- it does not run edge to edge with a divider. The transparent 1px border is
+ * mandatory: it is always there and only changes colour on selection, otherwise the row jumps by
+ * two pixels the moment it is picked.
+ */
+.avm-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	padding: var(--avm-row-pad);
+	border: 1px solid transparent;
+	border-radius: var(--radius-md);
+	cursor: pointer;
+	/* ⚠️ Literatur- und Karteneditor rendern ihre Zeilen als <button> (Tastaturbedienung, die
+	   nicht verlorengehen darf). Ohne diese fünf Zeilen bringt der Knopf Systemschrift, grauen
+	   Grund, eigenen Rahmen und Zentrierung mit. Auf einem <div> sind sie wirkungslos — Wege- und
+	   Landschaften-Editor merken davon nichts. */
+	width: 100%;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+}
+
+.avm-row:hover { background: var(--color-hover-wash); }
+
+.avm-row.is-selected {
+	background: var(--color-active-wash);
+	border-color: var(--color-accent);
+}
+
+.avm-row__text { flex: 1 1 auto; min-width: 0; }
+
+.avm-row__l1 {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-4);
+}
+
+.avm-row__name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: var(--font-weight-bold);
+}
+
+.avm-row__kind {
+	margin-left: auto;
+	white-space: nowrap;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+.avm-row__l2 {
+	margin-top: 1px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+.avm-row__l2.ok { color: var(--color-success); }
+.avm-row__l2.warn { color: var(--color-warning); }
