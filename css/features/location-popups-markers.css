@@ -813,6 +813,27 @@
 	background: transparent;
 }
 
+/* Die gesetzte Markierung laesst sich ziehen (Owner 15.08.2026) -- und das muss man ihr ANSEHEN.
+   💣 Diese zwei Regeln sind seit demselben Tag die EINZIGE Ankuendigung der Geste: die Kachel
+      „Verschieben" ist gefallen („drag n drop geht ja immer"), es gibt also keinen zweiten Weg mehr,
+      der davon erzaehlt. Wer sie loescht, macht das Verschieben unsichtbar, nicht bloss unschoen.
+   💣 Noetig sind sie, weil Leaflet den Greifzeiger nur WAEHREND des Ziehens setzt (`.leaflet-dragging
+      .leaflet-marker-draggable` in css/third-party/leaflet.css); im Ruhezustand bliebe der Marker
+      beim `cursor: pointer` von `.leaflet-interactive` und saehe aus wie jeder unbewegliche Marker
+      der Karte.
+   ⚠️ Beide Regeln gehen ueber `.leaflet-marker-draggable`, die Klasse, die Leaflet nur an einen
+      wirklich ziehbaren Marker haengt. Am `.share-pin-marker` allein haette der Zeiger auch dann
+      gegriffen, wenn das Ziehen irgendwann wieder abgeschaltet wird.
+   ⚠️ Und die zweite Regel ist noetig, weil die erste sonst die Leaflet-Regel ueberstimmt: gleiche
+      Spezifitaet, aber diese Datei wird nach leaflet.css geladen. */
+.share-pin-marker.leaflet-marker-draggable {
+	cursor: grab;
+}
+
+.leaflet-dragging .share-pin-marker.leaflet-marker-draggable {
+	cursor: grabbing;
+}
+
 .location-visual-marker__shape {
 	display: block;
 	box-sizing: border-box;
@@ -1062,8 +1083,8 @@
 }
 
 /* Ein Menuetitel, kein Ortsname: die Schriftgroesse der Kartenmenue-Zeile (13 px), nicht die 20 px
-   der Infobox. Er nennt, was angeklickt wurde -- deshalb tragen die Zeilen darunter blosse Verben
-   („Verschieben", „Entfernen") und wiederholen das Wort „Markierung" nicht. */
+   der Infobox. Er nennt, was angeklickt wurde -- deshalb heisst die Kachel darunter blosse
+   „Entfernen" und nicht „Markierung entfernen": das Wort steht hier schon. */
 .share-pin-menu__title {
 	color: var(--color-text-strong);
 	font-size: var(--font-size-body);
@@ -1116,9 +1137,9 @@
 
    ⭐ `max-width: 90px` statt der `width: 90px` der Basisregel -- und das ist der ganze Unterschied
    zur Infobox. Dort ist die 90 eine FESTE Breite, weil bis zu vier Kacheln nebeneinander gleich
-   breit sein muessen; hier ist sie eine OBERGRENZE. Kurze Beschriftungen bleiben darunter (mit
-   „Verschieben" und „Entfernen" allein waren es 82,6 px), lange brechen an ihr um, statt die Reihe
-   ueber den Kasten hinauszuziehen. Dieselbe Zahl, aber sie deckelt, statt zu diktieren.
+   breit sein muessen; hier ist sie eine OBERGRENZE. Kurze Beschriftungen bleiben darunter (als hier
+   nur einwortige standen, waren es gemessen 82,6 px), lange brechen an ihr um, statt die Reihe ueber
+   den Kasten hinauszuziehen. Dieselbe Zahl, aber sie deckelt, statt zu diktieren.
 
    `white-space: normal` laesst diesen Umbruch ueberhaupt zu -- die Design-Sprache erlaubt der Kachel
    ausdruecklich eine umbrechende Beschriftung.

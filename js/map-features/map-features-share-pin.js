@@ -21,6 +21,54 @@ function clearSharePin({ syncUrl = true } = {}) {
 	}
 }
 
+/**
+ * Die Markierung am Marker ziehen -- der EINZIGE Weg, sie zu verschieben (Owner 15.08.2026:
+ * „verschieben kann wieder weg, drag n drop geht ja immer"). Die Kachel dafuer ist mit diesem Satz
+ * gefallen, samt ihrem wartenden Klick-Zustand.
+ *
+ * 💣 HIER WIRD setSharePin NICHT AUFGERUFEN, so naheliegend das waere. Diese Funktion wirft den
+ * Marker weg und baut einen neuen -- also genau den, an dem Leaflet gerade noch seinen Drag
+ * abschliesst. Leaflet raeumt dann auf einem Element auf, das es nicht mehr gibt (TypeError in
+ * `finishDrag`); derselbe Fall ist am freien Kartenpunkt schon einmal aufgetreten und dort mit
+ * einem setTimeout entschaerft. Nur: der Marker liegt nach dem Ziehen bereits richtig, gezeichnet
+ * von Leaflet. Zu tun bleibt, was NICHT am Marker haengt -- die Koordinate und der geteilte Link.
+ */
+function bindSharePinDragging(marker) {
+	marker.on("dragstart", () => {
+		// Das Menue haengt am Marker und wanderte mit ihm unter dem Zeiger her -- zu, wie beim
+		// Kartenpunkt. Es geht unten wieder auf, sobald die Stelle feststeht.
+		//
+		// ⚠️ UND HIER WIRD KEIN wartendes „Verschieben" abgeraeumt. Bis zum 15.08.2026 stand hier ein
+		// cancelMapPointRelocation() -- richtig, solange die Markierung selbst eine Verschieben-Kachel
+		// hatte. Jetzt kann nur noch der KARTENPUNKT auf einen Klick warten, und den geht das Ziehen
+		// der Markierung nichts an: ihn abzuraeumen hiesse, dem Nutzer eine andere, laufende Handlung
+		// stillschweigend wegzunehmen.
+		marker.closePopup();
+	});
+
+	marker.on("dragend", () => {
+		const droppedAt = marker.getLatLng();
+
+		// Die Kartengrenze gilt fuers Ziehen genauso wie fuers Setzen (setSharePin lehnt draussen ab).
+		// Der Marker springt dann auf seine letzte gueltige Stelle zurueck, statt ausserhalb der Karte
+		// liegen zu bleiben -- ein Link dorthin liesse sich nicht mehr oeffnen.
+		if (!isWithinMapBounds(droppedAt)) {
+			if (sharePinCoordinates) {
+				marker.setLatLng(sharePinCoordinates);
+			}
+			marker.openPopup();
+			return;
+		}
+
+		sharePinCoordinates = droppedAt;
+		syncPlannerStateToUrl();
+		// Wieder auf, aus demselben Grund wie beim Klick-Weg (completeMapPointRelocationAt): die
+		// naechste Handlung -- nochmal ruecken, entfernen, als Reiseziel eintragen -- soll ohne einen
+		// weiteren Klick erreichbar sein. Beide Wege enden damit im selben Bild.
+		marker.openPopup();
+	});
+}
+
 function setSharePin(latlng, { openPopup = false, syncUrl = true } = {}) {
 	const normalizedLatLng = L.latLng(latlng);
 	if (!isWithinMapBounds(normalizedLatLng)) {
@@ -37,6 +85,13 @@ function setSharePin(latlng, { openPopup = false, syncUrl = true } = {}) {
 		icon: createSharePinIcon(),
 		title: "Geteilte Markierung",
 		keyboard: true,
+		// Owner 15.08.2026: „kann ich nicht auch ziehen? drag n drop?" -- und im selben Zug ist die
+		// Kachel „Verschieben" gefallen („drag n drop geht ja immer"). Ziehen ist damit der EINZIGE
+		// Weg, die Markierung zu ruecken. Dass man ihm das ansieht, leistet der Greifzeiger an
+		// `.share-pin-marker.leaflet-marker-draggable` (css/features/location-popups-markers.css) --
+		// Leaflet selbst setzt ihn nur waehrend des Ziehens, die Geste waere sonst unsichtbar.
+		// Vorbild: bindRouteWaypointDragging in js/routing/route-render.js.
+		draggable: true,
 	})
 		// 🔴 `share-pin-menu`, NICHT `floating-location-popup` (Owner 14.08.2026: „design loeschen und
 		// nochmal beginnen"). Die zweite Klasse ist die Huelle des ORTSKASTENS -- 40-px-Symbol,
@@ -48,6 +103,8 @@ function setSharePin(latlng, { openPopup = false, syncUrl = true } = {}) {
 			className: "share-pin-menu",
 		})
 		.addTo(map);
+
+	bindSharePinDragging(sharePinMarker);
 
 	if (openPopup) {
 		sharePinMarker.openPopup();

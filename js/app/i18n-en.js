@@ -572,10 +572,11 @@ window.AVESMAPS_I18N_EN = {
 	"popup.labelTypeRegion": "Region",
 	"popup.labelNameFallback": "Label",
 	"popup.sharePinName": "Marked spot",
-	// Der Kasten sagt oben schon „Marked spot" (sharePinMenuMarkup) -- die beiden Verwaltungs-Kacheln
-	// sind deshalb blosse Verben. Die dritte Kachel („Reiseziel hinzufügen") hat KEINE eigene Zeile:
-	// sie benutzt popup.addToRoutePlain, dieselbe wie der gleichnamige Knopf an einer Ortschaft.
-	"popup.moveMarker": "Move",
+	// Der Kasten sagt oben schon „Marked spot" (sharePinMenuMarkup) -- die Entfernen-Kachel ist
+	// deshalb ein blosses Verb. Die Kachel „Reiseziel hinzufügen" hat KEINE eigene Zeile: sie benutzt
+	// popup.addToRoutePlain, dieselbe wie der gleichnamige Knopf an einer Ortschaft.
+	// 🔴 popup.moveMarker ist am 15.08.2026 gefallen -- die Markierung wird am Marker GEZOGEN, nicht
+	// per Kachel verschoben. Der freie Kartenpunkt hat dafuer seine eigene Zeile (popup.moveMapPoint).
 	"popup.removeMarker": "Remove",
 	"popup.wikiLinkSuffix": "in the Wiki Aventurica",
 	"popup.wikiLinkSuffixArrow": "in the Wiki-Aventurica ↗",

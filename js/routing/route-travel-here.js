@@ -128,15 +128,16 @@ function moveMapPointWaypointTo(waypointId, latlng) {
 }
 
 // ---- Verschieben per Klick ------------------------------------------------------------------------
-// Die zweite Art zu verschieben, neben dem Ziehen des Markers: „Verschieben" in der Infobox, dann der
-// naechste Klick auf die Karte. Sie ist nicht bloss Beiwerk -- am Marker SIEHT man nicht, dass er
-// ziehbar ist, und auf einem Touchgeraet zieht ein Finger auf der Karte zuerst die Karte.
+// Die zweite Art, einen freien Kartenpunkt zu verschieben, neben dem Ziehen seines Markers:
+// „Verschieben" in der Infobox, dann der naechste Klick auf die Karte.
 //
-// 💣 EIN wartender Zustand fuer ALLE verschiebbaren Punkte, nicht einer je Punktart. Seit dem
-//    14.08.2026 kommt die gesetzte Markierung dazu; ein zweiter Satz aus Zeiger, Esc-Riegel und
-//    Klick-Faenger daneben waere zweimal dieselbe Mechanik, die getrennt kaputtgehen kann -- und
-//    zwei gleichzeitig wartende Zustaende koennten denselben Klick beide beanspruchen.
-//    `pendingRelocation` ist deshalb null oder EIN Ziel: { kind, waypointId? }.
+// 🔴 NUR NOCH DER KARTENPUNKT. Am 14.08.2026 hing die gesetzte Markierung hier mit drin; seit sie
+//    ziehbar ist, hat der Owner ihre Kachel abbestellt (15.08.2026: „verschieben kann wieder weg,
+//    drag n drop geht ja immer"). Mit ihr ist der Verteiler gefallen, den es nur fuer sie gab --
+//    `pendingRelocation` traegt wieder genau ein Ziel und keine Fallunterscheidung.
+//    ⚠️ Kommt jemals eine zweite Punktart dazu, gehoert die Unterscheidung HIERHIN zurueck und nicht
+//    in einen zweiten Satz aus Zeiger, Esc-Riegel und Klick-Faenger: zwei gleichzeitig wartende
+//    Zustaende koennten denselben Klick beide beanspruchen.
 let pendingRelocation = null;
 
 function isAwaitingMapPointRelocation() {
@@ -167,11 +168,14 @@ function cancelMapPointRelocation() {
 	document.removeEventListener("keydown", handleMapPointRelocationKeydown);
 }
 
-/** Gemeinsamer Anfang fuer jede Punktart: Zeiger, Esc-Riegel, Box zu, Hinweis. */
-function beginRelocation(ziel) {
+/** Zeiger, Esc-Riegel, Box zu, Hinweis -- und dann wartet die Karte auf den Klick. */
+function beginMapPointRelocation(waypointId) {
+	if (!waypointId) {
+		return;
+	}
 	// Ein zweites „Verschieben" loest das erste ab, statt sich mit ihm zu ueberlagern.
 	cancelMapPointRelocation();
-	pendingRelocation = ziel;
+	pendingRelocation = { waypointId: String(waypointId) };
 	setMapPointRelocationCursor(true);
 	document.addEventListener("keydown", handleMapPointRelocationKeydown);
 	// Die Infobox haengt am ALTEN Ort -- sie stehen zu lassen hiesse, ueber die Stelle zu reden, die
@@ -185,32 +189,12 @@ function beginRelocation(ziel) {
 	);
 }
 
-function beginMapPointRelocation(waypointId) {
-	if (!waypointId) {
-		return;
-	}
-	beginRelocation({ kind: "map-point", waypointId: String(waypointId) });
-}
-
-/** Die gesetzte Markierung (js/map-features/map-features-share-pin.js) -- sie hat keine Kennung: es gibt sie nur einmal. */
-function beginSharePinRelocation() {
-	beginRelocation({ kind: "share-pin" });
-}
-
 function completeMapPointRelocationAt(latlng) {
 	const ziel = pendingRelocation;
 	if (!ziel) {
 		return false;
 	}
 	cancelMapPointRelocation();
-
-	if (ziel.kind === "share-pin") {
-		// setSharePin ersetzt den vorhandenen Marker an Ort und Stelle; das Popup geht wieder auf, damit
-		// die naechste Handlung (nochmal ruecken, entfernen) ohne einen weiteren Klick erreichbar ist.
-		return typeof setSharePin === "function"
-			? setSharePin(latlng, { openPopup: true })
-			: false;
-	}
 
 	return moveMapPointWaypointTo(ziel.waypointId, latlng);
 }

@@ -242,8 +242,11 @@ function locationIconMarkup(locationType, locationTypeLabel) {
 
 // Realistic settlement illustration by size (icons/realistic/) -- the floating-box header image
 // (Owner: "ersetze das wappen durch die stadtgroesse"). Full-colour asset, frameless, decorative.
-// Das Vier-Wege-Kreuz der „Verschieben"-Kachel. EINE Stelle, seit es zwei Knoepfe gibt, die es tragen:
-// der freie Kartenpunkt (buildRoutePopupHtml in js/routing/routing.js) und die gesetzte Markierung.
+// Das Vier-Wege-Kreuz der „Verschieben"-Kachel am freien KARTENPUNKT (buildRoutePopupHtml in
+// js/routing/routing.js) -- seit 15.08.2026 der einzige Traeger. Die gesetzte Markierung hatte
+// dieselbe Kachel bis dahin; sie wird jetzt am Marker gezogen und braucht kein Zeichen mehr.
+// ⚠️ Bleibt trotzdem eine eigene Funktion: sie war es schon, als zwei Knoepfe sie riefen, und eine
+// zweite Abschrift dieses SVG waere beim naechsten Traeger sofort wieder da.
 // Als Inline-SVG statt als Glyph: fuer dieses Kreuz gibt es kein Zeichen, das in jeder Schrift sitzt,
 // und ein fehlendes Zeichen waere ein leeres Kaestchen. `currentColor` erbt die Farbe des Kachel-Slots.
 function popupMoveIconMarkup() {
@@ -978,10 +981,16 @@ function labelPopupSubtitle(label, region) {
 // (eine Sonderklasse fuer die Zeilenfassung, eigene Abstaende, ein zweites Layout); geschraubt
 // wurde jedes Mal am Symptom.
 //
-// DIE REGEL, DIE DAS BEENDET: 💣 DIE MARKIERUNG IST KEIN ORT. Sie ist ein Menue mit zwei Befehlen
-// und traegt deshalb ihren eigenen Kasten, der nur so viel Rahmen hat, wie sie Inhalt hat. Wer hier
-// das naechste Mal etwas anbaut, fragt zuerst, ob der Ortskasten es koennte -- und wenn ja, gehoert
-// es dorthin, nicht hierher.
+// DIE REGEL, DIE DAS BEENDET: 💣 DIE MARKIERUNG IST KEIN ORT. Sie ist ein Menue mit Befehlen und
+// traegt deshalb ihren eigenen Kasten, der nur so viel Rahmen hat, wie sie Inhalt hat. Wer hier das
+// naechste Mal etwas anbaut, fragt zuerst, ob der Ortskasten es koennte -- und wenn ja, gehoert es
+// dorthin, nicht hierher.
+//
+// 🔴 ZWEI Kacheln, seit „Verschieben" gefallen ist (Owner 15.08.2026: „verschieben kann wieder weg,
+// drag n drop geht ja immer"). Die Markierung wird am Marker gezogen (bindSharePinDragging in
+// js/map-features/map-features-share-pin.js), und eine Kachel fuer etwas, das die Geste ohnehin
+// kann, ist eine Kachel zu viel. Am freien Kartenpunkt bleibt sie -- ihn gibt es auch als
+// Wegpunkt-Zeile im Planer, wo kein Marker zum Anfassen danebensteht.
 //
 // 🔴 UND ES BLEIBT BEI KACHELN (Owner 14.08.2026: „lass doch die kacheln"). Der Zwischenstand mit
 // gestapelten Zeilen ist damit erledigt -- die Beschwerde davor („braucht es keine riesige breite
@@ -1023,15 +1032,6 @@ function sharePinMenuMarkup() {
 					iconMarkup: '<span class="location-popup__action-icon" aria-hidden="true">+</span>',
 					attributes: {
 						"data-popup-action": "travel-to-share-pin",
-					},
-				})}
-				${popupActionButtonMarkup({
-					// Vor dem Entfernen: wer danebengeklickt hat, will ruecken statt wegwerfen und neu setzen --
-					// dieselbe Reihenfolge und derselbe Ablauf wie am freien Kartenpunkt (buildRoutePopupHtml).
-					label: tr("popup.moveMarker", "Verschieben"),
-					iconMarkup: popupMoveIconMarkup(),
-					attributes: {
-						"data-popup-action": "move-share-pin",
 					},
 				})}
 				${popupActionButtonMarkup({

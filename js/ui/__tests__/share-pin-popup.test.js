@@ -30,18 +30,37 @@ const routing = ohneKommentare(read("js", "routing", "routing.js"));
 const travel = ohneKommentare(read("js", "routing", "route-travel-here.js"));
 const marker = ohneKommentare(read("js", "map-features", "map-features-share-pin.js"));
 
-// ---- Die drei Kacheln, in ihrer Reihenfolge ----------------------------------------------------
+// ---- Die zwei Kacheln, in ihrer Reihenfolge ----------------------------------------------------
 const start = js.indexOf("function sharePinMenuMarkup");
 assert.ok(start > 0, "der Bauer steht in popups.js");
 const bauer = js.slice(start, js.indexOf("\nfunction ", start + 10));
 const posReise = bauer.indexOf("travel-to-share-pin");
-const posVerschieben = bauer.indexOf("move-share-pin");
 const posEntfernen = bauer.indexOf("remove-share-pin");
-assert.ok(posReise > 0 && posVerschieben > 0 && posEntfernen > 0, "alle drei Aktionen sind da");
-assert.ok(posVerschieben < posEntfernen, "Verschieben steht VOR Entfernen");
-// 💣 Die aufbauende Aktion zuerst, die zerstoerende zuletzt -- eine Loeschkachel in der MITTE einer
-//    Reihe ist der Knopf, den man beim Zielen trifft.
-assert.ok(posReise < posVerschieben, "die Reise-Kachel steht vor den Verwaltungs-Kacheln");
+assert.ok(posReise > 0 && posEntfernen > 0, "beide Aktionen sind da");
+// 💣 Die aufbauende Aktion zuerst, die zerstoerende zuletzt -- eine Loeschkachel neben oder vor
+//    einer anderen ist der Knopf, den man beim Zielen trifft.
+assert.ok(posReise < posEntfernen, "die Reise-Kachel steht vor dem Entfernen");
+// 🔴 KEINE Verschieben-Kachel mehr (Owner 15.08.2026: „verschieben kann wieder weg, drag n drop
+//    geht ja immer"). Sie wird am Marker gezogen; eine Kachel fuer das, was die Geste ohnehin kann,
+//    ist eine Kachel zu viel. Am freien KARTENPUNKT bleibt sie -- ihn gibt es auch als
+//    Wegpunkt-Zeile im Planer, wo kein Marker zum Anfassen danebensteht.
+// ⚠️ In Anfuehrungszeichen geprueft: ein blosses /move-share-pin/ trifft auch das „remove-share-pin"
+//    der Nachbarkachel und war damit immer wahr -- der erste Anlauf dieser Zeile ist genau darueber
+//    gestolpert (und hat, waere er andersherum geschrieben gewesen, nie etwas gemeldet).
+assert.ok(!/"move-share-pin"/.test(bauer) && !/"move-share-pin"/.test(routing) && !/"move-share-pin"/.test(marker),
+	"die Verschieben-Kachel der Markierung ist restlos weg");
+assert.ok(!/beginSharePinRelocation/.test(travel) && !/beginSharePinRelocation/.test(routing),
+	"und ihr wartender Klick-Zustand mit ihr");
+// ⚠️ Ohne Kommentare gelesen: die i18n-Tabelle ERKLAERT in einer Kommentarzeile, warum der Schluessel
+//    gefallen ist -- ein roher Dateitext liesse diese Zusicherung an der Begruendung scheitern.
+assert.ok(!/popup\.moveMarker/.test(js) && !/popup\.moveMarker/.test(ohneKommentare(read("js", "app", "i18n-en.js"))),
+	"auch ihre i18n-Zeile");
+assert.ok(/action === "move-map-point"/.test(routing) && /function beginMapPointRelocation\(waypointId\)/.test(travel),
+	"der freie Kartenpunkt behaelt seine Kachel");
+// 💣 Und der Verteiler faellt mit: `pendingRelocation` traegt wieder genau ein Ziel. Ein `kind` mit
+//    nur noch einem Wert waere eine Fallunterscheidung, die keinen Fall mehr unterscheidet.
+assert.ok(!/kind === "share-pin"|kind: "(share-pin|map-point)"/.test(travel),
+	"der wartende Zustand hat keine Fallunterscheidung mehr");
 
 // ---- 💣 Die Reise-Kachel ruft den geteilten Weg, nicht einen zweiten ----------------------------
 // „Hierher reisen" im Kartenmenue und diese Kachel sind dieselbe Handlung. travelToMapPoint traegt
@@ -66,7 +85,7 @@ assert.ok(/location-popup__action-button--accent/.test(reiseKachel),
 	"und die Fuellung der Hauptaktion, wie am Ort (docs/design-language.md)");
 assert.ok(/img\/menu\/papierkorb\.webp/.test(bauer), "Entfernen traegt den Papierkorb");
 assert.ok(fs.existsSync(path.join(ROOT, "img", "menu", "papierkorb.webp")), "und das Bild liegt im Repo");
-assert.ok(/iconMarkup: popupMoveIconMarkup\(\)/.test(bauer), "Verschieben traegt das geteilte Kreuz");
+assert.ok(!/popupMoveIconMarkup\(\)/.test(bauer), "und kein Verschieben-Kreuz mehr -- die Kachel ist weg");
 assert.ok(!/\u{1F5D1}/u.test(bauer), "kein Papierkorb-Emoji in der Beschriftung");
 assert.ok(!/\u{1F5D1}/u.test(read("js", "app", "i18n-en.js")), "auch nicht in der englischen Tabelle");
 
@@ -136,10 +155,35 @@ assert.ok(/iconMarkup: popupMoveIconMarkup\(\)/.test(routing), "auch der freie K
 // ---- 💣 EIN wartender Zustand ------------------------------------------------------------------
 assert.ok(/let pendingRelocation = null/.test(travel), "es gibt genau einen wartenden Zustand");
 assert.ok(!/pendingMapPointRelocationWaypointId/.test(travel), "die alte Einzelfall-Variable ist weg");
-assert.ok(/function beginSharePinRelocation\(\)/.test(travel), "die Markierung hat ihren Einstieg");
-assert.ok(/function beginMapPointRelocation\(waypointId\)/.test(travel), "der Kartenpunkt behaelt seinen");
-assert.ok(/kind === "share-pin"/.test(travel), "und der Abschluss unterscheidet die beiden Faelle");
-assert.ok(/action === "move-share-pin"/.test(routing), "der Klick-Handler kennt die Aktion");
+
+// ---- 💣 Ziehen am Marker -- der EINZIGE Weg, die Markierung zu verschieben ----------------------
+// Owner 15.08.2026: „kann ich nicht auch ziehen? drag n drop?" -- und danach: „verschieben kann
+// wieder weg, drag n drop geht ja immer."
+const zieh = (() => { const s = marker.slice(marker.indexOf("function bindSharePinDragging")); return s.slice(0, s.indexOf("\nfunction ")); })();
+assert.ok(zieh.length > 0, "es gibt einen Bauer fuers Ziehen");
+assert.ok(/draggable:\s*true/.test(marker), "der Marker ist ziehbar");
+// 💣 setSharePin wirft den Marker weg und baut einen neuen -- im dragend waere das der Marker, an
+//    dem Leaflet gerade noch aufraeumt (TypeError in finishDrag, am Kartenpunkt schon passiert).
+assert.ok(!/setSharePin\(/.test(zieh), "das dragend ruft NICHT setSharePin");
+assert.ok(/sharePinCoordinates = droppedAt/.test(zieh) && /syncPlannerStateToUrl\(\)/.test(zieh),
+	"es schreibt nur, was nicht am Marker haengt: Koordinate und geteilter Link");
+// 💣 Die Kartengrenze gilt fuers Ziehen wie fuers Setzen -- sonst laege die Markierung ausserhalb
+//    der Karte und ihr Link liesse sich nicht mehr oeffnen.
+assert.ok(/isWithinMapBounds\(droppedAt\)/.test(zieh), "ausserhalb der Karte wird abgelehnt");
+assert.ok(/marker\.setLatLng\(sharePinCoordinates\)/.test(zieh), "und der Marker springt zurueck");
+// 💣 Und es raeumt KEIN wartendes Verschieben ab. Bis zum 15.08.2026 stand hier ein
+//    cancelMapPointRelocation() -- richtig, solange die Markierung selbst eine Verschieben-Kachel
+//    hatte. Warten kann jetzt nur noch der KARTENPUNKT, und den geht das Ziehen der Markierung
+//    nichts an: ihn abzuraeumen naehme dem Nutzer eine andere, laufende Handlung weg.
+assert.ok(!/cancelMapPointRelocation\(\)/.test(zieh),
+	"das Ziehen fasst den wartenden Zustand des Kartenpunkts nicht an");
+// Beide Wege enden im selben Bild: das Menue geht wieder auf (wie completeMapPointRelocationAt).
+assert.ok((zieh.match(/marker\.openPopup\(\)/g) || []).length >= 2,
+	"nach dem Loslassen geht das Menue wieder auf -- auch im Zurueckspring-Fall");
+// Und man muss dem Marker ANSEHEN, dass er ziehbar ist: Leaflet setzt den Greifzeiger nur waehrend
+// des Ziehens, im Ruhezustand bliebe es beim pointer von .leaflet-interactive.
+assert.ok(/\.share-pin-marker\.leaflet-marker-draggable\s*\{[^}]*cursor:\s*grab/.test(css),
+	"der ruhende Marker zeigt den Greifzeiger");
 
 // ---- Der freie Kartenpunkt traegt den Schuh, kein Dorf ------------------------------------------
 // 💣 settlementRealisticIconMarkup faellt bei unbekanntem Typ auf das DORF zurueck -- die Box

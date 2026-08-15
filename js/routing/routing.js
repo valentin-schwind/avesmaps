@@ -934,14 +934,10 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
-	// „Verschieben" an der gesetzten Markierung -- derselbe wartende Zustand wie am freien Kartenpunkt
-	// (beginRelocation in route-travel-here.js), nur ohne Kennung: die Markierung gibt es nur einmal.
-	if (action === "move-share-pin") {
-		if (typeof beginSharePinRelocation === "function") {
-			beginSharePinRelocation();
-		}
-		return;
-	}
+	// 🔴 KEIN „move-share-pin" mehr (Owner 15.08.2026: „verschieben kann wieder weg, drag n drop geht
+	// ja immer"). Die gesetzte Markierung wird am Marker gezogen -- bindSharePinDragging in
+	// js/map-features/map-features-share-pin.js. Der freie Kartenpunkt BEHAELT seine Kachel: ihn gibt
+	// es auch als Wegpunkt-Zeile im Planer, wo kein Marker zum Anfassen danebensteht.
 
 	// „Als Reiseziel hinzufuegen" an der gesetzten Markierung. Es ruft DIESELBE Funktion wie
 	// „Hierher reisen" im Kartenmenue (travelToMapPoint in route-travel-here.js) -- die traegt den
