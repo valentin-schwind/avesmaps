@@ -340,6 +340,28 @@ git log origin/master --oneline -1
 ```
 Die zweite Zeile prüft, dass die Ferne den Stand wirklich hat.
 
+- [ ] **Schritt 3b: BEWEISEN, dass der Code auf dem Server liegt — VOR jeder Owner-Aktion**
+
+💣 **Ein grüner Deploy ist KEIN Beleg.** Am 15.08.2026 waren zwölf Läufe grün, und die
+beiden PHP-Dateien lagen trotzdem nie oben: bei parallelen Sessions diffft ein Push-Lauf
+nur gegen `github.event.before`, und wartende Läufe derselben Gruppe verwirft GitHub.
+Der Owner fuhr daraufhin **zwei** lange Dump-Läufe umsonst.
+
+Der Nachweis ist ein Einzeiler, weil Aufgabe 1 einen öffentlichen Endpunkt verändert:
+
+```bash
+curl -s "https://avesmaps.de/api/app/place-kinds.php?cb=$(date +%s)" | grep -o '"kind"' | wc -l
+```
+
+**83 = alter Stand, 101 = dieser Plan ist oben.** Zeigt er 83, ist NICHTS deployt — dann
+Voll-Deploy nachziehen und erst danach den Owner losschicken:
+
+```bash
+gh workflow run "Deploy Avesmaps to STRATO" --ref master -f dry_run=false -f delete_remote_files=false -f upload_tiles=false
+```
+
+⚠️ `dry_run` steht per Default auf `true` — ohne `-f dry_run=false` lädt der Dispatch nichts.
+
 - [ ] **Schritt 4: HALT — Owner-Aktion (ZWEI Stufen, in dieser Reihenfolge)**
 
 🔧 **DU:** 1. **„📥 Dump holen"** durchlaufen lassen, danach **„Syncen"** bei den
