@@ -294,12 +294,16 @@ function settlementCoatIconMarkup(coat) {
 	return `<img class="location-popup__icon location-popup__icon--coat" src="${escapeHtml(src)}" alt="${escapeHtml(tr("popup.coatOfArmsAlt", "Wappen"))}" />`;
 }
 
-function sharePinVisualMarkup(rootClassName = "", { includeDot = true } = {}) {
+// 🔴 Fix-Runde 7: der Parameter `{ includeDot }` ist mit seinem einzigen Grund gefallen -- die
+// gelöschte sharePinMenuMarkup() (Aufgabe 4) war der einzige Aufrufer, der den Punkt ausblendete
+// (in ihrem Kopf, ohne Bezug zur Karte). Der verbliebene Aufrufer (createSharePinIcon,
+// map-features-share-pin.js) will ihn immer -- kein zweiter Parameter fuer einen Fall, den es
+// nicht mehr gibt.
+function sharePinVisualMarkup(rootClassName = "") {
 	const safeRootClassName = rootClassName ? ` ${escapeHtml(rootClassName)}` : "";
-	const dotMarkup = includeDot ? '<span class="share-pin-visual__dot"></span>' : "";
 	return `
 		<span class="share-pin-visual${safeRootClassName}" aria-hidden="true">
-			${dotMarkup}
+			<span class="share-pin-visual__dot"></span>
 			<span class="share-pin-visual__flag-pole"></span>
 			<span class="share-pin-visual__flag"></span>
 		</span>`;

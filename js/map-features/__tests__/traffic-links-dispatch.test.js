@@ -153,4 +153,30 @@ const WEG_EINTRAG = { kind: "path", name: "Eisenstraße" };
 		"und keine der drei Wirkungen laeuft an");
 }
 
+// ---- M6 (Schlussprüfung, blockierend): DIE NAHT ZWISCHEN MARKUP UND VERTEILER --------------------
+// 🔴 DER BEFUND: alle Faelle oben bauen ihr Klick-Element SELBST, mit hartkodiertem
+// "data-what-is-here-name" -- und avesmapsWhatIsHereNearbyMarkup (map-features-what-is-here-nearby.js)
+// hatte gar keinen eigenen Test. Benennt jemand das Attribut um (dort ODER im Verteiler), bleiben
+// BEIDE Seiten fuer sich genommen gruen -- der tote Nachbar-Knopf waere wortwoertlich zurueck, und
+// kein Test haette es gemerkt. Diese Zusicherung nimmt deshalb das ECHTE, von der Markup-Funktion
+// ERZEUGTE Attribut (kein hartkodierter String) und fuettert GENAU DAS in den echten Verteiler --
+// die Naht selbst ist der Pruefling, nicht eine der beiden Seiten.
+const { avesmapsWhatIsHereNearbyMarkup } = require("../map-features-what-is-here-nearby.js");
+const erzeugtesMarkup = avesmapsWhatIsHereNearbyMarkup([{ art: "Dorf", name: "Ziegenhain", meilen: 3.2, peilung: 90 }]);
+const attributTreffer = /<button[^>]*\s(data-[a-z-]+)="([^"]*)"[^>]*>/.exec(erzeugtesMarkup);
+assert.ok(attributTreffer, "das erzeugte Markup traegt ueberhaupt ein data-*-Attribut am Knopf");
+const [, echtesAttribut, echterWert] = attributTreffer;
+assert.strictEqual(echterWert, "Ziegenhain", "und der Wert ist der Ortsname, unveraendert");
+{
+	const { calls, klick } = ladeTrafficLinks({ findLocation: (name) => (name === "Ziegenhain" ? ORT : null) });
+	klick({ [echtesAttribut]: echterWert });
+	assert.deepStrictEqual(calls.showLocation, [ORT],
+		"der Verteiler reagiert auf GENAU das Attribut aus dem echten Markup -- nicht auf einen hier hartkodierten Namen");
+}
+// Gegenprobe: haette das Markup ein ANDERES Attribut erzeugt (z. B. nach einer Umbenennung), duerfte
+// der alte, hartkodierte Name nicht mehr greifen -- sonst waere die Zusicherung oben selbst wertlos.
+assert.strictEqual(echtesAttribut, "data-what-is-here-name",
+	"Dokumentation des Ist-Zustands: faellt DIESE Zusicherung kuenftig, hat sich das Attribut geaendert -- "
+	+ "und die Naht-Pruefung zwei Zeilen hoeher ist es, die das kuenftig traegt, nicht dieser Name hier");
+
 console.log("traffic-links-dispatch: alle Zusicherungen gehalten");

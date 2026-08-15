@@ -531,6 +531,7 @@ window.AVESMAPS_I18N_EN = {
 	"whatIsHere.topography": "Topography",
 	"whatIsHere.vegetation": "Vegetation",
 	"whatIsHere.nearby": "Nearby",
+	"whatIsHere.nearby.notLoaded": "This target is not loaded right now.",
 	"whatIsHere.dir.n": "North",
 	"whatIsHere.dir.no": "Northeast",
 	"whatIsHere.dir.o": "East",

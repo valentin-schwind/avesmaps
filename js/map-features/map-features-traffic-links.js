@@ -256,7 +256,7 @@ if (typeof document !== "undefined" && !document.__avesmapsTrafficLinksBound) {
 					map.panTo(showLatLng);
 				}
 			} else if (typeof showFeedbackToast === "function") {
-				showFeedbackToast("Dieses Ziel ist gerade nicht geladen.", "info");
+				showFeedbackToast(typeof tr === "function" ? tr("whatIsHere.nearby.notLoaded", "Dieses Ziel ist gerade nicht geladen.") : "Dieses Ziel ist gerade nicht geladen.", "info");
 			}
 			return;
 		}

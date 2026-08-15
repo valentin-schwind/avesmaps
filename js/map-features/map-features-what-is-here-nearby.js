@@ -65,34 +65,67 @@ function avesmapsWhatIsHereFootPoint(p, a, b) {
  * Weg und hoechstens vier -- keiner weiter als das Anderthalbfache der weitesten gezeigten
  * Ortschaft. Alles zusammen nach Entfernung sortiert.
  *
+ * 🔴 Fix-Runde 7 (Schlussprüfung): rechnet aus `locationData`/`pathData`, NICHT mehr aus dem rohen
+ * `window.avesmapsMapFeatureData`-Payload. Der urspruengliche Entwurf verlangte die rohen Features,
+ * weil die aufbereiteten Listen "andere Feldnamen und getauschte Koordinaten" haetten -- das stimmt
+ * fuer Orte (siehe unten), aber NICHT fuer Wege: `pathData`-Eintraege sind `{...feature}`-Spreads
+ * mit `properties.feature_type`/`feature_subtype` und `geometry.coordinates` bereits in `[x, y]` --
+ * exakt die Form, fuer die getPathTitleName/getPathTypeLabel gebaut sind. Fuer Orte kostet die
+ * Umstellung einen Koordinatentausch, liefert dafuer drei Dinge FERTIG statt selbst nachzubauen:
+ * `locationTypeLabel` (bereits durch tr() gelaufen, behebt denselben Fehler wie Fix-Runde 1 fuer
+ * Wege -- vorher stand hier `settlement_class_label`, eine denormalisierte Zeichenkette zweier
+ * auseinandergelaufener Schreiber, 38 Orte auf „Grosse Stadt" haengengeblieben), `isHidden` und den
+ * aufgeloesten Kreuzungstyp.
+ *
+ * 🔴 Fix-Runde 7, C1 (Critical): VERSTECKTE ORTE fallen hier raus, ueber isHiddenLocation
+ * (map-features-location-marker-rendering.js) -- denselben Riegel, den fuenf andere Ausgaenge im
+ * Haus schon benutzen (Marker, Namensschild, Wegpunktsuche, Router-Kandidat, Etappenliste). Diese
+ * Liste war der sechste Ausgang und der einzige ungeriegelte: ein Rechtsklick neben einen
+ * versteckten Ort deckte Name, Entfernung und Peilung auf, und der Klick fuehrte in die volle
+ * Infobox. KEIN zweites Praedikat -- derselbe Riegel wie ueberall sonst.
+ *
  * ⚠️ DER MASSSTAB DER SCHRANKE IST DIE ORTSLISTE, NICHT DIE WEGELISTE. Eine relative Schranke
  * braucht einen Massstab, der nicht mitwandert -- das ist die teuer bezahlte Lehre vom
  * Querfeldein-Ausstiegspunkt (14.08.2026), wo drei Fassungen an einem Tag daran scheiterten.
  *
  * ⚠️ Ortschaften haben KEINE Schranke: dass die naechste Stadt 35 Meilen entfernt ist, IST die
  * Antwort (am Seepunkt gemessen).
+ *
+ * @param {{x:number,y:number}} punkt
+ * @param {list} locations `locationData` (js/routing/routing.js)
+ * @param {list} paths `pathData` (js/map-features/map-features-path-prepare.js)
  */
-function avesmapsWhatIsHereNearby(punkt, features) {
+function avesmapsWhatIsHereNearby(punkt, locations, paths) {
 	const orte = [];
 	const wegeJeArt = new Map();
 
-	(features || []).forEach(function (feature) {
+	(locations || []).forEach(function (location) {
+		if (!location || !Array.isArray(location.coordinates)) {
+			return;
+		}
+		// 💣 isHiddenLocation lebt nur im BROWSER (map-features-location-marker-rendering.js, reines
+		// <script>-Global, kein module.exports) -- derselbe Wächter wie bei getPathTitleName/
+		// getPathTypeLabel unten, aus demselben Grund: fuer den Node-Test da, im Browser laengst
+		// geladen (index.html: Zeile 3138 vor Zeile 3249).
+		if (typeof isHiddenLocation === "function" && isHiddenLocation(location)) {
+			return;
+		}
+		// 🔴 locationData speichert [lat, lng] = [y, x] (Leaflet-Form) -- diese Funktion rechnet in
+		// x/y wie der Endpunkt und wie die Wege-Haelfte unten. NUR hier wird getauscht.
+		const x = location.coordinates[1];
+		const y = location.coordinates[0];
+		orte.push({
+			art: location.locationTypeLabel || "",
+			name: location.name || "",
+			meilen: Math.hypot(punkt.x - x, punkt.y - y) * WIH_MEILEN_JE_EINHEIT,
+			peilung: avesmapsWhatIsHereBearing(punkt.x, punkt.y, x, y),
+		});
+	});
+
+	(paths || []).forEach(function (feature) {
 		const p = feature && feature.properties;
 		const g = feature && feature.geometry;
 		if (!p || !g) {
-			return;
-		}
-		if (p.feature_type === "location") {
-			const c = g.coordinates;
-			orte.push({
-				art: p.settlement_class_label || p.type || "",
-				name: p.name || "",
-				meilen: Math.hypot(punkt.x - c[0], punkt.y - c[1]) * WIH_MEILEN_JE_EINHEIT,
-				peilung: avesmapsWhatIsHereBearing(punkt.x, punkt.y, c[0], c[1]),
-			});
-			return;
-		}
-		if (p.feature_type !== "path") {
 			return;
 		}
 		const cs = g.coordinates || [];
@@ -192,8 +225,13 @@ function avesmapsWhatIsHereNearbyMarkup(nachbarn) {
 			? '<button type="button" class="avesmaps-traffic-link" data-what-is-here-name="'
 				+ esc(n.name) + '">' + esc(n.name) + "</button> · "
 			: "";
+		// 🔴 Fix-Runde 7, I4: durch tr() statt hartkodiert -- derselbe geteilte Schluessel wie
+		// js/app/utils.js und js/ui/ui-controls.js (dort ohne &nbsp;, weil beide per .textContent
+		// setzen; die englische Zeile in i18n-en.js bleibt deshalb bewusst unveraendert, nur der
+		// deutsche Standardwert hier traegt das &nbsp; weiter).
+		const meilenText = typeof tr === "function" ? tr("units.miles", zahl + "&nbsp;Meilen", { n: zahl }) : zahl + "&nbsp;Meilen";
 		return '<div class="region-info-box__row"><dt>' + esc(n.art) + "</dt><dd>"
-			+ name + zahl + "&nbsp;Meilen" + avesmapsWhatIsHereDirMarkup(n.peilung)
+			+ name + meilenText + avesmapsWhatIsHereDirMarkup(n.peilung)
 			+ "</dd></div>";
 	}).join("");
 

@@ -101,21 +101,6 @@ async function createAndCopyShareLink() {
 	}
 }
 
-// Eine teilbare Route existiert, sobald mindestens 2 Wegpunkte auf gültige Orte zeigen.
-function hasShareableRoute() {
-	if (typeof getWaypointContainers !== "function" || typeof validateLocation !== "function") {
-		return false;
-	}
-	let validCount = 0;
-	getWaypointContainers().each(function () {
-		const value = String($(this).find(".waypoint-input").val() || "").trim();
-		if (value && validateLocation(value)) {
-			validCount += 1;
-		}
-	});
-	return validCount >= 2;
-}
-
 // Button (in der Reise-Uebersicht) bzw. delegiert.
 $(document).on("click", "#share-link-button", function (event) {
 	event.preventDefault();

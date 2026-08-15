@@ -119,14 +119,12 @@ function avesmapsWhatIsHereMarkup(latlng, antwort) {
 			+ '<dl class="region-info-box__data">' + zeilen + "</dl></div>"
 		: "";
 
-	// 💣 Kein window.mapFeatureData -- den Namen gibt es im Haus nicht (geprueft: js/routing/routing.js
-	// haelt die geladenen GeoJSON-Features nirgends global, nur drei Teilstuecke davon:
-	// window.__sourceCatalog/__featureSourceRefs/avesmapsInSettlementPlaces). avesmapsWhatIsHereNearby
-	// braucht aber genau die rohen Features (feature.properties.feature_type/feature.geometry.coordinates),
-	// nicht die bereits umgebauten locationData/pathData-Listen. Ergaenzt in routing.js als vierten Stash
-	// nach demselben Muster wie die drei bestehenden (window.avesmapsMapFeatureData).
+	// 🔴 Fix-Runde 7 (Schlussprüfung): rechnet aus den bereits aufbereiteten `locationData`/`pathData`
+	// (js/routing/routing.js, js/map-features/map-features-path-prepare.js), nicht mehr aus dem
+	// rohen `window.avesmapsMapFeatureData`-Payload -- der ist mit dieser Runde entfallen, siehe
+	// dortigen Kommentar. Begruendung der Umstellung steht am Kopf von avesmapsWhatIsHereNearby.
 	const nachbarn = avesmapsWhatIsHereNearbyMarkup(
-		avesmapsWhatIsHereNearby({ x: latlng.lng, y: latlng.lat }, window.avesmapsMapFeatureData || [])
+		avesmapsWhatIsHereNearby({ x: latlng.lng, y: latlng.lat }, locationData, pathData)
 	);
 
 	return '<div class="location-popup">' + kopf + kacheln + treppe + box + nachbarn + "</div>";
