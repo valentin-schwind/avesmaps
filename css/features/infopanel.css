@@ -588,7 +588,8 @@ html.avesmaps-phone.avesmaps-any-panel-open #map-corner-actions {
 .avesmaps-infopanel .location-popup__breadcrumb,
 .avesmaps-infopanel .location-reviews,
 .avesmaps-infopanel .avesmaps-citymaps,
-.avesmaps-infopanel .avesmaps-adv {
+.avesmaps-infopanel .avesmaps-adv,
+.avesmaps-infopanel .avesmaps-near {
 	margin-left: calc(-1 * var(--infopanel-pad-x));
 	margin-right: calc(-1 * var(--infopanel-pad-x));
 	padding-left: var(--infopanel-pad-x);

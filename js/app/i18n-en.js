@@ -526,6 +526,7 @@ window.AVESMAPS_I18N_EN = {
 	"popup.sourceType.briefspiel": "Play-by-mail",
 	"popup.sourceType.regelbuch": "Rulebook",
 	"popup.sourceType.sonstiges": "Other",
+	"whatIsHere.nearby": "Nearby",
 
 	// --- location popup chrome ---
 	"popup.shareLink": "🔗 Share link",
