@@ -404,8 +404,13 @@ function renderDetail() {
 		// Das Haekchen wird NIE gesperrt: waeren beide Elemente gesperrt, kaeme man aus einem
 		// widerspruechlichen Zustand nicht mehr heraus, und weil das Speichern immer beide Werte
 		// schickt, lehnte der Server danach JEDE Aenderung an dieser Linie ab -- auch eine reine
-		// Namens- oder Beschreibungsaenderung. Der normale Weg aendert sich dadurch nicht: wer das
-		// Haekchen setzt, kann das Feld weiterhin nicht mehr fuellen (das bleibt gesperrt).
+		// Namens- oder Beschreibungsaenderung.
+		// ⚠️ Die Sperre am Feld richtet sich nach dem GELADENEN Zustand, nicht nach dem Haekchen:
+		// `disabled` wird beim Zeichnen aus `noArticle` gesetzt, und es gibt keinen change-Zuhoerer.
+		// Ein frisch gesetztes Haekchen sperrt das Feld also NICHT sofort, sondern erst beim
+		// naechsten Neuzeichnen (Speichern -> reload -> renderDetail). Wer beides zugleich
+		// ausfuellt, bekommt die Absage vom Server (avesmapsUpdatePowerlineLine) -- DER ist der
+		// Riegel, die Sperre hier ist nur die Bequemlichkeit davor.
 		+ '<div class="dt-check"><input type="checkbox" id="plNoArticle"' + (noArticle ? " checked" : "") + "><span>Kein Wiki-Artikel vorhanden</span></div>"
 		// Der zweite Halbsatz ist tragend: der Merker ist NICHT endgueltig -- der Abgleich macht ihn
 		// wieder auf, sobald im Wiki ein passender Artikel auftaucht (Entwurf §4). Ohne ihn liest er

@@ -1639,6 +1639,18 @@ function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): 
     }
 }
 
+// 💣 Der Widerspruch "Zuweisung UND kein Wiki-Artikel" steht an EINER Stelle formuliert, damit die
+// beiden Schreibwege ihn nicht verschieden begruenden -- er wird ABGELEHNT, nicht aufgeloest (ein
+// stummer Vorrang waere eine Regel, die niemand kennt, und der Merker wird an DREI Stellen gelesen:
+// Editor, Konfliktzentrum, Abgleich).
+function avesmapsAssertPowerlineWikiClaimNotContradictory(string $wikiUrl, bool $noArticle): void {
+    if ($noArticle && trim($wikiUrl) !== '') {
+        throw new InvalidArgumentException(
+            'Eine Kraftlinie kann nicht gleichzeitig einen Wiki-Artikel haben und keinen. Bitte den Link leeren oder das Häkchen entfernen.'
+        );
+    }
+}
+
 function avesmapsUpdatePowerlineFeatureDetails(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
     $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Name der Kraftlinie');
@@ -1653,6 +1665,11 @@ function avesmapsUpdatePowerlineFeatureDetails(PDO $pdo, array $payload, array $
         $feature = avesmapsFetchEditableLineStringFeature($pdo, $publicId);
         avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
         $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+        // Derselbe Riegel wie im Linien-Schreibweg. Dieser zweite Weg kannte ihn nicht, der
+        // verbotene Zustand war ueber ihn also herstellbar. Geprueft wird gegen den Merker, wie er
+        // in den properties DIESES Segments steht: diese Aktion schreibt ihn nicht, sie kann ihn
+        // nur vorfinden -- deshalb steht die Pruefung nach dem Lesen und nicht vor der Transaktion.
+        avesmapsAssertPowerlineWikiClaimNotContradictory($wikiUrl, !empty($properties['wiki_no_article']));
         $properties['name'] = $name;
         $properties['feature_type'] = 'powerline';
         $properties['feature_subtype'] = 'powerline';
@@ -1716,14 +1733,10 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
     $description = trim((string) ($payload['description'] ?? ''));
     $wikiUrl = trim((string) ($payload['wiki_url'] ?? ''));
     $noArticle = avesmapsReadBoolean($payload['wiki_no_article'] ?? false);
-    // 💣 Abgelehnt, nicht aufgeloest. Ein stummer Vorrang waere eine Regel, die niemand kennt --
-    // und der Merker wird an DREI Stellen gelesen (Editor, Konfliktzentrum, Abgleich), die dann
-    // verschiedener Meinung sein koennten.
-    if ($noArticle && $wikiUrl !== '') {
-        throw new InvalidArgumentException(
-            'Eine Kraftlinie kann nicht gleichzeitig einen Wiki-Artikel haben und keinen. Bitte den Link leeren oder das Häkchen entfernen.'
-        );
-    }
+    // 💣 Abgelehnt, nicht aufgeloest -- Begruendung und Wortlaut stehen an der gemeinsamen Stelle
+    // (avesmapsAssertPowerlineWikiClaimNotContradictory), damit der zweite Schreibweg nicht wieder
+    // ohne Riegel oder mit einer anderen Begruendung dastehen kann.
+    avesmapsAssertPowerlineWikiClaimNotContradictory($wikiUrl, $noArticle);
 
     $pdo->beginTransaction();
     try {
@@ -1844,6 +1857,10 @@ function avesmapsReorderPowerlineLine(PDO $pdo, array $payload, array $user): ar
         $inheritShowLabel = false;
         $inheritDescription = '';
         $inheritWikiUrl = '';
+        // 💣 Der Merker gehoert in diese Liste. Er ist eine Aussage ueber die LINIE, steht aber wie
+        // die uebrigen Felder in JEDEM Segment -- ein neu entstehendes Segment ohne ihn machte die
+        // Linie im Konfliktzentrum wieder sichtbar, obwohl niemand etwas entschieden hat.
+        $inheritNoArticle = false;
         $haveInherit = false;
         foreach ($rows as $row) {
             $properties = avesmapsDecodeJsonColumnForEdit($row['properties_json'] ?? null);
@@ -1865,6 +1882,7 @@ function avesmapsReorderPowerlineLine(PDO $pdo, array $payload, array $user): ar
                 $inheritShowLabel = (bool) ($properties['show_label'] ?? false);
                 $inheritDescription = (string) ($properties['description'] ?? '');
                 $inheritWikiUrl = (string) ($properties['wiki_url'] ?? '');
+                $inheritNoArticle = !empty($properties['wiki_no_article']);
                 $haveInherit = true;
             }
         }
@@ -1982,6 +2000,12 @@ function avesmapsReorderPowerlineLine(PDO $pdo, array $payload, array $user): ar
                 'from_public_id' => $edge['from'],
                 'to_public_id' => $edge['to'],
             ];
+            // Nur wenn gesetzt: der Merker wird sonst nirgends als `false` abgelegt (der
+            // Linien-Schreibweg loescht den Schluessel), und ein `false` laese sich spaeter nicht
+            // von "nie entschieden" unterscheiden.
+            if ($inheritNoArticle) {
+                $properties['wiki_no_article'] = true;
+            }
             avesmapsInsertPowerlineFeatureRow($pdo, $publicId, $currentName, $geometry, $properties, $revision, (int) $user['id']);
         }
 
