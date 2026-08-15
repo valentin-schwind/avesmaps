@@ -4,10 +4,16 @@
     const listEl = () => document.getElementById("mail-inbox-list");
     const detailEl = () => document.getElementById("mail-inbox-detail");
     const sentEl = () => document.getElementById("mail-sent-list");
+    const archiveEl = () => document.getElementById("mail-archive-list");
+    const archiveSentEl = () => document.getElementById("mail-archive-sent-list");
     let inboxLoaded = false;
     let sentLoaded = false;
+    let archiveLoaded = false;
     let sentLoadPromise = null;
-    let openUid = null;
+    let archiveLoadPromise = null;
+    // A uid is per FOLDER: message 123 in the inbox and message 123 in the archive are two
+    // different mails. The open detail is therefore keyed by box AND uid, never by uid alone.
+    let openKey = null;
     let openItemEl = null;
 
     function api(action, opts, query) {
@@ -17,6 +23,8 @@
     }
 
     function fmtDate(s) { const d = new Date(s); return isNaN(d) ? (s || "") : d.toLocaleString("de-DE"); }
+
+    function messageKey(box, uid) { return String(box || "inbox") + ":" + String(uid); }
 
     // Full-screen image viewer. Built entirely via createElement (no innerHTML); the src is
     // our own auth-gated, same-origin image endpoint, so the session cookie is sent with it.
@@ -43,103 +51,127 @@
         return "";
     }
 
-    function trashErrorText(res) {
+    function moveErrorText(res) {
         const code = res && res.error && res.error.code;
         if (code === "no_trash_mailbox") { return "Kein Papierkorb-Ordner im Postfach."; }
-        if (code === "not_found") { return "Nicht mehr im Posteingang."; }
+        if (code === "no_archive_mailbox") { return "Kein Archiv-Ordner im Postfach."; }
+        if (code === "archive_open_failed") { return "Archiv-Ordner nicht lesbar."; }
+        if (code === "not_found") { return "Nicht mehr an dieser Stelle."; }
         return "Verschieben fehlgeschlagen.";
     }
 
-    // Moves the mail into the mailbox's real trash folder (server-side). The row is only removed
-    // once the server confirms; a failure leaves it in place and says why, because a row that
-    // silently disappears on a failed move looks exactly like a successful one.
-    function trashMessage(m, row, item, btn) {
+    function rowAction(cls, glyph, label, run) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "mail-inbox__action " + cls;
+        btn.textContent = glyph;
+        btn.title = label;
+        btn.setAttribute("aria-label", label);
+        btn.addEventListener("click", () => run(btn));
+        return btn;
+    }
+
+    // One mover for every row action (trash, archive, back out of the archive, and the two
+    // database-only ones on sent entries). The row is removed only once the server confirms; a
+    // failure leaves it in place and says why, because a row that silently disappears on a failed
+    // move looks exactly like a successful one.
+    function runRowAction(action, payload, row, item, btn) {
         if (btn.disabled) { return; }
         const meta = item.querySelector(".mail-inbox__meta");
-        const oldError = item.querySelector(".mail-inbox__trash-error");
+        const oldError = row.querySelector(".mail-inbox__row-error");
         if (oldError) { oldError.remove(); }
         btn.disabled = true;
-        row.classList.add("is-trashing");
+        row.classList.add("is-busy");
         function fail(text) {
-            row.classList.remove("is-trashing");
+            row.classList.remove("is-busy");
             btn.disabled = false;
             if (!meta) { return; }
             const note = document.createElement("span");
-            note.className = "mail-inbox__trash-error";
+            note.className = "mail-inbox__row-error";
             note.textContent = text;
             meta.appendChild(note);
         }
-        api("trash", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid: m.uid }) })
+        api(action, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
             .then((res) => {
-                if (!res || !res.ok) { fail(trashErrorText(res)); return; }
-                if (openUid === m.uid) { closeDetail(); }
+                if (!res || !res.ok) { fail(moveErrorText(res)); return; }
+                if (openItemEl === item) { closeDetail(); }
+                const list = row.parentNode;
                 row.remove();
-                const list = listEl();
-                if (list && !list.querySelector(".mail-inbox__row")) { list.textContent = "Keine Nachrichten."; }
+                if (list && !list.querySelector(".mail-inbox__row")) {
+                    list.textContent = list.dataset.emptyText || "Keine Nachrichten.";
+                }
+                // The mail left this list for another one; every cached list is stale now. They
+                // reload on the next visit rather than being patched from here — patching two
+                // lists from one place is how they drift apart.
+                inboxLoaded = false; sentLoaded = false; archiveLoaded = false;
             })
             .catch(() => fail("Netzwerkfehler."));
     }
 
-    function renderInbox(messages) {
-        const el = listEl(); if (!el) return;
+    function buildMessageRow(m, box) {
+        // The entry itself stays a <button>, so the row actions CANNOT live inside it — a button
+        // inside a button is invalid HTML and the parser tears the row apart. Hence the row
+        // wrapper: clickable entry left, row actions right.
+        const row = document.createElement("div");
+        row.className = "mail-inbox__row";
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "mail-inbox__item" + (m.seen ? "" : " is-unread");
+        const from = document.createElement("div"); from.className = "mail-inbox__from"; from.textContent = m.from || m.fromEmail || "(unbekannt)";
+        const subj = document.createElement("div"); subj.className = "mail-inbox__subject"; subj.textContent = m.subject || "(kein Betreff)";
+        const meta = document.createElement("div"); meta.className = "mail-inbox__meta"; meta.textContent = fmtDate(m.date);
+        if (m.answered) {
+            const b = document.createElement("span");
+            b.className = "mail-inbox__badge";
+            b.textContent = "✓ beantwortet";
+            b.title = "Zur gesendeten Antwort springen";
+            if (m.replyId) { b.addEventListener("click", (ev) => { ev.stopPropagation(); jumpToSent(m.replyId); }); }
+            meta.appendChild(b);
+        }
+        item.append(from, subj, meta);
+        item.addEventListener("click", () => openMessage(m, item, row, box));
+        row.appendChild(item);
+
+        if (box === "archive") {
+            row.appendChild(rowAction("mail-inbox__archive", "↩", "Zurück in den Posteingang", (btn) => runRowAction("unarchive", { uid: m.uid }, row, item, btn)));
+        } else {
+            // Archive left, trash right: the destructive action sits on the outside, never between
+            // the two other click targets.
+            row.appendChild(rowAction("mail-inbox__archive", "🗄", "Ins Archiv verschieben", (btn) => runRowAction("archive", { uid: m.uid }, row, item, btn)));
+            row.appendChild(rowAction("mail-inbox__trash", "🗑", "In den Papierkorb verschieben", (btn) => runRowAction("trash", { uid: m.uid }, row, item, btn)));
+        }
+        return row;
+    }
+
+    function renderMessages(messages, el, box, emptyText) {
+        if (!el) return;
         el.textContent = "";
-        openUid = null; openItemEl = null;
-        if (!messages || !messages.length) { el.textContent = "Keine Nachrichten."; return; }
-        messages.forEach((m) => {
-            // The entry itself stays a <button>, so the trash CANNOT live inside it — a button
-            // inside a button is invalid HTML and the parser tears the row apart. Hence the row
-            // wrapper: clickable entry left, row action right.
-            const row = document.createElement("div");
-            row.className = "mail-inbox__row";
-            const item = document.createElement("button");
-            item.type = "button";
-            item.className = "mail-inbox__item" + (m.seen ? "" : " is-unread");
-            const from = document.createElement("div"); from.className = "mail-inbox__from"; from.textContent = m.from || m.fromEmail || "(unbekannt)";
-            const subj = document.createElement("div"); subj.className = "mail-inbox__subject"; subj.textContent = m.subject || "(kein Betreff)";
-            const meta = document.createElement("div"); meta.className = "mail-inbox__meta"; meta.textContent = fmtDate(m.date);
-            if (m.answered) {
-                const b = document.createElement("span");
-                b.className = "mail-inbox__badge";
-                b.textContent = "✓ beantwortet";
-                b.title = "Zur gesendeten Antwort springen";
-                if (m.replyId) { b.addEventListener("click", (ev) => { ev.stopPropagation(); jumpToSent(m.replyId); }); }
-                meta.appendChild(b);
-            }
-            item.append(from, subj, meta);
-            item.addEventListener("click", () => openMessage(m, item, row));
-
-            const trash = document.createElement("button");
-            trash.type = "button";
-            trash.className = "mail-inbox__trash";
-            trash.textContent = "🗑";
-            trash.title = "In den Papierkorb verschieben";
-            trash.setAttribute("aria-label", "In den Papierkorb verschieben");
-            trash.addEventListener("click", () => trashMessage(m, row, item, trash));
-
-            row.append(item, trash);
-            el.appendChild(row);
-        });
+        el.dataset.emptyText = emptyText;
+        if (openItemEl && !document.contains(openItemEl)) { closeDetail(); }
+        if (!messages || !messages.length) { el.textContent = emptyText; return; }
+        messages.forEach((m) => { el.appendChild(buildMessageRow(m, box)); });
     }
 
     function closeDetail() {
         const inline = document.getElementById("mail-inline-detail");
         if (inline) { inline.remove(); }
         if (openItemEl) { openItemEl.classList.remove("is-open"); openItemEl = null; }
-        openUid = null;
+        openKey = null;
     }
 
     // The detail expands INLINE, directly under the clicked list entry (accordion), so it
     // never slides to the bottom of the list. A second click on the open mail collapses it.
-    function openMessage(m, itemEl, rowEl) {
-        if (openUid === m.uid) { closeDetail(); return; }
+    function openMessage(m, itemEl, rowEl, box) {
+        const key = messageKey(box, m.uid);
+        if (openKey === key) { closeDetail(); return; }
         closeDetail();
-        openUid = m.uid;
+        openKey = key;
         const detail = document.createElement("div");
         detail.id = "mail-inline-detail";
         detail.className = "mail-inbox__detail";
         detail.textContent = "Lade …";
         // The card goes after the ROW, not after the entry button — inside the row it would land
-        // next to the trash button in the same flex line. `is-open` stays on the entry (the look).
+        // next to the row actions in the same flex line. `is-open` stays on the entry (the look).
         const anchor = rowEl || itemEl;
         if (anchor && typeof anchor.after === "function") {
             anchor.after(detail);
@@ -148,11 +180,13 @@
         } else {
             const l = listEl(); if (l) { l.appendChild(detail); }
         }
-        api("message", null, { uid: m.uid }).then((res) => {
-            if (openUid !== m.uid) { return; }
+        // The box travels with the uid — without it the server would read the same-numbered
+        // message of the inbox and answer with a different mail entirely.
+        api("message", null, { uid: m.uid, box: box || "inbox" }).then((res) => {
+            if (openKey !== key) { return; }
             if (!res || !res.ok) { detail.textContent = "Konnte Nachricht nicht laden."; return; }
             renderDetail(res.message, detail);
-        }).catch(() => { if (openUid === m.uid) { detail.textContent = "Fehler beim Laden."; } });
+        }).catch(() => { if (openKey === key) { detail.textContent = "Fehler beim Laden."; } });
     }
 
     function renderDetail(msg, el) {
@@ -167,7 +201,8 @@
         if (msg.images && msg.images.length) {
             const gallery = document.createElement("div"); gallery.className = "mail-inbox__images";
             msg.images.forEach((im) => {
-                const src = API + "?action=image&uid=" + encodeURIComponent(msg.uid) + "&part=" + encodeURIComponent(im.part);
+                const src = API + "?action=image&uid=" + encodeURIComponent(msg.uid) + "&part=" + encodeURIComponent(im.part)
+                    + (msg.box === "archive" ? "&box=archive" : "");
                 const thumb = document.createElement("img");
                 thumb.className = "mail-inbox__thumb";
                 thumb.src = src;
@@ -178,6 +213,16 @@
                 gallery.appendChild(thumb);
             });
             el.appendChild(gallery);
+        }
+
+        // No replying out of the archive (design 2026-08-15, §2): the reply path derives its
+        // recipient server-side from the referenced mail, and it is not being widened to a second
+        // folder for convenience. Fetch the mail back into the inbox and answer it there.
+        if (msg.box === "archive") {
+            const n = document.createElement("div"); n.className = "mail-inbox__status";
+            n.textContent = "Archiviert — zum Antworten erst mit ↩ zurückholen.";
+            el.appendChild(n);
+            return;
         }
 
         const replyTarget = msg.replyTo || msg.fromEmail;
@@ -213,59 +258,105 @@
         });
     }
 
-    function renderSent(rows) {
-        const el = sentEl(); if (!el) return;
+    function buildSentRow(r, archived) {
+        const row = document.createElement("div");
+        row.className = "mail-inbox__row";
+        // <details>/<summary> on purpose, not a hand-built toggle: Strg+F finds text inside a
+        // COLLAPSED entry and opens it by itself, while display:none would hide the text from
+        // the page search — and a mailbox is exactly the surface people search. Focus,
+        // Enter/Space and aria-expanded come from the element too. The row action sits OUTSIDE
+        // the <details>, so clicking it never toggles the entry.
+        const item = document.createElement("details"); item.className = "mail-inbox__item mail-inbox__sent";
+        item.dataset.replyId = String(r.id);
+        const head = document.createElement("summary");
+        const to = document.createElement("div"); to.className = "mail-inbox__from"; to.textContent = "An: " + (r.to_email || "");
+        const subj = document.createElement("div"); subj.className = "mail-inbox__subject"; subj.textContent = r.subject || "";
+        const meta = document.createElement("div"); meta.className = "mail-inbox__meta"; meta.textContent = fmtDate(r.sent_at) + " · " + (r.editor_user || "") + " · " + (r.delivery_status || "");
+        const preview = document.createElement("div"); preview.className = "mail-inbox__preview"; preview.textContent = firstLine(r.body);
+        head.append(to, subj, meta, preview);
+        const body = document.createElement("div"); body.className = "mail-inbox__body"; body.textContent = r.body || "";
+        item.append(head, body);
+        row.appendChild(item);
+        // Archiving a sent entry marks the LOG ROW and nothing else — the message itself stays
+        // where it is in the mailbox's own sent folder.
+        row.appendChild(archived
+            ? rowAction("mail-inbox__archive", "↩", "Zurück in die Gesendet-Liste", (btn) => runRowAction("sent-unarchive", { id: r.id }, row, item, btn))
+            : rowAction("mail-inbox__archive", "🗄", "Ins Archiv verschieben", (btn) => runRowAction("sent-archive", { id: r.id }, row, item, btn)));
+        return row;
+    }
+
+    function renderSent(rows, el, archived, emptyText) {
+        if (!el) return;
         el.textContent = "";
-        if (!rows || !rows.length) { el.textContent = "Noch nichts gesendet."; return; }
-        rows.forEach((r) => {
-            // <details>/<summary> on purpose, not a hand-built toggle: Strg+F finds text inside a
-            // COLLAPSED entry and opens it by itself, while display:none would hide the text from
-            // the page search — and a mailbox is exactly the surface people search. Focus,
-            // Enter/Space and aria-expanded come from the element too.
-            const item = document.createElement("details"); item.className = "mail-inbox__item mail-inbox__sent";
-            item.dataset.replyId = String(r.id);
-            const head = document.createElement("summary");
-            const to = document.createElement("div"); to.className = "mail-inbox__from"; to.textContent = "An: " + (r.to_email || "");
-            const subj = document.createElement("div"); subj.className = "mail-inbox__subject"; subj.textContent = r.subject || "";
-            const meta = document.createElement("div"); meta.className = "mail-inbox__meta"; meta.textContent = fmtDate(r.sent_at) + " · " + (r.editor_user || "") + " · " + (r.delivery_status || "");
-            const preview = document.createElement("div"); preview.className = "mail-inbox__preview"; preview.textContent = firstLine(r.body);
-            head.append(to, subj, meta, preview);
-            const body = document.createElement("div"); body.className = "mail-inbox__body"; body.textContent = r.body || "";
-            item.append(head, body); el.appendChild(item);
-        });
+        el.dataset.emptyText = emptyText;
+        if (!rows || !rows.length) { el.textContent = emptyText; return; }
+        rows.forEach((r) => { el.appendChild(buildSentRow(r, archived)); });
     }
 
     function loadInbox(force) {
         if (inboxLoaded && !force) return;
         inboxLoaded = true;
         const el = listEl(); if (el) el.textContent = "Lade …";
-        api("inbox").then((res) => { res && res.ok ? renderInbox(res.messages) : (el && (el.textContent = "Mailbox nicht erreichbar.")); })
+        api("inbox").then((res) => { res && res.ok ? renderMessages(res.messages, el, "inbox", "Keine Nachrichten.") : (el && (el.textContent = "Mailbox nicht erreichbar.")); })
             .catch(() => { if (el) el.textContent = "Fehler beim Laden."; });
     }
     function loadSent(force) {
         if (sentLoaded && !force && sentLoadPromise) return sentLoadPromise;
         sentLoaded = true;
-        sentLoadPromise = api("sent").then((res) => { if (res && res.ok) renderSent(res.sent); }).catch(() => {});
+        sentLoadPromise = api("sent").then((res) => { if (res && res.ok) renderSent(res.sent, sentEl(), false, "Noch nichts gesendet."); }).catch(() => {});
         return sentLoadPromise;
     }
-    function highlightSent(replyId) {
-        const el = sentEl(); if (!el || !replyId) return;
-        el.querySelectorAll(".mail-inbox__item.is-highlighted").forEach((n) => n.classList.remove("is-highlighted"));
+    function loadArchive(force) {
+        if (archiveLoaded && !force && archiveLoadPromise) return archiveLoadPromise;
+        archiveLoaded = true;
+        const el = archiveEl(); if (el) el.textContent = "Lade …";
+        const received = api("archived").then((res) => {
+            if (!el) return;
+            if (!res || !res.ok) { el.textContent = "Mailbox nicht erreichbar."; return; }
+            // An empty `mailbox` means the mailbox HAS no archive folder — a different thing from
+            // an empty archive, and the only one of the two that is a job for the owner.
+            if (!res.mailbox) { el.textContent = "Im Postfach gibt es keinen Ordner „Archiv“."; return; }
+            renderMessages(res.messages, el, "archive", "Nichts archiviert.");
+        }).catch(() => { if (el) el.textContent = "Fehler beim Laden."; });
+        const sent = api("sent-archived").then((res) => {
+            const se = archiveSentEl(); if (!se) return;
+            if (res && res.ok) { renderSent(res.sent, se, true, "Nichts archiviert."); }
+            else { se.textContent = "Fehler beim Laden."; }
+        }).catch(() => {});
+        archiveLoadPromise = Promise.all([received, sent]);
+        return archiveLoadPromise;
+    }
+
+    function highlightSent(replyId, el) {
+        if (!el || !replyId) return false;
         const target = el.querySelector('[data-reply-id="' + String(replyId) + '"]');
+        if (!target) return false;
+        document.querySelectorAll(".mail-inbox__item.is-highlighted").forEach((n) => n.classList.remove("is-highlighted"));
         // Open it: jumping from "✓ beantwortet" onto a COLLAPSED entry would land on a headline
         // and hide the very reply the jump was about.
-        if (target) { target.open = true; target.classList.add("is-highlighted"); target.scrollIntoView({ block: "center", behavior: "smooth" }); }
+        target.open = true;
+        target.classList.add("is-highlighted");
+        target.scrollIntoView({ block: "center", behavior: "smooth" });
+        return true;
     }
     function jumpToSent(replyId) {
         if (!replyId) return;
         switchMailTab("gesendet");
-        loadSent(false).then(() => highlightSent(replyId));
+        loadSent(false).then(() => {
+            if (highlightSent(replyId, sentEl())) { return; }
+            // The reply may have been archived in the meantime. A badge that clicks into nothing is
+            // worse than a second hop, so follow it into the archive instead of failing silently.
+            switchMailTab("archiv");
+            loadArchive(false).then(() => highlightSent(replyId, archiveSentEl()));
+        });
     }
 
     function switchMailTab(name) {
         document.querySelectorAll("[data-mail-tab]").forEach((b) => b.classList.toggle("is-active", b.dataset.mailTab === name));
         document.querySelectorAll("[data-mail-pane]").forEach((p) => p.classList.toggle("is-active", p.dataset.mailPane === name));
-        if (name === "empfangen") loadInbox(false); else loadSent(false);
+        if (name === "empfangen") loadInbox(false);
+        else if (name === "archiv") loadArchive(false);
+        else loadSent(false);
     }
 
     document.addEventListener("click", (e) => {
@@ -273,7 +364,10 @@
         if (tab) { switchMailTab(tab.dataset.mailTab); return; }
         if (e.target.closest("#mail-refresh")) {
             const active = document.querySelector("[data-mail-tab].is-active");
-            (active && active.dataset.mailTab === "gesendet") ? loadSent(true) : loadInbox(true);
+            const name = active ? active.dataset.mailTab : "empfangen";
+            if (name === "gesendet") loadSent(true);
+            else if (name === "archiv") loadArchive(true);
+            else loadInbox(true);
         }
     });
 

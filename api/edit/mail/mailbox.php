@@ -15,11 +15,42 @@ try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsEnsureMailReplyTable($pdo);
+    avesmapsEnsureMailReplyArchiveColumn($pdo);
 
     $action = (string) ($_GET['action'] ?? 'inbox');
 
     if ($action === 'sent') {
         avesmapsJsonResponse(200, ['ok' => true, 'sent' => avesmapsMailListSent($pdo)]);
+    }
+    // The sent half of the archive is answered BEFORE the IMAP connect, exactly like 'sent' above:
+    // these rows are Avesmaps' own log, so they stay readable even when the mailbox is unreachable.
+    if ($action === 'sent-archived') {
+        avesmapsJsonResponse(200, ['ok' => true, 'sent' => avesmapsMailListSent($pdo, 50, true)]);
+    }
+    if ($action === 'sent-archive' || $action === 'sent-unarchive') {
+        if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
+            avesmapsErrorResponse(405, 'method_not_allowed', 'Archiving requires POST.');
+        }
+        $payload = avesmapsReadJsonRequest();
+        $replyId = (int) ($payload['id'] ?? 0);
+        if ($replyId <= 0) {
+            avesmapsErrorResponse(400, 'invalid_request', 'id is required.');
+        }
+        // Existence is checked separately from the update: an UPDATE that changes nothing because the
+        // row is ALREADY in the wanted state is not "not found", and a stale list must not produce an
+        // error for an action whose outcome is exactly what the user asked for.
+        $probe = $pdo->prepare('SELECT id FROM mail_reply WHERE id = :id');
+        $probe->execute(['id' => $replyId]);
+        if ($probe->fetchColumn() === false) {
+            avesmapsErrorResponse(404, 'not_found', 'No such sent entry.');
+        }
+        // A sent entry is a LOG ROW, not mailbox content: this sets a marker and leaves the message
+        // itself untouched -- its copy stays in the mailbox's own sent folder.
+        $update = $pdo->prepare($action === 'sent-archive'
+            ? 'UPDATE mail_reply SET archived_at = CURRENT_TIMESTAMP(3) WHERE id = :id'
+            : 'UPDATE mail_reply SET archived_at = NULL WHERE id = :id');
+        $update->execute(['id' => $replyId]);
+        avesmapsJsonResponse(200, ['ok' => true, 'id' => $replyId]);
     }
 
     $imapCfg = avesmapsResolveImapConfig($config);
@@ -108,12 +139,69 @@ try {
             }
             avesmapsJsonResponse(200, ['ok' => true, 'uid' => $uid, 'mailbox' => $trash]);
         }
+        if ($action === 'archive' || $action === 'unarchive') {
+            if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
+                avesmapsErrorResponse(405, 'method_not_allowed', 'Archiving requires POST.');
+            }
+            $payload = avesmapsReadJsonRequest();
+            $uid = (int) ($payload['uid'] ?? 0);
+            if ($uid <= 0) {
+                avesmapsErrorResponse(400, 'invalid_request', 'uid is required.');
+            }
+            $archive = avesmapsImapResolveArchiveMailbox(
+                avesmapsImapListFolders($imap, $imapCfg['ref']),
+                (string) ($imapCfg['archive_mailbox'] ?? '')
+            );
+            if ($archive === '') {
+                avesmapsErrorResponse(422, 'no_archive_mailbox', 'This mailbox has no archive folder.');
+            }
+            // Archiving reads the uid in the inbox (already open), un-archiving reads it in the
+            // archive -- the SAME number means two different messages in those two folders, so the
+            // folder has to be selected before the uid is touched at all.
+            $target = (string) $imapCfg['mailbox'];
+            if ($action === 'archive') {
+                $target = $archive;
+            } elseif (!avesmapsImapSelectFolder($imap, (string) $imapCfg['ref'], $archive)) {
+                avesmapsErrorResponse(502, 'archive_open_failed', 'The archive folder could not be opened.');
+            }
+            if (avesmapsImapMessageMeta($imap, $uid) === null) {
+                avesmapsErrorResponse(404, 'not_found', 'Message not found.');
+            }
+            if (!avesmapsImapMoveToFolder($imap, $uid, $target)) {
+                avesmapsErrorResponse(502, 'archive_move_failed', 'The message could not be moved.');
+            }
+            avesmapsJsonResponse(200, ['ok' => true, 'uid' => $uid, 'mailbox' => $target]);
+        }
+        if ($action === 'archived') {
+            $archive = avesmapsImapResolveArchiveMailbox(
+                avesmapsImapListFolders($imap, $imapCfg['ref']),
+                (string) ($imapCfg['archive_mailbox'] ?? '')
+            );
+            // A missing folder is an ANSWER here, not a failure: "there is no archive folder" and
+            // "the archive is empty" would otherwise look identical, and only the first is something
+            // the owner has to go and fix in the mailbox.
+            if ($archive === '') {
+                avesmapsJsonResponse(200, ['ok' => true, 'mailbox' => '', 'messages' => []]);
+            }
+            if (!avesmapsImapSelectFolder($imap, (string) $imapCfg['ref'], $archive)) {
+                avesmapsErrorResponse(502, 'archive_open_failed', 'The archive folder could not be opened.');
+            }
+            $rows = avesmapsImapListRecent($imap, AVESMAPS_MAIL_INBOX_LIMIT);
+            $answered = avesmapsMailAnsweredMap($pdo, array_column($rows, 'messageId'));
+            foreach ($rows as &$archivedRow) {
+                $archivedRow['answered'] = isset($answered[$archivedRow['messageId']]);
+                $archivedRow['replyId'] = $answered[$archivedRow['messageId']] ?? null;
+            }
+            unset($archivedRow);
+            avesmapsJsonResponse(200, ['ok' => true, 'mailbox' => $archive, 'messages' => $rows]);
+        }
         if ($action === 'image') {
             $uid = (int) ($_GET['uid'] ?? 0);
             $section = (string) ($_GET['part'] ?? '');
             if ($uid <= 0 || preg_match('/^[0-9]+(\.[0-9]+)*$/', $section) !== 1) {
                 avesmapsErrorResponse(400, 'invalid_request', 'A valid uid and part are required.');
             }
+            avesmapsMailSelectBox($imap, $imapCfg, (string) ($_GET['box'] ?? 'inbox'));
             $image = avesmapsImapFetchImage($imap, $uid, $section);
             if ($image === null) {
                 avesmapsErrorResponse(404, 'not_found', 'Image part not found.');
@@ -135,6 +223,8 @@ try {
         if ($action === 'message') {
             $uid = (int) ($_GET['uid'] ?? 0);
             if ($uid <= 0) { avesmapsErrorResponse(400, 'invalid_request', 'uid is required.'); }
+            $box = (string) ($_GET['box'] ?? 'inbox');
+            avesmapsMailSelectBox($imap, $imapCfg, $box);
             $meta = avesmapsImapMessageMeta($imap, $uid);
             if ($meta === null) { avesmapsErrorResponse(404, 'not_found', 'Message not found.'); }
             $text = avesmapsImapFetchText($imap, $uid);
@@ -142,6 +232,7 @@ try {
             $reply = avesmapsMailFindReply($pdo, $meta['messageId']);
             avesmapsJsonResponse(200, ['ok' => true, 'message' => [
                 'uid' => $uid,
+                'box' => $box === 'archive' ? 'archive' : 'inbox',
                 'fromEmail' => $meta['fromEmail'],
                 'replyTo' => ((string) ($meta['replyToEmail'] ?? '')) !== '' ? (string) $meta['replyToEmail'] : (string) $meta['fromEmail'],
                 'subject' => $meta['subject'],
@@ -204,11 +295,53 @@ function avesmapsEnsureMailReplyTable(PDO $pdo): void {
             editor_user VARCHAR(80) NULL,
             delivery_status VARCHAR(40) NULL,
             sent_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            archived_at DATETIME(3) NULL DEFAULT NULL,
             PRIMARY KEY (id),
             KEY idx_mail_reply_message (message_id),
-            KEY idx_mail_reply_sent (sent_at)
+            KEY idx_mail_reply_sent (sent_at),
+            KEY idx_mail_reply_archived (archived_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+}
+
+// CREATE TABLE IF NOT EXISTS does NOT heal an existing table, and mail_reply has stood on every
+// server since 2026-07-03 -- so on all of them the column arrives only through this ALTER. Skipping
+// it would break every read of the sent list, and only ever in production, never locally.
+function avesmapsEnsureMailReplyArchiveColumn(PDO $pdo): void {
+    $stmt = $pdo->query("SHOW COLUMNS FROM mail_reply LIKE 'archived_at'");
+    if ($stmt !== false && $stmt->fetch(PDO::FETCH_ASSOC) !== false) { return; }
+    $pdo->exec(
+        'ALTER TABLE mail_reply
+            ADD COLUMN archived_at DATETIME(3) NULL DEFAULT NULL,
+            ADD KEY idx_mail_reply_archived (archived_at)'
+    );
+}
+
+/**
+ * Select the folder a uid-taking action refers to, and return its name.
+ *
+ * A uid is per-folder: message 123 in the inbox and message 123 in the archive are two different
+ * mails. Every action that accepts a uid therefore has to say which folder that uid belongs to.
+ * The client may only name a KEYWORD (inbox|archive) -- never a folder name. Folder names are
+ * resolved server-side from the real folder list (see avesmapsImapResolveArchiveMailbox); accepting
+ * one from the client would hand out the folder structure of a real mailbox and skip that lookup.
+ */
+function avesmapsMailSelectBox($imap, array $imapCfg, string $box): string {
+    if ($box === '' || $box === 'inbox') { return (string) $imapCfg['mailbox']; }
+    if ($box !== 'archive') {
+        avesmapsErrorResponse(400, 'invalid_request', 'box must be inbox or archive.');
+    }
+    $archive = avesmapsImapResolveArchiveMailbox(
+        avesmapsImapListFolders($imap, (string) $imapCfg['ref']),
+        (string) ($imapCfg['archive_mailbox'] ?? '')
+    );
+    if ($archive === '') {
+        avesmapsErrorResponse(422, 'no_archive_mailbox', 'This mailbox has no archive folder.');
+    }
+    if (!avesmapsImapSelectFolder($imap, (string) $imapCfg['ref'], $archive)) {
+        avesmapsErrorResponse(502, 'archive_open_failed', 'The archive folder could not be opened.');
+    }
+    return $archive;
 }
 
 function avesmapsMailAnsweredMap(PDO $pdo, array $messageIds): array {
@@ -230,7 +363,14 @@ function avesmapsMailFindReply(PDO $pdo, string $messageId): ?array {
     return $row === false ? null : $row;
 }
 
-function avesmapsMailListSent(PDO $pdo, int $limit = 50): array {
-    $stmt = $pdo->query('SELECT id, message_id, to_email, subject, body, editor_user, delivery_status, sent_at FROM mail_reply ORDER BY id DESC LIMIT ' . (int) $limit);
+// archived_at NULL = in the sent list, a timestamp = archived. Not a boolean on purpose: the moment
+// of archiving is what the archive sorts by.
+function avesmapsMailListSent(PDO $pdo, int $limit = 50, bool $archived = false): array {
+    $where = $archived ? 'archived_at IS NOT NULL' : 'archived_at IS NULL';
+    $order = $archived ? 'archived_at DESC, id DESC' : 'id DESC';
+    $stmt = $pdo->query(
+        'SELECT id, message_id, to_email, subject, body, editor_user, delivery_status, sent_at, archived_at
+         FROM mail_reply WHERE ' . $where . ' ORDER BY ' . $order . ' LIMIT ' . (int) $limit
+    );
     return $stmt === false ? [] : $stmt->fetchAll(PDO::FETCH_ASSOC);
 }

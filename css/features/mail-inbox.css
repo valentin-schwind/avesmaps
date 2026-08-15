@@ -25,14 +25,29 @@
    legal. The inline detail card is inserted after the WRAPPER, not after the entry. */
 .mail-inbox__row { display: flex; align-items: stretch; gap: 6px; }
 .mail-inbox__row > .mail-inbox__item { flex: 1 1 auto; min-width: 0; }
-.mail-inbox__row.is-trashing { opacity: 0.55; }
+.mail-inbox__row.is-busy { opacity: 0.55; }
 /* Soft/outline, never filled: an action inside a LIST ROW is never the page's main action
-   (AGENTS.md §12) — and this list is 40 rows long. The danger tone belongs to the intent, so it
-   only appears on hover, not in the resting state. */
-.mail-inbox__trash { flex: 0 0 auto; width: 34px; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; font: inherit; line-height: 1; appearance: none; -webkit-appearance: none; border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md); background: var(--color-button-soft); color: var(--color-button-soft-text); }
+   (AGENTS.md §12) — and this list is 40 rows long. Since 2026-08-15 there are TWO of them, and
+   they share this look; only the hover tells them apart, because the danger tone belongs to the
+   intent, not to the resting state of 40 rows.
+   ⚠️ Order in the markup is archive left, trash right: the destructive action sits on the outside,
+   not between the two other click targets. */
+.mail-inbox__action { flex: 0 0 auto; width: 34px; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; font: inherit; line-height: 1; appearance: none; -webkit-appearance: none; border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md); background: var(--color-button-soft); color: var(--color-button-soft-text); }
+.mail-inbox__action:disabled { cursor: default; opacity: 0.5; }
+.mail-inbox__archive:hover { border-color: var(--color-border-strong); background: var(--color-button-soft-hover); }
 .mail-inbox__trash:hover { border-color: var(--color-danger-soft-border); background: var(--color-danger-soft); color: var(--color-danger-soft-text); }
-.mail-inbox__trash:disabled { cursor: default; opacity: 0.5; }
-.mail-inbox__trash-error { display: inline-block; margin-left: 6px; font-size: 11px; color: var(--color-danger); }
+.mail-inbox__row-error { display: inline-block; margin-left: 6px; font-size: var(--font-size-caption); color: var(--color-danger); }
+/* ⚠️ In a SENT row the entry is a <details> that grows to the whole message when opened, and the
+   row stretches its children — the action would become a tall bar down the side of the text. It
+   stays a button at the top there. The inbox rows keep stretching (that is the shipped look). */
+.mail-inbox__sent + .mail-inbox__action { align-self: flex-start; min-height: 34px; }
+/* Section heading inside the archive pane: grouped by heading + divider, never by a framed box
+   (AGENTS.md §12). This is the house form for a section title — Versalien, gesperrt, Akzentbraun —
+   the same one .label-edit-section-title (region-sync.css) and .wiki-sync-case-section__title
+   (review-panel.css) carry. ⚠️ Third copy of that recipe; if a fourth appears, it wants a shared
+   component instead, like the list row got on 2026-08-14. */
+.mail-inbox__section { margin: 14px 0 6px; padding-top: 10px; border-top: 1px solid var(--color-divider); font-size: var(--font-size-caption); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-accent-brown); }
+.mail-inbox__pane > .mail-inbox__section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 .mail-inbox__from { color: var(--color-text-strong); }
 .mail-inbox__subject { color: var(--color-text-muted); }
 .mail-inbox__meta { color: var(--color-text-muted); font-size: 12px; }

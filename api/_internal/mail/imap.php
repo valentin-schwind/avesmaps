@@ -20,6 +20,8 @@ function avesmapsResolveImapConfig(array $config): array {
         // Empty on purpose: the trash folder is DISCOVERED (see avesmapsImapResolveTrashMailbox),
         // never guessed. An explicit config value wins over discovery.
         'trash_mailbox' => trim((string) ($imap['trash_mailbox'] ?? '')),
+        // Same rule again for the archive folder (see avesmapsImapResolveArchiveMailbox).
+        'archive_mailbox' => trim((string) ($imap['archive_mailbox'] ?? '')),
         'username' => trim((string) ($imap['username'] ?? $smtp['username'] ?? '')),
         'password' => (string) ($imap['password'] ?? $smtp['password'] ?? ''),
     ];
@@ -128,6 +130,9 @@ const AVESMAPS_IMAP_TRASH_NAMES = ['trash', 'papierkorb', 'deleted items', 'dele
 // default-sent-folder setting is "Sent Items" (STRATO, verified 2026-08-11). A mailbox that carries
 // both folders is otherwise unresolvable from IMAP alone.
 const AVESMAPS_IMAP_SENT_NAMES = ['sent items', 'sent', 'gesendet', 'gesendete objekte', 'gesendete nachrichten', 'sent messages'];
+// "Archive" first, not "Archiv": this mailbox carries an English-named archive folder (owner,
+// 2026-08-15). Same discovery rule as trash -- a guessed name would be created by the server.
+const AVESMAPS_IMAP_ARCHIVE_NAMES = ['archive', 'archiv', 'archives', 'archivierte objekte', 'archivierte elemente'];
 
 function avesmapsImapListFolders($imap, string $ref): array {
     $list = @imap_list($imap, $ref, '*');
@@ -162,6 +167,12 @@ function avesmapsImapResolveTrashMailbox(array $folders, string $configured = ''
     return avesmapsImapResolveFolder($folders, AVESMAPS_IMAP_TRASH_NAMES, $configured);
 }
 
+function avesmapsImapResolveArchiveMailbox(array $folders, string $configured = ''): string {
+    // No literal fallback here, unlike avesmapsImapSentMailboxFrom(): a missing sent copy is a lost
+    // convenience, but a guessed archive name would MOVE a message into a folder nobody opens.
+    return avesmapsImapResolveFolder($folders, AVESMAPS_IMAP_ARCHIVE_NAMES, $configured);
+}
+
 function avesmapsImapResolveSentMailbox(array $folders, string $configured = ''): string {
     return avesmapsImapResolveFolder($folders, AVESMAPS_IMAP_SENT_NAMES, $configured);
 }
@@ -186,13 +197,29 @@ function avesmapsImapSentMailbox($imap, array $imapCfg): string {
     );
 }
 
+/**
+ * Point the already-open stream at another folder of THIS mailbox. A uid is per-folder, so any
+ * caller working on something other than the inbox has to switch first -- otherwise its uid
+ * addresses the same-numbered message of the wrong folder and reports success. imap_reopen keeps
+ * the single login of avesmapsImapConnect() instead of authenticating a second time per request.
+ */
+function avesmapsImapSelectFolder($imap, string $ref, string $folder): bool {
+    if (trim($folder) === '') { return false; }
+    return (bool) @imap_reopen($imap, $ref . $folder);
+}
+
 function avesmapsImapMoveToTrash($imap, int $uid, string $trashMailbox): bool {
-    if ($uid <= 0 || trim($trashMailbox) === '') { return false; }
-    if (!@imap_mail_move($imap, (string) $uid, $trashMailbox, CP_UID)) { return false; }
+    return avesmapsImapMoveToFolder($imap, $uid, $trashMailbox);
+}
+
+function avesmapsImapMoveToFolder($imap, int $uid, string $folder): bool {
+    if ($uid <= 0 || trim($folder) === '') { return false; }
+    if (!@imap_mail_move($imap, (string) $uid, $folder, CP_UID)) { return false; }
     // imap_mail_move only COPIES and flags the source \Deleted. Without the expunge the message
-    // stays in the inbox (struck through in a mail client) while its copy sits in Trash.
-    // Known cost: expunge drops EVERY \Deleted-flagged message of this mailbox, including ones a
-    // mail client flagged but did not remove yet -- ext-imap has no targeted UID EXPUNGE.
+    // stays in the source folder (struck through in a mail client) while its copy sits in the target.
+    // Known cost: expunge drops EVERY \Deleted-flagged message of the CURRENTLY OPEN folder -- which
+    // since the archive exists is the inbox or the archive, whichever the caller selected -- including
+    // ones a mail client flagged but did not remove yet -- ext-imap has no targeted UID EXPUNGE.
     @imap_expunge($imap);
     return true;
 }
