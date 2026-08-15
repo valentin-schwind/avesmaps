@@ -613,6 +613,31 @@ function conflictDecisionParties(conflict) {
 // Ein Knopf: den gefundenen Artikel uebernehmen. Die URL schickt der Client NICHT mit -- der
 // Server schlaegt sie selbst am Objektnamen nach (repair.php), damit von hier aus keine
 // beliebige Verknuepfung gesetzt werden kann.
+// Was der Server zu MELDEN hat: abgelehnte Ziele UND ausgelassene Zeilen.
+// 🔴 Die zweite Hälfte fehlte, und das war der Fehler: seit ein Ziel bei Wegen und Kraftlinien den
+// ganzen Namensverbund fasst, kann ein einzelnes Segment darin stehen bleiben (Anspruch im
+// Wiki-Nest) — der Aufruf meldet trotzdem `ok:true`, und der Editor sah gar nichts. Eine Antwort,
+// die Vollzug meldet und dabei etwas verschweigt, ist schlimmer als eine Fehlermeldung.
+// ⚠️ Nach Grund gebündelt: sechs Segmente mit demselben Grund sind EINE Aussage, nicht sechs.
+function conflictResolveComplaints(result) {
+	const messages = [];
+	const skippedByReason = new Map();
+	(result?.results || []).forEach((entry) => {
+		if (entry?.ok === false && entry.reason) {
+			messages.push(entry.reason);
+		}
+		(entry?.skipped || []).forEach((row) => {
+			const reason = String(row?.reason || "").trim();
+			if (reason === "") { return; }
+			skippedByReason.set(reason, (skippedByReason.get(reason) || 0) + 1);
+		});
+	});
+	skippedByReason.forEach((count, reason) => {
+		messages.push(`${count === 1 ? "Ein Teil wurde" : `${count} Teile wurden`} nicht geändert: ${reason}`);
+	});
+	return messages;
+}
+
 function createConflictLinkAction(conflict, party) {
 	const bar = document.createElement("div");
 	bar.className = "conflict-party__actions";
@@ -637,9 +662,9 @@ function createConflictLinkAction(conflict, party) {
 				severity: conflict.severity || "",
 				parties: conflictDecisionParties(conflict),
 			});
-			const refused = (result.results || []).filter((entry) => entry.ok === false);
-			if (refused.length > 0) {
-				window.alert(refused.map((entry) => entry.reason).join("\n"));
+			const complaints = conflictResolveComplaints(result);
+			if (complaints.length > 0) {
+				window.alert(complaints.join("\n"));
 			}
 			await loadConflicts();
 		} catch (error) {
@@ -681,10 +706,11 @@ function createConflictPartyActions(conflict, party) {
 				parties: conflictDecisionParties(conflict),
 			});
 			// The server refuses a party whose claim sits inside a wiki block -- surface that instead
-			// of pretending it worked.
-			const refused = (result.results || []).filter((entry) => entry.ok === false);
-			if (refused.length > 0) {
-				window.alert(refused.map((entry) => entry.reason).join("\n"));
+			// of pretending it worked. Dasselbe gilt für Zeilen, die ein Verbund-Schreibvorgang
+			// AUSGELASSEN hat: sie stehen nicht unter `ok:false`, sondern in `skipped`.
+			const complaints = conflictResolveComplaints(result);
+			if (complaints.length > 0) {
+				window.alert(complaints.join("\n"));
 			}
 			await loadConflicts();
 		} catch (error) {

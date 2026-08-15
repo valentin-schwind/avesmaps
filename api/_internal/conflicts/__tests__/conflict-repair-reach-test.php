@@ -142,6 +142,29 @@ assert($partial['ok'] === true, 'der Vorgang bricht nicht ab');
 assert($partial['written'] === 5, 'fuenf geschrieben, eine uebersprungen');
 assert($claimOf($pdo, 'pl-2') === $FREMD_URL, 'die fremde Verknuepfung wird nicht ueberschrieben');
 assert($claimOf($pdo, 'pl-5') === $HEXENBAND_URL, 'die uebrigen aber schon');
+// 🔴 Und die ausgelassene Zeile wird GEMELDET. Ohne diese Liste stuende hier `ok:true` und sonst
+// nichts -- der Editor haette kein Zeichen, dass ein Segment stehen geblieben ist.
+assert(count($partial['skipped']) === 1, 'die ausgelassene Zeile steht in der Antwort');
+assert($partial['skipped'][0]['public_id'] === 'pl-2', 'und zwar mit ihrer Kennung');
+assert(str_contains($partial['skipped'][0]['reason'], 'bereits eine Verknüpfung'), 'samt Grund');
+
+// === 2b) Ausgelassene Zeilen beim TRENNEN werden ebenso gemeldet ==============================
+// Der gemessene Fall: ein Segment traegt seinen Anspruch im Wiki-Nest, Sicherheitsregel 1 laesst
+// es stehen -- und der Vorgang meldete trotzdem glatten Vollzug.
+$seed($pdo, [
+    'pl-1' => ['wiki_url' => $HEXENBAND_URL],
+    'pl-2' => ['wiki_url' => $HEXENBAND_URL],
+    'pl-3' => ['wiki_powerline' => ['wiki_url' => $HEXENBAND_URL]],
+    'pl-4' => ['wiki_url' => $HEXENBAND_URL],
+    'pl-5' => ['wiki_url' => $HEXENBAND_URL],
+    'pl-6' => ['wiki_url' => $HEXENBAND_URL],
+]);
+$unlinkPartial = avesmapsConflictUnlinkFeature($pdo, 'pl-1', $HEXENBAND_URL, false, 7);
+assert($unlinkPartial['ok'] === true);
+assert($unlinkPartial['written'] === 5, 'fuenf getrennt, das Nest-Segment nicht');
+assert(count($unlinkPartial['skipped']) === 1, 'und genau das steht in der Antwort');
+assert($unlinkPartial['skipped'][0]['public_id'] === 'pl-3');
+assert(str_contains($unlinkPartial['skipped'][0]['reason'], 'Wiki-Zuordnung'));
 
 // === 3) Traegt die ZIELZEILE schon etwas, wird abgelehnt -- und nichts geschrieben =============
 $seed($pdo, ['pl-1' => ['wiki_url' => $FREMD_URL]]);

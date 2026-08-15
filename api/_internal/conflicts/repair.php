@@ -231,7 +231,7 @@ function avesmapsConflictUnlinkFeature(
     bool $maySpanNameGroup = true
 ): array {
     $select = $pdo->prepare(
-        "SELECT id, name, feature_type, properties_json FROM map_features
+        "SELECT id, public_id, name, feature_type, properties_json FROM map_features
          WHERE public_id = :p AND is_active = 1 LIMIT 1"
     );
     $select->execute(['p' => $publicId]);
@@ -279,7 +279,7 @@ function avesmapsConflictUnlinkFeature(
     if ($groupKey !== '') {
         $handledGroups[$groupKey] = true;
         $group = $pdo->prepare(
-            "SELECT id, name, feature_type, properties_json FROM map_features
+            "SELECT id, public_id, name, feature_type, properties_json FROM map_features
              WHERE feature_type = :t AND name = :n AND is_active = 1"
         );
         $group->execute(['t' => $featureType, 'n' => $name]);
@@ -292,6 +292,11 @@ function avesmapsConflictUnlinkFeature(
     $revision = avesmapsNextMapRevision($pdo);
     $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev, updated_by = :by WHERE id = :id');
     $written = 0;
+    // 🔴 Was der Vorgang AUSGELASSEN hat, samt Grund. Ohne diese Liste meldet ein Verbund-Schreiben
+    // `ok:true`, obwohl eine Zeile stehen geblieben ist -- gemessen: ein Segment mit Wiki-Nest blieb
+    // unangetastet, und der Editor sah nichts davon. Eine Antwort, die Vollzug meldet und dabei
+    // etwas verschweigt, ist schlimmer als eine Fehlermeldung.
+    $skipped = [];
     foreach ($rows as $row) {
         // ⚠️ ZWEITER GURT, und er ist mit Absicht redundant: da der Schutz den GANZEN Verbund
         // umfasst und die Verbund-Abfrage denselben Zuschnitt hat, ist eine geschuetzte Zeile hier
@@ -300,6 +305,10 @@ function avesmapsConflictUnlinkFeature(
         // Verbund-Abfrage entstanden ist (ein frisch angehaengtes Segment erbt den wiki_url seiner
         // Linie, koennte den Anspruch also bereits tragen). Eine Mutation dieser Zeile allein
         // ueberlebt den Test deshalb -- das ist benannt, nicht uebersehen.
+        //
+        // ⚠️ Eine geschuetzte Zeile ist KEINE ausgelassene: sie soll ihren Anspruch behalten, das
+        // ist der ganze Sinn von "Behält den Link". Sie gehoert deshalb nicht in $skipped -- sonst
+        // meldete jeder Behalten-Klick eine Warnung ueber genau das, was er bewirken sollte.
         if (isset($protectedRowIds[(int) $row['id']])) {
             continue;
         }
@@ -307,7 +316,9 @@ function avesmapsConflictUnlinkFeature(
         if (!is_array($properties)) {
             $properties = [];
         }
-        if (avesmapsConflictUnlinkRowRefusal($properties, $expectedUrl) !== '') {
+        $rowRefusal = avesmapsConflictUnlinkRowRefusal($properties, $expectedUrl);
+        if ($rowRefusal !== '') {
+            $skipped[] = ['public_id' => (string) ($row['public_id'] ?? ''), 'reason' => $rowRefusal];
             continue;
         }
         $before = json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -338,7 +349,7 @@ function avesmapsConflictUnlinkFeature(
     }
 
     return ['ok' => true, 'public_id' => $publicId, 'changed' => $written > 0, 'written' => $written,
-        'group' => $groupKey, 'name' => $name];
+        'group' => $groupKey, 'name' => $name, 'skipped' => $skipped];
 }
 
 /**
@@ -382,7 +393,7 @@ function avesmapsConflictLinkRowRefusal(array $properties): string {
  */
 function avesmapsConflictLinkFeature(PDO $pdo, string $publicId, array $wikiTitles, int $userId, array &$handledGroups = []): array {
     $select = $pdo->prepare(
-        "SELECT id, name, feature_type, properties_json FROM map_features
+        "SELECT id, public_id, name, feature_type, properties_json FROM map_features
          WHERE public_id = :p AND is_active = 1 LIMIT 1"
     );
     $select->execute(['p' => $publicId]);
@@ -429,7 +440,7 @@ function avesmapsConflictLinkFeature(PDO $pdo, string $publicId, array $wikiTitl
     if ($groupKey !== '') {
         $handledGroups[$groupKey] = true;
         $group = $pdo->prepare(
-            "SELECT id, name, feature_type, properties_json FROM map_features
+            "SELECT id, public_id, name, feature_type, properties_json FROM map_features
              WHERE feature_type = :t AND name = :n AND is_active = 1"
         );
         $group->execute(['t' => $featureType, 'n' => $name]);
@@ -442,12 +453,17 @@ function avesmapsConflictLinkFeature(PDO $pdo, string $publicId, array $wikiTitl
     $revision = avesmapsNextMapRevision($pdo);
     $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev, updated_by = :by WHERE id = :id');
     $written = 0;
+    // Was ausgelassen wurde, samt Grund -- siehe avesmapsConflictUnlinkFeature: eine Antwort, die
+    // Vollzug meldet und dabei etwas verschweigt, ist schlimmer als eine Fehlermeldung.
+    $skipped = [];
     foreach ($rows as $row) {
         $properties = json_decode((string) ($row['properties_json'] ?? '{}'), true);
         if (!is_array($properties)) {
             $properties = [];
         }
-        if (avesmapsConflictLinkRowRefusal($properties) !== '') {
+        $rowRefusal = avesmapsConflictLinkRowRefusal($properties);
+        if ($rowRefusal !== '') {
+            $skipped[] = ['public_id' => (string) ($row['public_id'] ?? ''), 'reason' => $rowRefusal];
             continue;
         }
         $before = json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -475,7 +491,7 @@ function avesmapsConflictLinkFeature(PDO $pdo, string $publicId, array $wikiTitl
     }
 
     return ['ok' => true, 'public_id' => $publicId, 'changed' => $written > 0, 'written' => $written,
-        'group' => $groupKey, 'name' => $lookupName, 'wiki_url' => $wikiUrl];
+        'group' => $groupKey, 'name' => $lookupName, 'wiki_url' => $wikiUrl, 'skipped' => $skipped];
 }
 
 /**
