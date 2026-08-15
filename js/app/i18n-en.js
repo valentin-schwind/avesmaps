@@ -527,6 +527,14 @@ window.AVESMAPS_I18N_EN = {
 	"popup.sourceType.regelbuch": "Rulebook",
 	"popup.sourceType.sonstiges": "Other",
 	"whatIsHere.nearby": "Nearby",
+	"whatIsHere.dir.n": "North",
+	"whatIsHere.dir.no": "Northeast",
+	"whatIsHere.dir.o": "East",
+	"whatIsHere.dir.so": "Southeast",
+	"whatIsHere.dir.s": "South",
+	"whatIsHere.dir.sw": "Southwest",
+	"whatIsHere.dir.w": "West",
+	"whatIsHere.dir.nw": "Northwest",
 
 	// --- location popup chrome ---
 	"popup.shareLink": "🔗 Share link",

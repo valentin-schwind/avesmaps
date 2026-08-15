@@ -28,6 +28,28 @@ const weg = (name, art, x, y) => ({ properties: { feature_type: "path", display_
 
 const P = { x: 0, y: 0 };
 
+// Fix-Runde 1, Befund 1: die Berechnung ruft jetzt getPathTitleName (js/map-features/
+// map-features-path-domain.js) statt eines eigenen Regex -- die Funktion lebt aber nur im
+// BROWSER (reines <script>-Global, kein module.exports), unter Node gibt es sie nicht. Fuer
+// die Faelle unten, die die FILTERUNG selbst pruefen, speisen wir eine Attrappe ein, die dieselben
+// drei Muell-Muster kennt wie die echte shouldShowRoutePathDisplayName (js/routing/route-node.js):
+// nackter Subtyp, "<Subtyp>-<n>", generisch "<Wort>-<Zahl>" ("Meer-468", wo der Praefix vom
+// Subtyp "Seeweg" abweicht -- genau der Fall, an dem eine subtyp-genaue Regel scheitert). Die
+// Attrappe ist ein Test-Stellvertreter fuer die ANBINDUNG, nicht die Produktionslogik selbst --
+// die bleibt allein in path-domain.js/route-node.js.
+global.getPathTitleName = function (path) {
+	const wiki = String(path?.properties?.wiki_path?.name || "").trim();
+	if (wiki) {
+		return wiki;
+	}
+	const roh = String(path?.properties?.display_name || "").trim();
+	const subtyp = String(path?.properties?.feature_subtype || "");
+	if (!roh || roh === subtyp || /^\S+-\d+$/.test(roh)) {
+		return "";
+	}
+	return roh;
+};
+
 // 💣 VIER namenlose Wege derselben Art. Ungefiltert stuenden am gemessenen Landpunkt genau so
 // vier hintereinander (Pfad-5401, Pfad-5400, Weg-5248, Strasse-5219), bevor das erste Dorf kaeme.
 const vielePfade = [
@@ -42,6 +64,20 @@ assert.strictEqual(a.filter((z) => z.name).length, 3, "die drei Ortschaften trag
 // 💣 Ein Weg ohne echten Namen wird NUR mit seiner Art genannt. „Pfad-5401" ist eine laufende
 // Nummer, keine Auskunft -- dieselbe Regel sortiert im Konfliktzentrum 2448 von 3721 Wegen aus.
 assert.strictEqual(a.find((z) => z.art === "Pfad").name, "", "automatischer Name faellt weg");
+
+// -------------------------------------- FIX-RUNDE 1, BEFUND 1: DIE NAMENSREGEL IM DETAIL --------
+// Die vier Faelle aus der Pruefung, ueber die eingespeiste Attrappe (s.o.).
+const namensFaelle = [
+	weg("Alte Handelsstrasse", "Strasse", 0, 1),    // echter Name -- bleibt
+	weg("Pfad-5401", "Pfad", 0, 2),                  // "<Subtyp>-<n>" -- faellt weg
+	weg("Meer-468", "Seeweg", 0, 3),                 // Praefix "Meer" != Subtyp "Seeweg" -- faellt trotzdem weg
+	weg("Flussweg", "Flussweg", 0, 4),                // nackter Subtyp als "Name" -- faellt weg
+];
+const n = avesmapsWhatIsHereNearby(P, namensFaelle);
+assert.strictEqual(n.find((z) => z.art === "Strasse").name, "Alte Handelsstrasse", "echter Name bleibt");
+assert.strictEqual(n.find((z) => z.art === "Pfad").name, "", "<Subtyp>-<n> faellt weg (Pfad-5401)");
+assert.strictEqual(n.find((z) => z.art === "Seeweg").name, "", "generisches <Wort>-<Zahl> faellt weg (Meer-468)");
+assert.strictEqual(n.find((z) => z.art === "Flussweg").name, "", "nackter Subtyp faellt weg (Flussweg)");
 
 // 💣 DIE ENTFERNUNGSSCHRANKE. Ohne sie stand auf Maraskan eine Reichsstrasse 534 Meilen weit weg
 // in der Liste -- formal die naechste ihrer Art, praktisch auf einem anderen Kontinent.
@@ -65,5 +101,15 @@ assert.deepStrictEqual(sortiert.slice().sort((u, v) => u - v), sortiert, "nach E
 
 // Kein Nachbar ueberhaupt -> leere Liste, kein Absturz.
 assert.deepStrictEqual(avesmapsWhatIsHereNearby(P, []), [], "leere Karte");
+
+// -------------------------------------- FIX-RUNDE 1, BEFUND 1: DER RUECKFALL OHNE FUNKTION -------
+// Attrappe wieder entfernen: das hier ist ausdruecklich der Zustand OHNE getPathTitleName, wie ihn
+// die Browser-Datei nie sieht (dort ist die Funktion laengst geladen, index.html Zeile 3144 vor
+// Zeile 3241), aber dieser Node-Test standardmaessig hat. Der Waechter degradiert dann auf den
+// ROHEN Namen -- KEIN eigener Regex (das war genau der Fehler, den Befund 1 behebt). Deshalb bleibt
+// hier auch ein Muell-Name wie "Pfad-77" ungefiltert stehen; das ist beabsichtigt.
+delete global.getPathTitleName;
+const ohneWaechter = avesmapsWhatIsHereNearby(P, [weg("Pfad-77", "Pfad", 0, 1)]);
+assert.strictEqual(ohneWaechter[0].name, "Pfad-77", "ohne getPathTitleName bleibt der rohe Name stehen");
 
 console.log("what-is-here-nearby: alles gruen");

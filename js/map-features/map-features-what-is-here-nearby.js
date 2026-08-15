@@ -15,10 +15,22 @@ const WIH_ORTE = 3;
 const WIH_WEGE = 4;
 const WIH_WEG_SCHRANKE = 1.5;
 
-// 💣 Ein automatisch benannter Weg heisst `<Wegart>-<Zahl>` und traegt damit KEINE Auskunft. Er
-// wird nur mit seiner Art genannt. Dieselbe Regel haelt im Konfliktzentrum 2448 von 3721 Wegen
-// von der Beobachtungsliste fern.
-const WIH_AUTONAME = /^[A-Za-zÄÖÜäöüß]+-\d+$/;
+// 💣 Die Namens- und Typregel fuer Wege gibt es bereits -- NICHT neu erfinden:
+//   - getPathTitleName(path)      (js/map-features/map-features-path-domain.js) liest ZUERST
+//     wiki_path.name (die Weg-IDENTITAET), erst danach display_name/original_name, gefiltert
+//     durch shouldShowRoutePathDisplayName (js/routing/route-node.js) -- die kennt alle drei
+//     Muell-Muster: den nackten Subtyp, "<Subtyp>-<n>" UND generisch "<Wort>-<Zahl>" ("Meer-835").
+//     Ein eigener Regex hier haette den Wiki-Namen-Kanal ignoriert und genau den Fehler wiederholt,
+//     den path-domain.js:29-33 als bereits einmal passiert beschreibt.
+//   - getPathTypeLabel(subtype)   (dieselbe Datei) liefert die Prosa ("Straße", "Wüstenpfad"),
+//     durch tr() gefuehrt -- unsere Subtyp-SCHLUESSEL ("Strasse", "Wuestenpfad") sind Join-Keys,
+//     keine Anzeigetexte.
+// 💣 Beide Funktionen leben nur im BROWSER (path-domain.js/route-node.js sind reine <script>-Globale
+// ohne module.exports). Unter Node -- also in diesem Test -- gibt es sie nicht: der Wächter
+// (typeof … === "function") faengt genau das ab, ist also fuer den TEST da, nicht fuer den Browser,
+// wo beide laengst vor dieser Datei geladen sind (index.html: path-domain.js Zeile 3144,
+// route-node.js Zeile 3203, diese Datei Zeile 3241). Der Rueckfall OHNE Funktion nimmt den rohen
+// Namen -- KEIN eigener Regex, sonst waere Befund 1 nur verschoben, nicht behoben.
 
 /**
  * Die rechtweisende Peilung von (fx,fy) nach (tx,ty), in Grad, 0 = Norden, im Uhrzeigersinn.
@@ -94,11 +106,14 @@ function avesmapsWhatIsHereNearby(punkt, features) {
 		if (!bester) {
 			return;
 		}
-		const art = p.feature_subtype || p.type || "";
-		const roh = p.display_name || p.name || "";
+		const subtype = p.feature_subtype || p.type || "";
+		const art = typeof getPathTypeLabel === "function" ? getPathTypeLabel(subtype) : subtype;
+		const name = typeof getPathTitleName === "function"
+			? getPathTitleName(feature)
+			: String(p.display_name || p.original_name || p.name || "").trim();
 		const zeile = {
 			art: art,
-			name: WIH_AUTONAME.test(roh) ? "" : roh,
+			name: name,
 			meilen: bester.d * WIH_MEILEN_JE_EINHEIT,
 			peilung: avesmapsWhatIsHereBearing(punkt.x, punkt.y, bester.fx, bester.fy),
 		};
@@ -124,6 +139,8 @@ function avesmapsWhatIsHereNearby(punkt, features) {
 }
 
 const WIH_KOMPASS = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"];
+// Deutscher Text zugleich als tr()-Standardwert UND als Node-Rueckfall ohne tr -- dieselbe
+// Doppelrolle wie ueberall sonst in diesem Haus (siehe avesmapsWhatIsHereNearbyMarkup).
 const WIH_KOMPASS_WORT = {
 	N: "Norden", NO: "Nordost", O: "Osten", SO: "Südost",
 	S: "Süden", SW: "Südwest", W: "Westen", NW: "Nordwest",
@@ -142,10 +159,13 @@ const WIH_KOMPASS_WORT = {
  * `rotate(peilung - 90deg)` -- eine zweite Zahl im Kopf, die irgendwann jemand vergisst.
  *
  * ⚠️ Das WORT bleibt, nur unsichtbar: aria-label liest ein Screenreader vor, title zeigt es an.
+ * Es ist eine SICHTBARE (vorgelesene) Zeichenkette und laeuft deshalb durch tr() -- Schluessel
+ * `whatIsHere.dir.<klein>` (z. B. `whatIsHere.dir.no`), Englisch in js/app/i18n-en.js.
  */
 function avesmapsWhatIsHereDirMarkup(peilung) {
 	const kurz = WIH_KOMPASS[Math.round(peilung / 45) % 8];
-	const wort = WIH_KOMPASS_WORT[kurz];
+	const fallback = WIH_KOMPASS_WORT[kurz];
+	const wort = typeof tr === "function" ? tr("whatIsHere.dir." + kurz.toLowerCase(), fallback) : fallback;
 	const grad = peilung.toFixed(1).replace(".", ",");
 	return '<span class="avesmaps-near__dir" style="--avesmaps-dir: ' + peilung.toFixed(1) + 'deg"'
 		+ ' role="img" aria-label="' + wort + '" title="' + wort + " (" + grad + '°)">'
