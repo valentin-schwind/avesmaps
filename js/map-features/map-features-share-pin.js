@@ -71,7 +71,7 @@ function bindSharePinDragging(marker) {
 	});
 }
 
-function setSharePin(latlng, { openPopup = false, syncUrl = true } = {}) {
+function setSharePin(latlng, { syncUrl = true } = {}) {
 	const normalizedLatLng = L.latLng(latlng);
 	if (!isWithinMapBounds(normalizedLatLng)) {
 		return false;
@@ -105,10 +105,6 @@ function setSharePin(latlng, { openPopup = false, syncUrl = true } = {}) {
 	});
 
 	bindSharePinDragging(sharePinMarker);
-
-	if (openPopup) {
-		window.avesmapsShowWhatIsHere(normalizedLatLng);
-	}
 
 	if (syncUrl) {
 		syncPlannerStateToUrl();

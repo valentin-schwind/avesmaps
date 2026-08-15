@@ -707,7 +707,11 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 		// wiederherstellt. Frueher wurde window.location.href kopiert -- das enthaelt den Pin aber nie,
 		// weil die Adresszeile bewusst nicht umgeschrieben wird (URL-Policy). Deshalb hier den expliziten
 		// ?pin=<lat,lng>-Deep-Link kopieren (buildSharePinLink, map-features-share-pin.js).
-		const didSetPin = setSharePin(contextMenuLatLng, { openPopup: true });
+		//
+		// 🔴 Fix-Runde 1 (15.08.2026): KEIN avesmapsShowWhatIsHere hier. Dieser Eintrag bleibt der
+		// schnelle Weg OHNE Auskunft (Entwurf §6) -- Markierung setzen, Link kopieren, fertig. Sonst
+		// waere er dasselbe wie „Was ist hier?" und haette keinen Daseinsgrund mehr.
+		const didSetPin = setSharePin(contextMenuLatLng);
 		if (didSetPin) {
 			void copySharePinLinkWithFeedback(contextMenuLatLng);
 		}
@@ -720,7 +724,7 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 	// aber statt eines kopierten Links geht das Infopanel auf und sagt, was dort liegt.
 	if (action === "what-is-here" && contextMenuLatLng) {
 		closeMapContextMenu();
-		if (setSharePin(contextMenuLatLng, { openPopup: false })) {
+		if (setSharePin(contextMenuLatLng)) {
 			window.avesmapsShowWhatIsHere(contextMenuLatLng);
 		}
 		if (typeof trackVisitorEvent === "function") {
