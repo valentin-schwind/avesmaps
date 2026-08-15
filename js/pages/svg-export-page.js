@@ -143,8 +143,10 @@
 	function glaettung() {
 		const an = el("svgx-smooth");
 		const spannung = Number((el("svgx-tension") || {}).value);
+		const flaechen = el("svgx-smooth-areas");
 		return {
 			smooth: Boolean(an && an.checked),
+			smoothAreas: Boolean(flaechen && flaechen.checked),
 			tension: Number.isFinite(spannung) ? Math.min(Math.max(spannung, 0), 1) : 0.5,
 		};
 	}
@@ -325,6 +327,7 @@
 				sizePx: gewaehlteGroesse(),
 				strokeScale: gewaehlteStrichstaerke(),
 				smooth: kurve.smooth,
+				smoothAreas: kurve.smoothAreas,
 				tension: kurve.tension,
 				wayColors: farben.wayColors,
 				wayOutlines: farben.wayOutlines,

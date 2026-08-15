@@ -290,7 +290,47 @@ function svgxPathData(coordinates, options) {
 	return punkte.map((p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`).join("");
 }
 
-function svgxRingData(ring) {
+// 🔴 EIN RING IST GESCHLOSSEN, und deshalb ist er NICHT einfach eine geglättete Linie.
+//
+// Bei einer offenen Linie ist der Nachbar des ersten Punktes er selbst (so macht es auch
+// das Catmull-Rom der Karte). Bei einem Ring ist der Nachbar des ersten Punktes der
+// LETZTE -- rechnet man hier mit der offenen Regel, bekommt die Fläche an ihrem
+// Startpunkt eine Ecke, und zwar an einer beliebigen Stelle des Umrisses, weil der
+// Startpunkt willkürlich ist. Genau daran erkennt man geglättete Flächen, die jemand
+// wie Linien behandelt hat.
+//
+// GeoJSON-Ringe wiederholen den ersten Punkt am Ende; der wird vorher entfernt, sonst
+// entsteht dort ein Nullsegment und mit ihm eine Delle.
+function svgxSmoothRingData(punkte, tension) {
+	let p = punkte;
+	if (p.length > 1) {
+		const a = p[0];
+		const z = p[p.length - 1];
+		if (a.x === z.x && a.y === z.y) { p = p.slice(0, -1); }
+	}
+	if (p.length < 3) { return ""; }
+	const s = Number.isFinite(Number(tension)) ? Number(tension) : SVGX_CATMULL_TENSION;
+	const um = (i) => p[((i % p.length) + p.length) % p.length];   // umlaufend, kein Rand
+	const stuecke = [`M${p[0].x} ${p[0].y}`];
+
+	for (let i = 0; i < p.length; i += 1) {
+		const p0 = um(i - 1), p1 = um(i), p2 = um(i + 1), p3 = um(i + 2);
+		const c1x = p1.x + ((p2.x - p0.x) * s) / 3;
+		const c1y = p1.y + ((p2.y - p0.y) * s) / 3;
+		const c2x = p2.x - ((p3.x - p1.x) * s) / 3;
+		const c2y = p2.y - ((p3.y - p1.y) * s) / 3;
+		stuecke.push(`C${svgxRund(c1x)} ${svgxRund(c1y)} ${svgxRund(c2x)} ${svgxRund(c2y)} ${p2.x} ${p2.y}`);
+	}
+	return `${stuecke.join("")}Z`;
+}
+
+function svgxRingData(ring, options) {
+	const o = options || {};
+	if (o.smooth) {
+		const punkte = (ring || []).map(([x, y]) => svgxPoint(x, y));
+		const d = svgxSmoothRingData(punkte, o.tension);
+		if (d) { return d; }
+	}
 	const d = svgxPathData(ring);
 	return d ? `${d}Z` : "";
 }
@@ -298,12 +338,12 @@ function svgxRingData(ring) {
 // 💣 coordinates[0] ist der Außenring, JEDER WEITERE Eintrag ist ein LOCH. Wer nur den
 // ersten zeichnet, füllt Binnenseen zu -- und die Karte sieht dabei richtig aus.
 // fill-rule="evenodd" an der Gruppe macht aus dem zweiten Ring das Loch.
-function svgxPolygonData(geometry) {
+function svgxPolygonData(geometry, options) {
 	const typ = geometry && geometry.type;
 	const coords = (geometry && geometry.coordinates) || [];
 	const polygone = typ === "MultiPolygon" ? coords : (typ === "Polygon" ? [coords] : []);
 	return polygone
-		.map((polygon) => (polygon || []).map(svgxRingData).filter(Boolean).join(""))
+		.map((polygon) => (polygon || []).map((ring) => svgxRingData(ring, options)).filter(Boolean).join(""))
 		.filter(Boolean)
 		.join("");
 }
@@ -362,10 +402,16 @@ function svgxWayLayer(options) {
 		nachArt.get(art).push(f);
 	});
 
-	const stuecke = [svgxLayerOpen({ name: "Wege", id: "layer-wege", dialect: o.dialect })];
+	// `bare` lässt die Ebenenhülle weg: dann sind die Gruppen einzeln verwendbar -- so
+	// wandern die Flüsse in die Landschaften-Ebene, ohne dass ihr Code ein zweites Mal
+	// geschrieben wird. `only` beschränkt auf bestimmte Wegarten.
+	const stuecke = o.bare
+		? []
+		: [svgxLayerOpen({ name: "Wege", id: "layer-wege", dialect: o.dialect })];
 	let anzahl = 0;
 	const gruppen = {};
-	const arten = SVGX_WAY_SUBTYPES.concat([...nachArt.keys()].filter((a) => !SVGX_WAY_SUBTYPES.includes(a)));
+	const alleArten = SVGX_WAY_SUBTYPES.concat([...nachArt.keys()].filter((a) => !SVGX_WAY_SUBTYPES.includes(a)));
+	const arten = o.only ? alleArten.filter((a) => o.only.includes(a)) : alleArten;
 	arten.forEach((art) => {
 		const wege = nachArt.get(art);
 		// Eine leere Untergruppe wird gar nicht geschrieben: leere Ordner im Ebenenfenster
@@ -423,7 +469,7 @@ function svgxWayLayer(options) {
 		gruppen[art] = wege.length;
 		stuecke.push(svgxGroupClose());
 	});
-	stuecke.push(svgxGroupClose());
+	if (!o.bare) { stuecke.push(svgxGroupClose()); }
 	return { parts: stuecke, count: anzahl, groups: gruppen };
 }
 
@@ -464,7 +510,29 @@ function svgxAreaLayer(options) {
 	const stuecke = [svgxLayerOpen({ name: o.layerName, id: o.layerId, dialect: o.dialect })];
 	let anzahl = 0;
 	const zaehler = {};
-	gruppen.forEach((flaechen, schluessel) => {
+
+	// 🔴 WASSER ZULETZT, und dazwischen passt etwas hinein.
+	//
+	// „Flüsse unter Seen" geht nicht durch Umsortieren der Ebenen: die Wege sind Ebene 4,
+	// die Landschaften Ebene 1, also liegt ALLES aus dem Wege-Bund zwangsläufig über jedem
+	// See. Entweder die Flüsse verlassen die Wege oder die Seen die Landschaften -- und
+	// Letzteres legte auch Straßen unter Seen, was niemand will.
+	//
+	// Also ziehen die Flüsse hierher: die Wasserflächen werden ans ENDE dieser Ebene
+	// sortiert, und unmittelbar davor wird eingehängt, was `injectBeforeWater` mitbringt.
+	// Ergebnis: Fluss über Wald und Land, aber unter See und Meer.
+	const wasser = o.waterKeys || [];
+	const schluesselAlle = [...gruppen.keys()];
+	const reihenfolge = schluesselAlle.filter((k) => !wasser.includes(k))
+		.concat(schluesselAlle.filter((k) => wasser.includes(k)));
+	let eingehaengt = false;
+
+	reihenfolge.forEach((schluessel) => {
+		const flaechen = gruppen.get(schluessel);
+		if (!eingehaengt && wasser.includes(schluessel)) {
+			(o.injectBeforeWater || []).forEach((teil) => stuecke.push(teil));
+			eingehaengt = true;
+		}
 		if (!svgxSubgroupEnabled(o.enabled, schluessel)) { return; }
 		stuecke.push(svgxGroupOpen({
 			name: schluessel || o.layerName,
@@ -480,7 +548,7 @@ function svgxAreaLayer(options) {
 			},
 		}));
 		flaechen.forEach((f) => {
-			const d = svgxPolygonData(f.geometry);
+			const d = svgxPolygonData(f.geometry, { smooth: o.smooth, tension: o.tension });
 			if (!d) { return; }
 			const name = svgxNameOf(f) || schluessel || o.layerName;
 			const id = svgxIdFor(name, svgxProps(f).public_id, o.dialect, o.seen);
@@ -493,6 +561,8 @@ function svgxAreaLayer(options) {
 		});
 		stuecke.push(svgxGroupClose());
 	});
+	// Gab es gar kein Wasser, kommen die Flüsse trotzdem in die Datei -- am Ende der Ebene.
+	if (!eingehaengt) { (o.injectBeforeWater || []).forEach((teil) => stuecke.push(teil)); }
 	stuecke.push(svgxGroupClose());
 	return { parts: stuecke, count: anzahl, groups: zaehler };
 }
@@ -637,6 +707,25 @@ function svgxBuildDocument(options) {
 		ergebnis.parts.forEach((p) => parts.push(p));
 	};
 
+	// 🔴 „Flüsse unter Seen" (Owner 15.08.2026). Die Flüsse werden HIER gebaut -- vor den
+	// Landschaften -- und in deren Ebene eingehängt, direkt vor den Wasserflächen. Sie
+	// verlassen damit den Wege-Bund; anders geht es nicht, denn Ebene 4 liegt immer über
+	// Ebene 1. Ihre ids landen trotzdem in `wayIds`, also findet die Beschriftung sie.
+	// ⚠️ Reihenfolge im Code = Reihenfolge der id-Vergabe. Die Flüsse bekommen ihre ids
+	// zuerst; eindeutig bleibt alles, weil `seen` geteilt ist.
+	let flussTeile = [];
+	const fluesseUnten = o.riversUnderWater !== false && an.landschaften !== false && an.wege !== false;
+	if (fluesseUnten) {
+		const fl = svgxWayLayer({
+			features: o.mapFeatures, dialect: dialect, seen: seen, wayIds: wayIds,
+			enabled: (o.subgroups || {}).wege, strokeScale: o.strokeScale,
+			colors: o.wayColors, outlines: o.wayOutlines, smooth: o.smooth, tension: o.tension,
+			only: ["Flussweg"], bare: true,
+		});
+		flussTeile = fl.parts;
+		if (fl.count) { detail.push({ layer: "Landschaften", group: "Flusswege", count: fl.count }); }
+	}
+
 	// Reihenfolge = Zeichenreihenfolge. In SVG liegt das Erste unten.
 	// ⚠️ Es gibt KEINE Ebene "Regionen": im Payload existiert kein feature_type 'region'
 	// (gemessen 14.08.2026 an 11.810 Features -- location, crossing, path, junction, label,
@@ -653,6 +742,17 @@ function svgxBuildDocument(options) {
 			// eine Ebene TIEFER als die vier Landschafts-Arten, weil die Arten den ABRUF
 			// steuern und die Typen das ZEICHNEN -- zwei verschiedene Fragen.
 			enabled: (o.subgroups || {}).landschaftstypen,
+			// Was als WASSER gilt und deshalb zuletzt gezeichnet wird. Gemessen an den
+			// Live-Daten: Seen, Meere, Küsten und Flussdeltas sind Wasserflächen; `wadi`
+			// ist ein trockenes Bett und `flussland_flusstal` Bewuchs -- beide gehören
+			// NICHT dazu, sonst verschwänden Flüsse unter ihrem eigenen Flusstal.
+			waterKeys: ["see", "meer", "kueste", "flussdelta"],
+			injectBeforeWater: flussTeile,
+			// Flächen haben ihren EIGENEN Schalter: die Karte zeichnet sie aus
+			// Leistungsgründen eckig, aber organisch sind sie (Owner 15.08.2026).
+			// ⚠️ Ein Ring wird umlaufend geglättet, nicht wie eine offene Linie --
+			// siehe svgxSmoothRingData.
+			smooth: o.smoothAreas === true,
 			// Die Farbe je Geländetyp, gelesen aus denselben Token wie die Karte
 			// (--color-ecosystem-<art>-<typ>). Der Kitt reicht sie herein, weil
 			// getComputedStyle ein DOM braucht und dieser Bauer keins hat.
@@ -671,12 +771,24 @@ function svgxBuildDocument(options) {
 			features: o.territories, layerName: "Herrschaftsgebiete", layerId: "layer-gebiete",
 			groupBy: (f) => svgxProps(f).rank || svgxProps(f).type || "Gebiet",
 			defaultFill: "none", stroke: o.boundaryColor || "#8a6a3f", strokeScale: o.strokeScale,
+			// 🔴 HERRSCHAFTSGEBIETE WERDEN NIE GEGLÄTTET (Owner 15.08.2026: "auf keinen
+			// Fall"). Eine politische Grenze ist eine Behauptung über einen Verlauf, keine
+			// organische Form -- eine gerundete Grenze verschiebt Land zwischen Reichen und
+			// sieht dabei aus wie eine Verbesserung. Hier steht `false` ausgeschrieben und
+			// nicht etwa `o.smoothAreas`: wer den Schalter durchreichen will, muss diese
+			// Zeile löschen und stolpert dabei über die Begründung.
+			smooth: false,
 			dialect: dialect, seen: seen,
 		}));
 	}
 	if (an.wege !== false) {
+		// Liegen die Flüsse unten, dürfen sie hier NICHT noch einmal kommen -- sonst
+		// stünde jeder Fluss zweimal in der Datei, einmal unter und einmal über dem See.
+		const wegeAus = fluesseUnten
+			? Object.assign({}, (o.subgroups || {}).wege, { Flussweg: false })
+			: (o.subgroups || {}).wege;
 		nimm("Wege", svgxWayLayer({ features: o.mapFeatures, dialect: dialect, seen: seen,
-			wayIds: wayIds, enabled: (o.subgroups || {}).wege, strokeScale: o.strokeScale,
+			wayIds: wayIds, enabled: wegeAus, strokeScale: o.strokeScale,
 			colors: o.wayColors, outlines: o.wayOutlines, smooth: o.smooth, tension: o.tension }));
 	}
 	if (an.kraftlinien !== false) {
@@ -733,6 +845,7 @@ if (typeof module !== "undefined" && module.exports) {
 		SVGX_CATMULL_TENSION: SVGX_CATMULL_TENSION,
 		SVGX_WAY_OUTLINE_WIDTHS: SVGX_WAY_OUTLINE_WIDTHS,
 		svgxPolygonData: svgxPolygonData,
+		svgxSmoothRingData: svgxSmoothRingData,
 		svgxAsFeatures: svgxAsFeatures,
 		svgxProps: svgxProps,
 		svgxNameOf: svgxNameOf,

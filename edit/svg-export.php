@@ -235,7 +235,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
          or either script changes, or admins keep the cached files. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260815-svgexport-9" />
+    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260815-svgexport-10" />
 </head>
 
 <body class="edit-page">
@@ -369,7 +369,11 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                     <div class="svgx-size">
                         <label class="svgx-choice">
                             <input type="checkbox" id="svgx-smooth" />
-                            <span>Linien als Catmull-Rom-Kurven zeichnen</span>
+                            <span>Linien &ndash; Wege, Fl&uuml;sse, Kraftlinien</span>
+                        </label>
+                        <label class="svgx-choice">
+                            <input type="checkbox" id="svgx-smooth-areas" />
+                            <span>Fl&auml;chen &ndash; Landschaften, K&uuml;ste, Klimaz&uuml;ge</span>
                         </label>
                         <label class="svgx-size__field">
                             <span>Spannung</span>
@@ -384,6 +388,16 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                         <strong>Spannung 0,5</strong> ist der Wert der Karte; 0 ergibt wieder
                         gerade Strecken. ⚠️ Die Kurve überschwingt scharfe Ecken &ndash; das ist
                         so gewollt, die Karte tut es auch.
+                    </p>
+                    <p class="svgx-hint">
+                        Die <strong>Flächen</strong> zeichnet die Karte aus Leistungsgründen eckig,
+                        obwohl sie organisch sind &ndash; hier dürfen sie runden. Ein Ring wird dabei
+                        <em>umlaufend</em> geglättet: sonst bekäme jede Fläche an ihrem Startpunkt
+                        eine Ecke, an einer beliebigen Stelle des Umrisses.
+                        🔴 <strong>Herrschaftsgebiete werden nie geglättet</strong>, auch nicht mit
+                        diesem Häkchen. Eine politische Grenze ist eine Behauptung über einen
+                        Verlauf, keine organische Form &ndash; gerundet verschöbe sie Land zwischen
+                        Reichen und sähe dabei aus wie eine Verbesserung.
                     </p>
                 </div>
 
@@ -415,8 +429,8 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                 </table>
             </section>
         </main>
-        <script src="../js/pages/svg-export-build.js?v=20260815-svgexport-9"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260815-svgexport-9"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260815-svgexport-10"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260815-svgexport-10"></script>
     <?php endif; ?>
 </body>
 

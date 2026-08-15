@@ -136,7 +136,9 @@ const payload = {
 	const ids = [...svg.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
 	assert.strictEqual(ids.length, new Set(ids).size, "jede id muss eindeutig sein");
 
-	assert.strictEqual(stats.Wege, 2, "Zählwerk: zwei Wege");
+	// 🔴 EINER, nicht zwei: der Flussweg liegt seit 15.08.2026 in der Landschaften-Ebene,
+	// unter den Wasserflächen (Owner: "kannst du flüsse unter seen zeichnen?").
+	assert.strictEqual(stats.Wege, 1, "Zählwerk: der Flussweg zählt nicht mehr zu den Wegen");
 	assert.strictEqual(stats.Orte, 1, "Zählwerk: ein Ort");
 	assert.strictEqual(stats.Kraftlinien, 1, "Zählwerk: eine Kraftlinie");
 }
@@ -185,7 +187,11 @@ console.log("svg-export-build: ok");
 	assert.ok(!svg.includes('inkscape:label="Reichsstrasse"'), "abgewählte Wegart muss fehlen");
 	assert.ok(svg.includes('inkscape:label="Flussweg"'), "angehakte Wegart muss da sein");
 	assert.ok(!svg.includes("<title>Gareth</title>"), "abgewählte Ortsgröße muss fehlen");
-	assert.strictEqual(stats.Wege, 1, "Zählwerk folgt der Auswahl");
+	// 🔴 NULL im Wege-Bund: die Reichsstraße ist abgewählt, und der Flussweg liegt seit
+	// 15.08.2026 in der Landschaften-Ebene. Er ist trotzdem in der Datei -- siehe oben.
+	assert.strictEqual(stats.Wege, 0, "Zählwerk folgt der Auswahl");
+	assert.ok(detail.some((d) => d.layer === "Landschaften" && d.group === "Flusswege" && d.count === 1),
+		"der Flussweg muss im Zählwerk unter Landschaften auftauchen");
 	assert.strictEqual(stats.Orte, 0, "ohne Metropolen bleibt kein Ort übrig");
 
 	// 💣 Die abgewählte Reichsstraße darf auch keine BESCHRIFTUNG mehr hinterlassen --
@@ -196,10 +202,10 @@ console.log("svg-export-build: ok");
 			`href="#${h}" zeigt ins Leere, nachdem seine Wegart abgewählt wurde`);
 	});
 
-	// Das Zählwerk führt die Untergruppen einzeln.
-	const wegGruppen = detail.filter((d) => d.layer === "Wege");
-	assert.deepStrictEqual(wegGruppen, [{ layer: "Wege", group: "Flussweg", count: 1 }],
-		"detail muss die Untergruppen mit ihren Zahlen führen");
+	// Das Zählwerk führt die Untergruppen einzeln -- und der Wege-Bund ist hier leer,
+	// weil die einzige verbliebene Wegart nach unten gewandert ist.
+	assert.deepStrictEqual(detail.filter((d) => d.layer === "Wege"), [],
+		"ohne verbliebene Wegart führt der Wege-Bund keine Untergruppe");
 }
 
 // ⚠️ Nur ein ausdrückliches false schließt aus: eine unbekannte Unterart bleibt drin.
@@ -327,10 +333,13 @@ console.log("svg-export-build (keine Transparenz): ok");
 	});
 
 	// Der Regler multipliziert, 100 % lässt in Ruhe.
+	// ⚠️ Gezielt die REICHSSTRASSE lesen, nicht die erste Linie im Dokument -- seit die
+	// Flüsse unter den Seen liegen, ist die erste Linie ein Fluss.
 	const bei = (skala) => {
 		const svg = B.svgxBuildDocument({ mapFeatures: payload, dialect: D.INKSCAPE,
 			strokeScale: skala }).parts.join("");
-		return Number((svg.match(/stroke-width="([\d.]+)"/) || [])[1]);
+		const gruppe = svg.match(/id="wege-reichsstrasse-linie"[^>]*stroke-width="([\d.]+)"/);
+		return Number(gruppe && gruppe[1]);
 	};
 	assert.ok(Math.abs(bei(1) - 0.125) < 1e-9, "100 % ist der Kartenzustand");
 	assert.ok(Math.abs(bei(0.5) - 0.0625) < 1e-9, "50 % halbiert");
@@ -443,3 +452,50 @@ console.log("svg-export-build (Grenzenstärke): ok");
 }
 
 console.log("svg-export-build (Glättung + Farben je Gruppe): ok");
+
+// ---- 17. Flächen glätten -- und Herrschaftsgebiete NIE ---------------------------------
+// ⚠️ NUR die Pfaddaten prüfen, nicht die ganze Datei: der Lizenzkopf enthält "NOTICE.md"
+// und damit ein C, das nichts mit einer Kurve zu tun hat. Genau daran ist der erste
+// Anlauf dieses Tests gescheitert.
+const hatKurven = (svg) => [...svg.matchAll(/ d="([^"]*)"/g)].some((m) => m[1].includes("C"));
+
+{
+	const ring = [[0, 1024], [20, 1024], [20, 1004], [0, 1004], [0, 1024]];
+	const eco = [{ public_id: "e1", region_name: "Ein Wald", region_type: "wald", kind: "vegetation",
+		geometry: { type: "Polygon", coordinates: [ring] } }];
+	const terr = { features: [{ properties: { name: "Ein Reich", public_id: "t1", type: "region" },
+		geometry: { type: "Polygon", coordinates: [ring] } }] };
+	const nurFlaechen = { landschaften: true, gebiete: true, wege: false, kraftlinien: false,
+		orte: false, beschriftungen: false };
+
+	// Ohne Schalter: eckig, wie bisher.
+	const eckig = B.svgxBuildDocument({ ecosystems: eco, territories: terr, dialect: D.INKSCAPE,
+		layers: nurFlaechen }).parts.join("");
+	assert.ok(!hatKurven(eckig), "ohne Schalter bleibt jede Fläche eckig");
+
+	// Mit Schalter: die Landschaft rundet, das Herrschaftsgebiet NICHT.
+	const rund = B.svgxBuildDocument({ ecosystems: eco, territories: terr, dialect: D.INKSCAPE,
+		layers: nurFlaechen, smoothAreas: true }).parts.join("");
+	const zwischen = (svg, von, bis) => svg.slice(svg.indexOf(von), bis ? svg.indexOf(bis) : undefined);
+	const landschaft = zwischen(rund, 'id="layer-landschaften"', 'id="layer-gebiete"');
+	const gebiete = zwischen(rund, 'id="layer-gebiete"');
+
+	assert.ok(hatKurven(landschaft), "die Landschaftsfläche muss mit dem Schalter runden");
+	// 🔴 Owner 15.08.2026: „herrschaftsgebiete sollen auf keinen fall geglättet werden".
+	// Eine gerundete Grenze verschiebt Land zwischen Reichen und sieht dabei aus wie eine
+	// Verbesserung -- deshalb prüft der Test es getrennt und nicht bloß global.
+	assert.ok(!hatKurven(gebiete), "eine Herrschaftsgrenze darf NIE geglättet werden");
+
+	// Der geglättete Ring läuft UM: kein L, geschlossen, und der Startpunkt bleibt.
+	const punkte = ring.map(([x, y]) => B.svgxPoint(x, y));
+	const d = B.svgxSmoothRingData(punkte, 0.5);
+	assert.ok(d.startsWith("M0 0"), `der Startpunkt darf nicht wandern: ${d.slice(0, 20)}`);
+	assert.ok(d.endsWith("Z"), "ein Ring bleibt geschlossen");
+	assert.ok(!/L/.test(d), "ein geglätteter Ring hat keine geraden Stücke");
+	// 💣 VIER Kurvenstücke für vier Ecken -- der doppelte Endpunkt des GeoJSON-Rings wird
+	// entfernt, sonst entstünde dort ein Nullsegment und mit ihm eine Delle.
+	assert.strictEqual((d.match(/C/g) || []).length, 4,
+		"ein Viereck ergibt vier Kurvenstücke, nicht fünf");
+}
+
+console.log("svg-export-build (Flächen glätten): ok");
