@@ -167,6 +167,65 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	width: var(--avm-editor-w);
 	max-width: none;
 	height: var(--avm-editor-h);
+	/* 💣 Der Grund ist --color-page-bg, NICHT --color-panel (das erbt .location-report-dialog).
+	   Die hellen gerahmten Spaltenkaesten weiter unten sind nur auf einem dunkleren Grund als
+	   eingefasste Flaechen lesbar -- auf gleicher Farbe haengt ihr Rahmen im Nichts. Genau daran
+	   ist der Abenteuer-Editor einmal gescheitert (ab3a7f97). */
+	background: var(--color-page-bg);
+	/* Polsterung 0 und Radius herunter: Titelleiste, Menueband und Statuszeile laufen jetzt bis
+	   an die Fensterkante wie in den vier iframe-Editoren, statt 18px eingerueckt zu stehen.
+	   Spec §4.2: Huelle --radius-sm, Bedienelemente --radius-md. */
+	padding: 0;
+	border-radius: var(--radius-sm);
+	overflow: hidden;
+}
+/* 💣 Nur ueber die ID. .location-report-dialog__header und __close gehoeren ALLEN Dialogen
+   (Ortsmeldung, Konfliktzentrum, WikiSync-Fall ...) -- global geaendert wanderte diese
+   Titelleiste durch das halbe Produkt. Vorbild ist .avm-editor-dialog__header aus
+   css/components/editor-shell.css, das der Siedlungseditor traegt. */
+#wiki-sync-lore-dialog > .location-report-dialog__header {
+	align-items: center;
+	margin: 0;
+	padding: var(--space-8) var(--space-12);
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-panel);
+}
+#wiki-sync-lore-dialog > .location-report-dialog__header .location-report-dialog__close {
+	width: 32px;
+	height: 32px;
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font-size: var(--font-size-body);
+	font-weight: var(--font-weight-bold);
+}
+#wiki-sync-lore-dialog > .location-report-dialog__header .location-report-dialog__close:hover {
+	background: var(--color-button-soft-hover);
+	color: var(--color-button-soft-text);
+}
+/* Bildlaufleisten wie in den Editorseiten (10px, runder Daumen, 2px Rand in Spurfarbe) statt
+   der 7px der App. 💣 Bewusst NICHT „auf die App-Tokens angleichen": die Editoren sind
+   Arbeitsflaechen mit vielen Scrollbereichen und stehen seit 2026-07-22 gemeinsam auf 10px
+   (css/components/editor-page.css) -- ein Angleichen nach unten zoege drei Editoren mit.
+   `*` statt :root, weil die WebKit-Pseudoelemente nicht vererben. */
+#wiki-sync-lore-dialog * {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+#wiki-sync-lore-dialog *::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+#wiki-sync-lore-dialog *::-webkit-scrollbar-track {
+	background: var(--color-scrollbar-track);
+}
+#wiki-sync-lore-dialog *::-webkit-scrollbar-thumb {
+	background: var(--color-scrollbar-thumb);
+	border: 2px solid var(--color-scrollbar-track);
+	border-radius: 999px;
+}
+#wiki-sync-lore-dialog *::-webkit-scrollbar-thumb:hover {
+	background: var(--color-scrollbar-thumb-hover);
 }
 
 /* ---- Fenster „Natur & Waren" ----
@@ -177,7 +236,10 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
    geerbt, damit das Fenster sich nicht von den uebrigen Dialogen entfernt. */
 #wiki-sync-lore-dialog-body {
 	flex-direction: column;
-	gap: var(--space-10);
+	/* gap 0: die Baender stossen jetzt aneinander und trennen sich durch ihre eigenen Kanten --
+	   dieselbe Schichtung wie header / #settlementStatus / .cols im Siedlungseditor. Ein gap
+	   hier legte wieder Streifen des Dialoggrunds zwischen Menueband und Statuszeile. */
+	gap: 0;
 }
 /* ---- Menueband im Fenster ----
    Uebernimmt .ce-header/.ce-btn2 aus html/citymap-editor.html Token fuer Token: zweizeilige
@@ -194,10 +256,13 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	grid-auto-flow: column;
 	grid-auto-columns: minmax(0, 1fr);
 	flex: 0 0 auto;
-	gap: var(--space-6);
+	/* Hüllenmaße aus css/base/tokens.css statt eigener Werte -- dieselbe Polsterung wie das
+	   Menüband der vier Editorseiten (Spec §3.1a). */
+	gap: var(--avm-ribbon-gap);
 	align-items: stretch;
-	padding-bottom: var(--space-8);
+	padding: var(--avm-ribbon-pad);
 	border-bottom: 1px solid var(--color-border);
+	background: var(--color-panel);
 }
 .lore-btn2 {
 	display: flex;
@@ -272,8 +337,8 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	flex: 0 0 auto;
 	gap: var(--space-12);
 	align-items: center;
-	min-height: 30px;
-	padding: var(--space-4) var(--space-12);
+	min-height: var(--avm-status-min-h);
+	padding: var(--avm-status-pad);
 	border-bottom: 1px solid var(--color-border);
 	background: var(--color-panel-soft);
 	color: var(--color-text-muted);
@@ -314,40 +379,46 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
    Der 320px-Boden greift erst, wenn das Fenster unter ~960px faellt: Wiki-Titel sind lang,
    und eine Liste, in der jeder Eintrag an derselben Stelle abschneidet, ist keine Liste
    mehr. Auf dem Schirm, fuer den der Editor gebaut ist, bindet er nie. */
+/* Der Reiterstreifen erbt .wiki-sync-panel__tabs und hat dort weder Polsterung noch Grund --
+   im Panel sitzt er in einem Kasten, der beides stellt. Seit die Fensterpolsterung weg ist
+   (#wiki-sync-lore-dialog padding 0), klebte er sonst an der Kante. Also dieselbe Polsterung
+   wie Menüband und Statuszeile darüber, damit die drei Bänder eine Kante bilden.
+   ⚠️ Die Reiter bleiben in voller Breite über allen drei Spalten -- sie schalten den GANZEN
+   Editor um, nicht nur die Liste (Spec §3.1). */
 .lore-dlg__tabs {
 	flex: 0 0 auto;
+	padding: var(--avm-status-pad);
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-panel);
 }
-/* Warmer Parchmentgrund hinter den drei Spalten -- erst auf ihm werden die hellen,
-   gerahmten Spaltenkaesten als eingefasste Flaechen lesbar, statt flach weiss auf weiss
-   zu laufen. Dieselbe warme Schichtung wie im Karten- und Siedlungseditor (dort
-   --color-page-bg als body-Grund unter den .ce-list__scroll-Kaesten). gap bleibt 0 --
-   die Fugen zwischen den Kaesten stellt deren gleicher Rand (margin), nicht eine
-   Gitterluecke, sonst waeren die beiden rechten Spuren schmaler als die Liste. */
+/* Weder Grund noch Polsterung: den warmen Grund stellt jetzt das FENSTER selbst
+   (#wiki-sync-lore-dialog, oben), die Polsterung sitzt an den Spalten. Wort fuer Wort .ce-body
+   im Karteneditor. Vorher trug dieser Container beides, und jeder Spaltenkasten hing mit
+   eigenem margin darin -- das ergab zwar drei gleiche Spuren, aber eine andere Schichtung als
+   die vier Editorseiten: dort ist die SPALTE durchsichtig und nur der Scrollkasten hell.
+   gap bleibt 0 -- die Fugen stellen die Kanten der Spalten (border-right/-left), nicht eine
+   Gitterluecke; ein gap ginge ungleich von den Spuren ab. */
 .lore-dlg__body {
 	display: grid;
 	grid-template-columns: minmax(320px, 1fr) minmax(0, 2fr);
 	flex: 1 1 auto;
 	gap: 0;
 	min-height: 0;
-	padding: var(--space-4);
-	background: var(--color-page-bg);
 }
-/* Heller, gerahmter Kasten auf dem warmen Grund -- die "panel shell"-Stufe (--radius-sm,
-   1px --color-border) wie #seList/.ce-list__scroll. Der gleiche Rand rundum (margin) an
-   allen drei Spaltenkaesten laesst den warmen Grund als symmetrische Fuge durchscheinen und
-   haelt sie zugleich exakt gleich breit: er geht von jeder Gitterspur um denselben Betrag
-   ab, die 1:2/1:1-Drittelung darunter bleibt unberuehrt. Fruehere Trennung (border-right +
-   padding-right) entfaellt -- das leistet jetzt der Kastenrand. */
-.lore-dlg__list {
+/* Die Spalte selbst ist durchsichtig und traegt nur die gemeinsame Polsterung
+   (--avm-col-pad = 8/12, css/base/tokens.css). Gilt fuer alle drei: Liste, Stammdaten, Orte. */
+.lore-dlg__col {
 	display: flex;
 	flex-direction: column;
 	min-width: 0;
 	min-height: 0;
-	margin: var(--space-4);
-	padding: var(--space-8);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-sm);
-	background: var(--color-panel);
+	padding: var(--avm-col-pad);
+}
+.lore-dlg__col--list {
+	border-right: 1px solid var(--color-border);
+}
+.lore-dlg__col--places {
+	border-left: 1px solid var(--color-border);
 }
 /* Spaltentitel: dieselbe Stufe wie .listhead im Siedlungseditor -- eigene Zeile der Leiter
    (--font-size-subhead) und --color-accent-strong, damit die drei Titel die Spalten
@@ -383,21 +454,59 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	font-size: var(--font-size-caption);
 	color: var(--color-text-muted);
 }
-.lore-dlg__scroll {
+/* Der helle GERAHMTE Kasten -- und zwar um den SCROLLENDEN Inhalt, nicht um die ganze Spalte.
+   💣 Genau darin lag der sichtbarste Unterschied zu den anderen vier Editoren: dort steht der
+   Spaltentitel UEBER dem Kasten und bleibt beim Scrollen stehen, hier steckte er mit darin und
+   wanderte weg. Werte aus #seList/#seDetailBody (Siedlungen) bzw. .ce-list__scroll/
+   .ce-panel__scroll (Karten). 💣 6px ist der harte Vorbild-Wert, nicht --radius-sm (5px):
+   Siedlungen und Territorien tragen ihn auf den Pixel, und der Owner nennt beide als Vorbild --
+   die Token-Leiter verliert hier gegen das benannte Vorbild. Ohne min-height:0 sprengt langer
+   Inhalt den Flex-Container, statt zu scrollen; dann waechst das Fenster ueber den Schirm. */
+.lore-dlg__scroll,
+.lore-dlg__panelscroll {
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow-y: auto;
+	padding: var(--space-2);
+	border: 1px solid var(--color-border);
+	border-radius: 6px;
+	background: var(--color-panel);
 }
-/* Die Maske scrollt fuer sich. Ohne min-height:0 sprengt langer Inhalt den Flex-Container,
-   statt zu scrollen -- dann waechst das Fenster ueber den Schirm hinaus. */
-.lore-dlg__edit {
+/* Die rechte Haelfte: FESTE Kopfzeile ueber beiden Spalten, darunter das Spaltenpaar. */
+.lore-dlg__detail {
+	display: flex;
+	flex-direction: column;
 	min-width: 0;
 	min-height: 0;
-	overflow-y: auto;
+}
+/* Vorbild .ce-detail__head im Karteneditor: Detail-Ueberschrift, also dieselbe Stufe wie ein
+   Spaltentitel, aber --color-text-strong statt Gold -- sie benennt einen DATENSATZ, kein Fach.
+   Sie steht ausserhalb der Kaesten und ueberlebt damit jedes Neuzeichnen (renderLoreDetail
+   baut bei jedem gespeicherten Feld neu auf). */
+.lore-dlg__detailhead {
+	display: flex;
+	flex: 0 0 auto;
+	gap: var(--space-6);
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--avm-col-pad);
+	border-bottom: 1px solid var(--color-border);
+	color: var(--color-text-strong);
+	font-size: var(--font-size-subhead);
+	font-weight: var(--font-weight-bold);
+	line-height: var(--leading-snug);
+}
+/* Zwei gleiche Spuren; zusammen mit dem 2fr-Anteil aussen ergibt das drei exakt gleiche
+   Drittel ueber das ganze Fenster. */
+.lore-dlg__panels {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	flex: 1 1 auto;
+	min-height: 0;
 }
 .lore-dlg__placeholder {
 	margin: 0;
-	padding: var(--space-16);
+	padding: var(--space-10);
 	color: var(--color-text-muted);
 }
 
@@ -405,48 +514,16 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
    Zusammen mit der Liste ergeben sie die drei Spalten des Abenteuereditors. Die Orte
    stehen bewusst eigenstaendig: sie sind die eigentliche Arbeit an einem Eintrag,
    untereinander musste man fuer jede Zuordnung erst an den Feldern vorbeiscrollen. */
-/* Zwei gleiche Spuren, gap 0 -- zusammen mit dem 2fr-Anteil aussen ergibt das drei exakt
-   gleiche Drittel ueber das ganze Fenster (siehe .lore-dlg__body). Ein gap hier waere
-   nicht neutral: er ginge NUR von diesen beiden Spuren ab und machte sie um seine halbe
-   Breite schmaler als die Liste. Die Trennung uebernimmt die Kante an der Ortsspalte. */
-.lore-detail__cols {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 0;
-	align-items: start;
-	min-height: 0;
-}
-/* Stammdaten und Orte tragen denselben hellen Kasten wie die Liste -- drei gleich breite,
-   eingefasste Flaechen auf dem warmen Grund. Der gleiche margin wie links haelt sie exakt
-   auf Spurbreite; das fruehere padding-left (Einrueckung zur Trennlinie) weicht dem
-   symmetrischen Kasten-Innenrand. */
-.lore-detail__col {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-6);
-	min-width: 0;
-	margin: var(--space-4);
-	padding: var(--space-8);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-sm);
-	background: var(--color-panel);
-}
-/* Die Ortsspalte ist ein gleich breiter Kasten wie die Stammdaten (Spec §3.2); ihre fruehere
-   border-left-Trennlinie entfaellt -- das leistet jetzt der Kastenrand. Der Umbruch darunter
-   bleibt: schmal rutscht sie unter die Stammdaten (Media-Query unten). */
+/* 💣 Hier standen bis 2026-08-15 .lore-detail__cols und .lore-detail__col -- das Spaltenpaar
+   entstand im JS-Markup von renderLoreDetail und trug den Rahmen um die GANZE Spalte. Beides
+   ist weg: die beiden Spalten stehen jetzt statisch in index.html (.lore-dlg__panels /
+   .lore-dlg__col), und der Rahmen sitzt um den Scrollkasten. Wer eine dieser beiden Klassen
+   noch irgendwo findet, findet eine Leiche. */
 
-/* Die Kopfzeile und der Eintragsname stehen ueber BEIDEN rechten Kaesten -- sie gehoeren
-   zum Eintrag, nicht zu einer der beiden. Gleiche Einrueckung wie der Kastenrand (margin),
-   damit die linke Kante des rechten Bereichs eine Linie bleibt. */
-.lore-detail__head,
-.lore-detail__title {
-	padding-left: var(--space-4);
-}
 /* Schmales Fenster: die Ortsspalte rutscht unter die Stammdaten, statt beide zu quetschen.
-   Der Abstand zwischen den gestapelten Kaesten kommt aus ihrem margin -- keine eigene
-   Trennlinie mehr noetig. */
+   Die gestapelten Spalten trennt dann die Kante an .lore-dlg__col--places. */
 @media (max-width: 900px) {
-	.lore-detail__cols {
+	.lore-dlg__panels {
 		grid-template-columns: minmax(0, 1fr);
 	}
 }
@@ -483,14 +560,14 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	min-height: 0;
 }
 
-/* ---- Editor eines Eintrags (ersetzt die Liste im selben Bereich) ---- */
+/* ---- Editor eines Eintrags (fuellt die beiden rechten Spaltenkaesten) ---- */
 
-.lore-detail {
+/* Der Inhalt eines Kastens stapelt mit gleichmaessigem Abstand. Er SCROLLT hier nicht selbst --
+   das leistet der Kasten (.lore-dlg__panelscroll), sonst gaebe es zwei Scroller ineinander. */
+.lore-detail__stack {
 	display: flex;
 	flex-direction: column;
 	gap: var(--space-6);
-	overflow-y: auto;
-	max-height: 100%;
 }
 
 .lore-detail__head {
@@ -498,16 +575,17 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	justify-content: space-between;
 	align-items: center;
 	gap: var(--space-6);
+	min-width: 0;
 }
 
 /* „← Zurück zur Liste" ist nur dort sinnvoll, wo die Liste WEICHEN musste. Auf breiten
    Schirmen steht sie links daneben und wurde nie ersetzt -- ein Knopf zurück zu etwas,
    das man ansieht, ist bestenfalls Rauschen. Unterhalb von 900px stapeln die Spalten
-   (siehe .lore-detail__cols), dort trägt er wieder. Ausgeblendet per CSS statt im
+   (siehe .lore-dlg__panels), dort trägt er wieder. Ausgeblendet per CSS statt im
    Markup weggelassen: der Handler bleibt derselbe, und im Fehlerfall („nur angemeldet")
    ist er der einzige Rückweg. */
 @media (min-width: 901px) {
-	.lore-detail__head .lore-detail__back {
+	.lore-dlg__detailhead .lore-detail__back {
 		display: none;
 	}
 }
@@ -545,10 +623,17 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	font-size: var(--font-size-body);
 }
 
+/* Der Eintragsname in der festen Kopfzeile. Groesse und Fettung kommen von
+   .lore-dlg__detailhead; hier steht nur, dass ein langer Name kuerzt statt den Wiki-Link
+   rechts aus der Zeile zu schieben. */
 .lore-detail__title {
 	margin: 0;
-	font-size: var(--font-size-subhead);
-	line-height: var(--leading-snug);
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: inherit;
+	line-height: inherit;
 }
 
 .lore-detail__kind,
@@ -596,19 +681,16 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	font-weight: var(--font-weight-bold);
 }
 
-/* Die ERSTE Ueberschrift einer Spalte ist deren Spaltentitel -- „Stammdaten" und „Orte (n)"
-   standen laengst im Markup, sie waren nur nicht als Titel gestaltet und damit von den
-   Zwischenueberschriften („Quellen", „Entfernte Wiki-Orte") nicht zu unterscheiden. Kein
-   Trenner darueber: oben ist nichts zu trennen, und die Linie haette die Spalte optisch vom
-   Eintragsnamen abgeschnitten, zu dem sie gehoert. Gleiche Stufe wie .lore-dlg__coltitle
-   links -- die drei Titel muessen dieselbe Geste sein, sonst sind es keine drei Spalten. */
-.lore-detail__col > .lore-detail__section:first-child {
+/* 💣 Der Sonderfall „erste Ueberschrift = Spaltentitel" ist weg. Er war noetig, solange
+   „Stammdaten" und „Vorkommen (n)" als <h5> IM gezeichneten Markup standen und dort zufaellig
+   zuerst kamen. Beide sind jetzt echte <h3 class="lore-dlg__coltitle"> in index.html, ausserhalb
+   des Scrollkastens -- derselbe Baustein wie der Titel der Liste links. Was hier bleibt, sind
+   die echten Zwischenueberschriften („Quellen", „Entfernte Wiki-Orte"), und die WOLLEN ihren
+   Trenner. Ein erstes Kind braucht ihn trotzdem nicht: oben im Kasten ist nichts zu trennen. */
+.lore-dlg__panelscroll > .lore-detail__stack > .lore-detail__section:first-child {
 	margin-top: 0;
 	padding-top: 0;
 	border-top: none;
-	color: var(--color-accent-strong);
-	font-size: var(--font-size-subhead);
-	line-height: var(--leading-snug);
 }
 
 .lore-detail__hint {

@@ -2341,15 +2341,19 @@ async function runWikiSyncLoreSyncLoop(onProgress) {
 // 2026-07-22 als „fehlt noch" gemeldet wurde, obwohl er live und funktionsfähig war.
 // Ein Fenster löst beides: der Einstieg ist harmlos, und drinnen liegt alles offen.
 //
-// 💣 Der Inhalt wird VERSCHOBEN, nicht kopiert. Ein Duplikat hätte jede id doppelt im
+// 💣 Der Knopf wird VERSCHOBEN, nicht kopiert. Ein Duplikat hätte seine id doppelt im
 // DOM -- getElementById träfe das falsche Element, und die Bindung aus bootstrap.js
 // (die am ELEMENT hängt, nicht an der id) liefe ins Leere. Dasselbe Verfahren wie beim
 // Umzug der Konfliktliste, siehe Kommentar in index.html.
+//
+// 🔴 Seit 2026-08-15 zieht NUR NOCH der Sync-Knopf um. Die Bearbeitungsmaske stand bis dahin
+// als leeres #lore-detail im Reiter und wurde beim ersten Öffnen ins Fenster geschoben --
+// ein Umzug für einen Knoten ohne eigene Bindung, also ein Umweg. Ihre beiden Spalten stehen
+// jetzt statisch im Fensterrumpf (#lore-dlg-stamm / #lore-dlg-places); genau das ist die
+// Voraussetzung dafür, dass sie AUCH OHNE gewählten Eintrag mit Titel dastehen.
 // ===========================================================================
 
 function moveLoreSectionIntoDialog() {
-	var body = document.getElementById("wiki-sync-lore-dialog-body");
-	var detail = document.getElementById("lore-detail");
 	// Der Sync-Knopf steht im Markup VERSTECKT im Reiter, damit bootstrap.js ihn beim Start
 	// binden kann (die Bindung hängt am ELEMENT, nicht an der id). Sichtbar wird er erst
 	// hier: als erste Kachel des Menübands, seinem einzigen erlaubten Platz. Im Reiter darf
@@ -2361,18 +2365,6 @@ function moveLoreSectionIntoDialog() {
 		ribbon.insertBefore(syncButton, ribbon.firstChild);
 		syncButton.hidden = false;
 	}
-	// Ziel ist die RECHTE Spalte, nicht der Fensterkörper: links steht die Auswahlliste,
-	// rechts wird bearbeitet -- wie im Karteneditor.
-	body = document.getElementById("lore-dlg-edit") || body;
-	if (!body || !detail || detail.parentElement === body) {
-		return; // schon umgezogen (oder Markup fehlt)
-	}
-	// NUR die Bearbeitungsmaske zieht um. Knopfzeile, Datum, Reiter und Liste BLEIBEN im
-	// Panel -- genau wie bei Abenteuern, Karten und Siedlungen. Eine erste Fassung hat den
-	// ganzen Abschnitt ins Fenster geschoben; damit war der Reiter leer, und das Datum stand
-	// nicht mehr in der zweiten Rasterspalte neben dem Knopf, wo es bei allen sechs Reitern
-	// steht. Konsistenz schlägt hier die Idee, alles an einem Ort zu bündeln.
-	body.appendChild(detail);
 }
 
 /**
@@ -2568,7 +2560,9 @@ async function startWikiSyncLoreSync() {
  * Menüband-Schalter die öffentliche ANZEIGE steuert und nicht die Bearbeitbarkeit. Genau das
  * ist der Grund, warum Spezies jetzt sichtbar, aber grau ist: nicht öffentlich, sehr wohl
  * bearbeitbar. Die Begründung steht im Tooltip des Reiters, damit sie niemand wegräumt.
- * Der Panel-Streifen kennt zusätzlich „all" (keine Art-Einschränkung), das Fenster nicht.
+ *
+ * BEIDE kennen seit 2026-08-15 auch „all" (keine Art-Einschränkung). Im Panel-Streifen gab es
+ * den Reiter längst, im Fenster fehlte nur der Knopf -- der Codeweg konnte es die ganze Zeit.
  */
 var AVESMAPS_LORE_VIEWS = {
 	panel: {
@@ -2581,7 +2575,10 @@ var AVESMAPS_LORE_VIEWS = {
 	},
 };
 
-var avesmapsLoreListKind = { panel: "fauna", dialog: "fauna" };
+// 💣 Der Startwert MUSS zum `is-active`-Reiter im Markup passen. Das Fenster startet seit
+// 2026-08-15 auf „Alle" (index.html), also hier ebenfalls -- sonst stünde die Markierung auf
+// „Alle", während die Liste Fauna zeigt.
+var avesmapsLoreListKind = { panel: "fauna", dialog: "all" };
 var avesmapsLoreListTimer = null;
 var avesmapsLoreListToken = { panel: 0, dialog: 0 };
 
@@ -2614,6 +2611,16 @@ var avesmapsLoreFilterOptions = {
 // rebuild-Funktion des jeweiligen Trichters (von avmFilterMenuAttach), um ihn nach frischen
 // Optionen neu zu zeichnen.
 var avesmapsLoreFilterRebuild = { panel: null, dialog: null };
+
+// Die Art EINES Eintrags, ausgeschrieben. 💣 Bewusst nicht aus wikiSyncSubjectViewTabs("lore")
+// abgeleitet: dessen Beschriftungen benennen REITER („Waren"), hier steht die Art eines
+// einzelnen Eintrags („Ware"). Fauna, Flora und Spezies sind in beiden gleich -- genau deshalb
+// fällt der Unterschied nur bei „ware" auf und wäre beim Abschreiben durchgerutscht.
+var AVESMAPS_LORE_KIND_LABEL = { fauna: "Fauna", flora: "Flora", ware: "Ware", spezies: "Spezies" };
+
+function avesmapsLoreKindLabel(kind) {
+	return AVESMAPS_LORE_KIND_LABEL[kind] || kind || "";
+}
 
 // Herkunft (origin) lesbar machen -- die Rohwerte wiki|manual|community|suppressed sind
 // englische Speicherwerte, nicht die UI-Sprache.
@@ -2666,7 +2673,10 @@ function avesmapsLoreListPlain(value) {
 
 // EINE Zeile der Liste. Ausgelagert, damit Erst-Laden (innerHTML ersetzen) und Nachladen
 // (ans Ende hängen) exakt dasselbe Markup erzeugen.
-function avesmapsLoreListRowHtml(item) {
+// showKind: NUR in der Ansicht „Alle". ⚠️ Dort ist die Art die wichtigste Auskunft der Zeile --
+// „Bräubier" (Ware) und „Bräuwurm" (Fauna) stehen sonst ununterscheidbar untereinander. In
+// „Fauna" wäre dasselbe Wort in jeder einzelnen Zeile bloß Lärm, deshalb steht es dort nicht.
+function avesmapsLoreListRowHtml(item, showKind) {
 	var art = avesmapsLoreListPlain(item.typ || item.gruppe || "");
 	var places = Array.isArray(item.places) ? item.places : [];
 	// Die Orte SELBST statt einer Zahl -- danach ist die Zeile erst brauchbar:
@@ -2679,7 +2689,7 @@ function avesmapsLoreListRowHtml(item) {
 	if (!placeText) {
 		placeText = "ohne Ortsangabe";
 	}
-	var meta = [art, placeText].filter(Boolean).join(" · ");
+	var meta = [showKind ? avesmapsLoreKindLabel(item.kind) : "", art, placeText].filter(Boolean).join(" · ");
 	if (item.origin && item.origin !== "wiki") {
 		meta += " · " + item.origin;
 	}
@@ -2727,6 +2737,11 @@ function renderLoreList(view, data, append) {
 	}
 	var page = avesmapsLoreListPage[view] || (avesmapsLoreListPage[view] = { loaded: 0, total: 0, loading: false });
 	var items = (data && data.items) || [];
+	// 💣 NICHT `items.map(avesmapsLoreListRowHtml)` -- map reicht den INDEX als zweites Argument
+	// durch, und der landete in showKind: Zeile 0 ohne Art, jede weitere mit. Deshalb überall
+	// eine eigene Funktion, die nur das übergibt, was gemeint ist.
+	var showKind = avesmapsLoreListKind[view] === "all";
+	function zeile(item) { return avesmapsLoreListRowHtml(item, showKind); }
 	if (data && typeof data.total !== "undefined") {
 		page.total = Number(data.total) || 0;
 	}
@@ -2736,7 +2751,7 @@ function renderLoreList(view, data, append) {
 		if (items.length === 0) {
 			page.total = page.loaded;
 		} else {
-			scroll.insertAdjacentHTML("beforeend", items.map(avesmapsLoreListRowHtml).join(""));
+			scroll.insertAdjacentHTML("beforeend", items.map(zeile).join(""));
 			page.loaded += items.length;
 		}
 		if (counter) {
@@ -2766,7 +2781,7 @@ function renderLoreList(view, data, append) {
 	}
 	// Dieselben Klassen wie die Abenteuer- und Kartenliste (jetzt .tree-item, seit 14.08.2026),
 	// damit die vier Listen im selben Reiter nicht drei verschiedene Zeilen zeigen.
-	scroll.innerHTML = items.map(avesmapsLoreListRowHtml).join("");
+	scroll.innerHTML = items.map(zeile).join("");
 	page.loaded = items.length;
 	if (counter) {
 		counter.textContent = page.loaded + " von " + page.total;
@@ -2989,6 +3004,17 @@ function avesmapsLoreFetchList(view, append) {
 						.querySelectorAll('[data-lore-count="' + kind + '"], [data-lore-dlg-count="' + kind + '"]')
 						.forEach(function (chip) { chip.textContent = "(" + counts[kind] + ")"; });
 				});
+				// 💣 „Alle" hat keinen Schlüssel in counts_by_kind -- der Reiter im Fenster bliebe
+				// ohne diese Summe dauerhaft ohne Zahl, während seine vier Nachbarn eine tragen.
+				// Sie steht bewusst INNERHALB von `if (counts)`: eine Summe über ein leeres Objekt
+				// ist rechnerisch 0 und behauptet „es gibt keine", obwohl noch niemand nachgesehen
+				// hat. Solange nichts bekannt ist, bleibt der Chip leer -- genau wie die anderen.
+				var alle = Object.keys(counts).reduce(function (summe, kind) {
+					return summe + (Number(counts[kind]) || 0);
+				}, 0);
+				document
+					.querySelectorAll('[data-lore-dlg-count="all"]')
+					.forEach(function (chip) { chip.textContent = "(" + alle + ")"; });
 			}
 			if (view === "panel") {
 				// Der gemeinsame Streifen zeichnet sich mit den frischen Zahlen neu -- er trägt
@@ -3186,15 +3212,49 @@ function loreEditAction(action, payload) {
 		function () { return null; }); // Abbruch/Netzfehler: der Aufrufer prüft auf null
 }
 
+/**
+ * 💣 ERST abräumen, DANN überschreiben -- der Quellen-Editor hängt seine Vorschlagsliste an
+ * document.body, nicht in seinen Container. Wer den Container wegwirft, ohne vorher zu lösen,
+ * lässt sie dort liegen. Steht als eigene Funktion da, weil es DREI Stellen gibt, die den
+ * Stammdaten-Kasten überschreiben: neu zeichnen, laden, zurück zur Liste.
+ */
+function avesmapsLoreDetachSourceEditor() {
+	var host = document.getElementById("lore-source-editor");
+	if (host && typeof host.__fsDetachAutocomplete === "function") {
+		host.__fsDetachAutocomplete();
+	}
+}
+
+/**
+ * Der Ruhezustand der beiden rechten Spalten: Kopfzeile ohne Datensatz, in jedem Kasten ein
+ * Platzhalter, die Ortszahl aus dem Titel heraus.
+ *
+ * 💣 Die Kästen und ihre Titel stehen seither IMMER da (statisch in index.html) -- genau das
+ * macht das Fenster dreispaltig. Vorher entstand die rechte Hälfte erst beim ersten Klick, und
+ * bis dahin sah der Editor aus wie ein Drittel Liste plus zwei Drittel Leerfläche mit einem
+ * Satz darin. Eine unbeschriftete leere Spalte liest sich als Fehler.
+ */
+function avesmapsLoreShowDetailResting() {
+	var head = document.getElementById("lore-dlg-detailhead");
+	var stammHost = document.getElementById("lore-dlg-stamm");
+	var placesHost = document.getElementById("lore-dlg-places");
+	var placesTitle = document.getElementById("lore-dlg-places-title");
+	if (head) { head.textContent = "Kein Eintrag gewählt"; }
+	if (stammHost) {
+		stammHost.innerHTML = '<p class="lore-dlg__placeholder" id="lore-dlg-placeholder">'
+			+ "Links einen Eintrag auswählen, um ihn zu bearbeiten.</p>";
+	}
+	if (placesHost) { placesHost.innerHTML = '<p class="lore-dlg__placeholder">—</p>'; }
+	if (placesTitle) { placesTitle.textContent = "Vorkommen"; }
+}
+
 function closeLoreDetail() {
-	var detail = document.getElementById("lore-detail");
 	avesmapsLoreDetailKey = "";
 	// „Zurück" leert die Maske, schließt aber NICHT das Fenster: Menüband und Liste
-	// daneben bleiben bedienbar. Der Platzhalter kommt zurück, damit die rechte Spalte
-	// nicht als leere Fläche dasteht.
-	if (detail) { detail.hidden = true; detail.innerHTML = ""; }
-	var placeholder = document.getElementById("lore-dlg-placeholder");
-	if (placeholder) { placeholder.hidden = false; }
+	// daneben bleiben bedienbar. Beide rechten Spalten fallen in ihren Ruhezustand zurück --
+	// mit Titel, damit dort keine namenlose Fläche steht.
+	avesmapsLoreDetachSourceEditor();
+	avesmapsLoreShowDetailResting();
 }
 
 function loreFieldRow(entry, field, label) {
@@ -3209,17 +3269,19 @@ function loreFieldRow(entry, field, label) {
 }
 
 function renderLoreDetail(entry) {
-	var detail = document.getElementById("lore-detail");
-	if (!detail || !entry) { return; }
+	// DREI Ziele statt einem Block: die feste Kopfzeile und die beiden Spaltenkästen stehen
+	// statisch in index.html. 💣 Genau darauf beruht, dass Kopfzeile und Spaltentitel beim
+	// Scrollen stehen bleiben und ein Neuaufbau sie nicht mitnimmt -- diese Funktion läuft bei
+	// JEDEM gespeicherten Feld.
+	var head = document.getElementById("lore-dlg-detailhead");
+	var stammHost = document.getElementById("lore-dlg-stamm");
+	var placesHost = document.getElementById("lore-dlg-places");
+	var placesTitle = document.getElementById("lore-dlg-places-title");
+	if (!stammHost || !placesHost || !entry) { return; }
 
-	// 💣 ERST abräumen, DANN überschreiben. Der Quellen-Editor hängt seine Vorschlagsliste an
-	// document.body, nicht in seinen Container -- wer den Container wegwirft, ohne vorher zu
-	// lösen, lässt sie dort liegen. Diese Funktion baut das ganze Detail bei JEDEM gespeicherten
-	// Feld neu auf, also wäre das nach fünf Bearbeitungen fünf tote Listen tief.
-	var previousSourceHost = document.getElementById("lore-source-editor");
-	if (previousSourceHost && typeof previousSourceHost.__fsDetachAutocomplete === "function") {
-		previousSourceHost.__fsDetachAutocomplete();
-	}
+	// Diese Funktion baut die Maske bei JEDEM gespeicherten Feld neu auf -- ohne das Lösen wäre
+	// die Vorschlagsliste des Quellen-Editors nach fünf Bearbeitungen fünf tote Listen tief.
+	avesmapsLoreDetachSourceEditor();
 
 	var live = [];
 	var tombs = [];
@@ -3257,21 +3319,24 @@ function renderLoreDetail(entry) {
 	var safe = String(entry.wiki_url || "");
 	if (safe.indexOf("https://de.wiki-aventurica.de/") !== 0) { safe = ""; }
 
+	// Die FESTE Kopfzeile über beiden rechten Spalten: Rückweg, Name samt Art, Wiki-Link.
+	// Sie benennt den Datensatz, an dem beide Spalten arbeiten, und gehört deshalb keiner
+	// von beiden. Vorbild .ce-detail__head im Karteneditor.
+	if (head) {
+		head.innerHTML = '<span class="lore-detail__head">'
+			+ '<button type="button" class="lore-detail__back" id="lore-detail-back">← Zurück zur Liste</button>'
+			+ '<span class="lore-detail__title">' + avesmapsLoreListEscape(entry.name)
+			+ ' <span class="lore-detail__kind">' + avesmapsLoreListEscape(avesmapsLoreKindLabel(entry.kind)) + "</span></span>"
+			+ "</span>"
+			+ (safe ? '<a class="lore-detail__wiki" href="' + avesmapsLoreListEscape(safe) + '" target="_blank" rel="noopener">Wiki-Artikel ↗</a>' : "");
+	}
+
 	// DREI Spalten wie im Abenteuereditor: Liste (im Markup daneben) | Stammdaten | Orte.
 	// Die Orte sind kein Anhängsel der Felder, sondern die eigentliche Arbeit an einem
 	// Eintrag -- untereinander gestapelt musste man für jede Zuordnung erst an den Feldern
-	// vorbeiscrollen. Abschnitte in Versalien, damit die Spalten dieselbe Gliederung tragen
-	// wie COVER / IDENTITÄT / ORTE beim Abenteuer.
-	detail.innerHTML = '<div class="lore-detail__head">'
-		+ '<button type="button" class="lore-detail__back" id="lore-detail-back">← Zurück zur Liste</button>'
-		+ (safe ? '<a class="lore-detail__wiki" href="' + avesmapsLoreListEscape(safe) + '" target="_blank" rel="noopener">Wiki-Artikel ↗</a>' : "")
-		+ "</div>"
-		+ '<h4 class="lore-detail__title">' + avesmapsLoreListEscape(entry.name)
-		+ ' <span class="lore-detail__kind">' + avesmapsLoreListEscape(entry.kind) + "</span></h4>"
-		+ '<div class="lore-detail__cols">'
-
-		+ '<div class="lore-detail__col">'
-		+ '<h5 class="lore-detail__section">Stammdaten</h5>'
+	// vorbeiscrollen. Die beiden Spaltentitel stehen NICHT mehr hier: sie sind seit
+	// 2026-08-15 echte <h3> in index.html, außerhalb des Scrollkastens.
+	stammHost.innerHTML = '<div class="lore-detail__stack">'
 		+ loreFieldRow(entry, "name", "Name")
 		// Beschriftet die Spalte `gruppe` -- und hiess bis 2026-07-22 „Art", was ihrer eigenen
 		// Spalte widersprach und mit der Art-Unterscheidung (Fauna/Flora/Waren/Spezies, jetzt die
@@ -3288,14 +3353,18 @@ function renderLoreDetail(entry) {
 		// ihn vom Server, sobald das Markup steht.
 		+ '<h5 class="lore-detail__section">Quellen</h5>'
 		+ '<div id="lore-source-editor"></div>'
-		+ "</div>"
+		+ "</div>";
 
-		+ '<div class="lore-detail__col lore-detail__col--places">'
-		// „Vorkommen" statt „Orte": die Ueberschrift zaehlt seit Task 5 auch die Regelkarten mit,
-		// die direkt darunter in DERSELBEN Liste stehen (avesmapsLoreRuleCurrent, module state in
-		// review-lore-rule.js -- geladen von openLoreDetail, ueberlebt einen Neuaufbau ohne
-		// erneuten Abruf).
-		+ '<h5 class="lore-detail__section">Vorkommen (' + (live.length + rules.length) + ")</h5>"
+	// „Vorkommen" statt „Orte": die Ueberschrift zaehlt seit Task 5 auch die Regelkarten mit,
+	// die direkt darunter in DERSELBEN Liste stehen (avesmapsLoreRuleCurrent, module state in
+	// review-lore-rule.js -- geladen von openLoreDetail, ueberlebt einen Neuaufbau ohne
+	// erneuten Abruf). Der TITEL steht statisch in index.html und bleibt beim Scrollen stehen;
+	// hier wandert nur noch die Zahl hinein.
+	if (placesTitle) {
+		placesTitle.textContent = "Vorkommen (" + (live.length + rules.length) + ")";
+	}
+
+	placesHost.innerHTML = '<div class="lore-detail__stack">'
 		// Befund 5 (review-lore-rule.js): sichtbar statt stumm -- die Zahl oben zaehlt bei einem
 		// gescheiterten list_rules zu wenig, weil `rules` dann [] ist, keine echte Null.
 		+ (rulesFailed
@@ -3324,8 +3393,6 @@ function renderLoreDetail(entry) {
 				+ '<p class="lore-detail__hint">Diese bleiben entfernt, auch wenn das Wiki sie weiter nennt.</p>'
 				+ '<ul class="lore-detail__places">' + tombs.map(function (p) { return placeRow(p, true); }).join("") + "</ul>"
 			: "")
-		+ "</div>"
-
 		+ "</div>";
 
 	// ⚠️ NACH dem innerHTML, sonst mountet man in einen Knoten, der gleich ersetzt wird.
@@ -3339,16 +3406,22 @@ function renderLoreDetail(entry) {
 }
 
 function openLoreDetail(wikiKey) {
-	var detail = document.getElementById("lore-detail");
-	if (!detail) { return; }
+	var stammHost = document.getElementById("lore-dlg-stamm");
+	if (!stammHost) { return; }
 	avesmapsLoreDetailKey = wikiKey;
 	// Der Editor lebt im Fenster. Die Liste im Reiter bleibt stehen -- nach dem Schließen
 	// macht man dort weiter, wo man war, statt Suchbegriff und Scrollstand zu verlieren.
 	setWikiSyncLoreDialogOpen(true);
-	var placeholder = document.getElementById("lore-dlg-placeholder");
-	if (placeholder) { placeholder.hidden = true; }
-	detail.hidden = false;
-	detail.innerHTML = '<p class="wiki-sync-panel__summary">Wird geladen …</p>';
+	avesmapsLoreDetachSourceEditor();
+	// Der Ladezustand steht in BEIDEN Kästen und in der Kopfzeile. Bliebe der vorige Eintrag
+	// in einem davon stehen, behauptete er, zum gerade geladenen zu gehören.
+	var head = document.getElementById("lore-dlg-detailhead");
+	var placesHost = document.getElementById("lore-dlg-places");
+	var placesTitle = document.getElementById("lore-dlg-places-title");
+	if (head) { head.textContent = "Wird geladen …"; }
+	if (placesTitle) { placesTitle.textContent = "Vorkommen"; }
+	if (placesHost) { placesHost.innerHTML = '<p class="wiki-sync-panel__summary">Wird geladen …</p>'; }
+	stammHost.innerHTML = '<p class="wiki-sync-panel__summary">Wird geladen …</p>';
 	// Zurueck auf Anfang: eine Erfolgsmeldung vom vorigen Eintrag ueber dem neuen stehen zu
 	// lassen, behauptet etwas ueber diesen hier.
 	setLoreDialogStatus();
@@ -3369,7 +3442,11 @@ function openLoreDetail(wikiKey) {
 			// klare Ansage statt eines allgemeinen Fehlers. Die Statuszeile bleibt hier
 			// bewusst stumm: dieselbe Ansage zweimal im selben Fenster liest sich wie ein
 			// Fehler im Fehler, und der Rueckweg-Knopf gehoert an die Maske, nicht in die Zeile.
-			detail.innerHTML = '<p class="wiki-sync-panel__summary">'
+			// ⚠️ Der Knopf steht im KASTEN, nicht in der Kopfzeile -- dort blendet ihn die
+			// 901px-Regel aus, und im Fehlerfall ist er der einzige Rückweg.
+			if (head) { head.textContent = "Nicht geladen"; }
+			if (placesHost) { placesHost.innerHTML = '<p class="lore-dlg__placeholder">—</p>'; }
+			stammHost.innerHTML = '<p class="wiki-sync-panel__summary">'
 				+ '<button type="button" class="lore-detail__back" id="lore-detail-back">← Zurück</button><br>'
 				+ "Bearbeiten geht nur angemeldet und mit Editorrecht.</p>";
 			return;

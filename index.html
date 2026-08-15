@@ -577,8 +577,7 @@
 									     nach unten schiebt, verliert man aus den Augen. „Zurück" bringt die
 									     Liste samt Suchbegriff wieder. -->
 									<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Klick auf einen Eintrag öffnet den Editor.</p>
-										<!-- Zieht per JS ins Fenster um (moveLoreSectionIntoDialog); steht hier nur, damit die id von Anfang an existiert. -->
-										<div class="lore-detail" id="lore-detail" hidden></div>
+										<!-- Hier stand bis 2026-08-15 ein leeres #lore-detail, das moveLoreSectionIntoDialog beim ersten Oeffnen ins Fenster schob. Die Maske steht jetzt direkt im Fensterrumpf (#lore-dlg-stamm / #lore-dlg-places) -- ein Umzug fuer einen Knoten ohne eigene Bindung war ein Umweg. Der Sync-KNOPF zieht weiterhin um: seine Bindung aus bootstrap.js haengt am Element. -->
 																	</div>
 							</div>
 							<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="citymaps">
@@ -1455,18 +1454,22 @@
 					     und Spalten ist Absicht (Spec §3.1): sie schalten den GANZEN Editor um, nicht
 					     nur die Liste. -->
 					<div class="wiki-sync-panel__tabs lore-dlg__tabs">
-						<button class="wiki-sync-panel__tab is-active" type="button" data-lore-dlg-kind="fauna">Fauna <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="fauna"></span></button>
+						<button class="wiki-sync-panel__tab is-active" type="button" data-lore-dlg-kind="all" title="Alle vier Arten in einer Liste. Jede Zeile nennt dort ihre Art – „Bräubier" (Ware) und „Bräuwurm" (Fauna) wären sonst nicht zu unterscheiden.">Alle <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="all"></span></button>
+						<button class="wiki-sync-panel__tab" type="button" data-lore-dlg-kind="fauna">Fauna <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="fauna"></span></button>
 						<button class="wiki-sync-panel__tab" type="button" data-lore-dlg-kind="flora">Flora <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="flora"></span></button>
 						<button class="wiki-sync-panel__tab" type="button" data-lore-dlg-kind="ware">Waren <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="ware"></span></button>
 						<button class="wiki-sync-panel__tab" type="button" data-lore-dlg-kind="spezies">Spezies <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="spezies"></span></button>
 					</div>
-					<!-- DREI gleich breite Spalten (Spec §3.2): waehlen | Stammdaten | Orte. Die
-					     beiden rechten stehen im JS-Markup von renderLoreDetail, weil es sie erst
-					     mit ausgewaehltem Eintrag gibt; die Breite kommt fuer alle drei aus
-					     css/features/lore.css. Die Maske ersetzt die Liste nicht -- man sieht beim
-					     Bearbeiten weiterhin, wo man steht. -->
+					<!-- DREI gleich breite Spalten (Spec §3.2): waehlen | Stammdaten | Orte. Alle drei
+					     stehen seit 2026-08-15 STATISCH hier, samt Titel und Platzhalter -- die beiden
+					     rechten entstanden vorher erst im JS-Markup von renderLoreDetail, und bis zum
+					     ersten Klick sah das Fenster deshalb zweispaltig aus. Aufbau Wort fuer Wort wie
+					     .ce-body/.ce-detail im Karteneditor (html/citymap-editor.html): die Spalte selbst
+					     ist durchsichtig und traegt nur die Polsterung, der helle GERAHMTE Kasten sitzt um
+					     den scrollenden Inhalt. Entwurf: docs/superpowers/specs/
+					     2026-08-15-vorkommeneditor-dreispaltig-design.md -->
 					<div class="lore-dlg__body">
-						<div class="lore-dlg__list">
+						<div class="lore-dlg__col lore-dlg__col--list">
 							<h3 class="lore-dlg__coltitle">Vorkommen</h3>
 							<div class="lore-dlg__top">
 								<input type="search" id="lore-dlg-search" class="lore-dlg__search" placeholder="Name oder Art suchen …" autocomplete="off"><div class="type-filter"><button type="button" id="lore-dlg-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="lore-dlg-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="lore-dlg-continent-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Herkunft</div><div id="lore-dlg-origin-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Ortsangabe</div><div id="lore-dlg-place-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="lore-dlg-source-menu"></div></div></div></div>
@@ -1474,10 +1477,32 @@
 							<p class="lore-dlg__count" id="lore-dlg-count"></p>
 							<div class="lore-dlg__scroll" id="lore-dlg-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
 						</div>
-						<div class="lore-dlg__edit" id="lore-dlg-edit">
-							<!-- Leerer Zustand: eine unbeschriftete leere Spalte liest sich als Fehler.
-							     #lore-detail zieht per JS hierher und verdraengt den Hinweis. -->
-							<p class="lore-dlg__placeholder" id="lore-dlg-placeholder">Links einen Eintrag auswählen, um ihn zu bearbeiten.</p>
+						<div class="lore-dlg__detail">
+							<!-- FESTE Kopfzeile ueber beiden rechten Spalten -- Vorbild .ce-detail__head im
+							     Karteneditor. Sie steht als GESCHWISTER vor den Kaesten, nicht darin:
+							     renderLoreDetail baut den Inhalt bei JEDEM gespeicherten Feld neu auf, ein
+							     Kopf im innerHTML waere danach weg. Aus demselben Grund stehen auch die
+							     beiden Spaltentitel unten ausserhalb ihres Kastens. -->
+							<div class="lore-dlg__detailhead" id="lore-dlg-detailhead">Kein Eintrag gewählt</div>
+							<!-- Die beiden rechten Spalten stehen IMMER, auch ohne gewaehlten Eintrag. Vorher
+							     entstanden sie erst im JS-Markup, und bis dahin sah das Fenster zweispaltig aus
+							     (ein Drittel Liste, zwei Drittel leere Flaeche mit einem Satz darin). -->
+							<div class="lore-dlg__panels">
+								<div class="lore-dlg__col lore-dlg__col--stamm">
+									<h3 class="lore-dlg__coltitle">Stammdaten</h3>
+									<div class="lore-dlg__panelscroll" id="lore-dlg-stamm">
+										<p class="lore-dlg__placeholder" id="lore-dlg-placeholder">Links einen Eintrag auswählen, um ihn zu bearbeiten.</p>
+									</div>
+								</div>
+								<div class="lore-dlg__col lore-dlg__col--places">
+									<!-- Der Zaehler in der Ueberschrift zaehlt Ortskarten UND Regelkarten; er wird
+									     von renderLoreDetail geschrieben, der Titel selbst bleibt stehen. -->
+									<h3 class="lore-dlg__coltitle" id="lore-dlg-places-title">Vorkommen</h3>
+									<div class="lore-dlg__panelscroll" id="lore-dlg-places">
+										<p class="lore-dlg__placeholder">—</p>
+									</div>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>

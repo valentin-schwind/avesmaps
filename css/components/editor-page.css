@@ -20,28 +20,12 @@
  * (AGENTS.md §12).
  */
 
-:root {
-	/* Bedienhöhe: Suchfeld, Eingabe, Auswahl, Knopf (Spec §4.3). Hieß vorher in jedem Editor anders
-	   -- --se-control-h / --ae-control-h / --ce-control-h -- was dieselbe Entscheidung dreimal
-	   verhandelbar machte. */
-	--avm-control-h: 32px;
-
-	/* Hüllenmaße (Spec §3.1a). Die px-Werte daneben sind die IST-Werte der Skala: --space-*
-	   trägt seit einem Owner-Entscheid global +2px, der Name ist die Stufe, nicht die Pixelzahl
-	   (tokens.css:202, Spec §8.1). */
-	--avm-ribbon-pad: var(--space-8) var(--space-12);   /* 10 / 14 */
-	--avm-ribbon-gap: var(--space-4);                   /* 6 */
-	--avm-status-pad: var(--space-4) var(--space-12);   /* 6 / 14 */
-	--avm-status-min-h: 30px;
-	--avm-col-pad: var(--space-6) var(--space-10);      /* 8 / 12 — jede der drei Spalten */
-	--avm-row-pad: var(--space-2) var(--space-4);       /* 4 / 6 — Listenzeile */
-
-	/* Formularfeld: Beschriftung LINKS neben dem Eingabefeld, feste Spalte, damit die Feldkanten
-	   über alle Gruppen hinweg fluchten. Der Abenteuer-Editor stapelte als einziger Label ÜBER
-	   Feld -- bei ~15 Feldern untereinander ergibt das doppelt so viele Zeilen und eine sichtbar
-	   andere Sprache als Siedlungen und Karten (Spec §3.1c). */
-	--avm-field-label-w: 130px;
-}
+/* 💣 Die --avm-*-Hüllenmaße stehen seit 2026-08-15 NICHT mehr hier, sondern in
+   css/base/tokens.css. Grund: der Vorkommeneditor ist der einzige der fünf, der kein iframe ist
+   -- er lebt als Dialog in index.html und lädt diese Datei nicht, wohl aber tokens.css. Hier
+   erneut zu deklarieren hiesse, denselben Wert an zwei Stellen zu führen; genau das hat diese
+   Datei einmal beendet. Jede Editorseite bindet tokens.css ohnehin, also ändert sich für sie
+   nichts. Die Regeln unten (Bildlaufleisten, .type-filter, .avm-row) bleiben editor-SEITEN-Sache. */
 
 /* Bildlaufleisten. Stand bis 2026-07-22 dreimal kopiert in den Editorseiten (zwei davon auf 7px,
    eine auf 10px). Bewusst NICHT der 7px-Wert aus css/base/base.css: die Editoren sind

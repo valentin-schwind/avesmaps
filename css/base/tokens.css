@@ -517,6 +517,22 @@
 	--radius-md: 8px;   /* all controls: buttons, inputs, selects, pills, rows */
 	--radius-lg: 10px;  /* menus, cards, autocomplete */
 
+	/* Hüllenmaße der Editoren (Spec 2026-07-22-editor-designsprache §3.1a). Sie standen bis
+	   2026-08-15 in css/components/editor-page.css und waren damit genau den Editor-SEITEN
+	   vorbehalten. Der Vorkommeneditor ist aber der einzige der fünf, der KEIN iframe ist — er
+	   lebt als Dialog in index.html und lädt editor-page.css nicht. Abschreiben wäre die
+	   Wiederholung des Fehlers, den editor-page.css beendet hat (derselbe Wert an drei Stellen,
+	   dreimal verschieden), also stehen sie hier: tokens.css laden BEIDE Welten. Der Name ist
+	   die Stufe, nicht die Pixelzahl — --space-* trägt global +2px. */
+	--avm-control-h: 32px;                              /* Suchfeld, Eingabe, Auswahl, Knopf */
+	--avm-ribbon-pad: var(--space-8) var(--space-12);   /* 10 / 14 — Menüband */
+	--avm-ribbon-gap: var(--space-4);                   /* 6 */
+	--avm-status-pad: var(--space-4) var(--space-12);   /* 6 / 14 — Statuszeile */
+	--avm-status-min-h: 30px;
+	--avm-col-pad: var(--space-6) var(--space-10);      /* 8 / 12 — jede der drei Spalten */
+	--avm-row-pad: var(--space-2) var(--space-4);       /* 4 / 6 — Listenzeile */
+	--avm-field-label-w: 130px;                         /* Beschriftung links neben dem Feld */
+
 	/* Divider rhythm — symmetric space above & below a section line (on-scale) */
 	--divider-gap: var(--space-12);       /* reading sections (infobox) */
 	--divider-gap-tight: var(--space-6);  /* dense control groups (route planner) */
