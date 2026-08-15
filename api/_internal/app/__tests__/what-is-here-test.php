@@ -48,6 +48,19 @@ assert(avesmapsWhatIsHereOrderTerritories([]) === [], 'kein Treffer -> leere Ket
 // 🔴 buildSettlementHierarchyMarkup (js/ui/popups.js:863) liest territory_public_id, nicht public_id
 // (Fix-Runde 1, Aufgabe 3 -- ohne die Umbenennung liefen die Gold-Flug-Links der Treppe ins Leere).
 
+// 🔴 DIE SCHRANKE (Fix-Runde 2): $kette steht hier stellvertretend fuer das, was
+// avesmapsWhatIsHereReadTerritories() zurueckgibt -- dieselbe Funktion (avesmapsWhatIsHereOrderTerritories)
+// auf denselben Rohdaten. avesmapsWhatIsHereLoreKeys() lebt von genau diesem wiki_key (Territorien-Zweig
+// von lore.place, siehe unten). Was hier eigentlich bewacht wird: die Kuerzung auf die oeffentliche Form
+// (avesmapsWhatIsHereTerritoryPayload) darf NIE innerhalb von avesmapsWhatIsHereReadTerritories passieren
+// -- nur danach, im Endpunkt (api/app/what-is-here.php, siehe die Quelltext-Ordnungs-Zusicherung unten).
+// Striche man wiki_key schon in der Lesefunktion, verloere lore.place jeden Territoriums-Schluessel
+// lautlos, und kein Test hier erreichte das (avesmapsWhatIsHereReadTerritories braucht ein PDO).
+foreach ($kette as $stufe) {
+    assert(array_key_exists('wiki_key', $stufe) && $stufe['wiki_key'] !== '',
+        'die geordnete Kette traegt wiki_key -- die Kuerzung darf nicht in die Lesefunktion wandern');
+}
+
 $payload = avesmapsWhatIsHereTerritoryPayload($kette);
 assert(count($payload) === 4, 'eine Zeile je Stufe, unveraendert in der Zahl');
 assert($payload[0]['territory_public_id'] === $kette[0]['public_id'],
@@ -86,5 +99,29 @@ assert(!in_array('', $lore['place'], true), 'eine Flaeche ohne Wiki-Schluessel l
 // 🔴 `area` nimmt JEDE getroffene Flaeche, auch die derographische: dort greift die
 // Lebensraum-REGEL, nicht die Ortsverknuepfung -- das sind zwei verschiedene Quellen.
 assert(count($lore['area']) === 4, 'alle vier Flaechen stehen in area');
+
+// ---------------------------------------------------------------- DIE ENDPUNKT-ORDNUNG ----------
+// 🔴 DIE SCHRANKE, ZWEITE HAELFTE: avesmapsWhatIsHereReadTerritories() selbst laesst sich hier nicht
+// pruefen (braucht ein PDO), und api/app/what-is-here.php wird von keiner Testdatei geladen (nur GET,
+// nur HTTP). Diese Zusicherung prueft deshalb den QUELLTEXT des Endpunkts, im Stil des Panel-Tests
+// (js/map-features/__tests__/what-is-here-panel.test.js): der Aufruf von avesmapsWhatIsHereLoreKeys()
+// muss VOR dem von avesmapsWhatIsHereTerritoryPayload() stehen -- wiki_key muss bis dahin in der Kette
+// stehen bleiben. 💣 Kommentare werden VORHER ausgeblendet: die Prosa in dieser Datei nennt beide
+// Funktionsnamen mehrfach, ein Treffer darin waere kein Beweis.
+function avesmapsWhatIsHereTestOhneKommentare(string $quelltext): string
+{
+    $ohneBlock = preg_replace('#/\*.*?\*/#s', '', $quelltext);
+    return preg_replace('#^[ \t]*//.*$#m', '', $ohneBlock);
+}
+
+$endpunktQuelle = avesmapsWhatIsHereTestOhneKommentare(
+    (string) file_get_contents(__DIR__ . '/../../../app/what-is-here.php')
+);
+$loreAufruf = strpos($endpunktQuelle, 'avesmapsWhatIsHereLoreKeys(');
+$payloadAufruf = strpos($endpunktQuelle, 'avesmapsWhatIsHereTerritoryPayload(');
+assert($loreAufruf !== false, 'der Endpunkt ruft avesmapsWhatIsHereLoreKeys ueberhaupt auf');
+assert($payloadAufruf !== false, 'der Endpunkt ruft avesmapsWhatIsHereTerritoryPayload ueberhaupt auf');
+assert($loreAufruf < $payloadAufruf,
+    'avesmapsWhatIsHereLoreKeys laeuft VOR avesmapsWhatIsHereTerritoryPayload -- sonst wiki_key schon weg');
 
 echo "what-is-here: alles gruen\n";

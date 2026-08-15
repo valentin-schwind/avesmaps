@@ -59,10 +59,14 @@ try {
         ));
     }
 
-    // 🔴 REIHENFOLGE LOAD-BEARING: avesmapsWhatIsHereLoreKeys() braucht je Stufe `wiki_key` (Territorien-
-    // Zweig von lore.place) -- ein internes Feld, das die oeffentliche Antwort nie sehen soll (siehe
-    // avesmapsWhatIsHereTerritoryPayload()). Deshalb ERST die Lore-Schluessel aus der ungekuerzten Kette
-    // ziehen, ERST DANACH `territories` fuer die Antwort auf sein oeffentliches Feld kuerzen.
+    // 🔴 NICHT „diese zwei Zeilen duerfen nicht getauscht werden" -- avesmapsWhatIsHereTerritoryPayload
+    // ist rein (nimmt `array $rows` ohne `&`) und veraendert `$territories` nicht, ein Tausch waere
+    // harmlos. Das eigentliche Risiko: `wiki_key` muss in `$territories` stehen bleiben, bis
+    // avesmapsWhatIsHereLoreKeys() gelaufen ist (Territorien-Zweig von lore.place) -- die Kuerzung
+    // (avesmapsWhatIsHereTerritoryPayload) darf deshalb NIE in avesmapsWhatIsHereReadTerritories()
+    // selbst wandern, sondern nur hier, angewandt auf das Antwortfeld. Bewacht von der
+    // Quelltext-Ordnungs-Zusicherung + der wiki_key-Zusicherung an $kette in
+    // api/_internal/app/__tests__/what-is-here-test.php ("DIE SCHRANKE").
     $lore = avesmapsWhatIsHereLoreKeys($territories, $areas);
 
     avesmapsJsonResponse(200, [
