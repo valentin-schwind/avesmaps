@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<!-- 💣 `avesmaps-infopanel-mode` gehoert an <html>, nicht an <body>: dort haengt --avesmaps-ip-w
+     (infopanel.css:24-26), die Breitenregel des Panels. Ohne die Klasse ist das Token nicht
+     definiert und das Panel misst, was der Wirt ihm zufaellig laesst. js/config.js:400 setzt sie
+     im Ernstfall genauso frueh, aus demselben Grund. -->
+<html lang="de" class="avesmaps-infopanel-mode">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>„Was ist hier?“ – Infopanel-Mockup (Stand 4, 2026-08-15)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade auf die ECHTE CSS-Kette des Infopanels (css/styles.css:35,36,43,45,47,58,61 plus
+     base/fonts + base/tokens + base/base). Nichts hier ist nachgebaut: was dieses Mockup zeigt, zeigt
+     es mit denselben Regeln wie die Karte. Wer eine Regel aendert, sieht es hier sofort -- eine
+     abgeschriebene Kopie koennte lautlos altern.
+     ⚠️ base/base.css MUSS mit: es traegt die globale Schriftsperre. Eine Standalone-Seite ohne es
+     rendert in Times New Roman und sieht damit falscher aus, als sie ist. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/base/base.css">
+<link rel="stylesheet" href="../css/components/infobox-lid.css">
+<link rel="stylesheet" href="../css/components/infobox-section.css">
+<link rel="stylesheet" href="../css/features/map-labels.css">
+<link rel="stylesheet" href="../css/features/location-popups-markers.css">
+<link rel="stylesheet" href="../css/features/place-extras.css">
+<link rel="stylesheet" href="../css/features/lore.css">
+<link rel="stylesheet" href="../css/features/infopanel.css">
+<link rel="stylesheet" href="../css/features/links.css">
+<style>
+/* ═══ WAS HIER NEU ENTSTEHT ═══════════════════════════════════════════════════════════════════
+   Der Abschnitt „In der Nähe“ ist das EINZIGE neue Bauteil. Er bekommt keine eigenen Zahlen,
+   sondern GENAU die seiner Geschwister -- Kartensammlung und Literatur:
+
+     .avesmaps-near        == .avesmaps-citymaps / .avesmaps-adv   (place-extras.css:7-12)
+     .avesmaps-near__head  == .avesmaps-citymaps__head             (place-extras.css:14-19)
+     .avesmaps-near__count == .avesmaps-adv__count                 (place-extras.css:172-175)
+     .avesmaps-near__list  == .avesmaps-citymaps__scroll margin-top (place-extras.css:27-31)
+     randlos               == die Geschwisterliste                 (infopanel.css:585-596)
+
+   💣 Genau daran fehlte es im ersten Stand: dort standen --space-4/--space-3 und ein eigener
+   border-top im Inhalt statt am Abschnitt. Ergebnis: kein Spielraum ueber der Ueberschrift und
+   eine Trennlinie, die nicht bis an die Panel-Kante lief. Diese fuenf Regeln wandern beim Bauen
+   1:1 nach css/features/place-extras.css bzw. css/features/infopanel.css -- als ZEILEN in den
+   vorhandenen Selektorlisten, nicht als eigener Block.
+   ════════════════════════════════════════════════════════════════════════════════════════════ */
+.avesmaps-near {
+	margin-top: 12px;
+	padding-top: 11px;
+	border-top: 1px solid var(--color-divider);
+}
+.avesmaps-near__head {
+	font-size: var(--font-size-subhead);
+	font-weight: 700;
+	color: var(--color-text-strong);
+}
+.avesmaps-near__count {
+	font-weight: 400;
+	font-size: 12px;
+	color: var(--color-text-muted);
+}
+.avesmaps-near__list {
+	margin-top: 9px;
+}
+
+/* Das Peil-Pfeilchen statt „N / NO / W“ (Owner 15.08.2026).
+   💣 ES DREHT SICH UM DIE ECHTE PEILUNG, nicht um eine von acht Himmelsrichtungen. Genau darin
+   liegt der Gewinn: in der Tabelle links stehen DREI Zeilen auf „W“ -- 259,1°, 283,8° und 284,2°.
+   Das Wort wirft 25° weg, der Pfeil nicht.
+   💣 Die Peilung ist `atan2(dx, dy)`, NICHT das uebliche `atan2(dy, dx)`: die Argumente sind
+   vertauscht, damit 0° Norden ist und im Uhrzeigersinn gezaehlt wird -- dieselbe Zaehlweise wie
+   ein Kompass und wie `rotate()`. Mit der ueblichen Reihenfolge zeigt jeder Pfeil gespiegelt an
+   der Diagonale, und das faellt bei einem Achtel der Faelle (genau N/O/S/W) NICHT auf.
+   ⚠️ Und es gilt nur, weil auf dieser Karte y nach NORDEN waechst (geprueft: Riva y=790 im
+   Norden, Al'Anfa y=152 im Sueden). Die Kachelnamen `map_x_-y` tragen ein negatives y -- wer von
+   dort abliest, dreht jeden Pfeil auf den Kopf.
+   🔴 Die Nadel zeigt UNBEHANDELT nach Norden. Ein Pfeil, dessen Ruhelage nach rechts zeigt,
+   braeuchte `rotate(peilung - 90deg)` -- eine zweite Zahl im Kopf, die irgendwann jemand vergisst.
+   ⚠️ Das WORT bleibt, nur unsichtbar: `aria-label` + `title`. Ein Screenreader liest „Nordost“,
+   die Maus zeigt es an -- weg ist es nur aus der Zeile. */
+.avesmaps-near__dir {
+	display: inline-block;
+	width: 11px;
+	height: 11px;
+	vertical-align: -1px;
+	margin-left: 3px;
+	color: var(--color-text-muted);
+	transform: rotate(var(--avesmaps-dir, 0deg));
+}
+.avesmaps-near__dir svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+	fill: currentColor;
+}
+.avesmaps-infopanel .avesmaps-near {
+	margin-left: calc(-1 * var(--infopanel-pad-x));
+	margin-right: calc(-1 * var(--infopanel-pad-x));
+	padding-left: var(--infopanel-pad-x);
+	padding-right: var(--infopanel-pad-x);
+}
+
+/* ═══ NUR FUER DIESES MOCKUP ══════════════════════════════════════════════════════════════════
+   Ab hier steht nichts, was je in eine ausgelieferte Datei gehoert. Es macht aus dem am rechten
+   Rand festgenagelten Panel zwei nebeneinander lesbare Saeulen -- mehr nicht.
+   ════════════════════════════════════════════════════════════════════════════════════════════ */
+body {
+	margin: 0;
+	background: var(--color-page-bg);
+	color: var(--color-text);
+	font-family: var(--font-ui);
+}
+.mock-head {
+	max-width: 1320px;
+	margin: 0 auto;
+	padding: 24px 20px 8px;
+}
+.mock-head h1 {
+	margin: 0 0 6px;
+	font-size: var(--font-size-title);
+	font-weight: var(--font-weight-bold);
+}
+.mock-head p {
+	margin: 0 0 8px;
+	font-size: var(--font-size-body);
+	line-height: var(--leading-normal);
+	max-width: 78ch;
+	color: var(--color-text-muted);
+}
+.mock-head code {
+	font-size: var(--font-size-caption);
+	background: var(--color-panel-muted);
+	border-radius: var(--radius-sm);
+	padding: 1px 5px;
+}
+.mock-theme {
+	display: inline-flex;
+	gap: 6px;
+	margin: 6px 0 0;
+}
+.mock-theme button {
+	font-family: inherit;
+	font-size: var(--font-size-caption);
+	padding: 5px 11px;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-text);
+	cursor: pointer;
+}
+.mock-stage {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 24px;
+	align-items: flex-start;
+	max-width: 1320px;
+	margin: 0 auto;
+	padding: 12px 20px 60px;
+}
+.mock-col { width: 400px; max-width: 100%; }
+.mock-col > h2 {
+	margin: 0 0 4px;
+	font-size: var(--font-size-subhead);
+	font-weight: var(--font-weight-bold);
+}
+.mock-col > p {
+	margin: 0 0 10px;
+	font-size: var(--font-size-caption);
+	line-height: var(--leading-normal);
+	color: var(--color-text-muted);
+	min-height: 4.4em;
+}
+/* Das Panel selbst ist `position: fixed; right: 0` -- hier steht es im Fluss, damit zwei
+   nebeneinander passen. Volle Inhaltshoehe, damit Abstaende und Trenner ungekuerzt zu sehen sind. */
+.mock-col .avesmaps-infopanel {
+	position: static;
+	width: 100%;
+	border-radius: var(--radius-sm);
+	transform: none;
+}
+.mock-note {
+	margin: 12px 2px 0;
+	font-size: var(--font-size-caption);
+	line-height: var(--leading-normal);
+	color: var(--color-text-muted);
+}
+.mock-note b { color: var(--color-text); }
+.mock-dim { color: var(--color-text-muted); }
+</style>
+</head>
+<body>
+
+<div class="mock-head">
+	<h1>„Was ist hier?“ — das Infopanel einer angeklickten Stelle</h1>
+	<p>
+		<b>Alle Zahlen und Namen sind gemessen</b>, nicht erfunden: Landpunkt
+		<code>?pin=516.016,491.032</code>, Seepunkt <code>?pin=300.000,640.000</code>,
+		Inselpunkt <code>?pin=362.539,722.498</code>, alle am
+		15.08.2026 gegen die Live-Daten geprüft (Herrschaft aus <code>political-territories.php</code>,
+		Landschaften aus <code>ecosystem-areas.php</code>, Natur &amp; Waren aus <code>lore.php</code>,
+		Nachbarschaft aus dem Kartenpayload).
+	</p>
+	<p>
+		💣 Die Koordinate dreht sich: <code>?pin=</code> ist <code>lat,lng</code> = <code>y,x</code>.
+		Der Landpunkt heißt in der API <code>x=491.032, y=516.016</code>.
+	</p>
+	<div class="mock-theme">
+		<button type="button" data-theme-set="light">Hell</button>
+		<button type="button" data-theme-set="dark">Dunkel</button>
+		<button type="button" data-theme-set="system">System</button>
+	</div>
+</div>
+
+<div class="mock-stage">
+
+	<!-- ══════════ LANDPUNKT ══════════ -->
+	<div class="mock-col">
+		<h2>Der gemessene Punkt</h2>
+		<p>Grafenmark Ferdok, im Dunkelwald am Großen Fluss. Alles in tabellarischer Form — auch
+			„In der Nähe“, das denselben <code>dt/dd</code>-Bau benutzt wie die Siedlungs-Infobox.</p>
+
+		<aside class="avesmaps-infopanel" aria-label="Info">
+			<div class="avesmaps-infopanel__body">
+				<div class="location-popup">
+
+					<!-- Kopf: das Bild IST der Landschaftsbefund. „Wald“ trifft icons/header/wald.webp
+					     über die VORHANDENE Tabelle INFO_HEADER_IMAGE_BY_ART -- keine zweite Liste. -->
+					<div class="info-header">
+						<div class="info-header__media">
+							<img class="info-header__img" src="../icons/header/wald.webp" alt="" width="800" height="450" decoding="async">
+						</div>
+						<div class="info-header__caption">
+							<div class="info-header__titles">
+								<div class="info-header__title">Markierte Stelle</div>
+								<div class="info-header__subtitle">516.016, 491.032</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Kacheln direkt unter den Kopf (Owner: „Buttons unter den Titel“). Die beiden
+					     Trenner darüber und darunter kommen von infopanel.css:739-746 -- die Regel für
+					     `.info-header + .location-popup__actions` gibt es längst, hier ist nichts gesetzt. -->
+					<div class="location-popup__actions">
+						<button type="button" class="location-popup__action-button location-popup__action-button--accent">
+							<span class="location-popup__action-icon" aria-hidden="true">+</span>Reiseziel hinzufügen</button>
+						<button type="button" class="location-popup__action-button">
+							<img class="location-popup__action-img" src="../img/menu/linkteilen.webp" alt="" width="36" height="36">Link teilen</button>
+						<button type="button" class="location-popup__action-button location-popup__action-button--danger">
+							<img class="location-popup__action-img" src="../img/menu/papierkorb.webp" alt="" width="36" height="36">Entfernen</button>
+					</div>
+
+					<!-- „Liegt in“: die vorhandene Treppe, Wurzel oben, jede Stufe ein Gold-Flug-Link.
+					     Trenner UNTEN, nicht oben (infopanel.css:605-609).
+					     Die Wappen liegen auf dem Server (uploads/ ist gitignored) -- deshalb hier absolut. -->
+					<div class="location-popup__breadcrumb">
+						<div class="location-popup__breadcrumb-label">Liegt in</div>
+						<div class="location-popup__breadcrumb-chain">
+							<div class="location-popup__breadcrumb-row" style="--breadcrumb-depth:0">
+								<button type="button" class="location-popup__political-link location-popup__breadcrumb-link"><img class="location-popup__breadcrumb-coat" src="https://avesmaps.de/uploads/wappen/heiliges-neues-kaiserreich-vom-greifenthron-zu-gareth-custom.png" alt="" aria-hidden="true">Heiliges Neues Kaiserreich vom Greifenthron zu Gareth</button>
+							</div>
+							<div class="location-popup__breadcrumb-row" style="--breadcrumb-depth:1">
+								<button type="button" class="location-popup__political-link location-popup__breadcrumb-link"><img class="location-popup__breadcrumb-coat" src="https://avesmaps.de/uploads/wappen/f-rstentum-kosch-custom.png" alt="" aria-hidden="true">Fürstentum Kosch</button>
+							</div>
+							<div class="location-popup__breadcrumb-row" style="--breadcrumb-depth:2">
+								<button type="button" class="location-popup__political-link location-popup__breadcrumb-link"><img class="location-popup__breadcrumb-coat" src="https://avesmaps.de/uploads/wappen/grafschaft-ferdok.svg" alt="" aria-hidden="true">Grafschaft Ferdok</button>
+							</div>
+							<div class="location-popup__breadcrumb-row" style="--breadcrumb-depth:3">
+								<button type="button" class="location-popup__political-link location-popup__breadcrumb-link"><img class="location-popup__breadcrumb-coat" src="https://avesmaps.de/uploads/wappen/grafenmark-ferdok-custom.png" alt="" aria-hidden="true">Grafenmark Ferdok</button>
+							</div>
+						</div>
+					</div>
+
+					<div class="region-info-box region-info-box--settlement">
+						<dl class="region-info-box__data">
+							<div class="region-info-box__row"><dt>Derographie</dt><dd>Aventurien</dd></div>
+							<div class="region-info-box__row"><dt>Topographie</dt><dd>Der große Fluss <span class="mock-dim">(Tal)</span></dd></div>
+							<!-- 💣 ZWEI Treffer auf EINER Ebene, und das ist der Normalfall, nicht der Sonderfall. -->
+							<div class="region-info-box__row"><dt>Vegetation</dt><dd>Dunkelwald <span class="mock-dim">(Wald)</span> · Flusslande <span class="mock-dim">(Flussland/Flusstal)</span></dd></div>
+							<div class="region-info-box__row avesmaps-lore__row"><dt>Waren</dt><dd><details class="infobox-lid"><summary class="infobox-lid__summary"><span class="infobox-lid__foot"><span class="infobox-lid__prose"><span class="infobox-lid__count">1</span> Handelsware gelistet</span><span class="infobox-lid__more" aria-hidden="true"></span></span></summary><div class="infobox-lid__full"><div><details class="avesmaps-lore__gruppe" open><summary class="avesmaps-lore__gruppe-kopf"><span class="avesmaps-lore__gruppe-name">Direkt hier</span><span class="avesmaps-lore__gruppe-zahl">1</span></summary><div class="avesmaps-lore__spalten"><div class="avesmaps-lore__buchstabenblock"><span class="avesmaps-lore__buchstabe">F</span><span class="avesmaps-lore__names"><a class="avesmaps-lore__name" href="#">Ferdoker Kriegslanze</a></span></div></div></details></div></div></details></dd></div>
+							<div class="region-info-box__row avesmaps-lore__row"><dt>Flora</dt><dd><details class="infobox-lid"><summary class="infobox-lid__summary"><span class="infobox-lid__foot"><span class="infobox-lid__prose"><span class="infobox-lid__count">1</span> Pflanzenart gesehen</span><span class="infobox-lid__more" aria-hidden="true"></span></span></summary><div class="infobox-lid__full"><div><details class="avesmaps-lore__gruppe" open><summary class="avesmaps-lore__gruppe-kopf"><span class="avesmaps-lore__gruppe-name">Direkt hier</span><span class="avesmaps-lore__gruppe-zahl">1</span></summary><div class="avesmaps-lore__spalten"><div class="avesmaps-lore__buchstabenblock"><span class="avesmaps-lore__buchstabe">V</span><span class="avesmaps-lore__names"><a class="avesmaps-lore__name" href="#">Vierblättrige Einbeere</a></span></div></div></details></div></div></details></dd></div>
+							<!-- „Klimazone“ steht IMMER direkt unter Flora (Owner 2026-08-03) -->
+							<div class="region-info-box__row avesmaps-climate__row"><dt>Klimazone</dt><dd>Gemäßigte Zone</dd></div>
+						</dl>
+					</div>
+
+					<!-- „In der Nähe“: eigener Abschnitt wie Kartensammlung/Literatur, Inhalt aber in
+					     derselben Tabellenform wie oben -- .region-info-box__data / __row, dt = Art.
+					     Namen sind .avesmaps-traffic-link: der vorhandene Knopf, der wie ein Link
+					     aussieht und auf der Karte hinspringt (heute schon in der Zeile „Verkehrswege“). -->
+					<details class="avesmaps-near infobox-section" open>
+						<summary class="avesmaps-near__head infobox-section__head">In der Nähe <span class="avesmaps-near__count infobox-section__count">(7)</span></summary>
+						<dl class="avesmaps-near__list region-info-box__data">
+							<!-- 💣 Ein Weg ohne echten Namen wird NUR mit seiner Art genannt. „Pfad-5401“
+							     ist eine laufende Nummer, keine Auskunft -- dieselbe Regel, mit der das
+							     Konfliktzentrum 2448 von 3721 automatisch benannten Wegen aussortiert. -->
+							<div class="region-info-box__row"><dt>Pfad</dt><dd>2,5 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 15.3deg" role="img" aria-label="Norden" title="Norden (15,3°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+							<div class="region-info-box__row"><dt>Dorf</dt><dd><button type="button" class="avesmaps-traffic-link">Ziegenhain</button> · 4,2 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 52deg" role="img" aria-label="Nordost" title="Nordost (52°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+							<div class="region-info-box__row"><dt>Weg</dt><dd>7,6 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 284.2deg" role="img" aria-label="Westen" title="Westen (284,2°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+							<div class="region-info-box__row"><dt>Straße</dt><dd>8,1 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 308.9deg" role="img" aria-label="Nordwest" title="Nordwest (308,9°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+							<div class="region-info-box__row"><dt>Dorf</dt><dd><button type="button" class="avesmaps-traffic-link">Olkstubben</button> · 8,4 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 302.7deg" role="img" aria-label="Nordwest" title="Nordwest (302,7°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+							<div class="region-info-box__row"><dt>Dorf</dt><dd><button type="button" class="avesmaps-traffic-link">Bareckshaus</button> · 8,6 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 259.1deg" role="img" aria-label="Westen" title="Westen (259,1°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+							<div class="region-info-box__row"><dt>Flussweg</dt><dd><button type="button" class="avesmaps-traffic-link">Der Große Fluss</button> · 9,6 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 283.8deg" role="img" aria-label="Westen" title="Westen (283,8°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+						</dl>
+					</details>
+
+				</div>
+			</div>
+		</aside>
+
+		<p class="mock-note">⭐ <b>Die Regel dahinter:</b> je Wegart höchstens einer, höchstens vier Wege,
+			dazu die drei nächsten Ortschaften — alles zusammen nach Entfernung sortiert. Ohne sie wären
+			es hier <b>vier namenlose Wege in Folge</b> (Pfad-5401, Pfad-5400, Weg-5248, Strasse-5219),
+			bevor das erste Dorf käme.</p>
+		<p class="mock-note">⭐ <b>Und das Pfeilchen sagt mehr als das Wort:</b> drei dieser sieben Zeilen
+			hießen früher alle „W“ — sie liegen aber bei <b>259,1°</b>, <b>283,8°</b> und <b>284,2°</b>.
+			Die Abkürzung wirft 25° weg, der Pfeil dreht sich um die echte Peilung. Zeigen mit der Maus
+			nennt weiterhin das Wort, ein Screenreader liest es vor.</p>
+	</div>
+
+	<!-- ══════════ SEEPUNKT ══════════ -->
+	<div class="mock-col">
+		<h2>Derselbe Bauplan auf See</h2>
+		<p>Der Härtefall im Perlenmeer. Keine Herrschaft, keine Derographie, keine Vegetation, keine
+			Flora — <b>diese Zeilen fallen weg</b>, sie stehen nie als „—“ da.</p>
+
+		<aside class="avesmaps-infopanel" aria-label="Info">
+			<div class="avesmaps-infopanel__body">
+				<div class="location-popup">
+
+					<div class="info-header">
+						<div class="info-header__media">
+							<img class="info-header__img" src="../icons/header/meer.webp" alt="" width="800" height="450" decoding="async">
+						</div>
+						<div class="info-header__caption">
+							<div class="info-header__titles">
+								<div class="info-header__title">Markierte Stelle</div>
+								<div class="info-header__subtitle">300.000, 640.000</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="location-popup__actions">
+						<button type="button" class="location-popup__action-button location-popup__action-button--accent">
+							<span class="location-popup__action-icon" aria-hidden="true">+</span>Reiseziel hinzufügen</button>
+						<button type="button" class="location-popup__action-button">
+							<img class="location-popup__action-img" src="../img/menu/linkteilen.webp" alt="" width="36" height="36">Link teilen</button>
+						<button type="button" class="location-popup__action-button location-popup__action-button--danger">
+							<img class="location-popup__action-img" src="../img/menu/papierkorb.webp" alt="" width="36" height="36">Entfernen</button>
+					</div>
+
+					<!-- KEINE „Liegt in“-Treppe: 9 Gebiete lagen im bbox, 0 haben den Punkttest bestanden.
+					     ⚠️ Damit trägt die Kachelreihe hier ihren UNTEREN Trenner allein gegen die
+					     Datentabelle -- genau dafür ist er da (infopanel.css:743-745), es fehlt nichts. -->
+
+					<div class="region-info-box region-info-box--settlement">
+						<dl class="region-info-box__data">
+							<div class="region-info-box__row"><dt>Topographie</dt><dd>Perlenmeer <span class="mock-dim">(Meer)</span></dd></div>
+							<div class="region-info-box__row avesmaps-climate__row"><dt>Klimazone</dt><dd>Tropische Zone</dd></div>
+						</dl>
+					</div>
+
+					<details class="avesmaps-near infobox-section" open>
+						<summary class="avesmaps-near__head infobox-section__head">In der Nähe <span class="avesmaps-near__count infobox-section__count">(5)</span></summary>
+						<dl class="avesmaps-near__list region-info-box__data">
+							<div class="region-info-box__row"><dt>Seeweg</dt><dd>7,6 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 178.7deg" role="img" aria-label="Süden" title="Süden (178,7°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+							<div class="region-info-box__row"><dt>Straße</dt><dd>14,1 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 347.6deg" role="img" aria-label="Norden" title="Norden (347,6°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+							<div class="region-info-box__row"><dt>Großstadt</dt><dd><button type="button" class="avesmaps-traffic-link">Thalusa</button> · 35,2 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 261.7deg" role="img" aria-label="Westen" title="Westen (261,7°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+							<div class="region-info-box__row"><dt>Dorf</dt><dd><button type="button" class="avesmaps-traffic-link">Ech’Chin</button> · 35,4 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 235.5deg" role="img" aria-label="Südwest" title="Südwest (235,5°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+							<div class="region-info-box__row"><dt>Dorf</dt><dd><button type="button" class="avesmaps-traffic-link">Mahatamrepuram</button> · 40,9 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 276.7deg" role="img" aria-label="Westen" title="Westen (276,7°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+						</dl>
+					</details>
+
+				</div>
+			</div>
+		</aside>
+
+		<p class="mock-note">💣 <b>Und das ist der Beweis für die teuerste Falle:</b> im bbox um diesen
+			Punkt lagen <b>9 Gebiete</b>. Nach dem echten Punkttest bleiben <b>0</b>. Wer den bbox-Treffer
+			für die Antwort hält, behauptet hier vier Herrschaften mitten im Perlenmeer.</p>
+	</div>
+
+	<!-- ══════════ MARASKAN ══════════ -->
+	<div class="mock-col">
+		<h2>Wo Natur &amp; Waren etwas hergeben</h2>
+		<p>Ein Punkt auf der Insel Maraskan. Hier stehen <b>alle drei</b> Lore-Zeilen — Waren, Fauna,
+			Flora — und „Liegt in“ ist nur EINE Stufe, weil die Fürstkomturei unabhängig ist.</p>
+
+		<aside class="avesmaps-infopanel" aria-label="Info">
+			<div class="avesmaps-infopanel__body">
+				<div class="location-popup">
+
+					<!-- Keine Vegetationsfläche an dieser Stelle -> das Kopfbild kommt aus der
+					     Topographie: „Insel“ trifft icons/header/insel.webp. -->
+					<div class="info-header">
+						<div class="info-header__media">
+							<img class="info-header__img" src="../icons/header/insel.webp" alt="" width="800" height="450" decoding="async">
+						</div>
+						<div class="info-header__caption">
+							<div class="info-header__titles">
+								<div class="info-header__title">Markierte Stelle</div>
+								<div class="info-header__subtitle">362.539, 722.498</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="location-popup__actions">
+						<button type="button" class="location-popup__action-button location-popup__action-button--accent">
+							<span class="location-popup__action-icon" aria-hidden="true">+</span>Reiseziel hinzufügen</button>
+						<button type="button" class="location-popup__action-button">
+							<img class="location-popup__action-img" src="../img/menu/linkteilen.webp" alt="" width="36" height="36">Link teilen</button>
+						<button type="button" class="location-popup__action-button location-popup__action-button--danger">
+							<img class="location-popup__action-img" src="../img/menu/papierkorb.webp" alt="" width="36" height="36">Entfernen</button>
+					</div>
+
+					<!-- 💣 EINE Stufe, und der Punkttest fand sie ZWEIMAL: dasselbe Gebiet liegt mit zwei
+					     Geometrie-Features im bbox. Die Kette entdoppelt über territory_public_id. -->
+					<div class="location-popup__breadcrumb">
+						<div class="location-popup__breadcrumb-label">Liegt in</div>
+						<div class="location-popup__breadcrumb-chain">
+							<div class="location-popup__breadcrumb-row" style="--breadcrumb-depth:0">
+								<button type="button" class="location-popup__political-link location-popup__breadcrumb-link"><img class="location-popup__breadcrumb-coat" src="https://avesmaps.de/uploads/wappen/f-rstkomturei-maraskan-custom.png" alt="" aria-hidden="true">Fürstkomturei Tobimora</button>
+							</div>
+						</div>
+					</div>
+
+					<div class="region-info-box region-info-box--settlement">
+						<dl class="region-info-box__data">
+							<div class="region-info-box__row"><dt>Topographie</dt><dd>Maraskan <span class="mock-dim">(Insel)</span></dd></div>
+							<!-- 🔴 Reihenfolge Waren · Fauna · Flora — das ist AVESMAPS_LORE_ROWS, nicht meine
+							     Wahl. Und „Klimazone“ steht IMMER direkt unter Flora (Owner 2026-08-03). -->
+							<div class="region-info-box__row avesmaps-lore__row"><dt>Waren</dt><dd><details class="infobox-lid"><summary class="infobox-lid__summary"><span class="infobox-lid__foot"><span class="infobox-lid__prose"><span class="infobox-lid__count">70</span> Handelswaren gelistet</span><span class="infobox-lid__more" aria-hidden="true"></span></span></summary><div class="infobox-lid__full"><div><details class="avesmaps-lore__gruppe" open><summary class="avesmaps-lore__gruppe-kopf"><span class="avesmaps-lore__gruppe-name">Direkt hier</span><span class="avesmaps-lore__gruppe-zahl">70</span></summary><div class="avesmaps-lore__spalten"><div class="avesmaps-lore__buchstabenblock"><span class="avesmaps-lore__buchstabe">A</span><span class="avesmaps-lore__names"><a class="avesmaps-lore__name" href="#">Alabaster</a>, <a class="avesmaps-lore__name" href="#">Alanti</a>, <a class="avesmaps-lore__name" href="#">Alantsamen</a>, <a class="avesmaps-lore__name" href="#">Amazonensäbel</a>, <a class="avesmaps-lore__name" href="#">Anval</a>, <a class="avesmaps-lore__name" href="#">As’Haima</a></span></div><div class="avesmaps-lore__buchstabenblock"><span class="avesmaps-lore__buchstabe">B</span><span class="avesmaps-lore__names"><a class="avesmaps-lore__name" href="#">Basiliskenzunge</a>, <a class="avesmaps-lore__name" href="#">Blasrohr</a>, <a class="avesmaps-lore__name" href="#">Blei</a>, <a class="avesmaps-lore__name" href="#">Boran Hochland</a></span></div></div></details></div></div></details></dd></div>
+							<div class="region-info-box__row avesmaps-lore__row"><dt>Fauna</dt><dd><details class="infobox-lid"><summary class="infobox-lid__summary"><span class="infobox-lid__foot"><span class="infobox-lid__prose"><span class="infobox-lid__count">74</span> Tierarten beobachtet</span><span class="infobox-lid__more" aria-hidden="true"></span></span></summary><div class="infobox-lid__full"><div><details class="avesmaps-lore__gruppe" open><summary class="avesmaps-lore__gruppe-kopf"><span class="avesmaps-lore__gruppe-name">Direkt hier</span><span class="avesmaps-lore__gruppe-zahl">74</span></summary><div class="avesmaps-lore__spalten"><div class="avesmaps-lore__buchstabenblock"><span class="avesmaps-lore__buchstabe">A</span><span class="avesmaps-lore__names"><a class="avesmaps-lore__name" href="#">Aldec-Käfer</a>, <a class="avesmaps-lore__name" href="#">Alezijn-Käfer</a>, <a class="avesmaps-lore__name" href="#">Amdeggyn-Springsalamander</a>, <a class="avesmaps-lore__name" href="#">Amdeggynsmolch</a></span></div><div class="avesmaps-lore__buchstabenblock"><span class="avesmaps-lore__buchstabe">B</span><span class="avesmaps-lore__names"><a class="avesmaps-lore__name" href="#">Baumschleimer</a>, <a class="avesmaps-lore__name" href="#">Baumwürger</a>, <a class="avesmaps-lore__name" href="#">Blaufalke</a>, <a class="avesmaps-lore__name" href="#">Blutaar</a>, <a class="avesmaps-lore__name" href="#">Borbarad-Moskito</a>, <a class="avesmaps-lore__name" href="#">Boronsotter</a></span></div></div></details></div></div></details></dd></div>
+							<div class="region-info-box__row avesmaps-lore__row"><dt>Flora</dt><dd><details class="infobox-lid"><summary class="infobox-lid__summary"><span class="infobox-lid__foot"><span class="infobox-lid__prose"><span class="infobox-lid__count">70</span> Pflanzenarten gesehen</span><span class="infobox-lid__more" aria-hidden="true"></span></span></summary><div class="infobox-lid__full"><div><details class="avesmaps-lore__gruppe" open><summary class="avesmaps-lore__gruppe-kopf"><span class="avesmaps-lore__gruppe-name">Direkt hier</span><span class="avesmaps-lore__gruppe-zahl">70</span></summary><div class="avesmaps-lore__spalten"><div class="avesmaps-lore__buchstabenblock"><span class="avesmaps-lore__buchstabe">A</span><span class="avesmaps-lore__names"><a class="avesmaps-lore__name" href="#">Alant</a>, <a class="avesmaps-lore__name" href="#">Alôe</a>, <a class="avesmaps-lore__name" href="#">Amarant</a>, <a class="avesmaps-lore__name" href="#">Amaryllis</a>, <a class="avesmaps-lore__name" href="#">Anval</a>, <a class="avesmaps-lore__name" href="#">Axorda-Baum</a></span></div><div class="avesmaps-lore__buchstabenblock"><span class="avesmaps-lore__buchstabe">B</span><span class="avesmaps-lore__names"><a class="avesmaps-lore__name" href="#">Baum der Reisenden</a>, <a class="avesmaps-lore__name" href="#">Baumwolle</a>, <a class="avesmaps-lore__name" href="#">Begonie</a>, <a class="avesmaps-lore__name" href="#">Brettwurzelbaum</a></span></div></div></details></div></div></details></dd></div>
+							<div class="region-info-box__row avesmaps-climate__row"><dt>Klimazone</dt><dd>Tropische Zone</dd></div>
+						</dl>
+					</div>
+
+					<details class="avesmaps-near infobox-section" open>
+						<summary class="avesmaps-near__head infobox-section__head">In der Nähe <span class="avesmaps-near__count infobox-section__count">(4)</span></summary>
+						<dl class="avesmaps-near__list region-info-box__data">
+							<div class="region-info-box__row"><dt>Pfad</dt><dd>23,4 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 254.1deg" role="img" aria-label="Westen" title="Westen (254,1°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+							<div class="region-info-box__row"><dt>Stadt</dt><dd><button type="button" class="avesmaps-traffic-link">Alrurdan</button> · 23,4 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 254.1deg" role="img" aria-label="Westen" title="Westen (254,1°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+							<div class="region-info-box__row"><dt>Dorf</dt><dd><button type="button" class="avesmaps-traffic-link">Talued</button> · 36,0 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 111.6deg" role="img" aria-label="Osten" title="Osten (111,6°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+							<div class="region-info-box__row"><dt>Dorf</dt><dd><button type="button" class="avesmaps-traffic-link">As’Khunchak</button> · 47,7 Meilen<span class="avesmaps-near__dir" style="--avesmaps-dir: 197.1deg" role="img" aria-label="Süden" title="Süden (197,1°)"><svg viewBox="-7 -7 14 14" aria-hidden="true" focusable="false"><path d="M0,-6 L3.8,5.2 L0,2.8 L-3.8,5.2 Z"/></svg></span></dd></div>
+						</dl>
+					</details>
+
+				</div>
+			</div>
+		</aside>
+
+		<p class="mock-note">💣 <b>Hier ist die Entfernungsschranke entstanden.</b> Ohne sie stünden in
+			dieser Liste eine <b>Reichsstraße 534 Meilen</b> und ein <b>Wüstenpfad 634 Meilen</b> weit weg —
+			formal die nächsten ihrer Art, praktisch auf einem anderen Kontinent. Regel: <b>kein Weg weiter
+			als das Anderthalbfache der weitesten gezeigten Ortschaft.</b> Der Maßstab ist die Ortsliste,
+			nicht die Wegeliste — eine Schranke, die mit dem mitwandert, was sie begrenzen soll, begrenzt
+			nichts.</p>
+	</div>
+
+</div>
+
+<script>
+  document.querySelectorAll("[data-theme-set]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var v = b.getAttribute("data-theme-set");
+      try { if (v === "system") { localStorage.removeItem("avesmaps-theme"); } else { localStorage.setItem("avesmaps-theme", v); } } catch (e) {}
+      if (v === "dark") { document.documentElement.setAttribute("data-theme", "dark"); }
+      else if (v === "light") { document.documentElement.removeAttribute("data-theme"); }
+      else { location.reload(); }
+    });
+  });
+</script>
+
+</body>
+</html>
