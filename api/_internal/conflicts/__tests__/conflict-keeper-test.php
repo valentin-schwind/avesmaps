@@ -34,9 +34,13 @@ declare(strict_types=1);
  * 🔴 UND HIER IST DIE ABWEICHUNG DIE UNSICHERE RICHTUNG. Dieser Test beweist eine SCHONUNG (der
  * Behalter bleibt unangetastet). Live fasst die Schutz-Abfrage MEHR Zeilen -- was fuer die Schonung
  * gut ist --, aber die Verbund-Abfrage der Ziele ebenfalls, und beide muessen denselben Zuschnitt
- * behalten. Solange beide woertlich dieselbe WHERE-Klausel benutzen, gilt das auch live; wer eine
- * der beiden anders formuliert (COLLATE, LOWER(), ein Praefix), bricht die Deckung, und DIESER
- * Test wuerde es nicht merken.
+ * behalten. Solange beide woertlich dieselbe WHERE-Klausel benutzen, gilt das auch live.
+ *
+ * ⭐ Genau DAS ist unten zugesichert (Abschnitt 7), und zwar bis zum Ende der Klausel: eine der
+ * drei anders zu formulieren faellt auf, ob sie veraendert (LOWER, COLLATE) ODER nur erweitert
+ * wird. ⚠️ Nicht zugesichert ist ein bestimmter Wortlaut: aendert jemand alle drei GLEICH, bleibt
+ * es gruen -- gesichert ist die Deckung, nicht die Formulierung. Und die Zusicherung sieht nur
+ * repair.php.
  */
 if (ini_get('zend.assertions') !== '1') {
     fwrite(STDERR, "FATAL: zend.assertions ist nicht '1' -- assert() waere wirkungslos.\n");
@@ -222,12 +226,27 @@ assert($blank === ['keeper' => '', 'known' => false], 'leere Angaben sind keine 
 // egal wie MySQL vergleicht. Wer eine der beiden anders formuliert (COLLATE, LOWER(), ein
 // Praefix), reisst ein Loch zwischen "wird geschuetzt" und "wird gefasst", und die Datenbank
 // entscheidet dann, wer den Anspruch verliert. Genau das kann SQLite nicht nachstellen.
+// 💣 Gelesen wird von WHERE bis zum ENDE der SQL-Zeichenkette (`[^"]*`), nicht ein gepinnter
+// Ausdruck. Ein blosser Teilzeichenketten-Treffer faengt nur, wer die Klausel VERAENDERT; wer sie
+// bloss ERWEITERT (… AND public_id != ''), liesse das Praefix stehen und bliebe gruen. Genau das
+// wurde am 15.08.2026 nachgemessen -- die Zusicherung hielt weniger, als der Satz daneben versprach.
 $repairSource = file_get_contents(__DIR__ . '/../repair.php');
 assert(is_string($repairSource));
+preg_match_all('/WHERE feature_type = :t[^"]*/', $repairSource, $whereMatches);
 assert(
-    preg_match_all('/WHERE feature_type = :t AND name = :n AND is_active = 1/', $repairSource, $whereMatches) === 3,
-    'drei Abfragen ueber den Namensverbund: einmal Schutz, zweimal Verbund (Trennen und Verknuepfen)'
+    count($whereMatches[0]) === 3,
+    'drei Abfragen ueber den Namensverbund: einmal Schutz, zweimal Verbund (Trennen und Verknuepfen), gefunden: '
+        . count($whereMatches[0])
 );
-assert(count(array_unique($whereMatches[0])) === 1, 'und alle drei woertlich gleich');
+assert(
+    count(array_unique($whereMatches[0])) === 1,
+    'und alle drei woertlich gleich, gefunden: ' . json_encode(array_values(array_unique($whereMatches[0])), JSON_UNESCAPED_UNICODE)
+);
+
+// ⚠️ Was diese Zusicherung NICHT ist: eine Aussage ueber die Formulierung. Aendert jemand alle drei
+// Klauseln GLEICH (etwa auf COLLATE utf8mb4_bin), bleibt sie gruen -- und das ist richtig so, denn
+// gesichert ist die DECKUNG von Schutz und Verbund, nicht ein bestimmter Wortlaut. Sie ist ferner
+// auf repair.php beschraenkt: eine vierte Abfrage ueber denselben Verbund in einer anderen Datei
+// sieht sie nicht (eine vierte in DIESER Datei laesst die Zahl oben auffliegen).
 
 fwrite(STDOUT, "conflict-keeper-test: alle Zusicherungen erfuellt\n");
