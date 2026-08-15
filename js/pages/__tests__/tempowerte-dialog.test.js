@@ -34,9 +34,7 @@ const allowed = (() => {
 
 // Entwurf §8.1 nennt sie namentlich. Faellt eine weg, faellt hier auf, dass der Knopf ins Leere geht.
 // 🔴 `offroad` kam am 15.08.2026 dazu (der Querfeldein-Laengenaufschlag, Entwurf
-// 2026-08-15-querfeldein-laengenaufschlag-design.md §6). Der Endpunkt kennt ihn seit dem
-// serverseitigen Teil; die Zeile im Fenster folgt in der naechsten Aufgabe — deshalb steht er
-// hier schon und unten (Abschnitt 4) noch nicht.
+// 2026-08-15-querfeldein-laengenaufschlag-design.md §6).
 assert.deepStrictEqual(
 	allowed.slice().sort(),
 	["all", "day_miles", "ground", "landscapes", "misc", "offroad", "path_factors"],
@@ -113,8 +111,8 @@ assert.ok(
 // dort wirkungslos und setzt still auf "" statt auf den Wert.
 assert.strictEqual(
 	(dialog.match(/data-loaded="/g) || []).length,
-	4,
-	"alle vier Zeilenbauer (Raster, Landschaft, Boden, Einzelwert) tragen `data-loaded`"
+	5,
+	"alle fuenf Zeilenbauer (Raster, Landschaft, Boden, Einzelwert, Querfeldein-Aufschlag) tragen `data-loaded`"
 );
 assert.ok(dialog.includes("wp-tempo__undo"), "und es gibt den Zeilen-Ruecksetzer");
 const css = read("css/pages/wege-editor.css");
@@ -214,19 +212,36 @@ klassen.forEach((klasse) => {
 	});
 }
 
-// ---- 4. Alle sechs Abschnitte des Entwurfs stehen im Fenster ------------------------------------
+// ---- 4. Alle sieben Abschnitte stehen im Fenster ------------------------------------------------
 
 // §4: Tagesleistung + Wegtypen (das Raster), Landschaften, Boden, Fluss und Eichung, Befund, Gesperrt.
+// 🔴 „Querfeldein-Aufschlag" kam am 15.08.2026 dazu (Entwurf
+// 2026-08-15-querfeldein-laengenaufschlag-design.md §6).
 [
 	"Raster: Reisemittel × Wegtyp",
 	"Landschaften querfeldein",
 	"Boden nach Jahreszeit",
 	"Fluss und Eichung",
+	"Querfeldein-Aufschlag",
 	"Was von der Quelle abweicht",
 	"Nicht aus der Quelle",
 ].forEach((heading) => {
 	assert.ok(dialog.includes(heading), `Abschnitt „${heading}" fehlt im Fenster`);
 });
+
+// Beide Zahlen sind einstellbar, und beide lassen sich gemeinsam zuruecksetzen.
+// 💣 DER DECKEL WIRD MIT-EINGESTELLT, NICHT FESTGENAGELT. Eine Steigung ohne erreichbaren Deckel
+// ist eine versteckte Kopplung: wer sie verdoppelt, verschiebt die Grenze, ab der sie nicht mehr
+// wirkt, und sieht es nirgends.
+// ⚠️ Geprueft wird der AUFRUF, nicht das fertige Attribut: `data-key` entsteht erst zur Laufzeit
+// aus dem Argument (data-key="' + escapeHtml(key) + '"), steht also nirgends woertlich im Quelltext.
+assert.ok(dialog.includes('tempoRampRow("per_mile"'), "die Steigung ist einstellbar");
+assert.ok(dialog.includes('tempoRampRow("max"'), "der Hoechstaufschlag ebenso");
+assert.ok(dialog.includes('data-section="offroad"'), "und beide lassen sich zuruecksetzen");
+// 🔴 KEIN GA-WERT. Die Quelle kennt ueberhaupt keine laengenabhaengige Regel; stuende dort eine
+// Zahl, waere sie erfunden.
+assert.ok(!/Querfeldein-Aufschlag[\s\S]*?wp-tempo__ga">0/.test(dialog),
+	"die GA-Spalte des Aufschlags traegt keine erfundene Zahl");
 
 // ---- 5. Genau EIN gefuellter Knopf --------------------------------------------------------------
 

@@ -305,6 +305,12 @@ function wpTempoFlatValues(state) {
 		flat["ms:" + key] = Number(values[key]);
 	});
 
+	var ramp = values.offroad_ramp || {};
+	["per_mile", "max"].forEach(function (key) {
+		if (ramp[key] === undefined || ramp[key] === null) { return; }
+		flat["or:" + key] = Number(ramp[key]);
+	});
+
 	return flat;
 }
 

@@ -1318,6 +1318,21 @@
 		return ' <span class="wp-tempo__war">war ' + num(tempoBewegt[key], stellen) + "</span>";
 	}
 
+	/* Eine Zeile des Querfeldein-Aufschlags. Eigener Bauer statt tempoSingleRow, weil dieser Wert
+	 * KEINE Quellenzeile hat (die GA kennt keinen Laengenaufschlag) und eine feinere Schrittweite
+	 * braucht -- 0,001 statt 0,01. */
+	function tempoRampRow(key, label, value, step, note) {
+		return "<tr>"
+			+ '<th scope="row">' + escapeHtml(label) + "</th>"
+			+ '<td><input type="number" step="' + step + '" min="0" class="wp-tempo__ramp" data-key="'
+			+ escapeHtml(key) + '" data-loaded="' + value + '" value="' + value + '">'
+			+ tempoWarMarke("or:" + key, 3) + "</td>"
+			+ tempoUndoCell()
+			+ '<td class="wp-tempo__ga">—</td>'
+			+ '<td class="wp-tempo__eff">' + escapeHtml(note) + "</td>"
+			+ "</tr>";
+	}
+
 	/* Eine einzelne Zahl ohne Tabelle drumherum -- Name, Eingabe, GA-Wert, was sie bedeutet. */
 	function tempoSingleRow(key, label, rawValue, sourceValue, note) {
 		var ours = Number(rawValue);
@@ -1634,7 +1649,42 @@
 			+ '<button type="button" class="wp-tempo__reset" data-section="misc">'
 			+ "Beide auf die GA-Werte zurücksetzen</button></div>";
 
-		// Abschnitt 5: der Befund.
+		// Abschnitt 5: der Querfeldein-Aufschlag.
+		// 🔴 ER STEHT IN KEINER GA-TABELLE. Die Quelle kennt ueberhaupt keine laengenabhaengige Regel;
+		// ihr Wert ist der Gelaendefaktor Querfeldein = 0,75 der Strasse, und der bleibt unberuehrt --
+		// bei kurzen Etappen geht der Faktor gegen 1,0. Die GA-Spalte zeigt deshalb "—", wie bei den
+		// elf Landschaftsarten ohne Quellenzeile.
+		var ramp = values.offroad_ramp || {};
+		var rampProMeile = Number(ramp.per_mile);
+		var rampDeckel = Number(ramp.max);
+		if (!isFinite(rampProMeile)) { rampProMeile = 0; }
+		if (!isFinite(rampDeckel)) { rampDeckel = 1; }
+		var deckelBei = rampProMeile > 0 ? (rampDeckel - 1) / rampProMeile : null;
+		html += '<div class="wp-tempo__sec"><h3>Querfeldein-Aufschlag</h3>'
+			+ '<p class="wp-tempo__note">Eine Querfeldein-Etappe wird mit ihrer eigenen Länge langsamer: '
+			+ "kurze Abkürzungen kosten fast nichts, ein Gewaltmarsch ohne Weg kostet viel. Gemessen "
+			+ "wird die <b>Luftlinie</b> der Etappe, nicht die gelaufene Strecke — nur so bleibt der "
+			+ "Aufschlag für die Wegsuche eine Konstante, und nur so kann „Schnellste“ keine "
+			+ "Etappe wählen, die langsamer ist als eine verworfene.</p>"
+			+ '<table class="wp-tempo__tbl"><thead><tr>'
+			+ '<th scope="col">Wert</th><th scope="col">unser Wert</th>'
+			+ '<th scope="col"><span class="wp-tempo__sronly">zurücksetzen</span></th>'
+			+ '<th scope="col">GA</th><th scope="col">was er bewirkt</th>'
+			+ "</tr></thead><tbody>"
+			+ tempoRampRow("per_mile", "Steigung je Meile Luftlinie", rampProMeile, "0.001",
+				"100 Meilen kosten " + num(rampProMeile * 100 * 100, 0) + " % mehr Zeit — 0 schaltet ihn ab")
+			+ tempoRampRow("max", "Höchstaufschlag", rampDeckel, "0.1",
+				deckelBei === null ? "ohne Steigung wirkungslos"
+					: "erreicht bei " + num(deckelBei, 0) + " Meilen; darunter wächst er, darüber nicht mehr")
+			+ "</tbody></table>"
+			+ '<p class="wp-tempo__note">⚠️ Der <b>Höchstaufschlag</b> gehört zur Steigung und wird '
+			+ "mit ihr eingestellt: wer die Steigung verdoppelt, verschiebt sonst unbemerkt die Grenze, ab "
+			+ "der sie nicht mehr wirkt. Bei 2,0 ist querfeldein schlimmstenfalls halb so schnell wie der "
+			+ "GA-Wert (0,375 statt 0,75 der Straße).</p>"
+			+ '<button type="button" class="wp-tempo__reset" data-section="offroad">'
+			+ "Aufschlag auf die Vorgabe zurücksetzen</button></div>";
+
+		// Abschnitt 6: der Befund.
 		html += '<div class="wp-tempo__sec"><h3>Was von der Quelle abweicht</h3>';
 		if (dev.total === 0) {
 			html += '<p class="wp-tempo__note">Nichts — alle Werte entsprechen der Geographia Aventurica.</p>';
@@ -1654,7 +1704,7 @@
 		}
 		html += "</div>";
 
-		// Abschnitt 6: gesperrt — unsere Rechnung, nicht die Quelle.
+		// Abschnitt 7: gesperrt — unsere Rechnung, nicht die Quelle.
 		html += '<div class="wp-tempo__sec"><h3>Nicht aus der Quelle — unsere Rechnung</h3>'
 			+ '<p class="wp-tempo__note">Diese Werte stehen <b>nicht</b> in der Geographia Aventurica. Sie '
 			+ "stehen hier, damit der Unterschied zwischen Quelle und eigener Rechnung sichtbar ist, und "
@@ -1774,6 +1824,17 @@
 			payload[input.getAttribute("data-key")] = value;
 		});
 
+		// ⚠️ KEIN Filter auf „> 0": beim Aufschlag ist 0 eine gueltige Einstellung (er ist dann aus).
+		// Was gueltig ist, entscheidet der Server (avesmapsTravelValuesApplyIncoming) -- hier stuende
+		// die Regel sonst ein zweites Mal, und die beiden liefen auseinander.
+		var rampPayload = {};
+		Array.prototype.forEach.call(body.querySelectorAll(".wp-tempo__ramp"), function (input) {
+			var value = tempoNum(input.value);
+			if (value === null) { return; }
+			rampPayload[input.getAttribute("data-key")] = value;
+		});
+		if (Object.keys(rampPayload).length) { payload.offroad_ramp = rampPayload; }
+
 		tempoVorher = wpTempoFlatValues(tempoState);
 		tempoSetStatus("Wird gespeichert…", "");
 		postJson("/api/edit/map/travel-values.php", payload).then(function (data) {
@@ -1808,6 +1869,9 @@
 			return treffer ? treffer.label : teile[2];
 		}
 		if (teile[0] === "gr") { return TEMPO_GROUND_LABELS[teile[1]] || teile[1]; }
+		if (teile[0] === "or") {
+			return teile[1] === "per_mile" ? "Aufschlag je Meile" : "Höchstaufschlag";
+		}
 		return teile[1] === "river_ratio" ? "stromauf : stromab" : "Eichziel";
 	}
 

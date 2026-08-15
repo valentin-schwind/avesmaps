@@ -464,7 +464,9 @@
 .wp-tempo__in,
 .wp-tempo__ls,
 .wp-tempo__gr,
-.wp-tempo__ms { width: 5.5rem; }
+.wp-tempo__ms,
+/* Der Querfeldein-Aufschlag: dieselbe Breite wie seine Nachbarn, keine eigene Formensprache. */
+.wp-tempo__ramp { width: 5.5rem; }
 
 /* Die Zeile, die sagt, ob die Wegfindung ueberhaupt Bodenfaktoren findet.
    🔴 Ein stiller Not-Aus ohne Anzeige ist ein Ausfall (Entwurf §7) -- deshalb steht sie GANZ OBEN
