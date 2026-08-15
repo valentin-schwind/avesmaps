@@ -64,28 +64,32 @@
 	font-weight: 600;
 }
 
-/* Eine Stufe des Auswahlbaums. Die Einrückung plus die senkrechte Linie IST die
-   Hierarchie -- kein Rahmen, kein Kasten. Gilt für jede Tiefe gleich, damit eine
-   vierte Stufe ohne neue Regel auskäme. */
+/* Eine Stufe des Auswahlbaums als RASTER, nicht als umbrechender Fließsatz.
+   Der Unterschied ist der Punkt: im Fließsatz beginnt jede Zeile dort, wo die vorige
+   aufhörte, also steht keine Farbe unter der anderen und das Auge findet nichts wieder.
+   Im Raster stehen Häkchen, Name und Farbe in Spalten -- man springt senkrecht durch.
+   Die Einrückung plus die senkrechte Linie bleibt die Hierarchie (kein Rahmen, kein
+   Kasten); `auto-fill` hält es auf schmalen Fenstern von selbst zusammen. */
 .svgx-children {
 	margin: 4px 0 0 22px;
 	padding-left: 12px;
 	border-left: 1px solid var(--color-divider);
-	display: flex;
-	flex-wrap: wrap;
-	gap: 4px 18px;
-	align-items: baseline;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+	gap: 2px 16px;
+	align-items: center;
 }
 
-/* Die dritte Stufe steht unter ihrer zweiten, also braucht sie die volle Breite. */
+/* Die dritte Stufe steht UNTER ihrer zweiten und über die ganze Breite -- sonst
+   klemmte sie sich als schmale Zelle neben ihre Geschwister. */
 .svgx-children--1 {
-	flex: 0 0 100%;
+	grid-column: 1 / -1;
 	margin-top: 2px;
 	margin-bottom: 6px;
 }
 
 .svgx-children__title {
-	flex: 0 0 100%;
+	grid-column: 1 / -1;
 	margin: 2px 0 2px 0;
 	font-size: 11px;
 	text-transform: uppercase;
@@ -298,8 +302,35 @@
 /* 💣 Ein Eintrag ist EIN Flex-Element -- Beschriftung und ihre Farbfelder zusammen.
    Als Geschwister im umbrechenden Container könnten sie in verschiedenen Zeilen landen,
    und dann steht eine Farbe neben dem falschen Namen. */
+/* Ein Eintrag ist selbst ein kleines Raster: Beschriftung links, Farben RECHTS am
+   Zellenrand. Dadurch stehen die Farbfelder aller Einträge einer Spalte genau
+   untereinander -- das ist es, was aus der Liste ein Raster macht. */
 .svgx-entry {
-	display: inline-flex;
-	align-items: baseline;
-	gap: 2px;
+	display: grid;
+	grid-template-columns: 1fr auto;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+/* Der Name darf kürzen statt die Spalte zu sprengen; die Zahl dahinter bleibt lesbar. */
+.svgx-entry > .svgx-choice {
+	min-width: 0;
+}
+
+.svgx-entry > .svgx-choice > span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Die oberste Stufe steht allein in ihrer Zeile und soll NICHT auf Spaltenbreite
+   schrumpfen -- sonst klebte die Farbe eines Layers mitten im Satz. */
+.svgx-layer > .svgx-entry {
+	grid-template-columns: auto 1fr;
+	justify-content: start;
+}
+
+.svgx-layer > .svgx-entry > .svgx-swatches {
+	justify-self: start;
 }

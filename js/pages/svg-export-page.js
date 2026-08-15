@@ -389,10 +389,14 @@
 			knopf.addEventListener("click", function () {
 				if (feld) { feld.value = knopf.getAttribute("data-svgx-size"); }
 				spiegeln();
-		farbfelderVorbelegen();
 			});
 		});
 		spiegeln();
+		// 💣 BEIM LADEN, nicht im Klick-Handler einer Schnellwahl. Genau dort war der Aufruf
+		// zuerst gelandet -- alle Farbfelder standen auf Schwarz, bis jemand zufällig auf eine
+		// Größe klickte. Ein Fehler, den kein Test sieht: der Bauer war richtig, nur nie mit
+		// den Vorgaben gefüttert.
+		farbfelderVorbelegen();
 
 		// Ein Zuhörer für den ganzen Baum, gleich auf welcher Stufe.
 		alleKnoten().forEach((box) => {
