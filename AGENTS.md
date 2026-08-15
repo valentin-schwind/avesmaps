@@ -197,9 +197,17 @@ is the default, English is opt-in. Therefore:
 
 - **Do not** translate user-facing German UI strings inline (that would change the
   default UX). Extract them into the i18n table instead.
-- **Do** write code comments, docs, commit messages and internal API error
-  *messages* in **English** going forward (the `error.code` machine values are
-  already English — never change those).
+- 💣 **Code comments, docs and commit messages are written in GERMAN** — like the
+  code you are standing in. The `error.code` machine values stay English and are
+  never translated; internal API error *messages* may be either.
+  🔴 This line said the opposite until 2026-08-15 ("write them in English going
+  forward"). It was dead law and had been for months: every spec under
+  `docs/superpowers/`, every recent commit subject and nearly every new source file
+  is German, while a handful of older libraries are English. A reviewer following
+  the old rule flagged brand-new, correctly-written German comments as a deviation
+  — which is what a rule nobody follows costs. Owner's ruling on that review:
+  German, and fix the rule. **Match the file you are editing**; do not translate
+  an existing English file into German just because of this line.
 - Never translate domain content (§2), `<option value>` slugs, `queryParam`
   toggle names, `PATH_SUBTYPE_KEYS`, or the `BF` calendar suffix.
 
