@@ -236,14 +236,25 @@ function avesmapsWikiPowerlineDecideSegments(array $segmentRows, array $stagedBy
 {
     $counts = ['linked' => 0, 'updated' => 0, 'cleared' => 0, 'unchanged' => 0];
     $matchedKeys = [];
-    $claimsUnresolved = 0;
-    $claimsOrphaned = [];
-    $noArticleReopened = [];
+    // 💣 Die drei Meldungen zaehlen je LINIE, nicht je Segment -- alles andere ist der Fehler aus
+    // Discord #71 (erste Haelfte, "zaehlte je Segment statt je Linie") an neuer Stelle. Gemessen an
+    // zwei Linien mit 6 und 2 Segmenten stand hier 8 statt 2, und dieselbe Linie sechsmal in der
+    // Liste. Entdoppelt ueber den Namen -- er IST die Linie (Entwurf §2.1: der Name ist das Band,
+    // das die Segmente zusammenhaelt).
+    //
+    // ⚠️ Ein Segment OHNE Namen ist keine Linie und darf nicht mit den anderen namenlosen
+    // verschmelzen (live gibt es 6 davon), deshalb tritt fuer sie die id als Schluessel ein.
+    // GESCHRIEBEN wird weiter je Segment: der Merker sitzt in jedem einzelnen properties-Nest.
+    $claimsUnresolvedLines = [];
+    $claimsOrphanedByLine = [];
+    $noArticleReopenedByLine = [];
     $writes = [];
 
     foreach ($segmentRows as $row) {
         $name = (string) ($row['name'] ?? '');
         $properties = is_array($row['properties'] ?? null) ? $row['properties'] : [];
+        // Der Schluessel der LINIE, ueber den die drei Meldungen entdoppeln.
+        $lineKey = $name !== '' ? $name : ('#' . (int) ($row['id'] ?? 0));
 
         // Rangfolge Zuweisung -> Name -> nichts (Aufgabe 1), statt des blossen Namensabgleichs.
         $resolved = avesmapsWikiPowerlineResolveSegment($name, $properties, $stagedByMatchKey, $stagedByArticleKey);
@@ -256,11 +267,11 @@ function avesmapsWikiPowerlineDecideSegments(array $segmentRows, array $stagedBy
         }
 
         if ($resolved['claim_unresolved']) {
-            $claimsUnresolved++;
-            if (isset($properties['wiki_powerline'])) {
+            $claimsUnresolvedLines[$lineKey] = true;
+            if (isset($properties['wiki_powerline']) && !isset($claimsOrphanedByLine[$lineKey])) {
                 // Die Adresse zeigt ins Leere, UND die Linie trug schon ein Nest -- der
                 // zugewiesene Artikel ist verschwunden (umbenannt/geloescht im Wiki), Entwurf §4.
-                $claimsOrphaned[] = [
+                $claimsOrphanedByLine[$lineKey] = [
                     'name' => $name,
                     'wiki_url' => trim((string) ($properties['wiki_url'] ?? '')),
                 ];
@@ -270,7 +281,9 @@ function avesmapsWikiPowerlineDecideSegments(array $segmentRows, array $stagedBy
         $forceWrite = false;
         if ($resolved['clear_no_article']) {
             unset($properties['wiki_no_article']);
-            $noArticleReopened[] = $name;
+            // Gemeldet je Linie, geschrieben je Segment: $forceWrite steht bewusst ausserhalb der
+            // Entdopplung, sonst bliebe der Merker auf fuenf von sechs Segmenten stehen.
+            $noArticleReopenedByLine[$lineKey] = $name;
             $forceWrite = true;
         }
 
@@ -299,9 +312,9 @@ function avesmapsWikiPowerlineDecideSegments(array $segmentRows, array $stagedBy
         'writes' => $writes,
         'counts' => $counts,
         'matched_keys' => $matchedKeys,
-        'claims_unresolved' => $claimsUnresolved,
-        'claims_orphaned' => $claimsOrphaned,
-        'no_article_reopened' => $noArticleReopened,
+        'claims_unresolved' => count($claimsUnresolvedLines),
+        'claims_orphaned' => array_values($claimsOrphanedByLine),
+        'no_article_reopened' => array_values($noArticleReopenedByLine),
     ];
 }
 

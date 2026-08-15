@@ -184,4 +184,58 @@ assert($decided['counts']['linked'] === 1);
 assert($decided['claims_unresolved'] === 0);
 assert($decided['claims_orphaned'] === []);
 
+
+// --- Die drei Meldungen zaehlen je LINIE, nicht je SEGMENT -----------------------------------
+// 💣 Derselbe Fehler, den Discord #71 in seiner ersten Haelfte gerade behoben hat ("zaehlte je
+// Segment statt je Linie"), an neuer Stelle. Eine Kraftlinie IST viele Segmente mit einem Namen --
+// wer sie einzeln zaehlt, meldet dem Editor 8 Zuweisungen ins Leere, wo zwei Linien stehen, und
+// nennt dieselbe Linie sechsmal hintereinander.
+$typoA = 'https://de.wiki-aventurica.de/wiki/Hexnband';         // Tippfehler: zeigt auf nichts
+$typoB = 'https://de.wiki-aventurica.de/wiki/Satinavs_Kettten'; // dito
+
+$perLineRows = [];
+// Linie A: SECHS Segmente, alle drei Meldungen feuern auf jedem davon (Adresse ins Leere,
+// vorhandenes Nest, gesetzter Merker + Namenstreffer).
+for ($i = 0; $i < 6; $i++) {
+    $perLineRows[] = ['id' => 200 + $i, 'name' => 'Hexenband', 'properties' => [
+        'wiki_url' => $typoA,
+        'wiki_no_article' => true,
+        'wiki_powerline' => $hexenband['nest'],
+    ]];
+}
+// Linie B: ZWEI Segmente, Adresse ins Leere und vorhandenes Nest, aber kein Merker.
+for ($i = 0; $i < 2; $i++) {
+    $perLineRows[] = ['id' => 300 + $i, 'name' => 'Satinavs Kette I', 'properties' => [
+        'wiki_url' => $typoB,
+        'wiki_powerline' => $satinav['nest'],
+    ]];
+}
+$perLine = avesmapsWikiPowerlineDecideSegments($perLineRows, $byMatchKey, $byArticleKey);
+
+// Gemessen am Aufgabenblatt: 8 Segmente, aber ZWEI Linien.
+assert($perLine['claims_unresolved'] === 2);
+assert(count($perLine['claims_orphaned']) === 2);
+$orphanedNames = array_map(static fn(array $o): string => $o['name'], $perLine['claims_orphaned']);
+sort($orphanedNames);
+assert($orphanedNames === ['Hexenband', 'Satinavs Kette I']);
+// Die Adresse reist mit -- ohne sie ist die Meldung "irgendwas stimmt nicht" (Entwurf §4).
+assert($perLine['claims_orphaned'][0]['wiki_url'] !== '');
+// Und die Linie, deren Merker aufgemacht wurde, steht EINMAL da, nicht sechsmal.
+assert($perLine['no_article_reopened'] === ['Hexenband']);
+
+// Gegenprobe: zwei Linien mit demselben Befund bleiben zwei Eintraege -- die Entdopplung geht
+// ueber den NAMEN, sie darf nicht alles zu einem einzigen Eintrag zusammenziehen.
+$twoLines = avesmapsWikiPowerlineDecideSegments([
+    ['id' => 400, 'name' => 'Hexenband', 'properties' => ['wiki_no_article' => true, 'wiki_powerline' => $hexenband['nest']]],
+    ['id' => 401, 'name' => 'Hexenband', 'properties' => ['wiki_no_article' => true, 'wiki_powerline' => $hexenband['nest']]],
+    ['id' => 402, 'name' => 'Satinavs Kette I', 'properties' => ['wiki_url' => $satinav['nest']['wiki_url'], 'wiki_no_article' => true]],
+], $byMatchKey, $byArticleKey);
+assert(count($twoLines['no_article_reopened']) === 2);
+assert(in_array('Hexenband', $twoLines['no_article_reopened'], true));
+assert(in_array('Satinavs Kette I', $twoLines['no_article_reopened'], true));
+// Geschrieben wird weiter je SEGMENT -- der Merker sitzt in jedem einzelnen properties-Nest.
+// Nur GEMELDET wird je Linie. Ohne diese Zusicherung koennte eine Entdopplung am falschen Ende
+// ansetzen und fuenf von sechs Segmenten mit dem Merker stehen lassen.
+assert(count($twoLines['writes']) === 3);
+
 fwrite(STDOUT, "powerline-claim-test: alle Zusicherungen erfuellt\n");
