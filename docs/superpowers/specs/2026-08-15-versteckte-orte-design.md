@@ -132,12 +132,27 @@ Ein Laufzeit-`Set` von `publicId`s, `avesmapsRevealedHiddenLocationIds`, in
 `js/app/runtime-state.js` neben `nearestLookupPinnedMarkerEntry`. Nicht gespeichert, nicht in der
 URL, nicht auf dem Server. Ein Neuladen leert es.
 
-Gefüllt wird es an genau **drei** Stellen, und alle drei sind „jemand hat den Namen ausdrücklich
-eingegeben":
+Gefüllt wird es an genau **zwei** Stellen, und beide sind **Trichter**, keine einzelnen Aufrufer —
+so kann kein künftiger Weg vergessen werden:
 
-1. ein Spotlight-Treffer wird gewählt,
-2. ein Wegpunkt wird gesetzt (getippt, aus der Vorschlagsliste, oder aus einem geteilten Link),
-3. ein geteilter Link adressiert den Ort direkt (`?pin=`).
+1. **`openLocationPopupForMarkerEntry`** (`js/map-features/map-features-location-lookup.js:364`) —
+   dort münden `openLocationPopupByName` und `openLocationPopupByPublicId`, und der
+   Spotlight-Ortstreffer läuft über `focusSpotlightLocation`
+   (`js/ui/spotlight-search-focus.js:102`) ebenfalls hinein. Deckt damit Spotlight, den
+   Wiki-Deep-Link nach Seitenname, den Ortslink im Reiseplan und „Nächsten Ort finden" ab.
+2. **`collectAndValidateSelectedLocations`** (`js/routing/routing.js:1471`) — dort laufen alle Wege
+   zusammen, auf denen ein Wegpunkt in ein Feld kommt: die Vorschlagsliste, der von Hand getippte
+   Name und der geteilte Link, der die Felder vorbefüllt.
+
+⭐ **Die Semantik stimmt bei (1) von selbst:** einen Marker, der nicht gezeichnet ist, kann niemand
+anklicken. Jeder Aufruf für einen versteckten Ort ist deshalb zwangsläufig eine Adressierung über
+Name oder Kennung von woanders her — genau das, was aufdecken soll.
+
+⚠️ **`?pin=` ist KEIN dritter Fall.** Ein früherer Entwurfsstand führte ihn als eigenen Aufdecker;
+nachgesehen am 15.08.2026 ist `?pin=<lat,lng>` eine **Koordinate**, kein Ortsbezug
+(`readSharePinFromUrl`, `js/map-features/map-features-share-pin.js`). Er adressiert nie einen Ort
+über seinen Namen und hat mit dem Verstecken nichts zu tun. Der Ort-Anteil eines geteilten Links
+reist in `?s=` als Wegpunkte und ist von (2) gedeckt.
 
 ⚠️ **Aufgedeckt wird ADDITIV, nie geleert.** Der Owner hat „bleibt für diesen Besuch sichtbar"
 gewählt — die Menge wächst über die Sitzung. Ein Wegpunkt, der wieder entfernt wird, nimmt seine
@@ -246,10 +261,23 @@ Die Kennzeichnung reist deshalb im **Label**, nach dem Muster, das dort schon st
 Innerorts-Objekt zeigt `Schänke Schnapsfass (Imdal)` und schreibt `Imdal` ins Feld. Analog:
 `Feenplatz (versteckt)` als Label, `Feenplatz` als Wert.
 
+💣 **Der Vorschlagseintrag trägt das Merkmal heute gar nicht.** `getWaypointAutocompleteEntries`
+(`:131-138`) wirft das `location`-Objekt schon im ersten `.map()` weg und behält `{name,
+normalizedName}`. Ohne dass `isHidden` dort mitreist, wäre die Kennzeichnung eine Zeile, die
+`undefined` prüft — der Test bliebe grün und die Liste kennzeichnete nie etwas. ⚠️ Der Cache dieser
+Liste wird an der **Anzahl** der Orte gemessen (`:126-129`): versteckt ein Editor einen Ort, ändert
+sich die Anzahl nicht, und der Vorschlag kennzeichnet ihn erst nach einem Neuladen. Das gilt heute
+schon für Umbenennungen und bleibt so.
+
 💣 **Niemals einen blanken String zurückgeben** — jQuery UI normalisiert die ganze Liste am **ersten**
 Eintrag (`_normalize: t[0].label && t[0].value ? t : map(…)`). Steht ein `{label, value}`-Paar vorn,
 gehen blanke Strings unverändert durch und erscheinen als `[object Object]`. Der Bestand hält das
-schon ein (Kommentar bei `:212`); die neue Zeile darf es nicht brechen.
+schon ein (Kommentar bei `:212`, bewacht von
+`js/map-features/__tests__/waypoint-autocomplete-items.test.js`); die neue Zeile darf es nicht
+brechen.
+
+⚠️ Ein **Innerorts**-Objekt bleibt ungekennzeichnet: sein `value` ist die Stadt, und die Klammer
+trägt dort schon deren Namen. Ein zweiter Zusatz wäre mehr Klammer als Auskunft.
 
 ---
 
@@ -400,6 +428,7 @@ gemeldet, nicht als bestanden.
 | `api/_internal/routing/__tests__/versteckte-orte-test.php` | ein versteckter Ort steht **nicht** in `candidate_locations`; als `to` der Anfrage steht er **doch** darin; sein Weg existiert weiterhin im Graphen (der Befund aus §6.1); die Route zu ihm kommt an |
 | `js/map-features/__tests__/versteckter-ort-sichtbarkeit.test.js` | nicht gezeichnet · gezeichnet bei Editor-Haken · gezeichnet wenn aufgedeckt · Prüfhaken-Fund schlägt den Riegel |
 | `js/ui/__tests__/spotlight-versteckt-zeile.test.js` | dritte Zeile bei versteckt, bei Ruine, bei beidem (`Ruine · Versteckt`); `--two-line` gesetzt |
+| `js/map-features/__tests__/wegpunkt-versteckt-label.test.js` | „(versteckt)" hängt hinten an; der Eintrag trägt `isHidden` überhaupt |
 | `js/routing/__tests__/versteckte-etappe.test.js` | versteckter Durchgangsort fällt aus der Etappenliste; aufgedeckter bleibt |
 
 💣 **Vor dem Push läuft das GANZE Testfeld**, JS und PHP, mit den Erweiterungen aus AGENTS.md §9 —
@@ -425,20 +454,24 @@ einer: `linkcheck/link-url-test.php` (echter DNS-Abruf).
 
 ## 10. Reihenfolge und Sichtbarkeit
 
-💣 **Sichtbare Änderungen gehen EINZELN live, und der Owner sieht jede** (AGENTS.md §9). Diese
-Änderung hat drei sichtbare Oberflächen, und sie gehören in drei Schritte:
+💣 **Sichtbare Änderungen gehen EINZELN live, und der Owner sieht jede** (AGENTS.md §9).
 
-1. **Feld + Editor + Karte** — der Haken im Siedlungseditor, der Haken im Auge-Menü, das
-   Nicht-Zeichnen. Ohne diesen Schritt gibt es nichts zu verstecken.
-2. **Spotlight + Wegpunktsuche** — die dritte Zeile, die Aufdeckung, die beiden CSS-Korrekturen.
-   Erst jetzt ist ein versteckter Ort wiederfindbar; deshalb **muss** dieser Schritt dem ersten
-   zeitnah folgen.
-3. **Router + Etappenliste** — die Kandidatenliste und der Reiniger. Unsichtbar, bis jemand eine
-   Route plant, die ihn berührt.
+🔴 **Die Auffindbarkeit kommt VOR dem Verstecken.** Ein früherer Stand dieses Abschnitts stellte das
+Nicht-Zeichnen an den Anfang und musste deshalb warnen, zwischen den Schritten nichts zu verstecken —
+ein Fenster, in dem ein versteckter Ort unwiederbringlich gewesen wäre. In dieser Reihenfolge gibt es
+das Fenster nicht: wenn das Verstecken zu wirken beginnt, ist der Weg zurück schon gebaut.
 
-⚠️ Bis Schritt 2 live ist, ist ein versteckter Ort **nicht wiederfindbar**. Der Owner soll deshalb
-zwischen 1 und 2 nichts verstecken — oder 1 und 2 laufen als ein Paar hintereinander, mit seinem
-Blick dazwischen.
+1. **Das Feld** — Editor-Haken, Server, Durchreichung bis in den Router. Nichts wirkt; wer den Haken
+   setzt, sieht keinen Unterschied.
+2. **Spotlight** — die dritte Zeile und die beiden CSS-Korrekturen. Sofort sichtbar bei Ruinen;
+   „Versteckt" hat noch niemanden zu zeigen.
+3. **Die Karte** — die beiden Riegel, die Aufdeckung, der Haken „Versteckte Orte". **Ab hier wirkt
+   es**, und der Rückweg steht seit Schritt 2.
+4. **Die Wegpunktsuche** — Kennzeichnung im Vorschlag, Aufdeckung beim Setzen.
+5. **Router + Etappenliste** — Kandidatenliste und Reiniger. Unsichtbar, bis jemand eine Route
+   plant, die einen versteckten Ort berührt; beide reisen zusammen.
 
-🔧 **DU (Owner):** nach jedem der drei Schritte draufschauen. Die Reihenfolge ist so gewählt, dass
-nach jedem Schritt ein sinnvoller Zustand steht.
+🔧 **DU (Owner):** nach jedem Schritt draufschauen. Die Reihenfolge ist so gewählt, dass nach jedem
+ein sinnvoller Zustand steht — es gibt keinen Zwischenstand, in dem etwas verloren gehen kann.
+
+Der ausgeführte Bauplan dazu: `docs/superpowers/plans/2026-08-15-versteckte-orte.md`.
