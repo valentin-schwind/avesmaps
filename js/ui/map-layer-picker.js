@@ -12,14 +12,14 @@
 
 	/**
 	 * 💣 GEKOPPELT AN css/components/map-layer-picker.css. Das Raster wird erst versteckt, wenn
-	 * sein Zuklappen zu Ende ist -- dort stehen 160 ms fuer das Einrollen und 150 ms fuer die
+	 * sein Zuklappen zu Ende ist -- dort stehen 110 ms fuer das Einrollen und 110 ms fuer die
 	 * Zellen. Ist diese Zahl kleiner, verschwindet der Kasten mitten in der Bewegung; ist sie
 	 * viel groesser, steht ein fertig eingerollter Kasten noch herum und der Bund bleibt so
 	 * lange zu hoch. Ein Test haelt beide Seiten zusammen (js/ui/__tests__/map-layer-picker.test.js).
-	 * ⚠️ Aufklappen dauert laenger (260 ms) und braucht hier nichts: das Raster ist da, bevor es
+	 * ⚠️ Aufklappen dauert laenger (150 ms) und braucht hier nichts: das Raster ist da, bevor es
 	 * sich zeigt.
 	 */
-	var BLENDE_ZU_MS = 180;
+	var BLENDE_ZU_MS = 130;
 
 	/**
 	 * 🔴 `?layerPanelActive=0` ist der NOTAUSGANG, nicht mehr der Einschalter. Die Kachel laeuft
@@ -173,6 +173,21 @@
 		 */
 		var zustandOffen = false;
 
+		/**
+		 * 🔴 EIN KLICK HAELT DAS MENUE OFFEN, bis woanders hingeklickt wird (Owner 15.08.2026:
+		 * „mouse over wie bisher, aber wenn ich draufklicke bleibts offen"). Das Ueberfahren bleibt
+		 * unveraendert fluechtig: aufgeschwebt faellt es beim Verlassen wieder zu.
+		 * 💣 Der Riegel gehoert an die AKTIVE ZELLE, nicht an die Kachel. Sobald das Ueberfahren
+		 * geoeffnet hat, ist die Kachel `hidden` -- der Klick, den der Benutzer fuer einen Klick auf
+		 * die Kachel haelt, trifft in Wahrheit die aktive Zelle, die genau auf ihrem Fleck liegt.
+		 * Sie fuehrte bis hierher nach `waehle()` und damit direkt ins Zuklappen: es sah aus, als
+		 * ginge das Menue vom Anklicken zu.
+		 * ⚠️ Zurueckgesetzt wird an EINER Stelle, in `schliesse()` -- egal ob Auswahl, Esc oder
+		 * Klick auf die Karte geschlossen hat. Ein zweiter Ruecksetzer waere die Sorte, die man beim
+		 * dritten Schliessweg vergisst.
+		 */
+		var festgehalten = false;
+
 		function offen() {
 			return zustandOffen;
 		}
@@ -183,6 +198,7 @@
 				return;
 			}
 			zustandOffen = false;
+			festgehalten = false;
 			menue.classList.remove("is-open");
 			knopf.setAttribute("aria-expanded", "false");
 			// 💣 Die Kachel kommt erst NACH der Blende zurueck. Waeren beide gleichzeitig im Fluss,
@@ -227,7 +243,14 @@
 			// das Menue sofort wieder auf -- er faellt erst, wenn der Zeiger die Huelle verlaesst.
 			schwebeGesperrt = true;
 			if (!modus || modus === aktiveAnsicht()) {
-				schliesse();
+				// Die eingestellte Ansicht noch einmal zu waehlen aendert nichts -- dieser Klick ist
+				// deshalb der HALTE-Klick (siehe `festgehalten`). Ein zweiter auf dieselbe Stelle
+				// loest wieder: sonst gaebe es keinen Weg, dort zuzuklappen, wo man aufgeklappt hat.
+				if (festgehalten) {
+					schliesse();
+				} else {
+					festgehalten = true;
+				}
 				return;
 			}
 			// 💣 DERSELBE WEG WIE DIE AUSWAHLBOX, kein zweiter. Der change-Handler in
@@ -241,12 +264,12 @@
 
 		knopf.addEventListener("click", function (ereignis) {
 			ereignis.stopPropagation();
-			if (offen()) {
-				schwebeGesperrt = true;   // zugeklickt heisst zu -- nicht sofort wieder aufschweben
-				schliesse();
-			} else {
-				oeffne(true);
-			}
+			// ⚠️ Am Zeiger ist das der SELTENE Weg: wer schneller klickt als die 140 ms des
+			// Ueberfahrens. Danach ist die Kachel `hidden` und der Klick landet auf der aktiven
+			// Zelle (`waehle`). Am Finger und an der Tastatur ist es dagegen der einzige Weg --
+			// deshalb haelt er genauso fest.
+			oeffne(true);
+			festgehalten = true;
 		});
 
 		/*
@@ -303,6 +326,11 @@
 		huelle.addEventListener("mouseleave", function () {
 			window.clearTimeout(schwebeTimer);
 			schwebeGesperrt = false;   // der Riegel gilt nur, solange der Zeiger draufsteht
+			// 🔴 Festgehalten heisst festgehalten: ein angeklicktes Menue ueberlebt das Verlassen
+			// und wartet auf den Klick woanders hin (Owner 15.08.2026).
+			if (festgehalten) {
+				return;
+			}
 			if (!Boolean(amZeiger && amZeiger.matches) || !offen()) {
 				return;
 			}

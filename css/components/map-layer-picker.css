@@ -80,25 +80,25 @@
 	   💣 Die drei negativen Seiten lassen den Schatten heraus (`--shadow-panel` reicht 32px nach
 	   unten). Buendig beschnitten verloere der Kasten seinen Schatten fuer die Dauer der
 	   Bewegung -- und beim Zuklappen kaeme er am Ende schlagartig zurueck.
-	   ⚠️ Zuklappen ist KUERZER als Aufklappen (160 gegen 260 ms), deshalb steht der Uebergang
+	   ⚠️ Zuklappen ist KUERZER als Aufklappen (110 gegen 150 ms), deshalb steht der Uebergang
 	   zweimal da: hier gilt er dem Weg ZU, in `.is-open` dem Weg AUF. Wer ihn nur hier setzt,
 	   bekommt beide Richtungen gleich lang -- und wer ihn nur dort setzt, bekommt gar kein
 	   Zuklappen, sondern einen Sprung. */
 	clip-path: inset(-40px -40px -40px calc(100% - var(--map-layer-tile)) round var(--radius-sm));
-	transition: clip-path 160ms cubic-bezier(0.4, 0, 1, 1);
+	transition: clip-path 110ms cubic-bezier(0.4, 0, 1, 1);
 }
 
 /* ⚠️ NACH der Grundregel: gleiche Spezifitaet, die spaetere gewinnt. */
 .map-layer-picker__menu.is-open {
 	clip-path: inset(-40px -40px -40px 0 round var(--radius-sm));
-	transition: clip-path 260ms cubic-bezier(0.22, 0.61, 0.36, 1);
+	transition: clip-path 150ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 /* Die uebrigen fuenf blenden auf und schieben sich herein -- sie kommen ja aus dem Nichts. */
 .map-layer-picker__menu .map-layer-picker__cell {
 	opacity: 0;
 	transform: translateY(4px);
-	transition: opacity 150ms ease, transform 150ms ease;
+	transition: opacity 110ms ease, transform 110ms ease;
 }
 
 .map-layer-picker__menu.is-open .map-layer-picker__cell {
@@ -114,11 +114,14 @@
    Karte" richtig herum und bei „Landschaften" rueckwaerts.
    ⚠️ Die Verzoegerung steht NUR am `.is-open`-Zweig: beim Zuklappen gehen alle gemeinsam, sonst
    haengt die letzte Zelle der Kachel hinterher, die laengst wieder da ist. */
-.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(2) { transition-delay: 40ms; }
-.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(3) { transition-delay: 80ms; }
-.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(4) { transition-delay: 120ms; }
-.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(5) { transition-delay: 160ms; }
-.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(6) { transition-delay: 200ms; }
+/* ⚠️ 20 ms Abstand, nicht 40 (Owner 15.08.2026: „die animation ist zu langsam"). Die letzte
+   Zelle beginnt damit nach 100 ms und ist nach 210 fertig -- knapp NACH dem Wisch (150 ms), so
+   dass die Staffelung noch zu sehen ist und nicht laenger dauert als das Aufrollen selbst. */
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(2) { transition-delay: 20ms; }
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(3) { transition-delay: 40ms; }
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(4) { transition-delay: 60ms; }
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(5) { transition-delay: 80ms; }
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(6) { transition-delay: 100ms; }
 
 /* 💣 Die aktive Zelle NIE, in keiner der beiden Eigenschaften. Sie ist dieselbe Stelle wie die
    zugeklappte Kachel: was sich dort bewegt, liest sich als wackelnder Knopf -- und was dort

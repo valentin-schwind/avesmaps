@@ -272,4 +272,33 @@ assert.ok(/if \(!zustandOffen\)/.test(schliessen),
 assert.ok(/zustandOffen = false/.test(schliessen),
 	"...und setzt ihn SOFORT, nicht erst wenn die Frist abgelaufen ist");
 
+// ---- 13. Ein Klick haelt das Menue offen, das Ueberfahren bleibt fluechtig ----------------------
+//
+// 🔴 Owner 15.08.2026: „mouse over wie bisher, aber wenn ich draufklicke bleibts offen".
+// 💣 Der Riegel gehoert an die AKTIVE ZELLE, nicht an die Kachel: sobald das Ueberfahren geoeffnet
+// hat, ist die Kachel `hidden`, und der Klick, den der Benutzer fuer einen Kachelklick haelt,
+// trifft die aktive Zelle auf ihrem Fleck. Genau die fuehrte vorher direkt ins Zuklappen.
+assert.ok(/var festgehalten = false/.test(js),
+	"es gibt einen eigenen Riegel fuers Festhalten -- der Schwebe-Riegel taugt nicht dafuer, er"
+	+ " faellt beim Verlassen der Huelle, und genau das soll hier NICHT schliessen");
+const waehlen2 = js.slice(js.indexOf("function waehle"), js.indexOf('knopf.addEventListener("click"'));
+assert.ok(/modus === aktiveAnsicht\(\)[\s\S]{0,400}festgehalten = true/.test(waehlen2),
+	"ein Klick auf die EINGESTELLTE Ansicht haelt fest, statt zu schliessen -- er aendert ohnehin"
+	+ " nichts, und er ist der Klick, der am Zeiger auf der Kachelstelle landet");
+assert.ok(/if \(festgehalten\) \{[\s\S]{0,80}schliesse\(\);/.test(waehlen2),
+	"...und ein zweiter auf dieselbe Stelle loest wieder -- sonst gaebe es keinen Weg, dort"
+	+ " zuzuklappen, wo man aufgeklappt hat");
+const verlassen2 = js.slice(js.indexOf('huelle.addEventListener("mouseleave"'), js.indexOf('menue.addEventListener("click"'));
+assert.ok(/if \(festgehalten\) \{[\s\S]{0,60}return;/.test(verlassen2),
+	"das Verlassen der Huelle schliesst ein FESTGEHALTENES Menue nicht -- ohne diese Zeile faellt"
+	+ " es beim Wegziehen der Maus zu, und der Klick haette gar nichts bewirkt");
+assert.ok(/festgehalten = false/.test(schliessen),
+	"und zurueckgesetzt wird in schliesse() -- an EINER Stelle, damit Auswahl, Esc und Klick auf"
+	+ " die Karte alle drei greifen (ein zweiter Ruecksetzer waere der, den man beim dritten"
+	+ " Schliessweg vergisst)");
+const knopfKlick = js.slice(js.indexOf('knopf.addEventListener("click"'), js.indexOf("var amZeiger"));
+assert.ok(/festgehalten = true/.test(knopfKlick),
+	"...auch der Klick auf die Kachel selbst haelt fest -- am Finger und an der Tastatur ist er der"
+	+ " einzige Weg, und dort gibt es kein Ueberfahren, das vorher geoeffnet haette");
+
 console.log("map-layer-picker tests passed");
