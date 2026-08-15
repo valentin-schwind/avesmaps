@@ -11,7 +11,7 @@ declare(strict_types=1);
  *
  * TWO SAFETY RULES, both deliberate:
  *
- *  1. A claim that lives inside a wiki BLOCK (wiki_settlement / wiki_region / wiki_path) is never
+ *  1. A claim that lives inside a wiki BLOCK (AVESMAPS_CONFLICT_CLAIM_BLOCKS in core.php) is never
  *     touched. Those blocks carry the whole infobox payload -- population, region, coat, course --
  *     and deleting one to drop an identity claim would throw away data the conflict never asked
  *     about. Such a party is refused with a message pointing at the editor that owns it.
@@ -58,13 +58,13 @@ function avesmapsConflictUnlinkFeature(PDO $pdo, string $publicId, string $expec
     }
     $before = json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-    $plainClaim = trim((string) ($properties[AVESMAPS_CONFLICT_CLAIM_FIELD] ?? ''));
-    $blockClaim = trim((string) (
-        $properties['wiki_settlement']['wiki_url']
-        ?? $properties['wiki_region']['wiki_url']
-        ?? $properties['wiki_path']['wiki_url']
-        ?? ''
-    ));
+    // Welche Nester es gibt, steht in core.php und NUR dort (AVESMAPS_CONFLICT_CLAIM_BLOCKS) --
+    // diese Liste war hier abgeschrieben, und die Abschrift kannte 'wiki_powerline' nicht.
+    $claim = avesmapsConflictExtractClaim($properties);
+    $plainClaim = $claim['claim_source'] === AVESMAPS_CONFLICT_CLAIM_FIELD ? $claim['wiki_url'] : '';
+    $blockClaim = ($claim['claim_source'] !== '' && $claim['claim_source'] !== AVESMAPS_CONFLICT_CLAIM_FIELD)
+        ? $claim['wiki_url']
+        : '';
 
     // Safety rule 2: only touch a party that still claims the URL this conflict was about.
     if ($expectedUrl !== '' && $plainClaim !== '' && $plainClaim !== $expectedUrl) {

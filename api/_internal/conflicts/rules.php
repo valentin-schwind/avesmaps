@@ -75,19 +75,11 @@ function avesmapsConflictLoadMapRows(PDO $pdo): array {
         }
         // The stored claim, in the order the editors write it. No enrichment, no fallback guessing.
         // WHERE it comes from is carried along: only the plain field can be cleared from here.
-        // A block-borne claim (wiki_settlement/-region/-path) hangs off the whole infobox payload
-        // and belongs to its own editor -- see repair.php.
-        $wikiUrl = trim((string) ($properties['wiki_url'] ?? ''));
-        $claimSource = $wikiUrl !== '' ? 'wiki_url' : '';
-        foreach (['wiki_settlement', 'wiki_region', 'wiki_path'] as $block) {
-            if ($wikiUrl !== '') {
-                break;
-            }
-            $wikiUrl = trim((string) ($properties[$block]['wiki_url'] ?? ''));
-            if ($wikiUrl !== '') {
-                $claimSource = $block;
-            }
-        }
+        // A block-borne claim hangs off the whole infobox payload and belongs to its own editor --
+        // see repair.php. Welche Nester es gibt, steht in core.php und NUR dort.
+        $claim = avesmapsConflictExtractClaim($properties);
+        $wikiUrl = $claim['wiki_url'];
+        $claimSource = $claim['claim_source'];
 
         $rows[] = [
             'type' => $type,
@@ -384,17 +376,25 @@ function avesmapsConflictRuleMissingKey(array $rows, array $wikiTitles = []): ar
 
 /**
  * A named way is ONE case, not one per segment: "Reichslandstraße von Havena nach Abilacht" runs
- * across 20 segments but is a single decision. Collapses same-name path conflicts of one rule.
+ * across 20 segments but is a single decision. Collapses same-name conflicts of one rule.
+ *
+ * 💣 Gilt fuer Wege UND Kraftlinien -- beide sind dieselbe 1-zu-N-Form (viele Segmente, ein
+ * Lore-Name; api/_internal/wiki/powerlines.php sagt woertlich "the same 1-to-N shape roads have").
+ * Solange nur 'path' zusammengefasst wurde, stand "Satinavs Kette I" sechsmal untereinander in der
+ * Liste; live am 15.08.2026 waren 75 Kraftlinien-Segmente in Wahrheit 37 Entscheidungen
+ * (Discord-Fall #71). Ein Typ ohne Segmente -- Ort, Region, Territorium -- laeuft unveraendert
+ * durch und bekommt KEINEN 'segments'-Schluessel.
  */
-function avesmapsConflictCollapsePathsByName(array $conflicts): array {
+function avesmapsConflictCollapseSegmentsByName(array $conflicts): array {
     // Index map instead of PHP array references -- references into arrays are a well-known footgun
     // (they survive the loop and quietly alias later writes), and this list is user-visible.
     $out = [];
     $indexByName = [];
     foreach ($conflicts as $conflict) {
         $parties = $conflict['parties'] ?? [];
-        $isSinglePath = count($parties) === 1 && ($parties[0]['type'] ?? '') === 'path';
-        if (!$isSinglePath) {
+        $isSingleSegmented = count($parties) === 1
+            && in_array($parties[0]['type'] ?? '', AVESMAPS_CONFLICT_SEGMENTED_TYPES, true);
+        if (!$isSingleSegmented) {
             $out[] = $conflict;
             continue;
         }
@@ -481,7 +481,7 @@ function avesmapsConflictDetectAll(PDO $pdo): array {
     );
     $conflicts = array_merge(
         avesmapsConflictRuleSharedArticle($claimRows, $wikiTitles),
-        avesmapsConflictCollapsePathsByName(avesmapsConflictRuleMissingKey($rows, $wikiTitles))
+        avesmapsConflictCollapseSegmentsByName(avesmapsConflictRuleMissingKey($rows, $wikiTitles))
     );
 
     return $conflicts;

@@ -49,6 +49,15 @@ assert(avesmapsConflictSharedWikiVerdict(['label', 'location']) === 'error');
 assert(avesmapsConflictSharedWikiVerdict(['location', 'path']) === 'error');
 // A mixed group is NOT rescued by containing paths.
 assert(avesmapsConflictSharedWikiVerdict(['path', 'path', 'location']) === 'error');
+// Dieselbe Bauform bei den Kraftlinien: eine Linie ist viele Segmente, und der Abgleich schreibt
+// jedem denselben Artikel (Discord-Fall #71). Ohne diese Zeile kostet die Reparatur mehr als der
+// Fehler: 69 falsche "kein Wiki-Schluessel" wuerden zu 13 Gruppen / 76 Objekten in der SCHWERSTEN
+// Kategorie -- gemessen am Livebestand 15.08.2026, u.a. Basiliuslinie mit 16 Segmenten.
+assert(avesmapsConflictSharedWikiVerdict(['powerline', 'powerline']) === 'legitimate');
+assert(avesmapsConflictSharedWikiVerdict(['powerline']) === 'legitimate');
+// Eine Kraftlinie und eine Strasse auf einem Artikel bleiben ein Fall -- das sind zwei Dinge.
+assert(avesmapsConflictSharedWikiVerdict(['path', 'powerline']) === 'error');
+assert(avesmapsConflictSharedWikiVerdict(['location', 'powerline']) === 'error');
 
 // ---- 3. auto-names never reach the watchlist (§6b) ----------------------------------------------
 // 2448 of 3721 linkless ways look like this. They cannot have a wiki counterpart, by construction.
@@ -114,6 +123,29 @@ $crossTable = [
 $crossFound = avesmapsConflictFindSharedWikiUrls($crossTable);
 assert(count($crossFound) === 1);
 assert($crossFound[0]['severity'] === 'error');
+
+// ---- 4c. wo ein Wiki-Anspruch stehen darf (Discord-Fall #71) ------------------------------------
+// Diese Liste ist die EINZIGE Stelle, an der die Nester stehen -- sie stand vorher zweimal
+// abgeschrieben da (rules.php und repair.php), und in beiden fehlte 'wiki_powerline'. Der
+// Kraftlinien-Abgleich legt seinen Link ausschliesslich dort ab (api/_internal/wiki/powerlines.php:
+// "Touches ONLY properties.wiki_powerline"), also sah die Regel wiki.missing_key ihn nie: live am
+// 15.08.2026 meldete sie 144 Kraftlinien-Segmente als "kein Wiki-Schluessel", 69 davon MIT Link.
+assert(avesmapsConflictExtractClaim([])['wiki_url'] === '');
+assert(avesmapsConflictExtractClaim([])['claim_source'] === '');
+// Das schlichte Feld gewinnt -- und nur es darf aus dem Konfliktzentrum geleert werden (repair.php).
+$plainClaim = avesmapsConflictExtractClaim(['wiki_url' => 'https://w/wiki/A', 'wiki_powerline' => ['wiki_url' => 'https://w/wiki/B']]);
+assert($plainClaim['wiki_url'] === 'https://w/wiki/A');
+assert($plainClaim['claim_source'] === 'wiki_url');
+assert(avesmapsConflictExtractClaim(['wiki_settlement' => ['wiki_url' => 'https://w/wiki/S']])['claim_source'] === 'wiki_settlement');
+assert(avesmapsConflictExtractClaim(['wiki_region' => ['wiki_url' => 'https://w/wiki/R']])['claim_source'] === 'wiki_region');
+assert(avesmapsConflictExtractClaim(['wiki_path' => ['wiki_url' => 'https://w/wiki/P']])['claim_source'] === 'wiki_path');
+$powerlineClaim = avesmapsConflictExtractClaim(['wiki_powerline' => ['wiki_url' => 'https://w/wiki/Hexenband']]);
+assert($powerlineClaim['wiki_url'] === 'https://w/wiki/Hexenband');
+assert($powerlineClaim['claim_source'] === 'wiki_powerline');
+// Ein Nest OHNE Link ist kein Anspruch: der Abgleich legt es auch dann an, wenn die Wiki-Seite
+// keine URL hergibt -- 75 der 156 Segmente stehen genau so da und gehoeren zu Recht auf die Liste.
+assert(avesmapsConflictExtractClaim(['wiki_powerline' => ['staerke' => 'kontinental', 'wiki_url' => '']])['claim_source'] === '');
+assert(in_array('wiki_powerline', AVESMAPS_CONFLICT_CLAIM_BLOCKS, true));
 
 // ---- 5. the fingerprint ------------------------------------------------------------------------
 $a = [['type' => 'location', 'id' => 'l1'], ['type' => 'territory', 'id' => 't1']];

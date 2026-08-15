@@ -131,7 +131,7 @@ foreach ($missing as $conflict) {
 }
 
 // ---- rule 2: after collapsing a named way to one case -------------------------------------------
-$collapsed = avesmapsConflictCollapsePathsByName($missing);
+$collapsed = avesmapsConflictCollapseSegmentsByName($missing);
 assert(count($collapsed) === 3);                                  // Bernsteinroute, Yasamirer Stieg, Neudorf
 $byTitle = [];
 foreach ($collapsed as $conflict) {
@@ -142,6 +142,35 @@ assert($byTitle['Bernsteinroute']['segments'] === 4);             // the count s
 assert($byTitle['Yasamirer Stieg']['segments'] === 1);
 // A non-path case must pass through untouched -- no 'segments' key invented for it.
 assert(!isset($byTitle['Neudorf']['segments']));
+
+// ---- rule 2: eine Kraftlinie ist EIN Fall, nicht einer je Segment (Discord-Fall #71) ------------
+// Eine Kraftlinie hat dieselbe 1-zu-N-Form wie eine Strasse: viele Segmente, ein Lore-Name
+// (api/_internal/wiki/powerlines.php: "the same 1-to-N shape roads have"). Das Zusammenfassen galt
+// aber nur fuer 'path', deshalb stand "Satinavs Kette I" sechsmal untereinander in der Liste.
+$powerlineRows = [
+    ['type' => 'powerline', 'id' => 'k1', 'label' => 'Satinavs Kette I', 'subtype' => '', 'wiki_url' => ''],
+    ['type' => 'powerline', 'id' => 'k2', 'label' => 'Satinavs Kette I', 'subtype' => '', 'wiki_url' => ''],
+    ['type' => 'powerline', 'id' => 'k3', 'label' => 'Satinavs Kette I', 'subtype' => '', 'wiki_url' => ''],
+    ['type' => 'powerline', 'id' => 'k4', 'label' => 'Drachenblick', 'subtype' => '', 'wiki_url' => ''],
+    // Verknuepft -- gehoert gar nicht erst auf die Liste.
+    ['type' => 'powerline', 'id' => 'k5', 'label' => 'Hexenband', 'subtype' => '', 'wiki_url' => 'https://w/wiki/Hexenband'],
+];
+$powerlineMissing = avesmapsConflictRuleMissingKey($powerlineRows);
+assert(count($powerlineMissing) === 4);
+$powerlineCollapsed = avesmapsConflictCollapseSegmentsByName($powerlineMissing);
+assert(count($powerlineCollapsed) === 2);
+$powerlineByTitle = [];
+foreach ($powerlineCollapsed as $conflict) {
+    $powerlineByTitle[$conflict['title']] = $conflict;
+}
+assert($powerlineByTitle['Satinavs Kette I']['segments'] === 3);
+assert($powerlineByTitle['Drachenblick']['segments'] === 1);
+// Die Kraftlinien-Namen tragen keine Endziffer, aber die Auto-Namen-Schranke gilt ausdruecklich nur
+// fuer Wege: eine Kraftlinie namens "Weg-17" gaebe es nicht, und sie duerfte nicht lautlos wegfallen.
+$oddName = avesmapsConflictRuleMissingKey([
+    ['type' => 'powerline', 'id' => 'k6', 'label' => 'Tobrische Linie I', 'subtype' => '', 'wiki_url' => ''],
+]);
+assert(count($oddName) === 1);
 
 // ---- fingerprints are stable across runs and distinct per case ----------------------------------
 $again = avesmapsConflictRuleSharedArticle($rows);

@@ -42,6 +42,64 @@ const AVESMAPS_CONFLICT_STATUS_DONE = 'done';
 const AVESMAPS_CONFLICT_STATUS_APPROVED = 'approved';
 
 /**
+ * Wo ein Wiki-Anspruch stehen darf, ausser im schlichten Feld properties.wiki_url.
+ *
+ * 💣 Diese Liste steht HIER und nirgends sonst. Sie stand vorher zweimal abgeschrieben da -- in
+ * avesmapsConflictLoadMapRows() und in avesmapsConflictUnlinkFeature() -- und in beiden Abschriften
+ * fehlte 'wiki_powerline'. Der Kraftlinien-Abgleich legt seinen Link ausschliesslich dort ab
+ * (api/_internal/wiki/powerlines.php: "Touches ONLY properties.wiki_powerline"), also war die Regel
+ * wiki.missing_key blind dafuer: am 15.08.2026 meldete sie live 144 Kraftlinien-Segmente als "kein
+ * Wiki-Schluessel", 69 davon MIT gesetztem Link (Discord-Fall #71).
+ *
+ * Wer ein Feature mit eigenem Wiki-Nest baut, traegt es hier ein -- eine Zeile, und beide Leser
+ * sehen es. Das ist derselbe Schnitt wie bei den Quellen (AGENTS.md §5): eine Liste, kein zweites
+ * System.
+ */
+const AVESMAPS_CONFLICT_CLAIM_BLOCKS = ['wiki_settlement', 'wiki_region', 'wiki_path', 'wiki_powerline'];
+
+/**
+ * Partei-Typen, die als VIELE Zeilen mit EINEM Namen gespeichert sind: ein Weg und eine Kraftlinie.
+ * Ort, Region, Territorium und Literatur gehoeren NICHT dazu -- dort ist eine Zeile ein Objekt.
+ *
+ * 💣 Diese eine Liste beantwortet ZWEI Fragen, und sie muessen dieselbe Antwort bekommen: ob die
+ * Segmente einer Sache sich einen Artikel teilen duerfen (avesmapsConflictSharedWikiVerdict) und ob
+ * sie zu EINEM Fall zusammengefasst werden (avesmapsConflictCollapseSegmentsByName). Wer nur die
+ * zweite bedient, tauscht harmlose Beobachtungen gegen Meldungen in der schwersten Kategorie: am
+ * 15.08.2026 waeren aus 69 falschen "kein Wiki-Schluessel" 13 Gruppen / 76 Objekte unter
+ * "Mehrere Objekte beanspruchen denselben Wiki-Artikel" geworden.
+ */
+const AVESMAPS_CONFLICT_SEGMENTED_TYPES = ['path', 'powerline'];
+
+/**
+ * Der gespeicherte Wiki-Anspruch eines Objekts samt seiner HERKUNFT -- roh, ohne Anreicherung.
+ *
+ * Das schlichte Feld gewinnt: nur es darf aus dem Konfliktzentrum geleert werden. Ein Anspruch aus
+ * einem Nest haengt an der ganzen Infobox und gehoert seinem eigenen Editor (repair.php,
+ * Sicherheitsregel 1), deshalb reist die Quelle mit statt nur der URL.
+ *
+ * Ein Nest ohne `wiki_url` ist KEIN Anspruch: der Abgleich legt es auch dann an, wenn die Wiki-Seite
+ * keine Adresse hergibt.
+ *
+ * @return array{wiki_url:string, claim_source:string} claim_source: '' | 'wiki_url' | einer aus
+ *         AVESMAPS_CONFLICT_CLAIM_BLOCKS
+ */
+function avesmapsConflictExtractClaim(array $properties): array {
+    $plain = trim((string) ($properties['wiki_url'] ?? ''));
+    if ($plain !== '') {
+        return ['wiki_url' => $plain, 'claim_source' => 'wiki_url'];
+    }
+
+    foreach (AVESMAPS_CONFLICT_CLAIM_BLOCKS as $block) {
+        $nested = trim((string) ($properties[$block]['wiki_url'] ?? ''));
+        if ($nested !== '') {
+            return ['wiki_url' => $nested, 'claim_source' => $block];
+        }
+    }
+
+    return ['wiki_url' => '', 'claim_source' => ''];
+}
+
+/**
  * The status is NOT stored. It falls out of two independent questions (owner definition, §5a):
  * does the conflict still exist right now, and has a human already decided?
  *
@@ -130,9 +188,14 @@ function avesmapsConflictShortId(string $fingerprint): string {
 /**
  * May these object types share one wiki article?
  *
- * Exactly ONE pairing is legitimate: the segments of a single road. Everything else is a case --
- * owner ruling 2026-07-20: "Greifenfurt Stadt" and "Greifenfurt Baronie" are a location and a
- * territory, two different things that must not carry one identity even when they share a name.
+ * Legitimate is exactly ONE shape: the segments of a single SEGMENTED object among themselves --
+ * a road, and since Discord-Fall #71 a Kraftlinie. Everything else is a case -- owner ruling
+ * 2026-07-20: "Greifenfurt Stadt" and "Greifenfurt Baronie" are a location and a territory, two
+ * different things that must not carry one identity even when they share a name.
+ *
+ * 💣 Eine GEMISCHTE Gruppe bleibt ein Fall, auch wenn beide Seiten segmentiert sind: ein Weg und
+ * eine Kraftlinie auf einem Artikel sind zwei Dinge. Deshalb wird auf die EINE verbliebene Art
+ * geprueft, nicht auf "alle Arten sind segmentiert".
  *
  * @param list<string> $types the DISTINCT entity types among the parties
  */
@@ -140,8 +203,9 @@ function avesmapsConflictSharedWikiVerdict(array $types): string {
     $distinct = array_values(array_unique(array_filter(array_map('strval', $types), static fn(string $t): bool => $t !== '')));
     sort($distinct, SORT_STRING);
 
-    // Only paths among themselves: "Reichsstraße 1" is one article across 26 segments (§6a).
-    if ($distinct === ['path']) {
+    // Only one segmented type among itself: "Reichsstraße 1" is one article across 26 segments
+    // (§6a), und die "Basiliuslinie" ist einer ueber 16 (live gemessen 15.08.2026).
+    if (count($distinct) === 1 && in_array($distinct[0], AVESMAPS_CONFLICT_SEGMENTED_TYPES, true)) {
         return 'legitimate';
     }
 
