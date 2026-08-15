@@ -237,4 +237,32 @@ assert.deepStrictEqual(idUeberschreibt, [],
 	+ "Listen folgen stillschweigend nicht.");
 checks++;
 
+// ---- Wer .tree-item-Zeilen bekommt, muss auch als Liste ausgezeichnet sein --------------------
+// 💣 DIE ANDERE HAELFTE DERSELBEN FALLE, gemeldet vom Owner am 15.08.2026 („die vorkommen liste
+// ist vollkommen zerstoert"). Oben steht, dass die Rezeptur nur EINMAL geschrieben sein darf --
+// aber sie haengt an der LISTE (`.wikisync-itemlist .tree-item`), nicht an der Zeile. Ein
+// Container, in den jemand .tree-item-Zeilen schreibt, ohne ihn als Liste auszuzeichnen, faellt
+// still auf die Basisregel zurueck: die Zeile wird inline-flex und damit nur so breit wie ihr
+// Text -- gemessen 185px in einer 466px-Spalte. Nichts wirft, nichts warnt.
+//
+// Genau das ist bei der Vereinheitlichung (70f8d984) passiert: die Zeilenform wanderte auf
+// .tree-item, die Panel-Liste #lore-list-scroll bekam die Klasse, ihre Zwillingsliste im
+// Vorkommen-Fenster nicht. Beide werden von DERSELBEN Funktion gefuellt
+// (avesmapsLoreListRowHtml ueber AVESMAPS_LORE_VIEWS), also kann es gar nicht bei einer bleiben.
+const indexHtml = lies("index.html");
+const listenContainer = [
+	{ id: "lore-list-scroll", wo: "Reiter „Vorkommen“ im WikiSync-Panel" },
+	{ id: "lore-dlg-scroll", wo: "Auswahlspalte im Fenster „Vorkommen bearbeiten“" },
+];
+for (const { id, wo } of listenContainer) {
+	const treffer = indexHtml.match(new RegExp(`<div[^>]*id="${id}"[^>]*>`))
+		|| indexHtml.match(new RegExp(`<div[^>]*class="[^"]*"[^>]*id="${id}"`));
+	assert.ok(treffer, `#${id} steht nicht mehr in index.html (${wo}).`);
+	assert.ok(/wikisync-itemlist/.test(treffer[0]),
+		`#${id} (${wo}) bekommt .tree-item-Zeilen, traegt aber nicht .wikisync-itemlist. `
+		+ "Die Zeilenform haengt an der LISTE, nicht an der Zeile -- ohne die Klasse fallen die "
+		+ "Zeilen auf inline-flex zurueck und werden nur so breit wie ihr Text.");
+	checks++;
+}
+
 console.log(`wikisync-list-form: ${checks} Pruefungen bestanden.`);

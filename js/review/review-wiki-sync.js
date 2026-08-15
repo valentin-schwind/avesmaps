@@ -2691,7 +2691,10 @@ function avesmapsLoreListRowHtml(item, showKind) {
 	}
 	var meta = [showKind ? avesmapsLoreKindLabel(item.kind) : "", art, placeText].filter(Boolean).join(" · ");
 	if (item.origin && item.origin !== "wiki") {
-		meta += " · " + item.origin;
+		// Nicht der Rohwert: `manual|community|suppressed` sind englische SPEICHERwerte, und die
+		// Liste ist deutsche Oberfläche (AGENTS.md §8). In der Zeile stand bis 15.08.2026
+		// „· manual"; den Übersetzer dafür gibt es seit jeher gleich darüber.
+		meta += " · " + avesmapsLoreOriginLabel(item.origin);
 	}
 	var href = String(item.wiki_url || "");
 	var safe = href.indexOf("https://de.wiki-aventurica.de/") === 0 ? href : "";
