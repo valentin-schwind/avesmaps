@@ -286,6 +286,16 @@
 		 * ⚠️ Der Befund las sich wie ein Code-Fehler („Ueberfahren tut nichts") und war keiner. Wer
 		 * hier das naechste Mal sucht, vergleicht ZUERST das Ausgelieferte mit dem Repo:
 		 *   curl -s https://avesmaps.de/js/ui/map-layer-picker.js | grep -c mouseenter
+	
+		 *
+		 * 💣 UND ES IST AM SELBEN TAG EIN ZWEITES MAL PASSIERT, mit derselben Datei. Der Commit
+		 * caa76799 (schneller aufklappen, Klick haelt fest) ging raus, sein Deploy fiel an einem
+		 * FREMDEN Test aus (tools/wikidump/test-dump-reader.php, dessen geteilte Fixture eine Seite
+		 * mehr bekommen hatte), und der naechste gruene Lauf trug die neuen Stempel ins HTML, ohne
+		 * die Dateien mitzunehmen -- gemessen: `?v=f1d7b45f3e` angefordert, alte Fassung geliefert.
+		 * ⚠️ Die Lehre ist keine Ermahnung, sondern eine Reihenfolge: nach jedem Push den LAUF
+		 * pruefen (success, nicht bloss gelaufen), und bei rot NICHT auf den naechsten hoffen -- der
+		 * macht es schlimmer. Erst den roten Test heilen, dann diese Datei anfassen.
 		 */
 		/*
 		 * Am Zeiger klappt die Kachel schon beim Ueberfahren auf (Owner 12.08.2026).

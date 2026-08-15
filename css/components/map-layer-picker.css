@@ -1,5 +1,14 @@
-/* Die Ansichts-Kachel in der Kartenecke (Pruef-Schalter ?layerPanelActive=1).
+/* Die Ansichts-Kachel in der Kartenecke. Der Parameter `?layerPanelActive=0` ist der Notausgang,
+   nicht mehr der Einschalter -- sie laeuft seit dem 12.08.2026 fuer jeden Besucher.
    Entwurf: docs/superpowers/specs/2026-08-11-ansichts-kacheln-design.md
+   Aufklapp-Bewegung: docs/layer-kacheln-animation-mockup.html (Fassung C, Owner 15.08.2026)
+
+   🪤 Diese Datei stand am 15.08.2026 ZWEIMAL im Repo und nicht auf dem Server: beide Male fiel
+   ein Deploy an einem FREMDEN Test aus, und der naechste gruene Lauf trug den neuen ?v=-Stempel
+   ins HTML, ohne die Datei mitzunehmen (AGENTS.md §9). Gemessen wurde es so --
+     curl -s https://avesmaps.de/css/styles.css | grep -o "map-layer-picker.css?v=[0-9a-f]*"
+   und diese Adresse dann gegen die Datei hier gehalten. Nur eine INHALTSAENDERUNG heilt das; ein
+   Voll-Deploy legt die richtige Datei unter dieselbe, vergiftete Adresse.
 
    Farbe, Kontur, Radius und Schatten kommen NICHT von hier, sondern aus der gemeinsamen Regel
    der Eckknoepfe in css/components/legal-dialog.css, wo #map-layer-button mit drinsteht. Hier
