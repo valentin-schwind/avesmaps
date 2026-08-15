@@ -60,6 +60,15 @@ const SVGX_WAY_WIDTHS = {
 	Seeweg: 0.094,          // 3    px
 };
 
+// Konturbreiten, nach derselben Rechnung aus PATH_OUTLINE_WEIGHTS (js/config.js):
+// Reichsstrasse 6,5 px, Strasse/Weg 4, Pfad/Gebirgspass/Wuestenpfad 3, Fluss-/Seeweg 5.
+// ⚠️ Eine Kontur wird nur gezeichnet, wenn für ihre Wegart eine FARBE gesetzt ist. Ohne
+// Farbe keine Kontur -- sonst verdoppelt sich stillschweigend die Zahl der Pfade.
+const SVGX_WAY_OUTLINE_WIDTHS = {
+	Reichsstrasse: 0.203, Strasse: 0.125, Weg: 0.125, Pfad: 0.094,
+	Gebirgspass: 0.094, Wuestenpfad: 0.094, Flussweg: 0.156, Seeweg: 0.156,
+};
+
 const SVGX_POWERLINE_WIDTH = 0.078;   // wie eine Straße
 
 // Gebietsgrenzen. Die Karte staffelt sie nach Hierarchiestufe (map-features-boundary-style.js:
@@ -227,9 +236,57 @@ function svgxDocumentClose() {
 // Geometrie
 // ---------------------------------------------------------------------------------------
 
-function svgxPathData(coordinates) {
+// Die Spannung der Kurve. 0,5 ist AVESMAPS_CATMULL_DEFAULTS.tension aus
+// js/map-features/map-features-line-catmull.js -- dem EINEN Catmull-Rom des Projekts.
+// Hier steht die Zahl, nicht das Modul, weil dieser Bauer nichts lädt; der Test
+// (svg-export-build.test.js) lädt beide und beweist, dass die Kurven identisch sind.
+const SVGX_CATMULL_TENSION = 0.5;
+
+function svgxRund(n) {
+	return Math.round(Number(n) * 100) / 100;
+}
+
+// 🔴 CATMULL-ROM ALS BÉZIER, nicht als Punktwolke.
+//
+// SVG kennt keinen Catmull-Rom-Befehl -- aber ein Catmull-Rom-Segment IST eine kubische
+// Bézierkurve, exakt, ohne Näherung. Die Karte tastet die Kurve mit 8 Punkten je Segment ab
+// (getCatmullRomSplineCoordinates); dieselbe Kurve als `C` zu schreiben ist nicht nur achtmal
+// kürzer, sondern auch GENAUER -- und in einem Grafikprogramm bekommt man eine echte Kurve mit
+// Anfassern statt eines Polygonzugs aus 47.000 Stützpunkten.
+//
+// Die Umrechnung (Hermite -> Bézier), mit der Tangente, die das Modul benutzt
+// (m = (nächster − vorheriger) × Spannung):
+//     C1 = P1 + m1/3      C2 = P2 − m2/3
+//
+// ⚠️ Der erste und der letzte Punkt behalten ihren Nachbarn als eigenen Nachbarn -- genau wie
+// im Modul (Math.max(0, i-1) / Math.min(len-1, i+2)). Sonst wandern die Endpunkte.
+function svgxSmoothPathData(punkte, tension) {
+	if (punkte.length < 2) { return ""; }
+	const s = Number.isFinite(Number(tension)) ? Number(tension) : SVGX_CATMULL_TENSION;
+	const at = (i) => punkte[Math.max(0, Math.min(punkte.length - 1, i))];
+	const stuecke = [`M${punkte[0].x} ${punkte[0].y}`];
+
+	for (let i = 0; i < punkte.length - 1; i += 1) {
+		const p0 = at(i - 1);
+		const p1 = punkte[i];
+		const p2 = punkte[i + 1];
+		const p3 = at(i + 2);
+		const c1x = p1.x + ((p2.x - p0.x) * s) / 3;
+		const c1y = p1.y + ((p2.y - p0.y) * s) / 3;
+		const c2x = p2.x - ((p3.x - p1.x) * s) / 3;
+		const c2y = p2.y - ((p3.y - p1.y) * s) / 3;
+		stuecke.push(`C${svgxRund(c1x)} ${svgxRund(c1y)} ${svgxRund(c2x)} ${svgxRund(c2y)} ${p2.x} ${p2.y}`);
+	}
+	return stuecke.join("");
+}
+
+function svgxPathData(coordinates, options) {
+	const o = options || {};
 	const punkte = (coordinates || []).map(([x, y]) => svgxPoint(x, y));
 	if (punkte.length === 0) { return ""; }
+	if (o.smooth && punkte.length >= 2) {
+		return svgxSmoothPathData(punkte, o.tension);
+	}
 	return punkte.map((p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`).join("");
 }
 
@@ -315,27 +372,54 @@ function svgxWayLayer(options) {
 		// lesen sich wie ein Fehler, obwohl nur nichts da war.
 		if (!wege || wege.length === 0) { return; }
 		if (!svgxSubgroupEnabled(o.enabled, art)) { return; }
-		stuecke.push(svgxGroupOpen({
-			name: art, id: `wege-${svgxFoldAscii(art).toLowerCase()}`, dialect: o.dialect,
+		const basis = `wege-${svgxFoldAscii(art).toLowerCase()}`;
+		const skala = svgxStrokeScale(o.strokeScale);
+		const linienFarbe = (o.colors || {})[art] || SVGX_WAY_COLORS[art] || "#888888";
+		const konturFarbe = (o.outlines || {})[art] || "";
+		const zeichnen = { smooth: o.smooth, tension: o.tension };
+
+		stuecke.push(svgxGroupOpen({ name: art, id: basis, dialect: o.dialect,
+			attrs: { fill: "none", "stroke-linejoin": "round", "stroke-linecap": "round" } }));
+
+		// ⚠️ Die Kontur zuerst und in EINER eigenen Gruppe: in SVG liegt das Erste unten, und
+		// eine Kontur unter der Linie ist genau der Sinn. Sie wird nur gezeichnet, wenn eine
+		// Farbe dafür gesetzt ist -- sonst verdoppelte sich die Zahl der Pfade stillschweigend.
+		if (konturFarbe) {
+			stuecke.push(svgxGroupOpen({ name: `${art} Kontur`, id: `${basis}-kontur`, dialect: o.dialect,
+				attrs: {
+					stroke: konturFarbe,
+					"stroke-width": String((SVGX_WAY_OUTLINE_WIDTHS[art] || 0.125) * skala),
+				} }));
+			wege.forEach((f) => {
+				const name = (f.properties && f.properties.name) || art;
+				// 🔴 Die Kontur bekommt eine EIGENE id mit Endung -- sonst gäbe es jede id
+				// zweimal, und der <textPath href> der Beschriftung träfe die falsche.
+				const id = svgxIdFor(`${name}-Kontur`, f.properties && f.properties.public_id, o.dialect, o.seen);
+				stuecke.push(`<path id="${svgxEscapeText(id)}" d="${svgxPathData(f.geometry.coordinates, zeichnen)}"/>\n`);
+			});
+			stuecke.push(svgxGroupClose());
+		}
+
+		stuecke.push(svgxGroupOpen({ name: `${art} Linie`, id: `${basis}-linie`, dialect: o.dialect,
 			attrs: {
-				fill: "none",
-				stroke: SVGX_WAY_COLORS[art] || "#888888",
-				"stroke-width": String((SVGX_WAY_WIDTHS[art] || 0.078) * svgxStrokeScale(o.strokeScale)),
-				"stroke-linejoin": "round",
-				"stroke-linecap": "round",
-			},
-		}));
+				stroke: linienFarbe,
+				"stroke-width": String((SVGX_WAY_WIDTHS[art] || 0.078) * skala),
+			} }));
 		wege.forEach((f) => {
 			const name = (f.properties && f.properties.name) || art;
 			const id = svgxIdFor(name, f.properties && f.properties.public_id, o.dialect, o.seen);
+			// 🔴 NUR die Linie kommt in die Merkliste, nie die Kontur: die Beschriftung soll
+			// auf der Mitte des Weges laufen, nicht auf seinem Rand.
 			if (o.wayIds && f.properties && f.properties.public_id) {
 				o.wayIds.set(f.properties.public_id, id);
 			}
 			stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)}`
-				+ ` d="${svgxPathData(f.geometry.coordinates)}">`
+				+ ` d="${svgxPathData(f.geometry.coordinates, zeichnen)}">`
 				+ `<title>${svgxEscapeText(name)}</title></path>\n`);
 			anzahl += 1;
 		});
+		stuecke.push(svgxGroupClose());
+
 		gruppen[art] = wege.length;
 		stuecke.push(svgxGroupClose());
 	});
@@ -439,7 +523,8 @@ function svgxPlaceLayer(options) {
 		const kind = kinds.find((k) => k.slug === slug) || { slug: slug, label: slug || "Ort", r: 0.8 };
 		stuecke.push(svgxGroupOpen({
 			name: kind.label || slug, id: `orte-${svgxFoldAscii(slug).toLowerCase() || "ohne"}`,
-			dialect: o.dialect, attrs: { fill: o.color || "#3b2a18", stroke: "none" },
+			dialect: o.dialect,
+			attrs: { fill: (o.colors || {})[slug] || o.color || "#3b2a18", stroke: "none" },
 		}));
 		orte.forEach((f) => {
 			const p = svgxPoint(f.geometry.coordinates[0], f.geometry.coordinates[1]);
@@ -585,25 +670,26 @@ function svgxBuildDocument(options) {
 		nimm("Herrschaftsgebiete", svgxAreaLayer({
 			features: o.territories, layerName: "Herrschaftsgebiete", layerId: "layer-gebiete",
 			groupBy: (f) => svgxProps(f).rank || svgxProps(f).type || "Gebiet",
-			defaultFill: "none", stroke: "#8a6a3f", strokeScale: o.strokeScale,
+			defaultFill: "none", stroke: o.boundaryColor || "#8a6a3f", strokeScale: o.strokeScale,
 			dialect: dialect, seen: seen,
 		}));
 	}
 	if (an.wege !== false) {
 		nimm("Wege", svgxWayLayer({ features: o.mapFeatures, dialect: dialect, seen: seen,
-			wayIds: wayIds, enabled: (o.subgroups || {}).wege, strokeScale: o.strokeScale }));
+			wayIds: wayIds, enabled: (o.subgroups || {}).wege, strokeScale: o.strokeScale,
+			colors: o.wayColors, outlines: o.wayOutlines, smooth: o.smooth, tension: o.tension }));
 	}
 	if (an.kraftlinien !== false) {
 		nimm("Kraftlinien", svgxPowerlineLayer({ features: o.mapFeatures, dialect: dialect, seen: seen,
-			strokeScale: o.strokeScale }));
+			strokeScale: o.strokeScale, color: o.powerlineColor, smooth: o.smooth, tension: o.tension }));
 	}
 	if (an.orte !== false) {
 		nimm("Orte", svgxPlaceLayer({ features: o.mapFeatures, kinds: o.placeKinds, dialect: dialect,
-			seen: seen, enabled: (o.subgroups || {}).orte }));
+			seen: seen, enabled: (o.subgroups || {}).orte, colors: o.placeColors }));
 	}
 	if (an.beschriftungen !== false) {
 		nimm("Beschriftungen", svgxLabelLayer({
-			features: o.mapFeatures, wayIds: wayIds, dialect: dialect, seen: seen,
+			features: o.mapFeatures, wayIds: wayIds, dialect: dialect, seen: seen, color: o.labelColor,
 		}));
 	}
 
@@ -619,6 +705,8 @@ if (typeof window !== "undefined") {
 		build: svgxBuildDocument,
 		asFeatures: svgxAsFeatures,
 		DIALECTS: SVGX_DIALECTS,
+		WAY_COLORS: SVGX_WAY_COLORS,
+		WAY_SUBTYPES: SVGX_WAY_SUBTYPES,
 	};
 }
 
@@ -641,6 +729,9 @@ if (typeof module !== "undefined" && module.exports) {
 		svgxDocumentOpen: svgxDocumentOpen,
 		svgxDocumentClose: svgxDocumentClose,
 		svgxPathData: svgxPathData,
+		svgxSmoothPathData: svgxSmoothPathData,
+		SVGX_CATMULL_TENSION: SVGX_CATMULL_TENSION,
+		SVGX_WAY_OUTLINE_WIDTHS: SVGX_WAY_OUTLINE_WIDTHS,
 		svgxPolygonData: svgxPolygonData,
 		svgxAsFeatures: svgxAsFeatures,
 		svgxProps: svgxProps,

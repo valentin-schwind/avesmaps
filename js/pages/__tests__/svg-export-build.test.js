@@ -358,3 +358,88 @@ console.log("svg-export-build (Strichstärken): ok");
 }
 
 console.log("svg-export-build (Grenzenstärke): ok");
+
+// ---- 15. Glättung: Catmull-Rom als Bézier ----------------------------------------------
+// 🔴 DIESER TEST IST DER GRUND, WARUM DIE GLÄTTUNG GLAUBWÜRDIG IST. SVG kennt keinen
+// Catmull-Rom-Befehl; ich schreibe die Kurve als kubische Bézier. Dass das DIESELBE Kurve
+// ist wie die, die die Karte zeichnet, ist keine Behauptung, sondern wird hier gegen das
+// eine Catmull-Rom des Projekts nachgerechnet.
+{
+	const CR = require("../../map-features/map-features-line-catmull.js");
+	assert.strictEqual(B.SVGX_CATMULL_TENSION, CR.AVESMAPS_CATMULL_DEFAULTS.tension,
+		"die Spannung muss die des Projekts sein, nicht eine eigene");
+
+	// Eine kubische Bézier an der Stelle t (de Casteljau, ausgeschrieben).
+	const bezier = (p0, c1, c2, p1, t) => {
+		const u = 1 - t;
+		return [
+			u * u * u * p0[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * p1[0],
+			u * u * u * p0[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * p1[1],
+		];
+	};
+
+	// Ein Zickzack mit scharfen Ecken -- dort weicht eine falsche Umrechnung am meisten ab.
+	const punkte = [[0, 0], [10, 40], [30, 10], [50, 60], [70, 20], [90, 50]];
+	const s = CR.AVESMAPS_CATMULL_DEFAULTS.tension;
+	const at = (i) => punkte[Math.max(0, Math.min(punkte.length - 1, i))];
+
+	let groessteAbweichung = 0;
+	for (let i = 0; i < punkte.length - 1; i += 1) {
+		const p0 = at(i - 1), p1 = punkte[i], p2 = punkte[i + 1], p3 = at(i + 2);
+		const c1 = [p1[0] + ((p2[0] - p0[0]) * s) / 3, p1[1] + ((p2[1] - p0[1]) * s) / 3];
+		const c2 = [p2[0] - ((p3[0] - p1[0]) * s) / 3, p2[1] - ((p3[1] - p1[1]) * s) / 3];
+		for (let k = 0; k <= 20; k += 1) {
+			const t = k / 20;
+			const meine = bezier(p1, c1, c2, p2, t);
+			const karte = CR.getCatmullRomPoint(p0, p1, p2, p3, t, s);
+			groessteAbweichung = Math.max(groessteAbweichung,
+				Math.abs(meine[0] - karte[0]), Math.abs(meine[1] - karte[1]));
+		}
+	}
+	assert.ok(groessteAbweichung < 1e-9,
+		`Bézier und Karten-Catmull-Rom müssen dieselbe Kurve sein, größte Abweichung war ${groessteAbweichung}`);
+
+	// Und die erzeugten Pfaddaten: geglättet C-Befehle, ungeglättet L-Befehle, beide mit
+	// demselben Anfang und demselben Ende -- die Endpunkte dürfen nie wandern.
+	const roh = [[0, 1024], [10, 1014], [20, 1024], [30, 1004]];
+	const gerade = B.svgxPathData(roh);
+	const rund = B.svgxPathData(roh, { smooth: true });
+	assert.ok(/^M0 0L/.test(gerade) && !/C/.test(gerade), "ungeglättet bleibt ein Polygonzug");
+	assert.ok(/^M0 0C/.test(rund), "geglättet beginnt am selben Punkt und benutzt C");
+	assert.strictEqual((rund.match(/C/g) || []).length, roh.length - 1, "ein C je Segment");
+	assert.ok(rund.endsWith("30 20"), `geglättet muss am selben Punkt enden, war: ${rund.slice(-24)}`);
+	assert.ok(!/L/.test(rund), "eine geglättete Linie hat keine geraden Stücke mehr");
+
+	// Zwei Punkte sind noch eine Kurve (eine gerade), aber kein Absturz.
+	assert.ok(B.svgxPathData([[0, 0], [1, 1]], { smooth: true }).startsWith("M0 1024C"));
+	assert.strictEqual(B.svgxPathData([[0, 0]], { smooth: true }), "M0 1024",
+		"ein einzelner Punkt bleibt ein Punkt");
+}
+
+// ---- 16. Farben je Untergruppe frei setzbar -------------------------------------------
+{
+	const svg = B.svgxBuildDocument({ mapFeatures: payload, dialect: D.INKSCAPE,
+		wayColors: { Reichsstrasse: "#f5ffe9", Flussweg: "#4c89c6" },
+		wayOutlines: { Reichsstrasse: "#333333" },
+		placeColors: { metropole: "#112233" } }).parts.join("");
+
+	assert.ok(svg.includes('stroke="#f5ffe9"'), "die Linienfarbe je Wegart muss durchschlagen");
+	assert.ok(svg.includes('stroke="#4c89c6"'), "auch für Flusswege");
+	assert.ok(svg.includes('stroke="#333333"'), "die Konturfarbe muss durchschlagen");
+	assert.ok(svg.includes('fill="#112233"'), "die Ortsfarbe je Ortsart muss durchschlagen");
+
+	// 💣 Ohne Konturfarbe KEINE Kontur -- sonst verdoppeln sich stillschweigend die Pfade.
+	const ohne = B.svgxBuildDocument({ mapFeatures: payload, dialect: D.INKSCAPE }).parts.join("");
+	assert.ok(!/-kontur/.test(ohne), "ohne Konturfarbe darf keine Konturgruppe entstehen");
+
+	// Und die Kontur darf die Beschriftung nicht kapern: jeder href zeigt auf eine LINIE.
+	const hrefs = [...svg.matchAll(/href="#([^"]+)"/g)].map((m) => m[1]);
+	hrefs.forEach((h) => {
+		assert.ok(!/-?Kontur/i.test(h), `die Beschriftung läuft auf der Kontur statt auf der Linie: ${h}`);
+		assert.ok(svg.includes(`id="${h}"`), `href="#${h}" zeigt ins Leere`);
+	});
+	const ids = [...svg.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
+	assert.strictEqual(ids.length, new Set(ids).size, "auch mit Kontur bleibt jede id eindeutig");
+}
+
+console.log("svg-export-build (Glättung + Farben je Gruppe): ok");

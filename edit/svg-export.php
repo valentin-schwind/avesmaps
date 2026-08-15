@@ -173,6 +173,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     $path = $parentPath === '' ? $key : $parentPath . '/' . $key;
     $cls = $depth === 0 ? 'svgx-choice--layer' : ($depth === 1 ? 'svgx-choice--sub' : 'svgx-choice--leaf');
     ?>
+    <span class="svgx-entry">
     <label class="svgx-choice <?php echo $cls; ?>">
         <input type="checkbox"
                data-svgx-node="<?php echo htmlspecialchars($path, ENT_QUOTES, 'UTF-8'); ?>"
@@ -184,6 +185,33 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
             <?php endif; ?>
         </span>
     </label>
+    <?php
+    // Welche Stellschrauben hat dieser Knoten? Aus Wurzel + Tiefe abgeleitet, damit die
+    // Baumliste oben nicht dreissig Mal eine Angabe wiederholen muss, die sich aus der
+    // Stelle ergibt: Flaechen bekommen eine Fuellung, Linien Farbe UND Kontur.
+    $wurzel = explode('/', $path)[0];
+    $stil = '';
+    if ($wurzel === 'landschaften' && $depth === 2) { $stil = 'fill'; }
+    elseif ($wurzel === 'orte' && $depth === 1) { $stil = 'fill'; }
+    elseif ($wurzel === 'beschriftungen' && $depth === 0) { $stil = 'fill'; }
+    elseif ($wurzel === 'gebiete' && $depth === 0) { $stil = 'stroke'; }
+    elseif ($wurzel === 'wege' && $depth === 1) { $stil = 'line'; }
+    elseif ($wurzel === 'kraftlinien' && $depth === 0) { $stil = 'line'; }
+    ?>
+    <?php if ($stil !== '') : ?>
+        <span class="svgx-swatches">
+            <label class="svgx-swatch" title="Farbe">
+                <input type="color" data-svgx-color="<?php echo htmlspecialchars($path, ENT_QUOTES, 'UTF-8'); ?>" />
+            </label>
+            <?php if ($stil === 'line') : ?>
+                <label class="svgx-swatch svgx-swatch--outline" title="Kontur &ndash; leer lassen heisst: keine Kontur">
+                    <input type="color" data-svgx-outline="<?php echo htmlspecialchars($path, ENT_QUOTES, 'UTF-8'); ?>" />
+                    <input type="checkbox" data-svgx-outline-on="<?php echo htmlspecialchars($path, ENT_QUOTES, 'UTF-8'); ?>" title="Kontur zeichnen" />
+                </label>
+            <?php endif; ?>
+        </span>
+    <?php endif; ?>
+    </span>
     <?php if (!empty($node['children'])) : ?>
         <div class="svgx-children svgx-children--<?php echo $depth; ?>">
             <?php if (($node['childLabel'] ?? '') !== '') : ?>
@@ -207,7 +235,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
          or either script changes, or admins keep the cached files. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260815-svgexport-7" />
+    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260815-svgexport-8" />
 </head>
 
 <body class="edit-page">
@@ -337,7 +365,35 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                 </div>
 
                 <div class="svgx-group">
+                    <h2 class="svgx-group__title">Glätten?</h2>
+                    <div class="svgx-size">
+                        <label class="svgx-choice">
+                            <input type="checkbox" id="svgx-smooth" />
+                            <span>Linien als Catmull-Rom-Kurven zeichnen</span>
+                        </label>
+                        <label class="svgx-size__field">
+                            <span>Spannung</span>
+                            <input type="number" id="svgx-tension" value="0.5" min="0" max="1" step="0.05" />
+                        </label>
+                    </div>
+                    <p class="svgx-hint" style="margin-top:8px">
+                        Dieselbe Kurve, die die Karte zeichnet &ndash; nur exakt statt abgetastet:
+                        ein Catmull-Rom-Segment <em>ist</em> eine kubische Bézierkurve, also wird
+                        aus jedem Streckenstück ein <code>C</code>-Befehl. Im Grafikprogramm
+                        bekommst du damit echte Kurven mit Anfassern statt eines Polygonzugs.
+                        <strong>Spannung 0,5</strong> ist der Wert der Karte; 0 ergibt wieder
+                        gerade Strecken. ⚠️ Die Kurve überschwingt scharfe Ecken &ndash; das ist
+                        so gewollt, die Karte tut es auch.
+                    </p>
+                </div>
+
+                <div class="svgx-group">
                     <h2 class="svgx-group__title">Welche Ebenen?</h2>
+                    <p class="svgx-hint" style="margin-bottom:10px">
+                        Neben jedem Eintrag steht seine Farbe. Flächen haben eine Füllung, Linien
+                        Farbe <em>und</em> Kontur &ndash; die Kontur wird nur gezeichnet, wenn ihr
+                        Häkchen gesetzt ist.
+                    </p>
                     <?php foreach ($layers as $layer) : ?>
                         <div class="svgx-layer"><?php $renderNode($layer, '', 0); ?></div>
                     <?php endforeach; ?>
@@ -359,8 +415,8 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                 </table>
             </section>
         </main>
-        <script src="../js/pages/svg-export-build.js?v=20260815-svgexport-7"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260815-svgexport-7"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260815-svgexport-8"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260815-svgexport-8"></script>
     <?php endif; ?>
 </body>
 

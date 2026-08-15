@@ -57,12 +57,96 @@
 		return farben;
 	}
 
+	// 🔴 Die Vorgaben des Owners (15.08.2026), sie schlagen die Kartenfarbe. Alles, was hier
+	// NICHT steht, kommt weiter aus dem Programm -- Token für Flächen, SVGX_WAY_COLORS für
+	// Wege. Der Owner: „seen sind 82befe, flüsse 4c89c6, wege f5ffe9, wälder 589a64,
+	// gebirge acaea2, der rest wie aus dem programm."
+	// ⚠️ „wege" heißt hier die sechs LANDwege. Seeweg bleibt bei seinem Kartenton, weil er
+	// eine Schiffsroute ist und kein Landweg; der Flussweg hat seinen eigenen Wert bekommen.
+	// Falls das anders gemeint war: die Farbfelder auf der Seite ändern es in einem Klick.
+	const SVGX_COLOR_PRESETS = {
+		"landschaften/topographie/see": "#82befe",
+		"landschaften/vegetation/wald": "#589a64",
+		"landschaften/topographie/gebirge": "#acaea2",
+		"wege/Flussweg": "#4c89c6",
+		"wege/Reichsstrasse": "#f5ffe9",
+		"wege/Strasse": "#f5ffe9",
+		"wege/Weg": "#f5ffe9",
+		"wege/Pfad": "#f5ffe9",
+		"wege/Gebirgspass": "#f5ffe9",
+		"wege/Wuestenpfad": "#f5ffe9",
+	};
+
+	// Farbe eines Knotens, wenn niemand etwas eingestellt hat: erst die Vorgabe oben, dann
+	// das, was das Programm ohnehin zeichnen würde.
+	function vorgabeFuer(pfad) {
+		if (SVGX_COLOR_PRESETS[pfad]) { return SVGX_COLOR_PRESETS[pfad]; }
+		const teile = pfad.split("/");
+		const stil = getComputedStyle(document.documentElement);
+		const token = (name) => (stil.getPropertyValue(name) || "").trim();
+
+		if (teile[0] === "landschaften" && teile.length === 3) {
+			return token(`--color-ecosystem-${teile[1]}-${teile[2].replace(/_/g, "-")}`)
+				|| token(`--color-ecosystem-${teile[1]}`) || "#dfd6bd";
+		}
+		if (teile[0] === "wege" && teile.length === 2) {
+			const W = (window.AvesmapsSvgExport && window.AvesmapsSvgExport.WAY_COLORS) || {};
+			return W[teile[1]] || "#888888";
+		}
+		if (teile[0] === "kraftlinien") { return "#7a5ea8"; }
+		if (teile[0] === "gebiete") { return "#8a6a3f"; }
+		return "#3b2a18";   // Orte und Beschriftungen
+	}
+
+	// Die eingestellten Farben, nach Ebene sortiert, wie der Bauer sie erwartet.
+	function eingestellteFarben() {
+		const aus = { wayColors: {}, wayOutlines: {}, placeColors: {}, areaColors: {} };
+		document.querySelectorAll("[data-svgx-color]").forEach((feld) => {
+			const teile = feld.getAttribute("data-svgx-color").split("/");
+			if (teile[0] === "wege") { aus.wayColors[teile[1]] = feld.value; }
+			else if (teile[0] === "orte") { aus.placeColors[teile[1]] = feld.value; }
+			else if (teile[0] === "landschaften") { aus.areaColors[teile[2]] = feld.value; }
+			else if (teile[0] === "gebiete") { aus.boundaryColor = feld.value; }
+			else if (teile[0] === "kraftlinien") { aus.powerlineColor = feld.value; }
+			else if (teile[0] === "beschriftungen") { aus.labelColor = feld.value; }
+		});
+		// Eine Kontur nur, wenn ihr Häkchen sitzt -- sonst verdoppeln sich die Pfade.
+		document.querySelectorAll("[data-svgx-outline]").forEach((feld) => {
+			const pfad = feld.getAttribute("data-svgx-outline");
+			const an = document.querySelector(`[data-svgx-outline-on="${pfad}"]`);
+			if (!an || !an.checked) { return; }
+			const teile = pfad.split("/");
+			if (teile[0] === "wege") { aus.wayOutlines[teile[1]] = feld.value; }
+		});
+		return aus;
+	}
+
+	function farbfelderVorbelegen() {
+		document.querySelectorAll("[data-svgx-color]").forEach((feld) => {
+			feld.value = vorgabeFuer(feld.getAttribute("data-svgx-color"));
+		});
+		document.querySelectorAll("[data-svgx-outline]").forEach((feld) => {
+			// Die Karte legt eine weiße Kontur unter ihre Wege; hier ist sie vorbelegt, aber
+			// AUS -- wer sie will, hakt sie an.
+			feld.value = "#ffffff";
+		});
+	}
+
 	// Die Linienstärke als Faktor. 100 % = der Kartenzustand (siehe SVGX_WAY_WIDTHS).
 	function gewaehlteStrichstaerke() {
 		const feld = el("svgx-stroke");
 		const wert = Number(feld && feld.value);
 		if (!Number.isFinite(wert) || wert <= 0) { return 1; }
 		return Math.min(Math.max(wert, 5), 400) / 100;
+	}
+
+	function glaettung() {
+		const an = el("svgx-smooth");
+		const spannung = Number((el("svgx-tension") || {}).value);
+		return {
+			smooth: Boolean(an && an.checked),
+			tension: Number.isFinite(spannung) ? Math.min(Math.max(spannung, 0), 1) : 0.5,
+		};
 	}
 
 	// Die gewünschte Kantenlänge in Bildpunkten. Leer oder unsinnig -> Standard.
@@ -221,16 +305,34 @@
 			status("Die Datei wird gebaut …");
 			await atmen();
 
+			const farben = eingestellteFarben();
+			const kurve = glaettung();
+
+			// 💣 Die Flächenfarben kommen aus ZWEI Quellen, und die Reihenfolge ist tragend:
+			// zuerst die aus den DATEN abgeleiteten (deckt auch einen Geländetyp ab, den es
+			// auf dieser Seite noch gar nicht als Feld gibt), darüber die eingestellten.
+			// Nur die Felder zu nehmen hieße: ein neu eingeführter Typ verlöre seine Farbe,
+			// ohne dass es jemandem auffiele.
+			const flaechenFarben = Object.assign({}, landschaftsFarben(ecosystems), farben.areaColors);
+
 			const ergebnis = window.AvesmapsSvgExport.build({
 				mapFeatures: mapFeatures,
 				territories: territories,
 				ecosystems: ecosystems,
-				areaColors: landschaftsFarben(ecosystems),
 				layers: an,
 				subgroups: unterarten,
 				dialect: dialekt,
 				sizePx: gewaehlteGroesse(),
 				strokeScale: gewaehlteStrichstaerke(),
+				smooth: kurve.smooth,
+				tension: kurve.tension,
+				wayColors: farben.wayColors,
+				wayOutlines: farben.wayOutlines,
+				placeColors: farben.placeColors,
+				areaColors: flaechenFarben,
+				boundaryColor: farben.boundaryColor,
+				powerlineColor: farben.powerlineColor,
+				labelColor: farben.labelColor,
 			});
 
 			// Nie ein einziger Riesenstring durch Aneinanderhängen -- die Stückliste geht
@@ -287,6 +389,7 @@
 			knopf.addEventListener("click", function () {
 				if (feld) { feld.value = knopf.getAttribute("data-svgx-size"); }
 				spiegeln();
+		farbfelderVorbelegen();
 			});
 		});
 		spiegeln();

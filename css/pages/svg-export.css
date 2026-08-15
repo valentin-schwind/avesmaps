@@ -257,3 +257,49 @@
 	padding-left: 16px;
 	border-bottom-color: transparent;
 }
+
+/* Die Farbfelder neben jedem Eintrag. Sie sind klein und stehen in der Zeile -- die
+   Auswahlliste soll dadurch nicht zur Tabelle werden. */
+.svgx-swatches {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: 6px;
+	vertical-align: middle;
+}
+
+.svgx-swatch {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	cursor: pointer;
+}
+
+.svgx-swatch input[type="color"] {
+	width: 22px;
+	height: 16px;
+	padding: 0;
+	border: 1px solid var(--color-border);
+	border-radius: 3px;
+	background: none;
+	cursor: pointer;
+}
+
+/* Die Kontur ist die zweite Farbe einer Linie und optisch nachgeordnet: schmaler und
+   mit ihrem eigenen Häkchen, weil sie ohne dieses gar nicht gezeichnet wird. */
+.svgx-swatch--outline input[type="color"] {
+	width: 16px;
+}
+
+.svgx-swatch--outline input[type="checkbox"] {
+	margin: 0;
+}
+
+/* 💣 Ein Eintrag ist EIN Flex-Element -- Beschriftung und ihre Farbfelder zusammen.
+   Als Geschwister im umbrechenden Container könnten sie in verschiedenen Zeilen landen,
+   und dann steht eine Farbe neben dem falschen Namen. */
+.svgx-entry {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 2px;
+}
