@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wiki-Zuweisung — ein Bauteil, das seine Felder kennt (Mockup)</title>
+<style>
+/* Werte 1:1 aus css/base/tokens.css (dunkles Thema) und css/components/editor-page.css.
+   Klassennamen sind die ECHTEN: .dt-grp / .dt-grid / .dt-grid .k / .dt-check / .dt-link / .dt-actions
+   im Editorfenster, .label-wiki-* im Kartendialog. Nichts hier ist nachempfunden. */
+:root {
+	--panel:            #312e26;
+	--panel-soft:       #37342b;
+	--panel-muted:      #39352b;
+	--text-strong:      #f5f0e4;
+	--color-text:       #e6dfd0;
+	--mut:              #b4a895;
+	--line:             #514a3c;
+	--line-strong:      #615a49;
+	--button-soft:      #3a362c;
+	--button-soft-text: #eae1cf;
+	--button-soft-border: #585142;
+	--button-soft-hover: #464032;
+	--accent:           #d7c38b;
+	--hover-wash:       rgba(207, 183, 103, 0.18);
+	--warn:             #c8973f;
+
+	--font-size-caption: 11px;
+	--font-size-small:   12px;
+	--font-size-body:    13px;
+	--font-weight-bold:  700;
+	--space-2: 4px; --space-4: 6px; --space-6: 8px; --space-8: 10px;
+	--radius-sm: 5px; --radius-md: 8px;
+	--avm-field-label-w: 130px;
+	--avm-control-h: 32px;
+}
+* { box-sizing: border-box; }
+body {
+	margin: 0; padding: 26px 22px 70px; background: #2a2721; color: var(--color-text);
+	font: var(--font-size-body)/1.5 "Segoe UI", system-ui, sans-serif;
+}
+h1 { font-size: 20px; color: var(--text-strong); margin: 0 0 4px; font-weight: var(--font-weight-bold); }
+h2 {
+	font-size: 16px; color: var(--accent); margin: 34px 0 4px;
+	font-weight: var(--font-weight-bold); border-bottom: 1px solid var(--line); padding-bottom: var(--space-4);
+}
+p.lede { color: var(--mut); max-width: 84ch; margin: 0 0 var(--space-6); }
+p.note { color: var(--mut); font-size: var(--font-size-small); max-width: 88ch; margin: var(--space-8) 0 0; }
+p.note b, .lede b { color: var(--text-strong); font-weight: var(--font-weight-bold); }
+.grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; margin-top: var(--space-8); }
+.col { flex: 0 1 372px; min-width: 320px; }
+.cap { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); color: var(--mut); margin: 0 0 var(--space-4); }
+
+/* ---- Die Karte, in der ein Editorfenster seine Eigenschaften zeigt ------------------------- */
+.card { background: var(--panel-soft); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-8) 12px; }
+
+/* ---- Die ECHTEN Feldklassen der Editorfenster (editor-page.css) ---------------------------- */
+.dt-grp {
+	display: flex; align-items: center; gap: var(--space-4);
+	margin-top: var(--space-8); padding-top: var(--space-4); border-top: 1px solid var(--line);
+	font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); color: var(--mut);
+}
+.dt-grp:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+.dt-grp__sp { margin-left: auto; display: flex; gap: var(--space-2); }
+.dt-grid { display: grid; grid-template-columns: var(--avm-field-label-w) minmax(0,1fr); margin-top: var(--space-2); font-size: var(--font-size-body); }
+.dt-grid .k { padding: var(--space-2) var(--space-4) var(--space-2) 0; white-space: nowrap; font-weight: var(--font-weight-bold); color: var(--mut); }
+.dt-grid > div:not(.k) { padding: var(--space-2) 0; min-width: 0; overflow-wrap: anywhere; color: var(--color-text); }
+.dt-link { color: var(--accent); text-decoration: none; }
+.dt-link:hover { text-decoration: underline; }
+.dt-check { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) 0; font-size: var(--font-size-body); color: var(--mut); }
+.dt-actions { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-top: var(--space-6); }
+.dt-hint { color: var(--mut); font-size: var(--font-size-caption); padding: var(--space-2) 0 0; }
+
+.btn2 {
+	font: inherit; font-size: var(--font-size-small); height: var(--avm-control-h);
+	background: var(--button-soft); color: var(--button-soft-text);
+	border: 1px solid var(--button-soft-border); border-radius: var(--radius-md);
+	padding: 0 var(--space-8); cursor: pointer;
+}
+.btn2:hover { background: var(--button-soft-hover); }
+.btn2--sm { height: 26px; padding: 0 var(--space-6); font-size: var(--font-size-caption); }
+input[type=search], input[type=url], select {
+	width: 100%; height: var(--avm-control-h); padding: 0 var(--space-4);
+	font: inherit; font-size: var(--font-size-body);
+	background: var(--panel-muted); color: var(--text-strong);
+	border: 1px solid var(--line-strong); border-radius: var(--radius-md);
+}
+
+/* ---- Trefferliste (echte Klassen des Kartendialogs, hier in dt-Umgebung) ------------------- */
+.picker-list { margin-top: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; }
+.picker-item { padding: var(--space-4) var(--space-8); cursor: pointer; border-bottom: 1px solid var(--line); }
+.picker-item:last-child { border-bottom: 0; }
+.picker-item:hover, .picker-item.is-active { background: var(--hover-wash); }
+.picker-name { color: var(--text-strong); }
+.picker-meta { color: var(--mut); font-size: var(--font-size-caption); }
+.picker-warn { color: var(--warn); font-size: var(--font-size-caption); }
+
+/* ---- Sync-Vorschau: Zeilen wie in der Uebernahme-Vorschau der Massenlaeufe ----------------- */
+.sync-rows { margin-top: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; }
+.sync-row { display: grid; grid-template-columns: 18px var(--avm-field-label-w) minmax(0,1fr); gap: var(--space-4); align-items: start; padding: var(--space-4) var(--space-8); cursor: pointer; font-size: var(--font-size-body); }
+.sync-row + .sync-row { border-top: 1px solid var(--line); }
+.sync-row:hover { background: var(--hover-wash); }
+.sync-row input { width: 15px; height: 15px; margin-top: 3px; accent-color: var(--accent); }
+.sync-row .k { font-weight: var(--font-weight-bold); color: var(--mut); font-size: var(--font-size-body); }
+.old { color: var(--mut); text-decoration: line-through; }
+.arr { color: var(--mut); }
+.new { color: var(--text-strong); }
+.why { color: var(--warn); font-size: var(--font-size-caption); display: block; }
+
+/* ---- Tabellen ---------------------------------------------------------------------------- */
+table { border-collapse: collapse; width: 100%; max-width: 980px; margin-top: var(--space-8); font-size: var(--font-size-small); }
+th, td { text-align: left; padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--mut); font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .05em; }
+td b { color: var(--text-strong); }
+code { font-family: Consolas, monospace; font-size: var(--font-size-small); color: var(--accent); }
+pre {
+	background: var(--panel-muted); border: 1px solid var(--line); border-radius: var(--radius-md);
+	padding: var(--space-8) 12px; overflow-x: auto; font-size: var(--font-size-small);
+	color: var(--color-text); max-width: 980px;
+}
+pre .c { color: var(--mut); }
+pre .s { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>Wiki-Zuweisung — ein Bauteil, das seine Felder kennt</h1>
+<p class="lede">Mockup, 15.08.2026, zweite Fassung. <b>Erste Fassung war zu frei gezeichnet</b> — sie
+benutzte die Klassen der Kartendialoge in einer Umgebung, die die der Editorfenster benutzt. Diese
+Fassung nimmt die echten: <code>.dt-grp</code>, <code>.dt-grid</code>, <code>.dt-check</code>,
+<code>.dt-link</code> — Label-Spalte 130 px, Bedienelemente 32 px hoch, Beschriftungen 11 px fett
+gedämpft, Werte 13 px normal.</p>
+
+<h2>Die zehn Stellen</h2>
+<table>
+<tr><th>Oberfläche</th><th>heute</th><th>was daraus wird</th></tr>
+<tr><td><b>Landschaft</b> · Regionen-Editor</td><td>Formularblock: Schlüssel, Artikel, Name, Auto-Name, Art, Wiki-Artikel-URL, „Wiki-Zuweisung entfernen"</td><td>das Bauteil — die URL von Hand entfällt</td></tr>
+<tr><td><b>Landschaft</b> · Karten-Dialog</td><td>Ändern / Sync / Entfernen ✅</td><td>ist bereits die Zielform</td></tr>
+<tr><td><b>Ort</b> · Orte-Editor</td><td>nur eine Zeile „Wiki-Ort A'Sarar ↗"</td><td>das Bauteil</td></tr>
+<tr><td><b>Ort</b> · Karten-Dialog</td><td>Ändern / Entfernen — <b>kein Sync</b></td><td>Sync dazu</td></tr>
+<tr><td><b>Weg</b> · Wege-Editor</td><td>„Verknüpft Aguera ↗" + Hinweis, dass es woanders läuft</td><td>das Bauteil, an Ort und Stelle</td></tr>
+<tr><td><b>Weg</b> · Karten-Dialog</td><td>Ändern / Entfernen — <b>kein Sync</b></td><td>Sync dazu</td></tr>
+<tr><td><b>Territorium</b></td><td>Wiki-Daten + eigene Overrides, eigene Form</td><td>das Bauteil für die Zuweisung; die Override-Tabelle bleibt</td></tr>
+<tr><td><b>Kraftlinie</b></td><td>Textfeld + „Kein Wiki-Artikel vorhanden"</td><td>das Bauteil, Häkchen bleibt</td></tr>
+<tr><td><b>Literatur</b></td><td>Wiki-URL als freies Textfeld</td><td>das Bauteil</td></tr>
+<tr><td><b>Karte</b> (Stadtpläne)</td><td>gar keine Zuweisung</td><td>🔧 offen — siehe unten</td></tr>
+<tr><td><b>Vorkommen</b></td><td>„Wiki Aventurica ↗ · fest" + automatische Quellen</td><td>🔧 offen — siehe unten</td></tr>
+</table>
+
+<h2>Zwei Skins, und das ist die Obergrenze</h2>
+<p class="lede">Die Editorfenster benutzen <code>.dt-*</code>, die Kartendialoge <code>.label-wiki-*</code>.
+Das ist <b>kein Wildwuchs, sondern derselbe bewusste Schnitt wie bei den Listenzeilen</b> — dort gibt
+es ebenfalls genau zwei, eine je Behälter. <b>Ein Bauteil, zwei Skins</b>: gleiche Logik, gleiche
+Zustände, gleiche Vorschau — nur die Hülle folgt dem Fenster, in dem sie steht.</p>
+
+<h2>Das Bauteil im Editorfenster</h2>
+<div class="grid">
+
+	<div class="col">
+		<p class="cap">1 · nichts zugewiesen</p>
+		<div class="card">
+			<div class="dt-grp">Wiki-Artikel<span class="dt-grp__sp"><button class="btn2 btn2--sm">Zuweisen</button></span></div>
+			<div class="dt-grid"><div class="k">Zuordnung</div><div>— keine —</div></div>
+			<div class="dt-check"><input type="checkbox"><span>Kein Wiki-Artikel vorhanden</span></div>
+			<div class="dt-hint">Nimmt das Objekt aus der Konfliktliste — bis im Wiki einer auftaucht.</div>
+		</div>
+	</div>
+
+	<div class="col">
+		<p class="cap">2 · Suche offen</p>
+		<div class="card">
+			<div class="dt-grp">Wiki-Artikel<span class="dt-grp__sp"><button class="btn2 btn2--sm">Abbrechen</button></span></div>
+			<div class="dt-grid"><div class="k">Suchen</div><div><input type="search" value="satinav"></div></div>
+			<div class="picker-list">
+				<div class="picker-item is-active">
+					<div class="picker-name">Satinavs Ketten</div>
+					<div class="picker-meta">Kraftlinie · kontinental · Maraskan</div>
+				</div>
+				<div class="picker-item">
+					<div class="picker-name">Satinavs Fessel</div>
+					<div class="picker-meta">Kraftlinie · Güldenland</div>
+					<div class="picker-warn">hängt an „Fessel des Satinav" — Zuweisen hängt sie um</div>
+				</div>
+			</div>
+			<div class="dt-hint">2 Treffer · ↑ ↓ wählen · Enter zuweisen · Esc schließt</div>
+		</div>
+	</div>
+
+	<div class="col">
+		<p class="cap">3 · zugewiesen</p>
+		<div class="card">
+			<div class="dt-grp">Wiki-Artikel<span class="dt-grp__sp">
+				<button class="btn2 btn2--sm">Ändern</button><button class="btn2 btn2--sm">Sync</button><button class="btn2 btn2--sm">Entfernen</button>
+			</span></div>
+			<div class="dt-grid">
+				<div class="k">Artikel</div><div>Satinavs Ketten <a class="dt-link" href="#">Wiki ↗</a></div>
+				<div class="k">Schlüssel</div><div>satinavs-ketten</div>
+				<div class="k">Stärke</div><div>kontinental</div>
+				<div class="k">Regionen</div><div>Maraskan · Aventurien</div>
+			</div>
+		</div>
+		<div class="dt-hint">„Madas Kelch" führt weder Stärke noch Länge — leere Felder fallen weg,
+		sie stehen nicht leer da. Von fünf geprüften Artikeln haben zwei solche Lücken.</div>
+	</div>
+</div>
+
+<h2>Sync — erst zeigen, dann anhaken, dann übernehmen</h2>
+<p class="lede">Heute überschreibt „Sync" bei der Landschaft Name und Art <b>unbedingt</b>. Bei zwei
+Feldern geht das; beim <b>Ort</b> sind es fünf, darunter Einwohnerzahl und Herrscher, die jemand von
+Hand korrigiert haben kann. Dieselbe Form wie bei den Massenläufen.</p>
+<div class="grid">
+	<div class="col" style="flex-basis:520px">
+		<p class="cap">Sync gedrückt · Ort</p>
+		<div class="card">
+			<div class="dt-grp">Aus dem Wiki übernehmen<span class="dt-grp__sp"><button class="btn2 btn2--sm">Abbrechen</button></span></div>
+			<div class="dt-hint">4 von 6 Angaben würden sich ändern. Angehakt wird übernommen.</div>
+			<div class="sync-rows">
+				<label class="sync-row"><input type="checkbox" checked><span class="k">Name</span>
+					<span><span class="old">Havena</span> <span class="arr">→</span> <span class="new">Havena (Stadt)</span></span></label>
+				<label class="sync-row"><input type="checkbox" checked><span class="k">Art</span>
+					<span><span class="old">Großstadt</span> <span class="arr">→</span> <span class="new">Metropole</span></span></label>
+				<label class="sync-row"><input type="checkbox"><span class="k">Einwohner</span>
+					<span><span class="old">14.200</span> <span class="arr">→</span> <span class="new">12.000</span>
+					<span class="why">von Hand gesetzt — würde zurückgedreht</span></span></label>
+				<label class="sync-row"><input type="checkbox"><span class="k">Herrscher</span>
+					<span><span class="old">Growin Sohn des Growin</span> <span class="arr">→</span> <span class="new">—</span>
+					<span class="why">das Wiki sagt nichts — würde die Angabe leeren</span></span></label>
+			</div>
+			<div class="dt-actions"><button class="btn2">2 Angaben übernehmen</button><button class="btn2">Alle anhaken</button></div>
+			<div class="dt-hint">Danach: „Aus dem Wiki übernommen — noch nicht gespeichert."</div>
+		</div>
+	</div>
+	<div class="col">
+		<p class="cap">Sync gedrückt · nichts zu tun</p>
+		<div class="card">
+			<div class="dt-grp">Aus dem Wiki übernehmen</div>
+			<div class="dt-hint">Alles stimmt bereits mit dem Wiki überein — nichts zu übernehmen.</div>
+		</div>
+		<p class="cap" style="margin-top:18px">Was die Vorschau weglässt</p>
+		<div class="card">
+			<div class="dt-hint">Angaben, die ohnehin übereinstimmen, stehen <b>nicht</b> in der Liste.
+			In einem Kasten voller Häkchen sucht man sonst die eine Zeile, die zählt.</div>
+		</div>
+	</div>
+</div>
+<p class="note">🔴 <b>Vorangehakt ist, was ändert — nicht, was leert.</b> Sagt das Wiki zu einer Angabe
+nichts, während auf der Karte etwas steht, ist das der Fall „Gelöscht" aus der großen
+Übernahme-Vorschau: er steht drin, aber ohne Haken. ⚠️ <b>Übernehmen füllt weiterhin nur das
+Formular</b> — gespeichert wird mit „Speichern".</p>
+
+<h2>Und das ist der eigentliche Punkt: eine Erklärung je Objektart</h2>
+<p class="lede">Damit ich <b>nicht zehnmal dasselbe baue</b>, weiß das Bauteil nichts über Orte, Wege
+oder Kraftlinien. Es liest eine <b>Erklärung</b> — welche Felder aus dem Wiki kommen und wohin sie
+gehören. Zustände, Trefferliste, Sync-Vorschau und Diff fallen daraus ab.</p>
+<pre><span class="c">// EINE Zeile je Feld. Mehr braucht eine neue Objektart nicht.</span>
+<span class="s">Ort</span>        suche: <span class="s">/api/edit/wiki/settlements.php?action=search</span>
+           felder: Name→name · Art→settlement_type · Einwohner→einwohner
+                   Lage→lage · Herrscher→oberhaupt
+           sync: ja
+
+<span class="s">Weg</span>        suche: <span class="s">/api/edit/wiki/paths.php?action=search</span>
+           felder: Name→name · Art→feature_subtype · Länge→laenge
+           sync: ja
+
+<span class="s">Landschaft</span> suche: <span class="s">/api/edit/wiki/regions.php?action=search</span>
+           felder: Name→name · Art→region_type
+           sync: ja          <span class="c">// heute schon so, nur ohne Vorschau</span>
+
+<span class="s">Kraftlinie</span> suche: <span class="c">im Browser über die 23 gestagten Artikel — kein Server noetig</span>
+           felder: <span class="c">keine bearbeitbaren — Stärke/Affinität/Länge/Regionen sind Anzeige</span>
+           sync: <span class="c">nein — es gäbe nichts ins Formular zu holen</span>
+           extra: <span class="s">"Kein Wiki-Artikel vorhanden"</span></pre>
+<p class="note">
+⭐ <b>Was daraus von selbst folgt:</b> die drei Zustände · die Trefferliste samt zweiter Zeile · die
+Sync-Vorschau samt Diff und Vorhäkelung · welche Knöpfe erscheinen (kein „Sync" ohne Felder) · und
+die Warnung „hängt schon woanders".<br>
+💣 <b>Der Sync-Knopf hängt an den FELDERN, nicht am Abgleich.</b> Die Kraftlinien haben einen
+Massenlauf, aber kein bearbeitbares Feld, das er füllen könnte — dort gehört kein Knopf hin. Mein
+erstes Mockup hatte das falsch herum.<br>
+🔴 <b>Freie Adressen bleiben draußen.</b> Wer eine Nicht-Wiki-Quelle hinterlegen will, tut das im
+Quellen-Abschnitt — bei den Wegen heißt der schon „Andere Quelle". Ein Feld, in das man alles tippen
+kann, ist der Grund, warum bei den Kraftlinien ein Tippfehler unsichtbar blieb.
+</p>
+
+<h2>Entschieden (Owner, 15.08.2026)</h2>
+<p class="note">
+✅ <b>1 · Karten bekommen die Zuweisung</b> — dort, wo das Wiki einen Artikel führt. „Gibt natürlich
+auch welche von uns" heißt: die übrigen tragen den dritten Zustand.<br>
+✅ <b>2 · Vorkommen bleiben außen vor.</b> Ihr „Wiki Aventurica ↗ · fest" ist eine
+<b>Quellenangabe</b>, keine Objekt-Zuweisung — das Bauteil gehört dort nicht hin.<br>
+✅ <b>3 · Der dritte Zustand gilt für alle.</b> Jede Objektart kann ein Ding tragen, das es im Wiki
+nachweislich nicht gibt — ein selbst gezeichneter Ort, ein eigener Territoriums-Knoten, eine
+Kraftlinie, eine Karte aus eigener Hand.
+</p>
+
+<h2>💣 Die Falle bei den Karten: dort heißt schon zweierlei „wiki"</h2>
+<table>
+<tr><th>Feld</th><th>was es wirklich ist</th><th>Status</th></tr>
+<tr><td><code>wiki_key</code></td><td><b>Bauschlüssel</b> <code>index:stadt:quelle:variante</code> — sagt, aus welcher Index-Seite die Zeile stammt. Keine Seitenidentität.</td><td>🔴 unangetastet</td></tr>
+<tr><td><code>wiki_url</code></td><td>Link auf die <b>Publikation</b>, aus der die Karte stammt — nicht auf die Karte.</td><td>🔴 unangetastet</td></tr>
+<tr><td>neu</td><td>der <b>eigene Artikel</b> der Karte, falls das Wiki einen führt</td><td>⭐ eigener Name, nicht <code>wiki_url</code></td></tr>
+</table>
+<p class="note">
+An den ersten beiden hängt der laufende Karten-Abgleich; sie werden nicht umgedeutet. Das Neue
+bekommt einen eigenen Namen, sonst ist die Verwechslung eingebaut — dieselbe Klasse Fehler wie
+<i>Literatur</i> gegen <i>Quellen</i> und „Neuigkeiten" gegen <code>changelog</code>.<br>
+⚠️ <b>Folge, die mitkommt:</b> das Konfliktzentrum schließt Karten heute ausdrücklich aus, <i>weil</i>
+ihr Schlüssel ein Bauschlüssel ist. Sobald eine Karte einen echten Artikel trägt, gehört sie in die
+Kollisionsprüfung — das ist eine Zeile in der Regel, aber sie muss bewusst gesetzt werden.
+</p>
+
+</body>
+</html>
