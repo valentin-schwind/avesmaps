@@ -86,10 +86,16 @@ raster nicht verwerfen müsstest." Das Bedenken war richtig, nur an dieser Stell
    `avesmapsOffroadFinishPath`, das sie mit dem echten Gelände bepreist.
 4. **Nass → Rückfall auf einen Suchlauf um das Wasser herum.**
 
-⭐ Der Rückfall braucht **keine neue Suchfunktion**: derselbe Mehrziel-Lauf mit `factors = null`,
-`heights = null` und `speed = 1.0` hat Schrittkosten, die genau die Schrittlänge sind. Der Suchkern
-bleibt Zeile für Zeile, wie er ist. Gemessen wird die gefundene Linie danach trotzdem mit den echten
-Ebenen (§3.2).
+⭐ Der Rückfall braucht **keine neue Suchfunktion**, nur ein zusätzliches Argument: im
+Streckenmodus setzt die Entspannung `slopeFactor = 1.0` und `groundFactor = 1.0`, damit ein Schritt
+genau seine Länge kostet. Alles andere bleibt.
+
+💣 **NICHT `factors = null, heights = null, speed = 1.0` — das stand hier bis zum Bauplan und war
+falsch.** Dieselben Ebenen speisen die SUCHE und die MESSUNG: `avesmapsOffroadFinishPath` bekommt
+`$factors`, `$heights` und `$rasters` von derselben Stelle. Wer sie für die Suche auf `null` setzt,
+nimmt sie damit auch der Messung weg — und genau das verbietet §3.2 zwei Absätze weiter oben. Der
+Widerspruch stand im eigenen Entwurf, gefunden erst beim Schreiben des Bauplans. Die Ebenen fließen
+unverändert weiter; neutralisiert wird ausschließlich **innerhalb der Schleife**.
 
 💣 **Bresenham wird nicht gebraucht.** Es rastert eine Linie in Zellen; eine Gerade braucht keine
 Zellen, sondern zwei Punkte. Gerastert würde nur, um die Linie gegen das **Raster** zu prüfen statt
@@ -132,9 +138,33 @@ Eine Linie kann also polygon-trocken und raster-nass sein.
 * **Raster**: eine Wahrheit für beide Modi — was „Schnellste" für nass hält, hält „Kürzeste" auch
   dafür. Dafür gröber, und es erbt die Freilegung um die Endpunkte.
 
-⭐ Empfehlung: **Polygon**, weil das Raster nur sein Abbild ist. ⚠️ Vor der Festlegung zu messen:
-an wie vielen echten Ausstiegen die beiden Tests **auseinandergehen**. Liegt die Zahl bei null, ist
-die Frage müßig; liegt sie hoch, gewinnt die Einheitlichkeit.
+### 🔴 Gemessen am 15.08.2026 — Entscheidung: **Polygon**
+
+Echte Wasserflächen (332 aus `ecosystem-areas.php`: 300 `see` + 32 `meer`), echtes Wegenetz
+(4.889 Knoten), echte Kandidatensammlung, beide Tests an derselben Linie:
+
+| Stichprobe | Linien | beide trocken | beide nass | nur Polygon nass | nur Raster nass | Uneinigkeit |
+|---|---:|---:|---:|---:|---:|---:|
+| beliebige Punkte auf Land | 3.261 | 3.035 | 196 | **0** | 30 | 0,92 % |
+| Punkte in Wassernähe | 2.642 | 2.322 | 239 | **0** | 81 | 3,07 % |
+
+🔴 **Die Uneinigkeit ist EINSEITIG: „nur Polygon nass" kam in 5.903 Linien kein einziges Mal vor.**
+Das ist strukturell so und kein Zufall — das Raster sperrt eine Zelle, sobald Wasser sie
+*berührt*, ist also strikt strenger als die Fläche selbst. In jedem der 111 abweichenden Fälle
+sagt das Polygon die Wahrheit und das Raster übertreibt um höchstens eine halbe Zellbreite
+(0,35 Einheiten, rund 1 km).
+
+⭐ **Damit ist die Frage entschieden: Polygon.** Ein Modus, der Meilen minimieren soll, darf
+keine Meilen für ein Rasterungsartefakt dazulegen — der Rastertest hätte in 0,9 % der Fälle
+(3,1 % in Wassernähe) einen Umweg erzwungen, den es gar nicht gibt. Die Linie bleibt trotzdem
+trocken: polygon-trocken heißt, sie schneidet die gezeichnete Wasserfläche nicht, und genau die
+sieht der Reisende auf der Karte.
+
+⚠️ Der **Rückfall** bei nasser Gerade benutzt weiterhin das Raster — dort ist dessen Strenge
+harmlos, weil man ohnehin nicht auf der Uferlinie entlanggehen will.
+
+⚠️ Die Frage war **nicht** müßig: 111 von 5.903 Linien gehen auseinander. Ohne die Messung wäre
+die Entscheidung geraten gewesen.
 
 ## 6 · Abnahme
 
@@ -159,7 +189,8 @@ die Frage müßig; liegt sie hoch, gewinnt die Einheitlichkeit.
 3. 🔴 Der Modus wird als **Parameter** durchgereicht, nie als globaler Zustand (§3.4).
 4. ⚠️ `synthetic-refine.php` darf unter „Kürzeste" nicht biegen (§3.4).
 5. ⚠️ Der ×25-Aufschlag bleibt in beiden Modi (§4).
-6. 🔧 Polygon gegen Raster ist zu **messen**, bevor es entschieden wird (§5).
+6. ✅ Polygon gegen Raster ist gemessen und entschieden: **Polygon** (§5). Die Uneinigkeit ist
+   einseitig -- das Raster ist strenger, nie umgekehrt.
 
 ## 8 · Was dieser Entwurf NICHT tut — und die Frage dahinter
 
