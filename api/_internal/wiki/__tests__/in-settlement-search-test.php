@@ -104,4 +104,29 @@ assert(
 );
 echo "sort-order ok\n";
 
+// ------------------------------------------------- DIE WIKI-URL IM KARTENPAYLOAD ---
+// Zweiter Leser dieser Liste seit 2026-08-15: die Infobox-Zeile „Staetten" (Owner-Wunsch).
+// Sie verlinkt jeden Namen aufs Wiki -- ohne wiki_url im Payload muesste der Browser die
+// Adresse aus dem Titel bauen, also avesmapsWikiSyncMonitorPageUrl ein zweites Mal fuehren.
+$placeRows = [[
+    'title' => 'Akademie der Erscheinungen',
+    'raw' => '[[Mengbilla]]: [[Bishdaria]]',
+    'type_label' => 'Magierakademie',
+    'wiki_url' => 'https://de.wiki-aventurica.de/wiki/Akademie_der_Erscheinungen',
+]];
+$places = avesmapsBuildInSettlementPlaceList($placeRows, $scopeIndex);
+assert(count($places) === 1, 'die Staette steht in der Payload-Liste');
+assert($places[0]['wiki_url'] === 'https://de.wiki-aventurica.de/wiki/Akademie_der_Erscheinungen',
+    'wiki_url reist mit: ' . var_export($places[0]['wiki_url'] ?? null, true));
+assert($places[0]['settlement'] === 'Mengbilla', 'die Stadt bleibt der Schluessel der Zeile');
+assert($places[0]['type'] === 'Magierakademie', 'die Art traegt die Gruppenueberschrift');
+
+// Eine Zeile OHNE wiki_url liefert einen leeren String, nie null.
+$ohneUrl = avesmapsBuildInSettlementPlaceList(
+    [['title' => 'Namenloses Ding', 'raw' => '[[Mengbilla]]', 'type_label' => 'Turm']],
+    $scopeIndex
+);
+assert($ohneUrl[0]['wiki_url'] === '', 'fehlende wiki_url wird zu leerem String, nicht null');
+echo "payload wiki_url ok\n";
+
 echo "\nALL IN-SETTLEMENT SEARCH TESTS PASSED\n";

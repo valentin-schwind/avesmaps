@@ -153,6 +153,12 @@ function avesmapsBuildSettlementLocationIndex(array $rows): array
  * Ortsnamen im Routing-Graphen die Schluessel sind. Mehr braucht er nicht, und was nicht
  * mitreist, kann auch nicht veralten.
  *
+ * `wiki_url` kam 2026-08-15 dazu, fuer die Infobox-Zeile „Staetten" (der zweite Leser dieser
+ * Liste). Gemessen: 1774 Eintraege * ~55 Byte = rund 98 KB auf einen 19,6-MB-Payload, also
+ * 0,5 %. Die Alternative waere, die URL im Browser aus dem Titel zu bauen -- das waere eine
+ * zweite Fassung von avesmapsWikiSyncMonitorPageUrl, und zwei Fassungen einer Adressregel
+ * laufen auseinander, sobald das Wiki eine Sonderform bekommt.
+ *
  * Die Stadt steht nur dann in `settlement`, wenn der Klassifikator sie EINDEUTIG erkannt hat
  * (scope = inside); "unklar" faellt raus wie ueberall sonst.
  *
@@ -181,6 +187,7 @@ function avesmapsBuildInSettlementPlaceList(array $registryRows, array $scopeInd
             'name' => $title,
             'settlement' => $scope['settlement'],
             'type' => (string) ($registryRow['type_label'] ?? ''),
+            'wiki_url' => (string) ($registryRow['wiki_url'] ?? ''),
         ];
     }
 

@@ -416,6 +416,15 @@ function settlementWikiInfoboxMarkup(location, sourceMarkup = "", opts) {
 		rows += avesmapsClimateRowForKey(location.climateZone);
 	}
 
+	// „Stätten": die Bauwerke IN diesem Ort (Owner 2026-08-15). Ganz ans Ende, hinter die
+	// Klimazone — Waren/Fauna/Flora/Klimazone sind eine gewachsene Gruppe mit eigener
+	// Reihenfolge-Regel („Klimazone DIREKT unter Flora"), in die sich nichts hineinschiebt.
+	// ⭐ Synchron: die Liste reist im Kartenpayload mit (in_settlement_places), es wird nichts
+	// nachgeladen — anders als Waren/Fauna/Flora, die auf api/app/lore.php warten.
+	if (typeof avesmapsStaettenRowMarkup === "function") {
+		rows += avesmapsStaettenRowMarkup(location.name);
+	}
+
 	// Kein Kopf/Name/Art hier — der Popup-Kopf zeigt Name + Größe bereits (sonst Dopplung/Strich).
 	// Quellen-Zeile: der Aufrufer (buildLocationMarkerPopupHtml) reicht die fertige
 	// renderFeatureSourceLine-Quell-Zeile durch (Multi-source system).
