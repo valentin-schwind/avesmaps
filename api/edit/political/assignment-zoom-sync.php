@@ -40,6 +40,11 @@ try {
 } catch (InvalidArgumentException $exception) {
     avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (Throwable $exception) {
+    // 💣 Ohne diese Zeile war der Fehler von aussen NICHT zu sehen: der Client bekommt (richtigerweise)
+    // nur den allgemeinen Satz, und ohne Protokolleintrag blieb die Ursache nirgends stehen. Genau so
+    // stand am 15.08.2026 ein 500 beim Speichern da, den niemand einordnen konnte. Format wie
+    // avesmapsServerErrorResponse -- nur die Antwort bleibt die eigene, deutsche.
+    error_log('avesmaps assignment-zoom-sync: ' . get_class($exception) . ': ' . $exception->getMessage());
     avesmapsErrorResponse(500, 'server_error', 'Die Herrschaftsgebiets-Zoomstufen konnten nicht synchronisiert werden.');
 }
 
