@@ -146,11 +146,40 @@ Fehler nach dem Goldvertrag (AGENTS §4): `{ "ok": false, "error": { "code": …
   Punkttest die Fürstkomturei Tobimora **zweimal** — dasselbe Gebiet mit zwei
   Geometrie-Zeilen. Entdoppelt wird über `territory_public_id`, nicht über
   `geometry_public_id`. (Das ist die bekannte Eigenart „VIELE Features je Gebiet".)
+- 🔴 **KORRIGIERT (Fix-Runde 3, 15.08.2026): der Punkttest allein findet fast nie
+  die ganze Kette.** Diese erste Fassung entschied bewusst, die Tiefe NUR innerhalb
+  der Trefferliste des Punkttests zu bestimmen — kein zusätzlicher `parent_id`-Lauf
+  in die Datenbank, mit der Begründung, ein Vorfahr ohne eigene Fläche solle „Liegt
+  in" gar nicht erst nennen. **Live gemessen war das falsch:** Elterngebiete wie
+  Grafschaft/Fürstentum/Kaiserreich sind fast immer **abgeleitete Außengrenzen**
+  (`political_territory_derived_geometry`, `territories-derived-layer.php:306`
+  setzt dort `is_aggregate = true`) — sie liegen in einer ANDEREN Tabelle als die
+  gezeichneten Flächen und tragen strukturell **nie** eine eigene Geometrie, die
+  der Punkttest finden könnte. Die Kette hatte dadurch fast immer nur EINE Stufe
+  statt vier (gemessen an `x=491.032&y=516.016`: nur „Grafenmark Ferdok"). Der
+  Endpunkt macht deshalb zusätzlich den `parent_id`-Lauf, den das Haus für
+  Siedlungen längst benutzt (`api/app/map-features.php`, ~Zeile 780–815): ab dem
+  tiefsten Punkttest-Treffer aufwärts durch `political_territory.parent_id`,
+  gedeckelt bei 12 Stufen, mit Besuchsriegel gegen zyklische Elterndaten
+  (`avesmapsWhatIsHereAncestorChain`/`avesmapsWhatIsHereReadAncestors`,
+  `api/_internal/app/what-is-here.php`). Der Punkttest bleibt dafür zuständig, WO
+  die Kette beginnt (und deckt den seltenen Fall mehrerer eigens gezeichneter
+  Ebenen ab, z. B. Baronie UND Grafschaft beide mit eigener Fläche); der
+  `parent_id`-Lauf ergänzt nur, was darüber liegt.
 - 🔴 **Keine Zoom-Filterung.** Der Layer-Endpunkt kappt nach `min_zoom/max_zoom`,
   weil er zeichnet. Hier wird nicht gezeichnet: das Kaiserreich rendert nur auf
   Zoom 0–1, ist aber auch auf Zoom 5 das Reich dieses Punktes.
-- Zeitbezug wie beim Layer: `valid_from_bf`/`valid_to_bf` gegen `year_bf`
-  (Vorgabe: das laufende Jahr der App), `is_active = 1`.
+- Zeitbezug beim GEZEICHNETEN Treffer wie beim Layer: `valid_from_bf`/`valid_to_bf`
+  (auf `political_territory_geometry`) gegen `year_bf` (Vorgabe: das laufende Jahr
+  der App). ⚠️ **Der `parent_id`-Lauf der Vorfahren filtert NICHT nach `year_bf`** —
+  bewusste Entscheidung (Fix-Runde 3): er folgt `parent_id` als Organigramm, genau
+  wie die Siedlungs-Vorlage in `map-features.php` (die über `wiki_key` immer den
+  aktuellsten Knoten wählt, unabhängig vom betrachteten Jahr). Ein Filter auf
+  `political_territory.valid_from_bf`/`valid_to_bf` wäre hier riskanter als
+  nützlich gewesen: gemessen tragen zwei der drei betroffenen Vorfahren
+  `valid_to_bf = NULL`, und ein Filter hätte bei jeder Zeile mit enger oder
+  lückenhaft gepflegter Zeitspanne die Kette erneut lautlos abgeschnitten — dasselbe
+  Fehlerbild wie der eigentliche Befund dieser Runde, nur eine Ebene höher.
 - 💣 **Kein DDL, keine `information_schema`-Sonde.** Dieser Endpunkt liegt auf
   einem Besucherpfad; genau davor warnt AGENTS §10 bei `territories-endpoint.php`.
 - 🔴 **Die Derographie liefert KEINE Lore.** Ihre Fläche heißt „Aventurien", und

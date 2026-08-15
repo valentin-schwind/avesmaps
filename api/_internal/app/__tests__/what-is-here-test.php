@@ -78,6 +78,62 @@ foreach ($payload as $stufe) {
 }
 assert(avesmapsWhatIsHereTerritoryPayload([]) === [], 'kein Treffer -> leere oeffentliche Kette');
 
+// ---------------------------------------------------------------- DIE VORFAHRENKETTE -------------
+// 🔴 Fix-Runde 3: der Live-Befund war „nur EINE Stufe statt vier" -- Grafschaft/Fuerstentum/
+// Kaiserreich sind ABGELEITETE Aussengrenzen ohne eigene Geometrie und fielen durch die reine
+// Trefferlisten-Ordnung oben (avesmapsWhatIsHereOrderTerritories) strukturell durch. Diese Zusicherungen
+// pruefen die reine Haelfte des Elternlaufs (avesmapsWhatIsHereAncestorChain) -- eine Knotenmenge
+// (id -> Zeile) plus eine Start-id, keine Datenbank noetig.
+function avesmapsWhatIsHereTestKnoten(int $id, int $parentId, string $name): array
+{
+    return ['id' => $id, 'parent_id' => $parentId, 'public_id' => 'p-' . $id,
+        'wiki_key' => 'wiki:' . strtolower($name), 'name' => $name, 'short_name' => '',
+        'type' => '', 'coat_url' => ''];
+}
+
+// Vier Stufen, in richtiger Reihenfolge: Blatt -> Wurzel.
+$organigramm = [
+    539 => avesmapsWhatIsHereTestKnoten(539, 538, 'Grafenmark Ferdok'),
+    538 => avesmapsWhatIsHereTestKnoten(538, 491, 'Grafschaft Ferdok'),
+    491 => avesmapsWhatIsHereTestKnoten(491, 345, 'Fuerstentum Kosch'),
+    345 => avesmapsWhatIsHereTestKnoten(345, 0, 'Kaiserreich'),
+];
+$vierStufen = avesmapsWhatIsHereAncestorChain($organigramm, 539);
+assert(count($vierStufen) === 4, 'vier Knoten, vier Stufen -- der Live-Befund war eine');
+assert($vierStufen[0]['name'] === 'Grafenmark Ferdok', 'BLATT zuerst, wie bei der Trefferordnung');
+assert($vierStufen[1]['name'] === 'Grafschaft Ferdok', 'zweite Stufe -- hat KEINE eigene Geometrie');
+assert($vierStufen[2]['name'] === 'Fuerstentum Kosch', 'dritte Stufe');
+assert($vierStufen[3]['name'] === 'Kaiserreich', 'WURZEL zuletzt');
+
+// Ein Wurzelgebiet allein: EINE Stufe, kein Absturz.
+$nurWurzel = avesmapsWhatIsHereTestKnoten(345, 0, 'Kaiserreich');
+assert(avesmapsWhatIsHereAncestorChain([345 => $nurWurzel], 345) === [$nurWurzel],
+    'ein unabhaengiges Gebiet -- genau eine Stufe');
+
+// Ein Zyklus (defekte Elterndaten): bricht ab, statt zu haengen.
+$zyklus = [
+    1 => avesmapsWhatIsHereTestKnoten(1, 2, 'A'),
+    2 => avesmapsWhatIsHereTestKnoten(2, 1, 'B'), // B's Elternteil ist wieder A -- ein Ring
+];
+$zyklusErgebnis = avesmapsWhatIsHereAncestorChain($zyklus, 1);
+assert(count($zyklusErgebnis) === 2, 'der Ring bricht ab, sobald ein Knoten zum zweiten Mal drankaeme');
+assert($zyklusErgebnis[0]['name'] === 'A' && $zyklusErgebnis[1]['name'] === 'B',
+    'beide Ring-Knoten stehen einmal drin, in Laufreihenfolge');
+
+// Der Deckel bei 12: eine Kette aus 20 Knoten liefert hoechstens 12 Stufen.
+$langeKette = [];
+for ($i = 1; $i <= 20; $i++) {
+    $langeKette[$i] = avesmapsWhatIsHereTestKnoten($i, $i < 20 ? $i + 1 : 0, 'Stufe ' . $i);
+}
+$gedeckelt = avesmapsWhatIsHereAncestorChain($langeKette, 1);
+assert(count($gedeckelt) === 12, 'der Deckel greift bei 20 Knoten -- hoechstens 12 Stufen');
+assert($gedeckelt[0]['name'] === 'Stufe 1' && $gedeckelt[11]['name'] === 'Stufe 12',
+    'der Deckel schneidet am ENDE ab, die ersten 12 Stufen bleiben unveraendert');
+
+// Kein Treffer, keine Start-id in der Knotenmenge -> leere Kette, kein Fehler.
+assert(avesmapsWhatIsHereAncestorChain([], 539) === [], 'unbekannte Start-id -> leere Kette');
+assert(avesmapsWhatIsHereAncestorChain($organigramm, 0) === [], 'Start-id 0 (kein Elternteil) -> leere Kette');
+
 // ---------------------------------------------------------------- DIE LORE-SCHLUESSEL -----------
 
 $flaechen = [
@@ -165,7 +221,9 @@ assert(!str_contains($rumpf, 'avesmapsWhatIsHereTerritoryPayload('),
 // 💣 Kommentare vorher ausgeblendet ($bibliotheksQuelle von oben, DIE ECHTE PROBE) -- sonst waere die
 // Erklaerung hier selbst (die :x/:y mehrfach beim Namen nennt) ein falscher Treffer.
 preg_match_all('/\$pdo->prepare\(\s*\'(.*?)\'\s*\);/s', $bibliotheksQuelle, $sqlTreffer);
-assert(count($sqlTreffer[1]) === 2, 'zwei SQL-Abfragen erwartet -- Gebiete und Flaechen');
+// 🔴 Fix-Runde 3: seit avesmapsWhatIsHereReadAncestors() sind es DREI, nicht mehr zwei -- Gebiete,
+// Flaechen, und der parent_id-Einzelzeilen-Lauf der Herrschaftskette.
+assert(count($sqlTreffer[1]) === 3, 'drei SQL-Abfragen erwartet -- Gebiete, Flaechen, Vorfahrenlauf');
 foreach ($sqlTreffer[1] as $sql) {
     preg_match_all('/:[a-zA-Z_][a-zA-Z0-9_]*/', $sql, $platzhalterTreffer);
     assert(count($platzhalterTreffer[0]) > 0, 'die Abfrage traegt ueberhaupt benannte Platzhalter');
