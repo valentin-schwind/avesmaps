@@ -125,7 +125,10 @@ assert($last['distance'] < $airLine * 2.0, 'and nowhere near a x25 surcharge: ' 
 $offroadSpeed = (float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['groupFoot']['Querfeldein'];
 $roadLeg = $segments[0];
 assert(abs($roadLeg['time'] - $roadLeg['distance'] / $roadSpeed) < 1e-9, 'the road edge prices Strecke/Tempo');
-assert(abs($last['time'] - $last['distance'] / $offroadSpeed) < 1e-9, 'and so does the cross-country leg');
+// 🔴 …the cross-country one plus the length surcharge since 2026-08-15 (avesmapsOffroadRampFactor).
+// It is a multiplier, not a different unit; the road edge has none because it is not cross-country.
+assert(abs($last['time'] - ($last['distance'] / $offroadSpeed) * avesmapsOffroadRampFactor($airLine)) < 1e-9,
+    'and so does the cross-country leg, times its length surcharge: ' . $last['time']);
 
 // The diagnostic segment the API ships carries the flag through.
 $diagnostic = avesmapsBuildClientRouteDiagnosticSegments($segments);

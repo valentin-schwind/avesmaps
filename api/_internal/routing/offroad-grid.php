@@ -749,6 +749,34 @@ function avesmapsOffroadFinishPath(array $points, float $speed, ?string $factors
         }
     }
 
+    // 🔴 DER LAENGENAUFSCHLAG, UND ZWAR HIER. Dies ist der gemeinsame Abschluss ALLER
+    // Querfeldein-Erzeuger -- die gesuchte Etappe, der Mehrziel-Lauf und die trockene Gerade
+    // muenden alle hier hinein. Die Falle vom 14.08.2026 („die Sperre muss in jedem Erzeuger
+    // einzeln stehen") galt der Pruefung VOR dem Suchlauf; der Preis kommt danach, und deshalb
+    // genau einmal. Hier steht bewusst KEINE Zahl im Kommentar -- die Zahl war damals die Falle.
+    //
+    // ⚠️ Die SUCHE hat ohne den Aufschlag geordnet, und das ist richtig so: er haengt allein an
+    // der Gesamtlaenge und ordnet zwei Wege gleicher Laenge nicht um. Ein Gewicht, das vom bereits
+    // zurueckgelegten Weg abhinge, waere kein Dijkstra mehr.
+    //
+    // 💣 NUR DIE ZEIT. `distance` bleibt unangetastet -- wer den Aufschlag in die Laenge legte,
+    // machte aus 103 Meilen 157 und loege auf der Etappenkarte.
+    //
+    // 🔴 UND ER MISST DIE LUFTLINIE DER ETAPPE, NICHT DIE GELAUFENE STRECKE. Das ist keine
+    // Bequemlichkeit, sondern die Bedingung dafuer, dass „Schnellste" nicht luegt: die Suche
+    // ordnet OHNE den Aufschlag. Haenge er an der gelaufenen Laenge, bestrafte er nachtraeglich
+    // genau den Bogen, den die Suche zum Zeitsparen geschlagen hat -- gemessen an der Fixture von
+    // offroad-shortest-test.php kam der Zeitmodus danach auf 14,01 gegen 12,40 des
+    // Streckenmodus, also eine „schnellste" Etappe, die messbar langsamer war als eine
+    // verworfene. An der Luftlinie ist der Aufschlag fuer ein festes Endpunktpaar eine
+    // KONSTANTE, und eine Konstante verschiebt kein Minimum.
+    // ⭐ Nebenbei richtig: wer 20 Einheiten um einen See herum muss, zahlt nicht auch noch einen
+    // Laengenaufschlag fuer den See.
+    $luftlinie = count($points) >= 2
+        ? hypot($points[count($points) - 1][0] - $points[0][0], $points[count($points) - 1][1] - $points[0][1])
+        : 0.0;
+    $time *= avesmapsOffroadRampFactor($luftlinie);
+
     return [
         'points' => $points,
         'distance' => $distance,

@@ -141,8 +141,14 @@ assert($near($last[0], 7.7) && $near($last[1], 0.3), 'the last point is the real
 // matter: pricing this edge in real hours would make it three times dearer than every road it
 // competes with, and Dijkstra would refuse to use it; reading it as hours is the Faktor-3 trap that
 // already went live once.
-assert($near($straight['time'], $straight['distance'] / $speed, 1e-9),
-    'on level ground the cost is exactly Strecke/Tempo -- the same unit as a road edge');
+// 🔴 SINCE 2026-08-15 THERE IS ONE FACTOR ON TOP: the length surcharge (`avesmapsOffroadRampFactor`,
+// terrain-factor.php). It does NOT change the unit -- it is a plain multiplier on the leg's time --
+// so everything the paragraph above says still holds. It is written out here rather than folded into
+// a single number so that a later reader can see which half is the unit and which half is the price.
+// ⚠️ It reads the AIR LINE, not the walked length: only then is it a constant for the search, and
+// only then can „fastest" not return a leg that is slower than one it rejected.
+assert($near($straight['time'], ($straight['distance'] / $speed) * avesmapsOffroadRampFactor($airLine), 1e-9),
+    'on level ground the cost is Strecke/Tempo times the length surcharge -- the same unit as a road edge');
 
 // ============================================================ 5. height: the flat way wins
 

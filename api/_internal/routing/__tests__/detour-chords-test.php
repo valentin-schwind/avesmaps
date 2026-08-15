@@ -117,9 +117,17 @@ assert($typen === ['Querfeldein', 'Strasse'],
 assert($neu['cost'] < $report['graph_cost_units'],
     'und das ist billiger als der reine Netzweg: ' . $neu['cost'] . ' gegen ' . $report['graph_cost_units']);
 
-// ⭐ Die Aufteilung ist auch billiger als die ganze Reise querfeldein -- deshalb braucht es KEINEN
-// Zuschlag, der Querfeldein künstlich verteuert. Die fehlende Kante war das ganze Problem.
-$ganzQuer = hypot(0.0 - 0.0, 30.0 - 0.0) / (float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['groupFoot']['Querfeldein'];
+// ⭐ Die Aufteilung ist auch billiger als die ganze Reise querfeldein. Die fehlende Kante war HIER
+// das ganze Problem.
+// 🔴 DIESE ZEILE SAGTE BIS ZUM 15.08.2026 „deshalb braucht es KEINEN Zuschlag, der Querfeldein
+// künstlich verteuert". Das war für diesen Fall richtig und als allgemeiner Satz falsch: gemessen
+// an ?s=DnbLPQq2 schlug eine Querfeldein-Etappe über 103 Meilen die Straße daneben, weil das
+// Straßennetz dort 72 % Umweg macht und im Korridor keine Landschaft liegt. Seither gibt es den
+// Längenaufschlag (avesmapsOffroadRampFactor). Er ändert an DIESEM Fall nichts -- die Aufteilung
+// gewinnt weiterhin --, aber die Vergleichszahl muss ihn tragen, sonst steht links eine Reise MIT
+// Aufschlag gegen eine handgerechnete OHNE.
+$ganzQuer = hypot(0.0 - 0.0, 30.0 - 0.0) / (float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['groupFoot']['Querfeldein']
+    * avesmapsOffroadRampFactor(30.0);
 assert($neu['cost'] < $ganzQuer,
     'die Aufteilung schlägt die reine Querfeldein-Reise: ' . $neu['cost'] . ' gegen ' . $ganzQuer);
 

@@ -33,7 +33,7 @@ Geländefaktor 1,0 und 0 Höhenrastern — 103 Meilen freie, ebene, trockene Wie
 Eine Querfeldein-Etappe wird mit ihrer eigenen Länge langsamer:
 
 ```
-zeit_final = zeit_gemessen × min(deckel, 1 + steigung × strecke_in_meilen)
+zeit_final = zeit_gemessen × min(deckel, 1 + steigung × luftlinie_der_etappe_in_meilen)
 ```
 
 - **linear**, ohne Freibetrag (Owner-Entscheid). Eine kurze Abkürzung zahlt fast nichts, eine
@@ -44,6 +44,25 @@ zeit_final = zeit_gemessen × min(deckel, 1 + steigung × strecke_in_meilen)
   mit einer Ortschaft dazwischen zahlen weniger als eine durchgehende gleicher Länge — und das
   ist die Absicht, nicht ein Schlupfloch: bestraft wird das ununterbrochene weglose Marschieren
   ohne Nachschub und ohne Orientierungspunkt. Wer unterwegs einen Ort berührt, rastet dort.
+
+### 🔴 Warum die LUFTLINIE und nicht die gelaufene Strecke
+
+Der erste Bau maß die gelaufene Strecke. Ein bestehender Test hat ihn widerlegt, und der Befund
+ist tragend: **die Suche ordnet ohne den Aufschlag.** Hängt er an der gelaufenen Länge, bestraft
+er nachträglich genau den Bogen, den der A\* zum Zeitsparen geschlagen hat. Gemessen an der
+Fixture von `offroad-shortest-test.php` (ein langsamer Streifen quer im Weg): der Zeitmodus ging
+außen herum und kam auf **14,01**, der Streckenmodus mitten hindurch auf **12,40** — eine
+„schnellste" Etappe, die messbar langsamer ist als eine verworfene. Genau die Lüge, die der
+Abschnitt darunter verhindern soll.
+
+An der Luftlinie ist der Aufschlag für ein festes Endpunktpaar eine **Konstante**, und eine
+Konstante verschiebt kein Minimum: die Suche bleibt exakt optimal, die gemeldete Zeit bleibt
+ehrlich. ⭐ Nebenbei richtig: wer 20 Einheiten um einen See herum muss, zahlt nicht auch noch
+einen Längenaufschlag für den See.
+
+⚠️ Der Preis: eine Etappe, die sich zwischen nahen Endpunkten weit windet, zahlt nur für ihre
+Luftlinie. Das ist in Kauf genommen — solche Etappen sind über ihre Streckenzeit ohnehin teuer,
+und die Alternative wäre ein Optimierer, der nachweislich lügt.
 
 ### Warum der Aufschlag in die ZEIT geht und nicht ins Gewicht
 
@@ -87,26 +106,36 @@ eingestellten Werte an `avesmapsOffroadRampPrime()` weiter — dasselbe Muster, 
 
 ## 4. Die Werte
 
-**Vorschlag: Steigung 0,5 % je Meile, Deckel 2,0.**
+**Steigung 0,6 % je Meile Luftlinie, Deckel 2,0.**
 
-Wirkung auf die Etappe (Faktor auf die Reisezeit):
+⭐ Die 0,6 sind **gemessen, nicht gewählt**: die gemeldete Route braucht mindestens Faktor 1,4029
+(14,968 × Faktor > 21,00). Bei 0,5 % kämen 1,4635 heraus — 4,3 % Luft, und das liegt im Rauschen
+der Straßenseite, weil die 21,00 über Moorbrück/Gôrmel gemessen sind und ein besseres
+Straßenpaar existieren kann. Bei 0,6 % sind es 1,5562 und 11 % Luft.
 
-| Etappe | Meilen | Faktor |
+Wirkung auf die Etappe (Faktor auf die Reisezeit, **Luftlinie**):
+
+| Etappe | Meilen Luftlinie | Faktor |
 |---|---|---|
-| kurze Abkürzung | 10 | 1,05 |
-| die Abnahme-Route vom 15.08. (Gelände-Teil) | 36,65 | 1,18 |
-| ihre alte Fassung (eine Etappe) | 42,06 | 1,21 |
-| **die gemeldete Route** | **103,28** | **1,52** |
-| Deckel erreicht | ab 200 | 2,00 |
+| kurze Abkürzung | 10 | 1,06 |
+| die Abnahme-Route vom 15.08. (Gelände-Teil) | 36,0 | 1,22 |
+| **die gemeldete Route** | **92,7** | **1,56** |
+| Deckel erreicht | ab 166,7 | 2,00 |
 
-Wirkung auf die Wahl (⚠️ **gerechnet** aus den veröffentlichten Zahlen, nicht gemessen — §8 misst nach):
+Wirkung auf die Wahl:
 
-- **Gemeldete Route:** 14,968 × 1,52 = **22,7** gegen Straße 21,00 → die Straße gewinnt wieder,
-  mit rund 8 % Luft.
-- **Abnahme-Route vom 15.08.** (Salmingen → Kartenpunkt): die neue Fassung (7,80 Meilen Straße +
-  36,65 Gelände) trägt weniger Gelände als die alte (42,06 Meilen am Stück). Ein Aufschlag, der
-  mit der Länge wächst, trifft die **alte** härter — der Vorsprung 6,21 gegen 6,54 wird größer.
-  🔴 Der Abgangspunkt vom 15.08. wird durch den Aufschlag nicht zurückgenommen, sondern gestärkt.
+- **Gemeldete Route** (gerechnet aus der Live-Messung, §8 misst nach): 14,968 × 1,5562 = **23,3**
+  gegen Straße 21,00 → die Straße gewinnt wieder, mit rund 11 % Luft.
+- **Abnahme-Route vom 15.08.** (`abgangspunkt-test.php`, **gemessen** am 15.08.2026 durch zwei
+  Läufe derselben Fixture, einmal mit und einmal ohne Aufschlag):
+
+  | | Aufteilung (Straße + Gelände) | direkt querfeldein | Abstand |
+  |---|---|---|---|
+  | ohne Aufschlag | 7,8844 | 8,7568 | 11,1 % |
+  | mit Aufschlag | 8,8345 | 11,3838 | **28,8 %** |
+
+  🔴 Der Abgangspunkt vom 15.08. wird durch den Aufschlag nicht zurückgenommen, sondern
+  gestärkt — sein Vorsprung hat sich mehr als verdoppelt.
 
 ## 5. Die GA
 
@@ -118,7 +147,7 @@ sagt, und weicht nur dort ab, wo sie schweigt:
 - Die GA beschreibt einen Geländefaktor, keine **Expedition**. Über 100 Meilen weglos ohne
   Nachschub, ohne Rastplatz und ohne Orientierungspunkt ist kein Fall, den die Tabelle abdeckt.
 - Der **Deckel** ist die Zusicherung, dass wir sie nie ganz verlassen: schlimmstenfalls 0,375 der
-  Straße — die Hälfte des GA-Werts —, und das erst nach 200 weglosen Meilen.
+  Straße — die Hälfte des GA-Werts —, und das erst nach 167 weglosen Meilen Luftlinie.
 
 ## 6. Das Fenster „Tempowerte"
 
@@ -126,7 +155,7 @@ Ein neuer Abschnitt **„Querfeldein-Aufschlag"** mit zwei einstellbaren Zeilen:
 
 | Zeile | Einheit | Vorgabe |
 |---|---|---|
-| Steigung je Meile | % | 0,5 |
+| Steigung je Meile Luftlinie | % | 0,6 |
 | Höchstaufschlag | × | 2,0 |
 
 ⚠️ Sie stehen **nicht** in `avesmapsTravelValuesSourceTable()` — das ist die reine GA-Quelle, und

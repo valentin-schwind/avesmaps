@@ -136,7 +136,11 @@ function avesmapsTerrainLeistungsFactor(?float $ascentSchritt, ?float $steepDesc
  *
  * Entwurf: docs/superpowers/specs/2026-08-15-querfeldein-laengenaufschlag-design.md
  */
-const AVESMAPS_OFFROAD_RAMP_PER_MILE = 0.005;
+// ⭐ 0,6 % je Meile, gemessen und nicht gewaehlt: die gemeldete Route (?s=DnbLPQq2) kostet
+// querfeldein 14,968 gegen 21,00 ueber die Strasse, braucht also mindestens Faktor 1,4029. Bei
+// 0,5 % kaeme 1,4635 heraus -- 4,3 % Luft, und das liegt im Rauschen der Strassenseite. Bei 0,6 %
+// sind es 1,5562 und 11 % Luft. Der Deckel 2,0 wird damit bei 167 Meilen Luftlinie erreicht.
+const AVESMAPS_OFFROAD_RAMP_PER_MILE = 0.006;
 const AVESMAPS_OFFROAD_RAMP_MAX = 2.0;
 
 /** Der geltende Aufschlag dieser Anfrage -- `null` heisst „die Konstante". */
