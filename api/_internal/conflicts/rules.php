@@ -45,6 +45,50 @@ const AVESMAPS_CONFLICT_TYPE_LABELS = [
 ];
 
 /**
+ * REIN: aus einer rohen map_features-Zeile die Konfliktpartei bauen -- oder null, wenn sie keine ist
+ * (unbekannter Typ, kein Name, oder eine Kreuzung). Kein DB-Zugriff, keine Seiteneffekte -- deshalb
+ * ohne PDO direkt testbar (anders als avesmapsConflictLoadMapRows() selbst, die eine Verbindung
+ * braucht und in den PHP-Tests hier nie erreicht wurde).
+ *
+ * @param array{public_id:mixed,name:mixed,feature_type:mixed,feature_subtype:mixed,properties_json:mixed,geometry_json:mixed} $dbRow
+ * @return array{type:string,id:string,label:string,subtype:string,wiki_url:string,position:mixed,claim_source:string,no_article:bool}|null
+ */
+function avesmapsConflictBuildMapRow(array $dbRow): ?array {
+    $type = AVESMAPS_CONFLICT_FEATURE_TYPES[(string) ($dbRow['feature_type'] ?? '')] ?? '';
+    if ($type === '') {
+        return null;
+    }
+    $name = trim((string) ($dbRow['name'] ?? ''));
+    if ($name === '' || str_starts_with($name, 'Kreuzung')) {
+        return null;
+    }
+    $properties = json_decode((string) ($dbRow['properties_json'] ?? '{}'), true);
+    if (!is_array($properties)) {
+        $properties = [];
+    }
+    // The stored claim, in the order the editors write it. No enrichment, no fallback guessing.
+    // WHERE it comes from is carried along: only the plain field can be cleared from here.
+    // A block-borne claim hangs off the whole infobox payload and belongs to its own editor --
+    // see repair.php. Welche Nester es gibt, steht in core.php und NUR dort.
+    $claim = avesmapsConflictExtractClaim($properties);
+
+    return [
+        'type' => $type,
+        'id' => (string) ($dbRow['public_id'] ?? ''),
+        'label' => $name,
+        'subtype' => (string) ($dbRow['feature_subtype'] ?? ''),
+        'wiki_url' => $claim['wiki_url'],
+        'position' => avesmapsConflictFirstPosition($dbRow['geometry_json'] ?? null),
+        'claim_source' => $claim['claim_source'],
+        // Ein Editor hat evtl. festgehalten, dass es im Wiki nichts dazu gibt (Knopf "Kein
+        // Wiki-Eintrag", oder das Haekchen im Kraftlinien-Editor, AVESMAPS_CONFLICT_NO_ARTICLE_FLAG
+        // in repair.php). Der Feldname wird hier als Zeichenkette gelesen, nicht ueber die Konstante
+        // -- rules.php laedt repair.php nicht (umgekehrt), ein Require dorthin baute eine Ringabhaengigkeit.
+        'no_article' => !empty($properties['wiki_no_article']),
+    ];
+}
+
+/**
  * Load every map feature that can claim a wiki identity, with its RAW stored wiki_url.
  *
  * @return list<array{type:string,id:string,label:string,subtype:string,wiki_url:string}>
@@ -61,36 +105,10 @@ function avesmapsConflictLoadMapRows(PDO $pdo): array {
 
     $rows = [];
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $type = AVESMAPS_CONFLICT_FEATURE_TYPES[(string) $row['feature_type']] ?? '';
-        if ($type === '') {
-            continue;
+        $built = avesmapsConflictBuildMapRow($row);
+        if ($built !== null) {
+            $rows[] = $built;
         }
-        $name = trim((string) ($row['name'] ?? ''));
-        if ($name === '' || str_starts_with($name, 'Kreuzung')) {
-            continue;
-        }
-        $properties = json_decode((string) ($row['properties_json'] ?? '{}'), true);
-        if (!is_array($properties)) {
-            $properties = [];
-        }
-        // The stored claim, in the order the editors write it. No enrichment, no fallback guessing.
-        // WHERE it comes from is carried along: only the plain field can be cleared from here.
-        // A block-borne claim hangs off the whole infobox payload and belongs to its own editor --
-        // see repair.php. Welche Nester es gibt, steht in core.php und NUR dort.
-        $claim = avesmapsConflictExtractClaim($properties);
-        $wikiUrl = $claim['wiki_url'];
-        $claimSource = $claim['claim_source'];
-
-        $rows[] = [
-            'type' => $type,
-            'id' => (string) $row['public_id'],
-            'label' => $name,
-            'subtype' => (string) ($row['feature_subtype'] ?? ''),
-            'wiki_url' => $wikiUrl,
-            'position' => avesmapsConflictFirstPosition($row['geometry_json'] ?? null),
-            'claim_source' => $claimSource,
-            'no_article' => !empty($properties['wiki_no_article']),
-        ];
     }
 
     return $rows;

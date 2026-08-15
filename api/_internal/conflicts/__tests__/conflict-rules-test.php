@@ -190,6 +190,53 @@ assert(count(avesmapsConflictRuleMissingKey([
     ['type' => 'location', 'id' => 'n4', 'label' => 'Ohne Schluessel', 'subtype' => 'dorf', 'wiki_url' => ''],
 ])) === 1);
 
+// ---- avesmapsConflictBuildMapRow(): reiner Zeilenbau, ohne PDO erreichbar ------------------------
+// avesmapsConflictLoadMapRows() selbst kommt an dieser Grenze nicht vorbei -- die Funktion braucht
+// eine PDO-Verbindung und wurde von diesem Test nie gerufen. Ohne die Herausloesung waere jede
+// Mutation in ihrem Rumpf (Tippfehler im Feldnamen, vertauschtes true/false) unsichtbar
+// (Pruefungs-Befund zu Aufgabe 3).
+$rawWithFlag = [
+    'public_id' => 'n5', 'name' => 'Satteldorf', 'feature_type' => 'location', 'feature_subtype' => 'dorf',
+    'properties_json' => json_encode(['wiki_no_article' => true]), 'geometry_json' => null,
+];
+$builtFlag = avesmapsConflictBuildMapRow($rawWithFlag);
+assert($builtFlag !== null);
+assert($builtFlag['no_article'] === true);              // toetet die Mutation "no_article immer false"
+
+$rawWithoutFlag = $rawWithFlag;
+$rawWithoutFlag['properties_json'] = json_encode(['wiki_url' => 'https://w/wiki/Satteldorf']);
+$builtNoFlag = avesmapsConflictBuildMapRow($rawWithoutFlag);
+assert($builtNoFlag !== null);
+assert($builtNoFlag['no_article'] === false);           // toetet die Mutation "no_article immer true"
+
+// Unbekannter feature_type -> keine Konfliktpartei (Kreuzungen tragen keine Wiki-Identitaet).
+assert(avesmapsConflictBuildMapRow([
+    'public_id' => 'n6', 'name' => 'Kreuzungsknoten', 'feature_type' => 'crossing', 'feature_subtype' => '',
+    'properties_json' => '{}', 'geometry_json' => null,
+]) === null);
+
+// Leerer Name -> raus.
+assert(avesmapsConflictBuildMapRow([
+    'public_id' => 'n7', 'name' => '', 'feature_type' => 'location', 'feature_subtype' => 'dorf',
+    'properties_json' => '{}', 'geometry_json' => null,
+]) === null);
+
+// Kreuzungs-Praefix im Namen -> raus, unabhaengig vom feature_type.
+assert(avesmapsConflictBuildMapRow([
+    'public_id' => 'n8', 'name' => 'Kreuzung-42', 'feature_type' => 'path', 'feature_subtype' => 'Weg',
+    'properties_json' => '{}', 'geometry_json' => null,
+]) === null);
+
+// Kaputtes properties_json -> keine Ausnahme, sondern eine Zeile mit leerem Anspruch.
+$builtBroken = avesmapsConflictBuildMapRow([
+    'public_id' => 'n9', 'name' => 'Fragmentburg', 'feature_type' => 'location', 'feature_subtype' => 'dorf',
+    'properties_json' => '{not valid json', 'geometry_json' => null,
+]);
+assert($builtBroken !== null);
+assert($builtBroken['wiki_url'] === '');
+assert($builtBroken['claim_source'] === '');
+assert($builtBroken['no_article'] === false);
+
 // ---- fingerprints are stable across runs and distinct per case ----------------------------------
 $again = avesmapsConflictRuleSharedArticle($rows);
 assert($again[0]['fingerprint'] === $shared[0]['fingerprint']);
