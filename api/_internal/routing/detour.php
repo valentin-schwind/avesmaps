@@ -182,6 +182,19 @@ function avesmapsRouteChordCandidates(array $chain, float $speed, float $thresho
             if ($ratio <= $threshold) { continue; }
             $best = $air / $speed;
             if ($best >= $graphTime) { continue; }
+            // 🔴 KEINE SEHNE AN EINEN KARTENPUNKT. Eine Sehne, die an `__offroad_from`/`__offroad_to`
+            // endet, ist nichts anderes als eine ZWEITE Anbindung dieses Punktes -- und Anbindungen
+            // gehoeren seit dem 15.08.2026 allein der Ausstiegsregel: genau ein Ausstieg, der
+            // naechste erreichbare Punkt des Netzes.
+            //
+            // 🪤 Live gemessen am 15.08.2026 (Kartenpunkt 475.458/479.833 -> 521.542/488.083): die
+            // Anbindung bot EINEN Ausstieg bei 5,04 Einheiten an, und die Reise nahm trotzdem
+            // `offroad-detour-12-21` -- Jurios -> Ziel, 34,4 Meilen querfeldein. Die Ausstiegsregel
+            // war eingebaut und wirkungslos, weil sie nur einen von vier Erzeugern band.
+            if (str_starts_with((string) $chain[$i]['name'], AVESMAPS_ROUTE_OFFROAD_NODE_PREFIX)
+                || str_starts_with((string) $chain[$j]['name'], AVESMAPS_ROUTE_OFFROAD_NODE_PREFIX)) {
+                continue;
+            }
             $candidates[] = [
                 'from_index' => $i, 'to_index' => $j,
                 'from_node' => $chain[$i]['name'], 'to_node' => $chain[$j]['name'],

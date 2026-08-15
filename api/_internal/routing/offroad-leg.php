@@ -449,6 +449,45 @@ function avesmapsAddOffroadEdge(array &$graph, string $fromName, string $toName,
  * ⭐ Die Kante ist ein ANGEBOT, keine Vorschrift: sie kostet, was sie kostet, und der Dijkstra nimmt
  * sie nur, wenn sie guenstiger ist als der Umweg ueber die Strasse.
  */
+/**
+ * PURE: darf es die direkte Kante zwischen zwei Kartenpunkten ueberhaupt geben?
+ *
+ * 🔴 DER ANDERE KARTENPUNKT IST EIN KANDIDAT WIE JEDER NETZPUNKT. Seit dem 15.08.2026 bindet die
+ * Ausstiegsregel jede Anbindung: genau ein Ausstieg, der naechste erreichbare. Die direkte Kante ist
+ * eine Anbindung wie jede andere -- sie entsteht, wenn der andere Punkt fuer mindestens EINEN der
+ * beiden naeher liegt als dessen naechster Netzpunkt.
+ *
+ * 🪤 OHNE DIESE SCHRANKE WAR DIE AUSSTIEGSREGEL UNTER „KUERZESTE" WIRKUNGSLOS. Dort ist das Gewicht
+ * die STRECKE, und eine Gerade ist per Definition kuerzer als jede Strasse -- die direkte Kante
+ * gewann damit IMMER. Live gemessen (Kartenpunkt 475.458/479.833 -> 521.542/488.083): EINE Etappe
+ * ueber 148,5 Meilen querfeldein bei 140,4 Meilen Luftlinie. Die Kuerzeste war zum Drachenflug
+ * geworden, den die Karte ohnehin daneben anzeigt.
+ *
+ * ⚠️ `max`, nicht `min`: es genuegt, dass der andere Punkt fuer EINEN der beiden die naechste
+ * Anbindung ist. Liegt A dicht an einer Strasse und B weit ab, ist A fuer B trotzdem das
+ * Naechstliegende -- und genau dann gehoert die Kante gebaut.
+ * ⚠️ Ein Bericht ohne Ausstieg zaehlt als „unendlich weit": dann ist die direkte Kante die einzige
+ * Verbindung, die dieser Punkt ueberhaupt hat, und sie zu verweigern hiesse, ihn abzuschneiden.
+ */
+function avesmapsOffroadDirectEdgeAllowed(
+    array $fromReport,
+    array $toReport,
+    array $fromPoint,
+    array $toPoint
+): bool {
+    $naechster = static function (array $bericht): float {
+        $knoten = $bericht['exit_nodes'] ?? null;
+
+        return is_array($knoten) && $knoten !== [] ? (float) $knoten[0]['air_distance'] : INF;
+    };
+    $abstand = hypot(
+        (float) $fromPoint['x'] - (float) $toPoint['x'],
+        (float) $fromPoint['y'] - (float) $toPoint['y']
+    );
+
+    return $abstand <= max($naechster($fromReport), $naechster($toReport)) + 1e-9;
+}
+
 function avesmapsConnectOffroadPoints(
     array &$clientGraph,
     array $request,

@@ -274,8 +274,28 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	// 🔴 SIND BEIDE ENDEN KARTENPUNKTE, BEKOMMEN SIE EINE DIREKTE KANTE. Ohne sie haengt jeder Punkt
 	// nur an Graphknoten, und die Reise vom einen zum anderen liefe hinunter auf einen Weg und wieder
 	// hinauf -- ein V statt einer Linie, auch wenn die Punkte nebeneinander liegen. Owner-Meldung.
-	// Die Kante ist ein Angebot: der Dijkstra nimmt sie nur, wenn sie guenstiger ist.
-	if (isset($offroad['from'], $offroad['to'])) {
+	//
+	// 🔴 ABER SIE FOLGT SEIT DEM 15.08.2026 DERSELBEN REGEL WIE JEDE ANDERE ANBINDUNG: der andere
+	// Kartenpunkt ist ein KANDIDAT wie jeder Netzpunkt, und die Kante entsteht nur, wenn er fuer
+	// mindestens einen der beiden naeher liegt als dessen naechster Netzpunkt.
+	//
+	// 🪤 Ohne diese Schranke war die Ausstiegsregel unter „Kuerzeste" wirkungslos: dort ist das
+	// Gewicht die STRECKE, und eine Gerade ist per Definition kuerzer als jede Strasse -- die
+	// direkte Kante gewann damit IMMER. Live gemessen (Kartenpunkt 475.458/479.833 ->
+	// 521.542/488.083): EINE Etappe ueber 148,5 Meilen querfeldein bei 140,4 Meilen Luftlinie. Die
+	// Kuerzeste war zum Drachenflug geworden, den die Karte ohnehin daneben anzeigt.
+	// Owner, woertlich: „hier macht er scheiss" -- und der einzige Unterschied zum Fall, den er
+	// „richtig" nannte, war `pathType=shortest`.
+	//
+	// ⚠️ `max`, nicht `min`: es genuegt, dass der andere Punkt fuer EINEN der beiden die naechste
+	// Anbindung ist. Liegt A dicht an einer Strasse und B weit ab, ist A fuer B trotzdem das
+	// Naechstliegende -- und genau dann gehoert die Kante gebaut.
+	// ⭐ Die Regel wohnt in offroad-leg.php, neben dem Erzeuger, den sie bindet -- hier stuende sie
+	// als Verschluss im Aufrufer und waere nicht pruefbar.
+	if (isset($offroad['from'], $offroad['to'])
+		&& avesmapsOffroadDirectEdgeAllowed(
+			$offroad['from'], $offroad['to'], $request['from_point'], $request['to_point']
+		)) {
 		$offroad['direct'] = avesmapsConnectOffroadPoints(
 			$clientGraph,
 			$request,
