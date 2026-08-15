@@ -345,8 +345,14 @@ function fieldSample(line, key) {
 // ⚠️ Der mittlere Satz sagt, was MESSBAR ist (der Lauf hat nichts abgelegt) und was zu tun ist
 // (Dump erneut holen) -- nicht, WARUM, denn das weiss diese Seite nicht.
 function wikiListHint() {
+	// 🔴 "Kein abgeschlossener LAUF" heisst NICHT "keine Dump-Datei". Am 15.08.2026 stand hier
+	// "Noch kein Dump geholt", waehrend die Datei laengst da war -- der Satz schickte zum falschen
+	// Knopf. Was fehlt, ist das EINLESEN des Dumps in den Zwischenspeicher.
+	if (dumpState.problem === "fehler") {
+		return "Die Artikelliste konnte nicht geladen werden — das ist ein Fehler, kein fehlender Dump. Eine Adresse von Hand einzufügen geht trotzdem.";
+	}
 	if (!dumpState.has_run) {
-		return "Noch kein Dump geholt — deshalb keine Artikel zur Auswahl. Erst „📥 Dump holen“ laufen lassen.";
+		return "Kein abgeschlossener Dump-Lauf — die Dump-Datei kann da sein, eingelesen ist sie noch nicht. Deshalb keine Artikel zur Auswahl.";
 	}
 	// article_count kommt aus derselben Quelle wie die Liste; die Liste ist der Rueckfall, falls
 	// ein aelterer Leseweg den Schluessel nicht mitschickt.

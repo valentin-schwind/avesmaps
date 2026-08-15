@@ -154,7 +154,11 @@ try {
     // Die Vorschlagsliste des Editors. AUS DERSELBEN QUELLE wie der Abgleich -- sonst koennten
     // Vorschlag und Ergebnis verschiedener Meinung sein. 23 Zeilen, kein Blaettern noetig.
     $wikiArticles = [];
-    $dumpState = ['has_run' => false, 'completed_at' => '', 'article_count' => 0];
+    // 'problem' unterscheidet die ZWEI Wege in den leeren Zustand. Ohne ihn sagte die Oberflaeche
+    // bei jedem Fehler "noch kein Dump geholt" -- am 15.08.2026 live gemessen, waehrend die
+    // Dump-DATEI laengst da war: was fehlte, war ein abgeschlossener Dump-LAUF, und der Satz
+    // schickte den Editor zum falschen Knopf.
+    $dumpState = ['has_run' => false, 'completed_at' => '', 'article_count' => 0, 'problem' => ''];
     try {
         $runId = avesmapsWikiDumpSyncKindResolveDumpRunId($pdo);
         $sandboxRows = avesmapsWikiDumpSyncKindFetchRows($pdo, $runId, [AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE], 0, 5000);
@@ -171,12 +175,19 @@ try {
             'has_run' => true,
             'completed_at' => (string) ($runRow['completed_at'] ?? ''),
             'article_count' => count($wikiArticles),
+            'problem' => '',
         ];
+    } catch (RuntimeException) {
+        // Der ERWARTETE Fall: es gibt keinen abgeschlossenen dump_read-Lauf
+        // (avesmapsWikiDumpSyncKindResolveDumpRunId wirft dann). 🔴 Das heisst NICHT "keine
+        // Dump-Datei" -- die kann laengst geholt sein; eingelesen ist sie deswegen noch nicht.
+        $dumpState['problem'] = 'kein_lauf';
     } catch (Throwable) {
-        // 💣 Ist noch nie ein Dump gelaufen, WIRFT die Aufloesung der run_id. Ohne diesen Fang
-        // stuerbe der Leseweg, der heute den ganzen Editor fuellt -- das Fenster waere leer, und
-        // niemand suchte die Ursache bei einer Vorschlagsliste. Leere Liste ist die richtige
-        // Antwort; has_run:false sagt der Oberflaeche, wie sie das erklaeren soll.
+        // 💣 Alles andere. Ohne diesen Fang stuerbe der Leseweg, der den ganzen Editor fuellt --
+        // das Fenster waere leer, und niemand suchte die Ursache bei einer Vorschlagsliste. Aber
+        // er darf sich NICHT als "kein Lauf" ausgeben: ein stiller Fang, der eine plausible
+        // falsche Auskunft erzeugt, schickt den Editor tagelang zum falschen Knopf.
+        $dumpState['problem'] = 'fehler';
     }
 
     avesmapsJsonResponse(200, [
