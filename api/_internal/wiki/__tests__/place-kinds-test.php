@@ -146,4 +146,33 @@ sort($sorted, SORT_STRING);
 assert($keys === $sorted);
 echo "ranking ok\n";
 
+// ------------------------------------------------- DIE NEUEN LEHREINRICHTUNGEN ---
+// Discord #60: die Artikel tragen |Art=[[Magierakademie]]. Der Art-Fallback in
+// avesmapsWikiDumpParseBuildingPage entklammert das (settlements.php:586) und legt den Namen
+// als building_type ab -- er muss also im Katalog stehen, sonst rastet avesmapsNormalizePlaceKind
+// ihn nicht ein und der Editor bietet ihn nicht an.
+$katalogLehr = avesmapsPlaceKindCatalog();
+foreach ([
+    'Magierakademie', 'Kriegerakademie', 'Kadettenschule', 'Gelehrtenschule', 'Kampfschule',
+    'Kapitänsschule', 'Gladiatorenschule', 'Handwerkerschule', 'Kunstschule', 'Kurtisanenschule',
+    'Novadi-Rechtsschule', 'Schwertgesellenschule', 'Universität', 'Fakultät', 'Schule',
+    'Lehreinrichtung', 'Werft', 'Furt',
+] as $kind) {
+    assert(in_array($kind, $katalogLehr, true), "Ortsart fehlt im Katalog: $kind");
+    assert(avesmapsNormalizePlaceKind(mb_strtolower($kind, 'UTF-8')) === $kind,
+        "Kleinschreibung rastet nicht ein: $kind");
+}
+
+// 🔴 Und die Gegenprobe, dass keiner der Neuen in den tragenden Kopf gerutscht ist. Der Assert
+// auf den Kopf selbst steht oben in dieser Datei und laeuft ohnehin mit.
+foreach (avesmapsPlaceKindLegacyPrefix() as $head) {
+    assert(!in_array($head, ['Magierakademie', 'Werft', 'Furt'], true),
+        'Ein neuer Name steht im tragenden Kopf');
+}
+
+// „Akademie" und „Kontor" standen schon vorher drin -- nicht doppelt eintragen.
+assert(count(array_keys(AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES, 'Akademie', true)) === 1);
+assert(count(array_keys(AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES, 'Kontor', true)) === 1);
+echo "lehreinrichtungen ok\n";
+
 echo "\nALL PLACE-KIND TESTS PASSED\n";

@@ -72,6 +72,24 @@ const AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES = [
     'Oase', 'Eshbathya', 'Hof', 'Hof (Thorwal)', 'Zwergenstadt', 'Wehrhof', 'Gut',
     'Unterirdische Siedlung', 'Tiefe Stadt', 'Schwimmende Siedlung', 'Elementare Stadt',
     'Planstadt',
+    // -------------------------------------------------------------------------------------------
+    // Lehreinrichtungen (Discord #60, angehaengt 2026-08-15,
+    // docs/superpowers/specs/2026-08-15-besondere-staetten-design.md).
+    //
+    // Sie tragen {{Infobox Lehreinrichtung}} und fielen bis dahin aus der Dump-Klassifizierung
+    // heraus -- 198 Artikel, klassifiziert als nichts. Ihr |Art=-Feld nennt genau diese Namen
+    // ([[Magierakademie]], [[Kadettenschule]], …), und der Art-Fallback entklammert es.
+    //
+    // Quelle: die 15 Unterkategorien von „Kategorie:Lehreinrichtung", live erhoben 2026-08-15.
+    // „Akademie" steht bereits oben (Bauwerk nach Art) und wird NICHT wiederholt.
+    'Magierakademie', 'Kriegerakademie', 'Kadettenschule', 'Gelehrtenschule', 'Kampfschule',
+    'Kapitänsschule', 'Gladiatorenschule', 'Handwerkerschule', 'Kunstschule', 'Kurtisanenschule',
+    'Novadi-Rechtsschule', 'Schwertgesellenschule', 'Universität', 'Fakultät', 'Schule',
+    'Lehreinrichtung',
+    // Zwei Arten aus den Wiki-Listen des Owners, die dem Katalog fehlten (Werft: 12 Artikel,
+    // Furt: 3). ⚠️ Furten tragen {{Infobox Region}} und werden NICHT geerntet -- die Vokabel
+    // erlaubt einem Editor nur, einen selbst gesetzten Punkt so zu benennen.
+    'Werft', 'Furt',
 ];
 
 // Wie viele Eintraege am Anfang der Liste der Dump-Klassifizierung gehoeren und deshalb weder in
