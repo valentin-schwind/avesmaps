@@ -712,6 +712,50 @@ function cleanRoutePlanNoiseEntries(entries) {
 	return result;
 }
 
+// Der Uebergang zwischen einem gezeichneten Weg und einer Querfeldein-Etappe bekommt einen NAMEN,
+// und der haengt an der RICHTUNG (Owner-Entscheid 15.08.2026):
+//   Weg -> Gelaende  = „Abgangspunkt"   (dort verlaesst die Reise die Strasse)
+//   Gelaende -> Weg  = „Anschlusspunkt" (dort trifft sie auf sie)
+//
+// 💣 VORHER STAND DORT „Markierung", UND DAS WAR FALSCH. normalizeNodeName macht aus
+// `__wp_anchor_7` zuerst „Kreuzung", formatRoutePlanNodeName zeigt „Kreuzung" als „Markierung" --
+// zwei Umbenennungen hintereinander. Beide sind richtungsblind, und auf freier Strecke ist dort
+// weder eine Kreuzung noch eine gesetzte Markierung, sondern die Stelle, an der der Reisende die
+// Strasse verlaesst. Beide bleiben als Rueckfall stehen: sie bedienen auch Beschriftungen
+// ausserhalb der Etappenliste, und ein rohes `__wp_anchor_7` darf nirgends auftauchen.
+//
+// 🔴 LAEUFT NACH cleanRoutePlanNoiseEntries. Jene Funktion entscheidet an
+// isRoutePlanMarkerName(open.endName), ob eine Etappe geschlossen wird; wer frueher umbenennt,
+// aendert die Aggregation -- und genau die haelt Weg und Gelaende auseinander
+// (entryIsSynthetic !== openIsSynthetic).
+//
+// ⚠️ NUR AN EINER MARKIERUNG. Ein echter Ort am Uebergang behaelt seinen Namen: „von Salmingen bis
+// Abgangspunkt" ist eine Auskunft, „von Salmingen bis Tarnelfurt" ist eine bessere.
+function nameRoutePlanTransferPoints(entries) {
+	if (!Array.isArray(entries) || entries.length < 2) {
+		return (entries || []).map((entry) => ({ ...entry }));
+	}
+	const result = entries.map((entry) => ({ ...entry }));
+	for (let index = 0; index < result.length - 1; index++) {
+		const current = result[index];
+		const next = result[index + 1];
+		const currentIsOffroad = current.type === SYNTHETIC_ROUTE_TYPE;
+		const nextIsOffroad = next.type === SYNTHETIC_ROUTE_TYPE;
+		if (currentIsOffroad === nextIsOffroad) {
+			continue;
+		}
+		if (!isRoutePlanMarkerName(current.endName)) {
+			continue;
+		}
+		const label = nextIsOffroad
+			? tr("planner.leg.exitPoint", "Abgangspunkt")
+			: tr("planner.leg.joinPoint", "Anschlusspunkt");
+		current.endName = label;
+		next.startName = label;
+	}
+	return result;
+}
+
 function buildRoutePlanEntries(routeNames, segments) {
 	const entries = [];
 	const explicitWaypointNames = getRoutePlanWaypointNameSet();
@@ -852,7 +896,7 @@ function buildRoutePlanEntries(routeNames, segments) {
 	});
 
 	flushAggregateEntry();
-	const cleaned = cleanRoutePlanNoiseEntries(entries);
+	const cleaned = nameRoutePlanTransferPoints(cleanRoutePlanNoiseEntries(entries));
 
 	// Routen-Endpunkte sind bekannte Wegpunkte und sollen NIE "Kreuzung" heissen, auch wenn der
 	// Pfad-Knoten weiter als ROUTE_CITY_NODE_THRESHOLD vom Ort entfernt liegt. Darum die Terminals
