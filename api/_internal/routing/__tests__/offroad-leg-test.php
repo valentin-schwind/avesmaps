@@ -80,19 +80,22 @@ assert(str_starts_with((string) $report['nearest_exit_node'], AVESMAPS_ROUTE_CLI
 assert(abs((float) $report['exit_nodes'][0]['air_distance'] - 6.0) < 1e-9,
     'und zwar senkrecht auf die Strasse, nicht schraeg zum Ort: ' . $report['exit_nodes'][0]['air_distance']);
 
-// 🔴 MEHRERE AUSSTIEGE, NICHT EINER. Haengt der Punkt an genau einer Kante, muss jede Reise durch
-// diesen einen Knoten -- auch wenn sie gerade von dort kam. Der Owner hat genau das gemeldet: „er
-// geht immer nur zu einem bestimmten Pfadpunkt". Jetzt entscheidet der Dijkstra.
-assert($report['exit_nodes_connected'] >= 2, 'der Punkt haengt an mehreren Knoten: ' . $report['exit_nodes_connected']);
+// 🔴 GENAU EIN AUSSTIEG, UND ZWAR DER NAECHSTE ERREICHBARE (Owner-Entscheid 15.08.2026).
+// 🪤 Hier stand bis dahin das Gegenteil: „MEHRERE AUSSTIEGE, NICHT EINER … jetzt entscheidet der
+// Dijkstra." Das war die Regel jenes Tages und ist an einer Live-Route widerlegt worden -- 19,44
+// Meilen querfeldein ab Salmingen, waehrend 0,66 Meilen vor dem Ziel eine Strasse lag.
+// ⚠️ Die zwei Fehler der ALLERERSTEN Fassung kommen dadurch nicht zurueck: die haengte den Punkt an
+// die naechste ORTSCHAFT (weit weg, falsche Richtung -> Zuruecklaufen). Der eine Knoten hier ist ein
+// Punkt AUF dem Weg und liegt dem Ziel per Definition am naechsten.
+assert((int) $report['exit_nodes_connected'] === 1,
+    'der Punkt haengt an genau einem Knoten: ' . $report['exit_nodes_connected']);
 $angebotene = array_column($report['exit_nodes'], 'node');
-// 🔴 UND DIE ORTSCHAFTEN BLEIBEN NEBEN DEN FUSSPUNKTEN IM ANGEBOT, nicht hinter ihnen. Eine
-// Staffelung waere in einem Fall schlechter als vorher: liegt der Punkt dicht neben einer Stadt,
-// aber weit von jeder Strasse, dann traegt der Fusspunkt -- und die viel naehere Stadt kaeme nie
-// zur Wahl. Der Hafen-Fall weiter unten haelt genau das fest.
-assert(in_array('B', $angebotene, true) && in_array('B2', $angebotene, true), 'B und B2 sind beide Ausstiege: ' . implode(', ', $angebotene));
-// ⚠️ Aber nicht JEDER Knoten: die Entfernungsschranke haelt die gemeinsame Suchkiste klein. A liegt
-// 21,8 Einheiten weg, das 3,6-fache des naechsten -- der zoege die Kiste auf, ohne je gewaehlt zu werden.
-assert(!in_array('A', $angebotene, true), 'ein weit entfernter Knoten bleibt draussen: ' . implode(', ', $angebotene));
+assert(count($angebotene) === 1, 'und nur dieser eine wird gemeldet: ' . implode(', ', $angebotene));
+// Er ist der Fusspunkt 6,0 noerdlich der Strasse -- naeher als B (6,083) und B2, und viel naeher
+// als A (21,8). Die Ordnung entscheidet, nicht die Reichweite.
+assert(!in_array('B', $angebotene, true) && !in_array('B2', $angebotene, true),
+    'die Ortschaften sind kein Ausstieg mehr: ' . implode(', ', $angebotene));
+assert(!in_array('A', $angebotene, true), 'ein weit entfernter Knoten erst recht nicht: ' . implode(', ', $angebotene));
 assert(isset($clientGraph['graph']['__offroad_to']), 'the point is now a node');
 
 // 💣 The whole leg has to survive the ORDINARY Dijkstra, unmodified.
@@ -215,12 +218,22 @@ assert(isset($report['cell_mapunits']) && $report['cell_mapunits'] > 0.0, 'the r
 assert($report['cell_mapunits'] === AVESMAPS_ROUTE_OFFROAD_CELL_MAPUNITS, 'a small box uses the configured width');
 assert($report['coarsened'] === false, 'and says it was not coarsened');
 
-// ============================================================ D2. DER DIJKSTRA WAEHLT DEN AUSSTIEG
+// ============================================================ D2. DER AUSSTIEG HAENGT AM ZIEL
 
-// 🔴 Die Meldung des Owners: „er geht immer nur zu einem bestimmten Pfadpunkt anstatt sich andere
-// rauszusuchen ... koennte er direkt nach Gratenfels ohne den Umweg ueber den Pfad (von dem er
-// hergekommen ist)". Genau das prueft dieser Fall: die Reise kommt von C und will zum Punkt. Der
-// NAECHSTE Knoten ist B -- aber ueber B2 ist die Reise insgesamt kuerzer, weil C an B2 haengt.
+// 🔴 SEIT DEM 15.08.2026: derselbe Punkt bekommt DENSELBEN Ausstieg, egal woher die Reise kommt.
+// Owner: „er soll auf dem strassensystem bleiben bis zu dem punkt gehen wo er am naechsten zur
+// freien zielmarkierung ist und von dort durch wieder durch die landschaft.“
+//
+// 🪤 DIESER ABSCHNITT HIESS BIS DAHIN „DER DIJKSTRA WAEHLT DEN AUSSTIEG“ und belegte das
+// Gegenteil -- zwei Startorte, zwei verschiedene Ausstiege. Das war die Regel jenes Tages, an einer
+// Live-Route widerlegt: 19,44 Meilen querfeldein ab Salmingen, waehrend 0,66 Meilen vor dem Ziel
+// eine Strasse lag.
+//
+// ⚠️ Die urspruengliche Owner-Meldung vom 14.08.2026 („er geht immer nur zu einem bestimmten
+// Pfadpunkt ... koennte er direkt nach Gratenfels ohne den Umweg ueber den Pfad") kommt dadurch
+// NICHT zurueck, und das ist der Unterschied: damals war der eine Knoten die naechste ORTSCHAFT,
+// die weit weg und in der falschen Richtung liegen konnte. Jetzt ist es ein Punkt AUF dem Weg,
+// senkrecht unter dem Ziel -- es gibt nichts, wohin man zuruecklaufen koennte.
 $wahlGraph = $buildGraph();
 $wahl = avesmapsAttachOffroadPointToGraph($wahlGraph, $locations, $request, $water, $land, null, 29.0, 16.0, '__offroad_to');
 assert($wahl['ok'] === true, 'der Punkt haengt: ' . json_encode($wahl));
@@ -229,8 +242,9 @@ assert($wahl['ok'] === true, 'der Punkt haengt: ' . json_encode($wahl));
 // und darum geht es unten.
 assert(str_starts_with((string) $wahl['nearest_exit_node'], AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX),
     'naechster Ausstieg ist der Fusspunkt: ' . $wahl['nearest_exit_node']);
-assert(in_array('B2', array_column($wahl['exit_nodes'], 'node'), true),
-    'und B2 steht weiterhin zur Wahl: ' . implode(', ', array_column($wahl['exit_nodes'], 'node')));
+assert(!in_array('B2', array_column($wahl['exit_nodes'], 'node'), true),
+    'und B2 steht NICHT mehr zur Wahl -- der Fusspunkt liegt naeher: '
+    . implode(', ', array_column($wahl['exit_nodes'], 'node')));
 
 $vonC = avesmapsFindClientCompatibleRoute($wahlGraph, 'C', '__offroad_to', $request);
 $vonA = avesmapsFindClientCompatibleRoute($wahlGraph, 'A', '__offroad_to', $request);
@@ -239,11 +253,14 @@ $letzterKnoten = static function (array $route): string {
     return (string) $ids[count($ids) - 2];
 };
 assert($vonC['found'] && $vonA['found'], 'beide Richtungen finden den Punkt');
-// ⭐ Der Beleg: derselbe Punkt, zwei Startorte, ZWEI verschiedene Ausstiege. Mit einer einzigen
-// Kante waere beides derselbe Knoten gewesen -- und eine der beiden Reisen ein Umweg.
-assert($letzterKnoten($vonC) !== $letzterKnoten($vonA),
-    'der Ausstieg haengt von der Reise ab, nicht von der Luftlinie: '
+// ⭐ Der Beleg, und er ist die Umkehrung des alten: derselbe Punkt, zwei Startorte, EIN Ausstieg.
+// 💣 Genau diese Zusicherung faellt um, wenn jemand „nur zur Sicherheit“ eine zweite Kante
+// anhaengt -- dann darf der Dijkstra wieder waehlen, und die Ordnung im Sammler waere Zierat.
+assert($letzterKnoten($vonC) === $letzterKnoten($vonA),
+    'der Ausstieg haengt am ZIEL, nicht an der Reise: '
     . $letzterKnoten($vonC) . ' / ' . $letzterKnoten($vonA));
+assert(str_starts_with($letzterKnoten($vonA), AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX),
+    'und er ist ein Punkt AUF dem Weg, keine Ortschaft: ' . $letzterKnoten($vonA));
 
 // ============================================================ D3. VON EINEM FREIEN PUNKT ZUM ANDEREN
 
@@ -323,20 +340,23 @@ $fussKnoten = array_map(static fn(array $e): string => (string) $e['node'], $fus
 assert($fussKnoten !== [], 'es gibt einen Ausstieg');
 assert(str_starts_with($fussKnoten[0], AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX),
     'und er ist ein Fusspunkt, keine Ortschaft: ' . $fussKnoten[0]);
-// ⚠️ Die fernen Ortschaften bleiben trotzdem im Angebot -- die Schranke misst je Familie, und
-// innerhalb der Ortschaften sind diese beiden die naechsten. Das ist gewollt: welcher Ausstieg die
-// guenstigste GESAMTREISE ergibt, entscheidet der Dijkstra, nicht die Luftlinie.
-assert(in_array('LangA', $fussKnoten, true), 'die Ortschaften bleiben zur Wahl: ' . implode(',', $fussKnoten));
+// 🪤 SEIT DEM 15.08.2026 UMGEKEHRT. Hier stand: „die fernen Ortschaften bleiben trotzdem im
+// Angebot ... welcher Ausstieg die guenstigste GESAMTREISE ergibt, entscheidet der Dijkstra, nicht
+// die Luftlinie.“ Genau das entscheidet er nicht mehr. Der Fusspunkt liegt 4,0 entfernt, LangA 50 --
+// wer LangA anboete, boete an, 50 Einheiten querfeldein zu laufen statt 4.
+assert(!in_array('LangA', $fussKnoten, true), 'die fernen Ortschaften sind kein Ausstieg mehr: ' . implode(',', $fussKnoten));
+assert(count($fussKnoten) === 1, 'es bleibt bei dem einen: ' . implode(',', $fussKnoten));
 // Und die Luftlinie zum Ausstieg ist die 4, nicht die 50.
 assert(abs((float) $fussReport['exit_nodes'][0]['air_distance'] - 4.0) < 1e-6,
     'Luftlinie zum Ausstieg: ' . $fussReport['exit_nodes'][0]['air_distance']);
 
 // ============================================================ Ein naher Fusspunkt verengt nichts
 
-// 💣 DER MASSSTAB DER SCHRANKE IST DER NAECHSTE ORTSKNOTEN, nie der naechste Kandidat ueberhaupt.
-// Live gemeldet am 14.08.2026 (Salmingen -> Kartenpunkt): ein zufaellig sehr naher Fusspunkt drueckte
-// die Reichweite auf 7,28 und schnitt damit einen Fusspunkt bei 7,61 weg -- waehrend eine ORTSCHAFT
-// bei 8,30 im Angebot blieb. Der weggeschnittene haette die Reise um rund 15 % verkuerzt.
+// 🪤 DIESER ABSCHNITT HIESS „Ein naher Fusspunkt verengt nichts“ UND PRUEFT SEIT DEM 15.08.2026
+// DAS GEGENTEIL: er verengt alles, und das ist die Regel. Was hier stand -- „der Massstab der
+// Schranke ist der naechste ORTSKNOTEN, nie der naechste Kandidat ueberhaupt“ -- war die Lehre aus
+// drei Fassungen an einem Tag (AGENTS.md §11) und ist mit der Schranke selbst weggefallen: es gibt
+// keine relative Reichweite mehr, sondern eine ORDNUNG. Der naechste erreichbare gewinnt, Punkt.
 //
 // Nachbau: Strasse auf y = 10 wie oben. Der Punkt liegt bei (5, 40) -- 30 ueber der Strasse, also
 // weit; die Ortschaft A sitzt mit (5, 10) genau darunter. Ein ZWEITER Weg streift den Punkt dicht
@@ -356,23 +376,21 @@ $massstabOrte = array_merge($locations, [$place('N1', -15.0, 41.0), $place('N2',
 $massstab = avesmapsAttachOffroadPointToGraph($massstabGraph, $massstabOrte, $request, $water, $land, null, 5.0, 40.0, '__offroad_to', false);
 assert($massstab['ok'] === true, 'der Punkt haengt: ' . json_encode($massstab));
 $massstabKnoten = array_column($massstab['exit_nodes'], 'node');
-// Der Fusspunkt auf dem Nebenweg liegt 1,0 entfernt -- er darf die Schranke NICHT auf 2,5 druecken.
-$fusspunkte = array_values(array_filter($massstabKnoten, static fn(string $n): bool => str_starts_with($n, AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX)));
-assert(count($fusspunkte) >= 2,
-    'auch der WEITERE Fusspunkt auf der Hauptstrasse bleibt im Angebot: ' . implode(', ', $massstabKnoten));
-assert(in_array('A', $massstabKnoten, true),
-    'und die Ortschaft darunter ebenfalls: ' . implode(', ', $massstabKnoten));
+// Der Fusspunkt auf dem Nebenweg liegt 1,0 entfernt und ist damit der naechste ueberhaupt.
+assert(count($massstabKnoten) === 1, 'genau ein Ausstieg: ' . implode(', ', $massstabKnoten));
+assert(str_starts_with($massstabKnoten[0], AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX),
+    'und er ist der Fusspunkt auf dem Nebenweg: ' . implode(', ', $massstabKnoten));
+assert(!in_array('A', $massstabKnoten, true),
+    'die Ortschaft 30 Einheiten darunter ist keiner mehr: ' . implode(', ', $massstabKnoten));
 
 // ============================================================ Die Schranke misst JE FAMILIE
 
-// 💣 EIN SEHR NAHER FUSSPUNKT DARF DIE ORTSCHAFTEN NICHT AUS DEM ANGEBOT DRAENGEN. Die
-// Reichweitenschranke ist RELATIV (naechster x 2,5), und die beiden Familien haben voellig
-// verschiedene Massstaebe: ein Fusspunkt liegt fast immer naeher als jede Ortschaft. Ueber einen
-// gemeinsamen Topf gerechnet schrumpft die Reichweite damit auf ein Vielfaches der Fusspunkt-
-// Entfernung -- und keine Ortschaft ueberlebt sie mehr.
-// 🔴 Live gemessen am 14.08.2026: ein Kartenpunkt 0,497 neben der Strasse bot NUR noch diesen einen
-// Ausstieg an (vorher vier), und die Reise wurde dadurch um 2,8 % teurer -- genau die Verschlechterung,
-// die der Entwurf ausschliesst.
+// 🪤 UND AUCH DIESER ABSCHNITT IST UMGEKEHRT. Er hiess „Die Schranke misst JE FAMILIE“ und
+// begruendete, warum ein sehr naher Fusspunkt die Ortschaften NICHT verdraengen darf: live gemessen
+// am 14.08.2026 wurde die Reise dadurch 2,8 % teurer. Die Messung stimmt weiterhin -- sie ist jetzt
+// der GEWOLLTE Preis. Owner, 15.08.2026, nach einer Route mit 19,44 Meilen querfeldein neben einer
+// Strasse: „er soll auf dem strassensystem bleiben bis zu dem punkt gehen wo er am naechsten zur
+// freien zielmarkierung ist“. 2,8 % sind der Preis dafuer, und er ist bezahlt.
 $familienGraph = $buildGraph();
 // Punkt 0,2 ueber der Strasse: Fusspunkt bei 0,200, Ortschaft B bei 1,020, B2 bei 4,030.
 $familien = avesmapsAttachOffroadPointToGraph($familienGraph, $locations, $request, $water, $land, null, 26.0, 10.2, '__offroad_to');
@@ -380,11 +398,55 @@ assert($familien['ok'] === true, 'der Punkt haengt: ' . json_encode($familien));
 $familienKnoten = array_column($familien['exit_nodes'], 'node');
 assert(str_starts_with((string) $familien['nearest_exit_node'], AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX),
     'der Fusspunkt ist der naechste: ' . $familien['nearest_exit_node']);
-assert(in_array('B', $familienKnoten, true),
-    'und die nahe Ortschaft steht trotzdem im Angebot: ' . implode(', ', $familienKnoten));
-// ⚠️ Aber die Schranke wirkt weiterhin -- B2 liegt das Vierfache von B entfernt und bleibt draussen.
+assert(!in_array('B', $familienKnoten, true),
+    'auch die NAHE Ortschaft (1,020) ist kein Ausstieg mehr -- der Fusspunkt liegt bei 0,200: '
+    . implode(', ', $familienKnoten));
 assert(!in_array('B2', $familienKnoten, true),
-    'die entfernte Ortschaft bleibt draussen: ' . implode(', ', $familienKnoten));
+    'die entfernte erst recht nicht: ' . implode(', ', $familienKnoten));
+assert(count($familienKnoten) === 1, 'genau ein Ausstieg: ' . implode(', ', $familienKnoten));
+
+// ============================================================ Der naechste ist unerreichbar
+
+// 🔴 PUNKT 6 DER OWNER-REGEL: „Ist der geometrisch naechste Punkt wegen eines Hindernisses
+// tatsaechlich nicht querfeldein erreichbar, nimmt man den naechstgelegenen ERREICHBAREN
+// Strassenpunkt -- nicht irgendeinen frueheren, insgesamt billigeren.“
+//
+// ⚠️ Ohne diesen Fall waere die Regel eine Falle: ein Weg jenseits eines Sees waere der naechste,
+// und die Reise haette gar keinen Ausstieg mehr. Deshalb werden N Kandidaten GERECHNET und der
+// erste genommen, der auch wirklich geht.
+$hindernisWasser = avesmapsPrepareRouteAreas([$square(0.0, 26.0, 100.0, 28.0)]);   // Band quer
+$hindernisGraph = ['NAH1' => [], 'NAH2' => [], 'FERN1' => [], 'FERN2' => []];
+$geradeStrasse = static function (string $from, string $to, float $y) use ($roadSpeed): array {
+    return [
+        'distance' => 100.0, 'time' => 100.0 / $roadSpeed, 'route_type' => 'Strasse',
+        'transport_option' => 'groupFoot', 'id' => 'path-' . $from . $to, 'from' => $from, 'to' => $to,
+        'geometry' => ['type' => 'LineString', 'coordinates' => [[0.0, $y], [50.0, $y], [100.0, $y]]],
+    ];
+};
+// Der Punkt liegt bei (50, 25). Die NAHE Strasse (y = 30) ist 5 entfernt, aber hinter dem
+// Wasserband; die FERNE (y = 15) ist 10 entfernt und frei.
+foreach ([['NAH1', 'NAH2', 30.0], ['FERN1', 'FERN2', 15.0]] as [$a, $b, $y]) {
+    avesmapsAddClientCompatibleGraphConnection($hindernisGraph, $a, $b, $geradeStrasse($a, $b, $y));
+    avesmapsAddClientCompatibleGraphConnection($hindernisGraph, $b, $a, $geradeStrasse($b, $a, $y));
+}
+$hindernisClientGraph = ['graph' => $hindernisGraph, 'statistics' => []];
+$hindernis = avesmapsAttachOffroadPointToGraph(
+    $hindernisClientGraph, [], $request, $hindernisWasser, $land, null, 50.0, 25.0, '__offroad_to', false
+);
+assert($hindernis['ok'] === true, 'der Punkt haengt trotz Hindernis: ' . json_encode($hindernis));
+assert(count($hindernis['exit_nodes']) === 1, 'genau ein Ausstieg: ' . json_encode($hindernis['exit_nodes']));
+// 💣 Die Luftlinie des gewaehlten ist 10, nicht 5 -- der naechste war unerreichbar.
+assert(abs((float) $hindernis['exit_nodes'][0]['air_distance'] - 10.0) < 1e-6,
+    'der naechste ERREICHBARE gewinnt (10,0), nicht der naechste (5,0): '
+    . $hindernis['exit_nodes'][0]['air_distance']);
+// 🔴 GEGENPROBE: ohne das Wasserband gewinnt der naechste. Ohne sie waere der Fall auch dann
+// gruen, wenn die nahe Strasse aus einem ganz anderen Grund nie Kandidat wird.
+$ohneHindernisGraph = ['graph' => $hindernisGraph, 'statistics' => []];
+$ohneHindernis = avesmapsAttachOffroadPointToGraph(
+    $ohneHindernisGraph, [], $request, avesmapsPrepareRouteAreas([]), $land, null, 50.0, 25.0, '__offroad_to', false
+);
+assert(abs((float) $ohneHindernis['exit_nodes'][0]['air_distance'] - 5.0) < 1e-6,
+    'ohne Wasser ist es der naechste (5,0): ' . $ohneHindernis['exit_nodes'][0]['air_distance']);
 
 // ============================================================ Rueckfall auf die Ortschaften
 

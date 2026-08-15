@@ -75,42 +75,61 @@ $ausstieg = static function (array $bericht, string $knoten): ?array {
     return null;
 };
 
-// ---- A: unter „Kuerzeste" ist die Etappe ab Salmingen die GERADE -------------------------
+// 🪤 SEIT DEM 15.08.2026 GIBT ES NUR EINEN AUSSTIEG -- den zielnaechsten Punkt des Netzes,
+// hier (26,50). Bis dahin fragte dieser Test nach dem Ausstieg „Salmingen", weil damals jeder
+// Kandidat eine Kante bekam. Woran er PRUEFT, aendert das nicht: unter „Kuerzeste" ist die
+// Querfeldein-Etappe die GERADE, egal wo sie beginnt.
+$luftAusstieg = hypot(26.0 - $ziel[0], 50.0 - $ziel[1]);   // = 11,6619...
+
+// ---- A: unter „Kuerzeste" ist die Etappe die GERADE ---------------------------------------
 [$kurzGraph, $kurzBericht] = $hole('shortest');
-$abSalmingen = $ausstieg($kurzBericht, 'Salmingen');
-assert($abSalmingen !== null, 'Salmingen steht im Angebot');
-assert(abs((float) $abSalmingen['distance_units'] - $luft) < 1e-9,
-    'die Etappe ab Salmingen ist die Luftlinie: ' . $abSalmingen['distance_units'] . ' gegen ' . $luft);
-assert((int) $abSalmingen['point_count'] === 2, 'und sie besteht aus genau zwei Punkten');
+assert(count($kurzBericht['exit_nodes']) === 1,
+    'genau ein Ausstieg: ' . implode(', ', array_column($kurzBericht['exit_nodes'], 'node')));
+$abAusstieg = $kurzBericht['exit_nodes'][0];
+assert(abs((float) $abAusstieg['air_distance'] - $luftAusstieg) < 1e-9,
+    'und er ist der zielnaechste Punkt (26,50): ' . $abAusstieg['air_distance']);
+assert(abs((float) $abAusstieg['distance_units'] - $luftAusstieg) < 1e-9,
+    'die Etappe ist die Luftlinie: ' . $abAusstieg['distance_units'] . ' gegen ' . $luftAusstieg);
+assert((int) $abAusstieg['point_count'] === 2, 'und sie besteht aus genau zwei Punkten');
 
 // ---- B: unter „Schnellste" bleibt alles, wie es war ---------------------------------------
 [$schnellGraph, $schnellBericht] = $hole('fastest');
-$schnellAbSalmingen = $ausstieg($schnellBericht, 'Salmingen');
-assert($schnellAbSalmingen !== null, 'Salmingen steht auch dort im Angebot');
-assert((float) $schnellAbSalmingen['distance_units'] >= $luft - 1e-9,
-    'der Zeitmodus ist nie kuerzer als die Luftlinie: ' . $schnellAbSalmingen['distance_units']);
+$schnellAbAusstieg = $schnellBericht['exit_nodes'][0];
+assert(abs((float) $schnellAbAusstieg['air_distance'] - $luftAusstieg) < 1e-9,
+    'derselbe Ausstieg, denn der haengt am Ziel und nicht am Modus: ' . $schnellAbAusstieg['air_distance']);
+assert((float) $schnellAbAusstieg['distance_units'] >= $luftAusstieg - 1e-9,
+    'der Zeitmodus ist nie kuerzer als die Luftlinie: ' . $schnellAbAusstieg['distance_units']);
 
-// ---- C: 🔴 die gewaehlte Reise ist unter „Kuerzeste" die Gerade, nicht der Weg -------------
+// ---- C: 🔴 die letzte Etappe der Reise ist unter „Kuerzeste" die Gerade ------------------
+// 🪤 Hier stand: „die Gerade schlaegt den Umweg ueber die Strasse (20,881 gegen 22,0)" -- also
+// eine Reise aus EINER Etappe, direkt ab Salmingen. Genau diese Wahl gibt es nicht mehr: die Reise
+// bleibt auf der Strasse bis zum zielnaechsten Punkt. Sie ist dadurch LAENGER (32,4 gegen 20,9),
+// und das ist der Preis der Regel, nicht ein Fehler.
 $route = avesmapsFindClientCompatibleRoute($kurzGraph, 'Salmingen', '__offroad_to', $anfrage('shortest'));
 assert($route['found'] === true, 'die Reise wird gefunden');
-assert(count($route['segments']) === 1,
-    'eine Etappe -- die Gerade schlaegt den Umweg ueber die Strasse (20,881 gegen 22,0), gefunden: '
-    . count($route['segments']));
-assert((string) $route['segments'][0]['route_type'] === AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE,
-    'und sie ist Querfeldein');
-assert(abs((float) $route['cost'] - $luft) < 1e-9,
-    'ihre Kosten sind die Strecke: ' . $route['cost'] . ' gegen ' . $luft);
+$letzte = $route['segments'][count($route['segments']) - 1];
+assert((string) $letzte['route_type'] === AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE,
+    'die letzte Etappe ist Querfeldein');
+assert(abs((float) $letzte['distance'] - $luftAusstieg) < 1e-9,
+    'und sie ist die Gerade: ' . $letzte['distance'] . ' gegen ' . $luftAusstieg);
+// Unter „Kuerzeste" IST das Gewicht die Strecke, also muessen Kosten und Summe uebereinstimmen.
+$summe = array_sum(array_map(static fn(array $s): float => (float) $s['distance'], $route['segments']));
+assert(abs((float) $route['cost'] - $summe) < 1e-9,
+    'ihre Kosten sind die Strecke: ' . $route['cost'] . ' gegen ' . $summe);
+assert((float) $route['cost'] > $luft,
+    'und die erzwungene Reise ist laenger als die abgeschaffte Gerade ab Salmingen: '
+    . round((float) $route['cost'], 4) . ' gegen ' . round($luft, 4));
 
 // ---- D: die Auskunft bleibt vollstaendig --------------------------------------------------
 // ⚠️ Ohne Hoehenraster ist ascent_schritt zu Recht null (die null/0-Regel aus V11). Was hier
 // zaehlt: die Etappe traegt ihre Messwerte ueberhaupt, nicht nur eine Laenge.
-$etappe = $route['segments'][0];
+$etappe = $letzte;
 // ⚠️ Auf GRAPH-Ebene heissen die Felder "time" und "distance"; "cost_units" und "distance_units"
 // sind erst die Namen des Antwortbauers (response.php). Wer sie hier prueft, prueft null.
 assert(array_key_exists('time', $etappe) && (float) $etappe['time'] > 0.0,
     'die Etappe traegt eine gemessene Zeit, nicht nur eine Laenge: ' . json_encode($etappe['time'] ?? null));
-assert(abs((float) $etappe['distance'] - $luft) < 1e-9,
-    'und ihre Laenge ist die Luftlinie: ' . $etappe['distance']);
+assert(abs((float) $etappe['distance'] - $luftAusstieg) < 1e-9,
+    'und ihre Laenge ist die Luftlinie ab dem Ausstieg: ' . $etappe['distance']);
 
 // ---- E: zwei Kartenpunkte -- auch die direkte Kante ist im Streckenmodus gerade ------------
 $paarGraph = ['graph' => []];
@@ -157,5 +176,5 @@ $schnellRefine = avesmapsRefineSyntheticRouteLegs($schnellGraph2, $anfrage('fast
 assert((int) $schnellRefine['examined'] > 0,
     'im Zeitmodus schaut sie sich die Sehne ueberhaupt an: ' . $schnellRefine['examined']);
 
-fwrite(STDOUT, "kuerzeste-etappe-test: OK (gerade " . round((float) $abSalmingen['distance_units'], 4)
-    . " gegen zeitoptimal " . round((float) $schnellAbSalmingen['distance_units'], 4) . ")\n");
+fwrite(STDOUT, "kuerzeste-etappe-test: OK (gerade " . round((float) $abAusstieg['distance_units'], 4)
+    . " gegen zeitoptimal " . round((float) $schnellAbAusstieg['distance_units'], 4) . ")\n");

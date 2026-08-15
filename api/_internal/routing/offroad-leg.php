@@ -25,22 +25,30 @@ require_once __DIR__ . '/offroad-grid.php';
 // no real location can carry it, so it can never collide with a place called „Kartenpunkt".
 const AVESMAPS_ROUTE_OFFROAD_NODE_PREFIX = '__offroad_';
 
-// Wie viele Graphknoten der Kartenpunkt als Ausstieg ANGEBOTEN bekommt.
-//
-// 🔴 NICHT EINER, UND DAS IST DER GANZE PUNKT. Die erste Fassung haengte den Punkt mit GENAU EINER
-// Kante an den naechsten Knoten. Das hatte zwei Folgen, die der Owner beide gemeldet hat:
-//   * jede Route zu dem Punkt musste durch diesen einen Knoten -- auch wenn sie gerade von dort kam,
-//     also lief sie den Weg zurueck, statt weiterzugehen;
-//   * ein zweiter Kartenpunkt war nur ueber denselben Knoten erreichbar, statt direkt.
-// Jetzt bekommt der Punkt eine Kante je Kandidat, und DIJKSTRA sucht sich den Ausstieg aus -- nach
-// den Gesamtkosten der Reise, nicht nach der Luftlinie. Genau das ist die Frage, die er beantworten
-// kann und eine Nachbarschaftssuche nicht.
-//
-// ⚠️ Am Livebestand geeicht, nicht geraten: fuer die beiden Punkte des Owners liegt Gratenfels --
-// der Knoten, den er erwartet hat -- auf Rang 4 (1,77x der naechsten Luftlinie) bzw. Rang 9 (1,74x).
-// 12 Kandidaten bis zum 2,5-fachen der naechsten Luftlinie decken beide Faelle mit Luft.
+// Wie viele Ortsknoten ueberhaupt eingesammelt werden, bevor geordnet wird.
 const AVESMAPS_ROUTE_OFFROAD_EXIT_NODE_LIMIT = 12;
-const AVESMAPS_ROUTE_OFFROAD_EXIT_DISTANCE_FACTOR = 2.5;
+
+// Wie viele der NAECHSTEN Kandidaten wirklich durchgerechnet werden.
+//
+// 🔴 DER AUSSTIEG IST DER NAECHSTE ERREICHBARE PUNKT DES NETZES -- eine Ordnung, keine Auswahl.
+// Owner-Entscheid 15.08.2026, woertlich: „er soll auf dem strassensystem bleiben bis zu dem punkt
+// gehen wo er am naechsten zur freien zielmarkierung ist und von dort durch wieder durch die
+// landschaft." Gerechnet werden trotzdem diese N, damit ein querfeldein UNERREICHBARER naechster
+// Punkt (Fluss, See, Gebirge) nicht die ganze Reise kostet; genommen wird der erste, der geht.
+//
+// 🪤 DIESER BLOCK STAND BIS ZUM 15.08.2026 GENAU ANDERSHERUM. Er sagte: „Jetzt bekommt der Punkt
+// eine Kante je Kandidat, und DIJKSTRA sucht sich den Ausstieg aus -- nach den Gesamtkosten der
+// Reise, nicht nach der Luftlinie." Das war eine Entscheidung, keine Panne, und sie ist an einer
+// Live-Route widerlegt worden: 19,44 Meilen querfeldein ab Salmingen, waehrend 0,66 Meilen vor dem
+// Ziel eine Strasse lag. Ein Ersparnis-Argument, das man dem Reisenden nicht erklaeren kann, ist im
+// Zweifel falsch.
+//
+// ⚠️ Die zwei Fehler der ALLERERSTEN Fassung kommen dadurch NICHT zurueck, und das ist der
+// Unterschied: die haengte den Punkt an die naechste ORTSCHAFT, die weit weg und in der falschen
+// Richtung liegen konnte -- daher das Zuruecklaufen. Hier ist der eine Knoten ein Punkt AUF einem
+// Weg und liegt dem Ziel per Definition am naechsten; zurueckzulaufen gibt es nichts. Und der
+// zweite Kartenpunkt haengt seit dem 14.08.2026 an seiner eigenen direkten Kante (Erzeuger 4).
+const AVESMAPS_ROUTE_OFFROAD_EXIT_NEAREST_TRIES = 6;
 
 /**
  * PURE: the nearest graph nodes to (x, y), by air line, nearest first, at most $limit of them.
@@ -177,15 +185,38 @@ function avesmapsAttachOffroadPointToGraph(
     // der nahen querfeldein erreichbar ist (ein Ort mitten in einem See), waere die Antwort sonst
     // „kein Weg", obwohl der uebernaechste gegangen waere.
     //
-    // 💣 UND IHR MASSSTAB IST DER NAECHSTE ORTSKNOTEN, nicht der naechste Kandidat ueberhaupt.
-    // Beide falschen Fassungen sind am 14.08.2026 live gemessen worden (AGENTS.md §11): ueber den
-    // gemeinsamen Topf wurde die Reise 2,8 % teurer, je Familie rund 15 % laenger. Die neuen
-    // Vertices sind Kandidaten wie alle anderen und SETZEN den Massstab nie -- ausser es gibt
-    // ueberhaupt keine Ortschaft im Angebot, dann traegt der naechste Fusspunkt ihn wie bisher.
-    $reference = $nodeCandidates !== []
-        ? (float) $nodeCandidates[0]['distance']
-        : $nearestVertexDistance;
-    $reach = max($reference * AVESMAPS_ROUTE_OFFROAD_EXIT_DISTANCE_FACTOR, $reference);
+    // 🔴 SEIT DEM 15.08.2026 GILT: DER AUSSTIEG IST DER NAECHSTE ERREICHBARE PUNKT DES NETZES.
+    // Nicht der guenstigste, nicht der einer Familie, und vor allem KEINE Auswahl des Dijkstra.
+    // Owner, woertlich: „er soll auf dem strassensystem bleiben bis zu dem punkt gehen wo er am
+    // naechsten zur freien zielmarkierung ist und von dort durch wieder durch die landschaft."
+    //
+    // Der Befund dahinter, live gemessen (Kartenpunkt 500.792/503.167 -> 503.521/519.479): am Ziel
+    // lag ein Ausstieg 0,219 Einheiten entfernt -- 0,66 Meilen, das Ziel liegt praktisch an der
+    // Strasse -- und die Reise stieg stattdessen bei Salmingen aus und lief 19,44 Meilen
+    // querfeldein. Am anderen Ende nahm sie Rang 26 von 35 (Luftlinie 9,94 statt 5,79). Beides war
+    // rechnerisch richtig und als Reise nicht erklaerbar.
+    //
+    // 💣 UND DESHALB GIBT ES HIER KEINEN FAKTOR MEHR -- ein Faktor kann diese Aufgabe nicht loesen.
+    // Der Kopf dieser Datei haelt fest, dass der Owner am 14.08.2026 einen Knoten bei 1,77x der
+    // naechsten Luftlinie ERWARTET hat; am 15.08. stoert ihn einer bei 1,72x. Keine Schranke der
+    // Form „hoechstens F mal der naechste" erfuellt beides, weil sich der MASSSTAB zwischen den
+    // beiden Faellen geaendert hat (damals Ortsknoten, heute jeder gezeichnete Stuetzpunkt). Genau
+    // davor warnt die Lehre vom 14.08.: eine relative Schranke braucht einen Massstab, der nicht
+    // mitwandert. Es gibt hier keinen -- also wird nicht gebandet, sondern GEORDNET.
+    //
+    // ⚠️ Gerechnet werden trotzdem die N naechsten, nicht nur einer: liegt der naechste querfeldein
+    // gar nicht erreichbar (Fluss, See, Gebirge), rueckt der naechste ERREICHBARE nach -- nicht
+    // irgendein frueherer, insgesamt billigerer. Das ist Punkt 6 der Owner-Regel, und es kostet
+    // nichts: ein Kandidat mehr ist im Mehrziel-Lauf ein Nachschlagen.
+    $alleDistanzen = [];
+    foreach ($candidateSets as $set) {
+        foreach ($set['cuts'] as $cut) { $alleDistanzen[] = (float) $cut['distance']; }
+    }
+    foreach ($nodeCandidates as $node) { $alleDistanzen[] = (float) $node['distance']; }
+    sort($alleDistanzen);
+    $reach = $alleDistanzen === []
+        ? INF
+        : $alleDistanzen[min(count($alleDistanzen), AVESMAPS_ROUTE_OFFROAD_EXIT_NEAREST_TRIES) - 1];
 
     // 💣 GETEILT WIRD IN $clientGraph['graph'], NICHT in $graph -- das ist eine Kopie, und ein Split
     // darin waere nach der Funktion verschwunden.
@@ -278,6 +309,19 @@ function avesmapsAttachOffroadPointToGraph(
                 $weightByDistance);
         }
 
+        // 🔴 GENAU EINE KANTE, UND ZWAR ZUM NAECHSTEN ERREICHBAREN. $set ist nach Entfernung
+        // geordnet (siehe $buildCandidates), also ist der erste mit einem Weg der richtige. Bis zum
+        // 15.08.2026 bekam JEDER Kandidat seine Kante und der Dijkstra suchte sich den Ausstieg nach
+        // Gesamtkosten aus -- das ist die Freiheit, die 19,44 Meilen querfeldein erzeugt hat,
+        // waehrend 0,66 Meilen vor dem Ziel eine Strasse lag.
+        //
+        // 💣 DAS `break` IST DIE GANZE REGEL. Ohne es waeren alle uebrigen Kandidaten weiterhin im
+        // Graphen, und der Dijkstra duerfte wieder waehlen -- die Ordnung hier waere dann nur
+        // Zierat. Wer spaeter „nur zur Sicherheit" eine zweite Kante anhaengt, hat die Regel
+        // aufgehoben, ohne eine Zeile Kommentar zu aendern.
+        //
+        // ⚠️ Die Reise auf dem Netz bis dorthin sucht weiterhin der Dijkstra. Er entscheidet, WIE
+        // man zum Abgangspunkt kommt -- nur nicht mehr, WANN man den Weg verlaesst.
         foreach ($set as $index => $candidate) {
             $path = $paths[$index] ?? null;
             if ($path === null) { continue; }
@@ -290,6 +334,7 @@ function avesmapsAttachOffroadPointToGraph(
                 'cost_units' => $path['time'],
                 'point_count' => count($path['points']),
             ];
+            break;
         }
     }
 
