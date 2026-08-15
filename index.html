@@ -1359,6 +1359,20 @@
 						<span>Beschreibung <span class="location-report-form__hint">— öffentlich sichtbar</span></span>
 						<textarea id="location-edit-description" name="description" rows="3" maxlength="1200"></textarea>
 					</label>
+					<div class="label-edit-section"><div class="label-edit-section-title">Optionen</div>
+					<label class="location-report-form__field location-report-form__field--checkbox">
+						<input id="location-edit-is-nodix" name="is_nodix" type="checkbox" />
+						<span>Ort ist ein Nodix</span>
+					</label>
+					<label class="location-report-form__field location-report-form__field--checkbox">
+						<input id="location-edit-is-ruined" name="is_ruined" type="checkbox" />
+						<span>Ruine/zerstört</span>
+					</label>
+					<label class="location-report-form__field location-report-form__field--checkbox">
+						<input id="location-edit-is-hidden" name="is_hidden" type="checkbox" />
+						<span>Verborgen</span>
+					</label>
+					</div>
 					<input id="location-edit-wiki-url" name="wiki_url" type="hidden" value="" />
 					<div class="label-edit-section"><div class="label-edit-section-title">Wiki-Ort</div>
 						<div class="label-wiki-reference" id="settlement-wiki-reference">
@@ -1394,20 +1408,6 @@
 								</div>
 							</div>
 						</div>
-						<div class="label-edit-section"><div class="label-edit-section-title">Optionen</div>
-						<label class="location-report-form__field location-report-form__field--checkbox">
-							<input id="location-edit-is-nodix" name="is_nodix" type="checkbox" />
-							<span>Ort ist ein Nodix</span>
-						</label>
-						<label class="location-report-form__field location-report-form__field--checkbox">
-							<input id="location-edit-is-ruined" name="is_ruined" type="checkbox" />
-							<span>Ruine/zerstört</span>
-						</label>
-						<label class="location-report-form__field location-report-form__field--checkbox">
-							<input id="location-edit-is-hidden" name="is_hidden" type="checkbox" />
-							<span>Verborgen</span>
-						</label>
-					</div>
 					<p id="location-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 					<div class="location-report-form__actions">
 						<button id="location-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
