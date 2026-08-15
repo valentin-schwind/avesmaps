@@ -35,6 +35,10 @@ require_once __DIR__ . '/paths.php';
 // the dump endpoint loads app-setting only transitively (via adventures/citymaps), and a guard
 // without a require would silently swallow the stamp -- the exact trap lore-sync.php documents.
 require_once __DIR__ . '/../app/app-setting.php';
+// Der Artikelschluessel-Normierer des Konfliktzentrums wird WIEDERVERWENDET, nicht nachgebaut:
+// er ist rein, ohne Datenbank, und loest genau die Falle, die dort schon gestellt war --
+// `Feste_Hohenstein` und `Feste%20Hohenstein` sind dieselbe Seite.
+require_once __DIR__ . '/../conflicts/core.php';
 
 /** app_setting key: when "Kraftlinien syncen" (avesmapsWikiPowerlineReconcile) last ran. */
 const AVESMAPS_POWERLINE_LAST_SYNCED_SETTING = 'powerline_last_synced';
@@ -148,6 +152,63 @@ function avesmapsWikiPowerlineDesiredNestsByMatchKey(array $sandboxRows): array
     }
 
     return $byKey;
+}
+
+/**
+ * REIN: Welcher Wiki-Artikel gehoert zu diesem Segment, und was ist dabei zu melden?
+ *
+ * Die Rangfolge (Entwurf §4):
+ *   1. Zuweisung -- properties.wiki_url zeigt auf einen gestagten Artikel: DIE gilt, egal wie die
+ *      Linie heisst. Nur so ist "ein Artikel, zwei Linien" ueberhaupt erreichbar
+ *      (Satinavs Ketten gegen "Kette I"/"Kette II").
+ *   2. Name -- avesmapsWikiSyncCreateMatchKey trifft einen gestagten Artikel (der bisherige Weg).
+ *   3. nichts.
+ *
+ * 💣 Eine Adresse, die auf nichts zeigt, ist KEIN Fehler und KEINE Zuweisung -- sie kann ein
+ * brandneuer Artikel sein, den der letzte Dump nicht kannte. Sie faellt auf Stufe 2 zurueck und
+ * bleibt unangetastet stehen. Aber sie MUSS gemeldet werden: fuer das Konfliktzentrum gilt die
+ * Linie als zugewiesen, sobald das Feld gefuellt ist -- ein Tippfehler nimmt sie also aus der
+ * Beobachtungsliste, waehrend der Abgleich nichts holt. Sie saehe erledigt aus und waere es nicht.
+ *
+ * 💣 `clear_no_article` macht den Merker nur AUF, es weist nichts zu. Nach einem Namen zu raten und
+ * daraus echte Daten zu machen ist die Fehlerklasse aus Discord #38.
+ *
+ * @param array<string, array{name:string, nest:array}> $stagedByMatchKey
+ * @param array<string, array{name:string, nest:array}> $stagedByArticleKey
+ * @return array{entry: ?array, source: string, claim_unresolved: bool, clear_no_article: bool}
+ */
+function avesmapsWikiPowerlineResolveSegment(
+    string $name,
+    array $properties,
+    array $stagedByMatchKey,
+    array $stagedByArticleKey
+): array {
+    $claimUnresolved = false;
+    $claim = trim((string) ($properties['wiki_url'] ?? ''));
+    if ($claim !== '') {
+        $articleKey = avesmapsConflictArticleKey($claim);
+        if ($articleKey !== '' && isset($stagedByArticleKey[$articleKey])) {
+            return [
+                'entry' => $stagedByArticleKey[$articleKey],
+                'source' => 'claim',
+                'claim_unresolved' => false,
+                // Zuweisung und Merker schliessen einander aus (der Schreibweg lehnt es ab);
+                // faende sich doch beides, gewinnt die Zuweisung und der Merker faellt.
+                'clear_no_article' => !empty($properties['wiki_no_article']),
+            ];
+        }
+        $claimUnresolved = true;
+    }
+
+    $matchKey = avesmapsWikiSyncCreateMatchKey($name);
+    $entry = ($matchKey !== '' && isset($stagedByMatchKey[$matchKey])) ? $stagedByMatchKey[$matchKey] : null;
+
+    return [
+        'entry' => $entry,
+        'source' => $entry === null ? 'none' : 'name',
+        'claim_unresolved' => $claimUnresolved,
+        'clear_no_article' => $entry !== null && !empty($properties['wiki_no_article']),
+    ];
 }
 
 /**
