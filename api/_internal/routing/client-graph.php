@@ -1053,6 +1053,130 @@ function avesmapsSplitClientPathAtAnchor(array &$graph, array $anchor, int $anch
     return $anchorNodeName;
 }
 
+/**
+ * Teilt EINE Kante an k Punkten in EINEM Durchgang und liefert die Knoten in Eingabefolge.
+ *
+ * 💣 NICHT k-MAL DEN EINZELTEILER. avesmapsSplitClientPathAtAnchor entfernt die Ursprungskante,
+ * sobald beide Haelften stehen -- der zweite Aufruf suchte danach eine Kante, die es nicht mehr
+ * gibt. Genau diese Doppelteilung hat am 14.08.2026 zwei unverbundene Fusspunkte an derselben
+ * Strasse erzeugt (Entwurf 2026-08-14 §5).
+ *
+ * 🔴 DER EINZELTEILER BLEIBT. Er traegt den Wegpunkt-Anker (Erzeuger 2) und vier Tests; dieser
+ * hier steht daneben, er ersetzt ihn nicht.
+ *
+ * ⚠️ Ein Schnitt auf einem Endknoten wird nicht geschnitten -- sein Knotenname kommt unveraendert
+ * zurueck, wie beim Einzelteiler.
+ *
+ * $cuts: Liste von ['segment_index' => int, 't' => float].
+ * Rueckgabe: gleiche Laenge und Reihenfolge, je Eintrag ['name' => string, 'x' => float, 'y' => float].
+ */
+function avesmapsSplitClientPathAtPoints(array &$graph, array $anchor, array $cuts): array {
+    $original = $anchor['connection'] ?? null;
+    $fromName = (string) ($anchor['from'] ?? '');
+    $toName = (string) ($anchor['to'] ?? '');
+    $coordinates = is_array($original) ? ($original['geometry']['coordinates'] ?? []) : [];
+    $count = is_array($coordinates) ? count($coordinates) : 0;
+    if ($count < 2) {
+        return array_map(static fn(): array => ['name' => $fromName, 'x' => 0.0, 'y' => 0.0], $cuts);
+    }
+
+    $epsilon = 1e-7;
+    $result = [];
+    $inner = [];
+    foreach ($cuts as $position => $cut) {
+        $i = max(0, min($count - 2, (int) ($cut['segment_index'] ?? 0)));
+        $t = max(0.0, min(1.0, (float) ($cut['t'] ?? 0.0)));
+        $ax = (float) $coordinates[$i][0]; $ay = (float) $coordinates[$i][1];
+        $bx = (float) $coordinates[$i + 1][0]; $by = (float) $coordinates[$i + 1][1];
+        $px = $ax + $t * ($bx - $ax);
+        $py = $ay + $t * ($by - $ay);
+
+        if ($i === 0 && $t <= $epsilon) { $result[$position] = ['name' => $fromName, 'x' => $ax, 'y' => $ay]; continue; }
+        if ($i === $count - 2 && $t >= 1.0 - $epsilon) { $result[$position] = ['name' => $toName, 'x' => $bx, 'y' => $by]; continue; }
+        $inner[] = ['position' => $position, 'i' => $i, 't' => $t, 'x' => $px, 'y' => $py];
+    }
+    if ($inner === []) { ksort($result); return array_values($result); }
+
+    usort($inner, static fn(array $a, array $b): int => [$a['i'], $a['t']] <=> [$b['i'], $b['t']]);
+
+    // Entdopplung: zwei Schnitte auf demselben Punkt teilen sich einen Knoten.
+    $unique = [];
+    foreach ($inner as $cut) {
+        $lastIndex = count($unique) - 1;
+        if ($lastIndex >= 0 && $unique[$lastIndex]['i'] === $cut['i'] && abs($unique[$lastIndex]['t'] - $cut['t']) <= $epsilon) {
+            $unique[$lastIndex]['positions'][] = $cut['position'];
+            continue;
+        }
+        $cut['positions'] = [$cut['position']];
+        $unique[] = $cut;
+    }
+
+    foreach ($unique as $index => $cut) {
+        $unique[$index]['name'] = AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX . avesmapsAllocateClientAnchorIndex($graph);
+        $graph[$unique[$index]['name']] ??= [];
+    }
+
+    // Ein Durchgang ueber die Geometrie: Teilstueck k laeuft vom vorigen Schnitt bis zu diesem.
+    $profile = $original['terrain_profile'] ?? null;
+    $slices = [];
+    $prevName = $fromName;
+    $prevIndex = 0;
+    $prevPoint = null;
+    $prevI = 0; $prevT = 0.0;
+    foreach ($unique as $cut) {
+        $piece = $prevPoint === null ? [] : [[$prevPoint[0], $prevPoint[1]]];
+        // 💣 max(0, ...): liegen zwei Schnitte im SELBEN Segment, ist die Laenge hier 0. Eine
+        // negative Laenge wuerde array_slice vom ENDE her schneiden -- ein stiller Falschschnitt.
+        $piece = array_merge($piece, array_slice($coordinates, $prevIndex, max(0, $cut['i'] - $prevIndex + 1)));
+        if ($cut['t'] > $epsilon) { $piece[] = [$cut['x'], $cut['y']]; }
+
+        // ⚠️ Das Hoehenprofil wird am RESTPROFIL geschnitten, mit LOKALEM Segmentindex. Faellt der
+        // Schnitt in dasselbe Segment wie der vorige, muss t neu skaliert werden -- der vordere
+        // Teil dieses Segments ist bereits verbraucht.
+        $localIndex = $cut['i'] - $prevI;
+        $localT = ($localIndex === 0 && $prevT < 1.0 - $epsilon)
+            ? ($cut['t'] - $prevT) / (1.0 - $prevT)
+            : $cut['t'];
+        [$head, $profile] = avesmapsRouteSplitTerrainProfile($profile, $localIndex, $localT);
+
+        $slices[] = ['from' => $prevName, 'to' => $cut['name'], 'points' => $piece, 'profile' => $head];
+        $prevName = $cut['name'];
+        // Immer i+1, ob der Schnitt auf dem Vertex lag oder mitten im Segment: der Schnittpunkt
+        // selbst wird als $prevPoint vorangestellt, also darf er nicht ein zweites Mal aus den
+        // Koordinaten kommen.
+        $prevIndex = $cut['i'] + 1;
+        $prevPoint = [$cut['x'], $cut['y']];
+        $prevI = $cut['i']; $prevT = $cut['t'];
+    }
+    $tail = array_merge([[$prevPoint[0], $prevPoint[1]]], array_slice($coordinates, $prevIndex));
+    $slices[] = ['from' => $prevName, 'to' => $toName, 'points' => $tail, 'profile' => $profile];
+
+    // 💣 ERST ALLE TEILSTUECKE, DANN DIE URSPRUNGSKANTE WEG. Faellt eines aus, bleibt sie stehen --
+    // lieber eine ueberfluessige Dopplung als eine Luecke im Netz (Regel des Einzelteilers).
+    $added = 0;
+    foreach ($slices as $sliceIndex => $slice) {
+        if (count($slice['points']) < 2) { continue; }
+        $connectionId = 'wp-mslice-' . $slice['to'] . '-' . $sliceIndex;
+        $connection = avesmapsBuildClientRouteSubPathConnection(
+            $original, $slice['from'], $slice['to'], $slice['points'], $connectionId, $slice['profile']
+        );
+        avesmapsAddClientCompatibleGraphConnection($graph, $slice['from'], $slice['to'], $connection);
+        avesmapsAddClientCompatibleGraphConnection($graph, $slice['to'], $slice['from'], avesmapsRouteReverseSubPathConnection($connection));
+        $added++;
+    }
+    if ($added === count($slices)) {
+        avesmapsRemoveClientRouteConnection($graph, $fromName, $toName, (string) ($original['id'] ?? ''));
+    }
+
+    foreach ($unique as $cut) {
+        foreach ($cut['positions'] as $position) {
+            $result[$position] = ['name' => $cut['name'], 'x' => $cut['x'], 'y' => $cut['y']];
+        }
+    }
+    ksort($result);
+    return array_values($result);
+}
+
 function avesmapsAnchorClientWaypointToLandPath(array &$graph, string $waypointName, float $wx, float $wy, array $anchor, string $syntheticTransport, float $syntheticSpeed, int $anchorIndex): void {
     $anchorNodeName = avesmapsSplitClientPathAtAnchor($graph, $anchor, $anchorIndex);
     if ($anchorNodeName === $waypointName || $anchorNodeName === '') return;
