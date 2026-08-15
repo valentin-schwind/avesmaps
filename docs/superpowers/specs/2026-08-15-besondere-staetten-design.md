@@ -264,8 +264,16 @@ Kein Maß, sondern Handgriffe (AGENTS.md §9):
 6. Feuersturm-Tempel öffnen → Typzeile nennt eine der beiden Gottheiten, nicht „Tempel".
 7. Ein Tempel ohne Götter-Kategorie zeigt weiter „Tempel", nichts Leeres.
 
-⚠️ Beides wirkt erst nach einem **WikiSync-Lauf** (🔧 Owner). Der Code ändert nicht die
-Datenbank, sondern was der nächste Lauf einsammelt.
+⚠️ Beides wirkt erst nach **„📥 Dump holen" UND danach „Syncen"** (🔧 Owner, in dieser
+Reihenfolge). Der Code ändert nicht die Datenbank, sondern was der nächste Lauf einsammelt.
+
+💣 **„Syncen" allein reicht nicht, und das sieht man ihm nicht an.** Der Fix sitzt im
+**Dump-Pfad** (`avesmapsWikiDumpParseBuildingPage`); „Syncen" (`sync_kind`) liest nur die
+Sandbox-Zeilen des **neuesten fertigen Dump-Laufs**. Stammt der von vor dem Fix, enthält
+er keine Lehreinrichtung — und der Sync läuft sauber durch, ohne etwas zu finden. Dazu
+kommt: die Suche verlangt ein gefülltes `standort`, und das schreibt ausschließlich der
+Dump-Pfad; der Online-Crawl (`settlements.php:1004`) hat die Bauwerks-Infobox nie gelesen.
+Am 15.08.2026 kostete genau das einen Fehlalarm.
 
 ## 7. Tests
 

@@ -340,10 +340,29 @@ git log origin/master --oneline -1
 ```
 Die zweite Zeile prüft, dass die Ferne den Stand wirklich hat.
 
-- [ ] **Schritt 4: HALT — Owner-Aktion**
+- [ ] **Schritt 4: HALT — Owner-Aktion (ZWEI Stufen, in dieser Reihenfolge)**
 
-🔧 **DU:** Im Editor einen **WikiSync-Lauf** anstoßen. Ohne ihn ändert sich an der
-Datenbank nichts; der Code ändert nur, was der nächste Lauf einsammelt.
+🔧 **DU:** 1. **„📥 Dump holen"** durchlaufen lassen, danach **„Syncen"** bei den
+Siedlungen.
+
+💣 **„Syncen" allein reicht NICHT — und das sieht man ihm nicht an.** Der Fix sitzt in
+`avesmapsWikiDumpParseBuildingPage`, also im **Dump-Pfad** (`dump-hybrid-read.php:269`).
+„Syncen" (`sync_kind`) liest die Sandbox-Zeilen des **neuesten FERTIGEN Dump-Laufs** —
+wurde der vor dem Fix erzeugt, enthält er keine einzige Lehreinrichtung, und der Sync
+läuft fehlerfrei durch, ohne etwas zu finden.
+Der zweite Grund, warum nur der Dump-Pfad trägt: die Suche verlangt ein gefülltes
+`standort`, und das schreibt ausschließlich er — der Online-Crawl
+(`avesmapsWikiSettlementCrawlBuildings`, `settlements.php:1004`) hat die Bauwerks-Infobox
+nie gelesen (Kommentar an der Spalte, `settlements.php:59-64`).
+
+⚠️ Ein neuer **Download** ist dafür nicht nötig, wohl aber ein neuer **Lese-Lauf**
+(`start_read` → `read_step`-Schleife → `apply`); `read_step` holt den Dump nur, wenn er
+fehlt. Genau dieses Muster kennt der Code bereits als Nutzermeldung: „Bitte „📥 Dump
+holen" erneut laufen lassen … und dann erneut syncen."
+
+**Diese Falle kostete am 15.08.2026 einen Fehlalarm:** die Abnahme sagte nur „einen
+WikiSync-Lauf anstoßen", der Owner drückte „Siedlungen syncen", nichts erschien, und es
+sah nach einem Codefehler aus.
 
 - [ ] **Schritt 5: Abnahme durch Handgriffe, nicht durch Zahlen**
 
