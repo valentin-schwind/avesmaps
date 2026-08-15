@@ -73,12 +73,42 @@
 		}
 	}
 
+	// Liegt das Skript schon im Dokument, weil die SEITE es geladen hat (index.html)?
+	// 🔴 Verglichen wird der PFAD, nicht die Adresse: der Stempel unterscheidet sich immer
+	// (?v=<hash> gegen ?v=ASSET_VERSION), und index.html schreibt relativ, der Host absolut.
+	// ⚠️ Eigene Skripte (Marker) sind hier ausgenommen -- die koennen noch LADEN und werden im
+	// Zweig darueber am load-Ereignis abgewartet. Wer sie mitnaehme, loeste das Versprechen auf,
+	// bevor das Skript ausgefuehrt ist.
+	function avesmapsEditorHostScriptAlreadyPresent(scripts, src, baseUri) {
+		if (!Array.isArray(scripts) && !(scripts && typeof scripts.length === "number")) return false;
+		const pfadVon = (wert) => {
+			try { return new URL(String(wert), baseUri).pathname; } catch (fehler) { return ""; }
+		};
+		const ziel = src ? pfadVon(src) : "";
+		if (!ziel) return false;
+		return Array.prototype.some.call(scripts, (node) => {
+			if (!node || !node.src) return false;
+			if (node.dataset && node.dataset.avesmapsEditorSrc) return false;
+			return pfadVon(node.src) === ziel;
+		});
+	}
+
 	function loadScriptOnce(src) {
 		return new Promise((resolve, reject) => {
 			const existing = document.querySelector(`script[data-avesmaps-editor-src="${src}"]`);
 			if (existing) {
 				if (existing.dataset.loaded === "1") resolve();
 				else existing.addEventListener("load", () => resolve(), { once: true });
+				return;
+			}
+			// 💣 Die Seite hat manche dieser Dateien schon (filter-menu.js, dialog-drag.js stehen in
+			// index.html). Ein zweites Laden fuehrt sie ein zweites Mal aus, und ein `const` auf
+			// oberster Ebene bricht dabei mit "already been declared" ab -- folgenlos, weil die erste
+			// Ausfuehrung alles definiert hat, aber ein roter Konsolenfehler bei jedem Oeffnen.
+			// ⚠️ Sofort aufloesen ist hier richtig: index.html laedt diese Skripte klassisch (ohne
+			// defer/async), sie sind also laengst ausgefuehrt, wenn jemand den Editor oeffnet.
+			if (avesmapsEditorHostScriptAlreadyPresent(document.scripts, src, document.baseURI)) {
+				resolve();
 				return;
 			}
 			const script = document.createElement("script");
@@ -130,4 +160,6 @@
 		hostId: HOST_ID,
 		assetVersion: ASSET_VERSION,
 	};
+	// Nur fuer den Test: die Entscheidung "liegt schon im Dokument" ohne DOM pruefbar machen.
+	globalThis.avesmapsEditorHostScriptAlreadyPresent = avesmapsEditorHostScriptAlreadyPresent;
 })();
