@@ -95,4 +95,32 @@ const markerCss = lies("css", "features", "location-popups-markers.css");
 assert.ok(!/\.share-pin-menu/.test(markerCss), "die .share-pin-menu-Regeln sind mit dem Markup gefallen");
 assert.ok(/\.share-pin-visual/.test(markerCss), "das Marker-Symbol .share-pin-visual bleibt");
 
+// 🔴 Letzter Handgriff: „Was ist hier?" bekommt sein Icon (wegweiser.webp) -- und diese Zusicherung
+// haelt kuenftig JEDEN Besucher-Eintrag des Kartenmenues gegen die Icon-CSS, statt nur diesen einen
+// nachzutragen. Faellt so kuenftig auf, wenn ein neuer Eintrag ohne Bild dazukommt, statt dass es
+// irgendwann im Menue auffaellt. Ausschliesslich die BESUCHER-Eintraege, direkte Kinder von
+// #map-context-menu -- die Editor-Gruppe (data-context-action="add-here" und ihr Untermenue) hat ein
+// eigenes Zeichensystem (docs/editor-kennzeichnung-mockup.html) und gehoert hier nicht dazu.
+const menuBlock = html.match(/<div id="map-context-menu"[\s\S]*?(?=<div id="region-context-menu")/);
+assert.ok(menuBlock, "index.html traegt das Kartenmenue");
+const editorGroupStart = menuBlock[0].indexOf('class="map-context-menu__group map-context-menu__group--editor"');
+assert.ok(editorGroupStart > -1, "die Editor-Gruppe steht im Menue");
+const editorGroupMatch = menuBlock[0].slice(editorGroupStart).match(/[\s\S]*?<\/div>\s*<\/div>/);
+assert.ok(editorGroupMatch, "die Editor-Gruppe laesst sich abgrenzen (dieselbe Technik wie in "
+	+ "js/app/__tests__/map-context-menu-editor-group.test.js)");
+const ohneEditorGruppe = menuBlock[0].slice(0, editorGroupStart)
+	+ menuBlock[0].slice(editorGroupStart + editorGroupMatch[0].length);
+const besucherAktionen = [...ohneEditorGruppe.matchAll(/data-context-action="([a-z-]+)"/g)].map((m) => m[1]);
+assert.ok(besucherAktionen.length >= 7, "mindestens die sieben bekannten Besucher-Eintraege stehen da");
+
+const menuIconsCss = lies("css", "components", "map-context-menu-icons.css");
+besucherAktionen.forEach((aktion) => {
+	const eigeneRegel = new RegExp(
+		'\\.map-context-menu__item\\[data-context-action="' + aktion + '"\\]::before\\s*\\{[^}]*background-image:\\s*url\\('
+	);
+	assert.ok(eigeneRegel.test(menuIconsCss), '„' + aktion + '" hat eine eigene Icon-Regel in map-context-menu-icons.css');
+});
+assert.ok(/data-context-action="what-is-here"/.test(menuIconsCss) && /wegweiser\.webp/.test(menuIconsCss),
+	'„Was ist hier?" traegt konkret den Wegweiser');
+
 console.log("was-ist-hier-verdrahtung: alles gruen");

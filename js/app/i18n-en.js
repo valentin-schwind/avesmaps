@@ -252,11 +252,12 @@ window.AVESMAPS_I18N_EN = {
 	"ctxmenu.groupAdd": "Add",
 	// The escape hatch, shown at the foot of the area menu AND the territory menu: where the map is
 	// covered edge to edge, Ctrl + right-click is the only way back to "Travel here", "Measure
-	// distance", "Search" and "Report here". One sentence, one key -- both menus read it from here.
+	// distance", "Find a place" and "Report something here". One sentence, one key -- both menus
+	// read it from here.
 	"ctxmenu.mapMenuHint": "Ctrl + right-click: map menu",
 	"ctxmenu.whatIsHere": "What's here?",
-	"ctxmenu.reportLocation": "Report here...",
-	"ctxmenu.search": "Search",
+	"ctxmenu.reportLocation": "Report something here",
+	"ctxmenu.search": "Find a place",
 	"ctxmenu.findNearest": "Find nearest location",
 	"ctxmenu.travelHere": "Travel here",
 	"ctxmenu.measureDistance": "Measure distance",
