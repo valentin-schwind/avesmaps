@@ -1233,7 +1233,15 @@ function avesmapsSplitClientPathAtPoints(array &$graph, array $anchor, array $cu
     $added = 0;
     foreach ($slices as $sliceIndex => $slice) {
         if (count($slice['points']) < 2) { continue; }
-        $connectionId = 'wp-mslice-' . $slice['to'] . '-' . $sliceIndex;
+        // 💣 DIE KENNUNG HAENGT AM ERSTEN ANKER, NICHT AM ZIELKNOTEN DES TEILSTUECKS. Das `to` des
+        // LETZTEN Teilstuecks ist der Endknoten der Kante, kein frischer Ankername -- zwei Wege, die am
+        // selben Knoten enden und gleich oft geteilt werden, bekamen damit dieselbe id. Der
+        // Ankersammler entdoppelt seine Kandidaten ueber genau diese id (avesmapsCollectNearest-
+        // ClientLandPathAnchors), also verschwand ein ganzes Wegstueck lautlos aus dem Angebot --
+        // erreichbar bei JEDER Anfrage mit zwei Kartenpunkten, weil der zweite Sammler ueber den
+        // bereits geteilten Graphen laeuft. Der Ankername kommt aus dem Graphen und ist global
+        // eindeutig (avesmapsAllocateClientAnchorIndex).
+        $connectionId = 'wp-mslice-' . $unique[0]['name'] . '-' . $sliceIndex;
         $connection = avesmapsBuildClientRouteSubPathConnection(
             $original, $slice['from'], $slice['to'], $slice['points'], $connectionId, $slice['profile']
         );

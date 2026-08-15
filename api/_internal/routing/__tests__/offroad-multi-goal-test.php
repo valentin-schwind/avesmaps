@@ -103,4 +103,54 @@ assert($bergab['oben']['descent_schritt'] > $bergab['oben']['ascent_schritt'],
     . var_export($bergab['oben']['ascent_schritt'], true) . ' hinauf, '
     . var_export($bergab['oben']['descent_schritt'], true) . ' hinab)');
 
+// ---- F: 🔴 DIE TOLERANZ EINES KANDIDATEN DARF KEINEN SEE FUER DIE ANDEREN OEFFNEN -------
+// avesmapsOffroadFreeAround raeumt um jeden Endpunkt eine Scheibe von 2,0 Einheiten frei. Beim
+// Einzellauf war das harmlos -- jeder Lauf bekam $blocked BY VALUE und legte nur um SEINE beiden
+// Endpunkte frei. Im Mehrziellauf teilen sich alle Ziele EIN Gitter, und am 15.08.2026 wurde
+// gemessen, was das anrichtet: ein Kandidat im See liess die Etappe eines FERNEN Kandidaten
+// 14,01 statt 21,90 Einheiten MITTEN DURCH ein Band von 1,6 Einheiten laufen -- der Median der
+// Seen (AGENTS.md §11). V13 hat das Wassermeiden gebaut; dies hatte es fuer schmale Seen aufgehoben.
+//
+// ⚠️ GEPRUEFT WIRD DIE STRECKE, NICHT DIE GEOMETRIE. Die ausgelieferte Linie ist
+// Douglas-Peucker-vereinfacht (AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS) und schneidet Ecken -- eine
+// Sehne darf die Seeecke also streifen, ohne dass der Weg durch den See fuehrt. Der Beleg ist
+// deshalb: die Etappe des fernen Kandidaten aendert sich durch einen fremden Kandidaten NICHT.
+$seeBox = avesmapsBuildOffroadBox(2.0, 2.0, 24.0, 24.0);
+$seeGesperrt = str_repeat("\x00", $seeBox['cell_count']);
+for ($row = 0; $row < $seeBox['rows']; $row++) {
+    for ($col = 0; $col < $seeBox['cols']; $col++) {
+        [$cx, $cy] = avesmapsOffroadCellCentre($seeBox, $col, $row);
+        if ($cx >= 10.0 && $cx <= 11.6 && $cy >= 4.0 && $cy <= 20.0) {
+            $seeGesperrt[$row * $seeBox['cols'] + $col] = "\x01";
+        }
+    }
+}
+
+$fern = ['x' => 20.0, 'y' => 12.0];
+$nass = ['x' => 10.8, 'y' => 12.0];             // liegt MITTEN im See
+$ufer = ['x' => 9.7, 'y' => 12.0];              // an Land, aber die Scheibe reicht ins Wasser
+
+$alleine = avesmapsOffroadFindPathsFromPoint($seeBox, $seeGesperrt, null, null, $speed, 5.0, 12.0,
+    ['fern' => $fern]);
+assert(is_array($alleine['fern']), 'der ferne Kandidat wird erreicht');
+// Um den See herum sind es rund 23,3 Einheiten; der Durchbruch mass 14,0. Die Schranke trennt beides.
+assert($alleine['fern']['distance'] > 20.0,
+    'ohne fremde Kandidaten laeuft die Etappe UM den See (' . $alleine['fern']['distance'] . ')');
+
+$mitNassem = avesmapsOffroadFindPathsFromPoint($seeBox, $seeGesperrt, null, null, $speed, 5.0, 12.0,
+    ['fern' => $fern, 'nass' => $nass]);
+assert(abs($mitNassem['fern']['distance'] - $alleine['fern']['distance']) < 1e-9,
+    'ein Kandidat IM See darf die Etappe des fernen um kein Haar veraendern: '
+    . $mitNassem['fern']['distance'] . ' gegen ' . $alleine['fern']['distance']);
+// ⚠️ Der nasse Kandidat wird trotzdem angebunden -- nicht fallengelassen, sondern in einem EIGENEN
+// Lauf mit eigener Gitterkopie bedient, genau wie vor dem 15.08.2026.
+assert(is_array($mitNassem['nass']), 'der nasse Kandidat wird weiterhin angebunden');
+
+$mitUfer = avesmapsOffroadFindPathsFromPoint($seeBox, $seeGesperrt, null, null, $speed, 5.0, 12.0,
+    ['fern' => $fern, 'ufer' => $ufer]);
+assert(abs($mitUfer['fern']['distance'] - $alleine['fern']['distance']) < 1e-9,
+    'auch ein Kandidat AM UFER veraendert die ferne Etappe nicht: '
+    . $mitUfer['fern']['distance'] . ' gegen ' . $alleine['fern']['distance']);
+assert(is_array($mitUfer['ufer']), 'und der Uferkandidat wird angebunden');
+
 fwrite(STDOUT, "offroad-multi-goal-test: OK\n");

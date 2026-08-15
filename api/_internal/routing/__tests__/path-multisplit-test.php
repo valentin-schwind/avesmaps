@@ -117,4 +117,56 @@ assert(abs($cuts4[0]['x'] - 8.0) < 1e-9, 'Rueckgabe folgt der EINGABE, nicht der
 assert(abs($cuts4[1]['x'] - 4.0) < 1e-9, 'Rueckgabe folgt der EINGABE, nicht der Sortierung');
 assert(isset($graph4[$cuts4[1]['name']][$cuts4[0]['name']]), 'im Graphen stehen sie trotzdem in Reihe');
 
+// ---- E: 💣 DIE TEILSTUECK-KENNUNGEN MUESSEN EINDEUTIG SEIN ------------------------------
+// Die Kennung hing am `to` des Teilstuecks. Beim LETZTEN Teilstueck ist das der Endknoten der
+// Kante, kein frischer Ankername -- zwei Wege, die am selben Knoten enden und gleich oft geteilt
+// werden, bekamen damit dieselbe id. avesmapsCollectNearestClientLandPathAnchors entdoppelt seine
+// Kandidaten ueber genau diese id, also verschwand ein ganzes Wegstueck lautlos aus dem Angebot.
+// Erreichbar bei JEDER Anfrage mit zwei Kartenpunkten (der zweite Sammler laeuft ueber den bereits
+// geteilten Graphen). Gefunden von einem Pruefagenten am 15.08.2026.
+$graph5 = [];
+$wegA = [[0.0, 0.0], [4.0, 0.0], [8.0, 0.0], [12.0, 0.0]];
+$wegC = [[0.0, 9.0], [4.0, 9.0], [8.0, 9.0], [12.0, 0.0]];   // endet am SELBEN Knoten K
+foreach ([['A', $wegA, 'wegA#0'], ['C', $wegC, 'wegC#0']] as [$von, $punkte, $id]) {
+    $verbindung = [
+        'route_type' => 'Strasse', 'transport_option' => 'groupFoot',
+        'id' => $id, 'path_id' => $id, 'from' => $von, 'to' => 'K',
+        'distance' => avesmapsCalculateClientRouteCoordinateDistance($punkte),
+        'time' => avesmapsCalculateClientRouteCoordinateDistance($punkte) / 3.07,
+        'geometry' => ['type' => 'LineString', 'coordinates' => $punkte],
+    ];
+    avesmapsAddClientCompatibleGraphConnection($graph5, $von, 'K', $verbindung);
+    avesmapsAddClientCompatibleGraphConnection($graph5, 'K', $von, $verbindung);
+}
+foreach ([['A', $wegA, 'wegA#0'], ['C', $wegC, 'wegC#0']] as [$von, $punkte, $id]) {
+    $anker = ['from' => $von, 'to' => 'K', 'connection' => [
+        'route_type' => 'Strasse', 'transport_option' => 'groupFoot',
+        'id' => $id, 'path_id' => $id, 'from' => $von, 'to' => 'K',
+        'distance' => avesmapsCalculateClientRouteCoordinateDistance($punkte),
+        'time' => avesmapsCalculateClientRouteCoordinateDistance($punkte) / 3.07,
+        'geometry' => ['type' => 'LineString', 'coordinates' => $punkte],
+    ]];
+    avesmapsSplitClientPathAtPoints($graph5, $anker, [
+        ['segment_index' => 1, 't' => 0.0],
+        ['segment_index' => 2, 't' => 0.0],
+    ]);
+}
+// Jede Kante steht in BEIDEN Richtungen und traegt beidesmal dieselbe Kennung -- das ist so
+// gewollt. Der Fehler waere, wenn eine Kennung zu ZWEI VERSCHIEDENEN Knotenpaaren gehoerte.
+$paareJeKennung = [];
+foreach ($graph5 as $von => $kanten) {
+    foreach ($kanten as $nach => $verbindungen) {
+        foreach ($verbindungen as $v) {
+            $paar = [(string) $von, (string) $nach];
+            sort($paar);
+            $paareJeKennung[(string) $v['id']][implode('|', $paar)] = true;
+        }
+    }
+}
+foreach ($paareJeKennung as $kennung => $paare) {
+    assert(count($paare) === 1,
+        'die Kennung ' . $kennung . ' gehoert zu ' . count($paare) . ' verschiedenen Kanten: '
+        . implode(', ', array_keys($paare)));
+}
+
 fwrite(STDOUT, "path-multisplit-test: OK\n");

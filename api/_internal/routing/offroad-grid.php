@@ -523,10 +523,21 @@ function avesmapsOffroadFindPathsFromPoint(
     // Wasserpolygon liegt (Ufer-Zeichenspiel), waere sonst von der ersten Zelle an eingemauert --
     // dieselbe Begruendung wie beim Einzellauf (§5.2).
     avesmapsOffroadFreeAround($box, $blocked, $x, $y);
+
+    // 🔴 NUR DER KARTENPUNKT WIRD IM GEMEINSAMEN GITTER FREIGELEGT. Ein Ziel, in dessen Umkreis
+    // Wasser liegt, bekommt seinen EIGENEN Lauf mit einer eigenen Kopie des Gitters -- genau wie vor
+    // dem 15.08.2026, als jeder Kandidat seinen eigenen A* hatte. Sonst oeffnet die Toleranz des
+    // einen Kandidaten den See fuer die Etappen aller anderen (gemessen: 14,01 statt 21,90 Einheiten
+    // quer durch ein Band von 1,6 Einheiten, dem Median der Seen).
+    // ⚠️ Das kostet einen zusaetzlichen Suchlauf JE NASSEM Kandidaten -- live sind das 0 bis 2 von 35.
     $goalCells = [];
     $openGoals = [];
+    $isolated = [];
     foreach ($goals as $key => $goal) {
-        avesmapsOffroadFreeAround($box, $blocked, (float) $goal['x'], (float) $goal['y']);
+        if (avesmapsOffroadHasBlockedNear($box, $blocked, (float) $goal['x'], (float) $goal['y'])) {
+            $isolated[$key] = $goal;
+            continue;
+        }
         [$goalCol, $goalRow] = avesmapsOffroadCellOf($box, (float) $goal['x'], (float) $goal['y']);
         $goalCell = $goalRow * $cols + $goalCol;
         $goalCells[$key] = $goalCell;
@@ -617,6 +628,13 @@ function avesmapsOffroadFindPathsFromPoint(
         $points[count($points) - 1] = [$x, $y];
 
         $result[$key] = avesmapsOffroadFinishPath($points, $speed, $factors, $heights, $box, $eps, $opened, $rasters);
+    }
+
+    // Die nassen Kandidaten, jeder mit einer eigenen Gitterkopie. avesmapsOffroadFindPath legt darin
+    // um SEINE beiden Endpunkte frei und wirft die Kopie danach weg -- die Toleranz bleibt lokal.
+    foreach ($isolated as $key => $goal) {
+        $result[$key] = avesmapsOffroadFindPath($box, $blocked, $factors, $heights, $speed,
+            (float) $goal['x'], (float) $goal['y'], $x, $y, $eps, $rasters);
     }
 
     return $result;
@@ -720,6 +738,36 @@ function avesmapsOffroadFinishPath(array $points, float $speed, ?string $factors
         'descent_schritt' => $descent === null ? null : round($descent),
         'cells_opened' => $opened,
     ];
+}
+
+/**
+ * PURE: liegt im Umkreis der Kuestentoleranz von (x, y) ueberhaupt eine gesperrte Zelle?
+ *
+ * 🔴 DAS IST DER FILTER GEGEN DAS WASSERLOCH. avesmapsOffroadFreeAround raeumt eine Scheibe von
+ * 2,0 Einheiten Durchmesser frei. Beim Einzellauf war das harmlos: jeder Lauf bekam $blocked BY
+ * VALUE und legte nur um SEINE beiden Endpunkte frei. Im Mehrziellauf teilen sich alle Ziele EIN
+ * Gitter -- ein Kandidat im oder am Wasser oeffnete damit den See fuer die Etappen ALLER anderen.
+ * Gemessen am 15.08.2026: ein Band von 1,6 Einheiten (der Median der Seen, AGENTS.md §11) wurde
+ * durchlaessig, die Etappe eines fernen Kandidaten lief 14,01 statt 21,90 Einheiten mitten durch
+ * den See. Wer diese Pruefung entfernt, holt das zurueck.
+ */
+function avesmapsOffroadHasBlockedNear(array $box, string $blocked, float $x, float $y): bool
+{
+    [$col, $row] = avesmapsOffroadCellOf($box, $x, $y);
+    $reach = (int) ceil(AVESMAPS_ROUTE_CLIENT_WATER_COAST_TOLERANCE / $box['cell']);
+    for ($deltaRow = -$reach; $deltaRow <= $reach; $deltaRow++) {
+        $nextRow = $row + $deltaRow;
+        if ($nextRow < 0 || $nextRow >= $box['rows']) { continue; }
+        for ($deltaCol = -$reach; $deltaCol <= $reach; $deltaCol++) {
+            $nextCol = $col + $deltaCol;
+            if ($nextCol < 0 || $nextCol >= $box['cols']) { continue; }
+            [$centreX, $centreY] = avesmapsOffroadCellCentre($box, $nextCol, $nextRow);
+            if (hypot($centreX - $x, $centreY - $y) > AVESMAPS_ROUTE_CLIENT_WATER_COAST_TOLERANCE) { continue; }
+            if ($blocked[$nextRow * $box['cols'] + $nextCol] === "") { return true; }
+        }
+    }
+
+    return false;
 }
 
 /**
