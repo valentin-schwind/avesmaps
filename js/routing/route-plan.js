@@ -544,8 +544,26 @@ function formatRoutePlanNodeName(name) {
 	return normalizeNodeName(name) === "Kreuzung" ? "Markierung" : name;
 }
 
+// 💣 DIESES PRAEDIKAT ENTSCHEIDET, OB EINE ETAPPE SCHLIESST (cleanRoutePlanNoiseEntries) -- es ist
+// keine reine Anzeigefrage. „Luring -> Feenplatz -> Spinnried" wird zu „Luring -> Spinnried"; die
+// Strasse bleibt ganz und die Reise gleich lang, es verschwindet nur der Name. Ohne das waere die
+// Etappenliste ein Verzeichnis aller versteckten Orte.
+//
+// 🔴 Der AUFGEDECKTE versteckte Ort bleibt stehen: wer ihn als Wegpunkt gesetzt hat, darf sein
+// eigenes Reiseziel nicht aus dem Reiseplan verlieren. isHiddenLocation beantwortet genau diese
+// Frage mit (es prueft die Aufdeckungsmenge), deshalb steht hier keine zweite Menge.
+//
+// ⚠️ Ein Name OHNE Marker faellt NICHT heraus. Das ist kein versteckter Ort, sondern ein Knoten, den
+// der Client nicht kennt -- ihn zu schlucken hiesse, eine Etappe stillschweigend zu verlieren.
 function isRoutePlanMarkerName(name) {
-	return normalizeNodeName(name) === "Kreuzung" || String(name || "") === "Markierung";
+	if (normalizeNodeName(name) === "Kreuzung" || String(name || "") === "Markierung") {
+		return true;
+	}
+	if (typeof findLocationMarkerByName !== "function" || typeof isHiddenLocation !== "function") {
+		return false;
+	}
+	const entry = findLocationMarkerByName(String(name || ""));
+	return Boolean(entry) && isHiddenLocation(entry.location);
 }
 
 // An entry's place name as markup: a map link when a real, name-findable location exists (not a
