@@ -129,7 +129,18 @@ function getOverlappingPoliticalRegionLayersAtLatLng(latlng, preferredLayer = nu
 	return sourceLayers.length > 0 ? sourceLayers : derivedLayers;
 }
 
-function resolveOverlappingRegionLayerSelection(latlng, fallbackLayer = null) {
+// 🔴 DURCHSCHALTEN IST EINE AUSWAHL-GESTE, KEINE HANDLUNG. Wer mehrfach auf dieselbe Stelle klickt,
+// meint "zeig mir die naechste darunterliegende Flaeche" -- wer rechtsklickt, meint "handle auf der,
+// die ich gerade gewaehlt habe". Deshalb `advance: false` aus dem Kontextmenue.
+//
+// 💣 Ohne diese Trennung zaehlte der Rechtsklick den Zaehler MIT hoch: die per Linksklick gewaehlte
+// Kontur war die richtige, das darauf geoeffnete Menue gehoerte der naechsten. Bei genau zwei
+// Flaechen kippt das jedes Mal (Fall #73, Nottel 15.08.2026 -- Irakema gegen die Staemme des
+// Regengebirges). Es sah nur "sporadisch" aus, weil der Zaehler nach TIMEOUT_MS bzw. jenseits von
+// MAX_PIXEL_DISTANCE auf 0 zurueckfaellt und man dann zufaellig richtig lag.
+// Test: __tests__/region-overlap-rechtsklick.test.js
+function resolveOverlappingRegionLayerSelection(latlng, fallbackLayer = null, options = {}) {
+	const advanceSelection = options.advance !== false;
 	const normalizedLatLng = L.latLng(latlng);
 	const candidateLayers = getOverlappingPoliticalRegionLayersAtLatLng(normalizedLatLng, fallbackLayer);
 	// Den ermittelten Kandidaten (nach Quelle-bevorzugter Filterung) dem rohen angeklickten
@@ -156,7 +167,12 @@ function resolveOverlappingRegionLayerSelection(latlng, fallbackLayer = null) {
 		const previousPoint = map.latLngToContainerPoint(recentRegionOverlapSelection.latlng);
 		const currentPoint = map.latLngToContainerPoint(normalizedLatLng);
 		if (previousPoint.distanceTo(currentPoint) <= REGION_OVERLAP_SELECTION_MAX_PIXEL_DISTANCE) {
-			nextIndex = (recentRegionOverlapSelection.index + 1) % candidateLayers.length;
+			// ⚠️ Beim Festhalten gegen die AKTUELLE Kandidatenzahl klemmen: zwischen zwei Klicks kann
+			// eine Flaeche verschwunden sein (Zoomwechsel, Filter), und ein alter Index zeigte dann
+			// ins Leere -- die Auswahl fiele stumm auf den Rueckfall-Layer.
+			nextIndex = advanceSelection
+				? (recentRegionOverlapSelection.index + 1) % candidateLayers.length
+				: Math.min(recentRegionOverlapSelection.index, candidateLayers.length - 1);
 		}
 	}
 

@@ -559,7 +559,10 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 			return;
 		}
 		L.DomEvent.stop(event);
-		const selection = resolveOverlappingRegionLayerSelection(event.latlng, polygon);
+		// 🔴 `advance: false` -- das Menue handelt auf der gewaehlten Flaeche und schaltet nicht
+		// weiter. Vorher zaehlte dieser Rechtsklick den Durchschalt-Zaehler mit hoch, und der
+		// Editor oeffnete die NACHBARFLAECHE der eben gewaehlten (Fall #73).
+		const selection = resolveOverlappingRegionLayerSelection(event.latlng, polygon, { advance: false });
 		const selectedLayer = selection.layer || polygon;
 		const selectedRegionEntry = selectedLayer._regionEntry || regionEntry;
 		announceOverlappingRegionSelection(selection);
