@@ -117,6 +117,11 @@ async function syncPoliticalTerritoryEditorAssignmentZooms(value = {}) {
 		});
 		const result = await response.json().catch(() => null);
 		if (!response.ok || result?.ok === false) {
+			// Die Antwort mitschreiben, nicht nur die Meldung: der Server legt bei einem 500 die
+			// Ausnahmeklasse in error.exception (nur die Klasse, nie die Meldung). Ohne diese Zeile
+			// stuende sie zwar in der Antwort, aber nur im Netzwerk-Reiter -- und der Fehler wurde
+			// deshalb tagelang als "irgendein 500" gemeldet.
+			console.warn("Zoom-Sync-Antwort:", result);
 			throw new Error(apiErrorMessage(result, "Breadcrumb-Zoomstufen konnten nicht global synchronisiert werden."));
 		}
 		return result;

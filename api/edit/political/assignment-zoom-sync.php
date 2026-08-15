@@ -45,7 +45,19 @@ try {
     // stand am 15.08.2026 ein 500 beim Speichern da, den niemand einordnen konnte. Format wie
     // avesmapsServerErrorResponse -- nur die Antwort bleibt die eigene, deutsche.
     error_log('avesmaps assignment-zoom-sync: ' . get_class($exception) . ': ' . $exception->getMessage());
-    avesmapsErrorResponse(500, 'server_error', 'Die Herrschaftsgebiets-Zoomstufen konnten nicht synchronisiert werden.');
+    // 🔴 NUR DER KLASSENNAME, NIE die Meldung. Der Klassenname sagt, WO es klemmt (PDOException =
+    // Datenbank, JsonException = Kodierung) und verraet nichts ueber die Daten; getMessage() traegt
+    // dagegen Tabellen-, Spalten- und Wertfragmente nach draussen -- das ist die Info-Preisgabe, die
+    // M1 abstellen soll. Der Endpunkt sitzt ohnehin hinter der Faehigkeit "edit".
+    // ⚠️ Eigene Antwort statt avesmapsErrorResponse: dessen Huelle ist fest auf code+message.
+    avesmapsJsonResponse(500, [
+        'ok' => false,
+        'error' => [
+            'code' => 'server_error',
+            'message' => 'Die Herrschaftsgebiets-Zoomstufen konnten nicht synchronisiert werden.',
+            'exception' => get_class($exception),
+        ],
+    ]);
 }
 
 function avesmapsPoliticalReadAssignmentZoomSyncPayload(array $payload): array {
