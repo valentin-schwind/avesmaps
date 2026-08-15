@@ -50,7 +50,6 @@ function ladeSharePin({ findMarker, connectivityIndex, clipboardShouldFail = fal
 	const sandbox = {
 		findLocationMarkerByPublicId: findMarker,
 		locationConnectivityIndex: connectivityIndex,
-		SPARSE_CROSSING_WAY_COUNT: 2,
 		// Finding 1's eigentliche Wache: existierte dieser Aufruf im Code, wuerde er hier durchlaufen
 		// und den Spion umlegen -- statt den echten (teuren) Graphbau anzustossen.
 		getLocationConnectivityIndex: () => {
@@ -111,23 +110,24 @@ async function main() {
 	const marker = { location: { coordinates: [12.5, 34.25] } };
 	const { sandbox: sbMarkiert, copiedTexts: copiedMarkiert, toasts: toastsMarkiert, indexSpion: spionMarkiert } = ladeSharePin({
 		findMarker: (publicId) => (publicId === "pid-kr" ? marker : null),
-		connectivityIndex: { unconnected: new Set(), sparseCrossings: new Set(["pid-kr"]) },
+		connectivityIndex: { unconnected: new Set(), sparseCrossings: new Set(["pid-kr"]), crossingWayTypes: new Map([["pid-kr", "Strasse"]]) },
 	});
 	const erwarteterPin = sbMarkiert.buildSharePinLink({ lat: 12.5, lng: 34.25 });
 	const didCopyMarkiert = await sbMarkiert.reportCrossingWithFeedback("pid-kr");
 	assert.strictEqual(didCopyMarkiert, true, "erfolgreiches Kopieren meldet true");
 	assert.strictEqual(copiedMarkiert.length, 1, "genau ein Zwischenablage-Schreibversuch");
 	assert.ok(copiedMarkiert[0].includes(erwarteterPin), "die Zeile traegt den ECHTEN Pin-Link (buildSharePinLink), keinen selbstgebauten");
-	assert.ok(copiedMarkiert[0].includes("· 2 Arme"), "eine markierte Kreuzung traegt die Armzahl aus SPARSE_CROSSING_WAY_COUNT");
+	assert.ok(copiedMarkiert[0].includes("Kreuzung (Strasse) · "), "eine markierte Kreuzung traegt die Wegart statt der tautologischen Armzahl");
 	assert.strictEqual(spionMarkiert.aufgerufen, false,
 		"🔴 getLocationConnectivityIndex() darf hier NICHT laufen -- das waere ein Graphbau ueber 5929 Wege bei einem blossen Popup-Klick");
 	assert.deepStrictEqual(toastsMarkiert, [{ message: "Kreuzung in die Zwischenablage kopiert.", type: "success" }]);
 
-	// --- Index (noch) nicht gebaut: kein Armzahl-Zusatz, und der Index wird dafuer nicht extra gebaut. ---
+	// --- Index (noch) nicht gebaut: kein Klammerteil, und der Index wird dafuer nicht extra gebaut. ---
 	const ohneIndex = ladeSharePin({ findMarker: () => marker, connectivityIndex: null });
 	const didCopyOhneIndex = await ohneIndex.sandbox.reportCrossingWithFeedback("pid-sonst");
 	assert.strictEqual(didCopyOhneIndex, true);
-	assert.ok(!ohneIndex.copiedTexts[0].includes("Arme"), "ohne gebauten Index gibt es keine Armzahl -- nicht 'unmarkiert', sondern 'unbekannt'");
+	assert.strictEqual(ohneIndex.copiedTexts[0].includes("Kreuzung · "), true, "ohne gebauten Index entfaellt der Klammerteil -- nicht 'unmarkiert', sondern 'unbekannt'");
+	assert.ok(!ohneIndex.copiedTexts[0].includes("("), "kein Klammerteil ohne gebauten Index");
 	assert.strictEqual(ohneIndex.indexSpion.aufgerufen, false, "auch hier: kein Nachbau des Index nur fuer die Meldung");
 
 	// --- Marker fehlt (geloescht/verschoben zwischen Popup-Oeffnen und Klick): kein Wurf, kein Schreibversuch. ---
@@ -140,7 +140,8 @@ async function main() {
 	const clipboardVersagt = ladeSharePin({ findMarker: () => marker, connectivityIndex: null, clipboardShouldFail: true });
 	const didCopyVersagt = await clipboardVersagt.sandbox.reportCrossingWithFeedback("pid-versagt");
 	assert.strictEqual(didCopyVersagt, false, "ein Zwischenablage-Fehlschlag wird nicht geworfen, sondern als false gemeldet");
-	assert.deepStrictEqual(clipboardVersagt.toasts, [{ message: "Konnte nicht automatisch kopiert werden.", type: "warning" }]);
+	assert.deepStrictEqual(clipboardVersagt.toasts, [{ message: "Link konnte nicht automatisch kopiert werden.", type: "warning" }],
+		"🔴 teilt sich den Schluessel toast.share.copyFailed mit den Geschwistern, statt ein zweites Literal zu tragen");
 
 	console.log("popup crossing report tests passed");
 }

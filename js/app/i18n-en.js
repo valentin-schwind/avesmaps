@@ -596,6 +596,7 @@ window.AVESMAPS_I18N_EN = {
 	"toast.share.pinCopied": "Link to the marked spot copied to clipboard.",
 	"toast.share.copyFailed": "The link could not be copied automatically.",
 	"toast.share.linkCopied": "Link copied to clipboard.",
+	"toast.share.crossingCopied": "Crossing copied to clipboard.",
 
 	// --- route waypoint popup ---
 	"popup.showMore": "Show more",

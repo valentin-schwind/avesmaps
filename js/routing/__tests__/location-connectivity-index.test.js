@@ -79,6 +79,12 @@ assert.strictEqual(sparse.has("pid-K1"), false, "ein Arm ist eine Sackgasse, kei
 assert.strictEqual(sparse.has("pid-K3"), false, "a 3-way crossing is a real crossing");
 assert.strictEqual(sparse.has("pid-C"), false, "sparse marks CROSSINGS only, never settlements");
 
+// Die Wegart steht im Index, weil der Melde-Knopf sie statt der tautologischen Armzahl braucht
+// (Owner 2026-08-15: "2 Arme" steht in JEDER markierten Zeile, unterscheidet also nichts).
+assert.strictEqual(getSparseCrossingWayType("pid-K2"), "Weg", "eine markierte Kreuzung traegt ihre Wegart im Index");
+assert.strictEqual(getSparseCrossingWayType("pid-K3"), "", "eine NICHT markierte Kreuzung liefert keine Wegart");
+assert.strictEqual(getSparseCrossingWayType("pid-unbekannt"), "", "eine unbekannte publicId liefert leer statt zu werfen");
+
 // --- cache ---
 assert.strictEqual(getUnconnectedLocationPublicIds(), unconnected, "cached: same Set instance until invalidated");
 assert.strictEqual(getSparseCrossingPublicIds(), sparse, "cached: same Set instance until invalidated");

@@ -225,9 +225,13 @@ async function copySharePinLinkWithFeedback(latlng) {
 // folgende Nummer um eins. Als Meldung an den Owner waere sie damit unbrauchbar -- deshalb traegt
 // die Zeile die publicId/den Pin-Link, nie den angezeigten Namen.
 //
-// 💣 Baut den Index NICHT. Die Armzahl ist Beiwerk und wird nur gelesen, wenn er ohnehin schon
-// steht (ein Pruefhaken ist an); getLocationConnectivityIndex() hier aufzurufen hiesse, einen
-// Popup-Klick mit einem Graphbau ueber 5929 Wege zu bezahlen.
+// 💣 Baut den Index NICHT. Die Armzahl war Beiwerk und ist raus (Owner 2026-08-15: "2 Arme" steht
+// in JEDER markierten Zeile -- Regel 1 verlangt genau SPARSE_CROSSING_WAY_COUNT, die Zahl
+// unterscheidet also nichts). Die Wegart ist die einzig unterscheidende Angabe und wird ebenfalls
+// nur gelesen, wenn der Index ohnehin schon steht (locationConnectivityIndex befuellt). Absichtlich
+// NICHT ueber getSparseCrossingWayType() (route-graph-routing.js): der folgt der Form seiner
+// Nachbarn und baut den Index bei Bedarf lazy -- genau das darf ein Popup-Klick nicht ausloesen,
+// also liest dieser Aufrufer weiterhin direkt am globalen Objekt, wie schon istMarkiert.
 async function reportCrossingWithFeedback(publicId) {
 	const markerEntry = publicId ? findLocationMarkerByPublicId(publicId) : null;
 	const koordinaten = markerEntry?.location?.coordinates;
@@ -238,10 +242,11 @@ async function reportCrossingWithFeedback(publicId) {
 	const stelle = { lat: koordinaten[0], lng: koordinaten[1] };
 	const istMarkiert = locationConnectivityIndex
 		&& locationConnectivityIndex.sparseCrossings.has(publicId);
-	const befund = istMarkiert ? ` · ${SPARSE_CROSSING_WAY_COUNT} Arme` : "";
+	const wegart = istMarkiert ? (locationConnectivityIndex.crossingWayTypes.get(publicId) || "") : "";
+	const befund = wegart ? ` (${wegart})` : "";
 	const didCopy = await copyTextToClipboard(`Kreuzung${befund} · ${buildSharePinLink(stelle)}`);
 	showFeedbackToast(
-		didCopy ? "Kreuzung in die Zwischenablage kopiert." : "Konnte nicht automatisch kopiert werden.",
+		didCopy ? tr("toast.share.crossingCopied", "Kreuzung in die Zwischenablage kopiert.") : tr("toast.share.copyFailed", "Link konnte nicht automatisch kopiert werden."),
 		didCopy ? "success" : "warning"
 	);
 	return didCopy;

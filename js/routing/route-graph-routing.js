@@ -365,6 +365,13 @@ function hasForeignPathOverPoint(grid, lat, lng, ownPathIds) {
 //   sparseCrossings -- ein aufloesbarer Durchgangsknoten: genau SPARSE_CROSSING_WAY_COUNT Arme,
 //                      eine Wegart. Powerlines don't count here -- a Kreuzung is a way node, and
 //                      Kraftlinien only ever attach to Nodices.
+//   crossingWayTypes -- die EINE Wegart je markierter Kreuzung (Regel 3 verlangt arms.routeTypes.size
+//                      === 1, es gibt also nie mehr als eine). Der Melde-Knopf braucht sie: "2 Arme"
+//                      ist tautologisch (jede markierte Zeile hat exakt SPARSE_CROSSING_WAY_COUNT
+//                      Arme), die Wegart ist die einzige unterscheidende Angabe (Owner 2026-08-15).
+//                      Bleibt eine Map neben dem Set, statt sparseCrossings selbst umzubauen --
+//                      resolveLocationCheckFinding (map-features-location-marker-rendering.js) ruft
+//                      .has() darauf und Tests bilden [...sparse].sort().
 // Cached in locationConnectivityIndex (js/app/runtime-state.js); invalidated in
 // refreshPlannerAfterFeatureChange (js/routing/route-render.js) plus the two powerline mutation
 // sites that don't flow through it.
@@ -374,6 +381,7 @@ function computeLocationConnectivityIndex() {
     const segmentGrid = buildPathSegmentGrid();
     const unconnected = new Set();
     const sparseCrossings = new Set();
+    const crossingWayTypes = new Map();
     locationData.forEach((location) => {
         if (!location.publicId) {
             return;
@@ -389,9 +397,10 @@ function computeLocationConnectivityIndex() {
             && arms.routeTypes.size === 1
             && !hasForeignPathOverPoint(segmentGrid, location.coordinates[0], location.coordinates[1], arms.pathIds)) {
             sparseCrossings.add(location.publicId);
+            crossingWayTypes.set(location.publicId, [...arms.routeTypes][0]);
         }
     });
-    return { unconnected, sparseCrossings };
+    return { unconnected, sparseCrossings, crossingWayTypes };
 }
 
 function getLocationConnectivityIndex() {
@@ -407,6 +416,15 @@ function getUnconnectedLocationPublicIds() {
 
 function getSparseCrossingPublicIds() {
     return getLocationConnectivityIndex().sparseCrossings;
+}
+
+// Die Wegart einer markierten Kreuzung, oder "" (nicht markiert / unbekannte publicId). Folgt der
+// Form der Nachbarn oben (geht ueber getLocationConnectivityIndex(), baut den Index bei Bedarf also
+// lazy) -- anders als der Melde-Knopf in map-features-share-pin.js, der bewusst NICHT hierueber geht:
+// dort darf ein Popup-Klick keinen Graphbau ueber 5929 Wege ausloesen, deshalb liest er weiterhin
+// direkt am globalen locationConnectivityIndex und nur, wenn es schon befuellt ist.
+function getSparseCrossingWayType(publicId) {
+    return getLocationConnectivityIndex().crossingWayTypes.get(publicId) || "";
 }
 
 function getVisualLatLngCoordinates(latLngs) {
