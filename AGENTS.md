@@ -267,7 +267,12 @@ is the default, English is opt-in. Therefore:
   Wer nur seine eigenen Tests laufen lässt, sieht so etwas nie: die Datei, die bricht,
   gehört jemand anderem. Der Lauf ist der aus dem Workflow:
   `for t in $(find js tools -path '*__tests__*' -name '*.test.js'); do node "$t"; done`
-  (PHP analog mit `-d zend.assertions=1`).
+  PHP analog -- 💣 **aber mit den Erweiterungen, sonst luegt der Lauf**:
+  `for t in $(find api tools -path '*__tests__*' -name '*-test.php'); do php -d zend.assertions=1 -d assert.exception=1 -d extension=php_mbstring.dll -d extension=php_pdo_sqlite.dll -d extension=php_gd.dll "$t"; done`
+  ⚠️ Ohne `mbstring`/`pdo_sqlite`/`gd` melden **45 Tests** rot, die alle nur die Erweiterung
+  vermissen und es in ihrer eigenen Fehlermeldung auch sagen -- am 15.08.2026 gemessen. Wer das
+  nicht weiss, haelt das Testfeld fuer kaputt oder sich selbst fuer den Verursacher. Vorbestehend
+  rot bleibt genau einer: `linkcheck/link-url-test.php` (echter DNS-Abruf), kein Regressionssignal.
   ⚠️ **Und danach: der Fehlschlag vergiftet den `?v=`-Stempel.** Der nächste grüne Lauf
   hält die nie hochgeladenen Dateien für aktuell — live standen zwei davon auf HTTP 404
   und sechs in alter Fassung, während `index.html` schon die neue anforderte. Nur eine
