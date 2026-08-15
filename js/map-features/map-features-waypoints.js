@@ -144,9 +144,16 @@ function getWaypointAutocompleteEntries() {
 	// Ein Innerorts-Objekt, das denselben Namen wie ein echter Kartenort trägt, fällt raus: der
 	// Kartenort ist das genauere Ziel und hat eine eigene Position.
 	const ownNames = new Set(ownEntries.map((entry) => entry.normalizedName));
+	// 🔴 Ein Innerorts-Objekt erbt die Frage von seinem ZIEL: sein Wegpunkt ist die STADT, nicht das
+	// Objekt. Ist die Stadt versteckt, sagt die Zeile das -- sonst fuehren mehrere unbeschriftete
+	// Vorschlaege an denselben versteckten Ort wie der eine beschriftete daneben (Owner 15.08.2026,
+	// live gesehen: drei Objekte in Warunk). Einmal je Cache-Aufbau gerechnet, nicht je Tastendruck.
+	const versteckteOrtsnamen = new Set(ownEntries.filter((entry) => entry.isHidden).map((entry) => entry.normalizedName));
 
 	waypointAutocompleteSourceCache = ownEntries
-		.concat(inSettlement.filter((entry) => !ownNames.has(entry.normalizedName)))
+		.concat(inSettlement
+			.filter((entry) => !ownNames.has(entry.normalizedName))
+			.map((entry) => ({ ...entry, isHidden: versteckteOrtsnamen.has(normalizeLocationSearchName(entry.settlement)) })))
 		.sort((a, b) => a.name.localeCompare(b.name, "de"));
 	waypointAutocompleteSourceCacheLength = expectedLength;
 	return waypointAutocompleteSourceCache;
@@ -196,7 +203,15 @@ function waypointSuggestionLabel(label, entry) {
 	if (!entry || !entry.isHidden) {
 		return label;
 	}
-	return `${label} (${tr("waypoint.hidden", "versteckt")})`;
+	const zusatz = tr("waypoint.hidden", "versteckt");
+	// 💣 EINE KLAMMER, NICHT ZWEI (Owner 15.08.2026). Ein Innerorts-Objekt fuehrt zur STADT, die
+	// Klammer nennt sie -- und „versteckt" beschreibt dieselbe Stadt. „(Imdal) (versteckt)" laese sich
+	// wie zwei Aussagen ueber zwei Dinge. Nur eine Klammer ganz am ENDE wird geoeffnet; eine mitten im
+	// Namen gehoert dem Namen und bleibt unberuehrt.
+	if (/\([^()]*\)$/.test(label)) {
+		return `${label.slice(0, -1)} · ${zusatz})`;
+	}
+	return `${label} (${zusatz})`;
 }
 
 function getWaypointAutocompleteSource(term = "") {
@@ -236,7 +251,7 @@ function getWaypointAutocompleteSource(term = "") {
 		// statt Greifenau, Greifenberg, Greifenfurt, Greifenhorst. Gedeckt von
 		// js/map-features/__tests__/waypoint-autocomplete-items.test.js.
 		.map((match) => (match.entry.settlement
-			? { label: waypointInSettlementLabel(match.entry.name, match.entry.settlement), value: match.entry.settlement }
+			? { label: waypointSuggestionLabel(waypointInSettlementLabel(match.entry.name, match.entry.settlement), match.entry), value: match.entry.settlement }
 			: { label: waypointSuggestionLabel(match.entry.name, match.entry), value: match.entry.name }));
 }
 

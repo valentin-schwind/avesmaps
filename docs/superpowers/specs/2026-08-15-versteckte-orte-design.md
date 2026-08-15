@@ -285,8 +285,20 @@ schon ein (Kommentar bei `:212`, bewacht von
 `js/map-features/__tests__/waypoint-autocomplete-items.test.js`); die neue Zeile darf es nicht
 brechen.
 
-⚠️ Ein **Innerorts**-Objekt bleibt ungekennzeichnet: sein `value` ist die Stadt, und die Klammer
-trägt dort schon deren Namen. Ein zweiter Zusatz wäre mehr Klammer als Auskunft.
+🔴 **Ein Innerorts-Objekt erbt die Kennzeichnung von seinem ZIEL** (Owner 15.08.2026, nach dem
+ersten Bau). Der erste Entwurfsstand ließ es ungekennzeichnet — „sein `value` ist die Stadt, ein
+zweiter Zusatz wäre mehr Klammer als Auskunft". Live gemessen war das falsch: bei einem versteckten
+Warunk standen **drei** unbeschriftete Vorschläge („Warunker Höhenburg (Warunk)", „Goldene Pyramide
+in Warunk (Warunk)", „Rondra-Tempel in Warunk (Warunk)") neben dem einen beschrifteten und führten
+alle an denselben versteckten Ort.
+
+💣 **Aber EINE Klammer, nicht zwei:** „Warunker Höhenburg (Warunk · versteckt)". Die Klammer nennt
+das Ziel, und „versteckt" beschreibt dasselbe Ziel — „(Warunk) (versteckt)" läse sich wie zwei
+Aussagen über zwei Dinge. `waypointSuggestionLabel` öffnet dafür eine Klammer **ganz am Ende**;
+eine mitten im Namen gehört dem Namen und bleibt unberührt. ⚠️ Der Zustand wird **einmal je
+Cache-Aufbau** aus den eigenen Einträgen abgeleitet (`versteckteOrtsnamen`), nicht je Tastendruck
+nachgeschlagen. `waypointInSettlementLabel` bleibt unangetastet — es trägt seine eigene Regel gegen
+die doppelte Stadtklammer.
 
 ---
 

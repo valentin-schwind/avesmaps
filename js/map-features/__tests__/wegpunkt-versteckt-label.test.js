@@ -23,12 +23,33 @@ assert.strictEqual(waypointSuggestionLabel("Gareth", {}), "Gareth", "ein gewoehn
 assert.strictEqual(waypointSuggestionLabel("Gareth", null), "Gareth", "und ein fehlender Eintrag aendert nichts");
 assert.strictEqual(waypointSuggestionLabel("Feenplatz", { isHidden: true }), "Feenplatz (versteckt)");
 
-// ⚠️ Die Klammer ist die Form, die diese Liste schon kennt: das Innerorts-Objekt zeigt
-// „Schänke Schnapsfass (Imdal)". Ein zweites Muster daneben waere eine zweite Rezeptur.
+// 💣 EINE KLAMMER, NICHT ZWEI (Owner 15.08.2026). Ein Innerorts-Objekt fuehrt zur STADT -- die
+// Klammer nennt sie, und „versteckt" beschreibt dieselbe Stadt. Zwei Klammern hintereinander
+// („(Imdal) (versteckt)") lesen sich wie zwei Aussagen ueber zwei Dinge.
 assert.strictEqual(
 	waypointSuggestionLabel("Schänke Schnapsfass (Imdal)", { isHidden: true }),
-	"Schänke Schnapsfass (Imdal) (versteckt)",
-	"die Kennzeichnung haengt hinten an, sie ersetzt die Stadtklammer nicht",
+	"Schänke Schnapsfass (Imdal · versteckt)",
+	"die Kennzeichnung geht IN die vorhandene Klammer",
+);
+// ⚠️ Und nur in eine Klammer ganz am Ende. Steht sie mitten im Namen, waere das Anhaengen dort ein
+// Eingriff in den Namen selbst.
+assert.strictEqual(
+	waypointSuggestionLabel("Burg (alt) am See", { isHidden: true }),
+	"Burg (alt) am See (versteckt)",
+	"eine Klammer mitten im Namen bleibt unberuehrt",
+);
+
+// --- das Innerorts-Objekt erbt die Frage von seinem ZIEL -------------------------------------------
+// 🔴 Sein Wegpunkt ist die STADT, nicht das Objekt. Ist die Stadt versteckt, sagt die Zeile das --
+// sonst fuehren mehrere unbeschriftete Vorschlaege an denselben versteckten Ort wie der eine
+// beschriftete daneben (live gesehen: drei Objekte in Warunk).
+assert.ok(
+	/isHidden: versteckteOrtsnamen\.has\(/.test(source),
+	"die Innerorts-Eintraege muessen den Versteckt-Zustand ihrer Stadt uebernehmen",
+);
+assert.ok(
+	/label: waypointSuggestionLabel\(waypointInSettlementLabel\(/.test(source),
+	"und der Innerorts-Zweig muss durch denselben Kennzeichner laufen",
 );
 
 // --- der Eintrag muss das Merkmal ueberhaupt TRAGEN ----------------------------------------------
