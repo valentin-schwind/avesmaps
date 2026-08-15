@@ -587,6 +587,64 @@ $check(
 // ===========================================================================
 // summary
 // ===========================================================================
+// (g) DIE GOTTHEITEN-MAP -- aus DENSELBEN Seiten wie die Kontinent-Map (Discord #54).
+// ===========================================================================
+// ⭐ Der Punkt dieser Gruppe: sie kostet KEINE zusaetzliche Abfrage. Beide Assembler bekommen
+// dasselbe $pagesByRequestedTitle, das die Kontinent-Phase ohnehin holt. Der urspruengliche
+// Plan sah 45 eigene categorymembers-Abfragen vor -- bei 600 ms Drosselung rund 37 s in der
+// NICHT fortsetzbaren Phase online_building_map, die schon bei etwa 83 s liegt.
+$mockDeityPages = [
+    'Drachentempel' => ['title' => 'Drachentempel', 'categories' => [
+        ['title' => 'Kategorie:Aventurien-Artikel'],
+        ['title' => 'Kategorie:Bauwerk in Grangor'],
+        ['title' => 'Kategorie:Rondra-Tempel'],
+    ]],
+    // 💣 Doppelweihung -- live gemessen, der Feuersturm-Tempel gehoert Rondra UND Ingerimm.
+    'Feuersturm-Tempel' => ['title' => 'Feuersturm-Tempel', 'categories' => [
+        ['title' => 'Kategorie:Ingerimm-Tempel'],
+        ['title' => 'Kategorie:Rondra-Tempel'],
+    ]],
+    // Ein Bauwerk ohne Weihung darf gar nicht erst in der Map stehen.
+    'Burg Wallenstein' => ['title' => 'Burg Wallenstein', 'categories' => [
+        ['title' => 'Kategorie:Burg'],
+        ['title' => 'Kategorie:Aventurien-Artikel'],
+    ]],
+];
+$deityMap = avesmapsWikiDumpCategoryAssembleDeityMap($mockDeityPages);
+
+$check(
+    '(g1) Rondra-Tempel-Kategorie -> Rondra',
+    ['Rondra'],
+    $deityMap['Drachentempel'] ?? null,
+    'die Gottheit steht NUR in der Kategorie, nie im Wikitext -- deshalb die Kategorie-Schicht'
+);
+$check(
+    '(g2) Doppelweihung sammelt BEIDE',
+    ['Ingerimm', 'Rondra'],
+    $deityMap['Feuersturm-Tempel'] ?? null,
+    'anders als die Bauwerks-Map, die den ERSTEN Treffer behaelt: zwei Weihungen sind kein Konflikt'
+);
+$check(
+    '(g3) Bauwerk ohne Weihung steht NICHT in der Map',
+    false,
+    array_key_exists('Burg Wallenstein', $deityMap),
+    'ein leerer Eintrag wuerde beim Schreiben eine vorhandene Gottheit ueberbuegeln'
+);
+$check(
+    '(g4) fremde Kategorien erzeugen nichts',
+    0,
+    count(avesmapsWikiDumpCategoryAssembleDeityMap([
+        'Ferdok' => ['title' => 'Ferdok', 'categories' => [['title' => 'Kategorie:Mittelgroße Stadt']]],
+    ])),
+    'Bauwerk-in-Ort, Index-, Aventurien-Artikel usw. duerfen keine Gottheit ergeben'
+);
+$check(
+    '(g5) dieselben Seiten speisen BEIDE Assembler',
+    'Aventurien',
+    avesmapsWikiDumpCategoryAssembleContinentMap($mockDeityPages)['Drachentempel'] ?? null,
+    'Kontinent- und Gottheits-Map lesen dieselbe Antwort -- das ist der ganze Gewinn'
+);
+
 echo "\n----------------------------------------------------------------\n";
 printf("RESULT: %d passed, %d failed\n", $passCount, $failCount);
 echo "----------------------------------------------------------------\n";

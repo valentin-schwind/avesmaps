@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+// Die Gottheiten-Tabelle fuer avesmapsWikiDumpCategoryAssembleDeityMap (unten). Rein: keine
+// Datenbank, kein DDL, keine weitere Abhaengigkeit -- dieselbe Bauart wie place-kinds.php, aus
+// dessen Konstante diese Datei ohnehin liest. Der Aufrufer laedt sie sonst zufaellig mit; ein
+// require_once hier macht die Abhaengigkeit sichtbar und kostet nichts.
+require_once __DIR__ . '/deities.php';
+
 /**
  * Hybrid WikiDump migration -- Task H1: the ONLINE CATEGORY LAYER.
  * ---------------------------------------------------------------------------
@@ -338,6 +344,50 @@ function avesmapsWikiDumpCategoryAssembleContinentMap(array $pagesByRequestedTit
         );
         $context = $normTitle . ' ' . implode(' ', $categories);
         $map[$normTitle] = avesmapsWikiSyncMonitorDetectContinent($context);
+    }
+
+    return $map;
+}
+
+/**
+ * PURE assembler: {requestedTitle => prop=categories page} -> {normTitle => list<Gottheit>}.
+ *
+ * ⭐ SIE KOSTET KEINE EINZIGE ZUSAETZLICHE ABFRAGE. Die Kontinent-Phase holt fuer jeden Titel
+ * ohnehin `prop=categories` und wirft danach alles weg, was nicht Kontinent ist -- die
+ * Goetter-Kategorie liegt in genau derselben Antwort. Der urspruengliche Plan sah 45 eigene
+ * categorymembers-Abfragen vor; gemessen am 15.08.2026 waeren das bei 600 ms Drosselung
+ * (AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS) rund 37 s zusaetzlich in der NICHT fortsetzbaren
+ * Phase online_building_map, die heute schon bei etwa 83 s liegt. Hier haengt es an einer
+ * fortsetzbaren Phase und kostet nichts.
+ *
+ * 💣 Die Gottheit steht NICHT im Wikitext: „Drachentempel" ist laut API in
+ * Kategorie:Rondra-Tempel, sein Quelltext enthaelt keinen solchen Link -- die Kategorie kommt
+ * ueber eine Vorlage. Genau deshalb ist die Kategorie-SCHICHT der einzige Weg.
+ *
+ * 💣 MEHRWERTIG: der Feuersturm-Tempel steht in „Ingerimm-Tempel" UND „Rondra-Tempel". Anders
+ * als avesmapsWikiDumpCategoryAssembleBuildingMap, die den ERSTEN Treffer behaelt (spezifisch
+ * vor Sammelkategorie), werden hier ALLE gesammelt -- zwei Weihungen sind kein Konflikt,
+ * sondern die Wahrheit.
+ *
+ * Titel ohne Gottheit erscheinen NICHT in der Map (kein leerer Eintrag): der Aufrufer schreibt
+ * nur, was er findet, und ein Bauwerk ohne Weihung soll seine Zeile nicht mit '' ueberschreiben.
+ *
+ * @return array<string, list<string>>
+ */
+function avesmapsWikiDumpCategoryAssembleDeityMap(array $pagesByRequestedTitle): array {
+    $map = [];
+    foreach ($pagesByRequestedTitle as $requestedTitle => $page) {
+        if (!is_array($page)) {
+            continue;
+        }
+        $normTitle = avesmapsWikiSyncMonitorNormalizeTitle((string) $requestedTitle);
+        if ($normTitle === '') {
+            continue;
+        }
+        $deities = avesmapsDeitiesFromCategories(avesmapsWikiSyncGetCategoryNames($page));
+        if ($deities !== []) {
+            $map[$normTitle] = $deities;
+        }
     }
 
     return $map;
