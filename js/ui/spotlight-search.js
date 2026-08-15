@@ -849,7 +849,7 @@ function renderSpotlightSearchResults(entries) {
 }
 
 // The third line under a place's type: what the map does with it, in the reader's words.
-// „Ruine" describes the place; „Versteckt" describes how the map treats it. A place can be both --
+// „Ruine" describes the place; „Verborgen" describes how the map treats it. A place can be both --
 // then it is ONE hint with a separator, never two lines: the hint is `nowrap` (see
 // css/components/spotlight-search.css) and a second line would be silently clipped.
 function spotlightLocationStateHint(location) {
@@ -858,7 +858,7 @@ function spotlightLocationStateHint(location) {
 		parts.push(tr("spotlight.ruined", "Ruine"));
 	}
 	if (location && location.isHidden) {
-		parts.push(tr("spotlight.hidden", "Versteckt"));
+		parts.push(tr("spotlight.hidden", "Verborgen"));
 	}
 	return parts.join(" · ");
 }
@@ -871,7 +871,7 @@ function spotlightResultMarkup(entry, index) {
 	//   reachable adventure /
 	//   occurrence             -> its own hint (where it begins / where it occurs), set by its builder
 	//   hidden and/or ruined
-	//   place                  -> "Versteckt" / "Ruine" / "Ruine · Versteckt" (spotlightLocationStateHint)
+	//   place                  -> "Verborgen" / "Ruine" / "Ruine · Verborgen" (spotlightLocationStateHint)
 	// A REACHABLE map deliberately gets NO hint: its typeLabel already names type and place
 	// ("Grundriss · Gareth"). "Innerorts" must never appear under a section hit -- a territory or a way
 	// is not a settlement, and in this project that is domain vocabulary, not a nuance.
@@ -886,7 +886,7 @@ function spotlightResultMarkup(entry, index) {
 	// 💣 ZWEI FRAGEN, ZWEI KLASSEN. --not-on-map means "this hit jumps somewhere else" and tints;
 	// --two-line means "this row carries a hint" and widens. Until 2026-08-15 --not-on-map did both,
 	// and a hidden place -- which IS on the map -- would not have got the width: the ellipsis at 150px
-	// then eats the very word "Versteckt".
+	// then eats the very word "Verborgen".
 	const resultClass = "spotlight-search__result"
 		+ (entry.notOnMap ? " spotlight-search__result--not-on-map" : "")
 		+ (hintText ? " spotlight-search__result--two-line" : "");

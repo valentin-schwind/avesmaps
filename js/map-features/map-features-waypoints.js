@@ -216,7 +216,7 @@ function waypointSuggestionLabel(label, entry) {
 	if (!entry || !entry.isHidden) {
 		return label;
 	}
-	const zusatz = tr("waypoint.hidden", "versteckt");
+	const zusatz = tr("waypoint.hidden", "verborgen");
 	// 💣 EINE KLAMMER, NICHT ZWEI (Owner 15.08.2026). Ein Innerorts-Objekt fuehrt zur STADT, die
 	// Klammer nennt sie -- und „versteckt" beschreibt dieselbe Stadt. „(Imdal) (versteckt)" laese sich
 	// wie zwei Aussagen ueber zwei Dinge. Nur eine Klammer ganz am ENDE wird geoeffnet; eine mitten im

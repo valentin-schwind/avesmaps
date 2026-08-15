@@ -35,10 +35,28 @@ function locationTypeLabelForDisplay(location) {
 		label = String(wikiSettlement.building_type);
 		carriesAKind = true;
 	}
-	if (carriesAKind && wikiSettlement && wikiSettlement.is_ruined && !/ruine/i.test(label)) {
-		label += " (Ruine)";
+	// 🔴 DAS EIGENE FELD GEWINNT (Owner 15.08.2026: „die infobox soll auch das eigene feld lesen").
+	// Bis dahin las diese Zeile NUR wikiSettlement.is_ruined -- am Livebestand trugen 70 Orte das
+	// eigene Feld, 44 das aus dem Wiki, und 31 NUR das eigene: die sagten im Spotlight „Ruine" und in
+	// der Infobox nichts, darunter „Ruine Khell Dairon". Dieselbe Vorrangregel wie bei Wappen und
+	// Covern: jemand hat hier bewusst hingeschaut, das Wiki hat nur abgeleitet.
+	// ⚠️ `carriesAKind` BLEIBT. „Dorf (Ruine)" stand nie da und soll nicht neu entstehen -- eine
+	// zerfallene Siedlung ist immer noch eine Siedlung. Die 24 Ruinen ohne Art sagen es weiter ueber
+	// die Statuszeile („Ruine oder zerstoert.") und die dritte Spotlight-Zeile.
+	const istRuine = Boolean(location.isRuined) || Boolean(wikiSettlement && wikiSettlement.is_ruined);
+	// 💣 EINE KLAMMER FUER BEIDE, mit demselben Trenner wie die dritte Spotlight-Zeile („Ruine ·
+	// Verborgen"). Zwei Klammern hintereinander lesen sich wie zwei Aussagen ueber zwei Dinge.
+	// ⚠️ Die beiden folgen ABSICHTLICH verschiedenen Regeln: „Ruine" haengt an einer Art (siehe oben),
+	// „Verborgen" an keiner -- es beschreibt nicht, was der Ort IST, sondern wie die Karte mit ihm
+	// umgeht, und das gilt fuer ein Dorf so gut wie fuer einen Turm.
+	const zusaetze = [];
+	if (carriesAKind && istRuine && !/ruine/i.test(label)) {
+		zusaetze.push(tr("popup.typeRuined", "Ruine"));
 	}
-	return label;
+	if (location.isHidden) {
+		zusaetze.push(tr("popup.typeHidden", "Verborgen"));
+	}
+	return zusaetze.length ? `${label} (${zusaetze.join(" · ")})` : label;
 }
 
 // Baut den HTML-Inhalt des Marker-Popups (frisch erzeugbar, damit der Route-Button

@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
-// Die dritte Trefferzeile: „Ruine", „Versteckt", und beides zusammen.
+// Die dritte Trefferzeile: „Ruine", „Verborgen", und beides zusammen.
 //
 // Wie spotlight-scoring.test.js werden die Funktionen per Namen aus der AUSGELIEFERTEN Datei
 // gezogen und einzeln ausgewertet -- der Test prueft die Quelle, keine Kopie davon.
@@ -33,12 +33,12 @@ const { spotlightLocationStateHint, spotlightResultMarkup } = context;
 assert.strictEqual(spotlightLocationStateHint({}), "", "ein gewoehnlicher Ort traegt keine dritte Zeile");
 assert.strictEqual(spotlightLocationStateHint(null), "", "und ein fehlendes Ortsobjekt auch nicht");
 assert.strictEqual(spotlightLocationStateHint({ isRuined: true }), "Ruine");
-assert.strictEqual(spotlightLocationStateHint({ isHidden: true }), "Versteckt");
+assert.strictEqual(spotlightLocationStateHint({ isHidden: true }), "Verborgen");
 
 // 💣 Beides zugleich ist EIN Hinweis mit Trenner, nicht zwei Zeilen: der Hinweis ist `nowrap` und
-// haette sonst still abgeschnitten. Die Reihenfolge ist fest -- Ruine beschreibt den Ort, Versteckt
+// haette sonst still abgeschnitten. Die Reihenfolge ist fest -- Ruine beschreibt den Ort, Verborgen
 // beschreibt, wie die Karte mit ihm umgeht.
-assert.strictEqual(spotlightLocationStateHint({ isRuined: true, isHidden: true }), "Ruine · Versteckt");
+assert.strictEqual(spotlightLocationStateHint({ isRuined: true, isHidden: true }), "Ruine · Verborgen");
 
 // --- das Markup ---------------------------------------------------------------------------------
 const zhamorrah = spotlightResultMarkup(
@@ -53,7 +53,7 @@ assert.ok(!gareth.includes("--two-line"), "und keine Zweizeilen-Klasse");
 
 // 🔴 --two-line und --not-on-map sind ZWEI Fragen. Ein Innerorts-Treffer ist beides; ein versteckter
 // Ort ist nur zweizeilig, und genau daran scheiterte die alte Kopplung: die Verbreiterung auf 240px
-// hing an --not-on-map, also haette die Ellipse bei einem versteckten Ort das Wort „Versteckt"
+// hing an --not-on-map, also haette die Ellipse bei einem versteckten Ort das Wort „Verborgen"
 // gefressen -- die Zeile, die es zu lesen gibt.
 const innerorts = spotlightResultMarkup(
 	{ kind: "citymap", name: "Greifax-Palast", typeLabel: "Grundriss · Xorlosch", notOnMap: true }, 2,
@@ -62,7 +62,7 @@ assert.ok(innerorts.includes("spotlight-search__result--not-on-map"), "der Inner
 assert.ok(innerorts.includes("spotlight-search__result--two-line"), "und ist ausserdem zweizeilig");
 
 const versteckt = spotlightResultMarkup(
-	{ kind: "location", name: "Feenplatz", typeLabel: "Besonderes Bauwerk / Stätte", stateHint: "Versteckt" }, 3,
+	{ kind: "location", name: "Feenplatz", typeLabel: "Besonderes Bauwerk / Stätte", stateHint: "Verborgen" }, 3,
 );
 assert.ok(!versteckt.includes("--not-on-map"), "ein versteckter Ort IST auf der Karte -- nur ungezeichnet");
 

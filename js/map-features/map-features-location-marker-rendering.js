@@ -170,7 +170,7 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom(), ringM
 // Editmode-Checkboxen sind für alle ~3000 Marker identisch, wurden aber pro Marker per jQuery abgefragt
 // (~6000 DOM-Queries pro moveend). Die Typ-Sichtbarkeit füllt sich lazy, weil die Typ-Liste hier nicht
 // bekannt sein muss. shouldShowLocationMarker/-NameLabel funktionieren auch OHNE Kontext (Einzelaufrufe).
-// Versteckt (Owner 15.08.2026): die Karte zeichnet ihn nicht, bis jemand seinen Namen eingibt.
+// Verborgen (Owner 15.08.2026): die Karte zeichnet ihn nicht, bis jemand seinen Namen eingibt.
 // Zwilling von isNodixLocation -- EIN Praedikat, damit Markierung und Namensschild dieselbe Frage
 // stellen und nicht zwei Bedingungen auseinanderlaufen koennen. Es beantwortet beide Haelften
 // zugleich: „ist versteckt" UND „ist in dieser Sitzung noch nicht aufgedeckt".

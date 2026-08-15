@@ -545,6 +545,11 @@ window.AVESMAPS_I18N_EN = {
 	"popup.shareLink": "🔗 Share link",
 	"popup.coatOfArmsAlt": "Coat of arms",
 	"popup.statusRuined": "Ruined or destroyed.",
+	// The bracket behind the infobox type line ("Tower (Ruined · Hidden)"). Until 2026-08-15 the
+	// German "(Ruine)" was hardcoded there and leaked into ?lang=en; both markers go through the
+	// table now. Same words as the third Spotlight line, same separator.
+	"popup.typeRuined": "Ruined",
+	"popup.typeHidden": "Hidden",
 	"popup.addToRoute": "➕ Add destination",
 	"popup.addToRoutePlain": "Add destination",
 	"popup.removeFromRoute": "Remove destination",
