@@ -264,4 +264,71 @@ foreach ($sqlTreffer[1] as $sql) {
     }
 }
 
+// ---------------------------------------------------------------- TRIAGE 35: LANDSCHAFTS-ENTDOPPLUNG
+// 🔴 Territorien und lore.area entdoppeln laengst ueber ihre public_id -- die sichtbare
+// Landschaftszeile tat es bisher nicht. Reine Zusicherung, kein PDO noetig.
+$landschaftsTreffer = [
+    ['kind' => 'vegetation', 'region_public_id' => 'r-dunkelwald', 'region_name' => 'Dunkelwald'],
+    // Zweite Geometriezeile DERSELBEN Region (dieselbe Bauart wie „VIELE Features je Gebiet").
+    ['kind' => 'vegetation', 'region_public_id' => 'r-dunkelwald', 'region_name' => 'Dunkelwald'],
+    ['kind' => 'topographie', 'region_public_id' => 'r-flusslande', 'region_name' => 'Flusslande'],
+];
+$entdoppelt = avesmapsWhatIsHereDedupeAreas($landschaftsTreffer);
+assert(count($entdoppelt) === 2, 'die doppelte Dunkelwald-Zeile faellt weg -- zwei Regionen bleiben, nicht drei Zeilen');
+assert(count(array_filter($entdoppelt, static fn(array $r): bool => $r['region_public_id'] === 'r-dunkelwald')) === 1,
+    'Dunkelwald steht genau einmal');
+assert(count(array_filter($entdoppelt, static fn(array $r): bool => $r['region_public_id'] === 'r-flusslande')) === 1,
+    'Flusslande bleibt unberuehrt daneben stehen');
+// ⚠️ ZWEI VERSCHIEDENE Regionen ueberlagert (der dokumentierte Normalfall) duerfen NICHT
+// zusammenfallen -- das waere der Gegenfehler, eine zu aggressive Entdopplung.
+assert($entdoppelt[0]['region_name'] !== $entdoppelt[1]['region_name'], 'Dunkelwald und Flusslande bleiben zwei eigene Zeilen');
+// Eine Zeile ohne region_public_id wird NIE entdoppelt -- leer ist kein Schluessel.
+$ohneSchluessel = avesmapsWhatIsHereDedupeAreas([
+    ['kind' => 'derographisch', 'region_public_id' => '', 'region_name' => 'X'],
+    ['kind' => 'derographisch', 'region_public_id' => '', 'region_name' => 'X'],
+]);
+assert(count($ohneSchluessel) === 2, 'leerer Schluessel entdoppelt nicht -- beide Zeilen bleiben');
+assert(avesmapsWhatIsHereDedupeAreas([]) === [], 'kein Treffer -> leere Liste, kein Fehler');
+
+// ---------------------------------------------------------------- C2: DIE INNEREN catch UNTERSCHEIDEN
+// 🔴 Fix-Runde 7 (Schlussprüfung): der doppelte SQL-Platzhalter (Fix-Runde 2) wurde nur deshalb bis
+// in die Produktion getragen, weil `catch (Throwable) { return []; }` JEDEN Fehler stumm schluckte --
+// nicht nur eine fehlende Tabelle. Diese Zusicherung haelt fest, dass KEIN blindes
+// `catch (Throwable)` (ohne Variable, ohne Pruefung) mehr in der Bibliothek steht -- jeder Fangblock
+// muss die Ausnahme benennen und avesmapsIsMissingTableError() befragen.
+assert(!str_contains($bibliotheksQuelle, 'catch (Throwable)'),
+    'kein blindes catch (Throwable) mehr -- jeder Fangblock muss die Ausnahme pruefen, nicht stumm schlucken');
+$missingTableCheckCount = substr_count($bibliotheksQuelle, 'avesmapsIsMissingTableError($exception)');
+assert($missingTableCheckCount === 5,
+    "5 Fangbloecke sollten avesmapsIsMissingTableError(\$exception) befragen, gezaehlt: $missingTableCheckCount "
+    . '(Blatt-Abfrage, Wappen-Zutaten, Vorfahren-prepare, Vorfahren-execute, Flaechen-Abfrage)');
+$rethrowCount = substr_count($bibliotheksQuelle, 'throw $exception;');
+assert($rethrowCount === 5, "5 throw \$exception erwartet (einer je gepruefter Fangblock), gezaehlt: $rethrowCount");
+
+// ---------------------------------------------------------------- I2: GESCHLUESSELT, KEIN VOLLSCAN -
+// 🔴 avesmapsWhatIsHereGateCoatUrls() muss die GESCHLUESSELTE Variante rufen
+// (avesmapsLoadSettlementCoatGateInputsByKeys, api/_internal/coat-url.php), nicht mehr den
+// Vollscan (avesmapsLoadSettlementCoatGateInputs) -- der bleibt fuer die Siedlungs-Treppe bestehen,
+// nur hier waere er pro Rechtsklick zwei volle Tabellenscans.
+assert(str_contains($bibliotheksQuelle, 'avesmapsLoadSettlementCoatGateInputsByKeys($pdo'),
+    'die Wappen-Kette laedt geschluesselt, nicht per Vollscan');
+$gateCoatUrlsStart = strpos($bibliotheksQuelle, 'function avesmapsWhatIsHereGateCoatUrls(');
+assert($gateCoatUrlsStart !== false, 'avesmapsWhatIsHereGateCoatUrls ist definiert');
+$gateCoatUrlsEnde = strpos($bibliotheksQuelle, "\nfunction ", $gateCoatUrlsStart + 10);
+$gateCoatUrlsRumpf = $gateCoatUrlsEnde !== false
+    ? substr($bibliotheksQuelle, $gateCoatUrlsStart, $gateCoatUrlsEnde - $gateCoatUrlsStart)
+    : substr($bibliotheksQuelle, $gateCoatUrlsStart);
+assert(!str_contains($gateCoatUrlsRumpf, 'avesmapsLoadSettlementCoatGateInputs($pdo)'),
+    'der Vollscan-Aufruf (ohne "ByKeys") steht NICHT mehr im Rumpf dieser Funktion');
+
+// ---------------------------------------------------------------- C2: DER AEUSSERE catch LOGGT -----
+// 🔴 avesmapsServerErrorResponse (api/_internal/bootstrap.php) statt eines stummen
+// avesmapsErrorResponse -- echter Text ins SERVER-Log, fester Satz an den Client. $endpunktQuelle
+// (oben, DIE ENDPUNKT-ORDNUNG) ist derselbe kommentarbefreite Endpunkt-Quelltext -- kein zweites Mal
+// gelesen.
+assert(str_contains($endpunktQuelle, "avesmapsServerErrorResponse(\$exception, 'what-is-here')"),
+    'der aeussere catch ruft avesmapsServerErrorResponse -- echtes Server-Log statt stiller 500er');
+assert(!str_contains($endpunktQuelle, "avesmapsErrorResponse(500, 'server_error', 'This map point could not be resolved.')"),
+    'der alte, loggende catch ist wirklich ersetzt, nicht nur ergaenzt');
+
 echo "what-is-here: alles gruen\n";

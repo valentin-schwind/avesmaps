@@ -157,6 +157,97 @@ function avesmapsLoadSettlementCoatGateInputs(PDO $pdo): array {
     return ['staging' => $staging, 'overrides' => $overrides];
 }
 
+/**
+ * Wie avesmapsLoadSettlementCoatGateInputs() oben, aber GESCHLUESSELT statt Vollscan -- nur die
+ * Zeilen der uebergebenen wiki_keys, ueber `WHERE wiki_key IN (...)`. Beide Tabellen tragen
+ * `UNIQUE KEY (wiki_key)` (sql/political-territories.sql), ein geschluesselter Zugriff ist also
+ * ein Index-Treffer, kein Scan.
+ *
+ * 🔴 Fix-Runde 7 (Schlussprüfung), I2: der Vollscan oben ist fuer seinen urspruenglichen Aufrufer
+ * richtig dimensioniert -- die Siedlungs-Treppe (api/app/map-features.php) laedt Tausende Territorien
+ * auf EINEN Schlag, einmal je 2,9-MB-Kartenpayload. Ein Rechtsklick auf die Karte (die
+ * what-is-here-Kette, hoechstens ~16 Stufen: 4 gemessen + AVESMAPS_WHAT_IS_HERE_MAX_ANCESTOR_DEPTH)
+ * ist ein einzelner, potenziell haeufiger Aufruf -- zwei Vollscans dafuer sind ueberdimensioniert.
+ * Die Schluessel liegen zum Aufrufzeitpunkt bereits vor (jede Stufe der Kette traegt ihr wiki_key).
+ *
+ * ⚠️ KEIN ZWEITER RIEGEL: die Lizenz-Rangfolge selbst (avesmapsResolveGatedCoatUrl) und ihr Aufrufer
+ * (avesmapsSettlementTerritoryCoatUrl) bleiben unveraendert und werden von BEIDEN Ladern gleichermassen
+ * gefuettert -- nur WIE die Zutaten geholt werden, unterscheidet sich, nicht WAS mit ihnen geschieht.
+ *
+ * @param list<string> $wikiKeys
+ * @return array{staging: array<string,array<string,string>>, overrides: array<string,array<string,string>>}
+ */
+function avesmapsLoadSettlementCoatGateInputsByKeys(PDO $pdo, array $wikiKeys): array {
+    $keys = array_values(array_unique(array_filter(
+        array_map(static fn($k): string => trim((string) $k), $wikiKeys),
+        static fn(string $k): bool => $k !== ''
+    )));
+    if ($keys === []) {
+        return ['staging' => [], 'overrides' => []];
+    }
+
+    $placeholders = implode(',', array_map(static fn(int $i): string => ":k{$i}", array_keys($keys)));
+    $params = [];
+    foreach ($keys as $i => $key) {
+        $params["k{$i}"] = $key;
+    }
+
+    $staging = [];
+    try {
+        $statement = $pdo->prepare(
+            'SELECT wiki_key, coat_of_arms_url, coat_of_arms_license_status FROM '
+            . AVESMAPS_COAT_GATE_STAGING_TABLE . " WHERE wiki_key IN ({$placeholders})"
+        );
+        $statement->execute($params);
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
+            if ($wikiKey === '') {
+                continue;
+            }
+            $staging[$wikiKey] = [
+                'coat_of_arms_url' => (string) ($row['coat_of_arms_url'] ?? ''),
+                'coat_of_arms_license_status' => (string) ($row['coat_of_arms_license_status'] ?? ''),
+            ];
+        }
+    } catch (Throwable) {
+        $staging = [];
+    }
+
+    $overrides = [];
+    try {
+        $statement = $pdo->prepare(
+            'SELECT wiki_key, metadata_overrides_json FROM ' . AVESMAPS_COAT_GATE_MODEL_TABLE
+            . " WHERE metadata_overrides_json IS NOT NULL AND wiki_key IN ({$placeholders})"
+        );
+        $statement->execute($params);
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
+            $json = (string) ($row['metadata_overrides_json'] ?? '');
+            if ($wikiKey === '' || $json === '') {
+                continue;
+            }
+            $decoded = json_decode($json, true);
+            if (!is_array($decoded)) {
+                continue;
+            }
+            $coatOverride = [];
+            if (array_key_exists('coat_of_arms_url', $decoded)) {
+                $coatOverride['coat_of_arms_url'] = (string) $decoded['coat_of_arms_url'];
+            }
+            if (array_key_exists('coat_of_arms_license_status', $decoded)) {
+                $coatOverride['coat_of_arms_license_status'] = (string) $decoded['coat_of_arms_license_status'];
+            }
+            if ($coatOverride !== []) {
+                $overrides[$wikiKey] = $coatOverride;
+            }
+        }
+    } catch (Throwable) {
+        $overrides = [];
+    }
+
+    return ['staging' => $staging, 'overrides' => $overrides];
+}
+
 // Effective, public-domain-GATED coat URL for one territory, mirroring api/app/territory-detail.php EXACTLY:
 //   license = override.coat_of_arms_license_status ?? staging.coat_of_arms_license_status
 //   url     = override.coat_of_arms_url ?? political_territory.coat_of_arms_url ?? staging.coat_of_arms_url

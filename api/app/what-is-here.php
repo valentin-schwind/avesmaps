@@ -79,5 +79,11 @@ try {
         'lore' => $lore,
     ]);
 } catch (Throwable $exception) {
-    avesmapsErrorResponse(500, 'server_error', 'This map point could not be resolved.');
+    // 🔴 Fix-Runde 7 (Schlussprüfung), C2: avesmapsServerErrorResponse (api/_internal/bootstrap.php)
+    // statt eines stummen avesmapsErrorResponse -- der echte Text geht ins SERVER-Log
+    // (error_log, nie an den Client), der Client bekommt weiterhin nur den festen Satz. Kein
+    // Informationsleck, aber auch keine stille Lüge mehr: genau dieser äußere catch hätte den
+    // doppelten SQL-Platzhalter (Fix-Runde 2) am ersten Tag sichtbar gemacht, statt ihn bis in die
+    // Produktion zu tragen.
+    avesmapsServerErrorResponse($exception, 'what-is-here');
 }

@@ -275,7 +275,17 @@ function avesmapsWhatIsHereReadTerritories(PDO $pdo, float $x, float $y, int $ye
         );
         $statement->execute(['x1' => $x, 'x2' => $x, 'y1' => $y, 'y2' => $y, 'jahr' => $yearBf, 'jahr2' => $yearBf]);
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Throwable) {
+    } catch (Throwable $exception) {
+        // 🔴 Fix-Runde 7 (Schlussprüfung), C2: NICHT mehr jeden Throwable stumm schlucken -- genau
+        // das hat den doppelten Platzhalter (Fix-Runde 2) bis in die Produktion getragen, als
+        // stille falsche Antwort (ok:true, aber leer) statt als sichtbaren Fehler. Nur eine fehlende
+        // Tabelle (frische Installation ohne Politik-Layer) ist ein hinnehmbarer Zustand; jeder
+        // andere Fehler ist ein echter und muss weiter nach aussen, bis zum aeusseren catch in
+        // api/app/what-is-here.php (avesmapsServerErrorResponse: echter Text ins Server-Log, fester
+        // Satz an den Client).
+        if (!avesmapsIsMissingTableError($exception)) {
+            throw $exception;
+        }
         return [];
     }
 
@@ -375,9 +385,21 @@ function avesmapsWhatIsHereGateCoatUrls(PDO $pdo, array $kette): array
     }
 
     try {
-        $coatInputs = avesmapsLoadSettlementCoatGateInputs($pdo);
+        // 🔴 Fix-Runde 7, I2: GESCHLUESSELT statt Vollscan -- die Siedlungs-Treppe
+        // (avesmapsLoadSettlementCoatGateInputs) lud beide Tabellen GANZ, gebaut fuer einen Aufruf
+        // je 2,9-MB-Kartenpayload. Diese Kette hat hoechstens ~16 Stufen und jede traegt ihr
+        // wiki_key schon -- avesmapsLoadSettlementCoatGateInputsByKeys (api/_internal/coat-url.php)
+        // fragt beide UNIQUE-KEY-Tabellen nur nach genau diesen Schluesseln. Kein zweiter Riegel:
+        // dieselbe Rangfolge/derselbe Lizenzriegel (avesmapsResolveGatedCoatUrl) bedient beide Lader.
+        $wikiKeys = array_map(static fn(array $stufe): string => (string) ($stufe['wiki_key'] ?? ''), $kette);
+        $coatInputs = avesmapsLoadSettlementCoatGateInputsByKeys($pdo, $wikiKeys);
         $coatsEnabled = avesmapsCoatSwitchEnabledFast($pdo, AVESMAPS_TERRITORY_COATS_SETTING);
-    } catch (Throwable) {
+    } catch (Throwable $exception) {
+        // 🔴 Fix-Runde 7, C2: nur eine fehlende Wiki-Sandbox-Tabelle ist der hinnehmbare Fall
+        // (die Kette bleibt stehen, nur ohne Wappen); jeder andere Fehler muss weiter nach aussen.
+        if (!avesmapsIsMissingTableError($exception)) {
+            throw $exception;
+        }
         foreach ($kette as &$stufeOhneWappen) {
             $stufeOhneWappen['coat_url'] = '';
         }
@@ -402,10 +424,12 @@ function avesmapsWhatIsHereGateCoatUrls(PDO $pdo, array $kette): array
  * sind erst bekannt, NACHDEM die jeweils vorige Zeile gelesen ist -- ein Elternlauf ist strukturell
  * sequentiell.
  *
- * 💣 Inert wie die Blatt-Abfrage: eine fehlende Tabelle oder ein Verbindungsfehler liefert eine LEERE
- * Kette, nie einen 500er auf dem Besucherpfad -- und wirft NICHT nach aussen. Ein Fehler im
- * Elternlauf darf die bereits gefundenen Blatt-Treffer nicht mit sich reissen; deshalb faengt diese
- * Funktion ihre eigenen Ausnahmen, statt sie an avesmapsWhatIsHereReadTerritories() durchzureichen.
+ * 💣 Fix-Runde 7, C2: NUR eine fehlende Tabelle ist inert (frische Installation ohne Politik-Layer)
+ * -- eine LEERE Kette, nie ein 500er auf dem Besucherpfad. Jeder andere Fehler wirft jetzt NACH
+ * AUSSEN (vorher: jeder Fehler wurde stumm zu einer leeren Kette, dieselbe Bauart wie der doppelte
+ * SQL-Platzhalter aus Fix-Runde 2). Ein Fehler mitten im Elternlauf verliert damit auch die bereits
+ * gefundenen Zwischenstufen -- hingenommen, weil ein Fehler an dieser Stelle (das Statement war
+ * gerade eben noch erfolgreich vorbereitet) kein Tabellenproblem mehr ist, sondern ein echtes.
  */
 function avesmapsWhatIsHereReadAncestors(PDO $pdo, int $startId): array
 {
@@ -416,7 +440,10 @@ function avesmapsWhatIsHereReadAncestors(PDO $pdo, int $startId): array
                FROM political_territory
               WHERE id = :id'
         );
-    } catch (Throwable) {
+    } catch (Throwable $exception) {
+        if (!avesmapsIsMissingTableError($exception)) {
+            throw $exception;
+        }
         return [];
     }
 
@@ -428,7 +455,10 @@ function avesmapsWhatIsHereReadAncestors(PDO $pdo, int $startId): array
         try {
             $statement->execute(['id' => $currentId]);
             $row = $statement->fetch(PDO::FETCH_ASSOC);
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            if (!avesmapsIsMissingTableError($exception)) {
+                throw $exception;
+            }
             break;
         }
         if ($row === false) {
@@ -466,7 +496,10 @@ function avesmapsWhatIsHereReadAreas(PDO $pdo, float $x, float $y): array
         );
         $statement->execute(['x1' => $x, 'x2' => $x, 'y1' => $y, 'y2' => $y]);
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Throwable) {
+    } catch (Throwable $exception) {
+        if (!avesmapsIsMissingTableError($exception)) {
+            throw $exception;
+        }
         return [];
     }
 
@@ -480,5 +513,40 @@ function avesmapsWhatIsHereReadAreas(PDO $pdo, float $x, float $y): array
         $treffer[] = $row;
     }
 
-    return $treffer;
+    return avesmapsWhatIsHereDedupeAreas($treffer);
+}
+
+/**
+ * REIN: entdoppelt Landschaftstreffer ueber region_public_id, Reihenfolge sonst unveraendert.
+ *
+ * 🔴 Triage 35: Territorien (avesmapsWhatIsHereOrderTerritories) und lore.area
+ * (avesmapsWhatIsHereLoreKeys) entdoppeln schon ueber ihre jeweilige public_id -- nur diese
+ * sichtbare Landschaftszeile tat es bisher nicht. Eine Region kann mit mehreren Geometriezeilen im
+ * bbox liegen (dieselbe Bauart wie „VIELE Features je Gebiet", z. B. eine mehrteilige Kueste);
+ * ohne Entdopplung stuende sie zweimal in derselben Zeile.
+ *
+ * ⚠️ Entdoppelt wird NUR die IDENTISCHE Region -- „Dunkelwald" und „Flusslande" ueberlagert bleiben
+ * ZWEI Zeilen, das ist der dokumentierte Normalfall (siehe avesmapsWhatIsHereReadAreas). Eine Zeile
+ * ohne `region_public_id` (sollte nicht vorkommen, aber die Abfrage erzwingt es nicht) wird NIE
+ * entdoppelt -- leer ist kein Schluessel.
+ *
+ * @param list<array<string,mixed>> $treffer bereits punktgeprueft (geometry_geojson entfernt)
+ * @return list<array<string,mixed>>
+ */
+function avesmapsWhatIsHereDedupeAreas(array $treffer): array
+{
+    $ergebnis = [];
+    $gesehen = [];
+    foreach ($treffer as $row) {
+        $publicId = (string) ($row['region_public_id'] ?? '');
+        if ($publicId !== '') {
+            if (isset($gesehen[$publicId])) {
+                continue;
+            }
+            $gesehen[$publicId] = true;
+        }
+        $ergebnis[] = $row;
+    }
+
+    return $ergebnis;
 }

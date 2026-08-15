@@ -22,6 +22,8 @@ declare(strict_types=1);
 // Writing origin='manual' for a declined deletion would decide both at once, and in that moment a
 // person is only thinking about the first one.
 
+require_once __DIR__ . '/../db-errors.php';
+
 /** Highest number of rows ONE category shows in the preview (design §10.2, owner 2026-08-06). */
 const AVESMAPS_SYNC_PLAN_CATEGORY_LIMIT = 200;
 
@@ -252,12 +254,11 @@ function avesmapsSyncPlanSupersedeRuns(PDO $pdo, string $kind): int
 
         return $stmt->rowCount();
     } catch (PDOException $exception) {
-        // 42S02 is MySQL's "table does not exist"; sqlite reports HY000 with a message instead, and
-        // sqlite is what the test harness runs on -- a branch that cannot be exercised is a branch
-        // nobody has seen work. Same two-shape reading as avesmapsIsMissingTableError next door.
-        $missing = (string) $exception->getCode() === '42S02'
-            || str_contains(strtolower($exception->getMessage()), 'no such table');
-        if (!$missing) {
+        // 🔴 Fix-Runde 7 (Schlussprüfung), C2: benutzt jetzt avesmapsIsMissingTableError
+        // (api/_internal/db-errors.php) statt der eigenen, schmaleren Kopie (die kannte nur 42S02 +
+        // "no such table", nicht die beiden Textformen "doesn't exist"/"base table or view not
+        // found" -- eine zweite, abweichende Definition derselben Frage).
+        if (!avesmapsIsMissingTableError($exception)) {
             throw $exception;
         }
 

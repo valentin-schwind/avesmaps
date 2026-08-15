@@ -133,10 +133,12 @@ function avesmapsReadVisitorPresence(PDO $pdo): ?array {
     }
 }
 
-// avesmapsIsMissingTableError / avesmapsIsMissingColumnError moved to
-// api/_internal/map/editor-activity.php (required above): the territory write gate needs the same
-// two predicates to stay open while the schema is still being retrofitted, and one definition in a
-// shared library beats two that can drift apart.
+// avesmapsIsMissingColumnError lives in api/_internal/map/editor-activity.php (required above); its
+// sibling avesmapsIsMissingTableError moved on again from there to api/_internal/db-errors.php
+// (Fix-Runde 7/Schlussprüfung, required transitively) once a third reader (sync-plan.php) needed
+// the same table check. The territory write gate needs both predicates to stay open while the
+// schema is still being retrofitted -- one definition each in a shared library beats copies that
+// can drift apart.
 
 /**
  * One heartbeat + one read, either with the activity columns or entirely without them.

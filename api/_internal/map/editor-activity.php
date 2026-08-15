@@ -14,6 +14,8 @@ declare(strict_types=1);
  * Design: docs/superpowers/specs/2026-08-04-editor-taetigkeit-und-territorien-sperre-design.md
  */
 
+require_once __DIR__ . '/../db-errors.php';
+
 // The eight editors, plus the map layers that are worked on without opening a window. A value
 // outside this list becomes null rather than being stored: the panel list is user-visible and must
 // not be fillable with free text.
@@ -166,29 +168,15 @@ function avesmapsReadEditorAreaClaim(PDO $pdo, string|array $area): ?array
     return avesmapsPickEditorAreaClaim($statement->fetchAll(), AVESMAPS_EDITOR_ACTIVITY_CLAIM_SECONDS);
 }
 
-// True when the exception means "the table does not exist yet" -- across MySQL (SQLSTATE 42S02 /
-// "doesn't exist" / "base table or view not found") and SQLite ("no such table", used by test
-// harnesses). Any other error is a real failure and must propagate.
-//
-// These two live here rather than in presence.php because BOTH callers of the claim need them: the
-// presence endpoint to repair the schema, and the territory write gate to stay open while it is
-// still missing.
-function avesmapsIsMissingTableError(Throwable $exception): bool
-{
-    if ((string) $exception->getCode() === '42S02') {
-        return true;
-    }
-    $message = strtolower($exception->getMessage());
-
-    return str_contains($message, "doesn't exist")
-        || str_contains($message, 'base table or view not found')
-        || str_contains($message, 'no such table');
-}
+// 🔴 avesmapsIsMissingTableError moved to api/_internal/db-errors.php (Fix-Runde 7/Schlussprüfung,
+// C2) so api/_internal/wiki/sync-plan.php can share it instead of keeping its own narrower inline
+// copy. Required at the top of this file. Its sibling below (column, not table) stays here -- only
+// the table check had a second reader.
 
 // True when the exception means "the column does not exist yet" -- MySQL SQLSTATE 42S22 / "unknown
-// column". Separate from the missing-table check because the repair is a different one (ALTER
-// TABLE, not CREATE TABLE) and because a live table that predates a retrofit is the normal state
-// right after a deploy, not an error worth a 500.
+// column". Separate from the missing-table check (api/_internal/db-errors.php) because the repair
+// is a different one (ALTER TABLE, not CREATE TABLE) and because a live table that predates a
+// retrofit is the normal state right after a deploy, not an error worth a 500.
 function avesmapsIsMissingColumnError(Throwable $exception): bool
 {
     if ((string) $exception->getCode() === '42S22') {
