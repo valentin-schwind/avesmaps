@@ -210,8 +210,12 @@ assert($builtNoFlag !== null);
 assert($builtNoFlag['no_article'] === false);           // toetet die Mutation "no_article immer true"
 
 // Unbekannter feature_type -> keine Konfliktpartei (Kreuzungen tragen keine Wiki-Identitaet).
+// Der Name darf hier auf KEINEN Fall mit "Kreuzung" beginnen -- sonst greift schon der Namensfilter
+// weiter unten, der Typ-Check wuerde nie geprueft und die Zusicherung bewiese gar nichts
+// (Pruefungs-Befund: mit "Kreuzungsknoten" blieb die Suite gruen, selbst wenn der Typ-Check
+// komplett ausgehebelt wurde).
 assert(avesmapsConflictBuildMapRow([
-    'public_id' => 'n6', 'name' => 'Kreuzungsknoten', 'feature_type' => 'crossing', 'feature_subtype' => '',
+    'public_id' => 'n6', 'name' => 'Nirgendwo', 'feature_type' => 'crossing', 'feature_subtype' => '',
     'properties_json' => '{}', 'geometry_json' => null,
 ]) === null);
 
