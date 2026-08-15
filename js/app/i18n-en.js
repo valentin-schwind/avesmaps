@@ -254,7 +254,6 @@ window.AVESMAPS_I18N_EN = {
 	// covered edge to edge, Ctrl + right-click is the only way back to "Travel here", "Measure
 	// distance", "Search" and "Report here". One sentence, one key -- both menus read it from here.
 	"ctxmenu.mapMenuHint": "Ctrl + right-click: map menu",
-	"ctxmenu.sharePin": "Mark and share this spot",
 	"ctxmenu.whatIsHere": "What's here?",
 	"ctxmenu.reportLocation": "Report here...",
 	"ctxmenu.search": "Search",

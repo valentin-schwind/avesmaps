@@ -702,26 +702,12 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 		return;
 	}
 
-	if (action === "share-pin" && contextMenuLatLng) {
-		// "Stelle markieren und teilen": Pin setzen UND einen Link kopieren, der GENAU diese Stelle
-		// wiederherstellt. Frueher wurde window.location.href kopiert -- das enthaelt den Pin aber nie,
-		// weil die Adresszeile bewusst nicht umgeschrieben wird (URL-Policy). Deshalb hier den expliziten
-		// ?pin=<lat,lng>-Deep-Link kopieren (buildSharePinLink, map-features-share-pin.js).
-		//
-		// 🔴 Fix-Runde 1 (15.08.2026): KEIN avesmapsShowWhatIsHere hier. Dieser Eintrag bleibt der
-		// schnelle Weg OHNE Auskunft (Entwurf §6) -- Markierung setzen, Link kopieren, fertig. Sonst
-		// waere er dasselbe wie „Was ist hier?" und haette keinen Daseinsgrund mehr.
-		const didSetPin = setSharePin(contextMenuLatLng);
-		if (didSetPin) {
-			void copySharePinLinkWithFeedback(contextMenuLatLng);
-		}
-		closeMapContextMenu();
-		focusMapOnActiveTargets();
-		return;
-	}
-
-	// „Was ist hier?": dieselbe Markierung wie „Stelle markieren und teilen" -- es gibt nur EINE --,
-	// aber statt eines kopierten Links geht das Infopanel auf und sagt, was dort liegt.
+	// 🔴 Owner-Entscheid 15.08.2026: „Stelle markieren und teilen hat durch 'Was ist hier?' keine
+	// richtige Funktion und kann weg" -- der eigene Zweig (action === "share-pin") ist damit
+	// ersatzlos gefallen. Was blieb noetig war: die Markierung setzen und die Auskunft zeigen, und
+	// GENAU das tut der Zweig unten. Ein sofortiger Link-Kopf ohne Panel geht seither nicht mehr per
+	// Kartenmenue -- nur noch ueber die Kachel „Link teilen" im geoeffneten Panel (share-what-is-here
+	// weiter unten, dieselben Funktionen: setSharePin, copySharePinLinkWithFeedback).
 	if (action === "what-is-here" && contextMenuLatLng) {
 		closeMapContextMenu();
 		if (setSharePin(contextMenuLatLng)) {
@@ -970,9 +956,10 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
-	// „Link teilen" im Aktionsband der Auskunft -- dieselbe Kachel, derselbe Pin-Link wie am
-	// Kartenmenue-Eintrag „Stelle markieren und teilen" (copySharePinLinkWithFeedback,
-	// map-features-share-pin.js). Die Koordinaten kommen aus `sharePinCoordinates`, aus demselben
+	// „Link teilen" im Aktionsband der Auskunft -- kopiert den ?pin=<lat,lng>-Deep-Link der
+	// gesetzten Markierung (copySharePinLinkWithFeedback, map-features-share-pin.js). Seit dem
+	// Wegfall von „Stelle markieren und teilen" (Owner-Entscheid 15.08.2026) ist das der EINZIGE
+	// Weg, diesen Link zu kopieren. Die Koordinaten kommen aus `sharePinCoordinates`, aus demselben
 	// Grund wie bei „Reiseziel hinzufuegen" oben: dieses Aktionsband haengt an der Markierung.
 	if (action === "share-what-is-here") {
 		if (sharePinCoordinates) {

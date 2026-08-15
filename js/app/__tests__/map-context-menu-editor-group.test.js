@@ -48,7 +48,10 @@ assert.ok(!gruppe[0].includes("map-context-menu__title"),
 //
 // 🔴 Owner-Entscheid 13.08.2026. Ein Umzug nach unten braeuchte ein Untermenue, das nach oben
 // ausweichen kann (es ist oben verankert und waere sonst aus dem Bildschirm gewachsen).
-const erstesBesucherItem = inhalt.indexOf('data-context-action="share-pin"');
+// ⚠️ Anker "what-is-here", NICHT "share-pin": der Eintrag "Stelle markieren und teilen" ist am
+// 15.08.2026 ganz gefallen ("hat durch 'Was ist hier?' keine richtige Funktion und kann weg") --
+// "was-ist-hier" ist seither der erste Besucher-Eintrag nach der Editor-Gruppe.
+const erstesBesucherItem = inhalt.indexOf('data-context-action="what-is-here"');
 assert.ok(erstesBesucherItem > gruppeAt,
 	"die Editor-Gruppe steht vor den Besucher-Eintraegen (Owner: sie bleibt oben)");
 

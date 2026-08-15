@@ -17,29 +17,36 @@ const html = lies("index.html");
 const routing = lies("js", "routing", "routing.js");
 const popups = lies("js", "ui", "popups.js");
 
-// Der neue Eintrag steht im Kartenmenue, der alte nicht mehr.
+// Der neue Eintrag steht im Kartenmenue, der alte (share-map-link) nicht mehr.
 assert.ok(/data-context-action="what-is-here"/.test(html), "„Was ist hier?\" steht im Menue");
 assert.ok(!/data-context-action="share-map-link"/.test(html), "der Routen-Link-Eintrag ist weg");
-assert.ok(/data-context-action="share-pin"/.test(html), "„Stelle markieren und teilen\" bleibt");
 
-// 🔴 Der Verteiler kennt den neuen Zweig -- und den alten nicht mehr.
+// 🔴 Owner-Entscheid 15.08.2026: „Stelle markieren und teilen hat durch 'Was ist hier?' keine
+// richtige Funktion und kann weg" -- kehrt den frueheren Stand um (bis Fix-Runde 1 hiess es noch,
+// der Eintrag bleibe als Schnellweg OHNE Panel). Menue-Eintrag UND Verteiler-Zweig sind jetzt
+// ersatzlos geloescht, nicht bloss versteckt.
+assert.ok(!/data-context-action="share-pin"/.test(html), "der Menue-Eintrag ist geloescht");
+assert.ok(!/action === "share-pin"/.test(routing), "und sein Verteiler-Zweig mit ihm");
+assert.ok(!/"ctxmenu\.sharePin"/.test(lies("js", "app", "i18n-en.js")), "auch seine i18n-Zeile");
+assert.ok(!/share-pin/.test(lies("css", "components", "map-context-menu-icons.css")),
+	"und sein Icon (federundpapier.webp) aus allen Selektorlisten der Menue-CSS");
+
+// 🔴 Der Verteiler kennt den neuen Zweig -- und den fuer die Route mitgeteilten alten nicht mehr.
 assert.ok(/action === "what-is-here"/.test(routing), "der Verteiler bedient ihn");
 assert.ok(!/action === "share-map-link"/.test(routing), "der alte Zweig ist weg");
 
-// 🔴 Fix-Runde 1, Befund 1: „Stelle markieren und teilen" bleibt der schnelle Weg OHNE Auskunft --
-// setzt dieselbe Markierung, kopiert den Link, fertig. Oeffnete er das Panel mit, waere er
-// dasselbe wie „Was ist hier?" und haette keinen Daseinsgrund mehr (Entwurf §6). An den jeweils
-// naechsten Zweig gebunden statt an eine feste Laenge (dieselbe Lehre wie beim dragend-Fenster
-// oben: eine feste Zahl lief dort in die naechste Funktion hinein und meldete falsch-positiv).
-const sharePinZweigStart = routing.indexOf('action === "share-pin"');
 const whatIsHereZweigStart = routing.indexOf('action === "what-is-here"');
-const sharePinZweig = routing.slice(sharePinZweigStart, whatIsHereZweigStart);
-assert.ok(sharePinZweigStart > 0 && whatIsHereZweigStart > sharePinZweigStart, "beide Zweige stehen da, in dieser Reihenfolge");
-assert.ok(/setSharePin\(contextMenuLatLng\)/.test(sharePinZweig), "share-pin setzt weiterhin die Markierung");
-assert.ok(!/avesmapsShowWhatIsHere/.test(sharePinZweig),
-	"„Stelle markieren und teilen\" oeffnet NICHT das Panel");
+assert.ok(whatIsHereZweigStart > 0, "der what-is-here-Zweig steht da");
 const whatIsHereZweig = routing.slice(whatIsHereZweigStart, routing.indexOf('action === "report-location"', whatIsHereZweigStart));
 assert.ok(/avesmapsShowWhatIsHere/.test(whatIsHereZweig), "„Was ist hier?\" oeffnet das Panel weiterhin");
+assert.ok(/setSharePin\(contextMenuLatLng\)/.test(whatIsHereZweig), "und setzt weiterhin die Markierung");
+
+// 🔴 Fix-Runde 4: „Link teilen" im Panel-Aktionsband ist seit dem Wegfall der EINZIGE Weg, den
+// ?pin=-Link zu kopieren -- copySharePinLinkWithFeedback bleibt dafuer.
+const shareWhatIsHereZweigStart = routing.indexOf('action === "share-what-is-here"');
+assert.ok(shareWhatIsHereZweigStart > 0, "die Kachel „Link teilen\" hat weiterhin ihren Zweig");
+const shareWhatIsHereZweig = routing.slice(shareWhatIsHereZweigStart, routing.indexOf("\n\t}", shareWhatIsHereZweigStart));
+assert.ok(/copySharePinLinkWithFeedback/.test(shareWhatIsHereZweig), "und ruft weiterhin copySharePinLinkWithFeedback");
 
 // 🔴 Fix-Runde 1, Befund 1: die Option ist ganz aus der Signatur gefallen, nicht bloss ungenutzt --
 // ein Name, der ein Popup verspricht, das es nicht mehr gibt, wird sonst vom naechsten Leser wieder

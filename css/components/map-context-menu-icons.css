@@ -1,4 +1,3 @@
-.map-context-menu__item[data-context-action="share-pin"],
 .map-context-menu__item[data-context-action="report-location"],
 .map-context-menu__item[data-context-action="open-spotlight-search"],
 .map-context-menu__item[data-context-action="find-nearest-location"],
@@ -9,7 +8,6 @@
 	font-size: 13px;
 }
 
-.map-context-menu__item[data-context-action="share-pin"]::before,
 .map-context-menu__item[data-context-action="report-location"]::before,
 .map-context-menu__item[data-context-action="open-spotlight-search"]::before,
 .map-context-menu__item[data-context-action="find-nearest-location"]::before,
@@ -25,10 +23,6 @@
 	background-position: center;
 	background-repeat: no-repeat;
 	background-size: contain;
-}
-
-.map-context-menu__item[data-context-action="share-pin"]::before {
-	background-image: url("../../icons/federundpapier.webp");
 }
 
 .map-context-menu__item[data-context-action="report-location"]::before {

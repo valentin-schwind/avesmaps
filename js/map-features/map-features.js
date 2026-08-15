@@ -193,10 +193,11 @@ function focusMapOnActiveTargets() {
 		// 🔴 Fix-Runde 1 (Aufgabe 4, 15.08.2026): kein `sharePinMarker.openPopup()` mehr -- der
 		// Marker hat seit der Verschmelzung kein gebundenes Popup mehr (stiller No-op). Diese
 		// Funktion zentriert/zoomt nur, bei JEDEM ihrer Aufrufer (route-engine.js, routing.js beim
-		// initialen Laden, bei „Stelle markieren und teilen", nach jeder Routenberechnung); keiner
-		// von ihnen will als Nebenwirkung des Einpassens auch noch die Auskunft oeffnen. Ein Ersatz
-		// durch avesmapsShowWhatIsHere waere an „Stelle markieren und teilen" (routing.js) genau die
-		// Panel-Oeffnung, die dieser Eintrag laut Entwurf (§6) ausdruecklich NICHT haben soll.
+		// initialen Laden, nach jeder Routenberechnung); keiner von ihnen will als Nebenwirkung des
+		// Einpassens auch noch die Auskunft oeffnen -- ein Ersatz durch avesmapsShowWhatIsHere waere
+		// hier ein Panel-Aufruf, den niemand angefragt hat. (Der Sonderfall „Stelle markieren und
+		// teilen" -- ein eigener Aufrufer, der bewusst KEIN Panel wollte -- ist mit dem Owner-Entscheid
+		// vom 15.08.2026, dieser Eintrag entfalle ganz, ohnehin weggefallen.)
 		map.setView(sharePinCoordinates, Math.max(map.getZoom(), DEFAULT_SHARE_PIN_ZOOM));
 		return;
 	}
