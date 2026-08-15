@@ -719,6 +719,10 @@ window.AVESMAPS_I18N_EN = {
 	// filter uses, so both surfaces name the thing identically.
 	"spotlight.inSettlement": "In town",
 	"spotlight.noPlaceOnMap": "no place on the map",
+	// The third line under a place's type: what the map does with it. Both may apply at once and
+	// are then joined with " · " -- one line, because the hint is nowrap and a second would clip.
+	"spotlight.ruined": "Ruined",
+	"spotlight.hidden": "Hidden",
 	"spotlight.citymaps": "Map collection",
 	"spotlight.citymapsMore": "… and {n} more maps",
 	"spotlight.gameLiterature": "Literature",
@@ -894,6 +898,9 @@ window.AVESMAPS_I18N_EN = {
 	"changelog.category.inhalte": "Content",
 	"changelog.category.community": "Community",
 	"waypoint.searchPlaceholder": "Search location...",
+	// Lowercase on purpose: it sits INSIDE the bracket that names the target --
+	// "Warunker Höhenburg (Warunk · hidden)".
+	"waypoint.hidden": "hidden",
 	"legal.wikiSync.lead": "Data synchronization.",
 	"legal.wikiSync.body": "Part of the content — in particular territories, locations, regions and coats of arms — is regularly synchronized internally with Wiki Aventurica. The information found there, such as names, hierarchies, validity periods or coat-of-arms references, is first collected in staging tables, editorially reviewed and only selectively adopted into the map, corrected or supplemented. No automatic, unverified synchronization takes place, and Avesmaps makes no claim to be identical with the current state of Wiki Aventurica. In particular, many of the short descriptions and facts shown in the infoboxes (territories, regions, locations) come from the Wiki Aventurica; the relevant article is linked directly in the infobox (“More here”). The rights to these texts remain with their authors; they are licensed under CC BY-SA 3.0 and stay so even in edited form. Attribution is provided by the link to the respective wiki article and the author list kept there. Files from Wiki Aventurica — coats of arms, for example — are excluded from this: each carries its own license.",
 	"legal.fanproject.lead": "Fan project.",

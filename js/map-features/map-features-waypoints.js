@@ -193,6 +193,19 @@ function waypointInSettlementLabel(name, settlement) {
 	return `${name} (${settlement})`;
 }
 
+// 🪤 DIESE DATEI HAT AM 15.08.2026 IHREN ASSET-STEMPEL EINGEHOLT, und der Fall gehoert hierher,
+// weil hier das naechste Mal jemand sucht. 858f0094 (Innerorts-Objekte sagen „versteckt") war
+// gepusht, aber sein Deploy fiel an einem FREMDEN Test aus (tools/wikidump/test-dump-reader.php).
+// Der naechste gruene Lauf trug die neuen Stempel ins HTML, ohne diese Datei mitzunehmen --
+// gemessen: hinter der gestempelten Adresse lag die Fassung ohne `versteckteOrtsnamen`, waehrend
+// die Etappen davor (Aufgabe 4, `waypointSuggestionLabel`) einwandfrei oben standen.
+// 💣 EIN VOLL-DEPLOY HEILT DAS NICHT. Er legt die richtige Datei unter dieselbe, vergiftete
+// Adresse -- und jeder Browser, der sie schon geholt hat, bleibt darauf sitzen. Nur eine
+// INHALTSAENDERUNG heilt: neuer Hash, neue Adresse. Dieser Absatz ist sie.
+// ⚠️ Und ein PUSH-Lauf packt nur seinen eigenen Diff: ein Lauf, der rot endet, verliert ihn fuer
+// immer, denn spaetere Laeufe diffen ab dem reparierten Commit. Nach einem roten Deploy also
+// nicht auf den naechsten Push warten, sondern die eigenen Dateien live gegenpruefen.
+
 // Ein versteckter Ort steht in der Vorschlagsliste, aber er sagt, dass er versteckt ist -- sonst
 // wundert sich der Reisende, warum sein Ziel auf der Karte fehlt. Die Wegpunktsuche ist eine SUCHE,
 // kein Scrollen ueber die Karte; waere sie strenger als das Spotlight, waeren die beiden Wege
