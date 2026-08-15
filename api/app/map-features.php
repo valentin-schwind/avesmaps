@@ -472,6 +472,7 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
         if ($wikiTitle !== '' && isset($buildingTypes[$wikiTitle])) {
             $properties['wiki_settlement']['building_type'] = $buildingTypes[$wikiTitle]['type'];
             $properties['wiki_settlement']['is_ruined'] = $buildingTypes[$wikiTitle]['ruined'];
+            $properties['wiki_settlement']['deity'] = $buildingTypes[$wikiTitle]['deity'] ?? '';
         }
     }
 
@@ -535,8 +536,9 @@ function avesmapsNormalizeLegacyMapFeatureProperties(array $properties): array {
 function avesmapsLoadWikiSyncBuildingTypes(PDO $pdo): array {
     try {
         $statement = $pdo->query(
-            'SELECT title, building_type, is_ruined FROM wiki_sync_pages
-             WHERE building_type IS NOT NULL AND building_type <> \'\''
+            'SELECT title, building_type, is_ruined, deity FROM wiki_sync_pages
+             WHERE (building_type IS NOT NULL AND building_type <> \'\')
+                OR (deity IS NOT NULL AND deity <> \'\')'
         );
     } catch (Throwable $error) {
         return [];
@@ -550,7 +552,15 @@ function avesmapsLoadWikiSyncBuildingTypes(PDO $pdo): array {
         if ($title === '') {
             continue;
         }
-        $map[$title] = ['type' => (string) $row['building_type'], 'ruined' => !empty($row['is_ruined'])];
+        $map[$title] = [
+            'type' => (string) ($row['building_type'] ?? ''),
+            'ruined' => !empty($row['is_ruined']),
+            // Die Gottheit einer Kultstaette (Discord #54) reist denselben Weg wie building_type:
+            // aus der Registry an properties.wiki_settlement geheftet, NICHT als eigenes
+            // properties-Feld gespeichert -- eine Quelle, kein Editor-Feld, keine Handarbeit
+            // fuer 775 Tempel.
+            'deity' => (string) ($row['deity'] ?? ''),
+        ];
     }
     return $map;
 }

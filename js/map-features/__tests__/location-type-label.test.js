@@ -156,4 +156,41 @@ assert.strictEqual(
 	"Dorf (Verborgen)",
 );
 
+// ------------------------------------------------------- DIE GOTTHEIT (Discord #54) ---
+// „Rahja-Tempel" statt „Tempel". Sie ist eine eigene Achse, keine Ortsart -- sie tritt VOR das
+// Label, statt es zu ersetzen.
+// 🔴 Sie steht NUR in wiki_settlement (aus der Registry ans Feature geheftet, map-features.php),
+// nie in properties: ein zweites Feld waere eine zweite Wahrheit.
+assert.strictEqual(
+	locationTypeLabelForDisplay({ placeKind: "Tempel", wikiSettlement: { deity: "Rahja" } }),
+	"Rahja-Tempel",
+);
+// Auch ueber den Registry-Typ, nicht nur ueber die eigene Ortsart.
+assert.strictEqual(
+	locationTypeLabelForDisplay({ wikiSettlement: { building_type: "Tempel", deity: "Rahja" } }),
+	"Rahja-Tempel",
+);
+// Mehrwertig: die Zeile nennt die ERSTE (Feuersturm-Tempel gehoert live Ingerimm UND Rondra).
+assert.strictEqual(
+	locationTypeLabelForDisplay({ placeKind: "Tempel", wikiSettlement: { deity: "Ingerimm,Rondra" } }),
+	"Ingerimm-Tempel",
+);
+// 💣 Fehlt eine Haelfte, bleibt die andere unveraendert -- nie „-Tempel", nie „Rahja-".
+assert.strictEqual(locationTypeLabelForDisplay({ placeKind: "Tempel" }), "Tempel");
+assert.strictEqual(
+	locationTypeLabelForDisplay({ wikiSettlement: { deity: "Rahja" } }),
+	"Rahja",
+);
+// Ein Ort ganz ohne Registry-Zeile darf nicht werfen.
+assert.strictEqual(locationTypeLabelForDisplay({ locationTypeLabel: "Dorf" }), "Dorf");
+// ⚠️ Die Ruinen-Regel greift weiterhin -- „Rahja-Tempel" nennt eine Art, also haengt sie an.
+assert.strictEqual(
+	locationTypeLabelForDisplay({
+		placeKind: "Tempel",
+		isRuined: true,
+		wikiSettlement: { deity: "Rahja" },
+	}),
+	"Rahja-Tempel (Ruine)",
+);
+
 console.log("location-type-label: alle Faelle ok");

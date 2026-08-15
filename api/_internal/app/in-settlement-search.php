@@ -25,6 +25,8 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/../wiki/place-scope.php';
+// Die Gottheiten-Tabelle (Discord #54) fuer avesmapsDeitiesFromStored/avesmapsDeityLabel.
+require_once __DIR__ . '/../wiki/deities.php';
 
 /**
  * Registry-Zeilen mit Ortsbezug: Bauwerke (wiki_sync_pages.standort) + Wege
@@ -44,7 +46,7 @@ function avesmapsFetchInSettlementSearchRows(PDO $pdo): array
 
     try {
         $statement = $pdo->query(
-            "SELECT title, building_type, wiki_url, standort
+            "SELECT title, building_type, wiki_url, standort, deity
                FROM wiki_sync_pages
               WHERE standort IS NOT NULL AND standort <> '' AND settlement_class = 'gebaeude'"
         );
@@ -54,6 +56,7 @@ function avesmapsFetchInSettlementSearchRows(PDO $pdo): array
                 'title' => (string) ($row['title'] ?? ''),
                 'raw' => (string) ($row['standort'] ?? ''),
                 'type_label' => $buildingType !== '' ? $buildingType : 'Bauwerk',
+                'deity' => (string) ($row['deity'] ?? ''),
                 'wiki_url' => (string) ($row['wiki_url'] ?? ''),
             ];
         }
@@ -73,6 +76,9 @@ function avesmapsFetchInSettlementSearchRows(PDO $pdo): array
                 'title' => (string) ($row['name'] ?? ''),
                 'raw' => (string) ($row['lage_raw'] ?? ''),
                 'type_label' => $art !== '' ? $art : 'Weg',
+                // Ein Weg hat keine Weihung -- gleiche Zeilenform, damit der reine Teil unten
+                // nicht zwei Faelle unterscheiden muss.
+                'deity' => '',
                 'wiki_url' => (string) ($row['wiki_url'] ?? ''),
             ];
         }
@@ -224,6 +230,11 @@ function avesmapsBuildInSettlementSearchEntries(array $registryRows, array $sett
             continue; // Stadt liegt nicht (eindeutig) auf der Karte -> nichts zum Anspringen
         }
 
+        // Die Gottheit macht aus „Tempel" ein „Rahja-Tempel" (Discord #54). Mehrwertig
+        // gespeichert („Ingerimm,Rondra"); die Beschriftung nennt die erste, SUCHBAR sind alle.
+        $deities = avesmapsDeitiesFromStored((string) ($registryRow['deity'] ?? ''));
+        $typeLabel = avesmapsDeityLabel($deities[0] ?? '', (string) $registryRow['type_label']);
+
         $entries[] = [
             'kind' => 'in_settlement',
             // Die public_id der STADT: das Frontend haengt den Treffer an ihren Marker-
@@ -232,7 +243,7 @@ function avesmapsBuildInSettlementSearchEntries(array $registryRows, array $sett
             'public_id' => (string) $settlement['public_id'],
             'public_ids' => [(string) $settlement['public_id']],
             'name' => $title,
-            'type_label' => (string) $registryRow['type_label'] . ' in ' . $scope['settlement'],
+            'type_label' => $typeLabel . ' in ' . $scope['settlement'],
             'feature_subtype' => (string) $settlement['subtype'],
             'settlement_name' => $scope['settlement'],
             'settlement_public_id' => (string) $settlement['public_id'],
@@ -243,7 +254,12 @@ function avesmapsBuildInSettlementSearchEntries(array $registryRows, array $sett
             'max_y' => (float) $settlement['max_y'],
             // Gesucht wird nach dem OBJEKT, nicht nach der Stadt -- stuende der Stadtname hier,
             // faende "Mengbilla" seine 32 Innerorts-Objekte alle noch einmal zusaetzlich.
-            'search_texts' => [$title],
+            // 💣 UND DIE GOTTHEIT GEHOERT HIERHER, sonst ist sie fuer die Suche nicht
+            // vorhanden: „rahja" faende die 47 Rahja-Tempel auch dann nicht, wenn ihr Typ
+            // „Rahja-Tempel" hiesse -- gesucht wird ausschliesslich in search_texts.
+            // ⚠️ Der Unterschied zum Stadtnamen darueber: die Gottheit gehoert dem OBJEKT,
+            // die Stadt nur seinem Behaelter.
+            'search_texts' => array_merge([$title], $deities),
         ];
     }
 

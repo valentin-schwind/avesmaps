@@ -129,4 +129,54 @@ $ohneUrl = avesmapsBuildInSettlementPlaceList(
 assert($ohneUrl[0]['wiki_url'] === '', 'fehlende wiki_url wird zu leerem String, nicht null');
 echo "payload wiki_url ok\n";
 
+// ------------------------------------------------------- DIE GOTTHEIT (Discord #54) ---
+// „wo liegt eigentlich der naechste [Gottheit]-Schrein?" -- dafuer muss die Gottheit zweierlei
+// sein: sichtbar in der Trefferzeile UND suchbar.
+$gottRows = [[
+    'title' => 'Tempel der süßen Träume',
+    'raw' => '[[Mengbilla]]',
+    'type_label' => 'Tempel',
+    'deity' => 'Rahja',
+    'wiki_url' => '',
+]];
+$gottTreffer = avesmapsBuildInSettlementSearchEntries($gottRows, $index, $scopeIndex);
+assert(count($gottTreffer) === 1, 'der Treffer entsteht');
+assert($gottTreffer[0]['type_label'] === 'Rahja-Tempel in Mengbilla',
+    'Typzeile nennt die Gottheit: ' . $gottTreffer[0]['type_label']);
+
+// 💣 DER PUNKT: ohne die Gottheit in search_texts findet „rahja" gar nichts.
+assert(in_array('Rahja', $gottTreffer[0]['search_texts'], true), 'die Gottheit ist suchbar');
+assert(in_array('Tempel der süßen Träume', $gottTreffer[0]['search_texts'], true), 'der Titel bleibt');
+// ⚠️ Und der STADTNAME weiterhin NICHT -- sonst faende „Mengbilla" seine 32 Innerorts-Objekte
+// alle ein zweites Mal (der Kommentar an der Stelle begruendet das seit 27.07.).
+assert(!in_array('Mengbilla', $gottTreffer[0]['search_texts'], true), 'der Stadtname bleibt draussen');
+
+// Mehrwertig: die Beschriftung nennt die erste, suchbar sind beide.
+$zweiRows = [[
+    'title' => 'Feuersturm-Tempel', 'raw' => '[[Mengbilla]]', 'type_label' => 'Tempel',
+    'deity' => 'Ingerimm,Rondra', 'wiki_url' => '',
+]];
+$zwei = avesmapsBuildInSettlementSearchEntries($zweiRows, $index, $scopeIndex);
+assert($zwei[0]['type_label'] === 'Ingerimm-Tempel in Mengbilla', $zwei[0]['type_label']);
+assert(in_array('Ingerimm', $zwei[0]['search_texts'], true), 'erste Gottheit suchbar');
+assert(in_array('Rondra', $zwei[0]['search_texts'], true), 'ZWEITE Gottheit ebenfalls suchbar');
+
+// Ohne Gottheit bleibt alles wie bisher -- kein „-Tempel", kein leerer Suchtext.
+$ohneRows = [[
+    'title' => 'Halle der Stille', 'raw' => '[[Mengbilla]]', 'type_label' => 'Tempel',
+    'deity' => '', 'wiki_url' => '',
+]];
+$ohne = avesmapsBuildInSettlementSearchEntries($ohneRows, $index, $scopeIndex);
+assert($ohne[0]['type_label'] === 'Tempel in Mengbilla', $ohne[0]['type_label']);
+assert($ohne[0]['search_texts'] === ['Halle der Stille'], 'kein leerer Suchtext');
+
+// Ein Weg hat nie eine Weihung -- gleiche Zeilenform, unveraendertes Ergebnis.
+$wegRows = [[
+    'title' => 'Tempelstraße', 'raw' => '[[Mengbilla]]', 'type_label' => 'Straße',
+    'deity' => '', 'wiki_url' => '',
+]];
+assert(avesmapsBuildInSettlementSearchEntries($wegRows, $index, $scopeIndex)[0]['type_label']
+    === 'Straße in Mengbilla', 'Wege unveraendert');
+echo "gottheit ok\n";
+
 echo "\nALL IN-SETTLEMENT SEARCH TESTS PASSED\n";

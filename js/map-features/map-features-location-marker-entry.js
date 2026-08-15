@@ -50,6 +50,19 @@ function locationTypeLabelForDisplay(location) {
 	// „Verborgen" an keiner -- es beschreibt nicht, was der Ort IST, sondern wie die Karte mit ihm
 	// umgeht, und das gilt fuer ein Dorf so gut wie fuer einen Turm.
 	const zusaetze = [];
+	// Die Gottheit macht aus „Tempel" ein „Rahja-Tempel" (Discord #54). Sie ist eine eigene Achse,
+	// keine Ortsart -- deshalb tritt sie VOR das Label, statt es zu ersetzen.
+	// 🔴 Sie steht NUR in der Registry (wiki_settlement), genau wie building_type darueber. Ein
+	// eigenes properties-Feld waere eine zweite Wahrheit und Handarbeit fuer 775 Tempel.
+	// Mehrwertig gespeichert („Ingerimm,Rondra") -- die Zeile nennt die erste.
+	const deity = String((wikiSettlement && wikiSettlement.deity) || "").split(",")[0].trim();
+	if (deity) {
+		label = label ? deity + "-" + label : deity;
+		// ⚠️ carriesAKind mitsetzen: die Ruinen-Regel darunter haengt „(Ruine)" nur an ein Label,
+		// das wirklich eine Art nennt -- „Rahja-Tempel (Ruine)" ist genau so ein Fall.
+		carriesAKind = true;
+	}
+
 	if (carriesAKind && istRuine && !/ruine/i.test(label)) {
 		zusaetze.push(tr("popup.typeRuined", "Ruine"));
 	}
