@@ -3,6 +3,15 @@
 declare(strict_types=1);
 
 /**
+ * 🔴 STAND 16.08.2026: DIESE MASCHINERIE IST STILLGELEGT UND WIRD IN DER ANTWORT NICHT MEHR
+ * AUFGERUFEN. `AVESMAPS_ROUTE_OFFROAD_DETOUR_ENABLED` steht auf `false`; `response.php` ruft
+ * `avesmapsMaybeOfferOffroadDetour` deshalb nicht mehr. Die Tests hier bleiben absichtlich stehen --
+ * sie sind die Beschreibung, wie der Auslöser arbeitet, falls er zurückkommt. Wer sie liest, darf
+ * daraus NICHT schliessen, dass Sehnen live entstehen. Begründung vollständig im Kopf von
+ * `detour.php`.
+ */
+
+/**
  * Instruction C §2: der automatische Umweg-Auslöser (V14 §5.5).
  *
  * Kein Knopf und kein Rechtsklick -- er wirkt auf jede normal geplante Route. Führt das gezeichnete

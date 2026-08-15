@@ -4,6 +4,32 @@ declare(strict_types=1);
 
 // V14 §5.5 / Instruction C §2: der automatische Umweg-Auslöser.
 //
+// 🔴 SEIT DEM 16.08.2026 IST ER STILLGELEGT. `AVESMAPS_ROUTE_OFFROAD_DETOUR_ENABLED` steht auf
+// `false`, und `response.php` ruft ihn deshalb nicht mehr auf. Die Maschinerie bleibt samt Tests
+// stehen -- eine Zeile bringt sie zurück.
+//
+// Warum: seit dem 15.08.2026 gilt „der Ausstieg ist der nächste erreichbare Punkt des Netzes", und
+// die Sehne war danach die EINZIGE Stelle, an der der Router noch eigenmächtig die Straße verließ.
+// Sie hat es in einer Nacht zweimal getan, beide Male vom Owner gemeldet. Von ihrer Aufgabe blieb
+// dabei nichts übrig:
+//   * Verbinden kann sie nichts -- sie wird angeboten, NACHDEM eine Route gefunden wurde.
+//   * Abgetrennte Orte hängen an der Komponentenbrücke, einem anderen Erzeuger.
+//   * Netzferne Kartenpunkte hängen an der Ausstiegsregel (offroad-leg.php).
+//   * Bleibt „das Netz macht einen absurden Bogen, quer wäre kürzer" -- und dazu lautet der
+//     Owner-Entscheid vom 15.08.: dann nimmt man den Bogen (156 statt 63 Meilen, abgenommen).
+//
+// 💣 UND SIE HAT EINEN WIDERSPRUCH ERZEUGT, DEN EIN BENUTZER SIEHT. Die Sehnen werden aus der Kette
+// der ZUERST gefundenen Route gerechnet, und ihr Filter prüft mit einem Zeitvergleich. Im
+// Streckenmodus findet der erste Durchgang eine andere Kette, für die keine Sehne durchkommt --
+// also suchen die beiden Modi verschiedene Graphen ab. Gemessen am 15.08.2026 (Kartenpunkt
+// 378.281/455.627 -> 435.469/481.625): „Kürzeste" 305,3 Meilen gegen „Schnellste" 242,6. Ein
+// Streckenmodus, der eine LÄNGERE Route liefert als der Zeitmodus, ist nicht erklärbar.
+//
+// ⚠️ Der Preis ist gemessen und in Kauf genommen: dieselbe Route wird bei „Schnellste" rund 305
+// statt 242,6 Meilen lang. 🔧 Vermisst nach ein, zwei Wochen niemand eine Reise, fliegt dieses
+// Modul samt Tests raus -- dann ist es Aufräumen und keine Wette.
+const AVESMAPS_ROUTE_OFFROAD_DETOUR_ENABLED = false;
+//
 // Der zweite Aufrufer desselben A*, der „Hierher reisen" trägt. Kein Knopf, kein Rechtsklick: er
 // prüft jede normal geplante Route und bietet dem Dijkstra einen Querweg an, wenn das gezeichnete
 // Netz einen absurden Bogen fährt.

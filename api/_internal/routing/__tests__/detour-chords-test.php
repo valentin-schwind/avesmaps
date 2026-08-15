@@ -3,6 +3,15 @@
 declare(strict_types=1);
 
 /**
+ * 🔴 STAND 16.08.2026: DIESE MASCHINERIE IST STILLGELEGT UND WIRD IN DER ANTWORT NICHT MEHR
+ * AUFGERUFEN. `AVESMAPS_ROUTE_OFFROAD_DETOUR_ENABLED` steht auf `false`; `response.php` ruft
+ * `avesmapsMaybeOfferOffroadDetour` deshalb nicht mehr. Die Tests hier bleiben absichtlich stehen --
+ * sie sind die Beschreibung, wie der Auslöser arbeitet, falls er zurückkommt. Wer sie liest, darf
+ * daraus NICHT schliessen, dass Sehnen live entstehen. Begründung vollständig im Kopf von
+ * `detour.php`.
+ */
+
+/**
  * Der Umweg-Auslöser bietet SEHNEN an, nicht nur die eine Kante über die ganze Reise.
  * Entwurf: docs/superpowers/specs/2026-08-14-querfeldein-teilstrecken-design.md
  *

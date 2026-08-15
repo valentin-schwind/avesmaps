@@ -315,14 +315,22 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
 
 	// V14 §5.5: der automatische Umweg-Auslöser. Fährt das gezeichnete Netz einen absurden Bogen,
-	// bekommt der Dijkstra einen A*-Querweg ANGEBOTEN und rechnet noch einmal. Der Vorfilter ist
-	// gratis -- Luftlinie und gefahrene Strecke liegen hier beide vor -- und schweigt für 90,9 % der
-	// Routen, ohne dass eine Zeile Suche läuft.
-	$detour = ['checked' => false];
+	// bekommt der Dijkstra einen A*-Querweg ANGEBOTEN und rechnet noch einmal.
+	//
+	// 🔴 STILLGELEGT AM 16.08.2026 (`AVESMAPS_ROUTE_OFFROAD_DETOUR_ENABLED`). Die Begründung steht
+	// vollständig im Kopf von `detour.php`; die Kurzfassung: seit der Ausstiegsregel vom 15.08. war
+	// die Sehne die einzige Stelle, an der der Router noch eigenmächtig die Straße verließ, und sie
+	// hat einen sichtbaren Widerspruch erzeugt — „Kürzeste" 305,3 Meilen gegen „Schnellste" 242,6 auf
+	// derselben Route, weil die Sehnen aus der ZUERST gefundenen Kette gerechnet werden und die je
+	// nach Modus verschieden ist.
+	//
+	// ⚠️ DIES IST DER EINZIGE AUFRUFER. Die Sperre steht deshalb hier und nicht in der Funktion — so
+	// prüfen ihre Tests weiter die Maschinerie, die absichtlich erhalten bleibt.
+	$detour = ['checked' => false, 'offered' => false, 'reason' => 'disabled'];
 	$locations = is_array($routeNetworkData['locations'] ?? null) ? $routeNetworkData['locations'] : [];
 	$fromPoint = avesmapsRouteResolveEndpointPoint($locations, $fromLocation, $request['from_point'] ?? null);
 	$toPoint = avesmapsRouteResolveEndpointPoint($locations, $toLocation, $request['to_point'] ?? null);
-	if ($fromPoint !== null && $toPoint !== null) {
+	if (AVESMAPS_ROUTE_OFFROAD_DETOUR_ENABLED && $fromPoint !== null && $toPoint !== null) {
 		$detour = avesmapsMaybeOfferOffroadDetour(
 			$clientGraph, $request, $water, $routePdo,
 			is_array($routeDijkstraResult['segments'] ?? null) ? $routeDijkstraResult['segments'] : [],
