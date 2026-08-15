@@ -234,6 +234,11 @@ function avesmapsBuildRouteLocationData(array $feature): array {
 		'public_id' => (string) ($properties['public_id'] ?? ''),
 		'name' => $name,
 		'subtype' => (string) ($properties['feature_subtype'] ?? ''),
+		// 🔴 DIESE FELDLISTE IST AUSGESCHRIEBEN, nicht durchgereicht -- is_nodix und is_ruined stehen
+		// bewusst NICHT darin, weil der Router sie nie gebraucht hat. is_hidden schon: der Graphbau
+		// baut daraus seine Kandidatenliste (client-graph.php). Faellt diese Zeile weg, filtert er
+		// gegen ein Feld, das nie ankommt -- und der Riegel ist gebaut und wirkungslos.
+		'is_hidden' => !empty($properties['is_hidden']),
 		// ⚠️ Reicht die ERSTE Stufe des Kreuzungs-Praedikats weiter (junction|crossing). Ohne sie
 		// koennte api/locations/index.php nur Subtyp und Name fragen -- und liefe damit genau in die
 		// Teil-Pruefung zurueck, die Befund A13 (c) beseitigt hat. Verlaesst den Server nicht: die

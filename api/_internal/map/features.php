@@ -1272,6 +1272,13 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
         $properties['settlement_class_label'] = avesmapsLocationSubtypeLabel($subtype);
         $properties['is_nodix'] = avesmapsReadBoolean($payload['is_nodix'] ?? false);
         $properties['is_ruined'] = avesmapsReadBoolean($payload['is_ruined'] ?? false);
+        // Versteckt: Markierung und Name bleiben von der Karte weg, und die Routenfindung waehlt den
+        // Ort nicht als Kandidat -- bis jemand seinen Namen eingibt (Owner 15.08.2026).
+        // 🪤 DER NAME IST IM PROJEKT ZWEIMAL VERGEBEN. map_reviews.is_hidden bedeutet -- von der
+        // Moderation verborgen -- und gehoert den Rezensionen (api/_internal/reviews.php); dieses hier
+        // gehoert dem ORT und liegt im properties_json. Sie teilen keine Tabelle und keine Datei,
+        // aber `git grep is_hidden` findet beide -- also steht der Unterschied hier.
+        $properties['is_hidden'] = avesmapsReadBoolean($payload['is_hidden'] ?? false);
         // Ortsart ("Brücke", "Oase", ...) -- beschreibt den Ort, aendert NICHT seine Darstellung.
         // Absent = leer: das Feld ist optional, und "leer" ist eine gueltige Antwort, kein Fehlen.
         $placeKind = avesmapsNormalizePlaceKind((string) ($payload['place_kind'] ?? ''));
@@ -1328,6 +1335,7 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
             'feature_subtype' => $subtype,
             'is_nodix' => $properties['is_nodix'],
             'is_ruined' => $properties['is_ruined'],
+            'is_hidden' => $properties['is_hidden'],
             'properties_json' => $properties,
             'revision' => $revision,
         ]));
@@ -1359,6 +1367,7 @@ function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): arra
         'settlement_class_label' => avesmapsLocationSubtypeLabel($subtype),
         'is_nodix' => avesmapsReadBoolean($payload['is_nodix'] ?? false),
         'is_ruined' => avesmapsReadBoolean($payload['is_ruined'] ?? false),
+        'is_hidden' => avesmapsReadBoolean($payload['is_hidden'] ?? false),
     ];
     // Ortsart -- siehe avesmapsUpdatePointFeatureDetails. Nur setzen, wenn wirklich eine kam:
     // ein leerer Schluessel im JSON waere eine Behauptung ("keine Art"), die niemand getroffen hat.
@@ -2455,6 +2464,12 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
         if (array_key_exists('is_nodix', $payload)) {
             $properties['is_nodix'] = avesmapsReadBoolean($payload['is_nodix']);
         }
+        // 🪤 array_key_exists, nicht ?? -- wie beim Nodix darueber. Diese Funktion schreibt nur, was
+        // der Aufrufer wirklich mitschickt; ein ?? false naehme ein gesetztes Versteckt bei jedem
+        // unbeteiligten Speichern still zurueck.
+        if (array_key_exists('is_hidden', $payload)) {
+            $properties['is_hidden'] = avesmapsReadBoolean($payload['is_hidden']);
+        }
         // 🪤 Nur schreiben, wenn der Aufrufer es MITSCHICKT -- anders als die Zeilen darüber. Ein
         // blosses Umbenennen (map-features-ecosystem-properties.js) sendet den Darstellungssatz, aber
         // kein show_name; mit einem `?? true` würde es eine ausgeschaltete Anzeige stillschweigend
@@ -3005,6 +3020,7 @@ function avesmapsBuildPointFeatureResponse(string $publicId, string $name, strin
         'other_source' => $properties['other_source'] ?? null,
         'is_nodix' => !empty($properties['is_nodix']),
         'is_ruined' => !empty($properties['is_ruined']),
+        'is_hidden' => !empty($properties['is_hidden']),
         // Ortsart -- der Editor liest sie hier zurueck, um das Feld beim Oeffnen zu fuellen.
         'place_kind' => (string) ($properties['place_kind'] ?? ''),
         'lat' => $lat,

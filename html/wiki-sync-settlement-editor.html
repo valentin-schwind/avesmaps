@@ -1275,6 +1275,7 @@ function buildWikiOnlySettlementDetailHtml(item) {
 		)
 	);
 	rows.push(buildDetailFieldRow("Ruine", item.is_ruined ? "Ja" : "Nein"));
+	rows.push(buildDetailFieldRow("Versteckt", item.is_hidden ? "Ja" : "Nein"));
 	return (
 		`<div class="dt-grp">Eigenschaften</div><div class="dt-grid">${rows.filter(Boolean).join("")}</div>` +
 		`<div class="dt-sub" style="margin-top:10px">Nur im Wiki — noch nicht auf der Karte platziert. Zum Bearbeiten zuerst auf der Karte platzieren.</div>`
@@ -1393,6 +1394,10 @@ function buildSettlementEditFormHtml(detail) {
 		`<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox" id="dtEditIsNodix"${props.is_nodix ? " checked" : ""}> Ort ist ein Nodix</label></div>`;
 	const ruinedRow =
 		`<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox" id="dtEditIsRuined"${props.is_ruined ? " checked" : ""}> Ruine / zerstört</label></div>`;
+	// Versteckt (Owner 15.08.2026): Markierung und Name bleiben von der Karte weg, und die
+	// Routenfindung waehlt den Ort nicht als Kandidat -- bis jemand seinen Namen eingibt.
+	const hiddenRow =
+		`<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox" id="dtEditIsHidden"${props.is_hidden ? " checked" : ""}> Versteckt</label></div>`;
 	const wikiRowsHtml = buildIdentityWikiRowsHtml(detail);
 	const actionsHtml =
 		`<div class="k"></div><div><div class="dt-edit-actions">` +
@@ -1401,7 +1406,7 @@ function buildSettlementEditFormHtml(detail) {
 		`</div></div>`;
 	return (
 		`<div class="dt-grp">Identität</div>` +
-		`<div class="dt-grid dt-edit-grid">${nameRow}${typeRow}${descRow}${wikiUrlRow}${otherSourceRow}${nodixRow}${ruinedRow}${wikiRowsHtml}${actionsHtml}</div>`
+		`<div class="dt-grid dt-edit-grid">${nameRow}${typeRow}${descRow}${wikiUrlRow}${otherSourceRow}${nodixRow}${ruinedRow}${hiddenRow}${wikiRowsHtml}${actionsHtml}</div>`
 	);
 }
 
@@ -1645,6 +1650,7 @@ function buildSettlementSavePayload() {
 		wiki_url: String($("dtEditWikiUrl")?.value || "").trim(),
 		is_nodix: Boolean($("dtEditIsNodix")?.checked),
 		is_ruined: Boolean($("dtEditIsRuined")?.checked),
+		is_hidden: Boolean($("dtEditIsHidden")?.checked),
 	};
 }
 

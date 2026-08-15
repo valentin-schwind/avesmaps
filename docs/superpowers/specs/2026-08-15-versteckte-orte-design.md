@@ -58,6 +58,15 @@ Ein Merkmal, überall gleich benannt, dem Muster von `is_nodix`/`is_ruined` folg
 | Frontend-Objekt | `location.isHidden` |
 | Auge-Menü | `#toggleHidden` / `#toggleHiddenControl` |
 
+🪤 **Der Name ist im Projekt zweimal vergeben** (gefunden am 15.08.2026 beim Bau).
+`map_reviews.is_hidden` heißt „von der Moderation verborgen" und gehört den Rezensionen
+(`api/_internal/reviews.php:30`, `api/edit/reviews.php`, `js/review/review-panels.js`,
+`js/community/location-reviews.js`). Das hier gehört dem **Ort** und liegt im `properties_json`.
+Sie teilen **keine** Tabelle, **keine** Datei und **keinen** Endpunkt — aber `git grep is_hidden`
+findet beide. Der Name bleibt trotzdem: `is_nodix` / `is_ruined` / `is_hidden` sind eine Familie am
+selben Objekt, und diese Verwandtschaft ist die häufiger gestellte Frage. Der Unterschied steht als
+Kommentar an der Schreibstelle in `features.php`, also dort, wo ein Suchender landet.
+
 ⚠️ **Es ist keine Spalte.** `is_nodix` und `is_ruined` liegen im JSON-Blob `properties_json`, nicht
 als eigene Spalten (`api/_internal/map/features.php:3006-3007`) — nur die *Wiki*-Siedlungstabelle hat
 eine echte `is_ruined`-Spalte (`api/_internal/wiki/settlements.php:50`). Es gibt also **keine DDL,

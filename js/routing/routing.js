@@ -108,6 +108,7 @@ const prepareLocationData = (data) => {
 				images: Array.isArray(feature.properties.images) ? feature.properties.images : [],
 				isNodix: Boolean(feature.properties.is_nodix),
 				isRuined: Boolean(feature.properties.is_ruined),
+				isHidden: Boolean(feature.properties.is_hidden),
 				revision: Number(feature.properties.revision) || null,
 			};
 		});
