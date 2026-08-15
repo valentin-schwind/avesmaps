@@ -5,6 +5,14 @@ declare(strict_types=1);
 require __DIR__ . '/../../_internal/bootstrap.php';
 require_once __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/political/territory.php';
+// 💣 Ohne diese zwei Zeilen warf der Endpunkt "Call to undefined function": er ruft
+// avesmapsPoliticalAssertZoomRange (support) sowie avesmapsPoliticalReadPublicId und
+// avesmapsPoliticalReadOptionalZoom (read) auf, hatte aber nur territory.php geladen.
+// ⚠️ Es fiel nicht auf, weil die drei erst in der Nutzlast-Schleife stehen: ohne Eintraege
+// mit territoryPublicId kehrt der Endpunkt vorher zurueck und antwortet 200 -- er sah gesund
+// aus, solange er nichts zu tun hatte. Gewacht von __tests__/zoom-sync-requires-test.php.
+require_once __DIR__ . '/../../_internal/political/territories-support.php';
+require_once __DIR__ . '/../../_internal/political/territories-read.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
