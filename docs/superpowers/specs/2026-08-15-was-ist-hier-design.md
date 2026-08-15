@@ -371,6 +371,14 @@ Der Owner-Entscheid „Verschmelzen" hat fünf Folgen:
   Geometrie-Zeilen im bbox; ihr `geometry_geojson` muss der Server lesen, auch
   wenn er es nicht sendet. Gespart werden die 388 KB **Antwort**, nicht die
   Decode-Zeit. Vor dem Live-Gang wird sie einmal gemessen (Abnahme, Schritt 8).
+  ✅ **GEMESSEN 15.08.2026, live gegen STRATO:** Landpunkt mit vier Gebietsstufen und fünf
+  Landschaftsflächen **0,127 s** (2147 Bytes), Seepunkt ohne Herrschaft **0,092–0,100 s** in zwei
+  Läufen. Zum Vergleich: `map-features.php` braucht für dieselbe Datenbank 2,4 s bei 2,89 MB, und
+  der Politik-Layer allein hätte für diesen einen Punkt 388 KB geschickt.
+  ⚠️ Die Zahl gilt für den Stand **nach** der Schlussprüfung: bis dahin lud der Wappen-Riegel
+  über `avesmapsLoadSettlementCoatGateInputs` **zwei Tabellen ganz** — je Rechtsklick, obwohl der
+  Lader für einen Aufruf je 2,9-MB-Payload gebaut war. Seit der geschlüsselten Variante
+  (`WHERE wiki_key IN (…)`, beide Tabellen haben den UNIQUE-Schlüssel) ist es ein Indexzugriff.
 - **STRATO:** eine Anfrage je Klick, nie im Zyklus. Kein Dauerlauf, kein Polling.
 - Cache: keiner in Fassung 1. Die Antwort ist klein und punktabhängig; ein ETag
   je Koordinate träfe praktisch nie.
