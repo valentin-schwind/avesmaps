@@ -210,6 +210,14 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
         'candidate_locations' => $candidateLocations,
         'statistics' => [
             'node_count' => count($graph),
+            // ⭐ Wie viele Ortsknoten ueberhaupt keine Landwegkante tragen -- nur per Boot oder Schiff
+            // erreichbar. Seit dem 16.08.2026 sind genau diese kein Querfeldein-Ausstieg mehr, und
+            // diese Zahl ist der Preis dafuer. Gemessen statt geschaetzt.
+            'land_isolated_locations' => count(array_filter(
+                $candidateLocations,
+                static fn(array $location): bool => isset($graph[(string) ($location['name'] ?? '')])
+                    && !avesmapsClientNodeHasLandPathEdge($graph, (string) ($location['name'] ?? ''))
+            )),
             'path_feature_count' => $pathIndex,
             'synthetic_connection_count' => $syntheticConnectionCount,
         ],

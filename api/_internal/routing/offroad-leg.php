@@ -50,6 +50,7 @@ const AVESMAPS_ROUTE_OFFROAD_EXIT_NODE_LIMIT = 12;
 // zweite Kartenpunkt haengt seit dem 14.08.2026 an seiner eigenen direkten Kante (Erzeuger 4).
 const AVESMAPS_ROUTE_OFFROAD_EXIT_NEAREST_TRIES = 6;
 
+
 /**
  * PURE: the nearest graph nodes to (x, y), by air line, nearest first, at most $limit of them.
  *
@@ -73,15 +74,38 @@ function avesmapsFindNearestOffroadExitNodes(
     int $limit = AVESMAPS_ROUTE_OFFROAD_EXIT_NODE_LIMIT
 ): array {
     $candidates = [];
+    $nurWasser = [];
     foreach ($locations as $location) {
         $name = trim((string) ($location['name'] ?? ''));
         if ($name === '' || !isset($graph[$name])) { continue; }
+        // 🔴 NUR KNOTEN MIT EINER LANDWEGKANTE. Ein Fussgaenger, der querfeldein laeuft und „das Netz
+        // erreicht", steht sonst an einem FLUSSKNOTEN -- am Wasser, nicht an einer Strasse.
+        //
+        // 🪤 Gemessen am 16.08.2026: `Kreuzung-7911` lag 13,8 Meilen von einem Kartenpunkt entfernt
+        // und war damit der naechste Ausstieg. Von dort sind es 208,0 Meilen nach Albenhus (109 davon
+        // Gebirgspass), waehrend Pfalz Albengau 18,3 Meilen entfernt liegt und 83,9 Meilen. Die Reise
+        // wurde dadurch 256,6 statt rund 120 Meilen lang. Die Kreuzung hat KEINE Landwegkante -- sie
+        // ist ein Knoten des Flussnetzes; der Router musste sie selbst per 21-Meilen-Querfeldein-Anker
+        // anbinden, als sie einmal Start einer Reise war.
+        //
+        // ⚠️ Die Pruefung gibt es seit dem 14.08.2026 (Sehnen-Regel); sie wurde hier nur nie gefragt.
+        // ⚠️ Ein Ort, der AUSSCHLIESSLICH am Wasser haengt, faellt damit als Ausstieg weg. Am
+        // Livebestand gemessen, damit die Zahl nicht behauptet ist: `land_isolated_locations` in den
+        // Graph-Statistiken.
         $coordinates = $location['geometry']['coordinates'] ?? null;
         if (!is_array($coordinates) || count($coordinates) < 2) { continue; }
         $nodeX = (float) $coordinates[0];
         $nodeY = (float) $coordinates[1];
-        $candidates[] = ['name' => $name, 'x' => $nodeX, 'y' => $nodeY, 'distance' => hypot($nodeX - $x, $nodeY - $y)];
+        $eintrag = ['name' => $name, 'x' => $nodeX, 'y' => $nodeY, 'distance' => hypot($nodeX - $x, $nodeY - $y)];
+        if (avesmapsClientNodeHasLandPathEdge($graph, $name)) { $candidates[] = $eintrag; }
+        else { $nurWasser[] = $eintrag; }
     }
+
+    // 🔴 VORRANG, KEIN VERBOT. Gibt es UEBERHAUPT keinen Knoten mit Landweg -- eine Insel, deren
+    // Orte nur am Seeweg haengen --, dann waere ein Verbot eine Absage, wo es heute eine Route gibt.
+    // Genau das haelt der Rueckfall-Fall in offroad-leg-test.php fest, und er ist beim Bau dieser
+    // Zeile rot geworden.
+    if ($candidates === []) { $candidates = $nurWasser; }
 
     usort($candidates, static fn(array $a, array $b): int => $a['distance'] <=> $b['distance']);
 

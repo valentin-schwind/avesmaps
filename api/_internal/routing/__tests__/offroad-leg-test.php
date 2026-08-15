@@ -405,6 +405,48 @@ assert(!in_array('B2', $familienKnoten, true),
     'die entfernte erst recht nicht: ' . implode(', ', $familienKnoten));
 assert(count($familienKnoten) === 1, 'genau ein Ausstieg: ' . implode(', ', $familienKnoten));
 
+// ============================================================ Ein Flussknoten ist kein Ausstieg
+
+// 🔴 Owner-Befund 16.08.2026. Ein Fussgaenger, der querfeldein laeuft und „das Netz erreicht", darf
+// nicht an einem FLUSSKNOTEN aussteigen -- dort steht er am Wasser, nicht an einer Strasse.
+// Gemessen an einer Live-Route: `Kreuzung-7911` lag 13,8 Meilen von einem Kartenpunkt entfernt und
+// war damit der naechste Ausstieg; von dort sind es 208,0 Meilen nach Albenhus (109 davon
+// Gebirgspass), waehrend Pfalz Albengau 18,3 Meilen entfernt liegt und 83,9 Meilen. Die Reise wurde
+// 256,6 statt rund 120 Meilen lang. Die Kreuzung hat KEINE Landwegkante.
+$flussGraph = $buildGraph();
+$flussWeg = [
+    'distance' => 20.0, 'time' => 10.0, 'route_type' => 'Flussweg',
+    'transport_option' => 'riverSailer', 'id' => 'path-fluss', 'from' => 'FlussA', 'to' => 'FlussB',
+    'geometry' => ['type' => 'LineString', 'coordinates' => [[16.0, 13.0], [36.0, 13.0]]],
+];
+$flussGraph['graph']['FlussA'] = [];
+$flussGraph['graph']['FlussB'] = [];
+avesmapsAddClientCompatibleGraphConnection($flussGraph['graph'], 'FlussA', 'FlussB', $flussWeg);
+avesmapsAddClientCompatibleGraphConnection($flussGraph['graph'], 'FlussB', 'FlussA', $flussWeg);
+// FlussA liegt 3,0 vom Punkt entfernt -- NAEHER als der Fusspunkt auf der Strasse (6,0).
+$flussOrte = array_merge($locations, [$place('FlussA', 26.0, 13.0), $place('FlussB', 36.0, 13.0)]);
+
+$fluss = avesmapsAttachOffroadPointToGraph($flussGraph, $flussOrte, $request, $water, $land, null, 26.0, 16.0, '__offroad_to');
+assert($fluss['ok'] === true, 'der Punkt haengt: ' . json_encode($fluss));
+$flussKnoten = array_column($fluss['exit_nodes'], 'node');
+assert(!in_array('FlussA', $flussKnoten, true),
+    'der naehere Flussknoten (3,0) ist kein Ausstieg: ' . implode(', ', $flussKnoten));
+assert(abs((float) $fluss['exit_nodes'][0]['air_distance'] - 6.0) < 1e-9,
+    'gewaehlt wird der Fusspunkt auf der Strasse bei 6,0: ' . $fluss['exit_nodes'][0]['air_distance']);
+
+// 🔴 VORRANG, KEIN VERBOT -- und diese Gegenprobe ist tragend. Gibt es UEBERHAUPT keinen Knoten mit
+// Landweg, waere ein Verbot eine Absage, wo es heute eine Route gibt. Beim Bau dieser Regel ist
+// genau daran der Rueckfall-Fall weiter unten rot geworden.
+$nurWasserGraph = ['graph' => ['FlussA' => [], 'FlussB' => []], 'statistics' => []];
+avesmapsAddClientCompatibleGraphConnection($nurWasserGraph['graph'], 'FlussA', 'FlussB', $flussWeg);
+avesmapsAddClientCompatibleGraphConnection($nurWasserGraph['graph'], 'FlussB', 'FlussA', $flussWeg);
+$nurWasser = avesmapsAttachOffroadPointToGraph($nurWasserGraph,
+    [$place('FlussA', 26.0, 13.0), $place('FlussB', 36.0, 13.0)],
+    $request, $water, $land, null, 26.0, 16.0, '__offroad_to');
+assert($nurWasser['ok'] === true, 'ohne Landweg gibt es trotzdem eine Anbindung: ' . json_encode($nurWasser));
+assert((string) $nurWasser['exit_nodes'][0]['node'] === 'FlussA',
+    'und dann ist der Flussknoten der Ausstieg: ' . $nurWasser['exit_nodes'][0]['node']);
+
 // ============================================================ Der naechste ist unerreichbar
 
 // 🔴 PUNKT 6 DER OWNER-REGEL: „Ist der geometrisch naechste Punkt wegen eines Hindernisses
