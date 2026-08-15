@@ -358,11 +358,24 @@ function avesmapsConflictUnlinkFeature(
  * Verknuepfen ist fuer den LEEREN Fall; einen vorhandenen Anspruch still zu ueberschreiben ist,
  * wie falsche Links sich ueberhaupt erst ausbreiten. Je ZEILE geprueft, damit eine Geschwisterzeile
  * mit eigenem Anspruch uebersprungen wird, statt den ganzen Vorgang abzubrechen.
+ *
+ * 💣 Sicherheitsregel 1 gilt HIER GENAUSO. Bis 15.08.2026 fragte diese Pruefung nur das schlichte
+ * Feld: eine Zeile, deren Anspruch im Wiki-Nest steckt, bekam ein `wiki_url` obendrauf -- und weil
+ * avesmapsConflictExtractClaim das schlichte Feld gewinnen laesst, war das Nest damit lautlos
+ * ueberstimmt. Beim Trennen ist genau das verboten (der Anspruch haengt an der ganzen Infobox und
+ * gehoert seinem eigenen Editor); beim Verknuepfen darf es nicht erlaubt sein. Dieselbe Frage,
+ * dieselbe Antwort, derselbe Wortlaut.
  */
 function avesmapsConflictLinkRowRefusal(array $properties): string {
-    return trim((string) ($properties[AVESMAPS_CONFLICT_CLAIM_FIELD] ?? '')) !== ''
-        ? 'Dieses Objekt trägt bereits eine Verknüpfung — bitte erst trennen.'
-        : '';
+    $claim = avesmapsConflictExtractClaim($properties);
+    if ($claim['claim_source'] === AVESMAPS_CONFLICT_CLAIM_FIELD) {
+        return 'Dieses Objekt trägt bereits eine Verknüpfung — bitte erst trennen.';
+    }
+    if ($claim['claim_source'] !== '') {
+        return 'Diese Verknüpfung stammt aus der Wiki-Zuordnung. Bitte im zuständigen Editor lösen — dort hängt die ganze Infobox dran.';
+    }
+
+    return '';
 }
 
 /**

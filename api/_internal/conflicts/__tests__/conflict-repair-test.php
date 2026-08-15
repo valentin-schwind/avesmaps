@@ -103,4 +103,38 @@ assert(avesmapsConflictUnlinkRowRefusal(
     'https://de.wiki-aventurica.de/wiki/Hexenband'
 ) === '');
 
+
+// --- avesmapsConflictLinkRowRefusal: Sicherheitsregel 1 gilt auch beim VERKNUEPFEN --------------
+
+// Der Regelfall: gar kein Anspruch -- genau dafuer ist "Artikel uebernehmen" da.
+assert(avesmapsConflictLinkRowRefusal([]) === '');
+
+// Ein schlichter Anspruch: still ueberschreiben ist, wie falsche Links sich ausbreiten.
+$hatSchon = avesmapsConflictLinkRowRefusal(['wiki_url' => 'https://de.wiki-aventurica.de/wiki/Hexenband']);
+assert($hatSchon !== '');
+assert(str_contains($hatSchon, 'bereits eine Verknüpfung'));
+
+// 💣 Der Mutationstoeter: ein Anspruch im WIKI-NEST. Bis 15.08.2026 sah diese Pruefung nur das
+// schlichte Feld -- die Zeile bekam ein wiki_url obendrauf, und weil das schlichte Feld gewinnt,
+// war das Nest lautlos ueberstimmt. Beim Trennen ist genau das verboten.
+$ausDemNest = avesmapsConflictLinkRowRefusal($blockClaim);
+assert($ausDemNest !== '', 'ein Anspruch aus dem Wiki-Nest wird auch beim Verknuepfen nicht ueberschrieben');
+assert(str_contains($ausDemNest, 'Wiki-Zuordnung'), 'und die Begruendung zeigt auf den zustaendigen Editor');
+
+// ⚠️ Beide Verben begruenden dieselbe Lage mit demselben Satz -- sonst liest sich derselbe Riegel
+// je nach Knopf wie zwei verschiedene Regeln.
+assert($ausDemNest === avesmapsConflictUnlinkRowRefusal($blockClaim, ''));
+
+// Alle Nester zaehlen, nicht nur das der Kraftlinien: die Liste steht in core.php und NUR dort.
+foreach (AVESMAPS_CONFLICT_CLAIM_BLOCKS as $block) {
+    assert(
+        avesmapsConflictLinkRowRefusal([$block => ['wiki_url' => 'https://de.wiki-aventurica.de/wiki/Irgendwas']]) !== '',
+        'Nest ' . $block . ' schuetzt seinen Anspruch'
+    );
+}
+
+// Ein Nest OHNE Adresse ist kein Anspruch (der Abgleich legt es auch ohne an) -- das darf nicht
+// versehentlich jede vom Wiki beschriebene Zeile unverknuepfbar machen.
+assert(avesmapsConflictLinkRowRefusal(['wiki_powerline' => ['name' => 'Hexenband']]) === '');
+
 fwrite(STDOUT, "conflict-repair-test: alle Zusicherungen erfuellt\n");
