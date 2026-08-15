@@ -20,48 +20,48 @@ if (ini_get('zend.assertions') !== '1') {
 
 require __DIR__ . '/../repair.php';
 
-// --- avesmapsConflictUnlinkSpansNameGroup: die EINE Stelle fuer die Reichweite ------------------
+// --- avesmapsConflictRepairSpansNameGroup: die EINE Stelle fuer die Reichweite ------------------
 
 // Die segmentierten Arten fassen den ganzen Namensverbund -- und zwar ALLE aus der Liste, nicht
 // nur die eine, an die gerade jemand gedacht hat. Die Liste selbst ist die Quelle.
 assert(AVESMAPS_CONFLICT_SEGMENTED_TYPES !== []);
 foreach (AVESMAPS_CONFLICT_SEGMENTED_TYPES as $segmentedType) {
-    assert(avesmapsConflictUnlinkSpansNameGroup((string) $segmentedType, 'Hexenband') === true);
+    assert(avesmapsConflictRepairSpansNameGroup((string) $segmentedType, 'Hexenband') === true);
 }
 // Namentlich festgenagelt, damit ein stilles Schrumpfen der Liste auffaellt: der Ausloeser war
 // eine Kraftlinie, und der Owner hat die Aenderung ausdruecklich auch fuer Wege gewollt.
-assert(avesmapsConflictUnlinkSpansNameGroup('powerline', 'Hexenband') === true);
-assert(avesmapsConflictUnlinkSpansNameGroup('path', 'Reichsstraße 1') === true);
+assert(avesmapsConflictRepairSpansNameGroup('powerline', 'Hexenband') === true);
+assert(avesmapsConflictRepairSpansNameGroup('path', 'Reichsstraße 1') === true);
 
 // 🔴 Und NUR fuer sie. Bei Ort, Region, Territorium ist eine Zeile ein Objekt; wuerde hier nach
 // Namen gefasst, traefe ein einziger Klick alle 14 Doerfer namens "Auelsend".
-assert(avesmapsConflictUnlinkSpansNameGroup('location', 'Gareth') === false);
-assert(avesmapsConflictUnlinkSpansNameGroup('region', 'Kosch') === false);
-assert(avesmapsConflictUnlinkSpansNameGroup('territory', 'Kosch') === false);
-assert(avesmapsConflictUnlinkSpansNameGroup('label', 'Kosch') === false);
+assert(avesmapsConflictRepairSpansNameGroup('location', 'Gareth') === false);
+assert(avesmapsConflictRepairSpansNameGroup('region', 'Kosch') === false);
+assert(avesmapsConflictRepairSpansNameGroup('territory', 'Kosch') === false);
+assert(avesmapsConflictRepairSpansNameGroup('label', 'Kosch') === false);
 
 // Ein Objekt ohne Namen hat keinen Verbund -- sein "Verbund" waere jedes andere namenlose Objekt
 // seiner Art, also die halbe Karte.
-assert(avesmapsConflictUnlinkSpansNameGroup('powerline', '') === false);
-assert(avesmapsConflictUnlinkSpansNameGroup('powerline', '   ') === false);
+assert(avesmapsConflictRepairSpansNameGroup('powerline', '') === false);
+assert(avesmapsConflictRepairSpansNameGroup('powerline', '   ') === false);
 
-// --- avesmapsConflictUnlinkGroupKey: der Gedaechtnisstrich EINES resolve-Aufrufs ----------------
+// --- avesmapsConflictRepairGroupKey: der Gedaechtnisstrich EINES resolve-Aufrufs ----------------
 
 // Zwei Segmente derselben Linie ergeben DENSELBEN Schluessel -- daran erkennt der zweite Zielaufruf,
 // dass der erste den Verbund schon ganz geschrieben hat. Ohne das liefen bei einem geteilten Artikel
 // 25 von 26 Zielen in Sicherheitsregel 1, obwohl die Reparatur gelungen ist.
-assert(avesmapsConflictUnlinkGroupKey('path', 'Reichsstraße 1') === avesmapsConflictUnlinkGroupKey('path', 'Reichsstraße 1'));
-assert(avesmapsConflictUnlinkGroupKey('powerline', 'Hexenband') === avesmapsConflictUnlinkGroupKey('powerline', 'HEXENBAND'));
-assert(avesmapsConflictUnlinkGroupKey('powerline', 'Hexenband') === avesmapsConflictUnlinkGroupKey('powerline', '  Hexenband  '));
+assert(avesmapsConflictRepairGroupKey('path', 'Reichsstraße 1') === avesmapsConflictRepairGroupKey('path', 'Reichsstraße 1'));
+assert(avesmapsConflictRepairGroupKey('powerline', 'Hexenband') === avesmapsConflictRepairGroupKey('powerline', 'HEXENBAND'));
+assert(avesmapsConflictRepairGroupKey('powerline', 'Hexenband') === avesmapsConflictRepairGroupKey('powerline', '  Hexenband  '));
 
 // Verschiedene Linien und verschiedene Arten duerfen sich NIE denselben Schluessel teilen.
-assert(avesmapsConflictUnlinkGroupKey('powerline', 'Hexenband') !== avesmapsConflictUnlinkGroupKey('powerline', 'Basiliuslinie'));
-assert(avesmapsConflictUnlinkGroupKey('powerline', 'Hexenband') !== avesmapsConflictUnlinkGroupKey('path', 'Hexenband'));
+assert(avesmapsConflictRepairGroupKey('powerline', 'Hexenband') !== avesmapsConflictRepairGroupKey('powerline', 'Basiliuslinie'));
+assert(avesmapsConflictRepairGroupKey('powerline', 'Hexenband') !== avesmapsConflictRepairGroupKey('path', 'Hexenband'));
 
 // 🔴 Wer keinen Verbund hat, bekommt '' -- und '' darf NIE als "schon erledigt" gelten, sonst
 // traefe von zwei gleichnamigen Doerfern nur das erste.
-assert(avesmapsConflictUnlinkGroupKey('location', 'Auelsend') === '');
-assert(avesmapsConflictUnlinkGroupKey('powerline', '') === '');
+assert(avesmapsConflictRepairGroupKey('location', 'Auelsend') === '');
+assert(avesmapsConflictRepairGroupKey('powerline', '') === '');
 
 // --- avesmapsConflictUnlinkRowRefusal: Sicherheitsregel 1 und 2, je ZEILE -----------------------
 

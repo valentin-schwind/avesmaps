@@ -46,12 +46,19 @@ const AVESMAPS_CONFLICT_NO_ARTICLE_FLAG = 'wiki_no_article';
  * Fall mit 5 Segmenten stehen. Genau der Livebestandsfall, der diesen Umbau ausgeloest hat.
  *
  * 🔴 DIES IST DIE EINE STELLE, an der sich die Reichweite wieder eng ziehen laesst -- ein `false`
- * hier macht den Verb wieder einzeilig, ohne dass jemand eine zweite Abfrage im Schreibpfad suchen
- * muss. Die Liste selbst steht in core.php und NUR dort (AVESMAPS_CONFLICT_SEGMENTED_TYPES).
+ * hier macht ALLE Reparatur-Verben wieder einzeilig, ohne dass jemand eine zweite Abfrage im
+ * Schreibpfad suchen muss. Die Liste selbst steht in core.php und NUR dort
+ * (AVESMAPS_CONFLICT_SEGMENTED_TYPES).
+ *
+ * 💣 Sie heisst `Repair`, nicht `Unlink`: sie bedient BEIDE Knoepfe am selben Fall -- "Trennen" /
+ * "Kein Wiki-Eintrag" und "Artikel uebernehmen". Zwei Knoepfe am selben Fall, die verschieden weit
+ * reichen, sind schlimmer als zwei getrennte Fehler: eine Linie liesse sich ganz loesen, aber nur
+ * zu einem Sechstel verknuepfen, und das saehe aus wie "der Link hat nicht gegriffen"
+ * (Owner-Entscheid 15.08.2026).
  *
  * Ein Objekt ohne Namen faellt heraus: sein "Verbund" waere jedes andere namenlose Objekt seiner Art.
  */
-function avesmapsConflictUnlinkSpansNameGroup(string $featureType, string $name): bool {
+function avesmapsConflictRepairSpansNameGroup(string $featureType, string $name): bool {
     return trim($name) !== '' && in_array($featureType, AVESMAPS_CONFLICT_SEGMENTED_TYPES, true);
 }
 
@@ -63,13 +70,15 @@ function avesmapsConflictUnlinkSpansNameGroup(string $featureType, string $name)
  * fasst nur Faelle mit genau einer Partei), also stehen die 26 Segmente der "Reichsstraße 1" dort
  * einzeln, und "Behält den Link" schickt sie alle. Ohne diesen Schluessel schriebe der erste Ziel-
  * aufruf den ganzen Verbund, und die 25 folgenden liefen in Sicherheitsregel 1 ("stammt aus der
- * Wiki-Zuordnung") -- 25 Fehlermeldungen fuer eine gelungene Reparatur.
+ * Wiki-Zuordnung") -- 25 Fehlermeldungen fuer eine gelungene Reparatur. Beim Verknuepfen dasselbe:
+ * dort liefe die zweite Zeile in "traegt bereits eine Verknuepfung", die der erste Aufruf gerade
+ * selbst geschrieben hat.
  *
  * Kleingeschrieben, weil avesmapsConflictCollapseSegmentsByName ebenso zusammenfasst und MySQL
  * ohnehin ohne Ruecksicht auf Gross-/Kleinschreibung vergleicht.
  */
-function avesmapsConflictUnlinkGroupKey(string $featureType, string $name): string {
-    return avesmapsConflictUnlinkSpansNameGroup($featureType, $name)
+function avesmapsConflictRepairGroupKey(string $featureType, string $name): string {
+    return avesmapsConflictRepairSpansNameGroup($featureType, $name)
         ? $featureType . '|' . mb_strtolower(trim($name), 'UTF-8')
         : '';
 }
@@ -106,7 +115,7 @@ function avesmapsConflictUnlinkRowRefusal(array $properties, string $expectedUrl
  *
  * Bei einer segmentierten Art (Weg, Kraftlinie) wirkt das auf ALLE aktiven Segmente desselben
  * Namens -- der Merker ist eine Aussage ueber die LINIE, und der Fall am Knopf ist die Linie
- * (avesmapsConflictUnlinkSpansNameGroup). Sonst wie bisher auf die eine Zeile.
+ * (avesmapsConflictRepairSpansNameGroup). Sonst wie bisher auf die eine Zeile.
  *
  * Die ZIELZEILE entscheidet ueber Annahme oder Ablehnung: sie ist die, auf die der Fall zeigt und
  * die der Editor gesehen hat. Geschwisterzeilen sind bestmoeglich -- eine, die Sicherheitsregel 1
@@ -114,7 +123,7 @@ function avesmapsConflictUnlinkRowRefusal(array $properties, string $expectedUrl
  * Protokolleintrag, wie bisher.
  *
  * $handledGroups ist der Gedaechtnisstrich EINES resolve-Aufrufs: welche Verbuende darin schon
- * geschrieben wurden (siehe avesmapsConflictUnlinkGroupKey).
+ * geschrieben wurden (siehe avesmapsConflictRepairGroupKey).
  *
  * @return array{ok:bool, public_id:string, changed:bool, written?:int, group?:string, reason?:string}
  */
@@ -131,7 +140,7 @@ function avesmapsConflictUnlinkFeature(PDO $pdo, string $publicId, string $expec
 
     $name = (string) ($feature['name'] ?? '');
     $featureType = (string) ($feature['feature_type'] ?? '');
-    $groupKey = avesmapsConflictUnlinkGroupKey($featureType, $name);
+    $groupKey = avesmapsConflictRepairGroupKey($featureType, $name);
 
     // Ein zweites Segment DESSELBEN Verbundes im selben Aufruf: der erste hat ihn schon ganz
     // geschrieben. Das ist kein Fehler und darf keine Ablehnung ausloesen -- die Zeile stuende
@@ -209,18 +218,47 @@ function avesmapsConflictUnlinkFeature(PDO $pdo, string $publicId, string $expec
 }
 
 /**
+ * REIN: Darf diese Zeile verknuepft werden? '' = ja, sonst die Begruendung.
+ *
+ * Verknuepfen ist fuer den LEEREN Fall; einen vorhandenen Anspruch still zu ueberschreiben ist,
+ * wie falsche Links sich ueberhaupt erst ausbreiten. Je ZEILE geprueft, damit eine Geschwisterzeile
+ * mit eigenem Anspruch uebersprungen wird, statt den ganzen Vorgang abzubrechen.
+ */
+function avesmapsConflictLinkRowRefusal(array $properties): string {
+    return trim((string) ($properties[AVESMAPS_CONFLICT_CLAIM_FIELD] ?? '')) !== ''
+        ? 'Dieses Objekt trägt bereits eine Verknüpfung — bitte erst trennen.'
+        : '';
+}
+
+/**
  * Link an object to the wiki article that carries its exact name.
  *
  * The candidate is looked up HERE, from the object's own stored name -- never taken from the
  * request. A client-supplied URL would let anything set any link, and this endpoint writes real map
  * data; the client only says WHICH object to link, the server decides to what.
  *
+ * Bei einer segmentierten Art (Weg, Kraftlinie) wirkt das auf ALLE aktiven Segmente desselben
+ * Namens -- dieselbe Weiche und dieselbe Gruppenabfrage wie beim Trennen
+ * (avesmapsConflictRepairSpansNameGroup). 🔴 Owner-Entscheid 15.08.2026, und der Grund ist die
+ * ASYMMETRIE: "Artikel uebernehmen" steht an denselben nach Namen zusammengefassten
+ * wiki.missing_key-Faellen wie "Kein Wiki-Eintrag". Reichte der eine Knopf ueber die Linie und der
+ * andere ueber ein Segment, liesse sich eine Linie ganz loesen, aber nur zu einem Sechstel
+ * verknuepfen -- und das saehe aus wie "der Link hat nicht gegriffen".
+ *
+ * ⚠️ Die Zuordnung bleibt dabei eindeutig: der Artikel wird ueber den EIGENEN Namen des Objekts
+ * gesucht, und alle Segmente einer Linie tragen denselben. Es wird also nichts geraten, was nicht
+ * schon fuer die Zielzeile galt.
+ *
  * Refuses when the object already claims something: linking is for the empty case, and silently
- * overwriting an existing claim is how wrong links spread in the first place.
+ * overwriting an existing claim is how wrong links spread in the first place. Die ZIELZEILE
+ * entscheidet ueber Annahme oder Ablehnung; eine Geschwisterzeile mit eigenem Anspruch wird
+ * uebersprungen.
+ *
+ * @return array{ok:bool, public_id:string, changed:bool, written?:int, group?:string, reason?:string}
  */
-function avesmapsConflictLinkFeature(PDO $pdo, string $publicId, array $wikiTitles, int $userId): array {
+function avesmapsConflictLinkFeature(PDO $pdo, string $publicId, array $wikiTitles, int $userId, array &$handledGroups = []): array {
     $select = $pdo->prepare(
-        "SELECT id, name, properties_json FROM map_features
+        "SELECT id, name, feature_type, properties_json FROM map_features
          WHERE public_id = :p AND is_active = 1 LIMIT 1"
     );
     $select->execute(['p' => $publicId]);
@@ -229,48 +267,91 @@ function avesmapsConflictLinkFeature(PDO $pdo, string $publicId, array $wikiTitl
         return ['ok' => false, 'public_id' => $publicId, 'changed' => false, 'reason' => 'Objekt nicht gefunden.'];
     }
 
-    $properties = json_decode((string) ($feature['properties_json'] ?? '{}'), true);
-    if (!is_array($properties)) {
-        $properties = [];
-    }
-    $before = json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    // 💣 ROH fuer die Gruppenabfrage (so steht der Name in der Spalte), GETRIMMT fuer die
+    // Artikelsuche (so kommt er aus avesmapsConflictLoadWikiTitles). Die beiden zu vertauschen
+    // hiesse: entweder findet die Abfrage die Geschwister nicht, oder der Artikel wird verfehlt.
+    $name = (string) ($feature['name'] ?? '');
+    $lookupName = trim($name);
+    $featureType = (string) ($feature['feature_type'] ?? '');
+    $groupKey = avesmapsConflictRepairGroupKey($featureType, $name);
 
-    $existing = trim((string) ($properties[AVESMAPS_CONFLICT_CLAIM_FIELD] ?? ''));
-    if ($existing !== '') {
-        return ['ok' => false, 'public_id' => $publicId, 'changed' => false,
-            'reason' => 'Dieses Objekt trägt bereits eine Verknüpfung — bitte erst trennen.'];
+    // Ein zweites Segment DESSELBEN Verbundes im selben Aufruf: der erste hat ihn schon ganz
+    // verknuepft. Ohne diesen Halt liefe die Zeile in "traegt bereits eine Verknuepfung" -- die der
+    // erste Aufruf gerade selbst geschrieben hat.
+    if ($groupKey !== '' && isset($handledGroups[$groupKey])) {
+        return ['ok' => true, 'public_id' => $publicId, 'changed' => false, 'written' => 0,
+            'group' => $groupKey, 'name' => $lookupName];
     }
 
-    $name = trim((string) ($feature['name'] ?? ''));
-    $candidate = $wikiTitles[mb_strtolower($name, 'UTF-8')] ?? null;
+    $targetProperties = json_decode((string) ($feature['properties_json'] ?? '{}'), true);
+    if (!is_array($targetProperties)) {
+        $targetProperties = [];
+    }
+    $targetRefusal = avesmapsConflictLinkRowRefusal($targetProperties);
+    if ($targetRefusal !== '') {
+        return ['ok' => false, 'public_id' => $publicId, 'changed' => false, 'reason' => $targetRefusal];
+    }
+
+    $candidate = $wikiTitles[mb_strtolower($lookupName, 'UTF-8')] ?? null;
     if ($candidate === null || trim((string) ($candidate['url'] ?? '')) === '') {
         return ['ok' => false, 'public_id' => $publicId, 'changed' => false,
             'reason' => 'Zu diesem Namen gibt es im Wiki keinen exakt passenden Artikel (mehr).'];
     }
+    $wikiUrl = (string) $candidate['url'];
 
-    $properties[AVESMAPS_CONFLICT_CLAIM_FIELD] = (string) $candidate['url'];
-    // Eine Verknüpfung widerlegt die Aussage "hat keinen Artikel" -- sonst blieben beide stehen.
-    unset($properties[AVESMAPS_CONFLICT_NO_ARTICLE_FLAG]);
+    // Die Zeilen, auf die dieser Vorgang wirkt. Die Zielzeile ist bei der Verbund-Abfrage mit
+    // dabei (gleiche Art, gleicher Name, aktiv), also wird sie nicht doppelt geschrieben.
+    $rows = [$feature];
+    if ($groupKey !== '') {
+        $handledGroups[$groupKey] = true;
+        $group = $pdo->prepare(
+            "SELECT id, name, feature_type, properties_json FROM map_features
+             WHERE feature_type = :t AND name = :n AND is_active = 1"
+        );
+        $group->execute(['t' => $featureType, 'n' => $name]);
+        $groupRows = $group->fetchAll(PDO::FETCH_ASSOC);
+        if ($groupRows !== []) {
+            $rows = $groupRows;
+        }
+    }
 
     $revision = avesmapsNextMapRevision($pdo);
     $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev, updated_by = :by WHERE id = :id');
-    $update->execute([
-        'pj' => json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-        'rev' => $revision,
-        'by' => $userId > 0 ? $userId : null,
-        'id' => (int) $feature['id'],
-    ]);
+    $written = 0;
+    foreach ($rows as $row) {
+        $properties = json_decode((string) ($row['properties_json'] ?? '{}'), true);
+        if (!is_array($properties)) {
+            $properties = [];
+        }
+        if (avesmapsConflictLinkRowRefusal($properties) !== '') {
+            continue;
+        }
+        $before = json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-    avesmapsWriteMapAuditLog(
-        $pdo,
-        (int) $feature['id'],
-        'conflict_link',
-        $userId,
-        (string) $before,
-        (string) json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-    );
+        $properties[AVESMAPS_CONFLICT_CLAIM_FIELD] = $wikiUrl;
+        // Eine Verknüpfung widerlegt die Aussage "hat keinen Artikel" -- sonst blieben beide stehen.
+        unset($properties[AVESMAPS_CONFLICT_NO_ARTICLE_FLAG]);
 
-    return ['ok' => true, 'public_id' => $publicId, 'changed' => true, 'name' => $name, 'wiki_url' => (string) $candidate['url']];
+        $update->execute([
+            'pj' => json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'rev' => $revision,
+            'by' => $userId > 0 ? $userId : null,
+            'id' => (int) $row['id'],
+        ]);
+        $written++;
+
+        avesmapsWriteMapAuditLog(
+            $pdo,
+            (int) $row['id'],
+            'conflict_link',
+            $userId,
+            (string) $before,
+            (string) json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+    }
+
+    return ['ok' => true, 'public_id' => $publicId, 'changed' => $written > 0, 'written' => $written,
+        'group' => $groupKey, 'name' => $lookupName, 'wiki_url' => $wikiUrl];
 }
 
 /**
@@ -303,6 +384,7 @@ function avesmapsConflictResolve(PDO $pdo, array $input, int $userId): array {
     $applied = 0;
     // Welche Namensverbuende dieser EINE Aufruf schon geschrieben hat. Bei einer segmentierten Art
     // trifft ein Ziel den ganzen Verbund, und ein geteilter Artikel schickt dessen Segmente einzeln.
+    // Gilt fuer BEIDE Verben -- `mode` ist je Aufruf einer, sie teilen sich den Strich also gefahrlos.
     $handledGroups = [];
     $pdo->beginTransaction();
     try {
@@ -312,7 +394,7 @@ function avesmapsConflictResolve(PDO $pdo, array $input, int $userId): array {
                 continue;
             }
             $result = $mode === 'link'
-                ? avesmapsConflictLinkFeature($pdo, $publicId, $wikiTitles, $userId)
+                ? avesmapsConflictLinkFeature($pdo, $publicId, $wikiTitles, $userId, $handledGroups)
                 : avesmapsConflictUnlinkFeature($pdo, $publicId, $expectedUrl, $mode === 'no_wiki', $userId, $handledGroups);
             $results[] = $result;
             if (!empty($result['changed'])) {
