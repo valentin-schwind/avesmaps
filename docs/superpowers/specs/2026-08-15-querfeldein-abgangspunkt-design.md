@@ -58,7 +58,18 @@ Koordinate für Koordinate (beide live abgefragt). Der ganze Unterschied ist das
 * heute: 9,6 Meilen querfeldein, neben der Straße her
 * richtig: 7,8 Meilen **auf** der Straße, dann 1,2 Meilen quer bis zur selben Stelle
 
-Kürzer **und** schneller. Es gibt keine Lesart, in der das heutige Ergebnis richtig ist.
+Es gibt keine Lesart, in der das heutige Ergebnis richtig ist.
+
+🔴 **NACHTRAG 15.08.2026, nach dem Bau — hier stand „kürzer UND schneller", und das war
+falsch.** Die Rechnung darüber nimmt an, die Geländelinie sei ab (505.775, 507.163) für alt und
+neu dieselbe und nur ihr Anfang unterscheide sich. Das gilt für die HANDPROBE, die diesen
+Entwurf trug (11,23 Einheiten ab dem Knick), nicht für den gebauten Stand: der Mehrziel-Dijkstra
+sucht vom Kartenpunkt aus zu JEDEM Kandidaten einen eigenen **zeit**optimalen Weg, und der liegt
+nicht zwangsläufig auf derselben Linie. Live gemessen sind es **12,22** Einheiten. Damit ist die
+Reise **schneller, aber LÄNGER**: 44,46 statt 42,06 Meilen bei Kosten 6,2124 statt 6,5396.
+⚠️ Für „Schnellste" ist das richtig — 7,80 der Meilen sind Straße. Für „Kürzeste" ist es
+ungeprüft, und wer dort nachzieht, darf diesen Absatz nicht als Beleg nehmen. AGENTS.md §11
+trägt die richtigen Zahlen seit Commit 807ea621.
 
 ## 2 · Entscheidungen des Owners (15.08.2026)
 
@@ -220,8 +231,9 @@ Beschriftungen außerhalb der Etappenliste, und ein `__wp_anchor_7` darf nirgend
 ## 6 · Abnahme
 
 1. **Die Route des Owners.** `Salmingen → Kartenpunkt (504.530, 501.076)`, Reisegruppe zu Fuß,
-   schnellste Route: **zwei** Etappen, rund 7,8 Meilen Talloner Hügelsteig, dann rund 33,7 Meilen
-   Unwegsames Gelände, Gesamtkosten ≈ 6,18 statt 6,54. Nachgewiesen an `POST /api/route/`
+   schnellste Route: **zwei** Etappen, rund 7,8 Meilen Talloner Hügelsteig, dann rund 36,7 Meilen
+   Unwegsames Gelände, Gesamtkosten ≈ 6,21 statt 6,54. ⚠️ Die 33,7 Meilen, die hier bis
+   zum Bau standen, stammten aus einer Handprobe und waren zu niedrig — siehe §1. Nachgewiesen an `POST /api/route/`
    **und** an `https://avesmaps.de/?s=9PtTgmCH` im Browser, mit Blick auf die gezeichnete Linie
    und die Etappenliste — nicht an einer Zahlentabelle.
 2. **Kein bestehender Test wird rot**, insbesondere `offroad-leg-test.php`,
