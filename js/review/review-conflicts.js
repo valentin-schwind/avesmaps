@@ -606,8 +606,10 @@ function conflictDecisionParties(conflict) {
 }
 
 // Repair verbs sit ON the party, because that is where the decision lives: this one keeps the
-// article, that one does not. "Behält den Link" is expressed as "unlink all the others" -- the
-// keeper is never written to, which is the safest possible way to say "leave it alone".
+// article, that one does not. "Behält den Link" is expressed as "unlink all the others" -- und der
+// Behalter reist seit 15.08.2026 als `keep` MIT. 🔴 Der Satz, der hier stand ("the keeper is never
+// written to"), stimmte nur, solange ein Ziel eine Zeile traf: bei Wegen und Kraftlinien fasst ein
+// Ziel den ganzen Namensverbund, und ein Geschwistersegment des Behalters zog ihn mit hinein.
 // Ein Knopf: den gefundenen Artikel uebernehmen. Die URL schickt der Client NICHT mit -- der
 // Server schlaegt sie selbst am Objektnamen nach (repair.php), damit von hier aus keine
 // beliebige Verknuepfung gesetzt werden kann.
@@ -655,12 +657,18 @@ function createConflictPartyActions(conflict, party) {
 	bar.className = "conflict-party__actions";
 
 	const others = (conflict.parties || []).filter((other) => other.id !== party.id || other.type !== party.type);
-	const run = async (button, mode, targets) => {
+	// 🔴 `keep` ist der Behalter und wird MITGESCHICKT, nicht bloß aus der Zielliste weggelassen.
+	// Weglassen genügte, solange ein Ziel nur seine eigene Zeile traf; seit ein Ziel bei Wegen und
+	// Kraftlinien den ganzen Namensverbund fasst, zieht ein Geschwistersegment den Behalter mit
+	// hinein — sechs Segmente, ein Klick, danach trägt niemand mehr den Artikel. Der Server nimmt
+	// den Behalter samt seiner ganzen Linie von jedem Schreibvorgang aus.
+	const run = async (button, mode, targets, keeper = null) => {
 		button.disabled = true;
 		try {
 			const result = await submitConflictAction("resolve", {
 				mode,
 				targets: targets.map((target) => ({ type: target.type, id: target.id })),
+				keep: keeper ? { type: keeper.type, id: keeper.id } : null,
 				wiki_url: conflict.wiki_url || "",
 				rule_id: conflict.rule_id,
 				fingerprint: conflict.fingerprint,
@@ -691,7 +699,7 @@ function createConflictPartyActions(conflict, party) {
 		keep.className = "conflict-action conflict-action--main";
 		keep.textContent = "Behält den Link";
 		keep.title = `Trennt die ${others.length} andere${others.length === 1 ? "n" : "n"} Objekte von diesem Artikel.`;
-		keep.addEventListener("click", () => run(keep, "unlink", others));
+		keep.addEventListener("click", () => run(keep, "unlink", others, party));
 		bar.appendChild(keep);
 	}
 

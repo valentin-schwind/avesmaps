@@ -84,6 +84,93 @@ function avesmapsConflictRepairGroupKey(string $featureType, string $name): stri
 }
 
 /**
+ * REIN: Wer ist der BEHALTER dieses Aufrufs -- die Partei, die ihren Anspruch ausdruecklich behalten
+ * soll? Und wissen wir das ueberhaupt sicher?
+ *
+ * 🔴 DER DATENVERLUST, DEN DAS VERHINDERT (gemessen 15.08.2026, live): „Behält den Link" ist im
+ * Client als `run(keep, "unlink", others)` ausgedrueckt -- der Behalter steht NICHT in der Zielliste,
+ * er wird dem Server gar nicht genannt. Solange jedes Ziel nur seine eigene Zeile traf, war das die
+ * sicherste denkbare Form von „lass den in Ruhe". Seit ein Ziel den ganzen Namensverbund fasst, zieht
+ * das erste Ziel den Behalter mit hinein: sechs Segmente, ein Klick, danach traegt NIEMAND mehr den
+ * Artikel -- und es meldet Erfolg, weil der Fall danach aus der Liste verschwindet.
+ *
+ * Zwei Quellen, in dieser Reihenfolge:
+ *   1. `keep` -- der Client sagt es ausdruecklich (Art + Kennung). Der vorgesehene Weg.
+ *   2. `subject_id` -- ⚠️ der Rueckfall fuer AUSGELIEFERTE Clients, die `keep` noch nicht kennen.
+ *      Der Client schickt seit jeher die Partei mit, an der der Knopf steht; beim Behalten ist das
+ *      der Behalter, und er ist dann gerade NICHT unter den Zielen. Bei „Trennen" und „Kein
+ *      Wiki-Eintrag" IST er unter den Zielen -- daran sind die Faelle zu unterscheiden, ohne dass
+ *      irgendein Client sich aendern muss. Das ist wichtig: eine gecachte alte index.html haelt sich
+ *      nicht daran, wann wir etwas Neues ausrollen (AGENTS.md §7).
+ *
+ * `known` = false heisst „diese Anfrage sagt gar nichts ueber einen Behalter". Dann wird beim
+ * Trennen NICHT nach Verbund geschrieben (eng, wie vor der Reichweitenaenderung), statt blind zu
+ * fassen -- lieber zu wenig getroffen als der Verlust oben.
+ *
+ * @param list<string> $targetPublicIds die Kennungen der Ziele dieses Aufrufs
+ * @return array{keeper:string, known:bool}
+ */
+function avesmapsConflictResolveKeeper(array $input, array $targetPublicIds): array {
+    $explicit = trim((string) ($input['keep']['id'] ?? ''));
+    if ($explicit !== '') {
+        return ['keeper' => $explicit, 'known' => true];
+    }
+
+    $subject = trim((string) ($input['subject_id'] ?? ''));
+    if ($subject === '') {
+        return ['keeper' => '', 'known' => false];
+    }
+
+    // Steht die handelnde Partei selbst unter den Zielen, ist sie kein Behalter, sondern das Opfer
+    // des Klicks ("Trennen" / "Kein Wiki-Eintrag"). Dann gibt es keinen zu schuetzen.
+    return ['keeper' => in_array($subject, $targetPublicIds, true) ? '' : $subject, 'known' => true];
+}
+
+/**
+ * Die Zeilen, die dieser Aufruf NICHT anfassen darf: der Behalter und -- gehoert er zu einer
+ * segmentierten Art -- sein GANZER Namensverbund.
+ *
+ * 💣 Der ganze Verbund, nicht nur die eine Zeile. Behielte nur das eine Segment seinen Anspruch,
+ * staende eine Linie da, deren Segmente verschieden verlinkt sind -- genau der Zustand, den die
+ * Verbund-Reichweite verhindern soll.
+ *
+ * @return array<int,bool> Menge von map_features.id
+ */
+function avesmapsConflictProtectedRowIds(PDO $pdo, string $keeperPublicId): array {
+    $keeperPublicId = trim($keeperPublicId);
+    if ($keeperPublicId === '') {
+        return [];
+    }
+
+    $select = $pdo->prepare(
+        "SELECT id, name, feature_type FROM map_features
+         WHERE public_id = :p AND is_active = 1 LIMIT 1"
+    );
+    $select->execute(['p' => $keeperPublicId]);
+    $row = $select->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        return [];
+    }
+
+    $protected = [(int) $row['id'] => true];
+    $groupKey = avesmapsConflictRepairGroupKey((string) ($row['feature_type'] ?? ''), (string) ($row['name'] ?? ''));
+    if ($groupKey === '') {
+        return $protected;
+    }
+
+    $group = $pdo->prepare(
+        "SELECT id FROM map_features
+         WHERE feature_type = :t AND name = :n AND is_active = 1"
+    );
+    $group->execute(['t' => (string) $row['feature_type'], 'n' => (string) $row['name']]);
+    foreach ($group->fetchAll(PDO::FETCH_ASSOC) as $groupRow) {
+        $protected[(int) $groupRow['id']] = true;
+    }
+
+    return $protected;
+}
+
+/**
  * REIN: Sicherheitsregel 1 und 2, je ZEILE. Leerer String = darf geschrieben werden, sonst die
  * Begruendung. Die Regeln gelten unveraendert -- neu ist nur, dass sie ueber mehrere Zeilen laufen
  * koennen und eine verletzende Zeile UEBERSPRUNGEN wird, statt den ganzen Vorgang abzubrechen.
@@ -125,9 +212,24 @@ function avesmapsConflictUnlinkRowRefusal(array $properties, string $expectedUrl
  * $handledGroups ist der Gedaechtnisstrich EINES resolve-Aufrufs: welche Verbuende darin schon
  * geschrieben wurden (siehe avesmapsConflictRepairGroupKey).
  *
- * @return array{ok:bool, public_id:string, changed:bool, written?:int, group?:string, reason?:string}
+ * $protectedRowIds sind die Zeilen des BEHALTERS (avesmapsConflictProtectedRowIds) -- sie werden von
+ * jedem Schreibvorgang ausgenommen, auch wenn ein Ziel sie ueber seinen Verbund mitfassen wuerde.
+ * $maySpanNameGroup = false zieht den Verb auf die eine Zeile zurueck; siehe
+ * avesmapsConflictResolveKeeper, warum das der sichere Rueckfall ist.
+ *
+ * @param array<int,bool> $protectedRowIds
+ * @return array{ok:bool, public_id:string, changed:bool, written?:int, group?:string, protected?:bool, skipped?:list<array{public_id:string,reason:string}>, reason?:string}
  */
-function avesmapsConflictUnlinkFeature(PDO $pdo, string $publicId, string $expectedUrl, bool $markNoArticle, int $userId, array &$handledGroups = []): array {
+function avesmapsConflictUnlinkFeature(
+    PDO $pdo,
+    string $publicId,
+    string $expectedUrl,
+    bool $markNoArticle,
+    int $userId,
+    array &$handledGroups = [],
+    array $protectedRowIds = [],
+    bool $maySpanNameGroup = true
+): array {
     $select = $pdo->prepare(
         "SELECT id, name, feature_type, properties_json FROM map_features
          WHERE public_id = :p AND is_active = 1 LIMIT 1"
@@ -140,7 +242,19 @@ function avesmapsConflictUnlinkFeature(PDO $pdo, string $publicId, string $expec
 
     $name = (string) ($feature['name'] ?? '');
     $featureType = (string) ($feature['feature_type'] ?? '');
-    $groupKey = avesmapsConflictRepairGroupKey($featureType, $name);
+    // 🔴 Die Zielzeile gehoert dem Behalter (oder seiner Linie): sie wird gar nicht angefasst. Das
+    // ist keine Ablehnung -- der Aufrufer hat sie nur mitgeschickt, weil der Client den Behalter
+    // als "alle anderen trennen" ausdrueckt und dabei nicht weiss, dass zwei Parteien zur selben
+    // Linie gehoeren koennen.
+    if (isset($protectedRowIds[(int) $feature['id']])) {
+        return ['ok' => true, 'public_id' => $publicId, 'changed' => false, 'written' => 0,
+            'protected' => true, 'name' => $name];
+    }
+
+    // ⚠️ Weiss diese Anfrage nichts ueber einen Behalter, faellt der Verb auf die eine Zeile
+    // zurueck (avesmapsConflictResolveKeeper). Der leere Schluessel schaltet zugleich den
+    // Gedaechtnisstrich ab -- ohne Verbund gibt es keinen zu merken.
+    $groupKey = $maySpanNameGroup ? avesmapsConflictRepairGroupKey($featureType, $name) : '';
 
     // Ein zweites Segment DESSELBEN Verbundes im selben Aufruf: der erste hat ihn schon ganz
     // geschrieben. Das ist kein Fehler und darf keine Ablehnung ausloesen -- die Zeile stuende
@@ -179,6 +293,16 @@ function avesmapsConflictUnlinkFeature(PDO $pdo, string $publicId, string $expec
     $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev, updated_by = :by WHERE id = :id');
     $written = 0;
     foreach ($rows as $row) {
+        // ⚠️ ZWEITER GURT, und er ist mit Absicht redundant: da der Schutz den GANZEN Verbund
+        // umfasst und die Verbund-Abfrage denselben Zuschnitt hat, ist eine geschuetzte Zeile hier
+        // schon oben als Zielzeile abgefangen worden. Uebrig bleibt genau ein Fall, den der Test
+        // NICHT nachstellen kann: eine Zeile, die zwischen der Schutz-Abfrage und dieser
+        // Verbund-Abfrage entstanden ist (ein frisch angehaengtes Segment erbt den wiki_url seiner
+        // Linie, koennte den Anspruch also bereits tragen). Eine Mutation dieser Zeile allein
+        // ueberlebt den Test deshalb -- das ist benannt, nicht uebersehen.
+        if (isset($protectedRowIds[(int) $row['id']])) {
+            continue;
+        }
         $properties = json_decode((string) ($row['properties_json'] ?? '{}'), true);
         if (!is_array($properties)) {
             $properties = [];
@@ -361,9 +485,15 @@ function avesmapsConflictLinkFeature(PDO $pdo, string $publicId, array $wikiTitl
  * mode 'no_wiki'  -- drop it AND record that there is no article (makes the removal stick)
  * mode 'link'     -- attach the article carrying the object's exact name (looked up server-side)
  *
- * "Behält den Link" is expressed by the caller as: unlink every party EXCEPT the keeper. There is
- * no separate verb for it, so the keeper is never written to -- the safest possible way to say
- * "leave that one alone".
+ * "Behält den Link" is expressed by the caller as: unlink every party EXCEPT the keeper.
+ *
+ * 🔴 Das allein REICHT NICHT MEHR, und der Satz, der frueher hier stand ("the keeper is never
+ * written to"), war seit der Reichweitenaenderung falsch. Solange jedes Ziel nur seine eigene Zeile
+ * traf, genuegte es, den Behalter wegzulassen. Seit ein Ziel den ganzen Namensverbund fasst, zieht
+ * ein Geschwistersegment ihn mit hinein -- gemessen: sechs Segmente, ein Klick, danach traegt
+ * NIEMAND mehr den Artikel, und es meldete Erfolg. Der Behalter wird deshalb jetzt ausdruecklich
+ * ermittelt (avesmapsConflictResolveKeeper) und samt seiner ganzen Linie von jedem Schreibvorgang
+ * dieses Aufrufs ausgenommen (avesmapsConflictProtectedRowIds).
  *
  * @return array{ok:bool, applied:int, results:list<array<string,mixed>>}
  */
@@ -380,6 +510,22 @@ function avesmapsConflictResolve(PDO $pdo, array $input, int $userId): array {
     // Nur fuer 'link' gebraucht, und bewusst SERVERSEITIG geholt statt aus der Anfrage.
     $wikiTitles = $mode === 'link' ? avesmapsConflictLoadWikiTitles($pdo) : [];
 
+    // Der Behalter und seine Linie -- die Zeilen, die dieser Aufruf unter keinen Umstaenden anfasst.
+    // Beim Verknuepfen gibt es keinen Behalter: "Behält den Link" ist ein Trenn-Vorgang.
+    $targetPublicIds = [];
+    foreach ($targets as $target) {
+        $targetPublicId = trim((string) ($target['id'] ?? ''));
+        if ($targetPublicId !== '') {
+            $targetPublicIds[] = $targetPublicId;
+        }
+    }
+    $keeper = $mode === 'link' ? ['keeper' => '', 'known' => true] : avesmapsConflictResolveKeeper($input, $targetPublicIds);
+    $protectedRowIds = $keeper['keeper'] !== '' ? avesmapsConflictProtectedRowIds($pdo, $keeper['keeper']) : [];
+    // ⚠️ Sagt die Anfrage gar nichts ueber einen Behalter (ein Client, den wir nicht kennen), wird
+    // beim Trennen NICHT nach Verbund geschrieben. Lieber zu wenig getroffen als der Datenverlust,
+    // den avesmapsConflictResolveKeeper beschreibt.
+    $maySpanNameGroup = $keeper['known'];
+
     $results = [];
     $applied = 0;
     // Welche Namensverbuende dieser EINE Aufruf schon geschrieben hat. Bei einer segmentierten Art
@@ -395,7 +541,16 @@ function avesmapsConflictResolve(PDO $pdo, array $input, int $userId): array {
             }
             $result = $mode === 'link'
                 ? avesmapsConflictLinkFeature($pdo, $publicId, $wikiTitles, $userId, $handledGroups)
-                : avesmapsConflictUnlinkFeature($pdo, $publicId, $expectedUrl, $mode === 'no_wiki', $userId, $handledGroups);
+                : avesmapsConflictUnlinkFeature(
+                    $pdo,
+                    $publicId,
+                    $expectedUrl,
+                    $mode === 'no_wiki',
+                    $userId,
+                    $handledGroups,
+                    $protectedRowIds,
+                    $maySpanNameGroup
+                );
             $results[] = $result;
             if (!empty($result['changed'])) {
                 $applied++;
