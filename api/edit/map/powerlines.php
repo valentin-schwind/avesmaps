@@ -124,12 +124,63 @@ try {
         }
     }
 
+    // 4) Vorschlagsliste fuer die Wiki-Artikel-Zuweisung + Zustand des letzten Dump-Laufs. Kein
+    //    eigener Endpunkt -- der Editor holt diese Antwort ohnehin einmal beim Oeffnen.
+    //
+    //    require-Kette (gemessen, nicht aus dem Gedaechtnis): avesmapsWikiPowerlineDesiredNestsByMatchKey
+    //    ruft intern avesmapsWikiPowerlineParsePage auf, und dessen eigener Kopfkommentar verlangt vom
+    //    aufrufenden Endpunkt bereits geladen: sync.php, sync-monitor.php (zieht sync-monitor-parsing.php
+    //    automatisch mit), territories-parsing.php und political/territory.php -- exakt die Kette, die
+    //    auch api/edit/wiki/dump.php vor avesmapsWikiPowerlineReconcile laedt. Dazu die drei Bausteine
+    //    des Dump-Zustands: dump-reader.php (Konstante AVESMAPS_WIKI_DUMP_SYNC_TYPE), dump-entity-scan.php
+    //    (Konstante AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE) und dump-sync-kind.php selbst. Alle acht Dateien
+    //    sind laut eigenem Kopfkommentar reine Funktions-/Konstantendefinitionen ohne Seiteneffekt beim
+    //    Einbinden -- unbedenklich fuer einen Leseweg, der pro Editor-Oeffnung einmal laeuft.
+    require_once __DIR__ . '/../../_internal/political/territory.php';
+    require_once __DIR__ . '/../../_internal/wiki/sync.php';
+    require_once __DIR__ . '/../../_internal/wiki/sync-monitor.php';
+    require_once __DIR__ . '/../../_internal/wiki/territories-parsing.php';
+    require_once __DIR__ . '/../../_internal/wiki/powerlines.php';
+    require_once __DIR__ . '/../../_internal/wiki/dump-reader.php';
+    require_once __DIR__ . '/../../_internal/wiki/dump-entity-scan.php';
+    require_once __DIR__ . '/../../_internal/wiki/dump-sync-kind.php';
+
+    // Die Vorschlagsliste des Editors. AUS DERSELBEN QUELLE wie der Abgleich -- sonst koennten
+    // Vorschlag und Ergebnis verschiedener Meinung sein. 23 Zeilen, kein Blaettern noetig.
+    $wikiArticles = [];
+    $dumpState = ['has_run' => false, 'completed_at' => '', 'article_count' => 0];
+    try {
+        $runId = avesmapsWikiDumpSyncKindResolveDumpRunId($pdo);
+        $sandboxRows = avesmapsWikiDumpSyncKindFetchRows($pdo, $runId, [AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE], 0, 5000);
+        foreach (avesmapsWikiPowerlineDesiredNestsByMatchKey($sandboxRows) as $entry) {
+            $wikiArticles[] = [
+                'name' => (string) ($entry['name'] ?? ''),
+                'wiki_url' => (string) ($entry['nest']['wiki_url'] ?? ''),
+                'wiki_key' => (string) ($entry['nest']['wiki_key'] ?? ''),
+            ];
+        }
+        usort($wikiArticles, static fn(array $a, array $b): int => strcmp(mb_strtolower($a['name']), mb_strtolower($b['name'])));
+        $runRow = avesmapsWikiDumpSyncKindFetchRunById($pdo, $runId);
+        $dumpState = [
+            'has_run' => true,
+            'completed_at' => (string) ($runRow['completed_at'] ?? ''),
+            'article_count' => count($wikiArticles),
+        ];
+    } catch (Throwable) {
+        // 💣 Ist noch nie ein Dump gelaufen, WIRFT die Aufloesung der run_id. Ohne diesen Fang
+        // stuerbe der Leseweg, der heute den ganzen Editor fuellt -- das Fenster waere leer, und
+        // niemand suchte die Ursache bei einer Vorschlagsliste. Leere Liste ist die richtige
+        // Antwort; has_run:false sagt der Oberflaeche, wie sie das erklaeren soll.
+    }
+
     avesmapsJsonResponse(200, [
         'ok' => true,
         'segments' => $segments,
         // Cast so an empty result is a JSON object ({}), not an array ([]).
         'nodes' => (object) $nodes,
         'nodix_candidates' => $candidates,
+        'wiki_articles' => $wikiArticles,
+        'dump_state' => $dumpState,
     ]);
 } catch (PDOException) {
     avesmapsErrorResponse(500, 'server_error', 'The powerlines could not be loaded.');
