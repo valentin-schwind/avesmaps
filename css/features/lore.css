@@ -59,6 +59,17 @@
    Aufklappen, das es dort nicht gibt. Gleiche Regel wie beim statischen Deckel. */
 details.avesmaps-lore__gruppe > .avesmaps-lore__gruppe-kopf {
 	cursor: pointer;
+	border-radius: var(--radius-md);
+	transition: background .15s ease;
+}
+
+/* „Der Rest des Akkordions braucht den hover für sich" (Owner 2026-08-15). Der Deckel darüber
+   reagiert nur noch auf seinen eigenen Kopf; damit hätte eine aufklappbare Gruppe gar keine
+   Rückmeldung mehr. Sie bekommt ihre eigene -- an derselben Stelle, an der auch der Zeiger steht.
+   ⚠️ Nur die KLAPPBARE Gruppe: eine feste Überschrift (wenige Einträge, <div> statt <summary>)
+   verspräche sonst ein Aufklappen, das es dort nicht gibt -- dieselbe Regel wie beim Zeiger. */
+details.avesmaps-lore__gruppe > .avesmaps-lore__gruppe-kopf:hover {
+	background: var(--color-button-soft-hover);
 }
 
 .avesmaps-lore__gruppe-kopf::-webkit-details-marker {

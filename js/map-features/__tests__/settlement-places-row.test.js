@@ -124,4 +124,30 @@ assert.strictEqual(liste[0].name, "Einzelstueck");
 assert.strictEqual(liste[0].art, "Hafen");
 assert.deepStrictEqual(avesmapsStaettenFuerOrt("Gibtsnicht"), [], "unbekannter Ort: leere Liste");
 
+// ---- KEINE Buchstabenmarken (Owner 2026-08-15) ---------------------------------------------------
+// 🔴 Bei den Vorkommen sind sie richtig -- 126 Handelswaren in EINER Gruppe. Hier gliedert schon
+// die ART: Grangors 23 Arten haben im Schnitt 1,8 Eintraege, und eine Marke „H" ueber einem
+// einzigen „Herzog-Cusimo-Aquaedukt" ist eine zweite Gliederungsebene ohne Inhalt.
+payload([
+	ort("Herzog-Cusimo-Aquädukt", "Grangor", "Äquadukt"),
+	ort("Immanstadion von Grangor", "Grangor", "Arena"),
+	ort("Neue Brücke", "Grangor", "Brücke"),
+	ort("Zweililienbrücke", "Grangor", "Brücke"),
+	ort("Alte Brücke", "Grangor", "Brücke"),
+]);
+const ohneMarken = avesmapsStaettenRowMarkup("Grangor");
+assert.ok(ohneMarken.indexOf("avesmaps-lore__buchstabe") < 0,
+	"keine Buchstabenmarken in den Staetten-Gruppen");
+assert.ok(ohneMarken.indexOf("avesmaps-lore__spalten") < 0, "und kein Spaltenkasten");
+assert.ok(ohneMarken.indexOf("avesmaps-lore__names") >= 0, "sondern die Komma-Liste");
+assert.ok(ohneMarken.indexOf("Herzog-Cusimo-Aquädukt") >= 0, "die Namen stehen trotzdem da");
+
+// ⚠️ GEGENPROBE: die Lore-Zeilen behalten ihre Marken. Wer die geteilte Funktion umbaut, muss
+// beide Aufrufer sehen -- der Default (ohne zweiten Parameter) bleibt AVESMAPS_LORE_LETTER_MIN.
+const loreBlock = avesmapsLoreNamesBlockMarkup([
+	{ name: "Alrik", wiki_url: "" }, { name: "Boron", wiki_url: "" },
+]);
+assert.ok(loreBlock.indexOf("avesmaps-lore__buchstabe") >= 0,
+	"die Vorkommen behalten ihre Buchstabenmarken");
+
 console.log("settlement-places-row: alle Zusicherungen erfuellt");

@@ -31,7 +31,15 @@
 
 /* ⚠️ Nur der ÖFFENBARE Deckel reagiert. Ein statischer (alles steht schon da) darf sich nicht wie ein
  * Bedienelement anfühlen -- sonst lernt das Auge das Gegenteil von dem, was der Deckel beibringen soll. */
-.infobox-lid:not(.infobox-lid--static):hover,
+/* 💣 NUR DER KOPF LÖST DEN HOVER AUS, nicht der ganze Kasten (Owner 2026-08-15: „du brauchst nur
+ * den header klick/hoverbar machen, der rest des Akkordions braucht den hover für sich").
+ * Zugeklappt ändert das nichts -- da IST der Kopf der Kasten. Aufgeklappt war es vorher falsch:
+ * die Maus stand über einem Namen, und die ganze Fläche färbte sich, als sei sie anklickbar.
+ * Sichtbar wurde es erst an der Zeile „Stätten" (41 Einträge in 23 Gruppen); bei 11 Handelswaren
+ * blieb es unauffällig und war trotzdem schon dieselbe Lüge.
+ * ⚠️ `:focus-within` bleibt am Kasten: kommt der Fokus per Tastatur auf einen Link im
+ * Aufgeklappten, soll der Kasten als Ganzes zeigen, wo man ist. */
+.infobox-lid:not(.infobox-lid--static):has(> .infobox-lid__summary:hover),
 .infobox-lid:not(.infobox-lid--static):focus-within {
 	background: var(--color-panel-active);
 	border-color: var(--color-button-soft-border);

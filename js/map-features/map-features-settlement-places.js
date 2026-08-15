@@ -79,14 +79,18 @@ function avesmapsStaettenFuerOrt(ortsname) {
 }
 
 // Die Namen einer Art -- ⭐ ÜBER DIE LORE-FUNKTION, nicht abgeschrieben.
-// avesmapsLoreNamesBlockMarkup nimmt genau unsere Form ({name, wiki_url}), verlinkt wo es einen
-// Artikel gibt, und schaltet ab 10 Einträgen selbst auf Buchstabenmarken in Spalten um. Ihr
-// Markup von Hand zu spiegeln hiesse, drei CSS-Klassen zu erraten und die Umschaltschwelle ein
-// zweites Mal zu pflegen.
+// avesmapsLoreNamesBlockMarkup nimmt genau unsere Form ({name, wiki_url}) und verlinkt, wo es
+// einen Artikel gibt. Ihr Markup von Hand zu spiegeln hiesse, drei CSS-Klassen zu erraten.
+//
+// 🔴 OHNE BUCHSTABENMARKEN (Owner 2026-08-15: „das mit den buchstaben ist hier übertrieben").
+// Bei den Vorkommen sind sie richtig -- dort stehen 126 Handelswaren in EINER Gruppe. Hier
+// gliedert schon die ART, und die Gruppen sind klein: Grangors 23 Arten haben im Schnitt 1,8
+// Einträge. Eine Marke „H" über einem einzigen „Herzog-Cusimo-Aquädukt" ist eine zweite
+// Gliederungsebene ohne Inhalt. Infinity heisst: nie Marken, immer die Komma-Liste.
 // ⚠️ Sie stammt aus map-features-lore.js -- diese Datei wird in index.html DANACH geladen.
 function avesmapsStaettenNamenMarkup(items) {
 	if (typeof avesmapsLoreNamesBlockMarkup === "function") {
-		return avesmapsLoreNamesBlockMarkup(items);
+		return avesmapsLoreNamesBlockMarkup(items, Infinity);
 	}
 	// Rückfall, falls die Lore-Datei fehlt: blanke Namen, ohne Link. Lieber schlicht als leer.
 	return '<span class="avesmaps-lore__names">'

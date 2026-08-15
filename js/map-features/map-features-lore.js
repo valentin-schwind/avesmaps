@@ -413,7 +413,12 @@ function avesmapsLoreGroupedMarkup(entries, lead) {
 //
 // 💣 Sortiert wird mit `localeCompare(…, "de")`, nicht mit `<`: sonst stünde „Älbler" hinter „Zwerg"
 // und bekäme eine eigene Marke am Ende, während seine Marke „A" heißt.
-function avesmapsLoreNamesBlockMarkup(items) {
+// `letterMin` überschreibt die Buchstabenmarken-Schwelle für EINEN Aufrufer. Ohne Angabe gilt
+// AVESMAPS_LORE_LETTER_MIN (0 = immer Marken) und für die Lore-Zeilen ändert sich nichts.
+// ⭐ Die Zeile „Stätten" übergibt Infinity: sie gliedert schon nach ART, und eine Marke „H" über
+// einem einzigen „Herzog-Cusimo-Aquädukt" ist eine zweite Gliederungsebene ohne Inhalt
+// (Owner 2026-08-15: „das mit den buchstaben ist hier übertrieben").
+function avesmapsLoreNamesBlockMarkup(items, letterMin) {
 	var list = items || [];
 	// ⚠️ Leere Liste zuerst: bei Schwelle 0 greift der Komma-Zweig nie mehr, und ohne diesen Riegel
 	// entstünde ein leerer Spalten-Kasten. Erreichbar ist der Fall heute nicht (leere Gruppen werden
@@ -421,7 +426,8 @@ function avesmapsLoreNamesBlockMarkup(items) {
 	if (list.length === 0) {
 		return "";
 	}
-	if (list.length < AVESMAPS_LORE_LETTER_MIN) {
+	var schwelle = (typeof letterMin === "number") ? letterMin : AVESMAPS_LORE_LETTER_MIN;
+	if (list.length < schwelle) {
 		return '<span class="avesmaps-lore__names">' + list.map(avesmapsLoreNameMarkup).join(", ") + "</span>";
 	}
 	var sorted = list.slice().sort(function (left, right) {

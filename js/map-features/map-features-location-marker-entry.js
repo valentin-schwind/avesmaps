@@ -344,6 +344,18 @@ function settlementFirstSentence(text) {
 // zeigen"; sobald die Regel Vorkommen liefert, ist da etwas zu zeigen.
 function settlementLoreOnlyInfoboxMarkup(location, sourceMarkup = "") {
 	let rows = "";
+	// „Stätten": die besonderen Bauwerke IN diesem Ort — ÜBER den Vorkommen (Owner 2026-08-15:
+	// „tu die stätten über Waren"). Sie gehören zum ORT wie Verkehrswege und Handelszone;
+	// darunter folgt die Natur-Gruppe geschlossen, deren innere Ordnung („Klimazone DIREKT
+	// unter Flora") damit unberührt bleibt.
+	// ⭐ Synchron: die Liste reist im Kartenpayload mit (in_settlement_places), es wird nichts
+	// nachgeladen — anders als Waren/Fauna/Flora, die auf api/app/lore.php warten.
+	// 💣 Diese Zeile steht in BEIDEN Zweigen: settlementWikiInfoboxMarkup (Ort MIT Wikiartikel)
+	// und settlementLoreOnlyInfoboxMarkup (Ort OHNE). Ein Bauwerk nennt seinen Standort im
+	// eigenen Artikel — der Ort selbst braucht dafür keinen.
+	if (typeof avesmapsStaettenRowMarkup === "function") {
+		rows += avesmapsStaettenRowMarkup(location.name);
+	}
 	if (typeof buildLoreMarkup === "function" && typeof avesmapsLorePlaceRefFromLocation === "function") {
 		rows += buildLoreMarkup(avesmapsLorePlaceRefFromLocation(location));
 	}
@@ -403,6 +415,18 @@ function settlementWikiInfoboxMarkup(location, sourceMarkup = "", opts) {
 	rows += row(tr("popup.fieldTradeZone", "Handelszone"), wiki.handelszone);
 	rows += row(tr("popup.fieldPopulation", "Bevölkerung"), wiki.bevoelkerung);
 	rows += row(tr("popup.fieldTemples", "Tempel"), wiki.tempel);
+	// „Stätten": die besonderen Bauwerke IN diesem Ort — ÜBER den Vorkommen (Owner 2026-08-15:
+	// „tu die stätten über Waren"). Sie gehören zum ORT wie Verkehrswege und Handelszone;
+	// darunter folgt die Natur-Gruppe geschlossen, deren innere Ordnung („Klimazone DIREKT
+	// unter Flora") damit unberührt bleibt.
+	// ⭐ Synchron: die Liste reist im Kartenpayload mit (in_settlement_places), es wird nichts
+	// nachgeladen — anders als Waren/Fauna/Flora, die auf api/app/lore.php warten.
+	// 💣 Diese Zeile steht in BEIDEN Zweigen: settlementWikiInfoboxMarkup (Ort MIT Wikiartikel)
+	// und settlementLoreOnlyInfoboxMarkup (Ort OHNE). Ein Bauwerk nennt seinen Standort im
+	// eigenen Artikel — der Ort selbst braucht dafür keinen.
+	if (typeof avesmapsStaettenRowMarkup === "function") {
+		rows += avesmapsStaettenRowMarkup(location.name);
+	}
 	// Waren / Fauna / Flora / Spezies als eigene Zeilen (Owner). Der Container kommt
 	// leer und füllt sich, sobald api/app/lore.php geantwortet hat -- die Siedlung
 	// erreicht ihre Gegend über das Territorium aus dem Raycast, weil sie selbst kein
@@ -414,15 +438,6 @@ function settlementWikiInfoboxMarkup(location, sourceMarkup = "", opts) {
 	// synchron da: die Zone reist im Kartenpayload mit, es gibt nichts nachzuladen.
 	if (typeof avesmapsClimateRowForKey === "function") {
 		rows += avesmapsClimateRowForKey(location.climateZone);
-	}
-
-	// „Stätten": die Bauwerke IN diesem Ort (Owner 2026-08-15). Ganz ans Ende, hinter die
-	// Klimazone — Waren/Fauna/Flora/Klimazone sind eine gewachsene Gruppe mit eigener
-	// Reihenfolge-Regel („Klimazone DIREKT unter Flora"), in die sich nichts hineinschiebt.
-	// ⭐ Synchron: die Liste reist im Kartenpayload mit (in_settlement_places), es wird nichts
-	// nachgeladen — anders als Waren/Fauna/Flora, die auf api/app/lore.php warten.
-	if (typeof avesmapsStaettenRowMarkup === "function") {
-		rows += avesmapsStaettenRowMarkup(location.name);
 	}
 
 	// Kein Kopf/Name/Art hier — der Popup-Kopf zeigt Name + Größe bereits (sonst Dopplung/Strich).
