@@ -202,9 +202,12 @@ Die Etappenzeile trägt den Wegnamen bereits (`route-plan.js`, `entry.segmentLab
 „Straße über Talloner Hügelsteig"). Zu ändern ist nur der **Name des Ausstiegsknotens**.
 
 Heute schreibt `js/map-features/map-features.js:236` global
-`__wp_anchor_\d+` → „Kreuzung". 🔴 Das ist an einem Ausstieg auf freier Strecke schlicht falsch,
-und es ist **richtungsblind**. Die Umbenennung gehört an den Etappenbauer, der weiß, was vor
-und was nach dem Knoten liegt:
+`__wp_anchor_\d+` → „Kreuzung", und `formatRoutePlanNodeName` (`route-plan.js:543`) zeigt
+„Kreuzung" als **„Markierung"** an. ⚠️ Was der Reisende in der Etappenliste sieht, ist also
+„Markierung", nicht „Kreuzung" — zwei Umbenennungen hintereinander, und die zweite ist die
+sichtbare. 🔴 Beides ist an einem Ausstieg auf freier Strecke falsch, und beides ist
+**richtungsblind**. Die Benennung gehört an den Etappenbauer, der weiß, was vor und was nach
+dem Knoten liegt:
 
 * Vorgänger ist ein Landweg, Nachfolger Querfeldein → **„Abgangspunkt"**
 * Vorgänger ist Querfeldein, Nachfolger ein Landweg → **„Anschlusspunkt"**
