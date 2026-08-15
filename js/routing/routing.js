@@ -422,6 +422,13 @@ routeDataRequest
 		window.avesmapsInSettlementPlaces = (data && Array.isArray(data.in_settlement_places))
 			? data.in_settlement_places
 			: [];
+		// „Was ist hier?" (map-features-what-is-here.js) rechnet ihre Nachbarschaft AUSSCHLIESSLICH im
+		// Browser, aus dem schon geladenen Kartenpayload -- keine eigene Anfrage. avesmapsWhatIsHereNearby
+		// braucht dafuer die ROHEN GeoJSON-Features (feature.properties.feature_type/feature.geometry), nicht
+		// die bereits umgebauten locationData/pathData-Listen (andere Feldnamen, coordinates in [lat,lng]
+		// statt [x,y]). Bislang gab es dafuer keinen globalen Halter -- ergaenzt nach demselben Muster wie
+		// die drei Stashes darueber.
+		window.avesmapsMapFeatureData = (data && Array.isArray(data.features)) ? data.features : [];
 		// Die sieben Klimazonen-Namen (Nord nach Süd) aus dem Payload. 🔴 MUSS VOR prepareLocationData
 		// und prepareLabelData stehen: beide bauen ihre Popups sofort, und ein Ort trägt nur den
 		// SCHLÜSSEL seiner Zone -- ohne das Vokabular bliebe seine Zeile beim ersten Aufbau leer.

@@ -1,0 +1,156 @@
+// „Was ist hier?" -- das Infopanel einer angeklickten Kartenstelle.
+// Entwurf: docs/superpowers/specs/2026-08-15-was-ist-hier-design.md
+//
+// 💣 DIE MARKIERUNG IST HIER DOCH EIN ORTSKASTEN -- und das widerspricht dem Merksatz an
+// sharePinMenuMarkup NICHT. Dort steht „wer hier etwas anbaut, fragt zuerst, ob der Ortskasten es
+// koennte -- und wenn ja, gehoert es dorthin." Ab jetzt KANN er es: die Stelle hat eine
+// Herrschaftskette, vier Landschaftszeilen, Natur & Waren und eine Nachbarschaft. Der schwebende
+// 215-px-Kasten faellt, der 400-px-Ortskasten im Panel traegt.
+
+"use strict";
+
+let whatIsHereToken = null;
+
+/**
+ * Die „Liegt in"-Treppe erwartet an jeder Stufe `territory_public_id` (settlementTerritoryLinkMarkup,
+ * js/ui/popups.js:831 -- gesetzt via chainNode['public_id'] in api/app/map-features.php:812). Der
+ * what-is-here-Endpunkt liefert an derselben Stelle `public_id` (api/_internal/app/what-is-here.php:153,
+ * ungealiast). Ohne diese Umbenennung bliebe jede Stufe sichtbar, aber ihr Gold-Flug-Link liefe ins
+ * Leere (data-political-public-id="") -- ein stiller Bruch, kein Absturz. Name/Kurzname/Typ/Wappen
+ * reisen unveraendert; nur das Schluesselfeld wird umbenannt, die Reihenfolge (Blatt -> Wurzel) bleibt
+ * exakt die des Endpunkts, buildSettlementHierarchyMarkup dreht selbst um.
+ */
+function avesmapsWhatIsHereHierarchyNodes(territories) {
+	return (territories || []).map(function (t) {
+		return {
+			name: t.name,
+			short_name: t.short_name,
+			type: t.type,
+			territory_public_id: t.public_id,
+			coat_url: t.coat_url,
+		};
+	});
+}
+
+/** Der Zustand einer angezeigten Stelle: die Koordinate plus, sobald sie da ist, die Serverantwort. */
+function avesmapsWhatIsHereMarkup(latlng, antwort) {
+	const esc = escapeHtml;
+	const titel = tr("whatIsHere.title", "Markierte Stelle");
+	const koordinate = typeof formatLocationReportCoordinates === "function"
+		? formatLocationReportCoordinates(latlng)
+		: `${latlng.lat.toFixed(3)}, ${latlng.lng.toFixed(3)}`;
+
+	// ⭐ Das Kopfbild IST der Landschaftsbefund: Vegetation zuerst, sonst Topographie, sonst das
+	// allgemeine Bild. Aufgeloest ueber INFO_HEADER_IMAGE_BY_ART -- keine zweite Tabelle.
+	const flaechen = (antwort && antwort.landscapes) || {};
+	const leitart = (flaechen.vegetation || [])[0] || (flaechen.topographie || [])[0] || null;
+	const bild = leitart ? regionHeaderImageBasename(leitart.type_label || "") : "region";
+	const kopf = infoHeaderImageMarkup(bild, titel, koordinate, "", [], "");
+
+	const kacheln = locationPopupActionsMarkup([
+		popupActionButtonMarkup({
+			label: tr("popup.addToRoutePlain", "Reiseziel hinzufügen"),
+			className: "location-popup__action-button--accent",
+			iconMarkup: '<span class="location-popup__action-icon" aria-hidden="true">+</span>',
+			attributes: { "data-popup-action": "travel-to-share-pin" },
+		}),
+		popupActionButtonMarkup({
+			label: tr("popup.shareLink", "🔗 Link teilen").replace(/^\s*🔗\s*/u, ""),
+			iconMarkup: '<img class="location-popup__action-img" src="img/menu/linkteilen.webp" alt="" width="36" height="36" />',
+			attributes: { "data-popup-action": "share-what-is-here" },
+		}),
+		popupActionButtonMarkup({
+			label: tr("popup.removeMarker", "Entfernen"),
+			className: "location-popup__action-button--danger",
+			iconMarkup: '<img class="location-popup__action-img" src="img/menu/papierkorb.webp" alt="" width="36" height="36" />',
+			attributes: { "data-popup-action": "remove-share-pin" },
+		}),
+	]);
+
+	// 🔴 Die Treppe UNVERAENDERT der Richtung nach geliehen (Blatt -> Wurzel, buildSettlementHierarchyMarkup
+	// dreht selbst um) -- nur das Schluesselfeld wird auf dem Weg dorthin umbenannt, siehe
+	// avesmapsWhatIsHereHierarchyNodes.
+	const treppe = (antwort && antwort.territories && antwort.territories.length)
+		? buildSettlementHierarchyMarkup(avesmapsWhatIsHereHierarchyNodes(antwort.territories))
+		: "";
+
+	// 🔴 Eine Zeile ohne Antwort faellt WEG. Am Seepunkt bleiben genau zwei uebrig, und das ist
+	// eine vollstaendige Auskunft, kein Fehler.
+	const zeile = (bezeichnung, treffer) => {
+		const werte = (treffer || []).map((t) => esc(t.region_name)
+			+ (t.type_label ? ' <span class="avesmaps-wih__type">(' + esc(t.type_label) + ")</span>" : ""));
+		return werte.length
+			? '<div class="region-info-box__row"><dt>' + esc(bezeichnung) + "</dt><dd>"
+				+ werte.join(" · ") + "</dd></div>"
+			: "";
+	};
+
+	let zeilen = zeile(tr("whatIsHere.derographic", "Derographie"), flaechen.derographisch)
+		+ zeile(tr("whatIsHere.topography", "Topographie"), flaechen.topographie)
+		+ zeile(tr("whatIsHere.vegetation", "Vegetation"), flaechen.vegetation);
+
+	// Waren · Fauna · Flora baut der vorhandene Container selbst und fuellt sich, sobald lore.php
+	// geantwortet hat -- genau wie bei einer Siedlung. Hier wird nichts an der Lore gebaut.
+	if (antwort && antwort.lore && typeof buildLoreMarkup === "function") {
+		zeilen += buildLoreMarkup({
+			key: (antwort.lore.place || []).join(","),
+			area: (antwort.lore.area || []).join(","),
+			name: titel,
+		});
+	}
+	// 🔴 IMMER direkt unter Flora (Owner 2026-08-03).
+	const klima = ((flaechen.klima || [])[0] || {}).region_name || "";
+	if (klima && typeof avesmapsClimateRowMarkup === "function") {
+		zeilen += avesmapsClimateRowMarkup([{ label: klima, share: 1 }]);
+	}
+
+	const box = zeilen
+		? '<div class="region-info-box region-info-box--settlement">'
+			+ '<dl class="region-info-box__data">' + zeilen + "</dl></div>"
+		: "";
+
+	// 💣 Kein window.mapFeatureData -- den Namen gibt es im Haus nicht (geprueft: js/routing/routing.js
+	// haelt die geladenen GeoJSON-Features nirgends global, nur drei Teilstuecke davon:
+	// window.__sourceCatalog/__featureSourceRefs/avesmapsInSettlementPlaces). avesmapsWhatIsHereNearby
+	// braucht aber genau die rohen Features (feature.properties.feature_type/feature.geometry.coordinates),
+	// nicht die bereits umgebauten locationData/pathData-Listen. Ergaenzt in routing.js als vierten Stash
+	// nach demselben Muster wie die drei bestehenden (window.avesmapsMapFeatureData).
+	const nachbarn = avesmapsWhatIsHereNearbyMarkup(
+		avesmapsWhatIsHereNearby({ x: latlng.lng, y: latlng.lat }, window.avesmapsMapFeatureData || [])
+	);
+
+	return '<div class="location-popup">' + kopf + kacheln + treppe + box + nachbarn + "</div>";
+}
+
+/**
+ * Die Stelle im Panel zeigen -- zwei Runden.
+ *
+ * 💣 DIE KOORDINATE DREHT SICH HIER, und nur hier: Leaflet spricht [lat, lng], der Endpunkt
+ * spricht {x, y}. x = lng, y = lat.
+ *
+ * ⚠️ Eigener Staleness-Token wie beim Gebiet (avesmapsShowRegionInInfopanel): wer zweimal
+ * schnell hintereinander klickt, darf nicht die erste Antwort ueber die zweite Stelle bekommen.
+ *
+ * 💣 KEIN avesmapsLoreFillOpenContainers -- die Funktion gibt es im Haus nicht (geprueft:
+ * map-features-lore.js kennt nur avesmapsLoreFillContainers(placeKey, placeName, data), einen
+ * privaten Helfer, der erst NACH einem Abruf mit dessen Antwort gerufen wird). buildLoreMarkup
+ * stoesst den Abruf selbst an: sein Container landet per body.innerHTML im DOM, der dortige
+ * MutationObserver (avesmapsLoreLoadPendingContainers) findet ihn von selbst und laedt nach.
+ */
+window.avesmapsShowWhatIsHere = function (latlng) {
+	const punkt = L.latLng(latlng);
+	avesmapsShowInfopanel(avesmapsWhatIsHereMarkup(punkt, null));
+
+	const token = {};
+	whatIsHereToken = token;
+	fetch("/api/app/what-is-here.php?x=" + encodeURIComponent(punkt.lng)
+			+ "&y=" + encodeURIComponent(punkt.lat), { credentials: "same-origin" })
+		.then((r) => (r.ok ? r.json() : null))
+		.then(function (daten) {
+			if (!daten || daten.ok === false || whatIsHereToken !== token) {
+				return; // andere Stelle inzwischen angezeigt -> veraltete Antwort verwerfen
+			}
+			avesmapsShowInfopanel(avesmapsWhatIsHereMarkup(punkt, daten));
+		})
+		.catch(function () { /* still: die erste Runde steht bereits */ });
+};
