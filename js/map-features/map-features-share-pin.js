@@ -87,6 +87,12 @@ function setSharePin(latlng, { syncUrl = true } = {}) {
 		icon: createSharePinIcon(),
 		title: "Geteilte Markierung",
 		keyboard: true,
+		// 🔴 Owner-Befund 15.08.2026 (fuenfter Befund): OHNE `pane` landete der Marker in Leaflets
+		// Standard-`markerPane` (600, js/app/bootstrap.js) -- UNTER labelsPane (650). Er verschwand
+		// halb hinter Kartenlabeln wie „AVENTURIEN". `sharePinPane` (700) liegt eigens dafuer ueber
+		// den Labels und unter Tooltip/Popup (875/900) -- Begruendung an der Anlegestelle in
+		// bootstrap.js.
+		pane: "sharePinPane",
 		// Owner 15.08.2026: „kann ich nicht auch ziehen? drag n drop?" -- und im selben Zug ist die
 		// Kachel „Verschieben" gefallen („drag n drop geht ja immer"). Ziehen ist damit der EINZIGE
 		// Weg, die Markierung zu ruecken. Dass man ihm das ansieht, leistet der Greifzeiger an

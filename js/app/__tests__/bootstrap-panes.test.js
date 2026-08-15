@@ -1,11 +1,13 @@
-// Jede Pane, die bootstrap.js EINSTELLT, muss dort auch ANGELEGT werden.
+// Jede Pane, die bootstrap.js EINSTELLT, muss dort auch ANGELEGT werden -- und (seit Fix-Runde 6,
+// Befund 5) die Markierungs-Pane muss UEBER der Label-Pane liegen.
 //
-// 💣 DER FEHLER, DEN DIESER TEST FÄNGT (2026-08-03, live aufgetreten): `map.getPane(name)` legt nichts
-// an -- es liefert `this._panes[name]`, also `undefined` für eine Pane, die nie durch `createPane` ging.
-// Das darauffolgende `.style.zIndex = …` wirft dann einen TypeError, und weil bootstrap.js ein flaches
-// Skript ohne try/catch ist, ist ALLES DARUNTER TOT: Zoom-Control, `setMaxBounds`, die Zoom-Handler --
-// und der Editor. Symptom beim Owner war nicht „die neue Ebene fehlt", sondern „das Editorpanel ist
-// verschwunden", also etwas fünfzig Zeilen weiter unten, das mit der Ursache nichts zu tun hat.
+// 💣 DER FEHLER, DEN DER ERSTE TEIL FÄNGT (2026-08-03, live aufgetreten): `map.getPane(name)` legt
+// nichts an -- es liefert `this._panes[name]`, also `undefined` für eine Pane, die nie durch
+// `createPane` ging. Das darauffolgende `.style.zIndex = …` wirft dann einen TypeError, und weil
+// bootstrap.js ein flaches Skript ohne try/catch ist, ist ALLES DARUNTER TOT: Zoom-Control,
+// `setMaxBounds`, die Zoom-Handler -- und der Editor. Symptom beim Owner war nicht „die neue Ebene
+// fehlt", sondern „das Editorpanel ist verschwunden", also etwas fünfzig Zeilen weiter unten, das
+// mit der Ursache nichts zu tun hat.
 //
 // 🔴 Statisch geprüft, nicht im Browser: dafür braucht es weder Leaflet noch eine Karte, und genau
 // deshalb greift es auch für die nächste Pane, die jemand hinzufügt. Die Datei wird als TEXT gelesen --
@@ -41,8 +43,39 @@ benutzt.forEach((name) => {
 		}
 	});
 
+// ---------------------------------------------------------------- DIE MARKIERUNG UEBER DEN LABELS -
+// 🔴 Owner-Befund 15.08.2026 (fuenfter Befund, per Bildschirmabzug gemeldet): die gesetzte Markierung
+// (setSharePin, map-features-share-pin.js) landete ohne eigene `pane`-Angabe in Leaflets Standard-
+// `markerPane` (600) -- UNTER labelsPane (650) -- und verschwand halb hinter Kartenlabeln wie
+// „AVENTURIEN". `sharePinPane` muss daher ueber `labelsPane` liegen.
+//
+// ⚠️ BEIDE Zahlen werden aus bootstrap.js GELESEN und gegeneinander gehalten, keine ist hier fest
+// erwartet: ein Test, der nur "sharePinPane === 700" prueft, faellt nicht auf, wenn jemand
+// labelsPane spaeter auf 750 anhebt und sharePinPane vergisst -- genau das Fehlerbild, das der
+// Befund war, waere mit einem Quelltest ueber einen einzigen Wert unsichtbar geblieben.
+const zIndexWerte = new Map(
+	[...source.matchAll(/getPane\(\s*"([^"]+)"\s*\)\.style\.zIndex\s*=\s*(\d+)/g)]
+		.map((m) => [m[1], Number(m[2])])
+);
+const labelsZIndex = zIndexWerte.get("labelsPane");
+const sharePinZIndex = zIndexWerte.get("sharePinPane");
+if (typeof labelsZIndex !== "number") {
+	console.error('FAIL: "labelsPane" hat keinen lesbaren zIndex-Wert in bootstrap.js -- prueft der Test noch das Richtige?');
+	failures += 1;
+}
+if (typeof sharePinZIndex !== "number") {
+	console.error('FAIL: "sharePinPane" hat keinen lesbaren zIndex-Wert in bootstrap.js -- prueft der Test noch das Richtige?');
+	failures += 1;
+}
+if (typeof labelsZIndex === "number" && typeof sharePinZIndex === "number" && sharePinZIndex <= labelsZIndex) {
+	console.error(`FAIL: sharePinPane (${sharePinZIndex}) liegt nicht UEBER labelsPane (${labelsZIndex}) -- `
+		+ "die Markierung verschwindet wieder halb hinter den Kartenlabeln.");
+	failures += 1;
+}
+
 if (failures > 0) {
 	console.error(`bootstrap-panes.test: ${failures} Fehlschlag/Fehlschlaege`);
 	process.exit(1);
 }
-console.log(`bootstrap-panes.test: OK (${angelegt.size} angelegt, ${benutzt.size} eingestellt)`);
+console.log(`bootstrap-panes.test: OK (${angelegt.size} angelegt, ${benutzt.size} eingestellt, `
+	+ `sharePinPane ${sharePinZIndex} > labelsPane ${labelsZIndex})`);

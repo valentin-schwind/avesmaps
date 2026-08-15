@@ -813,21 +813,32 @@
 	background: transparent;
 }
 
-/* Die gesetzte Markierung laesst sich ziehen (Owner 15.08.2026) -- und das muss man ihr ANSEHEN.
-   💣 Diese zwei Regeln sind seit demselben Tag die EINZIGE Ankuendigung der Geste: die Kachel
-      „Verschieben" ist gefallen („drag n drop geht ja immer"), es gibt also keinen zweiten Weg mehr,
-      der davon erzaehlt. Wer sie loescht, macht das Verschieben unsichtbar, nicht bloss unschoen.
-   💣 Noetig sind sie, weil Leaflet den Greifzeiger nur WAEHREND des Ziehens setzt (`.leaflet-dragging
-      .leaflet-marker-draggable` in css/third-party/leaflet.css); im Ruhezustand bliebe der Marker
-      beim `cursor: pointer` von `.leaflet-interactive` und saehe aus wie jeder unbewegliche Marker
-      der Karte.
+/* Die gesetzte Markierung hat ZWEI Gesten, nicht eine. Bis zum 15.08.2026 stand hier `cursor: grab`,
+   mit der Begruendung, Ziehen sei die einzige Geste der Markierung -- das war seit der Verschmelzung
+   (Aufgabe 4, selbes Datum) schon nicht mehr wahr und ist es erst recht nicht mehr, seit der Klick
+   die PRIMAERE Geste ist: er oeffnet die Auskunft im Panel (avesmapsShowWhatIsHere,
+   map-features-share-pin.js). Ziehen bleibt, aber zweitrangig.
+   🔴 Owner-Befund 15.08.2026, live gemessen: `grab` kuendigte diese primaere Geste gar nicht erst an
+      -- UND war gegen den Kartenhintergrund unsichtbar. Der Hintergrund traegt beim Hovern ebenfalls
+      `grab` (`.leaflet-grab` in css/third-party/leaflet.css, fuer das Kartenverschieben) -- beide
+      Werte gemessen identisch. Ein Zeigerwechsel, der nicht wechselt, kuendigt nichts an.
+   ⭐ Deshalb jetzt `cursor: pointer` -- dieselbe Ankuendigung, die jedes andere Anklickbare dieser
+      Karte traegt (Ortsmarker, Weg: `.leaflet-interactive` in css/third-party/leaflet.css setzt
+      genau das als Grundregel). Diese Regel hier macht damit nur wieder explizit, was ohne sie
+      OHNEHIN gelten wuerde -- absichtlich, nicht ueberfluessig: die Ruhezustand-Ankuendigung UND
+      die Ziehen-Rueckmeldung darunter gehoeren als Paar zusammengelesen, und ein Leser soll hier
+      nicht erst herleiten muessen, dass `.leaflet-interactive` einspringt.
+   💣 Die ZWEITE Regel (Greifzeiger WAEHREND des Ziehens) bleibt unveraendert und weiterhin noetig:
+      Leaflet setzt `cursor: grabbing` nur WAEHREND des Ziehens (`.leaflet-dragging
+      .leaflet-marker-draggable` in css/third-party/leaflet.css) -- die Rueckmeldung *waehrend* der
+      zweitrangigen Geste ist weiterhin richtig, nur die Ankuendigung *davor* wechselt.
    ⚠️ Beide Regeln gehen ueber `.leaflet-marker-draggable`, die Klasse, die Leaflet nur an einen
       wirklich ziehbaren Marker haengt. Am `.share-pin-marker` allein haette der Zeiger auch dann
       gegriffen, wenn das Ziehen irgendwann wieder abgeschaltet wird.
-   ⚠️ Und die zweite Regel ist noetig, weil die erste sonst die Leaflet-Regel ueberstimmt: gleiche
-      Spezifitaet, aber diese Datei wird nach leaflet.css geladen. */
+   ⚠️ Und die zweite Regel ist noetig, weil sie sonst die Leaflet-Regel nicht ueberstimmen koennte:
+      gleiche Spezifitaet, aber diese Datei wird nach leaflet.css geladen. */
 .share-pin-marker.leaflet-marker-draggable {
-	cursor: grab;
+	cursor: pointer;
 }
 
 .leaflet-dragging .share-pin-marker.leaflet-marker-draggable {

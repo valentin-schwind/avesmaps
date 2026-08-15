@@ -102,11 +102,38 @@ assert.ok(!/cancelMapPointRelocation\(\)/.test(zieh),
 assert.ok(!/marker\.openPopup\(\)/.test(zieh), "kein openPopup mehr -- der Marker hat keins");
 assert.ok((zieh.match(/avesmapsShowWhatIsHere\(marker\.getLatLng\(\)\)/g) || []).length >= 2,
 	"nach dem Loslassen rechnet die Auskunft neu -- auch im Zurueckspring-Fall");
-// Und man muss dem Marker ANSEHEN, dass er ziehbar ist: Leaflet setzt den Greifzeiger nur waehrend
-// des Ziehens, im Ruhezustand bliebe es beim pointer von .leaflet-interactive.
+// 🔴 Owner-Befund 15.08.2026 (Befund D, live gemessen): der Marker hat ZWEI Gesten -- der Klick ist
+// die primaere (oeffnet das Panel), Ziehen die zweitrangige. Bis dahin stand hier `cursor: grab` im
+// Ruhezustand -- und war gegen den Kartenhintergrund UNSICHTBAR: der traegt beim Hovern ebenfalls
+// `grab` (`.leaflet-grab` in css/third-party/leaflet.css, fuers Kartenverschieben), beide Werte
+// gemessen identisch. Die Zusicherung haelt deshalb NICHT nur einen Wert gegen einen erwarteten
+// String, sondern BEIDE Regeln gegeneinander -- ein Quelltest, der nur nach "pointer" sucht, wuerde
+// nicht auffallen, wenn irgendwann auch der Kartenhintergrund auf "pointer" wechselt.
+function letzterCursorWert(block) {
+	const treffer = [...block.matchAll(/cursor:\s*([a-zA-Z-]+)\s*;/g)];
+	return treffer.length ? treffer[treffer.length - 1][1] : null;
+}
 const css = ohneKommentare(read("css", "features", "location-popups-markers.css"));
-assert.ok(/\.share-pin-marker\.leaflet-marker-draggable\s*\{[^}]*cursor:\s*grab/.test(css),
-	"der ruhende Marker zeigt den Greifzeiger");
+const leafletCss = ohneKommentare(read("css", "third-party", "leaflet.css"));
+
+const kartenGrabRegel = leafletCss.match(/\.leaflet-grab\s*\{([^}]*)\}/);
+assert.ok(kartenGrabRegel, "die Leaflet-Bibliothek hat ihre eigene .leaflet-grab-Regel fuer den Kartenhintergrund");
+const kartenZeiger = letzterCursorWert(kartenGrabRegel[1]);
+assert.strictEqual(kartenZeiger, "grab", "der Kartenhintergrund zeigt grab beim Hovern (Referenzwert)");
+
+const markerRegel = css.match(/\.share-pin-marker\.leaflet-marker-draggable\s*\{([^}]*)\}/);
+assert.ok(markerRegel, "die Markierung hat ihre eigene Ruhezustand-Regel");
+const markerZeiger = letzterCursorWert(markerRegel[1]);
+assert.ok(markerZeiger, "die Regel setzt ueberhaupt einen cursor-Wert");
+assert.notStrictEqual(markerZeiger, kartenZeiger,
+	"🔴 die Markierung darf NICHT denselben Zeiger tragen wie der Kartenhintergrund -- sonst aendert sich beim Hovern nichts, und die primaere Geste (Klick) bleibt unangekuendigt");
+assert.strictEqual(markerZeiger, "pointer",
+	"und zwar dieselbe Ankuendigung, die jedes andere Anklickbare dieser Karte traegt (.leaflet-interactive)");
+
+// Die Rueckmeldung WAEHREND des Ziehens (die zweitrangige Geste) bleibt unveraendert `grabbing`.
+const ziehRegel = css.match(/\.leaflet-dragging \.share-pin-marker\.leaflet-marker-draggable\s*\{([^}]*)\}/);
+assert.ok(ziehRegel, "die Ziehen-Rueckmeldung hat weiterhin ihre eigene Regel");
+assert.strictEqual(letzterCursorWert(ziehRegel[1]), "grabbing", "und zeigt waehrend des Ziehens weiterhin grabbing");
 
 // ---- Der freie Kartenpunkt traegt den Schuh, kein Dorf ------------------------------------------
 // 💣 settlementRealisticIconMarkup faellt bei unbekanntem Typ auf das DORF zurueck -- die Box

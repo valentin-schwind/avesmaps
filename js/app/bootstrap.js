@@ -105,6 +105,7 @@ map.createPane("measurementHandlesPane");
 map.createPane("regionLabelsPane");
 map.createPane("locationsPane");
 map.createPane("labelsPane");
+map.createPane("sharePinPane");
 
 map.getPane("regionsPane").style.zIndex = 200;
 // Landschaften (Erprobung): eigene Pane, ueber den politischen Fuellungen (regionsPane 200) und unter
@@ -148,6 +149,28 @@ map.getPane("regionLabelsPane").classList.add("region-labels-pane");
 map.getPane("locationsPane").style.zIndex = 500;
 map.getPane("labelsPane").style.zIndex = 650;
 map.getPane("labelsPane").classList.add("map-labels-pane");
+// 🔴 Owner-Befund 15.08.2026 (fuenfter Befund, per Bildschirmabzug gemeldet): die gesetzte
+// Markierung (setSharePin, map-features-share-pin.js) landete ohne eigene `pane`-Angabe in
+// Leaflets STANDARD-`markerPane` (600) -- UNTER labelsPane (650). Das Faehnchen verschwand halb
+// hinter Kartenlabeln wie „AVENTURIEN". War schon immer so; aufgefallen ist es erst, seit die
+// Markierung durch die Verschmelzung (Aufgabe 4) die Hauptsache auf der Karte ist.
+// Geprueft (nicht angenommen): `sharePinPane` ist die EINZIGE Stelle im Haus, die je einen
+// L.marker() OHNE eigene pane-Angabe erzeugte -- jeder andere Marker-Aufruf (Wegpunkte,
+// Ortschaften, Bearbeitungsgriffe, Regions-Tooltip-Klon, …) nennt seine Pane explizit. Die
+// Markierung war also das einzige Kind von markerPane; kein fremder Layer wandert mit dieser
+// Aenderung um.
+// ⚠️ DIE ZAHL: 700, ueber labelsPane (650, der Anlass dieses Fixes) und unter tooltipPane (875)
+// UND popupPane (900) -- die Markierung darf einen Hover-Tooltip oder ein offenes Popup nicht
+// verdecken, beide sind vorrangig vor einem Kartenobjekt. 700 liegt mittig im freien Band
+// zwischen 650 und 875 (150 Abstand nach unten, 175 nach oben) -- derselbe Grosszuegigkeits-Stil
+// wie bei den Nachbar-Panes oben (z. B. ecosystemPaneKlimaLines bei 455, mit Luft zu routePane
+// 450 und measurementPane 460).
+// ⚠️ KEIN eigenes `pointer-events` noetig: weder labelsPane noch locationsPane noch tooltipPane
+// noch popupPane setzen das auf PANE-Ebene (geprueft in css/) -- nur die ecosystem-Editier-Panes
+// tun das, aus Gruenden, die hier nicht gelten. Die Markierung ist heute schon zieh- und
+// anklickbar (Owner-Messtabelle), rein ueber die Marker-eigenen Optionen (draggable, keyboard);
+// eine neue Pane ohne Sperre aendert daran nichts.
+map.getPane("sharePinPane").style.zIndex = 700;
 map.getPane("tooltipPane").style.zIndex = 875;
 map.getPane("popupPane").style.zIndex = 900;
 
