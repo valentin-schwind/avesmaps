@@ -44,12 +44,27 @@ function avesmapsFetchInSettlementSearchRows(PDO $pdo): array
 {
     $rows = [];
 
-    try {
-        $statement = $pdo->query(
-            "SELECT title, building_type, wiki_url, standort, deity
+    // 💣 ZWEI Anlaeufe, und der zweite ist kein Luxus. `deity` (Discord #54) entsteht erst, wenn
+    // avesmapsWikiSettlementEnsureSchema gelaufen ist -- und die laeuft NUR im Sync-Pfad. Zwischen
+    // dem Deploy und dem ersten Dump-Lauf des Owners (und auf jeder frischen Installation) gibt es
+    // die Spalte nicht. Ohne Rueckfall faengt der catch unten den Fehler ab, liefert eine LEERE
+    // Liste, und damit verschwinden 1774 Innerorts-Objekte lautlos aus der Suche UND aus der
+    // Infobox-Zeile „Staetten" -- genau die Sorte stiller Ausfall, die niemand einem SELECT
+    // zuordnet. Kein DDL an dieser Stelle: das ist der heisse Pfad (AGENTS.md §10, Pool-Vorfall
+    // 17.07.2026).
+    $bauwerke = "SELECT title, building_type, wiki_url, standort, %s
                FROM wiki_sync_pages
-              WHERE standort IS NOT NULL AND standort <> '' AND settlement_class = 'gebaeude'"
-        );
+              WHERE standort IS NOT NULL AND standort <> '' AND settlement_class = 'gebaeude'";
+    try {
+        $statement = $pdo->query(sprintf($bauwerke, 'deity'));
+    } catch (Throwable) {
+        try {
+            $statement = $pdo->query(sprintf($bauwerke, "'' AS deity"));
+        } catch (Throwable) {
+            $statement = false;
+        }
+    }
+    try {
         foreach ($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {
             $buildingType = trim((string) ($row['building_type'] ?? ''));
             $rows[] = [

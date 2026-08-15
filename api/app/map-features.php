@@ -541,7 +541,21 @@ function avesmapsLoadWikiSyncBuildingTypes(PDO $pdo): array {
                 OR (deity IS NOT NULL AND deity <> \'\')'
         );
     } catch (Throwable $error) {
-        return [];
+        // 💣 ZWEITER ANLAUF OHNE `deity`. Die Spalte legt nur avesmapsWikiSettlementEnsureSchema an,
+        // und die laeuft NUR im Sync-Pfad -- zwischen einem Deploy und dem ersten Dump-Lauf (und auf
+        // jeder frischen Installation) gibt es sie nicht. Ohne diesen Rueckfall liefert der Fehler
+        // eine LEERE Map, und dann verliert JEDE Infobox ihren building_type: aus „Tempel" wird
+        // wieder „Dorf" -- stumm, und niemand ordnet das einem SELECT zu.
+        // ⚠️ Kein DDL an dieser Stelle: das ist der heisseste Pfad ueberhaupt (AGENTS.md §10,
+        // Pool-Vorfall 17.07.2026).
+        try {
+            $statement = $pdo->query(
+                'SELECT title, building_type, is_ruined, \'\' AS deity FROM wiki_sync_pages
+                 WHERE building_type IS NOT NULL AND building_type <> \'\''
+            );
+        } catch (Throwable $zweiterVersuch) {
+            return [];
+        }
     }
     if ($statement === false) {
         return [];

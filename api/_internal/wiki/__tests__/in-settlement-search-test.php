@@ -179,4 +179,32 @@ assert(avesmapsBuildInSettlementSearchEntries($wegRows, $index, $scopeIndex)[0][
     === 'Straße in Mengbilla', 'Wege unveraendert');
 echo "gottheit ok\n";
 
+// -------------------------------- DIE ABFRAGE UEBERLEBT EINE FEHLENDE SPALTE ---
+// 💣 Der einzige Fall dieser Datei, der eine echte Datenbank braucht -- und er ist es wert.
+// `deity` legt nur avesmapsWikiSettlementEnsureSchema an, und die laeuft NUR im Sync-Pfad.
+// Zwischen einem Deploy und dem ersten Dump-Lauf (und auf jeder frischen Installation) gibt es
+// die Spalte nicht. Ohne den zweiten Anlauf faengt der catch den Fehler ab und liefert eine
+// LEERE Liste -- 1774 Innerorts-Objekte verschwinden lautlos aus der Suche UND aus der
+// Infobox-Zeile „Staetten". Genau diese Falle wurde am 15.08.2026 nach dem Deploy bemerkt.
+if (in_array('sqlite', PDO::getAvailableDrivers(), true)) {
+    $sqlite = new PDO('sqlite::memory:');
+    $sqlite->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // Die Tabelle OHNE die Spalte -- der Zustand vor dem ersten Sync.
+    $sqlite->exec('CREATE TABLE wiki_sync_pages (title TEXT, building_type TEXT, wiki_url TEXT, standort TEXT, settlement_class TEXT)');
+    $sqlite->exec('INSERT INTO wiki_sync_pages VALUES ("Feuersturm-Tempel", "Tempel", "", "[[Khunchom]]", "gebaeude")');
+    $ohneSpalte = avesmapsFetchInSettlementSearchRows($sqlite);
+    assert(count($ohneSpalte) === 1, 'ohne deity-Spalte darf die Liste NICHT leer sein: ' . count($ohneSpalte));
+    assert($ohneSpalte[0]['deity'] === '', 'die Gottheit ist dann leer, nicht null');
+    assert($ohneSpalte[0]['type_label'] === 'Tempel', 'alles andere kommt unveraendert an');
+
+    // Und mit der Spalte kommt sie natuerlich mit.
+    $sqlite->exec('ALTER TABLE wiki_sync_pages ADD COLUMN deity TEXT');
+    $sqlite->exec('UPDATE wiki_sync_pages SET deity = "Ingerimm,Rondra"');
+    $mitSpalte = avesmapsFetchInSettlementSearchRows($sqlite);
+    assert($mitSpalte[0]['deity'] === 'Ingerimm,Rondra', 'mit Spalte reist die Gottheit mit');
+    echo "spalten-rueckfall ok\n";
+} else {
+    echo "spalten-rueckfall UEBERSPRUNGEN (kein pdo_sqlite)\n";
+}
+
 echo "\nALL IN-SETTLEMENT SEARCH TESTS PASSED\n";
