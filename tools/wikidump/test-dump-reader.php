@@ -20,7 +20,8 @@ declare(strict_types=1);
  * hinzufuegt, aendert eine Zahl, die HIER an sieben Stellen festgeschrieben ist: (a1) Seitenzahl,
  * (a2) Titelliste, (a3) Namensraeume, (a4) Weiterleitungsziele, (e2) Rest nach dem Ueberspringen,
  * (e4) alle ueberspringen, (f1)/(f3) die bz2- und gz-Gegenprobe.
- * Am 15.08.2026 kam die 24. Seite herein (Akademie der Erscheinungen, Position 20) und nur der
+ * Am 15.08.2026 kam die 24. Seite herein (Akademie der Erscheinungen, Position 20) und am
+ * 16.08. die 25. (Elemitischer Kontor) -- beide Male nur der
  * eigene Test wurde nachgezogen -- dieser fiel um, und mit ihm ZWEI Deploys, die nichts damit zu
  * tun hatten. Ein roter Test laedt gar nichts hoch, auch fremde Dateien nicht (AGENTS.md §9).
  * ⚠️ Und er faellt durch das dort dokumentierte Testfeld: es sucht nach Dateien unter einem
@@ -151,13 +152,14 @@ echo "-- (a) page iteration: count + per-page title/ns/redirect --\n";
 
 $pages = $readAll($fixturePath);
 
-$check('(a1) page count', 24, count($pages), 'fixture has 24 <page> elements (4 ns0 territory/redirect + 1 ns10 + 3 ns0 path + 3 ns0 region + 5 ns0 settlement + 3 ns0 building + 1 ns0 Lehreinrichtung + 4 ns0 territory pages)');
+$check('(a1) page count', 25, count($pages), 'fixture has 25 <page> elements (4 ns0 territory/redirect + 1 ns10 + 3 ns0 path + 3 ns0 region + 5 ns0 settlement + 3 ns0 building + 1 ns0 Lehreinrichtung + 1 ns0 Geschäft + 4 ns0 territory pages)');
 
 // Titles, in document order.
 $titles = array_map(static fn(array $p): string => $p['title'], $pages);
 $check(
     '(a2) titles in order',
-    ['Kosch', 'Angbar', 'Horasreich', 'Königreich Kosch (historisch)', 'Vorlage:Infobox Staat', 'Breite', 'Reichsstraße 1', 'Rastullah-Strom', 'Koschberge', 'Rote Sichel', 'Windhag', 'Ferdok', 'Auhof', 'Xarxaron', 'Selem', 'Burg Wallenstein', 'Zwingfeste Ochsenblut', 'Ruine Tsatempel', 'Xarsnamoth', 'Akademie der Erscheinungen', 'Grafschaft Ferdok', 'Baronie Hügelland', 'Sokramor', 'Rastanreich'],
+    ['Kosch', 'Angbar', 'Horasreich', 'Königreich Kosch (historisch)', 'Vorlage:Infobox Staat', 'Breite', 'Reichsstraße 1', 'Rastullah-Strom', 'Koschberge', 'Rote Sichel', 'Windhag', 'Ferdok', 'Auhof', 'Xarxaron', 'Selem', 'Burg Wallenstein', 'Zwingfeste Ochsenblut', 'Ruine Tsatempel', 'Xarsnamoth', 'Akademie der Erscheinungen',
+    'Elemitischer Kontor', 'Grafschaft Ferdok', 'Baronie Hügelland', 'Sokramor', 'Rastanreich'],
     $titles,
     'streamed in document order, titles intact (umlaut preserved); path (4a), region (4b), settlement (4c), building (4c2) then territory (4d) pages appended'
 );
@@ -166,7 +168,7 @@ $check(
 $namespaces = array_map(static fn(array $p): int => $p['ns'], $pages);
 $check(
     '(a3) namespaces in order',
-    [0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     $namespaces,
     'ns parsed as int; ns 10 (Vorlage) present -> filtering is the caller\'s job; path + region + settlement + building + territory pages are ns 0'
 );
@@ -175,7 +177,7 @@ $check(
 $redirects = array_map(static fn(array $p): ?string => $p['redirect'], $pages);
 $check(
     '(a4) redirect targets in order',
-    [null, null, 'Lieblichesfeld', 'Kosch', null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
+    [null, null, 'Lieblichesfeld', 'Kosch', null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
     $redirects,
     'only <redirect title="..."/> pages carry a target; others null (path + region + settlement + building + territory pages are not redirects)'
 );
@@ -297,9 +299,9 @@ $check(
 );
 $check(
     '(e2) skip 2 -> remaining count',
-    22,
+    23,
     count($afterTwo),
-    '24 total - 2 skipped = 22 remaining'
+    '25 total - 2 skipped = 23 remaining'
 );
 
 $batch = $readAll($fixturePath, 1, 2); // skip 1, take 2 -> pages [1,3)
@@ -310,12 +312,12 @@ $check(
     'a step processes pages [cursor, cursor+batch) then returns'
 );
 
-$skipAll = $readAll($fixturePath, 24);
+$skipAll = $readAll($fixturePath, 25);
 $check(
     '(e4) skip >= total -> empty batch',
     0,
     count($skipAll),
-    'skipping all 24 pages yields nothing (terminal cursor)'
+    'skipping all 25 pages yields nothing (terminal cursor)'
 );
 
 // ===========================================================================
@@ -332,7 +334,7 @@ if ($bz2Loaded) {
     @unlink($bz2Path);
     $check(
         '(f1) .bz2 read yields same page count',
-        24,
+        25,
         count($bz2Pages),
         'compress.bzip2:// streams the fixture (bz2 present locally)'
     );
@@ -375,7 +377,7 @@ $gzPages = $readAll($gzPath);
 @unlink($gzPath);
 $check(
     '(f3) .gz read yields same page count',
-    24,
+    25,
     count($gzPages),
     'compress.zlib:// streams a gzipped fixture'
 );

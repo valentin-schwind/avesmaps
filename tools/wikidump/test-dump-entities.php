@@ -513,8 +513,8 @@ $check(
     'Kosch classifies as territory (handled by the territory handler, section (i)); Burg Wallenstein classifies as building (its own handler, not the settlement one)'
 );
 $check(
-    '(d4) per-kind counts: 3 paths, 5 territories, 5 settlements, 5 buildings, 3 regions recognised',
-    ['path' => 3, 'territory' => 5, 'settlement' => 5, 'building' => 5, 'region' => 3],
+    '(d4) per-kind counts: 3 paths, 5 territories, 5 settlements, 6 buildings, 3 regions recognised',
+    ['path' => 3, 'territory' => 5, 'settlement' => 5, 'building' => 6, 'region' => 3],
     [
         'path' => $collected['counts']['path'] ?? 0,
         'territory' => $collected['counts']['territory'] ?? 0,
@@ -522,7 +522,7 @@ $check(
         'building' => $collected['counts']['building'] ?? 0,
         'region' => $collected['counts']['region'] ?? 0,
     ],
-    '3 path + 5 Staat infoboxes (Kosch, Grafschaft Ferdok, Baronie Hügelland, Sokramor, Rastanreich) + 5 Siedlung (Angbar, Ferdok, Auhof, Xarxaron, Selem) + 5 Bauwerk/Festung/Lehreinrichtung (Burg Wallenstein, Zwingfeste, Ruine Tsatempel, Xarsnamoth, Akademie der Erscheinungen) + 3 region infoboxes'
+    '3 path + 5 Staat infoboxes (Kosch, Grafschaft Ferdok, Baronie Hügelland, Sokramor, Rastanreich) + 5 Siedlung (Angbar, Ferdok, Auhof, Xarxaron, Selem) + 6 Bauwerk/Festung/Lehreinrichtung/Geschaeft (Burg Wallenstein, Zwingfeste, Ruine Tsatempel, Xarsnamoth, Akademie der Erscheinungen, Elemitischer Kontor) + 3 region infoboxes'
 );
 
 // ===========================================================================
@@ -998,11 +998,11 @@ echo "\n-- (h) building handler: gebaeude record + reused type list + is_ruined 
 // AND Xarsnamoth (Myranor) -- no continent filter. So exactly 4.
 $buildingRecords = avesmapsWikiDumpCollectBuildingRecords($pages);
 $check(
-    '(h1) exactly 5 building records kept (keep-all across continents)',
-    5,
+    '(h1) exactly 6 building records kept (keep-all across continents)',
+    6,
     count($buildingRecords),
     'Burg Wallenstein + Zwingfeste Ochsenblut + Ruine Tsatempel (Aventurien) + Xarsnamoth (Myranor) '
-        . '+ Akademie der Erscheinungen ({{Infobox Lehreinrichtung}}, Discord #60) kept'
+        . '+ Akademie der Erscheinungen ({{Infobox Lehreinrichtung}}) + Elemitischer Kontor ({{Infobox Geschäft}}) kept'
 );
 
 // Index kept building records by normalized_key (= CreateMatchKey(title)).
@@ -1704,12 +1704,12 @@ $check(
 
 // GEGENPROBE: der Riegel ist BREITER geworden, nicht offen. Organisationen (1423 Artikel,
 // ohne jede Ortsangabe) und Geschaefte bleiben draussen.
-foreach (['Organisation', 'Geschäft', 'Familie', 'Person'] as $i => $fremd) {
+foreach (['Organisation', 'Familie', 'Person', 'NSC'] as $i => $fremd) {
     $check(
         '(L6.' . ($i + 1) . ') Infobox ' . $fremd . ' ist kein Bauwerk',
         true,
         avesmapsWikiDumpClassifyEntityKind($fremd) !== 'building',
-        'nur vier Infoboxen sind Bauwerke: Bauwerk, Festung, Burg, Lehreinrichtung'
+        'Bauwerke sind: Bauwerk, Festung, Burg, Lehreinrichtung, Geschäft -- diese hier nicht'
     );
 }
 $orgaParsed = avesmapsWikiDumpParseBuildingPage([
@@ -1729,6 +1729,58 @@ $check(
     true,
     str_contains((string) ($orgaParsed['reason'] ?? ''), 'Organisation'),
     'die Fehlliste des Laufs muss zeigen, WAS verworfen wurde'
+);
+
+// ---------------------------------------------------------------------------
+// 3x. DIE FUENFTE BAUWERKS-INFOBOX: {{Infobox Geschäft}} (Handelshaeuser, Teil A).
+// ---------------------------------------------------------------------------
+// 28 Artikel unter Handelsgesellschaft/Bankhaus/Kontor tragen sie, alle mit |Standort= wie ein
+// Bauwerk (gemessen 2026-08-16). Der Entwurf vom 15.08. schloss sie aus -- "sie kam bei genau
+// einem Kontor vor" -- und das war aus sechs Stichproben geraten.
+$check(
+    '(K1) Infobox Geschäft -> building',
+    'building',
+    avesmapsWikiDumpClassifyEntityKind('Geschäft'),
+    'sie ist gebaut wie ein Bauwerk: |Art= und |Standort= an denselben Stellen'
+);
+
+// 💣 DIE FALLE DIESES BLOCKS: der Wortstamm heisst 'geschaft', NICHT 'geschaeft'.
+// avesmapsWikiSyncMonitorFieldKey faltet das ä zu 'a' (nicht zu 'ae'), anders als die
+// ss/ae/oe/ue-Faltung an anderen Stellen des Hauses. Mit 'geschaeft' waere die Weiche fuer immer
+// tot gewesen -- und ein Test, der nur avesmapsWikiDumpClassifyEntityKind('Geschäft') prueft,
+// haette das gefangen; einer, der die Konstante prueft, nicht. Deshalb steht die Faltung hier.
+$check(
+    '(K2) der Wortstamm ist "geschaft", nicht "geschaeft"',
+    'geschaft',
+    avesmapsWikiSyncMonitorFieldKey('Geschäft'),
+    'das ä faellt zu a -- mit der ae-Form waere die Weiche eine tote Zeile'
+);
+
+$geschaeftPage = [
+    'title' => 'Elemitischer Kontor',
+    'ns' => 0,
+    'redirect' => null,
+    'wikitext' => "{{Infobox Geschäft\n| Name     = Elemitischer Kontor\n| Art      = [[Kontor]]\n"
+        . "| Standort = [[Amhas (Siedlung)|Amhas]]\n}}\n",
+];
+$geschaeftParsed = avesmapsWikiDumpParseBuildingPage($geschaeftPage);
+$check(
+    '(K3) der Parser-Riegel laesst sie durch',
+    true,
+    $geschaeftParsed['kept'],
+    'die Zwillingsbedingung in avesmapsWikiDumpParseBuildingPage kennt sie ebenfalls'
+);
+$check(
+    '(K4) building_type ist entklammert',
+    'Kontor',
+    $geschaeftParsed['record']['building_type'] ?? null,
+    '|Art=[[Kontor]] -- "Kontor" steht bereits im Ortsarten-Katalog'
+);
+$check(
+    '(K5) |Standort= bleibt roh',
+    true,
+    str_contains((string) ($geschaeftParsed['record']['standort'] ?? ''), '[[Amhas'),
+    'die innerorts/ausserorts-Entscheidung liest die Links, nicht den bereinigten Text'
 );
 
 // ---------------------------------------------------------------------------

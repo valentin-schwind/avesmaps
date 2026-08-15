@@ -213,7 +213,14 @@ function avesmapsWikiDumpClassifyEntityKind(string $infoboxName): string
     // otherwise the page classifies as a building and then dies silently at the parser, with a
     // clean kept=false and no error anywhere.
     if (str_contains($key, 'bauwerk') || str_contains($key, 'festung') || str_contains($key, 'burg')
-        || str_contains($key, 'lehreinrichtung')) {
+        || str_contains($key, 'lehreinrichtung')
+        // {{Infobox Geschäft}}: 28 Artikel unter Handelsgesellschaft/Bankhaus/Kontor, alle mit
+        // |Standort= wie ein Bauwerk (gemessen 2026-08-16). Der Entwurf vom 15.08. schloss sie
+        // aus, weil sie in sechs Stichproben nur EINMAL vorkam -- eine Stichprobe, die zur
+        // Regel wurde. 💣 Der Wortstamm heisst 'geschaft', NICHT 'geschaeft':
+        // avesmapsWikiSyncMonitorFieldKey faltet das ä zu 'a', nicht zu 'ae' (gemessen). Mit
+        // 'geschaeft' waere die Zeile fuer immer tot -- gruener Test, wirkungslose Weiche.
+        || str_contains($key, 'geschaft')) {
         return AVESMAPS_WIKI_DUMP_ENTITY_BUILDING;
     }
 
@@ -770,6 +777,7 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
         || str_contains($infoboxKey, 'festung')
         || str_contains($infoboxKey, 'burg')
         || str_contains($infoboxKey, 'lehreinrichtung')
+        || str_contains($infoboxKey, 'geschaft')
     );
     if (!$isBuilding) {
         return [

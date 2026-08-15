@@ -394,6 +394,25 @@ Die '''Akademie der Erscheinungen''' ist eine Magierakademie in [[Grangor]].
     </revision>
   </page>
   <page>
+    <title>Elemitischer Kontor</title>
+    <ns>0</ns>
+    <id>124</id>
+    <revision>
+      <id>5024</id>
+      <timestamp>2024-01-25T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="240" xml:space="preserve">{{Infobox Geschäft
+| Name     = Elemitischer Kontor
+| Art      = [[Kontor]]
+| Standort = [[Amhas (Siedlung)|Amhas]]
+}}
+Der '''Elemitische Kontor''' ist ein Kontor in [[Amhas]].
+
+[[Kategorie:Kontor]]</text>
+    </revision>
+  </page>
+  <page>
     <title>Grafschaft Ferdok</title>
     <ns>0</ns>
     <id>119</id>
