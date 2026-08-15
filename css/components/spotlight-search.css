@@ -87,30 +87,36 @@
 	white-space: nowrap;
 }
 
-/* Innerorts-Treffer (Villa, Platz, Stadttempel, Gasse) tragen ZWEI Angaben untereinander:
-   den Typ samt Stadt ("Platz in Mengbilla") und darunter "Innerorts" -- der Hinweis, dass
-   das Objekt selbst keinen Punkt auf der Karte hat und der Treffer auf die STADT springt.
-   Beide brauchen mehr als die 150px der einzeiligen Typangabe, sonst frisst die Ellipse
-   genau den Hinweis, der die Verwechslung verhindern soll.
+/* Zweizeilige Treffer tragen ZWEI Angaben untereinander: den Typ (samt Stadt) und darunter
+   einen Hinweis -- "Innerorts" bei einem Objekt ohne eigenen Punkt, "Ruine"/"Versteckt" bei
+   einem Ort, den die Karte anders behandelt. Beide brauchen mehr als die 150px der einzeiligen
+   Typangabe, sonst frisst die Ellipse genau den Hinweis, der die Zeile rechtfertigt.
+
+   💣 DIE BEDINGUNG IST "HAT ZWEI ZEILEN", NICHT "LIEGT WOANDERS". Bis zum 15.08.2026 hing die
+   Verbreiterung an `--not-on-map`; ein versteckter Ort ist aber auf der Karte und haette sie
+   nicht bekommen. `--not-on-map` behaelt seine eigene Aufgabe (der gedaempfte Ton) und verliert
+   nur die Breite.
 
    💣 `white-space` bleibt `nowrap`. Die Trefferzeile ist ein Grid (minmax(0,1fr) auto), und
    mit `normal` faellt die auto-Spalte auf ihre MINIMALbreite zusammen: gemessen 69px statt
    120px, wodurch beide Angaben zweizeilig umbrachen und die Zeile 54px statt 27px hoch war
    -- sie sah gequetscht aus, obwohl der Treffer 548px breit ist. Die zwei Zeilen entstehen
    durch `display:block` am Hinweis, nicht durch Umbruch; jede fuer sich bleibt einzeilig. */
-.spotlight-search__result--not-on-map .spotlight-search__result-type {
+.spotlight-search__result--two-line .spotlight-search__result-type {
 	max-width: 240px;
 	text-align: right;
 }
 
 /* Der Hinweis steht unter der Typangabe und ist bewusst leiser als sie: er beschreibt eine
    Einschraenkung, keine Kategorie. Die Farbe erbt er von der Typzeile -- so bleibt der
-   Kontrast in jedem Theme richtig, ohne einen zweiten Farbwert einzufuehren. */
+   Kontrast in jedem Theme richtig, ohne einen zweiten Farbwert einzufuehren.
+   💣 11px ist die Untergrenze (AGENTS.md §12). Hier standen 10px; derselbe Wanderfehler, den §11
+   fuer .se-row-type/.se-row-l2 festhaelt. */
 .spotlight-search__result-hint {
 	display: block;
 	overflow: hidden;
 	opacity: 0.72;
-	font-size: 10px;
+	font-size: 11px;
 	font-style: italic;
 	text-overflow: ellipsis;
 	text-transform: none;

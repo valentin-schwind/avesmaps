@@ -848,24 +848,48 @@ function renderSpotlightSearchResults(entries) {
 	}
 }
 
+// The third line under a place's type: what the map does with it, in the reader's words.
+// „Ruine" describes the place; „Versteckt" describes how the map treats it. A place can be both --
+// then it is ONE hint with a separator, never two lines: the hint is `nowrap` (see
+// css/components/spotlight-search.css) and a second line would be silently clipped.
+function spotlightLocationStateHint(location) {
+	const parts = [];
+	if (location && location.isRuined) {
+		parts.push(tr("spotlight.ruined", "Ruine"));
+	}
+	if (location && location.isHidden) {
+		parts.push(tr("spotlight.hidden", "Versteckt"));
+	}
+	return parts.join(" · ");
+}
+
 function spotlightResultMarkup(entry, index) {
 	const resultId = `spotlight-result-${index}`;
-	// A hit that points somewhere else needs a line saying so. Three cases, three wordings:
+	// The second line under the type says what is special about this hit. Cases and wordings:
 	//   in-settlement object   -> "Innerorts" (it sits inside the town the hit jumps to)
 	//   unreachable pointer    -> "kein Ort auf der Karte" (map, adventure or occurrence with no target)
 	//   reachable adventure /
 	//   occurrence             -> its own hint (where it begins / where it occurs), set by its builder
+	//   hidden and/or ruined
+	//   place                  -> "Versteckt" / "Ruine" / "Ruine · Versteckt" (spotlightLocationStateHint)
 	// A REACHABLE map deliberately gets NO hint: its typeLabel already names type and place
 	// ("Grundriss · Gareth"). "Innerorts" must never appear under a section hit -- a territory or a way
 	// is not a settlement, and in this project that is domain vocabulary, not a nuance.
 	const hintText = entry.unreachable
 		? tr("spotlight.noPlaceOnMap", "kein Ort auf der Karte")
 		: (String(entry.placeHint || "")
+			|| String(entry.stateHint || "")
 			|| (entry.notOnMap && !SPOTLIGHT_SECTION_KINDS.has(entry.kind) ? tr("spotlight.inSettlement", "Innerorts") : ""));
 	const notOnMap = hintText
 		? `<span class="spotlight-search__result-hint">${escapeHtml(hintText)}</span>`
 		: "";
-	const resultClass = "spotlight-search__result" + (entry.notOnMap ? " spotlight-search__result--not-on-map" : "");
+	// 💣 ZWEI FRAGEN, ZWEI KLASSEN. --not-on-map means "this hit jumps somewhere else" and tints;
+	// --two-line means "this row carries a hint" and widens. Until 2026-08-15 --not-on-map did both,
+	// and a hidden place -- which IS on the map -- would not have got the width: the ellipsis at 150px
+	// then eats the very word "Versteckt".
+	const resultClass = "spotlight-search__result"
+		+ (entry.notOnMap ? " spotlight-search__result--not-on-map" : "")
+		+ (hintText ? " spotlight-search__result--two-line" : "");
 	return `
 		<button id="${resultId}" type="button" class="${resultClass}" data-spotlight-result-index="${index}" role="option">
 			<span class="spotlight-search__result-name">${escapeHtml(entry.name)}</span>
@@ -1041,6 +1065,7 @@ function buildSpotlightLocationEntries() {
 			kind: "location",
 			name: entry.name,
 			typeLabel: entry.locationTypeLabel || tr("type." + entry.locationType + ".singular", LOCATION_TYPE_CONFIG[entry.locationType]?.singularLabel || "") || tr("spotlight.type.location", "Ort"),
+			stateHint: spotlightLocationStateHint(entry.location),
 			publicIds: [entry.publicId].filter(Boolean),
 			locationEntry: entry,
 			aliases: [entry.location?.description, entry.location?.wikiUrl],
