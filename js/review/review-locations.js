@@ -549,6 +549,7 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 		? (isCrossingConversion ? pendingCrossingConversionIsNodix : Boolean(location.isNodix))
 		: Boolean(presetIsNodix);
 	document.getElementById("location-edit-is-ruined").checked = Boolean(location.isRuined);
+	document.getElementById("location-edit-is-hidden").checked = Boolean(location.isHidden);
 	// Ortsart -- leer ist ein gueltiger Zustand; das Feld bleibt dann einfach leer.
 	document.getElementById("location-edit-place-kind").value = String(location.placeKind || "");
 	mountLocationEditPlaceKindAutocomplete();
@@ -762,6 +763,11 @@ function buildLocationEditPayload(formElement) {
 		wiki_url: String(formData.get("wiki_url") || "").trim(),
 		is_nodix: formData.get("is_nodix") === "on",
 		is_ruined: formData.get("is_ruined") === "on",
+		// 💣 IMMER MITSENDEN. avesmapsUpdatePointFeatureDetails liest `$payload['is_hidden'] ?? false`
+		// -- ein Speichern ohne dieses Feld hebt das Verbergen still wieder auf. Dieselbe Pflicht wie bei
+		// is_nodix und is_ruined daneben. Genau daran ist die Kartenform am 15.08.2026 aufgefallen: der
+		// Haken war nur im Siedlungseditor gebaut, und diese Form hier hat drei Oberflaechen, nicht eine.
+		is_hidden: formData.get("is_hidden") === "on",
 		// Ortsart. IMMER mitsenden, auch leer -- update_point loescht properties.place_kind nur,
 		// wenn ein leerer Wert ankommt. Weglassen hiesse "nicht geaendert", und dann liesse sich
 		// eine einmal gesetzte Art nie wieder entfernen.
