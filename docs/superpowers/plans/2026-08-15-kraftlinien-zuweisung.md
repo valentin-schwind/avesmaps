@@ -894,10 +894,20 @@ ist `powerline|powerline` legitim).
 
 - [ ] **Schritt 4: Der dritte Zustand**
 
-Bei **„Drachenblick"** das Häkchen „Kein Wiki-Artikel vorhanden" setzen und speichern. Dann im
-Konfliktzentrum (WikiSync → ⚖️ Konflikte → „Kein Wiki-Schlüssel") nachsehen.
+Bei **„Drachenblick"** im **Kraftlinien-Editor** das Häkchen „Kein Wiki-Artikel vorhanden" setzen
+und speichern. Dann im Konfliktzentrum (WikiSync → ⚖️ Konflikte → „Kein Wiki-Schlüssel") nachsehen.
 
 Erwartet: „Drachenblick" ist weg. Vorher waren es 37 Kraftlinien-Fälle.
+
+💣 **Der Weg führt über den EDITOR, nicht über das Konfliktzentrum** — dort gibt es den Knopf
+„Kein Wiki-Eintrag" auf einem Beobachtungslisten-Fall gar nicht. `isRepairable`
+(`js/review/review-conflicts.js`) verlangt eine geteilte Adresse **und** mehr als eine Partei;
+ein `wiki.missing_key`-Fall hat `wiki_url = ''` und genau eine Partei, seine Aktionen sind laut
+Katalog nur `defer` und `ignore`. Eine frühere Fassung dieses Schrittes ließ hier im
+Konfliktzentrum klicken — der Knopf ist dort nicht, der Schritt wäre unerfüllbar gewesen.
+🔧 **Offen für den Owner:** damit lässt sich ein Fall der Beobachtungsliste nur aus dem jeweiligen
+Editor stilllegen. Bei 37 Kraftlinien ist das je Linie ein Fenster­wechsel. Ob die Liste einen
+eigenen Weg dafür bekommen soll, ist eine Produktentscheidung und steht hier bewusst offen.
 
 - [ ] **Schritt 5: Der Widerspruch**
 
