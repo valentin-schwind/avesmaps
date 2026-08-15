@@ -129,11 +129,15 @@ function getWaypointAutocompleteEntries() {
 	}
 
 	const ownEntries = locationData
-		.map((loc) => String(loc?.name || "").trim())
-		.filter((name) => name && !isCrossingName(name))
-		.map((name) => ({
-			name,
-			normalizedName: normalizeLocationSearchName(name),
+		// 🔴 Das location-Objekt fiel hier bis zum 15.08.2026 sofort weg -- nur der NAME ueberlebte die
+		// erste Stufe. isHidden muss mitreisen, sonst kann waypointSuggestionLabel unten nichts
+		// kennzeichnen und prueft fuer immer `undefined`.
+		.map((loc) => ({ name: String(loc?.name || "").trim(), isHidden: Boolean(loc?.isHidden) }))
+		.filter((entry) => entry.name && !isCrossingName(entry.name))
+		.map((entry) => ({
+			name: entry.name,
+			isHidden: entry.isHidden,
+			normalizedName: normalizeLocationSearchName(entry.name),
 		}))
 		.filter((entry) => entry.normalizedName);
 
@@ -182,6 +186,19 @@ function waypointInSettlementLabel(name, settlement) {
 	return `${name} (${settlement})`;
 }
 
+// Ein versteckter Ort steht in der Vorschlagsliste, aber er sagt, dass er versteckt ist -- sonst
+// wundert sich der Reisende, warum sein Ziel auf der Karte fehlt. Die Wegpunktsuche ist eine SUCHE,
+// kein Scrollen ueber die Karte; waere sie strenger als das Spotlight, waeren die beiden Wege
+// ungleich streng.
+// ⚠️ Die Klammer ist die Form, die diese Liste schon fuehrt („Schänke Schnapsfass (Imdal)"), und die
+// Kennzeichnung haengt HINTEN an: sie ersetzt die Stadtklammer nicht, sie kommt dazu.
+function waypointSuggestionLabel(label, entry) {
+	if (!entry || !entry.isHidden) {
+		return label;
+	}
+	return `${label} (${tr("waypoint.hidden", "versteckt")})`;
+}
+
 function getWaypointAutocompleteSource(term = "") {
 	const normalizedTerm = normalizeLocationSearchName(term);
 	if (normalizedTerm.length < WAYPOINT_AUTOCOMPLETE_MIN_LENGTH) {
@@ -220,7 +237,7 @@ function getWaypointAutocompleteSource(term = "") {
 		// js/map-features/__tests__/waypoint-autocomplete-items.test.js.
 		.map((match) => (match.entry.settlement
 			? { label: waypointInSettlementLabel(match.entry.name, match.entry.settlement), value: match.entry.settlement }
-			: { label: match.entry.name, value: match.entry.name }));
+			: { label: waypointSuggestionLabel(match.entry.name, match.entry), value: match.entry.name }));
 }
 
 function scrollWaypointInputIntoView($input) {

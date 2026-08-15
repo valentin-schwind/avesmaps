@@ -57,6 +57,9 @@ const load = (locations, inSettlementPlaces) => new Function(
 		extractFunction(waypointSource, "getWaypointAutocompleteEntries", "map-features-waypoints.js"),
 		extractFunction(waypointSource, "getWaypointAutocompleteScore", "map-features-waypoints.js"),
 		extractFunction(waypointSource, "waypointInSettlementLabel", "map-features-waypoints.js"),
+		// Kommt mit, weil getWaypointAutocompleteSource sie ruft -- nur den Aufrufer zu ziehen wirft
+		// „waypointSuggestionLabel is not defined". Dieselbe Regel wie bei waypointInSettlementLabel.
+		extractFunction(waypointSource, "waypointSuggestionLabel", "map-features-waypoints.js"),
 		extractFunction(waypointSource, "getWaypointAutocompleteSource", "map-features-waypoints.js"),
 		"return getWaypointAutocompleteSource;",
 	].join("\n")

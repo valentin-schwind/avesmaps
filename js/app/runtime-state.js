@@ -290,3 +290,15 @@ function avesmapsRevealHiddenLocation(publicId) {
 		syncLocationMarkerVisibility();
 	}
 }
+
+// Der Wegpunkt kennt nur einen NAMEN -- er wird auch von Hand getippt und aus geteilten Links
+// gelesen --, die Aufdeckungsmenge kennt nur publicIds. Diese Funktion ist die Bruecke.
+function avesmapsRevealHiddenLocationByName(name) {
+	if (typeof findLocationMarkerByName !== "function") {
+		return;
+	}
+	const entry = findLocationMarkerByName(String(name || "").trim());
+	if (entry && entry.publicId) {
+		avesmapsRevealHiddenLocation(entry.publicId);
+	}
+}

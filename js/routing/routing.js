@@ -1475,6 +1475,14 @@ function collectAndValidateSelectedLocations() {
 				...loc,
 				waypointId: String($waypoint.data("waypointId") || ""),
 			});
+			// 🔴 DER TRICHTER ALLER WEGPUNKT-WEGE: die Vorschlagsliste, der von Hand getippte Name und
+			// der geteilte Link, der die Felder vorbefuellt, laufen alle hier durch. Deshalb steht die
+			// Aufdeckung HIER und nicht zusaetzlich im select-Handler der Vorschlagsliste -- der ruft
+			// updateMapView, und das kommt ohnehin hierher. Ohne sie waere ein geteilter Link auf einen
+			// versteckten Ort eine Route zu einem unsichtbaren Punkt.
+			if (typeof avesmapsRevealHiddenLocationByName === "function") {
+				avesmapsRevealHiddenLocationByName(inputVal);
+			}
 		} else {
 			invalidLocationInputs.push(inputVal);
 			highlightError($input);
