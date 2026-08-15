@@ -136,6 +136,13 @@ function avesmapsAttachOffroadPointToGraph(
         return ['ok' => false, 'error' => 'no_offroad_route'];
     }
 
+    // 🔴 „KUERZESTE“ GILT AUCH IM GELAENDE. Bis zum 15.08.2026 befolgte nur der Wegegraph das
+    // `optimize` (client-graph.php:1809); der A* rechnete immer zeitoptimal, und die Querfeldein-
+    // Kante trug damit die Laenge eines Weges, der auf SCHNELLIGKEIT gelegt war -- an der
+    // Referenzroute des Owners 12,217 Einheiten gegen eine Luftlinie von 8,609. Das war nicht nur
+    // eine falsche Anzeige: mit dieser aufgeblaehten Laenge trat die Kante gegen die Strassen an.
+    $weightByDistance = (string) ($request['optimize'] ?? 'fastest') === 'shortest';
+
     $graph = is_array($clientGraph['graph'] ?? null) ? $clientGraph['graph'] : [];
 
     // 🔴 DIE AUSSTIEGE SIND PUNKTE AUF WEGEN, NICHT ORTSCHAFTEN (Owner, 14.08.2026) -- und seit dem
@@ -247,10 +254,27 @@ function avesmapsAttachOffroadPointToGraph(
         // 🔴 EIN LAUF FUER ALLE. Bis zum 15.08.2026 lief hier ein A* JE KANDIDAT -- an der Route des
         // Owners gemessen 15 Suchen je Anfrage durch dasselbe Gelaende. Genau das macht „jeder
         // gezeichnete Punkt ist ein Kandidat" bezahlbar: ein Kandidat mehr ist ein Nachschlagen.
+        // ⭐ IM STRECKENMODUS ERST DIE GERADEN. Die kuerzeste Verbindung zweier Punkte ist die
+        // Strecke zwischen ihnen; ist sie trocken, gibt es nichts zu suchen. Nur die nassen
+        // Kandidaten kommen ueberhaupt in den Suchlauf. Im Zeitmodus faellt dieser Block weg.
         $goals = [];
-        foreach ($set as $index => $candidate) { $goals[$index] = ['x' => $candidate['x'], 'y' => $candidate['y']]; }
-        $paths = avesmapsOffroadFindPathsFromPoint($box, $blocked, $factors, $heights, (float) $speed, $x, $y, $goals,
-            AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters);
+        $paths = [];
+        foreach ($set as $index => $candidate) {
+            if ($weightByDistance) {
+                $gerade = avesmapsOffroadStraightPathIfDry($box, $water, $factors, $heights,
+                    (float) $speed, $candidate['x'], $candidate['y'], $x, $y,
+                    AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters);
+                if ($gerade !== null) { $paths[$index] = $gerade; continue; }
+            }
+            $goals[$index] = ['x' => $candidate['x'], 'y' => $candidate['y']];
+        }
+        if ($goals !== []) {
+            // 💣 `+` (Vereinigung), NICHT array_merge: die Schluessel sind die Kandidaten-Indizes.
+            // array_merge numeriert sie neu, und danach zeigt jede Kante auf den falschen Ausstieg.
+            $paths += avesmapsOffroadFindPathsFromPoint($box, $blocked, $factors, $heights,
+                (float) $speed, $x, $y, $goals, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters,
+                $weightByDistance);
+        }
 
         foreach ($set as $index => $candidate) {
             $path = $paths[$index] ?? null;
