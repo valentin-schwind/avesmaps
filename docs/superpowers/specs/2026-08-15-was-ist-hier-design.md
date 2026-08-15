@@ -94,11 +94,11 @@ GET /api/app/what-is-here.php?x=<float>&y=<float>[&year_bf=<int>]
 
 { "ok": true,
   "point": { "x": 491.032, "y": 516.016 },
-  "territories": [                       // Wurzel -> Blatt, entdoppelt
-    { "name": "Heiliges Neues Kaiserreich vom Greifenthron zu Gareth",
-      "short_name": "", "type": "Kaiserreich",
-      "territory_public_id": "3359118f-…", "coat_url": "/uploads/wappen/…" },
+  "territories": [                       // 💣 BLATT -> WURZEL, entdoppelt
+    { "name": "Grafenmark Ferdok", "short_name": "", "type": "Grafenmark",
+      "territory_public_id": "b006076c-…", "coat_url": "/uploads/wappen/…" },
     …
+    { "name": "Heiliges Neues Kaiserreich vom Greifenthron zu Gareth", … }
   ],
   "landscapes": {                        // je Ebene 0..n Treffer
     "derographisch": [ { "name": "Aventurien", "type_label": "Kontinent",
@@ -136,6 +136,12 @@ Fehler nach dem Goldvertrag (AGENTS §4): `{ "ok": false, "error": { "code": …
   `avesmapsPointInGeometry` über jeden Kandidaten. Am Seepunkt lagen **9 Gebiete**
   im bbox und **0** haben den Punkttest bestanden. Wer den bbox-Treffer für die
   Antwort hält, schreibt vier Herrschaften mitten ins Perlenmeer.
+- 💣 **`territories` steht BLATT → WURZEL, nicht umgekehrt.** Nicht weil das
+  schöner wäre, sondern weil `buildSettlementHierarchyMarkup` (`js/ui/popups.js:863`)
+  die Treppe genau so erwartet und selbst umdreht — dieselbe Richtung, die
+  `map-features.php` einer Siedlung mitgibt. Gedreht geliefert stünde die
+  Grafenmark oben und das Kaiserreich unten, und die Treppe zeigte in die falsche
+  Richtung. Das Panel benutzt diese Funktion **unverändert**.
 - 💣 **Ein Gebiet kann MEHRFACH getroffen werden.** Am Inselpunkt liefert der
   Punkttest die Fürstkomturei Tobimora **zweimal** — dasselbe Gebiet mit zwei
   Geometrie-Zeilen. Entdoppelt wird über `territory_public_id`, nicht über
