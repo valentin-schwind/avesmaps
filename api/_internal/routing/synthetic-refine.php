@@ -40,6 +40,13 @@ function avesmapsRefineSyntheticRouteLegs(
 ): array {
     $report = ['examined' => 0, 'refined' => 0, 'legs' => []];
 
+    // 🔴 UNTER „KUERZESTE“ WIRD NICHT GEBOGEN. Diese Funktion ersetzt die gerade Notkante durch
+    // den A*-Bogen, damit ihre Geometrie ehrlich wird -- und ihr eigener Docblock sagt dazu: „Der
+    // neue Weg ist LAENGER als die Sehne -- er weicht ja aus.“ Im Streckenmodus ist die GERADE
+    // bereits die ehrliche Antwort, und laenger ist genau das Gegenteil dessen, was der Modus
+    // verspricht (Entwurf 2026-08-15-kuerzeste-route-gerade-linie-design.md §3.4).
+    if ((string) ($request['optimize'] ?? 'fastest') === 'shortest') { return $report; }
+
     foreach ($segments as $segment) {
         // Eine Sehne ist: synthetisch, noch nicht gebogen, und mit genau zwei Punkten. Die A*-Etappen
         // aus „Hierher reisen" und aus §2 tragen `offroad` und sind hier fertig.

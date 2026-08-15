@@ -25,6 +25,8 @@ if (ini_get('zend.assertions') !== '1') {
 }
 
 require __DIR__ . '/../offroad-leg.php';
+// Abschnitt F prueft die Sehnen-Verfeinerung; offroad-leg.php zieht sie nicht mit.
+require_once __DIR__ . '/../synthetic-refine.php';
 
 $quadrat = static function (float $x1, float $y1, float $x2, float $y2): array {
     return ['geometry' => ['type' => 'Polygon', 'coordinates' => [[
@@ -109,6 +111,51 @@ assert(array_key_exists('time', $etappe) && (float) $etappe['time'] > 0.0,
     'die Etappe traegt eine gemessene Zeit, nicht nur eine Laenge: ' . json_encode($etappe['time'] ?? null));
 assert(abs((float) $etappe['distance'] - $luft) < 1e-9,
     'und ihre Laenge ist die Luftlinie: ' . $etappe['distance']);
+
+// ---- E: zwei Kartenpunkte -- auch die direkte Kante ist im Streckenmodus gerade ------------
+$paarGraph = ['graph' => []];
+$paarBericht = avesmapsConnectOffroadPoints($paarGraph, $anfrage('shortest'), $wasser, null,
+    ['x' => 10.0, 'y' => 10.0], ['x' => 18.0, 'y' => 16.0], '__offroad_from', '__offroad_to', false);
+assert($paarBericht['ok'] === true, 'die direkte Kante entsteht: ' . json_encode($paarBericht));
+assert(abs((float) $paarBericht['distance_units'] - hypot(8.0, 6.0)) < 1e-9,
+    'und sie ist die Luftlinie: ' . $paarBericht['distance_units'] . ' gegen ' . hypot(8.0, 6.0));
+assert((int) $paarBericht['point_count'] === 2, 'zwei Punkte, kein Bogen');
+
+// ---- F: die Sehnen-Verfeinerung biegt im Streckenmodus NICHT ------------------------------
+// 🔴 avesmapsRefineSyntheticRouteLegs ersetzt die gerade Notkante durch den A*-Bogen. Ihr eigener
+// Docblock sagt, warum das unter "Kuerzeste" falsch ist: "Der neue Weg ist LAENGER als die Sehne
+// -- er weicht ja aus." Genau das darf ein Modus, der Meilen minimiert, nicht tun.
+$notKante = static function (): array {
+    return [
+        'distance' => 25.0 * hypot(6.0, 8.0), 'time' => 25.0 * hypot(6.0, 8.0) / 2.30,
+        'cost_factor' => AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR,
+        'route_type' => AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, 'transport_option' => 'groupFoot',
+        'id' => 'synthetic-A->B', 'path_id' => 'synthetic-A->B', 'from' => 'A', 'to' => 'B',
+        'geometry' => ['type' => 'LineString', 'coordinates' => [[10.0, 10.0], [16.0, 18.0]]],
+        'synthetic' => true,
+    ];
+};
+$bauNotGraph = static function () use ($notKante): array {
+    $g = ['graph' => ['A' => [], 'B' => []]];
+    avesmapsAddClientCompatibleGraphConnection($g['graph'], 'A', 'B', $notKante());
+    avesmapsAddClientCompatibleGraphConnection($g['graph'], 'B', 'A', $notKante());
+    return $g;
+};
+$segmente = [$notKante()];
+
+$kurzGraph2 = $bauNotGraph();
+$kurzRefine = avesmapsRefineSyntheticRouteLegs($kurzGraph2, $anfrage('shortest'), $wasser, null,
+    $segmente, false);
+assert((int) $kurzRefine['refined'] === 0,
+    'unter "Kuerzeste" wird keine einzige Sehne gebogen, gebogen: ' . $kurzRefine['refined']);
+
+// 🔴 DIE GEGENPROBE IST TRAGEND: ohne sie waere F auch dann gruen, wenn die Funktion aus einem
+// ganz anderen Grund nichts taete.
+$schnellGraph2 = $bauNotGraph();
+$schnellRefine = avesmapsRefineSyntheticRouteLegs($schnellGraph2, $anfrage('fastest'), $wasser, null,
+    $segmente, false);
+assert((int) $schnellRefine['examined'] > 0,
+    'im Zeitmodus schaut sie sich die Sehne ueberhaupt an: ' . $schnellRefine['examined']);
 
 fwrite(STDOUT, "kuerzeste-etappe-test: OK (gerade " . round((float) $abSalmingen['distance_units'], 4)
     . " gegen zeitoptimal " . round((float) $schnellAbSalmingen['distance_units'], 4) . ")\n");

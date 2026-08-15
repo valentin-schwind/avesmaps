@@ -428,14 +428,28 @@ function avesmapsConnectOffroadPoints(
         return ['ok' => false, 'error' => 'no_offroad_route'];
     }
 
+    // 🔴 Auch hier gilt „Kuerzeste“. Diese Funktion traegt ZWEI Ausloeser: die direkte Kante
+    // zwischen zwei Kartenpunkten und die Sehnen des automatischen Umwegs (detour.php).
+    $weightByDistance = (string) ($request['optimize'] ?? 'fastest') === 'shortest';
+
     $box = avesmapsBuildOffroadBox($fromPoint['x'], $fromPoint['y'], $toPoint['x'], $toPoint['y']);
     $blocked = avesmapsOffroadRasteriseBlocked($box, $water);
     $factors = $pdo instanceof PDO ? avesmapsOffroadLoadFactorPlane($pdo, $box) : '';
     $rasters = $terrainEnabled && $pdo instanceof PDO ? avesmapsOffroadLoadHeightRasters($pdo, $box) : [];
     $heights = $rasters === [] ? null : avesmapsOffroadSampleHeights($box, $rasters);
 
-    $path = avesmapsOffroadFindPath($box, $blocked, $factors, $heights, (float) $speed,
-        $fromPoint['x'], $fromPoint['y'], $toPoint['x'], $toPoint['y'], AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters);
+    // ⭐ IM STRECKENMODUS ZUERST DIE GERADE. Ist sie trocken, ist sie bereits die Antwort.
+    // ⚠️ Die Kiste, die Faktorebene und die Hoehen sind oben trotzdem gebaut worden -- nicht zum
+    // Suchen, sondern zum MESSEN. Ohne sie haette die Etappe eine Laenge, aber keine Reisezeit und
+    // keinen Anstieg (Entwurf §3.2).
+    $path = $weightByDistance
+        ? avesmapsOffroadStraightPathIfDry($box, $water, $factors, $heights, (float) $speed,
+            (float) $fromPoint['x'], (float) $fromPoint['y'], (float) $toPoint['x'], (float) $toPoint['y'],
+            AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters)
+        : null;
+    $path ??= avesmapsOffroadFindPath($box, $blocked, $factors, $heights, (float) $speed,
+        $fromPoint['x'], $fromPoint['y'], $toPoint['x'], $toPoint['y'], AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS,
+        $rasters, $weightByDistance);
     if ($path === null) {
         return ['ok' => false, 'error' => 'no_offroad_route'];
     }
