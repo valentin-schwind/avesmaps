@@ -59,12 +59,18 @@ try {
         ));
     }
 
+    // 🔴 REIHENFOLGE LOAD-BEARING: avesmapsWhatIsHereLoreKeys() braucht je Stufe `wiki_key` (Territorien-
+    // Zweig von lore.place) -- ein internes Feld, das die oeffentliche Antwort nie sehen soll (siehe
+    // avesmapsWhatIsHereTerritoryPayload()). Deshalb ERST die Lore-Schluessel aus der ungekuerzten Kette
+    // ziehen, ERST DANACH `territories` fuer die Antwort auf sein oeffentliches Feld kuerzen.
+    $lore = avesmapsWhatIsHereLoreKeys($territories, $areas);
+
     avesmapsJsonResponse(200, [
         'ok' => true,
         'point' => ['x' => $x, 'y' => $y],
-        'territories' => $territories,
+        'territories' => avesmapsWhatIsHereTerritoryPayload($territories),
         'landscapes' => $landscapes,
-        'lore' => avesmapsWhatIsHereLoreKeys($territories, $areas),
+        'lore' => $lore,
     ]);
 } catch (Throwable $exception) {
     avesmapsErrorResponse(500, 'server_error', 'This map point could not be resolved.');

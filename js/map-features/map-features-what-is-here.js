@@ -11,27 +11,6 @@
 
 let whatIsHereToken = null;
 
-/**
- * Die „Liegt in"-Treppe erwartet an jeder Stufe `territory_public_id` (settlementTerritoryLinkMarkup,
- * js/ui/popups.js:831 -- gesetzt via chainNode['public_id'] in api/app/map-features.php:812). Der
- * what-is-here-Endpunkt liefert an derselben Stelle `public_id` (api/_internal/app/what-is-here.php:153,
- * ungealiast). Ohne diese Umbenennung bliebe jede Stufe sichtbar, aber ihr Gold-Flug-Link liefe ins
- * Leere (data-political-public-id="") -- ein stiller Bruch, kein Absturz. Name/Kurzname/Typ/Wappen
- * reisen unveraendert; nur das Schluesselfeld wird umbenannt, die Reihenfolge (Blatt -> Wurzel) bleibt
- * exakt die des Endpunkts, buildSettlementHierarchyMarkup dreht selbst um.
- */
-function avesmapsWhatIsHereHierarchyNodes(territories) {
-	return (territories || []).map(function (t) {
-		return {
-			name: t.name,
-			short_name: t.short_name,
-			type: t.type,
-			territory_public_id: t.public_id,
-			coat_url: t.coat_url,
-		};
-	});
-}
-
 /** Der Zustand einer angezeigten Stelle: die Koordinate plus, sobald sie da ist, die Serverantwort. */
 function avesmapsWhatIsHereMarkup(latlng, antwort) {
 	const esc = escapeHtml;
@@ -55,7 +34,9 @@ function avesmapsWhatIsHereMarkup(latlng, antwort) {
 			attributes: { "data-popup-action": "travel-to-share-pin" },
 		}),
 		popupActionButtonMarkup({
-			label: tr("popup.shareLink", "🔗 Link teilen").replace(/^\s*🔗\s*/u, ""),
+			// shareLinkActionLabel (js/ui/popups.js, dicht bei sharePlaceActionButtonMarkup) traegt den
+			// Text -- EINE Stelle kennt den i18n-Schluessel popup.shareLink und die Emoji-Regex, nicht zwei.
+			label: shareLinkActionLabel(),
 			iconMarkup: '<img class="location-popup__action-img" src="img/menu/linkteilen.webp" alt="" width="36" height="36" />',
 			attributes: { "data-popup-action": "share-what-is-here" },
 		}),
@@ -67,11 +48,12 @@ function avesmapsWhatIsHereMarkup(latlng, antwort) {
 		}),
 	]);
 
-	// 🔴 Die Treppe UNVERAENDERT der Richtung nach geliehen (Blatt -> Wurzel, buildSettlementHierarchyMarkup
-	// dreht selbst um) -- nur das Schluesselfeld wird auf dem Weg dorthin umbenannt, siehe
-	// avesmapsWhatIsHereHierarchyNodes.
+	// 🔴 Die Treppe UNVERAENDERT durchgereicht (Blatt -> Wurzel, buildSettlementHierarchyMarkup dreht
+	// selbst um). Das Schluesselfeld territory_public_id traegt der Endpunkt bereits selbst
+	// (avesmapsWhatIsHereTerritoryPayload, api/_internal/app/what-is-here.php -- Fix-Runde 1: die
+	// Umbenennung public_id -> territory_public_id gehoert an ihren Ursprung, nicht an den Aufrufort).
 	const treppe = (antwort && antwort.territories && antwort.territories.length)
-		? buildSettlementHierarchyMarkup(avesmapsWhatIsHereHierarchyNodes(antwort.territories))
+		? buildSettlementHierarchyMarkup(antwort.territories)
 		: "";
 
 	// 🔴 Eine Zeile ohne Antwort faellt WEG. Am Seepunkt bleiben genau zwei uebrig, und das ist

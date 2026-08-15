@@ -44,6 +44,27 @@ assert(count(avesmapsWhatIsHereOrderTerritories($doppelt)) === 1, 'entdoppelt ue
 assert(count(avesmapsWhatIsHereOrderTerritories([$treffer[1]])) === 1, 'ein unabhaengiges Gebiet');
 assert(avesmapsWhatIsHereOrderTerritories([]) === [], 'kein Treffer -> leere Kette, kein Fehler');
 
+// ---------------------------------------------------------------- DIE OEFFENTLICHE FORM ---------
+// 🔴 buildSettlementHierarchyMarkup (js/ui/popups.js:863) liest territory_public_id, nicht public_id
+// (Fix-Runde 1, Aufgabe 3 -- ohne die Umbenennung liefen die Gold-Flug-Links der Treppe ins Leere).
+
+$payload = avesmapsWhatIsHereTerritoryPayload($kette);
+assert(count($payload) === 4, 'eine Zeile je Stufe, unveraendert in der Zahl');
+assert($payload[0]['territory_public_id'] === $kette[0]['public_id'],
+    'territory_public_id traegt den Wert von public_id');
+assert($payload[0]['name'] === $kette[0]['name'], 'name reist unveraendert mit');
+assert($payload[0]['short_name'] === $kette[0]['short_name'], 'short_name reist unveraendert mit');
+assert($payload[0]['type'] === $kette[0]['type'], 'type reist unveraendert mit');
+assert($payload[0]['coat_url'] === $kette[0]['coat_url'], 'coat_url reist unveraendert mit');
+
+// 💣 id/parent_id/wiki_key sind interne Angaben und duerfen die oeffentliche Form nicht erreichen.
+foreach ($payload as $stufe) {
+    assert(!array_key_exists('id', $stufe), 'id fliegt raus -- interne DB-Identitaet');
+    assert(!array_key_exists('parent_id', $stufe), 'parent_id fliegt raus -- nur fuer die Tiefenrechnung');
+    assert(!array_key_exists('wiki_key', $stufe), 'wiki_key fliegt raus -- schon in lore.place verarbeitet');
+}
+assert(avesmapsWhatIsHereTerritoryPayload([]) === [], 'kein Treffer -> leere oeffentliche Kette');
+
 // ---------------------------------------------------------------- DIE LORE-SCHLUESSEL -----------
 
 $flaechen = [

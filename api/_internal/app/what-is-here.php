@@ -69,6 +69,41 @@ function avesmapsWhatIsHereOrderTerritories(array $rows): array
 }
 
 /**
+ * REIN: die geordnete Kette -> die OEFFENTLICHE Form je Stufe.
+ *
+ * 💣 `id`/`parent_id` sind interne DB-Identitaeten -- avesmapsWhatIsHereOrderTerritories braucht sie
+ * nur fuer die Tiefenrechnung, niemand ausserhalb dieser Datei. Sie in der oeffentlichen Antwort
+ * stehen zu lassen hiesse, interne Datenbank-Identitaeten zu veroeffentlichen, die niemand braucht.
+ *
+ * 🔴 `territory_public_id`, NICHT `public_id`: buildSettlementHierarchyMarkup (js/ui/popups.js:863)
+ * liest ueber settlementTerritoryLinkMarkup (Zeile 831) `node.territory_public_id` -- genau das Feld,
+ * das api/app/map-features.php:812 fuer denselben Treppentyp baut. Ohne die Umbenennung HIER liefe
+ * jeder Gold-Flug-Link der Treppe lautlos ins Leere (data-political-public-id="").
+ *
+ * ⚠️ `wiki_key` fehlt hier ABSICHTLICH nicht aus Nachlaessigkeit, sondern weil er in der OEFFENTLICHEN
+ * Antwort nichts verloren hat -- avesmapsWhatIsHereLoreKeys() liest ihn weiterhin aus der UNGEKUERZTEN
+ * Kette (siehe api/app/what-is-here.php: dort laeuft sie VOR dieser Funktion, nicht danach). Wer diese
+ * Funktion vor avesmapsWhatIsHereLoreKeys() anwendet, nimmt lore.place jeden Territoriums-Schluessel
+ * lautlos weg -- genau der stille Bruch, den diese Funktion selbst fuer die Treppe verhindern soll.
+ *
+ * @param list<array<string,mixed>> $rows geordnete Kette aus avesmapsWhatIsHereOrderTerritories
+ * @return list<array{name:string,short_name:string,type:string,territory_public_id:string,coat_url:string}>
+ */
+function avesmapsWhatIsHereTerritoryPayload(array $rows): array
+{
+    return array_map(
+        static fn(array $row): array => [
+            'name' => (string) ($row['name'] ?? ''),
+            'short_name' => (string) ($row['short_name'] ?? ''),
+            'type' => (string) ($row['type'] ?? ''),
+            'territory_public_id' => (string) ($row['public_id'] ?? ''),
+            'coat_url' => (string) ($row['coat_url'] ?? ''),
+        ],
+        $rows
+    );
+}
+
+/**
  * REIN: woraus „Natur & Waren" an dieser Stelle bestehen darf.
  *
  * 🔴 DIE DEROGRAPHIE LIEFERT KEINEN `place`-SCHLUESSEL. Ihre Flaeche heisst „Aventurien", und
@@ -176,6 +211,13 @@ function avesmapsWhatIsHereReadTerritories(PDO $pdo, float $x, float $y, int $ye
         $treffer[] = $row;
     }
 
+    // 🔴 ABWEICHUNG: avesmapsWhatIsHereTerritoryPayload() wird HIER absichtlich NICHT angewandt.
+    // api/app/what-is-here.php reicht genau diesen Rueckgabewert ein zweites Mal an
+    // avesmapsWhatIsHereLoreKeys() weiter, die je Stufe `wiki_key` braucht (Territorien-Zweig von
+    // lore.place). Striche man wiki_key schon hier, verlöre lore.place JEDEN Territoriums-Schluessel
+    // lautlos -- genau der stille Bruch, den die neue Funktion fuer die Treppe verhindern soll, waere
+    // an anderer Stelle wieder da. avesmapsWhatIsHereTerritoryPayload() laeuft deshalb im Endpunkt,
+    // NACH avesmapsWhatIsHereLoreKeys() und NUR fuer das JSON-Feld `territories`.
     return avesmapsWhatIsHereOrderTerritories($treffer);
 }
 

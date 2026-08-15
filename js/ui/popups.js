@@ -81,6 +81,16 @@ function locationPopupEditorBandMarkup(actionButtons = [], noteMarkup = "") {
 // ?place=<publicId> -- wikiUrl/wikiParam werden dafür als data-Attribute mitgegeben (der
 // Klick-Handler in routing.js liest sie zurück). Ohne wikiUrl bleibt der bisherige
 // ?place=<publicId>-Link unverändert.
+// Der Kachel-Text „Link teilen" ohne das fuehrende 🔗-Emoji -- das Icon steht daneben als eigenes
+// Element (Kachel, flex-column), im Label stuende es doppelt. EINE Stelle, die den i18n-Schluessel
+// popup.shareLink kennt und die Regex darauf anwendet: sharePlaceActionButtonMarkup (hier, 20x20-Icon)
+// und die „Link teilen"-Kachel im Was-ist-hier-Panel (map-features-what-is-here.js, 36x36-Icon) teilen
+// sich denselben Text, aber nicht dieselbe Kachel -- anderes data-popup-action, andere Icon-Groesse.
+// Aendert sich die i18n-Zeile, soll es nur diese eine Stelle geben, die davon weiss.
+function shareLinkActionLabel() {
+	return tr("popup.shareLink", "🔗 Link teilen").replace(/^\s*🔗\s*/u, "");
+}
+
 function sharePlaceActionButtonMarkup(publicId, { wikiUrl = "", wikiParam = "" } = {}) {
 	if (!publicId) {
 		return "";
@@ -88,9 +98,8 @@ function sharePlaceActionButtonMarkup(publicId, { wikiUrl = "", wikiParam = "" }
 	return popupActionButtonMarkup({
 		// Aventurisches Icon (Signalhorn+Wimpel, Owner-Set img/menu/) statt des 🔗-Emojis -- als eigenes
 		// Element ueber dem Label (Kachel, flex-column). Groesse per CSS (.location-popup__action-img): inline
-		// klein, 40px im Kachel-Slot (Floating-Box/Panel). Das Emoji aus dem Label ziehen (DE/EN tragen es dort
-		// im String), sonst stuende es doppelt. Regex strippt ein fuehrendes 🔗 samt Leerzeichen.
-		label: tr("popup.shareLink", "🔗 Link teilen").replace(/^\s*🔗\s*/u, ""),
+		// klein, 40px im Kachel-Slot (Floating-Box/Panel).
+		label: shareLinkActionLabel(),
 		iconMarkup: '<img class="location-popup__action-img" src="img/menu/linkteilen.webp?v=2" alt="" width="20" height="20" />',
 		attributes: {
 			"data-popup-action": "share-place-link",
