@@ -65,8 +65,10 @@ try {
     // avesmapsWhatIsHereLoreKeys() gelaufen ist (Territorien-Zweig von lore.place) -- die Kuerzung
     // (avesmapsWhatIsHereTerritoryPayload) darf deshalb NIE in avesmapsWhatIsHereReadTerritories()
     // selbst wandern, sondern nur hier, angewandt auf das Antwortfeld. Bewacht von der
-    // Quelltext-Ordnungs-Zusicherung + der wiki_key-Zusicherung an $kette in
-    // api/_internal/app/__tests__/what-is-here-test.php ("DIE SCHRANKE").
+    // Zusicherung „DIE ECHTE PROBE" in api/_internal/app/__tests__/what-is-here-test.php -- sie
+    // schneidet den Rumpf von avesmapsWhatIsHereReadTerritories aus dem Bibliotheks-Quelltext heraus
+    // und prueft ihn direkt auf diesen Aufruf (nicht die Ordnungs-Zusicherung ueber DIESE Datei hier:
+    // die sieht nur den Zeilentausch hier, nicht eine Verlagerung in die andere Datei).
     $lore = avesmapsWhatIsHereLoreKeys($territories, $areas);
 
     avesmapsJsonResponse(200, [

@@ -48,14 +48,14 @@ assert(avesmapsWhatIsHereOrderTerritories([]) === [], 'kein Treffer -> leere Ket
 // 🔴 buildSettlementHierarchyMarkup (js/ui/popups.js:863) liest territory_public_id, nicht public_id
 // (Fix-Runde 1, Aufgabe 3 -- ohne die Umbenennung liefen die Gold-Flug-Links der Treppe ins Leere).
 
-// 🔴 DIE SCHRANKE (Fix-Runde 2): $kette steht hier stellvertretend fuer das, was
-// avesmapsWhatIsHereReadTerritories() zurueckgibt -- dieselbe Funktion (avesmapsWhatIsHereOrderTerritories)
-// auf denselben Rohdaten. avesmapsWhatIsHereLoreKeys() lebt von genau diesem wiki_key (Territorien-Zweig
-// von lore.place, siehe unten). Was hier eigentlich bewacht wird: die Kuerzung auf die oeffentliche Form
-// (avesmapsWhatIsHereTerritoryPayload) darf NIE innerhalb von avesmapsWhatIsHereReadTerritories passieren
-// -- nur danach, im Endpunkt (api/app/what-is-here.php, siehe die Quelltext-Ordnungs-Zusicherung unten).
-// Striche man wiki_key schon in der Lesefunktion, verloere lore.place jeden Territoriums-Schluessel
-// lautlos, und kein Test hier erreichte das (avesmapsWhatIsHereReadTerritories braucht ein PDO).
+// 🔴 $kette steht hier stellvertretend fuer das, was avesmapsWhatIsHereReadTerritories() zurueckgibt --
+// dieselbe Funktion (avesmapsWhatIsHereOrderTerritories) auf denselben Rohdaten. avesmapsWhatIsHereLoreKeys()
+// lebt von genau diesem wiki_key (Territorien-Zweig von lore.place, siehe unten). Die Zusicherung
+// darunter prueft NUR, dass avesmapsWhatIsHereOrderTerritories selbst wiki_key nicht verliert -- sie
+// reisst nicht, wenn stattdessen jemand die Kuerzung in avesmapsWhatIsHereReadTerritories einbaut (das
+// prueft „DIE ECHTE PROBE" weiter unten, gegen den Bibliotheks-Quelltext). Striche man wiki_key in der
+// Lesefunktion, verloere lore.place jeden Territoriums-Schluessel lautlos, und kein Test hier erreichte
+// das direkt (avesmapsWhatIsHereReadTerritories braucht ein PDO) -- deshalb die Quelltextprobe.
 foreach ($kette as $stufe) {
     assert(array_key_exists('wiki_key', $stufe) && $stufe['wiki_key'] !== '',
         'die geordnete Kette traegt wiki_key -- die Kuerzung darf nicht in die Lesefunktion wandern');
@@ -123,5 +123,35 @@ assert($loreAufruf !== false, 'der Endpunkt ruft avesmapsWhatIsHereLoreKeys uebe
 assert($payloadAufruf !== false, 'der Endpunkt ruft avesmapsWhatIsHereTerritoryPayload ueberhaupt auf');
 assert($loreAufruf < $payloadAufruf,
     'avesmapsWhatIsHereLoreKeys laeuft VOR avesmapsWhatIsHereTerritoryPayload -- sonst wiki_key schon weg');
+// ⚠️ Das fängt nur den Zeilentausch IM ENDPUNKT. Die eigentliche Gefahr -- die Kuerzung wandert IN
+// avesmapsWhatIsHereReadTerritories (andere Datei) -- laesst diesen Quelltext bitidentisch und ist
+// fuer diese Zusicherung strukturell unsichtbar. Dafuer gibt es die naechste, echte Probe unten.
+
+// ---------------------------------------------------------------- DIE ECHTE PROBE ---------------
+// 🔴 DER FALL, UM DEN ES GEHT (Fix-Runde 3): weder die wiki_key-Zusicherung oben (prueft nur
+// avesmapsWhatIsHereOrderTerritories auf einem Fixture, das per Konstruktion immer wiki_key traegt --
+// reisst nur, wenn DIE FUNKTION selbst kaputtgeht) noch die Endpunkt-Ordnung eben (prueft nur
+// api/app/what-is-here.php) sehen es, wenn jemand avesmapsWhatIsHereTerritoryPayload() in den RUMPF
+// von avesmapsWhatIsHereReadTerritories selbst einbaut. Deshalb hier der Quelltext DIESER Bibliothek,
+// mit demselben Kommentarfilter, und diesmal der Rumpf sauber herausgeschnitten (von der
+// Funktionsdeklaration bis zur naechsten auf Spalte 0 beginnenden function-Zeile).
+// 💣 OHNE DEN FILTER WAERE DAS EIN FALSCHER TREFFER: die erklaerende Prosa in
+// avesmapsWhatIsHereReadTerritories nennt „avesmapsWhatIsHereTerritoryPayload()" selbst zweimal, um zu
+// begruenden, warum die Funktion NICHT aufgerufen wird -- genau der Kommentarfund, der die
+// Endpunkt-Zusicherung in Runde 2 blind gemacht haette, waere er dort aufgetreten.
+$bibliotheksQuelle = avesmapsWhatIsHereTestOhneKommentare(
+    (string) file_get_contents(__DIR__ . '/../what-is-here.php')
+);
+$funktionsKopf = 'function avesmapsWhatIsHereReadTerritories(';
+$rumpfStart = strpos($bibliotheksQuelle, $funktionsKopf);
+assert($rumpfStart !== false, 'avesmapsWhatIsHereReadTerritories ist in der Bibliothek definiert');
+
+$nachDemKopf = substr($bibliotheksQuelle, $rumpfStart + strlen($funktionsKopf));
+$naechsteFunktionGefunden = preg_match('/^function\s/m', $nachDemKopf, $funktionstreffer, PREG_OFFSET_CAPTURE);
+$rumpf = $naechsteFunktionGefunden ? substr($nachDemKopf, 0, $funktionstreffer[0][1]) : $nachDemKopf;
+
+assert(!str_contains($rumpf, 'avesmapsWhatIsHereTerritoryPayload('),
+    'avesmapsWhatIsHereTerritoryPayload darf NICHT im Rumpf von avesmapsWhatIsHereReadTerritories '
+    . 'laufen -- sonst waere wiki_key schon weg, bevor avesmapsWhatIsHereLoreKeys es lesen kann');
 
 echo "what-is-here: alles gruen\n";
