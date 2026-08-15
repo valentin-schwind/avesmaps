@@ -513,8 +513,8 @@ $check(
     'Kosch classifies as territory (handled by the territory handler, section (i)); Burg Wallenstein classifies as building (its own handler, not the settlement one)'
 );
 $check(
-    '(d4) per-kind counts: 3 paths, 5 territories, 5 settlements, 4 buildings, 3 regions recognised',
-    ['path' => 3, 'territory' => 5, 'settlement' => 5, 'building' => 4, 'region' => 3],
+    '(d4) per-kind counts: 3 paths, 5 territories, 5 settlements, 5 buildings, 3 regions recognised',
+    ['path' => 3, 'territory' => 5, 'settlement' => 5, 'building' => 5, 'region' => 3],
     [
         'path' => $collected['counts']['path'] ?? 0,
         'territory' => $collected['counts']['territory'] ?? 0,
@@ -522,7 +522,7 @@ $check(
         'building' => $collected['counts']['building'] ?? 0,
         'region' => $collected['counts']['region'] ?? 0,
     ],
-    '3 path + 5 Staat infoboxes (Kosch, Grafschaft Ferdok, Baronie Hügelland, Sokramor, Rastanreich) + 5 Siedlung (Angbar, Ferdok, Auhof, Xarxaron, Selem) + 4 Bauwerk/Festung (Burg Wallenstein, Zwingfeste, Ruine Tsatempel, Xarsnamoth) + 3 region infoboxes'
+    '3 path + 5 Staat infoboxes (Kosch, Grafschaft Ferdok, Baronie Hügelland, Sokramor, Rastanreich) + 5 Siedlung (Angbar, Ferdok, Auhof, Xarxaron, Selem) + 5 Bauwerk/Festung/Lehreinrichtung (Burg Wallenstein, Zwingfeste, Ruine Tsatempel, Xarsnamoth, Akademie der Erscheinungen) + 3 region infoboxes'
 );
 
 // ===========================================================================
@@ -998,10 +998,11 @@ echo "\n-- (h) building handler: gebaeude record + reused type list + is_ruined 
 // AND Xarsnamoth (Myranor) -- no continent filter. So exactly 4.
 $buildingRecords = avesmapsWikiDumpCollectBuildingRecords($pages);
 $check(
-    '(h1) exactly 4 building records kept (keep-all across continents)',
-    4,
+    '(h1) exactly 5 building records kept (keep-all across continents)',
+    5,
     count($buildingRecords),
-    'Burg Wallenstein + Zwingfeste Ochsenblut + Ruine Tsatempel (Aventurien) + Xarsnamoth (Myranor) kept'
+    'Burg Wallenstein + Zwingfeste Ochsenblut + Ruine Tsatempel (Aventurien) + Xarsnamoth (Myranor) '
+        . '+ Akademie der Erscheinungen ({{Infobox Lehreinrichtung}}, Discord #60) kept'
 );
 
 // Index kept building records by normalized_key (= CreateMatchKey(title)).
@@ -1646,6 +1647,88 @@ $check(
     $ferdokNoOverride,
     $ferdokEmptyStringOverride,
     "the brief's 'if set + non-empty' rule: an empty-string override value must not blank/override a real dump-derived value"
+);
+
+// ---------------------------------------------------------------------------
+// 3z. DIE VIERTE BAUWERKS-INFOBOX: {{Infobox Lehreinrichtung}} (Discord #60).
+// ---------------------------------------------------------------------------
+// 198 Artikel tragen sie -- alle Magier- und Kriegerakademien, Kadetten-, Gelehrten-,
+// Kampf- und Kapitaensschulen. Bis 2026-08-15 fielen sie auf '' und wurden verworfen:
+// dieselbe Fehlerklasse, die der Kommentar bei den Kraftlinien benennt ("the same gate
+// that once swallowed ~430 adventures").
+$check(
+    '(L1) Infobox Lehreinrichtung -> building',
+    'building',
+    avesmapsWikiDumpClassifyEntityKind('Lehreinrichtung'),
+    'sie ist gebaut wie ein Bauwerk: |Art= und |Standort= an denselben Stellen'
+);
+
+// 💣 DER PUNKT DIESES BLOCKS: die Bedingung steht ZWEIMAL (dump-entity-scan.php:205 und
+// :753). Wer nur die Klassifizierung oeffnet, bekommt eine Seite, die klassifiziert wird
+// und danach still am Parser-Riegel stirbt -- mit sauberem kept=false und ohne Fehler.
+$lehrPage = [
+    'title' => 'Akademie der Erscheinungen',
+    'ns' => 0,
+    'redirect' => null,
+    'wikitext' => "{{Infobox Lehreinrichtung\n| Name     = Akademie der Erscheinungen\n"
+        . "| Art      = [[Magierakademie]]\n| Standort = [[Grangor]]: [[Alt-Grangor]]\n}}\n",
+];
+$lehrParsed = avesmapsWikiDumpParseBuildingPage($lehrPage);
+$check(
+    '(L2) der Parser-Riegel laesst sie durch',
+    true,
+    $lehrParsed['kept'],
+    'die Zwillingsbedingung in avesmapsWikiDumpParseBuildingPage kennt sie ebenfalls'
+);
+$check(
+    '(L3) sie liegt als gebaeude vor',
+    'gebaeude',
+    $lehrParsed['record']['settlement_class'] ?? null,
+    'Lehreinrichtungen sind Bauwerke, keine Siedlungen'
+);
+// Der Art-Fallback entklammert [[…]] (settlements.php:586) -- ohne das stuende
+// "[[Magierakademie]]" als building_type in der Datenbank und in jeder Trefferzeile.
+$check(
+    '(L4) building_type ist entklammert',
+    'Magierakademie',
+    $lehrParsed['record']['building_type'] ?? null,
+    'avesmapsWikiSyncCleanPoliticalTerritoryWikiValue nimmt die Klammern weg'
+);
+// |Standort= bleibt ROH inklusive Links -- place-scope.php braucht die Namensgrenzen.
+$check(
+    '(L5) |Standort= bleibt roh',
+    true,
+    str_contains((string) ($lehrParsed['record']['standort'] ?? ''), '[[Grangor]]'),
+    'die innerorts/ausserorts-Entscheidung liest die Links, nicht den bereinigten Text'
+);
+
+// GEGENPROBE: der Riegel ist BREITER geworden, nicht offen. Organisationen (1423 Artikel,
+// ohne jede Ortsangabe) und Geschaefte bleiben draussen.
+foreach (['Organisation', 'Geschäft', 'Familie', 'Person'] as $i => $fremd) {
+    $check(
+        '(L6.' . ($i + 1) . ') Infobox ' . $fremd . ' ist kein Bauwerk',
+        true,
+        avesmapsWikiDumpClassifyEntityKind($fremd) !== 'building',
+        'nur vier Infoboxen sind Bauwerke: Bauwerk, Festung, Burg, Lehreinrichtung'
+    );
+}
+$orgaParsed = avesmapsWikiDumpParseBuildingPage([
+    'title' => 'Nordlandbank',
+    'ns' => 0,
+    'redirect' => null,
+    'wikitext' => "{{Infobox Organisation\n| Name = Nordlandbank\n| Hauptsitz = [[Festum]]\n}}\n",
+]);
+$check(
+    '(L7) eine Organisation wird verworfen',
+    false,
+    $orgaParsed['kept'],
+    'sie hat kein |Standort=, sondern |Hauptsitz= + |Weitere Sitze= -- ein anderes Datenmodell'
+);
+$check(
+    '(L8) mit nachlesbarer Begruendung',
+    true,
+    str_contains((string) ($orgaParsed['reason'] ?? ''), 'Organisation'),
+    'die Fehlliste des Laufs muss zeigen, WAS verworfen wurde'
 );
 
 // ---------------------------------------------------------------------------

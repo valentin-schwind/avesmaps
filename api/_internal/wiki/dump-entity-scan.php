@@ -200,9 +200,15 @@ function avesmapsWikiDumpClassifyEntityKind(string $infoboxName): string
         return AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY;
     }
 
-    // BUILDINGS (4c2) -- Bauwerk / Festung / Burg. Checked before settlement so a
-    // "Burg"/"Festung" is not swallowed by a broad settlement needle.
-    if (str_contains($key, 'bauwerk') || str_contains($key, 'festung') || str_contains($key, 'burg')) {
+    // BUILDINGS (4c2) -- Bauwerk / Festung / Burg / Lehreinrichtung. Checked before settlement
+    // so a "Burg"/"Festung" is not swallowed by a broad settlement needle.
+    //
+    // 💣 THESE FOUR NEEDLES EXIST TWICE. avesmapsWikiDumpParseBuildingPage carries its own,
+    // word-identical gate (see its $isBuilding). Whoever adds a needle here adds it there too --
+    // otherwise the page classifies as a building and then dies silently at the parser, with a
+    // clean kept=false and no error anywhere.
+    if (str_contains($key, 'bauwerk') || str_contains($key, 'festung') || str_contains($key, 'burg')
+        || str_contains($key, 'lehreinrichtung')) {
         return AVESMAPS_WIKI_DUMP_ENTITY_BUILDING;
     }
 
@@ -750,10 +756,15 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
     // non-building page fed here yields no record (mirrors the settlement gate).
     $infoboxName = avesmapsWikiSyncMonitorInfoboxName($wikitext);
     $infoboxKey = avesmapsWikiSyncMonitorFieldKey($infoboxName);
+    // 💣 TWIN of the gate in avesmapsWikiDumpClassifyEntityKind -- always change both.
+    // {{Infobox Lehreinrichtung}} (Discord #60, 198 articles) is built like a building: |Art=
+    // and |Standort= sit in the same places, so the existing Art fallback and the raw-Standort
+    // read below need no special case.
     $isBuilding = $infoboxKey !== '' && (
         str_contains($infoboxKey, 'bauwerk')
         || str_contains($infoboxKey, 'festung')
         || str_contains($infoboxKey, 'burg')
+        || str_contains($infoboxKey, 'lehreinrichtung')
     );
     if (!$isBuilding) {
         return [
