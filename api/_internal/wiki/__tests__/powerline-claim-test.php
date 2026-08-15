@@ -114,4 +114,17 @@ $stays = avesmapsWikiPowerlineResolveSegment('Drachenblick', ['wiki_no_article' 
 assert($stays['clear_no_article'] === false);
 assert($stays['source'] === 'none');
 
+// Der Zweitindex, den Aufgabe 2 im Abgleich baut: aus demselben $staged, ueber die Adresse im
+// Nest. Hier festgenagelt, weil ein leerer Zweitindex jede Zuweisung lautlos wirkungslos machte --
+// alles fiele auf den Namen zurueck und saehe aus wie "die Zuweisung wird ignoriert".
+$rebuilt = [];
+foreach ($byMatchKey as $entry) {
+    $url = trim((string) ($entry['nest']['wiki_url'] ?? ''));
+    if ($url !== '') {
+        $rebuilt[avesmapsConflictArticleKey($url)] = $entry;
+    }
+}
+assert(count($rebuilt) === 2);
+assert(isset($rebuilt[avesmapsConflictArticleKey('https://de.wiki-aventurica.de/wiki/Hexenband')]));
+
 fwrite(STDOUT, "powerline-claim-test: alle Zusicherungen erfuellt\n");

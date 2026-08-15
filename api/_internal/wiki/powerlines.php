@@ -224,7 +224,7 @@ function avesmapsWikiPowerlineResolveSegment(
  * The join is the NAME (avesmapsWikiSyncCreateMatchKey), because a powerline is many segments
  * sharing one lore name -- the same 1-to-N shape roads have.
  *
- * @return array{linked:int, updated:int, cleared:int, unchanged:int, staged:int, matched_names:int, unmatched_names:string[]}
+ * @return array{linked:int, updated:int, cleared:int, unchanged:int, staged:int, matched_names:int, unmatched_names:string[], claims_unresolved:int, claims_orphaned:list<array{name:string,wiki_url:string}>, no_article_reopened:string[]}
  */
 function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
 {
@@ -235,6 +235,17 @@ function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
     // 5000 is a safe ceiling: there are ~23 powerline pages, far under one request's reach.
     $sandboxRows = avesmapsWikiDumpSyncKindFetchRows($pdo, $runId, [AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE], 0, 5000);
     $staged = avesmapsWikiPowerlineDesiredNestsByMatchKey($sandboxRows);
+    // Zweitindex ueber die Artikeladresse (avesmapsConflictArticleKey) -- die Zuweisung
+    // (properties.wiki_url) sucht darueber, nicht ueber den Namen. Aus demselben $staged
+    // gebaut, damit beide Register immer dieselben Artikel kennen; leere Adressen werden
+    // uebersprungen (kein gemeldeter Artikel ohne URL).
+    $stagedByArticleKey = [];
+    foreach ($staged as $entry) {
+        $url = trim((string) ($entry['nest']['wiki_url'] ?? ''));
+        if ($url !== '') {
+            $stagedByArticleKey[avesmapsConflictArticleKey($url)] = $entry;
+        }
+    }
 
     $segments = $pdo->query(
         "SELECT id, public_id, name, properties_json FROM map_features
@@ -244,6 +255,9 @@ function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
 
     $counts = ['linked' => 0, 'updated' => 0, 'cleared' => 0, 'unchanged' => 0];
     $matchedKeys = [];
+    $claimsUnresolved = 0;
+    $claimsOrphaned = [];
+    $noArticleReopened = [];
     $update = $pdo->prepare(
         'UPDATE map_features SET properties_json = :props, revision = :revision, updated_by = :user WHERE id = :id'
     );
@@ -253,21 +267,50 @@ function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
         if (!is_array($properties)) {
             $properties = [];
         }
-        $matchKey = avesmapsWikiSyncCreateMatchKey((string) ($row['name'] ?? ''));
-        $entry = ($matchKey !== '' && isset($staged[$matchKey])) ? $staged[$matchKey] : null;
-        if ($entry !== null) {
-            $matchedKeys[$matchKey] = true;
+
+        // Rangfolge Zuweisung -> Name -> nichts (Aufgabe 1), statt des blossen Namensabgleichs.
+        $resolved = avesmapsWikiPowerlineResolveSegment((string) ($row['name'] ?? ''), $properties, $staged, $stagedByArticleKey);
+        $entry = $resolved['entry'];
+        if ($resolved['source'] === 'name' || $resolved['source'] === 'claim') {
+            // Der Schluessel ist der des GEFUNDENEN ARTIKELS, nicht der der Linie: bei einer
+            // Zuweisung heisst die Linie ja gerade anders als der Artikel -- naehme man ihren
+            // eigenen Namen, bliebe der Artikel als Waise in unmatched_names stehen.
+            $matchedKeys[avesmapsWikiSyncCreateMatchKey((string) $entry['name'])] = true;
+        }
+
+        if ($resolved['claim_unresolved']) {
+            $claimsUnresolved++;
+            if (isset($properties['wiki_powerline'])) {
+                // Die Adresse zeigt ins Leere, UND die Linie trug schon ein Nest -- der
+                // zugewiesene Artikel ist verschwunden (umbenannt/geloescht im Wiki), Entwurf §4.
+                $claimsOrphaned[] = [
+                    'name' => (string) $row['name'],
+                    'wiki_url' => trim((string) ($properties['wiki_url'] ?? '')),
+                ];
+            }
+        }
+
+        $forceWrite = false;
+        if ($resolved['clear_no_article']) {
+            unset($properties['wiki_no_article']);
+            $noArticleReopened[] = (string) $row['name'];
+            $forceWrite = true;
         }
 
         $merged = avesmapsWikiPowerlineMergeProperties(
             $properties,
             $entry === null ? null : $entry['nest']
         );
-        if (!$merged['changed']) {
+        if (!$merged['changed'] && !$forceWrite) {
             $counts['unchanged']++;
             continue;
         }
-        $counts[$merged['action']]++;
+        // $merged['changed'] kann false sein, obwohl geschrieben werden muss: fiel nur der
+        // wiki_no_article-Merker, blieb das Nest gleich -- ohne diese eigene Schreibbedingung
+        // bliebe der Merker fuer immer stehen (Falle 2 aus dem Aufgabenblatt).
+        if ($merged['changed']) {
+            $counts[$merged['action']]++;
+        }
         $update->execute([
             'props' => avesmapsEncodeJson($merged['properties']),
             'revision' => avesmapsNextMapRevision($pdo),
@@ -336,6 +379,9 @@ function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
         'staged' => count($staged),
         'matched_names' => count($matchedKeys),
         'unmatched_names' => $unmatched,
+        'claims_unresolved' => $claimsUnresolved,
+        'claims_orphaned' => $claimsOrphaned,
+        'no_article_reopened' => $noArticleReopened,
         'sandbox_rows' => count($sandboxRows),
         'run_id' => $runId,
         'run_completed_at' => (string) ($runRow['completed_at'] ?? ''),
