@@ -385,6 +385,15 @@
 	async function loadSourceGeometriesForPreview(targetKey) {
 		try {
 			const response = await fetchDerivedGeometrySources(targetKey);
+			// 💣 Der Aufrufer startet uns OHNE await (`void loadSourceGeometriesForPreview(...)`), und
+			// jeder Breadcrumb-Wechsel baut den Zustand neu auf. Ohne diesen Riegel malt eine spaet
+			// eintreffende Antwort die Flaechen des VORHERIGEN Knotens in den neuen Zustand -- Vorschau
+			// und "Vereinigung von N Unterflaechen" kommen beide aus state.sourceGeometries, es kippt
+			// also beides zusammen. Die Sperrpruefung in loadForCurrentTerritory macht denselben
+			// Vergleich; hier fehlte er.
+			if (state.targetKey !== targetKey) {
+				return;
+			}
 			state.sourceGeometries = Array.isArray(response?.source_geometries) ? response.source_geometries : [];
 			state.territoryPublicId = response?.territory_public_id || state.territoryPublicId || "";
 			state.resolvedTargetKey = response?.territory_public_id || response?.target_key || state.resolvedTargetKey || "";

@@ -67,10 +67,15 @@ function avesmapsWikiSyncMonitorInvalidateModelTreeCache(PDO $pdo): void {
 function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     // Cache: Key aus Modell/Staging/Map-Revision -> bei jeder Aenderung frisch, sonst sofort aus dem Cache.
+    // 💣 DER KEY KENNT NUR DATEN, NICHT DIE FORM DER ANTWORT. Wer dem Knoten ein FELD hinzufuegt,
+    // aendert den Key nicht -- ein gefuellter Cache liefert dann weiter die alte Form, und die
+    // Aenderung wirkt erst, wenn zufaellig jemand das Modell anfasst. Deshalb die Formversion mit
+    // im Key: bei jedem neuen Feld hochzaehlen. (2 = public_id kam dazu, 15.08.2026.)
     $cacheKey = '';
     try {
         $cacheKey = (string) ($pdo->query(
             'SELECT CONCAT(
+                \'v2|\',
                 COALESCE((SELECT MAX(updated_at) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . '), \'\'), \'|\',
                 COALESCE((SELECT MAX(synced_at) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . '), \'\'), \'|\',
                 COALESCE((SELECT revision FROM map_revision WHERE id = 1), 0), \'|\',
@@ -100,7 +105,8 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
                 s.status, s.capital_name, s.seat_name,
                 s.form_of_government, s.ruler, s.language, s.currency, s.population,
                 s.founder, s.political, s.trade_zone, s.trade_goods, s.geographic, s.blazon,
-                COALESCE(gmap.cnt, 0) AS map_geometry_count
+                COALESCE(gmap.cnt, 0) AS map_geometry_count,
+                tmap.pid AS territory_public_id
         FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' m
         LEFT JOIN ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' s ON s.wiki_key = m.wiki_key
         LEFT JOIN (
@@ -110,6 +116,22 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             WHERE pt.is_active = 1 AND g.is_active = 1 AND pt.wiki_key IS NOT NULL AND pt.wiki_key <> \'\'
             GROUP BY pt.wiki_key
         ) gmap ON gmap.wk = m.wiki_key
+        -- 💣 Die public_id des Gebiets zum Knoten. Ohne sie schickt der Editor den wiki_key als Ziel,
+        -- und die Außengrenzen-Endpunkte loesen den fuer EIGENE KNOTEN nicht auf (sie suchen nur in
+        -- political_territory_wiki, wo eigene Knoten keine Zeile haben) -- Vorschau und Kaskade
+        -- liefen dann leer. Belegt in __tests__/derived-target-eigener-knoten-test.php.
+        -- ⚠️ NIEDRIGSTE id bei mehreren Treffern, dieselbe Regel wie avesmapsPoliticalFindTerritoryByWikiKey:
+        -- beide Seiten muessen dieselbe Zeile meinen, sonst zeigt der Editor auf eine andere als der Speicherweg.
+        LEFT JOIN (
+            SELECT pt.wiki_key AS wk, pt.public_id AS pid
+            FROM political_territory pt
+            JOIN (
+                SELECT wiki_key, MIN(id) AS min_id
+                FROM political_territory
+                WHERE is_active = 1 AND wiki_key IS NOT NULL AND wiki_key <> \'\'
+                GROUP BY wiki_key
+            ) pick ON pick.wiki_key = pt.wiki_key AND pick.min_id = pt.id
+        ) tmap ON tmap.wk = m.wiki_key
         ORDER BY COALESCE(s.name, m.wiki_key) ASC'
     )->fetchAll(PDO::FETCH_ASSOC);
 
@@ -248,6 +270,10 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'geographic' => (string) ($row['geographic'] ?? ''),
             'blazon' => (string) ($row['blazon'] ?? ''),
             'overrides' => $overrides,
+            // 🔴 Die public_id des zugehoerigen Herrschaftsgebiets -- der Schluessel, mit dem der
+            // Editor die Außengrenzen-Endpunkte anspricht. Leer heisst: dieser Modellknoten ist noch
+            // nicht live uebernommen. Der Client liest sie in normalizeApiRows als row.public_id.
+            'public_id' => (string) ($row['territory_public_id'] ?? ''),
             'map_geometry_count' => (int) ($row['map_geometry_count'] ?? 0),
             'map_assigned' => ((int) ($row['map_geometry_count'] ?? 0)) > 0,
         ];
