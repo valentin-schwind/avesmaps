@@ -79,6 +79,31 @@ assert.strictEqual(n.find((z) => z.art === "Pfad").name, "", "<Subtyp>-<n> faell
 assert.strictEqual(n.find((z) => z.art === "Seeweg").name, "", "generisches <Wort>-<Zahl> faellt weg (Meer-468)");
 assert.strictEqual(n.find((z) => z.art === "Flussweg").name, "", "nackter Subtyp faellt weg (Flussweg)");
 
+// -------------------------------------- FIX-RUNDE 2: DIE TYPREGEL-ANBINDUNG ----------------------
+// Ohne eingespeiste Attrappe ist `typeof getPathTypeLabel === "function"` unter Node IMMER falsch --
+// der bewachte Zweig bliebe im Test niemals betreten, und ein Tippfehler im Funktionsnamen, ein
+// falsches Argument oder eine vertauschte Reihenfolge fiele nie auf: der Test bliebe grün, waehrend
+// live "Strasse" statt "Straße" stuende. Genau dieser Fehler ist in map-features-path-domain.js:48-53
+// als bereits einmal passiert dokumentiert. Die Attrappe veraendert den Subtyp ERKENNBAR, damit die
+// Zusicherung beweist, dass die Wegzeile durch sie hindurchging -- und dass die Ortszeile es NICHT
+// tut (settlement_class_label ist schon Prosa, siehe Befund 2).
+global.getPathTypeLabel = function (subtype) {
+	return "GEPRUEFT:" + subtype;
+};
+const typRegel = avesmapsWhatIsHereNearby(
+	P, [weg("Beispielweg", "Strasse", 0, 1), ort("Beispieldorf", "Dorf", 0, 2)]);
+// .find(...) statt .every(...) auf einer moeglicherweise leeren Menge -- die Falle aus Fix-Runde 1:
+// ein leerer Treffer wirft hier sofort (Zugriff auf .art von undefined), statt eine leere Menge
+// stillschweigend als "bestanden" durchzuwinken.
+assert.strictEqual(typRegel.find((z) => z.name === "Beispielweg").art, "GEPRUEFT:Strasse",
+	"die Wegzeile lief durch getPathTypeLabel");
+assert.strictEqual(typRegel.find((z) => z.name === "Beispieldorf").art, "Dorf",
+	"die Ortszeile bleibt UNVERAENDERT -- sie geht nie durch getPathTypeLabel");
+// Sofort wieder abraeumen: die weitWeg-Pruefung unten vergleicht `art` gegen den ROHEN Subtyp
+// (kein getPathTypeLabel gemockt) -- bliebe die Attrappe aktiv, stuende dort "GEPRUEFT:Pfad" statt
+// "Pfad" und die Zusicherung risse grundlos.
+delete global.getPathTypeLabel;
+
 // 💣 DIE ENTFERNUNGSSCHRANKE. Ohne sie stand auf Maraskan eine Reichsstrasse 534 Meilen weit weg
 // in der Liste -- formal die naechste ihrer Art, praktisch auf einem anderen Kontinent.
 const weitWeg = [
