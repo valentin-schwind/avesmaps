@@ -379,7 +379,12 @@ function renderDetail() {
 				+ (wikiUrl ? ' <a class="dt-link" href="' + esc(wikiUrl) + '" target="_blank" rel="noopener">Öffnen ↗</a>' : "")
 			+ "</div>"
 		+ "</div></div>"
-		+ '<div class="dt-check"><input type="checkbox" id="plNoArticle"' + (noArticle ? " checked" : "") + (wikiUrl ? " disabled" : "") + "><span>Kein Wiki-Artikel vorhanden</span></div>"
+		// Das Haekchen wird NIE gesperrt: waeren beide Elemente gesperrt, kaeme man aus einem
+		// widerspruechlichen Zustand nicht mehr heraus, und weil das Speichern immer beide Werte
+		// schickt, lehnte der Server danach JEDE Aenderung an dieser Linie ab -- auch eine reine
+		// Namens- oder Beschreibungsaenderung. Der normale Weg aendert sich dadurch nicht: wer das
+		// Haekchen setzt, kann das Feld weiterhin nicht mehr fuellen (das bleibt gesperrt).
+		+ '<div class="dt-check"><input type="checkbox" id="plNoArticle"' + (noArticle ? " checked" : "") + "><span>Kein Wiki-Artikel vorhanden</span></div>"
 		// Der zweite Halbsatz ist tragend: der Merker ist NICHT endgueltig -- der Abgleich macht ihn
 		// wieder auf, sobald im Wiki ein passender Artikel auftaucht (Entwurf §4). Ohne ihn liest er
 		// sich als endgueltig, und die Wiedervorlage wirkt wie ein Fehler.
