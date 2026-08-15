@@ -154,4 +154,26 @@ assert(!str_contains($rumpf, 'avesmapsWhatIsHereTerritoryPayload('),
     'avesmapsWhatIsHereTerritoryPayload darf NICHT im Rumpf von avesmapsWhatIsHereReadTerritories '
     . 'laufen -- sonst waere wiki_key schon weg, bevor avesmapsWhatIsHereLoreKeys es lesen kann');
 
+// ---------------------------------------------------------------- DIE PDO-PLATZHALTER-SCHRANKE --
+// 🔴 Fix-Runde 2 (der leere Live-Befund): avesmapsCreatePdo (api/_internal/bootstrap.php) setzt
+// PDO::ATTR_EMULATE_PREPARES => false. Bei nativen Prepared Statements lehnt MySQL einen doppelt
+// verwendeten benannten Platzhalter innerhalb DESSELBEN Statements mit SQLSTATE[HY093] ab -- die
+// Ausnahme landete im catch (Throwable) und wurde live zu einer stillen leeren Antwort (ok:true,
+// aber territories/landscapes komplett leer). Diese Maschine hat gar keinen PDO-Treiber, kann den
+// Fehler also nicht selbst ausloesen -- die Schranke sucht ihn stattdessen im QUELLTEXT: jede
+// $pdo->prepare(...)-Zeichenkette, jeder :platzhalter darin gezaehlt, keiner darf doppelt vorkommen.
+// 💣 Kommentare vorher ausgeblendet ($bibliotheksQuelle von oben, DIE ECHTE PROBE) -- sonst waere die
+// Erklaerung hier selbst (die :x/:y mehrfach beim Namen nennt) ein falscher Treffer.
+preg_match_all('/\$pdo->prepare\(\s*\'(.*?)\'\s*\);/s', $bibliotheksQuelle, $sqlTreffer);
+assert(count($sqlTreffer[1]) === 2, 'zwei SQL-Abfragen erwartet -- Gebiete und Flaechen');
+foreach ($sqlTreffer[1] as $sql) {
+    preg_match_all('/:[a-zA-Z_][a-zA-Z0-9_]*/', $sql, $platzhalterTreffer);
+    assert(count($platzhalterTreffer[0]) > 0, 'die Abfrage traegt ueberhaupt benannte Platzhalter');
+    foreach (array_count_values($platzhalterTreffer[0]) as $name => $anzahl) {
+        assert($anzahl === 1, "Platzhalter $name kommt im selben Statement $anzahl-mal vor -- "
+            . 'EMULATE_PREPARES=false lehnt das mit SQLSTATE[HY093] ab, und die Ausnahme wird hier '
+            . 'lautlos zu einer leeren Antwort (catch (Throwable) { return []; })');
+    }
+}
+
 echo "what-is-here: alles gruen\n";

@@ -184,18 +184,24 @@ function avesmapsWhatIsHereLoreKey(string $raw): string
 function avesmapsWhatIsHereReadTerritories(PDO $pdo, float $x, float $y, int $yearBf): array
 {
     try {
+        // 🔴 Fix-Runde 2: :x1/:x2 und :y1/:y2 statt je einmal :x/:y. avesmapsCreatePdo
+        // (api/_internal/bootstrap.php) setzt PDO::ATTR_EMULATE_PREPARES => false -- bei nativen
+        // Prepared Statements lehnt MySQL einen doppelt verwendeten benannten Platzhalter mit
+        // SQLSTATE[HY093] ab. Die Ausnahme landete im catch (Throwable) unten und wurde live zu einer
+        // stillen leeren Antwort (ok:true, aber territories/landscapes komplett leer). :jahr/:jahr2
+        // waren schon getrennt -- das Muster war bekannt, hier nur nicht angewandt.
         $statement = $pdo->prepare(
             'SELECT t.id, t.parent_id, t.public_id, t.wiki_key, t.name, t.short_name, t.type,
                     t.coat_of_arms_url AS coat_url, g.geometry_geojson
                FROM political_territory_geometry g
                JOIN political_territory t ON t.id = g.territory_id
               WHERE g.is_active = 1
-                AND g.min_x <= :x AND g.max_x >= :x
-                AND g.min_y <= :y AND g.max_y >= :y
+                AND g.min_x <= :x1 AND g.max_x >= :x2
+                AND g.min_y <= :y1 AND g.max_y >= :y2
                 AND (g.valid_from_bf IS NULL OR g.valid_from_bf <= :jahr)
                 AND (g.valid_to_bf   IS NULL OR g.valid_to_bf   >= :jahr2)'
         );
-        $statement->execute(['x' => $x, 'y' => $y, 'jahr' => $yearBf, 'jahr2' => $yearBf]);
+        $statement->execute(['x1' => $x, 'x2' => $x, 'y1' => $y, 'y2' => $y, 'jahr' => $yearBf, 'jahr2' => $yearBf]);
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
     } catch (Throwable) {
         return [];
@@ -230,6 +236,9 @@ function avesmapsWhatIsHereReadTerritories(PDO $pdo, float $x, float $y, int $ye
 function avesmapsWhatIsHereReadAreas(PDO $pdo, float $x, float $y): array
 {
     try {
+        // 🔴 Fix-Runde 2: derselbe Fehler wie in avesmapsWhatIsHereReadTerritories() -- :x1/:x2 und
+        // :y1/:y2 statt je einmal :x/:y. EMULATE_PREPARES => false erlaubt keinen doppelt
+        // verwendeten benannten Platzhalter in einem nativen Prepared Statement (SQLSTATE[HY093]).
         $statement = $pdo->prepare(
             'SELECT r.kind, r.public_id AS region_public_id, r.name AS region_name,
                     r.wiki_region_key, ty.label AS type_label, a.geometry_geojson
@@ -237,10 +246,10 @@ function avesmapsWhatIsHereReadAreas(PDO $pdo, float $x, float $y): array
                JOIN ecosystem_region r ON r.id = a.region_id
           LEFT JOIN ecosystem_region_type ty ON ty.type_key = r.region_type AND ty.kind = r.kind
               WHERE a.is_active = 1 AND a.is_trial = 0
-                AND a.min_x <= :x AND a.max_x >= :x
-                AND a.min_y <= :y AND a.max_y >= :y'
+                AND a.min_x <= :x1 AND a.max_x >= :x2
+                AND a.min_y <= :y1 AND a.max_y >= :y2'
         );
-        $statement->execute(['x' => $x, 'y' => $y]);
+        $statement->execute(['x1' => $x, 'x2' => $x, 'y1' => $y, 'y2' => $y]);
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
     } catch (Throwable) {
         return [];
