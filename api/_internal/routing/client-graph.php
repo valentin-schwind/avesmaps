@@ -43,6 +43,18 @@ const AVESMAPS_ROUTE_CLIENT_ANCHOR_NODE_PREFIX = '__wp_anchor_';
 // der Kartenpunkt bis zum 14.08.2026 bekam, und weniger A*-Laeufe.
 const AVESMAPS_ROUTE_CLIENT_ANCHOR_LIMIT = 6;
 
+// Wie viele gezeichnete Vertices EIN Wegstueck als Ausstieg beisteuern darf.
+//
+// ⚠️ Am Livebestand gemessen, nicht geraten (3.538 Landwege, innere Vertices je Weg-Feature):
+// p50 = 3, p75 = 6, p90 = 10, p95 = 13, p99 = 23, max = 53. 32 Wege von 3.538 liegen darueber,
+// keiner ueber 60. Ein Graph-Wegstueck ist kuerzer als sein Feature (an Kreuzungen geschnitten),
+// die echten Zahlen liegen also darunter. Bei 24 bleiben 99 % der Wege unangetastet, und der
+// schlimmste Fall sind 6 x 24 = 144 Kandidatenpunkte je Anfrage -- gegen 4.889 Knoten im
+// Wegegraphen ist das nichts, und der Suchlauf kostet ohnehin unabhaengig von ihrer Zahl.
+// 💣 Greift der Deckel, wird das GEZAEHLT und wandert in die Antwort -- eine stille Kappung
+// liest sich wie „alles betrachtet" (AGENTS.md: „No silent caps").
+const AVESMAPS_ROUTE_OFFROAD_EXIT_VERTEX_LIMIT = 24;
+
 // Sea routes mark a waypoint as water-bound (island / open-sea place). There is no coastline geometry
 // in the data (insel/meer/kueste are label points only), so a Seeweg edge is the reliable signal that
 // reaching this node requires crossing open water. Such nodes are NOT anchored to a land path: their
@@ -957,6 +969,71 @@ function avesmapsCollectNearestClientLandPathAnchors(array $graph, float $px, fl
     usort($candidates, static fn(array $a, array $b): int => $a['distance'] <=> $b['distance']);
 
     return array_slice($candidates, 0, $limit);
+}
+
+/**
+ * Je Wegstueck ALLE gezeichneten inneren Vertices plus den Fusspunkt, als Ausstiegsangebot.
+ *
+ * 🔴 DAS IST DER KERN DES ABGANGSPUNKTS. Bis zum 15.08.2026 bot ein Wegstueck GENAU EINEN
+ * Ausstieg an -- die Projektion des Ziels. Verlor der gegen den Direktweg, existierte die
+ * Strasse fuer diese Reise nicht mehr. Owner, wortwoertlich: „es gibt kein ausstieg heute."
+ * Gemessen an Salmingen -> Kartenpunkt (504.530, 501.076): 42,06 Meilen querfeldein NEBEN dem
+ * Talloner Huegelsteig her, den die Reise nie betrat.
+ *
+ * ⚠️ DIE WEGAUSWAHL BLEIBT WIE SIE WAR: der Sammler darunter liefert weiter die $limit naechsten
+ * KANTEN, eine je Kanten-id. Nur was eine Kante LIEFERT, aendert sich. Wer die Entdopplung
+ * loest, weil ja jetzt ohnehin viele Punkte je Strasse kommen, bekommt sechs Nachbarn auf einem
+ * Weg und sieht die schnelle Strasse zwei Taeler weiter nie (anchor-candidates-test.php).
+ *
+ * ⚠️ ENDPUNKTE SIND KEINE KANDIDATEN. Das sind bereits Graphknoten (Ortschaften oder
+ * Kreuzungen) und stehen ueber den zweiten Topf zur Wahl; hier gefuehrt bekaemen sie einen
+ * zweiten Namen.
+ *
+ * ⚠️ DER FUSSPUNKT BLEIBT IM ANGEBOT. Ohne ihn koennte eine Route schlechter werden als vor
+ * dem Umbau. Das Angebot waechst, es wird nie kleiner.
+ *
+ * Rueckgabe je Kante: ['anchor' => <Eintrag des Sammlers>, 'cuts' => [...], 'capped' => int].
+ * Ein `cut` traegt segment_index, t, x, y und distance (Luftlinie zum Zielpunkt).
+ */
+function avesmapsCollectClientLandPathExitCandidates(array $graph, float $px, float $py, int $limit): array {
+    $sets = [];
+    foreach (avesmapsCollectNearestClientLandPathAnchors($graph, $px, $py, $limit) as $anchor) {
+        $coordinates = $anchor['connection']['geometry']['coordinates'] ?? null;
+        if (!is_array($coordinates) || count($coordinates) < 2) { continue; }
+        $count = count($coordinates);
+        $epsilon = 1e-7;
+
+        $cuts = [];
+        $seen = [];
+        $add = static function (int $i, float $t, float $x, float $y) use (&$cuts, &$seen, $px, $py): void {
+            $key = sprintf('%.6f:%.6f', $x, $y);
+            if (isset($seen[$key])) { return; }
+            $seen[$key] = true;
+            $cuts[] = ['segment_index' => $i, 't' => $t, 'x' => $x, 'y' => $y, 'distance' => hypot($x - $px, $y - $py)];
+        };
+
+        // Der Fusspunkt zuerst -- faellt er mit einem Vertex zusammen, gewinnt er den Platz und
+        // der Vertex wird als Dublette verworfen (gleiche Koordinate, gleicher Schnitt).
+        $projX = (float) ($anchor['proj_x'] ?? 0.0);
+        $projY = (float) ($anchor['proj_y'] ?? 0.0);
+        $projI = (int) ($anchor['segment_index'] ?? 0);
+        $projT = (float) ($anchor['t'] ?? 0.0);
+        $isEndpoint = ($projI === 0 && $projT <= $epsilon) || ($projI === $count - 2 && $projT >= 1.0 - $epsilon);
+        if (!$isEndpoint) { $add($projI, $projT, $projX, $projY); }
+
+        for ($i = 1; $i <= $count - 2; $i++) {
+            $add($i, 0.0, (float) $coordinates[$i][0], (float) $coordinates[$i][1]);
+        }
+
+        usort($cuts, static fn(array $a, array $b): int => $a['distance'] <=> $b['distance']);
+        $capped = max(0, count($cuts) - AVESMAPS_ROUTE_OFFROAD_EXIT_VERTEX_LIMIT);
+        if ($capped > 0) { $cuts = array_slice($cuts, 0, AVESMAPS_ROUTE_OFFROAD_EXIT_VERTEX_LIMIT); }
+        if ($cuts === []) { continue; }
+
+        $sets[] = ['anchor' => $anchor, 'cuts' => $cuts, 'capped' => $capped];
+    }
+
+    return $sets;
 }
 
 function avesmapsRouteProjectPointOnSegment(float $px, float $py, float $ax, float $ay, float $bx, float $by): array {
