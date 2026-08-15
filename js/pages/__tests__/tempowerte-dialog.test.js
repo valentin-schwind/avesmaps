@@ -33,10 +33,14 @@ const allowed = (() => {
 })();
 
 // Entwurf §8.1 nennt sie namentlich. Faellt eine weg, faellt hier auf, dass der Knopf ins Leere geht.
+// 🔴 `offroad` kam am 15.08.2026 dazu (der Querfeldein-Laengenaufschlag, Entwurf
+// 2026-08-15-querfeldein-laengenaufschlag-design.md §6). Der Endpunkt kennt ihn seit dem
+// serverseitigen Teil; die Zeile im Fenster folgt in der naechsten Aufgabe — deshalb steht er
+// hier schon und unten (Abschnitt 4) noch nicht.
 assert.deepStrictEqual(
 	allowed.slice().sort(),
-	["all", "day_miles", "ground", "landscapes", "misc", "path_factors"],
-	"der Endpunkt kennt genau die sechs Abschnitte aus Entwurf §8.1 — ist: " + allowed.join(", ")
+	["all", "day_miles", "ground", "landscapes", "misc", "offroad", "path_factors"],
+	"der Endpunkt kennt genau die sieben Abschnitte — ist: " + allowed.join(", ")
 );
 
 const used = [...dialog.matchAll(/data-section="([a-z_]+)"/g)].map((m) => m[1]);
