@@ -159,3 +159,46 @@ echo "travel-values-test: aktiver Speicher geprüft\n";
 
 // 14.08.2026: mit js/config.js nachgeliefert -- der zugehoerige Deploy-Lauf wurde von einem
 // nachfolgenden Push abgebrochen, und der naechste gruene Lauf diffte ab dem abgebrochenen Stand.
+
+// ---- Der Laengenaufschlag reist mit ------------------------------------------------------
+// Entwurf: docs/superpowers/specs/2026-08-15-querfeldein-laengenaufschlag-design.md §6
+$werte = avesmapsTravelValuesRead(null);
+assert(is_array($werte['offroad_ramp'] ?? null), 'der Rueckfall kennt den Aufschlag');
+assert(abs((float) $werte['offroad_ramp']['per_mile'] - AVESMAPS_OFFROAD_RAMP_PER_MILE) < 1e-9,
+    'und zwar mit dem Vorgabewert: ' . json_encode($werte['offroad_ramp']));
+
+// 💣 EINE FORM FUER ZWEI SCHREIBER: was gelesen wird, muss auch abgelegt werden. Fehlte er in
+// der Ablageform, verschwaende die Einstellung beim ersten Speichern lautlos.
+assert(array_key_exists('offroad_ramp', avesmapsTravelValuesStorableShape($werte)),
+    'die Ablageform traegt ihn');
+
+// Das Fenster schickt Zahlen mit Komma.
+$neu = avesmapsTravelValuesApplyIncoming($werte, ['offroad_ramp' => ['per_mile' => '0,01', 'max' => '3']]);
+assert(abs((float) $neu['offroad_ramp']['per_mile'] - 0.01) < 1e-9,
+    'die Steigung kommt an: ' . json_encode($neu['offroad_ramp']));
+assert(abs((float) $neu['offroad_ramp']['max'] - 3.0) < 1e-9, 'der Deckel ebenso');
+
+// 💣 Unsinn wird VERWORFEN, der alte Wert bleibt stehen -- wie in jedem anderen Abschnitt.
+$unsinn = avesmapsTravelValuesApplyIncoming($neu, ['offroad_ramp' => ['per_mile' => '-1', 'max' => '0,5']]);
+assert(abs((float) $unsinn['offroad_ramp']['per_mile'] - 0.01) < 1e-9, 'negative Steigung verworfen');
+assert(abs((float) $unsinn['offroad_ramp']['max'] - 3.0) < 1e-9, 'Deckel unter 1,0 verworfen');
+
+// ⚠️ Eine Steigung von 0 ist KEIN Unsinn, sondern „Aufschlag aus" -- eine bewusste Einstellung.
+$aus = avesmapsTravelValuesApplyIncoming($neu, ['offroad_ramp' => ['per_mile' => '0']]);
+assert((float) $aus['offroad_ramp']['per_mile'] === 0.0, 'null ist eine gueltige Einstellung');
+
+$zurueck = avesmapsTravelValuesResetSection($neu, 'offroad');
+assert(abs((float) $zurueck['offroad_ramp']['per_mile'] - AVESMAPS_OFFROAD_RAMP_PER_MILE) < 1e-9,
+    'der Ruecksetzer holt die Vorgabe');
+
+// 🔴 DAS PRIMING IST DIE GANZE WIRKUNG. Ohne es stuende die Einstellung im Fenster und wirkte
+// in keiner einzigen Route.
+avesmapsOffroadRampReset();
+avesmapsTravelValuesPrimeOffroadRamp(['per_mile' => 0.01, 'max' => 3.0]);
+assert(abs(avesmapsOffroadRampFactor(1.0) - 1.03) < 1e-9,
+    'die eingestellte Steigung wirkt im Gelaende: ' . avesmapsOffroadRampFactor(1.0));
+avesmapsTravelValuesResetActive();
+assert(abs(avesmapsOffroadRampFactor(1.0) - (1.0 + AVESMAPS_OFFROAD_RAMP_PER_MILE * 3.0)) < 1e-9,
+    'und der gemeinsame Ruecksetzer nimmt sie mit zurueck: ' . avesmapsOffroadRampFactor(1.0));
+
+echo "travel-values-test: Laengenaufschlag geprüft\n";

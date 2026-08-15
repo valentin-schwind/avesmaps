@@ -17,6 +17,9 @@ declare(strict_types=1);
 // im Fenster, gäbe es sie zweimal und sie liefen auseinander.
 
 require_once __DIR__ . '/client-graph.php';
+// ⚠️ Ausdruecklich, obwohl client-graph.php es heute mitbringt: dieser Leser darf nicht davon
+// abhaengen, in welcher Reihenfolge jemand anders laedt. Das Blatt beherbergt den Laengenaufschlag.
+require_once __DIR__ . '/terrain-factor.php';
 
 // Unsere eigene Skalierung — steht NICHT in der GA und ist im Fenster gesperrt.
 // mean_G gleicht allein unsere Steigungsebene aus (die Quelle kennt auf der Straße keine Steigung,
@@ -64,6 +67,24 @@ function avesmapsTravelValuesPrime(?PDO $pdo): void
 {
     $values = avesmapsTravelValuesRead($pdo);
     avesmapsTravelValuesPrimeGrid(is_array($values['grid'] ?? null) ? $values['grid'] : []);
+    avesmapsTravelValuesPrimeOffroadRamp(
+        is_array($values['offroad_ramp'] ?? null) ? $values['offroad_ramp'] : []
+    );
+}
+
+/**
+ * Denselben Weg fuer den Laengenaufschlag -- fuer Tests und fuer den Endpunkt nach dem Schreiben.
+ *
+ * 🔴 OHNE DIESE ZEILE STUENDE DIE EINSTELLUNG IM FENSTER UND WIRKTE IN KEINER EINZIGEN ROUTE.
+ * Der Aufschlag wohnt im Blatt terrain-factor.php (kein Zirkel ueber client-graph.php); er
+ * erfaehrt vom Speicher nur hierdurch.
+ */
+function avesmapsTravelValuesPrimeOffroadRamp(array $ramp): void
+{
+    avesmapsOffroadRampPrime(
+        isset($ramp['per_mile']) ? (float) $ramp['per_mile'] : null,
+        isset($ramp['max']) ? (float) $ramp['max'] : null
+    );
 }
 
 /** Denselben Speicher direkt setzen — für Tests und für den Endpunkt nach dem Schreiben. */
@@ -78,6 +99,7 @@ function avesmapsTravelValuesResetActive(): void
 {
     $active = &avesmapsTravelValuesActiveRef();
     $active = null;
+    avesmapsOffroadRampReset();
 }
 
 /**
@@ -200,6 +222,9 @@ function avesmapsTravelValuesRead(?PDO $pdo): array
         'ground_penalties' => avesmapsTravelValuesSourceTable()['ground_penalties'],
         'river_ratio' => avesmapsTravelValuesSourceTable()['river_ratio'],
         'calibration_target_miles' => avesmapsTravelValuesSourceTable()['calibration_target_miles'],
+        // ⚠️ Steht NICHT in der Quelltabelle: die GA kennt keinen Laengenaufschlag. Er ist unsere
+        // Rechnung, wie mean_G und der Pass-Normalisierer.
+        'offroad_ramp' => ['per_mile' => AVESMAPS_OFFROAD_RAMP_PER_MILE, 'max' => AVESMAPS_OFFROAD_RAMP_MAX],
         'source' => 'constant',
     ];
     if (!$pdo instanceof PDO) { return $fallback; }
@@ -236,12 +261,33 @@ function avesmapsTravelValuesRead(?PDO $pdo): array
         'ground_penalties' => is_array($stored['ground_penalties'] ?? null) ? $stored['ground_penalties'] : $fallback['ground_penalties'],
         'river_ratio' => (float) ($stored['river_ratio'] ?? $fallback['river_ratio']),
         'calibration_target_miles' => (float) ($stored['calibration_target_miles'] ?? $fallback['calibration_target_miles']),
+        'offroad_ramp' => avesmapsTravelValuesRampShape($stored['offroad_ramp'] ?? null, $fallback['offroad_ramp']),
         'source' => 'stored',
     ];
 }
 
 /**
- * PURE: die Form, in der die Tempowerte abgelegt werden — genau sechs Schlüssel.
+ * PURE: der abgelegte Laengenaufschlag, Zelle fuer Zelle gegen die Vorgabe geprueft.
+ *
+ * 💣 EIN UNGUELTIGER WERT FAELLT AUF DIE VORGABE, NICHT AUF NULL. Eine 0 als Steigung schaltete den
+ * Aufschlag ab, und zwar lautlos -- genau die Klasse Fehler, wegen der `travel_values` ueberhaupt
+ * zurueckgelesen wird (AGENTS.md §10). Ein Deckel unter 1,0 hiesse „querfeldein wird schneller, je
+ * weiter es geht".
+ */
+function avesmapsTravelValuesRampShape(mixed $stored, array $fallback): array
+{
+    if (!is_array($stored)) { return $fallback; }
+    $perMile = avesmapsTravelValuesParseNumber($stored['per_mile'] ?? null);
+    $max = avesmapsTravelValuesParseNumber($stored['max'] ?? null);
+
+    return [
+        'per_mile' => $perMile !== null && $perMile >= 0.0 ? $perMile : $fallback['per_mile'],
+        'max' => $max !== null && $max >= 1.0 ? $max : $fallback['max'],
+    ];
+}
+
+/**
+ * PURE: die Form, in der die Tempowerte abgelegt werden — genau sieben Schlüssel.
  *
  * 💣 ZWEI SCHREIBER, EINE FORM. Der Endpunkt (`api/edit/map/travel-values.php`) und die einmalige
  * Migration (`travel-values-migration.php`) legen denselben Wert ab. Stünde die Liste zweimal da,
@@ -260,6 +306,7 @@ function avesmapsTravelValuesStorableShape(array $values): array
         'ground_penalties' => $values['ground_penalties'] ?? [],
         'river_ratio' => $values['river_ratio'] ?? 0.0,
         'calibration_target_miles' => $values['calibration_target_miles'] ?? 0.0,
+        'offroad_ramp' => $values['offroad_ramp'] ?? [],
     ];
 }
 
@@ -325,6 +372,18 @@ function avesmapsTravelValuesApplyIncoming(array $values, array $payload): array
         $parsed = avesmapsTravelValuesParseNumber($payload[$key]);
         if ($parsed === null || $parsed <= 0.0) { continue; }
         $values[$key] = round($parsed, 3);
+    }
+
+    // 💣 Zwei Zahlen mit eigenem Sinn: die Steigung DARF 0 sein (Aufschlag aus, eine bewusste
+    // Einstellung), der Deckel nie unter 1,0 — das hiesse „querfeldein wird schneller, je weiter
+    // es geht". Was nicht durchkommt, laesst den alten Wert stehen, wie in jedem Abschnitt hier.
+    if (is_array($payload['offroad_ramp'] ?? null)) {
+        $ramp = is_array($values['offroad_ramp'] ?? null) ? $values['offroad_ramp'] : [];
+        $perMile = avesmapsTravelValuesParseNumber($payload['offroad_ramp']['per_mile'] ?? null);
+        if ($perMile !== null && $perMile >= 0.0) { $ramp['per_mile'] = round($perMile, 4); }
+        $max = avesmapsTravelValuesParseNumber($payload['offroad_ramp']['max'] ?? null);
+        if ($max !== null && $max >= 1.0) { $ramp['max'] = round($max, 3); }
+        $values['offroad_ramp'] = $ramp;
     }
 
     return $values;
@@ -639,6 +698,11 @@ function avesmapsTravelValuesStoredMatches(PDO $pdo, array $stored): bool
     $back = json_decode($raw, true);
     if (!is_array($back) || !is_array($back['grid'] ?? null)) { return false; }
 
+    // 🔴 DIE RUECKLESEPROBE MUSS JEDEN ABSCHNITT BEZEUGEN, NICHT NUR DAS RASTER. Zaehlte sie
+    // weiter allein `grid`, ginge eine Kuerzung HINTER dem Raster als Erfolg durch -- und
+    // `travel_values` ist genau der Schluessel, an dem die stille MySQL-Kuerzung gemessen wurde.
+    if (!is_array($back['offroad_ramp'] ?? null)) { return false; }
+
     $expected = is_array($stored['grid'] ?? null) ? $stored['grid'] : [];
 
     return count($back['grid']) === count($expected);
@@ -737,6 +801,13 @@ function avesmapsTravelValuesResetSection(array $values, string $section): array
     if ($section === 'misc' || $section === 'all') {
         $values['river_ratio'] = $source['river_ratio'];
         $values['calibration_target_miles'] = $source['calibration_target_miles'];
+    }
+    if ($section === 'offroad' || $section === 'all') {
+        // ⚠️ NICHT aus $source: der Laengenaufschlag hat in der GA keine Zeile. Er ist unsere
+        // Rechnung, wie mean_G und der Pass-Normalisierer (Entwurf §6).
+        $values['offroad_ramp'] = [
+            'per_mile' => AVESMAPS_OFFROAD_RAMP_PER_MILE, 'max' => AVESMAPS_OFFROAD_RAMP_MAX,
+        ];
     }
 
     return $values;

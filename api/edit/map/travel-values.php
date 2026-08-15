@@ -70,7 +70,7 @@ try {
 
     if ($action === 'reset') {
         $section = avesmapsNormalizeSingleLine((string) ($payload['section'] ?? ''), 40);
-        if (!in_array($section, ['day_miles', 'path_factors', 'landscapes', 'ground', 'misc', 'all'], true)) {
+        if (!in_array($section, ['day_miles', 'path_factors', 'landscapes', 'ground', 'misc', 'offroad', 'all'], true)) {
             avesmapsErrorResponse(400, 'invalid_section', 'Unbekannter Abschnitt.');
         }
         // 🔴 Die Landschaften stehen in ihrer eigenen Spalte, also setzt sie ihr eigener Rücksetzer
@@ -92,7 +92,7 @@ try {
     // 💣 EINE ZEILE, ATOMAR. Ein halb gespeichertes Tempo-Raster ist ein kaputter Router; ein
     // JSON-Wert wird in einem Schreibvorgang geschrieben, sechsundzwanzig Zeilen einer
     // Schlüssel-Wert-Tabelle nicht.
-    // ⚠️ Die Sechs-Schlüssel-Liste steht in avesmapsTravelValuesStorableShape und nur dort — die
+    // ⚠️ Die Sieben-Schlüssel-Liste steht in avesmapsTravelValuesStorableShape und nur dort — die
     // einmalige Migration legt denselben Wert ab, und zwei Abschriften liefen beim nächsten neuen
     // Abschnitt auseinander.
     // 💣 UND DIE SPALTE MUSS IHN FASSEN. `setting_value` war VARCHAR(255), dieser Wert ist über 1.400
