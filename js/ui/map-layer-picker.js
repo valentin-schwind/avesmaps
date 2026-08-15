@@ -225,6 +225,21 @@
 		});
 
 		/*
+		 * 🔴 DIESER BLOCK STAND DREI TAGE IM REPO UND NICHT AUF DEM SERVER (11c49f99, 12.08.2026).
+		 * Gemessen am 15.08.2026: die live ausgelieferte Datei war Zeile fuer Zeile die Fassung von
+		 * 4eba13f1 -- alles bis hierher, kein Zeichen davon. Die index.html forderte dabei laengst
+		 * den NEUEN Stempel `?v=cf7a6361c1` an; hinter dieser Adresse lag der ALTE Inhalt, und jeder
+		 * Browser cachte genau den. Ursache: am 12.08.2026 fielen fuenf Deploys hintereinander an
+		 * einem FREMDEN Test, und der naechste gruene Lauf trug den neuen Hash ins HTML, ohne die
+		 * Datei mitzunehmen (AGENTS.md §9).
+		 * 💣 Ein Voll-Deploy heilt das NICHT -- er legt die richtige Datei unter dieselbe, laengst
+		 * vergiftete Adresse. Nur eine INHALTSAENDERUNG heilt: neuer Hash, neue Adresse. Dieser
+		 * Absatz IST sie.
+		 * ⚠️ Der Befund las sich wie ein Code-Fehler („Ueberfahren tut nichts") und war keiner. Wer
+		 * hier das naechste Mal sucht, vergleicht ZUERST das Ausgelieferte mit dem Repo:
+		 *   curl -s https://avesmaps.de/js/ui/map-layer-picker.js | grep -c mouseenter
+		 */
+		/*
 		 * Am Zeiger klappt die Kachel schon beim Ueberfahren auf (Owner 12.08.2026).
 		 *
 		 * 🔴 NUR am Zeiger, und die Bedingung ist `hover: hover` UND `pointer: fine`. Ein
