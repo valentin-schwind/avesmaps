@@ -281,6 +281,14 @@ is the default, English is opt-in. Therefore:
   vermissen und es in ihrer eigenen Fehlermeldung auch sagen -- am 15.08.2026 gemessen. Wer das
   nicht weiss, haelt das Testfeld fuer kaputt oder sich selbst fuer den Verursacher. Vorbestehend
   rot bleibt genau einer: `linkcheck/link-url-test.php` (echter DNS-Abruf), kein Regressionssignal.
+  💣 **Und dieser Lauf ist NICHT das ganze Feld -- der Workflow faehrt mehr, als dieses Muster
+  findet.** Unter `tools/wikidump/` liegen 21 weitere PHP-Tests, die weder in einem `__tests__`-
+  Verzeichnis stehen noch auf `-test.php` enden (sie heissen `test-*.php`). Am 15.08.2026 kostete
+  genau diese Luecke **zwei** Deploys: ein Commit gab der geteilten Fixture `mini-dump.xml` eine
+  24. Seite und zog nur den eigenen Test nach; `test-dump-reader.php` schreibt dieselbe Zahl an
+  sieben Stellen fest und fiel um. Beide Sitzungen fuhren vorher ein gruenes Feld -- das Muster
+  oben sah die Datei nie. Also zusaetzlich:
+  `for t in tools/wikidump/test-*.php; do php -d extension=php_mbstring.dll "$t" >/dev/null || echo "ROT: $t"; done`
   ⚠️ **Und danach: der Fehlschlag vergiftet den `?v=`-Stempel.** Der nächste grüne Lauf
   hält die nie hochgeladenen Dateien für aktuell — live standen zwei davon auf HTTP 404
   und sechs in alter Fassung, während `index.html` schon die neue anforderte. Nur eine
