@@ -89,6 +89,7 @@ function avesmapsConflictLoadMapRows(PDO $pdo): array {
             'wiki_url' => $wikiUrl,
             'position' => avesmapsConflictFirstPosition($row['geometry_json'] ?? null),
             'claim_source' => $claimSource,
+            'no_article' => !empty($properties['wiki_no_article']),
         ];
     }
 
@@ -343,6 +344,13 @@ function avesmapsConflictRuleMissingKey(array $rows, array $wikiTitles = []): ar
             continue;
         }
         if ($row['type'] === 'path' && avesmapsConflictPathNameIsAuto((string) $row['label'], AVESMAPS_CONFLICT_PATH_SUBTYPES)) {
+            continue;
+        }
+        // Ein Editor hat festgehalten, dass es im Wiki nichts dazu gibt (Knopf "Kein Wiki-Eintrag",
+        // oder das Haekchen im Kraftlinien-Editor). Das IST die Antwort auf "kein Wiki-Schluessel",
+        // also gehoert der Fall nicht mehr auf die Beobachtungsliste. Bis 15.08.2026 las diese
+        // Regel den Merker fuer KEINE Objektart -- eine stillgelegte Kraftlinie kam deshalb zurueck.
+        if (!empty($row['no_article'])) {
             continue;
         }
         // The same evidence the shared-article rule shows, for the same reason: without it this is a

@@ -172,6 +172,24 @@ $oddName = avesmapsConflictRuleMissingKey([
 ]);
 assert(count($oddName) === 1);
 
+// ---- rule 2: "kein Wiki-Artikel" verstummt (Discord-Fall #71) -----------------------------------
+// Der Merker wird vom Konfliktzentrum selbst geschrieben (Knopf "Kein Wiki-Eintrag",
+// AVESMAPS_CONFLICT_NO_ARTICLE_FLAG in repair.php) -- und von dieser Regel bis 15.08.2026 fuer
+// KEINE Objektart gelesen. Live trug eine Kraftlinie ihn bereits und stand trotzdem auf der
+// Beobachtungsliste: jemand hatte sie stillgelegt, und sie kam zurueck.
+$noArticleRows = [
+    ['type' => 'location', 'id' => 'n1', 'label' => 'Handgemacht', 'subtype' => 'dorf', 'wiki_url' => '', 'no_article' => true],
+    ['type' => 'powerline', 'id' => 'n2', 'label' => 'Drachenblick', 'subtype' => '', 'wiki_url' => '', 'no_article' => true],
+    ['type' => 'location', 'id' => 'n3', 'label' => 'Noch offen', 'subtype' => 'dorf', 'wiki_url' => ''],
+];
+$noArticle = avesmapsConflictRuleMissingKey($noArticleRows);
+assert(count($noArticle) === 1);
+assert($noArticle[0]['title'] === 'Noch offen');
+// Fehlt der Schluessel ganz (Altbestand), aendert sich nichts -- er ist kein Pflichtfeld.
+assert(count(avesmapsConflictRuleMissingKey([
+    ['type' => 'location', 'id' => 'n4', 'label' => 'Ohne Schluessel', 'subtype' => 'dorf', 'wiki_url' => ''],
+])) === 1);
+
 // ---- fingerprints are stable across runs and distinct per case ----------------------------------
 $again = avesmapsConflictRuleSharedArticle($rows);
 assert($again[0]['fingerprint'] === $shared[0]['fingerprint']);
