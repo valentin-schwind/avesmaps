@@ -716,10 +716,15 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 		return;
 	}
 
-	if (action === "share-map-link") {
+	// „Was ist hier?": dieselbe Markierung wie „Stelle markieren und teilen" -- es gibt nur EINE --,
+	// aber statt eines kopierten Links geht das Infopanel auf und sagt, was dort liegt.
+	if (action === "what-is-here" && contextMenuLatLng) {
 		closeMapContextMenu();
-		if (typeof createAndCopyShareLink === "function") {
-			void createAndCopyShareLink();
+		if (setSharePin(contextMenuLatLng, { openPopup: false })) {
+			window.avesmapsShowWhatIsHere(contextMenuLatLng);
+		}
+		if (typeof trackVisitorEvent === "function") {
+			trackVisitorEvent("map_option", "was ist hier");
 		}
 		return;
 	}
@@ -957,6 +962,17 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 	if (action === "travel-to-share-pin") {
 		if (sharePinCoordinates && typeof travelToMapPoint === "function") {
 			void travelToMapPoint(sharePinCoordinates);
+		}
+		return;
+	}
+
+	// „Link teilen" im Aktionsband der Auskunft -- dieselbe Kachel, derselbe Pin-Link wie am
+	// Kartenmenue-Eintrag „Stelle markieren und teilen" (copySharePinLinkWithFeedback,
+	// map-features-share-pin.js). Die Koordinaten kommen aus `sharePinCoordinates`, aus demselben
+	// Grund wie bei „Reiseziel hinzufuegen" oben: dieses Aktionsband haengt an der Markierung.
+	if (action === "share-what-is-here") {
+		if (sharePinCoordinates) {
+			void copySharePinLinkWithFeedback(sharePinCoordinates);
 		}
 		return;
 	}

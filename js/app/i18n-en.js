@@ -255,7 +255,7 @@ window.AVESMAPS_I18N_EN = {
 	// distance", "Search" and "Report here". One sentence, one key -- both menus read it from here.
 	"ctxmenu.mapMenuHint": "Ctrl + right-click: map menu",
 	"ctxmenu.sharePin": "Mark and share this spot",
-	"ctxmenu.shareMapLink": "🔗 Copy link to this route",
+	"ctxmenu.whatIsHere": "What's here?",
 	"ctxmenu.reportLocation": "Report here...",
 	"ctxmenu.search": "Search",
 	"ctxmenu.findNearest": "Find nearest location",
@@ -586,8 +586,7 @@ window.AVESMAPS_I18N_EN = {
 	"toast.path.notFound": "The way could not be found.",
 	"popup.labelTypeRegion": "Region",
 	"popup.labelNameFallback": "Label",
-	"popup.sharePinName": "Marked spot",
-	// Der Kasten sagt oben schon „Marked spot" (sharePinMenuMarkup) -- die Entfernen-Kachel ist
+	// Der Kasten sagt oben schon „Marked spot" (whatIsHere.title) -- die Entfernen-Kachel ist
 	// deshalb ein blosses Verb. Die Kachel „Reiseziel hinzufügen" hat KEINE eigene Zeile: sie benutzt
 	// popup.addToRoutePlain, dieselbe wie der gleichnamige Knopf an einer Ortschaft.
 	// 🔴 popup.moveMarker ist am 15.08.2026 gefallen -- die Markierung wird am Marker GEZOGEN, nicht

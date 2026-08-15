@@ -798,9 +798,6 @@ function openMapContextMenu(latlng, clientX, clientY) {
     setMapContextMenuAnchor(pendingContextMenuLatLng);
     syncDistanceMeasurementContextMenuAction();
     syncPathSplitContextMenuAction();
-    if (typeof syncShareLinkContextMenuAction === "function") {
-        syncShareLinkContextMenuAction();
-    }
     // 💣 ZULETZT, und ausdruecklich NACH syncPathSplitContextMenuAction. Welche Anlege-Eintraege die
     // aktuelle Ansicht ueberhaupt zeigt, entscheidet die Tabelle in
     // js/map-features/map-features-ecosystem-context-action.js -- die schaltet auch „Neue Kreuzung und

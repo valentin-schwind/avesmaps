@@ -16,6 +16,12 @@ function clearSharePin({ syncUrl = true } = {}) {
 
 	sharePinCoordinates = null;
 
+	// 🔴 Die Markierung wegzunehmen und einen leeren Kasten stehen zu lassen waere genau der
+	// Zustand, den es im Infopanel nicht gibt (Owner-Vorgabe: nie leer geoeffnet).
+	if (typeof avesmapsShowInfopanel === "function") {
+		avesmapsShowInfopanel("");
+	}
+
 	if (syncUrl) {
 		syncPlannerStateToUrl();
 	}
@@ -35,15 +41,11 @@ function clearSharePin({ syncUrl = true } = {}) {
  */
 function bindSharePinDragging(marker) {
 	marker.on("dragstart", () => {
-		// Das Menue haengt am Marker und wanderte mit ihm unter dem Zeiger her -- zu, wie beim
-		// Kartenpunkt. Es geht unten wieder auf, sobald die Stelle feststeht.
-		//
-		// ⚠️ UND HIER WIRD KEIN wartendes „Verschieben" abgeraeumt. Bis zum 15.08.2026 stand hier ein
+		// ⚠️ HIER WIRD KEIN wartendes „Verschieben" abgeraeumt. Bis zum 15.08.2026 stand hier ein
 		// cancelMapPointRelocation() -- richtig, solange die Markierung selbst eine Verschieben-Kachel
 		// hatte. Jetzt kann nur noch der KARTENPUNKT auf einen Klick warten, und den geht das Ziehen
 		// der Markierung nichts an: ihn abzuraeumen hiesse, dem Nutzer eine andere, laufende Handlung
 		// stillschweigend wegzunehmen.
-		marker.closePopup();
 	});
 
 	marker.on("dragend", () => {
@@ -56,16 +58,16 @@ function bindSharePinDragging(marker) {
 			if (sharePinCoordinates) {
 				marker.setLatLng(sharePinCoordinates);
 			}
-			marker.openPopup();
+			window.avesmapsShowWhatIsHere(marker.getLatLng());
 			return;
 		}
 
 		sharePinCoordinates = droppedAt;
 		syncPlannerStateToUrl();
-		// Wieder auf, aus demselben Grund wie beim Klick-Weg (completeMapPointRelocationAt): die
-		// naechste Handlung -- nochmal ruecken, entfernen, als Reiseziel eintragen -- soll ohne einen
+		// Die Auskunft neu rechnen, aus demselben Grund wie beim Klick-Weg (completeMapPointRelocationAt):
+		// die naechste Handlung -- nochmal ruecken, entfernen, als Reiseziel eintragen -- soll ohne einen
 		// weiteren Klick erreichbar sein. Beide Wege enden damit im selben Bild.
-		marker.openPopup();
+		window.avesmapsShowWhatIsHere(marker.getLatLng());
 	});
 }
 
@@ -93,21 +95,19 @@ function setSharePin(latlng, { openPopup = false, syncUrl = true } = {}) {
 		// Vorbild: bindRouteWaypointDragging in js/routing/route-render.js.
 		draggable: true,
 	})
-		// 🔴 `share-pin-menu`, NICHT `floating-location-popup` (Owner 14.08.2026: „design loeschen und
-		// nochmal beginnen"). Die zweite Klasse ist die Huelle des ORTSKASTENS -- 40-px-Symbol,
-		// 20-px-Titel, vierspaltiges Kachelraster. Die Markierung hat zwei Befehle und keinen Inhalt;
-		// sie traegt ihren eigenen Kasten (sharePinMenuMarkup in js/ui/popups.js, .share-pin-menu in
-		// css/features/location-popups-markers.css).
-		.bindPopup(sharePinMenuMarkup(), {
-			autoClose: false,
-			className: "share-pin-menu",
-		})
 		.addTo(map);
+
+	// 🔴 Ein Klick auf die Markierung zeigt ihre Auskunft -- dieselbe Regel wie bei jedem anderen
+	// Feature der Karte. Der schwebende Zwei-Kachel-Kasten ist damit ersatzlos gefallen: seine drei
+	// Befehle stehen jetzt im Aktionsband des Panels.
+	sharePinMarker.on("click", function () {
+		window.avesmapsShowWhatIsHere(sharePinMarker.getLatLng());
+	});
 
 	bindSharePinDragging(sharePinMarker);
 
 	if (openPopup) {
-		sharePinMarker.openPopup();
+		window.avesmapsShowWhatIsHere(normalizedLatLng);
 	}
 
 	if (syncUrl) {

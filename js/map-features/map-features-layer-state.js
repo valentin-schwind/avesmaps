@@ -157,9 +157,14 @@ function applyPlannerStateFromUrl() {
 
 	if (sharePinLatLng) {
 		setSharePin(sharePinLatLng, {
-			openPopup: waypointNames.length === 0,
 			syncUrl: false,
 		});
+		// 🔴 Ein geteilter ?pin=-Link bringt seit heute die AUSKUNFT mit, nicht nur den Punkt.
+		// Das ist der eigentliche Gewinn der Verschmelzung -- und es wirkt rueckwirkend auf jeden
+		// Link, der schon geteilt wurde.
+		if (typeof window.avesmapsShowWhatIsHere === "function") {
+			window.avesmapsShowWhatIsHere(sharePinLatLng);
+		}
 	} else {
 		clearSharePin({ syncUrl: false });
 	}

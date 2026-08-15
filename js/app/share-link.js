@@ -116,16 +116,6 @@ function hasShareableRoute() {
 	return validCount >= 2;
 }
 
-// Kontextmenue-Eintrag "Link teilen" ein-/ausblenden (beim Oeffnen aufgerufen). Der Button im
-// Routenplaner wird direkt mit der Reise-Uebersicht gerendert (showRoutePlan), nur wenn eine
-// Route existiert -> dort ist keine separate Sichtbarkeitslogik noetig.
-function syncShareLinkContextMenuAction() {
-	const entry = document.querySelector('[data-context-action="share-map-link"]');
-	if (entry) {
-		entry.hidden = !hasShareableRoute();
-	}
-}
-
 // Button (in der Reise-Uebersicht) bzw. delegiert.
 $(document).on("click", "#share-link-button", function (event) {
 	event.preventDefault();

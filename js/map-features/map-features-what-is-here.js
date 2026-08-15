@@ -1,11 +1,11 @@
 // „Was ist hier?" -- das Infopanel einer angeklickten Kartenstelle.
 // Entwurf: docs/superpowers/specs/2026-08-15-was-ist-hier-design.md
 //
-// 💣 DIE MARKIERUNG IST HIER DOCH EIN ORTSKASTEN -- und das widerspricht dem Merksatz an
-// sharePinMenuMarkup NICHT. Dort steht „wer hier etwas anbaut, fragt zuerst, ob der Ortskasten es
-// koennte -- und wenn ja, gehoert es dorthin." Ab jetzt KANN er es: die Stelle hat eine
-// Herrschaftskette, vier Landschaftszeilen, Natur & Waren und eine Nachbarschaft. Der schwebende
-// 215-px-Kasten faellt, der 400-px-Ortskasten im Panel traegt.
+// 💣 DIE MARKIERUNG IST HIER DOCH EIN ORTSKASTEN -- und das widerspricht dem alten Merksatz am
+// (mit Aufgabe 4, 15.08.2026, geloeschten) schwebenden Markierungsmenue NICHT. Dort stand „wer hier
+// etwas anbaut, fragt zuerst, ob der Ortskasten es koennte -- und wenn ja, gehoert es dorthin." Ab
+// jetzt KANN er es: die Stelle hat eine Herrschaftskette, vier Landschaftszeilen, Natur & Waren und
+// eine Nachbarschaft. Der schwebende 215-px-Kasten ist gefallen, der 400-px-Ortskasten im Panel traegt.
 
 "use strict";
 
