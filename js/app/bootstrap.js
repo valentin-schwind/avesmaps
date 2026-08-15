@@ -382,6 +382,8 @@ if (IS_EDIT_MODE) {
     document.getElementById("toggleSparseCrossings")?.removeAttribute("disabled");
     document.getElementById("toggleNodixControl")?.removeAttribute("hidden");
     document.getElementById("toggleNodix")?.removeAttribute("disabled");
+    document.getElementById("toggleHiddenControl")?.removeAttribute("hidden");
+    document.getElementById("toggleHidden")?.removeAttribute("disabled");
     // 🪤 Nur mit eingeschaltetem Landschaftsmodul. Ohne es gibt es keine Regionen, und der Filter
     // wuerde jede Beschriftung der Karte verbergen -- ein Haken, der alles ausblendet, liest sich
     // wie ein Fehler, nicht wie ein Filter.

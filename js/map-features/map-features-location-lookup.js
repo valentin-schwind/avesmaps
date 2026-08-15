@@ -369,6 +369,17 @@ function openLocationPopupForMarkerEntry(markerEntry, { pan = true } = {}) {
 	// Evtl. noch offenen temporaeren Marker eines vorherigen Treffers aufraeumen.
 	clearNearestLookupPinnedMarker();
 
+	// Gefunden ist gefunden: ein versteckter Ort, den jemand ueber seinen Namen adressiert hat, wird
+	// fuer diesen Besuch sichtbar (Owner 15.08.2026). Ohne diese Zeile spraenge die Karte auf leeres
+	// Pergament -- die Infobox waere da, der Ort nicht.
+	// 🔴 HIER, weil hier ALLE Wege zusammenlaufen: openLocationPopupByName, openLocationPopupByPublicId,
+	// der Spotlight-Treffer (ueber focusSpotlightLocation) und der Ortslink im Reiseplan. Ein Marker,
+	// der nicht gezeichnet ist, laesst sich nicht anklicken -- jeder Aufruf fuer einen versteckten Ort
+	// ist also eine Adressierung von woanders und keine Zufallsberuehrung.
+	if (markerEntry.publicId && typeof avesmapsRevealHiddenLocation === "function") {
+		avesmapsRevealHiddenLocation(markerEntry.publicId);
+	}
+
 	// Infopanel (?infopanel=true): Feature-Info ins rechte Panel statt ins gebundene Popup;
 	// optional zur Location zentrieren (Such-/Deeplink-Treffer). Pinning + openPopup entfallen.
 	if (typeof window.avesmapsShowLocationInInfopanel === "function") {

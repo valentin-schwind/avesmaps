@@ -146,6 +146,10 @@ $("#toggleNodix").change(() => {
 	syncLocationMarkerVisibility();
 	syncPlannerStateToUrl();
 });
+$("#toggleHidden").change(() => {
+	syncLocationMarkerVisibility();
+	syncPlannerStateToUrl();
+});
 // Nicht bloss neu zeichnen: der Filter braucht den Regionenbestand ALLER drei Ebenen, und geladen ist
 // im Normalfall nur die zuletzt aktive. Ohne das Nachladen bliebe der erste Klick wirkungslos.
 $("#toggleLabelsWithRegion").change(() => {

@@ -109,6 +109,7 @@ function applyPlannerStateFromUrl() {
 	$("#toggleUnconnected").prop("checked", parseBooleanQueryParam(searchParams.get("toggleUnconnected"), DEFAULT_PLANNER_STATE.toggleUnconnected));
 	$("#toggleSparseCrossings").prop("checked", parseBooleanQueryParam(searchParams.get("toggleSparseCrossings"), DEFAULT_PLANNER_STATE.toggleSparseCrossings));
 	$("#toggleNodix").prop("checked", parseBooleanQueryParam(searchParams.get("toggleNodix"), DEFAULT_PLANNER_STATE.toggleNodix));
+	$("#toggleHidden").prop("checked", parseBooleanQueryParam(searchParams.get("toggleHidden"), DEFAULT_PLANNER_STATE.toggleHidden));
 	$("#toggleLabelsWithRegion").prop("checked", parseBooleanQueryParam(searchParams.get("toggleLabelsWithRegion"), DEFAULT_PLANNER_STATE.toggleLabelsWithRegion));
 
 	if (pathType === "shortest" || pathType === "fastest") {
@@ -289,6 +290,9 @@ function buildPlannerSearchParams() {
 	}
 	if (IS_EDIT_MODE && $("#toggleNodix").is(":checked") !== DEFAULT_PLANNER_STATE.toggleNodix) {
 		searchParams.set("toggleNodix", $("#toggleNodix").is(":checked") ? "1" : "0");
+	}
+	if (IS_EDIT_MODE && $("#toggleHidden").is(":checked") !== DEFAULT_PLANNER_STATE.toggleHidden) {
+		searchParams.set("toggleHidden", $("#toggleHidden").is(":checked") ? "1" : "0");
 	}
 	if (IS_EDIT_MODE && $("#toggleLabelsWithRegion").is(":checked") !== DEFAULT_PLANNER_STATE.toggleLabelsWithRegion) {
 		searchParams.set("toggleLabelsWithRegion", $("#toggleLabelsWithRegion").is(":checked") ? "1" : "0");

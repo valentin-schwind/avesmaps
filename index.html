@@ -2512,6 +2512,15 @@
 							<input type="checkbox" id="toggleNodix" class="map-display-menu__state" />
 							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
 						</label>
+						<!-- Kein eigener Ring, keine eigene Farbe: dieser Haken erzeugt keinen Marker, er holt nur
+						     zurueck, was versteckt ist. Deshalb dieselbe Lupe wie bei "Nodices" -- ein farbiges
+						     Zeichen waere hier eine Legende fuer nichts. -->
+						<label class="map-display-menu__row" id="toggleHiddenControl" hidden>
+							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M16 16l5 5"></path></svg></span>
+							<span class="map-display-menu__name">Versteckte Orte</span>
+							<input type="checkbox" id="toggleHidden" class="map-display-menu__state" />
+							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
+						</label>
 						<!-- 💣 Das Zeichen IST der Marker, den dieser Haken erzeugt: dunkler Kern, farbiger Ring.
 						     Damit ist die Zeile zugleich die Legende -- ohne sie stehen fuenf identische Lupen
 						     da und die Farbe auf der Karte muss geraten werden. Deshalb KEIN

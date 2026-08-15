@@ -113,6 +113,12 @@ let locationData = [],
 	sharePinMarker = null,
 	reviewReportMarker = null,
 	nearestLookupPinnedMarkerEntry = null,
+	// Wer einen versteckten Ort ueber seinen Namen gefunden hat, sieht ihn -- fuer diesen Besuch
+	// (Owner 15.08.2026). Laufzeit, nicht gespeichert: kein localStorage, kein URL-Parameter, kein
+	// Serverzustand; ein Neuladen versteckt ihn wieder.
+	// ⚠️ ADDITIV, nie geleert. Einen entfernten Wegpunkt wieder zu verstecken saehe wie ein Fehler
+	// aus -- gefunden ist gefunden.
+	avesmapsRevealedHiddenLocationIds = new Set(),
 	nearestLookupTempPopup = null,
 	activeLocationPublicId = "",
 	reviewReports = [],
@@ -267,3 +273,20 @@ function avesmapsSyncPhoneViewportClass() {
 avesmapsSyncPhoneViewportClass();
 window.addEventListener("resize", avesmapsSyncPhoneViewportClass);
 window.addEventListener("orientationchange", avesmapsSyncPhoneViewportClass);
+
+// Der EINZIGE Schreiber der Aufdeckungsmenge oben. Zwei Aufrufer, beide TRICHTER statt einzelner
+// Stellen: openLocationPopupForMarkerEntry (dort muenden beide Popup-Oeffner und der
+// Spotlight-Treffer) und collectAndValidateSelectedLocations (dort muenden Vorschlagsliste,
+// getippter Name und geteilter Link). So kann kein kuenftiger Weg vergessen werden.
+function avesmapsRevealHiddenLocation(publicId) {
+	const id = String(publicId || "");
+	if (!id || avesmapsRevealedHiddenLocationIds.has(id)) {
+		return;
+	}
+	avesmapsRevealedHiddenLocationIds.add(id);
+	// Nur bei einer echten Neuaufnahme neu zeichnen -- der Trichter laeuft bei JEDEM Oeffnen einer
+	// Infobox durch, und ein Sync je Klick waere eine Rechnung fuer nichts.
+	if (typeof syncLocationMarkerVisibility === "function") {
+		syncLocationMarkerVisibility();
+	}
+}

@@ -61,6 +61,14 @@ function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom(), visibilit
 		return true;
 	}
 
+	// Zwilling des Riegels in shouldShowLocationMarker -- dieselbe Stelle in derselben Rangfolge.
+	// Ein Punkt ohne Namen waere so gut wie ein Name ohne Punkt: beides halb versteckt.
+	if (isHiddenLocation(entry.location)) {
+		return visibilityContext
+			? visibilityContext.hiddenToggleChecked
+			: IS_EDIT_MODE && $("#toggleHidden").is(":checked");
+	}
+
 	// Politische Ansicht: Hauptstadt-Namen der angezeigten Gebiete immer labeln (passend zu
 	// shouldShowLocationMarker -> Standard-Siedlungsanzeige im political-Modus). Der Aufrufer prueft die
 	// Viewport-Grenzen, daher hier nur true.

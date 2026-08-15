@@ -170,6 +170,20 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom(), ringM
 // Editmode-Checkboxen sind für alle ~3000 Marker identisch, wurden aber pro Marker per jQuery abgefragt
 // (~6000 DOM-Queries pro moveend). Die Typ-Sichtbarkeit füllt sich lazy, weil die Typ-Liste hier nicht
 // bekannt sein muss. shouldShowLocationMarker/-NameLabel funktionieren auch OHNE Kontext (Einzelaufrufe).
+// Versteckt (Owner 15.08.2026): die Karte zeichnet ihn nicht, bis jemand seinen Namen eingibt.
+// Zwilling von isNodixLocation -- EIN Praedikat, damit Markierung und Namensschild dieselbe Frage
+// stellen und nicht zwei Bedingungen auseinanderlaufen koennen. Es beantwortet beide Haelften
+// zugleich: „ist versteckt" UND „ist in dieser Sitzung noch nicht aufgedeckt".
+function isHiddenLocation(location) {
+	if (!location || !location.isHidden) {
+		return false;
+	}
+	const publicId = String(location.publicId || "");
+	return !(publicId
+		&& typeof avesmapsRevealedHiddenLocationIds !== "undefined"
+		&& avesmapsRevealedHiddenLocationIds.has(publicId));
+}
+
 function createLocationVisibilityContext() {
 	const visibleTypeCache = {};
 	const unconnectedToggleChecked = IS_EDIT_MODE && $("#toggleUnconnected").is(":checked");
@@ -177,6 +191,7 @@ function createLocationVisibilityContext() {
 	return {
 		mapLayerMode: typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "",
 		nodixToggleChecked: IS_EDIT_MODE && $("#toggleNodix").is(":checked"),
+		hiddenToggleChecked: IS_EDIT_MODE && $("#toggleHidden").is(":checked"),
 		crossingsToggleChecked: IS_EDIT_MODE && $("#toggleCrossings").is(":checked"),
 		unconnectedPublicIds: unconnectedToggleChecked ? getUnconnectedLocationPublicIds() : null,
 		sparseCrossingPublicIds: sparseCrossingsToggleChecked ? getSparseCrossingPublicIds() : null,
@@ -246,6 +261,18 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 	if (resolveLocationCheckFinding(entry, visibilityContext)) {
 		return isMarkerEntryInRenderBounds(entry, renderBounds);
 	}
+	// 💣 HIER, UND NUR HIER: nach den Pruefhaken, vor allem anderen. Ein versteckter Ort OHNE
+	// Weganbindung ist weiterhin eine Anbindungsluecke und muss seinen pinken Ring bekommen -- „ein
+	// Pruefhaken ZEIGT seine Funde" (Owner 2026-08-14). Stuende dieser Riegel darueber, waere
+	// „verstecken" ein Weg, den Pruefhaken stillzulegen, und der Editor saehe die Luecke nie wieder.
+	// Stuende er darunter, wuerde ein versteckter Nodix im Kraftlinien-Modus doch leuchten.
+	if (isHiddenLocation(entry.location)) {
+		const hiddenToggleChecked = visibilityContext
+			? visibilityContext.hiddenToggleChecked
+			: IS_EDIT_MODE && $("#toggleHidden").is(":checked");
+		return hiddenToggleChecked && isMarkerEntryInRenderBounds(entry, renderBounds);
+	}
+
 	// ⚠️ Diese Weiche steht (wie eh und je) VOR dem Kraftlinien-Modus: "Kreuzungen" hat dessen
 	// "nur Nodices" schon immer ueberstimmt. Die Pruefhaken darueber tun jetzt dasselbe -- alle drei
 	// verhalten sich gleich, statt dass einer als Sonderfall herausfaellt.
