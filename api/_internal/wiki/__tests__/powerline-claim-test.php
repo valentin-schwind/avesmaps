@@ -39,14 +39,18 @@ $byArticleKey = [
     avesmapsConflictArticleKey($satinav['nest']['wiki_url']) => $satinav,
 ];
 
-// 1) Der Name allein trifft -- das ist der heutige Weg und er bleibt.
+// 1) Der Name allein trifft -- das ist der heutige Weg und er bleibt. Kein Merker im Spiel, also
+//    darf clear_no_article NICHT einfach "ein Eintrag wurde gefunden" bedeuten -- es braucht den
+//    Merker UND den Treffer.
 $byName = avesmapsWikiPowerlineResolveSegment('Hexenband', [], $byMatchKey, $byArticleKey);
 assert($byName['source'] === 'name');
 assert($byName['entry']['name'] === 'Hexenband');
 assert($byName['claim_unresolved'] === false);
+assert($byName['clear_no_article'] === false);
 
 // 2) Die Zuweisung schlaegt den Namen. Der Abnahmefall des Entwurfs: EIN Artikel, ZWEI Linien --
 //    "Satinavs Kette I" und "II" zeigen beide auf "Satinavs Ketten", ohne umbenannt zu werden.
+//    Kein Merker gesetzt -- clear_no_article bleibt false.
 $claimed = avesmapsWikiPowerlineResolveSegment(
     'Satinavs Kette I',
     ['wiki_url' => 'https://de.wiki-aventurica.de/wiki/Satinavs_Ketten_(Kraftlinien)'],
@@ -55,6 +59,20 @@ $claimed = avesmapsWikiPowerlineResolveSegment(
 );
 assert($claimed['source'] === 'claim');
 assert($claimed['entry']['name'] === 'Satinavs Ketten');
+assert($claimed['clear_no_article'] === false);
+
+// 2b) Zuweisung UND Merker gleichzeitig gesetzt (der Schreibweg lehnt diese Kombination zwar ab,
+//     siehe Kommentar an der Funktion -- die reine Funktion muss trotzdem definiert antworten): die
+//     Zuweisung gewinnt, und weil sie zugleich einen gueltigen Artikel gefunden hat, faellt der Merker.
+$claimedWithMarker = avesmapsWikiPowerlineResolveSegment(
+    'Satinavs Kette I',
+    ['wiki_url' => 'https://de.wiki-aventurica.de/wiki/Satinavs_Ketten_(Kraftlinien)', 'wiki_no_article' => true],
+    $byMatchKey,
+    $byArticleKey
+);
+assert($claimedWithMarker['source'] === 'claim');
+assert($claimedWithMarker['entry']['name'] === 'Satinavs Ketten');
+assert($claimedWithMarker['clear_no_article'] === true);
 
 // 3) Die Zuweisung gewinnt auch dann, wenn der Name etwas ANDERES treffen wuerde.
 $overrides = avesmapsWikiPowerlineResolveSegment(
@@ -126,5 +144,6 @@ foreach ($byMatchKey as $entry) {
 }
 assert(count($rebuilt) === 2);
 assert(isset($rebuilt[avesmapsConflictArticleKey('https://de.wiki-aventurica.de/wiki/Hexenband')]));
+
 
 fwrite(STDOUT, "powerline-claim-test: alle Zusicherungen erfuellt\n");
