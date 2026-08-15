@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ansichts-Kachel — Aufklapp-Animation zur Auswahl</title>
+<style>
+	/* Werte aus css/base/tokens.css uebernommen, damit der Entwurf dieselbe Waerme traegt
+	   wie die Karte. Dieses Blatt ist ein MOCKUP und wird nie ausgeliefert. */
+	:root {
+		--color-panel: #fffdf9;
+		--color-text: #2f2a22;
+		--color-text-muted: #706557;
+		--color-border: #e2d7c3;
+		--color-border-strong: #cdbfa8;
+		--color-link: #8f7326;
+		--color-page: #f4ece0;
+		--color-card: #fbf5ea;
+		--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
+		--radius-sm: 5px;
+		--radius-md: 8px;
+		--tempo: 1;
+	}
+	@media (prefers-color-scheme: dark) {
+		:root {
+			--color-panel: #312e26;
+			--color-text: #ece3d3;
+			--color-text-muted: #b4a895;
+			--color-border: #4a4438;
+			--color-border-strong: #615a49;
+			--color-link: #d7c38b;
+			--color-page: #211f1a;
+			--color-card: #29261f;
+			--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.45);
+		}
+	}
+
+	* { box-sizing: border-box; }
+	body {
+		margin: 0;
+		padding: 28px 24px 64px;
+		background: var(--color-page);
+		color: var(--color-text);
+		font-family: "Segoe UI", system-ui, sans-serif;
+		font-size: 15px;
+		line-height: 1.5;
+	}
+	h1 { font-size: 21px; margin: 0 0 4px; }
+	.sub { color: var(--color-text-muted); margin: 0 0 22px; max-width: 70ch; }
+
+	.leiste {
+		display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+		padding: 12px 14px; margin-bottom: 26px;
+		background: var(--color-card);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+	button.knopf {
+		font: inherit; cursor: pointer;
+		padding: 6px 14px;
+		border-radius: var(--radius-md);
+		border: 1px solid var(--color-border-strong);
+		background: transparent;
+		color: var(--color-text);
+	}
+	button.knopf.haupt {
+		background: var(--color-link);
+		border-color: var(--color-link);
+		color: var(--color-panel);
+	}
+	label.schalter { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+
+	.spalten { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+	.variante {
+		flex: 1 1 380px;
+		background: var(--color-card);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		padding: 16px 16px 20px;
+	}
+	.variante h2 { font-size: 16px; margin: 0 0 2px; }
+	.variante .was { color: var(--color-text-muted); font-size: 13px; margin: 0 0 14px; min-height: 3.6em; }
+	.variante.vorschlag { border-color: var(--color-link); }
+	.marke {
+		display: inline-block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+		color: var(--color-link); margin-bottom: 3px;
+	}
+
+	/* --- die Buehne: ein Stueck Kartenecke ------------------------------------------------- */
+	.buehne {
+		position: relative;
+		height: 190px;
+		border-radius: var(--radius-sm);
+		overflow: hidden;
+		background:
+			linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.18)),
+			url("../icons/layer-tiles/deregraphic.webp") center/220px repeat;
+		display: flex; align-items: flex-end; justify-content: flex-end;
+		padding: 10px;
+	}
+	.bund { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+	/* --- Kachel und Raster: 1:1 die Regeln aus css/components/map-layer-picker.css ---------- */
+	.tile, .menu {
+		padding: 5px;
+		border: 1px solid var(--color-border-strong);
+		border-radius: var(--radius-sm);
+		background: var(--color-panel);
+		box-shadow: var(--shadow-panel);
+	}
+	.tile { display: block; cursor: pointer; font: inherit; color: inherit; }
+	.menu {
+		margin: 0;
+		display: grid;
+		grid-template-columns: repeat(6, auto);
+		gap: 6px;
+	}
+	.tile[hidden], .menu[hidden] { display: none !important; }
+
+	.cell {
+		display: flex; flex-direction: column; align-items: center; gap: 3px;
+		width: 66px; padding: 0; border: 0; background: none;
+		color: var(--color-text-muted);
+		font-family: inherit; font-size: 11px; line-height: 1.15;
+		cursor: pointer;
+	}
+	.thumb {
+		display: block; width: 48px; height: 48px;
+		border: 2px solid transparent; border-radius: var(--radius-sm); overflow: hidden;
+	}
+	.thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+	.name { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.cell.is-active .thumb { border-color: var(--color-link); }
+	.cell.is-active .name { color: var(--color-link); }
+
+	/* =======================================================================================
+	   A — HEUTE. 120 ms Blende, 4 px Versatz, alle fuenf gleichzeitig. Die HUELLE springt in
+	   voller Breite ins Bild; animiert ist nur, was IN ihr steht.
+	   ======================================================================================= */
+	.v-heute .menu .cell {
+		opacity: 0; transform: translateY(4px);
+		transition: opacity calc(120ms * var(--tempo)) ease, transform calc(120ms * var(--tempo)) ease;
+	}
+	.v-heute .menu.is-open .cell { opacity: 1; transform: none; }
+	.v-heute .menu .cell.is-active { opacity: 1; transform: none; transition: none; }
+
+	/* =======================================================================================
+	   B — NUR STAFFELUNG. Dieselbe Blende, aber die Zellen kommen VON DER KACHEL AUS nach
+	   aussen -- die naechste zuerst. An der Huelle aendert sich nichts.
+	   ======================================================================================= */
+	.v-staffel .menu .cell {
+		opacity: 0; transform: translateY(4px);
+		transition: opacity calc(150ms * var(--tempo)) ease, transform calc(150ms * var(--tempo)) ease;
+	}
+	.v-staffel .menu.is-open .cell { opacity: 1; transform: none; }
+	.v-staffel .menu.is-open .cell:nth-last-child(2) { transition-delay: calc(0ms   * var(--tempo)); }
+	.v-staffel .menu.is-open .cell:nth-last-child(3) { transition-delay: calc(35ms  * var(--tempo)); }
+	.v-staffel .menu.is-open .cell:nth-last-child(4) { transition-delay: calc(70ms  * var(--tempo)); }
+	.v-staffel .menu.is-open .cell:nth-last-child(5) { transition-delay: calc(105ms * var(--tempo)); }
+	.v-staffel .menu.is-open .cell:nth-last-child(6) { transition-delay: calc(140ms * var(--tempo)); }
+	.v-staffel .menu .cell.is-active { opacity: 1; transform: none; transition: none; }
+
+	/* =======================================================================================
+	   C — AUFROLLEN (Vorschlag). Zusaetzlich waechst die HUELLE nach links aus der Kachel
+	   heraus -- als WISCH, nicht als Bewegung: `clip-path` verschiebt nichts und blendet
+	   nichts, es gibt nur frei. Die aktive Zelle liegt im nie beschnittenen rechten Ende und
+	   steht damit von der ersten bis zur letzten Millisekunde unveraendert auf ihrem Fleck.
+	   Die negativen drei Seiten lassen den Schatten heraus, `round` haelt die Ecken rund.
+	   ======================================================================================= */
+	.v-rollen .menu {
+		clip-path: inset(-30px -30px -30px calc(100% - 78px) round var(--radius-sm));
+		transition: clip-path calc(260ms * var(--tempo)) cubic-bezier(.22,.61,.36,1);
+	}
+	.v-rollen .menu.is-open {
+		clip-path: inset(-30px -30px -30px 0 round var(--radius-sm));
+	}
+	.v-rollen .menu .cell {
+		opacity: 0; transform: translateY(4px);
+		transition: opacity calc(150ms * var(--tempo)) ease, transform calc(150ms * var(--tempo)) ease;
+	}
+	.v-rollen .menu.is-open .cell { opacity: 1; transform: none; }
+	.v-rollen .menu.is-open .cell:nth-last-child(2) { transition-delay: calc(40ms  * var(--tempo)); }
+	.v-rollen .menu.is-open .cell:nth-last-child(3) { transition-delay: calc(80ms  * var(--tempo)); }
+	.v-rollen .menu.is-open .cell:nth-last-child(4) { transition-delay: calc(120ms * var(--tempo)); }
+	.v-rollen .menu.is-open .cell:nth-last-child(5) { transition-delay: calc(160ms * var(--tempo)); }
+	.v-rollen .menu.is-open .cell:nth-last-child(6) { transition-delay: calc(200ms * var(--tempo)); }
+	.v-rollen .menu .cell.is-active { opacity: 1; transform: none; transition: none; }
+
+	.fuss {
+		margin-top: 30px; padding-top: 18px; border-top: 1px solid var(--color-border);
+		color: var(--color-text-muted); font-size: 13.5px; max-width: 88ch;
+	}
+	.fuss b { color: var(--color-text); }
+	.fuss ul { padding-left: 20px; }
+	.fuss li { margin-bottom: 7px; }
+	code {
+		font-family: ui-monospace, Consolas, monospace; font-size: .9em;
+		background: rgba(143,115,38,.12); padding: 1px 5px; border-radius: 3px;
+	}
+</style>
+</head>
+<body>
+
+<h1>Ansichts-Kachel — wie sie aufklappen soll</h1>
+<p class="sub">
+	Drei Fassungen derselben Kachel. Alle drei halten die Regel, an der es schon zweimal
+	gescheitert ist: <b>die eingestellte Ansicht steht still</b> — sie wackelt nicht und sie
+	blinkt nicht, weil sie auf dem Fleck der zugeklappten Kachel sitzt.
+	Der Unterschied liegt darin, was <em>drumherum</em> passiert.
+</p>
+
+<div class="leiste">
+	<button class="knopf haupt" id="alle">▶ Alle drei aufklappen</button>
+	<button class="knopf" id="zu">Zuklappen</button>
+	<label class="schalter"><input type="checkbox" id="zeitlupe"> Zeitlupe ×5 <span style="color:var(--color-text-muted)">(sonst zu schnell zum Vergleichen)</span></label>
+</div>
+
+<div class="spalten" id="spalten">
+
+	<section class="variante v-heute">
+		<h2>A — Heute</h2>
+		<p class="was">Die Hülle springt in voller Breite ins Bild. Nur die fünf übrigen Zellen
+			blenden auf, 120&nbsp;ms, alle gleichzeitig. Das ist unter der Wahrnehmungsschwelle —
+			man sieht einen Schnitt, keine Bewegung.</p>
+		<div class="buehne"><div class="bund"></div></div>
+	</section>
+
+	<section class="variante v-staffel">
+		<h2>B — Nur Staffelung</h2>
+		<p class="was">Dieselbe Hülle, aber die Zellen kommen nacheinander — von der Kachel aus
+			nach außen, 35&nbsp;ms Abstand. Kleinster Eingriff: nur Verzögerungen, sonst nichts.
+			Die Hülle springt weiterhin.</p>
+		<div class="buehne"><div class="bund"></div></div>
+	</section>
+
+	<section class="variante vorschlag v-rollen">
+		<span class="marke">Vorschlag</span>
+		<h2>C — Aufrollen</h2>
+		<p class="was">Die Hülle rollt nach links aus der Kachel heraus, die Zellen erscheinen,
+			während der Wisch sie freigibt. Das Aufklappen ist dann das, was man sieht — nicht
+			das, was danach nachblendet.</p>
+		<div class="buehne"><div class="bund"></div></div>
+	</section>
+
+</div>
+
+<div class="fuss">
+	<p><b>Warum C sicher ist, obwohl an der Hülle sonst nichts animiert werden darf:</b></p>
+	<ul>
+		<li>Die verbotene Wirkung ist <code>opacity</code> und <code>transform</code> an der Hülle —
+			beide ziehen die aktive Zelle mit, weil sie ihr Kind ist. Genau daran ist es zweimal
+			gescheitert (erst Wackeln, dann Flackern).</li>
+		<li><code>clip-path</code> ist keins von beidem. Es verschiebt nichts und blendet nichts —
+			es gibt nur frei. Die aktive Zelle liegt im rechten Ende, das <em>nie</em> beschnitten ist:
+			sie steht vom ersten bis zum letzten Bild unverändert da.</li>
+		<li>Der Startwert ist <code>calc(100% − 78px)</code> — 78&nbsp;px ist die gemessene Breite der
+			zugeklappten Kachel. Der Wisch beginnt also exakt auf ihrer Silhouette.</li>
+		<li>Die drei negativen Seiten (<code>−30px</code>) lassen den Schatten heraus, den ein
+			bündiger Schnitt sonst abschneiden würde.</li>
+		<li><code>prefers-reduced-motion</code> schaltet in allen drei Fassungen alles ab, wie bisher.</li>
+	</ul>
+	<p>Am Telefon (2×3&nbsp;Raster) trägt dieselbe Regel: die Staffelung zählt von der aktiven
+		Zelle rückwärts, läuft dort also von unten rechts nach oben links. Beim Wisch würde ich am
+		Telefon nur die Staffelung nehmen — ein Wisch nach links passt zu einer Reihe, nicht zu einem
+		Block. Sag Bescheid, wenn du das anders willst.</p>
+</div>
+
+<script>
+	const ANSICHTEN = [
+		{ w: "none",       n: "Nur Karte" },
+		{ w: "original",   n: "Original" },
+		{ w: "political",  n: "Politisch" },
+		{ w: "powerlines", n: "Kraftlinien" },
+		{ w: "ecosystem",  n: "Landschaften" },
+		{ w: "deregraphic", n: "Standard", aktiv: true }   // 💣 die aktive steht ZULETZT
+	];
+
+	function zelle(a) {
+		const b = document.createElement("button");
+		b.type = "button";
+		b.className = "cell" + (a.aktiv ? " is-active" : "");
+		b.innerHTML = '<span class="thumb"><img src="../icons/layer-tiles/' + a.w + '.webp" alt=""></span>'
+			+ '<span class="name">' + a.n + '</span>';
+		return b;
+	}
+
+	document.querySelectorAll(".variante .bund").forEach((bund) => {
+		const menu = document.createElement("div");
+		menu.className = "menu";
+		menu.hidden = true;
+		ANSICHTEN.forEach((a) => menu.appendChild(zelle(a)));
+
+		const tile = document.createElement("button");
+		tile.type = "button";
+		tile.className = "tile";
+		tile.appendChild(zelle(ANSICHTEN[ANSICHTEN.length - 1]));
+
+		bund.appendChild(menu);
+		bund.appendChild(tile);
+
+		bund.auf = () => {
+			menu.hidden = false;
+			tile.hidden = true;
+			void menu.getBoundingClientRect();           // Stil festschreiben, sonst kein Uebergang
+			requestAnimationFrame(() => menu.classList.add("is-open"));
+		};
+		bund.zu = () => {
+			menu.classList.remove("is-open");
+			setTimeout(() => { menu.hidden = true; tile.hidden = false; }, 400 * tempo());
+		};
+		tile.addEventListener("click", bund.auf);
+		menu.addEventListener("click", bund.zu);
+	});
+
+	const tempo = () => (document.getElementById("zeitlupe").checked ? 5 : 1);
+	document.getElementById("zeitlupe").addEventListener("change", () => {
+		document.documentElement.style.setProperty("--tempo", tempo());
+	});
+	const alle = (fn) => document.querySelectorAll(".variante .bund").forEach((b) => b[fn]());
+	document.getElementById("alle").addEventListener("click", () => { alle("zu"); setTimeout(() => alle("auf"), 60 * tempo()); });
+	document.getElementById("zu").addEventListener("click", () => alle("zu"));
+</script>
+
+</body>
+</html>
