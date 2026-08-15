@@ -201,6 +201,13 @@ let showDupesOnly = false;
 let searchTerm = "";
 let pendingSelectName = null;  // set by the host's "Bearbeiten" postMessage before data has loaded
 let reorderDraft = null;       // strand node order the user is arranging (▲▼); null = the true stored order
+let wikiArticles = [];      // [{name, wiki_url, wiki_key}] -- Vorschlaege fuer die Zuweisung
+let dumpState = { has_run: false, completed_at: "", article_count: 0 };
+// Gegenrichtung (Schritt 5): steht nur in der Antwort des Sync-Aufrufs und verfaellt sonst mit ihr --
+// deshalb hier festgehalten, solange das Fenster offen ist. null = noch nie gefuellt (kein Sync seit
+// dem Oeffnen gelaufen) -- dann zeigt der Abschnitt GAR NICHTS, keine 0, kein Platzhalter.
+let lastUnmatchedNames = null;   // string[] | null
+let lastClaimsUnresolved = null; // number | null
 
 // nodeLookup for the shared pure topology helpers.
 function nodeLookup(publicId) {
@@ -335,9 +342,22 @@ function renderDetail() {
 	const showLabel = line.segments.some((s) => s.show_label);
 	const description = fieldSample(line, "description");
 	const wikiUrl = fieldSample(line, "wiki_url");
+	// "some", nicht fieldSample: der Merker ist ein Wahrheitswert, fieldSample liefert das erste
+	// nicht-leere Feld und verhielte sich bei false unvorhersehbar.
+	const noArticle = line.segments.some((s) => s.wiki_no_article === true);
 	const wiki = line.segments.map((s) => s.wiki_powerline).find((w) => w && typeof w === "object") || {};
 	const wikiRow = (k, v) => (v && String(v).trim() !== "") ? '<div class="k">' + esc(k) + '</div><div>' + esc(v) + "</div>" : "";
 	const wikiBlock = [wikiRow("Stärke", wiki.staerke), wikiRow("Affinität", wiki.affinitaet), wikiRow("Länge", wiki.laenge), wikiRow("Regionen", wiki.regionen)].join("");
+	// Gegenrichtung (Schritt 5): Namen aus dem letzten Abgleich, die auf der Karte noch keine Linie
+	// haben. lastUnmatchedNames === null heisst "seit dem Oeffnen noch kein Sync gelaufen" -- dann
+	// zeigt sich hier nichts, keine 0, kein Platzhalter.
+	const unmatchedBlock = lastUnmatchedNames === null ? "" :
+		'<div class="dt-grp">Wiki-Linien ohne Kartenlinie</div>'
+		+ '<div class="pl-hint">' + (lastUnmatchedNames.length > 0 ? lastUnmatchedNames.map(esc).join(", ") : "Keine.") + "</div>"
+		// Steht sie auf 0, schweigt sie (Entwurf §6).
+		+ (lastClaimsUnresolved > 0
+			? '<div class="pl-hint">' + lastClaimsUnresolved + (lastClaimsUnresolved === 1 ? " Zuweisung zeigt" : " Zuweisungen zeigen") + " ins Leere.</div>"
+			: "");
 	host.innerHTML =
 		'<div class="dt-grp">Identität</div>'
 		+ '<div class="dt-grid"><div class="k">Name</div><div>'
@@ -345,15 +365,31 @@ function renderDetail() {
 			+ '<div class="pl-hint">Schreibt auf <b>alle ' + line.segments.length + ' Segmente</b>. Exakt gleicher Name wie eine andere Linie ⇒ <b>beide verschmelzen</b>.</div>'
 		+ "</div></div>"
 		+ '<div class="dt-check"><input type="checkbox" id="plShowLabel"' + (showLabel ? " checked" : "") + "><span>Name auf der Karte anzeigen</span></div>"
-		+ '<div class="dt-grid"><div class="k">Wiki-Link</div><div>'
-			+ '<input type="url" id="plWikiUrl" maxlength="500" placeholder="https://de.wiki-aventurica.de/wiki/…" value="' + esc(wikiUrl) + '">'
-			+ '<div class="pl-hint">Ausdrücklich gesetzt, nie geraten.' + (wikiUrl ? ' <a class="dt-link" href="' + esc(wikiUrl) + '" target="_blank" rel="noopener">Öffnen ↗</a>' : "") + "</div>"
+		+ '<div class="dt-grid"><div class="k">Wiki-Artikel</div><div>'
+			+ '<input type="url" id="plWikiUrl" maxlength="500" list="plWikiList" placeholder="https://de.wiki-aventurica.de/wiki/…" value="' + esc(wikiUrl) + '"' + (noArticle ? " disabled" : "") + ">"
+			// <datalist> SCHLAEGT VOR und schraenkt nicht ein -- eine eigene Adresse einzufuegen
+			// muss moeglich bleiben (ein brandneuer Artikel steht noch in keinem Dump).
+			+ '<datalist id="plWikiList">'
+				+ wikiArticles.map((a) => '<option value="' + esc(a.wiki_url) + '" label="' + esc(a.name) + '"></option>').join("")
+			+ "</datalist>"
+			+ '<div class="pl-hint">'
+				+ (dumpState.has_run
+					? "Ausdrücklich gesetzt, nie geraten. Der Abgleich folgt der Zuweisung, auch wenn die Linie anders heißt."
+					: "Noch kein Dump geholt — deshalb keine Artikel zur Auswahl.")
+				+ (wikiUrl ? ' <a class="dt-link" href="' + esc(wikiUrl) + '" target="_blank" rel="noopener">Öffnen ↗</a>' : "")
+			+ "</div>"
 		+ "</div></div>"
+		+ '<div class="dt-check"><input type="checkbox" id="plNoArticle"' + (noArticle ? " checked" : "") + (wikiUrl ? " disabled" : "") + "><span>Kein Wiki-Artikel vorhanden</span></div>"
+		// Der zweite Halbsatz ist tragend: der Merker ist NICHT endgueltig -- der Abgleich macht ihn
+		// wieder auf, sobald im Wiki ein passender Artikel auftaucht (Entwurf §4). Ohne ihn liest er
+		// sich als endgueltig, und die Wiedervorlage wirkt wie ein Fehler.
+		+ '<div class="pl-hint">Nimmt die Linie aus der Konfliktliste — bis im Wiki einer auftaucht.</div>'
 		+ '<div class="dt-grp">Beschreibung</div>'
 		+ '<div class="dt-grid stack"><div><textarea id="plDescription" maxlength="2000">' + esc(description) + "</textarea></div></div>"
 		+ '<div class="dt-grp">Quellen</div>'
 		+ '<div id="plSources"></div>'
 		+ (wikiBlock ? '<div class="dt-grp">Aus dem Wiki <span class="dt-badge">Sync · nicht editierbar</span></div><div class="dt-grid">' + wikiBlock + "</div>" : "")
+		+ unmatchedBlock
 		+ '<div class="dt-actions">'
 			+ '<button class="primary" id="plSave">Speichern</button>'
 			+ '<button id="plDelete">Linie löschen</button>'
@@ -386,6 +422,7 @@ async function saveLine() {
 			show_label: $("plShowLabel").checked,
 			description: $("plDescription").value,
 			wiki_url: $("plWikiUrl").value.trim(),
+			wiki_no_article: $("plNoArticle").checked,
 		});
 		const merged = newName !== line.name && lines.some((l) => l.name === newName);
 		await reload(newName);
@@ -588,7 +625,14 @@ function wireRibbon() {
 		if (!sync) { return; }
 		try {
 			setStatus("⚡ Kraftlinien werden abgeglichen …");
-			const res = await sync();                 // runs the sync in the parent; returns { type, message }
+			const res = await sync();                 // runs the sync in the parent; returns { type, message, unmatched_names?, claims_unresolved? }
+			// Gegenrichtung (Schritt 5): die beiden Werte stehen nur in DIESER Antwort und verfallen
+			// sonst mit ihr -- deshalb hier in Modul-Variablen festhalten, VOR dem reload(), damit die
+			// erste Neuzeichnung sie schon zeigt.
+			if (res && Array.isArray(res.unmatched_names)) {
+				lastUnmatchedNames = res.unmatched_names;
+				lastClaimsUnresolved = Number(res.claims_unresolved ?? 0);
+			}
 			await reload(selectedName);               // pull the freshly synced wiki fields into the editor
 			flashStatus(res && res.message ? res.message : "Kraftlinien abgeglichen.");
 		} catch (e) {
@@ -627,6 +671,8 @@ function ingest(data) {
 	segments = Array.isArray(data.segments) ? data.segments : [];
 	nodesMap = (data.nodes && typeof data.nodes === "object") ? data.nodes : {};
 	candidates = Array.isArray(data.nodix_candidates) ? data.nodix_candidates : [];
+	wikiArticles = Array.isArray(data.wiki_articles) ? data.wiki_articles : [];
+	dumpState = data.dump_state || { has_run: false, completed_at: "", article_count: 0 };
 	groupLines();
 	const dupeCount = lines.filter((l) => l.warnings.length > 0).length;
 	setStatus(statusCountsText());

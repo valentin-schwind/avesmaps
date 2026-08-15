@@ -1822,7 +1822,10 @@ async function startWikiSyncPowerlines() {
 	// Capture the final { type, message } and return it so a caller in the editor iframe can show it
 	// there -- the panel status sits behind the editor overlay, where the owner never sees it.
 	let finalStatus = null;
-	const report = (message, type) => { setWikiSyncStatus(message, type); finalStatus = { message, type }; };
+	// Aufgabe 6 (Kraftlinien-Editor, docs/superpowers/specs/2026-08-15-kraftlinien-zuweisung-design.md
+	// §6): der dritte Parameter reicht unmatched_names/claims_unresolved bis zum Aufrufer im iframe
+	// durch -- sonst stehen sie nur HIER in der Antwort und verfallen mit ihr.
+	const report = (message, type, extra) => { setWikiSyncStatus(message, type); finalStatus = Object.assign({ message, type }, extra); };
 	report("Kraftlinien werden abgeglichen …", "pending");
 	try {
 		const result = await submitWikiSyncDumpAction("sync_powerlines", {});
@@ -1884,7 +1887,11 @@ async function startWikiSyncPowerlines() {
 		// Bewusst KEIN Nachladen: die Kartendaten holt loadRouteData() einmal beim Start, ein
 		// zweiter Aufruf würde Layer doppeln. Der Hinweis ist ehrlicher als ein erfundener
 		// Nachladepfad -- die neuen Wiki-Zeilen stehen nach einem Neuladen im Infopanel.
-		report(`Kraftlinien abgeglichen — ${parts.join(" · ")}. Seite neu laden, um sie im Infopanel zu sehen.`, "success");
+		report(
+			`Kraftlinien abgeglichen — ${parts.join(" · ")}. Seite neu laden, um sie im Infopanel zu sehen.`,
+			"success",
+			{ unmatched_names: unmatched, claims_unresolved: Number(result.claims_unresolved ?? 0) }
+		);
 		// Übersichts-Leiste sofort auffrischen: der Reconcile hat gerade „zuletzt gesynct" in app_setting
 		// gestempelt, also soll die „Kraftlinien"-Zelle ihr Datum ohne Neuladen zeigen (holt
 		// ?action=last_synced neu und zeichnet die Leiste via renderWikiSyncSubjectRail).
