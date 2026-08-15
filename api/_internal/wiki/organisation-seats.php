@@ -123,6 +123,17 @@ function avesmapsOrgSeatsFromWikitext(string $wikitext): array
             if (avesmapsOrgSeatIsDead($stueck)) {
                 continue;
             }
+            // 💣 Doppelte Orte fallen zusammen, und der HAUPTSITZ gewinnt -- sein Feld wird
+            // zuerst gelesen. Nennt ein Artikel denselben Ort in beiden Feldern, waere er sonst
+            // zweimal in der Stadt-Infobox, einmal als Haupt- und einmal als Zweigsitz.
+            // ⚠️ Das ist zugleich die Zusicherung, auf der die Speicherung steht: ohne sie
+            // braeuchte der INSERT ein ON DUPLICATE KEY UPDATE (MySQL-only, im Test nicht
+            // fahrbar) statt eines schlichten delete+insert.
+            foreach ($sitze as $vorhanden) {
+                if ($vorhanden['raw'] === $stueck) {
+                    continue 2;
+                }
+            }
             $sitze[] = ['raw' => $stueck, 'role' => $rolle];
         }
     }

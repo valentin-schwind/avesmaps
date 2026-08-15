@@ -272,7 +272,7 @@ echo "\n-- (A) avesmapsWikiDumpHybridComputeNextState (the pure state machine) -
 $order = avesmapsWikiDumpHybridPhaseOrder();
 $check(
     '(A0) phase order runs online_continent_map AFTER wikitext_collect (CONTINENT-FIX #1); publication_sources + adventures + citymaps right after redirect_aliases (Task 4 / Abenteuer P4 / Kartensammlung 1+2)',
-    ['online_class_map', 'online_building_map', 'wikitext_collect', 'redirect_aliases', 'publication_sources', 'adventures', 'citymaps', 'lore', 'online_continent_map', 'parse_and_upsert'],
+    ['online_class_map', 'online_building_map', 'wikitext_collect', 'redirect_aliases', 'publication_sources', 'adventures', 'citymaps', 'lore', 'organisations', 'online_continent_map', 'parse_and_upsert'],
     $order,
     'the continent map sources its titles from the fully-populated state table (via FetchWantedTitles), so it MUST run after the whole-dump wikitext_collect scan enumerated all kinds -- otherwise it only covers the H1 settlement/building rows'
 );
@@ -387,11 +387,27 @@ $check(
 // lore done -> online_continent_map (index 8); parse_and_upsert stays terminal.
 $s4j = avesmapsWikiDumpHybridComputeNextState('lore', ['lore_cursor' => 4200], ['done' => true, 'nextCursor' => 6800]);
 $check(
-    '(A5j) lore done -> online_continent_map (parse_and_upsert stays the terminal sharp phase)',
-    ['online_continent_map', true, 8],
+    '(A5j) lore done -> organisations (Handelshaeuser-Sitze), dann erst die Kontinent-Map',
+    ['organisations', true, 8],
     [$s4j['phase'], $s4j['phase_advanced'], $s4j['progress_current']],
-    'the lore staging phase hands off to the continent map; parse_and_upsert remains the LAST phase'
+    'die lore-Phase reicht an die Handelshaeuser-Sitze weiter (Discord-Handelslisten, 16.08.2026)'
 );
+// Handelshaeuser-Sitze: resumable auf organisation_cursor, danach die Kontinent-Map.
+$sOrgA = avesmapsWikiDumpHybridComputeNextState('organisations', ['organisation_cursor' => 0], ['done' => false, 'nextCursor' => 400]);
+$check(
+    '(A5k) organisations NICHT fertig -> bleibt in der Phase, merkt sich organisation_cursor',
+    ['organisations', false, 400],
+    [$sOrgA['phase'], $sOrgA['phase_advanced'], $sOrgA['stats']['organisation_cursor']],
+    'derselbe Dump-Seitenzeiger-Vertrag wie adventures/citymaps/lore'
+);
+$sOrgB = avesmapsWikiDumpHybridComputeNextState('organisations', ['organisation_cursor' => 400], ['done' => true, 'nextCursor' => 9000]);
+$check(
+    '(A5l) organisations fertig -> online_continent_map',
+    ['online_continent_map', true, 9],
+    [$sOrgB['phase'], $sOrgB['phase_advanced'], $sOrgB['progress_current']],
+    'die Sitze sind STAGING ONLY und reichen an die Kontinent-Map weiter'
+);
+
 // online_continent_map now runs AFTER the scan; resumable on continent_cursor; done -> parse_and_upsert.
 $s5a = avesmapsWikiDumpHybridComputeNextState('online_continent_map', ['continent_cursor' => 0], ['done' => false, 'nextCursor' => 500]);
 $check(
@@ -402,8 +418,8 @@ $check(
 );
 $s5b = avesmapsWikiDumpHybridComputeNextState('online_continent_map', ['continent_cursor' => 500], ['done' => true, 'nextCursor' => 9000]);
 $check(
-    '(A6b) online_continent_map done -> parse_and_upsert, continent_cursor persisted, progress index 9',
-    ['parse_and_upsert', true, 9000, 9],
+    '(A6b) online_continent_map done -> parse_and_upsert, continent_cursor persisted, progress index 10',
+    ['parse_and_upsert', true, 9000, 10],
     [$s5b['phase'], $s5b['phase_advanced'], $s5b['stats']['continent_cursor'], $s5b['progress_current']],
     'the continent map (now the LAST dump/online-walking phase before parse) hands off to the parse phase once its cursor drains the full title set'
 );
@@ -420,7 +436,7 @@ $check(
 $s6b = avesmapsWikiDumpHybridComputeNextState('parse_and_upsert', ['parse_cursor' => 2000], ['done' => true, 'nextCursor' => 2345]);
 $check(
     '(A8) parse_and_upsert done -> phase "completed" + status "completed" + full progress',
-    ['completed', 'completed', 10, 10, true],
+    ['completed', 'completed', 11, 11, true],
     [$s6b['phase'], $s6b['status'], $s6b['progress_current'], $s6b['progress_total'], $s6b['done']],
     'advancing off the last work phase completes the whole run (progress_current == progress_total)'
 );

@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// Die Handelshaeuser-Sitze (Phase `organisations`). Siehe organisation-sync.php.
+require_once __DIR__ . '/organisation-sync.php';
+
 /**
  * Hybrid WikiDump migration -- Task H4c-b: the SERVER-SIDE ORCHESTRATION that
  * drives the hybrid read_step over ONE `wiki_sync_runs` row (sync_type
@@ -142,6 +145,10 @@ const AVESMAPS_WIKI_DUMP_PHASE_CITYMAPS = 'citymaps';
 // recognises lore pages through avesmapsPublicationEntityRefForPage and stages them into
 // wiki_entity_publication like every other entity's sources (AGENTS.md §5).
 const AVESMAPS_WIKI_DUMP_PHASE_LORE = 'lore';
+// Handelshaeuser: die Sitze aus {{Infobox Organisation}} (|Hauptsitz= + |Weitere Sitze=).
+// STAGING ONLY wie adventures/citymaps/lore -- die Sitze beruehren keine Nutztabelle, die
+// Innerorts-Liste liest die Staging-Zeilen direkt. Siehe organisation-sync.php.
+const AVESMAPS_WIKI_DUMP_PHASE_ORGANISATIONS = 'organisations';
 const AVESMAPS_WIKI_DUMP_PHASE_COMPLETED = 'completed';
 
 /**
@@ -210,6 +217,9 @@ function avesmapsWikiDumpHybridPhaseOrder(): array
         // dryRun-agnostic and never a sharp write. Scans the four lore infoboxes on ordinary
         // article pages. The production reconcile is the owner's sync_lore action.
         AVESMAPS_WIKI_DUMP_PHASE_LORE,
+        // Handelshaeuser-Sitze: derselbe STAGING-ONLY-Vertrag, also dryRun-egal. Scannt
+        // {{Infobox Organisation}} auf gewoehnlichen Artikelseiten.
+        AVESMAPS_WIKI_DUMP_PHASE_ORGANISATIONS,
         AVESMAPS_WIKI_DUMP_PHASE_CONTINENT_MAP,
         AVESMAPS_WIKI_DUMP_PHASE_PARSE_AND_UPSERT,
     ];
@@ -241,6 +251,8 @@ function avesmapsWikiDumpHybridResumableCursorKeys(): array
         AVESMAPS_WIKI_DUMP_PHASE_CITYMAPS => 'citymap_cursor',
         // The dump page cursor for the lore catalog build (four infoboxes, ~5.1k entries).
         AVESMAPS_WIKI_DUMP_PHASE_LORE => 'lore_cursor',
+        // Der Dump-Seitenzeiger fuer die Handelshaeuser-Sitze (~140 Artikel, 263 Sitze).
+        AVESMAPS_WIKI_DUMP_PHASE_ORGANISATIONS => 'organisation_cursor',
     ];
 }
 
@@ -1017,6 +1029,17 @@ function avesmapsWikiDumpHybridDispatchPhaseStep(
             // (STAGING ONLY, both read_step and apply -- the owner's sync_lore action does the
             // sharp write). Same dump-page cursor contract as the adventure/citymap builds.
             $r = avesmapsLoreBuildCatalogStep($pdo, $dumpPath, $cursor);
+            return [
+                'done' => (bool) ($r['done'] ?? false),
+                'nextCursor' => (int) ($r['nextCursor'] ?? $cursor),
+                'pages_scanned' => (int) ($r['pages_scanned'] ?? 0),
+                'found_this_step' => (int) ($r['found_this_step'] ?? 0),
+            ];
+
+        case AVESMAPS_WIKI_DUMP_PHASE_ORGANISATIONS:
+            // Die Sitze der Handelsorganisationen ins Staging (STAGING ONLY, read_step wie
+            // apply). Derselbe Dump-Seitenzeiger-Vertrag wie die Nachbarbuilds.
+            $r = avesmapsOrgSeatBuildStep($pdo, $dumpPath, $cursor);
             return [
                 'done' => (bool) ($r['done'] ?? false),
                 'nextCursor' => (int) ($r['nextCursor'] ?? $cursor),

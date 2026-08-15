@@ -27,6 +27,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/../wiki/place-scope.php';
 // Die Gottheiten-Tabelle (Discord #54) fuer avesmapsDeitiesFromStored/avesmapsDeityLabel.
 require_once __DIR__ . '/../wiki/deities.php';
+// Die Sitze der Handelsorganisationen (Handelshaeuser Teil B). Sie liefern Zeilen in
+// DERSELBEN Form wie ein Bauwerk -- deshalb braucht der reine Teil unten keinen Sonderfall.
+require_once __DIR__ . '/../wiki/organisation-sync.php';
 
 /**
  * Registry-Zeilen mit Ortsbezug: Bauwerke (wiki_sync_pages.standort) + Wege
@@ -99,6 +102,16 @@ function avesmapsFetchInSettlementSearchRows(PDO $pdo): array
         }
     } catch (Throwable) {
         // absichtlich still -- siehe Docblock
+    }
+
+    // Die Sitze der Handelsorganisationen (72 Organisationen, 263 Sitze). Sie stehen NICHT in
+    // wiki_sync_pages: eine Organisation liegt an bis zu 35 Orten, ein Innerorts-Objekt hat
+    // aber EINEN standort und seinen Titel als Schluessel. Deshalb eine eigene Staging-Tabelle
+    // -- und hier fliessen ihre Zeilen in dieselbe Liste, in derselben Form.
+    // ⚠️ Fehlt die Tabelle (Phase nie gelaufen), liefert das eine leere Liste und NICHT den
+    // Ausfall der uebrigen Innerorts-Objekte (die Lehre vom 15.08.2026).
+    foreach (avesmapsOrgSeatFetchInSettlementRows($pdo) as $sitz) {
+        $rows[] = $sitz;
     }
 
     return $rows;
