@@ -1715,6 +1715,15 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
     $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
     $description = trim((string) ($payload['description'] ?? ''));
     $wikiUrl = trim((string) ($payload['wiki_url'] ?? ''));
+    $noArticle = avesmapsReadBoolean($payload['wiki_no_article'] ?? false);
+    // 💣 Abgelehnt, nicht aufgeloest. Ein stummer Vorrang waere eine Regel, die niemand kennt --
+    // und der Merker wird an DREI Stellen gelesen (Editor, Konfliktzentrum, Abgleich), die dann
+    // verschiedener Meinung sein koennten.
+    if ($noArticle && $wikiUrl !== '') {
+        throw new InvalidArgumentException(
+            'Eine Kraftlinie kann nicht gleichzeitig einen Wiki-Artikel haben und keinen. Bitte den Link leeren oder das Häkchen entfernen.'
+        );
+    }
 
     $pdo->beginTransaction();
     try {
@@ -1745,6 +1754,11 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
             $properties['show_label'] = $showLabel;
             $properties['description'] = $description;
             $properties['wiki_url'] = $wikiUrl;
+            if ($noArticle) {
+                $properties['wiki_no_article'] = true;
+            } else {
+                unset($properties['wiki_no_article']);
+            }
             $update->execute([
                 'id' => (int) $row['id'],
                 'name' => $newName,
@@ -1764,6 +1778,7 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
                     'show_label' => $showLabel,
                     'description' => $description,
                     'wiki_url' => $wikiUrl,
+                    'wiki_no_article' => $noArticle,
                     'properties_json' => $properties,
                     'revision' => $revision,
                 ])
