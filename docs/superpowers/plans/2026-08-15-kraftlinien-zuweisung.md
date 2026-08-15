@@ -22,7 +22,10 @@ lesen.** Jede Zeile darin mit 💣 / ⚠️ / 🔴 ist Teil der Abnahme (AGENTS.
 
 - **Sprache:** Kommentare, Commit-Nachrichten und Doku auf **Deutsch** (AGENTS.md §8). Sichtbare
   Beschriftungen sind Deutsch. `error.code`-Werte bleiben Englisch.
-- **Zeilenenden:** alle berührten Dateien sind LF. Vor dem Bearbeiten prüfen, nicht annehmen.
+- **Zeilenenden: gemischt, also je Datei prüfen und nicht annehmen.** Die Dateien unter
+  `api/_internal/conflicts/` und `api/_internal/wiki/` sind LF, **`api/_internal/map/features.php`
+  und `api/edit/map/powerlines.php` sind durchgehend CRLF** (am 15.08.2026 nachgemessen). Wer dort
+  mit LF hineinschreibt, erzeugt gemischte Zeilenenden und einen Diff, der die halbe Datei anfasst.
 - **Nur eigene Pfade stagen.** Der Arbeitsbaum wird von mehreren Sitzungen geteilt — **niemals**
   `git add -A`, `git add .` oder `git commit -a` (AGENTS.md §9). Vor jedem Commit `git status`, und
   nur die in der Aufgabe genannten Dateien per Pfad hinzufügen.
@@ -77,11 +80,21 @@ lesen.** Jede Zeile darin mit 💣 / ⚠️ / 🔴 ist Teil der Abnahme (AGENTS.
 ```bash
 grep -n "function avesmapsConflictArticleKey" api/_internal/conflicts/core.php
 grep -n "function avesmapsWikiSyncCreateMatchKey" api/_internal/wiki/sync.php
-grep -n "^require_once" api/_internal/wiki/powerlines.php
+grep -n "^require" api/_internal/wiki/powerlines.php
+grep -n "^require" api/_internal/wiki/__tests__/powerline-parsing-test.php
 ```
 
-Erwartet: beide Funktionen existieren; `powerlines.php` lädt heute `paths.php` und
-`../app/app-setting.php`. `conflicts/core.php` fehlt noch und kommt in Schritt 3 dazu.
+Erwartet: beide Funktionen existieren; `powerlines.php` lädt selbst nur `paths.php` und
+`../app/app-setting.php`; `conflicts/core.php` fehlt noch und kommt in Schritt 4 dazu.
+
+💣 **`powerlines.php` bringt seine Kette NICHT mit, und das ist Absicht.** Sein Docblock sagt
+wörtlich: „Like paths.php, this expects the including endpoint to have loaded first: sync.php,
+sync-monitor.php, sync-monitor-parsing.php, territories-parsing.php and political/territory.php."
+Ein Test, der nur `powerlines.php` lädt, stirbt deshalb an `avesmapsWikiSyncCreateMatchKey()` —
+und zwar **bevor** er die neue Funktion überhaupt erreicht, also mit der falschen Fehlermeldung.
+Der vierte `grep` zeigt die Kette, die der Nachbartest dafür lädt: **abschreiben, nicht raten.**
+🔴 Diese Kette gehört in den TEST, nicht in `powerlines.php` — sie dort zu ergänzen bräche eine
+dokumentierte Zusage und änderte die Ladereihenfolge für alle echten Aufrufer.
 
 - [ ] **Schritt 2: Den scheiternden Test schreiben**
 
@@ -107,6 +120,15 @@ if (ini_get('zend.assertions') !== '1') {
     exit(2);
 }
 
+// Dieselbe Ladekette wie im Nachbartest powerline-parsing-test.php: powerlines.php erwartet laut
+// eigenem Docblock, dass der Aufrufer sie mitbringt. Die genaue Liste aus Schritt 1 uebernehmen --
+// hier steht der Stand vom 15.08.2026.
+require_once __DIR__ . '/../sync.php';
+require_once __DIR__ . '/../sync-monitor.php';
+require_once __DIR__ . '/../sync-monitor-parsing.php';
+require_once __DIR__ . '/../territories-tree.php';
+require_once __DIR__ . '/../territories-parsing.php';
+require_once __DIR__ . '/../../political/territory.php';
 require __DIR__ . '/../powerlines.php';
 
 $hexenband = ['name' => 'Hexenband', 'nest' => ['wiki_key' => 'hexenband', 'wiki_url' => 'https://de.wiki-aventurica.de/wiki/Hexenband', 'name' => 'Hexenband']];
@@ -903,7 +925,21 @@ weder zugewiesen noch als artikellos markiert wurde.
 - [ ] **Schritt 8: Pushen und den entfernten Stand prüfen**
 
 ```bash
-git pull --rebase --autostash origin master && git push origin master
+git fetch origin --quiet && git log --oneline HEAD..origin/master
+```
+
+💣 **Bei abgelehntem Push NICHT `rebase --autostash`**, obwohl AGENTS.md §9 das sagt. Im geteilten
+Arbeitsbaum liegt fremde offene Arbeit; hat die Parallelsitzung Änderungen in genau den Dateien ihres
+eigenen frisch gepushten Commits, wendet der Stash-Rücklauf einen Diff gegen den **alten** Stand auf
+den **neuen** an — ein Konflikt mitten in halbfertiger fremder Arbeit. Stattdessen:
+
+1. `git diff --name-only <eigener-commit>~1 origin/master` — überschneiden sich die neuen Commits mit
+   den eigenen Dateien? Dann **halten** und mit dem Owner klären.
+2. Ohne Überschneidung: `git reset --mixed origin/master` (⚠️ **nie `--hard`**, das löscht die fremde
+   Arbeit), eigene Pfade nach Namen erneut stagen, neu committen, pushen.
+
+```bash
+git push origin master
 ```
 ```bash
 git fetch origin --quiet && git log --oneline -1 HEAD && git log --oneline -1 origin/master
