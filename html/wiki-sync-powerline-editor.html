@@ -335,6 +335,30 @@ function fieldSample(line, key) {
 	for (const s of line.segments) { if (s[key]) { return s[key]; } }
 	return "";
 }
+// 💣 DREI Faelle, nicht zwei. Eine leere Vorschlagsliste sieht aus wie „es gibt keine Artikel",
+// heisst aber fast immer „es wurde noch kein Dump geholt" (Entwurf §6) -- und der dritte Fall,
+// „ein Dump ist gelaufen und hat trotzdem keine Kraftlinien abgelegt", ist genau der historische,
+// an dem der Abgleich schon einmal gescheitert ist („Keine Kraftlinien im Zwischenspeicher").
+// Solange nur has_run unterschieden wurde, bekam ausgerechnet der beruhigenden Satz „Der Abgleich
+// folgt der Zuweisung …", waehrend darunter nichts zur Auswahl stand.
+//
+// ⚠️ Der mittlere Satz sagt, was MESSBAR ist (der Lauf hat nichts abgelegt) und was zu tun ist
+// (Dump erneut holen) -- nicht, WARUM, denn das weiss diese Seite nicht.
+function wikiListHint() {
+	if (!dumpState.has_run) {
+		return "Noch kein Dump geholt — deshalb keine Artikel zur Auswahl. Erst „📥 Dump holen“ laufen lassen.";
+	}
+	// article_count kommt aus derselben Quelle wie die Liste; die Liste ist der Rueckfall, falls
+	// ein aelterer Leseweg den Schluessel nicht mitschickt.
+	const count = Number(dumpState.article_count ?? wikiArticles.length);
+	if (!(count > 0)) {
+		const when = String(dumpState.completed_at || "").trim();
+		return "Der Dump-Lauf" + (when ? " vom " + esc(when) : "")
+			+ " hat keine Kraftlinien-Artikel abgelegt — deshalb ist die Liste leer."
+			+ " Bitte „📥 Dump holen“ erneut laufen lassen; eine Adresse von Hand einzufügen geht trotzdem.";
+	}
+	return "Ausdrücklich gesetzt, nie geraten. Der Abgleich folgt der Zuweisung, auch wenn die Linie anders heißt.";
+}
 function renderDetail() {
 	const host = $("plDetail");
 	const line = lineByName(selectedName);
@@ -373,9 +397,7 @@ function renderDetail() {
 				+ wikiArticles.map((a) => '<option value="' + esc(a.wiki_url) + '" label="' + esc(a.name) + '"></option>').join("")
 			+ "</datalist>"
 			+ '<div class="pl-hint">'
-				+ (dumpState.has_run
-					? "Ausdrücklich gesetzt, nie geraten. Der Abgleich folgt der Zuweisung, auch wenn die Linie anders heißt."
-					: "Noch kein Dump geholt — deshalb keine Artikel zur Auswahl.")
+				+ wikiListHint()
 				+ (wikiUrl ? ' <a class="dt-link" href="' + esc(wikiUrl) + '" target="_blank" rel="noopener">Öffnen ↗</a>' : "")
 			+ "</div>"
 		+ "</div></div>"
