@@ -359,13 +359,16 @@ foreach ([0.749, 0.700, 0.500, 0.200, 0.100, 0.040] as $faktor) {
 // ============================================================ F. Die Ablageform, einmal im Haus
 
 // 💣 ZWEI SCHREIBER, EINE FORM. Der Endpunkt (api/edit/map/travel-values.php) und die Migration legen
-// denselben Wert ab. Stuende die Sechs-Schluessel-Liste zweimal da, fehlte beim naechsten neuen
+// denselben Wert ab. Stuende die Sieben-Schluessel-Liste zweimal da, fehlte beim naechsten neuen
 // Abschnitt genau einer der beiden -- und ein fehlender Schluessel ist im Leser kein Fehler, sondern
 // ein stiller Rueckfall auf die Konstante.
+// ⭐ GENAU DAS HAT DIESE ZEILE AM 15.08.2026 GELEISTET: `offroad_ramp` (der Laengenaufschlag)
+// kam dazu, und der Waechter hat es gemeldet, statt es durchgehen zu lassen. Die Liste bleibt
+// deshalb ausgeschrieben -- ein `count()` haette dasselbe gezaehlt und nichts benannt.
 $abgelegt = avesmapsTravelValuesStorableShape(avesmapsTravelValuesRead(null));
 assert(array_keys($abgelegt) === ['grid', 'day_miles', 'path_factors', 'ground_penalties',
-    'river_ratio', 'calibration_target_miles'],
-    'die Ablageform hat genau sechs Schluessel: ' . implode(', ', array_keys($abgelegt)));
+    'river_ratio', 'calibration_target_miles', 'offroad_ramp'],
+    'die Ablageform hat genau sieben Schluessel: ' . implode(', ', array_keys($abgelegt)));
 // ⚠️ `source` sagt, WOHER die Werte kamen (Speicher oder Konstante). Mitgespeichert waere es beim
 // naechsten Lesen eine Behauptung ueber sich selbst.
 assert(!array_key_exists('source', $abgelegt), '`source` wird nicht mitgespeichert');
