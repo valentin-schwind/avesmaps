@@ -253,10 +253,24 @@ assert(count($allPrints) === count(array_unique($allPrints)));
 // "Nur dieses Objekt verliert die Verknuepfung" war danach schlicht falsch, und ein Editor, der es
 // erst nach dem Klick erfaehrt, hat keine Entscheidung getroffen, sondern eine Ueberraschung erlebt.
 //
-// ⚠️ Geprueft wird auf die DEUTSCHEN Woerter, nicht auf AVESMAPS_CONFLICT_SEGMENTED_TYPES:
-// 'path'/'powerline' sind Datenschluessel, "Weg"/"Kraftlinie" ist die Sprache des Editors, und
-// zwischen beiden gibt es keine Ableitung, nur eine Uebersetzung. Kommt eine dritte segmentierte
-// Art hinzu, faellt das hier NICHT auf -- dann gehoert sie in beide Listen von Hand.
+// ⭐ Die Uebersetzung steht in DERSELBEN Datei, ein paar Zeilen ueber dem Katalog:
+// AVESMAPS_CONFLICT_TYPE_LABELS bildet 'path' => 'Weg' und 'powerline' => 'Kraftlinie' ab. Die
+// Pruefung laeuft deshalb ueber AVESMAPS_CONFLICT_SEGMENTED_TYPES und holt sich das deutsche Wort
+// von dort -- eine dritte segmentierte Art faellt damit SEHR WOHL auf: ihr Label fehlt dann in
+// jedem dieser Saetze, und der Test sagt, in welchem.
+//
+// ⚠️ Was offen BLEIBT: geprueft ist, dass das Wort vorkommt -- nicht, dass der Satz das Richtige
+// darueber sagt. "Bei einem Weg gilt das nicht" kaeme hier durch. Und ein Label, das als
+// Teilzeichenkette in einem unbeteiligten Wort steckt, wuerde ebenfalls durchgehen. Diese Zeilen
+// sind ein Riegel gegen das VERGESSEN, keiner gegen das Missformulieren.
+$segmentedLabels = [];
+foreach (AVESMAPS_CONFLICT_SEGMENTED_TYPES as $segmentedType) {
+    $typeLabel = AVESMAPS_CONFLICT_TYPE_LABELS[$segmentedType] ?? '';
+    assert($typeLabel !== '', 'die segmentierte Art "' . $segmentedType . '" hat ein deutsches Label');
+    $segmentedLabels[$segmentedType] = $typeLabel;
+}
+assert($segmentedLabels !== [], 'es gibt ueberhaupt segmentierte Arten');
+
 $catalog = avesmapsConflictRuleCatalog();
 $verbsById = [];
 foreach ($catalog as $rule) {
@@ -267,11 +281,15 @@ foreach ($catalog as $rule) {
 }
 
 // Die drei Knoepfe am geteilten Artikel -- alle drei schreiben, alle drei fassen die Linie.
-foreach (['Behält den Link', 'Trennen', 'Kein Wiki-Eintrag'] as $label) {
-    $effect = $verbsById['wiki.shared_article'][$label] ?? '';
-    assert($effect !== '', 'Verb "' . $label . '" ist beschrieben');
-    assert(str_contains($effect, 'Kraftlinie'), 'Verb "' . $label . '" nennt die Kraftlinie');
-    assert(str_contains($effect, 'Weg'), 'Verb "' . $label . '" nennt den Weg');
+foreach (['Behält den Link', 'Trennen', 'Kein Wiki-Eintrag'] as $verbLabel) {
+    $effect = $verbsById['wiki.shared_article'][$verbLabel] ?? '';
+    assert($effect !== '', 'Verb "' . $verbLabel . '" ist beschrieben');
+    foreach ($segmentedLabels as $segmentedType => $typeLabel) {
+        assert(
+            str_contains($effect, $typeLabel),
+            'Verb "' . $verbLabel . '" nennt "' . $typeLabel . '" (' . $segmentedType . ')'
+        );
+    }
 }
 
 // 💣 Der Satz, der falsch wurde. Er darf nicht zurueckkehren.
@@ -286,7 +304,12 @@ assert(str_contains($verbsById['wiki.shared_article']['Trennen'], 'nur dieses ei
 // Der einzige schreibende Knopf der Beobachtungsliste -- er fehlte in ihrer Verbliste ganz.
 $uebernehmen = $verbsById['wiki.missing_key']['Artikel übernehmen'] ?? '';
 assert($uebernehmen !== '', '"Artikel übernehmen" ist beschrieben');
-assert(str_contains($uebernehmen, 'Kraftlinie') && str_contains($uebernehmen, 'Weg'));
+foreach ($segmentedLabels as $segmentedType => $typeLabel) {
+    assert(
+        str_contains($uebernehmen, $typeLabel),
+        'Verb "Artikel übernehmen" nennt "' . $typeLabel . '" (' . $segmentedType . ')'
+    );
+}
 // Er laesst Zeilen aus, die schon etwas tragen -- und meldet sie. Das gehoert in den Text, sonst
 // liest sich das Ergebnis wie ein halb misslungener Klick.
 assert(str_contains($uebernehmen, 'unangetastet'));
