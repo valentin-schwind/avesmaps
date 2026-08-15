@@ -110,7 +110,24 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
         }
 
         $label = trim((string) ($territory['name'] ?? ''));
-        $nodeKey = $wikiKey !== '' ? $wikiKey : avesmapsPoliticalSlug($label);
+
+        // 💣 Die IDENTITAET des Knotens, und sie ist NICHT dasselbe wie $wikiKey. Eigene Knoten haben
+        // keine Wiki-Zeile (wiki_id NULL) und tragen ihren Schluessel in der eigenen Spalte; frueher
+        // fiel $nodeKey fuer sie auf einen Namens-Slug zurueck, und der Editor suchte den Knoten in
+        // seinem Baum danach. Das konnte fuer akzentbehaftete Namen gar nicht aufgehen (PHP faltet
+        // 'Rekáchet' zu 'rek-chet', der Browser zu 'rekachet') -- dann baute der Editor eine
+        // Ersatzkette mit EINEM Kind je Ebene, in der es keine Geschwister und damit keine
+        // Durchschalt-Pfeile gibt. Genau das sah nach "mal geht's, mal nicht" aus.
+        //
+        // 🔴 $wikiKey bleibt bewusst LEER, wenn es keine Wiki-Zeile gibt. Er ist der Schluessel IN
+        // political_territory_wiki, und der Client baut daraus wiki_public_ids: waere er gefuellt,
+        // naehme das Speichern den Wiki-Zweig statt des Territorien-Zweigs -- und der ueberschreibt
+        // parent_id und die Zoom-Baender mit Vorgabewerten. Identitaet und Wiki-Herkunft sind zwei
+        // Fragen. Siehe __tests__/eigene-knoten-wiki-key-test.php.
+        $nodeKey = avesmapsPoliticalResolveTerritoryWikiKey($territory, $wikiKey);
+        if ($nodeKey === '') {
+            $nodeKey = avesmapsPoliticalSlug($label);
+        }
 
         $pathNames = array_map(
             static fn(array $item): string => (string) ($item['name'] ?? ''),

@@ -414,7 +414,14 @@ function avesmapsPoliticalEnsureWikiTerritoryChain(PDO $pdo, array $payload, arr
                     avesmapsPoliticalLinkTerritoryToWiki($pdo, (int) $territory['id'], (int) $wiki['id'], avesmapsPoliticalNullableString($wiki['wiki_key'] ?? null));
                 }
             } else {
-                $territory = avesmapsPoliticalEnsureSyntheticTreeTerritory($pdo, $node, $wikiKey);
+                // 💣 Der Rueckweg zur Leseseite (assignment.php): seit die Kette den Schluessel eigener
+                // Knoten MITSCHICKT, kommt er hier wieder an und dieser Zweig traegt sie. Ein Gebiet,
+                // das den Schluessel selbst fuehrt, IST das Ziel -- ohne Wiki-Zeile. Ohne den Griff
+                // landete es im Namensweg darunter, und der findet nichts, sobald der Slug fortgezaehlt
+                // wurde (avesmapsPoliticalUniqueSlug) oder der Name sich geaendert hat: er legte dann
+                // eine ZWEITE Zeile fuer dasselbe Gebiet an.
+                $territory = avesmapsPoliticalFindTerritoryByWikiKey($pdo, $wikiKey)
+                    ?? avesmapsPoliticalEnsureSyntheticTreeTerritory($pdo, $node, $wikiKey);
             }
 
             if ($parentId !== null && $parentId !== (int) $territory['id']) {

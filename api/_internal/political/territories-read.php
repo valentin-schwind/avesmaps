@@ -494,6 +494,43 @@ function avesmapsPoliticalFindTerritoryBySlug(PDO $pdo, string $slug): ?array {
     return $territory ?: null;
 }
 
+// Der Schluessel eines Herrschaftsgebiets. 💣 Er steht an ZWEI Stellen, und nur eine wurde gelesen:
+// gewoehnliche Gebiete haengen ueber wiki_id an political_territory_wiki, EIGENE KNOTEN aber haben
+// wiki_id NULL und tragen den Schluessel in ihrer eigenen Spalte (avesmapsWikiSyncMonitorApplyCustomNodes
+// legt sie genau so an). Wer nur ueber die Wiki-Zeile aufloest, bekommt fuer sie leer und faellt auf
+// einen Namensvergleich zurueck -- der fuer akzentbehaftete Namen gar nicht aufgehen kann, weil
+// avesmapsPoliticalSlug den Akzent samt Grundbuchstaben faltet und der Browser ihn nach NFD streicht.
+function avesmapsPoliticalResolveTerritoryWikiKey(array $territory, string $wikiRowKey = ''): string {
+    $wikiRowKey = trim($wikiRowKey);
+    if ($wikiRowKey !== '') {
+        return $wikiRowKey;
+    }
+
+    return trim((string) ($territory['wiki_key'] ?? ''));
+}
+
+// Das Gebiet zu einem Schluessel, ohne Umweg ueber eine Wiki-Zeile -- fuer eigene Knoten der einzige
+// Weg. ⚠️ Nur aktive Zeilen: eine Zuweisung darf nichts wiederbeleben, was im Papierkorb liegt.
+function avesmapsPoliticalFindTerritoryByWikiKey(PDO $pdo, string $wikiKey): ?array {
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey === '') {
+        return null;
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT *
+        FROM political_territory
+        WHERE wiki_key = :wiki_key
+            AND is_active = 1
+        ORDER BY id ASC
+        LIMIT 1'
+    );
+    $statement->execute(['wiki_key' => $wikiKey]);
+    $territory = $statement->fetch(PDO::FETCH_ASSOC);
+
+    return $territory ?: null;
+}
+
 function avesmapsPoliticalDeactivateTerritoryIfOrphaned(PDO $pdo, int $territoryId): void {
     if ($territoryId < 1) {
         return;
