@@ -78,6 +78,36 @@ foreach ($payload as $stufe) {
 }
 assert(avesmapsWhatIsHereTerritoryPayload([]) === [], 'kein Treffer -> leere oeffentliche Kette');
 
+// ---------------------------------------------------------------- DIE WAPPEN-KETTE ---------------
+// 🔴 Fix-Runde 6, Befund C: der Live-Befund war "alle vier Stufen coat_url: ''" -- die rohe Spalte
+// political_territory.coat_of_arms_url wurde ungegatet durchgereicht. Das ist ein RECHTSRIEGEL, kein
+// Schoenheitsfehler (NOTICE.md): nur `public_domain` darf je ausgeliefert werden. Diese Zusicherungen
+// pruefen die reine Haelfte (avesmapsWhatIsHereGateCoatUrlsPure) -- fertige Zutaten, kein PDO.
+$wappenKette = [
+    ['wiki_key' => 'wiki:grafenmark-ferdok', 'coat_url' => 'https://original.example/ferdok.png'],
+    ['wiki_key' => 'wiki:kaiserreich', 'coat_url' => 'https://original.example/kaiserreich.png'],
+];
+$wappenZutaten = [
+    'staging' => [
+        'wiki:grafenmark-ferdok' => ['coat_of_arms_url' => '', 'coat_of_arms_license_status' => 'public_domain'],
+        // 🔴 DER FALL, UM DEN ES GEHT: eine echte URL steht da, aber die Lizenz ist nicht oeffentlich.
+        'wiki:kaiserreich' => ['coat_of_arms_url' => '', 'coat_of_arms_license_status' => 'urheberrechtlich geschuetzt'],
+    ],
+    'overrides' => [],
+];
+$gegatet = avesmapsWhatIsHereGateCoatUrlsPure($wappenKette, $wappenZutaten, true);
+assert($gegatet[0]['coat_url'] !== '', 'public_domain -> das Wappen darf raus (sonst waere die Zusicherung unten wertlos)');
+assert($gegatet[1]['coat_url'] === '',
+    '🔴 NICHT public_domain -> KEIN Wappen, obwohl eine URL da war -- das ist der Rechtsriegel aus NOTICE.md, nicht nur eine leere Spalte');
+
+// Derselbe Riegel gilt fuer den globalen "Wappen: Aus"-Schalter: der tauscht ein ERLAUBTES Wappen
+// gegen den Platzhalter, darf aber kein Wappen dazuerfinden, das der Lizenzriegel schon verworfen hat.
+$mitSchalterAus = avesmapsWhatIsHereGateCoatUrlsPure($wappenKette, $wappenZutaten, false);
+assert($mitSchalterAus[0]['coat_url'] === AVESMAPS_COAT_PLACEHOLDER_URL,
+    'der globale Schalter tauscht ein erlaubtes Wappen gegen den Platzhalter');
+assert($mitSchalterAus[1]['coat_url'] === '',
+    'aber ein bereits verworfenes Wappen bleibt verworfen -- kein Platzhalter aus dem Nichts');
+
 // ---------------------------------------------------------------- DIE VORFAHRENKETTE -------------
 // 🔴 Fix-Runde 3: der Live-Befund war „nur EINE Stufe statt vier" -- Grafschaft/Fuerstentum/
 // Kaiserreich sind ABGELEITETE Aussengrenzen ohne eigene Geometrie und fielen durch die reine

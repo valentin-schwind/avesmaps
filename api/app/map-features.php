@@ -53,15 +53,11 @@ require_once __DIR__ . '/../_internal/app/feature-sources.php';
 //    Beschriftung -- er kennt das Feld nicht und haelt jede fuer ebenenfremd.
 const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 11;
 
-// Coat-of-arms staging + model tables for the settlement "Liegt in" breadcrumb. These MIRROR the constants
-// of api/app/territory-detail.php EXACTLY. The public-domain GATE itself now lives once in the shared
-// avesmapsResolveGatedCoatUrl (api/_internal/coat-url.php, AVESMAPS_COAT_PUBLIC_LICENSES) -- surfacing a coat
-// the canonical gate would withhold is a NOTICE.md/legal violation. Declared ABOVE the try block for the same
-// reason as the payload version above: avesmapsLoadSettlementPoliticalContext() runs inside the try
-// (top-to-bottom) and reads them, and a top-level const is sequential -- declaring them below would be
-// undefined at call time -> 500.
-const AVESMAPS_MAP_FEATURES_COAT_STAGING_TABLE = 'political_territory_wiki_test'; // = AVESMAPS_TERRITORY_DETAIL_STAGING_TABLE
-const AVESMAPS_MAP_FEATURES_COAT_MODEL_TABLE = 'wiki_territory_model';            // = AVESMAPS_TERRITORY_DETAIL_MODEL_TABLE
+// 🔴 Fix-Runde 6 (15.08.2026): the coat-of-arms staging/model table constants AND the two loader/gate
+// functions that used to sit here (avesmapsLoadSettlementCoatGateInputs, avesmapsSettlementTerritoryCoatUrl)
+// moved to api/_internal/coat-url.php (already required above), renamed AVESMAPS_COAT_GATE_STAGING_TABLE /
+// AVESMAPS_COAT_GATE_MODEL_TABLE -- so the what-is-here "Liegt in" chain can share the exact same
+// implementation instead of a second one. Call sites below are unchanged (same function names).
 
 // Die entity_type, die die KARTE aufloest. renderFeatureSourceLine wird ausschliesslich mit
 // diesen fuenf aufgerufen (map-features-labels.js, -location-marker-entry.js, -path-rendering.js,
@@ -654,85 +650,6 @@ function avesmapsLoadSettlementPoliticalContext(PDO $pdo, bool $territoryCoatsEn
         return [];
     }
     return ['byId' => $byId, 'currentIdByWikiKey' => $currentIdByWikiKey, 'idByPublicId' => $idByPublicId];
-}
-
-// Bulk-loads the two coat inputs the public-domain gate consults, keyed by wiki_key: the wiki STAGING row
-// (coat URL + license status) and the MODEL overrides (metadata_overrides_json). These are the SAME two
-// sources api/app/territory-detail.php reads (same table constants). Loaded ONCE -- two small full-table
-// scans, no N+1. Each side has its OWN try/catch so a missing sandbox table simply yields no thumbnails; it
-// never breaks the (core) political line, which does not depend on these tables.
-function avesmapsLoadSettlementCoatGateInputs(PDO $pdo): array {
-    $staging = [];
-    try {
-        $statement = $pdo->query(
-            'SELECT wiki_key, coat_of_arms_url, coat_of_arms_license_status FROM '
-            . AVESMAPS_MAP_FEATURES_COAT_STAGING_TABLE
-        );
-        foreach (($statement ? $statement->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
-            $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
-            if ($wikiKey === '') {
-                continue;
-            }
-            $staging[$wikiKey] = [
-                'coat_of_arms_url' => (string) ($row['coat_of_arms_url'] ?? ''),
-                'coat_of_arms_license_status' => (string) ($row['coat_of_arms_license_status'] ?? ''),
-            ];
-        }
-    } catch (Throwable) {
-        $staging = [];
-    }
-
-    $overrides = [];
-    try {
-        $statement = $pdo->query(
-            'SELECT wiki_key, metadata_overrides_json FROM ' . AVESMAPS_MAP_FEATURES_COAT_MODEL_TABLE
-            . ' WHERE metadata_overrides_json IS NOT NULL'
-        );
-        foreach (($statement ? $statement->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
-            $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
-            $json = (string) ($row['metadata_overrides_json'] ?? '');
-            if ($wikiKey === '' || $json === '') {
-                continue;
-            }
-            $decoded = json_decode($json, true);
-            if (!is_array($decoded)) {
-                continue;
-            }
-            // Keep only the two coat keys the gate consults, and only when actually present -- so the
-            // array_key_exists override check below mirrors territory-detail's "override ?? staging" exactly.
-            $coatOverride = [];
-            if (array_key_exists('coat_of_arms_url', $decoded)) {
-                $coatOverride['coat_of_arms_url'] = (string) $decoded['coat_of_arms_url'];
-            }
-            if (array_key_exists('coat_of_arms_license_status', $decoded)) {
-                $coatOverride['coat_of_arms_license_status'] = (string) $decoded['coat_of_arms_license_status'];
-            }
-            if ($coatOverride !== []) {
-                $overrides[$wikiKey] = $coatOverride;
-            }
-        }
-    } catch (Throwable) {
-        $overrides = [];
-    }
-
-    return ['staging' => $staging, 'overrides' => $overrides];
-}
-
-// Effective, public-domain-GATED coat URL for one territory, mirroring api/app/territory-detail.php EXACTLY:
-//   license = override.coat_of_arms_license_status ?? staging.coat_of_arms_license_status
-//   url     = override.coat_of_arms_url ?? political_territory.coat_of_arms_url ?? staging.coat_of_arms_url
-//   allowed = url !== '' AND license IN (public_domain)
-// Returns the URL only when allowed, else '' -- a non-public-domain coat is never emitted (see NOTICE.md).
-function avesmapsSettlementTerritoryCoatUrl(string $ptCoatUrl, array $stagingRow, array $overrides): string {
-    // Canonical precedence + public-domain gate + cache-bust now live in api/_internal/coat-url.php, so this
-    // breadcrumb, the territory infobox and the map label share ONE implementation and cannot diverge again
-    // (Discord #32). The signature stays; only the duplicated body moved.
-    return avesmapsResolveGatedCoatUrl(
-        $overrides,
-        $ptCoatUrl,
-        (string) ($stagingRow['coat_of_arms_url'] ?? ''),
-        (string) ($stagingRow['coat_of_arms_license_status'] ?? '')
-    );
 }
 
 // Conservative name-match key for capital<->settlement comparison: lowercased, whitespace-collapsed,

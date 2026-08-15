@@ -11,6 +11,37 @@
 
 let whatIsHereToken = null;
 
+/**
+ * Das Kopfbild-Basename einer Landschafts-Antwort: der ERSTE Treffer, der wirklich ein Bild ergibt --
+ * erst Vegetation durchgehen, dann Topographie, dann der allgemeine Rueckfall. Aufgeloest ueber
+ * INFO_HEADER_IMAGE_BY_ART -- keine zweite Tabelle.
+ *
+ * 🔴 Fix-Runde 6, Befund B: NICHT einfach vegetation[0]/topographie[0]. Am gemessenen Landpunkt war
+ * der erste Vegetationstreffer „Flusslande" (type_label „Flussland/Flusstal", nicht in
+ * INFO_HEADER_IMAGE_BY_ART), der ZWEITE „Dunkelwald (Wald)" haette wald.webp ergeben --
+ * regionHeaderImageBasename() faellt bei unbekanntem Typ auf "region" zurueck, und genau daran wird
+ * ein Fehlschlag erkannt: weitersuchen statt den ersten Treffer blind zu uebernehmen.
+ * ⚠️ Der Seepunkt bleibt unveraendert richtig (meer.webp): dort liegt keine Vegetation, die
+ * Topographie-Schleife greift direkt.
+ *
+ * Eigene Funktion (nicht inline in avesmapsWhatIsHereMarkup), damit genau dieser Fall -- mehrere
+ * Vegetationstreffer, der erste ohne Bild, der zweite mit -- ausgefuehrt statt nur im Quelltext
+ * gesucht geprueft werden kann (js/map-features/__tests__/what-is-here-panel.test.js).
+ */
+function avesmapsWhatIsHereHeaderImageBasename(flaechen) {
+	const ersterBildtreffer = (treffer) => {
+		for (const t of (treffer || [])) {
+			const kandidat = regionHeaderImageBasename(t.type_label || "");
+			if (kandidat !== "region") {
+				return kandidat;
+			}
+		}
+		return null;
+	};
+	const f = flaechen || {};
+	return ersterBildtreffer(f.vegetation) || ersterBildtreffer(f.topographie) || "region";
+}
+
 /** Der Zustand einer angezeigten Stelle: die Koordinate plus, sobald sie da ist, die Serverantwort. */
 function avesmapsWhatIsHereMarkup(latlng, antwort) {
 	const esc = escapeHtml;
@@ -19,11 +50,8 @@ function avesmapsWhatIsHereMarkup(latlng, antwort) {
 		? formatLocationReportCoordinates(latlng)
 		: `${latlng.lat.toFixed(3)}, ${latlng.lng.toFixed(3)}`;
 
-	// ⭐ Das Kopfbild IST der Landschaftsbefund: Vegetation zuerst, sonst Topographie, sonst das
-	// allgemeine Bild. Aufgeloest ueber INFO_HEADER_IMAGE_BY_ART -- keine zweite Tabelle.
 	const flaechen = (antwort && antwort.landscapes) || {};
-	const leitart = (flaechen.vegetation || [])[0] || (flaechen.topographie || [])[0] || null;
-	const bild = leitart ? regionHeaderImageBasename(leitart.type_label || "") : "region";
+	const bild = avesmapsWhatIsHereHeaderImageBasename(flaechen);
 	const kopf = infoHeaderImageMarkup(bild, titel, koordinate, "", [], "");
 
 	const kacheln = locationPopupActionsMarkup([

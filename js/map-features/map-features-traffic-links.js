@@ -1,5 +1,12 @@
 // Verkehrswege in der Siedlungs-Infobox anklickbar machen.
 //
+// 🔴 Seit Fix-Runde 6 (15.08.2026) traegt derselbe Verteiler auch die Namen aus „In der Naehe"
+// (was-ist-hier-nearby.js): dieselbe Klasse `.avesmaps-traffic-link` -- „sieht aus wie ein Link,
+// springt auf der Karte hin" --, nur mit `data-what-is-here-name` statt `data-traffic-path`, weil
+// dort ORTSCHAFTEN und Wege gemischt in einer Liste stehen. Ein zweiter Verteiler fuer dieselbe
+// Geste waere genau die Divergenz, vor der AGENTS §12 warnt -- siehe der untere Teil des
+// Klick-Handlers.
+//
 // 💣 DIE LINKZIELE SIND WEG, BEVOR DIE DATEN ANKOMMEN. Im Wiki steht
 // „|Verkehrswege=[[Yaquir]], [[Eisenstraße]]", aber
 // avesmapsWikiSyncCleanPoliticalTerritoryWikiValue (territories-parsing.php:199) löst
@@ -204,17 +211,69 @@ if (typeof document !== "undefined" && !document.__avesmapsTrafficLinksBound) {
 	}
 
 	document.addEventListener("click", function (event) {
-		var button = event.target && event.target.closest ? event.target.closest("[data-traffic-path]") : null;
-		if (!button) {
+		var target = event.target && event.target.closest
+			? event.target.closest("[data-traffic-path], [data-what-is-here-name]")
+			: null;
+		if (!target) {
 			return;
 		}
 		event.preventDefault();
-		var entry = avesmapsFindTrafficRouteEntry(button.getAttribute("data-traffic-path") || "");
-		if (entry && typeof selectSpotlightSearchEntry === "function") {
-			// Exakt derselbe Weg wie über die Suche: zoomen, hervorheben, Ebene an.
-			selectSpotlightSearchEntry(entry);
-		} else if (typeof showFeedbackToast === "function") {
-			showFeedbackToast("Dieser Weg ist gerade nicht geladen.", "info");
+
+		var trafficPath = target.getAttribute("data-traffic-path");
+		if (trafficPath !== null) {
+			var pathEntry = avesmapsFindTrafficRouteEntry(trafficPath || "");
+			if (pathEntry && typeof selectSpotlightSearchEntry === "function") {
+				// Exakt derselbe Weg wie über die Suche: zoomen, hervorheben, Ebene an.
+				selectSpotlightSearchEntry(pathEntry);
+			} else if (typeof showFeedbackToast === "function") {
+				showFeedbackToast("Dieser Weg ist gerade nicht geladen.", "info");
+			}
+			return;
+		}
+
+		// 🔴 Fix-Runde 6: „In der Nähe" (was-ist-hier-nearby.js) mischt ORTSCHAFTEN und Wege in
+		// einer Liste, aber der Knopf traegt fuer beide dasselbe Attribut -- die Markup-Seite
+		// (avesmapsWhatIsHereNearbyMarkup) haelt keinen eigenen Hinweis, welcher Fall vorliegt.
+		// Ort ZUERST (namensgenauer Index, findLocationMarkerByName): trifft er, ist die Sache
+		// entschieden -- kein Rueckfall auf die Wegesuche fuer denselben Namen, das waere bei
+		// einer Namensgleichheit zwischen Ort und Weg das falsche Ziel. Erst wenn KEIN Ort passt,
+		// greift derselbe Wege-Mechanismus wie oben (avesmapsFindTrafficRouteEntry).
+		var name = target.getAttribute("data-what-is-here-name") || "";
+		if (!name) {
+			return;
+		}
+		var locationEntry = typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(name) : null;
+		if (locationEntry) {
+			// Dieselbe Geste wie ueberall im Haus, wenn man einen Ort erreicht (routing.js,
+			// action === "show-in-panel"): Infobox ins Panel, dann die Karte zentrieren. Erst das
+			// Panel, dann zentrieren -- ein Ort dicht am rechten Rand soll danach frei liegen.
+			if (typeof window.avesmapsShowLocationInInfopanel === "function") {
+				window.avesmapsShowLocationInInfopanel(locationEntry);
+				var showLatLng = locationEntry.marker && typeof locationEntry.marker.getLatLng === "function"
+					? locationEntry.marker.getLatLng() : null;
+				if (showLatLng && Number.isFinite(showLatLng.lat) && Number.isFinite(showLatLng.lng)
+					&& typeof map !== "undefined" && map) {
+					map.panTo(showLatLng);
+				}
+			} else if (typeof showFeedbackToast === "function") {
+				showFeedbackToast("Dieses Ziel ist gerade nicht geladen.", "info");
+			}
+			return;
+		}
+
+		var wayEntry = avesmapsFindTrafficRouteEntry(name);
+		if (wayEntry && typeof selectSpotlightSearchEntry === "function") {
+			selectSpotlightSearchEntry(wayEntry);
+			return;
+		}
+
+		// ⚠️ Weder Ort noch Weg gefunden: NIE stillschweigend nichts tun (Vorgabe „kein Knopf, der
+		// wie ein Link aussieht und nichts tut" -- genau der Befund, den diese Runde behebt). Der
+		// Text ist bewusst art-neutral, weil an dieser Stelle nicht mehr bekannt ist, ob „Name" ein
+		// Ort oder ein Weg war -- derselbe Toast-Mechanismus wie beim unauflösbaren Verkehrsweg
+		// oben, nur ohne die Wegart im Satz zu behaupten.
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast("Dieses Ziel ist gerade nicht geladen.", "info");
 		}
 	});
 }

@@ -14,6 +14,16 @@ declare(strict_types=1);
 // MultiPolygone und ist getestet; ein zweiter waere die Divergenz, vor der AGENTS §12 warnt.
 require_once __DIR__ . '/climate-membership.php';
 
+// 🔴 Fix-Runde 6, Befund C: KEIN EIGENES WAPPEN-GATING. avesmapsResolveGatedCoatUrl/
+// avesmapsLoadSettlementCoatGateInputs/avesmapsSettlementTerritoryCoatUrl (jetzt hier, vorher nur in
+// api/app/map-features.php) sind die EINE Rangfolge + der EINE Lizenzriegel im Haus -- ein Wappen ohne
+// `public_domain`-Status darf nie ausgeliefert werden (NOTICE.md). Dieselben drei Funktionen bedienen
+// jetzt die Siedlungs-Treppe UND diese Treppe.
+require_once __DIR__ . '/../coat-url.php';
+// avesmapsCoatDisplayUrl (der globale „Wappen: Aus"-Schalter) + avesmapsCoatSwitchEnabledFast (die
+// schnelle, DDL-freie Lesart fuer einen Besucherpfad -- AGENTS §10).
+require_once __DIR__ . '/coat-display.php';
+
 // Die drei gezeichneten Landschaftsebenen plus die abgeleitete. Reihenfolge = Zeilenfolge im Panel.
 const AVESMAPS_WHAT_IS_HERE_KINDS = ['derographisch', 'topographie', 'vegetation', 'klima'];
 
@@ -300,7 +310,82 @@ function avesmapsWhatIsHereReadTerritories(PDO $pdo, float $x, float $y, int $ye
     $elternId = (int) ($letzteStufe['parent_id'] ?? 0);
     $vorfahren = $elternId !== 0 ? avesmapsWhatIsHereReadAncestors($pdo, $elternId) : [];
 
-    return array_merge($kette, $vorfahren);
+    // 🔴 Fix-Runde 6, Befund C: `t.coat_of_arms_url AS coat_url` (oben in dieser Funktion UND in
+    // avesmapsWhatIsHereReadAncestors) ist die ROHE Spalte -- nie das oeffentlich anzeigbare Wappen.
+    // avesmapsWhatIsHereGateCoatUrls() macht daraus je Stufe das GEGATETE Wappen, mit derselben
+    // Rangfolge und demselben Lizenzriegel wie die Siedlungs-Treppe. MUSS hier laufen, waehrend
+    // `wiki_key` noch in jeder Stufe steht -- avesmapsWhatIsHereTerritoryPayload() entfernt es danach
+    // (dieselbe Reihenfolge-Falle wie bei avesmapsWhatIsHereLoreKeys(), siehe deren Kommentar oben).
+    return avesmapsWhatIsHereGateCoatUrls($pdo, array_merge($kette, $vorfahren));
+}
+
+/**
+ * REIN: eine Kette plus die schon geladenen Wappen-Zutaten -> dieselbe Kette mit GEGATETEN Wappen.
+ *
+ * 🔴 Fix-Runde 6, Befund C: dass die rohe Spalte auf `political_territory` bisher leer war, hat uns
+ * VOR einer stillen Lizenzverletzung bewahrt (leer sieht aus wie "kein Wappen"), nicht weil der Code
+ * es verhindert haette. Das eigentliche Wappen entsteht aus drei Quellen (Override ?? eigene Spalte
+ * ?? Wiki-Staging) UND einem Lizenzriegel (nur `public_domain` darf raus, NOTICE.md) --
+ * avesmapsResolveGatedCoatUrl (api/_internal/coat-url.php) ist die EINE Stelle im Haus, die das tut;
+ * avesmapsSettlementTerritoryCoatUrl entpackt nur die $coatInputs-Form dorthin.
+ *
+ * Getrennt von avesmapsWhatIsHereGateCoatUrls() (unten) nach demselben Muster wie
+ * avesmapsWhatIsHereAncestorChain()/avesmapsWhatIsHereReadAncestors() in Fix-Runde 3: diese Haelfte
+ * nimmt FERTIGE Zutaten entgegen, kein PDO -- ohne Datenbank testbar, insbesondere der Lizenzriegel
+ * selbst (ein Gebiet mit nicht-oeffentlicher Lizenz bekommt kein Wappen).
+ *
+ * @param list<array<string,mixed>> $kette
+ * @param array{staging: array<string,array<string,string>>, overrides: array<string,array<string,string>>} $coatInputs
+ * @return list<array<string,mixed>>
+ */
+function avesmapsWhatIsHereGateCoatUrlsPure(array $kette, array $coatInputs, bool $coatsEnabled): array
+{
+    foreach ($kette as &$stufe) {
+        $wikiKey = trim((string) ($stufe['wiki_key'] ?? ''));
+        $stufe['coat_url'] = avesmapsCoatDisplayUrl(
+            avesmapsSettlementTerritoryCoatUrl(
+                (string) ($stufe['coat_url'] ?? ''),
+                $coatInputs['staging'][$wikiKey] ?? [],
+                $coatInputs['overrides'][$wikiKey] ?? []
+            ),
+            $coatsEnabled
+        );
+    }
+    unset($stufe);
+
+    return $kette;
+}
+
+/**
+ * Die DB-Haelfte zu avesmapsWhatIsHereGateCoatUrlsPure() oben: laedt die Zutaten UND wendet sie an.
+ *
+ * ⚠️ EINMAL je Anfrage geladen (avesmapsLoadSettlementCoatGateInputs, avesmapsCoatSwitchEnabledFast),
+ * NICHT je Kettenstufe -- bei bis zu 12 Stufen (AVESMAPS_WHAT_IS_HERE_MAX_ANCESTOR_DEPTH) waeren das
+ * sonst zwoelf Vollscans auf einem Besucherpfad (AGENTS §10). Eigenes try/catch: eine fehlende
+ * Wiki-Sandbox-Tabelle darf die Kette selbst nicht zum Verschwinden bringen, nur ihre Wappen --
+ * dieselbe INERT-Haltung wie der Rest dieser Datei.
+ *
+ * @param list<array<string,mixed>> $kette
+ * @return list<array<string,mixed>>
+ */
+function avesmapsWhatIsHereGateCoatUrls(PDO $pdo, array $kette): array
+{
+    if ($kette === []) {
+        return $kette;
+    }
+
+    try {
+        $coatInputs = avesmapsLoadSettlementCoatGateInputs($pdo);
+        $coatsEnabled = avesmapsCoatSwitchEnabledFast($pdo, AVESMAPS_TERRITORY_COATS_SETTING);
+    } catch (Throwable) {
+        foreach ($kette as &$stufeOhneWappen) {
+            $stufeOhneWappen['coat_url'] = '';
+        }
+        unset($stufeOhneWappen);
+        return $kette;
+    }
+
+    return avesmapsWhatIsHereGateCoatUrlsPure($kette, $coatInputs, $coatsEnabled);
 }
 
 /**
