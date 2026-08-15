@@ -137,27 +137,31 @@ Das ist eine Frage nach der **Gottheit**, und die kennt avesmaps heute nicht: de
 **Die Gottheit wird ein eigenes Feld, keine Ortsart.** Dieselbe Trennung, die schon
 Ortsgröße (`feature_subtype`) von Ortsart (`properties.place_kind`) trennt:
 
-| Achse | Feld | Beispielwert |
+| Achse | Ort | Beispielwert |
 |---|---|---|
-| Ortsgröße | `feature_subtype` | `gebaeude` |
-| Ortsart | `properties.place_kind` | `Tempel` |
-| **Gottheit** | **`properties.deity`** | **`Rahja`** |
+| Ortsgröße | `map_features.feature_subtype` | `gebaeude` |
+| Ortsart | `map_features.properties.place_kind` | `Tempel` |
+| **Gottheit** | **`wiki_sync_pages.deity`** | **`Rahja`** |
 
-💣 **Sie muss an ZWEI Stellen liegen, weil es zwei Leser gibt.** Ein platzierter Ort
-kommt aus `map_features`, ein Innerorts-Objekt aus der Registry — und die Suche liest
-für die 775 Tempel ausschließlich die zweite:
+🔴 **EINE Quelle, kein Editor-Feld — die Gottheit gehört dem Wiki.** Sie steht in der
+Registry und nirgends sonst. Das ist kein Sonderweg, sondern genau der Weg, den
+`building_type` schon geht: `api/app/map-features.php:470-475` heftet die
+Registry-Werte beim Ausliefern an `properties.wiki_settlement`, gefunden über den
+Wiki-Titel. Ein `properties.deity` daneben wäre eine zweite Wahrheit, die
+auseinanderläuft — und ein Editor-Feld für 775 Stätten wäre Handarbeit für etwas, das
+die Kategorie schon weiß.
 
-| Leser | Quelle | Feld |
-|---|---|---|
-| platzierter Ort (Karte, Infobox) | `map_features` | `properties.deity` |
-| Innerorts-Treffer (die Masse hier) | `wiki_sync_pages` | neue Spalte `deity` |
+Damit hat sie **zwei Leser und einen Schreiber**:
 
-Wer nur `properties.deity` baut, hat die Gottheit genau für die Handvoll Stätten, die
-schon einen Punkt auf der Karte haben — und für keine der 775, um die es geht.
-Die Registry-Abfrage in `in-settlement-search.php:47` holt heute vier Spalten; sie
-holt danach fünf. ⚠️ Der `try/catch` darum ist Absicht (fehlende Spalte darf die
+| Leser | Weg |
+|---|---|
+| Innerorts-Treffer (die Masse: 775 Tempel) | liest `wiki_sync_pages` direkt (`in-settlement-search.php:47`) |
+| platzierte Stätte (Karte, Infobox) | bekommt sie über die Anreicherung in `map-features.php:470` als `wiki_settlement.deity` |
+
+⚠️ Die Registry-Abfrage in `in-settlement-search.php:47` holt heute vier Spalten; sie
+holt danach fünf. Der `try/catch` darum ist Absicht (fehlende Spalte darf die
 Kartensuche nicht fällen) — er verschluckt aber auch einen Tippfehler im Spaltennamen
-lautlos. Der Test dazu füttert die reine Funktion, nicht die Abfrage.
+lautlos. Der Test dazu füttert deshalb die reine Funktion, nicht die Abfrage.
 
 Gegen 27 neue Ortsarten (`Rondra-Tempel`, `Rahja-Tempel`, …) spricht Gemessenes,
 nicht Geschmack: „Rahja-Schrein" und „Rahja-Tempel" wären zwei unverbundene Arten,
