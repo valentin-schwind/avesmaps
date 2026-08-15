@@ -710,6 +710,25 @@ function setWikiSyncDumpButtonsDisabled(isDisabled, label = "") {
 // last_ok_at is the DB-tracked timestamp of the last SUCCESSFUL fetch_dump call --
 // preferred over the raw file mtime because it is what the backend already exposes
 // and reflects "last time we successfully talked to the wiki", not just disk state.
+// Der letzte ABGESCHLOSSENE Dump-Lauf, als kurzer Satz für den Knopf. Leerer String, wenn nie
+// einer durchlief -- dann fällt der Aufrufer auf den Download-Zeitpunkt zurück.
+//
+// ⚠️ Dieselbe Zeitzonen-Feinheit wie nebenan: der Server liefert eine MySQL-DATETIME ohne Zone,
+// `new Date()` liest sie als LOKALE Zeit. Das ist bestehendes Verhalten der Nachbarzeile und
+// hier bewusst gleich gehalten -- zwei Angaben nebeneinander, die verschieden rechnen, wären
+// schlimmer als beide gleich ungenau.
+function formatWikiSyncDumpRunStatusText(status) {
+	const runAt = status && typeof status.last_read_run_at === "string" ? status.last_read_run_at : "";
+	if (!runAt) {
+		return "";
+	}
+	const parsed = new Date(runAt.replace(" ", "T"));
+	if (Number.isNaN(parsed.getTime())) {
+		return `Lauf: ${runAt}`;
+	}
+	return `Lauf: ${parsed.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}`;
+}
+
 function formatWikiSyncDumpFetchedStatusText(status) {
 	const lastOkAt = status && typeof status.last_ok_at === "string" ? status.last_ok_at : "";
 	if (!lastOkAt) {
@@ -737,8 +756,18 @@ async function refreshWikiSyncDumpFetchedStatus() {
 	}
 	try {
 		const status = await fetchWikiSyncDumpStatus();
+		// 💣 ZWEI Zeitpunkte, und der Knopf zeigte den falschen. `last_ok_at` sagt, wann die DATEI
+		// geholt wurde; `last_read_run_at`, wann zuletzt über sie GELESEN wurde. Wer hier hinsieht,
+		// fragt „ist mein Lauf durch?" — und fand bis zum 15.08.2026 den Download-Zeitpunkt. Beide
+		// Zahlen stimmten (18:29 geholt, 19:56 gelesen), nur beantwortete die angezeigte die andere
+		// Frage; den Lauf kannte allein das Konflikte-Panel.
+		// ⭐ Der Lauf hat Vorrang. Ohne ihn (nie gelesen) bleibt es beim Download — sonst stünde
+		// dort nichts, und „gar keine Angabe" ist schlechter als die zweitbeste.
 		const fetched = formatWikiSyncDumpFetchedStatusText(status).replace("Dump geholt: ", "zuletzt ");
-		button.dataset.idleLabel = `📥 Dump holen — ${fetched}`;
+		const runLabel = formatWikiSyncDumpRunStatusText(status);
+		button.dataset.idleLabel = `📥 Dump holen — ${runLabel || fetched}`;
+		// Die jeweils andere Angabe steht im Tooltip: beide sind wahr, nur unterschiedlich nützlich.
+		button.title = runLabel ? `${runLabel}\n${fetched.replace("zuletzt ", "Dump geholt: ")}` : "";
 		// Only adopt it right away when nothing is running; a live run owns the label meanwhile.
 		if (!button.disabled) {
 			button.textContent = button.dataset.idleLabel;

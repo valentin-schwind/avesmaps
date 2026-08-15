@@ -609,6 +609,36 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
 }
 
 /**
+ * Wann lief der letzte ABGESCHLOSSENE Dump-Lauf? (MySQL-DATETIME oder null)
+ *
+ * 💣 Das ist NICHT dasselbe wie `last_ok_at`. Jenes sagt, wann die Datei HERUNTERGELADEN wurde;
+ * dies, wann zuletzt über sie gelesen wurde. Der Owner suchte am 15.08.2026 am Knopf
+ * „Dump holen" die Antwort auf „ist mein Lauf durch?" und fand dort den Download-Zeitpunkt --
+ * beide Zahlen stimmten (18:29 geholt, 19:56 gelesen), nur beantwortete die angezeigte die
+ * falsche Frage. Den Lauf kannte bis dahin allein das Konflikte-Panel.
+ *
+ * ⚠️ Nur `completed`: ein abgebrochener oder noch laufender Lauf hat nichts zu Ende gelesen,
+ * und genau danach fragt, wer hier hinsieht.
+ * ⚠️ Fehlt die Tabelle, ist das Ergebnis null -- die Statusanzeige darf daran nicht ausfallen.
+ */
+function avesmapsWikiDumpLastReadRunAt(PDO $pdo): ?string
+{
+    try {
+        $statement = $pdo->prepare(
+            'SELECT completed_at FROM wiki_sync_runs
+              WHERE sync_type = :t AND status = :s AND completed_at IS NOT NULL
+              ORDER BY completed_at DESC LIMIT 1'
+        );
+        $statement->execute(['t' => AVESMAPS_WIKI_DUMP_SYNC_TYPE, 's' => 'completed']);
+        $wert = $statement->fetchColumn();
+    } catch (Throwable) {
+        return null;
+    }
+
+    return is_string($wert) && $wert !== '' ? $wert : null;
+}
+
+/**
  * Status snapshot for the GET endpoint: file presence/size/age + last-fetch
  * metadata + the last-used username (NEVER the password) + the URL.
  */
@@ -622,7 +652,7 @@ function avesmapsWikiDumpStatus(PDO $pdo): array
     // display so the prefill is never blank.
     $username = $meta['username'] !== '' ? $meta['username'] : AVESMAPS_WIKI_DUMP_DEFAULT_USERNAME;
 
-    return avesmapsWikiDumpBuildStatusShape(
+    $status = avesmapsWikiDumpBuildStatusShape(
         [
             'present' => $state['present'],
             'size' => $state['size'],
@@ -633,6 +663,12 @@ function avesmapsWikiDumpStatus(PDO $pdo): array
         $meta['last_fetch_at'],
         $meta['last_ok_at']
     );
+
+    // ⭐ NACH der Shape-Funktion angehängt, nicht hinein: die ist rein, festgenagelt und kennt
+    // nur den Dateizustand -- der Lauf-Zeitpunkt kommt dagegen aus der Datenbank.
+    $status['last_read_run_at'] = avesmapsWikiDumpLastReadRunAt($pdo);
+
+    return $status;
 }
 
 // ===========================================================================
