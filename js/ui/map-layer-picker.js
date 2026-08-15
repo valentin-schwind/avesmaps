@@ -11,6 +11,17 @@
 	var WURZEL = "icons/layer-tiles/";
 
 	/**
+	 * 💣 GEKOPPELT AN css/components/map-layer-picker.css. Das Raster wird erst versteckt, wenn
+	 * sein Zuklappen zu Ende ist -- dort stehen 160 ms fuer das Einrollen und 150 ms fuer die
+	 * Zellen. Ist diese Zahl kleiner, verschwindet der Kasten mitten in der Bewegung; ist sie
+	 * viel groesser, steht ein fertig eingerollter Kasten noch herum und der Bund bleibt so
+	 * lange zu hoch. Ein Test haelt beide Seiten zusammen (js/ui/__tests__/map-layer-picker.test.js).
+	 * ⚠️ Aufklappen dauert laenger (260 ms) und braucht hier nichts: das Raster ist da, bevor es
+	 * sich zeigt.
+	 */
+	var BLENDE_ZU_MS = 180;
+
+	/**
 	 * 🔴 `?layerPanelActive=0` ist der NOTAUSGANG, nicht mehr der Einschalter. Die Kachel laeuft
 	 * seit dem 12.08.2026 von sich aus (Owner: „geh live mit dem jetzigen"), und mit ihr
 	 * verschwindet die Zeile „Derographie" aus dem Routenplaner. Geht damit etwas schief, holt
@@ -148,17 +159,30 @@
 			}
 		}
 
-		// Der Zustand haengt an der Klasse, nicht an `hidden`: waehrend der Ausblende ist das Raster
-		// noch da, aber schon zu.
+		/**
+		 * 💣 DER ZUSTAND IST DIESE VARIABLE -- weder `hidden` noch die Klasse `is-open` taugen dafuer,
+		 * und zwar aus entgegengesetzten Gruenden: `hidden` springt erst NACH dem Zuklappen um, die
+		 * Klasse erst im NAECHSTEN BILD (sonst laeuft die Bewegung gar nicht erst an).
+		 * Gemessen am 15.08.2026: an der Klasse gelesen kam das Zuklappen beim Verlassen nicht
+		 * zustande -- `mouseleave` fragte `offen()`, bekam `false`, weil das Bild noch nicht da war,
+		 * und stieg aus. Das Menue blieb offen stehen. Derselbe Fehler und dieselbe Loesung wie beim
+		 * Anzeige-Menue nebenan (js/ui/map-display-menu.js), wo er am 12.08.2026 den zweiten
+		 * schnellen Klick verschluckt hat.
+		 * ⚠️ Sie wird zusammen mit `menue.hidden` gesetzt, nie danach -- sonst gibt es wieder zwei
+		 * Wahrheiten.
+		 */
+		var zustandOffen = false;
+
 		function offen() {
-			return menue.classList.contains("is-open");
+			return zustandOffen;
 		}
 
 		function schliesse(fokusZurueck) {
-			if (menue.hidden) {
+			if (!zustandOffen) {
 				if (fokusZurueck) { knopf.focus(); }
 				return;
 			}
+			zustandOffen = false;
 			menue.classList.remove("is-open");
 			knopf.setAttribute("aria-expanded", "false");
 			// 💣 Die Kachel kommt erst NACH der Blende zurueck. Waeren beide gleichzeitig im Fluss,
@@ -170,12 +194,13 @@
 				knopf.hidden = false;
 				misstDenBund();
 				if (fokusZurueck) { knopf.focus(); }
-			}, 140);
+			}, BLENDE_ZU_MS);
 		}
 
 		function oeffne(mitFokus) {
 			window.clearTimeout(blendeTimer);
 			zeichne();
+			zustandOffen = true;
 			menue.hidden = false;
 			knopf.hidden = true;
 			knopf.setAttribute("aria-expanded", "true");

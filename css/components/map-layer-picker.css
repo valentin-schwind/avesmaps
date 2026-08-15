@@ -9,6 +9,14 @@
 /* Die Huelle traegt beide Zustaende -- immer nur einer ist da. Rechtsbuendig wie der ganze Bund,
    damit Kachel und Raster dieselbe rechte Kante haben. */
 .map-layer-picker {
+	/* 💣 EINE Zahl, zwei Leser. `--map-layer-cell` ist die Zellenbreite (66px, gebunden an das
+	   laengste Wort „Landschaften"), `--map-layer-tile` die daraus GERECHNETE Silhouette der
+	   zugeklappten Kachel: 66 + 2x5 Polsterung + 2x1 Rahmen = 78. Genau dort setzt das Aufrollen
+	   an. Beides von Hand hinzuschreiben hiesse, dass ein breiteres Wort die Zelle waechst und
+	   der Wisch an der alten Stelle beginnt -- ein Versatz, den niemand sucht, weil er nur
+	   waehrend der Bewegung sichtbar ist. */
+	--map-layer-cell: 66px;
+	--map-layer-tile: calc(var(--map-layer-cell) + 12px);
 	display: flex;
 	flex-direction: column;
 	align-items: flex-end;
@@ -49,31 +57,68 @@
 	border-radius: var(--radius-sm);
 	background: var(--color-panel);
 	box-shadow: var(--shadow-panel);
-	/* Kurze Blende beim Aufklappen (Owner 11.08.2026: „animiertes schnelles fading").
-	   ⚠️ `display` laesst sich nicht ueberblenden -- das Raster wird deshalb erst sichtbar
+	/* ⚠️ `display` laesst sich nicht ueberblenden -- das Raster wird deshalb erst sichtbar
 	   geschaltet und im naechsten Bild angeblendet (js/ui/map-layer-picker.js). Ohne diesen
 	   Umweg spraenge es ohne Blende ins Bild.
-	   💣 AN DER HUELLE WIRD NICHTS ANIMIERT -- weder Bewegung noch Blende. Beides machte die
-	   aktive Zelle sonst mit, und ausgerechnet die sitzt auf dem Fleck der zugeklappten Kachel.
-	   Es hat den Fehler ZWEIMAL gegeben: erst als Bewegung (der Knopf „wackelte" beim Aufklappen,
-	   Owner 12.08.2026), dann als Deckkraft (er blinkte weg und wieder her -- gemessen: Kachel
-	   `display: none` UND Raster `opacity: 0` im selben Augenblick, der Fleck also leer, beim
-	   Zuklappen sogar 140 ms lang). Deshalb sitzen BEIDE an den Zellen, und die aktive ist von
-	   beidem ausgenommen. Die Huelle traegt nur ihren Kasten. */
-	transition: none;
+	   💣 AN DER HUELLE WERDEN `opacity` UND `transform` NICHT ANIMIERT. Beides machte die aktive
+	   Zelle als KIND unweigerlich mit, und ausgerechnet die sitzt auf dem Fleck der zugeklappten
+	   Kachel. Es hat den Fehler ZWEIMAL gegeben: erst als Bewegung (der Knopf „wackelte" beim
+	   Aufklappen, Owner 12.08.2026), dann als Deckkraft (er blinkte weg und wieder her --
+	   gemessen: Kachel `display: none` UND Raster `opacity: 0` im selben Augenblick, der Fleck
+	   also leer, beim Zuklappen sogar 140 ms lang). Diese beiden bleiben deshalb den Zellen
+	   vorbehalten, und die aktive ist von beidem ausgenommen.
+
+	   🔴 DAS AUFROLLEN IST DIE AUSNAHME, UND NUR WEIL `clip-path` KEINS VON BEIDEN IST (Owner
+	   15.08.2026: „C aber auch mit mouse over"). Es verschiebt nichts und blendet nichts -- es
+	   gibt frei. Die aktive Zelle liegt im rechten Ende, das schon im Startwert UNbeschnitten
+	   ist: sie steht vom ersten bis zum letzten Bild unveraendert auf ihrem Fleck, genau wie
+	   bisher. Vorher war der Kasten das einzige, was NICHT animiert war -- und weil er das
+	   Groesste im Bild ist, las sich das Aufklappen trotz Blende als Schnitt (Owner 15.08.2026:
+	   „hat keine richtig animation").
+	   💣 Der Startwert MUSS `--map-layer-tile` sein, nie eine abgeschriebene 78: er ist die
+	   Silhouette der zugeklappten Kachel. Stimmt er nicht, springt der Wisch beim Start.
+	   💣 Die drei negativen Seiten lassen den Schatten heraus (`--shadow-panel` reicht 32px nach
+	   unten). Buendig beschnitten verloere der Kasten seinen Schatten fuer die Dauer der
+	   Bewegung -- und beim Zuklappen kaeme er am Ende schlagartig zurueck.
+	   ⚠️ Zuklappen ist KUERZER als Aufklappen (160 gegen 260 ms), deshalb steht der Uebergang
+	   zweimal da: hier gilt er dem Weg ZU, in `.is-open` dem Weg AUF. Wer ihn nur hier setzt,
+	   bekommt beide Richtungen gleich lang -- und wer ihn nur dort setzt, bekommt gar kein
+	   Zuklappen, sondern einen Sprung. */
+	clip-path: inset(-40px -40px -40px calc(100% - var(--map-layer-tile)) round var(--radius-sm));
+	transition: clip-path 160ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* ⚠️ NACH der Grundregel: gleiche Spezifitaet, die spaetere gewinnt. */
+.map-layer-picker__menu.is-open {
+	clip-path: inset(-40px -40px -40px 0 round var(--radius-sm));
+	transition: clip-path 260ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 /* Die uebrigen fuenf blenden auf und schieben sich herein -- sie kommen ja aus dem Nichts. */
 .map-layer-picker__menu .map-layer-picker__cell {
 	opacity: 0;
 	transform: translateY(4px);
-	transition: opacity 120ms ease, transform 120ms ease;
+	transition: opacity 150ms ease, transform 150ms ease;
 }
 
 .map-layer-picker__menu.is-open .map-layer-picker__cell {
 	opacity: 1;
 	transform: none;
 }
+
+/* 💣 GEZAEHLT WIRD VON HINTEN, weil vorn nichts Festes steht: die aktive Ansicht ist immer die
+   LETZTE Zelle, ihre Stelle in der Reihe wechselt aber mit jeder Auswahl (map-layer-picker.js
+   haengt sie zuletzt an, die uebrigen davor in ihrer Reihenfolge). `:nth-last-child(2)` ist
+   damit immer die Nachbarin der Kachel, egal welche Ansicht eingestellt ist -- die Staffelung
+   laeuft von der Kachel nach aussen und nie umgekehrt. Von VORN gezaehlt liefe sie bei „Nur
+   Karte" richtig herum und bei „Landschaften" rueckwaerts.
+   ⚠️ Die Verzoegerung steht NUR am `.is-open`-Zweig: beim Zuklappen gehen alle gemeinsam, sonst
+   haengt die letzte Zelle der Kachel hinterher, die laengst wieder da ist. */
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(2) { transition-delay: 40ms; }
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(3) { transition-delay: 80ms; }
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(4) { transition-delay: 120ms; }
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(5) { transition-delay: 160ms; }
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(6) { transition-delay: 200ms; }
 
 /* 💣 Die aktive Zelle NIE, in keiner der beiden Eigenschaften. Sie ist dieselbe Stelle wie die
    zugeklappte Kachel: was sich dort bewegt, liest sich als wackelnder Knopf -- und was dort
@@ -90,13 +135,24 @@
 	display: none;
 }
 
-/* ⚠️ Blende UND Bewegung sitzen an den Zellen -- hier stehen deshalb die Zellen, nicht die
-   Huelle. Die Deckkraft wird nicht auf 1 gezwungen: das erledigt `.is-open`, und ohne Uebergang
-   ist es ein Sprung statt einer Blende. Genau das will dieser Block. */
+/* ⚠️ Die Deckkraft wird nicht auf 1 gezwungen: das erledigt `.is-open`, und ohne Uebergang ist
+   es ein Sprung statt einer Blende. Genau das will dieser Block. Er nennt deshalb die Zellen
+   (Blende, Bewegung, Staffelung) UND die Huelle (das Aufrollen) -- seit dem 15.08.2026 wird an
+   beiden etwas animiert. */
 @media (prefers-reduced-motion: reduce) {
 	.map-layer-picker__menu .map-layer-picker__cell {
 		transition: none;
 		transform: none;
+	}
+	.map-layer-picker__menu.is-open .map-layer-picker__cell {
+		transition-delay: 0s;
+	}
+	/* ⚠️ Der Beschnitt faellt GANZ weg, er wird nicht bloss nicht animiert: bliebe der Startwert
+	   stehen, zeigte das Raster fuer immer nur seine rechte Kachelbreite. */
+	.map-layer-picker__menu,
+	.map-layer-picker__menu.is-open {
+		clip-path: none;
+		transition: none;
 	}
 }
 
@@ -105,6 +161,19 @@
 @media (max-width: 560px) {
 	.map-layer-picker__menu {
 		grid-template-columns: repeat(3, auto);
+	}
+	/* 💣 KEIN Aufrollen am Telefon. Der Wisch gibt eine SENKRECHTE Kante frei -- bei EINER Reihe
+	   ist das genau die Kachelsilhouette, bei 2x3 waere es ein Streifen ueber die volle Hoehe,
+	   also beide Zellen der rechten Spalte auf einmal. Er begaenne dann nicht auf der Kachel,
+	   sondern auf ihr UND der Zelle darueber -- und damit faellt der einzige Grund weg, aus dem
+	   er ueberhaupt erlaubt ist. Die Staffelung bleibt und traegt hier allein: sie zaehlt von der
+	   aktiven Zelle rueckwaerts und laeuft im Raster von unten rechts nach oben links, was
+	   dieselbe Bewegung erzaehlt.
+	   ⚠️ Das Ueberfahren gibt es hier ohnehin nicht (`hover: hover` UND `pointer: fine`). */
+	.map-layer-picker__menu,
+	.map-layer-picker__menu.is-open {
+		clip-path: none;
+		transition: none;
 	}
 }
 
@@ -116,8 +185,9 @@
 	gap: 3px;
 	/* 66, nicht 60: „Landschaften" ist das laengste der sechs Woerter und wurde bei 60 als
 	   „Landschaft…" abgeschnitten. Die Zahl haengt also am Wort, nicht am Bild (das bleibt 48).
-	   Die Reihe misst damit 438px am Zeiger, das Raster 222px am Telefon -- beides passt. */
-	width: 66px;
+	   Die Reihe misst damit 438px am Zeiger, das Raster 222px am Telefon -- beides passt.
+	   💣 Der Wert steht als `--map-layer-cell` an der Huelle, weil das Aufrollen ihn mitliest. */
+	width: var(--map-layer-cell);
 	padding: 0;
 	border: 0;
 	background: none;
