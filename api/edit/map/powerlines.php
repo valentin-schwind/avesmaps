@@ -177,17 +177,30 @@ try {
             'article_count' => count($wikiArticles),
             'problem' => '',
         ];
-    } catch (RuntimeException) {
+    } catch (PDOException $exception) {
+        // 💣 MUSS VOR RuntimeException stehen: PDOException ERBT davon. Steht sie dahinter, meldet
+        // ein Datenbankfehler "kein abgeschlossener Lauf" -- also wieder eine plausible falsche
+        // Auskunft, genau die, die dieser Block gerade beseitigt hat.
+        $dumpState['problem'] = 'fehler';
+        $dumpState['problem_detail'] = 'PDO: ' . mb_substr($exception->getMessage(), 0, 300, 'UTF-8');
+    } catch (RuntimeException $exception) {
         // Der ERWARTETE Fall: es gibt keinen abgeschlossenen dump_read-Lauf
         // (avesmapsWikiDumpSyncKindResolveDumpRunId wirft dann). 🔴 Das heisst NICHT "keine
         // Dump-Datei" -- die kann laengst geholt sein; eingelesen ist sie deswegen noch nicht.
         $dumpState['problem'] = 'kein_lauf';
-    } catch (Throwable) {
+        $dumpState['problem_detail'] = mb_substr($exception->getMessage(), 0, 300, 'UTF-8');
+    } catch (Throwable $exception) {
         // 💣 Alles andere. Ohne diesen Fang stuerbe der Leseweg, der den ganzen Editor fuellt --
         // das Fenster waere leer, und niemand suchte die Ursache bei einer Vorschlagsliste. Aber
         // er darf sich NICHT als "kein Lauf" ausgeben: ein stiller Fang, der eine plausible
         // falsche Auskunft erzeugt, schickt den Editor tagelang zum falschen Knopf.
+        //
+        // ⚠️ Der Grund reist MIT -- aber nur hier: dieser Endpunkt ist auf die Faehigkeit 'edit'
+        // gesperrt, sein Publikum sind Editoren. Auf einem oeffentlichen Endpunkt waere das
+        // Informationspreisgabe (AGENTS.md §10, Meilenstein M1).
         $dumpState['problem'] = 'fehler';
+        $dumpState['problem_detail'] = get_class($exception) . ': '
+            . mb_substr($exception->getMessage(), 0, 300, 'UTF-8');
     }
 
     avesmapsJsonResponse(200, [
