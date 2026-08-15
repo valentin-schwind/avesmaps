@@ -60,6 +60,12 @@ try {
             'show_label' => (bool) ($properties['show_label'] ?? false),
             'description' => (string) ($properties['description'] ?? ''),
             'wiki_url' => (string) ($properties['wiki_url'] ?? ''),
+            // 💣 Der dritte Zustand MUSS hier stehen. Diese Projektion ist ausdruecklich, und der
+            // Editor liest den Merker genau von hier (renderDetail: segments.some(s.wiki_no_article)).
+            // Fehlte er, saehe der Editor immer `false`: das Haekchen kaeme nach dem Neuladen leer
+            // zurueck, und weil das Speichern immer beide Werte schickt, loeschte der naechste
+            // Speichervorgang den Merker -- auch eine reine Beschreibungsaenderung.
+            'wiki_no_article' => (bool) ($properties['wiki_no_article'] ?? false),
             'wiki_powerline' => is_array($wikiPowerline) ? $wikiPowerline : null,
             'revision' => (int) ($row['revision'] ?? 0),
         ];

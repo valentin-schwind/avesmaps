@@ -192,7 +192,7 @@ async function mapFeaturesEditPost(body) {
 }
 
 // ---- State -----------------------------------------------------------------------------------
-let segments = [];          // [{public_id,name,from_public_id,to_public_id,show_label,description,wiki_url,wiki_powerline,revision}]
+let segments = [];          // [{public_id,name,from_public_id,to_public_id,show_label,description,wiki_url,wiki_no_article,wiki_powerline,revision}]
 let nodesMap = {};          // { public_id: {name,type,is_nodix} }
 let candidates = [];        // [{public_id,name,type}]
 let lines = [];             // grouped, see groupLines()

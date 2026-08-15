@@ -1878,6 +1878,21 @@ async function startWikiSyncPowerlines() {
 		if (cleared > 0) {
 			parts.push(`${cleared} gelöst`);
 		}
+		// Die zwei Meldungen aus Entwurf §4. Sie stehen HIER, weil eine Zahl, die nur in der Antwort
+		// steht, dasselbe ist wie keine Zahl -- und ein Lauf, der einen Merker wieder aufmacht,
+		// meldete sonst gar nichts. Beide sind je LINIE gezählt, nicht je Segment (§4/W2).
+		const reopened = Array.isArray(result.no_article_reopened) ? result.no_article_reopened : [];
+		if (reopened.length > 0) {
+			const shownReopened = reopened.slice(0, 6).join(", ");
+			parts.push(`im Wiki aufgetaucht, Markierung „kein Artikel“ aufgehoben: ${shownReopened}${reopened.length > 6 ? " …" : ""}`);
+		}
+		// Zugewiesen, aber der Artikel ist aus dem Dump verschwunden: das Nest wurde zurückgezogen,
+		// die Zuweisung NICHT -- sie ist die Entscheidung eines Menschen und wird nicht kassiert.
+		const orphaned = Array.isArray(result.claims_orphaned) ? result.claims_orphaned : [];
+		if (orphaned.length > 0) {
+			const shownOrphaned = orphaned.slice(0, 6).map((o) => String(o?.name ?? "")).filter(Boolean).join(", ");
+			parts.push(`zugewiesener Artikel verschwunden: ${shownOrphaned}${orphaned.length > 6 ? " …" : ""}`);
+		}
 		// Nicht zugeordnete Artikel BEIM NAMEN nennen: fast immer eine Schreibweise, die
 		// abweicht ("Brücke nach/von Akrabaal") -- das ist eine Editor-Aufgabe, kein Fehler.
 		if (unmatched.length > 0) {
