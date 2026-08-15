@@ -1732,6 +1732,46 @@ $check(
 );
 
 // ---------------------------------------------------------------------------
+// 3y. DIE GOTTHEIT AM DATENSATZ (Discord #54).
+// ---------------------------------------------------------------------------
+// Sie kommt als $override herein -- genau wie building_type und continent, und aus demselben
+// Grund: sie steht NICHT im Wikitext. „Kategorie:Rondra-Tempel" kommt ueber eine Vorlage, der
+// Artikelquelltext enthaelt keinen solchen Link (live geprueft am „Drachentempel", 15.08.2026).
+$tempelPage = [
+    'title' => 'Feuersturm-Tempel',
+    'ns' => 0,
+    'redirect' => null,
+    'wikitext' => "{{Infobox Bauwerk\n| Name = Feuersturm-Tempel\n| Art  = Tempel\n"
+        . "| Standort = [[Khunchom]]: [[Al'Barrah]]\n}}\n",
+];
+$mitGott = avesmapsWikiDumpParseBuildingPage($tempelPage, ['deity' => ['Ingerimm', 'Rondra']]);
+$check(
+    '(G1) die Gottheit landet im Datensatz',
+    'Ingerimm,Rondra',
+    $mitGott['record']['deity'] ?? null,
+    'MEHRWERTIG -- der Feuersturm-Tempel gehoert live Ingerimm UND Rondra'
+);
+$check(
+    '(G2) ohne Override bleibt sie LEER, nicht null',
+    '',
+    avesmapsWikiDumpParseBuildingPage($tempelPage)['record']['deity'] ?? null,
+    'dieselbe Zeile wird auch fuer Bauwerke ohne Weihung geschrieben'
+);
+$check(
+    '(G3) ein LEERER Override ueberbuegelt nichts',
+    '',
+    avesmapsWikiDumpParseBuildingPage($tempelPage, ['deity' => []])['record']['deity'] ?? null,
+    'gleiche Regel wie beim fuenften Parameter von avesmapsWikiSettlementUpsertBuildingRow'
+);
+// Der Rest des Datensatzes bleibt unberuehrt -- die Gottheit ist additiv.
+$check(
+    '(G4) building_type bleibt unberuehrt',
+    'Tempel',
+    $mitGott['record']['building_type'] ?? null,
+    'die Gottheit ist eine eigene Achse, kein Ersatz fuer die Ortsart'
+);
+
+// ---------------------------------------------------------------------------
 // 4. Summary + exit code.
 // ---------------------------------------------------------------------------
 $total = $passCount + $failCount;

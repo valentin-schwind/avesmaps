@@ -254,9 +254,9 @@ $classRows = avesmapsWikiDumpHybridComputeClassMapRows($mockClassMap);
 $check(
     '(b1) class-map rows: one row per title, override_class set, siblings null',
     [
-        ['normalized_title' => 'Auhof', 'override_class' => 'dorf', 'override_building_type' => null, 'override_continent' => null],
-        ['normalized_title' => 'Ferdok', 'override_class' => 'stadt', 'override_building_type' => null, 'override_continent' => null],
-        ['normalized_title' => 'Kuslik', 'override_class' => 'grossstadt', 'override_building_type' => null, 'override_continent' => null],
+        ['normalized_title' => 'Auhof', 'override_class' => 'dorf', 'override_building_type' => null, 'override_continent' => null, 'override_deity' => null],
+        ['normalized_title' => 'Ferdok', 'override_class' => 'stadt', 'override_building_type' => null, 'override_continent' => null, 'override_deity' => null],
+        ['normalized_title' => 'Kuslik', 'override_class' => 'grossstadt', 'override_building_type' => null, 'override_continent' => null, 'override_deity' => null],
     ],
     $classRows,
     'exact row shape avesmapsWikiDumpHybridUpsertRows() expects; override_building_type/override_continent left null so a later fill can merge without clobbering'
@@ -270,8 +270,8 @@ $buildingRows = avesmapsWikiDumpHybridComputeBuildingMapRows($mockBuildingMap);
 $check(
     '(b2) building-map rows: one row per title, override_building_type set, siblings null',
     [
-        ['normalized_title' => 'Burg Wallenstein', 'override_class' => null, 'override_building_type' => 'Burg', 'override_continent' => null],
-        ['normalized_title' => 'Zwingfeste Ochsenblut', 'override_class' => null, 'override_building_type' => 'Festung', 'override_continent' => null],
+        ['normalized_title' => 'Burg Wallenstein', 'override_class' => null, 'override_building_type' => 'Burg', 'override_continent' => null, 'override_deity' => null],
+        ['normalized_title' => 'Zwingfeste Ochsenblut', 'override_class' => null, 'override_building_type' => 'Festung', 'override_continent' => null, 'override_deity' => null],
     ],
     $buildingRows,
     'building_type is the crawled subcategory name itself (per H1 docblock), not a derived label'
@@ -285,8 +285,8 @@ $continentRows = avesmapsWikiDumpHybridComputeContinentMapRows($mockContinentMap
 $check(
     '(b3) continent-map rows (partial batch): one row per title in THIS batch only, override_continent set',
     [
-        ['normalized_title' => 'Kosch', 'override_class' => null, 'override_building_type' => null, 'override_continent' => 'Aventurien'],
-        ['normalized_title' => 'Rastullah-Strom', 'override_class' => null, 'override_building_type' => null, 'override_continent' => 'Myranor'],
+        ['normalized_title' => 'Kosch', 'override_class' => null, 'override_building_type' => null, 'override_continent' => 'Aventurien', 'override_deity' => null],
+        ['normalized_title' => 'Rastullah-Strom', 'override_class' => null, 'override_building_type' => null, 'override_continent' => 'Myranor', 'override_deity' => null],
     ],
     $continentRows,
     'the continent fill is called once per resumable step against a PARTIAL map -- rows are computed for exactly the titles present, no knowledge of the full title-set size required'
@@ -511,10 +511,10 @@ $check(
     'this is the key avesmapsWikiDumpHybridUpsertRows()\'s ON DUPLICATE KEY UPDATE relies on'
 );
 $check(
-    '(d5) upsert SQL preserves sibling override columns on merge (COALESCE(VALUES(...), ...))',
+    '(d5) upsert SQL preserves ALL FOUR sibling override columns on merge (COALESCE(VALUES(...), ...))',
     true,
-    substr_count($hybridStateSourceForDdl, 'COALESCE(VALUES(override_') === 3,
-    'all three override_* columns must be merge-safe -- a class fill must not wipe an earlier building/continent fill for the same title, and vice versa'
+    substr_count($hybridStateSourceForDdl, 'COALESCE(VALUES(override_') === 4,
+    'every override_* column must be merge-safe -- a class fill must not wipe an earlier building/continent/deity fill for the same title, and vice versa. Die vierte (override_deity, Discord #54) kam 2026-08-15 dazu: die Gottheit wird in der Kontinent-Phase geschrieben, also NACH der Bauwerks-Phase, und duerfte deren building_type sonst wegwischen'
 );
 
 // ===========================================================================

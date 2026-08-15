@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+// Die Gottheiten-Tabelle (Discord #54). Rein: keine Datenbank, kein DDL -- dieselbe Bauart wie
+// place-kinds.php. Ohne dieses require haengt avesmapsDeitiesToStored/-FromStored an der
+// Ladereihenfolge des Aufrufers, und ein Test, der die Datei einzeln zieht, faellt um.
+require_once __DIR__ . '/deities.php';
+
 /**
  * Hybrid WikiDump migration -- Task H4b: the two RESUMABLE "dump-compute" steps
  * that H4c's driving endpoint will loop over the sandbox state table H4a built.
@@ -202,6 +207,15 @@ function avesmapsWikiDumpHybridOverrideFromRow(array $row): array
     $continent = (string) ($row['override_continent'] ?? '');
     if ($continent !== '') {
         $override['continent'] = $continent;
+    }
+
+    // Die Gottheit reist als LISTE weiter, obwohl sie als Zeichenkette gespeichert ist -- der
+    // Parser soll sich nicht mit dem Trennzeichen befassen muessen (avesmapsDeitiesFromStored
+    // ist die EINE Stelle, die es kennt). Leere Liste -> der Schluessel fehlt, genau wie bei
+    // den anderen dreien: ein leerer Override darf nie einen vorhandenen Wert ueberbuegeln.
+    $deities = avesmapsDeitiesFromStored((string) ($row['override_deity'] ?? ''));
+    if ($deities !== []) {
+        $override['deity'] = $deities;
     }
 
     return $override;

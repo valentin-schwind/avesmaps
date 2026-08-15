@@ -515,6 +515,7 @@ function avesmapsWikiDumpCategoryFetchContinentMap(
     $total = count($titles);
     $cursor = max(0, min($cursor, $total));
     $map = [];
+    $deities = [];
     $callsMade = 0;
 
     while ($cursor < $total) {
@@ -533,6 +534,10 @@ function avesmapsWikiDumpCategoryFetchContinentMap(
         }
         $batchMap = avesmapsWikiDumpCategoryAssembleContinentMap($pagesByRequestedTitle);
         $map += $batchMap;
+        // ⭐ Dieselbe Antwort, zweite Auswertung: die Goetter-Kategorie steht in genau diesen
+        // Seiten und wurde bisher mit allem anderen verworfen. Additiv -- wer nur 'map' liest,
+        // merkt davon nichts, und es kostet keine einzige zusaetzliche Abfrage.
+        $deities += avesmapsWikiDumpCategoryAssembleDeityMap($pagesByRequestedTitle);
 
         $cursor += count($batch);
         $callsMade++;
@@ -540,6 +545,7 @@ function avesmapsWikiDumpCategoryFetchContinentMap(
 
     return [
         'map' => $map,
+        'deities' => $deities,
         'nextCursor' => $cursor,
         'done' => $cursor >= $total,
     ];

@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// Gottheiten-Tabelle (Discord #54) fuer avesmapsDeitiesToStored. Rein, kein DDL, keine DB.
+require_once __DIR__ . '/deities.php';
+
 /**
  * Hybrid WikiDump migration -- Task H4a: the SANDBOX STATE TABLE + the
  * title->title redirect extractor + the online-map FILL helpers.
@@ -108,6 +111,10 @@ function avesmapsWikiDumpHybridEnsureStateTable(PDO $pdo): void
             override_class VARCHAR(60) NULL,
             override_building_type VARCHAR(120) NULL,
             override_continent VARCHAR(120) NULL,
+            -- Die Gottheit(en) einer Kultstaette, kommasepariert (Discord #54). Sie faellt in der
+            -- Kontinent-Phase gratis mit ab, weil deren prop=categories-Antwort die
+            -- Goetter-Kategorie ohnehin enthaelt (dump-category-layer.php).
+            override_deity VARCHAR(120) NULL,
             wikitext MEDIUMTEXT NULL,
             wikitext_found_at DATETIME(3) NULL,
             processed_at DATETIME(3) NULL,
@@ -217,6 +224,7 @@ function avesmapsWikiDumpHybridComputeClassMapRows(array $classMap): array
             'override_class' => (string) $class,
             'override_building_type' => null,
             'override_continent' => null,
+            'override_deity' => null,
         ];
     }
 
@@ -247,6 +255,42 @@ function avesmapsWikiDumpHybridComputeBuildingMapRows(array $buildingMap): array
             'override_class' => null,
             'override_building_type' => (string) $buildingType,
             'override_continent' => null,
+            'override_deity' => null,
+        ];
+    }
+
+    return $rows;
+}
+
+/**
+ * PURE: {normTitle => list<Gottheit>} -> Zustandszeilen mit gesetztem override_deity.
+ *
+ * Gegenstueck zu ComputeContinentMapRows und aus DEMSELBEN Lauf gespeist: die Gottheit faellt in
+ * der Kontinent-Phase gratis mit ab, weil deren prop=categories-Antwort die Goetter-Kategorie
+ * ohnehin enthaelt (dump-category-layer.php). ⭐ Damit kostet Discord #54 KEINE zusaetzliche
+ * Wiki-Abfrage -- der urspruengliche Bauplan sah 45 vor, gemessen rund 37 s in einer NICHT
+ * fortsetzbaren Phase, die heute schon bei etwa 83 s liegt.
+ *
+ * ⚠️ Nur Titel MIT Gottheit stehen in der Map (der Assembler laesst leere weg); diese Funktion
+ * schreibt daher nie ein leeres override_deity und legt keine Zeilen fuer weihungslose Bauwerke an.
+ *
+ * @param array<string, list<string>> \$deityMap
+ * @return list<array<string, ?string>>
+ */
+function avesmapsWikiDumpHybridComputeDeityMapRows(array $deityMap): array {
+    $rows = [];
+    foreach ($deityMap as $normTitle => $deities) {
+        $normTitle = (string) $normTitle;
+        $stored = is_array($deities) ? avesmapsDeitiesToStored($deities) : '';
+        if ($normTitle === '' || $stored === '') {
+            continue;
+        }
+        $rows[] = [
+            'normalized_title' => $normTitle,
+            'override_class' => null,
+            'override_building_type' => null,
+            'override_continent' => null,
+            'override_deity' => $stored,
         ];
     }
 
@@ -284,6 +328,7 @@ function avesmapsWikiDumpHybridComputeContinentMapRows(array $continentMap): arr
             'override_class' => null,
             'override_building_type' => null,
             'override_continent' => (string) $continent,
+            'override_deity' => null,
         ];
     }
 
@@ -322,13 +367,14 @@ function avesmapsWikiDumpHybridUpsertRows(PDO $pdo, int $runId, array $rows): in
 
     $statement = $pdo->prepare(
         'INSERT INTO wiki_dump_hybrid_state
-            (run_id, normalized_title, override_class, override_building_type, override_continent)
+            (run_id, normalized_title, override_class, override_building_type, override_continent, override_deity)
         VALUES
-            (:run_id, :normalized_title, :override_class, :override_building_type, :override_continent)
+            (:run_id, :normalized_title, :override_class, :override_building_type, :override_continent, :override_deity)
         ON DUPLICATE KEY UPDATE
             override_class = COALESCE(VALUES(override_class), override_class),
             override_building_type = COALESCE(VALUES(override_building_type), override_building_type),
-            override_continent = COALESCE(VALUES(override_continent), override_continent)'
+            override_continent = COALESCE(VALUES(override_continent), override_continent),
+            override_deity = COALESCE(VALUES(override_deity), override_deity)'
     );
 
     $written = 0;
@@ -343,6 +389,7 @@ function avesmapsWikiDumpHybridUpsertRows(PDO $pdo, int $runId, array $rows): in
             'override_class' => $row['override_class'] ?? null,
             'override_building_type' => $row['override_building_type'] ?? null,
             'override_continent' => $row['override_continent'] ?? null,
+            'override_deity' => $row['override_deity'] ?? null,
         ]);
         $written++;
     }
@@ -370,6 +417,14 @@ function avesmapsWikiDumpHybridFillClassMap(PDO $pdo, int $runId, ?callable $cat
 
     $rows = avesmapsWikiDumpHybridComputeClassMapRows($classMap);
     $written = avesmapsWikiDumpHybridUpsertRows($pdo, $runId, $rows);
+
+    // Die Gottheiten aus DERSELBEN Antwort (Discord #54). Eigener Upsert statt eines gemischten
+    // Zeilensatzes: die beiden Maps decken verschiedene Titel ab -- jeder Titel hat einen
+    // Kontinent, nur eine Kultstaette eine Weihung. ⚠️ Die gemeldete Zahl bleibt die der
+    // Kontinent-Zeilen: sie ist das Fortschrittsmass dieser Phase, die Gottheiten sind Beifang.
+    avesmapsWikiDumpHybridUpsertRows($pdo, $runId, avesmapsWikiDumpHybridComputeDeityMapRows(
+        is_array($result['deities'] ?? null) ? $result['deities'] : []
+    ));
 
     return ['written' => $written, 'titles' => array_column($rows, 'normalized_title')];
 }

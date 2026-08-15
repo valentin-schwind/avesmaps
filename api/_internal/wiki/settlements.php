@@ -63,6 +63,12 @@ function avesmapsWikiSettlementEnsureSchema(PDO $pdo): void {
     // dieses Feld füllt erst der Dump-Pfad, also bleibt es bis zum nächsten
     // „Siedlungen syncen" leer (und ein leeres Feld heißt ausserorts, nie innerorts).
     $addColumn('standort', 'VARCHAR(1000) NULL');
+    // Die Gottheit(en) einer Kultstaette, kommasepariert ("Ingerimm,Rondra"), Discord #54.
+    // 💣 Sie steht NICHT im Wikitext: die Kategorie "Rondra-Tempel" kommt ueber eine Vorlage,
+    // der Artikelquelltext enthaelt keinen solchen Link. Sie fuellt sich deshalb nur ueber die
+    // Kategorie-Schicht (dump-category-layer.php) und reist als Override mit -- ein reiner
+    // Dump-Lauf ohne Kontinent-Phase laesst sie leer.
+    $addColumn('deity', 'VARCHAR(120) NULL');
 }
 
 function avesmapsWikiSettlementClassLabel(string $class): string {

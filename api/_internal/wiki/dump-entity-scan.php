@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+// Die Gottheiten-Tabelle (Discord #54). Rein: keine Datenbank, kein DDL -- dieselbe Bauart wie
+// place-kinds.php. Ohne dieses require haengt avesmapsDeitiesToStored/-FromStored an der
+// Ladereihenfolge des Aufrufers, und ein Test, der die Datei einzeln zieht, faellt um.
+require_once __DIR__ . '/deities.php';
+
 /**
  * WikiDump migration -- Pass B: entity enumeration + entity handlers.
  * ---------------------------------------------------------------------------
@@ -808,6 +813,16 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
         $continent = $override['continent'];
     }
 
+    // H3-artiger Override: die Gottheit kommt aus der KATEGORIE-Schicht, nicht aus dem Wikitext.
+    // „Kategorie:Rondra-Tempel" steht im Artikel nicht als literaler Link, sondern kommt ueber eine
+    // Vorlage -- der Dump-Pfad kann sie prinzipiell nicht selbst sehen und nimmt sie entgegen wie
+    // building_type und continent. 💣 MEHRWERTIG (Feuersturm-Tempel: Ingerimm UND Rondra), deshalb
+    // eine Liste; avesmapsDeitiesToStored kennt als einzige Stelle das Trennzeichen.
+    $deity = '';
+    if (isset($override['deity']) && is_array($override['deity']) && $override['deity'] !== []) {
+        $deity = avesmapsDeitiesToStored($override['deity']);
+    }
+
     // is_ruined ORs in the online crawler's type-based ruin rule (Ruine/Festungsruine).
     $isRuined = (bool) ($enrichment['is_ruined'] ?? false)
         || ($buildingType !== '' && mb_stripos($buildingType, 'ruine') !== false);
@@ -832,6 +847,7 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
         'settlement_label' => avesmapsWikiSettlementClassLabel('gebaeude'),
         'building_type' => mb_substr($buildingType, 0, 120, 'UTF-8'),
         'standort' => mb_substr($standort, 0, 1000, 'UTF-8'),
+        'deity' => $deity,
         'categories_json' => $categoryNames,
         'continent' => mb_substr($continent, 0, 120, 'UTF-8'),
         'is_ruined' => $isRuined,

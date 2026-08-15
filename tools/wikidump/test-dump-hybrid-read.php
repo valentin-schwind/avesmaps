@@ -1014,6 +1014,28 @@ $check(
 // summary
 // ===========================================================================
 echo "\n----------------------------------------------------------------\n";
+// --------------------------------------------------------- DIE GOTTHEIT (Discord #54) ---
+// Der Weg von der Zustandszeile in den Override -- die Stelle, an der das Trennzeichen wieder
+// verschwindet. avesmapsDeitiesFromStored ist die EINE Stelle, die es kennt.
+$deityOverride = avesmapsWikiDumpHybridOverrideFromRow([
+    'override_class' => null,
+    'override_building_type' => null,
+    'override_continent' => null,
+    'override_deity' => 'Ingerimm,Rondra',
+]);
+$check(
+    '(D1) die Zustandszeile liefert eine LISTE, keine Zeichenkette',
+    ['Ingerimm', 'Rondra'],
+    $deityOverride['deity'] ?? null,
+    'der Parser soll sich nicht mit dem Trennzeichen befassen muessen'
+);
+$check(
+    '(D2) leere Spalte -> gar kein Schluessel',
+    false,
+    array_key_exists('deity', avesmapsWikiDumpHybridOverrideFromRow(['override_deity' => ''])),
+    'ein leerer Override darf nie einen vorhandenen Wert ueberbuegeln'
+);
+
 printf("RESULT: %d passed, %d failed\n", $passCount, $failCount);
 echo "----------------------------------------------------------------\n";
 
