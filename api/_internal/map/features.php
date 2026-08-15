@@ -1598,9 +1598,9 @@ function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): 
         $name = $providedName !== ''
             ? avesmapsReadFeatureName($providedName, 'Der Name der Kraftlinie')
             : trim((string) ($fromFeature['name'] ?? 'Nodix') . ' - ' . (string) ($toFeature['name'] ?? 'Nodix'));
-        $inheritedShowLabel = false;
-        $inheritedDescription = '';
-        $inheritedWikiUrl = '';
+        // Was von der Linie mitkommt, steht in avesmapsPowerlineInheritedLineFields und NUR dort --
+        // dieselbe Liste, die auch das Umsortieren benutzt.
+        $inherited = avesmapsPowerlineInheritedLineFields(null);
         if ($providedName !== '') {
             $peek = $pdo->prepare(
                 "SELECT properties_json FROM map_features
@@ -1609,26 +1609,23 @@ function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): 
             $peek->execute(['name' => $name]);
             $peekRow = $peek->fetch(PDO::FETCH_ASSOC);
             if (is_array($peekRow)) {
-                $peekProps = avesmapsDecodeJsonColumnForEdit($peekRow['properties_json'] ?? null);
-                $inheritedShowLabel = (bool) ($peekProps['show_label'] ?? false);
-                $inheritedDescription = (string) ($peekProps['description'] ?? '');
-                $inheritedWikiUrl = (string) ($peekProps['wiki_url'] ?? '');
+                $inherited = avesmapsPowerlineInheritedLineFields(
+                    avesmapsDecodeJsonColumnForEdit($peekRow['properties_json'] ?? null)
+                );
             }
         }
         $geometry = [
             'type' => 'LineString',
             'coordinates' => [[$fromLng, $fromLat], [$toLng, $toLat]],
         ];
-        $properties = [
+        $properties = array_merge([
             'name' => $name,
             'feature_type' => 'powerline',
             'feature_subtype' => 'powerline',
-            'show_label' => $inheritedShowLabel,
-            'description' => $inheritedDescription,
-            'wiki_url' => $inheritedWikiUrl,
+        ], $inherited, [
             'from_public_id' => $fromPublicId,
             'to_public_id' => $toPublicId,
-        ];
+        ]);
         $revision = avesmapsNextMapRevision($pdo);
         avesmapsInsertPowerlineFeatureRow($pdo, $publicId, $name, $geometry, $properties, $revision, (int) $user['id']);
         $pdo->commit();
@@ -1649,6 +1646,34 @@ function avesmapsAssertPowerlineWikiClaimNotContradictory(string $wikiUrl, bool 
             'Eine Kraftlinie kann nicht gleichzeitig einen Wiki-Artikel haben und keinen. Bitte den Link leeren oder das Häkchen entfernen.'
         );
     }
+}
+
+/**
+ * REIN: Was erbt ein NEU entstehendes Segment von seiner Linie?
+ *
+ * 💣 EINE Liste fuer beide Erzeuger -- "Nodix anhaengen" (avesmapsCreatePowerlineFeature) und
+ * "Umsortieren" (avesmapsReorderPowerlineLine). Sie standen zweimal nebeneinander abgeschrieben,
+ * und in BEIDEN fehlte `wiki_no_article`: ein frisch entstandenes Segment ohne den Merker bringt
+ * den Fall im Konfliktzentrum mit segments = 1 zurueck, obwohl niemand etwas entschieden hat --
+ * genau der Effekt, den die Verbund-Reichweite der Reparatur-Verben gerade beseitigt hat. Zwei
+ * Abschriften derselben Liste sind die Bauform, in der so ein Feld verlorengeht.
+ *
+ * ⚠️ `wiki_no_article` steht nur drin, wenn es WAHR ist. Als `false` wird der Merker nirgends
+ * abgelegt (der Linien-Schreibweg loescht den Schluessel), und ein `false` liesse sich spaeter
+ * nicht von "nie entschieden" unterscheiden.
+ */
+function avesmapsPowerlineInheritedLineFields(?array $lineProperties): array {
+    $source = is_array($lineProperties) ? $lineProperties : [];
+    $inherited = [
+        'show_label' => (bool) ($source['show_label'] ?? false),
+        'description' => (string) ($source['description'] ?? ''),
+        'wiki_url' => (string) ($source['wiki_url'] ?? ''),
+    ];
+    if (!empty($source['wiki_no_article'])) {
+        $inherited['wiki_no_article'] = true;
+    }
+
+    return $inherited;
 }
 
 function avesmapsUpdatePowerlineFeatureDetails(PDO $pdo, array $payload, array $user): array {
@@ -1854,13 +1879,8 @@ function avesmapsReorderPowerlineLine(PDO $pdo, array $payload, array $user): ar
         // inherit onto any newly created segment (all segments of a line carry the same ones).
         $degree = [];
         $currentEdges = [];
-        $inheritShowLabel = false;
-        $inheritDescription = '';
-        $inheritWikiUrl = '';
-        // 💣 Der Merker gehoert in diese Liste. Er ist eine Aussage ueber die LINIE, steht aber wie
-        // die uebrigen Felder in JEDEM Segment -- ein neu entstehendes Segment ohne ihn machte die
-        // Linie im Konfliktzentrum wieder sichtbar, obwohl niemand etwas entschieden hat.
-        $inheritNoArticle = false;
+        // Dieselbe Erbliste wie beim Anhaengen eines Nodix -- eine Quelle, keine zweite Abschrift.
+        $inherited = avesmapsPowerlineInheritedLineFields(null);
         $haveInherit = false;
         foreach ($rows as $row) {
             $properties = avesmapsDecodeJsonColumnForEdit($row['properties_json'] ?? null);
@@ -1879,10 +1899,7 @@ function avesmapsReorderPowerlineLine(PDO $pdo, array $payload, array $user): ar
                 'key' => avesmapsPowerlineUndirectedEdgeKey($from, $to),
             ];
             if (!$haveInherit) {
-                $inheritShowLabel = (bool) ($properties['show_label'] ?? false);
-                $inheritDescription = (string) ($properties['description'] ?? '');
-                $inheritWikiUrl = (string) ($properties['wiki_url'] ?? '');
-                $inheritNoArticle = !empty($properties['wiki_no_article']);
+                $inherited = avesmapsPowerlineInheritedLineFields($properties);
                 $haveInherit = true;
             }
         }
@@ -1990,22 +2007,14 @@ function avesmapsReorderPowerlineLine(PDO $pdo, array $payload, array $user): ar
                 'type' => 'LineString',
                 'coordinates' => [[$fromLng, $fromLat], [$toLng, $toLat]],
             ];
-            $properties = [
+            $properties = array_merge([
                 'name' => $currentName,
                 'feature_type' => 'powerline',
                 'feature_subtype' => 'powerline',
-                'show_label' => $inheritShowLabel,
-                'description' => $inheritDescription,
-                'wiki_url' => $inheritWikiUrl,
+            ], $inherited, [
                 'from_public_id' => $edge['from'],
                 'to_public_id' => $edge['to'],
-            ];
-            // Nur wenn gesetzt: der Merker wird sonst nirgends als `false` abgelegt (der
-            // Linien-Schreibweg loescht den Schluessel), und ein `false` laese sich spaeter nicht
-            // von "nie entschieden" unterscheiden.
-            if ($inheritNoArticle) {
-                $properties['wiki_no_article'] = true;
-            }
+            ]);
             avesmapsInsertPowerlineFeatureRow($pdo, $publicId, $currentName, $geometry, $properties, $revision, (int) $user['id']);
         }
 
