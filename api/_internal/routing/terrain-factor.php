@@ -127,3 +127,64 @@ function avesmapsTerrainLeistungsFactor(?float $ascentSchritt, ?float $steepDesc
 
     return min(AVESMAPS_TERRAIN_FACTOR_MAX, 1.0 + $extra / $miles);
 }
+
+/**
+ * 💣 DER LAENGENAUFSCHLAG FUER QUERFELDEIN -- er wohnt hier, weil diese Datei ein BLATT ist.
+ * `offroad-grid.php` zieht sie bereits; `travel-values.php` zu ziehen waere der Zirkel ueber
+ * `client-graph.php`. Der Speicher reicht die eingestellten Werte per Prime herein, genau wie
+ * `avesmapsTravelValuesSpeed` sie fuer das Raster hereinreicht.
+ *
+ * Entwurf: docs/superpowers/specs/2026-08-15-querfeldein-laengenaufschlag-design.md
+ */
+const AVESMAPS_OFFROAD_RAMP_PER_MILE = 0.005;
+const AVESMAPS_OFFROAD_RAMP_MAX = 2.0;
+
+/** Der geltende Aufschlag dieser Anfrage -- `null` heisst „die Konstante". */
+function &avesmapsOffroadRampRef(): ?array
+{
+    static $active = null;
+
+    return $active;
+}
+
+/**
+ * Die eingestellten Werte setzen.
+ *
+ * 💣 UNSINN FAELLT AUF DIE KONSTANTE, NIE AUF „KEIN AUFSCHLAG". Eine negative Steigung oder ein
+ * Deckel unter 1,0 hiesse „querfeldein wird schneller, je weiter es geht" -- und ein Speicherwert,
+ * der eine Sicherung stillschweigend abschaltet, ist genau die Klasse Fehler, die niemand sieht.
+ */
+function avesmapsOffroadRampPrime(?float $perMile, ?float $max): void
+{
+    $active = &avesmapsOffroadRampRef();
+    if ($perMile === null || $max === null || $perMile < 0.0 || $max < 1.0) {
+        $active = null;
+
+        return;
+    }
+    $active = ['per_mile' => $perMile, 'max' => $max];
+}
+
+/** Zurueck auf die Konstante. */
+function avesmapsOffroadRampReset(): void
+{
+    $active = &avesmapsOffroadRampRef();
+    $active = null;
+}
+
+/**
+ * PURE: der Faktor, mit dem die gemessene Reisezeit einer Querfeldein-Etappe multipliziert wird.
+ *
+ * ⚠️ Der Bezug ist die EINZELNE Etappe, nicht die Summe der Reise. Zwei Querfeldein-Etappen mit
+ * einer Ortschaft dazwischen zahlen weniger als eine durchgehende gleicher Laenge -- Absicht:
+ * bestraft wird das ununterbrochene weglose Marschieren, und wer einen Ort beruehrt, rastet dort.
+ */
+function avesmapsOffroadRampFactor(float $distanceMapunits): float
+{
+    $active = &avesmapsOffroadRampRef();
+    $perMile = is_array($active) ? (float) $active['per_mile'] : AVESMAPS_OFFROAD_RAMP_PER_MILE;
+    $max = is_array($active) ? (float) $active['max'] : AVESMAPS_OFFROAD_RAMP_MAX;
+    if ($distanceMapunits <= 0.0 || $perMile <= 0.0) { return 1.0; }
+
+    return min($max, 1.0 + $perMile * $distanceMapunits * AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT);
+}
