@@ -355,7 +355,8 @@ function avesmapsOffroadFindPath(
     float $x2,
     float $y2,
     float $eps = AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS,
-    array $rasters = []
+    array $rasters = [],
+    bool $weightByDistance = false
 ): ?array {
     if ($speed <= 0.0) { return null; }
 
@@ -439,6 +440,17 @@ function avesmapsOffroadFindPath(
             // an asymmetric edge would break A*'s consistency, not just its numbers.
             $groundFactor = max($currentFactor, $nextFactor);
 
+            // 🔴 „KUERZESTE“ HEISST: DAS GEWICHT IST DIE STRECKE. Wald, Sumpf und Gebirge bremsen,
+            // sie verlaengern nicht -- auf eine Meilenzahl haben sie keinen Einfluss, also hat eine
+            // kuerzeste Linie keinen Grund, ihnen auszuweichen. Nur Wasser sperrt, und das steht
+            // schon in $blocked.
+            //
+            // 💣 NEUTRALISIERT WIRD NUR HIER, IN DER SCHLEIFE. Die Ebenen $factors/$heights/$rasters
+            // fliessen unveraendert an avesmapsOffroadFinishPath weiter -- sie auf null zu setzen
+            // naehme der MESSUNG das Gelaende, und die kuerzeste Etappe haette dann eine Laenge,
+            // aber keine Reisezeit und keinen Anstieg (Entwurf §3.2).
+            if ($weightByDistance) { $slopeFactor = 1.0; $groundFactor = 1.0; }
+
             $cost = ($best[$current] ?? INF) + ($distance / $speed) * $slopeFactor * $groundFactor;
             if ($cost >= ($best[$next] ?? INF)) { continue; }
 
@@ -507,7 +519,8 @@ function avesmapsOffroadFindPathsFromPoint(
     float $y,
     array $goals,
     float $eps = AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS,
-    array $rasters = []
+    array $rasters = [],
+    bool $weightByDistance = false
 ): array {
     $result = [];
     foreach ($goals as $key => $goal) { $result[$key] = null; }
@@ -597,6 +610,17 @@ function avesmapsOffroadFindPathsFromPoint(
             // Richtung abhaengen -- wie beim Einzellauf.
             $groundFactor = max($currentFactor, $nextFactor);
 
+            // 🔴 „KUERZESTE“ HEISST: DAS GEWICHT IST DIE STRECKE. Wald, Sumpf und Gebirge bremsen,
+            // sie verlaengern nicht -- auf eine Meilenzahl haben sie keinen Einfluss, also hat eine
+            // kuerzeste Linie keinen Grund, ihnen auszuweichen. Nur Wasser sperrt, und das steht
+            // schon in $blocked.
+            //
+            // 💣 NEUTRALISIERT WIRD NUR HIER, IN DER SCHLEIFE. Die Ebenen $factors/$heights/$rasters
+            // fliessen unveraendert an avesmapsOffroadFinishPath weiter -- sie auf null zu setzen
+            // naehme der MESSUNG das Gelaende, und die kuerzeste Etappe haette dann eine Laenge,
+            // aber keine Reisezeit und keinen Anstieg (Entwurf §3.2).
+            if ($weightByDistance) { $slopeFactor = 1.0; $groundFactor = 1.0; }
+
             $cost = ($best[$current] ?? INF) + ($distance / $speed) * $slopeFactor * $groundFactor;
             if ($cost >= ($best[$next] ?? INF)) { continue; }
 
@@ -633,8 +657,10 @@ function avesmapsOffroadFindPathsFromPoint(
     // Die nassen Kandidaten, jeder mit einer eigenen Gitterkopie. avesmapsOffroadFindPath legt darin
     // um SEINE beiden Endpunkte frei und wirft die Kopie danach weg -- die Toleranz bleibt lokal.
     foreach ($isolated as $key => $goal) {
+        // 💣 Das Gewicht gilt auch hier. Ohne diese Weitergabe rechnete ein Kandidat am Wasser
+        // weiter zeitoptimal, waehrend alle anderen streckenoptimal rechnen -- die halbe Umsetzung.
         $result[$key] = avesmapsOffroadFindPath($box, $blocked, $factors, $heights, $speed,
-            (float) $goal['x'], (float) $goal['y'], $x, $y, $eps, $rasters);
+            (float) $goal['x'], (float) $goal['y'], $x, $y, $eps, $rasters, $weightByDistance);
     }
 
     return $result;
@@ -768,6 +794,41 @@ function avesmapsOffroadHasBlockedNear(array $box, string $blocked, float $x, fl
     }
 
     return false;
+}
+
+/**
+ * PURE: die gerade Verbindung, wenn sie trocken ist -- sonst null.
+ *
+ * 🔴 DER KURZSCHLUSS DES STRECKENMODUS. Die kuerzeste Verbindung zweier Punkte ist die Strecke
+ * zwischen ihnen; ist sie trocken, gibt es nichts zu suchen. Kein Gitterlauf, keine Warteschlange.
+ *
+ * 🔴 GEFRAGT WIRD DAS POLYGON, NICHT DAS RASTER. Am 15.08.2026 an 5.903 Linien gemessen: die
+ * beiden Tests gehen in 0,92 % der Faelle auseinander (3,07 % in Wassernaehe) -- und „nur Polygon
+ * nass" kam kein einziges Mal vor. Das Raster sperrt eine Zelle, sobald Wasser sie beruehrt, und
+ * uebertreibt damit um bis zu eine halbe Zellbreite (0,35 Einheiten, rund 1 km). Ein Modus, der
+ * Meilen minimieren soll, darf keine Meilen fuer ein Rasterungsartefakt dazulegen (Entwurf §5).
+ *
+ * ⚠️ Gemessen wird trotzdem mit dem echten Gelaende: die Linie geht durch dieselbe
+ * avesmapsOffroadFinishPath wie jede gesuchte, mit denselben Ebenen. Sie ist kuerzest, nicht
+ * kostenlos -- ihre Zeit traegt den Boden und ihren Anstieg meldet sie wie jede andere Etappe.
+ */
+function avesmapsOffroadStraightPathIfDry(
+    array $box,
+    array $water,
+    ?string $factors,
+    ?string $heights,
+    float $speed,
+    float $x1,
+    float $y1,
+    float $x2,
+    float $y2,
+    float $eps = AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS,
+    array $rasters = []
+): ?array {
+    if ($speed <= 0.0) { return null; }
+    if (avesmapsRouteChordCrossesWater($x1, $y1, $x2, $y2, $water)) { return null; }
+
+    return avesmapsOffroadFinishPath([[$x1, $y1], [$x2, $y2]], $speed, $factors, $heights, $box, $eps, 0, $rasters);
 }
 
 /**
