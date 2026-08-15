@@ -138,90 +138,95 @@ function avesmapsAttachOffroadPointToGraph(
 
     $graph = is_array($clientGraph['graph'] ?? null) ? $clientGraph['graph'] : [];
 
-    // 🔴 DIE AUSSTIEGE SIND PUNKTE AUF WEGEN, NICHT ORTSCHAFTEN (Owner, 14.08.2026: „den
-    // straßenpunkt zu nehmen, der am schnellste/kürzesten zum querfeldein punkt entfernt ist").
-    // Bis dahin waren die 12 naechsten ORTE die einzigen Kandidaten -- die Reise verliess die
-    // Strasse deshalb immer an einer Ortschaft, auch wenn sie hundert Meter weiter haette abbiegen
-    // koennen.
-    // 💣 Geteilt wird in $clientGraph['graph'], NICHT in $graph -- das ist eine Kopie, und ein Split
-    // darin waere nach der Funktion verschwunden.
-    $anchorCandidates = [];
-    foreach (avesmapsCollectNearestClientLandPathAnchors($graph, $x, $y, AVESMAPS_ROUTE_CLIENT_ANCHOR_LIMIT) as $anchor) {
-        $anchorIndex = avesmapsAllocateClientAnchorIndex($clientGraph['graph']);
-        $anchorNodeName = avesmapsSplitClientPathAtAnchor($clientGraph['graph'], $anchor, $anchorIndex);
-        if ($anchorNodeName === '') continue;
-        $anchorCandidates[] = [
-            'name' => $anchorNodeName,
-            'x' => (float) $anchor['proj_x'],
-            'y' => (float) $anchor['proj_y'],
-            'distance' => (float) $anchor['distance'],
-        ];
-    }
-
-    // 🔴 EIN TOPF, KEINE RANGFOLGE. Die Ortschaften bleiben Kandidaten NEBEN den Fusspunkten, nicht
-    // hinter ihnen. Eine Staffelung „erst Fusspunkte, Ortschaften nur wenn keiner traegt" waere in
-    // einem Fall schlechter als der Stand vor dem 14.08.2026: liegt der Punkt 4,6 Einheiten neben
-    // einer Hafenstadt, aber 40 von der naechsten Strasse, dann traegt der Fusspunkt -- und der
-    // Reisende liefe 40 Einheiten querfeldein statt 4,6. Wer gewinnt, entscheidet der Dijkstra,
-    // und dafuer muss beides im Angebot stehen.
+    // 🔴 DIE AUSSTIEGE SIND PUNKTE AUF WEGEN, NICHT ORTSCHAFTEN (Owner, 14.08.2026) -- und seit dem
+    // 15.08.2026 ist es JEDER GEZEICHNETE PUNKT eines Wegstuecks, nicht nur der zielnaechste.
+    // Vorher bot ein Wegstueck genau einen an; verlor der gegen den Direktweg, war die Strasse fuer
+    // diese Reise verschwunden. Owner, wortwoertlich: „es gibt kein ausstieg heute." Gemessen an
+    // Salmingen -> Kartenpunkt (504.530, 501.076): 42,06 Meilen querfeldein NEBEN dem Talloner
+    // Huegelsteig her, den die Reise nie betrat.
+    //
+    // ⚠️ ERST SAMMELN UND FILTERN, DANN TEILEN. Bis zum 15.08.2026 wurde geteilt und danach
+    // gefiltert; bei EINEM Kandidaten je Weg war das gleichgueltig, bei bis zu 24 hiesse es, eine
+    // Strasse fuer Punkte zu zerschneiden, die ohnehin herausfallen.
+    $candidateSets = avesmapsCollectClientLandPathExitCandidates($graph, $x, $y, AVESMAPS_ROUTE_CLIENT_ANCHOR_LIMIT);
     $nodeCandidates = avesmapsFindNearestOffroadExitNodes($graph, $locations, $x, $y);
-    if ($anchorCandidates === [] && $nodeCandidates === []) {
+
+    $anchorPointCount = 0;
+    $verticesCapped = 0;
+    $nearestVertexDistance = INF;
+    foreach ($candidateSets as $set) {
+        $anchorPointCount += count($set['cuts']);
+        $verticesCapped += (int) $set['capped'];
+        foreach ($set['cuts'] as $cut) { $nearestVertexDistance = min($nearestVertexDistance, (float) $cut['distance']); }
+    }
+    if ($anchorPointCount === 0 && $nodeCandidates === []) {
         return ['ok' => false, 'error' => 'no_exit_node'];
     }
 
     // ⚠️ ZWEI STUFEN, und die zweite ist eine Rettung, kein Luxus. Die Entfernungsschranke haelt die
-    // gemeinsame Suchkiste klein -- sie spannt ueber den Punkt UND alle Kandidaten, ein weit
-    // entfernter Knoten zoege sie auf. Wenn aber KEINER der nahen querfeldein erreichbar ist (ein
-    // Ort mitten in einem See), waere die Antwort sonst „kein Weg", obwohl der uebernaechste
-    // gegangen waere. Also: erst die nahen, und nur wenn keiner traegt, alle.
+    // gemeinsame Suchkiste klein -- sie spannt ueber den Punkt UND alle Kandidaten. Wenn aber KEINER
+    // der nahen querfeldein erreichbar ist (ein Ort mitten in einem See), waere die Antwort sonst
+    // „kein Weg", obwohl der uebernaechste gegangen waere.
     //
     // 💣 UND IHR MASSSTAB IST DER NAECHSTE ORTSKNOTEN, nicht der naechste Kandidat ueberhaupt.
-    // Ihre Aufgabe ist die GROESSE DER SUCHKISTE, und die spannten seit jeher die Ortschaften auf;
-    // ein Fusspunkt liegt fast immer naeher und darf den Massstab deshalb nicht setzen.
-    //
-    // 🔴 BEIDE FALSCHEN FASSUNGEN SIND LIVE GEMESSEN, an einem Tag:
-    //   * Ueber den GEMEINSAMEN Topf (naechster Kandidat): ein Kartenpunkt 0,497 neben der Strasse
-    //     druckte die Reichweite auf 1,24 -- alle vier Ortschaften fielen aus dem Angebot, die
-    //     Reise wurde 2,8 % teurer.
-    //   * JE FAMILIE: ein zufaellig sehr naher Fusspunkt (2,911) druckte die Fusspunkt-Reichweite
-    //     auf 7,28 und schnitt damit den Fusspunkt bei 7,61 weg -- waehrend eine ORTSCHAFT bei 8,30
-    //     blieb, weil ihre Familie ihren eigenen, weiteren Massstab hatte. Genau dieser Fusspunkt
-    //     haette die Reise Salmingen -> Kartenpunkt um rund 15 % verkuerzt (Owner-Meldung).
-    //
-    // ⭐ Mit dem Ortsknoten als Massstab ist die Kiste exakt so gross wie vor dem 14.08.2026: die
-    // Ortschaften bestimmen sie wie immer, die Fusspunkte liegen darin und kosten nichts extra --
-    // und ein Fusspunkt, der WEITER liegt als diese Reichweite, wuerde die Kiste aufziehen und
-    // faellt zu Recht heraus.
+    // Beide falschen Fassungen sind am 14.08.2026 live gemessen worden (AGENTS.md §11): ueber den
+    // gemeinsamen Topf wurde die Reise 2,8 % teurer, je Familie rund 15 % laenger. Die neuen
+    // Vertices sind Kandidaten wie alle anderen und SETZEN den Massstab nie -- ausser es gibt
+    // ueberhaupt keine Ortschaft im Angebot, dann traegt der naechste Fusspunkt ihn wie bisher.
     $reference = $nodeCandidates !== []
         ? (float) $nodeCandidates[0]['distance']
-        : (float) $anchorCandidates[0]['distance'];
+        : $nearestVertexDistance;
     $reach = max($reference * AVESMAPS_ROUTE_OFFROAD_EXIT_DISTANCE_FACTOR, $reference);
 
-    // Ein Fusspunkt, der auf einem Endknoten liegt, TRAEGT dessen Namen (der Teiler gibt ihn dann
-    // unveraendert zurueck) -- ohne Entdopplung liefe der A* zweimal zum selben Ziel.
-    $byName = [];
-    foreach (array_merge($anchorCandidates, $nodeCandidates) as $candidate) {
-        $name = (string) $candidate['name'];
-        if (!isset($byName[$name]) || (float) $byName[$name]['distance'] > (float) $candidate['distance']) {
-            $byName[$name] = $candidate;
+    // 💣 GETEILT WIRD IN $clientGraph['graph'], NICHT in $graph -- das ist eine Kopie, und ein Split
+    // darin waere nach der Funktion verschwunden.
+    // 💣 EIN DURCHGANG JE WEGSTUECK. Der Einzelteiler entfernt die Ursprungskante, sobald beide
+    // Haelften stehen -- k Aufrufe hintereinander haengen die spaeteren Punkte ins Leere.
+    $buildCandidates = static function (float $limit) use (&$clientGraph, $candidateSets, $nodeCandidates): array {
+        $candidates = [];
+        foreach ($candidateSets as $set) {
+            $kept = array_values(array_filter(
+                $set['cuts'],
+                static fn(array $cut): bool => (float) $cut['distance'] <= $limit + 1e-9
+            ));
+            if ($kept === []) { continue; }
+            $split = avesmapsSplitClientPathAtPoints($clientGraph['graph'], $set['anchor'], $kept);
+            foreach ($split as $index => $node) {
+                if ((string) $node['name'] === '') { continue; }
+                $candidates[] = [
+                    'name' => (string) $node['name'], 'x' => (float) $node['x'], 'y' => (float) $node['y'],
+                    'distance' => (float) $kept[$index]['distance'],
+                ];
+            }
         }
-    }
-    $candidates = array_values($byName);
-    usort($candidates, static fn(array $a, array $b): int => $a['distance'] <=> $b['distance']);
+        foreach ($nodeCandidates as $node) {
+            if ((float) $node['distance'] > $limit + 1e-9) { continue; }
+            $candidates[] = $node;
+        }
+        // Ein Punkt, der auf einem Endknoten liegt, TRAEGT dessen Namen (der Teiler gibt ihn dann
+        // unveraendert zurueck) -- ohne Entdopplung liefe der Suchlauf zweimal zum selben Ziel.
+        $byName = [];
+        foreach ($candidates as $candidate) {
+            $name = (string) $candidate['name'];
+            if (!isset($byName[$name]) || (float) $byName[$name]['distance'] > (float) $candidate['distance']) {
+                $byName[$name] = $candidate;
+            }
+        }
+        $out = array_values($byName);
+        usort($out, static fn(array $a, array $b): int => $a['distance'] <=> $b['distance']);
+        return $out;
+    };
 
-    $near = array_values(array_filter($candidates, static fn(array $c): bool => (float) $c['distance'] <= $reach + 1e-9));
-    $stages = count($near) === count($candidates) ? [$near] : [$near, $candidates];
-
-    // 🔴 EINE KISTE FUER ALLE KANDIDATEN, und deshalb auch nur EIN Satz Datenbankabfragen. Vorher
-    // baute jeder Kandidat seine eigene Kiste und lud Gelaende und Hoehe erneut -- bei zwoelf
-    // Kandidaten waeren das vierundzwanzig Abfragen je Kartenpunkt gewesen.
+    // 🔴 EINE KISTE FUER ALLE KANDIDATEN, und deshalb auch nur EIN Satz Datenbankabfragen.
     $box = [];
     $rasters = [];
     $factors = '';
     $exits = [];
     $offered = 0;
-    foreach ($stages as $set) {
+    foreach ([$reach, INF] as $stageLimit) {
         if ($exits !== []) { break; }
+        $set = $buildCandidates($stageLimit);
+        if ($set === []) { continue; }
         $offered = count($set);
 
         $spanMinX = $x; $spanMaxX = $x; $spanMinY = $y; $spanMaxY = $y;
@@ -233,15 +238,22 @@ function avesmapsAttachOffroadPointToGraph(
         $blocked = avesmapsOffroadRasteriseBlocked($box, $water);
         $factors = $pdo instanceof PDO ? avesmapsOffroadLoadFactorPlane($pdo, $box) : '';
         // 🔴 DER NOTSCHALTER GILT AUCH HIER. V11 §8.3: der Gelaendeschalter ist ein Not-Aus, und er
-        // muss ueberall dasselbe bedeuten. Frueher las der A* die Hoehe unabhaengig davon -- dann
-        // haette „Gelaende aus" fuer gezeichnete Wege gegolten und fuer die Querfeldein-Etappe nicht.
+        // muss ueberall dasselbe bedeuten.
         $rasters = $terrainEnabled && $pdo instanceof PDO ? avesmapsOffroadLoadHeightRasters($pdo, $box) : [];
         $heights = $rasters === [] ? null : avesmapsOffroadSampleHeights($box, $rasters);
 
         $clientGraph['graph'][$nodeName] ??= [];
+
+        // 🔴 EIN LAUF FUER ALLE. Bis zum 15.08.2026 lief hier ein A* JE KANDIDAT -- an der Route des
+        // Owners gemessen 15 Suchen je Anfrage durch dasselbe Gelaende. Genau das macht „jeder
+        // gezeichnete Punkt ist ein Kandidat" bezahlbar: ein Kandidat mehr ist ein Nachschlagen.
+        $goals = [];
+        foreach ($set as $index => $candidate) { $goals[$index] = ['x' => $candidate['x'], 'y' => $candidate['y']]; }
+        $paths = avesmapsOffroadFindPathsFromPoint($box, $blocked, $factors, $heights, (float) $speed, $x, $y, $goals,
+            AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters);
+
         foreach ($set as $index => $candidate) {
-            $path = avesmapsOffroadFindPath($box, $blocked, $factors, $heights, (float) $speed,
-                $candidate['x'], $candidate['y'], $x, $y, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters);
+            $path = $paths[$index] ?? null;
             if ($path === null) { continue; }
 
             avesmapsAddOffroadEdge($clientGraph['graph'], $candidate['name'], $nodeName, $path, (string) $transport, 'offroad-' . $nodeName . '-' . $index);
@@ -260,6 +272,7 @@ function avesmapsAttachOffroadPointToGraph(
             'ok' => false, 'error' => 'no_offroad_route',
             'cell_mapunits' => $box['cell'], 'cell_count' => $box['cell_count'],
             'exit_nodes_offered' => $offered,
+            'exit_vertices_capped' => $verticesCapped,
         ];
     }
 
@@ -271,6 +284,7 @@ function avesmapsAttachOffroadPointToGraph(
         // demselben Pfadpunkt" und „er sucht sich einen aus".
         'exit_nodes' => $exits,
         'exit_nodes_offered' => $offered,
+        'exit_vertices_capped' => $verticesCapped,
         'exit_nodes_connected' => count($exits),
         'nearest_exit_node' => $exits[0]['node'] ?? '',
         // 🔴 THE ANSWER SAYS WHICH CELL WIDTH IT USED. Over the cap the search coarsens for this one
