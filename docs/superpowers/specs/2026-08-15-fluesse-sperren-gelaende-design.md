@@ -74,8 +74,14 @@ als Wand zu rastern würde Küstenrouten zerschneiden.
   eine zweite Sonderregel.
 - 💣 **Die Zellbreite IST die Flussbreite.** Eine Linie sperrt die Zellen, durch die sie läuft:
   0,5 Karteneinheiten = 1,5 Meilen. Das ist großzügig für einen Bach und knapp für den Großen Fluss
-  — aber es ist EINE Regel ohne Datenfeld, und ein Größenfeld je Fluss wäre ein eigenes Vorhaben
-  (Owner hat es heute ausdrücklich verworfen).
+  — aber es ist EINE Regel ohne Datenfeld, und ein Größenfeld je Fluss wäre ein eigenes Vorhaben.
+- 🔧 **Bäche kommen.** Owner, 15.08.2026: *„wir werden bald flüsse bauen die überquert werden können
+  (bäche)"*. Diese Fassung sperrt deshalb bewusst **alles**, was Verkehrsart `river` trägt — und die
+  Entscheidung darüber steht an **genau einer** Stelle: `avesmapsCollectRouteRiverBarrierLines`.
+  Wenn der Bach kommt, fällt er dort heraus, durch eine zusätzliche Bedingung in einer Schleife.
+  🔴 Er darf **nicht** in der Rasterung oder im Schnitt-Test der Geraden unterschieden werden — dann
+  gäbe es die Unterscheidung zweimal, und die beiden liefen auseinander. Das ist dieselbe Falle wie
+  bei den vier Erzeugern der Verkehrsmittel-Sperre (AGENTS.md §11).
 - 💣 **Zwei Flüsse, die sich kreuzen, dürfen keine Lücke lassen.** Der Zellenlauf muss jede berührte
   Zelle nehmen, nicht jede zweite — eine einzige durchlässige Zelle an einer Flussmündung macht die
   ganze Wand wirkungslos, und es fällt an genau einer Route auf.

@@ -969,6 +969,13 @@ function avesmapsRouteSegmentsIntersect(
 /**
  * PURE: die Flusslinien aus den Netzdaten -- und sonst nichts.
  *
+ * 🔴 DIES IST DIE EINZIGE STELLE, DIE ENTSCHEIDET, WAS EINE WAND IST. Owner, 15.08.2026: „wir werden
+ * bald fluesse bauen die ueberquert werden koennen (baeche)". Wenn es soweit ist, kommt der Bach
+ * hier heraus -- durch eine zusaetzliche Bedingung in DIESER Schleife -- und nirgends sonst. Wer die
+ * Unterscheidung stattdessen in die Rasterung oder in den Schnitt-Test der Geraden legt, hat sie
+ * zweimal, und die beiden laufen auseinander (siehe die vier Erzeuger der Verkehrsmittel-Sperre,
+ * AGENTS.md §11).
+ *
  * ⚠️ `Seeweg` bleibt draussen: Seewege laufen ueber das Meer, das ohnehin gesperrt ist, und sie
  * zusaetzlich als Wand zu rastern wuerde Kuestenrouten zerschneiden.
  * ⭐ Die Geometrien sind bereits geladen ($routeNetworkData['paths']) -- keine zweite Abfrage je
