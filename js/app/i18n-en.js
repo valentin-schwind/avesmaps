@@ -257,7 +257,7 @@ window.AVESMAPS_I18N_EN = {
 	"ctxmenu.mapMenuHint": "Ctrl + right-click: map menu",
 	"ctxmenu.whatIsHere": "What's here?",
 	"ctxmenu.reportLocation": "Report something here",
-	"ctxmenu.search": "Find a place",
+	"ctxmenu.search": "Search the map",
 	"ctxmenu.findNearest": "Find nearest location",
 	"ctxmenu.travelHere": "Travel here",
 	"ctxmenu.measureDistance": "Measure distance",
