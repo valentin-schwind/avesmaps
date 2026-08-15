@@ -238,7 +238,11 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 		$land ??= $routePdo instanceof PDO ? avesmapsLoadRouteLand($config, $routePdo) : avesmapsPrepareRouteAreas([]);
 		$report = avesmapsAttachOffroadPointToGraph(
 			$clientGraph,
-			is_array($routeNetworkData['locations'] ?? null) ? $routeNetworkData['locations'] : [],
+			// 🔴 DIE GEFILTERTE LISTE, nicht $routeNetworkData['locations']. Hier stand bis zum
+			// 15.08.2026 die rohe -- ein versteckter Ort waere damit weiter als Querfeldein-Ausstieg
+			// angeboten worden, und die Reise stiege an einem Ort aus, den es auf der Karte nicht
+			// gibt. Der Riegel im Graphbau haette danebengegriffen.
+			is_array($clientGraph['candidate_locations'] ?? null) ? $clientGraph['candidate_locations'] : [],
 			$request,
 			$water,
 			$land,

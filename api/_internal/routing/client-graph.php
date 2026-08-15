@@ -108,9 +108,48 @@ const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
 // water test is inert and the two synthetic-bridge builders below behave exactly as they did before
 // V13 -- which is also what the callers that have no business with water get (the Verlauf-Sync in
 // api/_internal/wiki/path-verlauf.php, and the diagnostics).
+/**
+ * Die Orte, die diese Anfrage AUSDRUECKLICH nennt -- Start, Ziel und Zwischenziele, als Menge
+ * name => true.
+ *
+ * 🔴 Sie sind die Ausnahme vom Versteckt-Riegel: wer einen Namen eingegeben hat, hat ihn gefunden.
+ * Ohne sie fiele ein versteckter Wegpunkt in avesmapsConnectClientRouteWaypointsToNearestLandPath
+ * aus dem Lookup und waere als Ziel unerreichbar -- genau der Fall, den das Merkmal erhalten soll.
+ *
+ * ⚠️ Dieselben drei Schluessel liest jene Funktion; sie sind hier nicht abgeschrieben, sondern
+ * hierher gezogen. Wer einen vierten Wegpunkt-Schluessel einfuehrt, aendert EINE Stelle.
+ */
+function avesmapsCollectRouteRequestWaypointNames(array $request): array {
+    $names = [];
+    $raw = array_merge(
+        [(string) ($request['from'] ?? ''), (string) ($request['to'] ?? '')],
+        is_array($request['via'] ?? null) ? array_map('strval', $request['via']) : []
+    );
+    foreach ($raw as $rawName) {
+        $name = trim($rawName);
+        if ($name !== '') {
+            $names[$name] = true;
+        }
+    }
+
+    return $names;
+}
+
 function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $request, array $terrain = [], array $water = [], float $passNormalizer = 1.0): array {
     $graph = [];
     $locations = [];
+    // 💣 ZWEI LISTEN, UND DAS IST DER GANZE RIEGEL. $locations traegt ALLE Orte -- ein versteckter Ort
+    // muss ein Knoten bleiben, sonst verwirft avesmapsAddClientCompatiblePathConnection jeden Weg, der
+    // an ihm endet, und aus „wird nicht angefahren" wird „ist nicht mehr erreichbar".
+    // $candidateLocations ist die Liste, aus der SYNTHETISCHE Kanten ihre Ziele waehlen:
+    // Querfeldein-Ausstiege, Notbruecken, Sehnen.
+    //
+    // 🔴 UND DIE ROHE LISTE VERLAESST DIESE FUNKTION NICHT. Wer einen neuen Erzeuger baut, greift nach
+    // dem, was der Graphbau herausgibt, und bekommt die gefilterte -- ohne davon zu wissen. Genau
+    // daran ist der 14.08.2026 gescheitert: die Verkehrsmittel-Sperre stand in zwei von vier
+    // Erzeugern, und die ZAHL im Kommentar las sich wie eine vollstaendige Liste. Hier steht keine.
+    $candidateLocations = [];
+    $waypointNames = avesmapsCollectRouteRequestWaypointNames($request);
     foreach (is_array($networkData['locations'] ?? null) ? $networkData['locations'] : [] as $location) {
         if (!is_array($location)) continue;
         $name = trim((string) ($location['name'] ?? ''));
@@ -123,6 +162,9 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
         $location['route_x'] = (float) $x;
         $location['route_y'] = (float) $y;
         $locations[] = $location;
+        if (empty($location['is_hidden']) || isset($waypointNames[$name])) {
+            $candidateLocations[] = $location;
+        }
         $graph[$name] ??= [];
     }
 
@@ -153,15 +195,19 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
     // land bridges below refuse a water-locked node: crossing open water on foot is never a land route.
     $seaBoundLocationNames = avesmapsCollectClientSeaBoundLocationNames($networkData, $locations, $locationCoordinateIndex, $locationCellIndex);
 
-    $syntheticConnectionCount = avesmapsConnectClientCompatibleDetachedGraphComponents($graph, $locations, $request, $seaBoundLocationNames, $water);
+    $syntheticConnectionCount = avesmapsConnectClientCompatibleDetachedGraphComponents($graph, $candidateLocations, $request, $seaBoundLocationNames, $water);
     // Anchor each travel waypoint that has no land-path edge to the nearest point ON a land path (short
     // Querfeldein leg + a split of that path), so a truly landlocked isolated place reaches the road
     // network by the shortest cross-country hop instead of the far component bridge. Runs after the
     // bridges so the graph is already connected.
-    avesmapsConnectClientRouteWaypointsToNearestLandPath($graph, $locations, $request, $seaBoundLocationNames, $water);
+    avesmapsConnectClientRouteWaypointsToNearestLandPath($graph, $candidateLocations, $request, $seaBoundLocationNames, $water);
 
     return [
         'graph' => $graph,
+        // 🔴 Die Liste, aus der synthetische Kanten ihre Ziele waehlen duerfen -- versteckte Orte
+        // fehlen darin, ausser diese Anfrage nennt sie ausdruecklich. Wer eine Ortsliste fuer einen
+        // neuen Erzeuger braucht, nimmt DIESE.
+        'candidate_locations' => $candidateLocations,
         'statistics' => [
             'node_count' => count($graph),
             'path_feature_count' => $pathIndex,
@@ -777,19 +823,10 @@ function avesmapsConnectClientRouteWaypointsToNearestLandPath(array &$graph, arr
     }
     $locationLookup = avesmapsBuildClientCompatibleLocationLookup($locations);
 
-    $waypointNames = [];
-    $rawWaypoints = array_merge(
-        [(string) ($request['from'] ?? ''), (string) ($request['to'] ?? '')],
-        is_array($request['via'] ?? null) ? array_map('strval', $request['via']) : []
-    );
-    foreach ($rawWaypoints as $rawName) {
-        $name = trim($rawName);
-        if ($name !== '' && !in_array($name, $waypointNames, true)) {
-            $waypointNames[] = $name;
-        }
-    }
-
-    foreach ($waypointNames as $name) {
+    // ⚠️ DIESELBE ERNTE WIE IM GRAPHBAU, eine Stelle statt zweier: bis zum 15.08.2026 stand hier eine
+    // eigene, wortgleiche Schleife ueber from/to/via. Sie entschied mit, wer vom Versteckt-Riegel
+    // ausgenommen ist -- zwei Fassungen davon waeren zwei Antworten auf dieselbe Frage.
+    foreach (array_keys(avesmapsCollectRouteRequestWaypointNames($request)) as $name) {
         if (!isset($graph[$name])) continue;
         if (avesmapsClientNodeHasLandPathEdge($graph, $name)) continue;
         if (isset($seaBoundLocationNames[$name])) continue;

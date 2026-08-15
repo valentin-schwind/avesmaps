@@ -355,6 +355,15 @@ liest sich wie eine vollständige Liste. Die Kommentare hier tragen deshalb **ke
 den Satz: *die gefilterte Liste kommt aus dem Graphbau; wer die rohe Ortsliste anfasst, baut ein
 Loch.*
 
+🔴 **Die Umweg-Sehnen bleiben ungefiltert, und das ist eine Entscheidung** (beim Bau getroffen,
+15.08.2026). `avesmapsMaybeOfferOffroadDetour` bekommt gar keine Ortsliste — seine Sehnen verbinden
+**Knoten der bereits gefundenen Route**. Liegt ein versteckter Ort auf dieser Route, fährt der
+Reisende ohnehin durch ihn hindurch; eine Sehne, die dort abzweigt, bietet ihn niemandem als *Ziel*
+an, und sein Name fällt in der Etappenliste ohnehin heraus (§7). Es gibt hier also nichts zu
+filtern. Ebenso `avesmapsRouteResolveEndpointPoint` (`response.php:287`): das schlägt die
+**Koordinaten der eigenen Endpunkte** nach, wählt keinen Kandidaten aus, und bekommt deshalb weiter
+die volle Liste — dort wäre die gefilterte sogar riskanter.
+
 ⚠️ **Warum die Wegpunkte in der Liste bleiben müssen.**
 `avesmapsConnectClientRouteWaypointsToNearestLandPath` (`:762-800`) sucht sich seine Namen selbst aus
 `$request['from']`, `$request['to']`, `$request['via']`, schlägt sie aber in
