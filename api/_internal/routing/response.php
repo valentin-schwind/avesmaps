@@ -217,6 +217,13 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	avesmapsTravelValuesPrime($routePdo);
 	$water = $routePdo instanceof PDO ? avesmapsLoadRouteWater($config, $routePdo) : [];
 	$clientGraph = avesmapsBuildClientCompatibleRouteGraph($routeNetworkData, $request, $terrain, $water, $passNormalizer);
+	// 🔴 EIN FLUSS IST IM GELAENDE EINE WAND. Er ist bei uns keine Flaeche, sondern ein Flussweg-WEG,
+	// stand also nie in $water und musste bis zum 15.08.2026 gar nicht ueberquert werden -- er war
+	// schlicht nicht da (?s=w38RkXYP: 61,8 Meilen in EINER Etappe quer ueber die Rakula).
+	// ⭐ Die Geometrien sind hier bereits geladen -- keine zweite Abfrage je Route.
+	$riverLines = avesmapsCollectRouteRiverBarrierLines(
+		is_array($routeNetworkData['paths'] ?? null) ? $routeNetworkData['paths'] : []
+	);
 
 	// V14 „Hierher reisen": either endpoint may be an arbitrary map point. It becomes a NODE with one
 	// cross-country edge to the nearest graph node, and everything below this line stays untouched --
@@ -250,7 +257,8 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 			(float) $point['x'],
 			(float) $point['y'],
 			$nodeName,
-			$terrainEnabled
+			$terrainEnabled,
+			$riverLines
 		);
 		if (empty($report['ok'])) {
 			throw new AvesmapsRouteOffroadPointException(
@@ -277,7 +285,10 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 			$request['to_point'],
 			AVESMAPS_ROUTE_OFFROAD_NODE_PREFIX . 'from',
 			AVESMAPS_ROUTE_OFFROAD_NODE_PREFIX . 'to',
-			$terrainEnabled
+			$terrainEnabled,
+			// ⚠️ Der Kantenname muss mit, sonst landet die Flussliste positional auf ihm.
+			'offroad-direct',
+			$riverLines
 		);
 	}
 
@@ -295,7 +306,7 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 		$detour = avesmapsMaybeOfferOffroadDetour(
 			$clientGraph, $request, $water, $routePdo,
 			is_array($routeDijkstraResult['segments'] ?? null) ? $routeDijkstraResult['segments'] : [],
-			$fromPoint, $toPoint, $fromLocation, $toLocation, $terrainEnabled
+			$fromPoint, $toPoint, $fromLocation, $toLocation, $terrainEnabled, $riverLines
 		);
 		if (!empty($detour['offered'])) {
 			// 🔴 DERSELBE DIJKSTRA, NICHT EIN ZWEITER ZUSAMMENBAU. Er darf die Kante auch teilweise
@@ -310,7 +321,7 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	$refine = avesmapsRefineSyntheticRouteLegs(
 		$clientGraph, $request, $water, $routePdo,
 		is_array($routeDijkstraResult['segments'] ?? null) ? $routeDijkstraResult['segments'] : [],
-		$terrainEnabled
+		$terrainEnabled, $riverLines
 	);
 	if (($refine['refined'] ?? 0) > 0) {
 		// Der gebogene Weg ist länger als die Sehne -- also kann eine andere Route jetzt die

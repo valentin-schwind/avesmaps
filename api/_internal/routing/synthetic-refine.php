@@ -36,7 +36,9 @@ function avesmapsRefineSyntheticRouteLegs(
     array $water,
     ?PDO $pdo,
     array $segments,
-    bool $terrainEnabled = true
+    bool $terrainEnabled = true,
+    // Die Flusslinien -- ein Fluss ist im Gelaende eine Wand.
+    array $riverLines = []
 ): array {
     $report = ['examined' => 0, 'refined' => 0, 'legs' => []];
 
@@ -69,7 +71,7 @@ function avesmapsRefineSyntheticRouteLegs(
             $request, $water, $pdo,
             (float) $coordinates[0][0], (float) $coordinates[0][1],
             (float) $coordinates[1][0], (float) $coordinates[1][1],
-            $terrainEnabled
+            $terrainEnabled, $riverLines
         );
         if ($path === null) {
             // Kein trockener Weg durch die Kiste. Die Sehne bleibt stehen -- V13 hat sie selbst
@@ -117,7 +119,8 @@ function avesmapsFindOffroadPathBetween(
     float $y1,
     float $x2,
     float $y2,
-    bool $terrainEnabled = true
+    bool $terrainEnabled = true,
+    array $riverLines = []
 ): ?array {
     $transport = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
     $speed = $transport === null
@@ -126,7 +129,7 @@ function avesmapsFindOffroadPathBetween(
     if ($speed === null || $speed <= 0.0) { return null; }
 
     $box = avesmapsBuildOffroadBox($x1, $y1, $x2, $y2);
-    $blocked = avesmapsOffroadRasteriseBlocked($box, $water);
+    $blocked = avesmapsOffroadRasteriseBlocked($box, $water, $riverLines);
     $factors = $pdo instanceof PDO ? avesmapsOffroadLoadFactorPlane($pdo, $box) : '';
     // Der Gelände-Notschalter gilt auch hier (V11 §8.3) -- „Gelände aus" muss für eine Notbrücke
     // dasselbe bedeuten wie für einen gezeichneten Weg.

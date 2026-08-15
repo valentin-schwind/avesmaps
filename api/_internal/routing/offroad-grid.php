@@ -16,6 +16,9 @@ declare(strict_types=1);
 // is a string, read with $s[$i] and written with $s[$i] = chr(...).
 
 require_once __DIR__ . '/land-areas.php';
+// Fuer avesmapsGetRouteTransportType (die Flussweg-Erkennung). network-data.php verlangt nichts --
+// ein Blatt, kein Zirkel.
+require_once __DIR__ . '/network-data.php';
 require_once __DIR__ . '/terrain-factor.php';
 require_once __DIR__ . '/../app/heightmap.php';
 
@@ -190,14 +193,71 @@ function avesmapsOffroadForEachTouchedCell(array $box, array $prepared, callable
  * 💣 The water areas come from V13's loader, unchanged. There is no second notion of water in this
  * house, and building one here would be the exact mistake the sources system paid for once.
  */
-function avesmapsOffroadRasteriseBlocked(array $box, array $water): string
+function avesmapsOffroadRasteriseBlocked(array $box, array $water, array $riverLines = []): string
 {
     $plane = str_repeat("\x00", $box['cell_count']);
     avesmapsOffroadForEachTouchedCell($box, $water, static function (int $index) use (&$plane): void {
         $plane[$index] = "\x01";
     });
+    avesmapsOffroadRasteriseRiverLines($box, $plane, $riverLines);
 
     return $plane;
+}
+
+/**
+ * Die Flusslinien in die Sperrebene -- ein Fluss ist im Gelaende eine Wand, wie Meer und See.
+ *
+ * 🔴 Er ist bei uns keine FLAECHE, sondern ein `Flussweg`-WEG. Deshalb steht er nicht in $water und
+ * musste bis zum 15.08.2026 gar nicht ueberquert werden -- er war schlicht nicht da. Gequert wird
+ * seither nur, wo ein gezeichneter Weg quert: das ist die Bruecke, und die wirkt von selbst, weil
+ * Wege Graph-Kanten sind und das Gitter nie sehen.
+ *
+ * 💣 JEDE BERUEHRTE ZELLE, UND DIE ECKEN DAZU. Der Suchlauf geht ueber ACHT Nachbarn. Eine schraege
+ * Linie markiert eine Treppe aus Zellen, und zwischen zwei diagonal benachbarten gesperrten Zellen
+ * schluepft er hindurch, solange die beiden Eckzellen frei bleiben. Eine einzige durchlaessige Zelle
+ * an einer Flussmuendung macht die ganze Wand wirkungslos, und es faellt an genau einer Route auf.
+ *
+ * 💣 Die Zellbreite IST die Flussbreite (0,5 Einheiten = 1,5 Meilen) -- grosszuegig fuer einen Bach,
+ * knapp fuer den Grossen Fluss. Es ist EINE Regel ohne Datenfeld; ein Groessenfeld je Fluss waere ein
+ * eigenes Vorhaben (Owner-Entscheid 15.08.2026).
+ */
+function avesmapsOffroadRasteriseRiverLines(array $box, string &$plane, array $riverLines): void
+{
+    if ($riverLines === []) { return; }
+    // Schrittweite unter einer halben Zelle: so kann keine Zelle uebersprungen werden.
+    $step = $box['cell'] * 0.4;
+    if ($step <= 0.0) { return; }
+
+    $markiere = static function (int $col, int $row) use ($box, &$plane): void {
+        if ($col < 0 || $col >= $box['cols'] || $row < 0 || $row >= $box['rows']) { return; }
+        $plane[$row * $box['cols'] + $col] = "\x01";
+    };
+
+    foreach ($riverLines as $line) {
+        $count = is_array($line) ? count($line) : 0;
+        for ($i = 0; $i < $count - 1; $i++) {
+            $ax = (float) $line[$i][0];     $ay = (float) $line[$i][1];
+            $bx = (float) $line[$i + 1][0]; $by = (float) $line[$i + 1][1];
+            // Huellbox-Vorfilter: ein Fluss weit ausserhalb der Kiste kostet nichts.
+            if (max($ax, $bx) < $box['min_x'] || min($ax, $bx) > $box['max_x']) { continue; }
+            if (max($ay, $by) < $box['min_y'] || min($ay, $by) > $box['max_y']) { continue; }
+
+            $length = hypot($bx - $ax, $by - $ay);
+            $steps = max(1, (int) ceil($length / $step));
+            $previous = null;
+            for ($s = 0; $s <= $steps; $s++) {
+                $t = $s / $steps;
+                [$col, $row] = avesmapsOffroadCellOf($box, $ax + ($bx - $ax) * $t, $ay + ($by - $ay) * $t);
+                $markiere($col, $row);
+                // Die beiden Eckzellen des Treppenschritts -- ohne sie bleibt eine diagonale Luecke.
+                if ($previous !== null && $previous[0] !== $col && $previous[1] !== $row) {
+                    $markiere($previous[0], $row);
+                    $markiere($col, $previous[1]);
+                }
+                $previous = [$col, $row];
+            }
+        }
+    }
 }
 
 /**
@@ -851,12 +911,81 @@ function avesmapsOffroadStraightPathIfDry(
     float $x2,
     float $y2,
     float $eps = AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS,
-    array $rasters = []
+    array $rasters = [],
+    array $riverLines = []
 ): ?array {
     if ($speed <= 0.0) { return null; }
     if (avesmapsRouteChordCrossesWater($x1, $y1, $x2, $y2, $water)) { return null; }
+    // 💣 DIE FLUESSE MUESSEN HIER EIGENS GEFRAGT WERDEN. Diese Funktion geht am Raster VORBEI --
+    // das ist ihr Sinn (siehe oben) -- und die Sperrebene, in der die Fluesse stehen, sieht sie
+    // deshalb nie. Wer nur avesmapsOffroadRasteriseBlocked repariert, verhindert das Durchwaten
+    // unter „Schnellste" und laesst es unter „Kuerzeste" unveraendert stehen.
+    if (avesmapsRouteChordCrossesRiver($x1, $y1, $x2, $y2, $riverLines)) { return null; }
 
     return avesmapsOffroadFinishPath([[$x1, $y1], [$x2, $y2]], $speed, $factors, $heights, $box, $eps, 0, $rasters);
+}
+
+/**
+ * PURE: schneidet die Strecke (x1,y1)-(x2,y2) eine der Flusslinien?
+ *
+ * ⚠️ Huellbox-Vorfilter je Linie, dann Segment gegen Segment. Die Flusslinien sind wenige und kurz;
+ * ein Index waere hier mehr Code als Rechenzeit.
+ */
+function avesmapsRouteChordCrossesRiver(float $x1, float $y1, float $x2, float $y2, array $riverLines): bool
+{
+    if ($riverLines === []) { return false; }
+    $minX = min($x1, $x2); $maxX = max($x1, $x2);
+    $minY = min($y1, $y2); $maxY = max($y1, $y2);
+
+    foreach ($riverLines as $line) {
+        $count = is_array($line) ? count($line) : 0;
+        for ($i = 0; $i < $count - 1; $i++) {
+            $ax = (float) $line[$i][0];     $ay = (float) $line[$i][1];
+            $bx = (float) $line[$i + 1][0]; $by = (float) $line[$i + 1][1];
+            if (max($ax, $bx) < $minX || min($ax, $bx) > $maxX) { continue; }
+            if (max($ay, $by) < $minY || min($ay, $by) > $maxY) { continue; }
+            if (avesmapsRouteSegmentsIntersect($x1, $y1, $x2, $y2, $ax, $ay, $bx, $by)) { return true; }
+        }
+    }
+
+    return false;
+}
+
+/** PURE: schneiden sich die beiden Strecken? Vorzeichen der vier Kreuzprodukte. */
+function avesmapsRouteSegmentsIntersect(
+    float $ax, float $ay, float $bx, float $by,
+    float $cx, float $cy, float $dx, float $dy
+): bool {
+    $seite = static fn(float $px, float $py, float $qx, float $qy, float $rx, float $ry): float
+        => ($qx - $px) * ($ry - $py) - ($qy - $py) * ($rx - $px);
+    $d1 = $seite($ax, $ay, $bx, $by, $cx, $cy);
+    $d2 = $seite($ax, $ay, $bx, $by, $dx, $dy);
+    $d3 = $seite($cx, $cy, $dx, $dy, $ax, $ay);
+    $d4 = $seite($cx, $cy, $dx, $dy, $bx, $by);
+
+    return (($d1 > 0.0) !== ($d2 > 0.0)) && (($d3 > 0.0) !== ($d4 > 0.0));
+}
+
+/**
+ * PURE: die Flusslinien aus den Netzdaten -- und sonst nichts.
+ *
+ * ⚠️ `Seeweg` bleibt draussen: Seewege laufen ueber das Meer, das ohnehin gesperrt ist, und sie
+ * zusaetzlich als Wand zu rastern wuerde Kuestenrouten zerschneiden.
+ * ⭐ Die Geometrien sind bereits geladen ($routeNetworkData['paths']) -- keine zweite Abfrage je
+ * Route. Auf Shared Hosting ist das der Unterschied zwischen Fix und Last.
+ */
+function avesmapsCollectRouteRiverBarrierLines(array $paths): array
+{
+    $lines = [];
+    foreach ($paths as $path) {
+        if (!is_array($path)) { continue; }
+        if (avesmapsGetRouteTransportType((string) ($path['subtype'] ?? '')) !== 'river') { continue; }
+        $coordinates = $path['geometry']['coordinates'] ?? null;
+        if (!is_array($coordinates) || count($coordinates) < 2) { continue; }
+        $lines[] = $coordinates;
+    }
+
+    return $lines;
 }
 
 /**

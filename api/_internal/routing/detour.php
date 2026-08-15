@@ -267,7 +267,8 @@ function avesmapsMaybeOfferOffroadDetour(
     array $toPoint,
     string $fromNode,
     string $toNode,
-    bool $terrainEnabled = true
+    bool $terrainEnabled = true,
+    array $riverLines = []
 ): array {
     $x1 = (float) ($fromPoint['x'] ?? 0.0);
     $y1 = (float) ($fromPoint['y'] ?? 0.0);
@@ -405,7 +406,7 @@ function avesmapsMaybeOfferOffroadDetour(
             ['x' => $chain[$candidate['from_index']]['x'], 'y' => $chain[$candidate['from_index']]['y']],
             ['x' => $chain[$candidate['to_index']]['x'], 'y' => $chain[$candidate['to_index']]['y']],
             $candidate['from_node'], $candidate['to_node'], $terrainEnabled,
-            $connectionId
+            $connectionId, $riverLines
         );
         if (empty($offroad['ok'])) {
             // Kein trockener Weg durch die Kiste. Die gezeichnete Route bleibt die Antwort -- das ist
