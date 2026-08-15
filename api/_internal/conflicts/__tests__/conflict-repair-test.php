@@ -51,6 +51,11 @@ assert(avesmapsConflictRepairSpansNameGroup('powerline', '   ') === false);
 // dass der erste den Verbund schon ganz geschrieben hat. Ohne das liefen bei einem geteilten Artikel
 // 25 von 26 Zielen in Sicherheitsregel 1, obwohl die Reparatur gelungen ist.
 assert(avesmapsConflictRepairGroupKey('path', 'Reichsstraße 1') === avesmapsConflictRepairGroupKey('path', 'Reichsstraße 1'));
+// ⚠️ Diese Zusicherung gilt dem SCHLUESSEL, nicht der Datenbank: er entscheidet, ob ein Verbund im
+// selben Aufruf schon behandelt wurde. WELCHE Zeilen ein Verbund umfasst, entscheidet die
+// SQL-Abfrage, und die haengt an der Kollation (live utf8mb4_unicode_ci, in den Datenbanktests
+// SQLite-binaer). Der Vorbehalt steht im Kopf von conflict-repair-reach-test.php und
+// conflict-keeper-test.php -- wer hier "also sind die Tests sich einig" liest, liest zu viel.
 assert(avesmapsConflictRepairGroupKey('powerline', 'Hexenband') === avesmapsConflictRepairGroupKey('powerline', 'HEXENBAND'));
 assert(avesmapsConflictRepairGroupKey('powerline', 'Hexenband') === avesmapsConflictRepairGroupKey('powerline', '  Hexenband  '));
 

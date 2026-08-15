@@ -20,11 +20,23 @@ declare(strict_types=1);
  * erst ihr Zusammenspiel ueber eine Zielliste war es nicht.
  *
  * ⚠️ GRENZE DIESES TESTS: SQLite vergleicht `name` BINAER. Live steht die Spalte in
- * utf8mb4_unicode_ci, vergleicht also ohne Ruecksicht auf Gross-/Kleinschreibung und mit ss = ß.
- * Die Verbund-Abfrage fasst live deshalb MEHR Zeilen als hier. Fuer die Aussagen dieses Tests
- * (der Behalter bleibt verschont) ist das die sichere Richtung; wer hier eine Zusicherung ueber
- * Namensgleichheit sucht, findet sie nicht -- die steht auf der PHP-Seite im Nachbartest
- * conflict-repair-test.php (avesmapsConflictRepairGroupKey).
+ * utf8mb4_unicode_ci und vergleicht ohne Ruecksicht auf Gross-/Kleinschreibung -- und mit ss = ß.
+ * Gemessen: SQLite findet zu `name = 'Hexenband'` EINEN Treffer, obwohl auch 'HEXENBAND' in der
+ * Tabelle steht; MySQL faende beide, und zu 'Reichsstraße' zusaetzlich 'Reichsstrasse'.
+ *
+ * 💣 Das steht in scheinbarem Widerspruch zum Nachbartest conflict-repair-test.php, der auf der
+ * PHP-Seite ausdruecklich zusichert, dass 'Hexenband' und 'HEXENBAND' DENSELBEN Verbund meinen
+ * (avesmapsConflictRepairGroupKey). Beides stimmt: der Schluessel entscheidet, ob ein Verbund im
+ * selben Aufruf schon behandelt wurde, die SQL-Abfrage entscheidet, WELCHE Zeilen er umfasst --
+ * nur die zweite Haelfte haengt an der Kollation. Eine Zusicherung ueber Namensgleichheit traegt
+ * dieser Test NICHT.
+ *
+ * 🔴 UND HIER IST DIE ABWEICHUNG DIE UNSICHERE RICHTUNG. Dieser Test beweist eine SCHONUNG (der
+ * Behalter bleibt unangetastet). Live fasst die Schutz-Abfrage MEHR Zeilen -- was fuer die Schonung
+ * gut ist --, aber die Verbund-Abfrage der Ziele ebenfalls, und beide muessen denselben Zuschnitt
+ * behalten. Solange beide woertlich dieselbe WHERE-Klausel benutzen, gilt das auch live; wer eine
+ * der beiden anders formuliert (COLLATE, LOWER(), ein Praefix), bricht die Deckung, und DIESER
+ * Test wuerde es nicht merken.
  */
 if (ini_get('zend.assertions') !== '1') {
     fwrite(STDERR, "FATAL: zend.assertions ist nicht '1' -- assert() waere wirkungslos.\n");
@@ -202,5 +214,20 @@ assert($blind === ['keeper' => '', 'known' => false], 'gar keine Angabe ⇒ nich
 
 $blank = avesmapsConflictResolveKeeper(['keep' => null, 'subject_id' => ''], ['pl-3']);
 assert($blank === ['keeper' => '', 'known' => false], 'leere Angaben sind keine Angaben');
+
+
+// === 7) Schutz-Abfrage und Verbund-Abfrage haben DENSELBEN Zuschnitt ===========================
+// 💣 Das ist die Zusicherung, die der Kollations-Vorbehalt im Kopf dieses Tests braucht: solange
+// beide Abfragen woertlich dieselbe WHERE-Klausel benutzen, fassen sie live dieselben Zeilen --
+// egal wie MySQL vergleicht. Wer eine der beiden anders formuliert (COLLATE, LOWER(), ein
+// Praefix), reisst ein Loch zwischen "wird geschuetzt" und "wird gefasst", und die Datenbank
+// entscheidet dann, wer den Anspruch verliert. Genau das kann SQLite nicht nachstellen.
+$repairSource = file_get_contents(__DIR__ . '/../repair.php');
+assert(is_string($repairSource));
+assert(
+    preg_match_all('/WHERE feature_type = :t AND name = :n AND is_active = 1/', $repairSource, $whereMatches) === 3,
+    'drei Abfragen ueber den Namensverbund: einmal Schutz, zweimal Verbund (Trennen und Verknuepfen)'
+);
+assert(count(array_unique($whereMatches[0])) === 1, 'und alle drei woertlich gleich');
 
 fwrite(STDOUT, "conflict-keeper-test: alle Zusicherungen erfuellt\n");

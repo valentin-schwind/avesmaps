@@ -17,6 +17,24 @@ declare(strict_types=1);
  * 💣 Beide Knoepfe stehen am SELBEN Fall (wiki.missing_key, nach Namen zusammengefasst). Reichte
  * einer ueber die Linie und der andere ueber ein Segment, liesse sich eine Linie ganz loesen, aber
  * nur zu einem Sechstel verknuepfen -- und das saehe aus wie "der Link hat nicht gegriffen".
+ *
+ * ⚠️ GRENZE DIESES TESTS: DIE VERBUND-ABFRAGE FASST HIER WENIGER ALS LIVE.
+ * SQLite vergleicht `name` BINAER. Live steht die Spalte in utf8mb4_unicode_ci und vergleicht ohne
+ * Ruecksicht auf Gross-/Kleinschreibung -- und mit ss = ß. Gemessen: SQLite findet zu
+ * `name = 'Hexenband'` EINEN Treffer, obwohl auch 'HEXENBAND' in der Tabelle steht; MySQL faende
+ * beide, und zu 'Reichsstraße' zusaetzlich 'Reichsstrasse'.
+ *
+ * 💣 Damit steht dieser Test in scheinbarem Widerspruch zum Nachbartest conflict-repair-test.php,
+ * der auf der PHP-Seite ausdruecklich zusichert, dass 'Hexenband' und 'HEXENBAND' DENSELBEN
+ * Verbund meinen (avesmapsConflictRepairGroupKey). Beides stimmt: der Schluessel entscheidet, ob
+ * ein Verbund im selben Aufruf schon behandelt wurde, die SQL-Abfrage entscheidet, WELCHE Zeilen
+ * er umfasst -- und nur die zweite Haelfte haengt an der Kollation. Wer hier eine Zusicherung
+ * ueber Namensgleichheit sucht, findet sie NICHT.
+ *
+ * 🔴 Fuer die Aussagen dieses Tests ist das die sichere Richtung: er beweist "mindestens diese
+ * Zeilen werden gefasst", live sind es hoechstens mehr. Bei einem Test, der eine SCHONUNG
+ * beweisen soll (conflict-keeper-test.php), waere dieselbe Abweichung die unsichere Richtung --
+ * dort ist sie deshalb eigens vermerkt.
  */
 if (ini_get('zend.assertions') !== '1') {
     fwrite(STDERR, "FATAL: zend.assertions ist nicht '1' -- assert() waere wirkungslos.\n");
