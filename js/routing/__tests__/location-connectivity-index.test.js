@@ -212,6 +212,14 @@ locationConnectivityIndex = null;
 const nachLangerUeberdeckung = getSparseCrossingPublicIds();
 assert.strictEqual(nachLangerUeberdeckung.has("pid-Vlangquer"), false, "eine lange fremde Strecke durch den Punkt macht ihn ebenso untastbar");
 
+// --- Regel 2, Kopplung: die Zellkante MUSS groesser sein als der Suchradius ---------------------
+// 💣 Bisher stand das nur als Prosa ueber SPARSE_CROSSING_SEGMENT_CELL in config.js: weitet jemand
+// SPARSE_CROSSING_OVERLAY_DISTANCE spaeter allein, bricht das lautlos -- die drei mal drei
+// abgefragten Zellen reichen dann nicht mehr bis an den Suchradius heran, fremde Wege werden
+// uebersehen und Kreuzungen faelschlich als aufloesbar markiert, ohne dass ein Test rot wird.
+assert.ok(SPARSE_CROSSING_SEGMENT_CELL > SPARSE_CROSSING_OVERLAY_DISTANCE,
+	"💣 gekoppelt: die Sonde liest nur 3x3 Zellen -- ist der Suchradius groesser als eine Zellkante, reicht sie nicht daran heran und fremde Wege werden uebersehen");
+
 // --- Die Beschriftung ---------------------------------------------------------------------------
 // 💣 Sie traegt KEIN data-i18n (die Nachbarn im selben Menue schon) und steht in keiner
 // Uebersetzungstabelle -- hier wird Text ersetzt, kein Schluessel gepflegt. Der Waechter faengt das

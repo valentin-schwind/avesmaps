@@ -31,6 +31,10 @@ const POPUP_ACTION_GLYPHS = {
 	// ⧉ zwei versetzte Rechtecke, die Vokabel fuers Verdoppeln. Der einzige Neuzugang ohne Vorbild
 	// im Kontextmenue -- dort wird nichts dupliziert, es gibt also keins abzuschreiben.
 	duplizieren: "⧉",
+	// ⚑ die Vokabel fuers Melden. Der zweite Neuzugang ohne Vorbild im Kontextmenue -- dort wird
+	// nichts gemeldet, es gibt also keins abzuschreiben. Bewusst NICHT ⚙: das gehoert den
+	// Eigenschaften, und ein Zeichen mit zwei Bedeutungen ist genau das, was diese Liste verhindert.
+	melden: "⚑",
 };
 
 function popupActionGlyphMarkup(key) {
@@ -678,7 +682,7 @@ function crossingActionsMarkup(name, publicId) {
 			// js/routing/routing.js): legt jemand eine Kreuzung an, die frueher einsortiert, rutscht
 			// jede folgende Nummer um eins. Als Meldung an den Owner waere sie damit unbrauchbar.
 			label: "Kreuzung melden",
-			iconMarkup: popupActionGlyphMarkup("bearbeiten"),
+			iconMarkup: popupActionGlyphMarkup("melden"),
 			attributes: {
 				"data-popup-action": "report-crossing",
 				"data-public-id": publicId,
