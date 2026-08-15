@@ -475,6 +475,154 @@ function avesmapsOffroadFindPath(
 }
 
 /**
+ * EIN Dijkstra-Lauf vom Kartenpunkt nach aussen, der ALLE Ausstiegskandidaten bedient.
+ *
+ * 🔴 ER ERSETZT EINEN LAUF JE KANDIDAT. Gemessen an der Route des Owners (Salmingen ->
+ * Kartenpunkt) waren das 15 Laeufe je Anfrage, die alle dasselbe Gelaende durchsuchen. Genau das
+ * macht „jeder gezeichnete Punkt ist ein Kandidat" ueberhaupt bezahlbar: ein zusaetzlicher
+ * Kandidat ist danach ein Nachschlagen, kein zweiter Lauf.
+ *
+ * 🔴 JEDER SCHRITT WIRD IN GEGENRICHTUNG BEPREIST. Der Reisende geht vom Ausstieg ZUM
+ * Kartenpunkt; dieser Lauf geht vom Kartenpunkt WEG. Die Schrittkosten sind nicht symmetrisch --
+ * avesmapsTerrainLeistungsFactor bestraft Steigung anders als Gefaelle. Der Anstieg eines
+ * Suchschritts u->v ist deshalb `Hoehe(u) - Hoehe(v)`, nicht umgekehrt. Ohne den Tausch waehlt
+ * der Lauf die guenstigste RUECKREISE. (avesmapsAddOffroadEdge behandelt denselben Tausch beim
+ * Umdrehen der Kante; V11 §6.3 ist genau diese Fehlerklasse.)
+ *
+ * ⚠️ KEINE HEURISTIK. Ohne einzelnes Ziel gibt es keine zulaessige Schaetzung; der Lauf ist ein
+ * reiner Dijkstra. Die Bremse dagegen ist der Abbruch, sobald das letzte Ziel geschlossen ist --
+ * NICHT die volle Kiste. Ohne ihn laeuft er ueber bis zu 150.000 Zellen und ist langsamer als
+ * die Laeufe, die er ersetzt.
+ *
+ * @param array $goals [$key => ['x' => float, 'y' => float], ...]
+ * @return array [$key => <Pfad wie avesmapsOffroadFindPath> | null]
+ */
+function avesmapsOffroadFindPathsFromPoint(
+    array $box,
+    string $blocked,
+    ?string $factors,
+    ?string $heights,
+    float $speed,
+    float $x,
+    float $y,
+    array $goals,
+    float $eps = AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS,
+    array $rasters = []
+): array {
+    $result = [];
+    foreach ($goals as $key => $goal) { $result[$key] = null; }
+    if ($speed <= 0.0 || $goals === []) { return $result; }
+
+    $cols = $box['cols'];
+    $rows = $box['rows'];
+    $cell = $box['cell'];
+    [$startCol, $startRow] = avesmapsOffroadCellOf($box, $x, $y);
+    $start = $startRow * $cols + $startCol;
+
+    // ⚠️ Freigelegt wird um den Kartenpunkt UND um jedes Ziel. Ein Ausstieg, dessen Zelle im
+    // Wasserpolygon liegt (Ufer-Zeichenspiel), waere sonst von der ersten Zelle an eingemauert --
+    // dieselbe Begruendung wie beim Einzellauf (§5.2).
+    avesmapsOffroadFreeAround($box, $blocked, $x, $y);
+    $goalCells = [];
+    $openGoals = [];
+    foreach ($goals as $key => $goal) {
+        avesmapsOffroadFreeAround($box, $blocked, (float) $goal['x'], (float) $goal['y']);
+        [$goalCol, $goalRow] = avesmapsOffroadCellOf($box, (float) $goal['x'], (float) $goal['y']);
+        $goalCell = $goalRow * $cols + $goalCol;
+        $goalCells[$key] = $goalCell;
+        $openGoals[$goalCell] = true;
+    }
+
+    $best = [$start => 0.0];
+    $cameFrom = [];
+    $closed = str_repeat("\x00", $box['cell_count']);
+    $queue = new SplPriorityQueue();
+    $queue->setExtractFlags(SplPriorityQueue::EXTR_DATA);
+    $queue->insert($start, 0.0);
+    $opened = 0;
+    if (isset($openGoals[$start])) { unset($openGoals[$start]); }
+    $remaining = count($openGoals);
+
+    // 8 Nachbarn als (dCol, dRow); der diagonale Schritt ist sqrt(2) Zellen lang.
+    $neighbours = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+
+    while (!$queue->isEmpty() && $remaining > 0) {
+        $current = $queue->extract();
+        if ($closed[$current] === "\x01") { continue; }
+        $closed[$current] = "\x01";
+        $opened++;
+        if (isset($openGoals[$current])) { unset($openGoals[$current]); $remaining--; }
+
+        $currentRow = intdiv($current, $cols);
+        $currentCol = $current - $currentRow * $cols;
+        $currentHeight = avesmapsOffroadHeightAtCell($heights, $current);
+        $currentFactor = $factors === null || $factors === ''
+            ? 1.0
+            : (ord($factors[$current]) === 0 ? 1.0 : ord($factors[$current]) / AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE);
+
+        foreach ($neighbours as [$deltaCol, $deltaRow]) {
+            $nextCol = $currentCol + $deltaCol;
+            $nextRow = $currentRow + $deltaRow;
+            if ($nextCol < 0 || $nextRow < 0 || $nextCol >= $cols || $nextRow >= $rows) { continue; }
+            $next = $nextRow * $cols + $nextCol;
+            if ($blocked[$next] === "\x01" || $closed[$next] === "\x01") { continue; }
+
+            $distance = ($deltaCol !== 0 && $deltaRow !== 0) ? $cell * M_SQRT2 : $cell;
+
+            $nextHeight = avesmapsOffroadHeightAtCell($heights, $next);
+            $slopeFactor = 1.0;
+            if ($currentHeight !== null && $nextHeight !== null) {
+                // 🔴 GEGENRICHTUNG: der Reisende geht $next -> $current.
+                $ascent = max(0.0, $currentHeight - $nextHeight);
+                $drop = max(0.0, $nextHeight - $currentHeight);
+                $steepDrop = avesmapsTerrainDescentIsSteep($drop, $distance) ? $drop : 0.0;
+                $slopeFactor = avesmapsTerrainLeistungsFactor($ascent, $steepDrop, $distance);
+            }
+
+            $nextFactor = $factors === null || $factors === ''
+                ? 1.0
+                : (ord($factors[$next]) === 0 ? 1.0 : ord($factors[$next]) / AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE);
+            // Der groessere der beiden Werte, damit die Kosten eines Schritts nicht von seiner
+            // Richtung abhaengen -- wie beim Einzellauf.
+            $groundFactor = max($currentFactor, $nextFactor);
+
+            $cost = ($best[$current] ?? INF) + ($distance / $speed) * $slopeFactor * $groundFactor;
+            if ($cost >= ($best[$next] ?? INF)) { continue; }
+
+            $best[$next] = $cost;
+            $cameFrom[$next] = $current;
+            $queue->insert($next, -$cost);
+        }
+    }
+
+    foreach ($goalCells as $key => $goalCell) {
+        if ($goalCell !== $start && !isset($cameFrom[$goalCell])) { continue; }
+
+        // Von der Zielzelle zurueck zum Start: die Reihenfolge ist bereits die des Reisenden.
+        $cells = [];
+        for ($node = $goalCell; $node !== $start; $node = $cameFrom[$node]) { $cells[] = $node; }
+        $cells[] = $start;
+
+        $points = [];
+        foreach ($cells as $node) {
+            $nodeRow = intdiv($node, $cols);
+            $points[] = avesmapsOffroadCellCentre($box, $node - $nodeRow * $cols, $nodeRow);
+        }
+        if (count($points) < 2) { $points = [[0.0, 0.0], [0.0, 0.0]]; }
+
+        // 💣 An die echten Endpunkte vernaeht (§5.4), wie beim Einzellauf: eine Zellmitte liegt bei
+        // Breite 0,5 bis zu 0,35 Einheiten neben dem echten Punkt, und ohne das Vernaehen kaeme ein
+        // Weg heraus, der kuerzer ist als die Luftlinie.
+        $points[0] = [(float) $goals[$key]['x'], (float) $goals[$key]['y']];
+        $points[count($points) - 1] = [$x, $y];
+
+        $result[$key] = avesmapsOffroadFinishPath($points, $speed, $factors, $heights, $box, $eps, $opened, $rasters);
+    }
+
+    return $result;
+}
+
+/**
  * PURE: simplify, then measure length AND time over exactly the line that will be shipped.
  *
  * 💣 MEASURED ALONG THE LINE, IN GRID STEPS -- not from the A*'s accumulated cost, and not from the
