@@ -34,6 +34,9 @@
    not between the two other click targets. */
 .mail-inbox__action { flex: 0 0 auto; width: 34px; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; font: inherit; line-height: 1; appearance: none; -webkit-appearance: none; border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md); background: var(--color-button-soft); color: var(--color-button-soft-text); }
 .mail-inbox__action:disabled { cursor: default; opacity: 0.5; }
+/* Strich-Icon statt Emoji (Owner 15.08.2026: „wirklich schön sind die buttons nicht"). `display:block`
+   nimmt dem <svg> die Grundlinie seiner Textzeile — sonst sitzt es im Knopf ein paar Pixel zu tief. */
+.mail-inbox__action svg { display: block; width: 15px; height: 15px; }
 .mail-inbox__archive:hover { border-color: var(--color-border-strong); background: var(--color-button-soft-hover); }
 .mail-inbox__trash:hover { border-color: var(--color-danger-soft-border); background: var(--color-danger-soft); color: var(--color-danger-soft-text); }
 .mail-inbox__row-error { display: inline-block; margin-left: 6px; font-size: var(--font-size-caption); color: var(--color-danger); }

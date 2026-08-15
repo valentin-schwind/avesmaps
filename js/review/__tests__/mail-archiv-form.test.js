@@ -183,4 +183,19 @@ pruefe(!/mail-inbox__trash-error/.test(css) && !/mail-inbox__trash-error/.test(j
 	'„mail-inbox__trash-error" steht noch irgendwo -- die Fehlerzeile gehört jetzt beiden Handlungen '
 	+ "(.mail-inbox__row-error).");
 
+// ---- 12. Strich-Icons, keine Emoji -------------------------------------------------------------
+// 💣 Ein Emoji ist ein SCHRIFTzeichen, keine Grafik. Auf Windows fällt 🗄/🗑 in eine Umriss-
+// Ersatzschrift und steht als kahles Kästchen im Knopf (Owner, 15.08.2026, mit Bildschirmfoto).
+// Und weil ein Emoji seine eigene Farbe mitbringt, kann es den Warnton von .mail-inbox__trash:hover
+// gar nicht annehmen -- das kann nur `currentColor`.
+
+pruefe(!/\u{1F5C4}|\u{1F5D1}/u.test(js),
+	"In den Zeilenknöpfen steht wieder ein Emoji (🗄 oder 🗑). Sie tragen Strich-Icons in der Form "
+	+ "des Hauses (vgl. AVM_FILTER_ICON in js/ui/filter-menu.js).");
+pruefe(/stroke="currentColor"/.test(js),
+	"Die Zeilen-Icons folgen nicht `currentColor` -- dann bleibt der Papierkorb beim Überfahren grau, "
+	+ "obwohl .mail-inbox__trash:hover den Warnton setzt.");
+pruefe(/\.mail-inbox__action svg/.test(css),
+	"Dem Icon im Zeilenknopf fehlt seine Regel (Größe und display:block gegen den Grundlinien-Versatz).");
+
 console.log("OK: Postfach-Archiv, " + geprueft + " Zusicherungen");

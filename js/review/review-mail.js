@@ -60,11 +60,26 @@
         return "Verschieben fehlgeschlagen.";
     }
 
-    function rowAction(cls, glyph, label, run) {
+    // Strich-Icons statt Emoji, in der Form des Hauses (vgl. AVM_FILTER_ICON in js/ui/filter-menu.js):
+    // 24er-Raster, `stroke="currentColor"`, keine Füllung. 💣 Ein Emoji ist KEINE Grafik, sondern ein
+    // Schriftzeichen — auf Windows fällt 🗄/🗑 in eine Umriss-Ersatzschrift und steht als zwei kahle
+    // Kästchen nebeneinander (Owner, 15.08.2026). Und weil ein Emoji seine eigene Farbe mitbringt,
+    // kann es den Warnton von .mail-inbox__trash:hover gar nicht annehmen; `currentColor` schon.
+    const ICON = (pfade) => '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" '
+        + 'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" '
+        + 'aria-hidden="true" focusable="false">' + pfade + "</svg>";
+    const ICON_ARCHIV = ICON('<rect x="3" y="4" width="18" height="4" rx="1"/>'
+        + '<path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/>');
+    const ICON_PAPIERKORB = ICON('<path d="M4 7h16"/><path d="M10 4h4"/>'
+        + '<path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/>');
+    const ICON_ZURUECK = ICON('<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>');
+
+    function rowAction(cls, icon, label, run) {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "mail-inbox__action " + cls;
-        btn.textContent = glyph;
+        // Konstanter Bauteil-String, keine Nutzereingabe — alles Variable geht weiter über textContent.
+        btn.innerHTML = icon;
         btn.title = label;
         btn.setAttribute("aria-label", label);
         btn.addEventListener("click", () => run(btn));
@@ -133,12 +148,12 @@
         row.appendChild(item);
 
         if (box === "archive") {
-            row.appendChild(rowAction("mail-inbox__archive", "↩", "Zurück in den Posteingang", (btn) => runRowAction("unarchive", { uid: m.uid }, row, item, btn)));
+            row.appendChild(rowAction("mail-inbox__archive", ICON_ZURUECK, "Zurück in den Posteingang", (btn) => runRowAction("unarchive", { uid: m.uid }, row, item, btn)));
         } else {
             // Archive left, trash right: the destructive action sits on the outside, never between
             // the two other click targets.
-            row.appendChild(rowAction("mail-inbox__archive", "🗄", "Ins Archiv verschieben", (btn) => runRowAction("archive", { uid: m.uid }, row, item, btn)));
-            row.appendChild(rowAction("mail-inbox__trash", "🗑", "In den Papierkorb verschieben", (btn) => runRowAction("trash", { uid: m.uid }, row, item, btn)));
+            row.appendChild(rowAction("mail-inbox__archive", ICON_ARCHIV, "Ins Archiv verschieben", (btn) => runRowAction("archive", { uid: m.uid }, row, item, btn)));
+            row.appendChild(rowAction("mail-inbox__trash", ICON_PAPIERKORB, "In den Papierkorb verschieben", (btn) => runRowAction("trash", { uid: m.uid }, row, item, btn)));
         }
         return row;
     }
@@ -280,8 +295,8 @@
         // Archiving a sent entry marks the LOG ROW and nothing else — the message itself stays
         // where it is in the mailbox's own sent folder.
         row.appendChild(archived
-            ? rowAction("mail-inbox__archive", "↩", "Zurück in die Gesendet-Liste", (btn) => runRowAction("sent-unarchive", { id: r.id }, row, item, btn))
-            : rowAction("mail-inbox__archive", "🗄", "Ins Archiv verschieben", (btn) => runRowAction("sent-archive", { id: r.id }, row, item, btn)));
+            ? rowAction("mail-inbox__archive", ICON_ZURUECK, "Zurück in die Gesendet-Liste", (btn) => runRowAction("sent-unarchive", { id: r.id }, row, item, btn))
+            : rowAction("mail-inbox__archive", ICON_ARCHIV, "Ins Archiv verschieben", (btn) => runRowAction("sent-archive", { id: r.id }, row, item, btn)));
         return row;
     }
 
