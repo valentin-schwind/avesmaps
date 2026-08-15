@@ -82,15 +82,20 @@ function avesmapsStaettenFuerOrt(ortsname) {
 // avesmapsLoreNamesBlockMarkup nimmt genau unsere Form ({name, wiki_url}) und verlinkt, wo es
 // einen Artikel gibt. Ihr Markup von Hand zu spiegeln hiesse, drei CSS-Klassen zu erraten.
 //
-// 🔴 OHNE BUCHSTABENMARKEN (Owner 2026-08-15: „das mit den buchstaben ist hier übertrieben").
-// Bei den Vorkommen sind sie richtig -- dort stehen 126 Handelswaren in EINER Gruppe. Hier
-// gliedert schon die ART, und die Gruppen sind klein: Grangors 23 Arten haben im Schnitt 1,8
-// Einträge. Eine Marke „H" über einem einzigen „Herzog-Cusimo-Aquädukt" ist eine zweite
-// Gliederungsebene ohne Inhalt. Infinity heisst: nie Marken, immer die Komma-Liste.
+// 🔴 BUCHSTABENMARKEN ERST AB ZWEI NAMEN (Owner 2026-08-15, in zwei Schritten: erst „das mit den
+// buchstaben ist hier übertrieben", dann „kannst du ab >1 wieder buchstaben machen?").
+//
+// Der Streitpunkt war nie die Marke selbst, sondern die Marke über einem EINZIGEN Namen:
+// „H · Herzog-Cusimo-Aquädukt" ist eine Gliederung von einem Element. Bei „Tempel 10" trägt sie
+// dagegen -- dort steht sonst eine Komma-Wurst über sechs Zeilen. Der Default der Funktion (0 =
+// immer) passt zu den Vorkommen, wo 126 Handelswaren in EINER Gruppe stehen; hier gliedert schon
+// die ART vor, und Grangors 23 Arten haben im Schnitt 1,8 Einträge.
 // ⚠️ Sie stammt aus map-features-lore.js -- diese Datei wird in index.html DANACH geladen.
+var AVESMAPS_STAETTEN_BUCHSTABEN_AB = 2;
+
 function avesmapsStaettenNamenMarkup(items) {
 	if (typeof avesmapsLoreNamesBlockMarkup === "function") {
-		return avesmapsLoreNamesBlockMarkup(items, Infinity);
+		return avesmapsLoreNamesBlockMarkup(items, AVESMAPS_STAETTEN_BUCHSTABEN_AB);
 	}
 	// Rückfall, falls die Lore-Datei fehlt: blanke Namen, ohne Link. Lieber schlicht als leer.
 	return '<span class="avesmaps-lore__names">'

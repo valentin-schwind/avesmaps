@@ -124,30 +124,30 @@ assert.strictEqual(liste[0].name, "Einzelstueck");
 assert.strictEqual(liste[0].art, "Hafen");
 assert.deepStrictEqual(avesmapsStaettenFuerOrt("Gibtsnicht"), [], "unbekannter Ort: leere Liste");
 
-// ---- KEINE Buchstabenmarken (Owner 2026-08-15) ---------------------------------------------------
-// 🔴 Bei den Vorkommen sind sie richtig -- 126 Handelswaren in EINER Gruppe. Hier gliedert schon
-// die ART: Grangors 23 Arten haben im Schnitt 1,8 Eintraege, und eine Marke „H" ueber einem
-// einzigen „Herzog-Cusimo-Aquaedukt" ist eine zweite Gliederungsebene ohne Inhalt.
+// ---- Buchstabenmarken ERST AB ZWEI Namen (Owner 2026-08-15, zweiter Befund) ----------------------
+// 🔴 Der Streitpunkt war nie die Marke, sondern die Marke ueber einem EINZIGEN Namen:
+// „H · Herzog-Cusimo-Aquaedukt" gliedert ein Element. Bei „Tempel 10" traegt sie sehr wohl.
 payload([
 	ort("Herzog-Cusimo-Aquädukt", "Grangor", "Äquadukt"),
-	ort("Immanstadion von Grangor", "Grangor", "Arena"),
 	ort("Neue Brücke", "Grangor", "Brücke"),
 	ort("Zweililienbrücke", "Grangor", "Brücke"),
-	ort("Alte Brücke", "Grangor", "Brücke"),
 ]);
-const ohneMarken = avesmapsStaettenRowMarkup("Grangor");
-assert.ok(ohneMarken.indexOf("avesmaps-lore__buchstabe") < 0,
-	"keine Buchstabenmarken in den Staetten-Gruppen");
-assert.ok(ohneMarken.indexOf("avesmaps-lore__spalten") < 0, "und kein Spaltenkasten");
-assert.ok(ohneMarken.indexOf("avesmaps-lore__names") >= 0, "sondern die Komma-Liste");
-assert.ok(ohneMarken.indexOf("Herzog-Cusimo-Aquädukt") >= 0, "die Namen stehen trotzdem da");
+const gemischt = avesmapsStaettenRowMarkup("Grangor");
+// Die Aquaedukt-Gruppe (1 Name) bleibt blank, die Bruecken-Gruppe (2) bekommt Marken.
+const iAqua = gemischt.indexOf(">Äquadukt<");
+const iBruecke2 = gemischt.indexOf(">Brücke<");
+const aquaBlock = gemischt.slice(iAqua, iBruecke2);
+const brueckeBlock = gemischt.slice(iBruecke2);
+assert.ok(aquaBlock.indexOf("avesmaps-lore__buchstabe") < 0,
+	"EIN Name bekommt KEINE Marke: " + aquaBlock.slice(0, 140));
+assert.ok(brueckeBlock.indexOf("avesmaps-lore__buchstabe") >= 0,
+	"ZWEI Namen bekommen Marken: " + brueckeBlock.slice(0, 160));
+assert.ok(gemischt.indexOf("Herzog-Cusimo-Aquädukt") >= 0, "die Namen stehen trotzdem da");
 
-// ⚠️ GEGENPROBE: die Lore-Zeilen behalten ihre Marken. Wer die geteilte Funktion umbaut, muss
-// beide Aufrufer sehen -- der Default (ohne zweiten Parameter) bleibt AVESMAPS_LORE_LETTER_MIN.
-const loreBlock = avesmapsLoreNamesBlockMarkup([
-	{ name: "Alrik", wiki_url: "" }, { name: "Boron", wiki_url: "" },
-]);
+// ⚠️ GEGENPROBE: die Lore-Zeilen behalten ihren eigenen Default. Wer die geteilte Funktion
+// umbaut, muss beide Aufrufer sehen -- ohne zweiten Parameter gilt AVESMAPS_LORE_LETTER_MIN.
+const loreBlock = avesmapsLoreNamesBlockMarkup([{ name: "Alrik", wiki_url: "" }]);
 assert.ok(loreBlock.indexOf("avesmaps-lore__buchstabe") >= 0,
-	"die Vorkommen behalten ihre Buchstabenmarken");
+	"die Vorkommen behalten ihre Marken auch bei EINEM Namen");
 
 console.log("settlement-places-row: alle Zusicherungen erfuellt");
