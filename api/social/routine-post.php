@@ -68,6 +68,27 @@ try {
         $selected = ['probe'];
     }
 
+    // 💣 A proposal that no longer fits is refused HERE, not discovered at release time. Until
+    // 16.08.2026 this endpoint answered ok:true to anything: the routine filed a 509-character text,
+    // the counter in the hub was the first thing that knew, and the editor found out by clicking
+    // "Freigeben und veröffentlichen" and watching Mastodon reject it. The routine cannot see that --
+    // it is long gone by then -- so the only place the feedback reaches its author is the answer to
+    // this request.
+    //
+    // ⚠️ Measured per channel, because max_hashtags differs: the tags are DELIVERED INSIDE THE TEXT
+    // (compose.php) and therefore count, which is exactly what the 509 above was made of -- 479 of
+    // text plus a blank line plus two hashtags, against Mastodon's 500.
+    $overLimit = avesmapsSocialWorstOverLimit($text, $request['hashtags'] ?? [], $selected);
+    if ($overLimit !== null) {
+        avesmapsErrorResponse(400, 'text_too_long', sprintf(
+            'Der Vorschlag ist für %s um %d Zeichen zu lang (%d von %d, Hashtags mitgezählt).',
+            $overLimit['label'],
+            $overLimit['over_by'],
+            $overLimit['total_chars'],
+            $overLimit['max_chars']
+        ));
+    }
+
     // The duplicate guard (Entwurf §8): source_ref carries the commit the proposal was built from,
     // exactly as the changelog does. The UNIQUE key turns a repeated run into a 409 instead of a
     // second identical proposal -- and a discarded proposal keeps its ref, so "Verwerfen" is final
