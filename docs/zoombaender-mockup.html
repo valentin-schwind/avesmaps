@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Zoombänder – Mockup (Abstimmung, 2026-08-16)</title>
+<title>Zoombänder – Prototyp (Abstimmung, 2026-08-16)</title>
 <script>
   /* Wie jede Editorseite: gespeicherte Wahl schlägt OS-Schema, vor dem ersten Anstrich. */
   (function () {
@@ -27,18 +27,20 @@
   })();
 </script>
 <!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// geöffnet wird.
-     Geladen wird die ECHTE CSS-Kette der Editor-Seiten (fonts, tokens, editor-page), damit das
-     Mockup die tatsächliche Designsprache zeigt und nicht meine Auslegung davon
-     (Vorlage: docs/tempowerte-mockup.html). -->
+     Geladen wird die ECHTE CSS-Kette der Editor-Seiten (fonts, tokens, editor-page).
+     🔴 Owner-Rückmeldung 16.08.2026: aus dem Bild wird ein LAUFENDER PROTOTYP -- Ziehen lässt
+     sich nicht an einem Standbild beurteilen. Das Skript unten gehört bewusst zu dieser Seite,
+     nicht zum echten Fenster -- es ist Anschauung, kein Bauplan für den Endpunkt. -->
 <link rel="stylesheet" href="../css/base/fonts.css">
 <link rel="stylesheet" href="../css/base/tokens.css">
 <link rel="stylesheet" href="../css/components/editor-page.css">
 <style>
 /* ═══════════════════════════════════════════════════════════════════════════════════════════
-   NUR das Neue. Vorschlag für eine Überlagerung in html/wiki-sync-settlement-editor.html
-   (Entwurf §7). Kein hartkodierter Farbwert, kein hartkodierter Radius, keine Schrift unter
-   11px (AGENTS.md §12). Jede Farbe/jeder Radius/jeder Abstand kommt aus css/base/tokens.css;
-   die beiden Bandtöne entstehen per color-mix() AUS Tokens (kein neuer Hex-Wert).
+   Kein hartkodierter Farbwert, kein hartkodierter Radius, keine Schrift unter 11px
+   (AGENTS.md §12). Die sechs Kurventöne sind die vier `--color-chart-*`-Tokens, ZWEIMAL
+   verwendet und über Strichmuster (durchgezogen/gestrichelt) auseinandergehalten -- siehe
+   Bericht: tokens.css selbst schreibt genau dieses Verfahren vor, sobald mehr als vier Reihen
+   gebraucht werden ("ships a second encoding -- stroke pattern per series").
    ═══════════════════════════════════════════════════════════════════════════════════════════ */
 
 /* ---- Mockup-Rahmen (entfällt beim Bau) ------------------------------------------------------ */
@@ -63,15 +65,12 @@ body.mock { height: auto; padding: var(--space-12); }
 .mock-h:first-of-type { margin-top: 0; }
 /* Das Fenster steht im Mockup IM Fluss statt fixed über der Seite. */
 .mock .wp-modal { position: static; inset: auto; padding: 0; background: none; display: block;
-	max-width: 62rem; margin: 0 auto var(--space-12); }
+	max-width: 68rem; margin: 0 auto var(--space-12); }
 .mock .wp-modal__box { height: auto; max-height: none; }
 
-/* ---- 1 · Die Kachel im Menüband -------------------------------------------------------------
-   Wörtlich aus html/wiki-sync-settlement-editor.html übernommen: eigenes `.controls`/`.btn2`
-   (nicht die geteilte .avm-ribbon/.avm-tile-Komponente — diese Seite hat ihr Menüband lokal
-   gebaut). Sieben Geschwister + die neue, achte Kachel „Zoombänder" ganz rechts. */
+/* ---- 1 · Die Kachel im Menüband (unverändert) ------------------------------------------------ */
 .zb-ribbon-shell {
-	max-width: 62rem; margin: 0 auto var(--space-6);
+	max-width: 68rem; margin: 0 auto var(--space-6);
 	padding: var(--avm-ribbon-pad);
 	background: var(--color-panel);
 	border: 1px solid var(--color-border);
@@ -94,17 +93,14 @@ body.mock { height: auto; padding: var(--space-12); }
 .zb-btn2 .t2 { font-size: var(--font-size-caption); color: var(--color-text-muted);
 	white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .zb-btn2.primary .t2 { color: var(--color-on-button-muted); }
-/* Die neue Kachel bekommt AUSDRÜCKLICH keine eigene Auszeichnung -- sie soll wie ihre
-   Geschwister aussehen (weich/outline), nur der Beschriftungstext ist neu. Die Fußnote daneben
-   ist reine Mockup-Regie, kein Teil der echten Oberfläche. */
-.zb-ribbon-note { max-width: 62rem; margin: 0 auto var(--space-12); padding: 0 var(--space-4);
+.zb-ribbon-note { max-width: 68rem; margin: 0 auto var(--space-12); padding: 0 var(--space-4);
 	font-size: var(--font-size-caption); color: var(--color-text-muted); }
 .zb-ribbon-note strong { color: var(--color-text-strong); }
 
-/* ---- Fenster-Inhalt --------------------------------------------------------------------------
+/* ---- Fenster-Inhalt ---------------------------------------------------------------------------
    Gruppiert wird durch TRENNLINIE und Überschrift, nicht durch gerahmte Kästen (AGENTS.md §12). */
 .zb { padding: var(--space-10) var(--space-12) var(--space-12); overflow-y: auto; }
-.zb__lead { margin: 0 0 var(--space-10); max-width: 64ch; font-size: var(--font-size-body);
+.zb__lead { margin: 0 0 var(--space-10); max-width: 74ch; font-size: var(--font-size-body);
 	color: var(--color-text); }
 .zb__lead em { color: var(--color-text-muted); font-style: normal; }
 
@@ -112,129 +108,142 @@ body.mock { height: auto; padding: var(--space-12); }
 	margin-top: var(--space-12); }
 .zb__section:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
 .zb__head { display: flex; align-items: baseline; gap: var(--space-8); flex-wrap: wrap;
-	margin-bottom: var(--space-8); }
+	margin-bottom: var(--space-6); }
 .zb__head h3 { margin: 0; flex: 1 1 auto; font-size: var(--font-size-body);
 	font-weight: var(--font-weight-bold); color: var(--color-text-strong); }
-.zb__src { font-size: var(--font-size-caption); color: var(--color-text-muted); white-space: nowrap; }
+.zb__src { font-size: var(--font-size-caption); color: var(--color-text-muted); }
 
-/* ⚠️ Eine Zeilenhandlung ist nie die Haupthandlung (AGENTS.md §12) -- jeder Rücksetzer hier ist
-   WEICH, auch der je Tabelle und der je Klassenzeile. Gefüllt ist in diesem Fenster genau EIN
-   Knopf: „Speichern" in der Speicherleiste. */
-.zb__reset {
-	min-height: var(--avm-control-h); padding: 0 var(--space-8);
-	font-size: var(--font-size-small); border-radius: var(--radius-md);
-	background: var(--color-button-soft); color: var(--color-button-soft-text);
-	border: 1px solid var(--color-button-soft-border); cursor: pointer;
+/* ---- 2 · Die zwei Plots -------------------------------------------------------------------- */
+.zb-plot-wrap { overflow-x: auto; }
+svg.zb-plot {
+	display: block; width: 100%; height: auto; max-width: 60rem;
+	background: var(--color-panel); border: 1px solid var(--color-border);
+	border-radius: var(--radius-md); font-family: var(--font-ui);
+	user-select: none; touch-action: none;
 }
-.zb__reset:hover { background: var(--color-button-soft-hover); }
+.zb-plot-axis { stroke: var(--color-border-strong); stroke-width: 1.25; }
+.zb-plot-grid { stroke: var(--color-divider); stroke-width: 1; }
+.zb-plot-ytick { font-size: var(--font-size-caption); fill: var(--color-text-muted);
+	dominant-baseline: middle; }
+.zb-plot-xtick { font-size: var(--font-size-caption); fill: var(--color-text-muted); }
+.zb-plot-xtick--aus { fill: var(--color-placeholder); font-style: italic; }
+.zb-plot-curve { fill: none; stroke-width: 2.25; opacity: .92; }
+.zb-plot-point {
+	r: 6.5px; stroke-width: 2.5; fill: var(--color-panel); cursor: ns-resize; outline: none;
+}
+.zb-plot-point:hover, .zb-plot-point:focus { r: 9.5px; }
+.zb-plot-point.is-selected { fill: var(--pc); }
 
-/* ---- 2 · Die Bandgrafik -----------------------------------------------------------------------
-   Ein CSS-Grid: eine Beschriftungsspalte + acht Zoomstufen, sieben Zeilen (Kopf + sechs Klassen).
-   Die beiden Bandtöne sind ZWEI MISCHUNGEN desselben Tokens (--color-accent über --color-panel),
-   nicht zwei verschiedene Farbtöne -- damit bleibt „Marker" immer kräftiger als „Name", in
-   hell UND dunkel, ohne einen neuen Farbwert zu erfinden. */
-.zb-band-wrap { overflow-x: auto; }
-.zb-band {
-	display: grid;
-	grid-template-columns: 112px repeat(8, minmax(68px, 1fr));
-	min-width: 47rem;
-	border: 1px solid var(--color-border);
+/* Die sechs Kurventöne: vier Chart-Tokens, zweimal verwendet, per Strichmuster getrennt
+   (tokens.css schreibt dieses Verfahren für eine fünfte/sechste Reihe selbst vor). */
+.zb-cls-metropole { --pc: var(--color-chart-1); }
+.zb-cls-grossstadt { --pc: var(--color-chart-2); }
+.zb-cls-stadt { --pc: var(--color-chart-3); }
+.zb-cls-kleinstadt { --pc: var(--color-chart-4); }
+.zb-cls-dorf { --pc: var(--color-chart-1); }
+.zb-cls-gebaeude { --pc: var(--color-chart-2); }
+.zb-plot-curve.zb-cls-dorf, .zb-plot-curve.zb-cls-gebaeude,
+.zb-swatch.zb-cls-dorf, .zb-swatch.zb-cls-gebaeude { stroke-dasharray: 8 5; }
+.zb-plot-curve { stroke: var(--pc); }
+.zb-plot-point { stroke: var(--pc); }
+
+.zb-plot-caption { margin: var(--space-4) 0 0; font-size: var(--font-size-caption);
+	color: var(--color-text-muted); max-width: 62rem; }
+.zb-plot-caption strong { color: var(--color-text-strong); }
+
+/* Der ausgewählte Punkt -- die genaue Eingabe für alle, die keine Maus treffen wollen/können. */
+.zb-selected {
+	display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap;
+	margin: var(--space-8) 0 0; padding: var(--space-6) var(--space-10);
+	background: var(--color-panel-soft); border: 1px solid var(--color-border);
+	border-radius: var(--radius-md); font-size: var(--font-size-small);
+}
+.zb-selected__label { color: var(--color-text-muted); }
+.zb-selected__label strong { color: var(--color-text-strong); }
+.zb-num-input {
+	width: 5.5rem; text-align: right; min-height: var(--avm-control-h);
+	padding: 0 var(--space-6); font-variant-numeric: tabular-nums; font: inherit;
+	background: var(--color-panel); color: var(--color-text); border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
-	overflow: hidden;
-	background: var(--color-panel);
 }
-.zb-band__corner, .zb-band__colhead {
-	padding: var(--space-6) var(--space-4);
-	background: var(--color-panel-soft);
-	border-bottom: 1px solid var(--color-divider);
-	font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
-	text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted);
-	text-align: center;
-}
-.zb-band__corner { text-align: left; }
-.zb-band__label {
-	display: flex; align-items: center;
-	padding: var(--space-6) var(--space-8);
-	border-top: 1px solid var(--color-divider);
-	background: var(--color-panel-soft);
-	font-size: var(--font-size-small); font-weight: var(--font-weight-bold);
-	color: var(--color-text-strong);
-}
-.zb-cell {
-	display: flex; flex-direction: column; align-items: center; justify-content: center;
-	gap: var(--space-2);
-	min-height: 76px;
-	padding: var(--space-4) 2px;
-	border-top: 1px solid var(--color-divider);
-	border-left: 1px solid var(--color-divider);
-}
-/* leer = „gibt es auf dieser Stufe nicht" -- bewusst ohne eigenen Ton, sie bleibt Kartengrund. */
-.zb-cell--empty { background: var(--color-panel); }
-.zb-cell--marker, .zb-legend__swatch--marker {
-	background: color-mix(in srgb, var(--color-accent) 22%, var(--color-panel));
-}
-.zb-cell--label, .zb-legend__swatch--label {
-	background: color-mix(in srgb, var(--color-accent) 9%, var(--color-panel));
-}
-.zb-dot {
-	display: block; flex: 0 0 auto; border-radius: 50%;
-	background: var(--color-accent-strong);
-	border: 1px solid var(--color-panel);
-	box-shadow: 0 0 0 1px var(--color-border-strong);
-}
-.zb-word {
-	color: var(--color-text-strong); font-weight: var(--font-weight-bold);
-	line-height: 1; white-space: nowrap;
-}
-.zb-band-legend {
-	max-width: 62rem; margin: var(--space-6) 0 0; display: flex; align-items: center;
-	gap: var(--space-16); flex-wrap: wrap;
-	font-size: var(--font-size-caption); color: var(--color-text-muted);
-}
-.zb-band-legend span.zb-legend__item { display: inline-flex; align-items: center; gap: var(--space-4); }
-.zb-legend__swatch { width: 14px; height: 14px; border-radius: var(--radius-sm);
-	border: 1px solid var(--color-border); display: inline-block; }
+.zb-num-input:disabled { color: var(--color-disabled-text); background: var(--color-disabled-bg);
+	border-color: var(--color-disabled-border); }
+.zb-selected__unit { color: var(--color-text-muted); }
 
-/* ---- 3 · Die zwei Zahlentabellen --------------------------------------------------------------- */
-.zb-table-wrap { overflow-x: auto; }
-.zb table { width: 100%; min-width: 46rem; border-collapse: collapse; font-size: var(--font-size-small); }
-.zb th { text-align: right; font-weight: var(--font-weight-bold); color: var(--color-text-muted);
-	font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .05em;
-	padding: 0 var(--space-4) var(--space-4); white-space: nowrap; }
-.zb th.name, .zb td.name { text-align: left; padding-left: 0; }
-.zb td { padding: var(--avm-row-pad); border-top: 1px solid var(--color-divider);
-	color: var(--color-text); vertical-align: middle; text-align: right;
-	font-variant-numeric: tabular-nums; }
-.zb td.name { color: var(--color-text-strong); font-weight: var(--font-weight-bold); white-space: nowrap; }
-.zb tbody tr:hover td { background: var(--color-panel-soft); }
-.zb td.empty { color: var(--color-placeholder); cursor: default; }
-.zb input[type="text"] {
-	width: 3.6rem; text-align: right; min-height: var(--avm-control-h);
-	padding: 0 var(--space-6); font-variant-numeric: tabular-nums;
-	background: var(--color-panel-soft); color: var(--color-text); border: 1px solid var(--color-border);
-	border-radius: var(--radius-md); font: inherit;
+/* Die Legende zugleich Bedienelement: Farbe/Muster, Name, "Erscheint ab"-Stufenwahl, Rücksetzer. */
+.zb-legend { margin-top: var(--space-8); display: flex; flex-direction: column; gap: var(--space-4); }
+.zb-legend-row {
+	display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap;
+	padding: var(--space-4) var(--space-6); border-radius: var(--radius-md);
 }
-.zb th.act, .zb td.act { text-align: center; padding-left: var(--space-6); }
-/* Zeilen-Rücksetzer: klein, rund, weich -- NIE gefüllt (§12: eine Zeilenhandlung ist nie die
+.zb-legend-row:hover { background: var(--color-panel-soft); }
+.zb-swatch { width: 22px; height: 0; border-top: 3px solid var(--pc); flex: 0 0 auto; }
+.zb-legend-name { width: 7rem; flex: 0 0 auto; font-size: var(--font-size-small);
+	color: var(--color-text-strong); font-weight: var(--font-weight-bold); }
+.zb-stage-group { display: flex; gap: 2px; flex-wrap: wrap; }
+.zb-stage-btn {
+	min-width: 26px; min-height: 22px; padding: 0 var(--space-2); font-size: var(--font-size-caption);
+	border-radius: var(--radius-sm); cursor: pointer; font: inherit; font-variant-numeric: tabular-nums;
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	border: 1px solid var(--color-button-soft-border);
+}
+.zb-stage-btn:hover { background: var(--color-button-soft-hover); }
+.zb-stage-btn.is-active { border: 2px solid var(--pc); color: var(--pc); font-weight: var(--font-weight-bold);
+	background: var(--color-panel); }
+.zb-stage-btn--aus { margin-left: var(--space-4); font-style: italic; }
+.zb-stage-btn--aus.is-active { border-color: var(--color-text-muted); color: var(--color-text-muted); }
+.zb-legend-note { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+/* Zeilen-Rücksetzer: klein, weich -- NIE gefüllt (§12: eine Zeilenhandlung ist nie die
    Haupthandlung der Seite). */
 .zb-row-reset {
 	min-height: var(--avm-control-h); min-width: var(--avm-control-h);
 	padding: 0 var(--space-6); border-radius: var(--radius-md); cursor: pointer; font: inherit;
 	background: var(--color-button-soft); color: var(--color-button-soft-text);
-	border: 1px solid var(--color-button-soft-border);
+	border: 1px solid var(--color-button-soft-border); margin-left: auto;
 }
 .zb-row-reset:hover { background: var(--color-button-soft-hover); }
 
-/* Der Hinweis an der Dorf-Zeile -- als eigene, volle Tabellenzeile direkt darunter verankert,
-   damit er unübersehbar an genau dieser Zeile hängt und nicht irgendwo unter der Tabelle schwebt. */
-.zb tr.zb-hint td {
-	border-top: 0; padding: 0 var(--avm-row-pad) var(--space-8);
-	color: var(--color-warning-soft-text); font-size: var(--font-size-caption);
-	text-align: left; white-space: normal;
+/* ---- 3 · Die Vorschau -------------------------------------------------------------------------
+   Nachfolgerin der alten Bandgrafik-Stärke: echter Punkt, echtes Wort, live aus beiden Plots. */
+.zb-preview-stage { display: flex; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-8); }
+.zb-preview-stage button {
+	min-height: var(--avm-control-h); min-width: 40px; padding: 0 var(--space-6);
+	border-radius: var(--radius-md); cursor: pointer; font: inherit; font-variant-numeric: tabular-nums;
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	border: 1px solid var(--color-button-soft-border);
 }
-.zb tr.zb-hint td.name { font-weight: var(--font-weight-regular); }
+.zb-preview-stage button:hover { background: var(--color-button-soft-hover); }
+.zb-preview-stage button.is-active { background: var(--color-button); color: var(--color-button-text);
+	border-color: var(--color-button-border); font-weight: var(--font-weight-bold); }
+/* 🔴 Owner-Rückmeldung 16.08.2026: auf der Karte steht der Name RECHTS NEBEN dem Punkt, auf
+   dessen Mitte -- nicht darunter. Das hier bildet dieselbe Regel wie
+   getLocationNameLabelOffset() (map-features-location-name-labels.js) nach: Punkt und Wort in
+   einer Reihe, vertikal zentriert -- die Zentrierung übernimmt Flexbox (`align-items: center`),
+   den echten Spalt von LOCATION_NAME_LABEL_GAP (4px) trägt `--space-2` (zufällig, aber genau
+   derselbe Wert). Der Klassenname ist Beschriftung der KACHEL, nicht der Karte, und steht deshalb
+   bewusst darunter. */
+.zb-preview-grid {
+	display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-8);
+}
+.zb-preview-card {
+	display: flex; flex-direction: column; align-items: center; gap: var(--space-6);
+	padding: var(--space-8) var(--space-6); min-height: 96px; justify-content: center;
+	background: var(--color-panel-soft); border: 1px solid var(--color-border);
+	border-radius: var(--radius-md); overflow: visible;
+}
+.zb-preview-card__mark { display: flex; align-items: center; gap: var(--space-2); }
+.zb-preview-card__name { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.zb-dot {
+	display: block; flex: 0 0 auto; border-radius: 50%; background: var(--color-accent-strong);
+	border: 1px solid var(--color-panel); box-shadow: 0 0 0 1px var(--color-border-strong);
+}
+.zb-word { display: block; flex: 0 0 auto; color: var(--color-text-strong);
+	font-weight: var(--font-weight-bold); line-height: 1; white-space: nowrap; }
+.zb-preview-empty { color: var(--color-placeholder); font-size: var(--font-size-small); }
+.zb-preview-note { margin: var(--space-8) 0 0; font-size: var(--font-size-caption);
+	color: var(--color-text-muted); max-width: 62rem; }
 
-/* ---- 5/6 · Speicherleiste, Admin und Nur-Lesen ------------------------------------------------- */
+/* ---- 4/5 · Speicherleiste, Admin und Nur-Lesen ------------------------------------------------- */
 .zb__foot {
 	display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap;
 	margin-top: var(--space-12); padding-top: var(--space-8);
@@ -251,9 +260,8 @@ body.mock { height: auto; padding: var(--space-12); }
 	border: 1px solid var(--color-button-border); font-weight: var(--font-weight-bold); }
 .zb__btn--main:hover { background: var(--color-button-hover); }
 
-/* Die eigenständige Nur-Lesen-Leiste als zweiter Block (kein zweites ganzes Fenster). */
 .zb-locked-block {
-	max-width: 62rem; margin: 0 auto var(--space-12); padding: var(--space-10) var(--space-12);
+	max-width: 68rem; margin: 0 auto var(--space-12); padding: var(--space-10) var(--space-12);
 	background: var(--color-panel);
 	border: 1px solid var(--color-border); border-radius: var(--radius-sm);
 	box-shadow: var(--shadow-panel);
@@ -265,15 +273,14 @@ body.mock { height: auto; padding: var(--space-12); }
 <body class="avm-editor-body mock">
 
 <div class="mock-note">
-  <strong>Mockup zur Abstimmung, 16.08.2026.</strong> Kein Code dahinter, keine Interaktion — die
-  Zahlen sind der <em>echte</em> Vorgabebestand aus
-  <code>js/map-features/location-zoom-bands.js</code> (<code>AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS</code>),
-  Ziffer für Ziffer wie im Entwurf <code>docs/superpowers/specs/2026-08-16-zoombaender-design.md</code> §3.2.
-  Geladen wird die echte CSS-Kette der Editor-Seiten (<code>fonts.css</code>, <code>tokens.css</code>,
-  <code>editor-page.css</code>).
+  <strong>Prototyp zur Abstimmung, 16.08.2026 — Nachtrag zum ersten Mockup.</strong> Der Owner
+  wollte die Punkte wirklich anfassen können, deshalb steckt in dieser Fassung echtes JavaScript
+  (nur für diese Seite, kein Bauplan für den Endpunkt). Startzustand sind die <em>echten</em>
+  Vorgabewerte aus <code>js/map-features/location-zoom-bands.js</code>
+  (<code>AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS</code>). Nichts wird an einen Server gesendet.
 </div>
 
-<div class="mock-h">1 · Die Kachel im Menüband des Ortseditors — achte Kachel, neben den vorhandenen sieben</div>
+<div class="mock-h">1 · Die Kachel im Menüband des Ortseditors — unverändert</div>
 <div class="zb-ribbon-shell">
   <div class="zb-controls">
     <button type="button" class="zb-btn2 primary"><span class="t1">🚨 Syncen</span><span class="t2">Letzte Sync: vor 2 Std.</span></button>
@@ -286,11 +293,11 @@ body.mock { height: auto; padding: var(--space-12); }
     <button type="button" class="zb-btn2"><span class="t1">Zoombänder</span><span class="t2">Zoomlevelanzeige aller Orte</span></button>
   </div>
 </div>
-<p class="zb-ribbon-note">↑ ganz rechts die neue, <strong>achte</strong> Kachel — weich/outline wie
-  ihre sieben Geschwister, nicht gefüllt. Für <code>edit</code> sichtbar (ansehen); Speichern und
-  Zurücksetzen bleiben <code>admin</code> vorbehalten (siehe Abschnitte 4/5 unten).</p>
+<p class="zb-ribbon-note">↑ ganz rechts die achte Kachel — weich/outline wie ihre sieben
+  Geschwister. Für <code>edit</code> sichtbar (ansehen); Speichern und Zurücksetzen bleiben
+  <code>admin</code> vorbehalten (siehe unten).</p>
 
-<div class="mock-h">2 · Das Fenster „Zoombänder"</div>
+<div class="mock-h">2 · Das Fenster „Zoombänder" — jetzt als Plot, zieh selbst an den Punkten</div>
 <div class="wp-modal">
   <div class="wp-modal__box" role="dialog" aria-modal="true" aria-labelledby="zbTitle">
     <div class="wp-modal__head">
@@ -302,210 +309,85 @@ body.mock { height: auto; padding: var(--space-12); }
 
       <p class="zb__lead">
         Wann eine Ortsklasse auf der Karte auftaucht, wie groß ihr Punkt ist und ab wann ihr Name
-        dazukommt. <em>Eine leere Zelle heißt „hier gibt es das nicht" — die erste gefüllte Zelle
-        einer Zeile ist die Erscheinungsstufe.</em> Eine Änderung zeichnet die Grafik sofort neu;
-        gespeichert ist erst, was der Knopf unten speichert.
+        dazukommt — als Kurve, nicht als Tabelle. <em>Ein Punkt lässt sich senkrecht ziehen (nur
+        seine Größe ändert sich, nie seine Zoomstufe); die Stufenwahl in der Legende bestimmt, ab
+        wann die Kurve beginnt.</em> Eine Kurve läuft immer bis z7 durch — ein Loch kann bauartbedingt
+        nicht entstehen, und wer eine Klasse ausblendet, verliert ihre Werte nicht: sie bleiben
+        gemerkt, bis die Kurve wieder eingeblendet wird. Gespeichert ist erst, was der Knopf unten
+        speichert.
       </p>
 
       <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
       <div class="zb__section">
         <div class="zb__head">
-          <h3>Die Bandgrafik</h3>
-          <span class="zb__src">Marker-Außendurchmesser (echter Kreis) · Name (echter Schriftgrad)</span>
-        </div>
-
-        <div class="zb-band-wrap">
-          <div class="zb-band">
-            <div class="zb-band__corner">Ortsklasse</div>
-            <div class="zb-band__colhead">z0</div>
-            <div class="zb-band__colhead">z1</div>
-            <div class="zb-band__colhead">z2</div>
-            <div class="zb-band__colhead">z3</div>
-            <div class="zb-band__colhead">z4</div>
-            <div class="zb-band__colhead">z5</div>
-            <div class="zb-band__colhead">z6</div>
-            <div class="zb-band__colhead">z7</div>
-
-            <!-- Metropole -- Marker UND Name ab z0, wächst bis z7 (auf 30px gedeckelt). -->
-            <div class="zb-band__label">Metropole</div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 6,65 px · Name 8 pt"><span class="zb-dot" style="width:6.65px;height:6.65px"></span><span class="zb-word" style="font-size:8pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 9,4 px · Name 9 pt"><span class="zb-dot" style="width:9.4px;height:9.4px"></span><span class="zb-word" style="font-size:9pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 13,3 px · Name 11 pt"><span class="zb-dot" style="width:13.3px;height:13.3px"></span><span class="zb-word" style="font-size:11pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 18,81 px · Name 13 pt"><span class="zb-dot" style="width:18.81px;height:18.81px"></span><span class="zb-word" style="font-size:13pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 26,6 px · Name 17 pt"><span class="zb-dot" style="width:26.6px;height:26.6px"></span><span class="zb-word" style="font-size:17pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 37,62 px (gezeichnet gedeckelt auf 30 px) · Name 19 pt"><span class="zb-dot" style="width:30px;height:30px"></span><span class="zb-word" style="font-size:19pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 53,2 px (gezeichnet gedeckelt auf 30 px) · Name 19 pt"><span class="zb-dot" style="width:30px;height:30px"></span><span class="zb-word" style="font-size:19pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 53,2 px (gezeichnet gedeckelt auf 30 px) · Name 19 pt"><span class="zb-dot" style="width:30px;height:30px"></span><span class="zb-word" style="font-size:19pt">Gareth</span></div>
-
-            <!-- Großstadt -- ebenfalls Marker UND Name ab z0. -->
-            <div class="zb-band__label">Großstadt</div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 3,99 px · Name 8 pt"><span class="zb-dot" style="width:3.99px;height:3.99px"></span><span class="zb-word" style="font-size:8pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 5,86 px · Name 8,5 pt"><span class="zb-dot" style="width:5.86px;height:5.86px"></span><span class="zb-word" style="font-size:8.5pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 8,6 px · Name 10 pt"><span class="zb-dot" style="width:8.6px;height:8.6px"></span><span class="zb-word" style="font-size:10pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 12,62 px · Name 12 pt"><span class="zb-dot" style="width:12.62px;height:12.62px"></span><span class="zb-word" style="font-size:12pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 18,52 px · Name 15 pt"><span class="zb-dot" style="width:18.52px;height:18.52px"></span><span class="zb-word" style="font-size:15pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 27,18 px · Name 17 pt"><span class="zb-dot" style="width:27.18px;height:27.18px"></span><span class="zb-word" style="font-size:17pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 39,9 px (gezeichnet gedeckelt auf 30 px) · Name 17 pt"><span class="zb-dot" style="width:30px;height:30px"></span><span class="zb-word" style="font-size:17pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 39,9 px (gezeichnet gedeckelt auf 30 px) · Name 17 pt"><span class="zb-dot" style="width:30px;height:30px"></span><span class="zb-word" style="font-size:17pt">Gareth</span></div>
-
-            <!-- Stadt -- Marker ab z0, Name erst ab z2. -->
-            <div class="zb-band__label">Stadt</div>
-            <div class="zb-cell zb-cell--marker" title="Marker Ø 1,33 px · noch kein Name"><span class="zb-dot" style="width:1.33px;height:1.33px"></span></div>
-            <div class="zb-cell zb-cell--marker" title="Marker Ø 2,26 px · noch kein Name"><span class="zb-dot" style="width:2.26px;height:2.26px"></span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 3,84 px · Name 9 pt"><span class="zb-dot" style="width:3.84px;height:3.84px"></span><span class="zb-word" style="font-size:9pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 6,52 px · Name 11 pt"><span class="zb-dot" style="width:6.52px;height:6.52px"></span><span class="zb-word" style="font-size:11pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 11,07 px · Name 13 pt"><span class="zb-dot" style="width:11.07px;height:11.07px"></span><span class="zb-word" style="font-size:13pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 18,79 px · Name 15 pt"><span class="zb-dot" style="width:18.79px;height:18.79px"></span><span class="zb-word" style="font-size:15pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 31,92 px (gezeichnet gedeckelt auf 30 px) · Name 15 pt"><span class="zb-dot" style="width:30px;height:30px"></span><span class="zb-word" style="font-size:15pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 31,92 px (gezeichnet gedeckelt auf 30 px) · Name 15 pt"><span class="zb-dot" style="width:30px;height:30px"></span><span class="zb-word" style="font-size:15pt">Gareth</span></div>
-
-            <!-- Kleinstadt -- Marker ab z1, Name erst ab z3. -->
-            <div class="zb-band__label">Kleinstadt</div>
-            <div class="zb-cell zb-cell--empty" title="erscheint hier noch nicht"></div>
-            <div class="zb-cell zb-cell--marker" title="Marker Ø 1,33 px · noch kein Name"><span class="zb-dot" style="width:1.33px;height:1.33px"></span></div>
-            <div class="zb-cell zb-cell--marker" title="Marker Ø 2,39 px · noch kein Name"><span class="zb-dot" style="width:2.39px;height:2.39px"></span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 4,29 px · Name 9,5 pt"><span class="zb-dot" style="width:4.29px;height:4.29px"></span><span class="zb-word" style="font-size:9.5pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 7,7 px · Name 11 pt"><span class="zb-dot" style="width:7.7px;height:7.7px"></span><span class="zb-word" style="font-size:11pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 13,82 px · Name 13 pt"><span class="zb-dot" style="width:13.82px;height:13.82px"></span><span class="zb-word" style="font-size:13pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 24,82 px · Name 13 pt"><span class="zb-dot" style="width:24.82px;height:24.82px"></span><span class="zb-word" style="font-size:13pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 24,82 px · Name 13 pt"><span class="zb-dot" style="width:24.82px;height:24.82px"></span><span class="zb-word" style="font-size:13pt">Gareth</span></div>
-
-            <!-- Dorf -- Marker ab z2, Name erst ab z4. -->
-            <div class="zb-band__label">Dorf</div>
-            <div class="zb-cell zb-cell--empty" title="erscheint hier noch nicht"></div>
-            <div class="zb-cell zb-cell--empty" title="erscheint hier noch nicht"></div>
-            <div class="zb-cell zb-cell--marker" title="Marker Ø 1,33 px · noch kein Name"><span class="zb-dot" style="width:1.33px;height:1.33px"></span></div>
-            <div class="zb-cell zb-cell--marker" title="Marker Ø 2,54 px · noch kein Name"><span class="zb-dot" style="width:2.54px;height:2.54px"></span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 4,86 px · Name 10 pt"><span class="zb-dot" style="width:4.86px;height:4.86px"></span><span class="zb-word" style="font-size:10pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 9,28 px · Name 11 pt"><span class="zb-dot" style="width:9.28px;height:9.28px"></span><span class="zb-word" style="font-size:11pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 17,74 px · Name 11 pt"><span class="zb-dot" style="width:17.74px;height:17.74px"></span><span class="zb-word" style="font-size:11pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 17,74 px · Name 11 pt"><span class="zb-dot" style="width:17.74px;height:17.74px"></span><span class="zb-word" style="font-size:11pt">Gareth</span></div>
-
-            <!-- Bauwerk/Stätte -- Marker ab z3, Name erst ab z4. -->
-            <div class="zb-band__label">Bauwerk/Stätte</div>
-            <div class="zb-cell zb-cell--empty" title="erscheint hier noch nicht"></div>
-            <div class="zb-cell zb-cell--empty" title="erscheint hier noch nicht"></div>
-            <div class="zb-cell zb-cell--empty" title="erscheint hier noch nicht"></div>
-            <div class="zb-cell zb-cell--marker" title="Marker Ø 1,33 px · noch kein Name"><span class="zb-dot" style="width:1.33px;height:1.33px"></span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 2,8 px · Name 9 pt"><span class="zb-dot" style="width:2.8px;height:2.8px"></span><span class="zb-word" style="font-size:9pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 5,9 px · Name 9 pt"><span class="zb-dot" style="width:5.9px;height:5.9px"></span><span class="zb-word" style="font-size:9pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 12,42 px · Name 9 pt"><span class="zb-dot" style="width:12.42px;height:12.42px"></span><span class="zb-word" style="font-size:9pt">Gareth</span></div>
-            <div class="zb-cell zb-cell--label" title="Marker Ø 12,42 px · Name 9 pt"><span class="zb-dot" style="width:12.42px;height:12.42px"></span><span class="zb-word" style="font-size:9pt">Gareth</span></div>
-          </div>
-        </div>
-
-        <p class="zb-band-legend">
-          <span class="zb-legend__item"><span class="zb-legend__swatch zb-legend__swatch--marker"></span>nur Marker erscheint</span>
-          <span class="zb-legend__item"><span class="zb-legend__swatch zb-legend__swatch--label"></span>Marker + Name erscheint</span>
-          <span>· große Marker sind für die Zeichnung gedeckelt — die echte Zahl steht im Tooltip (<code>title</code>)</span>
-        </p>
-      </div>
-
-      <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
-      <div class="zb__section">
-        <div class="zb__head">
           <h3>Marker — Außendurchmesser in px</h3>
-          <span class="zb__src">Vorgabe: die abgeschaffte geometrische Kurve</span>
-          <button type="button" class="zb__reset">Auf Vorgabe zurücksetzen</button>
+          <span class="zb__src">y-Achse 0,5–100 px, quadratwurzel-gestaucht</span>
         </div>
-        <div class="zb-table-wrap">
-          <table>
-            <thead><tr>
-              <th class="name">Klasse</th><th>z0</th><th>z1</th><th>z2</th><th>z3</th><th>z4</th><th>z5</th><th>z6</th><th>z7</th><th class="act"></th>
-            </tr></thead>
-            <tbody>
-              <tr>
-                <td class="name">Metropole</td>
-                <td><input type="text" value="6,65"></td><td><input type="text" value="9,4"></td><td><input type="text" value="13,3"></td><td><input type="text" value="18,81"></td><td><input type="text" value="26,6"></td><td><input type="text" value="37,62"></td><td><input type="text" value="53,2"></td><td><input type="text" value="53,2"></td>
-                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
-              </tr>
-              <tr>
-                <td class="name">Großstadt</td>
-                <td><input type="text" value="3,99"></td><td><input type="text" value="5,86"></td><td><input type="text" value="8,6"></td><td><input type="text" value="12,62"></td><td><input type="text" value="18,52"></td><td><input type="text" value="27,18"></td><td><input type="text" value="39,9"></td><td><input type="text" value="39,9"></td>
-                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
-              </tr>
-              <tr>
-                <td class="name">Stadt</td>
-                <td><input type="text" value="1,33"></td><td><input type="text" value="2,26"></td><td><input type="text" value="3,84"></td><td><input type="text" value="6,52"></td><td><input type="text" value="11,07"></td><td><input type="text" value="18,79"></td><td><input type="text" value="31,92"></td><td><input type="text" value="31,92"></td>
-                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
-              </tr>
-              <tr>
-                <td class="name">Kleinstadt</td>
-                <td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="1,33"></td><td><input type="text" value="2,39"></td><td><input type="text" value="4,29"></td><td><input type="text" value="7,7"></td><td><input type="text" value="13,82"></td><td><input type="text" value="24,82"></td><td><input type="text" value="24,82"></td>
-                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
-              </tr>
-              <tr>
-                <td class="name">Dorf</td>
-                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="1,33"></td><td><input type="text" value="2,54"></td><td><input type="text" value="4,86"></td><td><input type="text" value="9,28"></td><td><input type="text" value="17,74"></td><td><input type="text" value="17,74"></td>
-                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
-              </tr>
-              <tr>
-                <td class="name">Bauwerk/Stätte</td>
-                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="1,33"></td><td><input type="text" value="2,8"></td><td><input type="text" value="5,9"></td><td><input type="text" value="12,42"></td><td><input type="text" value="12,42"></td>
-                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="zb-plot-wrap">
+          <svg class="zb-plot" id="zbPlotMarker" viewBox="0 0 920 420" role="img"
+            aria-label="Marker-Außendurchmesser je Ortsklasse und Zoomstufe, editierbar"></svg>
         </div>
+        <p class="zb-plot-caption">
+          Gestaucht (Quadratwurzel), weil 0,5–100 px das Zweihundertfache ist — linear läge Dorf
+          und Bauwerk (1,33 px) als Strich am Boden. Der heutige Höchstwert (53,2) landet bei rund
+          73 % der Höhe: die Vorgabewerte füllen den Plot gut aus, ein Viertel bleibt Luft zum
+          Ziehen. Ungleiche Hilfslinien-Abstände (0 · 1 · 5 · 10 · 25 · 50 · 100) zeigen die Stauchung.
+        </p>
+        <div class="zb-selected" id="zbSelMarker">
+          <span class="zb-selected__label">Ausgewählter Punkt: <strong id="zbSelMarkerLabel">— keiner —</strong></span>
+          <input type="number" class="zb-num-input" id="zbSelMarkerInput" step="0.01" min="0.5" max="200" disabled>
+          <span class="zb-selected__unit">px</span>
+        </div>
+        <div class="zb-legend" id="zbLegendMarker"></div>
       </div>
 
       <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
       <div class="zb__section">
         <div class="zb__head">
           <h3>Name — Schriftgröße in pt</h3>
-          <span class="zb__src">Vorgabe: die abgeschaffte geometrische Kurve</span>
-          <button type="button" class="zb__reset">Auf Vorgabe zurücksetzen</button>
+          <span class="zb__src">y-Achse 4–30 pt, linear</span>
         </div>
-        <div class="zb-table-wrap">
-          <table>
-            <thead><tr>
-              <th class="name">Klasse</th><th>z0</th><th>z1</th><th>z2</th><th>z3</th><th>z4</th><th>z5</th><th>z6</th><th>z7</th><th class="act"></th>
-            </tr></thead>
-            <tbody>
-              <tr>
-                <td class="name">Metropole</td>
-                <td><input type="text" value="8"></td><td><input type="text" value="9"></td><td><input type="text" value="11"></td><td><input type="text" value="13"></td><td><input type="text" value="17"></td><td><input type="text" value="19"></td><td><input type="text" value="19"></td><td><input type="text" value="19"></td>
-                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
-              </tr>
-              <tr>
-                <td class="name">Großstadt</td>
-                <td><input type="text" value="8"></td><td><input type="text" value="8,5"></td><td><input type="text" value="10"></td><td><input type="text" value="12"></td><td><input type="text" value="15"></td><td><input type="text" value="17"></td><td><input type="text" value="17"></td><td><input type="text" value="17"></td>
-                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
-              </tr>
-              <tr>
-                <td class="name">Stadt</td>
-                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="9"></td><td><input type="text" value="11"></td><td><input type="text" value="13"></td><td><input type="text" value="15"></td><td><input type="text" value="15"></td><td><input type="text" value="15"></td>
-                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
-              </tr>
-              <tr>
-                <td class="name">Kleinstadt</td>
-                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="9,5"></td><td><input type="text" value="11"></td><td><input type="text" value="13"></td><td><input type="text" value="13"></td><td><input type="text" value="13"></td>
-                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
-              </tr>
-              <tr>
-                <td class="name">Dorf</td>
-                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="10"></td><td><input type="text" value="11"></td><td><input type="text" value="11"></td><td><input type="text" value="11"></td>
-                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
-              </tr>
-              <tr class="zb-hint">
-                <td class="name" colspan="10">⚠ Dörfer tragen ihren Namen ab z4; die Straßenschrift hängt seit dem 16.08.2026 nicht mehr daran.</td>
-              </tr>
-              <tr>
-                <td class="name">Bauwerk/Stätte</td>
-                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="9"></td><td><input type="text" value="9"></td><td><input type="text" value="9"></td><td><input type="text" value="9"></td>
-                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="zb-plot-wrap">
+          <svg class="zb-plot" id="zbPlotLabel" viewBox="0 0 920 420" role="img"
+            aria-label="Namens-Schriftgröße je Ortsklasse und Zoomstufe, editierbar"></svg>
         </div>
+        <p class="zb-plot-caption">
+          <strong>Bewusst linear, nicht gestaucht:</strong> 4–30 pt ist nur das Siebeneinhalbfache
+          — die heutigen Werte (8…19) verteilen sich schon so über 27–63 % der Höhe. Eine
+          Quadratwurzel-Achse wäre hier nur eine Ablese-Erschwernis ohne Nutzen (anders als beim
+          Marker, dessen Spanne das Zweihundertfache ist).
+        </p>
+        <div class="zb-selected" id="zbSelLabel">
+          <span class="zb-selected__label">Ausgewählter Punkt: <strong id="zbSelLabelLabel">— keiner —</strong></span>
+          <input type="number" class="zb-num-input" id="zbSelLabelInput" step="0.01" min="4" max="96" disabled>
+          <span class="zb-selected__unit">pt</span>
+        </div>
+        <div class="zb-legend" id="zbLegendLabel"></div>
+      </div>
+
+      <p class="zb-plot-caption">
+        ⌨️ <strong>Tastatur:</strong> einen Punkt anklicken oder per Tab erreichen, dann Pfeil
+        hoch/runter (mit Umschalt: großer Schritt). Die Legenden-Stufenwahl und der Rücksetzer sind
+        gewöhnliche Knöpfe und damit ohnehin per Tab/Enter bedienbar.
+      </p>
+
+      <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
+      <div class="zb__section">
+        <div class="zb__head">
+          <h3>Vorschau</h3>
+          <span class="zb__src">echter Punkt, echtes Wort „Gareth" — live aus beiden Plots</span>
+        </div>
+        <div class="zb-preview-stage" id="zbPreviewStage" role="group" aria-label="Zoomstufe für die Vorschau wählen"></div>
+        <div class="zb-preview-grid" id="zbPreviewGrid"></div>
+        <p class="zb-preview-note">So steht der Name normalerweise; bei Platzmangel weicht er auf eine der zwölf Nachbarstellen aus.</p>
       </div>
 
       <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
       <div class="zb__foot">
-        <p class="zb__msg">Ungespeichert: 3 Zellen geändert (2 Marker, 1 Name).</p>
+        <p class="zb__msg" id="zbSaveMsg">Keine Änderungen — entspricht der Vorgabe.</p>
         <span class="spacer"></span>
-        <button type="button" class="zb__btn zb__btn--soft">Alles zurücksetzen</button>
-        <button type="button" class="zb__btn zb__btn--main">Speichern</button>
+        <button type="button" class="zb__btn zb__btn--soft" id="zbResetAll">Alles zurücksetzen</button>
+        <button type="button" class="zb__btn zb__btn--main" id="zbSaveBtn">Speichern</button>
       </div>
 
     </div>
@@ -515,20 +397,522 @@ body.mock { height: auto; padding: var(--space-12); }
 <div class="mock-h">3 · Die Speicherleiste, Nur-Lesen-Fassung — Editoren ohne Admin-Recht</div>
 <div class="zb-locked-block">
   <div class="zb__foot" style="margin-top:0;padding-top:0;border-top:0;">
-    <p class="zb__msg">Zeigt die aktuell wirksamen Werte.</p>
+    <p class="zb__msg">Zeigt die aktuell wirksamen Kurven — Ziehen, Stufenwahl und Zahlenfelder sind gesperrt.</p>
     <span class="spacer"></span>
     <p class="zb-locked-note">🔒 <strong>Zoombänder einstellen dürfen nur Administratoren.</strong></p>
   </div>
 </div>
 
 <div class="mock-note">
-  <strong>Was das Mockup behauptet und was noch offen ist.</strong>
-  Die Felder aller sechs Zeilen sind für Editoren ohne <code>admin</code>-Recht sichtbar, aber
-  gesperrt — dieselbe Bandgrafik erklärt ihnen, warum ein Ort beim Herauszoomen verschwindet, sie
-  können nur nichts daran ändern (Entwurf §2). Offen: die genaue Deckelgrenze der gezeichneten
-  Kreise (hier 30 px probiert) und ob die Speicherleiste eine Zellenzahl nennt oder nur „ungespeicherte
-  Änderungen" pauschal meldet.
+  <strong>Was der Prototyp behauptet und was noch offen ist.</strong>
+  Zieh selbst an ein paar Punkten (z. B. an „Dorf" im Marker-Plot) — die Kurve, die Vorschau und die
+  Speicherleisten-Meldung ziehen live nach. Die Marker-Achse spannt 0,5–100 px (gestaucht), die
+  Namens-Achse 4–30 pt (linear) — beides der erlaubte Bereich, nicht nur der heute belegte; die
+  echten Datenschranken (bis 200 px bzw. 96 pt) bleiben für Zahlenfeld und Ziehen unverändert
+  gültig, nur die sichtbare Achse dieses Mockups ist enger. Wie sich das untere Ende beim Marker
+  jetzt anfühlt (Dorf/Bauwerk bei 1,33 px): siehe Bericht.
 </div>
+
+<script>
+(function () {
+	"use strict";
+	var SVGNS = "http://www.w3.org/2000/svg";
+
+	/* 🔴 Klassenreihenfolge überall: metropole, grossstadt, stadt, kleinstadt, dorf, gebaeude
+	   (Bauplan, globale Zusicherungen). */
+	var CLASSES = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"];
+	var CLASS_LABELS = {
+		metropole: "Metropole", grossstadt: "Großstadt", stadt: "Stadt",
+		kleinstadt: "Kleinstadt", dorf: "Dorf", gebaeude: "Bauwerk/Stätte"
+	};
+
+	/* 🔴 DAS HEUTIGE BILD, ZIFFER FÜR ZIFFER -- wörtlich aus
+	   js/map-features/location-zoom-bands.js (AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS) übernommen.
+	   `null` = auf dieser Stufe gibt es die Klasse nicht. */
+	var DEFAULTS = {
+		marker: {
+			metropole: [6.65, 9.4, 13.3, 18.81, 26.6, 37.62, 53.2, 53.2],
+			grossstadt: [3.99, 5.86, 8.6, 12.62, 18.52, 27.18, 39.9, 39.9],
+			stadt: [1.33, 2.26, 3.84, 6.52, 11.07, 18.79, 31.92, 31.92],
+			kleinstadt: [null, 1.33, 2.39, 4.29, 7.7, 13.82, 24.82, 24.82],
+			dorf: [null, null, 1.33, 2.54, 4.86, 9.28, 17.74, 17.74],
+			gebaeude: [null, null, null, 1.33, 2.8, 5.9, 12.42, 12.42]
+		},
+		label: {
+			metropole: [8, 9, 11, 13, 17, 19, 19, 19],
+			grossstadt: [8, 8.5, 10, 12, 15, 17, 17, 17],
+			stadt: [null, null, 9, 11, 13, 15, 15, 15],
+			kleinstadt: [null, null, null, 9.5, 11, 13, 13, 13],
+			dorf: [null, null, null, null, 10, 11, 11, 11],
+			gebaeude: [null, null, null, null, 9, 9, 9, 9]
+		}
+	};
+
+	/* Die ECHTEN Datenschranken (AVESMAPS_ZOOM_BAND_LIMITS, location-zoom-bands.js) -- sie
+	   begrenzen, was ein Wert sein darf (Zahlenfeld, Ziehen, Pfeiltasten), UND bleiben unverändert.
+	   Sie sind NICHT dasselbe wie die sichtbare Achse (AXIS_DOMAIN unten) -- ein Wert über der
+	   Achse ist weiterhin gültig, er zeichnet sich nur oben angeschlagen. */
+	var LIMITS = { marker: { min: 0.5, max: 200 }, label: { min: 4, max: 96 } };
+
+	/* 🔴 Owner-Rückmeldung 16.08.2026 (zwei Nachrichten, die zweite korrigiert die erste -- es
+	   gilt die LETZTE Zahl): NUR die sichtbare Achse dieses Mockups, NICHT die echten Schranken
+	   oben. Marker 100 px, Name 30 pt. */
+	var AXIS_DOMAIN = { marker: 100, label: 30 };
+
+	/* Geometrie: gemeinsam für beide Plots. 9 Spalten (z0..z7 + "aus"), gleichmäßig verteilt.
+	   H deutlich angehoben (320 -> 420, Owner 16.08.2026): mehr senkrechte Strecke je Pixelschritt
+	   an der Maus -- am unteren Ende, wo Dorf/Bauwerk mit 1,33 px dicht beieinanderliegen, ist das
+	   die eigentliche Bedienbarkeitsfrage, nicht Optik. */
+	var W = 920, H = 420;
+	var MARGIN = { left: 52, right: 26, top: 16, bottom: 34 };
+	var INNER_W = W - MARGIN.left - MARGIN.right;
+	function colX(i) { return MARGIN.left + (INNER_W / 8) * i; }
+
+	function makeScale(domainMax, mode) {
+		var top = MARGIN.top, bottom = H - MARGIN.bottom, h = bottom - top;
+		if (mode === "sqrt") {
+			var sq = Math.sqrt(domainMax);
+			return {
+				toY: function (v) { return bottom - Math.sqrt(Math.max(0, Math.min(domainMax, v))) / sq * h; },
+				toV: function (y) { var f = Math.max(0, Math.min(h, bottom - y)) / h * sq; return f * f; },
+				bottom: bottom
+			};
+		}
+		return {
+			toY: function (v) { return bottom - Math.max(0, Math.min(domainMax, v)) / domainMax * h; },
+			toV: function (y) { return Math.max(0, Math.min(h, bottom - y)) / h * domainMax; },
+			bottom: bottom
+		};
+	}
+
+	/* 💣 ZWEI VERSCHIEDENE ACHSEN, ABSICHTLICH -- NICHT "AUS KONSISTENZ" ANGLEICHEN.
+	   Owner-Rückmeldung 16.08.2026: die Achse muss den ERLAUBTEN Bereich zeigen, nicht nur den
+	   heute belegten (sonst verschiebt sich die Decke unter der Hand, während man zieht). Ob sie
+	   dafür gestaucht sein MUSS, hängt einzig am Verhältnis Decke/kleinster erlaubter Wert:
+	   - Marker 0,5 … 100 px = das ZWEIHUNDERTFACHE -- linear läge fast alles im untersten Rand,
+	     Dorf/Bauwerk (1,33 px) wären ein Strich am Boden. Braucht die Quadratwurzel.
+	   - Name 4 … 30 pt = nur das SIEBENEINHALBFACHE -- linear verteilt die echten Werte (8…19)
+	     bereits gut über 27–63 % der Höhe. Eine Wurzelachse wäre hier nur eine Ablese-Erschwernis
+	     ohne Nutzen.
+	   Wer künftig eine dritte Tafel mit ähnlicher Spannweite wie Marker baut, prüft das Verhältnis
+	   neu -- es ist keine feste Regel "Marker=Wurzel, Name=linear", sondern eine Folge der Zahlen. */
+	var PLOTS = {
+		marker: {
+			kind: "marker", limits: LIMITS.marker, unit: "px",
+			scale: makeScale(AXIS_DOMAIN.marker, "sqrt"), ticks: [0, 1, 5, 10, 25, 50, 100],
+			svg: document.getElementById("zbPlotMarker"),
+			legendEl: document.getElementById("zbLegendMarker"),
+			selLabelEl: document.getElementById("zbSelMarkerLabel"),
+			selInputEl: document.getElementById("zbSelMarkerInput")
+		},
+		label: {
+			kind: "label", limits: LIMITS.label, unit: "pt",
+			scale: makeScale(AXIS_DOMAIN.label, "linear"), ticks: [0, 5, 10, 15, 20, 25, 30],
+			svg: document.getElementById("zbPlotLabel"),
+			legendEl: document.getElementById("zbLegendLabel"),
+			selLabelEl: document.getElementById("zbSelLabelLabel"),
+			selInputEl: document.getElementById("zbSelLabelInput")
+		}
+	};
+
+	/* ---- Zustand -------------------------------------------------------------------------------
+	   Je Klasse: { start: 0..8 (8 = ausgeblendet), values: [8 Zahlen] }. Werte VOR `start` bleiben
+	   im Speicher (nie gelöscht) -- damit ist "ausblenden verliert nichts" baulich gegeben, nicht
+	   nur versprochen. Neu sichtbar werdende Zellen tragen anfangs den ersten bekannten Wert
+	   (flache Fortsetzung nach links), niemals eine erfundene Zahl. */
+	function buildInitialState(kind) {
+		var rows = {};
+		CLASSES.forEach(function (cls) {
+			var row = DEFAULTS[kind][cls];
+			var start = row.findIndex(function (v) { return v !== null; });
+			var firstVal = row[start];
+			var values = row.map(function (v) { return v === null ? firstVal : v; });
+			rows[cls] = { start: start, values: values };
+		});
+		return rows;
+	}
+
+	var state = { marker: buildInitialState("marker"), label: buildInitialState("label") };
+	var selected = { marker: null, label: null }; // { cls, z } | null
+
+	function round2(v) { return Math.round(v * 100) / 100; }
+	function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+	function isRowDefault(kind, cls) {
+		var row = DEFAULTS[kind][cls];
+		var defStart = row.findIndex(function (v) { return v !== null; });
+		var st = state[kind][cls];
+		if (st.start !== defStart) { return false; }
+		for (var z = st.start; z <= 7; z++) {
+			if (Math.abs(st.values[z] - row[z]) > 1e-9) { return false; }
+		}
+		return true;
+	}
+
+	function updateSaveMessage() {
+		var changed = 0;
+		["marker", "label"].forEach(function (kind) {
+			CLASSES.forEach(function (cls) { if (!isRowDefault(kind, cls)) { changed++; } });
+		});
+		var el = document.getElementById("zbSaveMsg");
+		el.textContent = changed === 0
+			? "Keine Änderungen — entspricht der Vorgabe."
+			: "Ungespeichert: " + changed + " Kurve" + (changed === 1 ? " weicht" : "n weichen") + " von der Vorgabe ab.";
+	}
+
+	/* ---- SVG-Hilfen ------------------------------------------------------------------------- */
+	function svgEl(tag, attrs) {
+		var el = document.createElementNS(SVGNS, tag);
+		for (var k in attrs) { el.setAttribute(k, attrs[k]); }
+		return el;
+	}
+
+	function curvePathD(cfg, cls) {
+		var st = state[cfg.kind][cls];
+		if (st.start > 7) { return ""; }
+		var d = "";
+		for (var z = st.start; z <= 7; z++) {
+			var x = colX(z), y = cfg.scale.toY(st.values[z]);
+			d += (z === st.start ? "M" : "L") + x.toFixed(1) + "," + y.toFixed(1) + " ";
+		}
+		return d;
+	}
+
+	function updateCurvePath(cfg, cls) {
+		var path = cfg.svg.querySelector('[data-curve="' + cls + '"]');
+		if (path) { path.setAttribute("d", curvePathD(cfg, cls)); }
+	}
+
+	/* ---- Plot zeichnen (komplett neu) --------------------------------------------------------
+	   Wird nur bei STRUKTURELLEN Änderungen gerufen (Start verschoben, zurückgesetzt) -- nie
+	   während eines laufenden Ziehens, sonst risse das Neuzeichnen den gerade gezogenen Punkt aus
+	   dem DOM und die Zeigererfassung (setPointerCapture) bräche ab. */
+	function renderPlot(cfg) {
+		var svg = cfg.svg;
+		while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+
+		cfg.ticks.forEach(function (t) {
+			var y = cfg.scale.toY(t);
+			svg.appendChild(svgEl("line", { x1: MARGIN.left, y1: y, x2: W - MARGIN.right, y2: y, class: "zb-plot-grid" }));
+			var txt = svgEl("text", { x: MARGIN.left - 8, y: y, class: "zb-plot-ytick", "text-anchor": "end" });
+			txt.textContent = String(t);
+			svg.appendChild(txt);
+		});
+		for (var i = 0; i <= 7; i++) {
+			var xt = svgEl("text", { x: colX(i), y: H - MARGIN.bottom + 18, class: "zb-plot-xtick", "text-anchor": "middle" });
+			xt.textContent = "z" + i;
+			svg.appendChild(xt);
+		}
+		var ausT = svgEl("text", { x: colX(8), y: H - MARGIN.bottom + 18, class: "zb-plot-xtick zb-plot-xtick--aus", "text-anchor": "middle" });
+		ausT.textContent = "aus";
+		svg.appendChild(ausT);
+		svg.appendChild(svgEl("line", { x1: MARGIN.left, y1: MARGIN.top, x2: MARGIN.left, y2: H - MARGIN.bottom, class: "zb-plot-axis" }));
+		svg.appendChild(svgEl("line", { x1: MARGIN.left, y1: H - MARGIN.bottom, x2: W - MARGIN.right, y2: H - MARGIN.bottom, class: "zb-plot-axis" }));
+
+		CLASSES.forEach(function (cls) {
+			var st = state[cfg.kind][cls];
+			var path = svgEl("path", { class: "zb-plot-curve zb-cls-" + cls, "data-curve": cls, d: curvePathD(cfg, cls) });
+			svg.appendChild(path);
+			if (st.start > 7) { return; }
+			for (var z = st.start; z <= 7; z++) {
+				svg.appendChild(makePoint(cfg, cls, z));
+			}
+		});
+	}
+
+	function makePoint(cfg, cls, z) {
+		var st = state[cfg.kind][cls];
+		var c = svgEl("circle", {
+			cx: colX(z), cy: cfg.scale.toY(st.values[z]),
+			class: "zb-plot-point zb-cls-" + cls, tabindex: "0", role: "slider",
+			"aria-label": CLASS_LABELS[cls] + ", z" + z + ", " + cfg.unit,
+			"aria-valuenow": st.values[z]
+		});
+		c.dataset.cls = cls; c.dataset.z = String(z);
+
+		function commit(rawVal) {
+			setPointValue(cfg.kind, cls, z, rawVal, "point");
+		}
+
+		c.addEventListener("pointerdown", function (ev) {
+			ev.preventDefault();
+			/* 💣 Robustheit vor Eleganz: setPointerCapture kann eine NotFoundError werfen (u. a.
+			   bei synthetischen/atypischen Zeigersitzungen, in Tests beobachtet) -- ohne
+			   try/catch riss das die Auswahl und den Rest des Griffs mit ab, obwohl der Nutzer
+			   nichts falsch gemacht hat. Das Ziehen selbst bleibt auch ohne Erfassung meist
+			   funktionsfähig (der Zeiger bleibt praktisch immer über dem Kreis), die Erfassung ist
+			   nur die Absicherung gegen ein sehr schnelles Verlassen. */
+			try { c.setPointerCapture(ev.pointerId); } catch (e) { /* siehe oben */ }
+			selectPoint(cfg.kind, cls, z);
+			c.focus();
+			var rect = cfg.svg.getBoundingClientRect();
+			var scaleY = H / rect.height;
+			function onMove(ev2) {
+				var localY = (ev2.clientY - rect.top) * scaleY;
+				commit(cfg.scale.toV(localY));
+			}
+			function onUp() {
+				c.removeEventListener("pointermove", onMove);
+				c.removeEventListener("pointerup", onUp);
+			}
+			c.addEventListener("pointermove", onMove);
+			c.addEventListener("pointerup", onUp);
+		});
+		c.addEventListener("keydown", function (ev) {
+			var step = ev.shiftKey ? 1 : 0.01;
+			if (ev.key === "ArrowUp") { commit(state[cfg.kind][cls].values[z] + step); ev.preventDefault(); }
+			else if (ev.key === "ArrowDown") { commit(state[cfg.kind][cls].values[z] - step); ev.preventDefault(); }
+		});
+		c.addEventListener("focus", function () { selectPoint(cfg.kind, cls, z); });
+		return c;
+	}
+
+	/* Der einzige Ort, an dem sich ein Wert ändert -- Ziehen, Pfeiltasten UND das Zahlenfeld rufen
+	   alle hier durch. 💣 Ziehen verändert NUR den angefassten Punkt: jeder Aufruf trägt sein
+	   eigenes (kind, cls, z), es gibt keine Nachbarschafts-Anpassung. */
+	function setPointValue(kind, cls, z, rawVal, source) {
+		if (!isFinite(rawVal)) { return; }
+		var cfg = PLOTS[kind];
+		var st = state[kind][cls];
+		if (z < st.start || z > 7) { return; }
+		var val = round2(clamp(rawVal, cfg.limits.min, cfg.limits.max));
+		st.values[z] = val;
+		var circle = cfg.svg.querySelector('circle[data-cls="' + cls + '"][data-z="' + z + '"]');
+		if (circle) { circle.setAttribute("cy", cfg.scale.toY(val)); circle.setAttribute("aria-valuenow", val); }
+		updateCurvePath(cfg, cls);
+		if (selected[kind] && selected[kind].cls === cls && selected[kind].z === z && source !== "field") {
+			cfg.selInputEl.value = val;
+		}
+		updatePreview();
+		updateSaveMessage();
+	}
+
+	function selectPoint(kind, cls, z) {
+		selected[kind] = { cls: cls, z: z };
+		var cfg = PLOTS[kind];
+		cfg.svg.querySelectorAll(".zb-plot-point.is-selected").forEach(function (el) { el.classList.remove("is-selected"); });
+		var circle = cfg.svg.querySelector('circle[data-cls="' + cls + '"][data-z="' + z + '"]');
+		if (circle) { circle.classList.add("is-selected"); }
+		updateSelectedUI(kind);
+	}
+
+	function updateSelectedUI(kind) {
+		var cfg = PLOTS[kind];
+		var sel = selected[kind];
+		if (!sel) {
+			cfg.selLabelEl.textContent = "— keiner —";
+			cfg.selInputEl.value = "";
+			cfg.selInputEl.disabled = true;
+			return;
+		}
+		cfg.selLabelEl.textContent = CLASS_LABELS[sel.cls] + " · z" + sel.z;
+		cfg.selInputEl.disabled = false;
+		cfg.selInputEl.value = state[kind][sel.cls].values[sel.z];
+	}
+
+	["marker", "label"].forEach(function (kind) {
+		PLOTS[kind].selInputEl.addEventListener("input", function () {
+			var sel = selected[kind];
+			if (!sel) { return; }
+			var v = parseFloat(PLOTS[kind].selInputEl.value);
+			setPointValue(kind, sel.cls, sel.z, v, "field");
+		});
+	});
+
+	/* ---- Stufenwahl je Klasse (ersetzt das Häkchen: der Anfang IST die Erscheinungsstufe) ------
+	   💣 Löcher sind baulich unmöglich: das ist ein einzelner Index, keine Bereichsauswahl -- eine
+	   Kurve läuft immer von `start` bis z7 durch, es gibt keine Bedienung, die etwas dazwischen
+	   ausblenden könnte. */
+	function changeStart(kind, cls, newStart) {
+		var st = state[kind][cls];
+		if (newStart === st.start) { return; }
+		st.start = newStart;
+		renderPlot(PLOTS[kind]);
+		renderLegend(kind);
+		if (selected[kind] && selected[kind].cls === cls && selected[kind].z < newStart) {
+			selected[kind] = null;
+			updateSelectedUI(kind);
+		}
+		updatePreview();
+		updateSaveMessage();
+	}
+
+	function resetRow(kind, cls) {
+		state[kind][cls] = buildInitialState(kind)[cls];
+		renderPlot(PLOTS[kind]);
+		renderLegend(kind);
+		if (selected[kind] && selected[kind].cls === cls) { selected[kind] = null; updateSelectedUI(kind); }
+		updatePreview();
+		updateSaveMessage();
+	}
+
+	function resetAll() {
+		state.marker = buildInitialState("marker");
+		state.label = buildInitialState("label");
+		selected = { marker: null, label: null };
+		renderPlot(PLOTS.marker); renderPlot(PLOTS.label);
+		renderLegend("marker"); renderLegend("label");
+		updateSelectedUI("marker"); updateSelectedUI("label");
+		updatePreview();
+		updateSaveMessage();
+	}
+
+	function renderLegend(kind) {
+		var cfg = PLOTS[kind];
+		cfg.legendEl.innerHTML = "";
+		CLASSES.forEach(function (cls) {
+			var st = state[kind][cls];
+			var row = document.createElement("div");
+			row.className = "zb-legend-row";
+
+			var swatch = document.createElement("span");
+			swatch.className = "zb-swatch zb-cls-" + cls;
+			row.appendChild(swatch);
+
+			var name = document.createElement("span");
+			name.className = "zb-legend-name";
+			name.textContent = CLASS_LABELS[cls];
+			row.appendChild(name);
+
+			var group = document.createElement("span");
+			group.className = "zb-stage-group";
+			group.setAttribute("role", "group");
+			group.setAttribute("aria-label", "Erscheint ab, " + CLASS_LABELS[cls]);
+			for (var i = 0; i <= 7; i++) {
+				group.appendChild(makeStageButton(kind, cls, i, st.start === i, false));
+			}
+			group.appendChild(makeStageButton(kind, cls, 8, st.start === 8, true));
+			row.appendChild(group);
+
+			var note = document.createElement("span");
+			note.className = "zb-legend-note";
+			note.textContent = st.start > 7 ? "ausgeblendet — Werte gemerkt" : "";
+			row.appendChild(note);
+
+			var reset = document.createElement("button");
+			reset.type = "button";
+			reset.className = "zb-row-reset";
+			reset.title = CLASS_LABELS[cls] + " auf Vorgabe zurücksetzen";
+			reset.textContent = "↺";
+			reset.addEventListener("click", function (clsCapture) {
+				return function () { resetRow(kind, clsCapture); };
+			}(cls));
+			row.appendChild(reset);
+
+			cfg.legendEl.appendChild(row);
+		});
+	}
+
+	function makeStageButton(kind, cls, i, active, isAus) {
+		var btn = document.createElement("button");
+		btn.type = "button";
+		btn.className = "zb-stage-btn zb-cls-" + cls + (isAus ? " zb-stage-btn--aus" : "") + (active ? " is-active" : "");
+		btn.textContent = isAus ? "aus" : "z" + i;
+		btn.title = isAus ? (CLASS_LABELS[cls] + " ausblenden") : (CLASS_LABELS[cls] + " ab z" + i + " zeigen");
+		btn.addEventListener("click", function () { changeStart(kind, cls, i); });
+		return btn;
+	}
+
+	/* ---- Vorschau: echter Punkt, echtes Wort, für eine gewählte Zoomstufe, aus BEIDEN Plots ---- */
+	var previewStage = 4; // z4 -- die erste Stufe, auf der alle sechs Klassen Marker UND Name tragen
+
+	function renderPreviewStageButtons() {
+		var wrap = document.getElementById("zbPreviewStage");
+		wrap.innerHTML = "";
+		for (var i = 0; i <= 7; i++) {
+			var b = document.createElement("button");
+			b.type = "button";
+			b.textContent = "z" + i;
+			if (i === previewStage) { b.classList.add("is-active"); }
+			b.addEventListener("click", function (iCapture) {
+				return function () { previewStage = iCapture; renderPreviewStageButtons(); updatePreview(); };
+			}(i));
+			wrap.appendChild(b);
+		}
+	}
+
+	/* 🔴 Owner-Rückmeldung 16.08.2026: die echte Kartengeometrie übernehmen
+	   (getLocationNameLabelOffset, map-features-location-name-labels.js), NICHT eine eigene
+	   Anordnung erfinden. Dort: x = Außenradius + LOCATION_NAME_LABEL_GAP (4px), gemessen von der
+	   Punktmitte -- der Name steht rechts daneben. y hebt den Text auf die Punktmitte, weil Canvas
+	   Text an der Grundlinie verankert, nicht mittig. In DOM/CSS braucht es diese Kompensation
+	   nicht: `align-items: center` auf der Flex-Reihe zentriert direkt auf der Punktmitte -- das
+	   ist dasselbe ZIEL wie die y-Formel, nur ohne den Canvas-spezifischen Umweg nachzubauen. Der
+	   Spalt bleibt exakt: --space-2 ist 4px, derselbe Wert wie LOCATION_NAME_LABEL_GAP, und weil
+	   der Punkt in der Reihe seine eigene reale Breite einnimmt, liegt der Textanfang automatisch
+	   bei „Radius + 4" von der Mitte -- ohne den Radius gesondert auszurechnen. */
+	function updatePreview() {
+		var grid = document.getElementById("zbPreviewGrid");
+		grid.innerHTML = "";
+		var DOT_CAP = 80; // Sicherheitsdeckel -- die Vorgabewerte (bis 53,2) erreichen ihn nie, nur von Hand hochgezogene Punkte könnten
+		CLASSES.forEach(function (cls) {
+			var card = document.createElement("div");
+			card.className = "zb-preview-card";
+
+			var mSt = state.marker[cls], lSt = state.label[cls];
+			var hasMarker = previewStage >= mSt.start;
+			var hasLabel = previewStage >= lSt.start; // Name erscheint nie vor seinem Marker (Vorgabewerte)
+
+			if (hasMarker) {
+				var mark = document.createElement("div");
+				mark.className = "zb-preview-card__mark";
+
+				var d = mSt.values[previewStage];
+				var shown = Math.min(d, DOT_CAP);
+				var dot = document.createElement("span");
+				dot.className = "zb-dot";
+				dot.style.width = shown + "px";
+				dot.style.height = shown + "px";
+				dot.title = "Marker Ø " + String(d).replace(".", ",") + " px" + (shown < d ? " (gezeichnet gedeckelt)" : "");
+				mark.appendChild(dot);
+
+				if (hasLabel) {
+					var pt = lSt.values[previewStage];
+					var word = document.createElement("span");
+					word.className = "zb-word";
+					word.style.fontSize = pt + "pt";
+					word.textContent = "Gareth";
+					word.title = "Name " + String(pt).replace(".", ",") + " pt";
+					mark.appendChild(word);
+				}
+				card.appendChild(mark);
+			} else {
+				var noMark = document.createElement("span");
+				noMark.className = "zb-preview-empty";
+				noMark.textContent = "–";
+				card.appendChild(noMark);
+			}
+
+			var name = document.createElement("span");
+			name.className = "zb-preview-card__name";
+			name.textContent = CLASS_LABELS[cls];
+			card.appendChild(name);
+
+			grid.appendChild(card);
+		});
+	}
+
+	/* ---- Speicherleiste -------------------------------------------------------------------- */
+	document.getElementById("zbResetAll").addEventListener("click", resetAll);
+	document.getElementById("zbSaveBtn").addEventListener("click", function () {
+		var msg = document.getElementById("zbSaveMsg");
+		var prev = msg.textContent;
+		msg.textContent = "Gespeichert. (Nur in diesem Prototyp — es wird nichts wirklich übertragen.)";
+		setTimeout(function () { msg.textContent = prev; }, 2200);
+	});
+
+	/* ---- Start ------------------------------------------------------------------------------ */
+	renderPlot(PLOTS.marker);
+	renderPlot(PLOTS.label);
+	renderLegend("marker");
+	renderLegend("label");
+	updateSelectedUI("marker");
+	updateSelectedUI("label");
+	renderPreviewStageButtons();
+	updatePreview();
+	updateSaveMessage();
+})();
+</script>
 
 </body>
 </html>

@@ -34,6 +34,19 @@ Gelten für **jede** Aufgabe:
 - **Zahlenwerte:** die zwei Vorgabetafeln aus Aufgabe 1 sind **verbatim** aus dem Entwurf §3.2 zu
   übernehmen. Keine Zahl „glattziehen" — sie sind aus der abgeschafften Kurve gerechnet und der
   Beweis, dass sich am Auslieferungstag nichts ändert.
+- 💣 **Ein Text-Test ist nur dort erlaubt, wo das Laden nachweislich unmöglich ist.** Owner-Entscheid
+  16.08.2026, nach der Prüfung von Aufgabe 2: dieser Bauplan schrieb dort einen reinen
+  Zeichenketten-Abgleich vor, mit der Begründung „DOM- und Leaflet-Code, lässt sich nicht einzeln
+  laden". Der Prüfer hat nachgesehen und die Begründung **widerlegt** — das einzige blockierende
+  Stück war ein `?pathtune=1`-Panel, das bei `if (!on || !document.body) return;` sofort aussteigt,
+  und `js/map-features/__tests__/pruefhaken-sichtbarkeit.test.js` lädt im selben Verzeichnis längst
+  vergleichbaren Code per `vm.runInThisContext`. Der Test hätte eine kaputte Klemmung
+  (`Math.min(7, …)` statt `5`) nie bemerkt.
+  ⚠️ **Die Regel, die daraus folgt:** wer einen Text-Test schreibt, prüft vorher, ob Laden geht, und
+  begründet das Nein am konkreten Hindernis. Verhalten wird durch **Aufrufen** geprüft.
+  ⭐ **Text-Tests bleiben richtig**, wo sie einen *Namensvertrag zwischen zwei Dateien* prüfen statt
+  Verhalten — das ist ihr Zweck (Vorbild `js/pages/__tests__/tempowerte-dialog.test.js`). Aufgabe 8
+  prüft genau das an einer HTML-Datei mit eingebettetem Skript und bleibt deshalb ein Text-Test.
 - **Klassenreihenfolge überall:** `metropole, grossstadt, stadt, kleinstadt, dorf, gebaeude`.
 
 ---
@@ -1869,6 +1882,18 @@ const browser = read("js/map-features/location-zoom-bands.js");
 assert.ok(/marker:\s*\{\s*min:\s*0\.5,\s*max:\s*200\s*\}/.test(browser), "der Browser ebenso");
 assert.ok(/label:\s*\{\s*min:\s*4,\s*max:\s*96\s*\}/.test(browser));
 
+// ---- 5b. Die Häkchen ---------------------------------------------------------------------------
+// 🔴 Owner 16.08.2026: „generell häkchen, die zeigen ob label bzw. marker angezeigt werden soll
+// oder nicht". Zwei getrennte Häkchen, weil es zwei Bänder sind.
+assert.ok(/type="checkbox"[^>]*zb-tab__haken|zb-tab__haken[^>]*type="checkbox"/.test(seite),
+	"die Tafeln tragen Sichtbarkeits-Häkchen");
+assert.ok(/Punkt wird gezeichnet/.test(seite), "das Marker-Häkchen sagt, was es tut");
+assert.ok(/Name wird gezeichnet/.test(seite), "das Namens-Häkchen ebenso");
+// 💣 Ein Klick setzt die ERSCHEINUNGSSTUFE, er kippt nicht eine einzelne Zelle -- sonst entstehen
+// Löcher, und ein Ort, der bei z3 da ist, bei z4 weg und bei z5 wieder da, sieht wie ein Fehler aus.
+assert.ok(/function setZoomBandVisible/.test(seite),
+	"es gibt einen eigenen Handgriff für die Sichtbarkeit, getrennt vom Zahlenfeld");
+
 // ---- 6. Das Fenster lädt die Vorgabetafel, statt sie abzuschreiben ----------------------------
 // 🔴 Die Vorgabewerte stehen an EINER Stelle. Eine zweite Tafel im Fenster wäre genau die
 // Divergenz, die dieser Umbau abbaut.
@@ -1998,38 +2023,53 @@ function resetZoomBandRow(kind, locationType) {
 	$("seZoomBandsMsg").textContent = "Zeile zurückgesetzt — noch nicht gespeichert.";
 }
 
-// 💣 EINE ZELLE LEEREN HEISST „AUSBLENDEN", UND DAS GEHT NUR VOR DER ERSTEN GEFÜLLTEN ZELLE.
-// Ein Loch mittendrin ließe einen Ort bei z3 sichtbar, bei z4 verschwinden und bei z5 wiederkommen
-// (Entwurf §3.1). Der Leser im Browser füllt zwar vorwärts, aber was der Admin eingibt, soll auch
-// das sein, was er sieht -- also lehnt das Feld es hier ab, statt es still zu überschreiben.
+// 🔴 DAS HÄKCHEN IST DIE WAHRHEIT ÜBER DIE SICHTBARKEIT, DIE ZAHL IST NUR DIE GRÖSSE
+// (Owner 16.08.2026). Deshalb zwei getrennte Handgriffe: einer für das Häkchen, einer für die Zahl.
+//
+// ⭐ Die Zahl überlebt das Ausblenden. Gespeichert wird weiterhin `null` (Entwurf §4.4) -- die
+// Erinnerung lebt nur im offenen Fenster, damit es in der Datenbank keine zweite Wahrheit gibt.
+const zoomBandsZahlGemerkt = { marker: {}, label: {} };
+
+function zoomBandMerkeZahl(kind, locationType, z, wert) {
+	const schluessel = `${locationType}|${z}`;
+	if (wert !== null) {
+		zoomBandsZahlGemerkt[kind][schluessel] = wert;
+	}
+	return zoomBandsZahlGemerkt[kind][schluessel]
+		?? AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS[kind][locationType][z]
+		?? AVESMAPS_ZOOM_BAND_LIMITS[kind].min;
+}
+
+// 💣 KEIN LOCH. Ein Ort, der bei z3 da ist, bei z4 weg und bei z5 wieder da, sieht wie ein Fehler
+// aus (Entwurf §3.1). Ein Klick setzt deshalb die ERSCHEINUNGSSTUFE: alles ab hier an, alles davor
+// aus. Damit ist jeder erreichbare Zustand gültig, und die Regel muss niemandem erklärt werden --
+// man sieht sie beim Klicken.
+function setZoomBandVisible(kind, locationType, z, an) {
+	const zeile = zoomBandsEntwurf[kind][locationType];
+	// Abschalten heißt: das Band beginnt eine Stufe später. Das letzte Häkchen abzuschalten
+	// blendet die Klasse ganz aus -- ausdrücklich erlaubt, die Bandgrafik zeigt es sofort.
+	const ab = an ? z : z + 1;
+	for (let i = 0; i <= AVESMAPS_ZOOM_BAND_MAX_ZOOM; i += 1) {
+		zeile[i] = i < ab ? null : zoomBandMerkeZahl(kind, locationType, i, zeile[i]);
+	}
+	renderZoomBands();
+	$("seZoomBandsMsg").textContent = "Geändert — noch nicht gespeichert.";
+}
+
 function setZoomBandCell(kind, locationType, z, rawValue) {
 	const zeile = zoomBandsEntwurf[kind][locationType];
-	const text = String(rawValue).trim().replace(",", ".");
-	if (text === "") {
-		const spaeterGefuellt = zeile.slice(z + 1).some((wert) => wert !== null);
-		if (spaeterGefuellt) {
-			$("seZoomBandsMsg").textContent =
-				"Leeren geht nur von links: eine Klasse, die einmal da ist, bleibt bis z7.";
-			renderZoomBands();
-			return;
-		}
-		zeile[z] = null;
-	} else {
-		const wert = Number(text);
-		const grenzen = AVESMAPS_ZOOM_BAND_LIMITS[kind];
-		if (!Number.isFinite(wert) || wert < grenzen.min || wert > grenzen.max) {
-			$("seZoomBandsMsg").textContent =
-				`Erlaubt sind ${grenzen.min} bis ${grenzen.max}.`;
-			renderZoomBands();
-			return;
-		}
-		// Eine gefüllte Zelle füllt alle leeren rechts von ihr mit -- sonst entsteht genau das Loch.
+	// ⚠️ Eine Zahl in einer Zelle ohne Häkchen wird gemerkt, aber nicht sichtbar gemacht -- sonst
+	// hätte das Tippen einer Größe die Nebenwirkung, die Klasse einzublenden.
+	const wert = Number(String(rawValue).trim().replace(",", "."));
+	const grenzen = AVESMAPS_ZOOM_BAND_LIMITS[kind];
+	if (!Number.isFinite(wert) || wert < grenzen.min || wert > grenzen.max) {
+		$("seZoomBandsMsg").textContent = `Erlaubt sind ${grenzen.min} bis ${grenzen.max}.`;
+		renderZoomBands();
+		return;
+	}
+	zoomBandMerkeZahl(kind, locationType, z, wert);
+	if (zeile[z] !== null) {
 		zeile[z] = wert;
-		for (let i = z + 1; i <= AVESMAPS_ZOOM_BAND_MAX_ZOOM; i += 1) {
-			if (zeile[i] === null) {
-				zeile[i] = wert;
-			}
-		}
 	}
 	renderZoomBands();
 	$("seZoomBandsMsg").textContent = "Geändert — noch nicht gespeichert.";
@@ -2083,13 +2123,24 @@ function zoomBandTableHtml(kind, ueberschrift, einheit) {
 
 	const grenzen = AVESMAPS_ZOOM_BAND_LIMITS[kind];
 	const gesperrt = zoomBandsDarfSpeichern ? "" : " disabled";
+	const hakenTitel = kind === "marker" ? "Punkt wird gezeichnet" : "Name wird gezeichnet";
 	const zeilen = ZOOM_BAND_KLASSEN.map((locationType) => {
 		const zeile = zoomBandsEntwurf[kind][locationType];
-		const felder = zeile.map((wert, z) =>
-			`<td><input type="number" step="0.01" min="${grenzen.min}" max="${grenzen.max}"` +
-			` value="${wert === null ? "" : wert}" data-kind="${kind}" data-type="${locationType}"` +
-			` data-z="${z}" class="zb-tab__feld"${gesperrt}></td>`
-		).join("");
+		// 🔴 Häkchen ÜBER dem Zahlenfeld, eine Zelle: Sichtbarkeit und Größe gehören zusammen und
+		// sollen nicht in zwei Tafeln auseinandergezogen werden.
+		// ⚠️ Die Zahl bleibt sichtbar, wenn das Häkchen fehlt -- ausgegraut, nicht gelöscht.
+		const felder = zeile.map((wert, z) => {
+			const sichtbar = wert !== null;
+			const anzeige = sichtbar ? wert : zoomBandMerkeZahl(kind, locationType, z, null);
+			return `<td class="zb-tab__zelle${sichtbar ? "" : " zb-tab__zelle--aus"}">` +
+				`<input type="checkbox" class="zb-tab__haken" title="${hakenTitel}"` +
+				` aria-label="${ZOOM_BAND_KLASSEN_LABEL[locationType]} z${z}: ${hakenTitel}"` +
+				` data-kind="${kind}" data-type="${locationType}" data-z="${z}"` +
+				`${sichtbar ? " checked" : ""}${gesperrt}>` +
+				`<input type="number" step="0.01" min="${grenzen.min}" max="${grenzen.max}"` +
+				` value="${anzeige}" data-kind="${kind}" data-type="${locationType}"` +
+				` data-z="${z}" class="zb-tab__feld"${gesperrt}></td>`;
+		}).join("");
 		// ⚠️ Der Hinweis hängt an der Dorf-Zeile der Schrifttabelle, nicht in der Doku: genau hier
 		// würde jemand vermuten, dass er die Straßenbeschriftung mitverstellt. Tut er seit dem
 		// 16.08.2026 nicht mehr (Entwurf §6).
@@ -2111,6 +2162,11 @@ function renderZoomBands() {
 		zoomBandTableHtml("label", "Name", "Schriftgröße in pt");
 
 	// ⚠️ Zuhörer nach JEDEM Zeichnen neu setzen -- innerHTML hat die alten Knoten weggeworfen.
+	$("seZoomBandsBody").querySelectorAll(".zb-tab__haken").forEach((haken) => {
+		haken.addEventListener("change", () => {
+			setZoomBandVisible(haken.dataset.kind, haken.dataset.type, Number(haken.dataset.z), haken.checked);
+		});
+	});
 	$("seZoomBandsBody").querySelectorAll(".zb-tab__feld").forEach((feld) => {
 		feld.addEventListener("change", () => {
 			setZoomBandCell(feld.dataset.kind, feld.dataset.type, Number(feld.dataset.z), feld.value);

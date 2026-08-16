@@ -301,6 +301,25 @@ verstellten Bändern der falschen Klasse aus.
 `getLocationMarkerSize`/`getLocationMarkerCoreRadius` — er erbt die Einstellung von selbst, solange
 niemand dort eine zweite Rechnung einbaut. (Er hängt an `?canvasmarkers=1` und ist im Frontend aus.)
 
+💣 **Und eine VIERTE Kopplung, die dieser Entwurf zuerst übersehen hat** (gefunden 16.08.2026 beim
+Bau, vom „grep vor dem Löschen"-Gate): **die Erscheinungsstufe der Wegenamen hängt ebenfalls an der
+Dorf-Zeile.** Drei Stellen lesen `LOCATION_NAME_LABEL_CONFIG.dorf.minZoom` als Schwelle, ab der
+Wege- und Flussnamen gezeichnet werden — `map-features-path-labels.js:34`,
+`map-features-way-labels.js:367` und `spotlight-search-focus.js:276` (`getSpotlightPathZoom`, eine
+**zweite** Funktion in einer Datei, von der §6 nur `:106` kannte). Der Kommentar in path-labels.js
+sagt es wörtlich: „Fluss-Labels werden wie Straßen-Labels erst ab dorf.minZoom (Zoom 4) gezeigt."
+
+🔴 **Dieselbe Auflösung wie oben:** eigene Konstante `PATH_LABEL_MIN_ZOOM` in
+`map-features-path-labels.js`, gleicher Wert, am Auslieferungstag keine Änderung. Ohne sie
+verschöbe ein Admin, der die Dorf-Erscheinungsstufe verstellt, still jede Straßenbeschriftung der
+Karte mit. ⚠️ Umkehrbar in einer Zeile, falls die Kopplung je gewollt ist.
+
+🪤 **Warum der Entwurf sie übersah, und was daraus folgt:** das Inventar-Grep lautete
+`LOCATION_NAME_LABEL_CONFIG\[` — **mit Klammer**. Alle drei greifen per `.dorf.minZoom` in
+Punktschreibweise zu. **Ein Suchmuster, das eine Zugriffssyntax voraussetzt, findet die andere
+nie.** Wer etwas „restlos entfernen" will, sucht den blanken Bezeichner, nie den Bezeichner samt
+Zugriff.
+
 ## 7. Das Fenster
 
 Überlagerung in `html/wiki-sync-settlement-editor.html`, Bauform wie das Tempowerte-Fenster in
@@ -311,8 +330,26 @@ der Marker erscheint, und wechselt dort in einen helleren Abschnitt, wo der Name
 Zoombänder im Wortsinn. Im Balken der **echte** Punkt (Durchmesser der Zelle) und ein Musterwort
 im **echten** Schriftgrad, damit man sieht, was man einstellt.
 
-**Darunter die zwei Tabellen** aus §3, je Zelle ein Zahlenfeld; leeren = unsichtbar (nur vor der
-ersten gefüllten Zelle möglich, §3.1).
+**Darunter die zwei Tabellen** aus §3 — je Zelle **ein Häkchen und ein Zahlenfeld**.
+
+🔴 **Das Häkchen ist die Wahrheit über die Sichtbarkeit, die Zahl ist nur die Größe** (Owner
+16.08.2026: „generell häkchen, die zeigen ob label bzw. marker angezeigt werden soll oder nicht").
+In der Marker-Tafel heißt es „Punkt wird gezeichnet", in der Namens-Tafel „Name wird gezeichnet" —
+zwei Tafeln, zwei getrennte Häkchen, weil es zwei Bänder sind.
+
+⭐ **Die Zahl bleibt stehen, wenn das Häkchen fällt** — ausgegraut, nicht gelöscht. Wer kurz
+ausblendet, verliert seine eingestellte Größe nicht. Das ist der Gewinn gegenüber dem ersten
+Entwurf, in dem „ausblenden" hieß: die Zelle leeren. Die Erinnerung an die Zahl lebt **nur im
+offenen Fenster**; gespeichert wird weiterhin `null` (§4.4), es gibt keine zweite Wahrheit in der
+Datenbank.
+
+⚠️ **An der gespeicherten Form ändert das nichts.** „Kein Häkchen" ist dasselbe `null` wie vorher
+„leere Zelle" — Server, Zusammenführung und Zeichner bleiben unberührt. Es ist eine Sache der
+Bedienoberfläche.
+
+💣 Die Regel „kein Loch" (§3.1) gilt unverändert und wird durch die Häkchen erst **sichtbar**: die
+Häkchen einer Zeile bilden immer einen ununterbrochenen Block, der rechts an z7 anstößt. Das Fenster
+lässt keinen anderen Zustand zu.
 
 **Eine Änderung zeichnet die Grafik sofort neu; gespeichert ist erst, was der Knopf speichert.**
 Eine Speicherleiste (ein gefüllter Knopf, die Meldung links daneben), Rücksetzer je Klasse und
