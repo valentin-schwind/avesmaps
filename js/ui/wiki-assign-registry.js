@@ -442,10 +442,104 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			keinArtikelHaken: false,
 		},
 	},
-	// Die uebrigen zwei kommen in den Aufgaben 8-9 dazu, jede mit IHRER Aufgabe -- nicht auf Vorrat:
-	//   literatur    (A8)  Felder aus A8 Schritt 1
+	literatur: {
+		label: "Wiki-Literatur",
+		// 🔴 DIE SUCHE GAB ES NICHT -- sie ist mit dieser Aufgabe entstanden (16.08.2026). Am
+		// Livecode nachgemessen: `wiki_adventure_catalog` wurde an genau sieben Stellen gelesen, JEDE
+		// ueber einen exakten `wiki_key` oder einen Cursor (api/_internal/wiki/game-literature-sync.php
+		// :652, :909, :967, :1033, :1105, game-literature-plan-apply.php:63,
+		// api/edit/map/game-literature-cover.php:69) -- kein `LIKE`, kein `q`, kein `action=search`.
+		// Die Literatur war damit die einzige Objektart, deren Wiki-Adresse man TIPPEN musste.
+		// ⚠️ EIGENE DATEI, nicht ein Arm von api/edit/map/game-literature.php: jene ist POST-only (ihr
+		// `match` liest `$payload['action']`), das Bauteil holt seine Treffer per GET.
+		suche: { art: "server", url: "/api/edit/wiki/game-literature.php" },
+		// KEIN Objektart-Vorsatz: die Trefferzeile beginnt mit der Wiki-Art („Abenteuer", „Kampagne",
+		// „Regionalband") -- das sagt genauer, was der Treffer ist, als das Wort „Literatur".
+		// ⚠️ `art` ist der ROHE Infoboxtext und kommt aus dem PUBLIKATIONS-Katalog, `product_type` der
+		// daraus gefaltete Schluessel aus dem Literatur-Katalog. Der Endpunkt verbindet beide.
+		treffer: ["art", "edition", "series"],
+		// 💣 ZWEI ZEILEN FUER DIE ART, UND DAS IST ABSICHT -- dieselbe Trennung wie `art`/`wegtyp` beim
+		// Weg, `art`/`ortsgroesse` beim Ort und `art`/`landschaftsart` bei der Landschaft. `art` ist der
+		// freie Wikitext („Gruppenabenteuer", „Kampagne", auch „Abenteuer"), `product_type` der daraus
+		// gefaltete Schluessel („gruppenabenteuer", PRODUCT_TYPE_GROUPS). Nur der Schluessel darf nach
+		// `adventure.product_type`.
+		// ⭐ UND HIER FAELLT DIE ABBILDUNG WEG, wo sie bei den drei anderen im Datenweg steht: der
+		// Dump-Lauf hat sie SCHON GEMACHT (avesmapsWikiNormalizeGameLiteratureProductType, beim
+		// Schreiben in `wiki_adventure_catalog.product_type`). Beide Seiten des Vergleichs sind damit
+		// derselbe Schluesselvorrat -- eine zweite Abbildung im Browser waere die dritte Wahrheit.
+		//
+		// 🔴 EINE Zeile fuer `title` MIT Kartenziel, obwohl der Kasten den Artikelnamen ohnehin schon
+		// als „Artikel" zeigt. Ohne sie koennte die Sync-Vorschau den Titel nie anbieten -- und der
+		// Massenabgleich tut es sehr wohl (`title` steht in AVESMAPS_GAME_LITERATURE_WIKI_FIELDS,
+		// game-literature-sync.php:35). Dieselbe Doppelung tragen Ort, Landschaft und Territorium.
+		// 🔴 KEIN Kartenziel fuer `publisher` und `cover_file`: `adventure` hat keine Verlagsspalte
+		// (die DDL steht in api/_internal/app/game-literature.php:25-52), und `cover_file` ist ein
+		// Wiki-DATEINAME, keine Adresse -- das Bild holt der Sync selbst und legt es unter `cover_url`
+		// ab (game-literature-sync.php:707-722). Eine Sync-Zeile koennte dort nur einen Dateinamen in
+		// ein Adressfeld schreiben. Beide bleiben Anzeige.
+		// 🔴 KEIN Kartenziel fuer `bf_year`/`bf_label`: die `{{Infobox Produkt}}` fuehrt kein
+		// BF-Jahr (ausdruecklich vermerkt in game-literature-sync.php:34) -- es gibt schlicht nichts zu
+		// uebernehmen. `is_official` fehlt aus dem umgekehrten Grund: der Katalog schreibt dort hart 1
+		// (:425), das ist eine Konstante und keine Auskunft des Artikels.
+		// ⚠️ `isbn` HAT beides -- Quelle (wiki_publication_catalog.isbn, publication-sync.php:36) und
+		// Ziel (`adventure.isbn`, nachgezogene Spalte :107-111, Formularfeld
+		// html/game-literature-editor.html:966, weisse Liste :928). Der MASSENabgleich uebertraegt sie
+		// trotzdem nicht (sie fehlt in AVESMAPS_GAME_LITERATURE_WIKI_FIELDS). Das ist kein Widerspruch,
+		// den es aufzuloesen gaelte: die Vorschau ZEIGT, was sie tut, und der Editor entscheidet je
+		// Zeile -- genau dafuer gibt es sie.
+		felder: [
+			{ wiki: "title", karte: "title", label: "Titel" },
+			{ wiki: "art", karte: "", label: "Art" },
+			{ wiki: "product_type", karte: "product_type", label: "Produkttyp" },
+			{ wiki: "edition", karte: "edition", label: "Regelsystem" },
+			{ wiki: "series", karte: "series", label: "Serie / Reihe" },
+			{ wiki: "authors", karte: "authors", label: "Autoren" },
+			{ wiki: "genre", karte: "genre", label: "Genre" },
+			{ wiki: "complexity_gm", karte: "complexity_gm", label: "Komplexität (SL)" },
+			{ wiki: "complexity_pl", karte: "complexity_pl", label: "Komplexität (Spieler)" },
+			{ wiki: "fshop_code", karte: "fshop_code", label: "F-Shop-Code" },
+			{ wiki: "isbn", karte: "isbn", label: "ISBN" },
+			{ wiki: "publisher", karte: "", label: "Verlag" },
+			{ wiki: "cover_file", karte: "", label: "Cover-Datei" },
+		],
+		sync: true, // zehn Kartenziele -- also ein Knopf
+		extra: {
+			// 🔴 Der Rat des Leerzustands, objektart-eigen wie beim Ort und aus demselben Grund: die
+			// Quelle ist ein STAGING-Katalog, kein Wiki-Abruf. Wer dort nichts findet, muss den
+			// Literatur-Abgleich laufen lassen (Knopf „Syncen" im Menueband dieses Fensters), nicht
+			// anders suchen.
+			keineTrefferHinweis: "Ggf. erst „Syncen“ laufen lassen.",
+			// 🪤 KEIN dritter Zustand -- gemessen, nicht vergessen (Aufgabe 8, 16.08.2026). Das ist der
+			// zweite Fall nach dem Territorium, und die Gruende sind andere:
+			//   1. `adventure` hat KEINE Eigenschaftsspalte. Die DDL (api/_internal/app/game-literature.php
+			//      :25-52) fuehrt als einzige JSON-Spalte `field_origins_json`, und die traegt die
+			//      Feldherkunft -- ein Merker darin kollidierte mit der Override-Regel, die sie liest
+			//      (avesmapsGameLiteratureFieldPlan, game-literature-sync.php:65). Ort, Weg und
+			//      Landschaft hatten alle drei ein `properties_json`; deshalb kostete es dort keine
+			//      Schemaaenderung.
+			//   2. Er waere in der KONFLIKTLISTE wirkungslos -- also genau dort, wofuer ihn die drei
+			//      anderen Hinweise versprechen. avesmapsConflictLoadGameLiteratureRows
+			//      (api/_internal/conflicts/rules.php:198) verlangt
+			//      `status='approved' AND wiki_url IS NOT NULL AND wiki_url <> ''` (:201-202); ein
+			//      Eintrag OHNE Zuweisung erreicht die Liste nie. Und die Watchlist-Regel
+			//      avesmapsConflictRuleMissingKey laeuft ohnehin nur ueber die Kartenzeilen (:520) --
+			//      Literatur reicht nur in die Kollisionsregel hinein (:519).
+			//   3. Die EINE Stelle, an der er beissen WUERDE, ist eine andere als bei allen Vorbildern:
+			//      avesmapsGameLiteratureFindOrAdoptRow (game-literature-sync.php:581-584) adoptiert
+			//      eine manuelle Zeile OHNE `wiki_key` ueber ihren exakten TITEL und setzt Schluessel
+			//      und Herkunft. Eine bewusst geloeste Zuweisung kaeme beim naechsten Abgleich also von
+			//      selbst zurueck -- die Fehlerklasse aus Discord #38, nur an anderer Stelle. Sie
+			//      abzufangen braeuchte einen eigenen Riegel IN der Adoption, und das ist ein zweiter
+			//      Mechanismus, kein Spiegeln der vorhandenen Bauform.
+			// 🔧 Der ehrliche Weg waere eine Spalte an `adventure`, ein Schreibweg in
+			// `upsert_adventure`, der Riegel in der Adoption und zwei Zeilen in der Konfliktregel --
+			// eine Owner-Entscheidung, kein Nachtrag. Hier nichts erfinden.
+			keinArtikelHaken: false,
+		},
+	},
+	// Die letzte kommt in Aufgabe 9 dazu, mit IHRER Aufgabe -- nicht auf Vorrat:
 	//   karte        (A9)  eigener Artikel -- NICHT wiki_key, NICHT wiki_url
-	// Die genauen Kartenfeld-Namen stehen in Schritt 1 der jeweiligen Aufgabe. Hier nichts raten.
+	// Die genauen Kartenfeld-Namen stehen in Schritt 1 der Aufgabe. Hier nichts raten.
 };
 
 /**

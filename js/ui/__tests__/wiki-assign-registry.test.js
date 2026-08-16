@@ -214,6 +214,46 @@ const WIRKLICHKEIT = {
 		// Text in ein Zahlenfeld anbieten. Genau die Falle, gegen die es `wegtyp` und `ortsgroesse` gibt.
 		karte: ["name", "type", "eltern", "coat_of_arms_url"],
 	},
+	literatur: {
+		// 🔴 WIE BEIM TERRITORIUM IST DIE „WIRKLICHKEIT" HIER DIE ANTWORT DES SUCHENDPUNKTS, nicht der
+		// Parser -- und zwar eines Endpunkts, den es vor dem 16.08.2026 gar nicht gab (Aufgabe 8).
+		// Massgeblich ist deshalb, was avesmapsWikiGameLiteratureSearchSelect
+		// (api/_internal/wiki/game-literature-sync.php) wirklich auswaehlt; alles andere erreicht den
+		// Browser nie. Zwoelf Anzeigefelder, aus ZWEI Staging-Tabellen:
+		//   · aus `wiki_adventure_catalog` (game-literature-sync.php:288-301): product_type, edition,
+		//     genre, complexity_gm, complexity_pl, authors, series, fshop_code, cover_file
+		//   · aus `wiki_publication_catalog` (publication-sync.php:34, :36, :37): art, isbn, publisher
+		//     -- 💣 die drei stehen NICHT im Literatur-Katalog, dafuer gibt es den JOIN.
+		//
+		// NICHT dabei, nach derselben Grenze wie oben:
+		//   · `wiki_key` / `title` / `wiki_url` -- Identitaet. 🔴 `title` steht trotzdem als Feldzeile
+		//     im Register, weil es ein KARTENZIEL hat (und der Massenabgleich es ebenfalls schreibt);
+		//     Pruefung 2 fragt nur in die andere Richtung, diese Liste bleibt davon unberuehrt.
+		//     Dieselbe Lage wie `lage` beim Ort und `continent` bei der Landschaft.
+		//   · `is_official` -- der Dump schreibt dort hart 1 (game-literature-sync.php:425). Eine
+		//     Konstante ist keine Auskunft des Artikels; eine Feldzeile dafuer koennte nur „1" zeigen.
+		//   · `belegt_public_id` / `belegt_titel` -- 💣 KEINE Angabe des Artikels, sondern der Zustand
+		//     UNSERER Tabelle („dieser Artikel haengt schon an Eintrag X"). Sie tragen die Warnung IM
+		//     Treffer (`haengtAn`), nicht eine Feldzeile; eine Erklaerung dafuer im Register wuerde
+		//     behaupten, das Wiki sage etwas ueber unsere Zuordnung.
+		//   · `synced_at`, `source_type`, `chosen_url`, `has_link` -- Betriebs- und Shop-Angaben; die
+		//     Shop-Haelfte gehoert dem Quellen-System, nicht der Zuweisung.
+		wiki: ["product_type", "edition", "genre", "complexity_gm", "complexity_pl", "authors",
+			"series", "fshop_code", "cover_file", "art", "isbn", "publisher"],
+		// Die ZEHN bearbeitbaren Kartenfelder, gemessen an DREI Stellen, die sich decken muessen:
+		// der weissen Liste des Schreibwegs (`$editableFields`, avesmapsUpsertGameLiterature,
+		// api/_internal/app/game-literature.php:925-930), den Formularfeldern des Editors
+		// (html/game-literature-editor.html:911-928 und :964-967, eingesammelt von `gatherStamm`
+		// :1095-1102) und der DDL (:25-52 + die nachgezogenen Spalten :107-111).
+		// 🔴 `wiki_url` und `wiki_key` stehen NICHT hier: sie SIND die Zuweisung, kein Sync-Ziel --
+		// dieselbe Trennung wie bei Ort, Landschaft und Territorium.
+		// 🔴 `bf_year`, `bf_label`, `is_official`, `cover_url`, `link_ulisses`, `link_fshop` und
+		// `contained_in` sind bearbeitbar, aber das Wiki sagt zu keinem etwas, was hier ankaeme --
+		// das BF-Jahr fuehrt die Infobox gar nicht (game-literature-sync.php:34), und `cover_url`
+		// entsteht aus dem Bildabruf, nicht aus einer Katalogspalte (:707-722).
+		karte: ["title", "product_type", "edition", "genre", "complexity_gm", "complexity_pl",
+			"authors", "series", "fshop_code", "isbn"],
+	},
 };
 
 // 6) DIE ZEILE, DIE BEISST: das AUSGELIEFERTE Register gegen die gemessene Wirklichkeit -- anders
