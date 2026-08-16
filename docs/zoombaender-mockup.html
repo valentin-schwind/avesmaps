@@ -306,6 +306,11 @@ svg.zb-plot {
 .zb-repel-demo-note { margin: var(--space-6) 0 0; font-size: var(--font-size-caption);
 	color: var(--color-text-muted); max-width: 62rem; }
 
+/* Versatz: KEINE eigene Anschauung (Owner-Entscheid) -- ein Satz nennt die echte Zwölfer-Kette
+   statt sie nachzubauen. Selbe Zeilenform wie die Repel-Fußnote. */
+.zb-shift-note { margin: var(--space-6) 0 0; font-size: var(--font-size-caption);
+	color: var(--color-text-muted); max-width: 62rem; }
+
 /* ---- 4/5 · Speicherleiste, Admin und Nur-Lesen ------------------------------------------------- */
 .zb__foot {
 	display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap;
@@ -452,8 +457,10 @@ svg.zb-plot {
           <span class="zb__src">global — ein Wert für alle Ortsklassen und Zoomstufen</span>
         </div>
         <p class="zb-spacing-lead">
-          Kein Plot, weil beide Werte NICHT je Zoomstufe gelten (Owner-Entscheid). Der Spalt bewegt
-          live die Vorschau weiter oben; der Repel hat seine eigene Anschauung unten.
+          Kein Plot, weil diese Werte NICHT je Zoomstufe gelten (Owner-Entscheid) — drei globale
+          Regler statt drei Kurven. Der Spalt bewegt live die Vorschau weiter oben; der Repel hat
+          seine eigene Anschauung darunter; der Versatz wirkt in der echten Ausweichkette der
+          Kollisionsauflösung (Reihenfolge unten genannt, keine eigene Anschauung — siehe Bericht).
         </p>
 
         <div class="zb-slider-row">
@@ -500,6 +507,27 @@ svg.zb-plot {
           verlangt — berühren sich zwei Rahmen, weicht das rechte Label aus. Vereinfacht auf eine
           Achse und ein Paar; die echte Auflösung prüft zwölf Ausweichstellen und Prioritäten.
         </p>
+
+        <div class="zb-slider-row">
+          <div class="zb-slider-row__head">
+            <span class="zb-slider-row__name">Versatz</span>
+            <span class="zb-slider-row__desc">Wie weit der kleine Ausweichschritt nach oben bzw.
+              unten geht, wenn die Kollisionsauflösung eine freie Stelle für ein Label sucht.</span>
+          </div>
+          <div class="zb-slider-row__control">
+            <input type="range" class="zb-range" id="zbShiftRange" min="0" max="20" step="0.5" value="8" aria-label="Versatz in px">
+            <input type="number" class="zb-num-input" id="zbShiftInput" min="0" max="20" step="0.5" value="8">
+            <span class="zb-selected__unit">px</span>
+            <button type="button" class="zb-row-reset" id="zbShiftReset" title="Versatz auf Vorgabe (8 px) zurücksetzen">↺</button>
+          </div>
+        </div>
+        <p class="zb-shift-note">
+          Zwölf Stellen, in dieser Reihenfolge gesucht — rechts · rechts-oben · rechts-unten ·
+          oben-rechts · unten-rechts · links · links-oben · links-unten · oben-links · unten-links ·
+          oben · unten; Versatz bestimmt den Schritt an allen außer den ersten beiden (den
+          ungestörten Grundrichtungen rechts/links). Findet sich keine freie Stelle, wird das Label
+          ausgeblendet (bei Siedlungen; Flächen-Labels nie).
+        </p>
       </div>
 
       <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
@@ -534,11 +562,12 @@ svg.zb-plot {
   geerbt) — die Vorschau steht jetzt zwischen den beiden Plots, damit Plot und Vorschau ohne
   Umweg zusammen im Blick sind. Wie sich das untere Ende beim Marker jetzt anfühlt (Dorf/Bauwerk
   bei 1,33 px) und ob „Plot + Vorschau ohne Scrollen zusammen sichtbar" jetzt gilt: siehe Bericht.
-  Neu: der Abschnitt <strong>„Abstände"</strong> unter dem Label-Plot — zwei GLOBALE Regler (Spalt,
-  Repel; keine Werte je Zoomstufe), 0–20 px in 0,5-px-Schritten. Zieh am Spalt-Regler: das Wort
-  in der Vorschau oben rückt live vom Punkt weg und wieder heran. Zieh am Repel-Regler: die kleine
-  Anschauung darunter zeigt, wie der geforderte Rand um zwei Label-Rahmen wächst, bis sie einander
-  ausweichen müssen.
+  Neu: der Abschnitt <strong>„Abstände"</strong> unter dem Label-Plot — drei GLOBALE Regler (Spalt,
+  Repel, Versatz; keine Werte je Zoomstufe), 0–20 px in 0,5-px-Schritten. Zieh am Spalt-Regler: das
+  Wort in der Vorschau oben rückt live vom Punkt weg und wieder heran. Zieh am Repel-Regler: die
+  kleine Anschauung darunter zeigt, wie der geforderte Rand um zwei Label-Rahmen wächst, bis sie
+  einander ausweichen müssen. Der Versatz-Regler bekommt bewusst KEINE eigene Anschauung (Owner-
+  Entscheid) — stattdessen einen Satz, der die echte Zwölfer-Kette der Kollisionsauflösung nennt.
 </div>
 
 <script>
@@ -672,17 +701,17 @@ svg.zb-plot {
 		return rows;
 	}
 
-	/* 🔴 Abstände: GLOBAL, kein Wert je Zoomstufe (Owner-Entscheid 16.08.2026) -- deshalb zwei
-	   einzelne Zahlen im gemeinsamen Zustand statt einer neunten/zehnten Kurve. Vorgaben = die
-	   ECHTEN Werte aus dem Code, nicht erfunden: LOCATION_NAME_LABEL_GAP = 4
-	   (js/map-features/map-features-location-name-labels.js), LOCATION_LABEL_COLLISION_PADDING = 2
-	   (js/map-features/map-features.js). */
-	var SPACING_DEFAULTS = { gap: 4, repel: 2 };
+	/* 🔴 Abstände: GLOBAL, kein Wert je Zoomstufe (Owner-Entscheid 16.08.2026) -- deshalb einzelne
+	   Zahlen im gemeinsamen Zustand statt einer neunten/zehnten Kurve. Vorgaben = die ECHTEN Werte
+	   aus dem Code, nicht erfunden: LOCATION_NAME_LABEL_GAP = 4
+	   (js/map-features/map-features-location-name-labels.js), LOCATION_LABEL_COLLISION_PADDING = 2,
+	   LOCATION_LABEL_SHIFT_SMALL = 8 (beide js/map-features/map-features.js). */
+	var SPACING_DEFAULTS = { gap: 4, repel: 2, shift: 8 };
 	var SPACING_LIMITS = { min: 0, max: 20 };
 
 	var state = {
 		marker: buildInitialState("marker"), label: buildInitialState("label"),
-		gap: SPACING_DEFAULTS.gap, repel: SPACING_DEFAULTS.repel
+		gap: SPACING_DEFAULTS.gap, repel: SPACING_DEFAULTS.repel, shift: SPACING_DEFAULTS.shift
 	};
 	var selected = { marker: null, label: null }; // { cls, z } | null
 
@@ -708,7 +737,7 @@ svg.zb-plot {
 			CLASSES.forEach(function (cls) { if (!isRowDefault(kind, cls)) { curveChanged++; } });
 		});
 		var spacingChanged = 0;
-		["gap", "repel"].forEach(function (key) { if (!isSpacingDefault(key)) { spacingChanged++; } });
+		["gap", "repel", "shift"].forEach(function (key) { if (!isSpacingDefault(key)) { spacingChanged++; } });
 
 		var el = document.getElementById("zbSaveMsg");
 		var parts = [];
@@ -933,8 +962,10 @@ svg.zb-plot {
 		state.label = buildInitialState("label");
 		state.gap = SPACING_DEFAULTS.gap;
 		state.repel = SPACING_DEFAULTS.repel;
+		state.shift = SPACING_DEFAULTS.shift;
 		spacingEls.gap.range.value = state.gap; spacingEls.gap.input.value = state.gap;
 		spacingEls.repel.range.value = state.repel; spacingEls.repel.input.value = state.repel;
+		spacingEls.shift.range.value = state.shift; spacingEls.shift.input.value = state.shift;
 		selected = { marker: null, label: null };
 		renderPlot(PLOTS.marker); renderPlot(PLOTS.label);
 		renderLegend("marker"); renderLegend("label");
@@ -1084,7 +1115,7 @@ svg.zb-plot {
 		});
 	}
 
-	/* ---- Abstände: Spalt & Repel -- GLOBAL, kein Wert je Zoomstufe (Owner-Entscheid) -------------
+	/* ---- Abstände: Spalt, Repel & Versatz -- GLOBAL, kein Wert je Zoomstufe (Owner-Entscheid) -----
 	   Ein Regler, eine Zahl, ein Rücksetzer je Wert -- keine Kurve, kein Plot. */
 	var spacingEls = {
 		gap: {
@@ -1094,27 +1125,35 @@ svg.zb-plot {
 		repel: {
 			range: document.getElementById("zbRepelRange"), input: document.getElementById("zbRepelInput"),
 			resetBtn: document.getElementById("zbRepelReset")
+		},
+		shift: {
+			range: document.getElementById("zbShiftRange"), input: document.getElementById("zbShiftInput"),
+			resetBtn: document.getElementById("zbShiftReset")
 		}
 	};
 
-	/* Der einzige Ort, an dem sich Spalt oder Repel ändern -- Regler UND Zahlenfeld rufen beide
-	   hier durch, genau wie bei den Plot-Punkten oben. */
+	/* Der einzige Ort, an dem sich einer der drei Abstände ändert -- Regler UND Zahlenfeld rufen
+	   beide hier durch, genau wie bei den Plot-Punkten oben. */
 	function setSpacing(key, rawVal) {
 		if (!isFinite(rawVal)) { return; }
 		var val = round2(clamp(rawVal, SPACING_LIMITS.min, SPACING_LIMITS.max));
 		state[key] = val;
 		spacingEls[key].range.value = val;
 		spacingEls[key].input.value = val;
-		/* 🔴 Kern der vierten Owner-Aufgabe: der Spalt bewegt die Vorschau LIVE (updatePreview liest
-		   state.gap für --zb-gap). Beide Werte fließen in die Repel-Anschauung ein (der Spalt setzt
-		   die Ausgangslage der Labels, der Repel den geforderten Rand) -- deshalb hier immer beide
-		   Funktionen rufen, unabhängig davon, welcher der zwei Regler bewegt wurde. */
-		updatePreview();
-		updateRepelDemo();
+		/* 🔴 Kern der vierten/fünften Owner-Aufgabe: der Spalt bewegt die Vorschau LIVE (updatePreview
+		   liest state.gap für --zb-gap), Spalt UND Repel fließen in die Repel-Anschauung ein (der
+		   Spalt setzt die Ausgangslage der Labels, der Repel den geforderten Rand) -- deshalb beide
+		   Funktionen NUR bei diesen beiden Schlüsseln rufen. Versatz hat bewusst KEINE eigene
+		   Anschauung (Owner-Entscheid, siehe Bericht) -- ein Aufruf hier würde nichts bewegen, das
+		   von ihm abhängt, und stünde nur als irreführender Kommentar da. */
+		if (key === "gap" || key === "repel") {
+			updatePreview();
+			updateRepelDemo();
+		}
 		updateSaveMessage();
 	}
 
-	["gap", "repel"].forEach(function (key) {
+	["gap", "repel", "shift"].forEach(function (key) {
 		spacingEls[key].range.addEventListener("input", function () {
 			setSpacing(key, parseFloat(spacingEls[key].range.value));
 		});
