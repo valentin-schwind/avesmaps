@@ -112,14 +112,21 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// serverseitiger Riegel waere hier eine Absage ohne Ausweg. Die Begruendung steht
 			// ausgeschrieben an der Schreibstelle.
 			keinArtikelHaken: true,
-			// ⚠️ Der zweite Halbsatz ist tragend (wie bei Ort und Kraftlinie): der Merker ist NICHT
+			// ⚠️ Der letzte Halbsatz ist tragend (wie bei Ort und Kraftlinie): der Merker ist NICHT
 			// endgueltig -- taucht im Wiki ein Artikel auf, kommt der Fall von selbst zurueck. Ohne ihn
 			// liest er sich als „nie wieder" und die Wiedervorlage wirkt wie ein Fehler.
-			// ⚠️ „diesen Weg", nicht „den Weg": der Merker haengt am gewaehlten Wegstueck. Anders als
-			// `assign_to`, das ALLE gleichnamigen Segmente zugleich erfasst, schreibt
-			// `update_path_details` nur das eine Feature -- und das steht hier, damit niemand die
-			// Reichweite des einen fuer die des anderen haelt.
-			keinArtikelHinweis: "Nimmt diesen Weg aus der Konfliktliste — bis im Wiki einer auftaucht.",
+			// 🪤 UND DER ERSTE HALBSATZ IST EINE KORREKTUR. Hier stand bis zum 16.08.2026 „Nimmt diesen
+			// Weg aus der Konfliktliste", und das war gemessen falsch: der Merker traf nur das
+			// bearbeitete Wegstueck, der Fall blieb im Zentrum als „2 von 3 Segmenten" stehen. Seit
+			// avesmapsApplyPathWikiNoArticleToNameGroup reicht er ueber den ganzen Namensverbund --
+			// dieselbe Weite wie „Zuweisen" im selben Kasten und wie die Reparatur-Verben des
+			// Konfliktzentrums. Der Satz sagt die Reichweite jetzt AUSDRUECKLICH, weil ein Editor sie
+			// dem Haekchen sonst nicht ansieht.
+			// ⚠️ ANDERS ALS BEI „ENTFERNEN" WIRD NICHT NACHGEFRAGT, und das ist kein Versehen: dessen
+			// Reichweite SCHWANKT (ein Segment / der ganze Weg / die wiki_key-Vereinigung), deshalb
+			// misst es sie erst und fragt dann. Die des Haekchens ist immer dieselbe -- eine Rueckfrage
+			// koennte nur wiederholen, was hier schon steht, und stuende bei jedem Klick im Weg.
+			keinArtikelHinweis: "Gilt für alle Abschnitte dieses Wegs und nimmt ihn aus der Konfliktliste — bis im Wiki einer auftaucht.",
 		},
 	},
 	ort: {

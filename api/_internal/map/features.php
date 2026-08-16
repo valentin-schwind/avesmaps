@@ -2368,6 +2368,104 @@ function avesmapsApplyPathWikiNoArticle(array $properties, array $payload): arra
     return $properties;
 }
 
+/**
+ * Traegt den dritten Zustand auf den NAMENSVERBUND des Weges -- alle aktiven Wegstuecke desselben
+ * Namens, nicht nur das bearbeitete. Gibt zurueck, wie viele GESCHWISTER geschrieben wurden.
+ *
+ * 🔴 DIE REICHWEITE IST NICHT NEU ERFUNDEN, SIE IST DIE DES KONFLIKTZENTRUMS
+ * (avesmapsConflictRepairSpansNameGroup, api/_internal/conflicts/repair.php, Owner-Entscheid
+ * 15.08.2026). Fuer GENAU DIESEN Merker steht die Begruendung dort schon wortwoertlich: ein Fall im
+ * Konfliktzentrum ist bei einer segmentierten Art eine LINIE, kein Segment -- am Knopf steht
+ * „6 Segmente". Traefe der Schreibvorgang nur eines davon, bliebe der Fall mit 5 Segmenten stehen.
+ * 💣 Und die zweite Haelfte derselben Begruendung gilt hier unmittelbar: im Zuweisungskasten stehen
+ * das Haekchen und „Zuweisen" NEBENEINANDER, und `assign_to` fasst seit jeher alle gleichnamigen
+ * Segmente (avesmapsWikiPathAssignTo). Zwei Knoepfe am selben Kasten, die verschieden weit reichen,
+ * sind schlimmer als zwei getrennte Fehler.
+ *
+ * 🔴 KEIN ZWEITER MECHANISMUS: gefragt wird die Weiche des Konfliktzentrums, und geschrieben wird
+ * mit demselben reinen Rechner wie die Zielzeile (avesmapsApplyPathWikiNoArticle) -- ein Geschwister
+ * bekommt also auch das Leeren seiner flachen `wiki_url`, sonst traege es den verbotenen Zustand.
+ *
+ * ⚠️ NUR WENN DER RUMPF DEN MERKER MITBRINGT -- und das ist ein KOSTEN-Riegel, kein Richtigkeits-
+ * Riegel: ohne ihn liefe die Verbund-Abfrage bei JEDEM Speichern eines Weges, schriebe aber nichts
+ * (der Rechner unten laesst einen abwesenden Schluessel in Ruhe). Der Unterschied ist eine Abfrage
+ * ueber alle gleichnamigen Segmente je Speichern -- auf STRATO ist das der Grund (AGENTS.md §10).
+ * ⚠️ Genau deshalb zaehlt der Test die Abfragen mit: eine Zusicherung ueber die gespeicherten Werte
+ * kann diesen Riegel nicht sehen (gemessen -- die Mutation lief zuerst gruen durch).
+ * ⚠️ UND NUR, WAS SICH WIRKLICH AENDERT: eine Zeile ohne Unterschied wird uebersprungen. Sonst hebt
+ * ein Speichern ohne Aenderung die Revision jedes Segments und schickt jedem warmen Client die halbe
+ * Karte neu -- dieselbe Regel wie in avesmapsApplyTransportSeasonsToWikiSiblings daneben.
+ *
+ * ⚠️ `require_once` IM RUMPF, nicht im Dateikopf, und das ist Absicht: repair.php zieht core.php und
+ * rules.php nach (zusammen rund 1.400 Zeilen), und features.php haengt an rund zwanzig Endpunkten,
+ * darunter oeffentliche Leser -- im Kopf wuerde jeder davon sie mitparsen (STRATO, AGENTS.md §10).
+ * Dazu laedt repair.php seinerseits features.php: im Kopf waere das ein Zyklus. Hausform:
+ * api/_internal/routing/travel-values.php:481, api/_internal/app/citymaps.php:2109 u. a.
+ */
+function avesmapsApplyPathWikiNoArticleToNameGroup(
+    PDO $pdo,
+    string $name,
+    array $payload,
+    int $ownFeatureId,
+    int $revision,
+    int $userId
+): int {
+    if (!array_key_exists('wiki_no_article', $payload)) {
+        return 0;
+    }
+    require_once __DIR__ . '/../conflicts/repair.php';
+    if (!avesmapsConflictRepairSpansNameGroup('path', $name)) {
+        return 0;
+    }
+
+    // Dieselbe Abfrage wie im Konfliktzentrum (avesmapsConflictUnlinkFeature): gleiche Art, gleicher
+    // Name, aktiv. Die eigene Zeile ist ausgenommen -- der Aufrufer hat sie gerade selbst geschrieben.
+    $select = $pdo->prepare(
+        "SELECT id, public_id, name, properties_json FROM map_features
+          WHERE feature_type = 'path' AND name = :n AND is_active = 1 AND id <> :own"
+    );
+    $select->execute(['n' => $name, 'own' => $ownFeatureId]);
+    $siblings = $select->fetchAll(PDO::FETCH_ASSOC);
+    if ($siblings === []) {
+        return 0;
+    }
+
+    $update = $pdo->prepare(
+        'UPDATE map_features SET properties_json = :properties_json, revision = :revision,
+                updated_by = :updated_by
+          WHERE id = :id'
+    );
+
+    $written = 0;
+    foreach ($siblings as $sibling) {
+        $properties = avesmapsDecodeJsonColumnForEdit($sibling['properties_json'] ?? null);
+        $neu = avesmapsApplyPathWikiNoArticle($properties, $payload);
+        if ($neu == $properties) {
+            continue;
+        }
+
+        $before = avesmapsEncodeAuditJson($sibling);
+        $update->execute([
+            'id' => (int) $sibling['id'],
+            'properties_json' => avesmapsEncodeJson($neu),
+            'revision' => $revision,
+            'updated_by' => $userId,
+        ]);
+        avesmapsWriteMapAuditLog($pdo, (int) $sibling['id'], 'update_path_details', $userId, $before, avesmapsEncodeAuditJson([
+            'public_id' => (string) $sibling['public_id'],
+            'feature_type' => 'path',
+            'name' => (string) $sibling['name'],
+            'wiki_no_article' => !empty($neu['wiki_no_article']),
+            'properties_json' => $neu,
+            'revision' => $revision,
+            'via_name_group' => $name,
+        ]));
+        $written++;
+    }
+
+    return $written;
+}
+
 function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
     $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Wegname');
@@ -2447,6 +2545,15 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         // Die Zeitfenster gehoeren dem WIKI-WEG, nicht dem Segment (siehe Funktionskopf oben).
         avesmapsApplyTransportSeasonsToWikiSiblings(
             $pdo, $properties, $transportSeasons, (int) $feature['id'], $revision, (int) $user['id']
+        );
+        // 🔴 Der Merker „kein Wiki-Artikel" gehoert dem WEG, nicht dem Wegstueck -- dieselbe
+        // Reichweite wie „Zuweisen" im selben Kasten und wie die Reparatur-Verben des
+        // Konfliktzentrums (Owner-Entscheid 15.08.2026, hier nachgezogen am 16.08.2026).
+        // ⚠️ Der NAME ist der WIRKSAME (nach avesmapsWikiPathEffectiveEditName), also genau der,
+        // der eine Zeile drueber in die Zeile geschrieben wurde -- sonst suchte der Verbund unter
+        // einem Namen, den dieses Segment gar nicht mehr traegt.
+        avesmapsApplyPathWikiNoArticleToNameGroup(
+            $pdo, $name, $payload, (int) $feature['id'], $revision, (int) $user['id']
         );
         $pdo->commit();
 

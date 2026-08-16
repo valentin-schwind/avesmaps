@@ -216,9 +216,16 @@ foreach ($bauer as $wo => $stelle) {
 // hat es die Konsistenz-Pruefung, nicht dieser Test. Genau die Falle aus AGENTS.md §11: eine ZAHL
 // liest sich wie eine vollstaendige Liste, und niemand zaehlt nach.
 //
-// ⭐ DESHALB ZAEHLT DIE PROBE SELBST. Gesucht wird JEDE Funktion im Haus, die `['wiki_path'] = `
-// schreibt; jede muss den Merker loeschen. Ein VIERTER Zuweiser faellt damit von selbst durch,
-// ohne dass jemand eine Liste nachzieht -- neue Stellen scheitern GESCHLOSSEN.
+// ⭐ DESHALB ZAEHLT DIE PROBE SELBST. Gesucht wird JEDE Funktion im api/-Baum, die `['wiki_path']`
+// zuweist; jede muss den Merker loeschen. Ein VIERTER Zuweiser faellt damit von selbst durch, ohne
+// dass jemand eine Liste nachzieht -- neue Stellen scheitern GESCHLOSSEN.
+// 🪤 UND ZWEI BLINDSTELLEN DIESER PROBE SIND GEMESSEN WORDEN, BEIDE VON DER PRUEFUNG:
+//   1. Sie lief ueber eine feste DATEILISTE (`['wiki/paths.php','wiki/path-verlauf.php']`), waehrend
+//      der Kommentar „jede Funktion im Haus" versprach. Ein Zuweiser in api/edit/wiki/paths.php waere
+//      gruen durchgelaufen -- die falsche ZAHL war durch eine Liste ersetzt, die sich genauso
+//      vollstaendig liest. Jetzt laeuft sie ueber den ganzen api/-Baum.
+//   2. Sie suchte `"['wiki_path'] = "` MIT Leerzeichen; `$props['wiki_path']=$p;` lief gruen durch.
+//      Jetzt `\['wiki_path'\]\s*=` (und kein `==`).
 // ⚠️ Ausnahmen sind einzeln benannt und begruendet, nicht pauschal: die zwei Stellen in
 // path-verlauf.php sind keine Zuweiser, sondern NACHSTEMPLER -- sie lesen ein VORHANDENES
 // `$props['wiki_path']`, aendern `source`/`course_hash`/`course_hops` darin und steigen aus, wenn
@@ -230,30 +237,54 @@ const AVESMAPS_WEG_TEST_KEINE_ZUWEISER = [
     'avesmapsWikiPathVerlaufBackfillDecision' => 'Nachstempler: liest ein VORHANDENES wiki_path und setzt nur source/course_hash darin',
     'avesmapsWikiPathVerlaufRestampKeeps' => 'Nachstempler: setzt nur course_hash/course_hops eines VORHANDENEN wiki_path und steigt sonst aus',
 ];
+
+/** Alle .php-Dateien unter einem Verzeichnis, ohne die Testverzeichnisse. */
+function avesmapsWegTestPhpDateien(string $wurzel): array {
+    $gefunden = [];
+    $lauf = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($wurzel, FilesystemIterator::SKIP_DOTS));
+    foreach ($lauf as $datei) {
+        $pfad = str_replace('\\', '/', (string) $datei);
+        if (str_ends_with($pfad, '.php') && !str_contains($pfad, '/__tests__/')) {
+            $gefunden[] = $pfad;
+        }
+    }
+    sort($gefunden);
+
+    return $gefunden;
+}
+
+$apiWurzel = dirname(__DIR__, 3);
+$phpDateien = avesmapsWegTestPhpDateien($apiWurzel);
+assert(count($phpDateien) > 50, 'der api/-Baum liefert kaum Dateien -- der Lauf greift nicht: ' . count($phpDateien));
+
 $zuweiserGefunden = [];
-foreach (['wiki/paths.php', 'wiki/path-verlauf.php'] as $relativ) {
-    $inhaltZuweiser = file_get_contents(__DIR__ . '/../../' . $relativ);
-    assert(is_string($inhaltZuweiser), "die Datei $relativ ist nicht lesbar");
-    assert(
-        preg_match_all('/^function (\w+)\(.*?\n\}/ms', $inhaltZuweiser, $funktionen, PREG_SET_ORDER) > 0,
-        "in $relativ laesst sich keine einzige Funktion isolieren -- die Probe waere blind"
-    );
+foreach ($phpDateien as $datei) {
+    $inhaltZuweiser = file_get_contents($datei);
+    if (!is_string($inhaltZuweiser) || !str_contains($inhaltZuweiser, "['wiki_path']")) {
+        continue;
+    }
+    $kurz = ltrim(str_replace($apiWurzel, '', $datei), '/');
+    preg_match_all('/^function (\w+)\(.*?\n\}/ms', $inhaltZuweiser, $funktionen, PREG_SET_ORDER);
     foreach ($funktionen as [$rumpfText, $name]) {
-        if (!str_contains($rumpfText, "['wiki_path'] = ")) {
+        // 🪤 ERST DIE KOMMENTARE WEG, DANN ERKENNEN. Sonst gilt eine Funktion als Zuweiser, weil sie
+        // das Muster in einem Kommentar ERWAEHNT -- genau die Fehlerform, die in 5b zweimal
+        // zugeschlagen hat (Nachbesserung 1 und 3).
+        $code = avesmapsWegTestRumpfOhneKommentare($rumpfText);
+        if (preg_match("/\\['wiki_path'\\]\s*=[^=]/", $code) !== 1) {
             continue;
         }
         $zuweiserGefunden[] = $name;
         if (array_key_exists($name, AVESMAPS_WEG_TEST_KEINE_ZUWEISER)) {
             assert(
-                !str_contains($rumpfText, 'wiki_no_article'),
+                !str_contains($code, 'wiki_no_article'),
                 "\"$name\" fasst den Merker an, ist aber als Ausnahme gefuehrt ("
                 . AVESMAPS_WEG_TEST_KEINE_ZUWEISER[$name] . ')'
             );
             continue;
         }
         assert(
-            str_contains($rumpfText, "unset(\$props['wiki_no_article'])"),
-            "der Zuweiser \"$name\" ($relativ) laesst den Merker stehen -- der Weg behauptete danach, "
+            preg_match("/unset\(\\\$\w+\['wiki_no_article'\]\)/", $code) === 1,
+            "der Zuweiser \"$name\" ($kurz) laesst den Merker stehen -- der Weg behauptete danach, "
             . 'einen Artikel zu haben UND keinen, und fiele ueber conflicts/rules.php still aus der '
             . 'Beobachtungsliste. Ist er in Wahrheit ein Nachstempler, gehoert er mit Begruendung in '
             . 'AVESMAPS_WEG_TEST_KEINE_ZUWEISER.'
@@ -263,9 +294,9 @@ foreach (['wiki/paths.php', 'wiki/path-verlauf.php'] as $relativ) {
 // 💣 Die Gegenprobe, dass die Suche ueberhaupt etwas findet: ein kaputtes Muster faende NULL
 // Funktionen und liesse die Schleife oben lautlos durchlaufen.
 assert(
-    count($zuweiserGefunden) >= 3,
-    'die Suche nach Zuweisern findet weniger als die drei bekannten -- das Muster greift nicht mehr: '
-    . implode(', ', $zuweiserGefunden)
+    count($zuweiserGefunden) >= 5,
+    'die Suche nach Zuweisern findet weniger als die fuenf bekannten (drei Zuweiser + zwei '
+    . 'Nachstempler) -- das Muster greift nicht mehr: ' . implode(', ', $zuweiserGefunden)
 );
 
 $wegNest = file_get_contents(__DIR__ . '/../../wiki/paths.php');
