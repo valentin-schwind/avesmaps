@@ -108,7 +108,7 @@ im Bearbeiten-Modus ist eine abgeleitete Hülle interaktiv, wenn sie keine Quell
 
 ```js
 interactive: IS_EDIT_MODE
-    ? (!regionEntry.isDerivedGeometry || regionEntry.derivedHasNoSources)
+    ? (!regionEntry.isDerivedGeometry || regionEntry.derivedIsSourceless)
     : (…unverändert…)
 ```
 
@@ -117,7 +117,7 @@ interactive: IS_EDIT_MODE
 ([`territories-derived-layer.php:63`](../../../api/_internal/political/territories-derived-layer.php)),
 beide mit `is_active = 1` auf Geometrie und Territorium. Gemessen bei Zoom 4: 133 Hüllen, davon eine
 mit leerer Liste; Winhall 8, Kosch 32, Támenev 1, Câbas 1. Die Feature-Normalisierung muss das Feld
-nach `regionEntry.derivedHasNoSources` durchreichen.
+nach `regionEntry.derivedIsSourceless` durchreichen.
 
 💣 **Dieses Signal MUSS vom Server kommen und darf nicht im Browser gezählt werden.** „Im Layer liegt
 nur die Hülle" trifft bei Zoom 4 auf **114** Gebiete zu, und **111 davon sind kerngesund** — ihre
