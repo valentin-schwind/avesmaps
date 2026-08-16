@@ -1613,7 +1613,10 @@ async function deleteGeom(id, territoryPublicId, kind){
 async function purgeAllGeoms(){
   if(!window.confirm(`ALLE ${unassignedGeomCount} verwaisten Geometrien ENDGÜLTIG löschen? Das kann nicht rückgängig gemacht werden.`)) return;
   busy(true);
-  try{ const r=await geomApi('purge_unassigned_geometries', {dry_run:false, confirm:'apply'}); setStatus(`${r.deleted||0} verwaiste Geometrien endgültig gelöscht.`); await loadUnassignedGeoms(); renderGeomModal(); }
+  // 💣 BEIDE Zahlen nennen. Der Knopf meldete nur r.deleted — die Konturen —, während die Hüllen
+  // still mitfielen. Bei einer unwiderruflichen Handlung ist „weniger melden, als man tut" die
+  // falsche Richtung; es ist derselbe Fehler wie in der Kopfzeile, nur andersherum.
+  try{ const r=await geomApi('purge_unassigned_geometries', {dry_run:false, confirm:'apply'}); setStatus(`${r.deleted||0} verwaiste Kontur(en) und ${r.derived_deleted||0} Außengrenze(n) endgültig gelöscht.`); await loadUnassignedGeoms(); renderGeomModal(); }
   catch(e){ setStatus('Fehler: '+e.message); }
   busy(false);
 }
