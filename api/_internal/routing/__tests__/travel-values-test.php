@@ -106,9 +106,11 @@ assert(array_keys($befund['path_factors']['values']) === ['Reichsstrasse', 'Weg'
 // Tagesleistung x GA-Faktor -- ein Fenster, das die 60 Zellen staendig aus 18 Zahlen ableitete,
 // schriebe beim ersten Speichern rund 40 Werte still um.
 $zurueck = avesmapsTravelValuesResetSection($werte, 'path_factors');
-assert($nah($zurueck['grid']['groupFoot']['Querfeldein'], 2.30, 0.02),
-    'Querfeldein der Fussgruppe: 3,07 x 0,75 = 2,30, nicht mehr 0,96 -- ' . $zurueck['grid']['groupFoot']['Querfeldein']);
-assert($nah($zurueck['grid']['groupFoot']['Reichsstrasse'], 3.377, 0.02), 'Reichsstrasse 3,07 x 1,10');
+// 🔴 Seit dem 8-Stunden-Reisetag an Land (16.08.2026) ist die Strassenzeile 4,61 statt 3,07 --
+// dieselbe Tagesleistung von 30 Meilen, nur durch 8 statt durch 12 geteilt.
+assert($nah($zurueck['grid']['groupFoot']['Querfeldein'], 3.45, 0.02),
+    'Querfeldein der Fussgruppe: 4,61 x 0,75 = 3,45 -- ' . $zurueck['grid']['groupFoot']['Querfeldein']);
+assert($nah($zurueck['grid']['groupFoot']['Reichsstrasse'], 5.066, 0.02), 'Reichsstrasse 4,61 x 1,10');
 
 // 💣 DIE KUTSCHENREGEL IST EINE REGEL, KEIN GELAENDE (S. 123: „auf Karrenwegen und Paessen nur halbe
 // Geschwindigkeit"). Sie wird NACH dem Ruecksetzen wieder aufgesetzt, sonst faehrt die Kutsche auf

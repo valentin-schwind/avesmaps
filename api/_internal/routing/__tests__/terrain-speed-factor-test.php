@@ -151,9 +151,16 @@ assert(count($plan['factors']) === 20,
 
 // --- B4. Das Raster: NUR die Querfeldein-Spalte wandert.
 $raster = $plan['grid'];
-foreach (['groupFoot' => 2.30, 'lightWalker' => 3.07, 'groupHorse' => 2.69,
-          'lightRider' => 3.84, 'caravan' => 2.30, 'horseCarriage' => 3.84] as $mittel => $erwartet) {
-    assert($nah((float) $raster[$mittel]['Querfeldein'], $erwartet, 0.005),
+// 🔴 Werte vom 16.08.2026: Reisetag an Land 8 statt 12 Stunden (WdE S. 160-162). Die Tagesleistung
+// dahinter ist unveraendert (Fussgruppe 30 Meilen), nur der Nenner der Formel hat gewechselt.
+foreach (['groupFoot' => 3.45, 'lightWalker' => 4.61, 'groupHorse' => 4.03,
+          'lightRider' => 5.76, 'caravan' => 3.45, 'horseCarriage' => 5.76] as $mittel => $erwartet) {
+    // ⚠️ Toleranz 0,02 statt 0,005: die Migration rechnet 0,75 x die GERUNDETE Strassenzelle, der
+    // Ruecksetzer 0,75 x den ungerundeten Formelwert. Das trennt beide um bis zu einen Cent
+    // (4,61 x 0,75 = 3,4575 -> 3,46 gegen 4,6053 x 0,75 = 3,4540 -> 3,45). Geprueft wird „0,75 der
+    // Strasse", nicht die zweite Nachkommastelle -- die zu pruefen hiesse, eine Doppelrundung zur
+    // Regel zu erklaeren.
+    assert($nah((float) $raster[$mittel]['Querfeldein'], $erwartet, 0.02),
         "$mittel querfeldein: {$raster[$mittel]['Querfeldein']} statt $erwartet");
 }
 // ⚠️ Und sonst KEINE Zelle. „Ein Deploy, der jede Reisezeit auf jeder Strasse verschiebt, ist keine

@@ -1,5 +1,44 @@
 # Reisegeschwindigkeiten und Wegtypen — die Quellenlage
 
+> ## 🔴 STAND 2026-08-16 — der Reisetag an Land sind ACHT Stunden, nicht zwölf
+>
+> **Zweite Quelle:** *Wege des Entdeckers* (DSA 4.1), Kapitel „Regeln im Überblick — Fortbewegung",
+> **S. 160–162**. Sie nennt bei **jeder** der sieben Fortbewegungsarten wörtlich „acht Stunden pro
+> Tag … und zwischendurch kleine Rasten einlegt": Fußmarsch, Wanderritt, Ochsen-/Eselskarren,
+> Pferdefuhrwerk, Reisekutsche, Kaleschka, Hunde-/Dachsschlitten.
+>
+> **Und sie nennt dieselben Tagesleistungen wie die GA** — meist als GA-Tagesleistung × GA-Wegtyp-Faktor:
+>
+> | WdE, Fußmarsch | GA-Rechnung | | WdE, Wanderritt | GA-Rechnung |
+> |---|---|---|---|---|
+> | gepflasterte Straße 33 | 30 × 1,1 ✓ | | gepflasterte Straße 39 | 35 × 1,1 ✓ |
+> | normale Straße 30 | 30 × 1,0 ✓ | | normale Straße 35 | 35 × 1,0 ✓ |
+> | trockener Weg/Pfad 24 | 30 × 0,8 ✓ | | trockener Weg/Pfad 28 | 35 × 0,8 ✓ |
+> | lichter Wald 18 | 30 × 0,6 ✓ | | Karren 25 · Fuhrwerk 30 · Kutsche 50 | S.-123-Zeilen ✓ |
+> | Gebirge Weg/Straße 12 | 30 × 0,4 ✓ | | | |
+> | Gebirgspfad 9 | 30 × 0,3 ✓ | | | |
+> | Sumpf querfeldein 3 | 30 × 0,1 ✓ | | | |
+>
+> **Damit ist es dieselbe Tabelle, und WdE liefert die Stundenzahl, die der GA fehlt.** Bis zum
+> 16.08.2026 rechnete Avesmaps an Land ebenfalls mit 12: die Tagesleistung war richtig, die
+> Stundenangabe um die Hälfte zu hoch (30 Meilen als 12 Marschstunden statt als 8). Gemeldet von
+> einem Leser, nicht von uns — wie schon „DIN 33466".
+>
+> **Was sich geändert hat:** `AVESMAPS_TRAVEL_LAND_HOURS = 8.0`, alle Landzellen der drei
+> Tempo-Spiegel × 1,5, das Planerfeld „Reisestunden pro Tag" auf 8 (Rast 16), der Rastzähler zählt
+> Tagesanteile statt Stunden, und das Dijkstra-Gewicht ist **Kalenderzeit**
+> (`avesmapsTravelValuesWeightFactor`).
+>
+> ⚠️ **Wasser bleibt bei 12** (GA S. 129/131 nennt sie ausdrücklich), Schnellsegler bei 24. WdE
+> S. 160–163 behandelt nur Landfortbewegung.
+>
+> 💣 **Die Tagesleistungen sind unverändert** — 30/40/35/50/30/50 wie vorher. Es hat sich der
+> **Nenner** geändert, nicht das Ergebnis: Ankunftsdatum, Reisetage, Nächte und Kosten sind dieselben.
+>
+> ⚠️ **Zwei Stellen, an denen WdE der GA widerspricht** (wir folgen weiter der GA): querfeldein durch
+> offenes Gelände 21 von 30 = **0,70** gegen den GA-Faktor **0,75** · die Reisekutsche fährt auf dem
+> trockenen Weg 40 (= 0,8 ohne Halbierung), während GA S. 123 sie dort halbiert.
+
 > ## ✅ STAND 2026-08-03 — die Abweichungen aus §7.2 sind gebaut
 >
 > Dieses Dokument hatte zwei Fassungen: die erste hielt Fluss **und** Meer für zu schnell, die
@@ -265,8 +304,8 @@ Wert = Tagesleistung der Quelle × mean_G × TIME_SCALE_FACTOR ÷ Reisestunden
 
 Wer dort eine Zahl anfasst, ohne diese Gleichung mitzurechnen, verschiebt eine Regelgröße.
 
-💣 **Die Reisestunden sind nicht einheitlich.** Land, Fluss, Lastensegler und Galeere rechnen mit
-12 h, der Schnellsegler als einziger mit 24. Die Ausnahme hängt am **Reisemittel**, nicht am
+💣 **Die Reisestunden sind nicht einheitlich.** Land rechnet seit 2026-08-16 mit **8 h** (WdE
+S. 160–162), Fluss, Lastensegler und Galeere mit 12 h, der Schnellsegler als einziger mit 24. Die Ausnahme hängt am **Reisemittel**, nicht am
 Wegtyp (`js/routing/route-result.js`) — eine Galeere fährt Seeweg und ankert trotzdem. Solange
 die Regel am Wegtyp hing, bekamen alle drei Seeschiffe den 24-Stunden-Tag; dass der
 Schnellsegler dabei zufällig richtig lag (242 gegen 250), ist der Grund, warum es niemandem
@@ -305,6 +344,10 @@ Gangbarkeitszeiträume von S. 115 stehen also bereit, sind aber noch nicht einge
 
 - **Keine Gehstunden pro Tag an Land.** Die 12-Stunden-Angabe steht ausschließlich bei der Seereise.
   Für Fußmärsche und Ritte gibt es keine Stundenzahl — die Tagesleistung ist die Einheit.
+  🔴 **Das gilt weiterhin für die GA — aber nicht mehr für die Regellage.** *Wege des Entdeckers*
+  S. 160–162 nennt sie: acht Stunden, bei jeder Fortbewegungsart, zu denselben Tagesleistungen.
+  Avesmaps rechnet seit 2026-08-16 damit (Stand-Block ganz oben). Die Zeile bleibt hier stehen, weil
+  sie eine Aussage über **dieses** Buch ist — wer nur die GA liest, findet die Zahl dort nicht.
 - **Keine kontinuierliche Steigungsfunktion.** Nur die drei Stufen aus §4, ausdrücklich als schwer
   angebbar gekennzeichnet.
 - **Keine Definition von „Hügel" und „Berg"** in messbaren Größen.

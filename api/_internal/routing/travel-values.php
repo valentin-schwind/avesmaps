@@ -26,7 +26,18 @@ require_once __DIR__ . '/terrain-factor.php';
 // ihr Straßenfaktor ist glatt 1,0); Wasser trägt kein Gelände und bekommt ihn deshalb nicht.
 const AVESMAPS_TRAVEL_MEAN_G = 1.032;
 const AVESMAPS_TRAVEL_TIME_SCALE = 1.19;
+// 🔴 DER REISETAG DES WASSERS. Die Geographia nennt ihn ausdrücklich: S. 129 für den Fluss, S. 131
+// für die See („ein Reisetag von 12 Stunden"). Er ist zugleich der Normierer des Gewichts unten.
 const AVESMAPS_TRAVEL_DEFAULT_HOURS = 12.0;
+// 🔴 DER REISETAG DES LANDES — acht Stunden, und die Quelle dafür ist NICHT die Geographia.
+// Die nennt für Landreisen überhaupt keine Stundenzahl, dort ist die Tagesleistung die Einheit
+// (Quellenlage §8). „Wege des Entdeckers" S. 160–162 nennt sie: siebenmal, bei jeder
+// Fortbewegungsart wörtlich „acht Stunden pro Tag … und zwischendurch kleine Rasten einlegt" —
+// und liefert dazu dieselben Tagesleistungen wie die GA (33/30/24 zu Fuß = 30 × 1,1/1,0/0,8).
+// 💣 Bis zum 16.08.2026 stand hier für Land ebenfalls 12. Die Tagesleistung war damit richtig und
+// die Stundenangabe um die Hälfte zu hoch: 30 Meilen wurden als 12 Marschstunden ausgewiesen
+// statt als 8. Gemeldet von einem Leser, nicht von uns.
+const AVESMAPS_TRAVEL_LAND_HOURS = 8.0;
 // 🔴 Das EINE Schiff mit Nachtfahrt (S. 131). Die Ausnahme hängt am TRANSPORTMITTEL, nie am Wegtyp
 // — am Wegtyp gehängt bekämen alle drei Schiffe den 24-Stunden-Tag.
 const AVESMAPS_TRAVEL_NIGHT_TRAVEL_TRANSPORT = 'fastShip';
@@ -200,10 +211,46 @@ function avesmapsTravelValuesIsLandTransport(string $transport): bool
     return !in_array($transport, ['riverBarge', 'riverSailer', 'cargoShip', 'galley', 'fastShip'], true);
 }
 
-/** PURE: der Reisetag dieses Mittels — 12 Stunden, außer beim einen Schiff mit Nachtfahrt. */
+/**
+ * PURE: der Reisetag dieses Mittels — Land 8 (WdE S. 160–162), Wasser 12 (GA S. 129/131),
+ * Schnellsegler 24 (GA S. 131).
+ *
+ * 🔴 DREI WERTE, EINE STELLE. Jede Zahl der Tempotabelle ist eine Tagesleistung geteilt durch
+ * genau diesen Wert; wer ihn hier ändert und die Tabelle nicht, verschiebt die Tagesleistung.
+ */
 function avesmapsTravelValuesHoursFor(string $transport): float
 {
-    return $transport === AVESMAPS_TRAVEL_NIGHT_TRAVEL_TRANSPORT ? 24.0 : AVESMAPS_TRAVEL_DEFAULT_HOURS;
+    if ($transport === AVESMAPS_TRAVEL_NIGHT_TRAVEL_TRANSPORT) { return 24.0; }
+
+    return avesmapsTravelValuesIsLandTransport($transport)
+        ? AVESMAPS_TRAVEL_LAND_HOURS
+        : AVESMAPS_TRAVEL_DEFAULT_HOURS;
+}
+
+/**
+ * PURE: der Faktor, der eine Reisestunde in KALENDERzeit umrechnet — das Gewicht des Dijkstra.
+ *
+ * 💣 „SCHNELLSTE ROUTE" HEISST FRUEHESTE ANKUNFT, ALSO KALENDERZEIT, NICHT SUMME DER GEHSTUNDEN.
+ * Beide Quellen geben Tagesleistungen an, und eine Tagesleistung IST eine Aussage über Kalenderzeit.
+ * Solange jedes Mittel denselben Reisetag hatte, war die reine Reisestunde ein gültiger Ersatz —
+ * mit Land 8 gegen Wasser 12 ist sie es nicht mehr: eine Wasseretappe sähe um ein Drittel zu teuer
+ * aus, und die „Schnellste" wählte eine Route, die SPAETER ankommt.
+ *
+ * 🔴 NORMIERT AUF DEN 12-STUNDEN-TAG, nicht auf 24. Das Gewicht ist ein reines Ordnungsmaß, die
+ * Konstante kürzt sich in jedem Vergleich heraus — und diese Wahl hält das Landgewicht exakt auf
+ * dem Wert von vor der Umstellung (Tempo × 1,5, Gewicht × 1,5 zurück). Dadurch ändert sich an
+ * Land-gegen-Wasser nichts, und die EINZIGE Ordnungsänderung ist der Schnellsegler: er fährt 24 h
+ * am Tag, wurde aber wie ein 12-Stunden-Reisender gewichtet und galt dem Router damit als halb so
+ * schnell, wie er ist (Faktor 4,04 statt 8,33 gegenüber der Reisegruppe zu Fuß).
+ *
+ * ⚠️ Er gehört ins GEWICHT, nie in die gemeldete `time`: die ist der stabile öffentliche Vertrag
+ * und meldet weiter reine Reisestunden.
+ */
+function avesmapsTravelValuesWeightFactor(string $transport): float
+{
+    $hours = avesmapsTravelValuesHoursFor($transport);
+
+    return $hours > 0.0 ? AVESMAPS_TRAVEL_DEFAULT_HOURS / $hours : 1.0;
 }
 
 /**
@@ -786,7 +833,7 @@ function avesmapsTravelValuesResetSection(array $values, string $section): array
             }
             $dayMiles = (float) ($source['day_miles'][$transport] ?? 0.0);
             if ($dayMiles <= 0.0) { continue; }
-            $road = avesmapsTravelValuesSpeedFromDayMiles($dayMiles, true, AVESMAPS_TRAVEL_DEFAULT_HOURS);
+            $road = avesmapsTravelValuesSpeedFromDayMiles($dayMiles, true, avesmapsTravelValuesHoursFor($transport));
             foreach (array_keys($row) as $pathType) {
                 $factor = (float) ($source['path_factors'][$pathType] ?? 0.0);
                 if ($factor <= 0.0) { continue; }

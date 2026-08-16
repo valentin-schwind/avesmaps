@@ -141,7 +141,11 @@ function avesmapsAnalyzeClientRouteOnServerGraph(array $clientGraph, array $requ
 		}
 
 		$transport = (string) ($matchingConnection['transport_option'] ?? '');
-		$segmentCost = $useShortestPath ? (float) ($matchingConnection['distance'] ?? 0.0) : (float) ($matchingConnection['time'] ?? 0.0);
+		// ⚠️ DIESELBE Gewichtung wie im Dijkstra (client-graph.php) -- diese Summe wird gegen dessen
+		// `cost` gehalten, und zwei Rechenweisen machten den Vergleich lautlos wertlos.
+		$segmentCost = $useShortestPath
+			? (float) ($matchingConnection['distance'] ?? 0.0)
+			: (float) ($matchingConnection['time'] ?? 0.0) * avesmapsTravelValuesWeightFactor($transport);
 		if ($minimizeTransfers && $previousTransport !== null && $transport !== $previousTransport) {
 			$segmentCost += AVESMAPS_ROUTE_CLIENT_TRANSFER_PENALTY;
 		}

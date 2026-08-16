@@ -61,6 +61,9 @@ const literal = (name) => {
 	return vm.runInNewContext(`(${match[1]})`);
 };
 global.SPEED_TABLE = literal("SPEED_TABLE");
+// 🔴 Der Reisetag je Transportmittel — vierter Spiegel derselben Regel, gebunden gegen den
+// PHP-Zwilling avesmapsTravelValuesHoursFor() weiter unten. Er ist der Nenner jeder Zelle oben.
+global.TRANSPORT_TRAVEL_HOURS = literal("TRANSPORT_TRAVEL_HOURS");
 global.TIME_SCALE_FACTOR = literal("TIME_SCALE_FACTOR");
 global.KM_TO_MILES = literal("KM_TO_MILES");
 // Reine Kulisse, nicht Gegenstand der Prüfung: der Name der synthetischen Wegart.
@@ -159,9 +162,12 @@ const MEAN_G = 1.032;
 const dayPerformance = (mode, subtype, hours) => (SPEED_TABLE[mode][subtype] / TIME_SCALE_FACTOR) * hours;
 
 // Land: Quellenwert x mean_G, gemessen auf der ebenen Straße (S. 123).
+// 🔴 Geteilt wird durch 8, nicht durch 12: der Reisetag an Land steht in „Wege des Entdeckers"
+// S. 160–162 („acht Stunden pro Tag", bei jeder der sieben Fortbewegungsarten). Die Tagesleistung
+// bleibt die der GA — genau darum ist es dieselbe Zusicherung wie vorher.
 [["groupFoot", 30], ["lightWalker", 40], ["groupHorse", 35], ["lightRider", 50],
 	["caravan", 30], ["horseCarriage", 50]].forEach(([mode, sourceDay]) => {
-	const actual = dayPerformance(mode, "Strasse", 12);
+	const actual = dayPerformance(mode, "Strasse", TRANSPORT_TRAVEL_HOURS[mode]);
 	assert.ok(
 		Math.abs(actual / (sourceDay * MEAN_G) - 1) < 0.01,
 		`${mode} muss auf ebener Straße ${(sourceDay * MEAN_G).toFixed(1)} Meilen/Tag leisten `
@@ -173,7 +179,7 @@ const dayPerformance = (mode, subtype, hours) => (SPEED_TABLE[mode][subtype] / T
 // 40" im Fließtext S. 118. Hier gilt die Tabelle. Wird das je auf 40 geändert, ist das UNSERE
 // Entscheidung und gehört kommentiert — nicht stillschweigend in die Zahl.
 assert.ok(
-	Math.abs(dayPerformance("groupHorse", "Strasse", 12) / (35 * MEAN_G) - 1) < 0.01,
+	Math.abs(dayPerformance("groupHorse", "Strasse", TRANSPORT_TRAVEL_HOURS.groupHorse) / (35 * MEAN_G) - 1) < 0.01,
 	"die berittene Gruppe folgt dem Tabellenwert 35, nicht dem Fließtext 40"
 );
 
@@ -225,12 +231,34 @@ const carriage = SPEED_TABLE.horseCarriage;
 // ⚠️ Die übrigen SECHS Wegtypen weichen weiterhin von der GA ab, und das ist Absicht: sie zurückzusetzen
 // verschöbe jede Reisezeit auf jeder Straße, und das entscheidet der Owner im Fenster, nicht ein Deploy.
 // Relativ zur Straße geprüft, damit eine spätere Umskalierung der ganzen Tabelle das hier überlebt.
-[["groupFoot", 3.07], ["lightWalker", 4.09], ["groupHorse", 3.58],
-	["lightRider", 5.12], ["caravan", 3.07], ["horseCarriage", 5.12]].forEach(([mode]) => {
+[["groupFoot", 4.61], ["lightWalker", 6.14], ["groupHorse", 5.37],
+	["lightRider", 7.68], ["caravan", 4.61], ["horseCarriage", 7.68]].forEach(([mode]) => {
 	const ratio = SPEED_TABLE[mode].Querfeldein / SPEED_TABLE[mode].Strasse;
 	assert.ok(
 		Math.abs(ratio - 0.75) < 0.005,
 		`${mode} muss querfeldein 0,75 der Straße fahren (GA S. 120-123, „offenes Gelände") — ist ${ratio.toFixed(3)}`
+	);
+});
+
+// ---- 2b. der VIERTE Spiegel: der Reisetag je Transportmittel -----------------------------------------
+// 💣 TRANSPORT_TRAVEL_HOURS (js/config.js) ist der Nenner jeder Zelle oben, und der Router benutzt
+// dafür den PHP-Zwilling avesmapsTravelValuesHoursFor(). Laufen die beiden auseinander, meldet der
+// Planer eine andere Reisezeit, als der Server gerechnet hat — lautlos, weil beide Zahlen für sich
+// plausibel bleiben. Land 8 (WdE S. 160–162) · Wasser 12 (GA S. 129/131) · Schnellsegler 24 (S. 131).
+const travelValuesSource = read("api/_internal/routing/travel-values.php");
+const phpHours = (name) => {
+	const match = travelValuesSource.match(new RegExp(`const ${name} = ([0-9.]+);`));
+	assert.ok(match, `${name} in travel-values.php gefunden`);
+	return Number(match[1]);
+};
+const phpLand = phpHours("AVESMAPS_TRAVEL_LAND_HOURS");
+const phpWater = phpHours("AVESMAPS_TRAVEL_DEFAULT_HOURS");
+[["groupFoot", phpLand], ["lightWalker", phpLand], ["groupHorse", phpLand], ["lightRider", phpLand],
+	["caravan", phpLand], ["horseCarriage", phpLand], ["riverSailer", phpWater], ["riverBarge", phpWater],
+	["cargoShip", phpWater], ["galley", phpWater], ["fastShip", 24]].forEach(([mode, expected]) => {
+	assert.strictEqual(
+		TRANSPORT_TRAVEL_HOURS[mode], expected,
+		`${mode}: Reisetag im JS-Spiegel ${TRANSPORT_TRAVEL_HOURS[mode]} h, in travel-values.php ${expected} h`
 	);
 });
 

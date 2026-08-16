@@ -104,8 +104,14 @@ const PATH_ENDPOINT_SNAP_DISTANCE_PX = 18;
 //
 // The source (S. 123, 129, 131) states day performances, never speeds. `mean_G` = 1,032 is the
 // measured mean slope factor over our roads (the „Eichung", path_terrain_stamp) and exists ONLY to
-// cancel our own slope layer, which the source does not have -- its road factor is a flat 1,0. So a
-// group on foot travels 3,07 / 1,19 x 12 h = 31,0 miles/day on a LEVEL road, and the terrain brings
+// cancel our own slope layer, which the source does not have -- its road factor is a flat 1,0.
+//
+// 🔴 „TRAVEL HOURS" IS 8 ON LAND AND 12 ON WATER, and the two numbers come from two books. The
+// Geographia names 12 only for the SEA passage (S. 131) and gives land no hour count at all; „Wege
+// des Entdeckers" S. 160-162 names 8 for every land mode, seven times over, and repeats the GA's day
+// performances while doing it (33/30/24 on foot = 30 x 1,1/1,0/0,8). Until 2026-08-16 land ran on 12
+// as well: the day performance was right and the hour figure was half again too high. So a
+// group on foot travels 4,61 / 1,19 x 8 h = 31,0 miles/day on a LEVEL road, and the terrain brings
 // the average over real roads back to the source's 30. Each transport carries its own source value:
 // foot 30 · Wanderer 40 · beritten 35 · Reiter 50 · Karawane 30 · Kutsche 50.
 //
@@ -113,8 +119,10 @@ const PATH_ENDPOINT_SNAP_DISTANCE_PX = 18;
 // The table wins -- a rules calculation follows the tabulated value, and the source's own worked
 // examples do too. Changing it to 40 is defensible but is then OUR choice, not the source's.
 //
-// 💣 TRAVEL HOURS ARE NOT UNIFORM, and the divisor above depends on the transport:
-//   land, river, Lastensegler, Galeere -> 12 h (S. 129/131 state the 12-hour travel day)
+// 💣 TRAVEL HOURS ARE NOT UNIFORM, and the divisor above depends on the transport
+// (TRANSPORT_TRAVEL_HOURS below; PHP twin avesmapsTravelValuesHoursFor):
+//   land                               -> 8 h  (WdE S. 160-162, named for every land mode)
+//   river, Lastensegler, Galeere       -> 12 h (S. 129/131 state the 12-hour travel day)
 //   Schnellsegler                      -> 24 h, the ONE ship the source grants a night passage
 //                                         (S. 131: 250 miles; the Kurier-Dromone's 200 we do not model)
 // The exemption lives in route-result.js and is keyed on the TRANSPORT, not on Seeweg -- a galley
@@ -153,11 +161,11 @@ const PATH_ENDPOINT_SNAP_DISTANCE_PX = 18;
 // (AVESMAPS_ROUTE_CLIENT_SPEED_TABLE plus app_setting['travel_values']); hier stehen dieselben Zahlen
 // für den Client-Router und die Anzeige. Bewacht von js/routing/__tests__/speed-table-and-rest-rule.test.js.
 const SPEED_TABLE = {
-	groupFoot: { Reichsstrasse: 3.45, Strasse: 3.07, Weg: 2.69, Pfad: 2.3, Gebirgspass: 1.15, Wuestenpfad: 1.92, Querfeldein: 2.3 },
-	lightWalker: { Reichsstrasse: 4.5, Strasse: 4.09, Weg: 3.68, Pfad: 3.27, Gebirgspass: 1.64, Wuestenpfad: 2.86, Querfeldein: 3.07 },
-	groupHorse: { Reichsstrasse: 3.86, Strasse: 3.58, Weg: 3.03, Pfad: 2.48, Gebirgspass: 1.38, Wuestenpfad: 1.65, Querfeldein: 2.69 },
-	lightRider: { Reichsstrasse: 5.44, Strasse: 5.12, Weg: 4.48, Pfad: 3.84, Gebirgspass: 1.92, Wuestenpfad: 2.56, Querfeldein: 3.84 },
-	caravan: { Reichsstrasse: 3.51, Strasse: 3.07, Weg: 2.63, Pfad: 2.19, Gebirgspass: 1.32, Wuestenpfad: 1.75, Querfeldein: 2.3 },
+	groupFoot: { Reichsstrasse: 5.18, Strasse: 4.61, Weg: 4.04, Pfad: 3.45, Gebirgspass: 1.73, Wuestenpfad: 2.88, Querfeldein: 3.45 },
+	lightWalker: { Reichsstrasse: 6.75, Strasse: 6.14, Weg: 5.52, Pfad: 4.91, Gebirgspass: 2.46, Wuestenpfad: 4.29, Querfeldein: 4.61 },
+	groupHorse: { Reichsstrasse: 5.79, Strasse: 5.37, Weg: 4.55, Pfad: 3.72, Gebirgspass: 2.07, Wuestenpfad: 2.48, Querfeldein: 4.03 },
+	lightRider: { Reichsstrasse: 8.16, Strasse: 7.68, Weg: 6.72, Pfad: 5.76, Gebirgspass: 2.88, Wuestenpfad: 3.84, Querfeldein: 5.76 },
+	caravan: { Reichsstrasse: 5.27, Strasse: 4.61, Weg: 3.95, Pfad: 3.29, Gebirgspass: 1.98, Wuestenpfad: 2.63, Querfeldein: 3.45 },
 	riverSailer: { Flussweg: 6.0 },
 	riverBarge: { Flussweg: 4.0 },
 	cargoShip: { Seeweg: 11.9 },
@@ -165,7 +173,21 @@ const SPEED_TABLE = {
 	galley: { Seeweg: 9.92 },
 	// ⚠️ Die Kutsche trägt ihre Querfeldein-Zelle mit und fährt trotzdem nie querfeldein: das verbietet
 	// die Wegart selbst (avesmapsClientRouteTransportOptions), eine Regel des Regelwerks, kein Tempo.
-	horseCarriage: { Reichsstrasse: 5.59, Strasse: 5.12, Weg: 2.09, Pfad: 2.79, Gebirgspass: 0.93, Wuestenpfad: 2.79, Querfeldein: 3.84 },
+	horseCarriage: { Reichsstrasse: 8.39, Strasse: 7.68, Weg: 3.14, Pfad: 4.19, Gebirgspass: 1.4, Wuestenpfad: 4.19, Querfeldein: 5.76 },
+};
+
+// 🔴 DER REISETAG JE TRANSPORTMITTEL -- Spiegel von avesmapsTravelValuesHoursFor()
+// (api/_internal/routing/travel-values.php), gebunden von speed-table-and-rest-rule.test.js.
+// Land 8 (WdE S. 160-162) · Fluss und See 12 (GA S. 129/131) · Schnellsegler 24 (GA S. 131).
+//
+// 💣 ER IST DER NENNER JEDER ZAHL IN SPEED_TABLE DARUEBER. Wer hier eine Stundenzahl aendert und die
+// Tabelle nicht, verschiebt eine Tagesleistung -- also eine Regelgroesse, nicht eine Anzeige.
+// ⚠️ Der Rastzaehler benutzt ihn fuer WASSER; an Land gilt das Planerfeld „Reisestunden pro Tag",
+// dessen Vorgabe genau diese 8 sind (route-result.js: avesmapsRouteLegTravelHours).
+const TRANSPORT_TRAVEL_HOURS = {
+	groupFoot: 8, lightWalker: 8, groupHorse: 8, lightRider: 8, caravan: 8, horseCarriage: 8,
+	riverSailer: 12, riverBarge: 12, cargoShip: 12, galley: 12,
+	fastShip: 24,
 };
 
 // ===== Reisekosten =====================================================================
@@ -686,7 +708,9 @@ const DEFAULT_PLANNER_STATE = {
 	toggleLabelsWithRegion: false,
 	pathType: "fastest",
 	minimizeTransfers: false,
-	restHours: 12,
+	// 16 = 24 - 8: der Reisetag an Land (WdE S. 160-162). Gespiegelt im Markup-Feld
+	// #travelHoursPerDay (value="8.0") -- zwei Vorgaben, eine Zahl.
+	restHours: 16,
 	// Reisekosten: „bett" ist die Mitte der vier Stufen. Eine Gruppengroesse gibt es NICHT --
 	// gerechnet wird immer je Person (Owner 2026-08-03).
 	lodging: "bett",

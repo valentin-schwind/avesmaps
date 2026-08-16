@@ -230,7 +230,9 @@ $dayPerformance = static fn(float $speed, float $hours): float => $speed / $time
 const AVESMAPS_TEST_MEAN_G = 1.032;
 foreach ([['groupFoot', 30.0], ['lightWalker', 40.0], ['groupHorse', 35.0], ['lightRider', 50.0],
           ['caravan', 30.0], ['horseCarriage', 50.0]] as [$mode, $sourceDay]) {
-    $actualDay = $dayPerformance((float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$mode]['Strasse'], 12.0);
+    // 🔴 8 Stunden, nicht 12: der Reisetag an Land (WdE S. 160-162). Die Tagesleistung dahinter ist
+    // unveraendert die der GA -- genau das ist der Punkt der Umstellung vom 16.08.2026.
+    $actualDay = $dayPerformance((float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$mode]['Strasse'], AVESMAPS_TRAVEL_LAND_HOURS);
     assert(
         abs($actualDay / ($sourceDay * AVESMAPS_TEST_MEAN_G) - 1.0) < 0.01,
         $mode . ' must travel ' . round($sourceDay * AVESMAPS_TEST_MEAN_G, 1) . ' miles/day on a level road '
@@ -280,21 +282,23 @@ assert(!str_contains($restSource, '"Seeweg", "Flussweg"'), 'route-result.js: Flu
 $waterNeedles = [
     'DE' => [
         'in der Regel das 2-fache, bei starker Strömung bis zum 3-fachen',
-        'Das gilt an Land, auf Flüssen und auch für Lastensegler und Galeere',
+        'An Land 8 Reisestunden am Tag und 16 Stunden Rast',
+        'auf Fluss und See 12 und 12',
+        'Tempo = Tagesleistung ÷ Reisestunden',
         'nur der Schnellsegler</b> fährt rund um die Uhr',
         'Nur der Schnellsegler fährt bei bekannter Strecke Tag und Nacht durch',
         'Lastensegler und Galeere gehen nachts vor Anker',
-        'Kapitel „Weg und Steg in Aventurien“ (S. 131)',
-        'für Landreisen nennt sie überhaupt keine Stundenzahl',
+        '„Wege des Entdeckers“ S. 160–162',
     ],
     'EN' => [
         'as a rule twice the duration, and up to 3 times in strong currents',
-        'This applies on land, on rivers, and to the cargo sailer and the galley as well',
+        'On land 8 travel hours a day and 16 hours of rest',
+        'on river and sea 12 and 12',
+        'speed = day performance ÷ travel hours',
         'only the fast sailer</b> runs around the clock',
         'Only the fast sailer runs day and night on a known route',
         'The cargo sailer and the galley anchor at night',
-        'chapter “Weg und Steg in Aventurien” (p. 131)',
-        'for land travel it gives no hour count at all',
+        '“Wege des Entdeckers” pp. 160–162',
     ],
 ];
 
