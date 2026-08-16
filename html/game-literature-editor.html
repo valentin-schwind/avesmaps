@@ -969,6 +969,11 @@
     if (coverFile) coverFile.addEventListener("change", () => aeUploadCover(coverFile));
     const coverRefetch = document.getElementById("aeCoverRefetch");
     if (coverRefetch) coverRefetch.addEventListener("click", aeRefetchCover);
+    // Zieht die "nicht öffentlich"-Kennzeichnung am AUSWAHLFELD selbst nach (Aufgabe 1, an den
+    // uebrigen vier Dialogen bereits verdrahtet) -- sonst zeigt sie sich erst beim naechsten
+    // Neu-Rendern, nicht sofort nach dem Umschalten.
+    const coverLicenseSelect = document.querySelector("[data-cover-license]");
+    if (coverLicenseSelect) coverLicenseSelect.addEventListener("change", () => avesmapsMediaLicenseSyncSelectHidden(coverLicenseSelect));
     // ⚠️ NACH dem innerHTML: der Behälter #aeWikiAssign entsteht erst mit ihm.
     mountAeWikiAssign(d);
   }
@@ -1164,6 +1169,13 @@
   // The "Cover" group: preview + origin badge + "eigenes Cover laden" (upload -> manual override) +
   // "Wiki-Cover neu ziehen" (re-pull from staging -> wiki origin). The plain "Cover-URL" field in the
   // "Wiki & F-Shop" group stays as a fallback. bf_year etc. are unaffected.
+  //
+  // 🔴 Phase 4 (Lizenz-Vereinheitlichung, Aufgabe 6): darunter jetzt dieselbe Reihe wie die uebrigen
+  // vier Lizenz-Dialoge (js/ui/media-license-fields.js) -- Lizenz/Urheber/Kommentar + Protokollzeile,
+  // vorbelegt mit dem aktuell gespeicherten Stand. Vorgabe 'permission_granted': genau das ist der
+  // Bestand (Phase 2 hat alle Cover so eingestuft, die aus dem Wiki gezogenen mit dem Urheber
+  // "Ulisses", Ulisses-Fanrichtlinien, NOTICE.md). Beide Knoepfe (Datei laden UND Wiki-Cover neu
+  // ziehen) nehmen den aktuellen Inhalt dieser Felder mit, siehe aeUploadCover/aeRefetchCover unten.
   function aeCoverGroup(v, o) {
     const coverUrl = v.cover_url || "";
     const origin = o && o.cover_url;
@@ -1176,6 +1188,13 @@
     const refetch = v.wiki_key
       ? `<button type="button" class="btn btn--sm" id="aeCoverRefetch">Wiki-Cover neu ziehen</button>`
       : "";
+    const licenseFields = avesmapsMediaLicenseFieldsMarkup({
+      license: v.cover_license,
+      author: v.cover_author,
+      note: v.cover_note,
+      uploaded_by: v.cover_uploaded_by,
+      uploaded_at: v.cover_uploaded_at,
+    }, { prefix: "cover", vorgabe: "permission_granted", mitNotiz: true });
     return `<div class="ae-grp"><p class="ae-grp__title">Cover</p>
       <div class="ae-cover">
         <div class="ae-cover__preview">${preview}</div>
@@ -1188,6 +1207,7 @@
             ${refetch}
           </div>
           <div class="ae-cover__state" id="aeCoverState"></div>
+          ${licenseFields}
         </div>
       </div></div>`;
   }
@@ -1206,6 +1226,20 @@
     const el = document.getElementById("aeCoverState");
     if (el) { el.textContent = text; el.className = "ae-cover__state" + (isError ? " error" : ""); }
   }
+  // avesmapsMediaLicenseFieldsMarkup traegt seine EIGENEN Attribute (data-cover-license/-author/
+  // -note, siehe js/ui/media-license-fields.js), nicht data-field -- gatherStamm sammelt sie also
+  // nicht mit ein. Beide Cover-Aktionen (Datei laden UND Wiki-Cover neu ziehen) nehmen den aktuellen
+  // Inhalt dieser drei Felder mit, der Endpunkt normalisiert sie serverseitig (Phase 4, Aufgabe 6).
+  function aeCoverLicenseFields() {
+    const licenseEl = document.querySelector("[data-cover-license]");
+    const authorEl = document.querySelector("[data-cover-author]");
+    const noteEl = document.querySelector("[data-cover-note]");
+    return {
+      license: licenseEl ? licenseEl.value : "permission_granted",
+      author: authorEl ? authorEl.value : "",
+      note: noteEl ? noteEl.value : "",
+    };
+  }
   async function aeUploadCover(input) {
     if (!state.selectedId) { aeCoverState("Bitte zuerst den Eintrag speichern.", true); input.value = ""; return; }
     const file = input.files && input.files[0];
@@ -1215,6 +1249,10 @@
       const fd = new FormData();
       fd.append("public_id", state.selectedId);
       fd.append("cover", file);
+      const fields = aeCoverLicenseFields();
+      fd.append("license", fields.license);
+      fd.append("author", fields.author);
+      fd.append("note", fields.note);
       await aeCoverPost(fd);
       await selectGameLiterature(state.selectedId); // re-render detail with the new cover
     } catch (e) {
@@ -1230,6 +1268,10 @@
       const fd = new FormData();
       fd.append("public_id", state.selectedId);
       fd.append("mode", "refetch");
+      const fields = aeCoverLicenseFields();
+      fd.append("license", fields.license);
+      fd.append("author", fields.author);
+      fd.append("note", fields.note);
       await aeCoverPost(fd);
       await selectGameLiterature(state.selectedId);
     } catch (e) {

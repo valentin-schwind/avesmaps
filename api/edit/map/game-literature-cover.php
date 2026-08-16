@@ -11,6 +11,11 @@ declare(strict_types=1);
 //     into /uploads/questcovers/ (avesmapsGameLiteratureSaveCoverLocal), setting cover_url with origin 'wiki'.
 // Modeled on api/edit/wiki/settlement-coat-upload.php. NO public_domain gate -- adventure covers ride the
 // Ulisses/F-Shop permission (the reference is enforced at the display layer, not here).
+//
+// 🔴 Phase 4 (Lizenz-Vereinheitlichung, Aufgabe 6): beide Modi nehmen jetzt Lizenz/Urheber/Kommentar
+// aus dem Formular entgegen (normalisiert, nie roh vertraut) und schreiben sie zusammen mit cover_url.
+// cover_uploaded_by/cover_uploaded_at setzt AUSSCHLIESSLICH dieser Endpunkt -- nie das Formular, sonst
+// waere der Nachweis faelschbar. $user kommt aus avesmapsRequireUserWithCapability() weiter unten.
 
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/wiki/sync.php';                     // AVESMAPS_WIKI_PAGE_BASE_URL + wiki sync constants
@@ -20,6 +25,7 @@ require_once __DIR__ . '/../../_internal/wiki/territories-tree.php';         // 
 require_once __DIR__ . '/../../_internal/wiki/territories-parsing.php';      // avesmapsWikiSyncPoliticalTerritoryFilePathUrl (cover file -> wiki image URL)
 require_once __DIR__ . '/../../_internal/app/game-literature.php';                // avesmapsSetGameLiteratureCoverUrl + ensure tables
 require_once __DIR__ . '/../../_internal/wiki/game-literature-sync.php';           // avesmapsGameLiteratureSaveCoverLocal + staging ensure
+require_once __DIR__ . '/../../_internal/media-license.php';                       // avesmapsMediaLicenseNormalize -- der EINE Katalog (AGENTS §5)
 
 const AVESMAPS_GAME_LITERATURE_COVER_MAX_BYTES = 3 * 1024 * 1024; // 3 MB (covers are larger than coats)
 const AVESMAPS_GAME_LITERATURE_COVER_TYPES = [
@@ -28,6 +34,30 @@ const AVESMAPS_GAME_LITERATURE_COVER_TYPES = [
     'image/webp' => 'webp',
     'image/gif' => 'gif',
 ];
+// Spaltenbreiten wie in avesmapsGameLiteratureEnsureTables (adventure.cover_author VARCHAR(190),
+// adventure.cover_note VARCHAR(2000)) -- geprueft statt abgeschnitten waere richtiger, aber diese
+// Aufgabe uebernimmt die stillschweigende Kuerzung der uebrigen vier Lizenz-Dialoge (settlement-coat-
+// upload.php) statt eine fuenfte Fehlerform einzufuehren.
+const AVESMAPS_GAME_LITERATURE_COVER_AUTHOR_MAX = 190;
+const AVESMAPS_GAME_LITERATURE_COVER_NOTE_MAX = 2000;
+
+function avesmapsGameLiteratureCoverNormalizeAuthor($value): string
+{
+    $author = trim((string) $value);
+    if (mb_strlen($author) > AVESMAPS_GAME_LITERATURE_COVER_AUTHOR_MAX) {
+        $author = mb_substr($author, 0, AVESMAPS_GAME_LITERATURE_COVER_AUTHOR_MAX);
+    }
+    return $author;
+}
+
+function avesmapsGameLiteratureCoverNormalizeNote($value): string
+{
+    $note = trim((string) $value);
+    if (mb_strlen($note) > AVESMAPS_GAME_LITERATURE_COVER_NOTE_MAX) {
+        $note = mb_substr($note, 0, AVESMAPS_GAME_LITERATURE_COVER_NOTE_MAX);
+    }
+    return $note;
+}
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -43,7 +73,7 @@ try {
         avesmapsErrorResponse(405, 'method_not_allowed', 'Nur POST ist erlaubt.');
     }
 
-    avesmapsRequireUserWithCapability('edit');
+    $user = avesmapsRequireUserWithCapability('edit');
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
     $publicId = trim((string) ($_POST['public_id'] ?? ''));
@@ -55,6 +85,22 @@ try {
     $hasFile = is_array($file) && (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
 
     $docroot = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 3)), '/');
+
+    // Lizenz/Urheber/Kommentar kommen aus dem Formular -- normalisiert, nie roh vertraut. Vorgabe
+    // 'permission_granted': genau das ist der Bestand (Phase 2 hat alle Cover so eingestuft, die aus
+    // dem Wiki gezogenen mit dem Urheber „Ulisses", Ulisses-Fanrichtlinien, NOTICE.md). Gilt fuer
+    // BEIDE Modi -- ein Wiki-Refetch darf dieselbe Reihe genauso setzen wie ein eigener Upload, die
+    // Dialogfelder zeigen ja ohnehin den aktuellen Stand vor dem Klick auf den jeweiligen Knopf.
+    $licenseFields = [
+        'license' => avesmapsMediaLicenseNormalize($_POST['license'] ?? null, 'permission_granted'),
+        'author' => avesmapsGameLiteratureCoverNormalizeAuthor($_POST['author'] ?? ''),
+        'note' => avesmapsGameLiteratureCoverNormalizeNote($_POST['note'] ?? ''),
+        // 🔴 uploaded_by/uploaded_at setzt AUSSCHLIESSLICH der Server. ⚠️ DATETIME-Spalte, also
+        // gmdate('Y-m-d H:i:s') -- NICHT die ISO-Form mit 'T'/'Z' (MySQL quittiert die mit Fehler 1292
+        // bzw. stiller Kuerzung; adventure.cover_uploaded_at ist eine Spalte, kein JSON-Feld).
+        'uploaded_by' => (string) ($user['username'] ?? ''),
+        'uploaded_at' => gmdate('Y-m-d H:i:s'),
+    ];
 
     // ------------------------------------------------------------------- REFETCH ---
     if ($mode === 'refetch' && !$hasFile) {
@@ -76,7 +122,7 @@ try {
         if ($localUrl === '') {
             avesmapsErrorResponse(502, 'fetch_failed', 'Das Wiki-Cover konnte nicht geladen werden.');
         }
-        $result = avesmapsSetGameLiteratureCoverUrl($pdo, $publicId, $localUrl, 'wiki');
+        $result = avesmapsSetGameLiteratureCoverUrl($pdo, $publicId, $localUrl, 'wiki', $licenseFields);
         // Stamp cover_source so the batch reconcile treats this cover as up to date (no re-fetch).
         $pdo->prepare('UPDATE adventure SET cover_source = :cs WHERE public_id = :pid')
             ->execute(['cs' => mb_substr($coverFile, 0, 300, 'UTF-8'), 'pid' => $publicId]);
@@ -133,7 +179,7 @@ try {
     }
 
     $url = '/uploads/questcovers/own/' . $filename;
-    $result = avesmapsSetGameLiteratureCoverUrl($pdo, $publicId, $url, 'manual');
+    $result = avesmapsSetGameLiteratureCoverUrl($pdo, $publicId, $url, 'manual', $licenseFields);
     // A manual upload supersedes any wiki-fetched cover: clear cover_source so a later reconcile does not
     // "restore" the wiki cover (the field-origin 'manual' already protects it, this just keeps state clean).
     $pdo->prepare('UPDATE adventure SET cover_source = NULL WHERE public_id = :pid')->execute(['pid' => $publicId]);
