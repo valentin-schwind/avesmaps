@@ -59,4 +59,36 @@ assert(avesmapsResolveGatedCoatUrl(['coat_of_arms_license_status' => $pd], '/upl
     === '/uploads/own-applied.png');
 echo "8 override licence without url key uses own coat ok\n";
 
+// ---- Phase 3: das Gate liest den gemeinsamen Katalog ------------------------------------------------
+// 🔴 Bis 16.08.2026 liess AVESMAPS_COAT_PUBLIC_LICENSES nur 'public_domain' durch. Die Lockerung ist
+// gewollt: die Editoren erzeugen ihre Wappen mit KI, und bei den Siedlungen standen sie mangels Gate
+// laengst auf der Karte. Ein selbst erzeugtes Wappen als "nicht gemeinfrei, also weg" zu behandeln
+// verwechselt die Herkunft mit der Erlaubnis.
+foreach (['public_domain', 'cc0', 'permission_granted', 'ai_generated', 'own_work'] as $kennung) {
+    assert(
+        avesmapsResolveGatedCoatUrl([], '/uploads/wappen/x.png', '', $kennung) !== '',
+        "{$kennung} muesste durchkommen"
+    );
+}
+foreach (['cc_by', 'unknown_other'] as $kennung) {
+    assert(
+        avesmapsResolveGatedCoatUrl([], '/uploads/wappen/x.png', '', $kennung) === '',
+        "{$kennung} duerfte NICHT durchkommen"
+    );
+}
+
+// 💣 Unmigrierte Altwerte bleiben still -- vorher wie nachher. Das ist der Grund, warum diese Phase
+// bei den TERRITORIEN auch ohne vollstaendige Migration sicher ist (bei den Siedlungen ist sie es
+// NICHT, siehe Vorbedingung des Bauplans).
+foreach (['attribution_required', 'unknown', ''] as $altwert) {
+    assert(
+        avesmapsResolveGatedCoatUrl([], '/uploads/wappen/x.png', '', $altwert) === '',
+        "Altwert '{$altwert}' duerfte nicht ploetzlich sichtbar werden"
+    );
+}
+
+// ⚠️ Der leere Override bleibt ein bewusstes "kein Wappen" -- die Lockerung darf ihn nicht aufweichen.
+assert(avesmapsResolveGatedCoatUrl(['coat_of_arms_url' => ''], '/uploads/wappen/x.png', '', 'public_domain') === '');
+echo "9 Phase-3-Katalog: fuenf oeffentliche durch, zwei still, Altwerte still, leerer Override bleibt blank ok\n";
+
 echo "coat-resolve ALL OK\n";

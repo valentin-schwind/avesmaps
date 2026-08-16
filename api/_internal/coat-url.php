@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// Fuer avesmapsMediaLicenseIsPublic() -- der EINE Lizenzkatalog (Phase 1), nicht eine eigene Liste.
+require_once __DIR__ . '/media-license.php';
+
 /**
  * Cache-busting for locally stored coats of arms (/uploads/wappen/<slug>-custom.<ext>).
  *
@@ -38,11 +41,15 @@ function avesmapsCoatUrlCacheBust(string $url): string {
 }
 
 /**
- * The only licence under which a coat may appear on the public map (NOTICE.md / Ulisses fan rules).
- * One constant replacing the identical per-endpoint copies AVESMAPS_TERRITORY_DETAIL_COAT_ALLOWED and
- * AVESMAPS_MAP_FEATURES_COAT_ALLOWED, so the legal gate cannot drift apart between readers.
+ * 🔴 Bis 16.08.2026 stand hier AVESMAPS_COAT_PUBLIC_LICENSES = ['public_domain'] -- die einzige
+ * Lizenz, unter der ein Wappen oeffentlich erscheinen durfte. Seit Phase 3 entscheidet der gemeinsame
+ * Katalog (avesmapsMediaLicenseIsPublic), und damit kommen vier weitere Werte durch: cc0,
+ * permission_granted, ai_generated, own_work.
+ *
+ * 💣 Die FUNKTION, nicht eine andere Konstante. Der Vergleich hier lief roh, ohne Normalisierung --
+ * eine erweiterte Liste haette den Riegel neben dem Fundament noch einmal aufgebaut und die Regel
+ * "erst normalisieren, dann pruefen" umgangen, fuer die Phase 1 ueberhaupt gebaut wurde.
  */
-const AVESMAPS_COAT_PUBLIC_LICENSES = ['public_domain'];
 
 /**
  * The ONE canonical precedence for a publicly displayed coat of arms. Every reader routes through this so
@@ -67,7 +74,7 @@ function avesmapsResolveGatedCoatUrl(array $override, string $ownUrl, string $st
     $url = array_key_exists('coat_of_arms_url', $override)
         ? trim((string) $override['coat_of_arms_url'])
         : ($ownUrl !== '' ? $ownUrl : trim($stagingUrl));
-    if ($url === '' || !in_array($license, AVESMAPS_COAT_PUBLIC_LICENSES, true)) {
+    if ($url === '' || !avesmapsMediaLicenseIsPublic($license)) {
         return '';
     }
 
