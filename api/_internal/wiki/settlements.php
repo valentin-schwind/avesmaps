@@ -840,6 +840,13 @@ function avesmapsWikiSettlementAssignTo(PDO $pdo, string $title, string $publicI
     $props = avesmapsWikiSyncDecodeJson($target['properties_json'] ?? null);
     $props['wiki_settlement'] = $settlement;
     unset($props['description']); // Beschreibung weg — Infobox ersetzt sie.
+    // 🔴 EINE ZUWEISUNG LÖSCHT DEN MERKER „kein Wiki-Artikel". Beides zugleich ist der verbotene
+    // Zustand, den `update_point` ablehnt (avesmapsApplyPointWikiFields) — und hier ist die Antwort
+    // eindeutig: wer gerade einen Artikel zuweist, hat die frühere Aussage „es gibt keinen"
+    // widerlegt. Wortgleiches Vorbild: der Kraftlinien-Abgleich, api/_internal/wiki/powerlines.php:283.
+    // ⚠️ `clear_assign` macht das NICHT rückgängig: eine Verbindung zu lösen heißt nicht, dass es
+    // keinen Artikel gibt.
+    unset($props['wiki_no_article']);
     $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
     $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $target['id']]);
     avesmapsWikiSettlementAuditAssignment($pdo, $auditBefore, $props, $revision, $userId);

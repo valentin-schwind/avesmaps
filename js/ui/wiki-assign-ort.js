@@ -25,8 +25,11 @@
 //     mitschickt (buildLocationEditPayload, js/review/review-locations.js; buildSettlementSavePayload,
 //     html/wiki-sync-settlement-editor.html) und das der Leseweg bei Leere per Namensraten wieder
 //     fuellt (avesmapsEnrichMapFeatureWikiUrl, api/app/map-features.php). Es ist NICHT die Zuweisung,
-//     es haengt nur daran -- und weil es das tut, ist „dieser Ort hat keinen Wiki-Artikel" heute
-//     nicht speicherbar (Discord #38, im Bericht zu Aufgabe 5 gemessen).
+//     es haengt nur daran.
+//   · `properties.wiki_no_article` -- der DRITTE Zustand, seit 16.08.2026 auch vom Ort schreibbar
+//     (avesmapsApplyPointWikiFields, api/_internal/map/features.php). Er sagt „ein Editor hat
+//     nachgesehen, es gibt keinen Artikel", und genau diese negative Aussage laesst den Leseweg das
+//     Raten unterlassen. Ohne ihn hielt kein „Entfernen" ueber ein Neuladen der Karte (Discord #38).
 //
 // 🔴 Dieselbe Verwechslungsklasse wie bei den Stadtplaenen (`wiki_key` gegen `wiki_url`, Entwurf §8).
 // Wer hier `wiki_url` liest, wo `wiki_settlement` gemeint ist, baut die Falle nach.
@@ -36,6 +39,22 @@
 // SETTLEMENT_EDIT_TYPE_OPTIONS in html/wiki-sync-settlement-editor.html) und die der Server als
 // AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS kennt (api/edit/wiki/sync.php:14-21).
 const AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN = ["dorf", "kleinstadt", "stadt", "grossstadt", "metropole", "gebaeude"];
+
+// Die bearbeitbaren KARTENFELDER des Orts -- die einzige Liste davon im Browser.
+//
+// 🔴 SIE IST DIE GEGENPROBE ZUM FELDREGISTER, nicht seine Wiederholung: das Register erklaert, WELCHES
+// Wiki-Feld auf welches Kartenfeld zeigt; diese Liste sagt, welche Kartenfelder es ueberhaupt gibt.
+// Beide muessen sich decken, und genau das nagelt js/ui/__tests__/wiki-assign-ort.test.js fest --
+// laeuft eines der zwei weiter, zeigt das Bauteil eine Sync-Zeile, die die Uebernahme lautlos
+// ignoriert (oder umgekehrt).
+//
+// 🔴 DIE DREI LETZTEN SIND SEIT DEM 16.08.2026 KARTENFELDER (Owner-Entscheid). Bis dahin hatten
+// Einwohner, Lage und Herrscher auf der Karte GAR KEIN Feld -- der Ort hatte damit nur die Ortsgroesse
+// als Sync-Ziel, und das zentrale Beispiel des Entwurfs („beim Ort sind es fuenf, darunter
+// Einwohnerzahl und Herrscher") beschrieb Felder, die es nicht gab.
+// ⚠️ Sie heissen wie im Nest `properties.wiki_settlement` (einwohner/lage/oberhaupt) -- deshalb ist
+// die Erklaerung im Register je eine Zeile mit gleichem `wiki` und `karte`, und niemand uebersetzt.
+const AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER = ["name", "feature_subtype", "einwohner", "lage", "oberhaupt"];
 
 function avesmapsWikiAssignOrtText(wert) {
 	return String(wert === null || wert === undefined ? "" : wert).trim();
@@ -73,10 +92,12 @@ function avesmapsWikiAssignOrtOrtsgroesse(settlementClass) {
  * Namen, damit die rohe Wiki-Angabe daneben sichtbar bleibt -- der Editor soll sehen, WAS das Wiki
  * sagt („Art": freier Infoboxtext) und WOHIN das abgebildet wird.
  *
- * ⚠️ `lage` fehlt mit Absicht. Der Parser liest `region` und `staat` einzeln und setzt daraus erst
- * die Anzeigezeile `lage = "Region · Staat"` zusammen (settlements.php:607-610). Beide Haelften
- * einzeln zu zeigen ist dieselbe Auskunft mit einem Feldnamen weniger -- und der Orte-Editor zeigte
- * sie ohnehin schon so.
+ * 🔴 `lage` IST SEIT DEM 16.08.2026 DABEI, und zwar als Kartenziel. Der Parser liest `region` und
+ * `staat` einzeln und setzt daraus erst `lage = "Region · Staat"` zusammen (settlements.php:607-610)
+ * -- es ist also ein ABGELEITETES Wiki-Feld, wie `ortsgroesse` daneben. Die zwei Haelften bleiben
+ * trotzdem stehen: sie sind eigene Infoboxfelder und muessen im Register eine Erklaerung tragen,
+ * sonst meldet Pruefung 2 sie als vergessen. Angezeigt werden damit drei Zeilen, die dasselbe sagen
+ * -- gewollt: nur EINE davon hat ein Kartenfeld, und das ist die, die der Sync fuellen kann.
  */
 function avesmapsWikiAssignOrtWerte(quelle) {
 	const q = quelle || {};
@@ -84,6 +105,7 @@ function avesmapsWikiAssignOrtWerte(quelle) {
 		name: avesmapsWikiAssignOrtText(q.name),
 		art: avesmapsWikiAssignOrtText(q.art),
 		ortsgroesse: avesmapsWikiAssignOrtOrtsgroesse(q.settlement_class),
+		lage: avesmapsWikiAssignOrtText(q.lage),
 		einwohner: avesmapsWikiAssignOrtText(q.einwohner),
 		bevoelkerung: avesmapsWikiAssignOrtText(q.bevoelkerung),
 		oberhaupt: avesmapsWikiAssignOrtText(q.oberhaupt),
@@ -208,15 +230,20 @@ function avesmapsWikiAssignOrtArtikel(wikiSettlement) {
  * der Editor Namensfeld und Groessenauswahl angefasst haben. Eingefroren verglichen boete die
  * Vorschau eine Aenderung an, die das Formular daneben laengst zeigt.
  *
- * @param {Object|null} quelle { wiki_settlement, name, feature_subtype } -- `name` und
- *   `feature_subtype` je Wert ODER Lesefunktion.
+ * 🔴 DER DRITTE ZUSTAND REIST MIT (`kein_artikel`). Er ist NICHT aus der Zuweisung ableitbar: „keine
+ * Zuweisung" heisst „noch niemand hat nachgesehen", der Merker heisst „jemand HAT nachgesehen und es
+ * gibt keinen". Genau diese negative Aussage fehlte dem Leseweg, weshalb ein entferntes
+ * `properties.wiki_url` beim naechsten Kartenladen zurueckgeraten wurde (Discord #38).
+ *
+ * @param {Object|null} quelle { wiki_settlement, kein_artikel, name, feature_subtype, einwohner,
+ *   lage, oberhaupt } -- jedes Kartenfeld je Wert ODER Lesefunktion.
  */
 function avesmapsWikiAssignOrtZustand(quelle) {
 	if (!quelle || typeof quelle !== "object" || Array.isArray(quelle)) {
 		throw new Error("Wiki-Ort: kein Ort gewählt — der Stand ist unbekannt.");
 	}
 	const kartenwerte = {};
-	["name", "feature_subtype"].forEach((feld) => {
+	AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER.forEach((feld) => {
 		if (typeof quelle[feld] === "function") {
 			Object.defineProperty(kartenwerte, feld, {
 				enumerable: true,
@@ -226,7 +253,11 @@ function avesmapsWikiAssignOrtZustand(quelle) {
 			kartenwerte[feld] = avesmapsWikiAssignOrtText(quelle[feld]);
 		}
 	});
-	return { artikel: avesmapsWikiAssignOrtArtikel(quelle.wiki_settlement), kartenwerte: kartenwerte };
+	return {
+		artikel: avesmapsWikiAssignOrtArtikel(quelle.wiki_settlement),
+		keinArtikel: quelle.kein_artikel === true,
+		kartenwerte: kartenwerte,
+	};
 }
 
 /** REIN: der Rumpf der Zuweisung. Beide Oberflaechen schicken denselben -- mit `dry_run:false` UND
@@ -266,14 +297,18 @@ function avesmapsWikiAssignOrtAntwortPruefen(antwort) {
  * REIN: welche Kartenfelder die ANGEHAKTEN Sync-Zeilen setzen wollen. `null` heisst „diese Angabe
  * ist nicht dabei".
  *
- * ⚠️ Genau zwei Ziele, und mehr kann es nach der Erklaerung `ort` auch nicht geben
- * (js/ui/wiki-assign-registry.js): `name` und `feature_subtype`. Einwohnerzahl, Lage und Herrscher
- * haben auf der Karte KEIN bearbeitbares Feld -- sie sind Anzeige und stehen deshalb nie in der
- * Vorschau (Aufgabe 2: eine Zeile mit `karte: ""` kann per Definition nichts uebernehmen).
+ * 🔴 DIE ZIELE KOMMEN AUS `AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER`, nicht aus einer zweiten Liste hier.
+ * Bis zum 16.08.2026 standen die zwei Namen hier ausgeschrieben; mit den drei neuen Feldern waeren es
+ * fuenf an zwei Stellen gewesen, und ein sechstes im Register haette eine Sync-Zeile erzeugt, die
+ * diese Funktion lautlos verwirft -- das Bauteil zeigt sie, der Haken tut nichts.
+ *
+ * ⚠️ Ein Feld ohne Kartenziel (`karte: ""`, z. B. „Art" oder „Tempel") kann hier gar nicht ankommen:
+ * die Diff-Rechnung nimmt solche Zeilen erst gar nicht auf (Aufgabe 2).
  */
 function avesmapsWikiAssignOrtSyncWerte(zeilen) {
 	const liste = Array.isArray(zeilen) ? zeilen : [];
-	const werte = { name: null, feature_subtype: null };
+	const werte = {};
+	AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER.forEach((feld) => { werte[feld] = null; });
 	liste.forEach((zeile) => {
 		if (!zeile || !Object.prototype.hasOwnProperty.call(werte, zeile.karte)) {
 			return;
@@ -284,9 +319,24 @@ function avesmapsWikiAssignOrtSyncWerte(zeilen) {
 	return werte;
 }
 
+/**
+ * REIN: hat die Uebernahme ueberhaupt etwas zu tun? `avesmapsWikiAssignOrtSyncWerte` gibt fuenf
+ * Schluessel zurueck, und beide Oberflaechen mussten bisher zwei davon einzeln abfragen.
+ *
+ * 💣 Genau diese Abfrage waere beim Wachsen der Feldliste stehengeblieben: „nichts angehakt" haette
+ * dann bei einer allein angehakten Einwohnerzahl `true` gesagt, die Oberflaeche haette geworfen, und
+ * das Bauteil haette die Ablehnung als „es ist nichts passiert" gelesen -- ein Haken, der nichts tut.
+ */
+function avesmapsWikiAssignOrtSyncLeer(werte) {
+	const w = werte || {};
+	return AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER.every((feld) => w[feld] === null || w[feld] === undefined);
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN: AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN,
+		AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER: AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER,
+		avesmapsWikiAssignOrtSyncLeer: avesmapsWikiAssignOrtSyncLeer,
 		avesmapsWikiAssignOrtOrtsgroesse: avesmapsWikiAssignOrtOrtsgroesse,
 		avesmapsWikiAssignOrtWerte: avesmapsWikiAssignOrtWerte,
 		avesmapsWikiAssignOrtTreffer: avesmapsWikiAssignOrtTreffer,

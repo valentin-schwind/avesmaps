@@ -87,10 +87,20 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			{ wiki: "laenge", karte: "", label: "Länge" },
 		],
 		sync: true, // ein Kartenziel (feature_subtype) -- also ein Knopf
-		// ⚠️ KEIN dritter Zustand. Entwurf §2.7 gilt fuer alle Objektarten, aber der Weg hat heute
-		// keinen Ort, an dem „es gibt keinen Artikel" gespeichert werden koennte: `wiki_path`
-		// fehlt oder ist da, ein Merker daneben existiert nicht. Ihn zu zeigen hiesse, ein
-		// Haekchen anzubieten, das nichts merkt. Offen gemeldet, nicht geraten.
+		// ⚠️ KEIN dritter Zustand -- und der GRUND hier stand bis zum 16.08.2026 falsch da („ein Merker
+		// daneben existiert nicht"). Gemessen: `properties.wiki_no_article` liegt im `properties_json`
+		// und ist NICHT an eine Objektart gebunden; die Anreicherung ehrt ihn vor jeder Typweiche
+		// (api/app/map-features.php:983), und die Konfliktregel liest ihn auch fuer `path`
+		// (api/_internal/conflicts/rules.php:29 + :371). Was WIRKLICH fehlt, ist der SCHREIBWEG:
+		// `avesmapsUpdatePathFeatureDetails` liest den Merker nicht (0 Fundstellen im Rumpf), und
+		// keiner der zwei Weg-Payload-Bauer schickt ihn (js/review/review-paths.js,
+		// js/pages/wege-editor.js -- je 0 Fundstellen). Der Brief zu Aufgabe 5b macht genau das zur
+		// Bedingung („wenn der Schreibweg der Wege ihn schon kennt"), und er kennt ihn nicht.
+		// 💣 Nachzuruesten waere er nur GANZ: beide Payload-Bauer plus der Schreibweg. Baut ihn nur
+		// einer, loescht der andere den Merker bei jedem Speichern still wieder -- die
+		// „vier Erzeuger"-Fehlerklasse aus AGENTS.md §11. ⚠️ Offen ist ausserdem, was mit einem
+		// vorhandenen flachen `properties.wiki_url` eines Wegs geschehen soll: der Ort leert es beim
+		// Anhaken (er hat ein Feld dafuer), der Weg hat gar keines. Offen gemeldet, nicht geraten.
 	},
 	ort: {
 		label: "Wiki-Ort",
@@ -122,25 +132,36 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		// `properties.wiki_settlement` und fasst `map_features.name` nicht an
 		// (settlements.php:807-857). Der Ortsname bleibt also ein Kartenfeld, das der Editor pflegt
 		// -- und genau dafuer gab es bis zum 16.08.2026 den „↻"-Knopf neben dem Namensfeld.
-		// 🔴 KEIN Kartenziel fuer Einwohner, Lage und Herrscher. Das Mockup schreibt
-		// „Einwohner→einwohner" (docs/wiki-zuweisung-mockup.html:257) -- ein solches Feld gibt es
-		// nicht: kein Speicherweg des Ortes kennt eine Einwohnerzahl (weder
-		// buildLocationEditPayload noch buildSettlementSavePayload, und update_point schreibt sie
-		// nirgends). Dieselbe Sorte Mockup-Fehler wie „Länge→laenge" beim Weg. Anzeige-Zeilen.
+		// 🔴 EINWOHNER, LAGE UND HERRSCHER HABEN SEIT DEM 16.08.2026 EIN KARTENZIEL (Owner-Entscheid).
+		// Hier stand bis dahin das Gegenteil, und es war gemessen richtig: es gab kein Feld dafuer.
+		// Genau das war der Befund aus Aufgabe 5 -- das zentrale Sync-Beispiel des Entwurfs („beim Ort
+		// sind es fuenf, darunter Einwohnerzahl und Herrscher") beschrieb Felder, die niemand gebaut
+		// hatte. Sie heissen jetzt auf der Karte wie im Nest (einwohner/lage/oberhaupt), deshalb ist
+		// jede Zeile eine Zeile und niemand uebersetzt; die Liste der Kartenfelder steht in
+		// js/ui/wiki-assign-ort.js (AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER) und wird gegen diese
+		// Erklaerung geprueft.
+		// ⚠️ `lage` ist ABGELEITET wie `ortsgroesse`: der Parser liest `region` und `staat` einzeln und
+		// setzt daraus „Region · Staat" zusammen (settlements.php:607-610). Die zwei Haelften bleiben
+		// als Anzeige-Zeilen stehen -- sie sind eigene Infoboxfelder und brauchen eine Erklaerung,
+		// sonst meldet Pruefung 2 sie als vergessen. Drei Zeilen sagen damit dasselbe; nur eine hat
+		// ein Ziel.
+		// 🔴 KEIN Kartenziel fuer `bevoelkerung`, `handelszone`, `verkehrswege`, `tempel` und `art` --
+		// dafuer gibt es weiterhin kein Feld, und hier wird nichts auf Vorrat erklaert.
 		felder: [
 			{ wiki: "name", karte: "name", label: "Name" },
 			{ wiki: "art", karte: "", label: "Art" },
 			{ wiki: "ortsgroesse", karte: "feature_subtype", label: "Ortsgröße" },
-			{ wiki: "einwohner", karte: "", label: "Einwohner" },
+			{ wiki: "einwohner", karte: "einwohner", label: "Einwohner" },
 			{ wiki: "bevoelkerung", karte: "", label: "Bevölkerung" },
-			{ wiki: "oberhaupt", karte: "", label: "Herrscher" },
+			{ wiki: "oberhaupt", karte: "oberhaupt", label: "Herrscher" },
 			{ wiki: "region", karte: "", label: "Region" },
 			{ wiki: "staat", karte: "", label: "Staat" },
+			{ wiki: "lage", karte: "lage", label: "Lage" },
 			{ wiki: "handelszone", karte: "", label: "Handelszone" },
 			{ wiki: "verkehrswege", karte: "", label: "Verkehrswege" },
 			{ wiki: "tempel", karte: "", label: "Tempel" },
 		],
-		sync: true, // zwei Kartenziele (name, feature_subtype) -- also ein Knopf
+		sync: true, // fuenf Kartenziele -- also ein Knopf
 		extra: {
 			// 🔴 Der Rat des Leerzustands, und er ist objektart-eigen, weil die QUELLE es ist: die
 			// Ortssuche liest die Registry `wiki_sync_pages` (settlements.php:710), nicht das Wiki --
@@ -149,15 +170,18 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// Orte-Sync laufen lassen.") und waere mit dem Umbau ersatzlos verschwunden -- „Keine
 			// Treffer" allein sagt nur, DASS nichts da ist, nicht, was zu tun ist.
 			keineTrefferHinweis: "Ggf. erst die Orte-Sync laufen lassen.",
+			// 🔴 DER DRITTE ZUSTAND, seit 16.08.2026 auch beim Ort -- und hier ist er nicht bloss ein
+			// Ordnungsmerkmal wie bei den Kraftlinien, sondern die REPARATUR: ohne ihn raet
+			// avesmapsEnrichMapFeatureWikiUrl (api/app/map-features.php:983) beim naechsten
+			// Kartenladen eine Adresse aus dem Ortsnamen zurueck, „geloescht" und „nie gesetzt" sind
+			// fuer sie dasselbe, und ein entfernter Wiki-Link kehrt wieder. Das IST Discord #38.
+			// Geschrieben wird der Merker von `update_point` (avesmapsApplyPointWikiFields).
+			keinArtikelHaken: true,
+			// ⚠️ Der zweite Halbsatz ist tragend (wie bei den Kraftlinien): der Merker ist NICHT
+			// endgueltig -- taucht im Wiki ein Artikel auf, kommt der Fall von selbst zurueck. Ohne
+			// ihn liest er sich als „nie wieder" und die Wiedervorlage wirkt wie ein Fehler.
+			keinArtikelHinweis: "Hält die Löschung — und nimmt den Ort aus der Konfliktliste, bis im Wiki einer auftaucht.",
 		},
-		// ⚠️ KEIN dritter Zustand, und diesmal NICHT, weil der Speicherplatz fehlt: `wiki_no_article`
-		// gibt es im `properties_json` bereits, der Leseweg ehrt ihn (avesmapsEnrichMapFeatureWikiUrl,
-		// api/app/map-features.php:983), und das Konfliktzentrum setzt ihn (repair.php:328). Was fehlt,
-		// ist ein SCHREIBWEG der beiden Ort-Oberflaechen: `update_point` liest den Merker nicht
-		// (avesmapsUpdatePointFeatureDetails, api/_internal/map/features.php:1252-1305 -- es reicht
-		// ihn nur unveraendert durch), und der Siedlungs-Endpunkt kennt ihn ebenfalls nicht. Ein
-		// Haekchen anzubieten, das nichts merkt, waere schlimmer als keins. Offen gemeldet
-		// (.superpowers/sdd/…/aufgabe-5-bericht.md), nicht geraten.
 	},
 	// Die uebrigen sieben kommen in den Aufgaben 6-9 dazu, jede mit IHRER Aufgabe -- nicht auf Vorrat:
 	//   landschaft   (A6)  Name · Art (mehrwertig -> erste Komponente) suche: /api/edit/wiki/regions.php

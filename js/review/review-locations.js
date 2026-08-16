@@ -540,6 +540,14 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	// heute `type="hidden"` war. Die Nachbarzeile darunter macht es fuer den Wiki-Link seit jeher richtig.
 	document.getElementById("location-edit-description").value = presetDescription || location.description || "";
 	document.getElementById("location-edit-wiki-url").value = presetWikiUrl || location.wikiUrl || wikiLocationLink?.url || "";
+	// Einwohner · Lage · Herrscher (seit 16.08.2026 eigene Kartenfelder). 💣 KEIN Rückfall auf das
+	// Wiki-Nest: das Nest ist die Quelle, aus der der Knopf „Sync" auf ausdrückliches Anhaken
+	// überträgt -- hier ersatzweise hineingeschrieben wäre es genau die Vorschau-lose Übernahme, die
+	// mit den zwei „↻"-Knöpfen abgeschafft wurde (Aufgabe 5). Was der Ort selbst nicht trägt, bleibt
+	// leer, und das Feld sagt damit die Wahrheit.
+	document.getElementById("location-edit-einwohner").value = location.einwohner || "";
+	document.getElementById("location-edit-lage").value = location.lage || "";
+	document.getElementById("location-edit-oberhaupt").value = location.oberhaupt || "";
 	// Shared multi-source editor (multi-source #2): replaces the old "Andere Quelle" single
 	// url/label pair. The server-side takeover now owns other_source, so this dialog no longer
 	// reads or writes it here or in buildLocationEditPayload (see mountLocationEditFeatureSources).
@@ -773,6 +781,33 @@ function buildLocationEditPayload(formElement) {
 		// eine einmal gesetzte Art nie wieder entfernen.
 		place_kind: String(formData.get("place_kind") || "").trim(),
 	};
+
+	// ── Die Wiki-Angaben mit eigenem Kartenfeld ────────────────────────────────────────────────
+	// 🔴 ABWESEND HEISST „NICHT GEÄNDERT", LEER HEISST „LÖSCHEN" -- und deshalb wird ein Feld, das im
+	// Dokument gar nicht steht, WEGGELASSEN statt als "" geschickt. `update_point` fasst einen nicht
+	// mitgeschickten Schlüssel nicht an (avesmapsApplyPointWikiFields). Das ist der Riegel gegen die
+	// Ladelücke eines Deploys: eine gecachte index.html ohne diese drei Zeilen würde sonst bei JEDEM
+	// Speichern die frisch gesyncte Einwohnerzahl leeren, ohne dass jemand etwas anklickt (AGENTS.md
+	// §7 — genau diese Lücke stand am 15.08.2026 live).
+	["einwohner", "lage", "oberhaupt"].forEach((feld) => {
+		const wert = formData.get(feld);
+		if (wert !== null) {
+			payload[feld] = String(wert).trim();
+		}
+	});
+
+	// 🔴 DER DRITTE ZUSTAND. Er kommt aus dem Zuweisungskasten, nicht aus einem Formularfeld -- er ist
+	// dessen Häkchen „Kein Wiki-Artikel vorhanden". `null` heißt „das Bauteil ist nicht bereit" (ein
+	// Blindgänger nach einem Deploy-Fehlschlag, siehe js/ui/wiki-assign.js): dann wird der Schlüssel
+	// weggelassen und der Server lässt den gespeicherten Merker in Ruhe. Ein `false` an dieser Stelle
+	// wäre eine Löschung, die niemand angeordnet hat -- die Entscheidung stammt oft aus dem
+	// Konfliktzentrum, nicht aus diesem Dialog.
+	const keinArtikel = typeof settlementWikiKeinArtikelFuerPayload === "function"
+		? settlementWikiKeinArtikelFuerPayload()
+		: null;
+	if (keinArtikel !== null) {
+		payload.wiki_no_article = keinArtikel;
+	}
 
 	if (action === "create_point") {
 		payload.lat = Number.parseFloat(String(formData.get("lat") || ""));

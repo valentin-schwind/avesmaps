@@ -92,6 +92,18 @@ const prepareLocationData = (data) => {
 				wikiUrl: readFeatureWikiUrl(feature.properties),
 				otherSource: readFeatureOtherSource(feature.properties),
 				wikiSettlement: feature.properties.wiki_settlement || null,
+				// 🔴 Der dritte Zustand: „ein Editor hat nachgesehen, es gibt KEINEN Wiki-Artikel."
+				// Er ist nicht dasselbe wie eine fehlende Zuweisung (das hiesse „noch niemand hat
+				// nachgesehen") -- und ohne ihn im Marker-Eintrag startet das Häkchen im Dialog
+				// „Ort bearbeiten" immer leer, ein beliebiges Speichern nähme die Entscheidung
+				// zurück, und der Leseweg riete die Adresse wieder her (Discord #38).
+				wikiNoArticle: Boolean(feature.properties.wiki_no_article),
+				// Einwohner · Lage · Herrscher: seit 16.08.2026 eigene Kartenfelder, die der
+				// Wiki-Sync füllen kann. ⚠️ NUR Daten — die Infobox zeigt sie (noch) nicht; sichtbar
+				// werden sie erst mit einer eigenen, einzeln live gehenden Änderung (AGENTS.md §9).
+				einwohner: String(feature.properties.einwohner || ""),
+				lage: String(feature.properties.lage || ""),
+				oberhaupt: String(feature.properties.oberhaupt || ""),
 				// Ortsart, vom Editor gesetzt ("Brücke", "Oase", ...). Beschreibt den Ort; sie
 				// aendert seine Darstellung NICHT -- nur die Typzeile der Infobox (siehe
 				// locationTypeLabelForDisplay in map-features-location-marker-entry.js).

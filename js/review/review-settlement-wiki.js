@@ -72,12 +72,39 @@ function settlementWikiZustand() {
 	}
 	return avesmapsWikiAssignOrtZustand({
 		wiki_settlement: settlementWikiCurrentAssignment() || settlementWikiPendingAssignment(),
+		// 🔴 Der dritte Zustand kommt aus dem MARKER-EINTRAG, nicht aus einem Formularfeld: er steht
+		// im `properties_json` und reist im Kartenpayload mit (prepareLocationData, js/routing/
+		// routing.js). Im Anlege-Fall gibt es keinen Marker -- dort ist er von Natur aus falsch.
+		kein_artikel: Boolean(settlementWikiCurrentMarkerEntry()?.location?.wikiNoArticle),
 		// 💣 LESEFUNKTIONEN, keine Werte: Namensfeld und Groessenauswahl stehen im selben Formular
 		// ueber dem Kasten. `laden` laeuft einmal, die Sync-Vorschau entsteht erst beim Druck auf
 		// „Sync" -- eingefroren boete sie eine Aenderung an, die das Formular daneben laengst zeigt.
 		name: () => settlementWikiElement("location-edit-name")?.value || "",
 		feature_subtype: () => settlementWikiElement("location-edit-type")?.value || "",
+		// Dieselbe Begruendung fuer die drei neuen Kartenfelder -- sie stehen im selben Formular und
+		// duerfen zwischen `laden` und „Sync" von Hand geaendert worden sein.
+		einwohner: () => settlementWikiElement("location-edit-einwohner")?.value || "",
+		lage: () => settlementWikiElement("location-edit-lage")?.value || "",
+		oberhaupt: () => settlementWikiElement("location-edit-oberhaupt")?.value || "",
 	});
+}
+
+/**
+ * Der Stand des Häkchens „Kein Wiki-Artikel vorhanden", wie ihn `buildLocationEditPayload` braucht.
+ *
+ * 🔴 `null` HEISST „NICHT BEREIT", UND DAS IST DER GANZE ZWECK. Ein Blindgänger (das Bauteil oder
+ * eine seiner Voraussetzungen fehlt -- nach einem Deploy-Fehlschlag nicht hypothetisch, AGENTS.md §9)
+ * gäbe hier sonst `false` zurück, und das nächste beliebige Speichern nähme eine Entscheidung
+ * zurück, die oft gar nicht in diesem Dialog getroffen wurde, sondern im Konfliktzentrum. Der
+ * Payload-Bauer lässt den Schlüssel dann weg; `update_point` fasst den gespeicherten Merker nicht an.
+ * Dieselbe Regel wie beim Kraftlinien-Editor (`wikiAssign.bereit ? … : Rückfall`).
+ */
+function settlementWikiKeinArtikelFuerPayload() {
+	if (!settlementWikiAssign || !settlementWikiAssign.bereit) {
+		return null;
+	}
+	const stand = settlementWikiAssign.lies();
+	return stand ? stand.kein_artikel === true : null;
 }
 
 // Derive the wiki page title from a /wiki/<Title> URL (decodes %xx + underscores). "" if none.
@@ -272,9 +299,12 @@ async function removeSettlementWiki() {
 	}
 	// Das versteckte wiki_url-Formfeld mitleeren: sonst stellt der Auto-Connect beim naechsten
 	// Speichern die gerade entfernte Verbindung still wieder her (Owner: Entfernen bleibt entfernt).
-	// ⚠️ Es HAELT trotzdem nicht ueber ein Neuladen der Karte hinweg -- der Leseweg raet die Adresse
-	// aus dem Namen zurueck, solange kein Merker „kein Artikel" danebensteht
-	// (avesmapsEnrichMapFeatureWikiUrl). Gemessen und offen gemeldet, siehe den Bericht zu Aufgabe 5.
+	// 🔴 UND ES HAELT SEIT DEM 16.08.2026 AUCH UEBER EIN NEULADEN DER KARTE HINWEG -- aber nur, wenn
+	// der Editor danach das Häkchen „Kein Wiki-Artikel vorhanden" setzt und speichert. Ohne den Merker
+	// rät avesmapsEnrichMapFeatureWikiUrl die Adresse aus dem Ortsnamen zurück; „gelöscht" und „nie
+	// gesetzt" sind für sie dasselbe. Das Entfernen allein kann diese Frage nicht beantworten: es
+	// heißt „diese Verbindung war falsch", nicht „es gibt keinen Artikel". Genau dafür ist das
+	// Häkchen da (Discord #38).
 	const wikiUrlField = settlementWikiElement("location-edit-wiki-url");
 	if (wikiUrlField) {
 		wikiUrlField.value = "";
@@ -299,7 +329,10 @@ async function removeSettlementWiki() {
  */
 function settlementWikiSyncUebernehmen(zeilen) {
 	const werte = avesmapsWikiAssignOrtSyncWerte(zeilen);
-	if (werte.name === null && werte.feature_subtype === null) {
+	// 🔴 Die Leerprüfung zählt ALLE Kartenfelder, nicht zwei ausgeschriebene: seit dem 16.08.2026
+	// sind es fünf, und eine allein angehakte Einwohnerzahl hätte hier sonst „nichts angehakt"
+	// ergeben -- ein Häkchen, das eine Ablehnung auslöst.
+	if (avesmapsWikiAssignOrtSyncLeer(werte)) {
 		throw new Error("Keine übernehmbare Angabe angehakt.");
 	}
 	// 🔴 ERST ALLES PRUEFEN, DANN ALLES SCHREIBEN. Die Pruefung der Ortsgroesse stand bis zum
@@ -317,9 +350,21 @@ function settlementWikiSyncUebernehmen(zeilen) {
 		&& (!select || !Array.from(select.options || []).some((option) => option.value === werte.feature_subtype))) {
 		throw new Error("Die Ortsgröße „" + werte.feature_subtype + "“ steht in der Auswahl nicht zur Verfügung.");
 	}
+	// Die drei Textfelder -- ERST alle prüfen, dann alle schreiben, wortgleich zur Regel darüber.
+	const textFelder = [["einwohner", "Einwohner"], ["lage", "Lage"], ["oberhaupt", "Herrscher"]].map(([feld, label]) => {
+		if (werte[feld] === null) {
+			return null;
+		}
+		const eingabe = settlementWikiElement("location-edit-" + feld);
+		if (!eingabe) {
+			throw new Error("Das Feld „" + label + "“ steht nicht im Dialog.");
+		}
+		return [eingabe, werte[feld]];
+	}).filter((eintrag) => eintrag !== null);
 	if (nameInput) {
 		nameInput.value = werte.name;
 	}
+	textFelder.forEach(([eingabe, wert]) => { eingabe.value = wert; });
 	if (select) {
 		// 🔴 setLocationEditSize, NICHT `select.value = …`: an der Ortsgroesse haengt die Sperre des
 		// Feldes „Art" (place_kind), und ein programmatisches Setzen feuert KEIN change-Ereignis --
@@ -367,7 +412,34 @@ function renderSettlementWikiReference() {
 		zuweisen: (treffer) => selectSettlementWikiResult(avesmapsWikiAssignOrtTitel(treffer), treffer),
 		loesen: removeSettlementWiki,
 		syncUebernehmen: settlementWikiSyncUebernehmen,
+		keinArtikelGeaendert: settlementWikiKeinArtikelGeaendert,
 	});
+}
+
+/**
+ * Das Häkchen „Kein Wiki-Artikel vorhanden" wurde umgelegt.
+ *
+ * 🔴 GESPEICHERT WIRD ERST MIT „Speichern" -- dieser Dialog schreibt keine Einzelfelder. Der Wert
+ * selbst hält das Bauteil; `buildLocationEditPayload` holt ihn über
+ * `settlementWikiKeinArtikelFuerPayload()`.
+ *
+ * 💣 GESETZT HEISST: DAS FLACHE ADRESSFELD WIRD GELEERT. `update_point` LEHNT den Widerspruch
+ * „Adresse UND kein Artikel" ab (avesmapsApplyPointWikiFields) -- und `#location-edit-wiki-url` ist
+ * in diesem Dialog `type="hidden"`: der Editor bekäme eine Absage, deren Ursache er nirgends sieht
+ * und deren Rat („die Zuweisung entfernen") auf ein leeres Feld zeigt. Also wird hier geleert, statt
+ * dort abzulehnen. ⚠️ Beim ABwählen wird NICHTS zurückgeholt: eine gelöschte Adresse zu erraten wäre
+ * genau der Fehler, den der Merker beseitigt.
+ */
+function settlementWikiKeinArtikelGeaendert(gesetzt) {
+	if (gesetzt === true) {
+		const wikiUrlField = settlementWikiElement("location-edit-wiki-url");
+		if (wikiUrlField) {
+			wikiUrlField.value = "";
+		}
+	}
+	showFeedbackToast?.(gesetzt
+		? "„Kein Wiki-Artikel vorhanden“ gesetzt — noch nicht gespeichert."
+		: "„Kein Wiki-Artikel vorhanden“ entfernt — noch nicht gespeichert.", "info");
 }
 
 // Holt die aktuelle Zuordnung frisch vom Server (DB-Wahrheit), falls der Browser-Marker stale ist

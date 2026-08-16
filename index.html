@@ -1337,6 +1337,25 @@
 							<span>Art</span>
 							<input id="location-edit-place-kind" name="place_kind" type="search" maxlength="120" autocomplete="off" placeholder="z. B. Brücke – leer lassen, wenn unbekannt" />
 						</label>
+						<!-- Einwohner · Lage · Herrscher: die drei Wiki-Angaben mit eigenem Kartenfeld
+						     (Owner-Entscheid 16.08.2026). Bis dahin gab es sie NUR im Wiki-Nest -- der Ort
+						     hatte damit nur die Ortsgröße als Sync-Ziel. Der Knopf „Sync" im Kasten unten
+						     füllt genau diese drei Felder mit, was das Wiki sagt; von Hand geändert werden
+						     dürfen sie trotzdem. ⚠️ Sie heißen wie im Nest (einwohner/lage/oberhaupt), damit
+						     die Erklärung im Feldregister eine Zeile je Feld bleibt.
+						     ⚠️ Nur Editordaten: die Infobox der Karte zeigt sie (noch) nicht. -->
+						<label class="location-report-form__field">
+							<span>Einwohner</span>
+							<input id="location-edit-einwohner" name="einwohner" type="text" maxlength="200" autocomplete="off" />
+						</label>
+						<label class="location-report-form__field">
+							<span>Lage</span>
+							<input id="location-edit-lage" name="lage" type="text" maxlength="300" autocomplete="off" />
+						</label>
+						<label class="location-report-form__field">
+							<span>Herrscher</span>
+							<input id="location-edit-oberhaupt" name="oberhaupt" type="text" maxlength="200" autocomplete="off" />
+						</label>
 					</div>
 					<!-- Der Wunsch eines Melders, schreibgeschuetzt. 💣 Er stand bis 2026-08-05 mitsamt der
 					     Zeile „— Community-Änderungswunsch von …:" IN der Beschreibung -- also in dem Feld,

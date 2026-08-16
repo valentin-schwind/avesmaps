@@ -30,6 +30,8 @@ const { avesmapsWikiAssignDiff } = require("../wiki-assign-diff.js");
 const { avesmapsWikiAssignMount } = require("../wiki-assign.js");
 const {
 	AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN,
+	AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER,
+	avesmapsWikiAssignOrtSyncLeer,
 	avesmapsWikiAssignOrtOrtsgroesse,
 	avesmapsWikiAssignOrtWerte,
 	avesmapsWikiAssignOrtTreffer,
@@ -159,7 +161,31 @@ const ohne = avesmapsWikiAssignOrtZustand({ wiki_settlement: null, name: "Havena
 assert.strictEqual(ohne.artikel, null);
 assert.strictEqual(ohne.kartenwerte.name, "Havena");
 assert.strictEqual(ohne.kartenwerte.feature_subtype, "dorf");
-zaehl(); zaehl(); zaehl();
+// 🔴 DER DRITTE ZUSTAND IST NICHT AUS DER ZUWEISUNG ABLEITBAR: „keine Zuweisung" heisst „noch
+// niemand hat nachgesehen", der Merker heisst „jemand HAT nachgesehen und es gibt keinen". Ohne
+// Angabe ist er falsch, und nur ein ausdrueckliches `true` setzt ihn.
+assert.strictEqual(ohne.keinArtikel, false);
+assert.strictEqual(
+	avesmapsWikiAssignOrtZustand({ wiki_settlement: null, kein_artikel: true }).keinArtikel, true,
+	"der Merker „kein Wiki-Artikel“ erreicht den Zustand nicht -- das Haekchen startet dann immer leer"
+);
+["", 0, "true", null, undefined].forEach((weich) => {
+	assert.strictEqual(avesmapsWikiAssignOrtZustand({ kein_artikel: weich }).keinArtikel, false,
+		"ein weicher Wert (" + JSON.stringify(weich) + ") setzt den Merker");
+	zaehl();
+});
+// Und die drei neuen Kartenfelder kommen mit -- sonst vergliche die Sync-Vorschau gegen Leerwerte
+// und boete jedes Mal eine Aenderung an, die das Formular daneben laengst zeigt.
+const mitFeldern = avesmapsWikiAssignOrtZustand({
+	wiki_settlement: null, name: "Havena", feature_subtype: "dorf",
+	einwohner: "9.400", lage: "Albernia · Mittelreich", oberhaupt: "Gräfin Yppolita",
+});
+assert.deepStrictEqual(
+	AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER.map((feld) => mitFeldern.kartenwerte[feld]),
+	["Havena", "dorf", "9.400", "Albernia · Mittelreich", "Gräfin Yppolita"],
+	"nicht jedes Kartenfeld erreicht den Zustand"
+);
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 // 💣 LESEFUNKTIONEN: der Kartenwert wird beim LESEN geholt, nicht beim Laden eingefroren.
 let formularName = "Havena (alt)";
@@ -190,63 +216,112 @@ assert.ok(!("wiki_key" in koerper), "der Ort wird ueber den TITEL adressiert, ni
 zaehl(); zaehl();
 
 // ── 8) DIE UEBERNAHME LIEST NUR ANGEHAKTE ZEILEN ──────────────────────────────────────────────
-assert.deepStrictEqual(avesmapsWikiAssignOrtSyncWerte([]), { name: null, feature_subtype: null });
+// 🔴 FUENF Ziele seit dem 16.08.2026 (Aufgabe 5b): Einwohner, Lage und Herrscher haben eigene
+// Kartenfelder bekommen. Die Liste steht EINMAL (AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER) -- hier wird
+// gegen sie geprueft, nicht gegen eine abgeschriebene zweite.
+const KEINE_UEBERNAHME = {};
+AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER.forEach((feld) => { KEINE_UEBERNAHME[feld] = null; });
+assert.deepStrictEqual(avesmapsWikiAssignOrtSyncWerte([]), KEINE_UEBERNAHME);
 assert.deepStrictEqual(
 	avesmapsWikiAssignOrtSyncWerte([{ karte: "name", neu: "Havena" }]),
-	{ name: "Havena", feature_subtype: null }
+	Object.assign({}, KEINE_UEBERNAHME, { name: "Havena" })
 );
 assert.deepStrictEqual(
-	avesmapsWikiAssignOrtSyncWerte([{ karte: "feature_subtype", neu: "grossstadt" }, { karte: "einwohner", neu: "9.400" }]),
-	{ name: null, feature_subtype: "grossstadt" },
+	avesmapsWikiAssignOrtSyncWerte([{ karte: "feature_subtype", neu: "grossstadt" }, { karte: "art", neu: "Hafenstadt" }]),
+	Object.assign({}, KEINE_UEBERNAHME, { feature_subtype: "grossstadt" }),
 	"ein Feld ohne Kartenziel darf nicht in die Uebernahme rutschen"
 );
-zaehl(); zaehl(); zaehl();
+// 💣 DIE DREI NEUEN ZIELE KOMMEN WIRKLICH AN. Bliebe avesmapsWikiAssignOrtSyncWerte bei den zwei
+// alten Schluesseln, zeigte das Bauteil die Zeile „Einwohner" -- und der Haken taete nichts.
+assert.deepStrictEqual(
+	avesmapsWikiAssignOrtSyncWerte([
+		{ karte: "einwohner", neu: "9.400" }, { karte: "lage", neu: "Albernia · Mittelreich" },
+		{ karte: "oberhaupt", neu: "Gräfin Yppolita" },
+	]),
+	Object.assign({}, KEINE_UEBERNAHME, { einwohner: "9.400", lage: "Albernia · Mittelreich", oberhaupt: "Gräfin Yppolita" }),
+	"die drei neuen Kartenfelder erreichen die Uebernahme nicht"
+);
+// 💣 „Nichts angehakt" zaehlt ALLE Ziele. Fragte die Oberflaeche weiterhin nur `name` und
+// `feature_subtype` ab, waere eine allein angehakte Einwohnerzahl „nichts" -- die Uberflaeche wuerfe,
+// das Bauteil laese das als „es ist nichts passiert", und der Haken bliebe wirkungslos stehen.
+assert.strictEqual(avesmapsWikiAssignOrtSyncLeer(KEINE_UEBERNAHME), true);
+assert.strictEqual(
+	avesmapsWikiAssignOrtSyncLeer(Object.assign({}, KEINE_UEBERNAHME, { einwohner: "9.400" })),
+	false,
+	"eine allein angehakte Einwohnerzahl gilt als „nichts angehakt“"
+);
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 // ══ TEIL 2: die Erklaerung `ort` im Register ══════════════════════════════════════════════════
 const ort = AVESMAPS_WIKI_ASSIGN_REGISTRY.ort;
 assert.ok(ort, "die Erklaerung `ort` fehlt im Register");
 assert.strictEqual(ort.suche.art, "server");
 assert.strictEqual(ort.suche.url, "/api/edit/wiki/settlements.php");
-// 💣 Genau ZWEI Kartenziele. Waechst die Liste, ist ein Feld dazugekommen, das die Sync-Vorschau
-// schreiben kann -- dann muss avesmapsWikiAssignOrtSyncWerte es kennen, sonst faellt es lautlos
-// unter den Tisch (das Bauteil zeigt die Zeile, die Uebernahme ignoriert sie).
+// 💣 DIE ZWEI LISTEN MUESSEN SICH DECKEN. Das Register erklaert, WELCHES Wiki-Feld auf welches
+// Kartenfeld zeigt; AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER sagt, welche Kartenfelder es gibt. Laeuft
+// eines der zwei weiter, zeigt das Bauteil eine Sync-Zeile, die die Uebernahme lautlos verwirft (oder
+// die Uebernahme kennt ein Feld, fuer das nie eine Zeile entsteht).
 assert.deepStrictEqual(
-	ort.felder.filter((feld) => feld.karte !== "").map((feld) => feld.karte),
-	["name", "feature_subtype"],
-	"die Kartenziele der Erklaerung `ort` und avesmapsWikiAssignOrtSyncWerte laufen auseinander"
+	ort.felder.filter((feld) => feld.karte !== "").map((feld) => feld.karte).slice().sort(),
+	AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER.slice().sort(),
+	"die Kartenziele der Erklaerung `ort` und AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER laufen auseinander"
 );
-// Die Anzeigefelder, die die Aufgabe nennt, sind da -- und Einwohner/Lage/Herrscher tragen
-// ausdruecklich KEIN Kartenziel (es gibt keins).
-["einwohner", "region", "staat", "oberhaupt"].forEach((wikiFeld) => {
+// 🔴 Einwohner, Lage und Herrscher HABEN seit dem 16.08.2026 ein Kartenziel, und es heisst wie das
+// Wiki-Feld -- genau darum ist die Erklaerung je eine Zeile und niemand uebersetzt.
+[["einwohner", "einwohner"], ["lage", "lage"], ["oberhaupt", "oberhaupt"]].forEach(([wikiFeld, ziel]) => {
 	const zeile = ort.felder.filter((feld) => feld.wiki === wikiFeld)[0];
 	assert.ok(zeile, "Feldzeile fuer „" + wikiFeld + "“ fehlt");
-	assert.strictEqual(zeile.karte, "", wikiFeld + " hat plotzlich ein Kartenziel -- gibt es das Feld wirklich?");
+	assert.strictEqual(zeile.karte, ziel, wikiFeld + " zeigt nicht auf das gleichnamige Kartenfeld");
 	zaehl();
 });
-zaehl(); zaehl(); zaehl(); zaehl();
+// Und die Anzeigezeilen bleiben Anzeige -- fuer sie gibt es weiterhin kein Feld, und hier wird
+// nichts auf Vorrat erklaert.
+["art", "bevoelkerung", "region", "staat", "handelszone", "verkehrswege", "tempel"].forEach((wikiFeld) => {
+	const zeile = ort.felder.filter((feld) => feld.wiki === wikiFeld)[0];
+	assert.ok(zeile, "Feldzeile fuer „" + wikiFeld + "“ fehlt");
+	assert.strictEqual(zeile.karte, "", wikiFeld + " hat ploetzlich ein Kartenziel -- gibt es das Feld wirklich?");
+	zaehl();
+});
+// 🔴 DER DRITTE ZUSTAND wird angeboten. Ohne diese Zeile zeichnet das Bauteil das Haekchen gar nicht
+// (avesmapsWikiAssignModell prueft `extra.keinArtikelHaken === true`) -- und „Entfernen" hielte beim
+// Ort weiterhin nicht ueber ein Neuladen der Karte hinweg (Discord #38).
+assert.strictEqual(ort.extra.keinArtikelHaken, true, "der Ort bietet den dritten Zustand nicht an");
+assert.ok(String(ort.extra.keinArtikelHinweis || "").trim() !== "", "der Hinweis zum dritten Zustand fehlt");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 // ── Die Diff-Rechnung auf der ECHTEN Erklaerung ───────────────────────────────────────────────
-// 💣 Die Sync-Vorschau kennt nur Zeilen MIT Kartenziel. Genau deshalb steht die Einwohnerzahl NIE
-// darin -- sie ist Anzeige. Das ist die Antwort auf „syncen und die Einwohnerzahl ungehakt lassen":
-// sie ist gar nicht erst anhakbar.
+// 💣 Die Sync-Vorschau kennt nur Zeilen MIT Kartenziel. 🔴 Bis zum 16.08.2026 fiel die Einwohnerzahl
+// genau daran heraus -- „syncen und die Einwohnerzahl ungehakt lassen" war damals gar nicht
+// ausfuehrbar. Seit sie ein Kartenfeld hat, IST sie anhakbar, und der Handgriff wird weiter unten in
+// beiden Oberflaechen wirklich gefahren.
 const diffZeilen = avesmapsWikiAssignDiff(
 	ort.felder,
-	{ name: "Havena (alt)", feature_subtype: "dorf" },
+	{ name: "Havena (alt)", feature_subtype: "dorf", einwohner: "", lage: "", oberhaupt: "" },
 	avesmapsWikiAssignOrtWerte(SIEDLUNG),
 	[]
 );
-assert.deepStrictEqual(diffZeilen.map((zeile) => zeile.karte), ["name", "feature_subtype"]);
-assert.deepStrictEqual(diffZeilen.map((zeile) => zeile.neu), ["Havena", "grossstadt"]);
-assert.ok(diffZeilen.every((zeile) => zeile.gehakt === true), "beide Aenderungen sind vorangehakt");
-assert.ok(!diffZeilen.some((zeile) => zeile.karte === "einwohner"),
-	"die Einwohnerzahl steht in der Sync-Vorschau -- sie hat kein Kartenziel und kann nichts uebernehmen");
-zaehl(); zaehl(); zaehl(); zaehl();
+assert.deepStrictEqual(diffZeilen.map((zeile) => zeile.karte),
+	["name", "feature_subtype", "einwohner", "oberhaupt", "lage"]);
+assert.deepStrictEqual(diffZeilen.map((zeile) => zeile.neu),
+	["Havena", "grossstadt", "9.400", "Gräfin Yppolita", "Albernia · Mittelreich"]);
+assert.ok(diffZeilen.every((zeile) => zeile.gehakt === true), "die Aenderungen sind vorangehakt");
+// Und die Anzeigefelder bleiben draussen: „Tempel" hat einen Wert im Wiki und kein Kartenziel.
+assert.ok(!diffZeilen.some((zeile) => zeile.karte === "tempel"),
+	"eine Anzeige-Zeile steht in der Sync-Vorschau -- sie kann nichts uebernehmen");
+// 🔴 `lage` ist die ZUSAMMENSETZUNG aus Region und Staat -- die zwei Haelften stehen daneben als
+// Anzeige und duerfen NICHT ebenfalls in der Vorschau landen.
+assert.ok(!diffZeilen.some((zeile) => zeile.karte === "region" || zeile.karte === "staat"),
+	"Region/Staat stehen in der Sync-Vorschau, obwohl nur ihre Zusammensetzung ein Kartenfeld hat");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 // 🔴 Sagt das Wiki zur Ortsgroesse nichts (unbekannte Klasse), steht die Zeile drin, aber NIE
 // vorangehakt -- sonst leerte ein unbedachter Klick ein gepflegtes Feld.
 const diffLeer = avesmapsWikiAssignDiff(
 	ort.felder,
-	{ name: "Havena", feature_subtype: "grossstadt" },
+	{
+		name: "Havena", feature_subtype: "grossstadt", einwohner: SIEDLUNG.einwohner,
+		lage: SIEDLUNG.lage, oberhaupt: SIEDLUNG.oberhaupt,
+	},
 	avesmapsWikiAssignOrtWerte(Object.assign({}, SIEDLUNG, { settlement_class: "burg" })),
 	[]
 );
@@ -437,6 +512,11 @@ function skripteAus(htmlDatei, muster) {
 		"location-edit-type": scheinFeld("dorf", AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN),
 		"location-edit-wiki-url": scheinFeld("https://de.wiki-aventurica.de/wiki/Havena_(Andergast)"),
 		"location-edit-description": scheinFeld("Alte Beschreibung."),
+		// Die drei neuen Kartenfelder (Aufgabe 5b) -- leer, wie bei einem Ort, den noch niemand
+		// gesynct hat.
+		"location-edit-einwohner": scheinFeld(""),
+		"location-edit-lage": scheinFeld(""),
+		"location-edit-oberhaupt": scheinFeld(""),
 	};
 	// Die vier Zeilen aus index.html, in DEREN Reihenfolge -- fehlt eine, liefert `mount` unten
 	// einen Blindgaenger und die erste Zusicherung faellt um.
@@ -572,12 +652,18 @@ function skripteAus(htmlDatei, muster) {
 	zaehl(); zaehl();
 
 	// ---- Sync: EINE Zeile ungehakt lassen -----------------------------------------------------
+	// 🔴 FUENF Zeilen seit Aufgabe 5b. Genau der Handgriff, den Aufgabe 5 als „nicht ausfuehrbar"
+	// melden musste: „syncen und die Einwohnerzahl ungehakt lassen" -- damals hatte sie kein
+	// Kartenfeld und war gar nicht anhakbar. Hier wird sie ANGEHAKT uebernommen und die Ortsgroesse
+	// abgehakt; die Gegenprobe („Einwohnerzahl abgehakt") steht gleich darunter.
 	host.feuere("click", scheinZiel("data-wa-aktion", "sync"));
 	await ruhe();
-	assert.ok(host.innerHTML.indexOf("2 von 2 Angaben würden sich ändern") !== -1,
+	assert.ok(host.innerHTML.indexOf("5 von 5 Angaben würden sich ändern") !== -1,
 		"die Sync-Vorschau zaehlt falsch: " + host.innerHTML);
 	assert.ok(host.innerHTML.indexOf("Havena (alt)") !== -1 && host.innerHTML.indexOf("grossstadt") !== -1, host.innerHTML);
-	zaehl(); zaehl();
+	assert.ok(host.innerHTML.indexOf("9.400") !== -1 && host.innerHTML.indexOf("Albernia · Mittelreich") !== -1,
+		"die drei neuen Kartenfelder stehen nicht in der Vorschau: " + host.innerHTML);
+	zaehl(); zaehl(); zaehl();
 	// Die zweite Zeile (Ortsgroesse) ausdruecklich ABhaken.
 	host.feuere("change", scheinZiel("data-wa-sync-haken", "1", { checked: false }));
 	await ruhe();
@@ -588,13 +674,18 @@ function skripteAus(htmlDatei, muster) {
 		"die ABGEHAKTE Ortsgroesse wurde trotzdem uebernommen -- ein Haken, der nichts bedeutet");
 	assert.strictEqual(vm.runInContext("setLocationEditSizeAufrufe.length", k.kasten), 0,
 		"die Ortsgroesse wurde gesetzt, obwohl ihre Zeile abgehakt war");
-	zaehl(); zaehl(); zaehl();
+	// 🔴 Und die drei neuen Felder sind WIRKLICH gefuellt worden -- nicht bloss angeboten.
+	assert.strictEqual(felder["location-edit-einwohner"].value, "9.400",
+		"die angehakte Einwohnerzahl ist nicht im Formular angekommen");
+	assert.strictEqual(felder["location-edit-lage"].value, "Albernia · Mittelreich");
+	assert.strictEqual(felder["location-edit-oberhaupt"].value, "Gräfin Yppolita");
+	zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 	// ---- Sync ein zweites Mal: jetzt bleibt genau die eine Zeile, und sie geht durch den Setzer -
 	host.feuere("click", scheinZiel("data-wa-aktion", "sync"));
 	await ruhe();
-	assert.ok(host.innerHTML.indexOf("1 von 2 Angaben würde sich ändern") !== -1,
-		"die zweite Vorschau kennt den frisch uebernommenen Namen nicht -- der Kartenwert ist eingefroren: " + host.innerHTML);
+	assert.ok(host.innerHTML.indexOf("1 von 5 Angaben würde sich ändern") !== -1,
+		"die zweite Vorschau kennt den frisch uebernommenen Stand nicht -- die Kartenwerte sind eingefroren: " + host.innerHTML);
 	host.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
 	await ruhe();
 	// 🔴 setLocationEditSize, nicht `select.value = …`: an der Ortsgroesse haengt die Sperre des
@@ -618,6 +709,9 @@ function skripteAus(htmlDatei, muster) {
 			// Ohne „grossstadt": die Uebernahme MUSS daran scheitern.
 			"location-edit-type": scheinFeld("dorf", ["dorf", "kleinstadt"]),
 			"location-edit-wiki-url": scheinFeld(""),
+			"location-edit-einwohner": scheinFeld(""),
+			"location-edit-lage": scheinFeld(""),
+			"location-edit-oberhaupt": scheinFeld(""),
 		},
 		["settlement-wiki-assign-host"],
 		(url, rumpf) => (rumpf && rumpf.action === "assign_to"
@@ -634,16 +728,22 @@ function skripteAus(htmlDatei, muster) {
 	await ruhe();
 	hostHalb.feuere("click", scheinZiel("data-wa-aktion", "sync"));
 	await ruhe();
-	assert.ok(hostHalb.innerHTML.indexOf("2 von 2 Angaben würden sich ändern") !== -1, hostHalb.innerHTML);
+	assert.ok(hostHalb.innerHTML.indexOf("5 von 5 Angaben würden sich ändern") !== -1, hostHalb.innerHTML);
 	hostHalb.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
 	await ruhe();
 	assert.strictEqual(kHalb.elemente["location-edit-name"].value, "Havena (alt)",
 		"der Name wurde geschrieben, obwohl die Ortsgroesse danach abgelehnt hat -- eine halbe Uebernahme, "
 		+ "die sich dem Bauteil gegenueber als gar keine ausgibt");
+	// 🔴 UND DIE DREI NEUEN GENAUSO. Mit fuenf Zielen hat „halb" jetzt vier Formen statt einer: die
+	// Pruefung MUSS vor jedem einzelnen Schreibvorgang stehen, nicht nur vor dem Namen.
+	assert.strictEqual(kHalb.elemente["location-edit-einwohner"].value, "",
+		"die Einwohnerzahl wurde geschrieben, obwohl die Ortsgroesse danach abgelehnt hat");
+	assert.strictEqual(kHalb.elemente["location-edit-lage"].value, "");
+	assert.strictEqual(kHalb.elemente["location-edit-oberhaupt"].value, "");
 	// Und die Vorschau steht noch -- das Bauteil hat die Ablehnung richtig verstanden.
 	assert.ok(hostHalb.innerHTML.indexOf("data-wa-sync-haken") !== -1,
 		"die Sync-Vorschau ist trotz Ablehnung geschlossen: " + hostHalb.innerHTML);
-	zaehl(); zaehl(); zaehl();
+	zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 	// ---- Entfernen ----------------------------------------------------------------------------
 	host.feuere("click", scheinZiel("data-wa-aktion", "entfernen"));
@@ -748,6 +848,10 @@ function skripteAus(htmlDatei, muster) {
 		// Das flache, sichtbare (readonly) Wiki-Adressfeld ueber dem Kasten -- NICHT die Zuweisung,
 		// aber es reist bei jedem Speichern mit. Startwert: eine alte, falsche Adresse.
 		dtEditWikiUrl: scheinFeld("https://de.wiki-aventurica.de/wiki/Havena_(Andergast)"),
+		// Die drei neuen Kartenfelder (Aufgabe 5b) -- leer, wie bei einem ungesyncten Ort.
+		dtEditEinwohner: scheinFeld(""),
+		dtEditLage: scheinFeld(""),
+		dtEditOberhaupt: scheinFeld(""),
 	};
 	// 🔴 DIE ATTRAPPE MODELLIERT DEN NEUAUFBAU DES FORMULARS. `renderSettlementDetail` baut
 	// #seDetailBody per innerHTML neu, und `buildSettlementEditFormHtml` schreibt dabei den ROHEN
@@ -841,15 +945,22 @@ function skripteAus(htmlDatei, muster) {
 	assert.ok(eHost.innerHTML.indexOf("9.400") !== -1, "der Editor zeigt die Infoboxwerte nicht: " + eHost.innerHTML);
 	eHost.feuere("click", scheinZiel("data-wa-aktion", "sync"));
 	await ruhe();
-	assert.ok(eHost.innerHTML.indexOf("2 von 2 Angaben würden sich ändern") !== -1, eHost.innerHTML);
+	assert.ok(eHost.innerHTML.indexOf("5 von 5 Angaben würden sich ändern") !== -1, eHost.innerHTML);
+	// 🔴 HIER wird die EINWOHNERZAHL abgehakt -- die Gegenprobe zum Kartendialog oben, und wortgleich
+	// der Handgriff, den der Brief zu Aufgabe 5 verlangt hatte und der damals unmoeglich war.
 	eHost.feuere("change", scheinZiel("data-wa-sync-haken", "0", { checked: false }));
+	eHost.feuere("change", scheinZiel("data-wa-sync-haken", "2", { checked: false }));
 	await ruhe();
 	eHost.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
 	await ruhe();
 	assert.strictEqual(eFelder.dtEditName.value, "Havena (alt)",
 		"der ABGEHAKTE Name wurde trotzdem uebernommen");
 	assert.strictEqual(eFelder.dtEditType.value, "grossstadt", "die angehakte Ortsgroesse wurde nicht uebernommen");
-	zaehl(); zaehl(); zaehl(); zaehl();
+	assert.strictEqual(eFelder.dtEditEinwohner.value, "",
+		"die ABGEHAKTE Einwohnerzahl wurde trotzdem uebernommen -- ein Haken, der nichts bedeutet");
+	assert.strictEqual(eFelder.dtEditOberhaupt.value, "Gräfin Yppolita", "der angehakte Herrscher wurde nicht uebernommen");
+	assert.strictEqual(eFelder.dtEditLage.value, "Albernia · Mittelreich", "die angehakte Lage wurde nicht uebernommen");
+	zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 	// ---- Und dieselbe Regel im Editor: KEINE halbe Uebernahme ---------------------------------
 	// 🔴 Wortgleich zum Kartendialog geprueft, weil beide Oberflaechen bei derselben Handlung
@@ -907,6 +1018,267 @@ function skripteAus(htmlDatei, muster) {
 		"der Orte-Editor schluckt einen Fehler des geteilten Zustandsbauers");
 	vm.runInContext("avesmapsWikiAssignOrtZustand = echterOrtZustandE;", e.kasten);
 	zaehl();
+
+	// ══ TEIL 5: DER DRITTE ZUSTAND („Kein Wiki-Artikel vorhanden", Aufgabe 5b) ════════════════
+	// 🔴 Er ist beim Ort nicht bloss ein Ordnungsmerkmal wie bei den Kraftlinien, sondern die
+	// REPARATUR von Discord #38: ohne ihn raet avesmapsEnrichMapFeatureWikiUrl beim naechsten
+	// Kartenladen eine Adresse aus dem Ortsnamen zurueck, und ein „Entfernen" haelt nicht.
+	// ⚠️ Gefahren wird der ganze Weg -- Marker-Eintrag → Kasten → Haekchen → Payload --, nicht der
+	// Bauer allein. Genau daran ist in den Aufgaben 3-5 acht Mal eine Zusicherung vorbeigelaufen.
+
+	/** Ein Kartendialog-Sandkasten mit gewaehltem Merker-Stand. */
+	function merkerDialog(wikiNoArticle, wikiUrlWert) {
+		const eigeneFelder = {
+			"location-edit-name": scheinFeld("Havena"),
+			"location-edit-type": scheinFeld("dorf", AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN),
+			"location-edit-wiki-url": scheinFeld(wikiUrlWert || ""),
+			"location-edit-einwohner": scheinFeld(""),
+			"location-edit-lage": scheinFeld(""),
+			"location-edit-oberhaupt": scheinFeld(""),
+		};
+		const kasten = sandkastenBauen(dialogSkripte, eigeneFelder, ["settlement-wiki-assign-host"],
+			() => ({ ok: true, query: "", rows: [] }));
+		vm.runInContext("var locationEditMarkerEntry = { publicId: 'loc-merker', location: "
+			+ JSON.stringify({ wikiNoArticle: wikiNoArticle === true }) + " };"
+			+ "var locationEditPendingWikiSettlement = null;", kasten.kasten);
+		return kasten;
+	}
+
+	// ---- Der gespeicherte Merker erreicht das Häkchen -----------------------------------------
+	const kGesetzt = merkerDialog(true, "");
+	const hostGesetzt = kGesetzt.elemente["settlement-wiki-assign-host"];
+	vm.runInContext("renderSettlementWikiReference();", kGesetzt.kasten);
+	await ruhe();
+	assert.ok(hostGesetzt.innerHTML.indexOf("Kein Wiki-Artikel vorhanden") !== -1,
+		"der Kartendialog zeigt den dritten Zustand gar nicht: " + hostGesetzt.innerHTML);
+	// 💣 Und zwar ANGEHAKT. Ohne den Weg properties → Payload → prepareLocationData →
+	// settlementWikiZustand startete das Häkchen immer leer, und das naechste beliebige Speichern
+	// naehme eine Entscheidung zurueck, die oft im Konfliktzentrum getroffen wurde.
+	assert.ok(/data-wa-kein-artikel checked/.test(hostGesetzt.innerHTML),
+		"der gespeicherte Merker erreicht das Haekchen nicht -- es startet leer: " + hostGesetzt.innerHTML);
+	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kGesetzt.kasten), true);
+	zaehl(); zaehl(); zaehl();
+
+	// ---- Setzen leert das flache Adressfeld ---------------------------------------------------
+	// 💣 `update_point` LEHNT „Adresse UND kein Artikel" ab (avesmapsApplyPointWikiFields), und
+	// `#location-edit-wiki-url` ist in diesem Dialog `type="hidden"`: der Editor bekaeme eine Absage,
+	// deren Ursache er nirgends sieht. Also wird hier geleert, statt dort abzulehnen.
+	const kSetzen = merkerDialog(false, "https://de.wiki-aventurica.de/wiki/Havena");
+	const hostSetzen = kSetzen.elemente["settlement-wiki-assign-host"];
+	vm.runInContext("renderSettlementWikiReference();", kSetzen.kasten);
+	await ruhe();
+	assert.ok(!/data-wa-kein-artikel checked/.test(hostSetzen.innerHTML),
+		"das Haekchen startet gesetzt, obwohl der Ort den Merker nicht traegt: " + hostSetzen.innerHTML);
+	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kSetzen.kasten), false);
+	hostSetzen.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
+	await ruhe();
+	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kSetzen.kasten), true,
+		"das umgelegte Haekchen erreicht den Speicherweg nicht");
+	assert.strictEqual(kSetzen.elemente["location-edit-wiki-url"].value, "",
+		"das flache Adressfeld steht noch -- das naechste Speichern liefe in den Widerspruchs-Riegel des Servers");
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// ---- NUR EIN NEUES FELD ANGEHAKT -----------------------------------------------------------
+	// 🪤 DIESE PROBE FEHLTE, und die Mutation hat es gezeigt: die Leerpruefung „nichts angehakt"
+	// stand als `werte.name === null && werte.feature_subtype === null` da. Mit fuenf Zielen sagt sie
+	// dann bei einer ALLEIN angehakten Einwohnerzahl „nichts angehakt" -- die Oberflaeche wirft, das
+	// Bauteil liest die Ablehnung als „es ist nichts passiert", und der Haken bleibt wirkungslos
+	// stehen. Alle uebrigen Proben hatten immer auch Name oder Ortsgroesse angehakt und liefen gruen
+	// durch. Gefahren wird deshalb genau der Fall: vier Haken weg, einer bleibt.
+	async function nurEinFeldUebernehmen(sandkasten, hostName, hakenIndex) {
+		const kastenHost = sandkasten.elemente[hostName];
+		kastenHost.feuere("click", scheinZiel("data-wa-aktion", "sync"));
+		await ruhe();
+		[0, 1, 2, 3, 4].filter((i) => i !== hakenIndex).forEach((i) => {
+			kastenHost.feuere("change", scheinZiel("data-wa-sync-haken", String(i), { checked: false }));
+		});
+		await ruhe();
+		kastenHost.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
+		await ruhe();
+	}
+
+	const kEinzeln = merkerDialog(false, "");
+	// ⚠️ Der Name muss ABWEICHEN, sonst hat die Vorschau nur vier Zeilen und der Zaehlindex unten
+	// zeigt auf eine andere Angabe -- gemessen, nicht angenommen (der erste Anlauf hakte „Herrscher"
+	// an und die Probe fiel aus dem falschen Grund um).
+	kEinzeln.elemente["location-edit-name"].value = "Havena (alt)";
+	vm.runInContext("locationEditMarkerEntry = { publicId: 'loc-einzeln', location: {"
+		+ " wikiSettlement: " + JSON.stringify(SIEDLUNG) + " } };", kEinzeln.kasten);
+	vm.runInContext("renderSettlementWikiReference();", kEinzeln.kasten);
+	await ruhe();
+	// Index 2 ist „Einwohner" (Reihenfolge der Erklaerung: Name, Ortsgröße, Einwohner, Herrscher, Lage).
+	await nurEinFeldUebernehmen(kEinzeln, "settlement-wiki-assign-host", 2);
+	assert.strictEqual(kEinzeln.elemente["location-edit-einwohner"].value, "9.400",
+		"eine ALLEIN angehakte Einwohnerzahl wird nicht uebernommen -- die Leerpruefung zaehlt nur die alten zwei Ziele");
+	assert.strictEqual(kEinzeln.elemente["location-edit-name"].value, "Havena (alt)",
+		"der abgehakte Name wurde trotzdem geschrieben");
+	assert.strictEqual(kEinzeln.elemente["location-edit-oberhaupt"].value, "",
+		"der abgehakte Herrscher wurde trotzdem geschrieben");
+	zaehl(); zaehl(); zaehl();
+
+	// ---- `buildLocationEditPayload`: die ECHTE Funktion, aus der ECHTEN Datei ------------------
+	// 🔴 NICHT der Bauer allein, sondern die VERDRAHTUNG: der Payload-Bauer wohnt in
+	// js/review/review-locations.js und muss den Merker aus dem Bauteil und die drei Textfelder aus
+	// dem Formular holen. Fehlte eines, loeschte der Server es beim naechsten Speichern -- lautlos.
+	// ⚠️ `FormData` ist im Sandkasten nachgebaut, und zwar mit der EINEN Eigenschaft, auf der die
+	// Regel steht: ein Feld, das es nicht gibt, liefert `null` (nicht "").
+	const payloadSkripte = skripteAus("index.html", /wiki-assign|review-settlement-wiki|review-locations/);
+	assert.ok(payloadSkripte.indexOf("js/review/review-locations.js") !== -1,
+		"index.html bindet review-locations.js nicht: " + payloadSkripte.join(" "));
+	const kPayload = sandkastenBauen(payloadSkripte,
+		{
+			"location-edit-name": scheinFeld("Havena"),
+			"location-edit-type": scheinFeld("dorf", AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN),
+			"location-edit-wiki-url": scheinFeld(""),
+			"location-edit-einwohner": scheinFeld(""),
+			"location-edit-lage": scheinFeld(""),
+			"location-edit-oberhaupt": scheinFeld(""),
+			"location-edit-public-id": scheinFeld("loc-merker"),
+		},
+		["settlement-wiki-assign-host"],
+		() => ({ ok: true, query: "", rows: [] }));
+	vm.runInContext("locationEditMarkerEntry = { publicId: 'loc-merker', location: { wikiNoArticle: true } };"
+		+ "var locationEditPendingWikiSettlement = null;"
+		+ "function FormData(el) { this._w = (el && el.werte) || {}; }"
+		+ "FormData.prototype.get = function (n) {"
+		+ "  return Object.prototype.hasOwnProperty.call(this._w, n) ? this._w[n] : null; };", kPayload.kasten);
+	vm.runInContext("renderSettlementWikiReference();", kPayload.kasten);
+	await ruhe();
+	const vollesFormular = {
+		public_id: "loc-merker", name: "Havena", feature_subtype: "grossstadt", description: "",
+		wiki_url: "", place_kind: "", einwohner: "9.400", lage: "Albernia · Mittelreich",
+		oberhaupt: "Gräfin Yppolita",
+	};
+	const gebaut = JSON.parse(vm.runInContext(
+		"JSON.stringify(buildLocationEditPayload({ werte: " + JSON.stringify(vollesFormular) + " }))",
+		kPayload.kasten));
+	assert.strictEqual(gebaut.wiki_no_article, true,
+		"der dritte Zustand steht nicht im Speicher-Payload -- das Haekchen merkt sich nichts");
+	assert.strictEqual(gebaut.einwohner, "9.400");
+	assert.strictEqual(gebaut.lage, "Albernia · Mittelreich");
+	assert.strictEqual(gebaut.oberhaupt, "Gräfin Yppolita");
+	zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+	// 💣 UND DER RIEGEL GEGEN DIE LADELUECKE: kennt das Formular ein Feld gar nicht (eine gecachte
+	// index.html nach einem Deploy, AGENTS.md §7), wird der Schluessel WEGGELASSEN statt als ""
+	// geschickt -- `update_point` fasst ihn dann nicht an. Ein "" waere eine Loeschung, die niemand
+	// angeordnet hat.
+	const altesFormular = JSON.parse(vm.runInContext(
+		"JSON.stringify(buildLocationEditPayload({ werte: "
+		+ JSON.stringify({ public_id: "loc-merker", name: "Havena", feature_subtype: "dorf", description: "", wiki_url: "", place_kind: "" })
+		+ " }))", kPayload.kasten));
+	["einwohner", "lage", "oberhaupt"].forEach((feld) => {
+		assert.ok(!(feld in altesFormular),
+			"ein Formular ohne „" + feld + "“ schickt den Schluessel trotzdem -- der Server loescht die Angabe");
+		zaehl();
+	});
+
+	// 💣 Und dasselbe fuer den Merker, wenn das Bauteil NICHT bereit ist (Blindgaenger). `false` waere
+	// hier eine Loeschung der Entscheidung des Konfliktzentrums.
+	vm.runInContext("settlementWikiAssign = null;", kPayload.kasten);
+	const ohneBauteil = JSON.parse(vm.runInContext(
+		"JSON.stringify(buildLocationEditPayload({ werte: " + JSON.stringify(vollesFormular) + " }))",
+		kPayload.kasten));
+	assert.ok(!("wiki_no_article" in ohneBauteil),
+		"ein nicht bereites Bauteil schickt trotzdem einen Merker-Wert -- ein Blindgaenger loeschte damit die Entscheidung");
+	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kPayload.kasten), null);
+	zaehl(); zaehl();
+
+	// ---- Und dieselbe Einzelfeld-Probe im Orte-Editor -----------------------------------------
+	// 🔴 Wortgleich, weil die Leerpruefung dort eine ZWEITE Fassung ist: beide Oberflaechen muessen
+	// bei derselben Handlung dasselbe tun.
+	eFelder.dtEditName.value = "Havena (alt)";
+	eFelder.dtEditType.value = "dorf";
+	eFelder.dtEditEinwohner.value = "";
+	eFelder.dtEditLage.value = "";
+	eFelder.dtEditOberhaupt.value = "";
+	vm.runInContext("settlementDetailCache = { publicId: 'loc-1', detail: { public_id: 'loc-1',"
+		+ " name: 'Havena (alt)', feature_subtype: 'dorf', on_map: true,"
+		+ " properties: { wiki_settlement: " + JSON.stringify(SIEDLUNG) + " } } };"
+		+ "mountSettlementWikiAssign();", e.kasten);
+	await ruhe();
+	await nurEinFeldUebernehmen(e, "dtWikiAssign", 2);
+	assert.strictEqual(eFelder.dtEditEinwohner.value, "9.400",
+		"der Orte-Editor uebernimmt eine ALLEIN angehakte Einwohnerzahl nicht");
+	assert.strictEqual(eFelder.dtEditName.value, "Havena (alt)", "der abgehakte Name wurde trotzdem geschrieben");
+	zaehl(); zaehl();
+
+	// ---- Der Orte-Editor: derselbe Weg, dieselbe Regel ----------------------------------------
+	vm.runInContext("settlementDetailCache = { publicId: 'loc-1', detail: { public_id: 'loc-1',"
+		+ " name: 'Havena', feature_subtype: 'dorf', on_map: true,"
+		+ " properties: { wiki_no_article: true } } };"
+		+ "mountSettlementWikiAssign();", e.kasten);
+	await ruhe();
+	assert.ok(/data-wa-kein-artikel checked/.test(eHost.innerHTML),
+		"der Orte-Editor zeigt den gespeicherten Merker nicht: " + eHost.innerHTML);
+	eFelder.dtEditEinwohner.value = "9.400";
+	eFelder.dtEditLage.value = "Albernia · Mittelreich";
+	eFelder.dtEditOberhaupt.value = "Gräfin Yppolita";
+	const eGebaut = JSON.parse(vm.runInContext("JSON.stringify(buildSettlementSavePayload())", e.kasten));
+	assert.strictEqual(eGebaut.wiki_no_article, true,
+		"der Orte-Editor schickt den dritten Zustand nicht mit -- das Haekchen merkt sich nichts");
+	assert.strictEqual(eGebaut.einwohner, "9.400");
+	assert.strictEqual(eGebaut.lage, "Albernia · Mittelreich");
+	assert.strictEqual(eGebaut.oberhaupt, "Gräfin Yppolita");
+	zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+	// Setzen leert auch hier die flache Adresse -- `#dtEditWikiUrl` steht sichtbar, aber readonly.
+	eFelder.dtEditWikiUrl.value = "https://de.wiki-aventurica.de/wiki/Havena";
+	eHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
+	await ruhe();
+	assert.strictEqual(eFelder.dtEditWikiUrl.value, "",
+		"der Orte-Editor leert die flache Adresse nicht -- das Speichern liefe in den Widerspruchs-Riegel");
+	// Und der Blindgaenger-Fall: ohne bereites Bauteil steht kein Merker im Payload.
+	vm.runInContext("settlementWikiAssign = null;", e.kasten);
+	assert.ok(!("wiki_no_article" in JSON.parse(vm.runInContext("JSON.stringify(buildSettlementSavePayload())", e.kasten))),
+		"der Orte-Editor schickt bei nicht bereitem Bauteil einen Merker-Wert");
+	zaehl(); zaehl();
+
+	// ══ TEIL 6: DER WEG VOM PAYLOAD ZUM MARKER-EINTRAG ═══════════════════════════════════════
+	// 💣 Ohne dieses Stueck ist alles andere wirkungslos: der Kartendialog liest den Merker und die
+	// drei Felder aus `markerEntry.location`, und das Objekt entsteht an DREI Stellen -- beim ersten
+	// Laden der Karte (prepareLocationData) und zweimal nach einem Schreibvorgang
+	// (updateLocationMarkerFromFeature / addCreatedLocationMarker). Fehlt eine, startet das Haekchen
+	// nach genau dieser Handlung wieder leer, und das naechste Speichern nimmt die Entscheidung
+	// zurueck. Dieselbe Falle wie „vier Erzeuger, Sperre in zweien" (AGENTS.md §11) -- deshalb steht
+	// hier KEINE Zahl im Fliesstext, sondern die Liste selbst.
+	//
+	// ⚠️ TEXTPROBE, und sie ist als solche benannt. Die drei Erzeuger haengen an Leaflet, am
+	// Kartenzustand und an einem Dutzend Nachbarmodulen; sie im Sandkasten zu fahren waere ein
+	// (der Erzeuger nach einem Schreibvorgang heisst `applyFeatureResponseToMarker` -- nachgeschlagen,
+	// nicht angenommen: der erste Anlauf suchte einen Namen, den es nicht gibt, und die Probe fiel
+	// mit „steht nicht in der Datei" um statt mit einer Aussage.)
+	// Nachbau, kein Beleg. Sie beantwortet genau eine Frage -- traegt der Erzeuger das Feld
+	// ueberhaupt? --, dieselbe Frage und dasselbe Muster wie in powerline-inherit-test.php.
+	// 🪤 UND ES SIND VIER, NICHT DREI. `applyLiveLocationFeature` baut aus dem Kartenpayload denselben
+	// flachen Umschlag, den die zwei Erzeuger sonst von `update_point` bekommen -- die
+	// Live-Synchronisierung eines FREMDEN Editors laeuft dadurch. Sie ist beim ersten Anlauf nicht in
+	// dieser Liste gestanden; ohne sie setzte ein fremdes Speichern den Merker auf meinem Marker
+	// still zurueck, und mein naechstes Speichern loeschte damit die Entscheidung. Gefunden beim
+	// Nachzaehlen der Aufrufer, nicht vom Test -- und genau deshalb steht die Liste hier ausgeschrieben.
+	// ⚠️ Der Merker heisst je nach Stufe anders: im Marker-Eintrag `wikiNoArticle`, im flachen
+	// Umschlag der Antwort `wiki_no_article`. Die Probe traegt deshalb je Erzeuger IHREN Namen --
+	// ein gemeinsamer waere bei drei von vier zufaellig richtig und bei einem blind.
+	const MARKER_ERZEUGER = [
+		["js/routing/routing.js", "prepareLocationData", "wikiNoArticle"],
+		["js/map-features/map-features-location-editing.js", "applyFeatureResponseToMarker", "wikiNoArticle"],
+		["js/map-features/map-features-location-editing.js", "addCreatedLocationMarker", "wikiNoArticle"],
+		["js/map-features/map-features-location-editing.js", "applyLiveLocationFeature", "wiki_no_article"],
+	];
+	MARKER_ERZEUGER.forEach(([datei, funktion, merkerName]) => {
+		const quelle = fs.readFileSync(path.join(wurzel, datei), "utf8");
+		const start = quelle.indexOf(funktion);
+		assert.ok(start !== -1, "der Erzeuger „" + funktion + "“ steht nicht in " + datei);
+		// Bis zur naechsten Zeile, die in Spalte 0 mit `function`/`const`/`}` beginnt -- der Rumpf.
+		const rest = quelle.slice(start);
+		const ende = rest.search(/\n(?:function |const |let |\/\/ =)/);
+		const rumpf = ende === -1 ? rest : rest.slice(0, ende);
+		[merkerName, "einwohner", "lage", "oberhaupt"].forEach((feld) => {
+			assert.ok(rumpf.indexOf(feld) !== -1,
+				"„" + funktion + "“ (" + datei + ") traegt „" + feld + "“ nicht in den Marker-Eintrag");
+			zaehl();
+		});
+	});
 
 	console.log("wiki-assign-ort: " + checks + " Zusicherungen erfuellt");
 })().catch((fehler) => {

@@ -1381,8 +1381,9 @@ function buildSettlementTypeSelectHtml(detail) {
 // Ruine); Wiki-URL stays in the save payload but is now read-only in the UI, and the old "Andere
 // Quelle" single-URL/label pair is replaced by the "Quellen" mount point for the shared multi-source
 // editor (see otherSourceRow below and the mountFeatureSourceEditor call in renderSettlementDetail).
-// Read-only wiki_settlement.* rows (Einwohner/Oberhaupt, no write slot) are appended below the
-// editable rows in the SAME "Identität" group, same as the previous layout.
+// 🔴 Einwohner/Lage/Herrscher sind seit dem 16.08.2026 BEARBEITBAR (Owner-Entscheid) -- hier stand,
+// sie seien schreibgeschützte wiki_settlement-Zeilen ohne Schreibplatz. Sie haben jetzt ein eigenes
+// Kartenfeld gleichen Namens, und der Knopf „Sync" im Zuweisungskasten füllt sie auf Anhaken.
 function buildSettlementEditFormHtml(detail) {
 	const props = detail.properties || {};
 	const nameRow = `<div class="k">Name</div><div><input type="text" id="dtEditName" maxlength="160" value="${settlementEscape(detail.name || "")}"></div>`;
@@ -1393,6 +1394,17 @@ function buildSettlementEditFormHtml(detail) {
 	// semantics. The input (and its value) stay in the DOM/save-payload -- update_point
 	// still requires wiki_url on every save, omitting it would unset properties.wiki_url.
 	const wikiUrlRow = `<div class="k">Wiki-URL</div><div><input type="text" id="dtEditWikiUrl" maxlength="500" placeholder="https://…" value="${settlementEscape(props.wiki_url || "")}" readonly></div>`;
+	// Einwohner · Lage · Herrscher: seit dem 16.08.2026 eigene Kartenfelder (Owner-Entscheid). Bis
+	// dahin standen dieselben Namen NUR im Wiki-Nest -- dieses Fenster zeigte zwei davon als
+	// Lesezeilen, und schreiben konnte sie niemand. 💣 Sie heissen wie im Nest, deshalb ist die
+	// Erklaerung im Feldregister eine Zeile je Feld; der Knopf „Sync" im Kasten weiter unten fuellt
+	// genau diese drei mit, was das Wiki sagt -- auf ausdrueckliches Anhaken, nicht von selbst.
+	// ⚠️ KEIN Rueckfall auf props.wiki_settlement: was der Ort selbst nicht traegt, bleibt leer.
+	// Ersatzweise das Nest hineinzuschreiben waere die Vorschau-lose Uebernahme, die dieser Umbau
+	// gerade abgeschafft hat.
+	const einwohnerRow = `<div class="k">Einwohner</div><div><input type="text" id="dtEditEinwohner" maxlength="200" value="${settlementEscape(props.einwohner || "")}"></div>`;
+	const lageRow = `<div class="k">Lage</div><div><input type="text" id="dtEditLage" maxlength="300" value="${settlementEscape(props.lage || "")}"></div>`;
+	const oberhauptRow = `<div class="k">Herrscher</div><div><input type="text" id="dtEditOberhaupt" maxlength="200" value="${settlementEscape(props.oberhaupt || "")}"></div>`;
 	// "Andere Quelle" replaced by the shared multi-source editor mount point (T3): the
 	// takeover on the server folds any legacy other_source into the fs_source catalog on
 	// first list/add/remove, so this container renders the full add/remove-capable list
@@ -1414,7 +1426,7 @@ function buildSettlementEditFormHtml(detail) {
 		`</div></div>`;
 	return (
 		`<div class="dt-grp">Identität</div>` +
-		`<div class="dt-grid dt-edit-grid">${nameRow}${typeRow}${descRow}${wikiUrlRow}${otherSourceRow}${nodixRow}${ruinedRow}${hiddenRow}${actionsHtml}</div>`
+		`<div class="dt-grid dt-edit-grid">${nameRow}${typeRow}${einwohnerRow}${lageRow}${oberhauptRow}${descRow}${wikiUrlRow}${otherSourceRow}${nodixRow}${ruinedRow}${hiddenRow}${actionsHtml}</div>`
 	);
 }
 
@@ -1647,7 +1659,7 @@ function setSettlementEditMsg(message, kind) {
 // field must never be omitted (task's #1 correctness risk).
 function buildSettlementSavePayload() {
 	const typeSelect = $("dtEditType");
-	return {
+	const payload = {
 		action: "update_point",
 		public_id: selectedPublicId,
 		name: String($("dtEditName")?.value || "").trim(),
@@ -1664,6 +1676,31 @@ function buildSettlementSavePayload() {
 		is_ruined: Boolean($("dtEditIsRuined")?.checked),
 		is_hidden: Boolean($("dtEditIsHidden")?.checked),
 	};
+
+	// ── Die Wiki-Angaben mit eigenem Kartenfeld ────────────────────────────────────────────────
+	// 🔴 ABWESEND HEISST „NICHT GEÄNDERT", LEER HEISST „LÖSCHEN" -- wortgleich zum Zwilling
+	// (buildLocationEditPayload, js/review/review-locations.js). Steht das Feld nicht im Dokument,
+	// wird der Schlüssel WEGGELASSEN statt als "" geschickt: `update_point` fasst einen nicht
+	// mitgeschickten Schlüssel nicht an (avesmapsApplyPointWikiFields). Der Riegel gilt der
+	// Ladelücke eines Deploys -- ein altes, gecachtes Fenster ohne diese drei Zeilen würde sonst bei
+	// JEDEM Speichern die frisch gesyncte Einwohnerzahl leeren.
+	[["einwohner", "dtEditEinwohner"], ["lage", "dtEditLage"], ["oberhaupt", "dtEditOberhaupt"]].forEach(([feld, id]) => {
+		const eingabe = $(id);
+		if (eingabe) {
+			payload[feld] = String(eingabe.value || "").trim();
+		}
+	});
+
+	// 🔴 DER DRITTE ZUSTAND aus dem Zuweisungskasten. `null` heißt „das Bauteil ist nicht bereit"
+	// (Blindgänger nach einem Deploy-Fehlschlag) -- dann wird der Schlüssel weggelassen und der
+	// Server lässt den gespeicherten Merker in Ruhe. Ein `false` an dieser Stelle nähme eine
+	// Entscheidung zurück, die oft im Konfliktzentrum getroffen wurde, nicht hier.
+	const keinArtikel = settlementWikiAssignKeinArtikelFuerPayload();
+	if (keinArtikel !== null) {
+		payload.wiki_no_article = keinArtikel;
+	}
+
+	return payload;
 }
 
 async function saveSettlementEditForm() {
@@ -1719,12 +1756,52 @@ function settlementWikiAssignZustand() {
 	const props = settlementDetailCache.detail.properties || {};
 	return avesmapsWikiAssignOrtZustand({
 		wiki_settlement: props.wiki_settlement || null,
+		// 🔴 Der dritte Zustand kommt aus den ROHEN Eigenschaften -- `settlement_detail` reicht
+		// `properties_json` unveraendert durch (avesmapsWikiSettlementDetail, settlements.php:1681).
+		kein_artikel: Boolean(props.wiki_no_article),
 		// 💣 LESEFUNKTIONEN, keine Werte: Namensfeld und Typ-Auswahl stehen in derselben Spalte.
 		// `laden` laeuft einmal, die Sync-Vorschau entsteht erst beim Druck auf „Sync" -- eingefroren
 		// boete sie eine Aenderung an, die das Formular darueber laengst zeigt.
 		name: () => ($("dtEditName") ? $("dtEditName").value : settlementDetailCache.detail.name) || "",
 		feature_subtype: () => ($("dtEditType") ? $("dtEditType").value : settlementDetailCache.detail.feature_subtype) || "",
+		einwohner: () => ($("dtEditEinwohner") ? $("dtEditEinwohner").value : props.einwohner) || "",
+		lage: () => ($("dtEditLage") ? $("dtEditLage").value : props.lage) || "",
+		oberhaupt: () => ($("dtEditOberhaupt") ? $("dtEditOberhaupt").value : props.oberhaupt) || "",
 	});
+}
+
+/**
+ * Der Stand des Häkchens „Kein Wiki-Artikel vorhanden" für `buildSettlementSavePayload`.
+ *
+ * 🔴 `null` HEISST „NICHT BEREIT". Ein Blindgänger (Bauteil oder Voraussetzung nicht geladen -- nach
+ * einem Deploy-Fehlschlag nicht hypothetisch, AGENTS.md §9) gäbe sonst `false` zurück, und das
+ * nächste beliebige Speichern nähme eine Entscheidung zurück, die oft im Konfliktzentrum getroffen
+ * wurde. Wortgleich zum Zwilling (settlementWikiKeinArtikelFuerPayload) und zum Kraftlinien-Editor.
+ */
+function settlementWikiAssignKeinArtikelFuerPayload() {
+	if (!settlementWikiAssign || !settlementWikiAssign.bereit) {
+		return null;
+	}
+	const stand = settlementWikiAssign.lies();
+	return stand ? stand.kein_artikel === true : null;
+}
+
+/**
+ * Das Häkchen wurde umgelegt. 🔴 Gespeichert wird erst mit „Speichern".
+ *
+ * 💣 GESETZT HEISST: DAS FLACHE ADRESSFELD WIRD GELEERT. `update_point` LEHNT den Widerspruch
+ * „Adresse UND kein Artikel" ab (avesmapsApplyPointWikiFields); `#dtEditWikiUrl` steht hier zwar
+ * sichtbar, ist aber readonly -- der Editor bekäme eine Absage, die er nicht befolgen kann.
+ * ⚠️ Beim ABwählen wird nichts zurückgeholt: eine gelöschte Adresse zu erraten ist genau der Fehler,
+ * den der Merker beseitigt.
+ */
+function settlementWikiAssignKeinArtikelGeaendert(gesetzt) {
+	if (gesetzt === true) {
+		settlementWikiSetzeFlacheAdresse("");
+	}
+	setSettlementEditMsg(gesetzt
+		? "„Kein Wiki-Artikel vorhanden“ gesetzt — noch nicht gespeichert."
+		: "„Kein Wiki-Artikel vorhanden“ entfernt — noch nicht gespeichert.", "");
 }
 
 /**
@@ -1832,7 +1909,9 @@ async function settlementWikiAssignLoesen() {
  */
 function settlementWikiAssignSyncUebernehmen(zeilen) {
 	const werte = avesmapsWikiAssignOrtSyncWerte(zeilen);
-	if (werte.name === null && werte.feature_subtype === null) {
+	// 🔴 Die Leerprüfung zählt ALLE Kartenfelder, nicht zwei ausgeschriebene -- seit dem 16.08.2026
+	// sind es fünf, und eine allein angehakte Einwohnerzahl hätte hier sonst „nichts angehakt" ergeben.
+	if (avesmapsWikiAssignOrtSyncLeer(werte)) {
 		throw new Error("Keine übernehmbare Angabe angehakt.");
 	}
 	// 🔴 ERST ALLES PRUEFEN, DANN ALLES SCHREIBEN -- wortgleich zum Zwilling. Umgekehrt waere ein
@@ -1845,8 +1924,17 @@ function settlementWikiAssignSyncUebernehmen(zeilen) {
 		&& (!select || !Array.from(select.options || []).some((option) => option.value === werte.feature_subtype))) {
 		throw new Error("Die Ortsgröße „" + werte.feature_subtype + "“ steht in der Auswahl nicht zur Verfügung.");
 	}
+	// Die drei Textfelder -- ERST alle prüfen, dann alle schreiben, wortgleich zur Regel darüber.
+	const textFelder = [["einwohner", "dtEditEinwohner", "Einwohner"], ["lage", "dtEditLage", "Lage"],
+		["oberhaupt", "dtEditOberhaupt", "Herrscher"]].map(([feld, id, label]) => {
+		if (werte[feld] === null) return null;
+		const eingabe = $(id);
+		if (!eingabe) throw new Error("Das Feld „" + label + "“ steht nicht im Formular.");
+		return [eingabe, werte[feld]];
+	}).filter((eintrag) => eintrag !== null);
 	if (nameInput) nameInput.value = werte.name;
 	if (select) select.value = werte.feature_subtype;
+	textFelder.forEach(([eingabe, wert]) => { eingabe.value = wert; });
 	setSettlementEditMsg("Aus dem Wiki übernommen — noch nicht gespeichert.", "");
 }
 
@@ -1864,6 +1952,7 @@ function mountSettlementWikiAssign() {
 		zuweisen: settlementWikiAssignZuweisen,
 		loesen: settlementWikiAssignLoesen,
 		syncUebernehmen: settlementWikiAssignSyncUebernehmen,
+		keinArtikelGeaendert: settlementWikiAssignKeinArtikelGeaendert,
 	});
 }
 

@@ -268,6 +268,14 @@ function applyFeatureResponseToMarker(markerEntry, feature) {
 		wikiUrl: feature.wiki_url || "",
 		otherSource: feature.other_source || null,
 		wikiSettlement: feature.wiki_settlement !== undefined ? feature.wiki_settlement : (markerEntry.location.wikiSettlement || null),
+		// Der dritte Zustand und die drei Wiki-Textfelder. Die Antwort von `update_point` trägt sie
+		// IMMER (avesmapsBuildPointFeatureResponse), also dürfen sie hier bedingungslos gewinnen --
+		// sonst liesse sich ein einmal gesetzter Merker am Marker nie wieder loswerden, genau wie
+		// eine Zeile weiter unten bei der Ortsart begründet.
+		wikiNoArticle: Boolean(feature.wiki_no_article),
+		einwohner: String(feature.einwohner || ""),
+		lage: String(feature.lage || ""),
+		oberhaupt: String(feature.oberhaupt || ""),
 		coat: feature.coat !== undefined ? feature.coat : (markerEntry.location.coat || null),
 		images: feature.images !== undefined ? feature.images : (markerEntry.location.images || []),
 		isNodix: Boolean(feature.is_nodix),
@@ -374,6 +382,10 @@ function addCreatedLocationMarker(feature, { openPopup = true } = {}) {
 		wikiUrl: feature.wiki_url || "",
 		otherSource: feature.other_source || null,
 		wikiSettlement: feature.wiki_settlement || null,
+		wikiNoArticle: Boolean(feature.wiki_no_article),
+		einwohner: String(feature.einwohner || ""),
+		lage: String(feature.lage || ""),
+		oberhaupt: String(feature.oberhaupt || ""),
 		coat: feature.coat || null,
 		images: feature.images || [],
 		isNodix: Boolean(feature.is_nodix),
@@ -410,6 +422,16 @@ function applyLiveLocationFeature(feature) {
 		wiki_url: readFeatureWikiUrl(properties),
 		other_source: readFeatureOtherSource(properties),
 		wiki_settlement: properties.wiki_settlement || null,
+		// 💣 DIE VIER MUESSEN HIER MIT. Diese Funktion baut aus dem Kartenpayload denselben flachen
+		// Umschlag, den die zwei Marker-Erzeuger sonst von `update_point` bekommen -- fehlt einer,
+		// setzt die Live-Synchronisierung eines FREMDEN Editors den Merker auf meinem Marker still
+		// zurueck, und mein naechstes Speichern loescht damit die Entscheidung des Konfliktzentrums.
+		// ⚠️ Die Namen wechseln hier von der Payload-Form (`wiki_no_article`) in die Antwort-Form
+		// derselben Sache; die Marker-Erzeuger lesen die Antwort-Form.
+		wiki_no_article: Boolean(properties.wiki_no_article),
+		einwohner: String(properties.einwohner || ""),
+		lage: String(properties.lage || ""),
+		oberhaupt: String(properties.oberhaupt || ""),
 		images: properties.images || [],
 		is_nodix: Boolean(properties.is_nodix),
 		is_ruined: Boolean(properties.is_ruined),

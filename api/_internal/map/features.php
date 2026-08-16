@@ -1249,6 +1249,77 @@ function avesmapsMovePointFeature(PDO $pdo, array $payload, array $user): array 
     }
 }
 
+/**
+ * Die drei Wiki-Angaben eines Ortes, die ein Editor selbst pflegt -- Kartenfeld => Hoechstlaenge.
+ *
+ * 🔴 DIE NAMEN SIND DIE DES NESTS `properties.wiki_settlement` (einwohner/lage/oberhaupt), und die
+ * Laengen sind DESSEN Laengen (avesmapsWikiSettlementParseInfobox, api/_internal/wiki/settlements.php
+ * :622, :627, :624 -- abgelesen, nicht gewaehlt). Nur so bleibt die Erklaerung im Feldregister eine
+ * Zeile je Feld: Wiki-Feld und Kartenfeld heissen gleich, niemand muss uebersetzen.
+ *
+ * ⚠️ `lage` ist im Nest die ZUSAMMENSETZUNG aus Region und Staat ("Albernia · Mittelreich"), kein
+ * eigenes Infoboxfeld -- als Kartenfeld ist es trotzdem eine gewoehnliche Zeichenkette. Die zwei
+ * Haelften bleiben daneben Anzeige; sie haben kein Kartenziel.
+ */
+const AVESMAPS_POINT_WIKI_TEXT_FIELDS = [
+    'einwohner' => 200,
+    'lage' => 300,
+    'oberhaupt' => 200,
+];
+
+/**
+ * REIN: die Wiki-Angaben eines Ortes in seine Eigenschaften schreiben -- der Merker „kein Artikel"
+ * und die drei Textfelder. Wirft, wenn Merker und Adresse einander widersprechen.
+ *
+ * 💣 ABWESENHEIT HEISST „NICHT GEAENDERT", LEER HEISST „LOESCHEN". Das ist der Unterschied zum
+ * Kraftlinien-Schreibweg daneben, der `$payload['wiki_no_article'] ?? false` liest -- und er ist
+ * begruendet, nicht Geschmack: die Kraftlinie hat EINEN Schreiber, und der schickt den Merker seit
+ * jeher. `update_point` hat ZWEI (buildLocationEditPayload in js/review/review-locations.js und
+ * buildSettlementSavePayload in html/wiki-sync-settlement-editor.html) und dazu die Ladeluecke eines
+ * Deploys: eine gecachte index.html, die diese Felder noch nicht kennt (AGENTS.md §7), wuerde mit
+ * `?? ''` bei JEDEM Speichern die Einwohnerzahl loeschen und die Entscheidung des Konfliktzentrums
+ * („Kein Wiki-Eintrag") stillschweigend zuruecknehmen. Ein Schreiber, der ein Feld nicht kennt, darf
+ * es nicht leeren.
+ *
+ * ⚠️ Der Merker steht nur drin, wenn er WAHR ist -- als `false` wird er nirgends abgelegt, sonst
+ * liesse er sich spaeter nicht von „nie entschieden" unterscheiden (dieselbe Regel wie bei den
+ * Kraftlinien, avesmapsPowerlineInheritedLineFields).
+ *
+ * @param array $properties der bereits dekodierte Bestand
+ * @param array $payload    die Anfrage
+ * @param string $wikiUrl   die flache Adresse, wie sie gleich gespeichert wird ('' = keine)
+ */
+function avesmapsApplyPointWikiFields(array $properties, array $payload, string $wikiUrl): array {
+    $noArticle = array_key_exists('wiki_no_article', $payload)
+        ? avesmapsReadBoolean($payload['wiki_no_article'])
+        : !empty($properties['wiki_no_article']);
+    avesmapsAssertWikiClaimNotContradictory(
+        $wikiUrl,
+        $noArticle,
+        'Ein Ort',
+        'Bitte die Wiki-Zuweisung entfernen oder das Häkchen „Kein Wiki-Artikel vorhanden“ abwählen.'
+    );
+    if ($noArticle) {
+        $properties['wiki_no_article'] = true;
+    } else {
+        unset($properties['wiki_no_article']);
+    }
+
+    foreach (AVESMAPS_POINT_WIKI_TEXT_FIELDS as $feld => $laenge) {
+        if (!array_key_exists($feld, $payload)) {
+            continue;
+        }
+        $wert = mb_substr(trim((string) $payload[$feld]), 0, $laenge, 'UTF-8');
+        if ($wert === '') {
+            unset($properties[$feld]);
+        } else {
+            $properties[$feld] = $wert;
+        }
+    }
+
+    return $properties;
+}
+
 function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
     $name = avesmapsReadLocationName($payload['name'] ?? '');
@@ -1297,6 +1368,13 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
         } else {
             $properties['wiki_url'] = $wikiUrl;
         }
+        // Der dritte Zustand („dieser Ort hat KEINEN Wiki-Artikel") und die drei Wiki-Textfelder.
+        // 💣 Die ganze Entscheidung steht in avesmapsApplyPointWikiFields, nicht hier: sie ist rein
+        // und damit ohne Datenbank pruefbar -- und sie ist die EINZIGE Stelle, die die Feldnamen
+        // kennt. Ohne den Merker raet avesmapsEnrichMapFeatureWikiUrl (api/app/map-features.php:975)
+        // beim naechsten Kartenladen eine Adresse aus dem Ortsnamen zurueck, und ein entfernter
+        // Wiki-Link kehrt wieder: das IST Discord #38.
+        $properties = avesmapsApplyPointWikiFields($properties, $payload, $wikiUrl);
         $otherSource = avesmapsReadOptionalOtherSource($payload['other_source'] ?? null);
         if ($otherSource === null) {
             unset($properties['other_source']);
@@ -1381,6 +1459,11 @@ function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): arra
     if ($wikiUrl !== '') {
         $properties['wiki_url'] = $wikiUrl;
     }
+    // 💣 DERSELBE Rechner wie beim Aendern, und das ist kein Schoenheitsfehler: der Dialog „Ort
+    // bearbeiten" ist im ANLEGEN-Fall derselbe, samt Zuweisungskasten und dessen Häkchen „Kein
+    // Wiki-Artikel vorhanden". Ohne diese Zeile wäre das Häkchen beim Anlegen ein Häkchen, das nichts
+    // merkt -- und die drei Wiki-Textfelder daneben blieben genauso stumm.
+    $properties = avesmapsApplyPointWikiFields($properties, $payload, $wikiUrl);
 
     $pdo->beginTransaction();
     try {
@@ -1637,15 +1720,29 @@ function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): 
 }
 
 // 💣 Der Widerspruch "Zuweisung UND kein Wiki-Artikel" steht an EINER Stelle formuliert, damit die
-// beiden Schreibwege ihn nicht verschieden begruenden -- er wird ABGELEHNT, nicht aufgeloest (ein
-// stummer Vorrang waere eine Regel, die niemand kennt, und der Merker wird an DREI Stellen gelesen:
-// Editor, Konfliktzentrum, Abgleich).
-function avesmapsAssertPowerlineWikiClaimNotContradictory(string $wikiUrl, bool $noArticle): void {
+// Schreibwege ihn nicht verschieden begruenden -- er wird ABGELEHNT, nicht aufgeloest (ein stummer
+// Vorrang waere eine Regel, die niemand kennt, und der Merker wird an DREI Stellen gelesen: Editor,
+// Konfliktzentrum, Abgleich).
+//
+// ⚠️ Der Satz nennt die Objektart und den AUSWEG, weil beide je Oberflaeche verschieden heissen: bei
+// der Kraftlinie steht ein Adressfeld im Formular ("den Link leeren"), beim Ort steht dort ein
+// Zuweisungskasten und das flache Adressfeld ist versteckt ("die Zuweisung entfernen"). Eine
+// gemeinsame Formulierung waere fuer eine der beiden ein Rat ins Leere.
+function avesmapsAssertWikiClaimNotContradictory(string $wikiUrl, bool $noArticle, string $subjekt, string $ausweg): void {
     if ($noArticle && trim($wikiUrl) !== '') {
         throw new InvalidArgumentException(
-            'Eine Kraftlinie kann nicht gleichzeitig einen Wiki-Artikel haben und keinen. Bitte den Link leeren oder das Häkchen entfernen.'
+            $subjekt . ' kann nicht gleichzeitig einen Wiki-Artikel haben und keinen. ' . $ausweg
         );
     }
+}
+
+function avesmapsAssertPowerlineWikiClaimNotContradictory(string $wikiUrl, bool $noArticle): void {
+    avesmapsAssertWikiClaimNotContradictory(
+        $wikiUrl,
+        $noArticle,
+        'Eine Kraftlinie',
+        'Bitte den Link leeren oder das Häkchen entfernen.'
+    );
 }
 
 /**
@@ -3071,6 +3168,15 @@ function avesmapsBuildPointFeatureResponse(string $publicId, string $name, strin
         'is_hidden' => !empty($properties['is_hidden']),
         // Ortsart -- der Editor liest sie hier zurueck, um das Feld beim Oeffnen zu fuellen.
         'place_kind' => (string) ($properties['place_kind'] ?? ''),
+        // 🔴 Der dritte Zustand und die drei Wiki-Textfelder MUESSEN hier stehen. Der Kartendialog
+        // baut seinen Marker-Eintrag aus genau dieser Antwort neu (updateLocationMarkerFromFeature,
+        // js/map-features/map-features-location-editing.js) -- fehlte eines der vier, saehe der
+        // Dialog beim naechsten Oeffnen einen Stand, den er selbst gerade gespeichert hat, als
+        // „nicht gesetzt", und das naechste Speichern schriebe die Leere fest.
+        'wiki_no_article' => !empty($properties['wiki_no_article']),
+        'einwohner' => (string) ($properties['einwohner'] ?? ''),
+        'lage' => (string) ($properties['lage'] ?? ''),
+        'oberhaupt' => (string) ($properties['oberhaupt'] ?? ''),
         'lat' => $lat,
         'lng' => $lng,
         'revision' => $revision,

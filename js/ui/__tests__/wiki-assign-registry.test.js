@@ -105,22 +105,29 @@ const WIRKLICHKEIT = {
 		// NICHT dabei, jeweils nach der Grenze oben:
 		//   · `title`/`name`/`wiki_key`/`match_key`/`wiki_url` -- Identitaet.
 		//   · `lage` (:610) -- KEIN eigenes $field, sondern die Zusammensetzung „Region · Staat"
-		//     aus den zwei Zeilen darueber; das Register zeigt die zwei Haelften einzeln.
+		//     aus den zwei Zeilen darueber. 🔴 Es steht seit dem 16.08.2026 trotzdem im Register, weil
+		//     es ein KARTENZIEL bekommen hat -- als ABGELEITETES Wiki-Feld, genau wie `ortsgroesse`
+		//     beim Ort und `wegtyp` beim Weg. Die Grenze dieser Liste ist davon unberuehrt: sie zaehlt
+		//     auf, was der Parser LIEFERT, und Pruefung 2 fragt nur in diese eine Richtung.
 		//   · `settlement_class`/`settlement_label` -- kommen aus der Registry-KATEGORIE, nicht aus
 		//     der Infobox (:599, wie `kind` beim Weg aus dem Infobox-NAMEN kommt).
 		//   · `verkehrswege_links` (:633) -- abgeleitete Linkkarte aus dem Rohwert daneben.
 		//   · `description` (:637) -- Fliesstext aus dem Artikelrumpf.
 		//   · `wappen_url` (:638) und `synced_at` (:640) -- Bild- und Betriebsangabe.
 		wiki: ["art", "einwohner", "bevoelkerung", "oberhaupt", "region", "staat", "handelszone", "verkehrswege", "tempel"],
-		// Die ZWEI bearbeitbaren Kartenfelder, die eine Wiki-Angabe fuellen kann -- gemessen an
-		// BEIDEN Speicherwegen, die beide `update_point` fahren:
-		//   js/review/review-locations.js:756-757  (buildLocationEditPayload: name, feature_subtype)
-		//   html/wiki-sync-settlement-editor.html:1653-1654 (buildSettlementSavePayload, dieselben zwei)
-		// `description` steht dort zwar auch, ist aber kein Ziel: `assign_to` LOESCHT die
+		// Die FUENF bearbeitbaren Kartenfelder, die eine Wiki-Angabe fuellen kann -- gemessen an
+		// BEIDEN Speicherwegen, die beide `update_point` fahren (buildLocationEditPayload in
+		// js/review/review-locations.js und buildSettlementSavePayload in
+		// html/wiki-sync-settlement-editor.html) und am Schreibweg selbst
+		// (avesmapsApplyPointWikiFields + AVESMAPS_POINT_WIKI_TEXT_FIELDS, api/_internal/map/features.php).
+		// 🔴 Bis zum 16.08.2026 waren es ZWEI, und der Satz „ein Kartenfeld fuer Einwohnerzahl, Lage
+		// oder Herrscher gibt es in keiner der beiden Oberflaechen" stand hier zu Recht. Die drei sind
+		// auf Owner-Entscheid angelegt worden; sie heissen wie im Wiki-Nest, damit die Erklaerung eine
+		// Zeile je Feld bleibt.
+		// `description` steht in beiden Payloads zwar auch, ist aber kein Ziel: `assign_to` LOESCHT die
 		// Beschreibung serverseitig, weil die Infobox sie ersetzt (settlements.php:842) -- eine
-		// Sync-Zeile koennte nur anbieten, was der Server schon getan hat. Ein Kartenfeld fuer
-		// Einwohnerzahl, Lage oder Herrscher gibt es in keiner der beiden Oberflaechen.
-		karte: ["name", "feature_subtype"],
+		// Sync-Zeile koennte nur anbieten, was der Server schon getan hat.
+		karte: ["name", "feature_subtype", "einwohner", "lage", "oberhaupt"],
 	},
 };
 
@@ -132,5 +139,26 @@ assert.deepStrictEqual(
 	[],
 	"das ausgelieferte Register weicht von der gemessenen Wirklichkeit ab"
 );
+
+// 7) DIE GEGENRICHTUNG ZU PRUEFUNG 1 -- und sie fehlte bis zum 16.08.2026.
+// 🪤 Gefunden von einer Mutation, nicht beim Lesen: nimmt man einer Feldzeile ihr Kartenziel
+// (`karte: ""`), bleiben ALLE drei Pruefungen still. Pruefung 1 fragt „gibt es das erklaerte
+// Kartenfeld?", Pruefung 2 „ist jedes gelieferte Wiki-Feld erklaert?" -- ein Kartenfeld, das es GIBT
+// und das keine Zeile mehr beansprucht, faellt zwischen beide. Das Ergebnis waere lautlos: die
+// Sync-Vorschau boete die Angabe nicht mehr an, obwohl das Feld im Formular steht und der Server sie
+// schreiben koennte, und niemand merkte es.
+// ⚠️ Absichtlich HIER und nicht in avesmapsWikiAssignRegistryProbleme: die Funktion hat drei
+// dokumentierte Pruefungen (Entwurf §3b), und ihre Rueckgabe wird an mehreren Stellen erwartet.
+Object.entries(WIRKLICHKEIT).forEach(([subject, fakten]) => {
+	const erklaerung = AVESMAPS_WIKI_ASSIGN_REGISTRY[subject] || {};
+	const beansprucht = (erklaerung.felder || []).map((feld) => String(feld.karte || "")).filter((k) => k !== "");
+	(fakten.karte || []).forEach((karteFeld) => {
+		assert.ok(
+			beansprucht.indexOf(karteFeld) !== -1,
+			'Objektart "' + subject + '": das Kartenfeld "' + karteFeld
+			+ '" existiert, aber keine Feldzeile beansprucht es -- die Sync-Vorschau kann es nie fuellen.'
+		);
+	});
+});
 
 console.log("wiki-assign-registry: alle Zusicherungen erfuellt");
