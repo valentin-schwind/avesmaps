@@ -762,6 +762,7 @@ function avesmapsMediaLicenseMigrationRun(PDO $pdo, array $options = []): array
 
     $bericht = [];
     $wechsel = [];
+    $vorgemerkt = [];   // je Flaeche die Aenderungen, die den zweiten Durchgang ueberlebt haben
     // Jeder Sammler liefert: ['flaeche' => …, 'aenderungen' => list<['id','alt','neu','schreiben'=>callable]>]
     foreach ([
         'settlement_coat' => 'avesmapsMediaLicenseCollectSettlementCoats',
