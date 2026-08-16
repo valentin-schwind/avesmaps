@@ -972,8 +972,14 @@
     // Zieht die "nicht öffentlich"-Kennzeichnung am AUSWAHLFELD selbst nach (Aufgabe 1, an den
     // uebrigen vier Dialogen bereits verdrahtet) -- sonst zeigt sie sich erst beim naechsten
     // Neu-Rendern, nicht sofort nach dem Umschalten.
+    // 🔴 Designprüfung Befund 1 (16.08.2026): avesmapsMediaLicenseNoteVorschlag fehlte hier wie in
+    // allen fünf Dialogen -- der Kommentar-Vorschlag bei "Genehmigung erteilt" ist jetzt dabei.
     const coverLicenseSelect = document.querySelector("[data-cover-license]");
-    if (coverLicenseSelect) coverLicenseSelect.addEventListener("change", () => avesmapsMediaLicenseSyncSelectHidden(coverLicenseSelect));
+    if (coverLicenseSelect) coverLicenseSelect.addEventListener("change", () => {
+      avesmapsMediaLicenseSyncSelectHidden(coverLicenseSelect);
+      const noteEl = document.querySelector("[data-cover-note]");
+      if (noteEl) noteEl.value = avesmapsMediaLicenseNoteVorschlag(coverLicenseSelect.value, noteEl.value);
+    });
     // ⚠️ NACH dem innerHTML: der Behälter #aeWikiAssign entsteht erst mit ihm.
     mountAeWikiAssign(d);
   }

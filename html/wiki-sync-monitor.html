@@ -1439,9 +1439,14 @@ $('detailBody').addEventListener('change', e=>{
 });
 // Nachziehung der "nicht oeffentlich"-Kennzeichnung am Wappen-Auswahlfeld (Aufgabe 1, verdrahtet in
 // Aufgabe 5) -- kein Speichern hier, das passiert erst beim Klick auf "Hochladen".
+// 🔴 Designprüfung Befund 1 (16.08.2026): avesmapsMediaLicenseNoteVorschlag fehlte hier wie in allen
+// fünf Dialogen -- der Kommentar-Vorschlag bei "Genehmigung erteilt" ist jetzt dabei.
 document.addEventListener('change', e=>{
   const sel = e.target.closest ? e.target.closest('[data-wp-license]') : null;
-  if(sel) avesmapsMediaLicenseSyncSelectHidden(sel);
+  if(!sel) return;
+  avesmapsMediaLicenseSyncSelectHidden(sel);
+  const noteEl = document.querySelector('[data-wp-note]');
+  if(noteEl) noteEl.value = avesmapsMediaLicenseNoteVorschlag(sel.value, noteEl.value);
 });
 async function uploadCoat(){
   const k=selectedKey, n=k?BYKEY.get(k):null;

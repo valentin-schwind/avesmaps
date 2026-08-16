@@ -1035,7 +1035,11 @@
           uploaded_by: v[uploadedByField],
           uploaded_at: v[uploadedAtField],
         }, { prefix: mlfPrefix, vorgabe: "unknown_other", mitNotiz: true })}
-        ${free ? "" : `<p class="ce-warn">Zum Hochladen zuerst oben eine freie Lizenz wählen (aktuell: ${ceEscape(savedLicenseLabel)}) — ohne sie wird nichts gespeichert.</p>`}
+        <!-- Immer im DOM (statt bedingt gerendert) und per [hidden] geschaltet, damit der change-
+             Zuhoerer unten sie sofort umschalten kann, statt erst nach "Speichern" + Neuladen
+             (Designpruefung Befund 2). data-ce-warn traegt den Slot, denselben wie mlfPrefix ohne
+             "cm-". -->
+        <p class="ce-warn" data-ce-warn="${slot}"${free ? " hidden" : ""}>Zum Hochladen zuerst oben eine freie Lizenz wählen (aktuell: ${ceEscape(savedLicenseLabel)}) — ohne sie wird nichts gespeichert.</p>
         <p class="ce-hint">${isThumb
           ? "Die Notiz verlässt den Editor nie. Nur eine freie Lizenz zeigt die Vorschau öffentlich."
           : "Der externe Karten-Link wird immer angezeigt — nur das eigene Bild hängt an der Lizenz."}</p>
@@ -1986,6 +1990,34 @@
     const safe = /^https?:\/\//i.test(value);
     anchor.href = safe ? value : "#";
     anchor.hidden = !safe;
+  });
+
+  // Designprüfung Befund 1+2 (16.08.2026): dieser Zuhörer fehlte KOMPLETT -- ein früherer Commit
+  // ("stille Lizenz wird am Auswahlfeld selbst sichtbar") behauptete ihn für alle fünf Dialoge, fügte
+  // hier aber nur einen CSS-Kommentar ein. Zwei Slots (cm-map, cm-thumb) teilen sich EINEN Zuhörer,
+  // delegiert auf #ceStammBody wie die übrigen, weil das Markup bei jedem Speichern/Autoget neu
+  // aufgebaut wird.
+  document.getElementById("ceStammBody").addEventListener("change", (e) => {
+    const sel = e.target.closest ? e.target.closest("[data-cm-map-license],[data-cm-thumb-license]") : null;
+    if (!sel) return;
+    const slot = sel.hasAttribute("data-cm-map-license") ? "map" : "thumb";
+    // Die Kennzeichnung "nicht öffentlich" am Auswahlfeld selbst (Aufgabe 1) -- ohne sie bleibt eine
+    // stille Lizenz bis zum nächsten Neu-Rendern optisch unauffällig.
+    avesmapsMediaLicenseSyncSelectHidden(sel);
+    // Der Kommentar-Vorschlag für "Genehmigung erteilt" -- NUR ins leere Feld, das prüft die Funktion
+    // selbst (avesmapsMediaLicenseNoteVorschlag).
+    const noteEl = document.querySelector("[data-cm-" + slot + "-note]");
+    if (noteEl) noteEl.value = avesmapsMediaLicenseNoteVorschlag(sel.value, noteEl.value);
+    // Die Warnzeile zeigte bisher nur den zuletzt GESPEICHERTEN Stand -- jetzt zieht sie mit der
+    // Auswahlfeld-Kennzeichnung mit, statt erst nach "Speichern" + Neuladen umzuschlagen.
+    const warnEl = document.querySelector('[data-ce-warn="' + slot + '"]');
+    if (warnEl) {
+      const free = avesmapsMediaLicenseIsPublic(sel.value);
+      warnEl.hidden = free;
+      if (!free) {
+        warnEl.textContent = "Zum Hochladen zuerst oben eine freie Lizenz wählen (aktuell: " + avesmapsMediaLicenseLabel(sel.value) + ") — ohne sie wird nichts gespeichert.";
+      }
+    }
   });
 
   document.getElementById("ceOrteBody").addEventListener("click", async (e) => {

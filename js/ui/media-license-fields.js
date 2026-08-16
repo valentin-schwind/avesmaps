@@ -53,7 +53,11 @@ function avesmapsMediaLicenseFieldsMarkup(werte, optionen) {
 		// eigene Klasse markiert sie dezent (gedämpfte Schrift, kein Riegel). Das AUSWAHLFELD selbst
 		// trägt zusätzlich .mlf-select--hidden, wenn der GEWÄHLTE Wert stumm ist (unten) -- diese hier
 		// wirkt nur beim Aufklappen, jene auch im geschlossenen Zustand.
+		// `title` aus dem Katalog-Hint (Designprüfung Befund 3): die einzige Erklärung zu den
+		// einzelnen Lizenzen, seit die alten Radios mit Klammertext dem geteilten <select> wichen --
+		// aus demselben Katalog, keine sechste Textliste je Dialog.
 		return '<option value="' + e.value + '"' + (e.value === gewaehlt ? " selected" : "")
+			+ (e.hint ? ' title="' + avesmapsMediaLicenseEscape(e.hint) + '"' : "")
 			+ (e.public ? "" : ' class="mlf-option--muted"') + ">"
 			+ avesmapsMediaLicenseEscape(e.label) + "</option>";
 	}).join("");

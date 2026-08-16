@@ -2207,6 +2207,10 @@ async function setSettlementImageMeta(url, license, author, note) {
 // getestet, aber noch nirgends verdrahtet): ohne sie zeigt das AUSWAHLFELD selbst die "nicht
 // oeffentlich"-Kennzeichnung nur beim naechsten Neu-Rendern, nicht sofort nach dem Umschalten -- bei
 // bis zu zehn Bildern je Ort genau die Verwechslungsgefahr, die die Kennzeichnung verhindern soll.
+// 🔴 Designprüfung Befund 1 (16.08.2026): avesmapsMediaLicenseNoteVorschlag war ebenfalls gebaut und
+// getestet, aber in KEINEM der fünf Dialoge aufgerufen -- hier nachgezogen, NUR bei einer Änderung
+// des Lizenzfelds selbst (nicht bei jedem Blur von Urheber/Kommentar), sonst überschriebe ein Tippen
+// im Kommentarfeld sich selbst bei jedem Zwischenspeichern.
 document.addEventListener("change", (event) => {
 	const control = event.target.closest ? event.target.closest("[data-image-license], [data-image-author], [data-image-note]") : null;
 	if (!control) return;
@@ -2216,7 +2220,10 @@ document.addEventListener("change", (event) => {
 	const sel = cell.querySelector("[data-image-license]");
 	const authorEl = cell.querySelector("[data-image-author]");
 	const ta = cell.querySelector("[data-image-note]");
-	if (control.hasAttribute("data-image-license")) avesmapsMediaLicenseSyncSelectHidden(sel);
+	if (control.hasAttribute("data-image-license")) {
+		avesmapsMediaLicenseSyncSelectHidden(sel);
+		if (ta) ta.value = avesmapsMediaLicenseNoteVorschlag(sel.value, ta.value);
+	}
 	void setSettlementImageMeta(url, sel ? sel.value : "ai_generated", authorEl ? authorEl.value : "", ta ? ta.value : "");
 });
 
@@ -2224,7 +2231,10 @@ document.addEventListener("change", (event) => {
 // hier, das passiert erst beim Klick auf "Hochladen".
 document.addEventListener("change", (event) => {
 	const sel = event.target.closest ? event.target.closest("[data-coat-license]") : null;
-	if (sel) avesmapsMediaLicenseSyncSelectHidden(sel);
+	if (!sel) return;
+	avesmapsMediaLicenseSyncSelectHidden(sel);
+	const noteEl = document.querySelector("[data-coat-note]");
+	if (noteEl) noteEl.value = avesmapsMediaLicenseNoteVorschlag(sel.value, noteEl.value);
 });
 
 // ---- Delegated event wiring for the detail panel + its dialog -------------------------
