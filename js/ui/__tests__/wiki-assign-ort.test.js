@@ -264,15 +264,22 @@ zaehl(); zaehl(); zaehl(); zaehl();
 // ⚠️ Das ist die eine Frage, die eine Textprobe WIRKLICH beantworten kann: welche Datei ein
 // Dokument bindet. Ueber die Regeln selbst sagt sie nichts -- die zaehlt
 // js/ui/__tests__/wiki-assign-weg.test.js je Rolle beider Huellen nach.
+// 🪤 GEPRUEFT WIRD DIE `<link>`-ZEILE, NICHT DER DATEINAME. Die erste Fassung suchte schlicht nach
+// „editor-page.css" -- und blieb gruen, als die Mutation die Zeile ENTFERNTE: der Name steht im
+// selben Dokument noch viermal in KOMMENTAREN. Dieselbe Blindheit wie in Aufgabe 4, wo eine
+// CSS-Kommentarzeile die Probe gefuettert hat.
+function bindetStylesheet(inhalt, datei) {
+	return new RegExp('<link[^>]+href="[^"]*' + datei.replace(/\./g, "\\.") + '[^"]*"').test(inhalt);
+}
 const indexHtml = fs.readFileSync(path.join(wurzel, "index.html"), "utf8");
 const editorHtmlRoh = fs.readFileSync(path.join(wurzel, "html/wiki-sync-settlement-editor.html"), "utf8");
-assert.ok(/region-sync\.css/.test(indexHtml),
+assert.ok(bindetStylesheet(indexHtml, "components/region-sync.css"),
 	"index.html bindet region-sync.css nicht -- die Huelle „label-wiki“ des Kartendialogs waere ungestylt");
-assert.ok(/editor-page\.css/.test(editorHtmlRoh),
+assert.ok(bindetStylesheet(editorHtmlRoh, "components/editor-page.css"),
 	"der Orte-Editor bindet editor-page.css nicht -- die Huelle „dt“ waere dort ungestylt");
 // Und die Gegenrichtung: keins der zwei Dokumente bindet das Stylesheet des anderen, es gibt also
 // keinen stillen Rueckfall, der eine falsche Huelle trotzdem passabel aussehen liesse.
-assert.ok(!/region-sync\.css/.test(editorHtmlRoh), "der Orte-Editor bindet region-sync.css mit");
+assert.ok(!bindetStylesheet(editorHtmlRoh, "components/region-sync.css"), "der Orte-Editor bindet region-sync.css mit");
 zaehl(); zaehl(); zaehl();
 
 // ══ TEIL 3+4: die zwei Oberflaechen, WIRKLICH gefahren ════════════════════════════════════════
