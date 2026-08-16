@@ -406,9 +406,13 @@ window.AVESMAPS_I18N_EN = {
 	// "Schritt" stays -- it is the DSA unit of length, domain content like the BF calendar suffix.
 	"ecosystem.properties.peaksTitle": "Peaks",
 	"ecosystem.properties.terrainTitle": "Terrain",
-	"ecosystem.properties.wikiTitle": "Wiki landscape",
-	"ecosystem.properties.wikiSync": "Sync",
-	"ecosystem.properties.wikiRemove": "Remove",
+	// 🔴 HIER STANDEN `ecosystem.properties.wikiTitle` / `.wikiSync` / `.wikiRemove` -- die drei
+	//    `data-i18n`-Traeger des eigenen Wiki-Kastens der Flaeche (index.html, bis 16.08.2026). Der
+	//    Kasten ist dem geteilten Bauteil gewichen (js/ui/wiki-assign.js), und das Bauteil schreibt
+	//    seine Beschriftungen heute ohne `data-i18n`. ⚠️ Damit verliert die Landschaft unter
+	//    `?lang=en` wirklich Abdeckung -- das ist gemeldet und gehoert in M8 ins Bauteil, nicht als
+	//    verwaister Schluessel hierher: ein Eintrag ohne Traeger uebersetzt nichts und liest sich
+	//    beim naechsten Blick wie erledigte Arbeit.
 	"ecosystem.properties.delete": "Delete",
 	"ecosystem.properties.cancel": "Cancel",
 	"ecosystem.properties.save": "Save",
