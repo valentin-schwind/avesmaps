@@ -6,6 +6,9 @@ require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/wiki/sync.php';
 require_once __DIR__ . '/../_internal/coat-url.php';
 require_once __DIR__ . '/../_internal/app/coat-display.php';
+// Fuer avesmapsMediaLicenseIsPublic() -- der EINE Lizenzkatalog (Phase 1). coat-display.php zieht sie
+// bereits mit, aber ein Gate auf diesem Pfad darf nicht vom Include eines Nachbarn abhaengen.
+require_once __DIR__ . '/../_internal/media-license.php';
 // Named explicitly for avesmapsMapFeaturesSettlementImagesEnabled below: coat-display.php happens to pull
 // it in too, but a kill switch on this path must not depend on a neighbour's include staying put.
 require_once __DIR__ . '/../_internal/app/app-setting.php';
@@ -489,6 +492,18 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
         } else {
             unset($properties['images']);
         }
+    }
+
+    // Lizenz-Gate der Siedlungs-Wappen (Phase 3). Dieselbe Regel wie ueberall: cc_by und
+    // unknown_other werden gespeichert, aber nicht gezeigt. Entfernt wird der GANZE coat-Schluessel,
+    // nicht nur die url -- aus demselben Grund, den der Schalter-Block darunter nennt: das Wappen
+    // ERSETZT hier das Ortssymbol, ein leerer Schild naehme also Information weg.
+    //
+    // 🔴 STRIKT VOR dem Anzeige-Schalter. Beide enden in unset(), das Ergebnis ist also dasselbe --
+    // die Reihenfolge traegt die Bedeutung: der Riegel ist rechtlich, der Schalter eine Praeferenz.
+    // Dieselbe Ordnung wie in coat-display.php:92-94, und der Test nagelt sie fest.
+    if (isset($properties['coat']) && !avesmapsSettlementCoatIsPublic($properties['coat'])) {
+        unset($properties['coat']);
     }
 
     // Global "Wappen: Aus" (settlement switch): drop the coat instead of replacing it with the

@@ -27,6 +27,8 @@ const AVESMAPS_COAT_PLACEHOLDER_URL = '/img/wappen.png';
 // Both halves of this file read app_setting: the public one via the DDL-free reader, the editor pair via
 // the self-healing one. Same store, two entry points, one require.
 require_once __DIR__ . '/app-setting.php';
+// Fuer avesmapsSettlementCoatIsPublic() unten -- der EINE Lizenzkatalog (Phase 1), nicht eine eigene Liste.
+require_once __DIR__ . '/../media-license.php';
 
 /**
  * Reads one of the two switches on a PUBLIC read path.
@@ -101,6 +103,36 @@ function avesmapsCoatDisplayUrl(string $gatedUrl, bool $coatsEnabled): string
     }
 
     return AVESMAPS_COAT_PLACEHOLDER_URL;
+}
+
+/**
+ * Darf dieses Siedlungs-Wappen im Frontend erscheinen?
+ *
+ * 🔴 Bis zum 16.08.2026 gab es hier GAR KEIN Gate -- properties.coat ging ungefiltert an die Karte,
+ * und ein Upload stand sofort oeffentlich, unabhaengig von seiner Herkunft. Die Territoriums-Wappen
+ * hatten seit jeher eines (coat-url.php); die Siedlungen waren die Luecke.
+ *
+ * ⚠️ Lebt HIER und nicht in map-features.php, obwohl der einzige Aufruf dort steht: jene Datei ist
+ * ein Endpunkt (require __DIR__ . '/../_internal/bootstrap.php' auf Zeile 5) und beim `require` fuer
+ * einen Test nicht seiteneffektfrei ladbar. Diese Datei ist es -- kein Bootstrap, keine DB, keine
+ * Ausgabe -- und wird von map-features.php ohnehin schon eingebunden.
+ *
+ * ⚠️ KEIN edit_mode-Bypass, anders als beim Anzeige-Schalter daneben. Der Editor liest sein Wappen
+ * ueber einen EIGENEN Endpunkt (avesmapsWikiSettlementCoatInfo, api/edit/wiki/settlements.php:131)
+ * und sieht dort immer den vollen Datensatz -- er braucht die Karte dafuer nicht. Genau so haelt es
+ * das Bild-Gate direkt daneben, und ein Bypass hier waere eine zweite, schwaechere Tuer zu Bildern,
+ * die nicht oeffentlich sein duerfen.
+ */
+function avesmapsSettlementCoatIsPublic(mixed $coat): bool
+{
+    if (!is_array($coat)) {
+        return false;
+    }
+    if (trim((string) ($coat['url'] ?? '')) === '') {
+        return false;
+    }
+
+    return avesmapsMediaLicenseIsPublic($coat['license_status'] ?? null);
 }
 
 /**
