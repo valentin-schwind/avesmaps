@@ -127,6 +127,11 @@ svg.zb-plot {
 	dominant-baseline: middle; }
 .zb-plot-xtick { font-size: var(--font-size-caption); fill: var(--color-text-muted); }
 .zb-plot-xtick--aus { fill: var(--color-placeholder); font-style: italic; }
+/* z8: existiert noch nicht auf der Karte (Owner 16.08.2026) -- eigene, gedämpfte Tick-Form plus
+   eine gestrichelte Trennlinie VOR der Spalte, damit der Unterschied auffällt, ohne erst den
+   Titel-Tooltip lesen zu müssen. */
+.zb-plot-xtick--future { fill: var(--color-text-muted); font-style: italic; }
+.zb-plot-future-divider { stroke: var(--color-border-strong); stroke-width: 1; stroke-dasharray: 4 4; opacity: .6; }
 .zb-plot-curve { fill: none; stroke-width: 2.25; opacity: .92; }
 .zb-plot-point {
 	r: 6.5px; stroke-width: 2.5; fill: var(--color-panel); cursor: ns-resize; outline: none;
@@ -169,6 +174,11 @@ svg.zb-plot {
 .zb-num-input:disabled { color: var(--color-disabled-text); background: var(--color-disabled-bg);
 	border-color: var(--color-disabled-border); }
 .zb-selected__unit { color: var(--color-text-muted); }
+/* Der genaue Weg (Zahlenfeld + Pfeiltasten) steht DIREKT neben dem Plot, an dem er gebraucht wird
+   -- nicht als gemeinsame Fußnote weit unter beiden Plots (Owner-Rückmeldung 16.08.2026: "nicht
+   erst gesucht werden muss"). flex-basis:100% zwingt den Hinweis in der ohnehin flex-wrap-Zeile
+   auf eine eigene Zeile, statt sich hinter dem Einheitenzeichen zu verstecken. */
+.zb-selected__hint { flex-basis: 100%; color: var(--color-text-muted); font-size: var(--font-size-caption); }
 
 /* Die Legende zugleich Bedienelement: Farbe/Muster, Name, "Erscheint ab"-Stufenwahl, Rücksetzer. */
 .zb-legend { margin-top: var(--space-8); display: flex; flex-direction: column; gap: var(--space-4); }
@@ -215,13 +225,16 @@ svg.zb-plot {
 .zb-preview-stage button:hover { background: var(--color-button-soft-hover); }
 .zb-preview-stage button.is-active { background: var(--color-button); color: var(--color-button-text);
 	border-color: var(--color-button-border); font-weight: var(--font-weight-bold); }
-/* 🔴 Owner-Rückmeldung 16.08.2026: auf der Karte steht der Name RECHTS NEBEN dem Punkt, auf
+/* 🔴 Owner-Rückmeldung 16.08.2026: auf der Karte steht das Label RECHTS NEBEN dem Punkt, auf
    dessen Mitte -- nicht darunter. Das hier bildet dieselbe Regel wie
    getLocationNameLabelOffset() (map-features-location-name-labels.js) nach: Punkt und Wort in
-   einer Reihe, vertikal zentriert -- die Zentrierung übernimmt Flexbox (`align-items: center`),
-   den echten Spalt von LOCATION_NAME_LABEL_GAP (4px) trägt `--space-2` (zufällig, aber genau
-   derselbe Wert). Der Klassenname ist Beschriftung der KACHEL, nicht der Karte, und steht deshalb
-   bewusst darunter. */
+   einer Reihe, vertikal zentriert -- die Zentrierung übernimmt Flexbox (`align-items: center`).
+   Der Spalt selbst ist jetzt LIVE an den Spalt-Regler im Abschnitt "Abstände" gekoppelt (dritte
+   Owner-Aufgabe, 16.08.2026 abends): `--zb-gap` wird bei jeder Reglerbewegung in px auf
+   #zbPreviewGrid gesetzt und läuft als geerbte Custom Property bis in diese Regel durch --
+   deshalb der Fallback `var(--space-2)` (= 4px = LOCATION_NAME_LABEL_GAP), der nur greift, bevor
+   das Skript einmal gelaufen ist. Der Klassenname ist Beschriftung der KACHEL, nicht der Karte,
+   und steht deshalb bewusst darunter. */
 .zb-preview-grid {
 	display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-8);
 }
@@ -231,7 +244,7 @@ svg.zb-plot {
 	background: var(--color-panel-soft); border: 1px solid var(--color-border);
 	border-radius: var(--radius-md); overflow: visible;
 }
-.zb-preview-card__mark { display: flex; align-items: center; gap: var(--space-2); }
+.zb-preview-card__mark { display: flex; align-items: center; gap: var(--zb-gap, var(--space-2)); }
 .zb-preview-card__name { font-size: var(--font-size-caption); color: var(--color-text-muted); }
 .zb-dot {
 	display: block; flex: 0 0 auto; border-radius: 50%; background: var(--color-accent-strong);
@@ -241,6 +254,61 @@ svg.zb-plot {
 	font-weight: var(--font-weight-bold); line-height: 1; white-space: nowrap; }
 .zb-preview-empty { color: var(--color-placeholder); font-size: var(--font-size-small); }
 .zb-preview-note { margin: var(--space-8) 0 0; font-size: var(--font-size-caption);
+	color: var(--color-text-muted); max-width: 62rem; }
+
+/* ---- 3.5 · Abstände (Spalt & Repel) -- GLOBAL, kein Wert je Zoomstufe --------------------------
+   Owner-Entscheid 16.08.2026: LOCATION_NAME_LABEL_GAP (map-features-location-name-labels.js) und
+   LOCATION_LABEL_COLLISION_PADDING (map-features.js) sind in der echten Karte je EIN Wert für alle
+   Ortsklassen und Zoomstufen -- deshalb hier kein Plot, sondern ein Regler je Wert. */
+.zb-spacing-lead { margin: 0 0 var(--space-8); max-width: 74ch; font-size: var(--font-size-small);
+	color: var(--color-text-muted); }
+
+.zb-slider-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8);
+	padding: var(--space-6) 0; }
+.zb-slider-row + .zb-slider-row { border-top: 1px solid var(--color-divider); }
+.zb-slider-row__head { flex: 1 1 14rem; min-width: 12rem; }
+.zb-slider-row__name { display: block; font-size: var(--font-size-small);
+	font-weight: var(--font-weight-bold); color: var(--color-text-strong); }
+.zb-slider-row__desc { display: block; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.zb-slider-row__control { display: flex; align-items: center; gap: var(--space-6); flex: 1 1 16rem; }
+
+/* Gleiche Bauform wie `.ecosystem-underground__range` (css/features/ecosystem-layer.css), auf
+   `.zb-range` umbenannt: eigene Spur/Griff aus Tokens statt Browser-Blau -- der Griff ist
+   `--color-button` wie jeder Haupt-Bedienknopf. */
+.zb-range { appearance: none; -webkit-appearance: none; flex: 1 1 auto; min-width: 8rem;
+	height: var(--space-16); margin: 0; background: none; cursor: pointer; }
+.zb-range:focus-visible { outline: none; border-radius: var(--radius-md); box-shadow: var(--focus-ring); }
+.zb-range::-webkit-slider-runnable-track { height: var(--space-4); border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm); background: var(--color-panel-soft); }
+.zb-range::-moz-range-track { height: var(--space-4); border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm); background: var(--color-panel-soft); }
+.zb-range::-webkit-slider-thumb { -webkit-appearance: none; width: var(--space-12); height: var(--space-12);
+	margin-top: calc((var(--space-4) - var(--space-12)) / 2 - 1px);
+	border: 1px solid var(--color-button-border); border-radius: var(--radius-md); background: var(--color-button); }
+.zb-range::-moz-range-thumb { width: var(--space-12); height: var(--space-12);
+	border: 1px solid var(--color-button-border); border-radius: var(--radius-md); background: var(--color-button); }
+.zb-slider-row .zb-num-input { width: 4.5rem; }
+
+/* Repel-Anschauung: zwei FESTE Ortspunkte, ihre Labels weichen nur so weit aus, wie der
+   gestrichelte Rahmen es verlangt. Bewusst vereinfacht -- EINE Achse, EIN Paar, keine
+   Prioritäten (die echte Auflösung in map-features-label-collisions.js prüft zwölf
+   Ausweichstellen); siehe Bericht. */
+.zb-repel-demo-wrap { overflow-x: auto; margin-top: var(--space-10); }
+.zb-repel-demo { position: relative; height: 56px; min-width: 20rem; }
+.zb-repel-demo__dot { position: absolute; top: 50%; width: 10px; height: 10px; margin-top: -5px;
+	border-radius: 50%; background: var(--color-accent-strong); border: 1px solid var(--color-panel);
+	box-shadow: 0 0 0 1px var(--color-border-strong); }
+.zb-repel-demo__box { position: absolute; top: 50%; transform: translateY(-50%); box-sizing: border-box;
+	border: 1px dashed var(--color-border-strong); border-radius: var(--radius-sm);
+	background: var(--color-panel-soft); }
+.zb-repel-demo__word { position: absolute; top: 50%; transform: translateY(-50%); white-space: nowrap;
+	color: var(--color-text-strong); font-weight: var(--font-weight-bold); font-size: var(--font-size-body); }
+.zb-repel-demo-note { margin: var(--space-6) 0 0; font-size: var(--font-size-caption);
+	color: var(--color-text-muted); max-width: 62rem; }
+
+/* Versatz: KEINE eigene Anschauung (Owner-Entscheid) -- ein Satz nennt die echte Zwölfer-Kette
+   statt sie nachzubauen. Selbe Zeilenform wie die Repel-Fußnote. */
+.zb-shift-note { margin: var(--space-6) 0 0; font-size: var(--font-size-caption);
 	color: var(--color-text-muted); max-width: 62rem; }
 
 /* ---- 4/5 · Speicherleiste, Admin und Nur-Lesen ------------------------------------------------- */
@@ -308,10 +376,10 @@ svg.zb-plot {
     <div class="zb">
 
       <p class="zb__lead">
-        Wann eine Ortsklasse auf der Karte auftaucht, wie groß ihr Punkt ist und ab wann ihr Name
+        Wann eine Ortsklasse auf der Karte auftaucht, wie groß ihr Punkt ist und ab wann ihr Label
         dazukommt — als Kurve, nicht als Tabelle. <em>Ein Punkt lässt sich senkrecht ziehen (nur
         seine Größe ändert sich, nie seine Zoomstufe); die Stufenwahl in der Legende bestimmt, ab
-        wann die Kurve beginnt.</em> Eine Kurve läuft immer bis z7 durch — ein Loch kann bauartbedingt
+        wann die Kurve beginnt.</em> Eine Kurve läuft immer bis z8 durch — ein Loch kann bauartbedingt
         nicht entstehen, und wer eine Klasse ausblendet, verliert ihre Werte nicht: sie bleiben
         gemerkt, bis die Kurve wieder eingeblendet wird. Gespeichert ist erst, was der Knopf unten
         speichert.
@@ -332,44 +400,17 @@ svg.zb-plot {
           und Bauwerk (1,33 px) als Strich am Boden. Der heutige Höchstwert (53,2) landet bei rund
           73 % der Höhe: die Vorgabewerte füllen den Plot gut aus, ein Viertel bleibt Luft zum
           Ziehen. Ungleiche Hilfslinien-Abstände (0 · 1 · 5 · 10 · 25 · 50 · 100) zeigen die Stauchung.
+          🔧 <strong>z8</strong> (gestrichelt abgetrennt) gibt es auf der Karte noch nicht — die
+          Werte dort stehen bereit, wirken aber noch nicht.
         </p>
         <div class="zb-selected" id="zbSelMarker">
           <span class="zb-selected__label">Ausgewählter Punkt: <strong id="zbSelMarkerLabel">— keiner —</strong></span>
           <input type="number" class="zb-num-input" id="zbSelMarkerInput" step="0.01" min="0.5" max="200" disabled>
           <span class="zb-selected__unit">px</span>
+          <span class="zb-selected__hint">⌨️ Pfeiltasten verstellen den ausgewählten Punkt (Umschalt: großer Schritt) — für Werte, die eine Maus nicht genau trifft.</span>
         </div>
         <div class="zb-legend" id="zbLegendMarker"></div>
       </div>
-
-      <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
-      <div class="zb__section">
-        <div class="zb__head">
-          <h3>Name — Schriftgröße in pt</h3>
-          <span class="zb__src">y-Achse 4–30 pt, linear</span>
-        </div>
-        <div class="zb-plot-wrap">
-          <svg class="zb-plot" id="zbPlotLabel" viewBox="0 0 920 420" role="img"
-            aria-label="Namens-Schriftgröße je Ortsklasse und Zoomstufe, editierbar"></svg>
-        </div>
-        <p class="zb-plot-caption">
-          <strong>Bewusst linear, nicht gestaucht:</strong> 4–30 pt ist nur das Siebeneinhalbfache
-          — die heutigen Werte (8…19) verteilen sich schon so über 27–63 % der Höhe. Eine
-          Quadratwurzel-Achse wäre hier nur eine Ablese-Erschwernis ohne Nutzen (anders als beim
-          Marker, dessen Spanne das Zweihundertfache ist).
-        </p>
-        <div class="zb-selected" id="zbSelLabel">
-          <span class="zb-selected__label">Ausgewählter Punkt: <strong id="zbSelLabelLabel">— keiner —</strong></span>
-          <input type="number" class="zb-num-input" id="zbSelLabelInput" step="0.01" min="4" max="96" disabled>
-          <span class="zb-selected__unit">pt</span>
-        </div>
-        <div class="zb-legend" id="zbLegendLabel"></div>
-      </div>
-
-      <p class="zb-plot-caption">
-        ⌨️ <strong>Tastatur:</strong> einen Punkt anklicken oder per Tab erreichen, dann Pfeil
-        hoch/runter (mit Umschalt: großer Schritt). Die Legenden-Stufenwahl und der Rücksetzer sind
-        gewöhnliche Knöpfe und damit ohnehin per Tab/Enter bedienbar.
-      </p>
 
       <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
       <div class="zb__section">
@@ -379,7 +420,114 @@ svg.zb-plot {
         </div>
         <div class="zb-preview-stage" id="zbPreviewStage" role="group" aria-label="Zoomstufe für die Vorschau wählen"></div>
         <div class="zb-preview-grid" id="zbPreviewGrid"></div>
-        <p class="zb-preview-note">So steht der Name normalerweise; bei Platzmangel weicht er auf eine der zwölf Nachbarstellen aus.</p>
+        <p class="zb-preview-note">So steht das Label normalerweise; bei Platzmangel weicht es auf eine der zwölf Nachbarstellen aus. Bei z8 zeigt sie dieselben Werte wie z7 (geerbt) — auf der Karte gibt es diese Stufe noch nicht.</p>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
+      <div class="zb__section">
+        <div class="zb__head">
+          <h3>Label — Schriftgröße in pt</h3>
+          <span class="zb__src">y-Achse 4–30 pt, linear</span>
+        </div>
+        <div class="zb-plot-wrap">
+          <svg class="zb-plot" id="zbPlotLabel" viewBox="0 0 920 420" role="img"
+            aria-label="Label-Schriftgröße je Ortsklasse und Zoomstufe, editierbar"></svg>
+        </div>
+        <p class="zb-plot-caption">
+          <strong>Bewusst linear, nicht gestaucht:</strong> 4–30 pt ist nur das Siebeneinhalbfache
+          — die heutigen Werte (8…19) verteilen sich schon so über 27–63 % der Höhe. Eine
+          Quadratwurzel-Achse wäre hier nur eine Ablese-Erschwernis ohne Nutzen (anders als beim
+          Marker, dessen Spanne das Zweihundertfache ist).
+          🔧 <strong>z8</strong> (gestrichelt abgetrennt) gibt es auf der Karte noch nicht — die
+          Werte dort stehen bereit, wirken aber noch nicht.
+        </p>
+        <div class="zb-selected" id="zbSelLabel">
+          <span class="zb-selected__label">Ausgewählter Punkt: <strong id="zbSelLabelLabel">— keiner —</strong></span>
+          <input type="number" class="zb-num-input" id="zbSelLabelInput" step="0.01" min="4" max="96" disabled>
+          <span class="zb-selected__unit">pt</span>
+          <span class="zb-selected__hint">⌨️ Pfeiltasten verstellen den ausgewählten Punkt (Umschalt: großer Schritt) — für Werte, die eine Maus nicht genau trifft.</span>
+        </div>
+        <div class="zb-legend" id="zbLegendLabel"></div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
+      <div class="zb__section">
+        <div class="zb__head">
+          <h3>Abstände</h3>
+          <span class="zb__src">global — ein Wert für alle Ortsklassen und Zoomstufen</span>
+        </div>
+        <p class="zb-spacing-lead">
+          Kein Plot, weil diese Werte NICHT je Zoomstufe gelten (Owner-Entscheid) — drei globale
+          Regler statt drei Kurven. Der Spalt bewegt live die Vorschau weiter oben; der Repel hat
+          seine eigene Anschauung darunter; der Versatz wirkt in der echten Ausweichkette der
+          Kollisionsauflösung (Reihenfolge unten genannt, keine eigene Anschauung — siehe Bericht).
+        </p>
+
+        <div class="zb-slider-row">
+          <div class="zb-slider-row__head">
+            <span class="zb-slider-row__name">Spalt</span>
+            <span class="zb-slider-row__desc">Abstand vom Marker-Rand zu seinem eigenen Label — wird
+              auf den Außenradius addiert, wächst also mit dem Marker mit.</span>
+          </div>
+          <div class="zb-slider-row__control">
+            <input type="range" class="zb-range" id="zbGapRange" min="0" max="20" step="0.5" value="4" aria-label="Spalt in px">
+            <input type="number" class="zb-num-input" id="zbGapInput" min="0" max="20" step="0.5" value="4">
+            <span class="zb-selected__unit">px</span>
+            <button type="button" class="zb-row-reset" id="zbGapReset" title="Spalt auf Vorgabe (4 px) zurücksetzen">↺</button>
+          </div>
+        </div>
+
+        <div class="zb-slider-row">
+          <div class="zb-slider-row__head">
+            <span class="zb-slider-row__name">Repel</span>
+            <span class="zb-slider-row__desc">Luft, die um jedes Label frei bleiben muss, bevor die
+              Kollisionsauflösung es als Überschneidung zählt.</span>
+          </div>
+          <div class="zb-slider-row__control">
+            <input type="range" class="zb-range" id="zbRepelRange" min="0" max="20" step="0.5" value="2" aria-label="Repel in px">
+            <input type="number" class="zb-num-input" id="zbRepelInput" min="0" max="20" step="0.5" value="2">
+            <span class="zb-selected__unit">px</span>
+            <button type="button" class="zb-row-reset" id="zbRepelReset" title="Repel auf Vorgabe (2 px) zurücksetzen">↺</button>
+          </div>
+        </div>
+
+        <div class="zb-repel-demo-wrap">
+          <div class="zb-repel-demo" id="zbRepelDemo" role="img"
+            aria-label="Zwei feste Ortspunkte mit ihren Labeln; die Labels weichen einander aus, sobald der geforderte Rand um jedes Label sich berührt">
+            <span class="zb-repel-demo__dot" id="zbRepelDotA"></span>
+            <span class="zb-repel-demo__box" id="zbRepelBoxA"></span>
+            <span class="zb-repel-demo__word" id="zbRepelWordA"></span>
+            <span class="zb-repel-demo__dot" id="zbRepelDotB"></span>
+            <span class="zb-repel-demo__box" id="zbRepelBoxB"></span>
+            <span class="zb-repel-demo__word" id="zbRepelWordB"></span>
+          </div>
+        </div>
+        <p class="zb-repel-demo-note">
+          Zwei feste Ortspunkte; der gestrichelte Rahmen zeigt den Rand, den Repel um jedes Label
+          verlangt — berühren sich zwei Rahmen, weicht das rechte Label aus. Vereinfacht auf eine
+          Achse und ein Paar; die echte Auflösung prüft zwölf Ausweichstellen und Prioritäten.
+        </p>
+
+        <div class="zb-slider-row">
+          <div class="zb-slider-row__head">
+            <span class="zb-slider-row__name">Versatz</span>
+            <span class="zb-slider-row__desc">Wie weit der kleine Ausweichschritt nach oben bzw.
+              unten geht, wenn die Kollisionsauflösung eine freie Stelle für ein Label sucht.</span>
+          </div>
+          <div class="zb-slider-row__control">
+            <input type="range" class="zb-range" id="zbShiftRange" min="0" max="20" step="0.5" value="8" aria-label="Versatz in px">
+            <input type="number" class="zb-num-input" id="zbShiftInput" min="0" max="20" step="0.5" value="8">
+            <span class="zb-selected__unit">px</span>
+            <button type="button" class="zb-row-reset" id="zbShiftReset" title="Versatz auf Vorgabe (8 px) zurücksetzen">↺</button>
+          </div>
+        </div>
+        <p class="zb-shift-note">
+          Zwölf Stellen, in dieser Reihenfolge gesucht — rechts · rechts-oben · rechts-unten ·
+          oben-rechts · unten-rechts · links · links-oben · links-unten · oben-links · unten-links ·
+          oben · unten; Versatz bestimmt den Schritt an allen außer den ersten beiden (den
+          ungestörten Grundrichtungen rechts/links). Findet sich keine freie Stelle, wird das Label
+          ausgeblendet (bei Siedlungen; Flächen-Labels nie).
+        </p>
       </div>
 
       <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
@@ -407,10 +555,19 @@ svg.zb-plot {
   <strong>Was der Prototyp behauptet und was noch offen ist.</strong>
   Zieh selbst an ein paar Punkten (z. B. an „Dorf" im Marker-Plot) — die Kurve, die Vorschau und die
   Speicherleisten-Meldung ziehen live nach. Die Marker-Achse spannt 0,5–100 px (gestaucht), die
-  Namens-Achse 4–30 pt (linear) — beides der erlaubte Bereich, nicht nur der heute belegte; die
+  Label-Achse 4–30 pt (linear) — beides der erlaubte Bereich, nicht nur der heute belegte; die
   echten Datenschranken (bis 200 px bzw. 96 pt) bleiben für Zahlenfeld und Ziehen unverändert
-  gültig, nur die sichtbare Achse dieses Mockups ist enger. Wie sich das untere Ende beim Marker
-  jetzt anfühlt (Dorf/Bauwerk bei 1,33 px): siehe Bericht.
+  gültig, nur die sichtbare Achse dieses Mockups ist enger. Neu: eine neunte Spalte <strong>z8</strong>
+  für eine auf der Karte noch nicht existierende Zoomstufe (gestrichelt abgetrennt, Vorgabe = z7
+  geerbt) — die Vorschau steht jetzt zwischen den beiden Plots, damit Plot und Vorschau ohne
+  Umweg zusammen im Blick sind. Wie sich das untere Ende beim Marker jetzt anfühlt (Dorf/Bauwerk
+  bei 1,33 px) und ob „Plot + Vorschau ohne Scrollen zusammen sichtbar" jetzt gilt: siehe Bericht.
+  Neu: der Abschnitt <strong>„Abstände"</strong> unter dem Label-Plot — drei GLOBALE Regler (Spalt,
+  Repel, Versatz; keine Werte je Zoomstufe), 0–20 px in 0,5-px-Schritten. Zieh am Spalt-Regler: das
+  Wort in der Vorschau oben rückt live vom Punkt weg und wieder heran. Zieh am Repel-Regler: die
+  kleine Anschauung darunter zeigt, wie der geforderte Rand um zwei Label-Rahmen wächst, bis sie
+  einander ausweichen müssen. Der Versatz-Regler bekommt bewusst KEINE eigene Anschauung (Owner-
+  Entscheid) — stattdessen einen Satz, der die echte Zwölfer-Kette der Kollisionsauflösung nennt.
 </div>
 
 <script>
@@ -428,23 +585,27 @@ svg.zb-plot {
 
 	/* 🔴 DAS HEUTIGE BILD, ZIFFER FÜR ZIFFER -- wörtlich aus
 	   js/map-features/location-zoom-bands.js (AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS) übernommen.
-	   `null` = auf dieser Stufe gibt es die Klasse nicht. */
+	   `null` = auf dieser Stufe gibt es die Klasse nicht.
+	   🔴 z8 (letzter Wert je Zeile) ist NEU, Owner-Rückmeldung 16.08.2026: die Karte kennt z8 noch
+	   nicht (`maxZoom` = 7) -- niemand hat entschieden, wie diese Stufe aussehen soll. Der einzige
+	   ehrliche Vorgabewert ist daher die WIEDERHOLUNG von z7, genau wie z7 heute schon z6
+	   wiederholt. Das ändert nichts und stellt nichts in Aussicht, was nicht beschlossen wurde. */
 	var DEFAULTS = {
 		marker: {
-			metropole: [6.65, 9.4, 13.3, 18.81, 26.6, 37.62, 53.2, 53.2],
-			grossstadt: [3.99, 5.86, 8.6, 12.62, 18.52, 27.18, 39.9, 39.9],
-			stadt: [1.33, 2.26, 3.84, 6.52, 11.07, 18.79, 31.92, 31.92],
-			kleinstadt: [null, 1.33, 2.39, 4.29, 7.7, 13.82, 24.82, 24.82],
-			dorf: [null, null, 1.33, 2.54, 4.86, 9.28, 17.74, 17.74],
-			gebaeude: [null, null, null, 1.33, 2.8, 5.9, 12.42, 12.42]
+			metropole: [6.65, 9.4, 13.3, 18.81, 26.6, 37.62, 53.2, 53.2, 53.2],
+			grossstadt: [3.99, 5.86, 8.6, 12.62, 18.52, 27.18, 39.9, 39.9, 39.9],
+			stadt: [1.33, 2.26, 3.84, 6.52, 11.07, 18.79, 31.92, 31.92, 31.92],
+			kleinstadt: [null, 1.33, 2.39, 4.29, 7.7, 13.82, 24.82, 24.82, 24.82],
+			dorf: [null, null, 1.33, 2.54, 4.86, 9.28, 17.74, 17.74, 17.74],
+			gebaeude: [null, null, null, 1.33, 2.8, 5.9, 12.42, 12.42, 12.42]
 		},
 		label: {
-			metropole: [8, 9, 11, 13, 17, 19, 19, 19],
-			grossstadt: [8, 8.5, 10, 12, 15, 17, 17, 17],
-			stadt: [null, null, 9, 11, 13, 15, 15, 15],
-			kleinstadt: [null, null, null, 9.5, 11, 13, 13, 13],
-			dorf: [null, null, null, null, 10, 11, 11, 11],
-			gebaeude: [null, null, null, null, 9, 9, 9, 9]
+			metropole: [8, 9, 11, 13, 17, 19, 19, 19, 19],
+			grossstadt: [8, 8.5, 10, 12, 15, 17, 17, 17, 17],
+			stadt: [null, null, 9, 11, 13, 15, 15, 15, 15],
+			kleinstadt: [null, null, null, 9.5, 11, 13, 13, 13, 13],
+			dorf: [null, null, null, null, 10, 11, 11, 11, 11],
+			gebaeude: [null, null, null, null, 9, 9, 9, 9, 9]
 		}
 	};
 
@@ -456,17 +617,25 @@ svg.zb-plot {
 
 	/* 🔴 Owner-Rückmeldung 16.08.2026 (zwei Nachrichten, die zweite korrigiert die erste -- es
 	   gilt die LETZTE Zahl): NUR die sichtbare Achse dieses Mockups, NICHT die echten Schranken
-	   oben. Marker 100 px, Name 30 pt. */
+	   oben. Marker 100 px, Label 30 pt. */
 	var AXIS_DOMAIN = { marker: 100, label: 30 };
 
-	/* Geometrie: gemeinsam für beide Plots. 9 Spalten (z0..z7 + "aus"), gleichmäßig verteilt.
+	/* 🔴 Z_MAX = 8 (Owner-Rückmeldung 16.08.2026, neue Spalte z8 für eine auf der Karte noch nicht
+	   existierende Zoomstufe -- AVESMAPS_ZOOM_BAND_MAX_ZOOM steht im echten Code weiter auf 7, DAS
+	   wird hier NICHT angefasst, siehe Bericht). Jede Schleife/jeder Vergleich läuft über diese
+	   Konstante, nie über eine abgeschriebene 7 oder 8 -- sonst hätte die nächste Erweiterung
+	   dieselbe Suche wieder vor sich. */
+	var Z_MAX = 8;       // letzte echte Zoomstufe (z8)
+	var AUS_I = Z_MAX + 1; // Spaltenindex der "aus"-Spalte (9)
+
+	/* Geometrie: gemeinsam für beide Plots. 10 Spalten (z0..z8 + "aus"), gleichmäßig verteilt.
 	   H deutlich angehoben (320 -> 420, Owner 16.08.2026): mehr senkrechte Strecke je Pixelschritt
 	   an der Maus -- am unteren Ende, wo Dorf/Bauwerk mit 1,33 px dicht beieinanderliegen, ist das
 	   die eigentliche Bedienbarkeitsfrage, nicht Optik. */
 	var W = 920, H = 420;
 	var MARGIN = { left: 52, right: 26, top: 16, bottom: 34 };
 	var INNER_W = W - MARGIN.left - MARGIN.right;
-	function colX(i) { return MARGIN.left + (INNER_W / 8) * i; }
+	function colX(i) { return MARGIN.left + (INNER_W / AUS_I) * i; }
 
 	function makeScale(domainMax, mode) {
 		var top = MARGIN.top, bottom = H - MARGIN.bottom, h = bottom - top;
@@ -491,11 +660,11 @@ svg.zb-plot {
 	   dafür gestaucht sein MUSS, hängt einzig am Verhältnis Decke/kleinster erlaubter Wert:
 	   - Marker 0,5 … 100 px = das ZWEIHUNDERTFACHE -- linear läge fast alles im untersten Rand,
 	     Dorf/Bauwerk (1,33 px) wären ein Strich am Boden. Braucht die Quadratwurzel.
-	   - Name 4 … 30 pt = nur das SIEBENEINHALBFACHE -- linear verteilt die echten Werte (8…19)
+	   - Label 4 … 30 pt = nur das SIEBENEINHALBFACHE -- linear verteilt die echten Werte (8…19)
 	     bereits gut über 27–63 % der Höhe. Eine Wurzelachse wäre hier nur eine Ablese-Erschwernis
 	     ohne Nutzen.
 	   Wer künftig eine dritte Tafel mit ähnlicher Spannweite wie Marker baut, prüft das Verhältnis
-	   neu -- es ist keine feste Regel "Marker=Wurzel, Name=linear", sondern eine Folge der Zahlen. */
+	   neu -- es ist keine feste Regel "Marker=Wurzel, Label=linear", sondern eine Folge der Zahlen. */
 	var PLOTS = {
 		marker: {
 			kind: "marker", limits: LIMITS.marker, unit: "px",
@@ -532,7 +701,18 @@ svg.zb-plot {
 		return rows;
 	}
 
-	var state = { marker: buildInitialState("marker"), label: buildInitialState("label") };
+	/* 🔴 Abstände: GLOBAL, kein Wert je Zoomstufe (Owner-Entscheid 16.08.2026) -- deshalb einzelne
+	   Zahlen im gemeinsamen Zustand statt einer neunten/zehnten Kurve. Vorgaben = die ECHTEN Werte
+	   aus dem Code, nicht erfunden: LOCATION_NAME_LABEL_GAP = 4
+	   (js/map-features/map-features-location-name-labels.js), LOCATION_LABEL_COLLISION_PADDING = 2,
+	   LOCATION_LABEL_SHIFT_SMALL = 8 (beide js/map-features/map-features.js). */
+	var SPACING_DEFAULTS = { gap: 4, repel: 2, shift: 8 };
+	var SPACING_LIMITS = { min: 0, max: 20 };
+
+	var state = {
+		marker: buildInitialState("marker"), label: buildInitialState("label"),
+		gap: SPACING_DEFAULTS.gap, repel: SPACING_DEFAULTS.repel, shift: SPACING_DEFAULTS.shift
+	};
 	var selected = { marker: null, label: null }; // { cls, z } | null
 
 	function round2(v) { return Math.round(v * 100) / 100; }
@@ -543,21 +723,34 @@ svg.zb-plot {
 		var defStart = row.findIndex(function (v) { return v !== null; });
 		var st = state[kind][cls];
 		if (st.start !== defStart) { return false; }
-		for (var z = st.start; z <= 7; z++) {
+		for (var z = st.start; z <= Z_MAX; z++) {
 			if (Math.abs(st.values[z] - row[z]) > 1e-9) { return false; }
 		}
 		return true;
 	}
 
+	function isSpacingDefault(key) { return Math.abs(state[key] - SPACING_DEFAULTS[key]) < 1e-9; }
+
 	function updateSaveMessage() {
-		var changed = 0;
+		var curveChanged = 0;
 		["marker", "label"].forEach(function (kind) {
-			CLASSES.forEach(function (cls) { if (!isRowDefault(kind, cls)) { changed++; } });
+			CLASSES.forEach(function (cls) { if (!isRowDefault(kind, cls)) { curveChanged++; } });
 		});
+		var spacingChanged = 0;
+		["gap", "repel", "shift"].forEach(function (key) { if (!isSpacingDefault(key)) { spacingChanged++; } });
+
 		var el = document.getElementById("zbSaveMsg");
-		el.textContent = changed === 0
-			? "Keine Änderungen — entspricht der Vorgabe."
-			: "Ungespeichert: " + changed + " Kurve" + (changed === 1 ? " weicht" : "n weichen") + " von der Vorgabe ab.";
+		var parts = [];
+		if (curveChanged > 0) { parts.push(curveChanged + " Kurve" + (curveChanged === 1 ? "" : "n")); }
+		/* 💣 KEIN "+e": der Plural von "Abstand" trägt einen Umlaut ("Abstände"), reines Anhängen
+		   ergäbe das falsche "Abstande" -- deshalb hier das ganze Wort, nicht nur die Endung. */
+		if (spacingChanged > 0) { parts.push(spacingChanged + (spacingChanged === 1 ? " Abstand" : " Abstände")); }
+		if (parts.length === 0) {
+			el.textContent = "Keine Änderungen — entspricht der Vorgabe.";
+			return;
+		}
+		var total = curveChanged + spacingChanged;
+		el.textContent = "Ungespeichert: " + parts.join(", ") + " weich" + (total === 1 ? "t" : "en") + " von der Vorgabe ab.";
 	}
 
 	/* ---- SVG-Hilfen ------------------------------------------------------------------------- */
@@ -569,9 +762,9 @@ svg.zb-plot {
 
 	function curvePathD(cfg, cls) {
 		var st = state[cfg.kind][cls];
-		if (st.start > 7) { return ""; }
+		if (st.start > Z_MAX) { return ""; }
 		var d = "";
-		for (var z = st.start; z <= 7; z++) {
+		for (var z = st.start; z <= Z_MAX; z++) {
 			var x = colX(z), y = cfg.scale.toY(st.values[z]);
 			d += (z === st.start ? "M" : "L") + x.toFixed(1) + "," + y.toFixed(1) + " ";
 		}
@@ -598,12 +791,30 @@ svg.zb-plot {
 			txt.textContent = String(t);
 			svg.appendChild(txt);
 		});
-		for (var i = 0; i <= 7; i++) {
-			var xt = svgEl("text", { x: colX(i), y: H - MARGIN.bottom + 18, class: "zb-plot-xtick", "text-anchor": "middle" });
+		/* 🔴 z8 sichtbar als "noch nicht auf der Karte" markiert (Owner 16.08.2026): eine gestrichelte
+		   Trennlinie VOR der Spalte plus eine eigene Tick-Form (kursiv/gedämpft wie "aus", aber mit
+		   eigenem Titel) -- ein Admin, der dort zieht, findet den Grund an derselben Stelle, nicht
+		   in einer Fußnote weit weg. */
+		svg.appendChild(svgEl("line", {
+			x1: colX(Z_MAX) - (INNER_W / AUS_I) / 2, y1: MARGIN.top,
+			x2: colX(Z_MAX) - (INNER_W / AUS_I) / 2, y2: H - MARGIN.bottom,
+			class: "zb-plot-future-divider"
+		}));
+		for (var i = 0; i <= Z_MAX; i++) {
+			var isFuture = i === Z_MAX;
+			var xt = svgEl("text", {
+				x: colX(i), y: H - MARGIN.bottom + 18,
+				class: "zb-plot-xtick" + (isFuture ? " zb-plot-xtick--future" : ""), "text-anchor": "middle"
+			});
 			xt.textContent = "z" + i;
+			if (isFuture) {
+				var titleEl = svgEl("title", {});
+				titleEl.textContent = "z8 gibt es auf der Karte noch nicht (höchste Stufe ist z7) -- die Werte hier stehen bereit, wirken aber noch nicht.";
+				xt.appendChild(titleEl);
+			}
 			svg.appendChild(xt);
 		}
-		var ausT = svgEl("text", { x: colX(8), y: H - MARGIN.bottom + 18, class: "zb-plot-xtick zb-plot-xtick--aus", "text-anchor": "middle" });
+		var ausT = svgEl("text", { x: colX(AUS_I), y: H - MARGIN.bottom + 18, class: "zb-plot-xtick zb-plot-xtick--aus", "text-anchor": "middle" });
 		ausT.textContent = "aus";
 		svg.appendChild(ausT);
 		svg.appendChild(svgEl("line", { x1: MARGIN.left, y1: MARGIN.top, x2: MARGIN.left, y2: H - MARGIN.bottom, class: "zb-plot-axis" }));
@@ -613,8 +824,8 @@ svg.zb-plot {
 			var st = state[cfg.kind][cls];
 			var path = svgEl("path", { class: "zb-plot-curve zb-cls-" + cls, "data-curve": cls, d: curvePathD(cfg, cls) });
 			svg.appendChild(path);
-			if (st.start > 7) { return; }
-			for (var z = st.start; z <= 7; z++) {
+			if (st.start > Z_MAX) { return; }
+			for (var z = st.start; z <= Z_MAX; z++) {
 				svg.appendChild(makePoint(cfg, cls, z));
 			}
 		});
@@ -674,7 +885,7 @@ svg.zb-plot {
 		if (!isFinite(rawVal)) { return; }
 		var cfg = PLOTS[kind];
 		var st = state[kind][cls];
-		if (z < st.start || z > 7) { return; }
+		if (z < st.start || z > Z_MAX) { return; }
 		var val = round2(clamp(rawVal, cfg.limits.min, cfg.limits.max));
 		st.values[z] = val;
 		var circle = cfg.svg.querySelector('circle[data-cls="' + cls + '"][data-z="' + z + '"]');
@@ -721,7 +932,7 @@ svg.zb-plot {
 
 	/* ---- Stufenwahl je Klasse (ersetzt das Häkchen: der Anfang IST die Erscheinungsstufe) ------
 	   💣 Löcher sind baulich unmöglich: das ist ein einzelner Index, keine Bereichsauswahl -- eine
-	   Kurve läuft immer von `start` bis z7 durch, es gibt keine Bedienung, die etwas dazwischen
+	   Kurve läuft immer von `start` bis z8 durch, es gibt keine Bedienung, die etwas dazwischen
 	   ausblenden könnte. */
 	function changeStart(kind, cls, newStart) {
 		var st = state[kind][cls];
@@ -749,11 +960,18 @@ svg.zb-plot {
 	function resetAll() {
 		state.marker = buildInitialState("marker");
 		state.label = buildInitialState("label");
+		state.gap = SPACING_DEFAULTS.gap;
+		state.repel = SPACING_DEFAULTS.repel;
+		state.shift = SPACING_DEFAULTS.shift;
+		spacingEls.gap.range.value = state.gap; spacingEls.gap.input.value = state.gap;
+		spacingEls.repel.range.value = state.repel; spacingEls.repel.input.value = state.repel;
+		spacingEls.shift.range.value = state.shift; spacingEls.shift.input.value = state.shift;
 		selected = { marker: null, label: null };
 		renderPlot(PLOTS.marker); renderPlot(PLOTS.label);
 		renderLegend("marker"); renderLegend("label");
 		updateSelectedUI("marker"); updateSelectedUI("label");
 		updatePreview();
+		updateRepelDemo();
 		updateSaveMessage();
 	}
 
@@ -778,15 +996,15 @@ svg.zb-plot {
 			group.className = "zb-stage-group";
 			group.setAttribute("role", "group");
 			group.setAttribute("aria-label", "Erscheint ab, " + CLASS_LABELS[cls]);
-			for (var i = 0; i <= 7; i++) {
+			for (var i = 0; i <= Z_MAX; i++) {
 				group.appendChild(makeStageButton(kind, cls, i, st.start === i, false));
 			}
-			group.appendChild(makeStageButton(kind, cls, 8, st.start === 8, true));
+			group.appendChild(makeStageButton(kind, cls, AUS_I, st.start === AUS_I, true));
 			row.appendChild(group);
 
 			var note = document.createElement("span");
 			note.className = "zb-legend-note";
-			note.textContent = st.start > 7 ? "ausgeblendet — Werte gemerkt" : "";
+			note.textContent = st.start > Z_MAX ? "ausgeblendet — Werte gemerkt" : "";
 			row.appendChild(note);
 
 			var reset = document.createElement("button");
@@ -814,15 +1032,16 @@ svg.zb-plot {
 	}
 
 	/* ---- Vorschau: echter Punkt, echtes Wort, für eine gewählte Zoomstufe, aus BEIDEN Plots ---- */
-	var previewStage = 4; // z4 -- die erste Stufe, auf der alle sechs Klassen Marker UND Name tragen
+	var previewStage = 4; // z4 -- die erste Stufe, auf der alle sechs Klassen Marker UND Label tragen
 
 	function renderPreviewStageButtons() {
 		var wrap = document.getElementById("zbPreviewStage");
 		wrap.innerHTML = "";
-		for (var i = 0; i <= 7; i++) {
+		for (var i = 0; i <= Z_MAX; i++) {
 			var b = document.createElement("button");
 			b.type = "button";
 			b.textContent = "z" + i;
+			if (i === Z_MAX) { b.title = "z8 gibt es auf der Karte noch nicht -- zeigt dieselben Werte wie z7 (geerbt)."; }
 			if (i === previewStage) { b.classList.add("is-active"); }
 			b.addEventListener("click", function (iCapture) {
 				return function () { previewStage = iCapture; renderPreviewStageButtons(); updatePreview(); };
@@ -833,16 +1052,20 @@ svg.zb-plot {
 
 	/* 🔴 Owner-Rückmeldung 16.08.2026: die echte Kartengeometrie übernehmen
 	   (getLocationNameLabelOffset, map-features-location-name-labels.js), NICHT eine eigene
-	   Anordnung erfinden. Dort: x = Außenradius + LOCATION_NAME_LABEL_GAP (4px), gemessen von der
-	   Punktmitte -- der Name steht rechts daneben. y hebt den Text auf die Punktmitte, weil Canvas
+	   Anordnung erfinden. Dort: x = Außenradius + LOCATION_NAME_LABEL_GAP, gemessen von der
+	   Punktmitte -- das Label steht rechts daneben. y hebt den Text auf die Punktmitte, weil Canvas
 	   Text an der Grundlinie verankert, nicht mittig. In DOM/CSS braucht es diese Kompensation
 	   nicht: `align-items: center` auf der Flex-Reihe zentriert direkt auf der Punktmitte -- das
-	   ist dasselbe ZIEL wie die y-Formel, nur ohne den Canvas-spezifischen Umweg nachzubauen. Der
-	   Spalt bleibt exakt: --space-2 ist 4px, derselbe Wert wie LOCATION_NAME_LABEL_GAP, und weil
-	   der Punkt in der Reihe seine eigene reale Breite einnimmt, liegt der Textanfang automatisch
-	   bei „Radius + 4" von der Mitte -- ohne den Radius gesondert auszurechnen. */
+	   ist dasselbe ZIEL wie die y-Formel, nur ohne den Canvas-spezifischen Umweg nachzubauen.
+	   🔴 Vierte Owner-Aufgabe (16.08.2026 abends): der Spalt ist jetzt LIVE an den Spalt-Regler im
+	   Abschnitt "Abstände" gekoppelt, statt fest auf 4px (LOCATION_NAME_LABEL_GAP) zu stehen --
+	   `--zb-gap` wird hier auf #zbPreviewGrid gesetzt, läuft als geerbte Custom Property bis zur
+	   Flex-Reihe durch (siehe CSS-Kommentar an `.zb-preview-card__mark`) und weil der Punkt in der
+	   Reihe seine eigene reale Breite einnimmt, liegt der Textanfang automatisch bei
+	   „Radius + Spalt" von der Mitte -- ohne den Radius gesondert auszurechnen. */
 	function updatePreview() {
 		var grid = document.getElementById("zbPreviewGrid");
+		grid.style.setProperty("--zb-gap", state.gap + "px");
 		grid.innerHTML = "";
 		var DOT_CAP = 80; // Sicherheitsdeckel -- die Vorgabewerte (bis 53,2) erreichen ihn nie, nur von Hand hochgezogene Punkte könnten
 		CLASSES.forEach(function (cls) {
@@ -851,7 +1074,7 @@ svg.zb-plot {
 
 			var mSt = state.marker[cls], lSt = state.label[cls];
 			var hasMarker = previewStage >= mSt.start;
-			var hasLabel = previewStage >= lSt.start; // Name erscheint nie vor seinem Marker (Vorgabewerte)
+			var hasLabel = previewStage >= lSt.start; // Label erscheint nie vor seinem Marker (Vorgabewerte)
 
 			if (hasMarker) {
 				var mark = document.createElement("div");
@@ -872,7 +1095,7 @@ svg.zb-plot {
 					word.className = "zb-word";
 					word.style.fontSize = pt + "pt";
 					word.textContent = "Gareth";
-					word.title = "Name " + String(pt).replace(".", ",") + " pt";
+					word.title = "Label " + String(pt).replace(".", ",") + " pt";
 					mark.appendChild(word);
 				}
 				card.appendChild(mark);
@@ -890,6 +1113,118 @@ svg.zb-plot {
 
 			grid.appendChild(card);
 		});
+	}
+
+	/* ---- Abstände: Spalt, Repel & Versatz -- GLOBAL, kein Wert je Zoomstufe (Owner-Entscheid) -----
+	   Ein Regler, eine Zahl, ein Rücksetzer je Wert -- keine Kurve, kein Plot. */
+	var spacingEls = {
+		gap: {
+			range: document.getElementById("zbGapRange"), input: document.getElementById("zbGapInput"),
+			resetBtn: document.getElementById("zbGapReset")
+		},
+		repel: {
+			range: document.getElementById("zbRepelRange"), input: document.getElementById("zbRepelInput"),
+			resetBtn: document.getElementById("zbRepelReset")
+		},
+		shift: {
+			range: document.getElementById("zbShiftRange"), input: document.getElementById("zbShiftInput"),
+			resetBtn: document.getElementById("zbShiftReset")
+		}
+	};
+
+	/* Der einzige Ort, an dem sich einer der drei Abstände ändert -- Regler UND Zahlenfeld rufen
+	   beide hier durch, genau wie bei den Plot-Punkten oben. */
+	function setSpacing(key, rawVal) {
+		if (!isFinite(rawVal)) { return; }
+		var val = round2(clamp(rawVal, SPACING_LIMITS.min, SPACING_LIMITS.max));
+		state[key] = val;
+		spacingEls[key].range.value = val;
+		spacingEls[key].input.value = val;
+		/* 🔴 Kern der vierten/fünften Owner-Aufgabe: der Spalt bewegt die Vorschau LIVE (updatePreview
+		   liest state.gap für --zb-gap), Spalt UND Repel fließen in die Repel-Anschauung ein (der
+		   Spalt setzt die Ausgangslage der Labels, der Repel den geforderten Rand) -- deshalb beide
+		   Funktionen NUR bei diesen beiden Schlüsseln rufen. Versatz hat bewusst KEINE eigene
+		   Anschauung (Owner-Entscheid, siehe Bericht) -- ein Aufruf hier würde nichts bewegen, das
+		   von ihm abhängt, und stünde nur als irreführender Kommentar da. */
+		if (key === "gap" || key === "repel") {
+			updatePreview();
+			updateRepelDemo();
+		}
+		updateSaveMessage();
+	}
+
+	["gap", "repel", "shift"].forEach(function (key) {
+		spacingEls[key].range.addEventListener("input", function () {
+			setSpacing(key, parseFloat(spacingEls[key].range.value));
+		});
+		spacingEls[key].input.addEventListener("input", function () {
+			setSpacing(key, parseFloat(spacingEls[key].input.value));
+		});
+		spacingEls[key].resetBtn.addEventListener("click", function () {
+			setSpacing(key, SPACING_DEFAULTS[key]);
+		});
+	});
+
+	/* ---- Repel-Anschauung: zwei FESTE Ortspunkte, ihre Labels weichen nur so weit aus, wie der
+	   gestrichelte Rahmen es verlangt -------------------------------------------------------------
+	   Bewusst vereinfacht (siehe Bericht): EINE Achse, EIN Paar, kein Prioritäten-System -- die
+	   echte Auflösung (js/map-features/map-features-label-collisions.js) prüft zwölf
+	   Ausweichstellen je Label. Die Breiten der Wörter werden ECHT gemessen (getBoundingClientRect),
+	   nicht geschätzt -- der Rahmen und der Ausweichweg stimmen deshalb exakt mit dem, was auf dem
+	   Bildschirm steht, überein. Der Marker-Punkt selbst bleibt fix, nur das Label weicht -- wie auf
+	   der echten Karte, wo die Kollisionsauflösung ausschließlich Labels verschiebt. */
+	var REPEL_DOT_D = 10;    // px -- generische Punktgröße, an keine Ortsklasse/keinen Plot gebunden
+	/* 💣 64, zwischen zwei Messungen abgewogen (echte Wortbreiten von "Fasar"/"Vinsalt" gemessen,
+	   nicht geschätzt): bei einem größeren Punktabstand (96px, die erste Fassung) läge die
+	   Ausweich-Schwelle jenseits des Reglermaximums (20) -- man könnte bis zum Anschlag ziehen, ohne
+	   die namensgebende Wirkung je zu sehen. Bei einem kleineren Abstand (40px, die zweite Fassung)
+	   reicht der wachsende Rahmen um Punkt A schon deutlich VOR dem Ausweichen bis über Punkt B
+	   hinweg -- der feste Punkt sitzt dann sichtbar IM Rahmen des Nachbarn, was eher verwirrt als
+	   erklärt. 64px hält beides auseinander: der Rahmen bleibt bis zum Reglerende vor Punkt B stehen
+	   (gemessen: bis Repel 20 keine Berührung), und das Ausweichen selbst beginnt bei Repel ≈ 12 --
+	   im ziehbaren Bereich, nicht erst am Anschlag. */
+	var REPEL_DOT_GAP = 64;  // px -- fester Abstand der beiden Punkte, bewegt sich nie
+	var REPEL_WORD_A = "Fasar", REPEL_WORD_B = "Vinsalt";
+
+	function updateRepelDemo() {
+		var demo = document.getElementById("zbRepelDemo");
+		var dotA = document.getElementById("zbRepelDotA"), dotB = document.getElementById("zbRepelDotB");
+		var boxA = document.getElementById("zbRepelBoxA"), boxB = document.getElementById("zbRepelBoxB");
+		var wordA = document.getElementById("zbRepelWordA"), wordB = document.getElementById("zbRepelWordB");
+		var dotR = REPEL_DOT_D / 2;
+		var repel = state.repel;
+
+		var dotAx = 12, dotBx = dotAx + REPEL_DOT_GAP;
+		dotA.style.left = dotAx + "px";
+		dotB.style.left = dotBx + "px";
+
+		/* Ausgangslage: dieselbe Formel wie in der Vorschau oben (Radius + Spalt) -- der Spalt-Regler
+		   wirkt also auch hier, bevor der Repel-Regler überhaupt etwas zu tun hat. */
+		wordA.textContent = REPEL_WORD_A;
+		wordB.textContent = REPEL_WORD_B;
+		var labelAx = dotAx + dotR + state.gap;
+		var labelBx0 = dotBx + dotR + state.gap; // B VOR dem Ausweichen
+		wordA.style.left = labelAx + "px";
+		wordB.style.left = labelBx0 + "px";
+		var widthA = wordA.getBoundingClientRect().width, heightA = wordA.getBoundingClientRect().height;
+		var widthB = wordB.getBoundingClientRect().width, heightB = wordB.getBoundingClientRect().height;
+
+		/* Die einzige Rechnung: überschneiden sich die beiden um `repel` erweiterten Rahmen, weicht
+		   NUR B nach rechts aus (A bleibt an seiner Stelle) -- eine Achse, eine Richtung, ein Paar. */
+		var boxARight = labelAx + widthA + repel;
+		var boxBLeft0 = labelBx0 - repel;
+		var push = Math.max(0, boxARight - boxBLeft0);
+		var labelBx = labelBx0 + push;
+		wordB.style.left = labelBx + "px";
+
+		boxA.style.left = (labelAx - repel) + "px";
+		boxA.style.width = (widthA + 2 * repel) + "px";
+		boxA.style.height = (heightA + 2 * repel) + "px";
+		boxB.style.left = (labelBx - repel) + "px";
+		boxB.style.width = (widthB + 2 * repel) + "px";
+		boxB.style.height = (heightB + 2 * repel) + "px";
+
+		demo.style.width = Math.max(labelBx + widthB + repel, dotBx + dotR) + 16 + "px";
 	}
 
 	/* ---- Speicherleiste -------------------------------------------------------------------- */
@@ -910,6 +1245,7 @@ svg.zb-plot {
 	updateSelectedUI("label");
 	renderPreviewStageButtons();
 	updatePreview();
+	updateRepelDemo();
 	updateSaveMessage();
 })();
 </script>

@@ -19,15 +19,16 @@ function getLocationNameLabelSize(locationType, zoomLevel = map.getZoom()) {
 	return value === null ? LOCATION_NAME_LABEL_BELOW_BAND_SIZE : value;
 }
 
-// Kleiner Abstand zwischen Marker-Aussenrand und Schrift (wird auf den Marker-Radius addiert).
-const LOCATION_NAME_LABEL_GAP = 4;
+// 🔴 AUFGABE 8B: "Spalt" wurde ein GLOBALER Regler im Fenster „Zoombänder" -- die Vorgabe (4 px)
+// liegt jetzt allein in js/map-features/location-zoom-bands.js (AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS.
+// abstaende.spalt), diese Konstante wurde entfernt, sonst stünde dieselbe Zahl an zwei Stellen.
 
 function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom(), locationType = "dorf") {
 	// Schrift rechts NEBEN den Marker setzen: Aussenradius + fester Spalt -> respektiert die (variable) Markergroesse.
 	const markerOuterRadius = getLocationMarkerSize(locationType, zoomLevel) / 2;
 	const labelHeightInPixels = labelSize * 4 / 3;
 	return {
-		x: Math.round(markerOuterRadius + LOCATION_NAME_LABEL_GAP),
+		x: Math.round(markerOuterRadius + avesmapsLocationLabelSpacing("spalt")),
 		y: -(Math.round(labelHeightInPixels * 0.531 * 10) / 10), // 0.531 statt 0.5: optisch beste Zentrierung -- Mixed-Case-Worte (Kleinbuchstaben) wirken tiefer als die reine Versalhoehe, daher Text minimal hoeher
 	};
 }

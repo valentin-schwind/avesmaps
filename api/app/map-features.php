@@ -6,6 +6,9 @@ require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/wiki/sync.php';
 require_once __DIR__ . '/../_internal/coat-url.php';
 require_once __DIR__ . '/../_internal/app/coat-display.php';
+// Fuer avesmapsMediaLicenseIsPublic() -- der EINE Lizenzkatalog (Phase 1). coat-display.php zieht sie
+// bereits mit, aber ein Gate auf diesem Pfad darf nicht vom Include eines Nachbarn abhaengen.
+require_once __DIR__ . '/../_internal/media-license.php';
 // Named explicitly for avesmapsMapFeaturesSettlementImagesEnabled below: coat-display.php happens to pull
 // it in too, but a kill switch on this path must not depend on a neighbour's include staying put.
 require_once __DIR__ . '/../_internal/app/app-setting.php';
@@ -51,7 +54,15 @@ require_once __DIR__ . '/../_internal/app/feature-sources.php';
 // 11: jedes Label einer Landschaftsflaeche traegt zusaetzlich properties.ecosystem_region_kind.
 //    Ohne Bump zeigte ein warmer Client beim Umschalten auf eine einzelne Ebene GAR KEINE
 //    Beschriftung -- er kennt das Feld nicht und haelt jede fuer ebenenfremd.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 11;
+// 12: Lizenzumbau Phase 3 (16.08.2026, Aufgaben 1/2b): das Siedlungs-Wappen-Gate (properties.coat) und
+//    das Siedlungsbilder-Gate (properties.images) lassen jetzt alle fuenf oeffentlichen Katalogwerte
+//    durch statt vorher nur eines bzw. dreier (avesmapsSettlementCoatIsPublic()/
+//    avesmapsMapFeaturesPublicImageUrls(), coat-display.php) -- KEINE Formaenderung, sondern ein WERT-
+//    wechsel: der Phase-4-Dialog ist bereits live, ein Editor kann 'permission_granted'/'own_work'
+//    laengst gesetzt haben. Ohne Bump haelt ein warmer Client seinen 304 und zeigt weiterhin das
+//    verschwundene Wappen/Bild nicht, obwohl der Bestand es seit Phase 3 zulaesst (dieselbe Begruendung
+//    wie Version 4/8/9/10/11 oben und api/_internal/app/ecosystem-areas.php:39).
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 12;
 
 // 🔴 Fix-Runde 6 (15.08.2026): the coat-of-arms staging/model table constants AND the two loader/gate
 // functions that used to sit here (avesmapsLoadSettlementCoatGateInputs, avesmapsSettlementTerritoryCoatUrl)
@@ -419,34 +430,9 @@ function avesmapsMapFeaturesTravelHours(PDO $pdo): array {
     }
 }
 
-// Filters a settlement's properties.images down to the URLs that may be shown publicly: keeps
-// public_domain / cc0 / ai_generated, drops unknown_other, and strips the licence/note metadata
-// (editor-only). Accepts both the {url,license,note} object shape and the legacy plain-URL-string
-// shape (which counts as ai_generated = shown). See api/edit/wiki/settlement-images.php.
-function avesmapsMapFeaturesPublicImageUrls($images): array {
-    if (!is_array($images)) {
-        return [];
-    }
-    $allowed = ['public_domain', 'cc0', 'ai_generated'];
-    $out = [];
-    foreach ($images as $item) {
-        if (is_string($item)) {
-            $url = trim($item);
-            if ($url !== '') {
-                $out[] = $url;
-            }
-            continue;
-        }
-        if (is_array($item)) {
-            $url = trim((string) ($item['url'] ?? ''));
-            $license = trim((string) ($item['license'] ?? 'ai_generated'));
-            if ($url !== '' && in_array($license, $allowed, true)) {
-                $out[] = $url;
-            }
-        }
-    }
-    return $out;
-}
+// avesmapsMapFeaturesPublicImageUrls() zog nach api/_internal/app/coat-display.php um (Phase 3, aus
+// demselben Grund wie avesmapsSettlementCoatIsPublic() daneben: diese Datei ist ein Endpunkt und beim
+// `require` fuer einen Test nicht seiteneffektfrei ladbar, die Zieldatei schon).
 
 function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = [], array $buildingTypes = [], array $politicalContext = [], bool $settlementImagesEnabled = true, bool $settlementCoatsEnabled = true): array {
     if ((int) ($row['is_active'] ?? 1) !== 1) {
@@ -489,6 +475,18 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
         } else {
             unset($properties['images']);
         }
+    }
+
+    // Lizenz-Gate der Siedlungs-Wappen (Phase 3). Dieselbe Regel wie ueberall: cc_by und
+    // unknown_other werden gespeichert, aber nicht gezeigt. Entfernt wird der GANZE coat-Schluessel,
+    // nicht nur die url -- aus demselben Grund, den der Schalter-Block darunter nennt: das Wappen
+    // ERSETZT hier das Ortssymbol, ein leerer Schild naehme also Information weg.
+    //
+    // 🔴 STRIKT VOR dem Anzeige-Schalter. Beide enden in unset(), das Ergebnis ist also dasselbe --
+    // die Reihenfolge traegt die Bedeutung: der Riegel ist rechtlich, der Schalter eine Praeferenz.
+    // Dieselbe Ordnung wie in coat-display.php:92-94, und der Test nagelt sie fest.
+    if (isset($properties['coat']) && !avesmapsSettlementCoatIsPublic($properties['coat'])) {
+        unset($properties['coat']);
     }
 
     // Global "Wappen: Aus" (settlement switch): drop the coat instead of replacing it with the

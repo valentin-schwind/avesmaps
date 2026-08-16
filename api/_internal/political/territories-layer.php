@@ -3,6 +3,10 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../coat-url.php';
+// Fuer avesmapsMediaLicenseIsPublic() -- der EINE Lizenzkatalog (Phase 1). coat-url.php zieht sie
+// bereits mit, aber ein Gate auf diesem Pfad darf nicht vom Include eines Nachbarn abhaengen (dieselbe
+// Regel wie in map-features.php/coat-display.php).
+require_once __DIR__ . '/../media-license.php';
 
 function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
     $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
@@ -861,7 +865,7 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         $effCoatLicense = array_key_exists('coat_of_arms_license_status', $coatOverrides)
             ? trim((string) $coatOverrides['coat_of_arms_license_status'])
             : $stagingCoatLicense;
-        if ($effCoatUrl !== '' && in_array($effCoatLicense, ['public_domain'], true)) {
+        if ($effCoatUrl !== '' && avesmapsMediaLicenseIsPublic($effCoatLicense)) {
             $visibleCoatOfArmsUrl = $effCoatUrl;
         }
     }
@@ -869,16 +873,18 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
     // Cache-Buster: re-hochgeladene Wappen behalten den Dateinamen, werden aber 30 Tage gecacht
     // (Cache-Control: max-age=2592000) -> ohne ?v zeigt der Browser das alte Bild. ?v=<mtime> bricht
     // den Cache GENAU bei Aenderung; unveraenderte Wappen bleiben gecacht (Perf).
-    // Public display shows only public_domain coats (matches territory-detail.php).
-    // The staging fallback above is gated already; this also covers the own/applied
-    // coat resolved further up, which would otherwise bypass the license check.
+    // Lizenz-Gate (Phase 3, Befund 1): derselbe Katalog wie ueberall (avesmapsMediaLicenseIsPublic),
+    // nicht mehr roh gegen 'public_domain' -- sonst zeigte die Infobox ein Wappen (cc0/permission_granted/
+    // ai_generated/own_work), das GENAU DASSELBE Kartenlabel weiterhin verbarg (Divergenz zwischen
+    // Lesern, dieselbe Ursache wie Discord #32). The staging fallback above is gated already; this also
+    // covers the own/applied coat resolved further up, which would otherwise bypass the license check.
     if ($visibleCoatOfArmsUrl !== '') {
         $coatGateOverrides = avesmapsPoliticalDecodeJson($row['coat_override_json'] ?? null);
         $coatGateOverrides = is_array($coatGateOverrides) ? $coatGateOverrides : [];
         $coatGateLicense = array_key_exists('coat_of_arms_license_status', $coatGateOverrides)
             ? trim((string) $coatGateOverrides['coat_of_arms_license_status'])
             : trim((string) ($row['staging_coat_license'] ?? ''));
-        if ($coatGateLicense !== 'public_domain') {
+        if (!avesmapsMediaLicenseIsPublic($coatGateLicense)) {
             $visibleCoatOfArmsUrl = '';
         }
     }

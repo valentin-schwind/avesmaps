@@ -17,6 +17,16 @@ wird angesehen (AGENTS §9). Kein Bündel mit Phase 4.
 
 ---
 
+## ✅ Die Vorbedingung ist erfüllt (16.08.2026)
+
+Der Anwendungslauf aus Phase 2 ist gefahren. Gemessen an einer Probe gegen `/api/app/map-features.php`:
+**82 Wappen, davon 79 `public_domain` und 3 `ai_generated`** — kein `'own'` mehr im Bestand. Die
+Vorschau meldete zuvor `sichtbarkeitswechsel: []` und `coat_ohne_lizenz_gesamt: 0`.
+
+⚠️ Der Abschnitt unten bleibt stehen, weil er die Regel begründet — nicht, weil noch etwas offen wäre.
+
+---
+
 ## 🔴 Die Vorbedingung — ohne sie darf diese Phase nicht deployen
 
 **Der Anwendungslauf aus Phase 2 muss vollständig durch sein.** Nicht „gestartet", nicht „meistens":
@@ -385,6 +395,71 @@ Bericht.
 php -d zend.assertions=1 -d assert.exception=1 api/_internal/__tests__/coat-resolve-test.php
 git add api/_internal/coat-url.php api/_internal/__tests__/coat-resolve-test.php
 git commit -m "feat(lizenzen): das Territoriums-Gate liest den Katalog statt einer eigenen Liste"
+```
+
+---
+
+## Aufgabe 2b: Das Gate der Siedlungsbilder ist zu eng
+
+💣 **Eine dritte Fläche, die der Entwurf §5 nicht nennt** — gefunden beim Bau der Phase 4.
+
+`avesmapsMapFeaturesPublicImageUrls` (`api/app/map-features.php`, rund Zeile 405) lässt nur
+`public_domain`, `cc0` und `ai_generated` durch — **drei der fünf öffentlichen Werte**. Seit Phase 4
+bietet der Bilder-Dialog aber alle sieben an. Ein Editor wählt „Genehmigung erteilt" oder „Eigene
+Kreation" und **das Bild verschwindet aus dem Frontend**, ohne dass irgendwo ein Fehler erscheint.
+
+Der Entwurf nennt nur die zwei Wappen-Flächen, weil die dritte damals nicht auffiel: solange der
+Dialog nur vier Werte anbot, konnte die Lücke niemand erreichen.
+
+**Dateien:** `api/app/map-features.php` · `api/_internal/app/__tests__/settlement-coat-gate-test.php`
+(erweitern, der Test der Nachbarfläche liegt schon dort)
+
+- [ ] **Schritt 1: Die Stelle lesen und die Werte zählen**
+
+```bash
+grep -n -B 6 -A 22 "function avesmapsMapFeaturesPublicImageUrls" api/app/map-features.php
+```
+
+- [ ] **Schritt 2: Test zuerst**
+
+Im vorhandenen Test ergänzen — die fünf öffentlichen kommen durch, die zwei stillen nicht:
+
+```php
+// ---- Phase 3: auch die BILDER lesen den Katalog ----------------------------------------------------
+// 💣 Bis 16.08.2026 liess dieses Gate nur drei der fuenf oeffentlichen Werte durch. Seit Phase 4
+// bietet der Dialog alle sieben an -- "Genehmigung erteilt" und "Eigene Kreation" waren damit
+// waehlbar und liessen das Bild verschwinden.
+foreach (['public_domain', 'cc0', 'permission_granted', 'ai_generated', 'own_work'] as $kennung) {
+    assert(
+        avesmapsMapFeaturesPublicImageUrls([['url' => '/uploads/siedlungen/a/x.webp', 'license' => $kennung]]) !== [],
+        "{$kennung} muesste durchkommen"
+    );
+}
+foreach (['cc_by', 'unknown_other'] as $kennung) {
+    assert(
+        avesmapsMapFeaturesPublicImageUrls([['url' => '/uploads/siedlungen/a/x.webp', 'license' => $kennung]]) === [],
+        "{$kennung} duerfte NICHT durchkommen"
+    );
+}
+// ⚠️ Der Legacy-Fall bleibt: ein blanker URL-String zaehlt als ai_generated und ist sichtbar
+// (api/app/map-features.php:390, seit jeher). Kein Bestandsbild wechselt seine Sichtbarkeit.
+assert(avesmapsMapFeaturesPublicImageUrls(['/uploads/siedlungen/a/alt.webp']) !== []);
+```
+
+⚠️ **`avesmapsMapFeaturesPublicImageUrls` lebt in einem Endpunkt** und ist per `require` nicht ladbar
+(Bootstrap). Dieselbe Frage wie bei Aufgabe 1 — verschieb sie mit, wenn nötig, und schreib in den
+Bericht, welchen Weg du gewählt hast.
+
+- [ ] **Schritt 3: Das Gate auf den Katalog umstellen**
+
+Die feste Dreier-Liste weicht `avesmapsMediaLicenseIsPublic()`. 🔴 **Der Legacy-Zweig bleibt**: ein
+blanker URL-String zählt weiterhin als `ai_generated`, sonst verlieren Bestandsbilder ihre
+Sichtbarkeit — genau das, was die Zusicherung über alle Phasen verbietet.
+
+- [ ] **Schritt 4: Test grün, committen**
+
+```bash
+git commit -m "feat(lizenzen): das Bilder-Gate liest den Katalog statt drei fest verdrahteter Werte"
 ```
 
 ---

@@ -19,11 +19,14 @@ require_once __DIR__ . '/app-setting.php';
 const AVESMAPS_ZOOM_BANDS_SETTING_KEY = 'location_zoom_bands';
 const AVESMAPS_ZOOM_BANDS_STAMP_KEY = 'location_zoom_bands_stamp';
 const AVESMAPS_ZOOM_BANDS_MAX_BYTES = 8192;
-const AVESMAPS_ZOOM_BANDS_MAX_CELLS = 8;   // z0 bis z7
+const AVESMAPS_ZOOM_BANDS_MAX_CELLS = 9;   // z0 bis z8
 const AVESMAPS_ZOOM_BANDS_LIMITS = [
-    'marker' => [0.5, 200.0],  // Außendurchmesser in px
-    'label' => [4.0, 96.0],    // Schriftgröße in pt
+    'marker' => [0.5, 100.0],  // Außendurchmesser in px
+    'label' => [4.0, 30.0],    // Schriftgröße in pt
 ];
+// 🔴 AUFGABE 8B: drei GLOBALE Abstände (Spalt/Repel/Versatz) -- EIN Wert je Schlüssel, keine Zeile
+// je Zoomstufe. Dieselbe Schranke fuer alle drei (0 bis 20 px), wie im Fenster.
+const AVESMAPS_ZOOM_BANDS_SPACING_LIMITS = [0.0, 20.0];
 
 /**
  * Prüft eine eingehende Tafel. Gibt die bereinigte Tafel zurück oder null, wenn sie abzulehnen ist.
@@ -96,6 +99,39 @@ function avesmapsZoomBandsValidate(mixed $incoming): ?array
         // der Browser prüft `!Array.isArray(...)` und fällt dann auf die reine Vorgabe zurück --
         // genau die richtige Bedeutung für „nichts übersteuert".
         $clean[$kind] = $cleanRows;
+    }
+
+    // 🔴 AUFGABE 8B: die drei globalen Abstände -- EIN Wert je Schlüssel, keine Liste/Zeile.
+    // ⚠️ Ein FEHLENDER Abschnitt ist gültig: eine vor diesem Umbau gespeicherte Tafel kennt ihn gar
+    // nicht, und das ist ein Nichtwissen, keine Ablehnung (der Browser füllt dann seine Vorgabe).
+    // Nur ein VORHANDENER, aber falsch geformter Abschnitt fliegt raus.
+    if (array_key_exists('abstaende', $incoming)) {
+        $abstaendeRaw = $incoming['abstaende'];
+        if (!is_array($abstaendeRaw)) {
+            return null;
+        }
+        [$spacingMin, $spacingMax] = AVESMAPS_ZOOM_BANDS_SPACING_LIMITS;
+        $cleanAbstaende = [];
+        foreach ($abstaendeRaw as $key => $value) {
+            // ⚠️ Dieselbe Form wie ein Klassenschlüssel bei marker/label -- der Server führt auch
+            // hier KEINE feste Liste (spalt/repel/versatz), das entscheidet der Browser gegen seine
+            // eigene Vorgabetafel (§4.4 Punkt 1: unbekannte Schlüssel werden gespeichert, aber ignoriert).
+            if (!is_string($key) || preg_match('/^[a-z_]{1,32}$/', $key) !== 1) {
+                return null;
+            }
+            // 💣 KEIN `null`: anders als eine Zellenreihe hat ein globaler Abstand keine
+            // "unsichtbar"-Aussage -- er ist immer eine Zahl. is_int()/is_float() lehnt null von
+            // selbst ab (fällt ebenso wie ein String durch).
+            if (!is_int($value) && !is_float($value)) {
+                return null;
+            }
+            $floatValue = (float) $value;
+            if (!is_finite($floatValue) || $floatValue < $spacingMin || $floatValue > $spacingMax) {
+                return null;
+            }
+            $cleanAbstaende[$key] = $floatValue;
+        }
+        $clean['abstaende'] = $cleanAbstaende;
     }
 
     $encoded = json_encode($clean, JSON_UNESCAPED_UNICODE);

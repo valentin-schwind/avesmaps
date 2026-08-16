@@ -56,8 +56,8 @@ const KLASSEN = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "geba
 // ---- A. Der Marker ----------------------------------------------------------------------------
 KLASSEN.forEach((typ) => {
 	const zeile = AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS.marker[typ];
-	assert.ok(Array.isArray(zeile) && zeile.length === 8, `${typ}: acht Markerzellen`);
-	for (let z = 0; z <= 7; z += 1) {
+	assert.ok(Array.isArray(zeile) && zeile.length === 9, `${typ}: neun Markerzellen`);
+	for (let z = 0; z <= 8; z += 1) {
 		if (z < ALTE_KURVE[typ].from) {
 			assert.strictEqual(zeile[z], null,
 				`${typ} z${z}: die Klasse erschien früher erst ab z${ALTE_KURVE[typ].from}`);
@@ -68,13 +68,15 @@ KLASSEN.forEach((typ) => {
 	}
 	// z7 erbt z6 -- die alte Kurve klemmte dort.
 	assert.strictEqual(zeile[7], zeile[6], `${typ}: z7 erbt z6`);
+	// z8 erbt z7 -- Zoomstufe 8 gibt es auf der Karte noch nicht, also entscheidet sie niemand.
+	assert.strictEqual(zeile[8], zeile[7], `${typ}: z8 erbt z7`);
 });
 
 // ---- B. Der Name ------------------------------------------------------------------------------
 KLASSEN.forEach((typ) => {
 	const zeile = AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS.label[typ];
-	assert.ok(Array.isArray(zeile) && zeile.length === 8, `${typ}: acht Schriftzellen`);
-	for (let z = 0; z <= 7; z += 1) {
+	assert.ok(Array.isArray(zeile) && zeile.length === 9, `${typ}: neun Schriftzellen`);
+	for (let z = 0; z <= 8; z += 1) {
 		if (z < ALTE_SCHRIFT_MINZOOM[typ]) {
 			assert.strictEqual(zeile[z], null,
 				`${typ} z${z}: der Name erschien früher erst ab z${ALTE_SCHRIFT_MINZOOM[typ]}`);
@@ -86,6 +88,8 @@ KLASSEN.forEach((typ) => {
 	}
 	assert.strictEqual(zeile[6], zeile[5], `${typ}: z6 erbt z5 (alter Deckel)`);
 	assert.strictEqual(zeile[7], zeile[5], `${typ}: z7 erbt z5 (alter Deckel)`);
+	// z8 erbt z7 -- Zoomstufe 8 gibt es auf der Karte noch nicht, also entscheidet sie niemand.
+	assert.strictEqual(zeile[8], zeile[7], `${typ}: z8 erbt z7`);
 });
 
 // ---- C. Die Erscheinungsstufen stimmen mit den abgeschafften Konstanten überein ---------------

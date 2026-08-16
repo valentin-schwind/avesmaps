@@ -49,21 +49,21 @@ avesmapsApplyLocationZoomBands(null);
 // ---- A. Die Vorgabe: 0/0/0/1/2/3 --------------------------------------------------------------
 const ERWARTET = { metropole: 0, grossstadt: 0, stadt: 0, kleinstadt: 1, dorf: 2, gebaeude: 3 };
 Object.entries(ERWARTET).forEach(([typ, ab]) => {
-	for (let z = 0; z <= 7; z += 1) {
+	for (let z = 0; z <= 8; z += 1) {
 		assert.strictEqual(zeigtMarker(typ, z), z >= ab,
 			`${typ} bei z${z}: erwartet ${z >= ab ? "sichtbar" : "unsichtbar"}`);
 	}
 });
 
 // ---- B. Eine Übersteuerung verschiebt die Stufe ------------------------------------------------
-avesmapsApplyLocationZoomBands({ marker: { dorf: [null, null, null, null, null, 9.28, 17.74, 17.74] } });
+avesmapsApplyLocationZoomBands({ marker: { dorf: [null, null, null, null, null, 9.28, 17.74, 17.74, 17.74] } });
 assert.strictEqual(zeigtMarker("dorf", 4), false, "das Dorf erscheint jetzt erst ab z5");
 assert.strictEqual(zeigtMarker("dorf", 5), true);
 assert.strictEqual(getLocationMarkerSize("dorf", 5), 9.28, "und trägt den eingestellten Durchmesser");
 
 // ---- C. Eine ganz leere Zeile blendet die Klasse überall aus -----------------------------------
-avesmapsApplyLocationZoomBands({ marker: { gebaeude: [null, null, null, null, null, null, null, null] } });
-for (let z = 0; z <= 7; z += 1) {
+avesmapsApplyLocationZoomBands({ marker: { gebaeude: [null, null, null, null, null, null, null, null, null] } });
+for (let z = 0; z <= 8; z += 1) {
 	assert.strictEqual(zeigtMarker("gebaeude", z), false, `Bauwerke sind bei z${z} aus`);
 }
 assert.strictEqual(avesmapsLocationZoomBandMinZoom("marker", "gebaeude"), null);
@@ -92,7 +92,7 @@ const zeigtName = (locationType, z) =>
 avesmapsApplyLocationZoomBands(null);
 const ERWARTET_NAME = { metropole: 0, grossstadt: 0, stadt: 2, kleinstadt: 3, dorf: 4, gebaeude: 4 };
 Object.entries(ERWARTET_NAME).forEach(([typ, ab]) => {
-	for (let z = 0; z <= 7; z += 1) {
+	for (let z = 0; z <= 8; z += 1) {
 		assert.strictEqual(zeigtName(typ, z), z >= ab,
 			`Name ${typ} bei z${z}: erwartet ${z >= ab ? "sichtbar" : "unsichtbar"}`);
 	}
@@ -118,10 +118,11 @@ assert.strictEqual(getLocationNameLabelSize("dorf", 5), 11);
 // 💣 Die Vorgabe ist ab z5 flach (11, 11, 11) -- mit ihr sind eine 0-7-Klemme und eine 0-5-Klemme
 // nicht zu unterscheiden. Erst eine Übersteuerung, die oben ANDERE Werte trägt, macht den
 // Unterschied sichtbar: über getVisualZoomLevel (klemmt auf 5) käme hier dreimal 11 heraus.
-avesmapsApplyLocationZoomBands({ label: { dorf: [null, null, null, null, 10, 11, 14, 16] } });
+avesmapsApplyLocationZoomBands({ label: { dorf: [null, null, null, null, 10, 11, 14, 16, 18] } });
 assert.strictEqual(getLocationNameLabelSize("dorf", 5), 11);
 assert.strictEqual(getLocationNameLabelSize("dorf", 6), 14, "z6 ist eine eigene Stufe, keine Kopie von z5");
-assert.strictEqual(getLocationNameLabelSize("dorf", 7), 16, "z7 ebenso -- die Ortsschrift klemmt auf 0-7, nicht auf 5");
+assert.strictEqual(getLocationNameLabelSize("dorf", 7), 16, "z7 ebenso -- die Ortsschrift klemmt auf 0-8, nicht auf 5");
+assert.strictEqual(getLocationNameLabelSize("dorf", 8), 18, "z8 ebenso -- die neue Spalte ist keine Kopie von z7");
 avesmapsApplyLocationZoomBands(null); // Zustand für die folgenden Blöcke zurücksetzen
 
 console.log("zoombaender-erscheinungsstufe: alle Zusicherungen erfüllt");

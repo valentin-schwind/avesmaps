@@ -5,6 +5,46 @@ Erscheinungsstufen sind einstellbar · die Tabelle reicht bis z7 · das Fenster 
 Bandgrafik über der Zahlentabelle · Editoren sehen die Kachel und dürfen lesen, speichern darf
 nur ein Admin.
 
+## 0. 🔴 STAND NACH DEM BAU — DIESER ABSCHNITT ÜBERSCHREIBT TEILE DESSEN, WAS WEITER UNTEN STEHT
+
+Der Entwurf unten ist die Fassung **vor** dem Bau. Fünf Owner-Entscheide vom 16.08.2026 sind
+danach dazugekommen; was hier steht, gilt.
+
+1. 🔴 **Die Bedienung ist ein PLOT, keine Zahlentafel.** Owner: „du ersetzt alles in den plot
+   (häkchen und wert) und das ding ändert sich über die ganze breite interaktiv", nach dem Ansehen
+   des Prototyps „jetzt passts, das wollen wir". **§7 unten beschreibt Tafeln mit Häkchen und ist
+   damit überholt.** Zwei zieh-bedienbare Plots (Marker → Vorschau → Label), der **Anfang einer
+   Kurve IST die Erscheinungsstufe** und ersetzt das Häkchen. Formvorlage:
+   `docs/zoombaender-mockup.html`.
+   ⚠️ Die Zahlenfelder bleiben als Anzeige und genaue Eingabe des angefassten Punktes, und die
+   Punkte sind mit der Tastatur erreichbar — mit der Maus trifft niemand 9,28, und ein reiner
+   Zieh-Editor sperrt jeden ohne Maus aus.
+2. 🔴 **NEUN Zoomstufen, z0 bis z8.** Die Karte hat `maxZoom: 7` (`js/app/bootstrap.js:76`), z8
+   gibt es also noch nicht — die Vorgabe **erbt dort z7**, und das Fenster sagt sichtbar, dass die
+   Stufe noch nicht wirkt. Überall unten, wo „acht Zoomstufen (z0–z7)" oder „höchstens 8 Einträge"
+   steht, sind es neun.
+3. 🔴 **Die Schranken sind 0,5–100 px und 4–30 pt** (nicht 200 / 96). §4.4 und §5.3 unten sind
+   entsprechend zu lesen. ⭐ Folge für die Achsen: der Marker-Plot ist **gestaucht** (0,5–100 ist
+   das Zweihundertfache), der Label-Plot **linear** (4–30 ist nur das Siebeneinhalbfache). Zwei
+   verschiedene Achsen mit Begründung im Kommentar — sonst gleicht sie jemand „aus Konsistenz" an
+   und macht eine davon unbedienbar.
+4. 🔴 **Drei globale Abstandsregler kamen dazu** (im Entwurf unten gar nicht vorhanden), Owner:
+   „global reicht beim repel". Ein Wert für alle Ortsklassen und Zoomstufen, abgelegt im **selben**
+   `app_setting`-Eintrag als eigener Abschnitt:
+   **Spalt** (4 px, Marker-Rand → sein eigenes Label) · **Repel** (2 px, Luft um jedes Label vor der
+   Kollisionsprüfung) · **Versatz** (8 px, Weite des kleinen Ausweichschritts).
+   ⚠️ Der Versatz steckt in **zehn** der zwölf Ausweichstellen, nicht in vier — alle außer „rechts"
+   und „links".
+   🔴 **Nicht** einstellbar gemacht: die Reihenfolge der zwölf Ausweichstellen und ein Schalter
+   „darf nach links". Links abzuschalten verschiebt nichts, es **löscht** Ortsnamen von der Karte,
+   weil der Löser früher aufgibt.
+5. 🔴 **Das sichtbare Wort heißt „Label", nie „Name"** — Plot-Überschrift, Häkchen, Hilfetexte,
+   Tooltips. ⚠️ Nicht dort, wo wirklich der Ortsname gemeint ist (Musterwort „Gareth",
+   Klassenbeschriftungen).
+
+⚠️ **Der Testpfad in §8 ist falsch:** der PHP-Test liegt unter
+`api/_internal/app/__tests__/zoom-bands-test.php`, nicht unter `api/edit/map/__tests__/`.
+
 ## 1. Was heute passiert, und warum das eine Einstellung braucht
 
 Wann eine Ortsklasse auf der Karte auftaucht, wie groß ihr Punkt ist und ab wann ihr Name

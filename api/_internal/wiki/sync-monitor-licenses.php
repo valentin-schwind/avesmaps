@@ -206,8 +206,10 @@ function avesmapsWikiSyncMonitorEnrichLicenses(PDO $pdo, array $options = []): a
     //
     //   reset           -- clears EVERY row. Correct after a parser change that could move a coat OUT
     //                      of public_domain, but while the run catches up, every coat is NULL and the
-    //                      display drops it (territories-layer.php:864 passes exactly 'public_domain')
-    //                      -- i.e. all 261 visible coats vanish from the map until it finishes.
+    //                      display drops it (territories-layer.php gates via avesmapsMediaLicenseIsPublic(),
+    //                      Phase 3; of the three values this classifier ever writes here -- public_domain/
+    //                      cc_by/unknown -- only public_domain passes) -- i.e. all 261 visible coats vanish
+    //                      from the map until it finishes.
     //   recheck_unknown -- clears only the 'unknown' rows. They are already invisible for that same
     //                      reason, so nothing can disappear mid-run. This is what the "Wappen
     //                      lokalisieren" button uses: it finds coats a widened parser now accepts

@@ -48,6 +48,11 @@ Gelten für **jede** Aufgabe:
   Verhalten — das ist ihr Zweck (Vorbild `js/pages/__tests__/tempowerte-dialog.test.js`). Aufgabe 8
   prüft genau das an einer HTML-Datei mit eingebettetem Skript und bleibt deshalb ein Text-Test.
 - **Klassenreihenfolge überall:** `metropole, grossstadt, stadt, kleinstadt, dorf, gebaeude`.
+- 🔴 **Das sichtbare Wort für die gezeichnete Kartenschrift heißt „Label", nie „Name"**
+  (Owner 16.08.2026). Betrifft jede Beschriftung im Fenster: Plot-Überschrift, Häkchen, Hilfetexte.
+  ⭐ Deckt sich mit dem Code, der die Bandtafel längst `label` nennt — es war nur die Oberfläche,
+  die abwich. ⚠️ **Nicht** ändern, wo wirklich der Ortsname gemeint ist (das Musterwort „Gareth",
+  die Klassenbeschriftungen Metropole/Großstadt/…).
 
 ---
 
@@ -1797,6 +1802,36 @@ seiner Rückmeldung mit Aufgabe 8 weitermachen.
 ---
 
 ## Aufgabe 8: Das Fenster im Ortseditor
+
+> 🔴 **FORMWECHSEL, Owner-Entscheid 16.08.2026 — abgenommen am Prototyp.**
+> Die unten beschriebenen **Zahlentafeln mit Häkchen sind überholt.** Die Bedienung ist jetzt ein
+> **zieh-bedienbarer Plot**: Owner wörtlich „du ersetzt alles in den plot (häkchen und wert) und das
+> ding ändert sich über die ganze breite interaktiv", nach dem Ansehen des Prototyps „jetzt passts,
+> das wollen wir".
+>
+> **Die Form und der Plot-Code stehen im abgenommenen Prototyp
+> [`docs/zoombaender-mockup.html`](../../zoombaender-mockup.html)** (Commits `4d4e794d`…`b67928fd`).
+> Er ist ab hier die Formvorlage — nicht abmalen, sondern **übernehmen und verdrahten**.
+>
+> Was aus diesem Abschnitt weiter gilt: der **Endpunkt-Vertrag**, der **Admin-Riegel**, das
+> **Speichern/Zurücksetzen**, die **Kachel** und der **Vertragstest**. Was nicht mehr gilt:
+> `zoomBandTableHtml`, `zoomBandGraphHtml`, `setZoomBandVisible`, `setZoomBandCell` und die
+> Tabellen-Verdrahtung in `renderZoomBands` — deren Aufgabe erfüllt jetzt der Plot.
+>
+> **Die Zusicherungen, die die Form überlebt haben und weiter gelten:**
+> - 🔴 **Der Anfang einer Kurve IST die Erscheinungsstufe** — er ersetzt das Häkchen und macht
+>   Löcher baulich unmöglich. Eine Kurve läuft von ihrem Anfang bis z8 durch.
+> - 🔴 **Gespeichert wird unverändert `null` für „nicht sichtbar"** (§4.4). Server,
+>   Zusammenführung und beide Zeichner bleiben unangetastet.
+> - ⚠️ **Die Zahlenfelder bleiben** als Anzeige und genaue Eingabe des angefassten Punktes, und die
+>   Punkte müssen mit der **Tastatur** erreichbar sein. Mit der Maus trifft niemand 9,28, und ein
+>   reiner Zieh-Editor sperrt jeden ohne Maus aus.
+> - ⚠️ **Zwei Achsen mit verschiedener Skala, mit Begründung im Kommentar:** Marker gestaucht
+>   (0,5–100 px ist das Zweihundertfache), Label linear (4–30 pt ist das Siebeneinhalbfache).
+> - 💣 **Die Grenzen liest das Fenster aus `AVESMAPS_ZOOM_BAND_LIMITS`**, nie abgeschrieben. ⚠️ Der
+>   Prototyp trägt an einer Stelle noch seine eigene Kopie (200/96) — die ist **veraltet**, die
+>   Wahrheit steht seit `fdb27b3a` bei 100/30 in `location-zoom-bands.js`.
+> - **Der Abschnitt „Abstände"** (drei globale Regler) gehört zu **Aufgabe 8b**, nicht hierher.
 
 **Dateien:**
 - Ändern: `html/wiki-sync-settlement-editor.html` — `<style>`-Block, `.controls` (Zeile 275–287),

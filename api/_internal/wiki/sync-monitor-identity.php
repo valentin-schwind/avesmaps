@@ -945,8 +945,10 @@ function avesmapsWikiSyncMonitorIdentityBackups(PDO $pdo, int $limit): array {
 // cc_by/unknown_other). Unlizenziert/still -> leeren (#2). 🔴 ANDERE FRAGE als der Upload oben: der
 // nimmt "ist es eine Katalog-Kennung ueberhaupt" (alle sieben), hier zaehlt "ist es OEFFENTLICH" --
 // diese Funktion entscheidet, ob das Wappen in political_territory landet und damit ueberhaupt
-// Kandidat fuer die Karte wird (der eigentliche Anzeige-Riegel bleibt AVESMAPS_COAT_PUBLIC_LICENSES in
-// api/_internal/coat-url.php, unangetastet, Phase 3). Ein Altwert wie 'attribution_required', den die
+// Kandidat fuer die Karte wird (der eigentliche Anzeige-Riegel bleibt avesmapsResolveGatedCoatUrl() in
+// api/_internal/coat-url.php -- die Konstante AVESMAPS_COAT_PUBLIC_LICENSES, auf die dieser Satz bis
+// 16.08.2026 zeigte, entfiel mit Phase 3: der Vergleich dort ruft seither selbst
+// avesmapsMediaLicenseIsPublic()). Ein Altwert wie 'attribution_required', den die
 // Staging-Zeile noch tragen kann, bis der naechste Wiki-Abgleich sie neu parst, faellt bei der
 // Normalisierung auf 'unknown_other' und damit ebenfalls auf "nicht oeffentlich" -- dieselbe Antwort
 // wie sein Nachfolger 'cc_by', also KEIN Verhaltensunterschied zwischen Alt- und Neuwert.
