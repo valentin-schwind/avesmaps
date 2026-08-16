@@ -20,9 +20,12 @@ const loadBrowserScript = (absolutePath) => {
 };
 
 // --- Umgebung: nur das, was getPathLabelBaseSize und getPathLabelVisualZoomIndex wirklich brauchen ---
+// ⚠️ KEIN global.getVisualZoomLevel setzen! Der Fallback mit Math.min(5,...) muss laufen,
+// damit wir prüfen können, dass die Klemme auf 0–5 wirksam ist. Wenn getVisualZoomLevel vorhanden
+// ist, wird der erste typeof-Zweig immer genommen, der Fallback nie, und z6/z7 Tests würden
+// falsch grün sein, auch wenn Math.min(7,...) darin stünde.
 global.window = {};
 global.map = { getZoom: () => 4 };
-global.getVisualZoomLevel = (z) => Math.max(0, Math.min(5, Math.round(Number(z))));
 
 const repoRoot = path.join(__dirname, "..", "..", "..");
 loadBrowserScript(path.join(repoRoot, "js/map-features/map-features-path-labels.js"));
