@@ -11,12 +11,19 @@ declare(strict_types=1);
  * die ein Editor nicht im Vorbeigehen treffen soll (dieselbe Begruendung wie beim Datenbank-Backup
  * nebenan, das ebenfalls admin statt edit verlangt).
  *
- * POST { "dry_run"?: bool, "batch_limit"?: int }
- *   -> { ok:true, dry_run:bool, surfaces:{...}, sichtbarkeitswechsel:[...], coat_ohne_lizenz:[...] }
+ * POST { "dry_run"?: bool, "batch_limit"?: int, "cursors"?: {<flaeche>: <cursor>} }
+ *   -> { ok:true, dry_run:bool, surfaces:{...surface.naechster_cursor/offen je Flaeche...},
+ *        sichtbarkeitswechsel:[...], coat_ohne_lizenz:[...], coat_ohne_lizenz_gesamt:int }
  *
  * 🔴 dry_run ist die VORGABE -- geschrieben wird nur, wenn der Aufrufer ausdruecklich dry_run:false
  * sendet. Ein fehlendes Feld, ein truthy Nicht-false-Wert oder ein Tippfehler bleiben allesamt die
  * Vorschau (dieselbe Regel wie in avesmapsMediaLicenseMigrationRun() selbst: `!== false`).
+ *
+ * 🔧 Fix-Runde 2 (Resumierbarkeit, Critical 2): ein Aufruf deckt genau EIN batch_limit-Fenster je
+ * Flaeche ab. `surfaces[<flaeche>].offen` sagt, ob noch etwas aussteht; `surfaces[<flaeche>]
+ * .naechster_cursor` wird beim naechsten Aufruf unveraendert unter `cursors[<flaeche>]` zurueckgereicht
+ * (fuer territory_coat ein Objekt `{staging, override}`, sonst eine Zahl). Derselbe client-treibt-die-
+ * Schleife-Ablauf wie bei database-backup.php `step`.
  */
 
 require __DIR__ . '/../../_internal/bootstrap.php';
@@ -49,9 +56,15 @@ $payload = avesmapsReadJsonRequest();
 // ⚠️ Vorgabe ist die Vorschau -- nur ein ausdrueckliches false schreibt.
 $dryRun = ($payload['dry_run'] ?? true) !== false;
 $batchLimit = array_key_exists('batch_limit', $payload) ? (int) $payload['batch_limit'] : 200;
+// Wird unveraendert durchgereicht, wie ihn der VORHERIGE Aufruf unter surfaces[<flaeche>].naechster_cursor
+// zurueckgegeben hat -- der Endpunkt validiert die Form nicht im Detail, avesmapsMediaLicenseMigrationRun()
+// tut das selbst (jeder Wert wird auf int bzw. das staging/override-Paar gecastet).
+$cursors = is_array($payload['cursors'] ?? null) ? $payload['cursors'] : [];
 
 try {
-    $result = avesmapsMediaLicenseMigrationRun($pdo, ['dry_run' => $dryRun, 'batch_limit' => $batchLimit]);
+    $result = avesmapsMediaLicenseMigrationRun($pdo, [
+        'dry_run' => $dryRun, 'batch_limit' => $batchLimit, 'cursors' => $cursors,
+    ]);
 } catch (Throwable $exception) {
     avesmapsServerErrorResponse($exception, 'media-license-migration run');
 }
@@ -62,4 +75,5 @@ avesmapsJsonResponse(200, [
     'surfaces' => $result['surfaces'],
     'sichtbarkeitswechsel' => $result['sichtbarkeitswechsel'],
     'coat_ohne_lizenz' => $result['coat_ohne_lizenz'],
+    'coat_ohne_lizenz_gesamt' => $result['coat_ohne_lizenz_gesamt'],
 ]);

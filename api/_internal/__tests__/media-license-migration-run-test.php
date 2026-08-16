@@ -173,6 +173,10 @@ assert(!array_key_exists('protokoll', $vorschau['surfaces']['territory_coat']), 
 // ---- 4. Wappen mit URL, aber ohne Lizenz: gezaehlt, getrennt gemeldet, nie migriert -----------------
 assert(count($vorschau['coat_ohne_lizenz']) === 1, 'coat_ohne_lizenz wurde nicht gezaehlt');
 assert($vorschau['coat_ohne_lizenz'][0]['url'] === '/y.png', 'die falsche Zeile wurde als coat_ohne_lizenz gemeldet');
+// Nachforderung der zweiten Pruefrunde: coat_ohne_lizenz_gesamt ist UNGEFENSTERT (kein LIMIT/Cursor) --
+// bei dieser kleinen Fixture deckt das Standard-batch_limit (200) ohnehin alles ab, aber die Zahl muss
+// trotzdem als EIGENES Feld da sein, unabhaengig vom Bericht der windowed Liste.
+assert($vorschau['coat_ohne_lizenz_gesamt'] === 1, "coat_ohne_lizenz_gesamt ist {$vorschau['coat_ohne_lizenz_gesamt']} statt 1");
 
 // ---- 2. die Anwendung ordnet zu --------------------------------------------------------------------
 $lauf = avesmapsMediaLicenseMigrationRun($pdo, ['dry_run' => false]);
@@ -204,6 +208,7 @@ assert(($pdo->query("SELECT cover_author FROM adventure WHERE public_id='abt-2'"
 $ort3 = json_decode((string) $pdo->query("SELECT properties_json FROM map_features WHERE public_id='ort-3'")->fetchColumn(), true);
 assert(!array_key_exists('license_status', $ort3['coat']), 'coat_ohne_lizenz wurde faelschlich migriert');
 assert(count($lauf['coat_ohne_lizenz']) === 1, 'coat_ohne_lizenz verschwindet nicht einfach nach dem Schreiben');
+assert($lauf['coat_ohne_lizenz_gesamt'] === 1, 'coat_ohne_lizenz_gesamt fehlt oder stimmt nicht nach dem scharfen Lauf');
 
 // ---- 3. idempotent ----------------------------------------------------------------------------------
 $zweiter = avesmapsMediaLicenseMigrationRun($pdo, ['dry_run' => false]);
@@ -212,5 +217,93 @@ foreach ($zweiter['surfaces'] as $s) { $summe += (int) $s['geaendert']; }
 assert($summe === 0, "zweiter Lauf hat {$summe} Zeilen geaendert -- nicht idempotent");
 // ort-3 bleibt ein staendiger, stabiler Befund -- kein Ruckeln zwischen den Laeufen.
 assert(count($zweiter['coat_ohne_lizenz']) === 1, 'coat_ohne_lizenz ist zwischen den Laeufen nicht stabil');
+assert($zweiter['coat_ohne_lizenz_gesamt'] === 1, 'coat_ohne_lizenz_gesamt bleibt stabil');
+
+// ======================================================================================================
+// Fix-Runde 2 (Pruefung nach dem ersten Commit): Critical 2 (Resumierbarkeit), Critical 3 (koaleszierte
+// map_features-Schreibvorgaenge). Beide brauchen eine FRISCHE PDO-Instanz -- der Befund betrifft, wie
+// mehrere Aufrufe/mehrere Funde derselben Zeile zusammenspielen, und soll nicht mit der Fixture oben
+// interferieren. Ein kleiner Schema-Baukasten haelt die sieben CREATE TABLE-Anweisungen an einer Stelle.
+// ======================================================================================================
+function avesmapsMediaLicenseTestSchema(): PDO
+{
+    $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    $pdo->exec('CREATE TABLE map_features (id INTEGER PRIMARY KEY, public_id TEXT, feature_type TEXT,
+        properties_json TEXT, revision INTEGER DEFAULT 1, is_active INTEGER DEFAULT 1)');
+    $pdo->exec('CREATE TABLE political_territory_wiki_test (id INTEGER PRIMARY KEY, wiki_key TEXT,
+        coat_of_arms_url TEXT, coat_of_arms_license_status TEXT)');
+    $pdo->exec('CREATE TABLE wiki_territory_model (id INTEGER PRIMARY KEY, wiki_key TEXT,
+        metadata_overrides_json TEXT)');
+    $pdo->exec('CREATE TABLE adventure (id INTEGER PRIMARY KEY, public_id TEXT, cover_url TEXT,
+        field_origins_json TEXT, cover_license TEXT, cover_author TEXT, cover_note TEXT,
+        cover_uploaded_by TEXT, cover_uploaded_at TEXT)');
+    $pdo->exec('CREATE TABLE citymap (id INTEGER PRIMARY KEY, public_id TEXT,
+        map_license TEXT, thumb_license TEXT, map_local_url TEXT, thumb_local_url TEXT,
+        map_uploaded_at TEXT, thumb_uploaded_at TEXT)');
+    $pdo->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT)');
+    $pdo->exec('CREATE TABLE map_audit_log (id INTEGER PRIMARY KEY, feature_id INTEGER, action TEXT,
+        actor_user_id INTEGER, before_json TEXT, after_json TEXT, created_at TEXT)');
+    return $pdo;
+}
+
+// ---- Critical 3: settlement_coat UND settlement_image treffen dieselbe map_features-Zeile -----------
+// Vorher hielt jeder Fund eine eigene, beim Sammeln geschossene Kopie der ganzen properties_json-Spalte
+// und schrieb sie GANZ zurueck -- der spaetere Schreibvorgang nahm den frueheren lautlos zurueck, auch
+// INNERHALB von settlement_image bei zwei Bildern derselben Zeile. Eine Zeile mit einem Wappen (aendert
+// sich) UND zwei Bildern OHNE license (aendern sich beide) trifft alle drei Faelle auf einmal.
+$pdoZeile = avesmapsMediaLicenseTestSchema();
+$pdoZeile->exec("INSERT INTO map_features (public_id, feature_type, properties_json) VALUES
+    ('ort-zeile', 'location', '" . json_encode([
+        'coat' => ['url' => '/uploads/wappen/own/z.png', 'source' => 'own', 'license_status' => 'own'],
+        'images' => [
+            ['url' => '/uploads/siedlungen/1/bild-a.png'],
+            ['url' => '/uploads/siedlungen/1/bild-b.png'],
+        ],
+    ]) . "')");
+
+$laufZeile = avesmapsMediaLicenseMigrationRun($pdoZeile, ['dry_run' => false]);
+assert($laufZeile['ok'] === true, 'der Zeilen-Test lief nicht ok');
+assert($laufZeile['sichtbarkeitswechsel'] === [], 'unerwarteter Sichtbarkeitswechsel im Zeilen-Test');
+
+$zeile = json_decode((string) $pdoZeile->query(
+    "SELECT properties_json FROM map_features WHERE public_id = 'ort-zeile'"
+)->fetchColumn(), true);
+// Alle DREI Aenderungen derselben Zeile muessen nebeneinander stehenbleiben -- keine darf eine andere
+// zuruecknehmen (die tragende Zusicherung von Critical 3).
+assert($zeile['coat']['license_status'] === 'ai_generated', 'coat.license_status wurde zurueckgenommen -- Critical 3 nicht behoben');
+assert($zeile['images'][0]['license'] === 'ai_generated', 'images[0].license wurde zurueckgenommen -- Critical 3 nicht behoben');
+assert($zeile['images'][1]['license'] === 'ai_generated', 'images[1].license wurde zurueckgenommen -- Critical 3 nicht behoben');
+
+// ---- Critical 2: dieselbe erste batch_limit-Zeilenmenge darf nicht ewig wiederkommen ------------------
+// Fuenf citymap-Zeilen mit je einem zu migrierenden Slot (map_license leer), batch_limit 2 -- ohne
+// Cursor haette Aufruf 2/3/... immer wieder dieselben ersten zwei Zeilen gesehen (gemessen im Review:
+// "Lauf 2: gelesen=5 geaendert=0 -- noch unmigriert: 7 von 12"). Hier: den vom Bericht zurueckgegebenen
+// Cursor durchreichen, bis 'offen' false meldet, und pruefen, dass wirklich ALLE fuenf ankommen.
+$pdoCursor = avesmapsMediaLicenseTestSchema();
+$cursorZeile = $pdoCursor->prepare("INSERT INTO citymap (public_id, map_license, thumb_license) VALUES (:pid, '', 'public_domain')");
+for ($i = 1; $i <= 5; $i++) {
+    $cursorZeile->execute(['pid' => 'karte-cursor-' . $i]);
+}
+
+$cursor = 0;
+$gesamtGeaendert = 0;
+$durchlaeufe = 0;
+do {
+    $schritt = avesmapsMediaLicenseMigrationRun($pdoCursor, [
+        'dry_run' => false, 'batch_limit' => 2, 'cursors' => ['citymap' => $cursor],
+    ]);
+    assert($schritt['ok'] === true, 'ein Schritt der Cursor-Schleife lief nicht ok');
+    $gesamtGeaendert += $schritt['surfaces']['citymap']['geaendert'];
+    $offen = $schritt['surfaces']['citymap']['offen'];
+    $cursor = $schritt['surfaces']['citymap']['naechster_cursor'] ?? $cursor;
+    $durchlaeufe++;
+    assert($durchlaeufe <= 10, 'Cursor-Schleife macht keinen Fortschritt -- haengt fest');
+} while ($offen);
+assert($gesamtGeaendert === 5, "Cursor-Schleife hat {$gesamtGeaendert} statt 5 Zeilen erreicht -- Critical 2 nicht behoben");
+assert($durchlaeufe === 3, "Cursor-Schleife brauchte {$durchlaeufe} statt 3 Aufrufe fuer 5 Zeilen bei batch_limit 2");
+assert(
+    (int) $pdoCursor->query("SELECT COUNT(*) FROM citymap WHERE map_license = ''")->fetchColumn() === 0,
+    'nach der Cursor-Schleife sollten keine leeren map_license-Werte mehr uebrig sein'
+);
 
 echo "media-license-migration-run-test: OK\n";

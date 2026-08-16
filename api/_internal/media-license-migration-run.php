@@ -27,6 +27,26 @@ declare(strict_types=1);
  * Entkopplung bekaeme keine der beiden je ein Datum, weil ihr 'schreiben' nie ausgeloest wuerde). Die
  * Sperre bleibt an die LIZENZ gebunden: ein reiner Protokoll-Nachtrag kann die Sichtbarkeit nie
  * beruehren, avesmapsMediaLicenseIsPublic() kennt nur den Lizenzwert.
+ *
+ * 🔧 Fix-Runde nach der Pruefung (drei Critical, zwei Important, eine Nachforderung -- siehe
+ * task-4-report.md fuer die volle Herleitung):
+ *   1. Territoriums-Override-Abfrage verglich eine JSON-Spalte mit `<> ''` -- unter MySQL bricht
+ *      `CAST('' AS JSON)` IMMER (ERROR 3141). Ersatzlos gestrichen, `IS NOT NULL` bleibt.
+ *   2. Alle fuenf Sammler sind jetzt ueber `id > :cursor ORDER BY id ASC LIMIT` resumierbar (Muster
+ *      wie publication-sync.php:1141) statt bei jedem Aufruf dieselben ersten Zeilen zu liefern.
+ *      `naechster_cursor`/`offen` je Flaeche im Bericht beantworten "ist noch etwas offen".
+ *   3. settlement_coat und settlement_image lesen/schreiben DIESELBE map_features.properties_json --
+ *      ein Schreibvorgang je Fund hat den vorherigen lautlos zurueckgenommen. Jetzt: EIN frischer
+ *      Lese-/Schreibvorgang je betroffener Zeile, der ALLE ihre Aenderungen buendelt, samt
+ *      `revision`-Bump (wie settlements.php:521, settlement-images.php:142).
+ *   4. Die Schreibschleife laeuft jetzt in EINER Transaktion (beginTransaction/commit/rollBack wie
+ *      citymaps.php:1647) -- ein Abbruch mitten in der Schleife (@set_time_limit, STRATO) hinterlaesst
+ *      keinen halb geschriebenen Zustand mehr.
+ *   5. 'gelesen' zaehlt jetzt ROHE ZEILEN (das Ergebnis der SQL-Abfrage), nicht Eintraege -- und damit
+ *      auch Zeilen, die am json_decode-Riegel per continue herausfielen; vorher tauchten die in
+ *      keiner Zahl auf.
+ *   Nachforderung: `coat_ohne_lizenz_gesamt` zaehlt UNGEFENSTERT (kein LIMIT/Cursor) ueber den ganzen
+ *   Bestand -- die windowed `coat_ohne_lizenz`-Liste allein beantwortet "ist die Zahl 0" nicht.
  */
 
 require_once __DIR__ . '/media-license-migration.php';
@@ -34,11 +54,29 @@ require_once __DIR__ . '/wiki/sync.php'; // avesmapsWikiSyncEncodeJson
 require_once __DIR__ . '/wiki/locations-helpers.php'; // avesmapsWikiSyncNextMapRevision
 
 /**
- * @param array{dry_run?: bool, batch_limit?: int} $options
+ * Wie avesmapsWikiSyncNextMapRevision(), aber sqlite-sicher (Fix 1 der ersten Pruefrunde,
+ * unveraendert von damals): sqlite kennt "ON DUPLICATE KEY UPDATE" nicht -- das ist MySQL-Dialekt und
+ * bricht dort IMMER mit einem Syntaxfehler, egal ob map_revision existiert (empirisch geprueft).
+ * Dieselbe Weiche wie in api/_internal/app/lore-rule-store.php: sqlite lebt nur lokal in Tests, scharf
+ * laeuft ausschliesslich MySQL. Unter sqlite liefert diese Funktion 0 -- ein gueltiger, aber
+ * bedeutungsloser Platzhalter, der in KEINEM Test verglichen wird.
+ */
+function avesmapsMediaLicenseNextMapRevisionSafe(PDO $pdo): int
+{
+    if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+        return 0;
+    }
+
+    return avesmapsWikiSyncNextMapRevision($pdo);
+}
+
+/**
+ * @param array{dry_run?: bool, batch_limit?: int, cursors?: array<string, mixed>} $options
  * @return array{ok: bool, dry_run: bool, surfaces: array<string, array{gelesen: int, geaendert: int,
- *         beispiele: list<array<string, string>>, protokoll?: array{gesamt: int, datum_gefunden: int,
- *         name_gefunden: int}}>, sichtbarkeitswechsel: list<array<string, string>>,
- *         coat_ohne_lizenz: list<array<string, string>>}
+ *         beispiele: list<array<string, string>>, naechster_cursor: mixed, offen: bool,
+ *         protokoll?: array{gesamt: int, datum_gefunden: int, name_gefunden: int}}>,
+ *         sichtbarkeitswechsel: list<array<string, string>>, coat_ohne_lizenz: list<array<string, string>>,
+ *         coat_ohne_lizenz_gesamt: int}
  */
 function avesmapsMediaLicenseMigrationRun(PDO $pdo, array $options = []): array
 {
@@ -46,16 +84,17 @@ function avesmapsMediaLicenseMigrationRun(PDO $pdo, array $options = []): array
     $limit = max(1, min(2000, (int) ($options['batch_limit'] ?? 200)));
     @set_time_limit(60);
 
+    $cursors = is_array($options['cursors'] ?? null) ? $options['cursors'] : [];
+
     $bericht = [];
     $wechsel = [];
     $coatOhneLizenz = [];   // Nachtrag aus dem Review von Aufgabe 1, siehe Sammler unten.
     $vorgemerkt = [];       // je Flaeche die Aenderungen, die den zweiten Durchgang ueberlebt haben
-    // Jeder Sammler liefert ['funde' => list<['id','alt','schreiben'=>callable,'protokoll_neu'=>array]>,
-    // 'protokoll' => ['gesamt','datum_gefunden','name_gefunden']]. ZWEI Ausnahmen: territory_coat hat
-    // KEIN Upload-Verzeichnis und damit kein Protokoll -- sein Sammler liefert weiterhin die reine
-    // Liste von vor Aufgabe 5. settlement_coat liefert zusaetzlich eine zweite Fund-Liste (Faelle fuer
-    // einen Menschen, siehe dort) -- deshalb hier die Sonderbehandlung je Flaeche, statt jedem Sammler
-    // eine Form aufzuzwingen, die er nicht braucht.
+    // Alle fuenf Sammler liefern seit der zweiten Pruefrunde dieselbe Form: ['funde' => list, 'protokoll'
+    // => array|null, 'sonderfaelle' => list, 'gelesen' => int, 'naechster_cursor' => mixed, 'offen' =>
+    // bool]. protokoll ist NUR bei territory_coat null (kein Upload-Verzeichnis, kein Protokoll);
+    // sonderfaelle ist NUR bei settlement_coat nicht leer (Faelle fuer einen Menschen, siehe dort).
+    // Beides bleibt am Aufrufer lesbar, statt fuenf verschiedene Rueckgabeformen zu erzwingen.
     foreach ([
         'settlement_coat' => 'avesmapsMediaLicenseCollectSettlementCoats',
         'territory_coat' => 'avesmapsMediaLicenseCollectTerritoryCoats',
@@ -63,18 +102,22 @@ function avesmapsMediaLicenseMigrationRun(PDO $pdo, array $options = []): array
         'settlement_image' => 'avesmapsMediaLicenseCollectSettlementImages',
         'citymap' => 'avesmapsMediaLicenseCollectCitymaps',
     ] as $flaeche => $sammler) {
-        $ergebnis = $sammler($pdo, $limit);
+        $cursorVorgabe = $flaeche === 'territory_coat' ? ['staging' => 0, 'override' => 0] : 0;
+        $cursorEingabe = $cursors[$flaeche] ?? $cursorVorgabe;
         if ($flaeche === 'territory_coat') {
-            // 🔴 Territoriums-Wappen sind NICHT eine der vier Ablagen aus Aufgabe 5 (kein eigenes
-            // Upload-Verzeichnis, kein vergleichbares Protokoll) -- der Sammler bleibt unveraendert.
-            $funde = $ergebnis;
-            $protokoll = null;
+            $cursorEingabe = [
+                'staging' => (int) (is_array($cursorEingabe) ? ($cursorEingabe['staging'] ?? 0) : 0),
+                'override' => (int) (is_array($cursorEingabe) ? ($cursorEingabe['override'] ?? 0) : 0),
+            ];
         } else {
-            $funde = $ergebnis['funde'];
-            $protokoll = $ergebnis['protokoll'];
-            if ($flaeche === 'settlement_coat') {
-                $coatOhneLizenz = $ergebnis['sonderfaelle'];
-            }
+            $cursorEingabe = (int) $cursorEingabe;
+        }
+
+        $ergebnis = $sammler($pdo, $limit, $cursorEingabe);
+        $funde = $ergebnis['funde'];
+        $protokoll = $ergebnis['protokoll'];
+        if ($flaeche === 'settlement_coat') {
+            $coatOhneLizenz = $ergebnis['sonderfaelle'];
         }
 
         $geaendert = [];
@@ -96,12 +139,18 @@ function avesmapsMediaLicenseMigrationRun(PDO $pdo, array $options = []): array
             $geaendert[] = $fund + ['neu' => $neu];
         }
         $eintrag = [
-            'gelesen' => count($funde) + ($flaeche === 'settlement_coat' ? count($coatOhneLizenz) : 0),
+            // 🔧 Fix 5: rohe Zeilenzahl der Abfrage (auch json_decode-Aussteiger zaehlen mit), nicht
+            // die Anzahl produzierter Funde -- eine Zeile mit zwei Bildern liefert zwei Funde, zaehlt
+            // hier aber einmal.
+            'gelesen' => $ergebnis['gelesen'],
             'geaendert' => count($geaendert),
             'beispiele' => array_map(
                 static fn(array $f): array => ['id' => (string) $f['id'], 'alt' => (string) $f['alt'], 'neu' => $f['neu']],
                 array_slice($geaendert, 0, 5)
             ),
+            // 🔧 Fix 2: beantwortet "ist noch etwas offen", unabhaengig von dry_run/dem Rest des Berichts.
+            'naechster_cursor' => $ergebnis['naechster_cursor'],
+            'offen' => $ergebnis['offen'],
         ];
         // 🔴 Schritt 3 (Aufgabe 5): die Trefferquote steht schon in der VORSCHAU -- sie wird in
         // derselben Sammelschleife berechnet, die auch $bericht fuellt, also lange bevor die
@@ -113,6 +162,10 @@ function avesmapsMediaLicenseMigrationRun(PDO $pdo, array $options = []): array
         $vorgemerkt[$flaeche] = $geaendert;
     }
 
+    // Nachforderung: ungefenstert, unabhaengig von dry_run/dem Rest des Berichts -- siehe Docblock der
+    // Funktion unten.
+    $coatOhneLizenzGesamt = avesmapsMediaLicenseCountCoatOhneLizenz($pdo);
+
     // 🔴 Ein einziger Wechsel haelt den GANZEN Lauf an -- nicht nur seine Flaeche.
     // ⚠️ coat_ohne_lizenz haelt NICHT an: die betroffene Zeile wird ohnehin nie migriert (sie landet
     // nie in $funde), also gibt es fuer den Rest des Laufs nichts zu schuetzen. Sie bleibt gemeldet,
@@ -120,28 +173,94 @@ function avesmapsMediaLicenseMigrationRun(PDO $pdo, array $options = []): array
     // hier richtig, kein Abbruchgrund.
     if ($wechsel !== [] || $dryRun) {
         return ['ok' => true, 'dry_run' => true, 'surfaces' => $bericht,
-                'sichtbarkeitswechsel' => $wechsel, 'coat_ohne_lizenz' => $coatOhneLizenz];
+                'sichtbarkeitswechsel' => $wechsel, 'coat_ohne_lizenz' => $coatOhneLizenz,
+                'coat_ohne_lizenz_gesamt' => $coatOhneLizenzGesamt];
     }
 
-    foreach ($vorgemerkt as $flaeche => $geaendert) {
-        foreach ($geaendert as $fund) {
-            ($fund['schreiben'])($pdo, $fund['neu'], $fund['protokoll_neu'] ?? []);
+    // 🔧 Fix 4: EINE Transaktion um die ganze Schreibschleife (Muster wie citymaps.php:1647) -- ein
+    // Abbruch mitten drin (@set_time_limit, STRATO) darf keinen halb geschriebenen Zustand
+    // hinterlassen. "Ein halb gelaufener Umbau ist schlimmer als ein nicht gelaufener" gilt nicht nur
+    // fuer die Sperre oben, sondern auch fuer einen Prozessabbruch.
+    $pdo->beginTransaction();
+    try {
+        // 🔧 Fix 3: settlement_coat und settlement_image koennen DIESELBE map_features-Zeile treffen
+        // (Wappen UND Bilder), und settlement_image kann MEHRERE Bilder derselben Zeile treffen. Ein
+        // Schreibvorgang je Fund (wie bei den anderen drei Flaechen) haette den vorherigen lautlos
+        // zurueckgenommen -- jeder hielt vorher eine eigene, beim Sammeln geschossene Kopie der ganzen
+        // Spalte. Deshalb: je betroffener Zeile GENAU EIN frischer Lese-/Schreibvorgang, der ALLE ihre
+        // Aenderungen buendelt (die Funde tragen dafuer 'zeile' + 'anwenden' statt 'schreiben').
+        $mapFeaturePatches = [];
+        foreach (['settlement_coat', 'settlement_image'] as $flaeche) {
+            foreach ($vorgemerkt[$flaeche] ?? [] as $fund) {
+                $mapFeaturePatches[$fund['zeile']][] = $fund;
+            }
         }
-    }
-    // ⚠️ Ohne neue Revision haelt ein Client seinen gecachten Payload fuer aktuell (ETag in
-    // api/app/map-features.php sitzt auf map_revision).
-    if (($bericht['settlement_coat']['geaendert'] ?? 0) > 0 || ($bericht['settlement_image']['geaendert'] ?? 0) > 0) {
-        // 💣 sqlite (nur in lokalen Tests) kennt "ON DUPLICATE KEY UPDATE" nicht -- das ist
-        // MySQL-Dialekt und bricht dort IMMER mit einem Syntaxfehler, egal ob map_revision existiert
-        // (gemessen). Dieselbe Weiche wie in api/_internal/app/lore-rule-store.php: sqlite lebt nur
-        // lokal in Tests, scharf laeuft ausschliesslich MySQL.
-        if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'sqlite') {
-            avesmapsWikiSyncNextMapRevision($pdo);
+        foreach ($mapFeaturePatches as $zeileId => $patches) {
+            $roh = $pdo->prepare('SELECT properties_json FROM map_features WHERE id = :id');
+            $roh->execute(['id' => $zeileId]);
+            $props = json_decode((string) ($roh->fetchColumn() ?: ''), true);
+            if (!is_array($props)) {
+                continue; // die Zeile ist zwischen Sammeln und Schreiben verschwunden/kaputt
+            }
+            foreach ($patches as $patch) {
+                ($patch['anwenden'])($props, $patch['neu'], $patch['protokoll_neu'] ?? []);
+            }
+            $revision = avesmapsMediaLicenseNextMapRevisionSafe($pdo);
+            $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id')
+                ->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $zeileId]);
         }
+
+        // Die drei anderen Flaechen treffen je Fund eine eigene Zeile/Spalte -- kein Koaleszieren
+        // noetig, ihr 'schreiben' bleibt ein eigener, unmittelbarer Schreibvorgang.
+        foreach (['territory_coat', 'cover', 'citymap'] as $flaeche) {
+            foreach ($vorgemerkt[$flaeche] ?? [] as $fund) {
+                ($fund['schreiben'])($pdo, $fund['neu'], $fund['protokoll_neu'] ?? []);
+            }
+        }
+
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
     }
 
     return ['ok' => true, 'dry_run' => false, 'surfaces' => $bericht,
-            'sichtbarkeitswechsel' => [], 'coat_ohne_lizenz' => $coatOhneLizenz];
+            'sichtbarkeitswechsel' => [], 'coat_ohne_lizenz' => $coatOhneLizenz,
+            'coat_ohne_lizenz_gesamt' => $coatOhneLizenzGesamt];
+}
+
+/**
+ * Nachforderung aus der zweiten Pruefrunde: coat_ohne_lizenz ist die tragende Haelfte des
+ * Review-Nachtrags aus Aufgabe 1, aber die windowed Liste im Bericht (surfaces['settlement_coat']
+ * durchlaeuft nur das aktuelle batch_limit-Fenster) beantwortet "ist die Zahl 0" nicht zuverlaessig --
+ * ein Fall ausserhalb des Fensters faellt einfach nicht auf. Deshalb ein zweiter, UNGEFENSTERTER
+ * Durchlauf ueber ALLE Zeilen mit einem coat-Objekt, rein zaehlend.
+ *
+ * ⚠️ Kein SQL-COUNT(*) mit JSON-Extraktion: MySQL- und sqlite-JSON-Funktionen sind nicht deckungsgleich,
+ * und dieselbe Datei muss unter beiden laufen (Tests vs. scharf, wie bei Fix 1). Eine PHP-seitige
+ * Zaehlung ueber denselben LIKE-Filter wie der Sammler ist bei Bestandsgroessen im niedrigen
+ * vierstelligen Bereich (AGENTS.md: ~4.653 Orte) fuer einen admin-gated, selten aufgerufenen Endpunkt
+ * kein Performance-Problem.
+ */
+function avesmapsMediaLicenseCountCoatOhneLizenz(PDO $pdo): int
+{
+    $zeilen = $pdo->query(
+        "SELECT properties_json FROM map_features WHERE is_active = 1 AND properties_json LIKE '%\"coat\"%'"
+    );
+    $anzahl = 0;
+    foreach (($zeilen ? $zeilen->fetchAll(PDO::FETCH_ASSOC) : []) as $zeile) {
+        $props = json_decode((string) ($zeile['properties_json'] ?? ''), true);
+        if (!is_array($props) || !is_array($props['coat'] ?? null)) {
+            continue;
+        }
+        $url = trim((string) ($props['coat']['url'] ?? ''));
+        $status = trim((string) ($props['coat']['license_status'] ?? ''));
+        if ($url !== '' && $status === '') {
+            $anzahl++;
+        }
+    }
+
+    return $anzahl;
 }
 
 /**
@@ -205,6 +324,12 @@ function avesmapsMediaLicenseUploadDateFromUrl(string $url, string $erwartetesPr
  * sein. Bei mehreren passenden Zeilen je Ort gewinnt die LETZTE (hoechstes created_at zuerst durch
  * die ORDER BY, dann durch die Ueberschreibung im Array): sie beschreibt das juengste
  * Hochladeereignis, also den aktuell gespeicherten Stand.
+ *
+ * ⚠️ Ungefenstert (kein LIMIT/Cursor) -- die Pruefung der zweiten Runde hat das nicht verlangt (ihr
+ * Befund galt den fuenf Sammlern, nicht dieser Hilfsfunktion), aber es ist derselbe Fehlerklasse:
+ * bei einem sehr grossen Audit-Log koennte das teuer werden. Bewusst nicht mitgefixt, siehe
+ * task-4-report.md ("Bedenken") -- eine Ausweitung ueber den gepruften Befund hinaus haette hier ohne
+ * erneute Ruecksprache stattgefunden.
  *
  * @return array<int, string> feature_id (map_features.id) => Benutzername; nur belegte Treffer.
  *         Ein bekannter Akteur ohne aufloesbaren Benutzernamen (z. B. actor_user_id = 0/Import) liefert
@@ -274,22 +399,35 @@ function avesmapsMediaLicenseCollectSettlementCoatUploaders(PDO $pdo): array
  * noch kein Wert steht (Idempotenz -- ein einmal gefundener Name/Datum wird nie erneut aufgeloest oder
  * ueberschrieben), und nur geschrieben, wenn sich etwas findet ("leer heisst leer").
  *
- * @return array{funde: list<array{id: int, alt: string, schreiben: callable, protokoll_neu: array<string, string>}>,
- *         sonderfaelle: list<array{flaeche: string, id: string, url: string}>,
- *         protokoll: array{gesamt: int, datum_gefunden: int, name_gefunden: int}}
+ * 🔧 Fix-Runde 2: 'schreiben' ist weg -- 'zeile' (die map_features.id) + 'anwenden' (eine reine
+ * In-Speicher-Mutation auf einem FRISCH gelesenen $props, das der Aufrufer bereitstellt) ersetzen es.
+ * Grund: settlement_image kann DIESELBE Zeile treffen, und ein eigenstaendiger Schreibvorgang je Fund
+ * haette den anderen zurueckgenommen (Critical 3 der zweiten Pruefrunde). Kein `use ($props)` mehr
+ * noetig -- die Funktion bekommt ihr $props als Parameter, nicht als Schnappschuss vom Sammelzeitpunkt.
+ *
+ * @return array{funde: list<array{id: int, alt: string, protokoll_neu: array<string,string>, zeile: int,
+ *         anwenden: callable}>, sonderfaelle: list<array{flaeche: string, id: string, url: string}>,
+ *         protokoll: array{gesamt: int, datum_gefunden: int, name_gefunden: int}, gelesen: int,
+ *         naechster_cursor: int|null, offen: bool}
  */
-function avesmapsMediaLicenseCollectSettlementCoats(PDO $pdo, int $limit): array
+function avesmapsMediaLicenseCollectSettlementCoats(PDO $pdo, int $limit, int $cursor = 0): array
 {
     $uploaderNamen = avesmapsMediaLicenseCollectSettlementCoatUploaders($pdo);
 
-    $zeilen = $pdo->query(
+    $statement = $pdo->prepare(
         "SELECT id, properties_json FROM map_features
-         WHERE is_active = 1 AND properties_json LIKE '%\"coat\"%' LIMIT " . $limit
+         WHERE is_active = 1 AND properties_json LIKE '%\"coat\"%' AND id > :cursor
+         ORDER BY id ASC LIMIT " . $limit
     );
+    $statement->execute(['cursor' => $cursor]);
+    $zeilen = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
     $funde = [];
     $sonderfaelle = [];
     $protokoll = ['gesamt' => 0, 'datum_gefunden' => 0, 'name_gefunden' => 0];
-    foreach (($zeilen ? $zeilen->fetchAll(PDO::FETCH_ASSOC) : []) as $zeile) {
+    $letzteId = $cursor;
+    foreach ($zeilen as $zeile) {
+        $letzteId = max($letzteId, (int) $zeile['id']);
         $props = json_decode((string) ($zeile['properties_json'] ?? ''), true);
         if (!is_array($props) || !is_array($props['coat'] ?? null)) {
             continue;
@@ -323,18 +461,20 @@ function avesmapsMediaLicenseCollectSettlementCoats(PDO $pdo, int $limit): array
             'id' => $id,
             'alt' => $status,
             'protokoll_neu' => $protokollNeu,
-            'schreiben' => static function (PDO $pdo, string $neu, array $protokollNeu) use ($id, $props): void {
+            'zeile' => $id,
+            'anwenden' => static function (array &$props, string $neu, array $protokollNeu): void {
                 $props['coat']['license_status'] = $neu;
                 foreach ($protokollNeu as $feld => $wert) {
                     $props['coat'][$feld] = $wert;
                 }
-                $pdo->prepare('UPDATE map_features SET properties_json = :pj WHERE id = :id')
-                    ->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'id' => $id]);
             },
         ];
     }
 
-    return ['funde' => $funde, 'sonderfaelle' => $sonderfaelle, 'protokoll' => $protokoll];
+    $offen = count($zeilen) === $limit;
+
+    return ['funde' => $funde, 'sonderfaelle' => $sonderfaelle, 'protokoll' => $protokoll,
+            'gelesen' => count($zeilen), 'naechster_cursor' => $offen ? $letzteId : null, 'offen' => $offen];
 }
 
 /**
@@ -357,17 +497,38 @@ function avesmapsMediaLicenseCollectSettlementCoats(PDO $pdo, int $limit): array
  * einen dritten (leeren) Protokoll-Parameter durch, den PHP bei einem Aufruf mit mehr Argumenten als
  * deklariert stillschweigend ignoriert.
  *
- * @return list<array{id: string, alt: string, schreiben: callable}>
+ * 🔧 Fix 1 der zweiten Pruefrunde: die Override-Abfrage verglich `metadata_overrides_json <> ''` --
+ * diese Spalte ist eine MySQL-JSON-Spalte (sync-monitor.php:87), und MySQL wandelt den
+ * Nicht-JSON-Operanden vor dem Vergleich um: `CAST('' AS JSON)` ist `ERROR 3141` (leeres Dokument).
+ * Der Sammler waere unter der echten Datenbank IMMER gescheitert. Ersatzlos gestrichen -- `IS NOT
+ * NULL` reicht (dieselben zwei Zeilen wie coat-url.php:128, sync-monitor-identity.php:395: eine
+ * JSON-Spalte kann `''` gar nicht halten).
+ *
+ * 🔧 Fix 2: `id > :cursor ORDER BY id ASC LIMIT` je Teilabfrage -- ohne das lieferte jeder Aufruf
+ * dieselben ersten batch_limit Zeilen, und eine bereits migrierte Zeile verlaesst die Menge nicht.
+ * Zwei unabhaengige Fenster (Staging, Override), deshalb ein Cursor-Paar statt eines einzelnen Werts.
+ *
+ * @return array{funde: list<array{id: string, alt: string, schreiben: callable}>, sonderfaelle: list<never>,
+ *         protokoll: null, gelesen: int, naechster_cursor: array{staging:int,override:int}|null, offen: bool}
  */
-function avesmapsMediaLicenseCollectTerritoryCoats(PDO $pdo, int $limit): array
+function avesmapsMediaLicenseCollectTerritoryCoats(PDO $pdo, int $limit, array $cursor = ['staging' => 0, 'override' => 0]): array
 {
+    $stagingCursor = (int) ($cursor['staging'] ?? 0);
+    $overrideCursor = (int) ($cursor['override'] ?? 0);
     $funde = [];
+    $gelesen = 0;
 
-    $staging = $pdo->query(
-        "SELECT wiki_key, coat_of_arms_license_status FROM political_territory_wiki_test
-         WHERE coat_of_arms_url IS NOT NULL AND coat_of_arms_url <> '' LIMIT " . $limit
+    $stagingStatement = $pdo->prepare(
+        "SELECT id, wiki_key, coat_of_arms_license_status FROM political_territory_wiki_test
+         WHERE coat_of_arms_url IS NOT NULL AND coat_of_arms_url <> '' AND id > :cursor
+         ORDER BY id ASC LIMIT " . $limit
     );
-    foreach (($staging ? $staging->fetchAll(PDO::FETCH_ASSOC) : []) as $zeile) {
+    $stagingStatement->execute(['cursor' => $stagingCursor]);
+    $stagingZeilen = $stagingStatement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $gelesen += count($stagingZeilen);
+    $stagingLetzte = $stagingCursor;
+    foreach ($stagingZeilen as $zeile) {
+        $stagingLetzte = max($stagingLetzte, (int) $zeile['id']);
         $wikiKey = (string) $zeile['wiki_key'];
         $funde[] = [
             'id' => 'staging:' . $wikiKey,
@@ -379,12 +540,19 @@ function avesmapsMediaLicenseCollectTerritoryCoats(PDO $pdo, int $limit): array
             },
         ];
     }
+    $stagingOffen = count($stagingZeilen) === $limit;
 
-    $overrides = $pdo->query(
-        "SELECT wiki_key, metadata_overrides_json FROM wiki_territory_model
-         WHERE metadata_overrides_json IS NOT NULL AND metadata_overrides_json <> '' LIMIT " . $limit
+    $overrideStatement = $pdo->prepare(
+        "SELECT id, wiki_key, metadata_overrides_json FROM wiki_territory_model
+         WHERE metadata_overrides_json IS NOT NULL AND id > :cursor
+         ORDER BY id ASC LIMIT " . $limit
     );
-    foreach (($overrides ? $overrides->fetchAll(PDO::FETCH_ASSOC) : []) as $zeile) {
+    $overrideStatement->execute(['cursor' => $overrideCursor]);
+    $overrideZeilen = $overrideStatement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $gelesen += count($overrideZeilen);
+    $overrideLetzte = $overrideCursor;
+    foreach ($overrideZeilen as $zeile) {
+        $overrideLetzte = max($overrideLetzte, (int) $zeile['id']);
         $decoded = json_decode((string) ($zeile['metadata_overrides_json'] ?? ''), true);
         if (!is_array($decoded) || !array_key_exists('coat_of_arms_license_status', $decoded)) {
             continue;
@@ -401,8 +569,13 @@ function avesmapsMediaLicenseCollectTerritoryCoats(PDO $pdo, int $limit): array
             },
         ];
     }
+    $overrideOffen = count($overrideZeilen) === $limit;
 
-    return $funde;
+    $offen = $stagingOffen || $overrideOffen;
+
+    return ['funde' => $funde, 'sonderfaelle' => [], 'protokoll' => null, 'gelesen' => $gelesen,
+            'naechster_cursor' => $offen ? ['staging' => $stagingLetzte, 'override' => $overrideLetzte] : null,
+            'offen' => $offen];
 }
 
 /**
@@ -419,18 +592,27 @@ function avesmapsMediaLicenseCollectTerritoryCoats(PDO $pdo, int $limit): array
  * beide liegen unter demselben Praefix, own-Uploads zusaetzlich unter own/). Kein uploaded_by: Cover
  * haben keine vergleichbare Protokollspur (nur Siedlungs-Wappen haben eine, siehe Sammler oben).
  *
+ * 🔧 Fix 2 der zweiten Pruefrunde: `id > :cursor ORDER BY id ASC LIMIT`, resumierbar.
+ *
  * @return array{funde: list<array{id: int, alt: string, schreiben: callable, protokoll_neu: array<string, string>}>,
- *         protokoll: array{gesamt: int, datum_gefunden: int, name_gefunden: int}}
+ *         sonderfaelle: list<never>, protokoll: array{gesamt: int, datum_gefunden: int, name_gefunden: int},
+ *         gelesen: int, naechster_cursor: int|null, offen: bool}
  */
-function avesmapsMediaLicenseCollectCovers(PDO $pdo, int $limit): array
+function avesmapsMediaLicenseCollectCovers(PDO $pdo, int $limit, int $cursor = 0): array
 {
-    $zeilen = $pdo->query(
+    $statement = $pdo->prepare(
         "SELECT id, cover_url, field_origins_json, cover_license, cover_uploaded_at FROM adventure
-         WHERE cover_url IS NOT NULL AND cover_url <> '' LIMIT " . $limit
+         WHERE cover_url IS NOT NULL AND cover_url <> '' AND id > :cursor
+         ORDER BY id ASC LIMIT " . $limit
     );
+    $statement->execute(['cursor' => $cursor]);
+    $zeilen = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
     $funde = [];
     $protokoll = ['gesamt' => 0, 'datum_gefunden' => 0, 'name_gefunden' => 0];
-    foreach (($zeilen ? $zeilen->fetchAll(PDO::FETCH_ASSOC) : []) as $zeile) {
+    $letzteId = $cursor;
+    foreach ($zeilen as $zeile) {
+        $letzteId = max($letzteId, (int) $zeile['id']);
         $id = (int) $zeile['id'];
         $origins = json_decode((string) ($zeile['field_origins_json'] ?? ''), true);
         $vonWiki = is_array($origins) && (string) ($origins['cover_url'] ?? '') === 'wiki';
@@ -464,7 +646,10 @@ function avesmapsMediaLicenseCollectCovers(PDO $pdo, int $limit): array
         ];
     }
 
-    return ['funde' => $funde, 'protokoll' => $protokoll];
+    $offen = count($zeilen) === $limit;
+
+    return ['funde' => $funde, 'sonderfaelle' => [], 'protokoll' => $protokoll,
+            'gelesen' => count($zeilen), 'naechster_cursor' => $offen ? $letzteId : null, 'offen' => $offen];
 }
 
 /**
@@ -476,26 +661,39 @@ function avesmapsMediaLicenseCollectCovers(PDO $pdo, int $limit): array
  * Lizenzfeld und keine Ablage fuer ein Protokoll, in die geschrieben werden koennte. Ihr 'alt' wird
  * direkt auf den Zielwert 'ai_generated' gesetzt (denselben, den avesmapsMediaLicenseMigrateLegacy()
  * fuer einen leeren Wert liefern wuerde): das haelt den Fund idempotent gezaehlt UND schreibfrei
- * ('schreiben' wird nie aufgerufen, weil neu === alt und protokoll_neu leer bleibt), ohne eine zweite
+ * ('anwenden' wird nie aufgerufen, weil neu === alt und protokoll_neu leer bleibt), ohne eine zweite
  * Rueckgabeform fuer diesen einen Sammler zu brauchen.
  *
  * 🔧 Aufgabe 5: uploaded_at aus /uploads/siedlungen/, NUR bei Objekt-Eintraegen (die blanken
  * URL-Strings haben keine Ablage dafuer). 💣 Das ist die Flaeche, an der die Entkopplung von Lizenz
  * und Protokoll den Unterschied macht: die Lizenz aendert sich hier praktisch nie (schon Katalogwert),
- * also wuerde ein an die Lizenz gekoppeltes 'schreiben' das Datum NIE persistieren.
+ * also wuerde ein an die Lizenz gekoppeltes 'anwenden' das Datum NIE persistieren.
  *
- * @return array{funde: list<array{id: string, alt: string, schreiben: callable, protokoll_neu: array<string, string>}>,
- *         protokoll: array{gesamt: int, datum_gefunden: int, name_gefunden: int}}
+ * 🔧 Fix-Runde 2: 'schreiben' ist weg -- 'zeile' + 'anwenden' wie bei settlement_coat (Critical 3:
+ * dieselbe map_features-Zeile kann von BEIDEN Flaechen und von MEHREREN Bildern derselben Zeile
+ * betroffen sein). 'anwenden' bekommt sein $props als Parameter -- kein `use ($props)`-Schnappschuss
+ * mehr, der beim Schreiben veraltet waere. `id > :cursor ORDER BY id ASC LIMIT` fuer die Resumierbarkeit.
+ *
+ * @return array{funde: list<array{id: string, alt: string, protokoll_neu: array<string,string>, zeile: int,
+ *         anwenden: callable}>, sonderfaelle: list<never>,
+ *         protokoll: array{gesamt: int, datum_gefunden: int, name_gefunden: int}, gelesen: int,
+ *         naechster_cursor: int|null, offen: bool}
  */
-function avesmapsMediaLicenseCollectSettlementImages(PDO $pdo, int $limit): array
+function avesmapsMediaLicenseCollectSettlementImages(PDO $pdo, int $limit, int $cursor = 0): array
 {
-    $zeilen = $pdo->query(
+    $statement = $pdo->prepare(
         "SELECT id, properties_json FROM map_features
-         WHERE is_active = 1 AND properties_json LIKE '%\"images\"%' LIMIT " . $limit
+         WHERE is_active = 1 AND properties_json LIKE '%\"images\"%' AND id > :cursor
+         ORDER BY id ASC LIMIT " . $limit
     );
+    $statement->execute(['cursor' => $cursor]);
+    $zeilen = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
     $funde = [];
     $protokoll = ['gesamt' => 0, 'datum_gefunden' => 0, 'name_gefunden' => 0];
-    foreach (($zeilen ? $zeilen->fetchAll(PDO::FETCH_ASSOC) : []) as $zeile) {
+    $letzteId = $cursor;
+    foreach ($zeilen as $zeile) {
+        $letzteId = max($letzteId, (int) $zeile['id']);
         $props = json_decode((string) ($zeile['properties_json'] ?? ''), true);
         if (!is_array($props) || !is_array($props['images'] ?? null)) {
             continue;
@@ -517,13 +715,15 @@ function avesmapsMediaLicenseCollectSettlementImages(PDO $pdo, int $limit): arra
                     'id' => $id . ':' . $index,
                     'alt' => (string) ($bild['license'] ?? ''),
                     'protokoll_neu' => $protokollNeu,
-                    'schreiben' => static function (PDO $pdo, string $neu, array $protokollNeu) use ($id, $index, $props): void {
+                    'zeile' => $id,
+                    'anwenden' => static function (array &$props, string $neu, array $protokollNeu) use ($index): void {
+                        if (!is_array($props['images'][$index] ?? null)) {
+                            return; // die Zeile hat sich seit dem Sammeln veraendert -- nichts erzwingen
+                        }
                         $props['images'][$index]['license'] = $neu;
                         foreach ($protokollNeu as $feld => $wert) {
                             $props['images'][$index][$feld] = $wert;
                         }
-                        $pdo->prepare('UPDATE map_features SET properties_json = :pj WHERE id = :id')
-                            ->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'id' => $id]);
                     },
                 ];
                 continue;
@@ -534,7 +734,8 @@ function avesmapsMediaLicenseCollectSettlementImages(PDO $pdo, int $limit): arra
                 'id' => $id . ':' . $index,
                 'alt' => 'ai_generated',
                 'protokoll_neu' => [],
-                'schreiben' => static function (PDO $pdo, string $neu, array $protokollNeu): void {
+                'zeile' => $id,
+                'anwenden' => static function (array &$props, string $neu, array $protokollNeu): void {
                     // Absichtlich leer -- wird nie aufgerufen (alt === neu === 'ai_generated', kein
                     // Protokoll moeglich).
                 },
@@ -542,7 +743,10 @@ function avesmapsMediaLicenseCollectSettlementImages(PDO $pdo, int $limit): arra
         }
     }
 
-    return ['funde' => $funde, 'protokoll' => $protokoll];
+    $offen = count($zeilen) === $limit;
+
+    return ['funde' => $funde, 'sonderfaelle' => [], 'protokoll' => $protokoll,
+            'gelesen' => count($zeilen), 'naechster_cursor' => $offen ? $letzteId : null, 'offen' => $offen];
 }
 
 /**
@@ -557,15 +761,27 @@ function avesmapsMediaLicenseCollectSettlementImages(PDO $pdo, int $limit): arra
  * 💣 Dieselbe Entkopplungs-Notwendigkeit wie bei Siedlungsbildern: die Lizenz aendert sich hier
  * praktisch nie, ein an sie gekoppeltes 'schreiben' wuerde das Datum nie persistieren.
  *
+ * ⚠️ KEIN Koaleszieren noetig (anders als settlement_coat/settlement_image): map_license und
+ * thumb_license sind zwei SEPARATE SPALTEN derselben Zeile, keine gemeinsame JSON-Spalte -- ein
+ * UPDATE, das nur die eine Spalte nennt, laesst die andere unberuehrt. Zwei Funde derselben Zeile
+ * koennen sich hier nicht gegenseitig zuruecknehmen.
+ *
+ * 🔧 Fix 2 der zweiten Pruefrunde: `id > :cursor ORDER BY id ASC LIMIT`, resumierbar.
+ *
  * @return array{funde: list<array{id: string, alt: string, schreiben: callable, protokoll_neu: array<string, string>}>,
- *         protokoll: array{gesamt: int, datum_gefunden: int, name_gefunden: int}}
+ *         sonderfaelle: list<never>, protokoll: array{gesamt: int, datum_gefunden: int, name_gefunden: int},
+ *         gelesen: int, naechster_cursor: int|null, offen: bool}
  */
-function avesmapsMediaLicenseCollectCitymaps(PDO $pdo, int $limit): array
+function avesmapsMediaLicenseCollectCitymaps(PDO $pdo, int $limit, int $cursor = 0): array
 {
-    $zeilen = $pdo->query(
+    $statement = $pdo->prepare(
         'SELECT id, map_license, thumb_license, map_local_url, thumb_local_url,
-                map_uploaded_at, thumb_uploaded_at FROM citymap LIMIT ' . $limit
+                map_uploaded_at, thumb_uploaded_at FROM citymap WHERE id > :cursor
+         ORDER BY id ASC LIMIT ' . $limit
     );
+    $statement->execute(['cursor' => $cursor]);
+    $zeilen = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
     $funde = [];
     $protokoll = ['gesamt' => 0, 'datum_gefunden' => 0, 'name_gefunden' => 0];
     // Slot -> [URL-Spalte, Datums-Spalte]. Karte und Vorschau sind unabhaengige Ablagen derselben
@@ -574,7 +790,9 @@ function avesmapsMediaLicenseCollectCitymaps(PDO $pdo, int $limit): array
         'map_license' => ['url' => 'map_local_url', 'datum' => 'map_uploaded_at'],
         'thumb_license' => ['url' => 'thumb_local_url', 'datum' => 'thumb_uploaded_at'],
     ];
-    foreach (($zeilen ? $zeilen->fetchAll(PDO::FETCH_ASSOC) : []) as $zeile) {
+    $letzteId = $cursor;
+    foreach ($zeilen as $zeile) {
+        $letzteId = max($letzteId, (int) $zeile['id']);
         $id = (int) $zeile['id'];
         foreach ($slots as $spalte => $info) {
             $protokoll['gesamt']++;
@@ -604,5 +822,8 @@ function avesmapsMediaLicenseCollectCitymaps(PDO $pdo, int $limit): array
         }
     }
 
-    return ['funde' => $funde, 'protokoll' => $protokoll];
+    $offen = count($zeilen) === $limit;
+
+    return ['funde' => $funde, 'sonderfaelle' => [], 'protokoll' => $protokoll,
+            'gelesen' => count($zeilen), 'naechster_cursor' => $offen ? $letzteId : null, 'offen' => $offen];
 }
