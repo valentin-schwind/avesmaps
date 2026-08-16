@@ -99,4 +99,50 @@ const planQuelle = avesmapsRegionContextMenuPlan(quelle);
 assert.strictEqual(planQuelle.actions, null, "eine Quellflaeche ebenso");
 assert.strictEqual(planQuelle.deleteLabel, "Löschen", "und behaelt ihre Beschriftung");
 
+// ---- der Satz beim Klick -----------------------------------------------------------------------
+// 💣 Er stand zweimal wortgleich im Code (Klick UND Doppelklick), und gefixt wurde einer. Wer
+// klickt und nichts passiert, doppelklickt -- und bekam dort weiter „bitte das Unterreich
+// anklicken" zu lesen, obwohl es keins gibt. Deshalb EIN Erzeuger, den beide Zweige rufen.
+const { avesmapsRegionDerivedClickHint } = require("../map-features-region-interactivity.js");
+
+assert.strictEqual(
+	avesmapsRegionDerivedClickHint(geist),
+	"Diese Außenhülle hat keine Quellfläche mehr. Rechtsklick → „Außenhülle löschen“.",
+	"der Geist verweist auf den Rechtsklick",
+);
+assert.strictEqual(
+	avesmapsRegionDerivedClickHint(aggregat),
+	"Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) anklicken.",
+	"das gesunde Aggregat behaelt seinen Satz",
+);
+// ⚠️ Ohne Aussage kein Sonderfall: derselbe Rueckfall wie bei avesmapsRegionDerivedIsSourceless.
+assert.strictEqual(
+	avesmapsRegionDerivedClickHint({ isDerivedGeometry: true }),
+	"Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) anklicken.",
+	"kein Feld = keine Aussage = der alte Satz",
+);
+assert.strictEqual(
+	avesmapsRegionDerivedClickHint(null),
+	"Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) anklicken.",
+	"und ohne Eintrag ebenso",
+);
+
+// 💣 Die Zusicherung, die das Abschreiben verhindert: BEIDE Zweige in map-features.js muessen den
+// Erzeuger rufen, und keiner der beiden darf den Satz noch selbst im Code stehen haben.
+const fs = require("fs");
+const path = require("path");
+const mapFeaturesSource = fs.readFileSync(path.join(__dirname, "..", "map-features.js"), "utf8");
+assert.strictEqual(
+	(mapFeaturesSource.match(/avesmapsRegionDerivedClickHint\(/g) || []).length,
+	2,
+	"Klick- und Doppelklick-Zweig rufen denselben Erzeuger",
+);
+// ⚠️ Gemeint ist der KLICK-Satz („… anklicken."). Der Menue-Eintrag „Territoriumseditor oeffnen"
+// traegt einen eigenen, anders endenden Satz („… bearbeiten.") und gehoert nicht hierher.
+assert.strictEqual(
+	mapFeaturesSource.includes("Bitte die untergeordnete Geometrie (das Unterreich) anklicken."),
+	false,
+	"und keiner der beiden traegt den Satz noch selbst",
+);
+
 console.log("OK: verwaiste-aussenhuelle-interaktiv");

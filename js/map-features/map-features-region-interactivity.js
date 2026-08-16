@@ -53,10 +53,24 @@ function avesmapsRegionContextMenuPlan(regionEntry) {
 	};
 }
 
+// Was ein Klick auf eine abgeleitete Huelle im Bearbeiten-Modus sagt.
+// 💣 EIN Erzeuger fuer Klick UND Doppelklick. Der Satz stand zweimal wortgleich im Code, und
+// gefixt wurde einer: der Doppelklick zeigte weiter „bitte das Unterreich anklicken" -- fuer einen
+// Geist falsch, denn es gibt keins. Und wer klickt und nichts passiert, doppelklickt.
+// ⚠️ Rueckfall ist der alte Satz: ohne Aussage kein Sonderfall (dieselbe Richtung wie
+// avesmapsRegionDerivedIsSourceless).
+function avesmapsRegionDerivedClickHint(regionEntry) {
+	if (regionEntry && regionEntry.derivedIsSourceless === true) {
+		return "Diese Außenhülle hat keine Quellfläche mehr. Rechtsklick → „Außenhülle löschen“.";
+	}
+	return "Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) anklicken.";
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		avesmapsRegionDerivedIsSourceless,
 		avesmapsRegionPolygonIsInteractive,
 		avesmapsRegionContextMenuPlan,
+		avesmapsRegionDerivedClickHint,
 	};
 }

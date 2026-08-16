@@ -525,12 +525,9 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 		if (selectedRegionEntry?.isDerivedGeometry === true) {
 			// ⚠️ Hat die Hülle gar keine Quelle, ist „bitte das Unterreich anklicken" falsch: es gibt
 			// keins. Dann ist der Rechtsklick der einzige Weg — und der Satz muss ihn nennen.
-			showFeedbackToast(
-				selectedRegionEntry.derivedIsSourceless === true
-					? "Diese Außenhülle hat keine Quellfläche mehr. Rechtsklick → „Außenhülle löschen“."
-					: "Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) anklicken.",
-				"info"
-			);
+			// 💣 Der Satz kommt aus EINEM Erzeuger, den auch der Doppelklick-Zweig unten ruft; er
+			// stand vorher zweimal im Code, und gefixt wurde einer.
+			showFeedbackToast(avesmapsRegionDerivedClickHint(selectedRegionEntry), "info");
 			return;
 		}
 		startRegionGeometryEdit(selectedRegionEntry, selectedLayer);
@@ -546,8 +543,10 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 		const selectedLayer = selection.layer || polygon;
 		const selectedRegionEntry = selectedLayer._regionEntry || regionEntry;
 		// Wie beim Einfach-Klick: eine abgeleitete Außengrenze bedeutet hier "keine Quelle drunter".
+		// 💣 Und wie beim Einfach-Klick derselbe Erzeuger — wer klickt und nichts passiert,
+		// doppelklickt, und bekam hier bis 16.08.2026 den Satz zu lesen, der für einen Geist falsch ist.
 		if (selectedRegionEntry?.isDerivedGeometry === true) {
-			showFeedbackToast("Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) anklicken.", "info");
+			showFeedbackToast(avesmapsRegionDerivedClickHint(selectedRegionEntry), "info");
 			return;
 		}
 		startRegionGeometryEdit(selectedRegionEntry, selectedLayer);
