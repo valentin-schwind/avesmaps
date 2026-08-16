@@ -19,10 +19,10 @@ require_once __DIR__ . '/app-setting.php';
 const AVESMAPS_ZOOM_BANDS_SETTING_KEY = 'location_zoom_bands';
 const AVESMAPS_ZOOM_BANDS_STAMP_KEY = 'location_zoom_bands_stamp';
 const AVESMAPS_ZOOM_BANDS_MAX_BYTES = 8192;
-const AVESMAPS_ZOOM_BANDS_MAX_CELLS = 8;   // z0 bis z7
+const AVESMAPS_ZOOM_BANDS_MAX_CELLS = 9;   // z0 bis z8
 const AVESMAPS_ZOOM_BANDS_LIMITS = [
-    'marker' => [0.5, 200.0],  // Außendurchmesser in px
-    'label' => [4.0, 96.0],    // Schriftgröße in pt
+    'marker' => [0.5, 100.0],  // Außendurchmesser in px
+    'label' => [4.0, 30.0],    // Schriftgröße in pt
 ];
 
 /**

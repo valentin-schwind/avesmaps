@@ -46,6 +46,21 @@ assert.strictEqual(mitLoch.marker.stadt[4], 11.07, "danach gilt wieder der eigen
 assert.ok(mitLoch.marker.stadt.every((wert, index) => index === 0 || wert !== null || mitLoch.marker.stadt[index - 1] === null),
 	"nach einer gefüllten Zelle folgt nie eine leere");
 
+// ---- C2. Rückwärtskompatibilität: eine gespeicherte ACHT-Zellen-Zeile bekommt eine neunte ------
+// 💣 Der Fall, an dem diese Änderung am ehesten still danebengeht. Ein Admin, der VOR der
+// Erweiterung auf z8 gespeichert hat, hat 8-Zellen-Zeilen in der Datenbank (Index 0..7, keine
+// neunte Zelle). Der fehlende Index 8 ist ein NICHTWISSEN (wie jede andere fehlende Zelle auch,
+// Block B) -- er nimmt die Vorgabe, NICHT den vom Admin vorwärtsgefüllten Wert von z7. z6/z7
+// weichen hier absichtlich von der Vorgabe ab (40 statt 31,92), damit ein Vorwärtsfüllen aus der
+// Zeile selbst (Ergebnis 40) von der Vorgabe (Ergebnis 31,92) unterscheidbar wäre.
+const achtZellen = avesmapsResolveLocationZoomBands({
+	marker: { stadt: [1.33, 2.26, 3.84, 6.52, 11.07, 18.79, 40, 40] },
+});
+assert.strictEqual(achtZellen.marker.stadt.length, 9, "aus acht Zellen werden neun");
+assert.strictEqual(achtZellen.marker.stadt[7], 40, "die gespeicherten acht Zellen bleiben wie geschrieben");
+assert.strictEqual(achtZellen.marker.stadt[8], VORGABE.marker.stadt[8],
+	"der fehlende Index 8 ist ein Nichtwissen -> Vorgabe (31,92), nicht der Admin-Wert 40 von z7");
+
 // ---- D. Schranken ----------------------------------------------------------------------------
 const ausserhalb = avesmapsResolveLocationZoomBands({
 	marker: { dorf: [null, null, 0.1, 2.54, 4.86, 9.28, 999, 17.74] },
@@ -55,6 +70,26 @@ assert.strictEqual(ausserhalb.marker.dorf[2], VORGABE.marker.dorf[2], "0,1 px is
 assert.strictEqual(ausserhalb.marker.dorf[6], VORGABE.marker.dorf[6], "999 px ist zu groß -> Vorgabe");
 assert.strictEqual(ausserhalb.label.dorf[4], VORGABE.label.dorf[4], "1 pt ist zu klein -> Vorgabe");
 assert.strictEqual(ausserhalb.label.dorf[7], VORGABE.label.dorf[7], "500 pt ist zu groß -> Vorgabe");
+
+// 💣 DIE VERENGTE OBERGRENZE, SCHARF GEPRÜFT. 999 px und 500 pt lagen auch VOR der Verengung
+// (200 px / 96 pt) schon außerhalb -- diese zwei Werte allein würden eine vergessene Verengung
+// nicht bemerken. 150 px und 50 pt liegen dagegen GENAU in der Lücke: früher gültig (< 200 / < 96),
+// jetzt nicht mehr (> 100 / > 30). Nur diese Zeilen weisen nach, dass die neue Grenze wirklich greift.
+const verengt = avesmapsResolveLocationZoomBands({
+	marker: { dorf: [null, null, 150, 2.54, 4.86, 9.28, 17.74, 17.74] },
+	label: { dorf: [null, null, null, null, 50, 11, 11, 11] },
+});
+assert.strictEqual(verengt.marker.dorf[2], VORGABE.marker.dorf[2],
+	"150 px war vor der Verengung gültig (< 200), jetzt nicht mehr (> 100) -> Vorgabe");
+assert.strictEqual(verengt.label.dorf[4], VORGABE.label.dorf[4],
+	"50 pt war vor der Verengung gültig (< 96), jetzt nicht mehr (> 30) -> Vorgabe");
+// Die neue Obergrenze selbst ist einschließlich (<=), nicht ausschließlich.
+const anDerGrenze = avesmapsResolveLocationZoomBands({
+	marker: { dorf: [null, null, 100, 2.54, 4.86, 9.28, 17.74, 17.74] },
+	label: { dorf: [null, null, null, null, 30, 11, 11, 11] },
+});
+assert.strictEqual(anDerGrenze.marker.dorf[2], 100, "genau 100 px ist noch gültig");
+assert.strictEqual(anDerGrenze.label.dorf[4], 30, "genau 30 pt ist noch gültig");
 
 // Nicht-Zahlen ebenso.
 const unfug = avesmapsResolveLocationZoomBands({ label: { metropole: ["12", NaN, Infinity, {}, 17, 19, 19, 19] } });
@@ -75,8 +110,8 @@ assert.strictEqual(avesmapsLocationZoomBandValue("marker", "dorf", 4.4), VORGABE
 	"4,4 rundet auf 4 -- der Zeichner rundet ebenso");
 assert.strictEqual(avesmapsLocationZoomBandValue("marker", "dorf", 4.6), VORGABE.marker.dorf[5],
 	"4,6 rundet auf 5");
-assert.strictEqual(avesmapsLocationZoomBandValue("marker", "dorf", 99), VORGABE.marker.dorf[7],
-	"über z7 wird geklemmt");
+assert.strictEqual(avesmapsLocationZoomBandValue("marker", "dorf", 99), VORGABE.marker.dorf[8],
+	"über z8 wird geklemmt");
 assert.strictEqual(avesmapsLocationZoomBandValue("marker", "dorf", -3), VORGABE.marker.dorf[0],
 	"unter z0 wird geklemmt -- und dort steht null");
 assert.strictEqual(avesmapsLocationZoomBandValue("marker", "unbekannt", 4), null);
