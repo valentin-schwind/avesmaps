@@ -606,9 +606,26 @@
      Zeilen kommen fertig vom Server, diese Seite reicht nur „citymap" und den Wirt hinein. -->
 <script src="/js/review/sync-plan-sheet.js"></script>
 
+<!-- Die Wiki-Zuweisung: EIN Bauteil für alle Objektarten (Entwurf
+     docs/superpowers/specs/2026-08-15-wiki-zuweisung-vereinheitlichung-design.md, Aufgabe 9).
+     ⚠️ DIE REIHENFOLGE IST EIN VERTRAG: Register, Diff-Rechnung, dann das Bauteil, dann der
+     Datenweg dieser Objektart. `mount` prüft die ersten beiden und liefert sonst einen erkennbaren
+     Blindgänger. Diese Seite ist ein eigenes Dokument (iframe im Editor-Rahmen) und bindet sie
+     deshalb selbst; css/components/editor-page.css — die Regeln der `.dt-*`-Hülle — lädt sie
+     bereits oben. -->
+<script src="/js/ui/wiki-assign-registry.js"></script>
+<script src="/js/ui/wiki-assign-diff.js"></script>
+<script src="/js/ui/wiki-assign.js"></script>
+<script src="/js/ui/wiki-assign-karte.js"></script>
+
 <script>
   const CITYMAP_EDIT_API = "/api/edit/map/citymaps.php";
   const CITYMAP_IMAGE_API = "/api/edit/map/citymap-image.php";
+  // 🔴 Die WIKI-Registry, nicht der Karten-Schreibweg: eigene Datei, GET, Fähigkeit `review`. Sie
+  // sucht den EIGENEN Artikel der Karte — nicht ihren Bauschlüssel `wiki_key` und nicht die
+  // Publikation hinter `map_url`. Die Messung dazu steht im Register (js/ui/wiki-assign-registry.js,
+  // Objektart `karte`).
+  const CITYMAP_WIKI_API = "/api/edit/wiki/citymaps.php";
 
   // Mirrors of the ONE server-side definition (api/_internal/app/citymaps.php). The slugs are domain
   // content and must match byte for byte; the labels are German UI. There is no way to derive one from
@@ -1036,9 +1053,14 @@
         ${ceField("Titel *", "title", "")}
         ${ceUrlField("Karten-Link (extern) *", "map_url", "")}
         <p class="ce-hint">Titel und Quelle sind Pflicht, alles andere optional. Nicht Erfasstes bleibt „unbekannt“ und wird dem Leser gar nicht erst gezeigt.</p>
-      </div>`;
+      </div>
+      <div id="ceWikiAssign"></div>`;
       setOrteCount("");
       document.getElementById("ceOrteBody").innerHTML = `<p class="ce-placeholder">Erst speichern, dann Orte zuordnen.</p>`;
+      // ⚠️ NACH dem innerHTML: der Behälter entsteht erst mit ihm. Auch eine noch ungespeicherte
+      // Karte bekommt den Kasten — die Zuweisung reist beim ersten „Speichern“ mit, genau wie jedes
+      // andere Feld dieser Gruppe.
+      mountCeWikiAssign(null);
       return;
     }
     const v = state.detail.citymap;
@@ -1059,6 +1081,13 @@
         ${ceSelect("Übergeordnete Karte", "parent_public_id", v.parent_public_id, parentOptions, "— keine —")}
         ${ceSelect("Sichtbarkeit", "status", v.status, [["approved", "sichtbar"], ["suppressed", "verborgen"]], "sichtbar")}
       </div>` +
+      // Der EIGENE Wiki-Artikel dieser Karte — direkt unter der Identität, weil er dazugehört.
+      // ⚠️ Der Behälter ist ein BLANKES div: das Bauteil erzeugt seine Hülle selbst. Ihm hier schon
+      // `.ce-grp` mitzugeben schachtelte den Kasten doppelt (Rahmen im Rahmen, Polsterung doppelt).
+      // 🔴 KEIN Freitextfeld daneben. Eine Nicht-Wiki-Quelle gehört in den Quellen-Abschnitt; ein
+      // Feld, in das man alles tippen kann, ist der Grund, warum bei den Kraftlinien ein Tippfehler
+      // unsichtbar blieb (Entwurf §5).
+      `<div id="ceWikiAssign"></div>` +
       // Autoget liest den Karten-Link aus der Gruppe DARUEBER (siehe den Knopf in ceImageGroup): die
       // Reihenfolge ist die Erklaerung. Stand dieser Kasten oben, war die Kausalitaet unsichtbar.
       `<div class="ce-imgcols">` + ceImageGroup("thumb", "Vorschaubild", v) + ceImageGroup("map", "Karte (eigenes Bild)", v) + `</div>` +
@@ -1103,6 +1132,92 @@
       const input = document.getElementById("ceFile_" + slot);
       if (input) input.addEventListener("change", () => uploadImage(slot, input));
     });
+    // ⚠️ NACH dem innerHTML: der Behälter #ceWikiAssign entsteht erst mit ihm.
+    mountCeWikiAssign(v);
+  }
+
+  // ---- Wiki-Zuweisung (das geteilte Bauteil, Aufgabe 9) ----------------------------------------
+  // 🔴 Diese Oberfläche schreibt NICHT sofort. Sie wird als Ganzes gespeichert — also ist `lies()`
+  // der einzige Rückkanal, genauso wie beim Kraftlinien- und beim Literatur-Editor. Der Riegel dazu
+  // steht in saveStamm und heißt `bereit`, nicht „ist das Objekt da".
+  let ceWikiAssign = null;
+
+  /**
+   * Der Registry-Satz zu einem bekannten Artikelnamen.
+   *
+   * 💣 ER IST NÖTIG, UND ZWAR AUS DEMSELBEN GRUND WIE BEI DER LITERATUR: Ort, Weg und Landschaft
+   * lesen ihre Wiki-Angaben aus dem Nest `properties_json` ihres Kartenobjekts; `citymap` hat kein
+   * solches Nest. Gespeichert sind nur article_url/article_key/article_title — reine Identität. Ohne
+   * diesen Abruf zeigte der Kasten Seitenart und Kontinent genau einmal (direkt nach der Wahl) und
+   * nach dem nächsten Öffnen nicht mehr.
+   * 🔴 Er WIRFT im Fehlerfall. Ein aufgelöstes Leeres wäre von „nichts zugewiesen" nicht zu
+   * unterscheiden, und weil hier erst beim „Speichern" geschrieben wird, löschte der nächste Klick
+   * die Zuweisung, ohne dass es jemand angeordnet hätte (AGENTS.md §10).
+   */
+  async function ceWikiEntry(articleTitle) {
+    const titel = String(articleTitle || "").trim();
+    if (titel === "") { return null; }
+    const response = await fetch(
+      CITYMAP_WIKI_API + "?action=entry&title=" + encodeURIComponent(titel),
+      { credentials: "same-origin", headers: { Accept: "application/json" } }
+    );
+    // 💣 `fetch` löst auch bei 401/403/500 AUF — nur ein Netzabbruch wirft. Ohne diese Zeile würde
+    // aus einer abgelaufenen Sitzung ein „dieser Artikel hat keine Angaben".
+    if (!response.ok) { throw new Error("Der Server antwortete mit " + response.status + "."); }
+    const data = await response.json();
+    if (!data || data.ok !== true || !Array.isArray(data.rows)) {
+      throw new Error((data && data.error && data.error.message) || "Unerwartete Antwort.");
+    }
+    return data.rows[0] || null;
+  }
+
+  /** Der Zustand, den das Bauteil lädt. Lehnt AB, wenn der Registry-Satz nicht zu holen war. */
+  function ceWikiZustand(v) {
+    const gespeichert = v || {};
+    return ceWikiEntry(gespeichert.article_title).then((kandidat) => avesmapsWikiAssignKarteZustand({
+      article_url: gespeichert.article_url || "",
+      article_key: gespeichert.article_key || "",
+      article_title: gespeichert.article_title || "",
+      no_article: gespeichert.no_article === true,
+      kandidat: kandidat,
+    }));
+  }
+
+  function ceWikiUngespeichert() {
+    const stateEl = document.getElementById("ceSaveState");
+    if (stateEl) {
+      stateEl.textContent = "Geändert – noch nicht gespeichert.";
+      stateEl.className = "ce-savebar__state";
+    }
+  }
+
+  function mountCeWikiAssign(v) {
+    if (ceWikiAssign) { ceWikiAssign.zerstoeren(); ceWikiAssign = null; }
+    const host = document.getElementById("ceWikiAssign");
+    if (!host) { return; }
+    if (typeof avesmapsWikiAssignMount !== "function") {
+      // Kein stiller Leerlauf: ohne das Bauteil gibt es GAR KEINE Zuweisung, und ein leerer Fleck
+      // sähe aus wie „diese Karte hat keine".
+      host.textContent = "Wiki-Zuweisung nicht geladen (js/ui/wiki-assign.js).";
+      return;
+    }
+    ceWikiAssign = avesmapsWikiAssignMount(host, {
+      subject: "karte",
+      skin: "dt",
+      laden: () => ceWikiZustand(v),
+      zuweisen: ceWikiUngespeichert,
+      loesen: ceWikiUngespeichert,
+      // ⚠️ Kein `syncUebernehmen`: die Erklärung `karte` hat kein einziges Kartenziel (`sync: false`),
+      // es gibt also keinen Knopf, der ihn auslösen könnte. Ein leerer Rückruf hier wäre ein
+      // Versprechen, das nirgends eingelöst wird.
+      // 🔴 Und kein `trefferAufbereiten`-Zwang: der abgeleitete Bauer des Bauteils hebt genau die
+      // Feldnamen aus der Antwort, die die Erklärung nennt. Der eigene Bauer steht trotzdem hier,
+      // weil er `name` aus `title` nachzieht, wenn der Endpunkt nur den Titel schickt.
+      trefferAufbereiten: (zeile) => avesmapsWikiAssignKarteTreffer(zeile),
+      // Das Häkchen wirkt erst beim „Speichern" — also ist ein Klick darauf eine ungespeicherte
+      // Änderung wie jede andere.
+      keinArtikelGeaendert: ceWikiUngespeichert,
+    });
   }
 
   // gatherStamm sweeps [data-cm-field] out of #ceStammBody. The prefix is load-bearing: a bare
@@ -1129,6 +1244,33 @@
     try {
       const citymap = Object.assign({}, values);
       if (state.selectedId) citymap.public_id = state.selectedId;
+      // 🔴 DIE ZUWEISUNG IST KEIN FORMULARFELD — `gatherStamm` liest nur `[data-cm-field]`, und der
+      // Kasten erzeugt keine. Ohne diese Zeilen ließe sie sich gar nicht speichern.
+      // 💣 GEPRÜFT WIRD `bereit`, NICHT das bloße Vorhandensein des Objekts. Fehlt dem Bauteil eine
+      // seiner Voraussetzungen, gibt es einen Blindgänger zurück: der ist wahrheitswertig, und
+      // `ceWikiAssign ? … : …` allein wäre durchgelaufen und hätte Leerstrings gespeichert — eine
+      // Löschung, die niemand angeordnet hat (AGENTS.md §10). `lies()` liefert dort null.
+      // 🔴 UND DER LEERFALL LÄSST DIE SCHLÜSSEL WEG, statt einen alten Stand zurückzuschicken.
+      // `avesmapsUpsertCitymap` fasst ausschließlich Felder an, die die Anfrage MITSCHICKT
+      // (`array_key_exists`) — ein fehlender Schlüssel lässt die Spalte also unangetastet, und das
+      // ist hier die sichere Seite: einen Wert nachzureichen, den ein zweiter Editor inzwischen
+      // geändert haben kann, wäre ein stiller Rückschritt. Ein GEWOLLTES Leeren („Entfernen" im
+      // Kasten) kommt sehr wohl durch — dann ist `bereit` true und der Wert ein Leerstring.
+      const wikiGelesen = (ceWikiAssign && ceWikiAssign.bereit) ? ceWikiAssign.lies() : null;
+      if (wikiGelesen) {
+        citymap.article_url = wikiGelesen.wiki_url || "";
+        citymap.article_key = wikiGelesen.wiki_key || "";
+        // Der Anzeigename des Artikels. Er wird KOPIERT statt nachgeschlagen, damit der Kasten auch
+        // dann noch einen Namen zeigt, wenn ein späterer Dump die Seite aus der Registry nimmt.
+        citymap.article_title = wikiGelesen.name || "";
+        // 🔴 Der dritte Zustand reist NUR mit, wenn das Häkchen SEIT DEM LADEN umgelegt wurde —
+        // beide Richtungen. Wer es nicht anfasst, soll es auch nicht löschen können: ein alter,
+        // längst offener Dialog nähme sonst beim nächsten beliebigen Speichern die Entscheidung
+        // eines zweiten Editors zurück. Die Begründung steht im Kopf von js/ui/wiki-assign.js.
+        if (wikiGelesen.kein_artikel_geaendert) {
+          citymap.no_article = wikiGelesen.kein_artikel ? 1 : 0;
+        }
+      }
       const saved = await citymapPost({ action: "upsert_citymap", citymap });
       // Types are their own whole-list action; only send them for an existing map (a fresh one has no
       // controls rendered yet).

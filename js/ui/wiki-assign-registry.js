@@ -537,9 +537,78 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			keinArtikelHaken: false,
 		},
 	},
-	// Die letzte kommt in Aufgabe 9 dazu, mit IHRER Aufgabe -- nicht auf Vorrat:
-	//   karte        (A9)  eigener Artikel -- NICHT wiki_key, NICHT wiki_url
-	// Die genauen Kartenfeld-Namen stehen in Schritt 1 der Aufgabe. Hier nichts raten.
+	karte: {
+		label: "Wiki-Artikel",
+		// 💣 BEI DEN KARTEN HEISST SCHON ZWEIERLEI „wiki", UND DIESE ZUWEISUNG IST EIN DRITTES DING.
+		// Am Livecode gemessen (16.08.2026); beide bleiben unangetastet, an ihnen haengt der laufende
+		// Karten-Abgleich:
+		//   `citymap.wiki_key`  -- ein BAUSCHLUESSEL aus vier Teilen, `index:stadt:quelle:variante`
+		//     (avesmapsCitymapWikiKey, api/_internal/wiki/citymap-sync.php:103). Er sagt, aus welcher
+		//     INDEX-SEITE die Zeile stammt, und ist KEINE Seitenidentitaet.
+		//   `citymap.map_url`   -- der Karten-Link. Bei einer Wiki-Karte baut ihn der Abgleich aus der
+		//     QUELLE, also aus der Publikation (avesmapsCitymapWikiUrlForSource, citymap-sync.php:1508):
+		//     er zeigt auf das BUCH, in dem die Karte steckt, nie auf die Karte.
+		// 🪤 Eine Spalte `citymap.wiki_url` GIBT ES NICHT -- Entwurf §8 nennt sie, und das ist an der
+		// Wirklichkeit gemessen falsch (gemeint ist `map_url`). Der eigene Artikel heisst deshalb
+		// `article_url`/`article_key`/`article_title`: haette er `wiki_url` geheissen, faende ein
+		// `git grep wiki_url` drei verschiedene Sachen unter einem Namen -- dieselbe
+		// Verwechslungsklasse wie „Literatur" gegen „Quellen".
+		//
+		// 🔴 DIE SUCHE GAB ES NICHT, UND ES GIBT KEINEN KATALOG VON KARTEN-ARTIKELN. Gemessen:
+		// `wiki_citymap_catalog` traegt INDEXZEILEN (Bauschluessel, keine Seite),
+		// `wiki_publication_catalog` traegt BUECHER (das ist `map_url`). Die EINZIGE Tabelle im Haus,
+		// die einen Seitentitel auf seine Adresse abbildet, ist `wiki_sync_pages`; dagegen sucht der
+		// mit dieser Aufgabe entstandene Endpunkt.
+		// ⚠️ EIGENE DATEI, nicht ein Arm von api/edit/map/citymaps.php: jene ist POST-only, das
+		// Bauteil holt seine Treffer per GET.
+		suche: { art: "server", url: "/api/edit/wiki/citymaps.php" },
+		// KEIN Objektart-Vorsatz: die Trefferzeile beginnt mit der SEITENART („Metropole", „Dorf",
+		// „Gebäude") -- und die ist hier mehr als eine Beschriftung.
+		// 🔴 `wiki_sync_pages` fuehrt heute NUR Orts- und Bauwerksseiten (geschrieben von
+		// avesmapsWikiSyncUpsertPageCache und avesmapsWikiDumpPersistSettlementRecords, beide
+		// ausschliesslich dafuer). Ein Editor, der hier waehlt, greift also fast immer nach der Seite
+		// eines ORTES -- die Seitenart sagt ihm das VOR dem Klick, und die Kollisionsregel des
+		// Konfliktzentrums faengt den Missgriff danach (avesmapsConflictLoadCitymapRows).
+		treffer: ["settlement_label", "continent"],
+		// 🔴 KEIN EINZIGES KARTENZIEL, und das ist gemessen, nicht vergessen. Die weisse Liste des
+		// Schreibwegs (`$editableFields`, avesmapsUpsertCitymap, api/_internal/app/citymaps.php)
+		// fuehrt Titel, Links, Lizenzen, Art, Format, BF-Jahre, Urheber, Verlag und Notiz -- zu
+		// KEINEM davon sagt eine Registry-Zeile etwas: sie beschreibt die SEITE (Ortsklasse,
+		// Kontinent), nicht die Karte. Der Titel einer Karte („Stadtplan von Al'Anfa (Al'Anfa und der
+		// tiefe Süden)") baut der Abgleich aus Ort und Quelle, nie aus einem Artikelnamen.
+		// ⚠️ Beide Zeilen bleiben trotzdem ERKLAERT (`karte: ""`), sonst meldete Pruefung 2 (§3b) sie
+		// als vergessen -- dieselbe Bauform wie bei den Kraftlinien, die ebenfalls vier Wiki-Felder
+		// ohne Ziel fuehren.
+		felder: [
+			{ wiki: "settlement_label", karte: "", label: "Seitenart" },
+			{ wiki: "continent", karte: "", label: "Kontinent" },
+		],
+		sync: false, // kein Ziel -- also auch kein Knopf
+		extra: {
+			// 🔴 Der Rat des Leerzustands, objektart-eigen wie bei Ort und Literatur, und hier sagt er
+			// die BESCHRAENKUNG: die Registry kennt nur Orts- und Bauwerksseiten. Steht der Artikel
+			// einer Karte woanders im Wiki, hilft kein anderer Suchbegriff, sondern nur das Haekchen
+			// darunter. „Keine Treffer" allein sagte nur, DASS nichts da ist.
+			keineTrefferHinweis: "Die Wiki-Registry führt nur Orts- und Bauwerksseiten — sonst hilft das Häkchen darunter.",
+			// 🔴 DER DRITTE ZUSTAND, und bei den Karten ist er OWNER-WUNSCH, nicht Kür: „gibt
+			// natürlich auch welche von uns" (Entwurf §2.5). Die selbst gezeichneten Karten haben
+			// keinen Wiki-Artikel und werden nie einen bekommen.
+			// ⚠️ Er ist tragbar, weil diese Aufgabe ohnehin Spalten anlegt: `no_article` steht neben
+			// `article_url` in `citymap` (avesmapsCitymapsEnsureTables). Territorium und Literatur
+			// konnten ihn nicht tragen -- dort haette er eine Schemaaenderung ohne eigenen Anlass
+			// gekostet.
+			keinArtikelHaken: true,
+			// 🪤 UND WAS ER HIER NICHT TUT, steht ausdruecklich da -- wie bei der Landschaft: er nimmt
+			// die Karte aus KEINER Liste. avesmapsConflictLoadCitymapRows reicht nur Karten MIT
+			// Artikel in die Kollisionsregel; eine Karte ohne Artikel erreicht das Konfliktzentrum
+			// gar nicht erst, und die Beobachtungsliste (`wiki.missing_key`) laeuft ohnehin nur ueber
+			// `map_features`. Der Merker haelt also die ENTSCHEIDUNG fest und sonst nichts -- der
+			// Satz unten verspricht deshalb bewusst keine Konfliktliste.
+			// ⚠️ Der zweite Halbsatz ist tragend (wie bei allen anderen): der Merker ist NICHT
+			// endgueltig. Ohne ihn liest er sich als „nie wieder".
+			keinArtikelHinweis: "Hält fest, dass im Wiki kein Artikel zu dieser Karte steht — bis dort einer auftaucht.",
+		},
+	},
 };
 
 /**
