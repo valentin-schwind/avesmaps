@@ -212,17 +212,17 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 	},
 	landschaft: {
 		label: "Wiki-Landschaft",
-		// Gemessen am Endpunkt: avesmapsWikiRegionSearch (api/_internal/wiki/regions.php:1086-1122)
+		// Gemessen am Endpunkt: avesmapsWikiRegionSearch (api/_internal/wiki/regions.php:1098-1134)
 		// beantwortet `?action=search&q=…&limit=40` mit `{ok, count, rows}`. Dieselbe Adresse und
-		// dasselbe Limit wie die zwei alten Picker (map-features-ecosystem-properties.js:233 und
-		// js/review/review-label-wiki.js:215, Stand 16.08.2026).
+		// dasselbe Limit wie die zwei alten Picker (map-features-ecosystem-properties.js und js/review/review-label-wiki.js,
+		// beide am 16.08.2026 durch das Bauteil abgeloest).
 		suche: { art: "server", url: "/api/edit/wiki/regions.php" },
 		// KEIN Objektart-Vorsatz: die Trefferzeile beginnt mit der Wiki-Art („Wald", „Gebirge") --
 		// das sagt genauer, was der Treffer ist, als das Wort „Landschaft". Wortgleich zu dem, was
 		// BEIDE alten Picker als Meta-Zeile zeigten: `[row.art, row.region_parent, row.continent]`.
 		// ⚠️ DIE FELDNAMEN SIND DIE DER STAGING-SPALTEN, nicht huebschere: `region_parent`,
 		// `affiliation_staat`, `continent`. Damit deckt sich die Erklaerung Zeile fuer Zeile mit dem,
-		// was der Parser liefert (avesmapsWikiRegionParse…, api/_internal/wiki/regions.php:589-596),
+		// was der Parser liefert (avesmapsWikiRegionParsePage, api/_internal/wiki/regions.php:589-596),
 		// und niemand uebersetzt -- dieselbe Regel wie beim Ort, wo `einwohner`/`lage`/`oberhaupt`
 		// auf der Karte heissen wie im Nest. Die Beschriftung macht `label`.
 		treffer: ["art", "region_parent", "continent"],
@@ -271,7 +271,7 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// 🪤 UND WAS ER HIER NICHT TUT, steht ausdruecklich hier, damit es niemand versehentlich
 			// verspricht: eine `ecosystem_region` steht in KEINER Konfliktliste.
 			// avesmapsConflictLoadMapRows liest ausschliesslich `map_features`
-			// (location|path|label|powerline, api/_internal/conflicts/rules.php:372-376), und
+			// (location|path|label|powerline, api/_internal/conflicts/rules.php:96-101), und
 			// avesmapsEnrichMapFeatureWikiUrl raet ebenfalls nur dort Adressen zusammen. Der Merker
 			// haelt heute also die ENTSCHEIDUNG fest und sonst nichts -- der Satz unten verspricht
 			// deshalb bewusst keine Konfliktliste (anders als bei Ort, Weg und Kraftlinie).

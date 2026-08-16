@@ -5,19 +5,23 @@ declare(strict_types=1);
 /**
  * JEDER Zuweiser einer Wiki-Landschaft an ein LABEL loescht den Merker „Kein Wiki-Artikel vorhanden".
  *
- * 💣 DIESE PROBE ZAEHLT, STATT EINER ZAHL IM KOMMENTAR ZU GLAUBEN. Genau daran ist am 16.08.2026 der
- * WEG gescheitert: dort stand „ZWEI Zuweiser" samt Namen, und es waren DREI -- gefunden von der
- * Konsistenz-Pruefung, nicht vom Test (AGENTS.md §11: eine Zahl liest sich wie eine vollstaendige
- * Liste, und niemand zaehlt nach). Beim Label sind es FUENF, verteilt auf ZWEI Dateien:
- *   api/_internal/map/features.php    -- avesmapsCreateLabelFeature, avesmapsUpdateLabelFeature
- *   api/_internal/wiki/regions.php    -- drei Zuweiser der Regionen-Sync
- * Die Probe sucht die Schreibstellen selbst; kommt ein sechster dazu, faellt sie um, bis er die
- * Zeile ebenfalls traegt.
+ * 💣 DIESE PROBE ZAEHLT, STATT EINER ZAHL ZU GLAUBEN -- und in ihrer ersten Fassung tat sie genau
+ * das doch. Sie lief ueber eine FEST VERDRAHTETE Zwei-Datei-Liste, und ein sechster Zuweiser in
+ * api/_internal/conflicts/repair.php lief ungesehen durch: „5 Zuweiser geprueft, alle loeschen den
+ * Merker", EXIT=0, das ganze PHP-Feld gruen. 🔴 DIE ZAHL WAR NICHT VERSCHWUNDEN, SIE WAR AUS DEM
+ * KOMMENTAR IN EIN ARRAY GEWANDERT. Dieselbe Fehlerklasse wie „ERZEUGER 1 VON 2" (AGENTS.md §11),
+ * nur als Datenstruktur getarnt. Seit dem 16.08.2026 laeuft sie ueber den GANZEN `api/`-Baum.
+ *
+ * 💣 UND SIE ERKENNT ZWEI SCHREIBWEISEN. `unset($x['wiki_no_article'])` ist die eine;
+ * api/_internal/conflicts/repair.php loescht denselben Schluessel ueber die Konstante
+ * AVESMAPS_CONFLICT_NO_ARTICLE_FLAG. Ein Muster, das nur das Literal kennt, haelt eine korrekte
+ * Loeschung fuer eine fehlende -- oder, schlimmer, meldet einen Zuweiser als geprueft, weil er in
+ * keiner der aufgezaehlten Dateien stand.
  *
  * 🔴 WARUM DER MERKER AM LABEL UEBERHAUPT ZAEHLT: ein Label IST eine Konfliktpartei
  * (`feature_type='label'` -> Typ „Region/Landschaft", api/_internal/conflicts/rules.php), und die
- * Regel `wiki.missing_key` liest `properties.wiki_no_article` seit dem 15.08.2026. Es fehlte nur der
- * Schreibweg -- anders als bei der Landschaftsflaeche, die in gar keiner Konfliktliste steht.
+ * Regel `wiki.missing_key` liest `properties.wiki_no_article`. Es fehlte nur der Schreibweg --
+ * anders als bei der Landschaftsflaeche, die in gar keiner Konfliktliste steht.
  *
  * Run (Windows), vom Wurzelverzeichnis:
  *   php -d zend.assertions=1 -d assert.exception=1 -d extension=php_mbstring.dll api/_internal/map/__tests__/label-wiki-no-article-test.php
@@ -28,12 +32,32 @@ if (ini_get('zend.assertions') !== '1') {
     exit(2);
 }
 
-$dateien = [
-    __DIR__ . '/../features.php',
-    __DIR__ . '/../../wiki/regions.php',
-];
+/**
+ * Jede PHP-Datei unter `api/` -- ohne die Proben selbst, die absichtlich Beispielcode enthalten.
+ * ⚠️ Der ganze Baum, keine Liste: eine Liste ist eine Zahl mit anderem Aussehen.
+ */
+function avesmapsLabelWikiPhpDateien(string $wurzel): array {
+    $treffer = [];
+    $lauf = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($wurzel, FilesystemIterator::SKIP_DOTS)
+    );
+    foreach ($lauf as $eintrag) {
+        $pfad = str_replace('\\', '/', (string) $eintrag);
+        if (substr($pfad, -4) !== '.php' || str_contains($pfad, '/__tests__/')) {
+            continue;
+        }
+        $treffer[] = $pfad;
+    }
+    sort($treffer);
 
-$schreibstellen = 0;
+    return $treffer;
+}
+
+$wurzel = str_replace('\\', '/', realpath(__DIR__ . '/../../..'));
+$dateien = avesmapsLabelWikiPhpDateien($wurzel);
+assert(count($dateien) > 100, 'Der api/-Baum wurde nicht gefunden -- nur ' . count($dateien) . ' Dateien.');
+
+$schreibstellen = [];
 $ohneLoeschung = [];
 
 foreach ($dateien as $datei) {
@@ -44,14 +68,18 @@ foreach ($dateien as $datei) {
         if (preg_match('/\$\w+\[\x27wiki_region\x27\]\s*=\s*[^=]/', $zeile) !== 1) {
             continue;
         }
-        $schreibstellen++;
+        $kurz = substr($datei, strlen($wurzel) + 1);
+        $schreibstellen[] = $kurz . ':' . ($nummer + 1);
         // Die Loeschung steht unmittelbar daneben. ⚠️ ZEHN Zeilen Fenster, nicht fuenf: die
         // Begruendung gehoert ueber das `unset`, und an der laengsten Stelle sind das sieben
         // Kommentarzeilen (gemessen -- mit fuenf fiel genau diese Probe um). Zehn ist immer noch
         // kuerzer als jede Funktion hier, ein fremdes `unset` kann also nicht mitzaehlen.
         $fenster = implode("\n", array_slice($zeilen, $nummer, 11));
-        if (preg_match('/unset\(\$\w+\[\x27wiki_no_article\x27\]\)/', $fenster) !== 1) {
-            $ohneLoeschung[] = basename($datei) . ':' . ($nummer + 1) . '  ' . trim($zeile);
+        // 💣 BEIDE Schreibweisen: das Literal UND die Konstante aus conflicts/repair.php.
+        $literal = preg_match('/unset\(\$\w+\[\x27wiki_no_article\x27\]\)/', $fenster) === 1;
+        $konstante = preg_match('/unset\(\$\w+\[AVESMAPS_CONFLICT_NO_ARTICLE_FLAG\]\)/', $fenster) === 1;
+        if (!$literal && !$konstante) {
+            $ohneLoeschung[] = $kurz . ':' . ($nummer + 1) . '  ' . trim($zeile);
         }
     }
 }
@@ -61,8 +89,17 @@ assert($ohneLoeschung === [],
 
 // 🔴 Und es sind wirklich mehrere -- faende das Muster nur eine Stelle, waere die Zusicherung oben
 // leer und trotzdem gruen. Genau diese Blindheit hat der Weg-Test einmal gehabt.
-assert($schreibstellen >= 5,
-    'Es wurden nur ' . $schreibstellen . ' Zuweiser gefunden -- das Suchmuster greift nicht mehr.');
+// ⚠️ KEINE Obergrenze: ein sechster Zuweiser ist erlaubt, er muss nur die Zeile tragen. Eine
+// Gleichheitspruefung waere die Zahl wieder, nur an anderer Stelle.
+assert(count($schreibstellen) >= 5,
+    'Es wurden nur ' . count($schreibstellen) . ' Zuweiser gefunden -- das Suchmuster greift nicht mehr.');
+
+// ⚠️ Und die Suche erreicht wirklich mehr als die zwei Dateien, an denen sie einmal haengenblieb:
+// mindestens zwei verschiedene Verzeichnisse muessen dabei sein.
+$verzeichnisse = array_unique(array_map(static fn(string $s): string => dirname($s), $schreibstellen));
+assert(count($verzeichnisse) >= 2,
+    'Alle Zuweiser stehen in EINEM Verzeichnis -- der Lauf ueber den Baum bringt dann nichts: '
+    . implode(', ', $verzeichnisse));
 
 // ---- Der Schreibweg selbst -----------------------------------------------------------------------
 // ⚠️ Textprobe, und hier ist sie richtig: `avesmapsUpdateLabelFeature` braucht ein PDO und eine
@@ -76,7 +113,10 @@ assert(str_contains($features, "array_key_exists('wiki_no_article', \$payload)")
 assert(str_contains($features, "'Ein Label',"),
     'der Widerspruchsriegel des Labels fehlt -- Zuweisung UND Merker zugleich waeren erlaubt');
 
-require __DIR__ . '/../wiki-claim.php';
+// ⚠️ `require_once`, nicht `require`: die Datei traegt keinen function_exists-Schutz, und sobald
+// diese Probe irgendwann features.php mitlaedt (das bindet sie ebenfalls ein), waere ein zweites
+// Einlesen ein Redeclare-Fatal.
+require_once __DIR__ . '/../wiki-claim.php';
 $geworfen = false;
 try {
     avesmapsAssertWikiClaimNotContradictory('wiki:gesetzt', true, 'Ein Label', 'Ausweg.');
@@ -86,4 +126,5 @@ try {
 }
 assert($geworfen, 'der geteilte Riegel laesst den Widerspruch durch');
 
-echo "label-wiki-no-article: " . $schreibstellen . " Zuweiser geprueft, alle loeschen den Merker\n";
+echo 'label-wiki-no-article: ' . count($schreibstellen) . " Zuweiser im ganzen api/-Baum geprueft, alle loeschen den Merker\n";
+echo '  ' . implode("\n  ", $schreibstellen) . "\n";

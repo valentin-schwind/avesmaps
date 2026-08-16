@@ -1,17 +1,17 @@
-// Der Datenweg der LANDSCHAFT -- EINE Fassung fuer BEIDE Oberflaechen (Flaechen-Eigenschaften +
-// Regionen-Editor).
+// Der Datenweg der LANDSCHAFT -- EINE Fassung fuer ALLE DREI Oberflaechen (Flaechen-Eigenschaften,
+// Regionen-Editor und der Label-Dialog).
 //
 // Entwurf: docs/superpowers/specs/2026-08-15-wiki-zuweisung-vereinheitlichung-design.md
 // Bauteil: js/ui/wiki-assign.js -- das weiss nichts ueber Landschaften. Was objektart-eigen ist,
 // steht hier. Vorbilder: js/ui/wiki-assign-weg.js (Aufgabe 4) und js/ui/wiki-assign-ort.js (5).
 //
-// 💣 WARUM DIESE DATEI EXISTIERT: die Landschaft hat ZWEI Oberflaechen in ZWEI Dokumenten -- den
-// Dialog „Fläche bearbeiten" (index.html, js/map-features/map-features-ecosystem-properties.js) und
-// den Regionen-Editor im iframe (html/landschaften-editor.html) mit eigenem `window`. Keine der
-// beiden sieht eine Funktion der anderen.
+// 💣 WARUM DIESE DATEI EXISTIERT: dieselbe Wiki-Landschaft wird an DREI Stellen zugewiesen, und
+// zwei davon leben in eigenen Dokumenten mit eigenem `window` -- der Dialog „Fläche bearbeiten"
+// (index.html), der Regionen-Editor im iframe (html/landschaften-editor.html) und der Label-Dialog
+// „Region bearbeiten" (index.html). Keine sieht eine Funktion der anderen.
 //
-// 🔴 SIE IST REIN: kein DOM, kein `fetch`, kein Zustand. Beide Oberflaechen bringen ihren eigenen
-// Netzweg mit und schicken die Antwort hier durch die Pruefung.
+// 🔴 SIE IST REIN: kein DOM, kein `fetch`, kein Zustand. Alle drei Oberflaechen bringen ihren
+// eigenen Netzweg mit und schicken die Antwort hier durch die Pruefung.
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 // 💣 DIE FALLE DIESER OBJEKTART -- „LANDSCHAFT" IST NICHT „LABEL", UND DIE ART-TABELLE DES SERVERS
@@ -20,9 +20,10 @@
 //
 // Drei Oberflaechen im Haus suchen gegen `/api/edit/wiki/regions.php?action=search`. ZWEI davon
 // heften die gefundene Wiki-Landschaft an eine **`ecosystem_region`** (die gezeichnete Flaeche) --
-// das sind die zwei hier. Die dritte, der Label-Dialog (js/review/review-label-wiki.js), heftet sie
+// Erklaerung `landschaft`. Die dritte, der Label-Dialog (js/review/review-label-wiki.js), heftet sie
 // an ein **`map_features`-Label** und schreibt in ein ganz anderes Feld
-// (`properties.wiki_region`). Sie ist eine eigene Objektart und bleibt unangetastet.
+// (`properties.wiki_region`) -- Erklaerung `landschaftslabel`. Sie benutzen ALLE DREI diesen
+// Datenweg; getrennt sind nur die zwei Erklaerungen im Register (Vergleichstabelle weiter unten).
 //
 // 🔴 DARAN HAENGT DIE ART-REGEL, und sie war der einzige echte Entscheidungspunkt dieser Aufgabe.
 // Es gab sie GEMESSEN in drei Fassungen mit ZWEI Zielvokabularen:
@@ -30,11 +31,13 @@
 //   (a) CLIENT, Flaechen-Dialog (map-features-ecosystem-properties.js:304-308, Stand 16.08.2026):
 //       erste Komponente einer mehrwertigen Art („Tal|Grube" -> „Tal"), dann EXAKTER Vergleich gegen
 //       `label` bzw. `type_key` der Arten DIESER Ebene. Ziel: `ecosystem_region.region_type`.
-//   (b) SERVER (api/_internal/wiki/regions.php:68-150, avesmapsWikiRegionArtToSubtype): dieselbe
+//   (b) SERVER (api/_internal/wiki/regions.php:68-128 + :146-150, avesmapsWikiRegionArtToSubtype): dieselbe
 //       erste Komponente, dann eine Nachschlagetabelle MIT SYNONYMEN. Ziel: der LABEL-Subtype.
-//   (c) eine zweite JS-Abschrift von (b) in js/review/review-label-wiki.js:12 -- die sich vom
-//       Original inzwischen unterscheidet (sie fuehrt `gebirgskette`, `berg`, `gipfel`, `forst`,
-//       `fluss`, die PHP-Tabelle keines davon). Sie gehoert dem Label und bleibt, wo sie ist.
+//   (c) eine zweite JS-Abschrift von (b) in js/review/review-label-wiki.js -- die sich vom
+//       Original inzwischen unterschied (sie fuehrte `gebirgskette`, `berg`, `gipfel`, `forst`,
+//       `fluss`, die PHP-Tabelle keines davon). ✅ ERSATZLOS GELOESCHT am 16.08.2026: seit der
+//       Label-Dialog dieselbe Ordnung benutzt, gibt es im Browser genau EINE Art-Regel. Was der
+//       Wegfall der fuenf Schluessel kostet, steht im Kopf jener Datei.
 //
 // 💣 (b) BLIND ZU SPIEGELN WAERE EINE VERSCHLECHTERUNG GEWESEN, und das ist gemessen, nicht
 // vermutet: die Server-Tabelle bildet `Schlucht => 'tal'` ab (regions.php:83, begruendet am
@@ -106,7 +109,7 @@ const AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER = ["text", "feature_sub
  * 🔴 ABSCHRIFT, KEINE ZWEITE REGEL. Der Server faltet seine Schluessel mit
  * avesmapsWikiSyncCreateMatchKey; im Browser gibt es diese Faltung nicht, deshalb steht jede
  * Umlaut-Art hier ZWEIMAL -- einmal mit, einmal ohne Umlaut. Genau so macht es die aeltere
- * JS-Abschrift daneben (LABEL_WIKI_ART_TO_SUBTYPE, js/review/review-label-wiki.js:21-25), und aus
+ * JS-Abschrift, die bis zum 16.08.2026 im Label-Dialog stand, und aus
  * demselben Grund: eine von Hand gefaltete Form waere tot (AGENTS.md §5).
  *
  * ⚠️ Die Zeilen `ebene`/`tiefland`/`flachland`, `berggipfel`, `vulkan` zeigen auf LABEL-Subtypen,
@@ -144,7 +147,7 @@ function avesmapsWikiAssignLandschaftText(wert) {
  * REIN: die erste Komponente einer mehrwertigen Wiki-Art, kleingeschrieben.
  *
  * 💣 DIE TRENNZEICHEN SIND `|` UND `,` -- wortgleich zum preg_split-Muster `\s*[|,]\s*` in
- * avesmapsWikiRegionArtToSubtype (regions.php:147). Ohne sie trifft „Tal|Grube" nie den Typ „Tal",
+ * avesmapsWikiRegionArtToSubtype (regions.php:159). Ohne sie trifft „Tal|Grube" nie den Typ „Tal",
  * und genau daran ist die alte Fassung des Label-Pfeils an jedem mehrwertigen Artikel lautlos
  * gescheitert.
  */
@@ -195,7 +198,7 @@ function avesmapsWikiAssignLandschaftArt(art, arten) {
 /**
  * REIN: die Werte, die die Erklaerung `landschaft` erwartet -- aus einer Suchzeile ODER aus dem
  * Staging-Schnappschuss derselben Wiki-Landschaft. Beide tragen dieselben Spaltennamen (beide lesen
- * `wiki_region_staging`, avesmapsWikiRegionSearch:1090 und der `staging_sample`-Zweig daneben),
+ * `wiki_region_staging`, avesmapsWikiRegionSearch:1102 und der `staging_sample`-Zweig daneben),
  * deshalb genuegt EIN Bauer.
  *
  * 🔴 `landschaftsart` ist ABGELEITET, nicht geliefert: `art` ist der freie Wikitext („Mischregion,
@@ -211,7 +214,7 @@ function avesmapsWikiAssignLandschaftArt(art, arten) {
  * („Lage", „Staat", „Kontinent") macht `label` im Register. Ein Uebersetzungsschritt hier waere die
  * zweite Wahrheit, die Pruefung 2 aus §3b (geliefert, aber nicht erklaert) gerade verhindern soll.
  * ⚠️ `continent` ist beim Parser ABGELEITET (aus Titel, Nav-Vorlagen und Kategorien,
- * regions.php:549) und damit kein Infoboxwert -- wie `kind` beim Weg. Es steht trotzdem als
+ * regions.php:550) und damit kein Infoboxwert -- wie `kind` beim Weg. Es steht trotzdem als
  * Anzeige-Zeile im Register, weil die Suche es liefert und die Trefferzeile es zeigt.
  */
 function avesmapsWikiAssignLandschaftWerte(quelle, arten) {
@@ -394,7 +397,7 @@ function avesmapsWikiAssignLandschaftslabelZustand(quelle) {
  * steht.
  *
  * 🔴 NUR `wiki_url`, NIEMALS `wiki_region_key`. Der Server leitet den Schluessel aus der Adresse ab
- * (avesmapsEcosystemWikiRegionKey, ecosystem.php:1683); ein vom Client geschickter Schluessel wird
+ * (avesmapsEcosystemWikiRegionKey, ecosystem.php:1851); ein vom Client geschickter Schluessel wird
  * gar nicht gelesen und waere eine zweite Ableitung -- genau die Datenmigration ueber ~10 Tabellen,
  * vor der AGENTS.md §5 warnt.
  * ⚠️ Eine LEERE Adresse ist der Weg zurueck (Verhaltensdoku §7a): sie loescht Adresse UND Schluessel.
@@ -433,10 +436,10 @@ function avesmapsWikiAssignLandschaftAntwortPruefen(antwort) {
  * sonst eine Sync-Zeile, die diese Funktion lautlos verwirft. Das Bauteil zeigt sie, der Haken tut
  * nichts.
  */
-function avesmapsWikiAssignLandschaftSyncWerte(zeilen) {
+function avesmapsWikiAssignLandschaftSyncWerteFuer(zeilen, felder) {
 	const liste = Array.isArray(zeilen) ? zeilen : [];
 	const werte = {};
-	AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER.forEach((feld) => { werte[feld] = null; });
+	(Array.isArray(felder) ? felder : []).forEach((feld) => { werte[feld] = null; });
 	liste.forEach((zeile) => {
 		if (!zeile || !Object.prototype.hasOwnProperty.call(werte, zeile.karte)) {
 			return;
@@ -448,29 +451,30 @@ function avesmapsWikiAssignLandschaftSyncWerte(zeilen) {
 }
 
 /** REIN: hat die Uebernahme ueberhaupt etwas zu tun? Zaehlt ALLE Ziele, nie zwei davon von Hand. */
-function avesmapsWikiAssignLandschaftSyncLeer(werte) {
+function avesmapsWikiAssignLandschaftSyncLeerFuer(werte, felder) {
 	const w = werte || {};
-	return AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER.every((feld) => w[feld] === null || w[feld] === undefined);
+	return (Array.isArray(felder) ? felder : []).every((feld) => w[feld] === null || w[feld] === undefined);
 }
 
-/** Dieselben zwei Fragen fuer das LABEL -- andere Feldliste, gleiche Regel. */
+// 🔴 ZWEI Objektarten, EINE Rechnung. Hier standen bis zum 16.08.2026 zwei zeichengleiche
+// Abschriften nebeneinander, in denen nur die Konstante wechselte -- 22 Zeilen Abschrift in einem
+// Umbau, dessen ganzer Zweck das Abschaffen von Abschriften ist. Die Feldliste ist jetzt ein
+// Argument, genau wie bei avesmapsWikiAssignLandschaftKartenwerte darueber; die vier Namen bleiben,
+// weil die Oberflaechen sie rufen und ein Aufrufer nicht wissen soll, welche Liste seine ist.
+function avesmapsWikiAssignLandschaftSyncWerte(zeilen) {
+	return avesmapsWikiAssignLandschaftSyncWerteFuer(zeilen, AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER);
+}
+
+function avesmapsWikiAssignLandschaftSyncLeer(werte) {
+	return avesmapsWikiAssignLandschaftSyncLeerFuer(werte, AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER);
+}
+
 function avesmapsWikiAssignLandschaftslabelSyncWerte(zeilen) {
-	const liste = Array.isArray(zeilen) ? zeilen : [];
-	const werte = {};
-	AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER.forEach((feld) => { werte[feld] = null; });
-	liste.forEach((zeile) => {
-		if (!zeile || !Object.prototype.hasOwnProperty.call(werte, zeile.karte)) {
-			return;
-		}
-		const wert = avesmapsWikiAssignLandschaftText(zeile.neu);
-		werte[zeile.karte] = wert === "" ? null : wert;
-	});
-	return werte;
+	return avesmapsWikiAssignLandschaftSyncWerteFuer(zeilen, AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER);
 }
 
 function avesmapsWikiAssignLandschaftslabelSyncLeer(werte) {
-	const w = werte || {};
-	return AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER.every((feld) => w[feld] === null || w[feld] === undefined);
+	return avesmapsWikiAssignLandschaftSyncLeerFuer(werte, AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER);
 }
 
 if (typeof module !== "undefined" && module.exports) {

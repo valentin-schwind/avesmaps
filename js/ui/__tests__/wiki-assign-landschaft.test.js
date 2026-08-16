@@ -676,6 +676,84 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 		+ "damit die Entscheidung eines zweiten Editors zurueck");
 	zaehl(); zaehl();
 
+	// ---- DIE ZWEITE RICHTUNG, mit EIGENER Fixture --------------------------------------------
+	// 💣 SIE FEHLTE, UND DAS WAR DIE 5b-FALLE. Die Fixture oben startet mit `wiki_no_article: false`,
+	// also endet jeder Handgriff bei `false` -- die Mutation „`kein_artikel_geaendert` ->
+	// `kein_artikel`" lief dagegen GRUEN durch, obwohl drei Zeilen ueber der Stelle woertlich steht
+	// „GEPRUEFT WIRD VERAENDERT, NICHT GESETZT — sonst würde man den Merker nie wieder los".
+	// 🔴 Deshalb eine ZWEITE Flaeche, deren `list_regions` den Merker GESETZT liefert: erst abhaken,
+	// dann speichern -- und `false` MUSS im Rumpf stehen. Der Regionen-Editor und der Label-Dialog
+	// haben diese Richtung laengst; nur diese eine Oberflaeche hatte sie nicht.
+	const felderGesetzt = {
+		"ecosystem-properties-name": scheinFeld("Wald-002"),
+		"ecosystem-properties-type": scheinFeld("wald", VEGETATION.map((typ) => typ.type_key)),
+	};
+	const kGesetzt = sandkastenBauen(dialogSkripte, felderGesetzt,
+		["ecosystem-properties-wiki-host", "ecosystem-properties-overlay", "ecosystem-properties-form"],
+		() => ({ ok: true, count: 0, rows: [] }),
+		{
+			ecosystemLayers: new Map([["a3", { _ecosystemArea: Object.assign({}, FLAECHE, {
+				public_id: "a3", region_public_id: "r3", region_name: "Wald-002", region_type: "wald",
+			}) }]]),
+			postEcosystemEdit: (aktion, nutzlast) => {
+				kGesetzt.aufrufe.push({ aktion: aktion, nutzlast: nutzlast });
+				if (aktion === "list_regions") {
+					return Promise.resolve({
+						ok: true,
+						region_types: VEGETATION.map((typ) => Object.assign({ kind: "vegetation" }, typ)),
+						// 🔴 DER UNTERSCHIED ZUR FIXTURE OBEN, und der ganze Zweck dieser zweiten:
+						// der Merker ist GELADEN gesetzt.
+						regions: [{ public_id: "r3", name: "Wald-002", kind: "vegetation", region_type: "wald",
+							wiki_region_key: null, wiki_url: null, area_count: 1, wiki_no_article: true }],
+					});
+				}
+				return Promise.resolve({ ok: true });
+			},
+			ecosystemDialogTitle: () => "Vegetations-Fläche bearbeiten",
+			formatEcosystemRegionCarryNote: () => "1 Fläche",
+			linkedEcosystemLabelEntry: () => null,
+			ecosystemLabelCountOfRegion: () => 0,
+			ecosystemLabelStyleFor: () => ({}),
+			ecosystemWikiRegionSnapshot: () => Promise.resolve(null),
+			submitMapFeatureEdit: () => Promise.resolve({ ok: true }),
+			applyLabelFeatureLocally: () => {},
+			avesmapsComputeLabelPoint: () => ({ x: 1, y: 1 }),
+			tr: (schluessel, rueckfall) => rueckfall,
+			t: (schluessel, rueckfall) => rueckfall,
+		});
+	kGesetzt.aufrufe = [];
+	vm.runInContext("var ecosystemLabelsForRegion = function () { return []; };"
+		+ "var isEcosystemCascadeEnabled = function () { return false; };"
+		+ "var removeEcosystemCascadedLabels = function () {};"
+		+ "var refreshEcosystemAreas = function () { return Promise.resolve(); };", kGesetzt.kasten);
+	const hostGesetzt = kGesetzt.elemente["ecosystem-properties-wiki-host"];
+	const formGesetzt = kGesetzt.elemente["ecosystem-properties-form"];
+	await vm.runInContext("window.AvesmapsEcosystemProperties.open('a3')", kGesetzt.kasten);
+	await ruhe();
+	// Der geladene Merker steht im Kasten -- sonst pruefte das Abhaken darunter nichts.
+	assert.ok(/data-wa-kein-artikel checked/.test(hostGesetzt.innerHTML),
+		"der geladene Merker erreicht das Haekchen nicht: " + hostGesetzt.innerHTML);
+	// Nicht angefasst -> auch hier faehrt der Schluessel NICHT mit.
+	formGesetzt.feuere("submit", formGesetzt);
+	await ruhe();
+	assert.ok(!("wiki_no_article" in kGesetzt.aufrufe.filter((a) => a.aktion === "update_region")[0].nutzlast),
+		"der gesetzte Merker reist mit, obwohl niemand ihn angefasst hat");
+	// ⚠️ Ein geglücktes Speichern SCHLIESST diesen Dialog (und zerstört das Bauteil) -- für den
+	// zweiten Handgriff wird er deshalb neu geöffnet. Das ist kein Kunstgriff der Probe, sondern
+	// genau der Weg, den ein Editor geht.
+	await vm.runInContext("window.AvesmapsEcosystemProperties.open('a3')", kGesetzt.kasten);
+	await ruhe();
+	// ABHAKEN -> `false` MUSS im Rumpf stehen.
+	kGesetzt.aufrufe.length = 0;
+	hostGesetzt.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
+	formGesetzt.feuere("submit", formGesetzt);
+	await ruhe();
+	const abgehakt = kGesetzt.aufrufe.filter((a) => a.aktion === "update_region")[0];
+	assert.ok(abgehakt, "das Speichern nach dem Abhaken hat nichts geschrieben");
+	assert.strictEqual(abgehakt.nutzlast.wiki_no_article, false,
+		"ein bewusst ENTFERNTES Haekchen kommt nicht durch -- der Merker liesse sich nie wieder loswerden");
+	zaehl(); zaehl(); zaehl(); zaehl();
+
 	// ---- `laden` LEHNT AB, und der Kasten sagt es ----------------------------------------------
 	// 🔴 DER VERTRAG AUS DEM KOPF VON js/ui/wiki-assign.js, WIRKLICH GEFAHREN -- nicht als Textprobe.
 	// Die Landschaft ist die erste Objektart, deren `laden` echtes HTTP macht (der Staging-

@@ -386,19 +386,14 @@
 	color: var(--color-accent-brown);
 }
 
-/* Inline-Picker im Label-Editor (statt separatem Overlay). */
-.label-wiki-picker {
-	margin-top: 6px;
-	padding-top: 6px;
-	border-top: 1px dashed var(--color-border);
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-}
-
-.label-wiki-picker .label-wiki-picker-list {
-	max-height: 200px;
-}
+/* 🔴 HIER STANDEN `.label-wiki-picker` UND SEINE HOEHEN-UEBERSTEUERUNG. Der eigene Inline-Picker
+   des Label-Editors ist am 16.08.2026 dem geteilten Bauteil gewichen; beide Klassen hatten danach
+   NULL Verwender im ganzen Baum (`.label-wiki-picker-LIST` gibt es weiter -- die gehoert der Huelle).
+   ⚠️ UND DAS HAT EINE SICHTBARE FOLGE, die hier benannt sein soll: `max-height: 200px` war eine
+   Uebersteuerung. Ohne sie gilt `--avm-picker-list-max-h` (340px) wie im Ort- und im Wege-Dialog --
+   die Trefferliste des Label-Dialogs ist also 140 px hoeher als frueher. Bewusst mitgenommen: drei
+   Kartendialoge mit derselben Handlung sollen dieselbe Liste zeigen, und genau dafuer gibt es das
+   Bauteil. Wer den Deckel zurueckwill, setzt ihn am Token, nicht an einer vierten Regel. */
 
 /* Klickbare (Zoom) bzw. ziehbare (Drag'n'drop) Regionen-Listeneintraege. */
 .region-sync__item--clickable {
@@ -920,28 +915,10 @@
 	flex: 1 1 auto;
 	min-width: 0;
 }
-.location-edit-wiki-mini {
-	flex: 0 0 auto;
-	width: 30px;
-	height: 30px;
-	padding: 0;
-	border: 1px solid var(--color-border);
-	border-radius: 6px;
-	background: var(--color-panel);
-	color: var(--color-accent-brown);
-	font-size: 15px;
-	line-height: 1;
-	cursor: pointer;
-}
-.location-edit-wiki-mini:hover:not(:disabled) {
-	background: var(--color-button-soft-hover);
-	border-color: var(--color-accent-brown);
-}
-.location-edit-wiki-mini:disabled {
-	opacity: 0.4;
-	cursor: not-allowed;
-}
-
+/* 🔴 HIER STANDEN DIE DREI REGELN DES „↻"-KNOPFES (.location-edit-wiki-mini). Die zwei kleinen
+   Wiederhol-Knoepfe neben Textfeld und Kategorie des Label-Dialogs sind am 16.08.2026 der
+   Sync-Vorschau gewichen -- sie taten dasselbe, ohne vorher zu zeigen, was sie aendern. Danach null
+   Verwender im ganzen Baum (gemessen ueber css/, js/, html/, index.html, edit/). */
 /* ===== WikiSync „Siedlungen": Status-Tabs + vollständige Karten-Orts-Liste ===== */
 .wiki-sync-substatus {
 	display: flex;
