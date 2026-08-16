@@ -1186,3 +1186,151 @@ function avesmapsGameLiteratureCoverAutogetStep(PDO $pdo, float $budgetSeconds):
         'skipped' => $tally['skipped_manual'],
     ];
 }
+
+// ===========================================================================
+// 7. Picker-Suche ueber den Staging-Katalog -- die Quelle der Wiki-Zuweisung (Aufgabe 8).
+// ===========================================================================
+//
+// 🔴 SIE IST NEU, UND ZWAR WEIL ES SIE NICHT GAB. Am 16.08.2026 nachgemessen: `wiki_adventure_catalog`
+// wird an genau sieben Stellen gelesen, JEDE ueber einen exakten `wiki_key` bzw. einen Cursor
+// (:652, :909, :967, :1033, :1105, game-literature-plan-apply.php:63,
+// api/edit/map/game-literature-cover.php:69) -- kein `LIKE`, kein `q`, kein `action=search`. Die
+// Literatur war damit die einzige Objektart, deren Wiki-Adresse man TIPPEN musste
+// (html/game-literature-editor.html, Feld „Wiki-URL"), und genau daran blieb bei den Kraftlinien am
+// 15.08.2026 ein Tippfehler unsichtbar (Entwurf §5).
+//
+// ⚠️ GEBAUT WIE DIE DREI SCHWESTERN, nicht neu erfunden: `avesmapsWikiRegionSearch`
+// (api/_internal/wiki/regions.php:1098), `avesmapsWikiPathSearch` (paths.php:707) und
+// `avesmapsWikiSettlementSearch` (settlements.php:710) beantworten `?action=search&q=…&limit=…` mit
+// `{ok, count, rows}` -- dieselbe Huelle, damit das geteilte Bauteil (js/ui/wiki-assign.js) den
+// Unterschied nicht merkt.
+
+/**
+ * Sorgt dafuer, dass alle drei Tabellen der Suche dastehen. 💣 Der LEFT JOIN faellt sonst mit
+ * „table doesn't exist" um -- auf einer frischen Installation, auf der noch kein Dump gelaufen ist,
+ * waere die Zuweisung damit gar nicht zu oeffnen.
+ *
+ * 🔴 SIE STEHT AUSSERHALB DER SUCHE, und der Aufrufer ist der Endpunkt (api/edit/wiki/game-literature.php).
+ * Das ist kein Stil, sondern die Bedingung dafuer, dass die Suche ueberhaupt PRUEFBAR ist: die drei DDLs
+ * sind MySQL (`ENGINE=InnoDB`, `DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3)`), und ein Testlauf gegen
+ * SQLite fiele schon an der ersten Zeile um -- die Suche selbst waere dann nur noch per Textprobe
+ * „geprueft", also gar nicht (die Lehre der Aufgaben 3-7).
+ */
+function avesmapsWikiGameLiteratureEnsureSearchTables(PDO $pdo): void
+{
+    avesmapsEnsureGameLiteratureStagingTables($pdo);
+    if (function_exists('avesmapsEnsurePublicationStagingTables')) {
+        avesmapsEnsurePublicationStagingTables($pdo);
+    }
+}
+
+/**
+ * Die Spalten UND die Verbindungen einer Trefferzeile -- EINE Stelle fuer beide Arme.
+ *
+ * 💣 DREI TABELLEN, UND DAS IST GEMESSEN, NICHT BEQUEM. `wiki_adventure_catalog` (:287) fuehrt
+ * WEDER ISBN NOCH VERLAG NOCH DEN ROHEN `Art`-STRING -- die drei stehen in
+ * `wiki_publication_catalog` (publication-sync.php:34, :36, :37). Beide Kataloge keyen mit
+ * DERSELBEN Funktion `avesmapsPublicationCatalogWikiKeyForTitle` (publication-sync.php:506 bzw.
+ * :408 hier), der JOIN ist also exakt und braucht keine neue Spalte.
+ * ⚠️ LEFT, nicht INNER: der Publikationskatalog wird fuer JEDE `{{Infobox Produkt}}`-Seite gefuellt,
+ * der Literaturkatalog nur fuer die Teilmenge mit Ortsliste -- theoretisch deckungsgleich, praktisch
+ * abhaengig davon, welche Dump-Phasen zuletzt gelaufen sind. Ein INNER JOIN liesse nach einem
+ * halben Dump-Lauf Treffer verschwinden, statt drei Zeilen leer zu lassen.
+ *
+ * 🔴 `belegt_public_id` IST DIE KENNUNG, `belegt_titel` NUR DIE ANZEIGE. `adventure.wiki_key` traegt
+ * einen UNIQUE-Key (api/_internal/app/game-literature.php:50) -- ein zweiter Eintrag auf denselben
+ * Artikel ist ein Datenbankfehler, kein Warnhinweis. Der Kasten zeigt das VOR dem Klick
+ * (`haengtAn`), und die Oberflaeche vergleicht ueber die public_id, nie ueber den Titel: ein Name ist
+ * keine Kennung.
+ */
+function avesmapsWikiGameLiteratureSearchSelect(): string
+{
+    return 'SELECT c.wiki_key, c.title, c.wiki_url, c.product_type, c.edition, c.genre,'
+        . ' c.complexity_gm, c.complexity_pl, c.authors, c.series, c.fshop_code, c.cover_file,'
+        . ' p.art, p.isbn, p.publisher,'
+        . ' a.public_id AS belegt_public_id, a.title AS belegt_titel'
+        . ' FROM wiki_adventure_catalog c'
+        . ' LEFT JOIN wiki_publication_catalog p ON p.wiki_key = c.wiki_key'
+        . ' LEFT JOIN adventure a ON a.wiki_key = c.wiki_key';
+}
+
+/**
+ * Picker-Suche: Staging-Literatur fuer die Wiki-Zuweisung des Literatur-Editors.
+ * Leerer Suchbegriff => alphabetische Liste (so steht beim Oeffnen sofort etwas da).
+ *
+ * 🔴 GESUCHT WIRD IN TITEL UND SCHLUESSEL, wortgleich zu avesmapsWikiRegionSearch (name + match_key):
+ * `wiki_key` IST die gefaltete Form des Titels (avesmapsPublicationCatalogWikiKeyForTitle), also
+ * findet „mada" auch „Mada" und „borbarad" auch „Borbarad". Autoren und Reihe stehen bewusst NICHT
+ * darin -- hier wird keine Sucheinbusse repariert (bis heute gab es GAR KEINE Suche, nur ein
+ * Textfeld), und eine breitere Suche waere eine Behauptung statt einer Messung.
+ * ⚠️ KEIN Platzhalter zweimal: `avesmapsCreatePdo` setzt `ATTR_EMULATE_PREPARES => false`, und MySQL
+ * lehnt denselben Namen zweimal im selben Statement mit HY093 ab (AGENTS.md §11, „Was ist hier?").
+ */
+function avesmapsWikiGameLiteratureSearch(PDO $pdo, string $query, int $limit = 30): array
+{
+    $limit = max(1, min(100, $limit));
+    $query = trim($query);
+
+    if ($query === '') {
+        $statement = $pdo->query(avesmapsWikiGameLiteratureSearchSelect() . ' ORDER BY c.title ASC LIMIT ' . $limit);
+        $rows = $statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        return ['ok' => true, 'count' => count($rows), 'rows' => $rows];
+    }
+
+    // ⚠️ Der Schluessel wird mit DERSELBEN Funktion gefaltet, die ihn beim Dump-Lauf erzeugt hat --
+    // eine eigene Faltung hier waere die zweite Wahrheit (AGENTS.md §5). Fehlt die Bibliothek (der
+    // Endpunkt bindet sie, ein Testlauf womoeglich nicht), bleibt die Titelsuche allein uebrig.
+    $schluessel = function_exists('avesmapsPublicationCatalogWikiKeyForTitle')
+        ? avesmapsPublicationCatalogWikiKeyForTitle($query)
+        : '';
+    // 💣 EIN LEERER SCHLUESSEL DARF NICHT IN EIN `LIKE` -- `'%%'` traefe JEDE Zeile, und aus einer
+    // gescheiterten Faltung wuerde lautlos „alles ist ein Treffer". Dann sucht nur der Titel.
+    $bedingungen = ['c.title LIKE :like'];
+    $werte = ['like' => '%' . $query . '%'];
+    $reihenfolge = 'CHAR_LENGTH(c.title) ASC, c.title ASC';
+    if ($schluessel !== '') {
+        $bedingungen[] = 'c.wiki_key LIKE :keylike';
+        $werte['keylike'] = '%' . $schluessel . '%';
+        $werte['exactkey'] = $schluessel;
+        // Der Volltreffer steht oben -- wortgleich zu avesmapsWikiRegionSearch.
+        $reihenfolge = '(c.wiki_key = :exactkey) DESC, ' . $reihenfolge;
+    }
+    $statement = $pdo->prepare(
+        avesmapsWikiGameLiteratureSearchSelect()
+        . ' WHERE ' . implode(' OR ', $bedingungen)
+        . ' ORDER BY ' . $reihenfolge
+        . ' LIMIT ' . $limit
+    );
+    $statement->execute($werte);
+    $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+    return ['ok' => true, 'count' => count($rows), 'rows' => $rows];
+}
+
+/**
+ * EIN Katalogsatz zu einem bekannten Schluessel -- der Stand einer BEREITS zugewiesenen Literatur.
+ *
+ * 💣 SIE IST NOETIG, UND ZWAR NUR BEI DIESER OBJEKTART. Ort, Weg und Landschaft legen die
+ * Wiki-Angaben als Nest im `properties_json` ihres Kartenobjekts ab; ein zugewiesener Artikel ist
+ * dort ohne Rueckfrage lesbar. `adventure` hat KEIN solches Nest (die DDL fuehrt nur
+ * `field_origins_json`, api/_internal/app/game-literature.php:43) -- die Wiki-Werte sind dort
+ * dieselben Geschaeftsspalten, die der Sync gefuellt hat. Ohne diesen Arm haette der
+ * Zuweisungskasten fuer eine gespeicherte Zuweisung nichts zu zeigen und die Sync-Vorschau nichts
+ * zu vergleichen.
+ *
+ * ⚠️ DIESELBE HUELLE wie die Suche (`{ok, count, rows}`, 0 oder 1 Zeile) -- so hat die Oberflaeche
+ * EINEN Zeilenbauer statt zweier.
+ */
+function avesmapsWikiGameLiteratureEntry(PDO $pdo, string $wikiKey): array
+{
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey === '') {
+        return ['ok' => true, 'count' => 0, 'rows' => []];
+    }
+    $statement = $pdo->prepare(avesmapsWikiGameLiteratureSearchSelect() . ' WHERE c.wiki_key = :wk LIMIT 1');
+    $statement->execute(['wk' => $wikiKey]);
+    $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+    return ['ok' => true, 'count' => count($rows), 'rows' => $rows];
+}
