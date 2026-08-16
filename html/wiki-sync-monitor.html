@@ -197,21 +197,19 @@
   .dt-wappen.gray { filter:grayscale(1); opacity:.5; }
   .dt-title { font-size:var(--font-size-subhead); font-weight:var(--font-weight-bold); color:var(--color-text-strong); line-height:var(--leading-snug); }
   .dt-sub { color:var(--mut); font-size:var(--font-size-small); margin-top:2px; }
-  /* 💣 Dieselbe Klasse .dt-grid gibt es im Siedlungseditor -- sie sah hier komplett anders aus und war
-     der letzte grosse Bruch zwischen den beiden Fenstern: hier ein GERAHMTER KASTEN mit Zeilentrennern
-     und abgesetzt eingefaerbter Beschriftungsspalte (las sich wie ein Datenbank-Dump), dort offene
-     Zeilen. Die Designsprache gruppiert "by divider, not by framed boxes" (AGENTS.md §12), also gilt
-     jetzt die Siedlungs-Fassung. Feste Beschriftungsbreite aus editor-page.css, damit die Wertespalte
-     ueber alle Zeilen fluchtet. Gehoert perspektivisch ganz nach editor-page.css -- dafuer muesste
-     auch der Siedlungseditor angefasst werden, an dem gerade eine andere Sitzung arbeitet. */
-  .dt-grid { display:grid; grid-template-columns:var(--avm-field-label-w) minmax(0,1fr); gap:0; font-size:var(--font-size-small); margin:var(--space-2) 0 0; }
-  .dt-grid .k { color:var(--color-text-muted); font-weight:var(--font-weight-bold); white-space:nowrap; padding:5px 6px 5px 0; vertical-align:top; }
-  .dt-grid > div:not(.k) { padding:5px 0; color:var(--color-text); min-width:0; overflow-wrap:anywhere; }
+  /* ✅ Das "perspektivisch" von damals ist am 16.08.2026 eingeloest: .dt-grid, .dt-grid .k,
+     .dt-grid > div:not(.k) und .dt-actions standen hier ein ZWEITES Mal und stehen jetzt nur noch
+     in css/components/editor-page.css. Der Ortseditor, auf den der alte Kommentar wartete, ist im
+     selben Zug mitgegangen. Gedriftet war die Abschrift bereits: Feldtext var(--font-size-small)
+     (12px) statt var(--font-size-body) (13px), Zeilenpolster 5px statt var(--space-2) (4px),
+     .dt-actions margin:7px 0 2px statt margin-top:var(--space-6).
+     ⚠️ .dt-grid input.dt-in und .dt-grid .k.ovr bleiben hier -- der Bearbeiten-Modus dieses
+        Fensters, in der geteilten Datei gibt es dafuer nichts.
+     Gewacht von js/pages/__tests__/editor-row-single-source.test.js. */
   .dt-lic { margin-top:8px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--panel); font-size:var(--font-size-caption); }
   .dt-lic.pd { border-color:var(--color-success-soft-border); }
   .dt-lic.cc { border-color:var(--warn); }
   .dt-conf { color:var(--bad); }
-  .dt-actions { margin:7px 0 2px; display:flex; gap:6px; flex-wrap:wrap; }
   .lockbtn, .edbtn { font-size:var(--font-size-caption); padding:3px 9px; }
   /* Edit-Modus Wiki-Details */
   .ov-badge { font-size:var(--font-size-caption); color:var(--color-accent-brown-text); background:var(--color-accent-brown); border-radius:3px; padding:0 4px; margin-left:5px; cursor:help; }
