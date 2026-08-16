@@ -331,5 +331,10 @@ Ebenfalls nicht dabei: die Klassen-Schalter des Auge-Menüs (die bleiben eine Be
 die Kollisionsauflösung selbst, die Territoriums-Zoombänder (eine andere Sache mit demselben Wort)
 und die Wegenamen-Schrift (§6).
 
-🔧 **Offen für den Owner:** ob das tote Beiwerk aus §1 im selben Zug verschwindet oder in einem
-eigenen Commit. Es fällt beim Umbau ohnehin auf.
+✅ **Doch dabei, Owner-Entscheid 16.08.2026:** das tote Beiwerk aus §1 fliegt im selben Zug raus —
+`locationZoomScale`, `getVillageMarkerStyle`, `getBuildingMarkerStyle`,
+`isVillageMarkerStyleLocation` sowie die ungelesenen Felder `radius`/`shape`/`borderWidth` in
+`LOCATION_TYPE_CONFIG` und `size` in `LOCATION_NAME_LABEL_CONFIG`. ⚠️ Vor dem Löschen jeweils
+`git grep` gegen den ganzen Baum, **nicht nur gegen `js/`**: die Editorseiten sind eigenständige
+HTML-Dateien mit eigenem `<script>`, und eine Testdatei kann eine Konstante bereitstellen, ohne sie
+zu benutzen.
