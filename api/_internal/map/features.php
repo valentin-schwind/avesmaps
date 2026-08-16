@@ -15,6 +15,9 @@ require_once __DIR__ . '/../wiki/path-naming.php';
 require_once __DIR__ . '/../wiki/place-kinds.php';
 // Die Zeitfenster je Reisemittel: rein rechnende Datei, ohne Bootstrap und ohne DB.
 require_once __DIR__ . '/../routing/transport-season.php';
+// Der Widerspruchsriegel des dritten Zustands. Eigene Datei, weil die Landschaft ihn ebenfalls
+// braucht und diese hier nicht mitnehmen kann -- die Begruendung steht im Kopf jener Datei.
+require_once __DIR__ . '/wiki-claim.php';
 
 function avesmapsReadMapFeaturePublicId(mixed $value): string {
     $publicId = avesmapsNormalizeSingleLine((string) $value, 36);
@@ -1719,23 +1722,10 @@ function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): 
     }
 }
 
-// 💣 Der Widerspruch "Zuweisung UND kein Wiki-Artikel" steht an EINER Stelle formuliert, damit die
-// Schreibwege ihn nicht verschieden begruenden -- er wird ABGELEHNT, nicht aufgeloest (ein stummer
-// Vorrang waere eine Regel, die niemand kennt, und der Merker wird an DREI Stellen gelesen: Editor,
-// Konfliktzentrum, Abgleich).
-//
-// ⚠️ Der Satz nennt die Objektart und den AUSWEG, weil beide je Oberflaeche verschieden heissen: bei
-// der Kraftlinie steht ein Adressfeld im Formular ("den Link leeren"), beim Ort steht dort ein
-// Zuweisungskasten und das flache Adressfeld ist versteckt ("die Zuweisung entfernen"). Eine
-// gemeinsame Formulierung waere fuer eine der beiden ein Rat ins Leere.
-function avesmapsAssertWikiClaimNotContradictory(string $wikiUrl, bool $noArticle, string $subjekt, string $ausweg): void {
-    if ($noArticle && trim($wikiUrl) !== '') {
-        throw new InvalidArgumentException(
-            $subjekt . ' kann nicht gleichzeitig einen Wiki-Artikel haben und keinen. ' . $ausweg
-        );
-    }
-}
-
+// 💣 Der Widerspruch "Zuweisung UND kein Wiki-Artikel" steht seit dem 16.08.2026 in einer EIGENEN
+// Datei -- api/_internal/map/wiki-claim.php, oben mit require_once eingebunden. Der Grund steht
+// dort: die Landschaft braucht denselben Riegel, liegt aber hinter dem oeffentlichen Leseweg der
+// Karte, und diese 3.471 Zeilen gehoeren dort nicht hin. Die Regel ist unveraendert.
 function avesmapsAssertPowerlineWikiClaimNotContradictory(string $wikiUrl, bool $noArticle): void {
     avesmapsAssertWikiClaimNotContradictory(
         $wikiUrl,
