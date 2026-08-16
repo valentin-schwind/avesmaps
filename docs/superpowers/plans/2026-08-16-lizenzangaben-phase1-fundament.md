@@ -612,14 +612,24 @@ Erwartet: `media-licenses-parity: OK (7 Werte, 5 oeffentlich)`.
 
 Ein Paritätstest, der nie rot wird, ist keiner. Kurz beweisen, dass er greift:
 
+💣 **Zurückgesetzt wird über eine Kopie, nicht über `git checkout`.** Die Datei ist an dieser Stelle
+noch **ungetrackt** (der Commit kommt erst in Schritt 6), und `git checkout -- <pfad>` kennt sie
+deshalb nicht: er bricht mit `pathspec … did not match any file(s) known to git` ab und lässt die
+Verfälschung stehen. Genau so passiert am 16.08.2026 beim ersten Durchlauf dieses Plans; der Umsetzer
+hat es bemerkt und von Hand zurückgesetzt. ⚠️ Dasselbe gilt für jeden Gegenbeweis-Schritt in den
+Plänen der Phasen 2–4, der eine **neue** Datei verfälscht.
+
 ```bash
-node -e "const fs=require('fs');const p='js/app/media-licenses.js';const o=fs.readFileSync(p,'utf8');fs.writeFileSync(p,o.replace('label: \"CC0\"','label: \"CC-Null\"'));" \
-  && node js/app/__tests__/media-licenses-parity.test.js; echo "Exit: $?" \
-  && git checkout -- js/app/media-licenses.js
+cp js/app/media-licenses.js /tmp/media-licenses.bak \
+  && node -e "const fs=require('fs');const p='js/app/media-licenses.js';const o=fs.readFileSync(p,'utf8');fs.writeFileSync(p,o.replace('label: \"CC0\"','label: \"CC-Null\"'));" \
+  && node js/app/__tests__/media-licenses-parity.test.js; echo "Exit: $?"
+cp /tmp/media-licenses.bak js/app/media-licenses.js && rm /tmp/media-licenses.bak
+node js/app/__tests__/media-licenses-parity.test.js
 ```
 
-Erwartet: **Fehlschlag** mit `Beschriftung von cc0 weicht ab`, danach stellt `git checkout` die Datei
-wieder her. ⚠️ Danach `git status` prüfen — die Datei muss unverändert zurück sein.
+Erwartet: erst **Fehlschlag** mit `Beschriftung von cc0 weicht ab`, nach dem Zurückkopieren wieder
+`media-licenses-parity: OK`. ⚠️ Der zweite Lauf ist der Beleg, dass wirklich zurückgesetzt wurde —
+ohne ihn bliebe offen, ob die Verfälschung im Commit landet.
 
 - [ ] **Schritt 6: Committen**
 

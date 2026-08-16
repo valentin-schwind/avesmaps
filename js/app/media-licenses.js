@@ -7,9 +7,13 @@
 // political-territory-editor-inline.css dreimal gescheitert ist (AGENTS §10), und ein Endpunkt kostete
 // je Editorseite einen Request fuer eine Liste, die sich nie zur Laufzeit aendert.
 //
-// Geladen wird sie von den vier Editorseiten per <script src>; sie sind html/*.html-Seiten, der Deploy
-// stempelt das ?v= also selbst (AGENTS §7). ⚠️ Kein ASSET_VERSION-Bump -- der gilt nur den dynamisch
-// nachgeladenen Territorien-Editor-Assets.
+// 🔴 STAND PHASE 1: diese Datei laedt NIEMAND. Sie existiert, wird geprueft und liegt bereit -- kein
+// <script src> zeigt auf sie, und weil der Stempler nur verfolgt, was von index.html oder html/*.html
+// aus erreichbar ist, traegt sie auch noch kein ?v=. Wer waehrend Phase 2/3 sucht, wer sie einbindet,
+// findet zu Recht nichts.
+// AB PHASE 4 gilt: geladen von den vier Editorseiten per <script src>; sie sind html/*.html-Seiten,
+// der Deploy stempelt das ?v= dann selbst (AGENTS §7). ⚠️ Kein ASSET_VERSION-Bump -- der gilt nur den
+// dynamisch nachgeladenen Territorien-Editor-Assets.
 
 /**
  * Die sieben Kennungen in ANZEIGEREIHENFOLGE, mit Beschriftung und Sichtbarkeit.

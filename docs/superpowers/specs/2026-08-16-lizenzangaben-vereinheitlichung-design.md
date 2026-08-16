@@ -121,6 +121,20 @@ Reihenfolge vergleicht und bei der kleinsten Abweichung rot wird
 (`js/app/__tests__/media-licenses-parity.test.js`). Er ist die einzige Stelle, an der die
 Doppelung überhaupt zulässig ist.
 
+💣 **Und er hält nur die DATEN zusammen, nicht das VERHALTEN — die Lücke ist gemessen, nicht
+befürchtet.** Der Test führt kein PHP aus (der JS-Lauf des Deploy-Workflows kennt nur `node`), er
+vergleicht die vier Konstanten und prüft die Funktionen gegen fest verdrahtete Erwartungswerte.
+Die Abschlussprüfung von Phase 1 hat die Folge sofort gefunden: PHPs `trim()` putzt
+`" \t\n\r\0\x0B"`, JS' `String.prototype.trim()` putzt Unicode-Leerraum **plus BOM, aber kein NUL** —
+bei sieben Randeingaben weichen **sechs** ab. Ein `cc0` mit angehängtem NUL ist in PHP öffentlich und
+in JS still; eines mit BOM oder geschütztem Leerzeichen genau umgekehrt.
+⚠️ **Gefährlich ist das nicht** — in keiner Richtung kann dadurch ein nicht-öffentlicher Wert
+öffentlich werden; es ändert nur, ob derselbe Wert erkannt wird. Und heute ruft niemand auf.
+🔧 **Zu schließen vor Phase 4**, wenn erstmals ein Dialog auf der JS-Seite eine Sichtbarkeit
+behauptet, die der Server entscheidet. Die billigste Schließung ist **nicht** PHP im JS-Lauf, sondern
+dieselbe Randfall-Tabelle in beiden Testdateien (rund zehn Zeilen je Seite) — dann wird rot, wer sie
+einseitig ändert. Das verlangt allerdings zuerst einen Entscheid, welche `trim`-Semantik gilt.
+
 ⚠️ **Die vier Editorseiten binden externes JS bereits ein** (geprüft: `html/citymap-editor.html`,
 `html/wiki-sync-settlement-editor.html`, `html/wiki-sync-monitor.html`,
 `html/game-literature-editor.html` tragen alle `<script src="/js/…">`). Sie sind
@@ -145,8 +159,14 @@ die übrigen fünf schon.** Zwei Flächen ändern dabei ihr Verhalten:
 und bleibt damit sichtbar — die Regel greift erst bei künftigen Uploads.
 
 **Territoriums-Wappen dürfen mehr als gemeinfrei.** `AVESMAPS_COAT_PUBLIC_LICENSES`
-(`api/_internal/coat-url.php:45`) steht heute auf `['public_domain']` und wird auf die fünf
-öffentlichen Werte erweitert.
+(`api/_internal/coat-url.php:45`) steht heute auf `['public_domain']` und wird abgelöst.
+
+💣 **Abgelöst durch die FUNKTION, nicht durch eine andere Konstante.** Diese Zeile sagte bis zur
+Abschlussprüfung von Phase 1 „wird auf die fünf öffentlichen Werte erweitert" — und wer das wörtlich
+ausführt, baut den Riegel neben dem Fundament wieder auf. `coat-url.php:70` prüft die Liste **roh**
+(`in_array($license, AVESMAPS_COAT_PUBLIC_LICENSES, true)`, ohne vorherige Normalisierung); ein bloßer
+Konstantentausch umginge damit `avesmapsMediaLicenseIsPublic()` und mit ihr genau die Regel „erst
+normalisieren, dann prüfen", für die Phase 1 gebaut wurde. Der Aufruf wird ersetzt, nicht sein Inhalt.
 
 🔴 **Das ist eine bewusste Lockerung, und sie hat einen Grund:** die Editoren erzeugen ihre
 Wappen mit KI. Bei den Siedlungen stehen diese Wappen längst auf der Karte (mangels Gate);
@@ -297,6 +317,16 @@ weiter ihre alten Werte, die der Katalog bereits kennt.
 **Phase 3 — die Gates.** Siedlungs-Wappen bekommen ihres, Territoriums-Wappen ihres gelockert.
 🔴 Das ist die einzige Besucher-sichtbare Änderung; sie geht allein live und wird angesehen
 (AGENTS §9).
+
+💣 **Phase 2 MUSS vor Phase 3 laufen, und das ist keine Ordnungsfrage.** Der Katalog kennt bewusst
+keine Alias-Zuordnung: `avesmapsMediaLicenseNormalize` macht aus dem Bestandswert `'own'` ein
+`unknown_other`, also **nicht öffentlich**. Die Siedlungs-Wappen stehen heute nur deshalb auf der
+Karte, weil es dort gar kein Gate gibt. Wer das Gate aus Phase 3 einbaut, bevor die Migration `'own'`
+zu `ai_generated` gemacht hat, lässt sie **still verschwinden** — exakt der Fehlerfall, den die
+Zusicherung „kein Bild wechselt seine Sichtbarkeit" ausschließen soll, und er sähe von außen aus wie
+ein geglückter Deploy. ⚠️ Für `attribution_required` und `unknown` ist dieselbe Umleitung harmlos
+(nicht öffentlich → nicht öffentlich); die Falle gilt allein `'own'`. Das Fundament kann die
+Reihenfolge nicht erzwingen — sie steht hier, weil nur dieser Satz sie hält.
 
 **Phase 4 — die fünf Dialoge.** Einer nach dem anderen, jeder mit eigenem Commit und eigenem
 Blick. Reihenfolge: Stadtkarten (kleinster Eingriff, Katalog fast fertig) → Siedlungsbilder →
