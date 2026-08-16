@@ -205,26 +205,71 @@ foreach ($bauer as $wo => $stelle) {
     );
 }
 
-// ── 7) EINE ZUWEISUNG LOESCHT DEN MERKER -- IN BEIDEN ZUWEISERN ───────────────────────────────
+// ── 7) JEDE ZUWEISUNG LOESCHT DEN MERKER -- UND DIE LISTE DER ZUWEISER WIRD GEZAEHLT ──────────
 // 🔴 Wer gerade einen Artikel zuweist, hat das fruehere „es gibt keinen" widerlegt. Wortgleiches
 // Vorbild: der Ort (avesmapsWikiSettlementAssignTo) und der Kraftlinien-Abgleich.
-// 💣 DER WEG HAT ZWEI ZUWEISER, und das ist die Falle dieser Aufgabe: avesmapsWikiPathAssign (der
-// Massenlauf des WikiSync-Panels) und avesmapsWikiPathAssignTo (der Knopf „Zuweisen" in beiden
-// Editor-Oberflaechen). Nur einen zu bedienen liesse den Merker neben dem frischen Nest stehen.
-// ⚠️ Ebenfalls Textprobe -- beide brauchen eine PDO.
+//
+// 🪤 HIER STAND EINE ZAHL, UND SIE WAR FALSCH. Die erste Fassung dieser Zusicherung lief ueber die
+// feste Liste `['avesmapsWikiPathAssign', 'avesmapsWikiPathAssignTo']` -- „der Weg hat ZWEI
+// Zuweiser". Es sind DREI: `avesmapsWikiPathAssignAll` (der Massenlauf `assign_all` des
+// WikiSync-Panels) fehlte, und weder der Kommentar noch der Test haetten das je gemeldet. Gefunden
+// hat es die Konsistenz-Pruefung, nicht dieser Test. Genau die Falle aus AGENTS.md §11: eine ZAHL
+// liest sich wie eine vollstaendige Liste, und niemand zaehlt nach.
+//
+// ⭐ DESHALB ZAEHLT DIE PROBE SELBST. Gesucht wird JEDE Funktion im Haus, die `['wiki_path'] = `
+// schreibt; jede muss den Merker loeschen. Ein VIERTER Zuweiser faellt damit von selbst durch,
+// ohne dass jemand eine Liste nachzieht -- neue Stellen scheitern GESCHLOSSEN.
+// ⚠️ Ausnahmen sind einzeln benannt und begruendet, nicht pauschal: die zwei Stellen in
+// path-verlauf.php sind keine Zuweiser, sondern NACHSTEMPLER -- sie lesen ein VORHANDENES
+// `$props['wiki_path']`, aendern `source`/`course_hash`/`course_hops` darin und steigen aus, wenn
+// gar keines da ist (:58-75, :1376-1381). Ein Nachstempeln ist keine neue Zuweisung und darf den
+// Merker deshalb nicht anfassen.
+// ⚠️ Ebenfalls Textprobe -- jeder dieser Wege braucht eine PDO.
+const AVESMAPS_WEG_TEST_KEINE_ZUWEISER = [
+    // Funktion => Grund, warum sie den Merker NICHT loeschen darf.
+    'avesmapsWikiPathVerlaufBackfillDecision' => 'Nachstempler: liest ein VORHANDENES wiki_path und setzt nur source/course_hash darin',
+    'avesmapsWikiPathVerlaufRestampKeeps' => 'Nachstempler: setzt nur course_hash/course_hops eines VORHANDENEN wiki_path und steigt sonst aus',
+];
+$zuweiserGefunden = [];
+foreach (['wiki/paths.php', 'wiki/path-verlauf.php'] as $relativ) {
+    $inhaltZuweiser = file_get_contents(__DIR__ . '/../../' . $relativ);
+    assert(is_string($inhaltZuweiser), "die Datei $relativ ist nicht lesbar");
+    assert(
+        preg_match_all('/^function (\w+)\(.*?\n\}/ms', $inhaltZuweiser, $funktionen, PREG_SET_ORDER) > 0,
+        "in $relativ laesst sich keine einzige Funktion isolieren -- die Probe waere blind"
+    );
+    foreach ($funktionen as [$rumpfText, $name]) {
+        if (!str_contains($rumpfText, "['wiki_path'] = ")) {
+            continue;
+        }
+        $zuweiserGefunden[] = $name;
+        if (array_key_exists($name, AVESMAPS_WEG_TEST_KEINE_ZUWEISER)) {
+            assert(
+                !str_contains($rumpfText, 'wiki_no_article'),
+                "\"$name\" fasst den Merker an, ist aber als Ausnahme gefuehrt ("
+                . AVESMAPS_WEG_TEST_KEINE_ZUWEISER[$name] . ')'
+            );
+            continue;
+        }
+        assert(
+            str_contains($rumpfText, "unset(\$props['wiki_no_article'])"),
+            "der Zuweiser \"$name\" ($relativ) laesst den Merker stehen -- der Weg behauptete danach, "
+            . 'einen Artikel zu haben UND keinen, und fiele ueber conflicts/rules.php still aus der '
+            . 'Beobachtungsliste. Ist er in Wahrheit ein Nachstempler, gehoert er mit Begruendung in '
+            . 'AVESMAPS_WEG_TEST_KEINE_ZUWEISER.'
+        );
+    }
+}
+// 💣 Die Gegenprobe, dass die Suche ueberhaupt etwas findet: ein kaputtes Muster faende NULL
+// Funktionen und liesse die Schleife oben lautlos durchlaufen.
+assert(
+    count($zuweiserGefunden) >= 3,
+    'die Suche nach Zuweisern findet weniger als die drei bekannten -- das Muster greift nicht mehr: '
+    . implode(', ', $zuweiserGefunden)
+);
+
 $wegNest = file_get_contents(__DIR__ . '/../../wiki/paths.php');
 assert(is_string($wegNest));
-foreach (['avesmapsWikiPathAssign', 'avesmapsWikiPathAssignTo'] as $zuweiser) {
-    assert(
-        preg_match('/function ' . $zuweiser . '\(.*?\n\}/s', $wegNest, $treffer) === 1,
-        "der Zuweiser \"$zuweiser\" laesst sich isolieren"
-    );
-    assert(
-        str_contains($treffer[0], "unset(\$props['wiki_no_article'])"),
-        "der Zuweiser \"$zuweiser\" laesst den Merker stehen -- der Weg behauptete danach, einen "
-        . 'Artikel zu haben UND keinen'
-    );
-}
 // Und `clear_assign` gerade NICHT: eine Verbindung zu loesen heisst nicht, dass es keinen Artikel gibt.
 assert(
     preg_match('/function avesmapsWikiPathClearAssign\(.*?\n\}/s', $wegNest, $clear) === 1,

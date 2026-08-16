@@ -101,9 +101,12 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// WIRKLICHKEIT nach dem Umbau gemessen, nicht davor.
 			// 💣 Nur einen der zwei PAYLOAD-BAUER zu bedienen waere die „vier Erzeuger"-Fehlerklasse aus
 			// AGENTS.md §11 gewesen: die andere Oberflaeche koennte den Merker nie aendern.
-			// 💣 Und der Weg hat ZWEI Zuweiser, die den Merker beim Zuweisen loeschen muessen:
-			// avesmapsWikiPathAssign (api/_internal/wiki/paths.php:975, Massenlauf) und
-			// avesmapsWikiPathAssignTo (:1085, der Knopf hier).
+			// 🪤 Und JEDER Zuweiser des Wegs loescht den Merker beim Zuweisen -- hier stand am
+			// 16.08.2026 „ZWEI Zuweiser" samt Namen, und es waren DREI (avesmapsWikiPathAssignAll
+			// fehlte; gefunden von der Konsistenz-Pruefung, nicht vom Test). Eine ZAHL liest sich wie
+			// eine vollstaendige Liste. Gezaehlt wird deshalb im Test
+			// (api/_internal/map/__tests__/weg-wiki-no-article-test.php, Zusicherung 7): er sucht JEDE
+			// Funktion, die `['wiki_path'] = ` schreibt, und verlangt von jeder das `unset`.
 			// 🔴 UND DAS ANHAKEN LEERT EINE GESPEICHERTE FLACHE `properties.wiki_url` (Owner-Entscheid
 			// 16.08.2026). Der Weg hat in keiner seiner zwei Oberflaechen ein Adressfeld; ein
 			// serverseitiger Riegel waere hier eine Absage ohne Ausweg. Die Begruendung steht

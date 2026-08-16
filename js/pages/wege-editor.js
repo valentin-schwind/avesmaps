@@ -705,7 +705,7 @@
 	 * 🪤 DER PREIS DAFUER, GEMESSEN: ein noch nicht gespeichertes Haekchen ueberlebt keinen
 	 * `renderDetail()`-Neuaufbau. Erreichbar ist genau ein Handgriff -- ein Wegtyp-Wechsel ueber die
 	 * Verkehrsdomaene hinweg (Strasse -> Flussweg, :481); gemessen 16.08.2026: anhaken, wechseln,
-	 * speichern, und der Rumpf traegt `wiki_no_article` nicht mehr. Es ist DIESELBE Kosten wie bei
+	 * speichern, und der Rumpf traegt `wiki_no_article` nicht mehr. Es sind DIESELBEN Kosten wie bei
 	 * der offenen Suche und der Sync-Vorschau, die der Kommentar bei :468 schon benennt und die der
 	 * Owner dort in Kauf genommen hat. Es GANZ zu vermeiden hiesse, den Haken im Entwurf zu
 	 * speichern UND daneben den Serverstand -- zwei Wahrheiten in einer Oberflaeche, und die
