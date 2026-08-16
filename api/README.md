@@ -43,12 +43,42 @@ Typical full request:
   "include_rests": true,
   "rest_hours_per_day": 10,
   "minimize_transfers": false,
+  "enabled_transports": {
+    "land": true,
+    "river": true,
+    "sea": true
+  },
   "transports": {
     "land": "groupFoot",
     "river": "riverSailer",
     "sea": "cargoShip",
     "synthetic": "groupFoot"
   }
+}
+```
+
+`transports` names the vehicle per domain, `enabled_transports` says whether the domain
+may be used at all. The two are independent: switching `river` off does not change which
+boat `transports.river` names, it removes every `Flussweg` edge from the graph.
+
+- Omitting `enabled_transports` — or any single key in it — means **allowed**. Older
+  clients therefore keep their behaviour exactly.
+- There are exactly **three** domains. `transports` has a fourth key, `synthetic`, but that
+  one only names the *vehicle* for cross-country legs — it is not a gate.
+- **Cross-country (`Querfeldein`) is gated by `land`.** Switching land off removes the
+  cross-country edges with it; there is no way to keep roads but drop cross-country.
+- Switching every domain off yields `found: false`, not an error. There is no route,
+  which is a result, not a bad request.
+
+Example — the fastest **land-only** route, which is what the *Geographia Aventurica*
+distance table (S. 254) describes:
+
+```json
+{
+  "from": "Gareth",
+  "to": "Perricum",
+  "optimize": "fastest",
+  "enabled_transports": { "land": true, "river": false, "sea": false }
 }
 ```
 
