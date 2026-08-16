@@ -8,8 +8,17 @@
 // und schickt die Antworten hier durch.
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
-// 💣 WAS DIESE OBJEKTART VON DEN SIEBEN ANDEREN UNTERSCHEIDET -- GEMESSEN AM 16.08.2026
+// 💣 WAS DIESE OBJEKTART VON DEN UEBRIGEN UNTERSCHEIDET -- GEMESSEN AM 16.08.2026
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
+//
+// 🪤 OHNE ZAHL, UND ZWAR ABSICHTLICH. Hier stand „von den SIEBEN anderen", und das war beim
+// Hinschreiben schon falsch: das Register fuehrt mit der Literatur SIEBEN Objektarten, also sind es
+// sechs andere -- und die zehn Oberflaechen aus dem Entwurf sind etwas anderes als die Objektarten,
+// weil sich zwei Paare eine teilen (Weg und Landschaft haben je zwei). Eine Zahl in einem Kommentar
+// liest sich wie eine vollstaendige Liste, und niemand zaehlt nach; genau daran ist am 14.08.2026
+// die Verkehrsmittel-Sperre gescheitert („ERZEUGER 1 VON 2", AGENTS.md §11). Wer wissen will, wie
+// viele es sind, zaehlt `AVESMAPS_WIKI_ASSIGN_REGISTRY` -- dort steht es richtig, weil es dort die
+// Sache selbst ist.
 //
 // 1. EINE Oberflaeche, nicht zwei. Gezaehlt, nicht angenommen: `grep -rln wiki_url --include=*.html
 //    html/` liefert fuenf Dateien, vier davon gehoeren anderen Objektarten. In
