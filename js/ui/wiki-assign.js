@@ -794,16 +794,59 @@ function avesmapsWikiAssignRufen(rueckruf, argument) {
 }
 
 /**
- * REIN: filtert eine im Browser liegende Kandidatenliste. Teilzeichenkette im Namen, ohne
- * Gross-/Kleinschreibung, gedeckelt auf dieselbe Zahl wie die Server-Suchen.
+ * REIN: klein schreiben UND Diakritika abwerfen -- fuer Nadel wie Heuhaufen dieselbe Faltung.
+ *
+ * 🔴 Sie ist ABGESCHRIEBEN, keine neue Regel: `normalizeSearchText`
+ * (js/review/review-region-util.js:14) tut genau das (`toLocaleLowerCase("de")`, `NFD`, die
+ * Kombinationszeichen weg) und war die Faltung des abgeloesten Territoriums-Pickers. Ohne sie faende
+ * „Furstentum" das „Fürstentum" nicht mehr -- eine zweite stille Einbusse neben der Feldbreite.
+ * ⚠️ Sie kann nur MEHR finden, nie weniger: was vorher traf, trifft weiter.
+ * 💣 Eigene Fassung statt der globalen, weil diese Datei auch in den Editor-iframes laeuft, wo es
+ * `normalizeSearchText` nicht gibt -- derselbe Grund wie bei avesmapsWikiAssignEsc.
  */
-function avesmapsWikiAssignListeFiltern(kandidaten, suchtext) {
-	const begriff = avesmapsWikiAssignText(suchtext).toLowerCase();
+function avesmapsWikiAssignFalten(wert) {
+	return avesmapsWikiAssignText(wert)
+		.toLocaleLowerCase("de")
+		.normalize("NFD")
+		.replace(/[̀-ͯ]/g, "");
+}
+
+/**
+ * REIN: filtert eine im Browser liegende Kandidatenliste. Teilzeichenkette, ohne Gross-/
+ * Kleinschreibung und ohne Diakritika.
+ *
+ * 🔴 WELCHE FELDER DURCHSUCHT WERDEN, SAGT DIE ERKLAERUNG -- nicht dieses Bauteil (`suche.felder`,
+ * js/ui/wiki-assign-registry.js). Vorgabe ist der NAME allein; das ist der Stand aller Objektarten
+ * ausser dem Territorium, und fuer die aendert sich damit nichts.
+ * 💣 DER ANLASS: der abgeloeste Territoriums-Picker durchsuchte ACHT Felder (Name, Staatsform,
+ * Zugehoerigkeit, Wurzel, Status, Hauptstadt, Herrschaftssitz, Oberhaupt) und zeigte 250 Zeilen. Auf
+ * „nur der Name, hoechstens 40" umgestellt, faende ein Editor ein Gebiet, das er bisher ueber seinen
+ * Herrscher gefunden hat, nicht mehr -- eine EINBUSSE, keine Vereinfachung. Repariert wird sie in
+ * der ERKLAERUNG, weil genau dafuer das Register da ist; hier bleibt EIN Filter.
+ * ⚠️ Gesucht wird in `eintrag.name` UND in `eintrag.werte[<wikiFeld>]` -- die Kandidaten einer
+ * Listen-Suche sind bereits Treffer-Objekte (siehe `daten.listen` im Kopf), ihre Anzeigewerte liegen
+ * also unter `werte`, nicht flach am Eintrag.
+ *
+ * @param {Array}  kandidaten  Treffer-Objekte
+ * @param {string} suchtext
+ * @param {string[]} [felder]  zusaetzlich durchsuchte WIKI-Feldnamen; leer = nur der Name
+ * @param {number} [deckel]    hoechstens so viele; ohne Angabe die Zahl der Server-Suchen
+ */
+function avesmapsWikiAssignListeFiltern(kandidaten, suchtext, felder, deckel) {
+	const begriff = avesmapsWikiAssignFalten(suchtext);
 	const alle = Array.isArray(kandidaten) ? kandidaten : [];
+	const zusatz = Array.isArray(felder) ? felder : [];
+	const grenze = (typeof deckel === "number" && deckel > 0) ? deckel : AVESMAPS_WIKI_ASSIGN_TREFFER_LIMIT;
+	const heuhaufen = (eintrag) => {
+		const werte = (eintrag && eintrag.werte) || {};
+		return [avesmapsWikiAssignText(eintrag && eintrag.name)]
+			.concat(zusatz.map((feld) => avesmapsWikiAssignText(werte[feld])))
+			.join(" ");
+	};
 	const treffer = begriff === ""
 		? alle.slice()
-		: alle.filter((eintrag) => avesmapsWikiAssignText(eintrag && eintrag.name).toLowerCase().indexOf(begriff) !== -1);
-	return treffer.slice(0, AVESMAPS_WIKI_ASSIGN_TREFFER_LIMIT);
+		: alle.filter((eintrag) => avesmapsWikiAssignFalten(heuhaufen(eintrag)).indexOf(begriff) !== -1);
+	return treffer.slice(0, grenze);
 }
 
 // ── Das Anhaengen ans DOM ─────────────────────────────────────────────────────────────────────
@@ -1011,9 +1054,17 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	// (Entwurf §5).
 	function trefferHolen(suchtext) {
 		const suche = erklaerung.suche || {};
+		// 🔴 AUCH DER DECKEL STEHT IN DER ERKLAERUNG, nicht fest im Bauteil (`suche.limit`). Ohne Angabe
+		// gilt die Zahl der Server-Suchen (40) -- das ist der Stand aller Objektarten ausser dem
+		// Territorium, dessen Kandidatenliste im Browser liegt und dessen alter Picker 250 zeigte.
+		// ⚠️ EINE Zahl fuer beide Zweige: sie geht in die Adresse der Server-Suche UND in die Kappung
+		// der Listen-Suche. Zwei Zahlen waeren die naechste Divergenz.
+		const deckel = (typeof suche.limit === "number" && suche.limit > 0)
+			? suche.limit
+			: AVESMAPS_WIKI_ASSIGN_TREFFER_LIMIT;
 		if (suche.art === "liste") {
 			const kandidaten = daten.listen[suche.quelle] || [];
-			return Promise.resolve(avesmapsWikiAssignListeFiltern(kandidaten, suchtext));
+			return Promise.resolve(avesmapsWikiAssignListeFiltern(kandidaten, suchtext, suche.felder, deckel));
 		}
 		if (suche.art === "server" && avesmapsWikiAssignText(suche.url) !== "") {
 			// ⚠️ `data.rows` ist die gemessene Form der drei vorhandenen Suchen
@@ -1022,7 +1073,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			// live gefahren: js/ui/__tests__/wiki-assign-weg.test.js schiebt `fetch` eine Antwort unter
 			// und faehrt beide Weg-Oberflaechen damit an.
 			const url = suche.url + "?action=search&q=" + encodeURIComponent(avesmapsWikiAssignText(suchtext))
-				+ "&limit=" + AVESMAPS_WIKI_ASSIGN_TREFFER_LIMIT;
+				+ "&limit=" + deckel;
 			// Wie eine flache Antwortzeile zu einem Treffer wird, entscheidet die Oberflaeche --
 			// dieselbe Rollenteilung wie bei der Listen-Suche, wo sie die Kandidaten fertig
 			// mitbringt. Ohne eigenen Bauer greift der aus der Erklaerung abgeleitete.

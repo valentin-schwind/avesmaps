@@ -579,6 +579,44 @@ const MODELL_ANTWORT = { ok: true, nodes: MODELL_KNOTEN };
 	assert.deepStrictEqual(frisch.gerufen.quelle.slice(-1), [true], '„Andere Quelle" blieb sichtbar');
 	zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
+	// ── F2) 🔴 DIE SUCHBREITE: EIN GEBIET, DAS NUR UEBER EIN NICHT-NAMENSFELD ZU FINDEN IST ──
+	// 💣 Der abgeloeste Picker durchsuchte ACHT Felder; das Bauteil filtert von Haus aus nur den
+	// Namen. „Growin Sohn des Angrax" ist der OBERHAUPT der Grafschaft Ferdok und kommt in keinem
+	// Namen vor -- ohne die Feldliste in der Erklaerung wäre dieses Gebiet nicht mehr auffindbar.
+	// ⭐ ABLAUF, nicht Bauer: getippt wird ins echte Suchfeld des gemounteten Kastens.
+	frischHost.feuere("click", scheinZiel("data-wa-aktion", "zuweisen"));
+	await ruhe();
+	frischHost.feuere("input", scheinZiel("data-wa-suche", "", { value: "Growin" }));
+	await ruhe();
+	assert.ok(/Grafschaft Ferdok/.test(frischHost.innerHTML),
+		"die Suche über das Oberhaupt findet das Gebiet nicht mehr -- die Sucheinbusse ist zurück");
+	assert.ok(!/Fürstentum Kosch/.test(frischHost.innerHTML),
+		"die Suche filtert gar nicht -- dann beweist der Treffer oben nichts");
+	// ⚠️ Und der NAME bleibt der erste Weg: die Feldliste ergänzt ihn, sie ersetzt ihn nicht.
+	frischHost.feuere("input", scheinZiel("data-wa-suche", "", { value: "Kosch" }));
+	await ruhe();
+	assert.ok(/Fürstentum Kosch/.test(frischHost.innerHTML), "die Namenssuche ist abhanden gekommen");
+	// 💣 Und die Faltung: ohne Umlaut muss derselbe Treffer kommen (der alte Picker faltete über
+	// normalizeSearchText).
+	frischHost.feuere("input", scheinZiel("data-wa-suche", "", { value: "furstentum" }));
+	await ruhe();
+	assert.ok(/Fürstentum Kosch/.test(frischHost.innerHTML),
+		"„furstentum“ findet das „Fürstentum“ nicht mehr");
+	frischHost.feuere("click", scheinZiel("data-wa-aktion", "abbrechen"));
+	await ruhe();
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// 🔴 DER DECKEL STEHT IN DER ERKLAERUNG UND IST 250, nicht die 40 der Server-Suchen -- der alte
+	// Picker zeigte `.slice(0, 250)`. Bei rund 1.400 Wiki-Gebieten ist das kein Randfall.
+	assert.strictEqual(avesmapsWikiAssignSubject("territorium").suche.limit, 250);
+	// ⚠️ Gezaehlt, nicht geglaubt: JEDES erklaerte Suchfeld muss der Datenweg auch liefern -- was die
+	// Suche nicht herausgibt, kann man nicht durchsuchen.
+	avesmapsWikiAssignSubject("territorium").suche.felder.forEach((feld) => {
+		assert.ok(Object.prototype.hasOwnProperty.call(WERTE_KOSCH, feld),
+			'das Suchfeld "' + feld + '" wird erklaert, aber vom Datenweg nicht geliefert');
+	});
+	zaehl(); zaehl();
+
 	frischHost.feuere("click", scheinZiel("data-wa-aktion", "entfernen"));
 	await ruhe();
 	assert.strictEqual(frisch.elemente["region-edit-wiki-id"].value, "");

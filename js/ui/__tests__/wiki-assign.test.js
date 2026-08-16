@@ -279,6 +279,35 @@ assert.strictEqual(avesmapsWikiAssignListeFiltern(kandidaten, "gibtesnicht").len
 assert.strictEqual(avesmapsWikiAssignListeFiltern(Array.from({ length: 90 }, (_, i) => ({ name: "L" + i })), "L").length, 40);
 checks += 4;
 
+// 🔴 OHNE FELDLISTE WIRD NUR DER NAME DURCHSUCHT -- die Vorgabe, an der sich fuer Kraftlinie, Weg,
+// Ort und Landschaft nichts aendert. Wer hier still alle `werte` mitdurchsuchte, machte aus einer
+// erklaerten Entscheidung ein Verhalten, das keine Erklaerung mehr nennt.
+const mitWerten = [
+	{ name: "Satinavs Ketten", werte: { regionen: "Maraskan" } },
+	{ name: "Madas Kelch", werte: { regionen: "Gareth" } },
+];
+assert.strictEqual(avesmapsWikiAssignListeFiltern(mitWerten, "Maraskan").length, 0,
+	"ohne Feldliste wurde in den Werten gesucht -- die Vorgabe ist der Name allein");
+// 💣 MIT Feldliste findet dieselbe Suche den Eintrag. Das ist die Reparatur der Sucheinbusse
+// (Aufgabe 7): der abgeloeste Territoriums-Picker durchsuchte acht Felder, das Bauteil nur den Namen.
+assert.deepStrictEqual(avesmapsWikiAssignListeFiltern(mitWerten, "Maraskan", ["regionen"]).map((k) => k.name),
+	["Satinavs Ketten"]);
+// ⚠️ Ein Feld, das die Erklaerung nennt und das der Eintrag nicht hat, ist kein Fehler -- es traegt
+// nur nichts bei.
+assert.strictEqual(avesmapsWikiAssignListeFiltern(mitWerten, "Satinav", ["gibtesnicht"]).length, 1);
+// 🔴 DER DECKEL IST EBENFALLS ERKLAERBAR -- ohne Angabe 40, mit Angabe die genannte Zahl.
+const viele = Array.from({ length: 300 }, (_, i) => ({ name: "L" + i }));
+assert.strictEqual(avesmapsWikiAssignListeFiltern(viele, "L").length, 40);
+assert.strictEqual(avesmapsWikiAssignListeFiltern(viele, "L", [], 250).length, 250);
+// 💣 DIAKRITIKA FALLEN BEI NADEL UND HEUHAUFEN -- der abgeloeste Picker faltete ueber
+// `normalizeSearchText`, und ohne die Faltung faende „Furstentum" das „Fürstentum" nicht mehr.
+// ⚠️ Sie kann nur MEHR finden, nie weniger: die Probe mit Umlaut trifft weiterhin.
+const umlaut = [{ name: "Fürstentum Kosch" }];
+assert.strictEqual(avesmapsWikiAssignListeFiltern(umlaut, "Furstentum").length, 1,
+	"ohne Faltung findet „Furstentum“ das „Fürstentum“ nicht mehr");
+assert.strictEqual(avesmapsWikiAssignListeFiltern(umlaut, "fürstentum").length, 1);
+checks += 7;
+
 // ── 9) DIE RUECKFALLKETTE DER BESCHRIFTUNG ────────────────────────────────────────────────────
 // label -> karte -> wiki. 💣 Bei einer ANZEIGE-Zeile (karte: "") ist die mittlere Stufe leer --
 // ohne `label` staende dort der Wiki-Feldname. Deshalb traegt die Kraftlinien-Erklaerung welche.

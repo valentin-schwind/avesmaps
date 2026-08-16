@@ -340,7 +340,22 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		// `wiki_id` (= political_territory_wiki.id, api/_internal/political/territories-write.php:239),
 		// und die gibt es NUR dort. Der Modellbaum (`?action=model_tree`) traegt sie nicht -- wer die
 		// Kandidaten von dort holt, kann nicht mehr zuweisen.
-		suche: { art: "liste", quelle: "territorien" },
+		// 🔴 ACHT SUCHFELDER UND EIN DECKEL VON 250 -- das ist KEINE Ausschmueckung, sondern die
+		// Erhaltung dessen, was der abgeloeste Picker konnte (`getWikiReferenceSearchText`,
+		// js/review/review-region-wiki-picker.js vor dem Umbau; Deckel `.slice(0, 250)`). Auf „nur der
+		// Name, hoechstens 40" umgestellt, faende ein Editor ein Gebiet, das er bisher ueber seinen
+		// Herrscher oder seine Hauptstadt gefunden hat, nicht mehr -- eine EINBUSSE, keine
+		// Vereinfachung. Der eine Filter im Bauteil bleibt einer; er bekommt die Liste als Argument
+		// (dasselbe Muster wie avesmapsWikiAssignLandschaftArt mit seinem Vokabular).
+		// ⚠️ ALLE ACHT KOMMEN AUCH AN: `?action=wiki_list` gibt sie heraus
+		// (avesmapsPoliticalWikiReferenceRowToPublic), und avesmapsWikiAssignTerritoriumWerte legt sie
+		// unter `werte` ab -- was die Suche nicht liefert, kann man nicht durchsuchen, und das waere
+		// hier eine leere Behauptung statt einer Zeile.
+		// 🔴 `name` steht NICHT in der Liste: den durchsucht der Filter immer.
+		suche: {
+			art: "liste", quelle: "territorien", limit: 250,
+			felder: ["type", "affiliation_raw", "affiliation_root", "status", "capital_name", "seat_name", "ruler"],
+		},
 		// KEIN Objektart-Vorsatz: die Trefferzeile beginnt mit der Staatsform („Königreich",
 		// „Baronie") -- das sagt genauer, was der Treffer ist, als das Wort „Herrschaftsgebiet".
 		// Wortgleich zu dem, was der alte Picker als Meta-Zeile zeigte: `[entry.type,
