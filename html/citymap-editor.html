@@ -52,6 +52,10 @@
      stempelt beide Verweise mit einem Inhaltshash, weil sie von einer html/*.html-Seite aus
      erreichbar sind — hier steht deshalb KEIN ?v= von Hand (AGENTS.md §7). -->
 <link rel="stylesheet" href="/css/components/sync-plan-sheet.css">
+<!-- Der geteilte Quellen-Editor (mountFeatureSourceEditor) samt seiner Vorschlagsliste. Absolute
+     Pfade wie bei den Nachbarn: dieses iframe-Dokument wird mit ?v=Date.now() geholt, nicht durch
+     den Stempellauf von index.html. -->
+<link rel="stylesheet" href="/css/features/feature-sources.css">
 <style>
   * { box-sizing: border-box; }
   /* Die kompakten Zeilen-Knoepfe (.btn--sm/.btn--icon) bleiben bewusst kleiner als
@@ -633,6 +637,13 @@
 <script src="/js/app/media-licenses.js"></script>
 <script src="/js/ui/media-license-fields.js"></script>
 
+<!-- Der geteilte Quellen-Editor. ⚠️ source-autocomplete.js ZUERST: review-feature-sources.js
+     verdrahtet die Vorschlagsliste beim Mounten. Dieselben zwei Dateien, die der Orte-, der
+     Kraftlinien- und (seit heute) der Landschaften-Editor laden -- eine Objektart mehr, keine
+     zweite Umsetzung (AGENTS.md §5). -->
+<script src="/js/ui/source-autocomplete.js"></script>
+<script src="/js/review/review-feature-sources.js"></script>
+
 <script>
   const CITYMAP_EDIT_API = "/api/edit/map/citymaps.php";
   const CITYMAP_IMAGE_API = "/api/edit/map/citymap-image.php";
@@ -1155,9 +1166,30 @@
       // begründete Abweichung schon zweimal als Versehen „korrigiert" worden.
       `<div class="ce-imgcols">` + ceImageGroup("thumb", "Vorschaubild", v) + ceImageGroup("map", "Karte (eigenes Bild)", v) + `</div>` +
       // ---- Quellen (Owner-Reihenfolge Platz 5) --------------------------------------------------
-      // „Wo gibt es die Karte?" IST der Quellen-Abschnitt dieses Fensters: eine Liste von Fundorten
-      // mit Adresse und Beschriftung. Er heißt weiter so, weil die Frage genauer ist als das Wort.
-      `${ceLinksGroup()}`;
+      // 🔴 HIER STEHEN ZWEI KÄSTEN, UND SIE BEANTWORTEN VERSCHIEDENE FRAGEN. Das ist bewusst so
+      // entschieden (16.08.2026) und keine Doppelung:
+      //   „Wo gibt es die Karte?" = FUNDORTE. Wo bekomme ich sie -- Shop-Seite, Wiki-Seite,
+      //     Fanprojekt, je Zeile mit „kostenpflichtig". Gehört der KARTE und sonst niemandem.
+      //   „Quellen"                = BELEGE. Womit ist der Eintrag belegt -- die Publikation, in der
+      //     die Karte erschienen ist, aus dem GETEILTEN Katalog (`sources`/`feature_sources`), mit
+      //     Seitenangabe und Herkunft (wiki_publication / manual / community).
+      // ⚠️ Genau die Verwechslung, vor der AGENTS.md §2 warnt: ein WERK gegen den VERWEIS auf ein
+      // Werk. Deshalb tragen beide ihre Frage in der Überschrift bzw. im Hinweis, statt beide
+      // „Quellen" zu heißen.
+      `${ceLinksGroup()}` +
+      // 💣 DAS GETEILTE BAUTEIL, KEINE ZWEITE QUELLENTABELLE (AGENTS.md §5). `citymap` steht seit
+      // der Kartensammlung in beiden weissen Listen -- diese Ergänzung kostet KEINE Zeile Server.
+      // 🔴 NUR MIT GESPEICHERTER KARTE. Der Schreibweg hängt an der `entity_public_id`; eine noch
+      // nicht gespeicherte Karte hat keine. Statt eines Zwischenlagers derselbe Satz wie beim
+      // Orte-Kasten daneben -- eine Bauform weniger, und der Editor liest dieselbe Auskunft.
+      `<div class="ce-grp"><p class="ce-grp__title">Quellen</p>
+        <p class="ce-xlink__hint">Womit ist dieser Eintrag <b>belegt</b> — die Publikation, in der die Karte
+          erschienen ist. Nicht zu verwechseln mit den Fundorten darüber: die sagen, <b>wo man sie bekommt</b>.
+          Quellen wirken <b>sofort</b> und brauchen kein „Speichern“.</p>
+        ${state.selectedId
+          ? `<div id="ceSources"></div>`
+          : `<p class="ce-placeholder">Erst speichern, dann Quellen zuordnen.</p>`}
+      </div>`;
 
     // "Verwandte Karten" is HIDDEN here (owner 2026-07-17: "das ist zu viel und brauchen wir gerade
     // nicht"). It rendered one checkbox per OTHER map -- fine at a dozen maps, unusable once the wiki
@@ -1174,6 +1206,16 @@
     });
     // ⚠️ NACH dem innerHTML: der Behälter #ceWikiAssign entsteht erst mit ihm.
     mountCeWikiAssign(v);
+    // Der geteilte Quellen-Editor -- ebenfalls NACH dem innerHTML, und nur wenn die Karte schon
+    // eine Kennung hat (siehe den Kasten oben). Der Schlüssel kommt als GETTER: das Bauteil fragt
+    // ihn bei jeder Anfrage frisch ab, und in diesem Fenster wechselt die Auswahl links, während
+    // der Kasten offen steht -- eine kopierte Kennung schriebe dann auf die alte Karte.
+    const ceSourceHost = document.getElementById("ceSources");
+    if (ceSourceHost && typeof mountFeatureSourceEditor === "function") {
+      mountFeatureSourceEditor(ceSourceHost, "citymap", () => state.selectedId, { escape: ceEscape });
+    } else if (ceSourceHost) {
+      ceSourceHost.innerHTML = `<p class="ce-hint">Quellen-Editor nicht geladen.</p>`;
+    }
   }
 
   // ---- Wiki-Zuweisung (das geteilte Bauteil, Aufgabe 9) ----------------------------------------

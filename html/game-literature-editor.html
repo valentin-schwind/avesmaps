@@ -973,6 +973,36 @@
            Nicht-Wiki-Quelle gehört in den Quellen-Abschnitt).
            ⚠️ Der Behälter ist ein BLANKES div -- das Bauteil erzeugt seine Hülle selbst. -->
       <div id="aeWikiAssign"></div>
+      <!-- ---- Quellen (Owner-Reihenfolge Platz 5) ------------------------------------------------
+           ⚠️ HIER STEHT KEIN EINZIGES SCHRÄGSTRICH-ANFÜHRUNGSZEICHEN (das schräge Rückwärts-Hochkomma),
+           denn dieser Kommentar liegt IM Template-Literal von body.innerHTML — eines davon beendet
+           die Zeichenkette und macht die ganze Datei zum Syntaxfehler. Gefangen hat das am
+           17.08.2026 js/ui/__tests__/wiki-assign-literatur.test.js, das den Inline-Block wirklich
+           ausführt statt ihn zu lesen.
+
+           🔴 DIESES FENSTER BEKOMMT KEINEN GETEILTEN QUELLEN-KASTEN, und das ist eine gemessene
+           Entscheidung vom 17.08.2026, kein Vergessen. Der Platz IST belegt: „Shop-Links" und
+           „Weitere Links" darunter beantworten für ein WERK genau die Frage, die der geteilte Kasten
+           anderswo beantwortet — womit ist der Eintrag belegt (Ulisses, F-Shop, ISBN→DNB, Wiki;
+           Rezensionen, Errata, Fanmaterial). Ein dritter Kasten mit der Überschrift „Quellen"
+           stünde hier über zwei Kästen, die dasselbe sagen.
+
+           💣 UND DIE LITERATUR STEHT IM MEHRQUELLEN-SYSTEM AUF DER ANDEREN SEITE. Die Tabelle
+           sources ist der Katalog der WERKE, feature_sources verknüpft ein Element MIT einem Werk —
+           und ein Literatureintrag IST ein Werk: avesmapsGameLiteratureLinkPlaceFromSource
+           (api/_internal/app/game-literature.php) schlägt zu JEDER hinzugefügten Quelle nach, ob ihr
+           wiki_key ein adventure ist, und hängt den Ort dann an dieses Werk. Ein entity_type
+           „adventure" trüge dieselbe Zeilenmenge in beide Richtungen.
+
+           ⚠️ ES WÄRE AUCH NICHT DIE ZWEI-ZEILEN-ÄNDERUNG AUS AGENTS.md §5. „adventure" steht in
+           KEINER der beiden weissen Listen (api/edit/map/feature-sources.php,
+           api/app/feature-sources.php) — und derselbe Schritt 6 schriebe dann
+           adventure_place.target_kind = 'adventure', also ein Werk als „Ort" eines anderen Werks.
+           Benennbar (avesmapsGameLiteraturePlaceNameFor) und auflösbar sind nur
+           settlement · territory · region · path.
+
+           🔧 Soll die Literatur je eigene Belege bekommen, ist das eine Owner-Entscheidung samt
+           Schritt-6-Riegel — nicht ein Name mehr in einer Liste. -->
       ${aeLinksGroup(v, o)}
       ${aeExtraLinksGroup()}`;
     // Cover actions (upload / re-fetch) need a saved adventure -> wired after the body is in the DOM.

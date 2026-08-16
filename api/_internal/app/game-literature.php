@@ -1261,7 +1261,7 @@ function avesmapsSuppressGameLiteraturePlace(PDO $pdo, int $placeId): array
 function avesmapsGameLiteraturePlaceNameFor(PDO $pdo, string $entityType, string $publicId): string
 {
     try {
-        if (in_array($entityType, ['settlement', 'region', 'path'], true)) {
+        if (in_array($entityType, ['settlement', 'territory', 'region', 'path'], true)) {
             $statement = $pdo->prepare('SELECT name FROM map_features WHERE public_id = :id AND is_active = 1 LIMIT 1');
         } elseif ($entityType === 'territory') {
             $statement = $pdo->prepare('SELECT name FROM political_territory WHERE public_id = :id LIMIT 1');
@@ -1287,7 +1287,22 @@ function avesmapsGameLiteraturePlaceNameFor(PDO $pdo, string $entityType, string
 // so no reconcile can ever remove what an editor caused here.
 function avesmapsGameLiteratureLinkPlaceFromSource(PDO $pdo, int $sourceId, string $entityType, string $publicId, int $userId = 0): bool
 {
-    if ($sourceId <= 0 || $publicId === '' || $entityType === 'citymap') {
+    // 💣 EINE POSITIVE LISTE, KEIN AUSSCHLUSS. Hier stand `$entityType !== 'citymap'` -- eine
+    // Verneinung, die jede kuenftige Objektart der weissen `entity_type`-Liste stillschweigend
+    // aufnimmt. Genau das ist seither dreimal passiert: `lore` (22.07.), `powerline` und `ecosystem`
+    // (28.07.) traten dem Mehrquellen-System bei, und eine Quelle, die zufaellig ein Werk ist, legte
+    // an ihnen eine `adventure_place`-Zeile mit `target_kind='lore'|'powerline'|'ecosystem'` an.
+    // Benennen kann die niemand (avesmapsGameLiteraturePlaceNameFor faellt auf die public_id
+    // zurueck), aufloesen auch nicht (game-literature-resolve.php kennt dieselben vier Arten), und
+    // im Infopanel steht sie als Ort ohne Ort. Sichtbar wurde es erst, als der Landschafts-Editor
+    // am 17.08.2026 seinen Quellen-Kasten bekam -- die weisse Liste allein erzeugt keine Zeile,
+    // eine Oberflaeche schon.
+    // 🔴 DIESELBE VIERERLISTE WIE `avesmapsGameLiteraturePlaceNameFor` UND DIE PRUEFUNG IN
+    // avesmapsAddGameLiteraturePlace (:1170). Waechst sie, waechst sie an allen dreien.
+    // ⚠️ Der Rueckweg (avesmapsGameLiteratureUnlinkPlaceFromSource) bleibt ABSICHTLICH ungefiltert:
+    // was frueher entstanden ist, muss sich weiter loesen lassen.
+    if ($sourceId <= 0 || $publicId === ''
+        || !in_array($entityType, ['settlement', 'territory', 'region', 'path'], true)) {
         return false;
     }
     avesmapsGameLiteratureEnsureTables($pdo);

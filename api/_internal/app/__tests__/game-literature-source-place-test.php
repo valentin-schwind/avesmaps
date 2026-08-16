@@ -168,6 +168,28 @@ assert($pdo->ran('INSERT INTO adventure_place') === [], 'keine Dublette');
 // A citymap source is the OTHER feature (Fundort) and must not fall through to the adventure path.
 $pdo = $fresh();
 assert(avesmapsGameLiteratureLinkPlaceFromSource($pdo, 1, 'citymap', 'x') === false, 'citymap gehoert nicht hierher');
+
+// 💣 UND JEDE ANDERE OBJEKTART AUCH NICHT -- die Bedingung ist seit 17.08.2026 eine POSITIVE Liste.
+// `lore`, `powerline` und `ecosystem` stehen seit Juli in der weissen `entity_type`-Liste des
+// Mehrquellen-Systems und fielen durch den alten Ausschluss (`!== 'citymap'`) glatt hindurch: eine
+// Quelle, die zufaellig ein Werk ist, legte an ihnen eine `adventure_place`-Zeile an, die weder
+// `avesmapsGameLiteraturePlaceNameFor` benennen noch der Resolver aufloesen kann.
+// 🔴 GEFAHREN, NICHT GELESEN: jede der drei wird wirklich angefahren, und zwar mit derselben
+// Fixture, unter der `settlement` oben nachweislich EINE Zeile schreibt -- sonst bewiese ein
+// „false" nur, dass irgendein frueheres Tor zugefallen ist.
+foreach (['lore', 'powerline', 'ecosystem', 'unfug'] as $fremdeArt) {
+    $pdo = $fresh();
+    assert(avesmapsGameLiteratureLinkPlaceFromSource($pdo, 107810, $fremdeArt, 'schlaefer-id', 42) === false,
+        "„$fremdeArt\" ist keine Ortsart der Literatur");
+    assert($pdo->ran('INSERT INTO adventure_place') === [],
+        "und es wird fuer „$fremdeArt\" nichts geschrieben");
+}
+// 🔴 DIE GEGENPROBE, sonst waere die Schleife oben mit einer kaputten Fixture ebenfalls gruen:
+// dieselben Argumente, nur mit einer erlaubten Art, MUESSEN eine Zeile schreiben.
+$pdo = $fresh();
+assert(avesmapsGameLiteratureLinkPlaceFromSource($pdo, 107810, 'territory', 'schlaefer-id', 42) === true,
+    'Gegenprobe: eine erlaubte Art schreibt unter derselben Fixture sehr wohl');
+assert(count($pdo->ran('INSERT INTO adventure_place')) === 1, 'und zwar genau eine Zeile');
 echo "no-ops ok\n";
 
 // ---- reverse: takes what it made, leaves what it found ------------------------------------------

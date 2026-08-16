@@ -125,6 +125,7 @@ const FENSTER = [
 			["Identität (Name/Art)", 'data-f="name"'],
 			["Wiki-Zuweisung", 'data-f="wiki-host"'],
 			["Dauerzeile „erst mit Speichern“", "Zuweisen und Lösen wirken hier erst mit"],
+			["Quellen", '"dt-grp">Quellen<'],
 			["Speicherleiste", '"avm-savebar"'],
 		],
 	},
@@ -166,6 +167,7 @@ const FENSTER = [
 			["Wiki-Zuweisung", 'id="ceWikiAssign"'],
 			["Bilder (zugelassene Abweichung)", "ceImageGroup(\"thumb\""],
 			["Quellen (Fundorte)", "ceLinksGroup()"],
+			["Quellen (Belege)", 'ce-grp__title">Quellen<'],
 		],
 	},
 ];

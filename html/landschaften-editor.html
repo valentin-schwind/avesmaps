@@ -35,6 +35,10 @@
 <link rel="stylesheet" href="/css/base/tokens.css">
 <link rel="stylesheet" href="/css/components/editor-page.css">
 <link rel="stylesheet" href="/css/pages/landschaften-editor.css">
+<!-- Der geteilte Quellen-Editor (mountFeatureSourceEditor) samt seiner Vorschlagsliste. Absolute
+     Pfade wie bei den Nachbarn: dieses iframe-Dokument wird mit ?v=Date.now() geholt, nicht durch
+     den Stempellauf von index.html. -->
+<link rel="stylesheet" href="/css/features/feature-sources.css">
 </head>
 <!-- ⚠️ `avm-editor-body` is not decoration: the shared body/button/input rules live in
      css/components/editor-page.css and are scoped to this class, because that file is loaded by
@@ -107,6 +111,11 @@
 <script src="/js/app/i18n-en.js"></script>
 <script src="/js/app/i18n.js"></script>
 <script src="/js/ui/filter-menu.js"></script>
+<!-- Der geteilte Quellen-Editor. ⚠️ source-autocomplete.js ZUERST: review-feature-sources.js
+     verdrahtet die Vorschlagsliste beim Mounten. Beide sind dieselben Dateien, die der Orte- und
+     der Kraftlinien-Editor laden -- eine Objektart mehr, keine zweite Umsetzung (AGENTS.md §5). -->
+<script src="/js/ui/source-autocomplete.js"></script>
+<script src="/js/review/review-feature-sources.js"></script>
 <!-- Die ganze Geometrie-Rechnung liegt schon da und ist unit-getestet
      (js/map-features/__tests__/ecosystem-boolean.test.js). Der Raycast benutzt genau sie:
      ecosystemBooleanGeometry("intersection", …), ecosystemGeometryArea, ecosystemGeometryBounds.
@@ -1375,6 +1384,22 @@ function regionEditBlock(region) {
 		// Dump-Hinweis im Kraftlinien-Editor, der aus demselben Grund draußen steht.
 		+ '<div class="pl-hint">Zuweisen und Lösen wirken hier erst mit <b>„Speichern“</b> — anders als '
 		+ 'im Wege- und im Orte-Dialog, die sofort schreiben.</div>'
+		// ---- Quellen (Owner-Reihenfolge Platz 5) -------------------------------------------------
+		// 🔴 DAS GETEILTE BAUTEIL, KEINE ZWEITE QUELLENTABELLE (AGENTS.md §5). Eine Landschaftsfläche
+		// hängt an demselben `sources`/`feature_sources`-Katalog wie jedes andere Element; ihr
+		// `entity_type` heißt `ecosystem` und stand am 28.07.2026 schon in beiden weissen Listen
+		// (api/edit/map/feature-sources.php, api/app/feature-sources.php) -- es fehlte nur die
+		// Oberfläche dazu. Diese Ergänzung kostet deshalb KEINE Zeile Server.
+		// 💣 `entity_type` ist `ecosystem`, NICHT `region`: jenes meint ein map_features-Region-LABEL,
+		// eine andere Tabelle mit anderen Kennungen. Denselben Schlüssel zu benutzen führte Quellen
+		// zweier unverwandter Dinge zusammen (steht so in der weissen Liste des Schreibwegs).
+		// ⚠️ DIESER KASTEN SCHREIBT SOFORT -- anders als alles andere in diesem Block. Er hat seinen
+		// eigenen Endpunkt und kennt den Entwurf hier nicht; Hinzufügen und Entfernen wirken mit dem
+		// Klick. Der Satz steht daneben, weil genau diese Frage („ist das jetzt drin?") der
+		// Owner-Befund vom 16.08.2026 am Wiki-Kasten war.
+		+ '<div class="dt-grp">Quellen</div>'
+		+ '<div class="pl-hint">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</div>'
+		+ '<div data-f="sources"></div>'
 		// Die Speicherleiste -- dieselbe Form wie im Wege-Editor (Owner-Vorbild, .avm-savebar in
 		// css/components/editor-page.css): Meldung links, Knopf rechts. Vorher stand hier
 		// `.dt-actions` mit dem Knopf LINKS und der Meldung rechts daneben; genau das war der Anlass
@@ -1555,6 +1580,19 @@ function wireEditBlocks(host) {
 				// `extra.keinArtikelHaken: false` samt Begründung.
 				syncUebernehmen: wikiAssignSyncUebernehmen,
 			});
+		}
+
+		// ---- Quellen: das geteilte Bauteil (js/review/review-feature-sources.js) -----------------
+		// 💣 KEINE eigene Tabelle, KEIN eigener Endpunkt (AGENTS.md §5) -- dieselbe Bauform wie bei
+		// Ort und Kraftlinie, nur mit `ecosystem` als Objektart. Der Schlüssel kommt als GETTER: das
+		// Bauteil fragt ihn bei jeder Anfrage frisch ab.
+		// ⚠️ NACH dem innerHTML des Detailkastens -- der Behälter entsteht erst mit ihm; hier ist das
+		// gegeben, `wireEditBlocks` läuft direkt hinter `host.innerHTML = parts.join("")`.
+		const sourceHost = field("sources");
+		if (sourceHost && typeof mountFeatureSourceEditor === "function") {
+			mountFeatureSourceEditor(sourceHost, "ecosystem", () => region.public_id, { escape: esc });
+		} else if (sourceHost) {
+			sourceHost.innerHTML = '<div class="pl-hint">Quellen-Editor nicht geladen.</div>';
 		}
 
 		block.querySelector('[data-a="save"]').addEventListener("click", async () => {
