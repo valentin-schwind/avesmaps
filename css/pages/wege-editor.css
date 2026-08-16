@@ -123,22 +123,15 @@
 .wp-facts dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .wp-facts dd b { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
 
-/* ---- Save bar (Spec §3.1a) ------------------------------------------------------------------- */
-.wp-savebar {
-	display: flex;
-	align-items: center;
-	gap: var(--space-6);
-	padding: var(--space-6) var(--space-10);
-	margin: var(--space-6) calc(-1 * var(--space-10)) calc(-1 * var(--space-6));
-	background: var(--color-panel-soft);
-	border-top: 1px solid var(--color-border);
-}
-
-.wp-savebar__msg { flex: 1 1 auto; min-width: 0; font-size: var(--font-size-caption); color: var(--color-text-muted); }
-.wp-savebar__msg.ok { color: var(--color-success); }
-.wp-savebar__msg.bad { color: var(--color-danger); }
-.wp-savebar button.is-primary { background: var(--color-button); border-color: var(--color-button-border); color: var(--color-button-text); }
-.wp-savebar button.is-primary:hover { background: var(--color-button-hover); }
+/* ---- Save bar (Spec §3.1a) -------------------------------------------------------------------
+ * 🔴 DIE REGELN STEHEN NICHT MEHR HIER. Sie heissen seit dem 16.08.2026 `.avm-savebar` und liegen
+ * in css/components/editor-page.css -- unveraendert, nur umbenannt und umgezogen. Grund: der Owner
+ * hat DIESE Leiste zum Vorbild fuer alle Editorfenster erklaert, und diese Datei laedt nur
+ * html/wege-editor.html. Sie hier stehen zu lassen und anderswo abzuschreiben waere genau die
+ * Divergenz, gegen die der Umbau lief. Wer sie sucht: `git log -S wp-savebar`.
+ * ⚠️ Die Polsterung dieses Wirts (`.avm-scroll--pad`, var(--space-6) var(--space-10)) IST die
+ * Vorgabe der geteilten Regel -- hier ist also nichts zu setzen.
+ */
 
 /* ---- „Funktionen anzeigen": its own overlay, two column widths ------------------------------- */
 .wp-fn { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--avm-col-pad); }

@@ -448,6 +448,11 @@
   .ae-savebar .ae-spacer { flex: 1 1 auto; }
   .ae-savebar .saved { font-size: var(--font-size-caption); color: var(--color-success); }
   .ae-savebar .error { font-size: var(--font-size-caption); color: var(--color-danger); }
+  /* 💣 DER RUHEZUSTAND BRAUCHT EINEN EIGENEN TON. Seit die Leiste den Owner-Wortlaut trägt
+     („Keine ungespeicherten Änderungen."), stünde er unter `.saved` in GRÜN da und läse sich als
+     „gerade gespeichert" — die Aussage ist aber „es gibt nichts zu speichern". Gedämpft wie im
+     Wege-Editor (.avm-savebar__msg) und wie die Schwester nebenan (.ce-savebar__state). */
+  .ae-savebar .idle { font-size: var(--font-size-caption); color: var(--color-text-muted); }
 </style>
 </head>
 <body>
@@ -903,7 +908,11 @@
     const body = document.getElementById("aeStammBody");
     document.getElementById("aeSaveBar").hidden = false;
     const st = document.getElementById("aeSaveState");
-    st.textContent = ""; st.className = "saved";
+    // ⚠️ DER RUHEZUSTAND SAGT ES AUSDRUECKLICH (Owner-Wortlaut 16.08.2026, angeglichen an den
+    // Wege-Editor). Vorher blieb die Leiste beim Oeffnen LEER -- „nichts zu speichern" und „ich
+    // habe vergessen, es zu sagen" sahen gleich aus. `idle` statt `saved`: gruen laese sich als
+    // „gerade gespeichert".
+    st.textContent = "Keine ungespeicherten Änderungen."; st.className = "idle";
     if (!d) {
       head.innerHTML = `<div class="ae-detail__head-main"><h2 class="ae-detail__title">Neuer Eintrag</h2>
         <div class="ae-detail__meta">Noch nicht gespeichert</div></div>`;
@@ -948,6 +957,14 @@
         ${aeField("Komplexität (Spieler)", "complexity_pl", v.complexity_pl || "", o)}
         ${aeField("Autoren", "authors", v.authors || "", o, { wide: true })}
       </div></div>
+      <!-- F-Shop-Code und Cover-URL sind KEINE Wiki-Zuweisung und bleiben Textfelder. Sie hießen
+           zusammen mit der Wiki-Adresse „Wiki & F-Shop"; ohne sie wäre die Überschrift falsch.
+           ⚠️ Seit 16.08.2026 VOR der Wiki-Zuweisung (Owner-Reihenfolge: Eigenschaften auf Platz 3,
+           Wiki-Zuweisung auf Platz 4). Reine Reihenfolge -- Felder und Schreibweg unverändert. -->
+      <div class="ae-grp"><p class="ae-grp__title">F-Shop &amp; Cover</p><div class="ae-fields">
+        ${aeField("F-Shop-Code", "fshop_code", v.fshop_code || "", o)}
+        ${aeField("Cover-URL", "cover_url", v.cover_url || "", o)}
+      </div></div>
       <!-- 🔴 SEIT 16.08.2026 DAS GETEILTE BAUTEIL (js/ui/wiki-assign.js, Entwurf
            docs/superpowers/specs/2026-08-15-wiki-zuweisung-vereinheitlichung-design.md). Hier stand
            ein freies Textfeld „Wiki-URL": darin ließ sich jede Adresse tippen, und ein Tippfehler
@@ -956,12 +973,6 @@
            Nicht-Wiki-Quelle gehört in den Quellen-Abschnitt).
            ⚠️ Der Behälter ist ein BLANKES div -- das Bauteil erzeugt seine Hülle selbst. -->
       <div id="aeWikiAssign"></div>
-      <!-- F-Shop-Code und Cover-URL sind KEINE Wiki-Zuweisung und bleiben Textfelder. Sie hießen
-           zusammen mit der Wiki-Adresse „Wiki & F-Shop"; ohne sie wäre die Überschrift falsch. -->
-      <div class="ae-grp"><p class="ae-grp__title">F-Shop &amp; Cover</p><div class="ae-fields">
-        ${aeField("F-Shop-Code", "fshop_code", v.fshop_code || "", o)}
-        ${aeField("Cover-URL", "cover_url", v.cover_url || "", o)}
-      </div></div>
       ${aeLinksGroup(v, o)}
       ${aeExtraLinksGroup()}`;
     // Cover actions (upload / re-fetch) need a saved adventure -> wired after the body is in the DOM.
@@ -1048,7 +1059,9 @@
 
   function aeWikiUngespeichert() {
     const st = document.getElementById("aeSaveState");
-    if (st) { st.textContent = "Geändert – noch nicht gespeichert."; st.className = "saved"; }
+    // Wortgleich zum Wege-Editor (Owner-Vorbild) -- vorher „Geändert – noch nicht gespeichert."
+    // ⚠️ `idle`, nicht `saved`: der Satz meldet UNgespeichertes, gruen waere die Gegenaussage.
+    if (st) { st.textContent = "Ungespeicherte Änderungen."; st.className = "idle"; }
   }
 
   /**

@@ -1360,8 +1360,34 @@ function regionEditBlock(region) {
 		// 💣 Ein BLANKER Behälter: die Hülle erzeugt das Bauteil selbst. Ein vorgegebenes
 		// `<div class="avm-wiki-assign">` trüge den Kasten doppelt geschachtelt.
 		+ '<div data-f="wiki-host"></div>'
-		+ '<div class="dt-actions"><button type="button" data-a="save">Speichern</button>'
-		+ '<span class="dt-msg"></span></div>'
+		// 🔴 DIE DAUERZEILE (Owner 16.08.2026: „ich frag mich was der Speichern-Knopf soll"). Hier --
+		// und NUR hier -- schreiben „Zuweisen" und „Lösen" nicht sofort; sie füllen den Entwurf, und
+		// geschrieben wird mit „Speichern" (die Begründung steht unten bei den vier Rückrufen: ein
+		// sofortiges Schreiben löste `loadData()` aus und würfe die ungespeicherten Eingaben im selben
+		// Block weg). Im Wege- und im Orte-Dialog ist es andersherum. Diese Ungleichheit BLEIBT, aber
+		// sie muss sichtbar sein: ohne diesen Satz sieht der Kasten aus wie die vier anderen und
+		// verhält sich anders.
+		// ⚠️ DAUERHAFT, nicht erst nach einem Klick. Die Meldung „Zuweisung wird beim Speichern
+		// übernommen." gibt es weiter (setzt der `zuweisen`-Rückruf), aber sie kommt zu SPÄT: wer den
+		// Knopf noch nicht gedrückt hat, hat sie nie gesehen.
+		// 💣 Der Satz steht NEBEN dem Bauteil, nicht darin. Das Bauteil kennt keine Objektart und
+		// keinen Wirt (Vertrag im Kopf von js/ui/wiki-assign.js) -- dieselbe Bauform wie der
+		// Dump-Hinweis im Kraftlinien-Editor, der aus demselben Grund draußen steht.
+		+ '<div class="pl-hint">Zuweisen und Lösen wirken hier erst mit <b>„Speichern“</b> — anders als '
+		+ 'im Wege- und im Orte-Dialog, die sofort schreiben.</div>'
+		// Die Speicherleiste -- dieselbe Form wie im Wege-Editor (Owner-Vorbild, .avm-savebar in
+		// css/components/editor-page.css): Meldung links, Knopf rechts. Vorher stand hier
+		// `.dt-actions` mit dem Knopf LINKS und der Meldung rechts daneben; genau das war der Anlass
+		// („mach das konsistent und tu den speichern knopf nach rechts").
+		// 🔴 KEIN `--flush`: diese Leiste schließt ihren `.eco-edit`-Block ab, nicht den gepolsterten
+		// Scrollkasten -- unter ihr stehen noch „Liegt in" und „Gemeinsame Regionen mit", und bei
+		// mehreren Regionen folgt der nächste Block.
+		// ⚠️ EINE LEISTE JE REGION, und das bleibt so: eine Listenzeile kann mehrere Regionen tragen
+		// („Blautann" und „Blautann-Nord" teilen einen Wiki-Schlüssel), jede hat ihren eigenen Namen
+		// und ihr eigenes Speichern (Owner 27.07.2026). Eine gemeinsame Leiste machte „umbenennen"
+		// mehrdeutig.
+		+ '<div class="avm-savebar"><span class="avm-savebar__msg">Keine ungespeicherten Änderungen.</span>'
+		+ '<button type="button" class="is-primary" data-a="save">Speichern</button></div>'
 		+ "</div>";
 }
 
@@ -1371,7 +1397,7 @@ function wireEditBlocks(host) {
 		const region = rows.flatMap((row) => row.regions).find((entry) => String(entry.public_id) === publicId);
 		if (!region) { return; }
 		const field = (name) => block.querySelector('[data-f="' + name + '"]');
-		const message = block.querySelector(".dt-msg");
+		const message = block.querySelector(".avm-savebar__msg");
 		// 💣 `wiki_url` reist NUR MIT, wenn sich die Zuweisung geändert hat. `update_region` schreibt
 		// genau die Felder, die im Rumpf stehen -- ein immer mitgeschicktes leeres Feld löschte eine
 		// bestehende Zuweisung still. Bis 16.08.2026 hing das an einem `input`-Zuhörer am
@@ -1476,7 +1502,7 @@ function wireEditBlocks(host) {
 			wikiSchnappschuss = roh;
 			wikiAutoNameRiegel();
 			message.textContent = "Zuweisung wird beim Speichern übernommen.";
-			message.className = "dt-msg";
+			message.className = "avm-savebar__msg";
 		};
 
 		const wikiAssignLoesen = () => {
@@ -1486,7 +1512,7 @@ function wireEditBlocks(host) {
 			wikiSchnappschuss = null;
 			wikiAutoNameRiegel();
 			message.textContent = "Zuweisung wird beim Speichern entfernt.";
-			message.className = "dt-msg";
+			message.className = "avm-savebar__msg";
 		};
 
 		// ⚠️ ÜBERNEHMEN FÜLLT NUR DAS FORMULAR (Entwurf §6). 🔴 Und es WIRFT, wenn nichts anzuwenden
@@ -1510,7 +1536,7 @@ function wireEditBlocks(host) {
 				if (field("auto").checked) { applyAutoName(); }
 			}
 			message.textContent = "Aus dem Wiki übernommen — noch nicht gespeichert.";
-			message.className = "dt-msg";
+			message.className = "avm-savebar__msg";
 		};
 
 		if (wikiHost && typeof avesmapsWikiAssignMount === "function") {
@@ -1550,16 +1576,16 @@ function wireEditBlocks(host) {
 			// selbst. Am Server war dafür keine Zeile zu ändern -- gemessen, nicht angenommen.
 			if (payload.name === "") {
 				message.textContent = "Ein Name ist Pflicht.";
-				message.className = "dt-msg bad";
+				message.className = "avm-savebar__msg bad";
 				return;
 			}
 			button.disabled = true;
 			message.textContent = "Wird gespeichert …";
-			message.className = "dt-msg";
+			message.className = "avm-savebar__msg";
 			try {
 				await ecoPost("update_region", payload);
 				message.textContent = "Gespeichert.";
-				message.className = "dt-msg ok";
+				message.className = "avm-savebar__msg ok";
 				// Re-read rather than patch the local copy: names, keys and area counts all move, and
 				// the list, the raycast partners and the search index read from the same rows.
 				await loadData({ keepSelection: true });
@@ -1567,7 +1593,7 @@ function wireEditBlocks(host) {
 				// The kind/region_type pair is checked server-side (400) -- that message is the useful
 				// one, so it is shown rather than replaced.
 				message.textContent = "Speichern fehlgeschlagen: " + (error && error.message ? error.message : String(error));
-				message.className = "dt-msg bad";
+				message.className = "avm-savebar__msg bad";
 			} finally {
 				button.disabled = false;
 			}

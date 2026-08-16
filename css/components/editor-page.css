@@ -597,6 +597,66 @@ body.avm-editor-body {
 .dt-msg.ok { color: var(--ok); }
 .dt-msg.bad { color: var(--bad); }
 
+/* ---- Die Speicherleiste -- EINE Form fuer alle Editorfenster ---------------------------------
+ * Links die Meldung („Keine ungespeicherten Aenderungen." / „Ungespeicherte Aenderungen."), rechts
+ * die Knoepfe, der gefuellte zuletzt. Owner 16.08.2026: „mach das konsistent und tu den speichern
+ * knopf nach rechts" -- Anlass war der Regionen-Editor, wo „Speichern" linksbuendig mitten im
+ * Formular stand.
+ *
+ * 🔴 ABGESCHRIEBEN, NICHT ERFUNDEN: das ist Wort fuer Wort die Regel, die bis zum 16.08.2026 als
+ * `.wp-savebar` in css/pages/wege-editor.css stand -- dem Vorbild, das der Owner benannt hat. Sie
+ * ist hierher gewandert, weil jene Datei NUR html/wege-editor.html laedt; diese hier laden alle
+ * sieben Editorseiten. Die alte Kennung gibt es nicht mehr (kein Alias, keine zweite Fassung) --
+ * genau das war die Divergenz, die der Umbau abschafft.
+ *
+ * 💣 DER RANDUEBERHANG IST EINSTELLBAR, WEIL DIE WIRTE VERSCHIEDEN POLSTERN. Gemessen 16.08.2026:
+ * `.avm-scroll--pad` (Wege, Landschaften) hat var(--space-6) var(--space-10) -- das sind die
+ * Vorgaben unten; `#plDetail` (Kraftlinien) hat 10px 12px, `#seDetailBody` (Orte) hat 4px. Fest
+ * verdrahtet wie im Original haette die Leiste dort entweder einen weissen Streifen daneben oder
+ * ragte hinaus. Ein Wirt, der anders polstert, setzt die zwei Werte an seinem Behaelter -- er
+ * SCHREIBT die Regel nicht ab.
+ *
+ * ⚠️ SPEZIFITAET, gegen jeden Fremderzeuger nachgerechnet (der Grund, warum diese Regeln hier und
+ * nicht in einer dritten Datei stehen):
+ *   `.avm-savebar button.is-primary`       (0,2,1) schlaegt `:where(.avm-editor-body) button` (0,1,0)
+ *   `.avm-savebar button.is-primary:hover` (0,3,1) schlaegt `:where(.avm-editor-body) button:hover` (0,2,0)
+ * Die Huelle der Wiki-Zuweisung ist unberuehrt: `.avm-wiki-assign button` (0,1,1) trifft nur
+ * Knoepfe INNERHALB des Kastens, und die Speicherleiste steht ausserhalb. Die Fussleisten der
+ * Literatur (.ae-savebar) und der Kartensammlung (.ce-savebar) bleiben ebenfalls unberuehrt: sie
+ * sind Fussleisten der ganzen Spalte, keine Bloecke im Fluss, und tragen ihre eigenen Klassen.
+ */
+.avm-savebar {
+	--avm-savebar-bleed-x: var(--space-10);
+	--avm-savebar-bleed-y: var(--space-6);
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	padding: var(--space-6) var(--avm-savebar-bleed-x);
+	margin: var(--space-6) calc(-1 * var(--avm-savebar-bleed-x)) var(--space-6);
+	background: var(--color-panel-soft);
+	border-top: 1px solid var(--color-border);
+}
+
+/* 💣 DER UEBERHANG NACH UNTEN IST OPT-IN, und das ist keine Feinheit: seit der Owner-Reihenfolge
+   stehen „Lage & Zugehoerigkeit" und „Gemeinsame Regionen mit" UNTER der Leiste. Das Original
+   (.wp-savebar) hing ihn bedingungslos an -- damals war die Leiste immer das letzte Element des
+   gepolsterten Kastens. Bedingungslos uebernommen zoege er jetzt den Abschnitt darunter unter den
+   eigenen Rahmen.
+   🪤 `:last-child` waere die falsche Probe gewesen und haette genau EINEN Fall verfehlt: im
+   Landschaften-Editor ist die Leiste das letzte Kind ihres `.eco-edit`-Blocks, aber NICHT das
+   letzte des Scrollkastens -- der Ueberhang haette dort in den naechsten Regionsblock gezogen.
+   Die Frage ist „schliesst diese Leiste den gepolsterten Kasten ab", und die beantwortet der Wirt,
+   nicht die Baumstellung. */
+.avm-savebar--flush { margin-bottom: calc(-1 * var(--avm-savebar-bleed-y)); }
+
+/* Die Meldung schiebt die Knoepfe nach rechts -- kein Platzhalter, kein `margin-left:auto` am
+   ersten Knopf: eine leere Meldung traegt den Schub genauso wie eine gefuellte. */
+.avm-savebar__msg { flex: 1 1 auto; min-width: 0; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.avm-savebar__msg.ok { color: var(--color-success); }
+.avm-savebar__msg.bad { color: var(--color-danger); }
+.avm-savebar button.is-primary { background: var(--color-button); border-color: var(--color-button-border); color: var(--color-button-text); }
+.avm-savebar button.is-primary:hover { background: var(--color-button-hover); }
+
 /* ---- Wiki-Zuweisung (js/ui/wiki-assign.js, Huelle "dt") -------------------------------------
  * Ein Bauteil, ZWEI Huellen (Entwurf §4a, docs/superpowers/specs/2026-08-15-wiki-zuweisung-
  * vereinheitlichung-design.md): .dt-* hier fuer die Editor-iframes, .label-wiki-* in

@@ -271,10 +271,15 @@
   .dt-edit-grid textarea { resize:vertical; min-height:44px; }
   .dt-edit-checkrow { display:flex; align-items:center; gap:6px; padding:3px 0; }
   .dt-edit-checkrow input[type=checkbox] { flex:0 0 auto; cursor:pointer; }
-  .dt-edit-actions { display:flex; align-items:center; gap:8px; margin-top:8px; }
-  .dt-edit-msg { font-size:11px; }
-  .dt-edit-msg.ok { color:var(--ok); }
-  .dt-edit-msg.bad { color:var(--bad); }
+  /* 🔴 HIER STANDEN .dt-edit-actions UND .dt-edit-msg -- die eigene Knopfzeile dieses Fensters,
+     linksbuendig und als letzte Zeile IM Identitaets-Raster. Sie sind am 16.08.2026 ersatzlos
+     gefallen: die Speicherleiste ist jetzt ueberall .avm-savebar (css/components/editor-page.css),
+     die Form des Wege-Editors, die der Owner zum Vorbild erklaert hat. Eine zweite Fassung daneben
+     stehen zu lassen waere genau die Divergenz, gegen die der Umbau lief. */
+  /* 💣 Der Randueberhang der geteilten Leiste muss die Polsterung SEINES Wirts treffen.
+     #seDetailBody polstert 4px -- das ist var(--space-2), nicht die Vorgabe 12/8. Ohne diese Zeile
+     ragte die Leiste 8px links und rechts aus dem Kasten heraus. */
+  #seDetailBody .avm-savebar { --avm-savebar-bleed-x: var(--space-2); --avm-savebar-bleed-y: var(--space-2); }
 </style>
 </head>
 <body>
@@ -1291,12 +1296,19 @@ async function reloadSettlementDetail() {
 // settlement_detail fetch (there is no map_features row / public_id to fetch by yet) and no
 // update_point write path (that action requires an existing point feature). Selecting a wiki-only
 // row never issues a network request; this is a pure client-side render off already-loaded data.
+// 🔴 ZWEI ABSCHNITTE STATT EINEM, seit 16.08.2026 (Owner-Reihenfolge). Hier stand EIN Kopf, und der
+// hiess „Eigenschaften" -- ueber einer Tafel, die mit Name, Typ und Kontinent beginnt. Genau das war
+// der Befund „Eigenschaften vor Identität, verkehrt!" beim Durchklicken: der Owner sah diesen
+// Renderpfad, nicht das Formular daneben.
+// ⚠️ Es ist ein ANDERER Weg als buildSettlementEditFormHtml -- eine reine Wiki-Zeile hat keine
+// map_features-Zeile, keine public_id und deshalb kein Formular, keine Quellen und keine
+// Speicherleiste. Die Abschnitte, die es hier gibt, stehen jetzt in derselben Ordnung wie dort.
 function buildWikiOnlySettlementDetailHtml(item) {
-	const rows = [];
-	rows.push(buildDetailFieldRow("Name", settlementEscape(item.name || "")));
-	rows.push(buildDetailFieldRow("Typ", item.settlement_label ? settlementEscape(item.settlement_label) : ""));
-	rows.push(buildDetailFieldRow("Kontinent", settlementEscape(settlementItemContinent(item))));
-	rows.push(
+	const identityRows = [];
+	identityRows.push(buildDetailFieldRow("Name", settlementEscape(item.name || "")));
+	identityRows.push(buildDetailFieldRow("Typ", item.settlement_label ? settlementEscape(item.settlement_label) : ""));
+	identityRows.push(buildDetailFieldRow("Kontinent", settlementEscape(settlementItemContinent(item))));
+	identityRows.push(
 		buildDetailFieldRow(
 			"Wiki-Link",
 			item.wiki_url
@@ -1304,10 +1316,13 @@ function buildWikiOnlySettlementDetailHtml(item) {
 				: `<span class="dt-sub">nicht verknüpft</span>`
 		)
 	);
-	rows.push(buildDetailFieldRow("Ruine", item.is_ruined ? "Ja" : "Nein"));
-	rows.push(buildDetailFieldRow("Verborgen", item.is_hidden ? "Ja" : "Nein"));
+	// Dieselben zwei Merkmale wie im Formular daneben, dort als Haken, hier als Lesezeile.
+	const propertyRows = [];
+	propertyRows.push(buildDetailFieldRow("Ruine", item.is_ruined ? "Ja" : "Nein"));
+	propertyRows.push(buildDetailFieldRow("Verborgen", item.is_hidden ? "Ja" : "Nein"));
 	return (
-		`<div class="dt-grp">Eigenschaften</div><div class="dt-grid">${rows.filter(Boolean).join("")}</div>` +
+		`<div class="dt-grp">Identität</div><div class="dt-grid">${identityRows.filter(Boolean).join("")}</div>` +
+		`<div class="dt-grp">Eigenschaften</div><div class="dt-grid">${propertyRows.filter(Boolean).join("")}</div>` +
 		`<div class="dt-sub" style="margin-top:10px">Nur im Wiki — noch nicht auf der Karte platziert. Zum Bearbeiten zuerst auf der Karte platzieren.</div>`
 	);
 }
@@ -1434,7 +1449,10 @@ function buildSettlementEditFormHtml(detail) {
 	// first list/add/remove, so this container renders the full add/remove-capable list
 	// instead of the old single-URL/label pair. Mounted after buildSettlementDetailHtml's
 	// result is written into #seDetailBody -- see renderSettlementDetail below.
-	const otherSourceRow = `<div class="k">Quellen</div><div id="dtFeatureSources"></div>`;
+	// 🔴 SEIT 16.08.2026 EIN EIGENER ABSCHNITT, keine Rasterzeile mehr (Owner-Reihenfolge: Quellen
+	// stehen bei ALLEN Editorfenstern zwischen Wiki-Zuweisung und Speicherleiste). Der Behaelter
+	// behaelt seine Kennung -- renderSettlementDetail montiert unveraendert dorthin.
+	const otherSourceRow = `<div class="dt-grp">Quellen</div><div id="dtFeatureSources"></div>`;
 	const nodixRow =
 		`<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox" id="dtEditIsNodix"${props.is_nodix ? " checked" : ""}> Ort ist ein Nodix</label></div>`;
 	const ruinedRow =
@@ -1443,15 +1461,39 @@ function buildSettlementEditFormHtml(detail) {
 	// Routenfindung waehlt den Ort nicht als Kandidat -- bis jemand seinen Namen eingibt.
 	const hiddenRow =
 		`<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox" id="dtEditIsHidden"${props.is_hidden ? " checked" : ""}> Verborgen</label></div>`;
+	// Die Speicherleiste -- dieselbe Form wie im Wege-Editor (Owner-Vorbild, .avm-savebar in
+	// css/components/editor-page.css): Meldung links, der gefuellte Knopf rechts.
+	// 🔴 SIE STAND BIS ZUM 16.08.2026 ALS LETZTE ZEILE IM `.dt-grid` VON „Identität" -- mit einem
+	// leeren `<div class="k">` davor, also in der Rasterspalte eines Feldwerts. Sie speichert aber
+	// auch Nodix, Ruine, Verborgen und die Quellen daneben, und in der Identitaetstabelle las sie
+	// sich wie der Knopf zu „Verborgen". Gemeldet vom Owner beim Durchklicken; mit der Leiste am
+	// Ende loest es sich von selbst.
+	// 🔴 KEIN `--flush`: unter ihr steht „Lage & Zugehörigkeit", sie schliesst den gepolsterten
+	// Kasten also nicht ab.
+	// ⚠️ KEIN „Verwerfen". Dieses Fenster hatte nie eines, und eines einzubauen waere ein neuer
+	// Schreibweg -- dieser Umbau sortiert um und benennt um, er baut nichts hinzu.
 	const actionsHtml =
-		`<div class="k"></div><div><div class="dt-edit-actions">` +
-		`<button type="button" class="primary" id="dtEditSave">Speichern</button>` +
-		`<span class="dt-edit-msg" id="dtEditMsg"></span>` +
-		`</div></div>`;
-	return (
-		`<div class="dt-grp">Identität</div>` +
-		`<div class="dt-grid dt-edit-grid">${nameRow}${typeRow}${einwohnerRow}${lageRow}${oberhauptRow}${descRow}${wikiUrlRow}${otherSourceRow}${nodixRow}${ruinedRow}${hiddenRow}${actionsHtml}</div>`
-	);
+		`<div class="avm-savebar">` +
+		`<span class="avm-savebar__msg" id="dtEditMsg">Keine ungespeicherten Änderungen.</span>` +
+		`<button type="button" class="is-primary" id="dtEditSave">Speichern</button>` +
+		`</div>`;
+	// 🔴 „Eigenschaften" ist seit 16.08.2026 ein EIGENER Abschnitt (Owner-Reihenfolge). Die drei
+	// Haken beschreiben nicht, WER der Ort ist, sondern wie die Karte mit ihm umgeht -- in der
+	// Identitaetstabelle standen sie als namenlose Rasterzeilen ohne Beschriftung in der k-Spalte.
+	// ⚠️ Kennungen, Rueckrufe und Speicherweg sind unveraendert: dieselben drei `id`, dieselbe
+	// Reihenfolge, dieselbe Nutzlast (buildSettlementSavePayload liest ueber die id, nicht ueber
+	// die Rasterstellung).
+	const propertiesHtml =
+		`<div class="dt-grp">Eigenschaften</div>` +
+		`<div class="dt-grid dt-edit-grid">${nodixRow}${ruinedRow}${hiddenRow}</div>`;
+	return {
+		identity:
+			`<div class="dt-grp">Identität</div>` +
+			`<div class="dt-grid dt-edit-grid">${nameRow}${typeRow}${einwohnerRow}${lageRow}${oberhauptRow}${descRow}${wikiUrlRow}</div>`,
+		properties: propertiesHtml,
+		sources: otherSourceRow,
+		actions: actionsHtml,
+	};
 }
 
 // Territorium badge + source label + the "ändern"/"Entfernen" controls -- the core control
@@ -1610,13 +1652,22 @@ function buildSettlementImagesBlockHtml(detail) {
 		`<div class="dt-img-block">${notice}${upload}${cells ? `<div class="dt-img-grid">${cells}</div>` : ""}</div>`;
 }
 
+// 🔴 DIE REIHENFOLGE IST DIE OWNER-LISTE VOM 16.08.2026 und gilt fuer alle Editorfenster:
+//   Bild/Wappen/Cover · Identität · Eigenschaften · Wiki-Zuweisung · Quellen · SPEICHERLEISTE ·
+//   Lage & Zugehörigkeit · Gemeinsame Regionen mit
+// Alles Bearbeitbare steht ueber der Leiste, alles Abgeleitete darunter. „Lage & Zugehörigkeit"
+// stand hier bis dahin VOR der Wiki-Zuweisung -- der Ort, an dem ein Editor die Territoriums-
+// Zuordnung fuer eine Wiki-Angabe halten konnte, obwohl sie die eine echte Ueberschreibung dieses
+// Datenmodells ist (siehe buildLocationGroupHtml).
+// ⚠️ Gewacht von js/pages/__tests__/editor-abschnittsreihenfolge.test.js.
 function buildSettlementDetailHtml(detail) {
 	const coatHtml = buildSettlementCoatBlockHtml(detail);
 	const imagesHtml = buildSettlementImagesBlockHtml(detail);
-	const identityHtml = buildSettlementEditFormHtml(detail);
+	const form = buildSettlementEditFormHtml(detail);
 	const locationHtml = buildLocationGroupHtml(detail);
 	const wikiHtml = buildWikiSourceGroupHtml(detail);
-	return coatHtml + imagesHtml + identityHtml + locationHtml + wikiHtml;
+	return coatHtml + imagesHtml + form.identity + form.properties + wikiHtml + form.sources
+		+ form.actions + locationHtml;
 }
 
 // ---- Territorium: assign / clear -------------------------------------------------------
@@ -1680,8 +1731,12 @@ async function mapFeaturesEditPost(body) {
 function setSettlementEditMsg(message, kind) {
 	const el = $("dtEditMsg");
 	if (!el) return;
+	// ⚠️ `avm-savebar__msg`, nicht mehr `dt-edit-msg`: die Meldung sitzt seit 16.08.2026 IN der
+	// Speicherleiste und traegt deren Schub nach rechts (flex: 1 1 auto). Mit der alten Klasse
+	// verloere sie ihn, und der Knopf ruecke wieder nach links -- also genau das zurueck, was der
+	// Owner beanstandet hat.
 	el.textContent = message || "";
-	el.className = "dt-edit-msg" + (kind ? " " + kind : "");
+	el.className = "avm-savebar__msg" + (kind ? " " + kind : "");
 }
 
 // Builds the update_point payload. Matches buildLocationEditPayload() in

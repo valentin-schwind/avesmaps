@@ -45,6 +45,11 @@
   button:disabled { opacity:.5; cursor:default; }
   button.primary { background:var(--color-button); border-color:var(--color-button-border); color:var(--color-button-text); }
   button.primary:hover { background:var(--color-button-hover); }
+  /* 💣 Der Randueberhang der geteilten Speicherleiste (.avm-savebar, css/components/editor-page.css)
+     muss die Polsterung SEINES Wirts treffen. #plDetail polstert 10px/12px -- das ist
+     var(--space-8)/var(--space-10), also stimmt nur die Waagerechte mit der Vorgabe ueberein.
+     Ohne diese Zeile bliebe unten ein 2px-Streifen der Panelfarbe unter der Leiste stehen. */
+  #plDetail .avm-savebar { --avm-savebar-bleed-y: var(--space-8); }
   .btn2 { display:flex; flex-direction:column; justify-content:center; align-items:flex-start; text-align:left; min-height:48px; padding:var(--space-4) var(--space-8); gap:1px; line-height:var(--leading-tight); }
   .btn2 .t1 { font-size:var(--font-size-body); font-weight:var(--font-weight-bold); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .btn2 .t2 { font-size:var(--font-size-caption); color:var(--mut); white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
@@ -410,6 +415,16 @@ function renderDetail() {
 			+ '<div class="pl-hint">Schreibt auf <b>alle ' + line.segments.length + ' Segmente</b>. Exakt gleicher Name wie eine andere Linie ⇒ <b>beide verschmelzen</b>.</div>'
 		+ "</div></div>"
 		+ '<div class="dt-check"><input type="checkbox" id="plShowLabel"' + (showLabel ? " checked" : "") + "><span>Name auf der Karte anzeigen</span></div>"
+		// ---- Eigenschaften ----------------------------------------------------------------------
+		// 🔴 DER KOPF HEISST WEITER „Beschreibung", NICHT „Eigenschaften" (Owner-Entscheid 16.08.2026
+		// bei der Vereinheitlichung der Abschnittsreihenfolge). Er steht an der PLATZ-3-Stelle der
+		// Owner-Liste -- inhaltlich IST er die Eigenschaften der Linie --, aber es ist genau ein Feld,
+		// und ein einzelnes Feld unter einem allgemeineren Wort zu verstecken gewinnt nichts. Die
+		// Spaltenueberschrift daneben heisst ohnehin schon „Eigenschaften".
+		// ⚠️ Er ist seit 16.08.2026 VOR die Wiki-Zuweisung gewandert (vorher stand er darunter) --
+		// reine Reihenfolge, Feld und Schreibweg unveraendert.
+		+ '<div class="dt-grp">Beschreibung</div>'
+		+ '<div class="dt-grid stack"><div><textarea id="plDescription" maxlength="2000">' + esc(description) + "</textarea></div></div>"
 		// 🔴 SEIT 16.08.2026 DAS GETEILTE BAUTEIL (js/ui/wiki-assign.js, Entwurf
 		// docs/superpowers/specs/2026-08-15-wiki-zuweisung-vereinheitlichung-design.md). Hier stand
 		// ein Textfeld mit <datalist>: das SCHLAEGT VOR und schraenkt nicht ein -- genau dadurch
@@ -427,21 +442,26 @@ function renderDetail() {
 		// Der Zustand des Dump-Laufs gehoert NICHT ins Bauteil: er sagt, warum die Vorschlagsliste
 		// leer ist, und das ist eine Auskunft der Kraftlinien, nicht der Zuweisung.
 		+ '<div class="pl-hint">' + wikiListHint() + "</div>"
-		+ '<div class="dt-grp">Beschreibung</div>'
-		+ '<div class="dt-grid stack"><div><textarea id="plDescription" maxlength="2000">' + esc(description) + "</textarea></div></div>"
-		+ '<div class="dt-grp">Quellen</div>'
-		+ '<div id="plSources"></div>'
 		// 🔴 NUR OHNE ZUWEISUNG. Dann steckt hier die Angabe aus dem NAMENSTREFFER (Stufe 2 in
 		// avesmapsWikiPowerlineResolveSegment) -- ohne diesen Block waere sie unsichtbar, und das
 		// waere eine Regression: eine Linie OHNE Zuweisung kann sehr wohl Wiki-Angaben tragen. Mit
 		// Zuweisung zeigt das Bauteil oben dieselben vier Felder; zweimal untereinander braucht sie
 		// niemand.
+		// ⚠️ Beide Bloecke stehen DIREKT hinter der Zuweisung und NICHT unter „Quellen": sie sind
+		// Auskuenfte UEBER den Wiki-Abgleich, nicht Belegstellen. Zwischen Zuweisung und Quellen ist
+		// die einzige Stelle, an der sie ohne einen dritten Kopf verstaendlich sind.
 		+ (wikiBlock && wikiUrl === "" ? '<div class="dt-grp">Aus dem Wiki <span class="dt-badge">Sync · nicht editierbar</span></div><div class="dt-grid">' + wikiBlock + "</div>" : "")
 		+ unmatchedBlock
-		+ '<div class="dt-actions">'
-			+ '<button class="primary" id="plSave">Speichern</button>'
+		+ '<div class="dt-grp">Quellen</div>'
+		+ '<div id="plSources"></div>'
+		// Die Speicherleiste -- dieselbe Form wie im Wege-Editor (Owner-Vorbild, .avm-savebar in
+		// css/components/editor-page.css): Meldung links, Knoepfe rechts, der gefuellte zuletzt.
+		// 🔴 „Linie löschen" bleibt WEICH und steht VOR „Speichern": es ist nicht die Haupthandlung
+		// dieses Fensters (AGENTS.md §12), und der gefuellte Knopf ist immer der letzte.
+		+ '<div class="avm-savebar avm-savebar--flush">'
+			+ '<span class="avm-savebar__msg" id="plSaveMsg">Keine ungespeicherten Änderungen.</span>'
 			+ '<button id="plDelete">Linie löschen</button>'
-			+ '<span class="dt-msg" id="plSaveMsg"></span>'
+			+ '<button class="is-primary" id="plSave">Speichern</button>'
 		+ "</div>";
 	$("plSave").addEventListener("click", saveLine);
 	$("plDelete").addEventListener("click", deleteLine);
@@ -547,7 +567,10 @@ function mountWikiAssign(line) {
 }
 function setSaveMsg(text, cls) {
 	const el = $("plSaveMsg"); if (!el) { return; }
-	el.textContent = text; el.className = "dt-msg" + (cls ? " " + cls : "");
+	// ⚠️ `avm-savebar__msg`, nicht mehr `dt-msg`: die Meldung sitzt seit 16.08.2026 IN der
+	// Speicherleiste und traegt deren Schub nach rechts (flex: 1 1 auto). Mit der alten Klasse
+	// verloere sie ihn, und die Knoepfe ruecken wieder nach links.
+	el.textContent = text; el.className = "avm-savebar__msg" + (cls ? " " + cls : "");
 }
 async function saveLine() {
 	const line = lineByName(selectedName);

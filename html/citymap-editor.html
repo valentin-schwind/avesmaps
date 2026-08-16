@@ -1051,6 +1051,15 @@
     const head = document.getElementById("ceDetailHead");
     const body = document.getElementById("ceStammBody");
     document.getElementById("ceSaveBar").hidden = false;
+    // ⚠️ DER RUHEZUSTAND SAGT ES AUSDRUECKLICH (Owner-Wortlaut 16.08.2026, angeglichen an den
+    // Wege-Editor). Vorher stand die Leiste beim Oeffnen mit LEERER Meldung da -- „nichts zu
+    // speichern" und „ich habe vergessen, es zu sagen" sahen gleich aus. Nur der Text; die Leiste
+    // selbst (.ce-savebar) traegt schon die richtige Form und bleibt unberuehrt.
+    const ceSaveStateEl = document.getElementById("ceSaveState");
+    if (ceSaveStateEl) {
+      ceSaveStateEl.textContent = "Keine ungespeicherten Änderungen.";
+      ceSaveStateEl.className = "ce-savebar__state";
+    }
     // "Löschen" only for an existing map -- a brand-new, unsaved one has nothing to delete yet.
     document.getElementById("ceDelete").hidden = !state.selectedId;
     // Fresh working copy per render -- never the server objects themselves, so an abandoned edit cannot
@@ -1097,18 +1106,12 @@
         ${ceSelect("Übergeordnete Karte", "parent_public_id", v.parent_public_id, parentOptions, "— keine —")}
         ${ceSelect("Sichtbarkeit", "status", v.status, [["approved", "sichtbar"], ["suppressed", "verborgen"]], "sichtbar")}
       </div>` +
-      // Der EIGENE Wiki-Artikel dieser Karte — direkt unter der Identität, weil er dazugehört.
-      // ⚠️ Der Behälter ist ein BLANKES div: das Bauteil erzeugt seine Hülle selbst. Ihm hier schon
-      // `.ce-grp` mitzugeben schachtelte den Kasten doppelt (Rahmen im Rahmen, Polsterung doppelt).
-      // 🔴 KEIN Freitextfeld daneben. Eine Nicht-Wiki-Quelle gehört in den Quellen-Abschnitt; ein
-      // Feld, in das man alles tippen kann, ist der Grund, warum bei den Kraftlinien ein Tippfehler
-      // unsichtbar blieb (Entwurf §5).
-      `<div id="ceWikiAssign"></div>` +
-      // Autoget liest den Karten-Link aus der Gruppe DARUEBER (siehe den Knopf in ceImageGroup): die
-      // Reihenfolge ist die Erklaerung. Stand dieser Kasten oben, war die Kausalitaet unsichtbar.
-      `<div class="ce-imgcols">` + ceImageGroup("thumb", "Vorschaubild", v) + ceImageGroup("map", "Karte (eigenes Bild)", v) + `</div>` +
-      `${ceLinksGroup()}
-      <div class="ce-grp"><p class="ce-grp__title">Einordnung</p>
+      // ---- Eigenschaften (Owner-Reihenfolge Platz 3: Einordnung + Eigenschaften + Typ) ----------
+      // ⚠️ Diese drei Gruppen standen bis zum 16.08.2026 GANZ UNTEN, hinter Bildern und Fundorten.
+      // Sie sind seither unverändert zwischen Identität und Wiki-Zuweisung gewandert -- reine
+      // Reihenfolge, keine Zusammenlegung: drei Köpfe, weil sie sich sinnvoll unterscheiden, und
+      // zusammengeworfen entstünde eine Wand aus zwanzig Feldern unter einem Wort.
+      `<div class="ce-grp"><p class="ce-grp__title">Einordnung</p>
         ${ceSelect("Art", "art", v.art, ARTS, "— unbekannt —")}
         ${ceField("Gültig ab (BF)", "valid_from_bf", v.valid_from_bf, "number")}
         ${ceField("Gültig bis (BF)", "valid_to_bf", v.valid_to_bf, "number")}
@@ -1132,8 +1135,29 @@
       <div class="ce-grp"><p class="ce-grp__title">Typ (Mehrfachauswahl)</p>
         <div class="ce-types">${TYPE_KEYS.map(([k, l]) =>
           `<label><input type="checkbox" data-ce-type="${ceEscape(k)}"${types.includes(k) ? " checked" : ""}> ${ceEscape(l)}</label>`).join("")}</div>
-      </div>
-      `;
+      </div>` +
+      // Der EIGENE Wiki-Artikel dieser Karte.
+      // ⚠️ Der Behälter ist ein BLANKES div: das Bauteil erzeugt seine Hülle selbst. Ihm hier schon
+      // `.ce-grp` mitzugeben schachtelte den Kasten doppelt (Rahmen im Rahmen, Polsterung doppelt).
+      // 🔴 KEIN Freitextfeld daneben. Eine Nicht-Wiki-Quelle gehört in den Quellen-Abschnitt; ein
+      // Feld, in das man alles tippen kann, ist der Grund, warum bei den Kraftlinien ein Tippfehler
+      // unsichtbar blieb (Entwurf §5).
+      `<div id="ceWikiAssign"></div>` +
+      // 🔴 DIE BILDER STEHEN HIER UNTEN, UND DAS IST DIE EINE ZUGELASSENE ABWEICHUNG VON DER
+      // OWNER-REIHENFOLGE (Entscheid 16.08.2026, ausdrücklich erteilt). Seine Liste setzt
+      // „wappen/bild/cover" nach ganz oben — bei Ort und Literatur ist das auch so gebaut. Bei den
+      // Karten NICHT, weil hier eine KAUSALITÄT sichtbar bleiben muss: der Autoget-Knopf in
+      // ceImageGroup holt das Vorschaubild aus dem „Karten-Link", und der steht in der Identität
+      // GANZ OBEN. Stünden die Bilder darüber, verwiese der Knopf auf ein Feld, das der Editor noch
+      // nicht gesehen hat. Die Reihenfolge IST die Erklärung.
+      // ⚠️ WER DAS „AUFRÄUMT", NIMMT DIE ERKLÄRUNG WEG. Es ist keine übersehene Inkonsistenz und
+      // kein Rest — es ist eine Owner-Entscheidung mit genau diesem Grund. Auf diesem Zweig ist eine
+      // begründete Abweichung schon zweimal als Versehen „korrigiert" worden.
+      `<div class="ce-imgcols">` + ceImageGroup("thumb", "Vorschaubild", v) + ceImageGroup("map", "Karte (eigenes Bild)", v) + `</div>` +
+      // ---- Quellen (Owner-Reihenfolge Platz 5) --------------------------------------------------
+      // „Wo gibt es die Karte?" IST der Quellen-Abschnitt dieses Fensters: eine Liste von Fundorten
+      // mit Adresse und Beschriftung. Er heißt weiter so, weil die Frage genauer ist als das Wort.
+      `${ceLinksGroup()}`;
 
     // "Verwandte Karten" is HIDDEN here (owner 2026-07-17: "das ist zu viel und brauchen wir gerade
     // nicht"). It rendered one checkbox per OTHER map -- fine at a dozen maps, unusable once the wiki
@@ -1202,7 +1226,8 @@
   function ceWikiUngespeichert() {
     const stateEl = document.getElementById("ceSaveState");
     if (stateEl) {
-      stateEl.textContent = "Geändert – noch nicht gespeichert.";
+      // Wortgleich zum Wege-Editor (Owner-Vorbild) -- vorher „Geändert – noch nicht gespeichert."
+      stateEl.textContent = "Ungespeicherte Änderungen.";
       stateEl.className = "ce-savebar__state";
     }
   }

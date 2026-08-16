@@ -392,24 +392,6 @@
 		html += '<div class="avm-empty">Ohne Monat ist der Fahrtyp ganzjährig gangbar. Ein Fenster wird '
 			+ 'beim Speichern auf <b>alle Segmente desselben Wiki-Weges</b> übertragen.</div>';
 
-		// Zugehörigkeit: NUR ANZEIGE (Owner 2026-08-02).
-		html += '<div class="dt-grp">Zugehörigkeit — führt durch</div>';
-		var landscapes = (state.detail && state.detail.landscapes) || [];
-		if (landscapes.length === 0) {
-			html += '<div class="avm-empty">Noch nicht gerechnet — die Zugehörigkeit entsteht mit '
-				+ '„Zugehörigkeit rechnen“ im <b>Landschaften-Editor</b> (Reiter WikiSync → Regionen '
-				+ "→ „Regionen bearbeiten“).</div>";
-		} else {
-			landscapes.forEach(function (entry) {
-				var name = entry.name || entry.art || "";
-				html += '<div class="wp-share"><span class="wp-share__name">' + escapeHtml(name)
-					+ '</span><span class="wp-share__kind">' + escapeHtml(entry.art || entry.kind || "")
-					+ '</span><span class="wp-share__value">' + num(entry.share * 100, 0) + " %</span></div>";
-			});
-			html += '<div class="pl-hint">Anteile unter 5 % werden nicht genannt · '
-				+ "<b>gelesen, nicht gesetzt</b> — neu gerechnet wird im Landschaften-Editor.</div>";
-		}
-
 		html += '<div class="dt-grp">Strömung</div>';
 		if (isWater(way.feature_subtype)) {
 			html += '<div class="pl-hint">Richtung: <b>'
@@ -439,10 +421,34 @@
 			+ '<input type="text" id="wpSourceLabel" maxlength="255" placeholder="Quelle" value="'
 			+ escapeHtml(way.other_source ? way.other_source.label : "") + '"></div></div>';
 
-		html += '<div class="wp-savebar"><span class="wp-savebar__msg" id="wpSaveMsg">'
+		html += '<div class="avm-savebar"><span class="avm-savebar__msg" id="wpSaveMsg">'
 			+ (way.dirty ? "Ungespeicherte Änderungen." : "Keine ungespeicherten Änderungen.")
 			+ '</span><button type="button" id="wpDiscard">Verwerfen</button>'
 			+ '<button type="button" class="is-primary" id="wpSave">Speichern</button></div>';
+
+		// Zugehörigkeit: NUR ANZEIGE (Owner 2026-08-02).
+		// 🔴 UNTER DER SPEICHERLEISTE, seit 16.08.2026 (Owner-Reihenfolge fuer alle Editorfenster):
+		// alles Bearbeitbare steht ueber der Leiste, alles Abgeleitete darunter. Dieser Block wird
+		// woanders gerechnet und hier nur gelesen -- er gehoert damit auf dieselbe Seite wie „Liegt
+		// in" und „Gemeinsame Regionen mit" im Landschaften-Editor.
+		// ⚠️ Er steht NACH der Leiste im Markup und wird deshalb NICHT vom Speicherweg beruehrt --
+		// saveDraft liest ausschliesslich die Felder darueber (buildPathEditPayload).
+		html += '<div class="dt-grp">Zugehörigkeit — führt durch</div>';
+		var landscapes = (state.detail && state.detail.landscapes) || [];
+		if (landscapes.length === 0) {
+			html += '<div class="avm-empty">Noch nicht gerechnet — die Zugehörigkeit entsteht mit '
+				+ '„Zugehörigkeit rechnen“ im <b>Landschaften-Editor</b> (Reiter WikiSync → Regionen '
+				+ "→ „Regionen bearbeiten“).</div>";
+		} else {
+			landscapes.forEach(function (entry) {
+				var name = entry.name || entry.art || "";
+				html += '<div class="wp-share"><span class="wp-share__name">' + escapeHtml(name)
+					+ '</span><span class="wp-share__kind">' + escapeHtml(entry.art || entry.kind || "")
+					+ '</span><span class="wp-share__value">' + num(entry.share * 100, 0) + " %</span></div>";
+			});
+			html += '<div class="pl-hint">Anteile unter 5 % werden nicht genannt · '
+				+ "<b>gelesen, nicht gesetzt</b> — neu gerechnet wird im Landschaften-Editor.</div>";
+		}
 
 		host.innerHTML = html;
 		wireDetail();
@@ -452,7 +458,7 @@
 		if (!state.draft) { return; }
 		state.draft.dirty = true;
 		var message = $("wpSaveMsg");
-		if (message) { message.textContent = "Ungespeicherte Änderungen."; message.className = "wp-savebar__msg"; }
+		if (message) { message.textContent = "Ungespeicherte Änderungen."; message.className = "avm-savebar__msg"; }
 	}
 
 	function wireDetail() {
@@ -686,7 +692,7 @@
 		var message = $("wpSaveMsg");
 		if (message) {
 			message.textContent = "Aus dem Wiki übernommen — noch nicht gespeichert.";
-			message.className = "wp-savebar__msg";
+			message.className = "avm-savebar__msg";
 		}
 	}
 
@@ -719,7 +725,7 @@
 		var message = $("wpSaveMsg");
 		var button = $("wpSave");
 		if (button) { button.disabled = true; }
-		if (message) { message.textContent = "Wird gespeichert…"; message.className = "wp-savebar__msg"; }
+		if (message) { message.textContent = "Wird gespeichert…"; message.className = "avm-savebar__msg"; }
 
 		var rumpf = {
 			action: "update_path_details",
@@ -746,7 +752,7 @@
 					: "Unerwartete Antwort";
 				throw new Error(text);
 			}
-			if (message) { message.textContent = "Gespeichert."; message.className = "wp-savebar__msg ok"; }
+			if (message) { message.textContent = "Gespeichert."; message.className = "avm-savebar__msg ok"; }
 			state.draft.dirty = false;
 			// 💣 Die Liste MUSS neu geladen werden: Name und Typ stehen dort, und dieses Fenster
 			// überlebt sein Schließen. Ohne das zeigt ein Wiederöffnen den alten Namen.
@@ -754,7 +760,7 @@
 		}).catch(function (error) {
 			if (message) {
 				message.textContent = "Fehlgeschlagen: " + (error && error.message ? error.message : error);
-				message.className = "wp-savebar__msg bad";
+				message.className = "avm-savebar__msg bad";
 			}
 		}).then(function () {
 			var again = $("wpSave");
@@ -1630,7 +1636,7 @@
 	function tempoSetStatus(text, kind) {
 		var el = $("wpTempoStatus");
 		el.textContent = text || "";
-		el.className = "wp-savebar__msg" + (kind ? " " + kind : "");
+		el.className = "avm-savebar__msg" + (kind ? " " + kind : "");
 	}
 
 	/* Eine Zeile des Rasters: Name · unser Wert (Eingabe) · GA-Wert · die Wirkung.

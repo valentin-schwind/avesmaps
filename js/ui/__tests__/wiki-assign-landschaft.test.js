@@ -857,7 +857,14 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 		if (feld) { return blockFelder[feld[1]] || (blockFelder[feld[1]] = scheinFeld("")); }
 		const aktion = /^\[data-a="([^"]+)"\]$/.exec(selektor);
 		if (aktion) { return blockAktionen[aktion[1]] || (blockAktionen[aktion[1]] = scheinBehaelter(aktion[1])); }
-		if (selektor === ".dt-msg") { return blockMeldung; }
+		// ⚠️ `.avm-savebar__msg` seit dem 16.08.2026: die Meldung sitzt jetzt IN der geteilten
+		// Speicherleiste (Owner-Reihenfolge, .avm-savebar in css/components/editor-page.css), vorher
+		// hiess sie `.dt-msg`. 🪤 Diese Attrappe hat den alten Namen HARTKODIERT, und der Ausfall sah
+		// aus wie ein Produktfehler: `querySelector` gab `null` zurueck, `wikiAssignZuweisen` fiel an
+		// seiner letzten Zeile um, das Bauteil las den Wurf vertragsgemaess als „Zuweisung
+		// fehlgeschlagen" -- und gemeldet wurde am Ende, der Name sei nicht ins Formular uebernommen
+		// worden. Wer eine Klasse umbenennt, sucht sie auch in den Attrappen.
+		if (selektor === ".avm-savebar__msg") { return blockMeldung; }
 		return null;
 	};
 	const detail = scheinBehaelter("ecoDetail");
