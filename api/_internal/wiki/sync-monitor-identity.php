@@ -315,7 +315,7 @@ function avesmapsWikiSyncMonitorUploadCoat(PDO $pdo, string $wikiKey, string $so
     if ($wikiKey === '') {
         return ['ok' => false, 'error' => 'wiki_key fehlt.'];
     }
-    if (!in_array($license, ['public_domain', 'attribution_required'], true)) {
+    if (!in_array($license, ['public_domain', 'attribution_required', 'cc_by'], true)) {
         return ['ok' => false, 'error' => 'Bitte eine gueltige Lizenz waehlen (gemeinfrei oder Namensnennung).'];
     }
 
@@ -935,12 +935,15 @@ function avesmapsWikiSyncMonitorIdentityBackups(PDO $pdo, int $limit): array {
 }
 
 // Coat-Apply Vorschau: effektives Wappen (Override ?? political_territory ?? Staging) pro Live-Zeile,
-// gegated auf erlaubte Lizenz (public_domain/attribution_required). Unlizenziert -> leeren (#2).
+// gegated auf erlaubte Lizenz (public_domain/attribution_required/cc_by). Unlizenziert -> leeren (#2).
+// 🔴 attribution_required bleibt neben cc_by stehen: die Staging-Zeile kann noch den Altwert tragen,
+// bis der naechste Wiki-Abgleich sie neu parst (Phase 2, Aufgabe 3) -- ihn hier abzulehnen wuerde ein
+// unveraendertes Wappen faelschlich als "unlizenziert" aus political_territory entfernen.
 function avesmapsWikiSyncMonitorApplyCoatsPreview(PDO $pdo): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $staging = AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE;
     $model = AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE;
-    $allowed = ['public_domain', 'attribution_required'];
+    $allowed = ['public_domain', 'attribution_required', 'cc_by'];
 
     $st = [];
     foreach ($pdo->query('SELECT wiki_key, coat_of_arms_url, coat_of_arms_license_status FROM ' . $staging) ?: [] as $r) {
