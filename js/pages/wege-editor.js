@@ -1527,6 +1527,24 @@
 			+ "wurde.</div>"
 			+ "</div>";
 
+		// 🔴 DIE DREI REISETAGE, EINMAL GELESEN -- und ab hier benutzt sie JEDE Stelle des Fensters:
+		// die Tagesleistung je Rasterzeile, der GA-Vergleichswert je Zelle und der Abschnitt weiter
+		// unten, in dem sie eingestellt werden.
+		// 💣 HIER STAND `transport === "fastShip" ? 24 : 12`, die Regel ein zweites Mal und hartkodiert.
+		// Am 16.08.2026 wurde der Landtag auf 8 gestellt (WdE S. 160-162) -- das Fenster rechnete danach
+		// weiter mit 12 und meldete fuer die Strasse 46,5 Meilen/Tag statt 30,0, also „verfehlt die
+		// GA-Tagesleistung", waehrend die Zahl im Feld voellig richtig war. Der Owner hat es am Bild
+		// gesehen, kein Test. Eine abgeschriebene Regel veraltet genau dann, wenn das Original sich
+		// bewegt, und meldet den Fehler beim Falschen.
+		var stunden = values.travel_hours || {};
+		var stundenLand = Number(stunden.land) || 0;
+		var stundenWasser = Number(stunden.water) || 0;
+		var stundenNacht = Number(stunden.night) || 0;
+		var stundenFuer = function (transport, istLand) {
+			if (transport === "fastShip") { return stundenNacht; }
+			return istLand ? stundenLand : stundenWasser;
+		};
+
 		// Abschnitt 1: das Raster. Es IST die Wahrheit (Entwurf §5) -- die zwei Listen darunter sind
 		// Anzeige, nicht Speicher.
 		html += '<div class="wp-tempo__sec"><h3>Raster: Reisemittel × Wegtyp</h3>'
@@ -1543,7 +1561,7 @@
 			var row = values.grid[transport];
 			if (!row) { return; }
 			var isLand = ["riverBarge", "riverSailer", "cargoShip", "galley", "fastShip"].indexOf(transport) === -1;
-			var hours = transport === "fastShip" ? 24 : 12;
+			var hours = stundenFuer(transport, isLand);
 			var dayMiles = src.day_miles[transport];
 			var road = dayMiles * (isLand ? 1.032 : 1) * 1.19 / hours;
 			html += '<div class="wp-tempo__grp"><h4>' + escapeHtml(TEMPO_TRANSPORT_LABELS[transport])
@@ -1585,10 +1603,6 @@
 		// „Wege des Entdeckers" S. 160-162, siebenmal, bei jeder Fortbewegungsart. Die GA-Spalte
 		// zeigt an Land deshalb „—" -- dieselbe Ehrlichkeit wie bei den elf Landschaftsarten und
 		// beim Querfeldein-Aufschlag.
-		var stunden = values.travel_hours || {};
-		var stundenLand = Number(stunden.land) || 0;
-		var stundenWasser = Number(stunden.water) || 0;
-		var stundenNacht = Number(stunden.night) || 0;
 		html += '<div class="wp-tempo__sec"><h3>Reisetag: Stunden am Tag</h3>'
 			+ '<p class="wp-tempo__note">Der <b>Nenner</b> jeder Zahl im Raster darüber: '
 			+ "<code>Tempo = Tagesleistung × 1,032 × 1,19 ÷ Reisestunden</code>. "

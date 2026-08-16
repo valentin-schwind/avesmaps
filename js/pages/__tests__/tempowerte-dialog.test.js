@@ -269,3 +269,32 @@ assert.ok(
 );
 
 console.log("tempowerte-dialog.test.js: Fenster und Endpunkt sprechen dieselben Namen");
+
+// ---- 6. Der Reisetag steht im Fenster nur EINMAL ------------------------------------------------
+//
+// 💣 HIER STAND `transport === "fastShip" ? 24 : 12` -- die Regel des Servers ein zweites Mal,
+// hartkodiert, mitten in der Rasterschleife. Als der Landtag am 16.08.2026 auf 8 Stunden ging
+// (WdE S. 160-162), rechnete das Fenster weiter mit 12 und meldete fuer die Strasse 46,5 statt
+// 30,0 Meilen/Tag -- also „verfehlt die GA-Tagesleistung", waehrend die Zahl im Feld voellig
+// richtig war. Gesehen hat es der Owner am Bild, kein Test. Diese Zusicherung ist die Konsequenz.
+assert.ok(
+	dialog.includes("values.travel_hours"),
+	"das Fenster liest die Reisetage aus der Antwort (values.travel_hours)"
+);
+assert.ok(
+	dialog.includes("stundenFuer(transport, isLand)"),
+	"und die Rasterschleife nimmt sie ueber stundenFuer(), statt eine eigene Zahl zu fuehren"
+);
+// 🔴 Und zwar OHNE zweite Zahl daneben: ein Literal wie `? 24 : 12` ist genau die Abschrift,
+// die beim naechsten Quellenfund wieder veraltet. Kommentare duerfen es nennen, Code nicht.
+const dialogOhneKommentare = dialog
+	.replace(/\/\*[\s\S]*?\*\//g, "")
+	.split("\n")
+	.filter((zeile) => !zeile.trim().startsWith("//"))
+	.join("\n");
+assert.ok(
+	!/\?\s*24\s*:\s*12/.test(dialogOhneKommentare),
+	"kein hartkodierter Reisetag mehr im Code des Fensters"
+);
+
+console.log("tempowerte-dialog.test.js: der Reisetag hat im Fenster eine einzige Quelle");
