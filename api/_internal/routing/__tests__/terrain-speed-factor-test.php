@@ -386,10 +386,9 @@ foreach ([0.749, 0.700, 0.500, 0.200, 0.100, 0.040] as $faktor) {
 // kam dazu, und der Waechter hat es gemeldet, statt es durchgehen zu lassen. Die Liste bleibt
 // deshalb ausgeschrieben -- ein `count()` haette dasselbe gezaehlt und nichts benannt.
 $abgelegt = avesmapsTravelValuesStorableShape(avesmapsTravelValuesRead(null));
-// ⭐ Und am 16.08.2026 ein zweites Mal: `travel_hours` (der einstellbare Reisetag) kam dazu.
 assert(array_keys($abgelegt) === ['grid', 'day_miles', 'path_factors', 'ground_penalties',
-    'river_ratio', 'calibration_target_miles', 'offroad_ramp', 'travel_hours'],
-    'die Ablageform hat genau acht Schluessel: ' . implode(', ', array_keys($abgelegt)));
+    'river_ratio', 'calibration_target_miles', 'offroad_ramp'],
+    'die Ablageform hat genau sieben Schluessel: ' . implode(', ', array_keys($abgelegt)));
 // ⚠️ `source` sagt, WOHER die Werte kamen (Speicher oder Konstante). Mitgespeichert waere es beim
 // naechsten Lesen eine Behauptung ueber sich selbst.
 assert(!array_key_exists('source', $abgelegt), '`source` wird nicht mitgespeichert');
