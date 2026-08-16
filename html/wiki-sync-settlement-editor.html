@@ -407,7 +407,7 @@
     <button class="btn2" id="seLinkCheck" title="Prüft NUR die Quellen-Links der Orte auf Erreichbarkeit. Abenteuer, Karten und Territoriums-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="seLinkCheckInfo">Quellen der Orte</span></button>
     <!-- Achte Kachel (Aufgabe 8, Bauplan docs/superpowers/plans/2026-08-16-zoombaender.md): weich/
          outline wie fünf ihrer Geschwister -- die Haupthandlung dieses Menübands heißt „Syncen". -->
-    <button class="btn2" id="seZoomBands" title="Stellt ein, ab welcher Zoomstufe eine Ortsklasse auf der Karte erscheint, wie groß ihr Punkt dort ist und ab wann sie ihren Namen trägt. Einstellen dürfen nur Administratoren; ansehen darf es jeder Editor."><span class="t1">Zoombänder</span><span class="t2">Zoomlevel aller Orte</span></button>
+    <button class="btn2" id="seZoomBands" title="Stellt ein, ab welcher Zoomstufe eine Ortsklasse auf der Karte erscheint, wie groß ihr Punkt dort ist und ab wann sie ihr Label trägt. Einstellen dürfen nur Administratoren; ansehen darf es jeder Editor."><span class="t1">Zoombänder</span><span class="t2">Zoomlevel aller Orte</span></button>
   </div>
 </header>
 
@@ -3421,11 +3421,32 @@ let zoomBandPreviewStage = null;
 let zoomBandPlotsCache = null;
 const ZOOM_BAND_SPACING_KEYS = ["spalt", "repel", "versatz"];
 
+// 🔴 Prüfbefund 1 (Fix-Runde 2): "weicht von der Vorgabe ab" und "ungespeichert" sind ZWEI Aussagen,
+// keine. zoomBandRowEqualsDefault/zoomBandSpacingEqualsDefault messen den Abstand zur VORGABE -- das
+// gilt auch direkt nach dem Laden, wenn ein Admin früher schon eine Übersteuerung gespeichert hat.
+// "Ungespeichert" darf nur stimmen, wenn in DIESER Fenster-Sitzung seit dem letzten Laden/Speichern/
+// Zurücksetzen wirklich etwas angefasst wurde -- ein eigener Zustand dafür, keine Ableitung aus der
+// Abstandsmessung. Zurückgesetzt beim Laden und nach erfolgreichem Speichern/Zurücksetzen; gesetzt
+// von JEDEM Setter (setZoomBandPointValue, changeZoomBandStart, setZoomBandSpacing, resetZoomBandRow
+// -- resetZoomBandSpacing ruft setZoomBandSpacing und ist damit mit erfasst).
+let zoomBandsBearbeitetSeitLaden = false;
+function markZoomBandsBearbeitet() {
+	zoomBandsBearbeitetSeitLaden = true;
+}
+
 // 🔴 GELESEN, NIE ABGESCHRIEBEN -- AVESMAPS_ZOOM_BAND_MAX_ZOOM/_LIMITS stehen in
 // js/map-features/location-zoom-bands.js. Der Prototyp trug an dieser Stelle noch eine veraltete
 // eigene Kopie (200 px / 96 pt) -- die Wahrheit steht seit fdb27b3a bei 0,5-100 px / 4-30 pt.
+//
+// 💣 Prüfbefund 2 (Fix-Runde 2): der Rückfall stand hier auf 7, obwohl die geschützte Zahl seit dem
+// Ausbau auf Zoomstufe 8 (fdb27b3a) 8 ist -- ein Rückfall, der die Vorgabe selbst falsch spiegelt,
+// ist keine Sicherung mehr. ⚠️ Bewusst weiterhin ein STILLER Rückfall, kein lauter Fehler: diese
+// Funktion (über zoomBandPlots()) läuft synchron im Skriptrumpf, BEVOR boot() unten die Territorien-
+// und Ortsliste lädt -- ein Wurf hier stoppte nicht nur das Zoombänder-Fenster, sondern die GANZE
+// Editorseite noch vor ihrem eigentlichen Start. Das wäre schlimmer als eine falsche Spaltenzahl in
+// einem admin-only Diagramm, das kaum jemand öffnet.
 function zoomBandMaxZoom() {
-	return typeof AVESMAPS_ZOOM_BAND_MAX_ZOOM === "number" ? AVESMAPS_ZOOM_BAND_MAX_ZOOM : 7;
+	return typeof AVESMAPS_ZOOM_BAND_MAX_ZOOM === "number" ? AVESMAPS_ZOOM_BAND_MAX_ZOOM : 8;
 }
 function zoomBandLimits(kind) {
 	return (typeof AVESMAPS_ZOOM_BAND_LIMITS === "object" && AVESMAPS_ZOOM_BAND_LIMITS && AVESMAPS_ZOOM_BAND_LIMITS[kind])
@@ -3715,6 +3736,7 @@ function setZoomBandPointValue(kind, cls, z, rawVal, source) {
 	const cfg = zoomBandPlots()[kind];
 	const st = zoomBandsState[kind][cls];
 	if (z < st.start || z > zoomBandMaxZoom()) { return; }
+	markZoomBandsBearbeitet();
 	const val = zoomBandRound2(zoomBandClamp(rawVal, cfg.limits.min, cfg.limits.max));
 	st.values[z] = val;
 	const circle = cfg.svg.querySelector(`circle[data-cls="${cls}"][data-z="${z}"]`);
@@ -3757,6 +3779,7 @@ function changeZoomBandStart(kind, cls, newStart) {
 	if (!zoomBandsDarfSpeichern) { return; }
 	const st = zoomBandsState[kind][cls];
 	if (newStart === st.start) { return; }
+	markZoomBandsBearbeitet();
 	st.start = newStart;
 	renderZoomBandPlot(zoomBandPlots()[kind]);
 	renderZoomBandLegend(kind);
@@ -3772,6 +3795,7 @@ function changeZoomBandStart(kind, cls, newStart) {
 // Fenster auch.
 function resetZoomBandRow(kind, cls) {
 	if (!zoomBandsDarfSpeichern) { return; }
+	markZoomBandsBearbeitet();
 	zoomBandsState[kind][cls] = zoomBandRowState(AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS[kind][cls], kind);
 	if (zoomBandsSelected[kind] && zoomBandsSelected[kind].cls === cls) { zoomBandsSelected[kind] = null; }
 	renderZoomBandPlot(zoomBandPlots()[kind]);
@@ -3965,6 +3989,7 @@ function zoomBandSpacingEls() {
 // hier durch, genau wie setZoomBandPointValue für die Plot-Punkte.
 function setZoomBandSpacing(key, rawVal) {
 	if (!zoomBandsDarfSpeichern || !isFinite(rawVal)) { return; }
+	markZoomBandsBearbeitet();
 	const limits = zoomBandSpacingLimits();
 	const val = zoomBandRound2(zoomBandClamp(rawVal, limits.min, limits.max));
 	zoomBandsState.abstaende[key] = val;
@@ -4079,7 +4104,14 @@ function updateZoomBandsMessage() {
 		return;
 	}
 	const total = curveChanged + spacingChanged;
-	msg.textContent = `Ungespeichert: ${parts.join(", ")} weich${total === 1 ? "t" : "en"} von der Vorgabe ab.`;
+	const abweichungSatz = `${parts.join(", ")} weich${total === 1 ? "t" : "en"} von der Vorgabe ab.`;
+	// 🔴 Prüfbefund 1 (Fix-Runde 2): "weicht von der Vorgabe ab" ist die Messung (gilt auch direkt
+	// nach dem Laden, wenn eine frühere Sitzung schon gespeichert hat) -- "Ungespeichert" ist eine
+	// ZWEITE, davon unabhängige Aussage und darf nur stehen, wenn in DIESER Sitzung seit dem letzten
+	// Laden/Speichern/Zurücksetzen wirklich etwas angefasst wurde (zoomBandsBearbeitetSeitLaden).
+	msg.textContent = zoomBandsBearbeitetSeitLaden
+		? `Ungespeichert: ${abweichungSatz}`
+		: `Gespeichert: ${abweichungSatz}`;
 }
 
 // Die Speicherleiste. 🔴 Für Editoren ohne admin steht hier ein SATZ, kein grauer Knopf -- ein
@@ -4153,6 +4185,9 @@ async function openZoomBandsDialog() {
 		zoomBandsState = zoomBandsFromResolved(resolved);
 		zoomBandsSelected = { marker: null, label: null };
 		zoomBandPreviewStage = null;
+		// 🔴 Prüfbefund 1: frisch geladen heißt nichts angefasst -- auch wenn die geladene Tafel von
+		// der Vorgabe abweicht (eine frühere Sitzung hat gespeichert), ist das kein "Ungespeichert".
+		zoomBandsBearbeitetSeitLaden = false;
 		renderZoomBandsDialog();
 	} catch (error) {
 		// ⚠️ Ohne diese Zeile bliebe links „Lädt…" stehen -- die Fehlermeldung unten erklärt das
@@ -4176,6 +4211,8 @@ async function saveZoomBands() {
 		const resolved = avesmapsResolveLocationZoomBands(payload.bands);
 		zoomBandsState = zoomBandsFromResolved(resolved);
 		zoomBandsSelected = { marker: null, label: null };
+		// Gespeichert -- die Sitzung beginnt bezüglich "ungespeichert" wieder bei null.
+		zoomBandsBearbeitetSeitLaden = false;
 		renderZoomBandsDialog();
 		$("seZoomBandsMsg").textContent = "Gespeichert. Die Karte zeigt es nach dem nächsten Laden.";
 	} catch (error) {
@@ -4192,6 +4229,9 @@ async function resetAllZoomBands() {
 		const resolved = avesmapsResolveLocationZoomBands(payload.bands);
 		zoomBandsState = zoomBandsFromResolved(resolved);
 		zoomBandsSelected = { marker: null, label: null };
+		// "reset" schreibt sofort auf dem Server (api/edit/map/zoom-bands.php) -- ebenso gespeichert
+		// wie ein "save", die Sitzung beginnt also auch hier wieder bei null.
+		zoomBandsBearbeitetSeitLaden = false;
 		renderZoomBandsDialog();
 		$("seZoomBandsMsg").textContent = "Auf die Vorgabewerte zurückgesetzt.";
 	} catch (error) {

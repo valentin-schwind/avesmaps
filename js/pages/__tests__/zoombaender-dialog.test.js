@@ -150,4 +150,62 @@ assert.ok(!/6\.65,\s*9\.4,\s*13\.3/.test(seite),
 assert.ok(/avesmapsResolveLocationZoomBands\(payload\.bands\)/.test(seite),
 	"angezeigt wird die ZUSAMMENGEFUEHRTE Tafel, nicht die rohe Uebersteuerung");
 
+// ---- 8. Pruefbefund 2 (Fix-Runde 2): der Rueckfall in zoomBandMaxZoom() spiegelt die geschuetzte
+// Zahl -- 8 seit dem Ausbau auf Zoomstufe 8 (fdb27b3a), nicht mehr die veraltete 7.
+assert.ok(/function zoomBandMaxZoom\(\) \{\s*return typeof AVESMAPS_ZOOM_BAND_MAX_ZOOM === "number" \? AVESMAPS_ZOOM_BAND_MAX_ZOOM : 8;\s*\}/.test(seite),
+	"der Rueckfall von zoomBandMaxZoom() steht auf 8, nicht mehr auf der veralteten 7");
+
+// ---- 9. Pruefbefund 3 (Fix-Runde 2): die gezeichnete Kartenschrift heisst ueberall „Label" --------
+// 🔴 Owner-Entscheid 16.08.2026. Die Kachel-Tooltip sagte „...ab wann sie ihren Namen traegt", die
+// Fenster-Unterzeile daneben „...ab wann sie ihr Label traegt" -- dieselbe Aussage, zwei Woerter.
+assert.ok(!/ihren? Namen trägt/.test(seite),
+	"die Kachel-Tooltip nennt die Kartenschrift nicht mehr „Namen\"");
+const kachelTagBefund3 = seite.match(/<button[^>]*id="seZoomBands"[^>]*>/);
+assert.ok(kachelTagBefund3 && /ihr Label trägt/.test(kachelTagBefund3[0]),
+	"und sagt stattdessen „...ab wann sie ihr Label traegt\", wie die Fenster-Unterzeile");
+
+// ---- 10. Pruefbefund 1 (Fix-Runde 2): "weicht von der Vorgabe ab" und "ungespeichert" sind ZWEI --
+// Aussagen, keine. Vorher mass updateZoomBandsMessage NUR den Abstand zur Vorgabe und nannte jede
+// Abweichung "Ungespeichert" -- ein zweites Oeffnen nach dem Speichern log damit weiter, obwohl
+// nichts ungespeichert war (die einzige Zustandsrueckmeldung des Fensters).
+//
+// ⭐ Die Setter werden GEGREPPT, nicht aus dem Gedaechtnis aufgezaehlt (Bauplan-Vorgabe) -- genau
+// die Falle, die Fix-Runde 1 schon einmal traf ("eine Zusicherung, die ihren Zweig nie verlaesst").
+assert.ok(/let zoomBandsBearbeitetSeitLaden = false;/.test(seite),
+	"es gibt einen eigenen Zustand \"seit Laden/Speichern bearbeitet\", initial false");
+assert.ok(/function markZoomBandsBearbeitet\(\) \{\s*zoomBandsBearbeitetSeitLaden = true;\s*\}/.test(seite),
+	"und eine Funktion, die ihn setzt");
+
+// Jede Funktion, die den Bearbeitungszustand WIRKLICH aendert, muss markZoomBandsBearbeitet() rufen
+// -- sonst bleibt sie stumm und die Meldung luegt wieder, nur seltener. Gegriffen aus der Datei
+// selbst: alle Top-Level-Funktionsnamen, die mit "set" oder "reset" beginnen und auf Zoombaender-
+// Zustand wirken (ausgenommen die Async-Aktionen get/save/reset, die unten separat geprueft werden).
+const zoomBandZustandsSetter = ["setZoomBandPointValue", "changeZoomBandStart", "resetZoomBandRow", "setZoomBandSpacing"];
+zoomBandZustandsSetter.forEach((fn) => {
+	const match = seite.match(new RegExp(`function ${fn}\\([^)]*\\)[\\s\\S]*?\\r?\\n\\}\\r?\\n`));
+	assert.ok(match, `${fn} wurde gefunden`);
+	assert.ok(/markZoomBandsBearbeitet\(\);/.test(match[0]),
+		`${fn} markiert den Bearbeitungszustand, sonst zaehlt die Statuszeile ihn nie als "ungespeichert"`);
+});
+// resetZoomBandSpacing ruft NUR setZoomBandSpacing durch -- die Markierung kommt transitiv mit,
+// braucht also KEINEN eigenen Aufruf (waere doppelt).
+assert.ok(/function resetZoomBandSpacing\(key\) \{\s*if \(!zoomBandsDarfSpeichern\) \{ return; \}\s*setZoomBandSpacing\(key, zoomBandSpacingDefault\(key\)\);\s*\}/.test(seite),
+	"resetZoomBandSpacing ruft setZoomBandSpacing durch, statt den Zustand ein zweites Mal zu aendern");
+
+// Zurueckgesetzt bei jedem erfolgreichen Laden/Speichern/Zuruecksetzen -- sonst bliebe ein einmal
+// gesetztes "bearbeitet" fuer den Rest der Fenster-Sitzung stehen, auch nach dem Speichern.
+["openZoomBandsDialog", "saveZoomBands", "resetAllZoomBands"].forEach((fn) => {
+	const match = seite.match(new RegExp(`(?:async )?function ${fn}\\([^)]*\\)[\\s\\S]*?\\r?\\n\\}\\r?\\n`));
+	assert.ok(match, `${fn} wurde gefunden`);
+	assert.ok(/zoomBandsBearbeitetSeitLaden = false;/.test(match[0]),
+		`${fn} setzt den Bearbeitungszustand nach Erfolg zurueck`);
+});
+
+// Die Meldung selbst unterscheidet die zwei Faelle -- kein "Ungespeichert" mehr, das allein an der
+// Abstandsmessung haengt.
+assert.ok(
+	/zoomBandsBearbeitetSeitLaden\s*\?\s*`Ungespeichert: \$\{abweichungSatz\}`\s*:\s*`Gespeichert: \$\{abweichungSatz\}`/.test(seite),
+	"updateZoomBandsMessage unterscheidet \"ungespeichert\" (diese Sitzung bearbeitet) von \"weicht ab, aber gespeichert\" (frisch geladen)"
+);
+
 console.log("zoombaender-dialog: alle Zusicherungen erfuellt");
