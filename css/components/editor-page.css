@@ -557,9 +557,13 @@ body.avm-editor-body {
 .dt-link { color: var(--accent); text-decoration: none; }
 .dt-link:hover { text-decoration: underline; }
 
+/* ⚠️ input[type=search] steht hier seit 16.08.2026 mit drin: das geteilte Zuweisungs-Bauteil
+   (js/ui/wiki-assign.js) setzt sein Suchfeld in genau diese Rasterzelle, und ohne die Zeile bliebe
+   es inhaltsbreit statt spaltenbreit. */
 .dt-grid input[type=text],
 .dt-grid input[type=url],
 .dt-grid input[type=number],
+.dt-grid input[type=search],
 .dt-grid select {
 	width: 100%;
 	height: var(--avm-control-h);
@@ -596,6 +600,140 @@ body.avm-editor-body {
 .dt-msg { font-size: var(--font-size-caption); }
 .dt-msg.ok { color: var(--ok); }
 .dt-msg.bad { color: var(--bad); }
+
+/* ---- Wiki-Zuweisung (js/ui/wiki-assign.js, Huelle "dt") -------------------------------------
+ * Ein Bauteil, ZWEI Huellen (Entwurf §4a, docs/superpowers/specs/2026-08-15-wiki-zuweisung-
+ * vereinheitlichung-design.md): .dt-* hier fuer die Editor-iframes, .label-wiki-* in
+ * css/components/region-sync.css fuer die Kartendialoge.
+ *
+ * 💣 Die Trefferlisten-Regeln standen bis 16.08.2026 NUR in region-sync.css, und die laedt nur
+ *    index.html (gemessen: 7 Treffer .label-wiki-picker-list dort, 0 hier; index.html bindet
+ *    region-sync.css, html/wiki-sync-powerline-editor.html bindet diese Datei). Eine Trefferliste
+ *    im Editorfenster waere damit voellig ungestylt gewesen. Eine DRITTE Datei loest das nicht --
+ *    sie waere die dritte Huelle, und zwei sind die Obergrenze.
+ *
+ * ⚠️ Neue Regeln greifen zum echten Token (var(--color-panel)), nicht zu den Kurznamen oben.
+ */
+
+/* Der Zuweisungsblock ist nie der Anfang eines Panels -- er folgt immer einem anderen Abschnitt
+   (Identitaet, Beschreibung, Quellen). Sein Gruppenkopf traegt die Trennlinie deshalb auch dann,
+   wenn er erstes Kind SEINES Behaelters ist; ohne diese Zeile verschluckt .dt-grp:first-child sie
+   genau dort, wo sie hingehoert. */
+.avm-wiki-assign > .dt-grp:first-child {
+	margin-top: var(--space-8);
+	padding-top: var(--space-4);
+	border-top: 1px solid var(--color-border);
+}
+
+/* Die Knoepfe rechts im Gruppenkopf. 🔴 Weich/outline, nie gefuellt: eine Handlung in einem
+   Abschnitt ist nie die Haupthandlung der Seite (AGENTS.md §12). Sie tragen deshalb gar keine
+   Klasse -- die Editorseiten stylen den blanken <button> bereits weich. */
+.dt-grp__sp {
+	margin-left: auto;
+	display: flex;
+	gap: var(--space-2);
+	flex-wrap: wrap;
+}
+
+.dt-hint {
+	padding-top: var(--space-2);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+/* ---- Trefferliste ---------------------------------------------------------------------------
+   Massgabe ist .label-wiki-picker-list in region-sync.css: dieselbe Rolle, dieselbe Hoehe,
+   dieselben Toene -- nur die Namen folgen der Huelle, in der sie stehen. */
+.dt-picker-list {
+	margin-top: var(--space-4);
+	max-height: 340px;
+	overflow-y: auto;
+	overflow-x: hidden;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+}
+
+.dt-picker-list__item {
+	padding: var(--space-4) var(--space-8);
+	border-bottom: 1px solid var(--color-border);
+	cursor: pointer;
+}
+
+.dt-picker-list__item:last-child { border-bottom: 0; }
+
+/* Die Tastatur waehlt (↑ ↓), die Maus faehrt darueber -- beides sagt dasselbe. */
+.dt-picker-list__item:hover,
+.dt-picker-list__item.is-active { background: var(--color-hover-wash); }
+
+.dt-picker-list__name { color: var(--color-text-strong); }
+
+.dt-picker-list__meta {
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+/* 🔴 Ein Treffer sagt IM Treffer, wenn er schon woanders haengt -- vor dem Klick, nicht danach
+   (Entwurf §5). Warnton, weil die Zuweisung dann eine zweite auf denselben Artikel waere. */
+.dt-picker-list__warn {
+	font-size: var(--font-size-caption);
+	color: var(--color-warning);
+}
+
+.dt-picker-list__empty {
+	padding: var(--space-6);
+	font-size: var(--font-size-small);
+	color: var(--color-placeholder);
+}
+
+/* ---- Sync-Vorschau --------------------------------------------------------------------------
+   Dieselbe Formensprache wie die Uebernahme-Vorschau der Massenlaeufe (Entwurf §6): eine Zeile je
+   UNTERSCHIED, Haken links, alter Wert durchgestrichen, neuer daneben. Was ohnehin uebereinstimmt,
+   steht gar nicht erst da.
+   💣 Die Haekchenspalte ist max-content, keine abgeschriebene Pixelzahl -- ein Kontrollkaestchen
+   ist so breit, wie es die Schriftgroesse des Themas macht. */
+.dt-sync-rows {
+	margin-top: var(--space-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+}
+
+.dt-sync-row {
+	display: grid;
+	grid-template-columns: max-content var(--avm-field-label-w) minmax(0, 1fr);
+	gap: var(--space-4);
+	align-items: start;
+	padding: var(--space-4) var(--space-8);
+	font-size: var(--font-size-body);
+	cursor: pointer;
+}
+
+.dt-sync-row + .dt-sync-row { border-top: 1px solid var(--color-border); }
+.dt-sync-row:hover { background: var(--color-hover-wash); }
+.dt-sync-row input { margin-top: var(--space-2); accent-color: var(--color-accent); }
+
+.dt-sync-row__k {
+	font-weight: var(--font-weight-bold);
+	color: var(--color-text-muted);
+}
+
+.dt-sync-row__alt {
+	color: var(--color-text-muted);
+	text-decoration: line-through;
+}
+
+.dt-sync-row__pfeil { color: var(--color-text-muted); }
+.dt-sync-row__neu { color: var(--color-text-strong); }
+
+/* 🔴 Der Grund steht IN der Zeile, nicht in einer Fussnote: eine ungehakte Zeile ohne Begruendung
+   liest sich wie ein Fehler ("das Wiki sagt nichts -- wuerde die Angabe leeren" bzw. "von Hand
+   gesetzt -- wuerde zurueckgedreht", Aufgabe 2). */
+.dt-sync-row__grund {
+	display: block;
+	font-size: var(--font-size-caption);
+	color: var(--color-warning);
+}
 
 .pl-hint {
 	margin-top: 2px;

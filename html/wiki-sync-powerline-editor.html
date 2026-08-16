@@ -161,6 +161,16 @@
 <script src="/js/review/review-feature-sources.js"></script>
 <!-- Shared pure powerline topology helpers (same file the live map delegates to). -->
 <script src="/js/map-features/powerline-topology.js"></script>
+<!-- Die geteilte Wiki-Zuweisung: Feldregister, reine Diff-Rechnung, Bauteil -- in DIESER
+     Reihenfolge, denn das Bauteil ruft die beiden anderen. Absolute Pfade wie die Nachbarn
+     darueber; dieses iframe wird mit ?v=Date.now() geholt (js/review/review-powerline-list.js:13)
+     und faellt damit NICHT unter ASSET_VERSION in js/territory/territory-editor-inline-host.js --
+     der Deploy stempelt die hier verlinkten Dateien selbst.
+     ⚠️ Ein Editorfenster ist ein iframe mit EIGENEM Dokument (Entwurf §4a): es erbt weder Skripte
+     noch Stylesheets von index.html und muss beides selbst binden. -->
+<script src="/js/ui/wiki-assign-registry.js"></script>
+<script src="/js/ui/wiki-assign-diff.js"></script>
+<script src="/js/ui/wiki-assign.js"></script>
 <script>
 "use strict";
 (function () {
@@ -201,7 +211,8 @@ let showDupesOnly = false;
 let searchTerm = "";
 let pendingSelectName = null;  // set by the host's "Bearbeiten" postMessage before data has loaded
 let reorderDraft = null;       // strand node order the user is arranging (▲▼); null = the true stored order
-let wikiArticles = [];      // [{name, wiki_url, wiki_key}] -- Vorschlaege fuer die Zuweisung
+let wikiArticles = [];      // [{name, wiki_url, wiki_key, staerke, affinitaet, laenge, regionen}]
+let wikiAssign = null;      // Steuerung des geteilten Zuweisungs-Bauteils (js/ui/wiki-assign.js)
 let dumpState = { has_run: false, completed_at: "", article_count: 0 };
 // Gegenrichtung (Schritt 5): steht nur in der Antwort des Sync-Aufrufs und verfaellt sonst mit ihr --
 // deshalb hier festgehalten, solange das Fenster offen ist. null = noch nie gefuellt (kein Sync seit
@@ -372,9 +383,6 @@ function renderDetail() {
 	const showLabel = line.segments.some((s) => s.show_label);
 	const description = fieldSample(line, "description");
 	const wikiUrl = fieldSample(line, "wiki_url");
-	// "some", nicht fieldSample: der Merker ist ein Wahrheitswert, fieldSample liefert das erste
-	// nicht-leere Feld und verhielte sich bei false unvorhersehbar.
-	const noArticle = line.segments.some((s) => s.wiki_no_article === true);
 	const wiki = line.segments.map((s) => s.wiki_powerline).find((w) => w && typeof w === "object") || {};
 	const wikiRow = (k, v) => (v && String(v).trim() !== "") ? '<div class="k">' + esc(k) + '</div><div>' + esc(v) + "</div>" : "";
 	const wikiBlock = [wikiRow("Stärke", wiki.staerke), wikiRow("Affinität", wiki.affinitaet), wikiRow("Länge", wiki.laenge), wikiRow("Regionen", wiki.regionen)].join("");
@@ -395,38 +403,33 @@ function renderDetail() {
 			+ '<div class="pl-hint">Schreibt auf <b>alle ' + line.segments.length + ' Segmente</b>. Exakt gleicher Name wie eine andere Linie ⇒ <b>beide verschmelzen</b>.</div>'
 		+ "</div></div>"
 		+ '<div class="dt-check"><input type="checkbox" id="plShowLabel"' + (showLabel ? " checked" : "") + "><span>Name auf der Karte anzeigen</span></div>"
-		+ '<div class="dt-grid"><div class="k">Wiki-Artikel</div><div>'
-			+ '<input type="url" id="plWikiUrl" maxlength="500" list="plWikiList" placeholder="https://de.wiki-aventurica.de/wiki/…" value="' + esc(wikiUrl) + '"' + (noArticle ? " disabled" : "") + ">"
-			// <datalist> SCHLAEGT VOR und schraenkt nicht ein -- eine eigene Adresse einzufuegen
-			// muss moeglich bleiben (ein brandneuer Artikel steht noch in keinem Dump).
-			+ '<datalist id="plWikiList">'
-				+ wikiArticles.map((a) => '<option value="' + esc(a.wiki_url) + '" label="' + esc(a.name) + '"></option>').join("")
-			+ "</datalist>"
-			+ '<div class="pl-hint">'
-				+ wikiListHint()
-				+ (wikiUrl ? ' <a class="dt-link" href="' + esc(wikiUrl) + '" target="_blank" rel="noopener">Öffnen ↗</a>' : "")
-			+ "</div>"
-		+ "</div></div>"
-		// Das Haekchen wird NIE gesperrt: waeren beide Elemente gesperrt, kaeme man aus einem
-		// widerspruechlichen Zustand nicht mehr heraus, und weil das Speichern immer beide Werte
-		// schickt, lehnte der Server danach JEDE Aenderung an dieser Linie ab -- auch eine reine
-		// Namens- oder Beschreibungsaenderung.
-		// ⚠️ Die Sperre am Feld richtet sich nach dem GELADENEN Zustand, nicht nach dem Haekchen:
-		// `disabled` wird beim Zeichnen aus `noArticle` gesetzt, und es gibt keinen change-Zuhoerer.
-		// Ein frisch gesetztes Haekchen sperrt das Feld also NICHT sofort, sondern erst beim
-		// naechsten Neuzeichnen (Speichern -> reload -> renderDetail). Wer beides zugleich
-		// ausfuellt, bekommt die Absage vom Server (avesmapsUpdatePowerlineLine) -- DER ist der
-		// Riegel, die Sperre hier ist nur die Bequemlichkeit davor.
-		+ '<div class="dt-check"><input type="checkbox" id="plNoArticle"' + (noArticle ? " checked" : "") + "><span>Kein Wiki-Artikel vorhanden</span></div>"
-		// Der zweite Halbsatz ist tragend: der Merker ist NICHT endgueltig -- der Abgleich macht ihn
-		// wieder auf, sobald im Wiki ein passender Artikel auftaucht (Entwurf §4). Ohne ihn liest er
-		// sich als endgueltig, und die Wiedervorlage wirkt wie ein Fehler.
-		+ '<div class="pl-hint">Nimmt die Linie aus der Konfliktliste — bis im Wiki einer auftaucht.</div>'
+		// 🔴 SEIT 16.08.2026 DAS GETEILTE BAUTEIL (js/ui/wiki-assign.js, Entwurf
+		// docs/superpowers/specs/2026-08-15-wiki-zuweisung-vereinheitlichung-design.md). Hier stand
+		// ein Textfeld mit <datalist>: das SCHLAEGT VOR und schraenkt nicht ein -- genau dadurch
+		// blieb am 15.08.2026 ein Tippfehler unsichtbar. Jetzt wird gesucht, nicht getippt (Entwurf
+		// §5: keine freien Adressen; eine Nicht-Wiki-Quelle gehoert in den Quellen-Abschnitt).
+		// ⚠️ Das Haekchen "Kein Wiki-Artikel vorhanden" ist MITGEWANDERT und steckt jetzt in
+		// `extra.keinArtikelHaken` der Erklaerung -- samt seinem Hinweistext, dessen zweiter
+		// Halbsatz tragend ist: der Merker ist NICHT endgueltig, der Abgleich macht ihn wieder auf,
+		// sobald im Wiki ein passender Artikel auftaucht. Es wird weiterhin NIE gesperrt: waeren
+		// Zuweisung und Haekchen zugleich gesperrt, kaeme man aus einem widerspruechlichen Zustand
+		// nicht mehr heraus, und weil das Speichern immer BEIDE Werte schickt, lehnte der Server
+		// danach jede Aenderung an dieser Linie ab -- auch eine reine Beschreibungsaenderung. Der
+		// Riegel gegen "beides zugleich" steht im Server (avesmapsUpdatePowerlineLine), nicht hier.
+		+ '<div id="plWikiAssign"></div>'
+		// Der Zustand des Dump-Laufs gehoert NICHT ins Bauteil: er sagt, warum die Vorschlagsliste
+		// leer ist, und das ist eine Auskunft der Kraftlinien, nicht der Zuweisung.
+		+ '<div class="pl-hint">' + wikiListHint() + "</div>"
 		+ '<div class="dt-grp">Beschreibung</div>'
 		+ '<div class="dt-grid stack"><div><textarea id="plDescription" maxlength="2000">' + esc(description) + "</textarea></div></div>"
 		+ '<div class="dt-grp">Quellen</div>'
 		+ '<div id="plSources"></div>'
-		+ (wikiBlock ? '<div class="dt-grp">Aus dem Wiki <span class="dt-badge">Sync · nicht editierbar</span></div><div class="dt-grid">' + wikiBlock + "</div>" : "")
+		// 🔴 NUR OHNE ZUWEISUNG. Dann steckt hier die Angabe aus dem NAMENSTREFFER (Stufe 2 in
+		// avesmapsWikiPowerlineResolveSegment) -- ohne diesen Block waere sie unsichtbar, und das
+		// waere eine Regression: eine Linie OHNE Zuweisung kann sehr wohl Wiki-Angaben tragen. Mit
+		// Zuweisung zeigt das Bauteil oben dieselben vier Felder; zweimal untereinander braucht sie
+		// niemand.
+		+ (wikiBlock && wikiUrl === "" ? '<div class="dt-grp">Aus dem Wiki <span class="dt-badge">Sync · nicht editierbar</span></div><div class="dt-grid">' + wikiBlock + "</div>" : "")
 		+ unmatchedBlock
 		+ '<div class="dt-actions">'
 			+ '<button class="primary" id="plSave">Speichern</button>'
@@ -435,12 +438,98 @@ function renderDetail() {
 		+ "</div>";
 	$("plSave").addEventListener("click", saveLine);
 	$("plDelete").addEventListener("click", deleteLine);
+	// Nach dem innerHTML, nie darin: das Bauteil haengt Zuhoerer an seinen Behaelter, und ein
+	// spaeteres innerHTML naehme sie mit.
+	mountWikiAssign(line);
 	// Shared multi-source widget, anchored on the line's canonical segment (smallest public_id).
 	if (typeof mountFeatureSourceEditor === "function" && $("plSources")) {
 		mountFeatureSourceEditor($("plSources"), "powerline", () => line.anchor, { escape: esc });
 	} else if ($("plSources")) {
 		$("plSources").innerHTML = '<div class="pl-hint">Quellen-Editor nicht geladen.</div>';
 	}
+}
+// ---- Die Wiki-Zuweisung: NUR der Datenweg -----------------------------------------------------
+// Alles uebrige -- die drei Zustaende, die Suche samt Tastatur, die Trefferliste, die Entscheidung,
+// ob ein Sync-Knopf erscheint -- macht js/ui/wiki-assign.js aus der Erklaerung "kraftlinie" im
+// Feldregister (js/ui/wiki-assign-registry.js). Diese Seite steuert bei: die Kandidaten aus ihrem
+// Leseweg, den heutigen Stand der Linie, und die Auskunft, ob ein Artikel schon an einer ANDEREN
+// Linie haengt.
+//
+// 🔴 Geschrieben wird hier NICHTS. Der Speicherweg bleibt `update_powerline_line`, und saveLine()
+// holt den Stand ueber `wikiAssign.lies()`. `zuweisen`/`loesen` sind deshalb keine Schreibaufrufe,
+// sondern nur die Rueckmeldung "noch nicht gespeichert" -- sie sind die Stelle, an der eine
+// Oberflaeche sofort schreiben WUERDE, und diese tut es bewusst nicht.
+function wikiAssignBelegung() {
+	// EXAKT, nicht geraten: dieser Editor haelt jede Linie samt ihrer Zuweisung im Speicher, ein
+	// Vergleich der Adressen ist also eine Messung, keine Schaetzung. 💣 Die Suchen der uebrigen
+	// Objektarten koennen das heute NICHT -- gemessen am 16.08.2026 liefert kein Suchendpunkt eine
+	// Belegt-Angabe, auch die Label-Liste nicht (anders als Entwurf §5 annahm). Dort bleibt die
+	// dritte Trefferzeile leer; eine erfundene Belegt-Anzeige, die manchmal stimmt, waere
+	// schlimmer als keine.
+	const belegt = new Map();
+	lines.forEach((l) => {
+		const url = fieldSample(l, "wiki_url");
+		if (url !== "") { belegt.set(url, l.name); }
+	});
+	return belegt;
+}
+function wikiAssignZustand(line) {
+	const belegt = wikiAssignBelegung();
+	const kandidaten = wikiArticles.map((a) => ({
+		name: a.name,
+		wiki_url: a.wiki_url,
+		wiki_key: a.wiki_key,
+		// Dieselben Schluessel wie das Nest `properties.wiki_powerline` -- nur so zeigt ein frisch
+		// gewaehlter Treffer dieselben Angaben wie derselbe Artikel nach dem naechsten Sync.
+		werte: { staerke: a.staerke, affinitaet: a.affinitaet, laenge: a.laenge, regionen: a.regionen },
+		haengtAn: (belegt.get(a.wiki_url) && belegt.get(a.wiki_url) !== line.name) ? belegt.get(a.wiki_url) : "",
+	}));
+	const wikiUrl = fieldSample(line, "wiki_url");
+	// "some", nicht fieldSample: der Merker ist ein Wahrheitswert, fieldSample liefert das erste
+	// nicht-leere Feld und verhielte sich bei false unvorhersehbar.
+	const noArticle = line.segments.some((s) => s.wiki_no_article === true);
+	const nest = line.segments.map((s) => s.wiki_powerline).find((w) => w && typeof w === "object") || {};
+	const passend = wikiUrl === "" ? null : (kandidaten.find((k) => k.wiki_url === wikiUrl) || null);
+	return {
+		// 💣 Eine Adresse, die auf keinen gestagten Artikel zeigt, ist KEIN Fehler und keine verlorene
+		// Zuweisung -- sie kann ein brandneuer Artikel sein, den der letzte Dump nicht kannte. Dann
+		// steht die Adresse selbst als Artikelzeile da, statt zu verschwinden.
+		artikel: wikiUrl === "" ? null : {
+			name: passend ? passend.name : String(nest.name || ""),
+			wiki_url: wikiUrl,
+			wiki_key: passend ? passend.wiki_key : String(nest.wiki_key || ""),
+			// Bei aufgeloester Zuweisung die Werte DES ARTIKELS, nicht das Nest: das Nest kann noch vom
+			// frueheren Namenstreffer stammen und gehoert dann einem anderen Artikel.
+			werte: passend ? passend.werte : nest,
+		},
+		keinArtikel: noArticle,
+		listen: { wiki_articles: kandidaten },
+	};
+}
+function wikiAssignUngespeichert() {
+	setSaveMsg("Geändert – noch nicht gespeichert.", "");
+}
+function mountWikiAssign(line) {
+	if (wikiAssign) { wikiAssign.zerstoeren(); wikiAssign = null; }
+	const host = $("plWikiAssign");
+	if (!host) { return; }
+	if (typeof avesmapsWikiAssignMount !== "function") {
+		// Kein stiller Leerlauf: ohne das Bauteil gibt es GAR KEINE Zuweisung mehr, und ein leerer
+		// Fleck saehe aus wie "diese Linie hat keine".
+		host.innerHTML = '<div class="pl-hint">Wiki-Zuweisung nicht geladen (js/ui/wiki-assign.js).</div>';
+		return;
+	}
+	wikiAssign = avesmapsWikiAssignMount(host, {
+		subject: "kraftlinie",
+		skin: "dt",
+		laden: () => wikiAssignZustand(line),
+		zuweisen: wikiAssignUngespeichert,
+		loesen: wikiAssignUngespeichert,
+		keinArtikelGeaendert: wikiAssignUngespeichert,
+		// `sync: false` in der Erklaerung -- es erscheint gar kein Sync-Knopf, also wird dieser
+		// Rueckruf nie gerufen. Er steht hier, damit die Schnittstelle vollstaendig ablesbar ist.
+		syncUebernehmen: () => {},
+	});
 }
 function setSaveMsg(text, cls) {
 	const el = $("plSaveMsg"); if (!el) { return; }
@@ -451,6 +540,13 @@ async function saveLine() {
 	if (!line) { return; }
 	const newName = $("plName").value.trim();
 	if (newName === "") { setSaveMsg("Name darf nicht leer sein.", "bad"); return; }
+	// ⚠️ Der Rueckfall ist der GELADENE Stand, nicht der leere: fiele er auf "", loeschte ein
+	// Speichern bei nicht geladenem Bauteil die Zuweisung stumm -- die Fehlerklasse aus AGENTS.md
+	// §10 ("eine stille Leerung ist von 'nie gespeichert' nicht zu unterscheiden").
+	const zuweisung = wikiAssign ? wikiAssign.lies() : {
+		wiki_url: fieldSample(line, "wiki_url"),
+		kein_artikel: line.segments.some((s) => s.wiki_no_article === true),
+	};
 	setSaveMsg("Speichert…", "");
 	try {
 		await mapFeaturesEditPost({
@@ -459,8 +555,10 @@ async function saveLine() {
 			new_name: newName,
 			show_label: $("plShowLabel").checked,
 			description: $("plDescription").value,
-			wiki_url: $("plWikiUrl").value.trim(),
-			wiki_no_article: $("plNoArticle").checked,
+			// 🔴 DER SPEICHERWEG IST UNANGETASTET: dieselbe Aktion, dieselben zwei Werte. Nur woher
+			// sie kommen, hat sich geaendert -- aus dem Bauteil statt aus zwei Formularfeldern.
+			wiki_url: zuweisung.wiki_url,
+			wiki_no_article: zuweisung.kein_artikel,
 		});
 		const merged = newName !== line.name && lines.some((l) => l.name === newName);
 		await reload(newName);
@@ -752,12 +850,23 @@ function demoData() {
 	const segs = [
 		seg("s1", "Konzilslinie", "gareth", "k7", { description: "Verbindet die Konzilsstädte des Mittelreichs.", wiki_url: "https://de.wiki-aventurica.de/wiki/Konzilslinie", wiki_powerline: { staerke: "kontinental", laenge: "ca. 3000 Meilen", regionen: "Kosch · Almada" } }),
 		seg("s2", "Konzilslinie", "k7", "kuslik"), seg("s3", "Konzilslinie", "kuslik", "punin"),
-		seg("f1", "Fächer der Macht", "k4", "m"), seg("f2", "Fächer der Macht", "k4", "x"), seg("f3", "Fächer der Macht", "k4", "y"), seg("f4", "Fächer der Macht", "k4", "z"),
+		seg("f1", "Fächer der Macht", "k4", "m", { wiki_url: "https://de.wiki-aventurica.de/wiki/Konzilslinie" }), seg("f2", "Fächer der Macht", "k4", "x"), seg("f3", "Fächer der Macht", "k4", "y"), seg("f4", "Fächer der Macht", "k4", "z"),
 		seg("h1", "Hexenband", "a", "b"), seg("h2", "Hexenband", "b", "c"), seg("h3", "Hexenband", "c", "a"),
 		seg("d1", "Elementares Hexagramm", "e1", "e2"), seg("d2", "Elementare Hexagramm", "e1", "e2"),
 		seg("u1", "Septima - https://de.wiki-aventurica.de/wiki/Septima", "vin", "bel"),
 	];
-	return { segments: segs, nodes, nodix_candidates: Object.entries(nodes).filter(([, n]) => n.is_nodix || n.type === "crossing").map(([id, n]) => ({ public_id: id, name: n.name, type: n.type })) };
+	// Die Vorschlagsliste gehoert MIT in die Demo: ohne sie laesst sich der Zuweisungs-Kasten ohne
+	// angemeldete Sitzung zwar zeichnen, aber nicht bedienen -- und dann belegt ?demo=1 nur, dass
+	// etwas dasteht, nicht dass es funktioniert (AGENTS.md §9: Abnahme heisst ABLAUF).
+	// "Fächer der Macht" traegt absichtlich DIESELBE Adresse wie s1: nur so ist die Warnung
+	// "hängt schon an …" im Treffer ueberhaupt sichtbar.
+	const wiki_articles = [
+		{ name: "Konzilslinie", wiki_url: "https://de.wiki-aventurica.de/wiki/Konzilslinie", wiki_key: "konzilslinie", staerke: "kontinental", affinitaet: "Humus", laenge: "ca. 3000 Meilen", regionen: "Kosch · Almada" },
+		{ name: "Madas Kelch", wiki_url: "https://de.wiki-aventurica.de/wiki/Madas_Kelch", wiki_key: "madas-kelch", staerke: "", affinitaet: "Eis", laenge: "", regionen: "Ehernes Schwert" },
+		{ name: "Satinavs Ketten", wiki_url: "https://de.wiki-aventurica.de/wiki/Satinavs_Ketten", wiki_key: "satinavs-ketten", staerke: "kontinental", affinitaet: "", laenge: "", regionen: "Maraskan · Aventurien" },
+		{ name: "Yaquirlinie", wiki_url: "https://de.wiki-aventurica.de/wiki/Yaquirlinie", wiki_key: "yaquirlinie", staerke: "", affinitaet: "Wasser", laenge: "", regionen: "" },
+	];
+	return { segments: segs, nodes, wiki_articles, dump_state: { has_run: true, completed_at: "2026-08-16 03:00:00", article_count: wiki_articles.length, problem: "" }, nodix_candidates: Object.entries(nodes).filter(([, n]) => n.is_nodix || n.type === "crossing").map(([id, n]) => ({ public_id: id, name: n.name, type: n.type })) };
 }
 
 // ---- Boot ------------------------------------------------------------------------------------

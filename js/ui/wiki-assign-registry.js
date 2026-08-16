@@ -15,25 +15,37 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		// Kein Server noetig: die ~23 gestagten Artikel reisen mit dem Leseweg des Editors mit
 		// (html/wiki-sync-powerline-editor.html, wikiArticles aus data.wiki_articles).
 		suche: { art: "liste", quelle: "wiki_articles" },
-		// 🔧 IST-ZUSTAND, gemessen 16.08.2026 (api/edit/map/powerlines.php:166-170): die Nutzlast
-		// projiziert `wiki_articles` heute nur auf name/wiki_url/wiki_key -- staerke und regionen
-		// erreichen den Browser trotz `suche: {quelle: "wiki_articles"}` NICHT, obwohl der Parser
-		// sie liefert (siehe die felder-Zeilen unten). Diese Zeile bleibt trotzdem so stehen, wie
-		// das Mockup die Trefferzeile will ("Stärke · Regionen") -- Aufgabe 3 zieht die
-		// Kraftlinien-Oberflaeche um und muss dort die PHP-Projektion nachziehen. Diese Aufgabe
-		// aendert die Nutzlast NICHT.
+		// Der Name der OBJEKTART -- er steht dem Rest der Trefferzeile voran (Mockup: "Kraftlinie ·
+		// kontinental · Maraskan"). Reine Beschriftung, nie ein Schluessel.
+		art: "Kraftlinie",
+		// ✅ ERLEDIGT AM 16.08.2026 (Aufgabe 3). Hier stand: die Nutzlast projiziere `wiki_articles`
+		// nur auf name/wiki_url/wiki_key, staerke und regionen erreichten den Browser also gar
+		// nicht, obwohl der Parser sie liefert -- die zweite Trefferzeile waere still leer
+		// geblieben. Die Projektion in api/edit/map/powerlines.php traegt seither alle vier
+		// Anzeigefelder, mit denselben Schluesseln wie das Nest `properties.wiki_powerline`.
 		treffer: ["staerke", "regionen"],
 		// Vier Wiki-Felder (api/_internal/wiki/powerlines.php: staerke, affinitaet, laenge,
 		// regionen), aber KEIN bearbeitbares Kartenfeld -- jede Zeile bleibt trotzdem erklaert
 		// (karte: ""), sonst meldete Pruefung 2 (§3b) alle vier faelschlich als "vergessen".
+		// ⚠️ `label` ist hier NICHT bequem, sondern noetig: die Rueckfallkette des Bauteils lautet
+		// label -> karte -> wiki, und `karte` ist bei einer Anzeige-Zeile leer -- ohne Beschriftung
+		// staende im Kasten "staerke" statt "Stärke".
 		felder: [
-			{ wiki: "staerke", karte: "" },
-			{ wiki: "affinitaet", karte: "" },
-			{ wiki: "laenge", karte: "" },
-			{ wiki: "regionen", karte: "" },
+			{ wiki: "staerke", karte: "", label: "Stärke" },
+			{ wiki: "affinitaet", karte: "", label: "Affinität" },
+			{ wiki: "laenge", karte: "", label: "Länge" },
+			{ wiki: "regionen", karte: "", label: "Regionen" },
 		],
 		sync: false, // kein Ziel -- also auch kein Knopf
-		extra: { keinArtikelHaken: true },
+		extra: {
+			keinArtikelHaken: true,
+			// 🔴 Der zweite Halbsatz ist tragend: der Merker ist NICHT endgueltig -- der Abgleich
+			// macht ihn wieder auf, sobald im Wiki ein passender Artikel auftaucht. Ohne ihn liest
+			// er sich als endgueltig, und die Wiedervorlage wirkt wie ein Fehler. Der Satz stand
+			// wortgleich in html/wiki-sync-powerline-editor.html und ist mit umgezogen; die
+			// allgemeine Fassung des Bauteils sagt "das Objekt" statt "die Linie".
+			keinArtikelHinweis: "Nimmt die Linie aus der Konfliktliste — bis im Wiki einer auftaucht.",
+		},
 	},
 	// Die uebrigen neun kommen in den Aufgaben 4-9 dazu, jede mit IHRER Aufgabe -- nicht auf Vorrat:
 	//   weg          (A4)  Name · Art · Laenge          suche: /api/edit/wiki/paths.php

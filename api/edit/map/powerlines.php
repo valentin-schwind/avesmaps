@@ -163,10 +163,24 @@ try {
         $runId = avesmapsWikiDumpSyncKindResolveDumpRunId($pdo);
         $sandboxRows = avesmapsWikiDumpSyncKindFetchRows($pdo, $runId, [AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE], 0, 5000);
         foreach (avesmapsWikiPowerlineDesiredNestsByMatchKey($sandboxRows) as $entry) {
+            // 💣 Die vier Anzeigefelder reisen MIT. Bis 16.08.2026 projizierte diese Stelle nur
+            //    name/wiki_url/wiki_key -- und weil das Feldregister (js/ui/wiki-assign-registry.js)
+            //    fuer die Kraftlinien `treffer: ["staerke", "regionen"]` verspricht und der
+            //    Zuweisungs-Kasten alle vier zeigt, waere die zweite Trefferzeile still leer
+            //    geblieben: kein Fehler, keine Meldung, nur eine Liste nackter Namen. Der Parser
+            //    liefert sie laengst (avesmapsWikiPowerlineDesiredNest, api/_internal/wiki/
+            //    powerlines.php:71-84) -- sie wurden hier nur weggeworfen.
+            // ⚠️ Dieselben Schluessel wie im Nest `properties.wiki_powerline`, das der Abgleich
+            //    auf die Segmente schreibt. Nur so zeigt ein frisch gewaehlter Treffer dieselben
+            //    Angaben wie derselbe Artikel nach dem naechsten Sync.
             $wikiArticles[] = [
                 'name' => (string) ($entry['name'] ?? ''),
                 'wiki_url' => (string) ($entry['nest']['wiki_url'] ?? ''),
                 'wiki_key' => (string) ($entry['nest']['wiki_key'] ?? ''),
+                'staerke' => (string) ($entry['nest']['staerke'] ?? ''),
+                'affinitaet' => (string) ($entry['nest']['affinitaet'] ?? ''),
+                'laenge' => (string) ($entry['nest']['laenge'] ?? ''),
+                'regionen' => (string) ($entry['nest']['regionen'] ?? ''),
             ];
         }
         usort($wikiArticles, static fn(array $a, array $b): int => strcmp(mb_strtolower($a['name']), mb_strtolower($b['name'])));
