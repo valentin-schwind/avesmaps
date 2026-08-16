@@ -186,7 +186,10 @@ function getLocationNameLabelOffsets(element, labelRect) {
 	const labelWidth = labelRect.width;
 	const labelHeight = labelRect.height;
 	const scaledGap = Math.max(LOCATION_LABEL_GAP, Math.abs(baseOffset.x));
-	const smallShift = LOCATION_LABEL_SHIFT_SMALL;
+	// 🔴 AUFGABE 8B: "Versatz" ist jetzt ein globaler Regler im Fenster „Zoombänder" (war die
+	// Konstante LOCATION_LABEL_SHIFT_SMALL) -- gilt für ZEHN der zwölf Ausweichstellen unten (alle
+	// außer "right"/"left", den ungestörten Grundrichtungen).
+	const smallShift = avesmapsLocationLabelSpacing("versatz");
 	const verticalCenterOffset = -labelHeight / 2;
 
 	return [
@@ -237,7 +240,12 @@ function measureLabelRect(element) {
 	return getLabelCollisionTarget(element).getBoundingClientRect();
 }
 
-function measureLabelCollisionRect(element, padding = LOCATION_LABEL_COLLISION_PADDING) {
+// 🔴 AUFGABE 8B: "Repel" ist jetzt ein globaler Regler im Fenster „Zoombänder" (war die Konstante
+// LOCATION_LABEL_COLLISION_PADDING) -- als Vorgabewert-Ausdruck statt einer Konstante, damit ein
+// Aufruf ohne explizites `padding` (Orts-/Frei-Label-Pass, `duplicateLabelEntry`) den WIRKSAMEN Wert
+// bekommt, nicht den zur Ladezeit eingefrorenen. Der Regionen-Aufruf (resolveRegionLabelCollisions,
+// oben) übergibt weiterhin seinen eigenen regionPadding -- unverändert, siehe Bericht.
+function measureLabelCollisionRect(element, padding = avesmapsLocationLabelSpacing("repel")) {
 	const rect = measureLabelRect(element);
 	if (rect.width <= 0 || rect.height <= 0) {
 		return rect;

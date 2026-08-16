@@ -1,10 +1,18 @@
 // Location markers and labels
 const VISUAL_MAX_ZOOM_LEVEL = 5;
 const LOCATION_LABEL_GAP = 11;
-const LOCATION_LABEL_SHIFT_SMALL = 8;
-const LOCATION_LABEL_COLLISION_PADDING = 2;
+// 🔴 AUFGABE 8B: "Versatz" (war LOCATION_LABEL_SHIFT_SMALL, 8) und "Repel" (war
+// LOCATION_LABEL_COLLISION_PADDING, 2) wurden GLOBALE Regler im Fenster „Zoombänder" -- die
+// Vorgabewerte liegen jetzt allein in js/map-features/location-zoom-bands.js
+// (AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS.abstaende), die echten Leser rufen
+// avesmapsLocationLabelSpacing("versatz"|"repel") statt einer Konstante (map-features-label-collisions.js).
+// LOCATION_LABEL_COLLISION_PADDING selbst bleibt hier NUR als abgeleiteter Wert stehen -- der
+// (nie feuernde) Rückfall für Regionen-Labels weiter unten in dieser Datei referenziert den Namen
+// noch, und Regionen-Labels gehen diesen Umbau nichts an (eigener Wert, siehe REGION_LABEL_COLLISION_
+// PADDING). Abgeleitet statt eines zweiten Literals, damit die Zahl an genau EINER Stelle steht.
+const LOCATION_LABEL_COLLISION_PADDING = AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS.abstaende.repel;
 // Kollisions-Box der TERRITORIUMS-Labels (Reichsnamen + Wappen): negativ = Box kleiner als das Label ->
-// sie stoßen sich weniger ab und packen enger. Ortslabels nutzen weiter LOCATION_LABEL_COLLISION_PADDING.
+// sie stoßen sich weniger ab und packen enger. Ortslabels nutzen weiter avesmapsLocationLabelSpacing("repel").
 const REGION_LABEL_COLLISION_PADDING = -5;
 const REGION_OVERLAP_SELECTION_TIMEOUT_MS = 3000;
 const REGION_OVERLAP_SELECTION_MAX_PIXEL_DISTANCE = 18;

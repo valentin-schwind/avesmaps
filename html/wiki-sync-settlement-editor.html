@@ -347,12 +347,45 @@
   .zb-preview-stage button.is-active { background:var(--color-button); color:var(--color-button-text); border-color:var(--color-button-border); font-weight:var(--font-weight-bold); }
   .zb-preview-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(12rem, 1fr)); gap:var(--space-8); }
   .zb-preview-card { display:flex; flex-direction:column; align-items:center; gap:var(--space-6); padding:var(--space-8) var(--space-6); min-height:96px; justify-content:center; background:var(--soft); border:1px solid var(--line); border-radius:var(--radius-md); overflow:visible; }
-  .zb-preview-card__mark { display:flex; align-items:center; gap:var(--space-2); }
+  /* 🔴 Aufgabe 8b: der Spalt ist jetzt LIVE an den Spalt-Regler im Abschnitt "Abstände" gekoppelt --
+     --zb-gap wird bei jeder Reglerbewegung in px auf #seZoomBandsPreviewGrid gesetzt (updateZoomBandPreview)
+     und läuft als geerbte Custom Property bis hierher durch. Der Fallback var(--space-2) (= 4px, die
+     Vorgabe von "spalt") greift nur, bevor das Skript einmal gelaufen ist. */
+  .zb-preview-card__mark { display:flex; align-items:center; gap:var(--zb-gap, var(--space-2)); }
   .zb-preview-card__name { font-size:var(--font-size-caption); color:var(--mut); }
   .zb-dot { display:block; flex:0 0 auto; border-radius:50%; background:var(--color-accent-strong); border:1px solid var(--panel); box-shadow:0 0 0 1px var(--line2); }
   .zb-word { display:block; flex:0 0 auto; color:var(--color-text-strong); font-weight:var(--font-weight-bold); line-height:1; white-space:nowrap; }
   .zb-preview-empty { color:var(--color-placeholder); font-size:var(--font-size-small); }
   .zb-preview-note { margin:var(--space-8) 0 0; font-size:var(--font-size-caption); color:var(--mut); max-width:62rem; }
+  /* ---- Abstände (Spalt/Repel/Versatz) -- GLOBAL, kein Wert je Zoomstufe (Aufgabe 8b) --------------
+     Owner-Entscheid 16.08.2026: LOCATION_NAME_LABEL_GAP/LOCATION_LABEL_COLLISION_PADDING/
+     LOCATION_LABEL_SHIFT_SMALL sind in der echten Karte je EIN Wert fuer alle Ortsklassen und
+     Zoomstufen -- deshalb hier kein Plot, sondern ein Regler je Wert. Bauform aus dem abgenommenen
+     Prototyp docs/zoombaender-mockup.html uebernommen (Klassennamen unveraendert). */
+  .zb-spacing-lead { margin:0 0 var(--space-8); max-width:74ch; font-size:var(--font-size-small); color:var(--mut); }
+  .zb-slider-row { display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-8); padding:var(--space-6) 0; }
+  .zb-slider-row + .zb-slider-row { border-top:1px solid var(--color-divider); }
+  .zb-slider-row__head { flex:1 1 14rem; min-width:12rem; }
+  .zb-slider-row__name { display:block; font-size:var(--font-size-small); font-weight:var(--font-weight-bold); color:var(--color-text-strong); }
+  .zb-slider-row__desc { display:block; font-size:var(--font-size-caption); color:var(--mut); }
+  .zb-slider-row__control { display:flex; align-items:center; gap:var(--space-6); flex:1 1 16rem; }
+  /* Eigene Spur/Griff aus Tokens statt Browser-Blau (AGENTS.md §12: kein Blau im Chrome) -- gleiche
+     Bauform wie .ecosystem-underground__range (css/features/ecosystem-layer.css). */
+  .zb-range { appearance:none; -webkit-appearance:none; flex:1 1 auto; min-width:8rem; height:var(--space-16); margin:0; background:none; cursor:pointer; }
+  .zb-range:focus-visible { outline:none; border-radius:var(--radius-md); box-shadow:var(--focus-ring); }
+  .zb-range::-webkit-slider-runnable-track { height:var(--space-4); border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--soft); }
+  .zb-range::-moz-range-track { height:var(--space-4); border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--soft); }
+  .zb-range::-webkit-slider-thumb { -webkit-appearance:none; width:var(--space-12); height:var(--space-12); margin-top:calc((var(--space-4) - var(--space-12)) / 2 - 1px); border:1px solid var(--color-button-border); border-radius:var(--radius-md); background:var(--color-button); }
+  .zb-range::-moz-range-thumb { width:var(--space-12); height:var(--space-12); border:1px solid var(--color-button-border); border-radius:var(--radius-md); background:var(--color-button); }
+  .zb-range:disabled { opacity:.5; cursor:default; }
+  .zb-slider-row .zb-num-input { width:4.5rem; }
+  .zb-repel-demo-wrap { overflow-x:auto; margin-top:var(--space-10); }
+  .zb-repel-demo { position:relative; height:56px; min-width:20rem; }
+  .zb-repel-demo__dot { position:absolute; top:50%; width:10px; height:10px; margin-top:-5px; border-radius:50%; background:var(--color-accent-strong); border:1px solid var(--panel); box-shadow:0 0 0 1px var(--line2); }
+  .zb-repel-demo__box { position:absolute; top:50%; transform:translateY(-50%); box-sizing:border-box; border:1px dashed var(--line2); border-radius:var(--radius-sm); background:var(--soft); }
+  .zb-repel-demo__word { position:absolute; top:50%; transform:translateY(-50%); white-space:nowrap; color:var(--color-text-strong); font-weight:var(--font-weight-bold); font-size:var(--font-size-body); }
+  .zb-repel-demo-note { margin:var(--space-6) 0 0; font-size:var(--font-size-caption); color:var(--mut); max-width:62rem; }
+  .zb-shift-note { margin:var(--space-6) 0 0; font-size:var(--font-size-caption); color:var(--mut); max-width:62rem; }
   .zb__msg { margin:10px 0 0; color:var(--mut); font-size:var(--font-size-small); }
   .zb-nurlesen { color:var(--mut); font-size:var(--font-size-small); }
   .zb-nurlesen strong { color:var(--color-text-strong); font-weight:var(--font-weight-bold); }
@@ -495,6 +528,60 @@
           <span class="zb-selected__hint">⌨️ Pfeiltasten verstellen den ausgewählten Punkt (Umschalt: großer Schritt) — für Werte, die eine Maus nicht genau trifft.</span>
         </div>
         <div class="zb-legend" id="zbLegendLabel"></div>
+      </div>
+      <!-- „Abstände" (Aufgabe 8b) -- DREI GLOBALE Regler, kein Wert je Ortsklasse/Zoomstufe. Form aus
+           dem abgenommenen Prototyp docs/zoombaender-mockup.html uebernommen. -->
+      <div class="zb__section">
+        <div class="zb__head"><h3>Abstände</h3><span class="zb__src">global — ein Wert für alle Ortsklassen und Zoomstufen</span></div>
+        <p class="zb-spacing-lead">Kein Plot, weil diese Werte NICHT je Zoomstufe gelten — drei globale Regler statt drei Kurven. Der Spalt bewegt live die Vorschau oben; der Repel hat seine eigene Anschauung darunter; der Versatz wirkt in der echten Ausweichkette der Kollisionsauflösung (Reihenfolge unten genannt).</p>
+        <div class="zb-slider-row">
+          <div class="zb-slider-row__head">
+            <span class="zb-slider-row__name">Spalt</span>
+            <span class="zb-slider-row__desc">Abstand vom Marker-Rand zu seinem eigenen Label — wird auf den Außenradius addiert, wächst also mit dem Marker mit.</span>
+          </div>
+          <div class="zb-slider-row__control">
+            <input type="range" class="zb-range" id="zbGapRange" min="0" max="20" step="0.5" aria-label="Spalt in px">
+            <input type="number" class="zb-num-input" id="zbGapInput" min="0" max="20" step="0.5">
+            <span class="zb-selected__unit">px</span>
+            <button type="button" class="zb-row-reset" id="zbGapReset">↺</button>
+          </div>
+        </div>
+        <div class="zb-slider-row">
+          <div class="zb-slider-row__head">
+            <span class="zb-slider-row__name">Repel</span>
+            <span class="zb-slider-row__desc">Luft, die um jedes Label frei bleiben muss, bevor die Kollisionsauflösung es als Überschneidung zählt.</span>
+          </div>
+          <div class="zb-slider-row__control">
+            <input type="range" class="zb-range" id="zbRepelRange" min="0" max="20" step="0.5" aria-label="Repel in px">
+            <input type="number" class="zb-num-input" id="zbRepelInput" min="0" max="20" step="0.5">
+            <span class="zb-selected__unit">px</span>
+            <button type="button" class="zb-row-reset" id="zbRepelReset">↺</button>
+          </div>
+        </div>
+        <div class="zb-repel-demo-wrap">
+          <div class="zb-repel-demo" id="zbRepelDemo" role="img" aria-label="Zwei feste Ortspunkte mit ihren Labeln; die Labels weichen einander aus, sobald der geforderte Rand um jedes Label sich berührt">
+            <span class="zb-repel-demo__dot" id="zbRepelDotA"></span>
+            <span class="zb-repel-demo__box" id="zbRepelBoxA"></span>
+            <span class="zb-repel-demo__word" id="zbRepelWordA"></span>
+            <span class="zb-repel-demo__dot" id="zbRepelDotB"></span>
+            <span class="zb-repel-demo__box" id="zbRepelBoxB"></span>
+            <span class="zb-repel-demo__word" id="zbRepelWordB"></span>
+          </div>
+        </div>
+        <p class="zb-repel-demo-note">Zwei feste Ortspunkte; der gestrichelte Rahmen zeigt den Rand, den Repel um jedes Label verlangt — berühren sich zwei Rahmen, weicht das rechte Label aus. Vereinfacht auf eine Achse und ein Paar; die echte Auflösung prüft zwölf Ausweichstellen und Prioritäten.</p>
+        <div class="zb-slider-row">
+          <div class="zb-slider-row__head">
+            <span class="zb-slider-row__name">Versatz</span>
+            <span class="zb-slider-row__desc">Wie weit der kleine Ausweichschritt nach oben bzw. unten geht, wenn die Kollisionsauflösung eine freie Stelle für ein Label sucht.</span>
+          </div>
+          <div class="zb-slider-row__control">
+            <input type="range" class="zb-range" id="zbShiftRange" min="0" max="20" step="0.5" aria-label="Versatz in px">
+            <input type="number" class="zb-num-input" id="zbShiftInput" min="0" max="20" step="0.5">
+            <span class="zb-selected__unit">px</span>
+            <button type="button" class="zb-row-reset" id="zbShiftReset">↺</button>
+          </div>
+        </div>
+        <p class="zb-shift-note">Zwölf Stellen, in dieser Reihenfolge gesucht — rechts · rechts-oben · rechts-unten · oben-rechts · unten-rechts · links · links-oben · links-unten · oben-links · unten-links · oben · unten; Versatz bestimmt den Schritt an allen außer den ersten beiden (den ungestörten Grundrichtungen rechts/links). Findet sich keine freie Stelle, wird das Label ausgeblendet (bei Siedlungen; Flächen-Labels nie).</p>
       </div>
     </div>
     <p class="zb__msg" id="seZoomBandsMsg"></p>
@@ -3326,10 +3413,13 @@ let zoomBandsDarfSpeichern = false;
 // internen Zustand erhalten (nie gelöscht) -- "ausblenden verliert nichts" ist damit baulich
 // gegeben, nicht nur versprochen. Beim Senden werden sie wieder zu null (zoomBandsToPayload,
 // Entwurf §4.4: "null" ist der gespeicherte Zustand, nie die gemerkte Zahl).
-let zoomBandsState = { marker: {}, label: {} };
+// 🔴 AUFGABE 8B: "abstaende" traegt die drei globalen Regler (spalt/repel/versatz) -- EIN Wert je
+// Schluessel, keine Zeile wie marker/label.
+let zoomBandsState = { marker: {}, label: {}, abstaende: {} };
 let zoomBandsSelected = { marker: null, label: null }; // { cls, z } | null
 let zoomBandPreviewStage = null;
 let zoomBandPlotsCache = null;
+const ZOOM_BAND_SPACING_KEYS = ["spalt", "repel", "versatz"];
 
 // 🔴 GELESEN, NIE ABGESCHRIEBEN -- AVESMAPS_ZOOM_BAND_MAX_ZOOM/_LIMITS stehen in
 // js/map-features/location-zoom-bands.js. Der Prototyp trug an dieser Stelle noch eine veraltete
@@ -3340,6 +3430,18 @@ function zoomBandMaxZoom() {
 function zoomBandLimits(kind) {
 	return (typeof AVESMAPS_ZOOM_BAND_LIMITS === "object" && AVESMAPS_ZOOM_BAND_LIMITS && AVESMAPS_ZOOM_BAND_LIMITS[kind])
 		|| { min: kind === "marker" ? 0.5 : 4, max: kind === "marker" ? 100 : 30 };
+}
+// AUFGABE 8B, ebenso gelesen statt abgeschrieben: AVESMAPS_LOCATION_LABEL_SPACING_LIMITS steht in
+// js/map-features/location-zoom-bands.js.
+function zoomBandSpacingLimits() {
+	return (typeof AVESMAPS_LOCATION_LABEL_SPACING_LIMITS === "object" && AVESMAPS_LOCATION_LABEL_SPACING_LIMITS)
+		|| { min: 0, max: 20 };
+}
+function zoomBandSpacingDefault(key) {
+	return (typeof AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS === "object" && AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS.abstaende
+		&& typeof AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS.abstaende[key] === "number")
+		? AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS.abstaende[key]
+		: 0;
 }
 function zoomBandRound2(v) { return Math.round(v * 100) / 100; }
 function zoomBandClamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
@@ -3421,11 +3523,19 @@ function zoomBandRowState(row, kind) {
 }
 
 function zoomBandsFromResolved(resolved) {
-	const state = { marker: {}, label: {} };
+	const state = { marker: {}, label: {}, abstaende: {} };
 	["marker", "label"].forEach((kind) => {
 		ZOOM_BAND_KLASSEN.forEach((cls) => {
 			state[kind][cls] = zoomBandRowState((resolved && resolved[kind] && resolved[kind][cls]) || [], kind);
 		});
+	});
+	// AUFGABE 8B: kein {start,values} wie eine Zeile -- ein Abstand ist immer eine einzelne Zahl.
+	// avesmapsResolveLocationZoomBands liefert schon die zusammengefuehrte Tafel (Vorgabe + Uebersteuerung,
+	// Schranken bereits geprueft); ein fehlendes "abstaende" (Rueckwaertskompatibilitaet, alte Tafeln
+	// kennen den Abschnitt nicht) faellt hier ebenso auf die Vorgabe zurueck.
+	ZOOM_BAND_SPACING_KEYS.forEach((key) => {
+		const raw = resolved && resolved.abstaende ? resolved.abstaende[key] : undefined;
+		state.abstaende[key] = (typeof raw === "number" && isFinite(raw)) ? raw : zoomBandSpacingDefault(key);
 	});
 	return state;
 }
@@ -3447,7 +3557,17 @@ function zoomBandsToPayload(state) {
 			payload[kind][cls] = row;
 		});
 	});
+	// AUFGABE 8B: die drei globalen Abstaende reisen in derselben Nutzlast mit -- EIN Speicher, EIN
+	// Endpunkt, EIN Speichern-Knopf (Aufgabenstellung).
+	payload.abstaende = {};
+	ZOOM_BAND_SPACING_KEYS.forEach((key) => {
+		payload.abstaende[key] = zoomBandRound2(state.abstaende[key]);
+	});
 	return payload;
+}
+
+function zoomBandSpacingEqualsDefault(key) {
+	return Math.abs(zoomBandsState.abstaende[key] - zoomBandSpacingDefault(key)) < 1e-9;
 }
 
 function zoomBandRowEqualsDefault(kind, cls) {
@@ -3773,6 +3893,11 @@ function zoomBandRenderFutureNotes() {
 function updateZoomBandPreview() {
 	const grid = $("seZoomBandsPreviewGrid");
 	if (!grid) { return; }
+	// 🔴 AUFGABE 8B, vierte Owner-Aufgabe: der Spalt ist LIVE an den Regler im Abschnitt "Abstände"
+	// gekoppelt -- --zb-gap läuft als geerbte Custom Property bis zu .zb-preview-card__mark durch
+	// (CSS-Kommentar dort). Kein eigener Radius-Ausgleich noetig: der Punkt nimmt seine eigene reale
+	// Breite in der Flex-Reihe ein, der Textanfang liegt also automatisch bei "Radius + Spalt".
+	grid.style.setProperty("--zb-gap", (zoomBandsState.abstaende.spalt ?? zoomBandSpacingDefault("spalt")) + "px");
 	grid.innerHTML = "";
 	const DOT_CAP = 80; // Sicherheitsdeckel -- die Vorgabewerte (bis 53,2) erreichen ihn nie.
 	ZOOM_BAND_KLASSEN.forEach((cls) => {
@@ -3816,6 +3941,119 @@ function updateZoomBandPreview() {
 	});
 }
 
+// ---- Aufgabe 8b: die drei globalen Abstände (Spalt, Repel, Versatz) ------------------------------
+// Ein Regler, eine Zahl, ein Rücksetzer je Wert -- keine Kurve, kein Plot (anders als marker/label
+// oben: ein Abstand gilt für ALLE Ortsklassen und Zoomstufen zugleich).
+let zoomBandSpacingElsCache = null;
+function zoomBandSpacingEls() {
+	if (zoomBandSpacingElsCache) { return zoomBandSpacingElsCache; }
+	zoomBandSpacingElsCache = {
+		spalt: { range: $("zbGapRange"), input: $("zbGapInput"), reset: $("zbGapReset"), name: "Spalt" },
+		repel: { range: $("zbRepelRange"), input: $("zbRepelInput"), reset: $("zbRepelReset"), name: "Repel" },
+		versatz: { range: $("zbShiftRange"), input: $("zbShiftInput"), reset: $("zbShiftReset"), name: "Versatz" },
+	};
+	const limits = zoomBandSpacingLimits();
+	ZOOM_BAND_SPACING_KEYS.forEach((key) => {
+		const els = zoomBandSpacingElsCache[key];
+		if (els.range) { els.range.min = String(limits.min); els.range.max = String(limits.max); }
+		if (els.input) { els.input.min = String(limits.min); els.input.max = String(limits.max); }
+	});
+	return zoomBandSpacingElsCache;
+}
+
+// Der einzige Ort, an dem sich einer der drei Abstände ändert -- Regler UND Zahlenfeld rufen beide
+// hier durch, genau wie setZoomBandPointValue für die Plot-Punkte.
+function setZoomBandSpacing(key, rawVal) {
+	if (!zoomBandsDarfSpeichern || !isFinite(rawVal)) { return; }
+	const limits = zoomBandSpacingLimits();
+	const val = zoomBandRound2(zoomBandClamp(rawVal, limits.min, limits.max));
+	zoomBandsState.abstaende[key] = val;
+	const els = zoomBandSpacingEls()[key];
+	if (els.range) { els.range.value = String(val); }
+	if (els.input) { els.input.value = String(val); }
+	// 🔴 Spalt bewegt live die Vorschau; Spalt UND Repel fließen in die Repel-Anschauung ein (der
+	// Spalt setzt die Ausgangslage der Labels, der Repel den geforderten Rand). Versatz hat bewusst
+	// KEINE eigene Anschauung (Owner-Entscheid, siehe Bericht) -- ein Aufruf hier bewegte nichts, das
+	// von ihm abhängt.
+	if (key === "spalt") { updateZoomBandPreview(); }
+	if (key === "spalt" || key === "repel") { updateZoomBandRepelDemo(); }
+	updateZoomBandsMessage();
+}
+
+function resetZoomBandSpacing(key) {
+	if (!zoomBandsDarfSpeichern) { return; }
+	setZoomBandSpacing(key, zoomBandSpacingDefault(key));
+}
+
+function renderZoomBandSpacing() {
+	const els = zoomBandSpacingEls();
+	ZOOM_BAND_SPACING_KEYS.forEach((key) => {
+		const value = zoomBandsState.abstaende[key];
+		const rowEls = els[key];
+		if (rowEls.range) { rowEls.range.value = String(value); rowEls.range.disabled = !zoomBandsDarfSpeichern; }
+		if (rowEls.input) { rowEls.input.value = String(value); rowEls.input.disabled = !zoomBandsDarfSpeichern; }
+		if (rowEls.reset) {
+			rowEls.reset.disabled = !zoomBandsDarfSpeichern;
+			rowEls.reset.title = `${rowEls.name} auf Vorgabe (${zoomBandSpacingDefault(key)} px) zurücksetzen`;
+		}
+	});
+	updateZoomBandRepelDemo();
+}
+
+// ---- Repel-Anschauung: zwei FESTE Ortspunkte, ihre Labels weichen nur so weit aus, wie der
+// gestrichelte Rahmen es verlangt -----------------------------------------------------------------
+// Bewusst vereinfacht (siehe Bericht): EINE Achse, EIN Paar, kein Prioritäten-System -- die echte
+// Auflösung (map-features-label-collisions.js) prüft zwölf Ausweichstellen je Label. Wortbreiten
+// werden ECHT gemessen (getBoundingClientRect), nicht geschätzt.
+const ZOOM_BAND_REPEL_DOT_D = 10;   // px -- generische Punktgröße, an keine Ortsklasse gebunden
+const ZOOM_BAND_REPEL_DOT_GAP = 64; // px -- fester Abstand der beiden Punkte, bewegt sich nie (Begründung: Prototyp-Bericht)
+const ZOOM_BAND_REPEL_WORD_A = "Fasar", ZOOM_BAND_REPEL_WORD_B = "Vinsalt";
+
+function updateZoomBandRepelDemo() {
+	const demo = $("zbRepelDemo");
+	if (!demo) { return; }
+	const dotA = $("zbRepelDotA"), dotB = $("zbRepelDotB");
+	const boxA = $("zbRepelBoxA"), boxB = $("zbRepelBoxB");
+	const wordA = $("zbRepelWordA"), wordB = $("zbRepelWordB");
+	if (!dotA || !dotB || !boxA || !boxB || !wordA || !wordB) { return; }
+	const dotR = ZOOM_BAND_REPEL_DOT_D / 2;
+	const spalt = zoomBandsState.abstaende.spalt ?? zoomBandSpacingDefault("spalt");
+	const repel = zoomBandsState.abstaende.repel ?? zoomBandSpacingDefault("repel");
+
+	const dotAx = 12, dotBx = dotAx + ZOOM_BAND_REPEL_DOT_GAP;
+	dotA.style.left = dotAx + "px";
+	dotB.style.left = dotBx + "px";
+
+	// Ausgangslage: dieselbe Formel wie die Vorschau oben (Radius + Spalt) -- der Spalt-Regler wirkt
+	// also auch hier, bevor der Repel-Regler überhaupt etwas zu tun hat.
+	wordA.textContent = ZOOM_BAND_REPEL_WORD_A;
+	wordB.textContent = ZOOM_BAND_REPEL_WORD_B;
+	const labelAx = dotAx + dotR + spalt;
+	const labelBx0 = dotBx + dotR + spalt; // B VOR dem Ausweichen
+	wordA.style.left = labelAx + "px";
+	wordB.style.left = labelBx0 + "px";
+	const rectA = wordA.getBoundingClientRect(), rectB = wordB.getBoundingClientRect();
+	const widthA = rectA.width, heightA = rectA.height;
+	const widthB = rectB.width, heightB = rectB.height;
+
+	// Die einzige Rechnung: überschneiden sich die beiden um `repel` erweiterten Rahmen, weicht NUR
+	// B nach rechts aus (A bleibt an seiner Stelle) -- eine Achse, eine Richtung, ein Paar.
+	const boxARight = labelAx + widthA + repel;
+	const boxBLeft0 = labelBx0 - repel;
+	const push = Math.max(0, boxARight - boxBLeft0);
+	const labelBx = labelBx0 + push;
+	wordB.style.left = labelBx + "px";
+
+	boxA.style.left = (labelAx - repel) + "px";
+	boxA.style.width = (widthA + 2 * repel) + "px";
+	boxA.style.height = (heightA + 2 * repel) + "px";
+	boxB.style.left = (labelBx - repel) + "px";
+	boxB.style.width = (widthB + 2 * repel) + "px";
+	boxB.style.height = (heightB + 2 * repel) + "px";
+
+	demo.style.width = Math.max(labelBx + widthB + repel, dotBx + dotR) + 16 + "px";
+}
+
 function updateZoomBandsMessage() {
 	const msg = $("seZoomBandsMsg");
 	if (!msg) { return; }
@@ -3823,13 +4061,25 @@ function updateZoomBandsMessage() {
 		msg.textContent = "Zeigt die aktuell wirksamen Kurven — Ziehen, Stufenwahl und Zahlenfelder sind gesperrt.";
 		return;
 	}
-	let changed = 0;
+	let curveChanged = 0;
 	["marker", "label"].forEach((kind) => {
-		ZOOM_BAND_KLASSEN.forEach((cls) => { if (!zoomBandRowEqualsDefault(kind, cls)) { changed += 1; } });
+		ZOOM_BAND_KLASSEN.forEach((cls) => { if (!zoomBandRowEqualsDefault(kind, cls)) { curveChanged += 1; } });
 	});
-	msg.textContent = changed === 0
-		? "Keine Änderungen — entspricht der Vorgabe."
-		: `Ungespeichert: ${changed} Kurve${changed === 1 ? "" : "n"} weich${changed === 1 ? "t" : "en"} von der Vorgabe ab.`;
+	// AUFGABE 8B: die drei Abstaende zaehlen SEPARAT mit -- die Zaehlweise wird ERWEITERT, nicht
+	// ersetzt (siehe Aufgabe-8-Bericht, Bedenken #4).
+	let spacingChanged = 0;
+	ZOOM_BAND_SPACING_KEYS.forEach((key) => { if (!zoomBandSpacingEqualsDefault(key)) { spacingChanged += 1; } });
+	const parts = [];
+	if (curveChanged > 0) { parts.push(`${curveChanged} Kurve${curveChanged === 1 ? "" : "n"}`); }
+	// 💣 KEIN "+e": der Plural von "Abstand" trägt einen Umlaut ("Abstände") -- deshalb hier das
+	// ganze Wort, nicht nur die Endung anhängen.
+	if (spacingChanged > 0) { parts.push(`${spacingChanged} ${spacingChanged === 1 ? "Abstand" : "Abstände"}`); }
+	if (parts.length === 0) {
+		msg.textContent = "Keine Änderungen — entspricht der Vorgabe.";
+		return;
+	}
+	const total = curveChanged + spacingChanged;
+	msg.textContent = `Ungespeichert: ${parts.join(", ")} weich${total === 1 ? "t" : "en"} von der Vorgabe ab.`;
 }
 
 // Die Speicherleiste. 🔴 Für Editoren ohne admin steht hier ein SATZ, kein grauer Knopf -- ein
@@ -3868,6 +4118,7 @@ function renderZoomBandsDialog() {
 	updateZoomBandSelectedUI("label");
 	renderZoomBandPreviewStageButtons();
 	updateZoomBandPreview();
+	renderZoomBandSpacing();
 	updateZoomBandsMessage();
 	renderZoomBandsActions();
 }
@@ -3969,6 +4220,14 @@ document.addEventListener("keydown", (event) => {
 		if (!sel || !zoomBandsDarfSpeichern) { return; }
 		setZoomBandPointValue(kind, sel.cls, sel.z, parseFloat(cfg.selInputEl.value), "field");
 	});
+});
+// AUFGABE 8B: die drei Abstands-Regler, ebenso einmal verdrahtet (statisches Markup) -- Regler,
+// Zahlenfeld UND Rücksetzer rufen alle über setZoomBandSpacing/resetZoomBandSpacing durch.
+ZOOM_BAND_SPACING_KEYS.forEach((key) => {
+	const els = zoomBandSpacingEls()[key];
+	els.range?.addEventListener("input", () => setZoomBandSpacing(key, parseFloat(els.range.value)));
+	els.input?.addEventListener("input", () => setZoomBandSpacing(key, parseFloat(els.input.value)));
+	els.reset?.addEventListener("click", () => resetZoomBandSpacing(key));
 });
 
 async function boot() {

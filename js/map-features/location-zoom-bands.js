@@ -16,6 +16,11 @@ const AVESMAPS_ZOOM_BAND_LIMITS = {
 	label: { min: 4, max: 30 },     // Schriftgröße in pt
 };
 
+// 🔴 AUFGABE 8B -- drei GLOBALE Abstände, kein Wert je Ortsklasse/Zoomstufe (Owner-Entscheid
+// 16.08.2026, Prototyp docs/zoombaender-mockup.html). Eigene, engere Schranke als marker/label:
+// 0 bis 20 px in 0,5-px-Schritten (Vorgabe im Fenster).
+const AVESMAPS_LOCATION_LABEL_SPACING_LIMITS = { min: 0, max: 20 };
+
 // 🔴 DAS HEUTIGE BILD, ZIFFER FÜR ZIFFER (Entwurf §3.2). `null` = auf dieser Stufe gibt es diese
 // Klasse nicht -- die erste gefüllte Zelle IST die Erscheinungsstufe.
 // Die Markerwerte sind aus der abgeschafften geometrischen Kurve gerechnet und wie bisher auf zwei
@@ -41,6 +46,13 @@ const AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS = {
 		dorf: [null, null, null, null, 10, 11, 11, 11, 11],
 		gebaeude: [null, null, null, null, 9, 9, 9, 9, 9],
 	},
+	// 🔴 AUFGABE 8B: drei GLOBALE Abstände -- keine Zeile je Ortsklasse/Zoomstufe, nur je EINE Zahl.
+	// Vorgabewerte wörtlich aus den bisherigen Konstanten übernommen (die einzige Quelle bleibt diese
+	// Datei; die Konstanten selbst wurden entfernt bzw. werden nur noch von hier abgeleitet):
+	//   spalt   = LOCATION_NAME_LABEL_GAP (4, war js/map-features/map-features-location-name-labels.js)
+	//   repel   = LOCATION_LABEL_COLLISION_PADDING (2, war js/map-features/map-features.js)
+	//   versatz = LOCATION_LABEL_SHIFT_SMALL (8, war js/map-features/map-features.js)
+	abstaende: { spalt: 4, repel: 2, versatz: 8 },
 };
 
 // Eine Zeile gegen ihre Vorgabe normalisieren.
@@ -75,6 +87,17 @@ function avesmapsZoomBandNormalizeRow(row, defaultRow, limits) {
 	return result;
 }
 
+// AUFGABE 8B: ein einzelner globaler Abstand. Anders als eine Zeile hat er KEINE Loch-Regel und
+// KEIN `null` = "unsichtbar" -- ein Abstand ist immer eine Zahl. Fehlend, unbrauchbar oder außerhalb
+// der Schranke ist ein Nichtwissen wie bei einer Zelle (Punkt 4), nur ohne Punkt 3 (es gibt kein
+// "hier nicht" für einen globalen Abstand).
+function avesmapsZoomBandNormalizeSpacingValue(raw, defaultValue, limits) {
+	if (typeof raw === "number" && Number.isFinite(raw) && raw >= limits.min && raw <= limits.max) {
+		return raw;
+	}
+	return defaultValue;
+}
+
 // ⚠️ Läuft über die Schlüssel der VORGABE, nicht über die des Gespeicherten: eine unbekannte
 // Klasse in der Datenbank wird damit still ignoriert. Der Browser führt die Liste, nicht der Server.
 function avesmapsResolveLocationZoomBands(stored) {
@@ -92,6 +115,20 @@ function avesmapsResolveLocationZoomBands(stored) {
 				AVESMAPS_ZOOM_BAND_LIMITS[kind]
 			);
 		});
+	});
+	// 🔴 RÜCKWÄRTSKOMPATIBEL: eine vor Aufgabe 8b gespeicherte Übersteuerung kennt "abstaende" gar
+	// nicht -- ein fehlender Abschnitt ist dasselbe Nichtwissen wie ein fehlender Schlüssel darin,
+	// nicht anders zu behandeln als ein leeres Objekt.
+	const storedAbstaende = (source.abstaende && typeof source.abstaende === "object" && !Array.isArray(source.abstaende))
+		? source.abstaende
+		: {};
+	resolved.abstaende = {};
+	Object.keys(AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS.abstaende).forEach((key) => {
+		resolved.abstaende[key] = avesmapsZoomBandNormalizeSpacingValue(
+			storedAbstaende[key],
+			AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS.abstaende[key],
+			AVESMAPS_LOCATION_LABEL_SPACING_LIMITS
+		);
 	});
 	return resolved;
 }
@@ -118,6 +155,16 @@ function avesmapsLocationZoomBandValue(kind, locationType, zoomLevel) {
 	const rounded = Math.round(Number(zoomLevel));
 	const z = Number.isFinite(rounded) ? Math.max(0, Math.min(AVESMAPS_ZOOM_BAND_MAX_ZOOM, rounded)) : 0;
 	return row[z];
+}
+
+// AUFGABE 8B -- der Zugriff, den die Zeichner rufen: der wirksame Wert eines globalen Abstands
+// ("spalt" | "repel" | "versatz"), oder die Vorgabe, solange noch nichts geladen/angewendet wurde.
+function avesmapsLocationLabelSpacing(key) {
+	const abstaende = _avesmapsLocationZoomBands.abstaende;
+	if (abstaende && typeof abstaende[key] === "number") {
+		return abstaende[key];
+	}
+	return AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS.abstaende[key];
 }
 
 // Die Erscheinungsstufe: die erste gefüllte Zelle. null = diese Klasse erscheint nirgends.
@@ -156,5 +203,6 @@ function avesmapsLoadLocationZoomBands() {
 if (typeof globalThis !== "undefined") {
 	globalThis.AVESMAPS_ZOOM_BAND_MAX_ZOOM = AVESMAPS_ZOOM_BAND_MAX_ZOOM;
 	globalThis.AVESMAPS_ZOOM_BAND_LIMITS = AVESMAPS_ZOOM_BAND_LIMITS;
+	globalThis.AVESMAPS_LOCATION_LABEL_SPACING_LIMITS = AVESMAPS_LOCATION_LABEL_SPACING_LIMITS;
 	globalThis.AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS = AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS;
 }
