@@ -259,9 +259,10 @@ const WIRKLICHKEIT = {
 	karte: {
 		// 🔴 WIE BEI TERRITORIUM UND LITERATUR IST DIE „WIRKLICHKEIT" HIER DIE ANTWORT DES
 		// SUCHENDPUNKTS -- und zwar wieder eines, den es vor dem 16.08.2026 nicht gab (Aufgabe 9).
-		// Massgeblich ist, was avesmapsWikiCitymapArticleSearch (api/_internal/wiki/citymap-sync.php)
-		// wirklich auswaehlt: `wiki_sync_pages` gibt Titel, Klasse, Label, Kontinent und Adresse her,
-		// mehr steht dort nicht.
+		// Massgeblich ist, was avesmapsWikiCitymapArticleSearch (api/_internal/wiki/citymap-article.php
+		// :62) wirklich auswaehlt: `wiki_sync_pages` gibt Titel, Klasse, Label, Kontinent und Adresse
+		// her, mehr steht dort nicht. ⚠️ NACH dem Umbau gemessen, nicht davor -- die Suche gab es vor
+		// dieser Aufgabe nicht, und sie ist waehrend ihrer noch aus citymap-sync.php ausgezogen.
 		//
 		// NICHT dabei, nach derselben Grenze wie oben:
 		//   · `name` / `title` / `wiki_key` / `wiki_url` -- Identitaet. Der Kasten zeigt sie ohnehin
@@ -271,14 +272,14 @@ const WIRKLICHKEIT = {
 		//     wenn die Registry keines gespeichert hat.
 		wiki: ["settlement_label", "continent"],
 		// 🔴 LEER, UND DAS IST DIE MESSUNG, NICHT EINE LUECKE. Die weisse Liste des Schreibwegs
-		// (`$editableFields`, avesmapsUpsertCitymap, api/_internal/app/citymaps.php) fuehrt
+		// (`$editableFields`, avesmapsUpsertCitymap, api/_internal/app/citymaps.php:1418-1423) fuehrt
 		// map_url, map_url_label, die Lizenzen und Notizen, art, sieben Dreiwertige, width_px,
 		// height_px, format, die zwei BF-Jahre, author, publisher, note und status -- zu KEINEM davon
 		// sagt eine Registry-Zeile etwas: sie beschreibt die SEITE (Ortsklasse, Kontinent), nicht die
 		// Karte. Der Titel einer Karte („Stadtplan von Al'Anfa (Al'Anfa und der tiefe Süden)") baut
 		// der Abgleich aus Ort und Quelle, nie aus einem Artikelnamen.
-		// 🔴 `article_url`/`article_key`/`article_title` stehen NICHT hier: sie SIND die Zuweisung,
-		// kein Sync-Ziel -- dieselbe Trennung wie bei Ort, Landschaft, Territorium und Literatur.
+		// 🔴 `article_url`/`article_key`/`article_title` (die Spalten stehen in derselben Datei,
+		// :368-381) stehen NICHT hier: sie SIND die Zuweisung, kein Sync-Ziel -- dieselbe Trennung wie bei Ort, Landschaft, Territorium und Literatur.
 		// Genauso wenig `wiki_key` (der Bauschluessel des Abgleichs) und `map_url` (die Publikation).
 		karte: [],
 	},
