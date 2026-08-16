@@ -1762,6 +1762,39 @@ async function settlementWikiAssignZuweisen(treffer) {
 		wiki_url: String((result.settlement && result.settlement.wiki_url) || "") || null,
 	});
 	await reloadSettlementDetail();
+	// 💣 DANACH, NICHT DAVOR -- die Begruendung steht an der Funktion.
+	// ⚠️ Nur ein echter Wert, nie ein leerer: eine geglueckte Zuweisung darf die Adresse nicht
+	// loeschen, falls die Antwort einmal keine mitbringt. Wortgleich zum Zwilling.
+	const neueAdresse = String((result.settlement && result.settlement.wiki_url) || "").trim();
+	if (neueAdresse !== "") {
+		settlementWikiSetzeFlacheAdresse(neueAdresse);
+	}
+}
+
+/**
+ * 🔴 DAS FLACHE `properties.wiki_url` MITZIEHEN -- Gegenstueck zu selectSettlementWikiResult im
+ * Kartendialog (js/review/review-settlement-wiki.js), und aus demselben Grund (Discord #38).
+ *
+ * 💣 ES IST NICHT DIE ZUWEISUNG, ABER ES UEBERSCHREIBT SIE. `#dtEditWikiUrl` steht sichtbar
+ * (readonly) ueber dem Zuweisungskasten und reist bei JEDEM Speichern mit
+ * (buildSettlementSavePayload); `avesmapsUpdatePointFeatureDetails` schreibt es bedingungslos
+ * zurueck bzw. loescht es bei leerem Wert (api/_internal/map/features.php:1295-1299).
+ *
+ * 💣 UND DER NEUAUFBAU HEILT DAS NICHT -- deshalb wird diese Funktion NACH `reloadSettlementDetail()`
+ * gerufen, nicht davor. Der Editor liest `wiki_url` aus der ROHEN Spalte
+ * (avesmapsWikiSettlementDetail, settlements.php:1673) und `assign_to` fasst `properties.wiki_url`
+ * gar nicht an (`:840-844`): nach dem Neuladen stuende dort weiterhin der ALTE oder leere Wert,
+ * waehrend der Kasten daneben den neuen Artikel zeigt. Zwei widersprechende Wiki-Adressen in
+ * einem Panel -- und beim naechsten Kartenaufruf raet avesmapsEnrichMapFeatureWikiUrl bei leerem
+ * Feld eine dritte dazu. Vor dem Neuaufbau geschrieben waere der Wert schlicht wieder weg.
+ *
+ * ⚠️ Leer heisst leer: „Entfernen" gibt `""` herein, und genau das soll dort stehen.
+ */
+function settlementWikiSetzeFlacheAdresse(adresse) {
+	const feld = $("dtEditWikiUrl");
+	if (feld) {
+		feld.value = adresse;
+	}
 }
 
 /** 🔴 WIRFT BEI JEDEM NEIN -- sonst zeigt der Kasten „— keine —", waehrend auf dem Server alles
@@ -1785,6 +1818,12 @@ async function settlementWikiAssignLoesen() {
 	// frisch geholt.
 	await loadSettlementItems();
 	await reloadSettlementDetail();
+	// 🔴 DANACH das flache Feld LEEREN -- `clear_assign` fasst `properties.wiki_url` nicht an
+	// (settlements.php:884 loescht nur das Nest), der Neuaufbau holt also den alten Wert zurueck.
+	// Ohne diese Zeile zeigt der Kasten „— keine —" und darueber steht weiter eine Wiki-Adresse,
+	// die das naechste Speichern bestaetigt -- und der Auto-Connect der Kartenseite haengt den Ort
+	// daran wieder an. Owner-Regel: Entfernen bleibt entfernt.
+	settlementWikiSetzeFlacheAdresse("");
 }
 
 /**
@@ -1796,18 +1835,18 @@ function settlementWikiAssignSyncUebernehmen(zeilen) {
 	if (werte.name === null && werte.feature_subtype === null) {
 		throw new Error("Keine übernehmbare Angabe angehakt.");
 	}
-	if (werte.name !== null) {
-		const nameInput = $("dtEditName");
-		if (!nameInput) throw new Error("Das Namensfeld steht nicht im Formular.");
-		nameInput.value = werte.name;
+	// 🔴 ERST ALLES PRUEFEN, DANN ALLES SCHREIBEN -- wortgleich zum Zwilling. Umgekehrt waere ein
+	// fehlgeschlagener Groessen-Test eine HALBE Uebernahme: der Name stuende schon im Formular,
+	// waehrend das Bauteil die Ablehnung als „es ist nichts passiert" liest.
+	const nameInput = werte.name === null ? null : $("dtEditName");
+	if (werte.name !== null && !nameInput) throw new Error("Das Namensfeld steht nicht im Formular.");
+	const select = werte.feature_subtype === null ? null : $("dtEditType");
+	if (werte.feature_subtype !== null
+		&& (!select || !Array.from(select.options || []).some((option) => option.value === werte.feature_subtype))) {
+		throw new Error("Die Ortsgröße „" + werte.feature_subtype + "“ steht in der Auswahl nicht zur Verfügung.");
 	}
-	if (werte.feature_subtype !== null) {
-		const select = $("dtEditType");
-		if (!select || !Array.from(select.options || []).some((option) => option.value === werte.feature_subtype)) {
-			throw new Error("Die Ortsgröße „" + werte.feature_subtype + "“ steht in der Auswahl nicht zur Verfügung.");
-		}
-		select.value = werte.feature_subtype;
-	}
+	if (nameInput) nameInput.value = werte.name;
+	if (select) select.value = werte.feature_subtype;
 	setSettlementEditMsg("Aus dem Wiki übernommen — noch nicht gespeichert.", "");
 }
 

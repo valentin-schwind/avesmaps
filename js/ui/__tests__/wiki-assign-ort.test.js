@@ -256,6 +256,33 @@ assert.strictEqual(diffLeer[0].gehakt, false);
 assert.ok(/würde die Angabe leeren/.test(diffLeer[0].grund), diffLeer[0].grund);
 zaehl(); zaehl(); zaehl(); zaehl();
 
+// Die zwei Dokumente im Rohtext -- Teil 2a und 2b stellen Fragen, die nur sie beantworten koennen.
+const indexHtmlRoh = fs.readFileSync(path.join(wurzel, "index.html"), "utf8");
+const editorHtmlRoh = fs.readFileSync(path.join(wurzel, "html/wiki-sync-settlement-editor.html"), "utf8");
+
+// ══ TEIL 2a: DIE ZWEI AUSWAHLLISTEN GEGEN DIE SECHS SCHLUESSEL ════════════════════════════════
+// 💣 Die Uebernahme prueft den Wert gegen die `<option>`-Liste der Oberflaeche und LEHNT AB, wenn er
+// fehlt. Beide Oberflaechen fuehren heute exakt die sechs Schluessel -- kommt ein siebter in NUR
+// eine der zwei Listen, sagt die eine Oberflaeche ja und die andere nein zu derselben Wiki-Angabe,
+// und niemand faellt darueber. Deshalb haengen die zwei Listen hier an einer Quelle.
+// ⚠️ Textprobe, und das ist hier richtig: die Frage ist, was in den DOKUMENTEN steht -- ein Ablauf
+// kann das nicht beantworten, weil er die Liste selbst mitbringt.
+const kartenOptionen = (/<select id="location-edit-type"[\s\S]*?<\/select>/.exec(indexHtmlRoh) || [""])[0]
+	.match(/value="([a-z]+)"/g) || [];
+assert.deepStrictEqual(
+	kartenOptionen.map((t) => t.replace(/value="|"/g, "")).sort(),
+	AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN.slice().sort(),
+	"die Ortsgroessen des Kartendialogs weichen von den sechs Schluesseln ab"
+);
+const editorOptionen = (/const SETTLEMENT_EDIT_TYPE_OPTIONS = \[[\s\S]*?\];/.exec(editorHtmlRoh) || [""])[0]
+	.match(/value: "([a-z]+)"/g) || [];
+assert.deepStrictEqual(
+	editorOptionen.map((t) => t.replace(/value: "|"/g, "")).sort(),
+	AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN.slice().sort(),
+	"die Ortsgroessen des Orte-Editors weichen von den sechs Schluesseln ab"
+);
+zaehl(); zaehl();
+
 // ══ TEIL 2b: WELCHES STYLESHEET ERREICHT WELCHES DOKUMENT ═════════════════════════════════════
 // 💣 Genau daran ist Aufgabe 3 einmal gescheitert: die `.label-wiki-*`-Regeln stehen in
 // region-sync.css und die laedt NUR index.html; die `.dt-*`-Regeln stehen in editor-page.css und
@@ -271,9 +298,7 @@ zaehl(); zaehl(); zaehl(); zaehl();
 function bindetStylesheet(inhalt, datei) {
 	return new RegExp('<link[^>]+href="[^"]*' + datei.replace(/\./g, "\\.") + '[^"]*"').test(inhalt);
 }
-const indexHtml = fs.readFileSync(path.join(wurzel, "index.html"), "utf8");
-const editorHtmlRoh = fs.readFileSync(path.join(wurzel, "html/wiki-sync-settlement-editor.html"), "utf8");
-assert.ok(bindetStylesheet(indexHtml, "components/region-sync.css"),
+assert.ok(bindetStylesheet(indexHtmlRoh, "components/region-sync.css"),
 	"index.html bindet region-sync.css nicht -- die Huelle „label-wiki“ des Kartendialogs waere ungestylt");
 assert.ok(bindetStylesheet(editorHtmlRoh, "components/editor-page.css"),
 	"der Orte-Editor bindet editor-page.css nicht -- die Huelle „dt“ waere dort ungestylt");
@@ -466,6 +491,54 @@ function skripteAus(htmlDatei, muster) {
 		"die Meta-Zeile des Treffers ist leer -- die flachen Antwortzeilen kommen unaufbereitet an: " + host.innerHTML);
 	zaehl(); zaehl(); zaehl(); zaehl();
 
+	// ---- Null Treffer: der Leerzustand sagt, was zu TUN ist ------------------------------------
+	// 🔴 Der alte Picker schrieb „Keine Treffer in der Registry. Ggf. erst die Orte-Sync laufen
+	// lassen." -- die HANDLUNGSANWEISUNG ist der Teil, der zaehlt: die Ortssuche liest die Registry,
+	// nicht das Wiki. Ohne sie sagt der Kasten nur, DASS nichts da ist.
+	// 💣 An BEIDEN Stellen geprueft: der Leerkasten traegt `role="presentation"` und ist fuer
+	// Hilfsmittel unsichtbar -- dort erreicht der Rat nur ueber den Zaehlsatz darunter.
+	const kLeerTreffer = sandkastenBauen(dialogSkripte,
+		{
+			"location-edit-name": scheinFeld("Havena"),
+			"location-edit-type": scheinFeld("dorf", AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN),
+			"location-edit-wiki-url": scheinFeld(""),
+		},
+		["settlement-wiki-assign-host"],
+		(url, rumpf) => (rumpf ? { ok: true } : { ok: true, query: "", rows: [] }));
+	vm.runInContext("var locationEditMarkerEntry = { publicId: 'loc-2', location: {} };"
+		+ "var locationEditPendingWikiSettlement = null;", kLeerTreffer.kasten);
+	const hostLeer = kLeerTreffer.elemente["settlement-wiki-assign-host"];
+	vm.runInContext("renderSettlementWikiReference();", kLeerTreffer.kasten);
+	await ruhe();
+	hostLeer.feuere("click", scheinZiel("data-wa-aktion", "zuweisen"));
+	await ruhe();
+	assert.ok(hostLeer.innerHTML.indexOf("Keine Treffer. Ggf. erst die Orte-Sync laufen lassen.") !== -1,
+		"der Leerkasten sagt nicht mehr, was zu tun ist: " + hostLeer.innerHTML);
+	assert.ok(/data-wa-hinweis[^>]*>Keine Treffer · Ggf\. erst die Orte-Sync laufen lassen\./.test(hostLeer.innerHTML),
+		"der Rat fehlt im Zaehlsatz -- fuer Hilfsmittel ist er damit gar nicht da: " + hostLeer.innerHTML);
+	zaehl(); zaehl();
+
+	// ⚠️ Und NIE beim Suchfehler: „Suche fehlgeschlagen. Ggf. erst die Orte-Sync laufen lassen."
+	// waere bei einem 403 ein falscher Rat.
+	const kFehler = sandkastenBauen(dialogSkripte,
+		{
+			"location-edit-name": scheinFeld("Havena"),
+			"location-edit-type": scheinFeld("dorf", AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN),
+		},
+		["settlement-wiki-assign-host"],
+		() => ({ httpOk: false, status: 403 }));
+	vm.runInContext("var locationEditMarkerEntry = { publicId: 'loc-3', location: {} };"
+		+ "var locationEditPendingWikiSettlement = null;", kFehler.kasten);
+	const hostFehler = kFehler.elemente["settlement-wiki-assign-host"];
+	vm.runInContext("renderSettlementWikiReference();", kFehler.kasten);
+	await ruhe();
+	hostFehler.feuere("click", scheinZiel("data-wa-aktion", "zuweisen"));
+	await ruhe();
+	assert.ok(hostFehler.innerHTML.indexOf("Suche fehlgeschlagen") !== -1, hostFehler.innerHTML);
+	assert.ok(hostFehler.innerHTML.indexOf("Orte-Sync") === -1,
+		"ein Suchfehler bekommt den Registry-Rat -- das schickt den Editor in den falschen Ablauf: " + hostFehler.innerHTML);
+	zaehl(); zaehl();
+
 	// ---- Waehlen: der Rumpf, und die Anreicherung ---------------------------------------------
 	host.feuere("click", scheinZiel("data-wa-treffer", "0"));
 	await ruhe();
@@ -531,6 +604,45 @@ function skripteAus(htmlDatei, muster) {
 	assert.strictEqual(vm.runInContext("JSON.stringify(setLocationEditSizeAufrufe)", k.kasten), '["grossstadt"]',
 		"die Ortsgroesse wurde am einzigen Setzer vorbei geschrieben -- die place_kind-Sperre bliebe falsch");
 	assert.strictEqual(felder["location-edit-type"].value, "grossstadt");
+	zaehl(); zaehl(); zaehl();
+
+	// ---- KEINE HALBE UEBERNAHME ---------------------------------------------------------------
+	// 🔴 Schlaegt die Pruefung der Ortsgroesse fehl, darf der Name NICHT schon geschrieben sein: das
+	// Bauteil liest die Ablehnung als „es ist nichts passiert" und laesst die Vorschau samt Haken
+	// stehen -- der Editor saehe eine unveraenderte Vorschau ueber einem veraenderten Formular.
+	// 💣 Erreichbar gemacht, indem die Auswahlliste die Ortsgroesse NICHT fuehrt -- genau der
+	// Zustand, den ein siebter Schluessel in nur einer der zwei Oberflaechen erzeugt.
+	const kHalb = sandkastenBauen(dialogSkripte,
+		{
+			"location-edit-name": scheinFeld("Havena (alt)"),
+			// Ohne „grossstadt": die Uebernahme MUSS daran scheitern.
+			"location-edit-type": scheinFeld("dorf", ["dorf", "kleinstadt"]),
+			"location-edit-wiki-url": scheinFeld(""),
+		},
+		["settlement-wiki-assign-host"],
+		(url, rumpf) => (rumpf && rumpf.action === "assign_to"
+			? { ok: true, wiki_name: "Havena", settlement: SIEDLUNG }
+			: { ok: true, query: "", rows: [SUCHZEILE] }));
+	vm.runInContext("var locationEditMarkerEntry = { publicId: 'loc-4', location: {} };"
+		+ "var locationEditPendingWikiSettlement = null;", kHalb.kasten);
+	const hostHalb = kHalb.elemente["settlement-wiki-assign-host"];
+	vm.runInContext("renderSettlementWikiReference();", kHalb.kasten);
+	await ruhe();
+	hostHalb.feuere("click", scheinZiel("data-wa-aktion", "zuweisen"));
+	await ruhe();
+	hostHalb.feuere("click", scheinZiel("data-wa-treffer", "0"));
+	await ruhe();
+	hostHalb.feuere("click", scheinZiel("data-wa-aktion", "sync"));
+	await ruhe();
+	assert.ok(hostHalb.innerHTML.indexOf("2 von 2 Angaben würden sich ändern") !== -1, hostHalb.innerHTML);
+	hostHalb.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
+	await ruhe();
+	assert.strictEqual(kHalb.elemente["location-edit-name"].value, "Havena (alt)",
+		"der Name wurde geschrieben, obwohl die Ortsgroesse danach abgelehnt hat -- eine halbe Uebernahme, "
+		+ "die sich dem Bauteil gegenueber als gar keine ausgibt");
+	// Und die Vorschau steht noch -- das Bauteil hat die Ablehnung richtig verstanden.
+	assert.ok(hostHalb.innerHTML.indexOf("data-wa-sync-haken") !== -1,
+		"die Sync-Vorschau ist trotz Ablehnung geschlossen: " + hostHalb.innerHTML);
 	zaehl(); zaehl(); zaehl();
 
 	// ---- Entfernen ----------------------------------------------------------------------------
@@ -633,7 +745,20 @@ function skripteAus(htmlDatei, muster) {
 		dtEditName: scheinFeld("Havena (alt)"),
 		dtEditType: scheinFeld("dorf", AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN),
 		dtEditMsg: scheinFeld(""),
+		// Das flache, sichtbare (readonly) Wiki-Adressfeld ueber dem Kasten -- NICHT die Zuweisung,
+		// aber es reist bei jedem Speichern mit. Startwert: eine alte, falsche Adresse.
+		dtEditWikiUrl: scheinFeld("https://de.wiki-aventurica.de/wiki/Havena_(Andergast)"),
 	};
+	// 🔴 DIE ATTRAPPE MODELLIERT DEN NEUAUFBAU DES FORMULARS. `renderSettlementDetail` baut
+	// #seDetailBody per innerHTML neu, und `buildSettlementEditFormHtml` schreibt dabei den ROHEN
+	// Spaltenwert `props.wiki_url` frisch in ein neues `#dtEditWikiUrl`. Ohne dieses Modell wuerde
+	// eine Zuweisung, die das Feld VOR dem Neuaufbau setzt, in der Probe faelschlich bestehen --
+	// live waere ihr Wert weg.
+	// 💣 Und der rohe Wert ist NICHT leer: weder `assign_to` noch `clear_assign` fassen
+	// `properties.wiki_url` an (settlements.php:840-844 / :884), der Neuaufbau holt also genau die
+	// Adresse zurueck, die vorher dort stand. Ein leeres Modell haette die Entfernen-Probe blind
+	// gemacht -- sie waere auch ohne das Mitleeren gruen gewesen (gemessen).
+	let roheAdresse = "https://de.wiki-aventurica.de/wiki/Havena_(Andergast)";
 	// 🔴 Auch hier kommt die Skriptliste AUS DEM DOKUMENT, in dessen Reihenfolge -- fehlt eine der
 	// vier Zeilen der Wiki-Zuweisung, liefert `mount` unten einen Blindgaenger.
 	const editorSkripte = skripteAus("html/wiki-sync-settlement-editor.html");
@@ -654,6 +779,8 @@ function skripteAus(htmlDatei, muster) {
 				return { ok: true, revision: 4712 };
 			}
 			if (url.indexOf("action=settlement_detail") !== -1) {
+				// Der Neuaufbau belegt das flache Feld aus der ROHEN Spalte neu -- siehe oben.
+				eFelder.dtEditWikiUrl.value = roheAdresse;
 				return { ok: true, detail: { public_id: "loc-1", name: "Havena (alt)", feature_subtype: "dorf", on_map: true, properties: {} } };
 			}
 			if (url.indexOf("action=search") !== -1) {
@@ -696,7 +823,14 @@ function skripteAus(htmlDatei, muster) {
 	// noch im Textfeld und das naechste Speichern schriebe sie zurueck.
 	assert.ok(e.gesendet.some((s) => s.url.indexOf("action=settlement_detail") !== -1),
 		"nach dem Zuweisen wird das Panel nicht neu geladen");
-	zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+	// 🔴 UND DAS FLACHE `wiki_url`-FELD IST MITGEZOGEN -- Discord #38 in der neuen Haelfte.
+	// 💣 Diese Zusicherung prueft zugleich die REIHENFOLGE: die Dokument-Attrappe setzt das Feld bei
+	// jeder settlement_detail-Antwort auf den rohen Serverwert zurueck (leer, weil assign_to das
+	// flache Feld nicht anfasst). Wer es VOR `reloadSettlementDetail()` schreibt, findet hier "".
+	assert.strictEqual(eFelder.dtEditWikiUrl.value, SIEDLUNG.wiki_url,
+		"der Orte-Editor zieht das flache wiki_url-Feld nicht mit (oder schreibt es VOR dem Neuaufbau, "
+		+ "der es wieder ueberschreibt) -- das naechste Speichern bestaetigte die alte Adresse");
+	zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 	// ---- Sync im Editor: fuellt Namensfeld und Auswahl ----------------------------------------
 	vm.runInContext("settlementDetailCache = { publicId: 'loc-1', detail: { public_id: 'loc-1',"
@@ -715,6 +849,41 @@ function skripteAus(htmlDatei, muster) {
 	assert.strictEqual(eFelder.dtEditName.value, "Havena (alt)",
 		"der ABGEHAKTE Name wurde trotzdem uebernommen");
 	assert.strictEqual(eFelder.dtEditType.value, "grossstadt", "die angehakte Ortsgroesse wurde nicht uebernommen");
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// ---- Und dieselbe Regel im Editor: KEINE halbe Uebernahme ---------------------------------
+	// 🔴 Wortgleich zum Kartendialog geprueft, weil beide Oberflaechen bei derselben Handlung
+	// dasselbe tun muessen -- genau das war der Befund, der diese Nachbesserung ausgeloest hat.
+	eFelder.dtEditType.options = [{ value: "dorf" }, { value: "kleinstadt" }];
+	eFelder.dtEditType.value = "dorf";
+	eFelder.dtEditName.value = "Havena (alt)";
+	vm.runInContext("mountSettlementWikiAssign();", e.kasten);
+	await ruhe();
+	eHost.feuere("click", scheinZiel("data-wa-aktion", "sync"));
+	await ruhe();
+	eHost.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
+	await ruhe();
+	assert.strictEqual(eFelder.dtEditName.value, "Havena (alt)",
+		"der Orte-Editor schreibt den Namen, obwohl die Ortsgroesse danach abgelehnt hat");
+	eFelder.dtEditType.options = AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN.map((v) => ({ value: v }));
+	zaehl();
+
+	// ---- Entfernen im Editor: das flache Feld MUSS mitgeleert werden --------------------------
+	// 🔴 `clear_assign` fasst `properties.wiki_url` nicht an; ohne das Mitleeren zeigte der Kasten
+	// „— keine —", waehrend darueber weiter eine Wiki-Adresse stuende, die das naechste Speichern
+	// bestaetigt. Owner-Regel: Entfernen bleibt entfernt.
+	// Der Ort traegt jetzt die richtige Adresse -- in der rohen Spalte UND im Formular. Genau so
+	// sieht ein gespeicherter, verknuepfter Ort aus.
+	roheAdresse = "https://de.wiki-aventurica.de/wiki/Havena";
+	eFelder.dtEditWikiUrl.value = roheAdresse;
+	eHost.feuere("click", scheinZiel("data-wa-aktion", "entfernen"));
+	await ruhe();
+	const eLoesung = e.gesendet.filter((s) => s.rumpf && s.rumpf.action === "clear_assign")[0];
+	assert.ok(eLoesung, "der Orte-Editor hat nichts geloest");
+	assert.strictEqual(eLoesung.rumpf.public_id, "loc-1");
+	assert.strictEqual(eLoesung.rumpf.confirm, "apply");
+	assert.strictEqual(eFelder.dtEditWikiUrl.value, "",
+		"der Orte-Editor leert das flache wiki_url-Feld nicht mit -- die entfernte Verbindung kehrt beim naechsten Speichern zurueck");
 	zaehl(); zaehl(); zaehl(); zaehl();
 
 	// ---- Der Vertrag im Editor ----------------------------------------------------------------

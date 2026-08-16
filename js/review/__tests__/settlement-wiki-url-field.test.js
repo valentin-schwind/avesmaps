@@ -25,7 +25,10 @@ global.document = {
 	getElementById(id) {
 		return fields.get(id) || null;
 	},
-	// settlementWikiEscapeText round-trips text through a detached div; the picker render path uses it.
+	// Die Attrappe bleibt, obwohl der Picker mit seinem Maskierer (settlementWikiEscapeText) am
+	// 16.08.2026 im Umbau auf das gemeinsame Bauteil entfallen ist: `document.createElement` steht in
+	// jeder Dokument-Attrappe dieses Hauses, und ein fehlendes Feld hier waere ein Fehler in einer
+	// spaeteren Zeile statt einer Aussage ueber die Regel.
 	createElement() {
 		return {
 			set textContent(value) { this._text = String(value); },

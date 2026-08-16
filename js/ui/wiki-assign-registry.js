@@ -141,6 +141,15 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			{ wiki: "tempel", karte: "", label: "Tempel" },
 		],
 		sync: true, // zwei Kartenziele (name, feature_subtype) -- also ein Knopf
+		extra: {
+			// 🔴 Der Rat des Leerzustands, und er ist objektart-eigen, weil die QUELLE es ist: die
+			// Ortssuche liest die Registry `wiki_sync_pages` (settlements.php:710), nicht das Wiki --
+			// wer dort nichts findet, muss den Orte-Sync laufen lassen, nicht anders suchen. Der Satz
+			// stand wortgleich im alten Picker („Keine Treffer in der Registry. Ggf. erst die
+			// Orte-Sync laufen lassen.") und waere mit dem Umbau ersatzlos verschwunden -- „Keine
+			// Treffer" allein sagt nur, DASS nichts da ist, nicht, was zu tun ist.
+			keineTrefferHinweis: "Ggf. erst die Orte-Sync laufen lassen.",
+		},
 		// ⚠️ KEIN dritter Zustand, und diesmal NICHT, weil der Speicherplatz fehlt: `wiki_no_article`
 		// gibt es im `properties_json` bereits, der Leseweg ehrt ihn (avesmapsEnrichMapFeatureWikiUrl,
 		// api/app/map-features.php:983), und das Konfliktzentrum setzt ihn (repair.php:328). Was fehlt,

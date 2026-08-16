@@ -30,6 +30,15 @@
 // `assign_to` sagt seinen Typriegel (Fluss an Strasse) mit HTTP 200 und `type_ok:false`, und das
 // „Entfernen" des Wegs fragt erst zurueck, ob nur ein Segment oder der ganze Weg gemeint ist.
 //
+// 🔴 `zuweisen` DARF UND MUSS `treffer.werte` AN ORT UND STELLE VERAENDERN, wenn die Suche keine
+// Anzeigewerte liefert. Das Bauteil uebernimmt `treffer` naemlich erst NACHDEM `zuweisen` aufgeloest
+// hat (`trefferWaehlen` unten) -- eine Anreicherung im Rueckruf kommt also an. 💣 Und ohne sie steht
+// der Zuweisungskasten nach der Wahl fast leer da, obwohl der Server gerade alles geliefert hat:
+// beim ORT antwortet `?action=search` NUR mit Identitaet plus Ortsklasse, die Infoboxwerte entstehen
+// erst im Schreibvorgang und stehen in DESSEN Antwort (avesmapsWikiAssignOrtTrefferAnreichern,
+// js/ui/wiki-assign-ort.js). Beim Weg war das nicht noetig -- dort traegt schon die Suche alles.
+// Wer eine Objektart anschliesst, sieht deshalb ZUERST nach, was ihre Suche wirklich herausgibt.
+//
 // ⚠️ `trefferAufbereiten` formt EINE flache Antwortzeile der Server-Suche in die Treffer-Form
 // unten. Ohne eigenen Bauer greift avesmapsWikiAssignTrefferAusZeile, das die in der Erklaerung
 // genannten Feldnamen aus der Zeile hebt. Eigen wird er dort, wo ein Wert erst ABGEBILDET werden
@@ -412,19 +421,33 @@ function avesmapsWikiAssignModell(erklaerung, daten, ui) {
 		// im Kasten gleich leer aus, meint aber Gegenteiliges: „es gibt keinen solchen Artikel"
 		// gegen „ich konnte nicht nachsehen".
 		const suchFehler = avesmapsWikiAssignText(z.suchFehler);
+		// 🔴 Der objektart-eigene Rat bei NULL Treffern (Entwurf §5). Das Bauteil weiss nicht, WO die
+		// Artikel herkommen -- die Erklaerung schon: beim Ort ist die Quelle die Registry
+		// `wiki_sync_pages`, und wer dort nichts findet, muss die Orte-Sync laufen lassen. Genau das
+		// sagte der alte Picker („Keine Treffer in der Registry. Ggf. erst die Orte-Sync laufen
+		// lassen."), und mit dem Umbau waere die einzige HANDLUNGSANWEISUNG des Leerzustands
+		// verlorengegangen -- „Keine Treffer" allein sagt nur, dass nichts da ist.
+		// ⚠️ NUR im Leerfall, NIE beim Suchfehler: „Suche fehlgeschlagen. Ggf. erst die Orte-Sync
+		// laufen lassen." waere bei einem 403 oder 500 ein falscher Rat.
+		const leerRat = suchFehler === ""
+			? avesmapsWikiAssignText((e.extra || {}).keineTrefferHinweis)
+			: "";
 		// Der Leerkasten schliesst die Wendung als Satz ab, der Zaehlsatz oben haengt „ · “ an.
 		modell.trefferLeerText = (suchFehler === ""
 			? AVESMAPS_WIKI_ASSIGN_TEXTE.keineTreffer
-			: AVESMAPS_WIKI_ASSIGN_TEXTE.suchFehler) + ".";
+			: AVESMAPS_WIKI_ASSIGN_TEXTE.suchFehler) + "." + (leerRat === "" ? "" : " " + leerRat);
 		// „Treffer" heisst im Deutschen in beiden Zahlen gleich -- keine Mehrzahlweiche noetig.
 		// ⚠️ Der Leerfall steht seit 16.08.2026 AUCH hier: der Kasten mit „Keine Treffer." ist fuer
 		// Hilfsmittel ausgeblendet (role=presentation, siehe Trefferlisten-Bauer), also muss die
 		// Auskunft an der Stelle stehen, die ohnehin die Trefferzahl traegt.
+		// 💣 Der Rat steht AUCH hier, und zwar ANSTELLE der Tastaturhilfe: der Leerkasten ist fuer
+		// Hilfsmittel ausgeblendet (role=presentation), also erreicht ihn dort nur diese Zeile -- und
+		// „↑ ↓ wählen · Enter zuweisen" ist ohne einen einzigen Treffer ohnehin gegenstandslos.
 		modell.hinweis = suchFehler !== ""
 			? AVESMAPS_WIKI_ASSIGN_TEXTE.suchFehler + " — " + suchFehler
 			: (modell.treffer.length === 0
-				? AVESMAPS_WIKI_ASSIGN_TEXTE.keineTreffer
-				: modell.treffer.length + " Treffer") + " · " + AVESMAPS_WIKI_ASSIGN_TEXTE.suchHinweis;
+				? AVESMAPS_WIKI_ASSIGN_TEXTE.keineTreffer + " · " + (leerRat === "" ? AVESMAPS_WIKI_ASSIGN_TEXTE.suchHinweis : leerRat)
+				: modell.treffer.length + " Treffer · " + AVESMAPS_WIKI_ASSIGN_TEXTE.suchHinweis);
 		return modell;
 	}
 

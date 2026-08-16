@@ -302,18 +302,25 @@ function settlementWikiSyncUebernehmen(zeilen) {
 	if (werte.name === null && werte.feature_subtype === null) {
 		throw new Error("Keine übernehmbare Angabe angehakt.");
 	}
-	if (werte.name !== null) {
-		const nameInput = settlementWikiElement("location-edit-name");
-		if (!nameInput) {
-			throw new Error("Das Namensfeld steht nicht im Dialog.");
-		}
+	// 🔴 ERST ALLES PRUEFEN, DANN ALLES SCHREIBEN. Die Pruefung der Ortsgroesse stand bis zum
+	// 16.08.2026 NACH dem Setzen des Namens: schlug sie fehl, war der Name schon geschrieben,
+	// waehrend das Bauteil die Ablehnung als „es ist nichts passiert" liest und die Vorschau samt
+	// Haken stehen laesst. Eine halbe Uebernahme, die sich als gar keine ausgibt. Heute unerreichbar
+	// (die Auswahl fuehrt genau die sechs Schluessel), aber ein siebter Schluessel in NUR einer der
+	// zwei Listen macht sie erreichbar -- und dann ist der Fehler still.
+	const nameInput = werte.name === null ? null : settlementWikiElement("location-edit-name");
+	if (werte.name !== null && !nameInput) {
+		throw new Error("Das Namensfeld steht nicht im Dialog.");
+	}
+	const select = werte.feature_subtype === null ? null : settlementWikiElement("location-edit-type");
+	if (werte.feature_subtype !== null
+		&& (!select || !Array.from(select.options || []).some((option) => option.value === werte.feature_subtype))) {
+		throw new Error("Die Ortsgröße „" + werte.feature_subtype + "“ steht in der Auswahl nicht zur Verfügung.");
+	}
+	if (nameInput) {
 		nameInput.value = werte.name;
 	}
-	if (werte.feature_subtype !== null) {
-		const select = settlementWikiElement("location-edit-type");
-		if (!select || !Array.from(select.options || []).some((option) => option.value === werte.feature_subtype)) {
-			throw new Error("Die Ortsgröße „" + werte.feature_subtype + "“ steht in der Auswahl nicht zur Verfügung.");
-		}
+	if (select) {
 		// 🔴 setLocationEditSize, NICHT `select.value = …`: an der Ortsgroesse haengt die Sperre des
 		// Feldes „Art" (place_kind), und ein programmatisches Setzen feuert KEIN change-Ereignis --
 		// genau dafuer gibt es diesen einen Setzer (js/review/review-locations.js:638).
