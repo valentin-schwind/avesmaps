@@ -235,7 +235,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
          or either script changes, or admins keep the cached files. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260815-svgexport-10" />
+    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260815-svgexport-11" />
 </head>
 
 <body class="edit-page">
@@ -334,6 +334,25 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                         Punkte und Schrift. Auf die <strong>Dateigröße hat das keinen
                         Einfluss</strong>: eine Vektordatei speichert Formen, keine Bildpunkte.
                     </p>
+                    <div class="svgx-size" style="margin-top:12px">
+                        <label class="svgx-choice">
+                            <input type="checkbox" id="svgx-regmarks" />
+                            <span>Passmarken in jede Ebene legen</span>
+                        </label>
+                    </div>
+                    <p class="svgx-hint" style="margin-top:8px">
+                        <strong>Für Photoshop.</strong> Beim Rastern beschneidet Photoshop jede Ebene
+                        auf ihren Inhalt &ndash; danach weiß niemand mehr, wo die Flüsse hingehören.
+                        Vier magentafarbene 1-px-Quadrate in den Leinwandecken <em>jeder</em> Ebene
+                        halten die volle Ausdehnung fest: jede gerasterte Ebene misst dann exakt
+                        die eingestellte Größe und fällt bei 0,0 an ihren Platz. Sie liegen in einer
+                        eigenen Untergruppe „Passmarken" und lassen sich nach dem Ausrichten in einem
+                        Rutsch löschen &ndash; Magenta kommt auf dieser Karte sonst nirgends vor.
+                        ⚠️ <strong>Deckend, nicht halbtransparent:</strong> ein Alpha von 1/255 kann
+                        beim Rastern auf 0 gerundet werden, und eine Marke, die manchmal verschwindet,
+                        ist schlimmer als keine.
+                    </p>
+
                     <p class="svgx-hint">
                         💣 <strong>Photoshop rastert nichts über 32k.</strong> Wer dort weiter
                         arbeitet, nimmt <strong>16.384</strong> und skaliert hoch &ndash; das trifft
@@ -429,8 +448,8 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                 </table>
             </section>
         </main>
-        <script src="../js/pages/svg-export-build.js?v=20260815-svgexport-10"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260815-svgexport-10"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260815-svgexport-11"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260815-svgexport-11"></script>
     <?php endif; ?>
 </body>
 

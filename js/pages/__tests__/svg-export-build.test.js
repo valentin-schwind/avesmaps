@@ -499,3 +499,54 @@ const hatKurven = (svg) => [...svg.matchAll(/ d="([^"]*)"/g)].some((m) => m[1].i
 }
 
 console.log("svg-export-build (Flächen glätten): ok");
+
+// ---- 18. Passmarken: jede Ebene misst die volle Leinwand -------------------------------
+// 🔴 Photoshop beschneidet eine rasterisierte Ebene auf ihren INHALT. Ohne Marken hat jede
+// Ebene eine andere Ausdehnung, und nach dem Rastern weiß niemand mehr, wo die Flüsse
+// hingehören (Owner 15.08.2026). Vier deckende Ecken je Ebene lösen das.
+{
+	const svg = B.svgxBuildDocument({ mapFeatures: payload, dialect: D.INKSCAPE,
+		registrationMarks: true, sizePx: 32768 }).parts.join("");
+
+	// In JEDER Ebene, nicht bloß einmal im Dokument -- sonst nützt es genau einer Ebene.
+	const ebenen = ["layer-landschaften", "layer-gebiete", "layer-wege", "layer-kraftlinien",
+		"layer-orte", "layer-beschriftungen"];
+	const marken = (svg.match(/id="passmarken"/g) || []).length;
+	assert.strictEqual(marken, ebenen.length,
+		`jede der ${ebenen.length} Ebenen braucht ihre eigenen Passmarken, gefunden: ${marken}`);
+	assert.strictEqual((svg.match(/id="passmarke-\d"/g) || []).length, ebenen.length * 4,
+		"vier Ecken je Ebene");
+
+	// 💣 Sie liegen INNEN. Steht eine Marke hinter dem </g> ihrer Ebene, ist sie eine
+	// eigene Ebene und kommt beim Rastern nicht mit -- der Fehler sähe im Editor gleich aus.
+	ebenen.forEach((id) => {
+		const ab = svg.indexOf(`id="${id}"`);
+		const marke = svg.indexOf('id="passmarken"', ab);
+		// ⚠️ Die nächste EBENE über ihre id suchen, nicht über groupmode: das steht im
+		// selben Tag hinter der id, also fände man die eigene Ebene wieder.
+		const naechste = svg.indexOf('id="layer-', ab + 1);
+		assert.ok(marke > ab && (naechste === -1 || marke < naechste),
+			`die Passmarken von ${id} müssen INNERHALB dieser Ebene liegen`);
+	});
+
+	// Die Ecken sitzen exakt auf der Leinwandkante, und die Marke ist 1 px groß.
+	assert.ok(svg.includes('x="0" y="0" width="0.03125"'), "die erste Ecke sitzt auf 0,0");
+	assert.ok(svg.includes('x="1023.97" y="1023.97"'), "die letzte Ecke sitzt am Gegenende");
+
+	// 💣 DECKEND. Ein Alpha von 1/255 kann beim Rastern auf 0 gerundet werden -- eine Marke,
+	// die manchmal verschwindet, ist schlimmer als keine.
+	const markenBlock = svg.slice(svg.indexOf('id="passmarken"'), svg.indexOf('id="passmarke-1"') + 400);
+	assert.ok(!/opacity/.test(markenBlock), "eine Passmarke darf keine Deckkraft tragen");
+	assert.ok(markenBlock.includes(B.SVGX_REGMARK_COLOR), "Passmarken sind magenta zum Auswählen");
+
+	// Ohne Schalter keine Marken -- niemand bekommt sie ungefragt in die Datei.
+	const ohne = B.svgxBuildDocument({ mapFeatures: payload, dialect: D.INKSCAPE }).parts.join("");
+	assert.ok(!/passmarke/.test(ohne), "ohne Schalter keine Passmarken");
+
+	// Bei halber Ausgabegröße ist ein Bildpunkt doppelt so groß in Einheiten.
+	const klein = B.svgxBuildDocument({ mapFeatures: payload, dialect: D.INKSCAPE,
+		registrationMarks: true, sizePx: 16384 }).parts.join("");
+	assert.ok(klein.includes('width="0.0625"'), "die Marke bleibt 1 px, auch bei 16.384");
+}
+
+console.log("svg-export-build (Passmarken): ok");

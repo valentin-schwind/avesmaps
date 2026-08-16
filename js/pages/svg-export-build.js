@@ -200,6 +200,46 @@ function svgxGroupClose() {
 	return "</g>\n";
 }
 
+// 🔴 PASSMARKEN -- gegen das Photoshop-Problem, und es ist ein echtes.
+//
+// Photoshop beschneidet eine rasterisierte Ebene auf ihren INHALT. Sobald man die Ebenen
+// einzeln rastert, hat jede eine andere Ausdehnung, und danach weiß niemand mehr, wo die
+// Flüsse hingehören: der Bezug zur Leinwand ist weg. (Owner 15.08.2026.)
+//
+// Vier deckende Quadrate, exakt in den vier Ecken der Leinwand, in JEDER Ebene. Damit
+// misst jede rasterisierte Ebene genau 32768 × 32768 und fällt bei 0,0 an ihren Platz.
+//
+// 💣 DECKEND, nicht halbdurchsichtig. Der naheliegende Gedanke ist ein Alpha von 1/255 --
+// aber beim Rastern kann das Antialiasing es auf 0 runden, und dann ist die Marke fort,
+// ohne dass es jemand bemerkt, bis die Ebene falsch sitzt. Eine Marke, die manchmal
+// verschwindet, ist schlimmer als keine.
+//
+// 💣 VIER, nicht zwei. Zwei gegenüberliegende Ecken legen die Ausdehnung fest -- vier
+// verraten zusätzlich, ob eine Ebene gespiegelt hereinkam, und kosten nichts.
+//
+// ⚠️ Sie liegen in einer eigenen Untergruppe „Passmarken" je Ebene, damit man sie nach dem
+// Ausrichten in einem Rutsch löscht. Magenta, weil die Farbe auf dieser Karte sonst nirgends
+// vorkommt und sich damit per „Ähnliche auswählen" in einem Griff erwischen lässt.
+const SVGX_REGMARK_COLOR = "#ff00ff";
+
+function svgxRegistrationMarks(dialect, sizePx) {
+	// Kantenlänge = 1 Bildpunkt bei der gewählten Ausgabegröße. Kleiner wäre nicht mehr
+	// zuverlässig, größer unnötig auffällig.
+	const groesse = SVGX_VIEWBOX_SIZE / Math.max(1, Number(sizePx) || SVGX_DEFAULT_SIZE_PX);
+	const k = SVGX_VIEWBOX_SIZE - groesse;
+	const ecken = [[0, 0], [k, 0], [0, k], [k, k]];
+	const stuecke = [svgxGroupOpen({
+		name: "Passmarken", id: "passmarken", dialect: dialect,
+		attrs: { fill: SVGX_REGMARK_COLOR, stroke: "none" },
+	})];
+	ecken.forEach(([x, y], i) => {
+		stuecke.push(`<rect id="passmarke-${i + 1}" x="${svgxRund(x)}" y="${svgxRund(y)}"`
+			+ ` width="${groesse}" height="${groesse}"/>\n`);
+	});
+	stuecke.push(svgxGroupClose());
+	return stuecke;
+}
+
 // Die Ausgabegröße in Bildpunkten. 32768 ist der Standard -- bei 1024 Einheiten Kantenlänge
 // sind das 32 Punkte je Einheit, genug für großen Druck.
 const SVGX_DEFAULT_SIZE_PX = 32768;
@@ -699,6 +739,14 @@ function svgxBuildDocument(options) {
 	const detail = [];
 	const nimm = (name, ergebnis) => {
 		stats[name] = ergebnis.count;
+		// Die Passmarken kommen INNEN, kurz vor dem Schließen der Ebene -- außen läge
+		// eine Ebene neben der Ebene, und genau die würde beim Rastern nicht mitkommen.
+		// ⚠️ Setzt voraus, dass das letzte Stück jeder Ebene ihr eigenes </g> ist. Das gilt
+		// für alle Ebenenbauer hier; ein neuer, der anders endet, bräche es lautlos.
+		if (o.registrationMarks) {
+			const marken = svgxRegistrationMarks(dialect, o.sizePx);
+			ergebnis.parts.splice(Math.max(0, ergebnis.parts.length - 1), 0, ...marken);
+		}
 		// Die Untergruppen mit ihren Zahlen -- die Seite zeigt sie eingerueckt an, damit
 		// sichtbar ist, was die Datei WIRKLICH enthaelt statt nur, was angehakt war.
 		Object.entries(ergebnis.groups || {}).forEach(([gruppe, anzahl]) => {
@@ -846,6 +894,8 @@ if (typeof module !== "undefined" && module.exports) {
 		SVGX_WAY_OUTLINE_WIDTHS: SVGX_WAY_OUTLINE_WIDTHS,
 		svgxPolygonData: svgxPolygonData,
 		svgxSmoothRingData: svgxSmoothRingData,
+		svgxRegistrationMarks: svgxRegistrationMarks,
+		SVGX_REGMARK_COLOR: SVGX_REGMARK_COLOR,
 		svgxAsFeatures: svgxAsFeatures,
 		svgxProps: svgxProps,
 		svgxNameOf: svgxNameOf,
