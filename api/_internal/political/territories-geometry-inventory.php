@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/derived-orphans.php';
+
 /**
  * Read-only Diagnose ("Datenleichen-Scanner"): listet alle aktiven politischen Geometrien
  * mit Territorium, Quelle (source), Bounding-Box-Flaeche und Urheber/Zeitstempel.
@@ -135,12 +137,19 @@ function avesmapsPoliticalReadGeometryInventory(PDO $pdo, array $query): array
         usort($legacyRegions, static fn(array $a, array $b): int => $b['area'] <=> $a['area']);
     }
 
+    // Abgeleitete Aussengrenzen ohne jede Quellflaeche. Sie liegen in einer ANDEREN Tabelle als die
+    // Konturen oben, und genau deshalb hat der Scanner sie bis 16.08.2026 nie gesehen -- er hat sie
+    // nicht uebersehen, er hat strukturell woanders hingeschaut.
+    $derivedOrphans = avesmapsPoliticalCollectSourcelessDerivedHulls($pdo);
+
     return [
         'ok' => true,
         'total' => count($geometries),
         'by_source' => $bySource,
         'by_creator' => $byCreator,
         'geometries' => array_slice($geometries, 0, $limit),
+        'derived_orphans' => array_slice($derivedOrphans, 0, $limit),
+        'derived_orphan_total' => count($derivedOrphans),
         // Nicht-political Altlasten (map_features). Quelle/Urheber: alter Seed-Import, NICHT thomas/valentin.
         'legacy_region_total' => count($legacyRegions),
         'legacy_regions' => array_slice($legacyRegions, 0, $limit),

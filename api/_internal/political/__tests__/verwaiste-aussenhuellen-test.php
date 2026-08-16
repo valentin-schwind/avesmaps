@@ -26,6 +26,9 @@ if (!defined('AVESMAPS_POLITICAL_DEFAULT_CONTINENT')) {
 require_once __DIR__ . '/../territories-derived-geometry-shared.php';
 require_once __DIR__ . '/../territories-derived-geometry.php';
 require_once __DIR__ . '/../derived-orphans.php';
+require_once __DIR__ . '/../territories-support.php';
+require_once __DIR__ . '/../territories-read.php';
+require_once __DIR__ . '/../territories-geometry-inventory.php';
 
 $pdo = new PDO('sqlite::memory:');
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -36,7 +39,11 @@ $pdo->exec('CREATE TABLE political_territory (
     min_zoom INTEGER, max_zoom INTEGER, valid_from_bf INTEGER, valid_to_bf INTEGER
 )');
 $pdo->exec('CREATE TABLE political_territory_geometry (
-    id INTEGER PRIMARY KEY, public_id TEXT, territory_id INTEGER, is_active INTEGER
+    id INTEGER PRIMARY KEY, public_id TEXT, territory_id INTEGER, is_active INTEGER,
+    source TEXT, style_json TEXT, geometry_geojson TEXT,
+    created_by INTEGER, created_at TEXT, updated_by INTEGER, updated_at TEXT,
+    valid_from_bf INTEGER, valid_to_bf INTEGER, min_zoom INTEGER, max_zoom INTEGER,
+    min_x REAL, min_y REAL, max_x REAL, max_y REAL
 )');
 $pdo->exec('CREATE TABLE political_territory_derived_geometry (
     id INTEGER PRIMARY KEY, public_id TEXT, territory_id INTEGER, is_active INTEGER,
@@ -58,11 +65,12 @@ $pdo->exec("INSERT INTO political_territory (id, public_id, name, parent_id, is_
     (4, 'p-kind',   'Reichsland Winhall',                3, 1, 'Aventurien'),
     (6, 'p-inaktiv','Gebiet mit toter Flaeche',       NULL, 1, 'Aventurien'),
     (7, 'p-deakt',  'Deaktiviertes Gebiet',           NULL, 0, 'Aventurien')");
-$pdo->exec("INSERT INTO political_territory_geometry (id, public_id, territory_id, is_active) VALUES
-    (10, 'g-blatt', 2, 1),
-    (11, 'g-kind',  4, 1),
-    (12, 'g-tot',   6, 0),
-    (13, 'g-deakt', 7, 1)");
+$pdo->exec("INSERT INTO political_territory_geometry
+    (id, public_id, territory_id, is_active, source, created_by, created_at, min_x, min_y, max_x, max_y) VALUES
+    (10, 'g-blatt', 2, 1, '', 7, '2026-08-04 10:00:00',   0.0,   0.0,  10.0,  10.0),
+    (11, 'g-kind',  4, 1, '', 7, '2026-08-04 10:00:00',   0.0,   0.0,  20.0,  20.0),
+    (12, 'g-tot',   6, 0, '', 7, '2026-08-04 10:00:00',   0.0,   0.0,   6.0,   6.0),
+    (13, 'g-deakt', 7, 1, '', 7, '2026-08-04 10:00:00',  10.0,  10.0,  20.0,  20.0)");
 $pdo->exec("INSERT INTO political_territory_derived_geometry
     (id, public_id, territory_id, is_active, min_x, min_y, max_x, max_y, created_by, created_at) VALUES
     (20, 'd-geist',   1, 1, 139.3, 429.5, 203.4, 521.3, 7, '2026-08-04 10:00:00'),
@@ -128,6 +136,20 @@ foreach ($hulls as $row) {
 }
 assert((string) $dangling['territory_name'] === '(KEIN TERRITORIUM)',
     'dieselbe Beschriftung wie bei verwaisten Konturen -- eine Vokabel, nicht zwei');
+
+// ===== Der Scanner liefert die Hüllen ============================================================
+$inventar = avesmapsPoliticalReadGeometryInventory($pdo, ['include_inactive' => '1']);
+assert(isset($inventar['derived_orphans']), 'das Inventar kennt jetzt die Hüllen');
+$hüllenIds = array_map(static fn(array $r): string => (string) $r['derived_geometry_public_id'], $inventar['derived_orphans']);
+sort($hüllenIds);
+assert($hüllenIds === ['d-dangling', 'd-deakt-terr', 'd-geist', 'd-inaktiv'], 'und zwar genau die verwaisten');
+assert($inventar['derived_orphan_total'] === 4, 'die Zahl passt zur Liste');
+// 🔴 Die vorhandenen Schluessel bleiben, sonst bricht das Fenster an anderer Stelle.
+assert(isset($inventar['geometries'], $inventar['total'], $inventar['legacy_regions']),
+    'das Konturen-Inventar ist unberuehrt');
+// ⚠️ Fuer Hüllen gibt es KEINEN Platzhalter-Filter: bei Konturen bleiben echte Papierkorb-Gebiete
+// absichtlich draussen, eine Huelle ohne Quelle ist dagegen immer falsch -- egal wie sie heisst.
+assert(in_array('d-inaktiv', $hüllenIds, true), 'auch ein benanntes Gebiet kommt in die Liste');
 
 // ===== Die Hart/Weich-Weiche =====================================================================
 // 🔴 Owner-Entscheid 16.08.2026: hart nur, wenn nichts mehr da ist, was die Huelle erzeugen koennte.
