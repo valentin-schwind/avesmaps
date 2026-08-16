@@ -42,11 +42,15 @@
      loses its ground colour, its font and every button style. -->
 <body class="avm-editor-body">
 
-<!-- Menüband: six tiles, all the same width. Only the sync tile carries an icon and --primary. -->
+<!-- Menüband: six tiles, all the same width. Only the sync tile carries an icon and --primary.
+     ⚠️ Die gleiche Breite trägt die Kachelzahl von selbst: `.avm-ribbon` ist ein GRID
+     (`grid-auto-columns: minmax(0, 1fr)`, css/components/editor-page.css). Enger wird mit jeder
+     Kachel nur die BESCHRIFTUNG -- `.t1`/`.t2` kürzen mit Ellipse, der ganze Satz steht im `title`. -->
 <div class="avm-ribbon-bar">
   <div class="avm-ribbon">
     <button type="button" class="avm-tile avm-tile--primary" id="ecoSync" data-i18n-title="ecosystem.editor.sync.title" title="Übernimmt die Regionen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen). Läuft im Hauptfenster; das Ergebnis erscheint hier in der Statuszeile."><span class="t1" data-i18n="ecosystem.editor.ribbon.sync">🚨 Syncen</span><span class="t2" id="ecoSyncInfo" data-i18n="ecosystem.editor.ribbon.syncInfo">Regionen aus dem Wiki-Dump</span></button>
     <button type="button" class="avm-tile" id="ecoRaycast" data-i18n-title="ecosystem.editor.raycast.title" title="Rechnet, welche Flächen ineinander liegen, in welchem Territorium sie liegen und welche Wege durch sie führen — und speichert das Ergebnis. Anteil an der KLEINEREN der beiden Flächen, Schwelle 10 %."><span class="t1" data-i18n="ecosystem.editor.ribbon.raycast">Zugehörigkeit rechnen</span><span class="t2" id="ecoRaycastInfo" data-i18n="ecosystem.editor.ribbon.raycastIdle">noch nicht gerechnet</span></button>
+    <button type="button" class="avm-tile" id="ecoAssignAll" title="Verknüpft alle Karten-Label, deren Name zu einer Wiki-Landschaft passt (Aventurien). Zeigt erst, wie viele es wären, und schreibt erst nach Ihrer Bestätigung. Bereits richtig Verbundene bleiben unberührt; eine abweichende Zuordnung wird überschrieben — auch eine von Hand gesetzte. Passt die Wiki-Art nicht zum Label-Typ, wird übersprungen."><span class="t1">Wiki zuweisen</span><span class="t2" id="ecoAssignAllInfo">noch nicht geprüft</span></button>
     <button type="button" class="avm-tile" id="ecoHeightmap" title="Rechnet je Gebirgsfläche ihr Höhenraster im Browser und speichert es — eine Anfrage je Fläche. Der Pixelwert ist die Höhe in Schritt."><span class="t1">Höhenraster rechnen</span><span class="t2" id="ecoHeightmapInfo">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="ecoProfiles" title="Leitet aus den gespeicherten Höhenrastern je Weg Anstieg und Gefälle ab. Läuft in Stücken auf dem Server; nichts davon wird beim Routen nachgerechnet."><span class="t1">Wegprofile rechnen</span><span class="t2" id="ecoProfilesInfo">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="ecoTerrainTravel" title="Rechnet Anstieg und Gefälle in die Reisezeiten ein — für alle Besucher. AUS heisst Zeile für Zeile die heutigen Zahlen."><span class="t1">Geländeabhängiges Reisen</span><span class="t2" id="ecoTerrainTravelInfo">Zustand unbekannt</span></button>
@@ -158,6 +162,9 @@
 <script src="/js/ui/wiki-assign-diff.js"></script>
 <script src="/js/ui/wiki-assign.js"></script>
 <script src="/js/ui/wiki-assign-landschaft.js"></script>
+<!-- Der Massenlauf der Zuweisung (Menübandkachel „Wiki zuweisen"). Eigene Datei, weil dieselbe
+     Abfolge -- zeigen, fragen, schreiben -- auch im Wege-Editor hängt und in node geprüft wird. -->
+<script src="/js/ui/wiki-massenzuweisung.js"></script>
 <script>
 "use strict";
 (function () {
@@ -1912,6 +1919,7 @@ function wireRibbon() {
 	// for the SAME ecosystem_revision instead (runRaycast without force), so the common case costs no
 	// clipping and no political-layer fan-out at all.
 	$("ecoRaycast").addEventListener("click", () => { void runRaycast({ force: true }); });
+	$("ecoAssignAll").addEventListener("click", () => { void runAssignAll(); });
 	$("ecoHeightmap").addEventListener("click", () => { void runHeightmaps(); });
 	$("ecoProfiles").addEventListener("click", () => { void runTerrainProfiles(); });
 	$("ecoTerrainTravel").addEventListener("click", () => { void toggleTerrainTravel(); });
@@ -2048,6 +2056,82 @@ async function loadWikiRegions() {
 		throw new Error((data.error && data.error.message) || data.error || ("HTTP " + response.status));
 	}
 	return data;
+}
+
+// ---- „Wiki zuweisen" (Massenlauf) ------------------------------------------------------------
+//
+// Der Auslöser für `assign_all` -- den es serverseitig seit dem 06.06.2026 gibt und der seither
+// GENAU EINEN Aufrufer hatte: einen Knopf „⛰ Berge zuordnen", fest auf `art:"Berggipfel"` gestellt
+// und einen Tag später wieder aus index.html entfernt (f157b193). Seitdem konnte niemand ihn
+// auslösen, und alles außer Berggipfeln war ohnehin nie gemeint. Daher die Frage des Owners: die
+// wiki_keys stimmen, die ZUWEISUNG war nie ausgeführt worden. Die Art-Einschränkung ist hier
+// gefallen -- Begründung in js/ui/wiki-massenzuweisung.js.
+//
+// 🔴 GEPRÜFT WIRD ERST BEIM KLICK. Die Vorschau liest die ganze Staging-Tabelle und alle Label;
+// das je Fensteröffnung zu zahlen wäre die Last, vor der AGENTS.md §9 warnt, für eine Zahl, die
+// niemand bestellt hat. In `t2` steht bis dahin „noch nicht geprüft" und keine 0 -- eine 0 läse
+// sich wie „nichts zu tun".
+//
+// ⚠️ Der eigene fetch, nicht `ecoPost`: das hier ist eine WIKI-Datei (/api/edit/wiki/regions.php),
+// keine Ökosystem-Aktion. Derselbe Weg, den `loadWikiRegions` darüber schon geht -- nur als POST.
+async function wikiRegionsPost(url, koerper) {
+	const response = await fetch(url, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json", Accept: "application/json" },
+		body: JSON.stringify(koerper),
+	});
+	try {
+		return await response.json();
+	} catch (error) {
+		throw new Error("HTTP " + response.status + " — keine lesbare Antwort.");
+	}
+}
+
+let assignAllBusy = false;
+
+async function runAssignAll() {
+	if (assignAllBusy) { return; }
+	const tile = $("ecoAssignAll");
+	const info = $("ecoAssignAllInfo");
+	assignAllBusy = true;
+	tile.disabled = true;
+	try {
+		const lauf = await avesmapsWikiMassenlauf("landschaft", {
+			post: wikiRegionsPost,
+			frage: (text) => window.confirm(text),
+			melde: (schritt, antwort) => {
+				if (schritt === "pruefen") {
+					info.textContent = "wird geprüft …";
+					setStatus("Wiki-Zuweisung: wird geprüft …");
+				} else if (schritt === "leer") {
+					info.textContent = "nichts offen";
+					flashStatus("Wiki-Zuweisung: kein Label wartet auf eine Wiki-Landschaft.", "ok");
+				} else if (schritt === "vorschau" || schritt === "geschrieben") {
+					info.textContent = avesmapsWikiMassenlaufKurztext("landschaft", antwort);
+				} else if (schritt === "schreiben") {
+					setStatus("Wiki-Zuweisung wird geschrieben …");
+				}
+			},
+		});
+		if (lauf.zustand === "abgebrochen") {
+			flashStatus("Wiki-Zuweisung abgebrochen — nichts geschrieben.");
+		} else if (lauf.zustand === "geschrieben") {
+			flashStatus("Wiki-Zuweisung: " + lauf.geschrieben + " Label verknüpft.", "ok");
+			// 💣 Neu laden: der Lauf schreibt in genau die Label, die in dieser Liste stehen, und
+			// eine Editor-Überlagerung wird beim Wiederöffnen nur eingeblendet, nicht neu geladen.
+			// `keepSelection`: der Lauf entfernt keine Zeile (die Liste matcht über den NAMEN, nicht
+			// über die Zuweisung), also gibt es keinen Grund, den Editor auf „links etwas wählen"
+			// zurückzuwerfen -- dieselbe Wahl wie nach einem Speichern.
+			await loadData({ keepSelection: true });
+		}
+	} catch (error) {
+		info.textContent = "fehlgeschlagen";
+		flashStatus("Wiki-Zuweisung: " + (error && error.message ? error.message : String(error)), "bad");
+	} finally {
+		assignAllBusy = false;
+		tile.disabled = false;
+	}
 }
 
 // ?demo=1 renders the whole column without a backend or a login -- same device as the powerline

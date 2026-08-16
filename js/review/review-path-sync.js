@@ -1088,38 +1088,15 @@ async function assignPathWiki(wikiKey) {
 	}
 }
 
-async function assignAllPathWiki() {
-	if (pathSyncBusy) {
-		return;
-	}
-	pathSyncBusy = true;
-	const status = pathSyncElement("path-sync-summary");
-	try {
-		const preview = await pathSyncPost({ action: "assign_all", continent: "Aventurien" });
-		const segs = preview && preview.segments_affected ? preview.segments_affected : 0;
-		const wp = preview && preview.wiki_paths_linked ? preview.wiki_paths_linked : 0;
-		if (!segs) {
-			if (status) {
-				status.textContent = "Nichts zu verknüpfen.";
-			}
-			return;
-		}
-		if (!window.confirm(`Alle ${wp} passenden Wege mit insgesamt ${segs} Karten-Segmenten verknüpfen?`)) {
-			return;
-		}
-		const result = await pathSyncPost({ action: "assign_all", continent: "Aventurien", dry_run: false, confirm: "apply" });
-		if (status) {
-			status.textContent = result.ok ? `Verknüpft: ${result.applied} Segment(e).` : ("Fehler: " + apiErrorMessage(result, ""));
-		}
-		await loadPathWikiSync();
-	} catch (error) {
-		if (status) {
-			status.textContent = "Fehler: " + (error.message || error);
-		}
-	} finally {
-		pathSyncBusy = false;
-	}
-}
+// 🔴 HIER STAND `assignAllPathWiki` -- gefallen am 16.08.2026. Sie rief den Massenlauf `assign_all`
+// richtig auf (Vorschau, dann `dry_run:false` + `confirm:"apply"`), und sie hatte NULL Aufrufer:
+// einen Knopf dazu hat es nie gegeben, repo-weit gemessen über alle Schreibweisen. Genau daher kam
+// die Frage des Owners „warum ist so vieles nicht zugewiesen, obwohl die wiki-keys stimmen" -- der
+// Schlüssel sagt nur, wie der Weg heißen würde; die Zuweisung (`properties.wiki_path`) entsteht
+// erst, wenn sie jemand ausführt, und ausführen konnte sie niemand.
+// ⭐ Der Auslöser steht jetzt im Menüband des Wege-Editors („Wiki zuweisen",
+// html/wege-editor.html, runAssignAll in js/pages/wege-editor.js) und läuft über die geteilte
+// Abfolge in js/ui/wiki-massenzuweisung.js -- dieselbe für Wege und Landschaften.
 
 function findPathSyncRow(wikiKey) {
 	if (!pathSyncData || !wikiKey) {

@@ -1191,6 +1191,64 @@
 			.then(function () { tile.disabled = false; });
 	}
 
+	// ── „Wiki zuweisen“ (Massenlauf) ──────────────────────────────────────────────────────────
+	//
+	// Der Ausloeser fuer `assign_all` -- den es serverseitig seit jeher gibt und den bis zum
+	// 16.08.2026 NICHTS anklicken konnte (`assignAllPathWiki` in js/review/review-path-sync.js hatte
+	// null Aufrufer, es gab keinen Knopf). Genau davon kam die Frage des Owners: die wiki_keys
+	// stimmen, die ZUWEISUNG war nie ausgefuehrt worden.
+	//
+	// 🔴 GEPRUEFT WIRD ERST BEIM KLICK, nicht beim Oeffnen des Fensters. Die Vorschau liest die
+	// ganze Staging-Tabelle und alle Wege -- das je Fensteroeffnung zu zahlen waere die Last, vor der
+	// AGENTS.md §9 warnt, fuer eine Zahl, die niemand bestellt hat. Deshalb steht in `t2` bis dahin
+	// „noch nicht geprüft" und nicht etwa eine 0, die wie „nichts zu tun" aussaehe.
+	//
+	// Die Abfolge selbst steht in js/ui/wiki-massenzuweisung.js -- dieselbe fuer den
+	// Landschaften-Editor. Hier haengen nur Kachel, Statuszeile und das Neuladen daran.
+	var assignAllBusy = false;
+
+	function runAssignAll() {
+		if (assignAllBusy) { return; }
+		var tile = $("wpAssignAll");
+		var info = $("wpAssignAllInfo");
+		assignAllBusy = true;
+		tile.disabled = true;
+
+		avesmapsWikiMassenlauf("weg", {
+			post: postJson,
+			frage: function (text) { return window.confirm(text); },
+			melde: function (schritt, antwort) {
+				if (schritt === "pruefen") {
+					info.textContent = "wird geprüft …";
+					setStatus("Wiki-Zuweisung: wird geprüft …");
+				} else if (schritt === "leer") {
+					info.textContent = "nichts offen";
+					setStatus("Wiki-Zuweisung: kein Abschnitt passt zu einem Wiki-Weg.", "ok");
+				} else if (schritt === "vorschau" || schritt === "geschrieben") {
+					info.textContent = avesmapsWikiMassenlaufKurztext("weg", antwort);
+				} else if (schritt === "schreiben") {
+					setStatus("Wiki-Zuweisung wird geschrieben …");
+				}
+			}
+		}).then(function (lauf) {
+			if (lauf.zustand === "abgebrochen") {
+				setStatus("Wiki-Zuweisung abgebrochen — nichts geschrieben.");
+				return null;
+			}
+			if (lauf.zustand !== "geschrieben") { return null; }
+			setStatus("Wiki-Zuweisung: " + lauf.geschrieben + " Abschnitte verknüpft.", "ok");
+			// 💣 Die Liste MUSS neu geladen werden -- der Lauf schreibt Namen und Quelle in genau die
+			// Zeilen, die hier stehen, und dieses Fenster überlebt sein Schließen.
+			return loadList();
+		}).catch(function (error) {
+			info.textContent = "fehlgeschlagen";
+			setStatus("Wiki-Zuweisung: " + (error && error.message ? error.message : error), "bad");
+		}).then(function () {
+			assignAllBusy = false;
+			tile.disabled = false;
+		});
+	}
+
 	// ── „Funktionen anzeigen“ ─────────────────────────────────────────────────────────────────
 	//
 	// 🔴 DIE KURVEN ZEICHNET js/routing/travel-model-curves.js, nicht diese Datei. Sie zogen am
@@ -1433,6 +1491,7 @@
 		$("wpTempoCancel").addEventListener("click", cancelTempo);
 
 		$("wpSync").addEventListener("click", runSync);
+		$("wpAssignAll").addEventListener("click", runAssignAll);
 	}
 
 	// ── Tempowerte ────────────────────────────────────────────────────────────────────────────

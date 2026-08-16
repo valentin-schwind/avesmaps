@@ -119,7 +119,6 @@ async function loadRegionWikiSync() {
 			summary.textContent = `${s.considered || 0} gesynct · ${s.map_labels || 0} Karten-Labels`;
 		}
 		renderRegionSyncList();
-		void refreshRegionBergStatus();
 	} catch (error) {
 		if (status) {
 			status.textContent = "Fehler: " + (error.message || error);
@@ -386,10 +385,6 @@ document.addEventListener("click", (event) => {
 		renderRegionSyncList();
 		return;
 	}
-	if (event.target.closest && event.target.closest("#region-sync-assign-berge")) {
-		void runRegionAssignBerge();
-		return;
-	}
 	// Klick auf einen Karten-Kandidaten-Chip -> Zoom zur Stelle.
 	const candidate = event.target.closest ? event.target.closest(".region-sync__cand[data-label-id]") : null;
 	if (candidate) {
@@ -397,55 +392,21 @@ document.addEventListener("click", (event) => {
 	}
 });
 
-// Zeigt den „Berge zuordnen"-Button, solange Berggipfel-Labels einer Wiki-Region entsprechen,
-// aber noch nicht verbunden sind.
-async function refreshRegionBergStatus() {
-	const btn = regionSyncElement("region-sync-assign-berge");
-	if (!btn) {
-		return;
-	}
-	try {
-		const data = await regionSyncGet("?action=assign_status&continent=Aventurien&art=Berggipfel");
-		const remaining = data && data.ok ? Number(data.remaining || 0) : 0;
-		if (remaining > 0) {
-			btn.textContent = `⛰ Berge zuordnen (${remaining})`;
-			btn.hidden = false;
-		} else {
-			btn.hidden = true;
-		}
-	} catch (error) {
-		btn.hidden = true;
-	}
-}
-
-let regionAssignBergeBusy = false;
-// Verbindet alle gematchten Berggipfel-Labels per Bulk mit ihrer Wiki-Region.
-async function runRegionAssignBerge() {
-	if (regionAssignBergeBusy) {
-		return;
-	}
-	const btn = regionSyncElement("region-sync-assign-berge");
-	regionAssignBergeBusy = true;
-	if (btn) {
-		btn.disabled = true;
-	}
-	try {
-		const data = await regionSyncPost({ action: "assign_all", continent: "Aventurien", art: "Berggipfel", dry_run: false, confirm: "apply" });
-		if (!data || data.ok !== true) {
-			throw new Error(apiErrorMessage(data, "Fehler beim Zuordnen"));
-		}
-		showFeedbackToast?.(`${data.applied || 0} Berge zugeordnet — Karte aktualisiert sich.`, "success");
-		await loadRegionWikiSync();
-	} catch (error) {
-		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
-	} finally {
-		regionAssignBergeBusy = false;
-		if (btn) {
-			btn.disabled = false;
-		}
-		await refreshRegionBergStatus();
-	}
-}
+// 🔴 HIER STANDEN `refreshRegionBergStatus` UND `runRegionAssignBerge` -- gefallen am 16.08.2026.
+// Sie waren der EINZIGE Aufrufer des Massenlaufs `assign_all`, und sie riefen ihn fest mit
+// `art:"Berggipfel"`. Gemessen, warum das dastand: Commit 5bb92394 (06.06.2026) zog
+// `Kategorie:Berg` in den Crawl und bildete die Wiki-Art `Berg` auf `Berggipfel` ab -- der Filter
+// war der UMFANG jener einen Wanderung, nie ein Schutz (gegen falsche Paarungen steht
+// `avesmapsWikiRegionTypeConflict`, und die läuft unabhängig davon). Alles andere -- Heide,
+// Hügelland, Wald, Insel -- wurde damit nie zugewiesen.
+// 🪤 Und beide waren seit dem 07.06.2026 ohnehin tot: `f157b193` nahm `#region-sync-assign-berge`
+// aus index.html, `regionSyncElement(...)` lieferte seither `null`, und `refreshRegionBergStatus`
+// kehrte bei jedem Listenaufbau sofort zurück. Ein Jahr lang sah der Code aus wie eine Bedienung.
+// ⭐ Der Ausloeser steht jetzt im Menüband des Landschaften-Editors („Wiki zuweisen",
+// html/landschaften-editor.html) und läuft OHNE Art-Einschränkung über die geteilte Abfolge in
+// js/ui/wiki-massenzuweisung.js -- erst zeigen, dann fragen, dann schreiben.
+// ⚠️ Der Parameter `art` bleibt am Endpunkt stehen; die GET-Aktion `assign_status` reicht ihn durch
+// (api/edit/wiki/regions.php:95) und hat mit diesem Knopf ihren letzten Aufrufer verloren.
 
 document.addEventListener("dragstart", (event) => {
 	const item = event.target.closest ? event.target.closest(".region-sync__item--draggable") : null;
