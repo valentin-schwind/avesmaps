@@ -332,12 +332,15 @@
   </div>
 </div>
 <div id="seWappenDialog" class="modal" hidden>
-  <div class="modal-box">
+  <div class="modal-box wide">
     <div class="modal-title">Eigenes Wappen hochladen</div>
     <div class="modal-sub" id="seWappenFor">—</div>
     <label class="fld">Bilddatei (PNG / JPG / WebP / GIF, max. 2 MB)
       <input type="file" id="seWappenFile" accept="image/png,image/jpeg,image/webp,image/gif">
     </label>
+    <!-- Lizenz/Urheber/Kommentar (js/ui/media-license-fields.js) -- von openSettlementCoatDialog()
+         beim Oeffnen aus dem aktuell gespeicherten properties.coat gefuellt (Phase 4, Aufgabe 4). -->
+    <div id="seWappenFields"></div>
     <div class="modal-error" id="seWappenError" hidden></div>
     <div class="modal-actions">
       <button id="seWappenCancel">Abbrechen</button>
@@ -1991,15 +1994,31 @@ function mountSettlementWikiAssign() {
 // ---- Wappen upload dialog (multipart -> settlement-coat-upload.php) -------------------
 const SETTLEMENT_COAT_UPLOAD_API = "/api/edit/wiki/settlement-coat-upload.php";
 
+// 🔴 Zeigt, was gespeichert ist (Brief Schritt 4): die Reihe startet mit dem AKTUELLEN properties.coat
+// -- eigener Upload wie uebernommenes Wiki-Wappen -- statt immer leer aufzugehen. coat.license_status
+// ist der Feldname im JSON (anders als bei den Bildern, die "license" heissen, siehe Schritt 3 im
+// Endpunkt); avesmapsMediaLicenseFieldsMarkup selbst kennt nur "license".
 function openSettlementCoatDialog() {
 	if (!settlementDetailCache) return;
 	const dialog = $("seWappenDialog");
 	const forEl = $("seWappenFor");
 	const fileInput = $("seWappenFile");
 	const errorEl = $("seWappenError");
+	const fieldsEl = $("seWappenFields");
 	if (forEl) forEl.textContent = `für „${settlementDetailCache.detail.name}“`;
 	if (fileInput) fileInput.value = "";
 	if (errorEl) { errorEl.hidden = true; errorEl.textContent = ""; }
+	if (fieldsEl) {
+		const props = settlementDetailCache.detail.properties || {};
+		const coat = (props.coat && typeof props.coat === "object") ? props.coat : {};
+		fieldsEl.innerHTML = avesmapsMediaLicenseFieldsMarkup({
+			license: coat.license_status,
+			author: coat.author,
+			note: coat.note,
+			uploaded_by: coat.uploaded_by,
+			uploaded_at: coat.uploaded_at,
+		}, { prefix: "coat", vorgabe: "ai_generated", mitNotiz: true });
+	}
 	if (dialog) dialog.hidden = false;
 }
 
@@ -2019,6 +2038,15 @@ async function uploadSettlementCoat() {
 	const formData = new FormData();
 	formData.append("public_id", selectedPublicId);
 	formData.append("coat", file);
+	// Lizenz/Urheber/Kommentar reisen mit dem Upload -- der Endpunkt normalisiert sie serverseitig
+	// (avesmapsMediaLicenseNormalize), ein leeres/fehlendes Feld ist also kein Risiko.
+	const fieldsEl = $("seWappenFields");
+	const licenseEl = fieldsEl ? fieldsEl.querySelector("[data-coat-license]") : null;
+	const authorEl = fieldsEl ? fieldsEl.querySelector("[data-coat-author]") : null;
+	const noteEl = fieldsEl ? fieldsEl.querySelector("[data-coat-note]") : null;
+	formData.append("license", licenseEl ? licenseEl.value : "ai_generated");
+	formData.append("author", authorEl ? authorEl.value : "");
+	formData.append("note", noteEl ? noteEl.value : "");
 	try {
 		const response = await fetch(SETTLEMENT_COAT_UPLOAD_API, { method: "POST", credentials: "same-origin", body: formData });
 		const payload = await response.json().catch(() => null);
@@ -2165,6 +2193,10 @@ async function setSettlementImageMeta(url, license, author, note) {
 
 // Licence <select> (fires on selection) + author <input>/note <textarea> (fire on blur) -> persist all
 // three for that image.
+// 🔴 avesmapsMediaLicenseSyncSelectHidden nachgezogen (Aufgabe 1 hatte die Funktion gebaut und
+// getestet, aber noch nirgends verdrahtet): ohne sie zeigt das AUSWAHLFELD selbst die "nicht
+// oeffentlich"-Kennzeichnung nur beim naechsten Neu-Rendern, nicht sofort nach dem Umschalten -- bei
+// bis zu zehn Bildern je Ort genau die Verwechslungsgefahr, die die Kennzeichnung verhindern soll.
 document.addEventListener("change", (event) => {
 	const control = event.target.closest ? event.target.closest("[data-image-license], [data-image-author], [data-image-note]") : null;
 	if (!control) return;
@@ -2174,7 +2206,15 @@ document.addEventListener("change", (event) => {
 	const sel = cell.querySelector("[data-image-license]");
 	const authorEl = cell.querySelector("[data-image-author]");
 	const ta = cell.querySelector("[data-image-note]");
+	if (control.hasAttribute("data-image-license")) avesmapsMediaLicenseSyncSelectHidden(sel);
 	void setSettlementImageMeta(url, sel ? sel.value : "ai_generated", authorEl ? authorEl.value : "", ta ? ta.value : "");
+});
+
+// Dieselbe Nachziehung fuer das Wappen-Auswahlfeld im Upload-Dialog (Aufgabe 4) -- kein Speichern
+// hier, das passiert erst beim Klick auf "Hochladen".
+document.addEventListener("change", (event) => {
+	const sel = event.target.closest ? event.target.closest("[data-coat-license]") : null;
+	if (sel) avesmapsMediaLicenseSyncSelectHidden(sel);
 });
 
 // ---- Delegated event wiring for the detail panel + its dialog -------------------------

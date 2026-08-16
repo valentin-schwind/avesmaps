@@ -5,14 +5,21 @@ declare(strict_types=1);
 // Authed Upload eines EIGENEN Siedlungs-Wappens (Cap 'review'). Nimmt ein Rasterbild entgegen,
 // validiert per finfo-MIME + Größe, verkleinert es über DIESELBE geteilte Downscale-Funktion wie
 // die Territorien-Wappen (avesmapsWikiSyncMonitorDownscaleCoatBytes: längste Kante <= 512px), legt
-// es unter /uploads/wappen/own/ ab und setzt properties.coat = {url, source:'own'} am Orts-Feature
-// (Vorrang vor Wiki-Wappen). SVG ist bewusst NICHT erlaubt (XSS-Risiko bei eigenen Uploads).
+// es unter /uploads/wappen/own/ ab und setzt properties.coat = {url, source:'own', license_status,
+// author, note, uploaded_by, uploaded_at} am Orts-Feature (Vorrang vor Wiki-Wappen). SVG ist bewusst
+// NICHT erlaubt (XSS-Risiko bei eigenen Uploads).
+//
+// 🔴 Phase 4 (Lizenz-Vereinheitlichung, Aufgabe 4): bis hierher stand license_status fest auf 'own'.
+// Der Dialog schickt jetzt Lizenz/Urheber/Kommentar mit; source bleibt UNANGETASTET 'own' -- es sagt,
+// WOHER das Bild kam, nicht unter welcher Lizenz, und avesmapsWikiSettlementBulkRecordCoats
+// (settlements.php:408) entscheidet an source, ob ein Wiki-Abgleich ueberschreiben darf.
 
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/wiki/sync.php';
 require_once __DIR__ . '/../../_internal/wiki/locations.php';
 require_once __DIR__ . '/../../_internal/wiki/settlements.php';
 require_once __DIR__ . '/../../_internal/wiki/sync-monitor-identity.php'; // shared avesmapsWikiSyncMonitorDownscaleCoatBytes
+require_once __DIR__ . '/../../_internal/media-license.php'; // avesmapsMediaLicenseNormalize -- der EINE Katalog (AGENTS §5)
 
 const AVESMAPS_SETTLEMENT_COAT_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
 const AVESMAPS_SETTLEMENT_COAT_TYPES = [
@@ -21,6 +28,29 @@ const AVESMAPS_SETTLEMENT_COAT_TYPES = [
     'image/webp' => 'webp',
     'image/gif' => 'gif',
 ];
+// VARCHAR(190)-Konvention wie die uebrigen vier Lizenz-Flaechen (z. B. AVESMAPS_SETTLEMENT_IMAGE_AUTHOR_MAX
+// in settlement-images.php) -- hier ohne eigene Spalte, weil der Wert im properties_json steht, aber die
+// Grenze bleibt dieselbe.
+const AVESMAPS_SETTLEMENT_COAT_AUTHOR_MAX = 190;
+const AVESMAPS_SETTLEMENT_COAT_NOTE_MAX = 2000;
+
+function avesmapsSettlementCoatNormalizeAuthor($value): string
+{
+    $author = trim((string) $value);
+    if (mb_strlen($author) > AVESMAPS_SETTLEMENT_COAT_AUTHOR_MAX) {
+        $author = mb_substr($author, 0, AVESMAPS_SETTLEMENT_COAT_AUTHOR_MAX);
+    }
+    return $author;
+}
+
+function avesmapsSettlementCoatNormalizeNote($value): string
+{
+    $note = trim((string) $value);
+    if (mb_strlen($note) > AVESMAPS_SETTLEMENT_COAT_NOTE_MAX) {
+        $note = mb_substr($note, 0, AVESMAPS_SETTLEMENT_COAT_NOTE_MAX);
+    }
+    return $note;
+}
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
@@ -92,10 +122,27 @@ try {
 
     $url = '/uploads/wappen/own/' . $filename;
 
+    // 🔴 Lizenz/Urheber/Kommentar kommen erstmals aus dem Formular (Phase 4, Aufgabe 4) -- normalisiert,
+    // nie vertraut. Vorgabe 'ai_generated': genau das ist der Bestand, die Editoren haben ihre Wappen mit
+    // KI erzeugt (Owner 16.08.2026), und Phase 2 hat 'own' deshalb dorthin migriert.
+    $license = avesmapsMediaLicenseNormalize($_POST['license'] ?? null, 'ai_generated');
+    $author = avesmapsSettlementCoatNormalizeAuthor($_POST['author'] ?? '');
+    $note = avesmapsSettlementCoatNormalizeNote($_POST['note'] ?? '');
+
     $props = $feature['props'];
     $previous = $props['coat'] ?? null;
     $auditBefore = avesmapsWikiSettlementAuditRow($pdo, (int) $feature['id']);
-    $props['coat'] = ['url' => $url, 'source' => 'own', 'license_status' => 'own'];
+    // 🔴 uploaded_by/uploaded_at setzt AUSSCHLIESSLICH der Server, nie das Formular -- sonst waere der
+    // Nachweis faelschbar. $user kommt aus avesmapsRequireUserWithCapability() weiter oben.
+    $props['coat'] = [
+        'url' => $url,
+        'source' => 'own',
+        'license_status' => $license,
+        'author' => $author,
+        'note' => $note,
+        'uploaded_by' => (string) ($user['username'] ?? ''),
+        'uploaded_at' => gmdate('Y-m-d\TH:i:s\Z'),
+    ];
 
     $revision = avesmapsWikiSyncNextMapRevision($pdo);
     $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id')
