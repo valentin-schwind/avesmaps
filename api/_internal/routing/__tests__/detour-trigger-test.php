@@ -276,9 +276,13 @@ $graph = ['A' => [], 'B' => []];
 // 🪤 KEINE ABGESCHRIEBENE 10,0 MEHR. Hier stand das Seetempo als feste Zahl, waehrend der Querweg
 // seines aus der Tabelle liest -- dieselbe Falle, vor der der Kommentar an $roadAlong warnt, und sie
 // haette diesen Fall bei der naechsten Eichung still in den Nachbarzweig rutschen lassen.
-// 40 Einheiten Seeweg fuer 10 Luftlinie: Verhaeltnis 4,0 -- ueber der Schwelle. Aber mit 11,90
-// dauert die Fahrt 3,36, waehrend der Querweg bestenfalls 10/2,30 = 4,35 braucht.
-$seaAlong($graph, 'A', 'B', [[0.0, 0.0], [0.0, 15.0], [10.0, 15.0], [10.0, 0.0]]);
+// 32 Einheiten Seeweg fuer 10 Luftlinie: Verhaeltnis 3,2 -- ueber der Schwelle. Aber mit 11,90
+// dauert die Fahrt 2,69, waehrend der Querweg bestenfalls 10/3,45 = 2,90 braucht.
+// 🔴 Die Geometrie war bis zum 16.08.2026 40 Einheiten lang. Mit dem 8-Stunden-Reisetag an Land
+// (WdE S. 160-162) ist Querfeldein von 2,30 auf 3,45 Reisemeilen je Stunde gestiegen, und bei 40
+// gewaenne der Querweg -- der Fall waere in den Nachbarzweig gerutscht und haette still etwas
+// anderes geprueft. Geprueft werden soll `cannot_win`, also traegt die Kulisse die Zahl.
+$seaAlong($graph, 'A', 'B', [[0.0, 0.0], [0.0, 11.0], [10.0, 11.0], [10.0, 0.0]]);
 $clientGraph = ['graph' => $graph, 'statistics' => []];
 $route = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
 
@@ -328,7 +332,10 @@ assert($report['best_possible_cost_units'] < $report['graph_cost_units'],
 // Land ist zwischen diesen beiden Schranken kein Platz mehr.
 // Gemessen, nicht geraten: Fahrzeit 4,706 · Bestzeit 4,348 · gefunden 5,686 -- 21 % Reserve.
 $graph = ['A' => [], 'B' => []];
-$seaAlong($graph, 'A', 'B', [[0.0, 0.0], [0.0, 23.0], [10.0, 23.0], [10.0, 0.0]]);   // 56 Einheiten, 5,6x
+// 🔴 40 statt 56 Einheiten seit dem 16.08.2026. Mit dem 8-Stunden-Reisetag an Land ist Querfeldein
+// von 2,30 auf 3,45 gestiegen; bei 56 gewaenne der Umweg und der Fall pruefte `offered` statt
+// `slower`. Das Fenster ist eng und beidseitig: unter 34,5 Einheiten faellt er in `cannot_win`.
+$seaAlong($graph, 'A', 'B', [[0.0, 0.0], [0.0, 15.0], [10.0, 15.0], [10.0, 0.0]]);   // 40 Einheiten, 4,0x
 $clientGraph = ['graph' => $graph, 'statistics' => []];
 $route = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
 

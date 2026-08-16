@@ -135,8 +135,13 @@ assert($neu['cost'] < $report['graph_cost_units'],
 // Längenaufschlag (avesmapsOffroadRampFactor). Er ändert an DIESEM Fall nichts -- die Aufteilung
 // gewinnt weiterhin --, aber die Vergleichszahl muss ihn tragen, sonst steht links eine Reise MIT
 // Aufschlag gegen eine handgerechnete OHNE.
+// 💣 UND SEIT DEM 16.08.2026 AUCH DEN GEWICHTSFAKTOR. `$neu['cost']` ist ein Dijkstra-Gewicht, also
+// KALENDERzeit (avesmapsTravelValuesWeightFactor); die Handrechnung daneben ist reine Reisezeit.
+// Ohne den Faktor steht wieder eine gewichtete Zahl gegen eine ungewichtete -- genau die Falle, die
+// der Absatz darueber fuer den Laengenaufschlag schon einmal beschreibt.
 $ganzQuer = hypot(0.0 - 0.0, 30.0 - 0.0) / (float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['groupFoot']['Querfeldein']
-    * avesmapsOffroadRampFactor(30.0);
+    * avesmapsOffroadRampFactor(30.0)
+    * avesmapsTravelValuesWeightFactor('groupFoot');
 assert($neu['cost'] < $ganzQuer,
     'die Aufteilung schlägt die reine Querfeldein-Reise: ' . $neu['cost'] . ' gegen ' . $ganzQuer);
 

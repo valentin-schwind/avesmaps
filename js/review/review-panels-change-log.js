@@ -140,6 +140,10 @@ function formatChangeAction(action) {
 		split_geometry: "Herrschaftsgebiet zerschnitten",
 		delete_geometry: "Herrschaftsgebiet-Geometrie gelöscht",
 		delete_geometry_part: "Polygon aus Herrschaftsgebiet entfernt",
+		// Seit 16.08.2026: eine Aussenhuelle ohne Quellflaeche mehr wird hart geloescht statt nur
+		// deaktiviert. Kein Kartenobjekt (derived_geometries, nicht geometries) und kein Weg zurueck --
+		// bewusst nicht in avesmapsPoliticalCanUndoGeometryAuditAction, siehe die Schreibstelle dort.
+		hard_delete_derived_geometry: "Abgeleitete Außengrenze endgültig gelöscht",
 		geometry_operation_union: "Herrschaftsgebiete vereinigt",
 		geometry_operation_difference: "Herrschaftsgebiet ausgeschnitten",
 		geometry_operation_intersection: "Schnittmenge als Herrschaftsgebiet erstellt",

@@ -87,6 +87,12 @@ const AVESMAPS_ECOSYSTEM_KINDS = ['derographisch', 'vegetation', 'topographie', 
 //   ebene       -- exactly one label carries it ("Zwergenpforte"), but the argument was never the count:
 //                  no travel factor tells `ebene` apart from "normal". Accepted consequence: the
 //                  Zwergenpforte gets no area for now. A factor makes it a seed row.
+//                  🪤 Praezisiert 2026-08-16: der Satz heisst NICHT „ohne Reisewirkung keine Art".
+//                  `ebene` hat ueberhaupt keine eigene Aussage -- „flach" ist der Normalfall der
+//                  Karte. Die Kulturlandschaft unten hat eine (der Mensch hat dieses Land gepraegt)
+//                  und bremst trotzdem nicht; sie ist Auskunft fuer Infobox, „Was ist hier?", die
+//                  Lebensraeume der Vorkommen und das Kartenbild. Die Frage ist „sagt die Art etwas?",
+//                  nicht „kostet sie Zeit?".
 //   berggipfel  -- 62 labels (counted live 2026-07-28; "34" here was wrong), but POINTS, not areas.
 //                  V8 gives them a height in properties_json and reads them as the height field's
 //                  support points -- still no area type, and never one.
@@ -175,6 +181,17 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     // behauptet eine Ausdehnung, die sie nicht hat.
     // 🪤 Schlüssel ASCII-gefaltet wie `wueste` (AGENTS.md §5): `wuestenoase`, nie `wüstenoase`.
     ['vegetation', 'wuestenoase', 'Wüstenoase', 100],
+    // Owner 2026-08-16, aus Idee #77 (smyrrn): Gegenden, die der Mensch bestellt hat -- Weizenfelder,
+    // Wingerte, Obsthaine, Terrassen. Der Name ist bewusst weiter als „Ackerland": im selben Gespräch
+    // standen die Wingerte neben den Feldern, und beide sind dieselbe Landschaft.
+    // 🔴 SIE BREMST NICHT. Owner: „normal, querfeldein is immer bisschen langsamer … nur nicht so wie
+    // wald oder dschungel." Umgesetzt wird das, indem `terrain_speed_factor` NULL BLEIBT -- die Spalte
+    // liest sich als „keine eigene Aussage", und avesmapsOffroadLoadFactorPlane laedt nur Arten mit
+    // einem Wert. Kein Eintrag in der GA-Tafel (travel-values.php): die Quelle kennt diese Landschaft
+    // nicht, und eine erfundene 0,75 dort behauptete eine Quellenzeile.
+    // 🪤 Der Kommentar bei `ebene` weiter oben liest sich, als duerfte es diese Art nicht geben („kein
+    // Reisefaktor unterscheidet sie von normal"). Er war zu eng gefasst -- siehe dort.
+    ['vegetation', 'kulturlandschaft', 'Kulturlandschaft', 110],
 
     // ---- Klimazonen (Owner 2026-08-03) --------------------------------------------------------------
     // Sieben Zonen von Nord nach Sued, abgeleitet aus sechs Trennlinien. Die Namen sind die des Owners;

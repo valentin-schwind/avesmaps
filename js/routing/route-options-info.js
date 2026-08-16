@@ -251,7 +251,7 @@ function avesmapsRouteOptionsZoneFallbackLabel(zoneKey) {
 				"Der Rest des Tages ist Rast — sie fällt aber in ganzen Portionen an, nicht anteilig: erst wenn die {hours} Reisestunden aufgebraucht sind <b>und noch Weg vor einem liegt</b>, kostet eine Nacht {restHours} h. Wer vorher ankommt, rastet gar nicht. Der Zähler läuft dabei über die ganze Route, nicht je Etappe; 24 heißt durchreisen.",
 				{ hours: num(hours, 0), restHours: num(24 - hours, 0) }) + "</p>"
 			+ '<p class="roi-text">' + tx("planner.optionsInfo.rest.note",
-				"<b>Nur der Schnellsegler fährt durch</b> — Lastensegler und Galeere ankern nachts und rasten wie an Land.") + "</p>");
+				"<b>Nur der Schnellsegler fährt durch</b> — Lastensegler und Galeere ankern nachts und rasten wie an Land. Das Feld gilt für Landreisen; Fluss und See fahren ihren eigenen Reisetag von 12 Stunden. Die 8 Stunden an Land nennt „Wege des Entdeckers“ (S. 160–162), die 12 auf dem Wasser die Geographia (S. 129 · 131).") + "</p>");
 	}
 
 	function climateTable() {

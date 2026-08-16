@@ -103,8 +103,9 @@ function focusSpotlightLocation(entry) {
 }
 
 function getSpotlightLocationZoom(markerEntry) {
-	const labelConfig = LOCATION_NAME_LABEL_CONFIG[markerEntry.locationType] || LOCATION_NAME_LABEL_CONFIG.dorf;
-	return Math.max(labelConfig.minZoom || 0, Math.min(VISUAL_MAX_ZOOM_LEVEL, map.getMaxZoom()));
+	// Weit genug hinein, dass der Treffer seinen Namen trägt -- die Stufe kommt aus dem Zoomband.
+	const minZoom = avesmapsLocationZoomBandMinZoom("label", markerEntry.locationType) ?? 0;
+	return Math.max(minZoom, Math.min(VISUAL_MAX_ZOOM_LEVEL, map.getMaxZoom()));
 }
 
 function focusSpotlightLabel(entry) {
@@ -271,9 +272,12 @@ function focusSpotlightPath(entry) {
 }
 
 function getSpotlightPathZoom(entry) {
+	// Die 3 für Fluss-/Seeweg ist eine eigene Zahl (Kommentar in isPathLabelVisibleAtCurrentZoom,
+	// map-features-path-labels.js); für alle übrigen Wege gilt dieselbe Erscheinungsstufe wie die
+	// Wegenamen selbst.
 	const minZoom = entry.subtype === "Flussweg" || entry.subtype === "Seeweg"
 		? 3
-		: LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
+		: PATH_LABEL_MIN_ZOOM;
 	return Math.max(minZoom, Math.min(VISUAL_MAX_ZOOM_LEVEL, map.getMaxZoom()));
 }
 

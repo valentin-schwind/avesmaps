@@ -1033,6 +1033,7 @@ function getReportTypeLabel(report) {
 		ebene: "Ebene",
 		graslandschaft: "Graslandschaft",
 		auenlandschaft: "Auenlandschaft",
+		kulturlandschaft: "Kulturlandschaft",
 		wueste: "Wüste",
 		suempfe_moore: "Sümpfe/Moore",
 		comment: "Kommentar",

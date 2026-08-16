@@ -54,15 +54,24 @@ function countTransportTransfers(routeSteps) {
  * @returns {function(number, boolean): number} books one leg, returns its rest hours
  */
 function avesmapsRouteRestCounter(travelPerDay, includeRests) {
-	const dayHours = Number(travelPerDay) > 0 ? Number(travelPerDay) : 0.5;
-	const restPortion = Math.max(24 - dayHours, 0);
-	// The counter survives every call -- that is what makes the rest belong to the route.
-	let hoursSinceRest = 0;
+	const fallbackDay = Number(travelPerDay) > 0 ? Number(travelPerDay) : 0.5;
+	// 💣 GEZAEHLT WIRD DER ANTEIL DES TAGES, NICHT DIE STUNDE. Seit Land 8 und Wasser 12 Reisestunden
+	// haben (2026-08-16), ist „Stunden seit der letzten Rast" keine Groesse mehr: dieselbe Stunde
+	// fuellt an Land ein Achtel und auf dem Wasser ein Zwoelftel des Reisetages. Der ANTEIL ist es,
+	// und die geschuldete Nacht waechst mit ihm -- vier Stunden Marsch plus sechs Stunden Segeln sind
+	// ein voller Tag und schulden 0,5 x 16 + 0,5 x 12 = 14 Stunden Rast.
+	// ⚠️ Bei EINEM Reisetag fuer alle Etappen faellt das exakt auf die alte Rechnung zurueck, Zahl fuer
+	// Zahl -- deshalb bleiben die Faelle in rest-portions.test.js unveraendert gueltig.
+	let dayUsed = 0;
+	let restOwed = 0;
 
-	return function bookLeg(travelTime, exempt) {
+	return function bookLeg(travelTime, exempt, legTravelHours) {
+		const dayHours = Number(legTravelHours) > 0 ? Number(legTravelHours) : fallbackDay;
+		const restPortion = Math.max(24 - dayHours, 0);
 		if (exempt) {
 			// Slept aboard: the passage costs no rest time and leaves the traveller rested.
-			hoursSinceRest = 0;
+			dayUsed = 0;
+			restOwed = 0;
 			return 0;
 		}
 
@@ -81,13 +90,16 @@ function avesmapsRouteRestCounter(travelPerDay, includeRests) {
 		// of float subtractions, so `hoursSinceRest` arrives as 11.999999999999998 rather than 12.
 		// Without the tolerance that night is skipped, and the next stretch is 2e-15 hours long.
 		while (remaining > 1e-9) {
-			if (hoursSinceRest >= dayHours - 1e-9) {
-				restTime += restPortion;
-				hoursSinceRest = 0;
+			if (dayUsed >= 1 - 1e-9) {
+				restTime += restOwed;
+				dayUsed = 0;
+				restOwed = 0;
 			}
 
-			const stretch = Math.min(remaining, dayHours - hoursSinceRest);
-			hoursSinceRest += stretch;
+			const stretch = Math.min(remaining, (1 - dayUsed) * dayHours);
+			dayUsed += stretch / dayHours;
+			// Anteilig geschuldet: ein halber Reisetag schuldet eine halbe Nacht DIESES Mittels.
+			restOwed += (stretch / dayHours) * restPortion;
 			remaining -= stretch;
 		}
 
@@ -120,7 +132,30 @@ function avesmapsRouteRestPortions(entries, travelPerDay, includeRests) {
 	const safeEntries = Array.isArray(entries) ? entries : [];
 	const bookLeg = avesmapsRouteRestCounter(travelPerDay, includeRests);
 
-	return safeEntries.map((entry) => bookLeg(entry && entry.travelTime, Boolean(entry && entry.exempt)));
+	return safeEntries.map((entry) => bookLeg(entry && entry.travelTime, Boolean(entry && entry.exempt), entry && entry.dayHours));
+}
+
+/**
+ * Der Reisetag EINER Etappe in Stunden.
+ *
+ * 🔴 LAND FOLGT DEM PLANERFELD, WASSER SEINEM EIGENEN TAG. „Reisestunden pro Tag" ist die Hausregel
+ * der Gruppe -- wie lange marschiert wird. Ueber den Rhythmus eines Schiffes entscheidet sie nicht:
+ * Lastensegler und Galeere ankern nachts (GA S. 131), der Schnellsegler faehrt durch und ist ohnehin
+ * rastbefreit. Die VORGABE des Feldes ist deshalb genau der Landtag, 8 Stunden (WdE S. 160-162) --
+ * wer nichts verstellt, bekommt an Land und auf dem Wasser den Reisetag seiner Quelle.
+ *
+ * ⚠️ Ohne TRANSPORT_TRAVEL_HOURS (die Modultests laden js/config.js nicht aus) gilt fuer jede Etappe
+ * der Planertag -- exakt das Verhalten von vor dem Umbau, und damit bleiben ihre Faelle gueltig.
+ */
+function avesmapsRouteLegTravelHours(transport, plannerDayHours) {
+	if (typeof TRANSPORT_TRAVEL_HOURS === "undefined" || !TRANSPORT_TRAVEL_HOURS) return plannerDayHours;
+	if (typeof VALID_TRANSPORT_OPTIONS !== "undefined" && VALID_TRANSPORT_OPTIONS
+		&& VALID_TRANSPORT_OPTIONS.land && VALID_TRANSPORT_OPTIONS.land.has(transport)) {
+		return plannerDayHours;
+	}
+	const own = Number(TRANSPORT_TRAVEL_HOURS[transport]);
+
+	return Number.isFinite(own) && own > 0 ? own : plannerDayHours;
 }
 
 function buildRouteSteps(routeNames, segments, options = {}) {
@@ -143,6 +178,15 @@ function buildRouteSteps(routeNames, segments, options = {}) {
 	const exemptFlags = planEntries.map((entry) => entry.type === "Seeweg"
 		&& resolveRouteStepTransport(entry, entry.type) === "fastShip");
 
+	// Der Reisetag JE ETAPPE -- Land nach Planerfeld, Wasser nach seinem eigenen (siehe oben).
+	// 💣 Einmal gerechnet und von BEIDEN Zaehlern benutzt: die Jahreszeitschleife und die angezeigte
+	// Rast muessen ueber dieselben Tageslaengen laufen, sonst datiert eine Etappe in die falsche
+	// Jahreszeit -- derselbe Fehler, den der gemeinsame Rastzaehler am 14.08.2026 behoben hat.
+	const legDayHours = planEntries.map((entry) => avesmapsRouteLegTravelHours(
+		resolveRouteStepTransport(entry, entry.type),
+		travelPerDay
+	));
+
 	// Der Bodenabzug des Reisebeginns greift HIER, vor der Rastrechnung: dadurch waechst die Rast mit
 	// der verlaengerten Reisezeit, und jede Summe darueber zieht von selbst nach. Ohne Reisebeginn
 	// (options.departure fehlt) bleibt jede Zahl, wie sie war.
@@ -162,14 +206,14 @@ function buildRouteSteps(routeNames, segments, options = {}) {
 	if (typeof applyRouteSeasonGround === "function") {
 		const bookCalendarRest = avesmapsRouteRestCounter(travelPerDay, includeRests);
 		applyRouteSeasonGround(planEntries, segments, options.departure, travelPerDay, {
-			bookRest: (index, travelTime) => bookCalendarRest(travelTime, exemptFlags[index]),
+			bookRest: (index, travelTime) => bookCalendarRest(travelTime, exemptFlags[index], legDayHours[index]),
 		});
 	}
 
 	// 💣 ONE call for the WHOLE route, outside the map. The rest belongs to the journey, not to the
 	// row: three short legs share a travel day, and a night can fall in the middle of a leg.
 	const restPortions = avesmapsRouteRestPortions(
-		planEntries.map((entry, index) => ({ travelTime: entry.travelTime, exempt: exemptFlags[index] })),
+		planEntries.map((entry, index) => ({ travelTime: entry.travelTime, exempt: exemptFlags[index], dayHours: legDayHours[index] })),
 		travelPerDay,
 		includeRests
 	);

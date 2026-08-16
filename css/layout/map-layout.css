@@ -171,6 +171,27 @@ html.avesmaps-phone.avesmaps-planner-open #map-corner-actions {
 	transition: opacity 0.22s ease, visibility 0s linear 0.22s;
 }
 
+/* 🔴 UND UMGEKEHRT: bei offener INFOBOX verschwindet der Planer-Griff. Owner-Meldung 16.08.2026:
+   „das infopanel geht auf, aber wenn ich es zumach geht automatisch das routenpanel auf" -- und die
+   Kausalitaet darin ist umgekehrt zum Gefuehl. Die Box ist am Telefon --avesmaps-ip-w breit
+   (gemessen 351px auf 375px Schirm), es bleibt ein rund 24px schmaler Streifen Karte links. Genau
+   darin sass der eingeklappte Griff (`left: 0`, --avesmaps-tab-w = 26px, mittig hoch) und bedeckte
+   ihn ganz. Wer die Box wegtippen wollte, traf den Griff; der oeffnete den Planer, und der Planer
+   schliesst am Telefon die Box (js/ui/route-planner-toggle.js). Von aussen sah das aus, als oeffne
+   das Zumachen den Planer.
+   💣 Der Fehler lag an KEINEM der drei Bauteile allein -- Griff mittig links (12.08.), Info-Lasche
+   am Telefon weg (12.08.) und „nur EIN Panel offen" (11.08.) waren einzeln jeweils richtig.
+   ⚠️ Dieselben drei Eigenschaften wie oben und aus demselben Grund KEIN `display: none`
+   (Hoehenmessung, siehe Nachbarregel). Der Schliesser ist seither das ✕ im Panel
+   (css/features/infopanel.css) -- ohne ihn waere die Box hier unschliessbar geworden.
+   Gewacht von js/app/__tests__/mobil-infobox-schliessen.test.js. */
+html.avesmaps-phone.avesmaps-infopanel-open #toggle-button {
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+	transition: opacity 0.22s ease, visibility 0s linear 0.22s;
+}
+
 
 @media (max-width: 640px) {
 	/* 💣 Eine Hoehe, an der das `overflow-y: auto` von oben endlich GREIFT. Die 140dvh war ein

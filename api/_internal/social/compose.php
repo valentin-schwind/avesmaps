@@ -151,3 +151,46 @@ function avesmapsSocialStrictestLimit(array $channelKeys): array
 
     return $best;
 }
+
+/**
+ * The channel a caption would break, or null when every selected channel takes it.
+ *
+ * Composed PER CHANNEL rather than measured once against avesmapsSocialStrictestLimit(): max_hashtags
+ * differs per network, so the same text is a different length on each, and the tightest max_chars is
+ * not necessarily the one that overflows. Reports the WORST offender -- that is the one the text has
+ * to be cut for; fixing it fixes the others.
+ *
+ * @param list<string>|string $hashtags
+ * @param list<string>        $channelKeys
+ * @return array{key: string, label: string, total_chars: int, max_chars: int, over_by: int}|null
+ */
+function avesmapsSocialWorstOverLimit(string $text, array|string $hashtags, array $channelKeys): ?array
+{
+    $worst = null;
+    foreach ($channelKeys as $key) {
+        $key = (string) $key;
+        $channel = avesmapsSocialChannel($key);
+        if ($channel === null || $channel['max_chars'] === null) {
+            continue;
+        }
+
+        $composed = avesmapsSocialCompose($text, $hashtags, $channel);
+        if (!$composed['over_limit']) {
+            continue;
+        }
+
+        $maxChars = (int) $channel['max_chars'];
+        $overBy = $composed['total_chars'] - $maxChars;
+        if ($worst === null || $overBy > $worst['over_by']) {
+            $worst = [
+                'key' => $key,
+                'label' => (string) $channel['label'],
+                'total_chars' => $composed['total_chars'],
+                'max_chars' => $maxChars,
+                'over_by' => $overBy,
+            ];
+        }
+    }
+
+    return $worst;
+}

@@ -276,7 +276,9 @@ function getCollisionEntries() {
 		.map((entry) => ({
 			element: entry.marker.getElement(),
 			priority: getLocationNameLabelPriority(entry),
-			minZoom: LOCATION_NAME_LABEL_CONFIG[entry.markerEntry?.locationType]?.minZoom || 0,
+			// Die Erscheinungsstufe des Namens aus dem Zoomband -- bei gleicher Priorität wird
+			// zuerst platziert, was schon länger sichtbar ist.
+			minZoom: avesmapsLocationZoomBandMinZoom("label", entry.markerEntry?.locationType) ?? 0,
 			group: "",                                 // Orte gehoeren zu keiner Flaeche
 		}));
 

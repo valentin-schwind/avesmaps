@@ -95,12 +95,18 @@
 		}
 		if (teile[0] === "kraftlinien") { return "#7a5ea8"; }
 		if (teile[0] === "gebiete") { return "#8a6a3f"; }
-		return "#3b2a18";   // Orte und Beschriftungen
+		// 🔴 Orte in der Farbe der Kartenmarkierung (--color-marker-waypoint), nicht im
+		// Braun der Schrift -- Owner 16.08.2026. Beschriftungen bleiben braun.
+		if (teile[0] === "orte") {
+			return token("--color-marker-waypoint")
+				|| (window.AvesmapsSvgExport && window.AvesmapsSvgExport.PLACE_COLOR) || "#e33b35";
+		}
+		return "#3b2a18";   // Beschriftungen
 	}
 
 	// Die eingestellten Farben, nach Ebene sortiert, wie der Bauer sie erwartet.
 	function eingestellteFarben() {
-		const aus = { wayColors: {}, wayOutlines: {}, placeColors: {}, areaColors: {} };
+		const aus = { wayColors: {}, wayOutlines: {}, placeColors: {}, areaColors: {}, areaOutlines: {} };
 		document.querySelectorAll("[data-svgx-color]").forEach((feld) => {
 			const teile = feld.getAttribute("data-svgx-color").split("/");
 			if (teile[0] === "wege") { aus.wayColors[teile[1]] = feld.value; }
@@ -117,6 +123,9 @@
 			if (!an || !an.checked) { return; }
 			const teile = pfad.split("/");
 			if (teile[0] === "wege") { aus.wayOutlines[teile[1]] = feld.value; }
+			// Flächenkonturen: standardmäßig AUS, wie auf der Karte -- eine Kontur gehört
+			// dem Bearbeiten, nicht dem Ansehen (AGENTS.md §12).
+			else if (teile[0] === "landschaften") { aus.areaOutlines[teile[2]] = feld.value; }
 		});
 		return aus;
 	}
@@ -332,6 +341,7 @@
 				tension: kurve.tension,
 				wayColors: farben.wayColors,
 				wayOutlines: farben.wayOutlines,
+				areaOutlines: farben.areaOutlines,
 				placeColors: farben.placeColors,
 				areaColors: flaechenFarben,
 				boundaryColor: farben.boundaryColor,

@@ -139,7 +139,7 @@ $r = avesmapsWikiSyncMonitorParseLicense("{{Datei\n|Lizenz={{Public domain}}\n}}
 assert($r['status'] === 'public_domain', 'PD template regressed, got: ' . $r['status']);
 
 $r = avesmapsWikiSyncMonitorParseLicense("{{Datei\n|Urheber=Foo\n|Lizenz={{CC-BY-SA-3.0}}\n}}");
-assert($r['status'] === 'attribution_required', 'CC-BY-SA regressed, got: ' . $r['status']);
+assert($r['status'] === 'cc_by', 'CC-BY-SA regressed, got: ' . $r['status']);
 assert($r['license'] === 'CC-BY-SA-3.0', 'CC-BY-SA label regressed, got: ' . $r['license']);
 
 $r = avesmapsWikiSyncMonitorParseLicense("{{Datei\n|Lizenz=irgendwas Unbekanntes\n}}");
@@ -156,7 +156,7 @@ echo "regression ok\n";
 
 $r = avesmapsWikiSyncMonitorParseLicense($ccByNc);
 assert($r['license'] === 'CC-BY-NC-4.0', 'CC|40 by nc label, got: ' . $r['license']);
-assert($r['status'] === 'attribution_required', 'CC|40 by nc status, got: ' . $r['status']);
+assert($r['status'] === 'cc_by', 'CC|40 by nc status, got: ' . $r['status']);
 assert($r['license_url'] === 'https://creativecommons.org/licenses/by-nc/4.0/', 'url, got: ' . $r['license_url']);
 assert($r['attribution'] === 'Dal (CC-BY-NC-4.0)', 'attribution, got: ' . $r['attribution']);
 
@@ -174,10 +174,10 @@ $r = avesmapsWikiSyncMonitorParseLicense("{{Datei\n|Lizenz={{CC|40 by nd nc}}\n}
 assert($r['license'] === 'CC-BY-NC-ND-4.0', 'term order is nc,nd,sa, got: ' . $r['license']);
 echo "cc terms ok\n";
 
-// The restriction must stay legible in the label. `attribution_required` is the closest value this
-// vocabulary has (public_domain|attribution_required|unknown -- no "restricted"), but for nc/nd
-// naming the author is NOT enough to publish. Anyone acting on the pending Free-Art decision must
-// read the label, not just the status.
+// The restriction must stay legible in the label. `cc_by` is the catalog value all five
+// attribution-style licences fall to (public_domain|cc_by|unknown -- no "restricted"), but for
+// nc/nd naming the author is NOT enough to publish. Anyone acting on the pending Free-Art decision
+// must read the label, not just the status.
 foreach (['{{CC|40 by nc}}', '{{CC|30 by nc nd}}', '{{CC|30 by nd}}'] as $tpl) {
     $r = avesmapsWikiSyncMonitorParseLicense("{{Datei\n|Lizenz=" . $tpl . "\n}}");
     assert($r['status'] !== 'public_domain', $tpl . ' must never be public_domain');

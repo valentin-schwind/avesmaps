@@ -404,6 +404,47 @@ html.avesmaps-phone body:not(.edit-mode) .avesmaps-infopanel__handle {
 	display: none;
 }
 
+/* Der ✕ oben rechts im Panel -- der Schliesser am Telefon (Owner 16.08.2026). Genau der Knopf, den
+   der Kommentar ueber der Regel oben vorausgesagt hat: „kommt die Frage wieder, gehoert ein ✕ in
+   den Panelkopf -- nicht die Lasche zurueck." Sie kam am 16.08.2026 wieder, und zwar als Fehler:
+   ohne Lasche blieb nur ein 24px schmaler Streifen Karte zum Wegtippen, und darin sass der
+   Planer-Griff (Begruendung in css/layout/map-layout.css).
+   ⚠️ Absolut im Panel, NICHT im __body: der ist der Scroller, dort rollte der Knopf mit dem Inhalt
+   aus dem Bild. Das Panel selbst ist `position: fixed`, taugt also als Anker.
+   💣 Alle Werte aus Token (AGENTS.md §12) -- die Masse des Griffs teilt er sich mit den Randlaschen,
+   damit die drei Bedienelemente am Telefon gleich gross sind.
+   Gewacht von js/app/__tests__/mobil-infobox-schliessen.test.js. */
+.avesmaps-infopanel__close {
+	position: absolute;
+	top: var(--space-6);
+	right: var(--space-6);
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--avesmaps-tab-w);
+	height: var(--avesmaps-tab-w);
+	padding: 0;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: var(--font-size-body);
+	line-height: 1;
+	cursor: pointer;
+}
+
+.avesmaps-infopanel__close:hover {
+	background: var(--color-button-soft-hover);
+}
+
+/* ⚠️ Am Zeiger traegt die Randlasche das Schliessen bereits, und sie liegt dort niemandem im Weg --
+   zwei Schliesser nebeneinander waeren einer zu viel. */
+html:not(.avesmaps-phone) .avesmaps-infopanel__close {
+	display: none;
+}
+
 /* ---- Rand-Tab-Andocken (Fix fuer schmale Fenster) ----
    Ist KEIN Panel offen, docken beide Rand-Tabs (Info + Editor) an die rechte BILDSCHIRMkante (right:0) --
    sonst klebten sie an der linken Panel-Kante (right:var(--ip-w)), die in schmalen Fenstern weit links

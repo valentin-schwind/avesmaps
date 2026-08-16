@@ -63,6 +63,19 @@ function enableWaypointTouchSorting() {
         return;
     }
 
+    // 🔴 EIN ZIEHZUSTAND, UND ER TRAEGT BEIDE REPARATUREN (Owner-Meldung 16.08.2026: „wegpunkte
+    // lassen sich nur ganz schwer mit mehrfachem tippen verschieben").
+    //
+    // 💣 OHNE `preventDefault` AM `touchmove` SCROLLT IOS WEITER. Der Zuhoerer war schon als
+    // `{passive: false}` angemeldet, hat das aber nie genutzt -- die Seite bewegte sich unter dem
+    // Finger, die Zeile blieb stehen, und man tippt nach. `touch-action: none` am Griff allein
+    // reicht nicht: der Finger verlaesst den Griff, sobald die Zeile mitwandert.
+    //
+    // 💣 UND DIE UEBERSETZUNG GALT JEDER BERUEHRUNG DER SEITE. Die beiden Zuhoerer hingen ohne
+    // Bedingung am `document`, also erzeugte jedes Wischen auf der Karte ein synthetisches
+    // `mousemove` -- Arbeit und Stoerpotential fuer Leaflet, ohne dass je ein Wegpunkt gezogen wurde.
+    let ziehtWegpunkt = false;
+
     waypointsElement.addEventListener("touchstart", (event) => {
         const handle = event.target.closest(".waypoint-drag-handle");
         if (!handle || !waypointsElement.contains(handle)) {
@@ -85,11 +98,15 @@ function enableWaypointTouchSorting() {
             button: 0,
         });
         handle.dispatchEvent(simulatedEvent);
+        ziehtWegpunkt = true;
         event.preventDefault();
     }, { passive: false });
 
     ["touchmove", "touchend", "touchcancel"].forEach((eventName) => {
         document.addEventListener(eventName, (event) => {
+            if (!ziehtWegpunkt) {
+                return;
+            }
             const touch = event.changedTouches[0];
             if (!touch) {
                 return;
@@ -106,6 +123,16 @@ function enableWaypointTouchSorting() {
                 screenY: touch.screenY,
                 button: 0,
             }));
+
+            // ⚠️ Erst NACH dem Weiterreichen: waehrend des Ziehens darf die Seite nicht scrollen,
+            // aber der Zustand muss am Ende auch dann fallen, wenn der Finger die Liste verlaesst.
+            if (eventName === "touchmove") {
+                if (event.cancelable) {
+                    event.preventDefault();
+                }
+            } else {
+                ziehtWegpunkt = false;
+            }
         }, { passive: false });
     });
 }

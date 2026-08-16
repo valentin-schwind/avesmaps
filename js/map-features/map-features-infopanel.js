@@ -101,6 +101,29 @@
 	handle.innerHTML = '<span class="avesmaps-infopanel__handle-label">Info</span>';
 	handle.setAttribute("aria-label", "Infopanel ein- oder ausklappen");
 
+	// Der ✕ oben rechts -- der Schliesser AM TELEFON (Owner 16.08.2026: „✕ oben rechts im
+	// panelkopf"). Dort ist die Randlasche ausgeblendet (css/features/infopanel.css, Absicht seit
+	// 12.08.2026), und seit dem 16.08. ist auch der Planer-Griff bei offener Box unerreichbar
+	// (css/layout/map-layout.css) -- vorher war ER der einzige Treffer im schmalen Kartenstreifen,
+	// und ein Tipper darauf riss den Routenplaner auf, statt die Box zu schliessen. Ohne diesen
+	// Knopf gaebe es danach GAR KEINEN Weg mehr, sie zuzumachen.
+	// 💣 Er haengt am PANEL, nicht am body: das Panel faehrt per transform herein, ein Knopf daneben
+	// bliebe stehen. Und er ist Geschwister von __body (dem Scroller), nicht dessen Kind -- sonst
+	// rollte er mit dem Inhalt aus dem Bild.
+	var schliessen = document.createElement("button");
+	schliessen.type = "button";
+	schliessen.className = "avesmaps-infopanel__close";
+	schliessen.textContent = "✕";
+	// 💣 Ein blosses ✕ hat keinen zugaenglichen Namen -- dieselbe Regel wie beim Planer-Griff, dessen
+	// Wort im Knopf bleibt und nur unsichtbar wird.
+	schliessen.setAttribute("aria-label", "Infobox schließen");
+	schliessen.addEventListener("click", function () {
+		// Derselbe Weg wie die Randlasche: EIN Zustand, kein zweiter.
+		collapsed = true;
+		sync();
+	});
+	panel.appendChild(schliessen);
+
 	document.body.appendChild(panel);
 	document.body.appendChild(handle);
 

@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// Der Bulk-Knopf raeumt Konturen UND Huellen; die Hart/Weich-Weiche wohnt drueben.
+require_once __DIR__ . '/territories-derived-geometry.php';
+
 function avesmapsPoliticalMergeLayerGeometries(?array $leftGeometry, ?array $rightGeometry): ?array {
     $polygons = [];
     foreach ([$leftGeometry, $rightGeometry] as $geometry) {
@@ -1037,12 +1040,79 @@ function avesmapsPoliticalPurgeUnassignedGeometries(PDO $pdo, array $payload, ar
          LEFT JOIN political_territory t ON t.id = g.territory_id
          WHERE t.id IS NULL OR t.name LIKE 'Neues Herrschaftsgebiet%'";
     $candidates = (int) ($pdo->query('SELECT COUNT(*) AS c ' . $orphanWhere)->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
+
+    // 💣 Die Huellen MUESSEN hier mit. Sonst zaehlt die Kopfzeile des Fensters wieder mehr, als der
+    // Knopf tut -- und genau dieses Auseinanderlaufen hat den Geist erzeugt: das rohe DELETE unten
+    // nimmt einem Platzhalter die Quellflaeche weg und laesst seine Aussengrenze stehen.
+    // ⚠️ Fuer Huellen gibt es KEINEN Platzhalter-Filter: eine Huelle ohne Quelle ist immer falsch.
+    $derivedOrphans = avesmapsPoliticalCollectSourcelessDerivedHulls($pdo);
+
     if (!$apply) {
-        return ['ok' => true, 'dry_run' => true, 'candidates' => $candidates, 'deleted' => 0];
+        return [
+            'ok' => true,
+            'dry_run' => true,
+            'candidates' => $candidates,
+            'deleted' => 0,
+            'derived_candidates' => count($derivedOrphans),
+            'derived_deleted' => 0,
+        ];
     }
-    $del = $pdo->prepare('DELETE g ' . $orphanWhere);
+
+    // SQLite- und MySQL-kompatible DELETE mit Materialisierung.
+    // MySQL Error 1093 verbietet eine einfache Subquery auf die Ziel-Tabelle selbst;
+    // die Materialisierung (doppelte Verschachtelung) zwingt MySQL eine temp table zu nutzen.
+    $del = $pdo->prepare(
+        'DELETE FROM political_territory_geometry
+         WHERE id IN (
+             SELECT id FROM (
+                 SELECT g.id ' . $orphanWhere . '
+             ) candidates
+         )'
+    );
     $del->execute();
-    return ['ok' => true, 'dry_run' => false, 'candidates' => $candidates, 'deleted' => $del->rowCount()];
+
+    // Nach dem DELETE rechnen: eine Kontur, die eben gefallen ist, macht ihre Huelle erst jetzt
+    // quellenlos. Die Weiche in avesmapsPoliticalDeleteDerivedGeometryForTerritory entscheidet
+    // hart/weich -- hier wird sie nicht nachgebaut.
+    $derivedDeleted = 0;
+    // ⚠️ EIN Schnappschuss fuer den ganzen Lauf -- NACH dem DELETE oben geholt, denn eine eben
+    // gefallene Kontur macht ihre Huelle erst jetzt quellenlos. Huellen zu loeschen aendert weder
+    // Quellflaechen noch Territorien, er bleibt also ueber die Schleife gueltig.
+    $context = avesmapsPoliticalDerivedHullSourceContext($pdo);
+    foreach (avesmapsPoliticalCollectSourcelessDerivedHulls($pdo) as $hull) {
+        $territoryPublicId = (string) $hull['territory_public_id'];
+        if ($territoryPublicId === '') {
+            // Dangling: kein Territorium mehr da, also gibt es auch nichts aufzuloesen.
+            $derivedDeleted += avesmapsPoliticalHardDeleteDerivedGeometryRow(
+                $pdo,
+                (string) $hull['derived_geometry_public_id'],
+                (int) ($user['id'] ?? 0),
+                'purge_dangling'
+            );
+            continue;
+        }
+        // Direkt nach dem Territorium mit der public_id abfragen
+        $stmt = $pdo->prepare('SELECT id, public_id FROM political_territory WHERE public_id = :public_id LIMIT 1');
+        $stmt->execute(['public_id' => $territoryPublicId]);
+        $territory = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($territory)) {
+            // 💣 Zwischen der Sammel-Query und diesem SELECT ist das Gebiet weggefallen. Ohne diese
+            // Zeile brach der ganze Lauf mit einem TypeError ab -- und zwar OHNE Transaktion, also
+            // nach halber Arbeit.
+            continue;
+        }
+        $result = avesmapsPoliticalDeleteDerivedGeometryForTerritory($pdo, $territory, $user, $context);
+        $derivedDeleted += (int) ($result['affected'] ?? 0);
+    }
+
+    return [
+        'ok' => true,
+        'dry_run' => false,
+        'candidates' => $candidates,
+        'deleted' => $del->rowCount(),
+        'derived_candidates' => count($derivedOrphans),
+        'derived_deleted' => $derivedDeleted,
+    ];
 }
 
 function avesmapsPoliticalRestoreLegacyRegionGeometries(PDO $pdo, array $payload, array $user): array {

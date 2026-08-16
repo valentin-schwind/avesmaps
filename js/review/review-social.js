@@ -631,6 +631,9 @@
 		}
 
 		updateLinkNote(caption, keys);
+		// Hängt an denselben Auslösern wie der Zähler: Kanalwahl und Bildwechsel laufen beide über
+		// renderChannels() -> updateCount(). Das Häkchen selbst meldet sich unten eigens an.
+		updateAiNote();
 
 		const foot = el("social-foot-note");
 		if (foot) {
@@ -645,6 +648,15 @@
 	// Liste gebräuchlicher Endungen. Jede TLD der Welt zu kennen hiesse, „z.B." und „Nr.de" mitzufangen
 	// -- ein Hinweis, der bei jedem zweiten Text aufpoppt, ist einer, den niemand mehr liest.
 	const SOCIAL_LINK_PATTERN = /(https?:\/\/\S+|\bwww\.\S+|\b[a-z0-9][a-z0-9-]*\.(?:de|com|org|net|eu|io|info)\b)/i;
+
+	// „A" · „A und B" · „A, B und C". EINE Stelle, weil dieselbe Aufzählung inzwischen in drei
+	// Hinweisen steht -- und beim Abschreiben fällt regelmäßig das „und" vor dem letzten Namen.
+	function joinNames(namen) {
+		if (!namen.length) { return ""; }
+
+		return namen.length === 1 ? namen[0]
+			: namen.slice(0, -1).join(", ") + " und " + namen[namen.length - 1];
+	}
 
 	// 🔴 HINWEIS, NICHT RIEGEL. Der Text wird nicht umgeschrieben und das Senden nicht gesperrt:
 	// „Karte auf avesmaps.de" ist als blosser Satz völlig in Ordnung, und ein still umgeschriebener
@@ -663,8 +675,7 @@
 		if (!betroffen.length || !SOCIAL_LINK_PATTERN.test(caption || "")) { return ""; }
 
 		const namen = betroffen.map(function (channel) { return channel.label; });
-		const liste = namen.length === 1 ? namen[0]
-			: namen.slice(0, -1).join(", ") + " und " + namen[namen.length - 1];
+		const liste = joinNames(namen);
 
 		return "Im Text steht eine Adresse. " + liste
 			+ (namen.length === 1 ? " macht" : " machen")
@@ -681,7 +692,71 @@
 		note.hidden = text === "";
 	}
 
+	// Welche Kanäle eine KI-Erklärung überhaupt entgegennehmen. Aus dem REGISTER (`ai_label`) gebaut
+	// und nicht aus einer Namensliste hier -- sonst kennt der Browser eine Zuordnung, die der Server
+	// nicht kennt, und der nächste Kanal fehlt in der Aufzählung, ohne dass es jemandem auffällt.
+	//
+	// Rein und exportiert wie linkNoteText darüber.
+	function aiChannelsText(list) {
+		const alle = list || [];
+		const nimmt = alle.filter(function (channel) { return channel.ai_label === true; });
+		// Kann es kein einziger Kanal, sagt der Satz genau das. Eine leere Aufzählung („ zeigen
+		// daraufhin …") wäre ein Satz ohne Subjekt -- und die Liste ist leer, solange sie lädt.
+		if (!nimmt.length) { return "Zurzeit nimmt kein Kanal eine KI-Erklärung entgegen."; }
+
+		const rest = alle.filter(function (channel) { return channel.ai_label !== true; });
+		const satz = joinNames(nimmt.map(function (channel) { return channel.label; }))
+			+ (nimmt.length === 1 ? " zeigt" : " zeigen") + " daraufhin einen KI-Hinweis am Bild.";
+		if (!rest.length) { return satz; }
+
+		// Der zweite Halbsatz nur, wenn es einen Rest GIBT: „die übrigen kennen keinen" wäre sonst
+		// eine Aussage über die leere Menge.
+		return satz + " " + joinNames(rest.map(function (channel) { return channel.label; }))
+			+ (rest.length === 1 ? " kennt" : " kennen") + " keinen.";
+	}
+
+	// 💣 DER EINE STILLE FEHLSCHLAG DIESES SCHALTERS. Facebook nimmt die Erklärung nur an /photos
+	// entgegen; ohne Bild geht der Beitrag über /feed, und dort kennt Meta das Feld überhaupt nicht.
+	// Angehakt + Facebook gewählt + kein Bild = ein Beitrag, der wortlos unbeschriftet rausgeht,
+	// während das Häkchen daneben das Gegenteil behauptet.
+	//
+	// 🔴 HINWEIS, NICHT RIEGEL -- dieselbe Regel wie beim Link-Hinweis darüber: ein unbebilderter
+	// Beitrag ist völlig zulässig, er ist nur nicht kennzeichenbar. Gesperrt wird nichts.
+	//
+	// ⚠️ Wen es betrifft, sagt das REGISTER (`ai_label_needs_media`). Hier steht kein „facebook".
+	function aiWarningText(declared, keys, hasMedia, list) {
+		if (declared !== true || hasMedia === true) { return ""; }
+
+		const betroffen = (list || []).filter(function (channel) {
+			return keys.indexOf(channel.key) !== -1 && channel.ai_label_needs_media === true;
+		});
+		if (!betroffen.length) { return ""; }
+
+		return joinNames(betroffen.map(function (channel) { return channel.label; }))
+			+ (betroffen.length === 1 ? " kann" : " können")
+			+ " den Hinweis nur an einem Bild anbringen — ohne Bild geht der Beitrag dort ohne"
+			+ " KI-Kennzeichnung raus.";
+	}
+
+	function updateAiNote() {
+		const note = el("social-ai-note");
+		if (!note) { return; }
+		const box = el("social-ai");
+		// `media !== null` ist dieselbe Quelle, aus der auch der Absende-Rumpf sein media_url zieht --
+		// nicht das Dateifeld, das nach dem Hochladen wieder leer ist.
+		const text = aiWarningText(!!(box && box.checked), selectedChannelKeys(), media !== null, channels);
+		note.textContent = text;
+		note.hidden = text === "";
+	}
+
 	function renderChannels() {
+		// Die Aufzählung unter dem KI-Häkchen kommt aus derselben Liste und wird deshalb HIER gefüllt,
+		// nicht in index.html: dort stünde eine Namensliste, die beim nächsten Kanal veraltet, ohne
+		// dass jemand sie anfasst. Steht vor der Wache darunter, weil sie an einem anderen Element
+		// hängt -- eine fehlende Kanalspalte darf den Satz nicht mitnehmen.
+		const aiChannels = el("social-ai-channels");
+		if (aiChannels) { aiChannels.textContent = aiChannelsText(channels); }
+
 		const host = el("social-channels");
 		if (!host) { return; }
 		host.textContent = "";
@@ -1100,6 +1175,12 @@
 		// Editor haette den Verlust nicht gesehen -- das Feld sieht leer genauso aus wie nie gefuellt.
 		const alt = el("social-alt");
 		if (alt) { alt.value = post ? (post.media_alt || "") : ""; }
+		// 🔴 Ein NEUER Beitrag startet angehakt (Owner-Entscheid 16.08.2026) -- ein wiederhergestellter
+		// Entwurf bringt dagegen seinen eigenen Stand mit. Die Vorbelegung gilt dem leeren Formular,
+		// nicht einem Entwurf, den jemand bewusst abgehakt hat: sonst käme das Häkchen bei jedem
+		// Öffnen zurück und das Abhaken wäre nur beim letzten Speichern wirksam.
+		const ai = el("social-ai");
+		if (ai) { ai.checked = post ? post.ai_declared === true : true; }
 
 		// Lizenz und Quelle gehören zum Bild: ohne sie stünde ein wiederhergestellter Entwurf mit
 		// freier Lizenz plötzlich als „eigenes Werk" da -- eine Rechteangabe, die niemand gemacht hat.
@@ -1156,6 +1237,10 @@
 			// Die Bildbeschreibung reist IMMER mit, auch ohne Bild -- der Server haengt sie an den
 			// Beitrag, und wer erst beschreibt und dann das Bild waehlt, verlaere sie sonst.
 			media_alt: (el("social-alt") || { value: "" }).value,
+			// Die KI-Erklärung. Sie gilt dem BEITRAG; was ein Netz daraus macht, entscheidet dessen
+			// Adapter -- Facebook nur an einem Bild, Instagram immer, Mastodon und „Neuigkeiten" gar
+			// nicht. Echtes Bool, weil der Server streng auf `=== true` prüft.
+			ai_declared: !!(el("social-ai") || {}).checked,
 		};
 
 		// 🔴 Ein bearbeiteter Entwurf wird GEÄNDERT, nicht durch einen neuen ersetzt. Bis 11.08.2026
@@ -1249,6 +1334,11 @@
 		if (text) { text.addEventListener("input", updateCount); }
 		const tags = el("social-hashtags");
 		if (tags) { tags.addEventListener("input", updateCount); }
+		// Das KI-Häkchen ist der dritte Auslöser des Warnsatzes -- Kanalwahl und Bild laufen bereits
+		// über renderChannels() -> updateCount(). Ohne diese Zeile erschiene die Warnung erst, wenn
+		// man daneben noch etwas anderes anfasst.
+		const aiBox = el("social-ai");
+		if (aiBox) { aiBox.addEventListener("change", updateCount); }
 
 		// „Freie Lizenz" verlangt die Quelle -- dieselbe Regel wie serverseitig, nur früher sichtbar.
 		Array.prototype.forEach.call(document.querySelectorAll("input[name=social-license]"), function (radio) {
@@ -1296,6 +1386,7 @@
 
 	if (typeof module !== "undefined" && module.exports) {
 		module.exports = { chipClass, chipLabel, canRetry, strictestLimit, formatCount, postAuthorLabel,
-			formatExpiry, proposalNote, isDraft, linkNoteText, applyCapabilityTo, postSummaryText };
+			formatExpiry, proposalNote, isDraft, linkNoteText, applyCapabilityTo, postSummaryText,
+			joinNames, aiChannelsText, aiWarningText };
 	}
 })();

@@ -1786,6 +1786,7 @@
 							<option value="insel">Insel</option>
 							<option value="inselgruppe">Inselgruppe</option>
 							<option value="kontinent">Kontinent</option>
+							<option value="kulturlandschaft">Kulturlandschaft</option>
 							<option value="kueste">Küste</option>
 							<option value="meer">Meer</option>
 							<option value="region" selected>Region</option>
@@ -2073,6 +2074,21 @@
 						<label class="social-hub__radio"><input type="radio" name="social-license" value="free_license"><span><strong>Freie Lizenz</strong><small>gemeinfrei oder CC — Quelle angeben</small></span></label>
 						<input id="social-source" type="text" placeholder="Quelle angeben" hidden>
 						<p class="social-hub__warn">Keine Scans aus DSA-Publikationen, keine Ulisses-Artworks. Das Projekt läuft unter den Fan-Richtlinien — was hier rausgeht, steht öffentlich unter dem Namen Avesmaps und lässt sich nicht zurückholen.</p>
+
+						<!-- Die KI-Erklärung reist als Feld MIT der Anfrage ans Netz, sie steht nicht im Text
+						     (Entwurf docs/superpowers/specs/2026-08-16-ki-kennzeichnung-design.md). Vorgehakt
+						     auf Owner-Entscheid 16.08.2026: Anlass war ein Beitrag, der unbeabsichtigt ohne
+						     Kennzeichnung rausging -- zu viel gekennzeichnet ist harmlos, zu wenig nicht.
+						     💣 Welche Kanaele sie annehmen, schreibt der Server (`ai_label` im Register) in das
+						     <small> darunter. Hier steht bewusst KEINE Namensliste: sonst kennt der Browser
+						     eine Zuordnung, die der Server nicht kennt, und der naechste Kanal fehlt darin. -->
+						<label class="social-hub__label">KI-Kennzeichnung</label>
+						<label class="social-hub__check"><input id="social-ai" type="checkbox" checked><span><strong>Mit KI erstellt</strong><small id="social-ai-channels"></small></span></label>
+						<!-- 💣 Steht leer da, bis die Lage sie braucht: angehakt + Facebook + KEIN Bild. Facebook
+						     nimmt die Erklaerung nur an /photos entgegen, /feed kennt das Feld nicht -- ohne
+						     diesen Satz haekelt jemand an, drueckt, und haelt den Beitrag fuer gekennzeichnet.
+						     Sie SPERRT nichts: ein unbebilderter Beitrag ist zulaessig, nur nicht kennzeichenbar. -->
+						<p id="social-ai-note" class="social-hub__warn" hidden></p>
 					</div>
 					<div class="social-hub__side">
 						<label class="social-hub__label">Kanäle</label>
@@ -2322,8 +2338,8 @@
 				</label>
 			</div>
 			<div class="route-planner-options-panel__row route-planner-options-panel__row--field">
-				<label title="Reisestunden pro Tag; der Rest des Tages ist Rast. Gerastet wird erst, wenn die Reisestunden aufgebraucht sind und noch Weg vor einem liegt. Gilt für alle Reisearten außer dem Schnellsegler, der rund um die Uhr fährt. 24 = ohne Rast durchreisen." data-i18n-title="planner.travelHours.title">
-					<span data-i18n="planner.travelHoursLabel">Reisestunden pro Tag:</span> <input type="number" id="travelHoursPerDay" value="12.0" min="0.5" max="24" step="0.5" style="width: 56px" />
+				<label title="Reisestunden pro Tag an Land; der Rest des Tages ist Rast. Gerastet wird erst, wenn die Reisestunden aufgebraucht sind und noch Weg vor einem liegt. Schiffe fahren ihren eigenen Reisetag: Fluss und See 12 Stunden, der Schnellsegler rund um die Uhr. 24 = ohne Rast durchreisen." data-i18n-title="planner.travelHours.title">
+					<span data-i18n="planner.travelHoursLabel">Reisestunden pro Tag:</span> <input type="number" id="travelHoursPerDay" value="8.0" min="0.5" max="24" step="0.5" style="width: 56px" />
 				</label>
 			</div>
 			<!-- Reisebeginn: Tag + aventurischer Monat. Die zwoelf Monatsnamen sind Domaeneninhalt und
@@ -2961,6 +2977,11 @@
 		     sofort, damit die Antwort da ist, bevor die Karte fertig gebaut ist. Ersetzt seit
 		     2026-08-01 den ungeprueften URL-Schalter ?landschaften=1. -->
 		<script src="js/app/session.js"></script>
+		<!-- Vor config.js: dort wird avesmapsLoadLocationZoomBands() sofort losgeschickt, wie die
+		     Sitzungsabfrage darüber. Und vor map-features-location-marker-rendering.js /
+		     -location-name-labels.js, deren Zeichner die Tafel lesen. Keine eigenen
+		     Abhängigkeiten, die frühe Position kostet also nichts. -->
+		<script src="js/map-features/location-zoom-bands.js"></script>
 		<script src="js/config.js"></script>
 		<script src="js/app/visitor-tracking.js"></script>
 		<script src="js/app/i18n-en.js"></script>
@@ -3208,6 +3229,7 @@
 		<script src="js/map-features/map-features-region-context-menu.js"></script>
 		<script src="js/map-features/map-features-region-overlap-selection.js"></script>
 		<script src="js/map-features/map-features-region-info-markup.js"></script>
+		<script src="js/map-features/map-features-region-interactivity.js"></script>
 		<script src="js/map-features/map-features-region-feature-normalization.js"></script>
 		<script src="js/map-features/map-features-region-geometry-helpers.js"></script>
 		<script src="js/map-features/map-features-region-split-preview.js"></script>

@@ -7,91 +7,48 @@ function getVisualZoomLevel(zoomLevel = map.getZoom()) {
 	return Math.max(0, Math.min(VISUAL_MAX_ZOOM_LEVEL, roundedZoomLevel));
 }
 
-function locationZoomScale(zoomLevel) {
-	const zoomScales = {
-		0: 0.45,
-		1: 0.6,
-		2: 0.78,
-		3: 1,
-		4: 1.18,
-		5: 1.36,
-	};
-	return zoomScales[getVisualZoomLevel(zoomLevel)] || zoomScales[VISUAL_MAX_ZOOM_LEVEL];
-}
-
-function getVillageMarkerStyle(zoomLevel = map.getZoom()) {
-	const visualZoomLevel = getVisualZoomLevel(zoomLevel);
-	const villageZoomStyles = {
-		0: { radius: 1.5, borderWidth: 0 },
-		1: { radius: 1.5, borderWidth: 0 },
-		2: { radius: 1.25, borderWidth: 0 },
-		3: { radius: 2, borderWidth: 1.5 },
-		4: { radius: 3, borderWidth: 2 },
-		5: { radius: 4, borderWidth: 2 },
-	};
-
-	return villageZoomStyles[visualZoomLevel] || villageZoomStyles[VISUAL_MAX_ZOOM_LEVEL];
-}
-
-function getBuildingMarkerStyle(zoomLevel = map.getZoom()) {
-	const visualZoomLevel = getVisualZoomLevel(zoomLevel);
-	const buildingZoomStyles = {
-		0: { radius: 0.5, borderWidth: 0 },
-		1: { radius: 1, borderWidth: 0 },
-		2: { radius: 1, borderWidth: 0 },
-		3: { radius: 1.5, borderWidth: 0 },
-		4: { radius: 1.25, borderWidth: 1 },
-		5: { radius: 2.75, borderWidth: 2 },
-	};
-
-	return buildingZoomStyles[visualZoomLevel] || buildingZoomStyles[VISUAL_MAX_ZOOM_LEVEL];
-}
-
-function isVillageMarkerStyleLocation(locationType) {
-	return locationType === "dorf" || locationType === "gebaeude";
-}
-
-// Marker-Kernradius (px): pro Typ GEOMETRISCH (konstanter Faktor pro Zoomstufe) von Start (erste sichtbare Zoomstufe) bis Ende (Z6).
-// Jeder neu auftauchende Typ startet bei 3 px; die Groessen-Reihenfolge bleibt auf jeder Stufe erhalten.
-// Z6 ist eine eigene Marker-Stufe -- getrennt von der geteilten VISUAL_MAX_ZOOM_LEVEL (=5 fuer Labels/Nav).
-const LOCATION_MARKER_MAX_ZOOM = 6;
+// Die Markergröße kommt aus dem Zoomband (js/map-features/location-zoom-bands.js), nicht mehr aus
+// einer geometrischen Kurve. Der Admin stellt den AUSSENDURCHMESSER ein -- das ist die Zahl, die er
+// auf dem Schirm misst; Kern und Kontur werden daraus zurückgerechnet.
 const LOCATION_MARKER_CONTOUR_RATIO = 0.33; // weisse Kontur = 33 % des Kernradius ...
 const LOCATION_MARKER_CONTOUR_MIN = 0.5;    // ... mindestens aber 0.5 px dick
-const LOCATION_MARKER_RADIUS_SPEC = {
-	metropole: { from: 0, start: 2.5, end: 20 },
-	grossstadt: { from: 0, start: 1.5, end: 15 },
-	stadt: { from: 0, start: 0.5, end: 12 },
-	kleinstadt: { from: 1, start: 0.5, end: 9.33 },
-	dorf: { from: 2, start: 0.5, end: 6.67 },
-	gebaeude: { from: 3, start: 0.5, end: 4.67 },
-};
 
-function getLocationMarkerCoreRadius(locationType, zoomLevel = map.getZoom()) {
-	const spec = LOCATION_MARKER_RADIUS_SPEC[locationType] || LOCATION_MARKER_RADIUS_SPEC.dorf;
-	const rounded = Math.round(Number(zoomLevel));
-	const z = Number.isFinite(rounded) ? Math.max(spec.from, Math.min(LOCATION_MARKER_MAX_ZOOM, rounded)) : spec.from;
-	const span = LOCATION_MARKER_MAX_ZOOM - spec.from;
-	const t = span > 0 ? (z - spec.from) / span : 0;
-	// geometrisch statt linear: konstante *relative* Groessenaenderung pro Stufe -> passt zur x2-Karte, kein Z1-Sprung.
-	return spec.start * Math.pow(spec.end / spec.start, t);
-}
+// Eine reine Zoomband-Änderung ändert weder Zoomstufe noch Warnring: ohne diese Revision bliebe der
+// alte Radius stehen, bis jemand zoomt. Sie wird von bumpLocationMarkerStyleRevision() erhöht.
+let _locationMarkerStyleRevision = 0;
 
-// Weisse Kontur = 25 % des Kernradius, aber mindestens 0.5 px (sonst verschwindet sie bei kleinen Markern).
-function getLocationMarkerContourWidth(locationType, zoomLevel = map.getZoom()) {
-	const coreRadius = getLocationMarkerCoreRadius(locationType, zoomLevel);
-	return Math.max(LOCATION_MARKER_CONTOUR_MIN, coreRadius * LOCATION_MARKER_CONTOUR_RATIO);
+function bumpLocationMarkerStyleRevision() {
+	_locationMarkerStyleRevision += 1;
 }
 
 function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 	if (locationType === CROSSING_LOCATION_TYPE) {
+		// Kreuzungen sind kein Ortstyp und tragen kein Band -- sie erscheinen über ihren eigenen
+		// Haken, ohne Zoomuntergrenze (Owner 2026-08-14).
 		const visualZoomLevel = getVisualZoomLevel(zoomLevel);
 		return visualZoomLevel <= 3 ? 5 : Math.max(7, 5 + visualZoomLevel * 1.5);
 	}
-	// Aussendurchmesser waechst LINEAR mit dem Kernradius (core * (1 + 25%) * 2). Die 0.5-px-Mindestkontur
-	// (getLocationMarkerBorderWidth) frisst bei winzigen Markern minimal in den Kern, aendert aber die
-	// Aussengroesse NICHT -> gleichmaessige, lineare Groessenzunahme ueber alle Zoomstufen (kein Knick).
+	const value = avesmapsLocationZoomBandValue("marker", locationType, zoomLevel);
+	if (value !== null) {
+		return value;
+	}
+	// 💣 UNTERHALB DES BANDES GILT DIE ERSTE GEFÜLLTE ZELLE, NICHT 0. Diese Funktion wird auch für
+	// Marker gerufen, die eine der Weichen WEITER OBEN in shouldShowLocationMarker eingeblendet hat
+	// -- Prüfhaken-Funde, der Siedlungsfilter, der angepinnte Suchtreffer. Die zeigen ihre Funde
+	// ausdrücklich ohne Rücksicht auf die Zoomstufe (Owner 2026-08-14); mit 0 bekämen sie einen
+	// Marker der Größe null und wären eingeblendet und unsichtbar zugleich. Die abgeschaffte Kurve
+	// tat dasselbe über Math.max(spec.from, z).
+	const minZoom = avesmapsLocationZoomBandMinZoom("marker", locationType);
+	return minZoom === null ? 0 : avesmapsLocationZoomBandValue("marker", locationType, minZoom);
+}
+
+function getLocationMarkerCoreRadius(locationType, zoomLevel = map.getZoom()) {
+	return getLocationMarkerSize(locationType, zoomLevel) / 2 / (1 + LOCATION_MARKER_CONTOUR_RATIO);
+}
+
+function getLocationMarkerContourWidth(locationType, zoomLevel = map.getZoom()) {
 	const coreRadius = getLocationMarkerCoreRadius(locationType, zoomLevel);
-	return Math.round(coreRadius * (1 + LOCATION_MARKER_CONTOUR_RATIO) * 2 * 100) / 100;
+	return Math.max(LOCATION_MARKER_CONTOUR_MIN, coreRadius * LOCATION_MARKER_CONTOUR_RATIO);
 }
 
 function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {
@@ -308,18 +265,15 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 		? visibilityContext.nodixToggleChecked
 		: IS_EDIT_MODE && $("#toggleNodix").is(":checked");
 	const isVisibleByNodixToggle = nodixToggleChecked && isNodixLocation(entry.location);
-	const minZoomByType = entry.locationType === "kleinstadt"
-		? 1
-		: entry.locationType === "dorf"
-			? 2
-			: entry.locationType === "gebaeude"
-				? 3
-				: 0;
+	// 💣 DIE ERSCHEINUNGSSTUFE IST DIE ERSTE GEFÜLLTE ZELLE DES BANDES -- es gibt keine zweite Zahl
+	// mehr, die mit ihr auseinanderlaufen könnte. Bis zum 16.08.2026 stand 0/0/0/1/2/3 hier als
+	// if-Kette UND in LOCATION_MARKER_RADIUS_SPEC[*].from; ein gekoppelter Wert in zwei Zeilen,
+	// den nichts zusammenhielt.
 	const typeVisible = visibilityContext
 		? visibilityContext.isTypeVisible(entry.locationType)
 		: isLocationTypeVisible(entry.locationType);
 	return (isVisibleByNodixToggle || typeVisible)
-		&& zoomLevel >= minZoomByType
+		&& avesmapsLocationZoomBandValue("marker", entry.locationType, zoomLevel) !== null
 		&& isMarkerEntryInRenderBounds(entry, renderBounds);
 }
 
@@ -351,11 +305,14 @@ function syncLocationMarkerVisibility() {
 		// Icon nur neu bauen, wenn sich die Zoomstufe (= Markergroesse/-stil) ODER der Warnring
 		// seit dem letzten Bau fuer diesen Marker geaendert hat. Beim reinen Pannen bleibt das Icon
 		// identisch -> kein setIcon-Neuaufbau pro sichtbarem Marker pro moveend.
+		// 💣 Auch die Stilrevision prufen: eine Zoomband-Aenderung aendert weder Zoomstufe noch Warnring
+		// und bliebe deshalb unbemerkt -- der Marker behaelte seinen alten Radius, bis jemand zoomt.
 		const ringModifier = resolveLocationCheckFinding(entry, visibilityContext);
-		if (shouldShow && (entry.iconZoomLevel !== zoomLevel || entry._ringModifier !== ringModifier)) {
+		if (shouldShow && (entry.iconZoomLevel !== zoomLevel || entry._ringModifier !== ringModifier || entry._markerStyleRevision !== _locationMarkerStyleRevision)) {
 			entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel, ringModifier));
 			entry.iconZoomLevel = zoomLevel;
 			entry._ringModifier = ringModifier;
+			entry._markerStyleRevision = _locationMarkerStyleRevision;
 		}
 		const isOnMap = map.hasLayer(entry.marker);
 		if (shouldShow && !isOnMap) {
@@ -381,5 +338,4 @@ function isLatLngInRenderBounds(latlng, renderBounds = getMapRenderBounds()) {
 function isMarkerEntryInRenderBounds(entry, renderBounds = getMapRenderBounds()) {
 	return entry?.marker && isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);
 }
-
 

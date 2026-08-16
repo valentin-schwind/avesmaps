@@ -24,6 +24,23 @@ function openRegionContextMenu(regionEntry, regionLayer, latlng, clientX, client
 		extractActionElement.hidden = !(regionEntry?.source === "political_territory" && layerCount > 1 && regionLayer);
 	}
 
+	// 🔴 Beschriftungen wandern, KENNUNGEN bleiben: data-region-context-action="delete" ist der
+	// Anker des Handlers weiter unten in dieser Datei.
+	const menuPlan = avesmapsRegionContextMenuPlan(regionEntry);
+	const deleteActionElement = menuElement.querySelector('[data-region-context-action="delete"]');
+	if (deleteActionElement) {
+		deleteActionElement.textContent = menuPlan.deleteLabel;
+	}
+	menuElement.querySelectorAll("[data-region-context-action]").forEach((item) => {
+		const action = item.dataset.regionContextAction || "";
+		if (menuPlan.actions === null) {
+			// extract hat seine eigene Regel oben und wird hier nicht ueberstimmt.
+			if (action !== "extract") item.hidden = false;
+			return;
+		}
+		item.hidden = !menuPlan.actions.includes(action);
+	});
+
 	menuElement.hidden = false;
 	positionContextMenuElement(menuElement, clientX, clientY);
 }
@@ -73,8 +90,10 @@ async function deleteDerivedRegionGeometry(regionEntry) {
 
 	const name = regionEntry.name || "Herrschaftsgebiet";
 	const visibleChildBoundaryCount = countVisibleChildDerivedBoundaries(regionEntry);
+	// 🔴 Seit 16.08.2026 entscheidet der Server je Huelle hart/weich (Quellenlage) -- vor dem Klick
+	// weiss der Client das nicht. Die Bestaetigung darf deshalb keine der beiden Formen versprechen.
 	const confirmation = visibleChildBoundaryCount > 0
-		? `${name} wirklich löschen?\n\nEs wurden ${visibleChildBoundaryCount} sichtbare Unter-Außengrenzen gefunden. Diese werden ebenfalls deaktiviert.`
+		? `${name} wirklich löschen?\n\nEs wurden ${visibleChildBoundaryCount} sichtbare Unter-Außengrenzen gefunden. Diese werden je nach Quellenlage entfernt oder deaktiviert.`
 		: `${name} wirklich löschen?`;
 	if (!window.confirm(confirmation)) {
 		return;
@@ -95,7 +114,20 @@ async function deleteDerivedRegionGeometry(regionEntry) {
 		clearRegionGeometryEdit();
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
 		void loadChangeLog();
-		showFeedbackToast((result?.affected || 0) > 0 ? "Außengrenze gelöscht." : "Keine aktive Außengrenze gefunden.", "success");
+		// 🔴 `affected` zaehlt Zeilen (hart geloescht + deaktiviert zusammen), `hard_deleted` nur die
+		// Territorien mit einer wirklich entfernten Huelle -- die Weiche sitzt serverseitig
+		// (avesmapsPoliticalDeleteDerivedGeometryForTerritory), der Toast muss ihr Ergebnis nur lesen.
+		const affectedCount = Number(result?.affected || 0);
+		const hardDeletedCount = Number(result?.hard_deleted || 0);
+		let successMessage;
+		if (affectedCount <= 0) {
+			successMessage = "Keine aktive Außengrenze gefunden.";
+		} else if (hardDeletedCount > 0) {
+			successMessage = "Außengrenze endgültig gelöscht – das lässt sich nicht rückgängig machen.";
+		} else {
+			successMessage = "Außengrenze gelöscht.";
+		}
+		showFeedbackToast(successMessage, "success");
 	} catch (error) {
 		console.error("Geometrie konnte nicht gelöscht werden:", error);
 		showFeedbackToast(error.message || "Geometrie konnte nicht gelöscht werden.", "warning");

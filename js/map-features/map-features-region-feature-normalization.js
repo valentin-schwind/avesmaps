@@ -70,6 +70,10 @@ function normalizeRegionFeature(feature) {
 		derivedHasOwnArea: properties.is_derived_geometry === true
 			&& Array.isArray(properties.derived_source_territory_public_ids)
 			&& properties.derived_source_territory_public_ids.map(String).includes(String(properties.territory_public_id || "")),
+		// Huelle ohne jede Quellflaeche -> im Editor ausnahmsweise anklickbar, sonst waere das
+		// Gebiet gar nicht mehr erreichbar. Das Signal kommt vom Server, siehe
+		// map-features-region-interactivity.js.
+		derivedIsSourceless: avesmapsRegionDerivedIsSourceless(properties),
 		showInnerBoundaries: properties.show_inner_boundaries !== false,
 		derivedFillActive: properties.derived_fill_active !== false,
 		visualHiddenByDerivedBoundary: properties.visual_hidden_by_derived_boundary === true,

@@ -69,6 +69,9 @@ const SVGX_WAY_OUTLINE_WIDTHS = {
 	Gebirgspass: 0.094, Wuestenpfad: 0.094, Flussweg: 0.156, Seeweg: 0.156,
 };
 
+// Die Ortsfarbe: der Ton der Kartenmarkierung (--color-marker-waypoint in tokens.css).
+const SVGX_PLACE_COLOR = "#e33b35";
+
 const SVGX_POWERLINE_WIDTH = 0.078;   // wie eine Straße
 
 // Gebietsgrenzen. Die Karte staffelt sie nach Hierarchiestufe (map-features-boundary-style.js:
@@ -581,8 +584,13 @@ function svgxAreaLayer(options) {
 			attrs: {
 				fill: (o.colors && o.colors[schluessel]) || o.defaultFill || "none",
 				"fill-rule": "evenodd",
-				stroke: o.stroke || "none",
-				"stroke-width": o.stroke
+				// Eine Kontur nur, wenn fuer diese Gruppe eine Farbe gesetzt ist. Standard: keine.
+				// (Die Karte haelt es genauso -- eine Kontur gehoert dem Bearbeiten, nicht dem
+				// Ansehen, AGENTS.md §12.) Die Herrschaftsgebiete reichen ihre ueber o.stroke.
+				stroke: (o.outlines && o.outlines[schluessel]) || o.stroke || "none",
+				// ⚠️ Dieselbe Bedingung wie oben bei `stroke`. Stand hier nur `o.stroke`, bekam
+				// eine Landschaftskontur ihre Farbe, aber keine Breite -- und war damit unsichtbar.
+				"stroke-width": ((o.outlines && o.outlines[schluessel]) || o.stroke)
 					? String(SVGX_BOUNDARY_WIDTH * svgxStrokeScale(o.strokeScale))
 					: "",
 			},
@@ -634,7 +642,10 @@ function svgxPlaceLayer(options) {
 		stuecke.push(svgxGroupOpen({
 			name: kind.label || slug, id: `orte-${svgxFoldAscii(slug).toLowerCase() || "ohne"}`,
 			dialect: o.dialect,
-			attrs: { fill: (o.colors || {})[slug] || o.color || "#3b2a18", stroke: "none" },
+			// 🔴 Der Ton der Kartenmarkierung (--color-marker-waypoint, "heraldic red"),
+			// nicht das Braun der Schrift. Owner 16.08.2026: "gib orten die farben aus der
+			// markierung (rot)".
+			attrs: { fill: (o.colors || {})[slug] || o.color || SVGX_PLACE_COLOR, stroke: "none" },
 		}));
 		orte.forEach((f) => {
 			const p = svgxPoint(f.geometry.coordinates[0], f.geometry.coordinates[1]);
@@ -790,6 +801,7 @@ function svgxBuildDocument(options) {
 			// eine Ebene TIEFER als die vier Landschafts-Arten, weil die Arten den ABRUF
 			// steuern und die Typen das ZEICHNEN -- zwei verschiedene Fragen.
 			enabled: (o.subgroups || {}).landschaftstypen,
+			outlines: o.areaOutlines,
 			// Was als WASSER gilt und deshalb zuletzt gezeichnet wird. Gemessen an den
 			// Live-Daten: Seen, Meere, Küsten und Flussdeltas sind Wasserflächen; `wadi`
 			// ist ein trockenes Bett und `flussland_flusstal` Bewuchs -- beide gehören
@@ -865,6 +877,7 @@ if (typeof window !== "undefined") {
 		build: svgxBuildDocument,
 		asFeatures: svgxAsFeatures,
 		DIALECTS: SVGX_DIALECTS,
+		PLACE_COLOR: SVGX_PLACE_COLOR,
 		WAY_COLORS: SVGX_WAY_COLORS,
 		WAY_SUBTYPES: SVGX_WAY_SUBTYPES,
 	};
@@ -879,6 +892,7 @@ if (typeof module !== "undefined" && module.exports) {
 		SVGX_WAY_WIDTHS: SVGX_WAY_WIDTHS,
 		SVGX_BOUNDARY_WIDTH: SVGX_BOUNDARY_WIDTH,
 		SVGX_PLACE_KINDS: SVGX_PLACE_KINDS,
+		SVGX_PLACE_COLOR: SVGX_PLACE_COLOR,
 		svgxPoint: svgxPoint,
 		svgxEscapeText: svgxEscapeText,
 		svgxFoldAscii: svgxFoldAscii,

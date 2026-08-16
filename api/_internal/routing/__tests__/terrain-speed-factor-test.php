@@ -151,9 +151,16 @@ assert(count($plan['factors']) === 20,
 
 // --- B4. Das Raster: NUR die Querfeldein-Spalte wandert.
 $raster = $plan['grid'];
-foreach (['groupFoot' => 2.30, 'lightWalker' => 3.07, 'groupHorse' => 2.69,
-          'lightRider' => 3.84, 'caravan' => 2.30, 'horseCarriage' => 3.84] as $mittel => $erwartet) {
-    assert($nah((float) $raster[$mittel]['Querfeldein'], $erwartet, 0.005),
+// 🔴 Werte vom 16.08.2026: Reisetag an Land 8 statt 12 Stunden (WdE S. 160-162). Die Tagesleistung
+// dahinter ist unveraendert (Fussgruppe 30 Meilen), nur der Nenner der Formel hat gewechselt.
+foreach (['groupFoot' => 3.45, 'lightWalker' => 4.61, 'groupHorse' => 4.03,
+          'lightRider' => 5.76, 'caravan' => 3.45, 'horseCarriage' => 5.76] as $mittel => $erwartet) {
+    // ⚠️ Toleranz 0,02 statt 0,005: die Migration rechnet 0,75 x die GERUNDETE Strassenzelle, der
+    // Ruecksetzer 0,75 x den ungerundeten Formelwert. Das trennt beide um bis zu einen Cent
+    // (4,61 x 0,75 = 3,4575 -> 3,46 gegen 4,6053 x 0,75 = 3,4540 -> 3,45). Geprueft wird „0,75 der
+    // Strasse", nicht die zweite Nachkommastelle -- die zu pruefen hiesse, eine Doppelrundung zur
+    // Regel zu erklaeren.
+    assert($nah((float) $raster[$mittel]['Querfeldein'], $erwartet, 0.02),
         "$mittel querfeldein: {$raster[$mittel]['Querfeldein']} statt $erwartet");
 }
 // ⚠️ Und sonst KEINE Zelle. „Ein Deploy, der jede Reisezeit auf jeder Strasse verschiebt, ist keine
@@ -209,12 +216,13 @@ $spalte = static function (PDO $pdo): array {
     return $werte;
 };
 
-// --- C1. Saat -> Migration: die zwanzig bekommen ihren Wert, alles andere bleibt NULL.
+// --- C1. Saat -> Migration: die einundzwanzig bekommen ihren Wert, alles andere bleibt NULL.
 $pdo = $frischeAnlage();
 $plan = avesmapsTravelValuesPlanFromDatabase($pdo);
 assert($plan !== null, 'auf einer gesaeten Tabelle findet die Migration ihre Arten');
 $geschrieben = avesmapsTravelValuesWriteLandscapeFactors($pdo, $plan['factors']);
-assert($geschrieben === 20, "zwanzig Zeilen geschrieben, bekommen: $geschrieben");
+// 21 seit dem 16.08.2026: die Kulturlandschaft kam als elfte Vegetationsart dazu (Idee #77).
+assert($geschrieben === 21, "einundzwanzig Zeilen geschrieben, bekommen: $geschrieben");
 
 $nachher = $spalte($pdo);
 assert($nah((float) $nachher['suempfe_moore'], 0.100, 0.0005), 'Sumpf 0,100: ' . $nachher['suempfe_moore']);
@@ -222,6 +230,18 @@ assert($nah((float) $nachher['wald'], 0.500, 0.0005), 'Wald 0,500: ' . $nachher[
 assert($nah((float) $nachher['wadi'], 0.500, 0.0005), 'Wadi 0,500 (0,75 ÷ 1,50): ' . $nachher['wadi']);
 assert($nah((float) $nachher['graslandschaft'], 0.750, 0.0005),
     'Graslandschaft 0,750 aus der Quelle, NICHT 0,714 aus dem Verhaeltnis: ' . $nachher['graslandschaft']);
+
+// 🔴 DIE KULTURLANDSCHAFT BREMST NICHT, und zwar auf beiden Wegen dorthin (Owner 16.08.2026:
+// „normal, querfeldein is immer bisschen langsamer … nur nicht so wie wald oder dschungel").
+// Auf einer FRISCHEN Anlage laeuft die Migration und schreibt ihr genau die Basis 0,750: sie hat
+// keine GA-Zeile, also greift der Verhaeltniszweig, und ihr offroad_factor ist die Vorgabe 1,00.
+// Auf der LIVE-Datenbank ist die Migration laengst durch (Merker app_setting['travel_values_v1']),
+// dort bleibt die Zeile NULL. Beides ist dasselbe Verhalten: avesmapsOffroadLoadFactorPlane laedt
+// nur Arten mit `terrain_speed_factor IS NOT NULL AND < :base`, und 0,750 ist nicht kleiner als
+// 0,750. Wer ihr spaeter einen offroad_factor gibt, macht sie hier lautlos zur Bremse -- diese
+// Zusicherung ist die Stelle, die das meldet.
+assert($nah((float) $nachher['kulturlandschaft'], 0.750, 0.0005),
+    'Kulturlandschaft genau auf offenem Boden: ' . $nachher['kulturlandschaft']);
 
 // 🔴 Wasser, Regionen und Klimabaender bleiben ohne Aussage.
 foreach (['see', 'meer', 'region', 'kontinent', 'polar', 'tropisch'] as $schluessel) {
@@ -366,9 +386,10 @@ foreach ([0.749, 0.700, 0.500, 0.200, 0.100, 0.040] as $faktor) {
 // kam dazu, und der Waechter hat es gemeldet, statt es durchgehen zu lassen. Die Liste bleibt
 // deshalb ausgeschrieben -- ein `count()` haette dasselbe gezaehlt und nichts benannt.
 $abgelegt = avesmapsTravelValuesStorableShape(avesmapsTravelValuesRead(null));
+// ⭐ Und am 16.08.2026 ein zweites Mal: `travel_hours` (der einstellbare Reisetag) kam dazu.
 assert(array_keys($abgelegt) === ['grid', 'day_miles', 'path_factors', 'ground_penalties',
-    'river_ratio', 'calibration_target_miles', 'offroad_ramp'],
-    'die Ablageform hat genau sieben Schluessel: ' . implode(', ', array_keys($abgelegt)));
+    'river_ratio', 'calibration_target_miles', 'offroad_ramp', 'travel_hours'],
+    'die Ablageform hat genau acht Schluessel: ' . implode(', ', array_keys($abgelegt)));
 // ⚠️ `source` sagt, WOHER die Werte kamen (Speicher oder Konstante). Mitgespeichert waere es beim
 // naechsten Lesen eine Behauptung ueber sich selbst.
 assert(!array_key_exists('source', $abgelegt), '`source` wird nicht mitgespeichert');
@@ -486,8 +507,10 @@ $liste = avesmapsTravelValuesReadLandscapes($pdoH);
 $nachSchluessel = [];
 foreach ($liste as $zeile) { $nachSchluessel[$zeile['type_key']] = $zeile; }
 
-// --- H1. Zwanzig Arten, jede mit dem, was die Zeile anzeigen soll.
-assert(count($liste) === 20, 'zwanzig Landschaftsarten im Fenster: ' . count($liste));
+// --- H1. Einundzwanzig Arten, jede mit dem, was die Zeile anzeigen soll.
+// 21 seit dem 16.08.2026 (Kulturlandschaft, Idee #77). Die Liste kommt aus der Datenbank, eine neue
+// Art steht also ohne eine Zeile Code im Fenster -- genau deshalb wandert die Zahl hier mit.
+assert(count($liste) === 21, 'einundzwanzig Landschaftsarten im Fenster: ' . count($liste));
 foreach (['kind', 'type_key', 'label', 'factor', 'source', 'area_count'] as $feld) {
     assert(array_key_exists($feld, $liste[0]), "jede Zeile traegt `$feld`");
 }
@@ -498,6 +521,10 @@ assert($nah((float) $nachSchluessel['wald']['source'], 0.500, 0.0005), 'und die 
 // Fenster eine Quelle, die es fuer sie nicht gibt (Entwurf §4.3).
 assert($nachSchluessel['wadi']['source'] === null, 'das Wadi hat keine Quellenzeile');
 assert($nachSchluessel['kueste']['source'] === null, 'die Kueste ebenso wenig');
+// Und die Kulturlandschaft schon gar nicht: sie ist eine Setzung des Owners (Idee #77), die GA kennt
+// sie ueberhaupt nicht. Im Fenster steht in ihrer Quellenspalte darum „—".
+assert($nachSchluessel['kulturlandschaft']['source'] === null,
+    'die Kulturlandschaft steht in keiner Quelle');
 
 // --- H2. Wasser und fremde Ebenen kommen gar nicht vor.
 foreach (['see', 'meer', 'region', 'kontinent', 'polar'] as $schluessel) {

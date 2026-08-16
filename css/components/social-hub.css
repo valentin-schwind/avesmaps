@@ -570,7 +570,12 @@
 	cursor: pointer;
 }
 
+/* 💣 `__check` wird der Regel BEIGESTELLT, nicht abgeschrieben. Sie heisst `__radio`, beschreibt aber
+   nichts Radio-Spezifisches: „Eingabefeld + fette Zeile + kleine Zeile darunter". Eine vierte Kopie
+   waere genau die Divergenz, gegen die AGENTS.md §11 die Listenzeilen auf zwei Rezepturen gedeckelt
+   hat -- und beim Abschreiben faellt regelmaessig die Skala (die 12px unten). */
 .social-hub__radio,
+.social-hub__check,
 .social-hub__channel {
 	display: flex;
 	align-items: flex-start;
@@ -580,8 +585,26 @@
 	cursor: pointer;
 }
 
-.social-hub__radio:first-of-type {
+/* 💣 Hier stand `.social-hub__radio:first-of-type`, und das traf NIE. `:first-of-type` meint das erste
+   Geschwister desselben TAGS -- die Zeilen sind <label>, und vor ihnen stehen die
+   <label class="social-hub__label"> der Gruppenueberschriften. Das erste <label> der Spalte ist die
+   Titelzeile, nie eine Radiozeile. Die Regel stand seit dem Ursprungs-Commit (10.08.2026) tot da, und
+   beide Lizenzzeilen trugen ihre Linie -- eine davon direkt unter der Ueberschrift.
+   Deshalb steht jetzt da, was gemeint war: die Linie sitzt ZWISCHEN zwei Zeilen. Ueber der ersten
+   steht keine, denn dort trennt schon die Ueberschrift -- dieselbe Gruppierung wie bei den Kanaelen
+   darunter (`.social-hub__channel-row:first-child`, das trifft) und dieselbe Regel wie in
+   docs/design-language.md: Trennlinie plus Ueberschrift, kein Kasten. Owner-Entscheid 16.08.2026.
+   💣 `__check` steht mit drin, obwohl es heute nur EINE Zeile gibt: die Gruppe „KI-Kennzeichnung"
+   sitzt direkt neben den Lizenzen in derselben Spalte, und eine Linie unter ihrer Ueberschrift
+   waere genau der Unterschied, den dieser Commit wegnimmt. */
+.social-hub__radio,
+.social-hub__check {
 	border-top: 0;
+}
+
+.social-hub__radio + .social-hub__radio,
+.social-hub__check + .social-hub__check {
+	border-top: 1px solid var(--color-divider);
 }
 
 /* 💣 Die Trennlinie sitzt an der ZEILE, nicht mehr am Label darin. Seit der Einrichtungsknopf in der
@@ -604,6 +627,7 @@
 }
 
 .social-hub__radio span,
+.social-hub__check span,
 .social-hub__channel span {
 	display: flex;
 	flex-direction: column;
@@ -611,6 +635,7 @@
 }
 
 .social-hub__radio small,
+.social-hub__check small,
 .social-hub__channel-meta {
 	font-size: 12px;
 	color: var(--color-text-muted);

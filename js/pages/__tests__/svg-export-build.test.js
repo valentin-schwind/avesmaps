@@ -550,3 +550,28 @@ console.log("svg-export-build (Flächen glätten): ok");
 }
 
 console.log("svg-export-build (Passmarken): ok");
+
+// ---- 19. Ortsfarbe + optionale Flächenkontur ------------------------------------------
+{
+	// 🔴 Orte tragen den Ton der Kartenmarkierung (--color-marker-waypoint), nicht das
+	// Braun der Schrift -- Owner 16.08.2026.
+	assert.strictEqual(B.SVGX_PLACE_COLOR, "#e33b35", "Ortsfarbe = --color-marker-waypoint");
+	const svg = B.svgxBuildDocument({ mapFeatures: payload, dialect: D.INKSCAPE }).parts.join("");
+	assert.ok(svg.includes('fill="#e33b35"'), "ohne eigene Wahl sind Orte im Markierungsrot");
+
+	// Flächenkonturen: standardmäßig AUS.
+	const eco = [{ public_id: "e1", region_name: "Ein Wald", region_type: "wald", kind: "vegetation",
+		geometry: { type: "Polygon", coordinates: [[[0, 1024], [8, 1024], [8, 1016], [0, 1024]]] } }];
+	const nurLand = { landschaften: true, gebiete: false, wege: false, kraftlinien: false,
+		orte: false, beschriftungen: false };
+	const ohne = B.svgxBuildDocument({ ecosystems: eco, dialect: D.INKSCAPE, layers: nurLand })
+		.parts.join("");
+	assert.ok(/stroke="none"/.test(ohne), "eine Landschaftsfläche hat standardmäßig KEINE Kontur");
+
+	const mit = B.svgxBuildDocument({ ecosystems: eco, dialect: D.INKSCAPE, layers: nurLand,
+		areaOutlines: { wald: "#123456" } }).parts.join("");
+	assert.ok(mit.includes('stroke="#123456"'), "mit Farbe bekommt die Fläche ihre Kontur");
+	assert.ok(/stroke-width="0\.094"/.test(mit), "und eine Strichstärke dazu");
+}
+
+console.log("svg-export-build (Ortsfarbe + Flächenkontur): ok");

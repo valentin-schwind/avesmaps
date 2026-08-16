@@ -91,12 +91,12 @@ const AVESMAPS_ROUTE_CLIENT_SEA_ROUTE_TYPES = ['Seeweg'];
 // sie zurueckzusetzen verschoebe jede Reisezeit auf jeder Strasse, und das entscheidet der Owner im
 // Fenster „Tempowerte", nicht ein Deploy.
 const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
-    'groupFoot' => ['Reichsstrasse' => 3.45, 'Strasse' => 3.07, 'Weg' => 2.69, 'Pfad' => 2.3, 'Gebirgspass' => 1.15, 'Wuestenpfad' => 1.92, 'Querfeldein' => 2.3],
-    'lightWalker' => ['Reichsstrasse' => 4.5, 'Strasse' => 4.09, 'Weg' => 3.68, 'Pfad' => 3.27, 'Gebirgspass' => 1.64, 'Wuestenpfad' => 2.86, 'Querfeldein' => 3.07],
-    'groupHorse' => ['Reichsstrasse' => 3.86, 'Strasse' => 3.58, 'Weg' => 3.03, 'Pfad' => 2.48, 'Gebirgspass' => 1.38, 'Wuestenpfad' => 1.65, 'Querfeldein' => 2.69],
-    'lightRider' => ['Reichsstrasse' => 5.44, 'Strasse' => 5.12, 'Weg' => 4.48, 'Pfad' => 3.84, 'Gebirgspass' => 1.92, 'Wuestenpfad' => 2.56, 'Querfeldein' => 3.84],
-    'caravan' => ['Reichsstrasse' => 3.51, 'Strasse' => 3.07, 'Weg' => 2.63, 'Pfad' => 2.19, 'Gebirgspass' => 1.32, 'Wuestenpfad' => 1.75, 'Querfeldein' => 2.3],
-    'horseCarriage' => ['Reichsstrasse' => 5.59, 'Strasse' => 5.12, 'Weg' => 2.09, 'Pfad' => 2.79, 'Gebirgspass' => 0.93, 'Wuestenpfad' => 2.79, 'Querfeldein' => 3.84],
+    'groupFoot' => ['Reichsstrasse' => 5.18, 'Strasse' => 4.61, 'Weg' => 4.04, 'Pfad' => 3.45, 'Gebirgspass' => 1.73, 'Wuestenpfad' => 2.88, 'Querfeldein' => 3.45],
+    'lightWalker' => ['Reichsstrasse' => 6.75, 'Strasse' => 6.14, 'Weg' => 5.52, 'Pfad' => 4.91, 'Gebirgspass' => 2.46, 'Wuestenpfad' => 4.29, 'Querfeldein' => 4.61],
+    'groupHorse' => ['Reichsstrasse' => 5.79, 'Strasse' => 5.37, 'Weg' => 4.55, 'Pfad' => 3.72, 'Gebirgspass' => 2.07, 'Wuestenpfad' => 2.48, 'Querfeldein' => 4.03],
+    'lightRider' => ['Reichsstrasse' => 8.16, 'Strasse' => 7.68, 'Weg' => 6.72, 'Pfad' => 5.76, 'Gebirgspass' => 2.88, 'Wuestenpfad' => 3.84, 'Querfeldein' => 5.76],
+    'caravan' => ['Reichsstrasse' => 5.27, 'Strasse' => 4.61, 'Weg' => 3.95, 'Pfad' => 3.29, 'Gebirgspass' => 1.98, 'Wuestenpfad' => 2.63, 'Querfeldein' => 3.45],
+    'horseCarriage' => ['Reichsstrasse' => 8.39, 'Strasse' => 7.68, 'Weg' => 3.14, 'Pfad' => 4.19, 'Gebirgspass' => 1.4, 'Wuestenpfad' => 4.19, 'Querfeldein' => 5.76],
     'riverSailer' => ['Flussweg' => 6.0],
     'riverBarge' => ['Flussweg' => 4.0],
     'cargoShip' => ['Seeweg' => 11.9],
@@ -1805,7 +1805,13 @@ function avesmapsFindClientCompatibleRoute(array $clientGraph, string $startName
             foreach (is_array($connections) ? $connections : [] as $connection) {
                 $transport = (string) ($connection['transport_option'] ?? '');
                 if ($transport === '') continue;
-                $weight = $useShortestPath ? (float) ($connection['distance'] ?? 0.0) : (float) ($connection['time'] ?? 0.0);
+                // 💣 DAS GEWICHT IST KALENDERZEIT, die gemeldete `time` bleibt die reine Reisestunde
+                // (avesmapsTravelValuesWeightFactor, travel-values.php). Ohne den Faktor gewaenne seit
+                // dem 8-Stunden-Reisetag an Land eine Landetappe gegen eine Wasseretappe, die FRUEHER
+                // ankommt -- „Schnellste" hiesse dann nicht mehr fruehestens da.
+                $weight = $useShortestPath
+                    ? (float) ($connection['distance'] ?? 0.0)
+                    : (float) ($connection['time'] ?? 0.0) * avesmapsTravelValuesWeightFactor($transport);
                 if ($minimizeTransfers && $currentTransport !== null && $transport !== $currentTransport) $weight += AVESMAPS_ROUTE_CLIENT_TRANSFER_PENALTY;
                 $alternative = $currentDistance + $weight;
                 if ($alternative < ($distances[$neighbor] ?? INF)) {

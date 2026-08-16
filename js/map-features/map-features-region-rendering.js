@@ -451,11 +451,12 @@ function addRegionFeatureToMap(region, regionEntry) {
 			// sieht/gelabelt ist), nicht eine tiefere. Da pro Punkt mehrere Derived-Huellen verschiedener
 			// Baender übereinanderliegen, ist nur die FUELLENDE/aktive Huelle (derivedFillActive) interaktiv.
 			// Source-Geometrien nur als echte Blaetter (keine Derived-Huelle fürs Territorium).
-			interactive: IS_EDIT_MODE
-				? !regionEntry.isDerivedGeometry
-				: (regionEntry.source === "political_territory"
-					&& isAtActiveDisplayZoom
-					&& (regionEntry.isDerivedGeometry || !isAggregatedSourceFragment)),
+			interactive: avesmapsRegionPolygonIsInteractive({
+				isEditMode: IS_EDIT_MODE,
+				regionEntry,
+				isAtActiveDisplayZoom,
+				isAggregatedSourceFragment,
+			}),
 		});
 		polygon._regionEntry = regionEntry;
 		polygon._regionPolygonIndex = index;

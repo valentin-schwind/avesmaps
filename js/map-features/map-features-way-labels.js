@@ -364,7 +364,7 @@ function buildWayLabelEligibilityContext() {
 		powerlines: typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines",
 		pathsToggle: typeof $ === "function" ? $("#togglePaths").is(":checked") : true,
 		riverLabels: pathRiverLabelsVisible,
-		zoomOk: map.getZoom() >= LOCATION_NAME_LABEL_CONFIG.dorf.minZoom,
+		zoomOk: map.getZoom() >= PATH_LABEL_MIN_ZOOM,
 	};
 }
 

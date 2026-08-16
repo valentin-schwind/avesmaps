@@ -20,7 +20,6 @@ global.IS_EDIT_MODE = true;
 global.CROSSING_LOCATION_TYPE = "crossing";
 global.activeMapStyle = "stylized";
 global.VISUAL_MAX_ZOOM_LEVEL = 5;
-global.LOCATION_NAME_LABEL_CONFIG = { dorf: { minZoom: 2 }, gebaeude: { minZoom: 3 } };
 
 let checkedToggles = new Set();
 let visibleTypes = new Set();
@@ -36,6 +35,9 @@ global.isNodixLocation = (location) => Boolean(location?.isNodix);
 global.isCrossingLocation = (location) => Boolean(location?.isCrossing);
 global.avesmapsRevealedHiddenLocationIds = new Set();
 
+// Die Erscheinungsstufen kommen seit dem 16.08.2026 aus dem Zoomband, nicht mehr aus einer
+// Konstante -- also die echte Datei laden statt sie zu stubben.
+loadBrowserScript(path.join(__dirname, "../location-zoom-bands.js"));
 loadBrowserScript(path.join(__dirname, "../map-features-location-marker-rendering.js"));
 loadBrowserScript(path.join(__dirname, "../map-features-location-name-labels.js"));
 

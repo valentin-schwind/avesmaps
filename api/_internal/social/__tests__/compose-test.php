@@ -140,4 +140,41 @@ assert(in_array('#PnPde', AVESMAPS_SOCIAL_HASHTAG_VOCABULARY, true)
     && !in_array('#pnp', $lowercased, true),
     'the German-language pen-and-paper tag, not the worldwide one');
 
+
+// ---- the ceiling a routine proposal must clear ---------------------------------------------------------
+
+// 💣 THE FAILURE THIS EXISTS FOR (16.08.2026): the feature routine filed a proposal whose text was
+// 479 characters -- comfortably under Mastodon's 500 -- and Mastodon refused it. The hashtags are
+// delivered INSIDE the text, so the caption was 479 + 2 + 28 = 509. Whoever measures only the text
+// measures the wrong thing, and api/social/routine-post.php answered ok:true to it.
+$tags = ['#DasSchwarzeAuge', '#Aventurien'];
+$all = ['facebook', 'instagram', 'mastodon'];
+
+$hit = avesmapsSocialWorstOverLimit(str_repeat('x', 479), $tags, $all);
+assert($hit !== null, 'a 479-character text plus two hashtags does NOT fit Mastodon');
+assert($hit['key'] === 'mastodon' && $hit['total_chars'] === 509 && $hit['max_chars'] === 500
+    && $hit['over_by'] === 9,
+    'and the report names the channel, the size and the overhang -- the numbers the author has to cut by');
+
+// The same text WITHOUT hashtags fits. This pair is the whole point: the tags are what tipped it over,
+// and a check that skips them reports "fine" on the exact input that failed in public.
+assert(avesmapsSocialWorstOverLimit(str_repeat('x', 479), [], $all) === null,
+    'without hashtags the identical text is inside every limit');
+
+// The worst offender, not the first one found: iteration order must not decide which channel is named,
+// because cutting to the tightest is what makes all of them pass.
+$worst = avesmapsSocialWorstOverLimit(str_repeat('x', 2500), ['#A'], ['instagram', 'mastodon']);
+assert($worst !== null && $worst['key'] === 'mastodon',
+    'Instagram overflows first in reading order, Mastodon overflows FURTHER -- the report names Mastodon');
+
+// A channel with no ceiling, and an unknown key, are skipped rather than counted as a violation.
+assert(avesmapsSocialWorstOverLimit(str_repeat('x', 100), $tags, $all) === null, 'a short text passes');
+assert(avesmapsSocialWorstOverLimit(str_repeat('x', 99999), [], ['gibtsnicht']) === null,
+    'an unknown channel has no limit to break');
+
+// 🔴 The fallback target carries a ceiling too (Probe, 500). A proposal that would be refused on
+// every real network must not slip through just because none of them happened to be configured.
+assert(avesmapsSocialChannel('probe')['max_chars'] === 500,
+    'the probe channel is measured like the rest -- otherwise an unconfigured server accepts anything');
+
 fwrite(STDOUT, "compose-test: OK\n");

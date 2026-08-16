@@ -156,7 +156,11 @@ function getPowerlineLabelStyle() {
 		strokeWidth: "0",
 		paintOrder: "fill",
 		fontFamily: '"Faculty Glyphic", Georgia, "Times New Roman", serif',
-		fontSize: `${Math.max(18, getLocationNameLabelSize("dorf") + 7)}px`,
+		// ⭐ Nachgerechnet ist dieser Wert heute IMMER 18: die Grundtafel erreicht höchstens 11,
+		// 11 + 7 = 18. Die Kopplung an die Ortsschrift war hier also schon vor dem Umbau
+		// wirkungslos -- der Aufruf bleibt trotzdem stehen, damit die Stellschraube nicht
+		// verschwindet (Entwurf 2026-08-16-zoombaender-design.md §6).
+		fontSize: `${Math.max(18, getPathLabelBaseSize() + 7)}px`,
 		fontWeight: "500",
 		letterSpacing: "0",
 	};

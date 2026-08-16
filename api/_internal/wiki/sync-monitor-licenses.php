@@ -136,10 +136,11 @@ function avesmapsWikiSyncMonitorParseLicense(string $wikitext): array {
         // whichever of nc/nd/sa occur, always appended in that order regardless of how they were
         // written. The substring test mirrors the template's own {{#pos:}} checks. {{CC|0}} is
         // CC0 and is caught above -- this branch must stay below it.
-        // NOTE for the pending Free-Art/attribution decision: nc/nd land in attribution_required
-        // because this vocabulary has no value between it and unknown, but naming the author does
-        // NOT make them publishable. The label keeps the restriction legible; read it, not just
-        // the status, before widening the gate.
+        // 🔴 Fuenf Lizenzformen, EIN Status: CC-BY, CC-BY-SA, CC-BY-NC/ND, generisches "Creative Commons"
+        // und GFDL fallen saemtlich auf 'cc_by'. Das ist kein Genauigkeitsverlust, den man beheben sollte:
+        // alle fuenf sind "wird gespeichert, aber nicht gezeigt" (Entwurf §2), und die genaue Bezeichnung
+        // bleibt im Klartextfeld coat_of_arms_license stehen. Bis 16.08.2026 hiess der Status
+        // 'attribution_required'; er wurde in Phase 2 auf die Katalog-Kennung umgestellt.
         $param = strtolower($match[1]);
         $version = preg_match('/(\d)\D?(\d)/u', $param, $ccVersion) === 1
             ? $ccVersion[1] . '.' . $ccVersion[2]
@@ -151,29 +152,29 @@ function avesmapsWikiSyncMonitorParseLicense(string $wikitext): array {
             }
         }
         $license = 'CC-BY' . strtoupper($terms) . '-' . $version;
-        $status = 'attribution_required';
+        $status = 'cc_by';
         $licenseUrl = 'https://creativecommons.org/licenses/by' . $terms . '/' . $version . '/';
     } elseif (preg_match('/cc[\s_-]?by[\s_-]?sa[\s_-]?([0-9]\.[0-9])?/iu', $wikitext, $match) === 1) {
         $version = $match[1] ?? '';
         $license = 'CC-BY-SA' . ($version !== '' ? '-' . $version : '');
-        $status = 'attribution_required';
+        $status = 'cc_by';
         $licenseUrl = 'https://creativecommons.org/licenses/by-sa/' . ($version !== '' ? $version : '3.0') . '/';
     } elseif (preg_match('/cc[\s_-]?by[\s_-]?([0-9]\.[0-9])?/iu', $wikitext, $match) === 1) {
         $version = $match[1] ?? '';
         $license = 'CC-BY' . ($version !== '' ? '-' . $version : '');
-        $status = 'attribution_required';
+        $status = 'cc_by';
         $licenseUrl = 'https://creativecommons.org/licenses/by/' . ($version !== '' ? $version : '3.0') . '/';
     } elseif (preg_match('/creative\s*commons/iu', $wikitext) === 1) {
         $license = 'Creative Commons';
-        $status = 'attribution_required';
+        $status = 'cc_by';
     } elseif (preg_match('/\bGFDL\b|GNU.{0,40}Free.{0,40}Documentation/iu', $wikitext) === 1) {
         $license = 'GFDL';
-        $status = 'attribution_required';
+        $status = 'cc_by';
         $licenseUrl = 'https://www.gnu.org/licenses/fdl-1.3.html';
     }
 
     $attribution = '';
-    if ($status === 'attribution_required') {
+    if ($status === 'cc_by') {
         $attribution = trim(($author !== '' ? $author : 'Unbekannter Urheber') . ' (' . $license . ')');
     }
 
@@ -260,7 +261,7 @@ function avesmapsWikiSyncMonitorEnrichLicenses(PDO $pdo, array $options = []): a
     );
 
     $processed = 0;
-    $byStatus = ['public_domain' => 0, 'attribution_required' => 0, 'unknown' => 0];
+    $byStatus = ['public_domain' => 0, 'cc_by' => 0, 'unknown' => 0];
     foreach ($rows as $row) {
         $wikiKey = (string) $row['wiki_key'];
         $fileTitle = $fileByWikiKey[$wikiKey] ?? '';

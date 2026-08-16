@@ -43,14 +43,14 @@ var WP_MEILEN_PER_MAPUNIT = 3.0;
 // Wegtypen weichen weiterhin von der Quelle ab, und das bleibt so, bis der Owner sie im Fenster
 // „Tempowerte" zurücksetzt.
 var WP_SPEEDS = {
-	lightRider:    { label: "Reiter",               Reichsstrasse: 5.44, Strasse: 5.12, Weg: 4.48, Pfad: 3.84, Gebirgspass: 1.92, Wuestenpfad: 2.56, Querfeldein: 3.84 },
-	groupHorse:    { label: "Reisegruppe beritten", Reichsstrasse: 3.86, Strasse: 3.58, Weg: 3.03, Pfad: 2.48, Gebirgspass: 1.38, Wuestenpfad: 1.65, Querfeldein: 2.69 },
+	lightRider:    { label: "Reiter",               Reichsstrasse: 8.16, Strasse: 7.68, Weg: 6.72, Pfad: 5.76, Gebirgspass: 2.88, Wuestenpfad: 3.84, Querfeldein: 5.76 },
+	groupHorse:    { label: "Reisegruppe beritten", Reichsstrasse: 5.79, Strasse: 5.37, Weg: 4.55, Pfad: 3.72, Gebirgspass: 2.07, Wuestenpfad: 2.48, Querfeldein: 4.03 },
 	// Weg and Gebirgspass carry the source's carriage rule („auf Karrenwegen und Pässen nur halbe
 	// Geschwindigkeit", S. 123) and are therefore HALF of what the path-type factor alone would give.
-	horseCarriage: { label: "Kutsche",              Reichsstrasse: 5.59, Strasse: 5.12, Weg: 2.09, Pfad: 2.79, Gebirgspass: 0.93, Wuestenpfad: 2.79, Querfeldein: 3.84 },
-	lightWalker:   { label: "Zu Fuß",               Reichsstrasse: 4.5, Strasse: 4.09, Weg: 3.68, Pfad: 3.27, Gebirgspass: 1.64, Wuestenpfad: 2.86, Querfeldein: 3.07 },
-	groupFoot:     { label: "Reisegruppe zu Fuß",   Reichsstrasse: 3.45, Strasse: 3.07, Weg: 2.69, Pfad: 2.3, Gebirgspass: 1.15, Wuestenpfad: 1.92, Querfeldein: 2.3 },
-	caravan:       { label: "Karawane",             Reichsstrasse: 3.51, Strasse: 3.07, Weg: 2.63, Pfad: 2.19, Gebirgspass: 1.32, Wuestenpfad: 1.75, Querfeldein: 2.3 }
+	horseCarriage: { label: "Kutsche",              Reichsstrasse: 8.39, Strasse: 7.68, Weg: 3.14, Pfad: 4.19, Gebirgspass: 1.4, Wuestenpfad: 4.19, Querfeldein: 5.76 },
+	lightWalker:   { label: "Zu Fuß",               Reichsstrasse: 6.75, Strasse: 6.14, Weg: 5.52, Pfad: 4.91, Gebirgspass: 2.46, Wuestenpfad: 4.29, Querfeldein: 4.61 },
+	groupFoot:     { label: "Reisegruppe zu Fuß",   Reichsstrasse: 5.18, Strasse: 4.61, Weg: 4.04, Pfad: 3.45, Gebirgspass: 1.73, Wuestenpfad: 2.88, Querfeldein: 3.45 },
+	caravan:       { label: "Karawane",             Reichsstrasse: 5.27, Strasse: 4.61, Weg: 3.95, Pfad: 3.29, Gebirgspass: 1.98, Wuestenpfad: 2.63, Querfeldein: 3.45 }
 };
 
 // The LAND way types, in the order the pictures are drawn.

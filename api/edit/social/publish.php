@@ -108,6 +108,14 @@ try {
     // beim naechsten Zustand liefen sie auseinander. Woher er kommt, steht in `origin`.
     $isDraft = ($request['draft'] ?? false) === true;
 
+    // Die KI-Erklärung (Entwurf `2026-08-16-ki-kennzeichnung-design.md`). Sie gilt dem BEITRAG, nicht
+    // einem Kanal: welches Netz daraus etwas macht, entscheidet der jeweilige Adapter -- Facebook nur
+    // an einem Bild, Instagram immer, Mastodon und „Neuigkeiten" gar nicht.
+    //
+    // ⚠️ Streng auf `=== true` geprüft, wie `draft` daneben: ein fehlendes Feld oder ein "false" aus
+    // einem alten Client heißt „nicht erklärt", nie „erklärt".
+    $aiDeclared = ($request['ai_declared'] ?? false) === true;
+
     // ---- einen wartenden Entwurf ÄNDERN ------------------------------------------------------------
     //
     // 🔴 Ändern, nicht ersetzen. Bis 11.08.2026 verwarf der Client den alten Entwurf und legte einen
@@ -128,6 +136,7 @@ try {
             'media_license' => (string) ($request['media_license'] ?? ''),
             'media_source' => (string) ($request['media_source'] ?? ''),
             'media_alt' => (string) ($request['media_alt'] ?? ''),
+            'ai_declared' => $aiDeclared,
         ], $selected);
         if (!$ok) {
             // Kein 404: die id gibt es meist sehr wohl -- sie ist nur kein Entwurf mehr. Der Satz sagt
@@ -155,6 +164,7 @@ try {
         // Leer ist erlaubt: dann wird KEINE gesendet, statt eine erfundene -- ein Screenreader, dem
         // man den Beitragstext als Bildbeschreibung vorliest, hoert denselben Satz zweimal.
         'media_alt' => (string) ($request['media_alt'] ?? ''),
+        'ai_declared' => $aiDeclared,
         'origin' => 'editor',
         'state' => $isDraft ? 'proposal' : 'released',
         'author_user_id' => (int) ($user['id'] ?? 0),

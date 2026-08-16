@@ -205,16 +205,19 @@
   .dt-img-license { font:inherit; font-size:11px; padding:3px 5px; border:1px solid var(--line2); border-radius:4px; background:var(--panel); color:var(--fg); cursor:pointer; }
   .dt-img-license--hidden { border-color:var(--warn); color:var(--warn); }
   .dt-img-note { font:inherit; font-size:11px; padding:4px 5px; border:1px solid var(--line2); border-radius:4px; background:var(--panel); color:var(--fg); resize:vertical; min-height:32px; }
-  .dt-grp { font-size:11px; font-weight:bold; color:var(--mut); border-top:1px solid var(--line); padding-top:6px; margin-top:8px; }
-  .dt-grp:first-of-type { border-top:none; margin-top:0; }
-  /* Beschriftungsspalte aus dem gemeinsamen Token (Spec §3.1c), damit die Feldkanten in allen drei
-     Editoren an derselben Stelle stehen -- vorher 0.35fr hier, feste 130px im Kartensammlungs-
-     Editor, gestapelt im Abenteuer-Editor. */
-  .dt-grid { display:grid; grid-template-columns:var(--avm-field-label-w) minmax(0,1fr); gap:0; font-size:12px; margin:4px 0 0; }
-  .dt-grid .k { color:var(--color-text-muted); font-weight:bold; white-space:nowrap; padding:5px 6px 5px 0; vertical-align:top; }
-  .dt-grid > div:not(.k) { padding:5px 0; color:var(--color-text); min-width:0; overflow-wrap:anywhere; }
+  /* 💣 Hier stand die ZWEITE Fassung von .dt-grp/.dt-grid/.dt-link -- die Vorlage, von der der
+     Kraftlinien-Editor und der Monitor abgeschrieben haben. Der Block laedt NACH
+     css/components/editor-page.css und gewann bei gleicher Spezifitaet die Kaskade; gedriftet war
+     sie laengst: Feldtext 12px statt var(--font-size-body), Zeilenpolster 5px statt var(--space-2),
+     .dt-grp margin-top:8px statt var(--space-8) (10px). Entfernt am 16.08.2026.
+     🪤 Und die Lehre aus der Messung: die Abschrift deklarierte WENIGER als das Original, also
+        wirkte ein Teil der geteilten Regel laengst mit. Gemessen vorher wie nachher gleich:
+        .dt-grp stand schon auf display:flex + gap:6px, .dt-link schon auf text-decoration:none,
+        .dt-badge unveraendert bei margin-left:5px. Beides war als Aenderung VORHERGESAGT und von
+        der Messung widerlegt -- eine Zweitschrift ueberstimmt nur, was sie auch hinschreibt.
+     ⚠️ .dt-badge bleibt hier: sein margin-left:5px hat in der geteilten Datei kein Gegenstueck.
+     Gewacht von js/pages/__tests__/editor-row-single-source.test.js. */
   .dt-badge { font-size:var(--font-size-caption); color:var(--mut); border:1px solid var(--line2); border-radius:8px; padding:0 6px; margin-left:5px; white-space:nowrap; }
-  .dt-link { color:var(--accent); }
   /* Territorium-Zuordnung: der Kern-Control dieses Editors. */
   .dt-territory-badge { display:inline-flex; align-items:center; gap:5px; padding:4px 8px; border-radius:5px; font-weight:bold; font-size:12px; }
   .dt-territory-badge.ok { background:var(--color-success-soft); border:1px solid var(--color-success-soft-border); color:var(--ok); }

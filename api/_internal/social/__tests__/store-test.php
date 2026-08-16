@@ -109,4 +109,31 @@ assert(!isset($map['instagram']), 'and a channel without a row appears nowhere -
 assert(avesmapsSocialTokenKeys($pdo) === ['facebook', 'mastodon'],
     'and the availability check sees the same two channels');
 
+// ---- die KI-Erklaerung ist an ALLEN VIER Stellen verdrahtet ---------------------------------------
+//
+// ⚠️ EINE VERDRAHTUNGSPRUEFUNG, KEINE VERHALTENSPRUEFUNG, und sie gibt sich auch nicht als solche
+// aus: die echte DDL ist MySQL (siehe Kopf), auf sqlite laeuft sie nicht, und ob eine Spalte einen
+// Neustart ueberlebt, entscheidet sich live. Was hier geprueft wird, ist die Fehlerklasse, die
+// dieses Projekt schon zweimal teuer bezahlt hat (AGENTS.md §11, „vier Erzeuger"): eine Angabe, die
+// nur an DREI der vier noetigen Stellen steht, wirkt bei einem Teil der Faelle einfach nicht.
+//
+// 💣 Besonders die dritte: `avesmapsSocialUpdateProposal` OHNE die Spalte im SET liesse sich das
+// Haekchen setzen, aber nie wieder abhaken -- und das faellt niemandem auf, weil das Formular es
+// beim naechsten Oeffnen brav wieder anzeigt.
+$storeQuelle = (string) file_get_contents(__DIR__ . '/../store.php');
+foreach ([
+    'CREATE TABLE' => 'ai_declared TINYINT(1) NOT NULL DEFAULT 0,',
+    'die Nachruestung bestehender Anlagen' => 'ADD COLUMN ai_declared',
+    'das Anlegen' => ':ai_declared',
+    'das Aendern eines Entwurfs' => 'ai_declared = :ai_declared',
+] as $stelle => $nadel) {
+    assert(str_contains($storeQuelle, $nadel),
+        'die KI-Erklaerung fehlt bei: ' . $stelle . ' (' . $nadel . ')');
+}
+// 💣 Und die Nachruestung braucht eine EIGENE Bedingung. Haengte sie an der von `title` oder
+// `media_alt` mit, uebersprungen sie jede Anlage, die jene Spalten laengst hat -- der Fehler faellt
+// dann erst beim ersten Schreibvorgang auf, als SQL-Fehler statt als Nachruestung.
+assert(str_contains($storeQuelle, "!isset(\$existingColumns['ai_declared'])"),
+    'die Nachruestung fragt ai_declared eigens ab, nicht im Windschatten einer anderen Spalte');
+
 fwrite(STDOUT, "store-test: OK\n");

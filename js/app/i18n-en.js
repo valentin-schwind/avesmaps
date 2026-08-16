@@ -24,7 +24,7 @@ window.AVESMAPS_I18N_EN = {
 	// V12, edit mode only.
 	"planner.showRouteSpeed": "Speed",
 	"planner.showRouteSpeed.title": "Arrows along the planned route: short and red-brown where terrain or current slow you down, long and green where you gain. The length shows the deviation from the way type's base speed, not the absolute speed.",
-	"planner.travelHours.title": "Travel hours per day; the rest of the day is spent resting. A rest is only taken once the day's travel hours are used up and there is still road ahead. Applies to every mode except the fast sailer, which runs around the clock. 24 = travel without rest.",
+	"planner.travelHours.title": "Travel hours per day on land; the rest of the day is spent resting. A rest is only taken once the day's travel hours are used up and there is still road ahead. Ships keep their own travel day: 12 hours on river and sea, the fast sailer around the clock. 24 = travel without rest.",
 	// Umbenannt von "planner.travelHoursSuffix" (2026-08-03): die Beschriftung steht jetzt VOR dem
 	// Feld, damit sie dieselbe Grammatik spricht wie die Reisebeginn-Zeile darunter. Ein Schluessel
 	// namens "Suffix" waere danach schlicht falsch.
@@ -78,7 +78,7 @@ window.AVESMAPS_I18N_EN = {
 	"planner.optionsInfo.transfers.note": "<b>A search weight, not a waiting time:</b> it steers the search and appears in none of the numbers shown.",
 	"planner.optionsInfo.rest.title": "Travel hours per day",
 	"planner.optionsInfo.rest.body": "The rest of the day is rest — but it falls due in whole portions, not proportionally: only once the {hours} travel hours are used up <b>and there is still road ahead</b> does a night cost {restHours} h. Arrive before that and you do not rest at all. The counter runs across the whole route, not per leg; 24 means travelling around the clock.",
-	"planner.optionsInfo.rest.note": "<b>Only the fast sailer keeps going</b> — cargo sailer and galley anchor at night and rest as on land.",
+	"planner.optionsInfo.rest.note": "<b>Only the fast sailer keeps going</b> — cargo sailer and galley anchor at night and rest as on land. The field governs land travel; river and sea keep their own travel day of 12 hours. The 8 hours on land come from “Wege des Entdeckers” (pp. 160–162), the 12 on water from the Geographia (pp. 129 · 131).",
 	"planner.optionsInfo.start.title": "Departure date",
 	"planner.optionsInfo.start.body": "The calendar runs along the route — leg dates and day of arrival. And the season takes hold of the ground:",
 	"planner.optionsInfo.start.zone": "Climate zone",
@@ -769,6 +769,7 @@ window.AVESMAPS_I18N_EN = {
 	"spotlight.labelType.hochebene": "Plateau",
 	"spotlight.labelType.tiefebene": "Lowland",
 	"spotlight.labelType.flussdelta": "River Delta",
+	"spotlight.labelType.kulturlandschaft": "Farmland",
 	"spotlight.labelType.see": "Lake",
 	"spotlight.labelType.insel": "Island",
 	"spotlight.labelType.inselgruppe": "Archipelago",
@@ -1070,7 +1071,7 @@ window.AVESMAPS_I18N_EN = {
 	"transport.speedInfo.riverNote": "Downstream, with the current, you travel at full speed. Upstream, against the current, the same distance takes longer — as a rule twice the duration, and up to 3 times in strong currents.",
 	"transport.speedInfo.seaTravel": "Sea travel",
 	"transport.speedInfo.seaNote": "Only the fast sailer runs day and night on a known route — no rest time is needed for it. The cargo sailer and the galley anchor at night and rest like travellers on land.",
-	"transport.speedInfo.restRule": "<b>Rest.</b> By default you travel 12 hours a day and rest 12 hours (adjustable in the planner). This applies on land, on rivers, and to the cargo sailer and the galley as well — <b>only the fast sailer</b> runs around the clock.",
+	"transport.speedInfo.restRule": "<b>Rest.</b> On land 8 travel hours a day and 16 hours of rest (adjustable in the planner), on river and sea 12 and 12 — <b>only the fast sailer</b> runs around the clock. <b>Every value is computed from the day's mileage: speed = day performance ÷ travel hours.</b> A group on foot covers 30 miles a day, a single rider 50, a cargo sailer 120. Sources: the 8 hours from “Wege des Entdeckers” pp. 160–162, the 12 from the Geographia pp. 129 (river) and 131 (sea), the day performances from the Geographia pp. 123 · 129 · 131.",
 	// `{range}` is filled by crossCountryRangeClause() in transport-speed-info.js from the Querfeldein
 	// column of SPEED_TABLE -- never type the numbers back in, they went stale twice as a literal.
 	"transport.speedInfo.crossCountryRule": "<b>Cross-country.</b> If there is no real path between two places, the route cuts straight across the terrain. This is slow{range}, so the calculation itself prefers large detours over proper roads and trails.",
