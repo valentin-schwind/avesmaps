@@ -609,6 +609,30 @@ const MODELL_ANTWORT = { ok: true, nodes: MODELL_KNOTEN };
 	// 🔴 DER DECKEL STEHT IN DER ERKLAERUNG UND IST 250, nicht die 40 der Server-Suchen -- der alte
 	// Picker zeigte `.slice(0, 250)`. Bei rund 1.400 Wiki-Gebieten ist das kein Randfall.
 	assert.strictEqual(avesmapsWikiAssignSubject("territorium").suche.limit, 250);
+
+	// 💣 UND ER MUSS AUCH ANKOMMEN. Die Zahl im Register zu pruefen ist eine Textprobe: liest
+	// `trefferHolen` sie nicht aus (`suche.limit`), bleibt die Kappung bei 40 und niemand merkt es.
+	// ⭐ Also ABLAUF: 300 Kandidaten in den Kasten, Suche oeffnen, gezeichnete Zeilen zaehlen.
+	const vieleKandidaten = Array.from({ length: 300 }, (_, i) => ({
+		id: 1000 + i, wiki_key: "wiki:probe-" + i, name: "Probegebiet " + i, type: "Baronie",
+		continent: "Aventurien", affiliation_raw: "", affiliation_root: "", affiliation_path: [],
+		status: "", capital_name: "", seat_name: "", ruler: "", founded_text: "", dissolved_text: "",
+		wiki_url: "https://x/" + i, coat_of_arms_url: "",
+	}));
+	const massen = dialogBauen(MODELL_ANTWORT, {
+		fetchPoliticalTerritories: () => Promise.resolve({ wiki: vieleKandidaten }),
+	});
+	massen.elemente["region-edit-wiki-id"].value = "";
+	massen.elemente["region-edit-wiki-url"].value = "";
+	const massenHost = massen.elemente["territory-wiki-assign-host"];
+	massen.kasten.renderRegionWikiReference();
+	await ruhe();
+	massenHost.feuere("click", scheinZiel("data-wa-aktion", "zuweisen"));
+	await ruhe();
+	const gezeichnet = (massenHost.innerHTML.match(/data-wa-treffer=/g) || []).length;
+	assert.strictEqual(gezeichnet, 250,
+		"der Deckel aus der Erklaerung kommt nicht an -- gezeichnet wurden " + gezeichnet + " statt 250");
+	zaehl();
 	// ⚠️ Gezaehlt, nicht geglaubt: JEDES erklaerte Suchfeld muss der Datenweg auch liefern -- was die
 	// Suche nicht herausgibt, kann man nicht durchsuchen.
 	avesmapsWikiAssignSubject("territorium").suche.felder.forEach((feld) => {
