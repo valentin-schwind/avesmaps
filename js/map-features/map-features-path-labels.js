@@ -43,11 +43,19 @@ function isPathLabelVisibleAtCurrentZoom(path) {
 // Untergrenze 8 hätte sie stumm auf 9 gedrückt, auf der ganzen Karte.
 // ⚠️ Damit zieht eine verstellte Dorfschrift die Straßenschrift NICHT mehr mit. Gewollt
 // (Entwurf 2026-08-16-zoombaender-design.md §6); soll sie das je wieder, ist das hier die Stelle.
-const PATH_LABEL_BASE_SIZE_BY_ZOOM = { 0: 8, 1: 8, 2: 8, 3: 8.5, 4: 10, 5: 11 };
-function getPathLabelBaseSize(zoomLevel = (typeof map !== "undefined" ? map.getZoom() : 4)) {
-	const z = typeof getVisualZoomLevel === "function"
+// Normalisiere eine Zoomstufe auf den visuellen Index 0–5 für die Pfad-Label-Tafeln.
+// Unterschied zur Ortsschrift: die Dorf-Zeile klemmte auf 0–7 (unter z4 leer); die Weggenamen
+// haben keine leeren Zeilen und brauchen nur 0–5, damit die 8,5 bei z3 die Straßenschrift 9,5 wird.
+// (Entwurf: docs/superpowers/specs/2026-08-16-zoombaender-design.md §5)
+function getPathLabelVisualZoomIndex(zoomLevel = (typeof map !== "undefined" ? map.getZoom() : 4)) {
+	return typeof getVisualZoomLevel === "function"
 		? getVisualZoomLevel(zoomLevel)
 		: Math.max(0, Math.min(5, Math.round(Number(zoomLevel))));
+}
+
+const PATH_LABEL_BASE_SIZE_BY_ZOOM = { 0: 8, 1: 8, 2: 8, 3: 8.5, 4: 10, 5: 11 };
+function getPathLabelBaseSize(zoomLevel = (typeof map !== "undefined" ? map.getZoom() : 4)) {
+	const z = getPathLabelVisualZoomIndex(zoomLevel);
 	const value = PATH_LABEL_BASE_SIZE_BY_ZOOM[z];
 	return Math.max(8, Number.isFinite(value) ? value : 8);
 }
@@ -58,9 +66,7 @@ function getPathLabelBaseSize(zoomLevel = (typeof map !== "undefined" ? map.getZ
 // damit Slider "Zoom N" und Basisgröße sich decken. Defaults überall 3 = bisheriges globales Verhalten.
 let PATH_LABEL_FONT_DELTA_BY_ZOOM = { 0: 3, 1: 3, 2: 3, 3: 3, 4: 3, 5: 3 };
 function getPathLabelFontDelta(zoomLevel = (typeof map !== "undefined" ? map.getZoom() : 4)) {
-	const z = typeof getVisualZoomLevel === "function"
-		? getVisualZoomLevel(zoomLevel)
-		: Math.max(0, Math.min(5, Math.round(Number(zoomLevel))));
+	const z = getPathLabelVisualZoomIndex(zoomLevel);
 	const value = PATH_LABEL_FONT_DELTA_BY_ZOOM[z];
 	return Number.isFinite(value) ? value : 3;
 }
