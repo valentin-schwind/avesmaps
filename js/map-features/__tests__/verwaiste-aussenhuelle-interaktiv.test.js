@@ -127,6 +127,45 @@ assert.strictEqual(
 	"und ohne Eintrag ebenso",
 );
 
+// ---- der Satz beim Menue-Eintrag „Territoriumseditor oeffnen" ----------------------------------
+// 💣 Derselbe Fehler eine Ebene weiter: `AVESMAPS_REGION_SOURCELESS_HULL_ACTIONS` LAESST den Eintrag
+// fuer einen Geist ausdruecklich stehen, der Handler stieg aber fuer JEDE abgeleitete Huelle aus --
+// „bitte das Unterreich bearbeiten", und ein Unterreich gibt es hier nicht. Der Eintrag war damit
+// sichtbar und tot. Deshalb entscheidet nicht mehr der Handler, sondern ein Erzeuger.
+// 🔴 `null` heisst „kein Hinweis, oeffne den Editor" -- nicht „leerer Hinweis".
+const { avesmapsRegionDerivedPropertiesHint } = require("../map-features-region-interactivity.js");
+
+assert.strictEqual(
+	avesmapsRegionDerivedPropertiesHint(geist),
+	null,
+	"der Geist bekommt keinen Hinweis, sondern den Territoriumseditor",
+);
+// 🔴 DIE GEGENPROBE: der gesunde Pfad ist geprueft und bleibt Wort fuer Wort, wie er war.
+assert.strictEqual(
+	avesmapsRegionDerivedPropertiesHint(aggregat),
+	"Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) bearbeiten.",
+	"das gesunde Aggregat behaelt seinen Satz",
+);
+assert.strictEqual(
+	avesmapsRegionDerivedPropertiesHint(quelle),
+	null,
+	"eine Quellflaeche oeffnet den Editor wie bisher",
+);
+// ⚠️ Ohne Aussage kein Sonderfall -- dieselbe Richtung wie avesmapsRegionDerivedIsSourceless und
+// avesmapsRegionDerivedClickHint: zwischen zwei Deploys lieber der alte Satz als jede Huelle im Editor.
+assert.strictEqual(
+	avesmapsRegionDerivedPropertiesHint({ isDerivedGeometry: true }),
+	"Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) bearbeiten.",
+	"kein Feld = keine Aussage = der alte Satz",
+);
+// ⚠️ Hier weicht er vom Klick-Satz ab, und zwar absichtlich: ohne Eintrag gab es nie einen Hinweis,
+// der Handler lief in den normalen Editor-Pfad. Der Erzeuger bildet ab, was war.
+assert.strictEqual(
+	avesmapsRegionDerivedPropertiesHint(null),
+	null,
+	"ohne Eintrag gibt es nichts zu erklaeren",
+);
+
 // 💣 Die Zusicherung, die das Abschreiben verhindert: BEIDE Zweige in map-features.js muessen den
 // Erzeuger rufen, und keiner der beiden darf den Satz noch selbst im Code stehen haben.
 const fs = require("fs");
@@ -143,6 +182,25 @@ assert.strictEqual(
 	mapFeaturesSource.includes("Bitte die untergeordnete Geometrie (das Unterreich) anklicken."),
 	false,
 	"und keiner der beiden traegt den Satz noch selbst",
+);
+
+// Dieselbe Zusicherung fuer den Menue-Eintrag: EIN Aufruf, und der Satz steht nicht mehr im Handler.
+assert.strictEqual(
+	(mapFeaturesSource.match(/avesmapsRegionDerivedPropertiesHint\(/g) || []).length,
+	1,
+	"der Handler fragt den Erzeuger, statt selbst zu entscheiden",
+);
+assert.strictEqual(
+	mapFeaturesSource.includes("Bitte die untergeordnete Geometrie (das Unterreich) bearbeiten."),
+	false,
+	"und traegt den Satz nicht mehr selbst",
+);
+// ⭐ Und der Geist laeuft in DENSELBEN Editor-Pfad wie jede Quellflaeche. Ein zweiter Aufruf waere
+// eine zweite Fassung -- genau die Divergenz, an der der Klick-Satz schon einmal gescheitert ist.
+assert.strictEqual(
+	(mapFeaturesSource.match(/AvesmapsPoliticalTerritoryEditorLink\.open\(/g) || []).length,
+	1,
+	"es gibt genau EINEN Weg in den Territoriumseditor",
 );
 
 console.log("OK: verwaiste-aussenhuelle-interaktiv");

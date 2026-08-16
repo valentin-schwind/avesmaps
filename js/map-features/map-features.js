@@ -648,8 +648,14 @@ const REGION_CONTEXT_ACTIONS = {
 	"edit-properties": ({ regionEntry }) => {
 		// Abgeleitete Außengrenzen haben keine eigenen editierbaren Eigenschaften/Zuweisung
 		// (sie werden aus den Unterflächen berechnet) -> Hinweis statt leerem "kein Knoten"-Editor.
-		if (regionEntry?.isDerivedGeometry === true) {
-			showFeedbackToast("Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) bearbeiten.", "info");
+		// 💣 Für eine Hülle OHNE Quelle gilt das nicht: sie steht mit genau diesem Eintrag im Menü
+		// (AVESMAPS_REGION_SOURCELESS_HULL_ACTIONS), und ein Unterreich, das man stattdessen
+		// bearbeiten könnte, gibt es nicht. Der Ausstieg machte den Eintrag sichtbar und tot.
+		// Wer entscheidet, steht in map-features-region-interactivity.js -- derselbe Erzeuger, der
+		// auch das Menü zusammenstellt, damit "Geist" nicht an zwei Stellen verschieden heißt.
+		const derivedPropertiesHint = avesmapsRegionDerivedPropertiesHint(regionEntry);
+		if (derivedPropertiesHint) {
+			showFeedbackToast(derivedPropertiesHint, "info");
 			return;
 		}
 		clearRegionGeometryEdit();

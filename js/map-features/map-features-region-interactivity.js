@@ -41,9 +41,17 @@ function avesmapsRegionPolygonIsInteractive({ isEditMode, regionEntry, isAtActiv
 // die fehlt. Uebrig bleibt, was am GEBIET haengt -- plus das Loeschen der Huelle selbst.
 const AVESMAPS_REGION_SOURCELESS_HULL_ACTIONS = ["edit-properties", "show-info", "delete"];
 
-function avesmapsRegionContextMenuPlan(regionEntry) {
+// 💣 „Ist das ein Geist?" hat EINEN Erzeuger. Das Menue laesst „Territoriumseditor oeffnen" fuer ihn
+// ausdruecklich stehen, sein Handler muss also dieselbe Antwort bekommen -- sonst steht der Eintrag
+// wieder da und tut nichts, und genau das war der Befund. Zwei Kopien der Frage laufen beim naechsten
+// Umbau auseinander, ohne dass es jemandem auffaellt: sichtbar bleibt nur der tote Knopf.
+function avesmapsRegionIsSourcelessHull(regionEntry) {
 	const entry = regionEntry || {};
-	const isSourceless = entry.isDerivedGeometry === true && entry.derivedIsSourceless === true;
+	return entry.isDerivedGeometry === true && entry.derivedIsSourceless === true;
+}
+
+function avesmapsRegionContextMenuPlan(regionEntry) {
+	const isSourceless = avesmapsRegionIsSourcelessHull(regionEntry);
 	return {
 		// null heisst ausdruecklich „alles wie bisher" -- eine leere Liste hiesse „nichts zeigen".
 		actions: isSourceless ? AVESMAPS_REGION_SOURCELESS_HULL_ACTIONS.slice() : null,
@@ -66,11 +74,31 @@ function avesmapsRegionDerivedClickHint(regionEntry) {
 	return "Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) anklicken.";
 }
 
+// Und was der Menue-Eintrag „Territoriumseditor oeffnen" tut: `null` = oeffnen, sonst dieser Satz.
+// 💣 Der Eintrag steht fuer einen Geist ausdruecklich im Menue (AVESMAPS_REGION_SOURCELESS_HULL_ACTIONS
+// oben), sein Handler stieg aber fuer JEDE abgeleitete Huelle aus -- sichtbar und tot. Es ist derselbe
+// Fehler wie beim Klick-Satz, eine Ebene weiter: „das Unterreich bearbeiten" setzt ein Unterreich
+// voraus, und ein Geist hat keins. Fuer ihn ist das GEBIET das Einzige, was es noch zu bearbeiten gibt.
+// ⚠️ Rueckfall wieder Richtung „kein Sonderfall": ohne Aussage der alte Satz, damit zwischen zwei
+// Deploys nicht jede Huelle den Editor aufzieht. Ohne Eintrag dagegen `null` -- so lief der Handler
+// schon immer, nur `isDerivedGeometry === true` hat ihn je angehalten.
+function avesmapsRegionDerivedPropertiesHint(regionEntry) {
+	if (!regionEntry || regionEntry.isDerivedGeometry !== true) {
+		return null;
+	}
+	if (avesmapsRegionIsSourcelessHull(regionEntry)) {
+		return null;
+	}
+	return "Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) bearbeiten.";
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		avesmapsRegionDerivedIsSourceless,
 		avesmapsRegionPolygonIsInteractive,
+		avesmapsRegionIsSourcelessHull,
 		avesmapsRegionContextMenuPlan,
 		avesmapsRegionDerivedClickHint,
+		avesmapsRegionDerivedPropertiesHint,
 	};
 }
