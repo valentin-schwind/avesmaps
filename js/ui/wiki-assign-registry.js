@@ -483,8 +483,14 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		// (:425), das ist eine Konstante und keine Auskunft des Artikels.
 		// ⚠️ `isbn` HAT beides -- Quelle (wiki_publication_catalog.isbn, publication-sync.php:36) und
 		// Ziel (`adventure.isbn`, nachgezogene Spalte :107-111, Formularfeld „ISBN (für DNB)" in
-		// html/game-literature-editor.html:1098, weisse Liste :928). Der MASSENabgleich uebertraegt sie
-		// trotzdem nicht (sie fehlt in AVESMAPS_GAME_LITERATURE_WIKI_FIELDS). Das ist kein Widerspruch,
+		// html/game-literature-editor.html:1098, weisse Liste `$editableFields` in
+		// api/_internal/app/game-literature.php:929). 🪤 Hier stand „weisse Liste :928" -- ohne
+		// Dateinamen und unmittelbar hinter einer Zeile aus dem Editor-HTML, also als DIESE Datei zu
+		// lesen; :928 ist dort das Ankreuzfeld „Offizielles Produkt". Zwei Fehler in einer Angabe,
+		// und der zweite hielt sich noch: der Eintrag `isbn` steht auf 929, nicht 928. Wer eine
+		// Zeilennummer notiert, notiert die Datei mit, sobald die vorige eine andere war.
+		// Der MASSENabgleich uebertraegt sie trotzdem nicht (sie fehlt in
+		// AVESMAPS_GAME_LITERATURE_WIKI_FIELDS). Das ist kein Widerspruch,
 		// den es aufzuloesen gaelte: die Vorschau ZEIGT, was sie tut, und der Editor entscheidet je
 		// Zeile -- genau dafuer gibt es sie.
 		felder: [
