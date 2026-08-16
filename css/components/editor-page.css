@@ -557,13 +557,9 @@ body.avm-editor-body {
 .dt-link { color: var(--accent); text-decoration: none; }
 .dt-link:hover { text-decoration: underline; }
 
-/* ⚠️ input[type=search] steht hier seit 16.08.2026 mit drin: das geteilte Zuweisungs-Bauteil
-   (js/ui/wiki-assign.js) setzt sein Suchfeld in genau diese Rasterzelle, und ohne die Zeile bliebe
-   es inhaltsbreit statt spaltenbreit. */
 .dt-grid input[type=text],
 .dt-grid input[type=url],
 .dt-grid input[type=number],
-.dt-grid input[type=search],
 .dt-grid select {
 	width: 100%;
 	height: var(--avm-control-h);
@@ -615,6 +611,26 @@ body.avm-editor-body {
  * ⚠️ Neue Regeln greifen zum echten Token (var(--color-panel)), nicht zu den Kurznamen oben.
  */
 
+/* Das Suchfeld des Bauteils fuellt seine Rasterzelle -- sonst stuende es inhaltsbreit in einer
+   430 px breiten Spalte.
+   💣 DIESE REGEL IST AUF .avm-wiki-assign EINGEENGT, und das ist der ganze Punkt. Bis zum
+      16.08.2026 stand `input[type=search]` in der GETEILTEN Selektorliste unten -- und die trifft
+      jedes Suchfeld in jedem `.dt-grid` aller Editorseiten. Gemessen schlug sie in zwei fremden
+      Fenstern an, die diese Aufgabe nie angefasst hat: html/wiki-sync-monitor.html (Stadtwahl
+      „Siedlung suchen…", lokale Regel .dt-cap-pick input ist nur (0,1,1) und verlor gegen (0,2,1)
+      -- Hoehe auto→32px, Polster 2px 5px→0 6px, Schrift 12→13px) und
+      html/wiki-sync-settlement-editor.html (#seTerritoryPickerSearch -- die lokale Regel
+      deklariert kein `height`, die geteilte setzte es von ~22px auf 32px).
+      Das ist die Fehlerklasse aus AGENTS.md §9: eine erweiterte Selektorliste in legal-dialog.css
+      hat am 12.08.2026 fuenf Deploys hintereinander ausfallen lassen. Wer hier etwas ergaenzt,
+      fragt zuerst, WELCHE fremden Elemente der Selektor sonst noch trifft.
+   ⭐ (0,3,1) schlaegt jedes lokale `input[type=search]` (0,1,1) der Editorseiten -- absichtlich. */
+.avm-wiki-assign .dt-grid input[type=search] {
+	width: 100%;
+	height: var(--avm-control-h);
+	padding: 0 var(--space-4);
+	font-size: var(--font-size-body);
+}
 /* Der Zuweisungsblock ist nie der Anfang eines Panels -- er folgt immer einem anderen Abschnitt
    (Identitaet, Beschreibung, Quellen). Sein Gruppenkopf traegt die Trennlinie deshalb auch dann,
    wenn er erstes Kind SEINES Behaelters ist; ohne diese Zeile verschluckt .dt-grp:first-child sie
@@ -646,7 +662,7 @@ body.avm-editor-body {
    dieselben Toene -- nur die Namen folgen der Huelle, in der sie stehen. */
 .dt-picker-list {
 	margin-top: var(--space-4);
-	max-height: 340px;
+	max-height: var(--avm-picker-list-max-h);
 	overflow-y: auto;
 	overflow-x: hidden;
 	border: 1px solid var(--color-border);

@@ -17,6 +17,8 @@ const {
 	avesmapsWikiAssignSkin,
 	avesmapsWikiAssignModell,
 	avesmapsWikiAssignMarkup,
+	avesmapsWikiAssignTrefferListeInhalt,
+	avesmapsWikiAssignMount,
 	avesmapsWikiAssignListeFiltern,
 	avesmapsWikiAssignTrefferMeta,
 	avesmapsWikiAssignFeldLabel,
@@ -298,5 +300,96 @@ const jsUrl = avesmapsWikiAssignModell(kraftlinie, {
 }, {});
 assert.ok(!/href="javascript/.test(avesmapsWikiAssignMarkup(jsUrl, dt)), "eine javascript:-Adresse ist als href durchgekommen");
 checks += 3;
+
+// ── 11) DER BLINDGAENGER GIBT SICH ZU ERKENNEN (Nachbesserung 1, Befund 3) ────────────────────
+// 💣 DIE TEUERSTE ZUSICHERUNG DIESER DATEI. `mount` kann scheitern, ohne dass der Aufrufer es
+// merkt: laedt wiki-assign.js, aber das Feldregister NICHT -- genau der Zustand nach einem
+// Deploy-Fehlschlag, der den ?v=-Stempel vergiftet und Dateien live auf 404 stehen laesst
+// (AGENTS.md §9) --, dann gibt mount eine Steuerung zurueck, die nichts tut. Gaebe deren `lies()`
+// lauter Leerstrings, schriebe der naechste Klick auf „Speichern" eine LEERE Zuweisung auf alle
+// Segmente: eine Loeschung, die niemand angeordnet hat, ununterscheidbar von „es war nie eine da"
+// (AGENTS.md §10).
+//
+// In Node sind `avesmapsWikiAssignSubject`/`avesmapsWikiAssignDiff` KEINE Globalen -- dieser
+// Aufruf faellt also durch genau die Tuer, um die es geht, und braucht dafuer kein DOM.
+const blindBehaelter = { textContent: "" };
+const blind = avesmapsWikiAssignMount(blindBehaelter, { subject: "kraftlinie", skin: "dt", laden: () => ({}) });
+assert.strictEqual(blind.bereit, false, "der Blindgaenger gibt sich nicht als solcher zu erkennen");
+assert.strictEqual(blind.lies(), null,
+	"lies() eines unvollstaendig geladenen Bauteils liefert einen Schreibwert -- ein Speichern wuerde die Zuweisung loeschen");
+// Und er sagt, WELCHE Datei fehlt -- sonst sucht jemand die Ursache in den Daten.
+assert.ok(/wiki-assign-registry\.js/.test(blindBehaelter.textContent), blindBehaelter.textContent);
+// Eine unbekannte Huelle ist derselbe Fall.
+const blind2 = avesmapsWikiAssignMount({ textContent: "" }, { subject: "kraftlinie", skin: "gibtesnicht" });
+assert.strictEqual(blind2.bereit, false);
+assert.strictEqual(blind2.lies(), null);
+checks += 5;
+
+// 🔴 Und die Weiche muss beim AUFRUFER stehen, sonst nuetzt das Merkmal nichts. Der einzige
+// heutige Aufrufer ist der Kraftlinien-Editor; er darf `wikiAssign` NICHT blank auf
+// Wahrheitswert pruefen (`wikiAssign ? … : …` liesse den Blindgaenger durch -- der ist ein
+// Objekt und damit wahr).
+const powerlineHtml = require("fs").readFileSync(
+	require("path").resolve(__dirname, "..", "..", "..", "html", "wiki-sync-powerline-editor.html"), "utf8");
+assert.ok(/wikiAssign && wikiAssign\.bereit/.test(powerlineHtml),
+	"html/wiki-sync-powerline-editor.html prueft `wikiAssign.bereit` nicht mehr -- ein Blindgaenger "
+	+ "kaeme durch und ein Speichern loeschte die Zuweisung aller Segmente der Linie.");
+assert.ok(!/wikiAssign \? wikiAssign\.lies\(\)/.test(powerlineHtml),
+	"der Kraftlinien-Editor prueft wieder nur, OB ein Bauteil da ist, statt ob es bereit ist.");
+checks += 2;
+
+// ── 12) TIPPEN ZEICHNET NUR DIE TREFFERLISTE (Nachbesserung 1, Befund 4) ──────────────────────
+// 🔴 Bis 16.08.2026 zeichnete jeder Tastendruck den ganzen Kasten per innerHTML neu und setzte
+// Zeiger und Fokus ans Ende -- eine Korrektur mitten im Suchbegriff war unmoeglich, jede
+// Textmarkierung weg. Die Abnahme verlangt Tastaturbedienung in Chrome UND Firefox.
+//
+// Die tragende Eigenschaft: der Inhalt der Liste hat EINEN Bauer, den beide Wege benutzen -- der
+// volle Aufbau und das Nachzeichnen beim Tippen. Damit koennen sie nicht auseinanderlaufen.
+const listenInhalt = avesmapsWikiAssignTrefferListeInhalt(suche, dt);
+assert.ok(listenInhalt.indexOf("Satinavs Ketten") !== -1);
+assert.ok(avesmapsWikiAssignMarkup(suche, dt).indexOf(listenInhalt) !== -1,
+	"der Listeninhalt des Teil-Neuzeichnens steht so nicht im vollen Markup -- die zwei Wege sind "
+	+ "auseinandergelaufen, und beim Tippen entstuende ein anderes Bild als beim Oeffnen.");
+// Der Behaelter traegt den Angriffspunkt, sonst findet das Teil-Neuzeichnen ihn nicht und faellt
+// stillschweigend auf das volle zurueck (also zurueck in den Fehler).
+assert.ok(/data-wa-liste/.test(avesmapsWikiAssignMarkup(suche, dt)),
+	"der Trefferliste fehlt data-wa-liste -- zeichneTreffer faellt auf das volle Zeichnen zurueck.");
+assert.ok(/data-wa-hinweis/.test(avesmapsWikiAssignMarkup(suche, dt)),
+	"dem Hinweis fehlt data-wa-hinweis -- der Trefferzaehler bliebe beim Tippen stehen.");
+checks += 4;
+
+// Und die Verdrahtung: die zwei Tipp-Wege rufen zeichneTreffer, nicht zeichne.
+const quelle = require("fs").readFileSync(require("path").resolve(__dirname, "..", "wiki-assign.js"), "utf8");
+const zeichneTrefferKoerper = quelle.slice(quelle.indexOf("function zeichneTreffer()"),
+	quelle.indexOf("function zustandUebernehmen"));
+assert.ok(zeichneTrefferKoerper.indexOf("behaelter.innerHTML") === -1,
+	"zeichneTreffer setzt behaelter.innerHTML -- damit ist das Suchfeld doch wieder weg.");
+assert.ok(/ui\.aktiv = \(ui\.aktiv \+ schritt[\s\S]{0,220}?zeichneTreffer\(\)/.test(quelle),
+	"↑ ↓ zeichnet wieder den ganzen Kasten.");
+assert.ok(/ui\.aktiv = 0;[\s\S]{0,220}?zeichneTreffer\(\)/.test(quelle),
+	"das Suchergebnis zeichnet wieder den ganzen Kasten.");
+checks += 3;
+
+// ── 13) DIE ARIA-ROLLEN SIND VOLLSTAENDIG, NICHT HALB (Nachbesserung 1, Befund 6) ─────────────
+// ⚠️ Halbe Rollen sind schlechter als keine: eine Liste mit role=option, deren Auswahl nirgends
+// gemeldet wird, sieht fuer ein Hilfsmittel vollstaendig aus und ist stumm.
+const ariaMarkup = avesmapsWikiAssignMarkup(suche, dt);
+assert.ok(/role="combobox"/.test(ariaMarkup), "das Suchfeld ist keine combobox");
+assert.ok(/role="listbox"/.test(ariaMarkup));
+assert.ok(/role="option"/.test(ariaMarkup));
+// Die Auswahl wird gemeldet -- und der Verweis zeigt auf eine Kennung, die es WIRKLICH gibt.
+const aktivId = (ariaMarkup.match(/aria-activedescendant="([^"]+)"/) || [])[1];
+assert.ok(aktivId, "aria-activedescendant fehlt -- die Tastaturauswahl ist fuer Hilfsmittel unsichtbar");
+assert.ok(ariaMarkup.indexOf('id="' + aktivId + '"') !== -1,
+	"aria-activedescendant zeigt auf eine Kennung, die es im Markup nicht gibt: " + aktivId);
+const listenIdTreffer = (ariaMarkup.match(/aria-controls="([^"]+)"/) || [])[1];
+assert.ok(listenIdTreffer && ariaMarkup.indexOf('id="' + listenIdTreffer + '" role="listbox"') !== -1,
+	"aria-controls zeigt nicht auf die Trefferliste");
+// 💣 OHNE Treffer darf KEIN aria-activedescendant dastehen -- ein Verweis auf eine Kennung, die
+// es nicht gibt, ist fuer ein Hilfsmittel schlimmer als keiner.
+const leereSuche = avesmapsWikiAssignModell(kraftlinie, { artikel: null }, { modus: "suche", treffer: [] });
+assert.ok(!/aria-activedescendant/.test(avesmapsWikiAssignMarkup(leereSuche, dt)),
+	"bei null Treffern steht ein aria-activedescendant ins Leere");
+checks += 7;
 
 console.log("wiki-assign: " + checks + " Zusicherungen erfuellt");

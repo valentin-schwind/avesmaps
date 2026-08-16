@@ -136,7 +136,10 @@
 }
 
 .label-wiki-picker-list {
-	max-height: 340px;
+	/* 💣 Die Zahl stand hier UND abgeschrieben in .dt-picker-list (editor-page.css). Sie ist
+	   seit 16.08.2026 EIN Token -- ein Kommentar "dieselbe Hoehe" gilt nur, bis jemand eine
+	   der beiden aendert. */
+	max-height: var(--avm-picker-list-max-h);
 	overflow-y: auto;
 	overflow-x: hidden;
 	display: flex;

@@ -355,12 +355,19 @@ function fieldSample(line, key) {
 //
 // ⚠️ Der mittlere Satz sagt, was MESSBAR ist (der Lauf hat nichts abgelegt) und was zu tun ist
 // (Dump erneut holen) -- nicht, WARUM, denn das weiss diese Seite nicht.
+//
+// 💣 ZWEI der Zweige endeten bis zum 16.08.2026 auf "Eine Adresse von Hand einzufügen geht
+// trotzdem." -- und zwar ausgerechnet die beiden mit LEERER Vorschlagsliste, also dort, wo der
+// Editor eine richtige Anweisung am noetigsten braucht. Das Feld, auf das sie zeigten, ist mit
+// der Umstellung auf das geteilte Bauteil weggefallen (Entwurf §5: keine freien Adressen). Ein
+// Hinweis, der zu einem Bedienelement schickt, das es nicht gibt, ist schlimmer als keiner.
+// 🔴 Wer hier etwas ergaenzt, prueft zuerst, ob der Satz noch einen Weg beschreibt, den es gibt.
 function wikiListHint() {
 	// 🔴 "Kein abgeschlossener LAUF" heisst NICHT "keine Dump-Datei". Am 15.08.2026 stand hier
 	// "Noch kein Dump geholt", waehrend die Datei laengst da war -- der Satz schickte zum falschen
 	// Knopf. Was fehlt, ist das EINLESEN des Dumps in den Zwischenspeicher.
 	if (dumpState.problem === "fehler") {
-		return "Die Artikelliste konnte nicht geladen werden — das ist ein Fehler, kein fehlender Dump. Eine Adresse von Hand einzufügen geht trotzdem.";
+		return "Die Artikelliste konnte nicht geladen werden — das ist ein Fehler, kein fehlender Dump. Bis sie da ist, lässt sich nichts zuweisen: gewählt wird nur aus der Liste.";
 	}
 	if (!dumpState.has_run) {
 		return "Kein abgeschlossener Dump-Lauf — die Dump-Datei kann da sein, eingelesen ist sie noch nicht. Deshalb keine Artikel zur Auswahl.";
@@ -372,7 +379,7 @@ function wikiListHint() {
 		const when = String(dumpState.completed_at || "").trim();
 		return "Der Dump-Lauf" + (when ? " vom " + esc(when) : "")
 			+ " hat keine Kraftlinien-Artikel abgelegt — deshalb ist die Liste leer."
-			+ " Bitte „📥 Dump holen“ erneut laufen lassen; eine Adresse von Hand einzufügen geht trotzdem.";
+			+ " Bitte „📥 Dump holen“ erneut laufen lassen; bis dahin lässt sich nichts zuweisen.";
 	}
 	return "Ausdrücklich gesetzt, nie geraten. Der Abgleich folgt der Zuweisung, auch wenn die Linie anders heißt.";
 }
@@ -519,6 +526,14 @@ function mountWikiAssign(line) {
 		host.innerHTML = '<div class="pl-hint">Wiki-Zuweisung nicht geladen (js/ui/wiki-assign.js).</div>';
 		return;
 	}
+	// 💣 `mount` kann auch dann noch scheitern, wenn ES SELBST geladen ist -- naemlich wenn eine
+	// seiner zwei Voraussetzungen fehlt (Feldregister, Diff-Rechnung). Genau dieser Fall ist NICHT
+	// hypothetisch: ein Deploy-Fehlschlag vergiftet den ?v=-Stempel, und Dateien stehen live auf
+	// 404, waehrend die Seite sie schon anfordert (AGENTS.md §9) -- seit heute haengen DREI neue
+	// Skripte an diesem Fenster. Das Bauteil gibt dann einen erkennbaren Blindgaenger zurueck
+	// (`bereit === false`, `lies()` liefert null), und saveLine() faellt darauf auf den GELADENEN
+	// Stand zurueck statt auf Leerstrings. Ohne das Merkmal loeschte ein Klick auf „Speichern“ die
+	// Zuweisung aller Segmente dieser Linie, ohne dass jemand einen Loeschbefehl gegeben haette.
 	wikiAssign = avesmapsWikiAssignMount(host, {
 		subject: "kraftlinie",
 		skin: "dt",
@@ -543,7 +558,13 @@ async function saveLine() {
 	// ⚠️ Der Rueckfall ist der GELADENE Stand, nicht der leere: fiele er auf "", loeschte ein
 	// Speichern bei nicht geladenem Bauteil die Zuweisung stumm -- die Fehlerklasse aus AGENTS.md
 	// §10 ("eine stille Leerung ist von 'nie gespeichert' nicht zu unterscheiden").
-	const zuweisung = wikiAssign ? wikiAssign.lies() : {
+	// 💣 GEPRUEFT WIRD `bereit`, NICHT das blosse Vorhandensein des Objekts. Ein Bauteil, dem eine
+	// seiner Voraussetzungen fehlt, gibt einen Blindgaenger zurueck: der ist wahrheitswertig, und
+	// `wikiAssign ? … : …` allein waere deshalb durchgelaufen und haette Leerstrings gespeichert.
+	// `lies()` liefert dort null -- wer die Weiche vergisst, bekommt einen Fehler statt einer
+	// stillen Loeschung.
+	const gelesen = (wikiAssign && wikiAssign.bereit) ? wikiAssign.lies() : null;
+	const zuweisung = gelesen || {
 		wiki_url: fieldSample(line, "wiki_url"),
 		kein_artikel: line.segments.some((s) => s.wiki_no_article === true),
 	};

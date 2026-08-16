@@ -532,6 +532,11 @@
 	--avm-col-pad: var(--space-6) var(--space-10);      /* 8 / 12 — jede der drei Spalten */
 	--avm-row-pad: var(--space-2) var(--space-4);       /* 4 / 6 — Listenzeile */
 	--avm-field-label-w: 130px;                         /* Beschriftung links neben dem Feld */
+	/* Hoehe der Wiki-Zuweisungs-Trefferliste. 💣 Stand bis 16.08.2026 als nackte 340px an ZWEI
+	   Stellen -- .label-wiki-picker-list (region-sync.css) und der abgeschriebenen .dt-picker-list
+	   (editor-page.css) -- und ein Kommentar behauptete "dieselbe Hoehe". Das gilt genau bis jemand
+	   eine der beiden aendert (AGENTS.md §12: erst das Token, dann benutzen). */
+	--avm-picker-list-max-h: 340px;                     /* Trefferliste der Wiki-Zuweisung */
 
 	/* Divider rhythm — symmetric space above & below a section line (on-scale) */
 	--divider-gap: var(--space-12);       /* reading sections (infobox) */
