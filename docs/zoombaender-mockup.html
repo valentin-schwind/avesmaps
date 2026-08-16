@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Zoombänder – Mockup (Abstimmung, 2026-08-16)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlägt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// geöffnet wird.
+     Geladen wird die ECHTE CSS-Kette der Editor-Seiten (fonts, tokens, editor-page), damit das
+     Mockup die tatsächliche Designsprache zeigt und nicht meine Auslegung davon
+     (Vorlage: docs/tempowerte-mockup.html). -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   NUR das Neue. Vorschlag für eine Überlagerung in html/wiki-sync-settlement-editor.html
+   (Entwurf §7). Kein hartkodierter Farbwert, kein hartkodierter Radius, keine Schrift unter
+   11px (AGENTS.md §12). Jede Farbe/jeder Radius/jeder Abstand kommt aus css/base/tokens.css;
+   die beiden Bandtöne entstehen per color-mix() AUS Tokens (kein neuer Hex-Wert).
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ---- Mockup-Rahmen (entfällt beim Bau) ------------------------------------------------------ */
+body.mock { height: auto; padding: var(--space-12); }
+.mock-note {
+	max-width: 62rem;
+	margin: 0 auto var(--space-12);
+	padding: var(--space-8) var(--space-12);
+	font-size: var(--font-size-small);
+	color: var(--color-text-muted);
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+}
+.mock-note strong { color: var(--color-text-strong); }
+.mock-note code { color: var(--color-text-strong); }
+.mock-h {
+	max-width: 62rem; margin: var(--space-16) auto var(--space-6);
+	font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .08em;
+	color: var(--color-text-muted);
+}
+.mock-h:first-of-type { margin-top: 0; }
+/* Das Fenster steht im Mockup IM Fluss statt fixed über der Seite. */
+.mock .wp-modal { position: static; inset: auto; padding: 0; background: none; display: block;
+	max-width: 62rem; margin: 0 auto var(--space-12); }
+.mock .wp-modal__box { height: auto; max-height: none; }
+
+/* ---- 1 · Die Kachel im Menüband -------------------------------------------------------------
+   Wörtlich aus html/wiki-sync-settlement-editor.html übernommen: eigenes `.controls`/`.btn2`
+   (nicht die geteilte .avm-ribbon/.avm-tile-Komponente — diese Seite hat ihr Menüband lokal
+   gebaut). Sieben Geschwister + die neue, achte Kachel „Zoombänder" ganz rechts. */
+.zb-ribbon-shell {
+	max-width: 62rem; margin: 0 auto var(--space-6);
+	padding: var(--avm-ribbon-pad);
+	background: var(--color-panel);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+}
+.zb-controls { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+	gap: var(--avm-ribbon-gap); align-items: stretch; }
+.zb-btn2 {
+	display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+	text-align: left; min-height: 48px; padding: var(--space-4) var(--space-8); gap: 1px;
+	line-height: var(--leading-tight); font: inherit; cursor: pointer;
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+}
+.zb-btn2:hover { background: var(--color-button-soft-hover); }
+.zb-btn2.primary { background: var(--color-button); border-color: var(--color-button-border);
+	color: var(--color-button-text); }
+.zb-btn2 .t1 { font-size: var(--font-size-body); font-weight: var(--font-weight-bold);
+	max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zb-btn2 .t2 { font-size: var(--font-size-caption); color: var(--color-text-muted);
+	white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.zb-btn2.primary .t2 { color: var(--color-on-button-muted); }
+/* Die neue Kachel bekommt AUSDRÜCKLICH keine eigene Auszeichnung -- sie soll wie ihre
+   Geschwister aussehen (weich/outline), nur der Beschriftungstext ist neu. Die Fußnote daneben
+   ist reine Mockup-Regie, kein Teil der echten Oberfläche. */
+.zb-ribbon-note { max-width: 62rem; margin: 0 auto var(--space-12); padding: 0 var(--space-4);
+	font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.zb-ribbon-note strong { color: var(--color-text-strong); }
+
+/* ---- Fenster-Inhalt --------------------------------------------------------------------------
+   Gruppiert wird durch TRENNLINIE und Überschrift, nicht durch gerahmte Kästen (AGENTS.md §12). */
+.zb { padding: var(--space-10) var(--space-12) var(--space-12); overflow-y: auto; }
+.zb__lead { margin: 0 0 var(--space-10); max-width: 64ch; font-size: var(--font-size-body);
+	color: var(--color-text); }
+.zb__lead em { color: var(--color-text-muted); font-style: normal; }
+
+.zb__section { border-top: 1px solid var(--color-divider); padding-top: var(--space-10);
+	margin-top: var(--space-12); }
+.zb__section:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
+.zb__head { display: flex; align-items: baseline; gap: var(--space-8); flex-wrap: wrap;
+	margin-bottom: var(--space-8); }
+.zb__head h3 { margin: 0; flex: 1 1 auto; font-size: var(--font-size-body);
+	font-weight: var(--font-weight-bold); color: var(--color-text-strong); }
+.zb__src { font-size: var(--font-size-caption); color: var(--color-text-muted); white-space: nowrap; }
+
+/* ⚠️ Eine Zeilenhandlung ist nie die Haupthandlung (AGENTS.md §12) -- jeder Rücksetzer hier ist
+   WEICH, auch der je Tabelle und der je Klassenzeile. Gefüllt ist in diesem Fenster genau EIN
+   Knopf: „Speichern" in der Speicherleiste. */
+.zb__reset {
+	min-height: var(--avm-control-h); padding: 0 var(--space-8);
+	font-size: var(--font-size-small); border-radius: var(--radius-md);
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	border: 1px solid var(--color-button-soft-border); cursor: pointer;
+}
+.zb__reset:hover { background: var(--color-button-soft-hover); }
+
+/* ---- 2 · Die Bandgrafik -----------------------------------------------------------------------
+   Ein CSS-Grid: eine Beschriftungsspalte + acht Zoomstufen, sieben Zeilen (Kopf + sechs Klassen).
+   Die beiden Bandtöne sind ZWEI MISCHUNGEN desselben Tokens (--color-accent über --color-panel),
+   nicht zwei verschiedene Farbtöne -- damit bleibt „Marker" immer kräftiger als „Name", in
+   hell UND dunkel, ohne einen neuen Farbwert zu erfinden. */
+.zb-band-wrap { overflow-x: auto; }
+.zb-band {
+	display: grid;
+	grid-template-columns: 112px repeat(8, minmax(68px, 1fr));
+	min-width: 47rem;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+	background: var(--color-panel);
+}
+.zb-band__corner, .zb-band__colhead {
+	padding: var(--space-6) var(--space-4);
+	background: var(--color-panel-soft);
+	border-bottom: 1px solid var(--color-divider);
+	font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
+	text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted);
+	text-align: center;
+}
+.zb-band__corner { text-align: left; }
+.zb-band__label {
+	display: flex; align-items: center;
+	padding: var(--space-6) var(--space-8);
+	border-top: 1px solid var(--color-divider);
+	background: var(--color-panel-soft);
+	font-size: var(--font-size-small); font-weight: var(--font-weight-bold);
+	color: var(--color-text-strong);
+}
+.zb-cell {
+	display: flex; flex-direction: column; align-items: center; justify-content: center;
+	gap: var(--space-2);
+	min-height: 76px;
+	padding: var(--space-4) 2px;
+	border-top: 1px solid var(--color-divider);
+	border-left: 1px solid var(--color-divider);
+}
+/* leer = „gibt es auf dieser Stufe nicht" -- bewusst ohne eigenen Ton, sie bleibt Kartengrund. */
+.zb-cell--empty { background: var(--color-panel); }
+.zb-cell--marker, .zb-legend__swatch--marker {
+	background: color-mix(in srgb, var(--color-accent) 22%, var(--color-panel));
+}
+.zb-cell--label, .zb-legend__swatch--label {
+	background: color-mix(in srgb, var(--color-accent) 9%, var(--color-panel));
+}
+.zb-dot {
+	display: block; flex: 0 0 auto; border-radius: 50%;
+	background: var(--color-accent-strong);
+	border: 1px solid var(--color-panel);
+	box-shadow: 0 0 0 1px var(--color-border-strong);
+}
+.zb-word {
+	color: var(--color-text-strong); font-weight: var(--font-weight-bold);
+	line-height: 1; white-space: nowrap;
+}
+.zb-band-legend {
+	max-width: 62rem; margin: var(--space-6) 0 0; display: flex; align-items: center;
+	gap: var(--space-16); flex-wrap: wrap;
+	font-size: var(--font-size-caption); color: var(--color-text-muted);
+}
+.zb-band-legend span.zb-legend__item { display: inline-flex; align-items: center; gap: var(--space-4); }
+.zb-legend__swatch { width: 14px; height: 14px; border-radius: var(--radius-sm);
+	border: 1px solid var(--color-border); display: inline-block; }
+
+/* ---- 3 · Die zwei Zahlentabellen --------------------------------------------------------------- */
+.zb-table-wrap { overflow-x: auto; }
+.zb table { width: 100%; min-width: 46rem; border-collapse: collapse; font-size: var(--font-size-small); }
+.zb th { text-align: right; font-weight: var(--font-weight-bold); color: var(--color-text-muted);
+	font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .05em;
+	padding: 0 var(--space-4) var(--space-4); white-space: nowrap; }
+.zb th.name, .zb td.name { text-align: left; padding-left: 0; }
+.zb td { padding: var(--avm-row-pad); border-top: 1px solid var(--color-divider);
+	color: var(--color-text); vertical-align: middle; text-align: right;
+	font-variant-numeric: tabular-nums; }
+.zb td.name { color: var(--color-text-strong); font-weight: var(--font-weight-bold); white-space: nowrap; }
+.zb tbody tr:hover td { background: var(--color-panel-soft); }
+.zb td.empty { color: var(--color-placeholder); cursor: default; }
+.zb input[type="text"] {
+	width: 3.6rem; text-align: right; min-height: var(--avm-control-h);
+	padding: 0 var(--space-6); font-variant-numeric: tabular-nums;
+	background: var(--color-panel-soft); color: var(--color-text); border: 1px solid var(--color-border);
+	border-radius: var(--radius-md); font: inherit;
+}
+.zb th.act, .zb td.act { text-align: center; padding-left: var(--space-6); }
+/* Zeilen-Rücksetzer: klein, rund, weich -- NIE gefüllt (§12: eine Zeilenhandlung ist nie die
+   Haupthandlung der Seite). */
+.zb-row-reset {
+	min-height: var(--avm-control-h); min-width: var(--avm-control-h);
+	padding: 0 var(--space-6); border-radius: var(--radius-md); cursor: pointer; font: inherit;
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	border: 1px solid var(--color-button-soft-border);
+}
+.zb-row-reset:hover { background: var(--color-button-soft-hover); }
+
+/* Der Hinweis an der Dorf-Zeile -- als eigene, volle Tabellenzeile direkt darunter verankert,
+   damit er unübersehbar an genau dieser Zeile hängt und nicht irgendwo unter der Tabelle schwebt. */
+.zb tr.zb-hint td {
+	border-top: 0; padding: 0 var(--avm-row-pad) var(--space-8);
+	color: var(--color-warning-soft-text); font-size: var(--font-size-caption);
+	text-align: left; white-space: normal;
+}
+.zb tr.zb-hint td.name { font-weight: var(--font-weight-regular); }
+
+/* ---- 5/6 · Speicherleiste, Admin und Nur-Lesen ------------------------------------------------- */
+.zb__foot {
+	display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap;
+	margin-top: var(--space-12); padding-top: var(--space-8);
+	border-top: 1px solid var(--color-divider);
+}
+.zb__foot .spacer { flex: 1 1 auto; }
+.zb__msg { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-small); }
+.zb__btn { min-height: var(--avm-control-h); padding: 0 var(--space-12);
+	border-radius: var(--radius-md); cursor: pointer; font-size: var(--font-size-body); font: inherit; }
+.zb__btn--soft { background: var(--color-button-soft); color: var(--color-button-soft-text);
+	border: 1px solid var(--color-button-soft-border); }
+.zb__btn--soft:hover { background: var(--color-button-soft-hover); }
+.zb__btn--main { background: var(--color-button); color: var(--color-button-text);
+	border: 1px solid var(--color-button-border); font-weight: var(--font-weight-bold); }
+.zb__btn--main:hover { background: var(--color-button-hover); }
+
+/* Die eigenständige Nur-Lesen-Leiste als zweiter Block (kein zweites ganzes Fenster). */
+.zb-locked-block {
+	max-width: 62rem; margin: 0 auto var(--space-12); padding: var(--space-10) var(--space-12);
+	background: var(--color-panel);
+	border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+	box-shadow: var(--shadow-panel);
+}
+.zb-locked-note { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-small); }
+.zb-locked-note strong { color: var(--color-text-strong); font-weight: var(--font-weight-bold); }
+</style>
+</head>
+<body class="avm-editor-body mock">
+
+<div class="mock-note">
+  <strong>Mockup zur Abstimmung, 16.08.2026.</strong> Kein Code dahinter, keine Interaktion — die
+  Zahlen sind der <em>echte</em> Vorgabebestand aus
+  <code>js/map-features/location-zoom-bands.js</code> (<code>AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS</code>),
+  Ziffer für Ziffer wie im Entwurf <code>docs/superpowers/specs/2026-08-16-zoombaender-design.md</code> §3.2.
+  Geladen wird die echte CSS-Kette der Editor-Seiten (<code>fonts.css</code>, <code>tokens.css</code>,
+  <code>editor-page.css</code>).
+</div>
+
+<div class="mock-h">1 · Die Kachel im Menüband des Ortseditors — achte Kachel, neben den vorhandenen sieben</div>
+<div class="zb-ribbon-shell">
+  <div class="zb-controls">
+    <button type="button" class="zb-btn2 primary"><span class="t1">🚨 Syncen</span><span class="t2">Letzte Sync: vor 2 Std.</span></button>
+    <button type="button" class="zb-btn2 primary"><span class="t1">Orte zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
+    <button type="button" class="zb-btn2"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
+    <button type="button" class="zb-btn2"><span class="t1">Wappen lokalisieren</span><span class="t2">gemeinfrei laden</span></button>
+    <button type="button" class="zb-btn2"><span class="t1">Bilder: An</span><span class="t2">im Frontend</span></button>
+    <button type="button" class="zb-btn2"><span class="t1">Wappen: An</span><span class="t2">im Frontend</span></button>
+    <button type="button" class="zb-btn2"><span class="t1">🔗 Links prüfen</span><span class="t2">Quellen der Orte</span></button>
+    <button type="button" class="zb-btn2"><span class="t1">Zoombänder</span><span class="t2">Zoomlevelanzeige aller Orte</span></button>
+  </div>
+</div>
+<p class="zb-ribbon-note">↑ ganz rechts die neue, <strong>achte</strong> Kachel — weich/outline wie
+  ihre sieben Geschwister, nicht gefüllt. Für <code>edit</code> sichtbar (ansehen); Speichern und
+  Zurücksetzen bleiben <code>admin</code> vorbehalten (siehe Abschnitte 4/5 unten).</p>
+
+<div class="mock-h">2 · Das Fenster „Zoombänder"</div>
+<div class="wp-modal">
+  <div class="wp-modal__box" role="dialog" aria-modal="true" aria-labelledby="zbTitle">
+    <div class="wp-modal__head">
+      <h2 id="zbTitle">Zoombänder</h2>
+      <button type="button" class="wp-modal__close" aria-label="Schließen">✕</button>
+    </div>
+
+    <div class="zb">
+
+      <p class="zb__lead">
+        Wann eine Ortsklasse auf der Karte auftaucht, wie groß ihr Punkt ist und ab wann ihr Name
+        dazukommt. <em>Eine leere Zelle heißt „hier gibt es das nicht" — die erste gefüllte Zelle
+        einer Zeile ist die Erscheinungsstufe.</em> Eine Änderung zeichnet die Grafik sofort neu;
+        gespeichert ist erst, was der Knopf unten speichert.
+      </p>
+
+      <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
+      <div class="zb__section">
+        <div class="zb__head">
+          <h3>Die Bandgrafik</h3>
+          <span class="zb__src">Marker-Außendurchmesser (echter Kreis) · Name (echter Schriftgrad)</span>
+        </div>
+
+        <div class="zb-band-wrap">
+          <div class="zb-band">
+            <div class="zb-band__corner">Ortsklasse</div>
+            <div class="zb-band__colhead">z0</div>
+            <div class="zb-band__colhead">z1</div>
+            <div class="zb-band__colhead">z2</div>
+            <div class="zb-band__colhead">z3</div>
+            <div class="zb-band__colhead">z4</div>
+            <div class="zb-band__colhead">z5</div>
+            <div class="zb-band__colhead">z6</div>
+            <div class="zb-band__colhead">z7</div>
+
+            <!-- Metropole -- Marker UND Name ab z0, wächst bis z7 (auf 30px gedeckelt). -->
+            <div class="zb-band__label">Metropole</div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 6,65 px · Name 8 pt"><span class="zb-dot" style="width:6.65px;height:6.65px"></span><span class="zb-word" style="font-size:8pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 9,4 px · Name 9 pt"><span class="zb-dot" style="width:9.4px;height:9.4px"></span><span class="zb-word" style="font-size:9pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 13,3 px · Name 11 pt"><span class="zb-dot" style="width:13.3px;height:13.3px"></span><span class="zb-word" style="font-size:11pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 18,81 px · Name 13 pt"><span class="zb-dot" style="width:18.81px;height:18.81px"></span><span class="zb-word" style="font-size:13pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 26,6 px · Name 17 pt"><span class="zb-dot" style="width:26.6px;height:26.6px"></span><span class="zb-word" style="font-size:17pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 37,62 px (gezeichnet gedeckelt auf 30 px) · Name 19 pt"><span class="zb-dot" style="width:30px;height:30px"></span><span class="zb-word" style="font-size:19pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 53,2 px (gezeichnet gedeckelt auf 30 px) · Name 19 pt"><span class="zb-dot" style="width:30px;height:30px"></span><span class="zb-word" style="font-size:19pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 53,2 px (gezeichnet gedeckelt auf 30 px) · Name 19 pt"><span class="zb-dot" style="width:30px;height:30px"></span><span class="zb-word" style="font-size:19pt">Gareth</span></div>
+
+            <!-- Großstadt -- ebenfalls Marker UND Name ab z0. -->
+            <div class="zb-band__label">Großstadt</div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 3,99 px · Name 8 pt"><span class="zb-dot" style="width:3.99px;height:3.99px"></span><span class="zb-word" style="font-size:8pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 5,86 px · Name 8,5 pt"><span class="zb-dot" style="width:5.86px;height:5.86px"></span><span class="zb-word" style="font-size:8.5pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 8,6 px · Name 10 pt"><span class="zb-dot" style="width:8.6px;height:8.6px"></span><span class="zb-word" style="font-size:10pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 12,62 px · Name 12 pt"><span class="zb-dot" style="width:12.62px;height:12.62px"></span><span class="zb-word" style="font-size:12pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 18,52 px · Name 15 pt"><span class="zb-dot" style="width:18.52px;height:18.52px"></span><span class="zb-word" style="font-size:15pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 27,18 px · Name 17 pt"><span class="zb-dot" style="width:27.18px;height:27.18px"></span><span class="zb-word" style="font-size:17pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 39,9 px (gezeichnet gedeckelt auf 30 px) · Name 17 pt"><span class="zb-dot" style="width:30px;height:30px"></span><span class="zb-word" style="font-size:17pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 39,9 px (gezeichnet gedeckelt auf 30 px) · Name 17 pt"><span class="zb-dot" style="width:30px;height:30px"></span><span class="zb-word" style="font-size:17pt">Gareth</span></div>
+
+            <!-- Stadt -- Marker ab z0, Name erst ab z2. -->
+            <div class="zb-band__label">Stadt</div>
+            <div class="zb-cell zb-cell--marker" title="Marker Ø 1,33 px · noch kein Name"><span class="zb-dot" style="width:1.33px;height:1.33px"></span></div>
+            <div class="zb-cell zb-cell--marker" title="Marker Ø 2,26 px · noch kein Name"><span class="zb-dot" style="width:2.26px;height:2.26px"></span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 3,84 px · Name 9 pt"><span class="zb-dot" style="width:3.84px;height:3.84px"></span><span class="zb-word" style="font-size:9pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 6,52 px · Name 11 pt"><span class="zb-dot" style="width:6.52px;height:6.52px"></span><span class="zb-word" style="font-size:11pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 11,07 px · Name 13 pt"><span class="zb-dot" style="width:11.07px;height:11.07px"></span><span class="zb-word" style="font-size:13pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 18,79 px · Name 15 pt"><span class="zb-dot" style="width:18.79px;height:18.79px"></span><span class="zb-word" style="font-size:15pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 31,92 px (gezeichnet gedeckelt auf 30 px) · Name 15 pt"><span class="zb-dot" style="width:30px;height:30px"></span><span class="zb-word" style="font-size:15pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 31,92 px (gezeichnet gedeckelt auf 30 px) · Name 15 pt"><span class="zb-dot" style="width:30px;height:30px"></span><span class="zb-word" style="font-size:15pt">Gareth</span></div>
+
+            <!-- Kleinstadt -- Marker ab z1, Name erst ab z3. -->
+            <div class="zb-band__label">Kleinstadt</div>
+            <div class="zb-cell zb-cell--empty" title="erscheint hier noch nicht"></div>
+            <div class="zb-cell zb-cell--marker" title="Marker Ø 1,33 px · noch kein Name"><span class="zb-dot" style="width:1.33px;height:1.33px"></span></div>
+            <div class="zb-cell zb-cell--marker" title="Marker Ø 2,39 px · noch kein Name"><span class="zb-dot" style="width:2.39px;height:2.39px"></span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 4,29 px · Name 9,5 pt"><span class="zb-dot" style="width:4.29px;height:4.29px"></span><span class="zb-word" style="font-size:9.5pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 7,7 px · Name 11 pt"><span class="zb-dot" style="width:7.7px;height:7.7px"></span><span class="zb-word" style="font-size:11pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 13,82 px · Name 13 pt"><span class="zb-dot" style="width:13.82px;height:13.82px"></span><span class="zb-word" style="font-size:13pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 24,82 px · Name 13 pt"><span class="zb-dot" style="width:24.82px;height:24.82px"></span><span class="zb-word" style="font-size:13pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 24,82 px · Name 13 pt"><span class="zb-dot" style="width:24.82px;height:24.82px"></span><span class="zb-word" style="font-size:13pt">Gareth</span></div>
+
+            <!-- Dorf -- Marker ab z2, Name erst ab z4. -->
+            <div class="zb-band__label">Dorf</div>
+            <div class="zb-cell zb-cell--empty" title="erscheint hier noch nicht"></div>
+            <div class="zb-cell zb-cell--empty" title="erscheint hier noch nicht"></div>
+            <div class="zb-cell zb-cell--marker" title="Marker Ø 1,33 px · noch kein Name"><span class="zb-dot" style="width:1.33px;height:1.33px"></span></div>
+            <div class="zb-cell zb-cell--marker" title="Marker Ø 2,54 px · noch kein Name"><span class="zb-dot" style="width:2.54px;height:2.54px"></span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 4,86 px · Name 10 pt"><span class="zb-dot" style="width:4.86px;height:4.86px"></span><span class="zb-word" style="font-size:10pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 9,28 px · Name 11 pt"><span class="zb-dot" style="width:9.28px;height:9.28px"></span><span class="zb-word" style="font-size:11pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 17,74 px · Name 11 pt"><span class="zb-dot" style="width:17.74px;height:17.74px"></span><span class="zb-word" style="font-size:11pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 17,74 px · Name 11 pt"><span class="zb-dot" style="width:17.74px;height:17.74px"></span><span class="zb-word" style="font-size:11pt">Gareth</span></div>
+
+            <!-- Bauwerk/Stätte -- Marker ab z3, Name erst ab z4. -->
+            <div class="zb-band__label">Bauwerk/Stätte</div>
+            <div class="zb-cell zb-cell--empty" title="erscheint hier noch nicht"></div>
+            <div class="zb-cell zb-cell--empty" title="erscheint hier noch nicht"></div>
+            <div class="zb-cell zb-cell--empty" title="erscheint hier noch nicht"></div>
+            <div class="zb-cell zb-cell--marker" title="Marker Ø 1,33 px · noch kein Name"><span class="zb-dot" style="width:1.33px;height:1.33px"></span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 2,8 px · Name 9 pt"><span class="zb-dot" style="width:2.8px;height:2.8px"></span><span class="zb-word" style="font-size:9pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 5,9 px · Name 9 pt"><span class="zb-dot" style="width:5.9px;height:5.9px"></span><span class="zb-word" style="font-size:9pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 12,42 px · Name 9 pt"><span class="zb-dot" style="width:12.42px;height:12.42px"></span><span class="zb-word" style="font-size:9pt">Gareth</span></div>
+            <div class="zb-cell zb-cell--label" title="Marker Ø 12,42 px · Name 9 pt"><span class="zb-dot" style="width:12.42px;height:12.42px"></span><span class="zb-word" style="font-size:9pt">Gareth</span></div>
+          </div>
+        </div>
+
+        <p class="zb-band-legend">
+          <span class="zb-legend__item"><span class="zb-legend__swatch zb-legend__swatch--marker"></span>nur Marker erscheint</span>
+          <span class="zb-legend__item"><span class="zb-legend__swatch zb-legend__swatch--label"></span>Marker + Name erscheint</span>
+          <span>· große Marker sind für die Zeichnung gedeckelt — die echte Zahl steht im Tooltip (<code>title</code>)</span>
+        </p>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
+      <div class="zb__section">
+        <div class="zb__head">
+          <h3>Marker — Außendurchmesser in px</h3>
+          <span class="zb__src">Vorgabe: die abgeschaffte geometrische Kurve</span>
+          <button type="button" class="zb__reset">Auf Vorgabe zurücksetzen</button>
+        </div>
+        <div class="zb-table-wrap">
+          <table>
+            <thead><tr>
+              <th class="name">Klasse</th><th>z0</th><th>z1</th><th>z2</th><th>z3</th><th>z4</th><th>z5</th><th>z6</th><th>z7</th><th class="act"></th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td class="name">Metropole</td>
+                <td><input type="text" value="6,65"></td><td><input type="text" value="9,4"></td><td><input type="text" value="13,3"></td><td><input type="text" value="18,81"></td><td><input type="text" value="26,6"></td><td><input type="text" value="37,62"></td><td><input type="text" value="53,2"></td><td><input type="text" value="53,2"></td>
+                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
+              </tr>
+              <tr>
+                <td class="name">Großstadt</td>
+                <td><input type="text" value="3,99"></td><td><input type="text" value="5,86"></td><td><input type="text" value="8,6"></td><td><input type="text" value="12,62"></td><td><input type="text" value="18,52"></td><td><input type="text" value="27,18"></td><td><input type="text" value="39,9"></td><td><input type="text" value="39,9"></td>
+                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
+              </tr>
+              <tr>
+                <td class="name">Stadt</td>
+                <td><input type="text" value="1,33"></td><td><input type="text" value="2,26"></td><td><input type="text" value="3,84"></td><td><input type="text" value="6,52"></td><td><input type="text" value="11,07"></td><td><input type="text" value="18,79"></td><td><input type="text" value="31,92"></td><td><input type="text" value="31,92"></td>
+                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
+              </tr>
+              <tr>
+                <td class="name">Kleinstadt</td>
+                <td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="1,33"></td><td><input type="text" value="2,39"></td><td><input type="text" value="4,29"></td><td><input type="text" value="7,7"></td><td><input type="text" value="13,82"></td><td><input type="text" value="24,82"></td><td><input type="text" value="24,82"></td>
+                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
+              </tr>
+              <tr>
+                <td class="name">Dorf</td>
+                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="1,33"></td><td><input type="text" value="2,54"></td><td><input type="text" value="4,86"></td><td><input type="text" value="9,28"></td><td><input type="text" value="17,74"></td><td><input type="text" value="17,74"></td>
+                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
+              </tr>
+              <tr>
+                <td class="name">Bauwerk/Stätte</td>
+                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="1,33"></td><td><input type="text" value="2,8"></td><td><input type="text" value="5,9"></td><td><input type="text" value="12,42"></td><td><input type="text" value="12,42"></td>
+                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
+      <div class="zb__section">
+        <div class="zb__head">
+          <h3>Name — Schriftgröße in pt</h3>
+          <span class="zb__src">Vorgabe: die abgeschaffte geometrische Kurve</span>
+          <button type="button" class="zb__reset">Auf Vorgabe zurücksetzen</button>
+        </div>
+        <div class="zb-table-wrap">
+          <table>
+            <thead><tr>
+              <th class="name">Klasse</th><th>z0</th><th>z1</th><th>z2</th><th>z3</th><th>z4</th><th>z5</th><th>z6</th><th>z7</th><th class="act"></th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td class="name">Metropole</td>
+                <td><input type="text" value="8"></td><td><input type="text" value="9"></td><td><input type="text" value="11"></td><td><input type="text" value="13"></td><td><input type="text" value="17"></td><td><input type="text" value="19"></td><td><input type="text" value="19"></td><td><input type="text" value="19"></td>
+                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
+              </tr>
+              <tr>
+                <td class="name">Großstadt</td>
+                <td><input type="text" value="8"></td><td><input type="text" value="8,5"></td><td><input type="text" value="10"></td><td><input type="text" value="12"></td><td><input type="text" value="15"></td><td><input type="text" value="17"></td><td><input type="text" value="17"></td><td><input type="text" value="17"></td>
+                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
+              </tr>
+              <tr>
+                <td class="name">Stadt</td>
+                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="9"></td><td><input type="text" value="11"></td><td><input type="text" value="13"></td><td><input type="text" value="15"></td><td><input type="text" value="15"></td><td><input type="text" value="15"></td>
+                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
+              </tr>
+              <tr>
+                <td class="name">Kleinstadt</td>
+                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="9,5"></td><td><input type="text" value="11"></td><td><input type="text" value="13"></td><td><input type="text" value="13"></td><td><input type="text" value="13"></td>
+                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
+              </tr>
+              <tr>
+                <td class="name">Dorf</td>
+                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="10"></td><td><input type="text" value="11"></td><td><input type="text" value="11"></td><td><input type="text" value="11"></td>
+                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
+              </tr>
+              <tr class="zb-hint">
+                <td class="name" colspan="10">⚠ Dörfer tragen ihren Namen ab z4; die Straßenschrift hängt seit dem 16.08.2026 nicht mehr daran.</td>
+              </tr>
+              <tr>
+                <td class="name">Bauwerk/Stätte</td>
+                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="9"></td><td><input type="text" value="9"></td><td><input type="text" value="9"></td><td><input type="text" value="9"></td>
+                <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
+      <div class="zb__foot">
+        <p class="zb__msg">Ungespeichert: 3 Zellen geändert (2 Marker, 1 Name).</p>
+        <span class="spacer"></span>
+        <button type="button" class="zb__btn zb__btn--soft">Alles zurücksetzen</button>
+        <button type="button" class="zb__btn zb__btn--main">Speichern</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-h">3 · Die Speicherleiste, Nur-Lesen-Fassung — Editoren ohne Admin-Recht</div>
+<div class="zb-locked-block">
+  <div class="zb__foot" style="margin-top:0;padding-top:0;border-top:0;">
+    <p class="zb__msg">Zeigt die aktuell wirksamen Werte.</p>
+    <span class="spacer"></span>
+    <p class="zb-locked-note">🔒 <strong>Zoombänder einstellen dürfen nur Administratoren.</strong></p>
+  </div>
+</div>
+
+<div class="mock-note">
+  <strong>Was das Mockup behauptet und was noch offen ist.</strong>
+  Die Felder aller sechs Zeilen sind für Editoren ohne <code>admin</code>-Recht sichtbar, aber
+  gesperrt — dieselbe Bandgrafik erklärt ihnen, warum ein Ort beim Herauszoomen verschwindet, sie
+  können nur nichts daran ändern (Entwurf §2). Offen: die genaue Deckelgrenze der gezeichneten
+  Kreise (hier 30 px probiert) und ob die Speicherleiste eine Zellenzahl nennt oder nur „ungespeicherte
+  Änderungen" pauschal meldet.
+</div>
+
+</body>
+</html>
