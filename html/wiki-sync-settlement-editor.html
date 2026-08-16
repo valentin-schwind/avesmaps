@@ -1331,11 +1331,21 @@ function settlementCoatImageSrc(coat) {
 	return /^https?:\/\//i.test(coat.url) ? `/api/app/coat.php?u=${encodeURIComponent(coat.url)}` : coat.url;
 }
 
+// Phase 4 Pruefung, Befund 2: liest den EINEN Katalog (js/app/media-licenses.js, oben geladen)
+// statt einer eigenen, dreiwertigen Abschrift -- die kannte weder 'cc_by' (seit Phase 2 der
+// Nachfolger von 'attribution_required' im Wiki-Crawler) noch 'ai_generated' (seit Aufgabe 4 die
+// Vorgabe jedes frischen Wappen-Uploads) und zeigte fuer beide "Lizenz unbekannt", obwohl die
+// Lizenz sauber gesetzt war.
+//
+// 🔴 EIN Sonderfall bleibt ausserhalb des Katalogs: der Altwert 'own' (vor Phase 4 fest verdrahtet
+// in settlement-coat-upload.php) traegt im Bestand noch drei Orte (Gareth, Gratenfels, Teshkal) und
+// steht im Katalog nicht -- avesmapsMediaLicenseLabel liesse ihn auf 'unknown_other' fallen
+// ("Unbekannt/Sonstiges"), obwohl er eine Aussage traegt. Er wird deshalb vorab abgefangen, auf
+// denselben Text, den die Quelle-Haelfte der Zeile fuer coat.source === 'own' ohnehin schon zeigt
+// (sourceLabel in buildSettlementCoatBlockHtml) -- keine zweite Liste, nur ein einzelner Alias.
 function licenseStatusLabel(status) {
-	if (status === "public_domain") return "Gemeinfrei";
 	if (status === "own") return "Eigener Upload";
-	if (status === "attribution_required") return "Namensnennung nötig";
-	return "Lizenz unbekannt";
+	return avesmapsMediaLicenseLabel(status);
 }
 
 function buildSettlementCoatBlockHtml(detail) {
