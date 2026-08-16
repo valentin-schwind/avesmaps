@@ -1585,19 +1585,24 @@ function renderGeomModal(){
     const by=g.created_by||'?'; const at=(g.created_at||'').slice(0,10);
     // Die Herkunftsspalte trägt bei Konturen die `source`, bei Hüllen das Wort dafür.
     const herkunft = istHuelle ? 'Außengrenze' : (g.source||'?');
-    const ziel = istHuelle ? ` data-geomterr="${esc(String(g.territory_public_id||''))}"` : '';
+    // 💣 data-geomkind sagt, WELCHE Tabelle gemeint ist. Vorher hing das an data-geomterr, und das
+    // ist bei einer Hülle ohne Gebiet leer — der Knopf fiel dann auf hard_delete_geometry mit der
+    // DERIVED-ID zurück, die dort nie zu finden ist („Die Geometrie wurde nicht gefunden.").
+    const ziel = istHuelle ? ` data-geomkind="derived" data-geomterr="${esc(String(g.territory_public_id||''))}"` : '';
     return `<div class="row"><span class="nm" title="${esc(id)}"><b>${esc(title)}</b> · ${esc(herkunft)} · ${w}×${h} · Fläche ${area} · ${esc(by)} ${esc(at)}</span> <button class="edbtn dt-geomdel" data-geomdel="${esc(id)}"${ziel} title="Endgültig löschen (${esc(id)})">🗑 endgültig löschen</button></div>`;
   }).join('') || '<div class="muted">— keine verwaisten Geometrien —</div>';
 }
 function openGeomModal(){ renderGeomModal(); $('geomModal').hidden=false; }
-async function deleteGeom(id, territoryPublicId){
+async function deleteGeom(id, territoryPublicId, kind){
   if(!window.confirm('Diese Geometrie ENDGÜLTIG löschen? Das kann nicht rückgängig gemacht werden.')) return;
   busy(true);
   try{
     // Eine Hülle wird über ihr GEBIET adressiert (delete_derived_geometry nimmt territory_public_id);
     // ob hart oder nur abgeschaltet, entscheidet die Weiche auf dem Server — nicht dieser Knopf.
-    const r = territoryPublicId
-      ? await geomApi('delete_derived_geometry', {territory_public_id: territoryPublicId})
+    // Fehlt das Gebiet, adressiert sie sich über ihre EIGENE public_id — ohne Territoriumszeile
+    // kann sie niemand mehr erzeugen, dort ist hart die einzige sinnvolle Antwort.
+    const r = kind==='derived'
+      ? await geomApi('delete_derived_geometry', territoryPublicId ? {territory_public_id: territoryPublicId} : {derived_geometry_public_id: id})
       : await geomApi('hard_delete_geometry', {geometry_public_id: id});
     setStatus(`Geometrie endgültig gelöscht (${r.deleted!=null ? r.deleted : (r.affected||0)}).`);
     await loadUnassignedGeoms(); renderGeomModal();
@@ -1615,7 +1620,7 @@ async function purgeAllGeoms(){
 $('geomClose').onclick = ()=>{ $('geomModal').hidden=true; };
 $('geomModal').addEventListener('click', e=>{ if(e.target.id==='geomModal') $('geomModal').hidden=true; });
 $('geomPurgeAll').onclick = purgeAllGeoms;
-$('geomList').addEventListener('click', e=>{ const b=e.target.closest('[data-geomdel]'); if(b){ deleteGeom(b.dataset.geomdel, b.dataset.geomterr||''); } });
+$('geomList').addEventListener('click', e=>{ const b=e.target.closest('[data-geomdel]'); if(b){ deleteGeom(b.dataset.geomdel, b.dataset.geomterr||'', b.dataset.geomkind||''); } });
 
 updateFilterInfo();
 loadModel().then(()=>{

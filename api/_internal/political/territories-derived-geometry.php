@@ -314,6 +314,23 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
 }
 
 function avesmapsPoliticalDeleteDerivedGeometry(PDO $pdo, array $payload, array $user): array {
+    // 💣 Eine Huelle ohne Gebiet hat keine territory_public_id, ueber die man sie adressieren
+    // koennte. Der Loeschknopf im Aufraeumfenster fiel deshalb auf hard_delete_geometry mit der
+    // DERIVED-ID zurueck -- und das sucht in political_territory_geometry, findet dort nichts und
+    // antwortet „Die Geometrie wurde nicht gefunden."; genau die Zeilen, die der Entwurf listet,
+    // waren einzeln nicht entfernbar. Also nimmt diese Aktion zusaetzlich die eigene public_id.
+    $derivedPublicId = avesmapsNormalizeSingleLine((string) ($payload['derived_geometry_public_id'] ?? ''), 36);
+    $hasTargetKey = avesmapsNormalizeSingleLine((string) (
+        $payload['territory_public_id']
+        ?? $payload['public_id']
+        ?? $payload['target_key']
+        ?? $payload['wiki_key']
+        ?? ''
+    ), 255) !== '';
+    if ($derivedPublicId !== '' && !$hasTargetKey) {
+        return avesmapsPoliticalDeleteDerivedGeometryByPublicId($pdo, $derivedPublicId, $user);
+    }
+
     $target = avesmapsPoliticalResolveDerivedGeometryTarget($pdo, $payload, false);
     $territory = $target['territory'] ?? null;
     if (!is_array($territory)) {
@@ -328,6 +345,52 @@ function avesmapsPoliticalDeleteDerivedGeometry(PDO $pdo, array $payload, array 
     }
 
     return avesmapsPoliticalDeleteDerivedGeometryForTerritory($pdo, $territory, $user);
+}
+
+// Der Zugriffsweg fuer eine Huelle, die ueber kein Gebiet mehr erreichbar ist.
+// 🔴 Die eigene public_id ist ein ZUGRIFFSWEG, keine zweite Meinung ueber hart/weich: gibt es das
+// Gebiet noch, geht der Aufruf durch die Weiche wie jeder andere. Hart wird hier nur, was
+// definitionsgemaess niemand mehr erzeugen kann -- eine Huelle ohne Territoriumszeile.
+function avesmapsPoliticalDeleteDerivedGeometryByPublicId(PDO $pdo, string $derivedPublicId, array $user): array {
+    $statement = $pdo->prepare(
+        'SELECT territory_id
+        FROM political_territory_derived_geometry
+        WHERE public_id = :public_id
+        LIMIT 1'
+    );
+    $statement->execute(['public_id' => $derivedPublicId]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($row)) {
+        return ['ok' => false, 'error' => 'Die Außenhülle wurde nicht gefunden.'];
+    }
+
+    $territoryId = (int) ($row['territory_id'] ?? 0);
+    if ($territoryId > 0) {
+        $territoryStatement = $pdo->prepare('SELECT id, public_id FROM political_territory WHERE id = :id LIMIT 1');
+        $territoryStatement->execute(['id' => $territoryId]);
+        $territory = $territoryStatement->fetch(PDO::FETCH_ASSOC);
+        if (is_array($territory)) {
+            return avesmapsPoliticalDeleteDerivedGeometryForTerritory($pdo, $territory, $user);
+        }
+    }
+
+    $deleted = avesmapsPoliticalHardDeleteDerivedGeometryRow(
+        $pdo,
+        $derivedPublicId,
+        (int) ($user['id'] ?? 0),
+        'orphan_single'
+    );
+
+    return [
+        'ok' => true,
+        'territory_public_id' => '',
+        'derived_geometry_public_id' => $derivedPublicId,
+        'derived_geometry' => null,
+        'deactivated' => true,
+        'hard' => true,
+        'affected' => $deleted,
+        'deleted' => $deleted,
+    ];
 }
 
 function avesmapsPoliticalDeleteDerivedGeometryTree(PDO $pdo, array $payload, array $user): array {

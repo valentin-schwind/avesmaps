@@ -266,4 +266,29 @@ assert($result['hard'] === false, 'die Huelle eines Papierkorb-Gebiets wird nur 
 $row = $pdo->query("SELECT is_active FROM political_territory_derived_geometry WHERE public_id = 'd-deakt-terr'")->fetch(PDO::FETCH_ASSOC);
 assert(is_array($row) && (int) $row['is_active'] === 0, 'die Zeile bleibt stehen -- das Gebiet ist wiederherstellbar');
 
+// ===== Der Loeschknopf einer dangling-Huelle trifft SIE, nicht eine Kontur ========================
+// 💣 Ohne Gebiet gibt es keine territory_public_id, ueber die man die Huelle adressieren koennte.
+// Der Knopf fiel deshalb auf hard_delete_geometry mit der DERIVED-ID zurueck -- und das sucht in
+// political_territory_geometry, findet nichts und antwortet „Die Geometrie wurde nicht gefunden."
+// Genau die Zeilen, die der Entwurf ausdruecklich listet, waren einzeln nicht entfernbar.
+$pdo->exec("INSERT INTO political_territory_derived_geometry
+    (id, public_id, territory_id, is_active, min_x, min_y, max_x, max_y, created_by, created_at) VALUES
+    (40, 'd-einzeln', 999, 1, 90.0, 90.0, 95.0, 95.0, 7, '2026-08-04 10:00:00')");
+$einzeln = avesmapsPoliticalDeleteDerivedGeometry($pdo, ['derived_geometry_public_id' => 'd-einzeln'], ['id' => 7]);
+assert(($einzeln['ok'] ?? false) === true, 'die Huelle ohne Gebiet ist einzeln loeschbar');
+assert(($einzeln['hard'] ?? false) === true, 'und zwar hart -- ohne Gebiet kann sie niemand erzeugen');
+$rest = $pdo->query("SELECT COUNT(*) FROM political_territory_derived_geometry WHERE public_id = 'd-einzeln'")->fetchColumn();
+assert((int) $rest === 0, 'die Zeile ist wirklich weg');
+
+// 🔴 Die Gegenprobe: die eigene public_id ist ein ZUGRIFFSWEG, keine zweite Meinung ueber
+// hart/weich. Gibt es das Gebiet noch, entscheidet weiterhin die Weiche -- d-blatt haengt an einer
+// lebenden Quellflaeche und wird deshalb nur deaktiviert.
+$ueberBlatt = avesmapsPoliticalDeleteDerivedGeometry($pdo, ['derived_geometry_public_id' => 'd-blatt'], ['id' => 7]);
+assert(($ueberBlatt['hard'] ?? true) === false, 'eine Huelle mit Quelle wird auch ueber diesen Weg nur deaktiviert');
+$row = $pdo->query("SELECT is_active FROM political_territory_derived_geometry WHERE public_id = 'd-blatt'")->fetch(PDO::FETCH_ASSOC);
+assert(is_array($row) && (int) $row['is_active'] === 0, 'ihre Zeile steht noch da');
+
+$fehlt = avesmapsPoliticalDeleteDerivedGeometry($pdo, ['derived_geometry_public_id' => 'd-gibt-es-nicht'], ['id' => 7]);
+assert(($fehlt['ok'] ?? true) === false, 'eine unbekannte Huellen-ID meldet einen Fehler statt still zu tun');
+
 echo "OK: verwaiste-aussenhuellen-test\n";
