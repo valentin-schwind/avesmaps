@@ -961,6 +961,8 @@ body.avm-editor-body {
  * Label ueber Feld statt nebeneinander (.dt-img-meta .mlf-row, lokal in dieser Datei ueberschrieben,
  * Phase 4 Aufgabe 3) -- dieselben .mlf-*-Klassen, nur ihr Layout angepasst; keine zweite Fassung der
  * Regeln selbst, vormals .dt-img-license/.dt-img-note (eigene, jetzt entfernte Mini-Box-Klassen).
+ * ⚠️ Kein Test bewacht die Parität zwischen dieser Zeile und .ce-row (html/citymap-editor.html,
+ * Zeile ~283): ändert sich eine der beiden Formen, gegenprüfen, ob die andere mitziehen sollte.
  */
 .mlf-row {
 	display: flex;
@@ -1010,6 +1012,17 @@ body.avm-editor-body {
 .mlf-option--muted {
 	color: var(--color-text-muted);
 	font-style: italic;
+}
+
+/* 🔴 Das AUSWAHLFELD selbst traegt die Kennzeichnung, wenn sein GEWAEHLTER Wert nicht oeffentlich
+   ist (avesmapsMediaLicenseSelectHiddenClass in js/ui/media-license-fields.js) -- sichtbar auch im
+   GESCHLOSSENEN Zustand, anders als .mlf-option--muted, das nur beim Aufklappen wirkt. Bei bis zu
+   zehn Bildern je Ort sah ein stummer Wert ohne dies aus wie ein sichtbarer (Fund aus Phase-4-
+   Aufgabe 3, 16.08.2026). Vorbild fuer Ton und Form: .dt-img-license--hidden, das dieselbe Aussage
+   vorher lokal in html/wiki-sync-settlement-editor.html traf. */
+.mlf-select--hidden {
+	border-color: var(--color-warning);
+	color: var(--color-warning);
 }
 
 /* Die graue Protokollzeile unter den drei Feldern ("hochgeladen von X am TT.MM.JJJJ"). */

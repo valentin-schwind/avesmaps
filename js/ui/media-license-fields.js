@@ -25,6 +25,7 @@ if (typeof module !== "undefined" && module.exports) {
 	global.AVESMAPS_MEDIA_LICENSES = katalog.AVESMAPS_MEDIA_LICENSES;
 	global.AVESMAPS_MEDIA_LICENSE_PERMISSION_NOTE = katalog.AVESMAPS_MEDIA_LICENSE_PERMISSION_NOTE;
 	global.avesmapsMediaLicenseNormalize = katalog.avesmapsMediaLicenseNormalize;
+	global.avesmapsMediaLicenseIsPublic = katalog.avesmapsMediaLicenseIsPublic;
 }
 
 /** HTML-Maskierung -- Urheber und Kommentar sind freier Editortext. */
@@ -46,21 +47,30 @@ function avesmapsMediaLicenseFieldsMarkup(werte, optionen) {
 	// 🔴 Der gespeicherte Wert schlägt die Vorgabe; ein leerer oder fremder fällt auf sie zurück.
 	const gewaehlt = avesmapsMediaLicenseNormalize(w.license, o.vorgabe || "unknown_other");
 
-	const optionen_html = AVESMAPS_MEDIA_LICENSES.map(function (e) {
+	const optionenHtml = AVESMAPS_MEDIA_LICENSES.map(function (e) {
 		// ⚠️ KEIN disabled für die stillen Werte: "wird nicht angezeigt" heißt nicht "nicht wählbar".
 		// Der Editor trägt die Angabe vollständig ein, nur die Veröffentlichung unterbleibt. Eine
-		// eigene Klasse markiert sie dezent (gedämpfte Schrift, kein Riegel).
+		// eigene Klasse markiert sie dezent (gedämpfte Schrift, kein Riegel). Das AUSWAHLFELD selbst
+		// trägt zusätzlich .mlf-select--hidden, wenn der GEWÄHLTE Wert stumm ist (unten) -- diese hier
+		// wirkt nur beim Aufklappen, jene auch im geschlossenen Zustand.
 		return '<option value="' + e.value + '"' + (e.value === gewaehlt ? " selected" : "")
 			+ (e.public ? "" : ' class="mlf-option--muted"') + ">"
 			+ avesmapsMediaLicenseEscape(e.label) + "</option>";
 	}).join("");
 
 	// --- MARKUP 1: die Auswahlzeile (data-<prefix>-license) ---------------------------------------
+	// 🔴 Die Kennzeichnung sitzt am <select> SELBST, nicht nur an seinen <option>s: bei bis zu zehn
+	// Bildern je Ort sieht ein stummer Wert im geschlossenen Zustand sonst aus wie ein sichtbarer
+	// (Owner/Prüfung 16.08.2026, Fund aus Aufgabe 3). avesmapsMediaLicenseSelectHiddenClass ist die
+	// EINE Stelle, die "gewählter Wert nicht öffentlich" in eine Klasse übersetzt -- dieselbe
+	// Funktion zieht avesmapsMediaLicenseSyncSelectHidden beim change nach.
+	const hiddenKlasse = avesmapsMediaLicenseSelectHiddenClass(gewaehlt);
+	const selectKlasse = "mlf-select" + (hiddenKlasse === "" ? "" : " " + hiddenKlasse);
 	const lizenzZeile = '<div class="mlf-row">'
 		+ '<span class="mlf-row__label">Lizenz</span>'
-		+ '<select class="mlf-select" data-' + prefix + '-license'
+		+ '<select class="' + selectKlasse + '" data-' + prefix + '-license'
 		+ ' title="Bestimmt, ob die Angabe im Frontend erscheint">'
-		+ optionen_html
+		+ optionenHtml
 		+ '</select></div>';
 
 	// --- MARKUP 2: die Urheber-Zeile (data-<prefix>-author), IMMER da, bei jedem Wert -------------
@@ -84,6 +94,29 @@ function avesmapsMediaLicenseFieldsMarkup(werte, optionen) {
 		+ lizenzZeile + urheberZeile + kommentarZeile
 		+ avesmapsMediaLicenseProtokollZeile(w.uploaded_by, w.uploaded_at)
 		+ '</div>';
+}
+
+/**
+ * Der Klassenname, den das AUSWAHLFELD selbst tragen muss, wenn sein gewählter Wert nicht
+ * öffentlich ist ("wird nicht angezeigt" -- die wichtigste Aussage, die dieses Feld treffen kann,
+ * Owner/Prüfung 16.08.2026). Reine Funktion, damit sowohl das erste Rendern
+ * (avesmapsMediaLicenseFieldsMarkup) als auch das Nachziehen bei jeder Änderung
+ * (avesmapsMediaLicenseSyncSelectHidden) dieselbe Entscheidung treffen -- nie zwei Kopien der Regel.
+ */
+function avesmapsMediaLicenseSelectHiddenClass(wert) {
+	return avesmapsMediaLicenseIsPublic(wert) ? "" : "mlf-select--hidden";
+}
+
+/**
+ * Zieht die Kennzeichnung an EINEM <select> nach einer Auswahländerung nach. Die fünf Dialoge
+ * hängen dies an ihren eigenen `change`-Zuhörer (der das Feld ohnehin schon liest, um den neuen Wert
+ * zu speichern) -- die Logik selbst steht nur hier, nicht fünfmal abgeschrieben.
+ */
+function avesmapsMediaLicenseSyncSelectHidden(selectEl) {
+	if (!selectEl || !selectEl.classList) {
+		return;
+	}
+	selectEl.classList.toggle("mlf-select--hidden", avesmapsMediaLicenseSelectHiddenClass(selectEl.value) !== "");
 }
 
 /**
@@ -127,5 +160,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsMediaLicenseFieldsMarkup: avesmapsMediaLicenseFieldsMarkup,
 		avesmapsMediaLicenseProtokollZeile: avesmapsMediaLicenseProtokollZeile,
 		avesmapsMediaLicenseNoteVorschlag: avesmapsMediaLicenseNoteVorschlag,
+		avesmapsMediaLicenseSelectHiddenClass: avesmapsMediaLicenseSelectHiddenClass,
+		avesmapsMediaLicenseSyncSelectHidden: avesmapsMediaLicenseSyncSelectHidden,
 	};
 }

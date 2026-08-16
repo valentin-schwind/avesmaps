@@ -42,6 +42,42 @@ assert.ok(/<option value="cc0"[^>]*\sselected/.test(mitWert), "gespeicherter Wer
 // die Veröffentlichung unterbleibt. Ein disabled-Attribut wäre der falsche Schluss.
 assert.ok(!/<option value="cc_by"[^>]*disabled/.test(markup), "cc_by darf nicht gesperrt sein");
 assert.ok(!/<option value="unknown_other"[^>]*disabled/.test(markup), "unknown_other darf nicht gesperrt sein");
+// Minor aus der Prüfung 16.08.2026: mlf-option--muted selbst war ungetestet -- ein stiller Eintrag
+// trägt sie, ein öffentlicher nicht.
+assert.ok(/<option value="cc_by"[^>]*class="mlf-option--muted"/.test(markup), "cc_by muss mlf-option--muted tragen");
+assert.ok(!/<option value="cc0"[^>]*class="mlf-option--muted"/.test(markup), "cc0 ist öffentlich -- keine mlf-option--muted");
+
+// ---- Important aus der Prüfung 16.08.2026: die Kennzeichnung gehört ANS AUSWAHLFELD, nicht nur an
+// den Eintrag -- sonst sieht ein stummer Wert im GESCHLOSSENEN Dropdown aus wie ein sichtbarer
+// (bis zu zehn Bilder je Ort in der Siedlungsbilderliste, Aufgabe 3). ------------------------------
+assert.strictEqual(bauer.avesmapsMediaLicenseSelectHiddenClass("cc0"), "", "oeffentlicher Wert bekommt keine Klasse");
+assert.strictEqual(bauer.avesmapsMediaLicenseSelectHiddenClass("cc_by"), "mlf-select--hidden", "stiller Wert bekommt die Klasse nicht");
+// Vorgabe unknown_other ist selbst nicht oeffentlich -- ohne gespeicherten Wert traegt das <select> die Klasse.
+assert.ok(/<select class="mlf-select mlf-select--hidden"/.test(markup), "select bekommt die Klasse nicht fuer den stummen Vorgabewert");
+const mitOeffentlichemWert = bauer.avesmapsMediaLicenseFieldsMarkup({ license: "cc0" }, { prefix: "cm", vorgabe: "unknown_other" });
+assert.ok(mitOeffentlichemWert.includes('<select class="mlf-select" data-cm-license'), "select traegt fuer einen oeffentlichen Wert eine unpassende Klasse");
+assert.ok(!mitOeffentlichemWert.includes("mlf-select--hidden"), "select traegt die Klasse bei einem oeffentlichen Wert nicht");
+// avesmapsMediaLicenseSyncSelectHidden zieht dieselbe Entscheidung bei einer Aenderung nach (die
+// fünf Dialoge hängen dies an ihren eigenen change-Zuhörer). Stub statt echtem DOM -- classList
+// reicht als Schnittstelle.
+function stubSelect(value) {
+	const klassen = new Set(["mlf-select"]);
+	return {
+		value: value,
+		classList: {
+			toggle(name, an) {
+				if (an) klassen.add(name); else klassen.delete(name);
+			},
+			contains(name) { return klassen.has(name); },
+		},
+	};
+}
+const selEl1 = stubSelect("cc_by");
+bauer.avesmapsMediaLicenseSyncSelectHidden(selEl1);
+assert.ok(selEl1.classList.contains("mlf-select--hidden"), "sync setzt die Klasse für einen stillen Wert nicht");
+const selEl2 = stubSelect("cc0");
+bauer.avesmapsMediaLicenseSyncSelectHidden(selEl2);
+assert.ok(!selEl2.classList.contains("mlf-select--hidden"), "sync entfernt die Klasse für einen öffentlichen Wert nicht");
 
 // ---- der prefix trennt die Flächen -------------------------------------------------------------------
 assert.ok(markup.includes('data-cm-license'), "prefix nicht in den data-Attributen");

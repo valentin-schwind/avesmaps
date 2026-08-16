@@ -287,6 +287,9 @@
     font-weight: var(--font-weight-bold);
     color: var(--color-text-muted);
   }
+  /* ⚠️ Kein Test bewacht die Parität: .mlf-row (css/components/editor-page.css) ist bewusst eine
+     eigene, gleich geformte Regel für dieselbe "Label links, Feld rechts"-Zeile (js/ui/media-
+     license-fields.js) -- ändert sich diese hier, gegenprüfen, ob jene mitziehen sollte. */
   .ce-row { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-6); }
   .ce-row__label { flex: 0 0 var(--avm-field-label-w); color: var(--color-text-muted); }
   /* Follow-the-link affordance next to a URL input. --color-link is the house link colour (never blue,
