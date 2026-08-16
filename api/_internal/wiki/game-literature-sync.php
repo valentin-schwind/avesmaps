@@ -1109,8 +1109,23 @@ function avesmapsGameLiteratureCoverAutogetStep(PDO $pdo, float $budgetSeconds):
     // run that ensure (3 CREATE + information_schema probes) PER cover -- exactly the DDL load mechanism 3
     // removes from the step path. The citymap step likewise writes its state directly, never ensuring in
     // the loop. field_origins is merged from the row we already read (same step -> no stale race).
+    //
+    // 🔴 Phase 4 (Lizenz-Vereinheitlichung, Aufgabe 6, Nachtrag): cover_license/cover_author/
+    // cover_uploaded_at reisen jetzt MIT -- ohne sie blieb ein per Autoget gezogenes Wiki-Cover auf
+    // cover_license = NULL stehen, und avesmapsMediaLicenseNormalize(null) faellt ohne Vorgabe auf
+    // 'unknown_other' (nicht oeffentlich). Ein spaeteres Cover-Gate haette ein voellig legitimes
+    // Ulisses-Cover ohne jeden Fehler unsichtbar gemacht -- derselbe stille Ausfall, gegen den diese
+    // Phase gebaut ist. 'permission_granted'/'Ulisses' sind dieselben Werte, die Phase 2 dem Bestand
+    // gegeben hat (NOTICE.md, Ulisses-Fanrichtlinien) -- derselbe Literal wie
+    // avesmapsCitymapAutogetTarget() fuer die Karten-Vorschauen (api/_internal/app/citymaps.php,
+    // "permission_granted, NOT public_domain: this is permission under the Ulisses fan guidelines").
+    // 🔴 cover_uploaded_by bleibt ABSICHTLICH aussen vor (keine Spalte im SET) -- der Lauf ist
+    // automatisch, es gibt keinen Benutzer. "Leer heisst leer": ein Platzhalter wie "System" waere von
+    // einem echten Namen spaeter nicht mehr zu unterscheiden (dieselbe Linie wie
+    // avesmapsMediaLicenseProtokollZeile, js/ui/media-license-fields.js).
     $okStmt = $pdo->prepare(
-        "UPDATE adventure SET cover_url = :u, field_origins_json = :fo, cover_source = :cs, cover_auto_state = 'ok'
+        "UPDATE adventure SET cover_url = :u, field_origins_json = :fo, cover_source = :cs, cover_auto_state = 'ok',
+                cover_license = 'permission_granted', cover_author = 'Ulisses', cover_uploaded_at = :cua
           WHERE public_id = :pid"
     );
 
@@ -1149,12 +1164,16 @@ function avesmapsGameLiteratureCoverAutogetStep(PDO $pdo, float $budgetSeconds):
                     $tally['fetch_failed']++;
                 } else {
                     // Cover fetched: set cover_url + its 'wiki' origin (a later manual upload still wins) +
-                    // cover_source (so the reconcile treats it as up to date) + the ok state, in ONE update.
+                    // cover_source (so the reconcile treats it as up to date) + the ok state + Lizenz/
+                    // Urheber/Protokoll, in ONE update. ⚠️ DATETIME-Spalte, also gmdate('Y-m-d H:i:s') --
+                    // NICHT die ISO-Form mit 'T'/'Z' (dieselbe Fallunterscheidung wie im Upload-Endpunkt,
+                    // api/edit/map/game-literature-cover.php).
                     $origins['cover_url'] = 'wiki';
                     $okStmt->execute([
                         'u' => $localUrl,
                         'fo' => avesmapsGameLiteratureEncodeOrigins($origins),
                         'cs' => mb_substr($coverFile, 0, 300, 'UTF-8'),
+                        'cua' => gmdate('Y-m-d H:i:s'),
                         'pid' => $publicId,
                     ]);
                     $tally['ok']++;
