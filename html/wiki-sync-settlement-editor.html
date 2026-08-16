@@ -286,7 +286,11 @@
      (Spalt/Repel/Versatz) gehört zu Aufgabe 8b und steht hier bewusst NICHT. Gruppiert wird durch
      Trennlinie + Überschrift, nicht durch gerahmte Kästen (AGENTS.md §12). Nur Tokens, nichts unter
      11px. */
-  .modal-box--zoombands { width:980px; max-width:96vw; }
+  /* 💣 ZWEI Klassen, nicht eine: `.modal-box.wide` (0,2,0) schlaegt eine einklassige Regel
+     (0,1,0) unabhaengig von der Quelltextreihenfolge -- das Fenster stand dadurch auf 460px
+     statt 980px, und die zehn Stufenknoepfe je Zeile waren nicht mehr sicher zu treffen.
+     Dieselbe Falle wie bei den Listenzeilen (AGENTS.md §11). */
+  .modal-box.modal-box--zoombands { width:980px; max-width:96vw; }
   .zb { max-height:70vh; overflow-y:auto; margin:2px 0 10px; }
   .zb__lead { margin:0 0 var(--space-10); max-width:74ch; font-size:var(--font-size-body); color:var(--fg); }
   .zb__lead em { color:var(--mut); font-style:normal; }
