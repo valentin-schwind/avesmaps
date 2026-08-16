@@ -131,8 +131,28 @@ body.mock { height: auto; padding: var(--space-12); }
 /* ---- 2 · Die Bandgrafik -----------------------------------------------------------------------
    Ein CSS-Grid: eine Beschriftungsspalte + acht Zoomstufen, sieben Zeilen (Kopf + sechs Klassen).
    Die beiden Bandtöne sind ZWEI MISCHUNGEN desselben Tokens (--color-accent über --color-panel),
-   nicht zwei verschiedene Farbtöne -- damit bleibt „Marker" immer kräftiger als „Name", in
-   hell UND dunkel, ohne einen neuen Farbwert zu erfinden. */
+   nicht zwei verschiedene Farbtöne -- damit bleibt „Marker" immer kräftiger als „Name".
+   💣 Der Mischanteil allein reicht NICHT: dieselben zwei Prozentzahlen kehren ihre Richtung um,
+   sobald der Untergrund von sehr hell (Hell-Thema, --color-panel ist fast weiß) auf sehr dunkel
+   wechselt (Dunkel-Thema, --color-panel ist fast schwarz) -- mehr Gold-Anteil macht auf hellem
+   Papier DUNKLER, auf dunklem Papier HELLER. Die Rangfolge ist aber eine Bedeutungsaussage
+   („Marker" ist immer der weniger weit fortgeschrittene Zustand als „Name"), keine Frage des
+   Untergrunds -- deshalb stehen die zwei Prozentzahlen als eigene Variablen und werden unter
+   dunklem Thema GETAUSCHT, nicht neu erfunden: derselbe Token, dieselben zwei Anteile, nur die
+   Zuordnung dreht mit dem Thema. Geprüft in beiden Themes (siehe Bericht). */
+:root {
+	--zb-band-marker-tint: color-mix(in srgb, var(--color-accent) 22%, var(--color-panel));
+	--zb-band-label-tint: color-mix(in srgb, var(--color-accent) 9%, var(--color-panel));
+}
+:root[data-theme="dark"] {
+	/* ⚠️ Nicht dieselben zwei Zahlen getauscht -- eigens für Dunkel nachgemessen. Ein bloßer
+	   Tausch (9 %/22 %) hielt zwar die Rangfolge, ließ „leer" und „nur Marker" auf dem sehr
+	   dunklen Untergrund aber fast verschmelzen (9 % Gold-Anteil hebt sich von fast-schwarz kaum
+	   ab). 14 %/30 % geben in Dunkel denselben klaren Dreiklang leer/Marker/Name, den 22 %/9 % in
+	   Hell schon hatten. */
+	--zb-band-marker-tint: color-mix(in srgb, var(--color-accent) 14%, var(--color-panel));
+	--zb-band-label-tint: color-mix(in srgb, var(--color-accent) 30%, var(--color-panel));
+}
 .zb-band-wrap { overflow-x: auto; }
 .zb-band {
 	display: grid;
@@ -170,12 +190,8 @@ body.mock { height: auto; padding: var(--space-12); }
 }
 /* leer = „gibt es auf dieser Stufe nicht" -- bewusst ohne eigenen Ton, sie bleibt Kartengrund. */
 .zb-cell--empty { background: var(--color-panel); }
-.zb-cell--marker, .zb-legend__swatch--marker {
-	background: color-mix(in srgb, var(--color-accent) 22%, var(--color-panel));
-}
-.zb-cell--label, .zb-legend__swatch--label {
-	background: color-mix(in srgb, var(--color-accent) 9%, var(--color-panel));
-}
+.zb-cell--marker, .zb-legend__swatch--marker { background: var(--zb-band-marker-tint); }
+.zb-cell--label, .zb-legend__swatch--label { background: var(--zb-band-label-tint); }
 .zb-dot {
 	display: block; flex: 0 0 auto; border-radius: 50%;
 	background: var(--color-accent-strong);
@@ -195,26 +211,54 @@ body.mock { height: auto; padding: var(--space-12); }
 .zb-legend__swatch { width: 14px; height: 14px; border-radius: var(--radius-sm);
 	border: 1px solid var(--color-border); display: inline-block; }
 
-/* ---- 3 · Die zwei Zahlentabellen --------------------------------------------------------------- */
+/* ---- 3 · Die zwei Zahlentabellen ---------------------------------------------------------------
+   🔴 Owner-Rückmeldung 16.08.2026: das Häkchen ist die Wahrheit über die Sichtbarkeit, die Zahl
+   nur noch die Größe. Gewählt: das Häkchen sitzt IN der Zelle, über dem Zahlenfeld -- nicht als
+   dritte Tafel daneben -- weil Sichtbarkeit und Größe zusammengehören und man sonst dieselbe
+   Tabelle dreimal lesen müsste (Sichtbarkeit hier, Größe dort, Klassenname wieder woanders). */
 .zb-table-wrap { overflow-x: auto; }
 .zb table { width: 100%; min-width: 46rem; border-collapse: collapse; font-size: var(--font-size-small); }
-.zb th { text-align: right; font-weight: var(--font-weight-bold); color: var(--color-text-muted);
+.zb th { text-align: center; font-weight: var(--font-weight-bold); color: var(--color-text-muted);
 	font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .05em;
 	padding: 0 var(--space-4) var(--space-4); white-space: nowrap; }
 .zb th.name, .zb td.name { text-align: left; padding-left: 0; }
 .zb td { padding: var(--avm-row-pad); border-top: 1px solid var(--color-divider);
-	color: var(--color-text); vertical-align: middle; text-align: right;
+	color: var(--color-text); vertical-align: middle; text-align: center;
 	font-variant-numeric: tabular-nums; }
 .zb td.name { color: var(--color-text-strong); font-weight: var(--font-weight-bold); white-space: nowrap; }
 .zb tbody tr:hover td { background: var(--color-panel-soft); }
 .zb td.empty { color: var(--color-placeholder); cursor: default; }
+/* Häkchen über dem Zahlenfeld, beide zentriert in der Zelle. */
+.zb-vis-check {
+	display: block; margin: 0 auto var(--space-2); width: 14px; height: 14px;
+	accent-color: var(--color-accent-strong); cursor: pointer;
+}
+.zb-dash { color: var(--color-placeholder); }
 .zb input[type="text"] {
-	width: 3.6rem; text-align: right; min-height: var(--avm-control-h);
+	display: block; margin: 0 auto; width: 3.6rem; text-align: right; min-height: var(--avm-control-h);
 	padding: 0 var(--space-6); font-variant-numeric: tabular-nums;
 	background: var(--color-panel-soft); color: var(--color-text); border: 1px solid var(--color-border);
 	border-radius: var(--radius-md); font: inherit;
 }
 .zb th.act, .zb td.act { text-align: center; padding-left: var(--space-6); }
+/* Beispiel „ausgeblendet, aber gemerkt" (⭐ Rückmeldung): dieselben Bausteine wie in der echten
+   Tabelle, aber mit den Tokens für gesperrte Felder -- die Zahl bleibt LESBAR, nicht gelöscht. */
+.zb-example {
+	margin: 0 0 var(--space-10); display: flex; align-items: center; gap: var(--space-8);
+	flex-wrap: wrap; font-size: var(--font-size-small); color: var(--color-text-muted);
+}
+.zb-example__cell {
+	display: flex; align-items: center; gap: var(--space-6);
+	padding: var(--space-4) var(--space-8); background: var(--color-panel-soft);
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+}
+.zb-example__cell .zb-vis-check { margin: 0; }
+.zb-example__cell input[type="text"] {
+	width: 3.6rem; text-align: right; min-height: var(--avm-control-h);
+	padding: 0 var(--space-6); font-variant-numeric: tabular-nums; font: inherit;
+	background: var(--color-disabled-bg); color: var(--color-disabled-text);
+	border: 1px solid var(--color-disabled-border); border-radius: var(--radius-md);
+}
 /* Zeilen-Rücksetzer: klein, rund, weich -- NIE gefüllt (§12: eine Zeilenhandlung ist nie die
    Haupthandlung der Seite). */
 .zb-row-reset {
@@ -302,16 +346,26 @@ body.mock { height: auto; padding: var(--space-12); }
 
       <p class="zb__lead">
         Wann eine Ortsklasse auf der Karte auftaucht, wie groß ihr Punkt ist und ab wann ihr Name
-        dazukommt. <em>Eine leere Zelle heißt „hier gibt es das nicht" — die erste gefüllte Zelle
-        einer Zeile ist die Erscheinungsstufe.</em> Eine Änderung zeichnet die Grafik sofort neu;
-        gespeichert ist erst, was der Knopf unten speichert.
+        dazukommt. <em>Das Häkchen entscheidet, ob eine Klasse auf dieser Stufe erscheint — die
+        Zahl daneben bestimmt nur noch, wie groß.</em> Ein Band bleibt zusammenhängend: einmal
+        angehäkelt, bleibt eine Klasse bis z7 angehäkelt, es entsteht kein Loch. Eine Änderung
+        zeichnet die Grafik sofort neu; gespeichert ist erst, was der Knopf unten speichert.
+      </p>
+
+      <p class="zb-example">
+        <span class="zb-example__cell">
+          <input type="checkbox" class="zb-vis-check" title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet">
+          <input type="text" value="12,4" disabled>
+        </span>
+        Häkchen aus, Zahl bleibt — nur ausgegraut, nicht gelöscht. Wer kurz ausblendet, verliert die
+        eingestellte Größe nicht.
       </p>
 
       <!-- ══════════════════════════════════════════════════════════════════════════════════ -->
       <div class="zb__section">
         <div class="zb__head">
           <h3>Die Bandgrafik</h3>
-          <span class="zb__src">Marker-Außendurchmesser (echter Kreis) · Name (echter Schriftgrad)</span>
+          <span class="zb__src">liest die Häkchen der Tafeln unten — Kreis im echten Durchmesser, Name im echten Schriftgrad</span>
         </div>
 
         <div class="zb-band-wrap">
@@ -395,8 +449,8 @@ body.mock { height: auto; padding: var(--space-12); }
         </div>
 
         <p class="zb-band-legend">
-          <span class="zb-legend__item"><span class="zb-legend__swatch zb-legend__swatch--marker"></span>nur Marker erscheint</span>
-          <span class="zb-legend__item"><span class="zb-legend__swatch zb-legend__swatch--label"></span>Marker + Name erscheint</span>
+          <span class="zb-legend__item"><span class="zb-legend__swatch zb-legend__swatch--marker"></span>nur Punkt-Häkchen gesetzt</span>
+          <span class="zb-legend__item"><span class="zb-legend__swatch zb-legend__swatch--label"></span>Punkt- UND Name-Häkchen gesetzt</span>
           <span>· große Marker sind für die Zeichnung gedeckelt — die echte Zahl steht im Tooltip (<code>title</code>)</span>
         </p>
       </div>
@@ -416,32 +470,32 @@ body.mock { height: auto; padding: var(--space-12); }
             <tbody>
               <tr>
                 <td class="name">Metropole</td>
-                <td><input type="text" value="6,65"></td><td><input type="text" value="9,4"></td><td><input type="text" value="13,3"></td><td><input type="text" value="18,81"></td><td><input type="text" value="26,6"></td><td><input type="text" value="37,62"></td><td><input type="text" value="53,2"></td><td><input type="text" value="53,2"></td>
+                <td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="6,65"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="9,4"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="13,3"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="18,81"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="26,6"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="37,62"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="53,2"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="53,2"></td>
                 <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
               </tr>
               <tr>
                 <td class="name">Großstadt</td>
-                <td><input type="text" value="3,99"></td><td><input type="text" value="5,86"></td><td><input type="text" value="8,6"></td><td><input type="text" value="12,62"></td><td><input type="text" value="18,52"></td><td><input type="text" value="27,18"></td><td><input type="text" value="39,9"></td><td><input type="text" value="39,9"></td>
+                <td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="3,99"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="5,86"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="8,6"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="12,62"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="18,52"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="27,18"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="39,9"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="39,9"></td>
                 <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
               </tr>
               <tr>
                 <td class="name">Stadt</td>
-                <td><input type="text" value="1,33"></td><td><input type="text" value="2,26"></td><td><input type="text" value="3,84"></td><td><input type="text" value="6,52"></td><td><input type="text" value="11,07"></td><td><input type="text" value="18,79"></td><td><input type="text" value="31,92"></td><td><input type="text" value="31,92"></td>
+                <td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="1,33"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="2,26"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="3,84"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="6,52"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="11,07"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="18,79"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="31,92"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="31,92"></td>
                 <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
               </tr>
               <tr>
                 <td class="name">Kleinstadt</td>
-                <td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="1,33"></td><td><input type="text" value="2,39"></td><td><input type="text" value="4,29"></td><td><input type="text" value="7,7"></td><td><input type="text" value="13,82"></td><td><input type="text" value="24,82"></td><td><input type="text" value="24,82"></td>
+                <td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><span class="zb-dash">—</span></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="1,33"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="2,39"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="4,29"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="7,7"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="13,82"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="24,82"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="24,82"></td>
                 <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
               </tr>
               <tr>
                 <td class="name">Dorf</td>
-                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="1,33"></td><td><input type="text" value="2,54"></td><td><input type="text" value="4,86"></td><td><input type="text" value="9,28"></td><td><input type="text" value="17,74"></td><td><input type="text" value="17,74"></td>
+                <td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><span class="zb-dash">—</span></td><td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><span class="zb-dash">—</span></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="1,33"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="2,54"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="4,86"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="9,28"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="17,74"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="17,74"></td>
                 <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
               </tr>
               <tr>
                 <td class="name">Bauwerk/Stätte</td>
-                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="1,33"></td><td><input type="text" value="2,8"></td><td><input type="text" value="5,9"></td><td><input type="text" value="12,42"></td><td><input type="text" value="12,42"></td>
+                <td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><span class="zb-dash">—</span></td><td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><span class="zb-dash">—</span></td><td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><span class="zb-dash">—</span></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="1,33"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="2,8"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="5,9"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="12,42"></td><td><input type="checkbox" class="zb-vis-check" checked title="Punkt wird gezeichnet" aria-label="Punkt wird gezeichnet"><input type="text" value="12,42"></td>
                 <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
               </tr>
             </tbody>
@@ -464,27 +518,27 @@ body.mock { height: auto; padding: var(--space-12); }
             <tbody>
               <tr>
                 <td class="name">Metropole</td>
-                <td><input type="text" value="8"></td><td><input type="text" value="9"></td><td><input type="text" value="11"></td><td><input type="text" value="13"></td><td><input type="text" value="17"></td><td><input type="text" value="19"></td><td><input type="text" value="19"></td><td><input type="text" value="19"></td>
+                <td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="8"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="9"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="11"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="13"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="17"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="19"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="19"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="19"></td>
                 <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
               </tr>
               <tr>
                 <td class="name">Großstadt</td>
-                <td><input type="text" value="8"></td><td><input type="text" value="8,5"></td><td><input type="text" value="10"></td><td><input type="text" value="12"></td><td><input type="text" value="15"></td><td><input type="text" value="17"></td><td><input type="text" value="17"></td><td><input type="text" value="17"></td>
+                <td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="8"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="8,5"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="10"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="12"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="15"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="17"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="17"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="17"></td>
                 <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
               </tr>
               <tr>
                 <td class="name">Stadt</td>
-                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="9"></td><td><input type="text" value="11"></td><td><input type="text" value="13"></td><td><input type="text" value="15"></td><td><input type="text" value="15"></td><td><input type="text" value="15"></td>
+                <td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><span class="zb-dash">—</span></td><td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><span class="zb-dash">—</span></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="9"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="11"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="13"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="15"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="15"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="15"></td>
                 <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
               </tr>
               <tr>
                 <td class="name">Kleinstadt</td>
-                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="9,5"></td><td><input type="text" value="11"></td><td><input type="text" value="13"></td><td><input type="text" value="13"></td><td><input type="text" value="13"></td>
+                <td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><span class="zb-dash">—</span></td><td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><span class="zb-dash">—</span></td><td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><span class="zb-dash">—</span></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="9,5"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="11"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="13"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="13"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="13"></td>
                 <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
               </tr>
               <tr>
                 <td class="name">Dorf</td>
-                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="10"></td><td><input type="text" value="11"></td><td><input type="text" value="11"></td><td><input type="text" value="11"></td>
+                <td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><span class="zb-dash">—</span></td><td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><span class="zb-dash">—</span></td><td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><span class="zb-dash">—</span></td><td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><span class="zb-dash">—</span></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="10"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="11"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="11"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="11"></td>
                 <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
               </tr>
               <tr class="zb-hint">
@@ -492,7 +546,7 @@ body.mock { height: auto; padding: var(--space-12); }
               </tr>
               <tr>
                 <td class="name">Bauwerk/Stätte</td>
-                <td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td class="empty" title="erscheint hier noch nicht">—</td><td><input type="text" value="9"></td><td><input type="text" value="9"></td><td><input type="text" value="9"></td><td><input type="text" value="9"></td>
+                <td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><span class="zb-dash">—</span></td><td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><span class="zb-dash">—</span></td><td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><span class="zb-dash">—</span></td><td class="empty" title="erscheint hier noch nicht"><input type="checkbox" class="zb-vis-check" title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><span class="zb-dash">—</span></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="9"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="9"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="9"></td><td><input type="checkbox" class="zb-vis-check" checked title="Name wird gezeichnet" aria-label="Name wird gezeichnet"><input type="text" value="9"></td>
                 <td class="act"><button type="button" class="zb-row-reset" title="Zeile auf Vorgabe zurücksetzen">↺</button></td>
               </tr>
             </tbody>
