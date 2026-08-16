@@ -400,7 +400,28 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		extra: {
 			// 🪤 KEIN dritter Zustand, und das ist eine MESSUNG, keine Auslassung (Aufgabe 7,
 			// 16.08.2026). Der Owner-Entscheid §2.7 gilt fuer alle Objektarten -- das Territorium kann
-			// den Merker heute nur nicht TRAGEN:
+			// den Merker heute nur nicht TRAGEN.
+			//
+			// 🔴 UND ES IST EINE BEGRUENDETE AUSNAHME, KEINE LUECKE (Owner-Nachtrag 16.08.2026): der
+			// ZWECK des Haekchens ist beim Gebiet schon durch die BAUWEISE erfuellt. Ein eigener Knoten
+			// taucht in der Konfliktliste gar nicht erst auf -- avesmapsConflictLoadTerritoryRows
+			// (api/_internal/conflicts/rules.php:133) verbindet `political_territory` per INNER JOIN mit
+			// `political_territory_wiki` (:154) und verlangt zusaetzlich `w.wiki_url <> ''` (:157). Ein
+			// Gebiet ohne Wiki-Bezug faellt also zweimal heraus, bevor irgendeine Regel es sieht. Bei
+			// Ort, Weg und Landschaftslabel ist das anders: die stehen ueber `map_features` IMMER auf der
+			// Liste, und nur der Merker nimmt sie herunter -- deshalb brauchen die drei ihn und dieses
+			// eine nicht.
+			// 🪤 Der Anlass zu diesem Absatz nannte als Beleg „political_territory.wiki_key ist NOT NULL
+			// mit Unique-Key, jedes Gebiet hat also einen Schluessel". NACHGEMESSEN IST DAS FALSCH, und
+			// zwar mit vertauschten Haelften: `political_territory.wiki_key` ist
+			// `VARCHAR(255) NULL` (sql/political-territories.sql:52) unter einem NICHT-eindeutigen
+			// `KEY idx_political_territory_wiki_key` (:80). `NOT NULL` samt `UNIQUE KEY` gehoert der
+			// ANDEREN Tabelle, `political_territory_wiki.wiki_key` (:3 bzw. :43). Ein Gebiet OHNE
+			// Schluessel ist also sehr wohl moeglich -- die Ausnahme traegt der INNER JOIN oben, nicht
+			// die Spaltendefinition. Der Satz steht hier, damit der falsche Beleg nicht das naechste Mal
+			// als Begruendung wiederkehrt.
+			//
+			// Die drei Gruende, warum er nicht getragen werden KANN:
 			//   1. `political_territory` hat keine JSON-/Eigenschaftsspalte. Die vollstaendige
 			//      Spaltenliste steht in sql/political-territories.sql:48-84 und wird von genau EINEM
 			//      ALTER ergaenzt (wiki_key, api/_internal/political/territory.php:151); das einzige
