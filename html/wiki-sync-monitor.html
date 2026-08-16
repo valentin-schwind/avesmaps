@@ -122,7 +122,7 @@
   .tag.gap { color:var(--bad); border-color:var(--bad); }
   .tag.sied { color:var(--color-accent-brown); border-color:var(--color-accent-brown-soft); }
   .dot { width:8px; height:8px; border-radius:50%; flex:none; }
-  .dot.public_domain { background:var(--ok); } .dot.attribution_required { background:var(--warn); } .dot.unknown { background:var(--color-text-muted); } .dot.none { background:transparent; }
+  .dot.public_domain { background:var(--ok); } .dot.cc_by { background:var(--warn); } .dot.unknown { background:var(--color-text-muted); } .dot.none { background:transparent; }
   ul.tree { list-style:none; margin:0; padding-left:14px; }
   ul.tree li { margin:1px 0; }
   .node { display:inline-flex; align-items:center; gap:5px; padding:2px 6px; border-radius:4px; cursor:grab; }
@@ -240,14 +240,14 @@
   .modal { position:fixed; inset:0; background:var(--color-scrim-dialog); display:flex; align-items:center; justify-content:center; z-index:100; }
   .modal[hidden] { display:none; }
   .modal-box { background:var(--panel); border:1px solid var(--line2); border-radius:10px; padding:16px; width:390px; max-width:92vw; box-shadow:0 14px 40px rgba(0,0,0,.28); }
+  /* Etwas breiter fuer die Lizenz/Urheber/Kommentar-Reihe (js/ui/media-license-fields.js, Aufgabe 5)
+     -- gleicher Wert wie .modal-box.wide in html/wiki-sync-settlement-editor.html (derselbe Bauer). */
+  .modal-box.wide { width:460px; }
   /* Der Titel ist zugleich der Griff zum Verschieben (js/ui/dialog-drag.js, unten geladen). */
   .modal-title { font-size:var(--font-size-subhead); font-weight:bold; color:var(--color-text-strong); margin-bottom:2px; cursor:move; user-select:none; }
   .modal-sub { color:var(--mut); font-size:var(--font-size-small); margin-bottom:10px; }
   .fld { display:block; margin:8px 0; font-size:var(--font-size-small); }
   .fld input[type=text], .fld input[type=file] { display:block; width:100%; margin-top:4px; }
-  fieldset.fld { border:1px solid var(--line); border-radius:6px; padding:8px; }
-  fieldset.fld legend { color:var(--mut); padding:0 4px; }
-  fieldset.fld label { display:block; margin:3px 0; }
   .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
   /* .ident-table bedient jetzt nur noch #geomModal ("🗑 Nicht zugewiesene Geometrie") -- die
      Identitäts-Vorschau, die die anderen .ident-*-Regeln brauchte, ist mit der Übernahme-Vorschau
@@ -326,7 +326,7 @@
 </div>
 <div id="planSheet" class="sync-plan-host" hidden></div>
 <div id="wappenDialog" class="modal" hidden>
-  <div class="modal-box">
+  <div class="modal-box wide">
     <div class="modal-title">Eigenes Wappen hochladen</div>
     <div class="modal-sub" id="wappenFor">—</div>
     <div class="muted" id="wappenCur" style="font-size:var(--font-size-caption)"></div>
@@ -337,12 +337,9 @@
       <input type="url" id="wappenUrl" placeholder="https://…/wappen.png">
     </label>
     <div class="muted" id="wappenLimits" style="font-size:var(--font-size-caption)">Datei ODER URL angeben. Maximale Größe 5 MB.</div>
-    <fieldset class="fld">
-      <legend>Unter welcher Lizenz lädst du hoch?</legend>
-      <label><input type="radio" name="wpLic" value="public_domain" checked> Gemeinfrei (frei verwendbar)</label>
-      <label><input type="radio" name="wpLic" value="attribution_required"> CC-BY (Namensnennung)</label>
-      <input type="text" id="wpAuthor" placeholder="Urheber / Namensnennung" disabled>
-    </fieldset>
+    <!-- Lizenz/Urheber/Kommentar (js/ui/media-license-fields.js) -- von openWappenDialog() befuellt
+         (Phase 4, Aufgabe 5). -->
+    <div id="wappenFields"></div>
     <div class="modal-actions">
       <button id="wappenCancel">Abbrechen</button>
       <button class="primary" id="wappenUpload">Hochladen</button>
@@ -372,6 +369,10 @@
 <!-- Die Speicher-Entscheidung der Override-Maske (Fall #72). Herausgelöst, weil das Inline-Skript
      dieser Seite ohne Browser nicht prüfbar ist und der Fehler genau dort saß. -->
 <script src="/js/review/wiki-model-override-save.js"></script>
+<!-- Der Lizenz/Urheber/Kommentar-Bauer, geteilt von allen fünf Lizenz-Dialogen (Phase 4, Aufgabe 1).
+     Katalog vor Bauer -- media-license-fields.js liest ihn beim Laden nach (js/ui/media-license-fields.js). -->
+<script src="/js/app/media-licenses.js"></script>
+<script src="/js/ui/media-license-fields.js"></script>
 <script>
 const API = '/api/edit/wiki/sync-monitor.php';
 // Offline-Dump endpoint (api/edit/wiki/dump.php). "Syncen" drives its sync_kind
@@ -666,12 +667,13 @@ async function saveCoatLocal(k){
   } catch(e){ setStatus('Fehler: '+e.message); }
   busy(false);
 }
-// #4: eigenes/lokales Wappen wieder entfernen -> Wiki-Stand. Loescht die drei Wappen-Overrides.
+// #4: eigenes/lokales Wappen wieder entfernen -> Wiki-Stand. Loescht die vier Wappen-Overrides
+// (Kommentar seit Aufgabe 5 mit dabei -- sonst bliebe er nach einem Restore als Waise stehen).
 async function restoreCoat(k){
   const n=BYKEY.get(k); if(!n) return;
   busy(true);
   try{
-    for(const f of ['coat_of_arms_url','coat_of_arms_license_status','coat_of_arms_author']){
+    for(const f of ['coat_of_arms_url','coat_of_arms_license_status','coat_of_arms_author','coat_of_arms_note']){
       if(isOvr(n,f)) await api('clear_field_override',{method:'POST',body:{wiki_key:k, field_key:f}});
     }
     setStatus('Wappen auf den Wiki-Stand zurückgesetzt.');
@@ -741,7 +743,9 @@ function effVal(n,k){ return isOvr(n,k)?String(n.overrides[k]==null?'':n.overrid
 function effCoat(n){ return isOvr(n,'coat_of_arms_url')?String(n.overrides.coat_of_arms_url||''):(n.coat_of_arms_url||''); }
 function effLic(n){ return isOvr(n,'coat_of_arms_license_status')?String(n.overrides.coat_of_arms_license_status||''):(n.license_status||''); }
 function effAuthor(n){ return isOvr(n,'coat_of_arms_author')?String(n.overrides.coat_of_arms_author||''):(n.coat_of_arms_author||''); }
-function licName(s){ return s==='public_domain'?'Gemeinfrei':(s==='attribution_required'?'Namensnennung nötig':'Lizenz unbekannt'); }
+// Delegiert an den EINEN Katalog (js/app/media-licenses.js, AGENTS §5) -- kein zweites, nur
+// zweiwertiges Vokabular mehr (Phase 4, Aufgabe 5).
+function licName(s){ return avesmapsMediaLicenseLabel(s); }
 // Anzeigename = Override ?? Wiki-Name (Fallback wiki_key). Fuer Knoten-Label in Liste + Baum + Detail-Titel.
 function dispName(n){ return (effVal(n,'name')||n.name||n.wiki_key||'').toString(); }
 function ovrBadge(n,k){ if(!isOvr(n,k)) return ''; const w=wikiVal(n,k); return ` <span class="ov-badge" title="Manuell überschrieben. Wiki-Stand: ${esc(w||'(leer)')}">✎ manuell</span>`; }
@@ -758,13 +762,17 @@ function buildDetailHead(n){
   const oldNm=nameOv?`<span class="dt-old">${esc(wikiVal(n,'name')||'(leer)')}</span> <span class="dt-arrow">→</span> `:'';
   return `<div class="dt-head"><div class="dt-wappen-box">${wappenImg}<div class="dt-wappen-edit" title="Eigenes Wappen hochladen">Bild ändern</div></div><div style="flex:1;min-width:0"><div class="dt-title">${esc(titleNm)}</div><div class="dt-sub">${oldNm}${esc(n.wiki_key)}${n.wiki_url?` · <a class="wl" href="${esc(n.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`:''}</div></div></div>`;
 }
+// Generisch ueber alle sieben Katalog-Kennungen (Phase 4, Aufgabe 5) statt einer Zwei-Werte-Weiche:
+// pd-Rahmen (gruen) fuer die fuenf oeffentlichen Werte, cc-Rahmen (warn) fuer die beiden stillen.
 function buildDetailLicense(n){
   if(!effCoat(n)) return '';
   const ls=effLic(n), licOv=isOvr(n,'coat_of_arms_license_status'), author=effAuthor(n);
-  let lic='';
-  if(ls==='public_domain') lic=`<div class="dt-lic pd"><b>Gemeinfrei</b> – frei darstellbar.${author?' Urheber: '+esc(author):''}</div>`;
-  else if(ls==='attribution_required') lic=`<div class="dt-lic cc"><b>Namensnennung nötig</b>${author?' – Urheber: '+esc(author):''}${(n.coat_of_arms_attribution&&!licOv)?'<br>'+esc(n.coat_of_arms_attribution):''}</div>`;
-  else lic=`<div class="dt-lic unknown">Lizenz unbekannt – Wappen wird im Frontend nicht angezeigt.</div>`;
+  const pub=avesmapsMediaLicenseIsPublic(ls);
+  const statusText=pub?'frei darstellbar.':'wird im Frontend nicht angezeigt.';
+  // Die Wiki-Namensnennung galt nur fuer cc_by (vormals attribution_required) und nur, solange die
+  // Lizenz selbst nicht ueberschrieben ist -- unveraendert gegenueber vorher.
+  const attribution=(ls==='cc_by' && n.coat_of_arms_attribution && !licOv) ? '<br>'+esc(n.coat_of_arms_attribution) : '';
+  const lic=`<div class="dt-lic ${pub?'pd':'cc'}"><b>${esc(avesmapsMediaLicenseLabel(ls))}</b> – ${statusText}${author?' Urheber: '+esc(author):''}${attribution}</div>`;
   // Bei eigenem Lizenz-Override: alte (Wiki-)Lizenz durchgestrichen -> neue.
   const strike=licOv?`<div style="font-size:var(--font-size-caption);margin-top:2px"><span class="dt-old">${esc(licName(n.license_status))}</span><span class="dt-arrow">→</span><span class="dt-new">${esc(licName(ls))}</span></div>`:'';
   return `<div class="dt-lic-wrap">${lic}${strike}</div>`;
@@ -821,7 +829,7 @@ function renderDetail(){
   const effCoatUrl = isOvr(n,'coat_of_arms_url') ? String(n.overrides.coat_of_arms_url||'') : (n.coat_of_arms_url||'');
   const coatLocalBtn = (n.license_status==='public_domain' && effCoatUrl && effCoatUrl.indexOf('/uploads/wappen/')!==0)
     ? `<button class="edbtn" data-save-coat-local="${esc(n.wiki_key)}" title="Lädt das gemeinfreie Wiki-Wappen auf den Avesmaps-Server und nutzt künftig die lokale Kopie (Override)">📥 Wappen lokal speichern</button>` : '';
-  const coatRestoreBtn = (isOvr(n,'coat_of_arms_url')||isOvr(n,'coat_of_arms_license_status')||isOvr(n,'coat_of_arms_author'))
+  const coatRestoreBtn = (isOvr(n,'coat_of_arms_url')||isOvr(n,'coat_of_arms_license_status')||isOvr(n,'coat_of_arms_author')||isOvr(n,'coat_of_arms_note'))
     ? `<button class="edbtn" data-restore-coat="${esc(n.wiki_key)}" title="Eigenes/lokal gespeichertes Wappen + Lizenz-Override entfernen und wieder den Wiki-Stand verwenden">↺ Wappen zurücksetzen</button>` : '';
   box.innerHTML = head + lic + `<div class="dt-actions">${lockBtn}${editBtn}${coatLocalBtn}${coatRestoreBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
 }
@@ -1374,15 +1382,24 @@ $('contMenu').addEventListener('change', e=>{ if(e.target.matches('.contck')) ap
 $('contBtn').onclick = (e)=>{ e.stopPropagation(); $('contMenu').hidden = !$('contMenu').hidden; };
 document.addEventListener('click', (e)=>{ if(!e.target.closest('#contDD')) $('contMenu').hidden = true; });
 
-// Wappen-Upload-Dialog (#4): Datei ODER URL + selbst gewählte Lizenz -> /uploads/wappen/, als Override.
+// Wappen-Upload-Dialog (#4): Datei ODER URL + Lizenz/Urheber/Kommentar (js/ui/media-license-fields.js,
+// Phase 4 Aufgabe 5) -> /uploads/wappen/, als Override. Die Reihe startet vorbelegt mit dem AKTUELLEN
+// effektiven Stand (Override ?? Wiki), damit ein Editor, der nur die Datei austauscht, Lizenz/Urheber/
+// Kommentar nicht jedes Mal neu eintippen muss -- derselbe Grundsatz wie bei Aufgabe 4 (Siedlungen).
 function openWappenDialog(){
   const n=selectedKey?BYKEY.get(selectedKey):null;
   $('wappenFor').textContent = n?`für „${n.name}"`:'';
-  $('wappenFile').value=''; $('wappenUrl').value=''; $('wpAuthor').value='';
-  const pd=document.querySelector('input[name=wpLic][value=public_domain]'); if(pd) pd.checked=true;
-  $('wpAuthor').disabled=true;
+  $('wappenFile').value=''; $('wappenUrl').value='';
   const curLs=n?effLic(n):''; const curCoat=n?effCoat(n):'';
   $('wappenCur').innerHTML = (n&&curCoat)?`Aktuell: ${esc(licName(curLs))}${isOvr(n,'coat_of_arms_url')?' (eigener Override)':' (Wiki)'}` : 'Aktuell kein Wappen hinterlegt.';
+  const fieldsEl=$('wappenFields');
+  if(fieldsEl){
+    fieldsEl.innerHTML = avesmapsMediaLicenseFieldsMarkup({
+      license: curLs,
+      author: n?effAuthor(n):'',
+      note: (n && n.overrides) ? (n.overrides.coat_of_arms_note||'') : '',
+    }, {prefix:'wp', vorgabe:'public_domain', mitNotiz:true});
+  }
   $('wappenDialog').hidden=false;
 }
 function closeWappenDialog(){ $('wappenDialog').hidden=true; }
@@ -1420,19 +1437,34 @@ $('detailBody').addEventListener('change', e=>{
   if(e.target.matches('[data-bf-today]')){ const w=document.querySelector('#detailBody [data-bf-year-wrap]'); if(w) w.hidden=e.target.checked; }
   else if(e.target.matches('.dt-bf[data-bf="dissolved"]')){ const v=e.target.value.trim(); if(v===''||v===String(ONGOING_BF)){ const cb=document.querySelector('#detailBody [data-bf-today]'); const w=document.querySelector('#detailBody [data-bf-year-wrap]'); if(cb) cb.checked=true; if(w) w.hidden=true; } }
 });
-document.addEventListener('change', e=>{ if(e.target.name==='wpLic') $('wpAuthor').disabled = e.target.value!=='attribution_required'; });
+// Nachziehung der "nicht oeffentlich"-Kennzeichnung am Wappen-Auswahlfeld (Aufgabe 1, verdrahtet in
+// Aufgabe 5) -- kein Speichern hier, das passiert erst beim Klick auf "Hochladen".
+// 🔴 Designprüfung Befund 1 (16.08.2026): avesmapsMediaLicenseNoteVorschlag fehlte hier wie in allen
+// fünf Dialogen -- der Kommentar-Vorschlag bei "Genehmigung erteilt" ist jetzt dabei.
+document.addEventListener('change', e=>{
+  const sel = e.target.closest ? e.target.closest('[data-wp-license]') : null;
+  if(!sel) return;
+  avesmapsMediaLicenseSyncSelectHidden(sel);
+  const noteEl = document.querySelector('[data-wp-note]');
+  if(noteEl) noteEl.value = avesmapsMediaLicenseNoteVorschlag(sel.value, noteEl.value);
+});
 async function uploadCoat(){
   const k=selectedKey, n=k?BYKEY.get(k):null;
   if(!n){ setStatus('Bitte zuerst ein Herrschaftsgebiet wählen.'); return; }
   const file=$('wappenFile').files[0];
   const url=$('wappenUrl').value.trim();
   if(!file && !url){ setStatus('Bitte eine Bilddatei wählen oder eine Bild-URL angeben.'); return; }
-  const lic=(document.querySelector('input[name=wpLic]:checked')||{}).value||'public_domain';
-  const author=$('wpAuthor').value.trim();
-  if(lic==='attribution_required' && !author){ setStatus('Für „Namensnennung" bitte den Urheber angeben.'); return; }
+  const fieldsEl=$('wappenFields');
+  const licenseEl=fieldsEl?fieldsEl.querySelector('[data-wp-license]'):null;
+  const authorEl=fieldsEl?fieldsEl.querySelector('[data-wp-author]'):null;
+  const noteEl=fieldsEl?fieldsEl.querySelector('[data-wp-note]'):null;
+  const lic=licenseEl?licenseEl.value:'public_domain';
+  const author=authorEl?authorEl.value.trim():'';
+  const note=noteEl?noteEl.value.trim():'';
   const fd=new FormData();
   fd.append('action','upload_coat'); fd.append('wiki_key',k); fd.append('license',lic);
   if(author) fd.append('author',author);
+  if(note) fd.append('note',note);
   if(url) fd.append('source_url',url);
   if(file) fd.append('coat_file',file);
   busy(true);

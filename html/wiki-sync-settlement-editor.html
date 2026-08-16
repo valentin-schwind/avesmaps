@@ -202,9 +202,13 @@
   .dt-img-cell:hover .dt-img-del { opacity:1; }
   .dt-img-del:hover { background:var(--color-danger); }
   .dt-img-meta { display:flex; flex-direction:column; gap:4px; padding:5px 6px 6px; }
-  .dt-img-license { font:inherit; font-size:11px; padding:3px 5px; border:1px solid var(--line2); border-radius:4px; background:var(--panel); color:var(--fg); cursor:pointer; }
-  .dt-img-license--hidden { border-color:var(--warn); color:var(--warn); }
-  .dt-img-note { font:inherit; font-size:11px; padding:4px 5px; border:1px solid var(--line2); border-radius:4px; background:var(--panel); color:var(--fg); resize:vertical; min-height:32px; }
+  /* Lizenz/Urheber/Kommentar (js/ui/media-license-fields.js) je Bild -- die Zelle ist nur 160px breit,
+     das gemeinsame .mlf-row (Label 130px links, Feld rechts) passt darin nicht. Gestapelt statt
+     nebeneinander (Label ueber Feld) statt eines zweiten schmaleren Festmaßes fuer das Label: eine
+     zweite Zahl wuerde aus dem Ruder laufen, sobald sich --avm-field-label-w aendert. Keine eigene
+     Abschrift der Klassen selbst, nur ihr Layout in diesem schmalen Kontext. */
+  .dt-img-meta .mlf-row { flex-direction:column; align-items:stretch; gap:var(--space-2); }
+  .dt-img-meta .mlf-row__label { flex:0 0 auto; }
   /* 💣 Hier stand die ZWEITE Fassung von .dt-grp/.dt-grid/.dt-link -- die Vorlage, von der der
      Kraftlinien-Editor und der Monitor abgeschrieben haben. Der Block laedt NACH
      css/components/editor-page.css und gewann bei gleicher Spezifitaet die Kaskade; gedriftet war
@@ -328,12 +332,15 @@
   </div>
 </div>
 <div id="seWappenDialog" class="modal" hidden>
-  <div class="modal-box">
+  <div class="modal-box wide">
     <div class="modal-title">Eigenes Wappen hochladen</div>
     <div class="modal-sub" id="seWappenFor">—</div>
     <label class="fld">Bilddatei (PNG / JPG / WebP / GIF, max. 2 MB)
       <input type="file" id="seWappenFile" accept="image/png,image/jpeg,image/webp,image/gif">
     </label>
+    <!-- Lizenz/Urheber/Kommentar (js/ui/media-license-fields.js) -- von openSettlementCoatDialog()
+         beim Oeffnen aus dem aktuell gespeicherten properties.coat gefuellt (Phase 4, Aufgabe 4). -->
+    <div id="seWappenFields"></div>
     <div class="modal-error" id="seWappenError" hidden></div>
     <div class="modal-actions">
       <button id="seWappenCancel">Abbrechen</button>
@@ -379,6 +386,10 @@
 <script src="/js/ui/wiki-assign-diff.js"></script>
 <script src="/js/ui/wiki-assign.js"></script>
 <script src="/js/ui/wiki-assign-ort.js"></script>
+<!-- Der Lizenz/Urheber/Kommentar-Bauer, geteilt von allen fünf Lizenz-Dialogen (Phase 4, Aufgabe 1).
+     Katalog vor Bauer -- media-license-fields.js liest ihn beim Laden nach (js/ui/media-license-fields.js). -->
+<script src="/js/app/media-licenses.js"></script>
+<script src="/js/ui/media-license-fields.js"></script>
 <script>
 const SETTLEMENT_EDITOR_API = "/api/edit/wiki/settlements.php";
 // Same curated model-tree endpoint as territory-wiki-tree.js / review-wiki-sync.js
@@ -1320,11 +1331,21 @@ function settlementCoatImageSrc(coat) {
 	return /^https?:\/\//i.test(coat.url) ? `/api/app/coat.php?u=${encodeURIComponent(coat.url)}` : coat.url;
 }
 
+// Phase 4 Pruefung, Befund 2: liest den EINEN Katalog (js/app/media-licenses.js, oben geladen)
+// statt einer eigenen, dreiwertigen Abschrift -- die kannte weder 'cc_by' (seit Phase 2 der
+// Nachfolger von 'attribution_required' im Wiki-Crawler) noch 'ai_generated' (seit Aufgabe 4 die
+// Vorgabe jedes frischen Wappen-Uploads) und zeigte fuer beide "Lizenz unbekannt", obwohl die
+// Lizenz sauber gesetzt war.
+//
+// 🔴 EIN Sonderfall bleibt ausserhalb des Katalogs: der Altwert 'own' (vor Phase 4 fest verdrahtet
+// in settlement-coat-upload.php) traegt im Bestand noch drei Orte (Gareth, Gratenfels, Teshkal) und
+// steht im Katalog nicht -- avesmapsMediaLicenseLabel liesse ihn auf 'unknown_other' fallen
+// ("Unbekannt/Sonstiges"), obwohl er eine Aussage traegt. Er wird deshalb vorab abgefangen, auf
+// denselben Text, den die Quelle-Haelfte der Zeile fuer coat.source === 'own' ohnehin schon zeigt
+// (sourceLabel in buildSettlementCoatBlockHtml) -- keine zweite Liste, nur ein einzelner Alias.
 function licenseStatusLabel(status) {
-	if (status === "public_domain") return "Gemeinfrei";
 	if (status === "own") return "Eigener Upload";
-	if (status === "attribution_required") return "Namensnennung nötig";
-	return "Lizenz unbekannt";
+	return avesmapsMediaLicenseLabel(status);
 }
 
 function buildSettlementCoatBlockHtml(detail) {
@@ -1527,25 +1548,30 @@ function buildWikiSourceGroupHtml(detail) {
 // serverseitig auf 16:9/WebP skaliert (settlement-images.php) und ueberschreiben im Infopanel das
 // generische Header-Bild. Mehrere -> Lightbox im Infopanel.
 const SETTLEMENT_IMAGES_MAX = 10;
-// Per-image licence options (App-UI DE). "unknown_other" is hidden in the public frontend
-// (map-features.php filters it) -- mirror of AVESMAPS_SETTLEMENT_IMAGE_LICENSES in settlement-images.php.
-const SETTLEMENT_IMAGE_LICENSE_OPTIONS = [
-	{ value: "public_domain", label: "Public Domain" },
-	{ value: "cc0", label: "CC0" },
-	{ value: "ai_generated", label: "Von uns KI-generiert" },
-	{ value: "unknown_other", label: "Unbekannt/CC/Sonstiges (nicht öffentlich)" },
-];
-// Reads properties.images in either shape: {url,license,note} objects (current) or legacy plain URL
-// strings (= ai_generated). Returns a clean {url,license,note} list.
+// Die Lizenzoptionen kommen seit Phase 4 (Aufgabe 3) aus dem EINEN Katalog (js/app/media-licenses.js,
+// vor dieser Datei geladen) statt aus einer eigenen, vierwertigen Abschrift -- die frueher hier stand
+// (SETTLEMENT_IMAGE_LICENSE_OPTIONS) und AVESMAPS_SETTLEMENT_IMAGE_LICENSES in settlement-images.php
+// hinterherhinkte. avesmapsMediaLicenseFieldsMarkup baut Auswahl, Urheber- und Kommentarfeld sowie die
+// Protokollzeile aus genau diesem Katalog.
+// Reads properties.images in either shape: {url,license,author,note,uploaded_by,uploaded_at} objects
+// (current) or legacy plain URL strings (= ai_generated, kein Urheber/Protokoll moeglich). Returns a
+// clean list in genau der Form, die avesmapsMediaLicenseFieldsMarkup erwartet.
 function settlementImageEntries(props) {
 	const raw = Array.isArray(props && props.images) ? props.images : [];
 	const out = [];
 	for (const im of raw) {
 		if (typeof im === "string") {
 			const url = im.trim();
-			if (url) out.push({ url, license: "ai_generated", note: "" });
+			if (url) out.push({ url, license: "ai_generated", author: "", note: "", uploaded_by: "", uploaded_at: "" });
 		} else if (im && typeof im === "object" && typeof im.url === "string" && im.url.trim() !== "") {
-			out.push({ url: im.url.trim(), license: String(im.license || "ai_generated"), note: String(im.note || "") });
+			out.push({
+				url: im.url.trim(),
+				license: String(im.license || "ai_generated"),
+				author: String(im.author || ""),
+				note: String(im.note || ""),
+				uploaded_by: String(im.uploaded_by || ""),
+				uploaded_at: String(im.uploaded_at || ""),
+			});
 		}
 	}
 	return out;
@@ -1556,16 +1582,15 @@ function buildSettlementImagesBlockHtml(detail) {
 	const sortable = images.length > 1;
 	const cells = images.map((im, i) => {
 		const url = im.url;
-		const licenseSelect =
-			`<select class="dt-img-license${im.license === "unknown_other" ? " dt-img-license--hidden" : ""}" data-image-license title="Lizenz — bestimmt, ob das Bild im Frontend erscheint">` +
-			SETTLEMENT_IMAGE_LICENSE_OPTIONS.map((o) => `<option value="${o.value}"${im.license === o.value ? " selected" : ""}>${settlementEscape(o.label)}</option>`).join("") +
-			`</select>`;
-		const noteField = `<textarea class="dt-img-note" data-image-note rows="2" placeholder="Kommentar / KI-Prompt">${settlementEscape(im.note)}</textarea>`;
+		// EIN Praefix fuer alle Zellen: die Attribute sind nicht dokumentweit eindeutig, aber jeder
+		// Lesezugriff scopt ohnehin ueber .closest(".dt-img-cell") (siehe change-Listener unten) --
+		// dieselbe Form, in der data-image-license/-note vorher schon je Zelle wiederholt wurden.
+		const fieldsHtml = avesmapsMediaLicenseFieldsMarkup(im, { prefix: "image", vorgabe: "ai_generated", mitNotiz: true });
 		return `<div class="dt-img-cell${sortable ? " dt-img-cell--sortable" : ""}" data-img-url="${settlementEscape(url)}">` +
 			`<div class="dt-img-thumb"${sortable ? ` draggable="true"` : ""}><img src="${settlementEscape(url)}" alt="Bild ${i + 1}" loading="lazy" draggable="false">` +
 			`<span class="dt-img-ord">${i + 1}</span>` +
 			`<button type="button" class="dt-img-del" data-image-delete="${settlementEscape(url)}" title="Bild löschen" aria-label="Bild ${i + 1} löschen">×</button></div>` +
-			`<div class="dt-img-meta">${licenseSelect}${noteField}</div>` +
+			`<div class="dt-img-meta">${fieldsHtml}</div>` +
 			`</div>`;
 	}).join("");
 	const full = images.length >= SETTLEMENT_IMAGES_MAX;
@@ -1573,7 +1598,14 @@ function buildSettlementImagesBlockHtml(detail) {
 		? `<div class="dt-img-upload dt-img-upload--full">Maximal ${SETTLEMENT_IMAGES_MAX} Bilder erreicht</div>`
 		: `<div class="dt-img-upload" data-image-upload-trigger="1" role="button" tabindex="0"><span class="dt-img-plus">＋</span>Bild hochladen<span class="dt-img-hint">16:9, wird skaliert &amp; als WebP gespeichert</span></div>`;
 	const dragHint = sortable ? ` <span class="dt-img-drag-hint">· ziehen zum Sortieren</span>` : "";
-	const notice = `<div class="dt-img-notice">Bitte <strong>keine urheberrechtlich geschützten Bilder</strong> verwenden — erlaubt sind ausschließlich <strong>KI-generierte</strong> und <strong>absolut 100 % gemeinfreie</strong> Bilder. Wir verwenden auch <strong>keine Bilder mit Namensnennung</strong> oder unter sonstigen Lizenzen (CC, GNU, …). Bilder mit „Unbekannt/CC/Sonstiges" erscheinen <strong>nicht</strong> im Frontend.</div>`;
+	// 🔴 Sachlich nachgezogen (Phase 4, Aufgabe 3): der Katalog hat sieben Werte, aber
+	// avesmapsMapFeaturesPublicImageUrls (api/app/map-features.php) zeigt fuer Siedlungsbilder WEITER nur
+	// drei -- public_domain/cc0/ai_generated. Das ist ein Gate und diese Phase aendert keine Gates
+	// (Brief-Vorgabe); der Text nennt deshalb genau diese drei, nicht die allgemeinen "fuenf oeffentlichen"
+	// aus dem Katalog-Wortlaut, sonst waere er selbst wieder falsch. CC-BY, Genehmigung erteilt und Eigene
+	// Kreation lassen sich hier zwar waehlen (Katalog-Parität), erscheinen aber wie Unbekannt/Sonstiges
+	// nicht im Frontend, bis dieses Gate in einer eigenen Aufgabe nachzieht.
+	const notice = `<div class="dt-img-notice">Bitte <strong>keine urheberrechtlich geschützten Bilder</strong> verwenden. Lizenz, Urheber und Kommentar werden zu jedem Bild hinterlegt, aber im Frontend erscheinen nur <strong>Public Domain</strong>, <strong>CC0</strong> und <strong>von uns KI-generierte</strong> Bilder. <strong>CC-BY</strong>, <strong>Genehmigung erteilt</strong>, <strong>Eigene Kreation</strong> und <strong>Unbekannt/Sonstiges</strong> lassen sich ebenfalls hinterlegen, erscheinen aber <strong>nicht</strong> im Frontend.</div>`;
 	return `<div class="dt-grp">Bilder <span class="dt-img-count">${images.length} / ${SETTLEMENT_IMAGES_MAX}</span>${dragHint}</div>` +
 		`<div class="dt-img-block">${notice}${upload}${cells ? `<div class="dt-img-grid">${cells}</div>` : ""}</div>`;
 }
@@ -1972,15 +2004,31 @@ function mountSettlementWikiAssign() {
 // ---- Wappen upload dialog (multipart -> settlement-coat-upload.php) -------------------
 const SETTLEMENT_COAT_UPLOAD_API = "/api/edit/wiki/settlement-coat-upload.php";
 
+// 🔴 Zeigt, was gespeichert ist (Brief Schritt 4): die Reihe startet mit dem AKTUELLEN properties.coat
+// -- eigener Upload wie uebernommenes Wiki-Wappen -- statt immer leer aufzugehen. coat.license_status
+// ist der Feldname im JSON (anders als bei den Bildern, die "license" heissen, siehe Schritt 3 im
+// Endpunkt); avesmapsMediaLicenseFieldsMarkup selbst kennt nur "license".
 function openSettlementCoatDialog() {
 	if (!settlementDetailCache) return;
 	const dialog = $("seWappenDialog");
 	const forEl = $("seWappenFor");
 	const fileInput = $("seWappenFile");
 	const errorEl = $("seWappenError");
+	const fieldsEl = $("seWappenFields");
 	if (forEl) forEl.textContent = `für „${settlementDetailCache.detail.name}“`;
 	if (fileInput) fileInput.value = "";
 	if (errorEl) { errorEl.hidden = true; errorEl.textContent = ""; }
+	if (fieldsEl) {
+		const props = settlementDetailCache.detail.properties || {};
+		const coat = (props.coat && typeof props.coat === "object") ? props.coat : {};
+		fieldsEl.innerHTML = avesmapsMediaLicenseFieldsMarkup({
+			license: coat.license_status,
+			author: coat.author,
+			note: coat.note,
+			uploaded_by: coat.uploaded_by,
+			uploaded_at: coat.uploaded_at,
+		}, { prefix: "coat", vorgabe: "ai_generated", mitNotiz: true });
+	}
 	if (dialog) dialog.hidden = false;
 }
 
@@ -2000,6 +2048,15 @@ async function uploadSettlementCoat() {
 	const formData = new FormData();
 	formData.append("public_id", selectedPublicId);
 	formData.append("coat", file);
+	// Lizenz/Urheber/Kommentar reisen mit dem Upload -- der Endpunkt normalisiert sie serverseitig
+	// (avesmapsMediaLicenseNormalize), ein leeres/fehlendes Feld ist also kein Risiko.
+	const fieldsEl = $("seWappenFields");
+	const licenseEl = fieldsEl ? fieldsEl.querySelector("[data-coat-license]") : null;
+	const authorEl = fieldsEl ? fieldsEl.querySelector("[data-coat-author]") : null;
+	const noteEl = fieldsEl ? fieldsEl.querySelector("[data-coat-note]") : null;
+	formData.append("license", licenseEl ? licenseEl.value : "ai_generated");
+	formData.append("author", authorEl ? authorEl.value : "");
+	formData.append("note", noteEl ? noteEl.value : "");
 	try {
 		const response = await fetch(SETTLEMENT_COAT_UPLOAD_API, { method: "POST", credentials: "same-origin", body: formData });
 		const payload = await response.json().catch(() => null);
@@ -2108,16 +2165,19 @@ async function reorderSettlementImages(order) {
 	}
 }
 
-// Sets licence + comment/prompt for ONE image (set_meta action). Updates the cached detail in place
-// instead of a full reload, so the note <textarea> keeps focus while typing (change fires on blur).
-async function setSettlementImageMeta(url, license, note) {
+// Sets licence + author + comment/prompt for ONE image (set_meta action). Updates the cached detail in
+// place instead of a full reload, so the note <textarea> keeps focus while typing (change fires on blur).
+// 🔴 uploaded_by/uploaded_at kommen NICHT von hier -- der Server stempelt sie bei jeder Neueinstufung neu
+// (settlement-images.php), die Antwort traegt also frischere Werte als das, was eben gesendet wurde. Die
+// Zwischenablage uebernimmt deshalb das passende Objekt aus payload.images, nicht die gesendeten Felder.
+async function setSettlementImageMeta(url, license, author, note) {
 	if (!selectedPublicId || !url) return;
 	try {
 		const response = await fetch(SETTLEMENT_IMAGES_API, {
 			method: "POST",
 			credentials: "same-origin",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ action: "set_meta", public_id: selectedPublicId, url, license, note }),
+			body: JSON.stringify({ action: "set_meta", public_id: selectedPublicId, url, license, author, note }),
 		});
 		const payload = await response.json().catch(() => null);
 		if (!response.ok || !payload || payload.ok !== true) {
@@ -2126,10 +2186,13 @@ async function setSettlementImageMeta(url, license, note) {
 		const imgs = settlementDetailCache && settlementDetailCache.detail && settlementDetailCache.detail.properties
 			&& Array.isArray(settlementDetailCache.detail.properties.images)
 			? settlementDetailCache.detail.properties.images : null;
-		if (imgs) {
+		const fresh = Array.isArray(payload.images)
+			? payload.images.find((im) => (im && typeof im === "object" ? im.url : im) === url)
+			: null;
+		if (imgs && fresh) {
 			for (let k = 0; k < imgs.length; k++) {
 				const u = typeof imgs[k] === "string" ? imgs[k] : (imgs[k] && imgs[k].url);
-				if (u === url) { imgs[k] = { url, license, note }; break; }
+				if (u === url) { imgs[k] = fresh; break; }
 			}
 		}
 	} catch (error) {
@@ -2138,17 +2201,40 @@ async function setSettlementImageMeta(url, license, note) {
 	}
 }
 
-// Licence <select> (fires on selection) + note <textarea> (fires on blur) -> persist both for that image.
+// Licence <select> (fires on selection) + author <input>/note <textarea> (fire on blur) -> persist all
+// three for that image.
+// 🔴 avesmapsMediaLicenseSyncSelectHidden nachgezogen (Aufgabe 1 hatte die Funktion gebaut und
+// getestet, aber noch nirgends verdrahtet): ohne sie zeigt das AUSWAHLFELD selbst die "nicht
+// oeffentlich"-Kennzeichnung nur beim naechsten Neu-Rendern, nicht sofort nach dem Umschalten -- bei
+// bis zu zehn Bildern je Ort genau die Verwechslungsgefahr, die die Kennzeichnung verhindern soll.
+// 🔴 Designprüfung Befund 1 (16.08.2026): avesmapsMediaLicenseNoteVorschlag war ebenfalls gebaut und
+// getestet, aber in KEINEM der fünf Dialoge aufgerufen -- hier nachgezogen, NUR bei einer Änderung
+// des Lizenzfelds selbst (nicht bei jedem Blur von Urheber/Kommentar), sonst überschriebe ein Tippen
+// im Kommentarfeld sich selbst bei jedem Zwischenspeichern.
 document.addEventListener("change", (event) => {
-	const control = event.target.closest ? event.target.closest("[data-image-license], [data-image-note]") : null;
+	const control = event.target.closest ? event.target.closest("[data-image-license], [data-image-author], [data-image-note]") : null;
 	if (!control) return;
 	const cell = control.closest(".dt-img-cell");
 	if (!cell) return;
 	const url = cell.getAttribute("data-img-url");
 	const sel = cell.querySelector("[data-image-license]");
+	const authorEl = cell.querySelector("[data-image-author]");
 	const ta = cell.querySelector("[data-image-note]");
-	if (sel) sel.classList.toggle("dt-img-license--hidden", sel.value === "unknown_other");
-	void setSettlementImageMeta(url, sel ? sel.value : "ai_generated", ta ? ta.value : "");
+	if (control.hasAttribute("data-image-license")) {
+		avesmapsMediaLicenseSyncSelectHidden(sel);
+		if (ta) ta.value = avesmapsMediaLicenseNoteVorschlag(sel.value, ta.value);
+	}
+	void setSettlementImageMeta(url, sel ? sel.value : "ai_generated", authorEl ? authorEl.value : "", ta ? ta.value : "");
+});
+
+// Dieselbe Nachziehung fuer das Wappen-Auswahlfeld im Upload-Dialog (Aufgabe 4) -- kein Speichern
+// hier, das passiert erst beim Klick auf "Hochladen".
+document.addEventListener("change", (event) => {
+	const sel = event.target.closest ? event.target.closest("[data-coat-license]") : null;
+	if (!sel) return;
+	avesmapsMediaLicenseSyncSelectHidden(sel);
+	const noteEl = document.querySelector("[data-coat-note]");
+	if (noteEl) noteEl.value = avesmapsMediaLicenseNoteVorschlag(sel.value, noteEl.value);
 });
 
 // ---- Delegated event wiring for the detail panel + its dialog -------------------------

@@ -29,15 +29,22 @@ require_once __DIR__ . '/../linkcheck/probe.php';
 // use. Bounding the longest edge is not decoration: a 4000px book cover as a 48px row thumb would be paid
 // for by every reader on every open.
 require_once __DIR__ . '/../wiki/sync-monitor-identity.php';
+// Der EINE Lizenzkatalog (Phase 4 der Lizenz-Vereinheitlichung, api/_internal/media-license.php).
+// avesmapsCitymapNormalizeLicense/...IsFree unten sind seither Alias-Funktionen ueber die
+// ZWEI Konstanten direkt darunter -- keine Abschrift der sieben Werte, sonst waere genau das
+// wiederholt, was AGENTS.md §5 am Quellen-System als Fehler beschreibt.
+require_once __DIR__ . '/../media-license.php';
 
 // ---- licence + image gate (Spec §3.3) --------------------------------------------------------------
-// EXACTLY ONE definition of the licence vocabulary. The public read below, the editor dispatcher and the
-// upload endpoint all require THIS file for it. The settlement-image system hardcodes its own list in
-// three places (api/edit/wiki/settlement-images.php:34, api/app/map-features.php:284 and the settlement
-// editor's JS) with nothing keeping them in sync -- that is the mistake we are explicitly not inheriting.
-const AVESMAPS_CITYMAP_LICENSES = ['public_domain', 'cc0', 'ai_generated', 'permission_granted', 'own_work', 'unknown_other'];
+// 🔴 Bis 16.08.2026 stand hier eine EIGENE sechswertige Liste ("EXACTLY ONE definition of the licence
+// vocabulary") -- das war schon damals nur die halbe Wahrheit (der Siedlungsbild-Katalog hatte seine
+// eigene) und ist seit dem gemeinsamen Katalog schlicht falsch: zwei Listen mit ueberlappendem, aber
+// nicht gleichem Inhalt sind schlimmer als eine bekannte Abschrift, weil niemand hinsieht, bis ein
+// Wert (hier: 'cc_by') in der einen fehlt. Die Werte kommen deshalb NICHT per Hand hierher, sondern
+// als Verweis auf die Konstanten aus media-license.php -- 'cc_by' zaehlt seither automatisch mit.
+const AVESMAPS_CITYMAP_LICENSES = AVESMAPS_MEDIA_LICENSES;
 const AVESMAPS_CITYMAP_LICENSE_DEFAULT = 'unknown_other';
-const AVESMAPS_CITYMAP_LICENSES_FREE = ['public_domain', 'cc0', 'ai_generated', 'permission_granted', 'own_work'];
+const AVESMAPS_CITYMAP_LICENSES_FREE = AVESMAPS_MEDIA_LICENSES_PUBLIC;
 
 // Who made the current thumb_local_url. Its own vocabulary, deliberately not the map's origin
 // (manual|wiki|community) -- 'wiki' would be an answer to a different question.
@@ -117,6 +124,10 @@ const AVESMAPS_CITYMAP_TITLE_MAX = 300;
 const AVESMAPS_CITYMAP_URL_MAX = 500;
 const AVESMAPS_CITYMAP_NOTE_MAX = 2000;
 const AVESMAPS_CITYMAP_AUTHOR_MAX = 300;
+// Der Urheber JE BILD-SLOT (Phase 4, Aufgabe 2) -- eigene, kuerzere Spalte als der Karten-Urheber
+// oben (VARCHAR(190) statt VARCHAR(300), siehe avesmapsCitymapsEnsureTables): geprueft statt
+// abgeschnitten, dieselbe Regel wie ueberall in dieser Datei (AGENTS.md §10).
+const AVESMAPS_CITYMAP_LICENSE_AUTHOR_MAX = 190;
 const AVESMAPS_CITYMAP_FORMAT_MAX = 120;
 // 160 fits the longest real value by a wide margin: "Schmidt Spiele & Droemer Knaur" (30) is the
 // two-publisher case the wiki actually has.
@@ -1341,6 +1352,14 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
             'map_local_url' => (string) ($row['map_local_url'] ?? ''),
             'map_license' => (string) $row['map_license'],
             'map_license_note' => (string) ($row['map_license_note'] ?? ''),
+            // Urheber + Hochlade-Protokoll je Slot (Phase 4, Aufgabe 2). Die Spalten kamen in Phase 2
+            // per self-healing ALTER dazu (avesmapsCitymapsEnsureTables) und wurden bis heute nie
+            // gelesen -- diese Funktion ruft die Schema-Funktion als ERSTE Zeile auf (oben), also
+            // stehen sie im `SELECT *`-Row garantiert zur Verfuegung; `?? ''`/`?? null` traegt trotzdem
+            // mehr als Bequemlichkeit, siehe article_url/-key/-title direkt unten fuer denselben Grund.
+            'map_license_author' => (string) ($row['map_license_author'] ?? ''),
+            'map_uploaded_by' => (string) ($row['map_uploaded_by'] ?? ''),
+            'map_uploaded_at' => $row['map_uploaded_at'] !== null ? (string) $row['map_uploaded_at'] : '',
             'thumb_url' => (string) ($row['thumb_url'] ?? ''),
             'thumb_local_url' => (string) ($row['thumb_local_url'] ?? ''),
             // Editor-only (see avesmapsCitymapsEnsureTables): the Autoget crawl. Reaches this payload
@@ -1348,6 +1367,9 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
             'thumb_auto_url' => (string) ($row['thumb_auto_url'] ?? ''),
             'thumb_license' => (string) $row['thumb_license'],
             'thumb_license_note' => (string) ($row['thumb_license_note'] ?? ''),
+            'thumb_license_author' => (string) ($row['thumb_license_author'] ?? ''),
+            'thumb_uploaded_by' => (string) ($row['thumb_uploaded_by'] ?? ''),
+            'thumb_uploaded_at' => $row['thumb_uploaded_at'] !== null ? (string) $row['thumb_uploaded_at'] : '',
             // Our own bookkeeping, NOT in $editableFields: a forgeable origin would make the upload
             // protection worthless -- it is the only thing standing between a human's picture and a run.
             'thumb_origin' => avesmapsCitymapNormalizeThumbOrigin($row['thumb_origin'] ?? null),
@@ -1431,7 +1453,8 @@ function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0, string $o
     // (`kein_artikel_geaendert`), damit ein alter offener Dialog die Entscheidung eines zweiten
     // Editors nicht zuruecknimmt. Die Begruendung steht im Kopf von js/ui/wiki-assign.js.
     $editableFields = [
-        'map_url', 'map_url_label', 'map_license', 'map_license_note', 'thumb_url', 'thumb_license', 'thumb_license_note',
+        'map_url', 'map_url_label', 'map_license', 'map_license_note', 'map_license_author',
+        'thumb_url', 'thumb_license', 'thumb_license_note', 'thumb_license_author',
         'art', 'is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid', 'has_scale',
         'width_px', 'height_px', 'format', 'valid_from_bf', 'valid_to_bf', 'author', 'publisher', 'note',
         'status', 'article_url', 'article_key', 'article_title', 'no_article',
@@ -1489,6 +1512,10 @@ function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0, string $o
         }
         if ($field === 'author' && mb_strlen($value) > AVESMAPS_CITYMAP_AUTHOR_MAX) {
             throw new InvalidArgumentException('Der Urheber ist zu lang (max. ' . AVESMAPS_CITYMAP_AUTHOR_MAX . ' Zeichen).');
+        }
+        if (in_array($field, ['map_license_author', 'thumb_license_author'], true)
+            && mb_strlen($value) > AVESMAPS_CITYMAP_LICENSE_AUTHOR_MAX) {
+            throw new InvalidArgumentException('Der Urheber ist zu lang (max. ' . AVESMAPS_CITYMAP_LICENSE_AUTHOR_MAX . ' Zeichen).');
         }
         if ($field === 'format' && mb_strlen($value) > AVESMAPS_CITYMAP_FORMAT_MAX) {
             throw new InvalidArgumentException('Das Format ist zu lang (max. ' . AVESMAPS_CITYMAP_FORMAT_MAX . ' Zeichen).');

@@ -835,10 +835,16 @@ function avesmapsListGameLiteratureForEdit(PDO $pdo): array
 // is intentionally not exposed (the editor addresses adventures by public_id, places by their own id).
 function avesmapsGameLiteratureDetailForEdit(PDO $pdo, string $publicId): ?array
 {
+    // 🔴 Phase 4 (Lizenz-Vereinheitlichung, Aufgabe 6): die fuenf cover_*-Spalten unten (license/
+    // author/note/uploaded_by/uploaded_at) sind Phase-2-Spalten, die bislang NIEMAND gelesen hat --
+    // ohne Rueckfall, aber sicher, weil avesmapsGameLiteratureEnsureTables() (das self-healing ALTER
+    // fuer genau diese fuenf Spalten, siehe oben) als ALLERERSTE Zeile dieser Funktion laeuft, BEVOR
+    // das SELECT unten sie nennt. Derselbe Beleg wie avesmapsCitymapDetailForEdit (Phase 4, Aufgabe 2).
     avesmapsGameLiteratureEnsureTables($pdo);
     $stmt = $pdo->prepare(
         "SELECT id, public_id, wiki_key, wiki_url, title, product_type, edition, bf_year, bf_label, genre,
                 complexity_gm, complexity_pl, is_official, authors, series, fshop_code, cover_url,
+                cover_license, cover_author, cover_note, cover_uploaded_by, cover_uploaded_at,
                 link_ulisses, link_fshop, isbn, contained_in,
                 field_origins_json, status, origin, created_at, updated_at, synced_at
            FROM adventure WHERE public_id = :pid LIMIT 1"
@@ -896,6 +902,14 @@ function avesmapsGameLiteratureDetailForEdit(PDO $pdo, string $publicId): ?array
         'series' => (string) ($row['series'] ?? ''),
         'fshop_code' => (string) ($row['fshop_code'] ?? ''),
         'cover_url' => (string) ($row['cover_url'] ?? ''),
+        // Lizenz/Urheber/Kommentar + Hochlade-Protokoll (Phase 4, Aufgabe 6) -- Editor-Lesepfad NUR
+        // (avesmapsGameLiteratureReadCatalog, der oeffentliche, listet diese fuenf Spalten bewusst
+        // NICHT: kein Besucher sieht Lizenz/Urheber/Kommentar/Protokoll, Owner-Entscheid 16.08.2026).
+        'cover_license' => (string) ($row['cover_license'] ?? ''),
+        'cover_author' => (string) ($row['cover_author'] ?? ''),
+        'cover_note' => (string) ($row['cover_note'] ?? ''),
+        'cover_uploaded_by' => (string) ($row['cover_uploaded_by'] ?? ''),
+        'cover_uploaded_at' => $row['cover_uploaded_at'] !== null ? (string) $row['cover_uploaded_at'] : '',
         'link_ulisses' => (string) ($row['link_ulisses'] ?? ''),
         'link_fshop' => (string) ($row['link_fshop'] ?? ''),
         'isbn' => (string) ($row['isbn'] ?? ''),
@@ -1432,7 +1446,13 @@ function avesmapsResolveGameLiteraturePlace(PDO $pdo, int $placeId): array
 // (a manual cover the wiki sync must never overwrite) or 'wiki' for a re-fetched wiki cover. Merges into
 // field_origins_json (so the reconcile's avesmapsGameLiteratureFieldPlan honours it). Backs the cover endpoint
 // api/edit/map/game-literature-cover.php. Returns ['public_id','cover_url','origin']. 404s on an unknown id.
-function avesmapsSetGameLiteratureCoverUrl(PDO $pdo, string $publicId, ?string $coverUrl, string $origin): array
+//
+// 🔴 Phase 4 (Lizenz-Vereinheitlichung, Aufgabe 6): $licenseFields ist optional und traegt bereits
+// NORMALISIERTE Werte ('license','author','note','uploaded_by','uploaded_at') -- der Aufrufer (der
+// Cover-Endpunkt) normalisiert per avesmapsMediaLicenseNormalize(), diese Funktion vertraut ihm nur
+// insoweit, als sie die fuenf Spalten unveraendert durchreicht. Leer ('[]') laesst die fuenf
+// cover_*-Spalten unangetastet -- kein Aufrufer MUSS sie kennen.
+function avesmapsSetGameLiteratureCoverUrl(PDO $pdo, string $publicId, ?string $coverUrl, string $origin, array $licenseFields = []): array
 {
     avesmapsGameLiteratureEnsureTables($pdo);
     $select = $pdo->prepare('SELECT id, field_origins_json FROM adventure WHERE public_id = :pid LIMIT 1');
@@ -1452,8 +1472,22 @@ function avesmapsSetGameLiteratureCoverUrl(PDO $pdo, string $publicId, ?string $
     $origins['cover_url'] = $origin === 'wiki' ? 'wiki' : 'manual';
     $normalized = ($coverUrl === null || trim($coverUrl) === '') ? null : trim($coverUrl);
 
-    $pdo->prepare('UPDATE adventure SET cover_url = :u, field_origins_json = :fo WHERE id = :id')
-        ->execute(['u' => $normalized, 'fo' => avesmapsGameLiteratureEncodeOrigins($origins), 'id' => (int) $row['id']]);
+    $fields = ['u' => $normalized, 'fo' => avesmapsGameLiteratureEncodeOrigins($origins), 'id' => (int) $row['id']];
+    $setClauses = ['cover_url = :u', 'field_origins_json = :fo'];
+    if ($licenseFields !== []) {
+        $setClauses[] = 'cover_license = :cl';
+        $setClauses[] = 'cover_author = :ca';
+        $setClauses[] = 'cover_note = :cn';
+        $setClauses[] = 'cover_uploaded_by = :cub';
+        $setClauses[] = 'cover_uploaded_at = :cua';
+        $fields['cl'] = (string) ($licenseFields['license'] ?? '');
+        $fields['ca'] = (string) ($licenseFields['author'] ?? '');
+        $fields['cn'] = (string) ($licenseFields['note'] ?? '');
+        $fields['cub'] = (string) ($licenseFields['uploaded_by'] ?? '');
+        $fields['cua'] = (string) ($licenseFields['uploaded_at'] ?? '');
+    }
+
+    $pdo->prepare('UPDATE adventure SET ' . implode(', ', $setClauses) . ' WHERE id = :id')->execute($fields);
 
     return ['public_id' => $publicId, 'cover_url' => (string) $normalized, 'origin' => $origins['cover_url']];
 }

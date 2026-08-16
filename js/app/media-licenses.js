@@ -7,13 +7,13 @@
 // political-territory-editor-inline.css dreimal gescheitert ist (AGENTS §10), und ein Endpunkt kostete
 // je Editorseite einen Request fuer eine Liste, die sich nie zur Laufzeit aendert.
 //
-// 🔴 STAND PHASE 1: diese Datei laedt NIEMAND. Sie existiert, wird geprueft und liegt bereit -- kein
-// <script src> zeigt auf sie, und weil der Stempler nur verfolgt, was von index.html oder html/*.html
-// aus erreichbar ist, traegt sie auch noch kein ?v=. Wer waehrend Phase 2/3 sucht, wer sie einbindet,
-// findet zu Recht nichts.
-// AB PHASE 4 gilt: geladen von den vier Editorseiten per <script src>; sie sind html/*.html-Seiten,
-// der Deploy stempelt das ?v= dann selbst (AGENTS §7). ⚠️ Kein ASSET_VERSION-Bump -- der gilt nur den
-// dynamisch nachgeladenen Territorien-Editor-Assets.
+// Geladen von den vier Editorseiten per <script src>, jeweils VOR js/ui/media-license-fields.js (die
+// andere Reihenfolge faellt erst zur Laufzeit auf). Sie sind html/*.html-Seiten, der Deploy stempelt
+// das ?v= also selbst (AGENTS §7). ⚠️ Kein ASSET_VERSION-Bump -- der gilt nur den dynamisch
+// nachgeladenen Territorien-Editor-Assets.
+// 🪤 Zwischen Phase 1 und Phase 4 lud diese Datei NIEMAND: sie existierte, war geprueft und lag
+// bereit, damit jeder Zwischenstand fuer sich deploybar blieb. Wer in einem alten Stand sucht, wer
+// sie einbindet, findet zu Recht nichts.
 
 /**
  * Die sieben Kennungen in ANZEIGEREIHENFOLGE, mit Beschriftung und Sichtbarkeit.
@@ -28,15 +28,23 @@
  * unterbleibt (Owner-Entscheid 16.08.2026). Bei CC-BY, weil die Namensnennung am Bild stehen muesste
  * und diese Flaeche es im Frontend nicht gibt; bei Unbekannt/Sonstiges, weil ungeklaerte Herkunft
  * nichts auf einer oeffentlichen Karte zu suchen hat.
+ *
+ * `hint`: optionaler Ein-Zeiler je Kennung, den js/ui/media-license-fields.js als `title` ans
+ * <option> haengt (Designpruefung Befund 3, 16.08.2026). Der Territoriums-Dialog hatte frueher zwei
+ * Radios mit erklaerender Klammer ("Gemeinfrei (frei verwendbar)", "CC-BY (Namensnennung)"); die
+ * Erklaerung gehoert seit Phase 4 NICHT mehr einem einzelnen Dialog, sondern -- wie Wert und
+ * Beschriftung -- dem EINEN Katalog, sonst waere sie eine sechste Abschrift. Nur hier gepflegt,
+ * keine PHP-Entsprechung: die Serverseite rendert nie ein <option>, ein Paritaetseintrag haette
+ * also kein Gegenstueck zum Vergleichen.
  */
 const AVESMAPS_MEDIA_LICENSES = [
-	{ value: "unknown_other", label: "Unbekannt/Sonstiges", public: false },
-	{ value: "public_domain", label: "Public Domain", public: true },
-	{ value: "cc0", label: "CC0", public: true },
-	{ value: "cc_by", label: "CC-BY", public: false },
-	{ value: "permission_granted", label: "Genehmigung erteilt", public: true },
-	{ value: "ai_generated", label: "Von uns KI-generiert", public: true },
-	{ value: "own_work", label: "Eigene Kreation", public: true },
+	{ value: "unknown_other", label: "Unbekannt/Sonstiges", public: false, hint: "Herkunft ungeklärt – erscheint nicht auf der Karte" },
+	{ value: "public_domain", label: "Public Domain", public: true, hint: "Gemeinfrei – frei verwendbar" },
+	{ value: "cc0", label: "CC0", public: true, hint: "Gemeinfrei per Lizenz – keine Namensnennung nötig" },
+	{ value: "cc_by", label: "CC-BY", public: false, hint: "Erfordert Namensnennung – erscheint deshalb nicht auf der Karte" },
+	{ value: "permission_granted", label: "Genehmigung erteilt", public: true, hint: "Urheber hat zugestimmt, auch ohne Namensnennung" },
+	{ value: "ai_generated", label: "Von uns KI-generiert", public: true, hint: "Von Avesmaps selbst per KI erzeugt" },
+	{ value: "own_work", label: "Eigene Kreation", public: true, hint: "Eigene Aufnahme oder Zeichnung" },
 ];
 
 /**

@@ -287,6 +287,9 @@
     font-weight: var(--font-weight-bold);
     color: var(--color-text-muted);
   }
+  /* ⚠️ Kein Test bewacht die Parität: .mlf-row (css/components/editor-page.css) ist bewusst eine
+     eigene, gleich geformte Regel für dieselbe "Label links, Feld rechts"-Zeile (js/ui/media-
+     license-fields.js) -- ändert sich diese hier, gegenprüfen, ob jene mitziehen sollte. */
   .ce-row { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-6); }
   .ce-row__label { flex: 0 0 var(--avm-field-label-w); color: var(--color-text-muted); }
   /* Follow-the-link affordance next to a URL input. --color-link is the house link colour (never blue,
@@ -625,6 +628,11 @@
 <script src="/js/ui/wiki-assign.js"></script>
 <script src="/js/ui/wiki-assign-karte.js"></script>
 
+<!-- Der Lizenz/Urheber/Kommentar-Bauer, geteilt von allen fünf Lizenz-Dialogen (Phase 4, Aufgabe 1).
+     Katalog vor Bauer -- media-license-fields.js liest ihn beim Laden nach (js/ui/media-license-fields.js). -->
+<script src="/js/app/media-licenses.js"></script>
+<script src="/js/ui/media-license-fields.js"></script>
+
 <script>
   const CITYMAP_EDIT_API = "/api/edit/map/citymaps.php";
   const CITYMAP_IMAGE_API = "/api/edit/map/citymap-image.php";
@@ -634,19 +642,9 @@
   // Objektart `karte`).
   const CITYMAP_WIKI_API = "/api/edit/wiki/citymaps.php";
 
-  // Mirrors of the ONE server-side definition (api/_internal/app/citymaps.php). The slugs are domain
-  // content and must match byte for byte; the labels are German UI. There is no way to derive one from
-  // the other at runtime without an extra endpoint, so this is a mirror — but a mirror of a single
-  // source, not a fourth independent list (the settlement-image licences are hardcoded in three places
-  // with nothing keeping them in sync; that is what §3.3 exists to avoid).
-  const LICENSES = [
-    { value: "public_domain", label: "Public Domain", free: true },
-    { value: "cc0", label: "CC0", free: true },
-    { value: "ai_generated", label: "Von uns KI-generiert", free: true },
-    { value: "permission_granted", label: "Genehmigung erteilt", free: true },
-    { value: "own_work", label: "Eigene Kreation", free: true },
-    { value: "unknown_other", label: "Unbekannt/Sonstiges (nicht öffentlich)", free: false },
-  ];
+  // 🔴 Die lokale Lizenzliste ist Phase 4 (Aufgabe 2) gewichen. Sie war eine Abschrift des
+  // Servers, und genau das beendet der Katalog: js/app/media-licenses.js (AVESMAPS_MEDIA_LICENSES)
+  // ist die EINE Quelle, geladen unten und von avesmapsMediaLicenseFieldsMarkup verarbeitet.
   const TYPE_KEYS = [
     ["ortsplan", "Ortsplan"], ["stadtplan", "Stadtplan"], ["bezirk", "Bezirk"], ["viertel", "Viertel"],
     ["lageplan", "Lageplan"], ["uebersicht", "Übersicht"], ["schauplatz", "Schauplatz"], ["grundriss", "Grundriss"],
@@ -656,11 +654,6 @@
   const ARTS = [["politisch", "Politisch"], ["derographisch", "Derographisch"], ["topologisch", "Topologisch"], ["skizze", "Skizze"]];
   const KIND_LABEL = { settlement: "Ort", territory: "Territorium", region: "Region", path: "Weg/Fluss", unresolved: "—" };
   const CE_THUMB_PH_SVG = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>';
-
-  function licenseIsFree(value) {
-    const entry = LICENSES.find((l) => l.value === value);
-    return !!(entry && entry.free);
-  }
 
   // HTML escaper safe for BOTH text and (quoted) attribute context — values flow into template strings
   // like value="${ceEscape(v)}", so " and ' MUST be encoded too (a title containing a " would otherwise
@@ -990,16 +983,23 @@
   function ceImageGroup(slot, title, v) {
     const isThumb = slot === "thumb";
     const licenseField = isThumb ? "thumb_license" : "map_license";
+    const authorField = isThumb ? "thumb_license_author" : "map_license_author";
     const noteField = isThumb ? "thumb_license_note" : "map_license_note";
+    const uploadedByField = isThumb ? "thumb_uploaded_by" : "map_uploaded_by";
+    const uploadedAtField = isThumb ? "thumb_uploaded_at" : "map_uploaded_at";
+    // Zwei Slots, zwei Reihen (Aufgabe 2 §4) -- der Praefix traegt den Slot mit, sonst tragen
+    // Karte und Vorschaubild dieselben data-cm-license/-author/-note-Attribute und eines verdeckt
+    // das andere beim Lesen aus dem DOM (siehe gatherMediaLicenseFields/uploadImage unten).
+    const mlfPrefix = "cm-" + slot;
     const localUrl = (isThumb ? v.thumb_local_url : v.map_local_url) || "";
     // The Autoget crawl is EDITOR-ONLY (owner decision): it stands in as the preview here so an
     // unclassified map is recognisable, but api/app/citymaps.php never selects it. Our own upload wins.
     const autoUrl = isThumb ? (v.thumb_auto_url || "") : "";
     const shownUrl = localUrl || autoUrl;
     const isAuto = !localUrl && !!autoUrl;
-    const savedLicense = v[licenseField] || "unknown_other";
-    const free = licenseIsFree(savedLicense);
-    const savedLicenseLabel = (LICENSES.find((l) => l.value === savedLicense) || {}).label || savedLicense;
+    const savedLicense = avesmapsMediaLicenseNormalize(v[licenseField], "unknown_other");
+    const free = avesmapsMediaLicenseIsPublic(savedLicense);
+    const savedLicenseLabel = avesmapsMediaLicenseLabel(savedLicense);
 
     const preview = shownUrl
       ? `<img src="${ceEscape(shownUrl)}" alt="" onerror="this.replaceWith(document.createTextNode(''))">`
@@ -1028,9 +1028,18 @@
       <div class="ce-img__btns">${autoBtn}${uploadBtn}${deleteBtn}</div>
       <div class="ce-img__state" id="ceImgState_${slot}"></div>
       <div class="ce-imgcol__props">
-        ${ceSelect("Lizenz", licenseField, savedLicense, LICENSES.map((l) => [l.value, l.label]), "—")}
-        ${ceField("Notiz (intern)", noteField, v[noteField])}
-        ${free ? "" : `<p class="ce-warn">Zum Hochladen zuerst oben eine freie Lizenz wählen (aktuell: ${ceEscape(savedLicenseLabel)}) — ohne sie wird nichts gespeichert.</p>`}
+        ${avesmapsMediaLicenseFieldsMarkup({
+          license: v[licenseField],
+          author: v[authorField],
+          note: v[noteField],
+          uploaded_by: v[uploadedByField],
+          uploaded_at: v[uploadedAtField],
+        }, { prefix: mlfPrefix, vorgabe: "unknown_other", mitNotiz: true })}
+        <!-- Immer im DOM (statt bedingt gerendert) und per [hidden] geschaltet, damit der change-
+             Zuhoerer unten sie sofort umschalten kann, statt erst nach "Speichern" + Neuladen
+             (Designpruefung Befund 2). data-ce-warn traegt den Slot, denselben wie mlfPrefix ohne
+             "cm-". -->
+        <p class="ce-warn" data-ce-warn="${slot}"${free ? " hidden" : ""}>Zum Hochladen zuerst oben eine freie Lizenz wählen (aktuell: ${ceEscape(savedLicenseLabel)}) — ohne sie wird nichts gespeichert.</p>
         <p class="ce-hint">${isThumb
           ? "Die Notiz verlässt den Editor nie. Nur eine freie Lizenz zeigt die Vorschau öffentlich."
           : "Der externe Karten-Link wird immer angezeigt — nur das eigene Bild hängt an der Lizenz."}</p>
@@ -1238,10 +1247,29 @@
     return out;
   }
 
+  // avesmapsMediaLicenseFieldsMarkup traegt seine EIGENEN Attribute (data-<prefix>-license/-author/
+  // -note, siehe js/ui/media-license-fields.js) statt data-cm-field -- gatherStamm sammelt sie also
+  // nicht automatisch mit ein (derselbe Grund, aus dem die Wiki-Zuweisung unten in saveStamm separat
+  // gelesen wird). Zwei Slots, zwei Praefixe (ceImageGroup: "cm-map" / "cm-thumb").
+  function gatherMediaLicenseFields() {
+    const out = {};
+    ["map", "thumb"].forEach((slot) => {
+      const prefix = "cm-" + slot;
+      const licenseEl = document.querySelector("[data-" + prefix + "-license]");
+      const authorEl = document.querySelector("[data-" + prefix + "-author]");
+      const noteEl = document.querySelector("[data-" + prefix + "-note]");
+      if (licenseEl) out[slot + "_license"] = licenseEl.value;
+      if (authorEl) out[slot + "_license_author"] = authorEl.value;
+      if (noteEl) out[slot + "_license_note"] = noteEl.value;
+    });
+    return out;
+  }
+
   async function saveStamm() {
     const stateEl = document.getElementById("ceSaveState");
     ceSyncLinksFromDom(); // whatever is typed but not yet ▲▼'d back into state would be lost otherwise
     const values = gatherStamm();
+    Object.assign(values, gatherMediaLicenseFields());
     if (!(values.title || "").trim()) {
       stateEl.textContent = "Ein Titel ist erforderlich.";
       stateEl.className = "ce-savebar__state error";
@@ -1367,10 +1395,9 @@
     // The licence as it stands in the FORM, not as it was last saved: picking "Eigene Kreation" and
     // uploading is one gesture now. Checking it here is convenience -- the server checks it again and
     // is the actual gate, so a stale DOM read can never let a protected picture through.
-    const licenseField = slot === "thumb" ? "thumb_license" : "map_license";
-    const licenseSelect = document.querySelector(`[data-cm-field="${licenseField}"]`);
+    const licenseSelect = document.querySelector("[data-cm-" + slot + "-license]");
     const license = licenseSelect ? licenseSelect.value : "";
-    if (!licenseIsFree(license)) {
+    if (!avesmapsMediaLicenseIsPublic(license)) {
       imgState(slot, "Bitte zuerst eine freie Lizenz wählen — ohne sie wird nichts gespeichert.", true);
       input.value = "";
       return;
@@ -1963,6 +1990,34 @@
     const safe = /^https?:\/\//i.test(value);
     anchor.href = safe ? value : "#";
     anchor.hidden = !safe;
+  });
+
+  // Designprüfung Befund 1+2 (16.08.2026): dieser Zuhörer fehlte KOMPLETT -- ein früherer Commit
+  // ("stille Lizenz wird am Auswahlfeld selbst sichtbar") behauptete ihn für alle fünf Dialoge, fügte
+  // hier aber nur einen CSS-Kommentar ein. Zwei Slots (cm-map, cm-thumb) teilen sich EINEN Zuhörer,
+  // delegiert auf #ceStammBody wie die übrigen, weil das Markup bei jedem Speichern/Autoget neu
+  // aufgebaut wird.
+  document.getElementById("ceStammBody").addEventListener("change", (e) => {
+    const sel = e.target.closest ? e.target.closest("[data-cm-map-license],[data-cm-thumb-license]") : null;
+    if (!sel) return;
+    const slot = sel.hasAttribute("data-cm-map-license") ? "map" : "thumb";
+    // Die Kennzeichnung "nicht öffentlich" am Auswahlfeld selbst (Aufgabe 1) -- ohne sie bleibt eine
+    // stille Lizenz bis zum nächsten Neu-Rendern optisch unauffällig.
+    avesmapsMediaLicenseSyncSelectHidden(sel);
+    // Der Kommentar-Vorschlag für "Genehmigung erteilt" -- NUR ins leere Feld, das prüft die Funktion
+    // selbst (avesmapsMediaLicenseNoteVorschlag).
+    const noteEl = document.querySelector("[data-cm-" + slot + "-note]");
+    if (noteEl) noteEl.value = avesmapsMediaLicenseNoteVorschlag(sel.value, noteEl.value);
+    // Die Warnzeile zeigte bisher nur den zuletzt GESPEICHERTEN Stand -- jetzt zieht sie mit der
+    // Auswahlfeld-Kennzeichnung mit, statt erst nach "Speichern" + Neuladen umzuschlagen.
+    const warnEl = document.querySelector('[data-ce-warn="' + slot + '"]');
+    if (warnEl) {
+      const free = avesmapsMediaLicenseIsPublic(sel.value);
+      warnEl.hidden = free;
+      if (!free) {
+        warnEl.textContent = "Zum Hochladen zuerst oben eine freie Lizenz wählen (aktuell: " + avesmapsMediaLicenseLabel(sel.value) + ") — ohne sie wird nichts gespeichert.";
+      }
+    }
   });
 
   document.getElementById("ceOrteBody").addEventListener("click", async (e) => {

@@ -29,6 +29,11 @@ require_once __DIR__ . '/../../_internal/wiki/dump-reader.php';
 // wie 'apply' in api/edit/wiki/sync-plan.php.
 require_once __DIR__ . '/../../_internal/wiki/dump-lock.php';
 require_once __DIR__ . '/../../_internal/app/coat-display.php';
+// avesmapsMediaLicenseNormalize/avesmapsMediaLicenseIsPublic -- der EINE Katalog (AGENTS §5),
+// gebraucht von avesmapsWikiSyncMonitorUploadCoat + avesmapsWikiSyncMonitorApplyCoatsPreview in
+// sync-monitor-identity.php (Phase 4, Aufgabe 5). Die Lib-Datei selbst require't nichts (Konvention
+// dieser Datei: der Endpunkt laedt, die _internal/wiki/*-Libs verlassen sich darauf).
+require_once __DIR__ . '/../../_internal/media-license.php';
 // Only for avesmapsPoliticalInvalidateLayerCache(): the "Wappen: An/Aus" toggle changes what the layer
 // payload contains, and the layer's file cache would otherwise serve the old URLs for up to 300 s.
 require_once __DIR__ . '/../../_internal/political/territories-derived-layer.php';
@@ -189,7 +194,8 @@ try {
                 (string) ($payload['source_url'] ?? ''),
                 (string) ($payload['license'] ?? ''),
                 (string) ($payload['author'] ?? ''),
-                is_array($_FILES['coat_file'] ?? null) ? $_FILES['coat_file'] : null
+                is_array($_FILES['coat_file'] ?? null) ? $_FILES['coat_file'] : null,
+                (string) ($payload['note'] ?? '')
             ),
             'clear' => avesmapsWikiSyncMonitorClear(
                 $pdo,

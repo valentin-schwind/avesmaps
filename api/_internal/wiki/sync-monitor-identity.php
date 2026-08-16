@@ -24,7 +24,7 @@ function avesmapsWikiSyncMonitorEditableFields(): array {
         'founded_text' => 'Gegründet (Text)', 'dissolved_text' => 'Aufgelöst (Text)',
         'capital_location_id' => 'Hauptstadt-Verknüpfung',
         'coat_of_arms_url' => 'Wappen-Bild', 'coat_of_arms_license_status' => 'Wappen-Lizenz',
-        'coat_of_arms_author' => 'Wappen-Urheber',
+        'coat_of_arms_author' => 'Wappen-Urheber', 'coat_of_arms_note' => 'Wappen-Kommentar',
     ];
 }
 
@@ -304,19 +304,24 @@ function avesmapsWikiSyncMonitorLocalizeCoats(PDO $pdo, array $options = []): ar
 
 // #4 "Eigenes Wappen hochladen": nimmt eine hochgeladene Datei ODER eine Bild-URL, speichert sie als
 // /uploads/wappen/<slug>-custom.<ext> und setzt coat_of_arms_url + coat_of_arms_license_status (+ optional
-// coat_of_arms_author) als Override. Die Lizenz waehlt der Nutzer selbst. Restore = clear_field_override (↺).
-// Anders als save_coat_local (#3): keine Quell-/Lizenz-Beschraenkung, da es das eigene Wappen ist.
-function avesmapsWikiSyncMonitorUploadCoat(PDO $pdo, string $wikiKey, string $sourceUrl, string $license, string $author, ?array $file): array {
+// coat_of_arms_author/coat_of_arms_note) als Override. Die Lizenz waehlt der Nutzer selbst, aus dem
+// EINEN Katalog (AVESMAPS_MEDIA_LICENSES, api/_internal/media-license.php) -- alle sieben Kennungen,
+// auch die stillen (cc_by/unknown_other): ein Editor darf ein CC-BY-Wappen hinterlegen, es wird nur
+// nicht auf der Karte gezeigt (avesmapsWikiSyncMonitorApplyCoatsPreview unten entscheidet das, nicht
+// hier). Restore = clear_field_override (↺). Anders als save_coat_local (#3): keine Quell-/Lizenz-
+// Beschraenkung, da es das eigene Wappen ist.
+function avesmapsWikiSyncMonitorUploadCoat(PDO $pdo, string $wikiKey, string $sourceUrl, string $license, string $author, ?array $file, string $note = ''): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $wikiKey = trim($wikiKey);
     $sourceUrl = trim($sourceUrl);
     $license = trim($license);
     $author = trim($author);
+    $note = trim($note);
     if ($wikiKey === '') {
         return ['ok' => false, 'error' => 'wiki_key fehlt.'];
     }
-    if (!in_array($license, ['public_domain', 'attribution_required', 'cc_by'], true)) {
-        return ['ok' => false, 'error' => 'Bitte eine gueltige Lizenz waehlen (gemeinfrei oder Namensnennung).'];
+    if (!in_array($license, AVESMAPS_MEDIA_LICENSES, true)) {
+        return ['ok' => false, 'error' => 'Bitte eine gueltige Lizenz waehlen.'];
     }
 
     $maxBytes = 5 * 1024 * 1024;
@@ -384,6 +389,7 @@ function avesmapsWikiSyncMonitorUploadCoat(PDO $pdo, string $wikiKey, string $so
     avesmapsWikiSyncMonitorSetFieldOverride($pdo, $wikiKey, 'coat_of_arms_url', $localUrl);
     avesmapsWikiSyncMonitorSetFieldOverride($pdo, $wikiKey, 'coat_of_arms_license_status', $license);
     avesmapsWikiSyncMonitorSetFieldOverride($pdo, $wikiKey, 'coat_of_arms_author', $author);
+    avesmapsWikiSyncMonitorSetFieldOverride($pdo, $wikiKey, 'coat_of_arms_note', $note);
     return ['ok' => true, 'wiki_key' => $wikiKey, 'local_url' => $localUrl, 'bytes' => strlen($bytes), 'license' => $license];
 }
 
@@ -935,15 +941,19 @@ function avesmapsWikiSyncMonitorIdentityBackups(PDO $pdo, int $limit): array {
 }
 
 // Coat-Apply Vorschau: effektives Wappen (Override ?? political_territory ?? Staging) pro Live-Zeile,
-// gegated auf erlaubte Lizenz (public_domain/attribution_required/cc_by). Unlizenziert -> leeren (#2).
-// 🔴 attribution_required bleibt neben cc_by stehen: die Staging-Zeile kann noch den Altwert tragen,
-// bis der naechste Wiki-Abgleich sie neu parst (Phase 2, Aufgabe 3) -- ihn hier abzulehnen wuerde ein
-// unveraendertes Wappen faelschlich als "unlizenziert" aus political_territory entfernen.
+// gegated auf avesmapsMediaLicenseIsPublic() -- die FUENF oeffentlichen Katalog-Kennungen (nicht
+// cc_by/unknown_other). Unlizenziert/still -> leeren (#2). 🔴 ANDERE FRAGE als der Upload oben: der
+// nimmt "ist es eine Katalog-Kennung ueberhaupt" (alle sieben), hier zaehlt "ist es OEFFENTLICH" --
+// diese Funktion entscheidet, ob das Wappen in political_territory landet und damit ueberhaupt
+// Kandidat fuer die Karte wird (der eigentliche Anzeige-Riegel bleibt AVESMAPS_COAT_PUBLIC_LICENSES in
+// api/_internal/coat-url.php, unangetastet, Phase 3). Ein Altwert wie 'attribution_required', den die
+// Staging-Zeile noch tragen kann, bis der naechste Wiki-Abgleich sie neu parst, faellt bei der
+// Normalisierung auf 'unknown_other' und damit ebenfalls auf "nicht oeffentlich" -- dieselbe Antwort
+// wie sein Nachfolger 'cc_by', also KEIN Verhaltensunterschied zwischen Alt- und Neuwert.
 function avesmapsWikiSyncMonitorApplyCoatsPreview(PDO $pdo): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $staging = AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE;
     $model = AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE;
-    $allowed = ['public_domain', 'attribution_required', 'cc_by'];
 
     $st = [];
     foreach ($pdo->query('SELECT wiki_key, coat_of_arms_url, coat_of_arms_license_status FROM ' . $staging) ?: [] as $r) {
@@ -972,7 +982,7 @@ function avesmapsWikiSyncMonitorApplyCoatsPreview(PDO $pdo): array {
         $lic = array_key_exists('coat_of_arms_license_status', $o)
             ? trim((string) $o['coat_of_arms_license_status'])
             : trim((string) ($s['coat_of_arms_license_status'] ?? ''));
-        $newCoat = ($effCoat !== '' && in_array($lic, $allowed, true)) ? $effCoat : '';
+        $newCoat = ($effCoat !== '' && avesmapsMediaLicenseIsPublic($lic)) ? $effCoat : '';
         if ($newCoat === $liveCoat) { $summary['unchanged']++; continue; }
         if ($liveCoat === '' && $newCoat !== '') { $summary['add']++; }
         elseif ($newCoat === '' && $liveCoat !== '') { $summary['remove_unlicensed']++; }
