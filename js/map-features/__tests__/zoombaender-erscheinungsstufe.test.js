@@ -115,4 +115,13 @@ assert.strictEqual(getLocationNameLabelSize("gebaeude", 2), 8);
 assert.strictEqual(getLocationNameLabelSize("metropole", 0), 8, "im Band gilt der Bandwert");
 assert.strictEqual(getLocationNameLabelSize("dorf", 5), 11);
 
+// 💣 Die Vorgabe ist ab z5 flach (11, 11, 11) -- mit ihr sind eine 0-7-Klemme und eine 0-5-Klemme
+// nicht zu unterscheiden. Erst eine Übersteuerung, die oben ANDERE Werte trägt, macht den
+// Unterschied sichtbar: über getVisualZoomLevel (klemmt auf 5) käme hier dreimal 11 heraus.
+avesmapsApplyLocationZoomBands({ label: { dorf: [null, null, null, null, 10, 11, 14, 16] } });
+assert.strictEqual(getLocationNameLabelSize("dorf", 5), 11);
+assert.strictEqual(getLocationNameLabelSize("dorf", 6), 14, "z6 ist eine eigene Stufe, keine Kopie von z5");
+assert.strictEqual(getLocationNameLabelSize("dorf", 7), 16, "z7 ebenso -- die Ortsschrift klemmt auf 0-7, nicht auf 5");
+avesmapsApplyLocationZoomBands(null); // Zustand für die folgenden Blöcke zurücksetzen
+
 console.log("zoombaender-erscheinungsstufe: alle Zusicherungen erfüllt");
