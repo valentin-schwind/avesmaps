@@ -275,6 +275,82 @@
   .dt-edit-msg { font-size:11px; }
   .dt-edit-msg.ok { color:var(--ok); }
   .dt-edit-msg.bad { color:var(--bad); }
+  /* ===== Zoombänder (Aufgabe 8, Bauplan docs/superpowers/plans/2026-08-16-zoombaender.md) =========
+     Form + Plot-Code aus dem abgenommenen Prototyp docs/zoombaender-mockup.html übernommen und
+     verdrahtet (Owner: „jetzt passts, das wollen wir"), NICHT nachgebaut. Der Abschnitt „Abstände"
+     (Spalt/Repel/Versatz) gehört zu Aufgabe 8b und steht hier bewusst NICHT. Gruppiert wird durch
+     Trennlinie + Überschrift, nicht durch gerahmte Kästen (AGENTS.md §12). Nur Tokens, nichts unter
+     11px. */
+  .modal-box--zoombands { width:980px; max-width:96vw; }
+  .zb { max-height:70vh; overflow-y:auto; margin:2px 0 10px; }
+  .zb__lead { margin:0 0 var(--space-10); max-width:74ch; font-size:var(--font-size-body); color:var(--fg); }
+  .zb__lead em { color:var(--mut); font-style:normal; }
+  .zb__section { border-top:1px solid var(--color-divider); padding-top:var(--space-10); margin-top:var(--space-12); }
+  .zb__section:first-of-type { border-top:0; margin-top:0; padding-top:0; }
+  .zb__head { display:flex; align-items:baseline; gap:var(--space-8); flex-wrap:wrap; margin-bottom:var(--space-6); }
+  .zb__head h3 { margin:0; flex:1 1 auto; font-size:var(--font-size-body); font-weight:var(--font-weight-bold); color:var(--color-text-strong); }
+  .zb__src { font-size:var(--font-size-caption); color:var(--mut); }
+  .zb-plot-wrap { overflow-x:auto; }
+  svg.zb-plot { display:block; width:100%; height:auto; max-width:60rem; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-md); font-family:var(--font-ui); user-select:none; touch-action:none; }
+  .zb-plot-axis { stroke:var(--line2); stroke-width:1.25; }
+  .zb-plot-grid { stroke:var(--color-divider); stroke-width:1; }
+  .zb-plot-ytick { font-size:var(--font-size-caption); fill:var(--mut); dominant-baseline:middle; }
+  .zb-plot-xtick { font-size:var(--font-size-caption); fill:var(--mut); }
+  .zb-plot-xtick--aus { fill:var(--color-placeholder); font-style:italic; }
+  .zb-plot-curve { fill:none; stroke-width:2.25; opacity:.92; stroke:var(--pc); }
+  .zb-plot-point { r:6.5px; stroke-width:2.5; fill:var(--panel); stroke:var(--pc); cursor:ns-resize; outline:none; }
+  .zb-plot-point:hover, .zb-plot-point:focus { r:9.5px; }
+  .zb-plot-point.is-selected { fill:var(--pc); }
+  /* Sechs Kurventöne aus vier Chart-Tokens, doppelt vergeben und über Strichmuster getrennt --
+     tokens.css schreibt dieses Verfahren für eine fünfte/sechste Reihe selbst vor. */
+  .zb-cls-metropole { --pc:var(--color-chart-1); }
+  .zb-cls-grossstadt { --pc:var(--color-chart-2); }
+  .zb-cls-stadt { --pc:var(--color-chart-3); }
+  .zb-cls-kleinstadt { --pc:var(--color-chart-4); }
+  .zb-cls-dorf { --pc:var(--color-chart-1); }
+  .zb-cls-gebaeude { --pc:var(--color-chart-2); }
+  .zb-plot-curve.zb-cls-dorf, .zb-plot-curve.zb-cls-gebaeude,
+  .zb-swatch.zb-cls-dorf, .zb-swatch.zb-cls-gebaeude { stroke-dasharray:8 5; }
+  .zb-plot-caption { margin:var(--space-4) 0 0; font-size:var(--font-size-caption); color:var(--mut); max-width:62rem; }
+  .zb-selected { display:flex; align-items:center; gap:var(--space-8); flex-wrap:wrap; margin:var(--space-8) 0 0; padding:var(--space-6) var(--space-10); background:var(--soft); border:1px solid var(--line); border-radius:var(--radius-md); font-size:var(--font-size-small); }
+  .zb-selected__label { color:var(--mut); }
+  .zb-selected__label strong { color:var(--color-text-strong); }
+  .zb-num-input { width:5.5rem; text-align:right; min-height:var(--avm-control-h); padding:0 var(--space-6); font-variant-numeric:tabular-nums; font:inherit; background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius-md); }
+  .zb-num-input:disabled { color:var(--color-disabled-text); background:var(--color-disabled-bg); border-color:var(--color-disabled-border); }
+  .zb-selected__unit { color:var(--mut); }
+  .zb-selected__hint { flex-basis:100%; color:var(--mut); font-size:var(--font-size-caption); }
+  .zb-legend { margin-top:var(--space-8); display:flex; flex-direction:column; gap:var(--space-4); }
+  .zb-legend-row { display:flex; align-items:center; gap:var(--space-8); flex-wrap:wrap; padding:var(--space-4) var(--space-6); border-radius:var(--radius-md); }
+  .zb-legend-row:hover { background:var(--soft); }
+  .zb-swatch { width:22px; height:0; border-top:3px solid var(--pc); flex:0 0 auto; }
+  .zb-legend-name { width:7rem; flex:0 0 auto; font-size:var(--font-size-small); color:var(--color-text-strong); font-weight:var(--font-weight-bold); }
+  .zb-stage-group { display:flex; gap:2px; flex-wrap:wrap; }
+  .zb-stage-btn { min-width:26px; min-height:22px; padding:0 var(--space-2); font-size:var(--font-size-caption); border-radius:var(--radius-sm); cursor:pointer; font:inherit; font-variant-numeric:tabular-nums; background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); }
+  .zb-stage-btn:hover { background:var(--color-button-soft-hover); }
+  .zb-stage-btn.is-active { border:2px solid var(--pc); color:var(--pc); font-weight:var(--font-weight-bold); background:var(--panel); }
+  .zb-stage-btn--aus { margin-left:var(--space-4); font-style:italic; }
+  .zb-stage-btn--aus.is-active { border-color:var(--mut); color:var(--mut); }
+  .zb-stage-btn:disabled, .zb-row-reset:disabled { opacity:.5; cursor:default; }
+  .zb-legend-note { font-size:var(--font-size-caption); color:var(--mut); }
+  /* Zeilen-Rücksetzer: weich/outline, NIE gefüllt -- eine Zeilenhandlung ist nie die Haupthandlung
+     der Seite (AGENTS.md §12). */
+  .zb-row-reset { min-height:var(--avm-control-h); min-width:var(--avm-control-h); padding:0 var(--space-6); border-radius:var(--radius-md); cursor:pointer; font:inherit; background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); margin-left:auto; }
+  .zb-row-reset:hover { background:var(--color-button-soft-hover); }
+  .zb-preview-stage { display:flex; gap:var(--space-4); flex-wrap:wrap; margin-bottom:var(--space-8); }
+  .zb-preview-stage button { min-height:var(--avm-control-h); min-width:40px; padding:0 var(--space-6); border-radius:var(--radius-md); cursor:pointer; font:inherit; font-variant-numeric:tabular-nums; background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); }
+  .zb-preview-stage button:hover { background:var(--color-button-soft-hover); }
+  .zb-preview-stage button.is-active { background:var(--color-button); color:var(--color-button-text); border-color:var(--color-button-border); font-weight:var(--font-weight-bold); }
+  .zb-preview-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(12rem, 1fr)); gap:var(--space-8); }
+  .zb-preview-card { display:flex; flex-direction:column; align-items:center; gap:var(--space-6); padding:var(--space-8) var(--space-6); min-height:96px; justify-content:center; background:var(--soft); border:1px solid var(--line); border-radius:var(--radius-md); overflow:visible; }
+  .zb-preview-card__mark { display:flex; align-items:center; gap:var(--space-2); }
+  .zb-preview-card__name { font-size:var(--font-size-caption); color:var(--mut); }
+  .zb-dot { display:block; flex:0 0 auto; border-radius:50%; background:var(--color-accent-strong); border:1px solid var(--panel); box-shadow:0 0 0 1px var(--line2); }
+  .zb-word { display:block; flex:0 0 auto; color:var(--color-text-strong); font-weight:var(--font-weight-bold); line-height:1; white-space:nowrap; }
+  .zb-preview-empty { color:var(--color-placeholder); font-size:var(--font-size-small); }
+  .zb-preview-note { margin:var(--space-8) 0 0; font-size:var(--font-size-caption); color:var(--mut); max-width:62rem; }
+  .zb__msg { margin:10px 0 0; color:var(--mut); font-size:var(--font-size-small); }
+  .zb-nurlesen { color:var(--mut); font-size:var(--font-size-small); }
+  .zb-nurlesen strong { color:var(--color-text-strong); font-weight:var(--font-weight-bold); }
 </style>
 </head>
 <body>
@@ -291,6 +367,9 @@
     <button class="btn2" id="seImagesToggle" aria-pressed="false" title="Globaler Schalter: blendet ALLE Ortsbilder im öffentlichen Frontend aus. Der Editor zeigt sie weiter."><span class="t1" id="seImagesToggleLabel">Bilder: An</span><span class="t2">im Frontend</span></button>
     <button class="btn2" id="seCoatsToggle" aria-pressed="false" title="Globaler Schalter: ersetzt ALLE Ortswappen im öffentlichen Frontend. Der Kopf der Infobox zeigt dann wieder das Orts-Icon. Der Editor zeigt die Wappen weiter."><span class="t1" id="seCoatsToggleLabel">Wappen: An</span><span class="t2">im Frontend</span></button>
     <button class="btn2" id="seLinkCheck" title="Prüft NUR die Quellen-Links der Orte auf Erreichbarkeit. Abenteuer, Karten und Territoriums-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="seLinkCheckInfo">Quellen der Orte</span></button>
+    <!-- Achte Kachel (Aufgabe 8, Bauplan docs/superpowers/plans/2026-08-16-zoombaender.md): weich/
+         outline wie fünf ihrer Geschwister -- die Haupthandlung dieses Menübands heißt „Syncen". -->
+    <button class="btn2" id="seZoomBands" title="Stellt ein, ab welcher Zoomstufe eine Ortsklasse auf der Karte erscheint, wie groß ihr Punkt dort ist und ab wann sie ihren Namen trägt. Einstellen dürfen nur Administratoren; ansehen darf es jeder Editor."><span class="t1">Zoombänder</span><span class="t2">Zoomlevelanzeige aller Orte</span></button>
   </div>
 </header>
 
@@ -358,6 +437,66 @@
     <div class="modal-actions" id="seAssignActions"></div>
   </div>
 </div>
+<!-- „Zoombänder" (Aufgabe 8, Bauplan docs/superpowers/plans/2026-08-16-zoombaender.md) -- ab welcher
+     Zoomstufe eine Ortsklasse auf der Karte erscheint, wie groß ihr Punkt dort ist und ab wann sie
+     ihr Label trägt. Form + Plot-Code aus dem abgenommenen Prototyp docs/zoombaender-mockup.html
+     übernommen und verdrahtet. 🔴 Die Vorgabetafel selbst steht NICHT hier -- sie kommt aus
+     js/map-features/location-zoom-bands.js (Skript weiter unten), damit es sie nur an EINER Stelle
+     gibt. Lesen darf jeder Editor; Speichern und Zurücksetzen nur Administratoren (can_save vom
+     Endpunkt, Riegel dort UND hier -- siehe renderZoomBandsDialog im Inline-Skript unten). -->
+<div id="seZoomBandsDialog" class="modal" hidden>
+  <div class="modal-box wide modal-box--zoombands" role="dialog" aria-modal="true" aria-labelledby="seZoomBandsTitle">
+    <div class="modal-title" id="seZoomBandsTitle">Zoombänder</div>
+    <div class="modal-sub">Ab welcher Zoomstufe eine Ortsklasse erscheint, wie groß ihr Punkt ist und ab wann sie ihr Label trägt.</div>
+    <div class="zb">
+      <p class="zb__lead">
+        Ein Punkt lässt sich senkrecht ziehen (nur seine Größe ändert sich, nie seine Zoomstufe); die
+        Stufenwahl unter jedem Plot bestimmt, ab wann seine Kurve beginnt. Eine Kurve läuft bauartbedingt
+        immer bis zur letzten Stufe durch — ein Loch kann so nicht entstehen, und wer eine Klasse
+        ausblendet, verliert ihre Werte nicht: sie bleiben gemerkt, bis die Kurve wieder eingeblendet
+        wird. <em>Gespeichert ist erst, was der Knopf unten speichert — die Karte zeigt eine Änderung
+        erst nach dem nächsten Laden.</em>
+      </p>
+      <div class="zb__section">
+        <div class="zb__head"><h3>Marker — Außendurchmesser in px</h3><span class="zb__src" id="seZoomBandsMarkerSrc"></span></div>
+        <div class="zb-plot-wrap">
+          <svg class="zb-plot" id="zbPlotMarker" viewBox="0 0 920 420" role="img" aria-label="Marker-Außendurchmesser je Ortsklasse und Zoomstufe, editierbar"></svg>
+        </div>
+        <p class="zb-plot-caption">Gestaucht (Quadratwurzel) — die erlaubte Spanne von kleinstem zu größtem Wert ist zu groß für eine gerade Achse; die kleinen Werte lägen sonst als Strich am Boden.</p>
+        <div class="zb-selected" id="zbSelMarker">
+          <span class="zb-selected__label">Ausgewählter Punkt: <strong id="zbSelMarkerLabel">— keiner —</strong></span>
+          <input type="number" class="zb-num-input" id="zbSelMarkerInput" step="0.01" disabled>
+          <span class="zb-selected__unit">px</span>
+          <span class="zb-selected__hint">⌨️ Pfeiltasten verstellen den ausgewählten Punkt (Umschalt: großer Schritt) — für Werte, die eine Maus nicht genau trifft.</span>
+        </div>
+        <div class="zb-legend" id="zbLegendMarker"></div>
+      </div>
+      <div class="zb__section">
+        <div class="zb__head"><h3>Vorschau</h3><span class="zb__src">echter Punkt, echtes Wort „Gareth" — live aus beiden Plots</span></div>
+        <div class="zb-preview-stage" id="seZoomBandsPreviewStage" role="group" aria-label="Zoomstufe für die Vorschau wählen"></div>
+        <div class="zb-preview-grid" id="seZoomBandsPreviewGrid"></div>
+        <p class="zb-preview-note">So steht das Label normalerweise; bei Platzmangel weicht es im Frontend auf eine der zwölf Nachbarstellen aus.</p>
+      </div>
+      <div class="zb__section">
+        <div class="zb__head"><h3>Label — Schriftgröße in pt</h3><span class="zb__src" id="seZoomBandsLabelSrc"></span></div>
+        <div class="zb-plot-wrap">
+          <svg class="zb-plot" id="zbPlotLabel" viewBox="0 0 920 420" role="img" aria-label="Label-Schriftgröße je Ortsklasse und Zoomstufe, editierbar"></svg>
+        </div>
+        <p class="zb-plot-caption">Linear, bewusst nicht gestaucht — die erlaubte Spanne ist hier klein genug, dass eine Quadratwurzel-Achse nur das Ablesen erschweren würde.</p>
+        <div class="zb-selected" id="zbSelLabel">
+          <span class="zb-selected__label">Ausgewählter Punkt: <strong id="zbSelLabelLabel">— keiner —</strong></span>
+          <input type="number" class="zb-num-input" id="zbSelLabelInput" step="0.01" disabled>
+          <span class="zb-selected__unit">pt</span>
+          <span class="zb-selected__hint">⌨️ Pfeiltasten verstellen den ausgewählten Punkt (Umschalt: großer Schritt) — für Werte, die eine Maus nicht genau trifft.</span>
+        </div>
+        <div class="zb-legend" id="zbLegendLabel"></div>
+      </div>
+    </div>
+    <p class="zb__msg" id="seZoomBandsMsg"></p>
+    <div class="modal-error" id="seZoomBandsError" hidden></div>
+    <div class="modal-actions" id="seZoomBandsActions"></div>
+  </div>
+</div>
 <!-- Pure descendant-union helper (tri-state -> territory containment filter); cache-bust like
      the editor HTML itself since this iframe document is fetched with ?v=Date.now() by its host. -->
 <script src="/js/map-features/map-features-settlement-territory-assign.js"></script>
@@ -374,6 +513,12 @@
 <!-- Verschiebbare Fenster: greift die .modal-title dieser Seite. Die Fenster der Hauptseite bedient
      dieselbe Datei dort; ein iframe braucht seine eigene Kopie, sein Dokument ist ein anderes. -->
 <script src="/js/ui/dialog-drag.js"></script>
+<!-- Die Vorgabetafel der Zoombänder -- dieselbe Datei lädt auch die Karte. 🔴 Das Fenster schreibt
+     die Zahlen NICHT ab: sie stehen an genau einer Stelle. Absoluter Pfad wie die Geschwister oben,
+     weil dieses Dokument mit ?v=Date.now() geholt wird und nicht durch den Stempler von index.html
+     läuft. Vor dem Inline-Skript unten, das sie liest (AVESMAPS_ZOOM_BAND_MAX_ZOOM/_LIMITS/
+     _DEFAULTS, avesmapsResolveLocationZoomBands). -->
+<script src="/js/map-features/location-zoom-bands.js"></script>
 <!-- Die Wiki-Zuweisung: EIN Bauteil fuer alle Objektarten (Entwurf
      docs/superpowers/specs/2026-08-15-wiki-zuweisung-vereinheitlichung-design.md).
      🔴 DIE REIHENFOLGE IST VERTRAG: Feldregister, dann Diff-Rechnung, dann das Bauteil --
@@ -3144,6 +3289,616 @@ function wireTerritoryFilterBar() {
 		], applySettlementTreeFunnelFilter, "Filter");
 	}
 }
+
+// ===================== Zoombänder: Kachel + Fenster (Aufgabe 8) ============================
+// Entwurf: docs/superpowers/specs/2026-08-16-zoombaender-design.md
+// Form + Plot-Code aus dem abgenommenen Prototyp docs/zoombaender-mockup.html übernommen und
+// verdrahtet (Bauplan docs/superpowers/plans/2026-08-16-zoombaender.md, Aufgabe 8 -- der
+// eingerückte Vorspann dort ersetzt die alten Zahlentafeln mit Häkchen durch diesen Plot).
+// Die Vorgabetafel UND ihre Grenzen kommen aus js/map-features/location-zoom-bands.js (eigenes
+// <script> weiter oben) -- diese Datei schreibt keine ihrer Zahlen ab (Bauplan-Falle).
+
+const ZOOM_BANDS_API = "/api/edit/map/zoom-bands.php";
+const ZOOM_BAND_KLASSEN = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"];
+const ZOOM_BAND_KLASSEN_LABEL = {
+	metropole: "Metropole", grossstadt: "Großstadt", stadt: "Stadt",
+	kleinstadt: "Kleinstadt", dorf: "Dorf", gebaeude: "Bauwerk/Stätte",
+};
+const ZOOM_BAND_SVGNS = "http://www.w3.org/2000/svg";
+const ZOOM_BAND_PLOT_W = 920, ZOOM_BAND_PLOT_H = 420;
+const ZOOM_BAND_PLOT_MARGIN = { left: 52, right: 26, top: 16, bottom: 34 };
+
+let zoomBandsDarfSpeichern = false;
+// Je Klasse: { start: 0..(zMax+1), values: [zMax+1 Zahlen] }. Werte VOR `start` bleiben im
+// internen Zustand erhalten (nie gelöscht) -- "ausblenden verliert nichts" ist damit baulich
+// gegeben, nicht nur versprochen. Beim Senden werden sie wieder zu null (zoomBandsToPayload,
+// Entwurf §4.4: "null" ist der gespeicherte Zustand, nie die gemerkte Zahl).
+let zoomBandsState = { marker: {}, label: {} };
+let zoomBandsSelected = { marker: null, label: null }; // { cls, z } | null
+let zoomBandPreviewStage = null;
+let zoomBandPlotsCache = null;
+
+// 🔴 GELESEN, NIE ABGESCHRIEBEN -- AVESMAPS_ZOOM_BAND_MAX_ZOOM/_LIMITS stehen in
+// js/map-features/location-zoom-bands.js. Der Prototyp trug an dieser Stelle noch eine veraltete
+// eigene Kopie (200 px / 96 pt) -- die Wahrheit steht seit fdb27b3a bei 0,5-100 px / 4-30 pt.
+function zoomBandMaxZoom() {
+	return typeof AVESMAPS_ZOOM_BAND_MAX_ZOOM === "number" ? AVESMAPS_ZOOM_BAND_MAX_ZOOM : 7;
+}
+function zoomBandLimits(kind) {
+	return (typeof AVESMAPS_ZOOM_BAND_LIMITS === "object" && AVESMAPS_ZOOM_BAND_LIMITS && AVESMAPS_ZOOM_BAND_LIMITS[kind])
+		|| { min: kind === "marker" ? 0.5 : 4, max: kind === "marker" ? 100 : 30 };
+}
+function zoomBandRound2(v) { return Math.round(v * 100) / 100; }
+function zoomBandClamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+function zoomBandColX(z) {
+	const zMax = zoomBandMaxZoom();
+	const innerW = ZOOM_BAND_PLOT_W - ZOOM_BAND_PLOT_MARGIN.left - ZOOM_BAND_PLOT_MARGIN.right;
+	return ZOOM_BAND_PLOT_MARGIN.left + (innerW / (zMax + 1)) * z;
+}
+
+// Marker: quadratwurzel-gestaucht (0,5-100 px ist das Zweihundertfache der Spanne). Label: linear
+// (4-30 pt ist nur das Siebeneinhalbfache) -- zwei Achsformen mit unterschiedlicher Begründung, aus
+// dem Prototyp übernommen (siehe Bericht task-7).
+function zoomBandMakeScale(domainMax, mode) {
+	const top = ZOOM_BAND_PLOT_MARGIN.top, bottom = ZOOM_BAND_PLOT_H - ZOOM_BAND_PLOT_MARGIN.bottom, h = bottom - top;
+	if (mode === "sqrt") {
+		const sq = Math.sqrt(domainMax);
+		return {
+			toY: (v) => bottom - Math.sqrt(zoomBandClamp(v, 0, domainMax)) / sq * h,
+			toV: (y) => { const f = zoomBandClamp(bottom - y, 0, h) / h * sq; return f * f; },
+		};
+	}
+	return {
+		toY: (v) => bottom - zoomBandClamp(v, 0, domainMax) / domainMax * h,
+		toV: (y) => zoomBandClamp(bottom - y, 0, h) / h * domainMax,
+	};
+}
+
+// Einmal gebaut (die DOM-Knoten sind statisches Markup, die Grenzen ändern sich nicht zur
+// Laufzeit) -- setzt dabei auch die min/max-Attribute der Zahlenfelder und die "y-Achse …"-Zeile,
+// beides aus den echten Grenzen, nie hart eingetragen.
+function zoomBandPlots() {
+	if (zoomBandPlotsCache) { return zoomBandPlotsCache; }
+	const markerLimits = zoomBandLimits("marker");
+	const labelLimits = zoomBandLimits("label");
+	zoomBandPlotsCache = {
+		marker: {
+			kind: "marker", limits: markerLimits, unit: "px",
+			scale: zoomBandMakeScale(markerLimits.max, "sqrt"),
+			ticks: Array.from(new Set([0, 1, 5, 10, 25, 50, Math.round(markerLimits.max)])),
+			svg: $("zbPlotMarker"), legendEl: $("zbLegendMarker"),
+			selLabelEl: $("zbSelMarkerLabel"), selInputEl: $("zbSelMarkerInput"),
+		},
+		label: {
+			kind: "label", limits: labelLimits, unit: "pt",
+			scale: zoomBandMakeScale(labelLimits.max, "linear"),
+			ticks: Array.from(new Set([0, 5, 10, 15, 20, 25, Math.round(labelLimits.max)])),
+			svg: $("zbPlotLabel"), legendEl: $("zbLegendLabel"),
+			selLabelEl: $("zbSelLabelLabel"), selInputEl: $("zbSelLabelInput"),
+		},
+	};
+	["marker", "label"].forEach((kind) => {
+		const cfg = zoomBandPlotsCache[kind];
+		cfg.selInputEl.min = String(cfg.limits.min);
+		cfg.selInputEl.max = String(cfg.limits.max);
+	});
+	const markerSrc = $("seZoomBandsMarkerSrc");
+	if (markerSrc) markerSrc.textContent = `y-Achse ${markerLimits.min}–${markerLimits.max} px, quadratwurzel-gestaucht`;
+	const labelSrc = $("seZoomBandsLabelSrc");
+	if (labelSrc) labelSrc.textContent = `y-Achse ${labelLimits.min}–${labelLimits.max} pt, linear`;
+	return zoomBandPlotsCache;
+}
+
+// Eine Zeile (Vorgabe ODER Server-Antwort) in den Bearbeitungszustand überführen: `start` = erste
+// nicht-null-Zelle, `values` immer vollständig (Zellen vor `start` tragen den ersten bekannten Wert
+// als Merker -- "flache Fortsetzung nach links", wie im Prototyp).
+function zoomBandRowState(row, kind) {
+	const zMax = zoomBandMaxZoom();
+	let start = Array.isArray(row) ? row.findIndex((v) => v !== null && v !== undefined) : -1;
+	if (start < 0) { start = zMax + 1; } // ganz ausgeblendet
+	const firstVal = start <= zMax ? row[start] : zoomBandLimits(kind).min;
+	const values = [];
+	for (let z = 0; z <= zMax; z += 1) {
+		const v = Array.isArray(row) ? row[z] : undefined;
+		values.push(v === null || v === undefined ? firstVal : v);
+	}
+	return { start, values };
+}
+
+function zoomBandsFromResolved(resolved) {
+	const state = { marker: {}, label: {} };
+	["marker", "label"].forEach((kind) => {
+		ZOOM_BAND_KLASSEN.forEach((cls) => {
+			state[kind][cls] = zoomBandRowState((resolved && resolved[kind] && resolved[kind][cls]) || [], kind);
+		});
+	});
+	return state;
+}
+
+// 🔴 Kehrfunktion: Zellen VOR `start` werden wieder null -- gespeichert wird IMMER "null" für
+// "nicht sichtbar" (Entwurf §4.4), nie die im Fenster gemerkte Zahl. Die GANZE Tafel reist mit,
+// nicht nur das Geänderte: der Server führt keine Klassenliste und könnte ein Teilstück nicht mit
+// dem Bestand verschmelzen.
+function zoomBandsToPayload(state) {
+	const zMax = zoomBandMaxZoom();
+	const payload = { marker: {}, label: {} };
+	["marker", "label"].forEach((kind) => {
+		ZOOM_BAND_KLASSEN.forEach((cls) => {
+			const st = state[kind][cls];
+			const row = [];
+			for (let z = 0; z <= zMax; z += 1) {
+				row.push(z < st.start ? null : zoomBandRound2(st.values[z]));
+			}
+			payload[kind][cls] = row;
+		});
+	});
+	return payload;
+}
+
+function zoomBandRowEqualsDefault(kind, cls) {
+	const def = zoomBandRowState(AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS[kind][cls], kind);
+	const st = zoomBandsState[kind][cls];
+	if (st.start !== def.start) { return false; }
+	for (let z = st.start; z <= zoomBandMaxZoom(); z += 1) {
+		if (Math.abs(st.values[z] - def.values[z]) > 1e-9) { return false; }
+	}
+	return true;
+}
+
+function zoomBandSvgEl(tag, attrs) {
+	const el = document.createElementNS(ZOOM_BAND_SVGNS, tag);
+	Object.keys(attrs).forEach((k) => el.setAttribute(k, attrs[k]));
+	return el;
+}
+
+function zoomBandCurvePathD(cfg, cls) {
+	const zMax = zoomBandMaxZoom();
+	const st = zoomBandsState[cfg.kind][cls];
+	if (st.start > zMax) { return ""; }
+	let d = "";
+	for (let z = st.start; z <= zMax; z += 1) {
+		const x = zoomBandColX(z), y = cfg.scale.toY(st.values[z]);
+		d += (z === st.start ? "M" : "L") + x.toFixed(1) + "," + y.toFixed(1) + " ";
+	}
+	return d;
+}
+
+function zoomBandUpdateCurvePath(cfg, cls) {
+	const path = cfg.svg.querySelector(`[data-curve="${cls}"]`);
+	if (path) { path.setAttribute("d", zoomBandCurvePathD(cfg, cls)); }
+}
+
+// Nur bei STRUKTURELLEN Änderungen gerufen (Start verschoben, Zeile/alles zurückgesetzt, frisch
+// geladen) -- nie während eines laufenden Ziehens, sonst risse das Neuzeichnen den gerade gezogenen
+// Punkt aus dem DOM und die Zeigererfassung bräche ab.
+function renderZoomBandPlot(cfg) {
+	const svg = cfg.svg;
+	if (!svg) { return; }
+	while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+	const zMax = zoomBandMaxZoom();
+
+	cfg.ticks.forEach((t) => {
+		const y = cfg.scale.toY(t);
+		svg.appendChild(zoomBandSvgEl("line", { x1: ZOOM_BAND_PLOT_MARGIN.left, y1: y, x2: ZOOM_BAND_PLOT_W - ZOOM_BAND_PLOT_MARGIN.right, y2: y, class: "zb-plot-grid" }));
+		const txt = zoomBandSvgEl("text", { x: ZOOM_BAND_PLOT_MARGIN.left - 8, y, class: "zb-plot-ytick", "text-anchor": "end" });
+		txt.textContent = String(t);
+		svg.appendChild(txt);
+	});
+	for (let i = 0; i <= zMax; i += 1) {
+		const xt = zoomBandSvgEl("text", { x: zoomBandColX(i), y: ZOOM_BAND_PLOT_H - ZOOM_BAND_PLOT_MARGIN.bottom + 18, class: "zb-plot-xtick", "text-anchor": "middle" });
+		xt.textContent = "z" + i;
+		svg.appendChild(xt);
+	}
+	const ausT = zoomBandSvgEl("text", { x: zoomBandColX(zMax + 1), y: ZOOM_BAND_PLOT_H - ZOOM_BAND_PLOT_MARGIN.bottom + 18, class: "zb-plot-xtick zb-plot-xtick--aus", "text-anchor": "middle" });
+	ausT.textContent = "aus";
+	svg.appendChild(ausT);
+	svg.appendChild(zoomBandSvgEl("line", { x1: ZOOM_BAND_PLOT_MARGIN.left, y1: ZOOM_BAND_PLOT_MARGIN.top, x2: ZOOM_BAND_PLOT_MARGIN.left, y2: ZOOM_BAND_PLOT_H - ZOOM_BAND_PLOT_MARGIN.bottom, class: "zb-plot-axis" }));
+	svg.appendChild(zoomBandSvgEl("line", { x1: ZOOM_BAND_PLOT_MARGIN.left, y1: ZOOM_BAND_PLOT_H - ZOOM_BAND_PLOT_MARGIN.bottom, x2: ZOOM_BAND_PLOT_W - ZOOM_BAND_PLOT_MARGIN.right, y2: ZOOM_BAND_PLOT_H - ZOOM_BAND_PLOT_MARGIN.bottom, class: "zb-plot-axis" }));
+
+	ZOOM_BAND_KLASSEN.forEach((cls) => {
+		const st = zoomBandsState[cfg.kind][cls];
+		const path = zoomBandSvgEl("path", { class: `zb-plot-curve zb-cls-${cls}`, "data-curve": cls, d: zoomBandCurvePathD(cfg, cls) });
+		svg.appendChild(path);
+		if (st.start > zMax) { return; }
+		for (let z = st.start; z <= zMax; z += 1) {
+			svg.appendChild(makeZoomBandPoint(cfg, cls, z));
+		}
+	});
+}
+
+function makeZoomBandPoint(cfg, cls, z) {
+	const st = zoomBandsState[cfg.kind][cls];
+	const c = zoomBandSvgEl("circle", {
+		cx: zoomBandColX(z), cy: cfg.scale.toY(st.values[z]),
+		class: `zb-plot-point zb-cls-${cls}`,
+		tabindex: zoomBandsDarfSpeichern ? "0" : "-1",
+		role: "slider",
+		"aria-label": `${ZOOM_BAND_KLASSEN_LABEL[cls]}, z${z}, ${cfg.unit}`,
+		"aria-valuenow": st.values[z],
+	});
+	c.dataset.cls = cls;
+	c.dataset.z = String(z);
+	if (!zoomBandsDarfSpeichern) { return c; } // Nur-Lesen: Punkt steht, aber nichts fasst ihn an.
+
+	function commit(rawVal) { setZoomBandPointValue(cfg.kind, cls, z, rawVal, "point"); }
+
+	c.addEventListener("pointerdown", (ev) => {
+		ev.preventDefault();
+		// 💣 Robustheit vor Eleganz (Prototyp-Bericht): setPointerCapture kann NotFoundError werfen
+		// (synthetische/atypische Zeigersitzungen) -- ohne try/catch risse das die Auswahl ab.
+		try { c.setPointerCapture(ev.pointerId); } catch (e) { /* siehe oben */ }
+		selectZoomBandPoint(cfg.kind, cls, z);
+		c.focus();
+		const rect = cfg.svg.getBoundingClientRect();
+		const scaleY = ZOOM_BAND_PLOT_H / rect.height;
+		function onMove(ev2) {
+			const localY = (ev2.clientY - rect.top) * scaleY;
+			commit(cfg.scale.toV(localY));
+		}
+		function onUp() {
+			c.removeEventListener("pointermove", onMove);
+			c.removeEventListener("pointerup", onUp);
+		}
+		c.addEventListener("pointermove", onMove);
+		c.addEventListener("pointerup", onUp);
+	});
+	c.addEventListener("keydown", (ev) => {
+		const step = ev.shiftKey ? 1 : 0.01;
+		if (ev.key === "ArrowUp") { commit(zoomBandsState[cfg.kind][cls].values[z] + step); ev.preventDefault(); }
+		else if (ev.key === "ArrowDown") { commit(zoomBandsState[cfg.kind][cls].values[z] - step); ev.preventDefault(); }
+	});
+	c.addEventListener("focus", () => selectZoomBandPoint(cfg.kind, cls, z));
+	return c;
+}
+
+// Der einzige Ort, an dem sich ein Wert ändert -- Ziehen, Pfeiltasten UND das Zahlenfeld rufen alle
+// hier durch. 💣 Ziehen verändert NUR den angefassten Punkt: kein Nachbarwert wird mitverschoben.
+function setZoomBandPointValue(kind, cls, z, rawVal, source) {
+	if (!zoomBandsDarfSpeichern || !isFinite(rawVal)) { return; }
+	const cfg = zoomBandPlots()[kind];
+	const st = zoomBandsState[kind][cls];
+	if (z < st.start || z > zoomBandMaxZoom()) { return; }
+	const val = zoomBandRound2(zoomBandClamp(rawVal, cfg.limits.min, cfg.limits.max));
+	st.values[z] = val;
+	const circle = cfg.svg.querySelector(`circle[data-cls="${cls}"][data-z="${z}"]`);
+	if (circle) { circle.setAttribute("cy", cfg.scale.toY(val)); circle.setAttribute("aria-valuenow", val); }
+	zoomBandUpdateCurvePath(cfg, cls);
+	if (zoomBandsSelected[kind] && zoomBandsSelected[kind].cls === cls && zoomBandsSelected[kind].z === z && source !== "field") {
+		cfg.selInputEl.value = val;
+	}
+	updateZoomBandPreview();
+	updateZoomBandsMessage();
+}
+
+function selectZoomBandPoint(kind, cls, z) {
+	zoomBandsSelected[kind] = { cls, z };
+	const cfg = zoomBandPlots()[kind];
+	cfg.svg.querySelectorAll(".zb-plot-point.is-selected").forEach((el) => el.classList.remove("is-selected"));
+	const circle = cfg.svg.querySelector(`circle[data-cls="${cls}"][data-z="${z}"]`);
+	if (circle) { circle.classList.add("is-selected"); }
+	updateZoomBandSelectedUI(kind);
+}
+
+function updateZoomBandSelectedUI(kind) {
+	const cfg = zoomBandPlots()[kind];
+	const sel = zoomBandsSelected[kind];
+	if (!sel) {
+		cfg.selLabelEl.textContent = "— keiner —";
+		cfg.selInputEl.value = "";
+		cfg.selInputEl.disabled = true;
+		return;
+	}
+	cfg.selLabelEl.textContent = `${ZOOM_BAND_KLASSEN_LABEL[sel.cls]} · z${sel.z}`;
+	cfg.selInputEl.disabled = !zoomBandsDarfSpeichern;
+	cfg.selInputEl.value = zoomBandsState[kind][sel.cls].values[sel.z];
+}
+
+// 🔴 DIE ERSCHEINUNGSSTUFE IST DIE ERSTE GEFÜLLTE ZELLE -- ein Klick setzt sie für die GANZE Kurve,
+// nie eine einzelne Zelle. Eine Kurve läuft von hier bauartbedingt lückenlos bis zMax; ein Loch kann
+// so nicht entstehen (Entwurf §3.1, Bauplan-Vorspann Aufgabe 8 -- ersetzt das alte Häkchen).
+function changeZoomBandStart(kind, cls, newStart) {
+	if (!zoomBandsDarfSpeichern) { return; }
+	const st = zoomBandsState[kind][cls];
+	if (newStart === st.start) { return; }
+	st.start = newStart;
+	renderZoomBandPlot(zoomBandPlots()[kind]);
+	renderZoomBandLegend(kind);
+	if (zoomBandsSelected[kind] && zoomBandsSelected[kind].cls === cls && zoomBandsSelected[kind].z < newStart) {
+		zoomBandsSelected[kind] = null;
+		updateZoomBandSelectedUI(kind);
+	}
+	updateZoomBandPreview();
+	updateZoomBandsMessage();
+}
+
+// ⚠️ NUR im Entwurf -- gespeichert wird erst mit dem Knopf unten, wie jede andere Änderung im
+// Fenster auch.
+function resetZoomBandRow(kind, cls) {
+	if (!zoomBandsDarfSpeichern) { return; }
+	zoomBandsState[kind][cls] = zoomBandRowState(AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS[kind][cls], kind);
+	if (zoomBandsSelected[kind] && zoomBandsSelected[kind].cls === cls) { zoomBandsSelected[kind] = null; }
+	renderZoomBandPlot(zoomBandPlots()[kind]);
+	renderZoomBandLegend(kind);
+	updateZoomBandSelectedUI(kind);
+	updateZoomBandPreview();
+	$("seZoomBandsMsg").textContent = "Zeile zurückgesetzt — noch nicht gespeichert.";
+}
+
+function makeZoomBandStageButton(kind, cls, i, active, isAus) {
+	const btn = document.createElement("button");
+	btn.type = "button";
+	btn.className = `zb-stage-btn zb-cls-${cls}${isAus ? " zb-stage-btn--aus" : ""}${active ? " is-active" : ""}`;
+	btn.textContent = isAus ? "aus" : "z" + i;
+	btn.title = isAus ? `${ZOOM_BAND_KLASSEN_LABEL[cls]} ausblenden` : `${ZOOM_BAND_KLASSEN_LABEL[cls]} ab z${i} zeigen`;
+	btn.disabled = !zoomBandsDarfSpeichern;
+	btn.addEventListener("click", () => changeZoomBandStart(kind, cls, i));
+	return btn;
+}
+
+function renderZoomBandLegend(kind) {
+	const cfg = zoomBandPlots()[kind];
+	cfg.legendEl.innerHTML = "";
+	const zMax = zoomBandMaxZoom();
+	ZOOM_BAND_KLASSEN.forEach((cls) => {
+		const st = zoomBandsState[kind][cls];
+		const row = document.createElement("div");
+		row.className = "zb-legend-row";
+
+		const swatch = document.createElement("span");
+		swatch.className = `zb-swatch zb-cls-${cls}`;
+		row.appendChild(swatch);
+
+		const name = document.createElement("span");
+		name.className = "zb-legend-name";
+		name.textContent = ZOOM_BAND_KLASSEN_LABEL[cls];
+		row.appendChild(name);
+
+		const group = document.createElement("span");
+		group.className = "zb-stage-group";
+		group.setAttribute("role", "group");
+		group.setAttribute("aria-label", `Erscheint ab, ${ZOOM_BAND_KLASSEN_LABEL[cls]}`);
+		for (let i = 0; i <= zMax; i += 1) {
+			group.appendChild(makeZoomBandStageButton(kind, cls, i, st.start === i, false));
+		}
+		group.appendChild(makeZoomBandStageButton(kind, cls, zMax + 1, st.start === zMax + 1, true));
+		row.appendChild(group);
+
+		const note = document.createElement("span");
+		note.className = "zb-legend-note";
+		note.textContent = st.start > zMax ? "ausgeblendet — Werte gemerkt" : "";
+		row.appendChild(note);
+
+		const reset = document.createElement("button");
+		reset.type = "button";
+		reset.className = "zb-row-reset";
+		reset.title = `${ZOOM_BAND_KLASSEN_LABEL[cls]} auf Vorgabe zurücksetzen`;
+		reset.textContent = "↺";
+		reset.disabled = !zoomBandsDarfSpeichern;
+		reset.addEventListener("click", () => resetZoomBandRow(kind, cls));
+		row.appendChild(reset);
+
+		cfg.legendEl.appendChild(row);
+	});
+}
+
+// Die erste Stufe, auf der alle sechs Klassen sowohl Marker als auch Label tragen (bei der Vorgabe
+// z4 -- Bauwerk/Stätte trägt sein Label erst ab dann) -- dynamisch aus dem Zustand, nicht hart
+// eingetragen, damit eine Übersteuerung den Startwert der Vorschau nicht ins Leere zeigen lässt.
+function zoomBandDefaultPreviewStage() {
+	const zMax = zoomBandMaxZoom();
+	let stage = 0;
+	ZOOM_BAND_KLASSEN.forEach((cls) => {
+		const s = zoomBandsState.label[cls].start;
+		if (s <= zMax && s > stage) { stage = s; }
+	});
+	return Math.min(stage, zMax);
+}
+
+function renderZoomBandPreviewStageButtons() {
+	const wrap = $("seZoomBandsPreviewStage");
+	wrap.innerHTML = "";
+	const zMax = zoomBandMaxZoom();
+	for (let i = 0; i <= zMax; i += 1) {
+		const b = document.createElement("button");
+		b.type = "button";
+		b.textContent = "z" + i;
+		if (i === zoomBandPreviewStage) { b.classList.add("is-active"); }
+		b.addEventListener("click", () => { zoomBandPreviewStage = i; renderZoomBandPreviewStageButtons(); updateZoomBandPreview(); });
+		wrap.appendChild(b);
+	}
+}
+
+// 🔴 Owner-Rückmeldung an den Prototyp: die echte Kartengeometrie übernehmen
+// (getLocationNameLabelOffset, map-features-location-name-labels.js), nicht selbst erfinden --
+// dort steht das Label RECHTS neben dem Punkt, auf dessen Mitte. `align-items:center` auf der
+// Flex-Reihe (.zb-preview-card__mark) bildet dieselbe Mitte, ohne den Canvas-Grundlinien-Ausgleich
+// der echten Formel nachzubauen.
+function updateZoomBandPreview() {
+	const grid = $("seZoomBandsPreviewGrid");
+	if (!grid) { return; }
+	grid.innerHTML = "";
+	const DOT_CAP = 80; // Sicherheitsdeckel -- die Vorgabewerte (bis 53,2) erreichen ihn nie.
+	ZOOM_BAND_KLASSEN.forEach((cls) => {
+		const card = document.createElement("div");
+		card.className = "zb-preview-card";
+		const mSt = zoomBandsState.marker[cls], lSt = zoomBandsState.label[cls];
+		const hasMarker = zoomBandPreviewStage >= mSt.start;
+		const hasLabel = zoomBandPreviewStage >= lSt.start;
+		if (hasMarker) {
+			const mark = document.createElement("div");
+			mark.className = "zb-preview-card__mark";
+			const d = mSt.values[zoomBandPreviewStage];
+			const shown = Math.min(d, DOT_CAP);
+			const dot = document.createElement("span");
+			dot.className = "zb-dot";
+			dot.style.width = shown + "px";
+			dot.style.height = shown + "px";
+			dot.title = `Marker Ø ${String(zoomBandRound2(d)).replace(".", ",")} px${shown < d ? " (gezeichnet gedeckelt)" : ""}`;
+			mark.appendChild(dot);
+			if (hasLabel) {
+				const pt = lSt.values[zoomBandPreviewStage];
+				const word = document.createElement("span");
+				word.className = "zb-word";
+				word.style.fontSize = pt + "pt";
+				word.textContent = "Gareth";
+				word.title = `Label ${String(zoomBandRound2(pt)).replace(".", ",")} pt`;
+				mark.appendChild(word);
+			}
+			card.appendChild(mark);
+		} else {
+			const noMark = document.createElement("span");
+			noMark.className = "zb-preview-empty";
+			noMark.textContent = "–";
+			card.appendChild(noMark);
+		}
+		const name = document.createElement("span");
+		name.className = "zb-preview-card__name";
+		name.textContent = ZOOM_BAND_KLASSEN_LABEL[cls];
+		card.appendChild(name);
+		grid.appendChild(card);
+	});
+}
+
+function updateZoomBandsMessage() {
+	const msg = $("seZoomBandsMsg");
+	if (!msg) { return; }
+	if (!zoomBandsDarfSpeichern) {
+		msg.textContent = "Zeigt die aktuell wirksamen Kurven — Ziehen, Stufenwahl und Zahlenfelder sind gesperrt.";
+		return;
+	}
+	let changed = 0;
+	["marker", "label"].forEach((kind) => {
+		ZOOM_BAND_KLASSEN.forEach((cls) => { if (!zoomBandRowEqualsDefault(kind, cls)) { changed += 1; } });
+	});
+	msg.textContent = changed === 0
+		? "Keine Änderungen — entspricht der Vorgabe."
+		: `Ungespeichert: ${changed} Kurve${changed === 1 ? "" : "n"} weich${changed === 1 ? "t" : "en"} von der Vorgabe ab.`;
+}
+
+// Die Speicherleiste. 🔴 Für Editoren ohne admin steht hier ein SATZ, kein grauer Knopf -- ein
+// Knopf, den man nie drücken darf, ist ein Versprechen, das die Seite bricht.
+function renderZoomBandsActions() {
+	const actions = $("seZoomBandsActions");
+	if (!actions) { return; }
+	actions.innerHTML = zoomBandsDarfSpeichern
+		? '<button type="button" class="zb-row-reset" id="seZoomBandsResetAll">Alles zurücksetzen</button>' +
+		  '<button type="button" class="primary" id="seZoomBandsSave">Speichern</button>'
+		: '<span class="zb-nurlesen">🔒 Zoombänder einstellen dürfen nur Administratoren.</span>';
+	if (zoomBandsDarfSpeichern) {
+		$("seZoomBandsResetAll")?.addEventListener("click", resetAllZoomBands);
+		$("seZoomBandsSave")?.addEventListener("click", saveZoomBands);
+	}
+}
+
+function renderZoomBandsDialog() {
+	const zMax = zoomBandMaxZoom();
+	if (zoomBandPreviewStage === null || zoomBandPreviewStage > zMax) {
+		zoomBandPreviewStage = zoomBandDefaultPreviewStage();
+	}
+	renderZoomBandPlot(zoomBandPlots().marker);
+	renderZoomBandPlot(zoomBandPlots().label);
+	renderZoomBandLegend("marker");
+	renderZoomBandLegend("label");
+	updateZoomBandSelectedUI("marker");
+	updateZoomBandSelectedUI("label");
+	renderZoomBandPreviewStageButtons();
+	updateZoomBandPreview();
+	updateZoomBandsMessage();
+	renderZoomBandsActions();
+}
+
+async function zoomBandsPost(body) {
+	const response = await fetch(ZOOM_BANDS_API, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+	const payload = await response.json().catch(() => null);
+	if (!response.ok || !payload || payload.ok !== true) {
+		throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+	}
+	return payload;
+}
+
+async function openZoomBandsDialog() {
+	const dialog = $("seZoomBandsDialog");
+	if (dialog) { dialog.hidden = false; }
+	const fehler = $("seZoomBandsError");
+	if (fehler) { fehler.hidden = true; }
+	$("seZoomBandsMsg").textContent = "Lädt…";
+	try {
+		const payload = await zoomBandsPost({ action: "get" });
+		zoomBandsDarfSpeichern = payload.can_save === true;
+		// 🔴 Angezeigt wird IMMER die ZUSAMMENGEFÜHRTE Tafel -- Vorgabe plus Übersteuerung, genau das,
+		// was die Karte zeichnet. Die rohe Übersteuerung zu zeigen hieße, dem Admin leere Felder für
+		// Werte vorzulegen, die auf der Karte sichtbar sind.
+		const resolved = avesmapsResolveLocationZoomBands(payload.bands);
+		zoomBandsState = zoomBandsFromResolved(resolved);
+		zoomBandsSelected = { marker: null, label: null };
+		zoomBandPreviewStage = null;
+		renderZoomBandsDialog();
+	} catch (error) {
+		// ⚠️ Ohne diese Zeile bliebe links „Lädt…" stehen -- die Fehlermeldung unten erklärt das
+		// Ausbleiben, die Kopfzeile darf es nicht länger behaupten.
+		$("seZoomBandsMsg").textContent = "";
+		if (fehler) { fehler.textContent = error && error.message ? error.message : String(error); fehler.hidden = false; }
+	}
+}
+
+function closeZoomBandsDialog() {
+	const dialog = $("seZoomBandsDialog");
+	if (dialog) { dialog.hidden = true; }
+}
+
+async function saveZoomBands() {
+	const fehler = $("seZoomBandsError");
+	fehler.hidden = true;
+	try {
+		const bands = zoomBandsToPayload(zoomBandsState);
+		const payload = await zoomBandsPost({ action: "save", bands: bands });
+		const resolved = avesmapsResolveLocationZoomBands(payload.bands);
+		zoomBandsState = zoomBandsFromResolved(resolved);
+		zoomBandsSelected = { marker: null, label: null };
+		renderZoomBandsDialog();
+		$("seZoomBandsMsg").textContent = "Gespeichert. Die Karte zeigt es nach dem nächsten Laden.";
+	} catch (error) {
+		fehler.textContent = error && error.message ? error.message : String(error);
+		fehler.hidden = false;
+	}
+}
+
+async function resetAllZoomBands() {
+	const fehler = $("seZoomBandsError");
+	fehler.hidden = true;
+	try {
+		const payload = await zoomBandsPost({ action: "reset" });
+		const resolved = avesmapsResolveLocationZoomBands(payload.bands);
+		zoomBandsState = zoomBandsFromResolved(resolved);
+		zoomBandsSelected = { marker: null, label: null };
+		renderZoomBandsDialog();
+		$("seZoomBandsMsg").textContent = "Auf die Vorgabewerte zurückgesetzt.";
+	} catch (error) {
+		fehler.textContent = error && error.message ? error.message : String(error);
+		fehler.hidden = false;
+	}
+}
+
+$("seZoomBands")?.addEventListener("click", () => { void openZoomBandsDialog(); });
+$("seZoomBandsDialog")?.addEventListener("click", (event) => {
+	if (event.target.id === "seZoomBandsDialog") closeZoomBandsDialog();
+});
+// Das Zahlenfeld neben jedem Plot: einmal verdrahtet (statisches Markup), tippt direkt in den
+// gerade ausgewählten Punkt -- derselbe Weg wie Ziehen und Pfeiltasten (setZoomBandPointValue).
+["marker", "label"].forEach((kind) => {
+	const cfg = zoomBandPlots()[kind];
+	cfg.selInputEl.addEventListener("input", () => {
+		const sel = zoomBandsSelected[kind];
+		if (!sel || !zoomBandsDarfSpeichern) { return; }
+		setZoomBandPointValue(kind, sel.cls, sel.z, parseFloat(cfg.selInputEl.value), "field");
+	});
+});
 
 async function boot() {
 	wireTerritoryFilterBar();
