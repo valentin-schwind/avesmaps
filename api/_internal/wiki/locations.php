@@ -980,6 +980,25 @@ function avesmapsWikiSyncBuildLocationProperties(
         unset($properties['wiki_url']);
     } else {
         $properties['wiki_url'] = $wikiUrl;
+        // 🔴 EINE ZUWEISUNG LÖSCHT DEN MERKER „kein Wiki-Artikel" -- wortgleich zu
+        // avesmapsWikiSettlementAssignTo (settlements.php) und zum Kraftlinien-Abgleich
+        // (powerlines.php). Dieser Weg ist der DRITTE Schreiber von `properties.wiki_url`
+        // (WikiSync-Fall lösen, avesmapsWikiSyncResolveCase) und kannte den Merker bis zum
+        // 16.08.2026 gar nicht.
+        //
+        // 💣 WAS OHNE DIESE ZEILE PASSIERT, IST SCHLIMMER ALS EINE FALSCHE ANZEIGE: der Ort trägt
+        // dann eine Adresse UND den Merker, und `update_point` lehnt JEDES weitere Speichern dieses
+        // Ortes ab („kann nicht gleichzeitig einen Wiki-Artikel haben und keinen",
+        // avesmapsApplyPointWikiFields). Die Ursache steckt im versteckten `wiki_url`-Feld und ist im
+        // Dialog unsichtbar -- der Ort wäre blockiert, bis jemand das Häkchen aus- und wieder
+        // einschaltet.
+        //
+        // ⚠️ NUR beim Zuweisen, nie beim Leeren: ein leerer `wiki_url` heißt „diese Verbindung war
+        // falsch", nicht „es gibt keinen Artikel" (dieselbe Trennung wie bei `clear_assign`).
+        // ⚠️ Und die FALL-LISTE wird ausdrücklich NICHT gefiltert: ein Ort mit Merker soll weiter in
+        // den Fällen auftauchen -- im Wiki kann inzwischen ein Artikel entstanden sein, und das ist
+        // Information, keine Störung. Nur das AUFLÖSEN räumt den Widerspruch weg.
+        unset($properties['wiki_no_article']);
     }
 
     return $properties;
@@ -1001,6 +1020,12 @@ function avesmapsWikiSyncLocationFeatureNeedsUpdate(
         || $currentSubtype !== $subtype
         || (string) ($properties['description'] ?? '') !== $description
         || (string) ($properties['wiki_url'] ?? '') !== $wikiUrl
+        // 💣 DER WIDERSPRUCH IST EINE ÄNDERUNG, auch wenn sonst alles gleich aussieht. Trägt der Ort
+        // die zuzuweisende Adresse BEREITS und daneben den Merker, meldete diese Prüfung ohne die
+        // Zeile „nichts zu tun" -- und der Ort bliebe für `update_point` unspeicherbar gesperrt
+        // (avesmapsApplyPointWikiFields lehnt beides zugleich ab). Auflösen muss diesen Zustand
+        // heilen können, nicht nur verhindern.
+        || ($wikiUrl !== '' && !empty($properties['wiki_no_article']))
         || avesmapsWikiSyncReadBoolean($properties['is_nodix'] ?? false) !== $isNodix
         || avesmapsWikiSyncReadBoolean($properties['is_ruined'] ?? false) !== $isRuined;
 }

@@ -212,6 +212,53 @@ foreach ($bauer as $wo => [$datei, $muster]) {
     assert(str_contains($rumpfTreffer[0], 'wiki_no_article'), "der Payload-Bauer \"$wo\" schickt den Merker nicht");
 }
 
+// ── 8) DIE VERDRAHTUNG FORMULARFELD ↔ PAYLOAD-BAUER ───────────────────────────────────────────
+// 🪤 SIE WAR UNBEWACHT, und der Pruefer hat es gemessen: `name="einwohner"` aus index.html entfernt
+// -- ALLE 156 JS-Tests blieben gruen. `formData.get("einwohner")` liefert dann fuer immer `null`,
+// der Schluessel faellt aus dem Payload, der Server laesst den alten Wert stehen (Zusicherung 4) --
+// der Editor tippt, speichert, und beim naechsten Oeffnen steht wieder der alte Wert. Lautlos.
+// 💣 Die Probe darueber prueft den RUMPF des Bauers; sie kann nicht sehen, ob das Formular den
+// Namen ueberhaupt liefert. Das `name`-Attribut ist die andere Haelfte derselben Kopplung.
+// ⚠️ Der Orte-Editor braucht das nicht: er liest `$("dtEditEinwohner").value`, also die KENNUNG --
+// und die steht schon in der Rumpf-Probe.
+$kartenMarkup = file_get_contents(__DIR__ . '/../../../../index.html');
+assert(is_string($kartenMarkup));
+foreach (array_keys(AVESMAPS_POINT_WIKI_TEXT_FIELDS) as $feld) {
+    assert(
+        preg_match('/<input id="location-edit-' . $feld . '"[^>]*\sname="' . $feld . '"/', $kartenMarkup) === 1,
+        "das Feld \"$feld\" im Kartendialog traegt kein passendes name-Attribut -- FormData liefert "
+        . 'dann fuer immer null und der Schluessel faellt aus dem Payload'
+    );
+}
+
+// ── 9) `maxlength` IST DIESELBE ZAHL WIE IM SERVER ────────────────────────────────────────────
+// 💣 Sonst ist es die VIERTE Kopie der Laengen (Nest, Server, zwei Formulare). Server↔Nest ist
+// oben gesichert, Server↔Markup war es nicht: eine hoehere Zahl im Formular liesse den Editor
+// tippen, was der Server dann stumm abschneidet -- und die naechste Sync-Vorschau zeigte den
+// Unterschied wieder und wieder.
+$markupQuellen = [
+    'Kartendialog' => [$kartenMarkup, '/<input id="location-edit-%s"[^>]*maxlength="(\d+)"/'],
+    'Orte-Editor' => [
+        file_get_contents(__DIR__ . '/../../../../html/wiki-sync-settlement-editor.html'),
+        '/id="dtEdit%s"[^>]*maxlength="(\d+)"/',
+    ],
+];
+$kennung = ['einwohner' => 'Einwohner', 'lage' => 'Lage', 'oberhaupt' => 'Oberhaupt'];
+foreach ($markupQuellen as $wo => [$inhalt, $muster]) {
+    assert(is_string($inhalt));
+    foreach (AVESMAPS_POINT_WIKI_TEXT_FIELDS as $feld => $laenge) {
+        $name = $wo === 'Orte-Editor' ? $kennung[$feld] : $feld;
+        assert(
+            preg_match(sprintf($muster, $name), $inhalt, $gefunden) === 1,
+            "das maxlength von \"$feld\" ist in \"$wo\" nicht auffindbar -- der Vergleich waere blind"
+        );
+        assert(
+            (int) $gefunden[1] === $laenge,
+            "das maxlength von \"$feld\" in \"$wo\" ({$gefunden[1]}) weicht von der Serverlaenge ($laenge) ab"
+        );
+    }
+}
+
 // 🔴 UND: EINE ZUWEISUNG LOESCHT DEN MERKER. Beides zugleich ist der verbotene Zustand -- und wer
 // gerade einen Artikel zuweist, hat die frueheren „es gibt keinen" widerlegt. Wortgleiches Vorbild:
 // der Kraftlinien-Abgleich (api/_internal/wiki/powerlines.php).

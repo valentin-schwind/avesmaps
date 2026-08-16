@@ -1236,26 +1236,32 @@ function skripteAus(htmlDatei, muster) {
 
 	// ══ TEIL 6: DER WEG VOM PAYLOAD ZUM MARKER-EINTRAG ═══════════════════════════════════════
 	// 💣 Ohne dieses Stueck ist alles andere wirkungslos: der Kartendialog liest den Merker und die
-	// drei Felder aus `markerEntry.location`, und das Objekt entsteht an DREI Stellen -- beim ersten
-	// Laden der Karte (prepareLocationData) und zweimal nach einem Schreibvorgang
-	// (updateLocationMarkerFromFeature / addCreatedLocationMarker). Fehlt eine, startet das Haekchen
-	// nach genau dieser Handlung wieder leer, und das naechste Speichern nimmt die Entscheidung
-	// zurueck. Dieselbe Falle wie „vier Erzeuger, Sperre in zweien" (AGENTS.md §11) -- deshalb steht
-	// hier KEINE Zahl im Fliesstext, sondern die Liste selbst.
+	// drei Felder aus `markerEntry.location`. Das Objekt entsteht beim ersten Laden der Karte
+	// (prepareLocationData) und nach einem Schreibvorgang (applyFeatureResponseToMarker /
+	// addCreatedLocationMarker); `applyLiveLocationFeature` speist die zwei letzten mit dem
+	// Kartenpayload eines FREMDEN Editors. Fehlt einer, startet das Haekchen nach genau dieser
+	// Handlung wieder leer, und das naechste Speichern nimmt die Entscheidung zurueck. Dieselbe Falle
+	// wie „vier Erzeuger, Sperre in zweien" (AGENTS.md §11) -- deshalb steht hier KEINE Zahl im
+	// Fliesstext, sondern die Liste selbst.
+	// 🪤 `applyLiveLocationFeature` stand beim ersten Anlauf NICHT in der Liste. Gefunden beim
+	// Nachzaehlen der Aufrufer, nicht vom Test.
 	//
-	// ⚠️ TEXTPROBE, und sie ist als solche benannt. Die drei Erzeuger haengen an Leaflet, am
-	// Kartenzustand und an einem Dutzend Nachbarmodulen; sie im Sandkasten zu fahren waere ein
-	// (der Erzeuger nach einem Schreibvorgang heisst `applyFeatureResponseToMarker` -- nachgeschlagen,
-	// nicht angenommen: der erste Anlauf suchte einen Namen, den es nicht gibt, und die Probe fiel
-	// mit „steht nicht in der Datei" um statt mit einer Aussage.)
-	// Nachbau, kein Beleg. Sie beantwortet genau eine Frage -- traegt der Erzeuger das Feld
-	// ueberhaupt? --, dieselbe Frage und dasselbe Muster wie in powerline-inherit-test.php.
-	// 🪤 UND ES SIND VIER, NICHT DREI. `applyLiveLocationFeature` baut aus dem Kartenpayload denselben
-	// flachen Umschlag, den die zwei Erzeuger sonst von `update_point` bekommen -- die
-	// Live-Synchronisierung eines FREMDEN Editors laeuft dadurch. Sie ist beim ersten Anlauf nicht in
-	// dieser Liste gestanden; ohne sie setzte ein fremdes Speichern den Merker auf meinem Marker
-	// still zurueck, und mein naechstes Speichern loeschte damit die Entscheidung. Gefunden beim
-	// Nachzaehlen der Aufrufer, nicht vom Test -- und genau deshalb steht die Liste hier ausgeschrieben.
+	// ⚠️ TEXTPROBE, und sie ist als solche benannt: die Erzeuger haengen an Leaflet, am Kartenzustand
+	// und an einem Dutzend Nachbarmodulen; sie im Sandkasten zu fahren waere ein Nachbau, kein Beleg.
+	// Sie beantwortet genau eine Frage -- traegt der Erzeuger das Feld ueberhaupt? --, dieselbe Frage
+	// und dasselbe Muster wie in powerline-inherit-test.php.
+	//
+	// 🪤 UND SIE HAT SICH BIS ZUR NACHBESSERUNG AUS IHREN EIGENEN KOMMENTAREN ERFUELLT. Sie fragte
+	// `rumpf.indexOf(feld) !== -1` und unterschied damit weder Code von Kommentar noch ganze Woerter
+	// von Wortteilen. Nachgezaehlt vom Pruefer: `wiki_no_article` stand im Rumpf von
+	// `applyLiveLocationFeature` ZWEIMAL -- einmal als Code, einmal in meinem eigenen Kommentar
+	// darueber; und `lage` fand sich in `applyFeatureResponseToMarker` DREIMAL, zweimal davon im Wort
+	// „vi**llage**" englischer Nachbarkommentare. Beide Zeilen liessen sich einzeln loeschen, ohne
+	// dass die Probe rot wurde. 💣 Exakt die Fehlerform, fuer die dieser Zweig schon einen
+	// Reparaturcommit traegt (`2af3bfea`, „die Stylesheet-Probe fand ihren eigenen Kommentar") und die
+	// im PHP-Test nebenan bereits geschlossen war -- hier nicht. Deshalb jetzt: Kommentarzeilen raus,
+	// und gesucht wird die ZUWEISUNG `<feld>:` an einer Wortgrenze, nicht der blosse Name.
+	//
 	// ⚠️ Der Merker heisst je nach Stufe anders: im Marker-Eintrag `wikiNoArticle`, im flachen
 	// Umschlag der Antwort `wiki_no_article`. Die Probe traegt deshalb je Erzeuger IHREN Namen --
 	// ein gemeinsamer waere bei drei von vier zufaellig richtig und bei einem blind.
@@ -1265,16 +1271,28 @@ function skripteAus(htmlDatei, muster) {
 		["js/map-features/map-features-location-editing.js", "addCreatedLocationMarker", "wikiNoArticle"],
 		["js/map-features/map-features-location-editing.js", "applyLiveLocationFeature", "wiki_no_article"],
 	];
-	MARKER_ERZEUGER.forEach(([datei, funktion, merkerName]) => {
-		const quelle = fs.readFileSync(path.join(wurzel, datei), "utf8");
+	/** Der Rumpf OHNE Kommentarzeilen -- die Probe soll Code messen, nicht Prosa. */
+	function rumpfOhneKommentare(quelle, funktion) {
 		const start = quelle.indexOf(funktion);
-		assert.ok(start !== -1, "der Erzeuger „" + funktion + "“ steht nicht in " + datei);
-		// Bis zur naechsten Zeile, die in Spalte 0 mit `function`/`const`/`}` beginnt -- der Rumpf.
+		if (start === -1) {
+			return null;
+		}
+		// Bis zur naechsten Zeile, die in Spalte 0 eine neue Einheit beginnt -- der Rumpf.
 		const rest = quelle.slice(start);
 		const ende = rest.search(/\n(?:function |const |let |\/\/ =)/);
-		const rumpf = ende === -1 ? rest : rest.slice(0, ende);
+		return (ende === -1 ? rest : rest.slice(0, ende))
+			.split("\n")
+			.filter((zeile) => zeile.trim().indexOf("//") !== 0)
+			.join("\n");
+	}
+	MARKER_ERZEUGER.forEach(([datei, funktion, merkerName]) => {
+		const quelle = fs.readFileSync(path.join(wurzel, datei), "utf8");
+		const rumpf = rumpfOhneKommentare(quelle, funktion);
+		assert.ok(rumpf !== null, "der Erzeuger „" + funktion + "“ steht nicht in " + datei);
 		[merkerName, "einwohner", "lage", "oberhaupt"].forEach((feld) => {
-			assert.ok(rumpf.indexOf(feld) !== -1,
+			// Wortgrenze davor, Doppelpunkt dahinter: „village" faellt heraus, „einwohner:" nicht.
+			const zuweisung = new RegExp("(^|[^A-Za-z0-9_$])" + feld + "\\s*:");
+			assert.ok(zuweisung.test(rumpf),
 				"„" + funktion + "“ (" + datei + ") traegt „" + feld + "“ nicht in den Marker-Eintrag");
 			zaehl();
 		});
