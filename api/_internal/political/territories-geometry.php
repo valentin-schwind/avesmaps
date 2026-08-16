@@ -1055,10 +1055,16 @@ function avesmapsPoliticalPurgeUnassignedGeometries(PDO $pdo, array $payload, ar
         ];
     }
 
-    // SQLite-kompatible DELETE mit Subquery statt Alias-Syntax
+    // SQLite- und MySQL-kompatible DELETE mit Materialisierung.
+    // MySQL Error 1093 verbietet eine einfache Subquery auf die Ziel-Tabelle selbst;
+    // die Materialisierung (doppelte Verschachtelung) zwingt MySQL eine temp table zu nutzen.
     $del = $pdo->prepare(
         'DELETE FROM political_territory_geometry
-         WHERE id IN (SELECT g.id ' . $orphanWhere . ')'
+         WHERE id IN (
+             SELECT id FROM (
+                 SELECT g.id ' . $orphanWhere . '
+             ) candidates
+         )'
     );
     $del->execute();
 
@@ -1079,13 +1085,6 @@ function avesmapsPoliticalPurgeUnassignedGeometries(PDO $pdo, array $payload, ar
         $stmt = $pdo->prepare('SELECT id, public_id FROM political_territory WHERE public_id = :public_id LIMIT 1');
         $stmt->execute(['public_id' => $territoryPublicId]);
         $territory = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!is_array($territory)) {
-            // Falls das Territorium irgendwie gelöscht wurde, einfach die Hülle löschen
-            $drop = $pdo->prepare('DELETE FROM political_territory_derived_geometry WHERE public_id = :public_id');
-            $drop->execute(['public_id' => (string) $hull['derived_geometry_public_id']]);
-            $derivedDeleted += $drop->rowCount();
-            continue;
-        }
         $result = avesmapsPoliticalDeleteDerivedGeometryForTerritory($pdo, $territory, $user);
         $derivedDeleted += (int) ($result['affected'] ?? 0);
     }
