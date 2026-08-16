@@ -422,6 +422,9 @@ if (typeof avesmapsLoadLocationZoomBands === "function") {
 		if (typeof bumpLocationNameLabelStyleRevision === "function") {
 			bumpLocationNameLabelStyleRevision();
 		}
+		if (typeof bumpLocationMarkerStyleRevision === "function") {
+			bumpLocationMarkerStyleRevision();
+		}
 		if (typeof syncLocationMarkerVisibility === "function") {
 			syncLocationMarkerVisibility();
 		}

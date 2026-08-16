@@ -13,6 +13,14 @@ function getVisualZoomLevel(zoomLevel = map.getZoom()) {
 const LOCATION_MARKER_CONTOUR_RATIO = 0.33; // weisse Kontur = 33 % des Kernradius ...
 const LOCATION_MARKER_CONTOUR_MIN = 0.5;    // ... mindestens aber 0.5 px dick
 
+// Eine reine Zoomband-Änderung ändert weder Zoomstufe noch Warnring: ohne diese Revision bliebe der
+// alte Radius stehen, bis jemand zoomt. Sie wird von bumpLocationMarkerStyleRevision() erhöht.
+let _locationMarkerStyleRevision = 0;
+
+function bumpLocationMarkerStyleRevision() {
+	_locationMarkerStyleRevision += 1;
+}
+
 function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 	if (locationType === CROSSING_LOCATION_TYPE) {
 		// Kreuzungen sind kein Ortstyp und tragen kein Band -- sie erscheinen über ihren eigenen
@@ -297,11 +305,14 @@ function syncLocationMarkerVisibility() {
 		// Icon nur neu bauen, wenn sich die Zoomstufe (= Markergroesse/-stil) ODER der Warnring
 		// seit dem letzten Bau fuer diesen Marker geaendert hat. Beim reinen Pannen bleibt das Icon
 		// identisch -> kein setIcon-Neuaufbau pro sichtbarem Marker pro moveend.
+		// 💣 Auch die Stilrevision prufen: eine Zoomband-Aenderung aendert weder Zoomstufe noch Warnring
+		// und bliebe deshalb unbemerkt -- der Marker behaelte seinen alten Radius, bis jemand zoomt.
 		const ringModifier = resolveLocationCheckFinding(entry, visibilityContext);
-		if (shouldShow && (entry.iconZoomLevel !== zoomLevel || entry._ringModifier !== ringModifier)) {
+		if (shouldShow && (entry.iconZoomLevel !== zoomLevel || entry._ringModifier !== ringModifier || entry._markerStyleRevision !== _locationMarkerStyleRevision)) {
 			entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel, ringModifier));
 			entry.iconZoomLevel = zoomLevel;
 			entry._ringModifier = ringModifier;
+			entry._markerStyleRevision = _locationMarkerStyleRevision;
 		}
 		const isOnMap = map.hasLayer(entry.marker);
 		if (shouldShow && !isOnMap) {
