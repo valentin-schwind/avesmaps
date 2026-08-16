@@ -743,6 +743,46 @@ function scheinBehaelter() {
 	assert.strictEqual(await avesmapsWikiAssignRufen(undefined), null);
 	checks += 4;
 
+	// ══ DIE FUELLUNG FOLGT DER HAUPTHANDLUNG -- und sie WANDERT ════════════════════════════════
+	// 🔴 Owner-Entscheid 16.08.2026 als Folge der konservativen Vorhaekelung: solange nichts angehakt
+	// ist, traegt „Alle anhaken" die Fuellung („Uebernehmen" ist dann abgeschaltet); ab dem ersten
+	// Haken traegt „Uebernehmen" sie. GENAU EINER, immer -- nie zwei, nie null (AGENTS.md §12).
+	// 💣 Geprueft in BEIDEN Huellen: die Klassen heissen verschieden, und eine Huelle ohne
+	// `knopfHaupt` gaebe stumm den weichen Knopf aus.
+	function syncMarkup(huelle, syncZeilen) {
+		const modell = avesmapsWikiAssignModell(
+			{ label: "X", felder: [{ wiki: "a", karte: "a" }, { wiki: "b", karte: "b" }], sync: true },
+			{ artikel: { name: "A", werte: {} } },
+			{ modus: "sync", syncZeilen: syncZeilen }
+		);
+		return avesmapsWikiAssignMarkup(modell, avesmapsWikiAssignSkin(huelle));
+	}
+	[
+		["dt", "primary"],
+		["label-wiki", "location-report-form__button--primary"],
+	].forEach(([huelle, hauptKlasse]) => {
+		// (1) NICHTS angehakt -> die Fuellung liegt auf „Alle anhaken".
+		const ohneHaken = syncMarkup(huelle, [
+			{ karte: "a", label: "A", alt: "x", neu: "y", gehakt: false, grund: "auf der Karte steht bereits ein Wert" },
+		]);
+		const kastenOhne = /data-wa-aktion="sync-alle"/.exec(ohneHaken);
+		assert.ok(kastenOhne, huelle + ": der Knopf „Alle anhaken“ fehlt");
+		assert.ok(new RegExp('class="[^"]*' + hauptKlasse + '[^"]*"[^>]*data-wa-aktion="sync-alle"').test(ohneHaken),
+			huelle + ": bei NULL Haken traegt „Alle anhaken“ die Fuellung nicht -- sie laege auf dem "
+			+ "abgeschalteten Knopf: " + ohneHaken);
+		assert.ok(!new RegExp('class="[^"]*' + hauptKlasse + '[^"]*"[^>]*data-wa-aktion="sync-uebernehmen"').test(ohneHaken),
+			huelle + ": der abgeschaltete „Uebernehmen“-Knopf ist trotzdem gefuellt -- zwei Hauptknoepfe");
+		// (2) EINER angehakt -> sie wandert auf „Uebernehmen“.
+		const mitHaken = syncMarkup(huelle, [
+			{ karte: "a", label: "A", alt: "x", neu: "y", gehakt: true, grund: "" },
+		]);
+		assert.ok(new RegExp('class="[^"]*' + hauptKlasse + '[^"]*"[^>]*data-wa-aktion="sync-uebernehmen"').test(mitHaken),
+			huelle + ": ab dem ersten Haken traegt „Uebernehmen“ die Fuellung nicht: " + mitHaken);
+		assert.ok(!new RegExp('class="[^"]*' + hauptKlasse + '[^"]*"[^>]*data-wa-aktion="sync-alle"').test(mitHaken),
+			huelle + ": „Alle anhaken“ bleibt gefuellt -- zwei Hauptknoepfe nebeneinander");
+		checks += 5;
+	});
+
 	// ══ `kein_artikel_geaendert` -- BEIDE RICHTUNGEN, ueber den Klickpfad ═══════════════════════
 	// 🔴 Owner-Entscheid 16.08.2026 anstelle eines `expected_revision`: der Merker reist nur mit, wenn
 	// er SEIT DEM LADEN bewusst umgelegt wurde. Wer ihn nicht anfasst, kann ihn nicht loeschen --

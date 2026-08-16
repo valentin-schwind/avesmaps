@@ -1312,6 +1312,27 @@ function skripteAus(htmlDatei, muster) {
 		"der Orte-Editor leert die flache Adresse nicht -- das Speichern liefe in den Widerspruchs-Riegel");
 	assert.ok(!("wiki_no_article" in eBaue()),
 		"ein auf den geladenen Wert zurueckgelegtes Haekchen steht trotzdem im Payload");
+	// ---- UND DIE RICHTUNG UNGESETZT → GESETZT, im Orte-Editor -----------------------------------
+	// 🪤 SIE WAR VON KEINEM TEST GEDECKT. Der Pruefer hat in
+	// html/wiki-sync-settlement-editor.html einen Riegel eingebaut, der `true` nie schickt -- das
+	// GANZE JS-Feld blieb gruen (157/157). Der Grund: die Fixture darueber startet MIT gesetztem
+	// Merker, es wird nur ab- und wieder angewaehlt, und beide Enden liegen bei `false` bzw.
+	// „Schluessel fehlt". Der Kartendialog hatte die Gegenprobe, der Orte-Editor nicht.
+	// 💣 Deshalb eine eigene Fixture, die OHNE Merker startet -- eine Probe, die nur eine Richtung
+	// faehrt, deckt auch nur eine Richtung.
+	vm.runInContext("settlementDetailCache = { publicId: 'loc-1', detail: { public_id: 'loc-1',"
+		+ " name: 'Havena', feature_subtype: 'dorf', on_map: true, properties: {} } };"
+		+ "mountSettlementWikiAssign();", e.kasten);
+	await ruhe();
+	assert.ok(!/data-wa-kein-artikel checked/.test(eHost.innerHTML),
+		"das Haekchen startet gesetzt, obwohl der Ort den Merker nicht traegt: " + eHost.innerHTML);
+	assert.ok(!("wiki_no_article" in eBaue()), "unangetastet, also nichts zu schicken");
+	eHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
+	await ruhe();
+	assert.strictEqual(eBaue().wiki_no_article, true,
+		"der Orte-Editor schickt ein frisch GESETZTES Haekchen nicht mit -- der Merker kaeme nie beim Server an");
+	zaehl(); zaehl(); zaehl();
+
 	// Und der Blindgaenger-Fall: ohne bereites Bauteil steht kein Merker im Payload.
 	vm.runInContext("settlementWikiAssign = null;", e.kasten);
 	assert.ok(!("wiki_no_article" in JSON.parse(vm.runInContext("JSON.stringify(buildSettlementSavePayload())", e.kasten))),
@@ -1355,7 +1376,15 @@ function skripteAus(htmlDatei, muster) {
 		["js/map-features/map-features-location-editing.js", "addCreatedLocationMarker", "wikiNoArticle"],
 		["js/map-features/map-features-location-editing.js", "applyLiveLocationFeature", "wiki_no_article"],
 	];
-	/** Der Rumpf OHNE Kommentarzeilen -- die Probe soll Code messen, nicht Prosa. */
+	/**
+	 * Der Rumpf OHNE Kommentare -- die Probe soll Code messen, nicht Prosa.
+	 *
+	 * 🪤 ZEILEN- UND BLOCKKOMMENTARE. Die erste Fassung dieser Reparatur warf nur `//`-Zeilen weg;
+	 * ein `/* … *\/` oder eine JSDoc-Zeile im Rumpf haette denselben Weg zurueck in die Probe
+	 * gefunden -- dieselbe Klasse, nur eine Syntax weiter. Bei den vier heutigen Erzeugern ist das
+	 * folgenlos, aber die naechste Objektart schreibt vielleicht JSDoc.
+	 * ⚠️ Blockkommentare ZUERST (sie koennen mehrere Zeilen umfassen), danach die Zeilenkommentare.
+	 */
 	function rumpfOhneKommentare(quelle, funktion) {
 		const start = quelle.indexOf(funktion);
 		if (start === -1) {
@@ -1365,6 +1394,7 @@ function skripteAus(htmlDatei, muster) {
 		const rest = quelle.slice(start);
 		const ende = rest.search(/\n(?:function |const |let |\/\/ =)/);
 		return (ende === -1 ? rest : rest.slice(0, ende))
+			.replace(/\/\*[\s\S]*?\*\//g, " ")
 			.split("\n")
 			.filter((zeile) => zeile.trim().indexOf("//") !== 0)
 			.join("\n");

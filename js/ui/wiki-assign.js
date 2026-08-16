@@ -205,6 +205,13 @@ const AVESMAPS_WIKI_ASSIGN_SKINS = {
 		kopfTitel: "",
 		kopfKnoepfe: "dt-grp__sp",
 		knopf: "",                     // blanker <button>: die Editorseiten stylen ihn weich/outline
+		// Der GEFUELLTE Knopf. `primary` ist das Wort, das die Editorfenster selbst dafuer benutzen
+		// (`button.primary` in ihren lokalen Stilbloecken) -- die Huelle spricht die Sprache ihres
+		// Wirts, genauso wie `knopf: ""` den weichen Standardknopf des Wirts meint.
+		// ⚠️ Die Regel steht trotzdem in css/components/editor-page.css: ein Wirt ohne eigenen
+		// Stilblock (der Wege-Editor) haette sonst einen ungefuellten „gefuellten" Knopf, und die
+		// Rollenprobe in js/ui/__tests__/wiki-assign-weg.test.js sucht in css/, nicht in HTML.
+		knopfHaupt: "primary",
 		listeTag: "div",
 		listeKlasse: "dt-grid",
 		nameTag: "div",
@@ -237,6 +244,7 @@ const AVESMAPS_WIKI_ASSIGN_SKINS = {
 		kopfTitel: "label-wiki-reference__title",
 		kopfKnoepfe: "label-wiki-reference__buttons",
 		knopf: "location-report-form__button location-report-form__button--secondary",
+		knopfHaupt: "location-report-form__button location-report-form__button--primary",
 		listeTag: "dl",
 		listeKlasse: "label-wiki-reference__dl",
 		nameTag: "dt",
@@ -394,9 +402,17 @@ function avesmapsWikiAssignModell(erklaerung, daten, ui) {
 			+ (veraenderbar === 1 ? " Angabe" : " Angaben")
 			+ (modell.syncZeilen.length === 1 ? " würde" : " würden")
 			+ " sich ändern. Angehakt wird übernommen.";
+		// 🔴 DIE FUELLUNG WANDERT MIT DER HAUPTHANDLUNG (siehe avesmapsWikiAssignKnopfMarkup):
+		// null Haken -> „Alle anhaken" ist das, was der Editor tun will; ab einem Haken -> „Uebernehmen".
+		// Genau EINER traegt sie, immer.
 		modell.syncAktionen = [
-			{ aktion: "sync-uebernehmen", text: gehakt + (gehakt === 1 ? " Angabe übernehmen" : " Angaben übernehmen"), aus: gehakt === 0 },
-			{ aktion: "sync-alle", text: AVESMAPS_WIKI_ASSIGN_TEXTE.syncAlleAnhaken },
+			{
+				aktion: "sync-uebernehmen",
+				text: gehakt + (gehakt === 1 ? " Angabe übernehmen" : " Angaben übernehmen"),
+				aus: gehakt === 0,
+				haupt: gehakt > 0,
+			},
+			{ aktion: "sync-alle", text: AVESMAPS_WIKI_ASSIGN_TEXTE.syncAlleAnhaken, haupt: gehakt === 0 },
 		];
 		modell.fuss = AVESMAPS_WIKI_ASSIGN_TEXTE.syncFuss;
 		return modell;
@@ -531,8 +547,21 @@ function avesmapsWikiAssignKlasse(wert) {
 	return klasse === "" ? "" : ' class="' + avesmapsWikiAssignEsc(klasse) + '"';
 }
 
+/**
+ * 🔴 DIE FUELLUNG FOLGT DER HAUPTHANDLUNG (AGENTS.md §12), und beim Ort WANDERT sie: solange nichts
+ * angehakt ist, ist „Alle anhaken" die Handlung, die der Editor als naechstes ausfuehren will --
+ * „Uebernehmen" ist dann ein toter Knopf. Sobald etwas angehakt ist, dreht es sich um.
+ *
+ * 💣 DER ANLASS IST DER OWNER-ENTSCHEID ZUR VORHAEKELUNG (16.08.2026): seit eine Zeile auf einem
+ * GEFUELLTEN Kartenwert ungehakt startet, oeffnet ein gepflegter Ort die Vorschau mit NULL Haken --
+ * die Fuellung laege dauerhaft auf dem abgeschalteten Knopf, waehrend der Knopf, den man wirklich
+ * druecken will, weich danebensteht. Das ist kein Schoenheitsfehler, sondern eine falsche Rangfolge.
+ *
+ * ⚠️ GENAU EIN gefuellter Knopf zu jeder Zeit -- nie zwei, nie null. Wer hier eine dritte Aktion
+ * ergaenzt, entscheidet mit, welche der drei die Fuellung traegt.
+ */
 function avesmapsWikiAssignKnopfMarkup(skin, knopf) {
-	return "<button type=\"button\"" + avesmapsWikiAssignKlasse(skin.knopf)
+	return "<button type=\"button\"" + avesmapsWikiAssignKlasse(knopf.haupt ? skin.knopfHaupt : skin.knopf)
 		+ ' data-wa-aktion="' + avesmapsWikiAssignEsc(knopf.aktion) + '"'
 		+ (knopf.aus ? " disabled" : "") + ">"
 		+ avesmapsWikiAssignEsc(knopf.text) + "</button>";

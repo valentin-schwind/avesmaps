@@ -657,6 +657,33 @@ body.avm-editor-body {
 	color: var(--color-text-muted);
 }
 
+/* Der GEFUELLTE Knopf der Sync-Vorschau. 🔴 Die Fuellung folgt der Haupthandlung (AGENTS.md §12),
+   und in diesem Kasten WANDERT sie: solange nichts angehakt ist, ist „Alle anhaken" die Handlung,
+   die der Editor als naechstes ausfuehren will -- „Uebernehmen" ist dann abgeschaltet. Ab dem ersten
+   Haken dreht es sich um. Genau EIN gefuellter Knopf zu jeder Zeit; entschieden wird das im Bauteil
+   (avesmapsWikiAssignKnopfMarkup, js/ui/wiki-assign.js), nicht hier.
+   💣 ANLASS ist der Owner-Entscheid zur Vorhaekelung (16.08.2026): seit eine Zeile auf einem
+      GEFUELLTEN Kartenwert ungehakt startet, oeffnet ein gepflegter Ort die Vorschau mit NULL Haken
+      -- die Fuellung laege sonst dauerhaft auf einem toten Knopf.
+   ⚠️ WIDERSPRUCH ZUM ABSATZ WEITER OBEN? Nein: dort geht es um die Knoepfe im GRUPPENKOPF
+      (.dt-grp__sp), die nie gefuellt sind. Hier steht die Handlung eines geoeffneten Vorgangs, und
+      der hat genau eine Hauptsache.
+   ⚠️ `primary` ist das Wort, das die Editorfenster selbst benutzen (ihre lokalen Stilbloecke tragen
+      `button.primary` mit denselben Token). Die Regel steht trotzdem HIER, weil ein Wirt ohne
+      eigenen Stilblock -- der Wege-Editor -- sonst einen ungefuellten „gefuellten" Knopf haette.
+   ⭐ Eingeengt auf .avm-wiki-assign: `primary` ist ein sehr allgemeines Wort, und eine ungebundene
+      Regel traefe jeden Knopf jeder Editorseite (die Fehlerklasse aus AGENTS.md §9). */
+.avm-wiki-assign .dt-actions button.primary {
+	background: var(--color-button);
+	border-color: var(--color-button-border);
+	color: var(--color-button-text);
+}
+/* 💣 Eigene Hover-Regel, und sie MUSS nach `:where(.avm-editor-body) button:hover` stehen -- sonst
+   faerbt das weiche Hover den gefuellten Knopf um. Dieselbe Falle wie bei .avm-tile--primary. */
+.avm-wiki-assign .dt-actions button.primary:hover {
+	background: var(--color-button-hover);
+}
+
 /* ---- Trefferliste ---------------------------------------------------------------------------
    Massgabe ist .label-wiki-picker-list in region-sync.css: dieselbe Rolle, dieselbe Hoehe,
    dieselben Toene -- nur die Namen folgen der Huelle, in der sie stehen. */

@@ -68,7 +68,12 @@ assert.ok(luecke.every((z) => z.grund === ""), "eine vorangehakte Zeile traegt e
 const nurLeerzeichen = avesmapsWikiAssignDiff([{ wiki: "einwohner", karte: "einwohner" }],
 	{ einwohner: "   " }, { einwohner: "12.000" }, []);
 assert.strictEqual(nurLeerzeichen.length, 1);
-assert.strictEqual(nurLeerzeichen[0].gehakt, true, "ein Feld aus Leerzeichen gilt als gefuellt");
+// 🪤 Der Fehlertext hier sagte einmal „ein Feld aus Leerzeichen gilt als gefuellt" -- formal richtig
+// als Beschreibung des FEHLERZUSTANDS, beim Ueberfliegen aber das Gegenteil der Regel darueber.
+// Ein Fehlertext, den man zweimal lesen muss, hilft im roten Lauf nicht.
+assert.strictEqual(nurLeerzeichen[0].gehakt, true,
+	"erwartet: vorangehakt, weil „   “ als LEER gilt (der Vergleich beschneidet beide Seiten). "
+	+ "Ist die Zeile ungehakt, haengt die Regel an einer Formatierung statt am Inhalt.");
 
 // 🔴 Und der handgesetzte Fall auf einem LEEREN Kartenwert bleibt ebenfalls ungehakt -- `handgesetzt`
 // sticht auch die Luecken-Regel, nicht nur die allgemeine.
