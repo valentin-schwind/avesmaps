@@ -1773,17 +1773,27 @@ function settlementWikiAssignZustand() {
 /**
  * Der Stand des Häkchens „Kein Wiki-Artikel vorhanden" für `buildSettlementSavePayload`.
  *
- * 🔴 `null` HEISST „NICHT BEREIT". Ein Blindgänger (Bauteil oder Voraussetzung nicht geladen -- nach
- * einem Deploy-Fehlschlag nicht hypothetisch, AGENTS.md §9) gäbe sonst `false` zurück, und das
- * nächste beliebige Speichern nähme eine Entscheidung zurück, die oft im Konfliktzentrum getroffen
- * wurde. Wortgleich zum Zwilling (settlementWikiKeinArtikelFuerPayload) und zum Kraftlinien-Editor.
+ * 🔴 `null` HEISST „NICHT SCHICKEN", aus ZWEI Gründen -- wortgleich zum Zwilling
+ * (settlementWikiKeinArtikelFuerPayload, js/review/review-settlement-wiki.js):
+ * 1. das Bauteil ist nicht bereit (Blindgänger, AGENTS.md §9);
+ * 2. das Häkchen wurde seit dem Laden gar nicht angefasst (Owner-Entscheid 16.08.2026) -- wer es
+ *    nicht anfasst, kann es auch nicht löschen, und ein alter offener Dialog nimmt sonst die
+ *    Entscheidung eines zweiten Editors aus dem Konfliktzentrum zurück.
+ *
+ * 💣 GEPRÜFT WIRD `kein_artikel_geaendert`, NICHT `kein_artikel`: *verändert seit dem Laden*, nicht
+ * *gesetzt*. Ein bewusst ENTFERNTES Häkchen muss durchkommen, sonst wird man den Merker nie wieder los.
+ * ⚠️ Beide Ort-Oberflächen tragen die Regel -- eine Regel, die einen von zwei Payload-Bauern bindet,
+ * ist keine Regel (AGENTS.md §11).
  */
 function settlementWikiAssignKeinArtikelFuerPayload() {
 	if (!settlementWikiAssign || !settlementWikiAssign.bereit) {
 		return null;
 	}
 	const stand = settlementWikiAssign.lies();
-	return stand ? stand.kein_artikel === true : null;
+	if (!stand || stand.kein_artikel_geaendert !== true) {
+		return null;
+	}
+	return stand.kein_artikel === true;
 }
 
 /**

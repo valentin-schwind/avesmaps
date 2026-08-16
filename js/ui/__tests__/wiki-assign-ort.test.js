@@ -304,7 +304,18 @@ assert.deepStrictEqual(diffZeilen.map((zeile) => zeile.karte),
 	["name", "feature_subtype", "einwohner", "oberhaupt", "lage"]);
 assert.deepStrictEqual(diffZeilen.map((zeile) => zeile.neu),
 	["Havena", "grossstadt", "9.400", "Gräfin Yppolita", "Albernia · Mittelreich"]);
-assert.ok(diffZeilen.every((zeile) => zeile.gehakt === true), "die Aenderungen sind vorangehakt");
+// 🔴 SEIT DEM 16.08.2026 ENTSCHEIDET DER KARTENWERT, NICHT DER WIKI-WERT (Owner-Entscheid): Name und
+// Ortsgroesse sind GEFUELLT und starten deshalb ungehakt; Einwohner, Herrscher und Lage sind hier
+// LEER -- das Fuellen einer Luecke bleibt vorangehakt. Hier stand „alle fuenf sind vorangehakt".
+// 💣 Diese eine Fixture zeigt beide Haelften der Regel nebeneinander; eine Probe, die nur „alle
+// ungehakt" fordert, waere von „gar nichts ist mehr gehakt" nicht zu unterscheiden.
+assert.deepStrictEqual(
+	diffZeilen.map((zeile) => [zeile.karte, zeile.gehakt]),
+	[["name", false], ["feature_subtype", false], ["einwohner", true], ["oberhaupt", true], ["lage", true]],
+	"die Vorhaekelung folgt nicht dem Kartenwert"
+);
+assert.strictEqual(diffZeilen[0].grund, "auf der Karte steht bereits ein Wert", diffZeilen[0].grund);
+assert.strictEqual(diffZeilen[2].grund, "", "eine vorangehakte Zeile traegt einen Grund");
 // Und die Anzeigefelder bleiben draussen: „Tempel" hat einen Wert im Wiki und kein Kartenziel.
 assert.ok(!diffZeilen.some((zeile) => zeile.karte === "tempel"),
 	"eine Anzeige-Zeile steht in der Sync-Vorschau -- sie kann nichts uebernehmen");
@@ -663,9 +674,16 @@ function skripteAus(htmlDatei, muster) {
 	assert.ok(host.innerHTML.indexOf("Havena (alt)") !== -1 && host.innerHTML.indexOf("grossstadt") !== -1, host.innerHTML);
 	assert.ok(host.innerHTML.indexOf("9.400") !== -1 && host.innerHTML.indexOf("Albernia · Mittelreich") !== -1,
 		"die drei neuen Kartenfelder stehen nicht in der Vorschau: " + host.innerHTML);
-	zaehl(); zaehl(); zaehl();
-	// Die zweite Zeile (Ortsgroesse) ausdruecklich ABhaken.
-	host.feuere("change", scheinZiel("data-wa-sync-haken", "1", { checked: false }));
+	// 🔴 DER KNOPFTEXT ZAEHLT DIE HAKEN, und seit dem Owner-Entscheid sind das DREI von fuenf: Name
+	// und Ortsgroesse sind auf der Karte gefuellt und starten ungehakt, die drei leeren Felder nicht.
+	// Hier stand „5 Angaben übernehmen".
+	assert.ok(host.innerHTML.indexOf(">3 Angaben übernehmen<") !== -1,
+		"der Knopf zaehlt nicht die tatsaechlich angehakten Zeilen: " + host.innerHTML);
+	zaehl(); zaehl(); zaehl(); zaehl();
+	// Den Namen ausdruecklich ANhaken (er startet jetzt ungehakt), die Ortsgroesse ungehakt lassen.
+	// ⚠️ Das ist die Umkehrung der alten Probe -- und die bessere: sie faehrt BEIDE Richtungen des
+	// Haekchens, nicht nur das Abhaken.
+	host.feuere("change", scheinZiel("data-wa-sync-haken", "0", { checked: true }));
 	await ruhe();
 	host.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
 	await ruhe();
@@ -686,6 +704,13 @@ function skripteAus(htmlDatei, muster) {
 	await ruhe();
 	assert.ok(host.innerHTML.indexOf("1 von 5 Angaben würde sich ändern") !== -1,
 		"die zweite Vorschau kennt den frisch uebernommenen Stand nicht -- die Kartenwerte sind eingefroren: " + host.innerHTML);
+	// 🔴 Und sie ist UNGEHAKT (die Ortsgroesse „dorf" ist gefuellt), der Uebernehmen-Knopf also
+	// abgeschaltet -- „0 Angaben übernehmen". Ohne das Anhaken darunter passierte gar nichts.
+	assert.ok(host.innerHTML.indexOf(">0 Angaben übernehmen<") !== -1
+		&& /data-wa-aktion="sync-uebernehmen" disabled/.test(host.innerHTML),
+		"eine Zeile auf einem gefuellten Kartenwert startet gehakt (oder der Knopf ist nicht abgeschaltet): " + host.innerHTML);
+	host.feuere("change", scheinZiel("data-wa-sync-haken", "0", { checked: true }));
+	await ruhe();
 	host.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
 	await ruhe();
 	// 🔴 setLocationEditSize, nicht `select.value = …`: an der Ortsgroesse haengt die Sperre des
@@ -729,6 +754,11 @@ function skripteAus(htmlDatei, muster) {
 	hostHalb.feuere("click", scheinZiel("data-wa-aktion", "sync"));
 	await ruhe();
 	assert.ok(hostHalb.innerHTML.indexOf("5 von 5 Angaben würden sich ändern") !== -1, hostHalb.innerHTML);
+	// 🔴 Die Ortsgroesse ausdruecklich ANhaken -- seit dem Owner-Entscheid startet sie ungehakt (der
+	// Kartenwert „dorf" ist gefuellt), und ohne den Haken kaeme die Ablehnung gar nicht zustande: die
+	// Probe liefe an ihrem Gegenstand vorbei und waere gruen, ohne irgendetwas zu belegen.
+	hostHalb.feuere("change", scheinZiel("data-wa-sync-haken", "1", { checked: true }));
+	await ruhe();
 	hostHalb.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
 	await ruhe();
 	assert.strictEqual(kHalb.elemente["location-edit-name"].value, "Havena (alt)",
@@ -948,7 +978,12 @@ function skripteAus(htmlDatei, muster) {
 	assert.ok(eHost.innerHTML.indexOf("5 von 5 Angaben würden sich ändern") !== -1, eHost.innerHTML);
 	// 🔴 HIER wird die EINWOHNERZAHL abgehakt -- die Gegenprobe zum Kartendialog oben, und wortgleich
 	// der Handgriff, den der Brief zu Aufgabe 5 verlangt hatte und der damals unmoeglich war.
+	// ⚠️ Der Name (0) startet seit dem Owner-Entscheid ohnehin ungehakt (Kartenwert gefuellt) -- das
+	// Abhaken bleibt trotzdem stehen: es macht die ABSICHT der Probe lesbar und ist auch dann richtig,
+	// wenn die Vorbelegung sich wieder aendert. Die Ortsgroesse (1) wird dafuer ausdruecklich
+	// ANgehakt, sonst hat diese Probe kein positives Gegenstueck mehr.
 	eHost.feuere("change", scheinZiel("data-wa-sync-haken", "0", { checked: false }));
+	eHost.feuere("change", scheinZiel("data-wa-sync-haken", "1", { checked: true }));
 	eHost.feuere("change", scheinZiel("data-wa-sync-haken", "2", { checked: false }));
 	await ruhe();
 	eHost.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
@@ -1056,8 +1091,24 @@ function skripteAus(htmlDatei, muster) {
 	// naehme eine Entscheidung zurueck, die oft im Konfliktzentrum getroffen wurde.
 	assert.ok(/data-wa-kein-artikel checked/.test(hostGesetzt.innerHTML),
 		"der gespeicherte Merker erreicht das Haekchen nicht -- es startet leer: " + hostGesetzt.innerHTML);
-	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kGesetzt.kasten), true);
-	zaehl(); zaehl(); zaehl();
+	// 🔴 UND ER REIST NICHT MIT, SOLANGE NIEMAND IHN ANFASST (Owner-Entscheid 16.08.2026 anstelle
+	// eines `expected_revision`). Hier stand `true` -- die Zusicherung ist mitgewandert, und sie ist
+	// die halbe Regel: ein frisch geladener, unangetasteter Dialog darf den Merker eines zweiten
+	// Editors nicht mitschreiben. Die andere Haelfte (bewusst umgelegt ⇒ reist mit) steht darunter.
+	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kGesetzt.kasten), null,
+		"ein unangetastetes Haekchen reist mit -- damit koennte ein alter Dialog eine fremde Entscheidung ueberschreiben");
+	// 🔴 UND DAS BEWUSSTE ENTFERNEN KOMMT TROTZDEM DURCH: `false`, nicht `null`. Haenge der Riegel an
+	// „gesetzt" statt an „veraendert", wuerde man den Merker nie wieder los.
+	hostGesetzt.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
+	await ruhe();
+	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kGesetzt.kasten), false,
+		"ein bewusst ENTFERNTES Haekchen wird verschluckt -- der Merker liesse sich nie wieder loeschen");
+	// Und zurueck auf den geladenen Wert heisst wieder „nichts zu schicken".
+	hostGesetzt.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
+	await ruhe();
+	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kGesetzt.kasten), null,
+		"ein auf seinen geladenen Wert zurueckgelegtes Haekchen reist mit");
+	zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 	// ---- Setzen leert das flache Adressfeld ---------------------------------------------------
 	// 💣 `update_point` LEHNT „Adresse UND kein Artikel" ab (avesmapsApplyPointWikiFields), und
@@ -1069,7 +1120,8 @@ function skripteAus(htmlDatei, muster) {
 	await ruhe();
 	assert.ok(!/data-wa-kein-artikel checked/.test(hostSetzen.innerHTML),
 		"das Haekchen startet gesetzt, obwohl der Ort den Merker nicht traegt: " + hostSetzen.innerHTML);
-	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kSetzen.kasten), false);
+	// Unangetastet ⇒ nichts zu schicken (auch wenn der geladene Wert `false` ist).
+	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kSetzen.kasten), null);
 	hostSetzen.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
 	await ruhe();
 	assert.strictEqual(vm.runInContext("settlementWikiKeinArtikelFuerPayload()", kSetzen.kasten), true,
@@ -1149,15 +1201,33 @@ function skripteAus(htmlDatei, muster) {
 		wiki_url: "", place_kind: "", einwohner: "9.400", lage: "Albernia · Mittelreich",
 		oberhaupt: "Gräfin Yppolita",
 	};
-	const gebaut = JSON.parse(vm.runInContext(
+	const bauePayload = () => JSON.parse(vm.runInContext(
 		"JSON.stringify(buildLocationEditPayload({ werte: " + JSON.stringify(vollesFormular) + " }))",
 		kPayload.kasten));
-	assert.strictEqual(gebaut.wiki_no_article, true,
-		"der dritte Zustand steht nicht im Speicher-Payload -- das Haekchen merkt sich nichts");
+	const hostPayload = kPayload.elemente["settlement-wiki-assign-host"];
+	const gebaut = bauePayload();
 	assert.strictEqual(gebaut.einwohner, "9.400");
 	assert.strictEqual(gebaut.lage, "Albernia · Mittelreich");
 	assert.strictEqual(gebaut.oberhaupt, "Gräfin Yppolita");
-	zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+	// 🔴 DER MERKER REIST NUR MIT, WENN ER BEWUSST VERAENDERT WURDE (Owner-Entscheid 16.08.2026).
+	// Hier stand `wiki_no_article === true` fuer einen Dialog, den niemand angefasst hat -- genau der
+	// Fall, der die Entscheidung eines zweiten Editors ueberschreibt.
+	assert.ok(!("wiki_no_article" in gebaut),
+		"ein unangetastetes Haekchen steht im Speicher-Payload -- ein alter offener Dialog schriebe damit "
+		+ "die Entscheidung eines zweiten Editors zurueck");
+	// ---- BEIDE RICHTUNGEN, als Ablauf durch die echte Oberflaeche -----------------------------
+	// (1) gesetzt -> ENTFERNT: `false` muss ankommen, sonst wird man den Merker nie wieder los.
+	hostPayload.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
+	await ruhe();
+	const nachEntfernen = bauePayload();
+	assert.strictEqual(nachEntfernen.wiki_no_article, false,
+		"ein bewusst ENTFERNTES Haekchen erreicht den Payload nicht -- der Merker liesse sich nie loeschen");
+	// (2) zurueck auf den geladenen Wert: wieder nichts zu schicken.
+	hostPayload.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
+	await ruhe();
+	assert.ok(!("wiki_no_article" in bauePayload()),
+		"ein auf seinen geladenen Wert zurueckgelegtes Haekchen steht trotzdem im Payload");
+	zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 	// 💣 UND DER RIEGEL GEGEN DIE LADELUECKE: kennt das Formular ein Feld gar nicht (eine gecachte
 	// index.html nach einem Deploy, AGENTS.md §7), wird der Schluessel WEGGELASSEN statt als ""
@@ -1214,20 +1284,34 @@ function skripteAus(htmlDatei, muster) {
 	eFelder.dtEditEinwohner.value = "9.400";
 	eFelder.dtEditLage.value = "Albernia · Mittelreich";
 	eFelder.dtEditOberhaupt.value = "Gräfin Yppolita";
-	const eGebaut = JSON.parse(vm.runInContext("JSON.stringify(buildSettlementSavePayload())", e.kasten));
-	assert.strictEqual(eGebaut.wiki_no_article, true,
-		"der Orte-Editor schickt den dritten Zustand nicht mit -- das Haekchen merkt sich nichts");
+	const eBaue = () => JSON.parse(vm.runInContext("JSON.stringify(buildSettlementSavePayload())", e.kasten));
+	const eGebaut = eBaue();
 	assert.strictEqual(eGebaut.einwohner, "9.400");
 	assert.strictEqual(eGebaut.lage, "Albernia · Mittelreich");
 	assert.strictEqual(eGebaut.oberhaupt, "Gräfin Yppolita");
+	// 🔴 DIESELBE REGEL WIE IM KARTENDIALOG -- eine Regel, die einen von zwei Payload-Bauern bindet,
+	// ist keine Regel (AGENTS.md §11). Unangetastet ⇒ der Schluessel fehlt.
+	assert.ok(!("wiki_no_article" in eGebaut),
+		"der Orte-Editor schickt ein unangetastetes Haekchen mit -- damit ueberschriebe er eine fremde Entscheidung");
+	// (1) gesetzt -> ENTFERNT: `false` kommt an.
+	eHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
+	await ruhe();
+	assert.strictEqual(eBaue().wiki_no_article, false,
+		"der Orte-Editor verschluckt ein bewusst ENTFERNTES Haekchen");
 	zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 	// Setzen leert auch hier die flache Adresse -- `#dtEditWikiUrl` steht sichtbar, aber readonly.
+	// ⚠️ Und der Weg zurueck (ungesetzt -> gesetzt) faehrt gleich mit: danach steht wieder `true` im
+	// Payload, obwohl das der GELADENE Wert ist -- der Bezugspunkt ist der Ladelauf, nicht der letzte
+	// Klick. ⚠️ Genau das ist gewollt: der Editor hat den Merker in diesem Dialog zweimal angefasst,
+	// und der Server bekommt den Stand, den der Editor jetzt sieht.
 	eFelder.dtEditWikiUrl.value = "https://de.wiki-aventurica.de/wiki/Havena";
 	eHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
 	await ruhe();
 	assert.strictEqual(eFelder.dtEditWikiUrl.value, "",
 		"der Orte-Editor leert die flache Adresse nicht -- das Speichern liefe in den Widerspruchs-Riegel");
+	assert.ok(!("wiki_no_article" in eBaue()),
+		"ein auf den geladenen Wert zurueckgelegtes Haekchen steht trotzdem im Payload");
 	// Und der Blindgaenger-Fall: ohne bereites Bauteil steht kein Merker im Payload.
 	vm.runInContext("settlementWikiAssign = null;", e.kasten);
 	assert.ok(!("wiki_no_article" in JSON.parse(vm.runInContext("JSON.stringify(buildSettlementSavePayload())", e.kasten))),

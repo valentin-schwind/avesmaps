@@ -12,14 +12,29 @@
 // Oberflaeche zeigt dann "Alles stimmt bereits mit dem Wiki ueberein", statt eine leere
 // Haekchenliste zu rendern.
 //
-// 🔴 VORANGEHAKT IST, WAS AENDERT -- NICHT, WAS LEERT: sagt das Wiki zu einer Angabe nichts (leerer
-// oder fehlender Wert), waehrend auf der Karte etwas steht, ist das der Fall "Geloescht" der
-// grossen Uebernahme-Vorschau: die Zeile steht drin, damit der Editor sie sieht, aber sie ist NIE
-// vorangehakt -- ein unbedachter Klick auf "Uebernehmen" wuerde sonst stumm eine gepflegte Angabe
-// leeren. Eine per `handgesetzt` gemeldete Angabe (von Hand korrigiert, weil das Wiki veraltet ist)
-// startet aus demselben Grund ungehakt: der Sync wuerde sie sonst kommentarlos zurueckdrehen. Beide
-// Faelle tragen einen `grund`-Klartext, damit der Editor sieht, WARUM die Zeile ungehakt ist, statt
-// es zu erraten.
+// 🔴 VORANGEHAKT IST NUR, WAS EINE LUECKE FUELLT (Owner-Entscheid 16.08.2026, woertlich: „Eine
+// Zeile, die einen bereits GEFUELLTEN Kartenwert ersetzen wuerde, startet ungehakt -- mit dem Grund
+// ‚auf der Karte steht bereits ein Wert'. Ein leeres Feld zu fuellen bleibt vorangehakt.").
+//
+// Die vier Faelle, in der Reihenfolge, in der sie geprueft werden:
+//   1. gleich                                    -> gar nicht gelistet
+//   2. Wiki sagt nichts, Karte hat etwas         -> gelistet, NIE gehakt ("wuerde die Angabe leeren")
+//   3. `handgesetzt`                             -> gelistet, NIE gehakt ("wuerde zurueckgedreht")
+//   4. Kartenwert GEFUELLT, Wiki sagt etwas anderes -> gelistet, NICHT gehakt (der neue Fall)
+//      Kartenwert LEER, Wiki sagt etwas          -> gelistet und VORANGEHAKT (die Luecke)
+//
+// ⚠️ DIE REIHENFOLGE IST DIE REGEL: 3 steht VOR 4, weil eine handgesetzte Angabe per Definition
+// gefuellt ist -- der spezifischere Grund muss den allgemeinen stechen, sonst laese der Editor „auf
+// der Karte steht bereits ein Wert" statt „von Hand gesetzt, wuerde zurueckgedreht" und wuesste
+// nicht, dass er selbst der Grund ist.
+//
+// 💣 DIE TRAGWEITE IST GROESSER ALS „EIN KLICK MEHR": ein Ortsname und eine Ortsart sind praktisch
+// immer gefuellt, also ist in der Praxis fast nichts mehr vorangehakt und „Alle anhaken" wird der
+// normale Weg. Das ist die GEWAEHLTE Seite des Tauschs (kein unbedachtes Ueberschreiben), nicht ein
+// Nebeneffekt. Wer sie zurueckdrehen will, dreht damit den Owner-Entscheid zurueck.
+//
+// Alle drei ungehakten Faelle tragen einen `grund`-Klartext, damit der Editor sieht, WARUM die Zeile
+// ungehakt ist, statt es zu erraten.
 //
 // 🔴 Eine Feldzeile mit `karte: ""` ist eine ANZEIGE-Zeile ohne Ziel (so tragen die Kraftlinien ihre
 // vier Wiki-Felder, js/ui/wiki-assign-registry.js) -- sie kann per Definition nichts uebernehmen und
@@ -72,8 +87,17 @@ function avesmapsWikiAssignDiff(felder, kartenwerte, wikiwerte, handgesetzt) {
 			grund = "das Wiki sagt nichts — würde die Angabe leeren";
 		} else if (hand.indexOf(feld.karte) !== -1) {
 			// Von Hand korrigiert: gelistet, markiert, aber nicht gehakt.
+			// 🔴 VOR der Regel darunter: eine handgesetzte Angabe ist immer auch gefuellt, und dieser
+			// Grund ist der genauere. Getauscht laese der Editor den allgemeinen Satz und wuesste
+			// nicht, dass seine eigene Korrektur der Grund ist.
 			gehakt = false;
 			grund = "von Hand gesetzt — würde zurückgedreht";
+		} else if (alt !== "") {
+			// 🔴 Der Kartenwert ist GEFUELLT und das Wiki sagt etwas anderes -- ueberschreiben ist eine
+			// Entscheidung, kein Vorschlag (Owner 16.08.2026). Nur das Fuellen einer LUECKE bleibt
+			// vorangehakt.
+			gehakt = false;
+			grund = "auf der Karte steht bereits ein Wert";
 		}
 
 		zeilen.push({ karte: feld.karte, label: label, alt: alt, neu: neu, gehakt: gehakt, grund: grund });

@@ -92,19 +92,32 @@ function settlementWikiZustand() {
 /**
  * Der Stand des Häkchens „Kein Wiki-Artikel vorhanden", wie ihn `buildLocationEditPayload` braucht.
  *
- * 🔴 `null` HEISST „NICHT BEREIT", UND DAS IST DER GANZE ZWECK. Ein Blindgänger (das Bauteil oder
- * eine seiner Voraussetzungen fehlt -- nach einem Deploy-Fehlschlag nicht hypothetisch, AGENTS.md §9)
- * gäbe hier sonst `false` zurück, und das nächste beliebige Speichern nähme eine Entscheidung
- * zurück, die oft gar nicht in diesem Dialog getroffen wurde, sondern im Konfliktzentrum. Der
- * Payload-Bauer lässt den Schlüssel dann weg; `update_point` fasst den gespeicherten Merker nicht an.
- * Dieselbe Regel wie beim Kraftlinien-Editor (`wikiAssign.bereit ? … : Rückfall`).
+ * 🔴 `null` HEISST „NICHT SCHICKEN", und es gibt dafür ZWEI Gründe:
+ *
+ * 1. **Das Bauteil ist nicht bereit** (Blindgänger -- nach einem Deploy-Fehlschlag nicht
+ *    hypothetisch, AGENTS.md §9). Ein `false` wäre hier eine Löschung, die niemand angeordnet hat.
+ * 2. **Das Häkchen wurde seit dem Laden gar nicht angefasst** (Owner-Entscheid 16.08.2026, anstelle
+ *    eines `expected_revision`): wer es nicht anfasst, kann es auch nicht löschen. Ohne diesen
+ *    Riegel nimmt ein alter, längst offener Dialog beim nächsten beliebigen Speichern die
+ *    Entscheidung eines zweiten Editors zurück, der den Merker inzwischen im Konfliktzentrum gesetzt
+ *    hat -- und der Erste merkt davon nichts.
+ *
+ * 💣 GEPRÜFT WIRD `kein_artikel_geaendert`, NICHT `kein_artikel`. Der Unterschied ist *verändert seit
+ * dem Laden*, nicht *gesetzt*: ein bewusst ENTFERNTES Häkchen muss genauso durchkommen wie ein
+ * gesetztes, sonst liesse sich der Merker nie wieder loswerden.
+ *
+ * ⚠️ Der Riegel ist ENG gemeint -- er gilt NUR dem Merker. Kein `expected_revision`, keine neuen
+ * Absagen für Editoren, keine Behandlung der übrigen Felder.
  */
 function settlementWikiKeinArtikelFuerPayload() {
 	if (!settlementWikiAssign || !settlementWikiAssign.bereit) {
 		return null;
 	}
 	const stand = settlementWikiAssign.lies();
-	return stand ? stand.kein_artikel === true : null;
+	if (!stand || stand.kein_artikel_geaendert !== true) {
+		return null;
+	}
+	return stand.kein_artikel === true;
 }
 
 // Derive the wiki page title from a /wiki/<Title> URL (decodes %xx + underscores). "" if none.

@@ -190,8 +190,20 @@ assert.strictEqual(diffAnders.length, 1, "genau eine Angabe ist veraenderbar: " 
 assert.strictEqual(diffAnders[0].karte, "feature_subtype");
 assert.strictEqual(diffAnders[0].alt, "Strasse");
 assert.strictEqual(diffAnders[0].neu, "Reichsstrasse", "die Vorschau bietet freien Wikitext statt eines Schluessels an");
-assert.strictEqual(diffAnders[0].gehakt, true);
-zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+// 🔴 SEIT DEM 16.08.2026 UNGEHAKT (Owner-Entscheid): der Kartenwert „Strasse" ist GEFUELLT, und ihn
+// zu ersetzen ist eine Entscheidung, kein Vorschlag. Hier stand `true` -- die Zusicherung ist
+// MITGEWANDERT, nicht geloescht. ⚠️ Die Regel wohnt in der Diff-Rechnung und gilt fuer ALLE
+// Objektarten; der Weg ist nicht der Sonderfall, er ist der zweite Zeuge.
+assert.strictEqual(diffAnders[0].gehakt, false,
+	"ein gefuellter Kartenwert (feature_subtype) wird wieder vorangehakt");
+assert.strictEqual(diffAnders[0].grund, "auf der Karte steht bereits ein Wert", diffAnders[0].grund);
+// ⭐ Und die Gegenprobe, die die Regel von „gar nichts ist mehr gehakt" unterscheidet: ein LEERER
+// Kartenwert (ein frisch gezeichneter Weg ohne Art) bleibt vorangehakt.
+const diffLuecke = avesmapsWikiAssignDiff(weg.felder, { feature_subtype: "" }, wikiWerte, []);
+assert.strictEqual(diffLuecke.length, 1);
+assert.strictEqual(diffLuecke[0].gehakt, true, "das Fuellen einer Luecke ist nicht mehr vorangehakt");
+assert.strictEqual(diffLuecke[0].grund, "");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 // Stimmt der Typ ueberein, steht GAR NICHTS in der Liste.
 assert.deepStrictEqual(avesmapsWikiAssignDiff(weg.felder, { feature_subtype: "Reichsstrasse" }, wikiWerte, []), []);

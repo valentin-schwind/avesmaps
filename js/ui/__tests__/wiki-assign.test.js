@@ -598,7 +598,13 @@ function scheinBehaelter() {
 	const leerAberGueltig = await ladenLiefert({ artikel: null, keinArtikel: true });
 	assert.strictEqual(leerAberGueltig.st.bereit, true,
 		"ein gueltiges Objekt ohne Artikel gilt faelschlich als Fehlschlag -- damit waere die gewollte Leerung kaputt");
-	assert.deepStrictEqual(leerAberGueltig.st.lies(), { name: "", wiki_url: "", wiki_key: "", kein_artikel: true });
+	// 🔴 `kein_artikel_geaendert: false` steht hier ausdruecklich mit drin: der Ladelauf hat den Merker
+	// gerade GESETZT geliefert, also ist er NICHT „seit dem Laden veraendert" -- ein Schreibweg, der
+	// darauf hoert, schickt ihn nicht mit (Owner-Entscheid 16.08.2026, anstelle eines
+	// `expected_revision`). Ein `true` an dieser Stelle waere der Fehler, den der Riegel verhindert:
+	// ein frisch geladener, unangetasteter Dialog wuerde den Merker eines zweiten Editors mitschreiben.
+	assert.deepStrictEqual(leerAberGueltig.st.lies(),
+		{ name: "", wiki_url: "", wiki_key: "", kein_artikel: true, kein_artikel_geaendert: false });
 	const leeresObjekt = await ladenLiefert({});
 	assert.strictEqual(leeresObjekt.st.bereit, true, "ein leeres Objekt ist ein gueltiger Zustand, kein Fehlschlag");
 	checks += 3;
@@ -736,6 +742,58 @@ function scheinBehaelter() {
 	// Kein Rueckruf uebergeben ist kein Fehler -- das Bauteil ruft alle vier auch dann.
 	assert.strictEqual(await avesmapsWikiAssignRufen(undefined), null);
 	checks += 4;
+
+	// ══ `kein_artikel_geaendert` -- BEIDE RICHTUNGEN, ueber den Klickpfad ═══════════════════════
+	// 🔴 Owner-Entscheid 16.08.2026 anstelle eines `expected_revision`: der Merker reist nur mit, wenn
+	// er SEIT DEM LADEN bewusst umgelegt wurde. Wer ihn nicht anfasst, kann ihn nicht loeschen --
+	// sonst nimmt ein alter offener Dialog beim naechsten beliebigen Speichern die Entscheidung eines
+	// zweiten Editors aus dem Konfliktzentrum zurueck.
+	// 💣 Der Unterschied ist VERAENDERT, nicht GESETZT. Beide Richtungen werden deshalb einzeln
+	// gefahren: haenge der Riegel an „gesetzt", liesse sich der Merker nie wieder loswerden.
+	async function haekchenUmlegen(startwert, neuerWert) {
+		const behaelter = klickBehaelter();
+		const st = avesmapsWikiAssignMount(behaelter, {
+			subject: "kraftlinie", skin: "dt",
+			laden: () => ({ artikel: null, keinArtikel: startwert }),
+		});
+		await kurzeRuhe();
+		const ziel = klickZiel("data-wa-kein-artikel", "");
+		ziel.checked = neuerWert;
+		behaelter.feuere("change", ziel);
+		await kurzeRuhe();
+		return st.lies();
+	}
+	// (1) ungesetzt -> gesetzt
+	const gesetzt = await haekchenUmlegen(false, true);
+	assert.strictEqual(gesetzt.kein_artikel, true);
+	assert.strictEqual(gesetzt.kein_artikel_geaendert, true,
+		"ein GESETZTES Haekchen gilt nicht als veraendert -- der Merker kaeme nie beim Server an");
+	// (2) gesetzt -> ungesetzt: der Fall, den ein Riegel auf „gesetzt" verschlucken wuerde.
+	const entfernt = await haekchenUmlegen(true, false);
+	assert.strictEqual(entfernt.kein_artikel, false);
+	assert.strictEqual(entfernt.kein_artikel_geaendert, true,
+		"ein bewusst ENTFERNTES Haekchen gilt nicht als veraendert -- man wuerde den Merker nie wieder los");
+	// (3) angefasst und wieder zurueckgelegt: kein Unterschied zum geladenen Stand, also nichts zu
+	//     schicken. ⚠️ Die Regel haengt am WERT, nicht daran, ob jemand geklickt hat.
+	const zurueck = await haekchenUmlegen(true, true);
+	assert.strictEqual(zurueck.kein_artikel_geaendert, false,
+		"ein Haekchen, das auf seinem geladenen Wert steht, gilt als veraendert");
+	// (4) Und ein `neuLaden()` setzt den Bezugspunkt neu -- danach ist wieder nichts veraendert.
+	const behaelterNeu = klickBehaelter();
+	let standNeu = { artikel: null, keinArtikel: false };
+	const stNeu = avesmapsWikiAssignMount(behaelterNeu, {
+		subject: "kraftlinie", skin: "dt", laden: () => standNeu,
+	});
+	await kurzeRuhe();
+	const zielNeu = klickZiel("data-wa-kein-artikel", "");
+	zielNeu.checked = true;
+	behaelterNeu.feuere("change", zielNeu);
+	assert.strictEqual(stNeu.lies().kein_artikel_geaendert, true);
+	standNeu = { artikel: null, keinArtikel: true };
+	await stNeu.neuLaden();
+	assert.strictEqual(stNeu.lies().kein_artikel_geaendert, false,
+		"nach einem Neuladen gilt der frische Serverstand noch als veraendert");
+	checks += 7;
 
 	console.log("wiki-assign: " + checks + " Zusicherungen erfuellt");
 })().catch((fehler) => {

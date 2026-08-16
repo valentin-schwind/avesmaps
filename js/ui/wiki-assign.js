@@ -91,9 +91,19 @@
 // nachbauen: eine erfundene Belegt-Anzeige, die manchmal stimmt, ist schlimmer als keine.
 //
 // RUECKGABE von `mount`:
-//   lies()      -> { name, wiki_url, wiki_key, kein_artikel } — der Stand, den ein „Speichern“
-//                  schreiben soll. Fuer Oberflaechen, die NICHT sofort schreiben (Kraftlinien:
-//                  das Formular wird als Ganzes gespeichert), ist das der einzige Rueckkanal.
+//   lies()      -> { name, wiki_url, wiki_key, kein_artikel, kein_artikel_geaendert } — der Stand,
+//                  den ein „Speichern“ schreiben soll. Fuer Oberflaechen, die NICHT sofort schreiben
+//                  (Kraftlinien: das Formular wird als Ganzes gespeichert), ist das der einzige
+//                  Rueckkanal.
+//                  🔴 `kein_artikel_geaendert` sagt, ob das Haekchen SEIT DEM LADEN bewusst umgelegt
+//                  wurde (Owner-Entscheid 16.08.2026, anstelle eines `expected_revision`). Wer den
+//                  Merker gar nicht anfasst, soll ihn auch nicht loeschen koennen -- sonst nimmt ein
+//                  alter offener Dialog beim naechsten beliebigen Speichern die Entscheidung eines
+//                  zweiten Editors zurueck. Ein Schreibweg, dessen Server ein FEHLENDES Feld als
+//                  „nicht geaendert" liest (`update_point`, avesmapsApplyPointWikiFields), laesst den
+//                  Schluessel dann weg. ⚠️ Wer das Feld ignoriert und `kein_artikel` bedingungslos
+//                  schickt, hat das alte Verhalten -- so tut es der Kraftlinien-Editor, dessen
+//                  „Speichern" ohnehin die ganze Linie schreibt.
 //   neuLaden()  -> ruft `laden` erneut und zeichnet neu.
 //   zerstoeren()-> nimmt die Zuhoerer ab und leert den Behaelter.
 //
@@ -837,6 +847,8 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	// Schreibwert. Startet auf false -- zwischen `mount` und der ersten Antwort von `laden` (bei
 	// einem Server-`laden` sind das echte Millisekunden) darf niemand speichern.
 	let geladen = false;
+	// Der Stand des dritten Zustands, wie er GELADEN wurde. Siehe `kein_artikel_geaendert` in `lies()`.
+	let geladenerKeinArtikel = false;
 
 	function neuerZustand(modus) {
 		return { modus: modus, suchtext: "", treffer: [], aktiv: 0, syncZeilen: [], suchFehler: "", listenId: listenId };
@@ -902,6 +914,11 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			gesperrt: r.gesperrt || {},
 			listen: r.listen || {},
 		};
+		// 🔴 DER GELADENE STAND DES DRITTEN ZUSTANDS -- der Bezugspunkt fuer `kein_artikel_geaendert`
+		// unten. Er wird bei JEDEM geglueckten Ladelauf neu gesetzt, auch beim `neuLaden()`: danach
+		// gilt der frische Serverstand als „nicht geaendert", und das ist richtig -- was der Editor
+		// vorher angehakt hatte, ist mit dem Neuladen ohnehin vom Bildschirm.
+		geladenerKeinArtikel = daten.keinArtikel;
 	}
 
 	// 💣 Der Datenweg gehoert der Oberflaeche, und ein Fehler darin darf NICHT den ganzen Kasten
@@ -1252,6 +1269,18 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 				wiki_url: daten.artikel ? avesmapsWikiAssignText(daten.artikel.wiki_url) : "",
 				wiki_key: daten.artikel ? avesmapsWikiAssignText(daten.artikel.wiki_key) : "",
 				kein_artikel: daten.keinArtikel === true,
+				// 🔴 WURDE DER DRITTE ZUSTAND SEIT DEM LADEN BEWUSST VERAENDERT? (Owner-Entscheid
+				// 16.08.2026, anstelle eines `expected_revision`.) Wer das Haekchen nicht anfasst,
+				// soll es auch nicht loeschen koennen: ein zweiter Editor, der den Merker im
+				// Konfliktzentrum setzt, wird sonst von einem alten, laengst offenen Dialog
+				// ueberschrieben, sobald dort irgendetwas anderes gespeichert wird.
+				// 💣 Der Unterschied ist VERAENDERT, nicht GESETZT -- ein bewusst ENTFERNTES Haekchen
+				// muss genauso durchkommen wie ein gesetztes, sonst liesse sich der Merker nie wieder
+				// loswerden.
+				// ⚠️ Eine geglueckte Zuweisung zaehlt dazu: `trefferWaehlen` setzt `keinArtikel` auf
+				// false, und war er vorher gesetzt, IST das eine Aenderung -- der Server tut beim
+				// Zuweisen ohnehin dasselbe (assign_to), das Mitschicken bestaetigt es nur.
+				kein_artikel_geaendert: (daten.keinArtikel === true) !== (geladenerKeinArtikel === true),
 			};
 		},
 		neuLaden: neuLaden,
