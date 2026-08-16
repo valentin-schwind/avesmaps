@@ -586,9 +586,23 @@
 <div class="sync-plan-host" id="aeSyncPlanHost" hidden></div>
 
 <script src="/js/review/sync-plan-sheet.js"></script>
+<!-- Die geteilte Wiki-Zuweisung (Entwurf docs/superpowers/specs/2026-08-15-wiki-zuweisung-
+     vereinheitlichung-design.md). ⚠️ DIE REIHENFOLGE IST BINDEND: Feldregister, Diff-Rechnung,
+     Bauteil, dann der Datenweg DIESER Objektart. `mount` prüft die ersten beiden und liefert sonst
+     einen erkennbaren Blindgänger, dessen Kasten sagt, welche Datei fehlt. -->
+<script src="/js/ui/wiki-assign-registry.js"></script>
+<script src="/js/ui/wiki-assign-diff.js"></script>
+<script src="/js/ui/wiki-assign.js"></script>
+<script src="/js/ui/wiki-assign-literatur.js"></script>
 
 <script>
   const GAME_LITERATURE_EDIT_API = "/api/edit/map/game-literature.php";
+  // 🔴 EIGENE ADRESSE, nicht GAME_LITERATURE_EDIT_API: jene ist POST-only, der Wiki-Katalog wird per
+  // GET gelesen. Sie steht hier für den `entry`-Arm, den DIESE Seite selbst holt (den Stand einer
+  // bereits zugewiesenen Literatur); die SUCHE fährt das Bauteil selbst, und zwar über `suche.url`
+  // aus dem Feldregister -- ⚠️ beide Stellen meinen dieselbe Datei, und wenn sie je auseinanderlaufen,
+  // sucht der Kasten woanders als er nachschlägt.
+  const GAME_LITERATURE_WIKI_API = "/api/edit/wiki/game-literature.php";
   const WIKI_SYNC_DUMP_API = "/api/edit/wiki/dump.php";
 
   // POST helper — mirrors settlementDetailPost: Gold-Contract envelope, surfaces error.message.
@@ -922,8 +936,17 @@
         ${aeField("Komplexität (Spieler)", "complexity_pl", v.complexity_pl || "", o)}
         ${aeField("Autoren", "authors", v.authors || "", o, { wide: true })}
       </div></div>
-      <div class="ae-grp"><p class="ae-grp__title">Wiki &amp; F-Shop</p><div class="ae-fields">
-        ${aeField("Wiki-URL", "wiki_url", v.wiki_url || "", o, { wide: true })}
+      <!-- 🔴 SEIT 16.08.2026 DAS GETEILTE BAUTEIL (js/ui/wiki-assign.js, Entwurf
+           docs/superpowers/specs/2026-08-15-wiki-zuweisung-vereinheitlichung-design.md). Hier stand
+           ein freies Textfeld „Wiki-URL": darin ließ sich jede Adresse tippen, und ein Tippfehler
+           blieb unsichtbar -- genau die Bauform, an der das bei den Kraftlinien am 15.08.2026
+           passiert ist. Jetzt wird gesucht statt getippt (Entwurf §5: keine freien Adressen; eine
+           Nicht-Wiki-Quelle gehört in den Quellen-Abschnitt).
+           ⚠️ Der Behälter ist ein BLANKES div -- das Bauteil erzeugt seine Hülle selbst. -->
+      <div id="aeWikiAssign"></div>
+      <!-- F-Shop-Code und Cover-URL sind KEINE Wiki-Zuweisung und bleiben Textfelder. Sie hießen
+           zusammen mit der Wiki-Adresse „Wiki & F-Shop"; ohne sie wäre die Überschrift falsch. -->
+      <div class="ae-grp"><p class="ae-grp__title">F-Shop &amp; Cover</p><div class="ae-fields">
         ${aeField("F-Shop-Code", "fshop_code", v.fshop_code || "", o)}
         ${aeField("Cover-URL", "cover_url", v.cover_url || "", o)}
       </div></div>
@@ -934,6 +957,115 @@
     if (coverFile) coverFile.addEventListener("change", () => aeUploadCover(coverFile));
     const coverRefetch = document.getElementById("aeCoverRefetch");
     if (coverRefetch) coverRefetch.addEventListener("click", aeRefetchCover);
+    // ⚠️ NACH dem innerHTML: der Behälter #aeWikiAssign entsteht erst mit ihm.
+    mountAeWikiAssign(d);
+  }
+
+  // ---- Wiki-Zuweisung (das geteilte Bauteil, Aufgabe 8) ----------------------------------------
+  // 🔴 Diese Oberfläche schreibt NICHT sofort. Sie wird als Ganzes gespeichert -- also ist `lies()`
+  // der einzige Rückkanal, genauso wie beim Kraftlinien-Editor. Der Riegel dazu steht in
+  // saveStammdaten und heißt `bereit`, nicht „ist das Objekt da".
+  let aeWikiAssign = null;
+
+  /** Der aktuelle Wert eines Formularfelds im Stammdaten-Block. Leer, wenn es (noch) nicht dasteht. */
+  function aeFieldValue(field) {
+    const el = document.querySelector('#aeStammBody [data-field="' + field + '"]');
+    return el ? String(el.value == null ? "" : el.value) : "";
+  }
+
+  /**
+   * Der Katalogsatz zu einem bekannten Schlüssel.
+   *
+   * 💣 ER IST NÖTIG, UND ZWAR NUR HIER. Ort, Weg und Landschaft lesen die Wiki-Angaben aus dem Nest
+   * `properties_json` ihres Kartenobjekts; `adventure` hat diese Spalte nicht, und die
+   * Geschäftsspalten daneben SIND schon das Ergebnis des letzten Abgleichs. Verglichen man gegen
+   * sie, verglichen Vorschau und Kasten die Karte mit sich selbst und meldeten ewig „Alles stimmt
+   * bereits mit dem Wiki überein".
+   * 🔴 Er WIRFT im Fehlerfall. Ein aufgelöstes Leeres wäre von „nichts zugewiesen" nicht zu
+   * unterscheiden, und weil hier erst beim „Speichern" geschrieben wird, löschte der nächste Klick
+   * die Zuweisung -- samt `wiki_key`, über den der Massenabgleich das Werk wiederfindet.
+   */
+  async function aeWikiEntry(wikiKey) {
+    const key = String(wikiKey || "").trim();
+    if (key === "") { return null; }
+    const response = await fetch(
+      GAME_LITERATURE_WIKI_API + "?action=entry&wiki_key=" + encodeURIComponent(key),
+      { credentials: "same-origin", headers: { Accept: "application/json" } }
+    );
+    // 💣 `fetch` löst auch bei 401/403/500 AUF -- nur ein Netzabbruch wirft. Ohne diese Zeile würde
+    // aus einer abgelaufenen Sitzung ein „dieser Artikel hat keine Angaben".
+    if (!response.ok) { throw new Error("Der Server antwortete mit " + response.status + "."); }
+    const data = await response.json();
+    if (!data || data.ok !== true || !Array.isArray(data.rows)) {
+      throw new Error((data && data.error && data.error.message) || "Unerwartete Antwort.");
+    }
+    return data.rows[0] || null;
+  }
+
+  /** Der Zustand, den das Bauteil lädt. Lehnt AB, wenn der Katalogsatz nicht zu holen war. */
+  function aeWikiZustand(d) {
+    const gespeichert = d || {};
+    return aeWikiEntry(gespeichert.wiki_key).then((kandidat) => {
+      const quelle = {
+        public_id: gespeichert.public_id || "",
+        wiki_key: gespeichert.wiki_key || "",
+        wiki_url: gespeichert.wiki_url || "",
+        wiki_title: gespeichert.title || "",
+        kandidat: kandidat,
+        field_origins: gespeichert.field_origins || {},
+      };
+      // 💣 LESEFUNKTIONEN, NICHT WERTE: `laden` läuft EINMAL, die Sync-Vorschau entsteht erst beim
+      // Druck auf „Sync" -- dazwischen kann der Editor jedes dieser Felder angefasst haben.
+      AVESMAPS_WIKI_ASSIGN_LITERATUR_KARTENFELDER.forEach((feld) => {
+        quelle[feld] = () => aeFieldValue(feld);
+      });
+      return avesmapsWikiAssignLiteraturZustand(quelle);
+    });
+  }
+
+  function aeWikiUngespeichert() {
+    const st = document.getElementById("aeSaveState");
+    if (st) { st.textContent = "Geändert – noch nicht gespeichert."; st.className = "saved"; }
+  }
+
+  /**
+   * Übernimmt die ANGEHAKTEN Vorschauzeilen ins Formular -- gespeichert wird mit „Speichern".
+   * ⚠️ Über die Formularfelder, nicht in ein Zwischenlager: `gatherStamm` liest ausschließlich das
+   * DOM, ein zweiter Zustand daneben liefe beim ersten Handgriff auseinander.
+   */
+  function aeWikiSyncUebernehmen(zeilen) {
+    const werte = avesmapsWikiAssignLiteraturSyncWerte(zeilen);
+    if (avesmapsWikiAssignLiteraturSyncLeer(werte)) { return; }
+    Object.keys(werte).forEach((feld) => {
+      if (werte[feld] === null) { return; }
+      const el = document.querySelector('#aeStammBody [data-field="' + feld + '"]');
+      if (el) { el.value = werte[feld]; }
+    });
+    aeWikiUngespeichert();
+  }
+
+  function mountAeWikiAssign(d) {
+    if (aeWikiAssign) { aeWikiAssign.zerstoeren(); aeWikiAssign = null; }
+    const host = document.getElementById("aeWikiAssign");
+    if (!host) { return; }
+    if (typeof avesmapsWikiAssignMount !== "function") {
+      // Kein stiller Leerlauf: ohne das Bauteil gibt es GAR KEINE Zuweisung mehr, und ein leerer
+      // Fleck sähe aus wie „dieser Eintrag hat keine".
+      host.textContent = "Wiki-Zuweisung nicht geladen (js/ui/wiki-assign.js).";
+      return;
+    }
+    const eigenePublicId = (d && d.public_id) || "";
+    aeWikiAssign = avesmapsWikiAssignMount(host, {
+      subject: "literatur",
+      skin: "dt",
+      laden: () => aeWikiZustand(d),
+      zuweisen: aeWikiUngespeichert,
+      loesen: aeWikiUngespeichert,
+      syncUebernehmen: aeWikiSyncUebernehmen,
+      // 🔴 Eigener Trefferbauer, weil die Warnung „hängt schon an X" die EIGENE Kennung kennen muss
+      // -- der abgeleitete Bauer des Bauteils kann das nicht wissen.
+      trefferAufbereiten: (zeile) => avesmapsWikiAssignLiteraturTreffer(zeile, eigenePublicId),
+    });
   }
 
   // Shop/reference links in click priority (Owner): Ulisses e-book -> F-Shop -> Deutsche Nationalbibliothek
@@ -1105,6 +1237,29 @@
     const adventure = gatherStamm();
     const st = document.getElementById("aeSaveState");
     if (!adventure.title || !String(adventure.title).trim()) { st.textContent = "Titel fehlt."; st.className = "error"; return; }
+    // 🔴 DIE ZUWEISUNG IST KEIN FORMULARFELD MEHR -- `gatherStamm` liest nur `[data-field]`, und
+    // `upsert_adventure` fasst ausschließlich Felder an, die die Anfrage MITSCHICKT. Ohne diese zwei
+    // Zeilen ließe sich die Zuweisung gar nicht mehr speichern.
+    // 💣 GEPRÜFT WIRD `bereit`, NICHT das bloße Vorhandensein des Objekts. Fehlt dem Bauteil eine
+    // seiner Voraussetzungen, gibt es einen Blindgänger zurück: der ist wahrheitswertig, und
+    // `aeWikiAssign ? … : …` allein wäre durchgelaufen und hätte Leerstrings gespeichert -- eine
+    // Löschung, die niemand angeordnet hat (AGENTS.md §10). `lies()` liefert dort null.
+    // ⚠️ Der Rückfall ist der GELADENE Stand, nicht der leere.
+    const wikiGelesen = (aeWikiAssign && aeWikiAssign.bereit) ? aeWikiAssign.lies() : null;
+    const wikiStand = wikiGelesen || {
+      wiki_url: (state.detail && state.detail.wiki_url) || "",
+      wiki_key: (state.detail && state.detail.wiki_key) || "",
+    };
+    adventure.wiki_url = wikiStand.wiki_url || "";
+    // 🔴 `wiki_key` REIST SEIT DEM 16.08.2026 MIT, und das ist mehr als Symmetrie: er ist der
+    // Schlüssel, über den avesmapsGameLiteratureFindOrAdoptRow das Werk im Staging-Katalog
+    // wiederfindet. Vorher ließ sich hier nur `wiki_url` setzen -- ein von Hand verknüpftes Werk
+    // blieb für den Massenabgleich also unsichtbar und wurde bestenfalls über seinen exakten TITEL
+    // adoptiert.
+    // ⚠️ `adventure.wiki_key` trägt einen UNIQUE-Key: ein Artikel, der schon an einem anderen
+    // Eintrag hängt, wird beim Speichern abgelehnt. Der Kasten warnt deshalb VOR dem Klick
+    // („hängt schon an …", aus dem Suchendpunkt).
+    adventure.wiki_key = wikiStand.wiki_key || "";
     try {
       const { public_id } = await gameLiteraturePost({ action: "upsert_adventure", adventure });
       // AFTER the upsert: set_links addresses the adventure by public_id, and a brand-new one only has
