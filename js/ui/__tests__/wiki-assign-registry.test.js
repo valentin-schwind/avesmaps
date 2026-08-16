@@ -46,4 +46,33 @@ Object.entries(AVESMAPS_WIKI_ASSIGN_REGISTRY).forEach(([subject, e]) => {
 	assert.strictEqual(e.sync, hatZiele, subject + ": sync und Feldziele widersprechen sich");
 });
 
+// Die GEMESSENE Wirklichkeit des AUSGELIEFERTEN Registers -- eine Zeile je Objektart, die im
+// Register schon steht (heute nur "kraftlinie"). Faelle 1-5 oben pruefen das echte Register nur
+// gegen `wirklichkeit = null`, und `null` ueberspringt ALLE drei Pruefungen aus Entwurf §3b -- eine
+// aus dem echten Register entfernte Feldzeile bliebe damit unbemerkt grün. Diese Konstante schliesst
+// die Luecke: jede Zeile darin traegt einen Kommentar mit Datei UND Zeilennummer, an der sie
+// gemessen wurde -- nichts geraten. In den Aufgaben 4-9 kommt bei jeder neu gebauten Objektart HIER
+// eine Zeile dazu, sonst bleibt Fall 6 unten fuer die neue Objektart wirkungslos (dieselbe Falle wie
+// bei Fall 1).
+const WIRKLICHKEIT = {
+	kraftlinie: {
+		// Der Parser liefert genau vier Anzeige-Felder (api/_internal/wiki/powerlines.php:508-511):
+		// $staerke = $field(['starke','starken']); $affinitaet = $field(['affinitat','affinitaet']);
+		// $laenge = $field(['lange','langen','lenge']); $regionen = $field(['regionen','region','lage']);
+		wiki: ["staerke", "affinitaet", "laenge", "regionen"],
+		// Kein bearbeitbares Kartenfeld: der Wiki-Block im Editor traegt ausdruecklich das Abzeichen
+		// "nicht editierbar" (html/wiki-sync-powerline-editor.html:429) -- reine Anzeige, kein Ziel.
+		karte: [],
+	},
+};
+
+// 6) DIE ZEILE, DIE BEISST: das AUSGELIEFERTE Register gegen die gemessene Wirklichkeit -- anders
+//    als Fall 1 (der mit `null` alle drei Pruefungen ueberspringt) ruft diese Probe die Pruefung
+//    tatsaechlich scharf auf. Eine aus dem echten Register entfernte Feldzeile MUSS hier rot werden.
+assert.deepStrictEqual(
+	avesmapsWikiAssignRegistryProbleme(AVESMAPS_WIKI_ASSIGN_REGISTRY, WIRKLICHKEIT),
+	[],
+	"das ausgelieferte Register weicht von der gemessenen Wirklichkeit ab"
+);
+
 console.log("wiki-assign-registry: alle Zusicherungen erfuellt");

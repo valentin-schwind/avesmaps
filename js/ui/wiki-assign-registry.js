@@ -15,6 +15,13 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		// Kein Server noetig: die ~23 gestagten Artikel reisen mit dem Leseweg des Editors mit
 		// (html/wiki-sync-powerline-editor.html, wikiArticles aus data.wiki_articles).
 		suche: { art: "liste", quelle: "wiki_articles" },
+		// 🔧 IST-ZUSTAND, gemessen 16.08.2026 (api/edit/map/powerlines.php:166-170): die Nutzlast
+		// projiziert `wiki_articles` heute nur auf name/wiki_url/wiki_key -- staerke und regionen
+		// erreichen den Browser trotz `suche: {quelle: "wiki_articles"}` NICHT, obwohl der Parser
+		// sie liefert (siehe die felder-Zeilen unten). Diese Zeile bleibt trotzdem so stehen, wie
+		// das Mockup die Trefferzeile will ("Stärke · Regionen") -- Aufgabe 3 zieht die
+		// Kraftlinien-Oberflaeche um und muss dort die PHP-Projektion nachziehen. Diese Aufgabe
+		// aendert die Nutzlast NICHT.
 		treffer: ["staerke", "regionen"],
 		// Vier Wiki-Felder (api/_internal/wiki/powerlines.php: staerke, affinitaet, laenge,
 		// regionen), aber KEIN bearbeitbares Kartenfeld -- jede Zeile bleibt trotzdem erklaert
