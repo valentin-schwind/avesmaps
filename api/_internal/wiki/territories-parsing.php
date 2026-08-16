@@ -7,6 +7,20 @@ declare(strict_types=1);
 // split out of territories.php (M5 god-file split). Required by territories.php;
 // consts and sibling helpers resolve at call time.
 
+// 💣 THIS FILE CALLS avesmapsWikiSyncNormalizeWikiTreeText() (below, 15 times), and that function is
+// defined in the sibling territories-tree.php -- so this file loads it ITSELF. It did not until
+// 16.08.2026, and every caller that included only this file died on the first call with
+// "Call to undefined function avesmapsWikiSyncNormalizeWikiTreeText()". Measured live on
+// api/edit/map/powerlines.php: the endpoints generic catch (Throwable) swallowed the Error into an
+// empty wiki-article list, so the Wiki-Zuweisung box in the Kraftlinien editor offered no matches at
+// all and nothing could be assigned. Two endpoints (game-literature-cover.php, -cover-autoget.php)
+// had already learnt the quirk by heart and require the sibling by hand; a third one memorising it
+// would have been one too many. A file must bring what it uses.
+// No cycle: territories-tree.php requires nothing, and both files are pure function definitions with
+// no side effect on include. territories.php requires tree before parsing and is unaffected --
+// require_once makes the second include a no-op.
+require_once __DIR__ . '/territories-tree.php';
+
 function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent(string $content): array {
     $fields = avesmapsWikiSyncReadWikiTemplateFields($content);
     $details = [];
