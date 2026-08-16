@@ -127,6 +127,25 @@ function avesmapsLocationZoomBandMinZoom(kind, locationType) {
 	return index < 0 ? null : index;
 }
 
+const AVESMAPS_ZOOM_BANDS_ENDPOINT = "api/app/zoom-bands.php";
+
+// ⚠️ Wird NICHT beim Laden dieser Datei gerufen. Der Ortseditor lädt sie ebenfalls und holt seine
+// Werte über seinen eigenen, angemeldeten Endpunkt -- ein Aufruf hier würde dort eine zweite,
+// nutzlose Anfrage auslösen. Der Aufruf steht in js/config.js.
+//
+// 🔴 Fällt still aus: ohne Antwort bleiben die Vorgabewerte, und die Karte zeichnet wie bisher.
+function avesmapsLoadLocationZoomBands() {
+	return fetch(AVESMAPS_ZOOM_BANDS_ENDPOINT, { credentials: "same-origin" })
+		.then((response) => (response.ok ? response.json() : null))
+		.then((payload) => {
+			if (!payload || payload.ok !== true) {
+				return false;
+			}
+			return avesmapsApplyLocationZoomBands(payload.bands);
+		})
+		.catch(() => false);
+}
+
 // ⚠️ NUR FÜR DIE NODE-TESTS. Im Browser teilen klassische <script>-Bausteine ihre obersten `const`
 // über die globale lexikalische Umgebung; `vm.runInThisContext` tut das NICHT -- ein zweites Skript
 // sähe AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS dort nicht. Funktionsdeklarationen wandern von selbst

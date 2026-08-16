@@ -3004,6 +3004,11 @@
 		     sofort, damit die Antwort da ist, bevor die Karte fertig gebaut ist. Ersetzt seit
 		     2026-08-01 den ungeprueften URL-Schalter ?landschaften=1. -->
 		<script src="js/app/session.js"></script>
+		<!-- Vor config.js: dort wird avesmapsLoadLocationZoomBands() sofort losgeschickt, wie die
+		     Sitzungsabfrage darüber. Und vor map-features-location-marker-rendering.js /
+		     -location-name-labels.js, deren Zeichner die Tafel lesen. Keine eigenen
+		     Abhängigkeiten, die frühe Position kostet also nichts. -->
+		<script src="js/map-features/location-zoom-bands.js"></script>
 		<script src="js/config.js"></script>
 		<script src="js/app/visitor-tracking.js"></script>
 		<script src="js/app/i18n-en.js"></script>

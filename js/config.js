@@ -408,6 +408,28 @@ if (window.AvesmapsSession && typeof window.AvesmapsSession.load === "function")
 		applyEcosystemAccess(window.AvesmapsSession.grantsEcosystem());
 	});
 }
+// Die Zoombänder sofort losschicken, wie die Sitzungsabfrage darüber: wenige hundert Byte,
+// ETag-gecacht, und die Antwort ist lange vor der Kartennutzlast da -- Marker werden erst nach
+// map-features.php gezeichnet.
+// ⚠️ Trifft sie doch später ein UND weicht sie von der Vorgabe ab, wird einmal nachgezogen. Nur
+// dann: ein bedingungsloser Durchlauf kostet bei jedem Seitenstart einen vollen Sichtbarkeits-Pass
+// umsonst.
+if (typeof avesmapsLoadLocationZoomBands === "function") {
+	avesmapsLoadLocationZoomBands().then(function (changed) {
+		if (!changed) {
+			return;
+		}
+		if (typeof bumpLocationNameLabelStyleRevision === "function") {
+			bumpLocationNameLabelStyleRevision();
+		}
+		if (typeof syncLocationMarkerVisibility === "function") {
+			syncLocationMarkerVisibility();
+		}
+		if (typeof syncLocationNameLabelVisibility === "function") {
+			syncLocationNameLabelVisibility();
+		}
+	});
+}
 // Infopanel is the ONLY experience (Owner 2026-07-17): feature info lands in the collapsible
 // right-edge panel, never in a floating map popup. The ?infopanel=false escape hatch that shipped
 // with the 2026-07-12 default switch is RETIRED -- it had done its job (A/B compare), and a stale
