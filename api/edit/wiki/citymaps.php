@@ -68,6 +68,10 @@ try {
             (string) ($_GET['q'] ?? ''),
             (int) ($_GET['limit'] ?? 40)
         ),
+        // Der Stand eines BEREITS zugewiesenen Artikels. Warum es diesen Arm braucht, steht
+        // ausgeschrieben bei avesmapsWikiCitymapArticleEntry: `citymap` hat kein Wiki-Nest, gespeichert
+        // ist nur die Identitaet -- die Anzeigewerte des Kastens stehen in der Registry.
+        'entry' => avesmapsWikiCitymapArticleEntry($pdo, (string) ($_GET['title'] ?? '')),
         default => null,
     };
 

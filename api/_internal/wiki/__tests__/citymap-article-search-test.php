@@ -140,4 +140,39 @@ $pruef(count(avesmapsWikiCitymapArticleSearch($pdo, '', 0)['rows']) === 1,
 $pruef(count(avesmapsWikiCitymapArticleSearch($pdo, '', 5000)['rows']) === 5,
     'ein masslos grosser Deckel bricht die Suche');
 
+// ── 7) DER `entry`-ARM: DER STAND EINES BEREITS ZUGEWIESENEN ARTIKELS ────────────────────────
+// 🔴 Er liefert dieselbe Zeilenform wie die Suche -- ohne ihn zeigte der Kasten Seitenart und
+// Kontinent genau einmal (direkt nach der Wahl) und nach dem naechsten Oeffnen nicht mehr.
+$eintrag = avesmapsWikiCitymapArticleEntry($pdo, 'Gareth');
+$pruef(count($eintrag['rows']) === 1 && $eintrag['rows'][0]['name'] === 'Gareth',
+    'der entry-Arm findet den exakten Artikel nicht: ' . json_encode($eintrag['rows'], JSON_UNESCAPED_UNICODE));
+$pruef($eintrag['rows'][0]['settlement_label'] === 'Metropole' && $eintrag['rows'][0]['continent'] === 'Aventurien',
+    'der entry-Arm liefert eine andere Zeilenform als die Suche');
+// 💣 NUR DER EXAKTE TITEL. „Gareths" ist ein Teiltreffer auf „Gareths Tor" -- ginge er als DER
+// Artikel durch, zeigte der Kasten nach dem Neuladen einen ANDEREN Artikel als den gespeicherten.
+$pruef(avesmapsWikiCitymapArticleEntry($pdo, 'Gareths')['rows'] === [],
+    'ein blosser Teiltreffer geht als exakter Artikel durch');
+// ⚠️ Ein verwaister Titel (Dump hat die Seite nicht mehr) ist KEIN Fehler, sondern eine leere Liste.
+$pruef(avesmapsWikiCitymapArticleEntry($pdo, 'Gibt es nicht')['rows'] === [], 'ein verwaister Titel wirft');
+// 💣 EIN LEERER TITEL FRAGT DIE DATENBANK GAR NICHT ERST -- und das ist der haeufigste Fall
+// ueberhaupt (jede Karte ohne Zuweisung). Geprueft wird das mit einem SPION, nicht mit dem
+// Rueckgabewert: der waere auch ohne den Riegel leer (der Exakt-Filter faengt es hinterher ab), und
+// die Zusicherung „leerer Titel liefert nichts" lief deshalb gruen durch, als der Riegel entfernt
+// war -- gemessen 16.08.2026. Eine Zusicherung, die sich vollstaendig liest und nichts entscheidet.
+$spion = new class ('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]) extends PDO {
+    public int $abfragen = 0;
+    public function prepare(string $query, array $options = []): PDOStatement|false
+    {
+        $this->abfragen++;
+        return parent::prepare($query, $options);
+    }
+};
+$spion->exec('CREATE TABLE wiki_sync_pages (title TEXT NOT NULL, normalized_key TEXT, wiki_url TEXT,
+    settlement_class TEXT, settlement_label TEXT, continent TEXT)');
+$pruef(avesmapsWikiCitymapArticleEntry($spion, '  ')['rows'] === [], 'ein leerer Titel liefert doch etwas');
+$pruef($spion->abfragen === 0, 'ein leerer Titel fragt die Datenbank -- der Riegel fehlt');
+// Gegenprobe: ein echter Titel fragt sehr wohl. Ohne sie bewiese der Spion nur, dass er nie zaehlt.
+avesmapsWikiCitymapArticleEntry($spion, 'Gareth');
+$pruef($spion->abfragen === 1, 'ein echter Titel fragt die Datenbank nicht');
+
 echo 'citymap-article-search: ' . $pruefungen . " Zusicherungen erfuellt\n";

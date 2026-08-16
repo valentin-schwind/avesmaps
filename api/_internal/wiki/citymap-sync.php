@@ -2459,3 +2459,44 @@ function avesmapsWikiCitymapArticleSearch(PDO $pdo, string $query, int $limit = 
 
     return ['ok' => true, 'query' => $query, 'rows' => $rows];
 }
+
+/**
+ * Die Registry-Zeile zu EINEM Seitentitel -- der Stand eines bereits zugewiesenen Artikels.
+ *
+ * 💣 WARUM ES DIESEN ARM GIBT, und warum ihn nicht jede Objektart braucht: Ort, Weg und Landschaft
+ * legen die Wiki-Angaben im Nest `properties_json` ihres Kartenobjekts ab -- ein zugewiesener Artikel
+ * ist dort ohne Rueckfrage lesbar. `citymap` hat kein solches Nest; gespeichert werden nur
+ * article_url/article_key/article_title, also reine IDENTITAET. Die Anzeigewerte des Kastens
+ * (Seitenart, Kontinent) stehen in der Registry, und ohne diesen Arm zeigte der Kasten sie genau
+ * einmal -- direkt nach der Wahl -- und nach dem naechsten Oeffnen nicht mehr. Dieselbe Lage und
+ * dieselbe Loesung wie bei der Literatur (avesmapsWikiGameLiteratureEntry).
+ *
+ * 🔴 GESUCHT WIRD UEBER DEN TITEL, nicht ueber `article_key`. Der Schluessel ist die ASCII-Faltung
+ * (avesmapsPoliticalSlug) und in `wiki_sync_pages` steht KEINE Spalte, die ihn traegt --
+ * `normalized_key` ist die WikiSync-Faltung und eine andere Rechnung. Ueber den Titel ist es ein
+ * Gleichheitsvergleich auf dem UNIQUE-Schluessel der Tabelle.
+ *
+ * ⚠️ Kein Treffer ist KEIN Fehler: eine Karte kann einen Artikel tragen, den ein spaeterer Dump aus
+ * der Registry genommen hat. Der Kasten zeigt dann Name, Adresse und Schluessel -- die zwei
+ * Anzeigezeilen fallen weg, wie jede leere Zeile.
+ *
+ * @return array{ok:bool, query:string, rows:array<int, array<string, string>>}
+ */
+function avesmapsWikiCitymapArticleEntry(PDO $pdo, string $title): array
+{
+    $title = trim($title);
+    if ($title === '') {
+        return ['ok' => true, 'query' => '', 'rows' => []];
+    }
+    // 🔴 DIESELBE ZEILENFORM WIE DIE SUCHE, und zwar durch DENSELBEN Bauer -- zwei Umformungen fuer
+    // dieselbe Zeile waeren die zweite Wahrheit, gegen die dieser ganze Umbau gebaut ist. Die Suche
+    // sortiert den exakten Titel nach vorn; hier wird trotzdem noch einmal darauf geprueft, damit ein
+    // blosser Teiltreffer („Gareth" fuer „Gareths Tor") nicht als DER Artikel durchgeht.
+    $treffer = avesmapsWikiCitymapArticleSearch($pdo, $title, 1);
+    $genau = array_values(array_filter(
+        $treffer['rows'],
+        static fn(array $zeile): bool => ($zeile['title'] ?? '') === $title
+    ));
+
+    return ['ok' => true, 'query' => $title, 'rows' => $genau];
+}
