@@ -254,7 +254,9 @@
 	   5c, `extra.keinArtikelHaken` in js/ui/wiki-assign-registry.js), und der Kartendialog „Weg
 	   bearbeiten" zeichnet dieses Kaestchen. Hier stand bis dahin, sie sei noch ohne Wirkung.
 	   ✅ `.avm-wiki-assign .dt-check input` (css/components/editor-page.css) hat dieselbe Regel seit
-	   dem 16.08.2026 -- die zweite Huelle desselben Bauteils, eingeengt auf das Bauteil.
+	   dem 16.08.2026 -- die zweite Huelle desselben Bauteils, eingeengt auf das Bauteil. Sie faerbt
+	   das Kaestchen in DREI Editorfenstern um (Kraftlinien-, Orte- und Wege-Editor); die ersten zwei
+	   trugen es vorher browserblau.
 	   🔧 Das ALLGEMEINE `.dt-check input` hat die Luecke weiterhin: „Auto-Name" und „Name auf der
 	   Karte anzeigen" im Wege-Editor und der Auto-Name des Landschaften-Editors sind blau. Nicht
 	   mitgeaendert -- eine sichtbare Aenderung an fremden Bedienelementen gehoert in einen eigenen

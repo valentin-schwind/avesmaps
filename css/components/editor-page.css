@@ -689,6 +689,13 @@ body.avm-editor-body {
       Blau ist in der Bedienoberflaeche verboten (AGENTS.md §12). Gegenstueck:
       `.label-wiki-reference__check input` (css/components/region-sync.css), die es seit Aufgabe 4
       richtig macht -- die zwei Huellen desselben Bauteils sahen sonst verschieden aus.
+   🔴 SIE TRIFFT DREI OBERFLAECHEN, nicht eine -- jede, die das Bauteil in dieser Huelle traegt und
+      dieses Stylesheet laedt: den Kraftlinien-Editor (html/wiki-sync-powerline-editor.html), den
+      ORTE-Editor (html/wiki-sync-settlement-editor.html, dritter Zustand seit Aufgabe 5b) und den
+      Wege-Editor (Aufgabe 5c). In den ersten beiden war das Kaestchen browserblau und ist es seit
+      dem 16.08.2026 nicht mehr. 🪤 Hier stand zuerst nur der Kraftlinien-Editor -- eine Aufzaehlung
+      liest sich als vollstaendig, auch wenn sie es nicht ist (AGENTS.md §11). Nachgemessen:
+      `skin: "dt"` plus `editor-page.css` plus keine eigene `.dt-check`-Regel.
    💣 Es ist DIESELBE Luecke, die `.dt-check input` weiter oben hat, und sie wird hier NICHT
       allgemein geschlossen: `.dt-check` traegt auch „Auto-Name" und „Name auf der Karte anzeigen"
       im Wege-Editor und den Auto-Namen des Landschaften-Editors. Die einzeln umzufaerben ist eine
