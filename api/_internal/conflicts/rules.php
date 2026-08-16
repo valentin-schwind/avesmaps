@@ -115,13 +115,24 @@ function avesmapsConflictLoadMapRows(PDO $pdo): array {
 }
 
 /**
- * Territories and adventures claim wiki articles too, and they live in their own tables -- so a
- * settlement and a barony of the same name never met, which is exactly the case the owner raised
- * first ("Heldenweiler"). Both are read here and thrown into the same collision detector.
+ * Territories, adventures and CITYMAPS claim wiki articles too, and they live in their own tables --
+ * so a settlement and a barony of the same name never met, which is exactly the case the owner raised
+ * first ("Heldenweiler"). All three are read here and thrown into the same collision detector.
+ *
+ * 🔴 DIE KARTEN SIND SEIT DEM 16.08.2026 DABEI, UND HIER STAND DAS GEGENTEIL. Der alte Satz lautete:
+ * „citymap.wiki_key is a COMPOSITE build key (`index:stadt:quelle:variante`), not a page identity" --
+ * und er war richtig und ist es weiterhin. Nur begründete er einen Ausschluss, den es nicht mehr gibt:
+ * seit Aufgabe 9 der Wiki-Zuweisung trägt eine Karte einen EIGENEN Artikel in `citymap.article_url`,
+ * und der IST eine Seitenidentität. Gelesen wird ausschliesslich die neue Spalte.
+ * 💣 `citymap.wiki_key` und `citymap.map_url` bleiben unangetastet und kommen hier NIE vor: der erste
+ * ist der Bauschlüssel des Abgleichs, der zweite zeigt auf die Publikation, in der die Karte steckt.
+ * Wer sie hier hereinzöge, vergliche Bauschlüssel bzw. Bücher mit Artikellinks -- genau der Unsinn,
+ * den der alte Satz gemeint hat.
+ * ⚠️ Und das ist kein Randfall: die Wiki-Registry, gegen die der Karten-Picker sucht, führt heute nur
+ * Orts- und Bauwerksseiten. Ein Editor greift dort also fast immer nach der Seite eines ORTES -- diese
+ * Regel ist der Fang dafür.
  *
  * NOT included, deliberately:
- *  - citymap.wiki_key is a COMPOSITE build key (`index:stadt:quelle:variante`), not a page identity.
- *    Comparing it against article links would produce pure nonsense.
  *  - sources.wiki_key IS a publication article, but a shared source catalogue exists precisely so
  *    that many entities cite ONE publication. Flagging that would be noise, not a finding.
  *
@@ -222,6 +233,69 @@ function avesmapsConflictLoadGameLiteratureRows(PDO $pdo): array {
             'wiki_url' => trim((string) $row['wiki_url']),
             'position' => null,
             'claim_source' => 'adventure',
+        ];
+    }
+
+    return $rows;
+}
+
+/**
+ * Die KARTEN (Stadtpläne) als Konfliktpartei -- seit dem 16.08.2026, weil sie seither einen EIGENEN
+ * Wiki-Artikel tragen können (Aufgabe 9 der Wiki-Zuweisung, Entwurf
+ * docs/superpowers/specs/2026-08-15-wiki-zuweisung-vereinheitlichung-design.md §8).
+ *
+ * 💣 GELESEN WIRD `article_url`, UND NUR SIE. Die Tabelle führt zwei weitere Spalten, die nach „wiki"
+ * aussehen, und keine davon ist eine Seitenidentität:
+ *   `citymap.wiki_key` -- der BAUSCHLÜSSEL des Abgleichs (`index:stadt:quelle:variante`,
+ *      avesmapsCitymapWikiKey). Er sagt, aus welcher Index-Seite die Zeile stammt.
+ *   `citymap.map_url`  -- der Karten-Link; bei einer Wiki-Karte zeigt er auf die PUBLIKATION, in der
+ *      die Karte steckt (avesmapsCitymapWikiUrlForSource), nie auf die Karte.
+ * Beide hier hereinzuziehen erzeugte genau den Unsinn, den der Kommentar über
+ * avesmapsConflictLoadTerritoryRows bis zum 16.08.2026 als Ausschlussgrund nannte.
+ *
+ * 🔴 NUR IN DIE KOLLISIONSREGEL, NICHT AUF DIE BEOBACHTUNGSLISTE -- dieselbe Grenze wie bei
+ * Territorien und Literatur (`avesmapsConflictDetectAll` reicht diese Zeilen an `$claimRows`, nicht an
+ * `$rows`). Eine Karte OHNE Artikel ist kein Befund: die weit überwiegende Mehrheit ist von uns
+ * gezeichnet und wird nie einen bekommen (Owner: „gibt natürlich auch welche von uns"). Ohne diese
+ * Grenze stünden mehrere hundert Karten als „kein Wiki-Schlüssel" in der Liste, und die Liste wäre
+ * unbrauchbar -- dieselbe Rechnung wie bei den 2448 automatisch benannten Wegen (§6b).
+ *
+ * ⚠️ `status = 'approved'`: eine verborgene Karte ist für den Leser nicht da, also ist ihr Anspruch
+ * auf einen Artikel auch keine Kollision. Wortgleich zur Literatur eine Funktion weiter oben.
+ * ⚠️ KEINE Position: eine Karte liegt nirgends auf der Karte. „Auf der Karte zeigen" entfällt damit
+ * für diese Partei, genau wie bei Literatur.
+ *
+ * @return list<array{type:string,id:string,label:string,wiki_url:string}>
+ */
+function avesmapsConflictLoadCitymapRows(PDO $pdo): array {
+    try {
+        $statement = $pdo->query(
+            "SELECT public_id, title, article_url FROM citymap
+             WHERE status = 'approved' AND article_url IS NOT NULL AND article_url <> ''"
+        );
+    } catch (Throwable $exception) {
+        // Frische Installation, oder eine, deren self-healing ALTER noch nicht gelaufen ist: die
+        // Spalte fehlt dann, und das darf die übrige Liste nicht mitreissen.
+        return [];
+    }
+    if ($statement === false) {
+        return [];
+    }
+
+    $rows = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $title = trim((string) ($row['title'] ?? ''));
+        if ($title === '') {
+            continue;
+        }
+        $rows[] = [
+            'type' => 'citymap',
+            'id' => (string) $row['public_id'],
+            'label' => $title,
+            'subtype' => '',
+            'wiki_url' => trim((string) $row['article_url']),
+            'position' => null,
+            'claim_source' => 'citymap',
         ];
     }
 
@@ -507,13 +581,18 @@ function avesmapsConflictRuleCatalog(): array {
 function avesmapsConflictDetectAll(PDO $pdo): array {
     $rows = avesmapsConflictLoadMapRows($pdo);
     $wikiTitles = avesmapsConflictLoadWikiTitles($pdo);
-    // The collision rule sees EVERYTHING that claims an article -- map, territories, adventures --
-    // because the wiki namespace is global (§6a). The watchlist rule stays on map features: a
-    // territory without a wiki key is a different question with a different answer.
+    // The collision rule sees EVERYTHING that claims an article -- map, territories, adventures,
+    // citymaps -- because the wiki namespace is global (§6a). The watchlist rule stays on map
+    // features: a territory without a wiki key is a different question with a different answer, und
+    // eine Karte ohne Artikel ist gar keine Frage (die meisten sind von uns gezeichnet).
+    // 🔴 Hier steht bewusst KEINE ZAHL. Wer eine Objektart ergänzt, ergänzt sie in DIESER Liste --
+    // eine Aufzählung mit „drei Quellen" davor liest sich wie eine vollständige Liste, und niemand
+    // zählt nach (AGENTS.md §11, die Verkehrsmittel-Sperre).
     $claimRows = array_merge(
         $rows,
         avesmapsConflictLoadTerritoryRows($pdo),
-        avesmapsConflictLoadGameLiteratureRows($pdo)
+        avesmapsConflictLoadGameLiteratureRows($pdo),
+        avesmapsConflictLoadCitymapRows($pdo)
     );
     $conflicts = array_merge(
         avesmapsConflictRuleSharedArticle($claimRows, $wikiTitles),
