@@ -1759,7 +1759,7 @@
 						<div class="label-edit-section"><div class="label-edit-section-title">Identität</div>
 					<label class="location-report-form__field">
 						<span>Text *</span>
-						<div class="location-edit-fieldrow"><input id="label-edit-text" name="text" type="text" maxlength="160" required /><button type="button" id="label-edit-wiki-sync-text" class="location-edit-wiki-mini" disabled title="Text aus der verbundenen Wiki-Landschaft &uuml;bernehmen" aria-label="Text aus der verbundenen Wiki-Landschaft &uuml;bernehmen">↻</button></div>
+						<div class="location-edit-fieldrow"><input id="label-edit-text" name="text" type="text" maxlength="160" required /></div>
 					</label>
 					<label class="location-report-form__field">
 						<span>Art *</span>
@@ -1802,7 +1802,7 @@
 							<option value="wald">Wald</option>
 							<option value="wueste">Wüste</option>
 							<option value="wuestenoase">Wüstenoase</option>
-						</select><button type="button" id="label-edit-wiki-sync-cat" class="location-edit-wiki-mini" disabled title="Kategorie aus der verbundenen Wiki-Landschaft &uuml;bernehmen" aria-label="Kategorie aus der verbundenen Wiki-Landschaft &uuml;bernehmen">↻</button></div>
+						</select></div>
 					</label>
 						<!-- Sobald die Art „Berggipfel" oder „Vulkan" ist, erscheint diese Zeile mit einem Regler
 						     (Owner 2026-07-28). Zahl UND Regler, wie bei Größe/Rotation/Priorität darunter: die
@@ -1820,22 +1820,14 @@
 							<label class="location-report-form__field"><span>Priorität</span><div class="label-edit-sliderrow"><input id="label-edit-priority" name="priority" type="number" min="1" max="5" step="1" value="3" /><input id="label-edit-priority-range" type="range" min="1" max="5" step="1" value="3" aria-label="Prioritaet" /></div></label>
 							<label class="location-report-form__field location-report-form__field--checkbox"><input id="label-edit-is-nodix" name="is_nodix" type="checkbox" /><span>Nodix</span></label>
 						</div>
-					</div><div class="label-wiki-reference" id="label-wiki-reference">
-							<div class="label-wiki-reference__head">
-								<span class="label-wiki-reference__title">Wiki-Landschaft</span>
-								<span class="label-wiki-reference__buttons">
-									<button type="button" id="label-wiki-assign" class="location-report-form__button location-report-form__button--secondary">Zuweisen</button>
-									<button type="button" id="label-wiki-sync" class="location-report-form__button location-report-form__button--secondary" hidden>Sync</button>
-									<button type="button" id="label-wiki-remove" class="location-report-form__button location-report-form__button--secondary" hidden>Entfernen</button>
-								</span>
-							</div>
-							<div id="label-wiki-reference-list" class="label-wiki-reference__list"></div>
-								<div id="label-wiki-picker" class="label-wiki-picker" hidden>
-									<input id="label-wiki-picker-filter" type="search" placeholder="Region/Landschaft suchen ..." autocomplete="off" aria-label="Wiki-Landschaft suchen" />
-									<div id="label-wiki-picker-list" class="label-wiki-picker-list"></div>
-									<p id="label-wiki-picker-status" class="location-report-form__status" role="status" aria-live="polite"></p>
-								</div>
-						</div>
+					</div><!-- Die Wiki-Zuweisung des LABELS: seit 16.08.2026 dasselbe geteilte Bauteil
+					     (js/ui/wiki-assign.js), Objektart „landschaftslabel", Huelle „label-wiki" --
+					     ihr Namensgeber. Hier stand der letzte eigene Picker des Hauses samt einer
+					     zweiten Art-Tabelle, die vom Server abgedriftet war (Kopf von
+					     js/review/review-label-wiki.js).
+					     💣 Ein BLANKER Behaelter, KEIN <div class="label-wiki-reference">: die Huelle
+					     erzeugt das Bauteil selbst. -->
+						<div id="label-wiki-assign-host"></div>
 						<!-- „Andere Quelle" ist hier weg (Owner 2026-07-28). Es war das Einzelquellen-Feld von
 						     vor dem Mehrquellen-System; Orte haben es im selben Umbau schon verloren. Das
 						     Markup ist entfernt, aber die GESPEICHERTEN Werte bleiben: review-labels.js
@@ -3039,7 +3031,6 @@
 		<script src="js/review/review-paths.js"></script>
 		<script src="js/review/review-labels.js"></script>
 		<script src="js/review/review-other-source.js"></script>
-		<script src="js/review/review-label-wiki.js"></script>
 		<script src="js/review/review-locations.js"></script>
 		<script src="js/review/review-panels.js"></script>
 		<script src="js/review/review-panels-change-log.js"></script>
@@ -3067,6 +3058,11 @@
 		     laeuft in einer IIFE, die erst beim Oeffnen des Dialogs zugreift, aber die Ladeordnung von
 		     index.html ist Vertrag (AGENTS.md §3) und wird nicht dem Zufall ueberlassen. -->
 		<script src="js/ui/wiki-assign-landschaft.js"></script>
+		<!-- Die DRITTE Oberflaeche derselben Wiki-Landschaft: der Label-Dialog. Sie heftet sie an ein
+		     map_features-Label statt an die gezeichnete Flaeche, hat deshalb eine eigene Erklaerung
+		     (`landschaftslabel`) -- und teilt sich den Datenweg mit der Zeile darueber.
+		     ⚠️ Sie stand bis zum 16.08.2026 WEITER OBEN, vor dem Bauteil; hier gehoert sie hin. -->
+		<script src="js/review/review-label-wiki.js"></script>
 		<script src="js/review/review-path-wiki.js"></script>
 		<script src="js/review/review-path-flow.js"></script>
 		<!-- Die Subjekt-Registry MUSS vor ihren Lesern stehen: review-settlement-list.js und review-wiki-sync.js rufen wikiSyncSubjectFacets() schon beim Auswerten auf (Beschriftungen der Listenfilter). Sie stand bis 2026-07-23 unter beiden; das Listenmodul waere beim ersten Laden mit einem ReferenceError komplett ausgefallen. Die Datei selbst haengt von nichts ab -- reine Daten. --><script src="js/review/review-subjects.js"></script><script src="js/review/review-settlement-wiki.js"></script>

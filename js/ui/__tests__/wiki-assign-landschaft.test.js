@@ -32,6 +32,8 @@ const { AVESMAPS_WIKI_ASSIGN_REGISTRY } = require("../wiki-assign-registry.js");
 const { avesmapsWikiAssignDiff } = require("../wiki-assign-diff.js");
 const {
 	AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER,
+	AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER,
+	avesmapsWikiAssignLandschaftslabelZustand,
 	AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_ART_SYNONYME,
 	avesmapsWikiAssignLandschaftArtErsteKomponente,
 	avesmapsWikiAssignLandschaftArt,
@@ -943,6 +945,174 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 		"ein bewusst ENTFERNTES Haekchen kommt nicht durch -- der Merker liesse sich nie wieder loswerden");
 	assert.strictEqual(ECO_REGION.wiki_no_article, false, "der Merker steht immer noch");
 	zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+	// ══ TEIL 5: DER LABEL-DIALOG („Region bearbeiten", index.html) ════════════════════════════
+	// 🔴 DIE DRITTE OBERFLAECHE DERSELBEN WIKI-LANDSCHAFT -- und eine EIGENE Objektart. Sie heftet
+	// den Artikel an ein `map_features`-LABEL (`properties.wiki_region`, ein ganzes Nest) statt an
+	// die gezeichnete Flaeche. Geteilt wird der DATENWEG, nicht die Erklaerung.
+	const labelSkripte = skripteAus("index.html", /wiki-assign|review-label-wiki/);
+	assert.deepStrictEqual(labelSkripte.slice(-2),
+		["js/ui/wiki-assign-landschaft.js", "js/review/review-label-wiki.js"],
+		"der Label-Dialog steht nicht NACH dem Datenweg der Landschaft: " + labelSkripte.join(" "));
+	zaehl();
+
+	// 💣 DAS FREITEXTFREIE VERSPRECHEN, und die zwei „↻"-Knoepfe. Textprobe, und hier richtig: die
+	// Frage ist, was im DOKUMENT steht -- ein Knopf, den niemand mehr bedient, faellt in keinem
+	// Klickpfad auf.
+	assert.ok(/id="label-wiki-assign-host"/.test(indexHtmlRoh),
+		"der Label-Dialog hat keinen Behaelter fuer die Zuweisung");
+	assert.ok(!/id="label-wiki-picker"/.test(indexHtmlRoh),
+		"der eigene Picker des Label-Dialogs steht noch da");
+	assert.ok(!/id="label-edit-wiki-sync-text"/.test(indexHtmlRoh) && !/id="label-edit-wiki-sync-cat"/.test(indexHtmlRoh),
+		"die zwei „↻“-Knoepfe stehen noch da -- die Sync-Vorschau tut dasselbe und ZEIGT es");
+	// 🔴 UND DIE ZWEITE ART-TABELLE IST WEG. Sie war der Anlass: ihr Kommentar sagte „konsistent mit
+	// der PHP-Tabelle", gemessen fuehrte sie fuenf Schluessel, die die PHP-Tabelle nicht kennt.
+	const labelWikiRoh = fs.readFileSync(path.join(wurzel, "js/review/review-label-wiki.js"), "utf8");
+	assert.ok(!/const LABEL_WIKI_ART_TO_SUBTYPE\s*=/.test(labelWikiRoh),
+		"die zweite JS-Abschrift der Art-Tabelle steht noch im Label-Dialog");
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// ── Die Erklaerung `landschaftslabel` ─────────────────────────────────────────────────────
+	const labelErklaerung = AVESMAPS_WIKI_ASSIGN_REGISTRY.landschaftslabel;
+	assert.ok(labelErklaerung, "die Erklaerung `landschaftslabel` fehlt im Register");
+	assert.deepStrictEqual(
+		labelErklaerung.felder.filter((feld) => feld.karte !== "").map((feld) => feld.karte).slice().sort(),
+		AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER.slice().sort(),
+		"die Kartenziele der Erklaerung `landschaftslabel` und ihre Feldliste laufen auseinander"
+	);
+	// 🔴 UND SIE ZEIGEN WOANDERS HIN ALS DIE DER FLAECHE -- genau das ist der Grund fuer zwei
+	// Erklaerungen. Eine Probe, die nur „beide haben zwei Ziele" fordert, saehe den Unterschied nicht.
+	assert.notDeepStrictEqual(
+		AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER, AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER,
+		"Label und Flaeche haben dieselben Kartenfelder -- dann waere es EINE Objektart");
+	// 🔴 Der Hinweis des Labels VERSPRICHT die Konfliktliste, und zu Recht: ein Label ist eine
+	// Konfliktpartei, eine ecosystem_region nicht. Genau umgekehrt zur Flaeche daneben.
+	assert.ok(/Konfliktliste/.test(String(labelErklaerung.extra.keinArtikelHinweis)),
+		"der Hinweis des Labels verschweigt die Konfliktliste, in der es wirklich steht");
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// ── Die Art-Ordnung auf dem LABEL-Vokabular ───────────────────────────────────────────────
+	// 💣 Dieselbe Funktion, ein anderes Vokabular -- und das Label kennt vier Werte, die es als
+	// Flaechenart nicht gibt. Wer daraus zwei Funktionen macht, hat die Divergenz wieder.
+	const LABEL_ARTEN = ["auenlandschaft", "berggipfel", "dschungel", "ebene", "fluss", "flussdelta",
+		"flussland_flusstal", "gebirge", "graslandschaft", "hochebene", "huegelland", "insel",
+		"inselgruppe", "kontinent", "kueste", "meer", "region", "schlucht", "see", "sonstiges",
+		"steppe", "suempfe_moore", "tal", "tiefebene", "tundra", "vulkan", "wadi", "wald", "wueste",
+		"wuestenoase"].map((schluessel) => ({ type_key: schluessel, label: schluessel }));
+	[["Ebene", "ebene"], ["Tiefland", "ebene"], ["Berggipfel", "berggipfel"], ["Vulkan", "vulkan"],
+		["Fluss", "fluss"], ["Schlucht", "schlucht"], ["Sumpf", "suempfe_moore"], ["Bucht", "meer"]]
+		.forEach(([art, erwartet]) => {
+			assert.strictEqual(avesmapsWikiAssignLandschaftArt(art, LABEL_ARTEN), erwartet,
+				'„' + art + '" trifft am LABEL nicht „' + erwartet + '"');
+			zaehl();
+		});
+	// ⚠️ DER PREIS DES UMBAUS, namentlich: diese drei standen NUR in der abgedrifteten JS-Tabelle
+	// und in keiner Server-Quelle. Sie loesen die Kategorie nicht mehr auf. Die Zusicherung steht
+	// hier, damit der Verlust benannt ist und nicht als Fehler zurueckkommt.
+	["Gebirgskette", "Forst", "Gipfel"].forEach((art) => {
+		assert.strictEqual(avesmapsWikiAssignLandschaftArt(art, LABEL_ARTEN), "",
+			'„' + art + '" trifft wieder -- dann steht die Abschrift woanders');
+		zaehl();
+	});
+
+	// ── Der Zustand des Labels ────────────────────────────────────────────────────────────────
+	[null, undefined, [], 5].forEach((kaputt) => {
+		assert.throws(() => avesmapsWikiAssignLandschaftslabelZustand(kaputt),
+			"der Label-Zustand liefert etwas, statt zu werfen");
+		zaehl();
+	});
+	const NEST = { wiki_key: "wiki:farindel", name: "Farindel-alt", art: "Region", wiki_url: SUCHZEILE.wiki_url };
+	// 💣 DER SCHNAPPSCHUSS GEHT VOR DEM NEST -- „Sync" heisst „was steht HEUTE im Wiki". Das Nest
+	// sagt „Region", das Wiki sagt inzwischen „Wald"; ohne diesen Vorrang haette „Sync" seine
+	// Bedeutung verloren.
+	const labelZustand = avesmapsWikiAssignLandschaftslabelZustand({
+		wiki_region: NEST, schnappschuss: SUCHZEILE, arten: LABEL_ARTEN,
+		text: "Farindel-alt", feature_subtype: "region",
+	});
+	assert.strictEqual(labelZustand.artikel.werte.art, "Wald",
+		"das eingefrorene Nest hat den frischen Schnappschuss geschlagen");
+	assert.strictEqual(labelZustand.artikel.werte.landschaftsart, "wald");
+	assert.strictEqual(labelZustand.kartenwerte.text, "Farindel-alt");
+	assert.strictEqual(labelZustand.kartenwerte.feature_subtype, "region");
+	// ⚠️ Ohne Schnappschuss (verwaister Schluessel) traegt das NEST den Kasten -- sonst staende dort
+	// nichts, obwohl das Label seinen halben Artikel gespeichert hat.
+	const nurNest = avesmapsWikiAssignLandschaftslabelZustand({ wiki_region: NEST, arten: LABEL_ARTEN });
+	assert.strictEqual(nurNest.artikel.werte.art, "Region", "ohne Schnappschuss bleibt der Kasten leer");
+	assert.strictEqual(avesmapsWikiAssignLandschaftslabelZustand({ arten: LABEL_ARTEN }).artikel, null);
+	zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+	// ── Der Label-Dialog, WIRKLICH gefahren ───────────────────────────────────────────────────
+	const labelFelder = {
+		"label-edit-text": scheinFeld("Farindel-alt"),
+		"label-edit-type": scheinFeld("region", LABEL_ARTEN.map((typ) => typ.type_key)),
+	};
+	// Die Auswahlliste muss ihre Beschriftungen tragen -- die Art-Ordnung liest sie in Schritt 1.
+	labelFelder["label-edit-type"].options = LABEL_ARTEN.map((typ) => ({ value: typ.type_key, textContent: typ.label }));
+	const kLabel = sandkastenBauen(labelSkripte, labelFelder, ["label-wiki-assign-host"],
+		(url) => {
+			if (url.indexOf("action=staging_sample") !== -1) { return { ok: true, rows: [SUCHZEILE] }; }
+			return { ok: true, count: 1, rows: [SUCHZEILE] };
+		},
+		{ toggleOtherSourceSection: () => {} });
+	const labelHost = kLabel.elemente["label-wiki-assign-host"];
+
+	// 🔴 Ueber den ECHTEN Trichter: `setLabelWikiRegion` ist, was der Dialog beim Oeffnen ruft
+	// (js/review/review-labels.js:165). Ein Direktaufruf von `mountLabelWikiAssign` bliebe gruen,
+	// wenn diese Verdrahtung fehlte.
+	vm.runInContext("setLabelWikiRegion(null, false);", kLabel.kasten);
+	await ruhe();
+	assert.ok(labelHost.innerHTML.indexOf("label-wiki-reference") !== -1 && labelHost.innerHTML.indexOf("dt-grp") === -1,
+		"der Label-Dialog mountet die falsche Huelle: " + labelHost.innerHTML);
+	assert.ok(labelHost.innerHTML.indexOf("— keine —") !== -1, labelHost.innerHTML);
+	assert.ok(labelHost.innerHTML.indexOf("Kein Wiki-Artikel vorhanden") !== -1,
+		"das Haekchen des dritten Zustands fehlt am Label: " + labelHost.innerHTML);
+	zaehl(); zaehl(); zaehl();
+
+	// Zuweisen: das Nest entsteht, die KATEGORIE folgt sofort (wie vor dem Umbau), der TEXT nicht.
+	labelHost.feuere("click", scheinZiel("data-wa-aktion", "zuweisen"));
+	await ruhe();
+	labelHost.feuere("click", scheinZiel("data-wa-treffer", "0"));
+	await ruhe();
+	assert.strictEqual(labelFelder["label-edit-type"].value, "wald",
+		"die Kategorie folgt der Zuweisung nicht mehr");
+	assert.strictEqual(labelFelder["label-edit-text"].value, "Farindel-alt",
+		"„Zuweisen“ hat den Text ueberschrieben -- das war nie das Verhalten dieses Dialogs");
+	const nest = vm.runInContext("getLabelWikiRegionPayload()", kLabel.kasten);
+	assert.ok(nest && nest.wiki_key === "wiki:farindel", "das Nest wurde nicht gesetzt: " + JSON.stringify(nest));
+	assert.strictEqual(nest.sprache, "Garethi", "das Nest traegt nur die halben Wiki-Angaben");
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// Sync: fuellt NUR das Formular, und der Text ist die einzige offene Angabe.
+	labelHost.feuere("click", scheinZiel("data-wa-aktion", "sync"));
+	await ruhe();
+	assert.ok(labelHost.innerHTML.indexOf("1 von 2 Angaben würde sich ändern") !== -1,
+		"die Sync-Vorschau des Labels zaehlt falsch: " + labelHost.innerHTML);
+	labelHost.feuere("click", scheinZiel("data-wa-aktion", "sync-alle"));
+	await ruhe();
+	labelHost.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
+	await ruhe();
+	assert.strictEqual(labelFelder["label-edit-text"].value, "Farindel",
+		"der angehakte Name wurde nicht ins Formular uebernommen");
+	zaehl(); zaehl();
+
+	// 🔴 BEIDE RICHTUNGEN des dritten Zustands, je eigene Zusicherung.
+	assert.strictEqual(vm.runInContext("getLabelWikiNoArticlePayload()", kLabel.kasten), null,
+		"der Merker reist mit, obwohl niemand das Haekchen angefasst hat");
+	labelHost.feuere("click", scheinZiel("data-wa-aktion", "entfernen"));
+	await ruhe();
+	labelHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
+	assert.strictEqual(vm.runInContext("getLabelWikiNoArticlePayload()", kLabel.kasten), true,
+		"das gesetzte Haekchen erreicht den Speicherpfad nicht");
+	labelHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
+	assert.strictEqual(vm.runInContext("getLabelWikiNoArticlePayload()", kLabel.kasten), null,
+		"ein auf den GELADENEN Stand zurueckgestelltes Haekchen gilt als Aenderung");
+	// Und mit gesetztem GELADENEN Stand ist es genau umgekehrt -- das ist die zweite Richtung.
+	vm.runInContext("setLabelWikiRegion(null, true);", kLabel.kasten);
+	await ruhe();
+	labelHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
+	assert.strictEqual(vm.runInContext("getLabelWikiNoArticlePayload()", kLabel.kasten), false,
+		"ein bewusst ENTFERNTES Haekchen kommt nicht durch -- der Merker liesse sich nie wieder loswerden");
+	zaehl(); zaehl(); zaehl(); zaehl();
 
 	console.log("wiki-assign-landschaft: " + checks + " Zusicherungen erfuellt");
 })().catch((fehler) => {

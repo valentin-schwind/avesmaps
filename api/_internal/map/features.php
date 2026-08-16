@@ -2649,6 +2649,10 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
         $wikiRegion = avesmapsReadLabelWikiRegion($payload['wiki_region']);
         if ($wikiRegion !== null) {
             $properties['wiki_region'] = $wikiRegion;
+            // ⚠️ An einem FRISCHEN Label kann der Merker gar nicht stehen -- die Zeile ist trotzdem da,
+            // damit die Regel „jeder Zuweiser loescht ihn" ohne Ausnahme gilt und der zaehlende Test
+            // (label-wiki-no-article-test.php) keinen Sonderfall zu erklaeren hat.
+            unset($properties['wiki_no_article']);
         }
     }
     // A peak may arrive with its height already known -- "Hoehenpunkt setzen" in the topography
@@ -2779,10 +2783,41 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
             $wikiRegion = avesmapsReadLabelWikiRegion($payload['wiki_region']);
             if ($wikiRegion !== null) {
                 $properties['wiki_region'] = $wikiRegion;
+                // 🔴 EINE ZUWEISUNG BEANTWORTET DEN DRITTEN ZUSTAND -- „es gibt keinen Artikel" und
+                // „hier ist er" schliessen einander aus. Es gibt FUENF Schreiber von
+                // `properties.wiki_region` (hier, avesmapsCreateLabelFeature, und drei in
+                // api/_internal/wiki/regions.php); jeder einzelne loescht den Merker, und der Test
+                // label-wiki-no-article-test.php zaehlt sie nach, statt sich auf eine ZAHL in diesem
+                // Kommentar zu verlassen (die Falle aus AGENTS.md §11).
+                unset($properties['wiki_no_article']);
             } else {
                 unset($properties['wiki_region']);
             }
         }
+        // 🔴 DER DRITTE ZUSTAND AM LABEL, seit 16.08.2026 (Aufgabe 6). Anders als bei der
+        // Landschaftsflaeche hat er hier einen echten VERBRAUCHER: ein Label ist eine Konfliktpartei
+        // (`feature_type='label'`, api/_internal/conflicts/rules.php), und die Regel `wiki.missing_key`
+        // liest den Merker seit dem 15.08.2026 -- es fehlte nur der Schreibweg.
+        // 💣 array_key_exists, nicht ?? -- wie beim Nodix und beim Versteckt darueber: diese Funktion
+        // schreibt nur, was der Aufrufer wirklich mitschickt. Ein `?? false` naehme die Entscheidung
+        // eines zweiten Editors bei jedem unbeteiligten Speichern still zurueck.
+        if (array_key_exists('wiki_no_article', $payload)) {
+            if (avesmapsReadBoolean($payload['wiki_no_article'])) {
+                $properties['wiki_no_article'] = true;
+            } else {
+                // Entfernt, nicht auf `false`: als `false` liesse sich „entschieden, es gibt keinen"
+                // spaeter nicht von „nie entschieden" unterscheiden (dieselbe Regel wie ueberall sonst).
+                unset($properties['wiki_no_article']);
+            }
+        }
+        // Der GETEILTE Riegel (api/_internal/map/wiki-claim.php): beides zugleich wird ABGELEHNT, nicht
+        // still nach einer Vorrangregel aufgeloest.
+        avesmapsAssertWikiClaimNotContradictory(
+            isset($properties['wiki_region']) ? 'wiki:gesetzt' : '',
+            !empty($properties['wiki_no_article']),
+            'Ein Label',
+            'Bitte die Zuweisung entfernen oder das Häkchen abwählen.'
+        );
         // 💣 NUR anfassen, wenn der Schluessel mitkommt. Bis 2026-07-28 lief das unbedingt: fehlte
         // `other_source` im Payload, wurde daraus null und die Eigenschaft flog raus. Als der
         // Label-Dialog das Feld verlor und den Schluessel folgerichtig nicht mehr sendete, loeschte

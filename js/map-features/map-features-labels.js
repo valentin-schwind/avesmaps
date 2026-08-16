@@ -30,6 +30,13 @@ function normalizeLabelFeature(feature) {
 		showName: (properties.show_name ?? feature.show_name) !== false,
 		revision: Number(properties.revision ?? feature.revision) || null,
 		wikiRegion: properties.wiki_region && typeof properties.wiki_region === "object" ? properties.wiki_region : null,
+		// 🔴 DER DRITTE ZUSTAND („Kein Wiki-Artikel vorhanden"), seit 16.08.2026 auch am Label. Er ist
+		// NICHT aus `wikiRegion` ableitbar: „keine Zuweisung" heisst „noch niemand hat nachgesehen",
+		// der Merker heisst „jemand HAT nachgesehen und es gibt keinen". Genau diese negative Aussage
+		// nimmt das Label aus der Beobachtungsliste des Konfliktzentrums
+		// (api/_internal/conflicts/rules.php liest denselben Schlüssel serverseitig).
+		// ⚠️ Nur ein ausdrückliches `true` setzt ihn -- als `false` wird er nirgends abgelegt.
+		keinArtikel: properties.wiki_no_article === true,
 		// 🔴 EINE Fläche, VIELE Labels (Owner 2026-07-28): der Finsterkamm will im Norden und im Süden
 		// beschriftet werden, mit eigener Drehung und Lage je Label. Deshalb zeigt das LABEL auf seine
 		// Region -- `ecosystem_region.label_public_id` kann nur eines halten und bezeichnet weiterhin

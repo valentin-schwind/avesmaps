@@ -1727,6 +1727,12 @@ function avesmapsEcosystemReadRegionFields(array $payload, ?string $currentKind)
 // Migration; die Spalte steht seit V2.3 da und war bis zum 16.08.2026 von KEINEM Client beschrieben und
 // von KEINEM Leseweg herausgegeben.
 //
+// 🔧 OFFEN, UND DESHALB STEHT ES AN DER SCHREIBSTELLE: dieser Merker hat hier bis heute KEINEN
+// Verbraucher. Wer die Landschaften ins Konfliktzentrum aufnimmt, findet ihn bereits geschrieben vor
+// -- er muss nur gelesen werden (api/_internal/conflicts/rules.php). Bis dahin haelt er die
+// Entscheidung fest und sonst nichts, und der Hinweistext im Editor verspricht auch nicht mehr
+// (js/ui/wiki-assign-registry.js, Eintrag `landschaft`).
+//
 // 🪤 UND WAS ER HIER (NOCH) NICHT TUT, steht hier, damit es niemand versehentlich verspricht: eine
 // `ecosystem_region` steht in KEINER Konfliktliste -- avesmapsConflictLoadMapRows liest ausschliesslich
 // `map_features` (location|path|label|powerline), und avesmapsEnrichMapFeatureWikiUrl raet ebenfalls nur

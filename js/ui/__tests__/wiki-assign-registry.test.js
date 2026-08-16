@@ -163,6 +163,22 @@ const WIRKLICHKEIT = {
 		// abgeleitet (avesmapsEcosystemWikiRegionKey).
 		karte: ["name", "region_type"],
 	},
+	landschaftslabel: {
+		// DIESELBE Wiki-Seite wie die Flaeche daneben -- es ist derselbe Parser und derselbe
+		// Suchendpunkt. Die Erklaerungen sind trotzdem zwei, weil die KARTEN-Seite eine andere ist
+		// (andere Tabelle, andere Feldnamen, anderes Art-Vokabular; die Messung steht im Kopf von
+		// js/ui/wiki-assign-landschaft.js).
+		wiki: ["art", "region_parent", "affiliation_staat", "einwohner", "sprache", "vegetation", "verkehrswege"],
+		// Die ZWEI bearbeitbaren Kartenfelder eines Labels, gemessen an buildLabelEditPayload
+		// (js/review/review-labels.js) und am Schreibweg avesmapsUpdateLabelFeature: `text` ist der
+		// Name, `feature_subtype` die Kategorie.
+		// 🔴 Groesse, Rotation, Zoom-Baender, Prioritaet und Nodix stehen bewusst NICHT hier: sie sind
+		// bearbeitbar, aber das Wiki sagt zu keinem davon etwas -- eine Feldzeile dafuer koennte nie
+		// etwas uebernehmen. Pruefung 1 fragt nur, ob ein ERKLAERTES Kartenfeld existiert; die
+		// Gegenrichtung unten fragt, ob jedes hier genannte beansprucht wird. Deshalb steht hier, was
+		// eine Wiki-Angabe fuellen KANN, nicht was das Formular alles hat.
+		karte: ["text", "feature_subtype"],
+	},
 };
 
 // 6) DIE ZEILE, DIE BEISST: das AUSGELIEFERTE Register gegen die gemessene Wirklichkeit -- anders

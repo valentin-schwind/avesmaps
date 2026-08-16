@@ -39,7 +39,7 @@
 // 💣 (b) BLIND ZU SPIEGELN WAERE EINE VERSCHLECHTERUNG GEWESEN, und das ist gemessen, nicht
 // vermutet: die Server-Tabelle bildet `Schlucht => 'tal'` ab (regions.php:83, begruendet am
 // 27.07.2026, als es nur den Label-Subtype `tal` gab). Die FLAECHENART `schlucht` entstand einen Tag
-// spaeter (api/_internal/app/ecosystem.php:115, Owner 28.07.2026). Mit der reinen Server-Regel
+// spaeter (api/_internal/app/ecosystem.php:123, Owner 28.07.2026). Mit der reinen Server-Regel
 // wuerde aus einer Wiki-Schlucht auf der Karte ein Tal, obwohl die Landschaft „Schlucht" kennt --
 // und (a) trifft sie heute schon richtig. Dasselbe gilt umgekehrt fuer `Ebene`/`Tiefland`/
 // `Flachland` -> `ebene`, `Berggipfel`, `Vulkan` und `Fluss`: das sind LABEL-Subtypen und
@@ -78,6 +78,26 @@
 // Einwohner, Sprache, Vegetation und Verkehrswege liefert das Staging zwar, aber die Landschaft hat
 // dafuer KEIN Feld -- sie bleiben Anzeige-Zeilen. Hier wird nichts auf Vorrat erklaert.
 const AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER = ["name", "region_type"];
+
+// Die bearbeitbaren KARTENFELDER des LANDSCHAFTS-LABELS -- eine ZWEITE Objektart, kein zweiter
+// Datenweg.
+//
+// 🔴 DIESELBE WIKI-SEITE, EINE ANDERE KARTEN-SEITE, und das ist der ganze Grund, warum es zwei
+// Erklaerungen gibt statt einer (gemessen 16.08.2026):
+//
+//   | | Landschaft (Flaeche) | Label |
+//   | Tabelle          | `ecosystem_region`                  | `map_features` (feature_type='label') |
+//   | Ablage           | Spalten `wiki_url` + `wiki_region_key` | `properties.wiki_region` -- ein ganzes NEST |
+//   | Schreibweg       | `update_region`                     | `update_label` |
+//   | Name             | `name`                              | `text` |
+//   | Art              | `region_type`, Vokabular JE EBENE   | `feature_subtype`, EIN Vokabular aus 30 Werten |
+//   | kennt berggipfel/vulkan/ebene/fluss? | nein            | JA |
+//   | Konfliktzentrum  | nein                                | JA |
+//
+// Zusammenzulegen waere eine erzwungene Gemeinsamkeit: schon die Feldnamen stimmen nicht ueberein,
+// und das Zielvokabular der Art ist ein anderes. Geteilt wird alles, was WIRKLICH dasselbe ist --
+// die Suche, die Werte, der Treffer, die erste Komponente, die Synonymtabelle und die Art-Ordnung.
+const AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER = ["text", "feature_subtype"];
 
 /**
  * Abschrift von AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE (api/_internal/wiki/regions.php:68-128), Stand
@@ -294,13 +314,9 @@ function avesmapsWikiAssignLandschaftArtikel(gespeichert, schnappschuss, arten) 
  * @param {Object|null} quelle { wiki_key, wiki_url, wiki_name, schnappschuss, arten, kein_artikel,
  *   name, region_type } -- die zwei Kartenfelder je Wert ODER Lesefunktion.
  */
-function avesmapsWikiAssignLandschaftZustand(quelle) {
-	if (!quelle || typeof quelle !== "object" || Array.isArray(quelle)) {
-		throw new Error("Wiki-Landschaft: keine Fläche gewählt — der Stand ist unbekannt.");
-	}
-	const arten = Array.isArray(quelle.arten) ? quelle.arten : [];
+function avesmapsWikiAssignLandschaftKartenwerte(quelle, felder) {
 	const kartenwerte = {};
-	AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER.forEach((feld) => {
+	(Array.isArray(felder) ? felder : []).forEach((feld) => {
 		if (typeof quelle[feld] === "function") {
 			Object.defineProperty(kartenwerte, feld, {
 				enumerable: true,
@@ -310,6 +326,15 @@ function avesmapsWikiAssignLandschaftZustand(quelle) {
 			kartenwerte[feld] = avesmapsWikiAssignLandschaftText(quelle[feld]);
 		}
 	});
+	return kartenwerte;
+}
+
+function avesmapsWikiAssignLandschaftZustand(quelle) {
+	if (!quelle || typeof quelle !== "object" || Array.isArray(quelle)) {
+		throw new Error("Wiki-Landschaft: keine Fläche gewählt — der Stand ist unbekannt.");
+	}
+	const arten = Array.isArray(quelle.arten) ? quelle.arten : [];
+	const kartenwerte = avesmapsWikiAssignLandschaftKartenwerte(quelle, AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER);
 	return {
 		artikel: avesmapsWikiAssignLandschaftArtikel(
 			{ wiki_key: quelle.wiki_key, wiki_url: quelle.wiki_url, name: quelle.wiki_name },
@@ -320,12 +345,46 @@ function avesmapsWikiAssignLandschaftZustand(quelle) {
 		kartenwerte: kartenwerte,
 		// 🔴 Die Klimazone ist ABGELEITET: ihre Art sagt, WELCHE der Zonen das ist, und daran haengt,
 		// welche Trennlinien ihr Band begrenzen. Der Server lehnt eine Aenderung ab
-		// (avesmapsUpdateEcosystemRegion, ecosystem.php:2221-2229), also darf die Vorschau sie gar
+		// (avesmapsUpdateEcosystemRegion, ecosystem.php:2345-2352), also darf die Vorschau sie gar
 		// nicht erst anbieten. 💣 Der Riegel gehoert an die ZEILE, nicht an den Knopf -- der NAME
 		// einer Klimazone bleibt aenderbar, und ein Knopfriegel naehme ihn mit.
 		gesperrt: avesmapsWikiAssignLandschaftText(quelle.kind) === "klima"
 			? { region_type: "Die Art einer Klimazone steht fest" }
 			: {},
+	};
+}
+
+/**
+ * 🔴 DER ZUSTAND DES LANDSCHAFTS-LABELS -- und er wirft aus demselben Grund.
+ *
+ * ⚠️ Der Artikel kommt hier NICHT aus zwei Spalten, sondern aus dem NEST `properties.wiki_region`,
+ * das schon alle Anzeigewerte traegt (avesmapsReadLabelWikiRegion schreibt genau die Staging-Form).
+ * Ein Schnappschuss wird trotzdem geholt und geht VOR: „Sync" heisst hier wie ueberall „was steht
+ * HEUTE im Wiki" -- der alte Knopf `label-wiki-sync` tat nichts anderes, er schrieb das Nest aus
+ * `?action=staging_sample` neu. 💣 Ohne ihn verglaeche die Vorschau gegen ein Nest, das beim
+ * Zuweisen eingefroren wurde, und „Sync" haette seine Bedeutung verloren.
+ * ⚠️ Faellt der Schnappschuss aus (verwaister Schluessel), traegt das NEST den Kasten -- deshalb
+ * steht es als Rueckfall dahinter und nicht bloss `null`.
+ *
+ * @param {Object|null} quelle { wiki_region (das Nest), schnappschuss, arten, kein_artikel,
+ *   text, feature_subtype } -- die zwei Kartenfelder je Wert ODER Lesefunktion.
+ */
+function avesmapsWikiAssignLandschaftslabelZustand(quelle) {
+	if (!quelle || typeof quelle !== "object" || Array.isArray(quelle)) {
+		throw new Error("Wiki-Landschaft: kein Label gewählt — der Stand ist unbekannt.");
+	}
+	const arten = Array.isArray(quelle.arten) ? quelle.arten : [];
+	const nest = (quelle.wiki_region && typeof quelle.wiki_region === "object") ? quelle.wiki_region : null;
+	return {
+		artikel: avesmapsWikiAssignLandschaftArtikel(
+			{ wiki_key: nest && nest.wiki_key, wiki_url: nest && nest.wiki_url, name: nest && nest.name },
+			quelle.schnappschuss || nest,
+			arten
+		),
+		keinArtikel: quelle.kein_artikel === true,
+		kartenwerte: avesmapsWikiAssignLandschaftKartenwerte(quelle, AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER),
+		// Ein Label kennt keine abgeleitete Ebene -- es gibt hier nichts zu sperren.
+		gesperrt: {},
 	};
 }
 
@@ -394,9 +453,33 @@ function avesmapsWikiAssignLandschaftSyncLeer(werte) {
 	return AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER.every((feld) => w[feld] === null || w[feld] === undefined);
 }
 
+/** Dieselben zwei Fragen fuer das LABEL -- andere Feldliste, gleiche Regel. */
+function avesmapsWikiAssignLandschaftslabelSyncWerte(zeilen) {
+	const liste = Array.isArray(zeilen) ? zeilen : [];
+	const werte = {};
+	AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER.forEach((feld) => { werte[feld] = null; });
+	liste.forEach((zeile) => {
+		if (!zeile || !Object.prototype.hasOwnProperty.call(werte, zeile.karte)) {
+			return;
+		}
+		const wert = avesmapsWikiAssignLandschaftText(zeile.neu);
+		werte[zeile.karte] = wert === "" ? null : wert;
+	});
+	return werte;
+}
+
+function avesmapsWikiAssignLandschaftslabelSyncLeer(werte) {
+	const w = werte || {};
+	return AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER.every((feld) => w[feld] === null || w[feld] === undefined);
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER: AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER,
+		AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER: AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER,
+		avesmapsWikiAssignLandschaftslabelZustand: avesmapsWikiAssignLandschaftslabelZustand,
+		avesmapsWikiAssignLandschaftslabelSyncWerte: avesmapsWikiAssignLandschaftslabelSyncWerte,
+		avesmapsWikiAssignLandschaftslabelSyncLeer: avesmapsWikiAssignLandschaftslabelSyncLeer,
 		AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_ART_SYNONYME: AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_ART_SYNONYME,
 		avesmapsWikiAssignLandschaftArtErsteKomponente: avesmapsWikiAssignLandschaftArtErsteKomponente,
 		avesmapsWikiAssignLandschaftArt: avesmapsWikiAssignLandschaftArt,

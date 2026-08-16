@@ -282,6 +282,51 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			keinArtikelHinweis: "Hält fest, dass im Wiki nichts zu dieser Landschaft steht — bis dort einer auftaucht.",
 		},
 	},
+	// 🔴 DIE ZWEITE HAELFTE DER LANDSCHAFT -- und eine EIGENE Objektart, gemessen, nicht angenommen.
+	// Der Label-Dialog sucht dieselbe Wiki-Landschaft gegen denselben Endpunkt, heftet sie aber an ein
+	// `map_features`-LABEL statt an die gezeichnete Flaeche. Die Kartenseite ist eine andere: andere
+	// Tabelle, anderer Schreibweg (`update_label`), andere Feldnamen (`text`/`feature_subtype` statt
+	// `name`/`region_type`) und ein anderes Zielvokabular fuer die Art (EINE Liste aus 30 Werten, die
+	// `berggipfel`, `vulkan`, `ebene` und `fluss` kennt -- die Flaechenarten nicht). Die volle Messung
+	// steht im Kopf von js/ui/wiki-assign-landschaft.js.
+	// ⚠️ Zusammenzulegen waere eine erzwungene Gemeinsamkeit. Geteilt wird der DATENWEG (Werte,
+	// Treffer, Artikel, Art-Ordnung, Synonymtabelle) -- nicht die Erklaerung.
+	landschaftslabel: {
+		label: "Wiki-Landschaft",
+		suche: { art: "server", url: "/api/edit/wiki/regions.php" },
+		treffer: ["art", "region_parent", "continent"],
+		// 🔴 `name` zeigt auf `text` -- so heisst das Namensfeld eines Labels. Dafuer gab es bis zum
+		// 16.08.2026 den „↻"-Knopf neben dem Textfeld („Text aus dem Wiki uebernehmen"); er ist mit
+		// dem Umbau gefallen, weil die Sync-Vorschau dasselbe tut und dabei ZEIGT, was sie aendert.
+		// 🔴 `landschaftsart` zeigt hier auf `feature_subtype` -- derselbe abgeleitete Wiki-Feldname
+		// wie bei der Flaeche, ein anderes Ziel. Auch dafuer gab es einen „↻"-Knopf („Kategorie aus
+		// dem Wiki uebernehmen"), und auch der ist gefallen.
+		// 🔴 KEIN Kartenziel fuer den Rest: Groesse, Drehung, Zoom-Baender und Prioritaet gehoeren dem
+		// Label allein und haben im Wiki keine Entsprechung; Einwohner, Sprache und Vegetation haben
+		// am Label kein Feld.
+		felder: [
+			{ wiki: "name", karte: "text", label: "Name" },
+			{ wiki: "art", karte: "", label: "Art" },
+			{ wiki: "landschaftsart", karte: "feature_subtype", label: "Kategorie" },
+			{ wiki: "region_parent", karte: "", label: "Lage" },
+			{ wiki: "affiliation_staat", karte: "", label: "Staat" },
+			{ wiki: "continent", karte: "", label: "Kontinent" },
+			{ wiki: "einwohner", karte: "", label: "Einwohner" },
+			{ wiki: "sprache", karte: "", label: "Sprache" },
+			{ wiki: "vegetation", karte: "", label: "Vegetation" },
+			{ wiki: "verkehrswege", karte: "", label: "Verkehrswege" },
+		],
+		sync: true, // zwei Kartenziele (text, feature_subtype) -- also ein Knopf
+		extra: {
+			// 🔴 UND HIER VERSPRICHT DER HINWEIS DIE KONFLIKTLISTE ZU RECHT -- anders als bei der
+			// Flaeche daneben. Ein Label IST eine Konfliktpartei (`feature_type='label'` -> Typ
+			// „Region/Landschaft", api/_internal/conflicts/rules.php), und die Regel `wiki.missing_key`
+			// liest `properties.wiki_no_article` seit dem 15.08.2026. Es fehlte nur der Schreibweg;
+			// den traegt seit dem 16.08.2026 `update_label`.
+			keinArtikelHaken: true,
+			keinArtikelHinweis: "Nimmt das Label aus der Konfliktliste — bis im Wiki einer auftaucht.",
+		},
+	},
 	// Die uebrigen drei kommen in den Aufgaben 7-9 dazu, jede mit IHRER Aufgabe -- nicht auf Vorrat:
 	//   territorium  (A7)  Felder aus A7 Schritt 1 · Eltern GESPERRT bei parent_locked
 	//   literatur    (A8)  Felder aus A8 Schritt 1

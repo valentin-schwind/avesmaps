@@ -1,52 +1,44 @@
-// Landschafts-Picker für den Label-Editor: heftet eine Wiki-Region (natuerliche Landschaft)
-// an ein Karten-Label. Die Felder werden ins Label kopiert (properties.wiki_region) und können
-// per „Sync" aus wiki_region_staging aufgefrischt werden — analog zum Herrschaftsgebiet-Picker.
-// Bewusst getrennt vom Herrschaftsgebiet-Dialog (region-edit).
+// Der Datenweg des LANDSCHAFTS-LABELS -- die dritte Oberfläche, die eine Wiki-Landschaft zuweist.
+//
+// 🔴 SIE HEFTET SIE AN EIN ANDERES OBJEKT ALS DIE ZWEI ANDEREN. Der Flächen-Dialog und der
+// Regionen-Editor schreiben in `ecosystem_region` (Spalten `wiki_url` + `wiki_region_key`); dieser
+// hier schreibt in `map_features.properties.wiki_region` -- ein ganzes NEST, das den halben
+// Wiki-Artikel mitträgt, weil die Infobox des Labels davon lebt. Deshalb eine eigene Erklärung
+// (`landschaftslabel`) und derselbe Datenweg (js/ui/wiki-assign-landschaft.js); die vollständige
+// Messung, warum das nicht dieselbe Objektart ist, steht im Kopf jener Datei.
+//
+// 💣 HIER STANDEN 379 ZEILEN EIGENER PICKER, und darin eine ZWEITE Abschrift der Art-Tabelle
+// (`LABEL_WIKI_ART_TO_SUBTYPE`). Ihr eigener Kommentar sagte „Konsistent mit der PHP-Mapping-Tabelle"
+// -- gemessen am 16.08.2026 war sie es nicht mehr: sie führte `gebirgskette`, `berg`, `gipfel`,
+// `forst` und `fluss`, die PHP-Tabelle keines davon. Damit rechnete dieselbe Wiki-Art je nach
+// Oberfläche verschieden, und der Typkonflikt-Bericht des Servers widersprach dem Pfeilknopf des
+// Editors. Genau die Divergenz, gegen die dieser Umbau gebaut wird.
+//
+// ⚠️ WAS DER UMBAU KOSTET, namentlich: `Gebirgskette`, `Forst` und `Gipfel` lösen die Kategorie
+// nicht mehr auf -- sie stehen in KEINER der beiden Server-Quellen. `Berg` und `Fluss` bleiben
+// getroffen (der Parser schreibt „Berg" ohnehin zu „Berggipfel" um, und „Fluss" trifft die
+// gleichnamige Label-Kategorie schon über Schritt 1 der Art-Ordnung).
+// 🔧 Der ehrliche Weg, sie zurückzuholen, wäre eine Zeile in AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE
+// (api/_internal/wiki/regions.php) -- das schaltet aber zugleich die Typkonflikt-Prüfung des
+// Servers für jedes betroffene Label scharf und ist deshalb eine Owner-Entscheidung, kein Nachtrag.
 
 const LABEL_WIKI_API_URL = "/api/edit/wiki/regions.php";
 let currentLabelWikiRegion = null; // das aktuell zugeordnete wiki_region-Objekt (oder null)
-let labelWikiPickerResults = [];
-
-// Wiki-Art (lowercased) -> Label-Subtype für den ↻-Button. Konsistent mit der PHP-Mapping-Tabelle
-// (AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE in regions.php).
-const LABEL_WIKI_ART_TO_SUBTYPE = {
-	"gebirge": "gebirge", "gebirgskette": "gebirge",
-	"berg": "berggipfel", "gipfel": "berggipfel", "berggipfel": "berggipfel",
-	"vulkan": "vulkan",
-	"wald": "wald", "forst": "wald",
-	"insel": "insel", "inselgruppe": "inselgruppe",
-	"meer": "meer", "meeresteil": "meer", "meerenge": "meer", "bucht": "meer", "golf": "meer",
-	"see": "see", "seenlandschaft": "see",
-	"sumpf": "suempfe_moore", "moor": "suempfe_moore", "marschland": "suempfe_moore",
-	"wüste": "wueste", "wueste": "wueste", "halbwüste": "wueste", "halbwueste": "wueste",
-	"steppe": "steppe", "graslandschaft": "graslandschaft",
-	"hügelland": "huegelland", "hugelland": "huegelland", "hochland": "huegelland",
-	"tundra": "tundra",
-	"küste": "kueste", "kueste": "kueste", "klippe": "kueste",
-	"ebene": "ebene", "tiefland": "ebene", "flachland": "ebene",
-	"region": "region", "mischregion": "region", "großregion": "region", "grossregion": "region",
-	"halbinsel": "region",
-	"tal": "tal", "flusstal": "tal",
-	// Talformen, die das Wiki ebenfalls unter Kategorie:Tal führt (Schlucht 19, Talkessel 1,
-	// Klamm 1 von 74 Seiten). Spiegelt AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE.
-	"schlucht": "tal", "klamm": "tal", "talkessel": "tal",
-	// Wadi: das Wiki führt es als Fließgewässer ({{Infobox Fluss}}), Avesmaps zeichnet es als
-	// Landschaft. Spiegelt 'Wadi' => 'wadi' in AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE.
-	"wadi": "wadi",
-	"auenlandschaft": "auenlandschaft",
-	"fluss": "fluss", "kontinent": "kontinent",
-};
-
-// Erste Komponente einer mehrwertigen Wiki-Art ("Tal|Grube", "Mischregion, Wald") -- exakt die
-// Aufteilung, die avesmapsWikiRegionArtToSubtype serverseitig macht.
-function labelWikiArtLookupKey(art) {
-	return String(art || "").split(/\s*[|,]\s*/)[0].trim().toLowerCase();
-}
+let labelWikiAssign = null;        // die Steuerung des geteilten Bauteils
+let labelWikiSchnappschuss = null; // die frische Staging-Zeile zur zugewiesenen Landschaft
 
 function labelWikiElement(id) {
 	return document.getElementById(id);
 }
 
+/**
+ * Das NEST, wie es in `properties.wiki_region` liegt -- aus einer Staging-Zeile gebaut.
+ *
+ * 🔴 BLEIBT, und wird von aussen benutzt: `ecosystemWikiRegionSnapshot`
+ * (js/map-features/map-features-ecosystem-draw.js) reicht seine Zeile hierdurch, damit ein aus der
+ * Fläche erzeugtes Label dasselbe Nest bekommt wie ein von Hand zugewiesenes. Eine zweite Fassung
+ * wäre die zweite Wahrheit darüber, was ein Label vom Wiki mitbekommt.
+ */
 function labelWikiRegionFromRow(row) {
 	if (!row) {
 		return null;
@@ -76,22 +68,37 @@ function labelWikiRegionFromRow(row) {
 	};
 }
 
-// Bild nur zeigen, wenn die Lizenz nachweislich frei ist (gemeinfrei). Sonst nur Hinweis.
-function labelWikiImageIsFree(wiki) {
-	const status = String(wiki?.image_license_status || "").toLowerCase();
-	return status === "public_domain" || status === "public-domain" || status === "gemeinfrei";
+// Der GELADENE Stand des dritten Zustands -- der Bezugspunkt, gegen den das Bauteil „seit dem Laden
+// verändert" rechnet. 🔴 Er kommt mit dem Label (`properties.wiki_no_article`) und wird hier NICHT
+// gepflegt: das Häkchen wohnt im Bauteil, bis „Speichern" es abholt.
+let labelWikiKeinArtikelGeladen = false;
+
+/** Der Stand, den ein Label lädt. Ruft das Bauteil neu auf, damit der Kasten dem Label folgt. */
+function setLabelWikiRegion(wiki, keinArtikel) {
+	currentLabelWikiRegion = wiki && wiki.wiki_key ? wiki : null;
+	labelWikiSchnappschuss = null;
+	labelWikiKeinArtikelGeladen = keinArtikel === true;
+	toggleLabelOtherSourceSection();
+	mountLabelWikiAssign();
 }
 
-function setLabelWikiRegion(wiki) {
-	currentLabelWikiRegion = wiki && wiki.wiki_key ? wiki : null;
-	renderLabelWikiReference();
-	setLabelWikiPickerOpen(false);
+/**
+ * Eine Wiki-Landschaft von aussen ans Formular heften -- js/review/review-region-sync.js:375 ruft
+ * das, wenn ein Editor eine fehlende Region aus der WikiSync-Liste heraus als Label anlegt.
+ * 🔴 Der Name bleibt, was er war: jener Aufrufer sucht die Funktion über `window` und fällt sonst
+ * still auf `setLabelWikiRegion` zurück -- dann bliebe die Kategorie ungesetzt, und niemand sähe es.
+ */
+function assignLabelWikiRegionToForm(wiki) {
+	setLabelWikiRegion(wiki, false);
+	labelWikiKategorieAusArt(wiki && wiki.art);
 }
 
 function resetLabelWikiState() {
 	currentLabelWikiRegion = null;
-	labelWikiPickerResults = [];
-	renderLabelWikiReference();
+	labelWikiSchnappschuss = null;
+	labelWikiKeinArtikelGeladen = false;
+	toggleLabelOtherSourceSection();
+	mountLabelWikiAssign();
 }
 
 // Wird von buildLabelEditPayload aufgerufen: liefert das Objekt (oder null = Zuordnung entfernen).
@@ -99,281 +106,176 @@ function getLabelWikiRegionPayload() {
 	return currentLabelWikiRegion || null;
 }
 
-function renderLabelWikiReference() {
-	const list = labelWikiElement("label-wiki-reference-list");
-	const assignButton = labelWikiElement("label-wiki-assign");
-	const syncButton = labelWikiElement("label-wiki-sync");
-	const removeButton = labelWikiElement("label-wiki-remove");
-	if (!list) {
-		return;
+/**
+ * 🔴 DER DRITTE ZUSTAND, und er reist NUR MIT, WENN DAS HÄKCHEN SEIT DEM LADEN UMGELEGT WURDE
+ * (Owner-Entscheid 16.08.2026, anstelle eines `expected_revision`). `null` heisst „nicht schicken";
+ * `update_label` liest einen FEHLENDEN Schlüssel als „nicht geändert"
+ * (api/_internal/map/features.php).
+ * 💣 GEPRÜFT WIRD VERÄNDERT, NICHT GESETZT: ein bewusst ENTFERNTES Häkchen schickt `false` und
+ * löscht den Merker -- hinge der Riegel an „gesetzt", würde man ihn nie wieder los.
+ */
+function getLabelWikiNoArticlePayload() {
+	if (!labelWikiAssign || !labelWikiAssign.bereit) {
+		return null;
 	}
-	// Per-Feld-Sync-Buttons (Text/Kategorie) nur aktiv, wenn eine Wiki-Landschaft zugeordnet ist.
-	const hasWikiRegion = Boolean(currentLabelWikiRegion);
-	["label-edit-wiki-sync-text", "label-edit-wiki-sync-cat"].forEach((id) => {
-		const button = labelWikiElement(id);
-		if (button) {
-			button.disabled = !hasWikiRegion;
-		}
-	});
+	const stand = labelWikiAssign.lies();
+	return stand && stand.kein_artikel_geaendert === true ? stand.kein_artikel === true : null;
+}
+
+// „Andere Quelle" ist nur sichtbar, solange KEINE Wiki-Landschaft zugewiesen ist -- dieselbe Regel
+// wie in jedem anderen Editor des Hauses (review-other-source.js).
+function toggleLabelOtherSourceSection() {
 	if (typeof toggleOtherSourceSection === "function") {
-		toggleOtherSourceSection("label-edit", hasWikiRegion);
-	}
-
-	const wiki = currentLabelWikiRegion;
-	if (!wiki) {
-		list.innerHTML = '<div class="label-wiki-reference__empty">Keine Wiki-Landschaft zugeordnet.</div>';
-		if (assignButton) {
-			assignButton.textContent = "Zuweisen";
-		}
-		if (syncButton) {
-			syncButton.hidden = true;
-		}
-		if (removeButton) {
-			removeButton.hidden = true;
-		}
-		return;
-	}
-
-	if (assignButton) {
-		assignButton.textContent = "Ändern";
-	}
-	if (syncButton) {
-		syncButton.hidden = false;
-	}
-	if (removeButton) {
-		removeButton.hidden = false;
-	}
-
-	const rows = [
-		["Wiki-Region", wiki.name],
-		["Art", wiki.art],
-		["Lage", wiki.region_parent],
-		["Staat", wiki.affiliation_staat],
-		["Einwohner", wiki.einwohner],
-		["Sprache", wiki.sprache],
-	].filter((pair) => String(pair[1] || "").trim() !== "");
-
-	let html = "";
-	if (wiki.image_url) {
-		if (labelWikiImageIsFree(wiki)) {
-			html += `<img class="label-wiki-reference__image" src="${labelWikiEscapeAttr(wiki.image_url)}" alt="${labelWikiEscapeAttr(wiki.name)}" loading="lazy" />`;
-		} else {
-			html += '<div class="label-wiki-reference__imagenote">Bild vorhanden (Lizenz ungeprüft → ausgeblendet)</div>';
-		}
-	}
-	html += '<dl class="label-wiki-reference__dl">';
-	rows.forEach((pair) => {
-		html += `<dt>${labelWikiEscapeText(pair[0])}</dt><dd>${labelWikiEscapeText(pair[1])}</dd>`;
-	});
-	html += "</dl>";
-	if (wiki.description) {
-		html += `<p class="label-wiki-reference__desc">${labelWikiEscapeText(wiki.description)}</p>`;
-	}
-	if (wiki.wiki_url) {
-		html += `<a class="label-wiki-reference__link" href="${labelWikiEscapeAttr(wiki.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
-	}
-	list.innerHTML = html;
-}
-
-function labelWikiEscapeText(value) {
-	const holder = document.createElement("div");
-	holder.textContent = String(value === null || value === undefined ? "" : value);
-	return holder.innerHTML;
-}
-
-function labelWikiEscapeAttr(value) {
-	return String(value === null || value === undefined ? "" : value).replace(/"/g, "&quot;");
-}
-
-function setLabelWikiPickerOpen(isOpen) {
-	const picker = labelWikiElement("label-wiki-picker");
-	if (picker) {
-		picker.hidden = !isOpen;
-	}
-	if (isOpen) {
-		const filter = labelWikiElement("label-wiki-picker-filter");
-		if (filter) {
-			filter.value = currentLabelWikiRegion?.name || "";
-			filter.focus();
-		}
+		toggleOtherSourceSection("label-edit", Boolean(currentLabelWikiRegion));
 	}
 }
 
-async function openLabelWikiPicker() {
-	setLabelWikiPickerOpen(true);
-	await runLabelWikiPickerSearch();
+/**
+ * 💣 WIRFT, statt einen Rückfall zu liefern -- der Vertrag aus dem Kopf von js/ui/wiki-assign.js.
+ * Ein `laden`, das im Fehlerfall auflöst, ist von „nichts zugewiesen" nicht zu unterscheiden, und
+ * `buildLabelEditPayload` schickt `wiki_region` bei JEDEM Speichern mit: ein aufgelöstes Leeres
+ * würde die Zuweisung des Labels also beim nächsten Klick löschen.
+ */
+async function ladeLabelWikiSchnappschuss(wikiKey) {
+	const key = String(wikiKey || "").trim();
+	if (key === "") {
+		return null;
+	}
+	const antwort = await fetch(
+		`${LABEL_WIKI_API_URL}?action=staging_sample&wiki_keys=${encodeURIComponent(key)}&limit=1`,
+		{ credentials: "same-origin", headers: { Accept: "application/json" } }
+	);
+	if (!antwort.ok) {
+		throw new Error(`Der Server antwortete mit ${antwort.status}.`);
+	}
+	const daten = avesmapsWikiAssignLandschaftAntwortPruefen(await antwort.json());
+	// ⚠️ Eine leere Trefferliste ist KEIN Fehler: der Schlüssel kann verwaist sein. Der Kasten fällt
+	// dann auf das gespeicherte Nest zurück (avesmapsWikiAssignLandschaftslabelZustand).
+	return (daten.rows || [])[0] || null;
 }
 
-async function runLabelWikiPickerSearch() {
-	const status = labelWikiElement("label-wiki-picker-status");
-	const filter = labelWikiElement("label-wiki-picker-filter");
-	const query = (filter?.value || "").trim();
-	if (status) {
-		status.textContent = "Suche ...";
+/** Das Art-Vokabular DIESES Labels -- die `<option>`-Liste, in der Form, die die Art-Ordnung liest. */
+function labelWikiArten() {
+	const select = labelWikiElement("label-edit-type");
+	if (!select || !select.options) {
+		return [];
 	}
-	try {
-		const data = await fetch(`${LABEL_WIKI_API_URL}?action=search&q=${encodeURIComponent(query)}&limit=40`, { credentials: "same-origin" }).then((response) => response.json());
-		if (!data || data.ok !== true) {
-			throw new Error(apiErrorMessage(data, "Suche fehlgeschlagen"));
-		}
-		labelWikiPickerResults = data.rows || [];
-		renderLabelWikiPickerList();
-		if (status) {
-			status.textContent = `${labelWikiPickerResults.length} Treffer`;
-		}
-	} catch (error) {
-		if (status) {
-			status.textContent = "Fehler: " + (error.message || error);
-		}
-	}
+	return Array.from(select.options)
+		.filter((option) => String(option.value || "") !== "")
+		.map((option) => ({ type_key: option.value, label: option.textContent || option.label || "" }));
 }
 
-function renderLabelWikiPickerList() {
-	const list = labelWikiElement("label-wiki-picker-list");
-	if (!list) {
-		return;
-	}
-	if (labelWikiPickerResults.length === 0) {
-		list.innerHTML = '<p class="label-wiki-picker-list__empty">Keine Treffer.</p>';
-		return;
-	}
-	list.innerHTML = labelWikiPickerResults
-		.map((row) => {
-			const meta = [row.art, row.region_parent, row.continent].filter(Boolean).map(labelWikiEscapeText).join(" · ");
-			return (
-				`<button type="button" class="label-wiki-picker-list__item" data-wiki-key="${labelWikiEscapeAttr(row.wiki_key)}">` +
-				`<span class="label-wiki-picker-list__name">${labelWikiEscapeText(row.name)}</span>` +
-				`<span class="label-wiki-picker-list__meta">${meta}</span>` +
-				"</button>"
-			);
-		})
-		.join("");
-}
-
-// Wiki-Region ans Label-Formular heften: Felder kopieren + Label-Kategorie aus der Art ableiten.
-function applyLabelWikiToForm(wiki) {
-	if (!wiki) {
-		return;
-	}
-	setLabelWikiRegion(wiki);
-	// Mirror of avesmapsWikiRegionArtToSubtype (api/_internal/wiki/regions.php): the server maps the
-	// FIRST component of a multi-valued Art. Looking the raw string up missed every "Tal|Tal" /
-	// "Wald|Hain" already stored before the parser learned to split, so the arrow button silently
-	// did nothing on exactly those labels. The server owns the rule; this only follows it.
-	const subtype = LABEL_WIKI_ART_TO_SUBTYPE[labelWikiArtLookupKey(wiki.art)];
+/**
+ * Die Kategorie des Labels aus der Wiki-Art setzen -- NUR, wenn das Auswahlfeld den Schlüssel kennt.
+ * 🔴 EINE Stelle für beide Aufrufer (Zuweisen im Kasten und der WikiSync-Weg von aussen); zwei
+ * Abschriften waren genau die Bauform, in der die alte Art-Tabelle vom Server abgedriftet ist.
+ */
+function labelWikiKategorieAusArt(art) {
+	const subtype = avesmapsWikiAssignLandschaftArt(art, labelWikiArten());
 	const typeSelect = labelWikiElement("label-edit-type");
-	if (subtype && typeSelect && Array.from(typeSelect.options).some((option) => option.value === subtype)) {
+	if (subtype !== "" && typeSelect && Array.from(typeSelect.options || []).some((option) => option.value === subtype)) {
 		typeSelect.value = subtype;
 	}
 }
 
-function selectLabelWikiResult(wikiKey) {
-	const row = labelWikiPickerResults.find((entry) => String(entry.wiki_key) === String(wikiKey));
-	if (!row) {
-		return;
+async function labelWikiAssignZustand() {
+	const schluessel = String(currentLabelWikiRegion?.wiki_key || "").trim();
+	if (schluessel !== "" && String(labelWikiSchnappschuss?.wiki_key || "") !== schluessel) {
+		labelWikiSchnappschuss = await ladeLabelWikiSchnappschuss(schluessel);
 	}
-	applyLabelWikiToForm(labelWikiRegionFromRow(row));
-	setLabelWikiPickerOpen(false);
+	if (schluessel === "") {
+		labelWikiSchnappschuss = null;
+	}
+	return avesmapsWikiAssignLandschaftslabelZustand({
+		wiki_region: currentLabelWikiRegion,
+		schnappschuss: labelWikiSchnappschuss,
+		arten: labelWikiArten(),
+		kein_artikel: labelWikiKeinArtikelGeladen,
+		// 💣 Lesefunktionen, nicht Werte: `laden` läuft einmal, die Sync-Vorschau entsteht erst beim
+		// Druck auf „Sync" -- dazwischen kann im Formular getippt worden sein.
+		text: () => String(labelWikiElement("label-edit-text")?.value || ""),
+		feature_subtype: () => String(labelWikiElement("label-edit-type")?.value || ""),
+	});
 }
 
-async function syncLabelWikiRegion() {
-	if (!currentLabelWikiRegion?.wiki_key) {
-		return;
+/**
+ * Zuweisen -- und hier wird NICHT geschrieben: der Label-Dialog hat „Abbrechen", und
+ * `buildLabelEditPayload` nimmt die Zuweisung beim Speichern mit.
+ *
+ * 🔴 Die Kategorie folgt SOFORT, wie bisher (das tat `applyLabelWikiToForm` schon vor dem Umbau) --
+ * nur wenn das Auswahlfeld den Schlüssel kennt. Der TEXT bleibt stehen: ihn zu überschreiben war nie
+ * das Verhalten dieses Dialogs, dafür gab es den „↻"-Knopf und heute die Sync-Vorschau.
+ */
+function labelWikiAssignZuweisen(treffer) {
+	const roh = (treffer && treffer.roh) || {};
+	currentLabelWikiRegion = labelWikiRegionFromRow(roh);
+	labelWikiSchnappschuss = roh;
+	toggleLabelOtherSourceSection();
+	labelWikiKategorieAusArt(roh.art);
+}
+
+function labelWikiAssignLoesen() {
+	currentLabelWikiRegion = null;
+	labelWikiSchnappschuss = null;
+	toggleLabelOtherSourceSection();
+}
+
+/**
+ * ⚠️ ÜBERNEHMEN FÜLLT NUR DAS FORMULAR -- gespeichert wird mit „Speichern".
+ * 🔴 WIRFT, wenn nichts anzuwenden war: das Bauteil liest eine Ablehnung als „es ist nichts
+ * passiert" und lässt die Vorschau stehen.
+ */
+function labelWikiAssignSyncUebernehmen(zeilen) {
+	const werte = avesmapsWikiAssignLandschaftslabelSyncWerte(zeilen);
+	if (avesmapsWikiAssignLandschaftslabelSyncLeer(werte)) {
+		throw new Error("Keine übernehmbare Angabe angehakt.");
 	}
-	const status = labelWikiElement("label-edit-status");
-	if (status) {
-		status.textContent = "Wiki-Daten werden synchronisiert ...";
+	const textInput = labelWikiElement("label-edit-text");
+	if (werte.text !== null && textInput) {
+		textInput.value = werte.text;
 	}
-	try {
-		const data = await fetch(`${LABEL_WIKI_API_URL}?action=staging_sample&wiki_keys=${encodeURIComponent(currentLabelWikiRegion.wiki_key)}&limit=1`, { credentials: "same-origin" }).then((response) => response.json());
-		const row = (data.rows || [])[0];
-		if (!row) {
-			throw new Error("Wiki-Region nicht mehr im Staging gefunden");
-		}
-		setLabelWikiRegion(labelWikiRegionFromRow(row));
-		if (status) {
-			status.textContent = "Wiki-Daten aktualisiert.";
-		}
-	} catch (error) {
-		if (status) {
-			status.textContent = "Sync-Fehler: " + (error.message || error);
-		}
+	const typeSelect = labelWikiElement("label-edit-type");
+	if (werte.feature_subtype !== null && typeSelect
+		&& Array.from(typeSelect.options || []).some((option) => option.value === werte.feature_subtype)) {
+		typeSelect.value = werte.feature_subtype;
+	}
+	// 🔴 Und das NEST folgt dem Wiki nach: genau das tat der alte „Sync"-Knopf, und ohne diese Zeile
+	// bliebe der halbe Artikel, den die Infobox des Labels zeigt, auf dem Stand der Zuweisung stehen.
+	if (labelWikiSchnappschuss) {
+		currentLabelWikiRegion = labelWikiRegionFromRow(labelWikiSchnappschuss);
 	}
 }
 
-// Stellt nur den Text (Wiki-Region-Name) wieder her.
-function syncLabelTextFromWiki() {
-	if (!currentLabelWikiRegion) {
-		showFeedbackToast?.("Erst eine Wiki-Landschaft zuweisen.", "info");
+/**
+ * Das Häkchen „Kein Wiki-Artikel vorhanden" wurde umgelegt -- gespeichert ist damit nichts.
+ * 🔴 Der Merker wohnt im BAUTEIL, bis „Speichern" ihn über `lies()` abholt; ihn hier in ein
+ * verstecktes Feld zu schreiben hiesse, ihn beim nächsten `laden` als GELADENEN Stand zu sehen, und
+ * der Haken täte nichts.
+ */
+function mountLabelWikiAssign() {
+	const host = labelWikiElement("label-wiki-assign-host");
+	if (!host || typeof avesmapsWikiAssignMount !== "function") {
 		return;
 	}
-	const input = labelWikiElement("label-edit-text");
-	if (input && String(currentLabelWikiRegion.name || "").trim() !== "") {
-		input.value = currentLabelWikiRegion.name;
-		showFeedbackToast?.("Text aus Wiki übernommen.", "success");
+	if (labelWikiAssign) {
+		labelWikiAssign.zerstoeren();
+		labelWikiAssign = null;
 	}
+	labelWikiAssign = avesmapsWikiAssignMount(host, {
+		subject: "landschaftslabel",
+		// Der Kartendialog: index.html lädt css/components/region-sync.css, nicht editor-page.css.
+		skin: "label-wiki",
+		laden: labelWikiAssignZustand,
+		trefferAufbereiten: (zeile) => avesmapsWikiAssignLandschaftTreffer(zeile, labelWikiArten()),
+		zuweisen: labelWikiAssignZuweisen,
+		loesen: labelWikiAssignLoesen,
+		syncUebernehmen: labelWikiAssignSyncUebernehmen,
+	});
 }
-
-// Stellt nur die Kategorie wieder her (Wiki-Art → Label-Subtyp).
-function syncLabelCategoryFromWiki() {
-	if (!currentLabelWikiRegion) {
-		showFeedbackToast?.("Erst eine Wiki-Landschaft zuweisen.", "info");
-		return;
-	}
-	const subtype = LABEL_WIKI_ART_TO_SUBTYPE[labelWikiArtLookupKey(currentLabelWikiRegion.art)];
-	const select = labelWikiElement("label-edit-type");
-	if (subtype && select && Array.from(select.options).some((option) => option.value === subtype)) {
-		select.value = subtype;
-		showFeedbackToast?.("Kategorie aus Wiki übernommen.", "success");
-	} else {
-		showFeedbackToast?.("Wiki-Art passt zu keiner Kategorie.", "warning");
-	}
-}
-
-document.addEventListener("click", (event) => {
-	if (!event.target.closest) {
-		return;
-	}
-	if (event.target.closest("#label-edit-wiki-sync-text")) {
-		syncLabelTextFromWiki();
-		return;
-	}
-	if (event.target.closest("#label-edit-wiki-sync-cat")) {
-		syncLabelCategoryFromWiki();
-		return;
-	}
-	const pickerItem = event.target.closest(".label-wiki-picker-list__item");
-	if (pickerItem) {
-		selectLabelWikiResult(pickerItem.dataset.wikiKey);
-		return;
-	}
-	if (event.target.closest("#label-wiki-assign")) {
-		const picker = labelWikiElement("label-wiki-picker");
-		if (picker && !picker.hidden) {
-			setLabelWikiPickerOpen(false);
-		} else {
-			void openLabelWikiPicker();
-		}
-		return;
-	}
-	if (event.target.closest("#label-wiki-sync")) {
-		void syncLabelWikiRegion();
-		return;
-	}
-	if (event.target.closest("#label-wiki-remove")) {
-		setLabelWikiRegion(null);
-		return;
-	}
-});
-
-document.addEventListener("input", (event) => {
-	if (event.target && event.target.id === "label-wiki-picker-filter") {
-		void runLabelWikiPickerSearch();
-	}
-});
 
 window.setLabelWikiRegion = setLabelWikiRegion;
 window.resetLabelWikiState = resetLabelWikiState;
 window.getLabelWikiRegionPayload = getLabelWikiRegionPayload;
-window.assignLabelWikiRegionToForm = applyLabelWikiToForm;
+window.getLabelWikiNoArticlePayload = getLabelWikiNoArticlePayload;
 window.labelWikiRegionFromRow = labelWikiRegionFromRow;
+window.assignLabelWikiRegionToForm = assignLabelWikiRegionToForm;

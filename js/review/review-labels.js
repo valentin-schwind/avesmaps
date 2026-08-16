@@ -163,7 +163,10 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	}
 	syncLabelHeightRow();
 	if (typeof setLabelWikiRegion === "function") {
-		setLabelWikiRegion(label.wikiRegion || null);
+		// 🔴 ZWEI Angaben, nicht eine: das Nest UND der dritte Zustand. Der Merker ist nicht aus dem
+		// Nest ableitbar (siehe map-features-labels.js), und ohne ihn stünde das Häkchen bei jedem
+		// Öffnen leer da -- ein Speichern nähme die Entscheidung dann zurück.
+		setLabelWikiRegion(label.wikiRegion || null, label.keinArtikel === true);
 	}
 	// „Andere Quelle" ist aus diesem Dialog raus (Owner 2026-07-28) -- weder gelesen noch geschrieben.
 	// Ein bereits gespeicherter Wert bleibt am Feature liegen, weil der Save den Schluessel nicht mehr
@@ -589,6 +592,16 @@ function buildLabelEditPayload(formElement) {
 	// mitgeschicktes leeres Feld löschte damit eine bestehende Zuweisung -- bei jedem Speichern eines
 	// Labels, dessen Auswahl mangels geladener Regionsliste nie befüllt war. Dieselbe Falle, an der
 	// `other_source` schon einmal hing (features.php:2266).
+	// 🔴 DER DRITTE ZUSTAND, und er reist NUR MIT, WENN DAS HÄKCHEN SEIT DEM LADEN UMGELEGT WURDE
+	// (Owner-Entscheid 16.08.2026, anstelle eines `expected_revision`). `update_label` liest einen
+	// FEHLENDEN Schlüssel als „nicht geändert" -- so nimmt ein alter, längst offener Dialog die
+	// Entscheidung eines zweiten Editors nicht beim nächsten beliebigen Speichern zurück.
+	// 💣 GEPRÜFT WIRD VERÄNDERT, NICHT GESETZT: ein bewusst ENTFERNTES Häkchen schickt `false`.
+	const keinArtikel = typeof getLabelWikiNoArticlePayload === "function" ? getLabelWikiNoArticlePayload() : null;
+	if (keinArtikel !== null) {
+		payload.wiki_no_article = keinArtikel;
+	}
+
 	const regionSection = document.getElementById("label-edit-region-section");
 	const regionSelect = document.getElementById("label-edit-region");
 	if (regionSection && regionSelect && !regionSection.hidden) {
