@@ -33,6 +33,8 @@ global.avesmapsRevealedHiddenLocationIds = new Set();
 
 loadBrowserScript(path.join(__dirname, "../location-zoom-bands.js"));
 loadBrowserScript(path.join(__dirname, "../map-features-location-marker-rendering.js"));
+// Für die Namens-Hälfte (Block F/G): shouldShowLocationNameLabel/getLocationNameLabelSize.
+loadBrowserScript(path.join(__dirname, "../map-features-location-name-labels.js"));
 
 // NACH dem Laden: isMarkerEntryInRenderBounds steht in der geprüften Datei selbst.
 global.isMarkerEntryInRenderBounds = () => true;
@@ -82,5 +84,35 @@ const aussen = getLocationMarkerSize("metropole", 5);
 assert.strictEqual(Math.round(getLocationMarkerCoreRadius("metropole", 5) * 100) / 100,
 	Math.round((aussen / 2 / 1.33) * 100) / 100, "Kern = Außen ÷ 2 ÷ 1,33");
 assert.ok(getLocationMarkerBorderWidth("metropole", 5) >= 0.5, "die Kontur hat eine Untergrenze");
+
+// ---- F. Der Name: eigene, spätere Erscheinungsstufe --------------------------------------------
+const zeigtName = (locationType, z) =>
+	shouldShowLocationNameLabel(eintrag(locationType), z, createLocationVisibilityContext());
+
+avesmapsApplyLocationZoomBands(null);
+const ERWARTET_NAME = { metropole: 0, grossstadt: 0, stadt: 2, kleinstadt: 3, dorf: 4, gebaeude: 4 };
+Object.entries(ERWARTET_NAME).forEach(([typ, ab]) => {
+	for (let z = 0; z <= 7; z += 1) {
+		assert.strictEqual(zeigtName(typ, z), z >= ab,
+			`Name ${typ} bei z${z}: erwartet ${z >= ab ? "sichtbar" : "unsichtbar"}`);
+	}
+});
+
+// Der Name erscheint nie vor seinem Marker.
+Object.keys(ERWARTET_NAME).forEach((typ) => {
+	assert.ok(avesmapsLocationZoomBandMinZoom("label", typ) >= avesmapsLocationZoomBandMinZoom("marker", typ),
+		`${typ}: der Name darf nicht vor dem Marker kommen`);
+});
+
+// ---- G. Schriftgröße unter dem Band -----------------------------------------------------------
+// ⚠️ Unter dem Band gilt 8 pt -- die alte Untergrenze aus Math.max(8, …). Das reproduziert den
+// bisherigen Wert für alle Klassen mit EINER benannten Ausnahme: das Dorf lieferte bei z3 8,5.
+// Diese Zahl bediente nur die Wegenamen, und die haben seit dem 16.08.2026 ihre eigene Tafel
+// (map-features-path-labels.js). Für Ortsnamen selbst ist der Pfad ohnehin nur über den
+// Siedlungsfilter und den angepinnten Suchtreffer erreichbar.
+assert.strictEqual(getLocationNameLabelSize("dorf", 0), 8, "unter dem Band gilt die alte Untergrenze");
+assert.strictEqual(getLocationNameLabelSize("gebaeude", 2), 8);
+assert.strictEqual(getLocationNameLabelSize("metropole", 0), 8, "im Band gilt der Bandwert");
+assert.strictEqual(getLocationNameLabelSize("dorf", 5), 11);
 
 console.log("zoombaender-erscheinungsstufe: alle Zusicherungen erfüllt");

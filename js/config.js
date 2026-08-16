@@ -632,12 +632,14 @@ function getPathWidthScale(subtype, zoom) {
 	return (typeof fallback === "number" && fallback >= 0) ? fallback : 1;
 }
 const LOCATION_TYPE_CONFIG = {
-	metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "🏛️", queryParam: "toggleMetropolen", radius: 10, shape: "circle", borderWidth: 3 },
-	grossstadt: { label: "Großstädte", singularLabel: "Großstadt", icon: "🏰", queryParam: "toggleGrossstaedte", radius: 7.5, shape: "square", borderWidth: 3 },
-	stadt: { label: "Städte", singularLabel: "Stadt", icon: "⛪", queryParam: "toggleStaedte", radius: 6, shape: "square", borderWidth: 2 },
-	kleinstadt: { label: "Kleinstädte", singularLabel: "Kleinstadt", icon: "🏘️", queryParam: "toggleKleinstaedte", radius: 4, shape: "square", borderWidth: 2 },
-	dorf: { label: "Dörfer", singularLabel: "Dorf", icon: "🏡", queryParam: "toggleDoerfer", radius: 3.5, shape: "circle", borderWidth: 2 },
-	gebaeude: { label: "Besondere Bauwerke/Stätten", singularLabel: "Besondere Bauwerke/Stätten", icon: "🏛️", queryParam: "toggleGebaeude", radius: 3.5, shape: "circle", borderWidth: 2 },
+	// ⚠️ radius/shape/borderWidth standen hier bis zum 16.08.2026 und wurden von keiner Zeile
+	// gelesen -- die Markergeometrie kommt aus dem Zoomband (js/map-features/location-zoom-bands.js).
+	metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "🏛️", queryParam: "toggleMetropolen" },
+	grossstadt: { label: "Großstädte", singularLabel: "Großstadt", icon: "🏰", queryParam: "toggleGrossstaedte" },
+	stadt: { label: "Städte", singularLabel: "Stadt", icon: "⛪", queryParam: "toggleStaedte" },
+	kleinstadt: { label: "Kleinstädte", singularLabel: "Kleinstadt", icon: "🏘️", queryParam: "toggleKleinstaedte" },
+	dorf: { label: "Dörfer", singularLabel: "Dorf", icon: "🏡", queryParam: "toggleDoerfer" },
+	gebaeude: { label: "Besondere Bauwerke/Stätten", singularLabel: "Besondere Bauwerke/Stätten", icon: "🏛️", queryParam: "toggleGebaeude" },
 };
 const LOCATION_ICON_PATHS = {
 	metropole: "icons/metropole.webp",
@@ -659,14 +661,6 @@ const LOCATION_REALISTIC_ICON_PATHS = {
 };
 const LOCATION_TYPE_KEYS = Object.keys(LOCATION_TYPE_CONFIG);
 const LOCATION_TYPE_VISIBILITY_ORDER = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"];
-const LOCATION_NAME_LABEL_CONFIG = {
-	metropole: { size: 20, minZoom: 0 },
-	grossstadt: { size: 18, minZoom: 0 },
-	stadt: { size: 16, minZoom: 2 },
-	kleinstadt: { size: 14, minZoom: 3 },
-	dorf: { size: 12, minZoom: 4 },
-	gebaeude: { size: 10, minZoom: 4 },
-};
 const POWERLINE_RENDER_CONFIG = {
 	animationEnabled: true,
 	strandCount: 3,

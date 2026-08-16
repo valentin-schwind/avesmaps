@@ -29,10 +29,9 @@ function isPathLabelVisibleAtCurrentZoom(path) {
 		// Wege-/Straßen-Labels folgen weiterhin ihrer Pfad-Sichtbarkeit (#togglePaths).
 		return false;
 	}
-	// Fluss-Labels werden wie Straßen-Labels erst ab dorf.minZoom (Zoom 4) gezeigt -> bei Zoom 3
+	// Fluss-Labels werden wie Straßen-Labels erst ab PATH_LABEL_MIN_ZOOM gezeigt -> bei Zoom 3
 	// ausgeblendet (vorher erschienen Flussnamen schon ab Zoom 3).
-	const minZoom = LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
-	return shouldPathNameBeDisplayed(path) && map.getZoom() >= minZoom;
+	return shouldPathNameBeDisplayed(path) && map.getZoom() >= PATH_LABEL_MIN_ZOOM;
 }
 
 // Normalisiere eine Zoomstufe auf den visuellen Index 0–5 für die Pfad-Label-Tafeln.
@@ -59,6 +58,15 @@ function getPathLabelBaseSize(zoomLevel = (typeof map !== "undefined" ? map.getZ
 	const value = PATH_LABEL_BASE_SIZE_BY_ZOOM[z];
 	return Math.max(8, Number.isFinite(value) ? value : 8);
 }
+
+// 🔴 EIGENE ERSCHEINUNGSSTUFE DER WEGENAMEN -- buchstäblich der Wert, den
+// LOCATION_NAME_LABEL_CONFIG.dorf.minZoom bis zum 16.08.2026 trug. Wege- und Flussnamen erscheinen
+// ab derselben Stufe wie Dorfnamen; das war eine Dichteregel, kein Zufall, und sie bleibt.
+// ⚠️ Sie hing bis heute an der Dorf-Zeile und wäre damit still mitgewandert, sobald ein Admin die
+// Ortsklassen verstellt. Entkoppelt aus demselben Grund wie die Grundtafel darüber (Owner-Entscheid
+// 16.08.2026): wer Dörfer verstellt, verstellt Dörfer. Soll sie je wieder folgen, ist DAS hier die
+// eine Stelle.
+const PATH_LABEL_MIN_ZOOM = 4;
 
 // Live tunbar via ?pathtune=1 (siehe Panel am Dateiende).
 // Schriftgrößen-Delta PRO (visueller) Zoomstufe -- px auf die berechnete (zoomabhängige) Basisgröße.

@@ -5,19 +5,18 @@ let LOCATION_LABEL_HALO_STRENGTH = 1.5;
 // Schärfe des Siedlungslabel-Halos (0 = weicher Schein, 1 = scharfe Kontur/Google-Maps-Look). Live über ?halotune=1.
 let LOCATION_LABEL_HALO_SHARPNESS = 0.5;
 
-const LOCATION_NAME_LABEL_SIZE_BY_ZOOM = {
-	metropole: { 0: 8, 1: 9, 2: 11, 3: 13, 4: 17, 5: 19 },
-	grossstadt: { 0: 8, 1: 8.5, 2: 10, 3: 12, 4: 15, 5: 17 },
-	stadt: { 0: 8, 1: 8, 2: 9, 3: 11, 4: 13, 5: 15 },
-	kleinstadt: { 0: 8, 1: 8, 2: 8.5, 3: 9.5, 4: 11, 5: 13 },
-	dorf: { 0: 8, 1: 8, 2: 8, 3: 8.5, 4: 10, 5: 11 },
-	gebaeude: { 0: 8, 1: 8, 2: 8, 3: 8, 4: 9, 5: 9 },
-};
+// ⚠️ Unter dem Band gilt diese Zahl -- die alte Untergrenze aus Math.max(8, …). Erreichbar ist der
+// Fall nur über die Weichen, die shouldShowLocationNameLabel VOR der Bandprüfung nehmen (der
+// Siedlungsfilter des Editors, der angepinnte Suchtreffer).
+const LOCATION_NAME_LABEL_BELOW_BAND_SIZE = 8;
 
+// Die Schriftgröße kommt aus dem Zoomband (js/map-features/location-zoom-bands.js).
+// 🔴 Nicht mehr über getVisualZoomLevel (das klemmt auf 5): die Ortsschrift reicht bis z7. Die
+// WEGENAMEN behalten ihren 0–5-Index und ihre eigene Grundtafel (map-features-path-labels.js) --
+// sie hingen bis zum 16.08.2026 an der Dorf-Zeile dieser Datei.
 function getLocationNameLabelSize(locationType, zoomLevel = map.getZoom()) {
-	const roundedZoomLevel = getVisualZoomLevel(zoomLevel);
-	const sizeByZoom = LOCATION_NAME_LABEL_SIZE_BY_ZOOM[locationType] || LOCATION_NAME_LABEL_SIZE_BY_ZOOM.dorf;
-	return Math.max(8, Number(sizeByZoom[roundedZoomLevel] ?? sizeByZoom[VISUAL_MAX_ZOOM_LEVEL] ?? sizeByZoom[4] ?? sizeByZoom[3] ?? sizeByZoom[2] ?? sizeByZoom[1] ?? sizeByZoom[0] ?? 8));
+	const value = avesmapsLocationZoomBandValue("label", locationType, zoomLevel);
+	return value === null ? LOCATION_NAME_LABEL_BELOW_BAND_SIZE : value;
 }
 
 // Kleiner Abstand zwischen Marker-Aussenrand und Schrift (wird auf den Marker-Radius addiert).
@@ -88,7 +87,6 @@ function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom(), visibilit
 		return isNodixLocation(entry.location);
 	}
 
-	const config = LOCATION_NAME_LABEL_CONFIG[entry.locationType] || LOCATION_NAME_LABEL_CONFIG.dorf;
 	const nodixToggleChecked = visibilityContext
 		? visibilityContext.nodixToggleChecked
 		: IS_EDIT_MODE && $("#toggleNodix").is(":checked");
@@ -98,7 +96,11 @@ function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom(), visibilit
 	const typeVisible = visibilityContext
 		? visibilityContext.isTypeVisible(entry.locationType)
 		: isLocationTypeVisible(entry.locationType);
-	return isVisibleByNodixToggle || (zoomLevel >= config.minZoom && typeVisible);
+	// 💣 Die Erscheinungsstufe des NAMENS ist die erste gefüllte Zelle seines Bandes -- eine andere
+	// (spätere) als die des Markers. Beide stehen jetzt in derselben Tafel und können nicht mehr
+	// getrennt voneinander verrutschen.
+	return isVisibleByNodixToggle
+		|| (avesmapsLocationZoomBandValue("label", entry.locationType, zoomLevel) !== null && typeVisible);
 }
 
 // Pro Orts-Label-Typ (+ Ruine) Farbe/Versalien/Kursiv/Sperrung EINMAL aus dem echten CSS lesen

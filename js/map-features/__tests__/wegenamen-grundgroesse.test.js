@@ -73,4 +73,31 @@ assert.strictEqual(getPathLabelBaseSize(5), 11, "z5 liefert 11");
 assert.strictEqual(getPathLabelBaseSize(6), 11, "z6 ist geklemmt auf z5 → 11");
 assert.strictEqual(getPathLabelBaseSize(7), 11, "z7 ist geklemmt auf z5 → 11");
 
+// ---- 4. Die Erscheinungsstufe der Wegenamen ist ebenso entkoppelt -- Text-Prüfung -------------
+// Dieselbe versteckte Kopplung wie oben, nur für die Erscheinungsstufe statt die Größe:
+// isPathLabelVisibleAtCurrentZoom (map-features-path-labels.js), buildWayLabelEligibilityContext
+// (map-features-way-labels.js) und getSpotlightPathZoom (js/ui/spotlight-search-focus.js) lasen
+// bis zum 16.08.2026 alle LOCATION_NAME_LABEL_CONFIG.dorf.minZoom direkt. Ein Namensvertrag
+// zwischen Dateien, kein Verhalten -- way-labels.js und spotlight-search-focus.js einzeln zu laden
+// (DOM/Leaflet-Code) wäre unverhältnismäßig, siehe Abschnitt 2 oben.
+const wayLabels = read("js/map-features/map-features-way-labels.js");
+const spotlightFocus = read("js/ui/spotlight-search-focus.js");
+
+// 🔴 Dieser Wert stand bis zum 16.08.2026 in LOCATION_NAME_LABEL_CONFIG.dorf.minZoom (js/config.js).
+const ALTER_DORF_MINZOOM = 4;
+const minZoomMatch = pathLabels.match(/PATH_LABEL_MIN_ZOOM\s*=\s*([\d.]+)/);
+assert.ok(minZoomMatch, "PATH_LABEL_MIN_ZOOM wurde gefunden");
+assert.strictEqual(Number(minZoomMatch[1]), ALTER_DORF_MINZOOM,
+	"PATH_LABEL_MIN_ZOOM muss den alten dorf.minZoom-Wert tragen");
+
+// Kommentare DÜRFEN den alten Namen zur Dokumentation nennen (siehe PATH_LABEL_MIN_ZOOM oben) --
+// geprüft wird nur der CODE, also jede Zeile ohne führendes "//" (Zeilenkommentar-Stil dieses Repos).
+const ohneKommentare = (text) => text.split("\n").filter((line) => !line.trim().startsWith("//")).join("\n");
+assert.ok(!/LOCATION_NAME_LABEL_CONFIG/.test(ohneKommentare(pathLabels)),
+	"map-features-path-labels.js liest LOCATION_NAME_LABEL_CONFIG nicht mehr im Code");
+assert.ok(!/LOCATION_NAME_LABEL_CONFIG/.test(ohneKommentare(wayLabels)),
+	"map-features-way-labels.js liest LOCATION_NAME_LABEL_CONFIG nicht mehr im Code");
+assert.ok(!/LOCATION_NAME_LABEL_CONFIG/.test(ohneKommentare(spotlightFocus)),
+	"spotlight-search-focus.js liest LOCATION_NAME_LABEL_CONFIG nicht mehr im Code");
+
 console.log("wegenamen-grundgroesse: alle Zusicherungen erfüllt");
