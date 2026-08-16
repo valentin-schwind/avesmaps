@@ -107,6 +107,26 @@ assert.strictEqual(ohne.artikel, null);
 assert.strictEqual(ohne.kartenwerte.feature_subtype, "Strasse");
 zaehl(); zaehl();
 
+// ── 3b) DER DRITTE ZUSTAND REIST IM ZUSTAND MIT (Aufgabe 5c) ──────────────────────────────────
+// 🔴 Er ist NICHT aus der Zuweisung ableitbar: „keine Zuweisung" heisst „noch niemand hat
+// nachgesehen", der Merker heisst „jemand HAT nachgesehen und es gibt keinen". Ohne ihn hatte der
+// Weg zwei Leser (Anreicherung + Konfliktregel) und keinen Schreiber -- gemessen in Aufgabe 5b.
+assert.strictEqual(ohne.keinArtikel, false,
+	"ohne Merker meldet der Zustand den dritten Zustand als gesetzt");
+assert.strictEqual(
+	avesmapsWikiAssignWegZustand({ wiki_path: null, kein_artikel: true, feature_subtype: "Strasse" }).keinArtikel,
+	true,
+	"der gespeicherte Merker erreicht den Zustand nicht -- das Haekchen startete immer leer");
+// ⚠️ Nur ein echtes `true`. Beide Oberflaechen liefern einen Boolean; ein weicher Vergleich machte
+// aus einem versehentlichen `"false"` (String) ein gesetztes Haekchen. Dieselbe Strenge wie beim Ort.
+[1, "1", "true", "on", {}].forEach((weich) => {
+	assert.strictEqual(
+		avesmapsWikiAssignWegZustand({ wiki_path: null, kein_artikel: weich }).keinArtikel, false,
+		"ein weicher Wert (" + JSON.stringify(weich) + ") gilt als gesetzter Merker");
+	zaehl();
+});
+zaehl(); zaehl();
+
 // ── 4) DIE HTTP-ANTWORT: WIRFT BEI JEDEM NEIN ─────────────────────────────────────────────────
 // 💣 Der Typriegel kommt mit HTTP 200. Wer nur `ok` prueft, loest auf.
 assert.throws(() => avesmapsWikiAssignWegAntwortPruefen({ ok: true, type_ok: false, applied: 0, message: "ist ein Fluss" }),
@@ -179,6 +199,48 @@ const duenn = avesmapsWikiAssignModell(weg, { artikel: avesmapsWikiAssignWegArti
 }) }, {});
 assert.deepStrictEqual(duenn.felder.map((f) => f.label), ["Artikel", "Schlüssel"]);
 zaehl();
+
+// ── 6b) DER DRITTE ZUSTAND STEHT IN DER ERKLAERUNG UND IN BEIDEN HUELLEN (Aufgabe 5c) ─────────
+// 🔴 Entwurf §2 Punkt 7: „Der dritte Zustand gilt fuer ALLE Objektarten." Beim Weg fehlte er bis
+// zum 16.08.2026 -- und die Begruendung im Register war messbar falsch (Aufgabe 5b hat gemessen:
+// die LESESEITE trug ihn laengst, nur der Schreibweg fehlte).
+assert.strictEqual(weg.extra && weg.extra.keinArtikelHaken, true,
+	"der Weg bietet den dritten Zustand nicht an -- avesmapsWikiAssignModell prueft "
+	+ "`extra.keinArtikelHaken === true`, ohne ihn erscheint gar kein Haekchen");
+assert.ok(String((weg.extra || {}).keinArtikelHinweis || "").trim() !== "",
+	"der Hinweis zum dritten Zustand fehlt");
+// ⚠️ Der zweite Halbsatz ist tragend: der Merker ist NICHT endgueltig. Ohne ihn liest er sich als
+// „nie wieder" und die Wiedervorlage aus dem Wiki wirkt wie ein Fehler.
+assert.ok(/bis im Wiki einer auftaucht/.test(weg.extra.keinArtikelHinweis), weg.extra.keinArtikelHinweis);
+zaehl(); zaehl(); zaehl();
+
+// Und das Haekchen erscheint WIRKLICH -- in BEIDEN Huellen, im offenen Zustand.
+// 💣 Eine Probe nur an der Erklaerung saehe nicht, ob der Bauer sie liest.
+["dt", "label-wiki"].forEach((huelle) => {
+	const offenerKasten = avesmapsWikiAssignMarkup(
+		avesmapsWikiAssignModell(weg, { artikel: null, keinArtikel: false, kartenwerte: {} }, { modus: "offen" }),
+		avesmapsWikiAssignSkin(huelle));
+	assert.ok(offenerKasten.indexOf("data-wa-kein-artikel") !== -1,
+		huelle + ": der offene Zustand zeigt kein Haekchen „Kein Wiki-Artikel vorhanden“");
+	assert.ok(offenerKasten.indexOf("Kein Wiki-Artikel vorhanden") !== -1, huelle + ": " + offenerKasten);
+	assert.ok(offenerKasten.indexOf("Konfliktliste") !== -1,
+		huelle + ": der objektart-eigene Hinweis kommt nicht an -- es steht der allgemeine da");
+	assert.ok(offenerKasten.indexOf("data-wa-kein-artikel checked") === -1,
+		huelle + ": ein ungesetzter Merker zeichnet ein angehaktes Kaestchen");
+	// 🔴 UND NEBEN EINER ZUWEISUNG NUR, WENN ER GESETZT IST (`hakenZeigen` im Bauteil): das ist der
+	// AUSWEG aus dem Widerspruch, nicht der Einstieg in ihn.
+	const zugewiesenerKasten = (keinArtikel) => avesmapsWikiAssignMarkup(
+		avesmapsWikiAssignModell(weg, {
+			artikel: avesmapsWikiAssignWegArtikel({ wiki_key: "k", name: "N", kind: "strasse", wiki_url: "https://w/wiki/N" }),
+			keinArtikel: keinArtikel, kartenwerte: {},
+		}, {}), avesmapsWikiAssignSkin(huelle));
+	assert.ok(zugewiesenerKasten(false).indexOf("data-wa-kein-artikel") === -1,
+		huelle + ": neben einer Zuweisung steht ein leeres Haekchen -- damit liesse sich der verbotene "
+		+ "Zustand „Artikel UND kein Artikel“ ueberhaupt erst herstellen");
+	assert.ok(/data-wa-kein-artikel checked/.test(zugewiesenerKasten(true)),
+		huelle + ": ein neben einer Zuweisung GESETZTER Merker ist unsichtbar -- er liesse sich nie loesen");
+	checks += 6;
+});
 
 // ── 7) DIE SYNC-VORSCHAU VERGLEICHT SCHLUESSEL, NICHT FREIEN TEXT ─────────────────────────────
 // 🔴 DAS IST DER GRUND FUER DAS ZWEITE FELD `wegtyp`. Verglichen wird der Wert, der GESCHRIEBEN
@@ -330,6 +392,24 @@ Object.keys(AVESMAPS_WIKI_ASSIGN_SKINS).forEach((huelle) => {
 	assert.ok(kombination.test(allesCss),
 		"Huelle „" + huelle + "“: fuer den mit ↑ ↓ gewaehlten Treffer gibt es keine Regel ("
 		+ "." + tabelle.treffer + "." + tabelle.trefferAktiv + ") -- die Tastaturauswahl ist unsichtbar");
+	zaehl();
+});
+
+// 🔴 KEIN BLAU (AGENTS.md §12), UND DAS IST BEI EINEM KONTROLLKAESTCHEN EINE EIGENE REGEL: ohne
+// `accent-color` faerbt der Browser es in seiner Standardfarbe -- unter Windows blau. Die
+// Rollenprobe darueber sieht das nicht (sie fragt nur, ob die Klasse IRGENDEINE Regel hat), und die
+// zwei Huellen hatten es bis zum 16.08.2026 verschieden: `label-wiki` accent seit Aufgabe 4, `dt`
+// browserblau. Aufgabe 5c hat den Haken in der `dt`-Huelle erst sichtbar gemacht -- also gehoert
+// die Zusicherung hierher.
+// ⚠️ Gesucht wird die Regel des BAUTEILS, nicht irgendeine Fundstelle von `accent-color`: der
+// Selektor muss den Haken dieser Huelle nennen und der Wert ein Token sein.
+[
+	["label-wiki", "\\.label-wiki-reference__check\\s+input\\s*\\{[^}]*accent-color:\\s*var\\(--"],
+	["dt", "\\.avm-wiki-assign\\s+\\.dt-check\\s+input\\s*\\{[^}]*accent-color:\\s*var\\(--"],
+].forEach(([huelle, muster]) => {
+	assert.ok(new RegExp(muster).test(allesCss),
+		"Huelle „" + huelle + "“: das Kaestchen „Kein Wiki-Artikel vorhanden“ hat keine token-basierte "
+		+ "`accent-color` -- der Browser faerbt es dann selbst, unter Windows BLAU (AGENTS.md §12)");
 	zaehl();
 });
 
@@ -502,11 +582,13 @@ function scheinBehaelter() {
 }
 
 // Ein Ziel, das genau EIN Merkmal traegt -- `aufKlick` fragt nacheinander nach zwei Selektoren.
-function scheinZiel(merkmal, wert) {
-	const element = {
+// ⚠️ `extras` traegt das, was ein Ereignis-Ziel ausser seinem Merkmal noch mitbringt -- beim
+// Haekchen des dritten Zustands ist das `checked`, und `aufAenderung` liest es direkt.
+function scheinZiel(merkmal, wert, extras) {
+	const element = Object.assign({
 		getAttribute: (name) => (name === merkmal ? wert : null),
 		hasAttribute: (name) => name === merkmal,
-	};
+	}, extras || {});
 	element.closest = (selektor) => (selektor === "[" + merkmal + "]" ? element : null);
 	return element;
 }
@@ -1010,6 +1092,219 @@ const trefferProbe = avesmapsWikiAssignWegTreffer(zeile);
 	assert.strictEqual(loesRufe[1].rumpf.dry_run, false);
 	assert.strictEqual(loesRufe[1].rumpf.confirm, "apply");
 	checks += 4;
+
+	// ── 13) DER DRITTE ZUSTAND, DURCH BEIDE OBERFLAECHEN GEFAHREN (Aufgabe 5c) ─────────────────
+	// 🔴 Aufgabe 5b hat gemessen, dass dem Weg genau der SCHREIBWEG fehlte: die Anreicherung ehrt
+	// den Merker vor jeder Typweiche und die Konfliktregel liest ihn auch fuer `path` -- aber
+	// `avesmapsUpdatePathFeatureDetails` las ihn nicht, und KEINER der zwei Payload-Bauer schickte
+	// ihn (je 0 Fundstellen). Nachzuruesten war er nur GANZ: Schreibweg plus BEIDE Bauer.
+	//
+	// 🪤 UND HIER STEHT DIE LEHRE AUS DER NACHPRUEFUNG VON 5b, WORTWOERTLICH BEFOLGT: eine Fixture,
+	// die MIT gesetztem Merker startet, kann nur EINE Richtung fahren -- beide Handgriffe darauf
+	// (abwaehlen, wieder anwaehlen) enden bei `false` bzw. „Schluessel fehlt". Ein Riegel, der `true`
+	// nie schickt, liess damals das ganze JS-Feld gruen. Es gibt deshalb je Oberflaeche ZWEI
+	// Fixtures, eine mit und eine ohne Merker, und je Richtung eine EIGENE Zusicherung.
+
+	/** Das Ereignis-Ziel des Haekchens -- `aufAenderung` liest `checked` direkt. */
+	function hakenZiel(gesetzt) {
+		return scheinZiel("data-wa-kein-artikel", "", { checked: gesetzt });
+	}
+
+	/** Ein Wege-Editor-Sandkasten, dessen EINZIGER Weg den Merker im gewaehlten Stand traegt. */
+	async function wegeEditorMitMerker(merker) {
+		const s = sandkastenBauen((url) => {
+			if (url.indexOf("action=list") !== -1) {
+				return { ok: true, ways: [{
+					public_id: "path-1", name: "Reichsstrasse-7", feature_subtype: "Strasse",
+					show_label: true, allowed_transports: ["caravan"], transport_seasons: {},
+					wiki_path: null, other_source: null, flow_direction: "", has_profile: true,
+					// 🔴 GENAU DAS FELD, das api/edit/map/paths-editor.php seit dem 16.08.2026 mitgibt.
+					// Seine Liste ist eine WEISSE LISTE -- ohne die Zeile dort kaeme hier `undefined` an
+					// und das Haekchen startete bei JEDEM Weg leer.
+					wiki_no_article: merker,
+				}], summary: { total: 1 }, calibration: null };
+			}
+			if (url.indexOf("action=detail") !== -1) { return { ok: true, length_units: 10, terrain: null, landscapes: [] }; }
+			return { ok: true };
+		});
+		vm.runInContext(fs.readFileSync(path.join(wurzel, "js/pages/wege-editor.js"), "utf8"), s.kasten,
+			{ filename: "wege-editor.js" });
+		await ruhe2();
+		const ziel = attrappe("row");
+		ziel.dataset.id = "path-1";
+		ziel.closest = () => ziel;
+		ziel.getAttribute = (n) => (n === "data-id" ? "path-1" : null);
+		s.elemente.wpList.zuhoerer.click({ target: ziel, preventDefault() {} });
+		await ruhe2();
+		return s;
+	}
+
+	/** „Speichern" wirklich druecken und den abgesetzten Rumpf holen. */
+	async function wegeEditorSpeichern(s) {
+		s.gesendet.length = 0;
+		s.elemente.wpSave.zuhoerer.click({ target: s.elemente.wpSave, preventDefault() {} });
+		await ruhe2();
+		const rufe = s.gesendet.filter((g) => g.rumpf && g.rumpf.action === "update_path_details");
+		assert.strictEqual(rufe.length, 1, "der Wege-Editor hat nicht genau einmal gespeichert: "
+			+ JSON.stringify(s.gesendet.map((g) => g.url)));
+		return rufe[0].rumpf;
+	}
+
+	// ---- 13a) WEGE-EDITOR, Fixture OHNE Merker: ungesetzt -> GESETZT --------------------------
+	const wOhne = await wegeEditorMitMerker(false);
+	const hostOhne = wOhne.elemente.wpWikiAssign;
+	assert.ok(hostOhne.innerHTML.indexOf("Kein Wiki-Artikel vorhanden") !== -1,
+		"der Wege-Editor zeigt den dritten Zustand gar nicht: " + hostOhne.innerHTML);
+	assert.ok(!/data-wa-kein-artikel checked/.test(hostOhne.innerHTML),
+		"das Haekchen startet gesetzt, obwohl der Weg den Merker nicht traegt");
+	// Unangetastet ⇒ der Schluessel fehlt. `update_path_details` liest das als „nicht geaendert".
+	const rumpfOhneAnfassen = await wegeEditorSpeichern(wOhne);
+	assert.ok(!("wiki_no_article" in rumpfOhneAnfassen),
+		"ein unangetastetes Haekchen steht im Speicher-Rumpf -- ein alter offener Editor naehme damit "
+		+ "die Entscheidung eines zweiten zurueck: " + JSON.stringify(rumpfOhneAnfassen));
+	// 🔴 DIE RICHTUNG, DIE 5b BLIND LIESS: frisch GESETZT muss als `true` ankommen.
+	hostOhne.zuhoerer.change({ target: hakenZiel(true), preventDefault() {} });
+	await ruhe();
+	assert.ok(String(wOhne.elemente.wpStatusText.textContent).indexOf("Kein Wiki-Artikel vorhanden") !== -1,
+		"das Umlegen des Haekchens meldet sich nirgends -- ein Haken, der nichts sagt, sieht aus wie "
+		+ "einer, der nichts tut: " + wOhne.elemente.wpStatusText.textContent);
+	// 🔴 UND DER ENTWURF GILT ALS UNGESPEICHERT. `markDirty()` setzt BEIDES -- die Speicherzeile und
+	// `state.draft.dirty`, an dem die Zeile in der Wegeliste haengt (wege-editor.js:443). Ein Haken,
+	// der den Entwurf nicht als schmutzig meldet, liesse den Editor glauben, es gaebe nichts zu
+	// speichern.
+	assert.strictEqual(wOhne.elemente.wpSaveMsg.textContent, "Ungespeicherte Änderungen.",
+		"das Umlegen des Haekchens meldet den Entwurf nicht als ungespeichert: "
+		+ wOhne.elemente.wpSaveMsg.textContent);
+	const rumpfGesetzt = await wegeEditorSpeichern(wOhne);
+	assert.strictEqual(rumpfGesetzt.wiki_no_article, true,
+		"der Wege-Editor schickt ein frisch GESETZTES Haekchen nicht mit -- der Merker kaeme nie beim "
+		+ "Server an: " + JSON.stringify(rumpfGesetzt));
+	checks += 6;
+
+	// ---- 13b) WEGE-EDITOR, Fixture MIT Merker: gesetzt -> ENTFERNT ----------------------------
+	const wMit = await wegeEditorMitMerker(true);
+	const hostMit = wMit.elemente.wpWikiAssign;
+	// 💣 Der ganze LESEWEG in einer Zusicherung: paths-editor.php → Liste → Entwurf →
+	// avesmapsWikiAssignWegZustand → Bauteil. Faellt eine Station aus, startet das Haekchen leer.
+	assert.ok(/data-wa-kein-artikel checked/.test(hostMit.innerHTML),
+		"der gespeicherte Merker erreicht das Haekchen des Wege-Editors nicht -- es startet leer: "
+		+ hostMit.innerHTML);
+	const rumpfMitUnberuehrt = await wegeEditorSpeichern(wMit);
+	assert.ok(!("wiki_no_article" in rumpfMitUnberuehrt),
+		"ein unangetastetes gesetztes Haekchen reist mit: " + JSON.stringify(rumpfMitUnberuehrt));
+	// 🔴 Gepruef wird VERAENDERT, nicht GESETZT: ein bewusst ENTFERNTES Haekchen muss als `false`
+	// durchkommen, sonst wird man den Merker nie wieder los.
+	hostMit.zuhoerer.change({ target: hakenZiel(false), preventDefault() {} });
+	await ruhe();
+	const rumpfEntfernt = await wegeEditorSpeichern(wMit);
+	assert.strictEqual(rumpfEntfernt.wiki_no_article, false,
+		"ein bewusst ENTFERNTES Haekchen wird verschluckt -- der Merker liesse sich nie wieder loeschen");
+	// Und zurueck auf den geladenen Wert heisst wieder „nichts zu schicken".
+	hostMit.zuhoerer.change({ target: hakenZiel(true), preventDefault() {} });
+	await ruhe();
+	assert.ok(!("wiki_no_article" in await wegeEditorSpeichern(wMit)),
+		"ein auf seinen geladenen Wert zurueckgelegtes Haekchen reist trotzdem mit");
+	checks += 4;
+
+	// ---- 13c) KARTENDIALOG: derselbe Ablauf an `buildPathEditPayload` -------------------------
+	// 🔴 NICHT der Bauer allein, sondern die VERDRAHTUNG: der Payload-Bauer wohnt in
+	// js/review/review-paths.js, das Haekchen im Bauteil, und dazwischen steht
+	// pathWikiKeinArtikelFuerPayload (js/review/review-path-wiki.js).
+	// ⚠️ `FormData` ist nachgebaut, und zwar mit der EINEN Eigenschaft, auf der die Regel steht: ein
+	// Feld, das es nicht gibt, liefert `null` -- nicht "".
+	const KARTEN_NACHBARN = "var pathEditFeature = null;"
+		+ "function apiErrorMessage(d, f) { return f; }"
+		+ "function showFeedbackToast() {}"
+		+ "function findPathByPublicId() { return null; }"
+		+ "function toggleOtherSourceSection() {}"
+		+ "function syncPathAutoNameControls() {}"
+		+ "function renderPathFlowSection() {}"
+		+ "var letzterStatus = '';"
+		+ "function setPathEditStatus(t) { letzterStatus = String(t || ''); }"
+		+ "function syncPathLabels() {}"
+		+ "function refreshPathLayerPopup() {}"
+		+ "function getPathDisplayName() { return 'Reichsstrasse-7'; }"
+		+ "function getPathDisplayNameOrGenerated(n) { return String(n || ''); }"
+		+ "function getNextPathDisplayName() { return 'Strasse-1'; }"
+		+ "function getDefaultTransportDomainForPathSubtype() { return 'land'; }"
+		+ "function normalizePathSubtype(v) { return String(v || 'Weg'); }"
+		+ "function readPathSeasonsFromForm() { return {}; }"
+		+ "function readOtherSourceFromForm() { return { url: '', label: '' }; }"
+		+ "function shouldPathNameBeDisplayed() { return true; }"
+		+ "function getPathEditFormElement() { return null; }"
+		+ "function acquireFeatureSoftLock() {}"
+		+ "var lastPathEditSettings = null;"
+		+ "function FormData(el) { this._w = (el && el.werte) || {}; }"
+		+ "FormData.prototype.get = function (n) {"
+		+ "  return Object.prototype.hasOwnProperty.call(this._w, n) ? this._w[n] : null; };";
+	const KARTEN_FORMULAR = { public_id: "path-7", name: "Reichsstrasse-7", feature_subtype: "Strasse", autoname: "on" };
+
+	async function kartendialogMitMerker(merker, zeichnen) {
+		const s = sandkastenBauen(() => ({ ok: true, rows: [] }));
+		vm.runInContext(KARTEN_NACHBARN, s.kasten);
+		vm.runInContext(fs.readFileSync(path.join(wurzel, "js/review/review-path-wiki.js"), "utf8"), s.kasten,
+			{ filename: "review-path-wiki.js" });
+		vm.runInContext(fs.readFileSync(path.join(wurzel, "js/review/review-paths.js"), "utf8"), s.kasten,
+			{ filename: "review-paths.js" });
+		vm.runInContext("pathEditFeature = { id: 'path-7', properties: { public_id: 'path-7',"
+			+ " feature_subtype: 'Strasse', wiki_no_article: " + (merker ? "true" : "false") + " } };", s.kasten);
+		if (zeichnen !== false) {
+			vm.runInContext("renderPathWikiReference();", s.kasten);
+			await ruhe();
+		}
+		s.baue = () => JSON.parse(vm.runInContext(
+			"JSON.stringify(buildPathEditPayload({ werte: " + JSON.stringify(KARTEN_FORMULAR)
+			+ ", querySelectorAll: function () { return []; } }))", s.kasten));
+		return s;
+	}
+
+	// Fixture OHNE Merker: ungesetzt -> GESETZT.
+	const kOhne = await kartendialogMitMerker(false);
+	const kHostOhne = kOhne.elemente["path-wiki-assign-host"];
+	assert.ok(kHostOhne.innerHTML.indexOf("Kein Wiki-Artikel vorhanden") !== -1,
+		"der Kartendialog zeigt den dritten Zustand gar nicht: " + kHostOhne.innerHTML);
+	assert.ok(!/data-wa-kein-artikel checked/.test(kHostOhne.innerHTML),
+		"das Haekchen startet gesetzt, obwohl der Weg den Merker nicht traegt");
+	assert.ok(!("wiki_no_article" in kOhne.baue()),
+		"ein unangetastetes Haekchen steht im Speicher-Payload des Kartendialogs");
+	kHostOhne.zuhoerer.change({ target: hakenZiel(true), preventDefault() {} });
+	await ruhe();
+	assert.ok(vm.runInContext("letzterStatus", kOhne.kasten).indexOf("Kein Wiki-Artikel vorhanden") !== -1,
+		"das Umlegen des Haekchens meldet sich im Kartendialog nirgends: "
+		+ vm.runInContext("letzterStatus", kOhne.kasten));
+	assert.strictEqual(kOhne.baue().wiki_no_article, true,
+		"der Kartendialog schickt ein frisch GESETZTES Haekchen nicht mit -- der Merker kaeme nie beim "
+		+ "Server an");
+	checks += 5;
+
+	// Fixture MIT Merker: gesetzt -> ENTFERNT.
+	const kMit = await kartendialogMitMerker(true);
+	const kHostMit = kMit.elemente["path-wiki-assign-host"];
+	// 💣 Der Leseweg des Kartendialogs: Kartenpayload → pathEditFeature.properties → pathWikiZustand.
+	assert.ok(/data-wa-kein-artikel checked/.test(kHostMit.innerHTML),
+		"der gespeicherte Merker erreicht das Haekchen des Kartendialogs nicht -- es startet leer: "
+		+ kHostMit.innerHTML);
+	assert.ok(!("wiki_no_article" in kMit.baue()),
+		"ein unangetastetes gesetztes Haekchen reist mit");
+	kHostMit.zuhoerer.change({ target: hakenZiel(false), preventDefault() {} });
+	await ruhe();
+	assert.strictEqual(kMit.baue().wiki_no_article, false,
+		"ein bewusst ENTFERNTES Haekchen wird verschluckt -- der Merker liesse sich nie wieder loeschen");
+	kHostMit.zuhoerer.change({ target: hakenZiel(true), preventDefault() {} });
+	await ruhe();
+	assert.ok(!("wiki_no_article" in kMit.baue()),
+		"ein auf seinen geladenen Wert zurueckgelegtes Haekchen reist trotzdem mit");
+	checks += 4;
+
+	// ---- 13d) DER BLINDGAENGER SCHICKT NICHTS ------------------------------------------------
+	// 🔴 Ist das Bauteil gar nicht angehaengt (eine fehlende `<script>`-Zeile nach einem
+	// Deploy-Fehlschlag, AGENTS.md §7), waere ein `false` eine Loeschung, die niemand angeordnet hat.
+	const kBlind = await kartendialogMitMerker(true, false);
+	assert.strictEqual(vm.runInContext("pathWikiKeinArtikelFuerPayload()", kBlind.kasten), null,
+		"ohne angehaengtes Bauteil liefert der Kartendialog einen Schreibwert fuer den Merker");
+	assert.ok(!("wiki_no_article" in kBlind.baue()),
+		"ohne angehaengtes Bauteil steht der Merker trotzdem im Payload");
+	checks += 2;
 
 	console.log("wiki-assign-weg: " + checks + " Zusicherungen erfuellt");
 })();

@@ -249,13 +249,16 @@
 .label-wiki-reference__check input {
 	cursor: pointer;
 	/* ⚠️ Ohne diese Zeile faerbt der Browser das Kaestchen in seiner Standardfarbe -- unter Windows
-	   BLAU, und Blau ist in der Bedienoberflaeche verboten (AGENTS.md §12). Der Weg zeigt den
-	   dritten Zustand heute gar nicht (seine Erklaerung fuehrt kein `keinArtikelHaken`), die Regel
-	   ist also noch stumm; sie steht trotzdem richtig da, damit die erste Objektart, die ihn
-	   bekommt, ihn nicht blau bekommt.
-	   🔧 `.dt-check input` (css/components/editor-page.css) hat dieselbe Luecke und ist im
-	   Kraftlinien-Editor LIVE. Nicht hier mitgeaendert: das ist eine sichtbare Aenderung an einer
-	   fremden Oberflaeche und gehoert in einen eigenen Gang (AGENTS.md §9). */
+	   BLAU, und Blau ist in der Bedienoberflaeche verboten (AGENTS.md §12).
+	   ✅ SEIT DEM 16.08.2026 IST SIE NICHT MEHR STUMM: der Weg traegt den dritten Zustand (Aufgabe
+	   5c, `extra.keinArtikelHaken` in js/ui/wiki-assign-registry.js), und der Kartendialog „Weg
+	   bearbeiten" zeichnet dieses Kaestchen. Hier stand bis dahin, sie sei noch ohne Wirkung.
+	   ✅ `.avm-wiki-assign .dt-check input` (css/components/editor-page.css) hat dieselbe Regel seit
+	   dem 16.08.2026 -- die zweite Huelle desselben Bauteils, eingeengt auf das Bauteil.
+	   🔧 Das ALLGEMEINE `.dt-check input` hat die Luecke weiterhin: „Auto-Name" und „Name auf der
+	   Karte anzeigen" im Wege-Editor und der Auto-Name des Landschaften-Editors sind blau. Nicht
+	   mitgeaendert -- eine sichtbare Aenderung an fremden Bedienelementen gehoert in einen eigenen
+	   Gang (AGENTS.md §9). */
 	accent-color: var(--color-accent);
 }
 

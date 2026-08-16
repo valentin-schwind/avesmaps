@@ -141,6 +141,13 @@ function avesmapsPathEditorList(PDO $pdo): array
                 'url' => (string) ($otherSource['url'] ?? ''),
                 'label' => (string) ($otherSource['label'] ?? ''),
             ],
+            // Der dritte Zustand („dieser Weg hat KEINEN Wiki-Artikel"). Der Wege-Editor zeichnet
+            // damit sein Haekchen und weiss, ob ein Speichern den Merker aendert.
+            // 💣 DIESE LISTE IST EINE WEISSE LISTE -- was hier nicht steht, erreicht den Editor nie.
+            // Ohne diese Zeile staende das Haekchen bei JEDEM Weg leer da, auch bei einem, fuer den
+            // laengst jemand entschieden hat; der Kartendialog daneben bekaeme es (der Kartenpayload
+            // reicht alle Eigenschaften durch) und die zwei Oberflaechen zeigten Verschiedenes.
+            'wiki_no_article' => !empty($properties['wiki_no_article']),
             'continent' => (string) ($properties['continent'] ?? ''),
             'has_profile' => isset($withProfile[(int) $row['id']]),
             'flow_direction' => (string) ($properties['flow_direction'] ?? ''),

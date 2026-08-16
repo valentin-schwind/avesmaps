@@ -87,20 +87,37 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			{ wiki: "laenge", karte: "", label: "Länge" },
 		],
 		sync: true, // ein Kartenziel (feature_subtype) -- also ein Knopf
-		// ⚠️ KEIN dritter Zustand -- und der GRUND hier stand bis zum 16.08.2026 falsch da („ein Merker
-		// daneben existiert nicht"). Gemessen: `properties.wiki_no_article` liegt im `properties_json`
-		// und ist NICHT an eine Objektart gebunden; die Anreicherung ehrt ihn vor jeder Typweiche
-		// (api/app/map-features.php:983), und die Konfliktregel liest ihn auch fuer `path`
-		// (api/_internal/conflicts/rules.php:29 + :371). Was WIRKLICH fehlt, ist der SCHREIBWEG:
-		// `avesmapsUpdatePathFeatureDetails` liest den Merker nicht (0 Fundstellen im Rumpf), und
-		// keiner der zwei Weg-Payload-Bauer schickt ihn (js/review/review-paths.js,
-		// js/pages/wege-editor.js -- je 0 Fundstellen). Der Brief zu Aufgabe 5b macht genau das zur
-		// Bedingung („wenn der Schreibweg der Wege ihn schon kennt"), und er kennt ihn nicht.
-		// 💣 Nachzuruesten waere er nur GANZ: beide Payload-Bauer plus der Schreibweg. Baut ihn nur
-		// einer, loescht der andere den Merker bei jedem Speichern still wieder -- die
-		// „vier Erzeuger"-Fehlerklasse aus AGENTS.md §11. ⚠️ Offen ist ausserdem, was mit einem
-		// vorhandenen flachen `properties.wiki_url` eines Wegs geschehen soll: der Ort leert es beim
-		// Anhaken (er hat ein Feld dafuer), der Weg hat gar keines. Offen gemeldet, nicht geraten.
+		extra: {
+			// 🔴 DER DRITTE ZUSTAND, seit 16.08.2026 auch beim Weg (Aufgabe 5c). Bis dahin stand hier
+			// „KEIN dritter Zustand", und der Grund war gemessen richtig: die LESESEITE trug den Merker
+			// laengst -- die Anreicherung ehrt ihn vor jeder Typweiche
+			// (avesmapsEnrichMapFeatureWikiUrl, api/app/map-features.php:983) und die Konfliktregel
+			// liest ihn auch fuer `path` (api/_internal/conflicts/rules.php:29 + :371) --, aber es gab
+			// keinen SCHREIBWEG. Er steht jetzt in avesmapsApplyPathWikiNoArticle
+			// (api/_internal/map/features.php:2351), und BEIDE Payload-Bauer schicken den Merker:
+			// buildPathEditPayload (js/review/review-paths.js:180) und saveDraft
+			// (js/pages/wege-editor.js:774). Der Wege-Editor bekommt ihn ueber die weisse Liste seiner
+			// Wegeliste (api/edit/map/paths-editor.php:150), der Kartendialog ueber den Kartenpayload.
+			// WIRKLICHKEIT nach dem Umbau gemessen, nicht davor.
+			// 💣 Nur einen der zwei PAYLOAD-BAUER zu bedienen waere die „vier Erzeuger"-Fehlerklasse aus
+			// AGENTS.md §11 gewesen: die andere Oberflaeche koennte den Merker nie aendern.
+			// 💣 Und der Weg hat ZWEI Zuweiser, die den Merker beim Zuweisen loeschen muessen:
+			// avesmapsWikiPathAssign (api/_internal/wiki/paths.php:975, Massenlauf) und
+			// avesmapsWikiPathAssignTo (:1085, der Knopf hier).
+			// 🔴 UND DAS ANHAKEN LEERT EINE GESPEICHERTE FLACHE `properties.wiki_url` (Owner-Entscheid
+			// 16.08.2026). Der Weg hat in keiner seiner zwei Oberflaechen ein Adressfeld; ein
+			// serverseitiger Riegel waere hier eine Absage ohne Ausweg. Die Begruendung steht
+			// ausgeschrieben an der Schreibstelle.
+			keinArtikelHaken: true,
+			// ⚠️ Der zweite Halbsatz ist tragend (wie bei Ort und Kraftlinie): der Merker ist NICHT
+			// endgueltig -- taucht im Wiki ein Artikel auf, kommt der Fall von selbst zurueck. Ohne ihn
+			// liest er sich als „nie wieder" und die Wiedervorlage wirkt wie ein Fehler.
+			// ⚠️ „diesen Weg", nicht „den Weg": der Merker haengt am gewaehlten Wegstueck. Anders als
+			// `assign_to`, das ALLE gleichnamigen Segmente zugleich erfasst, schreibt
+			// `update_path_details` nur das eine Feature -- und das steht hier, damit niemand die
+			// Reichweite des einen fuer die des anderen haelt.
+			keinArtikelHinweis: "Nimmt diesen Weg aus der Konfliktliste — bis im Wiki einer auftaucht.",
+		},
 	},
 	ort: {
 		label: "Wiki-Ort",

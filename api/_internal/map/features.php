@@ -2316,6 +2316,58 @@ function avesmapsApplyTransportSeasonsToWikiSiblings(
     return $written;
 }
 
+/**
+ * REIN: der DRITTE ZUSTAND eines Weges („dieser Weg hat KEINEN Wiki-Artikel") in seinen
+ * Eigenschaften. Vorbild und Zwilling: avesmapsApplyPointWikiFields (Ort) und der Linien-Schreibweg
+ * der Kraftlinien -- es gibt KEINEN zweiten Mechanismus, nur diesen Merker `wiki_no_article`.
+ *
+ * 💣 ABWESENHEIT HEISST „NICHT GEAENDERT", und zwar aus demselben Grund wie beim Ort:
+ * `update_path_details` hat ZWEI Schreiber (buildPathEditPayload in js/review/review-paths.js und
+ * saveDraft in js/pages/wege-editor.js) und dazu die Ladeluecke eines Deploys (AGENTS.md §7). Eine
+ * gecachte Oberflaeche, die das Feld noch nicht kennt, wuerde mit `?? false` bei JEDEM Speichern die
+ * Entscheidung des Konfliktzentrums stillschweigend zuruecknehmen. Ein Schreiber, der ein Feld nicht
+ * kennt, darf es nicht loeschen.
+ *
+ * ⚠️ Der Merker steht nur drin, wenn er WAHR ist -- als `false` wird er nirgends abgelegt, sonst
+ * liesse er sich spaeter nicht von „nie entschieden" unterscheiden (dieselbe Regel wie bei
+ * avesmapsPowerlineInheritedLineFields und avesmapsApplyPointWikiFields).
+ *
+ * 🔴 DAS ANHAKEN LEERT EINE GESPEICHERTE FLACHE ADRESSE (Owner-Entscheid 16.08.2026). Die Begruendung
+ * steht hier, damit sie niemand zurueckdreht: das Haekchen sagt „es gibt keinen Artikel", eine
+ * gespeicherte Adresse widerspricht dem, und der Ort macht es seit dem 16.08.2026 genauso
+ * (settlementWikiKeinArtikelGeaendert leert dort das Feld schon im Browser). Die Alternative -- der
+ * Server VERWEIGERT das Haekchen -- waere beim Weg eine Absage ohne Ausweg: er hat in KEINER seiner
+ * zwei Oberflaechen ein Adressfeld, und `update_path_details` schickt `wiki_url` gar nicht mit; der
+ * Editor bekaeme eine Absage, deren Ursache er nirgends sieht und nirgends beheben kann.
+ * ⚠️ Beim ABwaehlen wird nichts zurueckgeholt: eine geloeschte Adresse zu erraten ist genau der
+ * Fehler, den der Merker beseitigt.
+ *
+ * 🔴 DER WIDERSPRUCHS-RIEGEL STEHT DESHALB NACH DEM LEEREN und kann heute nicht zuschlagen. Er ist
+ * trotzdem kein toter Code, sondern die Wache ueber genau die Zeile darueber: nimmt jemand das
+ * `unset` heraus, wird aus einem still gespeicherten Widerspruch eine laute Absage. Die Formulierung
+ * ist die GETEILTE (avesmapsAssertWikiClaimNotContradictory) -- Ort, Weg und Kraftlinie begruenden
+ * denselben Widerspruch nicht dreimal verschieden.
+ */
+function avesmapsApplyPathWikiNoArticle(array $properties, array $payload): array {
+    $noArticle = array_key_exists('wiki_no_article', $payload)
+        ? avesmapsReadBoolean($payload['wiki_no_article'])
+        : !empty($properties['wiki_no_article']);
+    if ($noArticle) {
+        $properties['wiki_no_article'] = true;
+        unset($properties['wiki_url']);
+    } else {
+        unset($properties['wiki_no_article']);
+    }
+    avesmapsAssertWikiClaimNotContradictory(
+        (string) ($properties['wiki_url'] ?? ''),
+        $noArticle,
+        'Ein Weg',
+        'Bitte das Häkchen „Kein Wiki-Artikel vorhanden“ abwählen.'
+    );
+
+    return $properties;
+}
+
 function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
     $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Wegname');
@@ -2347,6 +2399,10 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         } else {
             $properties['transport_seasons'] = $transportSeasons;
         }
+        // Der dritte Zustand („dieser Weg hat KEINEN Wiki-Artikel"). 💣 Die ganze Entscheidung steht
+        // in avesmapsApplyPathWikiNoArticle, nicht hier: sie ist rein und damit ohne Datenbank
+        // pruefbar -- und sie ist die EINZIGE Stelle, an der der Merker eines Weges entsteht.
+        $properties = avesmapsApplyPathWikiNoArticle($properties, $payload);
         $otherSource = avesmapsReadOptionalOtherSource($payload['other_source'] ?? null);
         if ($otherSource === null) {
             unset($properties['other_source']);
@@ -3203,6 +3259,15 @@ function avesmapsBuildLineStringFeatureResponse(string $publicId, string $name, 
     $properties['feature_type'] = 'path';
     $properties['feature_subtype'] = $subtype;
     $properties['revision'] = $revision;
+    // 🔴 DER DRITTE ZUSTAND STEHT AUSDRUECKLICH DRIN, AUCH ALS `false` -- anders als im
+    // properties_json, wo ein `false` nie abgelegt wird.
+    // 💣 Der Grund ist der Leser: applyPathFeatureResponse (js/map-features/map-features-path-
+    // lifecycle.js) MISCHT die Antwort in die vorhandenen Eigenschaften (`{...alt, ...neu}`). Ein
+    // WEGGELASSENER Schluessel loescht dort nichts, er laesst den alten stehen -- ein gerade
+    // abgewaehltes Haekchen saehe beim naechsten Oeffnen des Dialogs wieder gesetzt aus, obwohl der
+    // Server es geloescht hat, und der Editor haette keine Erklaerung dafuer. Dieselbe Pflicht und
+    // derselbe Grund wie bei avesmapsBuildPointFeatureResponse.
+    $properties['wiki_no_article'] = !empty($properties['wiki_no_article']);
 
     return [
         'type' => 'Feature',

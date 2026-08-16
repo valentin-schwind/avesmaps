@@ -960,6 +960,19 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $us
             $newName = $canonicalName !== '' ? $canonicalName : (string) $p['name'];
             $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
             $props['wiki_path'] = $assignObject;
+            // 🔴 EINE ZUWEISUNG LOESCHT DEN MERKER „kein Wiki-Artikel". Wer gerade einen Artikel
+            // zuweist, hat das fruehere „es gibt keinen" widerlegt -- beides zugleich ist der
+            // verbotene Zustand (avesmapsAssertWikiClaimNotContradictory). Wortgleiches Vorbild:
+            // der Ort (avesmapsWikiSettlementAssignTo) und der Kraftlinien-Abgleich
+            // (api/_internal/wiki/powerlines.php).
+            // 💣 DER WEG HAT ZWEI ZUWEISER, UND DIE ZEILE MUSS IN BEIDEN STEHEN:
+            // avesmapsWikiPathAssign (Massenlauf des WikiSync-Panels) und avesmapsWikiPathAssignTo
+            // (der Knopf „Zuweisen" in beiden Editor-Oberflaechen). Nur einen zu bedienen ist die
+            // Fehlerklasse aus AGENTS.md §11 -- der andere liesse den Merker neben dem frischen
+            // Nest stehen.
+            // ⚠️ `clear_assign` tut das ausdruecklich NICHT: „diese Verbindung war falsch" ist
+            // nicht „es gibt keinen Artikel".
+            unset($props['wiki_no_article']);
             $props['name'] = $newName;
             $props['display_name'] = $newName;
             $update->execute(['name' => $newName, 'pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
@@ -1057,6 +1070,19 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
             $newName = $canonicalName !== '' ? $canonicalName : (string) $p['name'];
             $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
             $props['wiki_path'] = $assignObject;
+            // 🔴 EINE ZUWEISUNG LOESCHT DEN MERKER „kein Wiki-Artikel". Wer gerade einen Artikel
+            // zuweist, hat das fruehere „es gibt keinen" widerlegt -- beides zugleich ist der
+            // verbotene Zustand (avesmapsAssertWikiClaimNotContradictory). Wortgleiches Vorbild:
+            // der Ort (avesmapsWikiSettlementAssignTo) und der Kraftlinien-Abgleich
+            // (api/_internal/wiki/powerlines.php).
+            // 💣 DER WEG HAT ZWEI ZUWEISER, UND DIE ZEILE MUSS IN BEIDEN STEHEN:
+            // avesmapsWikiPathAssign (Massenlauf des WikiSync-Panels) und avesmapsWikiPathAssignTo
+            // (der Knopf „Zuweisen" in beiden Editor-Oberflaechen). Nur einen zu bedienen ist die
+            // Fehlerklasse aus AGENTS.md §11 -- der andere liesse den Merker neben dem frischen
+            // Nest stehen.
+            // ⚠️ `clear_assign` tut das ausdruecklich NICHT: „diese Verbindung war falsch" ist
+            // nicht „es gibt keinen Artikel".
+            unset($props['wiki_no_article']);
             $props['name'] = $newName;
             $props['display_name'] = $newName;
             $update = $pdo->prepare('UPDATE map_features SET name = :name, properties_json = :pj, revision = :rev WHERE id = :id');

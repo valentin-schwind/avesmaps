@@ -101,12 +101,61 @@ function pathWikiZustand() {
 	}
 	return avesmapsWikiAssignWegZustand({
 		wiki_path: pathWikiCurrentAssignment(),
+		// 🔴 Der dritte Zustand kommt aus dem Kartenpayload: der reicht ALLE Eigenschaften des Features
+		// durch (api/app/map-features.php), und `update_path_details` schreibt den Merker seither in
+		// genau dieses Feld zurueck (applyPathFeatureResponse mischt die Antwort hinein).
+		// ⚠️ Ein WERT, keine Lesefunktion -- anders als der Wegtyp darunter. Das Haekchen wohnt IM
+		// Bauteil; ausserhalb gibt es nichts, was sich zwischendurch aendern koennte.
+		kein_artikel: pathEditFeature.properties.wiki_no_article === true,
 		// 💣 Eine LESEFUNKTION, kein Wert: der Wegtyp steht im Formular gleich ueber dem Kasten und
 		// kann sich zwischen `laden` und dem Druck auf „Sync" geaendert haben. Eingefroren boete die
 		// Vorschau dann einen Wechsel an, den die Auswahl daneben laengst zeigt.
 		feature_subtype: () => pathWikiElement("path-edit-type")?.value
 			|| (pathEditFeature && pathEditFeature.properties ? pathEditFeature.properties.feature_subtype : "") || "",
 	});
+}
+
+/**
+ * Was ein „Speichern“ ueber den dritten Zustand schreiben soll -- oder `null` fuer „nicht schicken“.
+ * Zwilling: settlementWikiKeinArtikelFuerPayload (js/review/review-settlement-wiki.js).
+ *
+ * 🔴 ZWEI Gruende fuer `null`, und beide sind wichtig:
+ *   · das Bauteil ist nicht `bereit` (Blindgaenger nach einem Deploy-Fehlschlag, oder ein
+ *     gescheiterter Ladelauf) -- ein `false` waere dann eine Loeschung ohne Anordnung;
+ *   · das Haekchen wurde seit dem Laden gar nicht ANGEFASST (Owner-Entscheid 16.08.2026, anstelle
+ *     eines `expected_revision`). Ein alter offener Dialog nimmt sonst beim naechsten beliebigen
+ *     Speichern die Entscheidung eines zweiten Editors zurueck.
+ *
+ * 💣 GEPRUEFT WIRD VERAENDERT, NICHT GESETZT. Ein bewusst ENTFERNTES Haekchen schickt `false` und
+ * loescht den Merker -- hinge der Riegel an „gesetzt“, wuerde man ihn nie wieder los.
+ */
+function pathWikiKeinArtikelFuerPayload() {
+	if (!pathWikiAssign || !pathWikiAssign.bereit) {
+		return null;
+	}
+	const stand = pathWikiAssign.lies();
+	if (!stand || stand.kein_artikel_geaendert !== true) {
+		return null;
+	}
+	return stand.kein_artikel === true;
+}
+
+/**
+ * Das Haekchen wurde umgelegt -- gespeichert ist damit noch nichts.
+ *
+ * ⚠️ ANDERS ALS BEIM ORT wird hier KEIN Adressfeld geleert, und das ist kein Vergessen: der Weg hat
+ * in keiner seiner zwei Oberflaechen ein `wiki_url`-Feld, und `update_path_details` schickt die
+ * Adresse gar nicht mit. Das Leeren einer gespeicherten `properties.wiki_url` uebernimmt deshalb der
+ * SERVER (avesmapsApplyPathWikiNoArticle, Owner-Entscheid 16.08.2026) -- die Begruendung steht dort.
+ * Was hier bleibt, ist die Rueckmeldung: ein Haken, der nichts sagt, sieht aus wie einer, der nichts
+ * tut.
+ */
+function pathWikiKeinArtikelGeaendert(gesetzt) {
+	if (typeof setPathEditStatus === "function") {
+		setPathEditStatus(gesetzt
+			? "„Kein Wiki-Artikel vorhanden“ gesetzt — noch nicht gespeichert."
+			: "„Kein Wiki-Artikel vorhanden“ entfernt — noch nicht gespeichert.");
+	}
 }
 
 // Was neben dem Zuweisungskasten am Zustand haengt: der Quellen-Abschnitt („Andere Quelle" gibt es
@@ -258,6 +307,7 @@ function renderPathWikiReference() {
 		zuweisen: pathWikiZuweisen,
 		loesen: pathWikiLoesen,
 		syncUebernehmen: pathWikiSyncUebernehmen,
+		keinArtikelGeaendert: pathWikiKeinArtikelGeaendert,
 	});
 }
 

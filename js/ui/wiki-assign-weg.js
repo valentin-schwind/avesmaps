@@ -178,7 +178,13 @@ function avesmapsWikiAssignWegArtikel(wikiPath) {
  * Server antwortet nicht“, sondern „es ist gar kein Weg gewaehlt“, und der wird genauso behandelt:
  * geworfen, nicht beschoenigt.
  *
- * @param {Object|null} quelle  { wiki_path, feature_subtype }
+ * 🔴 DER DRITTE ZUSTAND REIST MIT (`kein_artikel`), seit 16.08.2026 auch beim Weg. Er ist NICHT aus
+ * der Zuweisung ableitbar: „keine Zuweisung“ heisst „noch niemand hat nachgesehen“, der Merker
+ * heisst „jemand HAT nachgesehen und es gibt keinen“. Genau diese negative Aussage nimmt den Weg aus
+ * der Beobachtungsliste des Konfliktzentrums (api/_internal/conflicts/rules.php) und laesst die
+ * Anreicherung das Adressraten bleiben (api/app/map-features.php).
+ *
+ * @param {Object|null} quelle  { wiki_path, kein_artikel, feature_subtype }
  */
 function avesmapsWikiAssignWegZustand(quelle) {
 	if (!quelle || typeof quelle !== "object" || Array.isArray(quelle)) {
@@ -204,7 +210,11 @@ function avesmapsWikiAssignWegZustand(quelle) {
 	} else {
 		kartenwerte.feature_subtype = avesmapsWikiAssignWegText(quelle.feature_subtype);
 	}
-	return { artikel: avesmapsWikiAssignWegArtikel(quelle.wiki_path), kartenwerte: kartenwerte };
+	return {
+		artikel: avesmapsWikiAssignWegArtikel(quelle.wiki_path),
+		keinArtikel: quelle.kein_artikel === true,
+		kartenwerte: kartenwerte,
+	};
 }
 
 /** REIN: der Rumpf der Zuweisung. Beide Oberflaechen schicken denselben -- mit `dry_run:false` UND

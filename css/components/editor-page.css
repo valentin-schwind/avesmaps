@@ -684,6 +684,24 @@ body.avm-editor-body {
 	background: var(--color-button-hover);
 }
 
+/* Das Kaestchen des dritten Zustands („Kein Wiki-Artikel vorhanden").
+   ⚠️ Ohne `accent-color` faerbt der Browser es in seiner Standardfarbe -- unter Windows BLAU, und
+      Blau ist in der Bedienoberflaeche verboten (AGENTS.md §12). Gegenstueck:
+      `.label-wiki-reference__check input` (css/components/region-sync.css), die es seit Aufgabe 4
+      richtig macht -- die zwei Huellen desselben Bauteils sahen sonst verschieden aus.
+   💣 Es ist DIESELBE Luecke, die `.dt-check input` weiter oben hat, und sie wird hier NICHT
+      allgemein geschlossen: `.dt-check` traegt auch „Auto-Name" und „Name auf der Karte anzeigen"
+      im Wege-Editor und den Auto-Namen des Landschaften-Editors. Die einzeln umzufaerben ist eine
+      sichtbare Aenderung an fremden Bedienelementen und gehoert in einen eigenen Gang (AGENTS.md
+      §9). Eingeengt auf .avm-wiki-assign trifft die Regel nur das Bauteil selbst -- dieselbe
+      Einengung und derselbe Grund wie bei `button.primary` darueber.
+   ⭐ Derselbe Token wie die Haken der Sync-Vorschau nebenan (`.dt-sync-row input`); innerhalb EINES
+      Kastens zwei verschiedene Haken-Farben waere genau die Divergenz, gegen die das Bauteil
+      gebaut wurde. */
+.avm-wiki-assign .dt-check input {
+	accent-color: var(--color-accent);
+}
+
 /* ---- Trefferliste ---------------------------------------------------------------------------
    Massgabe ist .label-wiki-picker-list in region-sync.css: dieselbe Rolle, dieselbe Hoehe,
    dieselben Toene -- nur die Namen folgen der Huelle, in der sie stehen. */
