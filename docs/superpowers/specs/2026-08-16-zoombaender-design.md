@@ -100,10 +100,16 @@ schon vornimmt.
 | dorf | — | — | — | — | 10 | 11 | 11 | 11 |
 | gebaeude | — | — | — | — | 9 | 9 | 9 | 9 |
 
-⚠️ Die leeren Zellen in der Namenstabelle sind **kein Verlust**. `LOCATION_NAME_LABEL_SIZE_BY_ZOOM`
-führt dort heute Werte (Stadt z0/z1 = 8, Dorf z0–z3 = 8, …), die nie gelesen werden, weil
-`shouldShowLocationNameLabel` vorher aussteigt. Sie verschwinden zusammen mit der Konstante, die
-sie trug.
+⚠️ Die leeren Zellen der Namenstabelle sind für **fünf** der sechs Klassen kein Verlust:
+`LOCATION_NAME_LABEL_SIZE_BY_ZOOM` führt dort Werte (Stadt z0/z1 = 8, Kleinstadt z0–z2 = 8, …), die
+nie gelesen werden, weil `shouldShowLocationNameLabel` vorher aussteigt.
+
+🪤 **Für die Dorf-Zeile stimmt das NICHT — und dieser Satz stand hier bis zum 16.08.2026 falsch.**
+`getLocationNameLabelSize("dorf")` wird von den Wegenamen bei **jeder** Zoomstufe gerufen, auch
+unter z4, wo das Dorf gar keinen Namen trägt. Bei z3 liefert die Zeile heute **8,5**, und daraus
+wird die Straßenschrift 9,5. Eine leere Zelle dort hätte sie stumm auf 9 gedrückt — eine sichtbare
+Änderung an jeder Straßenbeschriftung der Karte, ausgelöst von einer Zelle, die „ohnehin tot" hieß.
+Die Auflösung steht in §6.
 
 ## 4. Wo die Wahrheit liegt
 
@@ -256,11 +262,28 @@ dem Stand davor und danach.
 
 ## 6. Drei Kopplungen, die beim Bauen wehtun
 
-💣 **Die Dorf-Zeile ist nicht nur die Dorf-Zeile.** `getLocationNameLabelSize("dorf")` ist die
-Grundgröße der **Wegenamen** (`map-features-path-labels.js:131`: +1, Flussnamen +3) und der
-**Kraftlinien-Namen** (`map-features-powerlines.js:159`: +7, mindestens 18). Wer Dörfer kleiner
-stellt, schrumpft die Straßenbeschriftung mit. Das steht als Hinweis **an der Zeile im Fenster**,
-nicht versteckt in der Doku.
+💣 **Die Dorf-Zeile ist heute nicht nur die Dorf-Zeile — und dieser Umbau trennt sie.**
+`getLocationNameLabelSize("dorf")` ist die Grundgröße der **Wegenamen**
+(`map-features-path-labels.js:131`: +1, Flussnamen +3) und der **Kraftlinien-Namen**
+(`map-features-powerlines.js:159`: +7, mindestens 18).
+
+🔴 **Entscheidung: die Wegenamen bekommen ihre eigene Grundtafel** —
+`PATH_LABEL_BASE_SIZE_BY_ZOOM` in `map-features-path-labels.js`, buchstäblich die heutige
+Dorf-Zeile (`{0:8, 1:8, 2:8, 3:8.5, 4:10, 5:11}`). Damit ändert sich am Auslieferungstag **nichts**,
+und die Kopplung ist weg: wer Dörfer verstellt, verstellt Dörfer.
+
+Der Grund ist nicht Reinheit, sondern die Falle aus §3.2: die Dorf-Zeile muss unter z4 leer werden
+können (dort trägt ein Dorf keinen Namen), und ein Leser, der bei z0–z3 trotzdem eine Zahl braucht,
+zwingt entweder die Zelle zurück ins Leben oder erfindet einen Rückfallwert. Beides ist schlechter
+als eine eigene Tafel für eine andere Sache.
+
+⭐ Die Kraftlinien-Namen erben dieselbe Tafel. Nachgerechnet ist ihr Wert heute **immer 18**
+(`max(18, dorf + 7)` — die Dorf-Zeile erreicht höchstens 11), die Kopplung war dort also ohnehin
+schon wirkungslos.
+
+⚠️ Was der Owner damit aufgibt: Dorfschrift zu verstellen zieht die Straßenschrift **nicht** mehr
+mit. Soll sie das je wieder, ist `PATH_LABEL_BASE_SIZE_BY_ZOOM` die eine Stelle — und dann als
+eigene Zeile im Fenster, nicht als Nebenwirkung.
 
 💣 **Der Deckel bei z5 ist geteilt.** `getVisualZoomLevel` klemmt auf 5, und `path-labels.js:40`
 rechnet ausdrücklich mit demselben Index („Gleicher Zoom-Index wie die Basis"). Die Ausdehnung der
