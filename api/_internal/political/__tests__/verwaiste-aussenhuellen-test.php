@@ -193,6 +193,19 @@ $result = avesmapsPoliticalDeleteDerivedGeometryForTerritory($pdo, $geistRow, ['
 assert($result['hard'] === true, 'der Geist wird hart geloescht');
 $rest = $pdo->query("SELECT COUNT(*) FROM political_territory_derived_geometry WHERE public_id = 'd-geist'")->fetchColumn();
 assert((int) $rest === 0, 'und ist wirklich weg, nicht nur abgeschaltet');
+// 🔴 Weg heisst weg -- also bleibt wenigstens EIN Beleg. Der weiche Zweig schrieb updated_by, der
+// harte hinterliess bis 16.08.2026 gar nichts.
+$protokoll = $pdo->query("SELECT action, actor_user_id, before_json FROM political_territory_geometry_audit_log WHERE action = 'hard_delete_derived_geometry' ORDER BY id DESC LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+assert(is_array($protokoll), 'das harte Loeschen steht im Protokoll');
+assert((int) $protokoll['actor_user_id'] === 7, 'mit dem, der es ausgeloest hat');
+assert(str_contains((string) $protokoll['before_json'], 'd-geist'), 'und mit der Huelle, die es getroffen hat');
+// 💣 NICHT unter `geometries`: die Undo-Maschine schriebe alles, was dort steht, in
+// political_territory_geometry zurueck -- eine Huelle gehoert dort nicht hin.
+$vorher = json_decode((string) $protokoll['before_json'], true);
+assert(($vorher['geometries'] ?? null) === [], 'der Eintrag traegt KEINE Kontur');
+assert(isset($vorher['derived_geometries']['d-geist']), 'sondern die Huelle unter eigenem Schluessel');
+assert(avesmapsPoliticalCanUndoGeometryAuditAction('hard_delete_derived_geometry') === false,
+    'und er ist ausdruecklich kein Rueckweg -- ein Beleg, mehr nicht');
 
 $aggrRow = ['id' => 3, 'public_id' => 'p-aggr'];
 $result = avesmapsPoliticalDeleteDerivedGeometryForTerritory($pdo, $aggrRow, ['id' => 7]);
