@@ -1884,12 +1884,17 @@
 					<input id="region-edit-territory-public-id" name="territory_public_id" type="hidden" />
 					<input id="region-edit-geometry-public-id" name="geometry_public_id" type="hidden" />
 					<input id="region-edit-wiki-id" name="wiki_id" type="hidden" />
-					<section id="region-edit-wiki-reference" class="political-territory-wiki-reference political-territory-field" aria-labelledby="region-edit-wiki-reference-title">
-						<div class="political-territory-wiki-reference__header">
-							<h3 id="region-edit-wiki-reference-title">Wiki-Referenz</h3>
-							<button id="region-edit-change-wiki" class="location-report-form__button location-report-form__button--secondary" type="button">Wiki-Referenz ändern</button>
-						</div>
-						<dl id="region-edit-wiki-reference-list"></dl>
+					<!-- Die Wiki-Zuweisung, EIN Bauteil (js/ui/wiki-assign.js, Huelle „label-wiki",
+					     Objektart „territorium"). 💣 Der Behaelter ist ein BLANKES div: die Huelle
+					     `.label-wiki-reference` erzeugt das Bauteil selbst, ein vorgegebenes traege den
+					     Kasten doppelt geschachtelt. ⚠️ Auch die Ueberschrift kommt von dort -- ein
+					     eigenes <h3> daneben waere die zweite. Der <section>-Rahmen bleibt, weil
+					     `political-territory-field` der Sichtbarkeits-Riegel ist
+					     (syncRegionTerritoryFieldVisibility): nur Herrschaftsgebiete sehen den Kasten.
+					     🔴 „Wiki-Referenz aendern" samt eigenem Fenster (#region-wiki-picker-overlay)
+					     ist mit dem Umbau gefallen -- gesucht wird IM Kasten. -->
+					<section class="political-territory-field">
+						<div id="territory-wiki-assign-host"></div>
 					</section>
 					<section class="location-report-form__field political-territory-field political-territory-tree-panel">
 						<span>Parent/Hierarchie</span>
@@ -2001,25 +2006,6 @@
 						<button id="region-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
 					</div>
 				</form>
-			</div>
-		</div>
-		<div id="region-wiki-picker-overlay" hidden>
-			<div id="region-wiki-picker-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="region-wiki-picker-title" tabindex="-1">
-				<div class="location-report-dialog__header">
-					<h2 id="region-wiki-picker-title">Wiki-Referenz ändern</h2>
-					<button id="region-wiki-picker-close" class="location-report-dialog__close" type="button" aria-label="Wiki-Referenz schließen">×</button>
-				</div>
-				<div class="location-report-form">
-					<label class="location-report-form__field">
-						<span>Wiki-Eintrag suchen</span>
-						<input id="region-wiki-picker-filter" type="search" autocomplete="off" placeholder="Name, Typ, Zugehörigkeit" />
-					</label>
-					<div id="region-wiki-picker-list" class="political-territory-wiki-picker-list" role="listbox"></div>
-					<p id="region-wiki-picker-status" class="location-report-form__status" role="status" aria-live="polite"></p>
-					<div class="location-report-form__actions">
-						<button id="region-wiki-picker-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
-					</div>
-				</div>
 			</div>
 		</div>
 		<!-- Social-Media-Hub, Entwurf §2.3. 💣 Die ID steht in DREI Selektorlisten in
@@ -3058,6 +3044,9 @@
 		     laeuft in einer IIFE, die erst beim Oeffnen des Dialogs zugreift, aber die Ladeordnung von
 		     index.html ist Vertrag (AGENTS.md §3) und wird nicht dem Zufall ueberlassen. -->
 		<script src="js/ui/wiki-assign-landschaft.js"></script>
+		<!-- Der Datenweg des Herrschaftsgebiets (Aufgabe 7). Er MUSS vor
+		     js/review/review-region-wiki-picker.js stehen, das ihn ruft. -->
+		<script src="js/ui/wiki-assign-territorium.js"></script>
 		<!-- Die DRITTE Oberflaeche derselben Wiki-Landschaft: der Label-Dialog. Sie heftet sie an ein
 		     map_features-Label statt an die gezeichnete Flaeche, hat deshalb eine eigene Erklaerung
 		     (`landschaftslabel`) -- und teilt sich den Datenweg mit der Zeile darueber.

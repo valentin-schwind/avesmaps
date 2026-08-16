@@ -542,6 +542,7 @@ function skripteAus(htmlDatei, muster) {
 	assert.deepStrictEqual(dialogSkripte, [
 		"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-assign.js",
 		"js/ui/wiki-assign-weg.js", "js/ui/wiki-assign-ort.js", "js/ui/wiki-assign-landschaft.js",
+		"js/ui/wiki-assign-territorium.js",
 		"js/review/review-settlement-wiki.js",
 	], "index.html bindet die Wiki-Zuweisung nicht (oder in der falschen Reihenfolge): " + dialogSkripte.join(" "));
 	zaehl();

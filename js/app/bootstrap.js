@@ -655,14 +655,10 @@ $("#region-edit-parent-filter-clear").on("click", () => {
     $("#region-edit-parent-filter").val("");
     updateRegionParentFilter("");
 });
-$("#region-edit-change-wiki").on("click", () => void openRegionWikiPickerDialog());
-$("#region-wiki-picker-close, #region-wiki-picker-cancel").on("click", () => setRegionWikiPickerDialogOpen(false));
-$("#region-wiki-picker-filter").on("input search", function () {
-    renderRegionWikiPickerList(this.value || "");
-});
-$("#region-wiki-picker-list").on("click", "[data-wiki-reference-id]", function () {
-    applyRegionWikiReferenceSelection(this.dataset.wikiReferenceId || "");
-});
+// 🔴 Hier standen fuenf Zuhoerer fuer das eigene Fenster „Wiki-Referenz aendern"
+// (#region-wiki-picker-overlay). Seit dem 16.08.2026 traegt das geteilte Bauteil die Suche IM Kasten
+// (js/review/review-region-wiki-picker.js) und braucht keinen einzigen -- es haengt seine Zuhoerer
+// selbst an seinen Behaelter und nimmt sie in `zerstoeren()` wieder ab.
 $("#region-operation-cancel").on("click", cancelPendingRegionOperation);
 $("#political-timeline-range, #political-timeline-year").on("input change", function () {
     setPoliticalTimelineYear(this.value);
@@ -706,11 +702,6 @@ $(document).on("keydown", (event) => {
 
     if (event.key === "Escape" && isLabelEditDialogOpen()) {
         setLabelEditDialogOpen(false, { resetForm: true });
-        return;
-    }
-
-    if (event.key === "Escape" && isRegionWikiPickerDialogOpen()) {
-        setRegionWikiPickerDialogOpen(false);
         return;
     }
 
@@ -858,7 +849,7 @@ function shouldIgnoreDistanceMeasurementClickTarget(target) {
     }
 
     return Boolean(targetElement.closest(
-        ".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #spotlight-search-overlay, #political-territory-editor-overlay, #location-report-overlay, #location-edit-overlay, #wiki-sync-resolve-overlay, #path-edit-overlay, #label-edit-overlay, #region-edit-overlay, #region-wiki-picker-overlay"
+        ".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #spotlight-search-overlay, #political-territory-editor-overlay, #location-report-overlay, #location-edit-overlay, #wiki-sync-resolve-overlay, #path-edit-overlay, #label-edit-overlay, #region-edit-overlay"
     ));
 }
 

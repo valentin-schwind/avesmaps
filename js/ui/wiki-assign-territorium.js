@@ -275,6 +275,7 @@ function avesmapsWikiAssignTerritoriumKartenwerte(quelle, felder) {
  * @param {Object|null} quelle {
  *     wiki_id, wiki_key, wiki_url, wiki_name,   -- die gespeicherte Zuweisung des Gebiets
  *     kandidat,                                 -- die `wiki_list`-Zeile dazu (oder null)
+ *     kandidaten,                               -- ALLE `wiki_list`-Zeilen (die Suchquelle)
  *     modell,                                   -- aus avesmapsWikiAssignTerritoriumModell
  *     name, type, eltern, coat_of_arms_url      -- die vier Kartenfelder je Wert ODER Lesefunktion
  *   }
@@ -308,6 +309,16 @@ function avesmapsWikiAssignTerritoriumZustand(quelle) {
 		// 🔴 DER RIEGEL AN DER FELDZEILE (Entwurf §7). Nur `eltern` -- Name, Staatsform und Wappen
 		// bleiben bedienbar, auch bei gesperrter Hierarchie.
 		gesperrt: eltern.gesperrt ? { eltern: eltern.grund } : {},
+		// 🔴 DIE KANDIDATEN REISEN FERTIG AUFBEREITET MIT, nicht roh. Die Listen-Suche des Bauteils
+		// filtert nur nach `eintrag.name` und reicht den Eintrag UNVERAENDERT als Treffer weiter
+		// (avesmapsWikiAssignListeFiltern) -- eine rohe `wiki_list`-Zeile hat kein `werte`, und
+		// `trefferWaehlen` uebernimmt genau das in den Artikel. Der Zuweisungskasten staende nach der
+		// Wahl leer da, obwohl alle Werte im Browser liegen. Dieselbe Falle wie beim Ort, nur eine
+		// Ebene frueher.
+		listen: {
+			territorien: (Array.isArray(quelle.kandidaten) ? quelle.kandidaten : [])
+				.map((zeile) => avesmapsWikiAssignTerritoriumTreffer(zeile, modell)),
+		},
 	};
 }
 

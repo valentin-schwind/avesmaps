@@ -86,10 +86,6 @@ function getRegionEditDialogElement() {
 	return document.getElementById("region-edit-dialog");
 }
 
-function getRegionWikiPickerDialogElement() {
-	return document.getElementById("region-wiki-picker-dialog");
-}
-
 function getLocationReportServiceNoteElement() {
 	return document.getElementById("location-report-service-note");
 }
@@ -126,15 +122,11 @@ function isRegionEditDialogOpen() {
 	return !$("#region-edit-overlay").prop("hidden");
 }
 
-function isRegionWikiPickerDialogOpen() {
-	return !$("#region-wiki-picker-overlay").prop("hidden");
-}
-
 function isLocationReportServiceConfigured() {
 	return Boolean(String(LOCATION_REPORT_FORM_ENDPOINT_URL || "").trim());
 }
 
 function syncModalDialogBodyState() {
-	const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#changelog-overlay").prop("hidden") || !$("#spotlight-search-overlay").prop("hidden") || !$("#political-territory-editor-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#wiki-sync-resolve-overlay").prop("hidden") || !$("#wiki-sync-conflicts-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#powerline-edit-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden") || !$("#region-edit-overlay").prop("hidden") || !$("#region-wiki-picker-overlay").prop("hidden");
+	const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#changelog-overlay").prop("hidden") || !$("#spotlight-search-overlay").prop("hidden") || !$("#political-territory-editor-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#wiki-sync-resolve-overlay").prop("hidden") || !$("#wiki-sync-conflicts-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#powerline-edit-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden") || !$("#region-edit-overlay").prop("hidden");
 	$("body").toggleClass("modal-dialog-open", hasOpenModal);
 }

@@ -534,6 +534,9 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	assert.deepStrictEqual(dialogSkripte, [
 		"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-assign.js",
 		"js/ui/wiki-assign-weg.js", "js/ui/wiki-assign-ort.js", "js/ui/wiki-assign-landschaft.js",
+		// Aufgabe 7 (Territorium) haengt hier an: der Datenweg der NACHBAR-Objektart, von nichts
+		// abhaengig -- mitgeladen schadet er nicht, und die Reihenfolge bleibt pruefbar.
+		"js/ui/wiki-assign-territorium.js",
 		"js/map-features/map-features-ecosystem-naming.js",
 		"js/map-features/map-features-ecosystem-properties.js",
 	], "index.html bindet die Wiki-Zuweisung der Landschaft nicht (oder in der falschen Reihenfolge): "
@@ -1029,8 +1032,14 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	// den Artikel an ein `map_features`-LABEL (`properties.wiki_region`, ein ganzes Nest) statt an
 	// die gezeichnete Flaeche. Geteilt wird der DATENWEG, nicht die Erklaerung.
 	const labelSkripte = skripteAus("index.html", /wiki-assign|review-label-wiki/);
-	assert.deepStrictEqual(labelSkripte.slice(-2),
-		["js/ui/wiki-assign-landschaft.js", "js/review/review-label-wiki.js"],
+	// 🪤 Hier stand `labelSkripte.slice(-2)`, also eine NACHBARSCHAFTS-Probe -- und die ist am
+	// 16.08.2026 umgefallen, als Aufgabe 7 `wiki-assign-territorium.js` dazwischenschob. Am Bau war
+	// nichts falsch: der Label-Dialog stand weiterhin NACH dem Datenweg der Landschaft, nur nicht mehr
+	// direkt dahinter. Gefragt ist die REIHENFOLGE, nicht die Nachbarschaft -- also wird sie auch so
+	// geprueft, sonst bricht jede weitere Objektart diese Zeile erneut.
+	const iLandschaft = labelSkripte.indexOf("js/ui/wiki-assign-landschaft.js");
+	const iLabel = labelSkripte.indexOf("js/review/review-label-wiki.js");
+	assert.ok(iLandschaft !== -1 && iLabel !== -1 && iLandschaft < iLabel,
 		"der Label-Dialog steht nicht NACH dem Datenweg der Landschaft: " + labelSkripte.join(" "));
 	zaehl();
 

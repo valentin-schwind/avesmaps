@@ -542,37 +542,13 @@ function formatPoliticalTerritoryTreeDisplayName(territory) {
 		? `${baseName} (${String(territory.public_id).slice(0, 8)}) [${periodLabel}]`
 		: `${baseName} (${String(territory.public_id).slice(0, 8)})`;
 }
-
-function renderRegionWikiReference(region) {
-	const listElement = document.getElementById("region-edit-wiki-reference-list");
-	if (!listElement) {
-		return;
-	}
-
-	const wikiName = region.wikiName || region.wiki_name || region.name || "";
-	const wikiUrl = region.wikiUrl || region.wiki_url || "";
-	const rows = [
-		["Name", wikiName],
-		["Typ", region.wikiType || region.wiki_type || region.type],
-		["Zeitraum", region.validLabel || region.valid_label || buildWikiReferencePeriod(region)],
-		["Zugehoerigkeit", region.wikiAffiliationRaw || region.wiki_affiliation_raw || region.affiliation],
-		["Wurzel", region.wikiAffiliationRoot || region.wiki_affiliation_root || region.affiliationRoot],
-		["Hauptstadt", region.feature?.properties?.capital_name || region.wikiCapitalName || region.wiki_capital_name || ""],
-		["Herrschaftssitz", region.feature?.properties?.seat_name || region.wikiSeatName || region.wiki_seat_name || ""],
-		["Wiki", wikiUrl],
-	].filter(([, value]) => String(value || "").trim() !== "");
-	listElement.innerHTML = rows.map(([label, value]) => {
-		const displayValue = normalizeParentheticalSpacing(value);
-		const valueMarkup = label === "Wiki"
-			? `<a href="${escapeHtml(displayValue)}" target="_blank" rel="noopener noreferrer">${escapeHtml(displayValue)}</a>`
-			: escapeHtml(displayValue);
-		return `<dt>${escapeHtml(label)}</dt><dd>${valueMarkup}</dd>`;
-	}).join("");
-	if (typeof toggleOtherSourceSection === "function") {
-		const hasWiki = Boolean(wikiUrl) || Boolean(region.wikiId || region.wiki_id);
-		toggleOtherSourceSection("region-edit", hasWiki);
-	}
-}
+// 🔴 HIER STAND `renderRegionWikiReference` -- die Handgemachte `<dl>`-Liste des Wiki-Referenz-
+// Kastens. Sie ist am 16.08.2026 in js/review/review-region-wiki-picker.js gewandert und baut dort
+// das geteilte Bauteil auf (js/ui/wiki-assign.js, Objektart „territorium").
+// 💣 SIE MUSSTE HIER WEG, nicht nur dort neu entstehen: index.html laedt review-region-wiki-picker.js
+// VOR dieser Datei, und die spaetere Erklaerung desselben globalen Namens gewinnt (AGENTS.md §3 --
+// die Ladeordnung ist Vertrag). Stehengelassen haette sie die neue lautlos ueberschrieben, und der
+// Kasten waere unveraendert geblieben.
 
 function buildWikiReferencePeriod(region) {
 	return [

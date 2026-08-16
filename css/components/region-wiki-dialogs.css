@@ -3,18 +3,8 @@
 	max-height: calc(100vh - 28px);
 }
 
-#region-wiki-picker-overlay {
-	position: fixed;
-	inset: 0;
-	z-index: 1270;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 20px;
-	background: var(--color-scrim-dialog);
-}
-
-#region-wiki-picker-dialog {
-	width: min(720px, 100%);
-	max-height: calc(100vh - 28px);
-}
+/* 🔴 HIER STANDEN DIE ZWEI REGELN DES EIGENEN AUSWAHLFENSTERS (#region-wiki-picker-overlay /
+   -dialog). Es ist am 16.08.2026 ersatzlos gefallen -- gesucht wird jetzt IM Zuweisungskasten
+   (js/ui/wiki-assign.js). ⚠️ Seine Kennung stand ausserdem in DREI Selektorlisten in
+   css/components/dialog-overlays.css (hidden / Lage+Schleier / z-index) und ist dort mit
+   entfernt; ein Overlay-<div> erbt nichts, deshalb sind es dort immer drei. */

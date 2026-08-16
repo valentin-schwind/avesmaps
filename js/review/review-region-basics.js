@@ -33,7 +33,6 @@ function resetRegionEditForm() {
 	updateRegionParentDropTarget("");
 	document.getElementById("region-edit-parent-tree").innerHTML = "";
 	document.getElementById("region-edit-tabs").innerHTML = "";
-	document.getElementById("region-edit-wiki-reference-list").innerHTML = "";
 	renderRegionAssignment();
 	syncRegionOpacityOutput();
 	syncRegionValidToControls();
@@ -50,15 +49,6 @@ function setRegionEditDialogOpen(isOpen, { resetForm = false } = {}) {
 		return;
 	}
 	if (resetForm) resetRegionEditForm();
-}
-
-function setRegionWikiPickerDialogOpen(isOpen) {
-	$("#region-wiki-picker-overlay").prop("hidden", !isOpen);
-	syncModalDialogBodyState();
-	if (isOpen) {
-		getRegionWikiPickerDialogElement()?.focus();
-		document.getElementById("region-wiki-picker-filter")?.focus();
-	}
 }
 
 function syncRegionOpacityOutput() {

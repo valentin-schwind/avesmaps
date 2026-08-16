@@ -15,86 +15,12 @@
 	background: var(--color-panel);
 }
 
-.political-territory-wiki-reference {
-	padding: 8px 10px;
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-md);
-	background: var(--color-panel-soft);
-	color: var(--color-text-muted);
-}
-
-.political-territory-wiki-reference__header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 10px;
-	margin-bottom: 8px;
-}
-
-.political-territory-wiki-reference__header h3 {
-	margin: 0;
-	font-size: 14px;
-}
-
-.political-territory-wiki-reference dl {
-	display: grid;
-	grid-template-columns: max-content minmax(0, 1fr);
-	gap: 4px 10px;
-	margin: 0;
-	font-size: 12px;
-}
-
-.political-territory-wiki-reference dt {
-	color: var(--color-text-muted);
-	font-weight: bold;
-}
-
-.political-territory-wiki-reference dd {
-	margin: 0;
-	word-break: break-word;
-}
-
-.political-territory-wiki-reference a {
-	color: var(--color-link);
-}
-
-.political-territory-wiki-picker-list {
-	display: grid;
-	gap: 4px;
-	max-height: 420px;
-	overflow: auto;
-	padding: 6px;
-	border: 1px solid var(--color-border-strong);
-	border-radius: var(--radius-md);
-	background: var(--color-panel);
-}
-
-.political-territory-wiki-picker-list__item {
-	display: grid;
-	gap: 2px;
-	padding: 7px 8px;
-	border: 0;
-	border-radius: var(--radius-sm);
-	background: transparent;
-	color: var(--color-text-strong);
-	cursor: pointer;
-	font: inherit;
-	text-align: left;
-}
-
-.political-territory-wiki-picker-list__item:hover,
-.political-territory-wiki-picker-list__item:focus-visible {
-	background: var(--color-panel-muted);
-}
-
-.political-territory-wiki-picker-list__name {
-	font-weight: bold;
-	overflow-wrap: anywhere;
-}
-
-.political-territory-wiki-picker-list__meta,
-.political-territory-wiki-picker-list__empty {
-	color: var(--color-text-muted);
-	font-size: 12px;
-	overflow-wrap: anywhere;
-}
+/* 🔴 HIER STANDEN 14 REGELN FUER DEN EIGENEN WIKI-REFERENZ-KASTEN DES GEBIETS
+   (.political-territory-wiki-reference*) UND FUER SEIN EIGENES AUSWAHLFENSTER
+   (.political-territory-wiki-picker-list*). Beide sind am 16.08.2026 ersatzlos gefallen: die
+   Zuweisung laeuft ueber das geteilte Bauteil (js/ui/wiki-assign.js, Huelle „label-wiki"), dessen
+   Regeln in css/components/region-sync.css stehen.
+   💣 Der aeussere Rahmen MUSSTE mit weg, nicht nur das Fenster: die Huelle `.label-wiki-reference`
+   zeichnet ihren Kasten selbst -- ein zweiter Rahmen darum waere Rahmen im Rahmen und doppelte
+   Polsterung, genau die Falle aus dem Kopf von js/ui/wiki-assign.js. Der <section>-Rahmen in
+   index.html traegt seither nur noch `political-territory-field`, den Sichtbarkeits-Riegel. */
