@@ -46,6 +46,7 @@ const AVESMAPS_REPORT_TYPES = [
     'hochebene' => ['type' => 'label', 'subtype' => 'hochebene'],
     'tiefebene' => ['type' => 'label', 'subtype' => 'tiefebene'],
     'flussdelta' => ['type' => 'label', 'subtype' => 'flussdelta'],
+    'kulturlandschaft' => ['type' => 'label', 'subtype' => 'kulturlandschaft'],
     'comment' => ['type' => 'comment', 'subtype' => 'comment'],
     'sonstiges' => ['type' => 'label', 'subtype' => 'sonstiges'],
     'weg' => ['type' => 'path', 'subtype' => 'weg'],

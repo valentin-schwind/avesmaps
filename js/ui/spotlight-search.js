@@ -1193,6 +1193,7 @@ function getSpotlightLabelTypeLabel(labelType) {
 		ebene: "Ebene",
 		graslandschaft: "Graslandschaft",
 		auenlandschaft: "Auenlandschaft",
+		kulturlandschaft: "Kulturlandschaft",
 		kontinent: "Kontinent",
 		wueste: "Wueste",
 		suempfe_moore: "Sumpf/Moor",

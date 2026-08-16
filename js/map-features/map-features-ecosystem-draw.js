@@ -417,6 +417,9 @@ const ECOSYSTEM_LABEL_STYLE_BY_TYPE = {
 	tiefebene: { size: 17, minZoom: 3 },
 	// Begrenzt wie die Oase, aber grösser: ein Delta ist eine Mündung, keine weite Ebene.
 	flussdelta: { size: 15, minZoom: 4 },
+	// Zwischen Wald und Steppe: ein Ackergürtel schmiegt sich an Siedlungen und Flüsse, er zieht sich
+	// nicht über eine Steppenweite -- ist aber mehr als ein einzelnes Waldstück.
+	kulturlandschaft: { size: 16, minZoom: 3 },
 	see: { size: 16, minZoom: 4 },
 	wald: { size: 15, minZoom: 4 },
 	berggipfel: { size: 15, minZoom: 4 },

@@ -765,6 +765,7 @@ window.AVESMAPS_I18N_EN = {
 	"spotlight.labelType.hochebene": "Plateau",
 	"spotlight.labelType.tiefebene": "Lowland",
 	"spotlight.labelType.flussdelta": "River Delta",
+	"spotlight.labelType.kulturlandschaft": "Farmland",
 	"spotlight.labelType.see": "Lake",
 	"spotlight.labelType.insel": "Island",
 	"spotlight.labelType.inselgruppe": "Archipelago",

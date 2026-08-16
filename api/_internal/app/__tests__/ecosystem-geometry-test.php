@@ -309,7 +309,8 @@ ecosystemTestThrows(static fn() => avesmapsEcosystemReadKind('wetter'), 'an unkn
 // types that are NOT drawn but DERIVED -- from the dividers in ecosystem_climate_divider -- which is
 // also why they are the first ones exempt from the label-subtype rule below.
 // 34 seit 2026-08-03: „Trockene Subtropen" wurde zwischen zwei bestehende Klimazonen geschoben.
-assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 34, 'the seed is 34 rows');
+// 35 seit 2026-08-16: „Kulturlandschaft" als elfte Vegetationsart (Idee #77).
+assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 35, 'the seed is 35 rows');
 
 $byKind = [];
 foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortOrder]) {
@@ -319,7 +320,7 @@ foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortO
 }
 assert(count($byKind['derographisch']) === 4, 'derographisch: 4');
 assert(count($byKind['topographie']) === 12, 'topographie: 12');
-assert(count($byKind['vegetation']) === 10, 'vegetation: 10');
+assert(count($byKind['vegetation']) === 11, 'vegetation: 11');
 assert(count($byKind['klima']) === 8, 'klima: 8 -- and the dividers are always one fewer');
 
 // 🔴 Die REIHENFOLGE der Klimazonen ist tragend, nicht kosmetisch: sie sagt, welche Zone noerdlich
@@ -337,6 +338,15 @@ assert(in_array('insel', $byKind['topographie'], true), 'insel is a topographic 
 assert(!in_array('insel', $byKind['derographisch'], true), 'and no longer a derographic container');
 assert(in_array('inselgruppe', $byKind['derographisch'], true), 'inselgruppe is the derographic container');
 assert(!in_array('inselgruppe', $byKind['topographie'], true), 'a group of islands is not a form');
+
+// 🔴 2026-08-16 (Idee #77): die Kulturlandschaft ist eine DECKE -- was auf dem Land wächst, weil
+// Menschen es bestellen. Damit gehört sie zur Vegetation und zu keiner der drei anderen Ebenen; sie
+// ist weder eine Form (Topographie) noch der Name einer Gegend (derographisch). Die Zahlen oben
+// können den Griff in die falsche Ebene nicht fangen -- die Summe bliebe 35 --, also steht sie hier
+// beim Namen.
+assert(in_array('kulturlandschaft', $byKind['vegetation'], true), 'kulturlandschaft is a vegetation cover');
+assert(!in_array('kulturlandschaft', $byKind['topographie'], true), 'and not a landform');
+assert(!in_array('kulturlandschaft', $byKind['derographisch'], true), 'and not a named stretch of map');
 
 // The PRIMARY KEY is (kind, type_key): a duplicate would be swallowed by INSERT IGNORE and the count
 // would silently be 15.
