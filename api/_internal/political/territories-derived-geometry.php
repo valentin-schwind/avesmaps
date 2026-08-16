@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/derived-orphans.php';
+
 function avesmapsPoliticalEnsureDerivedGeometryTables(PDO $pdo): void {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS political_territory_derived_geometry (
@@ -393,23 +395,45 @@ function avesmapsPoliticalDeleteDerivedGeometryTree(PDO $pdo, array $payload, ar
 }
 
 function avesmapsPoliticalDeleteDerivedGeometryForTerritory(PDO $pdo, array $territory, array $user): array {
-    $statement = $pdo->prepare(
-        'UPDATE political_territory_derived_geometry
-        SET is_active = 0,
-            updated_by = :updated_by
-        WHERE territory_id = :territory_id
-            AND is_active = 1'
+    $territoryId = (int) $territory['id'];
+    // 🔴 Owner-Entscheid 16.08.2026: hart nur, wenn nichts mehr da ist, was die Huelle erzeugen
+    // koennte. ⚠️ Hart heisst ohne Rueckweg -- die Deaktivierung WAR das Sicherheitsnetz. Tragfaehig
+    // ist das nur, weil es ausschliesslich Huellen trifft, die niemand mehr zurueckrechnen kann.
+    // Diese Weiche ist die EINZIGE Stelle, an der darueber entschieden wird; sie darf nicht in die
+    // Aufrufer kopiert werden.
+    $sourceless = avesmapsPoliticalDerivedHullIsSourceless(
+        $territoryId,
+        avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo),
+        avesmapsPoliticalFetchTerritoryIdsWithActiveGeometry($pdo)
     );
-    $statement->execute([
-        'territory_id' => (int) $territory['id'],
-        'updated_by' => (int) ($user['id'] ?? 0) ?: null,
-    ]);
+
+    if ($sourceless) {
+        $statement = $pdo->prepare(
+            'DELETE FROM political_territory_derived_geometry
+            WHERE territory_id = :territory_id
+                AND is_active = 1'
+        );
+        $statement->execute(['territory_id' => $territoryId]);
+    } else {
+        $statement = $pdo->prepare(
+            'UPDATE political_territory_derived_geometry
+            SET is_active = 0,
+                updated_by = :updated_by
+            WHERE territory_id = :territory_id
+                AND is_active = 1'
+        );
+        $statement->execute([
+            'territory_id' => $territoryId,
+            'updated_by' => (int) ($user['id'] ?? 0) ?: null,
+        ]);
+    }
 
     return [
         'ok' => true,
         'territory_public_id' => (string) $territory['public_id'],
         'derived_geometry' => null,
         'deactivated' => true,
+        'hard' => $sourceless,
         'affected' => $statement->rowCount(),
     ];
 }

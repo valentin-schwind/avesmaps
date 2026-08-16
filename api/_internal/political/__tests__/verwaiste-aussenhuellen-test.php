@@ -40,7 +40,8 @@ $pdo->exec('CREATE TABLE political_territory_geometry (
 )');
 $pdo->exec('CREATE TABLE political_territory_derived_geometry (
     id INTEGER PRIMARY KEY, public_id TEXT, territory_id INTEGER, is_active INTEGER,
-    min_x REAL, min_y REAL, max_x REAL, max_y REAL, created_by INTEGER, created_at TEXT
+    min_x REAL, min_y REAL, max_x REAL, max_y REAL, created_by INTEGER, created_at TEXT,
+    updated_by INTEGER, updated_at TEXT
 )');
 $pdo->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT)');
 
@@ -127,5 +128,22 @@ foreach ($hulls as $row) {
 }
 assert((string) $dangling['territory_name'] === '(KEIN TERRITORIUM)',
     'dieselbe Beschriftung wie bei verwaisten Konturen -- eine Vokabel, nicht zwei');
+
+// ===== Die Hart/Weich-Weiche =====================================================================
+// 🔴 Owner-Entscheid 16.08.2026: hart nur, wenn nichts mehr da ist, was die Huelle erzeugen koennte.
+// Solange Quellen existieren, kann „Grenzen berechnen" sie jederzeit neu bauen -- dort ist die
+// umkehrbare Deaktivierung der richtige Zustand.
+$geistRow = ['id' => 1, 'public_id' => 'p-geist'];
+$result = avesmapsPoliticalDeleteDerivedGeometryForTerritory($pdo, $geistRow, ['id' => 7]);
+assert($result['hard'] === true, 'der Geist wird hart geloescht');
+$rest = $pdo->query("SELECT COUNT(*) FROM political_territory_derived_geometry WHERE public_id = 'd-geist'")->fetchColumn();
+assert((int) $rest === 0, 'und ist wirklich weg, nicht nur abgeschaltet');
+
+$aggrRow = ['id' => 3, 'public_id' => 'p-aggr'];
+$result = avesmapsPoliticalDeleteDerivedGeometryForTerritory($pdo, $aggrRow, ['id' => 7]);
+assert($result['hard'] === false, 'ein Aggregat mit Kind-Flaechen wird nur deaktiviert');
+$row = $pdo->query("SELECT is_active FROM political_territory_derived_geometry WHERE public_id = 'd-aggr'")->fetch(PDO::FETCH_ASSOC);
+assert(is_array($row), 'die Zeile steht noch da');
+assert((int) $row['is_active'] === 0, 'aber abgeschaltet -- "Grenzen berechnen" kann sie zurueckholen');
 
 echo "OK: verwaiste-aussenhuellen-test\n";
