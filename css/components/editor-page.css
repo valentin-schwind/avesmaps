@@ -951,14 +951,16 @@ body.avm-editor-body {
 
 /* ---- Lizenz · Urheber · Kommentar (js/ui/media-license-fields.js) ----------------------------
  * Eine Reihe je Angabe, Label links in fester Breite, Feld rechts -- Vorbild ist .ce-row
- * (html/citymap-editor.html), das strukturell am naechsten an "ein Feld je Zeile" liegt (anders
- * als .dt-img-license/.dt-img-note aus html/wiki-sync-settlement-editor.html, die eine einzelne
- * Bild-Mini-Box neben ihrem Vorschaubild stylen, nicht eine eigenstaendige Feldgruppe).
+ * (html/citymap-editor.html), das strukturell am naechsten an "ein Feld je Zeile" liegt.
  * 💣 EIGENER Klassenname (.mlf-*), keine Abschrift von .ce-row: dessen Regeln stehen lokal NUR im
  * <style>-Block von citymap-editor.html. Eine gleichnamige zweite Fassung hier waere genau die
  * Divergenz, die politische-territory-editor-inline.css dreimal zerschossen hat (AGENTS §10) --
- * gleicher Selektor, zwei Herkuenfte, irgendwann zwei Werte. Hier zentral, weil alle vier
- * Editorseiten (Karten, Orte, Territorien, Literatur) editor-page.css ohnehin schon binden.
+ * gleicher Selektor, zwei Herkuenfte, irgendwann zwei Werte. Hier zentral, weil alle Editorseiten,
+ * die die Reihe brauchen, editor-page.css ohnehin schon binden.
+ * ⚠️ Das enge Bild-Raster in html/wiki-sync-settlement-editor.html (.dt-img-cell, 160px breit) stapelt
+ * Label ueber Feld statt nebeneinander (.dt-img-meta .mlf-row, lokal in dieser Datei ueberschrieben,
+ * Phase 4 Aufgabe 3) -- dieselben .mlf-*-Klassen, nur ihr Layout angepasst; keine zweite Fassung der
+ * Regeln selbst, vormals .dt-img-license/.dt-img-note (eigene, jetzt entfernte Mini-Box-Klassen).
  */
 .mlf-row {
 	display: flex;

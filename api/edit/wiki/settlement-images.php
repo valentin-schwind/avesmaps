@@ -17,6 +17,13 @@ require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/wiki/sync.php';
 require_once __DIR__ . '/../../_internal/wiki/locations.php';
 require_once __DIR__ . '/../../_internal/wiki/settlements.php';
+// Der EINE Lizenzkatalog (Phase 4 der Lizenz-Vereinheitlichung). AVESMAPS_SETTLEMENT_IMAGE_LICENSES
+// unten ist seither ein Alias auf AVESMAPS_MEDIA_LICENSES -- keine eigene Abschrift der sieben Werte
+// (AGENTS.md §5, dieselbe Lehre wie beim Quellen-System). Vorher fuehrte diese Datei ihre eigenen vier
+// Werte ohne cc_by/permission_granted/own_work; der Dialog haette die drei fehlenden zwar ANZEIGEN,
+// aber avesmapsSettlementImageNormalizeLicense() haette sie beim Speichern still auf ai_generated
+// zurueckgestuft (dasselbe Muster wie AVESMAPS_CITYMAP_LICENSES vor Aufgabe 2).
+require_once __DIR__ . '/../../_internal/media-license.php';
 
 const AVESMAPS_SETTLEMENT_IMAGES_MAX = 10;
 const AVESMAPS_SETTLEMENT_IMAGE_MAX_BYTES = 12 * 1024 * 1024; // 12 MB Rohupload
@@ -28,17 +35,32 @@ const AVESMAPS_SETTLEMENT_IMAGE_TYPES = [
     'image/webp' => 'webp',
     'image/gif' => 'gif',
 ];
-// Per-image licence (editor-only + public gate). unknown_other is NEVER shown in the frontend
-// (map-features.php filters it out). Legacy plain-string images + new uploads default to ai_generated
-// ("Von uns KI-generiert") per owner decision, so nothing already uploaded disappears.
-const AVESMAPS_SETTLEMENT_IMAGE_LICENSES = ['public_domain', 'cc0', 'ai_generated', 'unknown_other'];
+// Per-image licence (editor-only). Sichtbarkeit im Frontend ist ein SEPARATES, engeres Gate
+// (avesmapsMapFeaturesPublicImageUrls in api/app/map-features.php: nur public_domain/cc0/ai_generated)
+// -- diese Phase aendert keine Gates, deshalb bleibt es unberuehrt. Legacy plain-string images + neue
+// Uploads bleiben ai_generated ("Von uns KI-generiert") per Owner-Entscheid, so verschwindet nichts
+// bereits Hochgeladenes.
+const AVESMAPS_SETTLEMENT_IMAGE_LICENSES = AVESMAPS_MEDIA_LICENSES;
 const AVESMAPS_SETTLEMENT_IMAGE_LICENSE_DEFAULT = 'ai_generated';
 const AVESMAPS_SETTLEMENT_IMAGE_NOTE_MAX = 2000;
+// Spaltenbreite wie der Urheber der uebrigen vier Lizenz-Dialoge (VARCHAR(190)-Konvention, siehe
+// AVESMAPS_CITYMAP_LICENSE_AUTHOR_MAX in api/_internal/app/citymaps.php) -- hier ohne Spalte, weil der
+// Wert im properties_json steht, aber die Grenze bleibt dieselbe.
+const AVESMAPS_SETTLEMENT_IMAGE_AUTHOR_MAX = 190;
 
 function avesmapsSettlementImageNormalizeLicense($value): string
 {
     $v = is_string($value) ? trim($value) : '';
     return in_array($v, AVESMAPS_SETTLEMENT_IMAGE_LICENSES, true) ? $v : AVESMAPS_SETTLEMENT_IMAGE_LICENSE_DEFAULT;
+}
+
+function avesmapsSettlementImageNormalizeAuthor($value): string
+{
+    $author = trim((string) $value);
+    if (mb_strlen($author) > AVESMAPS_SETTLEMENT_IMAGE_AUTHOR_MAX) {
+        $author = mb_substr($author, 0, AVESMAPS_SETTLEMENT_IMAGE_AUTHOR_MAX);
+    }
+    return $author;
 }
 
 function avesmapsSettlementImageNormalizeNote($value): string
@@ -48,6 +70,15 @@ function avesmapsSettlementImageNormalizeNote($value): string
         $note = mb_substr($note, 0, AVESMAPS_SETTLEMENT_IMAGE_NOTE_MAX);
     }
     return $note;
+}
+
+// ISO-8601 UTC wie die uebrigen JSON-Flaechen (properties_json.coat.uploaded_at,
+// properties_json.images[].uploaded_at -- media-license-migration-run.php:426-434 formatiert
+// Bestandsdaten mit derselben Form, gmdate('Y-m-d\TH:i:s\Z', ...)). JSON kennt kein natives Datum, und
+// genau diese Form erkennt avesmapsMediaLicenseProtokollZeile() (js/ui/media-license-fields.js).
+function avesmapsSettlementImageStampNowIso(): string
+{
+    return gmdate('Y-m-d\TH:i:s\Z');
 }
 
 // Crop-to-fill auf 800x450, Ausgabe als WebP (Fallback JPEG, falls GD kein WebP kann). Gibt [bytes, ext]
@@ -95,9 +126,16 @@ function avesmapsSettlementImageScale(string $srcPath, string $mime): ?array
     return $bytes !== '' ? [$bytes, $ext] : null;
 }
 
-// Normalisiert properties.images auf eine Liste von Objekten {url, license, note}. Legacy-Strings werden
-// zu {url, license: DEFAULT (ai_generated), note: ''}; fremde/absolute URLs werden verworfen (nur eigener
-// Upload-Pfad). Dedup nach URL. Reihenfolge bleibt erhalten.
+// Normalisiert properties.images auf eine Liste von Objekten {url, license, author, note, uploaded_by,
+// uploaded_at}. Legacy-Strings werden zu {url, license: DEFAULT (ai_generated), author: '', note: '',
+// uploaded_by: '', uploaded_at: ''} -- sie haben nie eine Ablage fuer Urheber/Protokoll gehabt; fremde/
+// absolute URLs werden verworfen (nur eigener Upload-Pfad). Dedup nach URL. Reihenfolge bleibt erhalten.
+//
+// 💣 Das ist der LESEPFAD (Brief-Falle): author/uploaded_by/uploaded_at liegen bereits im JSON, sobald
+// set_meta/Upload sie schreiben (siehe unten) -- ohne diese beiden Zeilen hier wuerden sie beim naechsten
+// Laden wieder verworfen und der Dialog zeigte ein leeres Urheberfeld, obwohl die Datenbank den Wert
+// laengst traegt. Keine Schema-Frage (properties_json ist eine bestehende Spalte, keine neue DDL) --
+// nur diese Normalisierung muss die Felder durchreichen.
 function avesmapsSettlementImagesList(array $props): array
 {
     $raw = $props['images'] ?? [];
@@ -116,7 +154,10 @@ function avesmapsSettlementImagesList(array $props): array
         $out[] = [
             'url' => $url,
             'license' => is_array($item) ? avesmapsSettlementImageNormalizeLicense($item['license'] ?? null) : AVESMAPS_SETTLEMENT_IMAGE_LICENSE_DEFAULT,
+            'author' => is_array($item) ? avesmapsSettlementImageNormalizeAuthor($item['author'] ?? '') : '',
             'note' => is_array($item) ? avesmapsSettlementImageNormalizeNote($item['note'] ?? '') : '',
+            'uploaded_by' => is_array($item) ? trim((string) ($item['uploaded_by'] ?? '')) : '',
+            'uploaded_at' => is_array($item) ? trim((string) ($item['uploaded_at'] ?? '')) : '',
         ];
     }
     return $out;
@@ -216,7 +257,16 @@ try {
         @chmod($target, 0644);
 
         $url = '/uploads/siedlungen/' . $safeId . '/' . $filename;
-        $images[] = ['url' => $url, 'license' => AVESMAPS_SETTLEMENT_IMAGE_LICENSE_DEFAULT, 'note' => ''];
+        // 🔴 uploaded_by/uploaded_at setzt AUSSCHLIESSLICH der Server, nie ein Formularfeld -- sonst waere
+        // der Nachweis faelschbar. $user kommt aus avesmapsRequireUserWithCapability() weiter oben.
+        $images[] = [
+            'url' => $url,
+            'license' => AVESMAPS_SETTLEMENT_IMAGE_LICENSE_DEFAULT,
+            'author' => '',
+            'note' => '',
+            'uploaded_by' => (string) ($user['username'] ?? ''),
+            'uploaded_at' => avesmapsSettlementImageStampNowIso(),
+        ];
         $revision = avesmapsSettlementImagesPersist($pdo, $feature, $images, $user);
         avesmapsJsonResponse(200, ['ok' => true, 'url' => $url, 'images' => $images, 'revision' => $revision]);
     }
@@ -268,18 +318,28 @@ try {
         avesmapsJsonResponse(200, ['ok' => true, 'images' => $wanted, 'revision' => $revision]);
     }
 
-    // ----- SET_META ----- (Lizenz + Kommentar/Prompt eines Bildes setzen)
+    // ----- SET_META ----- (Lizenz + Urheber + Kommentar/Prompt eines Bildes setzen)
     if ($action === 'set_meta') {
         $url = trim((string) ($body['url'] ?? ''));
         if ($url === '' || !in_array($url, avesmapsSettlementImageUrls($images), true)) {
             avesmapsErrorResponse(404, 'not_found', 'Bild nicht gefunden.');
         }
         $license = avesmapsSettlementImageNormalizeLicense($body['license'] ?? null);
+        $author = avesmapsSettlementImageNormalizeAuthor($body['author'] ?? '');
         $note = avesmapsSettlementImageNormalizeNote($body['note'] ?? '');
+        // 🔴 uploaded_by/uploaded_at setzt AUSSCHLIESSLICH der Server, nie das Formular -- bei JEDER
+        // Neueinstufung neu gestempelt (nicht nur beim ersten Mal), weil set_meta Lizenz/Urheber/Kommentar
+        // immer zusammen sendet und es keinen Unterschied gibt zwischen "nur die Notiz geaendert" und
+        // "neu eingestuft".
+        $stampedBy = (string) ($user['username'] ?? '');
+        $stampedAt = avesmapsSettlementImageStampNowIso();
         foreach ($images as &$im) {
             if ((string) ($im['url'] ?? '') === $url) {
                 $im['license'] = $license;
+                $im['author'] = $author;
                 $im['note'] = $note;
+                $im['uploaded_by'] = $stampedBy;
+                $im['uploaded_at'] = $stampedAt;
                 break;
             }
         }
