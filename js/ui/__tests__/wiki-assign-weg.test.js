@@ -413,6 +413,90 @@ Object.keys(AVESMAPS_WIKI_ASSIGN_SKINS).forEach((huelle) => {
 	zaehl();
 });
 
+// ── 8c) DIE ROLLE OHNE KLASSE — GENAU DIE, DIE DIE PROBE AUS 8) UEBERSPRINGT ──────────────────
+// 💣 `skin.knopf` ist in der Huelle `dt` die LEERE Zeichenkette, und die Rollenprobe oben steigt
+// bei einer leeren Klasse aus (`if (klasse === "") { return; }`). Genau dort lag der Befund vom
+// 16.08.2026: der Kommentar bei `knopf: ""` versprach „die Editorseiten stylen den blanken
+// <button> bereits weich" -- nachgezaehlt galt das fuer VIER der SECHS Wirte. Literatur und Karten
+// stylen ausschliesslich ihre eigenen Knopfklassen; dort fiel der Knopf auf die Browservorgabe
+// zurueck. Gemessen im Browser (Chrome, 16.08.2026): 21px hoch statt var(--avm-control-h) = 32px,
+// Arial 13,3px statt `font: inherit`, 2px-Kantenrelief statt 1px var(--color-button-soft-border),
+// Radius 0 statt var(--radius-md) -- im Dunkelbild ein WEISSER Systemknopf im dunklen Panel.
+// ⚠️ EHRLICH GESAGT: diese Probe misst die REGEL, nicht das Bild -- eine Kaskade gibt es ohne
+// Browser nicht. Sie haelt aber genau das fest, was gefehlt hat, und sie faellt, sobald jemand die
+// Regel wieder in die Wirte zurueckverlagert („die Editorseiten koennen das doch selbst").
+const editorPageCss = fs.readFileSync(path.join(wurzel, "css", "components", "editor-page.css"), "utf8");
+const knopfRegel = /\.avm-wiki-assign\s+button\s*\{([^}]*)\}/.exec(allesCss);
+
+// ZUERST DIE WIRTE, DANN DIE REGEL — die Reihenfolge ist Absicht. Nimmt jemand die geteilte Regel
+// weg, soll die Probe die Oberflaechen BEIM NAMEN nennen, die dann nackt dastehen, statt nur
+// „Regel fehlt" zu sagen. Ein Wirt ist eine
+// html/*.html samt der Skripte, die sie einbindet (der Wege-Editor haengt das Bauteil aus
+// js/pages/wege-editor.js ein, seine <body>-Klasse steht in der HTML-Seite).
+// 💣 Diese Schleife ist der Grund, warum die Probe nicht bloss Form misst: nimmt man die geteilte
+// Regel weg, nennt sie die Wirte BEIM NAMEN, die dann nackt dastehen.
+const dtWirte = fs.readdirSync(path.join(wurzel, "html"))
+	.filter((name) => name.endsWith(".html"))
+	.map((name) => {
+		const datei = path.join(wurzel, "html", name);
+		const html = fs.readFileSync(datei, "utf8");
+		let gesamt = html;
+		(html.match(/<script src="\/js\/[^"]+"/g) || []).forEach((treffer) => {
+			const rel = treffer.slice('<script src="/'.length, -1).split("?")[0];
+			const skript = path.join(wurzel, rel);
+			if (fs.existsSync(skript)) { gesamt += "\n" + fs.readFileSync(skript, "utf8"); }
+		});
+		return { name, html, gesamt };
+	})
+	.filter((wirt) => /skin:\s*"dt"/.test(wirt.gesamt));
+assert.ok(dtWirte.length >= 6,
+	"nur " + dtWirte.length + " Wirte der Huelle `dt` gefunden -- die Suche greift nicht mehr");
+zaehl();
+dtWirte.forEach((wirt) => {
+	// 🔴 `^button {` am Zeilenanfang ist die Form, in der die zwei gesunden Wirte ihn fuehren
+	// (html/wiki-sync-powerline-editor.html:43, html/wiki-sync-settlement-editor.html:55).
+	const eigeneRegel = /^\s{0,4}button\s*\{/m.test(wirt.html)
+		|| /<body[^>]*class="[^"]*avm-editor-body/.test(wirt.html);
+	assert.ok(knopfRegel || eigeneRegel,
+		"html/" + wirt.name + " haengt die Huelle `dt` ein, bringt aber keine Regel fuer deren "
+		+ "klassenlose <button> mit -- und die geteilte `.avm-wiki-assign button` fehlt auch");
+	zaehl();
+});
+assert.ok(knopfRegel,
+	"keine CSS-Datei gibt `.avm-wiki-assign button` eine Regel -- die Huelle haengt damit wieder an "
+	+ "den Wirten, und zwei von sechs haben keine");
+zaehl();
+["font: inherit", "min-height: var(--avm-control-h)"].forEach((pflicht) => {
+	assert.ok(knopfRegel[1].replace(/\s+/g, " ").indexOf(pflicht) !== -1,
+		"`.avm-wiki-assign button` fuehrt `" + pflicht + "` nicht -- genau die zwei Eigenschaften, "
+		+ "deren Fehlen am 16.08.2026 als Arial 13,3px und 21px Hoehe gemessen wurde");
+	zaehl();
+});
+// 🔴 UND SIE IST AUF DIE HUELLE EINGEENGT: ein Selektor, der in einer GETEILTEN Datei am Zeilenanfang
+// mit `button` beginnt, traefe jede Editorseite -- die Fehlerklasse aus AGENTS.md §9 (eine
+// erweiterte Selektorliste in legal-dialog.css liess fuenf Deploys hintereinander ausfallen).
+assert.ok(!/^button\s*[,{]/m.test(editorPageCss.replace(/\/\*[\s\S]*?\*\//g, " ")),
+	"css/components/editor-page.css traegt einen ungebundenen `button`-Selektor -- der trifft jede "
+	+ "Editorseite, nicht nur den Zuweisungskasten");
+zaehl();
+
+// Und die zweite Kante desselben Befundes: die zwei Wirte, deren eigene Gruppenmarke (.ae-grp /
+// .ce-grp) NUR einen unteren Aussenrand fuehrt, geben ihn dem Behaelter des Kastens selbst.
+// 🔴 Er darf NICHT an die Huelle -- beim Kraftlinien-Editor folgt unmittelbar `.pl-hint`, dort
+// verschoebe ein Aussenrand eine Oberflaeche, die in Ordnung ist.
+[["game-literature-editor.html", "aeWikiAssign"], ["citymap-editor.html", "ceWikiAssign"]]
+	.forEach(([datei, behaelter]) => {
+		const text = fs.readFileSync(path.join(wurzel, "html", datei), "utf8");
+		assert.ok(new RegExp("#" + behaelter + "\\s*\\{[^}]*margin-bottom:\\s*var\\(--space-").test(text),
+			"html/" + datei + ": #" + behaelter + " fuehrt keinen unteren Aussenrand -- die naechste "
+			+ "Gruppenueberschrift klebt an der letzten Zeile des Zuweisungskastens");
+		zaehl();
+	});
+assert.ok(!/\.avm-wiki-assign\s*\{[^}]*margin-bottom/.test(allesCss),
+	"die Huelle selbst traegt einen unteren Aussenrand -- das verschiebt die vier uebrigen "
+	+ "dt-Editorfenster (im Kraftlinien-Editor folgt direkt `.pl-hint`)");
+zaehl();
+
 // Und die Gegenrichtung dieser Aufgabe: das erzeugte Markup der Huelle `label-wiki` traegt
 // wirklich die Namen, die vorher keine Regel hatten.
 const labelWiki = avesmapsWikiAssignSkin("label-wiki");

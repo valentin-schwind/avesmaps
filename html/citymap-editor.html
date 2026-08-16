@@ -267,6 +267,13 @@
   .ce-placeholder { color: var(--color-text-muted); }
 
   .ce-grp { margin-bottom: var(--space-16); }
+  /* 💣 Die Gruppenmarke fuehrt NUR einen unteren Aussenrand -- was zwischen zwei Gruppen steht,
+     bringt seinen eigenen mit oder klebt an der naechsten Ueberschrift. Genau das tat der
+     Zuweisungskasten (js/ui/wiki-assign.js): „Vorschaubild" stand ohne einen Pixel Luft auf seiner
+     letzten Zeile. Der Rand sitzt am BEHAELTER, nicht an der Huelle des Bauteils -- die traegt ihn
+     absichtlich nicht, weil er die vier anderen Editorfenster verschoebe (Begruendung in
+     css/components/editor-page.css bei `.avm-wiki-assign > .dt-grp:first-child`). */
+  #ceWikiAssign { margin-bottom: var(--space-16); }
   /* Gruppentitel = versal auf --font-size-caption (Spec §4.1), Wort fuer Wort wie .ae-grp__title im
      Abenteuer-Editor. Vorher fett auf Fliesstextgroesse und damit auf derselben Stufe wie der
      Spaltentitel darueber -- zwei Ebenen, die gleich laut sprachen. */

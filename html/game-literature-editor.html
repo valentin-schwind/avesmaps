@@ -268,6 +268,13 @@
 
   /* ---- form field groups ---------------------------------------------------------------------- */
   .ae-grp { margin: 0 0 var(--space-16); }
+  /* 💣 Die Gruppenmarke fuehrt NUR einen unteren Aussenrand -- was zwischen zwei Gruppen steht,
+     bringt seinen eigenen mit oder klebt an der naechsten Ueberschrift. Genau das tat der
+     Zuweisungskasten (js/ui/wiki-assign.js): „F-Shop & Cover" stand ohne einen Pixel Luft auf
+     seiner letzten Zeile. Der Rand sitzt am BEHAELTER, nicht an der Huelle des Bauteils -- die
+     traegt ihn absichtlich nicht, weil er die vier anderen Editorfenster verschoebe
+     (Begruendung in css/components/editor-page.css bei `.avm-wiki-assign > .dt-grp:first-child`). */
+  #aeWikiAssign { margin-bottom: var(--space-16); }
   .ae-grp__title {
     font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .04em;
     font-weight: var(--font-weight-bold); color: var(--color-text-muted);

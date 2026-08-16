@@ -640,6 +640,12 @@ body.avm-editor-body {
 	padding-top: var(--space-4);
 	border-top: 1px solid var(--color-border);
 }
+/* 🔴 UND HIER STEHT AUSDRUECKLICH KEIN `margin-bottom` FUER DIE HUELLE. Die untere Kante ist eine
+   Frage des WIRTS: nach dem Kasten folgt bei vier Wirten ein .dt-grp (bringt margin-top: var(
+   --space-8) selbst mit) und beim Kraftlinien-Editor unmittelbar `.pl-hint`. Ein Aussenrand hier
+   verschoebe genau die neun Oberflaechen, die der Owner am 16.08.2026 als in Ordnung abgenommen
+   hat. Die zwei Wirte, deren eigene Gruppenmarke (.ae-grp/.ce-grp) nur einen UNTEREN Rand fuehrt,
+   geben ihn deshalb an IHREM Behaelter (#aeWikiAssign / #ceWikiAssign) selbst. */
 
 /* Die Knoepfe rechts im Gruppenkopf. 🔴 Weich/outline, nie gefuellt: eine Handlung in einem
    Abschnitt ist nie die Haupthandlung der Seite (AGENTS.md §12). Sie tragen deshalb gar keine
@@ -650,6 +656,44 @@ body.avm-editor-body {
 	gap: var(--space-2);
 	flex-wrap: wrap;
 }
+
+/* 💣 DER BLANKE <button> DES BAUTEILS BRAUCHT SEINE EIGENE REGEL -- die Annahme „die Editorseiten
+   stylen ihn schon" gilt nur fuer VIER der sechs dt-Wirte, und die zwei uebrigen sind genau die
+   zwei, die der Owner am 16.08.2026 als kaputt gemeldet hat. Nachgezaehlt, nicht geraten:
+     weich vom Wirt: html/wege-editor.html:44 + html/landschaften-editor.html:43 tragen
+       <body class="avm-editor-body"> und damit `:where(.avm-editor-body) button` (Zeile 256);
+       html/wiki-sync-powerline-editor.html:43 und html/wiki-sync-settlement-editor.html:55
+       fuehren dieselbe Regel als eigenen blanken `button { … }`.
+     OHNE Regel: html/game-literature-editor.html und html/citymap-editor.html -- KEIN
+       `avm-editor-body` am <body> und KEIN blanker `button`-Block; sie stylen nur .btn und
+       .ae-btn2/.ce-btn2, und die Knoepfe des Bauteils tragen keine Klasse (skin.knopf === "").
+   Gemessen fiel der Knopf dort auf die Browservorgabe zurueck: 21px hoch statt
+   var(--avm-control-h) (32px), Arial 13,3px statt `font: inherit`, 2px-Kantenrelief statt
+   1px var(--color-button-soft-border). Er sitzt damit nicht mehr im Hoehenraster der Kopfzeile,
+   loest sich von seiner eigenen Beschriftung und liest sich als Teil der Zeile darueber.
+   ⭐ Die Regel steht HIER und nicht in den zwei Seiten: dieselbe Begruendung wie eine Handbreit
+   weiter unten bei `.avm-wiki-assign .dt-actions button.primary` -- ein Wirt ohne eigenen
+   Stilblock soll das Bauteil nicht nackt zeichnen. Eine siebte Abschrift des Knopfes waere die
+   Divergenz, die dieses Bauteil abschaffen sollte.
+   ⚠️ SPEZIFITAET (0,1,1), gegen jeden Fremderzeuger nachgerechnet: sie schlaegt die vier weichen
+   Regeln der Wirte (0,0,1) -- mit IDENTISCHEN Werten, dort aendert sich also nichts -- und
+   verliert gegen `.avm-wiki-assign .dt-actions button.primary` (0,3,1), der gefuellte Knopf der
+   Sync-Vorschau bleibt gefuellt. Sie trifft AUSSCHLIESSLICH Knoepfe innerhalb dieser Huelle:
+   .avm-tile, .eco-*, .pl-reorder-bar, #seListTabs und .wp-fn__head liegen alle ausserhalb. Die
+   zweite Huelle (.label-wiki-*) ist unberuehrt -- ihre Knoepfe tragen ohnehin eigene Klassen. */
+.avm-wiki-assign button {
+	font: inherit;
+	min-height: var(--avm-control-h);
+	padding: 0 var(--space-8);
+	cursor: pointer;
+	color: var(--color-button-soft-text);
+	background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+}
+
+.avm-wiki-assign button:hover { background: var(--color-button-soft-hover); }
+.avm-wiki-assign button:disabled { opacity: .5; cursor: default; }
 
 .dt-hint {
 	padding-top: var(--space-2);

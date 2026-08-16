@@ -204,7 +204,12 @@ const AVESMAPS_WIKI_ASSIGN_SKINS = {
 		kopf: "dt-grp",
 		kopfTitel: "",
 		kopfKnoepfe: "dt-grp__sp",
-		knopf: "",                     // blanker <button>: die Editorseiten stylen ihn weich/outline
+		// Blanker <button>. 🪤 Hier stand „die Editorseiten stylen ihn weich/outline" -- das galt am
+		// 16.08.2026 nur fuer VIER der sechs dt-Wirte. Literatur und Karten stylen ausschliesslich
+		// ihre eigenen Knopfklassen (.btn, .ae-btn2/.ce-btn2); dort fiel er auf die Browservorgabe
+		// zurueck (21px statt --avm-control-h, Arial statt `font: inherit`). Seither traegt ihn die
+		// Huelle selbst: `.avm-wiki-assign button` in css/components/editor-page.css.
+		knopf: "",
 		// Der GEFUELLTE Knopf. `primary` ist das Wort, das die Editorfenster selbst dafuer benutzen
 		// (`button.primary` in ihren lokalen Stilbloecken) -- die Huelle spricht die Sprache ihres
 		// Wirts, genauso wie `knopf: ""` den weichen Standardknopf des Wirts meint.
