@@ -23,12 +23,14 @@ if (!defined('AVESMAPS_POLITICAL_DEFAULT_CONTINENT')) {
     define('AVESMAPS_POLITICAL_DEFAULT_CONTINENT', 'Aventurien');
 }
 
+require_once __DIR__ . '/../../bootstrap.php';
 require_once __DIR__ . '/../territories-derived-geometry-shared.php';
 require_once __DIR__ . '/../territories-derived-geometry.php';
 require_once __DIR__ . '/../derived-orphans.php';
 require_once __DIR__ . '/../territories-support.php';
 require_once __DIR__ . '/../territories-read.php';
 require_once __DIR__ . '/../territories-geometry-inventory.php';
+require_once __DIR__ . '/../territories-geometry.php';
 
 $pdo = new PDO('sqlite::memory:');
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -167,5 +169,23 @@ assert($result['hard'] === false, 'ein Aggregat mit Kind-Flaechen wird nur deakt
 $row = $pdo->query("SELECT is_active FROM political_territory_derived_geometry WHERE public_id = 'd-aggr'")->fetch(PDO::FETCH_ASSOC);
 assert(is_array($row), 'die Zeile steht noch da');
 assert((int) $row['is_active'] === 0, 'aber abgeschaltet -- "Grenzen berechnen" kann sie zurueckholen');
+
+// ===== Der Bulk-Knopf ============================================================================
+// 💣 Das Loch, das diese Baustelle erzeugt hat: der Knopf setzte ein rohes DELETE auf die Konturen
+// ab und rief die vorhandene Ketten-Deaktivierung NICHT. Zwei von drei Loeschwegen gebunden ist
+// keine Regel -- die Huelle blieb stehen, und niemand kam mehr an sie heran.
+$vorschau = avesmapsPoliticalPurgeUnassignedGeometries($pdo, [], ['id' => 7]);
+assert($vorschau['dry_run'] === true, 'ohne confirm passiert nichts');
+assert($vorschau['derived_candidates'] === 3, 'die Vorschau zaehlt die Huellen mit');
+assert($vorschau['derived_deleted'] === 0, 'und loescht nichts');
+
+$ergebnis = avesmapsPoliticalPurgeUnassignedGeometries($pdo, ['confirm' => 'apply'], ['id' => 7]);
+assert($ergebnis['derived_deleted'] === 3, 'mit confirm fallen die drei Waisen');
+assert(avesmapsPoliticalCollectSourcelessDerivedHulls($pdo) === [], 'keine verwaiste Huelle bleibt uebrig');
+// 💣 Die Gegenprobe: der Knopf raeumt Waisen weg, NICHT den Bestand. d-blatt haengt an einer
+// lebenden Quellflaeche und muss den Lauf ueberstehen -- ein Aufraeumer, der gesunde Huellen
+// mitnimmt, waere schlimmer als der Zustand, den er beheben soll.
+$blatt = $pdo->query("SELECT is_active FROM political_territory_derived_geometry WHERE public_id = 'd-blatt'")->fetch(PDO::FETCH_ASSOC);
+assert(is_array($blatt) && (int) $blatt['is_active'] === 1, 'die Huelle mit Quelle steht unangetastet da');
 
 echo "OK: verwaiste-aussenhuellen-test\n";
