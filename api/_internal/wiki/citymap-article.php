@@ -42,11 +42,15 @@ declare(strict_types=1);
  * Seitentitel auf seine Adresse abbildet, ist `wiki_sync_pages`.
  *
  * ⚠️ UND SIE FUEHRT HEUTE NUR ORTS- UND BAUWERKSSEITEN. Das ist keine Nachlaessigkeit dieser
- * Funktion, sondern der Bestand: geschrieben wird die Registry von avesmapsWikiSyncUpsertPageCache
- * (locations-helpers.php:332) und avesmapsWikiDumpPersistSettlementRecords (dump-entity-scan.php),
- * beide ausschliesslich fuer Siedlungen und Bauwerke. Steht der Artikel einer Karte woanders im Wiki,
- * wird er hier NICHT gefunden -- dafuer sagt der Leerzustand im Kasten, was zu tun ist, und daneben
- * steht das Haekchen „Kein Wiki-Artikel vorhanden".
+ * Funktion, sondern der Bestand. 🪤 OHNE NAMENSLISTE, nach einem Fehlgriff: hier standen zwei
+ * Erzeuger, und beide Haelften waren falsch -- avesmapsWikiDumpPersistSettlementRecords SCHREIBT gar
+ * nicht selbst (es ruft avesmapsWikiSyncUpsertPageCache), und das Bauwerks-Upsert
+ * (api/_internal/wiki/settlements.php:124) fehlte ganz. Eine Aufzaehlung liest sich wie eine
+ * vollstaendige Liste, und niemand zaehlt nach (AGENTS.md §11). Gemessen wird so:
+ *   grep -rn "INSERT INTO wiki_sync_pages\|INSERT INTO ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE" api/
+ * -- am 16.08.2026 zwei Schreibstellen, beide fuer Siedlungen bzw. Bauwerke. Steht der Artikel einer
+ * Karte woanders im Wiki, wird er hier NICHT gefunden -- dafuer sagt der Leerzustand im Kasten, was
+ * zu tun ist, und daneben steht das Haekchen „Kein Wiki-Artikel vorhanden".
  * 🔴 Und deshalb traegt jeder Treffer seine SEITENART mit: „Stadt", „Dorf", „Gebäude". Weist ein
  * Editor eine Karte der Seite ihrer Stadt zu, ist das kein stiller Fehler mehr, sondern ein Fall im
  * Konfliktzentrum (avesmapsConflictLoadCitymapRows) -- die Suche bietet an, was da ist, und die

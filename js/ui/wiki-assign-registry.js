@@ -567,10 +567,15 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		suche: { art: "server", url: "/api/edit/wiki/citymaps.php" },
 		// KEIN Objektart-Vorsatz: die Trefferzeile beginnt mit der SEITENART („Metropole", „Dorf",
 		// „Gebäude") -- und die ist hier mehr als eine Beschriftung.
-		// 🔴 `wiki_sync_pages` fuehrt heute NUR Orts- und Bauwerksseiten (geschrieben von
-		// avesmapsWikiSyncUpsertPageCache, api/_internal/wiki/locations-helpers.php:332, und
-		// avesmapsWikiDumpPersistSettlementRecords, api/_internal/wiki/dump-entity-scan.php:1493 --
-		// beide ausschliesslich dafuer). Ein Editor, der hier waehlt, greift also fast immer nach der Seite
+		// 🔴 `wiki_sync_pages` fuehrt heute NUR Orts- und Bauwerksseiten. 🪤 OHNE ZAHL UND OHNE
+		// NAMENSLISTE, und zwar nach einem Fehlgriff: hier standen zwei Erzeuger, und beide Haelften
+		// waren falsch -- avesmapsWikiDumpPersistSettlementRecords SCHREIBT gar nicht selbst (es ruft
+		// avesmapsWikiSyncUpsertPageCache), und das Bauwerks-Upsert
+		// (api/_internal/wiki/settlements.php:124) fehlte ganz. Eine Aufzaehlung liest sich wie eine
+		// vollstaendige Liste, und niemand zaehlt nach (AGENTS.md §11). Wer es wissen will, misst:
+		// `grep -rn "INSERT INTO wiki_sync_pages\|INSERT INTO ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE" api/`
+		// -- am 16.08.2026 zwei Schreibstellen, beide fuer Siedlungen bzw. Bauwerke.
+		// Ein Editor, der hier waehlt, greift also fast immer nach der Seite
 		// eines ORTES -- die Seitenart sagt ihm das VOR dem Klick, und die Kollisionsregel des
 		// Konfliktzentrums faengt den Missgriff danach (avesmapsConflictLoadCitymapRows,
 		// api/_internal/conflicts/rules.php:270, angeschlossen :595).
