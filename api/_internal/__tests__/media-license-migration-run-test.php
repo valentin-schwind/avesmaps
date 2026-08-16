@@ -18,6 +18,13 @@ declare(strict_types=1);
  *      sichtbar (Siedlungs-Wappen sind ungegated), und avesmapsMediaLicenseLegacyWasPublic() kennt nur
  *      den Lizenzwert, nicht die URL. Ohne einen eigenen Riegel wuerde die Sperre hier NICHT anschlagen
  *      (false === false) und das Wappen liefe lautlos in 'unknown_other'.
+ *
+ * ⚠️ Und eine FUENFTE, aus Aufgabe 5 (Hochlade-Protokoll):
+ *   5. Der Name aus map_audit_log wird NUR bei der passenden Zeile gesetzt (action
+ *      'wiki_sync_update_point', after.properties_json.coat.source === 'own', das im before fehlt
+ *      oder eine andere URL hat) -- eine zweite, nicht passende Zeile darf keinen Namen liefern.
+ *      Lokal bleibt uploaded_at IMMER leer (die vier Ablagen liegen nicht im Repo, s. u.) -- das ist
+ *      der erwartete Befund, kein Fehler.
  */
 if (ini_get('zend.assertions') !== '1') {
     fwrite(STDERR, "FATAL: zend.assertions ist nicht '1'.\n");
@@ -39,15 +46,63 @@ $pdo->exec('CREATE TABLE adventure (id INTEGER PRIMARY KEY, public_id TEXT, cove
 // ⚠️ Die citymap-Tabelle gehoert in die Fixture, obwohl an ihr nichts zu aendern ist: ihr Sammler
 // laeuft trotzdem, und ohne Tabelle braeuchte er ein try/catch -- das waere genau der inerte
 // Fehlerschlucker, an dem "Was ist hier?" einen ok:true mit leerem Inhalt geliefert hat (AGENTS §11).
+// 🔧 Aufgabe 5: *_local_url (unsere eigene Kopie, citymap-image.php:80/93) und *_uploaded_at (Aufgabe 2)
+// kommen dazu -- der Sammler liest jetzt beide je Slot.
 $pdo->exec('CREATE TABLE citymap (id INTEGER PRIMARY KEY, public_id TEXT,
-    map_license TEXT, thumb_license TEXT)');
-$pdo->exec("INSERT INTO citymap (public_id, map_license, thumb_license)
-    VALUES ('karte-1', 'public_domain', 'unknown_other')");
+    map_license TEXT, thumb_license TEXT, map_local_url TEXT, thumb_local_url TEXT,
+    map_uploaded_at TEXT, thumb_uploaded_at TEXT)');
+$pdo->exec("INSERT INTO citymap (public_id, map_license, thumb_license, map_local_url, thumb_local_url)
+    VALUES ('karte-1', 'public_domain', 'unknown_other',
+            '/uploads/kartensammlungen/karte-1/karte.jpg', '/uploads/kartensammlungen/karte-1/vorschau.jpg')");
+
+// 🔧 Aufgabe 5 (Hochlade-Protokoll): users + map_audit_log fuer die Namens-Rekonstruktion der
+// Siedlungs-Wappen -- die einzige der vier Flaechen mit einer Protokollspur.
+$pdo->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT)');
+$pdo->exec("INSERT INTO users (username) VALUES ('Alrik')");
+$alrikId = (int) $pdo->lastInsertId();
+$pdo->exec('CREATE TABLE map_audit_log (id INTEGER PRIMARY KEY, feature_id INTEGER, action TEXT,
+    actor_user_id INTEGER, before_json TEXT, after_json TEXT, created_at TEXT)');
 
 // Ein KI-Wappen eines Editors (sichtbar, weil ungegated) und ein Wiki-Wappen.
 $pdo->exec("INSERT INTO map_features (public_id, feature_type, properties_json) VALUES
     ('ort-1', 'location', '" . json_encode(['coat' => ['url' => '/uploads/wappen/own/a.png', 'source' => 'own', 'license_status' => 'own']]) . "'),
     ('ort-2', 'location', '" . json_encode(['coat' => ['url' => '/x.png', 'source' => 'wiki', 'license_status' => 'public_domain']]) . "')");
+$ort1Id = (int) $pdo->query("SELECT id FROM map_features WHERE public_id = 'ort-1'")->fetchColumn();
+$ort2Id = (int) $pdo->query("SELECT id FROM map_features WHERE public_id = 'ort-2'")->fetchColumn();
+
+// 🔧 Aufgabe 5, Punkt 5: eine PASSENDE Zeile (ort-1 bekam sein eigenes Wappen -- before_json OHNE
+// coat, roh mit properties_json als STRING; after_json MIT coat.source='own', gebaut mit
+// properties_json als ARRAY -- siehe locations-helpers.php:183-216) und eine NICHT PASSENDE (ort-2,
+// after.coat.source ist 'wiki', nicht 'own').
+$vorherOrt1 = json_encode([
+    'id' => $ort1Id, 'public_id' => 'ort-1', 'feature_type' => 'location', 'name' => 'Ort 1',
+    'feature_subtype' => 'stadt', 'properties_json' => json_encode(['irgendwas' => 'anderes']), 'revision' => 1,
+]);
+$nachherOrt1 = json_encode([
+    'public_id' => 'ort-1', 'feature_type' => 'location', 'name' => 'Ort 1', 'feature_subtype' => 'stadt',
+    'properties_json' => ['coat' => ['url' => '/uploads/wappen/own/a.png', 'source' => 'own', 'license_status' => 'own']],
+    'revision' => 2,
+]);
+$pdo->prepare('INSERT INTO map_audit_log (feature_id, action, actor_user_id, before_json, after_json, created_at)
+    VALUES (:fid, :action, :actor, :before, :after, :ts)')->execute([
+    'fid' => $ort1Id, 'action' => 'wiki_sync_update_point', 'actor' => $alrikId,
+    'before' => $vorherOrt1, 'after' => $nachherOrt1, 'ts' => '2026-08-01 10:00:00',
+]);
+$vorherOrt2 = json_encode([
+    'id' => $ort2Id, 'public_id' => 'ort-2', 'feature_type' => 'location', 'name' => 'Ort 2',
+    'feature_subtype' => 'stadt',
+    'properties_json' => json_encode(['coat' => ['url' => '/x.png', 'source' => 'wiki']]), 'revision' => 1,
+]);
+$nachherOrt2 = json_encode([
+    'public_id' => 'ort-2', 'feature_type' => 'location', 'name' => 'Ort 2', 'feature_subtype' => 'stadt',
+    'properties_json' => ['coat' => ['url' => '/x.png', 'source' => 'wiki', 'license_status' => 'public_domain']],
+    'revision' => 2,
+]);
+$pdo->prepare('INSERT INTO map_audit_log (feature_id, action, actor_user_id, before_json, after_json, created_at)
+    VALUES (:fid, :action, :actor, :before, :after, :ts)')->execute([
+    'fid' => $ort2Id, 'action' => 'wiki_sync_update_point', 'actor' => $alrikId,
+    'before' => $vorherOrt2, 'after' => $nachherOrt2, 'ts' => '2026-08-01 11:00:00',
+]);
 // ⚠️ Nachtrag Punkt 4: ein Wappen mit URL, aber OHNE license_status (Feld fehlt ganz) -- der Fall aus
 // dem Review von Aufgabe 1. Muss gezaehlt, getrennt gemeldet und NIE migriert werden.
 $pdo->exec("INSERT INTO map_features (public_id, feature_type, properties_json) VALUES
@@ -99,6 +154,22 @@ assert($angekuendigt === 5, "Vorschau kuendigt {$angekuendigt} statt 5 Aenderung
 assert($vorschau['surfaces']['citymap']['geaendert'] === 0, 'an den Karten ist nichts zu tun');
 assert($vorschau['surfaces']['citymap']['gelesen'] > 0, 'der Karten-Sammler hat gar nicht gelesen');
 
+// ---- 5. die Trefferquote (Aufgabe 5, Schritt 3) steht schon in der VORSCHAU ---------------------------
+// settlement_coat: ort-1 + ort-2 = 2 (ort-3 ist ein coat_ohne_lizenz-Sonderfall, zaehlt hier nicht mit).
+// Lokal IMMER 0 Datumsangaben (die vier Ablagen liegen nicht im Repo -- Punkt 2 des Briefs), aber genau
+// EIN Name (ort-1 ist die passende Zeile, ort-2 die nicht passende).
+$coatProtokoll = $vorschau['surfaces']['settlement_coat']['protokoll'];
+assert($coatProtokoll['gesamt'] === 2, "settlement_coat.protokoll.gesamt ist {$coatProtokoll['gesamt']} statt 2");
+assert($coatProtokoll['datum_gefunden'] === 0, 'lokal duerfen keine Datumsangaben erfunden werden -- die Ablage fehlt im Repo');
+assert($coatProtokoll['name_gefunden'] === 1, "settlement_coat.protokoll.name_gefunden ist {$coatProtokoll['name_gefunden']} statt 1");
+// Die anderen drei Ablagen bekommen ein Protokoll (nur Datum, nie Namen); territory_coat keines --
+// es ist keine der vier Ablagen aus Aufgabe 5.
+foreach (['cover', 'settlement_image', 'citymap'] as $flaecheMitProtokoll) {
+    assert(array_key_exists('protokoll', $vorschau['surfaces'][$flaecheMitProtokoll]), "{$flaecheMitProtokoll} hat kein Protokoll gemeldet");
+    assert($vorschau['surfaces'][$flaecheMitProtokoll]['protokoll']['name_gefunden'] === 0, "{$flaecheMitProtokoll} hat keine Protokollspur fuer Namen -- muss 0 bleiben");
+}
+assert(!array_key_exists('protokoll', $vorschau['surfaces']['territory_coat']), 'territory_coat ist keine der vier Ablagen und darf kein Protokoll melden');
+
 // ---- 4. Wappen mit URL, aber ohne Lizenz: gezaehlt, getrennt gemeldet, nie migriert -----------------
 assert(count($vorschau['coat_ohne_lizenz']) === 1, 'coat_ohne_lizenz wurde nicht gezaehlt');
 assert($vorschau['coat_ohne_lizenz'][0]['url'] === '/y.png', 'die falsche Zeile wurde als coat_ohne_lizenz gemeldet');
@@ -110,6 +181,11 @@ assert($lauf['ok'] === true && $lauf['dry_run'] === false);
 $ort1 = json_decode((string) $pdo->query("SELECT properties_json FROM map_features WHERE public_id='ort-1'")->fetchColumn(), true);
 assert($ort1['coat']['license_status'] === 'ai_generated');
 assert(($ort1['coat']['source'] ?? '') === 'own', 'source darf die Migration nicht anfassen');
+// ---- 5. der Name aus dem Protokoll wird nur bei der passenden Zeile gesetzt ------------------------
+assert(($ort1['coat']['uploaded_by'] ?? '') === 'Alrik', 'ort-1 ist die passende Zeile -- der Name haette Alrik heissen muessen');
+assert(!array_key_exists('uploaded_at', $ort1['coat']), 'lokal darf kein Datum erfunden werden -- die Ablage fehlt im Repo');
+$ort2 = json_decode((string) $pdo->query("SELECT properties_json FROM map_features WHERE public_id='ort-2'")->fetchColumn(), true);
+assert(!array_key_exists('uploaded_by', $ort2['coat']), 'ort-2 ist die NICHT passende Zeile -- der Name muss leer bleiben');
 
 assert($pdo->query("SELECT coat_of_arms_license_status FROM political_territory_wiki_test WHERE wiki_key='wiki:b'")->fetchColumn() === 'cc_by');
 
