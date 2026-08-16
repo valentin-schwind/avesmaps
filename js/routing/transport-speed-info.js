@@ -172,7 +172,7 @@
 			'</div><div class="tsi-wnote">' + tr("transport.speedInfo.seaNote", "Nur der Schnellsegler fährt bei bekannter Strecke Tag und Nacht durch — für ihn fällt keine Rastzeit an. Lastensegler und Galeere gehen nachts vor Anker und rasten wie an Land.") + '</div></div>' +
 			"</div>" +
 			'<div class="tsi-rules">' +
-			'<div class="tsi-rule">' + iconImg("icons/Rast.webp") + "<div>" + tr("transport.speedInfo.restRule", "<b>Rast.</b> Standardmäßig reist du 12 Stunden am Tag und rastest 12 Stunden (im Planer einstellbar). Das gilt an Land, auf Flüssen und auch für Lastensegler und Galeere — <b>nur der Schnellsegler</b> fährt rund um die Uhr.") + "</div></div>" +
+			'<div class="tsi-rule">' + iconImg("icons/Rast.webp") + "<div>" + tr("transport.speedInfo.restRule", "<b>Rast.</b> Standardmäßig reist du 12 Stunden am Tag und rastest 12 Stunden (im Planer einstellbar). Das gilt an Land, auf Flüssen und auch für Lastensegler und Galeere — <b>nur der Schnellsegler</b> fährt rund um die Uhr. Den 12-Stunden-Reisetag nennt die Geographia im Kapitel „Weg und Steg in Aventurien“ (S. 131); für Landreisen nennt sie überhaupt keine Stundenzahl — dort ist die Tagesleistung die Einheit.") + "</div></div>" +
 			'<div class="tsi-rule">' + iconImg("icons/Querfeldein.webp") + "<div>" + tr("transport.speedInfo.crossCountryRule", "<b>Querfeldein.</b> Fehlt zwischen zwei Orten ein echter Weg, schlägt sich die Route per Luftlinie durchs Gelände. Das ist zäh{range}, darum bevorzugt die Berechnung selbst große Umwege über richtige Straßen und Pfade.", { range: crossCountryRangeClause() }) + "</div></div>" +
 			// V11. Spans both columns (.tsi-rule--wide): it is the longest of the three, and letting it
 			// run full width keeps the block at two rows instead of three.

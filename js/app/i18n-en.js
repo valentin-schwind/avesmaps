@@ -78,7 +78,7 @@ window.AVESMAPS_I18N_EN = {
 	"planner.optionsInfo.transfers.note": "<b>A search weight, not a waiting time:</b> it steers the search and appears in none of the numbers shown.",
 	"planner.optionsInfo.rest.title": "Travel hours per day",
 	"planner.optionsInfo.rest.body": "The rest of the day is rest — but it falls due in whole portions, not proportionally: only once the {hours} travel hours are used up <b>and there is still road ahead</b> does a night cost {restHours} h. Arrive before that and you do not rest at all. The counter runs across the whole route, not per leg; 24 means travelling around the clock.",
-	"planner.optionsInfo.rest.note": "<b>Only the fast sailer keeps going</b> — cargo sailer and galley anchor at night and rest as on land.",
+	"planner.optionsInfo.rest.note": "<b>Only the fast sailer keeps going</b> — cargo sailer and galley anchor at night and rest as on land. The default of 12 hours is the Geographia's travel day, named in the chapter “Weg und Steg in Aventurien” (p. 131) — for land travel the source gives no hour count, there the day's mileage is the unit.",
 	"planner.optionsInfo.start.title": "Departure date",
 	"planner.optionsInfo.start.body": "The calendar runs along the route — leg dates and day of arrival. And the season takes hold of the ground:",
 	"planner.optionsInfo.start.zone": "Climate zone",
@@ -1066,7 +1066,7 @@ window.AVESMAPS_I18N_EN = {
 	"transport.speedInfo.riverNote": "Downstream, with the current, you travel at full speed. Upstream, against the current, the same distance takes longer — as a rule twice the duration, and up to 3 times in strong currents.",
 	"transport.speedInfo.seaTravel": "Sea travel",
 	"transport.speedInfo.seaNote": "Only the fast sailer runs day and night on a known route — no rest time is needed for it. The cargo sailer and the galley anchor at night and rest like travellers on land.",
-	"transport.speedInfo.restRule": "<b>Rest.</b> By default you travel 12 hours a day and rest 12 hours (adjustable in the planner). This applies on land, on rivers, and to the cargo sailer and the galley as well — <b>only the fast sailer</b> runs around the clock.",
+	"transport.speedInfo.restRule": "<b>Rest.</b> By default you travel 12 hours a day and rest 12 hours (adjustable in the planner). This applies on land, on rivers, and to the cargo sailer and the galley as well — <b>only the fast sailer</b> runs around the clock. The 12-hour travel day is the Geographia's, named in the chapter “Weg und Steg in Aventurien” (p. 131); for land travel it gives no hour count at all — there the day's mileage is the unit.",
 	// `{range}` is filled by crossCountryRangeClause() in transport-speed-info.js from the Querfeldein
 	// column of SPEED_TABLE -- never type the numbers back in, they went stale twice as a literal.
 	"transport.speedInfo.crossCountryRule": "<b>Cross-country.</b> If there is no real path between two places, the route cuts straight across the terrain. This is slow{range}, so the calculation itself prefers large detours over proper roads and trails.",

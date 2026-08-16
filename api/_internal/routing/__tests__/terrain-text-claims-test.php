@@ -284,6 +284,8 @@ $waterNeedles = [
         'nur der Schnellsegler</b> fährt rund um die Uhr',
         'Nur der Schnellsegler fährt bei bekannter Strecke Tag und Nacht durch',
         'Lastensegler und Galeere gehen nachts vor Anker',
+        'Kapitel „Weg und Steg in Aventurien“ (S. 131)',
+        'für Landreisen nennt sie überhaupt keine Stundenzahl',
     ],
     'EN' => [
         'as a rule twice the duration, and up to 3 times in strong currents',
@@ -291,6 +293,8 @@ $waterNeedles = [
         'only the fast sailer</b> runs around the clock',
         'Only the fast sailer runs day and night on a known route',
         'The cargo sailer and the galley anchor at night',
+        'chapter “Weg und Steg in Aventurien” (p. 131)',
+        'for land travel it gives no hour count at all',
     ],
 ];
 
