@@ -35,9 +35,26 @@ function isPathLabelVisibleAtCurrentZoom(path) {
 	return shouldPathNameBeDisplayed(path) && map.getZoom() >= minZoom;
 }
 
+// 🔴 EIGENE GRUNDTAFEL DER WEGENAMEN -- buchstäblich die Dorf-Zeile, wie sie bis zum 16.08.2026 in
+// LOCATION_NAME_LABEL_SIZE_BY_ZOOM stand. Sie ist hierher gewandert, weil die Ortsschrift ein
+// einstellbares Zoomband bekommt und die Dorf-Zeile unter z4 leer wird (dort trägt ein Dorf keinen
+// Namen) -- die Wegenamen brauchen dort aber weiter eine Zahl.
+// 💣 Die 8,5 bei z3 ist der Grund: sie wird zur Straßenschrift 9,5. Ein Rückfall auf die alte
+// Untergrenze 8 hätte sie stumm auf 9 gedrückt, auf der ganzen Karte.
+// ⚠️ Damit zieht eine verstellte Dorfschrift die Straßenschrift NICHT mehr mit. Gewollt
+// (Entwurf 2026-08-16-zoombaender-design.md §6); soll sie das je wieder, ist das hier die Stelle.
+const PATH_LABEL_BASE_SIZE_BY_ZOOM = { 0: 8, 1: 8, 2: 8, 3: 8.5, 4: 10, 5: 11 };
+function getPathLabelBaseSize(zoomLevel = (typeof map !== "undefined" ? map.getZoom() : 4)) {
+	const z = typeof getVisualZoomLevel === "function"
+		? getVisualZoomLevel(zoomLevel)
+		: Math.max(0, Math.min(5, Math.round(Number(zoomLevel))));
+	const value = PATH_LABEL_BASE_SIZE_BY_ZOOM[z];
+	return Math.max(8, Number.isFinite(value) ? value : 8);
+}
+
 // Live tunbar via ?pathtune=1 (siehe Panel am Dateiende).
 // Schriftgrößen-Delta PRO (visueller) Zoomstufe -- px auf die berechnete (zoomabhängige) Basisgröße.
-// Gleicher Zoom-Index wie die Basis (getLocationNameLabelSize -> getVisualZoomLevel, 0..VISUAL_MAX_ZOOM_LEVEL=5),
+// Gleicher Zoom-Index wie die Basis (getPathLabelBaseSize -> getVisualZoomLevel, 0..VISUAL_MAX_ZOOM_LEVEL=5),
 // damit Slider "Zoom N" und Basisgröße sich decken. Defaults überall 3 = bisheriges globales Verhalten.
 let PATH_LABEL_FONT_DELTA_BY_ZOOM = { 0: 3, 1: 3, 2: 3, 3: 3, 4: 3, 5: 3 };
 function getPathLabelFontDelta(zoomLevel = (typeof map !== "undefined" ? map.getZoom() : 4)) {
@@ -128,7 +145,7 @@ function getPathLabelStyle(path) {
 	};
 
 	const isRiver = pathSubtype === "Flussweg" || pathSubtype === "Seeweg";
-	const fontSize = Math.max(4, getLocationNameLabelSize("dorf") + (pathSubtype === "Flussweg" ? 3 : 1) + getPathLabelFontDelta());
+	const fontSize = Math.max(4, getPathLabelBaseSize() + (pathSubtype === "Flussweg" ? 3 : 1) + getPathLabelFontDelta());
 	const halo = getPathLabelHaloParams(
 		isRiver ? PATH_LABEL_RIVER_HALO_STRENGTH : PATH_LABEL_ROAD_HALO_STRENGTH,
 		isRiver ? PATH_LABEL_RIVER_HALO_SHARPNESS : PATH_LABEL_ROAD_HALO_SHARPNESS,
