@@ -21,7 +21,19 @@
 //       loesen:          () => {},           // Wert ODER Promise
 //       syncUebernehmen: (zeilen) => {},     // NUR die angehakten Diff-Zeilen (Aufgabe 2)
 //       keinArtikelGeaendert: (wert) => {},  // OPTIONAL — nur, wer sofort schreibt, braucht ihn
+//       trefferAufbereiten: (zeile) => {},   // OPTIONAL — nur bei suche.art === "server"
 //   });
+//
+// 🔴 `zuweisen`, `loesen` und `syncUebernehmen` duerfen ABLEHNEN, und eine Ablehnung heisst „es ist
+// NICHTS passiert": das Bauteil laesst seinen Zustand dann unangetastet. Wer stattdessen aufloest,
+// laesst es eine Zuweisung malen, die es auf dem Server nicht gibt. 💣 Das ist kein Randfall --
+// `assign_to` sagt seinen Typriegel (Fluss an Strasse) mit HTTP 200 und `type_ok:false`, und das
+// „Entfernen" des Wegs fragt erst zurueck, ob nur ein Segment oder der ganze Weg gemeint ist.
+//
+// ⚠️ `trefferAufbereiten` formt EINE flache Antwortzeile der Server-Suche in die Treffer-Form
+// unten. Ohne eigenen Bauer greift avesmapsWikiAssignTrefferAusZeile, das die in der Erklaerung
+// genannten Feldnamen aus der Zeile hebt. Eigen wird er dort, wo ein Wert erst ABGEBILDET werden
+// muss (der Weg: freie Wiki-Art -> Wegtyp-Schluessel, js/ui/wiki-assign-weg.js).
 //
 // 🔴 Eine Oberflaeche steuert NUR ihren Datenweg bei. Sie erfaehrt nie, welcher Zustand gerade
 // gezeichnet ist, ob gesucht wird oder wie die Vorschau aussieht — sonst waere das Bauteil zum
@@ -113,6 +125,11 @@ const AVESMAPS_WIKI_ASSIGN_TEXTE = {
 	// Zusammensetzung, die Wendung ist Text: sonst stuende „Keine Treffer" zweimal ausgeschrieben da,
 	// die i18n-Schicht (AGENTS.md §8, M8) faende nur eine davon, und die zweite bliebe deutsch.
 	keineTreffer: "Keine Treffer",
+	// 🔴 „Suche fehlgeschlagen" ist NICHT „Keine Treffer". Bis zum 16.08.2026 schluckte der
+	// Server-Zweig jeden Fehler (`.catch(() => [])`) und meldete null Treffer -- eine
+	// abgelaufene Sitzung, ein 500er und „diesen Artikel gibt es nicht" waren dann dasselbe
+	// Bild, und der Editor haette den Artikel im Wiki gesucht statt sich neu anzumelden.
+	suchFehler: "Suche fehlgeschlagen",
 	haengtAn: "hängt schon an",
 	syncTitel: "Aus dem Wiki übernehmen",
 	syncNichts: "Alles stimmt bereits mit dem Wiki überein — nichts zu übernehmen.",
@@ -333,8 +350,15 @@ function avesmapsWikiAssignModell(erklaerung, daten, ui) {
 		// per Definition nie aendern -- sie mitzuzaehlen liesse „2 von 6" dastehen, wo es nur zwei
 		// veraenderbare Angaben gibt, und der Satz waere lautlos falsch.
 		const veraenderbar = felder.filter((feld) => String((feld && feld.karte) || "") !== "").length;
+		// ⚠️ ZWEI Mehrzahlen in einem Satz, und sie haengen an VERSCHIEDENEN Zahlen: das Hauptwort
+		// an der Gesamtzahl („von 1 Angabe" / „von 6 Angaben"), das Zeitwort an der Trefferzahl
+		// („1 … würde" / „2 … würden"). Der Weg ist die erste Objektart, die den Satz ueberhaupt zu
+		// sehen bekommt, und mit seiner EINEN veraenderbaren Angabe stand dort „1 von 1 Angaben
+		// würden sich ändern" -- gefunden im Ablauf, nicht im Test.
 		modell.hinweis = modell.syncZeilen.length + " von " + veraenderbar
-			+ " Angaben würden sich ändern. Angehakt wird übernommen.";
+			+ (veraenderbar === 1 ? " Angabe" : " Angaben")
+			+ (modell.syncZeilen.length === 1 ? " würde" : " würden")
+			+ " sich ändern. Angehakt wird übernommen.";
 		modell.syncAktionen = [
 			{ aktion: "sync-uebernehmen", text: gehakt + (gehakt === 1 ? " Angabe übernehmen" : " Angaben übernehmen"), aus: gehakt === 0 },
 			{ aktion: "sync-alle", text: AVESMAPS_WIKI_ASSIGN_TEXTE.syncAlleAnhaken },
@@ -368,15 +392,23 @@ function avesmapsWikiAssignModell(erklaerung, daten, ui) {
 		// auf eine Kennung, die es nicht gibt, ist fuer ein Hilfsmittel schlimmer als keiner.
 		const aktiver = modell.treffer.filter((treffer) => treffer.aktiv)[0];
 		modell.aktiveId = aktiver ? aktiver.id : "";
+		// 🔴 Ein gescheiterter Suchlauf sagt das, statt „Keine Treffer" zu behaupten. Beides sieht
+		// im Kasten gleich leer aus, meint aber Gegenteiliges: „es gibt keinen solchen Artikel"
+		// gegen „ich konnte nicht nachsehen".
+		const suchFehler = avesmapsWikiAssignText(z.suchFehler);
 		// Der Leerkasten schliesst die Wendung als Satz ab, der Zaehlsatz oben haengt „ · “ an.
-		modell.trefferLeerText = AVESMAPS_WIKI_ASSIGN_TEXTE.keineTreffer + ".";
+		modell.trefferLeerText = (suchFehler === ""
+			? AVESMAPS_WIKI_ASSIGN_TEXTE.keineTreffer
+			: AVESMAPS_WIKI_ASSIGN_TEXTE.suchFehler) + ".";
 		// „Treffer" heisst im Deutschen in beiden Zahlen gleich -- keine Mehrzahlweiche noetig.
 		// ⚠️ Der Leerfall steht seit 16.08.2026 AUCH hier: der Kasten mit „Keine Treffer." ist fuer
 		// Hilfsmittel ausgeblendet (role=presentation, siehe Trefferlisten-Bauer), also muss die
 		// Auskunft an der Stelle stehen, die ohnehin die Trefferzahl traegt.
-		modell.hinweis = (modell.treffer.length === 0
-			? AVESMAPS_WIKI_ASSIGN_TEXTE.keineTreffer
-			: modell.treffer.length + " Treffer") + " · " + AVESMAPS_WIKI_ASSIGN_TEXTE.suchHinweis;
+		modell.hinweis = suchFehler !== ""
+			? AVESMAPS_WIKI_ASSIGN_TEXTE.suchFehler + " — " + suchFehler
+			: (modell.treffer.length === 0
+				? AVESMAPS_WIKI_ASSIGN_TEXTE.keineTreffer
+				: modell.treffer.length + " Treffer") + " · " + AVESMAPS_WIKI_ASSIGN_TEXTE.suchHinweis;
 		return modell;
 	}
 
@@ -609,6 +641,58 @@ function avesmapsWikiAssignMarkup(modell, skin) {
 }
 
 /**
+ * REIN: eine FLACHE Antwortzeile der Server-Suche in die Treffer-Form des Bauteils.
+ *
+ * 💣 DER SERVER-ZWEIG WAR BIS ZUM 16.08.2026 UNVOLLSTAENDIG, und es faellt erst beim ersten
+ * Nutzer auf: `?action=search` antwortet mit flachen Zeilen (`row.art`, `row.lage`, …), das
+ * Bauteil liest aber `treffer.werte[<wikiFeld>]`. Ohne diese Umformung bliebe die zweite
+ * Trefferzeile leer -- und, viel schlimmer, `trefferWaehlen` uebernimmt `treffer.werte` in den
+ * Artikel: der ZUWEISUNGSKASTEN staende nach der Wahl ohne eine einzige Angabe da, obwohl der
+ * Server sie geliefert hat.
+ *
+ * ⚠️ Eine Zeile, die `werte` schon mitbringt, wird UNVERAENDERT durchgereicht -- die Listen-Suche
+ * (Kraftlinien) liefert die Treffer bereits fertig, und sie darf hier nicht zweimal umgeformt
+ * werden.
+ *
+ * 🔴 Uebernommen wird nur, was die Erklaerung nennt (`felder` + `treffer`). Alles andere aus der
+ * Zeile bleibt unter `roh` erreichbar, wandert aber nicht in die Anzeige: eine Suchantwort traegt
+ * auch Bildlizenzen, Zeitstempel und Rohtexte.
+ */
+function avesmapsWikiAssignTrefferAusZeile(erklaerung, zeile) {
+	const e = erklaerung || {};
+	const z = (zeile && typeof zeile === "object") ? zeile : {};
+	if (z.werte && typeof z.werte === "object") {
+		return z;
+	}
+	const schluessel = [];
+	(Array.isArray(e.felder) ? e.felder : []).forEach((feld) => {
+		const name = avesmapsWikiAssignText(feld && feld.wiki);
+		if (name !== "" && schluessel.indexOf(name) === -1) {
+			schluessel.push(name);
+		}
+	});
+	(Array.isArray(e.treffer) ? e.treffer : []).forEach((name) => {
+		const wert = avesmapsWikiAssignText(name);
+		if (wert !== "" && schluessel.indexOf(wert) === -1) {
+			schluessel.push(wert);
+		}
+	});
+	const werte = {};
+	schluessel.forEach((name) => {
+		if (Object.prototype.hasOwnProperty.call(z, name)) {
+			werte[name] = z[name];
+		}
+	});
+	return {
+		name: avesmapsWikiAssignText(z.name),
+		wiki_url: avesmapsWikiAssignText(z.wiki_url),
+		wiki_key: avesmapsWikiAssignText(z.wiki_key),
+		werte: werte,
+		roh: z,
+	};
+}
+
+/**
  * REIN: filtert eine im Browser liegende Kandidatenliste. Teilzeichenkette im Namen, ohne
  * Gross-/Kleinschreibung, gedeckelt auf dieselbe Zahl wie die Server-Suchen.
  */
@@ -684,7 +768,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 
 	const listenId = "avm-wiki-assign-" + (++avesmapsWikiAssignZaehler);
 	let daten = { artikel: null, keinArtikel: false, kartenwerte: {}, handgesetzt: [], gesperrt: {}, listen: {} };
-	let ui = { modus: "offen", suchtext: "", treffer: [], aktiv: 0, syncZeilen: [], listenId: listenId };
+	let ui = { modus: "offen", suchtext: "", treffer: [], aktiv: 0, syncZeilen: [], suchFehler: "", listenId: listenId };
 	let tippUhr = null;
 	let laufendeSuche = 0;
 	// 🔴 Das Merkmal hinter `bereit`: erst ein GEGLUECKTER Ladelauf macht `lies()` zu einem gueltigen
@@ -693,7 +777,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	let geladen = false;
 
 	function neuerZustand(modus) {
-		return { modus: modus, suchtext: "", treffer: [], aktiv: 0, syncZeilen: [], listenId: listenId };
+		return { modus: modus, suchtext: "", treffer: [], aktiv: 0, syncZeilen: [], suchFehler: "", listenId: listenId };
 	}
 
 	function zeichne() {
@@ -826,14 +910,31 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		if (suche.art === "server" && avesmapsWikiAssignText(suche.url) !== "") {
 			// ⚠️ `data.rows` ist die gemessene Form der drei vorhandenen Suchen
 			// (review-label-wiki.js:219, review-settlement-wiki.js:148, review-path-wiki.js:186) —
-			// abgelesen, nicht geraten. Gegen einen LIVE-Endpunkt ist dieser Zweig in Aufgabe 3
-			// nicht gefahren worden; die Kraftlinien suchen im Browser. Aufgabe 4 misst ihn.
+			// abgelesen, nicht geraten.
 			const url = suche.url + "?action=search&q=" + encodeURIComponent(avesmapsWikiAssignText(suchtext))
 				+ "&limit=" + AVESMAPS_WIKI_ASSIGN_TREFFER_LIMIT;
+			// Wie eine flache Antwortzeile zu einem Treffer wird, entscheidet die Oberflaeche --
+			// dieselbe Rollenteilung wie bei der Listen-Suche, wo sie die Kandidaten fertig
+			// mitbringt. Ohne eigenen Bauer greift der aus der Erklaerung abgeleitete.
+			const aufbereiten = typeof opt.trefferAufbereiten === "function"
+				? opt.trefferAufbereiten
+				: (zeile) => avesmapsWikiAssignTrefferAusZeile(erklaerung, zeile);
 			return fetch(url, { credentials: "same-origin", headers: { Accept: "application/json" } })
-				.then((antwort) => antwort.json())
-				.then((data) => (data && Array.isArray(data.rows)) ? data.rows : [])
-				.catch(() => []);
+				.then((antwort) => {
+					// 💣 `fetch` loest auch bei 401/403/500 AUF -- nur ein Netzabbruch wirft. Ohne
+					// diese Zeile wird aus einer abgelaufenen Sitzung eine leere Trefferliste.
+					if (!antwort.ok) {
+						throw new Error("Der Server antwortete mit " + antwort.status + ".");
+					}
+					return antwort.json();
+				})
+				.then((data) => {
+					if (!data || typeof data !== "object" || !Array.isArray(data.rows)) {
+						const meldung = data && data.error ? (data.error.message || data.error) : "";
+						throw new Error(avesmapsWikiAssignText(meldung) || "Unerwartete Antwort.");
+					}
+					return data.rows.map(aufbereiten);
+				});
 		}
 		return Promise.resolve([]);
 	}
@@ -848,7 +949,20 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			}
 			ui.treffer = treffer;
 			ui.aktiv = 0;
+			ui.suchFehler = "";
 			// 🔴 NUR die Liste -- das Suchfeld bleibt stehen, samt Zeigerstelle und Markierung.
+			zeichneTreffer();
+		}, (fehler) => {
+			// 🔴 Ein Fehlschlag LEERT die Liste und SAGT es. Bis zum 16.08.2026 endete er in einem
+			// `.catch(() => [])` und war von „es gibt keinen solchen Artikel" nicht zu
+			// unterscheiden -- das Bauteil hat hier keinen Schreibzugriff, aber eine falsche
+			// Auskunft schickt den Editor ins Wiki statt in die Anmeldung.
+			if (meine !== laufendeSuche || ui.modus !== "suche") {
+				return;
+			}
+			ui.treffer = [];
+			ui.aktiv = 0;
+			ui.suchFehler = avesmapsWikiAssignText(fehler && fehler.message) || "Unbekannter Fehler.";
 			zeichneTreffer();
 		});
 		if (tippUhr) {
@@ -881,6 +995,16 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			daten.keinArtikel = false;
 			ui = neuerZustand("zugewiesen");
 			zeichne();
+		}, () => {
+			// 🔴 DER SERVER HAT NEIN GESAGT -- also wird NICHTS gemalt. Bis zum 16.08.2026 gab es
+			// hier gar keinen zweiten Zweig: eine abgelehnte Zusage aus `zuweisen` blieb eine
+			// unbehandelte Ablehnung, und die Suche blieb offen stehen. Schlimmer waere nur das
+			// Gegenteil gewesen -- den Treffer trotzdem zu uebernehmen und eine Zuweisung zu
+			// zeigen, die es auf dem Server nicht gibt (der Typriegel Fluss <-> Strasse antwortet
+			// genau so: HTTP 200, `type_ok:false`, nichts geschrieben).
+			// ⚠️ Die Begruendung gehoert der Oberflaeche -- sie kennt den Endpunkt und meldet den
+			// Grund dort, wo sie ihre uebrigen Meldungen zeigt.
+			ui.suchFehler = "";
 		});
 	}
 
@@ -917,6 +1041,12 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 				daten.artikel = null;
 				ui = neuerZustand("offen");
 				zeichne();
+			}, () => {
+				// 🔴 Nicht geloest -- also bleibt die Zuweisung stehen. 💣 Der Weg macht daraus den
+				// wichtigsten Fall: sein „Entfernen" fragt erst zurueck, ob NUR dieses Segment
+				// oder der GANZE Weg geloest werden soll, und ein Abbruch dort ist eine Ablehnung.
+				// Ohne diesen Zweig zeigte der Kasten danach „— keine —", waehrend auf dem Server
+				// alles unveraendert steht.
 			});
 			return;
 		}
@@ -934,6 +1064,9 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			Promise.resolve(typeof opt.syncUebernehmen === "function" ? opt.syncUebernehmen(gehakt) : null).then(() => {
 				ui = neuerZustand("zugewiesen");
 				zeichne();
+			}, () => {
+				// Nicht uebernommen -- die Vorschau bleibt stehen, damit der Editor es noch einmal
+				// versuchen oder abbrechen kann.
 			});
 		}
 	}
@@ -1080,6 +1213,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsWikiAssignModell: avesmapsWikiAssignModell,
 		avesmapsWikiAssignMarkup: avesmapsWikiAssignMarkup,
 		avesmapsWikiAssignTrefferListeInhalt: avesmapsWikiAssignTrefferListeInhalt,
+		avesmapsWikiAssignTrefferAusZeile: avesmapsWikiAssignTrefferAusZeile,
 		// Nur fuer die Probe des Blindgaengers: der Zweig, der OHNE DOM zurueckkehrt.
 		avesmapsWikiAssignMount: avesmapsWikiAssignMount,
 		avesmapsWikiAssignListeFiltern: avesmapsWikiAssignListeFiltern,

@@ -54,6 +54,18 @@ Object.entries(AVESMAPS_WIKI_ASSIGN_REGISTRY).forEach(([subject, e]) => {
 // gemessen wurde -- nichts geraten. In den Aufgaben 4-9 kommt bei jeder neu gebauten Objektart HIER
 // eine Zeile dazu, sonst bleibt Fall 6 unten fuer die neue Objektart wirkungslos (dieselbe Falle wie
 // bei Fall 1).
+//
+// 🔴 DIE GRENZE, DIE DIE LISTE ZIEHT -- sie stand bis zum 16.08.2026 nur in der Kraftlinien-Zeile
+// und nicht als Regel da, und die naechste Objektart haette sie neu erraten muessen:
+// aufgezaehlt werden die INFOBOX-WERTFELDER, die der Parser ueber sein `$field([...])` liest,
+// MINUS dem Identitaetsfeld `name`. Nicht dabei sind deshalb (jeweils mit Grund):
+//   · `wiki_key` / `name` / `wiki_url` -- Identitaet; das Bauteil zeichnet sie selbst als
+//     „Artikel"/„Schlüssel"/„Wiki ↗", eine Feldzeile dafuer waere die zweite Anzeige derselben Sache.
+//   · abgeleitete Angaben, die KEIN Infoboxfeld sind: `kind` (aus dem NAMEN der Infobox,
+//     api/_internal/wiki/paths.php:468), `continent`, `match_key`, `synonyms_json`.
+//   · `verlauf` (eine gerechnete Stationskette mit eigenem Abgleich, path-verlauf.php) und
+//     `description` (Fliesstext aus dem Artikelrumpf, paths.php:532) -- beides keine Infoboxwerte.
+//   · Bild- und Betriebsangaben: `image_*`, `synced_at`, `source`.
 const WIRKLICHKEIT = {
 	kraftlinie: {
 		// Der Parser liefert genau vier Anzeige-Felder (api/_internal/wiki/powerlines.php:508-511):
@@ -63,6 +75,21 @@ const WIRKLICHKEIT = {
 		// Kein bearbeitbares Kartenfeld: der Wiki-Block im Editor traegt ausdruecklich das Abzeichen
 		// "nicht editierbar" (html/wiki-sync-powerline-editor.html:429) -- reine Anzeige, kein Ziel.
 		karte: [],
+	},
+	weg: {
+		// Der Wege-Parser liest genau drei Infobox-Wertfelder ausser dem Namen
+		// (api/_internal/wiki/paths.php:479-486):
+		// $art = $field(['art','typ']); $lage = $field(['regionen','region','lage']);
+		// $laenge = $field(['lange','langen','lenge']);   ($name = $field(['name']) auf :476)
+		// Dieselben drei reisen im Nest properties.wiki_path mit
+		// (avesmapsWikiPathBuildAssignObject, :874-876) und stehen in den Suchspalten (:711-712).
+		wiki: ["art", "lage", "laenge"],
+		// Das EINZIGE bearbeitbare Kartenfeld, das eine Wiki-Angabe fuellen kann. Gemessen an
+		// beiden Speicherwegen: js/pages/wege-editor.js:556 schickt `feature_subtype` an
+		// update_path_details, und der Kartendialog liest denselben Wert aus #path-edit-type
+		// (js/review/review-paths.js:187). `name` steht bewusst NICHT hier -- der Server setzt ihn
+		// bei der Zuweisung selbst (R1); ein Kartenziel „Laenge" gibt es nicht.
+		karte: ["feature_subtype"],
 	},
 };
 

@@ -69,8 +69,14 @@ function populatePathEditFormFromLastSettings(path) {
 	if (typeof writeOtherSourceToForm === "function") {
 		writeOtherSourceToForm("path-edit", path?.properties?.other_source);
 	}
-	if (typeof toggleOtherSourceSection === "function") {
-		toggleOtherSourceSection("path-edit", typeof pathWikiCurrentAssignment === "function" && Boolean(pathWikiCurrentAssignment()));
+	// 🔴 Auch der FRISCH GEZEICHNETE Weg baut den Zuweisungskasten neu auf. Bis zum 16.08.2026
+	// stand hier kein Aufruf, und das war schon vorher unschoen (der Kasten zeigte die Zuweisung
+	// des zuletzt bearbeiteten Wegs); mit dem Bauteil waere es gefaehrlich: es haelt seinen Stand
+	// selbst, und ein „Entfernen" darin traefe den NEUEN Weg, waehrend der Kasten den alten zeigt.
+	// Der Aufruf setzt auch den Quellen-Abschnitt -- deshalb steht toggleOtherSourceSection hier
+	// nicht mehr ein zweites Mal.
+	if (typeof renderPathWikiReference === "function") {
+		renderPathWikiReference();
 	}
 	if (typeof renderPathFlowSection === "function") {
 		renderPathFlowSection();

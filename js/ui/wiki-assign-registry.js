@@ -47,8 +47,50 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			keinArtikelHinweis: "Nimmt die Linie aus der Konfliktliste — bis im Wiki einer auftaucht.",
 		},
 	},
-	// Die uebrigen neun kommen in den Aufgaben 4-9 dazu, jede mit IHRER Aufgabe -- nicht auf Vorrat:
-	//   weg          (A4)  Name · Art · Laenge          suche: /api/edit/wiki/paths.php
+	weg: {
+		label: "Wiki-Weg",
+		// Gemessen an der vorhandenen Suche: js/review/review-path-wiki.js:182 ruft
+		// `?action=search&q=…&limit=40` gegen genau diese Adresse, und avesmapsWikiPathSearch
+		// (api/_internal/wiki/paths.php:707-733) antwortet mit `{ok, count, rows}`.
+		suche: { art: "server", url: "/api/edit/wiki/paths.php" },
+		// KEIN Objektart-Vorsatz: die Trefferzeile beginnt mit „Fluss" bzw. „Straße/Weg" (das Feld
+		// `kind`), und das sagt genauer, was der Treffer ist, als das Wort „Weg" -- es entscheidet
+		// naemlich, ob der Server die Zuweisung ueberhaupt annimmt (Typriegel Fluss <-> Strasse).
+		// Wortgleich zur bisherigen Meta-Zeile des Pickers (review-path-wiki.js:209).
+		treffer: ["kind", "art", "lage"],
+		// 💣 ZWEI ZEILEN FUER EINE SACHE, UND DAS IST ABSICHT. `art` ist der freie Wikitext
+		// („Reichsstraße"), `wegtyp` der daraus abgebildete Schluessel („Reichsstrasse",
+		// PATH_SUBTYPE_KEYS). Nur der Schluessel darf nach `feature_subtype` -- roh verglichen
+		// meldete die Vorschau bei JEDEM Weg einen Unterschied und boete an, freien Text in ein
+		// Schluesselfeld zu schreiben. Die Abbildung steht in avesmapsWikiAssignWegWegtyp
+		// (js/ui/wiki-assign-weg.js), weil sie fuer beide Oberflaechen dieselbe sein muss.
+		// ⚠️ `wegtyp` ist damit ein ABGELEITETES Wiki-Feld: der Parser liefert es nicht, die
+		// Oberflaeche rechnet es. Pruefung 2 aus §3b sieht das nicht (sie prueft nur die andere
+		// Richtung: geliefert, aber nicht erklaert) -- deshalb steht es hier ausdruecklich.
+		//
+		// 🔴 KEINE Zeile fuer `name`. Das Mockup schreibt „Name→name" (docs/wiki-zuweisung-
+		// mockup.html:262), aber ein zugewiesener Wiki-Weg BESITZT den Namen: `assign_to` schreibt
+		// den kanonischen Namen serverseitig auf alle getroffenen Segmente (R1,
+		// api/_internal/wiki/paths.php:1057), und beide Oberflaechen sperren das Namensfeld
+		// daraufhin. Eine Sync-Zeile dafuer koennte nur etwas anbieten, was der Server ohnehin
+		// schon getan hat.
+		// 🔴 KEIN Kartenziel fuer `laenge`. Das Mockup schreibt „Länge→laenge" -- ein solches Feld
+		// gibt es nicht: die Laenge eines Weges entsteht aus seiner Geometrie
+		// (`detail.length_units`, js/pages/wege-editor.js:633), sie wird nicht gepflegt. Die Zeile
+		// bleibt Anzeige.
+		felder: [
+			{ wiki: "art", karte: "", label: "Art" },
+			{ wiki: "wegtyp", karte: "feature_subtype", label: "Wegtyp" },
+			{ wiki: "lage", karte: "", label: "Lage" },
+			{ wiki: "laenge", karte: "", label: "Länge" },
+		],
+		sync: true, // ein Kartenziel (feature_subtype) -- also ein Knopf
+		// ⚠️ KEIN dritter Zustand. Entwurf §2.7 gilt fuer alle Objektarten, aber der Weg hat heute
+		// keinen Ort, an dem „es gibt keinen Artikel" gespeichert werden koennte: `wiki_path`
+		// fehlt oder ist da, ein Merker daneben existiert nicht. Ihn zu zeigen hiesse, ein
+		// Haekchen anzubieten, das nichts merkt. Offen gemeldet, nicht geraten.
+	},
+	// Die uebrigen acht kommen in den Aufgaben 5-9 dazu, jede mit IHRER Aufgabe -- nicht auf Vorrat:
 	//   ort          (A5)  Name · Art · Einwohner · Lage · Herrscher   suche: /api/edit/wiki/settlements.php
 	//   landschaft   (A6)  Name · Art (mehrwertig -> erste Komponente) suche: /api/edit/wiki/regions.php
 	//   territorium  (A7)  Felder aus A7 Schritt 1 · Eltern GESPERRT bei parent_locked

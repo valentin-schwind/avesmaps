@@ -114,6 +114,14 @@
 
 	function isWater(subtype) { return WATER_SUBTYPES.indexOf(subtype) !== -1; }
 
+	// Die Verkehrsdomäne eines Wegtyps -- sie und nur sie entscheidet, WELCHE Transportmittel
+	// angeboten werden (renderDetail). Dieselbe Weiche, die dort schon stand, hier benannt: der
+	// Wegtyp-Wechsel muss wissen, ob er die Spalte wirklich neu bauen muss.
+	function wpVerkehrsdomaene(subtype) {
+		if (!isWater(subtype)) { return "land"; }
+		return subtype === "Flussweg" ? "river" : "sea";
+	}
+
 	// ⭐ KEINE zweite Monatsliste. Die Schluessel sind per Konstruktion die ASCII-Form der Namen
 	// (`praios` -> „Praios"), also genuegt ein Grossbuchstabe -- und die Reihenfolge kommt aus
 	// travel-calendar.js, der einen Wahrheit ueber das aventurische Jahr.
@@ -353,9 +361,7 @@
 
 		// 💣 Unpassende Transportmittel werden AUSGEBLENDET, nicht ausgegraut -- so macht es
 		// syncPathTransportOptions. Bei einer Reichsstraße stehen die fünf Wasser-Optionen gar nicht da.
-		var domain = isWater(way.feature_subtype)
-			? (way.feature_subtype === "Flussweg" ? "river" : "sea")
-			: "land";
+		var domain = wpVerkehrsdomaene(way.feature_subtype);
 		// Wer darf hier reisen -- und WANN. EINE ZEILE JE FAHRTYP: der Haken sagt OB, die vier
 		// Zeitfelder dahinter sagen WANN. Kein Haken = nie · Haken + „ganzjährig" = immer · Haken +
 		// Monat = Fenster.
@@ -410,24 +416,20 @@
 				+ escapeHtml(way.flow_direction || "unbekannt")
 				+ "</b> — festgelegt wird sie am Segment auf der Karte oder im Reiter „Wege“.</div>";
 		} else {
-			html += '<div class="avm-empty">Nur für Flusswege. Dieser Weg ist ein '
-				+ escapeHtml(subtypeLabel(way.feature_subtype)) + ".</div>";
+			// Die Wegart steht hier als TEXT und ist damit das einzige Stueck dieser Spalte, das ein
+			// Wegtyp-Wechsel innerhalb derselben Verkehrsdomäne veraendert -- eigene Kennung, damit
+			// es nachgezogen werden kann, ohne die ganze Spalte neu zu bauen (siehe wireDetail).
+			html += '<div class="avm-empty">Nur für Flusswege. Dieser Weg ist ein <span id="wpStroemungsart">'
+				+ escapeHtml(subtypeLabel(way.feature_subtype)) + "</span>.</div>";
 		}
 
-		html += '<div class="dt-grp">Wiki-Weg</div>';
-		if (locked) {
-			html += '<div class="dt-grid"><div class="k">Verknüpft</div><div>'
-				+ (way.wiki_path.wiki_url
-					? '<a class="dt-link" href="' + escapeHtml(way.wiki_path.wiki_url)
-						+ '" target="_blank" rel="noopener">' + escapeHtml(wikiName) + " ↗</a>"
-					: escapeHtml(wikiName))
-				+ "</div></div>";
-			html += '<div class="pl-hint">Zuweisen und Entfernen laufen über den Reiter „Wege“ — '
-				+ "dort hängt der Wiki-Weg an allen seinen Segmenten zugleich.</div>";
-		} else {
-			html += '<div class="avm-empty">Kein Wiki-Weg zugewiesen. Die Zuweisung läuft über den '
-				+ "Reiter „Wege“, weil sie alle Segmente eines Weges zugleich betrifft.</div>";
-		}
+		// Die Wiki-Zuweisung — EIN Bauteil (js/ui/wiki-assign.js, Huelle „dt"), dasselbe wie im
+		// Kartendialog. Bis zum 16.08.2026 stand hier nur „Verknüpft … ↗" plus der Hinweis,
+		// Zuweisen und Entfernen liefen über den Reiter „Wege“; genau diesen Umweg loest der Umbau
+		// auf. 💣 Der Kasten wird NICHT hier gefuellt: der Behaelter bleibt leer, das Bauteil haengt
+		// sich in wireDetail() hinein (dort steht auch der Gruppenkopf-Hinweis dazu).
+		// ⚠️ Ein blankes div -- die Huelle erzeugt das Bauteil selbst.
+		html += '<div id="wpWikiAssign"></div>';
 
 		html += '<div class="dt-grp">Andere Quelle</div>';
 		html += '<div class="dt-grid"><div class="k">Adresse</div><div>'
@@ -463,11 +465,26 @@
 		var subtype = $("wpSubtype");
 		if (subtype) {
 			subtype.addEventListener("change", function () {
+				// 💣 SEIT DIE WIKI-ZUWEISUNG IN DIESER SPALTE STEHT, IST `renderDetail()` HIER NICHT
+				// MEHR HARMLOS. Bis zum 16.08.2026 war der Block „Wiki-Weg" reiner Lesetext -- ihn neu
+				// zu bauen kostete nichts. Jetzt traegt er einen Zustand: eine offene Suche mit
+				// getipptem Text oder eine Sync-Vorschau mit gesetzten Haken. Ein versehentlicher
+				// Griff an die Wegtyp-Auswahl darueber warf beides wortlos weg.
+				// 🔴 Der Wegtyp entscheidet, welche Transportmittel ueberhaupt angeboten werden --
+				// aber nur ueber seine DOMAENE (Land / Fluss / See). Ein Wechsel innerhalb derselben
+				// Domäne (Strasse → Reichsstrasse) laesst die Transportliste unveraendert; dann wird
+				// die eine Textstelle nachgezogen, die die Wegart nennt, und sonst nichts angefasst.
+				var domaeneVorher = wpVerkehrsdomaene(state.draft.feature_subtype);
 				state.draft.feature_subtype = subtype.value;
-				// Der Wegtyp entscheidet, welche Transportmittel überhaupt angeboten werden --
-				// deshalb neu zeichnen, nicht nur den Wert merken.
 				markDirty();
-				renderDetail();
+				if (wpVerkehrsdomaene(subtype.value) !== domaeneVorher) {
+					renderDetail();
+					return;
+				}
+				var art = $("wpStroemungsart");
+				if (art) { art.textContent = subtypeLabel(subtype.value); }
+				// ⚠️ Der Zuweisungskasten braucht KEINEN Anstoss: er liest den Wegtyp erst, wenn die
+				// Sync-Vorschau ihn braucht (Lesefunktion in avesmapsWikiAssignWegZustand).
 			});
 		}
 		Array.prototype.forEach.call(document.querySelectorAll(".wp-transport"), function (input) {
@@ -540,6 +557,145 @@
 		if (discard) { discard.addEventListener("click", function () { selectWay(state.selected, true); }); }
 		var save = $("wpSave");
 		if (save) { save.addEventListener("click", saveDraft); }
+
+		mountWikiAssign();
+	}
+
+	// ── Wiki-Weg: der Datenweg fuer das gemeinsame Bauteil ────────────────────────────────────
+	// Zwilling: js/review/review-path-wiki.js (dieselbe Zuweisung im Kartendialog, Huelle
+	// „label-wiki"). Was beide brauchen, steht in js/ui/wiki-assign-weg.js.
+
+	var wpWikiAssign = null;
+
+	/**
+	 * 🔴 WIRFT, WENN KEIN WEG GEWAEHLT IST -- der Vertrag aus dem Kopf von js/ui/wiki-assign.js.
+	 * Ein `laden`, das im Fehlerfall etwas Leeres AUFLOEST, ist vom Zustand „nichts zugewiesen"
+	 * nicht zu unterscheiden, und der Schreibweg des Wegs trifft ALLE gleichnamigen Segmente.
+	 * ⚠️ Hier laeuft kein HTTP: der Stand steht im Entwurf, den selectWay() angelegt hat.
+	 */
+	function wikiAssignZustand() {
+		if (!state.draft) { throw new Error("Kein Weg gewählt."); }
+		return avesmapsWikiAssignWegZustand({
+			wiki_path: state.draft.wiki_path,
+			// 💣 Eine LESEFUNKTION, kein Wert: die Wegtyp-Auswahl steht in derselben Spalte und
+			// schreibt seit dem 16.08.2026 in den Entwurf, OHNE die Spalte neu zu bauen. Eingefroren
+			// verglichen boete die Sync-Vorschau einen Wechsel an, den die Auswahl daneben schon zeigt.
+			feature_subtype: function () { return state.draft ? state.draft.feature_subtype : ""; }
+		});
+	}
+
+	/**
+	 * 💣 DER SCHREIBWEG REICHT WEITER ALS DAS GEWAEHLTE WEGSTUECK -- gemessen, nicht vermutet:
+	 * `assign_to` erfasst jedes aktive Wegstueck, dessen Name denselben Match-Key traegt wie das
+	 * gewaehlte (api/_internal/wiki/paths.php:1050), und schreibt ihnen allen den kanonischen
+	 * Wiki-Namen. Genau das sagte der Hinweistext, der bis zum 16.08.2026 an dieser Stelle stand.
+	 * Deshalb wird danach die LISTE neu geladen: Name und Quelle stehen dort, und dieses Fenster
+	 * ueberlebt sein Schliessen.
+	 */
+	function wikiAssignZuweisen(treffer) {
+		if (!state.draft) { return Promise.reject(new Error("Kein Weg gewählt.")); }
+		var publicId = state.draft.public_id;
+		return postJson("/api/edit/wiki/paths.php",
+			avesmapsWikiAssignWegZuweisungsKoerper(treffer.wiki_key, publicId)
+		).then(function (antwort) {
+			// 🔴 Wirft bei jedem Nein -- auch bei `type_ok:false`, das mit HTTP 200 kommt.
+			avesmapsWikiAssignWegAntwortPruefen(antwort);
+			state.draft.wiki_path = treffer.roh || null;
+			if (antwort.wiki_display_name) { state.draft.name = antwort.wiki_display_name; }
+			setStatus("„" + (antwort.wiki_name || "") + "“ verknüpft ("
+				+ (antwort.applied || 0) + " Abschnitte).", "ok");
+			// Die Eigenschaften-Spalte wird neu gezeichnet, weil Name und Namenssperre daran haengen
+			// (R1). 💣 Das ersetzt auch DIESES Bauteil durch ein frisches mit demselben Stand; der
+			// Neuzeichen-Aufruf, den das alte gleich noch macht, trifft dann einen abgehaengten
+			// Knoten und bleibt unsichtbar.
+			renderDetail();
+			return loadList();
+		}).catch(function (fehler) {
+			setStatus("Zuweisen fehlgeschlagen: " + (fehler && fehler.message ? fehler.message : fehler), "bad");
+			// 💣 Weiterwerfen, NICHT schlucken: das Bauteil malt sonst eine Zuweisung, die es auf
+			// dem Server nicht gibt.
+			throw fehler;
+		});
+	}
+
+	/**
+	 * „Entfernen" reicht noch weiter als das Zuweisen (Namens-Key UNION wiki_key,
+	 * avesmapsWikiPathClearAssign) und fragt deshalb erst zurueck -- dieselbe Rueckfrage wie im
+	 * Kartendialog seit dem Owner-Entscheid vom 05.07.2026.
+	 * 🔴 ABGEBROCHEN IST ABGELEHNT: die Zusage wird abgelehnt, damit das Bauteil die Zuweisung
+	 * stehen laesst, statt „— keine —" zu zeigen, waehrend auf dem Server alles unveraendert ist.
+	 */
+	function wikiAssignLoesen() {
+		if (!state.draft) { return Promise.reject(new Error("Kein Weg gewählt.")); }
+		var publicId = state.draft.public_id;
+		return postJson("/api/edit/wiki/paths.php", { action: "clear_assign", public_id: publicId, dry_run: true })
+			.then(function (vorschau) {
+				avesmapsWikiAssignWegAntwortPruefen(vorschau);
+				var anzahl = Number(vorschau.segments || 0);
+				var nurDieses = false;
+				if (anzahl > 1) {
+					if (window.confirm("Die Wiki-Zuordnung „" + (vorschau.name || "") + "“ hängt an "
+						+ anzahl + " Abschnitten dieses Wegs.\n\nOK = NUR diesen einen Abschnitt lösen (empfohlen)"
+						+ "\nAbbrechen = weitere Optionen")) {
+						nurDieses = true;
+					} else if (!window.confirm("Stattdessen den GANZEN Weg entkoppeln?\n\nAlle " + anzahl
+						+ " Abschnitte verlieren die Wiki-Zuordnung und bekommen je einen eigenen generischen Namen.")) {
+						throw new Error("Abgebrochen.");
+					}
+				}
+				return postJson("/api/edit/wiki/paths.php", {
+					action: "clear_assign", public_id: publicId, single_segment: nurDieses, dry_run: false, confirm: "apply"
+				});
+			})
+			.then(function (antwort) {
+				avesmapsWikiAssignWegAntwortPruefen(antwort);
+				state.draft.wiki_path = null;
+				if (antwort.generic_name) { state.draft.name = antwort.generic_name; }
+				setStatus("Wiki-Zuordnung entfernt.", "ok");
+				renderDetail();
+				return loadList();
+			})
+			.catch(function (fehler) {
+				var text = fehler && fehler.message ? fehler.message : String(fehler);
+				setStatus(text === "Abgebrochen." ? "Entfernen abgebrochen." : ("Entfernen fehlgeschlagen: " + text),
+					text === "Abgebrochen." ? "" : "bad");
+				throw fehler;
+			});
+	}
+
+	/**
+	 * ⚠️ ÜBERNEHMEN FÜLLT NUR DEN ENTWURF (Entwurf §6) -- gespeichert wird mit „Speichern".
+	 */
+	function wikiAssignSyncUebernehmen(zeilen) {
+		var wegtyp = avesmapsWikiAssignWegSyncWegtyp(zeilen);
+		if (wegtyp === null || !state.draft) { return; }
+		state.draft.feature_subtype = wegtyp;
+		state.draft.dirty = true;
+		// Der Wegtyp entscheidet, welche Transportmittel ueberhaupt angeboten werden -- also neu
+		// zeichnen, nicht nur den Wert merken (dieselbe Regel wie beim Auswahlfeld daneben).
+		renderDetail();
+		var message = $("wpSaveMsg");
+		if (message) {
+			message.textContent = "Aus dem Wiki übernommen — noch nicht gespeichert.";
+			message.className = "wp-savebar__msg";
+		}
+	}
+
+	function mountWikiAssign() {
+		var host = $("wpWikiAssign");
+		if (!host) { return; }
+		if (wpWikiAssign) { wpWikiAssign.zerstoeren(); wpWikiAssign = null; }
+		wpWikiAssign = avesmapsWikiAssignMount(host, {
+			subject: "weg",
+			skin: "dt",
+			laden: wikiAssignZustand,
+			// Die Suche antwortet mit FLACHEN Zeilen; erst hier entsteht daraus ein Treffer samt
+			// der Abbildung Wiki-Art -> Wegtyp-Schluessel (js/ui/wiki-assign-weg.js).
+			trefferAufbereiten: avesmapsWikiAssignWegTreffer,
+			zuweisen: wikiAssignZuweisen,
+			loesen: wikiAssignLoesen,
+			syncUebernehmen: wikiAssignSyncUebernehmen
+		});
 	}
 
 	function saveDraft() {

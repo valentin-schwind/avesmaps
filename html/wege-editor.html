@@ -156,6 +156,16 @@
 <!-- VOR wege-editor.js: liefert TRAVEL_CALENDAR_MONTHS, die eine Wahrheit ueber das aventurische
      Jahr. Die Datei rechnet nur und haengt an nichts. -->
 <script src="/js/routing/travel-calendar.js"></script>
+<!-- Die Wiki-Zuweisung: Register, Diff-Rechnung, dann das Bauteil -- IN DIESER REIHENFOLGE
+     (js/ui/wiki-assign.js prueft beide Voraussetzungen und liefert sonst einen erkennbaren
+     Blindgaenger). Danach der Datenweg des Wegs, den sich dieses Fenster mit dem Kartendialog
+     teilt -- es sind zwei Dokumente, keine Funktion ist von beiden aus sichtbar.
+     ⚠️ Ein iframe bindet seine Dateien selbst; die Regeln der Huelle „dt" stehen in dem oben schon
+     geladenen css/components/editor-page.css. -->
+<script src="/js/ui/wiki-assign-registry.js"></script>
+<script src="/js/ui/wiki-assign-diff.js"></script>
+<script src="/js/ui/wiki-assign.js"></script>
+<script src="/js/ui/wiki-assign-weg.js"></script>
 <script src="/js/pages/wege-editor.js"></script>
 
 </body>
