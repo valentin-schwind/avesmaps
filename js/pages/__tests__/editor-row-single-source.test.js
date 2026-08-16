@@ -34,6 +34,7 @@ const lies = (...teile) => fs.readFileSync(path.join(root, ...teile), "utf8");
 const editoren = [
 	"wiki-sync-settlement-editor.html",
 	"wiki-sync-powerline-editor.html",
+	"wiki-sync-monitor.html",
 	"wege-editor.html",
 	"landschaften-editor.html",
 	"game-literature-editor.html",
@@ -144,5 +145,70 @@ assert.ok(/wp-group__twist/.test(platzhalter[1]),
 	"Der Platzhalter benutzt nicht mehr .wp-group__twist und hat damit nicht mehr die Breite der "
 	+ "echten Spalte.");
 checks++;
+
+// ---- Die Feldregeln .dt-* stehen ebenfalls genau EINMAL -----------------------------------------
+// 🔴 ZWEITER ANLAUF DESSELBEN FEHLERS, EINEN KOMMENTAR TIEFER. Alles oben galt der Listenzeile.
+// Die Feldregeln der dritten Spalte -- .dt-grp, .dt-grid, .dt-check, .dt-actions, .dt-msg,
+// .dt-link -- standen am 16.08.2026 immer noch ein ZWEITES Mal inline: im Ortseditor (der
+// Vorlage), im Kraftlinien-Editor und im Monitor. Der Monitor sagte es in seinem eigenen
+// Kommentar sogar an ("Gehoert perspektivisch ganz nach editor-page.css -- dafuer muesste auch
+// der Siedlungseditor angefasst werden") und wartete darauf ein Vierteljahr.
+//
+// 💣 Sie gewannen die Kaskade NICHT ueber die Spezifitaet, sondern ueber die REIHENFOLGE: der
+// <style>-Block steht hinter dem <link>. Deshalb faellt so eine Abschrift nie auf -- sie wirkt
+// sofort und sieht am Tag ihrer Entstehung richtig aus. Gemessen war sie laengst gedriftet:
+// Feldtext 12px statt var(--font-size-body) (13px), Zeilenpolster 5px statt var(--space-2) (4px),
+// .dt-actions margin-top:12px auf einem Wert, den ueberhaupt kein Token kennt.
+//
+// 🪤 Und die Lehre, die eine Messung gekostet hat: eine Abschrift ueberstimmt nur, was sie auch
+// HINSCHREIBT. Im Ortseditor waren .dt-grp{display:flex} und .dt-link{text-decoration:none}
+// vorhergesagte Aenderungen -- und blieben gleich, weil die lokale Fassung diese Eigenschaften
+// gar nicht deklarierte und die geteilte Regel dort immer schon mitwirkte.
+//
+// ⚠️ VERBOTEN IST NUR DER EXAKTE REGELKOPF. Ortsgebundene Erweiterungen sind erlaubt und noetig:
+//    .dt-grid.stack + .dt-grid textarea  (Kraftlinien-Beschreibung -- die geteilte Datei kleidet
+//                                         input[type=text|url|number] und select ein, KEIN textarea)
+//    .dt-grid input.dt-in + .dt-grid .k.ovr  (Bearbeiten-Modus des Monitors)
+//    .dt-badge, .dt-empty                    (kein Gegenstueck in der geteilten Datei)
+//
+// 🔴 Geprueft wird NUR in <style>-Bloecken und NUR nach Abzug der Kommentare -- exakt die Falle,
+// an der der 11px-Test oben zweimal haengengeblieben ist: die Begruendungen in diesen Dateien
+// schreiben die verbotenen Selektoren woertlich hin.
+const dtGeteilt = [
+	".dt-grp", ".dt-grid", ".dt-grid .k", ".dt-grid > div:not(.k)",
+	".dt-check", ".dt-check input", ".dt-actions", ".dt-msg", ".dt-link",
+];
+// Die beiden Erstlings-Varianten zusaetzlich: die geteilte Datei nimmt :first-child, die
+// Abschriften nahmen :first-of-type. Beide gehoeren nicht mehr in eine Editorseite.
+const dtVerboten = dtGeteilt.concat([".dt-grp:first-of-type", ".dt-grp:first-child", ".dt-msg.ok", ".dt-msg.bad"]);
+
+const ohneKommentare = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "");
+const einzeilig = (s) => s.replace(/\s+/g, " ");
+const kopf = (sel) => new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " ?\\{");
+
+for (const datei of editoren) {
+	const html = lies("html", datei);
+	const stile = (html.match(/<style>[\s\S]*?<\/style>/g) || []).join("\n");
+	const css = einzeilig(ohneKommentare(stile));
+	for (const sel of dtVerboten) {
+		assert.ok(!kopf(sel).test(css),
+			`${datei} definiert wieder eine eigene "${sel}"-Regel inline. Die Feldregeln der `
+			+ "Editorspalte stehen in css/components/editor-page.css und werden von dieser Seite "
+			+ "bereits geladen. Ein inliner <style>-Block steht HINTER dem <link> und ueberstimmt sie "
+			+ "lautlos -- genau so driftete der Feldtext auf 12px und das Zeilenpolster auf 5px. "
+			+ "Eine ortsgebundene Erweiterung ist erlaubt, aber sie muss enger sein als der blosse "
+			+ "Regelkopf (z. B. '.dt-grid textarea', nicht '.dt-grid').");
+		checks++;
+	}
+}
+
+// Und die Gegenrichtung: das Original muss dort auch wirklich stehen.
+for (const sel of dtGeteilt) {
+	assert.ok(kopf(sel).test(einzeilig(ohneKommentare(editorPage))),
+		`css/components/editor-page.css hat keine "${sel}"-Regel mehr. Dann tragen die `
+		+ "Editorfenster ihre Feldspalte ueberhaupt nicht mehr -- und weil die Abschriften am "
+		+ "16.08.2026 entfernt wurden, faellt sie ersatzlos aus.");
+	checks++;
+}
 
 console.log(`editor-row-single-source: ${checks} Pruefungen bestanden (${editoren.length} Editoren).`);
