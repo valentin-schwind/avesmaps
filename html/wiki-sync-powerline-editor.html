@@ -75,26 +75,26 @@
   .se-empty { color:var(--mut); padding:8px; }
   .se-error { color:var(--bad); padding:8px; }
 
-  /* Detail/Eigenschaften (Referenz .dt-*) */
-  .dt-grp { font-size:11px; font-weight:bold; color:var(--mut); border-top:1px solid var(--line); padding-top:6px; margin-top:10px; display:flex; align-items:center; gap:6px; }
-  .dt-grp:first-of-type { border-top:none; margin-top:0; }
-  .dt-grid { display:grid; grid-template-columns:var(--avm-field-label-w) minmax(0,1fr); gap:0; font-size:12px; margin:4px 0 0; }
+  /* 💣 Hier stand die ZWEITE Fassung der .dt-*-Regeln -- derselbe Fehler wie beim .se-row einen
+     Kommentar weiter oben, nur stehengeblieben. Dieser <style>-Block laedt NACH
+     css/components/editor-page.css und gewann damit bei gleicher Spezifitaet die Kaskade, und die
+     Abschrift war laengst gedriftet: Feldtext 12px statt var(--font-size-body) (13px),
+     Zeilenpolster 5px statt var(--space-2) (4px), .dt-actions margin-top:12px auf einem Wert, den
+     kein Token kennt, .pl-hint margin-top:3px gegen 2px. Entfernt am 16.08.2026.
+     Gemessen an der Eigenschaften-Spalte, vorher/nachher: Rasterzeile 76,88 -> 73,88px,
+     .dt-check 28,98 -> 26,97px, Knopfzeile 12px -> 8px Abstand, Inhalt insgesamt 12,3px kuerzer.
+     Gewacht von js/pages/__tests__/editor-row-single-source.test.js.
+
+     ⚠️ NICHT alles war Abschrift. Was hier stehenbleibt, hat in editor-page.css KEIN
+        Gegenstueck -- eine Zahl steht bewusst nicht dabei, die liest sich wie eine
+        vollstaendige Liste (AGENTS.md, die Vier-Erzeuger-Falle). */
   .dt-grid.stack { grid-template-columns:1fr; }
-  .dt-grid .k { color:var(--color-text-muted); font-weight:bold; white-space:nowrap; padding:5px 6px 5px 0; }
-  .dt-grid > div:not(.k) { padding:5px 0; color:var(--color-text); min-width:0; overflow-wrap:anywhere; }
-  .dt-grid input[type=text], .dt-grid input[type=url], .dt-grid textarea { width:100%; padding:4px 6px; }
-  .dt-grid textarea { resize:vertical; min-height:52px; }
+  /* 💣 Die geteilte Datei kleidet input[type=text|url|number] und select ein, aber KEIN textarea.
+     Ohne diese Zeile verloere die Beschreibung Breite und Polster. Die 4px/6px sind unveraendert,
+     nur als Token geschrieben -- gemessen: textarea vorher wie nachher 416,86 x 52,00px. */
+  .dt-grid textarea { width:100%; padding:var(--space-2) var(--space-4); resize:vertical; min-height:52px; }
   .dt-badge { font-size:var(--font-size-caption); color:var(--mut); border:1px solid var(--line2); border-radius:8px; padding:0 6px; white-space:nowrap; font-weight:normal; }
   .dt-badge.warn { color:var(--warn); border-color:var(--color-warning-soft-border); }
-  .dt-link { color:var(--accent); text-decoration:none; }
-  .dt-check { display:flex; align-items:center; gap:6px; padding:5px 0; font-size:12px; }
-  .dt-check input { cursor:pointer; }
-  .dt-actions { display:flex; align-items:center; gap:8px; margin-top:12px; flex-wrap:wrap; }
-  .dt-msg { font-size:11px; }
-  .dt-msg.ok { color:var(--ok); }
-  .dt-msg.bad { color:var(--bad); }
-  .pl-hint { font-size:var(--font-size-caption); color:var(--mut); margin-top:3px; }
-  .pl-hint b { color:var(--color-accent-strong); }
   .dt-empty { color:var(--mut); padding:10px 4px; }
 
   /* Nodices-Spalte (Domänenbegriff für die Knotenpunkte einer Kraftlinie) */
