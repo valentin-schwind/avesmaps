@@ -186,7 +186,7 @@ const WIRKLICHKEIT = {
 		// api/_internal/political/territories-endpoint.php:149-169 kennt list/wiki/wiki_list/hierarchy).
 		// Was im Kasten ankommen KANN, ist genau das, was
 		// avesmapsPoliticalWikiReferenceRowToPublic herausgibt (api/_internal/political/
-		// territories-read.php) -- die Tabelle `political_territory_wiki` hat 40 Spalten, die Antwort
+		// territories-read.php:373-413) -- die Tabelle `political_territory_wiki` hat 40 Spalten, die Antwort
 		// gibt 16 davon her, und alles andere erreicht den Browser nie.
 		//
 		// NICHT dabei, nach derselben Grenze wie oben:

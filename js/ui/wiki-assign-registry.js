@@ -334,7 +334,7 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		// Politik-Endpunkts kennt list/wiki/wiki_list/hierarchy -- kein `search`
 		// (api/_internal/political/territories-endpoint.php:149-169). Die Kandidaten kommen wie bisher
 		// aus `?action=wiki_list` (avesmapsPoliticalListWikiReferences,
-		// api/_internal/political/territories-read.php:373-412) und werden IM BROWSER gefiltert --
+		// api/_internal/political/territories-read.php:373-413) und werden IM BROWSER gefiltert --
 		// genau das beschreibt Entwurf §1 mit „Eine (`region`) filtert im Browser".
 		// 💣 UND DIESE QUELLE IST PFLICHT, nicht eine von zweien: `update_territory` will die
 		// `wiki_id` (= political_territory_wiki.id, api/_internal/political/territories-write.php:239),

@@ -19,9 +19,12 @@
 // Sperre steht im Monitor, die Zuweisung woanders.
 //
 // Gezaehlt wurden vier Bedienelemente in drei Fenstern:
-//   1. `#region-edit-wiki-reference` + `#region-wiki-picker-overlay` (index.html:1886-1893 und
-//      :2006-2023), js/review/review-region-wiki-picker.js -- DAS EINZIGE, das die Frage „welcher
-//      Wiki-Artikel gehoert zu diesem Gebiet" stellt. Es schreibt `political_territory.wiki_id`
+//   1. Der Kasten „Wiki-Referenz" im Kartendialog „Herrschaftsgebiet bearbeiten", getragen von
+//      js/review/review-region-wiki-picker.js -- DAS EINZIGE, das die Frage „welcher
+//      Wiki-Artikel gehoert zu diesem Gebiet" stellt. Heute ist das der Behaelter
+//      `#territory-wiki-assign-host` (index.html:1897); vor dem Umbau standen dort eine
+//      handgebaute `<dl>` und daneben ein zweites Fenster `#region-wiki-picker-overlay`.
+//      Es schreibt `political_territory.wiki_id`
 //      (daraus serverseitig `wiki_key`) und `wiki_url` ueber `update_territory`. ⭐ Entwurf §1 nennt
 //      genau diese Datei in der Liste der sechs abzuloesenden Fassungen -- die Dateiliste des
 //      Entwurfs schlaegt seine Oberflaechen-Tabelle.
@@ -121,7 +124,7 @@ function avesmapsWikiAssignTerritoriumModell(knoten, gelesen) {
  * ⚠️ Verglichen wird gegen `auto_parent_wiki_key` (was das Wiki VORSIEHT), nicht gegen
  * `parent_wiki_key` (was im Modell steht). Genau diese zwei trennt die Sperre: sie haelt
  * `parent_wiki_key` fest, waehrend `auto_parent_wiki_key` weiter mitwandert. Dasselbe tut der Knopf
- * „↩ Wiki-Eltern: X" im Monitor (html/wiki-sync-monitor.html:815).
+ * „↩ Wiki-Eltern: X" im Monitor (html/wiki-sync-monitor.html:810).
  *
  * @param {string} wikiKey  der Schluessel des Gebiets
  * @param {Object} modell   aus avesmapsWikiAssignTerritoriumModell
