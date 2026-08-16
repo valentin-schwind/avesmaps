@@ -297,6 +297,11 @@
   .zb-plot-ytick { font-size:var(--font-size-caption); fill:var(--mut); dominant-baseline:middle; }
   .zb-plot-xtick { font-size:var(--font-size-caption); fill:var(--mut); }
   .zb-plot-xtick--aus { fill:var(--color-placeholder); font-style:italic; }
+  /* z8 wirkt auf der Karte noch nicht (index.html/bootstrap.js: maxZoom 7) -- eine gestrichelte
+     Trennlinie VOR der Spalte plus eine gedämpfte, kursive Tick-Form, damit der Unterschied auffällt,
+     ohne erst den Tooltip lesen zu müssen (aus dem abgenommenen Prototyp übernommen, Fix-Runde 1). */
+  .zb-plot-xtick--future { fill:var(--mut); font-style:italic; }
+  .zb-plot-future-divider { stroke:var(--line2); stroke-width:1; stroke-dasharray:4 4; opacity:.6; }
   .zb-plot-curve { fill:none; stroke-width:2.25; opacity:.92; stroke:var(--pc); }
   .zb-plot-point { r:6.5px; stroke-width:2.5; fill:var(--panel); stroke:var(--pc); cursor:ns-resize; outline:none; }
   .zb-plot-point:hover, .zb-plot-point:focus { r:9.5px; }
@@ -369,7 +374,7 @@
     <button class="btn2" id="seLinkCheck" title="Prüft NUR die Quellen-Links der Orte auf Erreichbarkeit. Abenteuer, Karten und Territoriums-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="seLinkCheckInfo">Quellen der Orte</span></button>
     <!-- Achte Kachel (Aufgabe 8, Bauplan docs/superpowers/plans/2026-08-16-zoombaender.md): weich/
          outline wie fünf ihrer Geschwister -- die Haupthandlung dieses Menübands heißt „Syncen". -->
-    <button class="btn2" id="seZoomBands" title="Stellt ein, ab welcher Zoomstufe eine Ortsklasse auf der Karte erscheint, wie groß ihr Punkt dort ist und ab wann sie ihren Namen trägt. Einstellen dürfen nur Administratoren; ansehen darf es jeder Editor."><span class="t1">Zoombänder</span><span class="t2">Zoomlevelanzeige aller Orte</span></button>
+    <button class="btn2" id="seZoomBands" title="Stellt ein, ab welcher Zoomstufe eine Ortsklasse auf der Karte erscheint, wie groß ihr Punkt dort ist und ab wann sie ihren Namen trägt. Einstellen dürfen nur Administratoren; ansehen darf es jeder Editor."><span class="t1">Zoombänder</span><span class="t2">Zoomlevel aller Orte</span></button>
   </div>
 </header>
 
@@ -462,7 +467,7 @@
         <div class="zb-plot-wrap">
           <svg class="zb-plot" id="zbPlotMarker" viewBox="0 0 920 420" role="img" aria-label="Marker-Außendurchmesser je Ortsklasse und Zoomstufe, editierbar"></svg>
         </div>
-        <p class="zb-plot-caption">Gestaucht (Quadratwurzel) — die erlaubte Spanne von kleinstem zu größtem Wert ist zu groß für eine gerade Achse; die kleinen Werte lägen sonst als Strich am Boden.</p>
+        <p class="zb-plot-caption">Gestaucht (Quadratwurzel) — die erlaubte Spanne von kleinstem zu größtem Wert ist zu groß für eine gerade Achse; die kleinen Werte lägen sonst als Strich am Boden.<span id="seZoomBandsMarkerFutureNote"></span></p>
         <div class="zb-selected" id="zbSelMarker">
           <span class="zb-selected__label">Ausgewählter Punkt: <strong id="zbSelMarkerLabel">— keiner —</strong></span>
           <input type="number" class="zb-num-input" id="zbSelMarkerInput" step="0.01" disabled>
@@ -475,14 +480,14 @@
         <div class="zb__head"><h3>Vorschau</h3><span class="zb__src">echter Punkt, echtes Wort „Gareth" — live aus beiden Plots</span></div>
         <div class="zb-preview-stage" id="seZoomBandsPreviewStage" role="group" aria-label="Zoomstufe für die Vorschau wählen"></div>
         <div class="zb-preview-grid" id="seZoomBandsPreviewGrid"></div>
-        <p class="zb-preview-note">So steht das Label normalerweise; bei Platzmangel weicht es im Frontend auf eine der zwölf Nachbarstellen aus.</p>
+        <p class="zb-preview-note">So steht das Label normalerweise; bei Platzmangel weicht es im Frontend auf eine der zwölf Nachbarstellen aus.<span id="seZoomBandsPreviewFutureNote"></span></p>
       </div>
       <div class="zb__section">
         <div class="zb__head"><h3>Label — Schriftgröße in pt</h3><span class="zb__src" id="seZoomBandsLabelSrc"></span></div>
         <div class="zb-plot-wrap">
           <svg class="zb-plot" id="zbPlotLabel" viewBox="0 0 920 420" role="img" aria-label="Label-Schriftgröße je Ortsklasse und Zoomstufe, editierbar"></svg>
         </div>
-        <p class="zb-plot-caption">Linear, bewusst nicht gestaucht — die erlaubte Spanne ist hier klein genug, dass eine Quadratwurzel-Achse nur das Ablesen erschweren würde.</p>
+        <p class="zb-plot-caption">Linear, bewusst nicht gestaucht — die erlaubte Spanne ist hier klein genug, dass eine Quadratwurzel-Achse nur das Ablesen erschweren würde.<span id="seZoomBandsLabelFutureNote"></span></p>
         <div class="zb-selected" id="zbSelLabel">
           <span class="zb-selected__label">Ausgewählter Punkt: <strong id="zbSelLabelLabel">— keiner —</strong></span>
           <input type="number" class="zb-num-input" id="zbSelLabelInput" step="0.01" disabled>
@@ -3308,6 +3313,14 @@ const ZOOM_BAND_SVGNS = "http://www.w3.org/2000/svg";
 const ZOOM_BAND_PLOT_W = 920, ZOOM_BAND_PLOT_H = 420;
 const ZOOM_BAND_PLOT_MARGIN = { left: 52, right: 26, top: 16, bottom: 34 };
 
+// 🔴 Die Karte kennt heute nur bis z7 (js/app/bootstrap.js: maxZoom: 7) -- AVESMAPS_ZOOM_BAND_MAX_ZOOM
+// (js/map-features/location-zoom-bands.js) liegt schon eine Stufe davor, weil die Datenschicht z8
+// bereits trägt (fdb27b3a, "Zoomstufe 8 vorbereitet"), ohne dass es auf der Karte etwas ändert. Für
+// diesen Fakt gibt es keinen geteilten Konstanten-Export -- die 7 hier spiegelt exakt denselben
+// Wert, den location-zoom-bands.js selbst nur als Kommentar festhält. ⚠️ Ändert sich `maxZoom` in
+// bootstrap.js, muss diese Zahl von Hand nachgezogen werden.
+const ZOOM_BAND_MAP_MAX_ZOOM = 7;
+
 let zoomBandsDarfSpeichern = false;
 // Je Klasse: { start: 0..(zMax+1), values: [zMax+1 Zahlen] }. Werte VOR `start` bleiben im
 // internen Zustand erhalten (nie gelöscht) -- "ausblenden verliert nichts" ist damit baulich
@@ -3387,6 +3400,7 @@ function zoomBandPlots() {
 	if (markerSrc) markerSrc.textContent = `y-Achse ${markerLimits.min}–${markerLimits.max} px, quadratwurzel-gestaucht`;
 	const labelSrc = $("seZoomBandsLabelSrc");
 	if (labelSrc) labelSrc.textContent = `y-Achse ${labelLimits.min}–${labelLimits.max} pt, linear`;
+	zoomBandRenderFutureNotes();
 	return zoomBandPlotsCache;
 }
 
@@ -3485,9 +3499,31 @@ function renderZoomBandPlot(cfg) {
 		txt.textContent = String(t);
 		svg.appendChild(txt);
 	});
+	// 🔴 z8 (und jede weitere Stufe über der Karten-Höchststufe) noch nicht auf der Karte wirksam --
+	// gestrichelte Trennlinie VOR der ersten betroffenen Spalte plus eigene, gedämpfte Tick-Form samt
+	// Tooltip, aus dem abgenommenen Prototyp übernommen (Fix-Runde 1, Prüfbefund "z8-Kennzeichnung
+	// fehlt vollständig"). Ein Tooltip allein reicht nicht -- die sichtbare Trennung UND der
+	// Fließtext-Satz (siehe zoomBandRenderFutureNotes) tragen dieselbe Aussage getrennt.
+	if (zMax > ZOOM_BAND_MAP_MAX_ZOOM) {
+		const colWidth = zoomBandColX(1) - zoomBandColX(0);
+		const dividerX = zoomBandColX(ZOOM_BAND_MAP_MAX_ZOOM + 1) - colWidth / 2;
+		svg.appendChild(zoomBandSvgEl("line", {
+			x1: dividerX, y1: ZOOM_BAND_PLOT_MARGIN.top, x2: dividerX, y2: ZOOM_BAND_PLOT_H - ZOOM_BAND_PLOT_MARGIN.bottom,
+			class: "zb-plot-future-divider",
+		}));
+	}
 	for (let i = 0; i <= zMax; i += 1) {
-		const xt = zoomBandSvgEl("text", { x: zoomBandColX(i), y: ZOOM_BAND_PLOT_H - ZOOM_BAND_PLOT_MARGIN.bottom + 18, class: "zb-plot-xtick", "text-anchor": "middle" });
+		const isFuture = i > ZOOM_BAND_MAP_MAX_ZOOM;
+		const xt = zoomBandSvgEl("text", {
+			x: zoomBandColX(i), y: ZOOM_BAND_PLOT_H - ZOOM_BAND_PLOT_MARGIN.bottom + 18,
+			class: "zb-plot-xtick" + (isFuture ? " zb-plot-xtick--future" : ""), "text-anchor": "middle",
+		});
 		xt.textContent = "z" + i;
+		if (isFuture) {
+			const titleEl = zoomBandSvgEl("title", {});
+			titleEl.textContent = `z${i} wirkt auf der Karte noch nicht (höchste Stufe dort ist z${ZOOM_BAND_MAP_MAX_ZOOM}) -- der Wert steht bereit.`;
+			xt.appendChild(titleEl);
+		}
 		svg.appendChild(xt);
 	}
 	const ausT = zoomBandSvgEl("text", { x: zoomBandColX(zMax + 1), y: ZOOM_BAND_PLOT_H - ZOOM_BAND_PLOT_MARGIN.bottom + 18, class: "zb-plot-xtick zb-plot-xtick--aus", "text-anchor": "middle" });
@@ -3703,9 +3739,29 @@ function renderZoomBandPreviewStageButtons() {
 		const b = document.createElement("button");
 		b.type = "button";
 		b.textContent = "z" + i;
+		if (i > ZOOM_BAND_MAP_MAX_ZOOM) {
+			b.title = `z${i} gibt es auf der Karte noch nicht -- zeigt die Werte, die bereitstehen, aber noch nicht wirken.`;
+		}
 		if (i === zoomBandPreviewStage) { b.classList.add("is-active"); }
 		b.addEventListener("click", () => { zoomBandPreviewStage = i; renderZoomBandPreviewStageButtons(); updateZoomBandPreview(); });
 		wrap.appendChild(b);
+	}
+}
+
+// Der Fließtext-Satz zur z8-Kennzeichnung -- NICHT nur ein Tooltip, den man erst beim Überfahren
+// findet (Prüfbefund, Fix-Runde 1). Einmalig gefüllt: die Stufenzahl ändert sich nicht zur Laufzeit.
+function zoomBandRenderFutureNotes() {
+	const zMax = zoomBandMaxZoom();
+	if (zMax <= ZOOM_BAND_MAP_MAX_ZOOM) { return; }
+	const satz = ` 🔧 Ab z${ZOOM_BAND_MAP_MAX_ZOOM + 1} (gestrichelt abgetrennt) wirkt es auf der Karte noch nicht — die Werte stehen bereit.`;
+	const markerNote = $("seZoomBandsMarkerFutureNote");
+	if (markerNote) { markerNote.textContent = satz; }
+	const labelNote = $("seZoomBandsLabelFutureNote");
+	if (labelNote) { labelNote.textContent = satz; }
+	const previewNote = $("seZoomBandsPreviewFutureNote");
+	if (previewNote) {
+		previewNote.textContent =
+			` Ab z${ZOOM_BAND_MAP_MAX_ZOOM + 1} zeigt die Vorschau Werte, die auf der Karte noch nicht wirken.`;
 	}
 }
 
@@ -3778,13 +3834,21 @@ function updateZoomBandsMessage() {
 
 // Die Speicherleiste. 🔴 Für Editoren ohne admin steht hier ein SATZ, kein grauer Knopf -- ein
 // Knopf, den man nie drücken darf, ist ein Versprechen, das die Seite bricht.
+//
+// 🔴 EIN ECHTES, TASTATURERREICHBARES SCHLIESSEN-KONTROLLELEMENT IN JEDEM ZUSTAND -- Hausmuster
+// dieser Seite (#seAssignDialog: "Schließen" allein, "Abbrechen" neben einer Haupthandlung), NICHT
+// nur der Klick aufs Overlay. Ohne das saß ein Editor ohne Admin-Recht im gesperrten Zustand fest:
+// er sah nur den Satz und kam mit der Tastatur nicht mehr heraus (Prüfbefund, Fix-Runde 1).
 function renderZoomBandsActions() {
 	const actions = $("seZoomBandsActions");
 	if (!actions) { return; }
 	actions.innerHTML = zoomBandsDarfSpeichern
-		? '<button type="button" class="zb-row-reset" id="seZoomBandsResetAll">Alles zurücksetzen</button>' +
+		? '<button type="button" id="seZoomBandsClose">Abbrechen</button>' +
+		  '<button type="button" class="zb-row-reset" id="seZoomBandsResetAll">Alles zurücksetzen</button>' +
 		  '<button type="button" class="primary" id="seZoomBandsSave">Speichern</button>'
-		: '<span class="zb-nurlesen">🔒 Zoombänder einstellen dürfen nur Administratoren.</span>';
+		: '<span class="zb-nurlesen">🔒 Zoombänder einstellen dürfen nur Administratoren.</span>' +
+		  '<button type="button" class="primary" id="seZoomBandsClose">Schließen</button>';
+	$("seZoomBandsClose")?.addEventListener("click", closeZoomBandsDialog);
 	if (zoomBandsDarfSpeichern) {
 		$("seZoomBandsResetAll")?.addEventListener("click", resetAllZoomBands);
 		$("seZoomBandsSave")?.addEventListener("click", saveZoomBands);
@@ -3888,6 +3952,13 @@ async function resetAllZoomBands() {
 $("seZoomBands")?.addEventListener("click", () => { void openZoomBandsDialog(); });
 $("seZoomBandsDialog")?.addEventListener("click", (event) => {
 	if (event.target.id === "seZoomBandsDialog") closeZoomBandsDialog();
+});
+// ⭐ Zusätzlich zum Schließen-Knopf, ersetzt ihn aber nicht -- Escape ist die Gewohnheit, der Knopf
+// ist die Garantie (er bleibt auch ohne Tastatur-Vorwissen sichtbar und per Tab erreichbar).
+document.addEventListener("keydown", (event) => {
+	if (event.key !== "Escape") { return; }
+	const dialog = $("seZoomBandsDialog");
+	if (dialog && !dialog.hidden) { closeZoomBandsDialog(); }
 });
 // Das Zahlenfeld neben jedem Plot: einmal verdrahtet (statisches Markup), tippt direkt in den
 // gerade ausgewählten Punkt -- derselbe Weg wie Ziehen und Pfeiltasten (setZoomBandPointValue).

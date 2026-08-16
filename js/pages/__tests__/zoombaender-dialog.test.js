@@ -32,7 +32,9 @@ const browser = read("js/map-features/location-zoom-bands.js");
 // ---- 1. Die Kachel -----------------------------------------------------------------------------
 assert.ok(/id="seZoomBands"/.test(seite), "die Kachel traegt die Kennung seZoomBands");
 assert.ok(/Zoombänder/.test(seite), "die Kachel heisst „Zoombänder\"");
-assert.ok(/Zoomlevelanzeige aller Orte/.test(seite), "und traegt ihre zweite Zeile");
+// 🔴 Owner-Entscheid, Fix-Runde 2 (Clipping bei acht Kacheln): gekuerzt auf "Zoomlevel aller Orte",
+// nur die Kachel selbst -- "Nur Auswahl anzeigen" (fremde Kachel) bleibt unangetastet.
+assert.ok(/Zoomlevel aller Orte/.test(seite), "und traegt ihre zweite Zeile");
 // 🔴 Weich/outline: eine Nebenhandlung ist nie die Haupthandlung des Menuebands (AGENTS.md §12).
 // Die Haupthandlung hier heisst „Syncen".
 // ⚠️ Den GANZEN Knopf-Tag greifen, nicht „id=… gefolgt von class=" -- im Markup steht class VOR id,
@@ -110,10 +112,33 @@ assert.ok(/pointerdown/.test(seite), "die Punkte lassen sich ziehen");
 
 // ⚠️ Die Zahlenfelder bleiben, mit Schrittweite 0,01 -- fuer Werte, die eine Maus nicht trifft, und
 // damit die Punkte auch ohne Maus (Tastatur) erreichbar sind.
-assert.ok(/id="zbSelMarkerInput"[^>]*step="0\.01"/.test(seite) || /step="0\.01"/.test(seite),
-	"die Zahlenfelder tragen die Schrittweite 0,01");
+// 🔴 An das KONKRETE Feld gebunden, kein `||`-Rueckfall auf "irgendwo im Dokument" -- ein
+// Rueckfall auf ein blosses /step="0\.01"/.test(seite) waere immer gruen gewesen, weil das
+// Dokument die Schrittweite an vielen anderen Stellen ohnehin traegt (Prüfbefund, Fix-Runde 1:
+// eine Zusicherung, die ihren Zweig nie verlaesst).
+assert.ok(/id="zbSelMarkerInput"[^>]*step="0\.01"/.test(seite), "das Marker-Zahlenfeld traegt Schrittweite 0,01");
+assert.ok(/id="zbSelLabelInput"[^>]*step="0\.01"/.test(seite), "das Label-Zahlenfeld traegt Schrittweite 0,01");
 assert.ok(/ArrowUp/.test(seite) && /ArrowDown/.test(seite),
 	"die Punkte lassen sich mit der Tastatur verstellen");
+
+// ---- 6b. Ein echtes, tastaturerreichbares Schliessen-Kontrollelement in JEDEM Zustand ------------
+// 🔴 KRITISCH (Pruefbefund, Fix-Runde 1). Ohne das sass ein Editor ohne Admin-Recht im gesperrten
+// Zustand fest: die Aktionsleiste zeigte dort nur den Satz, kein Knopf, und der einzige andere
+// Schliessweg (Klick aufs Overlay) ist ein reiner Maus-Mechanismus, den `keydown`/Tab nicht erreicht.
+// ⚠️ Die Seite ist CRLF-zeilenendig -- \r?\n, nicht blankes \n, sonst findet das Ende-Muster nie
+// etwas und die Probe waere trivial gruen, weil `actionsFn` dann `null` waere und der Test schon an
+// der `assert.ok(actionsFn, ...)`-Zeile davor rot wuerde (also nicht heimlich gruen, aber auch nicht
+// das, was hier geprueft werden soll).
+const actionsFn = seite.match(/function renderZoomBandsActions\(\)[\s\S]*?\r?\n\}\r?\n/);
+assert.ok(actionsFn, "renderZoomBandsActions wurde gefunden");
+const actionsBody = actionsFn[0];
+assert.strictEqual(
+	(actionsBody.match(/id="seZoomBandsClose"/g) || []).length,
+	2,
+	"das Schliessen-Element steht in BEIDEN Zweigen (can_save true und false), nicht nur einem"
+);
+assert.ok(/\$\("seZoomBandsClose"\)\?\.addEventListener\("click", closeZoomBandsDialog\)/.test(actionsBody),
+	"und es ruft die echte Schliessfunktion, nicht nur eine Attrappe");
 
 // ---- 7. Das Fenster laedt die Vorgabetafel, statt sie abzuschreiben ------------------------------
 // 🔴 Die Vorgabewerte stehen an EINER Stelle. Eine zweite Tafel im Fenster waere genau die
