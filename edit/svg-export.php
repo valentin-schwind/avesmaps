@@ -191,7 +191,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     // Stelle ergibt: Flaechen bekommen eine Fuellung, Linien Farbe UND Kontur.
     $wurzel = explode('/', $path)[0];
     $stil = '';
-    if ($wurzel === 'landschaften' && $depth === 2) { $stil = 'fill'; }
+    if ($wurzel === 'landschaften' && $depth === 2) { $stil = 'line'; }
     elseif ($wurzel === 'orte' && $depth === 1) { $stil = 'fill'; }
     elseif ($wurzel === 'beschriftungen' && $depth === 0) { $stil = 'fill'; }
     elseif ($wurzel === 'gebiete' && $depth === 0) { $stil = 'stroke'; }
@@ -235,7 +235,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
          or either script changes, or admins keep the cached files. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260815-svgexport-11" />
+    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260816-svgexport-12" />
 </head>
 
 <body class="edit-page">
@@ -277,17 +277,8 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
 
             <section class="svgx-panel" aria-labelledby="svgx-title">
                 <h1 id="svgx-title">Karte als SVG herunterladen</h1>
-                <p class="svgx-lead">
-                    Zeichnet die ganze Karte als <strong>bearbeitbare Vektorgrafik</strong>:
-                    jede Ebene eine Gruppe, jedes Element benannt. Zum Öffnen in Illustrator,
-                    Inkscape oder Affinity &ndash; für Poster, Drucke und eigene Fassungen.
-                </p>
-                <p class="svgx-hint">
-                    Der Browser baut die Datei selbst, es läuft nichts auf dem Server. Die
-                    Kartendaten sind rund 20&nbsp;MB, das Laden dauert einen Moment &ndash;
-                    bitte diesen Tab so lange offen lassen. Wer eine kleinere Datei will,
-                    hakt Ebenen ab.
-                </p>
+                <p class="svgx-lead">Die ganze Karte als <strong>bearbeitbare Vektorgrafik</strong>: jede Ebene eine Gruppe, jedes Element benannt.</p>
+                <p class="svgx-hint">Der Browser baut die Datei; die Kartendaten sind rund 20&nbsp;MB, das dauert einen Moment. Tab offen lassen.</p>
 
                 <div class="svgx-group">
                     <h2 class="svgx-group__title">Für welches Programm?</h2>
@@ -305,11 +296,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                             </span>
                         </label>
                     </fieldset>
-                    <p class="svgx-hint" style="margin-top:8px">
-                        Die beiden Programme lesen Objektnamen an verschiedenen Stellen &ndash;
-                        eine Datei kann nur einem von beiden lesbare Namen zeigen. Im Zweifel
-                        beide erzeugen und vergleichen.
-                    </p>
+                    <p class="svgx-hint">Illustrator liest Objektnamen aus der <code>id</code>, Inkscape aus <code>inkscape:label</code> &ndash; eine Datei kann nur einem von beiden lesbare Namen zeigen.</p>
                 </div>
 
                 <div class="svgx-group">
@@ -327,39 +314,16 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                             <button type="button" class="svgx-secondary" data-svgx-size="65536">65.536</button>
                         </span>
                     </div>
-                    <p class="svgx-hint" style="margin-top:8px">
-                        Die Karte ist quadratisch, eine Zahl genügt. Sie steht in
-                        <code>width</code>/<code>height</code>; der Zeichenraum bleibt
-                        1024&nbsp;&times;&nbsp;1024, also skaliert alles mit &ndash; Linien,
-                        Punkte und Schrift. Auf die <strong>Dateigröße hat das keinen
-                        Einfluss</strong>: eine Vektordatei speichert Formen, keine Bildpunkte.
-                    </p>
+                    <p class="svgx-hint">Steht in <code>width</code>/<code>height</code>, der Zeichenraum bleibt 1024 &ndash; alles skaliert mit. Ohne Einfluss auf die Dateigröße.</p>
                     <div class="svgx-size" style="margin-top:12px">
                         <label class="svgx-choice">
                             <input type="checkbox" id="svgx-regmarks" />
                             <span>Passmarken in jede Ebene legen</span>
                         </label>
                     </div>
-                    <p class="svgx-hint" style="margin-top:8px">
-                        <strong>Für Photoshop.</strong> Beim Rastern beschneidet Photoshop jede Ebene
-                        auf ihren Inhalt &ndash; danach weiß niemand mehr, wo die Flüsse hingehören.
-                        Vier magentafarbene 1-px-Quadrate in den Leinwandecken <em>jeder</em> Ebene
-                        halten die volle Ausdehnung fest: jede gerasterte Ebene misst dann exakt
-                        die eingestellte Größe und fällt bei 0,0 an ihren Platz. Sie liegen in einer
-                        eigenen Untergruppe „Passmarken" und lassen sich nach dem Ausrichten in einem
-                        Rutsch löschen &ndash; Magenta kommt auf dieser Karte sonst nirgends vor.
-                        ⚠️ <strong>Deckend, nicht halbtransparent:</strong> ein Alpha von 1/255 kann
-                        beim Rastern auf 0 gerundet werden, und eine Marke, die manchmal verschwindet,
-                        ist schlimmer als keine.
-                    </p>
+                    <p class="svgx-hint">Für Photoshop: beim Rastern beschneidet es jede Ebene auf ihren Inhalt. Vier magenta 1-px-Ecken je Ebene halten die volle Leinwand &ndash; danach löschbar über die Gruppe „Passmarken".</p>
 
-                    <p class="svgx-hint">
-                        💣 <strong>Photoshop rastert nichts über 32k.</strong> Wer dort weiter
-                        arbeitet, nimmt <strong>16.384</strong> und skaliert hoch &ndash; das trifft
-                        die Umrisse genau, weil 16.384 ein glatter Teiler von 32.768 ist und jede
-                        Koordinate auf einem halben Bildpunkt landet statt dazwischen. Illustrator
-                        und Inkscape stört die Größe nicht, sie rastern gar nicht.
-                    </p>
+                    <p class="svgx-hint">💣 Photoshop rastert nichts über 32k &ndash; dort <strong>16.384</strong> nehmen und hochskalieren (glatter Teiler, trifft die Umrisse genau).</p>
 
                     <div class="svgx-size" style="margin-top:12px">
                         <label class="svgx-size__field">
@@ -374,13 +338,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                             <button type="button" class="svgx-secondary" data-svgx-stroke="150">150&nbsp;%</button>
                         </span>
                     </div>
-                    <p class="svgx-hint" style="margin-top:8px">
-                        <strong>100&nbsp;% ist der Kartenzustand</strong>: die Stärken sind aus
-                        <code>PATH_CENTER_WEIGHTS</code> hergeleitet &ndash; die Karte zieht eine
-                        Reichsstraße bei voller Zoomstufe 4&nbsp;px breit, und volle Zoomstufe ist
-                        genau 32.768&nbsp;px. Reichsstraße 4&nbsp;px, Straße und Weg 2,5, Fluss- und
-                        Seeweg 3, Pfad, Gebirgspass und Wüstenpfad 1,5. Für Druck darf es dünner sein.
-                    </p>
+                    <p class="svgx-hint">100&nbsp;% ist der Kartenzustand (aus <code>PATH_CENTER_WEIGHTS</code>: Reichsstraße 4&nbsp;px, Straße 2,5, Fluss 3, Pfad 1,5). Für Druck darf es dünner sein.</p>
                 </div>
 
                 <div class="svgx-group">
@@ -399,34 +357,13 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                             <input type="number" id="svgx-tension" value="0.5" min="0" max="1" step="0.05" />
                         </label>
                     </div>
-                    <p class="svgx-hint" style="margin-top:8px">
-                        Dieselbe Kurve, die die Karte zeichnet &ndash; nur exakt statt abgetastet:
-                        ein Catmull-Rom-Segment <em>ist</em> eine kubische Bézierkurve, also wird
-                        aus jedem Streckenstück ein <code>C</code>-Befehl. Im Grafikprogramm
-                        bekommst du damit echte Kurven mit Anfassern statt eines Polygonzugs.
-                        <strong>Spannung 0,5</strong> ist der Wert der Karte; 0 ergibt wieder
-                        gerade Strecken. ⚠️ Die Kurve überschwingt scharfe Ecken &ndash; das ist
-                        so gewollt, die Karte tut es auch.
-                    </p>
-                    <p class="svgx-hint">
-                        Die <strong>Flächen</strong> zeichnet die Karte aus Leistungsgründen eckig,
-                        obwohl sie organisch sind &ndash; hier dürfen sie runden. Ein Ring wird dabei
-                        <em>umlaufend</em> geglättet: sonst bekäme jede Fläche an ihrem Startpunkt
-                        eine Ecke, an einer beliebigen Stelle des Umrisses.
-                        🔴 <strong>Herrschaftsgebiete werden nie geglättet</strong>, auch nicht mit
-                        diesem Häkchen. Eine politische Grenze ist eine Behauptung über einen
-                        Verlauf, keine organische Form &ndash; gerundet verschöbe sie Land zwischen
-                        Reichen und sähe dabei aus wie eine Verbesserung.
-                    </p>
+                    <p class="svgx-hint">Echte Bézierkurven statt Polygonzug &ndash; dieselbe Kurve wie auf der Karte. <strong>Spannung 0,5</strong> ist deren Wert, 0 ergibt gerade Strecken.</p>
+                    <p class="svgx-hint">Flächen werden <em>umlaufend</em> geglättet (sonst bekäme jede eine Ecke am Startpunkt). 🔴 <strong>Herrschaftsgebiete nie</strong> &ndash; eine gerundete Grenze verschöbe Land zwischen Reichen.</p>
                 </div>
 
                 <div class="svgx-group">
                     <h2 class="svgx-group__title">Welche Ebenen?</h2>
-                    <p class="svgx-hint" style="margin-bottom:10px">
-                        Neben jedem Eintrag steht seine Farbe. Flächen haben eine Füllung, Linien
-                        Farbe <em>und</em> Kontur &ndash; die Kontur wird nur gezeichnet, wenn ihr
-                        Häkchen gesetzt ist.
-                    </p>
+                    <p class="svgx-hint" style="margin-bottom:10px">Farbe je Eintrag; das kleine Feld daneben ist die <strong>Kontur</strong> und zeichnet nur mit Häkchen.</p>
                     <?php foreach ($layers as $layer) : ?>
                         <div class="svgx-layer"><?php $renderNode($layer, '', 0); ?></div>
                     <?php endforeach; ?>
@@ -448,8 +385,8 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                 </table>
             </section>
         </main>
-        <script src="../js/pages/svg-export-build.js?v=20260815-svgexport-11"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260815-svgexport-11"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260816-svgexport-12"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260816-svgexport-12"></script>
     <?php endif; ?>
 </body>
 
