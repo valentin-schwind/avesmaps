@@ -44,7 +44,7 @@ if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
 // jedem Treffer ein LEERER Schluessel, und die Zuweisung speicherte ihn genauso.
 require __DIR__ . '/../sync.php';
 require_once __DIR__ . '/../../political/territory.php';
-require_once __DIR__ . '/../citymap-sync.php';
+require_once __DIR__ . '/../citymap-article.php';
 
 $pruefungen = 0;
 $pruef = static function (bool $bedingung, string $meldung) use (&$pruefungen): void {

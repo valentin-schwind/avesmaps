@@ -28,7 +28,7 @@ require_once __DIR__ . '/../../_internal/wiki/sync.php';
 require_once __DIR__ . '/../../_internal/wiki/locations.php';            // avesmapsWikiSyncEnsureLocationTables
 require_once __DIR__ . '/../../_internal/political/territory.php';       // avesmapsPoliticalSlug
 require_once __DIR__ . '/../../_internal/wiki/settlements.php';          // Schema + Klassen-Label
-require_once __DIR__ . '/../../_internal/wiki/citymap-sync.php';         // die Suche selbst
+require_once __DIR__ . '/../../_internal/wiki/citymap-article.php';      // die Suche selbst
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
