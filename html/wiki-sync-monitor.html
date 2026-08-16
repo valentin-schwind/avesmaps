@@ -383,6 +383,7 @@ const $ = (id) => document.getElementById(id);
 let NODES = [], BYKEY = new Map();
 let unassignedGeoms = [];   // verwaiste Geometrien (keinem aktiven Gebiet zugewiesen) – gelistete (ggf. gedeckelt)
 let unassignedGeomCount = 0; // server-gezählte Gesamtzahl (autoritativ für Zähler + „Alle löschen")
+let unassignedDerivedCount = 0; // server-gezählte Gesamtzahl der verwaisten Außengrenzen (derived_orphan_total)
 
 // --- Kontinente-Dropdown (Filter für beide Listen) ---
 let contSel = null;   // null = noch nicht initialisiert
@@ -1552,34 +1553,55 @@ async function geomApi(action, body){
 }
 async function loadUnassignedGeoms(){
   try{
-    const r = await fetch('/api/app/political-territories.php?action=geometry_inventory&include_inactive=1&_='+Date.now(), {credentials:'include', cache:'no-store'});
+    // 💣 &limit=2000 ist nicht Kosmetik. Der Server kappt bei 500, sortiert nach Flaeche absteigend,
+    // und der Waisen-Filter laeuft ERST DANACH -- weil Waisen klein sind, fielen sie systematisch
+    // hinten heraus: am 16.08.2026 standen 25 gezaehlt gegen 6 gezeigt, und es gab keinen Weg zu
+    // den anderen 19.
+    const r = await fetch('/api/app/political-territories.php?action=geometry_inventory&include_inactive=1&limit=2000&_='+Date.now(), {credentials:'include', cache:'no-store'});
     const d = await r.json();
     const isPlatzhalter = n => /^Neues Herrschaftsgebiet/i.test(String(n||''));
-    unassignedGeoms = (d.geometries||[]).filter(g=>!g.territory_public_id || isPlatzhalter(g.territory_name));  // territoriumslos ODER „Neues Herrschaftsgebiet"-Platzhalter; echte Papierkorb-Gebiete bleiben draußen
-  }catch(e){ unassignedGeoms = []; }
-  try{ const c = await geomApi('purge_unassigned_geometries', {}); unassignedGeomCount = (c.candidates!=null) ? c.candidates : unassignedGeoms.length; }
+    const konturen = (d.geometries||[]).filter(g=>!g.territory_public_id || isPlatzhalter(g.territory_name));  // territoriumslos ODER „Neues Herrschaftsgebiet"-Platzhalter; echte Papierkorb-Gebiete bleiben draußen
+    // ⚠️ Fuer Huellen gilt der Platzhalter-Filter NICHT: eine Aussengrenze ohne jede Quellflaeche
+    // ist immer falsch, egal wie das Gebiet heisst. Der Server hat das schon entschieden.
+    const huellen = (d.derived_orphans||[]).map(h=>Object.assign({}, h, {kind:'derived'}));
+    unassignedGeoms = konturen.concat(huellen);
+    unassignedDerivedCount = Number(d.derived_orphan_total)||0;
+  }catch(e){ unassignedGeoms = []; unassignedDerivedCount = 0; }
+  try{ const c = await geomApi('purge_unassigned_geometries', {}); unassignedGeomCount = ((c.candidates!=null) ? c.candidates : 0) + ((c.derived_candidates!=null) ? c.derived_candidates : unassignedDerivedCount); }
   catch(e){ unassignedGeomCount = unassignedGeoms.length; }
   render();
 }
 function renderGeomModal(){
-  $('geomSummary').textContent = `${unassignedGeomCount} verwaiste Kontur(en)${unassignedGeoms.length<unassignedGeomCount?` (${unassignedGeoms.length} gelistet)`:''} – gezeichnet, aber keinem Gebiet zugewiesen. „Endgültig löschen" entfernt sie unwiderruflich. „Alle" entfernt alle ${unassignedGeomCount}.`;
+  $('geomSummary').textContent = `${unassignedGeomCount} verwaiste Kontur(en)/Außengrenze(n)${unassignedGeoms.length<unassignedGeomCount?` (${unassignedGeoms.length} gelistet)`:''} – gezeichnet, aber keinem Gebiet zugewiesen bzw. ohne jede Quellfläche. „Endgültig löschen" entfernt sie unwiderruflich. „Alle" entfernt alle ${unassignedGeomCount}.`;
   $('geomPurgeAll').disabled = unassignedGeomCount===0;
   $('geomList').innerHTML = unassignedGeoms.map(g=>{
-    const id=String(g.geometry_public_id||g.public_id||'');
+    const istHuelle = g.kind==='derived';
+    const id=String(istHuelle ? (g.derived_geometry_public_id||'') : (g.geometry_public_id||g.public_id||''));
     const bb=Array.isArray(g.bbox)?g.bbox:[];
     const w=bb.length===4?Math.round(bb[2]-bb[0]):'?';
     const h=bb.length===4?Math.round(bb[3]-bb[1]):'?';
     const area=g.area!=null?Math.round(g.area):'?';
     const title=(g.label&&g.label.trim())?g.label.trim():((g.territory_name&&g.territory_name!=='(KEIN TERRITORIUM)')?g.territory_name:'(ohne Titel)');
     const by=g.created_by||'?'; const at=(g.created_at||'').slice(0,10);
-    return `<div class="row"><span class="nm" title="${esc(id)}"><b>${esc(title)}</b> · ${esc(g.source||'?')} · ${w}×${h} · Fläche ${area} · ${esc(by)} ${esc(at)}</span> <button class="edbtn dt-geomdel" data-geomdel="${esc(id)}" title="Diese Geometrie endgültig löschen (${esc(id)})">🗑 endgültig löschen</button></div>`;
+    // Die Herkunftsspalte trägt bei Konturen die `source`, bei Hüllen das Wort dafür.
+    const herkunft = istHuelle ? 'Außengrenze' : (g.source||'?');
+    const ziel = istHuelle ? ` data-geomterr="${esc(String(g.territory_public_id||''))}"` : '';
+    return `<div class="row"><span class="nm" title="${esc(id)}"><b>${esc(title)}</b> · ${esc(herkunft)} · ${w}×${h} · Fläche ${area} · ${esc(by)} ${esc(at)}</span> <button class="edbtn dt-geomdel" data-geomdel="${esc(id)}"${ziel} title="Endgültig löschen (${esc(id)})">🗑 endgültig löschen</button></div>`;
   }).join('') || '<div class="muted">— keine verwaisten Geometrien —</div>';
 }
 function openGeomModal(){ renderGeomModal(); $('geomModal').hidden=false; }
-async function deleteGeom(id){
+async function deleteGeom(id, territoryPublicId){
   if(!window.confirm('Diese Geometrie ENDGÜLTIG löschen? Das kann nicht rückgängig gemacht werden.')) return;
   busy(true);
-  try{ const r=await geomApi('hard_delete_geometry', {geometry_public_id:id}); setStatus(`Geometrie endgültig gelöscht (${r.deleted||0}).`); await loadUnassignedGeoms(); renderGeomModal(); }
+  try{
+    // Eine Hülle wird über ihr GEBIET adressiert (delete_derived_geometry nimmt territory_public_id);
+    // ob hart oder nur abgeschaltet, entscheidet die Weiche auf dem Server — nicht dieser Knopf.
+    const r = territoryPublicId
+      ? await geomApi('delete_derived_geometry', {territory_public_id: territoryPublicId})
+      : await geomApi('hard_delete_geometry', {geometry_public_id: id});
+    setStatus(`Geometrie endgültig gelöscht (${r.deleted!=null ? r.deleted : (r.affected||0)}).`);
+    await loadUnassignedGeoms(); renderGeomModal();
+  }
   catch(e){ setStatus('Fehler: '+e.message); }
   busy(false);
 }
@@ -1593,7 +1615,7 @@ async function purgeAllGeoms(){
 $('geomClose').onclick = ()=>{ $('geomModal').hidden=true; };
 $('geomModal').addEventListener('click', e=>{ if(e.target.id==='geomModal') $('geomModal').hidden=true; });
 $('geomPurgeAll').onclick = purgeAllGeoms;
-$('geomList').addEventListener('click', e=>{ const b=e.target.closest('[data-geomdel]'); if(b){ deleteGeom(b.dataset.geomdel); } });
+$('geomList').addEventListener('click', e=>{ const b=e.target.closest('[data-geomdel]'); if(b){ deleteGeom(b.dataset.geomdel, b.dataset.geomterr||''); } });
 
 updateFilterInfo();
 loadModel().then(()=>{
