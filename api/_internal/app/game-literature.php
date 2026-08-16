@@ -16,6 +16,9 @@ declare(strict_types=1);
 // feature-agnostic store belongs to neither feature, and citymaps.php requiring game-literature.php for it
 // would have inverted the dependency. Only the adventure-specific cover switch below stayed here.
 require_once __DIR__ . '/app-setting.php';
+// Fuer avesmapsMediaLicenseIsPublic() -- der EINE Lizenzkatalog (Phase 1), s. avesmapsGameLiteratureReadCatalog()
+// unten. Ein Gate auf diesem Pfad darf nicht vom Include eines Nachbarn abhaengen.
+require_once __DIR__ . '/../media-license.php';
 
 // Idempotent DDL. Runs on every read (cheap: CREATE TABLE IF NOT EXISTS + INFORMATION_SCHEMA column
 // probes), so a fresh deploy self-heals on the first endpoint hit -- no migration step.
@@ -425,6 +428,23 @@ function avesmapsSetGameLiteratureLinks(PDO $pdo, string $publicId, array $links
     return ['public_id' => $publicId, 'links' => count($rows)];
 }
 
+/**
+ * Lizenz-Gate der Literatur-Cover (Phase 3, Befund 2). Bis 16.08.2026 gab es hier GAR KEIN Gate --
+ * api/edit/map/game-literature-cover.php:12 sagte es selbst: "NO public_domain gate -- adventure covers
+ * ride the Ulisses/F-Shop permission (the reference is enforced at the display layer, not here)". Seit
+ * Phase 4 bietet der Cover-Dialog alle sieben Kennungen an; ein als cc_by eingestuftes Cover erschiene
+ * damit oeffentlich, ohne den bei CC-BY verlangten Namensnennungs-Nachweis -- dieselbe Fehlstelle wie
+ * bei den Siedlungs-Wappen vor deren Gate.
+ *
+ * Eigene, pure Funktion statt eines Inline-Vergleichs im Katalog-Read: so ist das Gate ohne PDO
+ * testbar, wie avesmapsSettlementCoatIsPublic() (coat-display.php) und
+ * avesmapsMapFeaturesPublicImageUrls() daneben.
+ */
+function avesmapsGameLiteratureCoverGatedUrl(string $coverUrl, mixed $coverLicense): string
+{
+    return avesmapsMediaLicenseIsPublic($coverLicense) ? trim($coverUrl) : '';
+}
+
 // The public catalog read (B1 client aggregation): the whole approved catalog in ONE payload so the
 // client can index + aggregate locally. Places travel WITH each adventure, in sort_order (start first);
 // spoiler separation (start vs play) is done in the client, the catalog ships both.
@@ -439,7 +459,7 @@ function avesmapsGameLiteratureReadCatalog(PDO $pdo): array
     }
     $rows = $pdo->query(
         "SELECT id, public_id, title, wiki_url, product_type, edition, bf_year, bf_label,
-                genre, complexity_gm, complexity_pl, is_official, fshop_code, cover_url, series,
+                genre, complexity_gm, complexity_pl, is_official, fshop_code, cover_url, cover_license, series,
                 link_ulisses, link_fshop, isbn, contained_in
            FROM adventure
           WHERE status = 'approved'
@@ -497,7 +517,9 @@ function avesmapsGameLiteratureReadCatalog(PDO $pdo): array
             'complexity_pl' => (string) ($row['complexity_pl'] ?? ''),
             'is_official' => (int) $row['is_official'] === 1,
             'fshop_code' => (string) ($row['fshop_code'] ?? ''),
-            'cover_url' => (string) ($row['cover_url'] ?? ''),
+            // Lizenz-Gate (s. avesmapsGameLiteratureCoverGatedUrl() oben). cover_license selbst bleibt
+            // ein reines Editor-Feld -- nur die (ggf. leere) URL reist mit, wie ueberall sonst.
+            'cover_url' => avesmapsGameLiteratureCoverGatedUrl((string) ($row['cover_url'] ?? ''), $row['cover_license'] ?? null),
             'series' => (string) ($row['series'] ?? ''),
             'link_ulisses' => (string) ($row['link_ulisses'] ?? ''),
             'link_fshop' => (string) ($row['link_fshop'] ?? ''),
