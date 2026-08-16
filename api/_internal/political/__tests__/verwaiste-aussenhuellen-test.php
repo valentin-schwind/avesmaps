@@ -49,16 +49,19 @@ $pdo->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT)');
 // 3 Aggregat, dessen Flaeche beim KIND 4 liegt.       (= Grafschaft Winhall)
 // 5 Huelle, deren Territorium geloescht wurde.        (dangling)
 // 6 Blatt, dessen einzige Flaeche INAKTIV ist.        (= Geist auf dem zweiten Weg)
+// 7 Deaktiviertes Territorium mit aktiver Flaeche.    (Test: aktive Geom an inaktivem Terr)
 $pdo->exec("INSERT INTO political_territory (id, public_id, name, parent_id, is_active, continent) VALUES
     (1, 'p-geist',  'Neues Herrschaftsgebiet (1008)', NULL, 1, 'Aventurien'),
     (2, 'p-blatt',  'Támenev',                        NULL, 1, 'Aventurien'),
     (3, 'p-aggr',   'Grafschaft Winhall',             NULL, 1, 'Aventurien'),
     (4, 'p-kind',   'Reichsland Winhall',                3, 1, 'Aventurien'),
-    (6, 'p-inaktiv','Gebiet mit toter Flaeche',       NULL, 1, 'Aventurien')");
+    (6, 'p-inaktiv','Gebiet mit toter Flaeche',       NULL, 1, 'Aventurien'),
+    (7, 'p-deakt',  'Deaktiviertes Gebiet',           NULL, 0, 'Aventurien')");
 $pdo->exec("INSERT INTO political_territory_geometry (id, public_id, territory_id, is_active) VALUES
     (10, 'g-blatt', 2, 1),
     (11, 'g-kind',  4, 1),
-    (12, 'g-tot',   6, 0)");
+    (12, 'g-tot',   6, 0),
+    (13, 'g-deakt', 7, 1)");
 $pdo->exec("INSERT INTO political_territory_derived_geometry
     (id, public_id, territory_id, is_active, min_x, min_y, max_x, max_y, created_by, created_at) VALUES
     (20, 'd-geist',   1, 1, 139.3, 429.5, 203.4, 521.3, 7, '2026-08-04 10:00:00'),
@@ -66,7 +69,8 @@ $pdo->exec("INSERT INTO political_territory_derived_geometry
     (22, 'd-aggr',    3, 1,   0.0,   0.0,  20.0,  20.0, 7, '2026-08-04 10:00:00'),
     (23, 'd-dangling',5, 1,   0.0,   0.0,   5.0,   5.0, 7, '2026-08-04 10:00:00'),
     (24, 'd-inaktiv', 6, 1,   0.0,   0.0,   6.0,   6.0, 7, '2026-08-04 10:00:00'),
-    (25, 'd-weg',     1, 0, 139.3, 429.5, 203.4, 521.3, 7, '2026-08-04 10:00:00')");
+    (25, 'd-weg',     1, 0, 139.3, 429.5, 203.4, 521.3, 7, '2026-08-04 10:00:00'),
+    (26, 'd-deakt-terr', 7, 1, 10.0, 10.0, 20.0, 20.0, 7, '2026-08-04 10:00:00')");
 $pdo->exec("INSERT INTO users (id, username) VALUES (7, 'valentin')");
 
 $territories  = avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
@@ -89,13 +93,23 @@ assert(avesmapsPoliticalDerivedHullIsSourceless(5, $territories, $withGeometry) 
     'eine Huelle ohne Territorium ist erst recht verwaist');
 assert(avesmapsPoliticalDerivedHullIsSourceless(6, $territories, $withGeometry) === true,
     'eine INAKTIVE Flaeche ist keine Quelle');
+assert(!isset($withGeometry[7]), 'auch eine aktive Flaeche an einem deaktivierten Gebiet zaehlt nicht');
+assert(avesmapsPoliticalDerivedHullIsSourceless(7, $territories, $withGeometry) === true,
+    'ein Gebiet mit is_active=0 ist also auch verwaist, egal ob es Flaechen hat');
 
 $hulls = avesmapsPoliticalCollectSourcelessDerivedHulls($pdo);
 $ids = array_map(static fn(array $r): string => (string) $r['derived_geometry_public_id'], $hulls);
 sort($ids);
-assert($ids === ['d-dangling', 'd-geist', 'd-inaktiv'], 'genau die drei Waisen, in keiner Reihenfolge fixiert');
+assert($ids === ['d-dangling', 'd-deakt-terr', 'd-geist', 'd-inaktiv'], 'genau die vier Waisen, in keiner Reihenfolge fixiert');
 // 🔴 Eine bereits deaktivierte Huelle ist kein Fund -- sie zeichnet nichts und ist kein Befund.
 assert(!in_array('d-weg', $ids, true), 'inaktive Huellen bleiben draussen');
+
+$deaktTerr = null;
+foreach ($hulls as $row) {
+    if ((string) $row['derived_geometry_public_id'] === 'd-deakt-terr') { $deaktTerr = $row; }
+}
+assert(is_array($deaktTerr), 'die Huelle des deaktivierten Gebiets ist dabei');
+assert($deaktTerr['territory_is_active'] === false, 'und markiert das Gebiet als inaktiv');
 
 $geist = null;
 foreach ($hulls as $row) {
