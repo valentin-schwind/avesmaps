@@ -85,11 +85,6 @@
 	flex-wrap: wrap;
 }
 
-.label-wiki-reference__empty {
-	font-size: 12px;
-	color: var(--color-placeholder);
-}
-
 .label-wiki-reference__dl {
 	display: grid;
 	grid-template-columns: max-content minmax(0, 1fr);
@@ -107,29 +102,18 @@
 	color: var(--color-text-strong);
 }
 
-.label-wiki-reference__image {
-	max-width: 100%;
-	max-height: 120px;
-	border: 1px solid var(--color-border);
-	border-radius: 4px;
-	display: block;
-	margin-bottom: 4px;
-}
-
-.label-wiki-reference__imagenote,
-.label-wiki-reference__desc {
-	font-size: 12px;
-	color: var(--color-text-muted);
-	margin: 2px 0;
-}
-
-/* Lange (read-only) Wiki-Beschreibung intern scrollen lassen, statt den ganzen Dialog hoch zu treiben --
-   die bearbeitbaren Felder bleiben so ohne Gesamt-Scroll sichtbar. */
-#label-edit-dialog .label-wiki-reference__desc {
-	max-height: 116px;
-	overflow-y: auto;
-}
-
+/* 🔴 HIER STANDEN VIER REGELN DES HANDGESCHRIEBENEN WIKI-KASTENS: `__empty` (oben, vor `__dl`),
+   `__image`, das Paar `__imagenote`/`__desc` und die Uebersteuerung
+   `#label-edit-dialog .label-wiki-reference__desc` (max-height 116px, eigener Scrollkasten).
+   Alle vier gehoerten den sechs Fassungen, die am 16.08.2026 dem geteilten Bauteil gewichen sind
+   (js/ui/wiki-assign.js). Der Kasten zeichnet heute Kopf, Feldliste (`__dl`), Link, Haken und
+   Hinweis (`__hint`) -- ein Wiki-Bild, seine Bildunterschrift, einen Beschreibungsabsatz und einen
+   eigenen Leer-Hinweis gibt es darin nicht mehr.
+   💣 Die Uebersteuerung MUSSTE mitgehen, nicht nur die Grundregel: sie haengt an derselben Klasse
+   `__desc`, und eine ID-Regel auf eine Klasse ohne Erzeuger ist ebenso wirkungslos -- eine
+   stehengebliebene Uebersteuerung liest sich spaeter aber wie ein Beleg, dass es die Klasse noch
+   gibt. Vor dem Entfernen gemessen: null Erzeuger im ganzen Baum (js/, api/, html/, index.html,
+   edit/, tools/), auch keine zusammengesetzte Klasse (`"…__" + suffix`). */
 .label-wiki-reference__link {
 	font-size: 12px;
 	color: var(--color-accent-brown);
@@ -840,20 +824,14 @@
 	font-family: "Faculty Glyphic", Arial, sans-serif;
 }
 
-/* „Name & Größe aus Wiki"-Button im Ort-Editor: klein, linksbündig, neben den Feldern. */
-.location-edit-wiki-sync-row {
-	display: flex;
-	margin: -4px 0 2px;
-}
-.location-edit-wiki-sync-row #location-edit-wiki-sync {
-	font-size: 0.82em;
-	padding: 5px 10px;
-	width: auto;
-}
-.location-edit-wiki-sync-row #location-edit-wiki-sync:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
-}
+/* 🔴 HIER STANDEN DIE DREI REGELN DES KNOPFES „Name & Größe aus Wiki"
+   (.location-edit-wiki-sync-row samt #location-edit-wiki-sync). ⚠️ Sein Markup war schon VOR
+   diesem Umbau verschwunden -- gemessen, nicht vermutet: `git grep location-edit-wiki-sync
+   b7dd7e6b` findet die Kennung ausschliesslich in DIESER Datei, in keinem js/, html/ oder
+   index.html. Sein Nachfolger, der „↻"-Knopf (.location-edit-wiki-mini), ist am 16.08.2026 der
+   Sync-Vorschau gewichen (Vermerk weiter unten). Die Zeile der Vorgaenger stehenzulassen, weil sie
+   „nicht zu diesem Zweig gehoert", waere genau die halbe Aufraeumung, die diesem Projekt schon
+   einmal fuenf Regeln zwei Wochen lang untergeschoben hat (AGENTS.md §10). */
 
 /* Siedlungs-Infobox im Ort-Popup breiter: füllt das (verbreiterte) Popup statt schmal an den
    Inhalt geschmiegt zu sein. Überschreibt die schlanke .location-popup .region-info-box-Regel. */
