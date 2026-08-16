@@ -108,7 +108,11 @@ const AVESMAPS_WIKI_ASSIGN_TEXTE = {
 	keinArtikelHinweis: "Nimmt das Objekt aus der Konfliktliste — bis im Wiki einer auftaucht.",
 	suchPlatzhalter: "Artikel suchen …",
 	suchHinweis: "↑ ↓ wählen · Enter zuweisen · Esc schließt",
-	keineTreffer: "Keine Treffer.",
+	// 🔴 Die WENDUNG, ohne Satzzeichen -- sie steht an zwei Stellen (im Leerkasten der Liste und im
+	// Zaehlsatz darunter), und die zwei brauchen verschiedene Interpunktion. Das Satzzeichen ist
+	// Zusammensetzung, die Wendung ist Text: sonst stuende „Keine Treffer" zweimal ausgeschrieben da,
+	// die i18n-Schicht (AGENTS.md §8, M8) faende nur eine davon, und die zweite bliebe deutsch.
+	keineTreffer: "Keine Treffer",
 	haengtAn: "hängt schon an",
 	syncTitel: "Aus dem Wiki übernehmen",
 	syncNichts: "Alles stimmt bereits mit dem Wiki überein — nichts zu übernehmen.",
@@ -364,14 +368,15 @@ function avesmapsWikiAssignModell(erklaerung, daten, ui) {
 		// auf eine Kennung, die es nicht gibt, ist fuer ein Hilfsmittel schlimmer als keiner.
 		const aktiver = modell.treffer.filter((treffer) => treffer.aktiv)[0];
 		modell.aktiveId = aktiver ? aktiver.id : "";
-		modell.trefferLeerText = AVESMAPS_WIKI_ASSIGN_TEXTE.keineTreffer;
+		// Der Leerkasten schliesst die Wendung als Satz ab, der Zaehlsatz oben haengt „ · “ an.
+		modell.trefferLeerText = AVESMAPS_WIKI_ASSIGN_TEXTE.keineTreffer + ".";
 		// „Treffer" heisst im Deutschen in beiden Zahlen gleich -- keine Mehrzahlweiche noetig.
 		// ⚠️ Der Leerfall steht seit 16.08.2026 AUCH hier: der Kasten mit „Keine Treffer." ist fuer
 		// Hilfsmittel ausgeblendet (role=presentation, siehe Trefferlisten-Bauer), also muss die
 		// Auskunft an der Stelle stehen, die ohnehin die Trefferzahl traegt.
 		modell.hinweis = (modell.treffer.length === 0
-			? "Keine Treffer · "
-			: modell.treffer.length + " Treffer · ") + AVESMAPS_WIKI_ASSIGN_TEXTE.suchHinweis;
+			? AVESMAPS_WIKI_ASSIGN_TEXTE.keineTreffer
+			: modell.treffer.length + " Treffer") + " · " + AVESMAPS_WIKI_ASSIGN_TEXTE.suchHinweis;
 		return modell;
 	}
 
@@ -776,6 +781,29 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			return Promise.resolve();
 		}
 		return Promise.resolve(roh).then((wert) => {
+			// 💣 FEHLERART 3, DER ZWILLING DER ZWEITEN -- und der stillere von beiden. Eine Zusage,
+			// die mit NICHTS aufloest, ist kein Fehler im Sinne von `catch`: `undefined`, `null`,
+			// eine Zahl, eine Liste. `zustandUebernehmen` machte daraus wortlos „keine Zuweisung"
+			// (`roh || {}`), und `geladen = true` lief danach bedingungslos.
+			//
+			// 🔴 Der Schaden ist GROESSER als bei einem geworfenen Fehler: dort steht wenigstens eine
+			// Meldung im Kasten. Hier zeigte er ruhig „keine Zuweisung" -- eine Linie MIT Adresse,
+			// ein zweites `neuLaden()` (das gehoert zur Schnittstelle, die die Aufgaben 4-9
+			// benutzen), das nichts liefert, und der Schreibwert kippt lautlos von der echten
+			// Adresse auf `""`. Der Editor sieht nichts, `saveLine` schreibt es auf alle Segmente.
+			//
+			// ⚠️ Scharf wird das beim ersten Server-`laden`, und der Hausstil dafuer steht in DIESER
+			// Datei: `.catch(() => [])` in `trefferHolen`. Ein `laden` mit `.catch(() => null)` oder
+			// `.then((d) => d.row)` macht aus einem HTTP-Fehler eine stille Loeschung.
+			//
+			// 🔴 Ein ECHTES Objekt ist die Bedingung, keine Wahrheitswert-Pruefung: `{}` und
+			// `{ artikel: null }` sind gueltige Zustaende („nichts zugewiesen"), eine Liste und eine
+			// Zahl sind es nicht. Und die GEWOLLTE Leerung laeuft gar nicht hier durch -- „Entfernen"
+			// setzt `daten.artikel = null` direkt und laesst `geladen` in Ruhe.
+			if (!wert || typeof wert !== "object" || Array.isArray(wert)) {
+				ladenGescheitert();
+				return;
+			}
 			zustandUebernehmen(wert);
 			geladen = true;
 			ui = neuerZustand(daten.artikel ? "zugewiesen" : "offen");

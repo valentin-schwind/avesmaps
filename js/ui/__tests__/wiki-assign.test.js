@@ -411,11 +411,18 @@ checks += 3;
 // Zusicherung gehoert deshalb an die VERDRAHTUNG -- und das ist die Lehre, nicht die Zeile.
 const zeichneTrefferKoerper2 = quelle.slice(quelle.indexOf("function zeichneTreffer()"),
 	quelle.indexOf("function zustandUebernehmen"));
-assert.ok(/feld\.setAttribute\("aria-expanded"/.test(zeichneTrefferKoerper2),
-	"zeichneTreffer zieht aria-expanded nicht nach -- es bleibt auf dem Stand des Oeffnens stehen, und das war die leere Liste.");
+// 🪤 UND SIE PRUEFT DEN WERT, NICHT DAS VORKOMMEN. Die erste Fassung fragte nur, ob
+// `feld.setAttribute("aria-expanded"` irgendwo im Rumpf steht -- ein fest verdrahtetes
+// `"true"` an derselben Stelle liess sie gruen. Sie fing damit ausgerechnet die Fehlerform
+// nicht, gegen die sie geschrieben wurde: ein Merkmal, das dasteht und nicht mitwandert.
+// Also wird das ARGUMENT gelesen und muss von der Trefferzahl abhaengen.
+const expandedRuf = zeichneTrefferKoerper2.match(/feld\.setAttribute\(\s*"aria-expanded"\s*,([^;]*)\)\s*;/);
+assert.ok(expandedRuf, "zeichneTreffer zieht aria-expanded nicht nach -- es bleibt auf dem Stand des Oeffnens stehen, und das war die leere Liste.");
+assert.ok(/treffer\.length/.test(expandedRuf[1]),
+	"zeichneTreffer setzt aria-expanded auf einen FESTEN Wert (" + expandedRuf[1].trim() + ") -- es muss von der Trefferzahl abhaengen, sonst steht es wieder still.");
 assert.ok(/aria-activedescendant/.test(zeichneTrefferKoerper2),
 	"zeichneTreffer zieht aria-activedescendant nicht nach.");
-checks += 2;
+checks += 3;
 
 // ── 13) DIE ARIA-ROLLEN SIND VOLLSTAENDIG, NICHT HALB (Nachbesserung 1, Befund 6) ─────────────
 // ⚠️ Halbe Rollen sind schlechter als keine: eine Liste mit role=option, deren Auswahl nirgends
@@ -524,9 +531,90 @@ function scheinBehaelter() {
 	assert.strictEqual(stKippt.lies(), null);
 	checks += 4;
 
-	// 🔴 Die Eigenschaft in EINEM Satz, ueber alle vier gebauten Faelle: kein `bereit === true`
-	// ohne gueltigen Schreibwert, kein gueltiger Schreibwert ohne `bereit === true`.
-	[blind, blindDiff, blindArt, blind2, stWirft, stAbgelehnt, stKippt].forEach((st, i) => {
+	// ── 15) DER ZWILLING: EINE ZUSAGE, DIE MIT NICHTS AUFLOEST (Nachbesserung 3) ──────────────
+	// 💣 Der stillere der beiden. Eine abgelehnte Zusage faengt `catch`; eine Zusage, die mit
+	// `undefined`/`null`/einer Zahl AUFLOEST, faengt niemand -- `zustandUebernehmen` machte daraus
+	// wortlos „keine Zuweisung" (`roh || {}`), und `geladen = true` lief danach bedingungslos.
+	//
+	// 🔴 Und der Schaden ist GROESSER als beim geworfenen Fehler: dort steht wenigstens eine
+	// Meldung im Kasten. Hier zeigte er ruhig „keine Zuweisung", waehrend der Schreibwert von der
+	// echten Adresse auf `""` kippte -- der Editor sieht nichts, saveLine schreibt es auf alle
+	// Segmente. Scharf wird es beim ersten Server-`laden` (Aufgabe 4), und der Hausstil dafuer
+	// steht in derselben Datei: `.catch(() => [])`.
+	async function ladenLiefert(wert) {
+		const behaelter = scheinBehaelter();
+		const st = avesmapsWikiAssignMount(behaelter, { subject: "kraftlinie", skin: "dt", laden: () => wert });
+		await st.neuLaden();
+		return { st: st, behaelter: behaelter };
+	}
+
+	// A1-A4: jede Form einzeln, keine als Sammelprobe -- eine davon durchzulassen genuegt.
+	const nichtObjekte = [
+		["A1 undefined", undefined],
+		["A2 null", null],
+		["A3 eine Zahl", 5],
+		["A4 eine aufgeloeste Zusage ohne Wert", Promise.resolve(undefined)],
+		["A5 eine Liste", []],
+	];
+	for (const [name, wert] of nichtObjekte) {
+		const { st, behaelter } = await ladenLiefert(wert);
+		assert.strictEqual(st.bereit, false,
+			name + ": ein `laden`, das kein Objekt liefert, gilt als geglueckt -- der Schreibwert waere leer");
+		assert.strictEqual(st.lies(), null, name + ": lies() liefert einen Schreibwert");
+		assert.ok(/konnte nicht gelesen werden/.test(behaelter.textContent),
+			name + ": der Kasten schweigt dazu -- " + JSON.stringify(behaelter.textContent));
+		checks += 3;
+	}
+
+	// A6: gar kein `laden` uebergeben. Ein Aufruferfehler, kein Datenfall -- er darf nicht als
+	// „nichts zugewiesen" durchgehen.
+	const ohneLaden = scheinBehaelter();
+	const stOhneLaden = avesmapsWikiAssignMount(ohneLaden, { subject: "kraftlinie", skin: "dt" });
+	await stOhneLaden.neuLaden();
+	assert.strictEqual(stOhneLaden.bereit, false, "A6: ohne `laden` meldet das Bauteil `bereit`");
+	assert.strictEqual(stOhneLaden.lies(), null);
+	checks += 2;
+
+	// 🔴 D2 -- DER FALL, DER WEHTUT: eine Linie MIT Zuweisung, ein zweites neuLaden(), das nichts
+	// liefert. `neuLaden` gehoert zur Schnittstelle, die die Aufgaben 4-9 benutzen.
+	let d2Liefert = { artikel: { name: "X", wiki_url: "https://de.wiki-aventurica.de/wiki/X", wiki_key: "x", werte: {} } };
+	const d2 = scheinBehaelter();
+	const stD2 = avesmapsWikiAssignMount(d2, { subject: "kraftlinie", skin: "dt", laden: () => d2Liefert });
+	await stD2.neuLaden();
+	assert.strictEqual(stD2.lies().wiki_url, "https://de.wiki-aventurica.de/wiki/X",
+		"D2: der erste Lauf traegt die Adresse nicht in den Schreibwert");
+	d2Liefert = undefined;
+	await stD2.neuLaden();
+	assert.strictEqual(stD2.bereit, false,
+		"D2: ein zweiter Lauf, der nichts liefert, laesst `bereit` stehen -- der Schreibwert kippt "
+		+ "lautlos von der echten Adresse auf \"\", und saveLine schreibt das auf alle Segmente.");
+	assert.strictEqual(stD2.lies(), null);
+	checks += 3;
+
+	// ⚠️ GEGENPROBE: die GEWOLLTE Leerung darf davon nicht getroffen werden. Ein `laden`, das ein
+	// echtes Objekt OHNE Artikel liefert, ist ein gueltiger Zustand („nichts zugewiesen") -- und
+	// „Entfernen" laeuft ohnehin gar nicht durch neuLaden, sondern setzt daten.artikel direkt.
+	const leerAberGueltig = await ladenLiefert({ artikel: null, keinArtikel: true });
+	assert.strictEqual(leerAberGueltig.st.bereit, true,
+		"ein gueltiges Objekt ohne Artikel gilt faelschlich als Fehlschlag -- damit waere die gewollte Leerung kaputt");
+	assert.deepStrictEqual(leerAberGueltig.st.lies(), { name: "", wiki_url: "", wiki_key: "", kein_artikel: true });
+	const leeresObjekt = await ladenLiefert({});
+	assert.strictEqual(leeresObjekt.st.bereit, true, "ein leeres Objekt ist ein gueltiger Zustand, kein Fehlschlag");
+	checks += 3;
+
+	// 🔴 Die Eigenschaft in EINEM Satz, ueber JEDE der unten aufgezaehlten Steuerungen: kein
+	// `bereit === true` ohne gueltigen Schreibwert, kein gueltiger Schreibwert ohne
+	// `bereit === true`.
+	// 💣 Hier stand „ueber alle VIER gebauten Faelle“, waehrend die Liste sieben fuehrte. Eine
+	// Zahl im Kommentar liest sich wie eine vollstaendige Liste und niemand zaehlt nach --
+	// dieselbe Form wie „ERZEUGER 1 VON 2" (AGENTS.md §10). Wer eine Steuerung ergaenzt,
+	// haengt sie an die Liste; eine Zahl gibt es hier nicht mehr.
+	[
+		blind, blindDiff, blindArt, blind2,          // die vier Blindgaenger aus `mount`
+		stWirft, stAbgelehnt, stKippt,                // Wurf, abgelehnte Zusage, spaeteres Scheitern
+		stOhneLaden, stD2,                            // gar kein `laden`; der zweite Lauf ohne Wert
+		leerAberGueltig.st, leeresObjekt.st,          // die zwei GUELTIGEN Leerzustaende (Gegenprobe)
+	].forEach((st, i) => {
 		assert.strictEqual(st.bereit === true, st.lies() !== null,
 			"Steuerung " + i + ": `bereit` und die Gueltigkeit von lies() gehen auseinander");
 		checks++;
