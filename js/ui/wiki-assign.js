@@ -365,10 +365,13 @@ function avesmapsWikiAssignModell(erklaerung, daten, ui) {
 		const aktiver = modell.treffer.filter((treffer) => treffer.aktiv)[0];
 		modell.aktiveId = aktiver ? aktiver.id : "";
 		modell.trefferLeerText = AVESMAPS_WIKI_ASSIGN_TEXTE.keineTreffer;
-		modell.hinweis = modell.treffer.length === 0
-			? AVESMAPS_WIKI_ASSIGN_TEXTE.suchHinweis
-			// „Treffer" heisst im Deutschen in beiden Zahlen gleich -- keine Mehrzahlweiche noetig.
-			: modell.treffer.length + " Treffer · " + AVESMAPS_WIKI_ASSIGN_TEXTE.suchHinweis;
+		// „Treffer" heisst im Deutschen in beiden Zahlen gleich -- keine Mehrzahlweiche noetig.
+		// ⚠️ Der Leerfall steht seit 16.08.2026 AUCH hier: der Kasten mit „Keine Treffer." ist fuer
+		// Hilfsmittel ausgeblendet (role=presentation, siehe Trefferlisten-Bauer), also muss die
+		// Auskunft an der Stelle stehen, die ohnehin die Trefferzahl traegt.
+		modell.hinweis = (modell.treffer.length === 0
+			? "Keine Treffer · "
+			: modell.treffer.length + " Treffer · ") + AVESMAPS_WIKI_ASSIGN_TEXTE.suchHinweis;
 		return modell;
 	}
 
@@ -501,7 +504,12 @@ function avesmapsWikiAssignTrefferListeInhalt(modell, skin) {
 		return "";
 	}
 	if (modell.treffer.length === 0) {
-		return "<div" + avesmapsWikiAssignKlasse(skin.trefferLeer) + ">"
+		// 💣 `role="presentation"`. Der Kasten ist ein `role="listbox"`, und darin sind nur
+		// `option`/`group` zulaessige Kinder -- ein nackter `<div>` ist ein Verstoss, den kein
+		// Browser meldet und der die Liste fuer ein Hilfsmittel kaputtmacht. Die Rolle nimmt ihn aus
+		// dem Barrierefreiheitsbaum; angesagt wird der Leerzustand ueber den Hinweis darunter
+		// („Keine Treffer · …“), der ohnehin die Trefferzahl traegt.
+		return '<div role="presentation"' + avesmapsWikiAssignKlasse(skin.trefferLeer) + ">"
 			+ avesmapsWikiAssignEsc(modell.trefferLeerText) + "</div>";
 	}
 	return modell.treffer.map((treffer) => avesmapsWikiAssignTrefferMarkup(skin, treffer)).join("");
@@ -546,7 +554,10 @@ function avesmapsWikiAssignMarkup(modell, skin) {
 			+ "<" + skin.wertTag + avesmapsWikiAssignKlasse(skin.wertKlasse) + ">"
 			+ '<input type="search" data-wa-suche autocomplete="off" spellcheck="false"'
 			+ ' id="' + avesmapsWikiAssignEsc(modell.listenId) + '-feld"'
-			+ ' role="combobox" aria-expanded="true" aria-autocomplete="list"'
+			// ⚠️ `aria-expanded` sagt, ob die Liste etwas ANBIETET -- fest auf "true" verdrahtet
+			// meldete es auch bei null Treffern eine offene Auswahl, die es nicht gibt.
+			+ ' role="combobox" aria-expanded="' + (modell.treffer.length > 0 ? "true" : "false") + '"'
+			+ ' aria-autocomplete="list"'
 			+ ' aria-controls="' + avesmapsWikiAssignEsc(modell.listenId) + '"'
 			+ (modell.aktiveId === "" ? "" : ' aria-activedescendant="' + avesmapsWikiAssignEsc(modell.aktiveId) + '"')
 			+ ' placeholder="' + avesmapsWikiAssignEsc(modell.suchfeld.platzhalter) + '"'
@@ -671,6 +682,10 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	let ui = { modus: "offen", suchtext: "", treffer: [], aktiv: 0, syncZeilen: [], listenId: listenId };
 	let tippUhr = null;
 	let laufendeSuche = 0;
+	// 🔴 Das Merkmal hinter `bereit`: erst ein GEGLUECKTER Ladelauf macht `lies()` zu einem gueltigen
+	// Schreibwert. Startet auf false -- zwischen `mount` und der ersten Antwort von `laden` (bei
+	// einem Server-`laden` sind das echte Millisekunden) darf niemand speichern.
+	let geladen = false;
 
 	function neuerZustand(modus) {
 		return { modus: modus, suchtext: "", treffer: [], aktiv: 0, syncZeilen: [], listenId: listenId };
@@ -707,8 +722,14 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		}
 		const modell = avesmapsWikiAssignModell(erklaerung, daten, ui);
 		liste.innerHTML = avesmapsWikiAssignTrefferListeInhalt(modell, skin);
-		// Die Auswahl wird fuer Hilfsmittel am FELD gemeldet, und das Feld wird hier nicht neu
-		// gebaut -- also von Hand nachziehen.
+		// 💣 BEIDE Merkmale, nicht nur eines. Sie stehen am FELD, und das Feld wird hier bewusst
+		// nicht neu gebaut -- also muessen sie von Hand nachgezogen werden. Bis zum 16.08.2026 zog
+		// nur `aria-activedescendant` mit: `aria-expanded` wurde beim Oeffnen der Suche gerendert,
+		// als die Trefferliste noch LEER war, blieb dadurch auf "false" stehen und wurde nie wieder
+		// angefasst. Live gemessen: vier Treffer in der Liste, `aria-expanded="false"` am Feld --
+		// genau die halbe ARIA, gegen die Klein B geschrieben wurde, eine Ebene tiefer.
+		// 🔴 Wer hier ein drittes Merkmal ans Feld haengt, zieht es in DIESER Funktion mit.
+		feld.setAttribute("aria-expanded", modell.treffer.length > 0 ? "true" : "false");
 		if (modell.aktiveId === "") {
 			feld.removeAttribute("aria-activedescendant");
 		} else {
@@ -736,20 +757,33 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	// mitreissen: `mount` laeuft mitten im Neuzeichnen einer Editorspalte, ein Wurf hier liesse den
 	// Rest der Spalte ungezeichnet stehen. Statt dessen ein sichtbarer Satz -- ein leerer Fleck saehe
 	// aus wie „dieses Objekt hat keine Zuweisung".
+	function ladenGescheitert() {
+		// 🔴 BEIDE Haelften, in dieser Reihenfolge gedacht: sichtbar (der Kasten sagt es) UND
+		// wirksam (`geladen = false`, also `bereit === false` und `lies() === null`). Nur die erste
+		// zu tun war der halbe Riegel -- ein Kasten mit Fehlermeldung, dessen Speicherpfad weiter
+		// bedient wird, ist genau der dritte Zustand, den es nicht geben darf.
+		geladen = false;
+		behaelter.textContent = "Wiki-Zuweisung: der Stand konnte nicht gelesen werden.";
+	}
+
 	function neuLaden() {
 		let roh = null;
 		try {
 			roh = typeof opt.laden === "function" ? opt.laden() : null;
 		} catch (fehler) {
-			behaelter.textContent = "Wiki-Zuweisung: der Stand konnte nicht gelesen werden.";
+			// Fehlerart 1: `laden` WIRFT (synchron).
+			ladenGescheitert();
 			return Promise.resolve();
 		}
 		return Promise.resolve(roh).then((wert) => {
 			zustandUebernehmen(wert);
+			geladen = true;
 			ui = neuerZustand(daten.artikel ? "zugewiesen" : "offen");
 			zeichne();
 		}, () => {
-			behaelter.textContent = "Wiki-Zuweisung: der Stand konnte nicht gelesen werden.";
+			// Fehlerart 2: `laden` gibt eine ZUSAGE zurueck, die abgelehnt wird. Die erste Objektart
+			// mit Server-`laden` (Aufgabe 4) faellt genau hier hin.
+			ladenGescheitert();
 		});
 	}
 
@@ -963,12 +997,31 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	neuLaden();
 
 	return {
-		// 🔴 Das Gegenstueck zum Blindgaenger: NUR eine Steuerung mit `bereit === true` liefert
-		// einen Schreibwert. Wer speichert, prueft das Merkmal -- nicht bloss, ob ein Objekt da ist.
-		bereit: true,
+		// 🔴 EIN Merkmal, ausnahmslos: `bereit === true` heisst, dass `lies()` ein gueltiger
+		// Schreibwert ist. Es ist eine ABFRAGE, kein fester Wert -- der Ladelauf kann jederzeit
+		// scheitern, und dann darf das Merkmal nicht auf einer alten Zusage sitzenbleiben.
+		//
+		// 💣 Genau hier war der Riegel bis zum 16.08.2026 halb: er griff beim Mount, nicht auf dem
+		// FEHLERPFAD. `neuLaden()` faengt einen Wurf aus `opt.laden()` ab, schreibt „der Stand konnte
+		// nicht gelesen werden" in den Kasten -- und liess `bereit` auf `true` stehen. `lies()` gab
+		// dann lauter Leerstrings, und ein „Speichern" haette die Zuweisung geloescht: derselbe
+		// stille Verlust wie beim Blindgaenger, nur einen Trichter tiefer. Beim Kraftlinien-Editor
+		// ist `laden` synchron und der Pfad damit latent -- die erste Objektart mit SERVER-`laden`
+		// (Aufgabe 4) macht ihn lebendig.
+		//
+		// 🔴 Es darf keinen dritten Zustand geben, in dem der Kasten eine Fehlermeldung zeigt und der
+		// Speicherpfad trotzdem bedient wird. Deshalb setzt JEDER Fehlschlag `geladen` zurueck --
+		// auch der eines spaeteren Neuladens, nach einem geglueckten ersten: was dann im Kasten
+		// steht, ist eine Fehlermeldung, und was in `daten` steht, ist veraltet.
+		get bereit() {
+			return geladen;
+		},
 		// Der Rueckkanal fuer Oberflaechen, die NICHT sofort schreiben: was ein „Speichern“
 		// schreiben soll.
 		lies: function () {
+			if (!geladen) {
+				return null;
+			}
 			return {
 				name: daten.artikel ? avesmapsWikiAssignText(daten.artikel.name) : "",
 				wiki_url: daten.artikel ? avesmapsWikiAssignText(daten.artikel.wiki_url) : "",

@@ -310,20 +310,53 @@ checks += 3;
 // Segmente: eine Loeschung, die niemand angeordnet hat, ununterscheidbar von „es war nie eine da"
 // (AGENTS.md §10).
 //
-// In Node sind `avesmapsWikiAssignSubject`/`avesmapsWikiAssignDiff` KEINE Globalen -- dieser
+// In Node sind `avesmapsWikiAssignSubject`/`avesmapsWikiAssignDiff` KEINE Globalen -- der erste
 // Aufruf faellt also durch genau die Tuer, um die es geht, und braucht dafuer kein DOM.
+//
+// 🪤 UND GENAU DAS WAR DIE FALLE DER ERSTEN FASSUNG: sie prüfte hier auch „unbekannte Hülle“ --
+// nur erreichte diese Probe ihren Zweig NIE, weil sie schon am Feldregister-Riegel herausfiel.
+// Sie war grün und sicherte nichts zu, und dieselbe Ursache machte die Meldungsprobe blind
+// gegen die drei anderen Texte. Deshalb werden die Voraussetzungen jetzt STUFENWEISE gesetzt,
+// und jede Stufe prüft die Meldung, die zu ihr gehört -- so kann keine Probe an der falschen
+// Tür landen.
 const blindBehaelter = { textContent: "" };
 const blind = avesmapsWikiAssignMount(blindBehaelter, { subject: "kraftlinie", skin: "dt", laden: () => ({}) });
 assert.strictEqual(blind.bereit, false, "der Blindgaenger gibt sich nicht als solcher zu erkennen");
 assert.strictEqual(blind.lies(), null,
 	"lies() eines unvollstaendig geladenen Bauteils liefert einen Schreibwert -- ein Speichern wuerde die Zuweisung loeschen");
-// Und er sagt, WELCHE Datei fehlt -- sonst sucht jemand die Ursache in den Daten.
+// Stufe 1: gar nichts geladen -> die Meldung nennt das FELDREGISTER.
 assert.ok(/wiki-assign-registry\.js/.test(blindBehaelter.textContent), blindBehaelter.textContent);
-// Eine unbekannte Huelle ist derselbe Fall.
-const blind2 = avesmapsWikiAssignMount({ textContent: "" }, { subject: "kraftlinie", skin: "gibtesnicht" });
+checks += 3;
+
+// Stufe 2: Feldregister da, Diff-Rechnung fehlt. 🔴 Dieser Zweig ist nicht kosmetisch -- ohne die
+// Diff-Rechnung faende eine Objektart mit `sync: true` beim Druck auf „Sync“ nie einen
+// Unterschied und meldete „Alles stimmt bereits mit dem Wiki überein“: eine beruhigende Lüge.
+global.avesmapsWikiAssignSubject = require("../wiki-assign-registry.js").avesmapsWikiAssignSubject;
+const ohneDiff = { textContent: "" };
+const blindDiff = avesmapsWikiAssignMount(ohneDiff, { subject: "kraftlinie", skin: "dt", laden: () => ({}) });
+assert.strictEqual(blindDiff.bereit, false);
+assert.strictEqual(blindDiff.lies(), null);
+assert.ok(/wiki-assign-diff\.js/.test(ohneDiff.textContent), ohneDiff.textContent);
+checks += 3;
+
+// Stufe 3: beide Voraussetzungen da -- ab jetzt kommen die Proben WIRKLICH bis zur Objektart
+// und zur Huelle durch.
+global.avesmapsWikiAssignDiff = require("../wiki-assign-diff.js").avesmapsWikiAssignDiff;
+const unbekannteArt = { textContent: "" };
+const blindArt = avesmapsWikiAssignMount(unbekannteArt, { subject: "gibtesnicht", skin: "dt" });
+assert.strictEqual(blindArt.bereit, false);
+assert.strictEqual(blindArt.lies(), null);
+assert.ok(/keine Erklärung/.test(unbekannteArt.textContent), unbekannteArt.textContent);
+assert.ok(/gibtesnicht/.test(unbekannteArt.textContent), unbekannteArt.textContent);
+checks += 4;
+
+// Und die unbekannte HUELLE -- die Probe, die in der ersten Fassung ihren Zweig verfehlte.
+const unbekannteHuelle = { textContent: "" };
+const blind2 = avesmapsWikiAssignMount(unbekannteHuelle, { subject: "kraftlinie", skin: "gibtesnicht" });
 assert.strictEqual(blind2.bereit, false);
 assert.strictEqual(blind2.lies(), null);
-checks += 5;
+assert.ok(/unbekannte Hülle/.test(unbekannteHuelle.textContent), unbekannteHuelle.textContent);
+checks += 3;
 
 // 🔴 Und die Weiche muss beim AUFRUFER stehen, sonst nuetzt das Merkmal nichts. Der einzige
 // heutige Aufrufer ist der Kraftlinien-Editor; er darf `wikiAssign` NICHT blank auf
@@ -370,6 +403,20 @@ assert.ok(/ui\.aktiv = 0;[\s\S]{0,220}?zeichneTreffer\(\)/.test(quelle),
 	"das Suchergebnis zeichnet wieder den ganzen Kasten.");
 checks += 3;
 
+// 💣 UND BEIDE ARIA-Merkmale werden nachgezogen. Das Feld wird beim Tippen nicht neu gebaut,
+// also bleibt jedes Merkmal stehen, das zeichneTreffer nicht anfasst. Genau so stand
+// `aria-expanded` nach dem Oeffnen der Suche auf "false" (die Liste war da noch leer) und wurde
+// nie wieder angefasst -- LIVE gemessen bei vier Treffern, waehrend der Markup-Test gruen war.
+// 🔴 Ein reiner Markup-Test sieht das NIE: er prueft den Bauer, und der war richtig. Die
+// Zusicherung gehoert deshalb an die VERDRAHTUNG -- und das ist die Lehre, nicht die Zeile.
+const zeichneTrefferKoerper2 = quelle.slice(quelle.indexOf("function zeichneTreffer()"),
+	quelle.indexOf("function zustandUebernehmen"));
+assert.ok(/feld\.setAttribute\("aria-expanded"/.test(zeichneTrefferKoerper2),
+	"zeichneTreffer zieht aria-expanded nicht nach -- es bleibt auf dem Stand des Oeffnens stehen, und das war die leere Liste.");
+assert.ok(/aria-activedescendant/.test(zeichneTrefferKoerper2),
+	"zeichneTreffer zieht aria-activedescendant nicht nach.");
+checks += 2;
+
 // ── 13) DIE ARIA-ROLLEN SIND VOLLSTAENDIG, NICHT HALB (Nachbesserung 1, Befund 6) ─────────────
 // ⚠️ Halbe Rollen sind schlechter als keine: eine Liste mit role=option, deren Auswahl nirgends
 // gemeldet wird, sieht fuer ein Hilfsmittel vollstaendig aus und ist stumm.
@@ -388,8 +435,105 @@ assert.ok(listenIdTreffer && ariaMarkup.indexOf('id="' + listenIdTreffer + '" ro
 // 💣 OHNE Treffer darf KEIN aria-activedescendant dastehen -- ein Verweis auf eine Kennung, die
 // es nicht gibt, ist fuer ein Hilfsmittel schlimmer als keiner.
 const leereSuche = avesmapsWikiAssignModell(kraftlinie, { artikel: null }, { modus: "suche", treffer: [] });
-assert.ok(!/aria-activedescendant/.test(avesmapsWikiAssignMarkup(leereSuche, dt)),
+const leerMarkup = avesmapsWikiAssignMarkup(leereSuche, dt);
+assert.ok(!/aria-activedescendant/.test(leerMarkup),
 	"bei null Treffern steht ein aria-activedescendant ins Leere");
 checks += 7;
 
-console.log("wiki-assign: " + checks + " Zusicherungen erfuellt");
+// 💣 `aria-expanded` sagt, ob die Liste etwas ANBIETET. Fest auf "true" verdrahtet meldete es
+// auch bei null Treffern eine offene Auswahl, die es nicht gibt (Nachbesserung 2, Klein B).
+assert.ok(/aria-expanded="false"/.test(leerMarkup), "bei null Treffern meldet aria-expanded eine offene Auswahl");
+assert.ok(/aria-expanded="true"/.test(ariaMarkup), "mit Treffern meldet aria-expanded keine offene Auswahl");
+checks += 2;
+
+// 💣 In einem `role="listbox"` sind nur `option`/`group` zulaessige Kinder. Der Leerkasten ist
+// ein nackter <div> und damit ein Verstoss, den kein Browser meldet -- er traegt deshalb
+// `role="presentation"` und ist aus dem Barrierefreiheitsbaum genommen.
+const listeLeerInhalt = avesmapsWikiAssignTrefferListeInhalt(leereSuche, dt);
+assert.ok(/role="presentation"/.test(listeLeerInhalt),
+	"der Leerkasten steht ohne Rolle als Kind eines role=listbox: " + listeLeerInhalt);
+// Und weil er damit stumm ist, muss die Auskunft dort stehen, wo die Trefferzahl ohnehin steht.
+assert.ok(/Keine Treffer · /.test(leereSuche.hinweis), leereSuche.hinweis);
+// Gegenprobe: mit Treffern gibt es keinen Leerkasten.
+assert.ok(!/role="presentation"/.test(avesmapsWikiAssignTrefferListeInhalt(suche, dt)),
+	"mit Treffern steht trotzdem ein Leerkasten in der Liste");
+checks += 3;
+
+// ── 14) DER FEHLERPFAD LIEFERT AUCH KEINEN SCHREIBWERT (Nachbesserung 2, W3-Rest) ─────────────
+// 🔴 DER RIEGEL WAR HALB. Er griff beim Mount -- aber `neuLaden()` faengt einen Fehler aus
+// `opt.laden()` ab, schreibt „der Stand konnte nicht gelesen werden" in den Kasten und liess
+// `bereit` auf `true` stehen. `lies()` gab dann lauter Leerstrings, und ein „Speichern" haette
+// die Zuweisung geloescht: derselbe stille Verlust wie beim Blindgaenger, nur einen Trichter
+// tiefer. Beim Kraftlinien-Editor ist `laden` synchron und der Pfad damit latent -- die erste
+// Objektart mit SERVER-`laden` (Aufgabe 4) macht ihn lebendig.
+//
+// 🔴 Die Eigenschaft, die hier festgenagelt wird: `bereit === true` heisst AUSNAHMSLOS, dass
+// `lies()` ein gueltiger Schreibwert ist. Es gibt keinen dritten Zustand, in dem der Kasten eine
+// Fehlermeldung zeigt und der Speicherpfad trotzdem bedient wird.
+//
+// Ein Behaelter, der gerade genug kann: `mount` haengt Zuhoerer an und schreibt im Fehlerfall
+// `textContent` -- gezeichnet wird auf diesem Pfad nie.
+function scheinBehaelter() {
+	return { textContent: "", innerHTML: "", addEventListener() {}, removeEventListener() {}, querySelector() { return null; } };
+}
+
+(async () => {
+	// Fehlerart 1: `laden` WIRFT (synchron).
+	const wirft = scheinBehaelter();
+	const stWirft = avesmapsWikiAssignMount(wirft, {
+		subject: "kraftlinie", skin: "dt",
+		laden: () => { throw new Error("Leseweg kaputt"); },
+	});
+	await stWirft.neuLaden();
+	assert.strictEqual(stWirft.bereit, false,
+		"nach einem geworfenen Fehler im Datenweg meldet das Bauteil weiterhin `bereit` -- ein Speichern wuerde die Zuweisung loeschen");
+	assert.strictEqual(stWirft.lies(), null, "lies() liefert nach einem geworfenen Fehler einen Schreibwert");
+	assert.ok(/konnte nicht gelesen werden/.test(wirft.textContent), wirft.textContent);
+	checks += 3;
+
+	// Fehlerart 2: `laden` gibt eine ZUSAGE zurueck, die ABGELEHNT wird. Genau die Form, die eine
+	// Objektart mit Server-`laden` benutzt -- der Grund, warum dieser Rest nicht warten konnte.
+	const lehntAb = scheinBehaelter();
+	const stAbgelehnt = avesmapsWikiAssignMount(lehntAb, {
+		subject: "kraftlinie", skin: "dt",
+		laden: () => Promise.reject(new Error("HTTP 500")),
+	});
+	await stAbgelehnt.neuLaden();
+	assert.strictEqual(stAbgelehnt.bereit, false,
+		"nach einer abgelehnten Zusage meldet das Bauteil weiterhin `bereit`");
+	assert.strictEqual(stAbgelehnt.lies(), null, "lies() liefert nach einer abgelehnten Zusage einen Schreibwert");
+	assert.ok(/konnte nicht gelesen werden/.test(lehntAb.textContent), lehntAb.textContent);
+	checks += 3;
+
+	// 🔴 Und ein SPAETERES Scheitern nimmt die Zusage zurueck: erst glueckt der Lauf, dann nicht
+	// mehr. Was dann im Kasten steht, ist eine Fehlermeldung, und was in `daten` steht, ist
+	// veraltet -- `bereit` darf nicht auf der alten Zusage sitzenbleiben.
+	let gehtNoch = true;
+	const kippt = scheinBehaelter();
+	const stKippt = avesmapsWikiAssignMount(kippt, {
+		subject: "kraftlinie", skin: "dt",
+		laden: () => (gehtNoch ? { artikel: null, keinArtikel: true } : Promise.reject(new Error("weg"))),
+	});
+	await stKippt.neuLaden();
+	assert.strictEqual(stKippt.bereit, true, "nach einem geglueckten Ladelauf ist das Bauteil nicht bereit");
+	assert.strictEqual(stKippt.lies().kein_artikel, true, "der geglueckte Ladelauf kommt nicht im Schreibwert an");
+	gehtNoch = false;
+	await stKippt.neuLaden();
+	assert.strictEqual(stKippt.bereit, false,
+		"ein spaeteres Scheitern nimmt die Zusage nicht zurueck -- der Kasten zeigt einen Fehler und der Speicherpfad wird trotzdem bedient");
+	assert.strictEqual(stKippt.lies(), null);
+	checks += 4;
+
+	// 🔴 Die Eigenschaft in EINEM Satz, ueber alle vier gebauten Faelle: kein `bereit === true`
+	// ohne gueltigen Schreibwert, kein gueltiger Schreibwert ohne `bereit === true`.
+	[blind, blindDiff, blindArt, blind2, stWirft, stAbgelehnt, stKippt].forEach((st, i) => {
+		assert.strictEqual(st.bereit === true, st.lies() !== null,
+			"Steuerung " + i + ": `bereit` und die Gueltigkeit von lies() gehen auseinander");
+		checks++;
+	});
+
+	console.log("wiki-assign: " + checks + " Zusicherungen erfuellt");
+})().catch((fehler) => {
+	console.error(fehler && fehler.message ? fehler.message : fehler);
+	process.exit(1);
+});
