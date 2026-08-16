@@ -1048,6 +1048,31 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	font-size: var(--font-size-small);
 }
 
+/* EIN Knopfrezept im Flächen-Dialog, nicht zwei (AGENTS.md §12: der Kasten hat eine Rangfolge, keine
+   zwei Handschriften). Seit dem 16.08.2026 steht die Wiki-Zuweisung dort als geteiltes Bauteil, und
+   die Hülle „label-wiki" bringt die Knopfklassen des Kartendialogs mit -- gemessen:
+
+     .location-report-form__button        padding 8px 14px · font-weight: bold
+       (css/components/location-report-dialog.css:392)
+     .ecosystem-properties-dialog__button padding var(--space-6) var(--space-10) = 8px 12px · normal
+       (oben in dieser Datei)
+
+   Gleich hoch, aber 2 px breiter und FETT -- „Zuweisen" und „Sync" schrien damit lauter als
+   „Speichern" und „Abbrechen" desselben Fensters. Das ist eine falsche Rangfolge, kein
+   Schönheitsfehler.
+
+   🔴 Angeglichen wird nach UNTEN und über die ID: die Abschnittsknöpfe folgen dem Fenster, nicht
+   umgekehrt. Über die Klasse `.location-report-form__button` gerechnet träfe die Regel den
+   Meldedialog, den Ort- und den Wege-Dialog mit; über `.ecosystem-properties-dialog__button` träfe
+   sie fünf weitere Fenster (die Selektorliste oben führt sie auf). `#ecosystem-properties-dialog`
+   gibt es genau einmal (index.html) -- Spezifität 1,1,0 gegen 0,1,0, also gewinnt sie hier und
+   nirgends sonst.
+   ⚠️ Nur Token, keine 14 von Hand: die 14 px stammen aus einer Regel, die diese Datei nicht besitzt. */
+#ecosystem-properties-dialog .location-report-form__button {
+	padding: var(--space-6) var(--space-10);
+	font-weight: var(--font-weight-regular);
+}
+
 /* 🔴 HIER STANDEN `.ecosystem-properties-dialog__search` UND `__searchrow` -- die Regeln des eigenen
    Wiki-Pickers samt „Suchen"-Knopf. Am 16.08.2026 ist die Wiki-Zuweisung dieses Dialogs auf das
    geteilte Bauteil umgestellt (js/ui/wiki-assign.js, Hülle „label-wiki"); sein Suchfeld und seine
