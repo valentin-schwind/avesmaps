@@ -422,34 +422,9 @@ function avesmapsMapFeaturesTravelHours(PDO $pdo): array {
     }
 }
 
-// Filters a settlement's properties.images down to the URLs that may be shown publicly: keeps
-// public_domain / cc0 / ai_generated, drops unknown_other, and strips the licence/note metadata
-// (editor-only). Accepts both the {url,license,note} object shape and the legacy plain-URL-string
-// shape (which counts as ai_generated = shown). See api/edit/wiki/settlement-images.php.
-function avesmapsMapFeaturesPublicImageUrls($images): array {
-    if (!is_array($images)) {
-        return [];
-    }
-    $allowed = ['public_domain', 'cc0', 'ai_generated'];
-    $out = [];
-    foreach ($images as $item) {
-        if (is_string($item)) {
-            $url = trim($item);
-            if ($url !== '') {
-                $out[] = $url;
-            }
-            continue;
-        }
-        if (is_array($item)) {
-            $url = trim((string) ($item['url'] ?? ''));
-            $license = trim((string) ($item['license'] ?? 'ai_generated'));
-            if ($url !== '' && in_array($license, $allowed, true)) {
-                $out[] = $url;
-            }
-        }
-    }
-    return $out;
-}
+// avesmapsMapFeaturesPublicImageUrls() zog nach api/_internal/app/coat-display.php um (Phase 3, aus
+// demselben Grund wie avesmapsSettlementCoatIsPublic() daneben: diese Datei ist ein Endpunkt und beim
+// `require` fuer einen Test nicht seiteneffektfrei ladbar, die Zieldatei schon).
 
 function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = [], array $buildingTypes = [], array $politicalContext = [], bool $settlementImagesEnabled = true, bool $settlementCoatsEnabled = true): array {
     if ((int) ($row['is_active'] ?? 1) !== 1) {

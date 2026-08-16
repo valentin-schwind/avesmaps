@@ -136,6 +136,49 @@ function avesmapsSettlementCoatIsPublic(mixed $coat): bool
 }
 
 /**
+ * Filtert properties.images einer Siedlung auf die URLs, die oeffentlich erscheinen duerfen. Nimmt
+ * sowohl die {url,license,note}-Objektform als auch die alte blanke URL-String-Form (die als
+ * ai_generated = sichtbar zaehlt) an. Die Lizenz-/Notiz-Metadaten selbst verlassen die Funktion nie --
+ * sie sind Editor-only. Siehe api/edit/wiki/settlement-images.php.
+ *
+ * 🔴 Bis zum 16.08.2026 liess das Gate hier nur drei der fuenf oeffentlichen Werte durch
+ * (public_domain/cc0/ai_generated, fest verdrahtet) -- eine Luecke, die erst mit Phase 4 sichtbar
+ * wurde: der Bilder-Dialog bietet seither alle sieben Kennungen an, und "Genehmigung erteilt" /
+ * "Eigene Kreation" liessen ein Bild kommentarlos verschwinden.
+ *
+ * ⚠️ Lebt HIER und nicht in map-features.php, aus demselben Grund wie avesmapsSettlementCoatIsPublic()
+ * darueber: jene Datei ist ein Endpunkt und beim `require` fuer einen Test nicht seiteneffektfrei
+ * ladbar. Der einzige Aufrufer bleibt map-features.php, das diese Datei ohnehin schon einbindet.
+ *
+ * 🔴 Der Legacy-Zweig (blanker URL-String) bleibt UNVERAENDERT: er zaehlt weiterhin als ai_generated
+ * und damit sichtbar, sonst verloeren Bestandsbilder ihre Sichtbarkeit -- genau das, was die
+ * Zusicherung ueber alle vier Phasen ausschliesst.
+ */
+function avesmapsMapFeaturesPublicImageUrls($images): array {
+    if (!is_array($images)) {
+        return [];
+    }
+    $out = [];
+    foreach ($images as $item) {
+        if (is_string($item)) {
+            $url = trim($item);
+            if ($url !== '') {
+                $out[] = $url;
+            }
+            continue;
+        }
+        if (is_array($item)) {
+            $url = trim((string) ($item['url'] ?? ''));
+            $license = $item['license'] ?? 'ai_generated';
+            if ($url !== '' && avesmapsMediaLicenseIsPublic($license)) {
+                $out[] = $url;
+            }
+        }
+    }
+    return $out;
+}
+
+/**
  * Applies the territory switch to a finished political-layer feature list.
  *
  * At the END of the build rather than inside avesmapsPoliticalLayerRowToFeature(), because that builder

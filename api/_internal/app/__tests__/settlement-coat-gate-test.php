@@ -67,4 +67,24 @@ $posSchalter = strpos($quelle, 'if (!$settlementCoatsEnabled)');
 assert($posGate !== false && $posSchalter !== false, 'eine der beiden Stellen fehlt');
 assert($posGate < $posSchalter, 'das Lizenz-Gate muss VOR dem Anzeige-Schalter stehen');
 
+// ---- Phase 3: auch die BILDER lesen den Katalog ------------------------------------------------------
+// 💣 Bis 16.08.2026 liess dieses Gate nur drei der fuenf oeffentlichen Werte durch. Seit Phase 4
+// bietet der Dialog alle sieben an -- "Genehmigung erteilt" und "Eigene Kreation" waren damit
+// waehlbar und liessen das Bild verschwinden.
+foreach (['public_domain', 'cc0', 'permission_granted', 'ai_generated', 'own_work'] as $kennung) {
+    assert(
+        avesmapsMapFeaturesPublicImageUrls([['url' => '/uploads/siedlungen/a/x.webp', 'license' => $kennung]]) !== [],
+        "{$kennung} muesste durchkommen"
+    );
+}
+foreach (['cc_by', 'unknown_other'] as $kennung) {
+    assert(
+        avesmapsMapFeaturesPublicImageUrls([['url' => '/uploads/siedlungen/a/x.webp', 'license' => $kennung]]) === [],
+        "{$kennung} duerfte NICHT durchkommen"
+    );
+}
+// ⚠️ Der Legacy-Fall bleibt: ein blanker URL-String zaehlt als ai_generated und ist sichtbar
+// (api/app/map-features.php:390, seit jeher). Kein Bestandsbild wechselt seine Sichtbarkeit.
+assert(avesmapsMapFeaturesPublicImageUrls(['/uploads/siedlungen/a/alt.webp']) !== []);
+
 echo "settlement-coat-gate-test: OK\n";

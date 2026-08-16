@@ -35,11 +35,11 @@ const AVESMAPS_SETTLEMENT_IMAGE_TYPES = [
     'image/webp' => 'webp',
     'image/gif' => 'gif',
 ];
-// Per-image licence (editor-only). Sichtbarkeit im Frontend ist ein SEPARATES, engeres Gate
-// (avesmapsMapFeaturesPublicImageUrls in api/app/map-features.php: nur public_domain/cc0/ai_generated)
-// -- diese Phase aendert keine Gates, deshalb bleibt es unberuehrt. Legacy plain-string images + neue
-// Uploads bleiben ai_generated ("Von uns KI-generiert") per Owner-Entscheid, so verschwindet nichts
-// bereits Hochgeladenes.
+// Per-image licence (editor-only). Sichtbarkeit im Frontend ist ein SEPARATES Gate
+// (avesmapsMapFeaturesPublicImageUrls in api/_internal/app/coat-display.php: die fuenf oeffentlichen
+// Werte aus AVESMAPS_MEDIA_LICENSES_PUBLIC, seit Phase 3) -- diese Datei aendert es nicht, sie fuellt
+// nur seinen Vorrat. Legacy plain-string images + neue Uploads bleiben ai_generated ("Von uns
+// KI-generiert") per Owner-Entscheid, so verschwindet nichts bereits Hochgeladenes.
 const AVESMAPS_SETTLEMENT_IMAGE_LICENSES = AVESMAPS_MEDIA_LICENSES;
 const AVESMAPS_SETTLEMENT_IMAGE_LICENSE_DEFAULT = 'ai_generated';
 const AVESMAPS_SETTLEMENT_IMAGE_NOTE_MAX = 2000;
