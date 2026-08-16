@@ -327,13 +327,23 @@ assert.deepStrictEqual(
 		assert.strictEqual(zeile.karte, "", wikiFeld + " hat ploetzlich ein Kartenziel -- gibt es die Spalte wirklich?");
 		zaehl();
 	});
-assert.strictEqual(landschaft.extra.keinArtikelHaken, true, "die Landschaft bietet den dritten Zustand nicht an");
-assert.ok(String(landschaft.extra.keinArtikelHinweis || "").trim() !== "", "der Hinweis zum dritten Zustand fehlt");
-// 🔴 UND ER VERSPRICHT KEINE KONFLIKTLISTE. Eine `ecosystem_region` steht in keiner
-// (avesmapsConflictLoadMapRows liest nur `map_features`) -- der Satz waere dann eine Zusage, die
-// niemand einloest. Bei Ort, Weg und Kraftlinie steht sie zu Recht drin.
-assert.ok(!/Konfliktliste/.test(String(landschaft.extra.keinArtikelHinweis)),
-	"der Hinweis verspricht eine Konfliktliste, in der die Landschaft gar nicht steht");
+// 🔴 KEIN Bedienelement fuer den dritten Zustand -- gefallen am 16.08.2026 (Owner-Entscheid nach dem
+// Durchklicken: „passt, aber ‚Kein Wiki-Artikel vorhanden‘ brauchen wir nicht explizit"). Hier stand
+// bis dahin `true`.
+// 💣 UND ES FAELLT IN ZWEI OBERFLAECHEN, weil `landschaft` zwei traegt: den Regionen-Editor
+// (html/landschaften-editor.html) UND den Dialog „Fläche bearbeiten" auf der Karte. Der Owner hat den
+// Regionen-Editor genannt; das Haekchen steht in EINER Erklaerung, also gibt es keine Halbierung.
+// ⚠️ Der Label-Dialog ist NICHT betroffen -- das ist die eigene Erklaerung `landschaftslabel`, und
+// dass sie ihn behaelt, ist weiter unten eigens festgenagelt.
+assert.strictEqual(landschaft.extra.keinArtikelHaken, false,
+	"das Haekchen ist zurueck -- der Owner hat es am 16.08.2026 abgewaehlt, die Begruendung steht im "
+	+ "Feldregister. Wer es wieder einbaut, braucht einen neuen Entscheid.");
+// 🪤 UND DER HINWEISTEXT IST MITGEFALLEN. Hier stand einmal, er duerfe „keine Konfliktliste
+// versprechen" -- eine `ecosystem_region` steht in keiner (avesmapsConflictLoadMapRows liest nur
+// `map_features`). Der Befund bleibt wahr; ohne Haekchen liest das Bauteil `keinArtikelHinweis` gar
+// nicht mehr, und ein Text, den niemand sieht, waere die naechste Divergenz.
+assert.strictEqual(landschaft.extra.keinArtikelHinweis, undefined,
+	"ein Hinweistext ohne Haekchen -- das Bauteil zeigt ihn nie, er kann nur noch veralten");
 zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 // ── Die Diff-Rechnung auf der ECHTEN Erklaerung ───────────────────────────────────────────────
@@ -604,9 +614,10 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	// Die Huelle „label-wiki", nicht „dt" -- index.html laedt region-sync.css, nicht editor-page.css.
 	assert.ok(host.innerHTML.indexOf("label-wiki-reference") !== -1 && host.innerHTML.indexOf("dt-grp") === -1,
 		"der Flaechen-Dialog mountet die falsche Huelle: " + host.innerHTML);
-	// 🔴 Der dritte Zustand wird angeboten -- im offenen Zustand.
-	assert.ok(host.innerHTML.indexOf("Kein Wiki-Artikel vorhanden") !== -1,
-		"das Haekchen des dritten Zustands fehlt: " + host.innerHTML);
+	// 🔴 Der dritte Zustand wird NICHT MEHR angeboten (16.08.2026) -- auch nicht im offenen Zustand,
+	// wo er bis dahin stand. Die Zusicherung ist umgedreht, nicht geloescht.
+	assert.strictEqual(host.innerHTML.indexOf("Kein Wiki-Artikel vorhanden"), -1,
+		"das Haekchen des dritten Zustands steht weiter da: " + host.innerHTML);
 	zaehl(); zaehl(); zaehl(); zaehl();
 
 	// ---- Suchen: BEIM TIPPEN, nicht auf Knopfdruck --------------------------------------------
@@ -666,8 +677,10 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 		"„Entfernen“ hat umbenannt -- die Zuweisung zu loesen soll den Namen stehen lassen");
 	zaehl(); zaehl();
 
-	// ---- Der dritte Zustand reist beim Speichern mit ------------------------------------------
-	// 🔴 BEIDE RICHTUNGEN, je eigene Fixture. Zuerst: NICHT angefasst -> der Schluessel fehlt.
+	// ---- Der dritte Zustand reist GAR NICHT mehr mit ------------------------------------------
+	// 🔴 SEIT DEM 16.08.2026 IST DAS DIE GANZE REGEL. Vorher stand hier „beide Richtungen, je eigene
+	// Fixture" -- das Haekchen konnte den Merker setzen und wieder abwaehlen. Es ist gefallen; was
+	// bleibt, ist die Zusicherung, dass diese Oberflaeche den gespeicherten Merker NICHT ANFASST.
 	vm.runInContext("document.getElementById('ecosystem-properties-form')", k.kasten);
 	const form = k.elemente["ecosystem-properties-form"];
 	await (async () => { form.feuere("submit", form); })();
@@ -675,18 +688,18 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	const ersterSchreibvorgang = k.aufrufe.filter((a) => a.aktion === "update_region")[0];
 	assert.ok(ersterSchreibvorgang, "das Speichern hat gar nichts geschrieben: " + JSON.stringify(k.aufrufe));
 	assert.ok(!("wiki_no_article" in ersterSchreibvorgang.nutzlast),
-		"der Merker reist mit, obwohl niemand das Haekchen angefasst hat -- ein alter Dialog naehme "
+		"der Merker reist mit, obwohl niemand die Zuweisung angefasst hat -- ein alter Dialog naehme "
 		+ "damit die Entscheidung eines zweiten Editors zurueck");
 	zaehl(); zaehl();
 
-	// ---- DIE ZWEITE RICHTUNG, mit EIGENER Fixture --------------------------------------------
-	// 💣 SIE FEHLTE, UND DAS WAR DIE 5b-FALLE. Die Fixture oben startet mit `wiki_no_article: false`,
-	// also endet jeder Handgriff bei `false` -- die Mutation „`kein_artikel_geaendert` ->
-	// `kein_artikel`" lief dagegen GRUEN durch, obwohl drei Zeilen ueber der Stelle woertlich steht
-	// „GEPRUEFT WIRD VERAENDERT, NICHT GESETZT — sonst würde man den Merker nie wieder los".
-	// 🔴 Deshalb eine ZWEITE Flaeche, deren `list_regions` den Merker GESETZT liefert: erst abhaken,
-	// dann speichern -- und `false` MUSS im Rumpf stehen. Der Regionen-Editor und der Label-Dialog
-	// haben diese Richtung laengst; nur diese eine Oberflaeche hatte sie nicht.
+	// ---- DIE ZWEITE FIXTURE: EINE FLAECHE, DIE DEN MERKER WIRKLICH TRAEGT ---------------------
+	// 💣 DAS IST DIE ZUSICHERUNG ZUM WEGFALL DES HAEKCHENS, und sie braucht diese zweite Fixture:
+	// die erste startet mit `wiki_no_article: false`, dort ist „nicht geschrieben" von „es war ohnehin
+	// false" nicht zu unterscheiden. Genau daran war die Probe in 5b schon einmal blind.
+	// 🔴 Was hier bis zum 16.08.2026 stand -- erst abhaken, dann speichern, `false` MUSS im Rumpf --,
+	// ist mit dem Haekchen gefallen. An seine Stelle tritt die schaerfere Frage: das Kaestchen ist
+	// NICHT DA, auch nicht bei GESETZTEM Merker (`hakenZeigen` hat dafuer eine eigene Ausnahme), und
+	// ein Speichern laesst den gespeicherten Merker in Ruhe.
 	const felderGesetzt = {
 		"ecosystem-properties-name": scheinFeld("Wald-002"),
 		"ecosystem-properties-type": scheinFeld("wald", VEGETATION.map((typ) => typ.type_key)),
@@ -733,29 +746,21 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	const formGesetzt = kGesetzt.elemente["ecosystem-properties-form"];
 	await vm.runInContext("window.AvesmapsEcosystemProperties.open('a3')", kGesetzt.kasten);
 	await ruhe();
-	// Der geladene Merker steht im Kasten -- sonst pruefte das Abhaken darunter nichts.
-	assert.ok(/data-wa-kein-artikel checked/.test(hostGesetzt.innerHTML),
-		"der geladene Merker erreicht das Haekchen nicht: " + hostGesetzt.innerHTML);
-	// Nicht angefasst -> auch hier faehrt der Schluessel NICHT mit.
+	// 🔴 DER GESETZTE MERKER ZEICHNET KEIN KAESTCHEN. Hier stand die umgekehrte Zusicherung
+	// (`/data-wa-kein-artikel checked/`) -- sie ist am 16.08.2026 umgedreht worden, nicht geloescht.
+	assert.strictEqual(hostGesetzt.innerHTML.indexOf("data-wa-kein-artikel"), -1,
+		"ein GESETZTER Merker zeichnet das Haekchen doch: " + hostGesetzt.innerHTML);
+	assert.strictEqual(hostGesetzt.innerHTML.indexOf("Kein Wiki-Artikel vorhanden"), -1,
+		"der Wortlaut des Haekchens steht weiter im Kasten: " + hostGesetzt.innerHTML);
+	// 🔴 UND DER ABLAUF, DER DATEN ZERSTOEREN KOENNTE: speichern -- der Schluessel darf NICHT im Rumpf
+	// stehen. `avesmapsEcosystemApplyRegionNoArticle` liest einen fehlenden Schluessel als „nicht
+	// geaendert"; jeder Wert dort (auch `true`) waere ein Schreibvorgang auf eine Entscheidung, die im
+	// Konfliktzentrum getroffen wurde.
 	formGesetzt.feuere("submit", formGesetzt);
 	await ruhe();
 	assert.ok(!("wiki_no_article" in kGesetzt.aufrufe.filter((a) => a.aktion === "update_region")[0].nutzlast),
-		"der gesetzte Merker reist mit, obwohl niemand ihn angefasst hat");
-	// ⚠️ Ein geglücktes Speichern SCHLIESST diesen Dialog (und zerstört das Bauteil) -- für den
-	// zweiten Handgriff wird er deshalb neu geöffnet. Das ist kein Kunstgriff der Probe, sondern
-	// genau der Weg, den ein Editor geht.
-	await vm.runInContext("window.AvesmapsEcosystemProperties.open('a3')", kGesetzt.kasten);
-	await ruhe();
-	// ABHAKEN -> `false` MUSS im Rumpf stehen.
-	kGesetzt.aufrufe.length = 0;
-	hostGesetzt.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
-	formGesetzt.feuere("submit", formGesetzt);
-	await ruhe();
-	const abgehakt = kGesetzt.aufrufe.filter((a) => a.aktion === "update_region")[0];
-	assert.ok(abgehakt, "das Speichern nach dem Abhaken hat nichts geschrieben");
-	assert.strictEqual(abgehakt.nutzlast.wiki_no_article, false,
-		"ein bewusst ENTFERNTES Haekchen kommt nicht durch -- der Merker liesse sich nie wieder loswerden");
-	zaehl(); zaehl(); zaehl(); zaehl();
+		"der gespeicherte Merker wird ueberschrieben -- die Entscheidung des Konfliktzentrums geht verloren");
+	zaehl(); zaehl(); zaehl();
 
 	// ---- `laden` LEHNT AB, und der Kasten sagt es ----------------------------------------------
 	// 🔴 DER VERTRAG AUS DEM KOPF VON js/ui/wiki-assign.js, WIRKLICH GEFAHREN -- nicht als Textprobe.
@@ -931,6 +936,31 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	const eHost = blockFelder["wiki-host"];
 	assert.ok(eHost.innerHTML.indexOf("avm-wiki-assign") !== -1,
 		"renderDetail haengt das Bauteil nicht ein: " + eHost.innerHTML);
+	// ── 🔴 „WIKI-LANDSCHAFT" STEHT GENAU EINMAL DA (Owner-Befund 16.08.2026) ───────────────────
+	// 💣 `renderDetail` baute bis dahin einen EIGENEN read-only-Steckbrief mit genau dieser
+	// Ueberschrift -- Zuweisung/Schluessel/Artikel --, und DARUNTER stand seit dem Umbau der
+	// Zuweisungskasten, dessen Erklaerung `landschaft` als `label` ebenfalls „Wiki-Landschaft" traegt,
+	// mit denselben Angaben plus Name, Art, Lage, Staat, Kontinent und den Knoepfen. Zweimal dieselbe
+	// Auskunft untereinander. Der Umbau hatte ERGAENZT statt ersetzt, und der Rueckbau danach suchte
+	// nach toten BEZEICHNERN statt nach doppelter ANZEIGE -- deshalb ueberlebte er.
+	// ⚠️ Gemessen wird an `detail.innerHTML`: das ist, was `renderDetail` SELBST schreibt; das Bauteil
+	// haengt sein Markup erst danach in `wiki-host`. Eine Zeile MIT Region darf dort keine eigene
+	// Ueberschrift mehr tragen, das Bauteil sehr wohl.
+	assert.strictEqual(detail.innerHTML.indexOf("Wiki-Landschaft"), -1,
+		"renderDetail baut neben dem Zuweisungskasten wieder einen eigenen „Wiki-Landschaft\"-Steckbrief: "
+		+ detail.innerHTML.slice(0, 600));
+	assert.ok(eHost.innerHTML.indexOf("Wiki-Landschaft") !== -1,
+		"der Kasten traegt die Ueberschrift nicht -- dann steht sie jetzt NIRGENDS: " + eHost.innerHTML);
+	zaehl(); zaehl();
+	// 🔴 UND DER RUECKFALL BLEIBT: eine Listenzeile OHNE gezeichnete Region bekommt gar keinen Kasten
+	// (der haengt an `regionEditBlock`), und ohne ihn stuenden Schluessel und Artikel dort nirgends.
+	// ⚠️ Am Quelltext geprueft, nicht nachgestellt: diese Fixture hat immer eine Region, und eine
+	// zweite nur fuer den Rueckfall waere eine Attrappe, die nur sich selbst prueft.
+	assert.ok(/if \(row\.regions\.length === 0\) \{\s*\r?\n\s*parts\.push\('<div class="dt-grp">Wiki-Landschaft<\/div>/
+		.test(fs.readFileSync(path.join(wurzel, "html/landschaften-editor.html"), "utf8")),
+		"der read-only-Steckbrief ist entweder ganz weg (dann verlieren Zeilen ohne Region ihren "
+		+ "Schluessel) oder wieder bedingungslos (dann steht er doppelt)");
+	zaehl();
 	// Die Huelle „dt", nicht „label-wiki" -- dieses Fenster laedt editor-page.css.
 	assert.ok(eHost.innerHTML.indexOf("dt-grp") !== -1 && eHost.innerHTML.indexOf("label-wiki") === -1,
 		"der Regionen-Editor mountet die falsche Huelle: " + eHost.innerHTML);
@@ -1002,30 +1032,36 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	assert.strictEqual(ECO_REGION.wiki_url, null, "die Zuweisung steht noch");
 	zaehl(); zaehl(); zaehl(); zaehl();
 
-	// ---- Der dritte Zustand, BEIDE Richtungen, je eigene Fixture --------------------------------
-	// 💣 ZWEI Faelle, nicht einer. Eine Probe, die nur das Setzen prueft, bliebe gruen, wenn der
-	// Riegel an „gesetzt" statt an „veraendert" haengt -- dann wuerde man den Merker nie wieder los.
-	// Und weil die Attrappe oben den Schreibvorgang WIRKLICH anwendet, ist der zweite Klick ein
-	// Abhaken des GELADENEN Merkers und nicht bloss ein zweites Setzen.
-	editorAufrufe.length = 0;
-	eHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
+	// ---- 🔴 DER ABLAUF, DER DATEN ZERSTOEREN KOENNTE: DER FREMDE MERKER UEBERLEBT ---------------
+	// 💣 DAS IST DIE ZUSICHERUNG ZUM WEGFALL DES HAEKCHENS (16.08.2026). Hier standen bis dahin die
+	// zwei Richtungen des Haekchens (setzen / abwaehlen); es gibt es nicht mehr, und an seine Stelle
+	// tritt die Frage, die jetzt zaehlt: eine Flaeche, der das KONFLIKTZENTRUM den Merker gesetzt hat,
+	// muss ihn behalten, wenn dieser Editor irgendetwas anderes speichert.
+	// ⚠️ Gefahren wird das am ECHTEN Ablauf, nicht am Payload-Bauer: gesetzt wird an der Attrappe
+	// (genau so sieht dieser Editor den Merker -- ueber `list_regions`), dann wird ueber die
+	// Listenzeile neu ausgewaehlt und ueber „Speichern" geschrieben.
+	ECO_REGION.wiki_no_article = true;
+	// Ein Speichern laedt die Liste neu -- danach ist der fremde Merker der GELADENE Stand.
 	blockAktionen.save.feuere("click", blockAktionen.save);
 	await ruhe();
-	const gesetzt = editorAufrufe.filter((a) => a.aktion === "update_region")[0];
-	assert.ok(gesetzt, "das Speichern mit gesetztem Haekchen hat nichts geschrieben");
-	assert.strictEqual(gesetzt.nutzlast.wiki_no_article, true,
-		"das gesetzte Haekchen erreicht den Server nicht");
-	assert.strictEqual(ECO_REGION.wiki_no_article, true, "der Merker steht nicht");
+	listenZeile.feuere("click", listenZeile);
+	await ruhe();
+	// Der geladene Merker zeichnet KEIN Kaestchen -- das ist der schaerfere Zweig (`hakenZeigen` im
+	// Bauteil hat fuer den gesetzten Merker eine eigene Ausnahme, und die haengt allein an
+	// `extra.keinArtikelHaken`).
+	assert.strictEqual(eHost.innerHTML.indexOf("data-wa-kein-artikel"), -1,
+		"ein GESETZTER Merker zeichnet das Haekchen doch: " + eHost.innerHTML);
 	editorAufrufe.length = 0;
-	eHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
 	blockAktionen.save.feuere("click", blockAktionen.save);
 	await ruhe();
-	const zurueck = editorAufrufe.filter((a) => a.aktion === "update_region")[0];
-	assert.ok(zurueck, "das Speichern nach dem Abhaken hat nichts geschrieben");
-	assert.strictEqual(zurueck.nutzlast.wiki_no_article, false,
-		"ein bewusst ENTFERNTES Haekchen kommt nicht durch -- der Merker liesse sich nie wieder loswerden");
-	assert.strictEqual(ECO_REGION.wiki_no_article, false, "der Merker steht immer noch");
-	zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+	const ungestoert = editorAufrufe.filter((a) => a.aktion === "update_region")[0];
+	assert.ok(ungestoert, "das Speichern hat nichts geschrieben");
+	assert.ok(!("wiki_no_article" in ungestoert.nutzlast),
+		"der Rumpf traegt den Merker -- jeder Wert dort schriebe auf eine Entscheidung, die im "
+		+ "Konfliktzentrum getroffen wurde: " + JSON.stringify(ungestoert.nutzlast));
+	assert.strictEqual(ECO_REGION.wiki_no_article, true,
+		"der gespeicherte Merker ist weg -- die Entscheidung des Konfliktzentrums wurde still zurueckgenommen");
+	zaehl(); zaehl(); zaehl(); zaehl();
 
 	// ══ TEIL 5: DER LABEL-DIALOG („Region bearbeiten", index.html) ════════════════════════════
 	// 🔴 DIE DRITTE OBERFLAECHE DERSELBEN WIKI-LANDSCHAFT -- und eine EIGENE Objektart. Sie heftet

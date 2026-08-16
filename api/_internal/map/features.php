@@ -1736,6 +1736,44 @@ function avesmapsAssertPowerlineWikiClaimNotContradictory(string $wikiUrl, bool 
 }
 
 /**
+ * REIN: den Merker „kein Wiki-Artikel" auf EIN Kraftlinien-Segment schreiben. Wirft, wenn Merker und
+ * Adresse einander widersprechen.
+ *
+ * 💣 ABWESENHEIT HEISST „NICHT GEAENDERT", LEER HEISST „LOESCHEN" -- dieselbe Regel wie bei
+ * avesmapsApplyPointWikiFields, avesmapsApplyPathWikiNoArticle und
+ * avesmapsEcosystemApplyRegionNoArticle. 🪤 Sie galt hier bis zum 16.08.2026 NICHT: der Linien-
+ * Schreibweg las `$payload['wiki_no_article'] ?? false`, und daneben stand die Begruendung dafuer --
+ * „die Kraftlinie hat EINEN Schreiber, und der schickt den Merker seit jeher". Der Satz war wahr und
+ * ist es nicht mehr: mit dem Wegfall des Haekchens „Kein Wiki-Artikel vorhanden" (Owner-Entscheid
+ * 16.08.2026) schickt der Editor den Schluessel nur noch, wenn eine ZUWEISUNG den Merker beantwortet
+ * hat. Unveraendert weitergelesen haette `?? false` bei JEDEM Speichern einer Linie die Entscheidung
+ * des Konfliktzentrums geloescht -- lautlos, und hinterher nicht von „nie entschieden" zu
+ * unterscheiden (AGENTS.md §10).
+ *
+ * ⚠️ Der Merker steht nur drin, wenn er WAHR ist -- als `false` wird er nirgends abgelegt.
+ *
+ * 🔴 EIGENE FUNKTION, weil der Linien-Schreibweg sie je Segment braucht und sie sonst nur INNERHALB
+ * einer Transaktion messbar waere. Dieselbe Form wie die drei Vorbilder oben, aus demselben Grund.
+ *
+ * @param array  $properties der bereits dekodierte Bestand DIESES Segments
+ * @param array  $payload    die Anfrage
+ * @param string $wikiUrl    die Adresse, wie sie gleich gespeichert wird ('' = keine)
+ */
+function avesmapsApplyPowerlineWikiNoArticle(array $properties, array $payload, string $wikiUrl): array {
+    $noArticle = array_key_exists('wiki_no_article', $payload)
+        ? avesmapsReadBoolean($payload['wiki_no_article'])
+        : !empty($properties['wiki_no_article']);
+    avesmapsAssertPowerlineWikiClaimNotContradictory($wikiUrl, $noArticle);
+    if ($noArticle) {
+        $properties['wiki_no_article'] = true;
+    } else {
+        unset($properties['wiki_no_article']);
+    }
+
+    return $properties;
+}
+
+/**
  * REIN: Was erbt ein NEU entstehendes Segment von seiner Linie?
  *
  * 💣 EINE Liste fuer beide Erzeuger -- "Nodix anhaengen" (avesmapsCreatePowerlineFeature) und
@@ -1844,11 +1882,26 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
     $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
     $description = trim((string) ($payload['description'] ?? ''));
     $wikiUrl = trim((string) ($payload['wiki_url'] ?? ''));
-    $noArticle = avesmapsReadBoolean($payload['wiki_no_article'] ?? false);
+    // 🔴 ABWESENHEIT HEISST „NICHT GEAENDERT" -- seit dem 16.08.2026, und die Zeile ist der Grund,
+    // warum das Haekchen „Kein Wiki-Artikel vorhanden" im Kraftlinien-Editor ueberhaupt fallen DURFTE.
+    // 🪤 Hier stand `?? false`, und daneben stand die Begruendung dafuer: „die Kraftlinie hat EINEN
+    // Schreiber, und der schickt den Merker seit jeher" (avesmapsApplyPointWikiFields, oben). Der Satz
+    // war wahr und traegt nicht mehr: mit dem Wegfall des Haekchens schickt saveLine den Schluessel nur
+    // noch, wenn eine ZUWEISUNG den Merker beantwortet hat. Unveraendert weitergelesen haette `?? false`
+    // damit bei JEDEM Speichern einer Linie die Entscheidung des Konfliktzentrums geloescht -- lautlos,
+    // und von „nie entschieden" hinterher nicht zu unterscheiden (AGENTS.md §10).
+    // ⚠️ Die zwei Haelften gehoeren zusammen und duerfen nicht einzeln zurueckgedreht werden: wer hier
+    // `?? false` wiederherstellt, braucht im selben Zug ein Bedienelement, das den Merker setzen kann.
+    $noArticleGesendet = array_key_exists('wiki_no_article', $payload);
+    $noArticle = $noArticleGesendet ? avesmapsReadBoolean($payload['wiki_no_article']) : false;
     // 💣 Abgelehnt, nicht aufgeloest -- Begruendung und Wortlaut stehen an der gemeinsamen Stelle
     // (avesmapsAssertPowerlineWikiClaimNotContradictory), damit der zweite Schreibweg nicht wieder
     // ohne Riegel oder mit einer anderen Begruendung dastehen kann.
-    avesmapsAssertPowerlineWikiClaimNotContradictory($wikiUrl, $noArticle);
+    // ⚠️ Vor der Transaktion nur, was der Rumpf AUSDRUECKLICH behauptet. Der gespeicherte Merker steht
+    // je Segment in dessen Eigenschaften und wird deshalb unten, nach dem Lesen, noch einmal geprueft.
+    if ($noArticleGesendet) {
+        avesmapsAssertPowerlineWikiClaimNotContradictory($wikiUrl, $noArticle);
+    }
 
     $pdo->beginTransaction();
     try {
@@ -1879,11 +1932,11 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
             $properties['show_label'] = $showLabel;
             $properties['description'] = $description;
             $properties['wiki_url'] = $wikiUrl;
-            if ($noArticle) {
-                $properties['wiki_no_article'] = true;
-            } else {
-                unset($properties['wiki_no_article']);
-            }
+            // Ohne ausdruecklichen Schluessel gilt, was auf DIESEM Segment steht -- die reine Regel
+            // steht in avesmapsApplyPowerlineWikiNoArticle, weil sie hier in einer Transaktion
+            // saesse und dort messbar ist.
+            $properties = avesmapsApplyPowerlineWikiNoArticle($properties, $payload, $wikiUrl);
+            $merker = !empty($properties['wiki_no_article']);
             $update->execute([
                 'id' => (int) $row['id'],
                 'name' => $newName,
@@ -1903,7 +1956,7 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
                     'show_label' => $showLabel,
                     'description' => $description,
                     'wiki_url' => $wikiUrl,
-                    'wiki_no_article' => $noArticle,
+                    'wiki_no_article' => $merker,
                     'properties_json' => $properties,
                     'revision' => $revision,
                 ])

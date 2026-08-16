@@ -326,19 +326,12 @@
 		setPropertiesStatus("Aus dem Wiki übernommen — noch nicht gespeichert.");
 	}
 
-	/**
-	 * Das Häkchen „Kein Wiki-Artikel vorhanden" wurde umgelegt -- gespeichert ist damit nichts.
-	 *
-	 * 🔴 Der Merker wohnt im BAUTEIL, bis „Speichern" ihn über `lies()` abholt. Ihn hier in einen
-	 * eigenen Zustand zu schreiben hiesse, ihn beim nächsten `laden` als GELADENEN Stand zu sehen --
-	 * das Bauteil meldete „nicht verändert", der Schlüssel fiele aus dem Rumpf, und der Haken täte
-	 * nichts (dieselbe Falle wie im Wege-Editor, js/pages/wege-editor.js:700-703).
-	 */
-	function wikiAssignKeinArtikelGeaendert(gesetzt) {
-		setPropertiesStatus(gesetzt
-			? "„Kein Wiki-Artikel vorhanden“ gesetzt — noch nicht gespeichert."
-			: "„Kein Wiki-Artikel vorhanden“ entfernt — noch nicht gespeichert.");
-	}
+	// 🔴 HIER STAND wikiAssignKeinArtikelGeaendert -- gefallen am 16.08.2026 mit dem Häkchen „Kein
+	// Wiki-Artikel vorhanden" (Owner-Entscheid). Er hat den REGIONEN-EDITOR genannt; gemessen trägt die
+	// Objektart `landschaft` ZWEI Oberflächen -- diesen Dialog und html/landschaften-editor.html --,
+	// und das Häkchen steht in EINER Erklärung. Es fällt deshalb in beiden.
+	// ⚠️ Der MERKER bleibt: `ecosystem_region.properties_json` trägt ihn weiter, `list_regions` gibt ihn
+	// weiter heraus, `update_region` schreibt ihn weiter. Gesetzt wird er im Konfliktzentrum.
 
 	/**
 	 * 🪤 ERST NACH `list_regions`, nicht beim Öffnen -- und das ist keine Bequemlichkeit.
@@ -370,7 +363,6 @@
 			zuweisen: wikiAssignZuweisen,
 			loesen: wikiAssignLoesen,
 			syncUebernehmen: wikiAssignSyncUebernehmen,
-			keinArtikelGeaendert: wikiAssignKeinArtikelGeaendert,
 		});
 	}
 
@@ -1220,21 +1212,15 @@
 		if (pendingWikiRegion !== undefined) {
 			payload.wiki_url = pendingWikiRegion?.wiki_url || "";
 		}
-		// 🔴 DER DRITTE ZUSTAND, und er reist NUR MIT, WENN DAS HÄKCHEN SEIT DEM LADEN UMGELEGT WURDE
-		// (Owner-Entscheid 16.08.2026, anstelle eines `expected_revision`). `update_region` liest einen
-		// FEHLENDEN Schlüssel als „nicht geändert" (avesmapsEcosystemApplyRegionNoArticle) -- so nimmt
-		// ein alter, längst offener Dialog die Entscheidung eines zweiten Editors nicht beim nächsten
-		// beliebigen Speichern zurück.
-		// 💣 GEPRÜFT WIRD VERÄNDERT, NICHT GESETZT: ein bewusst ENTFERNTES Häkchen schickt `false` und
-		// löscht den Merker -- hinge der Riegel an „gesetzt", würde man ihn nie wieder los.
-		// 💣 UND DER ZWILLING SCHICKT IHN AUCH: der Regionen-Editor (html/landschaften-editor.html).
-		// Täte nur einer von beiden es, löschte der andere den Merker still bei jedem Speichern.
-		if (wikiAssign && wikiAssign.bereit) {
-			const stand = wikiAssign.lies();
-			if (stand && stand.kein_artikel_geaendert === true) {
-				payload.wiki_no_article = stand.kein_artikel === true;
-			}
-		}
+		// 🔴 KEIN `wiki_no_article` MEHR -- gefallen am 16.08.2026 mit dem Häkchen (Owner-Entscheid).
+		// 💣 TRAGBAR IST DAS, WEIL avesmapsEcosystemApplyRegionNoArticle BEIDE HÄLFTEN SCHON KANN: ein
+		// FEHLENDER Schlüssel heißt „nicht geändert" (die Entscheidung des Konfliktzentrums überlebt
+		// jedes Speichern), und eine ZUWEISUNG beantwortet den Merker serverseitig von selbst
+		// (`if (!$gefordert && $noArticle && $effectiveWikiUrl !== '')`). Am Server war dafür keine
+		// Zeile zu ändern -- gemessen, nicht angenommen.
+		// ⚠️ Und der Zwilling schickt ihn ebenfalls nicht mehr (html/landschaften-editor.html): die zwei
+		// gehören zusammen, aber in DIESE Richtung ist ein Alleingang harmlos -- gefährlich wäre nur,
+		// einen von beiden wieder senden zu lassen (AGENTS.md §11).
 
 		propertiesBusy = true;
 		setPropertiesError("");

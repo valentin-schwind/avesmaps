@@ -1369,8 +1369,7 @@ function wireEditBlocks(host) {
 		// genau die Felder, die im Rumpf stehen -- ein immer mitgeschicktes leeres Feld löschte eine
 		// bestehende Zuweisung still. Bis 16.08.2026 hing das an einem `input`-Zuhörer am
 		// Adressfeld; jetzt wird der GELADENE Stand gemerkt und beim Speichern verglichen. Das Bauteil
-		// selbst weiß von „geändert" nichts -- es kennt nur `kein_artikel_geaendert` (dort ist die
-		// Frage schärfer, siehe unten).
+		// selbst weiß von „geändert" nichts.
 		const wikiGeladen = String(region.wiki_url || "");
 		// Die Steuerung des Zuweisungs-Bauteils dieses Blocks. `null` = nicht gemountet (fehlende
 		// Skriptzeile oder unbekannte Objektart); dann bleibt die Zuweisung beim Speichern unberührt.
@@ -1517,17 +1516,11 @@ function wireEditBlocks(host) {
 				trefferAufbereiten: (zeile) => avesmapsWikiAssignLandschaftTreffer(zeile, wikiArten()),
 				zuweisen: wikiAssignZuweisen,
 				loesen: wikiAssignLoesen,
+				// 🔴 KEIN `keinArtikelGeaendert` MEHR -- das Häkchen „Kein Wiki-Artikel vorhanden" ist am
+				// 16.08.2026 aus diesem Editor gefallen (Owner-Entscheid, vier Oberflächen). Der MERKER
+				// bleibt und wird im Konfliktzentrum gesetzt; die Erklärung `landschaft` führt seither
+				// `extra.keinArtikelHaken: false` samt Begründung.
 				syncUebernehmen: wikiAssignSyncUebernehmen,
-				keinArtikelGeaendert: (gesetzt) => {
-					// Der Merker wohnt im Bauteil, bis „Speichern" ihn über `lies()` abholt -- ihn hier
-					// in `region` zu schreiben hiesse, ihn beim nächsten `laden` als GELADENEN Stand zu
-					// sehen: das Bauteil meldete „nicht verändert", der Schlüssel fiele aus dem Rumpf,
-					// und der Haken täte nichts.
-					message.textContent = gesetzt
-						? "„Kein Wiki-Artikel vorhanden“ gesetzt — noch nicht gespeichert."
-						: "„Kein Wiki-Artikel vorhanden“ entfernt — noch nicht gespeichert.";
-					message.className = "dt-msg";
-				},
 			});
 		}
 
@@ -1543,18 +1536,11 @@ function wireEditBlocks(host) {
 			// 💣 Und nur, wenn sich wirklich etwas geändert hat: ein immer mitgeschicktes Feld löschte
 			// sonst eine Zuweisung, die ein zweiter Editor gerade gesetzt hat.
 			if (String(wikiStand.wiki_url || "") !== wikiGeladen) { payload.wiki_url = String(wikiStand.wiki_url || ""); }
-			// 🔴 DER DRITTE ZUSTAND, und er reist NUR MIT, WENN DAS HÄKCHEN SEIT DEM LADEN UMGELEGT
-			// WURDE (Owner-Entscheid 16.08.2026, anstelle eines `expected_revision`). `update_region`
-			// liest einen FEHLENDEN Schlüssel als „nicht geändert".
-			// 💣 GEPRÜFT WIRD VERÄNDERT, NICHT GESETZT -- sonst würde man den Merker nie wieder los.
-			// 💣 UND DER ZWILLING SCHICKT IHN AUCH (der Flächen-Dialog auf der Karte). Täte nur einer
-			// von beiden es, löschte der andere den Merker still bei jedem Speichern.
-			if (wikiAssign && wikiAssign.bereit) {
-				const stand = wikiAssign.lies();
-				if (stand && stand.kein_artikel_geaendert === true) {
-					payload.wiki_no_article = stand.kein_artikel === true;
-				}
-			}
+			// 🔴 KEIN `wiki_no_article` MEHR -- gefallen am 16.08.2026 mit dem Häkchen.
+			// 💣 TRAGBAR IST DAS, WEIL avesmapsEcosystemApplyRegionNoArticle BEIDE HÄLFTEN SCHON KANN:
+			// ein FEHLENDER Schlüssel heißt „nicht geändert" (die Entscheidung des Konfliktzentrums
+			// überlebt jedes Speichern hier), und eine ZUWEISUNG beantwortet den Merker serverseitig von
+			// selbst. Am Server war dafür keine Zeile zu ändern -- gemessen, nicht angenommen.
 			if (payload.name === "") {
 				message.textContent = "Ein Name ist Pflicht.";
 				message.className = "dt-msg bad";
@@ -1599,18 +1585,39 @@ function renderDetail() {
 	parts.push('<div class="k">Map-Darstellung</div><div>' + esc(DISPLAY_LABEL[displayOf(row)]) + "</div>");
 	parts.push("</div>");
 
-	parts.push('<div class="dt-grp">Wiki-Landschaft</div><div class="dt-grid">');
-	if (row.wikiKey === "") {
-		// Not a defect: origin='own' is for areas that exist here and not in the wiki
-		// (docs/oekosystem-editor-verhalten.md §7).
-		parts.push('<div class="k">Zuweisung</div><div>ohne Wiki-Eintrag</div>');
-	} else {
-		parts.push('<div class="k">Schlüssel</div><div>' + esc(row.wikiKey) + (row.orphanKey ? ' <span class="avm-pill avm-pill--unresolved">keine Wiki-Zeile</span>' : "") + "</div>");
-		if (row.wikiUrl) {
-			parts.push('<div class="k">Artikel</div><div><a class="dt-link" href="' + esc(row.wikiUrl) + '" target="_blank" rel="noopener">' + esc(row.name) + " ↗</a></div>");
+	// ---- Wiki-Landschaft: NUR NOCH DER RÜCKFALL FÜR ZEILEN OHNE REGION -------------------------
+	// 🔴 BIS ZUM 16.08.2026 STAND DIESER STECKBRIEF IMMER DA -- und seit Aufgabe 6 stand DARUNTER der
+	// Zuweisungskasten mit derselben Überschrift („Wiki-Landschaft" ist das `label` der Erklärung
+	// `landschaft`), denselben Angaben und zusätzlich Name, Art, Lage, Staat, Kontinent und den
+	// Knöpfen. Zweimal dieselbe Auskunft untereinander; gemeldet vom Owner beim Durchklicken. Der
+	// Umbau hatte ERGÄNZT statt ersetzt, und der Rückbau danach suchte nach toten BEZEICHNERN statt
+	// nach doppelter ANZEIGE -- deshalb überlebte er.
+	// 🔴 ER FÄLLT NICHT GANZ, und das ist gemessen: der Kasten hängt an einer REGION
+	// (`regionEditBlock`), diese Zeile an der LISTENZEILE. Eine Zeile ohne gezeichnete Region -- eine
+	// Wiki-Landschaft ohne Fläche, ein Karten-Label ohne Wiki-Zeile -- bekommt gar keinen Kasten, und
+	// ohne diesen Rückfall stünden Schlüssel und Artikel dort nirgends mehr.
+	// ⚠️ NACHGEMESSEN, DASS NICHTS VERLORENGEHT (beides stand im Auftrag als Sorge):
+	//   · die Pille „keine Wiki-Zeile" (`row.orphanKey`) trägt die LISTENZEILE ohnehin schon, dort als
+	//     „Schlüssel ohne Wiki-Zeile" (renderList) -- und `orphanKey` wird ausschließlich im
+	//     `eco:`-Zweig von buildRows gesetzt, also nur für Zeilen MIT genau einer Region. Der Kasten
+	//     zeigt dort Schlüssel und Artikel; dass zum Schlüssel keine Staging-Zeile existiert, sagt die
+	//     Zeile links. Der Steckbrief war die ZWEITE Nennung, nicht die einzige.
+	//   · „ohne Wiki-Eintrag" steht in derselben Listenzeile (`row.wikiKey === ""`), und der Kasten
+	//     sagt im offenen Zustand „Zuordnung — keine —". Dass das KEIN Mangel ist, bleibt hier
+	//     ausgeschrieben stehen: origin='own' ist für Flächen, die es hier und nicht im Wiki gibt
+	//     (docs/oekosystem-editor-verhalten.md §7).
+	if (row.regions.length === 0) {
+		parts.push('<div class="dt-grp">Wiki-Landschaft</div><div class="dt-grid">');
+		if (row.wikiKey === "") {
+			parts.push('<div class="k">Zuweisung</div><div>ohne Wiki-Eintrag</div>');
+		} else {
+			parts.push('<div class="k">Schlüssel</div><div>' + esc(row.wikiKey) + (row.orphanKey ? ' <span class="avm-pill avm-pill--unresolved">keine Wiki-Zeile</span>' : "") + "</div>");
+			if (row.wikiUrl) {
+				parts.push('<div class="k">Artikel</div><div><a class="dt-link" href="' + esc(row.wikiUrl) + '" target="_blank" rel="noopener">' + esc(row.name) + " ↗</a></div>");
+			}
 		}
+		parts.push("</div>");
 	}
-	parts.push("</div>");
 
 	// ---- Editable: ONE block per region (owner decision 2026-07-27) ----------------------------
 	// 💣 A list row may carry SEVERAL regions -- „Blautann" and „Blautann-Nord" share one wiki key.

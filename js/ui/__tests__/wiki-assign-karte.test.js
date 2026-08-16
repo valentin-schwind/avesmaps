@@ -167,8 +167,13 @@ const KARTE = AVESMAPS_WIKI_ASSIGN_REGISTRY.karte;
 assert.deepStrictEqual(KARTE.felder.map((feld) => feld.karte), ["", ""],
 	"die Erklaerung `karte` beansprucht ein Kartenfeld -- dann braucht sie auch einen Sync-Knopf");
 assert.strictEqual(KARTE.sync, false, "die Erklaerung `karte` bietet einen Sync-Knopf ohne Ziel an");
-assert.strictEqual(KARTE.extra.keinArtikelHaken, true,
-	"der dritte Zustand fehlt -- er ist bei den Karten Owner-Wunsch (Entwurf §2.5)");
+// 🔴 KEIN Bedienelement für den dritten Zustand -- gefallen am 16.08.2026 (Owner-Entscheid nach dem
+// Durchklicken: „passt, aber ‚Kein Wiki-Artikel vorhanden‘ brauchen wir nicht explizit"). Hier stand
+// bis dahin `true` mit Entwurf §2.5 als Beleg; derselbe Owner, späterer Blick auf die gebaute
+// Oberfläche. Die SPALTE `citymap.no_article` bleibt -- entschieden wird im Konfliktzentrum.
+assert.strictEqual(KARTE.extra.keinArtikelHaken, false,
+	"das Haekchen ist zurueck -- der Owner hat es am 16.08.2026 abgewaehlt, die Begruendung steht "
+	+ "im Feldregister. Wer es wieder einbaut, braucht einen neuen Entscheid.");
 zaehl(); zaehl(); zaehl();
 
 // ══ TEIL 2: DAS DOKUMENT ══════════════════════════════════════════════════════════════════════
@@ -418,49 +423,64 @@ function standardAntwort(detail) {
 		"das Speichern schickt ein wiki_url -- diese Spalte gibt es gar nicht");
 	zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
-	// ── C) 🔴 DER DRITTE ZUSTAND REIST NUR MIT, WENN ER VERÄNDERT WURDE -- RICHTUNG 1 ────────
+	// ── C) 🔴 DER MERKER REIST GAR NICHT MEHR MIT ───────────────────────────────────────────
 	// 💣 UNANGETASTET heißt WEGGELASSEN. `avesmapsUpsertCitymap` fasst nur mitgeschickte Felder an;
 	// ein bedingungslos gesendetes `no_article: 0` nähme einem zweiten Editor die Entscheidung ab,
 	// die er im Konfliktzentrum gerade getroffen hat.
 	assert.strictEqual(gespeichert.rumpf.citymap.no_article, undefined,
-		"der Merker reist mit, obwohl das Haekchen nie angefasst wurde");
+		"der Merker reist mit, obwohl niemand die Zuweisung angefasst hat");
 	zaehl();
 
-	// Jetzt WIRKLICH anhaken -- über den Zuhörer, den `mount` selbst angehängt hat.
-	s.gesendet.length = 0;
-	host.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
-	await vm.runInContext("saveStamm()", s.kasten);
-	await ruhe();
-	const nachHaken = s.gesendet.filter((a) => a.aktion === "upsert_citymap")[0];
-	assert.strictEqual(nachHaken.rumpf.citymap.no_article, 1,
-		"ein GESETZTES Haekchen reist nicht mit: " + JSON.stringify(nachHaken.rumpf.citymap));
-	zaehl();
+	// 🔴 UND DAS BEDIENELEMENT IST WEG (16.08.2026). Hier stand bis dahin ein `feuere("change", …)`
+	// auf `data-wa-kein-artikel` samt der Gegenprobe „abhaken schickt 0". Beide sind gefallen, weil
+	// es das Kästchen nicht mehr gibt -- an ihre Stelle tritt die Zusicherung, dass es NICHT DA IST.
+	assert.strictEqual(host.innerHTML.indexOf("data-wa-kein-artikel"), -1,
+		"der Karten-Editor zeichnet das Haekchen „Kein Wiki-Artikel vorhanden\" weiter: " + host.innerHTML);
+	assert.strictEqual(host.innerHTML.indexOf("Kein Wiki-Artikel vorhanden"), -1,
+		"der Wortlaut des Haekchens steht weiter im Kasten: " + host.innerHTML);
+	zaehl(); zaehl();
 
-	// ── D) 🔴 RICHTUNG 2: EIN ENTFERNTES HÄKCHEN MUSS GENAUSO DURCHKOMMEN ────────────────────
-	// 💣 EIGENE FIXTURE, nicht der Sandkasten von oben: geprüft wird der Unterschied zum GELADENEN
-	// Stand. Nur so ist „entfernt" von „nie gesetzt" zu unterscheiden -- ein Merker, der sich nicht
-	// mehr loswerden lässt, wäre der Fehler, den die Richtungsprüfung verhindert.
+	// ── D) 🔴 DER ABLAUF, DER DATEN ZERSTÖREN KÖNNTE: SPEICHERN HÄLT DEN FREMDEN MERKER ──────
+	// 💣 DAS IST DIE ZUSICHERUNG ZUM WEGFALL DES HÄKCHENS, und sie wird über den ECHTEN Ablauf
+	// gefahren, nicht am Payload-Bauer: eine Karte, der das Konfliktzentrum `no_article = 1` gesetzt
+	// hat, wird im Editor geöffnet und gespeichert -- der Merker darf im Rumpf NICHT auftauchen, denn
+	// jeder Wert dort (auch `1`) wäre ein Schreibvorgang auf eine Entscheidung, die woanders getroffen
+	// wurde. Nur die ABWESENHEIT des Schlüssels lässt die Spalte in Ruhe.
+	// ⚠️ EIGENE FIXTURE, nicht der Sandkasten von oben: nur an einer Karte, die den Merker WIRKLICH
+	// trägt, ist „nicht geschrieben" von „es war ohnehin 0" zu unterscheiden.
 	const gehakt = sandkastenBauen({ antwort: standardAntwort(detailAntwort({ no_article: true, article_url: "", article_key: "", article_title: "" })) });
 	await vm.runInContext('selectCitymap("C-EIGEN")', gehakt.kasten);
 	await ruhe();
 	const gehaktHost = gehakt.elemente["ceWikiAssign"];
-	// Der Kasten zeigt das Häkchen -- gesetzt.
-	assert.ok(/data-wa-kein-artikel/.test(gehaktHost.innerHTML) && /checked/.test(gehaktHost.innerHTML),
-		"der dritte Zustand steht nicht gesetzt im Kasten: " + gehaktHost.innerHTML);
-	// Ohne Anfassen: der Merker reist NICHT mit.
+	// Der Kasten zeigt auch bei GESETZTEM Merker kein Kästchen -- das ist der schärfere Zweig
+	// (`hakenZeigen` im Bauteil hat für den gesetzten Merker eine eigene Ausnahme).
+	assert.strictEqual(gehaktHost.innerHTML.indexOf("data-wa-kein-artikel"), -1,
+		"ein GESETZTER Merker zeichnet das Haekchen doch: " + gehaktHost.innerHTML);
 	gehakt.gesendet.length = 0;
 	await vm.runInContext("saveStamm()", gehakt.kasten);
 	await ruhe();
 	assert.strictEqual(gehakt.gesendet.filter((a) => a.aktion === "upsert_citymap")[0].rumpf.citymap.no_article, undefined,
-		"ein unangetasteter, aber GESETZTER Merker reist mit");
-	// Und nach dem Abhaken: er reist als 0 mit.
+		"der gespeicherte Merker wird ueberschrieben -- die Entscheidung des Konfliktzentrums geht verloren");
+	zaehl(); zaehl();
+
+	// ── D2) 🔴 UND DIE EINE AUSNAHME: EINE ZUWEISUNG BEANTWORTET DEN MERKER ──────────────────
+	// 💣 DESHALB SIND DIE DREI ZEILEN IN html/citymap-editor.html STEHENGEBLIEBEN, als einzige der
+	// vier Oberflächen: `upsert_citymap` hat weder einen Widerspruchsriegel noch die Regel „eine
+	// Zuweisung beantwortet den Merker" (die Landschaft hat sie serverseitig, der Weg in `assign_to`).
+	// Ohne diese Zeilen stünde die Karte hinterher mit `article_url` UND `no_article = 1` da.
+	gehaktHost.feuere("click", scheinZiel("data-wa-aktion", "zuweisen"));
+	await ruhe();
 	gehakt.gesendet.length = 0;
-	gehaktHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
+	gehaktHost.feuere("click", scheinZiel("data-wa-treffer", "0"));
+	await ruhe();
 	await vm.runInContext("saveStamm()", gehakt.kasten);
 	await ruhe();
-	assert.strictEqual(gehakt.gesendet.filter((a) => a.aktion === "upsert_citymap")[0].rumpf.citymap.no_article, 0,
-		"ein ENTFERNTES Haekchen reist nicht mit -- der Merker liesse sich nie wieder loswerden");
-	zaehl(); zaehl(); zaehl();
+	const nachZuweisung = gehakt.gesendet.filter((a) => a.aktion === "upsert_citymap")[0];
+	assert.ok(String(nachZuweisung.rumpf.citymap.article_url || "") !== "",
+		"die Zuweisung ist gar nicht im Rumpf angekommen: " + JSON.stringify(nachZuweisung.rumpf.citymap));
+	assert.strictEqual(nachZuweisung.rumpf.citymap.no_article, 0,
+		"eine Zuweisung beantwortet den Merker nicht -- die Karte behielte Artikel UND `no_article = 1`");
+	zaehl(); zaehl();
 
 	// ── E) ZUWEISEN UND ENTFERNEN IM ABLAUF ──────────────────────────────────────────────────
 	const frei = sandkastenBauen({ antwort: standardAntwort(detailAntwort({ article_url: "", article_key: "", article_title: "" })) });
@@ -550,9 +570,10 @@ function standardAntwort(detail) {
 		"eine neue Karte zeigt den offenen Zustand nicht: " + frischHost.innerHTML);
 	assert.ok(!frisch.gesendet.some((a) => /action=entry/.test(a.url)),
 		"fuer eine neue Karte wurde ein Registry-Satz geholt");
-	// 🔴 UND DAS HÄKCHEN STEHT DA -- der dritte Zustand ist bei den Karten Owner-Wunsch.
-	assert.ok(/data-wa-kein-artikel/.test(frischHost.innerHTML),
-		"das Haekchen „Kein Wiki-Artikel vorhanden“ fehlt im Kasten: " + frischHost.innerHTML);
+	// 🔴 UND DAS HÄKCHEN STEHT NICHT DA (16.08.2026). Hier stand die umgekehrte Zusicherung mit
+	// „Owner-Wunsch" als Beleg; derselbe Owner hat es nach dem Durchklicken wieder abgewählt.
+	assert.strictEqual(frischHost.innerHTML.indexOf("data-wa-kein-artikel"), -1,
+		"eine neue Karte zeigt das Haekchen „Kein Wiki-Artikel vorhanden“ weiter: " + frischHost.innerHTML);
 	zaehl(); zaehl(); zaehl();
 
 	console.log("wiki-assign-karte: " + checks + " Zusicherungen erfuellt");

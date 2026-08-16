@@ -690,38 +690,12 @@
 		}
 	}
 
-	/**
-	 * Das Haekchen „Kein Wiki-Artikel vorhanden" wurde umgelegt -- gespeichert ist damit nichts.
-	 *
-	 * ⚠️ ANDERS ALS BEIM ORT wird hier KEIN Adressfeld geleert: der Weg hat in keiner seiner zwei
-	 * Oberflaechen eines, und `update_path_details` schickt `wiki_url` gar nicht mit. Eine
-	 * gespeicherte `properties.wiki_url` leert der SERVER (avesmapsApplyPathWikiNoArticle,
-	 * Owner-Entscheid 16.08.2026) -- die Begruendung steht dort.
-	 * 🔴 Und der Entwurf wird NICHT angefasst. Schriebe man das Haekchen nach
-	 * `state.draft.wiki_no_article`, waere es beim naechsten `laden` der GELADENE Stand -- das
-	 * Bauteil meldete „nicht veraendert", der Schluessel fiele aus dem Rumpf, und der Haken taete
-	 * nichts. Der Merker wohnt im Bauteil, bis „Speichern" ihn abholt.
-	 *
-	 * 🪤 DER PREIS DAFUER, GEMESSEN: ein noch nicht gespeichertes Haekchen ueberlebt keinen
-	 * `renderDetail()`-Neuaufbau. Erreichbar ist genau ein Handgriff -- ein Wegtyp-Wechsel ueber die
-	 * Verkehrsdomaene hinweg (Strasse -> Flussweg, :481); gemessen 16.08.2026: anhaken, wechseln,
-	 * speichern, und der Rumpf traegt `wiki_no_article` nicht mehr. Es sind DIESELBEN Kosten wie bei
-	 * der offenen Suche und der Sync-Vorschau, die der Kommentar bei :468 schon benennt und die der
-	 * Owner dort in Kauf genommen hat. Es GANZ zu vermeiden hiesse, den Haken im Entwurf zu
-	 * speichern UND daneben den Serverstand -- zwei Wahrheiten in einer Oberflaeche, und die
-	 * Aenderungserkennung des Bauteils waere dann unbenutzt. Bewusst nicht gebaut, offen gemeldet.
-	 */
-	function wikiAssignKeinArtikelGeaendert(gesetzt) {
-		setStatus(gesetzt
-			? "„Kein Wiki-Artikel vorhanden“ gesetzt — noch nicht gespeichert."
-			: "„Kein Wiki-Artikel vorhanden“ entfernt — noch nicht gespeichert.", "");
-		// 🔴 `markDirty()`, nicht die Speicherzeile von Hand: es setzt AUSSERDEM `state.draft.dirty`,
-		// und daran haengt die Zeile „Ungespeicherte Änderungen." in der Wegeliste (:443). Die zwei
-		// Saetze von Hand nachzuschreiben waere eine Abschrift, die genau diese Haelfte verliert.
-		// ⚠️ Es zeichnet die Spalte NICHT neu -- ein `renderDetail()` hier wuerde das Bauteil samt dem
-		// gerade gesetzten Haken wegwerfen (siehe die 🪤-Zeile oben).
-		markDirty();
-	}
+	// 🔴 HIER STAND wikiAssignKeinArtikelGeaendert -- gefallen am 16.08.2026 mit dem Haekchen „Kein
+	// Wiki-Artikel vorhanden" (Owner-Entscheid, vier Oberflaechen). Es war reines Zubehoer des
+	// Haekchens: Statuszeile plus `markDirty()`.
+	// ✅ MIT IHM ERLEDIGT SICH DER 🪤-BEFUND, DER HIER STAND: ein noch nicht gespeichertes Haekchen
+	// ueberlebte keinen `renderDetail()`-Neuaufbau (erreichbar ueber einen Wegtyp-Wechsel Strasse ->
+	// Flussweg). Der Zustand, der verlorengehen konnte, existiert nicht mehr.
 
 	function mountWikiAssign() {
 		var host = $("wpWikiAssign");
@@ -736,8 +710,7 @@
 			trefferAufbereiten: avesmapsWikiAssignWegTreffer,
 			zuweisen: wikiAssignZuweisen,
 			loesen: wikiAssignLoesen,
-			syncUebernehmen: wikiAssignSyncUebernehmen,
-			keinArtikelGeaendert: wikiAssignKeinArtikelGeaendert
+			syncUebernehmen: wikiAssignSyncUebernehmen
 		});
 	}
 
@@ -758,22 +731,13 @@
 			transport_seasons: state.draft.transport_seasons || {},
 			other_source: state.draft.other_source
 		};
-		// 🔴 DER DRITTE ZUSTAND, und er reist NUR MIT, WENN DAS HAEKCHEN SEIT DEM LADEN UMGELEGT WURDE
-		// (Owner-Entscheid 16.08.2026, anstelle eines `expected_revision`). `null` heisst „nicht
-		// schicken": entweder ist das Bauteil nicht bereit (Blindgaenger) oder niemand hat den Haken
-		// angefasst -- und ein alter offener Editor soll die Entscheidung eines zweiten Editors nicht
-		// beim naechsten beliebigen Speichern zuruecknehmen. `update_path_details` liest einen
-		// FEHLENDEN Schluessel als „nicht geaendert" (avesmapsApplyPathWikiNoArticle).
-		// 💣 GEPRUEFT WIRD VERAENDERT, NICHT GESETZT: ein bewusst ENTFERNTES Haekchen schickt `false`
-		// und loescht den Merker -- hinge der Riegel an „gesetzt", wuerde man ihn nie wieder los.
-		// 💣 UND DER ZWILLING SCHICKT IHN AUCH: buildPathEditPayload (js/review/review-paths.js).
-		// Taete nur einer von beiden es, loeschte der andere den Merker still bei jedem Speichern.
-		if (wpWikiAssign && wpWikiAssign.bereit) {
-			var stand = wpWikiAssign.lies();
-			if (stand && stand.kein_artikel_geaendert === true) {
-				rumpf.wiki_no_article = stand.kein_artikel === true;
-			}
-		}
+		// 🔴 KEIN `wiki_no_article` MEHR -- gefallen am 16.08.2026 mit dem Haekchen (Owner-Entscheid).
+		// Der Merker selbst bleibt; gesetzt wird er im Konfliktzentrum, wo die Entscheidung hingehoert
+		// (beim Weg wirkt sie ueber den ganzen Namensverbund, und das konnte das Haekchen nur nachbauen).
+		// 💣 TRAGBAR IST DAS NUR, WEIL avesmapsApplyPathWikiNoArticle EINEN FEHLENDEN SCHLUESSEL ALS
+		// „NICHT GEAENDERT" LIEST. Wer hier je wieder ein `rumpf.wiki_no_article = …` einbaut, prueft
+		// zuerst, ob der Zwilling in js/review/review-paths.js dasselbe tut -- einer allein loeschte den
+		// Merker beim Speichern der anderen Oberflaeche still wieder (AGENTS.md §11).
 
 		postJson(FEATURES_URL, rumpf).then(function (response) {
 			if (!response || response.ok !== true) {

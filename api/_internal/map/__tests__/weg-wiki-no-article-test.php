@@ -138,13 +138,23 @@ assert(
     'der Schreibweg schreibt den Merker an dem Rechner vorbei'
 );
 
-// ── 6) BEIDE PAYLOAD-BAUER SCHICKEN IHN ───────────────────────────────────────────────────────
-// 💣 „Eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel" (AGENTS.md §11). Schickt nur
-// einer den Merker, laesst der Server ihn zwar in Ruhe (Zusicherung 1) -- aber die eine Oberflaeche
-// koennte ihn nie AENDERN, und das sieht aus wie ein kaputtes Haekchen.
+// ── 6) KEIN PAYLOAD-BAUER SCHICKT IHN NOCH ────────────────────────────────────────────────────
+// 🔴 UMGEDREHT AM 16.08.2026, NICHT GELOESCHT. Hier stand „BEIDE Payload-Bauer schicken ihn", und das
+// war richtig, solange es das Haekchen „Kein Wiki-Artikel vorhanden" gab: eine Oberflaeche, die den
+// Schluessel nicht schickt, haette ein Haekchen gezeigt, das nichts tut. Der Owner hat das
+// Bedienelement in vier Oberflaechen abgewaehlt (Regionen, Wege, Kraftlinien, Karten) -- die
+// Entscheidung gehoert ins Konfliktzentrum, und beim Weg ist das besonders deutlich: sie wirkt ueber
+// den ganzen NAMENSVERBUND (avesmapsApplyPathWikiNoArticleToNameGroup), also genau so weit wie die
+// Reparatur-Verben dort. Das Haekchen konnte diese Reichweite nur NACHBAUEN.
+// 💣 DIE REGEL BLEIBT PAARIG, nur andersherum: schickte EINER der beiden Bauer den Merker wieder,
+// loeschte er beim Speichern die Entscheidung, die der andere in Ruhe laesst -- dieselbe „vier
+// Erzeuger"-Fehlerklasse aus AGENTS.md §11. Deshalb wird weiter ueber BEIDE gelaufen.
+// ⚠️ Tragbar ist der Wegfall nur wegen Zusicherung 1: `avesmapsApplyPathWikiNoArticle` liest einen
+// FEHLENDEN Schluessel als „nicht geaendert". Die zwei Zusicherungen gehoeren zusammen.
 // 🪤 GEPRUEFT WIRD DER FUNKTIONSRUMPF, NICHT DIE DATEI, und Kommentare fliegen vorher raus. Genau
 // daran ist die Probe in Aufgabe 5b zweimal blind gewesen: sie fand ihren eigenen Kommentar
-// (Nachbesserung 1) und spaeter einen Blockkommentar (Nachbesserung 3).
+// (Nachbesserung 1) und spaeter einen Blockkommentar (Nachbesserung 3). Ohne das Ausfiltern waere
+// diese Zusicherung heute rot -- an beiden Stellen steht ein Kommentar, der `wiki_no_article` nennt.
 function avesmapsWegTestRumpfOhneKommentare(string $rumpf): string {
     // Blockkommentare zuerst -- sie koennen mehrere Zeilen umfassen.
     $ohne = preg_replace('#/\*.*?\*/#s', '', $rumpf) ?? $rumpf;
@@ -155,22 +165,14 @@ function avesmapsWegTestRumpfOhneKommentare(string $rumpf): string {
     ));
 }
 
-// ⚠️ Die BEDINGUNG steht je Oberflaeche woanders, und deshalb nennt die Tabelle zwei Ruempfe: der
-// Kartendialog holt sie sich aus pathWikiKeinArtikelFuerPayload (js/review/review-path-wiki.js), der
-// Wege-Editor traegt sie in `saveDraft` selbst. Eine gemeinsame Probe am Payload-Bauer haette den
-// Kartendialog faelschlich als „bedingungslos" gemeldet -- gemessen, nicht angenommen.
 $bauer = [
     'Kartendialog' => [
         'datei' => __DIR__ . '/../../../../js/review/review-paths.js',
         'muster' => '/function buildPathEditPayload\(.*?\n\}/s',
-        'bedingungDatei' => __DIR__ . '/../../../../js/review/review-path-wiki.js',
-        'bedingungMuster' => '/function pathWikiKeinArtikelFuerPayload\(.*?\n\}/s',
     ],
     'Wege-Editor' => [
         'datei' => __DIR__ . '/../../../../js/pages/wege-editor.js',
         'muster' => '/\n\tfunction saveDraft\(\).*?\n\t\}/s',
-        'bedingungDatei' => __DIR__ . '/../../../../js/pages/wege-editor.js',
-        'bedingungMuster' => '/\n\tfunction saveDraft\(\).*?\n\t\}/s',
     ],
 ];
 foreach ($bauer as $wo => $stelle) {
@@ -179,31 +181,44 @@ foreach ($bauer as $wo => $stelle) {
     assert(preg_match($stelle['muster'], $inhalt, $rumpfTreffer) === 1, "der Payload-Bauer \"$wo\" laesst sich nicht isolieren");
     $code = avesmapsWegTestRumpfOhneKommentare($rumpfTreffer[0]);
     assert(
-        preg_match('/(^|[^A-Za-z0-9_$])wiki_no_article\s*[=:]/', $code) === 1,
-        "der Payload-Bauer \"$wo\" schickt den Merker nicht (Kommentare zaehlen nicht)"
-    );
-
-    // 💣 UND ER SCHICKT IHN NUR BEI EINER AENDERUNG UND NUR AUS EINEM BEREITEN BAUTEIL. Ohne die
-    // erste Bedingung naehme ein alter offener Dialog beim naechsten beliebigen Speichern die
-    // Entscheidung eines zweiten Editors zurueck (Owner-Entscheid 16.08.2026, anstelle eines
-    // `expected_revision`); ohne die zweite schickte ein Blindgaenger ein `false` und loeschte den
-    // Merker, ohne dass jemand etwas angeklickt hat.
-    $bedingung = $stelle['bedingungDatei'] === $stelle['datei'] ? $inhalt : file_get_contents($stelle['bedingungDatei']);
-    assert(is_string($bedingung));
-    assert(
-        preg_match($stelle['bedingungMuster'], $bedingung, $bedingungTreffer) === 1,
-        "die Bedingung von \"$wo\" laesst sich nicht isolieren"
-    );
-    $bedingungCode = avesmapsWegTestRumpfOhneKommentare($bedingungTreffer[0]);
-    assert(
-        str_contains($bedingungCode, 'kein_artikel_geaendert'),
-        "\"$wo\" schickt den Merker bedingungslos -- er muss ihn nur bei einer AENDERUNG mitschicken"
-    );
-    assert(
-        preg_match('/(^|[^A-Za-z0-9_$])bereit\b/', $bedingungCode) === 1,
-        "\"$wo\" fragt nicht, ob das Bauteil ueberhaupt bereit ist -- ein Blindgaenger loeschte den Merker"
+        preg_match('/(^|[^A-Za-z0-9_$])wiki_no_article\s*[=:]/', $code) !== 1,
+        "der Payload-Bauer \"$wo\" schickt den Merker wieder -- der Owner hat das Haekchen am 16.08.2026 "
+        . "abgewaehlt, und ein einzelner Bauer, der schreibt, loescht die Entscheidung des "
+        . "Konfliktzentrums bei jedem Speichern (Kommentare zaehlen nicht)"
     );
 }
+
+// 💣 UND DAS ZUBEHOER DES HAEKCHENS IST MIT WEG -- sonst bliebe eine Funktion stehen, die niemand
+// ruft, und die naechste Sitzung haelt sie fuer eine Luecke und verdrahtet sie wieder.
+$kartendialog = file_get_contents(__DIR__ . '/../../../../js/review/review-path-wiki.js');
+assert(is_string($kartendialog));
+foreach (['pathWikiKeinArtikelFuerPayload', 'pathWikiKeinArtikelGeaendert', 'keinArtikelGeaendert'] as $tot) {
+    assert(
+        !str_contains(avesmapsWegTestRumpfOhneKommentare($kartendialog), $tot),
+        "\"$tot\" ist im Kartendialog zurueck -- das Haekchen ist am 16.08.2026 gefallen"
+    );
+}
+$editor = file_get_contents(__DIR__ . '/../../../../js/pages/wege-editor.js');
+assert(is_string($editor));
+assert(
+    !str_contains(avesmapsWegTestRumpfOhneKommentare($editor), 'keinArtikelGeaendert'),
+    'der Wege-Editor haengt wieder einen Rueckruf fuer das Haekchen ein'
+);
+
+// 🔴 UND DIE ERKLAERUNG SAGT ES AUCH, samt Begruendung. Ohne diese Zusicherung liesse sich das
+// Haekchen wieder einschalten, ohne dass etwas rot wird -- der Server ist ja tolerant.
+$register = file_get_contents(__DIR__ . '/../../../../js/ui/wiki-assign-registry.js');
+assert(is_string($register));
+assert(
+    preg_match('/\n\tweg:\s*\{.*?keinArtikelHaken:\s*(true|false)/s', $register, $hakenTreffer) === 1,
+    'die Erklaerung `weg` fuehrt `keinArtikelHaken` gar nicht mehr -- dann fehlt auch ihre Begruendung'
+);
+assert(
+    $hakenTreffer[1] === 'false',
+    'die Erklaerung `weg` bietet das Haekchen wieder an -- der Owner hat es am 16.08.2026 abgewaehlt, '
+    . 'weil die Entscheidung beim Weg ueber den ganzen Namensverbund wirkt und damit ins '
+    . 'Konfliktzentrum gehoert. Wer es zurueckholt, braucht einen neuen Entscheid.'
+);
 
 // ── 7) JEDE ZUWEISUNG LOESCHT DEN MERKER -- UND DIE LISTE DER ZUWEISER WIRD GEZAEHLT ──────────
 // 🔴 Wer gerade einen Artikel zuweist, hat das fruehere „es gibt keinen" widerlegt. Wortgleiches

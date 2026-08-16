@@ -204,42 +204,47 @@ zaehl();
 // 🔴 Entwurf §2 Punkt 7: „Der dritte Zustand gilt fuer ALLE Objektarten." Beim Weg fehlte er bis
 // zum 16.08.2026 -- und die Begruendung im Register war messbar falsch (Aufgabe 5b hat gemessen:
 // die LESESEITE trug ihn laengst, nur der Schreibweg fehlte).
-assert.strictEqual(weg.extra && weg.extra.keinArtikelHaken, true,
-	"der Weg bietet den dritten Zustand nicht an -- avesmapsWikiAssignModell prueft "
-	+ "`extra.keinArtikelHaken === true`, ohne ihn erscheint gar kein Haekchen");
-assert.ok(String((weg.extra || {}).keinArtikelHinweis || "").trim() !== "",
-	"der Hinweis zum dritten Zustand fehlt");
-// ⚠️ Der zweite Halbsatz ist tragend: der Merker ist NICHT endgueltig. Ohne ihn liest er sich als
-// „nie wieder" und die Wiedervorlage aus dem Wiki wirkt wie ein Fehler.
-assert.ok(/bis im Wiki einer auftaucht/.test(weg.extra.keinArtikelHinweis), weg.extra.keinArtikelHinweis);
+// 🔴 KEIN Bedienelement fuer den dritten Zustand -- gefallen am 16.08.2026 (Owner-Entscheid nach dem
+// Durchklicken aller Oberflaechen). Hier stand bis dahin `true`.
+// 💣 BEIM WEG IST DIE BEGRUENDUNG DIE STAERKSTE DER VIER: die Entscheidung wirkt ueber den ganzen
+// NAMENSVERBUND (avesmapsApplyPathWikiNoArticleToNameGroup) -- genau so weit wie die Reparatur-Verben
+// des Konfliktzentrums (avesmapsConflictRepairSpansNameGroup). Das Haekchen konnte diese Reichweite
+// nur NACHBAUEN; zwei Knoepfe mit derselben Reichweite an zwei Orten warten auf ihren ersten
+// Unterschied. Der MERKER, sein Schreibweg und die Verbund-Reichweite bleiben unangetastet.
+assert.strictEqual(weg.extra && weg.extra.keinArtikelHaken, false,
+	"das Haekchen ist zurueck -- der Owner hat es am 16.08.2026 abgewaehlt, die Begruendung steht im "
+	+ "Feldregister. Wer es wieder einbaut, braucht einen neuen Entscheid.");
+// 🪤 UND DER HINWEISTEXT IST MITGEFALLEN: ohne Haekchen liest das Bauteil `keinArtikelHinweis` nie,
+// und ein Text, den niemand sieht, kann nur veralten. Er nannte die Verbund-Reichweite („Gilt fuer
+// alle Abschnitte dieses Wegs") -- die steht jetzt im Register, wo sie gebraucht wird.
+assert.strictEqual((weg.extra || {}).keinArtikelHinweis, undefined,
+	"ein Hinweistext ohne Haekchen -- das Bauteil zeigt ihn nie, er kann nur noch veralten");
 zaehl(); zaehl(); zaehl();
 
-// Und das Haekchen erscheint WIRKLICH -- in BEIDEN Huellen, im offenen Zustand.
+// Und das Haekchen erscheint in KEINEM Zustand -- in BEIDEN Huellen.
 // 💣 Eine Probe nur an der Erklaerung saehe nicht, ob der Bauer sie liest.
 ["dt", "label-wiki"].forEach((huelle) => {
 	const offenerKasten = avesmapsWikiAssignMarkup(
 		avesmapsWikiAssignModell(weg, { artikel: null, keinArtikel: false, kartenwerte: {} }, { modus: "offen" }),
 		avesmapsWikiAssignSkin(huelle));
-	assert.ok(offenerKasten.indexOf("data-wa-kein-artikel") !== -1,
-		huelle + ": der offene Zustand zeigt kein Haekchen „Kein Wiki-Artikel vorhanden“");
-	assert.ok(offenerKasten.indexOf("Kein Wiki-Artikel vorhanden") !== -1, huelle + ": " + offenerKasten);
-	assert.ok(offenerKasten.indexOf("Konfliktliste") !== -1,
-		huelle + ": der objektart-eigene Hinweis kommt nicht an -- es steht der allgemeine da");
-	assert.ok(offenerKasten.indexOf("data-wa-kein-artikel checked") === -1,
-		huelle + ": ein ungesetzter Merker zeichnet ein angehaktes Kaestchen");
-	// 🔴 UND NEBEN EINER ZUWEISUNG NUR, WENN ER GESETZT IST (`hakenZeigen` im Bauteil): das ist der
-	// AUSWEG aus dem Widerspruch, nicht der Einstieg in ihn.
+	assert.strictEqual(offenerKasten.indexOf("data-wa-kein-artikel"), -1,
+		huelle + ": der offene Zustand zeigt weiter ein Haekchen „Kein Wiki-Artikel vorhanden“");
+	assert.strictEqual(offenerKasten.indexOf("Kein Wiki-Artikel vorhanden"), -1, huelle + ": " + offenerKasten);
+	// 🔴 UND AUCH NICHT BEI GESETZTEM MERKER. Das ist der schaerfere Zweig: `hakenZeigen` im Bauteil
+	// hat fuer den gesetzten Merker eine eigene Ausnahme (den „Ausweg" aus dem Widerspruch), und die
+	// haengt allein an `extra.keinArtikelHaken`. Eine Probe nur am offenen Zustand saehe sie nicht --
+	// und ein Weg, dem das Konfliktzentrum den Merker gesetzt hat, ist der Normalfall.
 	const zugewiesenerKasten = (keinArtikel) => avesmapsWikiAssignMarkup(
 		avesmapsWikiAssignModell(weg, {
 			artikel: avesmapsWikiAssignWegArtikel({ wiki_key: "k", name: "N", kind: "strasse", wiki_url: "https://w/wiki/N" }),
 			keinArtikel: keinArtikel, kartenwerte: {},
 		}, {}), avesmapsWikiAssignSkin(huelle));
 	assert.ok(zugewiesenerKasten(false).indexOf("data-wa-kein-artikel") === -1,
-		huelle + ": neben einer Zuweisung steht ein leeres Haekchen -- damit liesse sich der verbotene "
-		+ "Zustand „Artikel UND kein Artikel“ ueberhaupt erst herstellen");
-	assert.ok(/data-wa-kein-artikel checked/.test(zugewiesenerKasten(true)),
-		huelle + ": ein neben einer Zuweisung GESETZTER Merker ist unsichtbar -- er liesse sich nie loesen");
-	checks += 6;
+		huelle + ": neben einer Zuweisung steht ein leeres Haekchen");
+	assert.strictEqual(zugewiesenerKasten(true).indexOf("data-wa-kein-artikel"), -1,
+		huelle + ": ein GESETZTER Merker zeichnet neben einer Zuweisung doch ein Kaestchen -- der "
+		+ "„Ausweg\"-Zweig von `hakenZeigen` fragt `extra.keinArtikelHaken` nicht");
+	checks += 4;
 });
 
 // ── 7) DIE SYNC-VORSCHAU VERGLEICHT SCHLUESSEL, NICHT FREIEN TEXT ─────────────────────────────
@@ -1177,22 +1182,19 @@ const trefferProbe = avesmapsWikiAssignWegTreffer(zeile);
 	assert.strictEqual(loesRufe[1].rumpf.confirm, "apply");
 	checks += 4;
 
-	// ── 13) DER DRITTE ZUSTAND, DURCH BEIDE OBERFLAECHEN GEFAHREN (Aufgabe 5c) ─────────────────
-	// 🔴 Aufgabe 5b hat gemessen, dass dem Weg genau der SCHREIBWEG fehlte: die Anreicherung ehrt
-	// den Merker vor jeder Typweiche und die Konfliktregel liest ihn auch fuer `path` -- aber
-	// `avesmapsUpdatePathFeatureDetails` las ihn nicht, und KEINER der zwei Payload-Bauer schickte
-	// ihn (je 0 Fundstellen). Nachzuruesten war er nur GANZ: Schreibweg plus BEIDE Bauer.
+	// ── 13) DER MERKER UEBERLEBT EIN SPEICHERN -- DURCH BEIDE OBERFLAECHEN GEFAHREN ────────────
+	// 🔴 SEIT DEM 16.08.2026 IST DAS DIE GANZE FRAGE. Hier standen die zwei Richtungen des Haekchens
+	// (setzen / abwaehlen); das Bedienelement ist mit dem Owner-Entscheid gefallen, der Merker nicht.
+	// Was bleibt, ist der EINE Ablauf, auf dem diese Aenderung Daten zerstoeren koennte: ein Weg, dem
+	// das Konfliktzentrum `wiki_no_article` gesetzt hat, wird in einem Editor geoeffnet und
+	// gespeichert -- der Schluessel darf im Rumpf NICHT auftauchen, denn jeder Wert dort (auch `true`)
+	// waere ein Schreibvorgang auf eine fremde Entscheidung. Nur die ABWESENHEIT laesst sie stehen
+	// (avesmapsApplyPathWikiNoArticle liest sie als „nicht geaendert").
 	//
-	// 🪤 UND HIER STEHT DIE LEHRE AUS DER NACHPRUEFUNG VON 5b, WORTWOERTLICH BEFOLGT: eine Fixture,
-	// die MIT gesetztem Merker startet, kann nur EINE Richtung fahren -- beide Handgriffe darauf
-	// (abwaehlen, wieder anwaehlen) enden bei `false` bzw. „Schluessel fehlt". Ein Riegel, der `true`
-	// nie schickt, liess damals das ganze JS-Feld gruen. Es gibt deshalb je Oberflaeche ZWEI
-	// Fixtures, eine mit und eine ohne Merker, und je Richtung eine EIGENE Zusicherung.
-
-	/** Das Ereignis-Ziel des Haekchens -- `aufAenderung` liest `checked` direkt. */
-	function hakenZiel(gesetzt) {
-		return scheinZiel("data-wa-kein-artikel", "", { checked: gesetzt });
-	}
+	// 🪤 DIE LEHRE AUS 5b GILT WEITER, nur andersherum: eine Fixture OHNE Merker kann diesen Ablauf
+	// gar nicht pruefen -- dort ist „nicht geschrieben" von „es war ohnehin false" nicht zu
+	// unterscheiden. Es gibt deshalb je Oberflaeche weiter ZWEI Fixtures, und die Zusicherung, auf
+	// die es ankommt, haengt an der MIT Merker.
 
 	/** Ein Wege-Editor-Sandkasten, dessen EINZIGER Weg den Merker im gewaehlten Stand traegt. */
 	async function wegeEditorMitMerker(merker) {
@@ -1234,61 +1236,39 @@ const trefferProbe = avesmapsWikiAssignWegTreffer(zeile);
 		return rufe[0].rumpf;
 	}
 
-	// ---- 13a) WEGE-EDITOR, Fixture OHNE Merker: ungesetzt -> GESETZT --------------------------
+	// ---- 13a) WEGE-EDITOR, Fixture OHNE Merker: kein Bedienelement, kein Schluessel ------------
 	const wOhne = await wegeEditorMitMerker(false);
 	const hostOhne = wOhne.elemente.wpWikiAssign;
-	assert.ok(hostOhne.innerHTML.indexOf("Kein Wiki-Artikel vorhanden") !== -1,
-		"der Wege-Editor zeigt den dritten Zustand gar nicht: " + hostOhne.innerHTML);
-	assert.ok(!/data-wa-kein-artikel checked/.test(hostOhne.innerHTML),
-		"das Haekchen startet gesetzt, obwohl der Weg den Merker nicht traegt");
-	// Unangetastet ⇒ der Schluessel fehlt. `update_path_details` liest das als „nicht geaendert".
+	assert.strictEqual(hostOhne.innerHTML.indexOf("Kein Wiki-Artikel vorhanden"), -1,
+		"der Wege-Editor zeigt den dritten Zustand weiter: " + hostOhne.innerHTML);
+	assert.strictEqual(hostOhne.innerHTML.indexOf("data-wa-kein-artikel"), -1,
+		"der Wege-Editor zeichnet das Kaestchen weiter: " + hostOhne.innerHTML);
 	const rumpfOhneAnfassen = await wegeEditorSpeichern(wOhne);
 	assert.ok(!("wiki_no_article" in rumpfOhneAnfassen),
-		"ein unangetastetes Haekchen steht im Speicher-Rumpf -- ein alter offener Editor naehme damit "
-		+ "die Entscheidung eines zweiten zurueck: " + JSON.stringify(rumpfOhneAnfassen));
-	// 🔴 DIE RICHTUNG, DIE 5b BLIND LIESS: frisch GESETZT muss als `true` ankommen.
-	hostOhne.zuhoerer.change({ target: hakenZiel(true), preventDefault() {} });
-	await ruhe();
-	assert.ok(String(wOhne.elemente.wpStatusText.textContent).indexOf("Kein Wiki-Artikel vorhanden") !== -1,
-		"das Umlegen des Haekchens meldet sich nirgends -- ein Haken, der nichts sagt, sieht aus wie "
-		+ "einer, der nichts tut: " + wOhne.elemente.wpStatusText.textContent);
-	// 🔴 UND DER ENTWURF GILT ALS UNGESPEICHERT. `markDirty()` setzt BEIDES -- die Speicherzeile und
-	// `state.draft.dirty`, an dem die Zeile in der Wegeliste haengt (wege-editor.js:443). Ein Haken,
-	// der den Entwurf nicht als schmutzig meldet, liesse den Editor glauben, es gaebe nichts zu
-	// speichern.
-	assert.strictEqual(wOhne.elemente.wpSaveMsg.textContent, "Ungespeicherte Änderungen.",
-		"das Umlegen des Haekchens meldet den Entwurf nicht als ungespeichert: "
-		+ wOhne.elemente.wpSaveMsg.textContent);
-	const rumpfGesetzt = await wegeEditorSpeichern(wOhne);
-	assert.strictEqual(rumpfGesetzt.wiki_no_article, true,
-		"der Wege-Editor schickt ein frisch GESETZTES Haekchen nicht mit -- der Merker kaeme nie beim "
-		+ "Server an: " + JSON.stringify(rumpfGesetzt));
-	checks += 6;
+		"der Merker steht im Speicher-Rumpf: " + JSON.stringify(rumpfOhneAnfassen));
+	checks += 3;
 
-	// ---- 13b) WEGE-EDITOR, Fixture MIT Merker: gesetzt -> ENTFERNT ----------------------------
+	// ---- 13b) 🔴 WEGE-EDITOR, Fixture MIT Merker: DER ABLAUF, DER DATEN ZERSTOEREN KOENNTE -----
 	const wMit = await wegeEditorMitMerker(true);
 	const hostMit = wMit.elemente.wpWikiAssign;
-	// 💣 Der ganze LESEWEG in einer Zusicherung: paths-editor.php → Liste → Entwurf →
-	// avesmapsWikiAssignWegZustand → Bauteil. Faellt eine Station aus, startet das Haekchen leer.
-	assert.ok(/data-wa-kein-artikel checked/.test(hostMit.innerHTML),
-		"der gespeicherte Merker erreicht das Haekchen des Wege-Editors nicht -- es startet leer: "
-		+ hostMit.innerHTML);
+	// 💣 Der ganze LESEWEG steckt weiter in der Fixture: paths-editor.php → Liste → Entwurf →
+	// avesmapsWikiAssignWegZustand. Er bleibt gebaut, auch ohne Bedienelement -- eine Zuweisung muss
+	// den Merker weiterhin beantworten koennen.
+	// 🔴 Und der GESETZTE Merker zeichnet trotzdem kein Kaestchen: das ist der schaerfere Zweig
+	// (`hakenZeigen` hat fuer ihn eine eigene Ausnahme).
+	assert.strictEqual(hostMit.innerHTML.indexOf("data-wa-kein-artikel"), -1,
+		"ein GESETZTER Merker zeichnet das Haekchen doch: " + hostMit.innerHTML);
+	// 🔴 DIE ZUSICHERUNG, AUF DIE ES ANKOMMT: speichern, ohne die Zuweisung anzufassen -- der
+	// Schluessel darf NICHT im Rumpf stehen, sonst nimmt dieser Editor die Entscheidung des
+	// Konfliktzentrums still zurueck.
 	const rumpfMitUnberuehrt = await wegeEditorSpeichern(wMit);
 	assert.ok(!("wiki_no_article" in rumpfMitUnberuehrt),
-		"ein unangetastetes gesetztes Haekchen reist mit: " + JSON.stringify(rumpfMitUnberuehrt));
-	// 🔴 Gepruef wird VERAENDERT, nicht GESETZT: ein bewusst ENTFERNTES Haekchen muss als `false`
-	// durchkommen, sonst wird man den Merker nie wieder los.
-	hostMit.zuhoerer.change({ target: hakenZiel(false), preventDefault() {} });
-	await ruhe();
-	const rumpfEntfernt = await wegeEditorSpeichern(wMit);
-	assert.strictEqual(rumpfEntfernt.wiki_no_article, false,
-		"ein bewusst ENTFERNTES Haekchen wird verschluckt -- der Merker liesse sich nie wieder loeschen");
-	// Und zurueck auf den geladenen Wert heisst wieder „nichts zu schicken".
-	hostMit.zuhoerer.change({ target: hakenZiel(true), preventDefault() {} });
-	await ruhe();
+		"der gespeicherte Merker wird ueberschrieben -- die Entscheidung des Konfliktzentrums geht "
+		+ "verloren: " + JSON.stringify(rumpfMitUnberuehrt));
+	// Und auch ein zweites Speichern aendert daran nichts (kein Zustand, der beim ersten Mal kippt).
 	assert.ok(!("wiki_no_article" in await wegeEditorSpeichern(wMit)),
-		"ein auf seinen geladenen Wert zurueckgelegtes Haekchen reist trotzdem mit");
-	checks += 4;
+		"beim zweiten Speichern reist der Merker doch mit");
+	checks += 3;
 
 	// ---- 13c) KARTENDIALOG: derselbe Ablauf an `buildPathEditPayload` -------------------------
 	// 🔴 NICHT der Bauer allein, sondern die VERDRAHTUNG: der Payload-Bauer wohnt in
@@ -1342,50 +1322,38 @@ const trefferProbe = avesmapsWikiAssignWegTreffer(zeile);
 		return s;
 	}
 
-	// Fixture OHNE Merker: ungesetzt -> GESETZT.
+	// Fixture OHNE Merker: kein Bedienelement, kein Schluessel.
 	const kOhne = await kartendialogMitMerker(false);
 	const kHostOhne = kOhne.elemente["path-wiki-assign-host"];
-	assert.ok(kHostOhne.innerHTML.indexOf("Kein Wiki-Artikel vorhanden") !== -1,
-		"der Kartendialog zeigt den dritten Zustand gar nicht: " + kHostOhne.innerHTML);
-	assert.ok(!/data-wa-kein-artikel checked/.test(kHostOhne.innerHTML),
-		"das Haekchen startet gesetzt, obwohl der Weg den Merker nicht traegt");
+	assert.strictEqual(kHostOhne.innerHTML.indexOf("Kein Wiki-Artikel vorhanden"), -1,
+		"der Kartendialog zeigt den dritten Zustand weiter: " + kHostOhne.innerHTML);
+	assert.strictEqual(kHostOhne.innerHTML.indexOf("data-wa-kein-artikel"), -1,
+		"der Kartendialog zeichnet das Kaestchen weiter: " + kHostOhne.innerHTML);
 	assert.ok(!("wiki_no_article" in kOhne.baue()),
-		"ein unangetastetes Haekchen steht im Speicher-Payload des Kartendialogs");
-	kHostOhne.zuhoerer.change({ target: hakenZiel(true), preventDefault() {} });
-	await ruhe();
-	assert.ok(vm.runInContext("letzterStatus", kOhne.kasten).indexOf("Kein Wiki-Artikel vorhanden") !== -1,
-		"das Umlegen des Haekchens meldet sich im Kartendialog nirgends: "
-		+ vm.runInContext("letzterStatus", kOhne.kasten));
-	assert.strictEqual(kOhne.baue().wiki_no_article, true,
-		"der Kartendialog schickt ein frisch GESETZTES Haekchen nicht mit -- der Merker kaeme nie beim "
-		+ "Server an");
-	checks += 5;
+		"der Merker steht im Speicher-Payload des Kartendialogs");
+	checks += 3;
 
-	// Fixture MIT Merker: gesetzt -> ENTFERNT.
+	// 🔴 Fixture MIT Merker: DER ABLAUF, DER DATEN ZERSTOEREN KOENNTE -- derselbe wie im Editor.
 	const kMit = await kartendialogMitMerker(true);
 	const kHostMit = kMit.elemente["path-wiki-assign-host"];
-	// 💣 Der Leseweg des Kartendialogs: Kartenpayload → pathEditFeature.properties → pathWikiZustand.
-	assert.ok(/data-wa-kein-artikel checked/.test(kHostMit.innerHTML),
-		"der gespeicherte Merker erreicht das Haekchen des Kartendialogs nicht -- es startet leer: "
-		+ kHostMit.innerHTML);
+	// 💣 Der Leseweg des Kartendialogs bleibt gebaut: Kartenpayload → pathEditFeature.properties →
+	// pathWikiZustand. Nur zeichnet er kein Kaestchen mehr -- auch nicht bei GESETZTEM Merker.
+	assert.strictEqual(kHostMit.innerHTML.indexOf("data-wa-kein-artikel"), -1,
+		"ein GESETZTER Merker zeichnet das Haekchen doch: " + kHostMit.innerHTML);
 	assert.ok(!("wiki_no_article" in kMit.baue()),
-		"ein unangetastetes gesetztes Haekchen reist mit");
-	kHostMit.zuhoerer.change({ target: hakenZiel(false), preventDefault() {} });
-	await ruhe();
-	assert.strictEqual(kMit.baue().wiki_no_article, false,
-		"ein bewusst ENTFERNTES Haekchen wird verschluckt -- der Merker liesse sich nie wieder loeschen");
-	kHostMit.zuhoerer.change({ target: hakenZiel(true), preventDefault() {} });
-	await ruhe();
+		"der gespeicherte Merker wird ueberschrieben -- die Entscheidung des Konfliktzentrums geht verloren");
 	assert.ok(!("wiki_no_article" in kMit.baue()),
-		"ein auf seinen geladenen Wert zurueckgelegtes Haekchen reist trotzdem mit");
-	checks += 4;
+		"beim zweiten Bauen reist der Merker doch mit");
+	checks += 3;
 
-	// ---- 13d) DER BLINDGAENGER SCHICKT NICHTS ------------------------------------------------
-	// 🔴 Ist das Bauteil gar nicht angehaengt (eine fehlende `<script>`-Zeile nach einem
-	// Deploy-Fehlschlag, AGENTS.md §7), waere ein `false` eine Loeschung, die niemand angeordnet hat.
+	// ---- 13d) 🔴 UND DER PAYLOAD-BAUER KENNT DEN SCHLUESSEL GAR NICHT MEHR --------------------
+	// 💣 Hier stand die Blindgaenger-Probe (`pathWikiKeinArtikelFuerPayload() === null`). Die Funktion
+	// ist am 16.08.2026 mit dem Haekchen gefallen -- an ihre Stelle tritt die schaerfere Zusicherung:
+	// AUCH ohne angehaengtes Bauteil steht der Merker nicht im Payload, und zwar weil ihn niemand mehr
+	// hineinschreibt. Ein Rueckbau, der die drei Zeilen wieder einbaut, faellt hier auf.
 	const kBlind = await kartendialogMitMerker(true, false);
-	assert.strictEqual(vm.runInContext("pathWikiKeinArtikelFuerPayload()", kBlind.kasten), null,
-		"ohne angehaengtes Bauteil liefert der Kartendialog einen Schreibwert fuer den Merker");
+	assert.strictEqual(vm.runInContext("typeof pathWikiKeinArtikelFuerPayload", kBlind.kasten), "undefined",
+		"pathWikiKeinArtikelFuerPayload ist zurueck -- der Kartendialog schriebe den Merker wieder");
 	assert.ok(!("wiki_no_article" in kBlind.baue()),
 		"ohne angehaengtes Bauteil steht der Merker trotzdem im Payload");
 	checks += 2;

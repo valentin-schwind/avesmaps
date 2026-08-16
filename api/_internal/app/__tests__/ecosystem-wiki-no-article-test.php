@@ -135,4 +135,50 @@ foreach (['1', 'true', true, 1] as $hart) {
     assert($merker($ergebnis) === true, 'ein harter Wert setzt den Merker nicht: ' . var_export($hart, true));
 }
 
+// ---- 8) 🔴 UND KEINE DER ZWEI OBERFLAECHEN SCHICKT DEN MERKER NOCH (16.08.2026) ------------------
+// Der Owner hat das Haekchen „Kein Wiki-Artikel vorhanden" nach dem Durchklicken in vier Oberflaechen
+// abgewaehlt; die Objektart `landschaft` traegt zwei davon -- den Regionen-Editor
+// (html/landschaften-editor.html) und den Flaechen-Dialog auf der Karte
+// (js/map-features/map-features-ecosystem-properties.js). Entschieden wird im Konfliktzentrum.
+// 💣 TRAGBAR IST DAS NUR WEGEN ZUSICHERUNG 2 UND 4 OBEN: ein fehlender Schluessel laesst den Merker in
+// Ruhe, und eine ZUWEISUNG beantwortet ihn serverseitig von selbst. Am Server war deshalb keine Zeile
+// zu aendern -- aber die drei Zusicherungen gehoeren zusammen, und deshalb stehen sie in einer Datei.
+// ⚠️ Geprueft wird gegen die Datei, nicht gegen einen Funktionsrumpf: bei der Landschaft steht der
+// Merker in beiden Oberflaechen im Speicher-Zweig selbst, und ein Kommentar, der ihn NENNT, gehoert
+// hier ausdruecklich dazu (beide tragen einen). Gesucht wird deshalb die Zuweisung, nicht das Wort.
+foreach ([
+    'Regionen-Editor' => __DIR__ . '/../../../../html/landschaften-editor.html',
+    'Flaechen-Dialog' => __DIR__ . '/../../../../js/map-features/map-features-ecosystem-properties.js',
+] as $wo => $datei) {
+    $inhalt = file_get_contents($datei);
+    assert(is_string($inhalt), "$wo: die Datei ist nicht lesbar");
+    assert(
+        preg_match('/payload\.wiki_no_article\s*=/', $inhalt) !== 1,
+        "\"$wo\" schreibt den Merker wieder in den Rumpf -- der Owner hat das Haekchen am 16.08.2026 "
+        . "abgewaehlt, und ein einzelner Schreiber loescht die Entscheidung des Konfliktzentrums"
+    );
+    assert(
+        preg_match('/keinArtikelGeaendert\s*:/', $inhalt) !== 1,
+        "\"$wo\" haengt wieder einen Rueckruf fuer das Haekchen ein"
+    );
+}
+// 🔴 UND DIE ERKLAERUNG SAGT ES AUCH, samt Begruendung -- sonst liesse sich das Haekchen wieder
+// einschalten, ohne dass etwas rot wird (der Server ist ja tolerant).
+// ⚠️ `landschaftslabel` ist NICHT betroffen und behaelt es: ein Label IST Konfliktpartei
+// (`feature_type='label'`), eine `ecosystem_region` steht in keiner Konfliktliste.
+$register = file_get_contents(__DIR__ . '/../../../../js/ui/wiki-assign-registry.js');
+assert(is_string($register));
+assert(
+    preg_match('/\n\tlandschaft:\s*\{.*?keinArtikelHaken:\s*(true|false)/s', $register, $flaeche) === 1,
+    'die Erklaerung `landschaft` fuehrt `keinArtikelHaken` gar nicht mehr -- dann fehlt auch ihre Begruendung'
+);
+assert($flaeche[1] === 'false', 'die Erklaerung `landschaft` bietet das Haekchen wieder an -- '
+    . 'der Owner hat es am 16.08.2026 abgewaehlt; wer es zurueckholt, braucht einen neuen Entscheid');
+assert(
+    preg_match('/\n\tlandschaftslabel:\s*\{.*?keinArtikelHaken:\s*(true|false)/s', $register, $label) === 1
+        && $label[1] === 'true',
+    'dem LABEL ist das Haekchen mit abgeraeumt worden -- es ist eine eigene Objektart, ein Label steht '
+    . 'wirklich in der Konfliktliste, und der Owner hat den Label-Dialog nicht genannt'
+);
+
 echo "ecosystem-wiki-no-article: alle Zusicherungen erfuellt\n";

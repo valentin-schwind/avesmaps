@@ -415,14 +415,14 @@ function renderDetail() {
 		// ein Textfeld mit <datalist>: das SCHLAEGT VOR und schraenkt nicht ein -- genau dadurch
 		// blieb am 15.08.2026 ein Tippfehler unsichtbar. Jetzt wird gesucht, nicht getippt (Entwurf
 		// §5: keine freien Adressen; eine Nicht-Wiki-Quelle gehoert in den Quellen-Abschnitt).
-		// ⚠️ Das Haekchen "Kein Wiki-Artikel vorhanden" ist MITGEWANDERT und steckt jetzt in
-		// `extra.keinArtikelHaken` der Erklaerung -- samt seinem Hinweistext, dessen zweiter
-		// Halbsatz tragend ist: der Merker ist NICHT endgueltig, der Abgleich macht ihn wieder auf,
-		// sobald im Wiki ein passender Artikel auftaucht. Es wird weiterhin NIE gesperrt: waeren
-		// Zuweisung und Haekchen zugleich gesperrt, kaeme man aus einem widerspruechlichen Zustand
-		// nicht mehr heraus, und weil das Speichern immer BEIDE Werte schickt, lehnte der Server
-		// danach jede Aenderung an dieser Linie ab -- auch eine reine Beschreibungsaenderung. Der
-		// Riegel gegen "beides zugleich" steht im Server (avesmapsUpdatePowerlineLine), nicht hier.
+		// 🔴 KEIN HAEKCHEN "Kein Wiki-Artikel vorhanden" MEHR -- Owner-Entscheid 16.08.2026 fuer diesen
+		// Editor und drei weitere. Der MERKER `properties.wiki_no_article` bleibt und wird weiter
+		// gelesen; GESETZT wird er im Konfliktzentrum, wo der Fall samt Belegen beider Parteien steht.
+		// Die Erklaerung `kraftlinie` fuehrt deshalb `extra.keinArtikelHaken: false` -- mit ihrer
+		// Begruendung, damit die naechste Sitzung ihn nicht als vergessen wieder einbaut.
+		// 💣 Der Riegel gegen "Zuweisung UND kein Artikel" steht unveraendert im Server
+		// (avesmapsUpdatePowerlineLine) und ist von hier aus nicht mehr ausloesbar: eine Zuweisung
+		// BEANTWORTET den Merker, und genau dann -- und nur dann -- schickt saveLine ihn ueberhaupt mit.
 		+ '<div id="plWikiAssign"></div>'
 		// Der Zustand des Dump-Laufs gehoert NICHT ins Bauteil: er sagt, warum die Vorschlagsliste
 		// leer ist, und das ist eine Auskunft der Kraftlinien, nicht der Zuweisung.
@@ -540,7 +540,6 @@ function mountWikiAssign(line) {
 		laden: () => wikiAssignZustand(line),
 		zuweisen: wikiAssignUngespeichert,
 		loesen: wikiAssignUngespeichert,
-		keinArtikelGeaendert: wikiAssignUngespeichert,
 		// `sync: false` in der Erklaerung -- es erscheint gar kein Sync-Knopf, also wird dieser
 		// Rueckruf nie gerufen. Er steht hier, damit die Schnittstelle vollstaendig ablesbar ist.
 		syncUebernehmen: () => {},
@@ -564,23 +563,33 @@ async function saveLine() {
 	// `lies()` liefert dort null -- wer die Weiche vergisst, bekommt einen Fehler statt einer
 	// stillen Loeschung.
 	const gelesen = (wikiAssign && wikiAssign.bereit) ? wikiAssign.lies() : null;
-	const zuweisung = gelesen || {
-		wiki_url: fieldSample(line, "wiki_url"),
-		kein_artikel: line.segments.some((s) => s.wiki_no_article === true),
+	// ⚠️ Der Rueckfall traegt seit dem 16.08.2026 KEIN `kein_artikel` mehr -- er soll die Zuweisung
+	// halten, nicht den Merker, und ein FEHLENDER Schluessel ist im Schreibweg die sichere Seite.
+	const zuweisung = gelesen || { wiki_url: fieldSample(line, "wiki_url") };
+	const rumpf = {
+		action: "update_powerline_line",
+		current_name: line.name,
+		new_name: newName,
+		show_label: $("plShowLabel").checked,
+		description: $("plDescription").value,
+		// Dieselbe Aktion wie immer; die Adresse kommt aus dem Bauteil statt aus einem Formularfeld.
+		wiki_url: zuweisung.wiki_url,
 	};
+	// 🔴 DER MERKER REIST NUR NOCH BEI EINER AENDERUNG (16.08.2026). Bis dahin ging `wiki_no_article`
+	// bedingungslos mit -- mit dem Haekchen war das richtig (der Wert kam ja von dort), ohne es waere
+	// es ein stilles Loeschen: wer bloss die Beschreibung aendert, naehme sonst die Entscheidung des
+	// Konfliktzentrums zurueck. `kein_artikel_geaendert` kann jetzt nur noch wahr werden, wenn
+	// `trefferWaehlen` den Merker BEANTWORTET hat -- dann MUSS er mit, sonst stuende die Linie mit
+	// Artikel UND Merker da und der Riegel lehnte jedes weitere Speichern ab.
+	// 💣 DIE ANDERE HAELFTE STEHT IM SERVER: avesmapsUpdatePowerlineLine liest einen FEHLENDEN
+	// Schluessel als „nicht geaendert" (vorher `?? false`). Ohne sie bewirkte diese Bedingung genau
+	// das Gegenteil dessen, wofuer sie da ist -- die beiden Zeilen gehoeren zusammen.
+	if (zuweisung.kein_artikel_geaendert === true) {
+		rumpf.wiki_no_article = zuweisung.kein_artikel === true;
+	}
 	setSaveMsg("Speichert…", "");
 	try {
-		await mapFeaturesEditPost({
-			action: "update_powerline_line",
-			current_name: line.name,
-			new_name: newName,
-			show_label: $("plShowLabel").checked,
-			description: $("plDescription").value,
-			// 🔴 DER SPEICHERWEG IST UNANGETASTET: dieselbe Aktion, dieselben zwei Werte. Nur woher
-			// sie kommen, hat sich geaendert -- aus dem Bauteil statt aus zwei Formularfeldern.
-			wiki_url: zuweisung.wiki_url,
-			wiki_no_article: zuweisung.kein_artikel,
-		});
+		await mapFeaturesEditPost(rumpf);
 		const merged = newName !== line.name && lines.some((l) => l.name === newName);
 		await reload(newName);
 		setSaveMsg(merged ? "Gespeichert – mit „" + newName + "“ verschmolzen." : "Gespeichert – auf alle Segmente geschrieben.", "ok");

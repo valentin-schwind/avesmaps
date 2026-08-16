@@ -152,17 +152,13 @@ function buildPathEditPayload(formElement) {
 			? String(formData.get("name") || "").trim()
 			: getPathDisplayNameOrGenerated(formData.get("name"), featureSubtype, { excludePath: pathEditFeature }));
 	const allowedTransports = Array.from(formElement.querySelectorAll('input[name="allowed_transport"]:checked')).map((input) => input.value);
-	// 🔴 DER DRITTE ZUSTAND. Er kommt aus dem Zuweisungskasten, nicht aus einem Formularfeld -- er ist
-	// dessen Häkchen „Kein Wiki-Artikel vorhanden“. `null` heißt „nicht schicken“: entweder ist das
-	// Bauteil nicht bereit (Blindgänger nach einem Deploy-Fehlschlag), oder das Häkchen wurde seit dem
-	// Laden gar nicht angefasst. `update_path_details` liest einen fehlenden Schlüssel als „nicht
-	// geändert“ (avesmapsApplyPathWikiNoArticle) -- die zwei Hälften greifen ineinander.
-	// 💣 UND DER ZWILLING MUSS ES AUCH TUN: saveDraft in js/pages/wege-editor.js schickt denselben
-	// Schlüssel. Täte nur einer von beiden es, löschte der andere den Merker bei jedem Speichern still
-	// wieder -- die „vier Erzeuger“-Fehlerklasse aus AGENTS.md §11.
-	const keinArtikel = typeof pathWikiKeinArtikelFuerPayload === "function"
-		? pathWikiKeinArtikelFuerPayload()
-		: null;
+	// 🔴 KEIN `wiki_no_article` MEHR -- gefallen am 16.08.2026 mit dem Häkchen (Owner-Entscheid).
+	// Der Merker selbst bleibt; gesetzt wird er im Konfliktzentrum, wo die Entscheidung hingehört (beim
+	// Weg wirkt sie über den ganzen Namensverbund, und das konnte das Häkchen nur nachbauen).
+	// 💣 TRAGBAR IST DAS NUR, WEIL avesmapsApplyPathWikiNoArticle EINEN FEHLENDEN SCHLÜSSEL ALS
+	// „NICHT GEÄNDERT“ LIEST. Wer hier je wieder ein `payload.wiki_no_article = …` einbaut, prüft
+	// zuerst, ob der Zwilling in js/pages/wege-editor.js dasselbe tut -- einer allein löschte den
+	// Merker beim Speichern der anderen Oberfläche still wieder (AGENTS.md §11).
 	const payload = {
 		action: "update_path_details",
 		public_id: String(formData.get("public_id") || "").trim(),
@@ -176,10 +172,6 @@ function buildPathEditPayload(formElement) {
 		transport_seasons: typeof readPathSeasonsFromForm === "function" ? readPathSeasonsFromForm(allowedTransports) : {},
 		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("path-edit") : { url: "", label: "" },
 	};
-	if (keinArtikel !== null) {
-		payload.wiki_no_article = keinArtikel;
-	}
-
 	return payload;
 }
 

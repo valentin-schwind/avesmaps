@@ -190,28 +190,68 @@ assert.strictEqual(avesmapsWikiAssignSkin("dt-neu"), null);
 checks++;
 
 // ── 6) DER DRITTE ZUSTAND ─────────────────────────────────────────────────────────────────────
-// Er gilt fuer ALLE Objektarten (Entwurf §2.7), gezeigt wird er, wo die Erklaerung ihn fuehrt.
-assert.ok(offen.haken && offen.haken.text === "Kein Wiki-Artikel vorhanden");
-assert.strictEqual(offen.haken.gesetzt, false);
-const gehakt = avesmapsWikiAssignModell(kraftlinie, { artikel: null, keinArtikel: true }, {});
+// 🔴 SEIT DEM 16.08.2026 IST DIE KRAFTLINIE HIER DAS FALSCHE VORBILD -- ihr Haekchen ist gefallen
+// (Owner-Entscheid, vier Oberflaechen: Regionen, Wege, Kraftlinien, Karten). Die MECHANIK des
+// Bauteils gibt es weiter, und sie wird an einer Objektart geprueft, die den Haken noch fuehrt:
+// `ort` (die Loeschung festhalten, Discord #38) und `landschaftslabel` (ein Label IST
+// Konfliktpartei). Der Test ist damit gewandert, nicht gefallen -- das Bauteil kennt nach wie vor
+// keine Objektart, und genau das misst er.
+const mitHaken = AVESMAPS_WIKI_ASSIGN_REGISTRY.ort;
+const hakenOffen = avesmapsWikiAssignModell(mitHaken, { artikel: null }, {});
+assert.ok(hakenOffen.haken && hakenOffen.haken.text === "Kein Wiki-Artikel vorhanden");
+assert.strictEqual(hakenOffen.haken.gesetzt, false);
+const gehakt = avesmapsWikiAssignModell(mitHaken, { artikel: null, keinArtikel: true }, {});
 assert.strictEqual(gehakt.haken.gesetzt, true);
 // 🔴 Der zweite Halbsatz des Hinweises ist tragend: der Merker ist NICHT endgueltig -- ohne ihn
 // liest er sich als endgueltig, und die Wiedervorlage wirkt wie ein Fehler.
-assert.ok(/bis im Wiki einer auftaucht/.test(offen.hinweis), offen.hinweis);
+assert.ok(/bis im Wiki einer auftaucht/.test(hakenOffen.hinweis), hakenOffen.hinweis);
 // Eine Erklaerung OHNE den Haken zeigt auch keinen.
 assert.strictEqual(avesmapsWikiAssignModell(mitSync, { artikel: null }, {}).haken, null);
 // 🔴 Neben einer ZUWEISUNG steht er nicht (Mockup, Karte 1 gegen Karte 3): "es gibt keinen" und
 // "hier ist er" schliessen einander aus.
-assert.strictEqual(zugewiesen.haken, null, "der dritte Zustand steht neben einer Zuweisung");
-assert.strictEqual(suche.haken, null, "der dritte Zustand steht mitten in der Suche");
+assert.strictEqual(
+	avesmapsWikiAssignModell(mitHaken, { artikel: { name: "Havena", wiki_url: "https://w/wiki/H", wiki_key: "k", werte: {} } }, {}).haken,
+	null, "der dritte Zustand steht neben einer Zuweisung");
+assert.strictEqual(
+	avesmapsWikiAssignModell(mitHaken, { artikel: null }, { modus: "suche", suchtext: "hav", treffer: [] }).haken,
+	null, "der dritte Zustand steht mitten in der Suche");
 // 💣 Die eine Ausnahme ist der AUSWEG: ist der Merker gesetzt UND ein Artikel zugewiesen (ein
 // widerspruechlicher Zustand), muss er sichtbar bleiben -- sonst kommt niemand mehr heraus, und
-// weil das Speichern immer beide Werte schickt, lehnte der Server danach JEDE Aenderung ab.
-const widerspruch = avesmapsWikiAssignModell(kraftlinie,
-	{ artikel: { name: "Satinavs Ketten", wiki_url: "https://de.wiki-aventurica.de/wiki/Satinavs_Ketten", wiki_key: "k", werte: {} }, keinArtikel: true }, {});
+// weil das Speichern beide Werte schickt, lehnte der Server danach JEDE Aenderung ab.
+const widerspruch = avesmapsWikiAssignModell(mitHaken,
+	{ artikel: { name: "Havena", wiki_url: "https://de.wiki-aventurica.de/wiki/Havena", wiki_key: "k", werte: {} }, keinArtikel: true }, {});
 assert.ok(widerspruch.haken && widerspruch.haken.gesetzt === true,
 	"der gesetzte Merker ist neben einer Zuweisung unsichtbar -- der Ausweg fehlt");
 checks += 9;
+
+// 💣 UND DIE GEGENPROBE ZUR OWNER-ENTSCHEIDUNG: die vier Objektarten, die das Bedienelement am
+// 16.08.2026 verloren haben, zeigen es in KEINEM Zustand -- auch nicht, wenn der Merker GESETZT ist.
+// 🔴 Das ist die schaerfere Haelfte: `hakenZeigen` im Bauteil kennt eine Ausnahme fuer den gesetzten
+// Merker (der „Ausweg" zwei Zeilen weiter oben), und die haengt NUR an `extra.keinArtikelHaken`.
+// Eine Probe, die bloss den offenen Zustand ansaehe, uebersaehe genau diesen Zweig -- und ein
+// Objekt, dem das Konfliktzentrum den Merker gesetzt hat, ist der Normalfall, nicht der Sonderfall.
+["kraftlinie", "weg", "landschaft", "karte"].forEach((art) => {
+	const erklaerung = AVESMAPS_WIKI_ASSIGN_REGISTRY[art];
+	assert.strictEqual(erklaerung.extra.keinArtikelHaken, false,
+		art + ': das Haekchen „Kein Wiki-Artikel vorhanden" ist zurueck -- der Owner hat es am '
+		+ "16.08.2026 abgewaehlt, weil die Entscheidung ins Konfliktzentrum gehoert. Die Begruendung "
+		+ "steht im Feldregister; wer es wieder einbaut, braucht einen neuen Entscheid.");
+	[{ artikel: null, keinArtikel: false }, { artikel: null, keinArtikel: true },
+		{ artikel: { name: "X", wiki_url: "https://w/wiki/X", wiki_key: "k", werte: {} }, keinArtikel: true },
+	].forEach((daten, i) => {
+		const modell = avesmapsWikiAssignModell(erklaerung, daten, i === 0 ? { modus: "offen" } : {});
+		assert.strictEqual(modell.haken, null, art + ": Zustand " + i + " zeigt ein Haekchen");
+		["dt", "label-wiki"].forEach((huelle) => {
+			const kasten = avesmapsWikiAssignMarkup(modell, avesmapsWikiAssignSkin(huelle));
+			assert.strictEqual(kasten.indexOf("data-wa-kein-artikel"), -1,
+				art + "/" + huelle + ": Zustand " + i + " zeichnet das Haekchen trotzdem");
+			assert.strictEqual(kasten.indexOf("Kein Wiki-Artikel vorhanden"), -1,
+				art + "/" + huelle + ": Zustand " + i + " traegt den Wortlaut des Haekchens");
+		});
+		checks += 5;
+	});
+	checks++;
+});
 
 // ── 7) DIE SYNC-VORSCHAU ──────────────────────────────────────────────────────────────────────
 // 💣 Sind alle Angaben gleich, kommt EIN Satz -- keine leere Haekchenliste.
@@ -243,7 +283,9 @@ assert.ok(/gespeichert wird mit/.test(syncMarkup));
 assert.ok(syncMarkup.indexOf("würden sich ändern") < syncMarkup.indexOf("dt-sync-rows"),
 	"der Hinweis der Sync-Vorschau steht unter der Liste statt darueber");
 // In den uebrigen Zustaenden steht er weiterhin UNTEN (Mockup, Karte 1 und 2).
-const offenMarkup = avesmapsWikiAssignMarkup(offen, dt);
+// ⚠️ Am ORT gemessen, nicht mehr an der Kraftlinie: nur eine Objektart mit Haekchen kann diese
+// Reihenfolge ueberhaupt zeigen (16.08.2026, siehe Abschnitt 6).
+const offenMarkup = avesmapsWikiAssignMarkup(hakenOffen, dt);
 assert.ok(offenMarkup.indexOf("Konfliktliste") > offenMarkup.indexOf("data-wa-kein-artikel"),
 	"der Hinweis des dritten Zustands steht ueber seinem Haekchen");
 checks += 8;

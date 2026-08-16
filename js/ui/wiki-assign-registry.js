@@ -38,13 +38,20 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		],
 		sync: false, // kein Ziel -- also auch kein Knopf
 		extra: {
-			keinArtikelHaken: true,
-			// 🔴 Der zweite Halbsatz ist tragend: der Merker ist NICHT endgueltig -- der Abgleich
-			// macht ihn wieder auf, sobald im Wiki ein passender Artikel auftaucht. Ohne ihn liest
-			// er sich als endgueltig, und die Wiedervorlage wirkt wie ein Fehler. Der Satz stand
-			// wortgleich in html/wiki-sync-powerline-editor.html und ist mit umgezogen; die
-			// allgemeine Fassung des Bauteils sagt "das Objekt" statt "die Linie".
-			keinArtikelHinweis: "Nimmt die Linie aus der Konfliktliste — bis im Wiki einer auftaucht.",
+			// 🔴 KEIN dritter Zustand IM EDITOR -- gefallen am 16.08.2026, Owner-Entscheid nach dem
+			// Durchklicken aller Oberflaechen („passt, aber ‚Kein Wiki-Artikel vorhanden‘ brauchen wir
+			// nicht explizit"). Das ist eine ENTSCHEIDUNG UEBER DEN ORT, nicht ueber den Merker:
+			// `properties.wiki_no_article` bleibt, wird weiter gelesen (avesmapsConflictRuleMissingKey,
+			// api/_internal/conflicts/rules.php) und weiter GESETZT -- nur eben im Konfliktzentrum
+			// (AVESMAPS_CONFLICT_NO_ARTICLE_FLAG, api/_internal/conflicts/repair.php). Dort steht der
+			// Fall samt Belegen beider Parteien; hier stand ein Haekchen ohne jeden Kontext.
+			// ⚠️ Damit reist der Merker aus dieser Oberflaeche nur noch, wenn eine ZUWEISUNG ihn
+			// beantwortet hat -- saveLine schickt `wiki_no_article` ausschliesslich bei
+			// `kein_artikel_geaendert` (html/wiki-sync-powerline-editor.html), und der Schreibweg liest
+			// einen fehlenden Schluessel seit dem 16.08.2026 als „nicht geaendert"
+			// (avesmapsUpdatePowerlineLine). Beide Haelften gehoeren zusammen: mit dem alten
+			// `?? false` haette JEDES Speichern die Entscheidung des Konfliktzentrums geloescht.
+			keinArtikelHaken: false,
 		},
 	},
 	weg: {
@@ -88,45 +95,28 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		],
 		sync: true, // ein Kartenziel (feature_subtype) -- also ein Knopf
 		extra: {
-			// 🔴 DER DRITTE ZUSTAND, seit 16.08.2026 auch beim Weg (Aufgabe 5c). Bis dahin stand hier
-			// „KEIN dritter Zustand", und der Grund war gemessen richtig: die LESESEITE trug den Merker
-			// laengst -- die Anreicherung ehrt ihn vor jeder Typweiche
-			// (avesmapsEnrichMapFeatureWikiUrl, api/app/map-features.php:983) und die Konfliktregel
-			// liest ihn auch fuer `path` (api/_internal/conflicts/rules.php:29 + :371) --, aber es gab
-			// keinen SCHREIBWEG. Er steht jetzt in avesmapsApplyPathWikiNoArticle
-			// (api/_internal/map/features.php:2351), und BEIDE Payload-Bauer schicken den Merker:
-			// buildPathEditPayload (js/review/review-paths.js:180) und saveDraft
-			// (js/pages/wege-editor.js:774). Der Wege-Editor bekommt ihn ueber die weisse Liste seiner
-			// Wegeliste (api/edit/map/paths-editor.php:150), der Kartendialog ueber den Kartenpayload.
-			// WIRKLICHKEIT nach dem Umbau gemessen, nicht davor.
-			// 💣 Nur einen der zwei PAYLOAD-BAUER zu bedienen waere die „vier Erzeuger"-Fehlerklasse aus
-			// AGENTS.md §11 gewesen: die andere Oberflaeche koennte den Merker nie aendern.
-			// 🪤 Und JEDER Zuweiser des Wegs loescht den Merker beim Zuweisen -- hier stand am
-			// 16.08.2026 „ZWEI Zuweiser" samt Namen, und es waren DREI (avesmapsWikiPathAssignAll
-			// fehlte; gefunden von der Konsistenz-Pruefung, nicht vom Test). Eine ZAHL liest sich wie
-			// eine vollstaendige Liste. Gezaehlt wird deshalb im Test
-			// (api/_internal/map/__tests__/weg-wiki-no-article-test.php, Zusicherung 7): er sucht JEDE
-			// Funktion, die `['wiki_path'] = ` schreibt, und verlangt von jeder das `unset`.
-			// 🔴 UND DAS ANHAKEN LEERT EINE GESPEICHERTE FLACHE `properties.wiki_url` (Owner-Entscheid
-			// 16.08.2026). Der Weg hat in keiner seiner zwei Oberflaechen ein Adressfeld; ein
-			// serverseitiger Riegel waere hier eine Absage ohne Ausweg. Die Begruendung steht
-			// ausgeschrieben an der Schreibstelle.
-			keinArtikelHaken: true,
-			// ⚠️ Der letzte Halbsatz ist tragend (wie bei Ort und Kraftlinie): der Merker ist NICHT
-			// endgueltig -- taucht im Wiki ein Artikel auf, kommt der Fall von selbst zurueck. Ohne ihn
-			// liest er sich als „nie wieder" und die Wiedervorlage wirkt wie ein Fehler.
-			// 🪤 UND DER ERSTE HALBSATZ IST EINE KORREKTUR. Hier stand bis zum 16.08.2026 „Nimmt diesen
-			// Weg aus der Konfliktliste", und das war gemessen falsch: der Merker traf nur das
-			// bearbeitete Wegstueck, der Fall blieb im Zentrum als „2 von 3 Segmenten" stehen. Seit
-			// avesmapsApplyPathWikiNoArticleToNameGroup reicht er ueber den ganzen Namensverbund --
-			// dieselbe Weite wie „Zuweisen" im selben Kasten und wie die Reparatur-Verben des
-			// Konfliktzentrums. Der Satz sagt die Reichweite jetzt AUSDRUECKLICH, weil ein Editor sie
-			// dem Haekchen sonst nicht ansieht.
-			// ⚠️ ANDERS ALS BEI „ENTFERNEN" WIRD NICHT NACHGEFRAGT, und das ist kein Versehen: dessen
-			// Reichweite SCHWANKT (ein Segment / der ganze Weg / die wiki_key-Vereinigung), deshalb
-			// misst es sie erst und fragt dann. Die des Haekchens ist immer dieselbe -- eine Rueckfrage
-			// koennte nur wiederholen, was hier schon steht, und stuende bei jedem Klick im Weg.
-			keinArtikelHinweis: "Gilt für alle Abschnitte dieses Wegs und nimmt ihn aus der Konfliktliste — bis im Wiki einer auftaucht.",
+			// 🔴 KEIN dritter Zustand IM EDITOR -- gefallen am 16.08.2026, Owner-Entscheid nach dem
+			// Durchklicken aller Oberflaechen. Er hat den Weg AUSDRUECKLICH genannt, und beim Weg ist die
+			// Begruendung die staerkste von allen vieren: die Entscheidung wirkt ueber den ganzen
+			// NAMENSVERBUND (avesmapsApplyPathWikiNoArticleToNameGroup) -- also genau so weit wie die
+			// Reparatur-Verben des Konfliktzentrums (avesmapsConflictRepairSpansNameGroup), und das
+			// Haekchen konnte diese Reichweite nur NACHBAUEN. Zwei Knoepfe mit derselben Reichweite an
+			// zwei Orten sind eine Divergenz, die auf ihren ersten Unterschied wartet.
+			// ⚠️ WEG IST NUR DAS BEDIENELEMENT. `properties.wiki_no_article` bleibt: die Leseseite ehrt
+			// ihn vor jeder Typweiche (avesmapsEnrichMapFeatureWikiUrl, api/app/map-features.php), die
+			// Konfliktregel liest ihn fuer `path` (api/_internal/conflicts/rules.php), der Schreibweg
+			// avesmapsApplyPathWikiNoArticle samt Verbund-Reichweite steht unveraendert -- gesetzt wird
+			// er jetzt im Konfliktzentrum, wo der Fall samt Belegen steht.
+			// 💣 UND KEINE DER BEIDEN OBERFLAECHEN SCHICKT IHN NOCH MIT (buildPathEditPayload in
+			// js/review/review-paths.js, saveDraft in js/pages/wege-editor.js). Das ist tragbar, WEIL
+			// avesmapsApplyPathWikiNoArticle einen fehlenden Schluessel als „nicht geaendert" liest und
+			// JEDER Zuweiser den Merker selbst loescht (drei -- gezaehlt im Test, nicht aufgezaehlt).
+			// Ohne die erste Haelfte loeschte jedes Speichern die Entscheidung des Konfliktzentrums.
+			// 🪤 UND DAS SETZEN LEERT WEITERHIN EINE GESPEICHERTE FLACHE `properties.wiki_url`
+			// (Owner-Entscheid 16.08.2026, ausgeschrieben an der Schreibstelle). Das ist KEINE Regel des
+			// Haekchens gewesen, sondern eine des Merkers -- sie gilt jetzt fuer die Reparatur des
+			// Konfliktzentrums genauso und bleibt deshalb unangetastet.
+			keinArtikelHaken: false,
 		},
 	},
 	ort: {
@@ -261,25 +251,31 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		],
 		sync: true, // zwei Kartenziele (name, region_type) -- also ein Knopf
 		extra: {
-			// 🔴 DER DRITTE ZUSTAND, seit 16.08.2026 auch bei der Landschaft (Aufgabe 6). Er liegt in
-			// `ecosystem_region.properties_json` -- die Spalte gab es seit V2.3, sie war nur von KEINEM
-			// Leseweg herausgegeben und von keinem Client beschrieben (gemessen: `properties` erreichte
-			// avesmapsEcosystemReadRegionFields nie, und `list_regions` waehlte die Spalte nicht aus).
-			// Geschrieben wird der Merker von `update_region` (avesmapsEcosystemApplyRegionNoArticle),
-			// gelesen aus `list_regions` -- der EINEN Aktion, aus der BEIDE Oberflaechen ohnehin ihr
-			// Art-Vokabular ziehen.
-			// 🪤 UND WAS ER HIER NICHT TUT, steht ausdruecklich hier, damit es niemand versehentlich
-			// verspricht: eine `ecosystem_region` steht in KEINER Konfliktliste.
-			// avesmapsConflictLoadMapRows liest ausschliesslich `map_features`
-			// (location|path|label|powerline, api/_internal/conflicts/rules.php:96-101), und
-			// avesmapsEnrichMapFeatureWikiUrl raet ebenfalls nur dort Adressen zusammen. Der Merker
-			// haelt heute also die ENTSCHEIDUNG fest und sonst nichts -- der Satz unten verspricht
-			// deshalb bewusst keine Konfliktliste (anders als bei Ort, Weg und Kraftlinie).
-			keinArtikelHaken: true,
-			// ⚠️ Der zweite Halbsatz ist tragend (wie bei allen drei bisherigen): der Merker ist NICHT
-			// endgueltig -- taucht im Wiki ein Artikel auf, gilt er nicht mehr. Ohne ihn liest er sich
-			// als „nie wieder".
-			keinArtikelHinweis: "Hält fest, dass im Wiki nichts zu dieser Landschaft steht — bis dort einer auftaucht.",
+			// 🔴 KEIN dritter Zustand -- gefallen am 16.08.2026, Owner-Entscheid nach dem Durchklicken
+			// aller Oberflaechen. Er hat den REGIONEN-EDITOR genannt (html/landschaften-editor.html);
+			// gemessen traegt die Erklaerung `landschaft` ZWEI Oberflaechen -- daneben den Dialog
+			// „Fläche bearbeiten" auf der Karte (js/map-features/map-features-ecosystem-properties.js).
+			// Das Haekchen faellt in beiden, weil es EINE Objektart ist. Der Label-Dialog ist davon NICHT
+			// betroffen: er ist die eigene Erklaerung `landschaftslabel` weiter unten und behaelt es.
+			// 💣 UND HIER WAR ER OHNEHIN DER SCHWAECHSTE DER FUENF: eine `ecosystem_region` steht in
+			// KEINER Konfliktliste (avesmapsConflictLoadMapRows liest ausschliesslich `map_features` --
+			// location|path|label|powerline). Der Merker hielt hier die ENTSCHEIDUNG fest und sonst
+			// nichts, und genau deshalb versprach sein Hinweis als einziger keine Konfliktliste.
+			// 🔧 DARAUS FOLGT EINE OFFENE FRAGE, UND SIE STEHT HIER, DAMIT SIE NICHT STILL BLEIBT: bei
+			// Ort, Weg und Karte wandert die Entscheidung ins Konfliktzentrum, wo der Fall samt Belegen
+			// steht -- die Flaeche erreicht es nie, hier kann sie also NIEMAND mehr setzen. Fuer die
+			// `ecosystem_region` ist die Spalte damit faktisch tot. Das ist die ehrliche Folge des
+			// Entscheids, kein Versehen; wer sie wiederbeleben will, macht die Flaeche zur
+			// Konfliktpartei (avesmapsConflictLoadMapRows) -- nicht dieses Haekchen wieder auf.
+			// ⚠️ WEG IST NUR DAS BEDIENELEMENT. Die Spalte `ecosystem_region.properties_json`, der
+			// Leseweg (`list_regions`) und der Schreibweg (`update_region`,
+			// avesmapsEcosystemApplyRegionNoArticle) bleiben unveraendert.
+			// ⭐ BEIDE Oberflaechen schicken `wiki_no_article` ab jetzt GAR NICHT mehr, und das ist
+			// tragbar, weil avesmapsEcosystemApplyRegionNoArticle schon beide Haelften kann: ein
+			// fehlender Schluessel heisst „nicht geaendert", und eine ZUWEISUNG beantwortet den Merker
+			// von selbst (`if (!$gefordert && $noArticle && $effectiveWikiUrl !== '')`). Der Server
+			// braucht dafuer keine Zeile Aenderung -- gemessen, nicht angenommen.
+			keinArtikelHaken: false,
 		},
 	},
 	// 🔴 DIE ZWEITE HAELFTE DER LANDSCHAFT -- und eine EIGENE Objektart, gemessen, nicht angenommen.
@@ -606,26 +602,27 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			// die BESCHRAENKUNG: die Registry kennt nur Orts- und Bauwerksseiten. Steht der Artikel
 			// einer Karte woanders im Wiki, hilft kein anderer Suchbegriff, sondern nur das Haekchen
 			// darunter. „Keine Treffer" allein sagte nur, DASS nichts da ist.
-			keineTrefferHinweis: "Die Wiki-Registry führt nur Orts- und Bauwerksseiten — sonst hilft das Häkchen darunter.",
-			// 🔴 DER DRITTE ZUSTAND, und bei den Karten ist er OWNER-WUNSCH, nicht Kür: „gibt
-			// natürlich auch welche von uns" (Entwurf §2.5). Die selbst gezeichneten Karten haben
-			// keinen Wiki-Artikel und werden nie einen bekommen.
-			// ⚠️ Er ist tragbar, weil diese Aufgabe ohnehin Spalten anlegt: `no_article` steht neben
-			// `article_url` in `citymap` (avesmapsCitymapsEnsureTables, api/_internal/app/citymaps.php:380).
-			// Territorium und Literatur
-			// konnten ihn nicht tragen -- dort haette er eine Schemaaenderung ohne eigenen Anlass
-			// gekostet.
-			keinArtikelHaken: true,
-			// 🪤 UND WAS ER HIER NICHT TUT, steht ausdruecklich da -- wie bei der Landschaft: er nimmt
-			// die Karte aus KEINER Liste. avesmapsConflictLoadCitymapRows (api/_internal/conflicts/
-			// rules.php:270) reicht nur Karten MIT Artikel in die Kollisionsregel (:595); eine Karte
-			// ohne Artikel erreicht das Konfliktzentrum
-			// gar nicht erst, und die Beobachtungsliste (`wiki.missing_key`) laeuft ohnehin nur ueber
-			// `map_features`. Der Merker haelt also die ENTSCHEIDUNG fest und sonst nichts -- der
-			// Satz unten verspricht deshalb bewusst keine Konfliktliste.
-			// ⚠️ Der zweite Halbsatz ist tragend (wie bei allen anderen): der Merker ist NICHT
-			// endgueltig. Ohne ihn liest er sich als „nie wieder".
-			keinArtikelHinweis: "Hält fest, dass im Wiki kein Artikel zu dieser Karte steht — bis dort einer auftaucht.",
+			// 🪤 DER ZWEITE HALBSATZ IST AM 16.08.2026 GEFALLEN und stand hier vorher als „— sonst hilft
+			// das Häkchen darunter". Ein Rat, der auf ein Bedienelement zeigt, das es nicht mehr gibt,
+			// ist schlimmer als kein Rat: der Editor sucht danach und findet nichts.
+			keineTrefferHinweis: "Die Wiki-Registry führt nur Orts- und Bauwerksseiten.",
+			// 🔴 KEIN dritter Zustand -- gefallen am 16.08.2026, Owner-Entscheid nach dem Durchklicken
+			// aller Oberflaechen; der Karten-Editor ist einer der vier ausdruecklich genannten.
+			// 🪤 ER WAR HIER EINMAL OWNER-WUNSCH („gibt natürlich auch welche von uns", Entwurf §2.5,
+			// selbst gezeichnete Karten ohne Wiki-Artikel) -- derselbe Owner, spaeterer Blick auf die
+			// gebaute Oberflaeche. Der Widerspruch ist echt und wird hier nicht geschoent: die Absicht
+			// von §2.5 bleibt richtig, nur traegt sie das Konfliktzentrum, nicht dieser Kasten.
+			// ⚠️ WEG IST NUR DAS BEDIENELEMENT. Die Spalte `citymap.no_article` bleibt
+			// (avesmapsCitymapsEnsureTables), sie steht weiter in der weissen Liste von
+			// avesmapsUpsertCitymap und reist weiter im Detail-Payload mit.
+			// 💣 UND DIE KARTE IST DIE EINE DER VIER, DIE `no_article` NOCH SCHICKT -- gemessen, nicht
+			// aus Nachlaessigkeit: `upsert_citymap` hat weder einen Widerspruchsriegel noch die Regel
+			// „eine Zuweisung beantwortet den Merker" (die Landschaft hat sie, der Weg hat sie in
+			// `assign_to`). Die drei Zeilen in html/citymap-editor.html haengen deshalb NICHT am
+			// Haekchen, sondern an der ZUWEISUNG: `kein_artikel_geaendert` kann jetzt nur noch wahr
+			// werden, wenn `trefferWaehlen` den Merker beantwortet hat. Sie zu loeschen liesse eine
+			// Karte mit Artikel UND `no_article = 1` zurueck.
+			keinArtikelHaken: false,
 		},
 	},
 };

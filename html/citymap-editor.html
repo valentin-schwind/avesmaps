@@ -1221,9 +1221,10 @@
       // Feldnamen aus der Antwort, die die Erklärung nennt. Der eigene Bauer steht trotzdem hier,
       // weil er `name` aus `title` nachzieht, wenn der Endpunkt nur den Titel schickt.
       trefferAufbereiten: (zeile) => avesmapsWikiAssignKarteTreffer(zeile),
-      // Das Häkchen wirkt erst beim „Speichern" — also ist ein Klick darauf eine ungespeicherte
-      // Änderung wie jede andere.
-      keinArtikelGeaendert: ceWikiUngespeichert,
+      // 🔴 KEIN `keinArtikelGeaendert` MEHR — das Häkchen „Kein Wiki-Artikel vorhanden" ist am
+      // 16.08.2026 aus diesem Editor gefallen (Owner-Entscheid, vier Oberflächen). Die Spalte
+      // `citymap.no_article` bleibt und wird im Konfliktzentrum entschieden; die Erklärung `karte`
+      // führt seither `extra.keinArtikelHaken: false` samt Begründung.
     });
   }
 
@@ -1270,10 +1271,16 @@
         // Der Anzeigename des Artikels. Er wird KOPIERT statt nachgeschlagen, damit der Kasten auch
         // dann noch einen Namen zeigt, wenn ein späterer Dump die Seite aus der Registry nimmt.
         citymap.article_title = wikiGelesen.name || "";
-        // 🔴 Der dritte Zustand reist NUR mit, wenn das Häkchen SEIT DEM LADEN umgelegt wurde —
-        // beide Richtungen. Wer es nicht anfasst, soll es auch nicht löschen können: ein alter,
-        // längst offener Dialog nähme sonst beim nächsten beliebigen Speichern die Entscheidung
-        // eines zweiten Editors zurück. Die Begründung steht im Kopf von js/ui/wiki-assign.js.
+        // 🔴 DIESE DREI ZEILEN HÄNGEN SEIT DEM 16.08.2026 NICHT MEHR AM HÄKCHEN, SONDERN AN DER
+        // ZUWEISUNG — und deshalb sind sie beim Wegfall des Häkchens ausdrücklich STEHENGEBLIEBEN,
+        // als einzige der vier Oberflächen. `kein_artikel_geaendert` kann jetzt nur noch wahr
+        // werden, wenn `trefferWaehlen` den Merker beantwortet hat (es setzt `keinArtikel = false`).
+        // 💣 GEMESSEN, WARUM SIE HIER GEBRAUCHT WERDEN UND BEI WEG UND LANDSCHAFT NICHT: dort
+        // beantwortet der SERVER den Merker bei einer Zuweisung (`assign_to` bzw.
+        // avesmapsEcosystemApplyRegionNoArticle), `upsert_citymap` hat weder diese Regel noch einen
+        // Widerspruchsriegel. Ohne sie stünde eine Karte mit `article_url` UND `no_article = 1` da.
+        // ⚠️ Die andere Hälfte bleibt ebenfalls gültig: wer nichts anfasst, schickt nichts, und die
+        // Entscheidung des Konfliktzentrums überlebt jedes Speichern aus diesem Fenster.
         if (wikiGelesen.kein_artikel_geaendert) {
           citymap.no_article = wikiGelesen.kein_artikel ? 1 : 0;
         }
