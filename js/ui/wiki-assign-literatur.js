@@ -14,7 +14,11 @@
 // 1. EINE Oberflaeche, nicht zwei. Gezaehlt, nicht angenommen: `grep -rln wiki_url --include=*.html
 //    html/` liefert fuenf Dateien, vier davon gehoeren anderen Objektarten. In
 //    html/wiki-sync-monitor.html kommt „Literatur" nur in ZWEI Kommentaren vor (:12, :1255) -- dort
-//    wird nichts zugewiesen. Es bleibt html/game-literature-editor.html, Feld „Wiki-URL" (:926).
+//    wird nichts zugewiesen. Es blieb html/game-literature-editor.html mit seinem freien Textfeld
+//    „Wiki-URL" in der Gruppe „Wiki & F-Shop".
+//    ⚠️ KEINE ZEILENNUMMER dafuer, und das ist Absicht: die Zeile GIBT ES NICHT MEHR -- dieser Umbau
+//    hat sie entfernt. Ein Verweis darauf zeigte ab dem ersten Tag ins Leere. Wo der Kasten heute
+//    steht, sagt die Kennung: `#aeWikiAssign`.
 //
 // 2. ES GAB KEINE SUCHE. `wiki_adventure_catalog` wurde an sieben Stellen gelesen, JEDE ueber einen
 //    exakten `wiki_key` oder einen Cursor -- kein `LIKE`, kein `action=search`. Die Literatur war

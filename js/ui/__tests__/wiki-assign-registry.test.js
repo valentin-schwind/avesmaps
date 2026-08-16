@@ -243,8 +243,10 @@ const WIRKLICHKEIT = {
 		// Die ZEHN bearbeitbaren Kartenfelder, gemessen an DREI Stellen, die sich decken muessen:
 		// der weissen Liste des Schreibwegs (`$editableFields`, avesmapsUpsertGameLiterature,
 		// api/_internal/app/game-literature.php:925-930), den Formularfeldern des Editors
-		// (html/game-literature-editor.html:911-928 und :964-967, eingesammelt von `gatherStamm`
-		// :1095-1102) und der DDL (:25-52 + die nachgezogenen Spalten :107-111).
+		// (html/game-literature-editor.html:924-938 und :1096-1099, eingesammelt von `gatherStamm`
+		// :1227-1233) und der DDL (:25-52 + die nachgezogenen Spalten :107-111).
+		// ⚠️ NACH dem Umbau gemessen, nicht davor -- die Datei ist von dieser Aufgabe selbst geaendert
+		// worden, und Zeilenangaben von vorher zeigten ins Leere.
 		// 🔴 `wiki_url` und `wiki_key` stehen NICHT hier: sie SIND die Zuweisung, kein Sync-Ziel --
 		// dieselbe Trennung wie bei Ort, Landschaft und Territorium.
 		// 🔴 `bf_year`, `bf_label`, `is_official`, `cover_url`, `link_ulisses`, `link_fshop` und

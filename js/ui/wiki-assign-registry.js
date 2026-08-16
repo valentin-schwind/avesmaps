@@ -482,8 +482,8 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		// uebernehmen. `is_official` fehlt aus dem umgekehrten Grund: der Katalog schreibt dort hart 1
 		// (:425), das ist eine Konstante und keine Auskunft des Artikels.
 		// ⚠️ `isbn` HAT beides -- Quelle (wiki_publication_catalog.isbn, publication-sync.php:36) und
-		// Ziel (`adventure.isbn`, nachgezogene Spalte :107-111, Formularfeld
-		// html/game-literature-editor.html:966, weisse Liste :928). Der MASSENabgleich uebertraegt sie
+		// Ziel (`adventure.isbn`, nachgezogene Spalte :107-111, Formularfeld „ISBN (für DNB)" in
+		// html/game-literature-editor.html:1098, weisse Liste :928). Der MASSENabgleich uebertraegt sie
 		// trotzdem nicht (sie fehlt in AVESMAPS_GAME_LITERATURE_WIKI_FIELDS). Das ist kein Widerspruch,
 		// den es aufzuloesen gaelte: die Vorschau ZEIGT, was sie tut, und der Editor entscheidet je
 		// Zeile -- genau dafuer gibt es sie.
