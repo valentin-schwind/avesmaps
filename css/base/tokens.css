@@ -21,13 +21,21 @@
 	--font-size-subhead: 16px;  /* subheaders */
 	--font-size-title: 20px;    /* dialog / panel titles */
 	--font-size-display: 22px;  /* infobox hero name */
-	/* Sperrung der VERSALIEN-Abschnittsueberschriften (Label-Editor, Postfach, Landschaften,
-	   Rezensionen, Verwaltung). 0.08em stand am 16.08.2026 sechsmal literal in css/ -- als Token
-	   angelegt, weil die Wiki-Zuweisung ihn als siebten Ort gebraucht haette und ein siebtes
-	   Literal die Divergenz einbaut, die §12 meint.
-	   ⚠️ Die uebrigen fuenf Fundstellen sind BEWUSST nicht mitgezogen: sie liegen in fremden
-	   Oberflaechen, und eine Sammelaenderung an ihnen gehoert nicht in den Commit einer
-	   Objektart. */
+	/* Sperrung der VERSALIEN-Abschnittsueberschriften. Angelegt am 16.08.2026, als die
+	   Wiki-Zuweisung den Wert als weiteren Ort gebraucht haette -- ein Literal mehr baut die
+	   Divergenz ein, die §12 meint.
+	   ⚠️ BEWUSST NICHT MITGEZOGEN sind die Stellen, die den Wert weiterhin literal fuehren; sie
+	   liegen in fremden Oberflaechen, und eine Sammelaenderung an ihnen gehoert nicht in den
+	   Commit einer Objektart:
+	       css/features/ecosystem-layer.css:1034
+	       css/features/mail-inbox.css:52
+	       css/features/review-panel.css:1193
+	       css/pages/admin.css:114
+	   💣 Hier stand eine ZAHL („die uebrigen fuenf"), und sie war falsch: gezaehlt wurden sechs
+	   Fundstellen, von denen dieser Commit ZWEI selbst tokenisiert hat -- die Klammerliste nannte
+	   sogar den Label-Editor, dessen Vorkommen es danach gar nicht mehr gab. Eine Zahl liest sich
+	   wie eine vollstaendige Liste und niemand zaehlt nach (AGENTS.md §11); wer eine Stelle
+	   nachzieht, streicht sie oben. */
 	--letter-spacing-caps: 0.08em;
 	/* Schriftgroesse der EINGABEFELDER -- getrennt von der Lese-Skala oben, weil sie am Finger
 	   auf die iOS-Schwelle springt (siehe den (pointer: coarse)-Block unter diesem :root).

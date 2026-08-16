@@ -22,6 +22,7 @@ const {
 	avesmapsWikiAssignListeFiltern,
 	avesmapsWikiAssignTrefferMeta,
 	avesmapsWikiAssignFeldLabel,
+	avesmapsWikiAssignRufen,
 } = require("../wiki-assign.js");
 
 const kraftlinie = AVESMAPS_WIKI_ASSIGN_REGISTRY.kraftlinie;
@@ -619,6 +620,122 @@ function scheinBehaelter() {
 			"Steuerung " + i + ": `bereit` und die Gueltigkeit von lies() gehen auseinander");
 		checks++;
 	});
+
+
+	// ── 17) EIN SYNCHRONER WURF AUS EINEM RUECKRUF IST AUCH EINE ABLEHNUNG (Nachbesserung 2) ───
+	// 💣 `Promise.resolve(opt.x())` wertet den Aufruf AUS, bevor `Promise.resolve` ihn zu fassen
+	// bekommt. Wirft eine Oberflaeche synchron, verliess der Fehler den Klick-Zuhoerer ungefangen,
+	// und der Ablehnungszweig darunter war TOT. Gemessen am 16.08.2026 an `syncUebernehmen` -- dem
+	// einzigen der drei, den eine Oberflaeche ueberhaupt synchron schreiben kann; `zuweisen` und
+	// `loesen` sind dort `async` und waren deshalb zufaellig richtig.
+	//
+	// 🔴 GEFAHREN WIRD DER KLICKPFAD, nicht der Rueckruf. Genau daran ist die vorige Fassung
+	// gescheitert: sie rief `syncUebernehmen([])` direkt und sah die Verdrahtung nie.
+	function klickBehaelter() {
+		const zuhoerer = {};
+		return {
+			textContent: "", innerHTML: "",
+			addEventListener(typ, fn) { zuhoerer[typ] = fn; },
+			removeEventListener(typ) { delete zuhoerer[typ]; },
+			querySelector() { return null; },
+			contains() { return true; },
+			feuere(typ, ziel) { if (zuhoerer[typ]) { zuhoerer[typ]({ target: ziel, preventDefault() {} }); } },
+		};
+	}
+	function klickZiel(merkmal, wert) {
+		const element = {
+			getAttribute: (name) => (name === merkmal ? wert : null),
+			hasAttribute: (name) => name === merkmal,
+		};
+		element.closest = (selektor) => (selektor === "[" + merkmal + "]" ? element : null);
+		return element;
+	}
+	const kurzeRuhe = () => new Promise((fertig) => setTimeout(fertig, 0));
+
+	const artikelStand = {
+		artikel: { name: "Konzilslinie", wiki_url: "https://w/wiki/K", wiki_key: "k", werte: {} },
+		listen: { wiki_articles: [{ name: "Satinavs Ketten", wiki_url: "https://w/wiki/S", wiki_key: "s", werte: {} }] },
+	};
+
+	// (a) `syncUebernehmen` wirft synchron -- der Kraftlinien-Erklaerung fehlt der Sync-Knopf, also
+	// wird die Aktion direkt ausgeloest (genau das tut auch ein Klick auf den Knopf).
+	const kSync = klickBehaelter();
+	let syncRufe = 0;
+	avesmapsWikiAssignMount(kSync, {
+		subject: "kraftlinie", skin: "dt",
+		laden: () => artikelStand,
+		syncUebernehmen: () => { syncRufe++; throw new Error("SYNCHRON GEWORFEN"); },
+	});
+	await kurzeRuhe();
+	let durchschlag = null;
+	try {
+		kSync.feuere("click", klickZiel("data-wa-aktion", "sync-uebernehmen"));
+	} catch (fehler) {
+		durchschlag = fehler;
+	}
+	await kurzeRuhe();
+	assert.strictEqual(syncRufe, 1, "der Rueckruf wurde gar nicht erreicht");
+	assert.strictEqual(durchschlag, null,
+		"ein synchroner Wurf aus `syncUebernehmen` verlaesst den Klick-Zuhoerer ungefangen: "
+		+ (durchschlag && durchschlag.message));
+	checks += 2;
+
+	// (b) Dasselbe fuer `loesen` -- und der Zustand darf sich NICHT bewegen.
+	const kLoesen = klickBehaelter();
+	const stLoesen = avesmapsWikiAssignMount(kLoesen, {
+		subject: "kraftlinie", skin: "dt",
+		laden: () => artikelStand,
+		loesen: () => { throw new Error("SYNCHRON GEWORFEN"); },
+	});
+	await kurzeRuhe();
+	let durchschlagL = null;
+	try {
+		kLoesen.feuere("click", klickZiel("data-wa-aktion", "entfernen"));
+	} catch (fehler) {
+		durchschlagL = fehler;
+	}
+	await kurzeRuhe();
+	assert.strictEqual(durchschlagL, null, "ein synchroner Wurf aus `loesen` schlaegt durch");
+	assert.strictEqual(stLoesen.lies().wiki_key, "k",
+		"nach einem gescheiterten Loesen ist die Zuweisung trotzdem weg");
+	checks += 2;
+
+	// (c) Und fuer `zuweisen`: erst die Suche oeffnen (Listen-Suche, kein Netz), dann den Treffer.
+	const kZuweisen = klickBehaelter();
+	const stZuweisen = avesmapsWikiAssignMount(kZuweisen, {
+		subject: "kraftlinie", skin: "dt",
+		laden: () => ({ artikel: null, listen: artikelStand.listen }),
+		zuweisen: () => { throw new Error("SYNCHRON GEWORFEN"); },
+	});
+	await kurzeRuhe();
+	kZuweisen.feuere("click", klickZiel("data-wa-aktion", "zuweisen"));
+	await kurzeRuhe();
+	let durchschlagZ = null;
+	try {
+		kZuweisen.feuere("click", klickZiel("data-wa-treffer", "0"));
+	} catch (fehler) {
+		durchschlagZ = fehler;
+	}
+	await kurzeRuhe();
+	assert.strictEqual(durchschlagZ, null, "ein synchroner Wurf aus `zuweisen` schlaegt durch");
+	assert.strictEqual(stZuweisen.lies().wiki_key, "",
+		"nach einem gescheiterten Zuweisen steht die Zuweisung trotzdem da");
+	checks += 2;
+
+	// 🔴 Und der Trichter selbst, damit die Eigenschaft benannt ist und nicht nur beobachtet:
+	// wer wirft, lehnt ab -- beides ist dasselbe.
+	let gefangen = null;
+	await avesmapsWikiAssignRufen(() => { throw new Error("geworfen"); }).then(() => {}, (f) => { gefangen = f; });
+	assert.ok(gefangen && /geworfen/.test(gefangen.message),
+		"avesmapsWikiAssignRufen macht aus einem synchronen Wurf keine abgelehnte Zusage");
+	// Eine abgelehnte Zusage bleibt eine abgelehnte Zusage, ein Wert bleibt ein Wert.
+	let gefangen2 = null;
+	await avesmapsWikiAssignRufen(() => Promise.reject(new Error("abgelehnt"))).then(() => {}, (f) => { gefangen2 = f; });
+	assert.ok(gefangen2 && /abgelehnt/.test(gefangen2.message));
+	assert.strictEqual(await avesmapsWikiAssignRufen((x) => x * 2, 21), 42);
+	// Kein Rueckruf uebergeben ist kein Fehler -- das Bauteil ruft alle vier auch dann.
+	assert.strictEqual(await avesmapsWikiAssignRufen(undefined), null);
+	checks += 4;
 
 	console.log("wiki-assign: " + checks + " Zusicherungen erfuellt");
 })().catch((fehler) => {

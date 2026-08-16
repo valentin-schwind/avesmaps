@@ -709,6 +709,29 @@ function avesmapsWikiAssignTrefferAusZeile(erklaerung, zeile) {
 }
 
 /**
+ * REIN: EIN Trichter fuer JEDEN Rueckruf der Oberflaeche.
+ *
+ * 💣 EIN SYNCHRONER `throw` IST AUCH EINE ABLEHNUNG, UND `Promise.resolve(…)` FAENGT IHN NICHT.
+ * `Promise.resolve(opt.x())` wertet den Aufruf AUS, bevor `Promise.resolve` ihn zu fassen bekommt --
+ * wirft die Oberflaeche synchron, verlaesst der Fehler den Klick-Zuhoerer ungefangen, und der
+ * Ablehnungszweig darunter („nichts ist passiert, also bleibt der Zustand stehen") ist TOT.
+ * Gemessen am 16.08.2026 an `syncUebernehmen`, dem einzigen der drei Rueckrufe, den eine
+ * Oberflaeche synchron schreiben KANN -- `zuweisen` und `loesen` sind dort `async` bzw. geben eine
+ * abgelehnte Zusage zurueck und waren deshalb zufaellig richtig.
+ *
+ * 🔴 Der Riegel steht deshalb HIER und nicht in den Oberflaechen: eine Objektart der Aufgaben 5-9
+ * schreibt ihren Rueckruf ohne `async`, und niemand faellt darueber, bis der Fehlerfall eintritt.
+ * Wer wirft, lehnt ab -- beides ist dasselbe.
+ */
+function avesmapsWikiAssignRufen(rueckruf, argument) {
+	try {
+		return Promise.resolve(typeof rueckruf === "function" ? rueckruf(argument) : null);
+	} catch (fehler) {
+		return Promise.reject(fehler);
+	}
+}
+
+/**
  * REIN: filtert eine im Browser liegende Kandidatenliste. Teilzeichenkette im Namen, ohne
  * Gross-/Kleinschreibung, gedeckelt auf dieselbe Zahl wie die Server-Suchen.
  */
@@ -999,7 +1022,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		if (!treffer) {
 			return;
 		}
-		Promise.resolve(typeof opt.zuweisen === "function" ? opt.zuweisen(treffer) : null).then(() => {
+		avesmapsWikiAssignRufen(opt.zuweisen, treffer).then(() => {
 			// 🔴 Das Bauteil uebernimmt den Treffer SELBST in seinen Zustand, statt neu zu laden:
 			// eine Oberflaeche, die erst beim „Speichern“ schreibt (Kraftlinien), haette sonst
 			// nichts zurueckzugeben, und der frisch gewaehlte Artikel verschwaende sofort wieder.
@@ -1055,7 +1078,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			return;
 		}
 		if (aktion === "entfernen") {
-			Promise.resolve(typeof opt.loesen === "function" ? opt.loesen() : null).then(() => {
+			avesmapsWikiAssignRufen(opt.loesen).then(() => {
 				daten.artikel = null;
 				ui = neuerZustand("offen");
 				zeichne();
@@ -1079,7 +1102,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		}
 		if (aktion === "sync-uebernehmen") {
 			const gehakt = ui.syncZeilen.filter((zeile) => zeile.gehakt);
-			Promise.resolve(typeof opt.syncUebernehmen === "function" ? opt.syncUebernehmen(gehakt) : null).then(() => {
+			avesmapsWikiAssignRufen(opt.syncUebernehmen, gehakt).then(() => {
 				ui = neuerZustand("zugewiesen");
 				zeichne();
 			}, () => {
@@ -1232,6 +1255,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsWikiAssignMarkup: avesmapsWikiAssignMarkup,
 		avesmapsWikiAssignTrefferListeInhalt: avesmapsWikiAssignTrefferListeInhalt,
 		avesmapsWikiAssignTrefferAusZeile: avesmapsWikiAssignTrefferAusZeile,
+		avesmapsWikiAssignRufen: avesmapsWikiAssignRufen,
 		// Nur fuer die Probe des Blindgaengers: der Zweig, der OHNE DOM zurueckkehrt.
 		avesmapsWikiAssignMount: avesmapsWikiAssignMount,
 		avesmapsWikiAssignListeFiltern: avesmapsWikiAssignListeFiltern,

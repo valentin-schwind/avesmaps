@@ -217,7 +217,7 @@
    gemeinsamen Regel mit `.label-edit-section-title`. Hier bleibt nur, was NUR dieser Kopf braucht:
    das Zuruecknehmen von `font-weight: 600` aus `.label-wiki-reference__title`. */
 #path-edit-dialog .label-wiki-reference__title {
-	font-weight: 400;
+	font-weight: var(--font-weight-regular);
 }
 
 /* Das Suchfeld fuellt seine Rasterzelle -- in der `dl`-Huelle ist die zweite Spalte

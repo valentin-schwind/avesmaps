@@ -377,13 +377,16 @@ assert.ok(gemeinsameWerte["border-top"] === undefined,
 zaehl(); zaehl();
 // ⚠️ `font-weight` steht in einer EIGENEN, eingeengten Regel: die gemeinsame setzt keins (sie
 // erbt 400), aber `.label-wiki-reference__title` setzt 600 -- das muss zurueckgenommen werden.
-const kopfEigen = regelRumpf(regionSyncCss, "#path-edit-dialog .label-wiki-reference__title");
-assert.strictEqual(kopfEigen["font-weight"], "400",
-	"der Kopf traegt wieder das Gewicht 600 aus .label-wiki-reference__title und faellt aus der Rangfolge");
-// Der fehlende Token ist wirklich angelegt worden, nicht nur benutzt.
+// ⚠️ Geprueft wird der TOKEN, nicht die Zahl. Eine Zusicherung auf `"400"` machte das spaetere
+// Tokenisieren rot -- sie haette also genau die Aufraeumarbeit bestraft, die §12 verlangt.
 const tokens = fs.readFileSync(path.join(wurzel, "css", "base", "tokens.css"), "utf8");
+const kopfEigen = regelRumpf(regionSyncCss, "#path-edit-dialog .label-wiki-reference__title");
+assert.strictEqual(kopfEigen["font-weight"], "var(--font-weight-regular)",
+	"der Kopf traegt wieder das Gewicht 600 aus .label-wiki-reference__title und faellt aus der Rangfolge");
+// Die benutzten Token sind wirklich angelegt, nicht nur benutzt.
+assert.ok(/--font-weight-regular:\s*400;/.test(tokens), "der Token --font-weight-regular fehlt");
 assert.ok(/--letter-spacing-caps:\s*0\.08em;/.test(tokens), "der Token --letter-spacing-caps fehlt");
-zaehl(); zaehl();
+zaehl(); zaehl(); zaehl();
 
 // ── 9) BEIDE OBERFLAECHEN HAENGEN AM SELBEN BAUTEIL, JEDE IN IHRER HUELLE ─────────────────────
 // ⚠️ Eine Zusicherung am Modell saehe das nicht: hier bricht die VERDRAHTUNG, nicht der Bauer.
@@ -580,6 +583,9 @@ function sandkastenBauen(fetchAntwort) {
 	return { kasten: kasten, elemente: elemente, gesendet: gesendet };
 }
 
+// Ein Behaelter, der Klicks WIRKLICH ausloest -- `scheinBehaelter` aus Abschnitt 11 kann das
+// bereits; hier steht nur der Name, unter dem Abschnitt 12 ihn benutzt.
+const klickfaehigerBehaelter = scheinBehaelter;
 const ruhe2 = () => new Promise((fertig) => setTimeout(fertig, 20));
 const trefferProbe = avesmapsWikiAssignWegTreffer(zeile);
 
@@ -841,8 +847,42 @@ const trefferProbe = avesmapsWikiAssignWegTreffer(zeile);
 	// ---- 12c) Und `syncUebernehmen` lehnt ab, wenn es nichts tun kann ------------------------
 	// 🔴 Derselbe Vertrag wie bei `zuweisen`/`loesen`. Ein stilles Aufloesen schloesse die Vorschau,
 	// als sei uebernommen worden.
+	//
+	// 🪤 DIESE PROBE RIEF DEN RUECKRUF BIS ZUM 16.08.2026 DIREKT (`wNeinOpt.syncUebernehmen([])`)
+	// und sah damit genau das nicht, worum es geht: die Oberflaeche wirft SYNCHRON, und
+	// `Promise.resolve(opt.x())` fing das nicht -- der Fehler verliess den Klick-Zuhoerer
+	// ungefangen. Wieder der Bauer statt der Verdrahtung, in derselben Nachbesserung, in der es um
+	// genau diesen Unterschied ging. Gefahren wird deshalb der KLICKPFAD des echten Bauteils, mit
+	// dem echten Rueckruf der echten Oberflaeche.
+	const kastenSy = klickfaehigerBehaelter();
+	const stSy = avesmapsWikiAssignMount(kastenSy, {
+		subject: "weg", skin: "dt",
+		laden: () => avesmapsWikiAssignWegZustand({
+			wiki_path: { wiki_key: "wiki:x", name: "X", kind: "strasse", wiki_url: "https://w/wiki/X" },
+			feature_subtype: "Strasse",
+		}),
+		syncUebernehmen: wNeinOpt.syncUebernehmen,
+	});
+	await stSy.neuLaden();
+	let syncDurchschlag = null;
+	try {
+		kastenSy.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
+	} catch (fehler) {
+		syncDurchschlag = fehler;
+	}
+	await ruhe();
+	assert.strictEqual(syncDurchschlag, null,
+		"der synchrone Wurf aus `syncUebernehmen` der Oberflaeche verlaesst den Klick-Zuhoerer ungefangen: "
+		+ (syncDurchschlag && syncDurchschlag.message));
+	// Und die Vorschau ist NICHT geschlossen worden -- „nichts passiert" heisst: der Kasten bleibt.
+	assert.ok(kastenSy.innerHTML.indexOf('data-wa-aktion="sync-uebernehmen"') === -1
+		|| kastenSy.innerHTML.indexOf("Aus dem Wiki übernehmen") !== -1,
+		"nach einer abgelehnten Uebernahme ist der Kasten in einen anderen Zustand gesprungen");
+	checks += 2;
+
+	// Gegenprobe am Rueckruf selbst: er WIRFT, statt still aufzuloesen.
 	let syncAbgelehnt = false;
-	await Promise.resolve().then(() => wNeinOpt.syncUebernehmen([])).then(() => {}, () => { syncAbgelehnt = true; });
+	try { wNeinOpt.syncUebernehmen([]); } catch (fehler) { syncAbgelehnt = true; }
 	assert.ok(syncAbgelehnt, "`syncUebernehmen` loest still auf, wenn es nichts uebernehmen kann");
 	checks += 1;
 
