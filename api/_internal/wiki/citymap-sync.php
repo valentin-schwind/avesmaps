@@ -2373,3 +2373,89 @@ function avesmapsCitymapDeleteWikiRow(PDO $pdo, string $wikiKey): bool
 
     return true;
 }
+
+/**
+ * Die TREFFERQUELLE der Wiki-Zuweisung im Karten-Editor (Aufgabe 9 des Umbaus, Entwurf
+ * docs/superpowers/specs/2026-08-15-wiki-zuweisung-vereinheitlichung-design.md §8).
+ *
+ * 🔴 GESUCHT WIRD DER EIGENE ARTIKEL DER KARTE -- nicht ihr Bauschluessel und nicht ihre Publikation.
+ * Die drei auseinanderzuhalten ist die ganze Falle dieser Objektart; die Messung steht an den Spalten
+ * in avesmapsCitymapsEnsureTables (api/_internal/app/citymaps.php).
+ *
+ * 💣 ES GAB VORHER GAR KEINE SUCHE, UND ES GIBT AUCH KEINEN KATALOG VON KARTEN-ARTIKELN. Am
+ * Livecode gemessen (16.08.2026): `wiki_citymap_catalog` traegt INDEXZEILEN, deren Schluessel
+ * `index:stadt:quelle:variante` lautet -- keine Seite. `wiki_publication_catalog` traegt BUECHER (das
+ * ist `map_url`). `wiki_adventure_catalog` traegt Werke. Die EINZIGE Tabelle im Haus, die einen
+ * Seitentitel auf seine Adresse abbildet, ist `wiki_sync_pages`.
+ *
+ * ⚠️ UND SIE FUEHRT HEUTE NUR ORTS- UND BAUWERKSSEITEN. Das ist keine Nachlaessigkeit dieser
+ * Funktion, sondern der Bestand: geschrieben wird die Registry von avesmapsWikiSyncUpsertPageCache
+ * (locations-helpers.php:332) und avesmapsWikiDumpPersistSettlementRecords (dump-entity-scan.php),
+ * beide ausschliesslich fuer Siedlungen und Bauwerke. Steht der Artikel einer Karte woanders im Wiki,
+ * wird er hier NICHT gefunden -- dafuer sagt der Leerzustand im Kasten, was zu tun ist, und daneben
+ * steht das Haekchen „Kein Wiki-Artikel vorhanden".
+ * 🔴 Und deshalb traegt jeder Treffer seine SEITENART mit: „Stadt", „Dorf", „Gebäude". Weist ein
+ * Editor eine Karte der Seite ihrer Stadt zu, ist das kein stiller Fehler mehr, sondern ein Fall im
+ * Konfliktzentrum (avesmapsConflictLoadCitymapRows) -- die Suche bietet an, was da ist, und die
+ * Kollisionsregel faengt den Missgriff.
+ *
+ * 💣 KEIN EIGENES DDL HIER: `wiki_sync_pages` und ihre nachgezogenen Spalten (`continent`) legt
+ * avesmapsWikiSettlementEnsureSchema an, und das ist MySQL samt information_schema. Der Aufrufer
+ * macht das (api/edit/wiki/citymaps.php) -- nur so bleibt diese Funktion gegen SQLite pruefbar,
+ * dieselbe Trennung wie bei avesmapsWikiGameLiteratureSearch.
+ *
+ * @return array{ok:bool, query:string, rows:array<int, array<string, string>>}
+ */
+function avesmapsWikiCitymapArticleSearch(PDO $pdo, string $query, int $limit = 40): array
+{
+    $query = trim($query);
+    // Dieselben Schranken wie bei den drei Schwestern: mindestens 1, hoechstens 80. Das Bauteil
+    // schickt 40.
+    $limit = max(1, min(80, $limit));
+
+    $select = 'SELECT title, settlement_class, settlement_label, continent, wiki_url FROM wiki_sync_pages';
+    if ($query === '') {
+        $statement = $pdo->prepare($select . ' ORDER BY title ASC LIMIT :lim');
+    } else {
+        // 💣 `is_exact` zuerst, dann der KUERZESTE Titel -- wortgleich zu avesmapsWikiSettlementSearch
+        // (api/_internal/wiki/settlements.php:710). Ohne die zweite Stufe steht „Gareth" hinter
+        // „Garether Handelskontor", und der gesuchte Artikel ist der, dessen Name am wenigsten
+        // Beiwerk traegt.
+        $statement = $pdo->prepare(
+            $select . ' WHERE title LIKE :like'
+            . ' ORDER BY (title = :exact) DESC, LENGTH(title) ASC, title ASC LIMIT :lim'
+        );
+        $statement->bindValue(':exact', $query);
+        $statement->bindValue(':like', '%' . $query . '%');
+    }
+    $statement->bindValue(':lim', $limit, PDO::PARAM_INT);
+    $statement->execute();
+
+    $rows = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $title = trim((string) ($row['title'] ?? ''));
+        if ($title === '') {
+            continue;
+        }
+        $class = (string) ($row['settlement_class'] ?? '');
+        $label = trim((string) ($row['settlement_label'] ?? ''));
+        if ($label === '' && $class !== '' && function_exists('avesmapsWikiSettlementClassLabel')) {
+            $label = (string) avesmapsWikiSettlementClassLabel($class);
+        }
+        $rows[] = [
+            // `name` ist der Anzeigename des Treffers, `title` derselbe Wert unter dem Namen der
+            // Spalte -- das Bauteil liest `name`, die drei Schwestern geben beide heraus.
+            'name' => $title,
+            'title' => $title,
+            // 🔴 Derselbe Schluessel, den das ganze Haus fuer eine Wiki-Seite bildet
+            // (avesmapsPoliticalSlug, AGENTS.md §5). Nicht „huebscher" machen: die Faltung ist eine
+            // feste Tabelle, keine Locale, und jede Aenderung daran waere eine Datenmigration.
+            'wiki_key' => avesmapsPoliticalSlug($title),
+            'wiki_url' => (string) ($row['wiki_url'] ?? ''),
+            'settlement_label' => $label,
+            'continent' => trim((string) ($row['continent'] ?? '')),
+        ];
+    }
+
+    return ['ok' => true, 'query' => $query, 'rows' => $rows];
+}

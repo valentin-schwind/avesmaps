@@ -332,6 +332,53 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     if (!$columnExists('map_url_label')) {
         $pdo->exec('ALTER TABLE citymap ADD COLUMN map_url_label VARCHAR(120) NULL');
     }
+    // ── article_* + no_article: DER EIGENE WIKI-ARTIKEL DIESER KARTE (Aufgabe 9 der Wiki-Zuweisung,
+    //    Entwurf docs/superpowers/specs/2026-08-15-wiki-zuweisung-vereinheitlichung-design.md §8) ──
+    //
+    // 💣 BEI DEN KARTEN HEISST SCHON ZWEIERLEI „wiki", UND DIESE SPALTEN SIND EIN DRITTES DING. Am
+    // Livecode gemessen (16.08.2026), damit niemand sie verwechselt oder zusammenlegt:
+    //
+    //   citymap.wiki_key -- ein BAUSCHLUESSEL aus vier Teilen, `index:stadt:quelle:variante`
+    //     (avesmapsCitymapWikiKey, api/_internal/wiki/citymap-sync.php:103; gebaut :584/:754/:818,
+    //     Spalte angelegt :1310). Er sagt, aus welcher INDEX-SEITE die Zeile stammt, und ist KEINE
+    //     Seitenidentitaet. An ihm haengt der laufende Karten-Abgleich -- 🔴 unangetastet.
+    //   citymap.map_url -- der Karten-Link. Bei einer Wiki-Karte baut ihn der Abgleich aus der
+    //     QUELLE, also aus der Publikation (avesmapsCitymapWikiUrlForSource, citymap-sync.php:1508,
+    //     geschrieben :1930/:2051): er zeigt auf das BUCH, in dem die Karte steckt, nie auf die Karte.
+    //     🔴 Ebenfalls unangetastet.
+    //   🪤 Eine Spalte `citymap.wiki_url` GIBT ES NICHT -- Entwurf §8 nennt sie, und das ist an der
+    //     Wirklichkeit gemessen falsch; gemeint ist `map_url`. Hier steht es, damit die falsche
+    //     Angabe nicht das naechste Mal als Beleg wiederkehrt.
+    //
+    // 💣 DESHALB HEISSEN DIESE SPALTEN NICHT `wiki_url`/`wiki_key`: ein `git grep wiki_url` faende
+    // sonst drei verschiedene Sachen unter einem Namen -- dieselbe Verwechslungsklasse wie
+    // „Literatur" gegen „Quellen" (AGENTS.md §2).
+    //
+    // ⚠️ KEIN UNIQUE auf article_key, anders als bei `adventure.wiki_key`. Zwei Karten duerfen
+    // denselben Artikel beanspruchen (Farb- und s/w-Fassung, oder derselbe Plan aus zwei Baenden);
+    // ob das ein Fehler ist, entscheidet das Konfliktzentrum und nicht ein 500er beim Speichern
+    // (avesmapsConflictLoadCitymapRows, api/_internal/conflicts/rules.php).
+    //
+    // 🔴 HIER und nicht in avesmapsEnsureCitymapStagingTables: jene DDL laeuft NUR auf dem Sync-Pfad
+    // des Owners (dort steht der Grund ausgeschrieben), und diese vier Spalten liest bzw. schreibt
+    // der EDITOR. Stuenden sie dort, faende der erste Editor auf einer Installation ohne Dump-Lauf
+    // einen 500er beim Speichern -- die Fehlerklasse „neue Spalte im Lesepfad". Die Probe kostet
+    // nichts extra: die Spaltenliste oben wird ohnehin in EINER Abfrage geholt.
+    if (!$columnExists('article_url')) {
+        $pdo->exec('ALTER TABLE citymap ADD COLUMN article_url VARCHAR(500) NULL');
+    }
+    if (!$columnExists('article_key')) {
+        $pdo->exec('ALTER TABLE citymap ADD COLUMN article_key VARCHAR(190) NULL');
+    }
+    if (!$columnExists('article_title')) {
+        $pdo->exec('ALTER TABLE citymap ADD COLUMN article_title VARCHAR(300) NULL');
+    }
+    // Der dritte Zustand („Kein Wiki-Artikel vorhanden", Entwurf §2.7). NOT NULL mit Vorgabe 0:
+    // „niemand hat sich geaeussert" und „es gibt keinen" sind verschiedene Antworten, und nur die
+    // zweite ist eine Entscheidung -- ein NULL daneben waere ein dritter Wert ohne Bedeutung.
+    if (!$columnExists('no_article')) {
+        $pdo->exec('ALTER TABLE citymap ADD COLUMN no_article TINYINT(1) NOT NULL DEFAULT 0');
+    }
 }
 
 function avesmapsCitymapsCount(PDO $pdo): int
@@ -1308,6 +1355,19 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
             'note' => (string) ($row['note'] ?? ''),
             'status' => (string) $row['status'],
             'origin' => (string) $row['origin'],
+            // Der EIGENE Wiki-Artikel dieser Karte -- NICHT `wiki_key` (Bauschluessel) und NICHT
+            // `map_url` (die Publikation). Die Unterscheidung steht ausgeschrieben an den Spalten in
+            // avesmapsCitymapsEnsureTables. Editor-only: die oeffentliche Leseseite
+            // (avesmapsCitymapsReadCatalog) waehlt sie nicht aus, weil ein zweiter Link neben „Karte"
+            // eine sichtbare Aenderung waere und die einzeln vor die Augen des Owners gehoert
+            // (AGENTS.md §9).
+            // ⚠️ `?? ''` traegt hier mehr als Bequemlichkeit: der SELECT oben ist ein `SELECT *`, und
+            // auf einer Installation, deren self-healing ALTER noch nicht gelaufen ist, FEHLEN die
+            // Schluessel schlicht -- ohne den Rueckfall waere das ein Notice und ein halber Payload.
+            'article_url' => (string) ($row['article_url'] ?? ''),
+            'article_key' => (string) ($row['article_key'] ?? ''),
+            'article_title' => (string) ($row['article_title'] ?? ''),
+            'no_article' => (int) ($row['no_article'] ?? 0) === 1,
         ],
         'types' => avesmapsCitymapTypesByCitymap($pdo, [$id])[$id] ?? [],
         'related' => $related,
@@ -1343,17 +1403,42 @@ function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0, string $o
         avesmapsErrorResponse(400, 'invalid_request', 'Der Titel ist zu lang (max. ' . AVESMAPS_CITYMAP_TITLE_MAX . ' Zeichen).');
     }
 
+    // 🔴 DIE VIER `article_*`/`no_article` STEHEN HIER, UND DIE WEISSE LISTE IST IHR SCHUTZ.
+    // Geschrieben wird nur, was die Anfrage MITSCHICKT (`array_key_exists` unten) -- und die
+    // Oberflaeche schickt sie ausdruecklich NUR, wenn die Wiki-Zuweisung geladen ist
+    // (`bereit`, html/citymap-editor.html). Das ist die bewusste Entscheidung fuer den Leerfall:
+    // 💣 ein Feld, das bei JEDEM Speichern mitreist, loescht sich still, sobald es leer gesendet wird
+    // -- die Fehlerklasse aus AGENTS.md §10, und bei Ort und Literatur genau der Punkt, an dem sie
+    // beinahe zugeschlagen haette. Hier faellt der Schluessel im Zweifel WEG, statt leer zu reisen;
+    // die Spalte bleibt dann unangetastet. Ein GEWOLLTES Leeren („Entfernen" im Kasten) schickt den
+    // Schluessel sehr wohl -- mit Leerstring, und der wird unten zu NULL.
+    // ⚠️ `no_article` reist zusaetzlich nur mit, wenn das Haekchen SEIT DEM LADEN umgelegt wurde
+    // (`kein_artikel_geaendert`), damit ein alter offener Dialog die Entscheidung eines zweiten
+    // Editors nicht zuruecknimmt. Die Begruendung steht im Kopf von js/ui/wiki-assign.js.
     $editableFields = [
         'map_url', 'map_url_label', 'map_license', 'map_license_note', 'thumb_url', 'thumb_license', 'thumb_license_note',
         'art', 'is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid', 'has_scale',
         'width_px', 'height_px', 'format', 'valid_from_bf', 'valid_to_bf', 'author', 'publisher', 'note',
-        'status',
+        'status', 'article_url', 'article_key', 'article_title', 'no_article',
     ];
 
     $normalize = static function (string $field, mixed $raw): int|string|null {
         if (in_array($field, ['is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid',
             'has_scale'], true)) {
             return avesmapsCitymapTriBool($raw);
+        }
+        // ZWEIWERTIG, nicht dreiwertig -- anders als jede Eigenschaft darueber. „Kein Wiki-Artikel
+        // vorhanden" ist die Antwort eines Menschen auf eine Frage, die sonst offen bliebe; ein
+        // „unbekannt" daneben waere derselbe Zustand wie 0 und truege nichts bei. Die Spalte ist
+        // deshalb NOT NULL DEFAULT 0.
+        if ($field === 'no_article') {
+            return (int) ((bool) $raw === true || $raw === '1' || $raw === 1);
+        }
+        if ($field === 'article_url') {
+            // Derselbe Riegel wie fuer jeden anderen Link: nur http/https, laengengeprueft. Leer ->
+            // NULL, damit ein „Entfernen" die Spalte wirklich raeumt.
+            $value = avesmapsCitymapNormalizeUrl($raw, 'Wiki-Artikel');
+            return $value === '' ? null : $value;
         }
         if (in_array($field, ['width_px', 'height_px', 'valid_from_bf', 'valid_to_bf'], true)) {
             return avesmapsCitymapIntOrNull($raw);
@@ -1398,6 +1483,16 @@ function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0, string $o
         }
         if ($field === 'map_url_label' && mb_strlen($value) > AVESMAPS_CITYMAP_URL_LABEL_MAX) {
             throw new InvalidArgumentException('Der Linktext ist zu lang (max. ' . AVESMAPS_CITYMAP_URL_LABEL_MAX . ' Zeichen).');
+        }
+        // 💣 GEPRUEFT STATT ABGESCHNITTEN. `article_key` ist VARCHAR(190), `article_title`
+        // VARCHAR(300) -- ausserhalb des strict mode schneidet MySQL lautlos, und ein gekuerzter
+        // Schluessel ist von einem falschen nicht zu unterscheiden (AGENTS.md §10). Dieselbe Regel,
+        // die schon Urheber, Format und Verlag darueber tragen.
+        if ($field === 'article_key' && mb_strlen($value) > 190) {
+            throw new InvalidArgumentException('Der Wiki-Schluessel ist zu lang (max. 190 Zeichen).');
+        }
+        if ($field === 'article_title' && mb_strlen($value) > AVESMAPS_CITYMAP_TITLE_MAX) {
+            throw new InvalidArgumentException('Der Artikelname ist zu lang (max. ' . AVESMAPS_CITYMAP_TITLE_MAX . ' Zeichen).');
         }
         return $value === '' ? null : $value;
     };
@@ -1499,6 +1594,11 @@ function avesmapsCitymapNormalizeUrl(mixed $raw, string $label): string
 //  - map_local_url / thumb_local_url / thumb_auto_url -- uploads and the Autoget crawl, capability `edit`.
 //  - status / origin / parent_public_id / related -- moderation plus cross-map references. The first two
 //    are ours to decide; the last two name other maps by public_id, which a reader has no way to know.
+//  - article_url / article_key / article_title / no_article -- die Wiki-Zuweisung. Sie entsteht im
+//    Editor durch SUCHEN, nicht durch Tippen (Entwurf §5), und der dritte Zustand ist eine Aussage
+//    ueber unseren Datenbestand, keine Beobachtung eines Lesers. Weil die Schluessel hier nie
+//    auftauchen, nennt der INSERT die Spalten nie -- der Riegel wird nicht umgangen, er wird gar
+//    nicht erst angesprochen. Eine Wiki-Seite, die ein Leser kennt, gehoert in `note`.
 function avesmapsNormalizeCitymapReportPayload(mixed $raw): array
 {
     $data = is_array($raw) ? $raw : [];
