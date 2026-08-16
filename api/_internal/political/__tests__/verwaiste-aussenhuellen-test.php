@@ -35,7 +35,8 @@ $pdo->exec('CREATE TABLE political_territory (
     id INTEGER PRIMARY KEY, public_id TEXT, wiki_id INTEGER, slug TEXT, name TEXT,
     short_name TEXT, type TEXT, parent_id INTEGER, continent TEXT, status TEXT,
     color TEXT, opacity REAL, is_active INTEGER, sort_order INTEGER,
-    min_zoom INTEGER, max_zoom INTEGER, valid_from_bf INTEGER, valid_to_bf INTEGER
+    min_zoom INTEGER, max_zoom INTEGER, valid_from_bf INTEGER, valid_to_bf INTEGER,
+    capital_place_id INTEGER, seat_place_id INTEGER, wiki_key TEXT, wiki_url TEXT, valid_label TEXT
 )');
 $pdo->exec('CREATE TABLE political_territory_geometry (
     id INTEGER PRIMARY KEY, public_id TEXT, territory_id INTEGER, is_active INTEGER,
@@ -49,9 +50,14 @@ $pdo->exec('CREATE TABLE political_territory_derived_geometry (
     min_x REAL, min_y REAL, max_x REAL, max_y REAL, created_by INTEGER, created_at TEXT,
     updated_by INTEGER, updated_at TEXT
 )');
+// ⚠️ Die Spaltenliste folgt dem, was avesmapsPoliticalFetchTerritoryByPublicId joint -- der
+// Rechtsklick-Weg (delete_derived_geometry_tree) laeuft ueber diesen Resolver, nicht daran vorbei.
 $pdo->exec('CREATE TABLE political_territory_wiki (
-    id INTEGER PRIMARY KEY, wiki_key TEXT, name TEXT, affiliation_path_json TEXT
+    id INTEGER PRIMARY KEY, wiki_key TEXT, name TEXT, type TEXT, affiliation_path_json TEXT,
+    affiliation_raw TEXT, affiliation_root TEXT, founded_text TEXT, dissolved_text TEXT,
+    capital_name TEXT, seat_name TEXT
 )');
+$pdo->exec('CREATE TABLE map_features (id INTEGER PRIMARY KEY, public_id TEXT)');
 $pdo->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT)');
 $pdo->exec('CREATE TABLE political_territory_geometry_audit_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT, action TEXT, actor_user_id INTEGER,
@@ -218,6 +224,39 @@ assert(is_array($blatt) && (int) $blatt['is_active'] === 1, 'die Huelle mit Quel
 foreach (['d-deakt-terr' => 'ein Papierkorb-Gebiet', 'd-fremd' => 'ein fremder Kontinent', 'd-wiki' => 'eine Wiki-Quelle'] as $publicId => $was) {
     $row = $pdo->query("SELECT is_active FROM political_territory_derived_geometry WHERE public_id = '" . $publicId . "'")->fetch(PDO::FETCH_ASSOC);
     assert(is_array($row) && (int) $row['is_active'] === 1, $was . ' ueberlebt den Bulk-Lauf unangetastet');
+}
+
+// ===== Der Rechtsklick auf der Karte laeuft durch DIESELBE Weiche ================================
+// 💣 delete_derived_geometry_tree setzte bis 16.08.2026 sein eigenes Sammel-UPDATE ab. Derselbe
+// Text „Außenhülle löschen" loeschte damit im Aufraeumfenster hart und auf der Karte weich -- der
+// Geist blieb als inaktive Zeile stehen und war danach fuer KEIN Werkzeug mehr sichtbar, weil
+// beide Listen is_active = 1 filtern.
+// ⚠️ Echte UUIDs: avesmapsPoliticalResolveDerivedGeometryTarget haelt alles andere fuer einen
+// Wiki-Schluessel und sucht in political_territory_wiki weiter.
+$baumWurzelPublicId = '11111111-1111-4111-8111-111111111111';
+$pdo->exec("INSERT INTO political_territory (id, public_id, wiki_id, name, parent_id, is_active, continent) VALUES
+    (11, '" . $baumWurzelPublicId . "', NULL, 'Baum-Wurzel', NULL, 1, 'Aventurien'),
+    (12, '22222222-2222-4222-8222-222222222222', NULL, 'Baum-Ast leer', 11, 1, 'Aventurien'),
+    (13, '33333333-3333-4333-8333-333333333333', NULL, 'Baum-Ast voll', 11, 1, 'Aventurien')");
+$pdo->exec("INSERT INTO political_territory_geometry
+    (id, public_id, territory_id, is_active, source, created_by, created_at, min_x, min_y, max_x, max_y) VALUES
+    (15, 'g-baum', 13, 1, '', 7, '2026-08-04 10:00:00', 70.0, 70.0, 80.0, 80.0)");
+$pdo->exec("INSERT INTO political_territory_derived_geometry
+    (id, public_id, territory_id, is_active, min_x, min_y, max_x, max_y, created_by, created_at) VALUES
+    (30, 'd-baum-wurzel', 11, 1, 70.0, 70.0, 80.0, 80.0, 7, '2026-08-04 10:00:00'),
+    (31, 'd-baum-leer',   12, 1, 70.0, 70.0, 72.0, 72.0, 7, '2026-08-04 10:00:00'),
+    (32, 'd-baum-voll',   13, 1, 70.0, 70.0, 80.0, 80.0, 7, '2026-08-04 10:00:00')");
+
+$baum = avesmapsPoliticalDeleteDerivedGeometryTree($pdo, ['territory_public_id' => $baumWurzelPublicId], ['id' => 7]);
+assert($baum['affected'] === 3, 'alle drei Huellen des Baums sind angefasst');
+assert($baum['hard_deleted'] === 1, 'aber nur die eine ohne Quelle faellt hart');
+$leer = $pdo->query("SELECT COUNT(*) FROM political_territory_derived_geometry WHERE public_id = 'd-baum-leer'")->fetchColumn();
+assert((int) $leer === 0, 'der Ast ohne Quelle ist wirklich weg, nicht nur abgeschaltet');
+// 🔴 Die Gegenprobe: ein gesunder Baum wird weiterhin nur deaktiviert. „Grenzen berechnen" holt
+// ihn zurueck, solange Quellflaechen da sind.
+foreach (['d-baum-wurzel', 'd-baum-voll'] as $publicId) {
+    $row = $pdo->query("SELECT is_active FROM political_territory_derived_geometry WHERE public_id = '" . $publicId . "'")->fetch(PDO::FETCH_ASSOC);
+    assert(is_array($row) && (int) $row['is_active'] === 0, $publicId . ' steht abgeschaltet da');
 }
 
 // ===== Die Weiche bleibt weich, wo etwas wiederherstellbar ist ===================================

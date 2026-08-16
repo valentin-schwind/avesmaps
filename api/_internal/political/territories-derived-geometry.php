@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/derived-orphans.php';
 require_once __DIR__ . '/territories-audit.php';
+require_once __DIR__ . '/territories-derived-geometry-plan.php';
 
 function avesmapsPoliticalEnsureDerivedGeometryTables(PDO $pdo): void {
     $pdo->exec(
@@ -370,19 +371,35 @@ function avesmapsPoliticalDeleteDerivedGeometryTree(PDO $pdo, array $payload, ar
             'derived_geometry' => null,
             'deactivated' => true,
             'affected' => 0,
+            'hard_deleted' => 0,
             'affected_territories' => [],
         ];
     }
 
-    $activePlaceholders = implode(',', array_fill(0, count($activeTerritoryIds), '?'));
-    $statement = $pdo->prepare(
-        'UPDATE political_territory_derived_geometry
-        SET is_active = 0,
-            updated_by = ?
-        WHERE is_active = 1
-            AND territory_id IN (' . $activePlaceholders . ')'
-    );
-    $statement->execute(array_merge([(int) ($user['id'] ?? 0) ?: null], $activeTerritoryIds));
+    // 🔴 Jedes betroffene Gebiet geht durch die WEICHE, nicht an ihr vorbei. Bis 16.08.2026 setzte
+    // dieser Zweig ein eigenes Sammel-UPDATE ab: derselbe Text „Außenhülle löschen" loeschte damit
+    // im Aufraeumfenster hart und auf der Karte weich. Der Geist blieb als inaktive Zeile stehen --
+    // und war danach fuer KEIN Werkzeug mehr sichtbar, weil beide Listen is_active = 1 filtern.
+    // ⚠️ EIN Schnappschuss fuer den ganzen Baum: Huellen zu loeschen aendert weder Quellflaechen
+    // noch Territorien, er bleibt also ueber die Schleife gueltig (und spart das N+1).
+    $context = avesmapsPoliticalDerivedHullSourceContext($pdo);
+    $affected = 0;
+    $hardDeleted = 0;
+    foreach ($activeTerritoryIds as $activeTerritoryId) {
+        $result = avesmapsPoliticalDeleteDerivedGeometryForTerritory(
+            $pdo,
+            [
+                'id' => $activeTerritoryId,
+                'public_id' => (string) ($territories[$activeTerritoryId]['public_id'] ?? ''),
+            ],
+            $user,
+            $context
+        );
+        $affected += (int) ($result['affected'] ?? 0);
+        if (($result['hard'] ?? false) === true) {
+            $hardDeleted++;
+        }
+    }
 
     return [
         'ok' => true,
@@ -390,7 +407,8 @@ function avesmapsPoliticalDeleteDerivedGeometryTree(PDO $pdo, array $payload, ar
         'target_key' => $target['target_key'],
         'derived_geometry' => null,
         'deactivated' => true,
-        'affected' => $statement->rowCount(),
+        'affected' => $affected,
+        'hard_deleted' => $hardDeleted,
         'affected_territories' => avesmapsPoliticalDescribePlanTerritories($activeTerritoryIds, $territories),
     ];
 }
@@ -460,6 +478,30 @@ function avesmapsPoliticalFetchActiveDerivedHullRowsForTerritory(PDO $pdo, int $
     $statement->execute(['territory_id' => $territoryId]);
 
     return $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+// Eine EINZELNE Huelle hart loeschen -- der dangling-Fall, der ueber kein Gebiet mehr adressierbar
+// ist. 🔴 Hier gibt es nichts zu entscheiden: ohne Territoriumszeile kann sie niemand mehr
+// erzeugen, „weich" waere nur ein Zustand, den kein Werkzeug mehr sieht (beide Listen filtern auf
+// is_active = 1). Liefert die Zahl der entfernten Zeilen.
+function avesmapsPoliticalHardDeleteDerivedGeometryRow(PDO $pdo, string $derivedPublicId, int $actorUserId, string $reason): int {
+    $derivedPublicId = trim($derivedPublicId);
+    if ($derivedPublicId === '') {
+        return 0;
+    }
+
+    $rows = $pdo->prepare(
+        'SELECT public_id, territory_id, min_x, min_y, max_x, max_y
+        FROM political_territory_derived_geometry
+        WHERE public_id = :public_id'
+    );
+    $rows->execute(['public_id' => $derivedPublicId]);
+    avesmapsPoliticalLogDerivedHullHardDelete($pdo, $rows->fetchAll(PDO::FETCH_ASSOC) ?: [], $actorUserId, $reason);
+
+    $drop = $pdo->prepare('DELETE FROM political_territory_derived_geometry WHERE public_id = :public_id');
+    $drop->execute(['public_id' => $derivedPublicId]);
+
+    return $drop->rowCount();
 }
 
 // 🔴 Der harte Zweig hinterliess bis 16.08.2026 KEINE Spur: kein updated_by (die Zeile ist ja weg)
