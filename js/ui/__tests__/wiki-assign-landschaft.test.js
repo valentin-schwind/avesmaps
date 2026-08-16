@@ -1,0 +1,951 @@
+// Die LANDSCHAFT als Objektart mit ZWEI Oberflaechen und einer eigenen Falle (Aufgabe 6).
+//
+// 🔴 Was hier festgenagelt wird, und jedes davon ist gemessen, nicht vermutet:
+//   1. DIE ART-REGEL. Es gab sie in DREI Fassungen mit ZWEI Zielvokabularen (Kopf von
+//      js/ui/wiki-assign-landschaft.js). Die Server-Tabelle bildet `Schlucht => tal` ab -- die
+//      Flaechenart `schlucht` entstand einen Tag NACH jener Zeile. Wer die Server-Regel blind
+//      spiegelt, macht aus einer Wiki-Schlucht auf der Karte ein Tal. Die Ordnung „eigenes
+//      Vokabular vor Server-Synonymen, und das Ergebnis MUSS eine Art dieser Ebene sein" ist
+//      genau der Riegel dagegen, und sie ist hier in beiden Richtungen zugesichert.
+//   2. DER SYNC UEBERSCHREIBT NICHT MEHR UNBEDINGT. `syncFromWikiRegion` setzte Name und Art ohne
+//      Rueckfrage; jetzt kommt die Vorschau, und weil ein gefuellter Kartenwert nie vorangehakt
+//      wird, oeffnet sie bei einer gepflegten Flaeche mit NULL Haken.
+//   3. DER DRITTE ZUSTAND. Er liegt in `ecosystem_region.properties_json` -- die Spalte gab es
+//      seit V2.3 und KEIN Leseweg gab sie heraus. Der Merker reist nur mit, wenn er seit dem Laden
+//      veraendert wurde, in BEIDE Richtungen, und beide Oberflaechen schicken ihn.
+//   4. `laden` LEHNT AB, statt etwas Leeres zu liefern -- und hier ist der Fehlerfall zum ersten
+//      Mal echtes HTTP (der Staging-Schnappschuss).
+//
+// ⭐ Und die Lehre aus den Aufgaben 3-5 steht ueber allem: eine Textprobe misst die FORM des Codes,
+// nicht sein Verhalten. Ab Teil 3 laufen die ECHTEN Oberflaechen in einem vm-Sandkasten mit
+// untergeschobenem `fetch`; geklickt wird ueber die Zuhoerer, die `mount` selbst angehaengt hat.
+//
+// Run: node js/ui/__tests__/wiki-assign-landschaft.test.js
+"use strict";
+
+const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+
+const { AVESMAPS_WIKI_ASSIGN_REGISTRY } = require("../wiki-assign-registry.js");
+const { avesmapsWikiAssignDiff } = require("../wiki-assign-diff.js");
+const {
+	AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER,
+	AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_ART_SYNONYME,
+	avesmapsWikiAssignLandschaftArtErsteKomponente,
+	avesmapsWikiAssignLandschaftArt,
+	avesmapsWikiAssignLandschaftWerte,
+	avesmapsWikiAssignLandschaftTreffer,
+	avesmapsWikiAssignLandschaftArtikel,
+	avesmapsWikiAssignLandschaftZustand,
+	avesmapsWikiAssignLandschaftZuweisungsKoerper,
+	avesmapsWikiAssignLandschaftAntwortPruefen,
+	avesmapsWikiAssignLandschaftSyncWerte,
+	avesmapsWikiAssignLandschaftSyncLeer,
+} = require("../wiki-assign-landschaft.js");
+
+// Im Browser legen die <script>-Zeilen diese Globalen an; `avesmapsWikiAssignMount` prueft BEIDE
+// und liefert sonst nur einen Blindgaenger.
+global.avesmapsWikiAssignSubject = require("../wiki-assign-registry.js").avesmapsWikiAssignSubject;
+global.avesmapsWikiAssignDiff = avesmapsWikiAssignDiff;
+
+const wurzel = path.resolve(__dirname, "..", "..", "..");
+let checks = 0;
+function zaehl() { checks++; }
+
+// Das Art-Vokabular der drei Ebenen, WORTGLEICH aus AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED
+// (api/_internal/app/ecosystem.php:87-190). 🔴 Nicht ausgedacht: an genau diesen Schluesseln
+// entscheidet sich, welche Wiki-Art ueberhaupt ankommt.
+const TOPOGRAPHIE = [
+	{ type_key: "gebirge", label: "Gebirge" }, { type_key: "see", label: "See" },
+	{ type_key: "meer", label: "Meer" }, { type_key: "kueste", label: "Küste" },
+	{ type_key: "huegelland", label: "Hügelland" }, { type_key: "wadi", label: "Wadi" },
+	{ type_key: "schlucht", label: "Schlucht" }, { type_key: "hochebene", label: "Hochebene" },
+	{ type_key: "tiefebene", label: "Tiefebene" }, { type_key: "tal", label: "Tal" },
+	{ type_key: "flussdelta", label: "Flussdelta" }, { type_key: "insel", label: "Insel" },
+];
+const VEGETATION = [
+	{ type_key: "wald", label: "Wald" }, { type_key: "suempfe_moore", label: "Sümpfe und Moore" },
+	{ type_key: "steppe", label: "Steppe" }, { type_key: "tundra", label: "Tundra" },
+	{ type_key: "auenlandschaft", label: "Auenlandschaft" }, { type_key: "wueste", label: "Wüste" },
+	{ type_key: "graslandschaft", label: "Graslandschaft" },
+	{ type_key: "flussland_flusstal", label: "Flussland/Flusstal" },
+	{ type_key: "dschungel", label: "Dschungel" }, { type_key: "wuestenoase", label: "Wüstenoase" },
+];
+const DEROGRAPHISCH = [
+	{ type_key: "region", label: "Region" }, { type_key: "inselgruppe", label: "Inselgruppe" },
+	{ type_key: "kontinent", label: "Kontinent" }, { type_key: "sonstiges", label: "Sonstiges" },
+];
+
+// Eine Suchzeile, wie avesmapsWikiRegionSearch sie WIRKLICH liefert
+// (api/_internal/wiki/regions.php:1090-1092) -- die 21 Spalten der Staging-Tabelle.
+const SUCHZEILE = {
+	wiki_key: "wiki:farindel",
+	name: "Farindel",
+	art: "Wald",
+	continent: "Aventurien",
+	region_parent: "Albernia",
+	affiliation_staat: "Mittelreich",
+	einwohner: "wenige",
+	sprache: "Garethi",
+	vegetation: "Mischwald",
+	verkehrswege: "keine",
+	description: "Der verwunschene Wald Alberniens.",
+	image_url: "",
+	wiki_url: "https://de.wiki-aventurica.de/wiki/Farindel",
+	synced_at: "2026-08-16T00:00:00Z",
+};
+
+// ══ TEIL 1: die reinen Bausteine ══════════════════════════════════════════════════════════════
+
+// ── 1) DIE ERSTE KOMPONENTE ───────────────────────────────────────────────────────────────────
+// 💣 „Art=Tal|Grube" sind ZWEI Parameter fuer MediaWiki; der Server teilt an `|` UND `,`
+// (avesmapsWikiRegionArtToSubtype). Ohne das trifft „Tal|Grube" nie den Typ „Tal".
+assert.strictEqual(avesmapsWikiAssignLandschaftArtErsteKomponente("Tal|Grube"), "tal");
+assert.strictEqual(avesmapsWikiAssignLandschaftArtErsteKomponente("Mischregion, Wald"), "mischregion");
+assert.strictEqual(avesmapsWikiAssignLandschaftArtErsteKomponente("  Wald  "), "wald");
+assert.strictEqual(avesmapsWikiAssignLandschaftArtErsteKomponente(""), "");
+assert.strictEqual(avesmapsWikiAssignLandschaftArtErsteKomponente(null), "");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+// ── 2) DIE ART-REGEL: EIGENES VOKABULAR VOR SERVER-SYNONYMEN ──────────────────────────────────
+// 🔴 DIE ZUSICHERUNG, DIE DIE GANZE ENTSCHEIDUNG TRAEGT. Die Server-Tabelle sagt `Schlucht => tal`
+// (api/_internal/wiki/regions.php:83, geschrieben am 27.07.2026). Die Flaechenart `schlucht`
+// entstand am 28.07.2026 (ecosystem.php:115). Wer die Server-Regel blind spiegelt, schreibt auf
+// jede Wiki-Schlucht ein Tal -- und die Ebene KENNT die Schlucht.
+assert.strictEqual(avesmapsWikiAssignLandschaftArt("Schlucht", TOPOGRAPHIE), "schlucht",
+	"die Server-Synonymtabelle hat gewonnen -- aus einer Schlucht wird ein Tal");
+// Die Gegenprobe zur selben Zeile: das Synonym GILT, wo die Ebene die Art selbst nicht kennt.
+assert.strictEqual(avesmapsWikiAssignLandschaftArt("Klamm", TOPOGRAPHIE), "tal");
+assert.strictEqual(avesmapsWikiAssignLandschaftArt("Talkessel", TOPOGRAPHIE), "tal");
+assert.strictEqual(avesmapsWikiAssignLandschaftArt("Flusstal", TOPOGRAPHIE), "tal");
+zaehl(); zaehl(); zaehl(); zaehl();
+
+// Schritt 1, exakt -- Beschriftung ODER Schluessel, ohne Gross-/Kleinschreibung.
+assert.strictEqual(avesmapsWikiAssignLandschaftArt("Wald", VEGETATION), "wald");
+assert.strictEqual(avesmapsWikiAssignLandschaftArt("wald", VEGETATION), "wald");
+assert.strictEqual(avesmapsWikiAssignLandschaftArt("Hügelland", TOPOGRAPHIE), "huegelland");
+assert.strictEqual(avesmapsWikiAssignLandschaftArt("Tal|Grube", TOPOGRAPHIE), "tal");
+zaehl(); zaehl(); zaehl(); zaehl();
+
+// 🔴 DIE EBENE BINDET. `wald` ist Vegetation und darf nie auf einer topographischen Region landen;
+// der Server antwortet auf ein fremdes Paar mit 400 (avesmapsEcosystemAssertRegionType).
+assert.strictEqual(avesmapsWikiAssignLandschaftArt("Wald", TOPOGRAPHIE), "",
+	"eine Vegetationsart landet auf einer topographischen Region");
+assert.strictEqual(avesmapsWikiAssignLandschaftArt("Gebirge", VEGETATION), "");
+zaehl(); zaehl();
+
+// ⭐ SCHRITT 2: DIE ARTEN, DIE DER SYNC SEIT DEM 16.08.2026 NEU TRIFFT. Bis dahin liess er sie
+// stehen (die Client-Regel verglich nur exakt gegen das Vokabular). Das IST die
+// Verhaltensaenderung dieser Aufgabe, und sie steht hier namentlich statt als Zahl.
+[
+	["Mischregion", DEROGRAPHISCH, "region"], ["Großregion", DEROGRAPHISCH, "region"],
+	["Halbinsel", DEROGRAPHISCH, "region"],
+	["Hochland", TOPOGRAPHIE, "huegelland"], ["Klippe", TOPOGRAPHIE, "kueste"],
+	["Meeresteil", TOPOGRAPHIE, "meer"], ["Meerenge", TOPOGRAPHIE, "meer"],
+	["Bucht", TOPOGRAPHIE, "meer"], ["Golf", TOPOGRAPHIE, "meer"],
+	["Seenlandschaft", TOPOGRAPHIE, "see"],
+	["Sumpf", VEGETATION, "suempfe_moore"], ["Moor", VEGETATION, "suempfe_moore"],
+	["Marschland", VEGETATION, "suempfe_moore"],
+	["Halbwüste", VEGETATION, "wueste"],
+].forEach(([art, vokabular, erwartet]) => {
+	assert.strictEqual(avesmapsWikiAssignLandschaftArt(art, vokabular), erwartet,
+		'„' + art + '" wird nicht mehr auf „' + erwartet + '" abgebildet');
+	zaehl();
+});
+
+// 🔴 SCHRITT 3, DER RIEGEL: was die Server-Tabelle auf einen LABEL-Subtype abbildet, den es als
+// Flaechenart nicht gibt, faellt heraus -- statt eine Art zu erfinden. `""` wird von der
+// Diff-Rechnung zur Zeile „würde die Angabe leeren", und die ist NIE vorangehakt (Aufgabe 2).
+["Ebene", "Tiefland", "Flachland", "Berggipfel", "Vulkan", "Fluss"].forEach((art) => {
+	const alle = TOPOGRAPHIE.concat(VEGETATION).concat(DEROGRAPHISCH);
+	assert.strictEqual(avesmapsWikiAssignLandschaftArt(art, alle), "",
+		'„' + art + '" ergibt eine Flaechenart, die es nicht gibt');
+	zaehl();
+});
+// Und eine Art, die niemand kennt, wird nicht geraten.
+["Krater", "Handelsposten", "", null, undefined].forEach((art) => {
+	assert.strictEqual(avesmapsWikiAssignLandschaftArt(art, TOPOGRAPHIE), "");
+	zaehl();
+});
+// Ohne Vokabular gibt es keine Art -- nicht die erstbeste.
+assert.strictEqual(avesmapsWikiAssignLandschaftArt("Wald", []), "");
+assert.strictEqual(avesmapsWikiAssignLandschaftArt("Wald", null), "");
+zaehl(); zaehl();
+
+// 💣 DIE SYNONYMTABELLE IST EINE ABSCHRIFT -- jede Umlaut-Art steht ZWEIMAL (mit und ohne Umlaut),
+// weil der Server seine Schluessel faltet und der Browser das nicht tut. Faellt eine der zwei
+// Schreibweisen weg, ist die andere lautlos tot.
+[["hügelland", "hugelland"], ["küste", "kuste"], ["wüste", "wuste"], ["halbwüste", "halbwuste"],
+	["großregion", "grossregion"]].forEach(([mitUmlaut, ohne]) => {
+	assert.strictEqual(
+		AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_ART_SYNONYME[mitUmlaut],
+		AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_ART_SYNONYME[ohne],
+		'„' + mitUmlaut + '" und „' + ohne + '" bilden nicht auf dasselbe ab'
+	);
+	assert.ok(AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_ART_SYNONYME[ohne], "die ASCII-Schreibweise fehlt: " + ohne);
+	zaehl(); zaehl();
+});
+
+// ── 3) DIE WERTE ──────────────────────────────────────────────────────────────────────────────
+const werteAusSuche = avesmapsWikiAssignLandschaftWerte(SUCHZEILE, VEGETATION);
+assert.strictEqual(werteAusSuche.name, "Farindel");
+assert.strictEqual(werteAusSuche.art, "Wald");
+assert.strictEqual(werteAusSuche.landschaftsart, "wald", "die abgeleitete Flaechenart fehlt");
+assert.strictEqual(werteAusSuche.region_parent, "Albernia");
+assert.strictEqual(werteAusSuche.affiliation_staat, "Mittelreich");
+assert.strictEqual(werteAusSuche.continent, "Aventurien");
+// 🔴 Die Feldnamen sind die der SPALTEN. Wer hier „lage"/„staat"/„kontinent" hineinuebersetzt,
+// bricht die Deckung mit dem Register und mit Pruefung 2 aus §3b.
+assert.ok(!("lage" in werteAusSuche) && !("staat" in werteAusSuche) && !("kontinent" in werteAusSuche),
+	"die Werte tragen uebersetzte Namen -- das Register erklaert die Spaltennamen");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+// ── 4) DER TREFFER ────────────────────────────────────────────────────────────────────────────
+const treffer = avesmapsWikiAssignLandschaftTreffer(SUCHZEILE, VEGETATION);
+assert.strictEqual(treffer.wiki_key, "wiki:farindel");
+assert.strictEqual(treffer.wiki_url, SUCHZEILE.wiki_url);
+assert.strictEqual(treffer.werte.landschaftsart, "wald");
+// 🔴 Die rohe Zeile reist mit: der Flaechen-Dialog legt daraus sein `pendingWikiRegion` an, und der
+// Label-Durchtrag braucht Beschreibung und Staat, die im Kasten selbst gar nicht stehen.
+assert.strictEqual(treffer.roh, SUCHZEILE, "die rohe Suchzeile reist nicht mit");
+zaehl(); zaehl(); zaehl(); zaehl();
+
+// ── 5) DER ARTIKEL AUS ZUWEISUNG + SCHNAPPSCHUSS ──────────────────────────────────────────────
+assert.strictEqual(avesmapsWikiAssignLandschaftArtikel(null, null, VEGETATION), null);
+assert.strictEqual(avesmapsWikiAssignLandschaftArtikel({}, null, VEGETATION), null,
+	"eine Region ohne Adresse und ohne Schluessel ist keine Zuweisung -- ein gueltiger Zustand");
+const artikel = avesmapsWikiAssignLandschaftArtikel(
+	{ wiki_key: "wiki:farindel", wiki_url: SUCHZEILE.wiki_url, name: "Farindel-Nord" },
+	SUCHZEILE, VEGETATION
+);
+assert.strictEqual(artikel.name, "Farindel", "der Name kommt aus dem Wiki, nicht aus der Region");
+assert.strictEqual(artikel.werte.landschaftsart, "wald");
+assert.strictEqual(artikel.werte.sprache, "Garethi");
+// ⚠️ Ein VERWAISTER Schluessel (die Wiki-Seite gibt es nicht mehr) ist kein Fehler: der Kasten
+// steht mit Adresse und Schluessel da, die Anzeige-Zeilen fallen weg.
+const verwaist = avesmapsWikiAssignLandschaftArtikel(
+	{ wiki_key: "wiki:weg", wiki_url: "https://x/wiki/Weg", name: "Restname" }, null, VEGETATION
+);
+assert.ok(verwaist && verwaist.wiki_key === "wiki:weg", "ein verwaister Schluessel verschwindet");
+assert.strictEqual(verwaist.name, "Restname", "ohne Schnappschuss traegt der Regionsname den Kasten");
+assert.strictEqual(verwaist.werte.art, "");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+// ── 6) DER VERTRAG: `laden` LEHNT AB, STATT ETWAS LEERES ZU LIEFERN ───────────────────────────
+[null, undefined, [], 5, "x"].forEach((kaputt) => {
+	assert.throws(() => avesmapsWikiAssignLandschaftZustand(kaputt),
+		"avesmapsWikiAssignLandschaftZustand(" + JSON.stringify(kaputt) + ") liefert einen Zustand, statt zu werfen");
+	zaehl();
+});
+const ohne = avesmapsWikiAssignLandschaftZustand({ arten: VEGETATION, name: "Wald-001", region_type: "wald" });
+assert.strictEqual(ohne.artikel, null);
+assert.strictEqual(ohne.kartenwerte.name, "Wald-001");
+assert.strictEqual(ohne.kartenwerte.region_type, "wald");
+assert.strictEqual(ohne.keinArtikel, false);
+assert.deepStrictEqual(ohne.gesperrt, {}, "eine gewoehnliche Ebene hat keine gesperrte Zeile");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+// 🔴 DER DRITTE ZUSTAND IST NICHT AUS DER ZUWEISUNG ABLEITBAR, und nur ein ausdrueckliches `true`
+// setzt ihn.
+assert.strictEqual(avesmapsWikiAssignLandschaftZustand({ kein_artikel: true }).keinArtikel, true);
+["", 0, "true", null, undefined].forEach((weich) => {
+	assert.strictEqual(avesmapsWikiAssignLandschaftZustand({ kein_artikel: weich }).keinArtikel, false,
+		"ein weicher Wert (" + JSON.stringify(weich) + ") setzt den Merker");
+	zaehl();
+});
+zaehl();
+
+// 🔴 DIE KLIMAZONE: ihre ART steht fest, ihr NAME nicht. Der Riegel gehoert an die ZEILE, nicht an
+// den Knopf -- ein Knopfriegel naehme den Namen mit. Der Server lehnt das andere ohnehin ab
+// (avesmapsUpdateEcosystemRegion, ecosystem.php).
+const klima = avesmapsWikiAssignLandschaftZustand({ kind: "klima", arten: [], name: "Gemäßigt", region_type: "gemaessigt" });
+assert.ok(klima.gesperrt.region_type, "die Art einer Klimazone ist nicht gesperrt");
+assert.ok(!("name" in klima.gesperrt), "der NAME einer Klimazone ist gesperrt -- er darf es nicht sein");
+zaehl(); zaehl();
+
+// 💣 LESEFUNKTIONEN: der Kartenwert wird beim LESEN geholt, nicht beim Laden eingefroren.
+let formularName = "Wald-001";
+const lebend = avesmapsWikiAssignLandschaftZustand({ arten: VEGETATION, name: () => formularName, region_type: () => "wald" });
+assert.strictEqual(lebend.kartenwerte.name, "Wald-001");
+formularName = "Farindel";
+assert.strictEqual(lebend.kartenwerte.name, "Farindel",
+	"der Kartenwert ist eingefroren -- die Sync-Vorschau vergliche gegen einen Stand, den das Formular nicht mehr zeigt");
+zaehl(); zaehl();
+
+// ── 7) DIE HTTP-ANTWORT UND DER ZUWEISUNGSRUMPF ───────────────────────────────────────────────
+assert.throws(() => avesmapsWikiAssignLandschaftAntwortPruefen({ ok: false, error: { message: "forbidden" } }), /forbidden/);
+assert.throws(() => avesmapsWikiAssignLandschaftAntwortPruefen(null));
+assert.throws(() => avesmapsWikiAssignLandschaftAntwortPruefen([]));
+const gut = { ok: true, rows: [] };
+assert.strictEqual(avesmapsWikiAssignLandschaftAntwortPruefen(gut), gut);
+const koerper = avesmapsWikiAssignLandschaftZuweisungsKoerper("r1", SUCHZEILE.wiki_url);
+assert.deepStrictEqual(koerper, { public_id: "r1", wiki_url: SUCHZEILE.wiki_url });
+// 🔴 NIEMALS der Schluessel: der Server leitet ihn aus der Adresse ab, ein mitgeschickter wird gar
+// nicht gelesen und waere eine zweite Ableitung (AGENTS.md §5).
+assert.ok(!("wiki_region_key" in koerper) && !("wiki_key" in koerper),
+	"der Rumpf traegt einen Schluessel -- der Server leitet ihn ab");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+// ── 8) DIE UEBERNAHME LIEST NUR ANGEHAKTE ZEILEN ──────────────────────────────────────────────
+const KEINE_UEBERNAHME = {};
+AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER.forEach((feld) => { KEINE_UEBERNAHME[feld] = null; });
+assert.deepStrictEqual(avesmapsWikiAssignLandschaftSyncWerte([]), KEINE_UEBERNAHME);
+assert.deepStrictEqual(
+	avesmapsWikiAssignLandschaftSyncWerte([{ karte: "name", neu: "Farindel" }, { karte: "art", neu: "Wald" }]),
+	Object.assign({}, KEINE_UEBERNAHME, { name: "Farindel" }),
+	"ein Feld ohne Kartenziel darf nicht in die Uebernahme rutschen"
+);
+assert.strictEqual(avesmapsWikiAssignLandschaftSyncLeer(KEINE_UEBERNAHME), true);
+assert.strictEqual(
+	avesmapsWikiAssignLandschaftSyncLeer(Object.assign({}, KEINE_UEBERNAHME, { region_type: "wald" })),
+	false,
+	"eine allein angehakte Art gilt als „nichts angehakt“"
+);
+zaehl(); zaehl(); zaehl(); zaehl();
+
+// ══ TEIL 2: die Erklaerung `landschaft` im Register ═══════════════════════════════════════════
+const landschaft = AVESMAPS_WIKI_ASSIGN_REGISTRY.landschaft;
+assert.ok(landschaft, "die Erklaerung `landschaft` fehlt im Register");
+assert.strictEqual(landschaft.suche.art, "server");
+assert.strictEqual(landschaft.suche.url, "/api/edit/wiki/regions.php");
+// 💣 DIE ZWEI LISTEN MUESSEN SICH DECKEN -- dieselbe Gegenprobe wie beim Ort. Laeuft eine der zwei
+// weiter, zeigt das Bauteil eine Sync-Zeile, die die Uebernahme lautlos verwirft (oder umgekehrt).
+assert.deepStrictEqual(
+	landschaft.felder.filter((feld) => feld.karte !== "").map((feld) => feld.karte).slice().sort(),
+	AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER.slice().sort(),
+	"die Kartenziele der Erklaerung `landschaft` und AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER laufen auseinander"
+);
+// Die Anzeige-Zeilen bleiben Anzeige: `ecosystem_region` hat fuer sie keine Spalte.
+["art", "region_parent", "affiliation_staat", "continent", "einwohner", "sprache", "vegetation", "verkehrswege"]
+	.forEach((wikiFeld) => {
+		const zeile = landschaft.felder.filter((feld) => feld.wiki === wikiFeld)[0];
+		assert.ok(zeile, "Feldzeile fuer „" + wikiFeld + "“ fehlt");
+		assert.strictEqual(zeile.karte, "", wikiFeld + " hat ploetzlich ein Kartenziel -- gibt es die Spalte wirklich?");
+		zaehl();
+	});
+assert.strictEqual(landschaft.extra.keinArtikelHaken, true, "die Landschaft bietet den dritten Zustand nicht an");
+assert.ok(String(landschaft.extra.keinArtikelHinweis || "").trim() !== "", "der Hinweis zum dritten Zustand fehlt");
+// 🔴 UND ER VERSPRICHT KEINE KONFLIKTLISTE. Eine `ecosystem_region` steht in keiner
+// (avesmapsConflictLoadMapRows liest nur `map_features`) -- der Satz waere dann eine Zusage, die
+// niemand einloest. Bei Ort, Weg und Kraftlinie steht sie zu Recht drin.
+assert.ok(!/Konfliktliste/.test(String(landschaft.extra.keinArtikelHinweis)),
+	"der Hinweis verspricht eine Konfliktliste, in der die Landschaft gar nicht steht");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+// ── Die Diff-Rechnung auf der ECHTEN Erklaerung ───────────────────────────────────────────────
+// 🔴 SEIT DEM 16.08.2026 ENTSCHEIDET DER KARTENWERT UEBER DIE VORHAEKELUNG (Owner-Entscheid): ein
+// gefuellter Wert startet UNGEHAKT, das Fuellen einer Luecke bleibt vorangehakt. Diese eine Fixture
+// zeigt beide Haelften nebeneinander -- eine Probe, die nur „alle ungehakt" fordert, waere von „gar
+// nichts ist mehr gehakt" nicht zu unterscheiden.
+const diffZeilen = avesmapsWikiAssignDiff(
+	landschaft.felder,
+	{ name: "Wald-001", region_type: "" },
+	avesmapsWikiAssignLandschaftWerte(SUCHZEILE, VEGETATION),
+	[]
+);
+assert.deepStrictEqual(diffZeilen.map((zeile) => zeile.karte), ["name", "region_type"]);
+assert.deepStrictEqual(diffZeilen.map((zeile) => zeile.neu), ["Farindel", "wald"]);
+assert.deepStrictEqual(
+	diffZeilen.map((zeile) => [zeile.karte, zeile.gehakt]),
+	[["name", false], ["region_type", true]],
+	"die Vorhaekelung folgt nicht dem Kartenwert"
+);
+assert.strictEqual(diffZeilen[0].grund, "auf der Karte steht bereits ein Wert", diffZeilen[0].grund);
+// Und die Anzeigefelder bleiben draussen: „Sprache" hat einen Wert im Wiki und kein Kartenziel.
+assert.ok(!diffZeilen.some((zeile) => zeile.karte === "sprache" || zeile.karte === "vegetation"),
+	"eine Anzeige-Zeile steht in der Sync-Vorschau -- sie kann nichts uebernehmen");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+// 🔴 Sagt das Wiki zur Art nichts, das die Ebene kennt, steht die Zeile drin, aber NIE vorangehakt
+// -- sonst leerte ein unbedachter Klick eine gepflegte Angabe.
+const diffLeer = avesmapsWikiAssignDiff(
+	landschaft.felder,
+	{ name: "Farindel", region_type: "wald" },
+	avesmapsWikiAssignLandschaftWerte(Object.assign({}, SUCHZEILE, { art: "Krater" }), VEGETATION),
+	[]
+);
+assert.strictEqual(diffLeer.length, 1);
+assert.strictEqual(diffLeer[0].karte, "region_type");
+assert.strictEqual(diffLeer[0].gehakt, false);
+assert.ok(/würde die Angabe leeren/.test(diffLeer[0].grund), diffLeer[0].grund);
+zaehl(); zaehl(); zaehl(); zaehl();
+
+// ══ TEIL 2a: WELCHES STYLESHEET ERREICHT WELCHES DOKUMENT ═════════════════════════════════════
+// 💣 Die `.label-wiki-*`-Regeln stehen in region-sync.css und die laedt NUR index.html; die
+// `.dt-*`-Regeln stehen in editor-page.css und die laedt nur das iframe. Eine Huelle im falschen
+// Dokument ist nicht „etwas anders", sondern voellig ungestylt -- und keine Ablaufprobe der Welt
+// sieht das, weil im Sandkasten kein CSS gilt.
+// 🪤 GEPRUEFT WIRD DIE `<link>`-ZEILE, NICHT DER DATEINAME: der Name steht in denselben Dokumenten
+// auch in Kommentaren, und eine Probe darauf bleibt gruen, wenn die Zeile ENTFERNT wird.
+const indexHtmlRoh = fs.readFileSync(path.join(wurzel, "index.html"), "utf8");
+const editorHtmlRoh = fs.readFileSync(path.join(wurzel, "html/landschaften-editor.html"), "utf8");
+function bindetStylesheet(inhalt, datei) {
+	return new RegExp('<link[^>]+href="[^"]*' + datei.replace(/\./g, "\\.") + '[^"]*"').test(inhalt);
+}
+assert.ok(bindetStylesheet(indexHtmlRoh, "components/region-sync.css"),
+	"index.html bindet region-sync.css nicht -- die Huelle „label-wiki“ des Flaechen-Dialogs waere ungestylt");
+assert.ok(bindetStylesheet(editorHtmlRoh, "components/editor-page.css"),
+	"der Regionen-Editor bindet editor-page.css nicht -- die Huelle „dt“ waere dort ungestylt");
+assert.ok(!bindetStylesheet(editorHtmlRoh, "components/region-sync.css"),
+	"der Regionen-Editor bindet region-sync.css mit -- dann faellt eine falsche Huelle nicht mehr auf");
+zaehl(); zaehl(); zaehl();
+
+// ══ TEIL 2b: DAS FREITEXTFELD FUER DIE ADRESSE IST WEG ════════════════════════════════════════
+// 🔴 Entwurf §5: „Kein Freitextfeld fuer eine Adresse." Es war der letzte im Haus -- der
+// Regionen-Editor liess die Wiki-URL von Hand tippen, und genau so blieb bei den Kraftlinien ein
+// Tippfehler unsichtbar (15.08.2026).
+// ⚠️ Textprobe, und das ist hier richtig: die Frage ist, was im DOKUMENT steht. Ein Ablauf kann sie
+// nicht beantworten -- ein Feld, das niemand mehr bedient, faellt in keinem Klickpfad auf.
+assert.ok(!/data-f="wiki"/.test(editorHtmlRoh),
+	"der Regionen-Editor traegt weiter ein Freitextfeld fuer die Wiki-Adresse");
+assert.ok(!/data-a="wiki-clear"/.test(editorHtmlRoh),
+	"der Knopf „Wiki-Zuweisung entfernen“ steht noch da -- er gehoert jetzt ins Bauteil");
+assert.ok(/data-f="wiki-host"/.test(editorHtmlRoh),
+	"der Regionen-Editor hat keinen Behaelter fuer die Zuweisung");
+// Und im Kartendialog: der alte Picker samt „Suchen"-Knopf ist fort, der Behaelter steht da.
+assert.ok(/id="ecosystem-properties-wiki-host"/.test(indexHtmlRoh),
+	"der Flaechen-Dialog hat keinen Behaelter fuer die Zuweisung");
+assert.ok(!/id="ecosystem-properties-wiki-search-go"/.test(indexHtmlRoh),
+	"der „Suchen“-Knopf steht noch im Flaechen-Dialog -- gesucht wird jetzt beim Tippen");
+zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+// ══ TEIL 3+4: die zwei Oberflaechen, WIRKLICH gefahren ════════════════════════════════════════
+
+/** Ein Behaelter, der Klicks wirklich ausloest (Vorbild: js/ui/__tests__/wiki-assign-ort.test.js). */
+function scheinBehaelter(id) {
+	const zuhoerer = {};
+	const element = {
+		id: id || "host", textContent: "", innerHTML: "", className: "", value: "",
+		dataset: {}, style: {}, options: [], hidden: false, disabled: false, checked: false,
+		classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
+		addEventListener(typ, fn) { zuhoerer[typ] = fn; },
+		removeEventListener(typ) { delete zuhoerer[typ]; },
+		querySelector() { return null; },
+		querySelectorAll() { return []; },
+		contains() { return true; },
+		appendChild() {}, removeChild() {}, remove() {}, insertBefore() {}, replaceChildren() {},
+		setAttribute() {}, removeAttribute() {}, getAttribute() { return null; }, hasAttribute() { return false; },
+		closest() { return null; }, focus() {}, select() {}, dispatchEvent() { return true; },
+		getBoundingClientRect() { return { width: 100, height: 20, top: 0, left: 0 }; },
+		feuere(typ, ziel) { if (zuhoerer[typ]) { zuhoerer[typ]({ target: ziel, preventDefault() {} }); } },
+		hatZuhoerer(typ) { return typeof zuhoerer[typ] === "function"; },
+	};
+	return element;
+}
+
+/** Ein Ereignisziel mit GENAU einem Merkmal -- `aufKlick` fragt nacheinander nach zwei Selektoren. */
+function scheinZiel(merkmal, wert, zusatz) {
+	const element = Object.assign({
+		getAttribute: (name) => (name === merkmal ? wert : null),
+		hasAttribute: (name) => name === merkmal,
+	}, zusatz || {});
+	element.closest = (selektor) => (selektor === "[" + merkmal + "]" ? element : null);
+	return element;
+}
+
+/** Ein Formularfeld mit Wert (Namensfeld, Auswahlliste, Haken). */
+function scheinFeld(wert, optionen) {
+	return {
+		value: wert === undefined ? "" : wert,
+		options: (optionen || []).map((v) => ({ value: v })),
+		checked: false, disabled: false, hidden: false, textContent: "", innerHTML: "", className: "",
+		dataset: {}, style: {}, classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
+		addEventListener() {}, removeEventListener() {}, appendChild() {}, remove() {}, replaceChildren() {},
+		setAttribute() {}, getAttribute() { return null; }, hasAttribute() { return false; },
+		closest() { return null; }, querySelector() { return null; }, querySelectorAll() { return []; },
+		focus() {}, select() {}, dispatchEvent() { return true; }, contains() { return false; },
+		getBoundingClientRect() { return { width: 100, height: 20, top: 0, left: 0 }; },
+	};
+}
+
+const ruhe = () => new Promise((fertig) => setTimeout(fertig, 5));
+
+/**
+ * 🔴 DIE SKRIPTLISTE WIRD AUS DEM DOKUMENT GELESEN, NICHT HIER AUFGEZAEHLT.
+ *
+ * 💣 Sonst prueft der Sandkasten nur sich selbst: er laedt das Bauteil, weil er es aufzaehlt, und
+ * eine im Dokument VERGESSENE `<script>`-Zeile bliebe unsichtbar -- live gaebe `mount` dann einen
+ * Blindgaenger. Die Ladereihenfolge ist Vertrag (Register, Diff, Bauteil, Datenweg).
+ */
+function skripteAus(htmlDatei, muster) {
+	const inhalt = fs.readFileSync(path.join(wurzel, htmlDatei), "utf8");
+	const treffer = inhalt.match(/<script[^>]+src="([^"]+)"/g) || [];
+	return treffer
+		.map((tag) => (/src="([^"]+)"/.exec(tag) || [])[1] || "")
+		.map((src) => src.replace(/^\//, "").split("?")[0])
+		.filter((src) => (muster ? muster.test(src) : true))
+		.filter((src) => fs.existsSync(path.join(wurzel, src)));
+}
+
+/** Ein Sandkasten mit Dokument-Attrappe und aufgezeichnetem `fetch`. */
+function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
+	const elemente = {};
+	Object.keys(felder || {}).forEach((id) => { elemente[id] = felder[id]; });
+	(behaelterIds || []).forEach((id) => { elemente[id] = scheinBehaelter(id); });
+	const gesendet = [];
+	const dokument = {
+		readyState: "complete",
+		getElementById(id) {
+			if (!Object.prototype.hasOwnProperty.call(elemente, id)) { elemente[id] = scheinFeld(""); }
+			return elemente[id];
+		},
+		querySelector() { return scheinFeld(""); },
+		querySelectorAll() { return []; },
+		createElement() { return scheinFeld(""); },
+		addEventListener() {},
+		body: scheinFeld(""), documentElement: scheinFeld(""),
+	};
+	const kasten = {
+		console, setTimeout, clearTimeout, setInterval, clearInterval, JSON, Math, Date, Number,
+		String, Array, Object, Boolean, RegExp, Error, Map, Set, URL, URLSearchParams, Promise,
+		isFinite, isNaN, parseInt, parseFloat, encodeURIComponent, decodeURIComponent, Intl,
+		Event: function () {}, Option: function (label, wert) { return { label: label, value: wert }; },
+		document: dokument,
+		location: { href: "http://pruefstand.local/", search: "" },
+		localStorage: { getItem() { return null; }, setItem() {} },
+		matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }),
+		confirm: () => true,
+		apiErrorMessage: (antwort, rueckfall) => rueckfall,
+		showFeedbackToast: () => {},
+		fetch(url, opt) {
+			const rumpf = opt && opt.body ? JSON.parse(opt.body) : null;
+			gesendet.push({ url: String(url), rumpf: rumpf, methode: (opt && opt.method) || "GET" });
+			const antwort = fetchAntwort(String(url), rumpf);
+			return Promise.resolve({ ok: antwort.httpOk !== false, status: antwort.status || 200, json: () => Promise.resolve(antwort) });
+		},
+	};
+	Object.assign(kasten, zusatz || {});
+	kasten.window = kasten;
+	kasten.globalThis = kasten;
+	vm.createContext(kasten);
+	dateien.forEach((datei) => {
+		vm.runInContext(fs.readFileSync(path.join(wurzel, datei), "utf8"), kasten, { filename: datei });
+	});
+	return { kasten: kasten, elemente: elemente, gesendet: gesendet };
+}
+
+(async () => {
+	// ══ TEIL 3: DER FLAECHEN-DIALOG („Fläche bearbeiten", index.html) ══════════════════════════
+	const dialogSkripte = skripteAus("index.html", /wiki-assign|ecosystem-properties|ecosystem-naming/);
+	assert.deepStrictEqual(dialogSkripte, [
+		"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-assign.js",
+		"js/ui/wiki-assign-weg.js", "js/ui/wiki-assign-ort.js", "js/ui/wiki-assign-landschaft.js",
+		"js/map-features/map-features-ecosystem-naming.js",
+		"js/map-features/map-features-ecosystem-properties.js",
+	], "index.html bindet die Wiki-Zuweisung der Landschaft nicht (oder in der falschen Reihenfolge): "
+		+ dialogSkripte.join(" "));
+	zaehl();
+
+	const FLAECHE = {
+		public_id: "a1", region_public_id: "r1", region_name: "Wald-001", kind: "vegetation",
+		region_type: "", wiki_region_key: null, wiki_url: null, label_public_id: null,
+	};
+	const felder = {
+		"ecosystem-properties-name": scheinFeld("Wald-001"),
+		"ecosystem-properties-type": scheinFeld(""),
+		"ecosystem-properties-autoname": scheinFeld(""),
+		"ecosystem-properties-showname": scheinFeld(""),
+		"ecosystem-properties-nodix": scheinFeld(""),
+	};
+	const k = sandkastenBauen(dialogSkripte, felder,
+		["ecosystem-properties-wiki-host", "ecosystem-properties-overlay", "ecosystem-properties-form"],
+		(url, rumpf) => {
+			if (url.indexOf("action=staging_sample") !== -1) { return { ok: true, rows: [SUCHZEILE] }; }
+			if (url.indexOf("action=search") !== -1) { return { ok: true, count: 1, rows: [SUCHZEILE] }; }
+			return { ok: true };
+		},
+		{
+			// Die Nachbarn des Moduls -- alles, was der Oeffnen-Pfad wirklich anfasst.
+			ecosystemLayers: new Map([["a1", { _ecosystemArea: FLAECHE }]]),
+			postEcosystemEdit: (aktion, nutzlast) => {
+				k.aufrufe.push({ aktion: aktion, nutzlast: nutzlast });
+				if (aktion === "list_regions") {
+					return Promise.resolve({
+						ok: true,
+						region_types: VEGETATION.map((typ) => Object.assign({ kind: "vegetation" }, typ)),
+						regions: [{ public_id: "r1", name: "Wald-001", kind: "vegetation", region_type: null,
+							wiki_region_key: null, wiki_url: null, area_count: 2, wiki_no_article: false }],
+					});
+				}
+				return Promise.resolve({ ok: true });
+			},
+			ecosystemDialogTitle: () => "Vegetations-Fläche bearbeiten",
+			formatEcosystemRegionCarryNote: () => "2 Flächen",
+			linkedEcosystemLabelEntry: () => null,
+			ecosystemLabelCountOfRegion: () => 0,
+			ecosystemLabelStyleFor: () => ({}),
+			ecosystemWikiRegionSnapshot: () => Promise.resolve(null),
+			submitMapFeatureEdit: () => Promise.resolve({ ok: true }),
+			applyLabelFeatureLocally: () => {},
+			avesmapsComputeLabelPoint: () => ({ x: 1, y: 1 }),
+			tr: (schluessel, rueckfall) => rueckfall,
+			t: (schluessel, rueckfall) => rueckfall,
+		});
+	k.aufrufe = [];
+	// Die Attrappen, die das Modul erst NACH dem Laden anfasst -- als Globale im Sandkasten.
+	vm.runInContext("var ecosystemLabelsForRegion = function () { return []; };"
+		+ "var isEcosystemCascadeEnabled = function () { return false; };"
+		+ "var removeEcosystemCascadedLabels = function () {};"
+		+ "var refreshEcosystemAreas = function () { return Promise.resolve(); };", k.kasten);
+
+	const host = k.elemente["ecosystem-properties-wiki-host"];
+	await vm.runInContext("window.AvesmapsEcosystemProperties.open('a1')", k.kasten);
+	await ruhe();
+	assert.ok(host.innerHTML.indexOf("Wiki-Landschaft") !== -1,
+		"der Kasten traegt die Ueberschrift der Erklaerung nicht: " + host.innerHTML);
+	assert.ok(host.innerHTML.indexOf("— keine —") !== -1, "ohne Zuweisung steht „— keine —“ da");
+	// Die Huelle „label-wiki", nicht „dt" -- index.html laedt region-sync.css, nicht editor-page.css.
+	assert.ok(host.innerHTML.indexOf("label-wiki-reference") !== -1 && host.innerHTML.indexOf("dt-grp") === -1,
+		"der Flaechen-Dialog mountet die falsche Huelle: " + host.innerHTML);
+	// 🔴 Der dritte Zustand wird angeboten -- im offenen Zustand.
+	assert.ok(host.innerHTML.indexOf("Kein Wiki-Artikel vorhanden") !== -1,
+		"das Haekchen des dritten Zustands fehlt: " + host.innerHTML);
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// ---- Suchen: BEIM TIPPEN, nicht auf Knopfdruck --------------------------------------------
+	host.feuere("click", scheinZiel("data-wa-aktion", "zuweisen"));
+	await ruhe();
+	const suchAufruf = k.gesendet.filter((s) => s.url.indexOf("action=search") !== -1)[0];
+	assert.ok(suchAufruf, "es wurde gar nicht gesucht: " + JSON.stringify(k.gesendet.map((s) => s.url)));
+	assert.ok(/\/api\/edit\/wiki\/regions\.php\?action=search&q=&limit=40$/.test(suchAufruf.url),
+		"die Suche fragt nicht die gemessene Adresse ab: " + suchAufruf.url);
+	assert.ok(host.innerHTML.indexOf("Farindel") !== -1, host.innerHTML);
+	// Die Meta-Zeile: Art · Lage · Kontinent -- wortgleich zu dem, was der alte Picker zeigte.
+	assert.ok(host.innerHTML.indexOf("Wald · Albernia · Aventurien") !== -1,
+		"die Meta-Zeile des Treffers stimmt nicht: " + host.innerHTML);
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// ---- Waehlen: der Name wandert SOFORT ins Formular -----------------------------------------
+	host.feuere("click", scheinZiel("data-wa-treffer", "0"));
+	await ruhe();
+	assert.strictEqual(felder["ecosystem-properties-name"].value, "Farindel",
+		"„Zuweisen“ benennt nicht mehr um -- der Tippfehler bliebe neben dem Wiki-Namen stehen");
+	assert.ok(host.innerHTML.indexOf("Albernia") !== -1,
+		"der Zuweisungskasten zeigt die Wiki-Angaben nicht: " + host.innerHTML);
+	assert.ok(host.innerHTML.indexOf('data-wa-aktion="sync"') !== -1, "ohne Sync-Knopf gaebe es nichts zu holen");
+	// 💣 UND ES WURDE NICHTS GESCHRIEBEN: dieser Dialog hat „Abbrechen".
+	assert.ok(!k.aufrufe.some((a) => a.aktion === "update_region"),
+		"„Zuweisen“ hat sofort geschrieben -- „Abbrechen“ waere dann wirkungslos");
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// ---- Sync mit Vorschau: die Art ist ANGEHAKT, der Name nicht -------------------------------
+	// 🔴 Der Name steht auf der Karte schon (er wurde beim Zuweisen gesetzt) -- gleiche Werte stehen
+	// GAR NICHT in der Liste. Die Art ist leer, also wird ihre Zeile vorangehakt.
+	host.feuere("click", scheinZiel("data-wa-aktion", "sync"));
+	await ruhe();
+	assert.ok(host.innerHTML.indexOf("1 von 2 Angaben würde sich ändern") !== -1,
+		"die Sync-Vorschau zaehlt falsch (oder die Art steht doch drin, obwohl sie stimmt): " + host.innerHTML);
+	host.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
+	await ruhe();
+	assert.strictEqual(felder["ecosystem-properties-type"].value, "",
+		"die Art wurde uebernommen, obwohl das Auswahlfeld sie gar nicht kennt");
+	zaehl(); zaehl();
+
+	// Mit gefuelltem Auswahlfeld greift dieselbe Uebernahme.
+	felder["ecosystem-properties-type"].options = VEGETATION.map((typ) => ({ value: typ.type_key }));
+	host.feuere("click", scheinZiel("data-wa-aktion", "sync"));
+	await ruhe();
+	host.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
+	await ruhe();
+	assert.strictEqual(felder["ecosystem-properties-type"].value, "wald",
+		"die angehakte Art wurde nicht ins Formular uebernommen");
+	zaehl();
+
+	// ---- Entfernen ----------------------------------------------------------------------------
+	host.feuere("click", scheinZiel("data-wa-aktion", "entfernen"));
+	await ruhe();
+	assert.ok(host.innerHTML.indexOf("— keine —") !== -1, "„Entfernen“ hat den Kasten nicht geleert: " + host.innerHTML);
+	assert.strictEqual(felder["ecosystem-properties-name"].value, "Farindel",
+		"„Entfernen“ hat umbenannt -- die Zuweisung zu loesen soll den Namen stehen lassen");
+	zaehl(); zaehl();
+
+	// ---- Der dritte Zustand reist beim Speichern mit ------------------------------------------
+	// 🔴 BEIDE RICHTUNGEN, je eigene Fixture. Zuerst: NICHT angefasst -> der Schluessel fehlt.
+	vm.runInContext("document.getElementById('ecosystem-properties-form')", k.kasten);
+	const form = k.elemente["ecosystem-properties-form"];
+	await (async () => { form.feuere("submit", form); })();
+	await ruhe();
+	const ersterSchreibvorgang = k.aufrufe.filter((a) => a.aktion === "update_region")[0];
+	assert.ok(ersterSchreibvorgang, "das Speichern hat gar nichts geschrieben: " + JSON.stringify(k.aufrufe));
+	assert.ok(!("wiki_no_article" in ersterSchreibvorgang.nutzlast),
+		"der Merker reist mit, obwohl niemand das Haekchen angefasst hat -- ein alter Dialog naehme "
+		+ "damit die Entscheidung eines zweiten Editors zurueck");
+	zaehl(); zaehl();
+
+	// ---- `laden` LEHNT AB, und der Kasten sagt es ----------------------------------------------
+	// 🔴 DER VERTRAG AUS DEM KOPF VON js/ui/wiki-assign.js, WIRKLICH GEFAHREN -- nicht als Textprobe.
+	// Die Landschaft ist die erste Objektart, deren `laden` echtes HTTP macht (der Staging-
+	// Schnappschuss). Der Hausstil daneben, `ecosystemWikiRegionSnapshot`, FAENGT seinen Fehler ab
+	// und gibt einen Rueckfall zurueck; genau das darf hier nicht passieren.
+	// 💣 Und beide Haelften werden geprueft: der Kasten SAGT es UND `bereit` bleibt false. Nur die
+	// erste zu pruefen liesse den Fall offen, in dem eine Fehlermeldung dasteht und das naechste
+	// „Speichern" trotzdem eine leere Zuweisung schreibt.
+	const kFehler = sandkastenBauen(dialogSkripte,
+		{
+			"ecosystem-properties-name": scheinFeld("Farindel"),
+			"ecosystem-properties-type": scheinFeld("wald"),
+		},
+		["ecosystem-properties-wiki-host", "ecosystem-properties-overlay", "ecosystem-properties-form"],
+		(url) => {
+			if (url.indexOf("action=staging_sample") !== -1) { return { httpOk: false, status: 403 }; }
+			return { ok: true, count: 0, rows: [] };
+		},
+		{
+			ecosystemLayers: new Map([["a2", { _ecosystemArea: Object.assign({}, FLAECHE, {
+				public_id: "a2", region_public_id: "r2", region_name: "Farindel",
+				wiki_region_key: "wiki:farindel", wiki_url: SUCHZEILE.wiki_url, region_type: "wald",
+			}) }]]),
+			postEcosystemEdit: () => Promise.resolve({
+				ok: true,
+				region_types: VEGETATION.map((typ) => Object.assign({ kind: "vegetation" }, typ)),
+				regions: [{ public_id: "r2", name: "Farindel", kind: "vegetation", region_type: "wald",
+					wiki_region_key: "wiki:farindel", wiki_url: SUCHZEILE.wiki_url, area_count: 1,
+					wiki_no_article: false }],
+			}),
+			ecosystemDialogTitle: () => "Vegetations-Fläche bearbeiten",
+			formatEcosystemRegionCarryNote: () => "1 Fläche",
+			linkedEcosystemLabelEntry: () => null,
+			ecosystemLabelCountOfRegion: () => 0,
+			ecosystemLabelStyleFor: () => ({}),
+			ecosystemWikiRegionSnapshot: () => Promise.resolve(null),
+			submitMapFeatureEdit: () => Promise.resolve({ ok: true }),
+			applyLabelFeatureLocally: () => {},
+			avesmapsComputeLabelPoint: () => ({ x: 1, y: 1 }),
+			tr: (schluessel, rueckfall) => rueckfall,
+			t: (schluessel, rueckfall) => rueckfall,
+		});
+	vm.runInContext("var ecosystemLabelsForRegion = function () { return []; };"
+		+ "var isEcosystemCascadeEnabled = function () { return false; };"
+		+ "var removeEcosystemCascadedLabels = function () {};"
+		+ "var refreshEcosystemAreas = function () { return Promise.resolve(); };", kFehler.kasten);
+	const hostFehler = kFehler.elemente["ecosystem-properties-wiki-host"];
+	await vm.runInContext("window.AvesmapsEcosystemProperties.open('a2')", kFehler.kasten);
+	await ruhe();
+	assert.ok(hostFehler.textContent.indexOf("konnte nicht gelesen werden") !== -1,
+		"ein 403 beim Schnappschuss sieht aus wie „diese Landschaft hat keine Angaben“: "
+		+ JSON.stringify({ text: hostFehler.textContent, html: hostFehler.innerHTML }));
+	assert.strictEqual(hostFehler.innerHTML, "",
+		"neben der Fehlermeldung steht noch ein Kasten -- welcher der zwei gilt?");
+	zaehl(); zaehl();
+
+	// ══ TEIL 4: DER REGIONEN-EDITOR (html/landschaften-editor.html) ═══════════════════════════
+	// Das Fenster ist eine HTML-Seite mit EINEM grossen Inline-Skript; es wird hier unveraendert aus
+	// der Datei geschnitten und im Sandkasten gefahren -- dieselbe Bauart wie beim Orte-Editor.
+	// ⚠️ `\r?\n`: die Datei liegt im Arbeitsbaum mit CRLF. Ein Schnitt auf `<script>\n` findet auf
+	// einem Windows-Checkout GAR NICHTS -- und ohne die Zusicherung darunter waere das ein leeres,
+	// gruen laufendes Skript.
+	const editorTeile = editorHtmlRoh.split(/<script>\r?\n/);
+	const editorSkript = editorTeile[editorTeile.length - 1].split("</script>")[0];
+	assert.ok(editorSkript.indexOf("function wireEditBlocks") !== -1,
+		"das Inline-Skript des Regionen-Editors wurde nicht gefunden -- die Probe darunter liefe leer");
+	// 🔴 Und der Kasten wird WIRKLICH aus renderDetail heraus eingehaengt, nicht per Direktaufruf.
+	assert.ok(/host\.innerHTML = parts\.join\(""\);\s*\r?\n\s*wireEditBlocks\(host\);/.test(editorSkript),
+		"renderDetail verdrahtet die Bearbeitungsbloecke nicht mehr -- der Kasten waere nie eingehaengt");
+	zaehl(); zaehl();
+
+	const editorSkripte = skripteAus("html/landschaften-editor.html", /wiki-assign/);
+	assert.deepStrictEqual(editorSkripte, [
+		"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-assign.js",
+		"js/ui/wiki-assign-landschaft.js",
+	], "der Regionen-Editor bindet die Wiki-Zuweisung nicht (oder in der falschen Reihenfolge): "
+		+ editorSkripte.join(" "));
+	zaehl();
+
+	// Ein Bearbeitungsblock, wie ihn `wireEditBlocks` im echten DOM vorfindet.
+	const blockFelder = {
+		name: scheinFeld("Wald-001"),
+		type: scheinFeld("", VEGETATION.map((typ) => typ.type_key)),
+		auto: scheinFeld(""),
+		"wiki-host": scheinBehaelter("wiki-host"),
+	};
+	const blockAktionen = { save: scheinBehaelter("save") };
+	const blockMeldung = scheinFeld("");
+	const block = scheinBehaelter("eco-edit");
+	block.getAttribute = (name) => (name === "data-region" ? "r1" : null);
+	block.querySelector = (selektor) => {
+		const feld = /^\[data-f="([^"]+)"\]$/.exec(selektor);
+		if (feld) { return blockFelder[feld[1]] || (blockFelder[feld[1]] = scheinFeld("")); }
+		const aktion = /^\[data-a="([^"]+)"\]$/.exec(selektor);
+		if (aktion) { return blockAktionen[aktion[1]] || (blockAktionen[aktion[1]] = scheinBehaelter(aktion[1])); }
+		if (selektor === ".dt-msg") { return blockMeldung; }
+		return null;
+	};
+	const detail = scheinBehaelter("ecoDetail");
+	detail.querySelectorAll = (selektor) => (selektor === ".eco-edit" ? [block] : []);
+	// Die Listenzeile, ueber die WIRKLICH ausgewaehlt wird -- `renderList` haengt ihren Zuhoerer an
+	// `.avm-row`, und `selectRow` ist der einzige Weg nach `renderDetail`.
+	const listenZeile = scheinBehaelter("avm-row");
+	listenZeile.getAttribute = (name) => (name === "data-key" ? "eco:r1" : null);
+	const liste = scheinBehaelter("ecoList");
+	liste.querySelectorAll = (selektor) => (selektor === ".avm-row" ? [listenZeile] : []);
+
+	// 🔴 EINE ZEILE, DIE DER SCHREIBVORGANG WIRKLICH VERAENDERT. Eine eingefrorene Attrappe waere zu
+	// freundlich: nach dem Speichern liest der Editor die Liste neu (`loadData({keepSelection:true})`),
+	// und was dann zurueckkommt, IST der neue geladene Stand. Ohne das koennte keine der zwei
+	// Richtungen des dritten Zustands geprueft werden -- der zweite Klick verglich immer gegen „leer".
+	const ECO_REGION = {
+		public_id: "r1", name: "Wald-001", kind: "vegetation", region_type: null,
+		wiki_region_key: null, wiki_url: null, area_count: 2, label_public_id: null,
+		wiki_no_article: false, updated_at: "2026-08-16 00:00:00",
+	};
+	const editorAufrufe = [];
+	// ⚠️ Zwei ECHTE Nachbarn kommen mit: das Filtermenü (das Inline-Skript ruft es beim Start) und
+	// die Auto-Namen-Regel (der Block leitet den Haken daraus ab). Attrappen dafuer waeren zwei
+	// weitere Wahrheiten ueber Dinge, die es fertig gibt.
+	const editorLadeliste = ["js/ui/filter-menu.js", "js/map-features/map-features-ecosystem-naming.js"]
+		.concat(editorSkripte);
+	const e = sandkastenBauen(editorLadeliste, { ecoDetail: detail, ecoList: liste }, [],
+		(url) => {
+			if (url.indexOf("action=staging_sample") !== -1) { return { ok: true, rows: [SUCHZEILE] }; }
+			if (url.indexOf("action=search") !== -1) { return { ok: true, count: 1, rows: [SUCHZEILE] }; }
+			return { ok: true, matched: [], ambiguous: [], missing: [], unmatched_map_labels: [] };
+		},
+		{
+			// 💣 `ecoPost` verlangt ein FREMDES `window.parent` -- im Sandkasten ist `window.parent`
+			// sonst der Sandkasten selbst, und jeder Schreibvorgang faellt in die Absage
+			// „laeuft ohne Hauptfenster".
+			parent: {
+				postEcosystemEdit: (aktion, nutzlast) => {
+					editorAufrufe.push({ aktion: aktion, nutzlast: nutzlast });
+					if (aktion === "update_region") {
+						// Genau die Teilschreiber-Regel des Servers: nur was IM Rumpf steht.
+						if (Object.prototype.hasOwnProperty.call(nutzlast, "wiki_url")) {
+							ECO_REGION.wiki_url = nutzlast.wiki_url || null;
+							ECO_REGION.wiki_region_key = nutzlast.wiki_url ? "wiki:farindel" : null;
+						}
+						if (Object.prototype.hasOwnProperty.call(nutzlast, "wiki_no_article")) {
+							ECO_REGION.wiki_no_article = nutzlast.wiki_no_article === true;
+						}
+					}
+					if (aktion === "list_regions") {
+						return Promise.resolve({
+							ok: true, regions: [ECO_REGION],
+							region_types: VEGETATION.map((typ) => Object.assign({ kind: "vegetation" }, typ)),
+						});
+					}
+					return Promise.resolve({ ok: true });
+				},
+			},
+			t: (schluessel, rueckfall) => rueckfall,
+		});
+	vm.runInContext(editorSkript, e.kasten, { filename: "html/landschaften-editor.html" });
+	await ruhe();
+
+	// 🔴 Ueber den ECHTEN Weg: eine Region auswaehlen laesst renderDetail den Block bauen UND das
+	// Bauteil einhaengen. Eine Probe, die nur `wireEditBlocks` selbst ruft, bliebe gruen, wenn die
+	// Verdrahtung fehlt.
+	// 💣 Das Inline-Skript laeuft in einer IIFE -- an `rows`, `selectedKey` oder `renderDetail` kommt
+	// von aussen NICHTS heran, und das ist gut so: die einzige Tuer ist die, die ein Editor auch
+	// benutzt. Der Klick auf die Listenzeile geht durch `selectRow` -> `renderDetail` ->
+	// `wireEditBlocks` -> `mount`. Waere irgendeines dieser vier Glieder nicht verdrahtet, bliebe
+	// der Kasten leer.
+	listenZeile.feuere("click", listenZeile);
+	await ruhe();
+	assert.ok(detail.innerHTML.indexOf('data-f="wiki-host"') !== -1,
+		"der Bearbeitungsblock traegt den Behaelter der Zuweisung nicht: " + detail.innerHTML.slice(0, 400));
+	const eHost = blockFelder["wiki-host"];
+	assert.ok(eHost.innerHTML.indexOf("avm-wiki-assign") !== -1,
+		"renderDetail haengt das Bauteil nicht ein: " + eHost.innerHTML);
+	// Die Huelle „dt", nicht „label-wiki" -- dieses Fenster laedt editor-page.css.
+	assert.ok(eHost.innerHTML.indexOf("dt-grp") !== -1 && eHost.innerHTML.indexOf("label-wiki") === -1,
+		"der Regionen-Editor mountet die falsche Huelle: " + eHost.innerHTML);
+	assert.ok(eHost.innerHTML.indexOf("— keine —") !== -1, eHost.innerHTML);
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// ---- Zuweisen: fuellt den Kasten, schreibt aber NICHT ---------------------------------------
+	eHost.feuere("click", scheinZiel("data-wa-aktion", "zuweisen"));
+	await ruhe();
+	assert.ok(e.gesendet.some((s) => /action=search/.test(s.url)),
+		"der Regionen-Editor sucht nicht: " + JSON.stringify(e.gesendet.map((s) => s.url)));
+	eHost.feuere("click", scheinZiel("data-wa-treffer", "0"));
+	await ruhe();
+	assert.ok(eHost.innerHTML.indexOf("Farindel") !== -1, "der Treffer wurde nicht uebernommen: " + eHost.innerHTML);
+	assert.ok(!editorAufrufe.some((a) => a.aktion === "update_region"),
+		"„Zuweisen“ hat sofort geschrieben -- die ungespeicherten Feldaenderungen im selben Block "
+		+ "waeren mit dem Neuladen weg");
+	// 🔴 Der Auto-Name-Haken folgt der Zuweisung: eine Wiki-Landschaft BESITZT den Namen.
+	assert.strictEqual(blockFelder.auto.disabled, true,
+		"der Auto-Name-Haken bleibt nach dem Zuweisen bedienbar -- die Wiki-Landschaft besitzt den Namen");
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// ---- Sync: fuellt NUR das Formular ---------------------------------------------------------
+	eHost.feuere("click", scheinZiel("data-wa-aktion", "sync"));
+	await ruhe();
+	assert.ok(eHost.innerHTML.indexOf("Angabe") !== -1, "keine Sync-Vorschau: " + eHost.innerHTML);
+	eHost.feuere("click", scheinZiel("data-wa-aktion", "sync-alle"));
+	await ruhe();
+	eHost.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
+	await ruhe();
+	assert.strictEqual(blockFelder.name.value, "Farindel", "der angehakte Name wurde nicht ins Formular uebernommen");
+	assert.strictEqual(blockFelder.type.value, "wald", "die angehakte Art wurde nicht ins Formular uebernommen");
+	assert.ok(!editorAufrufe.some((a) => a.aktion === "update_region"),
+		"„Übernehmen“ hat gespeichert -- es fuellt nur das Formular");
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// ---- Speichern: die Adresse reist mit, der Merker NICHT -----------------------------------
+	blockAktionen.save.feuere("click", blockAktionen.save);
+	await ruhe();
+	const geschrieben = editorAufrufe.filter((a) => a.aktion === "update_region")[0];
+	assert.ok(geschrieben, "das Speichern hat nichts geschrieben: " + JSON.stringify(editorAufrufe));
+	assert.strictEqual(geschrieben.nutzlast.wiki_url, SUCHZEILE.wiki_url,
+		"die geaenderte Zuweisung reist nicht mit");
+	assert.ok(!("wiki_region_key" in geschrieben.nutzlast),
+		"der Rumpf traegt den Schluessel -- der Server leitet ihn ab");
+	// 🔴 ERSTE RICHTUNG des dritten Zustands: NICHT angefasst -> der Schluessel fehlt.
+	assert.ok(!("wiki_no_article" in geschrieben.nutzlast),
+		"der Merker reist mit, obwohl niemand das Haekchen angefasst hat");
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// Nach dem Speichern hat der Editor neu geladen -- die Zuweisung ist jetzt der GELADENE Stand.
+	assert.strictEqual(ECO_REGION.wiki_url, SUCHZEILE.wiki_url, "der Schreibvorgang kam nicht an");
+	assert.ok(eHost.innerHTML.indexOf("Farindel") !== -1,
+		"nach dem Speichern zeigt der Kasten die Zuweisung nicht mehr: " + eHost.innerHTML);
+	zaehl(); zaehl();
+
+	// ---- Entfernen: die LEERE Adresse ist der Weg zurueck ---------------------------------------
+	editorAufrufe.length = 0;
+	eHost.feuere("click", scheinZiel("data-wa-aktion", "entfernen"));
+	await ruhe();
+	assert.strictEqual(blockFelder.auto.disabled, false,
+		"der Auto-Name-Haken bleibt nach dem Entfernen tot");
+	blockAktionen.save.feuere("click", blockAktionen.save);
+	await ruhe();
+	const geloest = editorAufrufe.filter((a) => a.aktion === "update_region")[0];
+	assert.ok(geloest, "das Speichern nach dem Entfernen hat nichts geschrieben");
+	assert.strictEqual(geloest.nutzlast.wiki_url, "",
+		"die leere Adresse reist nicht mit -- die Zuweisung bliebe stehen");
+	assert.strictEqual(ECO_REGION.wiki_url, null, "die Zuweisung steht noch");
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// ---- Der dritte Zustand, BEIDE Richtungen, je eigene Fixture --------------------------------
+	// 💣 ZWEI Faelle, nicht einer. Eine Probe, die nur das Setzen prueft, bliebe gruen, wenn der
+	// Riegel an „gesetzt" statt an „veraendert" haengt -- dann wuerde man den Merker nie wieder los.
+	// Und weil die Attrappe oben den Schreibvorgang WIRKLICH anwendet, ist der zweite Klick ein
+	// Abhaken des GELADENEN Merkers und nicht bloss ein zweites Setzen.
+	editorAufrufe.length = 0;
+	eHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: true }));
+	blockAktionen.save.feuere("click", blockAktionen.save);
+	await ruhe();
+	const gesetzt = editorAufrufe.filter((a) => a.aktion === "update_region")[0];
+	assert.ok(gesetzt, "das Speichern mit gesetztem Haekchen hat nichts geschrieben");
+	assert.strictEqual(gesetzt.nutzlast.wiki_no_article, true,
+		"das gesetzte Haekchen erreicht den Server nicht");
+	assert.strictEqual(ECO_REGION.wiki_no_article, true, "der Merker steht nicht");
+	editorAufrufe.length = 0;
+	eHost.feuere("change", scheinZiel("data-wa-kein-artikel", "", { checked: false }));
+	blockAktionen.save.feuere("click", blockAktionen.save);
+	await ruhe();
+	const zurueck = editorAufrufe.filter((a) => a.aktion === "update_region")[0];
+	assert.ok(zurueck, "das Speichern nach dem Abhaken hat nichts geschrieben");
+	assert.strictEqual(zurueck.nutzlast.wiki_no_article, false,
+		"ein bewusst ENTFERNTES Haekchen kommt nicht durch -- der Merker liesse sich nie wieder loswerden");
+	assert.strictEqual(ECO_REGION.wiki_no_article, false, "der Merker steht immer noch");
+	zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
+
+	console.log("wiki-assign-landschaft: " + checks + " Zusicherungen erfuellt");
+})().catch((fehler) => {
+	console.error(fehler && fehler.stack ? fehler.stack : fehler);
+	process.exit(1);
+});

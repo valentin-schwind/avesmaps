@@ -129,6 +129,40 @@ const WIRKLICHKEIT = {
 		// Sync-Zeile koennte nur anbieten, was der Server schon getan hat.
 		karte: ["name", "feature_subtype", "einwohner", "lage", "oberhaupt"],
 	},
+	landschaft: {
+		// Der Regionen-Parser liest genau SIEBEN Infobox-Wertfelder ausser dem Namen
+		// (avesmapsWikiRegionParse…, api/_internal/wiki/regions.php:589-596):
+		//   :534 $art        = $field(['art','typ'])           (danach „Berg" -> „Berggipfel", :536)
+		//   :543 region_parent = $field(['region','regionen'])  :544 affiliation_staat = $field(['staat'])
+		//   :593 einwohner   = $field(['einwohnerzahl','einwohner'])
+		//   :594 sprache     = $field(['sprache'])
+		//   :595 vegetation  = $field(['vegetationszonen','vegetation'])
+		//   :596 verkehrswege= $field(['verkehrswege','verkehr'])
+		// Alle sieben stehen in den Suchspalten (avesmapsWikiRegionSearch, :1090-1092) und kommen
+		// damit unveraendert im Kasten an.
+		//
+		// NICHT dabei, jeweils nach der Grenze oben:
+		//   · `wiki_key`/`title`/`name`/`match_key`/`wiki_url` -- Identitaet.
+		//   · `continent` (:549) -- ABGELEITET aus Titel, Region, Staat, Nav-Vorlagen und Kategorien,
+		//     kein Infoboxfeld (dieselbe Klasse wie `kind` beim Weg). 🔴 Es steht trotzdem als
+		//     Anzeige-Zeile im Register, weil die Suche es liefert -- Pruefung 2 fragt nur in die
+		//     andere Richtung, und die Grenze dieser Liste bleibt davon unberuehrt.
+		//   · `neighbors_json` (:553-563) und `synonyms_json` (:566-583) -- die zwei `*_json`-Spalten.
+		//     Sie sind KEINE Werte, sondern Gruppen: acht Himmelsrichtungsfelder, jedes eine LISTE von
+		//     Links, bzw. die Aliasliste. Es gibt keine skalare Form, die ein Zuweisungskasten zeigen
+		//     koennte, und kein Kartenfeld, das sie je aufnaehme. Dieselbe Grenze wie beim Weg.
+		//   · `description` (:597) -- Fliesstext aus dem Artikelrumpf.
+		//   · `image_*`, `synced_at`, `source_categories_json` -- Bild- und Betriebsangaben.
+		wiki: ["art", "region_parent", "affiliation_staat", "einwohner", "sprache", "vegetation", "verkehrswege"],
+		// Die ZWEI bearbeitbaren Kartenfelder. `ecosystem_region` hat schlicht keine weiteren:
+		// die DDL (api/_internal/app/ecosystem.php:243-265) fuehrt ausser diesen beiden nur `kind`
+		// (die Ebene -- kein Wiki-Feld beschreibt sie), `origin`, die aus `wiki_url` ABGELEITETEN
+		// Wiki-Spalten, `label_public_id` und `properties_json`.
+		// 🔴 `wiki_url` selbst ist KEIN Sync-Ziel, sondern die Zuweisung -- dieselbe Trennung wie
+		// `properties.wiki_settlement` beim Ort. Und `wiki_region_key` wird nie geschrieben, nur
+		// abgeleitet (avesmapsEcosystemWikiRegionKey).
+		karte: ["name", "region_type"],
+	},
 };
 
 // 6) DIE ZEILE, DIE BEISST: das AUSGELIEFERTE Register gegen die gemessene Wirklichkeit -- anders

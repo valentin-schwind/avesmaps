@@ -42,6 +42,14 @@ require_once __DIR__ . '/ecosystem-label-link.php';
 // on the dev machine and on STRATO).
 require_once __DIR__ . '/../text/ascii-fold.php';
 
+// Der Widerspruchsriegel des dritten Zustands („Kein Wiki-Artikel vorhanden"), seit 16.08.2026 auch
+// fuer die Landschaft. 🔴 Bewusst die SECHS-ZEILEN-Datei und nicht api/_internal/map/features.php,
+// wo die Regel bis dahin stand: diese Datei haengt am oeffentlichen Leseweg der Karte
+// (api/app/ecosystem-areas.php), und 3.471 Zeilen dorthin zu ziehen waere genau die Zusatzlast, die
+// AGENTS.md §10 als Bremse fuehrt. Geteilt wird die REGEL, nicht die Bibliothek -- eine zweite
+// Formulierung waere die Bauform, in der die Schreibwege auseinanderlaufen.
+require_once __DIR__ . '/../map/wiki-claim.php';
+
 // Klimazonen: die reine Geometrie (Trennlinie normalisieren, Reihenfolge pruefen, Band ableiten) und
 // der Riegel gegen das Bearbeiten einer abgeleiteten Flaeche. Eigene Datei, weil sie ohne Datenbank
 // auskommt und genau deshalb lokal beweisbar ist -- dort liegt nichts, was ein PDO braucht
@@ -1713,6 +1721,101 @@ function avesmapsEcosystemReadRegionFields(array $payload, ?string $currentKind)
     return $fields;
 }
 
+// ---- Der dritte Zustand: „Kein Wiki-Artikel vorhanden" ------------------------------------------------
+// 🔴 DER MERKER LIEGT IN `properties_json`, NICHT IN EINER EIGENEN SPALTE -- genau wie `is_hidden`,
+// `is_nodix` und `wiki_no_article` bei den map_features (AGENTS.md §11). Es gibt keine DDL und keine
+// Migration; die Spalte steht seit V2.3 da und war bis zum 16.08.2026 von KEINEM Client beschrieben und
+// von KEINEM Leseweg herausgegeben.
+//
+// 🪤 UND WAS ER HIER (NOCH) NICHT TUT, steht hier, damit es niemand versehentlich verspricht: eine
+// `ecosystem_region` steht in KEINER Konfliktliste -- avesmapsConflictLoadMapRows liest ausschliesslich
+// `map_features` (location|path|label|powerline), und avesmapsEnrichMapFeatureWikiUrl raet ebenfalls nur
+// dort Adressen zusammen. Bei Ort, Weg und Kraftlinie ist der Merker deshalb eine REPARATUR; hier haelt
+// er vorerst nur die Entscheidung fest. Wer die Landschaften in das Konfliktzentrum aufnimmt, findet den
+// Merker also bereits vor.
+
+// Transkription von avesmapsReadBoolean (api/_internal/map/features.php:203) -- zwei Zeilen, und
+// bewusst kein Aufruf: dieselbe Begruendung wie beim Slug oben, diese Datei zieht features.php nicht.
+function avesmapsEcosystemReadBoolean(mixed $value): bool
+{
+    return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+}
+
+/** REIN: traegt diese Regionszeile den Merker? Eine kaputte oder fehlende Ablage heisst „nein". */
+function avesmapsEcosystemRegionNoArticle(mixed $propertiesJson): bool
+{
+    $properties = json_decode((string) ($propertiesJson ?? ''), true);
+
+    return is_array($properties) && !empty($properties['wiki_no_article']);
+}
+
+/**
+ * REIN: was `update_region` am Merker zu tun hat. Leeres Ergebnis = nichts zu schreiben.
+ *
+ * 💣 FEHLT `wiki_no_article` IM RUMPF, BLEIBT DER MERKER UNANGETASTET -- dieselbe array_key_exists-Regel
+ * wie bei avesmapsApplyPointWikiFields und avesmapsApplyPathWikiNoArticle. Der Grund ist der
+ * Owner-Entscheid vom 16.08.2026 (anstelle eines `expected_revision`): ein alter, laengst offener Dialog
+ * soll die Entscheidung eines zweiten Editors nicht beim naechsten beliebigen Speichern zuruecknehmen.
+ * Beide Landschafts-Oberflaechen schicken den Schluessel deshalb nur, wenn das Haekchen SEIT DEM LADEN
+ * umgelegt wurde (`kein_artikel_geaendert`, js/ui/wiki-assign.js).
+ *
+ * 🔴 EINE ZUWEISUNG LOESCHT DEN MERKER, und zwar ohne Rueckfrage: „es gibt keinen Artikel" und „hier ist
+ * er" schliessen einander aus. Bei Ort, Weg und Kraftlinie tut das jeder Zuweiser einzeln -- hier gibt es
+ * nur EINEN Schreibweg (`update_region`), also steht es einmal hier. ⚠️ Nur wenn der Rumpf NICHT
+ * ausdruecklich etwas anderes sagt: wer Haekchen UND Adresse in einem Zug schickt, laeuft in den Riegel
+ * darunter statt in eine stille Vorrangregel.
+ *
+ * ⚠️ Gerechnet wird auf den Eigenschaften, die der Rumpf mitbringt, sonst auf den GESPEICHERTEN -- sonst
+ * loeschte ein `properties`-Rumpf den Merker still mit, und ein Merker-Rumpf die uebrigen Eigenschaften.
+ *
+ * @param array  $before            die Zeile vor dem Schreiben
+ * @param array  $payload           der Rumpf
+ * @param array  $fields            die schon gelesenen Felder (kann `properties_json` tragen)
+ * @param string $effectiveWikiUrl  die Adresse NACH diesem Schreibvorgang
+ * @return array<string,?string>    `['properties_json' => …]` oder `[]`
+ */
+function avesmapsEcosystemApplyRegionNoArticle(array $before, array $payload, array $fields, string $effectiveWikiUrl): array
+{
+    $quelle = array_key_exists('properties_json', $fields)
+        ? $fields['properties_json']
+        : ($before['properties_json'] ?? null);
+    $properties = json_decode((string) ($quelle ?? ''), true);
+    if (!is_array($properties)) {
+        $properties = [];
+    }
+    $stored = !empty($properties['wiki_no_article']);
+    $gefordert = array_key_exists('wiki_no_article', $payload);
+    $noArticle = $gefordert ? avesmapsEcosystemReadBoolean($payload['wiki_no_article']) : $stored;
+
+    if (!$gefordert && $noArticle && trim($effectiveWikiUrl) !== '') {
+        $noArticle = false;   // zugewiesen -> der Merker ist beantwortet
+    }
+    avesmapsAssertWikiClaimNotContradictory(
+        $effectiveWikiUrl,
+        $noArticle,
+        'Eine Landschaft',
+        'Bitte die Zuweisung entfernen oder das Häkchen abwählen.'
+    );
+
+    if ($noArticle === $stored && !array_key_exists('properties_json', $fields)) {
+        return [];
+    }
+    if ($noArticle) {
+        $properties['wiki_no_article'] = true;
+    } else {
+        // 🔴 Entfernt, nicht auf `false` gesetzt: als `false` liesse sich „entschieden, es gibt keinen"
+        // spaeter nicht mehr von „nie entschieden" unterscheiden (dieselbe Regel wie bei den
+        // Kraftlinien, api/_internal/map/features.php).
+        unset($properties['wiki_no_article']);
+    }
+
+    return [
+        'properties_json' => $properties === []
+            ? null
+            : json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+    ];
+}
+
 // ---- wiki key ----------------------------------------------------------------------------------------
 // Transcription of avesmapsPoliticalSlug (api/_internal/political/territory.php:1060), word for word and
 // deliberately NOT a call -- see the require note at the top of this file. Copied verbatim INCLUDING the
@@ -1777,7 +1880,14 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
         // label_public_id reist mit, damit beide Dialoge die Kopplung ZEIGEN koennen: die Region sagt
         // "traegt 1 Flaeche und 1 Label", das Label sagt "wird von N Flaechen getragen" -- ohne je Dialog
         // eine eigene Abfrage. Es ist derselbe Zeiger, den createEcosystemRegionLabel schreibt.
-        'SELECT r.public_id, r.name, r.kind, r.region_type, r.wiki_region_key, r.wiki_url, r.label_public_id, r.updated_at,
+        // 🔴 `properties_json` reist seit dem 16.08.2026 mit, aber NICHT roh: heraus geht genau der
+        // eine Merker, den die Zuweisung braucht (`wiki_no_article`). Ohne diese Spalte gaebe es fuer
+        // den dritten Zustand keinen LESEWEG -- das Haekchen liesse sich setzen und stuende beim
+        // naechsten Oeffnen wieder leer da, ohne dass irgendwo etwas fehlschluege. `list_regions` ist
+        // die richtige Stelle, weil BEIDE Landschafts-Oberflaechen ohnehin von hier ihr Art-Vokabular
+        // ziehen (der Flaechen-Dialog sucht sich seine Zeile ueber `public_id` heraus).
+        'SELECT r.public_id, r.name, r.kind, r.region_type, r.wiki_region_key, r.wiki_url, r.label_public_id,
+                r.properties_json, r.updated_at,
                 (SELECT COUNT(*) FROM ecosystem_area a WHERE a.region_id = r.id AND a.is_active = 1) AS area_count
            FROM ecosystem_region r
           WHERE ' . implode(' AND ', $where) . '
@@ -1796,6 +1906,10 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
             'wiki_url' => $row['wiki_url'] === null ? null : (string) $row['wiki_url'],
             'area_count' => (int) $row['area_count'],
             'label_public_id' => $row['label_public_id'] === null ? null : (string) $row['label_public_id'],
+            // Der dritte Zustand, als BOOLEAN und nicht als rohe Eigenschaftsablage: die Oberflaechen
+            // brauchen die Antwort, nicht die Ablage, und ein `properties_json` auf der Leitung waere
+            // die Einladung, dort noch etwas anderes hineinzuschreiben.
+            'wiki_no_article' => avesmapsEcosystemRegionNoArticle($row['properties_json'] ?? null),
             'updated_at' => (string) $row['updated_at'],
         ];
     }
@@ -2206,6 +2320,16 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     $publicId = avesmapsEcosystemReadPublicId($payload['public_id'] ?? '', 'public_id');
     $before = avesmapsEcosystemRegionRow($pdo, $publicId);
     $fields = avesmapsEcosystemReadRegionFields($payload, (string) $before['kind']);
+    // 🔴 Der dritte Zustand VOR der Leer-Pruefung: ein Rumpf, der NUR das Haekchen umlegt, ist ein
+    // gueltiger Schreibvorgang. Danach zu pruefen hiesse, ihn mit „No updatable field was sent"
+    // abzulehnen -- und der Haken taete im Regionen-Editor nichts, ohne dass irgendwo etwas fehlschluege.
+    $effectiveWikiUrl = array_key_exists('wiki_url', $fields)
+        ? (string) ($fields['wiki_url'] ?? '')
+        : (string) ($before['wiki_url'] ?? '');
+    $fields = array_merge(
+        $fields,
+        avesmapsEcosystemApplyRegionNoArticle($before, $payload, $fields, $effectiveWikiUrl)
+    );
     if ($fields === []) {
         throw new InvalidArgumentException('No updatable field was sent.');
     }

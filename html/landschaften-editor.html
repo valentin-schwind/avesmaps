@@ -146,6 +146,18 @@
      Entdopplung. Derselbe Weg, den der Siedlungseditor seit Monaten geht. -->
 <script>window.POLITICAL_TERRITORIES_API_URL = "/api/app/political-territories.php";</script>
 <script src="/js/map-features/map-features-settlement-territory-assign.js"></script>
+<!-- Die Wiki-Zuweisung: Register, Diff-Rechnung, dann das Bauteil -- IN DIESER REIHENFOLGE.
+     `avesmapsWikiAssignMount` prüft beide Voraussetzungen und liefert sonst einen erkennbaren
+     Blindgänger (bereit === false), aber ein Blindgänger ist kein Ersatz. Danach der Datenweg der
+     Landschaft, den sich dieses Fenster und der Flächen-Dialog auf der Karte teilen.
+     ⚠️ Dieses Dokument ist ein iframe mit EIGENEM `window`: die vier Zeilen aus index.html gelten
+     hier nicht, sie müssen hier stehen (Kopf von js/ui/wiki-assign.js).
+     💣 Und der Stil kommt aus css/components/editor-page.css, das oben schon eingebunden ist --
+     deshalb die Hülle „dt" und nicht „label-wiki". -->
+<script src="/js/ui/wiki-assign-registry.js"></script>
+<script src="/js/ui/wiki-assign-diff.js"></script>
+<script src="/js/ui/wiki-assign.js"></script>
+<script src="/js/ui/wiki-assign-landschaft.js"></script>
 <script>
 "use strict";
 (function () {
@@ -1331,11 +1343,17 @@ function regionEditBlock(region) {
 		+ '<div class="k">Art</div><div><select data-f="type"' + (abgeleitet ? " disabled" : "") + ">" + options.join("") + "</select>"
 		+ (abgeleitet ? '<div class="pl-hint">Die Fläche dieser Zone entsteht aus den Trennlinien auf der Karte (Landschaften → Klimazonen). Art und Umriss lassen sich hier nicht ändern.</div>' : "")
 		+ "</div>"
-		+ '<div class="k">Wiki-Artikel</div><div><input type="url" data-f="wiki" placeholder="https://de.wiki-aventurica.de/wiki/…" value="' + esc(region.wiki_url || "") + '">'
-		+ '<div class="pl-hint">' + (region.wiki_region_key ? "Schlüssel <b>" + esc(region.wiki_region_key) + "</b> — vom Server aus der URL abgeleitet" : "ohne Wiki-Eintrag — ein gültiger Zustand") + "</div></div>"
 		+ "</div>"
+		// 🔴 HIER STAND EIN FREITEXTFELD FÜR DIE ADRESSE, und genau das darf es nicht mehr geben
+		// (Entwurf §5): ein Feld, in das man alles tippen kann, ist der Grund, warum bei den
+		// Kraftlinien ein Tippfehler unsichtbar blieb. Seit 16.08.2026 steht hier das geteilte
+		// Bauteil (js/ui/wiki-assign.js, Objektart „landschaft", Hülle „dt") -- gesucht wird beim
+		// Tippen, zugewiesen per Klick, und der Schlüssel bleibt, was er war: eine Ableitung des
+		// Servers aus der URL, die niemand von Hand schreibt.
+		// 💣 Ein BLANKER Behälter: die Hülle erzeugt das Bauteil selbst. Ein vorgegebenes
+		// `<div class="avm-wiki-assign">` trüge den Kasten doppelt geschachtelt.
+		+ '<div data-f="wiki-host"></div>'
 		+ '<div class="dt-actions"><button type="button" data-a="save">Speichern</button>'
-		+ '<button type="button" data-a="wiki-clear"' + (region.wiki_url ? "" : " disabled") + ">Wiki-Zuweisung entfernen</button>"
 		+ '<span class="dt-msg"></span></div>'
 		+ "</div>";
 }
@@ -1347,9 +1365,16 @@ function wireEditBlocks(host) {
 		if (!region) { return; }
 		const field = (name) => block.querySelector('[data-f="' + name + '"]');
 		const message = block.querySelector(".dt-msg");
-		// 💣 `wiki_url` travels ONLY when someone touched it. update_region writes exactly the fields
-		// in the payload, so an always-sent empty field would silently delete an existing assignment.
-		let wikiTouched = false;
+		// 💣 `wiki_url` reist NUR MIT, wenn sich die Zuweisung geändert hat. `update_region` schreibt
+		// genau die Felder, die im Rumpf stehen -- ein immer mitgeschicktes leeres Feld löschte eine
+		// bestehende Zuweisung still. Bis 16.08.2026 hing das an einem `input`-Zuhörer am
+		// Adressfeld; jetzt wird der GELADENE Stand gemerkt und beim Speichern verglichen. Das Bauteil
+		// selbst weiß von „geändert" nichts -- es kennt nur `kein_artikel_geaendert` (dort ist die
+		// Frage schärfer, siehe unten).
+		const wikiGeladen = String(region.wiki_url || "");
+		// Die Steuerung des Zuweisungs-Bauteils dieses Blocks. `null` = nicht gemountet (fehlende
+		// Skriptzeile oder unbekannte Objektart); dann bleibt die Zuweisung beim Speichern unberührt.
+		let wikiAssign = null;
 
 		const applyAutoName = () => {
 			const artLabel = (() => {
@@ -1367,15 +1392,144 @@ function wireEditBlocks(host) {
 		field("auto").addEventListener("change", applyAutoName);
 		// „ein Artwechsel zieht den Griff mit" (§7d): with the checkbox on, changing the Art renames.
 		field("type").addEventListener("change", () => { if (field("auto").checked) { applyAutoName(); } });
-		field("wiki").addEventListener("input", () => { wikiTouched = true; });
 
-		block.querySelector('[data-a="wiki-clear"]').addEventListener("click", () => {
-			field("wiki").value = "";
-			wikiTouched = true;   // deliberate: an empty wiki_url IS the way back (Verhaltensdoku §7a)
-			field("auto").disabled = false;
+		// ---- Die Wiki-Zuweisung ------------------------------------------------------------------
+		// 🔴 Alle vier Rückrufe schreiben NICHTS -- gespeichert wird mit „Speichern", wie Name und Art
+		// daneben. Der Rückkanal ist `lies()` (js/ui/wiki-assign.js). Ein sofort schreibendes
+		// „Zuweisen" würde außerdem `loadData()` auslösen und die ungespeicherten Änderungen im
+		// selben Block wegwerfen.
+		const wikiHost = field("wiki-host");
+
+		// Der ganze Steckbrief der zugewiesenen Wiki-Landschaft. 💣 WIRFT -- der Vertrag aus dem Kopf
+		// von js/ui/wiki-assign.js: ein `laden`, das im Fehlerfall auflöst, ist von „nichts
+		// zugewiesen" nicht zu unterscheiden, und das nächste „Speichern" schriebe die Zuweisung leer.
+		const ladeWikiSchnappschuss = async (wikiKey) => {
+			const key = String(wikiKey || "").trim();
+			if (key === "") { return null; }
+			const response = await fetch(
+				"/api/edit/wiki/regions.php?action=staging_sample&wiki_keys=" + encodeURIComponent(key) + "&limit=1",
+				{ credentials: "same-origin", headers: { Accept: "application/json" } }
+			);
+			if (!response.ok) { throw new Error("Der Server antwortete mit " + response.status + "."); }
+			const data = avesmapsWikiAssignLandschaftAntwortPruefen(await response.json());
+			// ⚠️ Eine leere Trefferliste ist KEIN Fehler: der Schlüssel kann verwaist sein (genau der
+			// Fall, den die Liste als „keine Wiki-Zeile" ausweist). Dann steht der Kasten mit Adresse
+			// und Schlüssel da.
+			return (data.rows || [])[0] || null;
+		};
+
+		let wikiSchnappschuss = null;
+		let wikiStand = { wiki_key: String(region.wiki_region_key || ""), wiki_url: wikiGeladen, name: String(region.name || "") };
+
+		const wikiArten = () => typesOfKind(region.kind);
+
+		const wikiAssignZustand = async () => {
+			const key = String(wikiStand.wiki_key || "").trim();
+			if (key !== "" && String(wikiSchnappschuss && wikiSchnappschuss.wiki_key || "") !== key) {
+				wikiSchnappschuss = await ladeWikiSchnappschuss(key);
+			}
+			if (key === "") { wikiSchnappschuss = null; }
+			return avesmapsWikiAssignLandschaftZustand({
+				wiki_key: key,
+				wiki_url: wikiStand.wiki_url,
+				wiki_name: wikiStand.name,
+				schnappschuss: wikiSchnappschuss,
+				arten: wikiArten(),
+				kind: region.kind,
+				kein_artikel: region.wiki_no_article === true,
+				// 💣 Lesefunktionen, nicht Werte: die Sync-Vorschau entsteht erst beim Druck auf
+				// „Sync", und bis dahin kann im Formular daneben getippt worden sein.
+				name: () => field("name").value,
+				region_type: () => field("type").value,
+			});
+		};
+
+		// 🔴 Eine zugewiesene Wiki-Landschaft BESITZT den Namen (Verhaltensdoku §7d, Zeile 3): der
+		// Auto-Name-Haken ist dann abgeschaltet, nicht versteckt. Bis 16.08.2026 entschied das
+		// `region.wiki_url` beim Zeichnen des Blocks -- jetzt folgt es der Zuweisung im Kasten, sonst
+		// bliebe der Haken nach einem „Zuweisen" bedienbar und nach einem „Entfernen" tot.
+		const wikiAutoNameRiegel = () => {
+			const box = field("auto");
+			if (!box) { return; }
+			box.disabled = String(wikiStand.wiki_url || "") !== "";
+			const hinweis = box.parentElement && box.parentElement.querySelector("span");
+			if (hinweis) {
+				hinweis.textContent = box.disabled
+					? "die Wiki-Landschaft besitzt den Namen"
+					: "interner Griff — ein Leser sieht die Art";
+			}
+		};
+
+		const wikiAssignZuweisen = (treffer) => {
+			const roh = (treffer && treffer.roh) || {};
+			wikiStand = {
+				wiki_key: String(roh.wiki_key || ""),
+				wiki_url: String(roh.wiki_url || ""),
+				name: String(roh.name || ""),
+			};
+			wikiSchnappschuss = roh;
+			wikiAutoNameRiegel();
+			message.textContent = "Zuweisung wird beim Speichern übernommen.";
+			message.className = "dt-msg";
+		};
+
+		const wikiAssignLoesen = () => {
+			// ⚠️ Eine LEERE Adresse IST der Weg zurück (Verhaltensdoku §7a) -- sie löscht Adresse und
+			// Schlüssel. Der NAME bleibt stehen: die Zuweisung zu lösen soll nicht umbenennen.
+			wikiStand = { wiki_key: "", wiki_url: "", name: wikiStand.name };
+			wikiSchnappschuss = null;
+			wikiAutoNameRiegel();
 			message.textContent = "Zuweisung wird beim Speichern entfernt.";
 			message.className = "dt-msg";
-		});
+		};
+
+		// ⚠️ ÜBERNEHMEN FÜLLT NUR DAS FORMULAR (Entwurf §6). 🔴 Und es WIRFT, wenn nichts anzuwenden
+		// war: das Bauteil liest eine Ablehnung als „es ist nichts passiert" und lässt die Vorschau
+		// stehen -- ein stilles Auflösen schlösse sie, und der Haken sähe aus wie übernommen.
+		const wikiAssignSyncUebernehmen = (zeilen) => {
+			const werte = avesmapsWikiAssignLandschaftSyncWerte(zeilen);
+			if (avesmapsWikiAssignLandschaftSyncLeer(werte)) {
+				throw new Error("Keine übernehmbare Angabe angehakt.");
+			}
+			if (werte.name !== null) { field("name").value = werte.name; }
+			// 💣 Die Art nur, wenn das Auswahlfeld sie kennt: das Vokabular ist je Ebene ein anderes,
+			// und der Server antwortet auf ein fremdes Paar mit 400
+			// (avesmapsEcosystemAssertRegionType). avesmapsWikiAssignLandschaftArt liefert per
+			// Konstruktion schon nur Arten dieser Ebene -- das hier ist die zweite Hälfte desselben
+			// Riegels, an dem Element, das ihn tragen muss.
+			const select = field("type");
+			if (werte.region_type !== null && select
+				&& Array.prototype.some.call(select.options, (option) => option.value === werte.region_type)) {
+				select.value = werte.region_type;
+				if (field("auto").checked) { applyAutoName(); }
+			}
+			message.textContent = "Aus dem Wiki übernommen — noch nicht gespeichert.";
+			message.className = "dt-msg";
+		};
+
+		if (wikiHost && typeof avesmapsWikiAssignMount === "function") {
+			wikiAssign = avesmapsWikiAssignMount(wikiHost, {
+				subject: "landschaft",
+				// Das Editorfenster, nicht der Kartendialog: diese Seite lädt
+				// css/components/editor-page.css, nicht region-sync.css.
+				skin: "dt",
+				laden: wikiAssignZustand,
+				trefferAufbereiten: (zeile) => avesmapsWikiAssignLandschaftTreffer(zeile, wikiArten()),
+				zuweisen: wikiAssignZuweisen,
+				loesen: wikiAssignLoesen,
+				syncUebernehmen: wikiAssignSyncUebernehmen,
+				keinArtikelGeaendert: (gesetzt) => {
+					// Der Merker wohnt im Bauteil, bis „Speichern" ihn über `lies()` abholt -- ihn hier
+					// in `region` zu schreiben hiesse, ihn beim nächsten `laden` als GELADENEN Stand zu
+					// sehen: das Bauteil meldete „nicht verändert", der Schlüssel fiele aus dem Rumpf,
+					// und der Haken täte nichts.
+					message.textContent = gesetzt
+						? "„Kein Wiki-Artikel vorhanden“ gesetzt — noch nicht gespeichert."
+						: "„Kein Wiki-Artikel vorhanden“ entfernt — noch nicht gespeichert.";
+					message.className = "dt-msg";
+				},
+			});
+		}
 
 		block.querySelector('[data-a="save"]').addEventListener("click", async () => {
 			const button = block.querySelector('[data-a="save"]');
@@ -1386,7 +1540,21 @@ function wireEditBlocks(host) {
 			};
 			// 🔴 Only wiki_url -- never wiki_region_key. The server derives the key from the URL
 			// (avesmapsEcosystemWikiRegionKey); a client-sent key is not read at all.
-			if (wikiTouched) { payload.wiki_url = field("wiki").value.trim(); }
+			// 💣 Und nur, wenn sich wirklich etwas geändert hat: ein immer mitgeschicktes Feld löschte
+			// sonst eine Zuweisung, die ein zweiter Editor gerade gesetzt hat.
+			if (String(wikiStand.wiki_url || "") !== wikiGeladen) { payload.wiki_url = String(wikiStand.wiki_url || ""); }
+			// 🔴 DER DRITTE ZUSTAND, und er reist NUR MIT, WENN DAS HÄKCHEN SEIT DEM LADEN UMGELEGT
+			// WURDE (Owner-Entscheid 16.08.2026, anstelle eines `expected_revision`). `update_region`
+			// liest einen FEHLENDEN Schlüssel als „nicht geändert".
+			// 💣 GEPRÜFT WIRD VERÄNDERT, NICHT GESETZT -- sonst würde man den Merker nie wieder los.
+			// 💣 UND DER ZWILLING SCHICKT IHN AUCH (der Flächen-Dialog auf der Karte). Täte nur einer
+			// von beiden es, löschte der andere den Merker still bei jedem Speichern.
+			if (wikiAssign && wikiAssign.bereit) {
+				const stand = wikiAssign.lies();
+				if (stand && stand.kein_artikel_geaendert === true) {
+					payload.wiki_no_article = stand.kein_artikel === true;
+				}
+			}
 			if (payload.name === "") {
 				message.textContent = "Ein Name ist Pflicht.";
 				message.className = "dt-msg bad";

@@ -532,11 +532,17 @@ function skripteAus(htmlDatei, muster) {
 	// Die vier Zeilen aus index.html, in DEREN Reihenfolge -- fehlt eine, liefert `mount` unten
 	// einen Blindgaenger und die erste Zusicherung faellt um.
 	const dialogSkripte = skripteAus("index.html", /wiki-assign|review-settlement-wiki/);
-	// ⚠️ `wiki-assign-weg.js` steht mit in der Liste -- es ist der Datenweg der NACHBAR-Objektart
-	// und haengt von nichts ab; mitgeladen schadet es nicht und die Reihenfolge bleibt pruefbar.
+	// ⚠️ `wiki-assign-weg.js` und `wiki-assign-landschaft.js` stehen mit in der Liste -- es sind die
+	// Datenwege der NACHBAR-Objektarten und haengen von nichts ab; mitgeladen schaden sie nicht und
+	// die Reihenfolge bleibt pruefbar.
+	// 🪤 Diese Zusicherung ist am 16.08.2026 UMGEFALLEN, als Aufgabe 6 eine Zeile ergaenzte -- der
+	// gewollte Fall, und genau deshalb steht hier eine Liste und keine Teilmengen-Pruefung: eine
+	// zusaetzliche Zeile soll GESEHEN werden. Wer sie ergaenzt, prueft, ob die drei Voraussetzungen
+	// (Register, Diff, Bauteil) weiterhin VOR jedem Datenweg stehen.
 	assert.deepStrictEqual(dialogSkripte, [
 		"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-assign.js",
-		"js/ui/wiki-assign-weg.js", "js/ui/wiki-assign-ort.js", "js/review/review-settlement-wiki.js",
+		"js/ui/wiki-assign-weg.js", "js/ui/wiki-assign-ort.js", "js/ui/wiki-assign-landschaft.js",
+		"js/review/review-settlement-wiki.js",
 	], "index.html bindet die Wiki-Zuweisung nicht (oder in der falschen Reihenfolge): " + dialogSkripte.join(" "));
 	zaehl();
 

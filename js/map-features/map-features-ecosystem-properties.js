@@ -30,7 +30,15 @@
 	// `null` = ausdrücklich entfernt, Objekt = neu gewählt. Die Unterscheidung ist nötig, weil „nicht
 	// angefasst" und „entfernt" beim Speichern verschiedene Dinge bedeuten.
 	let pendingWikiRegion;
-	let wikiSearchResults = [];
+	// Die Steuerung des geteilten Zuweisungs-Bauteils (js/ui/wiki-assign.js), solange der Dialog offen
+	// ist. `null` heisst „noch nicht gemountet" -- der Kasten entsteht erst, wenn das Art-Vokabular da
+	// ist (siehe mountWikiAssign).
+	let wikiAssign = null;
+	// Die Staging-Zeile zur gerade gezeigten Zuweisung. Die Region speichert nur Adresse und Schluessel;
+	// Art, Lage und Staat muessen dazugeholt werden (avesmapsWikiAssignLandschaftArtikel sagt, warum).
+	let wikiSchnappschuss = null;
+	// Der dritte Zustand, wie `list_regions` ihn geliefert hat.
+	let regionKeinArtikel = false;
 	let regionTypesForKind = [];
 	let regionAreaCount = 0;
 	// 💣 Die Flächenzahl kommt ERST mit list_regions an. Bis dahin darf nicht gelöscht werden: die
@@ -105,8 +113,14 @@
 		window.AvesmapsEcosystemHeightRender?.setSolid?.(false);
 		propertiesSourcePublicId = "";
 		pendingWikiRegion = undefined;
-		wikiSearchResults = [];
-		setWikiSearchOpen(false);
+		wikiSchnappschuss = null;
+		regionKeinArtikel = false;
+		// 🔴 Zuhoerer abnehmen und den Behaelter leeren, nicht bloss die Steuerung vergessen: das Bauteil
+		// haengt vier Zuhoerer an den Behaelter, und ein zweites Oeffnen mountet ein zweites daneben.
+		if (wikiAssign) {
+			wikiAssign.zerstoeren();
+			wikiAssign = null;
+		}
 	}
 
 	// ---- Wiki-Landschaft ------------------------------------------------------------------------------
@@ -154,133 +168,116 @@
 		return await ecosystemWikiRegionSnapshot(key, wiki?.wiki_url || "");
 	}
 
-	function renderWikiReference() {
-		const list = propertiesElement("wiki-list");
-		const assignButton = propertiesElement("wiki-assign");
-		const syncButton = propertiesElement("wiki-sync");
-		const removeButton = propertiesElement("wiki-remove");
-		if (!list) {
-			return;
-		}
+	// ---- Die Wiki-Zuweisung: das GETEILTE Bauteil -------------------------------------------------------
+	// Bis zum 16.08.2026 standen hier rund 145 Zeilen eigener Picker: Trefferliste, „Suchen"-Knopf,
+	// Zuweisungskasten und ein `syncFromWikiRegion`, das Name und Art UNBEDINGT überschrieb. Sie sind
+	// durch js/ui/wiki-assign.js ersetzt (Entwurf
+	// docs/superpowers/specs/2026-08-15-wiki-zuweisung-vereinheitlichung-design.md). Was
+	// objektart-eigen ist, steht in js/ui/wiki-assign-landschaft.js -- der Regionen-Editor im iframe
+	// benutzt dieselbe Datei.
+	//
+	// 🔴 ZWEI Unterschiede bemerkt ein Editor sofort, und beide sind gewollt:
+	//   1. Gesucht wird BEIM TIPPEN, nicht auf Knopfdruck. Dieser Dialog war die einzige Oberfläche im
+	//      Haus mit einem „Suchen"-Knopf, und dort sah es aus, als passiere nichts (Entwurf §1).
+	//   2. „Sync" überschreibt nicht mehr, sondern ZEIGT ERST, was er ändern würde, und nimmt Häkchen.
+	//      ⚠️ Und weil ein bereits gefüllter Kartenwert nie vorangehakt wird (Owner-Entscheid
+	//      16.08.2026, Aufgabe 5b), öffnet eine gepflegte Fläche die Vorschau mit NULL Haken. Das ist
+	//      der größte sichtbare Unterschied: bis heute war „Sync" ein Klick, jetzt sind es zwei.
 
+	// 💣 WIRFT, statt einen Rückfall zu liefern -- und das ist der ganze Punkt.
+	// `ecosystemWikiRegionSnapshot` (map-features-ecosystem-draw.js:440) tut das Gegenteil: es fängt
+	// seinen Fehler ab und gibt `{wiki_key, wiki_url}` zurück. Für das Label-Durchreichen ist das
+	// richtig; als `laden` des Bauteils wäre es die Fehlerklasse aus dessen Kopfkommentar -- ein 403
+	// sähe aus wie „diese Landschaft hat keine Angaben", und ein „Speichern" schriebe darauf.
+	async function ladeWikiSchnappschuss(wikiKey) {
+		const key = String(wikiKey || "").trim();
+		if (key === "") {
+			return null;
+		}
+		const antwort = await fetch(
+			`${WIKI_API_URL}?action=staging_sample&wiki_keys=${encodeURIComponent(key)}&limit=1`,
+			{ credentials: "same-origin", headers: { Accept: "application/json" } }
+		);
+		if (!antwort.ok) {
+			throw new Error(`Der Server antwortete mit ${antwort.status}.`);
+		}
+		const daten = avesmapsWikiAssignLandschaftAntwortPruefen(await antwort.json());
+		// ⚠️ Eine LEERE Trefferliste ist KEIN Fehler: der Schlüssel kann verwaist sein (die Wiki-Seite
+		// ist verschwunden oder wurde nie gesynct). Der Kasten zeigt dann Adresse und Schlüssel und
+		// sonst nichts -- leere Felder fallen im Bauteil ohnehin weg.
+		return (daten.rows || [])[0] || null;
+	}
+
+	/**
+	 * 🔴 DER ZUSTAND -- und er LEHNT AB, statt etwas Leeres zu liefern (Vertrag im Kopf von
+	 * js/ui/wiki-assign.js). Beide Landschafts-Oberflächen schreiben erst beim „Speichern"; ein
+	 * aufgelöstes Leeres wäre vom Zustand „nichts zugewiesen" nicht zu unterscheiden, und der nächste
+	 * Klick auf „Speichern" schriebe eine leere Zuweisung über eine bestehende.
+	 *
+	 * 💣 Die zwei Kartenwerte werden als LESEFUNKTION übergeben, nicht als Wert: `laden` läuft einmal,
+	 * die Sync-Vorschau entsteht erst beim Druck auf „Sync" -- dazwischen kann der Editor Namensfeld
+	 * und Artauswahl angefasst haben.
+	 */
+	async function wikiAssignZustand() {
+		const area = currentPropertiesArea();
+		if (!area) {
+			throw new Error("Wiki-Landschaft: keine Fläche gewählt — der Stand ist unbekannt.");
+		}
 		const wiki = effectiveWikiRegion();
-		if (!wiki) {
-			list.innerHTML = '<div class="label-wiki-reference__empty">Keine Wiki-Landschaft zugeordnet.</div>';
-			if (assignButton) {
-				assignButton.textContent = "Zuweisen";
-			}
-			if (syncButton) {
-				syncButton.hidden = true;
-			}
-			if (removeButton) {
-				removeButton.hidden = true;
-			}
-			return;
+		const schluessel = String(wiki?.wiki_key || "").trim();
+		// Nach einer Wahl im Kasten liegt die Staging-Zeile schon vor (der Treffer IST sie) -- dann
+		// wird nicht noch einmal geholt.
+		if (schluessel !== "" && String(wikiSchnappschuss?.wiki_key || "") !== schluessel) {
+			wikiSchnappschuss = await ladeWikiSchnappschuss(schluessel);
+		}
+		if (schluessel === "") {
+			wikiSchnappschuss = null;
 		}
 
-		if (assignButton) {
-			assignButton.textContent = "Ändern";
-		}
-		if (syncButton) {
-			syncButton.hidden = false;
-		}
-		if (removeButton) {
-			removeButton.hidden = false;
-		}
-
-		const rows = [
-			["Wiki-Region", wiki.name],
-			["Art", wiki.art],
-			["Lage", wiki.region_parent],
-			["Staat", wiki.affiliation_staat],
-			["Schlüssel", wiki.wiki_key],
-		].filter((pair) => String(pair[1] || "").trim() !== "");
-
-		let html = '<dl class="label-wiki-reference__dl">';
-		rows.forEach((pair) => {
-			html += `<dt>${escapeText(pair[0])}</dt><dd>${escapeText(pair[1])}</dd>`;
+		return avesmapsWikiAssignLandschaftZustand({
+			wiki_key: schluessel,
+			wiki_url: wiki?.wiki_url || "",
+			wiki_name: wiki?.name || "",
+			schnappschuss: wikiSchnappschuss,
+			arten: regionTypesForKind,
+			kind: area.kind,
+			kein_artikel: regionKeinArtikel,
+			name: () => String(propertiesElement("name")?.value || ""),
+			region_type: () => String(propertiesElement("type")?.value || ""),
 		});
-		html += "</dl>";
-		if (wiki.description) {
-			html += `<p class="label-wiki-reference__desc">${escapeText(wiki.description)}</p>`;
-		}
-		if (wiki.wiki_url) {
-			html += `<a class="label-wiki-reference__link" href="${escapeAttr(wiki.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
-		}
-		list.innerHTML = html;
 	}
 
-	function setWikiSearchOpen(open) {
-		const panel = propertiesElement("wiki-search");
-		if (panel) {
-			panel.hidden = !open;
-		}
-		if (open) {
-			propertiesElement("wiki-query")?.focus();
-		}
-	}
-
-	// Dieselbe Suche, die der Label-Dialog benutzt (?action=search) -- eine Wiki-Region ist dieselbe
-	// Wiki-Region, egal wer sie anhängt.
-	async function runWikiSearch() {
-		const query = String(propertiesElement("wiki-query")?.value || "").trim();
-		const results = propertiesElement("wiki-results");
-		if (!results) {
-			return;
-		}
-		results.innerHTML = '<p class="label-wiki-picker-list__empty">Suche …</p>';
-		try {
-			const response = await fetch(`${WIKI_API_URL}?action=search&q=${encodeURIComponent(query)}&limit=40`, { credentials: "same-origin" });
-			const data = await response.json();
-			if (!data || data.ok !== true) {
-				throw new Error(apiErrorMessage(data, "Suche fehlgeschlagen"));
-			}
-			wikiSearchResults = data.rows || [];
-		} catch (error) {
-			results.innerHTML = `<p class="label-wiki-picker-list__empty">Fehler: ${escapeText(error?.message || error)}</p>`;
-			return;
-		}
-		if (wikiSearchResults.length === 0) {
-			results.innerHTML = '<p class="label-wiki-picker-list__empty">Keine Treffer.</p>';
-			return;
-		}
-		results.innerHTML = wikiSearchResults
-			.map((row) => {
-				const meta = [row.art, row.region_parent, row.continent].filter(Boolean).map(escapeText).join(" · ");
-				return (
-					`<button type="button" class="label-wiki-picker-list__item" data-wiki-pick="${escapeAttr(row.wiki_key)}">` +
-					`<span class="label-wiki-picker-list__name">${escapeText(row.name)}</span>` +
-					`<span class="label-wiki-picker-list__meta">${meta}</span>` +
-					"</button>"
-				);
-			})
-			.join("");
-	}
-
-	function pickWikiRegion(wikiKey) {
-		const row = wikiSearchResults.find((entry) => String(entry.wiki_key) === String(wikiKey));
-		if (!row) {
-			return;
-		}
+	/**
+	 * Zuweisen -- und hier wird NICHT geschrieben: dieser Dialog hat „Abbrechen", und eine Zuweisung,
+	 * die schon auf dem Server steht, während der Editor auf „Abbrechen" drückt, wäre eine Änderung,
+	 * die er ausdrücklich zurückgenommen hat. Der Stand wandert deshalb wie bisher nach
+	 * `pendingWikiRegion` und geht beim „Speichern" mit (`update_region` ist ein Teilschreiber).
+	 *
+	 * 🔴 `pendingWikiRegion` bleibt die EINE Wahrheit dieser Oberfläche über die Zuweisung -- der
+	 * Label-Durchtrag (currentRegionWikiSnapshot -> createEcosystemRegionLabel) liest sie, und er
+	 * braucht Beschreibung und Staat, die im Kasten selbst gar nicht stehen. Deshalb die rohe
+	 * Suchzeile, nicht der aufbereitete Treffer.
+	 */
+	function wikiAssignZuweisen(treffer) {
+		const roh = (treffer && treffer.roh) || {};
 		// 🔴 Es reist die URL, NICHT der Schlüssel: wiki_region_key leitet der Server aus wiki_url ab
 		// (AGENTS.md §5). Ein hier gebauter Schlüssel wäre eine zweite Ableitung und bräche jeden Join.
 		pendingWikiRegion = {
-			wiki_key: row.wiki_key || "",
-			name: row.name || "",
-			art: row.art || "",
-			region_parent: row.region_parent || "",
-			affiliation_staat: row.affiliation_staat || "",
-			description: row.description || "",
-			wiki_url: row.wiki_url || "",
+			wiki_key: roh.wiki_key || "",
+			name: roh.name || "",
+			art: roh.art || "",
+			region_parent: roh.region_parent || "",
+			affiliation_staat: roh.affiliation_staat || "",
+			description: roh.description || "",
+			wiki_url: roh.wiki_url || "",
 		};
-		setWikiSearchOpen(false);
-		renderWikiReference();
+		wikiSchnappschuss = roh;
 		// 🔴 Zuweisen benennt SOFORT um: „ist ein Wiki-Eintrag zugewiesen, heisst das Ding wie im Wiki".
-		// Nicht erst auf „Sync" warten -- ein Knopf, der das Selbstverstaendliche nachholt, wird vergessen,
-		// und dann steht neben „Farindelwald" weiter ein Tippfehler im Namensfeld.
+		// Nicht erst auf „Sync" warten -- ein Knopf, der das Selbstverständliche nachholt, wird
+		// vergessen, und dann steht neben „Farindelwald" weiter ein Tippfehler im Namensfeld.
 		const nameInput = propertiesElement("name");
-		if (nameInput && String(row.name || "").trim() !== "") {
-			nameInput.value = String(row.name).trim();
+		if (nameInput && String(roh.name || "").trim() !== "") {
+			nameInput.value = String(roh.name).trim();
 		}
 		// Haken aus und deaktiviert -- die Wiki-Landschaft besitzt den Namen. Das Feld bleibt aber
 		// SCHREIBBAR: umbenennen darf man danach trotzdem noch, von Hand.
@@ -288,30 +285,93 @@
 		setPropertiesStatus("Wiki-Landschaft gewählt — Name übernommen, noch nicht gespeichert.");
 	}
 
-	// Name und Art aus der verbundenen Wiki-Landschaft übernehmen. Die Art nur, wenn das Vokabular DIESER
-	// Ebene sie kennt -- `wald` ist Vegetation und darf nie auf einer topographischen Region landen
-	// (der Server prüft dasselbe in avesmapsEcosystemAssertRegionType und antwortete sonst mit 400).
-	function syncFromWikiRegion() {
-		const wiki = effectiveWikiRegion();
-		if (!wiki) {
-			return;
+	function wikiAssignLoesen() {
+		pendingWikiRegion = null;                 // ausdrücklich entfernt, nicht bloss unberührt
+		wikiSchnappschuss = null;
+		// Ohne Wiki-Landschaft ist der Haken wieder bedienbar. Der Name bleibt stehen, wie er ist --
+		// die Zuweisung zu lösen soll nicht ungefragt umbenennen.
+		syncPropertiesAutoName();
+		setPropertiesStatus("Wiki-Landschaft entfernt — noch nicht gespeichert.");
+	}
+
+	/**
+	 * ⚠️ ÜBERNEHMEN FÜLLT NUR DAS FORMULAR (Entwurf §6) -- gespeichert wird mit „Speichern".
+	 *
+	 * 🔴 WIRFT, wenn nichts angehakt war: das Bauteil liest eine Ablehnung als „es ist nichts
+	 * passiert" und lässt die Vorschau stehen. Löste es still auf, schlösse sich die Vorschau und der
+	 * Editor hielte seinen Haken für übernommen.
+	 * 💣 Und die Art wird NUR gesetzt, wenn das Auswahlfeld sie kennt. Das Vokabular ist je Ebene ein
+	 * anderes (`wald` ist Vegetation und darf nie auf einer topographischen Region landen); der Server
+	 * prüft dasselbe in avesmapsEcosystemAssertRegionType und antwortete sonst mit 400.
+	 * ⚠️ avesmapsWikiAssignLandschaftArt liefert per Konstruktion schon nur Arten DIESER Ebene -- die
+	 * Prüfung hier ist die zweite Hälfte desselben Riegels, an dem Element, das ihn tragen muss.
+	 */
+	function wikiAssignSyncUebernehmen(zeilen) {
+		const werte = avesmapsWikiAssignLandschaftSyncWerte(zeilen);
+		if (avesmapsWikiAssignLandschaftSyncLeer(werte)) {
+			throw new Error("Keine übernehmbare Angabe angehakt.");
 		}
 		const nameInput = propertiesElement("name");
-		if (nameInput && wiki.name) {
-			nameInput.value = wiki.name;
+		if (werte.name !== null && nameInput) {
+			nameInput.value = werte.name;
 		}
 		const typeSelect = propertiesElement("type");
-		// Nur die erste Komponente einer mehrwertigen Wiki-Art ("Tal|Grube") -- wie serverseitig in
-		// avesmapsWikiRegionArtToSubtype. Roh verglichen trifft "tal|tal" nie den Typ-Namen "Tal".
-		const art = String(wiki.art || "").split(/\s*[|,]\s*/)[0].trim().toLowerCase();
-		const match = regionTypesForKind.find((type) => String(type.label || "").toLowerCase() === art
-			|| String(type.type_key || "").toLowerCase() === art);
-		if (typeSelect && match) {
-			typeSelect.value = match.type_key;
+		if (werte.region_type !== null && typeSelect
+			&& Array.from(typeSelect.options || []).some((option) => option.value === werte.region_type)) {
+			typeSelect.value = werte.region_type;
+			applyTerrainPresetForType();
 		}
-		setPropertiesStatus(match || wiki.name
-			? "Aus dem Wiki übernommen — noch nicht gespeichert."
-			: "Das Wiki liefert für diese Ebene keine passende Art.");
+		// Der Griff folgt der Art, und die Art hat sich gerade geändert.
+		syncPropertiesAutoName();
+		setPropertiesStatus("Aus dem Wiki übernommen — noch nicht gespeichert.");
+	}
+
+	/**
+	 * Das Häkchen „Kein Wiki-Artikel vorhanden" wurde umgelegt -- gespeichert ist damit nichts.
+	 *
+	 * 🔴 Der Merker wohnt im BAUTEIL, bis „Speichern" ihn über `lies()` abholt. Ihn hier in einen
+	 * eigenen Zustand zu schreiben hiesse, ihn beim nächsten `laden` als GELADENEN Stand zu sehen --
+	 * das Bauteil meldete „nicht verändert", der Schlüssel fiele aus dem Rumpf, und der Haken täte
+	 * nichts (dieselbe Falle wie im Wege-Editor, js/pages/wege-editor.js:700-703).
+	 */
+	function wikiAssignKeinArtikelGeaendert(gesetzt) {
+		setPropertiesStatus(gesetzt
+			? "„Kein Wiki-Artikel vorhanden“ gesetzt — noch nicht gespeichert."
+			: "„Kein Wiki-Artikel vorhanden“ entfernt — noch nicht gespeichert.");
+	}
+
+	/**
+	 * 🪤 ERST NACH `list_regions`, nicht beim Öffnen -- und das ist keine Bequemlichkeit.
+	 *
+	 * Die Abbildung „Wiki-Art -> Flächenart" braucht das Vokabular DIESER Ebene
+	 * (avesmapsWikiAssignLandschaftArt), und `laden` läuft genau EINMAL. Vor der Antwort gemountet,
+	 * wäre `regionTypesForKind` leer, jede Wiki-Art fiele auf `""` zurück, und die Sync-Vorschau böte
+	 * „die Angabe leeren" an, wo in Wahrheit „Wald → wald" steht. Derselbe Grund, aus dem der
+	 * Auto-Name-Haken zwanzig Zeilen weiter unten ebenfalls erst hier abgeleitet wird.
+	 */
+	function mountWikiAssign() {
+		const host = propertiesElement("wiki-host");
+		if (!host || typeof avesmapsWikiAssignMount !== "function") {
+			return;
+		}
+		if (wikiAssign) {
+			wikiAssign.zerstoeren();
+			wikiAssign = null;
+		}
+		wikiAssign = avesmapsWikiAssignMount(host, {
+			subject: "landschaft",
+			// Der Kartendialog, nicht das Editorfenster: index.html lädt css/components/region-sync.css,
+			// nicht editor-page.css -- mit der Hülle „dt" stünde der Kasten völlig ungestylt da.
+			skin: "label-wiki",
+			laden: wikiAssignZustand,
+			// Die Suche antwortet mit FLACHEN Zeilen; erst hier entsteht daraus ein Treffer samt der
+			// Abbildung Wiki-Art -> Flächenart, und die braucht das Vokabular dieser Ebene.
+			trefferAufbereiten: (zeile) => avesmapsWikiAssignLandschaftTreffer(zeile, regionTypesForKind),
+			zuweisen: wikiAssignZuweisen,
+			loesen: wikiAssignLoesen,
+			syncUebernehmen: wikiAssignSyncUebernehmen,
+			keinArtikelGeaendert: wikiAssignKeinArtikelGeaendert,
+		});
 	}
 
 	// ---- Auto-Name --------------------------------------------------------------------------------------
@@ -378,13 +438,17 @@
 
 		bindEcosystemPropertiesDialog();
 		pendingWikiRegion = undefined;
-		wikiSearchResults = [];
+		wikiSchnappschuss = null;
+		regionKeinArtikel = false;
+		if (wikiAssign) {
+			wikiAssign.zerstoeren();
+			wikiAssign = null;
+		}
 		regionTypesForKind = [];
 		regionAreaCount = 0;
 		regionAreaCountLoaded = false;
 		setPropertiesError("");
 		setPropertiesStatus("");
-		setWikiSearchOpen(false);
 		setDeleteButtonReady(false);
 
 		// Der Titel nennt die EBENE UND das Ding (Owner 2026-07-28): „Vegetations-Fläche bearbeiten",
@@ -419,7 +483,9 @@
 		// ein und muss durchgehend sehen, was man einstellt (Owner 2026-07-28).
 		window.AvesmapsEcosystemHeightRender?.setSolid?.(true);
 		renderEcosystemPeakRows(area);
-		renderWikiReference();
+		// 🪤 Der Zuweisungskasten kommt ERST nach `list_regions` -- siehe mountWikiAssign. Bis dahin
+		// bleibt sein Platz leer, genauso wie die Artauswahl darüber bis dahin `disabled` ist.
+		propertiesElement("wiki-host")?.replaceChildren?.();
 
 		overlayElement.hidden = false;
 		document.getElementById("ecosystem-properties-dialog")?.focus();
@@ -437,6 +503,10 @@
 			const mine = (result.regions || []).find((region) => region.public_id === area.region_public_id);
 			regionAreaCount = Number(mine?.area_count || 0);
 			regionAreaCountLoaded = Boolean(mine);
+			// Der dritte Zustand kommt aus DERSELBEN Antwort -- `list_regions` ist der einzige Leseweg,
+			// der ihn herausgibt (avesmapsListEcosystemRegions). Die Flächenzeile aus dem Kartenpayload
+			// trägt ihn nicht, und ein zweiter Abruf nur für ein Häkchen wäre eine Anfrage zu viel.
+			regionKeinArtikel = mine?.wiki_no_article === true;
 			setDeleteButtonReady(regionAreaCountLoaded);
 			if (typeSelect) {
 				typeSelect.innerHTML = "";
@@ -465,6 +535,9 @@
 					&& isEcosystemRegionAutoName(area.region_name, currentPropertiesArtLabel());
 				syncPropertiesAutoName();
 			}
+			// 🪤 UND HIER, aus demselben Grund: die Abbildung „Wiki-Art -> Flächenart" braucht das
+			// Vokabular DIESER Ebene, und `laden` läuft genau einmal (siehe mountWikiAssign).
+			mountWikiAssign();
 		} catch (error) {
 			setPropertiesError(error?.message || "Das Art-Vokabular konnte nicht geladen werden.");
 		}
@@ -1147,6 +1220,21 @@
 		if (pendingWikiRegion !== undefined) {
 			payload.wiki_url = pendingWikiRegion?.wiki_url || "";
 		}
+		// 🔴 DER DRITTE ZUSTAND, und er reist NUR MIT, WENN DAS HÄKCHEN SEIT DEM LADEN UMGELEGT WURDE
+		// (Owner-Entscheid 16.08.2026, anstelle eines `expected_revision`). `update_region` liest einen
+		// FEHLENDEN Schlüssel als „nicht geändert" (avesmapsEcosystemApplyRegionNoArticle) -- so nimmt
+		// ein alter, längst offener Dialog die Entscheidung eines zweiten Editors nicht beim nächsten
+		// beliebigen Speichern zurück.
+		// 💣 GEPRÜFT WIRD VERÄNDERT, NICHT GESETZT: ein bewusst ENTFERNTES Häkchen schickt `false` und
+		// löscht den Merker -- hinge der Riegel an „gesetzt", würde man ihn nie wieder los.
+		// 💣 UND DER ZWILLING SCHICKT IHN AUCH: der Regionen-Editor (html/landschaften-editor.html).
+		// Täte nur einer von beiden es, löschte der andere den Merker still bei jedem Speichern.
+		if (wikiAssign && wikiAssign.bereit) {
+			const stand = wikiAssign.lies();
+			if (stand && stand.kein_artikel_geaendert === true) {
+				payload.wiki_no_article = stand.kein_artikel === true;
+			}
+		}
 
 		propertiesBusy = true;
 		setPropertiesError("");
@@ -1296,18 +1384,9 @@
 		propertiesElement("close")?.addEventListener("click", closeEcosystemPropertiesDialog);
 		propertiesElement("cancel")?.addEventListener("click", closeEcosystemPropertiesDialog);
 		propertiesElement("delete")?.addEventListener("click", () => void requestEcosystemRegionDelete());
-		propertiesElement("wiki-assign")?.addEventListener("click", () => {
-			const panel = propertiesElement("wiki-search");
-			const opening = Boolean(panel?.hidden);
-			setWikiSearchOpen(opening);
-			if (opening) {
-				const query = propertiesElement("wiki-query");
-				if (query) {
-					query.value = String(propertiesElement("name")?.value || "").trim();
-				}
-				void runWikiSearch();
-			}
-		});
+		// 🔴 Für die Wiki-Zuweisung wird hier NICHTS mehr verdrahtet: das Bauteil hängt seine vier
+		// Zuhörer selbst an seinen Behälter und nimmt sie in `zerstoeren()` wieder ab. Die alten
+		// Knöpfe („Zuweisen", „Sync", „Entfernen", „Suchen") gibt es im Markup nicht mehr.
 		// Delegiert, weil die Zeilen erst beim Öffnen entstehen und bei jeder Fläche andere sind.
 		// 🪤 Der Knopf sitzt in einem <form>: ohne type="button" im Markup wäre er ein Absende-Knopf
 		// und würde den GANZEN Flächendialog speichern statt einer Höhe.
@@ -1370,15 +1449,6 @@
 			});
 		});
 		propertiesElement("terrain-auto")?.addEventListener("click", () => void saveTerrainSettings(true));
-		propertiesElement("wiki-sync")?.addEventListener("click", syncFromWikiRegion);
-		propertiesElement("wiki-remove")?.addEventListener("click", () => {
-			pendingWikiRegion = null;                 // ausdrücklich entfernt, nicht bloss unberührt
-			renderWikiReference();
-			// Ohne Wiki-Landschaft ist der Haken wieder bedienbar. Der Name bleibt stehen, wie er ist --
-			// die Zuweisung zu lösen soll nicht ungefragt umbenennen.
-			syncPropertiesAutoName();
-			setPropertiesStatus("Wiki-Landschaft entfernt — noch nicht gespeichert.");
-		});
 		// Haken umgelegt -> Feld sperren/freigeben, und beim Anhaken einen frischen Griff erzeugen.
 		// Artwechsel -> der Griff folgt der Art, aber nur solange der Haken steht.
 		propertiesElement("autoname")?.addEventListener("change", () => syncPropertiesAutoName({ regenerate: true }));
@@ -1386,18 +1456,15 @@
 			syncPropertiesAutoName({ regenerate: true });
 			applyTerrainPresetForType();
 		});
-		propertiesElement("wiki-search-go")?.addEventListener("click", () => void runWikiSearch());
-		// Enter im Suchfeld darf NICHT das Formular abschicken -- das würde speichern statt suchen.
-		propertiesElement("wiki-query")?.addEventListener("keydown", (event) => {
-			if (event.key === "Enter") {
+		// 🔴 ENTER IM SUCHFELD DARF DAS FORMULAR NICHT ABSCHICKEN -- es würde die Fläche SPEICHERN statt
+		// den Treffer zu wählen. Das Bauteil ruft für Enter selbst `preventDefault()`
+		// (js/ui/wiki-assign.js, aufTaste), aber es hängt seine Zuhörer an SEINEN Behälter; der
+		// `submit`-Zuhörer sitzt am <form> darüber, und ein abgebrochenes Standardverhalten hält das
+		// Ereignis nicht auf. Deshalb bleibt der Riegel hier -- am Formular, delegiert, und für JEDES
+		// Suchfeld im Zuweisungskasten (dessen Markup gehört dem Bauteil).
+		propertiesElement("form")?.addEventListener("keydown", (event) => {
+			if (event.key === "Enter" && event.target?.closest?.("[data-wa-suche]")) {
 				event.preventDefault();
-				void runWikiSearch();
-			}
-		});
-		propertiesElement("wiki-results")?.addEventListener("click", (event) => {
-			const button = event.target.closest?.("[data-wiki-pick]");
-			if (button) {
-				pickWikiRegion(button.dataset.wikiPick);
 			}
 		});
 		overlayElement.addEventListener("click", (event) => {

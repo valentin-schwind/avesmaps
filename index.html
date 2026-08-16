@@ -1035,29 +1035,15 @@
 						</div>
 						<div id="ecosystem-properties-peaks-list" class="ecosystem-properties-dialog__peaks-list"></div>
 					</div>
-					<!-- Optik aus den vorhandenen .label-wiki-reference__*-Regeln, damit der Block hier und
-					     im Label-Dialog gleich aussieht. -->
-					<div class="label-wiki-reference">
-						<div class="label-wiki-reference__head">
-							<span class="label-wiki-reference__title" data-i18n="ecosystem.properties.wikiTitle">Wiki-Landschaft</span>
-							<!-- __buttons, nicht __actions: so heisst die Klasse im Original (:1412). -->
-							<span class="label-wiki-reference__buttons">
-								<button id="ecosystem-properties-wiki-assign" type="button" class="ecosystem-properties-dialog__button">Zuweisen</button>
-								<button id="ecosystem-properties-wiki-sync" type="button" class="ecosystem-properties-dialog__button" hidden data-i18n="ecosystem.properties.wikiSync">Sync</button>
-								<button id="ecosystem-properties-wiki-remove" type="button" class="ecosystem-properties-dialog__button" hidden data-i18n="ecosystem.properties.wikiRemove">Entfernen</button>
-							</span>
-						</div>
-						<div id="ecosystem-properties-wiki-list" class="label-wiki-reference__list"></div>
-						<!-- Inline statt eigenem Overlay: ein zweites Fenster über diesem wäre ein fünftes
-						     Overlay für eine Suche, die drei Zeilen Ergebnis zeigt. -->
-						<div id="ecosystem-properties-wiki-search" class="label-wiki-picker ecosystem-properties-dialog__search" hidden>
-							<div class="ecosystem-properties-dialog__searchrow">
-								<input id="ecosystem-properties-wiki-query" type="search" autocomplete="off" placeholder="Region/Landschaft suchen …" aria-label="Wiki-Landschaft suchen" />
-								<button id="ecosystem-properties-wiki-search-go" type="button" class="ecosystem-properties-dialog__button">Suchen</button>
-							</div>
-							<div id="ecosystem-properties-wiki-results" class="label-wiki-picker-list"></div>
-						</div>
-					</div>
+					<!-- Die Wiki-Zuweisung: seit 16.08.2026 das geteilte Bauteil (js/ui/wiki-assign.js),
+					     Objektart „landschaft", Hülle „label-wiki". Hier stand bis dahin ein eigener
+					     Picker samt „Suchen"-Knopf; gesucht wird jetzt beim Tippen, und „Sync" zeigt
+					     erst, was er ändern würde.
+					     💣 Ein BLANKER Behälter, KEIN <div class="label-wiki-reference">: die Hülle
+					     erzeugt das Bauteil selbst. Gäbe man ihm die vorhandene, stünde der Kasten
+					     doppelt geschachtelt da -- Rahmen im Rahmen, Polsterung doppelt (der Hinweis
+					     steht wörtlich im Kopf von js/ui/wiki-assign.js). -->
+					<div id="ecosystem-properties-wiki-host"></div>
 					<p id="ecosystem-properties-status" class="ecosystem-properties-dialog__status" role="status"></p>
 					<p id="ecosystem-properties-error" class="ecosystem-properties-dialog__error" role="alert" hidden></p>
 					<div class="ecosystem-properties-dialog__actions">
@@ -3075,6 +3061,12 @@
 		<!-- Der Datenweg des Orts, den sich Kartendialog und Orte-Editor teilen (Aufgabe 5). Steht
 		     neben dem des Wegs und haengt ebenfalls nur an den drei Zeilen darueber. -->
 		<script src="js/ui/wiki-assign-ort.js"></script>
+		<!-- Der Datenweg der Landschaft, den sich der Flaechen-Dialog (map-features-ecosystem-
+		     properties.js) und der Regionen-Editor (html/landschaften-editor.html) teilen (Aufgabe 6).
+		     ⚠️ Er MUSS vor js/map-features/map-features-ecosystem-properties.js stehen -- jener Block
+		     laeuft in einer IIFE, die erst beim Oeffnen des Dialogs zugreift, aber die Ladeordnung von
+		     index.html ist Vertrag (AGENTS.md §3) und wird nicht dem Zufall ueberlassen. -->
+		<script src="js/ui/wiki-assign-landschaft.js"></script>
 		<script src="js/review/review-path-wiki.js"></script>
 		<script src="js/review/review-path-flow.js"></script>
 		<!-- Die Subjekt-Registry MUSS vor ihren Lesern stehen: review-settlement-list.js und review-wiki-sync.js rufen wikiSyncSubjectFacets() schon beim Auswerten auf (Beschriftungen der Listenfilter). Sie stand bis 2026-07-23 unter beiden; das Listenmodul waere beim ersten Laden mit einem ReferenceError komplett ausgefallen. Die Datei selbst haengt von nichts ab -- reine Daten. --><script src="js/review/review-subjects.js"></script><script src="js/review/review-settlement-wiki.js"></script>

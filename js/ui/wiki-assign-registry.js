@@ -210,8 +210,79 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			keinArtikelHinweis: "Hält die Löschung — und nimmt den Ort aus der Konfliktliste, bis im Wiki einer auftaucht.",
 		},
 	},
-	// Die uebrigen sieben kommen in den Aufgaben 6-9 dazu, jede mit IHRER Aufgabe -- nicht auf Vorrat:
-	//   landschaft   (A6)  Name · Art (mehrwertig -> erste Komponente) suche: /api/edit/wiki/regions.php
+	landschaft: {
+		label: "Wiki-Landschaft",
+		// Gemessen am Endpunkt: avesmapsWikiRegionSearch (api/_internal/wiki/regions.php:1086-1122)
+		// beantwortet `?action=search&q=…&limit=40` mit `{ok, count, rows}`. Dieselbe Adresse und
+		// dasselbe Limit wie die zwei alten Picker (map-features-ecosystem-properties.js:233 und
+		// js/review/review-label-wiki.js:215, Stand 16.08.2026).
+		suche: { art: "server", url: "/api/edit/wiki/regions.php" },
+		// KEIN Objektart-Vorsatz: die Trefferzeile beginnt mit der Wiki-Art („Wald", „Gebirge") --
+		// das sagt genauer, was der Treffer ist, als das Wort „Landschaft". Wortgleich zu dem, was
+		// BEIDE alten Picker als Meta-Zeile zeigten: `[row.art, row.region_parent, row.continent]`.
+		// ⚠️ DIE FELDNAMEN SIND DIE DER STAGING-SPALTEN, nicht huebschere: `region_parent`,
+		// `affiliation_staat`, `continent`. Damit deckt sich die Erklaerung Zeile fuer Zeile mit dem,
+		// was der Parser liefert (avesmapsWikiRegionParse…, api/_internal/wiki/regions.php:589-596),
+		// und niemand uebersetzt -- dieselbe Regel wie beim Ort, wo `einwohner`/`lage`/`oberhaupt`
+		// auf der Karte heissen wie im Nest. Die Beschriftung macht `label`.
+		treffer: ["art", "region_parent", "continent"],
+		// 💣 ZWEI ZEILEN FUER DIE ART, UND DAS IST ABSICHT -- dieselbe Trennung wie `art`/`wegtyp`
+		// beim Weg und `art`/`ortsgroesse` beim Ort. `art` ist der freie Wikitext („Mischregion,
+		// Wald"), `landschaftsart` der daraus geprueften Flaechenart-Schluessel („wald"). Nur der
+		// Schluessel darf nach `region_type`; roh verglichen meldete die Vorschau bei fast JEDER
+		// Landschaft einen Unterschied und boete an, freien Text in ein Schluesselfeld zu schreiben.
+		// Die Abbildung steht in avesmapsWikiAssignLandschaftArt (js/ui/wiki-assign-landschaft.js),
+		// weil sie fuer beide Oberflaechen dieselbe sein muss -- und weil sie die einzige Stelle ist,
+		// an der die Ordnung „eigenes Vokabular vor Server-Synonymen" steht (dort begruendet).
+		// ⚠️ `landschaftsart` ist damit ein ABGELEITETES Wiki-Feld: der Parser liefert `art`, die
+		// Oberflaeche rechnet den Schluessel. Pruefung 2 aus §3b sieht das nicht (sie prueft nur die
+		// andere Richtung) -- deshalb steht es hier ausdruecklich.
+		//
+		// 🔴 EINE Zeile fuer `name` MIT Kartenziel. Anders als beim Weg (dort schreibt der Server den
+		// kanonischen Namen selbst) besitzt die Wiki-Landschaft den Namen zwar auch -- aber das
+		// Umbenennen macht der CLIENT: `pickWikiRegion` schreibt ihn ins Namensfeld, der Server fasst
+		// `ecosystem_region.name` bei einer Zuweisung nicht an (avesmapsUpdateEcosystemRegion schreibt
+		// nur, was im Rumpf steht). Der Name bleibt also ein Kartenfeld, das der Sync fuellen kann.
+		// 🔴 KEIN Kartenziel fuer Staat, Kontinent, Einwohner, Sprache, Vegetation und Verkehrswege:
+		// `ecosystem_region` hat dafuer KEINE Spalte (gemessen an der DDL,
+		// api/_internal/app/ecosystem.php:243-265 -- name/kind/region_type/origin/wiki_*/label/
+		// properties_json, mehr nicht). Hier wird nichts auf Vorrat erklaert.
+		felder: [
+			{ wiki: "name", karte: "name", label: "Name" },
+			{ wiki: "art", karte: "", label: "Art" },
+			{ wiki: "landschaftsart", karte: "region_type", label: "Landschaftsart" },
+			{ wiki: "region_parent", karte: "", label: "Lage" },
+			{ wiki: "affiliation_staat", karte: "", label: "Staat" },
+			{ wiki: "continent", karte: "", label: "Kontinent" },
+			{ wiki: "einwohner", karte: "", label: "Einwohner" },
+			{ wiki: "sprache", karte: "", label: "Sprache" },
+			{ wiki: "vegetation", karte: "", label: "Vegetation" },
+			{ wiki: "verkehrswege", karte: "", label: "Verkehrswege" },
+		],
+		sync: true, // zwei Kartenziele (name, region_type) -- also ein Knopf
+		extra: {
+			// 🔴 DER DRITTE ZUSTAND, seit 16.08.2026 auch bei der Landschaft (Aufgabe 6). Er liegt in
+			// `ecosystem_region.properties_json` -- die Spalte gab es seit V2.3, sie war nur von KEINEM
+			// Leseweg herausgegeben und von keinem Client beschrieben (gemessen: `properties` erreichte
+			// avesmapsEcosystemReadRegionFields nie, und `list_regions` waehlte die Spalte nicht aus).
+			// Geschrieben wird der Merker von `update_region` (avesmapsEcosystemApplyRegionNoArticle),
+			// gelesen aus `list_regions` -- der EINEN Aktion, aus der BEIDE Oberflaechen ohnehin ihr
+			// Art-Vokabular ziehen.
+			// 🪤 UND WAS ER HIER NICHT TUT, steht ausdruecklich hier, damit es niemand versehentlich
+			// verspricht: eine `ecosystem_region` steht in KEINER Konfliktliste.
+			// avesmapsConflictLoadMapRows liest ausschliesslich `map_features`
+			// (location|path|label|powerline, api/_internal/conflicts/rules.php:372-376), und
+			// avesmapsEnrichMapFeatureWikiUrl raet ebenfalls nur dort Adressen zusammen. Der Merker
+			// haelt heute also die ENTSCHEIDUNG fest und sonst nichts -- der Satz unten verspricht
+			// deshalb bewusst keine Konfliktliste (anders als bei Ort, Weg und Kraftlinie).
+			keinArtikelHaken: true,
+			// ⚠️ Der zweite Halbsatz ist tragend (wie bei allen drei bisherigen): der Merker ist NICHT
+			// endgueltig -- taucht im Wiki ein Artikel auf, gilt er nicht mehr. Ohne ihn liest er sich
+			// als „nie wieder".
+			keinArtikelHinweis: "Hält fest, dass im Wiki nichts zu dieser Landschaft steht — bis dort einer auftaucht.",
+		},
+	},
+	// Die uebrigen drei kommen in den Aufgaben 7-9 dazu, jede mit IHRER Aufgabe -- nicht auf Vorrat:
 	//   territorium  (A7)  Felder aus A7 Schritt 1 · Eltern GESPERRT bei parent_locked
 	//   literatur    (A8)  Felder aus A8 Schritt 1
 	//   karte        (A9)  eigener Artikel -- NICHT wiki_key, NICHT wiki_url
