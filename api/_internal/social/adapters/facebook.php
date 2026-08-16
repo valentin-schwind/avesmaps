@@ -31,6 +31,14 @@ const AVESMAPS_SOCIAL_FACEBOOK_GRAPH_VERSION = 'v25.0';
 // call costs a PHP worker (AGENTS.md §10, the pool incident of 2026-07-17).
 const AVESMAPS_SOCIAL_FACEBOOK_TIMEOUT = 20;
 
+// 🔴 `EXPLICIT` HEISST „DER ABSENDER HAT ES SELBST ERKLÄRT" -- und genau das ist ein Häkchen. Die
+// Enum hat 27 Werte; die naheliegenden Nachbarn (EXPLICIT_AI_EDIT, EXPLICIT_AI_EXPANDER,
+// EXPLICIT_RESTYLE, EXPLICIT_IMAGINE …) benennen KONKRETE Meta-Werkzeuge, die wir nicht benutzt
+// haben. Einen davon zu behaupten wäre eine Falschangabe in die andere Richtung: sie sagte nicht
+// „mit KI erstellt", sondern „mit Metas Bildbearbeitung erstellt". Gemessen an Metas Doku am
+// 16.08.2026 (Entwurf §2).
+const AVESMAPS_SOCIAL_FACEBOOK_PROVENANCE_TYPE = 'EXPLICIT';
+
 /**
  * Which Graph endpoint, and which fields -- WITHOUT the token.
  *
@@ -41,35 +49,56 @@ const AVESMAPS_SOCIAL_FACEBOOK_TIMEOUT = 20;
  * preview of avesmaps.de -- Facebook fetching our page and picking whatever OG image it likes --
  * instead of the picture the editor chose and the pipeline cropped.
  *
+ * 💣 DIE KI-ERKLÄRUNG GIBT ES NUR AN EINEM BILD. `/photos` nimmt `provenance_info`, `/feed` kennt
+ * das Feld überhaupt nicht -- gemessen an Metas Parameterliste beider Endpunkte, 16.08.2026. Ein
+ * reiner Textbeitrag geht auf Facebook also unweigerlich OHNE Kennzeichnung raus, ganz gleich was
+ * das Häkchen sagt. Deshalb warnt der Hub genau in dieser Lage (Entwurf §4.2): sonst hakt jemand an,
+ * drückt, und hält den Beitrag für gekennzeichnet.
+ *
+ * @param bool $aiDeclared Hat der Editor „Mit KI erstellt" angehakt?
  * @return array{url: string, fields: array<string, string>, endpoint: string}
  */
 function avesmapsSocialFacebookRequest(
     string $pageId,
     string $caption,
     string $mediaUrl,
-    string $graphVersion = AVESMAPS_SOCIAL_FACEBOOK_GRAPH_VERSION
+    string $graphVersion = AVESMAPS_SOCIAL_FACEBOOK_GRAPH_VERSION,
+    bool $aiDeclared = false
 ): array {
     $base = 'https://graph.facebook.com/' . $graphVersion . '/' . rawurlencode($pageId);
 
     if (trim($mediaUrl) !== '') {
-        return [
-            'endpoint' => 'photos',
-            'url' => $base . '/photos',
-            'fields' => [
-                // Meta LOADS the picture from this url; it is never attached to the request (Entwurf §5).
-                'url' => $mediaUrl,
-                // On /photos the text is `caption`. Sending `message` there is accepted and DROPPED --
-                // the picture appears without a word of the editor's text, and nothing reports an error.
-                'caption' => $caption,
-                'published' => 'true',
-            ],
+        $fields = [
+            // Meta LOADS the picture from this url; it is never attached to the request (Entwurf §5).
+            'url' => $mediaUrl,
+            // On /photos the text is `caption`. Sending `message` there is accepted and DROPPED --
+            // the picture appears without a word of the editor's text, and nothing reports an error.
+            'caption' => $caption,
+            'published' => 'true',
         ];
+
+        // 🔴 OHNE HÄKCHEN WIRD GAR NICHTS GESCHICKT -- kein `is_gen_ai: false`. Die Abwesenheit ist
+        // die Aussage; eine ausdrückliche Verneinung wäre eine Behauptung über den Inhalt, die
+        // niemand geprüft hat (Entwurf §3).
+        //
+        // 🔴 Und KEIN `provenance_metadata`: das zweite Feld trägt `c2pa_metadata`/`iptc_metadata`
+        // aus der BILDDATEI. Unsere Pipeline schreibt das JPEG neu und trägt nichts davon ein -- ein
+        // leeres Objekt wäre Rauschen, das aussieht wie eine Angabe.
+        if ($aiDeclared) {
+            $fields['provenance_info'] = (string) json_encode([
+                'is_gen_ai' => true,
+                'provenance_type' => AVESMAPS_SOCIAL_FACEBOOK_PROVENANCE_TYPE,
+            ]);
+        }
+
+        return ['endpoint' => 'photos', 'url' => $base . '/photos', 'fields' => $fields];
     }
 
     return [
         'endpoint' => 'feed',
         'url' => $base . '/feed',
         // On /feed it is `message`. Same text, different field name -- the asymmetry above is Meta's.
+        // Und hier steht bewusst NICHTS weiter: siehe die zweite 💣 im Kopf dieser Funktion.
         'fields' => ['message' => $caption],
     ];
 }
@@ -174,7 +203,15 @@ function avesmapsSocialAdapterFacebook(
     $version = trim((string) ($settings['graph_version'] ?? '')) !== ''
         ? trim((string) $settings['graph_version'])
         : AVESMAPS_SOCIAL_FACEBOOK_GRAPH_VERSION;
-    $request = avesmapsSocialFacebookRequest($pageId, $caption, $mediaUrl, $version);
+    // Die Erklärung steht am BEITRAG (`social_post.ai_declared`) und reist deshalb ohne eigenes
+    // Argument durch die Kette -- $post liegt jedem Adapter ohnehin vollständig vor.
+    $request = avesmapsSocialFacebookRequest(
+        $pageId,
+        $caption,
+        $mediaUrl,
+        $version,
+        (int) ($post['ai_declared'] ?? 0) === 1
+    );
 
     $handle = curl_init($request['url']);
     if ($handle === false) {

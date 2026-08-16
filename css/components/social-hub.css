@@ -570,7 +570,12 @@
 	cursor: pointer;
 }
 
+/* 💣 `__check` wird der Regel BEIGESTELLT, nicht abgeschrieben. Sie heisst `__radio`, beschreibt aber
+   nichts Radio-Spezifisches: „Eingabefeld + fette Zeile + kleine Zeile darunter". Eine vierte Kopie
+   waere genau die Divergenz, gegen die AGENTS.md §11 die Listenzeilen auf zwei Rezepturen gedeckelt
+   hat -- und beim Abschreiben faellt regelmaessig die Skala (die 12px unten). */
 .social-hub__radio,
+.social-hub__check,
 .social-hub__channel {
 	display: flex;
 	align-items: flex-start;
@@ -604,6 +609,7 @@
 }
 
 .social-hub__radio span,
+.social-hub__check span,
 .social-hub__channel span {
 	display: flex;
 	flex-direction: column;
@@ -611,6 +617,7 @@
 }
 
 .social-hub__radio small,
+.social-hub__check small,
 .social-hub__channel-meta {
 	font-size: 12px;
 	color: var(--color-text-muted);

@@ -40,6 +40,7 @@ function avesmapsSocialEnsureTables(PDO $pdo): void
             media_license VARCHAR(32) NOT NULL DEFAULT '',
             media_source VARCHAR(300) NOT NULL DEFAULT '',
             media_alt VARCHAR(500) NOT NULL DEFAULT '',
+            ai_declared TINYINT(1) NOT NULL DEFAULT 0,
             origin VARCHAR(16) NOT NULL DEFAULT 'editor',
             state VARCHAR(16) NOT NULL DEFAULT 'released',
             author_user_id INT UNSIGNED NULL DEFAULT NULL,
@@ -104,6 +105,24 @@ function avesmapsSocialEnsureTables(PDO $pdo): void
         $pdo->exec(
             "ALTER TABLE social_post ADD COLUMN media_alt VARCHAR(500) NOT NULL DEFAULT ''
              AFTER media_source"
+        );
+    }
+
+    // `ai_declared` kam am 16.08.2026 dazu: die KI-Erklärung des Beitrags (Entwurf
+    // `2026-08-16-ki-kennzeichnung-design.md`). Sie geht an Facebook (nur mit Bild) und Instagram;
+    // Mastodon und „Neuigkeiten" kennen dafür kein Feld.
+    //
+    // ⚠️ WIEDER eine EIGENE Bedingung -- siehe die Begründung über `media_alt`. Ein Bestand, der
+    // `title` und `media_alt` längst hat, überspränge unter einem gemeinsamen Wenn auch diese Spalte,
+    // und das fiele erst beim ersten Schreibvorgang auf: mit einem SQL-Fehler statt einer Nachrüstung.
+    //
+    // 🔴 DEFAULT 0, nicht 1. Das Häkchen ist im HUB vorgehakt (Owner-Entscheid 16.08.2026) -- das ist
+    // eine Vorbelegung der Oberfläche, keine Aussage über Beiträge, die es längst gibt. Bestehende
+    // Zeilen rückwirkend als KI-erstellt zu erklären wäre eine Behauptung, die niemand geprüft hat.
+    if ($existingColumns !== [] && !isset($existingColumns['ai_declared'])) {
+        $pdo->exec(
+            'ALTER TABLE social_post ADD COLUMN ai_declared TINYINT(1) NOT NULL DEFAULT 0
+             AFTER media_alt'
         );
     }
 
@@ -173,9 +192,10 @@ function avesmapsSocialCreatePost(PDO $pdo, array $post, array $channelKeys): in
         $insert = $pdo->prepare(
             'INSERT INTO social_post
                 (title, body, hashtags, media_url, media_kind, media_license, media_source, media_alt,
+                 ai_declared,
                  origin, state, author_user_id, author_name, source_ref, scheduled_for)
              VALUES (:title, :body, :hashtags, :media_url, :media_kind, :media_license, :media_source,
-                     :media_alt,
+                     :media_alt, :ai_declared,
                      :origin, :state, :author_user_id, :author_name, :source_ref, :scheduled_for)'
         );
         $authorId = (int) ($post['author_user_id'] ?? 0);
@@ -194,6 +214,10 @@ function avesmapsSocialCreatePost(PDO $pdo, array $post, array $channelKeys): in
             // 1500. Wer mehr tippt, verliert das Ende -- eine Bildbeschreibung ist kein Fliesstext,
             // und eine Absage mitten im Absenden waere hier der schlechtere Tausch.
             'media_alt' => mb_substr(trim((string) ($post['media_alt'] ?? '')), 0, 500),
+            // Die KI-Erklärung. 0/1 statt eines Bools, weil die Spalte TINYINT(1) ist und PDO ein
+            // PHP-`false` sonst als '' schreibt -- was MySQL ausserhalb des strengen Modus zu 0
+            // macht und darin ablehnt. Fehlt der Schlüssel, gilt „nicht erklärt".
+            'ai_declared' => ($post['ai_declared'] ?? false) ? 1 : 0,
             'origin' => (string) ($post['origin'] ?? 'editor'),
             'state' => $state,
             // The routine has no user; 0 would claim user number zero exists.
@@ -311,7 +335,8 @@ function avesmapsSocialUpdateProposal(PDO $pdo, int $id, array $post, array $cha
             "UPDATE social_post
                 SET title = :title, body = :body, hashtags = :hashtags, media_url = :media_url,
                     media_kind = :media_kind, media_license = :media_license,
-                    media_source = :media_source, media_alt = :media_alt
+                    media_source = :media_source, media_alt = :media_alt,
+                    ai_declared = :ai_declared
               WHERE id = :id AND state = 'proposal'"
         );
         $update->execute([
@@ -323,6 +348,9 @@ function avesmapsSocialUpdateProposal(PDO $pdo, int $id, array $post, array $cha
             'media_license' => (string) ($post['media_license'] ?? ''),
             'media_source' => (string) ($post['media_source'] ?? ''),
             'media_alt' => mb_substr(trim((string) ($post['media_alt'] ?? '')), 0, 500),
+            // 💣 Steht im SET, damit sich das Häkchen auch wieder ABHAKEN lässt. Ein Entwurf, dessen
+            // Erklärung man nur setzen, nie zurücknehmen kann, wäre schlimmer als gar keine.
+            'ai_declared' => ($post['ai_declared'] ?? false) ? 1 : 0,
             'id' => $id,
         ]);
         if ($update->rowCount() === 0) {

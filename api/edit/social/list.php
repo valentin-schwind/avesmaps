@@ -70,6 +70,10 @@ try {
             // Wie die Quellenangabe: sie reist mit, damit „Bearbeiten" sie wiederherstellt. Ohne das
             // verlaere ein Entwurf beim zweiten Speichern still seine Bildbeschreibung.
             'media_alt' => (string) ($row['media_alt'] ?? ''),
+            // 💣 Wie Quellenangabe und Bildbeschreibung: sie reist mit, damit „Bearbeiten" das
+            // Häkchen wiederherstellt. Ohne das verlöre ein Entwurf beim zweiten Speichern still
+            // seine KI-Erklärung -- und zwar in die stille Richtung (Häkchen weg, Beitrag raus).
+            'ai_declared' => (int) ($row['ai_declared'] ?? 0) === 1,
             'origin' => (string) $row['origin'],
             'state' => (string) $row['state'],
             // The author is INTERNAL (Entwurf §2.3): posts go out as Avesmaps, never under a personal

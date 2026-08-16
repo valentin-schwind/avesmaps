@@ -70,6 +70,38 @@ assert(str_contains($container['url'], AVESMAPS_SOCIAL_FACEBOOK_GRAPH_VERSION),
 assert(str_contains(avesmapsSocialInstagramContainerRequest($igId, 'x', 'y', 'v99.0')['url'], 'v99.0'),
     'and the version is overridable, so a bump is a config edit rather than a deploy');
 
+// ---- die KI-Kennzeichnung (Entwurf 2026-08-16-ki-kennzeichnung-design.md) --------------------------
+
+$aiContainer = avesmapsSocialInstagramContainerRequest(
+    $igId,
+    'Mit KI',
+    'https://avesmaps.de/uploads/social/a.jpg',
+    AVESMAPS_SOCIAL_FACEBOOK_GRAPH_VERSION,
+    true
+);
+// 💣 `is_ai_generated`, ein schlichtes Bool -- Facebook nimmt an derselben Stelle ein JSON-Objekt
+// namens `provenance_info` mit zwei Pflichtfeldern. Dieselbe Sorte Asymmetrie wie image_url/url und
+// caption/message: wer die eine Funktion von der anderen abschreibt, schickt ein Feld, das Meta
+// still verwirft -- und der Beitrag erscheint trotzdem, nur eben unbeschriftet.
+assert(($aiContainer['fields']['is_ai_generated'] ?? null) === 'true',
+    'die Erklaerung heisst hier is_ai_generated');
+assert(!isset($aiContainer['fields']['provenance_info']),
+    'und NICHT provenance_info -- das ist Facebooks Schreibweise');
+
+// 🔴 Ohne Haekchen gar nichts, kein 'false'. Dieselbe Regel wie bei Facebook.
+assert(!isset($container['fields']['is_ai_generated']),
+    'ohne Haekchen fehlt das Feld ganz, statt false zu behaupten');
+
+// 💣 Sie gehoert an den BEHAELTER, nie an /media_publish -- dort ist sie unbekannt, und der Schritt,
+// der den Beitrag wirklich oeffentlich macht, traegt ueberhaupt nur die creation_id.
+assert(array_keys(avesmapsSocialInstagramPublishRequest($igId, '17999888777')['fields']) === ['creation_id'],
+    'der Veroeffentlichen-Schritt traegt NUR die creation_id');
+
+// ⚠️ Der Schalter ruehrt sonst nichts an.
+assert(($aiContainer['fields']['image_url'] ?? '') === 'https://avesmaps.de/uploads/social/a.jpg'
+    && ($aiContainer['fields']['caption'] ?? '') === 'Mit KI',
+    'Bild und Text bleiben unveraendert');
+
 // ---- reading step 1's answer -----------------------------------------------------------------------
 
 $ok = avesmapsSocialInstagramReadContainer(200, '{"id":"17999888777"}');

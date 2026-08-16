@@ -38,6 +38,10 @@ function avesmapsSocialAdapterProbe(
         // Recording the stored path would hide exactly the mistake this rehearsal is meant to catch.
         'media_url' => $mediaUrl,
         'media_license' => (string) ($post['media_license'] ?? ''),
+        // Die KI-Erklärung. Sie steht hier, weil die Probe der EINZIGE Weg ist, diesen Schalter zu
+        // prüfen, ohne einen öffentlichen Beitrag zu erzeugen (Entwurf §7) -- und weil man ihr am
+        // fertigen Beitrag sonst nichts ansieht: sie ist ein Feld in der Anfrage, kein Text.
+        'ai_declared' => (int) ($post['ai_declared'] ?? 0) === 1,
         'clickable_links' => (bool) ($channel['clickable_links'] ?? true),
     ];
 

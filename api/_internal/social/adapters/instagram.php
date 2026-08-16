@@ -45,22 +45,43 @@ const AVESMAPS_SOCIAL_INSTAGRAM_RETRY_PAUSE_US = 1_500_000;
  * picture, two spellings. And `caption`, not `message`. Both asymmetries are Meta's, and both are the
  * kind that produce a post missing exactly the part nobody checks.
  *
+ * 💣 UND DIE DRITTE ASYMMETRIE, seit 16.08.2026: die KI-Erklärung heißt hier `is_ai_generated` und
+ * ist ein schlichtes Bool -- Facebook nimmt an derselben Stelle ein JSON-Objekt namens
+ * `provenance_info` mit zwei Pflichtfeldern. Dasselbe Haus, dasselbe Graph, dieselbe Anfrage-Bauart,
+ * zwei Schreibweisen. Wer die eine Funktion von der anderen abschreibt, baut ein Feld ein, das das
+ * Netz still verwirft -- und niemand sieht es, weil der Beitrag ja erscheint.
+ *
+ * ⚠️ Sie gehört an den BEHÄLTER (Schritt 1), nie an /media_publish. Bei Karussells trüge sie nur der
+ * Behälter selbst; an einem Kind-Element antwortet Meta mit einem Fehler. Wir senden heute keine
+ * Karussells -- die Zeile steht hier, damit es beim ersten nicht neu gemessen werden muss.
+ *
+ * @param bool $aiDeclared Hat der Editor „Mit KI erstellt" angehakt?
  * @return array{url: string, fields: array<string, string>}
  */
 function avesmapsSocialInstagramContainerRequest(
     string $igUserId,
     string $caption,
     string $mediaUrl,
-    string $graphVersion = AVESMAPS_SOCIAL_FACEBOOK_GRAPH_VERSION
+    string $graphVersion = AVESMAPS_SOCIAL_FACEBOOK_GRAPH_VERSION,
+    bool $aiDeclared = false
 ): array {
+    $fields = [
+        // Meta LOADS the picture from this url; it is never attached to the request. Hence the
+        // reachability probe that runs before any of this (Entwurf §5).
+        'image_url' => $mediaUrl,
+        'caption' => $caption,
+    ];
+
+    // 🔴 Ohne Häkchen gar nichts -- kein `false`. Dieselbe Regel wie bei Facebook (Entwurf §3).
+    if ($aiDeclared) {
+        // 'true' als Zeichenkette: der Rumpf geht als http_build_query hinaus, und ein PHP-`true`
+        // würde dort zu '1'. Meta nimmt beides, aber 'true' ist das, was in der Doku steht.
+        $fields['is_ai_generated'] = 'true';
+    }
+
     return [
         'url' => 'https://graph.facebook.com/' . $graphVersion . '/' . rawurlencode($igUserId) . '/media',
-        'fields' => [
-            // Meta LOADS the picture from this url; it is never attached to the request. Hence the
-            // reachability probe that runs before any of this (Entwurf §5).
-            'image_url' => $mediaUrl,
-            'caption' => $caption,
-        ],
+        'fields' => $fields,
     ];
 }
 
@@ -320,7 +341,13 @@ function avesmapsSocialAdapterInstagram(
         : AVESMAPS_SOCIAL_FACEBOOK_GRAPH_VERSION;
 
     // ---- Schritt 1: der Behälter ----------------------------------------------------------------
-    $request = avesmapsSocialInstagramContainerRequest($igUserId, $caption, $mediaUrl, $version);
+    $request = avesmapsSocialInstagramContainerRequest(
+        $igUserId,
+        $caption,
+        $mediaUrl,
+        $version,
+        (int) ($post['ai_declared'] ?? 0) === 1
+    );
     $answer = avesmapsSocialInstagramPost($request['url'], $request['fields'], $token);
     if ($answer['body'] === null) {
         // Unlike step 2, this one is NOT ambiguous: without a container id nothing can have been

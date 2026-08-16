@@ -22,10 +22,21 @@ declare(strict_types=1);
 //
 // 💣 max_hashtags === null means ALL, not "many". Instagram takes every tag; writing 30 here would be
 // a limit nobody imposed, and the composer would silently truncate the editor's tags.
+//
+// 💣 `ai_label` HEISST „das Netz nimmt eine KI-Erklärung entgegen", nicht „der Beitrag wird
+// gekennzeichnet". Bei Facebook hängt das zusätzlich am BILD: `/photos` nimmt sie, `/feed` kennt das
+// Feld nicht (Entwurf §2). Der Kanal kann es also, dieser eine Beitrag womöglich nicht.
+//
+// 💣 Deshalb ZWEI Felder und keine Herleitung. „nimmt eine Erklärung an, verlangt aber kein Bild,
+// ALSO braucht die Erklärung eins" wäre für Facebook heute zufällig richtig und für den nächsten
+// Kanal geraten -- `ai_label_needs_media` sagt es stattdessen aus. Bei Instagram steht `false`, weil
+// dort ohnehin nie ein Beitrag ohne Bild entsteht (`requires_media`), die Erklärung also immer
+// ankommt; `true` hiesse dort „kann fehlschlagen" und wäre schlicht falsch.
 
 /**
  * @var array<string, array{label: string, account: string, max_chars: int|null,
- *      max_hashtags: int|null, requires_media: bool, clickable_links: bool}>
+ *      max_hashtags: int|null, requires_media: bool, clickable_links: bool, ai_label: bool,
+ *      ai_label_needs_media: bool}>
  */
 const AVESMAPS_SOCIAL_CHANNELS = [
     // The rehearsal channel (Entwurf §10). It runs the ENTIRE chain -- licence gate, JPEG conversion,
@@ -46,6 +57,10 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'requires_media' => false,
         'shows_media' => false,
         'clickable_links' => true,
+        // Die Probe sendet an kein Netz, kann also auch nichts erklären. Sie schreibt die Erklärung
+        // aber IN ihren Merkzettel (adapters/probe.php) -- das ist der Sinn der Generalprobe.
+        'ai_label' => false,
+        'ai_label_needs_media' => false,
     ],
     // Der einzige Kanal, der auf avesmaps SELBST veröffentlicht: das Fenster „Neuigkeiten"
     // (Tabelle `changelog_entry`). Er braucht kein fremdes Konto und ist deshalb -- wie die Probe --
@@ -73,6 +88,10 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'requires_media' => false,
         'shows_media' => false,
         'clickable_links' => true,
+        // „Neuigkeiten" schreibt in unsere EIGENE Tabelle, nicht an ein fremdes Netz -- es gibt
+        // niemanden, dem etwas zu erklären wäre.
+        'ai_label' => false,
+        'ai_label_needs_media' => false,
     ],
     // 🔴 Instagram wird über die FACEBOOK-SEITE eingerichtet und bedient (Entwurf §12.4). @avesmaps
     // hängt als `instagram_business_account` an der Seite, also ist es derselbe Wirt, dieselbe App und
@@ -104,6 +123,10 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'requires_media' => true,
         'shows_media' => true,
         'clickable_links' => false,
+        // `is_ai_generated` am Behälter. ⭐ Der einzige Kanal, bei dem die Erklärung IMMER ankommt --
+        // er verlangt ohnehin ein Bild, und genau daran hängt sie.
+        'ai_label' => true,
+        'ai_label_needs_media' => false,
     ],
     // 💣 `connect` ist der EINRICHTUNGSweg, nicht der Sendeweg. Steht hier ein Wert, kann der Server
     // den Zugang selbst herstellen (api/_internal/social/connect.php) und der Hub zeigt „einrichten".
@@ -137,6 +160,11 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'requires_media' => false,
         'shows_media' => true,
         'clickable_links' => true,
+        // 💣 `true`, aber NUR MIT BILD: `provenance_info` steht an `/photos`, `/feed` kennt es nicht.
+        // Der Kanal kann es -- ein unbebilderter Beitrag nicht. Der Hub warnt in genau dieser Lage
+        // (Entwurf §4.2), weil sonst niemand merkt, dass die Erklärung nirgends ankam.
+        'ai_label' => true,
+        'ai_label_needs_media' => true,
     ],
     // 💣 DIE ZEICHENZAHL IST INSTANZABHÄNGIG, NICHT 500 PER GESETZ. Jede Mastodon-Instanz stellt sie
     // selbst ein; es gibt Instanzen mit 1 500 und mit 5 000. Die 500 hier sind deshalb GEMESSEN, nicht
@@ -168,6 +196,12 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'requires_media' => false,
         'shows_media' => true,
         'clickable_links' => true,
+        // 🔴 Mastodon kennt KEIN solches Feld: `POST /api/v1/statuses` nimmt status, media_ids, poll,
+        // sensitive, spoiler_text, visibility, language, scheduled_at … und nichts zur Herkunft
+        // (Doku gemessen 16.08.2026). Bewusste Lücke, keine Baustelle -- es gibt drüben nichts zu
+        // setzen. Sollte Mastodon je eins bekommen, ist DIESE Zeile die Stelle.
+        'ai_label' => false,
+        'ai_label_needs_media' => false,
     ],
 ];
 
@@ -330,6 +364,12 @@ function avesmapsSocialChannelList(array $socialConfig, array $tokenKeys, array 
             // Als Feld im Register statt als Schluesselliste im Client: sonst steht dieselbe
             // Entscheidung an zwei Stellen und laeuft beim naechsten Kanal auseinander.
             'shows_media' => $channel['shows_media'],
+            // Nimmt dieses Netz eine KI-Erklärung entgegen? Wie `shows_media` ein Feld im REGISTER
+            // und keine Schlüsselliste im Client -- sonst kennt der Browser eine Zuordnung, die der
+            // Server nicht kennt, und der nächste Kanal bekommt seine an einer zweiten Stelle.
+            'ai_label' => $channel['ai_label'],
+            // Und ob sie dort ein Bild braucht (Facebook: ja, `/feed` kennt das Feld nicht).
+            'ai_label_needs_media' => $channel['ai_label_needs_media'],
             'clickable_links' => $channel['clickable_links'],
             'configured' => avesmapsSocialChannelIsConfigured($key, $socialConfig, $tokenKeys),
             // Kann der Server den Zugang selbst herstellen? Nur DASS es geht reist mit, nie WIE --

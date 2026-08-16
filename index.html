@@ -2101,6 +2101,21 @@
 						<label class="social-hub__radio"><input type="radio" name="social-license" value="free_license"><span><strong>Freie Lizenz</strong><small>gemeinfrei oder CC — Quelle angeben</small></span></label>
 						<input id="social-source" type="text" placeholder="Quelle angeben" hidden>
 						<p class="social-hub__warn">Keine Scans aus DSA-Publikationen, keine Ulisses-Artworks. Das Projekt läuft unter den Fan-Richtlinien — was hier rausgeht, steht öffentlich unter dem Namen Avesmaps und lässt sich nicht zurückholen.</p>
+
+						<!-- Die KI-Erklärung reist als Feld MIT der Anfrage ans Netz, sie steht nicht im Text
+						     (Entwurf docs/superpowers/specs/2026-08-16-ki-kennzeichnung-design.md). Vorgehakt
+						     auf Owner-Entscheid 16.08.2026: Anlass war ein Beitrag, der unbeabsichtigt ohne
+						     Kennzeichnung rausging -- zu viel gekennzeichnet ist harmlos, zu wenig nicht.
+						     💣 Welche Kanaele sie annehmen, schreibt der Server (`ai_label` im Register) in das
+						     <small> darunter. Hier steht bewusst KEINE Namensliste: sonst kennt der Browser
+						     eine Zuordnung, die der Server nicht kennt, und der naechste Kanal fehlt darin. -->
+						<label class="social-hub__label">KI-Kennzeichnung</label>
+						<label class="social-hub__check"><input id="social-ai" type="checkbox" checked><span><strong>Mit KI erstellt</strong><small id="social-ai-channels"></small></span></label>
+						<!-- 💣 Steht leer da, bis die Lage sie braucht: angehakt + Facebook + KEIN Bild. Facebook
+						     nimmt die Erklaerung nur an /photos entgegen, /feed kennt das Feld nicht -- ohne
+						     diesen Satz haekelt jemand an, drueckt, und haelt den Beitrag fuer gekennzeichnet.
+						     Sie SPERRT nichts: ein unbebilderter Beitrag ist zulaessig, nur nicht kennzeichenbar. -->
+						<p id="social-ai-note" class="social-hub__warn" hidden></p>
 					</div>
 					<div class="social-hub__side">
 						<label class="social-hub__label">Kanäle</label>

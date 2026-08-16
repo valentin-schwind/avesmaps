@@ -41,17 +41,46 @@ $mastodon = avesmapsSocialChannel('mastodon');
 assert($mastodon['max_chars'] === 500, 'mastodon: 500 characters');
 assert($mastodon['max_hashtags'] === 4, 'mastodon: four');
 
+// ---- die KI-Kennzeichnung (Entwurf 2026-08-16-ki-kennzeichnung-design.md) ------------------------
+//
+// Gemessen an Metas bzw. Mastodons Doku am 16.08.2026, nicht geraten. Die Luecken stehen hier
+// ausdruecklich, weil ein spaeterer Leser sie sonst fuer Nachlaessigkeit haelt und „nachruestet".
+assert($facebook['ai_label'] === true, 'Facebook nimmt provenance_info entgegen');
+// 💣 ... aber NUR an /photos. `/feed` kennt das Feld nicht, ein unbebilderter Beitrag geht dort also
+// unweigerlich ohne Kennzeichnung raus -- daran haengt der Warnsatz im Hub.
+assert($facebook['ai_label_needs_media'] === true, 'und zwar nur an einem BILD');
+assert($instagram['ai_label'] === true, 'Instagram nimmt is_ai_generated entgegen');
+assert($instagram['ai_label_needs_media'] === false,
+    'dort kann sie nie mangels Bild verlorengehen -- Instagram verlangt ohnehin eins');
+// 🔴 Mastodon hat kein solches Feld: POST /api/v1/statuses kennt keins. Bewusste Luecke.
+assert($mastodon['ai_label'] === false, 'Mastodon kennt keine KI-Erklaerung');
+assert(avesmapsSocialChannel('changelog')['ai_label'] === false,
+    'Neuigkeiten schreibt in unsere eigene Tabelle -- da ist niemandem etwas zu erklaeren');
+assert(avesmapsSocialChannel('probe')['ai_label'] === false,
+    'die Probe sendet an kein Netz; sie schreibt die Erklaerung nur in ihren Merkzettel');
+
 // Every entry carries every key. A row missing one would read as null downstream, and null means
 // "no limit" -- a typo in the table would silently REMOVE a limit rather than break loudly.
 foreach (avesmapsSocialChannelKeys() as $key) {
     $channel = avesmapsSocialChannel($key);
     foreach (['label', 'account', 'note', 'max_chars', 'max_hashtags',
-              'requires_media', 'shows_media', 'clickable_links'] as $field) {
+              'requires_media', 'shows_media', 'clickable_links',
+              'ai_label', 'ai_label_needs_media'] as $field) {
         assert(array_key_exists($field, $channel), $key . ' carries the field ' . $field);
     }
     assert(is_bool($channel['requires_media']), $key . ': requires_media is a real bool');
     assert(is_bool($channel['shows_media']), $key . ': shows_media is a real bool');
     assert(is_bool($channel['clickable_links']), $key . ': clickable_links is a real bool');
+    assert(is_bool($channel['ai_label']), $key . ': ai_label is a real bool');
+    assert(is_bool($channel['ai_label_needs_media']), $key . ': ai_label_needs_media is a real bool');
+    // 💣 Ein Kanal, der gar keine KI-Erklaerung annimmt, kann dafuer auch kein Bild brauchen. Die
+    // Umkehrung liesse den Hub warnen, wo es nichts zu warnen gibt.
+    assert(!($channel['ai_label_needs_media'] && !$channel['ai_label']),
+        $key . ': ai_label_needs_media ohne ai_label ist ein Widerspruch');
+    // 💣 Und wer ohnehin ein Bild VERLANGT, kann die Erklaerung nie mangels Bild verlieren -- dort
+    // `true` zu schreiben hiesse „kann fehlschlagen" und waere schlicht falsch.
+    assert(!($channel['requires_media'] && $channel['ai_label_needs_media']),
+        $key . ': wer ohnehin ein Bild verlangt, braucht ai_label_needs_media nicht');
     // A channel that DEMANDS a picture but would not show it is a contradiction -- it would refuse
     // every text-only post for a picture nobody ever sees.
     assert(!($channel['requires_media'] && !$channel['shows_media']),
@@ -127,9 +156,9 @@ foreach ($list as $row) {
     assert(!isset($row['access_token']), 'no access token ever leaves the server in the channel list');
     assert(!isset($row['app_secret']), 'no app secret either');
     assert(array_keys($row) === ['key', 'label', 'icon', 'account', 'note', 'max_chars',
-        'max_hashtags', 'requires_media', 'shows_media', 'clickable_links', 'configured',
-        'connectable', 'links', 'facts', 'access_expires'],
-        'the row carries exactly these fifteen keys -- a field added here reaches the browser');
+        'max_hashtags', 'requires_media', 'shows_media', 'ai_label', 'ai_label_needs_media',
+        'clickable_links', 'configured', 'connectable', 'links', 'facts', 'access_expires'],
+        'the row carries exactly these seventeen keys -- a field added here reaches the browser');
     // 🔴 `connect_scopes` steht im Register, darf aber NICHT mitreisen: was ein Token vorweisen muss,
     // ist eine Serverentscheidung. Im Browser waere es eine Liste, die jemand fuer eine Einstellung
     // haelt.

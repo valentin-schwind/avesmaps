@@ -147,6 +147,53 @@ assert(($textOnly['fields']['message'] ?? '') === 'Nur Text', 'and the text is M
 assert(!isset($textOnly['fields']['caption']) && !isset($textOnly['fields']['url']),
     'no caption and no picture url on /feed');
 
+// ---- facebook: die KI-Kennzeichnung ----------------------------------------------------------------
+//
+// Entwurf docs/superpowers/specs/2026-08-16-ki-kennzeichnung-design.md.
+
+$aiPicture = avesmapsSocialFacebookRequest(
+    '9876',
+    'Mit KI',
+    'https://avesmaps.de/uploads/social/x.jpg',
+    AVESMAPS_SOCIAL_FACEBOOK_GRAPH_VERSION,
+    true
+);
+$provenance = json_decode((string) ($aiPicture['fields']['provenance_info'] ?? ''), true);
+assert(is_array($provenance), 'die Erklaerung reist als JSON-Objekt im Feld provenance_info');
+assert(($provenance['is_gen_ai'] ?? null) === true, 'is_gen_ai ist ein echtes true');
+// 🔴 `EXPLICIT`, nicht EXPLICIT_AI_EDIT und Verwandte: die benennen KONKRETE Meta-Werkzeuge, die wir
+// nicht benutzt haben. Eines davon zu behaupten waere eine Falschangabe in die andere Richtung.
+assert(($provenance['provenance_type'] ?? '') === 'EXPLICIT',
+    'der Typ ist die schlichte Selbsterklaerung');
+// 🔴 KEIN provenance_metadata: das Feld traegt C2PA/IPTC-Daten aus der BILDDATEI, die unsere
+// Pipeline gar nicht schreibt. Ein leerer Behaelter saehe aus wie eine Angabe und waere keine.
+assert(!isset($aiPicture['fields']['provenance_metadata']),
+    'ohne C2PA/IPTC-Daten wird auch kein Behaelter dafuer geschickt');
+
+// 🔴 OHNE Haekchen wird GAR NICHTS geschickt -- kein is_gen_ai:false. Die Abwesenheit ist die
+// Aussage; eine ausdrueckliche Verneinung waere eine Behauptung, die niemand geprueft hat.
+assert(!isset($withPicture['fields']['provenance_info']),
+    'ohne Haekchen fehlt das Feld ganz, statt false zu behaupten');
+
+// 💣 DIE ZENTRALE: /feed nimmt die Felder NICHT. Ein unbebilderter Beitrag geht auf Facebook
+// unweigerlich ohne Kennzeichnung raus -- gemessen an Metas Parameterliste beider Endpunkte,
+// 16.08.2026. Genau deshalb warnt der Hub in dieser Lage (Entwurf §4.2), statt still zu versprechen.
+$aiTextOnly = avesmapsSocialFacebookRequest('9876', 'Nur Text', '', AVESMAPS_SOCIAL_FACEBOOK_GRAPH_VERSION, true);
+assert($aiTextOnly['endpoint'] === 'feed', 'ohne Bild bleibt es /feed, auch mit Haekchen');
+assert(!isset($aiTextOnly['fields']['provenance_info']),
+    'und /feed bekommt die Erklaerung NIE -- Meta kennt das Feld dort nicht');
+assert(array_keys($aiTextOnly['fields']) === ['message'],
+    'auf /feed steht ausschliesslich der Text; nichts wird hoffnungsvoll mitgeschickt');
+
+// ⚠️ Der Schalter ruehrt sonst nichts an: derselbe Beitrag, dieselben uebrigen Felder.
+assert(($aiPicture['fields']['url'] ?? '') === 'https://avesmaps.de/uploads/social/x.jpg'
+    && ($aiPicture['fields']['caption'] ?? '') === 'Mit KI'
+    && ($aiPicture['fields']['published'] ?? '') === 'true',
+    'Bild, Text und published bleiben unveraendert');
+// 🔴 Und er setzt KEIN privacy dazu. Der Beitrag erbt die Zielgruppe der SEITE (AGENTS.md §11);
+// hier etwas hinzuzufuegen waere die stillste Art, eine Sichtbarkeit zu aendern.
+assert(!isset($aiPicture['fields']['privacy']), 'kein privacy -- der Beitrag erbt die Seite');
+
 // 🔴 NEVER /me. With a user token /me/feed publishes on the owner's PRIVATE profile, publicly, under
 // their own name -- the one failure this adapter must make structurally impossible.
 assert(mb_strpos($withPicture['url'], '/me/') === false && mb_strpos($textOnly['url'], '/me/') === false,
