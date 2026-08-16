@@ -79,6 +79,42 @@ function avesmapsGameLiteratureFieldPlan(array $current, array $desired, array $
 }
 
 /**
+ * PURE: welche cover_license/cover_author-Vorgaben braucht ein Wiki-Cover, das dieser Reconcile-Lauf
+ * gerade (frisch oder unveraendert) fuehrt? Nachtrag zur Phase-3-Pruefung (Befund 2, dritter Schreibpfad):
+ * der Cover-Zweig von avesmapsGameLiteratureReconcileEntity() setzt cover_url ausserhalb der generischen
+ * Feldliste (AVESMAPS_GAME_LITERATURE_WIKI_FIELDS kennt kein cover_license -- die Lizenz ist eine
+ * Policy-Konstante, keine Wiki-Infobox-Angabe) und liess cover_license/cover_author bis zu diesem
+ * Nachtrag unangetastet. 'permission_granted'/'Ulisses' sind dieselben Literale wie im Cover-Massenlauf
+ * (game-literature-sync.php, Cover-Autoget, Phase 4 Aufgabe 6 Nachtrag) -- dieselbe Herkunft (Wiki-
+ * Katalog), derselbe Nachweis.
+ *
+ * "Leer heisst leer": ein Feld, das schon einen Wert traegt (z. B. ein Editor hat ueber den Cover-Dialog
+ * eine andere Lizenz gesetzt), wird NIE ueberschrieben -- deshalb liefert diese Funktion nur die Felder
+ * zurueck, die tatsaechlich fehlen.
+ *
+ * @return array<string,string> nur die zu setzenden Spalten (leer = nichts zu tun)
+ */
+function avesmapsGameLiteratureCoverAttributionDefaultsOnReconcile(
+    string $coverUrlNow,
+    string $existingLicense,
+    string $existingAuthor
+): array {
+    if (trim($coverUrlNow) === '') {
+        return []; // kein Cover -> nichts zu gaten
+    }
+
+    $defaults = [];
+    if (trim($existingLicense) === '') {
+        $defaults['cover_license'] = 'permission_granted';
+    }
+    if (trim($existingAuthor) === '') {
+        $defaults['cover_author'] = 'Ulisses';
+    }
+
+    return $defaults;
+}
+
+/**
  * PURE: case/space-insensitive key for matching a place name against a wiki tombstone.
  */
 function avesmapsGameLiteraturePlaceNameKey(string $name): string
@@ -695,7 +731,7 @@ function avesmapsGameLiteratureReconcileEntity(PDO $pdo, array $catalog, int $us
 
     $currentStmt = $pdo->prepare(
         'SELECT title, product_type, edition, genre, complexity_gm, complexity_pl, authors, series,
-                fshop_code, cover_url, cover_source, wiki_url
+                fshop_code, cover_url, cover_source, cover_license, cover_author, wiki_url
            FROM adventure WHERE id = :id LIMIT 1'
     );
     $currentStmt->execute(['id' => $gameLiteratureId]);
@@ -718,6 +754,33 @@ function avesmapsGameLiteratureReconcileEntity(PDO $pdo, array $catalog, int $us
         } elseif ($coverFile !== '' && $coverFile === $currentSource) {
             // Unchanged cover already fetched -> keep the stored local URL (no re-fetch, no field change).
             $desired['cover_url'] = (string) ($current['cover_url'] ?? '');
+        }
+
+        // 🔴 Nachtrag zur Phase-3-Pruefung (Befund 2, dritter Schreibpfad): dieser Zweig setzte cover_url
+        // (frisch gezogen ODER unveraendert uebernommen) OHNE je cover_license zu schreiben --
+        // avesmapsGameLiteratureFieldPlan() unten kennt nur AVESMAPS_GAME_LITERATURE_WIKI_FIELDS, und
+        // cover_license steht dort bewusst nicht drin (die Lizenz ist keine Wiki-Infobox-Angabe, sondern
+        // eine Policy-Konstante). Derselbe stille Ausfall wie beim Cover-Massenlauf, hier aber am
+        // "Literatur syncen"-Uebernahme-Pfad (game-literature-plan-apply.php). Bespoke Direktschreiben --
+        // wie schon cover_source zwei Zeilen oben -- statt die generische Feldliste zu erweitern, denn
+        // 'permission_granted'/'Ulisses' sind Policy-Literale (NOTICE.md/Ulisses-Fanrichtlinien), keine
+        // aus dem Wiki gelesenen Werte. Die Entscheidung selbst steckt in der PUREN
+        // avesmapsGameLiteratureCoverAttributionDefaultsOnReconcile() (testbar ohne DB).
+        $coverUrlNow = trim((string) ($desired['cover_url'] ?? $current['cover_url'] ?? ''));
+        $coverDefaults = avesmapsGameLiteratureCoverAttributionDefaultsOnReconcile(
+            $coverUrlNow,
+            (string) ($current['cover_license'] ?? ''),
+            (string) ($current['cover_author'] ?? '')
+        );
+        if ($coverDefaults !== []) {
+            $licenseSet = [];
+            $licenseParams = ['id' => $gameLiteratureId];
+            foreach ($coverDefaults as $field => $value) {
+                $licenseSet[] = $field . ' = :' . $field;
+                $licenseParams[$field] = $value;
+            }
+            $pdo->prepare('UPDATE adventure SET ' . implode(', ', $licenseSet) . ' WHERE id = :id')
+                ->execute($licenseParams);
         }
     }
 
