@@ -957,6 +957,14 @@ async function uploadOwnSettlementCoat(file) {
 		const form = new FormData();
 		form.append("public_id", publicId);
 		form.append("coat", file);
+		// 🔴 Phase 4 Prüfung, Befund 1: dieser Dialog hat (anders als die fünf mit
+		// js/ui/media-license-fields.js) keine eigenen Lizenzfelder -- ohne "license" fiele der
+		// Endpunkt auf seine Vorgabe 'ai_generated' zurück. Das ist fuer den migrierten Bestand
+		// richtig (Owner-Aussage: die Editoren haben ihre Wappen mit KI erzeugt), aber eine konkrete,
+		// falsifizierbare Behauptung ueber JEDEN kuenftigen Upload hier -- ein hier hochgeladener
+		// echter Scan oder ein gemeinfreies Bild bekaeme sonst stillschweigend "KI-generiert"
+		// zugeschrieben. "unknown_other" behauptet nichts, was dieser Weg nicht weiss.
+		form.append("license", "unknown_other");
 		const response = await fetch("/api/edit/wiki/settlement-coat-upload.php", {
 			method: "POST",
 			credentials: "same-origin",
