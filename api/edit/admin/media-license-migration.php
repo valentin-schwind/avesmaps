@@ -24,6 +24,14 @@ declare(strict_types=1);
  * .naechster_cursor` wird beim naechsten Aufruf unveraendert unter `cursors[<flaeche>]` zurueckgereicht
  * (fuer territory_coat ein Objekt `{staging, override}`, sonst eine Zahl). Derselbe client-treibt-die-
  * Schleife-Ablauf wie bei database-backup.php `step`.
+ *
+ * ⚡ Betriebshinweis (Fix-Runde 2, N3): bei `dry_run:false` prueft avesmapsMediaLicenseMigrationRun()
+ * VOR jedem Schreibvorgang den ganzen Bestand neu (die Sichtbarkeits-Sperre gilt je Lauf, nicht je
+ * Fenster) -- das kostet Durchsatz, nicht Zeit je Aufruf (gemessen: Vorlauf 230 ms, scharfer Lauf
+ * 249 ms). Bei `batch_limit` 200 (Vorgabe) braucht ein vollstaendiger Durchlauf 24 Aufrufe und liest
+ * dabei insgesamt rund 116.000 Zeilen statt 4.653, weil jeder Aufruf den Vorlauf wiederholt. Mit
+ * `batch_limit: 2000` (das eingebaute Maximum) sind es gemessen 3 Aufrufe / 334 ms. Wer die Migration
+ * von Hand durchklickt, sollte also 2000 setzen, nicht die Vorgabe stehen lassen.
  */
 
 require __DIR__ . '/../../_internal/bootstrap.php';

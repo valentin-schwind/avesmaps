@@ -426,4 +426,86 @@ assert($laufN3['sichtbarkeitswechsel'] !== [], 'N3: der Wechsel in n3-c/n3-d (au
 $n3a = json_decode((string) $pdoN3->query("SELECT properties_json FROM map_features WHERE public_id='n3-a'")->fetchColumn(), true);
 assert($n3a['coat']['license_status'] === 'own', 'N3 nicht behoben: das angeforderte Fenster wurde trotz eines Wechsels ausserhalb geschrieben');
 
+// ---- Verdrahtungstest: welcher SAMMLER benutzt welchen FORMATIERER? ------------------------------------
+// N1 nagelte nur die Formatierer selbst fest (Y-m-d H:i:s vs. …T…Z) -- nicht, DASS jeder Sammler den
+// richtigen benutzt. Reproduziert von der Pruefung: eine Kopie, die CollectCovers zurueck auf die
+// ISO-Form stellt, liess die N1-Assertions unveraendert gruen, weil die nie pruefen, WER welchen
+// Formatierer ruft. Deshalb hier ein SCHARFER Lauf gegen echte Dateien in allen vier Ablagen: die
+// SPALTEN (cover/citymap) muessen frei von 'T'/'Z' sein, die JSON-Felder (coat/images) muessen ihre
+// ISO-Form behalten.
+$tempBasisV = sys_get_temp_dir() . '/avm-lizenz-verdrahtung-' . uniqid();
+mkdir($tempBasisV . '/uploads/wappen/own', 0777, true);
+mkdir($tempBasisV . '/uploads/siedlungen/1', 0777, true);
+mkdir($tempBasisV . '/uploads/questcovers', 0777, true);
+mkdir($tempBasisV . '/uploads/kartensammlungen/1', 0777, true);
+file_put_contents($tempBasisV . '/uploads/wappen/own/coat.png', 'x');
+file_put_contents($tempBasisV . '/uploads/siedlungen/1/bild.png', 'x');
+file_put_contents($tempBasisV . '/uploads/questcovers/cover.jpg', 'x');
+file_put_contents($tempBasisV . '/uploads/kartensammlungen/1/karte.jpg', 'x');
+file_put_contents($tempBasisV . '/uploads/kartensammlungen/1/vorschau.jpg', 'x');
+
+$pdoVerdrahtung = avesmapsMediaLicenseTestSchema();
+// Lizenzen sind ABSICHTLICH schon Katalogwerte -- nur der Protokoll-Nachtrag (uploaded_at) soll den
+// Schreibvorgang ausloesen, nicht eine Lizenzaenderung (die waere ein zweiter, hier unbeteiligter Pfad).
+$pdoVerdrahtung->exec("INSERT INTO map_features (public_id, feature_type, properties_json) VALUES
+    ('ort-verdrahtung', 'location', '" . json_encode([
+        'coat' => ['url' => '/uploads/wappen/own/coat.png', 'source' => 'own', 'license_status' => 'ai_generated'],
+        'images' => [
+            ['url' => '/uploads/siedlungen/1/bild.png', 'license' => 'ai_generated'],
+        ],
+    ]) . "')");
+$pdoVerdrahtung->exec("INSERT INTO adventure (public_id, cover_url, field_origins_json, cover_license) VALUES
+    ('abt-verdrahtung', '/uploads/questcovers/cover.jpg', '" . json_encode(['cover_url' => 'manual']) . "', 'permission_granted')");
+$pdoVerdrahtung->exec("INSERT INTO citymap (public_id, map_license, thumb_license, map_local_url, thumb_local_url) VALUES
+    ('karte-verdrahtung', 'public_domain', 'public_domain',
+     '/uploads/kartensammlungen/1/karte.jpg', '/uploads/kartensammlungen/1/vorschau.jpg')");
+
+$vorherigerDocRootV = $_SERVER['DOCUMENT_ROOT'] ?? null;
+$_SERVER['DOCUMENT_ROOT'] = $tempBasisV;
+$laufVerdrahtung = avesmapsMediaLicenseMigrationRun($pdoVerdrahtung, ['dry_run' => false]);
+if ($vorherigerDocRootV === null) {
+    unset($_SERVER['DOCUMENT_ROOT']);
+} else {
+    $_SERVER['DOCUMENT_ROOT'] = $vorherigerDocRootV;
+}
+
+// Aufraeumen VOR den Assertions -- ein assert()-Abbruch soll die Temp-Dateien nicht liegen lassen.
+foreach ([
+    '/uploads/wappen/own/coat.png', '/uploads/siedlungen/1/bild.png', '/uploads/questcovers/cover.jpg',
+    '/uploads/kartensammlungen/1/karte.jpg', '/uploads/kartensammlungen/1/vorschau.jpg',
+] as $relativ) {
+    @unlink($tempBasisV . $relativ);
+}
+foreach ([
+    '/uploads/wappen/own', '/uploads/wappen', '/uploads/siedlungen/1', '/uploads/siedlungen',
+    '/uploads/questcovers', '/uploads/kartensammlungen/1', '/uploads/kartensammlungen', '/uploads',
+] as $relativ) {
+    @rmdir($tempBasisV . $relativ);
+}
+@rmdir($tempBasisV);
+
+assert($laufVerdrahtung['ok'] === true, 'der Verdrahtungslauf lief nicht ok');
+
+$mysqlSpaltenForm = '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/';
+$isoJsonForm = '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/';
+
+$coverDatum = (string) $pdoVerdrahtung->query("SELECT cover_uploaded_at FROM adventure WHERE public_id='abt-verdrahtung'")->fetchColumn();
+assert($coverDatum !== '', 'cover_uploaded_at wurde nicht gesetzt -- die Datei haette gefunden werden muessen');
+assert(preg_match($mysqlSpaltenForm, $coverDatum) === 1, "Verdrahtung falsch: adventure.cover_uploaded_at ist keine MySQL-DATETIME-Form: {$coverDatum}");
+
+$mapDatum = (string) $pdoVerdrahtung->query("SELECT map_uploaded_at FROM citymap WHERE public_id='karte-verdrahtung'")->fetchColumn();
+$thumbDatum = (string) $pdoVerdrahtung->query("SELECT thumb_uploaded_at FROM citymap WHERE public_id='karte-verdrahtung'")->fetchColumn();
+assert(preg_match($mysqlSpaltenForm, $mapDatum) === 1, "Verdrahtung falsch: citymap.map_uploaded_at ist keine MySQL-DATETIME-Form: {$mapDatum}");
+assert(preg_match($mysqlSpaltenForm, $thumbDatum) === 1, "Verdrahtung falsch: citymap.thumb_uploaded_at ist keine MySQL-DATETIME-Form: {$thumbDatum}");
+
+$ortVerdrahtung = json_decode((string) $pdoVerdrahtung->query(
+    "SELECT properties_json FROM map_features WHERE public_id = 'ort-verdrahtung'"
+)->fetchColumn(), true);
+$coatDatum = (string) ($ortVerdrahtung['coat']['uploaded_at'] ?? '');
+$bildDatum = (string) ($ortVerdrahtung['images'][0]['uploaded_at'] ?? '');
+assert($coatDatum !== '', 'coat.uploaded_at wurde nicht gesetzt');
+assert($bildDatum !== '', 'images[0].uploaded_at wurde nicht gesetzt');
+assert(preg_match($isoJsonForm, $coatDatum) === 1, "Verdrahtung falsch: coat.uploaded_at ist keine ISO-8601-Form: {$coatDatum}");
+assert(preg_match($isoJsonForm, $bildDatum) === 1, "Verdrahtung falsch: images[0].uploaded_at ist keine ISO-8601-Form: {$bildDatum}");
+
 echo "media-license-migration-run-test: OK\n";
