@@ -357,7 +357,12 @@ function sandkastenBauen(optionen) {
 	kasten.globalThis = kasten;
 	kasten.self = kasten;
 	vm.createContext(kasten);
-	["js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-assign.js",
+	// Der Lizenz-Katalog und sein Markup-Bauer (Phase 4, Aufgabe 2): ceImageGroup ruft seit
+	// Aufgabe 2 avesmapsMediaLicenseNormalize/...IsPublic/...Label und
+	// avesmapsMediaLicenseFieldsMarkup auf. Im Dokument stehen sie VOR dem inline-Block
+	// (html/citymap-editor.html), also laden sie hier ebenso vor der Wiki-Zuweisung.
+	["js/app/media-licenses.js", "js/ui/media-license-fields.js",
+		"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-assign.js",
 		"js/ui/wiki-assign-karte.js"].forEach((datei) => {
 		vm.runInContext(fs.readFileSync(path.join(wurzel, datei), "utf8"), kasten, { filename: datei });
 	});
