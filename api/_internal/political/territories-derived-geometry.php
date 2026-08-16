@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/derived-orphans.php';
+require_once __DIR__ . '/territories-audit.php';
 
 function avesmapsPoliticalEnsureDerivedGeometryTables(PDO $pdo): void {
     $pdo->exec(
@@ -394,7 +395,11 @@ function avesmapsPoliticalDeleteDerivedGeometryTree(PDO $pdo, array $payload, ar
     ];
 }
 
-function avesmapsPoliticalDeleteDerivedGeometryForTerritory(PDO $pdo, array $territory, array $user): array {
+// ⚠️ $context ist der Schnappschuss aus avesmapsPoliticalDerivedHullSourceContext(). Er darf
+// durchgereicht werden, wo mehrere Huellen in einem Zug fallen (Baum-Loeschen, Bulk-Knopf): das
+// Loeschen einer Huelle aendert weder Quellflaechen noch Territorien, der Schnappschuss bleibt
+// also gueltig. Fehlt er, wird er hier geholt.
+function avesmapsPoliticalDeleteDerivedGeometryForTerritory(PDO $pdo, array $territory, array $user, ?array $context = null): array {
     $territoryId = (int) $territory['id'];
     // 🔴 Owner-Entscheid 16.08.2026: hart nur, wenn nichts mehr da ist, was die Huelle erzeugen
     // koennte. ⚠️ Hart heisst ohne Rueckweg -- die Deaktivierung WAR das Sicherheitsnetz. Tragfaehig
@@ -402,12 +407,18 @@ function avesmapsPoliticalDeleteDerivedGeometryForTerritory(PDO $pdo, array $ter
     // Diese Weiche ist die EINZIGE Stelle, an der darueber entschieden wird; sie darf nicht in die
     // Aufrufer kopiert werden.
     $sourceless = avesmapsPoliticalDerivedHullIsSourceless(
+        $pdo,
         $territoryId,
-        avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo),
-        avesmapsPoliticalFetchTerritoryIdsWithActiveGeometry($pdo)
+        $context ?? avesmapsPoliticalDerivedHullSourceContext($pdo)
     );
 
     if ($sourceless) {
+        avesmapsPoliticalLogDerivedHullHardDelete(
+            $pdo,
+            avesmapsPoliticalFetchActiveDerivedHullRowsForTerritory($pdo, $territoryId),
+            (int) ($user['id'] ?? 0),
+            'territory'
+        );
         $statement = $pdo->prepare(
             'DELETE FROM political_territory_derived_geometry
             WHERE territory_id = :territory_id
@@ -436,6 +447,62 @@ function avesmapsPoliticalDeleteDerivedGeometryForTerritory(PDO $pdo, array $ter
         'hard' => $sourceless,
         'affected' => $statement->rowCount(),
     ];
+}
+
+// Die Zeilen, die ein hartes Loeschen gleich entfernt -- geholt, BEVOR es sie nicht mehr gibt.
+function avesmapsPoliticalFetchActiveDerivedHullRowsForTerritory(PDO $pdo, int $territoryId): array {
+    $statement = $pdo->prepare(
+        'SELECT public_id, territory_id, min_x, min_y, max_x, max_y
+        FROM political_territory_derived_geometry
+        WHERE territory_id = :territory_id
+            AND is_active = 1'
+    );
+    $statement->execute(['territory_id' => $territoryId]);
+
+    return $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+// 🔴 Der harte Zweig hinterliess bis 16.08.2026 KEINE Spur: kein updated_by (die Zeile ist ja weg)
+// und keinen Protokolleintrag, waehrend der weiche wenigstens updated_by schrieb. Bei einer
+// unumkehrbaren Handlung ist das die falsche Richtung -- also EIN Eintrag, vor dem DELETE.
+//
+// 💣 Er steht unter `derived_geometries`, NICHT unter `geometries`. Die Undo-Maschine
+// (avesmapsPoliticalRestoreAuditGeometries) schreibt alles, was unter `geometries` liegt, in
+// political_territory_geometry zurueck -- eine Aussenhuelle gehoert dort nicht hin, und ein
+// spaeterer Eintrag von `hard_delete_derived_geometry` in die Undo-Liste wuerde daraus lautlos
+// eine erfundene Quellflaeche machen. Der Eintrag ist ein Beleg, kein Rueckweg: die Aktion steht
+// bewusst nicht in avesmapsPoliticalCanUndoGeometryAuditAction.
+function avesmapsPoliticalLogDerivedHullHardDelete(PDO $pdo, array $rows, int $actorUserId, string $reason): void {
+    if ($rows === []) {
+        return;
+    }
+
+    $before = [];
+    foreach ($rows as $row) {
+        $publicId = (string) ($row['public_id'] ?? '');
+        if ($publicId === '') {
+            continue;
+        }
+        $before[$publicId] = [
+            'territory_id' => (int) ($row['territory_id'] ?? 0),
+            'min_x' => (float) ($row['min_x'] ?? 0),
+            'min_y' => (float) ($row['min_y'] ?? 0),
+            'max_x' => (float) ($row['max_x'] ?? 0),
+            'max_y' => (float) ($row['max_y'] ?? 0),
+            'is_active' => 1,
+        ];
+    }
+    if ($before === []) {
+        return;
+    }
+
+    avesmapsPoliticalWriteGeometryAuditLog(
+        $pdo,
+        'hard_delete_derived_geometry',
+        $actorUserId,
+        ['geometries' => [], 'territories' => [], 'derived_geometries' => $before, 'reason' => $reason],
+        ['geometries' => [], 'territories' => [], 'derived_geometries' => []]
+    );
 }
 
 // Beim Loeschen einer Geometrie/eines Territoriums: die abgeleitete Aussengrenze des

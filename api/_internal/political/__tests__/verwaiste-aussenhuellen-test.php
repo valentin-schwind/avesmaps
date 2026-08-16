@@ -19,16 +19,13 @@ if (!extension_loaded('pdo_sqlite')) {
     exit(2);
 }
 
-if (!defined('AVESMAPS_POLITICAL_DEFAULT_CONTINENT')) {
-    define('AVESMAPS_POLITICAL_DEFAULT_CONTINENT', 'Aventurien');
-}
-
+// 🔴 KEIN define() der Kontinent-Konstante mehr: derived-orphans.php laedt seit 16.08.2026 seine
+// eigenen Abhaengigkeiten, und territory.php bringt die Konstante als `const` mit. Ein define()
+// davor liesse PHP beim Laden „Constant already defined" warnen.
 require_once __DIR__ . '/../../bootstrap.php';
-require_once __DIR__ . '/../territories-derived-geometry-shared.php';
-require_once __DIR__ . '/../territories-derived-geometry.php';
 require_once __DIR__ . '/../derived-orphans.php';
 require_once __DIR__ . '/../territories-support.php';
-require_once __DIR__ . '/../territories-read.php';
+require_once __DIR__ . '/../territories-audit.php';
 require_once __DIR__ . '/../territories-geometry-inventory.php';
 require_once __DIR__ . '/../territories-geometry.php';
 
@@ -52,27 +49,47 @@ $pdo->exec('CREATE TABLE political_territory_derived_geometry (
     min_x REAL, min_y REAL, max_x REAL, max_y REAL, created_by INTEGER, created_at TEXT,
     updated_by INTEGER, updated_at TEXT
 )');
+$pdo->exec('CREATE TABLE political_territory_wiki (
+    id INTEGER PRIMARY KEY, wiki_key TEXT, name TEXT, affiliation_path_json TEXT
+)');
 $pdo->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT)');
+$pdo->exec('CREATE TABLE political_territory_geometry_audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, action TEXT, actor_user_id INTEGER,
+    before_json TEXT, after_json TEXT, undone_at TEXT, undone_by INTEGER,
+    undo_audit_id INTEGER, created_at TEXT DEFAULT CURRENT_TIMESTAMP
+)');
 
-// 1 Geist: Huelle, kein Kind, keine eigene Flaeche.  (= "Neues Herrschaftsgebiet (1008)")
-// 2 Blatt mit eigener Flaeche.                        (= Támenev)
-// 3 Aggregat, dessen Flaeche beim KIND 4 liegt.       (= Grafschaft Winhall)
-// 5 Huelle, deren Territorium geloescht wurde.        (dangling)
-// 6 Blatt, dessen einzige Flaeche INAKTIV ist.        (= Geist auf dem zweiten Weg)
-// 7 Deaktiviertes Territorium mit aktiver Flaeche.    (Test: aktive Geom an inaktivem Terr)
-$pdo->exec("INSERT INTO political_territory (id, public_id, name, parent_id, is_active, continent) VALUES
-    (1, 'p-geist',  'Neues Herrschaftsgebiet (1008)', NULL, 1, 'Aventurien'),
-    (2, 'p-blatt',  'Támenev',                        NULL, 1, 'Aventurien'),
-    (3, 'p-aggr',   'Grafschaft Winhall',             NULL, 1, 'Aventurien'),
-    (4, 'p-kind',   'Reichsland Winhall',                3, 1, 'Aventurien'),
-    (6, 'p-inaktiv','Gebiet mit toter Flaeche',       NULL, 1, 'Aventurien'),
-    (7, 'p-deakt',  'Deaktiviertes Gebiet',           NULL, 0, 'Aventurien')");
+//  1 Geist: Huelle, kein Kind, keine eigene Flaeche.  (= "Neues Herrschaftsgebiet (1008)")
+//  2 Blatt mit eigener Flaeche.                       (= Támenev)
+//  3 Aggregat, dessen Flaeche beim KIND 4 liegt.      (= Grafschaft Winhall)
+//  5 Huelle, deren Territorium geloescht wurde.       (dangling)
+//  6 Blatt, dessen einzige Flaeche INAKTIV ist.       (= Geist auf dem zweiten Weg)
+//  7 Deaktiviertes Territorium mit aktiver Flaeche.   (Papierkorb -- wiederherstellbar)
+//  8 Wiki-Knoten ohne parent_id-Kinder, dessen Quelle NUR ueber den Wiki-Zweig zu finden ist.
+//  9 Das namensgleiche Ziel dieses Wiki-Zweigs, mit aktiver Flaeche.
+// 10 Aktives Gebiet auf einem ANDEREN Kontinent.
+$pdo->exec("INSERT INTO political_territory (id, public_id, wiki_id, name, parent_id, is_active, continent) VALUES
+    (1, 'p-geist',  NULL, 'Neues Herrschaftsgebiet (1008)', NULL, 1, 'Aventurien'),
+    (2, 'p-blatt',  NULL, 'Támenev',                        NULL, 1, 'Aventurien'),
+    (3, 'p-aggr',   NULL, 'Grafschaft Winhall',             NULL, 1, 'Aventurien'),
+    (4, 'p-kind',   NULL, 'Reichsland Winhall',                3, 1, 'Aventurien'),
+    (6, 'p-inaktiv',NULL, 'Gebiet mit toter Flaeche',       NULL, 1, 'Aventurien'),
+    (7, 'p-deakt',  NULL, 'Deaktiviertes Gebiet',           NULL, 0, 'Aventurien'),
+    (8, 'p-wiki',     70, 'Wiki-Knoten',                    NULL, 1, 'Aventurien'),
+    (9, 'p-wikikind', NULL,'Untergebiet Alpha',             NULL, 1, 'Aventurien'),
+    (10,'p-fremd',  NULL, 'Gebiet in Myranor',              NULL, 1, 'Myranor')");
+// Der Wiki-Zweig sucht ueber die NAMEN aus affiliation_path_json + dem eigenen Namen; ueber
+// parent_id ist Gebiet 9 mit 8 NICHT verbunden. Genau diese Konstellation kennt der Layer und
+// kannte das Praedikat bis 16.08.2026 nicht.
+$pdo->exec("INSERT INTO political_territory_wiki (id, wiki_key, name, affiliation_path_json) VALUES
+    (70, 'wiki:wiki-knoten', 'Wiki-Knoten', '[\"Untergebiet Alpha\"]')");
 $pdo->exec("INSERT INTO political_territory_geometry
     (id, public_id, territory_id, is_active, source, created_by, created_at, min_x, min_y, max_x, max_y) VALUES
     (10, 'g-blatt', 2, 1, '', 7, '2026-08-04 10:00:00',   0.0,   0.0,  10.0,  10.0),
     (11, 'g-kind',  4, 1, '', 7, '2026-08-04 10:00:00',   0.0,   0.0,  20.0,  20.0),
     (12, 'g-tot',   6, 0, '', 7, '2026-08-04 10:00:00',   0.0,   0.0,   6.0,   6.0),
-    (13, 'g-deakt', 7, 1, '', 7, '2026-08-04 10:00:00',  10.0,  10.0,  20.0,  20.0)");
+    (13, 'g-deakt', 7, 1, '', 7, '2026-08-04 10:00:00',  10.0,  10.0,  20.0,  20.0),
+    (14, 'g-wiki',  9, 1, '', 7, '2026-08-04 10:00:00',  30.0,  30.0,  40.0,  40.0)");
 $pdo->exec("INSERT INTO political_territory_derived_geometry
     (id, public_id, territory_id, is_active, min_x, min_y, max_x, max_y, created_by, created_at) VALUES
     (20, 'd-geist',   1, 1, 139.3, 429.5, 203.4, 521.3, 7, '2026-08-04 10:00:00'),
@@ -81,46 +98,54 @@ $pdo->exec("INSERT INTO political_territory_derived_geometry
     (23, 'd-dangling',5, 1,   0.0,   0.0,   5.0,   5.0, 7, '2026-08-04 10:00:00'),
     (24, 'd-inaktiv', 6, 1,   0.0,   0.0,   6.0,   6.0, 7, '2026-08-04 10:00:00'),
     (25, 'd-weg',     1, 0, 139.3, 429.5, 203.4, 521.3, 7, '2026-08-04 10:00:00'),
-    (26, 'd-deakt-terr', 7, 1, 10.0, 10.0, 20.0, 20.0, 7, '2026-08-04 10:00:00')");
+    (26, 'd-deakt-terr', 7, 1, 10.0, 10.0, 20.0, 20.0, 7, '2026-08-04 10:00:00'),
+    (27, 'd-wiki',    8, 1,  30.0,  30.0,  40.0,  40.0, 7, '2026-08-04 10:00:00'),
+    (28, 'd-fremd',  10, 1,  50.0,  50.0,  60.0,  60.0, 7, '2026-08-04 10:00:00')");
 $pdo->exec("INSERT INTO users (id, username) VALUES (7, 'valentin')");
 
-$territories  = avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
-$withGeometry = avesmapsPoliticalFetchTerritoryIdsWithActiveGeometry($pdo);
+$kontext = avesmapsPoliticalDerivedHullSourceContext($pdo);
 
-$withKeys = array_keys($withGeometry);
+$withKeys = array_keys($kontext['with_geometry']);
 sort($withKeys);
-assert($withKeys === [2, 4], 'nur AKTIVE Flaechen aktiver Gebiete zaehlen');
+assert($withKeys === [2, 4, 9], 'nur AKTIVE Flaechen aktiver Gebiete zaehlen');
 
-assert(avesmapsPoliticalDerivedHullIsSourceless(1, $territories, $withGeometry) === true,
+assert(avesmapsPoliticalDerivedHullIsSourceless($pdo, 1, $kontext) === true,
     'der Geist hat keine Quelle');
-assert(avesmapsPoliticalDerivedHullIsSourceless(2, $territories, $withGeometry) === false,
+assert(avesmapsPoliticalDerivedHullIsSourceless($pdo, 2, $kontext) === false,
     'ein Blatt mit eigener Flaeche ist keine Waise');
 // 💣 Die Gegenprobe, an der die Rechnung haengt: das Aggregat hat SELBST keine Flaeche, seine
 // Quelle liegt beim Kind. Wer nur das Gebiet fragt statt der Nachfahren, erklaert Winhall,
 // Kosch und die Nordmarken zu Geistern -- live waeren das 111 von 114.
-assert(avesmapsPoliticalDerivedHullIsSourceless(3, $territories, $withGeometry) === false,
+assert(avesmapsPoliticalDerivedHullIsSourceless($pdo, 3, $kontext) === false,
     'ein Aggregat lebt von den Flaechen seiner Kinder');
-assert(avesmapsPoliticalDerivedHullIsSourceless(5, $territories, $withGeometry) === true,
+assert(avesmapsPoliticalDerivedHullIsSourceless($pdo, 5, $kontext) === true,
     'eine Huelle ohne Territorium ist erst recht verwaist');
-assert(avesmapsPoliticalDerivedHullIsSourceless(6, $territories, $withGeometry) === true,
+assert(avesmapsPoliticalDerivedHullIsSourceless($pdo, 6, $kontext) === true,
     'eine INAKTIVE Flaeche ist keine Quelle');
-assert(!isset($withGeometry[7]), 'auch eine aktive Flaeche an einem deaktivierten Gebiet zaehlt nicht');
-assert(avesmapsPoliticalDerivedHullIsSourceless(7, $territories, $withGeometry) === true,
-    'ein Gebiet mit is_active=0 ist also auch verwaist, egal ob es Flaechen hat');
+// 💣 K1: dieselbe Quellenmenge wie der Layer -- inklusive Wiki-Zweig. Der Layer zeigt fuer 8 eine
+// Quelle (ueber den Namensabgleich zu 9), die Huelle ist im Editor also zu Recht inert. Wer sie
+// trotzdem in die Waisenliste stellt, loescht auf Basis einer STRENGEREN Rechnung als der, nach
+// der die Karte urteilt -- und zwar unumkehrbar.
+assert(avesmapsPoliticalDerivedHullIsSourceless($pdo, 8, $kontext) === false,
+    'eine Quelle ueber den Wiki-Zweig ist eine Quelle');
+// 💣 K2: „nicht im Rechenschnappschuss" ist NICHT „geloescht". Der Schnappschuss filtert auf
+// is_active=1 UND continent=Aventurien; ein Gebiet im Papierkorb ist wiederherstellbar und eines
+// auf einem anderen Kontinent gehoert einer anderen Karte.
+assert(!isset($kontext['with_geometry'][7]), 'auch eine aktive Flaeche an einem deaktivierten Gebiet zaehlt nicht');
+assert(avesmapsPoliticalDerivedHullIsSourceless($pdo, 7, $kontext) === false,
+    'ein Gebiet im Papierkorb ist kein Dangling -- seine Huelle ist keine Waise');
+assert(avesmapsPoliticalDerivedHullIsSourceless($pdo, 10, $kontext) === false,
+    'und ein anderer Kontinent auch nicht');
 
 $hulls = avesmapsPoliticalCollectSourcelessDerivedHulls($pdo);
 $ids = array_map(static fn(array $r): string => (string) $r['derived_geometry_public_id'], $hulls);
 sort($ids);
-assert($ids === ['d-dangling', 'd-deakt-terr', 'd-geist', 'd-inaktiv'], 'genau die vier Waisen, in keiner Reihenfolge fixiert');
+assert($ids === ['d-dangling', 'd-geist', 'd-inaktiv'], 'genau die drei Waisen, in keiner Reihenfolge fixiert');
 // 🔴 Eine bereits deaktivierte Huelle ist kein Fund -- sie zeichnet nichts und ist kein Befund.
 assert(!in_array('d-weg', $ids, true), 'inaktive Huellen bleiben draussen');
-
-$deaktTerr = null;
-foreach ($hulls as $row) {
-    if ((string) $row['derived_geometry_public_id'] === 'd-deakt-terr') { $deaktTerr = $row; }
-}
-assert(is_array($deaktTerr), 'die Huelle des deaktivierten Gebiets ist dabei');
-assert($deaktTerr['territory_is_active'] === false, 'und markiert das Gebiet als inaktiv');
+assert(!in_array('d-deakt-terr', $ids, true), 'die Huelle eines Papierkorb-Gebiets steht nicht zum Loeschen an');
+assert(!in_array('d-fremd', $ids, true), 'und die eines fremden Kontinents auch nicht');
+assert(!in_array('d-wiki', $ids, true), 'und die mit einer Quelle ueber den Wiki-Zweig ebenfalls nicht');
 
 $geist = null;
 foreach ($hulls as $row) {
@@ -144,8 +169,8 @@ $inventar = avesmapsPoliticalReadGeometryInventory($pdo, ['include_inactive' => 
 assert(isset($inventar['derived_orphans']), 'das Inventar kennt jetzt die Hüllen');
 $hüllenIds = array_map(static fn(array $r): string => (string) $r['derived_geometry_public_id'], $inventar['derived_orphans']);
 sort($hüllenIds);
-assert($hüllenIds === ['d-dangling', 'd-deakt-terr', 'd-geist', 'd-inaktiv'], 'und zwar genau die verwaisten');
-assert($inventar['derived_orphan_total'] === 4, 'die Zahl passt zur Liste');
+assert($hüllenIds === ['d-dangling', 'd-geist', 'd-inaktiv'], 'und zwar genau die verwaisten');
+assert($inventar['derived_orphan_total'] === 3, 'die Zahl passt zur Liste');
 // 🔴 Die vorhandenen Schluessel bleiben, sonst bricht das Fenster an anderer Stelle.
 assert(isset($inventar['geometries'], $inventar['total'], $inventar['legacy_regions']),
     'das Konturen-Inventar ist unberuehrt');
@@ -176,16 +201,30 @@ assert((int) $row['is_active'] === 0, 'aber abgeschaltet -- "Grenzen berechnen" 
 // keine Regel -- die Huelle blieb stehen, und niemand kam mehr an sie heran.
 $vorschau = avesmapsPoliticalPurgeUnassignedGeometries($pdo, [], ['id' => 7]);
 assert($vorschau['dry_run'] === true, 'ohne confirm passiert nichts');
-assert($vorschau['derived_candidates'] === 3, 'die Vorschau zaehlt die Huellen mit');
+assert($vorschau['derived_candidates'] === 2, 'die Vorschau zaehlt die Huellen mit');
 assert($vorschau['derived_deleted'] === 0, 'und loescht nichts');
 
 $ergebnis = avesmapsPoliticalPurgeUnassignedGeometries($pdo, ['confirm' => 'apply'], ['id' => 7]);
-assert($ergebnis['derived_deleted'] === 3, 'mit confirm fallen die drei Waisen');
+assert($ergebnis['derived_deleted'] === 2, 'mit confirm fallen die zwei restlichen Waisen');
 assert(avesmapsPoliticalCollectSourcelessDerivedHulls($pdo) === [], 'keine verwaiste Huelle bleibt uebrig');
 // 💣 Die Gegenprobe: der Knopf raeumt Waisen weg, NICHT den Bestand. d-blatt haengt an einer
 // lebenden Quellflaeche und muss den Lauf ueberstehen -- ein Aufraeumer, der gesunde Huellen
 // mitnimmt, waere schlimmer als der Zustand, den er beheben soll.
 $blatt = $pdo->query("SELECT is_active FROM political_territory_derived_geometry WHERE public_id = 'd-blatt'")->fetch(PDO::FETCH_ASSOC);
 assert(is_array($blatt) && (int) $blatt['is_active'] === 1, 'die Huelle mit Quelle steht unangetastet da');
+// 💣 Dieselbe Gegenprobe fuer die drei Faelle, die K1/K2 aus der Liste geholt haben. Sie sind der
+// eigentliche Preis eines unumkehrbaren Loeschens: haetten sie den Lauf nicht ueberlebt, waeren
+// ein Papierkorb-Gebiet, eine fremde Karte und eine Wiki-Quelle unwiderruflich weg.
+foreach (['d-deakt-terr' => 'ein Papierkorb-Gebiet', 'd-fremd' => 'ein fremder Kontinent', 'd-wiki' => 'eine Wiki-Quelle'] as $publicId => $was) {
+    $row = $pdo->query("SELECT is_active FROM political_territory_derived_geometry WHERE public_id = '" . $publicId . "'")->fetch(PDO::FETCH_ASSOC);
+    assert(is_array($row) && (int) $row['is_active'] === 1, $was . ' ueberlebt den Bulk-Lauf unangetastet');
+}
+
+// ===== Die Weiche bleibt weich, wo etwas wiederherstellbar ist ===================================
+$deaktRow = ['id' => 7, 'public_id' => 'p-deakt'];
+$result = avesmapsPoliticalDeleteDerivedGeometryForTerritory($pdo, $deaktRow, ['id' => 7]);
+assert($result['hard'] === false, 'die Huelle eines Papierkorb-Gebiets wird nur deaktiviert');
+$row = $pdo->query("SELECT is_active FROM political_territory_derived_geometry WHERE public_id = 'd-deakt-terr'")->fetch(PDO::FETCH_ASSOC);
+assert(is_array($row) && (int) $row['is_active'] === 0, 'die Zeile bleibt stehen -- das Gebiet ist wiederherstellbar');
 
 echo "OK: verwaiste-aussenhuellen-test\n";
