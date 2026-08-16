@@ -44,14 +44,9 @@ foreach (['cc_by', 'unknown_other'] as $kennung) {
 assert(avesmapsGameLiteratureCoverGatedUrl('/uploads/questcovers/x.jpg', 'permission_granted') !== '');
 
 // ---- ein leeres/fehlendes cover_license (NULL, '', unmigrierter Wert) faellt still --------------------
-// ⚠️ Das ist die Zusicherung hinter dem Selbstpruefungs-Auftrag: eine Zeile, deren cover_license NIE
-// gesetzt wurde (z. B. ueber die freie "Cover-URL"-Textzeile im Stammdaten-Formular gesetzt, die NICHT
-// ueber api/edit/map/game-literature-cover.php laeuft und deshalb kein cover_license mitschreibt --
-// html/game-literature-editor.html:956, avesmapsUpsertGameLiterature() ohne 'cover_license' im
-// editierbaren Feldsatz), faellt auf 'unknown_other' -> nicht oeffentlich. Das GATE selbst ist damit
-// korrekt (kein Katalogwert wird uebersehen); OB es heute eine solche Zeile mit gesetzter cover_url,
-// aber leerer cover_license gibt, ist eine Bestandsfrage, die dieser Test nicht beantworten kann (keine
-// DB hier) -- siehe Bericht: "Zaehlung zu Befund 2".
+// ⚠️ Von aussen bestaetigt (Katalog 1534 mit cover_url, Migrationslauf 1534 gelesen/geaendert):
+// heute gibt es keine solche Zeile im Bestand. Der Fall bleibt trotzdem getestet -- das GATE selbst muss
+// unbekannte/leere Werte weiter ablehnen, unabhaengig vom aktuellen Bestand.
 foreach ([null, '', 'unbekannt'] as $leer) {
     assert(
         avesmapsGameLiteratureCoverGatedUrl('/uploads/questcovers/x.jpg', $leer) === '',
@@ -63,3 +58,26 @@ foreach ([null, '', 'unbekannt'] as $leer) {
 assert(avesmapsGameLiteratureCoverGatedUrl('', 'public_domain') === '');
 
 echo "game-literature-cover-gate-test: OK\n";
+
+// =========================================================================================================
+// Nachtrag: der Risikoweg, der eine leere cover_license erst ERZEUGEN koennte (Prüfung nach dieser Phase).
+// =========================================================================================================
+//
+// html/game-literature-editor.html:956 traegt ein freies Textfeld "Cover-URL" im Stammdaten-Block, das
+// ueber avesmapsUpsertGameLiterature() speichert -- unabhaengig vom Cover-Dialog, der cover_license immer
+// mitschreibt. avesmapsGameLiteratureCoverLicenseDefaultOnUpsert() ist der PURE Entscheidungskern dieses
+// Nachtrags: 'unknown_other' NUR wenn eine neue, nicht-leere cover_url ankommt UND noch keine Lizenz
+// gespeichert ist -- eine von Hand eingetragene Fremd-URL ist ungeprueft, "ungeklaert" ist die ehrliche
+// Aussage (NICHT 'permission_granted' -- das waere dieselbe Erfindung, die der zweite Wappen-Upload-Weg
+// gerade zurueckgebaut hat).
+assert(avesmapsGameLiteratureCoverLicenseDefaultOnUpsert(true, '') === 'unknown_other', 'neue URL, keine Lizenz -> Vorgabe');
+assert(avesmapsGameLiteratureCoverLicenseDefaultOnUpsert(false, '') === null, 'keine URL in dieser Anfrage -> nichts tun');
+// 💣 Niemals eine bereits gesetzte Lizenz ueberschreiben -- gatherStamm() (JS) sendet cover_url bei JEDEM
+// Speichern mit, auch wenn der Editor nur ein anderes Feld geaendert hat.
+foreach (['permission_granted', 'cc_by', 'unknown_other', 'own_work'] as $vorhanden) {
+    assert(
+        avesmapsGameLiteratureCoverLicenseDefaultOnUpsert(true, $vorhanden) === null,
+        "eine bereits gesetzte Lizenz ({$vorhanden}) darf nie ueberschrieben werden"
+    );
+}
+echo "game-literature-cover-license-default-on-upsert-test: OK\n";

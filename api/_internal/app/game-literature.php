@@ -949,6 +949,24 @@ function avesmapsGameLiteratureDetailForEdit(PDO $pdo, string $publicId): ?array
     ];
 }
 
+/**
+ * PURE Entscheidungskern des Nachtrags zu Befund 2 (Risikoweg): welchen Wert soll
+ * avesmapsUpsertGameLiterature() fuer cover_license setzen, wenn diese Anfrage cover_url mitschickt?
+ * Kein PDO -- testbar ohne DB, wie avesmapsGameLiteratureCoverGatedUrl() daneben.
+ *
+ * @param bool   $hasNewCoverUrl      diese Anfrage sendet eine NICHT-LEERE cover_url (INSERT oder UPDATE)
+ * @param string $existingCoverLicense der vor dieser Anfrage gespeicherte Wert ('' bei INSERT/NULL)
+ * @return string|null 'unknown_other' wenn eine Vorgabe noetig ist, sonst null (nichts tun)
+ */
+function avesmapsGameLiteratureCoverLicenseDefaultOnUpsert(bool $hasNewCoverUrl, string $existingCoverLicense): ?string
+{
+    if (!$hasNewCoverUrl || trim($existingCoverLicense) !== '') {
+        return null; // keine (neue) URL, oder es steht schon eine Lizenz -- nie ueberschreiben
+    }
+
+    return 'unknown_other';
+}
+
 // Create (no/empty public_id -> fresh UUID) or partial-update (public_id given) an adventure. Always
 // stamps origin='manual', status='approved'. field_origins_json records 'manual' ONLY for the fields the
 // caller actually sent; on update that map is merged into the stored one so an override-safe wiki sync
@@ -996,6 +1014,31 @@ function avesmapsUpsertGameLiterature(PDO $pdo, array $data): array
     $values['title'] = $title; // required -> always written and always 'manual'
     $origins['title'] = 'manual';
 
+    // 🔴 Nachtrag zur Phase-3-Pruefung (Befund 2, Risikoweg): html/game-literature-editor.html:956
+    // traegt ein FREIES Textfeld "Cover-URL" im Stammdaten-Block, das GENAU UEBER DIESE Funktion
+    // speichert -- unabhaengig vom eigentlichen Cover-Dialog (api/edit/map/game-literature-cover.php),
+    // der cover_license/-author/-note immer mitschreibt. $editableFields oben enthaelt 'cover_url',
+    // aber bewusst KEIN 'cover_license' (das Feld hat im Stammdaten-Formular keine begleitende
+    // Lizenzauswahl -- die lebt ausschliesslich im separaten Cover-Block). Ohne diese Vorgabe bliebe
+    // eine so gesetzte cover_url auf cover_license = NULL stehen und wuerde am Cover-Gate
+    // (avesmapsGameLiteratureCoverGatedUrl) unsichtbar -- derselbe stille Ausfall, den die
+    // Autoget-Fix-Runde (game-literature-sync.php, "Phase 4, Aufgabe 6, Nachtrag") beim Cover-Massenlauf
+    // schon einmal geschlossen hat.
+    //
+    // ⚠️ 'unknown_other', NICHT 'permission_granted': eine von Hand eingetragene Fremd-URL ist
+    // UNGEPRUEFT -- anders als ein Wiki-Cover, dessen Herkunft der Autoget-Lauf kennt (Ulisses/F-Shop,
+    // NOTICE.md). Eine Vorgabe, die das Cover automatisch oeffentlich machte, waere dieselbe Erfindung,
+    // die der zweite Wappen-Upload-Weg (avesmapsSettlementCoatIsPublic) gerade zurueckgebaut hat. Der
+    // Editor sieht den neuen Stand im Cover-Dialog (vorbelegt aus cover_license) und kann ihn einstufen.
+    //
+    // 💣 Greift NUR, wenn (a) diese Anfrage ueberhaupt eine NICHT-LEERE cover_url mitschickt UND
+    // (b) noch KEINE Lizenz gespeichert ist -- niemals ein bereits gesetztes cover_license
+    // ueberschreiben. gatherStamm() (JS) sendet cover_url bei JEDEM Speichern mit, auch wenn der
+    // Editor nur ein anderes Feld geaendert hat; ohne Bedingung (b) risse ein simpler Titel-Tippfehler-
+    // Fix die Lizenz eines ueber den Cover-Dialog sauber gesetzten Covers wieder auf 'unknown_other'
+    // zurueck.
+    $hasNewCoverUrl = array_key_exists('cover_url', $values) && $values['cover_url'] !== null;
+
     $publicId = trim((string) ($data['public_id'] ?? ''));
 
     if ($publicId === '') {
@@ -1004,6 +1047,8 @@ function avesmapsUpsertGameLiterature(PDO $pdo, array $data): array
         $insertParams = [
             'public_id' => $publicId,
             'field_origins_json' => avesmapsGameLiteratureEncodeOrigins($origins),
+            // Neue Zeile -> "noch keine Lizenz gespeichert" ist per Definition wahr.
+            'cover_license' => avesmapsGameLiteratureCoverLicenseDefaultOnUpsert($hasNewCoverUrl, ''),
         ];
         foreach ($editableFields as $field) {
             $default = $field === 'product_type' ? '' : ($field === 'is_official' ? 1 : null);
@@ -1012,12 +1057,12 @@ function avesmapsUpsertGameLiterature(PDO $pdo, array $data): array
         $pdo->prepare(
             "INSERT INTO adventure
                 (public_id, title, product_type, edition, bf_year, bf_label, genre, complexity_gm,
-                 complexity_pl, is_official, authors, series, fshop_code, cover_url, wiki_url, wiki_key,
+                 complexity_pl, is_official, authors, series, fshop_code, cover_url, cover_license, wiki_url, wiki_key,
                  link_ulisses, link_fshop, isbn, contained_in,
                  field_origins_json, origin, status)
              VALUES
                 (:public_id, :title, :product_type, :edition, :bf_year, :bf_label, :genre, :complexity_gm,
-                 :complexity_pl, :is_official, :authors, :series, :fshop_code, :cover_url, :wiki_url, :wiki_key,
+                 :complexity_pl, :is_official, :authors, :series, :fshop_code, :cover_url, :cover_license, :wiki_url, :wiki_key,
                  :link_ulisses, :link_fshop, :isbn, :contained_in,
                  :field_origins_json, 'manual', 'approved')"
         )->execute($insertParams);
@@ -1025,7 +1070,7 @@ function avesmapsUpsertGameLiterature(PDO $pdo, array $data): array
     }
 
     // ---- UPDATE (partial; only the sent fields) --------------------------------------------------
-    $existing = $pdo->prepare('SELECT id, field_origins_json FROM adventure WHERE public_id = :pid LIMIT 1');
+    $existing = $pdo->prepare('SELECT id, field_origins_json, cover_license FROM adventure WHERE public_id = :pid LIMIT 1');
     $existing->execute(['pid' => $publicId]);
     $row = $existing->fetch(PDO::FETCH_ASSOC);
     if ($row === false) {
@@ -1051,6 +1096,11 @@ function avesmapsUpsertGameLiterature(PDO $pdo, array $data): array
         }
         $setClauses[] = $field . ' = :' . $field;
         $updateParams[$field] = $values[$field];
+    }
+    $coverLicenseDefault = avesmapsGameLiteratureCoverLicenseDefaultOnUpsert($hasNewCoverUrl, (string) ($row['cover_license'] ?? ''));
+    if ($coverLicenseDefault !== null) {
+        $setClauses[] = 'cover_license = :cover_license';
+        $updateParams['cover_license'] = $coverLicenseDefault;
     }
     $setClauses[] = "origin = 'manual'";
     $setClauses[] = "status = 'approved'";
