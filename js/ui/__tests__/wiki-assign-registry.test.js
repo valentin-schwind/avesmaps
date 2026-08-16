@@ -179,6 +179,41 @@ const WIRKLICHKEIT = {
 		// eine Wiki-Angabe fuellen KANN, nicht was das Formular alles hat.
 		karte: ["text", "feature_subtype"],
 	},
+	territorium: {
+		// 🔴 HIER IST DIE „WIRKLICHKEIT" NICHT DER PARSER, SONDERN DIE KANDIDATENANTWORT -- und das ist
+		// kein Schlendrian, sondern die Lage: fuer Territorien gibt es KEINE `?action=search`
+		// (api/edit/wiki/territories.php hat 36 Zeilen und nur einen Seed-Arm; der GET-Verteiler in
+		// api/_internal/political/territories-endpoint.php:149-169 kennt list/wiki/wiki_list/hierarchy).
+		// Was im Kasten ankommen KANN, ist genau das, was
+		// avesmapsPoliticalWikiReferenceRowToPublic herausgibt (api/_internal/political/
+		// territories-read.php) -- die Tabelle `political_territory_wiki` hat 40 Spalten, die Antwort
+		// gibt 16 davon her, und alles andere erreicht den Browser nie.
+		//
+		// NICHT dabei, nach derselben Grenze wie oben:
+		//   · `id` / `wiki_key` / `name` / `wiki_url` -- Identitaet. `id` ist hier zusaetzlich der
+		//     SCHLUESSEL DER ZUWEISUNG (`update_territory` will `wiki_id`,
+		//     api/_internal/political/territories-write.php:239), also erst recht kein Anzeigefeld.
+		//   · `eltern` und `zeitraum` -- ABGELEITET, nicht geliefert (der Modellbaum bzw. die zwei
+		//     Textfelder daneben). Sie stehen im Register ausdruecklich; Pruefung 2 fragt nur in die
+		//     andere Richtung.
+		wiki: ["type", "continent", "affiliation_raw", "affiliation_root", "affiliation_path",
+			"status", "capital_name", "seat_name", "ruler", "founded_text", "dissolved_text",
+			"coat_of_arms_url"],
+		// Die VIER bearbeitbaren Kartenfelder, gemessen am einzigen Speicherweg dieser Oberflaeche:
+		// regionEditPayloadToPayload (js/review/review-region-tabs-payload.js:129-151) reicht
+		// `name`, `type`, `coat_of_arms_url` und `parent_public_id` an `update_territory`, und der
+		// Schreibweg nimmt sie entgegen (api/_internal/political/territories-write.php:255-284).
+		// 🔴 `eltern` steht hier statt `parent_public_id`, weil die VORSCHAU Namen vergleicht und die
+		// public_id getrennt reist -- die Begruendung steht im Kopf von js/ui/wiki-assign-territorium.js.
+		// Der Name ist Anzeige, nie Schluessel.
+		// 🔴 `wiki_url` ist KEIN Sync-Ziel, sondern die Zuweisung selbst -- dieselbe Trennung wie bei
+		// Ort und Landschaft. `short_name`, `color`, `opacity`, `min_zoom`, `max_zoom`, `valid_label`
+		// und `editor_notes` sind bearbeitbar, aber das Wiki sagt zu keinem etwas.
+		// 🔴 `valid_from_bf`/`valid_to_bf` fehlen mit Grund: die Kandidatenantwort gibt nur
+		// `founded_text`/`dissolved_text` heraus, NICHT die BF-Zahlen -- ein Ziel dafuer koennte nur
+		// Text in ein Zahlenfeld anbieten. Genau die Falle, gegen die es `wegtyp` und `ortsgroesse` gibt.
+		karte: ["name", "type", "eltern", "coat_of_arms_url"],
+	},
 };
 
 // 6) DIE ZEILE, DIE BEISST: das AUSGELIEFERTE Register gegen die gemessene Wirklichkeit -- anders

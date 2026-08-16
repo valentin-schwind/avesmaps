@@ -327,8 +327,86 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			keinArtikelHinweis: "Nimmt das Label aus der Konfliktliste — bis im Wiki einer auftaucht.",
 		},
 	},
-	// Die uebrigen drei kommen in den Aufgaben 7-9 dazu, jede mit IHRER Aufgabe -- nicht auf Vorrat:
-	//   territorium  (A7)  Felder aus A7 Schritt 1 · Eltern GESPERRT bei parent_locked
+	territorium: {
+		label: "Wiki-Herrschaftsgebiet",
+		// 🔴 KEINE Server-Suche, und das ist gemessen, nicht bequem: unter api/edit/wiki/ hat NUR
+		// territories.php keinen `search`-Arm (36 Zeilen, reine Seed-Liste), und der GET-Verteiler des
+		// Politik-Endpunkts kennt list/wiki/wiki_list/hierarchy -- kein `search`
+		// (api/_internal/political/territories-endpoint.php:149-169). Die Kandidaten kommen wie bisher
+		// aus `?action=wiki_list` (avesmapsPoliticalListWikiReferences,
+		// api/_internal/political/territories-read.php:373-412) und werden IM BROWSER gefiltert --
+		// genau das beschreibt Entwurf §1 mit „Eine (`region`) filtert im Browser".
+		// 💣 UND DIESE QUELLE IST PFLICHT, nicht eine von zweien: `update_territory` will die
+		// `wiki_id` (= political_territory_wiki.id, api/_internal/political/territories-write.php:239),
+		// und die gibt es NUR dort. Der Modellbaum (`?action=model_tree`) traegt sie nicht -- wer die
+		// Kandidaten von dort holt, kann nicht mehr zuweisen.
+		suche: { art: "liste", quelle: "territorien" },
+		// KEIN Objektart-Vorsatz: die Trefferzeile beginnt mit der Staatsform („Königreich",
+		// „Baronie") -- das sagt genauer, was der Treffer ist, als das Wort „Herrschaftsgebiet".
+		// Wortgleich zu dem, was der alte Picker als Meta-Zeile zeigte: `[entry.type,
+		// entry.affiliation_root, entry.continent, buildWikiReferencePeriod(entry)]`
+		// (js/review/review-region-wiki-picker.js, Stand 16.08.2026).
+		treffer: ["type", "affiliation_root", "continent", "zeitraum"],
+		// 💣 DIE GESPERRTE ZEILE IST `eltern`, UND IHR ZIELNAME IST NICHT `parent_public_id`.
+		// Verglichen werden NAMEN („Kaiserreich Mittelreich" gegen „Fürstentum Kosch"); eine
+		// public_id in einer Vorschauzeile liest niemand, und der Editor koennte nicht beurteilen,
+		// was er anhakt. Die public_id reist getrennt (avesmapsWikiAssignTerritoriumEltern) und wird
+		// erst beim Uebernehmen geschrieben -- 🔴 aufgeloest wird NIE ueber den Namen: ein Name ist
+		// keine Kennung (`á` gegen `â` hat im Politik-Layer schon ein zweites Gebiet erzeugt).
+		// 🔴 `eltern` ist damit ein ABGELEITETES Wiki-Feld wie `wegtyp` beim Weg: der Modellbaum
+		// liefert `auto_parent_wiki_key`, der Datenweg macht daraus Name + public_id. Pruefung 2 aus
+		// §3b sieht das nicht -- deshalb steht es hier ausdruecklich.
+		// 🔴 KEIN Kartenziel fuer Status, Zugehoerigkeit, Wurzel, Hauptstadt, Herrschaftssitz,
+		// Oberhaupt, Kontinent, Gegruendet und Aufgeloest: `#region-edit-dialog` reicht diese Felder
+		// gar nicht ein (regionEditPayloadToPayload, js/review/review-region-tabs-payload.js:129-151),
+		// und `political_territory` hat fuer Oberhaupt/Herrschaftssitz-Text ueberhaupt keine Spalte
+		// (sql/political-territories.sql:48-84). Hier wird nichts auf Vorrat erklaert.
+		// ⚠️ `zeitraum` ist abgeleitet (Gegruendet + Aufgeloest, wortgleich zu
+		// buildWikiReferencePeriod) und traegt nur die Trefferzeile -- `valid_from_bf`/`valid_to_bf`
+		// bekommen KEIN Ziel, weil `wiki_list` die BF-Zahlen gar nicht herausgibt, nur die Texte.
+		felder: [
+			{ wiki: "name", karte: "name", label: "Name" },
+			{ wiki: "type", karte: "type", label: "Staatsform" },
+			{ wiki: "eltern", karte: "eltern", label: "Eltern" },
+			{ wiki: "coat_of_arms_url", karte: "coat_of_arms_url", label: "Wappen" },
+			{ wiki: "status", karte: "", label: "Status" },
+			{ wiki: "affiliation_raw", karte: "", label: "Zugehörigkeit" },
+			{ wiki: "affiliation_root", karte: "", label: "Wurzel" },
+			{ wiki: "affiliation_path", karte: "", label: "Zugehörigkeits-Pfad" },
+			{ wiki: "capital_name", karte: "", label: "Hauptstadt" },
+			{ wiki: "seat_name", karte: "", label: "Herrschaftssitz" },
+			{ wiki: "ruler", karte: "", label: "Oberhaupt" },
+			{ wiki: "continent", karte: "", label: "Kontinent" },
+			{ wiki: "founded_text", karte: "", label: "Gegründet" },
+			{ wiki: "dissolved_text", karte: "", label: "Aufgelöst" },
+			{ wiki: "zeitraum", karte: "", label: "Zeitraum" },
+		],
+		sync: true, // vier Kartenziele (name, type, eltern, coat_of_arms_url) -- also ein Knopf
+		extra: {
+			// 🪤 KEIN dritter Zustand, und das ist eine MESSUNG, keine Auslassung (Aufgabe 7,
+			// 16.08.2026). Der Owner-Entscheid §2.7 gilt fuer alle Objektarten -- das Territorium kann
+			// den Merker heute nur nicht TRAGEN:
+			//   1. `political_territory` hat keine JSON-/Eigenschaftsspalte. Die vollstaendige
+			//      Spaltenliste steht in sql/political-territories.sql:48-84 und wird von genau EINEM
+			//      ALTER ergaenzt (wiki_key, api/_internal/political/territory.php:151); das einzige
+			//      freie Textfeld ist `editor_notes` und ist kein Merker. Ort, Weg und Landschaft
+			//      hatten alle drei ein `properties_json` -- deshalb kostete es dort keine Migration.
+			//   2. `wiki_territory_model.metadata_overrides_json` haengt am WIKI-Knoten, nicht am
+			//      Kartenobjekt -- ein Gebiet OHNE Artikel hat dort gar keine Zeile. Der Merker
+			//      koennte also genau den Fall nicht festhalten, fuer den er da ist.
+			//   3. Und er waere heute WIRKUNGSLOS: avesmapsConflictLoadTerritoryRows
+			//      (api/_internal/conflicts/rules.php:151-158) verbindet `political_territory` per
+			//      INNER JOIN mit `political_territory_wiki` und verlangt `w.wiki_url <> ''` -- ein
+			//      Gebiet ohne Wiki-Bezug erreicht die Beobachtungsliste nie, und die erzeugte Zeile
+			//      (:184-192) setzt keinen `no_article`-Schluessel, den avesmapsConflictRuleMissingKey
+			//      (:371) lesen koennte.
+			// 🔧 Der ehrliche Weg waere eine Spalte an `political_territory` plus ein Schreibweg in
+			// `update_territory` plus die zwei Zeilen in der Konfliktregel -- eine Owner-Entscheidung,
+			// kein Nachtrag. Hier nichts erfinden.
+			keinArtikelHaken: false,
+		},
+	},
+	// Die uebrigen zwei kommen in den Aufgaben 8-9 dazu, jede mit IHRER Aufgabe -- nicht auf Vorrat:
 	//   literatur    (A8)  Felder aus A8 Schritt 1
 	//   karte        (A9)  eigener Artikel -- NICHT wiki_key, NICHT wiki_url
 	// Die genauen Kartenfeld-Namen stehen in Schritt 1 der jeweiligen Aufgabe. Hier nichts raten.
