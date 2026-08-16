@@ -104,7 +104,12 @@ function avesmapsGameLiteratureEnsureTables(PDO $pdo): void
     // cover_auto_state: the cover mass-run's per-adventure progress marker (NULL=due | ok | no_image |
     // fetch_failed | skipped_manual). Like citymap.thumb_auto_state: EVERY outcome writes a state so the
     // run terminates, and the due-query keys off it (never off an origin field -- that would exclude all).
-    foreach (['link_ulisses' => 'VARCHAR(500)', 'link_fshop' => 'VARCHAR(500)', 'isbn' => 'VARCHAR(20)', 'contained_in' => 'VARCHAR(300)', 'cover_auto_state' => 'VARCHAR(20)'] as $column => $type) {
+    // cover_license/cover_author/cover_note/cover_uploaded_by/cover_uploaded_at: Phase 2 der
+    // Lizenz-Vereinheitlichung (docs/superpowers/sdd/2026-08-16-lizenzangaben-phase2-migration).
+    // Alle fuenf NULL-faehig ohne Vorgabewert -- der Migrationslauf (Aufgabe 4) fuellt sie, diese
+    // Phase baut kein Gate. cover_author ist VARCHAR(190), nicht kuerzer (stille Kuerzung waere von
+    // "nie gespeichert" nicht zu unterscheiden, s. app_setting.setting_value, AGENTS §10).
+    foreach (['link_ulisses' => 'VARCHAR(500)', 'link_fshop' => 'VARCHAR(500)', 'isbn' => 'VARCHAR(20)', 'contained_in' => 'VARCHAR(300)', 'cover_auto_state' => 'VARCHAR(20)', 'cover_license' => 'VARCHAR(24)', 'cover_author' => 'VARCHAR(190)', 'cover_note' => 'VARCHAR(2000)', 'cover_uploaded_by' => 'VARCHAR(190)', 'cover_uploaded_at' => 'DATETIME'] as $column => $type) {
         if (!$gameLiteratureColumnExists($pdo, $column)) {
             $pdo->exec('ALTER TABLE adventure ADD COLUMN ' . $column . ' ' . $type . ' NULL');
         }

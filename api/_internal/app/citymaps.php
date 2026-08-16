@@ -332,6 +332,21 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     if (!$columnExists('map_url_label')) {
         $pdo->exec('ALTER TABLE citymap ADD COLUMN map_url_label VARCHAR(120) NULL');
     }
+    // Urheber und Hochlade-Protokoll je Slot (Phase 2 der Lizenz-Vereinheitlichung). Der Urheber ist
+    // EDITORWISSEN und verlaesst die Oberflaeche nicht (Owner 16.08.2026) -- er steht neben der Lizenz,
+    // nicht statt ihrer, und ersetzt insbesondere nicht map_license_note.
+    foreach ([
+        'map_license_author' => 'VARCHAR(190)',
+        'map_uploaded_by' => 'VARCHAR(190)',
+        'map_uploaded_at' => 'DATETIME',
+        'thumb_license_author' => 'VARCHAR(190)',
+        'thumb_uploaded_by' => 'VARCHAR(190)',
+        'thumb_uploaded_at' => 'DATETIME',
+    ] as $spalte => $typ) {
+        if (!$columnExists($spalte)) {
+            $pdo->exec('ALTER TABLE citymap ADD COLUMN ' . $spalte . ' ' . $typ . ' NULL');
+        }
+    }
 }
 
 function avesmapsCitymapsCount(PDO $pdo): int
