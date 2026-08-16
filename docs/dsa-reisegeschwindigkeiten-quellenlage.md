@@ -358,7 +358,71 @@ Gangbarkeitszeiträume von S. 115 stehen also bereit, sind aber noch nicht einge
 
 ---
 
-## 9. Verwandte Dokumente
+## 9. Die anderen Regelwerke — abgeglichen 2026-08-16
+
+Volltextdurchsucht, nicht durchgeblättert: alle fünf Bände tragen extrahierbaren Text, gesucht wurde
+nach jeder Zahl der Form „*n* Meilen" sowie nach Tagesleistung, Reisegeschwindigkeit, Reisetag,
+Eilmarsch und Stundenangaben.
+
+### *Handelsherr und Kiepenkerl* (DSA 4.1) — führt **keine** eigenen Werte
+
+S. 73 verweist ausdrücklich weiter: die *Geographia Aventurica* (113–123) und das Beiheft des
+Meisterschirms „informieren über Reisegeschwindigkeiten, Straßen und Entfernungen". Der Band selbst
+sagt zum Tempo nur Qualitatives („können die Tagesleistung drastisch reduzieren", S. 78). Die einzige
+Meilenzahl im ganzen Buch steht in einem Fließtextbeispiel. **Kein Abgleichbedarf.**
+
+### *DSA5 Regelwerk, 3. Auflage* — vier Zahlen, sonst nichts
+
+Genau **eine** Reiseseite in 418 Seiten (S. 352, „Strategische Bewegung"):
+
+| DSA5 | Strecke/Reisetag | unser Wert (DSA 4.1) | |
+|---|---:|---:|---|
+| Fußmarsch | 30 Meilen | Reisegruppe zu Fuß **30** | ✓ identisch |
+| Tagesritt | 50 Meilen | Einzelreiter **50** | ✓ identisch |
+| Kutschfahrt | 40 Meilen | Kutsche **50** | ✗ DSA5 langsamer |
+| Schiffsreise | 100 Meilen | Lastensegler 120 · Schnellsegler 140 · Galeere 100 | ✗ ein Mischwert |
+
+Dazu: „Eine aventurische Meile entspricht einem irdischen Kilometer" (= unsere Annahme). **Keine
+Stundenzahl, kein Eilmarsch, keine Geländefaktoren** — nur der Satz „Schwieriges Gelände und tobende
+See können die Meilen pro Tag senken", ohne eine einzige Zahl.
+
+⭐ **Das ist der eigentliche Befund:** DSA5 bestätigt die beiden Landkernwerte, mit denen wir rechnen,
+und vereinfacht alles Übrige weg. Es gibt uns nichts, was wir nicht hätten, und widerspricht nichts,
+was wir tun. Die Kutsche 40 gegen 50 ist eine Editionsentscheidung, keine Korrektur an DSA 4.1.
+
+### *Kodex der Helden* (DSA5) — keine Geschwindigkeiten, aber **Preise**
+
+Keine Reiseregel im ganzen Band; die einzige Meilenzahl steht in einer Preistabelle (S. 477,
+„Reise und Transport, reiner Transport pro Person, ohne Essen und Unterbringung"), je 100 Meilen:
+
+| | DSA5 Kodex | *Geographia* (unser Modell) |
+|---|---:|---:|
+| Flusskahn stromab | 1 Silbertaler | 1 Dukat = **10 S** |
+| Flusskahn stromauf | 8 Silbertaler | 3 D = **30 S** (mit Mitarbeit) |
+| Reisekutsche | 12 Silbertaler | Postkutsche 4 D = **40 S** |
+| Seereise, Hängematte | 8 Silbertaler | ⚠️ nicht vergleichbar¹ |
+| Seereise, Kabine | 150 Silbertaler | ⚠️ nicht vergleichbar¹ |
+
+¹ Die *Geographia* nennt ihre Seepreise für eine **konkrete Strecke** (Havena–Kuslik: 4 D Hängematte,
+25 D Kabine), nicht je 100 Meilen.
+
+💣 **DSA5 ist um Faktor 3 bis 10 billiger.** Das ist keine Ungenauigkeit, sondern eine andere Edition
+mit anderer Preisökonomie — wer eine der beiden Spalten in die andere mischt, baut einen Reisepreis,
+den kein Regelwerk kennt.
+
+⚠️ **Und wir mischen an genau einer Stelle bereits:** `TRAVEL_COST_SHOE_PER_HOOF` (js/config.js)
+steht auf 0,5 Silbertaler je Huf und zitiert **Kodex S. 475**, während alle übrigen Reisekosten aus
+der *Geographia* stammen. Das ist eine bewusst getroffene Einzelentscheidung und hier vermerkt, damit
+sie es bleibt.
+
+### Folgerung
+
+**Nichts zu ändern.** Unser Modell steht auf DSA 4.1 — *Geographia* für Tagesleistungen, Gelände und
+Wasser, *Wege des Entdeckers* für den 8-Stunden-Reisetag an Land. Von den drei zusätzlich geprüften
+Bänden führt einer gar keine Werte, einer bestätigt die beiden Kernzahlen und vereinfacht den Rest,
+und einer trägt nur Preise einer anderen Edition.
+
+## 10. Verwandte Dokumente
 
 - `docs/steigung-gebirgspass-entscheidung.md` — die Entscheidung, die auf §4 dieses Dokuments beruht.
 - `api/_internal/routing/__tests__/terrain-text-claims-test.php` — bindet die Zahlen des
