@@ -28,25 +28,42 @@ declare(strict_types=1);
  * Sperre bleibt an die LIZENZ gebunden: ein reiner Protokoll-Nachtrag kann die Sichtbarkeit nie
  * beruehren, avesmapsMediaLicenseIsPublic() kennt nur den Lizenzwert.
  *
- * 🔧 Fix-Runde nach der Pruefung (drei Critical, zwei Important, eine Nachforderung -- siehe
- * task-4-report.md fuer die volle Herleitung):
+ * 🔧 Fix-Runde 1 (drei Critical, zwei Important, eine Nachforderung -- siehe task-4-report.md):
  *   1. Territoriums-Override-Abfrage verglich eine JSON-Spalte mit `<> ''` -- unter MySQL bricht
  *      `CAST('' AS JSON)` IMMER (ERROR 3141). Ersatzlos gestrichen, `IS NOT NULL` bleibt.
- *   2. Alle fuenf Sammler sind jetzt ueber `id > :cursor ORDER BY id ASC LIMIT` resumierbar (Muster
- *      wie publication-sync.php:1141) statt bei jedem Aufruf dieselben ersten Zeilen zu liefern.
+ *   2. Alle fuenf Sammler sind ueber `id > :cursor ORDER BY id ASC LIMIT` resumierbar (Muster wie
+ *      publication-sync.php:1141) statt bei jedem Aufruf dieselben ersten Zeilen zu liefern.
  *      `naechster_cursor`/`offen` je Flaeche im Bericht beantworten "ist noch etwas offen".
  *   3. settlement_coat und settlement_image lesen/schreiben DIESELBE map_features.properties_json --
- *      ein Schreibvorgang je Fund hat den vorherigen lautlos zurueckgenommen. Jetzt: EIN frischer
- *      Lese-/Schreibvorgang je betroffener Zeile, der ALLE ihre Aenderungen buendelt, samt
- *      `revision`-Bump (wie settlements.php:521, settlement-images.php:142).
- *   4. Die Schreibschleife laeuft jetzt in EINER Transaktion (beginTransaction/commit/rollBack wie
- *      citymaps.php:1647) -- ein Abbruch mitten in der Schleife (@set_time_limit, STRATO) hinterlaesst
- *      keinen halb geschriebenen Zustand mehr.
- *   5. 'gelesen' zaehlt jetzt ROHE ZEILEN (das Ergebnis der SQL-Abfrage), nicht Eintraege -- und damit
- *      auch Zeilen, die am json_decode-Riegel per continue herausfielen; vorher tauchten die in
- *      keiner Zahl auf.
- *   Nachforderung: `coat_ohne_lizenz_gesamt` zaehlt UNGEFENSTERT (kein LIMIT/Cursor) ueber den ganzen
- *   Bestand -- die windowed `coat_ohne_lizenz`-Liste allein beantwortet "ist die Zahl 0" nicht.
+ *      EIN frischer Lese-/Schreibvorgang je betroffener Zeile buendelt jetzt ALLE ihre Aenderungen,
+ *      samt `revision`-Bump (wie settlements.php:521, settlement-images.php:142).
+ *   4. Die Schreibschleife laeuft in EINER Transaktion (beginTransaction/commit/rollBack wie
+ *      citymaps.php:1647).
+ *   5. 'gelesen' zaehlt ROHE ZEILEN, nicht Eintraege.
+ *   Nachforderung: `coat_ohne_lizenz_gesamt` zaehlt UNGEFENSTERT ueber den ganzen Bestand.
+ *
+ * 🔧 Fix-Runde 2 (ein Critical, zwei Important aus dem Diff der ersten Runde):
+ *   N1. avesmapsMediaLicenseUploadDateFromUrl() lieferte ISO-8601 MIT 'T'/'Z' auch fuer die drei
+ *       DATETIME-Spalten (adventure.cover_uploaded_at, citymap.*_uploaded_at) -- MySQL akzeptiert das
+ *       nicht (ERROR 1292 unter strict mode, sonst stille Kuerzung). Aufgeteilt in einen gemeinsamen
+ *       Zeitstempel-Kern plus zwei Formatierer: ISO-8601 fuer die JSON-Flaechen, MySQL-DATETIME fuer
+ *       die Spalten-Flaechen (Details am Formatierer selbst).
+ *   N2. avesmapsMediaLicenseCollectSettlementCoatUploaders() schluesselte nur nach feature_id -- ein
+ *       LAENGST ERSETZTES Wappen (z. B. durch ein Wiki-Wappen mit anderer URL) bekam trotzdem den
+ *       Namen aus einer alten Protokollzeile zugeschrieben. Jetzt zusaetzlich nach der geloggten
+ *       coat.url geschluesselt; der Aufrufer gleicht gegen die HEUTIGE URL ab.
+ *   N3. Die Sperre griff nur je FENSTER, nicht je LAUF: ein Wechsel im zweiten batch_limit-Fenster
+ *       konnte das ERSTE, bereits geschriebene Fenster nicht mehr zurueckhalten -- die im Dateikopf
+ *       oben versprochene Zusicherung ("schreibt er GAR NICHTS") galt de facto nur, solange ein Lauf
+ *       nie ueber ein Fenster hinauskam. Ein scharfer Lauf prueft jetzt ERST den GANZEN Bestand (alle
+ *       Fenster aller Flaechen, rein lesend) und schreibt nur, wenn dieser Vorlauf keinen einzigen
+ *       Wechsel findet. Kostet einen zusaetzlichen Lesedurchgang -- das ist der Preis der Zusicherung.
+ *       Die VORSCHAU bleibt fensterweise (dieselbe Semantik wie vor Fix-Runde 2).
+ *   N4. Zwei ungefensterte Vollabzuege liefen JE FENSTERAUFRUF: die Uploader-Karte (map_audit_log,
+ *       potenziell volle geometry_json-Schnappschuesse bei Wegen/Regionen) und der
+ *       coat_ohne_lizenz-Zaehler. Die Uploader-Karte wird jetzt EINMAL JE LAUF aufgebaut (nicht mehr
+ *       vom Sammler selbst, sondern vom Aufrufer durchgereicht) und beide streamen jetzt per
+ *       fetch()-Schleife statt alles per fetchAll() im Speicher zu halten.
  */
 
 require_once __DIR__ . '/media-license-migration.php';
@@ -71,6 +88,67 @@ function avesmapsMediaLicenseNextMapRevisionSafe(PDO $pdo): int
 }
 
 /**
+ * Prueft EINEN bereits als "Lizenz aendert sich" erkannten Fund auf einen Sichtbarkeitswechsel.
+ * Geteilt zwischen dem normalen Fenster-Durchlauf und dem globalen Vorab-Scan (N3, Fix-Runde 2) --
+ * zwei Kopien derselben Pruefung waeren genau die Divergenz, vor der AGENTS §11 warnt (die
+ * Listenzeile: zwei Abschriften derselben Regel laufen irgendwann auseinander).
+ *
+ * @return array{flaeche:string,id:string,alt:string,neu:string}|null null, wenn KEIN Wechsel vorliegt.
+ */
+function avesmapsMediaLicenseCheckWechsel(string $flaeche, array $fund, string $neu): ?array
+{
+    if (avesmapsMediaLicenseLegacyWasPublic($flaeche, $fund['alt']) === avesmapsMediaLicenseIsPublic($neu)) {
+        return null;
+    }
+
+    return ['flaeche' => $flaeche, 'id' => (string) $fund['id'], 'alt' => (string) $fund['alt'], 'neu' => $neu];
+}
+
+/**
+ * N3 (Fix-Runde 2): der scharfe Lauf darf nicht nur SEIN angefordertes Fenster gegen einen
+ * Sichtbarkeitswechsel pruefen -- die Zusicherung im Dateikopf gilt fuer den GANZEN Bestand. Liest
+ * ALLE Fenster ALLER fuenf Flaechen (Cursor ab 0, ein grosser interner Schritt statt des vom Aufrufer
+ * gewaehlten batch_limit, bis jeder Sammler 'offen' => false meldet), OHNE zu schreiben, und sammelt
+ * JEDEN gefundenen Wechsel (kein Kurzschluss beim ersten Fund -- der Bericht soll vollstaendig sein,
+ * nicht nur ein Existenzbeweis).
+ *
+ * @param array<int, array<string,string>> $uploaderNamen vorgeladen, s. avesmapsMediaLicenseMigrationRun()
+ * @return list<array{flaeche:string,id:string,alt:string,neu:string}>
+ */
+function avesmapsMediaLicenseFindAllVisibilityChanges(PDO $pdo, int $stepLimit, array $uploaderNamen): array
+{
+    $wechsel = [];
+    foreach ([
+        'settlement_coat' => 'avesmapsMediaLicenseCollectSettlementCoats',
+        'territory_coat' => 'avesmapsMediaLicenseCollectTerritoryCoats',
+        'cover' => 'avesmapsMediaLicenseCollectCovers',
+        'settlement_image' => 'avesmapsMediaLicenseCollectSettlementImages',
+        'citymap' => 'avesmapsMediaLicenseCollectCitymaps',
+    ] as $flaeche => $sammler) {
+        $cursor = $flaeche === 'territory_coat' ? ['staging' => 0, 'override' => 0] : 0;
+        do {
+            $ergebnis = $flaeche === 'settlement_coat'
+                ? $sammler($pdo, $stepLimit, $cursor, $uploaderNamen)
+                : $sammler($pdo, $stepLimit, $cursor);
+            foreach ($ergebnis['funde'] as $fund) {
+                $neu = avesmapsMediaLicenseMigrateLegacy($flaeche, $fund['alt']);
+                if ($neu === $fund['alt']) {
+                    continue; // schon zugeordnet -- kein Kandidat fuer einen Wechsel
+                }
+                $eintrag = avesmapsMediaLicenseCheckWechsel($flaeche, $fund, $neu);
+                if ($eintrag !== null) {
+                    $wechsel[] = $eintrag;
+                }
+            }
+            $cursor = $ergebnis['naechster_cursor'] ?? $cursor;
+            $offen = $ergebnis['offen'];
+        } while ($offen);
+    }
+
+    return $wechsel;
+}
+
+/**
  * @param array{dry_run?: bool, batch_limit?: int, cursors?: array<string, mixed>} $options
  * @return array{ok: bool, dry_run: bool, surfaces: array<string, array{gelesen: int, geaendert: int,
  *         beispiele: list<array<string, string>>, naechster_cursor: mixed, offen: bool,
@@ -86,8 +164,19 @@ function avesmapsMediaLicenseMigrationRun(PDO $pdo, array $options = []): array
 
     $cursors = is_array($options['cursors'] ?? null) ? $options['cursors'] : [];
 
+    // N4 (Fix-Runde 2): EINMAL JE LAUF, nicht mehr einmal je Fensteraufruf -- wird an jeden Aufruf von
+    // avesmapsMediaLicenseCollectSettlementCoats() durchgereicht (den normalen Fenster-Durchlauf unten
+    // UND den globalen Vorab-Scan fuer N3).
+    $uploaderNamen = avesmapsMediaLicenseCollectSettlementCoatUploaders($pdo);
+
+    // N3 (Fix-Runde 2): ein scharfer Lauf prueft ERST den GANZEN Bestand, bevor er irgendetwas
+    // schreibt -- sonst koennte ein Wechsel in einem SPAETEREN Fenster ein FRUEHERES, das der Cursor
+    // schon geschrieben hat, nicht mehr zurueckholen. Die Vorschau bleibt fensterweise: diese teure
+    // Vollpruefung lohnt sich nur, wenn am Ende tatsaechlich geschrieben werden soll.
+    $globalerWechsel = $dryRun ? [] : avesmapsMediaLicenseFindAllVisibilityChanges($pdo, 2000, $uploaderNamen);
+
     $bericht = [];
-    $wechsel = [];
+    $wechsel = $globalerWechsel;
     $coatOhneLizenz = [];   // Nachtrag aus dem Review von Aufgabe 1, siehe Sammler unten.
     $vorgemerkt = [];       // je Flaeche die Aenderungen, die den zweiten Durchgang ueberlebt haben
     // Alle fuenf Sammler liefern seit der zweiten Pruefrunde dieselbe Form: ['funde' => list, 'protokoll'
@@ -113,7 +202,9 @@ function avesmapsMediaLicenseMigrationRun(PDO $pdo, array $options = []): array
             $cursorEingabe = (int) $cursorEingabe;
         }
 
-        $ergebnis = $sammler($pdo, $limit, $cursorEingabe);
+        $ergebnis = $flaeche === 'settlement_coat'
+            ? $sammler($pdo, $limit, $cursorEingabe, $uploaderNamen)
+            : $sammler($pdo, $limit, $cursorEingabe);
         $funde = $ergebnis['funde'];
         $protokoll = $ergebnis['protokoll'];
         if ($flaeche === 'settlement_coat') {
@@ -131,24 +222,31 @@ function avesmapsMediaLicenseMigrationRun(PDO $pdo, array $options = []): array
             // 🔴 DIE SPERRE. Beide Modi, immer, vor jedem Schreibvorgang -- aber nur, wenn sich die
             // LIZENZ aendert. Ein reiner Protokoll-Nachtrag (Datum/Name) kann die Sichtbarkeit nie
             // beruehren: avesmapsMediaLicenseIsPublic() kennt nur den Lizenzwert, nicht uploaded_at/by.
-            if ($lizenzGeaendert && avesmapsMediaLicenseLegacyWasPublic($flaeche, $fund['alt']) !== avesmapsMediaLicenseIsPublic($neu)) {
-                $wechsel[] = ['flaeche' => $flaeche, 'id' => (string) $fund['id'],
-                              'alt' => (string) $fund['alt'], 'neu' => $neu];
-                continue;
+            // ⚠️ Diese Fenster-Pruefung bleibt bestehen (nicht nur der globale Vorlauf oben): fuer die
+            // VORSCHAU ist sie die EINZIGE Erkennung (der Vorlauf laeuft dort nicht), und im scharfen
+            // Lauf findet sie defensiv dasselbe wie der Vorlauf -- schadet nicht, kostet nichts
+            // Nennenswertes (dasselbe Fenster ist ohnehin schon geladen).
+            if ($lizenzGeaendert) {
+                $eintrag = avesmapsMediaLicenseCheckWechsel($flaeche, $fund, $neu);
+                if ($eintrag !== null) {
+                    $wechsel[] = $eintrag;
+                    continue;
+                }
             }
             $geaendert[] = $fund + ['neu' => $neu];
         }
         $eintrag = [
-            // 🔧 Fix 5: rohe Zeilenzahl der Abfrage (auch json_decode-Aussteiger zaehlen mit), nicht
-            // die Anzahl produzierter Funde -- eine Zeile mit zwei Bildern liefert zwei Funde, zaehlt
-            // hier aber einmal.
+            // 🔧 Fix 5 (Runde 1): rohe Zeilenzahl der Abfrage (auch json_decode-Aussteiger zaehlen
+            // mit), nicht die Anzahl produzierter Funde -- eine Zeile mit zwei Bildern liefert zwei
+            // Funde, zaehlt hier aber einmal.
             'gelesen' => $ergebnis['gelesen'],
             'geaendert' => count($geaendert),
             'beispiele' => array_map(
                 static fn(array $f): array => ['id' => (string) $f['id'], 'alt' => (string) $f['alt'], 'neu' => $f['neu']],
                 array_slice($geaendert, 0, 5)
             ),
-            // 🔧 Fix 2: beantwortet "ist noch etwas offen", unabhaengig von dry_run/dem Rest des Berichts.
+            // 🔧 Fix 2 (Runde 1): beantwortet "ist noch etwas offen", unabhaengig von dry_run/dem Rest
+            // des Berichts.
             'naechster_cursor' => $ergebnis['naechster_cursor'],
             'offen' => $ergebnis['offen'],
         ];
@@ -162,11 +260,19 @@ function avesmapsMediaLicenseMigrationRun(PDO $pdo, array $options = []): array
         $vorgemerkt[$flaeche] = $geaendert;
     }
 
+    // Der globale Vorlauf (N3) und die Fenster-Pruefung koennen denselben Fund melden, wenn das
+    // angeforderte Fenster selbst betroffen ist -- ohne Entdopplung stuende er zweimal in der Antwort.
+    $wechselOhneDoppel = [];
+    foreach ($wechsel as $eintrag) {
+        $wechselOhneDoppel[$eintrag['flaeche'] . '|' . $eintrag['id']] = $eintrag;
+    }
+    $wechsel = array_values($wechselOhneDoppel);
+
     // Nachforderung: ungefenstert, unabhaengig von dry_run/dem Rest des Berichts -- siehe Docblock der
     // Funktion unten.
     $coatOhneLizenzGesamt = avesmapsMediaLicenseCountCoatOhneLizenz($pdo);
 
-    // 🔴 Ein einziger Wechsel haelt den GANZEN Lauf an -- nicht nur seine Flaeche.
+    // 🔴 Ein einziger Wechsel haelt den GANZEN Lauf an -- nicht nur seine Flaeche/sein Fenster (N3).
     // ⚠️ coat_ohne_lizenz haelt NICHT an: die betroffene Zeile wird ohnehin nie migriert (sie landet
     // nie in $funde), also gibt es fuer den Rest des Laufs nichts zu schuetzen. Sie bleibt gemeldet,
     // in JEDER Antwort, bis ein Mensch die Zeile von Hand korrigiert -- ein staendiger Befund ist
@@ -177,18 +283,19 @@ function avesmapsMediaLicenseMigrationRun(PDO $pdo, array $options = []): array
                 'coat_ohne_lizenz_gesamt' => $coatOhneLizenzGesamt];
     }
 
-    // 🔧 Fix 4: EINE Transaktion um die ganze Schreibschleife (Muster wie citymaps.php:1647) -- ein
-    // Abbruch mitten drin (@set_time_limit, STRATO) darf keinen halb geschriebenen Zustand
-    // hinterlassen. "Ein halb gelaufener Umbau ist schlimmer als ein nicht gelaufener" gilt nicht nur
-    // fuer die Sperre oben, sondern auch fuer einen Prozessabbruch.
+    // 🔧 Fix 4 (Runde 1): EINE Transaktion um die ganze Schreibschleife (Muster wie
+    // citymaps.php:1647) -- ein Abbruch mitten drin (@set_time_limit, STRATO) hinterlaesst keinen halb
+    // geschriebenen Zustand mehr. "Ein halb gelaufener Umbau ist schlimmer als ein nicht gelaufener"
+    // gilt nicht nur fuer die Sperre oben, sondern auch fuer einen Prozessabbruch.
     $pdo->beginTransaction();
     try {
-        // 🔧 Fix 3: settlement_coat und settlement_image koennen DIESELBE map_features-Zeile treffen
-        // (Wappen UND Bilder), und settlement_image kann MEHRERE Bilder derselben Zeile treffen. Ein
-        // Schreibvorgang je Fund (wie bei den anderen drei Flaechen) haette den vorherigen lautlos
-        // zurueckgenommen -- jeder hielt vorher eine eigene, beim Sammeln geschossene Kopie der ganzen
-        // Spalte. Deshalb: je betroffener Zeile GENAU EIN frischer Lese-/Schreibvorgang, der ALLE ihre
-        // Aenderungen buendelt (die Funde tragen dafuer 'zeile' + 'anwenden' statt 'schreiben').
+        // 🔧 Fix 3 (Runde 1): settlement_coat und settlement_image koennen DIESELBE map_features-Zeile
+        // treffen (Wappen UND Bilder), und settlement_image kann MEHRERE Bilder derselben Zeile
+        // treffen. Ein Schreibvorgang je Fund (wie bei den anderen drei Flaechen) haette den
+        // vorherigen lautlos zurueckgenommen -- jeder hielt vorher eine eigene, beim Sammeln
+        // geschossene Kopie der ganzen Spalte. Deshalb: je betroffener Zeile GENAU EIN frischer
+        // Lese-/Schreibvorgang, der ALLE ihre Aenderungen buendelt (die Funde tragen dafuer 'zeile' +
+        // 'anwenden' statt 'schreiben').
         $mapFeaturePatches = [];
         foreach (['settlement_coat', 'settlement_image'] as $flaeche) {
             foreach ($vorgemerkt[$flaeche] ?? [] as $fund) {
@@ -241,14 +348,23 @@ function avesmapsMediaLicenseMigrationRun(PDO $pdo, array $options = []): array
  * Zaehlung ueber denselben LIKE-Filter wie der Sammler ist bei Bestandsgroessen im niedrigen
  * vierstelligen Bereich (AGENTS.md: ~4.653 Orte) fuer einen admin-gated, selten aufgerufenen Endpunkt
  * kein Performance-Problem.
+ *
+ * 🔧 N4 (Fix-Runde 2): `fetch()` in einer Schleife statt `fetchAll()` -- das haelt nicht das komplette
+ * Ergebnis als PHP-Array im Speicher, sondern verarbeitet Zeile fuer Zeile. Der Zaehl-Charakter dieser
+ * Funktion selbst (ein zweiter Vollabzug) bleibt -- das hat die Pruefung ausdruecklich NICHT verlangt
+ * zu aendern, nur das `fetchAll`.
  */
 function avesmapsMediaLicenseCountCoatOhneLizenz(PDO $pdo): int
 {
-    $zeilen = $pdo->query(
+    $statement = $pdo->query(
         "SELECT properties_json FROM map_features WHERE is_active = 1 AND properties_json LIKE '%\"coat\"%'"
     );
+    if ($statement === false) {
+        return 0;
+    }
+
     $anzahl = 0;
-    foreach (($zeilen ? $zeilen->fetchAll(PDO::FETCH_ASSOC) : []) as $zeile) {
+    while (($zeile = $statement->fetch(PDO::FETCH_ASSOC)) !== false) {
         $props = json_decode((string) ($zeile['properties_json'] ?? ''), true);
         if (!is_array($props) || !is_array($props['coat'] ?? null)) {
             continue;
@@ -264,8 +380,9 @@ function avesmapsMediaLicenseCountCoatOhneLizenz(PDO $pdo): int
 }
 
 /**
- * Loest eine in der Datenbank gespeicherte Upload-URL SICHER zu einem Datei-Zeitstempel auf
- * (Aufgabe 5, Schritt 1).
+ * Loest eine in der Datenbank gespeicherte Upload-URL SICHER zu einem Unix-Zeitstempel auf (Aufgabe 5,
+ * Schritt 1). Gemeinsamer Kern fuer die zwei Formatierer darunter (N1, Fix-Runde 2) -- eine JSON-Form
+ * und eine MySQL-DATETIME-Form derselben Aufloesung, nicht zwei unabhaengige Implementierungen.
  *
  * 💣 Die URL ist Redakteurseingabe -- an mehreren Stellen editierbar (settlement-coat-upload.php,
  * settlement-images.php, citymap-image.php, game-literature-cover.php) -- und deshalb KEIN
@@ -279,30 +396,60 @@ function avesmapsMediaLicenseCountCoatOhneLizenz(PDO $pdo): int
  * nur die rohe URL) auf '..' geprueft, und das Ergebnis per realpath() gegen das erwartete
  * Basisverzeichnis eingeschlossen -- ein Symlink-Ausbruch waere damit ebenfalls abgefangen.
  *
- * @return string '' wenn die URL nicht zum erwarteten Praefix passt, die Datei fehlt (lokal: die vier
- *         Ablagen liegen nicht im Repo, siehe Docblock oben -- das ist der ERWARTETE Befund, kein
- *         Fehler) oder filemtime() scheitert. Sonst eine ISO-8601-Zeit in UTC.
+ * @return int|null Unix-Zeitstempel (UTC), oder null wenn die URL nicht zum erwarteten Praefix passt,
+ *         die Datei fehlt (lokal: die vier Ablagen liegen nicht im Repo -- das ist der ERWARTETE
+ *         Befund, kein Fehler) oder filemtime() scheitert.
  */
-function avesmapsMediaLicenseUploadDateFromUrl(string $url, string $erwartetesPraefix): string
+function avesmapsMediaLicenseUploadTimestampFromUrl(string $url, string $erwartetesPraefix): ?int
 {
     $url = trim($url);
     if ($url === '' || !str_starts_with($url, $erwartetesPraefix) || str_contains($url, '..')) {
-        return '';
+        return null;
     }
     $pfad = (string) parse_url($url, PHP_URL_PATH);
     if ($pfad === '' || str_contains($pfad, '..')) {
-        return '';
+        return null;
     }
 
     $docroot = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2)), '/');
     $realBasis = realpath($docroot . $erwartetesPraefix);
     $realZiel = realpath($docroot . $pfad);
     if ($realBasis === false || $realZiel === false || !str_starts_with($realZiel, $realBasis . DIRECTORY_SEPARATOR)) {
-        return ''; // lokal: die Ablage existiert nicht -- "0 Datumsangaben" ist hier richtig
+        return null; // lokal: die Ablage existiert nicht -- "0 Datumsangaben" ist hier richtig
     }
 
     $zeit = @filemtime($realZiel);
-    return $zeit === false ? '' : gmdate('Y-m-d\TH:i:s\Z', $zeit);
+    return $zeit === false ? null : $zeit;
+}
+
+/**
+ * ISO-8601 in UTC -- fuer die JSON-Flaechen (properties_json.coat.uploaded_at,
+ * properties_json.images[].uploaded_at; settlement_coat/settlement_image). JSON kennt kein natives
+ * Datumsformat; ISO-8601 mit explizitem 'Z' ist hier Konvention, maschinenlesbar und
+ * zeitzonen-eindeutig -- und es gibt keine Spalten-Typpruefung, die dagegen protestieren koennte.
+ */
+function avesmapsMediaLicenseUploadDateFromUrl(string $url, string $erwartetesPraefix): string
+{
+    $zeit = avesmapsMediaLicenseUploadTimestampFromUrl($url, $erwartetesPraefix);
+    return $zeit === null ? '' : gmdate('Y-m-d\TH:i:s\Z', $zeit);
+}
+
+/**
+ * MySQL-DATETIME-Form (kein 'T', kein 'Z') -- fuer die drei SPALTEN-Flaechen: adventure.
+ * cover_uploaded_at (app/game-literature.php:112) sowie citymap.map_uploaded_at/thumb_uploaded_at
+ * (app/citymaps.php:341/344). Alle drei sind DATETIME-Spalten, keine JSON-Blobs.
+ *
+ * 🔴 N1 der zweiten Pruefrunde: MySQL akzeptiert 'T' nicht als Trenner und das angehaengte 'Z' erst
+ * recht nicht -- unter strict mode Fehler 1292, und seit der Transaktion aus Fix-Runde 1 reisst das
+ * den GANZEN Lauf per Rollback ab; ohne strict mode eine STILLE Kuerzung (AGENTS §10: von "nie
+ * gespeichert" nicht zu unterscheiden). Gemessen von der Pruefung: `'2026-08-16T14:54:17Z'` landete
+ * in `cover_uploaded_at`. Lokal war dieser Pfad ungetestet, weil die Test-Fixture TEXT-Spalten
+ * benutzt und sqlite jeden String anstandslos schluckt -- die Divergenz wurde erst hier sichtbar.
+ */
+function avesmapsMediaLicenseUploadDatetimeFromUrl(string $url, string $erwartetesPraefix): string
+{
+    $zeit = avesmapsMediaLicenseUploadTimestampFromUrl($url, $erwartetesPraefix);
+    return $zeit === null ? '' : gmdate('Y-m-d H:i:s', $zeit);
 }
 
 /**
@@ -321,31 +468,43 @@ function avesmapsMediaLicenseUploadDateFromUrl(string $url, string $erwartetesPr
  * gleich behandelt, findet auf einer Seite immer nichts und haelt die Trefferquote fuer schlecht.
  *
  * ⚠️ Der Treffer ist nicht garantiert -- die Aktion ist generisch, das Protokoll kann beschnitten
- * sein. Bei mehreren passenden Zeilen je Ort gewinnt die LETZTE (hoechstes created_at zuerst durch
- * die ORDER BY, dann durch die Ueberschreibung im Array): sie beschreibt das juengste
- * Hochladeereignis, also den aktuell gespeicherten Stand.
+ * sein. Bei mehreren passenden Zeilen je (Ort, URL) gewinnt die LETZTE (hoechstes created_at zuerst
+ * durch die ORDER BY, dann durch die Ueberschreibung im Array): sie beschreibt das juengste
+ * Hochladeereignis fuer GENAU dieses Bild.
  *
- * ⚠️ Ungefenstert (kein LIMIT/Cursor) -- die Pruefung der zweiten Runde hat das nicht verlangt (ihr
- * Befund galt den fuenf Sammlern, nicht dieser Hilfsfunktion), aber es ist derselbe Fehlerklasse:
- * bei einem sehr grossen Audit-Log koennte das teuer werden. Bewusst nicht mitgefixt, siehe
- * task-4-report.md ("Bedenken") -- eine Ausweitung ueber den gepruften Befund hinaus haette hier ohne
- * erneute Ruecksprache stattgefunden.
+ * 🔧 N2 (Fix-Runde 2): schluesselt jetzt nach (feature_id, coat.url) statt nur feature_id. Vorher bekam
+ * JEDES Wappen dieser Zeile den zuletzt geloggten Namen -- auch, wenn das Wappen inzwischen laengst
+ * ersetzt wurde (reproduziert von der Pruefung: ein Ort mit einem inzwischen andersartigen Wiki-Wappen
+ * bekam trotzdem den Namen des alten Eigen-Uploads zugeschrieben, ein ERFUNDENER Nachweis -- nicht die
+ * seltene Verwechslung unter mehreren Eigen-Uploads, die dieser Docblock vorher beschrieb). Der
+ * Aufrufer (avesmapsMediaLicenseCollectSettlementCoats) gleicht jetzt die HEUTIGE coat.url gegen die
+ * im Protokoll geloggte ab; nur bei Uebereinstimmung gilt der Name als Nachweis fuer DIESES Bild.
  *
- * @return array<int, string> feature_id (map_features.id) => Benutzername; nur belegte Treffer.
- *         Ein bekannter Akteur ohne aufloesbaren Benutzernamen (z. B. actor_user_id = 0/Import) liefert
- *         '' -- "leer heisst leer", kein erfundener Platzhaltername.
+ * 🔧 N4 (Fix-Runde 2): `fetch()` in einer Schleife statt `fetchAll()` -- das Audit-Log kann bei Wegen/
+ * Regionen volle geometry_json-Schnappschuesse tragen, `fetchAll` haette das komplette Ergebnis im
+ * Speicher gehalten. Und: wird jetzt EINMAL JE LAUF aufgerufen (von avesmapsMediaLicenseMigrationRun()
+ * durchgereicht), nicht mehr einmal je Sammleraufruf/Fenster -- bei ~4.653 Orten und batch_limit 200
+ * waren das rund 24 unnoetige Vollabzuege in einem Lauf.
+ *
+ * @return array<int, array<string, string>> feature_id => [coat.url => Benutzername]; nur belegte
+ *         Treffer. Ein bekannter Akteur ohne aufloesbaren Benutzernamen (z. B. actor_user_id =
+ *         0/Import) liefert '' -- "leer heisst leer", kein erfundener Platzhaltername.
  */
 function avesmapsMediaLicenseCollectSettlementCoatUploaders(PDO $pdo): array
 {
     $ergebnis = [];
-    $zeilen = $pdo->query(
+    $statement = $pdo->query(
         "SELECT audit.feature_id, audit.before_json, audit.after_json, users.username
          FROM map_audit_log audit
          LEFT JOIN users ON users.id = audit.actor_user_id
          WHERE audit.action = 'wiki_sync_update_point'
          ORDER BY audit.created_at ASC, audit.id ASC"
     );
-    foreach (($zeilen ? $zeilen->fetchAll(PDO::FETCH_ASSOC) : []) as $zeile) {
+    if ($statement === false) {
+        return [];
+    }
+
+    while (($zeile = $statement->fetch(PDO::FETCH_ASSOC)) !== false) {
         // after_json ist GEBAUT -- properties_json ist dort schon ein Array, ein einziges json_decode reicht.
         $after = json_decode((string) ($zeile['after_json'] ?? ''), true);
         $afterProps = is_array($after) ? ($after['properties_json'] ?? null) : null;
@@ -360,18 +519,19 @@ function avesmapsMediaLicenseCollectSettlementCoatUploaders(PDO $pdo): array
         $beforePropsRaw = is_array($before) ? ($before['properties_json'] ?? null) : null;
         $beforeProps = is_string($beforePropsRaw) ? json_decode($beforePropsRaw, true) : null;
         $beforeCoat = is_array($beforeProps) ? ($beforeProps['coat'] ?? null) : null;
+        $afterUrl = trim((string) ($afterCoat['url'] ?? ''));
         $warSchonEigenesMitGleicherUrl = is_array($beforeCoat)
             && ($beforeCoat['source'] ?? '') === 'own'
-            && (string) ($beforeCoat['url'] ?? '') === (string) ($afterCoat['url'] ?? '');
+            && (string) ($beforeCoat['url'] ?? '') === $afterUrl;
         if ($warSchonEigenesMitGleicherUrl) {
             continue; // kein Hochladeereignis -- schon vorher 'own' mit derselben URL
         }
 
         $featureId = (int) ($zeile['feature_id'] ?? 0);
-        if ($featureId <= 0) {
+        if ($featureId <= 0 || $afterUrl === '') {
             continue;
         }
-        $ergebnis[$featureId] = trim((string) ($zeile['username'] ?? ''));
+        $ergebnis[$featureId][$afterUrl] = trim((string) ($zeile['username'] ?? ''));
     }
 
     return $ergebnis;
@@ -399,21 +559,22 @@ function avesmapsMediaLicenseCollectSettlementCoatUploaders(PDO $pdo): array
  * noch kein Wert steht (Idempotenz -- ein einmal gefundener Name/Datum wird nie erneut aufgeloest oder
  * ueberschrieben), und nur geschrieben, wenn sich etwas findet ("leer heisst leer").
  *
- * 🔧 Fix-Runde 2: 'schreiben' ist weg -- 'zeile' (die map_features.id) + 'anwenden' (eine reine
- * In-Speicher-Mutation auf einem FRISCH gelesenen $props, das der Aufrufer bereitstellt) ersetzen es.
- * Grund: settlement_image kann DIESELBE Zeile treffen, und ein eigenstaendiger Schreibvorgang je Fund
- * haette den anderen zurueckgenommen (Critical 3 der zweiten Pruefrunde). Kein `use ($props)` mehr
- * noetig -- die Funktion bekommt ihr $props als Parameter, nicht als Schnappschuss vom Sammelzeitpunkt.
+ * 🔧 Fix-Runde 2: `$uploaderNamen` kommt jetzt als PARAMETER (N4 -- einmal je Lauf gebaut, nicht mehr
+ * einmal je Fensteraufruf hier selbst geholt) und ist nach (feature_id, coat.url) geschluesselt (N2 --
+ * der Lookup unten prueft explizit gegen die HEUTIGE URL dieser Zeile, nicht nur gegen die feature_id).
  *
+ * 🔧 Fix-Runde 2, Runde 1 unveraendert: 'schreiben' bleibt weg -- 'zeile' (die map_features.id) +
+ * 'anwenden' (eine reine In-Speicher-Mutation auf einem FRISCH gelesenen $props, das der Aufrufer
+ * bereitstellt) ersetzen es (Critical 3 der ersten Pruefrunde).
+ *
+ * @param array<int, array<string,string>> $uploaderNamen feature_id => [coat.url => Benutzername]
  * @return array{funde: list<array{id: int, alt: string, protokoll_neu: array<string,string>, zeile: int,
  *         anwenden: callable}>, sonderfaelle: list<array{flaeche: string, id: string, url: string}>,
  *         protokoll: array{gesamt: int, datum_gefunden: int, name_gefunden: int}, gelesen: int,
  *         naechster_cursor: int|null, offen: bool}
  */
-function avesmapsMediaLicenseCollectSettlementCoats(PDO $pdo, int $limit, int $cursor = 0): array
+function avesmapsMediaLicenseCollectSettlementCoats(PDO $pdo, int $limit, int $cursor = 0, array $uploaderNamen = []): array
 {
-    $uploaderNamen = avesmapsMediaLicenseCollectSettlementCoatUploaders($pdo);
-
     $statement = $pdo->prepare(
         "SELECT id, properties_json FROM map_features
          WHERE is_active = 1 AND properties_json LIKE '%\"coat\"%' AND id > :cursor
@@ -445,7 +606,9 @@ function avesmapsMediaLicenseCollectSettlementCoats(PDO $pdo, int $limit, int $c
         $vorhandenesDatum = trim((string) ($props['coat']['uploaded_at'] ?? ''));
         $vorhandenerName = trim((string) ($props['coat']['uploaded_by'] ?? ''));
         $neuesDatum = $vorhandenesDatum === '' ? avesmapsMediaLicenseUploadDateFromUrl($url, '/uploads/wappen/own/') : '';
-        $neuerName = $vorhandenerName === '' ? trim((string) ($uploaderNamen[$id] ?? '')) : '';
+        // N2: nur ein Treffer unter der HEUTIGEN url gilt -- ein Protokolleintrag ueber ein laengst
+        // ersetztes Wappen (andere URL) darf keinen Namen liefern.
+        $neuerName = $vorhandenerName === '' ? trim((string) ($uploaderNamen[$id][$url] ?? '')) : '';
         if ($vorhandenesDatum !== '' || $neuesDatum !== '') {
             $protokoll['datum_gefunden']++;
         }
@@ -497,16 +660,17 @@ function avesmapsMediaLicenseCollectSettlementCoats(PDO $pdo, int $limit, int $c
  * einen dritten (leeren) Protokoll-Parameter durch, den PHP bei einem Aufruf mit mehr Argumenten als
  * deklariert stillschweigend ignoriert.
  *
- * 🔧 Fix 1 der zweiten Pruefrunde: die Override-Abfrage verglich `metadata_overrides_json <> ''` --
+ * 🔧 Fix 1 der ersten Pruefrunde: die Override-Abfrage verglich `metadata_overrides_json <> ''` --
  * diese Spalte ist eine MySQL-JSON-Spalte (sync-monitor.php:87), und MySQL wandelt den
  * Nicht-JSON-Operanden vor dem Vergleich um: `CAST('' AS JSON)` ist `ERROR 3141` (leeres Dokument).
  * Der Sammler waere unter der echten Datenbank IMMER gescheitert. Ersatzlos gestrichen -- `IS NOT
  * NULL` reicht (dieselben zwei Zeilen wie coat-url.php:128, sync-monitor-identity.php:395: eine
  * JSON-Spalte kann `''` gar nicht halten).
  *
- * 🔧 Fix 2: `id > :cursor ORDER BY id ASC LIMIT` je Teilabfrage -- ohne das lieferte jeder Aufruf
- * dieselben ersten batch_limit Zeilen, und eine bereits migrierte Zeile verlaesst die Menge nicht.
- * Zwei unabhaengige Fenster (Staging, Override), deshalb ein Cursor-Paar statt eines einzelnen Werts.
+ * 🔧 Fix 2 der ersten Pruefrunde: `id > :cursor ORDER BY id ASC LIMIT` je Teilabfrage -- ohne das
+ * lieferte jeder Aufruf dieselben ersten batch_limit Zeilen, und eine bereits migrierte Zeile verlaesst
+ * die Menge nicht. Zwei unabhaengige Fenster (Staging, Override), deshalb ein Cursor-Paar statt eines
+ * einzelnen Werts.
  *
  * @return array{funde: list<array{id: string, alt: string, schreiben: callable}>, sonderfaelle: list<never>,
  *         protokoll: null, gelesen: int, naechster_cursor: array{staging:int,override:int}|null, offen: bool}
@@ -592,7 +756,12 @@ function avesmapsMediaLicenseCollectTerritoryCoats(PDO $pdo, int $limit, array $
  * beide liegen unter demselben Praefix, own-Uploads zusaetzlich unter own/). Kein uploaded_by: Cover
  * haben keine vergleichbare Protokollspur (nur Siedlungs-Wappen haben eine, siehe Sammler oben).
  *
- * 🔧 Fix 2 der zweiten Pruefrunde: `id > :cursor ORDER BY id ASC LIMIT`, resumierbar.
+ * 🔧 Fix 2 der ersten Pruefrunde: `id > :cursor ORDER BY id ASC LIMIT`, resumierbar.
+ *
+ * 🔧 N1 der zweiten Pruefrunde: `avesmapsMediaLicenseUploadDatetimeFromUrl()` statt
+ * `avesmapsMediaLicenseUploadDateFromUrl()` -- cover_uploaded_at ist eine MySQL-DATETIME-Spalte
+ * (app/game-literature.php:112), keine JSON-Ablage; ISO-8601 mit 'T'/'Z' waere dort ein Fehler 1292
+ * (strict mode) bzw. eine stille Kuerzung gewesen.
  *
  * @return array{funde: list<array{id: int, alt: string, schreiben: callable, protokoll_neu: array<string, string>}>,
  *         sonderfaelle: list<never>, protokoll: array{gesamt: int, datum_gefunden: int, name_gefunden: int},
@@ -620,7 +789,7 @@ function avesmapsMediaLicenseCollectCovers(PDO $pdo, int $limit, int $cursor = 0
         $protokoll['gesamt']++;
         $vorhandenesDatum = trim((string) ($zeile['cover_uploaded_at'] ?? ''));
         $neuesDatum = $vorhandenesDatum === ''
-            ? avesmapsMediaLicenseUploadDateFromUrl((string) ($zeile['cover_url'] ?? ''), '/uploads/questcovers/')
+            ? avesmapsMediaLicenseUploadDatetimeFromUrl((string) ($zeile['cover_url'] ?? ''), '/uploads/questcovers/')
             : '';
         if ($vorhandenesDatum !== '' || $neuesDatum !== '') {
             $protokoll['datum_gefunden']++;
@@ -669,10 +838,14 @@ function avesmapsMediaLicenseCollectCovers(PDO $pdo, int $limit, int $cursor = 0
  * und Protokoll den Unterschied macht: die Lizenz aendert sich hier praktisch nie (schon Katalogwert),
  * also wuerde ein an die Lizenz gekoppeltes 'anwenden' das Datum NIE persistieren.
  *
- * 🔧 Fix-Runde 2: 'schreiben' ist weg -- 'zeile' + 'anwenden' wie bei settlement_coat (Critical 3:
+ * 🔧 Fix-Runde 1: 'schreiben' ist weg -- 'zeile' + 'anwenden' wie bei settlement_coat (Critical 3:
  * dieselbe map_features-Zeile kann von BEIDEN Flaechen und von MEHREREN Bildern derselben Zeile
  * betroffen sein). 'anwenden' bekommt sein $props als Parameter -- kein `use ($props)`-Schnappschuss
  * mehr, der beim Schreiben veraltet waere. `id > :cursor ORDER BY id ASC LIMIT` fuer die Resumierbarkeit.
+ *
+ * ⚠️ Bleibt bei der ISO-8601-Form (avesmapsMediaLicenseUploadDateFromUrl): das Datum wandert in
+ * properties_json (JSON), keine DATETIME-Spalte -- N1 der zweiten Pruefrunde betrifft nur die drei
+ * SPALTEN-Flaechen (cover, citymap), siehe Docblock des Formatierers.
  *
  * @return array{funde: list<array{id: string, alt: string, protokoll_neu: array<string,string>, zeile: int,
  *         anwenden: callable}>, sonderfaelle: list<never>,
@@ -766,7 +939,16 @@ function avesmapsMediaLicenseCollectSettlementImages(PDO $pdo, int $limit, int $
  * UPDATE, das nur die eine Spalte nennt, laesst die andere unberuehrt. Zwei Funde derselben Zeile
  * koennen sich hier nicht gegenseitig zuruecknehmen.
  *
- * 🔧 Fix 2 der zweiten Pruefrunde: `id > :cursor ORDER BY id ASC LIMIT`, resumierbar.
+ * 🔧 Fix 2 der ersten Pruefrunde: `id > :cursor ORDER BY id ASC LIMIT`, resumierbar.
+ *
+ * 🔧 N1 der zweiten Pruefrunde: `avesmapsMediaLicenseUploadDatetimeFromUrl()` statt
+ * `avesmapsMediaLicenseUploadDateFromUrl()` -- map_uploaded_at/thumb_uploaded_at sind MySQL-DATETIME-
+ * Spalten (app/citymaps.php:341/344), dieselbe Begruendung wie beim Cover-Sammler oben.
+ *
+ * ⚠️ 'protokoll_neu' traegt hier den Schluessel 'datum' statt 'uploaded_at' (anders als bei Cover/
+ * Siedlung) -- derselbe Wert, zwei Namen in dieser Datei. Nicht angeglichen: das haette den
+ * Schreib-Callback unten mit angefasst, was ueber den gepruften Befund (nur das Format) hinausgegangen
+ * waere; siehe Minor-Punkt im zweiten Fix-Bericht.
  *
  * @return array{funde: list<array{id: string, alt: string, schreiben: callable, protokoll_neu: array<string, string>}>,
  *         sonderfaelle: list<never>, protokoll: array{gesamt: int, datum_gefunden: int, name_gefunden: int},
@@ -798,7 +980,7 @@ function avesmapsMediaLicenseCollectCitymaps(PDO $pdo, int $limit, int $cursor =
             $protokoll['gesamt']++;
             $vorhandenesDatum = trim((string) ($zeile[$info['datum']] ?? ''));
             $neuesDatum = $vorhandenesDatum === ''
-                ? avesmapsMediaLicenseUploadDateFromUrl((string) ($zeile[$info['url']] ?? ''), '/uploads/kartensammlungen/')
+                ? avesmapsMediaLicenseUploadDatetimeFromUrl((string) ($zeile[$info['url']] ?? ''), '/uploads/kartensammlungen/')
                 : '';
             if ($vorhandenesDatum !== '' || $neuesDatum !== '') {
                 $protokoll['datum_gefunden']++;

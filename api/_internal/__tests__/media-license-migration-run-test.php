@@ -306,4 +306,124 @@ assert(
     'nach der Cursor-Schleife sollten keine leeren map_license-Werte mehr uebrig sein'
 );
 
+// ======================================================================================================
+// Fix-Runde 2 (Pruefung des ersten Fix-Diffs): N1 (Datumsformat), N2 (Name nur bei URL-Uebereinstimmung),
+// N3 (Sperre gilt je LAUF, nicht je Fenster).
+// ======================================================================================================
+
+// ---- N1: ISO-8601 fuer die JSON-Flaechen, MySQL-DATETIME fuer die drei Spalten-Flaechen ---------------
+// Reproduziert ueber eine REALE, kontrollierte Datei -- die leeren Rueckfaelle, die lokal sonst ueberall
+// entstehen (die vier Upload-Ablagen liegen nicht im Repo), haetten das Format nie geprueft (genau die
+// Luecke, die die Pruefung gefunden hat: "der Pfad ist voellig ungetestet").
+$tempBasis = sys_get_temp_dir() . '/avm-lizenz-datum-' . uniqid();
+mkdir($tempBasis . '/uploads/questcovers', 0777, true);
+$tempDatei = $tempBasis . '/uploads/questcovers/probe.jpg';
+file_put_contents($tempDatei, 'x');
+touch($tempDatei, time() - 3600);
+$vorherigerDocRoot = $_SERVER['DOCUMENT_ROOT'] ?? null;
+$_SERVER['DOCUMENT_ROOT'] = $tempBasis;
+
+$isoForm = avesmapsMediaLicenseUploadDateFromUrl('/uploads/questcovers/probe.jpg', '/uploads/questcovers/');
+$mysqlForm = avesmapsMediaLicenseUploadDatetimeFromUrl('/uploads/questcovers/probe.jpg', '/uploads/questcovers/');
+
+if ($vorherigerDocRoot === null) {
+    unset($_SERVER['DOCUMENT_ROOT']);
+} else {
+    $_SERVER['DOCUMENT_ROOT'] = $vorherigerDocRoot;
+}
+unlink($tempDatei);
+rmdir($tempBasis . '/uploads/questcovers');
+rmdir($tempBasis . '/uploads');
+rmdir($tempBasis);
+
+assert($isoForm !== '', 'die ISO-Form haette den Zeitstempel finden muessen');
+assert($mysqlForm !== '', 'die MySQL-Form haette den Zeitstempel finden muessen');
+assert(preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/', $isoForm) === 1, "ISO-Form hat nicht das erwartete Format: {$isoForm}");
+assert(
+    preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $mysqlForm) === 1,
+    "N1 nicht behoben: MySQL-DATETIME-Form hat nicht das Format 'Y-m-d H:i:s' (MySQL 1292 unter strict mode): {$mysqlForm}"
+);
+assert(!str_contains($mysqlForm, 'T'), "N1 nicht behoben: MySQL-Form enthaelt ein 'T': {$mysqlForm}");
+assert(!str_contains($mysqlForm, 'Z'), "N1 nicht behoben: MySQL-Form enthaelt ein 'Z': {$mysqlForm}");
+// Beide Formen muessen denselben Zeitpunkt beschreiben -- nur die Schreibweise unterscheidet sich.
+assert(str_replace(['T', 'Z'], [' ', ''], $isoForm) === $mysqlForm, 'ISO- und MySQL-Form beschreiben nicht denselben Zeitpunkt');
+
+// ---- N2: der geloggte Name gilt nur, wenn die Protokoll-URL zur HEUTIGEN coat.url passt ---------------
+// Reproduktion der Pruefung: ein Ort, dessen Wappen inzwischen ein WIKI-Wappen mit ANDERER URL ist,
+// darf den Namen aus einer Protokollzeile ueber das laengst ersetzte Eigenbild NICHT erben.
+$pdoN2 = avesmapsMediaLicenseTestSchema();
+$pdoN2->exec("INSERT INTO users (username) VALUES ('Bertram')");
+$bertramId = (int) $pdoN2->lastInsertId();
+$pdoN2->exec("INSERT INTO map_features (public_id, feature_type, properties_json) VALUES
+    ('ort-ersetzt', 'location', '" . json_encode(['coat' => ['url' => '/x-neu.png', 'source' => 'wiki', 'license_status' => 'public_domain']]) . "')");
+$ortErsetztId = (int) $pdoN2->query("SELECT id FROM map_features WHERE public_id = 'ort-ersetzt'")->fetchColumn();
+
+$vorherErsetzt = json_encode([
+    'id' => $ortErsetztId, 'public_id' => 'ort-ersetzt', 'feature_type' => 'location', 'name' => 'Ersetzt',
+    'feature_subtype' => 'stadt', 'properties_json' => json_encode(['irgendwas' => 'anderes']), 'revision' => 1,
+]);
+$nachherErsetzt = json_encode([
+    'public_id' => 'ort-ersetzt', 'feature_type' => 'location', 'name' => 'Ersetzt', 'feature_subtype' => 'stadt',
+    'properties_json' => ['coat' => ['url' => '/uploads/wappen/own/alt.png', 'source' => 'own', 'license_status' => 'own']],
+    'revision' => 2,
+]);
+$pdoN2->prepare('INSERT INTO map_audit_log (feature_id, action, actor_user_id, before_json, after_json, created_at)
+    VALUES (:fid, :action, :actor, :before, :after, :ts)')->execute([
+    'fid' => $ortErsetztId, 'action' => 'wiki_sync_update_point', 'actor' => $bertramId,
+    'before' => $vorherErsetzt, 'after' => $nachherErsetzt, 'ts' => '2026-01-01 00:00:00',
+]);
+
+$uploaderNamenN2 = avesmapsMediaLicenseCollectSettlementCoatUploaders($pdoN2);
+// Beleg, dass das Protokoll selbst funktioniert -- unter der ALTEN URL steht der Name.
+assert(
+    ($uploaderNamenN2[$ortErsetztId]['/uploads/wappen/own/alt.png'] ?? '') === 'Bertram',
+    'die Uploader-Karte hat die alte Protokollzeile nicht gefunden'
+);
+// Unter der HEUTIGEN URL darf NICHTS stehen.
+assert(
+    !isset($uploaderNamenN2[$ortErsetztId]['/x-neu.png']),
+    'N2 nicht behoben: die Uploader-Karte traegt einen Treffer unter der heutigen (falschen) URL'
+);
+
+$sammlerErgebnisN2 = avesmapsMediaLicenseCollectSettlementCoats($pdoN2, 200, 0, $uploaderNamenN2);
+$fundErsetzt = null;
+foreach ($sammlerErgebnisN2['funde'] as $f) {
+    if ($f['id'] === $ortErsetztId) {
+        $fundErsetzt = $f;
+        break;
+    }
+}
+assert($fundErsetzt !== null, 'die ersetzte Zeile haette einen Fund liefern muessen');
+assert(
+    !isset($fundErsetzt['protokoll_neu']['uploaded_by']),
+    'N2 nicht behoben: uploaded_by wurde trotz laengst ersetztem Wappen gesetzt ('
+    . ($fundErsetzt['protokoll_neu']['uploaded_by'] ?? '') . ')'
+);
+
+// ---- N3: die Sperre gilt fuer den GANZEN Bestand, nicht nur das angeforderte Fenster -------------------
+// Vier Orte: die ersten zwei (n3-a/n3-b) migrieren ohne Sichtbarkeitswechsel, die letzten zwei (n3-c/
+// n3-d) tragen einen unbekannten Lizenzwert -- settlement_coat ist ungegated, also war JEDER gesetzte
+// Wert sichtbar, und 'unknown_other' ist es nicht: ein Wechsel. Angefordert wird NUR das erste Fenster
+// (batch_limit 2, cursor 0) -- vor N3 haette das anstandslos geschrieben, der Wechsel im zweiten Fenster
+// waere erst beim NAECHSTEN Aufruf aufgefallen, zu spaet fuer das erste.
+$pdoN3 = avesmapsMediaLicenseTestSchema();
+$pdoN3->exec("INSERT INTO map_features (public_id, feature_type, properties_json) VALUES
+    ('n3-a', 'location', '" . json_encode(['coat' => ['url' => '/n3a.png', 'source' => 'own', 'license_status' => 'own']]) . "'),
+    ('n3-b', 'location', '" . json_encode(['coat' => ['url' => '/n3b.png', 'source' => 'own', 'license_status' => 'own']]) . "'),
+    ('n3-c', 'location', '" . json_encode(['coat' => ['url' => '/n3c.png', 'source' => 'own', 'license_status' => 'sonstwas']]) . "'),
+    ('n3-d', 'location', '" . json_encode(['coat' => ['url' => '/n3d.png', 'source' => 'own', 'license_status' => 'sonstwas']]) . "')");
+
+$laufN3 = avesmapsMediaLicenseMigrationRun($pdoN3, [
+    'dry_run' => false, 'batch_limit' => 2, 'cursors' => ['settlement_coat' => 0],
+]);
+assert($laufN3['ok'] === true, 'N3-Lauf lief nicht ok');
+assert($laufN3['dry_run'] === true, 'N3 nicht behoben: ein Wechsel im ZWEITEN Fenster haette den ganzen Lauf zurueckhalten muessen');
+assert($laufN3['sichtbarkeitswechsel'] !== [], 'N3: der Wechsel in n3-c/n3-d (ausserhalb des angeforderten Fensters) wurde nicht gefunden');
+
+// Die tragende Zusicherung: n3-a (erstes, angefordertes Fenster) darf NICHT geschrieben worden sein,
+// obwohl es SELBST keinen Wechsel ausloest -- vor N3 haette genau das stillschweigend geklappt (gemessen
+// von der Pruefung: "Fenster 1 schreibt (geaendert=2), Fenster 2 verweigert").
+$n3a = json_decode((string) $pdoN3->query("SELECT properties_json FROM map_features WHERE public_id='n3-a'")->fetchColumn(), true);
+assert($n3a['coat']['license_status'] === 'own', 'N3 nicht behoben: das angeforderte Fenster wurde trotz eines Wechsels ausserhalb geschrieben');
+
 echo "media-license-migration-run-test: OK\n";
