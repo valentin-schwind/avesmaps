@@ -49,14 +49,16 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 	},
 	weg: {
 		label: "Wiki-Weg",
-		// Gemessen an der vorhandenen Suche: js/review/review-path-wiki.js:182 ruft
-		// `?action=search&q=…&limit=40` gegen genau diese Adresse, und avesmapsWikiPathSearch
-		// (api/_internal/wiki/paths.php:707-733) antwortet mit `{ok, count, rows}`.
+		// Gemessen am Endpunkt, nicht am (mit diesem Umbau geloeschten) alten Picker:
+		// avesmapsWikiPathSearch (api/_internal/wiki/paths.php:707-733) beantwortet
+		// `?action=search&q=…&limit=40` mit `{ok, count, rows}`; die Suchspalten stehen auf
+		// :711-712. Dieselbe Adresse und dasselbe Limit wie der alte Picker.
 		suche: { art: "server", url: "/api/edit/wiki/paths.php" },
 		// KEIN Objektart-Vorsatz: die Trefferzeile beginnt mit „Fluss" bzw. „Straße/Weg" (das Feld
 		// `kind`), und das sagt genauer, was der Treffer ist, als das Wort „Weg" -- es entscheidet
 		// naemlich, ob der Server die Zuweisung ueberhaupt annimmt (Typriegel Fluss <-> Strasse).
-		// Wortgleich zur bisherigen Meta-Zeile des Pickers (review-path-wiki.js:209).
+		// Wortgleich zur Meta-Zeile, die der alte Picker zeigte: Art des Wegs, dann `art`, dann
+		// `lage` -- nachgefahren im Ablauf, siehe den Bericht zu Aufgabe 4.
 		treffer: ["kind", "art", "lage"],
 		// 💣 ZWEI ZEILEN FUER EINE SACHE, UND DAS IST ABSICHT. `art` ist der freie Wikitext
 		// („Reichsstraße"), `wegtyp` der daraus abgebildete Schluessel („Reichsstrasse",
@@ -76,7 +78,7 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		// schon getan hat.
 		// 🔴 KEIN Kartenziel fuer `laenge`. Das Mockup schreibt „Länge→laenge" -- ein solches Feld
 		// gibt es nicht: die Laenge eines Weges entsteht aus seiner Geometrie
-		// (`detail.length_units`, js/pages/wege-editor.js:633), sie wird nicht gepflegt. Die Zeile
+		// (`detail.length_units`, js/pages/wege-editor.js:791/794), sie wird nicht gepflegt. Die Zeile
 		// bleibt Anzeige.
 		felder: [
 			{ wiki: "art", karte: "", label: "Art" },

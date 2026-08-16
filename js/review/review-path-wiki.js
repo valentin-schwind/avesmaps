@@ -41,7 +41,7 @@ function pathWikiCurrentAssignment() {
 	return wiki && wiki.wiki_key ? wiki : null;
 }
 
-// 🔴 EINE Umsetzung, zwei Aufrufer: js/review/review-paths.js:142/218 nennt den Weg beim Namen,
+// 🔴 EINE Umsetzung, zwei Aufrufer: js/review/review-paths.js:148/224 nennt den Weg beim Namen,
 // den der SERVER ihm gibt. Die Rechnung selbst steht seit dem 16.08.2026 in
 // js/ui/wiki-assign-weg.js, weil sie auch das Editorfenster braucht -- hier bleibt nur der Name,
 // unter dem die zwei Aufrufer sie kennen.
@@ -211,13 +211,19 @@ async function pathWikiLoesen() {
  * schrieb den geratenen Typ ohne Vorschau und ohne Haken hinein und ist mit dem Umbau entfallen.
  */
 function pathWikiSyncUebernehmen(zeilen) {
+	// 🔴 DERSELBE VERTRAG WIE BEI `zuweisen` UND `loesen`: wer nichts tun konnte, LEHNT AB. Ein
+	// stilles Auflösen hiesse fuer das Bauteil „uebernommen", es schloesse die Vorschau, und der
+	// Editor haette den Eindruck, sein Haken sei ins Formular gewandert. Praktisch unerreichbar
+	// (der Knopf ist ohne Haken ausgegraut, und der Wegtyp steht in beiden Oberflaechen als
+	// `<option>` bereit) -- aber ein Vertrag, der nur an zwei von drei Stellen gilt, ist die
+	// Fehlerklasse aus AGENTS.md §11 („eine Regel, die einen von vier Erzeugern bindet").
 	const wegtyp = avesmapsWikiAssignWegSyncWegtyp(zeilen);
 	if (wegtyp === null) {
-		return;
+		throw new Error("Keine übernehmbare Angabe angehakt.");
 	}
 	const select = pathWikiElement("path-edit-type");
 	if (!select || !Array.from(select.options).some((option) => option.value === wegtyp)) {
-		return;
+		throw new Error("Der Wegtyp „" + wegtyp + "“ steht in der Auswahl nicht zur Verfügung.");
 	}
 	select.value = wegtyp;
 	// Der Wegtyp entscheidet, welche Transportmittel ueberhaupt angeboten werden -- die Weiche

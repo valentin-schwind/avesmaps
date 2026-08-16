@@ -333,15 +333,18 @@ const syncMarkup = avesmapsWikiAssignMarkup(
 	});
 
 // 🔴 DER KOPF DES BAUTEILS IST IM WEG-DIALOG DIE ABSCHNITTSUEBERSCHRIFT -- und seine sechs
-// typografischen Werte sind eine ABSCHRIFT von `.label-edit-section-title`. Genau so laufen zwei
-// Regeln auseinander; diese Probe vergleicht sie Zeichen fuer Zeichen. (Die Abschrift ist noetig,
-// weil die Basisregel zusaetzlich margin/padding/border fuer eine alleinstehende Ueberschrift
-// setzt -- der Titel hier ist ein Flex-Kind neben den Knoepfen.)
+// typografischen Werte stehen deshalb in EINER Regel mit `.label-edit-section-title`, nicht
+// daneben abgeschrieben. Bis zum 16.08.2026 waren es zwei Regeln mit denselben Werten; die
+// Zusicherung verglich sie Zeichen fuer Zeichen. Jetzt gibt es nichts mehr zu vergleichen -- also
+// wacht sie ueber das, was an die Stelle getreten ist: die GEMEINSAME Selektorliste.
+// ⚠️ Was hier NICHT hingehoert: margin/padding/border-top. Die gehoeren einer alleinstehenden
+// Ueberschrift; der Titel im Bauteil ist ein Flex-Kind neben den Knoepfen und bekaeme sonst eine
+// Linie mitten in den Kasten.
 const regionSyncCss = fs.readFileSync(path.join(wurzel, "css", "components", "region-sync.css"), "utf8");
-function deklarationen(css, selektor) {
-	const start = css.indexOf(selektor + " {");
-	assert.ok(start !== -1, "Regel nicht gefunden: " + selektor);
-	const rumpf = css.slice(start + selektor.length + 2, css.indexOf("}", start));
+function regelRumpf(css, selektorZeile) {
+	const start = css.indexOf(selektorZeile + " {");
+	assert.ok(start !== -1, "Regel nicht gefunden: " + selektorZeile);
+	const rumpf = css.slice(start + selektorZeile.length + 2, css.indexOf("}", start));
 	const werte = {};
 	rumpf.split(";").forEach((zeile) => {
 		const teil = zeile.replace(/\/\*[\s\S]*?\*\//g, " ").trim();
@@ -350,20 +353,36 @@ function deklarationen(css, selektor) {
 	});
 	return werte;
 }
-const kopfRegel = deklarationen(regionSyncCss, "#path-edit-dialog .label-wiki-reference__title");
-const nachbarRegel = deklarationen(regionSyncCss, ".label-edit-section-title");
+// ⚠️ Zeilenenden vereinheitlichen: die Datei liegt mit CRLF im Baum, der Selektor steht auf zwei
+// Zeilen, und ein `indexOf` mit "\n" faende ihn sonst nie (gruene Probe, die nichts prueft).
+const gemeinsam = ".label-edit-section-title,\n#path-edit-dialog .label-wiki-reference__title";
+const gemeinsameWerte = regelRumpf(regionSyncCss.replace(/\r\n/g, "\n"), gemeinsam);
 ["font-family", "font-size", "text-transform", "letter-spacing", "color"].forEach((eigenschaft) => {
-	assert.strictEqual(kopfRegel[eigenschaft], nachbarRegel[eigenschaft],
-		"Der Kopf der Wiki-Zuweisung und die Abschnittsueberschriften daneben sind bei „"
-		+ eigenschaft + "“ auseinandergelaufen: „" + kopfRegel[eigenschaft] + "“ gegen „"
-		+ nachbarRegel[eigenschaft] + "“");
+	assert.ok(Object.prototype.hasOwnProperty.call(gemeinsameWerte, eigenschaft),
+		"Die gemeinsame Ueberschriften-Regel fuehrt „" + eigenschaft + "“ nicht mehr -- der Kopf der "
+		+ "Wiki-Zuweisung und die Abschnittsueberschriften daneben koennen wieder auseinanderlaufen");
 	zaehl();
 });
-// ⚠️ `font-weight` steht nur in der EINGEENGTEN Regel: die Basisregel setzt keins (sie erbt 400),
-// aber `.label-wiki-reference__title` setzt 600 -- das muss ausdruecklich zurueckgenommen werden.
-assert.strictEqual(kopfRegel["font-weight"], "400",
+// ⚠️ Und die Werte sind Token, keine Literale (AGENTS.md §12).
+assert.strictEqual(gemeinsameWerte["font-family"], "var(--font-ui)");
+assert.strictEqual(gemeinsameWerte["font-size"], "var(--font-size-small)");
+assert.strictEqual(gemeinsameWerte["letter-spacing"], "var(--letter-spacing-caps)");
+assert.strictEqual(gemeinsameWerte["color"], "var(--color-accent-brown)");
+zaehl(); zaehl(); zaehl(); zaehl();
+// Der Kastenteil bleibt der alleinstehenden Ueberschrift.
+const nurUeberschrift = regelRumpf(regionSyncCss, ".label-edit-section-title");
+assert.ok(nurUeberschrift["border-top"] !== undefined, "die Trennlinie der Abschnittsueberschrift ist weg");
+assert.ok(gemeinsameWerte["border-top"] === undefined,
+	"die gemeinsame Regel setzt eine Trennlinie -- der Kopf im Bauteil bekaeme eine Linie mitten in den Kasten");
+zaehl(); zaehl();
+// ⚠️ `font-weight` steht in einer EIGENEN, eingeengten Regel: die gemeinsame setzt keins (sie
+// erbt 400), aber `.label-wiki-reference__title` setzt 600 -- das muss zurueckgenommen werden.
+const kopfEigen = regelRumpf(regionSyncCss, "#path-edit-dialog .label-wiki-reference__title");
+assert.strictEqual(kopfEigen["font-weight"], "400",
 	"der Kopf traegt wieder das Gewicht 600 aus .label-wiki-reference__title und faellt aus der Rangfolge");
-assert.ok(nachbarRegel["font-weight"] === undefined);
+// Der fehlende Token ist wirklich angelegt worden, nicht nur benutzt.
+const tokens = fs.readFileSync(path.join(wurzel, "css", "base", "tokens.css"), "utf8");
+assert.ok(/--letter-spacing-caps:\s*0\.08em;/.test(tokens), "der Token --letter-spacing-caps fehlt");
 zaehl(); zaehl();
 
 // ── 9) BEIDE OBERFLAECHEN HAENGEN AM SELBEN BAUTEIL, JEDE IN IHRER HUELLE ─────────────────────
@@ -379,12 +398,14 @@ const wegeEditor = fs.readFileSync(path.join(wurzel, "js", "pages", "wege-editor
 	// 💣 Ohne eigenen Trefferbauer bliebe der Zuweisungskasten nach einer Serversuche leer.
 	assert.ok(/trefferAufbereiten:\s*avesmapsWikiAssignWegTreffer/.test(text),
 		name + ": reicht die flachen Suchzeilen unaufbereitet ans Bauteil");
-	// 🔴 Und der Riegel gegen die stille Loeschung: der Stand kommt aus dem geteilten Zustandsbauer,
-	// der wirft, statt etwas Leeres zu liefern.
-	assert.ok(/avesmapsWikiAssignWegZustand\(/.test(text), name + ": baut den Stand selbst statt ueber den geteilten Bauer");
-	// 🔴 Und jede Antwort geht durch die Pruefung, die auch `type_ok:false` als Nein liest.
-	assert.ok(/avesmapsWikiAssignWegAntwortPruefen\(/.test(text), name + ": prueft die Serverantwort nicht");
-	checks += 6;
+	// 🪤 HIER STANDEN ZWEI WEITERE TEXTPROBEN -- „im Quelltext kommt `…WegZustand(` vor" und
+	// „… `…WegAntwortPruefen(` vor". Beide waren BLIND: ein `try { … } catch { return {}; }` um
+	// den Aufruf erfuellt sie, und genau diese Mutation lief bei der Pruefung von Aufgabe 4 gruen
+	// durch. Ersetzt durch Verhaltensproben in Abschnitt 12 (der Bauer wird zum Werfen gebracht
+	// und muss durch die Oberflaeche hindurch; `type_ok:false` muss beide Oberflaechen ablehnen
+	// lassen). Was hier bleibt, ist nur, was eine Textprobe wirklich beantworten kann: WELCHES
+	// Bauteil mit WELCHER Huelle und WELCHER Objektart angehaengt wird.
+	checks += 4;
 });
 
 // 🔴 KEIN DRITTER SKIN (Entwurf §4a). Die Zahl steht hier, weil sie die Obergrenze IST.
@@ -476,6 +497,91 @@ function scheinZiel(merkmal, wert) {
 }
 
 const ruhe = () => new Promise((fertig) => setTimeout(fertig, 0));
+
+
+// ── 12) DIE ZWEI OBERFLAECHEN, WIRKLICH GEFAHREN ──────────────────────────────────────────────
+// 🪤 DIESER ABSCHNITT ERSETZT ZWEI ZUSICHERUNGEN, DIE BLIND WAREN. Die Pruefung von Aufgabe 4 hat
+// beide mutiert und beide blieben gruen:
+//   · `koerper.single_segment = true` im Wege-Editor (also die Zuweisung auf das EINE gewaehlte
+//     Wegstueck eingeengt) -- geprueft wurde nur der BAUER (action/dry_run/confirm) und dass die
+//     Oberflaeche ihn RUFT, nicht, dass sie sein Ergebnis unveraendert absendet. Damit war die
+//     tragende Zusage dieser Aufgabe („ein Wiki-Weg haengt an ALLEN Segmenten zugleich") von
+//     nichts gedeckt.
+//   · `pathWikiZustand` im Kartendialog mit `try { … } catch { return {}; }` umbaut -- die Probe
+//     fragte nur, ob `avesmapsWikiAssignWegZustand(` im QUELLTEXT vorkommt, und das tut es dann ja.
+// ⭐ Beides sind Textproben, und eine Textprobe misst die FORM des Codes, nicht sein Verhalten.
+// Ab hier werden die echten Rueckrufe der echten Oberflaechen gefahren.
+
+const vm = require("vm");
+
+// Eine Attrappe, die gerade genug kann: jedes Element beantwortet alles, Zuhoerer werden gemerkt.
+function attrappe(name) {
+	return {
+		id: name, tagName: "DIV", value: "", checked: false, disabled: false, hidden: false,
+		textContent: "", innerHTML: "", className: "", dataset: {}, style: {}, options: [],
+		classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
+		zuhoerer: {},
+		addEventListener(typ, fn) { this.zuhoerer[typ] = fn; },
+		removeEventListener() {},
+		appendChild() {}, remove() {}, setAttribute() {}, getAttribute() { return null; },
+		hasAttribute() { return false; },
+		closest() { return null; },
+		querySelector() { return attrappe("q"); },
+		querySelectorAll() { return []; },
+		getBoundingClientRect() { return { width: 100, height: 20, top: 0, left: 0 }; },
+		focus() {}, dispatchEvent() { return true; }, contains() { return true; },
+	};
+}
+
+/** Ein Sandkasten mit Dokument-Attrappe und aufgezeichnetem `fetch`. */
+function sandkastenBauen(fetchAntwort) {
+	const elemente = {};
+	const gesendet = [];
+	const dokument = {
+		readyState: "complete",
+		getElementById(id) { if (!elemente[id]) { elemente[id] = attrappe(id); } return elemente[id]; },
+		querySelector() { return attrappe("q"); },
+		querySelectorAll() { return []; },
+		createElement(t) { return attrappe(t); },
+		addEventListener() {},
+		body: attrappe("body"), documentElement: attrappe("html"),
+	};
+	const kasten = {
+		console, setTimeout, clearTimeout, setInterval, clearInterval, JSON, Math, Date, Number,
+		String, Array, Object, Boolean, RegExp, Error, isFinite, isNaN, parseInt, parseFloat,
+		encodeURIComponent, decodeURIComponent, Promise, Event: function () {},
+		document: dokument,
+		localStorage: { getItem() { return null; }, setItem() {} },
+		matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }),
+		confirm: () => true,
+		fetch(url, opt) {
+			const rumpf = opt && opt.body ? JSON.parse(opt.body) : null;
+			gesendet.push({ url: String(url), rumpf: rumpf });
+			return Promise.resolve({
+				ok: true, status: 200,
+				json: () => Promise.resolve(fetchAntwort(String(url), rumpf)),
+			});
+		},
+		gemounted: [],
+	};
+	kasten.window = kasten;
+	kasten.globalThis = kasten;
+	vm.createContext(kasten);
+	[
+		"js/ui/filter-menu.js", "js/routing/travel-calendar.js", "js/pages/wege-editor-model.js",
+		"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-assign.js",
+		"js/ui/wiki-assign-weg.js",
+	].forEach((datei) => {
+		vm.runInContext(fs.readFileSync(path.join(wurzel, datei), "utf8"), kasten, { filename: datei });
+	});
+	// Das Bauteil abfangen: so kommen wir an die Rueckrufe, die die Oberflaeche wirklich uebergibt.
+	vm.runInContext("var echterMount = avesmapsWikiAssignMount;"
+		+ "avesmapsWikiAssignMount = function (b, o) { gemounted.push(o); return echterMount(b, o); };", kasten);
+	return { kasten: kasten, elemente: elemente, gesendet: gesendet };
+}
+
+const ruhe2 = () => new Promise((fertig) => setTimeout(fertig, 20));
+const trefferProbe = avesmapsWikiAssignWegTreffer(zeile);
 
 (async () => {
 	// Der Vertrag, mit dem ECHTEN Zustandsbauer des Wegs: was seine Quelle nicht hergibt, wird
@@ -638,5 +744,220 @@ const ruhe = () => new Promise((fertig) => setTimeout(fertig, 0));
 	checks += 1;
 
 	if (echtesFetch) { global.fetch = echtesFetch; } else { delete global.fetch; }
+
+	// ---- 12a) DER WEGE-EDITOR: der Rumpf, den er WIRKLICH absendet ---------------------------
+	// 💣 Hier sass die Mutation des Pruefers. Gefahren wird die echte Oberflaece: booten, einen Weg
+	// in der Liste anklicken, den vom Bauteil eingesammelten `zuweisen`-Rueckruf rufen -- und dann
+	// den abgesetzten POST-Rumpf ansehen.
+	const w = sandkastenBauen((url) => {
+		if (url.indexOf("action=list") !== -1) {
+			return { ok: true, ways: [{
+				public_id: "path-1", name: "Reichsstrasse-7", feature_subtype: "Strasse",
+				show_label: true, allowed_transports: ["caravan"], transport_seasons: {},
+				wiki_path: null, other_source: null, flow_direction: "", has_profile: true,
+			}], summary: { total: 1 }, calibration: null };
+		}
+		if (url.indexOf("action=detail") !== -1) { return { ok: true, length_units: 10, terrain: null, landscapes: [] }; }
+		if (url.indexOf("paths.php") !== -1) {
+			return { ok: true, type_ok: true, applied: 3, segments: 3, wiki_name: "Kosch-Reichsstraße",
+				wiki_display_name: "Kosch-Reichsstraße", segments_updated: [] };
+		}
+		return { ok: true };
+	});
+	vm.runInContext(fs.readFileSync(path.join(wurzel, "js/pages/wege-editor.js"), "utf8"), w.kasten,
+		{ filename: "wege-editor.js" });
+	await ruhe2();
+	const liste = w.elemente.wpList;
+	assert.ok(liste && liste.zuhoerer.click, "der Wege-Editor haengt keinen Klickzuhoerer an die Liste");
+	const zeilenZiel = attrappe("row");
+	zeilenZiel.dataset.id = "path-1";
+	zeilenZiel.closest = () => zeilenZiel;
+	zeilenZiel.getAttribute = (n) => (n === "data-id" ? "path-1" : null);
+	liste.zuhoerer.click({ target: zeilenZiel, preventDefault() {} });
+	await ruhe2();
+	assert.ok(w.kasten.gemounted.length > 0, "der Wege-Editor haengt das Bauteil nicht an");
+	const wOpt = w.kasten.gemounted[w.kasten.gemounted.length - 1];
+	assert.strictEqual(wOpt.subject, "weg");
+	assert.strictEqual(wOpt.skin, "dt");
+	checks += 3;
+
+	w.gesendet.length = 0;
+	await wOpt.zuweisen(trefferProbe);
+	const zuweisungen = w.gesendet.filter((s) => s.url.indexOf("/api/edit/wiki/paths.php") !== -1);
+	assert.strictEqual(zuweisungen.length, 1, "der Wege-Editor schickt keine oder mehrere Zuweisungen: "
+		+ JSON.stringify(w.gesendet.map((s) => s.url)));
+	const rumpf = zuweisungen[0].rumpf;
+	assert.strictEqual(rumpf.action, "assign_to");
+	assert.strictEqual(rumpf.wiki_key, "wiki:reichsstrasse-kosch");
+	assert.strictEqual(rumpf.public_id, "path-1");
+	assert.strictEqual(rumpf.dry_run, false);
+	assert.strictEqual(rumpf.confirm, "apply");
+	// 🔴 DIE ZUSICHERUNG, UM DIE ES GEHT: der Weg haengt an ALLEN gleichnamigen Segmenten zugleich.
+	// `single_segment: true` engte das auf das eine gewaehlte Wegstueck ein -- der Weg behielte auf
+	// allen anderen seinen generischen Namen, und der Editor saehe erst beim naechsten Oeffnen,
+	// dass nur ein Drittel verknuepft ist (api/edit/wiki/paths.php:83,
+	// avesmapsWikiPathAssignTo :1047).
+	assert.notStrictEqual(rumpf.single_segment, true,
+		"der Wege-Editor engt die Zuweisung auf EIN Wegstueck ein -- der Wiki-Weg haengt an allen gleichnamigen Segmenten zugleich");
+	checks += 7;
+
+	// Und die Gegenprobe, dass diese Probe ueberhaupt etwas sieht: der Rumpf ist wirklich da.
+	assert.ok(Object.keys(rumpf).length >= 5, JSON.stringify(rumpf));
+	checks += 1;
+
+	// ---- 12b) Ein NEIN des Servers erreicht den Wege-Editor als Ablehnung ---------------------
+	const wNein = sandkastenBauen((url) => {
+		if (url.indexOf("action=list") !== -1) {
+			return { ok: true, ways: [{
+				public_id: "path-1", name: "Aguera", feature_subtype: "Flussweg",
+				show_label: true, allowed_transports: [], transport_seasons: {},
+				wiki_path: null, other_source: null, flow_direction: "", has_profile: false,
+			}], summary: { total: 1 }, calibration: null };
+		}
+		if (url.indexOf("action=detail") !== -1) { return { ok: true, length_units: 5, terrain: null, landscapes: [] }; }
+		// 💣 Der Typriegel: HTTP 200, `ok:true`, aber NICHTS geschrieben.
+		if (url.indexOf("paths.php") !== -1) {
+			return { ok: true, type_ok: false, applied: 0, message: "Der Artikel ist ein Fluss, das Ziel eine Straße." };
+		}
+		return { ok: true };
+	});
+	vm.runInContext(fs.readFileSync(path.join(wurzel, "js/pages/wege-editor.js"), "utf8"), wNein.kasten,
+		{ filename: "wege-editor.js" });
+	await ruhe2();
+	const liste2 = wNein.elemente.wpList;
+	const ziel2 = attrappe("row2");
+	ziel2.dataset.id = "path-1";
+	ziel2.closest = () => ziel2;
+	ziel2.getAttribute = (n) => (n === "data-id" ? "path-1" : null);
+	liste2.zuhoerer.click({ target: ziel2, preventDefault() {} });
+	await ruhe2();
+	const wNeinOpt = wNein.kasten.gemounted[wNein.kasten.gemounted.length - 1];
+	let abgelehnt = false;
+	await wNeinOpt.zuweisen(trefferProbe).then(() => {}, () => { abgelehnt = true; });
+	assert.ok(abgelehnt,
+		"der Wege-Editor loest bei `type_ok:false` auf -- das Bauteil malte danach eine Zuweisung, die der Server nie geschrieben hat");
+	checks += 1;
+
+	// ---- 12c) Und `syncUebernehmen` lehnt ab, wenn es nichts tun kann ------------------------
+	// 🔴 Derselbe Vertrag wie bei `zuweisen`/`loesen`. Ein stilles Aufloesen schloesse die Vorschau,
+	// als sei uebernommen worden.
+	let syncAbgelehnt = false;
+	await Promise.resolve().then(() => wNeinOpt.syncUebernehmen([])).then(() => {}, () => { syncAbgelehnt = true; });
+	assert.ok(syncAbgelehnt, "`syncUebernehmen` loest still auf, wenn es nichts uebernehmen kann");
+	checks += 1;
+
+	// ---- 12d) DER KARTENDIALOG: `laden` LEHNT AB, statt etwas Leeres zu liefern ---------------
+	// 💣 Hier sass die zweite Mutation des Pruefers. Gefahren wird der echte Rueckruf der echten
+	// Oberflaeche -- ein `try { … } catch { return {}; }` um den Zustandsbauer faellt hier auf,
+	// waehrend die alte Textprobe gruen blieb.
+	const k = sandkastenBauen((url) => {
+		if (url.indexOf("clear_assign") !== -1) { return { ok: true, segments: 1, generic_name: "Strasse-9", segments_updated: [] }; }
+		return { ok: true, type_ok: true, applied: 3, wiki_name: "Kosch-Reichsstraße", segments_updated: [] };
+	});
+	// Die Globalen, die der Kartendialog von seinen Nachbarn erwartet.
+	vm.runInContext("var pathEditFeature = null;"
+		+ "function apiErrorMessage(d, f) { return (d && d.error && d.error.message) || f; }"
+		+ "function showFeedbackToast() {}"
+		+ "function findPathByPublicId() { return null; }"
+		+ "function toggleOtherSourceSection() {}"
+		+ "function syncPathAutoNameControls() {}"
+		+ "function renderPathFlowSection() {}"
+		+ "function setPathEditStatus() {}"
+		+ "function syncPathLabels() {}"
+		+ "function refreshPathLayerPopup() {}", k.kasten);
+	vm.runInContext(fs.readFileSync(path.join(wurzel, "js/review/review-path-wiki.js"), "utf8"), k.kasten,
+		{ filename: "review-path-wiki.js" });
+
+	// (1) Ohne Weg im Dialog MUSS der Rueckruf werfen -- nicht `{}` liefern.
+	assert.throws(() => k.kasten.pathWikiZustand(),
+		"der Kartendialog liefert ohne Weg im Dialog einen Zustand, statt zu werfen -- das Bauteil "
+		+ "hielte sich fuer geladen und ein Speichern loeschte die Zuweisung auf allen Segmenten");
+	checks += 1;
+
+	// (2) Und die Folge daraus, ueber das echte Bauteil: kein Schreibwert.
+	const kastenLeer = { textContent: "", innerHTML: "", addEventListener() {}, removeEventListener() {}, querySelector() { return null; } };
+	const stLeer = k.kasten.avesmapsWikiAssignMount(kastenLeer, {
+		subject: "weg", skin: "label-wiki", laden: k.kasten.pathWikiZustand,
+	});
+	await stLeer.neuLaden();
+	assert.strictEqual(stLeer.bereit, false, "ohne lesbaren Stand meldet sich das Bauteil trotzdem bereit");
+	assert.strictEqual(stLeer.lies(), null, "ohne lesbaren Stand liefert lies() einen Schreibwert");
+	checks += 2;
+
+	// 🪤 (2b) UND DIE HALBE FASSUNG DERSELBEN MUTATION. Beim Nachspielen fiel auf: ein
+	// `try { … } catch { return {}; }` um NUR den unteren Teil der Funktion laesst (1) gruen --
+	// die fruehe Wache wirft ja weiter. Geschluckt wuerde dann alles, was der geteilte Bauer
+	// meldet. Also wird er selbst zum Werfen gebracht: was er sagt, MUSS durch die Oberflaeche
+	// hindurch. Das faengt ein `catch` an JEDER Stelle der Funktion, ohne den Quelltext zu lesen.
+	const echterBauer = k.kasten.avesmapsWikiAssignWegZustand;
+	k.kasten.avesmapsWikiAssignWegZustand = () => { throw new Error("Bauer sagt nein"); };
+	vm.runInContext("pathEditFeature = { properties: { public_id: 'path-7', feature_subtype: 'Strasse' } };", k.kasten);
+	assert.throws(() => k.kasten.pathWikiZustand(), /Bauer sagt nein/,
+		"der Kartendialog schluckt einen Fehler des geteilten Zustandsbauers");
+	k.kasten.avesmapsWikiAssignWegZustand = echterBauer;
+	checks += 1;
+
+	// Dasselbe im Wege-Editor -- und das ist zugleich die einzige Art, dort an den Fehlerpfad zu
+	// kommen: `state.draft` ist nach der ersten Auswahl nie wieder leer, die Wache davor also
+	// Tiefenstaffelung. Der Bauer dagegen ist von aussen erreichbar.
+	const echterBauerW = w.kasten.avesmapsWikiAssignWegZustand;
+	w.kasten.avesmapsWikiAssignWegZustand = () => { throw new Error("Bauer sagt nein"); };
+	assert.throws(() => wOpt.laden(), /Bauer sagt nein/,
+		"der Wege-Editor schluckt einen Fehler des geteilten Zustandsbauers");
+	w.kasten.avesmapsWikiAssignWegZustand = echterBauerW;
+	checks += 1;
+
+	// (3) Mit einem Weg im Dialog liefert derselbe Rueckruf einen gueltigen Zustand.
+	vm.runInContext("pathEditFeature = { properties: { public_id: 'path-7', feature_subtype: 'Strasse',"
+		+ " wiki_path: { wiki_key: 'wiki:aguera', name: 'Aguera', kind: 'fluss', wiki_url: 'https://w/wiki/Aguera' } } };", k.kasten);
+	const zustand = k.kasten.pathWikiZustand();
+	assert.strictEqual(zustand.artikel.wiki_key, "wiki:aguera");
+	checks += 1;
+
+	// ---- 12e) DER KARTENDIALOG: der Rumpf, den er WIRKLICH absendet --------------------------
+	k.gesendet.length = 0;
+	await k.kasten.pathWikiZuweisen(trefferProbe);
+	const kZuweisungen = k.gesendet.filter((s) => s.url.indexOf("/api/edit/wiki/paths.php") !== -1);
+	assert.strictEqual(kZuweisungen.length, 1, JSON.stringify(k.gesendet.map((s) => s.url)));
+	const kRumpf = kZuweisungen[0].rumpf;
+	assert.strictEqual(kRumpf.action, "assign_to");
+	assert.strictEqual(kRumpf.wiki_key, "wiki:reichsstrasse-kosch");
+	assert.strictEqual(kRumpf.public_id, "path-7");
+	assert.strictEqual(kRumpf.dry_run, false);
+	assert.strictEqual(kRumpf.confirm, "apply");
+	// 🔴 Dieselbe Zusicherung wie beim Wege-Editor: die Zuweisung gilt dem GANZEN Weg.
+	assert.notStrictEqual(kRumpf.single_segment, true,
+		"der Kartendialog engt die Zuweisung auf EIN Segment ein -- der Wiki-Weg haengt an allen gleichnamigen Segmenten zugleich");
+	checks += 7;
+
+	// Und auch im Kartendialog ist `type_ok:false` ein NEIN -- HTTP 200, `ok:true`, nichts
+	// geschrieben. Eigener Sandkasten, weil die Antwort eine andere ist.
+	const kNein = sandkastenBauen(() => ({ ok: true, type_ok: false, applied: 0, message: "Typ passt nicht." }));
+	vm.runInContext("var pathEditFeature = { properties: { public_id: 'path-7', feature_subtype: 'Strasse' } };"
+		+ "function apiErrorMessage(d, f) { return f; } function showFeedbackToast() {}"
+		+ "function findPathByPublicId() { return null; } function toggleOtherSourceSection() {}"
+		+ "function syncPathAutoNameControls() {} function renderPathFlowSection() {}"
+		+ "function setPathEditStatus() {} function syncPathLabels() {} function refreshPathLayerPopup() {}", kNein.kasten);
+	vm.runInContext(fs.readFileSync(path.join(wurzel, "js/review/review-path-wiki.js"), "utf8"), kNein.kasten,
+		{ filename: "review-path-wiki.js" });
+	let kAbgelehnt = false;
+	await kNein.kasten.pathWikiZuweisen(trefferProbe).then(() => {}, () => { kAbgelehnt = true; });
+	assert.ok(kAbgelehnt,
+		"der Kartendialog loest bei `type_ok:false` auf -- das Bauteil malte danach eine Zuweisung, die der Server nie geschrieben hat");
+	checks += 1;
+
+	// ---- 12f) Und das Entfernen fragt ZUERST, bevor es den ganzen Weg loest -------------------
+	// 🔴 Owner-Regel vom 05.07.2026: „Entfernen" darf nie ungefragt den ganzen Weg abraeumen. Der
+	// erste Ruf ist deshalb ein `dry_run`, der die Reichweite misst.
+	k.gesendet.length = 0;
+	await k.kasten.pathWikiLoesen();
+	const loesRufe = k.gesendet.filter((s) => s.rumpf && s.rumpf.action === "clear_assign");
+	assert.strictEqual(loesRufe.length, 2, "das Entfernen misst seine Reichweite nicht vorher: "
+		+ JSON.stringify(loesRufe.map((r) => r.rumpf)));
+	assert.strictEqual(loesRufe[0].rumpf.dry_run, true, "der erste Ruf schreibt schon");
+	assert.strictEqual(loesRufe[1].rumpf.dry_run, false);
+	assert.strictEqual(loesRufe[1].rumpf.confirm, "apply");
+	checks += 4;
+
 	console.log("wiki-assign-weg: " + checks + " Zusicherungen erfuellt");
 })();

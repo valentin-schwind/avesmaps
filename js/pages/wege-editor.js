@@ -667,8 +667,13 @@
 	 * ⚠️ ÜBERNEHMEN FÜLLT NUR DEN ENTWURF (Entwurf §6) -- gespeichert wird mit „Speichern".
 	 */
 	function wikiAssignSyncUebernehmen(zeilen) {
+		// 🔴 DERSELBE VERTRAG WIE BEI `zuweisen` UND `loesen`: wer nichts tun konnte, WIRFT. Ein
+		// stilles Auflösen hiesse fuer das Bauteil „uebernommen", es schloesse die Vorschau, und der
+		// Editor haette den Eindruck, sein Haken sei in den Entwurf gewandert. Praktisch
+		// unerreichbar (ohne Haken ist der Knopf ausgegraut) -- aber ein Vertrag, der nur an zwei
+		// von drei Stellen gilt, ist keiner.
 		var wegtyp = avesmapsWikiAssignWegSyncWegtyp(zeilen);
-		if (wegtyp === null || !state.draft) { return; }
+		if (wegtyp === null || !state.draft) { throw new Error("Keine übernehmbare Angabe angehakt."); }
 		state.draft.feature_subtype = wegtyp;
 		state.draft.dirty = true;
 		// Der Wegtyp entscheidet, welche Transportmittel ueberhaupt angeboten werden -- also neu

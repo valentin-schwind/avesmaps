@@ -62,7 +62,7 @@ Object.entries(AVESMAPS_WIKI_ASSIGN_REGISTRY).forEach(([subject, e]) => {
 //   · `wiki_key` / `name` / `wiki_url` -- Identitaet; das Bauteil zeichnet sie selbst als
 //     „Artikel"/„Schlüssel"/„Wiki ↗", eine Feldzeile dafuer waere die zweite Anzeige derselben Sache.
 //   · abgeleitete Angaben, die KEIN Infoboxfeld sind: `kind` (aus dem NAMEN der Infobox,
-//     api/_internal/wiki/paths.php:468), `continent`, `match_key`, `synonyms_json`.
+//     api/_internal/wiki/paths.php:469), `continent`, `match_key`, `synonyms_json`.
 //   · `verlauf` (eine gerechnete Stationskette mit eigenem Abgleich, path-verlauf.php) und
 //     `description` (Fliesstext aus dem Artikelrumpf, paths.php:532) -- beides keine Infoboxwerte.
 //   · Bild- und Betriebsangaben: `image_*`, `synced_at`, `source`.
@@ -73,21 +73,21 @@ const WIRKLICHKEIT = {
 		// $laenge = $field(['lange','langen','lenge']); $regionen = $field(['regionen','region','lage']);
 		wiki: ["staerke", "affinitaet", "laenge", "regionen"],
 		// Kein bearbeitbares Kartenfeld: der Wiki-Block im Editor traegt ausdruecklich das Abzeichen
-		// "nicht editierbar" (html/wiki-sync-powerline-editor.html:429) -- reine Anzeige, kein Ziel.
+		// "nicht editierbar" (html/wiki-sync-powerline-editor.html:439) -- reine Anzeige, kein Ziel.
 		karte: [],
 	},
 	weg: {
 		// Der Wege-Parser liest genau drei Infobox-Wertfelder ausser dem Namen
-		// (api/_internal/wiki/paths.php:479-486):
+		// (api/_internal/wiki/paths.php:479, :480, :486):
 		// $art = $field(['art','typ']); $lage = $field(['regionen','region','lage']);
-		// $laenge = $field(['lange','langen','lenge']);   ($name = $field(['name']) auf :476)
+		// $laenge = $field(['lange','langen','lenge']);   ($name = $field(['name']) auf :475)
 		// Dieselben drei reisen im Nest properties.wiki_path mit
 		// (avesmapsWikiPathBuildAssignObject, :874-876) und stehen in den Suchspalten (:711-712).
 		wiki: ["art", "lage", "laenge"],
 		// Das EINZIGE bearbeitbare Kartenfeld, das eine Wiki-Angabe fuellen kann. Gemessen an
-		// beiden Speicherwegen: js/pages/wege-editor.js:556 schickt `feature_subtype` an
+		// beiden Speicherwegen: js/pages/wege-editor.js:717 schickt `feature_subtype` an
 		// update_path_details, und der Kartendialog liest denselben Wert aus #path-edit-type
-		// (js/review/review-paths.js:187). `name` steht bewusst NICHT hier -- der Server setzt ihn
+		// (js/review/review-paths.js:193). `name` steht bewusst NICHT hier -- der Server setzt ihn
 		// bei der Zuweisung selbst (R1); ein Kartenziel „Laenge" gibt es nicht.
 		karte: ["feature_subtype"],
 	},

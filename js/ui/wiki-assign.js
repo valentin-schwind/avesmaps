@@ -40,10 +40,27 @@
 // elften Mal nachgebaut, nur verteilt.
 //
 // ⚠️ WO DIE DREI DATEIEN GELADEN WERDEN MUESSEN: registry, diff, dann DIESE -- in der Reihenfolge.
-// Ein Editorfenster ist ein iframe mit eigenem Dokument und bindet sie selbst (Vorbild:
-// html/wiki-sync-powerline-editor.html). Fuer die Kartendialoge (Huelle `label-wiki`) gehoeren sie
-// in die Skriptliste von index.html — dort stehen sie am 16.08.2026 noch NICHT, weil noch keine
-// Kartenoberflaeche angeschlossen ist. Wer die erste anschliesst (Aufgabe 4), traegt sie ein.
+// Ein Editorfenster ist ein iframe mit eigenem Dokument und bindet sie selbst; die Kartendialoge
+// binden sie in der Skriptliste von index.html. ✅ Beides steht seit Aufgabe 4 (Weg):
+// index.html:3062-3065 und html/wege-editor.html:165-168, jeweils samt js/ui/wiki-assign-weg.js
+// (dem Datenweg DIESER Objektart). Vorbild fuer ein weiteres Editorfenster:
+// html/wiki-sync-powerline-editor.html. Wer eine Objektart anschliesst, deren Oberflaeche in einem
+// dritten Dokument lebt, traegt die drei Zeilen dort ein -- `mount` liefert sonst einen erkennbaren
+// Blindgaenger (bereit === false), und der Kasten sagt nur, welche Datei fehlt.
+//
+// 🔴 WAS AUFGABE 4 GELERNT HAT UND DIE AUFGABEN 5-9 BETRIFFT -- beides hat der Pruefer gefunden,
+// nicht der Test:
+//   1. `laden` MUSS im Fehlerfall ABLEHNEN (werfen bzw. eine abgelehnte Zusage), nie mit etwas
+//      Leerem aufloesen. Der Vertrag steht unten bei RUECKGABE; hier steht, warum er teuer ist:
+//      ein aufgeloestes `{}` ist vom Zustand „nichts zugewiesen" nicht zu unterscheiden, `lies()`
+//      gaebe Leerstrings, und beim Weg schriebe ein „Speichern" das auf ALLE gleichnamigen
+//      Segmente zugleich.
+//   2. 💣 EINE TEXTPROBE PRUEFT DAS NICHT. Eine Zusicherung der Form „im Quelltext der Oberflaeche
+//      kommt avesmapsWikiAssign…Zustand( vor" bleibt gruen, wenn jemand ein
+//      `try { … } catch { return {}; }` darum legt -- genau diese Mutation lief in Aufgabe 4
+//      durch. Wer eine Oberflaeche anschliesst, faehrt ihren `laden`-Rueckruf WIRKLICH: Quelle
+//      wegnehmen, Rueckruf rufen, auf `throws`/`rejects` pruefen -- und danach ueber `mount`, dass
+//      `bereit === false` und `lies() === null` daraus folgen.
 //
 // ZUSTAND (die Rueckgabe von `laden`), jede Angabe optional:
 //   {
@@ -146,22 +163,21 @@ const AVESMAPS_WIKI_ASSIGN_TEXTE = {
 // `<div class="label-wiki-reference">` aus index.html als Behaelter uebergibt, bekommt den Kasten
 // doppelt geschachtelt (Rahmen im Rahmen, Polsterung doppelt). Behaelter hinein, Huelle heraus.
 //
-// ⚠️ Verdrahtet und geprueft ist in Aufgabe 3 nur `dt`. Die `label-wiki`-Zeile ist aus dem Bestand
-// abgelesen (css/components/region-sync.css, js/review/review-label-wiki.js, index.html). Diese
-// Namen gibt es dort heute noch NICHT und sie brauchen in Aufgabe 4 je eine Regel in
-// region-sync.css — Vorlage ist jeweils die gleichnamige `.dt-*`-Regel in editor-page.css:
-//   .label-wiki-reference__hint
-//   .label-wiki-reference__check          (der dritte Zustand)
-//   .label-wiki-picker-list__warn
-//   .label-wiki-picker-list__item.is-active   (region-sync.css:163 kennt nur :hover -- OHNE diese
-//                                              Regel waere die TASTATURAUSWAHL ↑ ↓ in dieser Huelle
-//                                              unsichtbar, und die Tastatur ist der halbe Zweck)
-//   .label-wiki-sync-rows / -row / -row__k / -row__alt / -row__pfeil / -row__neu / -row__grund
-// 💣 Hier steht bewusst KEINE ZAHL. In der ersten Fassung stand „DREI ihrer Namen" -- es waren elf,
-// und die zwei wichtigsten (der dritte Zustand und die Tastaturmarkierung) fehlten in der Liste.
-// Eine Zahl liest sich wie eine vollstaendige Liste und niemand zaehlt nach; genau daran ist am
-// 14.08.2026 die Verkehrsmittel-Sperre („ERZEUGER 1 VON 2") gescheitert (AGENTS.md §11).
-// Wer hier etwas hinzufuegt, ergaenzt die Aufzaehlung.
+// ✅ BEIDE Huellen sind verdrahtet und im Ablauf gefahren: `dt` in Aufgabe 3 (Kraftlinien-Editor),
+// `label-wiki` in Aufgabe 4 (Weg, Kartendialog). Die Regeln, die die `label-wiki`-Zeile braucht,
+// stehen seither in css/components/region-sync.css — der Hinweis, das Haekchen des dritten
+// Zustands, die Warnzeile im Treffer, die Markierung des mit ↑ ↓ gewaehlten Treffers und die
+// ganze Sync-Vorschau.
+// 💣 Wer hier eine ROLLE HINZUFUEGT, gibt ihr in BEIDEN Huellen einen Namen und in BEIDEN
+// Stylesheets eine Regel. Die Aufzaehlung dieser Pflicht steht bewusst ohne ZAHL: in der ersten
+// Fassung stand „DREI ihrer Namen" -- es waren elf, und die zwei wichtigsten (der dritte Zustand
+// und die Tastaturmarkierung) fehlten in der Liste. Eine Zahl liest sich wie eine vollstaendige
+// Liste und niemand zaehlt nach; genau daran ist am 14.08.2026 die Verkehrsmittel-Sperre
+// („ERZEUGER 1 VON 2") gescheitert (AGENTS.md §11).
+// ⭐ Seit Aufgabe 4 zaehlt eine Zusicherung selbst nach, statt sich auf diesen Absatz zu verlassen:
+// js/ui/__tests__/wiki-assign-weg.test.js prueft fuer JEDE Rolle beider Huellen, dass die erzeugte
+// Klasse irgendwo in css/ eine Regel hat -- und die KOMBINATION `.<treffer>.<trefferAktiv>` eigens,
+// weil `is-active` in beiden Huellen gleich heisst und die generische Klasse allein nichts faerbt.
 const AVESMAPS_WIKI_ASSIGN_SKINS = {
 	// Editorfenster (iframes). Regeln: css/components/editor-page.css.
 	dt: {
@@ -909,8 +925,10 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		}
 		if (suche.art === "server" && avesmapsWikiAssignText(suche.url) !== "") {
 			// ⚠️ `data.rows` ist die gemessene Form der drei vorhandenen Suchen
-			// (review-label-wiki.js:219, review-settlement-wiki.js:148, review-path-wiki.js:186) —
-			// abgelesen, nicht geraten.
+			// (review-label-wiki.js:219, review-settlement-wiki.js:148 und, bis zu ihrer Abloesung in
+			// Aufgabe 4, review-path-wiki.js) — abgelesen, nicht geraten. Seit dem 16.08.2026 auch
+			// live gefahren: js/ui/__tests__/wiki-assign-weg.test.js schiebt `fetch` eine Antwort unter
+			// und faehrt beide Weg-Oberflaechen damit an.
 			const url = suche.url + "?action=search&q=" + encodeURIComponent(avesmapsWikiAssignText(suchtext))
 				+ "&limit=" + AVESMAPS_WIKI_ASSIGN_TREFFER_LIMIT;
 			// Wie eine flache Antwortzeile zu einem Treffer wird, entscheidet die Oberflaeche --

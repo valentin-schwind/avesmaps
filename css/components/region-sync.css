@@ -206,32 +206,18 @@
  *    legal-dialog.css am 12.08.2026, AGENTS.md §9).
  */
 
-/* 🔴 IM WEG-DIALOG IST DER KOPF DES BAUTEILS DIE ABSCHNITTSUEBERSCHRIFT -- und muss aussehen wie
-   die seiner Nachbarn. Der Block „Wiki-Weg" trug bis zum 16.08.2026 ZWEI Ueberschriften: eine
+/* 🔴 IM WEG-DIALOG IST DER KOPF DES BAUTEILS DIE ABSCHNITTSUEBERSCHRIFT, und er muss aussehen
+   wie die seiner Nachbarn. Der Block „Wiki-Weg" trug bis zum 16.08.2026 ZWEI Ueberschriften: eine
    `.label-edit-section-title` davor und den Kopf des Kastens darunter („Fluss / Straße aus dem
    Wiki"). Die aeussere ist mit dem Umbau entfallen, weil das Bauteil seinen Titel selbst setzt --
    damit rutschte „Wiki-Weg" aber aus der Rangfolge: seine Geschwister „Andere Quelle" und
-   „Strömung" stehen weiter als goldene Versalien da, `.label-wiki-reference__title` dagegen in
-   Gewicht 600 und Textfarbe. Im DUNKELMODUS liest sich das wie Fliesstext (gemessen: #eae1cf
-   gegen #c9a97e), und einer von drei Abschnitten gehoert optisch nicht mehr zur Gruppe.
-   ⚠️ Eingeengt auf `#path-edit-dialog` (1,1,0 gegen 0,1,0): dieselbe Klasse traegt in anderen
-   Fenstern (Landschaften-Eigenschaften, Siedlungs-Dialog) den Kopf eines Kastens NEBEN eigenen
-   Ueberschriften -- dort waeren Versalien in Gold falsch. Vorbild fuer die Einengung ist
-   `#label-edit-dialog .label-wiki-reference__desc` weiter oben in dieser Datei.
-   💣 Die sechs Werte SIND eine Abschrift von `.label-edit-section-title` (weiter unten in dieser
-   Datei), und das ist die Stelle, an der so etwas auseinanderlaeuft. Sie an die Selektorliste
-   jener Regel zu haengen ginge nicht: die setzt zusaetzlich `margin`/`padding-top`/`border-top`
-   fuer eine ALLEINSTEHENDE Ueberschrift, und hier ist der Titel ein Flex-Kind neben den Knoepfen
-   -- er bekaeme eine Linie mitten in den Kasten. Statt eines Kommentars, der bis zur ersten
-   Aenderung gilt, wacht eine Zusicherung: js/ui/__tests__/wiki-assign-weg.test.js vergleicht die
-   sechs Deklarationen der beiden Regeln Zeichen fuer Zeichen. */
+   „Strömung" stehen als goldene Versalien da, `.label-wiki-reference__title` dagegen in Gewicht 600
+   und Textfarbe. Im DUNKELMODUS liest sich das wie Fliesstext (gemessen: #eae1cf gegen #c9a97e).
+   ⭐ DIE SECHS TYPOGRAFISCHEN WERTE STEHEN DESHALB NICHT HIER, sondern EINMAL unten in der
+   gemeinsamen Regel mit `.label-edit-section-title`. Hier bleibt nur, was NUR dieser Kopf braucht:
+   das Zuruecknehmen von `font-weight: 600` aus `.label-wiki-reference__title`. */
 #path-edit-dialog .label-wiki-reference__title {
-	font-family: "Faculty Glyphic", Arial, sans-serif;
-	font-size: 12px;
 	font-weight: 400;
-	text-transform: uppercase;
-	letter-spacing: 0.08em;
-	color: var(--color-accent-brown);
 }
 
 /* Das Suchfeld fuellt seine Rasterzelle -- in der `dl`-Huelle ist die zweite Spalte
@@ -432,12 +418,28 @@
 	max-height: 94vh;
 }
 
-.label-edit-section-title {
-	font-family: "Faculty Glyphic", Arial, sans-serif;
-	font-size: 12px;
+/* 🔴 DIE SECHS WERTE EINER ABSCHNITTSUEBERSCHRIFT STEHEN GENAU HIER, EINMAL.
+   Der zweite Selektor ist der Kopf der Wiki-Zuweisung im Weg-Dialog: seit Aufgabe 4 IST er die
+   Ueberschrift seines Abschnitts (die aeussere `.label-edit-section-title` ist entfallen, weil das
+   Bauteil seinen Titel selbst setzt), also muss er aussehen wie seine Nachbarn „Andere Quelle" und
+   „Strömung". Bis zum 16.08.2026 stand er als Abschrift daneben -- genau die Stelle, an der zwei
+   Regeln auseinanderlaufen.
+   ⚠️ Der Zusatz ist auf `#path-edit-dialog` eingeengt (1,1,0): dieselbe Klasse traegt in anderen
+   Fenstern (Landschaften-Eigenschaften, Siedlungs-Dialog) den Kopf eines Kastens NEBEN eigenen
+   Ueberschriften -- dort waeren Versalien in Gold falsch.
+   💣 Der KASTEN-Teil (margin/padding/border-top) bleibt unten allein bei
+   `.label-edit-section-title`: er gehoert einer alleinstehenden Ueberschrift. Der Titel im Bauteil
+   ist ein Flex-Kind neben den Knoepfen und bekaeme sonst eine Linie mitten in den Kasten. */
+.label-edit-section-title,
+#path-edit-dialog .label-wiki-reference__title {
+	font-family: var(--font-ui);
+	font-size: var(--font-size-small);
 	text-transform: uppercase;
-	letter-spacing: 0.08em;
+	letter-spacing: var(--letter-spacing-caps);
 	color: var(--color-accent-brown);
+}
+
+.label-edit-section-title {
 	margin: 10px 0 2px;
 	padding-top: 8px;
 	border-top: 1px solid var(--color-border);
