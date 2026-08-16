@@ -431,11 +431,11 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			//      Kartenobjekt -- ein Gebiet OHNE Artikel hat dort gar keine Zeile. Der Merker
 			//      koennte also genau den Fall nicht festhalten, fuer den er da ist.
 			//   3. Und er waere heute WIRKUNGSLOS: avesmapsConflictLoadTerritoryRows
-			//      (api/_internal/conflicts/rules.php:151-158) verbindet `political_territory` per
-			//      INNER JOIN mit `political_territory_wiki` und verlangt `w.wiki_url <> ''` -- ein
-			//      Gebiet ohne Wiki-Bezug erreicht die Beobachtungsliste nie, und die erzeugte Zeile
-			//      (:184-192) setzt keinen `no_article`-Schluessel, den avesmapsConflictRuleMissingKey
-			//      (:371) lesen koennte.
+			//      (api/_internal/conflicts/rules.php:144) verbindet `political_territory` per
+			//      INNER JOIN mit `political_territory_wiki` (:165) und verlangt `w.wiki_url <> ''`
+			//      (:168) -- ein Gebiet ohne Wiki-Bezug erreicht die Beobachtungsliste nie, und die
+			//      erzeugte Zeile (:195-203, `$rows[] = ['type' => 'territory', …]`) setzt keinen
+			//      `no_article`-Schluessel, den avesmapsConflictRuleMissingKey (:432) lesen koennte.
 			// 🔧 Der ehrliche Weg waere eine Spalte an `political_territory` plus ein Schreibweg in
 			// `update_territory` plus die zwei Zeilen in der Konfliktregel -- eine Owner-Entscheidung,
 			// kein Nachtrag. Hier nichts erfinden.
@@ -525,11 +525,12 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			//      Schemaaenderung.
 			//   2. Er waere in der KONFLIKTLISTE wirkungslos -- also genau dort, wofuer ihn die drei
 			//      anderen Hinweise versprechen. avesmapsConflictLoadGameLiteratureRows
-			//      (api/_internal/conflicts/rules.php:198) verlangt
-			//      `status='approved' AND wiki_url IS NOT NULL AND wiki_url <> ''` (:201-202); ein
+			//      (api/_internal/conflicts/rules.php:209) verlangt
+			//      `status = 'approved' AND wiki_url IS NOT NULL AND wiki_url <> ''` (:213); ein
 			//      Eintrag OHNE Zuweisung erreicht die Liste nie. Und die Watchlist-Regel
-			//      avesmapsConflictRuleMissingKey laeuft ohnehin nur ueber die Kartenzeilen (:520) --
-			//      Literatur reicht nur in die Kollisionsregel hinein (:519).
+			//      avesmapsConflictRuleMissingKey bekommt ohnehin nur die Kartenzeilen (:599, das
+			//      Argument heisst dort `$rows`) -- Literatur landet allein in `$claimRows` (:594),
+			//      und der geht nur an die Kollisionsregel avesmapsConflictRuleSharedArticle (:598).
 			//   3. Die EINE Stelle, an der er beissen WUERDE, ist eine andere als bei allen Vorbildern:
 			//      avesmapsGameLiteratureFindOrAdoptRow (game-literature-sync.php:581-584) adoptiert
 			//      eine manuelle Zeile OHNE `wiki_key` ueber ihren exakten TITEL und setzt Schluessel
