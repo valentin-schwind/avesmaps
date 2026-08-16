@@ -204,3 +204,52 @@ assert(abs(avesmapsOffroadRampFactor(1.0) - (1.0 + AVESMAPS_OFFROAD_RAMP_PER_MIL
     'und der gemeinsame Ruecksetzer nimmt sie mit zurueck: ' . avesmapsOffroadRampFactor(1.0));
 
 echo "travel-values-test: Laengenaufschlag geprüft\n";
+
+// ============================================================ H. Der einstellbare Reisetag
+//
+// 🔴 DIE STUNDEN ZIEHEN DAS RASTER MIT (Owner-Entscheid 16.08.2026). Jede Zelle ist eine
+// Tagesleistung geteilt durch den Reisetag; wer nur die Stunden verstellt, verstellt die
+// Tagesleistung. Der Regler beantwortet „Wie lange ist ein Reisetag?", nicht „Wie weit komme ich?".
+$werteH = avesmapsTravelValuesRead(null);
+assert($werteH['travel_hours'] === ['land' => 8.0, 'water' => 12.0, 'night' => 24.0],
+    'ohne Speicher gelten die drei Konstanten: ' . json_encode($werteH['travel_hours']));
+
+$vorher = (float) $werteH['grid']['groupFoot']['Strasse'];
+$nachher = avesmapsTravelValuesApplyIncoming($werteH, ['travel_hours' => ['land' => 12]]);
+assert($nah((float) $nachher['grid']['groupFoot']['Strasse'], $vorher * 8.0 / 12.0, 0.011),
+    'Land 8 -> 12 Stunden zieht das Raster mit alt/neu: ' . $nachher['grid']['groupFoot']['Strasse']);
+// 💣 DAS IST DER PUNKT DER GANZEN REGEL: die Tagesleistung darf sich NICHT bewegen.
+assert($nah(avesmapsTravelValuesDayMilesFromSpeed((float) $nachher['grid']['groupFoot']['Strasse'], true, 12.0),
+    avesmapsTravelValuesDayMilesFromSpeed($vorher, true, 8.0), 0.05),
+    'die Tagesleistung bleibt, was die Quelle sagt');
+assert((float) $nachher['grid']['cargoShip']['Seeweg'] === (float) $werteH['grid']['cargoShip']['Seeweg'],
+    'Wasser bleibt unberuehrt, wenn nur der Landtag wandert');
+
+// ⚠️ Ein im selben Zug geschicktes Raster wird VERWORFEN -- das Fenster hat es unter den alten
+// Stunden gezeichnet, und darueberzulegen machte die Skalierung lautlos rueckgaengig.
+$mitRaster = avesmapsTravelValuesApplyIncoming($werteH, [
+    'travel_hours' => ['land' => 12],
+    'grid' => ['groupFoot' => ['Strasse' => 99.0]],
+]);
+assert((float) $mitRaster['grid']['groupFoot']['Strasse'] !== 99.0,
+    'das mitgeschickte Raster darf die Skalierung nicht ueberschreiben: ' . $mitRaster['grid']['groupFoot']['Strasse']);
+
+// Ohne Stundenaenderung greift der Rasterpfad wie bisher.
+$nurRaster = avesmapsTravelValuesApplyIncoming($werteH, ['grid' => ['groupFoot' => ['Strasse' => 5.0]]]);
+assert((float) $nurRaster['grid']['groupFoot']['Strasse'] === 5.0, 'ohne Stundenaenderung zaehlt das Raster');
+
+// Grenzen: 0 und mehr als 24 kommen nicht durch, der alte Wert bleibt stehen.
+foreach ([0, -3, 25, 'abc'] as $mist) {
+    $abgelehnt = avesmapsTravelValuesApplyIncoming($werteH, ['travel_hours' => ['land' => $mist]]);
+    assert((float) $abgelehnt['travel_hours']['land'] === 8.0, 'unsinnige Stundenzahl faellt durch: ' . var_export($mist, true));
+}
+
+// Der Ruecksetzer holt die drei Konstanten zurueck -- und rechnet das Raster gegen SIE.
+$zurueckH = avesmapsTravelValuesResetSection($nachher, 'hours');
+assert($zurueckH['travel_hours'] === ['land' => 8.0, 'water' => 12.0, 'night' => 24.0], 'Ruecksetzer hours');
+
+// 🔴 Die Form muss den Schluessel tragen, sonst faellt er beim Speichern lautlos heraus.
+assert(array_key_exists('travel_hours', avesmapsTravelValuesStorableShape($werteH)),
+    'travel_hours steht in avesmapsTravelValuesStorableShape -- sonst wird es nie gespeichert');
+
+echo "travel-values-test: all asserts passed\n";

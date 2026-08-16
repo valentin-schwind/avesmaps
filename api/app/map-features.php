@@ -195,6 +195,16 @@ try {
         'revision' => $revision,
         'type' => 'FeatureCollection',
         'features' => $features,
+        // 🔴 DIE DREI REISETAGE, damit der Planer sie nicht ein zweites Mal behaupten muss. Land 8
+        // (WdE S. 160-162), Fluss/See 12 und Schnellsegler 24 (GA S. 129/131) sind der NENNER der
+        // Tempotabelle; das Fenster „Tempowerte" kann sie verstellen, und ohne diese Leitung stuende
+        // die Einstellung in der Datenbank, waehrend `#travelHoursPerDay` weiter seine 8 aus dem
+        // Markup nimmt. Der Router raste dann nach 8 Stunden, obwohl er mit 10 rechnet -- die
+        // Tagesleistung faellt auf 80 %, und keine einzige Zahl sieht dabei falsch aus.
+        // ⚠️ EIN app_setting-Lesevorgang je Anfrage, wie der Bild-Notaus daneben. Der Wert wandert
+        // NICHT in map_revision (er aendert kein Kartenobjekt); wer im Fenster speichert, sieht ihn
+        // beim naechsten vollen Laden.
+        'travel_hours' => (object) avesmapsMapFeaturesTravelHours($pdo),
         // (object) casts force JSON objects (maps) even when empty (`{}` not `[]`); the nested
         // ref lists stay JSON arrays. Keys: catalog by source_id, refs by "<entity_type>:<public_id>".
         'source_catalog' => (object) $sourceCatalog,
@@ -382,6 +392,30 @@ function avesmapsMapFeaturesSettlementImagesEnabled(PDO $pdo): bool {
         return avesmapsAppSettingGetWithoutDdl($pdo, 'settlement_images_enabled', '1') !== '0';
     } catch (Throwable) {
         return true;
+    }
+}
+
+/**
+ * Die drei Reisetage fuer den Planer — Land, Wasser, Nachtfahrt.
+ *
+ * 🔴 EINE QUELLE, ZWEI LESER. Der Router liest sie ueber avesmapsTravelValuesRead(); der Browser
+ * bekommt sie hierdurch. Ohne diese Leitung waere `#travelHoursPerDay` eine zweite Wahrheit -- und
+ * eine, die genau dann falsch wird, wenn jemand die Werte im Fenster „Tempowerte" verstellt.
+ *
+ * ⚠️ Fail-open wie der Bild-Notaus darueber: faellt der Lesevorgang aus, kommen die Konstanten
+ * zurueck, und der Planer verhaelt sich wie vor der Einstellbarkeit. Eine fehlende Einstellung darf
+ * die Kartennutzlast nicht mitreissen.
+ */
+function avesmapsMapFeaturesTravelHours(PDO $pdo): array {
+    try {
+        require_once __DIR__ . '/../_internal/routing/travel-values.php';
+        $values = avesmapsTravelValuesRead($pdo);
+
+        return is_array($values['travel_hours'] ?? null)
+            ? $values['travel_hours']
+            : avesmapsTravelValuesHoursFallback();
+    } catch (Throwable) {
+        return ['land' => 8.0, 'water' => 12.0, 'night' => 24.0];
     }
 }
 

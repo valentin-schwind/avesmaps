@@ -37,8 +37,8 @@ const allowed = (() => {
 // 2026-08-15-querfeldein-laengenaufschlag-design.md §6).
 assert.deepStrictEqual(
 	allowed.slice().sort(),
-	["all", "day_miles", "ground", "landscapes", "misc", "offroad", "path_factors"],
-	"der Endpunkt kennt genau die sieben Abschnitte — ist: " + allowed.join(", ")
+	["all", "day_miles", "ground", "hours", "landscapes", "misc", "offroad", "path_factors"],
+	"der Endpunkt kennt genau die acht Abschnitte — ist: " + allowed.join(", ")
 );
 
 const used = [...dialog.matchAll(/data-section="([a-z_]+)"/g)].map((m) => m[1]);
@@ -111,8 +111,8 @@ assert.ok(
 // dort wirkungslos und setzt still auf "" statt auf den Wert.
 assert.strictEqual(
 	(dialog.match(/data-loaded="/g) || []).length,
-	5,
-	"alle fuenf Zeilenbauer (Raster, Landschaft, Boden, Einzelwert, Querfeldein-Aufschlag) tragen `data-loaded`"
+	6,
+	"alle sechs Zeilenbauer (Raster, Landschaft, Boden, Einzelwert, Querfeldein-Aufschlag, Reisetag) tragen `data-loaded`"
 );
 assert.ok(dialog.includes("wp-tempo__undo"), "und es gibt den Zeilen-Ruecksetzer");
 const css = read("css/pages/wege-editor.css");

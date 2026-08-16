@@ -70,7 +70,7 @@ try {
 
     if ($action === 'reset') {
         $section = avesmapsNormalizeSingleLine((string) ($payload['section'] ?? ''), 40);
-        if (!in_array($section, ['day_miles', 'path_factors', 'landscapes', 'ground', 'misc', 'offroad', 'all'], true)) {
+        if (!in_array($section, ['day_miles', 'path_factors', 'landscapes', 'ground', 'misc', 'offroad', 'hours', 'all'], true)) {
             avesmapsErrorResponse(400, 'invalid_section', 'Unbekannter Abschnitt.');
         }
         // 🔴 Die Landschaften stehen in ihrer eigenen Spalte, also setzt sie ihr eigener Rücksetzer

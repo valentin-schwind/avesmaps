@@ -1349,6 +1349,39 @@
 			+ "</tr>";
 	}
 
+	/* Eine Zeile des Reisetages. Eigener Bauer, weil der GA-Wert hier je Zeile ein ANDERER ist --
+	 * an Land hat die Geographia gar keinen (die 8 stehen in „Wege des Entdeckers"), auf dem Wasser
+	 * nennt sie 12, beim Schnellsegler 24.
+	 *
+	 * 💣 SCHRITTWEITE 0,5 UND GRENZEN 0,5 BIS 24. Eine 0 waere eine Division durch null im Nenner
+	 * der Tempotabelle, mehr als 24 ein Reisetag, der laenger ist als der Tag. Der Server prueft
+	 * dasselbe (avesmapsTravelValuesHoursShape) -- hier steht es, damit das Feld gar nicht erst
+	 * Unsinn anbietet, nicht als zweite Wahrheit. */
+	function tempoHoursRow(key, label, value, gaValue, note) {
+		var ours = Number(value);
+		if (!isFinite(ours)) { ours = 0; }
+		var off = (typeof gaValue === "number") && Math.abs(ours - gaValue) >= 0.005;
+		return "<tr" + (off ? ' class="is-off"' : "") + ">"
+			+ '<th scope="row">' + escapeHtml(label) + "</th>"
+			+ '<td><input type="number" step="0.5" min="0.5" max="24" class="wp-tempo__hr" data-key="'
+			+ escapeHtml(key) + '" data-loaded="' + ours + '" value="' + ours + '">'
+			+ tempoWarMarke("hr:" + key, 1) + "</td>"
+			+ tempoUndoCell()
+			+ '<td class="wp-tempo__ga">' + (typeof gaValue === "number" ? num(gaValue, 0) + " h" : "—") + "</td>"
+			+ '<td class="wp-tempo__eff">' + escapeHtml(note) + "</td>"
+			+ "</tr>";
+	}
+
+	/* Die Quellenzeile eines Abschnitts — Buch und Seite, nicht „siehe Geographia".
+	 *
+	 * 🔴 SIE STEHT JE ABSCHNITT, nicht einmal am Fenster. Das Fenster fuehrt inzwischen Werte aus ZWEI
+	 * Buechern plus eigene Rechnungen; eine Sammelangabe am Kopf behauptet fuer jede Zahl dieselbe
+	 * Herkunft, und genau so ist „DIN 33466" einen Monat lang an einer Regel kleben geblieben, die
+	 * nichts damit zu tun hatte. */
+	function tempoQuelle(text) {
+		return '<p class="wp-tempo__src"><b>Quelle</b> ' + text + "</p>";
+	}
+
 	function tempoSetStatus(text, kind) {
 		var el = $("wpTempoStatus");
 		el.textContent = text || "";
@@ -1540,7 +1573,53 @@
 			+ '<button type="button" class="wp-tempo__reset" data-section="path_factors">'
 			+ "Alle Wegtypen auf die GA-Werte zurücksetzen</button> "
 			+ '<button type="button" class="wp-tempo__reset" data-section="day_miles">'
-			+ "Alle Tagesleistungen zurücksetzen (auch Wasser)</button></div>";
+			+ "Alle Tagesleistungen zurücksetzen (auch Wasser)</button>"
+			+ tempoQuelle("Tagesleistungen <i>Geographia Aventurica</i> S. 118 · 123 (Land), "
+				+ "S. 129 (Fluss), S. 131 (See) · Wegtyp-Faktoren <i>Geographia Aventurica</i> S. 120–123 "
+				+ "· Reisestunden im nächsten Abschnitt")
+			+ "</div>";
+
+		// Abschnitt 1b: der Reisetag. Er steht DIREKT unter dem Raster, weil er dessen Nenner ist.
+		// 🔴 ZWEI BUECHER IN EINEM ABSCHNITT. Die Geographia nennt die 12 Stunden nur fuer die
+		// Seereise (S. 131) und fuer Land ueberhaupt keine Stundenzahl; die 8 an Land stehen in
+		// „Wege des Entdeckers" S. 160-162, siebenmal, bei jeder Fortbewegungsart. Die GA-Spalte
+		// zeigt an Land deshalb „—" -- dieselbe Ehrlichkeit wie bei den elf Landschaftsarten und
+		// beim Querfeldein-Aufschlag.
+		var stunden = values.travel_hours || {};
+		var stundenLand = Number(stunden.land) || 0;
+		var stundenWasser = Number(stunden.water) || 0;
+		var stundenNacht = Number(stunden.night) || 0;
+		html += '<div class="wp-tempo__sec"><h3>Reisetag: Stunden am Tag</h3>'
+			+ '<p class="wp-tempo__note">Der <b>Nenner</b> jeder Zahl im Raster darüber: '
+			+ "<code>Tempo = Tagesleistung × 1,032 × 1,19 ÷ Reisestunden</code>. "
+			+ "💣 <b>Wer hier verstellt, zieht das Raster mit</b> — die Tagesleistung bleibt, was die "
+			+ "Quelle sagt, und das Tempo folgt. 8 Stunden zu 4,61 Meilen/h sind dieselben 30 Meilen "
+			+ "am Tag wie 12 Stunden zu 3,07. Der Rest des Tages ist Rast.</p>"
+			+ '<table class="wp-tempo__tbl"><thead><tr>'
+			+ '<th scope="col">Reiseart</th><th scope="col">Stunden am Tag</th>'
+			+ '<th scope="col"><span class="wp-tempo__sronly">zurücksetzen</span></th>'
+			+ '<th scope="col">GA</th><th scope="col">was er bewirkt</th>'
+			+ "</tr></thead><tbody>"
+			+ tempoHoursRow("land", "an Land", stundenLand, null,
+				"Rast " + num(24 - stundenLand, 1) + " h; Vorgabe des Planerfelds „Reisestunden pro Tag“")
+			+ tempoHoursRow("water", "Fluss und See", stundenWasser, 12,
+				"Rast " + num(24 - stundenWasser, 1) + " h; gilt für Kahn, Segler, Lastensegler und Galeere")
+			+ tempoHoursRow("night", "Schnellsegler", stundenNacht, 24,
+				stundenNacht >= 24 ? "fährt durch, keine Rast" : "Rast " + num(24 - stundenNacht, 1) + " h")
+			+ "</tbody></table>"
+			+ '<p class="wp-tempo__note">⚠️ <b>Stunden und Rasterzellen nicht im selben Zug.</b> Wird '
+			+ "hier etwas verstellt, schickt „Speichern“ das Raster nicht mit — es wurde unter den alten "
+			+ "Stunden gezeichnet, und darüberzulegen machte die Skalierung wieder rückgängig. Erst "
+			+ "speichern, dann Zellen anfassen.</p>"
+			+ '<button type="button" class="wp-tempo__reset" data-section="hours">'
+			+ "Reisetage auf 8 / 12 / 24 zurücksetzen</button>"
+			+ tempoQuelle("Land <i>Wege des Entdeckers</i> S. 160–162 („acht Stunden pro Tag“, bei jeder "
+				+ "der sieben Fortbewegungsarten) · Fluss <i>Geographia Aventurica</i> S. 129 · See "
+				+ "<i>Geographia Aventurica</i> S. 131 („ein Reisetag von 12 Stunden“) · Schnellsegler "
+				+ "<i>Geographia Aventurica</i> S. 131 (24 Stunden, 250 Meilen). "
+				+ "<b>Für Landreisen nennt die Geographia keine Stundenzahl</b> — dort ist die "
+				+ "Tagesleistung die Einheit.")
+			+ "</div>";
 
 		// Abschnitt 2: die Landschaften. Sie stehen NICHT im Raster, sondern in einer eigenen Spalte
 		// an der Landschaftsart (ecosystem_region_type.terrain_speed_factor).
@@ -1597,7 +1676,10 @@
 				+ "Aventurica</i> nennt für diese Landschaft keinen Faktor. Diese Zeilen behalten "
 				+ "deinen Wert — der Rücksetzer unten lässt sie stehen.</p>"
 				+ '<button type="button" class="wp-tempo__reset" data-section="landscapes">'
-				+ "Landschaften mit Quellenzeile zurücksetzen</button>";
+				+ "Landschaften mit Quellenzeile zurücksetzen</button>"
+				+ tempoQuelle("<i>Geographia Aventurica</i> S. 120–123, Geländearten-Tabelle S. 123. "
+					+ "⚠️ Nur neun der zwanzig Arten haben dort eine Zeile; die übrigen elf sind gesetzt "
+					+ "und zeigen darum „—“ in der GA-Spalte.");
 		}
 		html += "</div>";
 
@@ -1631,7 +1713,10 @@
 			+ "Bodenzustand ergibt, ist <b>unsere</b> Tabelle und steht nicht in der Quelle — sie "
 			+ "wird hier deshalb nicht eingestellt.</p>"
 			+ '<button type="button" class="wp-tempo__reset" data-section="ground">'
-			+ "Boden auf die GA-Werte zurücksetzen</button></div>";
+			+ "Boden auf die GA-Werte zurücksetzen</button>"
+			+ tempoQuelle("<i>Geographia Aventurica</i> S. 122 f. — die Abzüge −0,1 und −0,2 auf den "
+				+ "Bewegungsmultiplikator, Untergrenze 0,05.")
+			+ "</div>";
 
 		// Abschnitt 4: Fluss und Eichung.
 		html += '<div class="wp-tempo__sec"><h3>Fluss und Eichung</h3>'
@@ -1647,7 +1732,10 @@
 				values.calibration_target_miles, src.calibration_target_miles, "Meilen am Reisetag (S. 123)")
 			+ "</tbody></table>"
 			+ '<button type="button" class="wp-tempo__reset" data-section="misc">'
-			+ "Beide auf die GA-Werte zurücksetzen</button></div>";
+			+ "Beide auf die GA-Werte zurücksetzen</button>"
+			+ tempoQuelle("Strömungsverhältnis <i>Geographia Aventurica</i> S. 129 (Kahn 20/40, Segler 30/60) "
+				+ "· Eichziel <i>Geographia Aventurica</i> S. 123 (Reisegruppe zu Fuß, 30 Meilen am Tag).")
+			+ "</div>";
 
 		// Abschnitt 5: der Querfeldein-Aufschlag.
 		// 🔴 ER STEHT IN KEINER GA-TABELLE. Die Quelle kennt ueberhaupt keine laengenabhaengige Regel;
@@ -1682,7 +1770,11 @@
 			+ "der sie nicht mehr wirkt. Bei 2,0 ist querfeldein schlimmstenfalls halb so schnell wie der "
 			+ "GA-Wert (0,375 statt 0,75 der Straße).</p>"
 			+ '<button type="button" class="wp-tempo__reset" data-section="offroad">'
-			+ "Aufschlag auf die Vorgabe zurücksetzen</button></div>";
+			+ "Aufschlag auf die Vorgabe zurücksetzen</button>"
+			+ tempoQuelle("<b>Keine</b> — weder die <i>Geographia Aventurica</i> noch <i>Wege des Entdeckers</i> "
+				+ "kennen eine längenabhängige Regel. Der Aufschlag ist unsere Rechnung, wie mean_G und "
+				+ "der Zeitmaßstab.")
+			+ "</div>";
 
 		// Abschnitt 6: der Befund.
 		html += '<div class="wp-tempo__sec"><h3>Was von der Quelle abweicht</h3>';
@@ -1711,7 +1803,9 @@
 			+ "sind deshalb nicht einstellbar.</p><ul class=\"wp-tempo__locked\">"
 			+ "<li>Zeitmaßstab <b>1,19</b></li>"
 			+ "<li>Steigungsausgleich <code>mean_G</code> <b>1,032</b> (gemessen)</li>"
-			+ "<li>Reisetag <b>12 h</b> — 24 h nur beim Schnellsegler (S. 131)</li>"
+			// 🔴 Der Reisetag ist hier AUSGEZOGEN (16.08.2026): er hat eine Quelle je Zeile und ist
+			// seither einstellbar — er steht im eigenen Abschnitt „Reisetag: Stunden am Tag".
+
 			+ "<li>Leistungskilometer 100 / 150 / 20 % / Deckel 4,0 — Naismith mit Langmuirs Zusatz, "
 			+ "<b>kein</b> DSA-Kanon (§9, §27 führen dazu ausdrücklich nichts)</li>"
 			+ "<li>Aufschlag auf Reparaturkanten <b>×25</b> — ein Dijkstra-Gewicht, keine Reisezeit</li>"
@@ -1817,7 +1911,22 @@
 			ground[input.getAttribute("data-key")] = value;
 		});
 
-		var payload = { action: "save", grid: grid, landscapes: landscapes, ground_penalties: ground };
+		// 💣 STUNDEN UND RASTER GEHEN NICHT ZUSAMMEN. Der Server skaliert das Raster mit alt/neu,
+		// sobald ein Reisetag wandert; ein mitgeschicktes Raster ueberschriebe genau das wieder --
+		// lautlos, denn die Zahlen saehen danach voellig normal aus. Wurde eine Stunde angefasst,
+		// reist das Raster also NICHT mit. Der Server verwirft es ohnehin (avesmapsTravelValuesApply-
+		// Incoming); hier steht es, damit die Absicht schon am Absender sichtbar ist.
+		var hours = {};
+		var hoursTouched = false;
+		Array.prototype.forEach.call(body.querySelectorAll(".wp-tempo__hr"), function (input) {
+			var value = tempoNum(input.value);
+			if (value === null || value <= 0) { return; }
+			hours[input.getAttribute("data-key")] = value;
+			if (Math.abs(value - Number(input.getAttribute("data-loaded"))) >= 0.005) { hoursTouched = true; }
+		});
+
+		var payload = { action: "save", landscapes: landscapes, ground_penalties: ground, travel_hours: hours };
+		if (!hoursTouched) { payload.grid = grid; }
 		Array.prototype.forEach.call(body.querySelectorAll(".wp-tempo__ms"), function (input) {
 			var value = tempoNum(input.value);
 			if (value === null || value <= 0) { return; }

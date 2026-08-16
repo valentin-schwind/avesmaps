@@ -314,3 +314,46 @@ console.log("speed-table-and-rest-rule.test.js: all assertions passed");
 
 // 14.08.2026: mit js/config.js nachgeliefert -- der zugehoerige Deploy-Lauf wurde von einem
 // nachfolgenden Push abgebrochen, und der naechste gruene Lauf diffte ab dem abgebrochenen Stand.
+
+// ---- 5. Die Leitung vom Server zum Planerfeld ---------------------------------------------------
+//
+// 💣 DREI STELLEN, EINE ZAHL. Der Reisetag steht in der Datenbank (app_setting['travel_values']),
+// reist in der Kartennutzlast mit und setzt dort die Vorgabe von `#travelHoursPerDay`. Faellt eine
+// der drei Stellen weg, rechnet der Router mit dem eingestellten Tag und der Planer rastet nach dem
+// alten -- die Tagesleistung faellt um das Verhaeltnis der beiden, und keine Zahl sieht falsch aus.
+const mapFeatures = read("api/app/map-features.php");
+assert.ok(
+	mapFeatures.includes("'travel_hours' =>"),
+	"api/app/map-features.php schickt `travel_hours` in der Nutzlast mit"
+);
+assert.ok(
+	mapFeatures.includes("avesmapsMapFeaturesTravelHours"),
+	"und liest sie ueber avesmapsMapFeaturesTravelHours() aus demselben Leser wie der Router"
+);
+
+const routingSource = read("js/routing/routing.js");
+assert.ok(
+	routingSource.includes("data.travel_hours"),
+	"js/routing/routing.js liest `travel_hours` aus der Nutzlast"
+);
+assert.ok(
+	routingSource.includes("applyServerTravelHours(data)"),
+	"und ruft die Uebernahme im Nutzlast-Pfad auf -- eine Funktion ohne Aufrufer waere die stille Haelfte"
+);
+// 🔴 Der Riegel gegen das Ueberschreiben einer Benutzereingabe. Ohne ihn setzt die Kartennutzlast
+// Sekunden nach dem Laden die Wahl des Reisenden zurueck.
+assert.ok(
+	routingSource.includes('feld.getAttribute("value")'),
+	"und setzt das Feld nur, solange es auf seiner Markup-Vorgabe steht"
+);
+
+// Und die Markup-Vorgabe selbst traegt den Landtag, damit der Rueckfall stimmt, wenn der Server schweigt.
+const indexSource = read("index.html");
+const feldMatch = indexSource.match(/id="travelHoursPerDay"[^>]*value="([0-9.]+)"/);
+assert.ok(feldMatch, "das Planerfeld traegt eine Markup-Vorgabe");
+assert.strictEqual(
+	Number(feldMatch[1]), TRANSPORT_TRAVEL_HOURS.groupFoot,
+	`die Markup-Vorgabe ${feldMatch[1]} muss der Landtag ${TRANSPORT_TRAVEL_HOURS.groupFoot} sein`
+);
+
+console.log("speed-table-and-rest-rule.test.js: Tempotabellen, Rastregel, Reisetag und seine Leitung geprüft");

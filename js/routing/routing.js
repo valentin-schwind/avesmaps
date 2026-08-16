@@ -60,8 +60,53 @@ function locationTypeFromProperties(properties) {
 	return normalizeLocationType(placeTypeMap[String(properties?.["data-place-type"] || "d").toLowerCase()]);
 }
 
+/**
+ * Die drei Reisetage aus der Kartennutzlast übernehmen — Land, Wasser, Nachtfahrt.
+ *
+ * 🔴 EINE QUELLE. `TRANSPORT_TRAVEL_HOURS` (js/config.js) und die Markup-Vorgabe `value="8.0"` sind
+ * beide nur Rückfälle für den Fall, dass der Server nichts sagt. Sobald er etwas sagt, gilt er —
+ * sonst rechnete der Router mit dem eingestellten Reisetag, während der Planer nach dem alten
+ * rastete, und die Tagesleistung fiele um genau das Verhältnis der beiden, ohne dass irgendeine
+ * Zahl falsch aussieht.
+ *
+ * 💣 DAS FELD WIRD NUR GESETZT, WENN DER BENUTZER ES NICHT ANGEFASST HAT. Erkannt am Vergleich
+ * `value` (lebendiger Wert) gegen das ATTRIBUT `value` (Markup-Vorgabe): getippte Eingaben und ein
+ * geteilter Link mit `?restHours=` ändern nur den lebendigen Wert. Ohne diese Bedingung überschriebe
+ * die Kartennutzlast die Wahl des Reisenden — und zwar erst Sekunden nach dem Laden.
+ */
+function applyServerTravelHours(data) {
+	const hours = data && data.travel_hours;
+	if (!hours || typeof hours !== "object") return;
+	const zahl = (raw) => {
+		const value = Number(raw);
+		return Number.isFinite(value) && value >= 0.5 && value <= 24 ? value : null;
+	};
+	const land = zahl(hours.land);
+	const water = zahl(hours.water);
+	const night = zahl(hours.night);
+
+	if (typeof TRANSPORT_TRAVEL_HOURS === "object" && TRANSPORT_TRAVEL_HOURS) {
+		Object.keys(TRANSPORT_TRAVEL_HOURS).forEach((transport) => {
+			const istNacht = transport === "fastShip";
+			const istLand = typeof VALID_TRANSPORT_OPTIONS === "object" && VALID_TRANSPORT_OPTIONS
+				&& VALID_TRANSPORT_OPTIONS.land && VALID_TRANSPORT_OPTIONS.land.has(transport);
+			const wert = istNacht ? night : (istLand ? land : water);
+			if (wert !== null) TRANSPORT_TRAVEL_HOURS[transport] = wert;
+		});
+	}
+
+	const feld = document.getElementById("travelHoursPerDay");
+	if (!feld || land === null) return;
+	const markup = feld.getAttribute("value");
+	if (markup === null || String(feld.value) !== String(markup)) return;
+	const gesetzt = land.toFixed(1);
+	feld.value = gesetzt;
+	feld.setAttribute("value", gesetzt);
+}
+
 // Verarbeitung der Locations (GeoJSON Points)
 const prepareLocationData = (data) => {
+	applyServerTravelHours(data);
 	let crossingCount = 1;
 	locationNameLabels.forEach((entry) => map.removeLayer(entry.marker));
 	locationNameLabels = [];

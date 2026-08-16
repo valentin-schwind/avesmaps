@@ -41,6 +41,61 @@ const AVESMAPS_TRAVEL_LAND_HOURS = 8.0;
 // 🔴 Das EINE Schiff mit Nachtfahrt (S. 131). Die Ausnahme hängt am TRANSPORTMITTEL, nie am Wegtyp
 // — am Wegtyp gehängt bekämen alle drei Schiffe den 24-Stunden-Tag.
 const AVESMAPS_TRAVEL_NIGHT_TRAVEL_TRANSPORT = 'fastShip';
+const AVESMAPS_TRAVEL_NIGHT_HOURS = 24.0;
+
+/**
+ * PURE: gespeicherte Reisetage auf die Konstanten gelegt — jeder Wert einzeln geprüft.
+ *
+ * ⚠️ Erlaubt ist 0,5 bis 24 Stunden. Eine 0 wäre eine Division durch null im Nenner der Tempotabelle,
+ * mehr als 24 ein Reisetag, der länger ist als der Tag.
+ */
+function avesmapsTravelValuesHoursShape(mixed $stored): array
+{
+    $hours = avesmapsTravelValuesHoursFallback();
+    if (!is_array($stored)) { return $hours; }
+    foreach ($hours as $key => $default) {
+        $value = avesmapsTravelValuesParseNumber($stored[$key] ?? null);
+        if ($value === null || $value < 0.5 || $value > 24.0) { continue; }
+        $hours[$key] = $value;
+    }
+
+    return $hours;
+}
+
+/** PURE: die drei Reisetage, wie sie ohne gespeicherte Einstellung gelten. */
+function avesmapsTravelValuesHoursFallback(): array
+{
+    return [
+        'land' => AVESMAPS_TRAVEL_LAND_HOURS,
+        'water' => AVESMAPS_TRAVEL_DEFAULT_HOURS,
+        'night' => AVESMAPS_TRAVEL_NIGHT_HOURS,
+    ];
+}
+
+/**
+ * Die Reisetage DIESER Anfrage — derselbe Bau wie beim Raster (ein Speicher, sieben Lesestellen).
+ *
+ * 🔴 Ungefüllt gelten die Konstanten. Jeder Unit-Test und jede Diagnose ohne PDO bekommt damit exakt
+ * das Verhalten von vor der Einstellbarkeit.
+ */
+function &avesmapsTravelValuesActiveHoursRef(): ?array
+{
+    static $active = null;
+
+    return $active;
+}
+
+/** Die Reisetage direkt setzen — für Tests und für den Endpunkt nach dem Schreiben. */
+function avesmapsTravelValuesPrimeHours(array $hours): void
+{
+    $active = &avesmapsTravelValuesActiveHoursRef();
+    $clean = [];
+    foreach (avesmapsTravelValuesHoursFallback() as $key => $default) {
+        $value = avesmapsTravelValuesParseNumber($hours[$key] ?? null);
+        if ($value !== null && $value > 0.0 && $value <= 24.0) { $clean[$key] = $value; }
+    }
+    $active = $clean === [] ? null : $clean;
+}
 
 const AVESMAPS_TRAVEL_VALUES_SETTING_KEY = 'travel_values';
 
@@ -81,6 +136,12 @@ function avesmapsTravelValuesPrime(?PDO $pdo): void
     avesmapsTravelValuesPrimeOffroadRamp(
         is_array($values['offroad_ramp'] ?? null) ? $values['offroad_ramp'] : []
     );
+    // 🔴 OHNE DIESE ZEILE STUENDE DER REISETAG IM FENSTER UND WIRKTE IN KEINER EINZIGEN ROUTE --
+    // dieselbe Falle wie beim Laengenaufschlag darueber. Er traegt zwei Dinge: den Nenner der
+    // Tempotabelle und den Gewichtsfaktor des Dijkstra.
+    avesmapsTravelValuesPrimeHours(
+        is_array($values['travel_hours'] ?? null) ? $values['travel_hours'] : []
+    );
 }
 
 /**
@@ -111,6 +172,8 @@ function avesmapsTravelValuesResetActive(): void
     $active = &avesmapsTravelValuesActiveRef();
     $active = null;
     avesmapsOffroadRampReset();
+    $hours = &avesmapsTravelValuesActiveHoursRef();
+    $hours = null;
 }
 
 /**
@@ -220,11 +283,13 @@ function avesmapsTravelValuesIsLandTransport(string $transport): bool
  */
 function avesmapsTravelValuesHoursFor(string $transport): float
 {
-    if ($transport === AVESMAPS_TRAVEL_NIGHT_TRAVEL_TRANSPORT) { return 24.0; }
+    $active = &avesmapsTravelValuesActiveHoursRef();
+    $hours = is_array($active) ? $active + avesmapsTravelValuesHoursFallback() : avesmapsTravelValuesHoursFallback();
+    $key = $transport === AVESMAPS_TRAVEL_NIGHT_TRAVEL_TRANSPORT
+        ? 'night'
+        : (avesmapsTravelValuesIsLandTransport($transport) ? 'land' : 'water');
 
-    return avesmapsTravelValuesIsLandTransport($transport)
-        ? AVESMAPS_TRAVEL_LAND_HOURS
-        : AVESMAPS_TRAVEL_DEFAULT_HOURS;
+    return (float) $hours[$key];
 }
 
 /**
@@ -272,6 +337,7 @@ function avesmapsTravelValuesRead(?PDO $pdo): array
         // ⚠️ Steht NICHT in der Quelltabelle: die GA kennt keinen Laengenaufschlag. Er ist unsere
         // Rechnung, wie mean_G und der Pass-Normalisierer.
         'offroad_ramp' => ['per_mile' => AVESMAPS_OFFROAD_RAMP_PER_MILE, 'max' => AVESMAPS_OFFROAD_RAMP_MAX],
+        'travel_hours' => avesmapsTravelValuesHoursFallback(),
         'source' => 'constant',
     ];
     if (!$pdo instanceof PDO) { return $fallback; }
@@ -309,6 +375,10 @@ function avesmapsTravelValuesRead(?PDO $pdo): array
         'river_ratio' => (float) ($stored['river_ratio'] ?? $fallback['river_ratio']),
         'calibration_target_miles' => (float) ($stored['calibration_target_miles'] ?? $fallback['calibration_target_miles']),
         'offroad_ramp' => avesmapsTravelValuesRampShape($stored['offroad_ramp'] ?? null, $fallback['offroad_ramp']),
+        // ⚠️ Schlüssel für Schlüssel über die Konstante gelegt, wie das Raster darüber: ein Speicher
+        // von vor der Einstellbarkeit trägt `travel_hours` gar nicht, und ein fehlender Reisetag wäre
+        // im Leser kein Fehler, sondern eine 0 -- also eine Division durch null im Nenner der Tabelle.
+        'travel_hours' => avesmapsTravelValuesHoursShape($stored['travel_hours'] ?? null),
         'source' => 'stored',
     ];
 }
@@ -354,6 +424,7 @@ function avesmapsTravelValuesStorableShape(array $values): array
         'river_ratio' => $values['river_ratio'] ?? 0.0,
         'calibration_target_miles' => $values['calibration_target_miles'] ?? 0.0,
         'offroad_ramp' => $values['offroad_ramp'] ?? [],
+        'travel_hours' => $values['travel_hours'] ?? [],
     ];
 }
 
@@ -389,8 +460,43 @@ function avesmapsTravelValuesParseNumber(mixed $raw): ?float
  */
 function avesmapsTravelValuesApplyIncoming(array $values, array $payload): array
 {
+    // 💣 DIE STUNDEN ZIEHEN DAS RASTER MIT, und deshalb stehen sie GANZ OBEN. Jede Zelle ist eine
+    // Tagesleistung geteilt durch den Reisetag; wer nur die Stunden verstellt, verstellt damit die
+    // Tagesleistung. Also wird mit alt/neu skaliert: die Tagesleistung bleibt, das Tempo folgt
+    // (Owner-Entscheid 16.08.2026 -- 8 h zu 4,61 Meilen/h sind dieselben 30 Meilen wie 12 h zu 3,07).
+    //
+    // ⚠️ EIN IM SELBEN ZUG GESCHICKTES RASTER WIRD DANN VERWORFEN. Das Fenster hat es unter den ALTEN
+    // Stunden gezeichnet; darueberzulegen machte die Skalierung Zelle fuer Zelle wieder rueckgaengig,
+    // und zwar lautlos -- die Zahlen saehen danach voellig normal aus. Das Fenster schickt deshalb
+    // kein Raster mit, wenn ein Stundenfeld angefasst wurde, und zeichnet aus der Antwort neu.
+    $stundenGeaendert = false;
+    if (is_array($payload['travel_hours'] ?? null)) {
+        $alt = avesmapsTravelValuesHoursShape($values['travel_hours'] ?? null);
+        $neu = $alt;
+        foreach ($alt as $key => $current) {
+            $parsed = avesmapsTravelValuesParseNumber($payload['travel_hours'][$key] ?? null);
+            if ($parsed === null || $parsed < 0.5 || $parsed > 24.0) { continue; }
+            $neu[$key] = round($parsed, 2);
+        }
+        $skaliert = is_array($values['grid'] ?? null) ? $values['grid'] : [];
+        foreach ($skaliert as $transport => $row) {
+            $key = $transport === AVESMAPS_TRAVEL_NIGHT_TRAVEL_TRANSPORT
+                ? 'night'
+                : (avesmapsTravelValuesIsLandTransport($transport) ? 'land' : 'water');
+            if (!is_array($row) || abs($alt[$key] - $neu[$key]) < 1e-9) { continue; }
+            $faktor = $alt[$key] / $neu[$key];
+            foreach ($row as $pathType => $speed) {
+                if (!is_numeric($speed) || (float) $speed <= 0.0) { continue; }
+                $skaliert[$transport][$pathType] = round((float) $speed * $faktor, 2);
+            }
+            $stundenGeaendert = true;
+        }
+        $values['grid'] = $skaliert;
+        $values['travel_hours'] = $neu;
+    }
+
     $grid = is_array($values['grid'] ?? null) ? $values['grid'] : [];
-    foreach (is_array($payload['grid'] ?? null) ? $payload['grid'] : [] as $transport => $row) {
+    foreach ($stundenGeaendert ? [] : (is_array($payload['grid'] ?? null) ? $payload['grid'] : []) as $transport => $row) {
         if (!isset($grid[$transport]) || !is_array($row)) { continue; }
         foreach ($row as $pathType => $speed) {
             if (!isset($grid[$transport][$pathType])) { continue; }
@@ -779,12 +885,19 @@ function avesmapsTravelValuesDeviations(array $values): array
         }
     }
 
+    // 💣 Die Stunden DIESES Wertesatzes, nicht der Anfrage-Speicher -- dieselbe Falle wie im
+    // Ruecksetzer: der Endpunkt primed nicht, und der Befund meldete sonst eine Abweichung von der
+    // GA, die es gar nicht gibt (oder verschwiege eine, die es gibt).
+    $stunden = avesmapsTravelValuesHoursShape($values['travel_hours'] ?? null);
     $dayMiles = ['count' => 0, 'values' => []];
     foreach ($source['day_miles'] as $transport => $expected) {
         $isLand = avesmapsTravelValuesIsLandTransport($transport);
         $column = $isLand ? 'Strasse' : (isset($grid[$transport]['Flussweg']) ? 'Flussweg' : 'Seeweg');
         if (!isset($grid[$transport][$column])) { continue; }
-        $ours = avesmapsTravelValuesDayMilesFromSpeed((float) $grid[$transport][$column], $isLand, avesmapsTravelValuesHoursFor($transport));
+        $stundenKey = $transport === AVESMAPS_TRAVEL_NIGHT_TRAVEL_TRANSPORT
+            ? 'night'
+            : ($isLand ? 'land' : 'water');
+        $ours = avesmapsTravelValuesDayMilesFromSpeed((float) $grid[$transport][$column], $isLand, (float) $stunden[$stundenKey]);
         if (abs($ours - $expected) < 0.5) { continue; }
         $dayMiles['values'][$transport] = ['ours' => $ours, 'source' => $expected];
         $dayMiles['count']++;
@@ -819,6 +932,23 @@ function avesmapsTravelValuesResetSection(array $values, string $section): array
     $source = avesmapsTravelValuesSourceTable();
     $grid = is_array($values['grid'] ?? null) ? $values['grid'] : AVESMAPS_ROUTE_CLIENT_SPEED_TABLE;
 
+    // 🔴 Die Stunden ZUERST: das Raster darunter wird aus ihnen gerechnet.
+    if ($section === 'hours' || $section === 'all') {
+        $values['travel_hours'] = avesmapsTravelValuesHoursFallback();
+    }
+    // 💣 DIE STUNDEN DIESES WERTESATZES, NICHT DER ANFRAGE-SPEICHER. `avesmapsTravelValuesHoursFor()`
+    // liest den geprimten Speicher, und den fuellt der Endpunkt gar nicht -- der Ruecksetzer rechnete
+    // dann gegen die Konstante, waehrend in der Datenbank ein anderer Reisetag steht. Das Ergebnis
+    // saehe wie ein sauberer Quellenwert aus und waere um genau den Faktor alt/neu daneben.
+    $stunden = avesmapsTravelValuesHoursShape($values['travel_hours'] ?? null);
+    $stundenFuer = static function (string $transport) use ($stunden): float {
+        $key = $transport === AVESMAPS_TRAVEL_NIGHT_TRAVEL_TRANSPORT
+            ? 'night'
+            : (avesmapsTravelValuesIsLandTransport($transport) ? 'land' : 'water');
+
+        return (float) $stunden[$key];
+    };
+
     if ($section === 'path_factors' || $section === 'day_miles' || $section === 'all') {
         foreach ($grid as $transport => $row) {
             if (!avesmapsTravelValuesIsLandTransport($transport)) {
@@ -827,13 +957,13 @@ function avesmapsTravelValuesResetSection(array $values, string $section): array
                 if ($section === 'path_factors') { continue; }
                 $dayMiles = (float) ($source['day_miles'][$transport] ?? 0.0);
                 if ($dayMiles <= 0.0) { continue; }
-                $speed = avesmapsTravelValuesSpeedFromDayMiles($dayMiles, false, avesmapsTravelValuesHoursFor($transport));
+                $speed = avesmapsTravelValuesSpeedFromDayMiles($dayMiles, false, $stundenFuer($transport));
                 foreach (array_keys($row) as $pathType) { $grid[$transport][$pathType] = round($speed, 2); }
                 continue;
             }
             $dayMiles = (float) ($source['day_miles'][$transport] ?? 0.0);
             if ($dayMiles <= 0.0) { continue; }
-            $road = avesmapsTravelValuesSpeedFromDayMiles($dayMiles, true, avesmapsTravelValuesHoursFor($transport));
+            $road = avesmapsTravelValuesSpeedFromDayMiles($dayMiles, true, $stundenFuer($transport));
             foreach (array_keys($row) as $pathType) {
                 $factor = (float) ($source['path_factors'][$pathType] ?? 0.0);
                 if ($factor <= 0.0) { continue; }
