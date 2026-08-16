@@ -2,7 +2,8 @@
 
 declare(strict_types=1);
 
-// The two global "Wappen: An/Aus" switches and the placeholder they put in a coat's place.
+// The two global "Wappen: An/Aus" switches and the placeholder they put in a coat's place -- PLUS (seit
+// Phase 3, 16.08.2026, s. Absatz unten) zwei Lizenz-GATES, die mit den Schaltern hier nur den Ort teilen.
 //
 // One switch per SURFACE, never a shared one: the same reason that already keeps the citymap preview
 // switch apart from the adventure cover switch (api/_internal/app/citymaps.php). A switch named after
@@ -16,6 +17,16 @@ declare(strict_types=1);
 // size on a map label, same has-coat branch in the infobox. The frontend needs no flag and cannot guess
 // the state wrong. A territory that has NO coat keeps having none ('' stays ''), otherwise the map would
 // grow hundreds of shields where today there is nothing.
+//
+// 🔴 ZWEI LIZENZ-GATES (Phase 3, 16.08.2026), nicht nur die Schalter oben: avesmapsSettlementCoatIsPublic()
+// (Siedlungs-Wappen) und avesmapsMapFeaturesPublicImageUrls() (Siedlungs-BILDER -- properties.images, mit
+// Wappen inhaltlich nichts zu tun). Beide leben hier aus demselben Grund: map-features.php ist ein
+// Endpunkt (zieht beim `require` den ganzen Bootstrap nach) und laesst sich fuer einen Test nicht
+// seiteneffektfrei laden -- diese Datei ist es (kein Bootstrap, keine DB, keine Ausgabe) und wird von
+// map-features.php ohnehin schon eingebunden. ⚠️ Ein GATE ist eine rechtliche Vorgabe (NOTICE.md /
+// Ulisses-Fanrichtlinien), die zwei Schalter oben sind eine reine Anzeigepraeferenz -- diesen Unterschied
+// beim Lesen der beiden Gate-Funktionen weiter unten im Kopf behalten (dieselbe Reihenfolge, in der
+// map-features.php sie anwendet: erst das Gate, dann der Schalter).
 
 const AVESMAPS_TERRITORY_COATS_SETTING = 'territory_coats_enabled';
 const AVESMAPS_SETTLEMENT_COATS_SETTING = 'settlement_coats_enabled';
