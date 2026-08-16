@@ -1048,22 +1048,12 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	font-size: var(--font-size-small);
 }
 
-/* Die Wiki-Suche liegt IM Dialog, nicht in einem zweiten Fenster darüber. */
-.ecosystem-properties-dialog__search[hidden] {
-	display: none !important;
-}
-
-.ecosystem-properties-dialog__search {
-	display: grid;
-	gap: var(--space-6);
-	margin-top: var(--space-8);
-}
-
-.ecosystem-properties-dialog__searchrow {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
-	gap: var(--space-6);
-}
+/* 🔴 HIER STANDEN `.ecosystem-properties-dialog__search` UND `__searchrow` -- die Regeln des eigenen
+   Wiki-Pickers samt „Suchen"-Knopf. Am 16.08.2026 ist die Wiki-Zuweisung dieses Dialogs auf das
+   geteilte Bauteil umgestellt (js/ui/wiki-assign.js, Hülle „label-wiki"); sein Suchfeld und seine
+   Trefferliste bringen ihre Regeln aus css/components/region-sync.css mit. Die zwei Klassen hatten
+   danach NULL Verwender im ganzen Baum -- gemessen, nicht vermutet -- und sind deshalb mit dem
+   Markup gegangen statt als tote Regeln stehenzubleiben. */
 
 /* Gipfelliste (V8). Das RASTER sitzt an der Liste, nicht an der Zeile -- nur so stehen Name, Feld und
    Knopf über alle Zeilen hinweg in denselben Spalten. Jede Zeile ist `display: contents` und gibt ihre
