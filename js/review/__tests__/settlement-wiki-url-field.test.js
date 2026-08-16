@@ -57,6 +57,16 @@ global.fetch = (_url, options) => {
 	});
 };
 
+// Seit dem 16.08.2026 (Aufgabe 5 der Wiki-Zuweisung) steuert review-settlement-wiki.js nur noch den
+// DATENWEG bei; den Rumpf der Zuweisung, die Antwortpruefung und die Anreicherung des Treffers
+// liefert der geteilte reine Baustein js/ui/wiki-assign-ort.js. Im Browser legen die <script>-Zeilen
+// diese Namen als Globale an -- in Node muessen sie von Hand gesetzt werden, sonst faellt der Aufruf
+// unten mit einem ReferenceError um, statt die Regel zu pruefen, um die es hier geht.
+const ort = require("../../ui/wiki-assign-ort.js");
+global.avesmapsWikiAssignOrtZuweisungsKoerper = ort.avesmapsWikiAssignOrtZuweisungsKoerper;
+global.avesmapsWikiAssignOrtAntwortPruefen = ort.avesmapsWikiAssignOrtAntwortPruefen;
+global.avesmapsWikiAssignOrtTrefferAnreichern = ort.avesmapsWikiAssignOrtTrefferAnreichern;
+
 const { selectSettlementWikiResult, removeSettlementWiki } = require("../review-settlement-wiki.js");
 
 (async () => {

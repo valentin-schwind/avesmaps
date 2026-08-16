@@ -91,6 +91,37 @@ const WIRKLICHKEIT = {
 		// bei der Zuweisung selbst (R1); ein Kartenziel „Laenge" gibt es nicht.
 		karte: ["feature_subtype"],
 	},
+	ort: {
+		// Der Siedlungs-Parser liest genau NEUN Infobox-Wertfelder ausser dem Namen
+		// (avesmapsWikiSettlementParseInfobox, api/_internal/wiki/settlements.php):
+		//   :602 $art = $field(['siedlungsart','art','typ'])
+		//   :607 $region = $field(['region'])          :608 $staat = $field(['staat'])
+		//   :622 einwohner  :623 bevoelkerung  :624 oberhaupt
+		//   :628 handelszone  :629 verkehrswege  :636 tempel
+		// Alle neun reisen im Nest properties.wiki_settlement mit -- `assign_to` schreibt genau
+		// dieses Objekt (settlements.php:841), und der Kartenpayload reicht es unveraendert durch
+		// (api/app/map-features.php:470-475 haengt nur Bauwerkstyp/Ruine/Gottheit daran).
+		//
+		// NICHT dabei, jeweils nach der Grenze oben:
+		//   · `title`/`name`/`wiki_key`/`match_key`/`wiki_url` -- Identitaet.
+		//   · `lage` (:610) -- KEIN eigenes $field, sondern die Zusammensetzung „Region · Staat"
+		//     aus den zwei Zeilen darueber; das Register zeigt die zwei Haelften einzeln.
+		//   · `settlement_class`/`settlement_label` -- kommen aus der Registry-KATEGORIE, nicht aus
+		//     der Infobox (:599, wie `kind` beim Weg aus dem Infobox-NAMEN kommt).
+		//   · `verkehrswege_links` (:633) -- abgeleitete Linkkarte aus dem Rohwert daneben.
+		//   · `description` (:637) -- Fliesstext aus dem Artikelrumpf.
+		//   · `wappen_url` (:638) und `synced_at` (:640) -- Bild- und Betriebsangabe.
+		wiki: ["art", "einwohner", "bevoelkerung", "oberhaupt", "region", "staat", "handelszone", "verkehrswege", "tempel"],
+		// Die ZWEI bearbeitbaren Kartenfelder, die eine Wiki-Angabe fuellen kann -- gemessen an
+		// BEIDEN Speicherwegen, die beide `update_point` fahren:
+		//   js/review/review-locations.js:756-757  (buildLocationEditPayload: name, feature_subtype)
+		//   html/wiki-sync-settlement-editor.html:1653-1654 (buildSettlementSavePayload, dieselben zwei)
+		// `description` steht dort zwar auch, ist aber kein Ziel: `assign_to` LOESCHT die
+		// Beschreibung serverseitig, weil die Infobox sie ersetzt (settlements.php:842) -- eine
+		// Sync-Zeile koennte nur anbieten, was der Server schon getan hat. Ein Kartenfeld fuer
+		// Einwohnerzahl, Lage oder Herrscher gibt es in keiner der beiden Oberflaechen.
+		karte: ["name", "feature_subtype"],
+	},
 };
 
 // 6) DIE ZEILE, DIE BEISST: das AUSGELIEFERTE Register gegen die gemessene Wirklichkeit -- anders

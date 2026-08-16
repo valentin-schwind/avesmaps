@@ -92,8 +92,65 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		// fehlt oder ist da, ein Merker daneben existiert nicht. Ihn zu zeigen hiesse, ein
 		// Haekchen anzubieten, das nichts merkt. Offen gemeldet, nicht geraten.
 	},
-	// Die uebrigen acht kommen in den Aufgaben 5-9 dazu, jede mit IHRER Aufgabe -- nicht auf Vorrat:
-	//   ort          (A5)  Name · Art · Einwohner · Lage · Herrscher   suche: /api/edit/wiki/settlements.php
+	ort: {
+		label: "Wiki-Ort",
+		// Gemessen am Endpunkt: avesmapsWikiSettlementSearch (api/_internal/wiki/settlements.php:710)
+		// beantwortet `?action=search&q=…&limit=40` mit `{ok, query, rows}`. Dieselbe Adresse und
+		// dasselbe Limit wie der alte Picker (js/review/review-settlement-wiki.js, Stand 16.08.2026).
+		suche: { art: "server", url: "/api/edit/wiki/settlements.php" },
+		// KEIN Objektart-Vorsatz: die Trefferzeile beginnt mit der Ortsgroesse („Stadt", „Dorf") --
+		// das sagt genauer, was der Treffer ist, als das Wort „Ort", und ist wortgleich zu dem, was
+		// der alte Picker als Meta-Zeile zeigte (`row.settlement_label`).
+		// 💣 MEHR KANN DORT NICHT STEHEN. Die Suche liest `wiki_sync_pages` und liefert genau
+		// title/name/wiki_key/settlement_class/settlement_label/wiki_url -- KEINE Infoboxwerte
+		// (settlements.php:710-758). Die Infobox wird erst beim Zuweisen geparst; wer hier `art`
+		// oder `einwohner` hineinschreibt, baut eine zweite Trefferzeile, die immer leer bleibt.
+		treffer: ["settlement_label"],
+		// 💣 ZWEI ZEILEN FUER DIE GROESSE, UND DAS IST ABSICHT -- dieselbe Trennung wie beim Weg.
+		// `art` ist der freie Infoboxtext („Handelsstadt", faellt auf das Klassen-Label zurueck),
+		// `ortsgroesse` der daraus gepruefte Schluessel („grossstadt"). Nur der Schluessel darf nach
+		// `feature_subtype`; roh verglichen meldete die Vorschau bei fast JEDEM Ort einen
+		// Unterschied und boete an, freien Text in ein Schluesselfeld zu schreiben. Die Abbildung
+		// steht in avesmapsWikiAssignOrtOrtsgroesse (js/ui/wiki-assign-ort.js), weil sie fuer beide
+		// Oberflaechen dieselbe sein muss.
+		// ⚠️ `ortsgroesse` ist damit ein ABGELEITETES Wiki-Feld: der Parser liefert
+		// `settlement_class`, die Oberflaeche prueft daraus den Schluessel. Pruefung 2 aus §3b sieht
+		// das nicht (sie prueft nur die andere Richtung) -- deshalb steht es hier ausdruecklich.
+		//
+		// 🔴 EINE Zeile fuer `name`, und hier ANDERS ALS BEIM WEG. Der Weg bekommt seinen Namen bei
+		// der Zuweisung vom Server (R1); der Ort NICHT: avesmapsWikiSettlementAssignTo schreibt nur
+		// `properties.wiki_settlement` und fasst `map_features.name` nicht an
+		// (settlements.php:807-857). Der Ortsname bleibt also ein Kartenfeld, das der Editor pflegt
+		// -- und genau dafuer gab es bis zum 16.08.2026 den „↻"-Knopf neben dem Namensfeld.
+		// 🔴 KEIN Kartenziel fuer Einwohner, Lage und Herrscher. Das Mockup schreibt
+		// „Einwohner→einwohner" (docs/wiki-zuweisung-mockup.html:257) -- ein solches Feld gibt es
+		// nicht: kein Speicherweg des Ortes kennt eine Einwohnerzahl (weder
+		// buildLocationEditPayload noch buildSettlementSavePayload, und update_point schreibt sie
+		// nirgends). Dieselbe Sorte Mockup-Fehler wie „Länge→laenge" beim Weg. Anzeige-Zeilen.
+		felder: [
+			{ wiki: "name", karte: "name", label: "Name" },
+			{ wiki: "art", karte: "", label: "Art" },
+			{ wiki: "ortsgroesse", karte: "feature_subtype", label: "Ortsgröße" },
+			{ wiki: "einwohner", karte: "", label: "Einwohner" },
+			{ wiki: "bevoelkerung", karte: "", label: "Bevölkerung" },
+			{ wiki: "oberhaupt", karte: "", label: "Herrscher" },
+			{ wiki: "region", karte: "", label: "Region" },
+			{ wiki: "staat", karte: "", label: "Staat" },
+			{ wiki: "handelszone", karte: "", label: "Handelszone" },
+			{ wiki: "verkehrswege", karte: "", label: "Verkehrswege" },
+			{ wiki: "tempel", karte: "", label: "Tempel" },
+		],
+		sync: true, // zwei Kartenziele (name, feature_subtype) -- also ein Knopf
+		// ⚠️ KEIN dritter Zustand, und diesmal NICHT, weil der Speicherplatz fehlt: `wiki_no_article`
+		// gibt es im `properties_json` bereits, der Leseweg ehrt ihn (avesmapsEnrichMapFeatureWikiUrl,
+		// api/app/map-features.php:983), und das Konfliktzentrum setzt ihn (repair.php:328). Was fehlt,
+		// ist ein SCHREIBWEG der beiden Ort-Oberflaechen: `update_point` liest den Merker nicht
+		// (avesmapsUpdatePointFeatureDetails, api/_internal/map/features.php:1252-1305 -- es reicht
+		// ihn nur unveraendert durch), und der Siedlungs-Endpunkt kennt ihn ebenfalls nicht. Ein
+		// Haekchen anzubieten, das nichts merkt, waere schlimmer als keins. Offen gemeldet
+		// (.superpowers/sdd/…/aufgabe-5-bericht.md), nicht geraten.
+	},
+	// Die uebrigen sieben kommen in den Aufgaben 6-9 dazu, jede mit IHRER Aufgabe -- nicht auf Vorrat:
 	//   landschaft   (A6)  Name · Art (mehrwertig -> erste Komponente) suche: /api/edit/wiki/regions.php
 	//   territorium  (A7)  Felder aus A7 Schritt 1 · Eltern GESPERRT bei parent_locked
 	//   literatur    (A8)  Felder aus A8 Schritt 1

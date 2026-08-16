@@ -364,6 +364,18 @@
 <!-- Verschiebbare Fenster: greift die .modal-title dieser Seite. Die Fenster der Hauptseite bedient
      dieselbe Datei dort; ein iframe braucht seine eigene Kopie, sein Dokument ist ein anderes. -->
 <script src="/js/ui/dialog-drag.js"></script>
+<!-- Die Wiki-Zuweisung: EIN Bauteil fuer alle Objektarten (Entwurf
+     docs/superpowers/specs/2026-08-15-wiki-zuweisung-vereinheitlichung-design.md).
+     🔴 DIE REIHENFOLGE IST VERTRAG: Feldregister, dann Diff-Rechnung, dann das Bauteil --
+     avesmapsWikiAssignMount prueft die ersten zwei und liefert sonst einen erkennbaren
+     Blindgaenger. Danach der Datenweg des ORTS, den sich dieses Fenster mit dem Kartendialog
+     (js/review/review-settlement-wiki.js) teilt; er haengt von keiner der drei ab.
+     ⚠️ Absolute Pfade wie bei den Geschwistern oben: dieses iframe-Dokument wird mit
+     ?v=Date.now() geholt und laeuft nicht durch die Asset-Stempelung von index.html. -->
+<script src="/js/ui/wiki-assign-registry.js"></script>
+<script src="/js/ui/wiki-assign-diff.js"></script>
+<script src="/js/ui/wiki-assign.js"></script>
+<script src="/js/ui/wiki-assign-ort.js"></script>
 <script>
 const SETTLEMENT_EDITOR_API = "/api/edit/wiki/settlements.php";
 // Same curated model-tree endpoint as territory-wiki-tree.js / review-wiki-sync.js
@@ -1244,6 +1256,10 @@ async function renderSettlementDetail(publicId) {
 		if (typeof mountFeatureSourceEditor === "function" && $("dtFeatureSources") && selectedPublicId) {
 			mountFeatureSourceEditor($("dtFeatureSources"), "settlement", () => selectedPublicId, { escape: settlementEscape });
 		}
+		// Die Wiki-Zuweisung in ihren (leeren) Behaelter haengen -- NACH dem innerHTML oben, weil der
+		// Knoten erst dann existiert. Dieselbe Stelle und derselbe Grund wie beim Quellen-Editor
+		// darueber; die Rennwaechter gelten fuer beide.
+		mountSettlementWikiAssign();
 	} catch (error) {
 		if (token !== settlementDetailLoadToken || selectedPublicId !== publicId) return;
 		body.innerHTML = settlementDetailLoadErrorHtml(error && error.message ? error.message : String(error));
@@ -1340,19 +1356,12 @@ function buildDetailFieldRow(label, valueHtml, badge) {
 	return `<div class="k">${settlementEscape(label)}</div><div>${valueHtml}${badgeHtml}</div>`;
 }
 
-// Read-only wiki-tagged sub-rows (Einwohner/Oberhaupt) that stay exactly as before -- these come
-// from wiki_settlement.*, which has NO override/write slot at all (see the file-level comment near
-// the top of this section), so they are never part of the editable form below.
-function buildIdentityWikiRowsHtml(detail) {
-	const props = detail.properties || {};
-	const ws = props.wiki_settlement || null;
-	const rows = [];
-	const einwohner = (ws && ws.einwohner) || "";
-	rows.push(buildDetailFieldRow("Einwohner", einwohner ? settlementEscape(einwohner) : "", einwohner ? "Wiki" : ""));
-	const oberhaupt = (ws && ws.oberhaupt) || "";
-	rows.push(buildDetailFieldRow("Oberhaupt", oberhaupt ? settlementEscape(oberhaupt) : "", oberhaupt ? "Wiki" : ""));
-	return rows.filter(Boolean).join("");
-}
+// 🔴 HIER STANDEN „Einwohner" UND „Oberhaupt" (buildIdentityWikiRowsHtml, bis 16.08.2026).
+// Sie sind ersatzlos gefallen, weil der Zuweisungskasten weiter unten dieselben Werte aus derselben
+// Quelle (properties.wiki_settlement) zeigt -- samt allem, was diese zwei Zeilen nicht kannten
+// (Art, Bevölkerung, Handelszone, Verkehrswege, Tempel). Sie hier stehen zu lassen hiesse, dieselbe
+// Auskunft zweimal in dieselbe Spalte zu schreiben, und genau diese Doppelung loest der Umbau auf.
+// ⚠️ Verloren geht nichts: was das Wiki nicht hergibt, faellt im Kasten weg, statt leer dazustehen.
 
 // Editable "Typ" <select> options -- current value preselected from detail.feature_subtype (the
 // authoritative map_features column added in Part A of this task), falling back to
@@ -1398,7 +1407,6 @@ function buildSettlementEditFormHtml(detail) {
 	// Routenfindung waehlt den Ort nicht als Kandidat -- bis jemand seinen Namen eingibt.
 	const hiddenRow =
 		`<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox" id="dtEditIsHidden"${props.is_hidden ? " checked" : ""}> Verborgen</label></div>`;
-	const wikiRowsHtml = buildIdentityWikiRowsHtml(detail);
 	const actionsHtml =
 		`<div class="k"></div><div><div class="dt-edit-actions">` +
 		`<button type="button" class="primary" id="dtEditSave">Speichern</button>` +
@@ -1406,7 +1414,7 @@ function buildSettlementEditFormHtml(detail) {
 		`</div></div>`;
 	return (
 		`<div class="dt-grp">Identität</div>` +
-		`<div class="dt-grid dt-edit-grid">${nameRow}${typeRow}${descRow}${wikiUrlRow}${otherSourceRow}${nodixRow}${ruinedRow}${hiddenRow}${wikiRowsHtml}${actionsHtml}</div>`
+		`<div class="dt-grid dt-edit-grid">${nameRow}${typeRow}${descRow}${wikiUrlRow}${otherSourceRow}${nodixRow}${ruinedRow}${hiddenRow}${actionsHtml}</div>`
 	);
 }
 
@@ -1465,35 +1473,39 @@ function buildTerritoryPickerHtml() {
 	);
 }
 
+// 🔴 Nur noch das TERRITORIUM. Region/Staat/Lage standen hier bis zum 16.08.2026 als
+// wiki-getaggte Lesezeilen -- dieselben Werte aus derselben Quelle, die der Zuweisungskasten unten
+// jetzt zeigt (Region und Staat einzeln; „Lage" war ohnehin nur deren Zusammensetzung, siehe
+// js/ui/wiki-assign-ort.js). Das Territorium bleibt, weil es KEIN Wiki-Feld ist: es ist die eine
+// echte Ueberschreibung dieses Datenmodells (territory_source raycast/manual, siehe die
+// Datei-Anmerkung oben) und gehoert deshalb nicht in die Wiki-Zuweisung.
 function buildLocationGroupHtml(detail) {
-	const props = detail.properties || {};
-	const ws = props.wiki_settlement || null;
-	const rows = [];
-	rows.push(buildTerritoryFieldHtml(detail));
-	const region = (ws && ws.region) || "";
-	rows.push(buildDetailFieldRow("Region", region ? settlementEscape(region) : "", region ? "Wiki" : ""));
-	const staat = (ws && ws.staat) || "";
-	rows.push(buildDetailFieldRow("Staat", staat ? settlementEscape(staat) : "", staat ? "Wiki" : ""));
-	const lage = (ws && ws.lage) || "";
-	rows.push(buildDetailFieldRow("Lage", lage ? settlementEscape(lage) : "", lage ? "Wiki" : ""));
-	return `<div class="dt-grp">Lage &amp; Zugehörigkeit</div><div class="dt-grid">${rows.filter(Boolean).join("")}</div>`;
+	return `<div class="dt-grp">Lage &amp; Zugehörigkeit</div><div class="dt-grid">${buildTerritoryFieldHtml(detail)}</div>`;
 }
 
-// Read-only "which wiki page is this settlement synced from" line -- wiki_settlement.wiki_url is a
-// DIFFERENT field from the editable properties.wiki_url in the Identität form above: this one is
-// written wholesale by the WikiSync flow (avesmapsWikiSettlementDetail's wiki_settlement object,
-// parsed from {{Infobox Siedlung}}) and has no per-field override slot, same as Einwohner/Oberhaupt.
-// "Andere Quelle" no longer has any UI here at all -- as of T3 it's superseded by the "Quellen"
-// mount point in the editable Identität form above (shared multi-source editor).
+// Die Wiki-Zuweisung -- EIN Bauteil (js/ui/wiki-assign.js, Huelle „dt"), dasselbe wie im
+// Kartendialog „Ort bearbeiten". Bis zum 16.08.2026 stand hier EINE Lesezeile („Wiki-Ort … ↗"), und
+// zugewiesen wurde ausschliesslich im Kartendialog oder im Reiter „Orte"; genau diesen Umweg loest
+// der Umbau auf.
+//
+// 💣 Der Kasten wird NICHT hier gefuellt: der Behaelter bleibt leer, das Bauteil haengt sich in
+// renderSettlementDetail() hinein. ⚠️ Ein blankes div -- die Huelle erzeugt ihren eigenen Rahmen,
+// und die Ueberschrift kommt aus der Erklaerung `ort` (label „Wiki-Ort"), also steht hier KEIN
+// eigener `.dt-grp` daneben.
+//
+// 🔴 wiki_settlement.wiki_url ist ein ANDERES Feld als das bearbeitbare properties.wiki_url im
+// Identität-Formular darueber: jenes ist ein flaches Feld, das jedes Speichern mitschickt, dieses
+// die Adresse des zugewiesenen Artikels. Der Kasten zeigt die zweite (als „Wiki ↗") und fasst die
+// erste nicht an -- ausfuehrlich im Kopf von js/ui/wiki-assign-ort.js.
 function buildWikiSourceGroupHtml(detail) {
-	const props = detail.properties || {};
-	const ws = props.wiki_settlement || null;
-	const wikiSettlementUrl = (ws && ws.wiki_url) || "";
-	const wikiRow = wikiSettlementUrl
-		? buildDetailFieldRow("Wiki-Ort", `<a class="dt-link" href="${settlementEscape(wikiSettlementUrl)}" target="_blank" rel="noopener">${settlementEscape(detail.name || "Wiki-Seite")} ↗</a>`, "Wiki")
-		: "";
-	if (!wikiRow) return "";
-	return `<div class="dt-grp">Wiki-Verknüpfung</div><div class="dt-grid">${wikiRow}</div>`;
+	// ⚠️ IMMER, auch ohne Zuweisung: der offene Zustand IST der Knopf „Zuweisen". Die alte Zeile
+	// verschwand, wenn nichts verknuepft war -- und damit auch jeder Hinweis darauf, dass hier etwas
+	// zu tun ist.
+	// 🔴 KEIN Riegel auf `detail.on_map`. Das Feld sagt nur, ob eine PUNKTGEOMETRIE vorliegt
+	// (avesmapsWikiSettlementDetail, settlements.php:1671); `assign_to` braucht sie nicht, es
+	// schreibt an die public_id. Und ein reiner Wiki-Ort ohne map_features-Zeile kommt hier gar
+	// nicht an -- der laeuft ueber renderWikiOnlySettlementDetail.
+	return `<div id="dtWikiAssign"></div>`;
 }
 
 // Eigene Header-Bilder (Owner): Galerie unter dem Wappen-Block. Bis zu 10 Bilder je Siedlung; sie werden
@@ -1682,6 +1694,138 @@ async function saveSettlementEditForm() {
 		setSettlementEditMsg(error && error.message ? error.message : String(error), "bad");
 		if (saveButton) saveButton.disabled = false;
 	}
+}
+
+// ---- Wiki-Ort: der Datenweg fuer das gemeinsame Bauteil ------------------------------
+// Zwilling: js/review/review-settlement-wiki.js (dieselbe Zuweisung im Kartendialog, Huelle
+// „label-wiki"). Was BEIDE brauchen, steht in js/ui/wiki-assign-ort.js -- die zwei laufen in
+// verschiedenen Dokumenten und koennen keine Funktion voneinander sehen.
+
+let settlementWikiAssign = null;
+
+/**
+ * 🔴 WIRFT, WENN KEIN ORT GELADEN IST -- der Vertrag aus dem Kopf von js/ui/wiki-assign.js. Ein
+ * `laden`, das im Fehlerfall etwas Leeres AUFLOEST, ist vom Zustand „nichts zugewiesen" nicht zu
+ * unterscheiden: das Bauteil hielte sich fuer geladen, und die Sync-Vorschau vergliche gegen
+ * Leerwerte statt gegen das Formular.
+ * ⚠️ Hier laeuft kein HTTP: der Stand steht im settlementDetailCache, den renderSettlementDetail
+ * gerade gefuellt hat. Der Fehlerfall ist „der Cache gehoert einem anderen Ort" -- genau der
+ * Zustand nach einem gescheiterten Detail-Abruf.
+ */
+function settlementWikiAssignZustand() {
+	if (!settlementDetailCache || !selectedPublicId || settlementDetailCache.publicId !== selectedPublicId) {
+		throw new Error("Kein Ort geladen.");
+	}
+	const props = settlementDetailCache.detail.properties || {};
+	return avesmapsWikiAssignOrtZustand({
+		wiki_settlement: props.wiki_settlement || null,
+		// 💣 LESEFUNKTIONEN, keine Werte: Namensfeld und Typ-Auswahl stehen in derselben Spalte.
+		// `laden` laeuft einmal, die Sync-Vorschau entsteht erst beim Druck auf „Sync" -- eingefroren
+		// boete sie eine Aenderung an, die das Formular darueber laengst zeigt.
+		name: () => ($("dtEditName") ? $("dtEditName").value : settlementDetailCache.detail.name) || "",
+		feature_subtype: () => ($("dtEditType") ? $("dtEditType").value : settlementDetailCache.detail.feature_subtype) || "",
+	});
+}
+
+/**
+ * 🔴 WIRFT BEI JEDEM NEIN -- settlementDetailPost tut das schon selbst (HTTP-Status UND `ok`), die
+ * zusaetzliche Pruefung haelt die Regel trotzdem an derselben Stelle wie beim Zwilling.
+ *
+ * 💣 DANACH WIRD DAS PANEL NEU GELADEN, und das ist nicht Kosmetik: `assign_to` LOESCHT die
+ * Beschreibung serverseitig (settlements.php:842). Ohne Neuladen stuende sie noch im Textfeld
+ * daneben, und das naechste „Speichern" schriebe sie zurueck -- ein Rueckbau, den niemand angeordnet
+ * hat. ⚠️ Der Neuaufbau ersetzt auch DIESES Bauteil durch ein frisches mit demselben Stand; der
+ * Neuzeichen-Aufruf, den das alte gleich noch macht, trifft dann einen abgehaengten Knoten und
+ * bleibt unsichtbar.
+ */
+async function settlementWikiAssignZuweisen(treffer) {
+	const publicId = selectedPublicId;
+	if (!publicId) throw new Error("Kein Ort gewählt.");
+	let result;
+	try {
+		result = await settlementDetailPost(
+			avesmapsWikiAssignOrtZuweisungsKoerper(avesmapsWikiAssignOrtTitel(treffer), publicId)
+		);
+		avesmapsWikiAssignOrtAntwortPruefen(result);
+	} catch (error) {
+		setSettlementEditMsg("Zuweisen fehlgeschlagen: " + (error && error.message ? error.message : error), "bad");
+		// 💣 Weiterwerfen, NICHT schlucken: das Bauteil malt sonst eine Zuweisung, die es auf dem
+		// Server nicht gibt.
+		throw error;
+	}
+	// Die Suchzeile trug NUR die Ortsgroesse -- die Infoboxwerte stehen erst in dieser Antwort.
+	avesmapsWikiAssignOrtTrefferAnreichern(treffer, result.settlement);
+	// Die mittlere Liste zeigt die Quelle je Zeile (source_category/wiki_url) -- gleiche Pflege wie
+	// bei applyTerritoryAssign daneben.
+	patchSettlementListItem(publicId, {
+		source_category: "wiki",
+		wiki_url: String((result.settlement && result.settlement.wiki_url) || "") || null,
+	});
+	await reloadSettlementDetail();
+}
+
+/** 🔴 WIRFT BEI JEDEM NEIN -- sonst zeigt der Kasten „— keine —", waehrend auf dem Server alles
+ *  unveraendert steht. ⚠️ Anders als beim Weg gibt es keine Rueckfrage: `clear_assign` fasst genau
+ *  DIESEN Ort an (settlements.php:861), nicht eine Namensgruppe. */
+async function settlementWikiAssignLoesen() {
+	const publicId = selectedPublicId;
+	if (!publicId) throw new Error("Kein Ort gewählt.");
+	try {
+		const result = await settlementDetailPost({
+			action: "clear_assign", public_id: publicId, dry_run: false, confirm: "apply",
+		});
+		avesmapsWikiAssignOrtAntwortPruefen(result);
+	} catch (error) {
+		setSettlementEditMsg("Entfernen fehlgeschlagen: " + (error && error.message ? error.message : error), "bad");
+		throw error;
+	}
+	// ⚠️ `source_category` faellt NICHT zwingend auf „keine": das flache properties.wiki_url bleibt
+	// stehen (clear_assign fasst nur das Nest an, settlements.php:884), und die Liste wertet beides
+	// (avesmapsWikiSettlementEditorList:1472-1492). Deshalb wird sie hier nicht geraten, sondern
+	// frisch geholt.
+	await loadSettlementItems();
+	await reloadSettlementDetail();
+}
+
+/**
+ * ⚠️ ÜBERNEHMEN FÜLLT NUR DAS FORMULAR (Entwurf §6) -- gespeichert wird mit „Speichern".
+ * 🔴 DERSELBE VERTRAG WIE BEI `zuweisen` UND `loesen`: wer nichts tun konnte, WIRFT.
+ */
+function settlementWikiAssignSyncUebernehmen(zeilen) {
+	const werte = avesmapsWikiAssignOrtSyncWerte(zeilen);
+	if (werte.name === null && werte.feature_subtype === null) {
+		throw new Error("Keine übernehmbare Angabe angehakt.");
+	}
+	if (werte.name !== null) {
+		const nameInput = $("dtEditName");
+		if (!nameInput) throw new Error("Das Namensfeld steht nicht im Formular.");
+		nameInput.value = werte.name;
+	}
+	if (werte.feature_subtype !== null) {
+		const select = $("dtEditType");
+		if (!select || !Array.from(select.options || []).some((option) => option.value === werte.feature_subtype)) {
+			throw new Error("Die Ortsgröße „" + werte.feature_subtype + "“ steht in der Auswahl nicht zur Verfügung.");
+		}
+		select.value = werte.feature_subtype;
+	}
+	setSettlementEditMsg("Aus dem Wiki übernommen — noch nicht gespeichert.", "");
+}
+
+function mountSettlementWikiAssign() {
+	const host = $("dtWikiAssign");
+	if (!host) return;
+	if (settlementWikiAssign) { settlementWikiAssign.zerstoeren(); settlementWikiAssign = null; }
+	settlementWikiAssign = avesmapsWikiAssignMount(host, {
+		subject: "ort",
+		skin: "dt",
+		laden: settlementWikiAssignZustand,
+		// Die Suche antwortet mit FLACHEN Zeilen, und zwar OHNE Infoboxwerte -- erst hier entsteht
+		// daraus ein Treffer (js/ui/wiki-assign-ort.js).
+		trefferAufbereiten: avesmapsWikiAssignOrtTreffer,
+		zuweisen: settlementWikiAssignZuweisen,
+		loesen: settlementWikiAssignLoesen,
+		syncUebernehmen: settlementWikiAssignSyncUebernehmen,
+	});
 }
 
 // ---- Wappen upload dialog (multipart -> settlement-coat-upload.php) -------------------

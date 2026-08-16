@@ -1313,7 +1313,6 @@
 							<span>Ortsname *</span>
 							<div class="location-edit-fieldrow">
 								<input id="location-edit-name" name="name" type="text" maxlength="160" required />
-								<button type="button" id="location-edit-wiki-sync-name" class="location-edit-wiki-mini" disabled title="Ortsname aus dem verbundenen Wiki-Ort übernehmen" aria-label="Ortsname aus Wiki übernehmen">↻</button>
 							</div>
 						</label>
 						<label class="location-report-form__field">
@@ -1327,7 +1326,6 @@
 									<option value="metropole">Metropole</option>
 									<option value="gebaeude">Besondere Bauwerke/Stätten</option>
 								</select>
-								<button type="button" id="location-edit-wiki-sync-size" class="location-edit-wiki-mini" disabled title="Ortsgröße aus dem verbundenen Wiki-Ort übernehmen" aria-label="Ortsgröße aus Wiki übernehmen">↻</button>
 							</div>
 						</label>
 						<!-- Ortsart: die zweite Achse. Die Ortsgröße darüber entscheidet, WIE der Punkt gezeichnet wird
@@ -1373,23 +1371,15 @@
 					</label>
 					</div>
 					<input id="location-edit-wiki-url" name="wiki_url" type="hidden" value="" />
-					<div class="label-edit-section"><div class="label-edit-section-title">Wiki-Ort</div>
-						<div class="label-wiki-reference" id="settlement-wiki-reference">
-							<div class="label-wiki-reference__head">
-								<span class="label-wiki-reference__title">Ort aus dem Wiki</span>
-								<span class="label-wiki-reference__buttons">
-									<button type="button" id="settlement-wiki-assign" class="location-report-form__button location-report-form__button--secondary">Zuweisen</button>
-									<button type="button" id="settlement-wiki-remove" class="location-report-form__button location-report-form__button--secondary" hidden>Entfernen</button>
-								</span>
-							</div>
-							<div id="settlement-wiki-reference-list" class="label-wiki-reference__list"></div>
-							<div id="settlement-wiki-picker" class="label-wiki-picker" hidden>
-								<input id="settlement-wiki-picker-filter" type="search" placeholder="Ort suchen ..." autocomplete="off" aria-label="Wiki-Ort suchen" />
-								<div id="settlement-wiki-picker-list" class="label-wiki-picker-list"></div>
-								<p id="settlement-wiki-picker-status" class="location-report-form__status" role="status" aria-live="polite"></p>
-							</div>
-						</div>
-					</div>
+					<!-- Die Wiki-Zuweisung, EIN Bauteil (js/ui/wiki-assign.js, Huelle „label-wiki"), dasselbe
+					     wie beim Weg daneben. 💣 Der Behaelter ist ein BLANKES div: die Huelle
+					     `.label-wiki-reference` erzeugt das Bauteil selbst, ein vorgegebenes traege den
+					     Kasten doppelt geschachtelt. ⚠️ Auch die Ueberschrift kommt von dort (Erklaerung
+					     `ort`, label „Wiki-Ort") -- ein `.label-edit-section-title` daneben waere die zweite.
+					     🔴 Der versteckte `#location-edit-wiki-url` oben bleibt, wo er ist: er ist NICHT die
+					     Zuweisung (die steht in `properties.wiki_settlement`), sondern das flache Feld
+					     daneben, das jedes Speichern mitschickt -- siehe den Kopf von js/ui/wiki-assign-ort.js. -->
+					<div class="label-edit-section"><div id="settlement-wiki-assign-host"></div></div>
 					<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
 						<div id="location-edit-feature-sources"></div>
 					</div>
@@ -3063,6 +3053,9 @@
 		<script src="js/ui/wiki-assign-diff.js"></script>
 		<script src="js/ui/wiki-assign.js"></script>
 		<script src="js/ui/wiki-assign-weg.js"></script>
+		<!-- Der Datenweg des Orts, den sich Kartendialog und Orte-Editor teilen (Aufgabe 5). Steht
+		     neben dem des Wegs und haengt ebenfalls nur an den drei Zeilen darueber. -->
+		<script src="js/ui/wiki-assign-ort.js"></script>
 		<script src="js/review/review-path-wiki.js"></script>
 		<script src="js/review/review-path-flow.js"></script>
 		<!-- Die Subjekt-Registry MUSS vor ihren Lesern stehen: review-settlement-list.js und review-wiki-sync.js rufen wikiSyncSubjectFacets() schon beim Auswerten auf (Beschriftungen der Listenfilter). Sie stand bis 2026-07-23 unter beiden; das Listenmodul waere beim ersten Laden mit einem ReferenceError komplett ausgefallen. Die Datei selbst haengt von nichts ab -- reine Daten. --><script src="js/review/review-subjects.js"></script><script src="js/review/review-settlement-wiki.js"></script>
