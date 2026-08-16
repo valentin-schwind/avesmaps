@@ -54,7 +54,15 @@ require_once __DIR__ . '/../_internal/app/feature-sources.php';
 // 11: jedes Label einer Landschaftsflaeche traegt zusaetzlich properties.ecosystem_region_kind.
 //    Ohne Bump zeigte ein warmer Client beim Umschalten auf eine einzelne Ebene GAR KEINE
 //    Beschriftung -- er kennt das Feld nicht und haelt jede fuer ebenenfremd.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 11;
+// 12: Lizenzumbau Phase 3 (16.08.2026, Aufgaben 1/2b): das Siedlungs-Wappen-Gate (properties.coat) und
+//    das Siedlungsbilder-Gate (properties.images) lassen jetzt alle fuenf oeffentlichen Katalogwerte
+//    durch statt vorher nur eines bzw. dreier (avesmapsSettlementCoatIsPublic()/
+//    avesmapsMapFeaturesPublicImageUrls(), coat-display.php) -- KEINE Formaenderung, sondern ein WERT-
+//    wechsel: der Phase-4-Dialog ist bereits live, ein Editor kann 'permission_granted'/'own_work'
+//    laengst gesetzt haben. Ohne Bump haelt ein warmer Client seinen 304 und zeigt weiterhin das
+//    verschwundene Wappen/Bild nicht, obwohl der Bestand es seit Phase 3 zulaesst (dieselbe Begruendung
+//    wie Version 4/8/9/10/11 oben und api/_internal/app/ecosystem-areas.php:39).
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 12;
 
 // 🔴 Fix-Runde 6 (15.08.2026): the coat-of-arms staging/model table constants AND the two loader/gate
 // functions that used to sit here (avesmapsLoadSettlementCoatGateInputs, avesmapsSettlementTerritoryCoatUrl)
