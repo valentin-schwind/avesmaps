@@ -35,9 +35,28 @@ function avesmapsRegionPolygonIsInteractive({ isEditMode, regionEntry, isAtActiv
 		&& (entry.isDerivedGeometry === true || isAggregatedSourceFragment !== true);
 }
 
+// Welche Eintraege des Rechtsklick-Menues ergeben fuer diese Flaeche Sinn?
+// Bei einer Huelle ohne Quelle sind Grenzen bearbeiten, Verschieben, Zerschneiden, Vereinigen und
+// die drei Ausschneiden-Varianten sinnlos: sie alle arbeiten auf einer Quellgeometrie, und genau
+// die fehlt. Uebrig bleibt, was am GEBIET haengt -- plus das Loeschen der Huelle selbst.
+const AVESMAPS_REGION_SOURCELESS_HULL_ACTIONS = ["edit-properties", "show-info", "delete"];
+
+function avesmapsRegionContextMenuPlan(regionEntry) {
+	const entry = regionEntry || {};
+	const isSourceless = entry.isDerivedGeometry === true && entry.derivedIsSourceless === true;
+	return {
+		// null heisst ausdruecklich „alles wie bisher" -- eine leere Liste hiesse „nichts zeigen".
+		actions: isSourceless ? AVESMAPS_REGION_SOURCELESS_HULL_ACTIONS.slice() : null,
+		// 🔴 Nur der Geist bekommt eine eigene Beschriftung. Gesunde Huellen behalten „Löschen" --
+		// ihr Pfad wird von dieser Baustelle nicht angefasst.
+		deleteLabel: isSourceless ? "Außenhülle löschen" : "Löschen",
+	};
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		avesmapsRegionDerivedIsSourceless,
 		avesmapsRegionPolygonIsInteractive,
+		avesmapsRegionContextMenuPlan,
 	};
 }

@@ -78,4 +78,25 @@ assert.strictEqual(
 	"nur politische Flaechen",
 );
 
+// ---- das Menue ---------------------------------------------------------------------------------
+const { avesmapsRegionContextMenuPlan } = require("../map-features-region-interactivity.js");
+
+const planGeist = avesmapsRegionContextMenuPlan(geist);
+assert.deepStrictEqual(
+	planGeist.actions,
+	["edit-properties", "show-info", "delete"],
+	"fuer einen Geist bleiben genau drei Eintraege -- alles andere gehoert einer Quellflaeche, die es nicht gibt",
+);
+assert.strictEqual(planGeist.deleteLabel, "Außenhülle löschen", "und der Loeschknopf sagt, was er loescht");
+
+// 🔴 Der gesunde Pfad wird NICHT angefasst: ein Aggregat mit Quellen behaelt Menue und
+// Beschriftung, wie sie waren. Die Ausnahme gilt dem Geist, nicht den Huellen ueberhaupt.
+const planAggregat = avesmapsRegionContextMenuPlan(aggregat);
+assert.strictEqual(planAggregat.actions, null, "ein gesundes Aggregat behaelt das volle Menue");
+assert.strictEqual(planAggregat.deleteLabel, "Löschen", "und seine bisherige Beschriftung");
+
+const planQuelle = avesmapsRegionContextMenuPlan(quelle);
+assert.strictEqual(planQuelle.actions, null, "eine Quellflaeche ebenso");
+assert.strictEqual(planQuelle.deleteLabel, "Löschen", "und behaelt ihre Beschriftung");
+
 console.log("OK: verwaiste-aussenhuelle-interaktiv");

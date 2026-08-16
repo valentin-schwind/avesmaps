@@ -24,6 +24,23 @@ function openRegionContextMenu(regionEntry, regionLayer, latlng, clientX, client
 		extractActionElement.hidden = !(regionEntry?.source === "political_territory" && layerCount > 1 && regionLayer);
 	}
 
+	// 🔴 Beschriftungen wandern, KENNUNGEN bleiben: data-region-context-action="delete" ist der
+	// Anker des Handlers weiter unten in dieser Datei.
+	const menuPlan = avesmapsRegionContextMenuPlan(regionEntry);
+	const deleteActionElement = menuElement.querySelector('[data-region-context-action="delete"]');
+	if (deleteActionElement) {
+		deleteActionElement.textContent = menuPlan.deleteLabel;
+	}
+	menuElement.querySelectorAll("[data-region-context-action]").forEach((item) => {
+		const action = item.dataset.regionContextAction || "";
+		if (menuPlan.actions === null) {
+			// extract hat seine eigene Regel oben und wird hier nicht ueberstimmt.
+			if (action !== "extract") item.hidden = false;
+			return;
+		}
+		item.hidden = !menuPlan.actions.includes(action);
+	});
+
 	menuElement.hidden = false;
 	positionContextMenuElement(menuElement, clientX, clientY);
 }

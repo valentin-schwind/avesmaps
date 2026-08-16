@@ -523,7 +523,14 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 		// darunter (sonst hätte er die Quelle bevorzugt). Abgeleitete Hüllen sind nicht editierbar
 		// (sie werden aus den Unterflächen neu berechnet) -> Hinweis statt nutzloser Editor.
 		if (selectedRegionEntry?.isDerivedGeometry === true) {
-			showFeedbackToast("Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) anklicken.", "info");
+			// ⚠️ Hat die Hülle gar keine Quelle, ist „bitte das Unterreich anklicken" falsch: es gibt
+			// keins. Dann ist der Rechtsklick der einzige Weg — und der Satz muss ihn nennen.
+			showFeedbackToast(
+				selectedRegionEntry.derivedIsSourceless === true
+					? "Diese Außenhülle hat keine Quellfläche mehr. Rechtsklick → „Außenhülle löschen“."
+					: "Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) anklicken.",
+				"info"
+			);
 			return;
 		}
 		startRegionGeometryEdit(selectedRegionEntry, selectedLayer);
