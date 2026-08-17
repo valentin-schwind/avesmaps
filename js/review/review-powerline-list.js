@@ -82,6 +82,73 @@ window.avesmapsFlyToLocationPublicId = window.avesmapsFlyToLocationPublicId || f
 // ---------------------------------------------------------------------------------------------
 let avesmapsPowerlineSyncFilterText = "";
 
+// ---------------------------------------------------------------------------------------------
+// „Ist hier ein Wiki-Artikel zu holen?" -- die dritte Spalte der Zeile (Stufe 1).
+//
+// Die Kraftlinien sind die ERSTE der acht Listen, die das Symbol tragen, und der Grund ist der
+// Zuschnitt, nicht der Zufall: ihr Katalog reist ohnehin in DERSELBEN Antwort mit, in der die
+// Segmente stehen (`GET /api/edit/map/powerlines.php` -> `segments` + `wiki_articles`, gemessen
+// 165 und 23 am 17.08.2026). Ein Aufruf, kein zweiter -- und NIE das Wiki: die Vorschlagsliste
+// kommt aus dem eingelesenen Dump, nicht von einer Live-Abfrage. Bei Wegen, Orten und Regionen
+// staenden Tausende Kandidaten, die kein Payload mitschleppt; deshalb ist das Opt-in der
+// eigentliche Zuschnitt und nicht Zierrat.
+//
+// 💣 OHNE KATALOG KEINE SPALTE. Setzte die Liste das Opt-in auch dann, wenn der Abruf scheitert
+// (nicht angemeldet, Netz weg, `dump_state.problem`), stuende in jeder der 62 Zeilen eine
+// Abwesenheit, die „wir haben nichts gefunden" heisst, obwohl in Wahrheit gar nicht gesucht
+// wurde. Dann faellt lieber die ganze Spalte aus -- so sieht die Liste aus wie die sieben
+// anderen und behauptet nichts.
+const AVESMAPS_POWERLINE_WIKI_API = "/api/edit/map/powerlines.php";
+let avesmapsPowerlineWikiKatalog = [];
+let avesmapsPowerlineWikiZugewiesen = new Set();
+// offen -> laeuft -> fertig | fehler. Nur "offen" loest einen Abruf aus.
+// 💣 Diese Sperre ist TRAGEND, nicht bloss sparsam: der Erfolgszweig zeichnet die Liste neu, und
+// das Neuzeichnen ruft den Lader wieder -- ohne sie dreht sich das im Kreis und schickt Anfrage
+// um Anfrage. „fehler" wird ebenfalls nicht wiederholt, sonst haengt an jedem Tastendruck in der
+// Suche eine neue vergebliche Anfrage.
+let avesmapsPowerlineWikiLadezustand = "offen";
+// 🔴 Erst wenn der Reiter „Kraftlinien" einmal geoeffnet war. Der Zeichner laeuft naemlich auch
+// fuer JEDEN Besucher: preparePowerlineData ruft ihn, sobald die Kartendaten da sind. Ohne dieses
+// Tor schickte jeder anonyme Seitenaufruf eine Anfrage an einen Endpunkt der Faehigkeit `edit` --
+// eine 401 je Besuch, fuer nichts. Dieselbe Faulheit haben loadRegionWikiSync und loadPathWikiSync.
+let avesmapsPowerlineWikiTabOffen = false;
+
+// Einmal je Sitzung. Ergebnis: der Katalog und die Namen mit bereits gesetzter Zuweisung.
+function avesmapsPowerlineWikiKatalogLaden() {
+	if (!avesmapsPowerlineWikiTabOffen || avesmapsPowerlineWikiLadezustand !== "offen") { return; }
+	avesmapsPowerlineWikiLadezustand = "laeuft";
+	fetch(AVESMAPS_POWERLINE_WIKI_API, { credentials: "same-origin" })
+		.then((antwort) => antwort.json())
+		.then((daten) => {
+			if (!daten || daten.ok !== true) { throw new Error("keine Nutzlast"); }
+			avesmapsPowerlineWikiKatalog = Array.isArray(daten.wiki_articles) ? daten.wiki_articles : [];
+			// „Zugewiesen" ist genau das, was auch der Editor so nennt: properties.wiki_url auf
+			// IRGENDEINEM Segment der Namensgruppe (dort `fieldSample(line, "wiki_url")`). Das Nest
+			// wiki_powerline zaehlt bewusst NICHT -- das schreibt der Namensabgleich von selbst, es
+			// ist keine Entscheidung eines Editors und niemand hat es zugewiesen.
+			avesmapsPowerlineWikiZugewiesen = new Set(
+				(Array.isArray(daten.segments) ? daten.segments : [])
+					.filter((segment) => segment && String(segment.wiki_url || "").trim() !== "")
+					.map((segment) => String(segment.name || "").trim())
+					.filter((name) => name !== ""));
+			avesmapsPowerlineWikiLadezustand = "fertig";
+			renderPowerlineSyncList();
+		})
+		.catch(() => {
+			avesmapsPowerlineWikiLadezustand = "fehler";
+			avesmapsPowerlineWikiKatalog = [];
+			avesmapsPowerlineWikiZugewiesen = new Set();
+		});
+}
+
+// Der Einstieg des Reiters (setWikiSyncPanelTab in review-wiki-sync.js) -- benannt wie die
+// Geschwister loadRegionWikiSync / loadPathWikiSync, weil er dasselbe tut: beim ersten Oeffnen
+// holen, danach nur noch zeichnen.
+function loadPowerlineWikiSync() {
+	avesmapsPowerlineWikiTabOffen = true;
+	renderPowerlineSyncList();
+}
+
 function avesmapsPowerlinePanelNodeName(publicId) {
 	if (typeof findLocationMarkerByPublicId !== "function") { return ""; }
 	const entry = findLocationMarkerByPublicId(publicId);
@@ -123,6 +190,12 @@ function renderPowerlineSyncList() {
 	const list = document.getElementById("powerline-sync-list");
 	if (!list) { return; }
 	const esc = (typeof escapeHtml === "function") ? escapeHtml : ((s) => String(s == null ? "" : s));
+	avesmapsPowerlineWikiKatalogLaden();
+	// Das Opt-in haengt am Katalog, nicht am Reiter: ohne Artikel gibt es nichts zu sagen, und eine
+	// leere dritte Spalte kostet trotzdem ihre 16px plus 7px Spalt in einem 400px-Panel.
+	const zeigeWikistatus = avesmapsPowerlineWikiKatalog.length > 0
+		&& typeof avesmapsWikistatusZustand === "function";
+	list.classList.toggle("wikisync-itemlist--wikistatus", zeigeWikistatus);
 	const groups = avesmapsPowerlinePanelGroups();
 	const summary = document.getElementById("powerline-sync-summary");
 	if (summary) {
@@ -149,10 +222,20 @@ function renderPowerlineSyncList() {
 		const nodeCount = g.topology ? g.topology.adjacency.size : 0;
 		const span = avesmapsPowerlinePanelSpanText(g.topology);
 		const meta = nodeCount + " Nodices · " + g.segments.length + " Segmente" + (span ? " · " + span : "");
+		// Der Abgleich ist eine eigene, gepruefte Funktion (js/review/review-list-wikistatus.js) --
+		// keine Bedingung hier im Zeichner. Nur so ist seine Abnahmeliste ueberhaupt pruefbar.
+		let wikistatus = "";
+		if (zeigeWikistatus) {
+			const zustand = avesmapsWikistatusZustand(g.name, avesmapsPowerlineWikiKatalog, {
+				zugewiesen: avesmapsPowerlineWikiZugewiesen.has(g.name),
+			});
+			wikistatus = avesmapsWikistatusMarkup(zustand.zustand, zustand.artikel);
+		}
 		return '<div class="tree-item has-map-status region-sync__item powerline-sync__item" data-powerline-name="' + esc(g.name) + '"'
 			+ ' title="Doppelklick: im Kraftlinienmodus auf diese Linie zoomen" style="cursor:pointer;">'
 			+ '<span class="tree-item-name">' + esc(g.name) + '</span>'
 			+ '<span class="tree-item-meta">' + esc(meta) + '</span>'
+			+ wikistatus
 			+ '</div>';
 	}).join("");
 }

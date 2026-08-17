@@ -1215,6 +1215,72 @@
 	grid-column: 1;
 }
 
+/* ── „Ist hier ein Wiki-Artikel zu holen?" — die dritte Spalte ───────────────────────────────
+   🔴 EIN OPT-IN, dieselbe Bauform wie --nodrag darüber: die Spalte entsteht nur, wenn die LISTE
+   sie anfordert. Die sieben anderen Listen ändern sich um kein Pixel, solange sie
+   .wikisync-itemlist--wikistatus nicht setzen.
+   💣 Und sie MUSS ein Opt-in sein: eine dauerhaft dritte Spalte kostet auch leer ihren
+   column-gap von 7px — in einem 400px breiten Panel ist das nicht nichts.
+   Entwurf/Mockup: docs/listensymbol-wiki-mockup.html (Variante A, Owner-Abnahme 17.08.2026). */
+.wikisync-itemlist--wikistatus .tree-item {
+	grid-template-columns: 16px minmax(0, 1fr) 16px;
+}
+/* 💣 Die KOMBINATION braucht eine eigene Regel. --nodrag (0,2,0) und --wikistatus (0,2,0) haben
+   dieselbe Spezifität; welche gewinnt, entschiede allein die Reihenfolge in dieser Datei — eine
+   Liste mit beiden Klassen bekäme also je nach Sortierung ihre Ziehgriff-Spalte zurück oder ihre
+   Symbolspalte gar nicht. Drei der acht Listen sind --nodrag (Literatur, Karten, Vorkommen), die
+   Kombination ist also keine Erfindung auf Vorrat. (0,3,0) schlägt beide. */
+.wikisync-itemlist--nodrag.wikisync-itemlist--wikistatus .tree-item {
+	grid-template-columns: minmax(0, 1fr) 16px;
+}
+/* Das Symbol: eine RAUTE, nicht noch ein Kreis. Der Kreis ist vergeben (.has-map-status = liegt
+   auf der Karte); zwei Kreise nebeneinander wären zwei Bedeutungen in einer Form.
+   💣 grid-column: -2 / -1 heißt „die LETZTE Spalte" — mit Ziehgriff die dritte, ohne ihn die
+   zweite. Eine feste 3 (so steht sie im Mockup, das nur die Kraftlinien zeigt) risse in einer
+   --nodrag-Liste eine vierte, implizite Spalte auf.
+   💣 11px, exakt so hoch wie der Kreis daneben, damit die Zeilenhöhe unberührt bleibt — und
+   zugleich die Untergrenze der Designsprache. ⚠️ Gedreht misst die Raute 15,6px in der Diagonale;
+   mit justify-self:end reicht sie damit 2,28px in die 8px-Polsterung der Zeile (gemessen im
+   Browser: rechte Kante 5,72px vor der Zeilenkante). Sie wird nirgends beschnitten — aber wer die
+   Polsterung verkleinert, sollte das wissen. */
+.wikisync-itemlist--wikistatus .wiki-state {
+	grid-column: -2 / -1;
+	grid-row: 1;
+	justify-self: end;
+	align-self: center;
+	width: 11px;
+	height: 11px;
+	box-sizing: border-box;
+	border-radius: 2px;
+	transform: rotate(45deg);
+}
+/* Voll = greifbar: der Name trifft einen Katalogeintrag wortgleich, ein Klick genügt. */
+.wikisync-itemlist--wikistatus .wiki-state--zuweisbar {
+	border: 1px solid var(--color-accent);
+	background: var(--color-accent);
+}
+/* Hohl und gestrichelt = ansehen, nicht zugreifen: im Wiki steht etwas, das passen könnte, aber
+   nicht wortgleich. Der Tooltip nennt den Fund.
+   💣 DIESER ZUSTAND IST DER SINN DES SYMBOLS. Ohne ihn stünde „Brücke nach Akrabaal" leer da,
+   obwohl das Wiki „Brücke VON Akrabaal" führt — und die ABWESENHEIT des Symbols, die „wir haben
+   nichts gefunden" heißt, hätte den Leser „es gibt keinen Artikel" verstehen lassen. Auf
+   derselben Zeile ist bereits eine Abwesenheit bedeutungstragend (der Kreis fehlt bei Literatur,
+   Karten und Vorkommen mit Absicht); zwei verschieden bedeutende Abwesenheiten wären eine Falle. */
+/* ⚠️ Die 1,5px stehen so im Mockup und bleiben so: bei einfacher Bildschirmauflösung rundet der
+   Browser sie auf 1px ab (gemessen, devicePixelRatio 1), auf einem feinen Bildschirm trägt die
+   Kontur ihr volles Gewicht. Unterscheidbar ist der Zustand ohnehin an der Strichelung, nicht an
+   der Strichstärke. */
+.wikisync-itemlist--wikistatus .wiki-state--kandidat {
+	border: 1.5px dashed var(--color-warning);
+	background: transparent;
+}
+/* Leise, nur Kontur — die Zuweisung steht schon, hier ist nichts mehr zu holen. */
+.wikisync-itemlist--wikistatus .wiki-state--zugewiesen {
+	border: 1px solid var(--color-text-muted);
+	background: transparent;
+	opacity: .55;
+}
+
 /* Der Status-Marker selbst ist unsichtbar; er steuert nur die Kreis-Füllung. */
 .wikisync-itemlist .tree-map-status,
 #wiki-sync-territory-tree .tree-map-status {

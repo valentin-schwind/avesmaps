@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listensymbol „Wiki-Artikel zu holen?" (Mockup)</title>
+<style>
+/* Werte 1:1 aus css/base/tokens.css, dunkles Thema — die acht Listen stehen im
+   Editor-Panel, und das ist dunkel. Nichts hier ist geraten. */
+:root {
+	--panel:            #312e26;
+	--panel-soft:       #37342b;
+	--text-strong:      #f5f0e4;
+	--text-muted:       #b4a895;
+	--divider:          rgba(207, 197, 171, 0.24);
+	--link:             #d7c38b;
+	--hover-wash:       rgba(207, 183, 103, 0.18);
+	--presence:         #6a7f3a;   /* --color-map-presence, in beiden Themen gleich */
+	--accent:           #cfb767;   /* --color-accent (dunkel) */
+	--warning:          #e0b45c;   /* --color-warning (dunkel) */
+	--warning-soft:     #3b3122;
+	--radius-sm: 5px;
+	--radius-md: 8px;
+
+	--font-size-caption: 11px;   /* die Untergrenze */
+	--font-size-body:    13px;
+	--font-size-subhead: 16px;
+	--font-size-title:   20px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	padding: 32px 28px 80px;
+	background: #26241e;
+	color: var(--text-strong);
+	font-family: "Faculty Glyphic", Arial, sans-serif;
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+h1 { margin: 0 0 6px; font-size: 26px; font-weight: 700; }
+h2 {
+	margin: 44px 0 4px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--divider);
+	font-size: var(--font-size-title);
+	font-weight: 700;
+}
+h3 { margin: 26px 0 8px; font-size: var(--font-size-subhead); font-weight: 700; }
+p  { max-width: 76ch; margin: 8px 0; color: var(--text-muted); }
+p strong, li strong, td strong { color: var(--text-strong); }
+ul { max-width: 76ch; color: var(--text-muted); padding-left: 20px; }
+li { margin: 5px 0; }
+code {
+	padding: 1px 5px;
+	border-radius: var(--radius-sm);
+	background: var(--panel-soft);
+	color: var(--text-strong);
+	font-family: ui-monospace, Consolas, monospace;
+	font-size: 12px;
+}
+.lede { max-width: 76ch; color: var(--text-strong); font-size: 15px; }
+
+/* ── Das Panel, so breit wie das echte ──────────────────────────────────── */
+.panelrahmen { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+.panel {
+	width: 400px;
+	padding: 12px 10px;
+	border-radius: var(--radius-md);
+	background: var(--panel);
+}
+.panelkopf {
+	margin: 0 0 8px;
+	padding: 0 4px;
+	color: var(--text-muted);
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+}
+
+/* ── DIE GETEILTE ZEILE ────────────────────────────────────────────────────
+   Bis auf die dritte Spalte 1:1 aus css/components/region-sync.css
+   (.wikisync-itemlist .tree-item). */
+.wikisync-itemlist .tree-item {
+	display: grid;
+	grid-template-columns: 16px minmax(0, 1fr);
+	grid-template-rows: auto auto;
+	align-items: center;
+	column-gap: 7px;
+	row-gap: 2px;
+	width: 100%;
+	padding: 5px 8px;
+	border: 0 solid var(--divider);
+	border-bottom-width: 1px;
+	background: transparent;
+	text-align: left;
+	cursor: pointer;
+	color: var(--text-strong);
+}
+.wikisync-itemlist .tree-item:hover { background: var(--hover-wash); }
+
+/* 🔴 DIE EINZIGE ÄNDERUNG AN DER GETEILTEN ZEILE — und sie ist ein OPT-IN.
+   Dieselbe Bauform, die die Datei für --nodrag schon benutzt: die dritte Spalte
+   entsteht nur, wenn die LISTE sie anfordert. Die sieben anderen Listen sehen
+   kein einziges veraendertes Pixel. */
+.wikisync-itemlist--wikistatus .tree-item {
+	grid-template-columns: 16px minmax(0, 1fr) 16px;
+}
+
+.drag-handle {
+	grid-column: 1;
+	grid-row: 1 / span 2;
+	font-size: 12px;
+	color: var(--text-muted);
+	letter-spacing: -1px;
+	cursor: grab;
+}
+.tree-item-name {
+	grid-column: 2;
+	grid-row: 1;
+	min-width: 0;
+	font-size: var(--font-size-body);
+	font-weight: 700;
+	line-height: 1.22;
+}
+.tree-item-meta {
+	grid-column: 2;
+	grid-row: 2;
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	line-height: 1.2;
+	color: var(--text-muted);
+}
+.tree-item-meta a { color: var(--link); text-decoration: none; }
+
+/* Der vorhandene Kreis (gruen = liegt auf der Karte). Haengt an .has-map-status,
+   NICHT an .tree-item — Literatur, Karten und Vorkommen haben ihn absichtlich nicht. */
+.tree-item.has-map-status .tree-item-name::after {
+	content: "";
+	display: inline-block;
+	width: 11px; height: 11px;
+	margin-left: 6px;
+	vertical-align: -2px;
+	border: 2px solid var(--presence);
+	border-radius: 50%;
+	background: var(--panel);
+}
+.tree-item.has-map-status.karte-ganz .tree-item-name::after { background: var(--presence); }
+
+/* ── DAS NEUE SYMBOL ───────────────────────────────────────────────────────
+   RAUTE, nicht Kreis: der Kreis ist schon vergeben (Karte), und zwei Kreise
+   nebeneinander waeren zwei Bedeutungen in einer Form. */
+.wiki-state {
+	grid-column: 3;
+	grid-row: 1;
+	justify-self: end;
+	width: 11px; height: 11px;
+	transform: rotate(45deg);
+	border-radius: 2px;
+	box-sizing: border-box;
+}
+.wiki-state--zuweisbar {           /* voll = greifbar */
+	background: var(--accent);
+	border: 1px solid var(--accent);
+}
+.wiki-state--kandidat {            /* hohl + gestrichelt = ansehen */
+	background: transparent;
+	border: 1.5px dashed var(--warning);
+}
+.wiki-state--zugewiesen {          /* leise, nur Kontur */
+	background: transparent;
+	border: 1px solid var(--text-muted);
+	opacity: .55;
+}
+
+/* ── Legende ──────────────────────────────────────────────────────────────── */
+.legende { max-width: 76ch; margin: 14px 0 0; border-collapse: collapse; }
+.legende td {
+	padding: 9px 12px 9px 0;
+	border-bottom: 1px solid var(--divider);
+	color: var(--text-muted);
+	font-size: 13px;
+	vertical-align: top;
+}
+.legende td:first-child { width: 42px; text-align: center; padding-top: 12px; }
+.legende .probe { display: inline-block; }
+.legende .probe .wiki-state { position: static; display: block; margin: 0 auto; }
+
+.hinweis {
+	max-width: 76ch;
+	margin: 16px 0;
+	padding: 12px 14px;
+	border-left: 3px solid var(--warning);
+	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+	background: var(--warning-soft);
+	color: var(--text-strong);
+	font-size: 13.5px;
+}
+.hinweis strong { display: block; margin-bottom: 3px; }
+
+.variante { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 10px; }
+.variante > div { flex: 0 0 400px; }
+.variante h4 {
+	margin: 0 0 6px;
+	color: var(--text-muted);
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+}
+</style>
+</head>
+<body>
+
+<h1>Ein Symbol rechts oben: „Ist hier ein Wiki-Artikel zu holen?"</h1>
+<p class="lede">
+	Die Kraftlinienliste zeigt 62 Einträge. <strong>17 davon sind sofort zuweisbar</strong>, vier
+	weitere haben im Wiki einen Artikel unter leicht anderem Namen. Man sieht es keiner Zeile an —
+	also muss man alle 62 anklicken. Das Symbol beantwortet die Frage beim Überfliegen.
+</p>
+<p>
+	Alle Namen und Zustände unten sind <strong>echt</strong>, live gemessen am 17.08.2026.
+</p>
+
+<h2>Die Liste, wie sie damit aussähe</h2>
+
+<div class="panelrahmen">
+	<div class="panel">
+		<p class="panelkopf">Kraftlinien · 62</p>
+		<div class="wikisync-itemlist wikisync-itemlist--wikistatus">
+
+			<div class="tree-item has-map-status">
+				<span class="drag-handle">⣿</span>
+				<span class="tree-item-name">Arteria Magica</span>
+				<span class="tree-item-meta">3 Nodices · 2 Segmente · Donnerbach — Narai Tuschas</span>
+				<span class="wiki-state wiki-state--zuweisbar" title="Zuweisbar"></span>
+			</div>
+
+			<div class="tree-item has-map-status">
+				<span class="drag-handle">⣿</span>
+				<span class="tree-item-name">Basiliuslinie</span>
+				<span class="tree-item-meta">18 Nodices · 16 Segmente · 4 Enden</span>
+				<span class="wiki-state wiki-state--zuweisbar" title="Zuweisbar"></span>
+			</div>
+
+			<div class="tree-item has-map-status">
+				<span class="drag-handle">⣿</span>
+				<span class="tree-item-name">Brücke nach Akrabaal</span>
+				<span class="tree-item-meta">3 Nodices · 2 Segmente · Ssel’ Althach — Friedhof der Seeschlangen</span>
+				<span class="wiki-state wiki-state--kandidat" title="Kandidat im Wiki gefunden: „Brücke von Akrabaal“"></span>
+			</div>
+
+			<div class="tree-item has-map-status">
+				<span class="drag-handle">⣿</span>
+				<span class="tree-item-name">Satinavs Kette I</span>
+				<span class="tree-item-meta">4 Nodices · 3 Segmente</span>
+				<span class="wiki-state wiki-state--kandidat" title="Kandidat im Wiki gefunden: „Satinavs Ketten“"></span>
+			</div>
+
+			<div class="tree-item has-map-status karte-ganz">
+				<span class="drag-handle">⣿</span>
+				<span class="tree-item-name">Elementares Hexagramm</span>
+				<span class="tree-item-meta">6 Nodices · 6 Segmente · <a href="#">Wiki ↗</a></span>
+				<span class="wiki-state wiki-state--zugewiesen" title="Zugewiesen"></span>
+			</div>
+
+			<div class="tree-item has-map-status">
+				<span class="drag-handle">⣿</span>
+				<span class="tree-item-name">Kette der Zyklopen</span>
+				<span class="tree-item-meta">5 Nodices · 4 Segmente</span>
+				<span class="wiki-state wiki-state--zuweisbar" title="Zuweisbar"></span>
+			</div>
+
+			<div class="tree-item has-map-status">
+				<span class="drag-handle">⣿</span>
+				<span class="tree-item-name">Klirrfrostsaite (Zwölfseitige Götterharfe)</span>
+				<span class="tree-item-meta">3 Nodices · 2 Segmente</span>
+				<span class="wiki-state wiki-state--kandidat" title="Kandidat im Wiki gefunden: „Zwölfsaitige Götterharfe“"></span>
+			</div>
+
+			<div class="tree-item has-map-status">
+				<span class="drag-handle">⣿</span>
+				<span class="tree-item-name">Aldyra - Kuslik</span>
+				<span class="tree-item-meta">2 Nodices · 1 Segmente · Aldyra — Kuslik</span>
+			</div>
+
+			<div class="tree-item has-map-status">
+				<span class="drag-handle">⣿</span>
+				<span class="tree-item-name">Chalwens Griff</span>
+				<span class="tree-item-meta">4 Nodices · 3 Segmente · Olport — Akrabaal</span>
+			</div>
+
+		</div>
+	</div>
+
+	<div style="flex:1 1 300px; min-width:280px;">
+		<h3 style="margin-top:0;">Die drei Zustände</h3>
+		<table class="legende">
+			<tr>
+				<td><span class="probe"><span class="wiki-state wiki-state--zuweisbar"></span></span></td>
+				<td><strong>Zuweisbar.</strong> Der Name trifft einen Katalogeintrag exakt. Ein Klick,
+					und die Zuweisung steht. <em>Volle Raute = greifbar.</em></td>
+			</tr>
+			<tr>
+				<td><span class="probe"><span class="wiki-state wiki-state--kandidat"></span></span></td>
+				<td><strong>Kandidat gefunden.</strong> Im Wiki gibt es etwas, das passen könnte — aber
+					nicht wortgleich. <em>Gestrichelte Kontur = ansehen, nicht zugreifen.</em> Der
+					Tooltip nennt den Fund.</td>
+			</tr>
+			<tr>
+				<td><span class="probe"><span class="wiki-state wiki-state--zugewiesen"></span></span></td>
+				<td><strong>Zugewiesen.</strong> Leise, nur Kontur — die Zeile sagt es ohnehin schon mit
+					ihrem <a href="#">Wiki ↗</a>. <em>Optional, siehe Variante B.</em></td>
+			</tr>
+			<tr>
+				<td style="color:var(--text-muted); font-size:11px; padding-top:14px;">— nichts —</td>
+				<td><strong>Nichts gefunden.</strong> Kein Symbol. Heißt <em>„wir haben nichts
+					gefunden“</em> — <strong>nicht</strong> „es gibt keinen Artikel“.</td>
+			</tr>
+		</table>
+	</div>
+</div>
+
+<div class="hinweis">
+	<strong>Die Abwesenheit darf nicht lügen.</strong>
+	Genau dafür gibt es den dritten Zustand. Ohne ihn stünde „Brücke nach Akrabaal“ leer da,
+	obwohl das Wiki „Brücke <em>von</em> Akrabaal“ führt — und das Symbol hätte dem Leser das
+	Gegenteil der Wahrheit beigebracht. Auf derselben Zeile sitzt bereits ein Zeichen, dessen
+	Fehlen <em>Information</em> ist (der grüne Kreis: nur die fünf Karten-Subjekte haben ihn).
+	Zwei verschieden bedeutende Abwesenheiten auf einer Zeile wären eine Falle.
+</div>
+
+<h2>Was das an der geteilten Zeile kostet</h2>
+<p>
+	Es gibt im Projekt genau <strong>zwei</strong> Listenzeilen-Rezepturen, und das ist die
+	Obergrenze — vorher waren es sieben, eine davon mit dem Kommentar „Referenz .se-row“ über der
+	Abschrift, und beim Abschreiben fiel zweimal die Schrift unter die 11px-Grenze. Das Symbol
+	gehört deshalb in die geteilte Zeile und nirgendwo sonst.
+</p>
+<ul>
+	<li><strong>Eine Regel, ein Opt-in.</strong> Die dritte Spalte entsteht nur unter
+		<code>.wikisync-itemlist--wikistatus</code> — dieselbe Bauform, die die Datei für
+		<code>--nodrag</code> schon benutzt. <strong>Die sieben anderen Listen ändern sich um kein
+		Pixel</strong>, solange sie das Opt-in nicht setzen.</li>
+	<li><strong>Ohne Opt-in keine Spalte.</strong> Eine dauerhaft dritte Spalte kostet auch leer
+		ihren <code>column-gap</code> von 7px — in einem 400px-Panel ist das nicht nichts.</li>
+	<li><strong>11px, nicht kleiner.</strong> Die Raute ist 11px, exakt so hoch wie der vorhandene
+		Kreis, damit sie die Zeilenhöhe nicht anfasst.</li>
+	<li><strong>Raute statt Kreis.</strong> Der Kreis ist vergeben. Zwei Kreise nebeneinander wären
+		zwei Bedeutungen in einer Form.</li>
+	<li><strong>Nur Token</strong>, kein hartkodierter Farbwert: <code>--color-accent</code> (Gold)
+		und <code>--color-warning</code> (Bernstein). Kein Blau.</li>
+</ul>
+
+<h2>Woher die Antwort kommt</h2>
+<p>
+	Die Kraftlinien liefern ihren Katalog <strong>schon mit</strong> — <code>wiki_articles</code>,
+	23 Einträge, im selben Payload wie die 165 Segmente. Der Abgleich kostet also keine Anfrage und
+	kein Warten. <strong>Die anderen sieben Listen können das heute nicht:</strong> bei Wegen, Orten
+	und Regionen stehen tausende Kandidaten, die kein Payload mitschleppt — dort müsste der Server
+	die Antwort je Zeile mitgeben. Deshalb ist das Opt-in kein Schnörkel, sondern der eigentliche
+	Zuschnitt: <strong>heute Kraftlinien, später der Rest, ohne die Zeile ein zweites Mal zu
+	erfinden.</strong>
+</p>
+
+<h2>Variante B — ohne Symbol für „zugewiesen“</h2>
+<p>
+	Falls die leise Raute zu viel ist: die zugewiesene Zeile trägt ihr <code>Wiki ↗</code> ohnehin.
+	Links mit, rechts ohne.
+</p>
+<div class="variante">
+	<div>
+		<h4>A — mit (oben gezeigt)</h4>
+		<div class="panel" style="width:100%">
+			<div class="wikisync-itemlist wikisync-itemlist--wikistatus">
+				<div class="tree-item has-map-status karte-ganz">
+					<span class="drag-handle">⣿</span>
+					<span class="tree-item-name">Elementares Hexagramm</span>
+					<span class="tree-item-meta">6 Nodices · 6 Segmente · <a href="#">Wiki ↗</a></span>
+					<span class="wiki-state wiki-state--zugewiesen"></span>
+				</div>
+				<div class="tree-item has-map-status">
+					<span class="drag-handle">⣿</span>
+					<span class="tree-item-name">Kette der Zyklopen</span>
+					<span class="tree-item-meta">5 Nodices · 4 Segmente</span>
+					<span class="wiki-state wiki-state--zuweisbar"></span>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div>
+		<h4>B — ohne</h4>
+		<div class="panel" style="width:100%">
+			<div class="wikisync-itemlist wikisync-itemlist--wikistatus">
+				<div class="tree-item has-map-status karte-ganz">
+					<span class="drag-handle">⣿</span>
+					<span class="tree-item-name">Elementares Hexagramm</span>
+					<span class="tree-item-meta">6 Nodices · 6 Segmente · <a href="#">Wiki ↗</a></span>
+				</div>
+				<div class="tree-item has-map-status">
+					<span class="drag-handle">⣿</span>
+					<span class="tree-item-name">Kette der Zyklopen</span>
+					<span class="tree-item-meta">5 Nodices · 4 Segmente</span>
+					<span class="wiki-state wiki-state--zuweisbar"></span>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<h2>Was der Abgleich leisten muss</h2>
+<p>
+	Der Kandidaten-Abgleich wird eine eigene, geprüfte Funktion — keine Bedingung im Zeichner. Seine
+	Abnahmeliste steht schon fest, und sie hat <strong>zwei</strong> Seiten:
+</p>
+<ul>
+	<li><strong>Muss finden</strong> (gemessene Fälle): <code>Brücke nach Akrabaal</code> →
+		„Brücke von Akrabaal“ · <code>Satinavs Kette I</code> und <code>II</code> → „Satinavs Ketten“
+		(ein Artikel für beide) · <code>Klirrfrostsaite (Zwölfseitige Götterharfe)</code> →
+		„Zwölfsaitige Götterharfe“.</li>
+	<li><strong>Darf nicht finden:</strong> die 16 automatisch benannten Paare
+		(<code>Aldyra - Kuslik</code>, <code>Kreuzung - Kreuzung</code>). Ein Symbol, das überall
+		leuchtet, ist so nutzlos wie keins.</li>
+</ul>
+<p>
+	Zwei Tippfehler in unseren Daten sind dabei nebenbei aufgefallen und werden
+	<strong>nicht</strong> ungefragt angefasst: „Zwölf<em>seitige</em>“ (das Wiki schreibt
+	„Zwölf<em>saitige</em>“ — bei einer Harfe sind Saiten wahrscheinlicher) und „Thalusische
+	Linie<em>a</em>“.
+</p>
+
+</body>
+</html>
