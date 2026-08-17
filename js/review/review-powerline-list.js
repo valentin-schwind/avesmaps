@@ -87,7 +87,7 @@ let avesmapsPowerlineSyncFilterText = "";
 // js/review/review-list-wikistatus.js begruendet; die Leitidee lautet dort: durchgezogen = erledigt,
 // gestrichelt = offen.
 //
-// Die Kraftlinien sind die ERSTE der acht Listen, die das Symbol tragen, und der Grund ist der
+// Die Kraftlinien haben das Symbol als erste bekommen, und der Grund ist der
 // Zuschnitt, nicht der Zufall: ihr Katalog reist ohnehin in DERSELBEN Antwort mit, in der die
 // Segmente stehen (`GET /api/edit/map/powerlines.php` -> `segments` + `wiki_articles`, gemessen
 // 165 und 23 am 17.08.2026). Ein Aufruf, kein zweiter -- und NIE das Wiki: die Vorschlagsliste
@@ -100,7 +100,7 @@ let avesmapsPowerlineSyncFilterText = "";
 // Kontur). Genau deshalb darf sie nicht erscheinen, wenn der Abruf scheitert (nicht angemeldet,
 // Netz weg, `dump_state.problem`): dann waere gar nicht gesucht worden, und 58 Zeilen behaupteten
 // „offen", weil niemand nachgesehen hat. Faellt der Katalog aus, faellt die ganze Spalte -- so
-// sieht die Liste aus wie die sieben anderen und sagt nichts Falsches.
+// sieht die Liste aus wie jede Liste ohne Symbolspalte und sagt nichts Falsches.
 const AVESMAPS_POWERLINE_WIKI_API = "/api/edit/map/powerlines.php";
 let avesmapsPowerlineWikiKatalog = [];
 // Name der Gruppe -> {teile, zugewieseneTeile, keinArtikel}. 💣 ZAEHLER UND NENNER AUS DERSELBEN

@@ -357,6 +357,65 @@ assert.strictEqual(
 	"Ein Wahrheitswert im Zählfeld ist keine Zahl und darf nicht als „1 von 3“ gelesen werden.");
 checks++;
 
+// ---- 4c. Der ÜBERGEBENE Befund `kandidat` -------------------------------------------------------
+// 🔴 Eine Liste, die ihren Kandidaten schon kennt, ÜBERGIBT ihn — sie lässt ihn nicht nachrechnen.
+// Gebaut für die Ortsliste (17.08.2026): dort findet der SERVER den Kandidaten, weil der Katalog
+// 7.740 Titel hat und weder in den Browser passt noch ein zweites Mal in PHP nachgebaut werden darf.
+//
+// 💣 DER ZEUGE, UND ER IST DER GRUND FÜR DIE GANZE OPTION. Die Regel des Servers
+// (avesmapsWikiSettlementBaseKey) streift „(Siedlung)" ab, avesmapsWikistatusSchluessel hier nicht.
+// Ein serverseitig bestätigter Kandidat, als Ein-Eintrag-Katalog übergeben, fiele deshalb durch den
+// exakten UND den unscharfen Test und stünde still als „nichts“ da: ein Wert, den man durch eine
+// zweite, leicht andere Rechnung schickt, verliert dabei lautlos seine Aussage.
+// ⚠️ Diese Zusicherung hält den FEHLZUSTAND fest, damit niemand die Option für Bequemlichkeit hält.
+// Wer die Schlüsselregel hier je an die des Servers angleicht, bricht sie — und muss dann an dieser
+// Stelle nachlesen, dass das eine Entscheidung ist und kein Aufräumen (die JS-Regel gilt allen acht
+// Listen, die Server-Regel gilt den Orten).
+assert.strictEqual(
+	avesmapsWikistatusZustand("Abagund", [{ name: "Abagund (Siedlung)" }], {}).befund,
+	"nichts",
+	"ZEUGE: der Ein-Eintrag-Katalog-Weg verliert den serverseitig bestätigten Kandidaten. Genau "
+	+ "deshalb gibt es die Option `kandidat` — sie reicht den Befund durch, statt ihn nachzurechnen.");
+checks++;
+// …und mit der Option kommt er an.
+assert.deepStrictEqual(
+	avesmapsWikistatusZustand("Abagund", [], { kandidat: "Abagund (Siedlung)" }),
+	{ befund: "treffer", form: "kandidat", artikel: "Abagund (Siedlung)", teile: 0, zugewieseneTeile: 0 },
+	"Ein übergebener Kandidat ergibt den Befund „treffer“ (der Server gleicht gefaltete Namen ab und "
+	+ "verlangt Eindeutigkeit — das ist die strengere Auskunft) und die gestrichelte Raute mit Punkt.");
+checks++;
+// 💣 Die Rangfolge, beide Richtungen einzeln. Der Merker ist die ENTSCHEIDUNG eines Editors und
+// schlägt das Suchergebnis des Servers — dieselbe Regel wie beim Katalogfund darüber.
+assert.strictEqual(
+	avesmapsWikistatusZustand("Abagund", [], { kandidat: "Abagund (Siedlung)", keinArtikel: true }).befund,
+	"kein_artikel",
+	"Der Merker „kein Artikel“ schlägt den übergebenen Kandidaten — sonst bekäme eine bewusst leer "
+	+ "gelassene Zeile ihr „hier ist etwas zu holen“ zurück (die Wiedergänger-Klasse aus Discord #38).");
+checks++;
+assert.strictEqual(
+	avesmapsWikistatusZustand("Abagund", [], { kandidat: "Abagund (Siedlung)", zugewieseneTeile: 1 }).befund,
+	"zuweisung",
+	"Eine gesetzte Zuweisung schlägt den übergebenen Kandidaten.");
+checks++;
+// 💣 …und er schlägt den Katalog. Andersherum bekäme die Ortsliste den Fund einer Rechnung, die
+// sie gar nicht fährt — sie übergibt `[]`, aber ein späterer Aufrufer könnte beides mitgeben.
+assert.strictEqual(
+	avesmapsWikistatusZustand("Basiliuslinie", KATALOG, { kandidat: "Ein anderer Artikel" }).artikel,
+	"Ein anderer Artikel",
+	"Der übergebene Befund schlägt den Katalogfund: wer ihn übergibt, hat bereits gerechnet.");
+checks++;
+// 💣 Nur eine nicht-leere Zeichenkette zählt. `true`, eine Zahl oder ein Objekt sind kein
+// Artikelname und dürften nie als Tooltip „Kandidat im Wiki: „true““ herauskommen — dieselbe
+// Strenge wie bei avesmapsWikistatusZahl. Ein leeres Feld ist der NORMALFALL: der Server schickt
+// `wiki_candidate: ""` für jede Zeile ohne Fund, und 843 solche Zeilen dürfen nicht leuchten.
+for (const wert of ["", "   ", true, 1, {}, [], null, undefined]) {
+	assert.strictEqual(avesmapsWikistatusZustand("Basiliuslinie", [], { kandidat: wert }).befund,
+		"nichts",
+		`Ein \`kandidat\` vom Wert ${JSON.stringify(wert)} ist kein Artikelname und darf keinen Fund `
+		+ "erzeugen. Der leere String ist dabei der Normalfall, nicht der Sonderfall.");
+	checks++;
+}
+
 // ---- 5. Ein einzelnes gemeinsames Wort reicht NICHT ---------------------------------------------
 // 🔴 Bewusste Strenge, gemessen an „Hexenband(-schleife)“: der Artikel „Hexenband“ existiert, aber
 // er hängt bereits an der Linie „Hexenband“. Ein Kandidatensymbol schickte den Editor zu einem
@@ -416,6 +475,22 @@ assert.deepStrictEqual(formen,
 	{ zugewiesen: 2, teilweise: 0, "ohne-artikel": 2, kandidat: 20, offen: 38 },
 	"Die Verteilung der fünf Formen über die 62 Kraftlinien muss 2 zugewiesen / 0 teilweise / "
 	+ "2 ohne-artikel / 20 kandidat / 38 offen sein (live: 2/0/2/21/37).");
+checks++;
+// 🔴 DIE KRAFTLINIEN BLEIBEN UNBERÜHRT, und das ist eine eigene Zusicherung, keine Folgerung.
+// Seit dem 17.08.2026 teilt sich die Kraftlinienliste den Zustandsrechner mit der Ortsliste; jede
+// Erweiterung für die zweite Liste kann die erste verstellen, ohne dass es dort jemandem auffällt
+// (sie ist live und trägt 2 · 0 · 2 · 21 · 37). Geprüft wird derselbe Durchlauf noch einmal mit den
+// Optionen, die ein Aufrufer versehentlich mitschleppt: eine `kandidat`-Eigenschaft, die es gibt,
+// aber leer ist — genau die Form, in der ein Server-Objekt hereingereicht wird.
+const formenMitLeeremFeld = { zugewiesen: 0, teilweise: 0, "ohne-artikel": 0, kandidat: 0, offen: 0 };
+for (const name of KRAFTLINIEN) {
+	const bilanz = { ...(BILANZ[name] || OHNE_BEFUND), kandidat: undefined };
+	formenMitLeeremFeld[avesmapsWikistatusZustand(name, KATALOG, bilanz).form]++;
+}
+assert.deepStrictEqual(formenMitLeeremFeld, formen,
+	"Eine leere `kandidat`-Eigenschaft in den Optionen darf die Verteilung der Kraftlinien um keine "
+	+ "einzige Zeile verschieben. Ohne diese Zusicherung verstellt die zweite Liste die erste, und "
+	+ "gesehen würde es erst live.");
 checks++;
 assert.strictEqual(befunde.zuweisung, 2,
 	"Zwei Linien tragen eine Zuweisung auf allen ihren Segmenten (gemessen 17.08.2026: "

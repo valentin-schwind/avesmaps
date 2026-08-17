@@ -1217,8 +1217,8 @@
 
 /* ── „Ist hier ein Wiki-Artikel zu holen?" — die dritte Spalte ───────────────────────────────
    🔴 EIN OPT-IN, dieselbe Bauform wie --nodrag darüber: die Spalte entsteht nur, wenn die LISTE
-   sie anfordert. Die sieben anderen Listen ändern sich um kein Pixel, solange sie
-   .wikisync-itemlist--wikistatus nicht setzen.
+   sie anfordert. Jede Liste, die .wikisync-itemlist--wikistatus nicht setzt, ändert sich um kein
+   Pixel — heute wie nach der nächsten angeschlossenen Liste.
    💣 Und sie MUSS ein Opt-in sein: eine dauerhaft dritte Spalte kostet auch leer ihren
    column-gap von 7px — in einem 400px breiten Panel ist das nicht nichts.
    Entwurf/Mockup: docs/listensymbol-wiki-mockup.html (Owner-Abnahme 17.08.2026). */
@@ -1266,7 +1266,12 @@
    21 gestrichelt-mit-Punkt · 37 gestrichelt.
    ⚠️ Die Nummern folgen der Zustandsliste des Owners, und ⑤ fehlt dort ABSICHTLICH: das war der
    unscharfe Kandidat, und er teilt sich mit dem wortgleichen Treffer die Form ④. Es ist keine
-   gelöschte Regel. */
+   gelöschte Regel.
+   🔴 UND NICHT JEDE LISTE TRÄGT ALLE FÜNF — das ist die Regel, nicht die Ausnahme. Die Ortsliste
+   (seit 17.08.2026) zeigt VIER: ② entfällt dort, weil ein Ort EIN Objekt ist und es keinen Nenner
+   gibt. Gemessen 17.08.2026: von ihren 2.828 Kartenzeilen 1.911 gefüllt · 4 Kontur · 59 gestrichelt
+   mit Punkt · 854 gestrichelt. Ihre reinen Wiki-Zeilen (damals 2.470) tragen GAR KEIN Symbol — die
+   einzige erlaubte Leerstelle, begründet in js/review/review-settlement-list.js. */
 
 /* ① Voll = zugewiesen. Die Zuweisung steht, hier ist nichts mehr zu holen. */
 .wikisync-itemlist--wikistatus .wiki-state--zugewiesen {

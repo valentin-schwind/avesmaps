@@ -236,7 +236,7 @@ function avesmapsWikistatusZahl(wert) {
  * @param {string} name        unser Name (bei den Kraftlinien: der Name der Namensgruppe)
  * @param {Array}  katalog     die Artikel, die die Liste ohnehin schon geladen hat
  *                             ([{name, wiki_url, wiki_key}, …]) — nie eine Abfrage von hier aus
- * @param {{teile?:number, zugewieseneTeile?:number, keinArtikel?:boolean}} [optionen]
+ * @param {{teile?:number, zugewieseneTeile?:number, keinArtikel?:boolean, kandidat?:string}} [optionen]
  * @returns {{befund:string, form:string, artikel:string, teile:number, zugewieseneTeile:number}}
  *          befund ∈ zuweisung|teilzuweisung|kein_artikel|treffer|aehnlich|nichts
  *          form   ∈ zugewiesen|teilweise|ohne-artikel|kandidat|offen
@@ -254,6 +254,21 @@ function avesmapsWikistatusZahl(wert) {
  * 🔴 DIE RANGFOLGE: eine echte Zuweisung schlägt alles, auch den Merker „kein Artikel" (ein
  * gesetzter Link ist die härtere Tatsache), und der Merker schlägt jeden Katalogfund — er ist
  * eine ENTSCHEIDUNG eines Editors, kein Suchergebnis.
+ *
+ * 🔴 `kandidat` — DER BEFUND EINER LISTE, DIE IHN SCHON KENNT, statt eines Katalogs zum
+ * Nochmalsuchen. Dieselbe Bauform wie `keinArtikel` darüber: die Liste weiß es, sie übergibt es.
+ * 💣 UND DAS IST KEINE BEQUEMLICHKEIT, SONDERN EIN RIEGEL. Die Ortsliste bekommt ihren Kandidaten
+ * vom SERVER (`avesmapsWikiSettlementBaseKey` + `…ResolvePreferredTitle`), und diese Regel ist
+ * NICHT `avesmapsWikistatusSchluessel` hier: der Server streift „(Siedlung)" ab, dieser Schlüssel
+ * nicht. Würde man den gefundenen Titel als Ein-Eintrag-Katalog übergeben, fiele „Abagund" gegen
+ * „Abagund (Siedlung)" durch den exakten UND den unscharfen Test — und ein serverseitig
+ * bestätigter Kandidat stünde still als „nichts" da. Ein Wert, der durch eine zweite, leicht
+ * andere Rechnung geschickt wird, verliert dabei lautlos seine Aussage; deshalb wird er hier
+ * durchgereicht und nicht nachgerechnet.
+ * ⚠️ Er steht UNTER `keinArtikel`: ein Editor, der „es gibt keinen Artikel" gesagt hat, hat eine
+ * ENTSCHEIDUNG getroffen, und ein Suchergebnis überstimmt sie nicht.
+ * ⚠️ Sein Befund ist `treffer` (wortgleich), nicht `aehnlich` — der Server gleicht gefaltete Namen
+ * ab und verlangt Eindeutigkeit; das ist die strengere der beiden Auskünfte, nicht die weichere.
  */
 function avesmapsWikistatusZustand(name, katalog, optionen) {
 	const wahl = optionen || {};
@@ -272,6 +287,12 @@ function avesmapsWikistatusZustand(name, katalog, optionen) {
 	}
 	if (wahl.keinArtikel === true) {
 		return fertig("kein_artikel", "");
+	}
+	// Der übergebene Befund. Nur eine nicht-leere Zeichenkette zählt: `true`, eine Zahl oder ein
+	// Objekt sind kein Artikelname und dürften nie zu einem Tooltip „Kandidat im Wiki: „true“"
+	// werden — dieselbe Strenge wie avesmapsWikistatusZahl bei den Teilen.
+	if (typeof wahl.kandidat === "string" && wahl.kandidat.trim() !== "") {
+		return fertig("treffer", wahl.kandidat.trim());
 	}
 	const schluessel = avesmapsWikistatusSchluessel(name);
 	if (schluessel === "") {
