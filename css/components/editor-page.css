@@ -766,10 +766,19 @@ body.avm-editor-body {
    Knopf -- eine Zeilenhandlung ist nie die Haupthandlung (§12), und die steht rechts daneben und
    heisst „Speichern". Er traegt --color-link statt des Fehlerrots der Zeile, weil er nicht Teil der
    Aussage ist, sondern der Ausweg aus ihr.
-   💣 ER MUSS SICH GEGEN `:where(.avm-editor-body) button` (Zeile 256) DURCHSETZEN, und das ist
-   knapp: `:where()` zaehlt null, jene Regel steht also bei (0,1,0) -- GENAU SO HOCH wie diese hier.
-   Sie gewinnt nur, weil sie SPAETER in derselben Datei steht. Zwei Folgen, beide gemessen und
-   beide nicht offensichtlich:
+   💣 ER MUSS SICH GEGEN `:where(.avm-editor-body) button` (Zeile 256) BEHAUPTEN -- aber NICHT ueber
+   die Spezifitaet, die gewinnt er ohnehin: `:where()` zaehlt null, jene Regel steht also bei
+   (0,0,1) (blosser Typselektor), diese hier bei (0,1,0). Eine Klasse schlaegt einen Typ, und die
+   Reihenfolge in der Datei spielt dabei keine Rolle.
+   🪤 Hier stand bis 17.08.2026 „(0,1,0) -- GENAU SO HOCH ... gewinnt nur, weil sie SPAETER steht".
+   Das war falsch gerechnet, und die falsche Regel daraus ist gefaehrlich: wer sie auf einen ECHTEN
+   Gleichstand uebertraegt, verlaesst sich auf die Dateireihenfolge. Gefunden vom
+   usability-konsistenz-Agenten, nachdem der CSS-Zustand schon live war.
+   💣 Der wahre Grund fuer die zwei Ruecksetzer unten ist ein anderer, und er ist der lehrreichere:
+   DIE KASKADE ENTSCHEIDET JE EIGENSCHAFT, nicht je Regel. Was diese Regel gar nicht DEKLARIERT,
+   faellt auf die naechste Regel durch, die es deklariert -- egal wie viel niedriger deren
+   Spezifitaet ist. Kein Patt, sondern eine Luecke. Zwei Folgen, beide gemessen und beide nicht
+   offensichtlich:
      · `min-height: var(--avm-control-h)` (32px) wird NICHT von selbst ueberschrieben -- ohne das
        ausdrueckliche `min-height: 0` zoege ein 32px hoher „Link" die Speicherleiste auseinander.
      · Der Hover-Zwilling dort ist `:where(.avm-editor-body) button:hover` = (0,1,1) und SCHLAEGT
