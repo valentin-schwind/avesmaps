@@ -366,36 +366,6 @@ function settlementTypeOptions() {
 }
 let settlementListItems = [];
 
-// ---------------------------------------------------------------------------------------------
-// „Wie steht diese Zeile zum Wiki?" — die dritte Spalte der Zeile. Fünf Formen gibt es
-// (js/review/review-list-wikistatus.js); die Ortsliste zeigt VIER davon.
-//
-// 🔴 ② „teilweise zugewiesen" ENTFÄLLT HIER, und das ist begründet, nicht vergessen: die Form
-//    beschreibt eine Namensgruppe aus mehreren Segmenten (Kraftlinien, Wege) — Zähler und Nenner
-//    sind dort die Teile EINER Gruppe. Ein Ort ist EIN Objekt mit EINEM properties.wiki_settlement;
-//    es gibt keinen Nenner. ⚠️ Nicht jede Liste trägt alle fünf Formen — das ist die Regel, nicht
-//    die Ausnahme.
-//
-// 🔴 ④ IST HIER NUR DER EXAKTE TREFFER, nie der unscharfe. Die Kraftlinienliste findet auch
-//    „Satinavs Kette I" → „Satinavs Ketten", weil ihr Katalog 23 Einträge hat und im Payload
-//    mitreist; der Ort hat einen Katalog in der Größenordnung der ganzen Registry (17.08.2026:
-//    7.740 Titel), und der müsste entweder in den Browser oder die Schlüsselleiter ein zweites Mal
-//    in PHP — dieselbe Regel in zwei Sprachen, für damals gemessene 15 Zeilen von 5.298 (0,28 %).
-//    Wer hier also einen Fall vermisst, den die Kraftlinienliste fängt: die Liste ist nicht kaputt,
-//    sie kann bewusst weniger.
-//
-// 🔴 REINE WIKI-ZEILEN BEKOMMEN GAR KEIN SYMBOL — die einzige Leerstelle in dieser Spalte, und
-//    hier steht warum: das Symbol beschreibt, wie ein KARTENOBJEKT zum Wiki steht. Eine Zeile ohne
-//    Kartenobjekt („Fehlt"-Reiter, 17.08.2026: 2.470 von 5.298) hat diese Beziehung nicht; ihr eine Form
-//    zu geben hieße, eine Bedeutung zu erfinden. Sie ist kein Ort, der noch keinen Artikel hat —
-//    sie ist ein Artikel, der noch keinen Ort hat, und das sagt bereits der Reiter.
-//
-// 💣 OHNE SERVERSIGNAL KEINE SPALTE (dieselbe Regel wie „ohne Katalog keine Spalte" bei den
-//    Kraftlinien). Eine gestrichelte Raute heißt „nachgesehen, nichts gefunden" — sie darf nicht
-//    dastehen, wenn niemand nachgesehen hat. Ein älterer Server ohne `wikistatus: true` lässt die
-//    Spalte damit von selbst weg, statt für jede offene Zeile etwas zu behaupten (17.08.2026: 913).
-let settlementListWikistatus = false;
-
 // The textContent→innerHTML trick escapes & < > but NOT the double quote — and this helper is used
 // inside double-quoted attributes (data-settlement-title, href, title). A wiki title containing a "
 // therefore broke out of the attribute and could add its own (e.g. an event handler). Delegate to the
@@ -419,11 +389,6 @@ async function loadSettlementList() {
 			throw new Error(apiErrorMessage(data, "Liste konnte nicht geladen werden"));
 		}
 		settlementListItems = Array.isArray(data.items) ? data.items : [];
-		// Beide Bedingungen sind nötig: der Server muss gerechnet haben UND der Zustandsrechner
-		// muss geladen sein. Fehlt eines, gibt es keine Spalte — und keine Behauptung.
-		settlementListWikistatus = data.wikistatus === true
-			&& typeof avesmapsWikistatusZustand === "function"
-			&& typeof avesmapsWikistatusMarkup === "function";
 	} catch (error) {
 		list.innerHTML = `<p class="region-sync__empty">Fehler: ${settlementListEscape(error.message || error)}</p>`;
 		return;
@@ -492,32 +457,8 @@ function renderSettlementRow(item) {
 		`<span class="tree-item-name">${settlementListEscape(item.name)}</span>` +
 		(metaHtml ? `<span class="tree-item-meta">${metaHtml}</span>` : "") +
 		settlementStatusMarker(item) +
-		settlementWikistatusMarkup(item) +
 		"</span>"
 	);
-}
-
-// Das Symbol der dritten Spalte für EINE Zeile. Der Abgleich ist eine eigene, geprüfte Funktion
-// (js/review/review-list-wikistatus.js) — hier steht keine Bedingung über Formen, nur die
-// Übersetzung der Server-Felder in seine Optionen.
-//
-// 🔴 `zugewieseneTeile: 1` OHNE `teile`: der Rechner setzt dann `teile = zugewieseneTeile` und
-//    liefert die volle Raute. Genau dafür gibt es kein boolesches `zugewiesen` mehr — ein `true`
-//    würde als „1 von n" gelesen und machte aus einer vollständigen Zuweisung eine halbe.
-// 🔴 `kandidat` statt eines Ein-Eintrag-Katalogs (Begründung im Rechner): der Server hat den Titel
-//    mit avesmapsWikiSettlementBaseKey gefunden, und das ist NICHT die Schlüsselregel des Browsers.
-//    Deshalb steht hier `[]` als Katalog — es gibt im Browser nichts nachzuschlagen.
-function settlementWikistatusMarkup(item) {
-	// Die Leerstelle der Wiki-Zeilen. Sie steht hier und nicht im Zeichner darunter, weil sie eine
-	// Aussage über die ZEILE ist und nicht über eine Form.
-	if (!settlementListWikistatus || item.on_map !== true) {
-		return "";
-	}
-	return avesmapsWikistatusMarkup(avesmapsWikistatusZustand(item.name, [], {
-		zugewieseneTeile: item.connected === true ? 1 : 0,
-		keinArtikel: item.wiki_no_article === true,
-		kandidat: typeof item.wiki_candidate === "string" ? item.wiki_candidate : "",
-	}));
 }
 
 function renderSettlementList() {
@@ -525,10 +466,6 @@ function renderSettlementList() {
 	if (!list) {
 		return;
 	}
-	// Das Opt-in der Symbolspalte gehört der LISTE, nicht der Zeile (dieselbe Bauform wie --nodrag
-	// darüber in css/components/region-sync.css). Hier und nicht in settlementRenderNextBatch:
-	// der Lazy-Renderer fügt Stapel zu 80 Zeilen an, die Klasse gehört einmal an den Container.
-	list.classList.toggle("wikisync-itemlist--wikistatus", settlementListWikistatus);
 	// Reiter-Zähler und Liste stammen aus DERSELBEN Menge: alle aktiven Filter (Kontinent, Suche,
 	// Typ, Quelle) sind angewandt, nur der Reiter selbst nicht. So zeigt „Alle (N)" beim Suchen die
 	// Treffer, nicht den Gesamtbestand — und Alle = Platziert + Fehlt geht immer auf.

@@ -82,94 +82,6 @@ window.avesmapsFlyToLocationPublicId = window.avesmapsFlyToLocationPublicId || f
 // ---------------------------------------------------------------------------------------------
 let avesmapsPowerlineSyncFilterText = "";
 
-// ---------------------------------------------------------------------------------------------
-// „Wie steht diese Zeile zum Wiki?" -- die dritte Spalte der Zeile (Stufe 1). Fuenf Formen, alle in
-// js/review/review-list-wikistatus.js begruendet; die Leitidee lautet dort: durchgezogen = erledigt,
-// gestrichelt = offen.
-//
-// Die Kraftlinien haben das Symbol als erste bekommen, und der Grund ist der
-// Zuschnitt, nicht der Zufall: ihr Katalog reist ohnehin in DERSELBEN Antwort mit, in der die
-// Segmente stehen (`GET /api/edit/map/powerlines.php` -> `segments` + `wiki_articles`, gemessen
-// 165 und 23 am 17.08.2026). Ein Aufruf, kein zweiter -- und NIE das Wiki: die Vorschlagsliste
-// kommt aus dem eingelesenen Dump, nicht von einer Live-Abfrage. Bei Wegen, Orten und Regionen
-// staenden Tausende Kandidaten, die kein Payload mitschleppt; deshalb ist das Opt-in der
-// eigentliche Zuschnitt und nicht Zierrat.
-//
-// 💣 OHNE KATALOG KEINE SPALTE. Seit dem Owner-Entscheid vom 17.08.2026 traegt JEDE Zeile ein
-// Symbol, und „offen, kein Kandidat gefunden" ist eine ausgesprochene Aussage (gestrichelte
-// Kontur). Genau deshalb darf sie nicht erscheinen, wenn der Abruf scheitert (nicht angemeldet,
-// Netz weg, `dump_state.problem`): dann waere gar nicht gesucht worden, und 58 Zeilen behaupteten
-// „offen", weil niemand nachgesehen hat. Faellt der Katalog aus, faellt die ganze Spalte -- so
-// sieht die Liste aus wie jede Liste ohne Symbolspalte und sagt nichts Falsches.
-const AVESMAPS_POWERLINE_WIKI_API = "/api/edit/map/powerlines.php";
-let avesmapsPowerlineWikiKatalog = [];
-// Name der Gruppe -> {teile, zugewieseneTeile, keinArtikel}. 💣 ZAEHLER UND NENNER AUS DERSELBEN
-// POPULATION: beide zaehlen die Segmente, die DIESE Antwort fuehrt. Der Nenner aus `powerlineData`
-// (der oeffentlichen Kartennutzlast, aus der die Zeilen entstehen) waere eine zweite Population --
-// die beiden gruppieren ueber verschiedene Felder (`map_features.name` hier, `properties.name`
-// dort), und wo sie auseinanderlaufen, stuende im Tooltip „5 von 3".
-let avesmapsPowerlineWikiSegmentbilanz = new Map();
-// Eine Namensgruppe, die diese Antwort gar nicht kennt: keine Zuweisung, kein Merker -- der
-// Abgleich entscheidet dann allein am Katalog. Die sichere Richtung.
-const AVESMAPS_POWERLINE_WIKI_BILANZ_LEER = { teile: 0, zugewieseneTeile: 0, keinArtikel: false };
-// offen -> laeuft -> fertig | fehler. Nur "offen" loest einen Abruf aus.
-// 💣 Diese Sperre ist TRAGEND, nicht bloss sparsam: der Erfolgszweig zeichnet die Liste neu, und
-// das Neuzeichnen ruft den Lader wieder -- ohne sie dreht sich das im Kreis und schickt Anfrage
-// um Anfrage. „fehler" wird ebenfalls nicht wiederholt, sonst haengt an jedem Tastendruck in der
-// Suche eine neue vergebliche Anfrage.
-let avesmapsPowerlineWikiLadezustand = "offen";
-// 🔴 Erst wenn der Reiter „Kraftlinien" einmal geoeffnet war. Der Zeichner laeuft naemlich auch
-// fuer JEDEN Besucher: preparePowerlineData ruft ihn, sobald die Kartendaten da sind. Ohne dieses
-// Tor schickte jeder anonyme Seitenaufruf eine Anfrage an einen Endpunkt der Faehigkeit `edit` --
-// eine 401 je Besuch, fuer nichts. Dieselbe Faulheit haben loadRegionWikiSync und loadPathWikiSync.
-let avesmapsPowerlineWikiTabOffen = false;
-
-// Einmal je Sitzung. Ergebnis: der Katalog und je Namensgruppe ihre Segmentbilanz.
-function avesmapsPowerlineWikiKatalogLaden() {
-	if (!avesmapsPowerlineWikiTabOffen || avesmapsPowerlineWikiLadezustand !== "offen") { return; }
-	avesmapsPowerlineWikiLadezustand = "laeuft";
-	fetch(AVESMAPS_POWERLINE_WIKI_API, { credentials: "same-origin" })
-		.then((antwort) => antwort.json())
-		.then((daten) => {
-			if (!daten || daten.ok !== true) { throw new Error("keine Nutzlast"); }
-			avesmapsPowerlineWikiKatalog = Array.isArray(daten.wiki_articles) ? daten.wiki_articles : [];
-			// „Zugewiesen" ist genau das, was auch der Editor so nennt: properties.wiki_url auf
-			// EINEM Segment der Namensgruppe (dort `fieldSample(line, "wiki_url")`). Das Nest
-			// wiki_powerline zaehlt bewusst NICHT -- das schreibt der Namensabgleich von selbst, es
-			// ist keine Entscheidung eines Editors und niemand hat es zugewiesen.
-			// 🔴 Der Merker „kein Wiki-Artikel vorhanden" wird GEODERT, nicht gezaehlt -- genau wie
-			// der Editor ihn liest (`segments.some(s.wiki_no_article)`). Zwei Leser desselben Merkers mit
-			// verschiedener Rechnung waeren zwei Wahrheiten ueber dieselbe Zeile.
-			avesmapsPowerlineWikiSegmentbilanz = new Map();
-			(Array.isArray(daten.segments) ? daten.segments : []).forEach((segment) => {
-				const gruppe = String((segment && segment.name) || "").trim();
-				if (gruppe === "") { return; }
-				if (!avesmapsPowerlineWikiSegmentbilanz.has(gruppe)) {
-					avesmapsPowerlineWikiSegmentbilanz.set(gruppe, { teile: 0, zugewieseneTeile: 0, keinArtikel: false });
-				}
-				const bilanz = avesmapsPowerlineWikiSegmentbilanz.get(gruppe);
-				bilanz.teile++;
-				if (String(segment.wiki_url || "").trim() !== "") { bilanz.zugewieseneTeile++; }
-				if (segment.wiki_no_article) { bilanz.keinArtikel = true; }
-			});
-			avesmapsPowerlineWikiLadezustand = "fertig";
-			renderPowerlineSyncList();
-		})
-		.catch(() => {
-			avesmapsPowerlineWikiLadezustand = "fehler";
-			avesmapsPowerlineWikiKatalog = [];
-			avesmapsPowerlineWikiSegmentbilanz = new Map();
-		});
-}
-
-// Der Einstieg des Reiters (setWikiSyncPanelTab in review-wiki-sync.js) -- benannt wie die
-// Geschwister loadRegionWikiSync / loadPathWikiSync, weil er dasselbe tut: beim ersten Oeffnen
-// holen, danach nur noch zeichnen.
-function loadPowerlineWikiSync() {
-	avesmapsPowerlineWikiTabOffen = true;
-	renderPowerlineSyncList();
-}
-
 function avesmapsPowerlinePanelNodeName(publicId) {
 	if (typeof findLocationMarkerByPublicId !== "function") { return ""; }
 	const entry = findLocationMarkerByPublicId(publicId);
@@ -211,12 +123,6 @@ function renderPowerlineSyncList() {
 	const list = document.getElementById("powerline-sync-list");
 	if (!list) { return; }
 	const esc = (typeof escapeHtml === "function") ? escapeHtml : ((s) => String(s == null ? "" : s));
-	avesmapsPowerlineWikiKatalogLaden();
-	// Das Opt-in haengt am Katalog, nicht am Reiter: ohne Artikel gibt es nichts zu sagen, und eine
-	// leere dritte Spalte kostet trotzdem ihre 16px plus 7px Spalt in einem 400px-Panel.
-	const zeigeWikistatus = avesmapsPowerlineWikiKatalog.length > 0
-		&& typeof avesmapsWikistatusZustand === "function";
-	list.classList.toggle("wikisync-itemlist--wikistatus", zeigeWikistatus);
 	const groups = avesmapsPowerlinePanelGroups();
 	const summary = document.getElementById("powerline-sync-summary");
 	if (summary) {
@@ -243,19 +149,10 @@ function renderPowerlineSyncList() {
 		const nodeCount = g.topology ? g.topology.adjacency.size : 0;
 		const span = avesmapsPowerlinePanelSpanText(g.topology);
 		const meta = nodeCount + " Nodices · " + g.segments.length + " Segmente" + (span ? " · " + span : "");
-		// Der Abgleich ist eine eigene, gepruefte Funktion (js/review/review-list-wikistatus.js) --
-		// keine Bedingung hier im Zeichner. Nur so ist seine Abnahmeliste ueberhaupt pruefbar.
-		let wikistatus = "";
-		if (zeigeWikistatus) {
-			const bilanz = avesmapsPowerlineWikiSegmentbilanz.get(g.name) || AVESMAPS_POWERLINE_WIKI_BILANZ_LEER;
-			wikistatus = avesmapsWikistatusMarkup(
-				avesmapsWikistatusZustand(g.name, avesmapsPowerlineWikiKatalog, bilanz));
-		}
 		return '<div class="tree-item has-map-status region-sync__item powerline-sync__item" data-powerline-name="' + esc(g.name) + '"'
 			+ ' title="Doppelklick: im Kraftlinienmodus auf diese Linie zoomen" style="cursor:pointer;">'
 			+ '<span class="tree-item-name">' + esc(g.name) + '</span>'
 			+ '<span class="tree-item-meta">' + esc(meta) + '</span>'
-			+ wikistatus
 			+ '</div>';
 	}).join("");
 }

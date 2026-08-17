@@ -921,23 +921,10 @@ function avesmapsWikiSettlementBaseKey(string $s): string {
     return preg_replace('/[^\p{L}\p{N}]+/u', '', $s) ?? $s;
 }
 
-// baseKey => [wiki_title => true]. Rein, ohne Datenbank -- damit ZWEI Leser denselben Index bauen
-// koennen, ohne ihn zweimal abzufragen.
-//
-// 🔴 ES GIBT GENAU EINE RECHNUNG FUER „WELCHEN ARTIKEL BEANSPRUCHT DIESER KARTENNAME?", und sie
-// steht in dieser Funktion plus avesmapsWikiSettlementUniqueTitleFor darunter. Der Sammler des
-// Knopfes „Alle eindeutigen verbinden" (avesmapsWikiSettlementCollectConnectTargets) und das
-// Listensymbol ④ in avesmapsWikiSettlementListLocations rufen BEIDE hierher. Waeren es zwei
-// Abschriften, koennte das Symbol einen Klick versprechen, den der Knopf nicht ausfuehrt -- und
-// niemand saehe den Unterschied, weil beide Seiten fuer sich plausibel aussehen. Die Gleichheit
-// ist deshalb keine Zusicherung, die man testet, sondern eine Tatsache der Bauform.
-//
-// 💣 UNGEFILTERT. Jeder Titel der Registry kommt hinein, auch der einer Ortsklasse, die die
-// „Fehlt"-Liste nicht zeigt: der Sammler indiziert ebenfalls alles. Wer hier vorfiltert, macht die
-// Population kleiner als die des Knopfes.
-function avesmapsWikiSettlementTitleIndexFromTitles(array $titles): array {
+// baseKey => [wiki_title => true] aus der Registry (wiki_sync_pages.title).
+function avesmapsWikiSettlementTitleIndex(PDO $pdo): array {
     $idx = [];
-    foreach ($titles as $title) {
+    foreach ($pdo->query('SELECT title FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE)->fetchAll(PDO::FETCH_COLUMN) as $title) {
         $title = (string) $title;
         if ($title === '') {
             continue;
@@ -948,13 +935,6 @@ function avesmapsWikiSettlementTitleIndexFromTitles(array $titles): array {
         }
     }
     return $idx;
-}
-
-// baseKey => [wiki_title => true] aus der Registry (wiki_sync_pages.title).
-function avesmapsWikiSettlementTitleIndex(PDO $pdo): array {
-    return avesmapsWikiSettlementTitleIndexFromTitles(
-        $pdo->query('SELECT title FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE)->fetchAll(PDO::FETCH_COLUMN)
-    );
 }
 
 // Wählt aus mehreren gleich-baseKey-Wiki-Titeln den passenden: bei genau einem -> dieser; bei
@@ -969,32 +949,6 @@ function avesmapsWikiSettlementResolvePreferredTitle(array $titles): string {
         return (string) $siedlung[0];
     }
     return '';
-}
-
-// Welchen Wiki-Titel beansprucht DIESER Kartenname eindeutig? '' heisst „keinen": entweder kennt
-// die Registry den Namen nicht, oder sie kennt ihn mehrfach ohne eindeutige „(Siedlung)"-Variante.
-//
-// 🔴 DIE ZWEITE HAELFTE DER EINEN RECHNUNG (siehe avesmapsWikiSettlementTitleIndexFromTitles).
-// „Eindeutig" heisst hier genau das, was der Knopf „Alle eindeutigen verbinden" tut: EIN Klick,
-// und die Zuweisung steht. Eine grosszuegigere Regel -- etwa der Match-Key der Anreicherung, der
-// ASCII faltet und den ERSTEN Treffer nimmt -- faende mehr Namen und verspraeche einen Klick, den
-// es nicht gibt: am Livebestand vom 17.08.2026 sind das 97 gegen 59 Zeilen.
-//
-// 🔴 UND DAS IST DIE EIGENTLICHE LEISTUNG DIESES UMBAUS, NICHT DIE ZWEI GESPARTEN ZEILEN:
-// **die Anzahl der ④-Zeilen der Ortsliste IST `connect_status.connectable_unconnected` -- per
-// BAUFORM, nicht per Zufall.** Beide Zahlen entstehen aus diesem einen Aufruf; sie koennen nicht
-// mehr auseinanderlaufen. (Gemessen 17.08.2026, angemeldete Sitzung: 59.)
-// 💣 Wer diese Funktion „vereinfacht" -- sie in einen der beiden Aufrufer zurueckschiebt, oder dem
-// Symbol eine eigene, groszuegigere Suche gibt -- nimmt genau diese Zusicherung weg. Das Symbol
-// verspraeche dann einen Klick, den der Knopf nicht ausfuehrt, und der Unterschied waere von
-// aussen nicht zu sehen: beide Seiten sehen fuer sich plausibel aus. Gewacht von
-// api/_internal/wiki/__tests__/listensymbol-orte-test.php (Paritaetslauf + „genau EIN Aufrufer").
-function avesmapsWikiSettlementUniqueTitleFor(string $mapName, array $titleIdx): string {
-    $bk = avesmapsWikiSettlementBaseKey($mapName);
-    if ($bk === '' || !isset($titleIdx[$bk])) {
-        return '';
-    }
-    return avesmapsWikiSettlementResolvePreferredTitle(array_keys($titleIdx[$bk]));
 }
 
 // Sammelt alle noch unverbundenen Karten-Orte (inkl. Bauwerke/gebaeude), die per Name passen.
@@ -1015,10 +969,13 @@ function avesmapsWikiSettlementCollectConnectTargets(PDO $pdo): array {
         if (is_array($props['wiki_settlement'] ?? null) && !empty($props['wiki_settlement']['title'])) {
             continue; // schon verbunden
         }
-        // Dieselbe Rechnung wie das Listensymbol ④ -- eine Funktion, zwei Aufrufer.
-        $target = avesmapsWikiSettlementUniqueTitleFor($name, $titleIdx);
+        $bk = avesmapsWikiSettlementBaseKey($name);
+        if (!isset($titleIdx[$bk])) {
+            continue;
+        }
+        $target = avesmapsWikiSettlementResolvePreferredTitle(array_keys($titleIdx[$bk]));
         if ($target === '') {
-            continue; // unbekannt oder mehrdeutig (keine eindeutige "(Siedlung)"-Variante) -> nur manuell
+            continue; // mehrdeutig (keine eindeutige "(Siedlung)"-Variante) -> nur manuell
         }
         $targets[] = ['id' => (int) $r['id'], 'public_id' => (string) $r['public_id'], 'name' => $name, 'title' => $target, 'props' => $props];
     }
@@ -1285,14 +1242,6 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
             'region' => $connected ? avesmapsWikiSettlementFirstTerm((string) ($ws['region'] ?? '')) : '',
             'is_nodix' => !empty($props['is_nodix']),
             'is_ruined' => !empty($props['is_ruined']),
-            // Der DRITTE Zustand des Listensymbols (Form ③): ein Editor hat festgestellt, dass es
-            // KEINEN Wiki-Artikel gibt. Geschrieben von avesmapsApplyPointWikiFields
-            // (api/_internal/map/features.php:1366) ueber `update_point`. Bis 17.08.2026 gab die
-            // Liste ihn gar nicht heraus -- und ohne ihn ist „erledigt, es gibt keinen" von
-            // „noch keiner hat nachgesehen" nicht zu unterscheiden.
-            'wiki_no_article' => !empty($props['wiki_no_article']),
-            // Form ④ -- gefuellt im zweiten Durchgang unten, sobald der Titelindex steht.
-            'wiki_candidate' => '',
             'wiki_url' => $connected ? (string) ($ws['wiki_url'] ?? '') : (string) ($props['wiki_url'] ?? ''),
             'other_source' => is_array($props['other_source'] ?? null) ? $props['other_source'] : null,
             'place_scope' => $mapScope['scope'],
@@ -1305,15 +1254,6 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
     $settlementClasses = ['dorf', 'kleinstadt', 'stadt', 'grossstadt', 'metropole', 'gebaeude'];
     $regRows = $pdo->query('SELECT title, settlement_class, wiki_url, continent, is_ruined, building_type, coat_url, standort FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC')->fetchAll(PDO::FETCH_ASSOC);
     $seen = [];
-    // Der Titelindex fuer das Listensymbol (Form ④) -- aus denselben Zeilen, die diese Funktion
-    // ohnehin schon geladen hat. KEINE zweite Abfrage, kein LIKE, keine Rechnung je Zeilenpaar.
-    // 💣 UND ER LIEST $regRows UNGEFILTERT, VOR den `continue`s der Schleife darunter. Deren zwei
-    // Filter (Ortsklasse, ausgeschlossene Bauwerksart) gehoeren den „Fehlt"-Zeilen, nicht dem
-    // Index. Dahinter gebaut waere die Population kleiner als die des Knopfes „Alle eindeutigen
-    // verbinden" -- und das Symbol widerspraeche sichtbar dem Knopf, den es ankuendigt.
-    // ⚠️ Der Aufruf von avesmapsWikiSettlementTitleIndex($pdo) waere hier eine ZWEITE Abfrage
-    // derselben Tabelle; deshalb der gemeinsame reine Rechner, nicht der PDO-Aufsatz.
-    $titleIdx = avesmapsWikiSettlementTitleIndexFromTitles(array_column($regRows, 'title'));
     foreach ($regRows as $r) {
         $cls = (string) ($r['settlement_class'] ?? '');
         if (!in_array($cls, $settlementClasses, true)) {
@@ -1362,24 +1302,6 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
         ];
     }
 
-    // ── Der zweite Durchgang: der exakte Wiki-Kandidat je Kartenzeile (Form ④) ──────────────
-    // 🔴 DIESELBE FUNKTION wie der Knopf „Alle eindeutigen verbinden" (siehe
-    // avesmapsWikiSettlementUniqueTitleFor). „Kandidat" heisst hier deshalb genau, was der Knopf
-    // tut: ein Klick, und die Zuweisung steht.
-    // ⚠️ Ein gesetztes `wiki_no_article` schliesst den Kandidaten hier NICHT aus: dass die Registry
-    // einen freien Titel kennt, ist eine Tatsache ueber die Daten, keine Meinung ueber die
-    // Entscheidung des Editors. Welche Form gewinnt, entscheidet allein der Zustandsrechner im
-    // Browser (js/review/review-list-wikistatus.js) -- der Server traegt keine Rangfolge der Anzeige.
-    // ⚠️ Der Durchgang laeuft NACH dem Registry-Durchgang, weil der Index erst dort entsteht; die
-    // Wiki-Zeilen darin haben `on_map=false` und werden uebersprungen.
-    foreach ($items as &$item) {
-        if ($item['on_map'] !== true || $item['connected'] === true) {
-            continue;
-        }
-        $item['wiki_candidate'] = avesmapsWikiSettlementUniqueTitleFor((string) $item['name'], $titleIdx);
-    }
-    unset($item); // 💣 Referenz aufloesen -- sonst schreibt das naechste `foreach` ueber die letzte Zeile.
-
     usort($items, static fn($a, $b) => strcasecmp($a['name'], $b['name']));
     $onMap = count(array_filter($items, static fn($i) => $i['on_map']));
     return [
@@ -1389,13 +1311,6 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
         'on_map' => $onMap,
         'connected' => count(array_filter($items, static fn($i) => $i['connected'])),
         'wiki_only' => count($items) - $onMap,
-        // 🔴 Das Opt-in-Signal fuer die Symbolspalte: „dieser Server hat den Abgleich gerechnet".
-        // Ohne es zeichnet die Liste keine Spalte -- dieselbe Regel wie bei den Kraftlinien („ohne
-        // Katalog keine Spalte"): eine gestrichelte Raute heisst „nachgesehen, nichts gefunden",
-        // und das darf nicht dastehen, wenn niemand nachgesehen hat. Ein aelterer Server ohne
-        // dieses Feld laesst die Spalte damit von selbst weg, statt fuer jede offene Zeile etwas zu
-        // behaupten (17.08.2026: 913 offene von 2.828 Kartenzeilen).
-        'wikistatus' => true,
     ];
 }
 

@@ -103,17 +103,8 @@ assert.ok(loaderTable, "the loader table must stay a literal object, so this che
 // guards both collects the names and enforces that convention.
 const namedLoaders = [...loaderTable[1].matchAll(/typeof (\w+) === "function"/g)].map((m) => m[1]);
 assert.ok(namedLoaders.length >= 7, `expected the table to guard every loader, found ${namedLoaders.length}`);
-// 💣 Diese Liste ist von Hand gepflegt, und sie war unvollstaendig: review-powerline-list.js
-// fehlte, also fand die Suche `renderPowerlineSyncList` nicht und behauptete, der Lader sei
-// "defined nowhere" -- eine Meldung, die genau das Gegenteil dessen sagt, was der Fall war.
-// Der Test war damit seit dem Einbau der Kraftlinienliste dauerhaft rot; gesehen hat es niemand,
-// weil *.mjs unter tools/ vom Deploy-Tor ausdruecklich AUSGENOMMEN ist (siehe den Kommentar im
-// Workflow) und keines der drei Testmuster aus AGENTS.md §9 diese Datei findet.
-// ⚠️ Wer hier eine Liste von Hand fuehrt, muss sie erweitern, sobald ein Lader in eine neue Datei
-// zieht -- sonst meldet dieser Test einen Fehler, den es nicht gibt, und verdeckt den, den es gibt.
 const searched = ["js/review/review-wiki-sync.js", "js/review/review-wiki-sync-cases.js",
-	"js/review/review-settlement-list.js", "js/review/review-region-sync.js", "js/review/review-path-sync.js",
-	"js/review/review-powerline-list.js"]
+	"js/review/review-settlement-list.js", "js/review/review-region-sync.js", "js/review/review-path-sync.js"]
 	.map((file) => readFileSync(path.join(repoRoot, file), "utf8")).join("\n");
 [...new Set(namedLoaders)].forEach((name) => {
 	assert.ok(searched.includes(`function ${name}(`),
