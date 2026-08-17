@@ -21,12 +21,50 @@
  * nie die Zeile.
  */
 
+/* ⚠️ Die zwei Einzüge sind EINE Zahl je Seite und tragen beides: das Polster hier und die Rücknahme
+ * weiter unten. Getrennt geschrieben (padding hier, margin dort) drifteten sie beim ersten
+ * Nachjustieren auseinander, und der Zeilenrhythmus der Infobox kippt genau daran. Der Abzug von 1px
+ * ist der Rahmen: außen 4/4, innen 3/3.
+ *
+ * 🔴 Vorher 8/7 (Polster 7/6). Kleiner gemacht am 17.08.2026 auf Vorschlag des Owners („geht es noch
+ * etwas enger zusammen, z.B. indem du das padding im dropdown-accordion ein paar px verkleinerst"):
+ * die Einzüge sind die Untergrenze des Zeilenrhythmus, weil sie von ihm abgezogen werden. Mit 8/7
+ * hätten sich zwei Deckel bei --space-10 (12px) überlappt; mit 4/4 bleiben 5,4px zwischen ihnen --
+ * praktisch die 5px, die sie vorher hatten. Der Deckel wird dabei von 28,6 auf 21,6px flach.
+ * ⚠️ Der Owner-Entscheid vom 12.08.2026 („das padding der zusammengeklappten gleichmäßiger") bleibt
+ * gewahrt: der Satz steht zugeklappt mittig im Kasten (Zahlen unten am Test/Mockup belegt, vorher
+ * 7,6px oben / 7,0px unten). Wer das Polster weiter verkleinert, prüft diese zwei Zahlen mit --
+ * darunter kippt der Satz aus der Mitte, und 3px sind schon die untere Kante des Vertretbaren. */
 .infobox-lid {
+	--infobox-lid-einzug-oben: 4px;
+	--infobox-lid-einzug-unten: 4px;
 	background: var(--color-panel-soft);
 	border: 1px solid var(--color-divider);
 	border-radius: var(--radius-md);
-	padding: 7px 9px 6px;
+	padding: calc(var(--infobox-lid-einzug-oben) - 1px) 9px calc(var(--infobox-lid-einzug-unten) - 1px);
 	transition: background .15s ease, border-color .15s ease;
+}
+
+/* 💣 DER DECKEL ZIEHT SEIN EIGENES POLSTER WIEDER AB, damit der Zeilenabstand der Infobox EINE Zahl
+ * bleibt (--space-20 an .region-info-box__data, css/features/map-labels.css). Ohne diese Rücknahme
+ * kämen die Einzüge oben und unten NOCH DAZU, und die Wertspalte trüge vier verschiedene Abstände
+ * statt einem -- am 17.08.2026 live am Panel von Gareth gemessen: 4,6px zwischen zwei Textzeilen,
+ * 12,9 über dem ersten Deckel, 19,7 zwischen zwei Deckeln, 11,3 unter dem letzten. Das war die Meldung.
+ * Danach liegt die erste Textzeile des Deckels auf der Oberkante seiner Zeile -- wie jede Textzeile.
+ * ⭐ Der Versatz von 8,4px zwischen Label und Deckelwert fällt damit gratis weg: `align-items: start`
+ * setzt das Label auf die Zeilenoberkante, und die IST jetzt die erste Textzeile.
+ *
+ * 💣 KEIN GESCHWISTER-SELEKTOR an dieser Stelle, so naheliegend er wäre (`.row + .row { margin-top }`):
+ * `.avesmaps-lore-rows` steht als Wirt mit `display: contents` mitten in der Feldliste. Das flacht das
+ * LAYOUT ab, nicht den Selektorbaum -- „Waren" hat gar kein Vorgänger-Geschwister, und „Klimazone" hat
+ * als Vorgänger den Wirt, keine Zeile. Eine Nachbarregel wäre bei zwei von sechs Zeilen wirkungslos,
+ * und zwar lautlos. Die Rücknahme hängt deshalb am DECKEL selbst, nicht an einer Position.
+ *
+ * ⚠️ Gebunden an .region-info-box__row: außerhalb einer Infobox-Zeile (eigenständiger Deckel) gilt
+ * der Rhythmus nicht, und dort darf der Kasten auch nicht aus seinem Platz ragen. */
+.region-info-box__row .infobox-lid {
+	margin-top: calc(-1 * var(--infobox-lid-einzug-oben));
+	margin-bottom: calc(-1 * var(--infobox-lid-einzug-unten));
 }
 
 /* ⚠️ Nur der ÖFFENBARE Deckel reagiert. Ein statischer (alles steht schon da) darf sich nicht wie ein

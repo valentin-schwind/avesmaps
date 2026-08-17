@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infobox-Zeilenrhythmus — ein Abstand für alle Zeilen (Mockup)</title>
+<style>
+/* Farben 1:1 aus css/base/tokens.css (dunkles Thema -- das Infopanel ist dunkel), Maße 1:1 aus
+   css/features/map-labels.css und css/components/infobox-lid.css. Nichts hier ist geraten: alle
+   Zahlen sind am 17.08.2026 am laufenden Panel von Gareth gemessen (Panelbreite 349px) -- der
+   Ist-Zustand am ausgelieferten Stylesheet, die Kandidaten mit derselben Regel injiziert. */
+:root {
+	--color-panel:              #312e26;
+	--color-panel-soft:         #37342b;
+	--color-text:               #eee7da;
+	--color-text-strong:        #f5f0e4;
+	--color-text-muted:         #b4a895;
+	--color-divider:            rgba(207, 197, 171, 0.24);
+	--color-border:             #514a3c;
+	--color-link:               #d7c38b;
+	--radius-md: 8px;
+
+	--space-10: 12px;
+	--space-12: 14px;
+	--space-16: 18px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	padding: 28px 24px 90px;
+	background: #211f1a;
+	color: var(--color-text);
+	font-family: "Faculty Glyphic", Arial, sans-serif;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+h1 { margin: 0 0 8px; font-size: 21px; font-weight: 400; }
+h2 { margin: 0 0 4px; font-size: 15px; font-weight: 400; color: var(--color-text-strong); }
+h2 b { color: var(--color-link); font-weight: 400; }
+
+.intro { max-width: 840px; margin: 0 0 8px; color: var(--color-text-muted); }
+.intro:last-of-type { margin-bottom: 26px; }
+.intro code { color: var(--color-link); }
+.intro b { color: var(--color-text-strong); font-weight: 400; }
+
+.spalten { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.saeule { width: 400px; }
+
+.saeule__kopf { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--color-divider); }
+.saeule__note { color: var(--color-text-muted); font-size: 12px; }
+.saeule__note b { color: var(--color-text-strong); font-weight: 400; }
+
+/* ---- Das Panel, so wie es live steht (css/features/map-labels.css) ---- */
+
+.avesmaps-infopanel {
+	width: 400px;
+	background: var(--color-panel);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	padding: 14px 0;
+}
+
+.region-info-box { padding: 0 18px; }
+
+.region-info-box__data {
+	display: grid;
+	gap: 5px;                      /* <-- der Ist-Wert; die Kandidaten überschreiben ihn */
+	margin: 0;
+}
+
+.region-info-box__row {
+	display: grid;
+	grid-template-columns: 96px minmax(0, 1fr);
+	align-items: start;
+	gap: 8px;
+	min-width: 0;
+}
+
+.region-info-box__row dt {
+	color: var(--color-text-muted);
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.region-info-box__row dd {
+	min-width: 0;
+	margin: 0;
+	color: var(--color-text-strong);
+	font-size: 12px;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+
+.region-info-box__link { color: var(--color-link); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+
+/* ---- Der Deckel (css/components/infobox-lid.css) --------------------- *
+ * Die zwei Einzüge sind je EINE Zahl und tragen beides: das Polster und die Rücknahme. Der Abzug
+ * von 1px ist der Rahmen. Im Ist-Zustand 8/5 -- Polster 7/6 -- und ohne jede Rücknahme. */
+.infobox-lid {
+	--infobox-lid-einzug-oben: 8px;
+	--infobox-lid-einzug-unten: 7px;
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-divider);
+	border-radius: var(--radius-md);
+	padding: calc(var(--infobox-lid-einzug-oben) - 1px) 9px calc(var(--infobox-lid-einzug-unten) - 1px);
+}
+
+.infobox-lid__summary { display: block; list-style: none; cursor: pointer; min-width: 0; }
+.infobox-lid__summary::-webkit-details-marker { display: none; }
+
+.infobox-lid__foot {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 2px 10px;
+	font-size: 11px;
+}
+
+.infobox-lid__prose { color: var(--color-text-muted); min-width: 0; }
+.infobox-lid__count { color: var(--color-text-strong); font-weight: 700; font-variant-numeric: tabular-nums; }
+.infobox-lid__more { margin-left: auto; color: var(--color-link); font-size: 13px; line-height: 1; }
+.infobox-lid__more::after { content: "\25BE"; }
+
+/* ---- Der Vorschlag --------------------------------------------------- *
+ * (1) EINE Zahl (--rhythmus) trägt den Abstand aller Zeilen.
+ * (2) Der Deckel nimmt sein EIGENES Polster per negativem Rand zurück, sonst käme es auf den
+ *     Rhythmus obendrauf -- genau das erzeugte die vier verschiedenen Abstände.
+ * (3) Das Polster selbst wird kleiner, denn es ist die UNTERGRENZE des Rhythmus: was von ihm nach
+ *     dem Abzug übrig bleibt, ist die Luft zwischen zwei Deckeln.
+ * ⭐ Der 8,4-px-Versatz zwischen Label und Deckelwert fällt gratis weg: `align-items: start` setzt
+ *    das Label auf die Zeilenoberkante, und die IST nach der Rücknahme die erste Textzeile. */
+.vorschlag .region-info-box__data { gap: var(--rhythmus); }
+
+.vorschlag .infobox-lid {
+	--infobox-lid-einzug-oben: var(--einzug);
+	--infobox-lid-einzug-unten: var(--einzug);
+}
+
+.vorschlag .region-info-box__row .infobox-lid {
+	margin-top: calc(-1 * var(--infobox-lid-einzug-oben));
+	margin-bottom: calc(-1 * var(--infobox-lid-einzug-unten));
+}
+
+/* ---- Die Führungslinie: liegen Label und Wert auf gleicher Höhe? ----- */
+
+.fuehrung { position: relative; }
+
+.fuehrung::before {
+	content: "";
+	position: absolute;
+	left: -8px;
+	right: -8px;
+	top: 0;
+	border-top: 1px dashed #c99a3a;
+	pointer-events: none;
+}
+
+.legende { margin: 24px 0 0; max-width: 840px; color: var(--color-text-muted); font-size: 12px; }
+.legende span { display: inline-block; width: 26px; border-top: 1px dashed #c99a3a; transform: translateY(-4px); }
+.legende b { color: var(--color-text-strong); font-weight: 400; }
+
+.bilanz {
+	margin-top: 12px;
+	padding-top: 8px;
+	border-top: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: 12px;
+}
+.bilanz b { color: var(--color-text-strong); font-weight: 400; }
+.bilanz .warn { color: #e8a99f; }
+</style>
+</head>
+<body>
+
+<h1>Infobox-Zeilenrhythmus — ein Abstand für alle Zeilen</h1>
+<p class="intro">
+	Der Abstand <em>zwischen den Zeilenkästen</em> war schon immer überall gleich (5 px). Aber der
+	Deckel („154 besondere Stätten verzeichnet“) bringt eigenes Polster mit — <code>8 px</code> oben,
+	<code>7 px</code> unten — und das <b>addiert</b> sich auf die 5 px, statt darin aufzugehen. In der
+	Wertspalte standen dadurch Abstände von <b>4,6 bis 19,7 px</b>, und das Label schwebte bei jeder
+	Deckelzeile <b>8,4 px</b> über seinem eigenen Wert.
+</p>
+<p class="intro">
+	Der Umbau dreht das um: <b>eine</b> Zahl trägt alle Zeilen, und der Deckel <em>zieht sein eigenes
+	Polster wieder ab</em>. Weil dieses Polster damit zur Untergrenze des Rhythmus wird — was nach dem
+	Abzug übrig bleibt, ist die Luft zwischen zwei Deckeln — wird es zugleich kleiner: <b>3/3 statt
+	7/6 px</b>. Erst dadurch ist der enge Rhythmus von 12 px überhaupt möglich.
+</p>
+
+<div class="spalten">
+
+	<!-- ============ IST ============ -->
+	<div class="saeule">
+		<div class="saeule__kopf">
+			<h2>Ist-Zustand</h2>
+			<div class="saeule__note"><code>gap: 5px</code>, Polster 7/6 — Abstände 4,6 … 19,7 px, Label <b>8,4 px</b> über seinem Wert</div>
+		</div>
+
+		<div class="avesmaps-infopanel">
+			<div class="region-info-box">
+				<dl class="region-info-box__data">
+					<div class="region-info-box__row"><dt>Beschreibung</dt><dd>Gareth ist mit Abstand die größte Stadt Aventuriens und Hauptstadt des Mittelreichs.</dd></div>
+					<div class="region-info-box__row"><dt>Oberhaupt</dt><dd>Kaiserin Rohaja von Gareth, Ratsmeister Thorn Eisinger</dd></div>
+					<div class="region-info-box__row"><dt>Einwohner</dt><dd>170000 (sowie 1000 Zwerge, 500 Elfen, einige Goblins, Grolme, Tiefzwerge; 1040 BF)</dd></div>
+					<div class="region-info-box__row"><dt>Verkehrswege</dt><dd>Reichsstraßen 2 und 3, <a class="region-info-box__link" href="#">Gardel</a></dd></div>
+					<div class="region-info-box__row"><dt>Handelszone</dt><dd>GAR</dd></div>
+					<div class="avesmaps-lore-rows" style="display: contents">
+						<div class="region-info-box__row fuehrung"><dt>Stätten</dt><dd><details class="infobox-lid"><summary class="infobox-lid__summary"><span class="infobox-lid__foot"><span class="infobox-lid__prose"><span class="infobox-lid__count">154</span> besondere Stätten verzeichnet</span><span class="infobox-lid__more" aria-hidden="true"></span></span></summary></details></dd></div>
+						<div class="region-info-box__row"><dt>Waren</dt><dd><details class="infobox-lid"><summary class="infobox-lid__summary"><span class="infobox-lid__foot"><span class="infobox-lid__prose"><span class="infobox-lid__count">6</span> Handelswaren gelistet</span><span class="infobox-lid__more" aria-hidden="true"></span></span></summary></details></dd></div>
+						<div class="region-info-box__row"><dt>Fauna</dt><dd><details class="infobox-lid"><summary class="infobox-lid__summary"><span class="infobox-lid__foot"><span class="infobox-lid__prose"><span class="infobox-lid__count">5</span> Tierarten beobachtet</span><span class="infobox-lid__more" aria-hidden="true"></span></span></summary></details></dd></div>
+					</div>
+					<div class="region-info-box__row"><dt>Klimazone</dt><dd>Gemäßigte Zone</dd></div>
+				</dl>
+			</div>
+		</div>
+
+		<div class="bilanz">Feldliste <b>297,4 px</b> · Streuung der Abstände <b class="warn">8,4 px</b> · Deckelluft 5 px · Deckel 28,6 px hoch</div>
+	</div>
+
+	<!-- ============ 14px + Polster 4/4 — EMPFEHLUNG ============ -->
+	<div class="saeule vorschlag" style="--rhythmus: var(--space-12); --einzug: 5px">
+		<div class="saeule__kopf">
+			<h2>14 px, Polster 4/4</h2>
+			<div class="saeule__note"><code>--space-12</code> — die luftigere Alternative; Deckelluft ebenfalls 5,4 px, Deckel 23,6 px hoch</div>
+		</div>
+
+		<div class="avesmaps-infopanel">
+			<div class="region-info-box">
+				<dl class="region-info-box__data">
+					<div class="region-info-box__row"><dt>Beschreibung</dt><dd>Gareth ist mit Abstand die größte Stadt Aventuriens und Hauptstadt des Mittelreichs.</dd></div>
+					<div class="region-info-box__row"><dt>Oberhaupt</dt><dd>Kaiserin Rohaja von Gareth, Ratsmeister Thorn Eisinger</dd></div>
+					<div class="region-info-box__row"><dt>Einwohner</dt><dd>170000 (sowie 1000 Zwerge, 500 Elfen, einige Goblins, Grolme, Tiefzwerge; 1040 BF)</dd></div>
+					<div class="region-info-box__row"><dt>Verkehrswege</dt><dd>Reichsstraßen 2 und 3, <a class="region-info-box__link" href="#">Gardel</a></dd></div>
+					<div class="region-info-box__row"><dt>Handelszone</dt><dd>GAR</dd></div>
+					<div class="avesmaps-lore-rows" style="display: contents">
+						<div class="region-info-box__row fuehrung"><dt>Stätten</dt><dd><details class="infobox-lid"><summary class="infobox-lid__summary"><span class="infobox-lid__foot"><span class="infobox-lid__prose"><span class="infobox-lid__count">154</span> besondere Stätten verzeichnet</span><span class="infobox-lid__more" aria-hidden="true"></span></span></summary></details></dd></div>
+						<div class="region-info-box__row"><dt>Waren</dt><dd><details class="infobox-lid"><summary class="infobox-lid__summary"><span class="infobox-lid__foot"><span class="infobox-lid__prose"><span class="infobox-lid__count">6</span> Handelswaren gelistet</span><span class="infobox-lid__more" aria-hidden="true"></span></span></summary></details></dd></div>
+						<div class="region-info-box__row"><dt>Fauna</dt><dd><details class="infobox-lid"><summary class="infobox-lid__summary"><span class="infobox-lid__foot"><span class="infobox-lid__prose"><span class="infobox-lid__count">5</span> Tierarten beobachtet</span><span class="infobox-lid__more" aria-hidden="true"></span></span></summary></details></dd></div>
+					</div>
+					<div class="region-info-box__row"><dt>Klimazone</dt><dd>Gemäßigte Zone</dd></div>
+				</dl>
+			</div>
+		</div>
+
+		<div class="bilanz">Feldliste <b>328,5 px</b> (+31) · Abstände 13,9 … 15,0 px, Streuung <b>1,1 px</b> · Deckelluft 5,4 px · Deckel 23,6 px hoch</div>
+	</div>
+
+	<!-- ============ 12px + Polster 3/3 — noch enger ============ -->
+	<div class="saeule vorschlag" style="--rhythmus: var(--space-10); --einzug: 4px">
+		<div class="saeule__kopf">
+			<h2>12 px, Polster 3/3 <b>(gebaut)</b></h2>
+			<div class="saeule__note"><code>--space-10</code> + Polster 3/3 — nur <b>+15 px</b> Höhe, und die Deckel behalten mit <b>5,4 px</b> ihre heutige Luft (5 px)</div>
+		</div>
+
+		<div class="avesmaps-infopanel">
+			<div class="region-info-box">
+				<dl class="region-info-box__data">
+					<div class="region-info-box__row"><dt>Beschreibung</dt><dd>Gareth ist mit Abstand die größte Stadt Aventuriens und Hauptstadt des Mittelreichs.</dd></div>
+					<div class="region-info-box__row"><dt>Oberhaupt</dt><dd>Kaiserin Rohaja von Gareth, Ratsmeister Thorn Eisinger</dd></div>
+					<div class="region-info-box__row"><dt>Einwohner</dt><dd>170000 (sowie 1000 Zwerge, 500 Elfen, einige Goblins, Grolme, Tiefzwerge; 1040 BF)</dd></div>
+					<div class="region-info-box__row"><dt>Verkehrswege</dt><dd>Reichsstraßen 2 und 3, <a class="region-info-box__link" href="#">Gardel</a></dd></div>
+					<div class="region-info-box__row"><dt>Handelszone</dt><dd>GAR</dd></div>
+					<div class="avesmaps-lore-rows" style="display: contents">
+						<div class="region-info-box__row fuehrung"><dt>Stätten</dt><dd><details class="infobox-lid"><summary class="infobox-lid__summary"><span class="infobox-lid__foot"><span class="infobox-lid__prose"><span class="infobox-lid__count">154</span> besondere Stätten verzeichnet</span><span class="infobox-lid__more" aria-hidden="true"></span></span></summary></details></dd></div>
+						<div class="region-info-box__row"><dt>Waren</dt><dd><details class="infobox-lid"><summary class="infobox-lid__summary"><span class="infobox-lid__foot"><span class="infobox-lid__prose"><span class="infobox-lid__count">6</span> Handelswaren gelistet</span><span class="infobox-lid__more" aria-hidden="true"></span></span></summary></details></dd></div>
+						<div class="region-info-box__row"><dt>Fauna</dt><dd><details class="infobox-lid"><summary class="infobox-lid__summary"><span class="infobox-lid__foot"><span class="infobox-lid__prose"><span class="infobox-lid__count">5</span> Tierarten beobachtet</span><span class="infobox-lid__more" aria-hidden="true"></span></span></summary></details></dd></div>
+					</div>
+					<div class="region-info-box__row"><dt>Klimazone</dt><dd>Gemäßigte Zone</dd></div>
+				</dl>
+			</div>
+		</div>
+
+		<div class="bilanz">Feldliste <b>312,5 px</b> (+15) · Abstände 11,9 … 13,0 px, Streuung <b>1,1 px</b> · Deckelluft 5,4 px · Deckel 21,6 px hoch · Satz im zugeklappten Deckel 3,6 px unter der Oberkante / 4,0 px über der Unterkante (vorher 7,6 / 7,0) — bleibt mittig</div>
+	</div>
+
+</div>
+
+<p class="legende">
+	<span></span> Führungslinie auf der Oberkante der Zeile „Stätten“ — im Ist-Zustand berührt sie nur
+	das Label, der Deckeltext liegt 8,4 px darunter. In beiden Kandidaten liegen Label und Deckeltext
+	darauf.
+	<br><br>
+	<b>Die Untergrenze ist keine Geschmacksfrage:</b> der Deckel zieht seine Einzüge vom Rhythmus ab,
+	also ist <em>Rhythmus minus Einzüge</em> die Luft zwischen zwei Deckeln. Mit dem alten Polster 7/6
+	(Einzüge 8+7) hätten sich die Deckel bei 12 px sogar <b>überlappt</b> — deshalb musste das Polster
+	mit, damit der Rhythmus enger werden konnte.
+	<br><br>
+	<b>Offener Randfall:</b> ragt ein Deckel als <em>erste</em> oder <em>letzte</em> Zeile einer Liste
+	über deren Kante hinaus (4 px oben, 2,6 px unten), sitzt er dort entsprechend näher am Titel bzw. am
+	Quellen-Block. Das passiert bei einem Ort <em>ohne</em> Wikiartikel, wo „Stätten“ die erste Zeile
+	ist. Gemessen <b>4 px</b> oben und <b>2,6 px</b> unten — mit dem alten Polster wären es 8 bzw. 5,6 px.
+</p>
+
+</body>
+</html>

@@ -416,10 +416,22 @@ body.edit-mode .map-label img {
 	line-height: 1.2;
 }
 
+/* 🔴 EINE Zahl trägt den Abstand ALLER Feldzeilen. Vorher waren es vier verschiedene, weil der
+ * Deckel sein eigenes Polster auf die damaligen 5px addierte (4,6 / 12,9 / 19,7 / 11,3px, am
+ * 17.08.2026 live am Panel von Gareth gemessen) -- die Meldung des Owners.
+ *
+ * 💣 DIESE ZAHL HAT EINE UNTERGRENZE, UND SIE STEHT IN EINER ANDEREN DATEI: ein Deckel nimmt seine
+ * Einzüge (--infobox-lid-einzug-*, zusammen 8px) von ihr ab, sonst kämen sie doppelt. Bleibt
+ * weniger als ~5px übrig, kleben zwei Deckel aneinander -- mit den früheren Einzügen 8+7 wäre
+ * --space-10 hier unmöglich gewesen (die Deckel hätten sich überlappt), erst das kleinere Polster
+ * hat es freigegeben. Wer hier engerstellt, prüft die Deckelluft, nicht nur die Textabstände.
+ *
+ * ⚠️ Der gleichmäßige Rhythmus kostet Höhe: die Feldliste von Gareth wächst von 297 auf 312px. Das
+ * ist der Preis, kein Versehen -- die Textzeilen trugen vorher 4,6px, die Deckelzeilen bis 19,7px. */
 .region-info-box__data,
 .region-info-box__details dl {
 	display: grid;
-	gap: 5px;
+	gap: var(--space-10);
 	margin: 0;
 }
 
