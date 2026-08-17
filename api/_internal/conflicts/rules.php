@@ -269,9 +269,32 @@ function avesmapsConflictLoadGameLiteratureRows(PDO $pdo): array {
  */
 function avesmapsConflictLoadCitymapRows(PDO $pdo): array {
     try {
+        // 🔴 `article_origin = 'wiki_publication'` BLEIBT DRAUSSEN, und das ist die tragende Hälfte
+        // des Massenlaufs vom 17.08.2026 (api/_internal/wiki/citymap-article-assign.php).
+        //
+        // Eine so zugewiesene Karte beansprucht NICHT ihren eigenen Artikel, sondern nennt die
+        // Publikation, in der sie abgedruckt ist — 363 Karten auf 140 Publikationsseiten. Ohne
+        // diesen Ausschluss meldete avesmapsConflictRuleSharedArticle daraus **136 Gruppen mit 482
+        // Objekten**, 123 davon gemischt mit dem Literaturwerk, das denselben Artikel trägt, also in
+        // der schwersten Stufe (live gerechnet 17.08.2026).
+        //
+        // ⚠️ Die REGEL wird dabei nicht aufgeweicht: `citymap` gehört weiterhin nicht zu
+        // AVESMAPS_CONFLICT_SEGMENTED_TYPES, und eine von HAND gesetzte Kartenzuweisung
+        // (`article_origin = 'manual'`) steht nach wie vor voll im Blick — sie behauptet ja auch
+        // wirklich, der Artikel sei der eigene. Owner-Entscheid 17.08.2026 gegen die Alternative,
+        // das Paar `citymap|game_literature` pauschal freizugeben: „weil ich sehen will, was
+        // gesynct und was von uns editiert ist."
+        //
+        // ⚠️ `article_origin IS NULL` ist VORSORGE, kein heutiger Fall — und das ist nachgemessen,
+        // nicht vermutet: die Spalte ist `NOT NULL DEFAULT 'manual'`, MySQL füllt bestehende Zeilen
+        // beim ALTER mit 'manual', und fehlt die Spalte ganz, fängt der `catch` unten. Der Zweig
+        // steht trotzdem da, weil ein Vergleich gegen NULL weder wahr noch falsch ist: würde die
+        // Spalte je nullable, fiele JEDE Karte lautlos aus der Konfliktliste — auch die von Hand
+        // zugewiesene. Ein stiller Totalausfall ist einen halben Ausdruck wert.
         $statement = $pdo->query(
             "SELECT public_id, title, article_url FROM citymap
-             WHERE status = 'approved' AND article_url IS NOT NULL AND article_url <> ''"
+             WHERE status = 'approved' AND article_url IS NOT NULL AND article_url <> ''
+               AND (article_origin IS NULL OR article_origin <> 'wiki_publication')"
         );
     } catch (Throwable $exception) {
         // Frische Installation, oder eine, deren self-healing ALTER noch nicht gelaufen ist: die

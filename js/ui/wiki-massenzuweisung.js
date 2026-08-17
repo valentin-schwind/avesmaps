@@ -89,6 +89,46 @@ const AVESMAPS_WIKI_MASSENLAUF = {
 				+ "\n\nEin Label mit dem Merker „kein Wiki-Artikel“ wird dabei mitverknüpft und verliert ihn.";
 		},
 	},
+	// 🔴 DIE DRITTE ART VERHÄLT SICH ANDERS ALS DIE ZWEI ÜBER IHR, UND DAS MUSS DASTEHEN.
+	//
+	// Zugewiesen wird nicht der EIGENE Artikel der Karte, sondern die Wikiseite der PUBLIKATION, in
+	// der sie abgedruckt ist. Einen eigenen Artikel hat eine Karte im Wiki praktisch nie (gemessen:
+	// 11 von 521 Titeln, und die 11 sind Ortsseiten oder Schuber) -- Owner-Entscheid 17.08.2026.
+	// Festgehalten wird das in `citymap.article_origin = 'wiki_publication'`; ohne diese Marke
+	// meldete das Konfliktzentrum 136 Gruppen mit 482 Objekten (363 Karten auf 140 Seiten, davon
+	// 123 gemischt mit dem Literaturwerk, das denselben Artikel traegt).
+	//
+	// 💣 UND ER ERGAENZT NUR, ER ERSETZT NICHT -- anders als der Wege-Nachbar ganz oben, der bereits
+	// Verknuepftes unbesehen neu schreibt. Karten mit vorhandener Zuweisung und Karten mit dem
+	// Merker „Kein Wiki-Artikel vorhanden" bleiben unberuehrt. Der Server prueft das je ZEILE in
+	// seiner WHERE-Klausel, nicht gegen eine Zahl von vorhin: zwischen Vorschau und Klick liegt eine
+	// Rueckfrage, und in der Zeit kann ein zweiter Editor dieselbe Karte zuweisen. Owner-Regel vom
+	// 16.08.2026: vorangehakt ist nur das Fuellen einer LUECKE.
+	karte: {
+		// ⚠️ NICHT api/edit/wiki/citymaps.php -- die ist ausdruecklich NUR-GET und liest die
+		// Wiki-Registry. Geschrieben wird `citymap`, also der Karten-Schreibendpunkt (`edit`).
+		url: "/api/edit/map/citymaps.php",
+		koerper: { action: "assign_publication_articles" },
+		// Gemessen an avesmapsCitymapAssignPublicationArticles: ok, dry_run, total,
+		// citymaps_affected, articles_linked, applied, skipped{}, key_mismatch{}.
+		zahl: function (antwort) { return Number((antwort && antwort.citymaps_affected) || 0); },
+		wikiZahl: function (antwort) { return Number((antwort && antwort.articles_linked) || 0); },
+		// Kurz aus demselben Grund wie bei den zwei Nachbarn: rund 34 Zeichen in der `t2`-Zeile.
+		objekt: ["Karte", "Karten"],
+		wikiObjekt: ["Publikation", "Publikationen"],
+		frage: function (zahl, wikiZahl, antwort) {
+			var uebersprungen = (antwort && antwort.skipped) || {};
+			var unberuehrt = Number(uebersprungen.already_assigned || 0) + Number(uebersprungen.no_article_flag || 0);
+			return "Alle " + zahl + " noch nicht zugewiesenen Karten mit ihrer Publikations-Wikiseite"
+				+ " verknüpfen? (" + wikiZahl + " verschiedene Seiten)"
+				+ "\n\nZugewiesen wird die Seite der PUBLIKATION, in der die Karte abgedruckt ist —"
+				+ " nicht ein eigener Artikel der Karte. Den gibt es im Wiki fast nie."
+				+ "\n\nDer Lauf ERGÄNZT nur: " + unberuehrt + " Karten tragen bereits eine Zuweisung oder"
+				+ " den Merker „Kein Wiki-Artikel vorhanden“ und bleiben unberührt. Es wird nichts überschrieben."
+				+ "\n\nWeitere " + Number(uebersprungen.no_publication || 0) + " Karten stecken in keiner"
+				+ " Publikation mit Wikiseite (eigene und Fankarten) — sie kommen gar nicht in Frage.";
+		},
+	},
 };
 
 function avesmapsWikiMassenlaufRezept(art) {
@@ -149,9 +189,14 @@ function avesmapsWikiMassenlaufKurztext(art, antwort) {
 		+ " · " + rezept.wikiZahl(antwort) + " " + avesmapsWikiMassenlaufWort(rezept.wikiObjekt, rezept.wikiZahl(antwort));
 }
 
+// ⚠️ DIE GANZE ANTWORT REIST ALS DRITTES ARGUMENT MIT, und die zwei aelteren Rezepturen ignorieren
+// sie schlicht. Grund: die Karte muss in ihrer Rueckfrage sagen, WIE VIELE Karten unberuehrt bleiben --
+// sie ergaenzt ja nur. Solange nichts zugewiesen ist, sind das 0; nach dem ersten Lauf sind es alle,
+// und dann ist genau diese Zahl die Auskunft. Zwei Zahlen in die Signatur zu pressen und die dritte
+// wegzulassen waere die halbe Auskunft, gegen die dieser Knopf gebaut ist.
 function avesmapsWikiMassenlaufFrage(art, antwort) {
 	var rezept = avesmapsWikiMassenlaufRezept(art);
-	return rezept.frage(rezept.zahl(antwort), rezept.wikiZahl(antwort));
+	return rezept.frage(rezept.zahl(antwort), rezept.wikiZahl(antwort), antwort);
 }
 
 /**

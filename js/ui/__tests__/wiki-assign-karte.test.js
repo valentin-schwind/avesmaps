@@ -164,8 +164,15 @@ zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 // 🔴 KEIN Kartenziel, also KEIN Sync-Knopf. Die beiden hängen zusammen und werden hier gemeinsam
 // festgenagelt: ein `sync: true` ohne Ziel zeigte einen Knopf, der nichts füllen kann.
 const KARTE = AVESMAPS_WIKI_ASSIGN_REGISTRY.karte;
-assert.deepStrictEqual(KARTE.felder.map((feld) => feld.karte), ["", ""],
-	"die Erklaerung `karte` beansprucht ein Kartenfeld -- dann braucht sie auch einen Sync-Knopf");
+// ⚠️ Hier stand `deepStrictEqual(…, ["", ""])` -- eine Liste, die sich vollstaendig liest und in
+// Wahrheit nur die ANZAHL der Felder festnagelte. Sie fiel prompt um, als am 17.08.2026 die
+// Anzeigezeile „Zuweisung" dazukam, obwohl an der Regel nichts verletzt war. Gepruefte Regel ist
+// jetzt die Regel selbst: KEIN Feld beansprucht ein Kartenziel, egal wie viele es sind.
+assert.ok(KARTE.felder.length > 0, "die Erklaerung `karte` fuehrt gar keine Felder mehr");
+KARTE.felder.forEach((feld) => {
+	assert.strictEqual(feld.karte, "",
+		'die Erklaerung `karte` beansprucht mit "' + feld.wiki + '" ein Kartenfeld -- dann braucht sie auch einen Sync-Knopf');
+});
 assert.strictEqual(KARTE.sync, false, "die Erklaerung `karte` bietet einen Sync-Knopf ohne Ziel an");
 // 🔴 KEIN Bedienelement für den dritten Zustand -- gefallen am 16.08.2026 (Owner-Entscheid nach dem
 // Durchklicken: „passt, aber ‚Kein Wiki-Artikel vorhanden‘ brauchen wir nicht explizit"). Hier stand
@@ -287,6 +294,9 @@ function detailAntwort(ueberschreibungen) {
 			article_url: SEITE_GARETH.wiki_url,
 			article_key: "gareth",
 			article_title: "Gareth",
+			// Diese Karte ist von HAND zugewiesen (Vorgabe der Spalte). Der Massenlauf vom
+			// 17.08.2026 schriebe hier 'wiki_publication' -- beide Faelle unten geprueft.
+			article_origin: "manual",
 			no_article: false,
 		}, ueberschreibungen || {}),
 		types: ["stadtplan"], related: [], places: [], links: [], foreign_links: [],
@@ -580,6 +590,72 @@ function standardAntwort(detail) {
 	assert.strictEqual(frischHost.innerHTML.indexOf("data-wa-kein-artikel"), -1,
 		"eine neue Karte zeigt das Haekchen „Kein Wiki-Artikel vorhanden“ weiter: " + frischHost.innerHTML);
 	zaehl(); zaehl(); zaehl();
+
+	// ── H) DIE HERKUNFT DER ZUWEISUNG STEHT IM KASTEN ───────────────────────────────────────
+	//
+	// 🔴 Seit dem Massenlauf vom 17.08.2026 traegt `article_url` bei einer Wiki-Karte die Seite der
+	// PUBLIKATION, in der die Karte abgedruckt ist -- nicht ihren eigenen Artikel. Sagt der Kasten
+	// das nicht, gibt er die Publikation stillschweigend als eigenen Artikel aus, und genau diese
+	// Verwechslung hat den ganzen Strang gekostet. Owner 17.08.2026: „weil ich sehen will, was
+	// gesynct und was von uns editiert ist."
+
+	// Erst REIN, ohne DOM: der Satz haengt am gespeicherten Feld, nicht am Registry-Satz.
+	assert.strictEqual(
+		avesmapsWikiAssignKarteArtikel(
+			{ article_url: "u", article_key: "k", article_title: "T", article_origin: "wiki_publication" },
+			SEITE_GARETH
+		).werte.herkunft,
+		"Publikation, in der die Karte steht — nicht ihr eigener Artikel"
+	);
+	assert.strictEqual(
+		avesmapsWikiAssignKarteArtikel(
+			{ article_url: "u", article_key: "k", article_title: "T", article_origin: "manual" },
+			SEITE_GARETH
+		).werte.herkunft,
+		"Von Hand gewählt"
+	);
+	// ⚠️ Ein unbekannter oder fehlender Wert sagt NICHTS, statt etwas Falsches zu behaupten -- das
+	// Bauteil laesst leere Zeilen weg.
+	assert.strictEqual(
+		avesmapsWikiAssignKarteArtikel({ article_url: "u", article_key: "k" }, SEITE_GARETH).werte.herkunft,
+		""
+	);
+	// 🔴 Und ein TREFFER der Suche sagt dazu NICHTS: die Registry beschreibt die SEITE und weiss
+	// nicht, warum eine Karte auf sie zeigt. ⚠️ Der Schluessel ist trotzdem da (sonst schlaegt der
+	// Hausriegel „jedes erklaerte Feld hat einen Wert" an) -- er ist leer, und leere Zeilen laesst
+	// das Bauteil weg. Genau diese Unterscheidung ist beim Bau einmal falsch gebaut worden.
+	assert.strictEqual(avesmapsWikiAssignKarteTreffer(SEITE_GARETH).werte.herkunft, "",
+		"eine Trefferzeile behauptet eine Herkunft");
+	zaehl(); zaehl(); zaehl(); zaehl();
+
+	// Und jetzt am ECHTEN Kasten: die Zeile muss im Dokument stehen.
+	// 💣 Sie steht dort nur, wenn das Register das Feld `herkunft` fuehrt -- Datenweg UND Erklaerung
+	// gehoeren zusammen, und eine Haelfte allein waere wirkungslos (der stille Fehler, gegen den die
+	// Aufgaben 3-8 gebaut sind).
+	assert.ok(
+		AVESMAPS_WIKI_ASSIGN_REGISTRY.karte.felder.some((f) => f.wiki === "herkunft"),
+		"die Erklaerung `karte` fuehrt kein Feld `herkunft` -- der Datenweg liefe ins Leere"
+	);
+	const publikation = sandkastenBauen({
+		antwort: standardAntwort(detailAntwort({ article_origin: "wiki_publication" })),
+	});
+	vm.runInContext("selectCitymap('C-GARETH')", publikation.kasten);
+	await ruhe();
+	const pubHost = publikation.elemente["ceWikiAssign"];
+	assert.ok(/Publikation, in der die Karte steht/.test(pubHost.innerHTML),
+		"der Kasten verschweigt, dass die Zuweisung die Publikation ist: " + pubHost.innerHTML);
+	assert.ok(/Zuweisung/.test(pubHost.innerHTML),
+		"die Beschriftung der Herkunftszeile fehlt: " + pubHost.innerHTML);
+
+	const handgesetzt = sandkastenBauen({ antwort: standardAntwort(detailAntwort()) });
+	vm.runInContext("selectCitymap('C-GARETH')", handgesetzt.kasten);
+	await ruhe();
+	const handHost = handgesetzt.elemente["ceWikiAssign"];
+	assert.ok(/Von Hand gewählt/.test(handHost.innerHTML),
+		"der Kasten unterscheidet die Handzuweisung nicht: " + handHost.innerHTML);
+	assert.ok(!/Publikation, in der die Karte steht/.test(handHost.innerHTML),
+		"eine Handzuweisung wird als Publikation ausgegeben: " + handHost.innerHTML);
+	zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 	console.log("wiki-assign-karte: " + checks + " Zusicherungen erfuellt");
 })();

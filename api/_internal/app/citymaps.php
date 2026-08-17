@@ -133,6 +133,15 @@ const AVESMAPS_CITYMAP_FORMAT_MAX = 120;
 // two-publisher case the wiki actually has.
 const AVESMAPS_CITYMAP_PUBLISHER_MAX = 160;
 const AVESMAPS_CITYMAP_URL_LABEL_MAX = 120; // matches map_url_label VARCHAR(120)
+
+// Die zwei Werte von `citymap.article_origin` -- die Begruendung der Spalte steht bei ihrem ALTER
+// in avesmapsCitymapsEnsureTables. Sie stehen HIER und nicht im Massenlauf
+// (api/_internal/wiki/citymap-article-assign.php), weil beide Schreiber sie brauchen und zwei
+// Definitionen desselben Wortes genau die Divergenz waeren, gegen die dieser Umbau gebaut ist.
+/** Der Artikel ist die PUBLIKATION, in der die Karte abgedruckt ist -- nicht ihr eigener. */
+const AVESMAPS_CITYMAP_ARTICLE_ORIGIN_PUBLICATION = 'wiki_publication';
+/** Ein Mensch hat den Artikel im Kasten gewaehlt (Vorgabe der Spalte). */
+const AVESMAPS_CITYMAP_ARTICLE_ORIGIN_MANUAL = 'manual';
 const AVESMAPS_CITYMAP_LINK_ROWS_MAX = 20;
 
 // ---- DDL --------------------------------------------------------------------------------------------
@@ -389,6 +398,31 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     // zweite ist eine Entscheidung -- ein NULL daneben waere ein dritter Wert ohne Bedeutung.
     if (!$columnExists('no_article')) {
         $pdo->exec('ALTER TABLE citymap ADD COLUMN no_article TINYINT(1) NOT NULL DEFAULT 0');
+    }
+    // ── article_origin: WOHER die Zuweisung stammt (Nachlauf 17.08.2026) ──────────────────────
+    //
+    // 🔴 SIE IST TRAGEND, NICHT BEIWERK, und der Grund ist gemessen. Seit dem Massenlauf traegt
+    // `article_url` bei einer Wiki-Karte die Seite der PUBLIKATION, in der die Karte abgedruckt ist
+    // -- nicht ihren eigenen Artikel (den gibt es fast nie: 11 von 521). `citymap` steht aber NICHT
+    // in AVESMAPS_CONFLICT_SEGMENTED_TYPES, also machte avesmapsConflictRuleSharedArticle daraus
+    // **136 Gruppen mit 482 Objekten**, 123 davon gemischt mit einem Literaturwerk auf demselben
+    // Artikel -- schwerste Stufe. Live gerechnet am 17.08.2026 (363 Karten auf 140 Artikel).
+    //
+    // Und das waere sachlich richtig gemeldet: ein Stadtplan und das BUCH, in dem er steht, sind
+    // zwei Dinge (Owner-Entscheid 20.07.2026, „Greifenfurt Stadt" gegen „Greifenfurt Baronie").
+    // Deshalb wird nicht die REGEL aufgeweicht, sondern die HERKUNFT festgehalten:
+    // avesmapsConflictLoadCitymapRows laesst `wiki_publication` aus, alles andere bleibt im Blick.
+    //
+    // ⛔ Die Alternative -- `citymap|game_literature` pauschal freigeben wie `path|path` -- ist vom
+    // Owner verworfen (17.08.2026): sie versteckt auch echte Fehlzuweisungen. Woertlich: „weil ich
+    // sehen will, was gesynct und was von uns editiert ist."
+    //
+    // ⚠️ VORGABE 'manual', nicht '': jede Zeile, die es vor dieser Spalte schon gab, wurde von einem
+    // Menschen gesetzt -- ein Leerwert waere ein vierter Zustand ohne Bedeutung. Dieselbe Rechnung
+    // wie bei `feature_sources.origin` (api/_internal/app/feature-sources.php), das Vorbild fuer
+    // diesen Namen und diesen Wert.
+    if (!$columnExists('article_origin')) {
+        $pdo->exec("ALTER TABLE citymap ADD COLUMN article_origin VARCHAR(24) NOT NULL DEFAULT 'manual'");
     }
     // Urheber und Hochlade-Protokoll je Slot (Phase 2 der Lizenz-Vereinheitlichung). Der Urheber ist
     // EDITORWISSEN und verlaesst die Oberflaeche nicht (Owner 16.08.2026) -- er steht neben der Lizenz,
@@ -1404,6 +1438,14 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
             'article_url' => (string) ($row['article_url'] ?? ''),
             'article_key' => (string) ($row['article_key'] ?? ''),
             'article_title' => (string) ($row['article_title'] ?? ''),
+            // 🔴 Die HERKUNFT reist mit, weil der Kasten sie zeigen MUSS: bei `wiki_publication`
+            // ist der Artikel die Publikation, in der die Karte steckt, und nicht ihr eigener.
+            // Genau diese Verwechslung hat den ganzen Strang gekostet -- sie ungesagt zu lassen
+            // hiesse, die Publikation als eigenen Artikel auszugeben.
+            // ⚠️ Rueckfall 'manual' statt '': auf einer Installation, deren self-healing ALTER noch
+            // nicht lief, fehlt der Schluessel schlicht -- und was es vor der Spalte gab, war von
+            // Hand gesetzt.
+            'article_origin' => (string) ($row['article_origin'] ?? 'manual'),
             'no_article' => (int) ($row['no_article'] ?? 0) === 1,
         ],
         'types' => avesmapsCitymapTypesByCitymap($pdo, [$id])[$id] ?? [],
@@ -1546,6 +1588,18 @@ function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0, string $o
         }
     }
     $values['title'] = $title;
+
+    // 🔴 `article_origin` STEHT BEWUSST NICHT IN $editableFields, und wird hier abgeleitet statt
+    // entgegengenommen: wer den Artikel ueber diesen Weg setzt, ist ein Mensch im Kasten -- also
+    // 'manual'. Duerfte der Client den Wert schicken, koennte er 'wiki_publication' behaupten und
+    // seine Zuweisung damit am Konfliktzentrum vorbeischleusen (avesmapsConflictLoadCitymapRows
+    // laesst genau diesen Wert aus). Die Herkunft ist eine Feststellung des Servers, keine Angabe.
+    // ⚠️ Am `article_url`-Schluessel, nicht an seinem WERT: auch ein Leeren („Entfernen" im Kasten)
+    // ist eine Entscheidung eines Menschen, und die Spalte darf danach nicht auf der alten Herkunft
+    // stehen bleiben.
+    if (array_key_exists('article_url', $data)) {
+        $values['article_origin'] = AVESMAPS_CITYMAP_ARTICLE_ORIGIN_MANUAL;
+    }
 
     // parent_public_id -> parent_id. Sent-but-empty clears the parent.
     if (array_key_exists('parent_public_id', $data)) {

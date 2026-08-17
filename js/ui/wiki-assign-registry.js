@@ -636,6 +636,18 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 		felder: [
 			{ wiki: "settlement_label", karte: "", label: "Seitenart" },
 			{ wiki: "continent", karte: "", label: "Kontinent" },
+			// 🔴 DIE DRITTE ZEILE BESCHREIBT NICHT DIE SEITE, SONDERN DIE ZUWEISUNG -- und sie ist
+			// die einzige ihrer Art im ganzen Register. Seit dem Massenlauf vom 17.08.2026 traegt
+			// `article_url` bei einer Wiki-Karte die Seite der PUBLIKATION, in der die Karte
+			// abgedruckt ist -- nicht ihren eigenen Artikel. Ohne diese Zeile gaebe der Kasten die
+			// Publikation stillschweigend als eigenen Artikel aus, und genau diese Verwechslung hat
+			// den ganzen Strang gekostet. Owner 17.08.2026: „weil ich sehen will, was gesynct und
+			// was von uns editiert ist."
+			// ⚠️ Der Wert kommt NICHT aus der Registry, sondern aus `citymap.article_origin` --
+			// avesmapsWikiAssignKarteArtikel mischt ihn in `werte` (js/ui/wiki-assign-karte.js).
+			// Deshalb traegt eine TREFFERZEILE der Suche ihn nicht, und dort faellt er weg: die
+			// Registry beschreibt die Seite und weiss nicht, warum eine Karte auf sie zeigt.
+			{ wiki: "herkunft", karte: "", label: "Zuweisung" },
 		],
 		sync: false, // kein Ziel -- also auch kein Knopf
 		// 🔴 ERST MIT „Speichern" -- gemessen am 17.08.2026: `ceWikiUngespeichert`

@@ -196,6 +196,104 @@ const KACHEL_ZEICHEN = 34;
 	assert.ok(/kein Wiki-Artikel/.test(landFrage), "die Landschafts-Rueckfrage verschweigt den Merker: " + landFrage);
 }
 
+// ── 9b) DIE KARTE: DIE DRITTE ART, UND SIE VERSPRICHT DAS GEGENTEIL DER ZWEI ANDEREN ─────────
+//
+// 🔴 Sie ERGAENZT nur. Die zwei Nachbarn ueberschreiben (der Weg sogar bereits Verknuepftes), und
+// genau deshalb darf ihre Rueckfrage nicht abgeschrieben werden: derselbe Satz an einem Knopf, der
+// etwas anderes tut, ist schlimmer als gar keiner.
+{
+	const KARTE_VORSCHAU = {
+		ok: true, dry_run: true, total: 529, citymaps_affected: 363, articles_linked: 140,
+		applied: 0, skipped: { already_assigned: 0, no_article_flag: 0, no_publication: 166 },
+		key_mismatch: { total: 22, unexplained: 0 },
+	};
+
+	// Die Zahlen kommen aus den Feldern, die avesmapsCitymapAssignPublicationArticles wirklich liefert.
+	assert.strictEqual(AVESMAPS_WIKI_MASSENLAUF.karte.zahl(KARTE_VORSCHAU), 363);
+	assert.strictEqual(AVESMAPS_WIKI_MASSENLAUF.karte.wikiZahl(KARTE_VORSCHAU), 140);
+	// ⚠️ Und ein leerer Lauf faellt auf 0, nicht auf NaN -- der Kasten sagt dann „nichts offen".
+	assert.strictEqual(AVESMAPS_WIKI_MASSENLAUF.karte.zahl({ ok: true }), 0);
+	assert.strictEqual(avesmapsWikiMassenlaufKurztext("karte", { ok: true }), "nichts offen");
+
+	// 🔴 DIE ADRESSE IST DER KARTEN-SCHREIBENDPUNKT, nicht der NUR-GET-Registryleser.
+	assert.strictEqual(AVESMAPS_WIKI_MASSENLAUF.karte.url, "/api/edit/map/citymaps.php");
+	assert.notStrictEqual(AVESMAPS_WIKI_MASSENLAUF.karte.url, "/api/edit/wiki/citymaps.php");
+
+	// Die Vorschau schickt WEDER `dry_run` NOCH `confirm` -- die Vorgabe des Servers ist der
+	// Trockenlauf, und ein `dry_run:true` hier waere eine zweite Wahrheit.
+	const vorschauKoerper = avesmapsWikiMassenlaufVorschauKoerper("karte");
+	assert.strictEqual(vorschauKoerper.action, "assign_publication_articles");
+	assert.ok(!("dry_run" in vorschauKoerper), "die Karten-Vorschau schickt dry_run mit");
+	assert.ok(!("confirm" in vorschauKoerper), "die Karten-Vorschau schickt confirm mit");
+	// Der scharfe Lauf braucht BEIDE Haelften -- eine allein bleibt stillschweigend eine Vorschau.
+	const schreibKoerper = avesmapsWikiMassenlaufSchreibKoerper("karte");
+	assert.strictEqual(schreibKoerper.dry_run, false);
+	assert.strictEqual(schreibKoerper.confirm, "apply");
+
+	const karteFrage = avesmapsWikiMassenlaufFrage("karte", KARTE_VORSCHAU);
+	// 💣 SIE MUSS SAGEN, DASS DIE PUBLIKATION ZUGEWIESEN WIRD, nicht ein eigener Artikel der Karte.
+	// Genau diese Verwechslung hat den ganzen Strang gekostet (Owner 17.08.2026).
+	assert.ok(/PUBLIKATION/.test(karteFrage), "die Karten-Rueckfrage sagt nicht, dass es die Publikation ist: " + karteFrage);
+	assert.ok(/nicht ein eigener Artikel/.test(karteFrage), "die Karten-Rueckfrage grenzt den eigenen Artikel nicht ab: " + karteFrage);
+	// 🔴 UND SIE MUSS DAS GEGENTEIL DER NACHBARN VERSPRECHEN: ergaenzen, nicht ersetzen.
+	assert.ok(/ERGÄNZT/.test(karteFrage), "die Karten-Rueckfrage sagt nicht, dass sie nur ergaenzt: " + karteFrage);
+	assert.ok(/unberührt/.test(karteFrage), "die Karten-Rueckfrage verschweigt, was unberuehrt bleibt: " + karteFrage);
+	// 💣 Und sie muss das Ueberschreiben AUSSCHLIESSEN, statt es wie die Nachbarn anzukuendigen.
+	// ⚠️ Ein blosses `!/überschrieben/` waere hier falsch gewesen und ist beim Bau prompt umgefallen:
+	// der richtige Satz „Es wird nichts überschrieben" enthaelt das Wort ja. Geprueft wird deshalb
+	// das VERSPRECHEN der Nachbarn („eine abweichende Zuordnung wird überschrieben"), nicht das Wort.
+	assert.ok(!/abweichende Zuordnung wird überschrieben/.test(karteFrage),
+		"die Karten-Rueckfrage hat den Ueberschreib-Satz der Nachbarn geerbt: " + karteFrage);
+	assert.ok(/nichts überschrieben/.test(karteFrage),
+		"die Karten-Rueckfrage schliesst das Ueberschreiben nicht aus: " + karteFrage);
+	// ⚠️ Der Merker bleibt eine ENTSCHEIDUNG: anders als bei Weg und Landschaft raeumt dieser Lauf
+	// ihn nicht ab, und die Rueckfrage sagt genau das.
+	assert.ok(/Kein Wiki-Artikel vorhanden/.test(karteFrage), "die Karten-Rueckfrage nennt den Merker nicht: " + karteFrage);
+	// 💣 UND SIE NENNT DIE ZAHLEN GETRENNT. Ein Knopf, der nur „363 werden geschrieben" sagt,
+	// verschweigt, wie viele unberuehrt bleiben -- und genau das ist bei einem Lauf, der ERGAENZT,
+	// die eigentliche Auskunft: heute 0, nach dem ersten Lauf alle. Dafuer reist die ganze Antwort
+	// als drittes Argument in `frage` mit; die zwei aelteren Rezepturen ignorieren sie.
+	const KARTE_SPAETER = {
+		ok: true, dry_run: true, total: 529, citymaps_affected: 12, articles_linked: 9, applied: 0,
+		skipped: { already_assigned: 349, no_article_flag: 2, no_publication: 166 },
+		key_mismatch: { total: 22, unexplained: 0 },
+	};
+	const spaeterFrage = avesmapsWikiMassenlaufFrage("karte", KARTE_SPAETER);
+	assert.ok(/351 Karten tragen bereits/.test(spaeterFrage),
+		"die Rueckfrage rechnet die unberuehrten Karten nicht zusammen (349 + 2): " + spaeterFrage);
+	assert.ok(/Weitere 166 Karten/.test(spaeterFrage),
+		"die Rueckfrage verschweigt die Karten ohne Publikation: " + spaeterFrage);
+	// ⚠️ Und bei der ersten Vorschau steht dort eine ehrliche 0, keine ausgelassene Zeile.
+	assert.ok(/ERGÄNZT nur: 0 Karten/.test(karteFrage),
+		"die erste Vorschau verschweigt, dass noch nichts zugewiesen ist: " + karteFrage);
+	assert.ok(!/verliert ihn/.test(karteFrage), "die Karten-Rueckfrage behauptet, den Merker zu loeschen: " + karteFrage);
+}
+
+// ── 9c) DIE VERDRAHTUNG — EIN REZEPT OHNE AUSLÖSER IST GENAU DER FEHLER, DEN ES BEHEBEN SOLL ──
+//
+// 🪤 Der Anlass dieses ganzen Bauteils war, dass `assign_all` serverseitig seit Monaten existierte
+// und NICHTS es anklicken konnte (js/review/review-path-sync.js hatte null Aufrufer). Ein Rezept,
+// das kein Knopf ruft, wiederholt genau das — und alle Zusicherungen darüber blieben grün dabei.
+// Deshalb wird hier am DOKUMENT nachgezählt, statt es anzunehmen.
+{
+	const fs = require("fs");
+	const path = require("path");
+	const editor = fs.readFileSync(
+		path.resolve(__dirname, "..", "..", "..", "html", "citymap-editor.html"), "utf8"
+	);
+	assert.ok(/<script src="\/js\/ui\/wiki-massenzuweisung\.js"/.test(editor),
+		"der Karten-Editor lädt js/ui/wiki-massenzuweisung.js nicht — das Rezept ist unerreichbar");
+	assert.ok(/id="ceAssignAllBtn"/.test(editor), "die Kachel „Wiki zuweisen“ fehlt im Menüband");
+	assert.ok(/id="ceAssignAllSub"/.test(editor), "der Kachel fehlt die Zeile für ihre Zahl");
+	assert.ok(/getElementById\("ceAssignAllBtn"\)\.addEventListener\("click", handleAssignAllClick\)/.test(editor),
+		"die Kachel hat keinen Zuhörer — sie sähe aus wie ein Knopf und täte nichts");
+	assert.ok(/avesmapsWikiMassenlauf\("karte",/.test(editor),
+		"der Karten-Editor ruft den Massenlauf nicht mit der Art „karte“");
+	// ⚠️ Und er liest die Kurzzeile über DIESELBE Art -- ein „weg“ hier zeigte die falschen Wörter.
+	assert.ok(/avesmapsWikiMassenlaufKurztext\("karte",/.test(editor),
+		"die Kachel beschriftet sich über eine andere Art als die, die sie ausführt");
+}
+
 // ── 10) EINE UNBEKANNTE ART SCHEITERT GESCHLOSSEN ─────────────────────────────────────────────
 assert.throws(() => avesmapsWikiMassenlaufVorschauKoerper("ort"), /Unbekannte Massenlauf-Art/);
 await assert.rejects(

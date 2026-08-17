@@ -12,6 +12,15 @@ require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/map/features.php';
 require_once __DIR__ . '/../../_internal/app/citymaps.php';
 require_once __DIR__ . '/../../_internal/app/game-literature-resolve.php';
+// Der Massenlauf der Karten-Wikizuweisung samt seiner drei Laufzeit-Abhaengigkeiten. Er steht HIER
+// und nicht in api/edit/wiki/citymaps.php, obwohl paths.php und regions.php ihre `assign_all` dort
+// haben: jene Datei ist ausdruecklich NUR-GET und liest ausschliesslich die Wiki-Registry, waehrend
+// dieser Lauf `citymap` SCHREIBT -- also die Tabelle dieses Endpunkts, mit dessen Faehigkeit `edit`.
+// Und er liest die Registry gar nicht: seine Quelle ist `citymap.map_url`.
+require_once __DIR__ . '/../../_internal/political/territory.php';   // avesmapsPoliticalSlug
+require_once __DIR__ . '/../../_internal/wiki/sync.php';             // avesmapsWikiSyncPageUrl
+require_once __DIR__ . '/../../_internal/wiki/publication-sync.php'; // …PageTitleFromUrl
+require_once __DIR__ . '/../../_internal/wiki/citymap-article-assign.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -124,6 +133,26 @@ try {
                 avesmapsErrorResponse(400, 'invalid_request', 'place_id ist erforderlich.');
             }
             return avesmapsResolveCitymapPlace($pdo, $placeId);
+        })(),
+        // Der MASSENLAUF der Wiki-Zuweisung: jede Karte bekommt die Wikiseite der Publikation, in
+        // der sie abgedruckt ist (Nachlauf 17.08.2026, Begruendung im Kopf von
+        // api/_internal/wiki/citymap-article-assign.php).
+        //
+        // 🔴 BEIDE HAELFTEN DES RIEGELS -- `dry_run:false` UND `confirm:"apply"`. Dieselbe Form wie
+        // avesmapsWikiPathAssignAll/…RegionAssignAll (api/edit/wiki/{paths,regions}.php), damit
+        // js/ui/wiki-massenzuweisung.js sie unveraendert bedienen kann. Die Vorgabe ist der
+        // TROCKENLAUF: eine halbe Angabe bleibt stillschweigend eine Vorschau, nie ein Schreiblauf.
+        'assign_publication_articles' => (static function () use ($pdo, $payload): array {
+            // 🔴 DAS SCHEMA ZUERST, und zwar HIER: es legt `citymap.article_origin` an, sein DDL ist
+            // MySQL samt information_schema, und in MySQL COMMITTET DDL implizit -- innerhalb der
+            // Transaktion des Laufs waere es ein aufgebrochener Schreiblauf. Dass es hier steht und
+            // nicht in der Bibliothek, haelt jene ausserdem gegen SQLite pruefbar (dieselbe
+            // Trennung wie bei api/_internal/wiki/citymap-article.php).
+            avesmapsCitymapsEnsureTables($pdo);
+            return avesmapsCitymapAssignPublicationArticles(
+                $pdo,
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+            );
         })(),
         // Global kill switch (owner "emergency off"): hides the whole Kartensammlung on the public
         // frontend; the rows stay stored and the editor keeps working.

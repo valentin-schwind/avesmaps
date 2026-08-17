@@ -213,6 +213,40 @@ Verwechslungsklasse wie *Literatur* gegen *Quellen* und „Neuigkeiten" gegen `c
 Artikel trägt, gehört sie in die Kollisionsprüfung — eine Zeile, aber sie muss bewusst gesetzt
 werden, sonst teilen sich Karte und Ort still denselben Artikel.
 
+### 🪤 8a. Die VIERTE Stelle, an der dieser Entwurf an der Wirklichkeit gemessen falsch ist (17.08.2026)
+
+Der Entwurf oben stellt `article_*` (**eigener** Artikel) bewusst *neben* `map_url` (**Publikation**)
+und begründet das mit „`citymap.wiki_key` ist ein Bauschlüssel, keine Seitenidentität". Die
+Unterscheidung ist richtig. **Die Annahme darunter war es nicht:** dass es einen eigenen Artikel der
+Karte überhaupt zu finden gibt.
+
+Gemessen am 17.08.2026: **11 von 521** Kartentiteln haben eine gleichnamige Wikiseite, und alle 11
+sind Ortsseiten oder Schuber — kein einziger ist der Artikel *dieser Karte*. Die Folge stand im
+Editor: jede Karte auf „keine Zuweisung", und der Owner hat viermal danach gefragt. Seine Auflösung,
+wörtlich: **„karten sind in publikationen und publikationen haben einen wiki-artikel"**.
+
+⇒ Seit dem Nachlauf vom 17.08.2026 füllt ein Massenlauf `article_*` mit der Wikiseite der
+**Publikation**. Damit steht in der Spalte etwas anderes, als ihr Name verspricht — und **genau
+deshalb** trägt die Zeile jetzt eine Herkunft:
+
+| Feld | was es wirklich ist | Status |
+|---|---|---|
+| `citymap.article_origin` | `manual` = ein Mensch hat den Artikel im Kasten gewählt · `wiki_publication` = der Massenlauf hat die **Publikation** eingetragen | ⭐ neu 17.08.2026 |
+
+🔴 **Sie ist tragend, nicht dekorativ.** `citymap` steht nicht in `AVESMAPS_CONFLICT_SEGMENTED_TYPES`;
+ohne die Marke hätte der Lauf **136 Konfliktgruppen mit 482 Objekten** erzeugt (363 Karten auf 140
+Publikationsseiten, 123 davon gemischt mit dem Literaturwerk, das denselben Artikel trägt — die
+schwerste Kategorie). Der Ausschluss sitzt im **Lader** (`avesmapsConflictLoadCitymapRows`), nicht als
+Ausnahme im Urteil: das Paar `citymap|game_literature` pauschal freizugeben, hätte auch echte
+Fehlzuweisungen versteckt. Owner-Entscheid, wörtlich: „weil ich sehen will, was gesynct und was von
+uns editiert ist." Eine **von Hand** gesetzte Kartenzuweisung bleibt vollständig im Blick.
+
+⚠️ Und die Zeile darüber („`citymap.wiki_url`") ist die schon bekannte, dritte Fehlstelle: **eine
+Spalte dieses Namens gibt es nicht**, gemeint ist `map_url`.
+
+Messung, Fehlschlaggruppen und die verworfenen Alternativen:
+`.superpowers/sdd/2026-08-15-wiki-zuweisung-vereinheitlichung/nachlauf-kartenzuweisung-bericht.md`.
+
 ## 9. Die zehn Oberflächen
 
 | Oberfläche | heute | Skin |

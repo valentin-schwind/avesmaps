@@ -64,6 +64,33 @@ function avesmapsWikiAssignKarteText(wert) {
 }
 
 /**
+ * REIN: der Satz, der im Kasten unter „Zuweisung" steht -- WOHER der Artikel kommt.
+ *
+ * 🔴 ER MUSS DASTEHEN, UND ZWAR AUSGESCHRIEBEN. Seit dem Massenlauf vom 17.08.2026 traegt
+ * `article_url` bei einer Wiki-Karte die Seite der PUBLIKATION, in der die Karte abgedruckt ist --
+ * nicht ihren eigenen Artikel (den gibt es fast nie: 11 von 521 Titeln). Genau diese Verwechslung
+ * hat den ganzen Strang gekostet; sie stillschweigend zu lassen hiesse, die Publikation als eigenen
+ * Artikel auszugeben. Owner-Entscheid 17.08.2026, woertlich: „weil ich sehen will, was gesynct und
+ * was von uns editiert ist."
+ *
+ * ⚠️ BEIDE Faelle sagen etwas -- „von Hand" ist keine Selbstverstaendlichkeit, die man weglassen
+ * kann: der Owner will die zwei Herkuenfte UNTERSCHEIDEN, und ein Feld, das nur bei einer von beiden
+ * erscheint, beantwortet die Frage nur halb.
+ * ⚠️ Ein UNBEKANNTER Wert ergibt "" -- das Bauteil laesst leere Zeilen weg (`modell.felder.filter`),
+ * also steht dann keine Zeile da statt einer falschen Behauptung.
+ */
+function avesmapsWikiAssignKarteHerkunft(wert) {
+	const h = avesmapsWikiAssignKarteText(wert);
+	if (h === "wiki_publication") {
+		return "Publikation, in der die Karte steht — nicht ihr eigener Artikel";
+	}
+	if (h === "manual") {
+		return "Von Hand gewählt";
+	}
+	return "";
+}
+
+/**
  * REIN: die Werte, die die Erklaerung `karte` erwartet -- aus einer Zeile des Suchendpunkts.
  *
  * ⚠️ DIE NAMEN SIND DIE DER ANTWORT, nicht huebschere: `settlement_label` und `continent` heissen so,
@@ -77,6 +104,13 @@ function avesmapsWikiAssignKarteWerte(quelle) {
 	return {
 		settlement_label: avesmapsWikiAssignKarteText(q.settlement_label),
 		continent: avesmapsWikiAssignKarteText(q.continent),
+		// 🔴 `herkunft` steht hier LEER, und der Schluessel muss trotzdem da sein: die Erklaerung
+		// `karte` fuehrt das Feld, und der Hausriegel verlangt, dass der Datenweg JEDES erklaerte
+		// Feld liefert -- sonst faellt eine Zeile im Kasten stumm weg. Leer ist hier die richtige
+		// Antwort: eine Zeile der Wiki-Registry beschreibt die SEITE und weiss nicht, warum eine
+		// Karte auf sie zeigt. Gefuellt wird sie erst in avesmapsWikiAssignKarteArtikel, aus der
+		// gespeicherten Spalte `citymap.article_origin`.
+		herkunft: "",
 	};
 }
 
@@ -122,7 +156,13 @@ function avesmapsWikiAssignKarteArtikel(gespeichert, kandidat) {
 			|| avesmapsWikiAssignKarteText(k && (k.name || k.title)),
 		wiki_url: adresse || avesmapsWikiAssignKarteText(k && k.wiki_url),
 		wiki_key: schluessel || avesmapsWikiAssignKarteText(k && k.wiki_key),
-		werte: avesmapsWikiAssignKarteWerte(k || {}),
+		// 💣 `herkunft` kommt aus der GESPEICHERTEN Zeile, die zwei Anzeigewerte daneben aus dem
+		// Registry-Satz -- und das ist kein Schoenheitsfehler, sondern der Punkt: die Registry
+		// beschreibt die SEITE und weiss nichts darueber, WARUM diese Karte auf sie zeigt. Ein
+		// Treffer der Suche traegt deshalb kein `herkunft`, und die Zeile faellt dort weg.
+		werte: Object.assign({}, avesmapsWikiAssignKarteWerte(k || {}), {
+			herkunft: avesmapsWikiAssignKarteHerkunft(g.article_origin),
+		}),
 	};
 }
 
@@ -139,6 +179,7 @@ function avesmapsWikiAssignKarteArtikel(gespeichert, kandidat) {
  *
  * @param {Object|null} quelle {
  *     article_url, article_key, article_title,  -- die gespeicherte Zuweisung
+ *     article_origin,                           -- WOHER sie stammt (manual|wiki_publication)
  *     no_article,                               -- der dritte Zustand
  *     kandidat,                                 -- der Registry-Satz dazu (`?action=entry`) oder null
  *   }
@@ -156,6 +197,7 @@ function avesmapsWikiAssignKarteZustand(quelle) {
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		avesmapsWikiAssignKarteWerte: avesmapsWikiAssignKarteWerte,
+		avesmapsWikiAssignKarteHerkunft: avesmapsWikiAssignKarteHerkunft,
 		avesmapsWikiAssignKarteTreffer: avesmapsWikiAssignKarteTreffer,
 		avesmapsWikiAssignKarteArtikel: avesmapsWikiAssignKarteArtikel,
 		avesmapsWikiAssignKarteZustand: avesmapsWikiAssignKarteZustand,

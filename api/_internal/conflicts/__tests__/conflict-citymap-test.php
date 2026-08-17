@@ -59,27 +59,40 @@ $pdo->exec(
         article_url TEXT NULL,
         article_key TEXT NULL,
         article_title TEXT NULL,
+        -- WOHER der Artikel stammt (Nachlauf 17.08.2026). Dieselbe Vorgabe wie in der echten DDL
+        -- (NOT NULL, Vorgabe manual): was es vor der Spalte gab, war von Hand gesetzt.
+        article_origin TEXT NOT NULL DEFAULT "manual",
         no_article INTEGER NOT NULL DEFAULT 0,
         status TEXT NOT NULL DEFAULT "approved"
      )'
 );
 $karte = $pdo->prepare(
-    'INSERT INTO citymap (public_id, title, wiki_key, map_url, article_url, article_key, article_title, no_article, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO citymap (public_id, title, wiki_key, map_url, article_url, article_key, article_title, article_origin, no_article, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 // (1) DIE KARTE MIT EIGENEM ARTIKEL. Sie trägt gleichzeitig einen Bauschlüssel UND eine map_url auf
 //     die Publikation -- alle drei Spalten sind gefüllt, und nur eine davon ist die richtige.
 $karte->execute(['C-GARETH', 'Stadtplan von Gareth (Der Fluch des Hexers)',
-    'stadtplan:gareth:der-fluch-des-hexers:farbe', ART_FLUCH, ART_GARETH, 'gareth', 'Gareth', 0, 'approved']);
+    'stadtplan:gareth:der-fluch-des-hexers:farbe', ART_FLUCH, ART_GARETH, 'gareth', 'Gareth', 'manual', 0, 'approved']);
 // (2) 🔴 DIE KARTE OHNE EIGENEN ARTIKEL -- Fall B des Auftrags. Bauschlüssel ja, map_url ja, Artikel
 //     nein. 💣 Ihre `map_url` zeigt AUF DENSELBEN ARTIKEL wie der Ort unten: läse die Abfrage `map_url`,
 //     stünde hier ein Fall, den es nicht gibt.
 $karte->execute(['C-OHNE', 'Stadtplan von Gareth (s/w)',
-    'stadtplan:gareth:der-fluch-des-hexers:sw', ART_GARETH, null, null, null, 0, 'approved']);
+    'stadtplan:gareth:der-fluch-des-hexers:sw', ART_GARETH, null, null, null, 'manual', 0, 'approved']);
 // (3) Eine von uns gezeichnete Karte mit dem dritten Zustand -- ebenfalls kein Anspruch.
-$karte->execute(['C-EIGEN', 'Eigener Plan von Warunk', null, '', null, null, null, 1, 'approved']);
+$karte->execute(['C-EIGEN', 'Eigener Plan von Warunk', null, '', null, null, null, 'manual', 1, 'approved']);
 // (4) Eine VERBORGENE Karte mit Artikel: für den Leser nicht da, also auch keine Kollision.
-$karte->execute(['C-VERBORGEN', 'Alter Plan von Gareth', null, '', ART_GARETH, 'gareth', 'Gareth', 0, 'suppressed']);
+$karte->execute(['C-VERBORGEN', 'Alter Plan von Gareth', null, '', ART_GARETH, 'gareth', 'Gareth', 'manual', 0, 'suppressed']);
+// (5) 🔴 DIE KARTE AUS DEM MASSENLAUF (17.08.2026): ihr `article_url` ist die Seite der PUBLIKATION,
+//     in der sie abgedruckt ist -- nicht ihr eigener Artikel. Sie beansprucht die Seite also gar
+//     nicht und gehoert NICHT in die Kollisionspruefung.
+//     💣 OHNE diesen Ausschluss meldete das Konfliktzentrum live 136 Gruppen mit 482 Objekten (363
+//     Karten auf 140 Publikationsseiten, 123 davon gemischt mit dem Literaturwerk, das denselben
+//     Artikel traegt) -- die schwerste Kategorie, geflutet an einem Tag. Ihre `article_url` zeigt
+//     hier bewusst AUF DENSELBEN Artikel wie Karte (1) und der Ort unten: faellt der Ausschluss,
+//     steht sofort ein Fall mehr da.
+$karte->execute(['C-PUBLIKATION', 'Stadtplan von Gareth (Massenlauf)', null, '',
+    ART_GARETH, 'gareth', 'Gareth', 'wiki_publication', 0, 'approved']);
 
 // ── 1) DER LADER LIEST `article_url`, UND NUR SIE ────────────────────────────────────────────
 $zeilen = avesmapsConflictLoadCitymapRows($pdo);
@@ -96,6 +109,16 @@ $pruef($zeilen[0]['position'] === null, 'die Karte behauptet eine Position auf d
 // 🔴 Und sie ist NICHT aus dem Konfliktzentrum loesbar (`unlinkable` haengt an claim_source ===
 // 'wiki_url'): geloest wird im Karten-Editor, wie bei Territorium und Literatur.
 $pruef($zeilen[0]['claim_source'] === 'citymap', 'die Herkunft des Anspruchs ist falsch benannt');
+
+// ── 1b) 🔴 UND DIE ZUWEISUNG AUS DEM MASSENLAUF BLEIBT DRAUSSEN ──────────────────────────────
+// Sie steht in der Fixture als Karte (5) mit demselben Artikel wie (1). Waere sie dabei, lieferte
+// der Lader zwei Zeilen -- die Zusicherung oben faellt dann schon. Hier wird ausdruecklich
+// nachgesehen, DASS es die richtige ist, statt sich auf die blosse Anzahl zu verlassen.
+$pruef(
+    !in_array('C-PUBLIKATION', array_column($zeilen, 'id'), true),
+    'eine Zuweisung mit article_origin = wiki_publication steht in der Kollisionspruefung -- '
+    . 'das flutet sie mit der Publikation jeder Karte'
+);
 
 // ── 2) 💣 UND DER TYP STEHT IM SCHILD -- sonst stuende „citymap" auf dem Bildschirm ──────────
 $pruef((AVESMAPS_CONFLICT_TYPE_LABELS['citymap'] ?? '') === 'Karte',
@@ -166,7 +189,8 @@ $gesamt->exec(
     'CREATE TABLE citymap (
         public_id TEXT NOT NULL, title TEXT NOT NULL, wiki_key TEXT NULL,
         map_url TEXT NOT NULL DEFAULT "", article_url TEXT NULL, article_key TEXT NULL,
-        article_title TEXT NULL, no_article INTEGER NOT NULL DEFAULT 0,
+        article_title TEXT NULL, article_origin TEXT NOT NULL DEFAULT "manual",
+        no_article INTEGER NOT NULL DEFAULT 0,
         status TEXT NOT NULL DEFAULT "approved"
      )'
 );
