@@ -141,6 +141,40 @@ foreach ($schreibwege as $funktion => $pfad) {
         "der Schreibweg {$funktion} schreibt Wiki-Felder eines Ortes, stempelt aber keine Herkunft");
 }
 
+// ══ 11) 🔴 DIE LITERATUR: WAS DIE REPARATUR TUT -- UND WAS SIE NICHT TUT ══════════════════════
+// avesmapsUpsertGameLiterature stempelte bis zum 17.08.2026 JEDES mitgeschickte Feld auf 'manual',
+// und das Formular schickt alle mit. Diese zwei Zusicherungen halten beide Haelften fest.
+$literaturFelder = ['title', 'genre', 'authors'];
+// (a) Ein Speichern, das nur den Titel aendert, laesst die uebrigen Felder in Ruhe.
+$literatur = avesmapsFieldOriginsStempeln(
+    [],
+    ['title' => 'Madas Kelch', 'genre' => 'Mystik', 'authors' => 'Anton Weste'],
+    ['title' => 'Madas Kelch (neu)', 'genre' => 'Mystik', 'authors' => 'Anton Weste'],
+    []
+);
+$pruefe($literatur === ['title' => 'manual'],
+    'ein Speichern stempelt weiterhin alle mitgeschickten Felder: ' . json_encode($literatur));
+
+// (b) 💣 UND SIE HEILT NICHT RUECKWIRKEND. Eine Zeile, die heute ueberall 'manual' traegt, behaelt
+// das -- der Stempler SETZT nur, er loescht nie. Das ist gewollt: eine stille Massen-Entsperrung
+// liesse den naechsten Abgleich ueber Werte laufen, die jemand fuer geschuetzt hielt. Der Weg
+// zurueck ist das ↺ an der Feldzeile, und der ist eine Entscheidung, kein Nebeneffekt.
+$altbestand = ['title' => 'manual', 'genre' => 'manual', 'authors' => 'manual'];
+$nachSpeichern = avesmapsFieldOriginsStempeln(
+    $altbestand,
+    ['title' => 'A', 'genre' => 'Mystik', 'authors' => 'X'],
+    ['title' => 'B', 'genre' => 'Mystik', 'authors' => 'X'],
+    []
+);
+$pruefe($nachSpeichern === $altbestand,
+    'die Reparatur hat rueckwirkend entsperrt -- der naechste Abgleich liefe ueber geschuetzte Werte: '
+    . json_encode($nachSpeichern));
+// Und das ↺ ist der Weg zurueck: das Feld wird als Wiki-Uebernahme genannt -> Herkunft 'wiki'.
+$mitReset = avesmapsFieldOriginsStempeln($altbestand,
+    ['genre' => 'Krimi'], ['genre' => 'Mystik'], ['genre']);
+$pruefe(($mitReset['genre'] ?? '') === 'wiki',
+    'das ↺ befreit ein handgesetztes Feld nicht: ' . json_encode($mitReset));
+
 // ══ 10) 🔴 DIE FELDLISTE DECKT SICH MIT DER DES BROWSERS ══════════════════════════════════════
 // Weichen sie ab, zeigt der Editor eine Zeile, deren Herkunft niemand fortschreibt -- oder der
 // Server fuehrt eine Herkunft fuer ein Feld, das keine Zeile hat. Verglichen wird gegen die ECHTEN

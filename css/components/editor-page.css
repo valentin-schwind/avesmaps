@@ -642,6 +642,41 @@ body.avm-editor-body {
  * Ein erster Entwurf trug drei Abzeichen; zwei davon waren redundant zur Durchstreichung. */
 .dt-grid .k.ovr { color: var(--color-accent-brown); }
 
+/* ---- Dieselbe Auskunft, ZWEITE FORM: Beschriftung UEBER dem Feld ------------------------------
+ * 🔴 WELCHE FORM GILT, ENTSCHEIDET DIE ZEILE, NICHT DIE OBERFLAECHE. `.dt-alt` oben braucht eine
+ * eigene Rasterspalte, weil die Beschriftung dort LINKS steht (.dt-grid). Der Literatur-Editor
+ * (.ae-field) und der Kartendialog stapeln stattdessen -- Beschriftung oben, Feld darunter --, und
+ * dort haengt der durchgestrichene Wiki-Stand IN der Beschriftung.
+ * ⚠️ ZWEI Formen sind die Obergrenze, und zwei sind es auch: die Regeln stehen zweimal, weil
+ * index.html editor-page.css nicht bindet und die Editorseiten location-report-dialog.css nicht --
+ * die KLASSENNAMEN sind dieselben, damit es beim naechsten Leser eine Sache bleibt.
+ * ⭐ Und sie kostet KEINE Zeilenhoehe (Owner 17.08.2026: „drüber passt, kein platz verschwendet") --
+ * genau deshalb steht sie in der Beschriftungszeile und nicht darunter. */
+.wiki-alt {
+	display: inline-flex;
+	align-items: baseline;
+	gap: var(--space-2);
+	margin-left: var(--space-4);
+	max-width: 60%;
+	vertical-align: baseline;
+	font-weight: normal;
+	font-size: var(--font-size-caption);
+}
+
+.wiki-alt .dt-old {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wiki-alt .dt-reset { flex: 0 0 auto; }
+
+/* „Von uns gesetzt" -- an der Beschriftung, per Klasse statt per `:has()`. Die Elternauswahl faellt
+   bei fehlender Browserfaehigkeit LAUTLOS aus, und die Zeile saehe dann aus wie eine mit
+   unbekannter Herkunft, also genau wie der andere Zustand. */
+.ae-field > label.has-wiki-ovr { color: var(--color-accent-brown); }
+
 .dt-check {
 	display: flex;
 	align-items: center;

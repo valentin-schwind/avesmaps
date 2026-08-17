@@ -1002,17 +1002,28 @@ function avesmapsUpsertGameLiterature(PDO $pdo, array $data): array
         return $value === '' ? null : $value;
     };
 
-    // Collect values + per-field origin ONLY for the keys the caller actually sent.
+    // 🔴 SEIT 17.08.2026 WIRD NUR GESTEMPELT, WAS SICH WIRKLICH AENDERT -- und die Herkunft haengt
+    // daran, ob die Anfrage das Feld als Wiki-Uebernahme nennt (`wiki_uebernommen`).
+    //
+    // 💣 HIER STAND: `$origins[$field] = 'manual'` fuer JEDES mitgeschickte Feld -- und `gatherStamm`
+    // schickt bei jedem Speichern alle mit. Nach EINEM Speichern trug damit jedes Feld „von Hand",
+    // der Massenabgleich (avesmapsGameLiteratureFieldPlan) liess daraufhin alles in Ruhe, und die
+    // Spalte sah gepflegt aus, ohne eine Auskunft zu tragen. Wortgleiches Vorbild fuer die richtige
+    // Form: avesmapsWikiModelPlanOverrideSaves (js/review/wiki-model-override-save.js) -- „ein Feld,
+    // das der Benutzer nicht angefasst hat, loest gar nichts aus" (Fall #72).
+    //
+    // ⚠️ RUECKWIRKEND AENDERT SICH NICHTS. Bereits gestempelte Zeilen behalten ihr 'manual' -- der
+    // Merger unten setzt nur, er loescht nie. Eine Zeile, die heute ueberall 'manual' traegt, bleibt
+    // also fuer den Abgleich gesperrt, bis ein Editor ein Feld ausdruecklich mit ↺ auf den Wiki-Stand
+    // zurueckholt. Das ist gewollt: eine stille Massen-Entsperrung liesse den naechsten Abgleich ueber
+    // Werte laufen, die jemand fuer geschuetzt hielt.
     $values = [];
-    $origins = [];
     foreach ($editableFields as $field) {
         if (array_key_exists($field, $data)) {
             $values[$field] = $normalize($field, $data[$field]);
-            $origins[$field] = 'manual';
         }
     }
-    $values['title'] = $title; // required -> always written and always 'manual'
-    $origins['title'] = 'manual';
+    $values['title'] = $title; // required -> always written
 
     // 🔴 Nachtrag zur Phase-3-Pruefung (Befund 2, Risikoweg): html/game-literature-editor.html:956
     // traegt ein FREIES Textfeld "Cover-URL" im Stammdaten-Block, das GENAU UEBER DIESE Funktion
@@ -1041,9 +1052,26 @@ function avesmapsUpsertGameLiterature(PDO $pdo, array $data): array
 
     $publicId = trim((string) ($data['public_id'] ?? ''));
 
+    // Der gemeinsame Stempler der Feldherkunft -- dieselbe Regel wie beim Ort (AGENTS.md §5: EINE
+    // Ablage, EIN Rechner).
+    // 💣 IM FUNKTIONSRUMPF, NICHT AUF DATEIEBENE. Diese Datei liegt auf einem OEFFENTLICHEN
+    // Lesepfad (api/app/citymaps.php, map-search.php, report-location.php); ein require auf
+    // Dateiebene zahlte jeder Besucher mit. Dieselbe Bauform wie collection-audit.php weiter unten,
+    // und gewacht von api/_internal/map/__tests__/collection-audit-test.php -- der genau diesen
+    // Fehler beim Bauen gefunden hat, nicht der Autor.
+    require_once __DIR__ . '/../map/field-origins.php';
+    // Welche Felder nennt die Anfrage als Wiki-Uebernahme? Gefiltert auf die bearbeitbaren Felder,
+    // nie roh uebernommen.
+    $ausWiki = avesmapsFieldOriginsAusWikiLesen($data, $editableFields);
+
     if ($publicId === '') {
         // ---- INSERT (create) --------------------------------------------------------------------
         $publicId = avesmapsUuidV4();
+        // ⚠️ Eine NEUE Zeile hat keinen Vorzustand -- jedes gefuellte Feld ist eine Aenderung und
+        // bekommt eine Herkunft. Genau richtig: ein Eintrag, der aus einer Wiki-Zuweisung heraus
+        // entsteht, traegt seine Werte wirklich aus dem Wiki.
+        $origins = avesmapsFieldOriginsStempeln([], [], $values, $ausWiki);
+
         $insertParams = [
             'public_id' => $publicId,
             'field_origins_json' => avesmapsGameLiteratureEncodeOrigins($origins),
@@ -1070,23 +1098,35 @@ function avesmapsUpsertGameLiterature(PDO $pdo, array $data): array
     }
 
     // ---- UPDATE (partial; only the sent fields) --------------------------------------------------
-    $existing = $pdo->prepare('SELECT id, field_origins_json, cover_license FROM adventure WHERE public_id = :pid LIMIT 1');
+    // 💣 DIE BISHERIGEN WERTE MUESSEN MIT GELESEN WERDEN -- ohne sie laesst sich „hat sich wirklich
+    // geaendert" nicht beantworten, und genau daran ist die alte Fassung gescheitert (sie stempelte
+    // jedes MITGESCHICKTE Feld). Die Spaltenliste ist `$editableFields`, damit sie nicht
+    // auseinanderlaufen kann.
+    $existing = $pdo->prepare(
+        'SELECT id, field_origins_json, cover_license, ' . implode(', ', $editableFields)
+        . ' FROM adventure WHERE public_id = :pid LIMIT 1'
+    );
     $existing->execute(['pid' => $publicId]);
     $row = $existing->fetch(PDO::FETCH_ASSOC);
     if ($row === false) {
         avesmapsErrorResponse(404, 'not_found', 'Der Literatur-Eintrag wurde nicht gefunden.');
     }
 
-    $mergedOrigins = [];
+    $bestandOrigins = [];
     if (!empty($row['field_origins_json'])) {
         $decoded = json_decode((string) $row['field_origins_json'], true);
         if (is_array($decoded)) {
-            $mergedOrigins = $decoded;
+            $bestandOrigins = $decoded;
         }
     }
-    foreach ($origins as $field => $origin) {
-        $mergedOrigins[$field] = $origin; // this edit's fields -> 'manual'; untouched fields keep prior origin
+    $vorher = [];
+    foreach ($editableFields as $field) {
+        $vorher[$field] = $row[$field] ?? null;
     }
+    // ⚠️ Der Stempler SETZT nur, er loescht nie: ein Feld, das diese Anfrage nicht aendert, behaelt
+    // seine bisherige Herkunft. Zeilen, die heute ueberall 'manual' tragen, bleiben also gesperrt,
+    // bis ein Editor ein Feld ausdruecklich mit ↺ auf den Wiki-Stand zurueckholt.
+    $mergedOrigins = avesmapsFieldOriginsStempeln($bestandOrigins, $vorher, $values, $ausWiki);
 
     $setClauses = [];
     $updateParams = ['id' => (int) $row['id']];

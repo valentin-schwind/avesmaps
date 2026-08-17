@@ -232,10 +232,13 @@
 }
 
 /* ---- Der Wiki-Override an der Feldbeschriftung (Entwurf 2026-08-17-wiki-override-fuer-alle) ----
- * DIE ZWEITE HUELLE. Das Editorfenster traegt dieselbe Auskunft in einer eigenen Rasterspalte
- * (`.dt-grid--wiki` / `.dt-alt`, css/components/editor-page.css), weil dort die Beschriftung LINKS
- * neben dem Feld steht. Hier steht sie OBEN darueber -- also haengt der durchgestrichene Wiki-Stand
- * an der Beschriftung, nicht in einer dritten Spalte.
+ * DIE ZWEITE VON ZWEI FORMEN, und welche gilt, entscheidet die ZEILE, nicht die Oberflaeche:
+ *   .dt-alt    -- eigene Rasterspalte, wo die Beschriftung LINKS neben dem Feld steht (.dt-grid,
+ *                 css/components/editor-page.css). Ortseditor.
+ *   .wiki-alt  -- in der Beschriftung, wo diese OBEN ueber dem Feld steht. Kartendialog hier,
+ *                 Literatur-Editor (.ae-field) -- der bekommt dieselbe Regel aus editor-page.css.
+ * 🪤 Sie hiess bis zum 17.08.2026 `.loc-wiki-alt`, und der Name haette den Literatur-Editor zu
+ * einer DRITTEN Fassung gezwungen. Umbenannt, bevor er sich verbreitet hat.
  * 🔴 Uebertragen wird die REGEL, nicht das CSS: Wiki-Stand durchgestrichen, ↺ daneben, „von uns"
  * hebt die Beschriftung hervor. ⚠️ ZWEI Huellen sind die Obergrenze -- dieselbe Regel wie bei der
  * Wiki-Zuweisung und den Listenzeilen. Eine dritte Bauform waere die Divergenz, die dieser Umbau
@@ -243,7 +246,7 @@
  * ⚠️ Die Klassennamen `dt-old`/`dt-reset` sind ABSICHTLICH dieselben wie drueben: es ist dieselbe
  * Sache, und ein zweiter Name dafuer waere der Anfang der Divergenz. Die Regeln stehen hier eigens,
  * weil index.html editor-page.css nicht bindet. */
-.loc-wiki-alt {
+.wiki-alt {
 	display: inline-flex;
 	align-items: baseline;
 	gap: 4px;
@@ -257,7 +260,7 @@
 /* 💣 DIE AUSLASSUNGSPUNKTE GEHOEREN AN DEN TEXT, NICHT AN DIE HUELLE -- `ellipsis` wirkt nur auf das
    Element, dessen EIGENER Text ueberlaeuft, nie auf ein ueberlaufendes Kind. Ohne diese Zeile wird
    ein langer Wiki-Stand hart abgeschnitten, ohne ein einziges Puenktchen. */
-.loc-wiki-alt .dt-old {
+.wiki-alt .dt-old {
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -267,7 +270,7 @@
 }
 
 /* 💣 Das ↺ darf NIE mitgekappt werden: es ist der Knopf, der Wiki-Stand nur die Auskunft. */
-.loc-wiki-alt .dt-reset {
+.wiki-alt .dt-reset {
 	flex: 0 0 auto;
 	cursor: pointer;
 	color: var(--color-text-muted);
@@ -279,11 +282,11 @@
 	text-decoration: underline;
 }
 
-.loc-wiki-alt .dt-reset:hover { color: var(--color-text-strong); }
+.wiki-alt .dt-reset:hover { color: var(--color-text-strong); }
 
 /* „Wir haben dieses Feld gesetzt" -- hebt die BESCHRIFTUNG hervor, wortgleich zum
    Territoriumseditor (`.dt-grid .k.ovr`). Kein eigenes Abzeichen daneben.
-   ⚠️ Eine eigene Klasse AN der Beschriftung, nicht `:has(> .loc-wiki-alt.is-ovr)`. Die
+   ⚠️ Eine eigene Klasse AN der Beschriftung, nicht `:has(> .wiki-alt.is-ovr)`. Die
    Elternauswahl waere kuerzer und haette hier auch funktioniert -- aber sie haengt an einer
    Browserfaehigkeit, die diese Datei sonst nirgends voraussetzt, und faellt bei ihrem Fehlen
    LAUTLOS aus: die Zeile saehe dann aus wie eine mit unbekannter Herkunft, also genau wie der

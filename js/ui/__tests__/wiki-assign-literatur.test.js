@@ -363,6 +363,24 @@ function sandkastenBauen(optionen) {
 		.forEach((name) => {
 			felder[name] = scheinFeld(DETAIL[name] === null || DETAIL[name] === undefined ? "" : String(DETAIL[name]));
 			felder[name].dataset = { field: name };
+			// 🔴 EINE BESCHRIFTUNG JE FELD -- ohne sie faende aeWikiZeichneAbweichungen nichts und die
+			// Probe truege gruen, waehrend der Zeichner gar nicht liefe. Genau die Falle „gruener Test
+			// ohne Verdrahtung": die Attrappe darf nicht freundlicher sein als das DOM.
+			const beschriftung = scheinFeld("");
+			beschriftung.kinder = [];
+			beschriftung.klassen = new Set();
+			beschriftung.classList = {
+				add: (k) => beschriftung.klassen.add(k),
+				remove: (k) => beschriftung.klassen.delete(k),
+				toggle: (k, an) => (an ? beschriftung.klassen.add(k) : beschriftung.klassen.delete(k)),
+				contains: (k) => beschriftung.klassen.has(k),
+			};
+			beschriftung.append = (...k) => beschriftung.kinder.push(...k);
+			beschriftung.querySelector = (sel) => beschriftung.kinder.find((k) => ("." + k.className) === sel) || null;
+			const huelle = scheinFeld("");
+			huelle.querySelector = () => beschriftung;
+			felder[name].closest = () => huelle;
+			felder[name].beschriftung = beschriftung;
 		});
 	const elemente = {};
 	const gesendet = [];
@@ -425,7 +443,8 @@ function sandkastenBauen(optionen) {
 	// (html/game-literature-editor.html), also laden sie hier ebenso vor der Wiki-Zuweisung
 	// (dieselbe Nachziehung wie js/ui/__tests__/wiki-assign-karte.test.js, Phase 4 Aufgabe 2).
 	["js/app/media-licenses.js", "js/ui/media-license-fields.js",
-		"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-assign.js",
+		"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-feld-herkunft.js",
+		"js/ui/wiki-assign.js",
 		"js/ui/wiki-assign-literatur.js"].forEach((datei) => {
 		vm.runInContext(fs.readFileSync(path.join(wurzel, datei), "utf8"), kasten, { filename: datei });
 	});
@@ -621,6 +640,53 @@ function standardAntwort(adresse, rumpf) {
 	assert.ok(!/data-wa-kein-artikel/.test(frischHost.innerHTML),
 		"das Haekchen „Kein Wiki-Artikel vorhanden“ steht im Kasten, obwohl die Literatur es nicht tragen kann");
 	zaehl(); zaehl();
+
+	// ── I) 🔴 DER WIKI-OVERRIDE AN DER FELDZEILE (Stufe 2, 17.08.2026) ───────────────────────
+	// Der Katalogsatz KELCH sagt genre="Mystik", die Karte traegt "Krimi" und field_origins nennt
+	// genre als "manual" -- also: durchgestrichener Wiki-Stand, ↺, und die Beschriftung markiert.
+	const kasten2 = sandkastenBauen({ antwort: standardAntwort });
+	await vm.runInContext("selectGameLiterature(\"A-KELCH\")", kasten2.kasten);
+	await new Promise((r) => setTimeout(r, 5));
+	vm.runInContext("aeWikiZeichneAbweichungen()", kasten2.kasten);
+	const genreLabel = kasten2.felder.genre.beschriftung;
+	const genreZelle = genreLabel.kinder.find((k) => k.className === "wiki-alt");
+	assert.ok(genreZelle, "die abweichende Zeile hat keine Wiki-Zelle bekommen");
+	assert.ok(genreLabel.klassen.has("has-wiki-ovr"),
+		"die von uns gesetzte Zeile ist nicht als solche markiert");
+	zaehl(); zaehl();
+
+	// 🔴 Ein Feld, das mit dem Wiki uebereinstimmt, bekommt NICHTS -- sonst traegt fast jede Zeile
+	// eine Zelle und die Auskunft verschwindet im Rauschen.
+	const autorenLabel = kasten2.felder.authors.beschriftung;
+	assert.ok(!autorenLabel.kinder.some((k) => k.className === "wiki-alt"),
+		"eine uebereinstimmende Zeile hat eine Wiki-Zelle bekommen");
+	assert.ok(!autorenLabel.klassen.has("has-wiki-ovr"));
+	zaehl(); zaehl();
+
+	// 💣 DAS ↺ SCHREIBT DEN SCHLUESSEL UND MERKT SICH DAS FELD. Ohne das Merken stempelte der
+	// Server die Uebernahme als „von uns", und der naechste Abgleich liesse genau das Feld in Ruhe,
+	// das er gerade selbst gefuellt hat.
+	vm.runInContext("aeWikiFeldZuruecksetzen(\"genre\")", kasten2.kasten);
+	assert.strictEqual(kasten2.felder.genre.value, "Mystik", "das ↺ hat den Wiki-Wert nicht gesetzt");
+	assert.deepStrictEqual(
+		JSON.parse(JSON.stringify(vm.runInContext("Array.from(aeWikiUebernommen)", kasten2.kasten))),
+		["genre"], "das ↺ hat das Feld nicht gemerkt");
+	zaehl(); zaehl();
+
+	// 💣 UND DIE VERDRAHTUNG DER NUTZLAST -- ohne sie ist alles davor Zierrat.
+	await vm.runInContext("saveStammdaten()", kasten2.kasten);
+	const gesendetStufe2 = kasten2.gesendet.filter((g) => g.aktion === "upsert_adventure").pop();
+	assert.ok(gesendetStufe2, "es wurde gar nicht gespeichert");
+	assert.deepStrictEqual(
+		JSON.parse(JSON.stringify(gesendetStufe2.rumpf.adventure.wiki_uebernommen || null)), ["genre"],
+		"die Merkliste erreicht die Nutzlast nicht: " + JSON.stringify(gesendetStufe2.rumpf.adventure.wiki_uebernommen));
+	zaehl(); zaehl();
+
+	// 💣 DIE SKRIPTZEILE -- ohne sie ist der Rechner in diesem Dokument gar nicht da, und
+	// aeWikiStand faellt still auf „nichts weicht ab" zurueck.
+	assert.ok(editorQuelle.includes('src="/js/ui/wiki-feld-herkunft.js"'),
+		"html/game-literature-editor.html bindet js/ui/wiki-feld-herkunft.js nicht");
+	zaehl();
 
 	console.log("wiki-assign-literatur: " + checks + " Zusicherungen erfuellt");
 })();

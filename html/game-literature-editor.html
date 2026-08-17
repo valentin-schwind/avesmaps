@@ -604,6 +604,9 @@
      einen erkennbaren Blindgänger, dessen Kasten sagt, welche Datei fehlt. -->
 <script src="/js/ui/wiki-assign-registry.js"></script>
 <script src="/js/ui/wiki-assign-diff.js"></script>
+<!-- Der Wiki-Override an der Feldzeile. ⚠️ Fehlt die Zeile, faellt aeWikiStand still auf „nichts
+     weicht ab" zurueck -- ohne einen einzigen Fehler, und der ganze Umbau waere unsichtbar. -->
+<script src="/js/ui/wiki-feld-herkunft.js"></script>
 <script src="/js/ui/wiki-assign.js"></script>
 <script src="/js/ui/wiki-assign-literatur.js"></script>
 
@@ -866,12 +869,107 @@
     renderPlaces();
   }
 
+  // ---- Der Wiki-Override an der Feldzeile (Entwurf 2026-08-17-wiki-override-fuer-alle-design.md) ----
+  // 🔴 WELCHE FELDER AUS DEM WIKI KAMEN -- die Merkliste dieses Fensters. Der Server stempelt daraus
+  // die Herkunft, und zwar nur fuer Felder, deren Wert sich wirklich aendert. Sie fuellt sich an
+  // ZWEI Stellen: dem Knopf „Sync" (alle angehakten Zeilen) und dem ↺ an einer Zeile.
+  let aeWikiUebernommen = new Set();
+
+  // 🔴 DER KATALOGSATZ WIRD ASYNCHRON GEHOLT (aeWikiEntry, `?action=entry`) -- er steht NICHT am
+  // Detail. Genau das war beim Bauen zuerst geraten: `state.detail.wiki_kandidat` gibt es nicht, und
+  // ein Zugriff darauf haette fuer immer „nichts weicht ab" geliefert, ohne einen einzigen Fehler.
+  // Deshalb wird hier gemerkt, was `aeWikiZustand` ohnehin schon geholt hat.
+  let aeWikiKandidat = null;
+  let aeWikiStandCache = {};
+
+  /** Der Stand aller zehn Felder gegenueber dem Wiki. Leer, solange kein Katalogsatz da ist. */
+  function aeWikiStand() {
+    if (typeof avesmapsWikiFeldStand !== "function" || !state.detail || !aeWikiKandidat) { return {}; }
+    const kartenwerte = {};
+    AVESMAPS_WIKI_ASSIGN_LITERATUR_KARTENFELDER.forEach((feld) => {
+      kartenwerte[feld] = aeFieldValue(feld);
+    });
+    return avesmapsWikiFeldStand(
+      (avesmapsWikiAssignSubject("literatur") || {}).felder || [],
+      kartenwerte,
+      avesmapsWikiAssignLiteraturWerte(aeWikiKandidat),
+      avesmapsWikiAssignLiteraturHerkunft(state.detail.field_origins)
+    );
+  }
+
+  /**
+   * Die durchgestrichenen Wiki-Staende samt ↺ in die Beschriftungen schreiben.
+   *
+   * 💣 NACHGETRAGEN, NICHT MITGEZEICHNET. `aeField` laeuft, bevor der Katalogsatz da ist -- es kann
+   * die Zelle gar nicht kennen. Dasselbe Muster wie im Kartendialog des Orts
+   * (settlementWikiZeichneAbweichungen): erst das Formular, dann die Auskunft.
+   * ⚠️ UND DESHALB DARF HIER KEIN renderDetail() STEHEN: das baut das Formular aus `state.detail`
+   * neu und wirft jede ungespeicherte Eingabe weg -- auch die, die das ↺ gerade hineingeschrieben hat.
+   */
+  function aeWikiZeichneAbweichungen() {
+    const stand = aeWikiStand();
+    aeWikiStandCache = stand;
+    document.querySelectorAll("#aeStammBody [data-field]").forEach((el) => {
+      const feld = el.dataset.field;
+      const huelle = el.closest(".ae-field");
+      const beschriftung = huelle ? huelle.querySelector("label") : null;
+      if (!beschriftung) { return; }
+      const vorhanden = beschriftung.querySelector(".wiki-alt");
+      if (vorhanden) { vorhanden.remove(); }
+      const s = stand[feld];
+      const vonUns = Boolean(s && s.abweicht && s.herkunft === "manual");
+      beschriftung.classList.toggle("has-wiki-ovr", vonUns);
+      if (!s || !s.abweicht) { return; }
+      const zelle = document.createElement("span");
+      zelle.className = "wiki-alt";
+      const alt = document.createElement("span");
+      alt.className = "dt-old";
+      alt.textContent = s.wikiAnzeige;
+      alt.title = (vonUns ? "Von uns gesetzt. " : "Weicht vom Wiki ab. ") + "Wiki-Stand: " + s.wikiAnzeige;
+      const knopf = document.createElement("button");
+      knopf.type = "button";
+      knopf.className = "dt-reset";
+      knopf.textContent = "↺";
+      knopf.title = "Auf Wiki-Stand zurücksetzen";
+      // ⚠️ Der Knopf sitzt IN einem `<label>`: ohne diesen Riegel reichte der Klick an das Feld
+      // durch und fokussierte es, waehrend sich sein Wert aendert.
+      knopf.addEventListener("click", (ereignis) => {
+        ereignis.preventDefault();
+        ereignis.stopPropagation();
+        aeWikiFeldZuruecksetzen(feld);
+      });
+      zelle.append(alt, knopf);
+      beschriftung.append(zelle);
+    });
+  }
+
+  /**
+   * ↺ an einer Feldzeile: genau diesen einen Wert aus dem Wiki ins Formular holen.
+   * ⭐ Es ist die Sync-Uebernahme einer einzigen Zeile -- derselbe Weg, dieselbe Merkliste, kein
+   * zweiter Schreibpfad. Geschrieben wird mit „Speichern".
+   */
+  function aeWikiFeldZuruecksetzen(field) {
+    const s = aeWikiStandCache[field];
+    const el = document.querySelector('#aeStammBody [data-field="' + field + '"]');
+    if (!s || !el) { return; }
+    el.value = s.wikiWert; // 🔴 der SCHLUESSEL, nicht die Anzeige
+    aeWikiUebernommen.add(field);
+    aeWikiZeichneAbweichungen();
+    aeWikiUngespeichert();
+  }
+
   // ---- detail / Stammdaten (detail + upsert_adventure) ----
   function aeField(label, field, value, origins, opts) {
     opts = opts || {};
     const manual = origins && origins[field] === "manual"
       ? ` <span class="badge-manual" title="Manuell gesetzt — ein Wiki-Sync fasst dieses Feld nicht mehr an.">manuell</span>` : "";
+    // 🔴 DER WIKI-STAND WIRD HIER NICHT GEZEICHNET, sondern nachgetragen
+    // (aeWikiZeichneAbweichungen): der Katalogsatz ist zu diesem Zeitpunkt noch gar nicht geholt.
+    // Er steht dann NEBEN dem „manuell"-Abzeichen und ersetzt es nicht -- jenes sagt „ein Abgleich
+    // fasst dieses Feld nicht mehr an", der Wiki-Stand sagt, WAS dabei liegen bleibt.
     if (opts.checkbox) {
+      // ⚠️ Das Häkchen bekommt KEINEN Wiki-Stand: `is_official` schreibt der Katalog hart auf 1,
+      // das ist eine Konstante und keine Auskunft des Artikels (Feldregister, Objektart `literatur`).
       return `<div class="ae-field${opts.wide ? " is-wide" : ""}"><label class="ae-check"><input type="checkbox" data-field="${field}"${value ? " checked" : ""}> ${aeEscape(label)}${manual}</label></div>`;
     }
     let control;
@@ -1070,6 +1168,11 @@
   function aeWikiZustand(d) {
     const gespeichert = d || {};
     return aeWikiEntry(gespeichert.wiki_key).then((kandidat) => {
+      // 🔴 HIER wird der Katalogsatz gemerkt -- die einzige Stelle, an der er ankommt, und die
+      // Feldzeilen brauchen ihn fuer ihre Durchstreichung. Der Aufschub gibt dem Bauteil den
+      // Vortritt: aeWikiZustand laeuft NOCH, das Formular steht schon.
+      aeWikiKandidat = kandidat;
+      setTimeout(aeWikiZeichneAbweichungen, 0);
       const quelle = {
         public_id: gespeichert.public_id || "",
         wiki_key: gespeichert.wiki_key || "",
@@ -1365,6 +1468,10 @@
       wiki_url: (state.detail && state.detail.wiki_url) || "",
       wiki_key: (state.detail && state.detail.wiki_key) || "",
     };
+    // 🔴 WELCHE FELDER AUS DEM WIKI KAMEN. Der Server stempelt daraus die Herkunft -- aber nur
+    // fuer Felder, deren Wert sich wirklich aendert. Leere Liste == fehlender Schluessel ==
+    // „nichts kam aus dem Wiki", also alles von uns (die sichere Richtung).
+    adventure.wiki_uebernommen = Array.from(aeWikiUebernommen);
     adventure.wiki_url = wikiStand.wiki_url || "";
     // 🔴 `wiki_key` REIST SEIT DEM 16.08.2026 MIT, und das ist mehr als Symmetrie: er ist der
     // Schlüssel, über den avesmapsGameLiteratureFindOrAdoptRow das Werk im Staging-Katalog
