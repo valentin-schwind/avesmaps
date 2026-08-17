@@ -346,6 +346,7 @@ function avesmapsWikiAssignLandschaftZustand(quelle) {
 		),
 		keinArtikel: quelle.kein_artikel === true,
 		kartenwerte: kartenwerte,
+		herkunft: avesmapsWikiAssignLandschaftHerkunft(quelle.field_origins, AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER),
 		// 🔴 Die Klimazone ist ABGELEITET: ihre Art sagt, WELCHE der Zonen das ist, und daran haengt,
 		// welche Trennlinien ihr Band begrenzen. Der Server lehnt eine Aenderung ab
 		// (avesmapsUpdateEcosystemRegion, ecosystem.php:2345-2352), also darf die Vorschau sie gar
@@ -372,6 +373,27 @@ function avesmapsWikiAssignLandschaftZustand(quelle) {
  * @param {Object|null} quelle { wiki_region (das Nest), schnappschuss, arten, kein_artikel,
  *   text, feature_subtype } -- die zwei Kartenfelder je Wert ODER Lesefunktion.
  */
+/**
+ * REIN: `properties.field_origins` -> die Herkunftskarte, gefiltert auf die uebergebenen
+ * Kartenfelder. Wortgleich zu den Fassungen bei Ort und Literatur -- und aus demselben Grund
+ * gefiltert: ein Eintrag fuer ein Feld ohne Zeile waere Ballast in einer Karte, die ueber das
+ * Vorhaekeln entscheidet.
+ *
+ * ⚠️ Alles ausser `'manual'`/`'wiki'` faellt heraus. Eine kuenftige dritte Herkunft darf weder
+ * die Beschriftung faerben noch vorhaken, sondern muss auf „nicht bekannt" zurueckfallen.
+ */
+function avesmapsWikiAssignLandschaftHerkunft(herkunft, felder) {
+	const h = (herkunft && typeof herkunft === "object" && !Array.isArray(herkunft)) ? herkunft : {};
+	const karte = {};
+	(Array.isArray(felder) ? felder : []).forEach((feld) => {
+		const wert = avesmapsWikiAssignLandschaftText(h[feld]);
+		if (wert === "manual" || wert === "wiki") {
+			karte[feld] = wert;
+		}
+	});
+	return karte;
+}
+
 function avesmapsWikiAssignLandschaftslabelZustand(quelle) {
 	if (!quelle || typeof quelle !== "object" || Array.isArray(quelle)) {
 		throw new Error("Wiki-Landschaft: kein Label gewählt — der Stand ist unbekannt.");
@@ -386,6 +408,7 @@ function avesmapsWikiAssignLandschaftslabelZustand(quelle) {
 		),
 		keinArtikel: quelle.kein_artikel === true,
 		kartenwerte: avesmapsWikiAssignLandschaftKartenwerte(quelle, AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER),
+		herkunft: avesmapsWikiAssignLandschaftHerkunft(quelle.field_origins, AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER),
 		// Ein Label kennt keine abgeleitete Ebene -- es gibt hier nichts zu sperren.
 		gesperrt: {},
 	};
@@ -491,6 +514,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsWikiAssignLandschaftTreffer: avesmapsWikiAssignLandschaftTreffer,
 		avesmapsWikiAssignLandschaftArtikel: avesmapsWikiAssignLandschaftArtikel,
 		avesmapsWikiAssignLandschaftZustand: avesmapsWikiAssignLandschaftZustand,
+		avesmapsWikiAssignLandschaftHerkunft: avesmapsWikiAssignLandschaftHerkunft,
 		avesmapsWikiAssignLandschaftZuweisungsKoerper: avesmapsWikiAssignLandschaftZuweisungsKoerper,
 		avesmapsWikiAssignLandschaftAntwortPruefen: avesmapsWikiAssignLandschaftAntwortPruefen,
 		avesmapsWikiAssignLandschaftSyncWerte: avesmapsWikiAssignLandschaftSyncWerte,

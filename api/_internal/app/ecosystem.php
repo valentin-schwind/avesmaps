@@ -1839,6 +1839,62 @@ function avesmapsEcosystemApplyRegionNoArticle(array $before, array $payload, ar
     ];
 }
 
+/**
+ * REIN: die Feldherkunft einer Landschaft fortschreiben. Leeres Ergebnis = nichts zu schreiben.
+ *
+ * 🔴 DIE ZWEI WIKI-FELDER dieser Objektart sind `name` und `region_type` (Feldregister, Objektart
+ * `landschaft`). Mehr traegt sie nicht: `ecosystem_region` hat fuer Staat, Kontinent, Einwohner,
+ * Sprache und Vegetation ueberhaupt keine Spalte.
+ *
+ * ⚠️ Sie laeuft NACH avesmapsEcosystemApplyRegionNoArticle und liest deshalb `properties_json` aus
+ * $fields, wenn es dort schon steht -- sonst wuerfe die eine Aenderung die andere weg. Dieselbe
+ * Vorsichtsregel, die dort im Kopf steht.
+ *
+ * @param array $before   die Zeile vor dem Schreiben
+ * @param array $payload  der Rumpf (traegt ggf. `wiki_uebernommen`)
+ * @param array $fields   die schon gelesenen Felder
+ * @return array<string,?string> `['properties_json' => …]` oder `[]`
+ */
+function avesmapsEcosystemApplyRegionFieldOrigins(array $before, array $payload, array $fields): array
+{
+    require_once __DIR__ . '/../map/field-origins.php';
+    $felder = ['name', 'region_type'];
+    $quelle = array_key_exists('properties_json', $fields)
+        ? $fields['properties_json']
+        : ($before['properties_json'] ?? null);
+    $properties = json_decode((string) ($quelle ?? ''), true);
+    if (!is_array($properties)) {
+        $properties = [];
+    }
+    $vorher = [];
+    $nachher = [];
+    foreach ($felder as $feld) {
+        $vorher[$feld] = $before[$feld] ?? null;
+        $nachher[$feld] = array_key_exists($feld, $fields) ? $fields[$feld] : ($before[$feld] ?? null);
+    }
+    $herkunft = avesmapsFieldOriginsStempeln(
+        is_array($properties['field_origins'] ?? null) ? $properties['field_origins'] : [],
+        $vorher,
+        $nachher,
+        avesmapsFieldOriginsAusWikiLesen($payload, $felder)
+    );
+    $bestand = is_array($properties['field_origins'] ?? null) ? $properties['field_origins'] : [];
+    if ($herkunft === $bestand && !array_key_exists('properties_json', $fields)) {
+        return [];
+    }
+    if ($herkunft === []) {
+        unset($properties['field_origins']);
+    } else {
+        $properties['field_origins'] = $herkunft;
+    }
+
+    return [
+        'properties_json' => $properties === []
+            ? null
+            : json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+    ];
+}
+
 // ---- wiki key ----------------------------------------------------------------------------------------
 // Transcription of avesmapsPoliticalSlug (api/_internal/political/territory.php:1060), word for word and
 // deliberately NOT a call -- see the require note at the top of this file. Copied verbatim INCLUDING the
@@ -2353,6 +2409,8 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
         $fields,
         avesmapsEcosystemApplyRegionNoArticle($before, $payload, $fields, $effectiveWikiUrl)
     );
+    // Die Feldherkunft -- NACH dem Merker, weil beide in dasselbe `properties_json` schreiben.
+    $fields = array_merge($fields, avesmapsEcosystemApplyRegionFieldOrigins($before, $payload, $fields));
     if ($fields === []) {
         throw new InvalidArgumentException('No updatable field was sent.');
     }

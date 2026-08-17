@@ -1286,6 +1286,14 @@ const AVESMAPS_POINT_WIKI_TEXT_FIELDS = [
 const AVESMAPS_POINT_WIKI_ORIGIN_FIELDS = ['name', 'feature_subtype', 'einwohner', 'lage', 'oberhaupt'];
 
 /**
+ * Dasselbe fuer ein LANDSCHAFTS-LABEL. 🔴 Es heisst `text`, nicht `name` -- so heisst das Namensfeld
+ * eines Labels, und genau so steht es im Feldregister (Objektart `landschaftslabel`). Die Spalte
+ * `map_features.name` traegt dieselbe Zeichenkette als Abbild und bekommt deshalb KEINE eigene
+ * Herkunft; zwei Herkuenfte fuer einen Wert waeren die erste Divergenz.
+ */
+const AVESMAPS_LABEL_WIKI_ORIGIN_FIELDS = ['text', 'feature_subtype'];
+
+/**
  * REIN: die Wiki-Angaben eines Ortes in seine Eigenschaften schreiben -- der Merker „kein Artikel"
  * und die drei Textfelder. Wirft, wenn Merker und Adresse einander widersprechen.
  *
@@ -2866,10 +2874,29 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
             throw new InvalidArgumentException('Dieses Kartenobjekt ist kein Label.');
         }
         $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+        // 🔴 DER STAND VOR DEM SPEICHERN -- hier und nirgends spaeter, die naechsten Zeilen
+        // ueberschreiben genau diese zwei Felder. Die Wiki-Felder eines Labels sind `text` und
+        // `feature_subtype` (Feldregister, Objektart `landschaftslabel`); `name` ist nur deren
+        // Abbild und traegt keine eigene Herkunft.
+        $herkunftVorher = [
+            'text' => (string) ($properties['text'] ?? $feature['name'] ?? ''),
+            'feature_subtype' => (string) ($feature['feature_subtype'] ?? ''),
+        ];
         $properties['name'] = $text;
         $properties['text'] = $text;
         $properties['feature_type'] = 'label';
         $properties['feature_subtype'] = $subtype;
+        $herkunftLabel = avesmapsFieldOriginsStempeln(
+            is_array($properties['field_origins'] ?? null) ? $properties['field_origins'] : [],
+            $herkunftVorher,
+            ['text' => $text, 'feature_subtype' => $subtype],
+            avesmapsFieldOriginsAusWikiLesen($payload, AVESMAPS_LABEL_WIKI_ORIGIN_FIELDS)
+        );
+        if ($herkunftLabel === []) {
+            unset($properties['field_origins']);
+        } else {
+            $properties['field_origins'] = $herkunftLabel;
+        }
         // 💣 DER DARSTELLUNGSSATZ WIRD NUR GESCHRIEBEN, WENN ER MITKOMMT (2026-07-28). Vorher lief das
         // unbedingt: `$payload['size'] ?? 18` machte aus einem fehlenden Schlüssel eine 18, aus einem
         // fehlenden min_zoom eine 0. Wer also nur EINE Eigenschaft ändern wollte, musste den ganzen
