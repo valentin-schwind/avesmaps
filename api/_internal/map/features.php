@@ -61,6 +61,49 @@ function avesmapsDuplicateLocationNameMessage(string $existingName): string {
     );
 }
 
+// Bug #46, zweiter Teil (17.08.2026): die Meldung NANNTE den blockierenden Ort, aber man kam nicht
+// hin -- der Owner lief in sie und wuenschte sich "einen link, dass man das gleich findet".
+//
+// 🔴 DER VERWEIS GEHOERT NICHT IN DEN MELDUNGSTEXT. Der Satz oben steht wortgleich in PHP und JS
+// und wird an jeder Anzeigestelle per `textContent` gesetzt (setDialogStatus in
+// js/review/review-status.js, setSettlementEditMsg in html/wiki-sync-settlement-editor.html) --
+// Markup darin erschiene roh im Bild, und die ohnehin doppelte Pflege verdoppelte sich noch einmal.
+// Die KENNUNG reist deshalb daneben: diese Ausnahme traegt sie, der Endpunkt haengt sie als
+// `error.duplicate_location` in die Fehlerhuelle, und erst die Oberflaeche baut daraus einen Knopf.
+//
+// ⚠️ SIE ERBT VON InvalidArgumentException und muss das auch. Jeder vorhandene Aufrufer faengt
+// genau die -- ein eigener Ast (RuntimeException o. ae.) wuerde in api/edit/map/features.php auf
+// `catch (Throwable)` fallen und aus einer 400 mit klarem Satz eine 500 mit "konnte nicht
+// verarbeitet werden" machen. Wer sie dort abfragt, tut das per `instanceof` in avesmapsMap-
+// FeatureErrorDetails() und NICHT per zweitem `catch`-Block -- die Begruendung steht am Endpunkt.
+final class AvesmapsDuplicateLocationNameException extends InvalidArgumentException
+{
+    public function __construct(
+        public readonly string $blockingPublicId,
+        public readonly string $blockingName
+    ) {
+        parent::__construct(avesmapsDuplicateLocationNameMessage($blockingName));
+    }
+}
+
+// Die maschinenlesbare Beilage zu einer abgelehnten Schreibanfrage, fuer `error.duplicate_location`
+// in der Fehlerhuelle (AGENTS.md §4). Rein, damit die Weiche pruefbar ist -- im Endpunkt selbst
+// waere sie es nicht, der beantwortet eine HTTP-Anfrage und beendet den Prozess.
+// ⚠️ Alles, was KEINE Dublettenablehnung ist, liefert `[]` und laesst die Huelle damit exakt so,
+// wie sie vorher war. Die Beilage ist eine Zugabe, nie eine Bedingung.
+function avesmapsMapFeatureErrorDetails(Throwable $exception): array {
+    if (!$exception instanceof AvesmapsDuplicateLocationNameException) {
+        return [];
+    }
+
+    return [
+        'duplicate_location' => [
+            'public_id' => $exception->blockingPublicId,
+            'name' => $exception->blockingName,
+        ],
+    ];
+}
+
 function avesmapsAssertUniqueLocationName(PDO $pdo, string $name, ?string $excludePublicId = null): void {
     $normalizedName = avesmapsNormalizeDuplicateLocationName($name);
     if ($normalizedName === '') {
@@ -89,7 +132,12 @@ function avesmapsAssertUniqueLocationName(PDO $pdo, string $name, ?string $exclu
         }
 
         if (avesmapsNormalizeDuplicateLocationName($existingName) === $normalizedName) {
-            throw new InvalidArgumentException(avesmapsDuplicateLocationNameMessage($existingName));
+            // Die Abfrage oben liest `public_id` seit jeher mit und warf sie hier weg -- der
+            // blockierende Ort ist an dieser Stelle also bereits bekannt und muss nicht gesucht werden.
+            throw new AvesmapsDuplicateLocationNameException(
+                (string) ($row['public_id'] ?? ''),
+                $existingName
+            );
         }
     }
 }

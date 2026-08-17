@@ -10,6 +10,26 @@ function apiErrorMessage(data, fallback) {
 	return error?.message || fallback;
 }
 
+// Die Kennung des Ortes, an dem eine Dublettenablehnung haengengeblieben ist -- sie reist NEBEN der
+// Meldung in derselben Fehlerhuelle (`error.duplicate_location`, gesetzt von
+// avesmapsMapFeatureErrorDetails in api/_internal/map/features.php). Im TEXT darf sie nicht stehen:
+// der Satz ist wortgleich in PHP und JS gepflegt und wird ueberall per textContent gesetzt.
+//
+// 🔴 OHNE public_id GIBT ES KEINEN VERWEIS, also `null` -- nie ein Objekt mit leerer Kennung. Eine
+// Oberflaeche prueft auf "habe ich einen Verweis"; ein leerer Platzhalter baute einen Knopf, der ins
+// Nichts fuehrt, und das ist schlechter als gar keiner.
+// ⚠️ Zwilling: dieselbe Funktion steht in html/wiki-sync-settlement-editor.html -- der Ortseditor
+// laeuft in einem eigenen Dokument und laedt diese Datei nicht. Beide lesen denselben Schluessel;
+// js/app/__tests__/dubletten-verweis.test.js faehrt EINEN Datensatz durch BEIDE Fassungen.
+function duplicateLocationFromApiError(data) {
+	const details = data?.error?.duplicate_location;
+	const publicId = typeof details?.public_id === "string" ? details.public_id : "";
+	if (!publicId) {
+		return null;
+	}
+	return { publicId, name: typeof details.name === "string" ? details.name : "" };
+}
+
 async function readJsonResponse(response, fallback = null) {
 	try {
 		return await response.json();
@@ -112,7 +132,13 @@ async function submitMapFeatureEdit(payload) {
 		if (response.status === 409) {
 			void pollLiveMapUpdates();
 		}
-		throw new Error(apiErrorMessage(result, `Speichern fehlgeschlagen (${response.status}).`));
+		// Der geworfene Error ist ein STRING-Traeger; alles, was der Aufrufer sonst noch aus der
+		// Antwort braucht, muss hier drangehaengt werden, sonst ist es weg (dasselbe Muster wie beim
+		// Zugangs-Prompt von dump.php weiter unten). Ohne diese Zeile kaeme die Kennung des
+		// blockierenden Ortes bis in diese Funktion und stuerbe eine Zeile vor ihrem Empfaenger.
+		const editError = new Error(apiErrorMessage(result, `Speichern fehlgeschlagen (${response.status}).`));
+		editError.duplicateLocation = duplicateLocationFromApiError(result);
+		throw editError;
 	}
 
 	return result;

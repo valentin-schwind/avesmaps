@@ -552,23 +552,35 @@ function renderReviewRatings() {
 	});
 }
 
-function focusReviewRatingLocation(publicId) {
+/**
+ * „Zeig mir DIESEN Ort" aus einer Editor-Oberflaeche heraus: heranzoomen und die normale Infobox
+ * oeffnen. EIN Weg fuer alle Aufrufer -- die Bewertungsliste war der erste, seit 17.08.2026 haengt
+ * auch der Verweis auf einen namensgleichen Blocker daran (setLocationEditStatus mit Verweis).
+ *
+ * Heranzoomen mit hartem setView statt flyTo: der direkt folgende panTo aus
+ * openLocationPopupByPublicId bricht eine flyTo-Animation ab (map._stop -> cancelAnimFrame), sodass
+ * Zoomstufe 5 nie erreicht wird. Nie herauszoomen: mindestens Stufe 5.
+ * ⚠️ Meldet SICHTBAR, wenn der Ort nicht (mehr) auf der Karte liegt, statt still nichts zu tun --
+ * ein Verweis, der wortlos verpufft, sieht wie ein kaputter Knopf aus. Rueckgabe sagt, ob es klappte.
+ */
+function focusLocationOnMapByPublicId(publicId) {
 	if (!publicId) {
-		return;
+		return false;
 	}
 	const entry = typeof findLocationMarkerByPublicId === "function" ? findLocationMarkerByPublicId(publicId) : null;
 	if (!entry) {
 		showFeedbackToast("Der Ort ist auf der Karte nicht (mehr) vorhanden.", "warning");
-		return;
+		return false;
 	}
-	// Heranzoomen (hartes setView statt flyTo): der direkt folgende panTo aus openLocationPopupByPublicId
-	// bricht eine flyTo-Animation ab (map._stop -> cancelAnimFrame), sodass Zoomstufe 5 nie erreicht wird.
-	// Die normale Infobox oeffnen (temporaerer Marker, falls die Groesse nicht eingeblendet ist). Nie
-	// herauszoomen: mindestens Stufe 5.
 	map.setView(entry.marker.getLatLng(), Math.max(map.getZoom(), 5));
 	if (typeof openLocationPopupByPublicId === "function") {
 		openLocationPopupByPublicId(publicId);
 	}
+	return true;
+}
+
+function focusReviewRatingLocation(publicId) {
+	focusLocationOnMapByPublicId(publicId);
 }
 
 function moderateReviewRating(id, action, publicId = "") {

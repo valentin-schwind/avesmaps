@@ -391,13 +391,18 @@ function avesmapsETagMatches(string $ifNoneMatch, string $etag): bool {
 }
 }
 
-function avesmapsErrorResponse(int $statusCode, string $code, string $message): never {
+// 🔴 `$errorDetails` HAENGT IN DIE HUELLE, ES BAUT SIE NICHT UM (AGENTS.md §4). Der Vertrag ist
+// `{ok:false, error:{code, message}}`; ein Endpunkt, der einem Fall etwas Maschinenlesbares
+// beilegen will (etwa die Kennung des Objekts, an dem er scheitert), legt es NEBEN `code`/`message`
+// in dasselbe `error`-Objekt. `code` und `message` gewinnen immer -- ein Detailschluessel kann sie
+// nicht ueberschreiben, sonst waere der Vertrag von aussen verhandelbar.
+function avesmapsErrorResponse(int $statusCode, string $code, string $message, array $errorDetails = []): never {
     avesmapsJsonResponse($statusCode, [
         'ok' => false,
         'error' => [
             'code' => $code,
             'message' => $message,
-        ],
+        ] + $errorDetails,
     ]);
 }
 

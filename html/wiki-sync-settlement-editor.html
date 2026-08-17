@@ -2019,6 +2019,22 @@ async function applyTerritoryClear() {
 // wiki/settlements.php URL) isn't reusable here; this is its map/features.php sibling. ------------
 const MAP_FEATURES_EDIT_API = "/api/edit/map/features.php";
 
+// Die Kennung des Ortes, an dem eine Dublettenablehnung haengengeblieben ist.
+// ⚠️ ZWILLING von duplicateLocationFromApiError in js/app/api-client.js -- abgeschrieben, weil
+// dieses Fenster ein eigenes Dokument ist und jene Datei nicht laedt (dieselbe Lage wie bei
+// js/ui/wiki-assign-ort.js). Beide lesen denselben Schluessel `error.duplicate_location`, und
+// js/app/__tests__/dubletten-verweis.test.js faehrt EINEN Datensatz durch BEIDE Fassungen -- wer
+// hier etwas aendert und dort nicht, faellt damit um.
+// 🔴 Ohne public_id `null`, nie ein Objekt mit leerer Kennung: der Verweis wird daran erkannt.
+function duplicateLocationFromApiError(data) {
+	const details = data && data.error && data.error.duplicate_location;
+	const publicId = details && typeof details.public_id === "string" ? details.public_id : "";
+	if (!publicId) {
+		return null;
+	}
+	return { publicId, name: typeof details.name === "string" ? details.name : "" };
+}
+
 async function mapFeaturesEditPost(body) {
 	const response = await fetch(MAP_FEATURES_EDIT_API, {
 		method: "POST",
@@ -2028,12 +2044,15 @@ async function mapFeaturesEditPost(body) {
 	});
 	const payload = await response.json().catch(() => null);
 	if (!response.ok || !payload || payload.ok !== true) {
-		throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+		// Der Error traegt nur einen String -- die Kennung muss drangehaengt werden, sonst endet sie hier.
+		const fehler = new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+		fehler.duplicateLocation = duplicateLocationFromApiError(payload);
+		throw fehler;
 	}
 	return payload;
 }
 
-function setSettlementEditMsg(message, kind) {
+function setSettlementEditMsg(message, kind, blockierenderOrt) {
 	const el = $("dtEditMsg");
 	if (!el) return;
 	// ⚠️ `avm-savebar__msg`, nicht mehr `dt-edit-msg`: die Meldung sitzt seit 16.08.2026 IN der
@@ -2042,6 +2061,45 @@ function setSettlementEditMsg(message, kind) {
 	// Owner beanstandet hat.
 	el.textContent = message || "";
 	el.className = "avm-savebar__msg" + (kind ? " " + kind : "");
+	const verweis = settlementEditMsgLink(blockierenderOrt);
+	if (verweis) el.appendChild(verweis);
+}
+
+/**
+ * Der Verweis auf den Ort, der ein Speichern blockiert hat -- ein Knopf NEBEN dem Meldungstext,
+ * nie darin (der Text kommt wortgleich aus PHP und JS und wird per textContent gesetzt).
+ *
+ * 🔴 ER ERSCHEINT NUR, WENN DER EDITOR AUCH HINGEHEN KANN. Der Blocker ist irgendein aktives
+ * `feature_type='location'` -- das schliesst KREUZUNGEN ein, und die stehen nicht in der Ortsliste
+ * dieses Fensters. Ein Knopf, der beim Druecken nichts tut, ist schlechter als keiner; ohne
+ * Listeneintrag bleibt es deshalb bei der (weiterhin richtigen und den Ort nennenden) Meldung.
+ * ⚠️ Der Knopf zerstoert sich selbst: selectSettlementRow baut ueber renderSettlementDetail das
+ * ganze Detailpanel samt #dtEditMsg neu. Das ist Absicht -- er ist ein einmaliger Sprung.
+ * ⚠️ Und er verwirft die ungespeicherten Eingaben, genau wie jeder andere Klick in diese Liste.
+ * Eine Sonderbehandlung nur fuer diesen einen Knopf waere eine zweite Regel im selben Fenster.
+ */
+function settlementEditMsgLink(blockierenderOrt) {
+	if (!blockierenderOrt || !blockierenderOrt.publicId) return null;
+	const eintrag = settlementItems.find((item) => item && item.public_id === blockierenderOrt.publicId);
+	if (!eintrag) return null;
+
+	const knopf = document.createElement("button");
+	knopf.type = "button";
+	knopf.className = "avm-savebar__msg-link";
+	knopf.textContent = "Ort anzeigen";
+	// ⚠️ DIE FOLGE STEHT IM TITEL, nicht in einer Rueckfrage. Ein Klick verwirft die ungespeicherten
+	// Eingaben -- aber das tut hier JEDER Klick in die Ortsliste, und eine Rueckfrage nur an diesem
+	// einen von tausenden Auswegen waere die zweite Regel, vor der AGENTS.md §9 warnt (zwei Knoepfe
+	// am selben Fall mit verschiedener Reichweite). Also: benennen statt abfangen.
+	knopf.title = "Zu „" + (eintrag.name || blockierenderOrt.name)
+		+ "“ wechseln – ungespeicherte Eingaben an diesem Ort gehen dabei verloren";
+	knopf.addEventListener("click", () => {
+		// Der Weg, den auch ein Klick auf die Zeile nimmt -- kein zweiter daneben.
+		selectSettlementRow(eintrag, rowSelectionKey(eintrag));
+		const zeile = $("seList")?.querySelector('[data-row-key="' + CSS.escape(rowSelectionKey(eintrag)) + '"]');
+		if (zeile) zeile.scrollIntoView({ block: "center" });
+	});
+	return knopf;
 }
 
 // Builds the update_point payload. Matches buildLocationEditPayload() in
@@ -2128,7 +2186,9 @@ async function saveSettlementEditForm() {
 	} catch (error) {
 		// On error the panel does NOT reload, so #dtEditMsg/#dtEditSave are still the same live
 		// nodes referenced above -- safe to update/re-enable here.
-		setSettlementEditMsg(error && error.message ? error.message : String(error), "bad");
+		// `error.duplicateLocation` steht nur an einer Dublettenablehnung; bei jedem anderen Fehler
+		// ist es undefined und die Meldung bleibt exakt so, wie sie war.
+		setSettlementEditMsg(error && error.message ? error.message : String(error), "bad", error && error.duplicateLocation);
 		if (saveButton) saveButton.disabled = false;
 	}
 }

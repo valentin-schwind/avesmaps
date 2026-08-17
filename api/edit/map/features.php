@@ -82,7 +82,15 @@ try {
         'feature' => $result,
     ]);
 } catch (InvalidArgumentException $exception) {
-    avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
+    // 💣 EIN `catch`, KEIN ZWEITER DARUEBER. AvesmapsDuplicateLocationNameException erbt von
+    // InvalidArgumentException; ein eigener Block muesste zwingend VOR diesem stehen, weil PHP den
+    // ersten passenden nimmt -- stuende er darunter, waere er unerreichbar, die Antwort truege die
+    // Kennung nicht mehr, und der Verweis in der Oberflaeche verschwaende lautlos (die Meldung
+    // bliebe richtig, nur der Knopf daneben fehlte). Diese Reihenfolge kann kein Test hier pruefen.
+    // Also gibt es sie nicht: die Weiche steht in avesmapsMapFeatureErrorDetails(), einer reinen
+    // Funktion, und die IST geprueft (api/_internal/map/__tests__/duplicate-location-name-test.php).
+    // Code und Satz bleiben unveraendert die der bisherigen 400.
+    avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage(), avesmapsMapFeatureErrorDetails($exception));
 } catch (AvesmapsConflictException $exception) {
     avesmapsErrorResponse(409, 'conflict', $exception->getMessage());
 } catch (PDOException) {

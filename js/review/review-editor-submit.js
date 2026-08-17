@@ -14,7 +14,15 @@ async function handleLocationEditFormSubmit(event) {
 		allowCurrentName: locationEditMarkerEntry?.location?.name || locationEditMarkerEntry?.name || "",
 	});
 	if (duplicateLocation) {
-		setLocationEditStatus(duplicateLocationNameMessage(duplicateLocation.name), "error");
+		// 💣 BEIDE SEITEN LEHNEN AB, und beide muessen den Verweis tragen. Diese Pruefung meldet VOR
+		// dem Server (sie sagt ihn exakt vorher, siehe normalizeServerDuplicateLocationName); truege
+		// nur der Serverpfad die Kennung, haette derselbe Dialog den Knopf mal und mal nicht -- und
+		// das ist schlechter als gar keiner. Hier ist die Kennung ohnehin da: der Eintrag wurde ja
+		// gerade gefunden.
+		setLocationEditStatusWithBlockingLocation(
+			duplicateLocationNameMessage(duplicateLocation.name),
+			{ publicId: duplicateLocation.publicId || "", name: duplicateLocation.name }
+		);
 		return;
 	}
 	setLocationEditStatus("Ort wird gespeichert...", "pending");
@@ -138,7 +146,14 @@ async function handleLocationEditFormSubmit(event) {
 		}
 	} catch (error) {
 		console.error("Ort konnte nicht gespeichert werden:", error);
-		setLocationEditStatus(error.message || "Ort konnte nicht gespeichert werden.", "error");
+		// Die zweite Haelfte des Riegels oben: hat der SERVER die Dublette gefunden (weil jemand
+		// anders den Namen inzwischen vergeben hat oder der Client die Zeile nicht kennt -- z. B. eine
+		// Kreuzung), kommt die Kennung in `error.duplicateLocation` mit. Bei jedem anderen Fehler ist
+		// sie undefined, und setDialogStatusWithBlockingLocation baut dann keinen Knopf.
+		setLocationEditStatusWithBlockingLocation(
+			error.message || "Ort konnte nicht gespeichert werden.",
+			error.duplicateLocation
+		);
 	} finally {
 		setLocationEditSubmitPending(false);
 	}

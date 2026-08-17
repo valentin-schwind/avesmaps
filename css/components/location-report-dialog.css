@@ -447,6 +447,37 @@
 	color: var(--color-text-muted);
 }
 
+/* Der Verweis IN einer Statuszeile (z. B. „Ort anzeigen" an einer Dublettenablehnung, gebaut von
+   setDialogStatusWithBlockingLocation in js/review/review-status.js). Ein Link, kein Knopf: die
+   Haupthandlung des Dialogs steht unten und heisst „Speichern" (§12). Er nimmt --color-link statt
+   des Fehlerrots der Zeile, weil er nicht Teil der Aussage ist, sondern der Ausweg aus ihr.
+   ⚠️ `font: inherit` ist tragend -- ein <button> erbt die Schrift des Formulars nicht von selbst
+   (css/base/base.css:3 setzt ihm nur die font-family) und stuende sonst in Groesse und Gewicht der
+   Systemschrift mitten im Satz.
+
+   💣 ZWILLING: `.avm-savebar__msg-link` (css/components/editor-page.css) -- derselbe Verweis in der
+   Speicherleiste der Editorfenster. Die beiden sind ABSICHTLICH NICHT WORTGLEICH, und das ist der
+   Unterschied: dort laeuft `:where(.avm-editor-body) button` gegen sie an und drueckt `min-height`
+   (32px) und einen Hover-Hintergrund durch, die dort eigens zurueckgesetzt werden muessen. HIER
+   gibt es keine solche Regel -- gemessen: in der ganzen von index.html geladenen Kette trifft
+   ausser base.css:3 (nur font-family) kein Selektor einen klassenlosen <button>. Wer die beiden
+   „vereinheitlicht", nimmt entweder dort die zwei tragenden Zeilen weg oder schleppt hier zwei
+   wirkungslose ein. */
+.dialog-status__link {
+	margin-left: var(--space-4);
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	color: var(--color-link);
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.dialog-status__link:hover {
+	text-decoration: none;
+}
+
 .location-report-form__actions {
 	display: flex;
 	justify-content: flex-end;
