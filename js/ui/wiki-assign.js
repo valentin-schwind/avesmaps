@@ -94,7 +94,10 @@
 //     artikel:     { name, wiki_url, wiki_key, werte: {<wikiFeld>: wert} } | null,
 //     keinArtikel: false,                     // der dritte Zustand (Entwurf §2.7)
 //     kartenwerte: { <kartenFeld>: wert },    // heutiger Stand auf der Karte — fuer die Vorschau
-//     handgesetzt: ["<kartenFeld>", …],       // von Hand korrigiert -> gelistet, NICHT gehakt
+//     herkunft:    { "<kartenFeld>": "manual"|"wiki" }, // die gespeicherte Feldherkunft
+//                                             // "manual" -> gelistet, NIE gehakt
+//                                             // "wiki"   -> gelistet und VORANGEHAKT
+//                                             // fehlt    -> unbekannt, heutiges Verhalten
 //     gesperrt:    { "<kartenFeld>": "Grund" },// z. B. parent_locked (Entwurf §7)
 //     listen:      { "<quelle>": [<treffer>] },// nur bei `suche.art === "liste"`
 //   }
@@ -1010,7 +1013,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	}
 
 	const listenId = "avm-wiki-assign-" + (++avesmapsWikiAssignZaehler);
-	let daten = { artikel: null, keinArtikel: false, kartenwerte: {}, handgesetzt: [], gesperrt: {}, listen: {} };
+	let daten = { artikel: null, keinArtikel: false, kartenwerte: {}, herkunft: {}, gesperrt: {}, listen: {} };
 	let ui = { modus: "offen", suchtext: "", treffer: [], aktiv: 0, syncZeilen: [], suchFehler: "", listenId: listenId };
 	let tippUhr = null;
 	let laufendeSuche = 0;
@@ -1127,7 +1130,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			artikel: r.artikel || null,
 			keinArtikel: r.keinArtikel === true,
 			kartenwerte: r.kartenwerte || {},
-			handgesetzt: Array.isArray(r.handgesetzt) ? r.handgesetzt : [],
+			herkunft: r.herkunft && typeof r.herkunft === "object" && !Array.isArray(r.herkunft) ? r.herkunft : {},
 			gesperrt: r.gesperrt || {},
 			listen: r.listen || {},
 		};
@@ -1325,7 +1328,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	function syncOeffnen() {
 		const werte = (daten.artikel && daten.artikel.werte) || {};
 		const zeilen = (typeof avesmapsWikiAssignDiff === "function")
-			? avesmapsWikiAssignDiff(erklaerung.felder, daten.kartenwerte, werte, daten.handgesetzt)
+			? avesmapsWikiAssignDiff(erklaerung.felder, daten.kartenwerte, werte, daten.herkunft)
 			: [];
 		// 🔴 Gesperrte Feldzeilen (Entwurf §7): der Riegel gehoert an die ZEILE, nicht an den Knopf
 		// — sonst sperrt eine Entscheidung ueber die Hierarchie auch den Namen. Und er ist sichtbar,

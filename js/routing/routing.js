@@ -143,6 +143,12 @@ const prepareLocationData = (data) => {
 				// „Ort bearbeiten" immer leer, ein beliebiges Speichern nähme die Entscheidung
 				// zurück, und der Leseweg riete die Adresse wieder her (Discord #38).
 				wikiNoArticle: Boolean(feature.properties.wiki_no_article),
+				// 🔴 Die FELDHERKUNFT: welcher der fünf Wiki-Werte kam aus dem Wiki, welchen haben
+				// WIR gesetzt (Entwurf 2026-08-17-wiki-override-fuer-alle-design.md). Sie muss hier
+				// stehen, weil die Nutzlast FLACH projiziert wird -- ein `location.properties` gibt
+				// es nicht, und wer danach greift, liest für immer `undefined`, ohne dass irgendwo
+				// ein Fehler entsteht.
+				fieldOrigins: feature.properties.field_origins || null,
 				// Einwohner · Lage · Herrscher: seit 16.08.2026 eigene Kartenfelder, die der
 				// Wiki-Sync füllen kann. ⚠️ NUR Daten — die Infobox zeigt sie (noch) nicht; sichtbar
 				// werden sie erst mit einer eigenen, einzeln live gehenden Änderung (AGENTS.md §9).

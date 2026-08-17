@@ -573,6 +573,75 @@ body.avm-editor-body {
 	cursor: default;
 }
 
+/* ---- Der Wiki-Override an der Feldzeile (Entwurf 2026-08-17-wiki-override-fuer-alle-design.md) --
+ * Der Territoriumseditor (html/wiki-sync-monitor.html) zeigt seit jeher dauerhaft, wo unser Wert vom
+ * Wiki abweicht: Wiki-Wert DURCHGESTRICHEN, unser Wert daneben, Beschriftung braun, dazu ein ↺ je
+ * Feld. Hier bekommt dieselbe Form ihren Platz in einem Formular -- die uebrigen Editoren sind
+ * immer im Bearbeiten-Modus, das Eingabefeld IST also der neue Wert.
+ *
+ * 🔴 EINE DRITTE RASTERSPALTE, damit ALLE Eingabefelder untereinander stehen (die Regel oben,
+ * „so the field edges line up across every group and every editor"). Der Wiki-Stand in eine Zelle
+ * VOR dem Feld zu setzen, ohne ihm eine eigene Spalte zu geben, verschiebt jedes Feld um die Laenge
+ * seines eigenen Wiki-Werts -- genau das war die erste, verworfene Fassung.
+ */
+.dt-grid--wiki {
+	grid-template-columns:
+		var(--avm-field-label-w)
+		minmax(0, max-content)
+		minmax(var(--avm-wiki-input-min), 1fr);
+	column-gap: var(--space-4);
+	align-items: center;
+}
+
+.dt-alt {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	min-width: 0;
+	max-width: var(--avm-wiki-alt-w);
+	font-size: var(--font-size-caption);
+}
+
+/* 💣 DIE AUSLASSUNGSPUNKTE GEHOEREN AN DEN TEXT, NICHT AN DIE ZELLE. Standen `overflow: hidden` und
+ * `text-overflow: ellipsis` an `.dt-alt`, wurde ein zu langer Wert HART abgeschnitten -- `ellipsis`
+ * wirkt nur auf das Element, dessen EIGENER Text ueberlaeuft, nie auf ein ueberlaufendes Kind.
+ * Gemessen am 17.08.2026: „Kosch · Mittelreich" bei 58px Spaltenbreite, ohne ein einziges Puenktchen. */
+.dt-alt .dt-old {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* 💣 Das ↺ darf NIE mitgekappt werden: es ist der Knopf, der Wiki-Stand nur die Auskunft. */
+.dt-alt .dt-reset { flex: 0 0 auto; }
+
+/* Der durchgestrichene Wiki-Stand und das ↺ -- Klassennamen und Wirkung wortgleich zum
+ * Territoriumseditor, damit die zwei Oberflaechen sich gleich lesen. */
+.dt-old {
+	color: var(--color-danger);
+	text-decoration: line-through;
+}
+
+.dt-reset {
+	cursor: pointer;
+	color: var(--mut);
+	font-size: var(--font-size-caption);
+	margin-left: var(--space-4);
+	text-decoration: underline;
+	background: none;
+	border: 0;
+	padding: 0;
+	line-height: 1;
+}
+
+.dt-reset:hover { color: var(--color-text-strong); }
+
+/* 🔴 „Wir haben dieses Feld gesetzt" -- die einzige zusaetzliche Marke, und sie sitzt an der
+ * BESCHRIFTUNG, nicht als Abzeichen daneben. Wortgleich zum Territoriumseditor (.dt-grid .k.ovr).
+ * Ein erster Entwurf trug drei Abzeichen; zwei davon waren redundant zur Durchstreichung. */
+.dt-grid .k.ovr { color: var(--color-accent-brown); }
+
 .dt-check {
 	display: flex;
 	align-items: center;

@@ -14,13 +14,13 @@ const felder = [
 // sonst die eine Zeile, die zaehlt.
 const gleich = avesmapsWikiAssignDiff(felder,
 	{ name: "Havena", settlement_type: "metropole", einwohner: "12.000", oberhaupt: "" },
-	{ name: "Havena", art: "metropole", einwohner: "12.000", oberhaupt: "" }, []);
+	{ name: "Havena", art: "metropole", einwohner: "12.000", oberhaupt: "" }, {});
 assert.deepStrictEqual(gleich, []);
 
 const d = avesmapsWikiAssignDiff(felder,
 	{ name: "Havena", settlement_type: "grossstadt", einwohner: "14.200", oberhaupt: "Growin" },
 	{ name: "Havena (Stadt)", art: "metropole", einwohner: "12.000", oberhaupt: "" },
-	["einwohner"]);
+	{ einwohner: "manual" });
 const nach = Object.fromEntries(d.map((z) => [z.karte, z]));
 
 // 🔴 SEIT DEM 16.08.2026 (Owner-Entscheid): eine Zeile, die einen bereits GEFUELLTEN Kartenwert
@@ -56,7 +56,7 @@ assert.deepStrictEqual(d.map((z) => z.karte), ["name", "settlement_type", "einwo
 // anderer Entscheid.
 const luecke = avesmapsWikiAssignDiff(felder,
 	{ name: "Havena", settlement_type: "metropole", einwohner: "", oberhaupt: "" },
-	{ name: "Havena", art: "metropole", einwohner: "12.000", oberhaupt: "Growin" }, []);
+	{ name: "Havena", art: "metropole", einwohner: "12.000", oberhaupt: "Growin" }, {});
 assert.strictEqual(luecke.length, 2, "es sollten genau die zwei leeren Felder uebrig sein");
 assert.ok(luecke.every((z) => z.gehakt === true),
 	"das Fuellen einer Luecke ist nicht mehr vorangehakt: " + JSON.stringify(luecke.map((z) => [z.karte, z.gehakt])));
@@ -66,7 +66,7 @@ assert.ok(luecke.every((z) => z.grund === ""), "eine vorangehakte Zeile traegt e
 // Leerzeichen zaehlt als LEER (der Vergleich normalisiert beide Seiten), sonst haenge die Regel an
 // einer Formatierung.
 const nurLeerzeichen = avesmapsWikiAssignDiff([{ wiki: "einwohner", karte: "einwohner" }],
-	{ einwohner: "   " }, { einwohner: "12.000" }, []);
+	{ einwohner: "   " }, { einwohner: "12.000" }, {});
 assert.strictEqual(nurLeerzeichen.length, 1);
 // 🪤 Der Fehlertext hier sagte einmal „ein Feld aus Leerzeichen gilt als gefuellt" -- formal richtig
 // als Beschreibung des FEHLERZUSTANDS, beim Ueberfliegen aber das Gegenteil der Regel darueber.
@@ -75,14 +75,54 @@ assert.strictEqual(nurLeerzeichen[0].gehakt, true,
 	"erwartet: vorangehakt, weil „   “ als LEER gilt (der Vergleich beschneidet beide Seiten). "
 	+ "Ist die Zeile ungehakt, haengt die Regel an einer Formatierung statt am Inhalt.");
 
-// 🔴 Und der handgesetzte Fall auf einem LEEREN Kartenwert bleibt ebenfalls ungehakt -- `handgesetzt`
+// 🔴 Und der handgesetzte Fall auf einem LEEREN Kartenwert bleibt ebenfalls ungehakt -- `"manual"`
 // sticht auch die Luecken-Regel, nicht nur die allgemeine.
 const handAufLeer = avesmapsWikiAssignDiff([{ wiki: "einwohner", karte: "einwohner" }],
-	{ einwohner: "" }, { einwohner: "12.000" }, ["einwohner"]);
+	{ einwohner: "" }, { einwohner: "12.000" }, { einwohner: "manual" });
 assert.strictEqual(handAufLeer[0].gehakt, false);
 assert.ok(String(handAufLeer[0].grund).includes("Hand"), handAufLeer[0].grund);
 
 console.log("wiki-assign-diff: alle Zusicherungen erfuellt");
+
+// ── FALL 4, NEU AM 17.08.2026: Herkunft „wiki" ⇒ WIEDER VORANGEHAKT ────────────────────────────
+// 🔴 Ein Wert, der zuletzt selbst aus dem Wiki kam, laesst sich gefahrlos auffrischen -- dabei geht
+// nichts von uns verloren. Genau das konnte die Regel vom 16.08. nicht wissen; die Feldherkunft
+// weiss es.
+const ausWiki = avesmapsWikiAssignDiff([{ wiki: "oberhaupt", karte: "oberhaupt", label: "Herrscher" }],
+	{ oberhaupt: "Growin Sohn des Bregdan" }, { oberhaupt: "Growin, Sohn des Bregdan" },
+	{ oberhaupt: "wiki" });
+assert.strictEqual(ausWiki.length, 1);
+assert.strictEqual(ausWiki[0].gehakt, true,
+	"ein Feld, das zuletzt aus dem Wiki kam, ist nicht vorangehakt -- dann greift Fall 4 nicht");
+assert.strictEqual(ausWiki[0].grund, "",
+	"eine VORANGEHAKTE Zeile traegt einen Grund: " + ausWiki[0].grund
+	+ " (ein Grund erklaert immer nur, warum eine Zeile NICHT gehakt ist)");
+
+// 💣 DIE REIHENFOLGE: „manual" STICHT „wiki". Traegt ein Feld beides -- was nur eine kaputte
+// Herkunftskarte liefern kann --, gewinnt der Schutz, nie das Auffrischen. Die sichere Richtung.
+const beides = avesmapsWikiAssignDiff([{ wiki: "einwohner", karte: "einwohner" }],
+	{ einwohner: "6.100" }, { einwohner: "5.900" }, { einwohner: "manual" });
+assert.strictEqual(beides[0].gehakt, false);
+
+// ── 🔴 DIE NICHT-REGRESSIONS-PROBE: AM ERSTEN TAG AENDERT SICH NICHTS ──────────────────────────
+// Ohne gespeicherte Herkunft greift weder Fall 3 noch Fall 4, und JEDE Zeile verhaelt sich exakt
+// wie vor diesem Umbau. 💣 Sie vergleicht die ganze Rueckgabe gegen den Stand mit leerer Karte --
+// eine Probe „Feld X ist ungehakt" bliebe gruen, wenn Fall 4 versehentlich auch ohne Eintrag
+// zoege, solange nur dieses eine Feld getroffen waere.
+const ohneHerkunft = avesmapsWikiAssignDiff(felder,
+	{ name: "Havena", settlement_type: "grossstadt", einwohner: "14.200", oberhaupt: "Growin" },
+	{ name: "Havena (Stadt)", art: "metropole", einwohner: "12.000", oberhaupt: "" }, {});
+assert.deepStrictEqual(
+	ohneHerkunft.map((z) => [z.karte, z.gehakt, z.grund]),
+	[
+		["name", false, "auf der Karte steht bereits ein Wert"],
+		["settlement_type", false, "auf der Karte steht bereits ein Wert"],
+		["einwohner", false, "auf der Karte steht bereits ein Wert"],
+		["oberhaupt", false, "das Wiki sagt nichts — würde die Angabe leeren"],
+	],
+	"ohne gespeicherte Herkunft verhaelt sich die Vorschau nicht mehr wie vor dem Umbau"
+);
+console.log("wiki-assign-diff: Fall 4 (Herkunft wiki) und die Nicht-Regressionsprobe erfuellt");
 
 // 🔴 Eigene Zusicherung (Schnittstelle #2 aus der Aufgabe, nicht im Brief-Test): eine Feldzeile mit
 // `karte: ""` ist eine ANZEIGE-Zeile ohne Ziel -- sie kann per Definition nichts uebernehmen und
@@ -92,7 +132,7 @@ const felderMitAnzeige = felder.concat([{ wiki: "staerke", karte: "", label: "St
 const mitAnzeige = avesmapsWikiAssignDiff(felderMitAnzeige,
 	{ name: "Havena", settlement_type: "grossstadt", einwohner: "14.200", oberhaupt: "Growin" },
 	{ name: "Havena (Stadt)", art: "metropole", einwohner: "12.000", oberhaupt: "", staerke: "kontinental" },
-	["einwohner"]);
+	{ einwohner: "manual" });
 assert.strictEqual(mitAnzeige.length, 4, "eine Anzeige-Zeile (karte: \"\") ist in der Diff-Liste gelandet");
 assert.ok(mitAnzeige.every((z) => z.karte !== ""), "eine Zeile ohne Kartenziel steht in der Diff-Liste");
 console.log("wiki-assign-diff: Anzeige-Zeile (karte: \"\") bleibt aussen vor");

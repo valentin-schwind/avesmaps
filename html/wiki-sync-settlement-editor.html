@@ -628,6 +628,10 @@
      ?v=Date.now() geholt und laeuft nicht durch die Asset-Stempelung von index.html. -->
 <script src="/js/ui/wiki-assign-registry.js"></script>
 <script src="/js/ui/wiki-assign-diff.js"></script>
+<!-- Der Wiki-Override an der Feldzeile: was weicht ab, und wer hat es gesetzt. Rein, kein DOM.
+     ⚠️ NACH wiki-assign-diff.js, weil ein Test die Normalisierung der beiden aneinander bindet --
+     die Ladereihenfolge selbst ist gleichgueltig, die Nachbarschaft macht sie auffindbar. -->
+<script src="/js/ui/wiki-feld-herkunft.js"></script>
 <script src="/js/ui/wiki-assign.js"></script>
 <script src="/js/ui/wiki-assign-ort.js"></script>
 <!-- Der Lizenz/Urheber/Kommentar-Bauer, geteilt von allen fünf Lizenz-Dialogen (Phase 4, Aufgabe 1).
@@ -1506,7 +1510,13 @@ async function renderSettlementDetail(publicId) {
 		}
 		if (token !== settlementDetailLoadToken || selectedPublicId !== publicId) return; // a newer selection/reload won the race
 		settlementDetailCache = { publicId, detail: payload.detail };
+		// 🔴 EIN FRISCH GEZEICHNETES DETAIL HAT NICHTS UEBERNOMMEN. Ohne diese Zeile truege die
+		// Merkliste die Uebernahmen des ZULETZT angesehenen Ortes weiter, und dessen Felder
+		// bekaemen beim naechsten Speichern hier die Herkunft „aus dem Wiki" -- fuer Werte, die nie
+		// aus einem Wiki kamen.
+		settlementWikiUebernommenLeeren();
 		body.innerHTML = buildSettlementDetailHtml(payload.detail);
+		settlementWikiResetZuhoererBinden(body);
 		// Mount the shared multi-source editor into its container (only present for an
 		// on-map settlement's edit form -- see otherSourceRow in buildSettlementEditFormHtml).
 		// Guarded on selectedPublicId too since a newer selection could have cleared it while
@@ -1664,14 +1674,60 @@ function buildSettlementTypeSelectHtml(detail) {
 // Kartenfeld gleichen Namens, und der Knopf „Sync" im Zuweisungskasten füllt sie auf Anhaken.
 function buildSettlementEditFormHtml(detail) {
 	const props = detail.properties || {};
-	const nameRow = `<div class="k">Name</div><div><input type="text" id="dtEditName" maxlength="160" value="${settlementEscape(detail.name || "")}"></div>`;
-	const typeRow = `<div class="k">Typ</div><div>${buildSettlementTypeSelectHtml(detail)}</div>`;
-	const descRow = `<div class="k">Beschreibung</div><div><textarea id="dtEditDescription" maxlength="2000">${settlementEscape(props.description || "")}</textarea></div>`;
+	// Der Wiki-Override: was weicht ab, und wer hat es gesetzt (Entwurf
+	// docs/superpowers/specs/2026-08-17-wiki-override-fuer-alle-design.md).
+	// 🔴 EINE Rechnung fuer alle fuenf Zeilen, und sie ist REIN (js/ui/wiki-feld-herkunft.js) --
+	// dieselbe Normalisierung wie die Sync-Vorschau daneben, sonst wuerden sich die zwei ueber
+	// dieselbe Abweichung uneinig.
+	const wikiStand = (typeof avesmapsWikiFeldStand === "function")
+		? avesmapsWikiFeldStand(
+			(avesmapsWikiAssignSubject("ort") || {}).felder || [],
+			{
+				name: detail.name || "",
+				feature_subtype: detail.feature_subtype || "",
+				einwohner: props.einwohner || "",
+				lage: props.lage || "",
+				oberhaupt: props.oberhaupt || "",
+			},
+			avesmapsWikiAssignOrtWerte(props.wiki_settlement || null),
+			avesmapsWikiAssignOrtHerkunft(props.field_origins)
+		)
+		: {};
+	// Die Beschriftungszelle: braun, wenn WIR das Feld gesetzt haben -- wortgleich zum
+	// Territoriumseditor (`k${ov?' ovr':''}`, html/wiki-sync-monitor.html).
+	const kZelle = (feld, text) => {
+		const s = wikiStand[feld];
+		return `<div class="k${s && s.herkunft === "manual" ? " ovr" : ""}">${text}</div>`;
+	};
+	// Die Wiki-Zelle: durchgestrichener Wiki-Stand + ↺, oder leer.
+	// 💣 Sie steht IMMER da, auch leer -- sonst rutschten die Eingabefelder der Zeilen ohne
+	// Abweichung eine Rasterspalte nach links, und genau das Buendigsein ist der Punkt.
+	const altZelle = (feld) => {
+		const s = wikiStand[feld];
+		if (!s || !s.abweicht) {
+			return '<div class="dt-alt"></div>';
+		}
+		const titel = s.herkunft === "manual"
+			? "Von uns gesetzt. Wiki-Stand: " + s.wikiWert
+			: "Weicht vom Wiki ab. Wer den Wert gesetzt hat, wurde nie festgehalten. Wiki-Stand: " + s.wikiWert;
+		return `<div class="dt-alt"><span class="dt-old" title="${settlementEscape(titel)}">${settlementEscape(s.wikiWert)}</span>`
+			+ `<button type="button" class="dt-reset" data-wiki-reset="${settlementEscape(feld)}"`
+			+ ` title="Auf Wiki-Stand zurücksetzen">↺</button></div>`;
+	};
+	const nameRow = kZelle("name", "Name") + altZelle("name")
+		+ `<div><input type="text" id="dtEditName" maxlength="160" value="${settlementEscape(detail.name || "")}"></div>`;
+	const typeRow = kZelle("feature_subtype", "Typ") + altZelle("feature_subtype")
+		+ `<div>${buildSettlementTypeSelectHtml(detail)}</div>`;
+	// 💣 AUCH DIE ZEILEN OHNE WIKI-BEZUG BRAUCHEN DIE LEERE MITTELSPALTE. Das Raster hat drei
+	// Spalten; eine Zeile mit nur zwei Zellen schoebe ihr Eingabefeld in die Wiki-Spalte -- und
+	// genau die Buendigkeit aller Felder ist der Punkt dieses Umbaus.
+	const leer = '<div class="dt-alt"></div>';
+	const descRow = `<div class="k">Beschreibung</div>${leer}<div><textarea id="dtEditDescription" maxlength="2000">${settlementEscape(props.description || "")}</textarea></div>`;
 	// Wiki-URL is now read-only here: the shared source editor (mounted below via
 	// mountFeatureSourceEditor) owns the write path for this field's identity/takeover
 	// semantics. The input (and its value) stay in the DOM/save-payload -- update_point
 	// still requires wiki_url on every save, omitting it would unset properties.wiki_url.
-	const wikiUrlRow = `<div class="k">Wiki-URL</div><div><input type="text" id="dtEditWikiUrl" maxlength="500" placeholder="https://…" value="${settlementEscape(props.wiki_url || "")}" readonly></div>`;
+	const wikiUrlRow = `<div class="k">Wiki-URL</div>${leer}<div><input type="text" id="dtEditWikiUrl" maxlength="500" placeholder="https://…" value="${settlementEscape(props.wiki_url || "")}" readonly></div>`;
 	// Einwohner · Lage · Herrscher: seit dem 16.08.2026 eigene Kartenfelder (Owner-Entscheid). Bis
 	// dahin standen dieselben Namen NUR im Wiki-Nest -- dieses Fenster zeigte zwei davon als
 	// Lesezeilen, und schreiben konnte sie niemand. 💣 Sie heissen wie im Nest, deshalb ist die
@@ -1680,9 +1736,12 @@ function buildSettlementEditFormHtml(detail) {
 	// ⚠️ KEIN Rueckfall auf props.wiki_settlement: was der Ort selbst nicht traegt, bleibt leer.
 	// Ersatzweise das Nest hineinzuschreiben waere die Vorschau-lose Uebernahme, die dieser Umbau
 	// gerade abgeschafft hat.
-	const einwohnerRow = `<div class="k">Einwohner</div><div><input type="text" id="dtEditEinwohner" maxlength="200" value="${settlementEscape(props.einwohner || "")}"></div>`;
-	const lageRow = `<div class="k">Lage</div><div><input type="text" id="dtEditLage" maxlength="300" value="${settlementEscape(props.lage || "")}"></div>`;
-	const oberhauptRow = `<div class="k">Herrscher</div><div><input type="text" id="dtEditOberhaupt" maxlength="200" value="${settlementEscape(props.oberhaupt || "")}"></div>`;
+	const einwohnerRow = kZelle("einwohner", "Einwohner") + altZelle("einwohner")
+		+ `<div><input type="text" id="dtEditEinwohner" maxlength="200" value="${settlementEscape(props.einwohner || "")}"></div>`;
+	const lageRow = kZelle("lage", "Lage") + altZelle("lage")
+		+ `<div><input type="text" id="dtEditLage" maxlength="300" value="${settlementEscape(props.lage || "")}"></div>`;
+	const oberhauptRow = kZelle("oberhaupt", "Herrscher") + altZelle("oberhaupt")
+		+ `<div><input type="text" id="dtEditOberhaupt" maxlength="200" value="${settlementEscape(props.oberhaupt || "")}"></div>`;
 	// "Andere Quelle" replaced by the shared multi-source editor mount point (T3): the
 	// takeover on the server folds any legacy other_source into the fs_source catalog on
 	// first list/add/remove, so this container renders the full add/remove-capable list
@@ -1728,7 +1787,7 @@ function buildSettlementEditFormHtml(detail) {
 	return {
 		identity:
 			`<div class="dt-grp">Identität</div>` +
-			`<div class="dt-grid dt-edit-grid">${nameRow}${typeRow}${einwohnerRow}${lageRow}${oberhauptRow}${descRow}${wikiUrlRow}</div>`,
+			`<div class="dt-grid dt-grid--wiki dt-edit-grid">${nameRow}${typeRow}${einwohnerRow}${lageRow}${oberhauptRow}${descRow}${wikiUrlRow}</div>`,
 		properties: propertiesHtml,
 		sources: otherSourceRow,
 		actions: actionsHtml,
@@ -2024,6 +2083,11 @@ function buildSettlementSavePayload() {
 	// (Blindgänger nach einem Deploy-Fehlschlag) -- dann wird der Schlüssel weggelassen und der
 	// Server lässt den gespeicherten Merker in Ruhe. Ein `false` an dieser Stelle nähme eine
 	// Entscheidung zurück, die oft im Konfliktzentrum getroffen wurde, nicht hier.
+	// 🔴 WELCHE FELDER AUS DEM WIKI KAMEN. Der Server stempelt daraus die Herkunft -- aber nur fuer
+	// Felder, deren Wert sich wirklich aendert (avesmapsFieldOriginsStempeln). Eine leere Liste ist
+	// dasselbe wie ein fehlender Schluessel: „nichts kam aus dem Wiki", also alles von uns.
+	payload.wiki_uebernommen = Array.from(settlementWikiUebernommen);
+
 	const keinArtikel = settlementWikiAssignKeinArtikelFuerPayload();
 	if (keinArtikel !== null) {
 		payload.wiki_no_article = keinArtikel;
@@ -2246,6 +2310,72 @@ async function settlementWikiAssignLoesen() {
  * ⚠️ ÜBERNEHMEN FÜLLT NUR DAS FORMULAR (Entwurf §6) -- gespeichert wird mit „Speichern".
  * 🔴 DERSELBE VERTRAG WIE BEI `zuweisen` UND `loesen`: wer nichts tun konnte, WIRFT.
  */
+// 🔴 WELCHE FELDER SEIT DEM LADEN AUS DEM WIKI KAMEN -- die einzige Merkliste dieses Fensters.
+// Der Server stempelt daraus die Herkunft (avesmapsFieldOriginsStempeln), und zwar NUR fuer Felder,
+// deren Wert sich wirklich aendert. Sie wird beim Neuzeichnen des Details und nach erfolgreichem
+// Speichern geleert.
+// 💣 SIE FUELLT SICH AN ZWEI STELLEN, und beide sind dieselbe Handlung in verschiedener Breite: der
+// Knopf „Sync" (alle angehakten Zeilen) und das ↺ an EINER Zeile. Traegt eine der beiden nicht ein,
+// stempelt der Server die Uebernahme als „von uns" -- die harmlose Richtung, aber die Auskunft waere
+// falsch, und der naechste Abgleich liesse das Feld dann in Ruhe.
+let settlementWikiUebernommen = new Set();
+
+function settlementWikiUebernommenLeeren() {
+	settlementWikiUebernommen = new Set();
+}
+
+/**
+ * Das ↺ an einer Feldzeile: EIN Zuhoerer am Behaelter, nicht einer je Zeile -- die Zeilen entstehen
+ * mit jedem Neuzeichnen neu.
+ *
+ * 💣 UND ER WIRD GENAU EINMAL GEBUNDEN. `#seDetailBody` ueberlebt jedes Neuzeichnen (nur sein
+ * `innerHTML` wechselt); ein Zuhoerer im Zeichenpfad haette sich mit jedem Ortswechsel angesammelt,
+ * und nach dem zehnten Ort liefe ein Klick auf ↺ zehnmal. Beim ersten Mal faellt das nicht auf --
+ * der Handgriff ist idempotent --, aber die Meldung erschiene zehnmal und jeder spaetere,
+ * NICHT idempotente Zuhoerer am selben Behaelter erbte den Fehler.
+ */
+let settlementWikiResetGebunden = false;
+function settlementWikiResetZuhoererBinden(behaelter) {
+	if (settlementWikiResetGebunden || !behaelter) { return; }
+	settlementWikiResetGebunden = true;
+	behaelter.addEventListener("click", (ereignis) => {
+		const knopf = ereignis.target && ereignis.target.closest
+			? ereignis.target.closest("[data-wiki-reset]")
+			: null;
+		if (!knopf) { return; }
+		ereignis.preventDefault();
+		settlementWikiFeldZuruecksetzen(knopf.getAttribute("data-wiki-reset") || "");
+	});
+}
+
+/**
+ * ↺ an einer Feldzeile: genau diesen einen Wert aus dem Wiki ins Formular holen.
+ *
+ * ⭐ ES IST DIE SYNC-UEBERNAHME EINER EINZIGEN ZEILE und benutzt denselben Weg -- kein zweiter
+ * Schreibpfad, kein eigener Endpunkt, dieselbe Speicherleiste. Geschrieben wird mit „Speichern".
+ */
+function settlementWikiFeldZuruecksetzen(feld) {
+	const props = (settlementDetailCache && settlementDetailCache.detail && settlementDetailCache.detail.properties) || {};
+	const wikiWerte = avesmapsWikiAssignOrtWerte(props.wiki_settlement || null);
+	const stand = avesmapsWikiFeldStand(
+		(avesmapsWikiAssignSubject("ort") || {}).felder || [],
+		{}, wikiWerte, {}
+	);
+	// ⚠️ Der Wiki-Wert wird ueber DIESELBE Rechnung geholt, die die Zeile gezeichnet hat -- nicht roh
+	// aus dem Nest. Beim `feature_subtype` ist der rohe Wert der freie Infoboxtext („Handelsstadt"),
+	// und der ist kein gueltiger Auswahlwert; die Rechnung liefert den geprueften Schluessel.
+	const wert = stand[feld] ? stand[feld].wikiWert : "";
+	const eingabe = { name: "dtEditName", feature_subtype: "dtEditType", einwohner: "dtEditEinwohner",
+		lage: "dtEditLage", oberhaupt: "dtEditOberhaupt" }[feld];
+	const element = eingabe ? $(eingabe) : null;
+	if (!element) { return; }
+	element.value = wert;
+	settlementWikiUebernommen.add(feld);
+	// ⚠️ Dieselbe Meldung wie die Sync-Uebernahme daneben, wortgleich -- es IST dieselbe Handlung.
+	// Ein eigener Satz fuer den Einzelfall waere die erste Divergenz zwischen den beiden.
+	setSettlementEditMsg("Aus dem Wiki übernommen — noch nicht gespeichert.", "");
+}
+
 function settlementWikiAssignSyncUebernehmen(zeilen) {
 	const werte = avesmapsWikiAssignOrtSyncWerte(zeilen);
 	// 🔴 Die Leerprüfung zählt ALLE Kartenfelder, nicht zwei ausgeschriebene -- seit dem 16.08.2026
@@ -2274,6 +2404,15 @@ function settlementWikiAssignSyncUebernehmen(zeilen) {
 	if (nameInput) nameInput.value = werte.name;
 	if (select) select.value = werte.feature_subtype;
 	textFelder.forEach(([eingabe, wert]) => { eingabe.value = wert; });
+	// 🔴 ZWEITE HAELFTE DER UEBERNAHME: merken, WELCHE Felder aus dem Wiki kamen. Ohne sie stempelt
+	// der Server sie als „von uns", und der naechste Abgleich liesse genau die Felder in Ruhe, die
+	// er gerade selbst gefuellt hat.
+	if (werte.name !== null) settlementWikiUebernommen.add("name");
+	if (werte.feature_subtype !== null) settlementWikiUebernommen.add("feature_subtype");
+	textFelder.forEach(([eingabe]) => {
+		const feld = { dtEditEinwohner: "einwohner", dtEditLage: "lage", dtEditOberhaupt: "oberhaupt" }[eingabe.id];
+		if (feld) settlementWikiUebernommen.add(feld);
+	});
 	setSettlementEditMsg("Aus dem Wiki übernommen — noch nicht gespeichert.", "");
 }
 

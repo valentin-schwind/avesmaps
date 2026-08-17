@@ -257,7 +257,31 @@ function avesmapsWikiAssignOrtZustand(quelle) {
 		artikel: avesmapsWikiAssignOrtArtikel(quelle.wiki_settlement),
 		keinArtikel: quelle.kein_artikel === true,
 		kartenwerte: kartenwerte,
+		herkunft: avesmapsWikiAssignOrtHerkunft(quelle.field_origins),
 	};
+}
+
+/**
+ * REIN: `properties.field_origins` -> die Herkunftskarte der fuenf KARTENFELDER.
+ *
+ * 🔴 GEFILTERT AUF DIE FUENF ZIELE, nicht roh durchgereicht -- wortgleiche Begruendung wie bei der
+ * Literatur (js/ui/wiki-assign-literatur.js): ein Eintrag fuer ein Feld ohne Zeile waere Ballast in
+ * einer Karte, die ueber das Vorhaekeln entscheidet, und liest sich beim naechsten Mal wie eine Regel.
+ *
+ * ⚠️ Alles ausser `'manual'`/`'wiki'` faellt heraus. Eine kuenftige dritte Herkunft darf weder die
+ * Beschriftung braun faerben noch vorhaken, sondern muss auf „nicht bekannt" zurueckfallen -- also
+ * auf das Verhalten, das vor dem 17.08.2026 galt.
+ */
+function avesmapsWikiAssignOrtHerkunft(herkunft) {
+	const h = (herkunft && typeof herkunft === "object" && !Array.isArray(herkunft)) ? herkunft : {};
+	const karte = {};
+	AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER.forEach((feld) => {
+		const wert = avesmapsWikiAssignOrtText(h[feld]);
+		if (wert === "manual" || wert === "wiki") {
+			karte[feld] = wert;
+		}
+	});
+	return karte;
 }
 
 /** REIN: der Rumpf der Zuweisung. Beide Oberflaechen schicken denselben -- mit `dry_run:false` UND
@@ -344,6 +368,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsWikiAssignOrtTrefferAnreichern: avesmapsWikiAssignOrtTrefferAnreichern,
 		avesmapsWikiAssignOrtArtikel: avesmapsWikiAssignOrtArtikel,
 		avesmapsWikiAssignOrtZustand: avesmapsWikiAssignOrtZustand,
+		avesmapsWikiAssignOrtHerkunft: avesmapsWikiAssignOrtHerkunft,
 		avesmapsWikiAssignOrtZuweisungsKoerper: avesmapsWikiAssignOrtZuweisungsKoerper,
 		avesmapsWikiAssignOrtAntwortPruefen: avesmapsWikiAssignOrtAntwortPruefen,
 		avesmapsWikiAssignOrtSyncWerte: avesmapsWikiAssignOrtSyncWerte,

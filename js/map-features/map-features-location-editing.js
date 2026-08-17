@@ -276,6 +276,9 @@ function applyFeatureResponseToMarker(markerEntry, feature) {
 		einwohner: String(feature.einwohner || ""),
 		lage: String(feature.lage || ""),
 		oberhaupt: String(feature.oberhaupt || ""),
+		// Die Feldherkunft -- aus demselben Grund wie die vier darueber. Ohne sie zeigte der Dialog
+		// nach dem Speichern "Herkunft unbekannt" fuer ein Feld, das der Server soeben gestempelt hat.
+		fieldOrigins: feature.field_origins || null,
 		coat: feature.coat !== undefined ? feature.coat : (markerEntry.location.coat || null),
 		images: feature.images !== undefined ? feature.images : (markerEntry.location.images || []),
 		isNodix: Boolean(feature.is_nodix),
@@ -386,6 +389,9 @@ function addCreatedLocationMarker(feature, { openPopup = true } = {}) {
 		einwohner: String(feature.einwohner || ""),
 		lage: String(feature.lage || ""),
 		oberhaupt: String(feature.oberhaupt || ""),
+		// Die Feldherkunft -- aus demselben Grund wie die vier darueber. Ohne sie zeigte der Dialog
+		// nach dem Speichern "Herkunft unbekannt" fuer ein Feld, das der Server soeben gestempelt hat.
+		fieldOrigins: feature.field_origins || null,
 		coat: feature.coat || null,
 		images: feature.images || [],
 		isNodix: Boolean(feature.is_nodix),
