@@ -119,8 +119,10 @@ kasten.buildSettlementTypeSelectHtml = () => '<select id="dtEditType"><option>x<
 const html = vm.runInContext("buildSettlementEditFormHtml", kasten)(DETAIL).identity;
 
 // Aus dem Markup je Feld die Rasterzellen holen: `<div class="k…">Label</div><div class="dt-alt">…</div><div>Feld</div>`
+// 🔴 ZWEI ZELLEN JE ZEILE, nicht drei (Owner 17.08.2026: „50% | 50%"). Die linke traegt
+// Beschriftung UND Wiki-Stand.
 function zeile(label) {
-	const muster = new RegExp('<div class="(k[^"]*)">' + label + '</div>(<div class="dt-alt">.*?</div>)', "s");
+	const muster = new RegExp('<div class="(k[^"]*)">' + label + '(.*?)</div>', "s");
 	const treffer = muster.exec(html);
 	assert.ok(treffer, 'die Zeile "' + label + '" steht nicht im Formular');
 	return { kKlasse: treffer[1], alt: treffer[2] };
@@ -142,13 +144,13 @@ assert.ok(!/>stadt</.test(zeile("Typ").alt),
 	"die Durchstreichung zeigt den rohen Schluessel statt der Beschriftung: " + zeile("Typ").alt);
 
 // 🔴 Ein Feld OHNE Abweichung traegt weder Durchstreichung noch ↺ -- die Zeile sieht aus wie vorher.
-// ⚠️ ABER DIE ZELLE STEHT DA, leer: das Raster hat drei Spalten, und eine fehlende Zelle schoebe das
-// Eingabefeld eine Spalte nach links. Genau die Buendigkeit ist der Punkt (Owner 17.08.2026).
-assert.strictEqual(zeile("Name").alt, '<div class="dt-alt"></div>',
-	"die Zeile ohne Abweichung hat keine leere Wiki-Zelle: " + zeile("Name").alt);
+// ⚠️ Und es braucht KEINE Fuellzelle mehr: das Raster hat zwei gleiche Haelften, der Wiki-Stand
+// steht IN der linken. Davor waren es drei Spalten mit einer leeren Zelle je Zeile ohne Wiki-Bezug.
+assert.strictEqual(zeile("Name").alt, "",
+	"die Zeile ohne Abweichung traegt einen Wiki-Stand: " + zeile("Name").alt);
 assert.ok(!/\bovr\b/.test(zeile("Name").kKlasse));
 // 🔴 Herkunft „wiki" UND kein Unterschied -> ebenfalls still. Sie wirkt beim Vorhaekeln, nicht hier.
-assert.strictEqual(zeile("Herrscher").alt, '<div class="dt-alt"></div>');
+assert.strictEqual(zeile("Herrscher").alt, "");
 assert.ok(!/\bovr\b/.test(zeile("Herrscher").kKlasse));
 
 // 🔴 Das ↺ steht genau bei den abweichenden Zeilen -- und nur dort.
@@ -157,17 +159,17 @@ const resets = (html.match(/data-wiki-reset="([a-z_]+)"/g) || [])
 assert.deepStrictEqual(resets, ["einwohner", "feature_subtype", "lage"],
 	"das ↺ steht an den falschen Zeilen: " + JSON.stringify(resets));
 
-// ── 💣 DIE BUENDIGKEIT: JEDE Zeile des Rasters hat DREI Zellen ─────────────────────────────────
-// Auch „Beschreibung" und „Wiki-URL", die mit dem Wiki nichts zu tun haben. Eine Zeile mit nur zwei
-// Zellen schoebe ihr Eingabefeld in die Wiki-Spalte, und alle Felder darunter staenden versetzt --
-// genau der Befund, den der Owner am ersten Entwurf beanstandet hat.
+// ── 💣 DIE BUENDIGKEIT: ZWEI GLEICHE HAELFTEN, JEDE ZEILE ZWEI ZELLEN ─────────────────────────
+// Owner 17.08.2026, woertlich: „50% | 50% · Text --durchgestrichener text-- ↺ | Eingabe". Eine
+// dritte Zelle waere die alte Fassung, die den Literatur-Editor zu einer zweiten Bauform zwang.
 const raster = /<div class="dt-grid dt-grid--wiki dt-edit-grid">([\s\S]*)<\/div>\s*$/.exec(html.trim());
 assert.ok(raster, "das Raster traegt die Klasse dt-grid--wiki nicht");
 const kZellen = (html.match(/<div class="k[^"]*">/g) || []).length;
-const altZellen = (html.match(/<div class="dt-alt">/g) || []).length;
-assert.strictEqual(kZellen, altZellen,
-	"nicht jede Zeile hat eine Wiki-Zelle: " + kZellen + " Beschriftungen gegen " + altZellen + " Wiki-Zellen");
 assert.strictEqual(kZellen, 7, "das Raster hat nicht die erwarteten sieben Zeilen: " + kZellen);
+assert.strictEqual((html.match(/dt-alt/g) || []).length, 0,
+	"die abgeschaffte dritte Zelle steht noch im Markup");
+// Genau drei Zeilen weichen ab -> genau drei Wiki-Staende, alle in einer Beschriftungszelle.
+assert.strictEqual((html.match(/<span class="wiki-alt">/g) || []).length, 3);
 
 // ── Der Zustand, den der Zuweisungskasten bekommt, traegt die Herkunft ─────────────────────────
 const zustand = vm.runInContext("avesmapsWikiAssignOrtZustand", kasten)({

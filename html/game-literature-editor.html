@@ -288,8 +288,21 @@
   .ae-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-6) var(--space-12); }
   .ae-field { display: flex; flex-direction: row; align-items: center; gap: var(--space-8); min-width: 0; }
   .ae-field.is-wide { grid-column: 1 / -1; }
+  /* 🔴 HALBE / HALBE, sobald ein Wiki-Stand danebensteht (Owner 17.08.2026: "50% | 50% · Text
+     --durchgestrichener text-- ↺ | Eingabe"). Die feste 130px-Spalte bleibt der Normalfall -- ein
+     Wiki-Stand passt dort nicht hinein und brach live "ISBN (für DNB)" auf drei Zeilen. */
   .ae-field > label { flex: 0 0 var(--avm-field-label-w); font-size: var(--font-size-caption);
-    color: var(--color-text-muted); display: flex; align-items: center; gap: var(--space-6); }
+    color: var(--color-text-muted); display: flex; align-items: baseline; gap: var(--space-6); min-width: 0; }
+  /* 💣 FUER ALLE ZEILEN, nicht nur die mit Wiki-Stand. Am `:has()` gemessen (17.08.2026):
+     betroffene Zeilen bekamen 210px Beschriftung, die uebrigen 130px -- die Eingabefelder standen
+     danach an ZWEI verschiedenen Stellen (247 gegen 167). Genau das verhindert die Hausregel in
+     css/components/editor-page.css ("so the field edges line up across every group and every
+     editor"), und genau daran ist der Literatur-Editor schon einmal aufgefallen. Die paar Pixel
+     breitere Beschriftung sind der Preis fuer eine buendige Spalte. */
+  .ae-field > label { flex: 1 1 50%; }
+  .ae-field > .ae-input,
+  .ae-field > .ae-select { flex: 1 1 50%; min-width: 0; }
+  .ae-field > label.has-wiki-ovr { color: var(--color-accent-brown); }
   /* Ausnahme: bei einem Ankreuzfeld IST die Beschriftung die Zeile (das <input> steckt darin) --
      eine 130px-Spalte wuerde sie mittendrin abschneiden. Sie nimmt die volle Breite. */
   .ae-field > label.ae-check { flex: 1 1 auto; }
@@ -914,6 +927,11 @@
       const huelle = el.closest(".ae-field");
       const beschriftung = huelle ? huelle.querySelector("label") : null;
       if (!beschriftung) { return; }
+      // 🔴 DIE ZELLE GEHOERT IN DIE BESCHRIFTUNG -- sie IST die linke Haelfte der Zeile
+      // (Owner 17.08.2026: „50% | 50% · Text --durchgestrichener text-- ↺ | Eingabe").
+      // 🪤 Zwischendurch stand sie daneben, weil die Beschriftung nur 130px breit war und
+      // „ISBN (für DNB)" dadurch auf drei Zeilen brach. Die Aufteilung in zwei Haelften macht das
+      // gegenstandslos: `.ae-field:has(.wiki-alt)` gibt der Beschriftung ihre Haelfte.
       const vorhanden = beschriftung.querySelector(".wiki-alt");
       if (vorhanden) { vorhanden.remove(); }
       const s = stand[feld];

@@ -558,8 +558,12 @@
 	   Fenster mehr als 100 % an und das Raster haengt eine waagerechte Bildlaufleiste an -- bei
 	   300px gemessen. Die 165px sind Beschriftung (130) + zwei Spaltenabstaende (12) + das ↺ samt
 	   Vorabstand (18) + Rest; in der ersten Rechnung war das ↺ schlicht vergessen. */
-	--avm-wiki-alt-w: 140px;                            /* Hoechstbreite des Wiki-Stands */
-	--avm-wiki-input-min: clamp(90px, 50%, 100% - 165px); /* so viel bleibt dem Feld IMMER */
+	/* 🪤 HIER STANDEN ZWEI TOKEN -- eine Hoechstbreite fuer den Wiki-Stand und ein gerechneter
+	   Mindestplatz fuers Feld (clamp mit 100% - 165px). Beide sind am 17.08.2026 gefallen, und die
+	   Lehre ist groesser als die zwei Zeilen: die Rechnung loeste ein Problem, das die AUFTEILUNG
+	   gar nicht erst hat. Der Owner hat es in einer Zeile gesagt -- „50% | 50%" --, nachdem zwei
+	   gerechnete Fassungen an zwei Oberflaechen danebengegangen waren. Wer einen Mindestwert
+	   ausrechnet, sollte zuerst fragen, ob eine Haelfte reicht. */
 	/* Hoehe der Wiki-Zuweisungs-Trefferliste. 💣 Stand bis 16.08.2026 als nackte 340px an ZWEI
 	   Stellen -- .label-wiki-picker-list (region-sync.css) und der abgeschriebenen .dt-picker-list
 	   (editor-page.css) -- und ein Kommentar behauptete "dieselbe Hoehe". Das gilt genau bis jemand

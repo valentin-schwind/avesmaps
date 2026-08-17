@@ -377,10 +377,18 @@ function sandkastenBauen(optionen) {
 			};
 			beschriftung.append = (...k) => beschriftung.kinder.push(...k);
 			beschriftung.querySelector = (sel) => beschriftung.kinder.find((k) => ("." + k.className) === sel) || null;
+			// 🔴 DIE HUELLE .ae-field IST EIN FLEX-ROW: Beschriftung, Wiki-Zelle, Bedienelement als
+			// GESCHWISTER. Die Attrappe bildet das nach -- eine, die auf jedes querySelector die
+			// Beschriftung zurueckgibt, liesse den Zeichner ins Leere greifen und truege trotzdem gruen.
 			const huelle = scheinFeld("");
-			huelle.querySelector = () => beschriftung;
+			huelle.kinder = [beschriftung];
+			huelle.querySelector = (sel) => (sel === "label"
+				? beschriftung
+				: huelle.kinder.find((k) => ("." + k.className) === sel) || null);
+			huelle.insertBefore = (knoten) => huelle.kinder.push(knoten);
 			felder[name].closest = () => huelle;
 			felder[name].beschriftung = beschriftung;
+			felder[name].huelle = huelle;
 		});
 	const elemente = {};
 	const gesendet = [];
@@ -649,6 +657,9 @@ function standardAntwort(adresse, rumpf) {
 	await new Promise((r) => setTimeout(r, 5));
 	vm.runInContext("aeWikiZeichneAbweichungen()", kasten2.kasten);
 	const genreLabel = kasten2.felder.genre.beschriftung;
+	// 🔴 IN der Beschriftung: sie IST die linke Haelfte der Zeile (Owner 17.08.2026, „50% | 50%").
+	// 🪤 Zwischendurch stand die Zelle daneben, weil die Beschriftung nur 130px breit war und
+	// „ISBN (für DNB)" dadurch auf drei Zeilen brach -- die Aufteilung loest das an der Wurzel.
 	const genreZelle = genreLabel.kinder.find((k) => k.className === "wiki-alt");
 	assert.ok(genreZelle, "die abweichende Zeile hat keine Wiki-Zelle bekommen");
 	assert.ok(genreLabel.klassen.has("has-wiki-ovr"),

@@ -1701,41 +1701,40 @@ function buildSettlementEditFormHtml(detail) {
 		: {};
 	// Die Beschriftungszelle: braun, wenn WIR das Feld gesetzt haben -- wortgleich zum
 	// Territoriumseditor (`k${ov?' ovr':''}`, html/wiki-sync-monitor.html).
+	// 🔴 HALBE / HALBE (Owner 17.08.2026: „50% | 50% · Text --durchgestrichener text-- ↺ |
+	// Eingabe"). Die linke Zelle traegt Beschriftung UND Wiki-Stand, die rechte das Feld.
+	// 🪤 Davor waren es DREI Zellen mit einer eigenen Wiki-Spalte; die zwang den Literatur-Editor
+	// zu einer zweiten Fassung und brach dort eine Beschriftung auf drei Zeilen.
 	const kZelle = (feld, text) => {
 		const s = wikiStand[feld];
-		return `<div class="k${s && s.herkunft === "manual" ? " ovr" : ""}">${text}</div>`;
+		return `<div class="k${s && s.herkunft === "manual" ? " ovr" : ""}">${text}${altMarkup(feld)}</div>`;
 	};
-	// Die Wiki-Zelle: durchgestrichener Wiki-Stand + ↺, oder leer.
-	// 💣 Sie steht IMMER da, auch leer -- sonst rutschten die Eingabefelder der Zeilen ohne
-	// Abweichung eine Rasterspalte nach links, und genau das Buendigsein ist der Punkt.
-	const altZelle = (feld) => {
+	// Der Wiki-Stand einer Zeile: durchgestrichen + ↺, oder gar nichts. Er steht IN der
+	// Beschriftungszelle, es gibt also keine leere Fuellzelle mehr.
+	const altMarkup = (feld) => {
 		const s = wikiStand[feld];
 		if (!s || !s.abweicht) {
-			return '<div class="dt-alt"></div>';
+			return "";
 		}
 		const titel = s.herkunft === "manual"
 			? "Von uns gesetzt. Wiki-Stand: " + s.wikiAnzeige
 			: "Weicht vom Wiki ab. Wer den Wert gesetzt hat, wurde nie festgehalten. Wiki-Stand: " + s.wikiAnzeige;
 		// ⚠️ ANGEZEIGT wird `wikiAnzeige`, verglichen und zurueckgesetzt wird `wikiWert` -- bei der
 		// Ortsgroesse ist das "Dorf" gegen "dorf".
-		return `<div class="dt-alt"><span class="dt-old" title="${settlementEscape(titel)}">${settlementEscape(s.wikiAnzeige)}</span>`
+		return `<span class="wiki-alt"><span class="dt-old" title="${settlementEscape(titel)}">${settlementEscape(s.wikiAnzeige)}</span>`
 			+ `<button type="button" class="dt-reset" data-wiki-reset="${settlementEscape(feld)}"`
-			+ ` title="Auf Wiki-Stand zurücksetzen">↺</button></div>`;
+			+ ` title="Auf Wiki-Stand zurücksetzen">↺</button></span>`;
 	};
-	const nameRow = kZelle("name", "Name") + altZelle("name")
+	const nameRow = kZelle("name", "Name")
 		+ `<div><input type="text" id="dtEditName" maxlength="160" value="${settlementEscape(detail.name || "")}"></div>`;
-	const typeRow = kZelle("feature_subtype", "Typ") + altZelle("feature_subtype")
+	const typeRow = kZelle("feature_subtype", "Typ")
 		+ `<div>${buildSettlementTypeSelectHtml(detail)}</div>`;
-	// 💣 AUCH DIE ZEILEN OHNE WIKI-BEZUG BRAUCHEN DIE LEERE MITTELSPALTE. Das Raster hat drei
-	// Spalten; eine Zeile mit nur zwei Zellen schoebe ihr Eingabefeld in die Wiki-Spalte -- und
-	// genau die Buendigkeit aller Felder ist der Punkt dieses Umbaus.
-	const leer = '<div class="dt-alt"></div>';
-	const descRow = `<div class="k">Beschreibung</div>${leer}<div><textarea id="dtEditDescription" maxlength="2000">${settlementEscape(props.description || "")}</textarea></div>`;
+	const descRow = `<div class="k">Beschreibung</div><div><textarea id="dtEditDescription" maxlength="2000">${settlementEscape(props.description || "")}</textarea></div>`;
 	// Wiki-URL is now read-only here: the shared source editor (mounted below via
 	// mountFeatureSourceEditor) owns the write path for this field's identity/takeover
 	// semantics. The input (and its value) stay in the DOM/save-payload -- update_point
 	// still requires wiki_url on every save, omitting it would unset properties.wiki_url.
-	const wikiUrlRow = `<div class="k">Wiki-URL</div>${leer}<div><input type="text" id="dtEditWikiUrl" maxlength="500" placeholder="https://…" value="${settlementEscape(props.wiki_url || "")}" readonly></div>`;
+	const wikiUrlRow = `<div class="k">Wiki-URL</div><div><input type="text" id="dtEditWikiUrl" maxlength="500" placeholder="https://…" value="${settlementEscape(props.wiki_url || "")}" readonly></div>`;
 	// Einwohner · Lage · Herrscher: seit dem 16.08.2026 eigene Kartenfelder (Owner-Entscheid). Bis
 	// dahin standen dieselben Namen NUR im Wiki-Nest -- dieses Fenster zeigte zwei davon als
 	// Lesezeilen, und schreiben konnte sie niemand. 💣 Sie heissen wie im Nest, deshalb ist die
@@ -1744,11 +1743,11 @@ function buildSettlementEditFormHtml(detail) {
 	// ⚠️ KEIN Rueckfall auf props.wiki_settlement: was der Ort selbst nicht traegt, bleibt leer.
 	// Ersatzweise das Nest hineinzuschreiben waere die Vorschau-lose Uebernahme, die dieser Umbau
 	// gerade abgeschafft hat.
-	const einwohnerRow = kZelle("einwohner", "Einwohner") + altZelle("einwohner")
+	const einwohnerRow = kZelle("einwohner", "Einwohner")
 		+ `<div><input type="text" id="dtEditEinwohner" maxlength="200" value="${settlementEscape(props.einwohner || "")}"></div>`;
-	const lageRow = kZelle("lage", "Lage") + altZelle("lage")
+	const lageRow = kZelle("lage", "Lage")
 		+ `<div><input type="text" id="dtEditLage" maxlength="300" value="${settlementEscape(props.lage || "")}"></div>`;
-	const oberhauptRow = kZelle("oberhaupt", "Herrscher") + altZelle("oberhaupt")
+	const oberhauptRow = kZelle("oberhaupt", "Herrscher")
 		+ `<div><input type="text" id="dtEditOberhaupt" maxlength="200" value="${settlementEscape(props.oberhaupt || "")}"></div>`;
 	// "Andere Quelle" replaced by the shared multi-source editor mount point (T3): the
 	// takeover on the server folds any legacy other_source into the fs_source catalog on

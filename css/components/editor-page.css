@@ -584,37 +584,26 @@ body.avm-editor-body {
  * VOR dem Feld zu setzen, ohne ihm eine eigene Spalte zu geben, verschiebt jedes Feld um die Laenge
  * seines eigenen Wiki-Werts -- genau das war die erste, verworfene Fassung.
  */
+/* 🔴 HALBE / HALBE (Owner 17.08.2026, woertlich: „50% | 50% · Text --durchgestrichener text-- |
+ * Eingabe"). Links Beschriftung SAMT durchgestrichenem Wiki-Stand, rechts das Bedienelement.
+ * 🪤 Davor standen hier DREI Spalten mit einem clamp() fuer den Mindestplatz des Feldes. Das war
+ * gerechnet, wo eine Aufteilung genuegt -- und es zwang die zweite Oberflaeche zu einer eigenen
+ * Fassung. Zwei gleiche Haelften brauchen keinen Mindestwert: die Haelfte IST er. */
 .dt-grid--wiki {
-	grid-template-columns:
-		var(--avm-field-label-w)
-		minmax(0, max-content)
-		minmax(var(--avm-wiki-input-min), 1fr);
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 	column-gap: var(--space-4);
 	align-items: center;
 }
 
-.dt-alt {
+/* Die linke Haelfte traegt beides. "white-space: normal" hebt das "nowrap" der Grundregel auf --
+   der Wiki-Stand daneben darf umbrechen statt die Zeile aufzuziehen. */
+.dt-grid--wiki .k {
 	display: flex;
-	align-items: center;
-	justify-content: flex-end;
+	align-items: baseline;
+	gap: var(--space-2);
 	min-width: 0;
-	max-width: var(--avm-wiki-alt-w);
-	font-size: var(--font-size-caption);
+	white-space: normal;
 }
-
-/* 💣 DIE AUSLASSUNGSPUNKTE GEHOEREN AN DEN TEXT, NICHT AN DIE ZELLE. Standen `overflow: hidden` und
- * `text-overflow: ellipsis` an `.dt-alt`, wurde ein zu langer Wert HART abgeschnitten -- `ellipsis`
- * wirkt nur auf das Element, dessen EIGENER Text ueberlaeuft, nie auf ein ueberlaufendes Kind.
- * Gemessen am 17.08.2026: „Kosch · Mittelreich" bei 58px Spaltenbreite, ohne ein einziges Puenktchen. */
-.dt-alt .dt-old {
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-/* 💣 Das ↺ darf NIE mitgekappt werden: es ist der Knopf, der Wiki-Stand nur die Auskunft. */
-.dt-alt .dt-reset { flex: 0 0 auto; }
 
 /* Der durchgestrichene Wiki-Stand und das ↺ -- Klassennamen und Wirkung wortgleich zum
  * Territoriumseditor, damit die zwei Oberflaechen sich gleich lesen. */
@@ -642,16 +631,20 @@ body.avm-editor-body {
  * Ein erster Entwurf trug drei Abzeichen; zwei davon waren redundant zur Durchstreichung. */
 .dt-grid .k.ovr { color: var(--color-accent-brown); }
 
-/* ---- Dieselbe Auskunft, ZWEITE FORM: Beschriftung UEBER dem Feld ------------------------------
- * 🔴 WELCHE FORM GILT, ENTSCHEIDET DIE ZEILE, NICHT DIE OBERFLAECHE. `.dt-alt` oben braucht eine
- * eigene Rasterspalte, weil die Beschriftung dort LINKS steht (.dt-grid). Der Literatur-Editor
- * (.ae-field) und der Kartendialog stapeln stattdessen -- Beschriftung oben, Feld darunter --, und
- * dort haengt der durchgestrichene Wiki-Stand IN der Beschriftung.
- * ⚠️ ZWEI Formen sind die Obergrenze, und zwei sind es auch: die Regeln stehen zweimal, weil
- * index.html editor-page.css nicht bindet und die Editorseiten location-report-dialog.css nicht --
- * die KLASSENNAMEN sind dieselben, damit es beim naechsten Leser eine Sache bleibt.
- * ⭐ Und sie kostet KEINE Zeilenhoehe (Owner 17.08.2026: „drüber passt, kein platz verschwendet") --
- * genau deshalb steht sie in der Beschriftungszeile und nicht darunter. */
+/* ---- Der durchgestrichene Wiki-Stand als Teil der BESCHRIFTUNG -------------------------------
+ * 🔴 EINE Regel fuer alle Oberflaechen (Owner 17.08.2026: „50% | 50% · Text
+ * --durchgestrichener text-- ↺ | Eingabe"). Der Wiki-Stand gehoert zur Beschriftung, nicht in eine
+ * eigene Spalte; ob die Beschriftung links steht (Ortseditor, Literatur) oder oben (Kartendialog),
+ * aendert daran nichts.
+ * 🪤 DAS WAR NICHT VON ANFANG AN SO, und der Umweg ist lehrreich: erst eine dritte Rasterspalte,
+ * dann -- weil der Literatur-Editor im MARKUP aussieht wie der Kartendialog, im CSS aber ein
+ * Flex-ROW mit fester 130px-Beschriftung ist -- eine zweite Fassung, die „ISBN (für DNB)" auf drei
+ * Zeilen brach. Beides vom Owner gesehen, nicht vom Test; eine Umbruch-Kaskade misst keine
+ * Zusicherung. **Das Markup sagt nicht, welche Form gilt -- das CSS sagt es.** Die Aufteilung in
+ * zwei gleiche Haelften macht die Frage gegenstandslos.
+ * ⚠️ Die Regeln stehen trotzdem zweimal, weil index.html editor-page.css nicht bindet und die
+ * Editorseiten location-report-dialog.css nicht -- die KLASSENNAMEN sind dieselben, damit es beim
+ * naechsten Leser eine Sache bleibt. */
 .wiki-alt {
 	display: inline-flex;
 	align-items: baseline;
@@ -676,6 +669,17 @@ body.avm-editor-body {
    bei fehlender Browserfaehigkeit LAUTLOS aus, und die Zeile saehe dann aus wie eine mit
    unbekannter Herkunft, also genau wie der andere Zustand. */
 .ae-field > label.has-wiki-ovr { color: var(--color-accent-brown); }
+
+/* Der Literatur-Editor: dieselben zwei Haelften in Flex-Form. Die Beschriftung traegt den
+ * Wiki-Stand, das Bedienelement bekommt die andere Haelfte.
+ * ⚠️ Die Grundregel dieses Editors setzt `flex: 0 0 var(--avm-field-label-w)` auf die Beschriftung
+ * -- 130px, in die ein Wiki-Stand nicht passt. Sie steht INLINE in html/game-literature-editor.html
+ * und gewinnt gegen diese Datei; ueberschrieben wird sie deshalb dort, nicht hier. */
+.ae-field > .wiki-alt {
+	flex: 0 1 auto;
+	min-width: 0;
+	margin-left: 0;
+}
 
 .dt-check {
 	display: flex;
