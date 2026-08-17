@@ -35,6 +35,28 @@ function avesmapsWikiFeldNormalize(wert) {
 }
 
 /**
+ * REIN: die ANZEIGEFORM eines Werts -- was der Editor lesen soll, nicht was verglichen wird.
+ *
+ * 💣 SIE IST NICHT DASSELBE WIE DER VERGLEICHSWERT, und der Unterschied wurde am 17.08.2026 im
+ * Livebetrieb sichtbar: bei der Ortsgroesse steht in beiden Feldern ein SCHLUESSEL („dorf",
+ * „grossstadt"), waehrend das Auswahlfeld daneben die Beschriftung zeigt („Dorf", „Großstadt").
+ * Die Durchstreichung las sich damit wie ein Tippfehler. Verglichen wird weiter der Schluessel --
+ * er ist die Wahrheit; nur die Anzeige wird uebersetzt.
+ *
+ * ⚠️ `beschriftungen` ist eine Karte `{kartenfeld: {wert: "Beschriftung"}}` und kommt vom
+ * AUFRUFER, nicht aus dieser Datei: welches Feld einen Schluessel traegt, weiss die Objektart --
+ * und diese Datei kennt keine (dieselbe Regel wie im Bauteil js/ui/wiki-assign.js).
+ * Fehlt eine Uebersetzung, gilt der Wert selbst; nichts wird erfunden.
+ */
+function avesmapsWikiFeldAnzeige(wert, feld, beschriftungen) {
+	const b = (beschriftungen && beschriftungen[feld]) || null;
+	if (b && Object.prototype.hasOwnProperty.call(b, wert) && String(b[wert]).trim() !== "") {
+		return String(b[wert]);
+	}
+	return wert;
+}
+
+/**
  * REIN: was jede Feldzeile mit Kartenziel ueber ihr Verhaeltnis zum Wiki zu sagen hat.
  *
  * @param {Array<{wiki: string, karte: string, label?: string}>} felder  die Erklaerung aus dem
@@ -46,7 +68,7 @@ function avesmapsWikiFeldNormalize(wert) {
  * @returns {Object} `{ <kartenFeld>: { wikiWert, abweicht, herkunft } }` -- eine Angabe je Feld
  *   mit Kartenziel, in der Reihenfolge von `felder`.
  */
-function avesmapsWikiFeldStand(felder, kartenwerte, wikiwerte, herkunft) {
+function avesmapsWikiFeldStand(felder, kartenwerte, wikiwerte, herkunft, beschriftungen) {
 	const karten = kartenwerte || {};
 	const wiki = wikiwerte || {};
 	const quelle = herkunft || {};
@@ -67,6 +89,9 @@ function avesmapsWikiFeldStand(felder, kartenwerte, wikiwerte, herkunft) {
 
 		stand[ziel] = {
 			wikiWert: neu,
+			// Was der Editor LIEST -- bei der Ortsgroesse „Dorf" statt „dorf". Verglichen wird
+			// weiter `wikiWert`; diese Zeile ist reine Anzeige.
+			wikiAnzeige: avesmapsWikiFeldAnzeige(neu, ziel, beschriftungen),
 			// ⚠️ Ein LEERER Wiki-Wert ist keine Abweichung, die man zuruecknehmen koennte: das ↺
 			// wuerde die Angabe leeren, und genau das ist in der Sync-Vorschau der Fall, der NIE
 			// vorangehakt ist. Die Zeile bleibt deshalb still.
@@ -81,6 +106,7 @@ function avesmapsWikiFeldStand(felder, kartenwerte, wikiwerte, herkunft) {
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		avesmapsWikiFeldNormalize: avesmapsWikiFeldNormalize,
+		avesmapsWikiFeldAnzeige: avesmapsWikiFeldAnzeige,
 		avesmapsWikiFeldStand: avesmapsWikiFeldStand,
 	};
 }

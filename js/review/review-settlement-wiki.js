@@ -421,6 +421,16 @@ function settlementWikiFeldZuruecksetzen(feld) {
  * ⚠️ Zwei Huellen sind die Obergrenze (dieselbe Regel wie bei der Wiki-Zuweisung und den
  * Listenzeilen). Eine dritte Bauform waere die Divergenz, die dieser Umbau gerade beendet.
  */
+/** Die sechs Ortsgroessen-Beschriftungen -- gelesen aus dem Auswahlfeld, nicht abgeschrieben. */
+function settlementWikiGroessenBeschriftungen() {
+	const select = settlementWikiElement("location-edit-type");
+	const karte = {};
+	Array.from((select && select.options) || []).forEach((option) => {
+		karte[option.value] = option.textContent || option.value;
+	});
+	return karte;
+}
+
 function settlementWikiZeichneAbweichungen() {
 	if (typeof avesmapsWikiFeldStand !== "function" || typeof avesmapsWikiAssignSubject !== "function") {
 		return;
@@ -437,7 +447,12 @@ function settlementWikiZeichneAbweichungen() {
 			oberhaupt: settlementWikiElement("location-edit-oberhaupt")?.value || "",
 		},
 		avesmapsWikiAssignOrtWerte(settlementWikiCurrentAssignment() || settlementWikiPendingAssignment()),
-		avesmapsWikiAssignOrtHerkunft(herkunft)
+		avesmapsWikiAssignOrtHerkunft(herkunft),
+		// 🔴 DIE ORTSGROESSE IST DAS EINE FELD, DAS EINEN SCHLUESSEL TRAEGT -- ohne diese
+		// Uebersetzung stand am 17.08.2026 live „dorf" durchgestrichen neben einem Auswahlfeld, das
+		// „Metropole" zeigt. ⚠️ Die Beschriftungen kommen aus dem AUSWAHLFELD SELBST, nicht aus einer
+		// zweiten Liste: was dort steht, ist per Definition das, was der Editor liest.
+		{ feature_subtype: settlementWikiGroessenBeschriftungen() }
 	);
 	document.querySelectorAll("#location-edit-overlay [data-wiki-alt]").forEach((zelle) => {
 		const feld = zelle.getAttribute("data-wiki-alt") || "";
@@ -455,9 +470,9 @@ function settlementWikiZeichneAbweichungen() {
 		}
 		const alt = document.createElement("span");
 		alt.className = "dt-old";
-		alt.textContent = s.wikiWert;
+		alt.textContent = s.wikiAnzeige;
 		alt.title = (s.herkunft === "manual" ? "Von uns gesetzt. " : "Weicht vom Wiki ab. ")
-			+ "Wiki-Stand: " + s.wikiWert;
+			+ "Wiki-Stand: " + s.wikiAnzeige;
 		const knopf = document.createElement("button");
 		knopf.type = "button";
 		knopf.className = "dt-reset";

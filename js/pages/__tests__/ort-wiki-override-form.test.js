@@ -134,7 +134,12 @@ assert.ok(/\bovr\b/.test(zeile("Einwohner").kKlasse), "die von uns gesetzte Zeil
 assert.ok(!/\bovr\b/.test(zeile("Typ").kKlasse),
 	"eine Zeile mit UNBEKANNTER Herkunft ist als von-uns markiert: " + zeile("Typ").kKlasse);
 assert.ok(zeile("Typ").alt.includes("dt-old"), "die abweichende Zeile zeigt den Wiki-Stand nicht durchgestrichen");
-assert.ok(zeile("Typ").alt.includes("stadt"), "die Durchstreichung zeigt nicht den Wiki-Wert: " + zeile("Typ").alt);
+// 🔴 ANGEZEIGT WIRD DIE BESCHRIFTUNG, NICHT DER SCHLUESSEL (17.08.2026 live gesehen): das Feld
+// daneben zeigt „Metropole", die Durchstreichung zeigte „stadt" -- das las sich wie ein Tippfehler.
+assert.ok(/>Stadt</.test(zeile("Typ").alt),
+	"die Durchstreichung zeigt nicht die Beschriftung: " + zeile("Typ").alt);
+assert.ok(!/>stadt</.test(zeile("Typ").alt),
+	"die Durchstreichung zeigt den rohen Schluessel statt der Beschriftung: " + zeile("Typ").alt);
 
 // 🔴 Ein Feld OHNE Abweichung traegt weder Durchstreichung noch ↺ -- die Zeile sieht aus wie vorher.
 // ⚠️ ABER DIE ZELLE STEHT DA, leer: das Raster hat drei Spalten, und eine fehlende Zelle schoebe das

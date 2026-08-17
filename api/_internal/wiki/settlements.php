@@ -596,7 +596,20 @@ function avesmapsWikiSettlementParseInfobox(string $title, string $wikitext, str
         $name = $title;
     }
 
-    $class = $settlementClass !== '' ? $settlementClass : 'dorf';
+    // 💣 DIESER RUECKFALL IST EINE VERMUTUNG, DIE ALS DATUM IM NEST LANDET, und am 17.08.2026 hat er
+    // sichtbar Schaden angerichtet: die Wiki-Kategorie von „Gareth" ergab keine Ortsklasse, das Nest
+    // trug daraufhin `settlement_class = 'dorf'`, und der neue Ruecksetzer am Feld bot an, die
+    // METROPOLE Gareth zum Dorf zu machen -- der Owner hat genau das geklickt. Die Sync-Vorschau bot
+    // es schon seit dem 16.08.2026 an; sichtbar wurde es erst mit dem ↺ daneben.
+    // 🔴 Der Rueckfall BLEIBT (die Klasse ist NOT NULL in jeder Anzeige und ein leeres Feld braeche
+    // Listen, Filter und Marker), aber er sagt jetzt, dass er geraten hat. Wer den Wert als AUSSAGE
+    // des Wiki liest -- und nur der Ruecksetzer und die Sync-Vorschau tun das --, muss das
+    // unterscheiden koennen; wer ihn nur ANZEIGT, merkt nichts.
+    // ⚠️ Ein FEHLENDER Schluessel heisst „unbekannt", nicht „nicht geraten": alle vor dem 17.08.2026
+    // geschriebenen Nester tragen ihn nicht, und der Browser behandelt sie deshalb vorsichtig
+    // (avesmapsWikiAssignOrtOrtsgroesse). Das heilt sich mit jedem Abgleich von selbst.
+    $classGuessed = $settlementClass === '';
+    $class = $classGuessed ? 'dorf' : $settlementClass;
     $classLabel = avesmapsWikiSettlementClassLabel($class);
     // Siedlungsart aus der Infobox ist oft leer -> dann Klassen-Label (Dorf/Stadt/...).
     $art = $field(['siedlungsart', 'art', 'typ']);
@@ -617,6 +630,8 @@ function avesmapsWikiSettlementParseInfobox(string $title, string $wikitext, str
         'wiki_key' => avesmapsPoliticalSlug($title),
         'match_key' => avesmapsWikiSyncCreateMatchKey($name),
         'settlement_class' => $class,
+        // 🔴 „Diese Klasse ist geraten, nicht aus dem Wiki gelesen." Siehe die Begruendung oben.
+        'settlement_class_guessed' => $classGuessed,
         'settlement_label' => $classLabel,
         'art' => mb_substr($art, 0, 160, 'UTF-8'),
         'einwohner' => mb_substr($field(['einwohnerzahl', 'einwohner']), 0, 200, 'UTF-8'),

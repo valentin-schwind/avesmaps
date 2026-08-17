@@ -94,8 +94,13 @@ const SIEDLUNG = {
 // 💣 `normalizeLocationType` (js/routing/routing.js:37) gibt bei unbekanntem Wert „dorf" zurueck.
 // Als Vorbelegung eines Auswahlfelds vertretbar, als SYNC-VORSCHLAG eine Vermutung, die echte
 // Daten schreibt -- und hier entscheidet der Wert die DARSTELLUNG des Ortes.
+// 🔴 SEIT 17.08.2026 MIT EINER AUSNAHME, UND SIE IST DER FALL GARETH (unten ausfuehrlich): `dorf`
+// ist zugleich der geratene Rueckfall des SERVER-Parsers, und ein Nest, das nicht sagt, ob geraten
+// wurde, wird vorsichtig gelesen. Die Zusicherung ist MITGEWANDERT, nicht geloescht -- sie nagelt
+// die neue Regel genauso scharf fest wie vorher die alte.
 AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN.forEach((schluessel) => {
-	assert.strictEqual(avesmapsWikiAssignOrtOrtsgroesse(schluessel), schluessel, schluessel + " faellt durch");
+	const nest = { settlement_class_guessed: false }; // „das Wiki sagt das wirklich"
+	assert.strictEqual(avesmapsWikiAssignOrtOrtsgroesse(schluessel, nest), schluessel, schluessel + " faellt durch");
 	zaehl();
 });
 ["burg", "siedlung", "Handelsstadt", "", null, undefined, "Großstadt"].forEach((unbekannt) => {
@@ -1424,3 +1429,39 @@ function skripteAus(htmlDatei, muster) {
 	console.error(fehler);
 	process.exit(1);
 });
+
+// ══ 💣 DER FALL GARETH -- 17.08.2026, LIVE GESEHEN ════════════════════════════════════════════
+// avesmapsWikiSettlementParseInfobox setzt die Ortsklasse auf 'dorf', wenn die Wiki-KATEGORIE
+// keine hergibt, und schreibt die Vermutung als Datum ins Nest. Bei „Gareth" war das so: der neue
+// Ruecksetzer bot an, die METROPOLE zum Dorf zu machen, und der Owner hat es geklickt. Die
+// Sync-Vorschau bot dieselbe Herabstufung schon seit dem 16.08.2026 an -- nur zwei Klicks tiefer.
+//
+// 🪤 Punkt 3 im Kopf dieser Datei sagte, die Klasse „darf NICHT geraten werden" und meinte den
+// CLIENT. Geraten hat der SERVER, und die strenge Client-Regel griff nicht: 'dorf' IST ein
+// gueltiger Schluessel. Die Strenge war an der falschen Seite.
+const { avesmapsWikiAssignOrtGroesseIstGeraten: ortGeraten } = require("../wiki-assign-ort.js");
+
+// 1. Der Server sagt ausdruecklich „geraten" -> die Zeile wird gar nicht erst angeboten.
+assert.strictEqual(avesmapsWikiAssignOrtOrtsgroesse("dorf", { settlement_class_guessed: true }), "",
+	"eine als geraten gemeldete Klasse wird trotzdem angeboten");
+// 2. Der Server sagt ausdruecklich „nicht geraten" -> ein echtes Dorf bleibt uebernehmbar.
+assert.strictEqual(avesmapsWikiAssignOrtOrtsgroesse("dorf", { settlement_class_guessed: false }), "dorf",
+	"ein ECHTES Wiki-Dorf wird nicht mehr angeboten -- die Regel ist zu stumpf geworden");
+// 3. 🔴 ALTES NEST OHNE DEN SCHLUESSEL -> die sichere Richtung, also NICHT anbieten. Genau dieser
+//    Zweig traegt heute den gesamten Livebestand; ohne ihn haette Gareth nichts geschuetzt.
+assert.strictEqual(avesmapsWikiAssignOrtOrtsgroesse("dorf", { title: "Gareth" }), "",
+	"ein altes Nest ohne die Angabe wird als echte Wiki-Aussage gelesen -- das war der Fall Gareth");
+// 4. ⚠️ Die Regel gilt NUR fuer 'dorf'. Jede andere Klasse kann der Parser gar nicht raten, und
+//    sie stumm mitzusperren naehme dem Abgleich seine Arbeit.
+assert.strictEqual(avesmapsWikiAssignOrtOrtsgroesse("metropole", {}), "metropole");
+assert.strictEqual(avesmapsWikiAssignOrtOrtsgroesse("stadt", { settlement_class_guessed: true }), "stadt",
+	"eine andere Klasse wird als geraten behandelt -- der Parser kann nur 'dorf' raten");
+assert.strictEqual(ortGeraten("metropole", {}), false);
+
+// 5. 💣 UND DER WEG DURCH DIE ECHTE WERTELISTE, nicht nur durch die Hilfsfunktion. Ohne diese
+//    Zusicherung koennte jemand den Aufruf auf die alte Ein-Argument-Form zurueckdrehen: die
+//    Hilfsfunktion bliebe gruen, und die Sperre waere lautlos wirkungslos.
+assert.strictEqual(avesmapsWikiAssignOrtWerte({ settlement_class: "dorf", name: "Gareth" }).ortsgroesse, "",
+	"die Werteliste reicht das Nest nicht an die Groessenpruefung durch");
+assert.strictEqual(avesmapsWikiAssignOrtWerte({ settlement_class: "metropole" }).ortsgroesse, "metropole");
+console.log("wiki-assign-ort: der Fall Gareth ist festgenagelt");

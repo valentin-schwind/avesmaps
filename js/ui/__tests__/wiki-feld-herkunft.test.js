@@ -107,4 +107,24 @@ assert.strictEqual(
 	+ "wuerden sich ueber dieselbe Abweichung uneinig"
 );
 
+// ── 💣 DIE ANZEIGE IST NICHT DER VERGLEICHSWERT ────────────────────────────────────────────────
+// Am 17.08.2026 live gesehen: bei der Ortsgroesse steht in beiden Feldern ein SCHLUESSEL („dorf"),
+// waehrend das Auswahlfeld daneben „Metropole" zeigt -- die Durchstreichung las sich wie ein
+// Tippfehler. `wikiAnzeige` uebersetzt, `wikiWert` bleibt die Wahrheit.
+const mitLabel = avesmapsWikiFeldStand(
+	[{ wiki: "ortsgroesse", karte: "feature_subtype" }],
+	{ feature_subtype: "metropole" }, { ortsgroesse: "stadt" }, {},
+	{ feature_subtype: { stadt: "Stadt", metropole: "Metropole" } }
+);
+assert.strictEqual(mitLabel.feature_subtype.wikiAnzeige, "Stadt");
+assert.strictEqual(mitLabel.feature_subtype.wikiWert, "stadt",
+	"der Vergleichswert wurde mit uebersetzt -- dann schriebe das ↺ eine Beschriftung in ein Schluesselfeld");
+
+// ⚠️ Fehlt eine Uebersetzung, gilt der Wert selbst -- nichts wird erfunden.
+const ohneLabel = avesmapsWikiFeldStand(
+	[{ wiki: "einwohner", karte: "einwohner" }],
+	{ einwohner: "6.100" }, { einwohner: "5.900" }, {}, { feature_subtype: { dorf: "Dorf" } }
+);
+assert.strictEqual(ohneLabel.einwohner.wikiAnzeige, "5.900");
+
 console.log("wiki-feld-herkunft: alle Zusicherungen erfuellt");

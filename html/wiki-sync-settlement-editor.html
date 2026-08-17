@@ -1690,7 +1690,13 @@ function buildSettlementEditFormHtml(detail) {
 				oberhaupt: props.oberhaupt || "",
 			},
 			avesmapsWikiAssignOrtWerte(props.wiki_settlement || null),
-			avesmapsWikiAssignOrtHerkunft(props.field_origins)
+			avesmapsWikiAssignOrtHerkunft(props.field_origins),
+			// 🔴 DIE ORTSGROESSE IST DAS EINE FELD, DAS EINEN SCHLUESSEL TRAEGT. Ohne diese
+			// Uebersetzung stand am 17.08.2026 live „dorf" durchgestrichen neben einem Auswahlfeld,
+			// das „Metropole" zeigt -- es las sich wie ein Tippfehler. ⚠️ Die Beschriftungen kommen
+			// aus der EIGENEN Liste dieses Fensters, nicht aus einer dritten: sie ist dieselbe, aus
+			// der das Auswahlfeld daneben gebaut wird.
+			{ feature_subtype: Object.fromEntries(SETTLEMENT_EDIT_TYPE_OPTIONS.map((o) => [o.value, o.label])) }
 		)
 		: {};
 	// Die Beschriftungszelle: braun, wenn WIR das Feld gesetzt haben -- wortgleich zum
@@ -1708,9 +1714,11 @@ function buildSettlementEditFormHtml(detail) {
 			return '<div class="dt-alt"></div>';
 		}
 		const titel = s.herkunft === "manual"
-			? "Von uns gesetzt. Wiki-Stand: " + s.wikiWert
-			: "Weicht vom Wiki ab. Wer den Wert gesetzt hat, wurde nie festgehalten. Wiki-Stand: " + s.wikiWert;
-		return `<div class="dt-alt"><span class="dt-old" title="${settlementEscape(titel)}">${settlementEscape(s.wikiWert)}</span>`
+			? "Von uns gesetzt. Wiki-Stand: " + s.wikiAnzeige
+			: "Weicht vom Wiki ab. Wer den Wert gesetzt hat, wurde nie festgehalten. Wiki-Stand: " + s.wikiAnzeige;
+		// ⚠️ ANGEZEIGT wird `wikiAnzeige`, verglichen und zurueckgesetzt wird `wikiWert` -- bei der
+		// Ortsgroesse ist das "Dorf" gegen "dorf".
+		return `<div class="dt-alt"><span class="dt-old" title="${settlementEscape(titel)}">${settlementEscape(s.wikiAnzeige)}</span>`
 			+ `<button type="button" class="dt-reset" data-wiki-reset="${settlementEscape(feld)}"`
 			+ ` title="Auf Wiki-Stand zurücksetzen">↺</button></div>`;
 	};

@@ -72,14 +72,50 @@ function avesmapsWikiAssignOrtText(wert) {
  * Unbekannt heisst deshalb `""` -- die Diff-Rechnung macht daraus die Zeile „das Wiki sagt nichts —
  * würde die Angabe leeren", und die ist NIE vorangehakt (Aufgabe 2).
  *
- * ⚠️ Der Server setzt die Klasse selbst schon auf „dorf", wenn die Registry keine kennt
- * (avesmapsWikiSettlementParseInfobox: `$class = $settlementClass !== '' ? $settlementClass :
- * 'dorf'`). Diese Funktion kann den Fall also heute kaum sehen -- sie steht trotzdem streng da,
- * weil die einzige Stelle, an der geraten werden koennte, keine sein soll.
+ * 🪤 HIER STAND: „Der Server setzt die Klasse selbst schon auf ‚dorf‘, wenn die Registry keine
+ * kennt … Diese Funktion kann den Fall also heute kaum sehen." Der erste Halbsatz stimmt, der
+ * zweite war die Beruhigung -- und sie war falsch. Am 17.08.2026 hat der Fall die METROPOLE
+ * GARETH getroffen, sichtbar gemacht vom neuen Ruecksetzer. Ein Umbau macht auch die eigenen
+ * SAETZE unwahr, nicht nur die Zahlen; der Satz steht hier korrigiert statt geloescht, damit die
+ * Beruhigung nicht wiederkehrt. Was den Fall jetzt abfaengt, steht direkt darunter.
  */
-function avesmapsWikiAssignOrtOrtsgroesse(settlementClass) {
+function avesmapsWikiAssignOrtOrtsgroesse(settlementClass, nest) {
 	const wert = avesmapsWikiAssignOrtText(settlementClass).toLowerCase();
-	return AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN.indexOf(wert) === -1 ? "" : wert;
+	if (AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN.indexOf(wert) === -1) {
+		return "";
+	}
+	return avesmapsWikiAssignOrtGroesseIstGeraten(wert, nest) ? "" : wert;
+}
+
+/**
+ * REIN: Ist diese Ortsklasse der geratene Rueckfall des Parsers statt einer Aussage des Wiki?
+ *
+ * 💣 DIE FRAGE MUSSTE AM 17.08.2026 GESTELLT WERDEN, WEIL DER RUECKSETZER SIE SICHTBAR MACHTE.
+ * avesmapsWikiSettlementParseInfobox (api/_internal/wiki/settlements.php) setzt die Klasse auf
+ * `'dorf'`, wenn die Wiki-KATEGORIE keine hergibt -- und schreibt die Vermutung als Datum ins Nest.
+ * Bei „Gareth" war genau das der Fall: das ↺ bot an, die Metropole zum Dorf zu machen, und der
+ * Owner hat es geklickt. Die Sync-Vorschau bot dieselbe Herabstufung schon seit dem 16.08.2026 an;
+ * sie war nur zwei Klicks tiefer versteckt.
+ *
+ * 🔴 ZWEI REGELN, UND DIE ZWEITE IST DIE STUMPFE:
+ *   1. Sagt das Nest `settlement_class_guessed`, gilt genau das -- eine Messung, keine Vermutung.
+ *   2. FEHLT der Schluessel (jedes vor dem 17.08.2026 geschriebene Nest), gilt `'dorf'` als
+ *      geraten. Das ist bewusst zu streng: eine echte Dorf-Angabe aus dem Wiki wird dann nicht
+ *      mehr angeboten. Der Preis ist die SICHERE Richtung -- ein nicht angebotener Wert kostet
+ *      einen Handgriff, eine kommentarlos herabgestufte Metropole kostet Daten. Die Strenge
+ *      loest sich mit jedem Abgleich von selbst auf, weil das Nest dann den Schluessel traegt.
+ *
+ * ⚠️ Sie gilt NUR fuer `'dorf'`. Jede andere Klasse kann der Parser gar nicht raten.
+ */
+function avesmapsWikiAssignOrtGroesseIstGeraten(klasse, nest) {
+	if (klasse !== "dorf") {
+		return false;
+	}
+	const n = (nest && typeof nest === "object" && !Array.isArray(nest)) ? nest : {};
+	if (Object.prototype.hasOwnProperty.call(n, "settlement_class_guessed")) {
+		return n.settlement_class_guessed === true;
+	}
+	return true; // altes Nest -- nicht unterscheidbar, also die sichere Richtung
 }
 
 /**
@@ -104,7 +140,8 @@ function avesmapsWikiAssignOrtWerte(quelle) {
 	return {
 		name: avesmapsWikiAssignOrtText(q.name),
 		art: avesmapsWikiAssignOrtText(q.art),
-		ortsgroesse: avesmapsWikiAssignOrtOrtsgroesse(q.settlement_class),
+		// ⚠️ Das GANZE Nest reist mit, nicht nur die Klasse: nur dort steht, ob sie geraten ist.
+		ortsgroesse: avesmapsWikiAssignOrtOrtsgroesse(q.settlement_class, q),
 		lage: avesmapsWikiAssignOrtText(q.lage),
 		einwohner: avesmapsWikiAssignOrtText(q.einwohner),
 		bevoelkerung: avesmapsWikiAssignOrtText(q.bevoelkerung),
@@ -362,6 +399,7 @@ if (typeof module !== "undefined" && module.exports) {
 		AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER: AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER,
 		avesmapsWikiAssignOrtSyncLeer: avesmapsWikiAssignOrtSyncLeer,
 		avesmapsWikiAssignOrtOrtsgroesse: avesmapsWikiAssignOrtOrtsgroesse,
+		avesmapsWikiAssignOrtGroesseIstGeraten: avesmapsWikiAssignOrtGroesseIstGeraten,
 		avesmapsWikiAssignOrtWerte: avesmapsWikiAssignOrtWerte,
 		avesmapsWikiAssignOrtTreffer: avesmapsWikiAssignOrtTreffer,
 		avesmapsWikiAssignOrtTitel: avesmapsWikiAssignOrtTitel,
