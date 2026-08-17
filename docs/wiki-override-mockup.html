@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wiki-Override für alle Objektarten (Mockup)</title>
+<style>
+/* Werte 1:1 aus css/base/tokens.css (dunkles Thema), den Feldklassen der Editorfenster
+   (css/components/editor-page.css) und der Override-Maske des Territoriumseditors
+   (html/wiki-sync-monitor.html:215-222). Klassennamen sind die ECHTEN:
+   .dt-grid / .dt-grid .k / .k.ovr / .dt-old / .dt-reset. Nichts hier ist neu erfunden. */
+:root {
+	--panel:            #312e26;
+	--panel-soft:       #37342b;
+	--text-strong:      #f5f0e4;
+	--color-text:       #e6dfd0;
+	--mut:              #b4a895;
+	--line:             #514a3c;
+	--line-strong:      #615a49;
+	--button-soft:      #3a362c;
+	--button-soft-text: #eae1cf;
+	--button-soft-border: #585142;
+	--accent:           #d7c38b;
+	--accent-brown-text: #e8d5a8;
+	--bad:              #d08a7a;
+
+	--font-size-caption: 11px;
+	--font-size-small:   12px;
+	--font-size-body:    13px;
+	--font-weight-bold:  700;
+	--space-2: 4px; --space-4: 6px; --space-6: 8px; --space-8: 10px;
+	--radius-sm: 5px; --radius-md: 8px;
+	--avm-field-label-w: 130px;   /* der ECHTE Wert aus css/base/tokens.css:551 */
+	--avm-control-h: 30px;
+	/* NEU, und das Einzige, was dieser Entwurf am Raster ändert: die Spalte für den
+	   durchgestrichenen Wiki-Wert samt ↺. So breit wie ihr breitester Inhalt, höchstens 140px --
+	   dadurch stehen ALLE Eingabefelder untereinander, genau wie es editor-page.css:516 verlangt. */
+	--avm-wiki-alt-w: 140px;
+	/* Das Eingabefeld bekommt MINDESTENS DIE HÄLFTE der Rasterbreite (Owner 17.08.2026) -- der
+	   durchgestrichene Wiki-Stand kommt mit dem Rest aus. Das clamp() ist kein Zierrat: ohne die
+	   obere Schranke `100% - 142px` (Beschriftung + zwei Spaltenabstände) fordern die drei Spalten
+	   bei sehr schmalem Fenster mehr als 100 % an, und das Raster schöbe eine waagerechte
+	   Bildlaufleiste unter die Seite. Die untere Schranke hält das Feld auch dann tippbar. */
+	/* 💣 Die 165px sind Beschriftung (130) + zwei Spaltenabstände (12) + das ↺ samt Vorabstand
+	   (18) + Rest. Mit den zuerst gerechneten 142px lief das Raster bei 300px Karte über und
+	   hängte eine waagerechte Bildlaufleiste an — gemessen, nicht überlegt: das ↺ war in der
+	   Rechnung schlicht vergessen. */
+	--avm-wiki-input-min: clamp(90px, 50%, 100% - 165px);
+}
+* { box-sizing: border-box; }
+body {
+	margin: 0; padding: 26px 22px 70px; background: #2a2721; color: var(--color-text);
+	font: var(--font-size-body)/1.5 "Segoe UI", system-ui, sans-serif;
+}
+h1 { font-size: 20px; color: var(--text-strong); margin: 0 0 4px; font-weight: var(--font-weight-bold); }
+h2 {
+	font-size: 16px; color: var(--accent); margin: 34px 0 4px;
+	font-weight: var(--font-weight-bold); border-bottom: 1px solid var(--line); padding-bottom: var(--space-4);
+}
+p.lede { color: var(--mut); max-width: 92ch; margin: 0 0 var(--space-6); }
+p.note { color: var(--mut); font-size: var(--font-size-small); max-width: 96ch; margin: var(--space-8) 0 0; }
+p.note b, p.lede b { color: var(--text-strong); font-weight: var(--font-weight-bold); }
+.grid { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; margin-top: var(--space-8); }
+/* 452px = die echte Breite einer der drei Editorspalten bei 1400px Fenster (editor-page.css:364,
+   `repeat(3, minmax(0,1fr))`), abzüglich Polsterung. Ein zu breites Mockup verspricht Platz,
+   den es live nicht gibt. */
+.col { flex: 0 1 452px; min-width: 380px; }
+.cap { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); color: var(--mut); margin: 0 0 var(--space-4); text-transform: uppercase; letter-spacing: .04em; }
+
+.card { background: var(--panel-soft); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-8) 12px; }
+
+/* ---- Die ECHTEN Feldklassen der Editorfenster (editor-page.css) --------------------------- */
+.dt-grp {
+	display: flex; align-items: center; gap: var(--space-4);
+	margin-top: var(--space-8); padding-top: var(--space-4); border-top: 1px solid var(--line);
+	font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); color: var(--mut);
+}
+.dt-grp:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+.dt-grid { display: grid; grid-template-columns: var(--avm-field-label-w) minmax(0,1fr); margin-top: var(--space-2); font-size: var(--font-size-body); align-items: center; }
+.dt-grid .k { padding: var(--space-2) var(--space-4) var(--space-2) 0; white-space: nowrap; font-weight: var(--font-weight-bold); color: var(--mut); }
+.dt-grid > div:not(.k) { padding: 3px 0; min-width: 0; overflow-wrap: anywhere; color: var(--color-text); }
+.dt-grid input, .dt-grid select {
+	height: var(--avm-control-h); padding: 0 var(--space-4); width: 100%;
+	background: var(--panel); color: var(--color-text);
+	border: 1px solid var(--line-strong); border-radius: var(--radius-sm); font: inherit;
+}
+
+/* ---- Die ECHTEN Override-Klassen des Territoriumseditors (wiki-sync-monitor.html) --------- */
+.k.ovr { color: var(--accent-brown-text); }
+.dt-reset { cursor: pointer; color: var(--mut); font-size: var(--font-size-caption); margin-left: 5px; text-decoration: underline; }
+.dt-old { color: var(--bad); text-decoration: line-through; }
+.dt-arrow { color: var(--mut); margin: 0 3px; }
+.dt-new { font-weight: var(--font-weight-bold); }
+.dt-hint { color: var(--mut); font-size: var(--font-size-caption); margin-top: var(--space-4); }
+
+/* ---- Die EINZIGE Änderung: eine dritte Rasterspalte für den Wiki-Stand --------------------
+   💣 DIE RANGFOLGE STECKT IN DEN ZWEI minmax(): das Eingabefeld hat einen MINDESTPLATZ
+   (--avm-wiki-input-min), die Wiki-Spalte hat nur ein Höchstmass. Wird das Fenster schmal,
+   schrumpft der Wiki-Stand (Auslassungspunkte, voller Wert im Tooltip) -- nie das Feld, in das
+   der Editor tippt. Ohne das erste minmax(0, …) blieb die Wiki-Spalte stehen und das
+   Eingabefeld fiel auf 69px. */
+.dt-grid--wiki {
+	grid-template-columns:
+		var(--avm-field-label-w)
+		minmax(0, max-content)
+		minmax(var(--avm-wiki-input-min), 1fr);
+	column-gap: var(--space-6);
+}
+/* 💣 DIE AUSLASSUNGSPUNKTE GEHOEREN AN DEN TEXT, NICHT AN DIE ZELLE. Stand `overflow:hidden;
+   text-overflow:ellipsis` an `.dt-alt`, wurde der zu lange Wert HART abgeschnitten -- ellipsis
+   wirkt nur auf das Element, dessen EIGENER Text ueberlaeuft, nie auf ein ueberlaufendes Kind.
+   Gemessen am 17.08.2026: „Kosch · Mittelreich" bei 58px Spalte, ohne ein einziges Pünktchen.
+   Das ↺ bleibt `flex:0 0 auto` -- es darf nie mit weggekappt werden. */
+.dt-alt { display: flex; align-items: center; justify-content: flex-end; min-width: 0; max-width: var(--avm-wiki-alt-w); }
+.dt-alt .dt-old { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dt-alt .dt-reset { flex: 0 0 auto; }
+
+table.tbl { border-collapse: collapse; margin-top: var(--space-8); font-size: var(--font-size-small); }
+table.tbl th, table.tbl td { border: 1px solid var(--line); padding: 4px 9px; text-align: left; vertical-align: top; }
+table.tbl th { color: var(--mut); font-weight: var(--font-weight-bold); background: var(--panel); }
+table.tbl td.num { text-align: right; }
+code { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font-size: var(--font-size-caption); }
+
+/* ---- Die Sync-Vorschau des Zuweisungskastens (js/ui/wiki-assign.js, .dt-sync-row) --------- */
+.wa-box { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-8) 12px; }
+.wa-title { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); color: var(--mut); text-transform: uppercase; letter-spacing: .04em; margin-bottom: var(--space-4); }
+.wa-zeile { display: flex; align-items: flex-start; gap: var(--space-6); padding: var(--space-4) 0; border-top: 1px solid var(--line); }
+.wa-zeile:first-of-type { border-top: none; }
+.wa-zeile input { margin-top: 3px; }
+.wa-feld { flex: 1; min-width: 0; }
+.wa-label { font-weight: var(--font-weight-bold); color: var(--color-text); }
+.wa-grund { color: var(--mut); font-size: var(--font-size-caption); }
+.wa-actions { display: flex; gap: var(--space-4); margin-top: var(--space-6); }
+button.soft { height: 28px; padding: 0 10px; border-radius: var(--radius-md); font: inherit; background: var(--button-soft); color: var(--button-soft-text); border: 1px solid var(--button-soft-border); cursor: pointer; }
+button.prim { height: 28px; padding: 0 10px; border-radius: var(--radius-md); font: inherit; background: var(--accent); color: #2c2419; border: 1px solid var(--accent); font-weight: var(--font-weight-bold); cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h1>Wiki-Override für alle Objektarten</h1>
+<p class="lede">
+	Der Territoriumseditor kann drei Dinge, die sonst niemand kann: er <b>zeigt dauerhaft</b>, wo der
+	eigene Wert vom Wiki abweicht — der Wiki-Wert steht <b>durchgestrichen</b> daneben —, er
+	<b>färbt die Beschriftung</b>, wenn wir das Feld gesetzt haben, und er nimmt es <b>feldweise</b>
+	mit <b>↺</b> zurück. Dieses Mockup baut genau das nach, mehr nicht. Beispiel: <b>Ferdok</b>.
+</p>
+
+<h2>0 · So macht es das Territorium heute</h2>
+<div class="grid">
+	<div class="col">
+		<p class="cap">Leseansicht</p>
+		<div class="card">
+			<div class="dt-grid">
+				<div class="k ovr">Anzeigename</div>
+				<div><span class="dt-old">Fürstkomturei Maraskan</span><span class="dt-arrow">→</span><span class="dt-new">Fürstkomturei Tobimora</span></div>
+				<div class="k">Staatsform</div><div>Fürstkomturei</div>
+				<div class="k ovr">Hauptstadt</div>
+				<div><span class="dt-old">(leer)</span><span class="dt-arrow">→</span><span class="dt-new">Tobimora</span></div>
+			</div>
+		</div>
+	</div>
+	<div class="col">
+		<p class="cap">Bearbeiten-Modus</p>
+		<div class="card">
+			<div class="dt-grid">
+				<div class="k ovr">Anzeigename<span class="dt-reset" title="Auf Wiki-Stand zurücksetzen">↺</span></div>
+				<div><input value="Fürstkomturei Tobimora"></div>
+				<div class="k">Staatsform</div><div><input value="Fürstkomturei"></div>
+				<div class="k ovr">Hauptstadt<span class="dt-reset" title="Auf Wiki-Stand zurücksetzen">↺</span></div>
+				<div><input value="Tobimora"></div>
+			</div>
+		</div>
+		<p class="note">
+			Zwei Ansichten, weil die Territoriumsmaske normalerweise nur liest. Im Bearbeiten-Modus
+			verschwindet der durchgestrichene Wiki-Wert — <b>das ist die einzige Schwäche des
+			Vorbilds</b>, und sie fällt hier weg: die anderen Editoren sind ohnehin immer Formulare,
+			also stehen Durchstreichung, ↺ und Eingabefeld nebeneinander.
+		</p>
+	</div>
+</div>
+
+<h2>1 · Der Ortseditor: heute und neu</h2>
+<div class="grid">
+	<div class="col">
+		<p class="cap">Heute</p>
+		<div class="card">
+			<div class="dt-grp">Identität</div>
+			<div class="dt-grid">
+				<div class="k">Name</div><div><input value="Ferdok"></div>
+				<div class="k">Typ</div><div><select><option>Großstadt</option></select></div>
+				<div class="k">Einwohner</div><div><input value="6.100"></div>
+				<div class="k">Lage</div><div><input value="Kosch · Kaiserreich Mittelreich"></div>
+				<div class="k">Herrscher</div><div><input value="Growin Sohn des Bregdan"></div>
+			</div>
+		</div>
+		<p class="note">
+			Nichts sagt, welcher Wert <b>gesynct</b> und welcher <b>von uns</b> ist. Der Unterschied
+			zum Wiki wird nur auf Knopfdruck sichtbar und lässt sich nicht zurücknehmen.
+		</p>
+	</div>
+
+	<div class="col">
+		<p class="cap">Neu</p>
+		<div class="card">
+			<div class="dt-grp">Identität</div>
+			<div class="dt-grid dt-grid--wiki">
+				<div class="k">Name</div>
+				<div class="dt-alt"></div>
+				<div><input value="Ferdok"></div>
+
+				<div class="k">Typ</div>
+				<div class="dt-alt"><span class="dt-old" title="Wiki-Stand: Stadt">Stadt</span><span class="dt-reset" title="Auf Wiki-Stand zurücksetzen">↺</span></div>
+				<div><select><option>Großstadt</option></select></div>
+
+				<div class="k ovr">Einwohner</div>
+				<div class="dt-alt"><span class="dt-old" title="Wiki-Stand: 5.900">5.900</span><span class="dt-reset" title="Auf Wiki-Stand zurücksetzen">↺</span></div>
+				<div><input value="6.100"></div>
+
+				<div class="k ovr">Lage</div>
+				<div class="dt-alt"><span class="dt-old" title="Wiki-Stand: Kosch · Mittelreich">Kosch · Mittelreich</span><span class="dt-reset" title="Auf Wiki-Stand zurücksetzen">↺</span></div>
+				<div><input value="Kosch · Kaiserreich Mittelreich"></div>
+
+				<div class="k">Herrscher</div>
+				<div class="dt-alt"></div>
+				<div><input value="Growin Sohn des Bregdan"></div>
+			</div>
+		</div>
+		<p class="note">
+			<b>Alle Eingabefelder stehen untereinander</b>, alle Zeilen sind gleich hoch, und wo
+			nichts abweicht, ist die mittlere Spalte leer — die Zeile sieht aus wie heute.
+			<br><b>🔴 Das Eingabefeld bekommt mindestens die HÄLFTE der Rasterbreite</b>
+			(Owner 17.08.2026); der durchgestrichene Wiki-Stand kommt mit dem Rest aus und weicht
+			als Erster. Über fünf Rasterbreiten gemessen:
+		</p>
+		<table class="tbl">
+			<tr><th class="num">Raster</th><th class="num">Feld</th><th class="num">Anteil</th><th>„Kosch · Mittelreich"</th></tr>
+			<tr><td class="num">614 px</td><td class="num">349 px</td><td class="num">57 %</td><td>voll</td></tr>
+			<tr><td class="num">534 px</td><td class="num">269 px</td><td class="num">50 %</td><td>voll</td></tr>
+			<tr><td class="num">426 px</td><td class="num">213 px</td><td class="num">50 %</td><td>gekürzt auf 53 px</td></tr>
+			<tr><td class="num">354 px</td><td class="num">177 px</td><td class="num">50 %</td><td>gekürzt auf 17 px</td></tr>
+			<tr><td class="num">274 px</td><td class="num">109 px</td><td class="num">40 %</td><td>verschwindet ganz</td></tr>
+		</table>
+		<p class="note">
+			Ab <b>534 px</b> Rasterbreite passt beides: halbes Feld <i>und</i> der längste Wiki-Wert
+			ungekürzt. Darunter wird gekürzt (voller Wert im Tooltip), das <b>↺ bleibt immer
+			sichtbar</b>. Unter 274 px greift eine untere Schranke: dann bekommt das Feld weniger als
+			die Hälfte, statt dass das Raster über den Rand läuft und eine waagerechte Bildlaufleiste
+			anhängt.
+			<br>🔧 <b>Wie breit die Detailspalte des Ortseditors live wirklich ist, habe ich NICHT
+			gemessen</b> — dafür braucht es eine angemeldete Sitzung. Liegt sie unter 534 px und
+			stören die Kürzungen, gibt es genau einen Hebel: die Beschriftungsspalte dieses Fensters
+			von 130 auf 96 px. Sie ist eine gemeinsame Variable, also rücken alle Raster des Fensters
+			zusammen mit und es bleibt bündig.
+		</p>
+	</div>
+</div>
+
+<h2>2 · Was die Zeile sagt</h2>
+<table class="tbl">
+	<tr><th>Was man sieht</th><th>heißt</th><th>Wirkung auf den Abgleich</th></tr>
+	<tr><td><b style="color:var(--accent-brown-text)">Einwohner</b> &nbsp; <span class="dt-old">5.900</span> <span class="dt-reset">↺</span></td>
+		<td>Braune Beschriftung: <b>wir</b> haben das Feld gesetzt. Daneben der Wiki-Stand, durchgestrichen.</td>
+		<td>Ein Wiki-Abgleich fasst es nicht mehr an; in der Sync-Vorschau nie vorangehakt.</td></tr>
+	<tr><td>Typ &nbsp; <span class="dt-old">Stadt</span> <span class="dt-reset">↺</span></td>
+		<td>Beschriftung normal: weicht vom Wiki ab, aber <b>wer</b> es gesetzt hat, wurde nie festgehalten.</td>
+		<td>Wie heute: nicht vorangehakt. Der Zustand am ersten Tag; er löst sich mit jeder Bearbeitung auf.</td></tr>
+	<tr><td>Name &nbsp; <i>(mittlere Spalte leer)</i></td>
+		<td>Kein Unterschied zum Wiki — oder gar kein Wiki-Artikel zugewiesen.</td>
+		<td>Die Zeile taucht in der Sync-Vorschau gar nicht auf.</td></tr>
+</table>
+<p class="note">
+	Zwei sichtbare Zustände, wie beim Territorium — <b>kein drittes Abzeichen.</b> Dass ein Wert
+	zuletzt aus dem Wiki kam, wird zwar mitgeschrieben, aber nicht angezeigt: es steht an fast jedem
+	gepflegten Feld und wäre reine Verzierung. Benutzt wird es dort, wo es etwas ändert — beim
+	Vorhäkeln der Sync-Vorschau.
+</p>
+
+<h2>3 · Was das ↺ tut — und warum es nichts Neues ist</h2>
+<div class="grid">
+	<div class="col">
+		<p class="cap">Nach dem Klick auf ↺ bei „Einwohner"</p>
+		<div class="card">
+			<div class="dt-grid dt-grid--wiki">
+				<div class="k">Einwohner</div>
+				<div class="dt-alt"></div>
+				<div><input value="5.900"></div>
+			</div>
+			<div class="dt-hint">Aus dem Wiki übernommen — noch nicht gespeichert.</div>
+		</div>
+		<p class="note">
+			Durchstreichung und braune Beschriftung sind weg, weil es nichts mehr zu unterscheiden
+			gibt. Das ↺ ist die <b>Sync-Übernahme einer einzigen Zeile</b>: es füllt das Feld mit dem
+			Wiki-Wert und überlässt das Schreiben der Speicherleiste — wortgleich zu dem, was der
+			Knopf „Sync" heute für alle angehakten Zeilen tut. <b>Kein neuer Schreibweg</b>, kein
+			zweiter Endpunkt.
+		</p>
+	</div>
+
+	<div class="col">
+		<p class="cap">Die Sync-Vorschau — genauer statt vorsichtig</p>
+		<div class="wa-box">
+			<div class="wa-title">Aus dem Wiki übernehmen</div>
+			<div class="wa-zeile">
+				<input type="checkbox" checked>
+				<div class="wa-feld"><span class="wa-label">Herrscher</span> ·
+					<span class="dt-old">Growin Sohn des Bregdan</span><span class="dt-arrow">→</span><span class="dt-new">Growin, Sohn des Bregdan</span>
+					<div class="wa-grund">kam zuletzt aus dem Wiki — Auffrischen ist gefahrlos</div>
+				</div>
+			</div>
+			<div class="wa-zeile">
+				<input type="checkbox">
+				<div class="wa-feld"><span class="wa-label">Einwohner</span> ·
+					<span class="dt-old">6.100</span><span class="dt-arrow">→</span><span class="dt-new">5.900</span>
+					<div class="wa-grund">von uns gesetzt — würde zurückgedreht</div>
+				</div>
+			</div>
+			<div class="wa-zeile">
+				<input type="checkbox">
+				<div class="wa-feld"><span class="wa-label">Typ</span> ·
+					<span class="dt-old">Großstadt</span><span class="dt-arrow">→</span><span class="dt-new">Stadt</span>
+					<div class="wa-grund">auf der Karte steht bereits ein Wert</div>
+				</div>
+			</div>
+			<div class="wa-actions"><button class="soft">Alle anhaken</button><button class="prim">Übernehmen</button></div>
+		</div>
+		<p class="note">
+			Heute ist <b>gar nichts</b> vorangehakt, sobald auf der Karte irgendein Wert steht — weil
+			niemand wissen konnte, ob er von Hand kam. Mit der Herkunft <b>kann</b> man es wissen.
+			<b>Am ersten Tag ändert sich dadurch nichts</b> — es ist noch keine Herkunft festgehalten,
+			also bleibt alles ungehakt wie heute.
+		</p>
+	</div>
+</div>
+
+<h2>4 · Wie viel Arbeit das je Objektart ist — gemessen, nicht geschätzt</h2>
+<p class="lede">
+	Der Owner sagt: <b>nur bei Feldern, die aus dem Wiki kommen</b>. Diese Felder stehen bereits
+	abschließend im Feldregister (<code>js/ui/wiki-assign-registry.js</code>) — es sind die Zeilen mit
+	einem Kartenziel. Gezählt am 17.08.2026:
+</p>
+<table class="tbl">
+	<tr><th>Objektart</th><th class="num">Felder aus dem Wiki</th><th>welche</th><th>Ablage der Herkunft</th></tr>
+	<tr><td>Ort</td><td class="num">5</td><td>Name · Ortsgröße · Einwohner · Lage · Herrscher</td><td><code>properties_json</code> — vorhanden</td></tr>
+	<tr><td>Literatur</td><td class="num">10</td><td>Titel · Produkttyp · Regelsystem · Serie · Autoren · Genre · 2× Komplexität · F-Shop · ISBN</td><td><code>field_origins_json</code> — <b>vorhanden, aber kaputt</b></td></tr>
+	<tr><td>Region / Landschaft</td><td class="num">2</td><td>Name · Landschaftsart</td><td><code>properties_json</code> — vorhanden</td></tr>
+	<tr><td>Region / Landschafts-Label</td><td class="num">2</td><td>Text · Kategorie</td><td><code>properties_json</code> — vorhanden</td></tr>
+	<tr><td>Weg</td><td class="num">2</td><td>Wegtyp · Name (den schreibt der Server bei der Zuweisung)</td><td><code>properties_json</code> — vorhanden</td></tr>
+	<tr><td>Territorium</td><td class="num">—</td><td colspan="2">hat es bereits (<code>metadata_overrides_json</code>)</td></tr>
+	<tr><td>Kraftlinie</td><td class="num">0</td><td colspan="2">4 Wiki-Felder, aber <b>kein einziges bearbeitbares Kartenfeld</b> — es gibt nichts, was abweichen könnte</td></tr>
+	<tr><td>Karte (Stadtplan)</td><td class="num">0</td><td colspan="2">der Artikel wird zugewiesen, aber <b>kein Wert daraus übernommen</b></td></tr>
+</table>
+<p class="note">
+	<b>21 Felder in 5 Objektarten</b>, verteilt auf 8 Oberflächen. Keine neue Tabelle, keine neue
+	Spalte, keine Datenwanderung: alle fünf haben schon eine Eigenschaftenspalte. Kraftlinie und
+	Karte bekommen nichts — nicht aus Faulheit, sondern weil dort kein Wiki-Wert auf einem Kartenfeld
+	landet. Sobald einer landet, kostet es dieselbe eine Registerzeile wie überall.
+</p>
+
+<h2>5 · Die eine Regel, die alles trägt</h2>
+<p class="lede">
+	<b>Beim Speichern bekommt jedes Feld, dessen Wert sich wirklich ändert, eine Herkunft:</b>
+	„Wiki", wenn die Anfrage dieses Feld ausdrücklich als Wiki-Übernahme nennt — sonst „von uns".
+	Ein Feld, das sich nicht ändert, wird nicht angefasst.
+</p>
+<p class="note">
+	Beide Hälften sind nötig, und beide sind teuer erkauft: <b>nur was sich ändert</b> — sonst
+	passiert genau das, was bei der Literatur schon passiert ist (dort trägt heute <b>jedes je
+	gespeicherte Feld</b> die Herkunft „von Hand", weil das Formular beim Speichern immer alle Felder
+	mitschickt; die Auskunft ist damit wertlos). Und <b>im Zweifel „von uns"</b> — eine falsche
+	„Wiki"-Angabe ließe einen Abgleich später eine Handarbeit überschreiben, eine falsche
+	„von uns"-Angabe schützt nur zu viel.
+</p>
+
+</body>
+</html>
