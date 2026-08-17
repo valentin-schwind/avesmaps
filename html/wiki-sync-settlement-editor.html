@@ -1406,7 +1406,13 @@ function selectSettlementRow(item, rowKey) {
 	selectedPublicId = item && item.public_id ? item.public_id : null;
 	const list = $("seList");
 	if (list) {
-		for (const row of list.querySelectorAll(".se-row")) row.classList.toggle("is-selected", row.dataset.rowKey === rowKey);
+		// 💣 Hier stand ".se-row" -- die Klasse, die renderSettlementRowElement seit dem 14.08.2026
+		// nicht mehr setzt (sie heisst .avm-row). Der Selektor warf nicht, er lieferte eine leere
+		// Liste: die Hervorhebung blieb beim Anklicken auf der zuvor gewaehlten Zeile stehen, bis
+		// Suche/Filter/Reiter die Liste aus einem anderen Grund neu zeichneten. Gewacht von
+		// js/pages/__tests__/ortsliste-auswahl-wandert.test.js (klickt die Zeile wirklich an) und
+		// js/pages/__tests__/editor-row-single-source.test.js (verbietet den toten Selektor).
+		for (const row of list.querySelectorAll(".avm-row")) row.classList.toggle("is-selected", row.dataset.rowKey === rowKey);
 	}
 	if (selectedPublicId) {
 		renderSettlementDetail(selectedPublicId);

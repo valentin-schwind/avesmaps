@@ -75,6 +75,35 @@ for (const datei of editoren) {
 	checks++;
 }
 
+// ---- Und die Gegenrichtung: niemand darf eine tote Zeilenklasse mehr ABFRAGEN ------------------
+// 💣 Aus dem CSS sind die Abschriften verschwunden, im JS standen ihre Namen weiter. Der
+// Ortseditor schaltete die Auswahl-Hervorhebung seiner Liste ueber
+// `list.querySelectorAll(".se-row")` um -- seit dem 14.08.2026 eine LEERE Liste, die Schleife
+// darueber tat also gar nichts. Die Hervorhebung blieb beim Anklicken auf der zuvor gewaehlten
+// Zeile stehen, bis Suche, Filter oder Reiter die Liste aus einem anderen Grund neu zeichneten;
+// es sah nach einem Aussetzer aus, nicht nach einem Fehler. Gefunden am 17.08.2026.
+//
+// 🔴 Der Test oben konnte das nicht sehen: er prueft REGELN, und die Regel war ja korrekt
+// entfernt. Eine Abschrift stirbt im CSS, ihr Name lebt im JS weiter -- und ein Selektor auf
+// eine Klasse, die es nicht gibt, wirft nicht.
+//
+// 🔴 Geprueft wird nur die AUFRUFFORM, nicht das blosse Wort -- dieselbe Falle wie beim
+// 11px-Test: die Kommentare dieser Dateien schreiben `.se-row` woertlich hin, und ein Test, der
+// sie mitliest, meldet seine eigene Begruendung als Verstoss.
+// ⚠️ .se-row-coat, .se-row-terr, .se-row-imgcount und .ce-item__thumb leben weiter: das sind die
+// ortsgebundenen Teile, die .avm-row nicht kennt. Die Wortgrenze (?![\w-]) trennt sie ab.
+const toteAbfrage = /(?:querySelector|querySelectorAll|closest|matches)\(\s*["'`][^"'`]*\.(se-row|ae-item|ce-item)(?![\w-])/g;
+const jsQuellen = editoren.map((d) => ["html", d]).concat([["js", "pages", "wege-editor.js"]]);
+for (const teile of jsQuellen) {
+	const treffer = lies(...teile).match(toteAbfrage) || [];
+	assert.deepStrictEqual(treffer, [],
+		`${teile.join("/")} fragt eine Zeilenklasse ab, die keine Zeile mehr traegt. Die `
+		+ "Listenzeile der Editoren heisst .avm-row (css/components/editor-row.css). So ein Selektor "
+		+ "wirft nicht -- er liefert eine leere Liste, und die Schleife darueber tut lautlos gar "
+		+ "nichts. Gefunden: " + treffer.join(" "));
+	checks++;
+}
+
 // ---- Das Original traegt die Skala --------------------------------------------------------------
 // 🔴 Es steht seit 2026-08-15 in css/components/editor-row.css, NICHT mehr in editor-page.css.
 // Grund: der Vorkommeneditor ist der einzige der sieben, der kein iframe ist -- er lebt als Dialog
