@@ -55,6 +55,14 @@ let territoryWikiAssign = null;
 // gebraucht, weil die Vorschauzeile nur den NAMEN traegt -- aufgeloest wird ueber die Kennung, nie
 // ueber den Namen (js/ui/wiki-assign-territorium.js).
 let territoryWikiEltern = { name: "", public_id: "", gesperrt: true, grund: "" };
+// 🔴 DER GELADENE STAND DER DREI FORMULARFELDER -- der Bezugspunkt für „Abbrechen"
+// (territoryWikiAssignVerwerfen). Hier liegt der Entwurf NICHT in einer Variablen, sondern im
+// FORMULAR: `territoryWikiAssignZuweisen` schreibt `region-edit-wiki-id`, `-wiki-url` und ggf.
+// `-coat-url`, und `territoryWikiAssignZustand` liest sie wieder. Ohne diesen Abzug könnte der
+// Rückweg nur „auf leer" heißen.
+// ⚠️ Gefüllt wird er in `renderRegionWikiReference`, also genau dann, wenn der Dialog seine Werte
+// schon eingesetzt hat (`populateRegionEditForm` ruft ihn zuletzt) und noch niemand geklickt hat.
+let territoryWikiFelderGeladen = { wiki_id: "", wiki_url: "", coat_url: "" };
 
 async function ladeTerritoriumModell() {
 	if (territoryWikiModell) {
@@ -205,6 +213,40 @@ function territoryWikiAssignLoesen() {
 	toggleTerritoryOtherSourceSection(false);
 }
 
+/**
+ * „Abbrechen" im Zuweisungskasten: die ungespeicherte Zuweisungsänderung verwerfen.
+ *
+ * 🔴 Der Entwurf liegt in den FORMULARFELDERN, nicht im Bauteil -- `update_territory` schickt
+ * `wiki_id`/`wiki_url` bei jedem Speichern mit. Ohne diese Rücknahme zeigte der Kasten nach dem
+ * `neuLaden()` wieder den alten Artikel (er liest ja dieselben Felder), aber nur, weil sie schon
+ * überschrieben WAREN -- verworfen wäre gar nichts.
+ * ⚠️ Zurück auf den GELADENEN Stand, auch beim WAPPEN: `territoryWikiAssignZuweisen` überschreibt
+ * `region-edit-coat-url`, sobald der Treffer eines mitbringt. Es hier stehenzulassen hieße, ein
+ * Wappen zu behalten, dessen Herkunft der Editor gerade abgelehnt hat.
+ * ⚠️ Die STAATSFORM bleibt dagegen, wie sie ist: `territoryWikiStaatsform` setzt ein sichtbares
+ * Auswahlfeld, und es zurückzudrehen könnte eine seither von Hand getroffene Wahl zerstören --
+ * dieselbe Regel wie beim Namen der Landschaft und der Kategorie des Labels.
+ */
+function territoryWikiAssignVerwerfen() {
+	const kennung = territoryWikiElement("region-edit-wiki-id");
+	if (kennung) {
+		kennung.value = territoryWikiFelderGeladen.wiki_id;
+	}
+	const adresse = territoryWikiElement("region-edit-wiki-url");
+	if (adresse) {
+		adresse.value = territoryWikiFelderGeladen.wiki_url;
+	}
+	const wappen = territoryWikiElement("region-edit-coat-url");
+	if (wappen) {
+		wappen.value = territoryWikiFelderGeladen.coat_url;
+	}
+	// Der Eltern-Vorschlag hängt am Schlüssel; `territoryWikiAssignZustand` rechnet ihn beim
+	// folgenden `neuLaden()` neu -- hier steht er nur auf einen unverfänglichen Anfangswert.
+	territoryWikiEltern = { name: "", public_id: "", gesperrt: true, grund: "" };
+	syncRegionCoatPreview();
+	toggleTerritoryOtherSourceSection(territoryWikiFelderGeladen.wiki_id !== "");
+}
+
 // „Andere Quelle" ist nur sichtbar, solange KEINE Wiki-Zuweisung besteht -- dieselbe Regel wie in
 // jedem anderen Editor des Hauses (js/review/review-other-source.js).
 function toggleTerritoryOtherSourceSection(hatWiki) {
@@ -264,6 +306,14 @@ function renderRegionWikiReference() {
 		territoryWikiAssign.zerstoeren();
 		territoryWikiAssign = null;
 	}
+	// 🔴 DER ABZUG DES GELADENEN STANDES, und er MUSS vor dem Mount stehen: `laden` läuft sofort und
+	// liest dieselben Felder. Danach kann nur noch ein Klick sie verändert haben -- und genau den
+	// nimmt „Abbrechen" zurück.
+	territoryWikiFelderGeladen = {
+		wiki_id: territoryWikiWert("region-edit-wiki-id"),
+		wiki_url: territoryWikiWert("region-edit-wiki-url"),
+		coat_url: territoryWikiWert("region-edit-coat-url"),
+	};
 	territoryWikiAssign = avesmapsWikiAssignMount(host, {
 		subject: "territorium",
 		// Der Kartendialog: index.html laedt css/components/region-sync.css, nicht editor-page.css.
@@ -274,6 +324,7 @@ function renderRegionWikiReference() {
 		// (avesmapsWikiAssignTerritoriumZustand). Ein Bauer hier waere tot und laese sich wie ein Beleg.
 		zuweisen: territoryWikiAssignZuweisen,
 		loesen: territoryWikiAssignLoesen,
+		verwerfen: territoryWikiAssignVerwerfen,
 		syncUebernehmen: territoryWikiAssignSyncUebernehmen,
 	});
 }

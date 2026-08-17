@@ -124,7 +124,12 @@ const FENSTER = [
 		abschnitte: [
 			["Identität (Name/Art)", 'data-f="name"'],
 			["Wiki-Zuweisung", 'data-f="wiki-host"'],
-			["Dauerzeile „erst mit Speichern“", "Zuweisen und Lösen wirken hier erst mit"],
+			// 🪤 HIER STAND „Dauerzeile ‚erst mit Speichern‘". Sie ist am 17.08.2026 ins BAUTEIL
+			// gewandert (js/ui/wiki-assign.js, gesteuert von `schreibt` im Feldregister) und steht
+			// deshalb nicht mehr im Quelltext DIESES Erzeugers -- der Test hier liest Quelltext.
+			// Bewacht wird sie jetzt von js/ui/__tests__/wiki-assign-schreibzeile.test.js, das den
+			// erzeugten Kasten baut statt eine Zeichenkette zu suchen. Die REIHENFOLGE der
+			// Abschnitte ist davon unberührt.
 			["Quellen", '"dt-grp">Quellen<'],
 			["Speicherleiste", '"avm-savebar"'],
 		],

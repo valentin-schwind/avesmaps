@@ -40,6 +40,13 @@ Object.entries(AVESMAPS_WIKI_ASSIGN_REGISTRY).forEach(([subject, e]) => {
 	assert.ok(typeof e.label === "string" && e.label !== "", subject + ": label fehlt");
 	assert.ok(Array.isArray(e.felder), subject + ": felder ist keine Liste");
 	assert.ok(typeof e.sync === "boolean", subject + ": sync ist kein Wahrheitswert");
+	// 🔴 WANN DER KASTEN SCHREIBT -- „sofort" oder erst mit „Speichern". Aus diesem einen Wert fallen
+	// die Dauerzeile, der Zustand „noch nicht gespeichert" und der Verwerfen-Knopf; fehlt er, schweigt
+	// der Kasten dieser Objektart genau ueber die Frage, wegen der es die Zeile gibt (Owner-Befund
+	// 16.08.2026). Die gemessene TAFEL je Objektart steht in
+	// js/ui/__tests__/wiki-assign-schreibzeile.test.js -- hier steht nur die Form.
+	assert.ok(e.schreibt === "sofort" || e.schreibt === "speichern",
+		subject + ": schreibt ist weder \"sofort\" noch \"speichern\" (" + JSON.stringify(e.schreibt) + ")");
 	// 💣 Der Sync-Knopf haengt an den FELDERN, nicht am Abgleich: wer keine bearbeitbaren Felder
 	// hat, darf keinen Knopf anbieten -- sonst stuende dort einer, der nichts holen kann.
 	const hatZiele = e.felder.some((f) => String(f.karte || "") !== "");

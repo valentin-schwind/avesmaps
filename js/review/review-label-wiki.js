@@ -72,10 +72,17 @@ function labelWikiRegionFromRow(row) {
 // verändert" rechnet. 🔴 Er kommt mit dem Label (`properties.wiki_no_article`) und wird hier NICHT
 // gepflegt: das Häkchen wohnt im Bauteil, bis „Speichern" es abholt.
 let labelWikiKeinArtikelGeladen = false;
+// 🔴 DER GELADENE STAND DER ZUWEISUNG -- der Bezugspunkt für „Abbrechen" (labelWikiAssignVerwerfen).
+// Ohne ihn könnte der Rückweg nur „auf leer" heißen, und ein Abbrechen NACH einem „Lösen" bestätigte
+// die Löschung, statt sie zurückzunehmen.
+// ⚠️ Er wird an denselben zwei Stellen gesetzt wie `currentLabelWikiRegion` selbst, und NUR dort:
+// jede weitere Setzstelle wäre die zweite Wahrheit darüber, was „geladen" heißt.
+let labelWikiRegionGeladen = null;
 
 /** Der Stand, den ein Label lädt. Ruft das Bauteil neu auf, damit der Kasten dem Label folgt. */
 function setLabelWikiRegion(wiki, keinArtikel) {
 	currentLabelWikiRegion = wiki && wiki.wiki_key ? wiki : null;
+	labelWikiRegionGeladen = currentLabelWikiRegion;
 	labelWikiSchnappschuss = null;
 	labelWikiKeinArtikelGeladen = keinArtikel === true;
 	toggleLabelOtherSourceSection();
@@ -95,6 +102,7 @@ function assignLabelWikiRegionToForm(wiki) {
 
 function resetLabelWikiState() {
 	currentLabelWikiRegion = null;
+	labelWikiRegionGeladen = null;
 	labelWikiSchnappschuss = null;
 	labelWikiKeinArtikelGeladen = false;
 	toggleLabelOtherSourceSection();
@@ -221,6 +229,26 @@ function labelWikiAssignLoesen() {
 }
 
 /**
+ * „Abbrechen" im Zuweisungskasten: die ungespeicherte Zuweisungsänderung verwerfen.
+ *
+ * 🔴 Der Entwurf liegt HIER (`currentLabelWikiRegion`), nicht im Bauteil -- `buildLabelEditPayload`
+ * liest ihn beim Speichern. Ohne diese Rücknahme zeigte der Kasten nach dem `neuLaden()` wieder den
+ * alten Artikel, während das nächste „Speichern" den verworfenen schriebe.
+ * ⚠️ Zurück auf den GELADENEN Stand, nicht auf `null`: ein Abbrechen nach einem „Lösen" muss die
+ * vorhandene Zuweisung wiederherstellen.
+ * ⚠️ Die KATEGORIE bleibt, wie sie ist. `labelWikiAssignZuweisen` setzt sie mit
+ * (`labelWikiKategorieAusArt`), aber sie ist ein sichtbares Auswahlfeld -- sie zurückzudrehen könnte
+ * eine seither von Hand getroffene Wahl zerstören. Dieselbe Regel wie beim Namen der Landschaft.
+ */
+function labelWikiAssignVerwerfen() {
+	currentLabelWikiRegion = labelWikiRegionGeladen;
+	// 💣 Auf `null`, nicht auf einen gemerkten Schnappschuss: `labelWikiAssignZustand` holt ihn selbst
+	// nach, sobald der Schlüssel wieder steht.
+	labelWikiSchnappschuss = null;
+	toggleLabelOtherSourceSection();
+}
+
+/**
  * ⚠️ ÜBERNEHMEN FÜLLT NUR DAS FORMULAR -- gespeichert wird mit „Speichern".
  * 🔴 WIRFT, wenn nichts anzuwenden war: das Bauteil liest eine Ablehnung als „es ist nichts
  * passiert" und lässt die Vorschau stehen.
@@ -269,6 +297,7 @@ function mountLabelWikiAssign() {
 		trefferAufbereiten: (zeile) => avesmapsWikiAssignLandschaftTreffer(zeile, labelWikiArten()),
 		zuweisen: labelWikiAssignZuweisen,
 		loesen: labelWikiAssignLoesen,
+		verwerfen: labelWikiAssignVerwerfen,
 		syncUebernehmen: labelWikiAssignSyncUebernehmen,
 	});
 }

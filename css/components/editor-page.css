@@ -761,6 +761,33 @@ body.avm-editor-body {
 	color: var(--color-text-muted);
 }
 
+/* Die SCHREIBZEILE des Zuweisungskastens (js/ui/wiki-assign.js, Rolle `schreibZeile`): sie steht
+   DAUERHAFT unten im Kasten und sagt, wann eine Zuweisung wirkt -- sofort oder erst mit
+   „Speichern". Gegenstueck: .label-wiki-reference__schreibzeile (css/components/region-sync.css).
+   ⚠️ Sie sieht dem .dt-hint darueber absichtlich gleich: sie IST ein Hinweis, nur einer, der nie
+      verschwindet. Eine eigene Rolle hat sie trotzdem, weil .dt-hint abwechselnd den Zaehlsatz der
+      Suche, den Rat des Leerzustands und die Erklaerung des dritten Zustands traegt.
+   💣 KEINE eigene Schriftgroesse unter --font-size-caption (11px ist die Untergrenze, AGENTS.md
+      §12) -- genau daran sind die abgeschriebenen Listenzeilen gescheitert. */
+.dt-schreibzeile {
+	padding-top: var(--space-2);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+/* „Noch nicht gespeichert" -- der Zustand, der bis zum 17.08.2026 UNSICHTBAR war und den
+   Owner-Befund ausgeloest hat. Warnton aus den Token, kein eigener Farbwert.
+   ⚠️ Der Rahmen sitzt LINKS, nicht rundum: ein Kasten im Kasten waere die Gruppierung durch Rahmen,
+      die AGENTS.md §12 ausschliesst -- gruppiert wird durch Trenner. */
+.dt-schreibzeile.is-ungespeichert {
+	margin-top: var(--space-2);
+	padding: var(--space-2) var(--space-4);
+	border-left: 3px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-warning-soft);
+	color: var(--color-warning-soft-text);
+}
+
 /* Der GEFUELLTE Knopf der Sync-Vorschau. 🔴 Die Fuellung folgt der Haupthandlung (AGENTS.md §12),
    und in diesem Kasten WANDERT sie: solange nichts angehakt ist, ist „Alle anhaken" die Handlung,
    die der Editor als naechstes ausfuehren will -- „Uebernehmen" ist dann abgeschaltet. Ab dem ersten

@@ -280,6 +280,28 @@ async function autoConnectSettlementWikiByUrl(publicId, wikiUrl, markerEntry) {
  * unveraendert steht. ⚠️ Ohne public_id (Anlege-Fall) gibt es nur die oertlich gemerkte Wahl; die
  * zurueckzunehmen kann nicht scheitern, also ist das der einzige Zweig ohne Netzweg.
  */
+/**
+ * „Abbrechen" im Zuweisungskasten -- er erscheint hier NUR im Anlegefall (siehe `schreibt` am
+ * `mount`): solange der Ort eine `public_id` hat, steht die Zuweisung schon in der Datenbank, und
+ * der Rückweg heißt „Entfernen".
+ *
+ * 🔴 Zurück auf „nichts vorgemerkt", nicht auf einen früheren Stand: ein Ort, den es noch nicht
+ * gibt, hatte nie eine gespeicherte Zuweisung -- der geladene Stand IST leer.
+ * 💣 Das versteckte Adressfeld muss MIT geleert werden. `buildLocationEditPayload` schickt es beim
+ * Anlegen mit, und der Auto-Connect nach `create_point` sucht sich genau daraus seine Verbindung:
+ * bliebe es stehen, wäre der Ort trotz Abbruch verbunden (die Fehlerklasse aus Discord #38).
+ * ⚠️ Der ORTSNAME bleibt, wie er ist -- er ist ein sichtbares Feld, und der Typeahead daneben kann
+ * ihn ebenso gesetzt haben wie dieser Kasten.
+ */
+function settlementWikiVerwerfen() {
+	locationEditPendingWikiSettlement = null;
+	const wikiUrlField = settlementWikiElement("location-edit-wiki-url");
+	if (wikiUrlField) {
+		wikiUrlField.value = "";
+	}
+	showFeedbackToast?.("Vorgemerkte Wiki-Verbindung verworfen.", "info");
+}
+
 async function removeSettlementWiki() {
 	const publicId = settlementWikiCurrentPublicId();
 	if (!publicId) {
@@ -418,6 +440,22 @@ function renderSettlementWikiReference() {
 	settlementWikiAssign = avesmapsWikiAssignMount(host, {
 		subject: "ort",
 		skin: "label-wiki",
+		// 🪤 DIE EINZIGE ÜBERSTEUERUNG DER ERKLÄRUNG IM GANZEN HAUS, und sie ist gemessen:
+		// `selectSettlementWikiResult` fährt `assign_to` -- ABER nur, wenn der Ort schon eine
+		// `public_id` hat. Beim ANLEGEN gibt es keine; dann merkt sich
+		// `selectSettlementWikiResultWhileCreating` die Wahl nur örtlich („wird beim Anlegen
+		// verbunden") und `create_point` verbindet sie später. „Wirkt sofort" wäre dort schlicht
+		// falsch -- und zwar in dem Augenblick, in dem der Editor die Auskunft am dringendsten
+		// braucht (er sieht ja noch gar nichts auf der Karte).
+		// 🔴 Deshalb steht im Register der REGELFALL (`schreibt: "sofort"`) und hier der Zustand.
+		// Der Wert wird beim Mount berechnet, und das reicht: `renderSettlementWikiReference` läuft
+		// jedes Mal neu, wenn der Dialog einen Ort bekommt -- ein Wechsel zwischen Anlegen und
+		// Bearbeiten ohne Neuaufbau gibt es nicht.
+		schreibt: settlementWikiCurrentPublicId() ? "sofort" : "speichern",
+		// Und deshalb auch hier: im Anlegefall gibt es etwas zu verwerfen, sonst nicht. Der Rückruf
+		// steht unbedingt da -- welcher der beiden Fälle gilt, entscheidet `schreibt` darüber, und
+		// im „sofort"-Fall zeigt das Bauteil gar keinen „Abbrechen"-Knopf.
+		verwerfen: settlementWikiVerwerfen,
 		laden: settlementWikiZustand,
 		// Die Suche antwortet mit FLACHEN Zeilen, und zwar OHNE Infoboxwerte -- erst hier entsteht
 		// daraus ein Treffer (js/ui/wiki-assign-ort.js).

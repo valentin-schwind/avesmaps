@@ -677,6 +677,51 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 		"„Entfernen“ hat umbenannt -- die Zuweisung zu loesen soll den Namen stehen lassen");
 	zaehl(); zaehl();
 
+	// ---- DIE SCHREIBZEILE UND IHR RUECKWEG, IN DER ECHTEN OBERFLAECHE (17.08.2026) --------------
+	// 🔴 Der Owner-Befund vom 16.08.2026 galt genau diesem Kasten: er schwieg darueber, WANN eine
+	// Zuweisung wirkt. Diese Flaeche wartet auf „Speichern“ (Erklaerung `landschaft`,
+	// `schreibt: "speichern"`), und das muss dastehen, BEVOR jemand klickt.
+	// 💣 UND HIER WIRD DAS ZURUECKNEHMEN WIRKLICH GEFAHREN, nicht nur seine Anwesenheit gepraeft:
+	// der Entwurf liegt in `pendingWikiRegion` DIESES Moduls, nicht im Bauteil. Nimmt
+	// `wikiAssignVerwerfen` ihn nicht zurueck, zeigt der Kasten nach dem Neuladen wieder den
+	// Entwurf -- und diese Zusicherung faellt genau darauf. Die zweite Haelfte (der RUMPF des
+	// Speicherns) steht weiter unten, direkt beim submit.
+	// ⚠️ „Entfernen“ lief eben, es steht also gerade etwas AUS -- der ruhende Zustand wird deshalb
+	// erst nach dem Verwerfen gemessen, nicht davor.
+	assert.ok(host.innerHTML.indexOf("Noch nicht gespeichert") !== -1,
+		"nach dem Entfernen sagt der Kasten nicht, dass etwas aussteht: " + host.innerHTML);
+	assert.ok(host.innerHTML.indexOf('data-wa-aktion="verwerfen"') !== -1,
+		"nach dem Entfernen fehlt der Verwerfen-Knopf: " + host.innerHTML);
+	zaehl(); zaehl();
+
+	// 🔴 UND JETZT DER FALL, DER DEN UNTERSCHIED UEBERHAUPT SICHTBAR MACHT: noch einmal ZUWEISEN,
+	// dann verwerfen. 🪤 Ohne diesen Schritt lief die Probe ins Leere -- ein Verwerfen direkt nach
+	// dem „Entfernen“ sieht mit und ohne Rueckgabe des Entwurfs gleich aus („— keine —"), und die
+	// Mutationen „`verwerfen` tut nichts“ und „`verwerfen` fehlt ganz“ blieben beide gruen.
+	// Gemessen am 17.08.2026, nachdem genau das passiert war.
+	host.feuere("click", scheinZiel("data-wa-aktion", "zuweisen"));
+	await ruhe();
+	host.feuere("click", scheinZiel("data-wa-treffer", "0"));
+	await ruhe();
+	assert.ok(host.innerHTML.indexOf("Farindel") !== -1, "die zweite Zuweisung kam nicht an: " + host.innerHTML);
+	zaehl();
+
+	host.feuere("click", scheinZiel("data-wa-aktion", "verwerfen"));
+	await ruhe();
+	assert.ok(host.innerHTML.indexOf("Zuweisen und Lösen wirken erst mit") !== -1,
+		"nach dem Verwerfen fehlt die ruhende Schreibzeile: " + host.innerHTML);
+	assert.strictEqual(host.innerHTML.indexOf('data-wa-aktion="verwerfen"'), -1,
+		"der Verwerfen-Knopf bleibt stehen, obwohl nichts mehr aussteht: " + host.innerHTML);
+	// 🔴 DIE ZUSICHERUNG, AUF DIE ES ANKOMMT: die Flaeche hatte beim Laden KEINE Zuweisung, also muss
+	// „— keine —" dastehen. Bleibt `pendingWikiRegion` auf Farindel stehen (weil `verwerfen` fehlt
+	// oder nichts tut), zeigt der Kasten nach dem Neuladen genau ihn -- und das naechste „Speichern“
+	// schriebe die verworfene Verbindung.
+	assert.strictEqual(host.innerHTML.indexOf("Farindel"), -1,
+		"das Verwerfen hat den Entwurf der Oberflaeche NICHT zurueckgenommen: " + host.innerHTML);
+	assert.ok(host.innerHTML.indexOf("— keine —") !== -1,
+		"das Verwerfen hat nicht auf den GELADENEN Stand zurueckgesetzt: " + host.innerHTML);
+	zaehl(); zaehl(); zaehl(); zaehl();
+
 	// ---- Der dritte Zustand reist GAR NICHT mehr mit ------------------------------------------
 	// 🔴 SEIT DEM 16.08.2026 IST DAS DIE GANZE REGEL. Vorher stand hier „beide Richtungen, je eigene
 	// Fixture" -- das Haekchen konnte den Merker setzen und wieder abwaehlen. Es ist gefallen; was
@@ -690,7 +735,19 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	assert.ok(!("wiki_no_article" in ersterSchreibvorgang.nutzlast),
 		"der Merker reist mit, obwohl niemand die Zuweisung angefasst hat -- ein alter Dialog naehme "
 		+ "damit die Entscheidung eines zweiten Editors zurueck");
-	zaehl(); zaehl();
+	// 🔴 UND DIE HAERTERE HAELFTE DES VERWERFENS (17.08.2026, Block darueber): der ENTWURF des
+	// Moduls muss mit weg sein, nicht nur das Bild im Kasten. Waere `pendingWikiRegion` nach dem
+	// Verwerfen auf dem Farindel-Eintrag stehengeblieben, staende dessen Adresse jetzt im Rumpf --
+	// und die Flaeche waere trotz Abbruch verbunden.
+	// 🪤 `undefined`, NICHT `null`: `effectiveWikiRegion` liest `undefined` als „unberuehrt" und
+	// `null` als „ausdruecklich entfernt".
+	// ⚠️ UND DIESER UNTERSCHIED IST HIER NICHT GEMESSEN, sondern nur begruendet: er wird erst an
+	// einer Flaeche sichtbar, die BEIM LADEN eine Zuweisung hat -- eine solche Fixture gibt es in
+	// dieser Datei nicht. Mit einer Flaeche ohne Zuweisung liefern beide Werte dasselbe Bild und
+	// denselben Rumpf. Wer eine dritte Fixture baut, schliesst diese Luecke.
+	assert.ok(!String(ersterSchreibvorgang.nutzlast.wiki_url || "").length,
+		"nach dem Verwerfen reist die verworfene Adresse doch mit: " + JSON.stringify(ersterSchreibvorgang.nutzlast));
+	zaehl(); zaehl(); zaehl();
 
 	// ---- DIE ZWEITE FIXTURE: EINE FLAECHE, DIE DEN MERKER WIRKLICH TRAEGT ---------------------
 	// 💣 DAS IST DIE ZUSICHERUNG ZUM WEGFALL DES HAEKCHENS, und sie braucht diese zweite Fixture:

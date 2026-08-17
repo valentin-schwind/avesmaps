@@ -1094,6 +1094,17 @@
     if (st) { st.textContent = "Ungespeicherte Änderungen."; st.className = "idle"; }
   }
 
+  // „Abbrechen" im Zuweisungskasten. 🔴 Wie bei Kraftlinie und Karte ist hier NICHTS zurückzunehmen:
+  // `aeWikiUngespeichert` setzt nur die Meldung, den Stand hält das Bauteil (`lies()`), und dessen
+  // `neuLaden()` liest gleich danach wieder `d`. Der Rückruf steht trotzdem da, sonst behauptete die
+  // Speicherleiste weiter „Ungespeicherte Änderungen."
+  // ⚠️ `idle`, nicht `saved` -- daneben können sehr wohl noch ungespeicherte Stammdaten stehen;
+  // grün wäre eine Aussage über das ganze Formular, und die darf dieser Klick nicht treffen.
+  function aeWikiVerwerfen() {
+    const st = document.getElementById("aeSaveState");
+    if (st) { st.textContent = "Zuweisung verworfen."; st.className = "idle"; }
+  }
+
   /**
    * Übernimmt die ANGEHAKTEN Vorschauzeilen ins Formular -- gespeichert wird mit „Speichern".
    * ⚠️ Über die Formularfelder, nicht in ein Zwischenlager: `gatherStamm` liest ausschließlich das
@@ -1127,6 +1138,7 @@
       laden: () => aeWikiZustand(d),
       zuweisen: aeWikiUngespeichert,
       loesen: aeWikiUngespeichert,
+      verwerfen: aeWikiVerwerfen,
       syncUebernehmen: aeWikiSyncUebernehmen,
       // 🔴 Eigener Trefferbauer, weil die Warnung „hängt schon an X" die EIGENE Kennung kennen muss
       // -- der abgeleitete Bauer des Bauteils kann das nicht wissen.

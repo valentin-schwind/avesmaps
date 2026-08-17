@@ -19,10 +19,28 @@
 //       laden:           () => zustand,      // Wert ODER Promise — siehe ZUSTAND unten
 //       zuweisen:        (treffer) => {},    // Wert ODER Promise; danach zeichnet das Bauteil neu
 //       loesen:          () => {},           // Wert ODER Promise
+//       verwerfen:       () => {},           // PFLICHT bei schreibt: "speichern" — siehe unten
 //       syncUebernehmen: (zeilen) => {},     // NUR die angehakten Diff-Zeilen (Aufgabe 2)
 //       keinArtikelGeaendert: (wert) => {},  // OPTIONAL — nur, wer sofort schreibt, braucht ihn
 //       trefferAufbereiten: (zeile) => {},   // OPTIONAL — nur bei suche.art === "server"
+//       schreibt:        "sofort"|"speichern", // OPTIONAL — siehe die 🪤 in `mount`; EIN Aufrufer
 //   });
+//
+// 🔴 DIE SCHREIBZEILE UND IHR „Abbrechen“ (Owner-Befund 16.08.2026). Der Kasten sagt DAUERHAFT,
+// wann er schreibt — „wirkt sofort“ oder „erst mit Speichern“ —, und sobald etwas aussteht, sagt
+// er das ebenfalls und bietet „Abbrechen“ an. WELCHE der beiden Aussagen gilt, steht in der
+// ERKLAERUNG (`schreibt`), nicht in der Oberflaeche: sieben abgeschriebene Saetze in sieben
+// Oberflaechen waeren das Gegenteil dieses Umbaus. Die Oberflaeche steuert nur EINES bei —
+// `verwerfen`.
+//
+// 💣 `verwerfen` NIMMT DEN ENTWURF DER OBERFLAECHE ZURUECK, das Bauteil laedt danach neu. Beide
+// Haelften sind noetig, und bei VIER der sieben wartenden Oberflaechen liegt der Entwurf wirklich
+// bei ihnen (`wikiStand`, `pendingWikiRegion`, `currentLabelWikiRegion`, die Formularfelder des
+// Territoriums). Faellt `verwerfen` dort weg, zeigt der Kasten wieder den alten Artikel, waehrend
+// das naechste „Speichern“ den verworfenen schreibt — ein HALBES Zuruecknehmen, und das ist
+// schlimmer als gar keins. Wo das Bauteil der einzige Halter ist (Kraftlinie, Karte, Literatur),
+// traegt `verwerfen` nur die Meldung; weglassen darf man ihn trotzdem nicht, sonst sieht der Klick
+// wie ein Fehlschlag aus. ⚠️ Er darf ABLEHNEN wie `zuweisen`/`loesen` — dann bleibt alles stehen.
 //
 // 🔴 `zuweisen`, `loesen` und `syncUebernehmen` duerfen ABLEHNEN, und eine Ablehnung heisst „es ist
 // NICHTS passiert": das Bauteil laesst seinen Zustand dann unangetastet. Wer stattdessen aufloest,
@@ -171,6 +189,19 @@ const AVESMAPS_WIKI_ASSIGN_TEXTE = {
 	syncNichts: "Alles stimmt bereits mit dem Wiki überein — nichts zu übernehmen.",
 	syncAlleAnhaken: "Alle anhaken",
 	syncFuss: "Übernehmen füllt nur das Formular — gespeichert wird mit „Speichern“.",
+	// 🔴 DIE SCHREIBZEILE (Owner-Befund 16.08.2026, wörtlich: „wenn du dahinschreibst, dass
+	// Änderungen gespeichert werden müssen … dann ist alles ok"). Sie steht DAUERHAFT im Kasten,
+	// also BEVOR jemand klickt -- eine Meldung nach dem Klick kommt zu spät für die Frage, die
+	// sie beantwortet („ist das jetzt drin oder wartet es?").
+	// 💣 WELCHE der drei gilt, sagt die ERKLAERUNG (`schreibt`), nie das Bauteil: ob eine Objektart
+	// sofort schreibt, ist eine Eigenschaft der Objektart. Sieben abgeschriebene Textzeilen in
+	// sieben Oberflaechen waeren das Gegenteil dieses ganzen Umbaus -- genau eine stand vorher da
+	// (html/landschaften-editor.html) und ist mit dieser Zeile weggefallen.
+	// ⚠️ Der ungespeicherte Zustand NENNT DEN SCHREIBZEITPUNKT WEITER. Ihn durch ein blosses
+	// „Noch nicht gespeichert." zu ersetzen naehme die Auskunft genau dann weg, wenn sie zaehlt.
+	schreibtSofort: "Zuweisen und Entfernen wirken sofort — ohne „Speichern“.",
+	schreibtSpeichern: "Zuweisen und Lösen wirken erst mit „Speichern“.",
+	schreibtOffen: "Noch nicht gespeichert — die Zuweisung wirkt erst mit „Speichern“.",
 };
 
 // ── Die zwei Huellen ──────────────────────────────────────────────────────────────────────────
@@ -226,6 +257,11 @@ const AVESMAPS_WIKI_ASSIGN_SKINS = {
 		link: "dt-link",
 		haken: "dt-check",
 		hinweis: "dt-hint",
+		// Die Schreibzeile ist eine EIGENE Rolle, nicht `hinweis`: jene traegt schon den Zaehlsatz
+		// der Suche, den Rat des Leerzustands und die Erklaerung des dritten Zustands -- sie waeren
+		// sonst abwechselnd sichtbar, und die dauerhafte Zeile waere nicht mehr dauerhaft.
+		schreibZeile: "dt-schreibzeile",
+		schreibZeileOffen: "is-ungespeichert",
 		aktionen: "dt-actions",
 		trefferListe: "dt-picker-list",
 		treffer: "dt-picker-list__item",
@@ -259,6 +295,8 @@ const AVESMAPS_WIKI_ASSIGN_SKINS = {
 		link: "label-wiki-reference__link",
 		haken: "label-wiki-reference__check",
 		hinweis: "label-wiki-reference__hint",
+		schreibZeile: "label-wiki-reference__schreibzeile",
+		schreibZeileOffen: "is-ungespeichert",
 		aktionen: "label-wiki-reference__buttons",
 		trefferListe: "label-wiki-picker-list",
 		treffer: "label-wiki-picker-list__item",
@@ -372,6 +410,7 @@ function avesmapsWikiAssignModell(erklaerung, daten, ui) {
 		trefferLeerText: "",
 		hinweis: "",
 		haken: null,
+		schreibZeile: null,
 		syncZeilen: [],
 		syncAktionen: [],
 	};
@@ -541,6 +580,33 @@ function avesmapsWikiAssignModell(erklaerung, daten, ui) {
 			|| AVESMAPS_WIKI_ASSIGN_TEXTE.keinArtikelHinweis;
 	}
 
+	// ── Die Schreibzeile und ihr „Abbrechen“ ──────────────────────────────────────────────────
+	// 🔴 NUR in den Ruhezustaenden („offen“/„zugewiesen“). Die Suche ist fluechtig, und die
+	// Sync-Vorschau sagt es mit ihrem eigenen Fussatz („Uebernehmen fuellt nur das Formular“) --
+	// zwei Saetze uebereinander, die dasselbe meinen, liest niemand.
+	// 💣 KEIN `if (subject === …)`: das Bauteil kennt keine Objektart, es liest `schreibt`.
+	// Ein unbekannter Wert bleibt STUMM, statt „sofort“ zu raten -- lieber keine Auskunft als
+	// eine falsche darueber, ob etwas schon in der Datenbank steht.
+	const schreibt = avesmapsWikiAssignText(e.schreibt);
+	const ungespeichert = z.ungespeichert === true && schreibt === "speichern";
+	if (schreibt === "sofort" || schreibt === "speichern") {
+		modell.schreibZeile = {
+			text: ungespeichert
+				? AVESMAPS_WIKI_ASSIGN_TEXTE.schreibtOffen
+				: (schreibt === "sofort"
+					? AVESMAPS_WIKI_ASSIGN_TEXTE.schreibtSofort
+					: AVESMAPS_WIKI_ASSIGN_TEXTE.schreibtSpeichern),
+			ungespeichert: ungespeichert,
+		};
+	}
+	// 🔴 „Abbrechen“ gibt es NUR, wo es etwas zu verwerfen GIBT. Wo sofort geschrieben wird, waere
+	// es eine Luege -- dort heisst der Rueckweg „Entfernen“, und der steht ohnehin schon oben.
+	// ⚠️ Und nur, solange wirklich etwas aussteht: ein dauerhaft sichtbares „Abbrechen“ neben
+	// „Aendern/Sync/Entfernen“ waere ein vierter Knopf ohne Gegenstand.
+	if (ungespeichert) {
+		modell.knoepfe.push({ aktion: "verwerfen", text: AVESMAPS_WIKI_ASSIGN_TEXTE.abbrechen });
+	}
+
 	return modell;
 }
 
@@ -644,7 +710,10 @@ function avesmapsWikiAssignMarkup(modell, skin) {
 
 	teile.push("<div" + avesmapsWikiAssignKlasse(skin.kopf) + ">"
 		+ "<span" + avesmapsWikiAssignKlasse(skin.kopfTitel) + ">" + avesmapsWikiAssignEsc(modell.titel) + "</span>"
-		+ (modell.knoepfe.length === 0 ? "" : "<span" + avesmapsWikiAssignKlasse(skin.kopfKnoepfe) + ">"
+		// `data-wa-knoepfe`: das Umlegen des Haekchens laesst „Abbrechen“ erscheinen bzw. verschwinden
+		// und zeichnet dafuer NUR diese Reihe neu -- ein volles Neuzeichnen naehme dem Haekchen den
+		// Fokus, und das mitten in einer Tastaturbedienung.
+		+ (modell.knoepfe.length === 0 ? "" : "<span data-wa-knoepfe" + avesmapsWikiAssignKlasse(skin.kopfKnoepfe) + ">"
 			+ modell.knoepfe.map((knopf) => avesmapsWikiAssignKnopfMarkup(skin, knopf)).join("")
 			+ "</span>")
 		+ "</div>");
@@ -715,6 +784,18 @@ function avesmapsWikiAssignMarkup(modell, skin) {
 
 	if (!modell.hinweisOben) {
 		teile.push(hinweisMarkup);
+	}
+	// 🔴 GANZ UNTEN, direkt ueber dem Rand des Kastens: die Zeile beantwortet „und was passiert
+	// jetzt?“, und diese Frage stellt sich, nachdem man den Inhalt gelesen hat.
+	// ⚠️ `role="status"` UND `aria-live="polite"`: der Wechsel auf „Noch nicht gespeichert“ ist der
+	// einzige Zustandswechsel im Kasten, den ein Hilfsmittel sonst gar nicht mitbekaeme -- das
+	// Neuzeichnen ersetzt den Knoten, und ein ersetzter Knoten meldet sich nicht von selbst.
+	if (modell.schreibZeile) {
+		const klassen = [skin.schreibZeile, modell.schreibZeile.ungespeichert ? skin.schreibZeileOffen : ""]
+			.filter((klasse) => avesmapsWikiAssignText(klasse) !== "").join(" ");
+		teile.push("<div data-wa-schreibzeile" + avesmapsWikiAssignKlasse(klassen)
+			+ ' role="status" aria-live="polite">'
+			+ avesmapsWikiAssignEsc(modell.schreibZeile.text) + "</div>");
 	}
 	if (avesmapsWikiAssignText(modell.fuss) !== "") {
 		teile.push("<div" + avesmapsWikiAssignKlasse(skin.hinweis) + ">" + avesmapsWikiAssignEsc(modell.fuss) + "</div>");
@@ -897,7 +978,20 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	// Riegel, und er steht vor allem anderen.
 	const registerDa = typeof avesmapsWikiAssignSubject === "function";
 	const diffDa = typeof avesmapsWikiAssignDiff === "function";
-	const erklaerung = registerDa ? avesmapsWikiAssignSubject(opt.subject) : null;
+	const erklaerungBasis = registerDa ? avesmapsWikiAssignSubject(opt.subject) : null;
+	// 🪤 DIE EINZIGE UEBERSTEUERUNG DER ERKLAERUNG, UND SIE HAT GENAU EINEN AUFRUFER.
+	// „Sofort oder erst mit Speichern" ist eine Eigenschaft der OBJEKTART und steht deshalb im
+	// Register. Beim Ort gibt es aber einen Zustand, den die Objektart nicht kennt: der Kartendialog
+	// im ANLEGEFALL hat noch keine `public_id`, kann also gar nicht schreiben und merkt sich die
+	// Wahl nur oertlich (`selectSettlementWikiResultWhileCreating`). Dort waere „wirkt sofort" eine
+	// Falschaussage -- ausgerechnet in dem Augenblick, in dem der Editor sie am dringendsten
+	// braucht. Also darf ein Wirt sie fuer EINEN Mount uebersteuern.
+	// 🔴 Ein anderer Wert als „sofort"/„speichern" wird ignoriert (kein Raten), und die Erklaerung
+	// selbst wird NIE veraendert -- sie ist ein geteiltes Objekt, das alle Mounts derselben
+	// Objektart lesen. `Object.assign` auf eine frische Huelle, nicht auf sie.
+	const erklaerung = (erklaerungBasis && (opt.schreibt === "sofort" || opt.schreibt === "speichern"))
+		? Object.assign({}, erklaerungBasis, { schreibt: opt.schreibt })
+		: erklaerungBasis;
 	const skin = avesmapsWikiAssignSkin(opt.skin);
 	if (!behaelter || !registerDa || !diffDa || !erklaerung || !skin) {
 		// 💣 Kein stiller Leerlauf: eine fehlende Voraussetzung, eine unbekannte Objektart oder Huelle
@@ -926,13 +1020,32 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 	let geladen = false;
 	// Der Stand des dritten Zustands, wie er GELADEN wurde. Siehe `kein_artikel_geaendert` in `lies()`.
 	let geladenerKeinArtikel = false;
+	// 🔴 STEHT ETWAS AUS? Ausserhalb von `ui`, weil `ui` bei jedem Moduswechsel neu entsteht
+	// (`neuerZustand`) -- der ungespeicherte Zustand ueberlebt das Oeffnen der Suche und der
+	// Sync-Vorschau, denn er beschreibt die DATEN, nicht die gerade sichtbare Ansicht.
+	// ⚠️ Er wird gesetzt, wenn eine Handlung GEGLUECKT ist, nie beim blossen Anklicken: eine
+	// abgelehnte Zuweisung hat nichts geaendert, und der Kasten wuerde sonst „noch nicht
+	// gespeichert“ sagen, obwohl es gar nichts zu speichern gibt.
+	// 💣 Er wird nur bei `schreibt === "speichern"` ueberhaupt sichtbar (im Modellbauer geprueft) --
+	// gesetzt wird er hier trotzdem bedingungslos, damit die Weiche an EINER Stelle steht.
+	let ungespeichert = false;
 
 	function neuerZustand(modus) {
 		return { modus: modus, suchtext: "", treffer: [], aktiv: 0, syncZeilen: [], suchFehler: "", listenId: listenId };
 	}
 
+	/**
+	 * Das Modell zum JETZIGEN Stand. 🔴 Ein Trichter, keine zwei Aufrufe: `zeichne` und
+	 * `zeichneTreffer` bauen beide ein Modell, und ein `ungespeichert`, das nur in einem davon
+	 * ankommt, liesse die Schreibzeile beim Tippen umspringen.
+	 */
+	function modellJetzt() {
+		return avesmapsWikiAssignModell(erklaerung, daten,
+			Object.assign({}, ui, { ungespeichert: ungespeichert }));
+	}
+
 	function zeichne() {
-		const modell = avesmapsWikiAssignModell(erklaerung, daten, ui);
+		const modell = modellJetzt();
 		behaelter.innerHTML = avesmapsWikiAssignMarkup(modell, skin);
 		const feld = behaelter.querySelector("[data-wa-suche]");
 		if (feld) {
@@ -960,7 +1073,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			zeichne();
 			return;
 		}
-		const modell = avesmapsWikiAssignModell(erklaerung, daten, ui);
+		const modell = modellJetzt();
 		liste.innerHTML = avesmapsWikiAssignTrefferListeInhalt(modell, skin);
 		// 💣 BEIDE Merkmale, nicht nur eines. Sie stehen am FELD, und das Feld wird hier bewusst
 		// nicht neu gebaut -- also muessen sie von Hand nachgezogen werden. Bis zum 16.08.2026 zog
@@ -981,6 +1094,33 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		}
 	}
 
+	/**
+	 * 🔴 NUR die Schreibzeile und die Knopfreihe -- dieselbe Regel wie bei `zeichneTreffer`: das
+	 * Haekchen „Kein Wiki-Artikel vorhanden“ loest diesen Weg aus, und ein volles `innerHTML`
+	 * naehme ihm den Fokus mitten in einer Tastaturbedienung.
+	 * ⚠️ Faellt auf das volle Zeichnen zurueck, wenn eines der beiden Stuecke (noch) nicht dasteht --
+	 * ein halbes Bild waere schlimmer als ein volles.
+	 */
+	function zeichneSchreibzustand() {
+		const modell = modellJetzt();
+		const zeile = behaelter.querySelector("[data-wa-schreibzeile]");
+		const kopf = behaelter.querySelector("[data-wa-knoepfe]");
+		if (!zeile || !kopf || !modell.schreibZeile) {
+			zeichne();
+			return;
+		}
+		zeile.textContent = modell.schreibZeile.text;
+		// 💣 Die Zustandsklasse wird GESETZT UND GENOMMEN, nicht nur gesetzt.
+		// 🪤 EHRLICH GEMESSEN (17.08.2026): der NEHMEN-Zweig ist heute nicht erreichbar. Der einzige
+		// Aufrufer dieser Funktion ist das Haekchen, und das setzt den Merker immer auf `true` --
+		// zurueck geht es nur ueber „Abbrechen“ oder ein Neuladen, und beide zeichnen den ganzen
+		// Kasten. Eine Mutationsprobe kann ihn deshalb nicht zum Fallen bringen; er steht hier als
+		// die allgemeine Form, damit ein ZWEITER Aufrufer nicht die halbe Regel erbt.
+		zeile.className = [skin.schreibZeile, modell.schreibZeile.ungespeichert ? skin.schreibZeileOffen : ""]
+			.filter((klasse) => avesmapsWikiAssignText(klasse) !== "").join(" ");
+		kopf.innerHTML = modell.knoepfe.map((knopf) => avesmapsWikiAssignKnopfMarkup(skin, knopf)).join("");
+	}
+
 	function zustandUebernehmen(roh) {
 		const r = roh || {};
 		daten = {
@@ -996,6 +1136,13 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		// gilt der frische Serverstand als „nicht geaendert", und das ist richtig -- was der Editor
 		// vorher angehakt hatte, ist mit dem Neuladen ohnehin vom Bildschirm.
 		geladenerKeinArtikel = daten.keinArtikel;
+		// 🔴 UND AUS DEMSELBEN GRUND FAELLT DER MERKER „steht etwas aus?" -- was gerade GELADEN wurde,
+		// IST der gespeicherte Stand. Das gilt fuer den ersten Ladelauf wie fuer jedes `neuLaden()`,
+		// und es ist genau der Weg, auf dem ein „Speichern" der Oberflaeche die Zeile zuruecksetzt:
+		// die Wirte zeichnen ihre Spalte danach neu und montieren den Kasten frisch.
+		// ⚠️ Ein GESCHEITERTER Ladelauf laeuft hier nicht durch (`ladenGescheitert` kehrt vorher um) --
+		// dort bliebe der Merker stehen, aber der Kasten zeigt ohnehin nur noch seine Fehlermeldung.
+		ungespeichert = false;
 	}
 
 	// 💣 Der Datenweg gehoert der Oberflaeche, und ein Fehler darin darf NICHT den ganzen Kasten
@@ -1159,6 +1306,7 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			};
 			// Ein zugewiesener Artikel und „es gibt keinen“ schliessen einander aus.
 			daten.keinArtikel = false;
+			ungespeichert = true;
 			ui = neuerZustand("zugewiesen");
 			zeichne();
 		}, () => {
@@ -1202,9 +1350,31 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 			zeichne();
 			return;
 		}
+		// 🔴 DIE UNGESPEICHERTE ZUWEISUNGSAENDERUNG VERWERFEN -- „Abbrechen wenn ich die Aenderungen
+		// nicht haben will" (Owner 16.08.2026). Er raeumt NUR die Zuweisung ab, nicht das Formular.
+		// 💣 ZWEI HAELFTEN, UND BEIDE SIND NOETIG: `verwerfen` nimmt den ENTWURF der Oberflaeche
+		// zurueck (bei vier der sieben liegt er dort -- `wikiStand`, `pendingWikiRegion`,
+		// `currentLabelWikiRegion`, die Formularfelder des Territoriums), erst danach holt
+		// `neuLaden()` den gespeicherten Stand. Nur eine Haelfte waere ein HALBES Zuruecknehmen:
+		// der Kasten zeigte wieder den alten Artikel, waehrend das naechste „Speichern" den
+		// verworfenen schriebe. Wo das Bauteil der einzige Halter ist (Kraftlinie, Karte,
+		// Literatur), traegt `verwerfen` nur die Meldung -- gemeldet wird trotzdem, sonst sieht der
+		// Klick wie ein Fehlschlag aus.
+		// ⚠️ Lehnt `verwerfen` ab, bleibt ALLES stehen -- dieselbe Regel wie bei `zuweisen`/`loesen`.
+		if (aktion === "verwerfen") {
+			avesmapsWikiAssignRufen(opt.verwerfen).then(() => {
+				// Vor `neuLaden`, damit die Zeile auch dann stimmt, wenn der Ladelauf scheitert.
+				ungespeichert = false;
+				neuLaden();
+			}, () => {
+				// Nicht verworfen -- der Entwurf steht weiter, und die Zeile sagt das weiter.
+			});
+			return;
+		}
 		if (aktion === "entfernen") {
 			avesmapsWikiAssignRufen(opt.loesen).then(() => {
 				daten.artikel = null;
+				ungespeichert = true;
 				ui = neuerZustand("offen");
 				zeichne();
 			}, () => {
@@ -1273,9 +1443,16 @@ function avesmapsWikiAssignMount(behaelter, optionen) {
 		}
 		if (ziel.hasAttribute("data-wa-kein-artikel")) {
 			daten.keinArtikel = !!ziel.checked;
+			// 🔴 AUCH DAS HAEKCHEN IST EINE UNGESPEICHERTE AENDERUNG. Es reist ueber `lies()` mit dem
+			// „Speichern" der Oberflaeche -- ohne diese Zeile saehe der Editor genau die Handlung
+			// NICHT als ausstehend, die er sonst nirgends bestaetigt bekommt.
+			ungespeichert = true;
 			if (typeof opt.keinArtikelGeaendert === "function") {
 				opt.keinArtikelGeaendert(daten.keinArtikel);
 			}
+			// 💣 NACHZIEHEN, sonst haengt die Schreibzeile eine Handlung hinterher: bis zum
+			// 17.08.2026 endete dieser Zweig ohne Bild, weil das Haekchen sein eigener Zustand war.
+			zeichneSchreibzustand();
 			return;
 		}
 		if (ziel.hasAttribute("data-wa-sync-haken")) {

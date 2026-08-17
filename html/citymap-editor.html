@@ -1274,6 +1274,19 @@
     }
   }
 
+  // „Abbrechen" im Zuweisungskasten. 🔴 Wie beim Kraftlinien-Editor ist hier NICHTS zurückzunehmen:
+  // `ceWikiUngespeichert` setzt nur die Meldung, den Stand hält das Bauteil (`lies()`), und dessen
+  // `neuLaden()` liest gleich danach wieder `v` — den geladenen Stand. Der Rückruf steht trotzdem da,
+  // sonst behauptete die Speicherleiste weiter „Ungespeicherte Änderungen." und der Klick sähe aus
+  // wie ein Fehlschlag.
+  function ceWikiVerwerfen() {
+    const stateEl = document.getElementById("ceSaveState");
+    if (stateEl) {
+      stateEl.textContent = "Zuweisung verworfen.";
+      stateEl.className = "ce-savebar__state";
+    }
+  }
+
   function mountCeWikiAssign(v) {
     if (ceWikiAssign) { ceWikiAssign.zerstoeren(); ceWikiAssign = null; }
     const host = document.getElementById("ceWikiAssign");
@@ -1290,6 +1303,7 @@
       laden: () => ceWikiZustand(v),
       zuweisen: ceWikiUngespeichert,
       loesen: ceWikiUngespeichert,
+      verwerfen: ceWikiVerwerfen,
       // ⚠️ Kein `syncUebernehmen`: die Erklärung `karte` hat kein einziges Kartenziel (`sync: false`),
       // es gibt also keinen Knopf, der ihn auslösen könnte. Ein leerer Rückruf hier wäre ein
       // Versprechen, das nirgends eingelöst wird.

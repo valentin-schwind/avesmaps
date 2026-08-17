@@ -295,6 +295,29 @@
 	}
 
 	/**
+	 * „Abbrechen" im Zuweisungskasten: die ungespeicherte Zuweisungsänderung verwerfen.
+	 *
+	 * 🔴 `undefined`, NICHT `null` — die zwei bedeuten hier Gegenteiliges. `effectiveWikiRegion`
+	 * liest `undefined` als „unberührt, nimm den Stand der Fläche" und `null` als „ausdrücklich
+	 * entfernt". Mit `null` verworfen bliebe die Löschung stehen, und das nächste „Speichern"
+	 * schriebe genau das, was gerade abgebrochen wurde.
+	 * ⚠️ Der NAME im Formular bleibt, wie er ist. `wikiAssignZuweisen` hat ihn zwar gesetzt, aber er
+	 * ist ein sichtbares, frei editierbares Feld -- ihn stillschweigend zurückzuschreiben könnte
+	 * eine seither von Hand getippte Eingabe zerstören. Dieselbe Regel wie in `wikiAssignLoesen`
+	 * darüber („die Zuweisung zu lösen soll nicht ungefragt umbenennen").
+	 */
+	function wikiAssignVerwerfen() {
+		pendingWikiRegion = undefined;
+		// 🪤 HIER STAND `wikiSchnappschuss = null;`, und die Zeile war NACHWEISLICH wirkungslos: keine
+		// Mutation konnte sie zum Fallen bringen (17.08.2026). `wikiAssignZustand` holt den
+		// Schnappschuss ohnehin neu, sobald sein Schlüssel nicht zum jetzigen passt, und leert ihn bei
+		// leerem Schlüssel selbst -- und genau dieser Lauf folgt direkt danach (`neuLaden` im Bauteil).
+		// Eine Zeile, die kein Test töten kann, sieht wie ein Riegel aus und ist keiner.
+		syncPropertiesAutoName();
+		setPropertiesStatus("Zuweisung verworfen.");
+	}
+
+	/**
 	 * ⚠️ ÜBERNEHMEN FÜLLT NUR DAS FORMULAR (Entwurf §6) -- gespeichert wird mit „Speichern".
 	 *
 	 * 🔴 WIRFT, wenn nichts angehakt war: das Bauteil liest eine Ablehnung als „es ist nichts
@@ -362,6 +385,7 @@
 			trefferAufbereiten: (zeile) => avesmapsWikiAssignLandschaftTreffer(zeile, regionTypesForKind),
 			zuweisen: wikiAssignZuweisen,
 			loesen: wikiAssignLoesen,
+			verwerfen: wikiAssignVerwerfen,
 			syncUebernehmen: wikiAssignSyncUebernehmen,
 		});
 	}

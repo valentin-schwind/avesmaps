@@ -1369,21 +1369,13 @@ function regionEditBlock(region) {
 		// 💣 Ein BLANKER Behälter: die Hülle erzeugt das Bauteil selbst. Ein vorgegebenes
 		// `<div class="avm-wiki-assign">` trüge den Kasten doppelt geschachtelt.
 		+ '<div data-f="wiki-host"></div>'
-		// 🔴 DIE DAUERZEILE (Owner 16.08.2026: „ich frag mich was der Speichern-Knopf soll"). Hier --
-		// und NUR hier -- schreiben „Zuweisen" und „Lösen" nicht sofort; sie füllen den Entwurf, und
-		// geschrieben wird mit „Speichern" (die Begründung steht unten bei den vier Rückrufen: ein
-		// sofortiges Schreiben löste `loadData()` aus und würfe die ungespeicherten Eingaben im selben
-		// Block weg). Im Wege- und im Orte-Dialog ist es andersherum. Diese Ungleichheit BLEIBT, aber
-		// sie muss sichtbar sein: ohne diesen Satz sieht der Kasten aus wie die vier anderen und
-		// verhält sich anders.
-		// ⚠️ DAUERHAFT, nicht erst nach einem Klick. Die Meldung „Zuweisung wird beim Speichern
-		// übernommen." gibt es weiter (setzt der `zuweisen`-Rückruf), aber sie kommt zu SPÄT: wer den
-		// Knopf noch nicht gedrückt hat, hat sie nie gesehen.
-		// 💣 Der Satz steht NEBEN dem Bauteil, nicht darin. Das Bauteil kennt keine Objektart und
-		// keinen Wirt (Vertrag im Kopf von js/ui/wiki-assign.js) -- dieselbe Bauform wie der
-		// Dump-Hinweis im Kraftlinien-Editor, der aus demselben Grund draußen steht.
-		+ '<div class="pl-hint">Zuweisen und Lösen wirken hier erst mit <b>„Speichern“</b> — anders als '
-		+ 'im Wege- und im Orte-Dialog, die sofort schreiben.</div>'
+		// 🪤 HIER STAND DIE DAUERZEILE „Zuweisen und Lösen wirken hier erst mit „Speichern“" -- von
+		// Hand, weil das Bauteil sie am 16.08.2026 noch nicht kannte. Sie ist am 17.08.2026 INS
+		// BAUTEIL gewandert (`AVESMAPS_WIKI_ASSIGN_TEXTE.schreibtSpeichern`), gesteuert von
+		// `schreibt` in der Erklärung `landschaft`. Der Satz ist damit derselbe in allen elf
+		// Oberflächen, und er sagt zusätzlich, wenn etwas AUSSTEHT.
+		// 🔴 Wer sie hier wieder hinschreibt, hat sie zweimal im Kasten -- und beim nächsten
+		// Wortlaut-Wechsel eine Divergenz, die nur an dieser einen Fläche auftritt.
 		// ---- Quellen (Owner-Reihenfolge Platz 5) -------------------------------------------------
 		// 🔴 DAS GETEILTE BAUTEIL, KEINE ZWEITE QUELLENTABELLE (AGENTS.md §5). Eine Landschaftsfläche
 		// hängt an demselben `sources`/`feature_sources`-Katalog wie jedes andere Element; ihr
@@ -1530,6 +1522,27 @@ function wireEditBlocks(host) {
 			message.className = "avm-savebar__msg";
 		};
 
+		// „Abbrechen" im Zuweisungskasten -- 🔴 HIER liegt der Entwurf wirklich bei der Oberfläche
+		// (`wikiStand`/`wikiSchnappschuss`), also muss er auch hier zurückgenommen werden: das
+		// `neuLaden()` des Bauteils ruft `wikiAssignZustand`, und das liest genau diese zwei. Ohne
+		// diese Zeilen zeigte der Kasten wieder den alten Artikel, während das nächste „Speichern"
+		// den verworfenen schriebe -- ein HALBES Zurücknehmen.
+		// ⚠️ Zurück auf den GELADENEN Stand (`region`), nicht auf leer: „Abbrechen" nach einem
+		// „Lösen" muss die vorhandene Zuweisung wiederherstellen, nicht die Löschung bestätigen.
+		// ⚠️ Der NAME im Formular bleibt, wie er ist -- „ohne das ganze Formular anzufassen" (Owner).
+		// `wikiAssignZuweisen` schreibt ihn nicht, nur die Sync-Übernahme tut das, und die ist eine
+		// eigene, bewusst ausgeführte Handlung.
+		const wikiAssignVerwerfen = () => {
+			wikiStand = { wiki_key: String(region.wiki_region_key || ""), wiki_url: wikiGeladen, name: String(region.name || "") };
+			// 🪤 KEIN `wikiSchnappschuss = null` -- die Zeile stand hier und war wirkungslos (gemessen
+			// am Zwilling im Kartendialog, 17.08.2026): `wikiAssignZustand` holt den Schnappschuss neu,
+			// sobald sein Schlüssel nicht zum jetzigen passt, und leert ihn bei leerem Schlüssel selbst.
+			// Genau dieser Lauf folgt direkt danach (`neuLaden` im Bauteil).
+			wikiAutoNameRiegel();
+			message.textContent = "Zuweisung verworfen.";
+			message.className = "avm-savebar__msg";
+		};
+
 		const wikiAssignLoesen = () => {
 			// ⚠️ Eine LEERE Adresse IST der Weg zurück (Verhaltensdoku §7a) -- sie löscht Adresse und
 			// Schlüssel. Der NAME bleibt stehen: die Zuweisung zu lösen soll nicht umbenennen.
@@ -1574,6 +1587,7 @@ function wireEditBlocks(host) {
 				trefferAufbereiten: (zeile) => avesmapsWikiAssignLandschaftTreffer(zeile, wikiArten()),
 				zuweisen: wikiAssignZuweisen,
 				loesen: wikiAssignLoesen,
+				verwerfen: wikiAssignVerwerfen,
 				// 🔴 KEIN `keinArtikelGeaendert` MEHR -- das Häkchen „Kein Wiki-Artikel vorhanden" ist am
 				// 16.08.2026 aus diesem Editor gefallen (Owner-Entscheid, vier Oberflächen). Der MERKER
 				// bleibt und wird im Konfliktzentrum gesetzt; die Erklärung `landschaft` führt seither

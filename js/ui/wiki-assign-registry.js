@@ -37,6 +37,10 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			{ wiki: "regionen", karte: "", label: "Regionen" },
 		],
 		sync: false, // kein Ziel -- also auch kein Knopf
+		// 🔴 WANN DER KASTEN SCHREIBT -- gemessen am 17.08.2026, nicht angenommen.
+		// `wikiAssignZuweisen`/`-Loesen` (html/wiki-sync-powerline-editor.html) setzen NUR eine
+		// Meldung; geschrieben wird in `saveLine` ueber `lies()`.
+		schreibt: "speichern",
 		extra: {
 			// 🔴 KEIN dritter Zustand IM EDITOR -- gefallen am 16.08.2026, Owner-Entscheid nach dem
 			// Durchklicken aller Oberflaechen („passt, aber ‚Kein Wiki-Artikel vorhanden‘ brauchen wir
@@ -94,6 +98,13 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			{ wiki: "laenge", karte: "", label: "Länge" },
 		],
 		sync: true, // ein Kartenziel (feature_subtype) -- also ein Knopf
+		// 🔴 SOFORT, in BEIDEN Oberflaechen -- gemessen am 17.08.2026.
+		// `wikiAssignZuweisen` (js/pages/wege-editor.js) und `pathWikiZuweisen`
+		// (js/review/review-path-wiki.js) fahren `assign_to` bzw. `clear_assign` gegen
+		// /api/edit/wiki/paths.php; die Antwort steht in der Datenbank, bevor der Kasten neu zeichnet.
+		// ⚠️ Deshalb gibt es hier KEIN „Abbrechen": der Rueckweg heisst „Entfernen", und der fragt
+		// beim Weg ohnehin zurueck, ob nur dieses Segment oder der ganze Namensverbund gemeint ist.
+		schreibt: "sofort",
 		extra: {
 			// 🔴 KEIN dritter Zustand IM EDITOR -- gefallen am 16.08.2026, Owner-Entscheid nach dem
 			// Durchklicken aller Oberflaechen. Er hat den Weg AUSDRUECKLICH genannt, und beim Weg ist die
@@ -179,6 +190,17 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			{ wiki: "tempel", karte: "", label: "Tempel" },
 		],
 		sync: true, // fuenf Kartenziele -- also ein Knopf
+		// 🔴 SOFORT -- gemessen am 17.08.2026: `settlementWikiAssignZuweisen`/`-Loesen`
+		// (html/wiki-sync-settlement-editor.html) und `selectSettlementWikiResult`/
+		// `removeSettlementWiki` (js/review/review-settlement-wiki.js) fahren alle vier `assign_to`
+		// bzw. `clear_assign` gegen den Server.
+		// 🪤 UND EINE AUSNAHME, DIE DIE ERKLAERUNG NICHT TRAGEN KANN: im Kartendialog gibt es den
+		// ANLEGEFALL -- ein Ort ohne `public_id`. Dort merkt sich `selectSettlementWikiResultWhileCreating`
+		// die Wahl nur oertlich („wird beim Anlegen verbunden") und schreibt erst mit `create_point`.
+		// Das ist keine Eigenschaft der OBJEKTART, sondern des Augenblicks -- deshalb nennt diese
+		// Zeile den Regelfall, und der Kartendialog uebersteuert sie fuer genau diesen einen Zustand
+		// per `schreibt`-Option am `mount` (die EINZIGE Uebersteuerung im ganzen Haus).
+		schreibt: "sofort",
 		extra: {
 			// 🔴 Der Rat des Leerzustands, und er ist objektart-eigen, weil die QUELLE es ist: die
 			// Ortssuche liest die Registry `wiki_sync_pages` (settlements.php:710), nicht das Wiki --
@@ -250,6 +272,13 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			{ wiki: "verkehrswege", karte: "", label: "Verkehrswege" },
 		],
 		sync: true, // zwei Kartenziele (name, region_type) -- also ein Knopf
+		// 🔴 ERST MIT „Speichern" -- gemessen am 17.08.2026 in BEIDEN Oberflaechen.
+		// Im Editorfenster (html/landschaften-editor.html) fuellen `wikiAssignZuweisen`/`-Loesen` nur
+		// `wikiStand`/`wikiSchnappschuss`; im Kartendialog
+		// (js/map-features/map-features-ecosystem-properties.js) nur `pendingWikiRegion`.
+		// ⚠️ Ein sofortiges Schreiben ist hier nicht bloss unnoetig, sondern schaedlich: es loeste
+		// `loadData()` aus und wuerfe die ungespeicherten Eingaben im selben Block weg.
+		schreibt: "speichern",
 		extra: {
 			// 🔴 KEIN dritter Zustand -- gefallen am 16.08.2026, Owner-Entscheid nach dem Durchklicken
 			// aller Oberflaechen. Er hat den REGIONEN-EDITOR genannt (html/landschaften-editor.html);
@@ -313,6 +342,10 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			{ wiki: "verkehrswege", karte: "", label: "Verkehrswege" },
 		],
 		sync: true, // zwei Kartenziele (text, feature_subtype) -- also ein Knopf
+		// 🔴 ERST MIT „Speichern" -- gemessen am 17.08.2026: `labelWikiAssignZuweisen`/`-Loesen`
+		// (js/review/review-label-wiki.js) setzen `currentLabelWikiRegion`/`labelWikiSchnappschuss`,
+		// und `buildLabelEditPayload` nimmt die Zuweisung beim Speichern mit.
+		schreibt: "speichern",
 		extra: {
 			// 🔴 UND HIER VERSPRICHT DER HINWEIS DIE KONFLIKTLISTE ZU RECHT -- anders als bei der
 			// Flaeche daneben. Ein Label IST eine Konfliktpartei (`feature_type='label'` -> Typ
@@ -393,6 +426,10 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			{ wiki: "zeitraum", karte: "", label: "Zeitraum" },
 		],
 		sync: true, // vier Kartenziele (name, type, eltern, coat_of_arms_url) -- also ein Knopf
+		// 🔴 ERST MIT „Speichern" -- gemessen am 17.08.2026: `territoryWikiAssignZuweisen`/`-Loesen`
+		// (js/review/review-region-wiki-picker.js) fuellen die Formularfelder `region-edit-wiki-id`/
+		// `-wiki-url` (und ggf. das Wappen); geschrieben wird mit `update_territory`.
+		schreibt: "speichern",
 		extra: {
 			// 🪤 KEIN dritter Zustand, und das ist eine MESSUNG, keine Auslassung (Aufgabe 7,
 			// 16.08.2026). Der Owner-Entscheid §2.7 gilt fuer alle Objektarten -- das Territorium kann
@@ -505,6 +542,10 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			{ wiki: "cover_file", karte: "", label: "Cover-Datei" },
 		],
 		sync: true, // zehn Kartenziele -- also ein Knopf
+		// 🔴 ERST MIT „Speichern" -- gemessen am 17.08.2026: `aeWikiUngespeichert`
+		// (html/game-literature-editor.html) setzt nur die Meldung der Speicherleiste; der Wert reist
+		// ueber `lies()` in `saveStammdaten`.
+		schreibt: "speichern",
 		extra: {
 			// 🔴 Der Rat des Leerzustands, objektart-eigen wie beim Ort und aus demselben Grund: die
 			// Quelle ist ein STAGING-Katalog, kein Wiki-Abruf. Wer dort nichts findet, muss den
@@ -597,6 +638,10 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			{ wiki: "continent", karte: "", label: "Kontinent" },
 		],
 		sync: false, // kein Ziel -- also auch kein Knopf
+		// 🔴 ERST MIT „Speichern" -- gemessen am 17.08.2026: `ceWikiUngespeichert`
+		// (html/citymap-editor.html) setzt nur die Meldung der Speicherleiste; der Wert reist ueber
+		// `lies()` in `saveStamm`.
+		schreibt: "speichern",
 		extra: {
 			// 🔴 Der Rat des Leerzustands, objektart-eigen wie bei Ort und Literatur, und hier sagt er
 			// die BESCHRAENKUNG: die Registry kennt nur Orts- und Bauwerksseiten. Steht der Artikel

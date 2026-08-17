@@ -220,6 +220,26 @@
 	color: var(--color-text-muted);
 }
 
+/* Die SCHREIBZEILE (js/ui/wiki-assign.js, Rolle `schreibZeile`) -- sie steht DAUERHAFT unten im
+   Kasten und sagt, wann eine Zuweisung wirkt. Gegenstueck: .dt-schreibzeile
+   (css/components/editor-page.css), Wort fuer Wort dieselben Token. */
+.label-wiki-reference__schreibzeile {
+	padding-top: var(--space-2);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+/* „Noch nicht gespeichert". Warnton aus den Token, Rahmen nur links (AGENTS.md §12: gruppiert wird
+   durch Trenner, nicht durch Kaesten). Gegenstueck: .dt-schreibzeile.is-ungespeichert. */
+.label-wiki-reference__schreibzeile.is-ungespeichert {
+	margin-top: var(--space-2);
+	padding: var(--space-2) var(--space-4);
+	border-left: 3px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-warning-soft);
+	color: var(--color-warning-soft-text);
+}
+
 /* Der dritte Zustand („Kein Wiki-Artikel vorhanden"). Gegenstueck: .dt-check. */
 .label-wiki-reference__check {
 	display: flex;

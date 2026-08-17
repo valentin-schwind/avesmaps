@@ -536,6 +536,16 @@ function wikiAssignZustand(line) {
 function wikiAssignUngespeichert() {
 	setSaveMsg("Geändert – noch nicht gespeichert.", "");
 }
+// „Abbrechen" im Zuweisungskasten: die ungespeicherte Zuweisung verwerfen, das Formular daneben
+// nicht anfassen.
+// 🔴 HIER IST NICHTS ZURUECKZUNEHMEN, und das ist kein Versehen: `wikiAssignZuweisen`/`-Loesen`
+// setzen nur diese Meldung, den Zuweisungsstand haelt das Bauteil selbst (`lies()` ist der einzige
+// Rueckkanal). Das anschliessende `neuLaden()` des Bauteils liest `line` -- den GELADENEN Stand --
+// und damit ist der Entwurf weg. Der Rueckruf steht trotzdem da: ohne ihn saehe der Klick wie ein
+// Fehlschlag aus, weil die Speicherleiste weiter „Geändert" behauptete.
+function wikiAssignVerwerfen() {
+	setSaveMsg("Zuweisung verworfen.", "");
+}
 function mountWikiAssign(line) {
 	if (wikiAssign) { wikiAssign.zerstoeren(); wikiAssign = null; }
 	const host = $("plWikiAssign");
@@ -560,6 +570,7 @@ function mountWikiAssign(line) {
 		laden: () => wikiAssignZustand(line),
 		zuweisen: wikiAssignUngespeichert,
 		loesen: wikiAssignUngespeichert,
+		verwerfen: wikiAssignVerwerfen,
 		// `sync: false` in der Erklaerung -- es erscheint gar kein Sync-Knopf, also wird dieser
 		// Rueckruf nie gerufen. Er steht hier, damit die Schnittstelle vollstaendig ablesbar ist.
 		syncUebernehmen: () => {},
