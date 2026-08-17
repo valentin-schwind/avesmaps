@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Listensymbol „Wiki-Artikel zu holen?" (Mockup)</title>
+<title>Listensymbol „Wie steht diese Zeile zum Wiki?" (Mockup)</title>
 <style>
 /* Werte 1:1 aus css/base/tokens.css, dunkles Thema — die acht Listen stehen im
    Editor-Panel, und das ist dunkel. Nichts hier ist geraten. */
@@ -150,11 +150,14 @@ code {
 }
 .tree-item.has-map-status.karte-ganz .tree-item-name::after { background: var(--presence); }
 
-/* ── DAS NEUE SYMBOL ───────────────────────────────────────────────────────
+/* ── DAS SYMBOL ────────────────────────────────────────────────────────────
    RAUTE, nicht Kreis: der Kreis ist schon vergeben (Karte), und zwei Kreise
-   nebeneinander waeren zwei Bedeutungen in einer Form. */
+   nebeneinander waeren zwei Bedeutungen in einer Form.
+   💣 grid-column: -2 / -1 heisst „die LETZTE Spalte" — mit Ziehgriff die dritte,
+   ohne ihn (drei der acht Listen sind --nodrag) die zweite. Eine feste 3 risse
+   dort eine vierte, implizite Spalte auf. */
 .wiki-state {
-	grid-column: 3;
+	grid-column: -2 / -1;
 	grid-row: 1;
 	justify-self: end;
 	width: 11px; height: 11px;
@@ -162,17 +165,33 @@ code {
 	border-radius: 2px;
 	box-sizing: border-box;
 }
-.wiki-state--zuweisbar {           /* voll = greifbar */
-	background: var(--accent);
+/* ① zugewiesen */
+.wiki-state--zugewiesen {
 	border: 1px solid var(--accent);
+	background: var(--accent);
 }
-.wiki-state--kandidat {            /* hohl + gestrichelt = ansehen */
-	background: transparent;
-	border: 1.5px dashed var(--warning);
+/* ② teilweise zugewiesen — dieselbe Bauform wie die halbe Fuellung des Kreises
+   daneben (.tree-map-status--children-only), aber mit um die Drehung
+   korrigierter Richtung: „to right" laege im Bild diagonal. */
+.wiki-state--teilweise {
+	border: 1px solid var(--accent);
+	background: linear-gradient(to top right, var(--accent) 0 50%, transparent 50% 100%);
 }
-.wiki-state--zugewiesen {          /* leise, nur Kontur */
-	background: transparent;
+/* ③ kein Wiki-Artikel vorhanden */
+.wiki-state--ohne-artikel {
 	border: 1px solid var(--text-muted);
+	background: transparent;
+}
+/* ④ offen, Kandidat vorhanden — der Punkt ist ein HINTERGRUND, kein zweites
+   Element: das Zeichen bleibt EIN Knoten und bleibt in seinen 11px. */
+.wiki-state--kandidat {
+	border: 1.5px dashed var(--warning);
+	background: radial-gradient(circle at 50% 50%, var(--warning) 0 1.5px, transparent 1.6px);
+}
+/* ⑥ offen, nichts gefunden — die haeufigste Form, also die leiseste. */
+.wiki-state--offen {
+	border: 1px dashed var(--text-muted);
+	background: transparent;
 	opacity: .55;
 }
 
@@ -201,137 +220,194 @@ code {
 }
 .hinweis strong { display: block; margin-bottom: 3px; }
 
-.variante { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 10px; }
-.variante > div { flex: 0 0 400px; }
-.variante h4 {
-	margin: 0 0 6px;
+.zahlen { max-width: 76ch; margin: 14px 0 0; border-collapse: collapse; }
+.zahlen th, .zahlen td {
+	padding: 7px 14px 7px 0;
+	border-bottom: 1px solid var(--divider);
+	text-align: left;
+	font-size: 13px;
 	color: var(--text-muted);
-	font-size: var(--font-size-caption);
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: .04em;
 }
+.zahlen th { color: var(--text-strong); font-weight: 700; }
+.zahlen td:last-child, .zahlen th:last-child { text-align: right; padding-right: 0; }
 </style>
 </head>
 <body>
 
-<h1>Ein Symbol rechts oben: „Ist hier ein Wiki-Artikel zu holen?"</h1>
+<h1>Ein Symbol rechts oben: „Wie steht diese Zeile zum Wiki?"</h1>
 <p class="lede">
-	Die Kraftlinienliste zeigt 62 Einträge. <strong>17 davon sind sofort zuweisbar</strong>, vier
-	weitere haben im Wiki einen Artikel unter leicht anderem Namen. Man sieht es keiner Zeile an —
-	also muss man alle 62 anklicken. Das Symbol beantwortet die Frage beim Überfliegen.
+	Die Kraftlinienliste zeigt 62 Einträge. Der Ausgangssatz des Owners war
+	<strong>„ich seh nicht, welche Kraftlinien gesynct werden können"</strong> — und man sieht es
+	keiner Zeile an, also muss man alle 62 anklicken. Das Symbol beantwortet die Frage beim
+	Überfliegen: <strong>21 Zeilen tragen einen Punkt</strong>, das sind die, an denen es etwas zu
+	holen gibt.
 </p>
 <p>
-	Alle Namen und Zustände unten sind <strong>echt</strong>, live gemessen am 17.08.2026.
+	Alle Namen und Zahlen unten sind <strong>echt</strong>, am 17.08.2026 aus der Live-Nutzlast
+	gemessen (<code>GET /api/app/map-features.php</code>, ein Abruf). Die einzige Ausnahme ist der
+	Zustand ②, den es heute in keiner der 62 Zeilen gibt — er ist ausdrücklich als gestellt
+	gekennzeichnet.
 </p>
 
-<h2>Die Liste, wie sie damit aussähe</h2>
+<h2>Die Liste, wie sie damit aussieht</h2>
 
 <div class="panelrahmen">
 	<div class="panel">
 		<p class="panelkopf">Kraftlinien · 62</p>
 		<div class="wikisync-itemlist wikisync-itemlist--wikistatus">
 
+			<div class="tree-item has-map-status karte-ganz">
+				<span class="drag-handle">⣿</span>
+				<span class="tree-item-name">Elementares Hexagramm</span>
+				<span class="tree-item-meta">6 Nodices · 6 Segmente</span>
+				<span class="wiki-state wiki-state--zugewiesen" title="Zugewiesen"></span>
+			</div>
+
+			<div class="tree-item has-map-status karte-ganz">
+				<span class="drag-handle">⣿</span>
+				<span class="tree-item-name">Hexenband</span>
+				<span class="tree-item-meta">7 Nodices · 6 Segmente</span>
+				<span class="wiki-state wiki-state--zugewiesen" title="Zugewiesen"></span>
+			</div>
+
 			<div class="tree-item has-map-status">
 				<span class="drag-handle">⣿</span>
-				<span class="tree-item-name">Arteria Magica</span>
-				<span class="tree-item-meta">3 Nodices · 2 Segmente · Donnerbach — Narai Tuschas</span>
-				<span class="wiki-state wiki-state--zuweisbar" title="Zuweisbar"></span>
+				<span class="tree-item-name">Satinavs Kette I <em style="font-weight:400;color:var(--text-muted);">(gestellt)</em></span>
+				<span class="tree-item-meta">4 Nodices · 3 Segmente</span>
+				<span class="wiki-state wiki-state--teilweise" title="Teilweise zugewiesen: 1 von 3"></span>
+			</div>
+
+			<div class="tree-item has-map-status">
+				<span class="drag-handle">⣿</span>
+				<span class="tree-item-name">Drachenblick</span>
+				<span class="tree-item-meta">5 Nodices · 4 Segmente</span>
+				<span class="wiki-state wiki-state--ohne-artikel" title="Kein Wiki-Artikel vorhanden (im Editor festgestellt)"></span>
+			</div>
+
+			<div class="tree-item has-map-status">
+				<span class="drag-handle">⣿</span>
+				<span class="tree-item-name">Hursachquelle</span>
+				<span class="tree-item-meta">2 Nodices · 1 Segment</span>
+				<span class="wiki-state wiki-state--ohne-artikel" title="Kein Wiki-Artikel vorhanden (im Editor festgestellt)"></span>
 			</div>
 
 			<div class="tree-item has-map-status">
 				<span class="drag-handle">⣿</span>
 				<span class="tree-item-name">Basiliuslinie</span>
 				<span class="tree-item-meta">18 Nodices · 16 Segmente · 4 Enden</span>
-				<span class="wiki-state wiki-state--zuweisbar" title="Zuweisbar"></span>
-			</div>
-
-			<div class="tree-item has-map-status">
-				<span class="drag-handle">⣿</span>
-				<span class="tree-item-name">Brücke nach Akrabaal</span>
-				<span class="tree-item-meta">3 Nodices · 2 Segmente · Ssel’ Althach — Friedhof der Seeschlangen</span>
-				<span class="wiki-state wiki-state--kandidat" title="Kandidat im Wiki gefunden: „Brücke von Akrabaal“"></span>
-			</div>
-
-			<div class="tree-item has-map-status">
-				<span class="drag-handle">⣿</span>
-				<span class="tree-item-name">Satinavs Kette I</span>
-				<span class="tree-item-meta">4 Nodices · 3 Segmente</span>
-				<span class="wiki-state wiki-state--kandidat" title="Kandidat im Wiki gefunden: „Satinavs Ketten“"></span>
-			</div>
-
-			<div class="tree-item has-map-status karte-ganz">
-				<span class="drag-handle">⣿</span>
-				<span class="tree-item-name">Elementares Hexagramm</span>
-				<span class="tree-item-meta">6 Nodices · 6 Segmente · <a href="#">Wiki ↗</a></span>
-				<span class="wiki-state wiki-state--zugewiesen" title="Zugewiesen"></span>
+				<span class="wiki-state wiki-state--kandidat" title="Offen — Kandidat im Wiki: „Basiliuslinie“ (Name stimmt wortgleich)"></span>
 			</div>
 
 			<div class="tree-item has-map-status">
 				<span class="drag-handle">⣿</span>
 				<span class="tree-item-name">Kette der Zyklopen</span>
 				<span class="tree-item-meta">5 Nodices · 4 Segmente</span>
-				<span class="wiki-state wiki-state--zuweisbar" title="Zuweisbar"></span>
+				<span class="wiki-state wiki-state--kandidat" title="Offen — Kandidat im Wiki: „Kette der Zyklopen“ (Name stimmt wortgleich)"></span>
+			</div>
+
+			<div class="tree-item has-map-status">
+				<span class="drag-handle">⣿</span>
+				<span class="tree-item-name">Brücke nach Akrabaal</span>
+				<span class="tree-item-meta">3 Nodices · 2 Segmente · Ssel’ Althach ↔ Friedhof der Seeschlangen</span>
+				<span class="wiki-state wiki-state--kandidat" title="Offen — Kandidat im Wiki: „Brücke von Akrabaal“ (ähnlicher Name)"></span>
 			</div>
 
 			<div class="tree-item has-map-status">
 				<span class="drag-handle">⣿</span>
 				<span class="tree-item-name">Klirrfrostsaite (Zwölfseitige Götterharfe)</span>
 				<span class="tree-item-meta">3 Nodices · 2 Segmente</span>
-				<span class="wiki-state wiki-state--kandidat" title="Kandidat im Wiki gefunden: „Zwölfsaitige Götterharfe“"></span>
+				<span class="wiki-state wiki-state--kandidat" title="Offen — Kandidat im Wiki: „Zwölfsaitige Götterharfe“ (ähnlicher Name)"></span>
 			</div>
 
 			<div class="tree-item has-map-status">
 				<span class="drag-handle">⣿</span>
 				<span class="tree-item-name">Aldyra - Kuslik</span>
-				<span class="tree-item-meta">2 Nodices · 1 Segmente · Aldyra — Kuslik</span>
+				<span class="tree-item-meta">2 Nodices · 1 Segment · Aldyra ↔ Kuslik</span>
+				<span class="wiki-state wiki-state--offen" title="Offen — kein Kandidat gefunden"></span>
 			</div>
 
 			<div class="tree-item has-map-status">
 				<span class="drag-handle">⣿</span>
 				<span class="tree-item-name">Chalwens Griff</span>
-				<span class="tree-item-meta">4 Nodices · 3 Segmente · Olport — Akrabaal</span>
+				<span class="tree-item-meta">4 Nodices · 3 Segmente · Olport ↔ Akrabaal</span>
+				<span class="wiki-state wiki-state--offen" title="Offen — kein Kandidat gefunden"></span>
 			</div>
 
 		</div>
 	</div>
 
 	<div style="flex:1 1 300px; min-width:280px;">
-		<h3 style="margin-top:0;">Die drei Zustände</h3>
+		<h3 style="margin-top:0;">Die fünf Zustände</h3>
 		<table class="legende">
 			<tr>
-				<td><span class="probe"><span class="wiki-state wiki-state--zuweisbar"></span></span></td>
-				<td><strong>Zuweisbar.</strong> Der Name trifft einen Katalogeintrag exakt. Ein Klick,
-					und die Zuweisung steht. <em>Volle Raute = greifbar.</em></td>
+				<td><span class="probe"><span class="wiki-state wiki-state--zugewiesen"></span></span></td>
+				<td><strong>① Zugewiesen.</strong> Die Zeile trägt ihren Wiki-Artikel. <em>Gefüllt.</em></td>
+			</tr>
+			<tr>
+				<td><span class="probe"><span class="wiki-state wiki-state--teilweise"></span></span></td>
+				<td><strong>② Teilweise zugewiesen.</strong> Manche Segmente der Namensgruppe tragen den
+					Artikel, andere nicht. <em>Halb gefüllt</em> — dieselbe Bauform wie die halbe Füllung
+					des Kreises daneben. Der Tooltip nennt die Zahlen („1 von 3").</td>
+			</tr>
+			<tr>
+				<td><span class="probe"><span class="wiki-state wiki-state--ohne-artikel"></span></span></td>
+				<td><strong>③ Kein Wiki-Artikel vorhanden.</strong> Ein Editor hat festgestellt, dass es
+					keinen gibt (<code>wiki_no_article</code>). <em>Durchgezogene Kontur, leer.</em></td>
 			</tr>
 			<tr>
 				<td><span class="probe"><span class="wiki-state wiki-state--kandidat"></span></span></td>
-				<td><strong>Kandidat gefunden.</strong> Im Wiki gibt es etwas, das passen könnte — aber
-					nicht wortgleich. <em>Gestrichelte Kontur = ansehen, nicht zugreifen.</em> Der
-					Tooltip nennt den Fund.</td>
+				<td><strong>④ Offen, Kandidat vorhanden.</strong> Im Wiki steht ein Artikel, der zu dieser
+					Zeile passt — wortgleich oder unter leicht anderem Namen. <em>Gestrichelte Kontur mit
+					Punkt.</em> Der Tooltip nennt den Fund und sagt, wie genau er passt.</td>
 			</tr>
 			<tr>
-				<td><span class="probe"><span class="wiki-state wiki-state--zugewiesen"></span></span></td>
-				<td><strong>Zugewiesen.</strong> Leise, nur Kontur — die Zeile sagt es ohnehin schon mit
-					ihrem <a href="#">Wiki ↗</a>. <em>Optional, siehe Variante B.</em></td>
-			</tr>
-			<tr>
-				<td style="color:var(--text-muted); font-size:11px; padding-top:14px;">— nichts —</td>
-				<td><strong>Nichts gefunden.</strong> Kein Symbol. Heißt <em>„wir haben nichts
-					gefunden“</em> — <strong>nicht</strong> „es gibt keinen Artikel“.</td>
+				<td><span class="probe"><span class="wiki-state wiki-state--offen"></span></span></td>
+				<td><strong>⑥ Offen, nichts gefunden.</strong> Wir haben gesucht und nichts gefunden.
+					<em>Gestrichelte Kontur, leer</em> — und leise, denn das ist die häufigste Form.</td>
 			</tr>
 		</table>
 	</div>
 </div>
 
 <div class="hinweis">
-	<strong>Die Abwesenheit darf nicht lügen.</strong>
-	Genau dafür gibt es den dritten Zustand. Ohne ihn stünde „Brücke nach Akrabaal“ leer da,
-	obwohl das Wiki „Brücke <em>von</em> Akrabaal“ führt — und das Symbol hätte dem Leser das
-	Gegenteil der Wahrheit beigebracht. Auf derselben Zeile sitzt bereits ein Zeichen, dessen
-	Fehlen <em>Information</em> ist (der grüne Kreis: nur die fünf Karten-Subjekte haben ihn).
-	Zwei verschieden bedeutende Abwesenheiten auf einer Zeile wären eine Falle.
+	<strong>Die Leitidee: durchgezogen = erledigt, gestrichelt = offen.</strong>
+	① und ③ sind <em>beide</em> abgeschlossen — einmal mit einem Artikel, einmal mit der
+	Feststellung, dass es keinen gibt. Offen sind nur ④ und ⑥, und dort sagt der Punkt „hier liegt
+	was". Diese Zuordnung dreht sich leicht um, weil „kein Artikel" nach einem Mangel klingt und
+	„Kandidat gefunden" nach einem Erfolg — gemeint ist beides nicht. Sie steht deshalb als
+	Kommentar an der CSS-Regel und als Zusicherung im Test.
 </div>
+
+<div class="hinweis">
+	<strong>Jede Zeile trägt ein Symbol — die Abwesenheit bedeutet nichts mehr.</strong>
+	Die erste Fassung ließ die Zeile leer, wenn nichts gefunden wurde, und musste dann an drei
+	Stellen erklären, dass die Leerstelle „wir haben nichts gefunden" heißt und nicht „es gibt
+	keinen Artikel". Genau dieser Unterschied hat jetzt eine eigene Form (③), und geschwiegen wird
+	nirgends mehr. <strong>Die Nachbarregel bleibt unberührt:</strong> der grüne Kartenkreis fehlt
+	bei Literatur, Karten und Vorkommen weiterhin mit Absicht, und dieses Fehlen <em>ist</em>
+	Information.
+</div>
+
+<h2>Was live dabei herauskommt</h2>
+<table class="zahlen">
+	<tr><th>Zustand</th><th>Kraftlinien</th></tr>
+	<tr><td>① zugewiesen</td><td>2</td></tr>
+	<tr><td>② teilweise zugewiesen</td><td>0</td></tr>
+	<tr><td>③ kein Wiki-Artikel vorhanden</td><td>2</td></tr>
+	<tr><td>④ offen, Kandidat vorhanden</td><td>21 <span style="font-size:11px;">(17 wortgleich + 4 ähnlich)</span></td></tr>
+	<tr><td>⑥ offen, nichts gefunden</td><td>37</td></tr>
+	<tr><td><strong>Summe</strong></td><td><strong>62</strong></td></tr>
+</table>
+<p>
+	<strong>Warum ④ eine eigene Form braucht.</strong> Ohne sie wäre „gestrichelt" ein Topf aus 58
+	Zeilen, in dem 21 einen Treffer haben und 37 nicht — der Owner müsste 58 Zeilen anklicken, um
+	21 zu finden. Vorher waren es 60. Erst ④ beantwortet die Frage, mit der das hier angefangen hat.
+</p>
+<p>
+	⚠️ Die <strong>Unterscheidung wortgleich ↔ ähnlich</strong> ist nicht weggeworfen: sie steht im
+	Tooltip und im Code. Sie bekommt nur keine eigene Form — das ist eine Owner-Entscheidung für
+	später und wäre eine sechste Raute, kein Umbau.
+</p>
 
 <h2>Was das an der geteilten Zeile kostet</h2>
 <p>
@@ -347,74 +423,43 @@ code {
 		Pixel</strong>, solange sie das Opt-in nicht setzen.</li>
 	<li><strong>Ohne Opt-in keine Spalte.</strong> Eine dauerhaft dritte Spalte kostet auch leer
 		ihren <code>column-gap</code> von 7px — in einem 400px-Panel ist das nicht nichts.</li>
+	<li><strong>Ohne Katalog auch keine.</strong> Scheitert der Abruf (nicht angemeldet, Netz weg),
+		wurde gar nicht gesucht — dann fällt die ganze Spalte aus, statt in 58 Zeilen „offen, kein
+		Kandidat gefunden" zu behaupten.</li>
 	<li><strong>11px, nicht kleiner.</strong> Die Raute ist 11px, exakt so hoch wie der vorhandene
-		Kreis, damit sie die Zeilenhöhe nicht anfasst.</li>
+		Kreis, damit sie die Zeilenhöhe nicht anfasst. Auch Punkt und halbe Füllung sind
+		<em>Hintergründe</em> und bleiben darin — je Zeichen ein Knoten.</li>
 	<li><strong>Raute statt Kreis.</strong> Der Kreis ist vergeben. Zwei Kreise nebeneinander wären
 		zwei Bedeutungen in einer Form.</li>
-	<li><strong>Nur Token</strong>, kein hartkodierter Farbwert: <code>--color-accent</code> (Gold)
-		und <code>--color-warning</code> (Bernstein). Kein Blau.</li>
+	<li><strong>Nur Token</strong>, kein hartkodierter Farbwert: <code>--color-accent</code> (Gold),
+		<code>--color-warning</code> (Bernstein), <code>--color-text-muted</code>. Kein Blau.</li>
+	<li>💣 <strong>Die Verlaufsrichtung der halben Füllung ist um die Drehung korrigiert.</strong>
+		Die Raute steht auf <code>rotate(45deg)</code>, und ein Verlauf dreht mit: das
+		<code>to right</code> des Kreis-Vorbilds läge im Bild diagonal. Deshalb
+		<code>to top right</code> — im Bild eine senkrechte Trennlinie, genau wie beim Kreis.</li>
 </ul>
 
 <h2>Woher die Antwort kommt</h2>
 <p>
 	Die Kraftlinien liefern ihren Katalog <strong>schon mit</strong> — <code>wiki_articles</code>,
 	23 Einträge, im selben Payload wie die 165 Segmente. Der Abgleich kostet also keine Anfrage und
-	kein Warten. <strong>Die anderen sieben Listen können das heute nicht:</strong> bei Wegen, Orten
-	und Regionen stehen tausende Kandidaten, die kein Payload mitschleppt — dort müsste der Server
-	die Antwort je Zeile mitgeben. Deshalb ist das Opt-in kein Schnörkel, sondern der eigentliche
-	Zuschnitt: <strong>heute Kraftlinien, später der Rest, ohne die Zeile ein zweites Mal zu
-	erfinden.</strong>
+	kein Warten, und <strong>das Wiki wird nie angerufen</strong>. <strong>Die anderen sieben Listen
+	können das heute nicht:</strong> bei Wegen, Orten und Regionen stehen tausende Kandidaten, die
+	kein Payload mitschleppt — dort müsste der Server die Antwort je Zeile mitgeben. Deshalb ist das
+	Opt-in kein Schnörkel, sondern der eigentliche Zuschnitt: <strong>heute Kraftlinien, später der
+	Rest, ohne die Zeile ein zweites Mal zu erfinden.</strong>
 </p>
-
-<h2>Variante B — ohne Symbol für „zugewiesen“</h2>
 <p>
-	Falls die leise Raute zu viel ist: die zugewiesene Zeile trägt ihr <code>Wiki ↗</code> ohnehin.
-	Links mit, rechts ohne.
+	Die Zustände ①–③ kommen aus derselben Antwort, aber nicht aus dem Abgleich: ① und ② zählen die
+	Segmente mit <code>wiki_url</code>, ③ liest den Merker <code>wiki_no_article</code>.
+	💣 <strong>Zähler und Nenner stammen aus derselben Zählung</strong> — nähme man den Nenner aus
+	der öffentlichen Kartennutzlast, stünde dort, wo die beiden auseinanderlaufen, „5 von 3".
 </p>
-<div class="variante">
-	<div>
-		<h4>A — mit (oben gezeigt)</h4>
-		<div class="panel" style="width:100%">
-			<div class="wikisync-itemlist wikisync-itemlist--wikistatus">
-				<div class="tree-item has-map-status karte-ganz">
-					<span class="drag-handle">⣿</span>
-					<span class="tree-item-name">Elementares Hexagramm</span>
-					<span class="tree-item-meta">6 Nodices · 6 Segmente · <a href="#">Wiki ↗</a></span>
-					<span class="wiki-state wiki-state--zugewiesen"></span>
-				</div>
-				<div class="tree-item has-map-status">
-					<span class="drag-handle">⣿</span>
-					<span class="tree-item-name">Kette der Zyklopen</span>
-					<span class="tree-item-meta">5 Nodices · 4 Segmente</span>
-					<span class="wiki-state wiki-state--zuweisbar"></span>
-				</div>
-			</div>
-		</div>
-	</div>
-	<div>
-		<h4>B — ohne</h4>
-		<div class="panel" style="width:100%">
-			<div class="wikisync-itemlist wikisync-itemlist--wikistatus">
-				<div class="tree-item has-map-status karte-ganz">
-					<span class="drag-handle">⣿</span>
-					<span class="tree-item-name">Elementares Hexagramm</span>
-					<span class="tree-item-meta">6 Nodices · 6 Segmente · <a href="#">Wiki ↗</a></span>
-				</div>
-				<div class="tree-item has-map-status">
-					<span class="drag-handle">⣿</span>
-					<span class="tree-item-name">Kette der Zyklopen</span>
-					<span class="tree-item-meta">5 Nodices · 4 Segmente</span>
-					<span class="wiki-state wiki-state--zuweisbar"></span>
-				</div>
-			</div>
-		</div>
-	</div>
-</div>
 
 <h2>Was der Abgleich leisten muss</h2>
 <p>
-	Der Kandidaten-Abgleich wird eine eigene, geprüfte Funktion — keine Bedingung im Zeichner. Seine
-	Abnahmeliste steht schon fest, und sie hat <strong>zwei</strong> Seiten:
+	Der Kandidaten-Abgleich ist eine eigene, geprüfte Funktion — keine Bedingung im Zeichner. Seine
+	Abnahmeliste hat <strong>zwei</strong> Seiten:
 </p>
 <ul>
 	<li><strong>Muss finden</strong> (gemessene Fälle): <code>Brücke nach Akrabaal</code> →
@@ -422,8 +467,8 @@ code {
 		(ein Artikel für beide) · <code>Klirrfrostsaite (Zwölfseitige Götterharfe)</code> →
 		„Zwölfsaitige Götterharfe“.</li>
 	<li><strong>Darf nicht finden:</strong> die 16 automatisch benannten Paare
-		(<code>Aldyra - Kuslik</code>, <code>Kreuzung - Kreuzung</code>). Ein Symbol, das überall
-		leuchtet, ist so nutzlos wie keins.</li>
+		(<code>Aldyra - Kuslik</code>, <code>Kreuzung - Kreuzung</code>). Sie tragen ⑥, nicht ④ — ein
+		Punkt, der überall sitzt, ist so nutzlos wie keiner.</li>
 </ul>
 <p>
 	Zwei Tippfehler in unseren Daten sind dabei nebenbei aufgefallen und werden

@@ -1221,7 +1221,7 @@
    .wikisync-itemlist--wikistatus nicht setzen.
    💣 Und sie MUSS ein Opt-in sein: eine dauerhaft dritte Spalte kostet auch leer ihren
    column-gap von 7px — in einem 400px breiten Panel ist das nicht nichts.
-   Entwurf/Mockup: docs/listensymbol-wiki-mockup.html (Variante A, Owner-Abnahme 17.08.2026). */
+   Entwurf/Mockup: docs/listensymbol-wiki-mockup.html (Owner-Abnahme 17.08.2026). */
 .wikisync-itemlist--wikistatus .tree-item {
 	grid-template-columns: 16px minmax(0, 1fr) 16px;
 }
@@ -1236,8 +1236,9 @@
 /* Das Symbol: eine RAUTE, nicht noch ein Kreis. Der Kreis ist vergeben (.has-map-status = liegt
    auf der Karte); zwei Kreise nebeneinander wären zwei Bedeutungen in einer Form.
    💣 grid-column: -2 / -1 heißt „die LETZTE Spalte" — mit Ziehgriff die dritte, ohne ihn die
-   zweite. Eine feste 3 (so steht sie im Mockup, das nur die Kraftlinien zeigt) risse in einer
-   --nodrag-Liste eine vierte, implizite Spalte auf.
+   zweite. Eine feste 3 gölte nur für die Listen mit Ziehgriff und risse in einer --nodrag-Liste
+   eine vierte, implizite Spalte auf. (Das Mockup schrieb bis 17.08.2026 eine 3 — es zeigt nur die
+   Kraftlinien; es ist inzwischen auf diese Regel gezogen.)
    💣 11px, exakt so hoch wie der Kreis daneben, damit die Zeilenhöhe unberührt bleibt — und
    zugleich die Untergrenze der Designsprache. ⚠️ Gedreht misst die Raute 15,6px in der Diagonale;
    mit justify-self:end reicht sie damit 2,28px in die 8px-Polsterung der Zeile (gemessen im
@@ -1254,29 +1255,72 @@
 	border-radius: 2px;
 	transform: rotate(45deg);
 }
-/* Voll = greifbar: der Name trifft einen Katalogeintrag wortgleich, ein Klick genügt. */
-.wikisync-itemlist--wikistatus .wiki-state--zuweisbar {
+/* 🔴 FÜNF FORMEN, UND JEDE ZEILE TRÄGT EINE (Owner-Entscheid 17.08.2026).
+   🔴 DIE LEITIDEE, UND SIE IST DER GRUND FÜR DIE ZUORDNUNG: **durchgezogen = erledigt,
+   gestrichelt = offen.** „zugewiesen" und „kein Wiki-Artikel vorhanden" sind BEIDE abgeschlossen
+   — einmal mit einem Artikel, einmal mit der Feststellung, dass es keinen gibt. Offen sind nur
+   die letzten beiden; dort sagt der Punkt „hier liegt was". Ohne diesen Satz dreht der nächste
+   Leser die Zuordnung um, weil „kein Artikel" nach einem Mangel klingt und „Kandidat gefunden"
+   nach einem Erfolg — beides ist hier nicht gemeint.
+   Gemessen am Livebestand (17.08.2026, 62 Kraftlinien): 2 gefüllt · 0 halb · 2 Kontur ·
+   21 gestrichelt-mit-Punkt · 37 gestrichelt.
+   ⚠️ Die Nummern folgen der Zustandsliste des Owners, und ⑤ fehlt dort ABSICHTLICH: das war der
+   unscharfe Kandidat, und er teilt sich mit dem wortgleichen Treffer die Form ④. Es ist keine
+   gelöschte Regel. */
+
+/* ① Voll = zugewiesen. Die Zuweisung steht, hier ist nichts mehr zu holen. */
+.wikisync-itemlist--wikistatus .wiki-state--zugewiesen {
 	border: 1px solid var(--color-accent);
 	background: var(--color-accent);
 }
-/* Hohl und gestrichelt = ansehen, nicht zugreifen: im Wiki steht etwas, das passen könnte, aber
-   nicht wortgleich. Der Tooltip nennt den Fund.
-   💣 DIESER ZUSTAND IST DER SINN DES SYMBOLS. Ohne ihn stünde „Brücke nach Akrabaal" leer da,
-   obwohl das Wiki „Brücke VON Akrabaal" führt — und die ABWESENHEIT des Symbols, die „wir haben
-   nichts gefunden" heißt, hätte den Leser „es gibt keinen Artikel" verstehen lassen. Auf
-   derselben Zeile ist bereits eine Abwesenheit bedeutungstragend (der Kreis fehlt bei Literatur,
-   Karten und Vorkommen mit Absicht); zwei verschieden bedeutende Abwesenheiten wären eine Falle. */
-/* ⚠️ Die 1,5px stehen so im Mockup und bleiben so: bei einfacher Bildschirmauflösung rundet der
-   Browser sie auf 1px ab (gemessen, devicePixelRatio 1), auf einem feinen Bildschirm trägt die
-   Kontur ihr volles Gewicht. Unterscheidbar ist der Zustand ohnehin an der Strichelung, nicht an
-   der Strichstärke. */
-.wikisync-itemlist--wikistatus .wiki-state--kandidat {
-	border: 1.5px dashed var(--color-warning);
+/* ② Halb gefüllt = teilweise zugewiesen: manche Teile der Zeile tragen den Artikel, andere nicht.
+   ⭐ DIESELBE BAUFORM wie das Hausvorbild auf derselben Zeile (.tree-map-status--children-only /
+   --own-only weiter oben): ein linearer Verlauf mit hartem Halt bei 50 %. Keine zweite Rezeptur.
+   💣 ABER DIE RICHTUNG IST UM DIE DREHUNG KORRIGIERT. Die Raute steht auf `rotate(45deg)`, und ein
+   Verlauf dreht mit: `to right` läge im Bild diagonal (Kante zwischen zwei Kanten-Mitten). `to top
+   right` zeigt lokal nach schräg oben und damit im Bild waagerecht nach rechts — die Trennlinie
+   steht senkrecht, genau wie beim Kreis daneben. Wer die Drehung an der Basisregel ändert, ändert
+   diese Richtung mit.
+   🔧 Die durchgezogene Kontur ist hier eine ABGELEITETE Entscheidung, keine des Owners: die
+   Leitidee benennt „zugewiesen" und „kein Artikel" als erledigt und die beiden Kandidatenfälle als
+   offen — dazwischen sagt sie nichts. Die halbe Füllung trägt das „noch nicht fertig" bereits im
+   Bild; eine gestrichelte Kontur sagte es ein zweites Mal. */
+.wikisync-itemlist--wikistatus .wiki-state--teilweise {
+	border: 1px solid var(--color-accent);
+	background: linear-gradient(to top right, var(--color-accent) 0 50%, transparent 50% 100%);
+}
+/* ③ Durchgezogene Kontur, leer = ein Editor hat festgestellt, dass es KEINEN Wiki-Artikel gibt
+   (properties.wiki_no_article). Erledigt, aber ohne Fund — deshalb durchgezogen wie ①, aber im
+   gedämpften Ton und ohne Füllung.
+   💣 Genau dieser Zustand war der Grund, warum die Vorgängerfassung ihre Abwesenheit in drei
+   Dateien erklären musste: eine leere Stelle liest sich als „es gibt keinen Artikel", während sie
+   „wir haben keinen gefunden" hieß. Jetzt sagen beide es selbst, und zwar verschieden. */
+.wikisync-itemlist--wikistatus .wiki-state--ohne-artikel {
+	border: 1px solid var(--color-text-muted);
 	background: transparent;
 }
-/* Leise, nur Kontur — die Zuweisung steht schon, hier ist nichts mehr zu holen. */
-.wikisync-itemlist--wikistatus .wiki-state--zugewiesen {
-	border: 1px solid var(--color-text-muted);
+/* ④ Gestrichelte Kontur MIT PUNKT = offen, aber es liegt ein Kandidat bereit. Die häufigste
+   Handlung der Liste hängt an dieser Form: sie beantwortet „welche Zeile kann ich jetzt syncen?".
+   💣 Diese eine Form deckt ZWEI Befunde — den wortgleichen Treffer und den nur ähnlichen. Die
+   Unterscheidung lebt im Tooltip weiter, nicht in der Zeichnung; eine eigene Form dafür wäre eine
+   Owner-Entscheidung, kein Umbau.
+   💣 DER PUNKT IST EIN HINTERGRUND, KEIN ELEMENT — das Zeichen bleibt EIN Knoten, und ein
+   Hintergrund kann die 11px nicht sprengen: er liegt ganz im Kasten, rührt die Zeilenhöhe also
+   nicht an. (Dieselbe Technik wie die halbe Füllung bei ②.) Ein Kreis bleibt unter `rotate(45deg)`
+   ein Kreis; hier ist nichts zu korrigieren.
+   ⚠️ Die 1,5px: bei einfacher Bildschirmauflösung rundet der Browser sie auf 1px ab (gemessen,
+   devicePixelRatio 1), auf einem feinen Bildschirm trägt die Kontur ihr volles Gewicht. Der
+   Unterschied zu ⑥ liegt ohnehin im Punkt, im Farbton und in der Dämpfung — nicht in der Stärke. */
+.wikisync-itemlist--wikistatus .wiki-state--kandidat {
+	border: 1.5px dashed var(--color-warning);
+	background: radial-gradient(circle at 50% 50%, var(--color-warning) 0 1.5px, transparent 1.6px);
+}
+/* ⑥ Gestrichelt, leer und gedämpft = offen, kein Kandidat gefunden.
+   💣 DAS IST EINE AUSSAGE, KEINE ABWESENHEIT — und dafür steht sie da.
+   ⚠️ Sie trifft 37 der 62 Kraftlinien, ist also die häufigste Form im Bild — sie MUSS die leiseste
+   sein, sonst rauscht die Liste. */
+.wikisync-itemlist--wikistatus .wiki-state--offen {
+	border: 1px dashed var(--color-text-muted);
 	background: transparent;
 	opacity: .55;
 }

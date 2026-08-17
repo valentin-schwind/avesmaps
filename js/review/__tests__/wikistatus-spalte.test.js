@@ -1,15 +1,19 @@
-// Die dritte Spalte der geteilten Listenzeile -- ihr Opt-in und ihre Verdrahtung.
+// Die dritte Spalte der geteilten Listenzeile -- ihr Opt-in, ihre fuenf Formen und ihre Verdrahtung.
 //
 // 🔴 ES GIBT ZWEI LISTENZEILEN IM PROJEKT, UND DAS IST DIE OBERGRENZE. Das Symbol gehoert deshalb
 // in die geteilte Zeile (.wikisync-itemlist .tree-item) und nirgendwo sonst -- aber als OPT-IN:
 // die dritte Spalte entsteht nur unter .wikisync-itemlist--wikistatus. Eine dauerhaft dritte
 // Spalte kostet auch leer ihren column-gap von 7px, und das Panel ist 400px breit.
 //
+// 🔴 DIE LEITIDEE DER FUENF FORMEN: **durchgezogen = erledigt, gestrichelt = offen.** Sie ist
+// hier als Zusicherung festgenagelt, weil sie sich lautlos umdrehen laesst: „kein Artikel" klingt
+// nach einem Mangel und „Kandidat gefunden" nach einem Erfolg -- beides ist nicht gemeint.
+//
 // 💣 Und die Verdrahtung ist die andere Haelfte: ein gruener CSS-Test beweist nichts ueber eine
 // Regel, die niemand aufruft. Der zweite Teil dieser Datei FUEHRT den Zeichner der Kraftlinien-
 // liste aus -- mit gestelltem DOM und gestelltem fetch -- und liest die erzeugte Zeile.
 //
-// Mockup: docs/listensymbol-wiki-mockup.html (Variante A, Owner-Abnahme 17.08.2026).
+// Mockup: docs/listensymbol-wiki-mockup.html (Owner-Abnahme 17.08.2026).
 //
 // Run: node js/review/__tests__/wikistatus-spalte.test.js
 
@@ -33,6 +37,9 @@ function regelRumpf(selektor) {
 		new RegExp("(?:^|\\})\\s*" + selektor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{([^}]*)\\}"));
 	return treffer ? treffer[1] : null;
 }
+
+/** Der Rumpf einer Zustandsregel, ueber ihre Formklasse. */
+const formRumpf = (form) => regelRumpf(".wikisync-itemlist--wikistatus .wiki-state--" + form);
 
 // ---- 1. Die Grundzeile hat weiterhin ZWEI Spalten ----------------------------------------------
 // 💣 Die eigentliche Zusicherung des Opt-ins. Wanderte die dritte Spalte in die gemeinsame Regel,
@@ -72,9 +79,10 @@ assert.ok(/grid-template-columns:\s*minmax\(0, 1fr\) 16px/.test(kombination),
 checks++;
 
 // ---- 4. Das Symbol sitzt in der LETZTEN Spalte, nicht in Spalte 3 -------------------------------
-// 💣 Das Mockup schreibt "grid-column: 3" -- es zeigt nur die Kraftlinien, und die haben einen
-// Ziehgriff. In einer --nodrag-Liste gibt es nur zwei Spalten; eine feste 3 risse dort eine
-// vierte, implizite Spalte auf und schoebe das Symbol aus der Zeile.
+// 💣 Eine feste 3 gilt nur fuer die Listen MIT Ziehgriff. In einer --nodrag-Liste gibt es nur zwei
+// Spalten; eine 3 risse dort eine vierte, implizite Spalte auf und schoebe das Symbol aus der
+// Zeile. (Das Mockup schrieb bis 17.08.2026 eine 3 -- es zeigt nur die Kraftlinien -- und ist
+// inzwischen auf diese Regel gezogen.)
 const symbol = regelRumpf(".wikisync-itemlist--wikistatus .wiki-state");
 assert.ok(symbol, ".wikisync-itemlist--wikistatus .wiki-state fehlt.");
 checks++;
@@ -88,8 +96,7 @@ checks++;
 // 🔴 Der Wert ist nicht frei: die Raute ist so hoch wie der vorhandene Statuskreis, damit sie die
 // Zeilenhoehe nicht anfasst. 11px ist zugleich die Untergrenze der Designsprache -- an genau
 // dieser Stelle sind Abschriften im Projekt schon zweimal auf 10px gefallen.
-const kreis = regelRumpf(".wikisync-itemlist .tree-item.has-map-status .tree-item-name::after,\r\n#wiki-sync-territory-tree .tree-item.has-map-status .tree-item-name::after")
-	|| (regionSync.replace(/\/\*[\s\S]*?\*\//g, "").match(/has-map-status \.tree-item-name::after\s*\{([^}]*)\}/) || [])[1];
+const kreis = (ohneKommentare.match(/has-map-status \.tree-item-name::after\s*\{([^}]*)\}/) || [])[1];
 assert.ok(kreis, "Die Statuskreis-Regel ist nicht auffindbar -- die Kopplung laesst sich nicht pruefen.");
 checks++;
 const kreisHoehe = (kreis.match(/height:\s*(\d+)px/) || [])[1];
@@ -103,25 +110,119 @@ assert.strictEqual(rauteBreite, "11",
 	"Die Raute ist 11px breit -- die Untergrenze der Designsprache. Eine Abschrift auf 10px ist in "
 	+ "diesem Projekt schon zweimal passiert.");
 checks++;
+assert.ok(/transform:\s*rotate\(45deg\)/.test(symbol),
+	"Die Raute entsteht aus einem gedrehten Quadrat. Faellt die Drehung weg, steht dort ein "
+	+ "Quadrat -- UND die um die Drehung korrigierte Verlaufsrichtung der halben Fuellung stimmt "
+	+ "nicht mehr (siehe Pruefung 7).");
+checks++;
 
-// ---- 6. Nur Token, kein Blau ---------------------------------------------------------------------
-const zustaende = [
-	[".wikisync-itemlist--wikistatus .wiki-state--zuweisbar", "--color-accent"],
-	[".wikisync-itemlist--wikistatus .wiki-state--kandidat", "--color-warning"],
-	[".wikisync-itemlist--wikistatus .wiki-state--zugewiesen", "--color-text-muted"],
+// ---- 6. Fuenf Formen, nur Token, kein Blau -------------------------------------------------------
+// 🔴 Die Belegung des Owners vom 17.08.2026, Zustand fuer Zustand.
+const ZUSTAENDE = [
+	["zugewiesen", "--color-accent"],
+	["teilweise", "--color-accent"],
+	["ohne-artikel", "--color-text-muted"],
+	["kandidat", "--color-warning"],
+	["offen", "--color-text-muted"],
 ];
-for (const [selektor, token] of zustaende) {
-	const rumpf = regelRumpf(selektor);
-	assert.ok(rumpf, `${selektor} fehlt.`);
+for (const [form, token] of ZUSTAENDE) {
+	const rumpf = formRumpf(form);
+	assert.ok(rumpf, `.wiki-state--${form} fehlt -- diese Form zeichnet dann gar nichts.`);
 	assert.ok(rumpf.indexOf("var(" + token + ")") >= 0,
-		`${selektor} muss ${token} benutzen.`);
+		`.wiki-state--${form} muss ${token} benutzen.`);
 	assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(/.test(rumpf),
-		`${selektor} enthaelt einen hartkodierten Farbwert. AGENTS.md §12: niemals eine Farbe `
-		+ "hartkodieren, immer ein Token aus css/base/tokens.css.");
+		`.wiki-state--${form} enthaelt einen hartkodierten Farbwert. AGENTS.md §12: niemals eine `
+		+ "Farbe hartkodieren, immer ein Token aus css/base/tokens.css.");
 	checks += 3;
 }
 
-// ---- 7. Keine ID-Regel darf das Raster noch einmal setzen ---------------------------------------
+// ---- 7. DIE LEITIDEE: durchgezogen = erledigt, gestrichelt = offen -------------------------------
+// 💣 Der Satz, der sich am leichtesten umdreht -- und dann sagt jede Zeile der Liste das Gegenteil,
+// ohne dass irgendetwas kaputt aussieht. „zugewiesen" und „kein Wiki-Artikel vorhanden" sind BEIDE
+// abgeschlossen (einmal mit Artikel, einmal mit der Feststellung, dass es keinen gibt); offen sind
+// nur die zwei Kandidatenformen, und dort sagt der Punkt „hier liegt was".
+const strichart = (form) => ((formRumpf(form) || "").match(/border:\s*[\d.]+px\s+(solid|dashed)/) || [])[1];
+for (const form of ["zugewiesen", "teilweise", "ohne-artikel"]) {
+	assert.strictEqual(strichart(form), "solid",
+		`.wiki-state--${form} ist ein ERLEDIGTER Zustand und braucht eine durchgezogene Kontur. `
+		+ `Gefunden: ${strichart(form)}. (durchgezogen = erledigt, gestrichelt = offen)`);
+	checks++;
+}
+for (const form of ["kandidat", "offen"]) {
+	assert.strictEqual(strichart(form), "dashed",
+		`.wiki-state--${form} ist ein OFFENER Zustand und braucht eine gestrichelte Kontur. `
+		+ `Gefunden: ${strichart(form)}. (durchgezogen = erledigt, gestrichelt = offen)`);
+	checks++;
+}
+
+// ---- 8. ① voll, ③ und ⑥ leer --------------------------------------------------------------------
+assert.ok(/background:\s*var\(--color-accent\)\s*;/.test(formRumpf("zugewiesen")),
+	"Die zugewiesene Raute ist GEFUELLT -- das ist der einzige Zustand, der ohne Kontur erkennbar "
+	+ "sein muss.");
+checks++;
+for (const form of ["ohne-artikel", "offen"]) {
+	assert.ok(/background:\s*transparent\s*;/.test(formRumpf(form)),
+		`.wiki-state--${form} ist LEER. Eine Fuellung dort verwischt den Unterschied zu ①.`);
+	checks++;
+}
+
+// ---- 9. ② halb gefuellt -- dieselbe Bauform wie das Hausvorbild auf derselben Zeile -------------
+// ⭐ .tree-map-status--children-only / --own-only teilen den Statuskreis daneben schon halb, mit
+// einem linearen Verlauf und hartem Halt bei 50 %. Keine zweite Rezeptur.
+const hausvorbild = (ohneKommentare.match(
+	/tree-map-status--children-only\)[^{]*\{([^}]*)\}/) || [])[1];
+assert.ok(hausvorbild && /linear-gradient\(.*0 50%.*50% 100%\)/.test(hausvorbild),
+	"Das Hausvorbild der halben Fuellung (.tree-map-status--children-only) ist nicht auffindbar "
+	+ "oder benutzt nicht mehr den harten Halt bei 50 % -- dann ist die Kopplung unten wertlos.");
+checks++;
+const teilweise = formRumpf("teilweise");
+assert.ok(/linear-gradient\(.*0 50%.*50% 100%\)/.test(teilweise),
+	"Die halbe Raute muss DIESELBE Bauform benutzen wie das Hausvorbild daneben: ein linearer "
+	+ "Verlauf mit hartem Halt bei 50 %.");
+checks++;
+// 💣 …aber mit UM DIE DREHUNG KORRIGIERTER Richtung. Die Raute steht auf rotate(45deg), und ein
+// Verlauf dreht mit: „to right" laege im Bild diagonal. „to top right" zeigt lokal schraeg nach
+// oben und damit im Bild waagerecht -- die Trennlinie steht senkrecht wie beim Kreis daneben.
+assert.ok(/linear-gradient\(to top right,/.test(teilweise),
+	"Die Richtung der halben Fuellung muss „to top right“ sein. Unter rotate(45deg) ergibt das im "
+	+ "Bild eine senkrechte Trennlinie -- genau wie beim Statuskreis. Mit dem „to right“ des "
+	+ "Hausvorbilds (der Kreis ist nicht gedreht) laege die Trennung diagonal.");
+checks++;
+
+// ---- 10. ④ traegt einen Punkt, und der bleibt INNERHALB der 11px --------------------------------
+// 💣 Er ist ein Hintergrund, kein zusaetzliches Element: das Zeichen bleibt EIN Knoten, und ein
+// Hintergrund kann die Zeilenhoehe nicht anfassen.
+const kandidat = formRumpf("kandidat");
+assert.ok(/background:\s*radial-gradient\(circle at 50% 50%/.test(kandidat),
+	"Die Kandidatenraute traegt ihren Punkt als radialen Hintergrund in der Mitte -- kein zweites "
+	+ "Element im Markup, keine Aenderung an der Zeilenhoehe.");
+checks++;
+assert.ok(kandidat.indexOf("::before") < 0 && kandidat.indexOf("content:") < 0,
+	"Kein Pseudo-Element: EIN Knoten je Zeichen.");
+checks++;
+const punktRadius = parseFloat((kandidat.match(/radial-gradient\([^,]*,\s*var\([^)]*\)\s*0\s*([\d.]+)px/) || [])[1]);
+const kandidatStrich = parseFloat((kandidat.match(/border:\s*([\d.]+)px/) || [])[1]);
+assert.ok(isFinite(punktRadius) && isFinite(kandidatStrich),
+	"Punktradius und Strichstaerke der Kandidatenraute sind nicht ablesbar.");
+checks++;
+assert.ok(2 * punktRadius + 2 * kandidatStrich <= Number(rauteBreite),
+	`Der Punkt (${2 * punktRadius}px) plus die zwei Konturen (${2 * kandidatStrich}px) muss in die `
+	+ `${rauteBreite}px passen. Sonst laeuft er unter die Kontur oder darueber hinaus -- und die `
+	+ "Raute darf die Zeilenhoehe weiterhin nicht anfassen.");
+checks++;
+
+// ---- 11. Die haeufigste Form ist die leiseste ---------------------------------------------------
+// ⚠️ 37 der 62 Kraftlinien tragen ⑥. Waere sie so laut wie ④, rauschte die Liste und das Symbol
+// beantwortete die Frage nicht mehr, fuer die es da ist.
+assert.ok(/opacity:\s*\.?0?\.\d+/.test(formRumpf("offen")),
+	"Die leere gestrichelte Raute ist die haeufigste Form im Bild und MUSS gedaempft sein.");
+checks++;
+assert.ok(!/opacity:/.test(kandidat),
+	"Die Kandidatenraute darf NICHT gedaempft sein -- sie ist die eine Form, die zum Handeln "
+	+ "auffordert.");
+checks++;
+
+// ---- 12. Keine ID-Regel darf das Raster noch einmal setzen --------------------------------------
 // 💣 Eine ID-Regel auf einer Listenzeile schlaegt die geteilte lautlos (1,1,0 gegen 0,2,0). Genau
 // so hoerten 2026-08-14 zwei der acht Listen gar nicht mehr auf die gemeinsame Regel.
 const idRaster = [...ohneKommentare.matchAll(/(?:^|\})\s*([^{}]+?)\s*\{([^}]*)\}/g)]
@@ -173,6 +274,7 @@ function baueUmgebung(antwort) {
 		Math,
 		JSON,
 		Error,
+		isFinite,
 		window: {},
 		document: {
 			getElementById: (id) => (id === "powerline-sync-list" ? liste : baueElement()),
@@ -198,6 +300,9 @@ function baueUmgebung(antwort) {
 			{ properties: { name: "Brücke nach Akrabaal" } },
 			{ properties: { name: "Elementares Hexagramm" } },
 			{ properties: { name: "Aldyra - Kuslik" } },
+			{ properties: { name: "Hursachquelle" } },
+			{ properties: { name: "Satinavs Kette I" } },
+			{ properties: { name: "Satinavs Kette I" } },
 		],
 	};
 	sandbox.globalThis = sandbox;
@@ -209,13 +314,18 @@ function baueUmgebung(antwort) {
 	return { kontext, liste, anfragen };
 }
 
+// Die fuenf Zustaende, jeder an einem echten Namen. „Satinavs Kette I" traegt hier ZWEI Segmente,
+// eines davon mit Zuweisung -- der Zustand ②, den der Livebestand heute nicht hat.
 const ANTWORT = {
 	ok: true,
 	segments: [
-		{ name: "Basiliuslinie", wiki_url: "" },
-		{ name: "Brücke nach Akrabaal", wiki_url: "" },
-		{ name: "Elementares Hexagramm", wiki_url: "https://de.wiki-aventurica.de/wiki/Elementares_Hexagramm" },
-		{ name: "Aldyra - Kuslik", wiki_url: "" },
+		{ name: "Basiliuslinie", wiki_url: "", wiki_no_article: false },
+		{ name: "Brücke nach Akrabaal", wiki_url: "", wiki_no_article: false },
+		{ name: "Elementares Hexagramm", wiki_url: "https://de.wiki-aventurica.de/wiki/Elementares_Hexagramm", wiki_no_article: false },
+		{ name: "Aldyra - Kuslik", wiki_url: "", wiki_no_article: false },
+		{ name: "Hursachquelle", wiki_url: "", wiki_no_article: true },
+		{ name: "Satinavs Kette I", wiki_url: "https://de.wiki-aventurica.de/wiki/Satinavs_Ketten", wiki_no_article: false },
+		{ name: "Satinavs Kette I", wiki_url: "", wiki_no_article: false },
 	],
 	wiki_articles: [
 		{ name: "Basiliuslinie", wiki_url: "u", wiki_key: "k" },
@@ -227,7 +337,7 @@ const ANTWORT = {
 const ruhe = () => new Promise((fertig) => setImmediate(fertig));
 
 (async function haupt() {
-	// ---- 8. Mit Katalog: Opt-in gesetzt, jede Zeile ihr Zustand --------------------------------
+	// ---- 13. Mit Katalog: Opt-in gesetzt, jede Zeile ihr Zustand -------------------------------
 	const mit = baueUmgebung(ANTWORT);
 	// 💣 ZUERST der Weg JEDES Besuchers: preparePowerlineData zeichnet die Liste, sobald die
 	// Kartendaten da sind -- auch bei einem anonymen Aufruf, in dem niemand den Reiter je oeffnet.
@@ -252,32 +362,68 @@ const ruhe = () => new Promise((fertig) => setImmediate(fertig));
 	checks++;
 
 	const zeilen = mit.liste.innerHTML.split('<div class="tree-item').slice(1);
-	assert.strictEqual(zeilen.length, 4, "Vier Namensgruppen erwartet.");
+	assert.strictEqual(zeilen.length, 6, "Sechs Namensgruppen erwartet.");
 	checks++;
 	const zeileVon = (name) => zeilen.find((z) => z.indexOf('data-powerline-name="' + name + '"') >= 0);
 
-	assert.ok(/wiki-state wiki-state--zuweisbar/.test(zeileVon("Basiliuslinie")),
-		'„Basiliuslinie" trifft den Katalog wortgleich und muss die volle Raute tragen.');
+	// ① zugewiesen -- alle Segmente der Gruppe tragen den Artikel.
+	assert.ok(/wiki-state wiki-state--zugewiesen/.test(zeileVon("Elementares Hexagramm")),
+		'„Elementares Hexagramm“ traegt eine gesetzte Zuweisung (segments[].wiki_url) und muss die '
+		+ "gefuellte Raute zeigen.");
 	checks++;
 
+	// ② teilweise -- eines von zwei Segmenten. 💣 Zaehler UND Nenner aus DERSELBEN Antwort: der
+	// Nenner aus powerlineData waere eine zweite Population, und wo die beiden auseinanderlaufen,
+	// stuende im Tooltip „5 von 3".
+	const halbeZeile = zeileVon("Satinavs Kette I");
+	assert.ok(/wiki-state wiki-state--teilweise/.test(halbeZeile),
+		'„Satinavs Kette I“ traegt die Zuweisung auf einem von zwei Segmenten und muss die halb '
+		+ "gefuellte Raute zeigen.");
+	assert.ok(halbeZeile.indexOf("1 von 2") >= 0,
+		"Der Tooltip der halben Raute muss die echten Zahlen der Zeile nennen.");
+	checks += 2;
+
+	// ③ kein Wiki-Artikel vorhanden -- die Feststellung eines Editors.
+	assert.ok(/wiki-state wiki-state--ohne-artikel/.test(zeileVon("Hursachquelle")),
+		'„Hursachquelle“ traegt den Merker wiki_no_article und muss die durchgezogene, leere Kontur '
+		+ "zeigen. 💣 Faellt die Projektion des Merkers aus, faellt die Zeile auf „offen“ zurueck -- "
+		+ "und behauptet damit das Gegenteil dessen, was ein Editor festgestellt hat.");
+	checks++;
+
+	// ④ offen mit Kandidat -- beide Befunde, wortgleich und unscharf, in derselben Form.
+	assert.ok(/wiki-state wiki-state--kandidat/.test(zeileVon("Basiliuslinie")),
+		'„Basiliuslinie“ trifft den Katalog wortgleich und muss die gestrichelte Raute MIT PUNKT '
+		+ "tragen.");
+	checks++;
 	const kandidatZeile = zeileVon("Brücke nach Akrabaal");
 	assert.ok(/wiki-state wiki-state--kandidat/.test(kandidatZeile),
-		'„Brücke nach Akrabaal" muss die gestrichelte Raute tragen -- das ist der Zustand, dessen '
+		'„Brücke nach Akrabaal“ muss dieselbe Kandidatenform tragen -- das ist der Zustand, dessen '
 		+ "Fehlen dem Leser das Gegenteil der Wahrheit beibraechte.");
 	assert.ok(kandidatZeile.indexOf("Brücke von Akrabaal") >= 0,
 		"Der Tooltip der Kandidatenzeile muss den gefundenen Artikel nennen.");
 	checks += 2;
 
-	assert.ok(/wiki-state wiki-state--zugewiesen/.test(zeileVon("Elementares Hexagramm")),
-		'„Elementares Hexagramm" traegt eine gesetzte Zuweisung (segments[].wiki_url) und muss die '
-		+ "leise Raute zeigen, nicht die volle.");
-	checks++;
+	// ⑥ offen ohne Kandidat -- 💣 UND ZWAR MIT SYMBOL. Bis zum 17.08.2026 blieb diese Zeile leer;
+	// wer die alte Zusicherung („darf gar kein Symbol bekommen") stehen laesst, prueft nach dem
+	// Umbau das Gegenteil und bleibt gruen.
+	const paarZeile = zeileVon("Aldyra - Kuslik");
+	assert.ok(/wiki-state wiki-state--offen/.test(paarZeile),
+		'Das automatisch benannte Paar „Aldyra - Kuslik“ traegt die LEERE gestrichelte Raute. Jede '
+		+ "Zeile traegt ein Symbol; die Abwesenheit bedeutet nichts mehr.");
+	assert.ok(paarZeile.indexOf("wiki-state--kandidat") < 0,
+		"…aber keinen Kandidaten. Ein Symbol, das ueberall dasselbe sagt, ist so nutzlos wie keins.");
+	checks += 2;
 
-	assert.ok(zeileVon("Aldyra - Kuslik").indexOf("wiki-state") < 0,
-		'Das automatisch benannte Paar „Aldyra - Kuslik" darf gar kein Symbol bekommen.');
-	checks++;
+	// 🔴 JEDE der sechs Zeilen traegt genau EIN Symbol.
+	for (const zeile of zeilen) {
+		const anzahl = (zeile.match(/class="wiki-state /g) || []).length;
+		assert.strictEqual(anzahl, 1,
+			"Jede Zeile traegt genau ein Symbol, nicht keins und nicht zwei. Gefunden: " + anzahl
+			+ " in " + zeile.slice(0, 120));
+		checks++;
+	}
 
-	// ---- 9. Genau EINE Anfrage, und zwar an unseren eigenen Endpunkt ---------------------------
+	// ---- 14. Genau EINE Anfrage, und zwar an unseren eigenen Endpunkt --------------------------
 	// 🔴 Fuer dieses Merkmal wird NIE das Wiki angerufen: der Katalog reist in derselben Antwort
 	// mit, in der auch die Segmente stehen.
 	assert.deepStrictEqual(mit.anfragen, ["/api/edit/map/powerlines.php"],
@@ -293,23 +439,24 @@ const ruhe = () => new Promise((fertig) => setImmediate(fertig));
 		+ "weitere Anfrage. Der Katalog wird einmal je Sitzung geholt.");
 	checks++;
 
-	// ---- 10. OHNE Katalog: gar keine Spalte, statt in jeder Zeile ein Nichts zu behaupten ------
-	// 💣 DIE WICHTIGSTE ZUSICHERUNG DER VERDRAHTUNG. Die Abwesenheit des Symbols heisst „wir haben
-	// nichts gefunden". Scheitert der Abruf (nicht angemeldet, Netz weg), wurde aber gar nicht
-	// gesucht -- dann darf die Spalte nicht dastehen und schweigen.
+	// ---- 15. OHNE Katalog: gar keine Spalte ----------------------------------------------------
+	// 💣 DIE WICHTIGSTE ZUSICHERUNG DER VERDRAHTUNG -- und sie ist seit dem Owner-Entscheid noch
+	// schaerfer als vorher: „offen, kein Kandidat gefunden" ist jetzt eine AUSGESPROCHENE Aussage.
+	// Scheitert der Abruf (nicht angemeldet, Netz weg), wurde aber gar nicht gesucht -- dann
+	// stuende diese Aussage in jeder Zeile, ohne dass jemand nachgesehen hat.
 	const ohne = baueUmgebung(null);
 	vm.runInContext("loadPowerlineWikiSync();", ohne.kontext);
 	await ruhe();
 	await ruhe();
 	assert.ok(!ohne.liste.classList.contains("wikisync-itemlist--wikistatus"),
-		"Ohne Katalog darf das Opt-in NICHT gesetzt sein -- sonst steht in jeder der 62 Zeilen eine "
-		+ "Abwesenheit, die „wir haben nichts gefunden\" heisst, obwohl gar nicht gesucht wurde.");
+		"Ohne Katalog darf das Opt-in NICHT gesetzt sein -- sonst behauptet jede Zeile „offen, "
+		+ "kein Kandidat gefunden“, obwohl gar nicht gesucht wurde.");
 	checks++;
 	assert.ok(ohne.liste.innerHTML.indexOf("wiki-state") < 0,
 		"Ohne Katalog darf keine einzige Zeile ein Symbol tragen.");
 	checks++;
 
-	// ---- 11. Das Skript haengt in index.html, und zwar VOR seinem Leser ------------------------
+	// ---- 16. Das Skript haengt in index.html, und zwar VOR seinem Leser -------------------------
 	// 💣 Ohne Skript-Tag ist der Abgleich schlicht nicht da, der Zeichner faellt still auf „keine
 	// Spalte" zurueck, und alle Tests hier bleiben trotzdem gruen -- sie laden die Datei selbst.
 	const indexHtml = lies("index.html");
@@ -323,13 +470,13 @@ const ruhe = () => new Promise((fertig) => setImmediate(fertig));
 		"Der Abgleich muss VOR der Kraftlinienliste geladen werden.");
 	checks += 3;
 
-	// ---- 12. Der Reiter ruft den LADER, nicht den Zeichner -------------------------------------
-	// 💣 Sonst holt niemand je den Katalog: der Zeichner allein oeffnet das Tor nicht (Pruefung 8),
+	// ---- 17. Der Reiter ruft den LADER, nicht den Zeichner --------------------------------------
+	// 💣 Sonst holt niemand je den Katalog: der Zeichner allein oeffnet das Tor nicht (Pruefung 13),
 	// und die Spalte bliebe fuer immer aus -- lautlos, denn „keine Spalte" ist ein gueltiger
 	// Zustand dieser Liste.
 	const wikiSync = lies("js", "review", "review-wiki-sync.js");
 	assert.ok(/powerlines:\s*\(\)\s*=>[^\n]*loadPowerlineWikiSync\(\)/.test(wikiSync),
-		"setWikiSyncPanelTab muss fuer den Reiter „Kraftlinien\" loadPowerlineWikiSync() aufrufen. "
+		"setWikiSyncPanelTab muss fuer den Reiter „Kraftlinien\“ loadPowerlineWikiSync() aufrufen. "
 		+ "Ruft er weiter nur renderPowerlineSyncList(), wird der Katalog nie geholt und die Spalte "
 		+ "erscheint nie -- ohne Fehlermeldung.");
 	checks++;
