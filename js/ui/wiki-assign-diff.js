@@ -16,17 +16,26 @@
 // Zeile, die einen bereits GEFUELLTEN Kartenwert ersetzen wuerde, startet ungehakt -- mit dem Grund
 // ‚auf der Karte steht bereits ein Wert'. Ein leeres Feld zu fuellen bleibt vorangehakt.").
 //
-// Die vier Faelle, in der Reihenfolge, in der sie geprueft werden:
+// Die fuenf Faelle, in der Reihenfolge, in der sie geprueft werden:
 //   1. gleich                                    -> gar nicht gelistet
 //   2. Wiki sagt nichts, Karte hat etwas         -> gelistet, NIE gehakt ("wuerde die Angabe leeren")
-//   3. `handgesetzt`                             -> gelistet, NIE gehakt ("wuerde zurueckgedreht")
-//   4. Kartenwert GEFUELLT, Wiki sagt etwas anderes -> gelistet, NICHT gehakt (der neue Fall)
+//   3. Herkunft "manual"                         -> gelistet, NIE gehakt ("wuerde zurueckgedreht")
+//   4. Herkunft "wiki"                           -> gelistet und VORANGEHAKT (der neue Fall)
+//   5. Kartenwert GEFUELLT, Herkunft unbekannt   -> gelistet, NICHT gehakt
 //      Kartenwert LEER, Wiki sagt etwas          -> gelistet und VORANGEHAKT (die Luecke)
 //
-// ⚠️ DIE REIHENFOLGE IST DIE REGEL: 3 steht VOR 4, weil eine handgesetzte Angabe per Definition
-// gefuellt ist -- der spezifischere Grund muss den allgemeinen stechen, sonst laese der Editor „auf
-// der Karte steht bereits ein Wert" statt „von Hand gesetzt, wuerde zurueckgedreht" und wuesste
-// nicht, dass er selbst der Grund ist.
+// ⚠️ DIE REIHENFOLGE IST DIE REGEL, vom spezifischsten zum allgemeinsten: 3 steht VOR 4 und 4 vor 5.
+// Eine handgesetzte Angabe ist per Definition auch gefuellt -- der spezifischere Grund muss den
+// allgemeinen stechen, sonst laese der Editor „auf der Karte steht bereits ein Wert" statt „von Hand
+// gesetzt, wuerde zurueckgedreht" und wuesste nicht, dass er selbst der Grund ist.
+//
+// 🔴 FALL 4 IST NEU (17.08.2026, Entwurf 2026-08-17-wiki-override-fuer-alle-design.md §2.6) und
+// nimmt den Owner-Entscheid vom 16.08. NICHT zurueck. Der lautete „konservativ, weil niemand wissen
+// kann, ob ein Wert von Hand kam" -- seit es die Feldherkunft gibt, KANN man es wissen, und ein
+// Wert, der zuletzt selbst aus dem Wiki kam, laesst sich gefahrlos auffrischen: dabei geht nichts
+// von uns verloren.
+// 💣 AM ERSTEN TAG AENDERT SICH DADURCH NICHTS. Ohne gespeicherte Herkunft greift weder 3 noch 4,
+// und alles verhaelt sich exakt wie heute -- das ist eine Zusicherung im Test, keine Hoffnung.
 //
 // 💣 DIE TRAGWEITE IST GROESSER ALS „EIN KLICK MEHR": ein Ortsname und eine Ortsart sind praktisch
 // immer gefuellt, also ist in der Praxis fast nichts mehr vorangehakt und „Alle anhaken" wird der
@@ -56,13 +65,18 @@ function avesmapsWikiAssignDiffNormalize(wert) {
  *   Feldregister (Aufgabe 1), in der Reihenfolge, in der sie angezeigt werden soll.
  * @param {Object} kartenwerte  aktuelle Werte auf der Karte, indiziert nach `feld.karte`.
  * @param {Object} wikiwerte    Werte aus dem Wiki, indiziert nach `feld.wiki`.
- * @param {string[]} [handgesetzt]  Liste von KARTENFELD-Namen (nicht Wiki-Feldnamen), die als von
- *   Hand gesetzt gelten -- ihr Sync-Vorschlag ist markiert und startet ungehakt.
+ * @param {Object} [herkunft]   `{<kartenFeld>: "manual"|"wiki"}` -- die gespeicherte Feldherkunft
+ *   (`properties.field_origins` bzw. `adventure.field_origins_json`). Ein Feld OHNE Eintrag heisst
+ *   „nicht bekannt", nie „vom Wiki".
+ *   ⚠️ HIER STAND BIS ZUM 17.08.2026 EINE LISTE (`handgesetzt: string[]`), und es gibt bewusst
+ *   KEINEN Rueckfall auf die alte Form: ein toleranter Leser, der beide nimmt, ist genau die
+ *   Divergenz, auf die dieser Umbau verzichtet. Es gab zwei Stellen, und beide sind mitgezogen
+ *   (js/ui/wiki-assign.js, js/ui/wiki-assign-literatur.js).
  * @returns {Array<{karte: string, label: string, alt: string, neu: string, gehakt: boolean, grund: string}>}
  *   nur die Zeilen, die sich unterscheiden, in der Reihenfolge von `felder`.
  */
-function avesmapsWikiAssignDiff(felder, kartenwerte, wikiwerte, handgesetzt) {
-	const hand = Array.isArray(handgesetzt) ? handgesetzt : [];
+function avesmapsWikiAssignDiff(felder, kartenwerte, wikiwerte, herkunft) {
+	const woher = herkunft || {};
 	const karten = kartenwerte || {};
 	const wiki = wikiwerte || {};
 	const zeilen = [];
@@ -85,13 +99,21 @@ function avesmapsWikiAssignDiff(felder, kartenwerte, wikiwerte, handgesetzt) {
 			// Das Wiki sagt nichts, die Karte schon: der Fall "Geloescht" -- gelistet, NIE gehakt.
 			gehakt = false;
 			grund = "das Wiki sagt nichts — würde die Angabe leeren";
-		} else if (hand.indexOf(feld.karte) !== -1) {
+		} else if (woher[feld.karte] === "manual") {
 			// Von Hand korrigiert: gelistet, markiert, aber nicht gehakt.
-			// 🔴 VOR der Regel darunter: eine handgesetzte Angabe ist immer auch gefuellt, und dieser
-			// Grund ist der genauere. Getauscht laese der Editor den allgemeinen Satz und wuesste
-			// nicht, dass seine eigene Korrektur der Grund ist.
+			// 🔴 VOR den zwei Regeln darunter: eine handgesetzte Angabe ist immer auch gefuellt, und
+			// dieser Grund ist der genauere. Getauscht laese der Editor den allgemeinen Satz und
+			// wuesste nicht, dass seine eigene Korrektur der Grund ist.
 			gehakt = false;
 			grund = "von Hand gesetzt — würde zurückgedreht";
+		} else if (woher[feld.karte] === "wiki") {
+			// 🔴 Der Wert kam zuletzt selbst aus dem Wiki -- ihn aufzufrischen kann per Definition
+			// nichts von uns ueberschreiben. VOR der Regel darunter, sonst stuende hier „auf der
+			// Karte steht bereits ein Wert" und der Fall waere von einem unbekannten nicht zu
+			// unterscheiden. Vorangehakt heisst: KEIN Grund -- ein Grund erklaert immer nur, warum
+			// eine Zeile NICHT gehakt ist.
+			gehakt = true;
+			grund = "";
 		} else if (alt !== "") {
 			// 🔴 Der Kartenwert ist GEFUELLT und das Wiki sagt etwas anderes -- ueberschreiben ist eine
 			// Entscheidung, kein Vorschlag (Owner 16.08.2026). Nur das Fuellen einer LUECKE bleibt

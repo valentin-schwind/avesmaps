@@ -566,6 +566,16 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	if (typeof renderSettlementWikiReference === "function") {
 		renderSettlementWikiReference();
 	}
+	// 🔴 EIN FRISCH GEOEFFNETER DIALOG HAT NICHTS UEBERNOMMEN -- und er zeigt die Abweichungen zum
+	// Wiki. Ohne das Leeren truege die Merkliste die Uebernahmen des ZULETZT geoeffneten Ortes
+	// weiter, und dessen Felder bekaemen hier beim naechsten Speichern die Herkunft „aus dem Wiki"
+	// fuer Werte, die nie aus einem Wiki kamen.
+	if (typeof settlementWikiUebernommenLeeren === "function") {
+		settlementWikiUebernommenLeeren();
+	}
+	if (typeof settlementWikiZeichneAbweichungen === "function") {
+		settlementWikiZeichneAbweichungen();
+	}
 	void renderSettlementCoatSection(markerEntry?.publicId || "");
 	// Zuordnung frisch vom Server holen (Browser-Marker kann nach Bulk-Verbinden stale sein).
 	if (typeof syncSettlementWikiFromServer === "function") {
@@ -795,6 +805,16 @@ function buildLocationEditPayload(formElement) {
 			payload[feld] = String(wert).trim();
 		}
 	});
+
+	// 🔴 WELCHE FELDER AUS DEM WIKI KAMEN (Entwurf 2026-08-17-wiki-override-fuer-alle-design.md).
+	// Der Server stempelt daraus die Feldherkunft -- aber nur für Felder, deren Wert sich wirklich
+	// ändert. Eine leere Liste ist dasselbe wie ein fehlender Schlüssel: „nichts kam aus dem Wiki",
+	// also alles von uns. ⚠️ Das ist die SICHERE Richtung: eine falsche „Wiki"-Angabe liesse einen
+	// späteren Abgleich eine Handarbeit überschreiben, eine falsche „von uns"-Angabe schützt nur
+	// zu viel. Deshalb steht hier auch kein Rückfall auf `[]`, wenn die Funktion fehlt.
+	if (typeof settlementWikiUebernommenFuerPayload === "function") {
+		payload.wiki_uebernommen = settlementWikiUebernommenFuerPayload();
+	}
 
 	// 🔴 DER DRITTE ZUSTAND. Er kommt aus dem Zuweisungskasten, nicht aus einem Formularfeld -- er ist
 	// dessen Häkchen „Kein Wiki-Artikel vorhanden". `null` heißt „das Bauteil ist nicht bereit" (ein

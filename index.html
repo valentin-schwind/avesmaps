@@ -1296,13 +1296,13 @@
 					</div>
 					<div class="label-edit-section"><div class="label-edit-section-title">Identität</div>
 						<label class="location-report-form__field">
-							<span>Ortsname *</span>
+							<span>Ortsname *<span class="loc-wiki-alt" data-wiki-alt="name"></span></span>
 							<div class="location-edit-fieldrow">
 								<input id="location-edit-name" name="name" type="text" maxlength="160" required />
 							</div>
 						</label>
 						<label class="location-report-form__field">
-							<span>Ortsgröße *</span>
+							<span>Ortsgröße *<span class="loc-wiki-alt" data-wiki-alt="feature_subtype"></span></span>
 							<div class="location-edit-fieldrow">
 								<select id="location-edit-type" name="feature_subtype" required>
 									<option value="dorf">Dorf</option>
@@ -1331,15 +1331,15 @@
 						     die Erklärung im Feldregister eine Zeile je Feld bleibt.
 						     ⚠️ Nur Editordaten: die Infobox der Karte zeigt sie (noch) nicht. -->
 						<label class="location-report-form__field">
-							<span>Einwohner</span>
+							<span>Einwohner<span class="loc-wiki-alt" data-wiki-alt="einwohner"></span></span>
 							<input id="location-edit-einwohner" name="einwohner" type="text" maxlength="200" autocomplete="off" />
 						</label>
 						<label class="location-report-form__field">
-							<span>Lage</span>
+							<span>Lage<span class="loc-wiki-alt" data-wiki-alt="lage"></span></span>
 							<input id="location-edit-lage" name="lage" type="text" maxlength="300" autocomplete="off" />
 						</label>
 						<label class="location-report-form__field">
-							<span>Herrscher</span>
+							<span>Herrscher<span class="loc-wiki-alt" data-wiki-alt="oberhaupt"></span></span>
 							<input id="location-edit-oberhaupt" name="oberhaupt" type="text" maxlength="200" autocomplete="off" />
 						</label>
 					</div>
@@ -3054,6 +3054,11 @@
 		     von keiner der drei ab und steht nur der Lesbarkeit halber hier. -->
 		<script src="js/ui/wiki-assign-registry.js"></script>
 		<script src="js/ui/wiki-assign-diff.js"></script>
+		<!-- Der Wiki-Override an der Feldzeile: was weicht ab, und wer hat es gesetzt. Rein, kein
+		     DOM (Entwurf docs/superpowers/specs/2026-08-17-wiki-override-fuer-alle-design.md).
+		     ⚠️ Fehlt die Zeile, faellt der Kartendialog still auf „keine Abweichung" zurueck --
+		     ohne einen einzigen Fehler, und der ganze Umbau waere unsichtbar. -->
+		<script src="js/ui/wiki-feld-herkunft.js"></script>
 		<script src="js/ui/wiki-assign.js"></script>
 		<script src="js/ui/wiki-assign-weg.js"></script>
 		<!-- Der Datenweg des Orts, den sich Kartendialog und Orte-Editor teilen (Aufgabe 5). Steht

@@ -231,6 +231,67 @@
 	font-weight: normal;
 }
 
+/* ---- Der Wiki-Override an der Feldbeschriftung (Entwurf 2026-08-17-wiki-override-fuer-alle) ----
+ * DIE ZWEITE HUELLE. Das Editorfenster traegt dieselbe Auskunft in einer eigenen Rasterspalte
+ * (`.dt-grid--wiki` / `.dt-alt`, css/components/editor-page.css), weil dort die Beschriftung LINKS
+ * neben dem Feld steht. Hier steht sie OBEN darueber -- also haengt der durchgestrichene Wiki-Stand
+ * an der Beschriftung, nicht in einer dritten Spalte.
+ * 🔴 Uebertragen wird die REGEL, nicht das CSS: Wiki-Stand durchgestrichen, ↺ daneben, „von uns"
+ * hebt die Beschriftung hervor. ⚠️ ZWEI Huellen sind die Obergrenze -- dieselbe Regel wie bei der
+ * Wiki-Zuweisung und den Listenzeilen. Eine dritte Bauform waere die Divergenz, die dieser Umbau
+ * gerade beendet.
+ * ⚠️ Die Klassennamen `dt-old`/`dt-reset` sind ABSICHTLICH dieselben wie drueben: es ist dieselbe
+ * Sache, und ein zweiter Name dafuer waere der Anfang der Divergenz. Die Regeln stehen hier eigens,
+ * weil index.html editor-page.css nicht bindet. */
+.loc-wiki-alt {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 4px;
+	margin-left: 6px;
+	max-width: 60%;
+	vertical-align: baseline;
+	font-weight: normal;
+	font-size: var(--font-size-caption);
+}
+
+/* 💣 DIE AUSLASSUNGSPUNKTE GEHOEREN AN DEN TEXT, NICHT AN DIE HUELLE -- `ellipsis` wirkt nur auf das
+   Element, dessen EIGENER Text ueberlaeuft, nie auf ein ueberlaufendes Kind. Ohne diese Zeile wird
+   ein langer Wiki-Stand hart abgeschnitten, ohne ein einziges Puenktchen. */
+.loc-wiki-alt .dt-old {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--color-danger);
+	text-decoration: line-through;
+}
+
+/* 💣 Das ↺ darf NIE mitgekappt werden: es ist der Knopf, der Wiki-Stand nur die Auskunft. */
+.loc-wiki-alt .dt-reset {
+	flex: 0 0 auto;
+	cursor: pointer;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	background: none;
+	border: 0;
+	padding: 0;
+	line-height: 1;
+	text-decoration: underline;
+}
+
+.loc-wiki-alt .dt-reset:hover { color: var(--color-text-strong); }
+
+/* „Wir haben dieses Feld gesetzt" -- hebt die BESCHRIFTUNG hervor, wortgleich zum
+   Territoriumseditor (`.dt-grid .k.ovr`). Kein eigenes Abzeichen daneben.
+   ⚠️ Eine eigene Klasse AN der Beschriftung, nicht `:has(> .loc-wiki-alt.is-ovr)`. Die
+   Elternauswahl waere kuerzer und haette hier auch funktioniert -- aber sie haengt an einer
+   Browserfaehigkeit, die diese Datei sonst nirgends voraussetzt, und faellt bei ihrem Fehlen
+   LAUTLOS aus: die Zeile saehe dann aus wie eine mit unbekannter Herkunft, also genau wie der
+   andere Zustand. Die Klasse setzt settlementWikiZeichneAbweichungen. */
+.location-report-form__field > span.has-wiki-ovr {
+	color: var(--color-accent-brown);
+}
+
 /* Der Wunsch eines Melders: zu lesen, nicht zu veroeffentlichen. Abgesetzt durch eine Kante wie
    ein Zitat, gedaempft, kein gerahmter Kasten (docs/design-language.md: gruppieren ueber Trenner,
    nicht ueber Rahmen). Nur Token. */

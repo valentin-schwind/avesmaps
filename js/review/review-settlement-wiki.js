@@ -72,6 +72,10 @@ function settlementWikiZustand() {
 	}
 	return avesmapsWikiAssignOrtZustand({
 		wiki_settlement: settlementWikiCurrentAssignment() || settlementWikiPendingAssignment(),
+		// Die gespeicherte Feldherkunft -- sie entscheidet in der Sync-Vorschau, welche Zeile
+		// vorangehakt startet. ⚠️ Sie kommt aus dem MARKER-EINTRAG wie der dritte Zustand darunter;
+		// im Anlege-Fall gibt es keinen, und dann ist sie von Natur aus leer (= nichts bekannt).
+		field_origins: settlementWikiCurrentMarkerEntry()?.location?.fieldOrigins || null,
 		// 🔴 Der dritte Zustand kommt aus dem MARKER-EINTRAG, nicht aus einem Formularfeld: er steht
 		// im `properties_json` und reist im Kartenpayload mit (prepareLocationData, js/routing/
 		// routing.js). Im Anlege-Fall gibt es keinen Marker -- dort ist er von Natur aus falsch.
@@ -362,6 +366,115 @@ async function removeSettlementWiki() {
  * Aufloesen hiesse fuer das Bauteil „uebernommen", es schloesse die Vorschau, und der Editor haette
  * den Eindruck, sein Haken sei ins Formular gewandert.
  */
+// 🔴 WELCHE FELDER SEIT DEM OEFFNEN AUS DEM WIKI KAMEN -- die Merkliste des KARTENDIALOGS.
+// Der Server stempelt daraus die Feldherkunft (avesmapsFieldOriginsStempeln), und zwar nur fuer
+// Felder, deren Wert sich wirklich aendert.
+// 💣 ZWEI OBERFLAECHEN, ZWEI MERKLISTEN, EINE REGEL. Das Editorfenster fuehrt seine eigene
+// (html/wiki-sync-settlement-editor.html) -- es ist ein anderes Dokument mit eigenem `window`, und
+// die zwei sehen einander nicht. Traegt eine der beiden nicht ein, stempelt der Server ihre
+// Uebernahmen als „von uns": die harmlose Richtung, aber die Auskunft waere falsch, und der
+// naechste Abgleich liesse genau die Felder in Ruhe, die er selbst gefuellt hat. Genau diese
+// Fehlerklasse -- eine Regel, die einen von zwei Erzeugern bindet -- ist am 14.08.2026 die
+// Verkehrsmittel-Sperre gewesen.
+let settlementWikiUebernommen = new Set();
+
+function settlementWikiUebernommenLeeren() {
+	settlementWikiUebernommen = new Set();
+}
+
+/** Die Felder, die diese Anfrage als Wiki-Uebernahme nennt -- fuer `buildLocationEditPayload`. */
+function settlementWikiUebernommenFuerPayload() {
+	return Array.from(settlementWikiUebernommen);
+}
+
+/**
+ * ↺ an einer Feldzeile: genau diesen einen Wert aus dem Wiki ins Formular holen.
+ *
+ * ⭐ ES IST DIE SYNC-UEBERNAHME EINER EINZIGEN ZEILE -- derselbe Weg, dieselbe Merkliste, kein
+ * zweiter Schreibpfad. Geschrieben wird mit „Speichern".
+ */
+function settlementWikiFeldZuruecksetzen(feld) {
+	const werte = avesmapsWikiAssignOrtWerte(
+		settlementWikiCurrentAssignment() || settlementWikiPendingAssignment()
+	);
+	const stand = avesmapsWikiFeldStand(
+		(avesmapsWikiAssignSubject("ort") || {}).felder || [], {}, werte, {}
+	);
+	const element = settlementWikiElement(
+		feld === "feature_subtype" ? "location-edit-type" : "location-edit-" + feld
+	);
+	if (!element || !stand[feld]) {
+		return;
+	}
+	element.value = stand[feld].wikiWert;
+	settlementWikiUebernommen.add(feld);
+	settlementWikiZeichneAbweichungen();
+}
+
+/**
+ * Die durchgestrichenen Wiki-Staende samt ↺ in die fuenf Beschriftungen schreiben.
+ *
+ * 🔴 DIE ZWEITE HUELLE, und sie hat eine ANDERE Bauform als das Editorfenster: dort steht die
+ * Beschriftung LINKS in einer Rasterspalte (`.dt-grid`), hier OBEN ueber dem Feld
+ * (`.location-report-form__field > span`). Uebertragen wird die REGEL -- Wiki-Stand
+ * durchgestrichen, ↺ daneben, „von uns" hebt die Beschriftung hervor --, nicht das CSS.
+ * ⚠️ Zwei Huellen sind die Obergrenze (dieselbe Regel wie bei der Wiki-Zuweisung und den
+ * Listenzeilen). Eine dritte Bauform waere die Divergenz, die dieser Umbau gerade beendet.
+ */
+function settlementWikiZeichneAbweichungen() {
+	if (typeof avesmapsWikiFeldStand !== "function" || typeof avesmapsWikiAssignSubject !== "function") {
+		return;
+	}
+	const eintrag = settlementWikiCurrentMarkerEntry();
+	const herkunft = (eintrag && eintrag.location && eintrag.location.fieldOrigins) || null;
+	const stand = avesmapsWikiFeldStand(
+		(avesmapsWikiAssignSubject("ort") || {}).felder || [],
+		{
+			name: settlementWikiElement("location-edit-name")?.value || "",
+			feature_subtype: settlementWikiElement("location-edit-type")?.value || "",
+			einwohner: settlementWikiElement("location-edit-einwohner")?.value || "",
+			lage: settlementWikiElement("location-edit-lage")?.value || "",
+			oberhaupt: settlementWikiElement("location-edit-oberhaupt")?.value || "",
+		},
+		avesmapsWikiAssignOrtWerte(settlementWikiCurrentAssignment() || settlementWikiPendingAssignment()),
+		avesmapsWikiAssignOrtHerkunft(herkunft)
+	);
+	document.querySelectorAll("#location-edit-overlay [data-wiki-alt]").forEach((zelle) => {
+		const feld = zelle.getAttribute("data-wiki-alt") || "";
+		const s = stand[feld];
+		zelle.replaceChildren();
+		const vonUns = Boolean(s && s.abweicht && s.herkunft === "manual");
+		zelle.classList.toggle("is-ovr", vonUns);
+		// Die Hervorhebung sitzt an der BESCHRIFTUNG, nicht an der Zelle -- wortgleich zum
+		// Territoriumseditor, wo `.k` braun wird. Als Klasse gesetzt statt per `:has()`: jene
+		// Elternauswahl faellt bei fehlender Browserfaehigkeit LAUTLOS aus, und die Zeile saehe
+		// dann aus wie eine mit unbekannter Herkunft -- also wie der andere Zustand.
+		zelle.parentElement?.classList.toggle("has-wiki-ovr", vonUns);
+		if (!s || !s.abweicht) {
+			return;
+		}
+		const alt = document.createElement("span");
+		alt.className = "dt-old";
+		alt.textContent = s.wikiWert;
+		alt.title = (s.herkunft === "manual" ? "Von uns gesetzt. " : "Weicht vom Wiki ab. ")
+			+ "Wiki-Stand: " + s.wikiWert;
+		const knopf = document.createElement("button");
+		knopf.type = "button";
+		knopf.className = "dt-reset";
+		knopf.textContent = "↺";
+		knopf.title = "Auf Wiki-Stand zurücksetzen";
+		// ⚠️ Der Knopf sitzt IN einem `<label>`: ein Klick darauf wuerde ohne diesen Riegel an das
+		// zugehoerige Eingabefeld weitergereicht und dieses fokussiert -- harmlos, aber der Cursor
+		// springt, waehrend der Wert sich aendert.
+		knopf.addEventListener("click", (ereignis) => {
+			ereignis.preventDefault();
+			ereignis.stopPropagation();
+			settlementWikiFeldZuruecksetzen(feld);
+		});
+		zelle.append(alt, knopf);
+	});
+}
+
 function settlementWikiSyncUebernehmen(zeilen) {
 	const werte = avesmapsWikiAssignOrtSyncWerte(zeilen);
 	// 🔴 Die Leerprüfung zählt ALLE Kartenfelder, nicht zwei ausgeschriebene: seit dem 16.08.2026
@@ -410,6 +523,15 @@ function settlementWikiSyncUebernehmen(zeilen) {
 			select.value = werte.feature_subtype;
 		}
 	}
+	// 🔴 ZWEITE HAELFTE DER UEBERNAHME: merken, WELCHE Felder aus dem Wiki kamen. Ohne sie stempelt
+	// der Server sie als „von uns", und der naechste Abgleich liesse genau die Felder in Ruhe, die
+	// er gerade selbst gefuellt hat.
+	if (werte.name !== null) settlementWikiUebernommen.add("name");
+	if (werte.feature_subtype !== null) settlementWikiUebernommen.add("feature_subtype");
+	["einwohner", "lage", "oberhaupt"].forEach((feld) => {
+		if (werte[feld] !== null) settlementWikiUebernommen.add(feld);
+	});
+	settlementWikiZeichneAbweichungen();
 	showFeedbackToast?.("Aus dem Wiki übernommen — noch nicht gespeichert.", "info");
 }
 

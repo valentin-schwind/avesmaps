@@ -31,7 +31,7 @@ const { avesmapsWikiAssignDiff } = require("../wiki-assign-diff.js");
 const {
 	AVESMAPS_WIKI_ASSIGN_LITERATUR_KARTENFELDER,
 	avesmapsWikiAssignLiteraturWerte,
-	avesmapsWikiAssignLiteraturHandgesetzt,
+	avesmapsWikiAssignLiteraturHerkunft,
 	avesmapsWikiAssignLiteraturTreffer,
 	avesmapsWikiAssignLiteraturArtikel,
 	avesmapsWikiAssignLiteraturZustand,
@@ -113,20 +113,24 @@ avesmapsWikiAssignSubject("literatur").felder.forEach((feld) => {
 zaehl();
 
 // ── 2) 🔴 DIE FELDHERKUNFT ────────────────────────────────────────────────────────────────────
-// ⭐ Die erste Objektart, die `handgesetzt` wirklich füllen kann.
-const HAND = avesmapsWikiAssignLiteraturHandgesetzt({
+// ⭐ Die erste Objektart, die die Herkunft wirklich füllen kann.
+// 🔴 SEIT 17.08.2026 REISEN BEIDE HERKÜNFTE MIT, nicht nur `'manual'`. Hier stand eine LISTE der
+// handgesetzten Felder und `'wiki'` fiel heraus, weil es damals folgenlos war; seit Fall 4 der
+// Diff-Rechnung entscheidet es über das Vorhäkeln.
+const HERKUNFT = avesmapsWikiAssignLiteraturHerkunft({
 	title: "manual", edition: "wiki", genre: "manual",
 	// 💣 Felder OHNE Sync-Ziel müssen herausfallen: die Diff-Rechnung schlägt einen Namen nur unter
-	// `feld.karte` nach, ein Eintrag dafür wäre wirkungsloser Ballast in einer Liste, die „gesperrt"
-	// bedeutet.
+	// `feld.karte` nach, ein Eintrag dafür wäre wirkungsloser Ballast in einer Karte, die über das
+	// Vorhäkeln entscheidet.
 	bf_year: "manual", link_ulisses: "manual", wiki_url: "manual",
 });
-assert.deepStrictEqual(HAND.slice().sort(), ["genre", "title"],
-	"die Feldherkunft liefert die falsche Liste: " + JSON.stringify(HAND));
-// ⚠️ NUR `'manual'` zählt -- „wiki" heißt „zuletzt vom Abgleich gefüllt" und ist das Gegenteil.
-assert.deepStrictEqual(avesmapsWikiAssignLiteraturHandgesetzt({ title: "wiki" }), []);
-assert.deepStrictEqual(avesmapsWikiAssignLiteraturHandgesetzt(null), []);
-assert.deepStrictEqual(avesmapsWikiAssignLiteraturHandgesetzt("kaputt"), []);
+assert.deepStrictEqual(HERKUNFT, { title: "manual", edition: "wiki", genre: "manual" },
+	"die Feldherkunft liefert die falsche Karte: " + JSON.stringify(HERKUNFT));
+// ⚠️ Alles außer `'manual'`/`'wiki'` fällt heraus -- eine unbekannte dritte Herkunft darf weder
+// sperren noch vorhaken, sondern muss auf „nicht bekannt" zurückfallen.
+assert.deepStrictEqual(avesmapsWikiAssignLiteraturHerkunft({ title: "community" }), {});
+assert.deepStrictEqual(avesmapsWikiAssignLiteraturHerkunft(null), {});
+assert.deepStrictEqual(avesmapsWikiAssignLiteraturHerkunft("kaputt"), {});
 zaehl(); zaehl(); zaehl(); zaehl();
 
 // ── 3) 🔴 DIE BELEGT-WARNUNG ──────────────────────────────────────────────────────────────────
@@ -180,7 +184,7 @@ const ZUSTAND = avesmapsWikiAssignLiteraturZustand({
 	complexity_gm: "", complexity_pl: "", authors: "", series: "", fshop_code: "", isbn: "",
 });
 assert.strictEqual(ZUSTAND.keinArtikel, false, "die Literatur kann den dritten Zustand nicht tragen");
-assert.deepStrictEqual(ZUSTAND.handgesetzt, ["genre"]);
+assert.deepStrictEqual(ZUSTAND.herkunft, { genre: "manual" });
 // 💣 LESEFUNKTIONEN, NICHT WERTE: `laden` läuft EINMAL, die Vorschau entsteht erst beim Druck auf
 // „Sync" -- dazwischen kann getippt worden sein.
 getippterTitel = "Ganz anders";
@@ -204,7 +208,7 @@ const ZEILEN = avesmapsWikiAssignDiff(
 		complexity_gm: "mittel", complexity_pl: "mittel", authors: "Anton Weste",
 		series: "Splitterdämmerung", fshop_code: "US25001", isbn: "978-3-95752-000-0" },
 	WERTE,
-	["genre"]
+	{ genre: "manual" }
 );
 assert.deepStrictEqual(ZEILEN.map((z) => z.karte), ["title", "edition", "genre"],
 	"die Vorschau zeigt andere Zeilen als erwartet: " + JSON.stringify(ZEILEN.map((z) => z.karte)));

@@ -549,6 +549,17 @@
 	--avm-col-pad: var(--space-6) var(--space-10);      /* 8 / 12 — jede der drei Spalten */
 	--avm-row-pad: var(--space-2) var(--space-4);       /* 4 / 6 — Listenzeile */
 	--avm-field-label-w: 130px;                         /* Beschriftung links neben dem Feld */
+	/* Die Feldzeile mit Wiki-Override (Entwurf 2026-08-17-wiki-override-fuer-alle-design.md §2.8):
+	   Beschriftung · durchgestrichener Wiki-Stand + ↺ · Eingabefeld.
+	   🔴 DAS EINGABEFELD BEKOMMT MINDESTENS DIE HAELFTE (Owner 17.08.2026), der Wiki-Stand weicht
+	   als Erster -- deshalb steht hier ein Mindestmass fuer das FELD und ein Hoechstmass fuer den
+	   Wiki-Stand, nicht umgekehrt.
+	   💣 Die obere Schranke des clamp() ist tragend: ohne sie fordern die drei Spalten bei schmalem
+	   Fenster mehr als 100 % an und das Raster haengt eine waagerechte Bildlaufleiste an -- bei
+	   300px gemessen. Die 165px sind Beschriftung (130) + zwei Spaltenabstaende (12) + das ↺ samt
+	   Vorabstand (18) + Rest; in der ersten Rechnung war das ↺ schlicht vergessen. */
+	--avm-wiki-alt-w: 140px;                            /* Hoechstbreite des Wiki-Stands */
+	--avm-wiki-input-min: clamp(90px, 50%, 100% - 165px); /* so viel bleibt dem Feld IMMER */
 	/* Hoehe der Wiki-Zuweisungs-Trefferliste. 💣 Stand bis 16.08.2026 als nackte 340px an ZWEI
 	   Stellen -- .label-wiki-picker-list (region-sync.css) und der abgeschriebenen .dt-picker-list
 	   (editor-page.css) -- und ein Kommentar behauptete "dieselbe Hoehe". Das gilt genau bis jemand

@@ -21,7 +21,11 @@
 	--button-soft-text: #eae1cf;
 	--button-soft-border: #585142;
 	--accent:           #d7c38b;
-	--accent-brown-text: #e8d5a8;
+	/* 🪤 HIER STAND --accent-brown-text, und das war an der Wirklichkeit gemessen FALSCH: jenes Token
+	   ist die Vordergrundfarbe FUER braunen Grund und steht im hellen Thema auf #fff -- weisse
+	   Beschriftung auf weissem Panel. Der Territoriumseditor nimmt --color-accent-brown, und das ist
+	   richtig. Gefunden beim Abhaken der eigenen Entwurfsliste, nicht vom Test. */
+	--accent-brown-text: #c9a97e;   /* = --color-accent-brown im dunklen Thema */
 	--bad:              #d08a7a;
 
 	--font-size-caption: 11px;

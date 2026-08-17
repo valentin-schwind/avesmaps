@@ -18,6 +18,7 @@ require_once __DIR__ . '/../routing/transport-season.php';
 // Der Widerspruchsriegel des dritten Zustands. Eigene Datei, weil die Landschaft ihn ebenfalls
 // braucht und diese hier nicht mitnehmen kann -- die Begruendung steht im Kopf jener Datei.
 require_once __DIR__ . '/wiki-claim.php';
+require_once __DIR__ . '/field-origins.php';
 
 function avesmapsReadMapFeaturePublicId(mixed $value): string {
     $publicId = avesmapsNormalizeSingleLine((string) $value, 36);
@@ -1271,6 +1272,20 @@ const AVESMAPS_POINT_WIKI_TEXT_FIELDS = [
 ];
 
 /**
+ * Die Felder eines Ortes, die aus dem Wiki kommen KOENNEN -- und damit die einzigen, fuer die eine
+ * Feldherkunft gefuehrt wird (Entwurf 2026-08-17-wiki-override-fuer-alle-design.md §1.2).
+ *
+ * 🔴 SIE IST DIE GEGENPROBE ZUM FELDREGISTER, nicht seine Wiederholung: dieselben fuenf stehen im
+ * Browser als AVESMAPS_WIKI_ASSIGN_ORT_KARTENFELDER (js/ui/wiki-assign-ort.js) und als die Zeilen
+ * mit Kartenziel in der Erklaerung `ort` (js/ui/wiki-assign-registry.js). Weichen sie voneinander
+ * ab, zeigt der Editor eine Zeile, deren Herkunft niemand fortschreibt -- oder umgekehrt.
+ *
+ * ⚠️ `name` und `feature_subtype` sind SPALTEN, die drei uebrigen liegen im `properties_json`. Fuer
+ * die Herkunft ist das gleichgueltig: sie fragt nach dem Feldnamen, nicht nach seiner Ablage.
+ */
+const AVESMAPS_POINT_WIKI_ORIGIN_FIELDS = ['name', 'feature_subtype', 'einwohner', 'lage', 'oberhaupt'];
+
+/**
  * REIN: die Wiki-Angaben eines Ortes in seine Eigenschaften schreiben -- der Merker „kein Artikel"
  * und die drei Textfelder. Wirft, wenn Merker und Adresse einander widersprechen.
  *
@@ -1339,6 +1354,17 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
             avesmapsAssertUniqueLocationName($pdo, $name, $publicId);
         }
         $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+        // 🔴 DER STAND VOR DEM SPEICHERN -- hier und nirgends spaeter, denn die naechsten Zeilen
+        // ueberschreiben genau diese Felder. Aus den SPALTEN gelesen, nicht aus dem Nest: `name` und
+        // `feature_subtype` stehen doppelt da (die Kopie im properties_json ist ein Abbild), und
+        // massgeblich ist, was die Karte laedt.
+        $herkunftVorher = [
+            'name' => (string) ($feature['name'] ?? ''),
+            'feature_subtype' => (string) ($feature['feature_subtype'] ?? ''),
+            'einwohner' => (string) ($properties['einwohner'] ?? ''),
+            'lage' => (string) ($properties['lage'] ?? ''),
+            'oberhaupt' => (string) ($properties['oberhaupt'] ?? ''),
+        ];
         $properties['name'] = $name;
         $properties['feature_type'] = 'location';
         $properties['feature_subtype'] = $subtype;
@@ -1378,6 +1404,30 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
         // beim naechsten Kartenladen eine Adresse aus dem Ortsnamen zurueck, und ein entfernter
         // Wiki-Link kehrt wieder: das IST Discord #38.
         $properties = avesmapsApplyPointWikiFields($properties, $payload, $wikiUrl);
+        // Die Feldherkunft fortschreiben: was hat sich geaendert, und kam es aus dem Wiki?
+        // 💣 HIER UND NICHT FRUEHER -- verglichen wird der GESPEICHERTE Wert. avesmapsApplyPointWikiFields
+        // kappt die drei Textfelder auf 200/300/200 Zeichen; gegen den rohen Anfragewert verglichen
+        // meldete ein ueberlanges Feld bei JEDEM Speichern „geaendert" und truege danach ewig eine
+        // Herkunft, die niemand gesetzt hat.
+        // ⚠️ Ein leeres Ergebnis wird ENTFERNT statt als `[]` abgelegt: dieselbe Regel wie beim
+        // Merker `wiki_no_article` -- was nichts aussagt, steht nicht drin.
+        $herkunft = avesmapsFieldOriginsStempeln(
+            is_array($properties['field_origins'] ?? null) ? $properties['field_origins'] : [],
+            $herkunftVorher,
+            [
+                'name' => $name,
+                'feature_subtype' => $subtype,
+                'einwohner' => (string) ($properties['einwohner'] ?? ''),
+                'lage' => (string) ($properties['lage'] ?? ''),
+                'oberhaupt' => (string) ($properties['oberhaupt'] ?? ''),
+            ],
+            avesmapsFieldOriginsAusWikiLesen($payload, AVESMAPS_POINT_WIKI_ORIGIN_FIELDS)
+        );
+        if ($herkunft === []) {
+            unset($properties['field_origins']);
+        } else {
+            $properties['field_origins'] = $herkunft;
+        }
         $otherSource = avesmapsReadOptionalOtherSource($payload['other_source'] ?? null);
         if ($otherSource === null) {
             unset($properties['other_source']);
@@ -1467,6 +1517,29 @@ function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): arra
     // Wiki-Artikel vorhanden". Ohne diese Zeile wäre das Häkchen beim Anlegen ein Häkchen, das nichts
     // merkt -- und die drei Wiki-Textfelder daneben blieben genauso stumm.
     $properties = avesmapsApplyPointWikiFields($properties, $payload, $wikiUrl);
+    // Die Feldherkunft eines FRISCH ANGELEGTEN Ortes.
+    // 🔴 DER ANLEGEFALL IST DER ZWEITE SCHREIBWEG, und er ist beim Bauen zuerst uebersehen worden --
+    // gefunden hat ihn nicht der Autor, sondern die Verdrahtungs-Zusicherung in
+    // __tests__/field-origins-test.php, die die Schreibwege zur LAUFZEIT zaehlt. Genau dafuer steht
+    // in ihrem Kommentar keine Zahl (die Falle vom 14.08.2026).
+    // ⚠️ „Vorher" ist hier durchweg LEER -- ein neuer Ort hat keinen Vorzustand. Jedes gefuellte Feld
+    // ist damit eine Aenderung und bekommt eine Herkunft; genau richtig, denn ein Ort, der aus einer
+    // Wiki-Zuweisung heraus entsteht, traegt seine Werte wirklich aus dem Wiki.
+    $herkunftNeu = avesmapsFieldOriginsStempeln(
+        [],
+        [],
+        [
+            'name' => $name,
+            'feature_subtype' => $subtype,
+            'einwohner' => (string) ($properties['einwohner'] ?? ''),
+            'lage' => (string) ($properties['lage'] ?? ''),
+            'oberhaupt' => (string) ($properties['oberhaupt'] ?? ''),
+        ],
+        avesmapsFieldOriginsAusWikiLesen($payload, AVESMAPS_POINT_WIKI_ORIGIN_FIELDS)
+    );
+    if ($herkunftNeu !== []) {
+        $properties['field_origins'] = $herkunftNeu;
+    }
 
     $pdo->beginTransaction();
     try {
@@ -3418,6 +3491,11 @@ function avesmapsBuildPointFeatureResponse(string $publicId, string $name, strin
         'einwohner' => (string) ($properties['einwohner'] ?? ''),
         'lage' => (string) ($properties['lage'] ?? ''),
         'oberhaupt' => (string) ($properties['oberhaupt'] ?? ''),
+        // 🔴 Die FELDHERKUNFT, aus demselben Grund wie die vier darueber: der Kartendialog baut
+        // seinen Marker-Eintrag aus genau dieser Antwort neu. Fehlte sie, zeigte der Dialog nach dem
+        // Speichern „Herkunft unbekannt" fuer ein Feld, dessen Herkunft der Server soeben selbst
+        // gestempelt hat -- und die Sync-Vorschau daneben haekelte wieder nichts vor.
+        'field_origins' => (object) (is_array($properties['field_origins'] ?? null) ? $properties['field_origins'] : []),
         'lat' => $lat,
         'lng' => $lng,
         'revision' => $revision,

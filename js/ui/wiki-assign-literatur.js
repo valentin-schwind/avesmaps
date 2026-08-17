@@ -111,20 +111,32 @@ function avesmapsWikiAssignLiteraturWerte(quelle) {
 }
 
 /**
- * REIN: `field_origins` -> die Liste der von Hand gesetzten KARTENFELD-Namen.
+ * REIN: `field_origins` -> die Herkunftskarte der zehn KARTENFELDER.
  *
  * 🔴 GEFILTERT AUF DIE ZEHN ZIELE, nicht roh durchgereicht. `field_origins` traegt auch Felder ohne
  * Sync-Ziel (`bf_year`, `link_ulisses`, …); die Diff-Rechnung schlaegt einen Namen nur unter
  * `feld.karte` nach, also waere der Rest wirkungsloser Ballast -- und ein wirkungsloser Eintrag in
- * einer Liste, die „diese Zeile ist gesperrt" bedeutet, liest sich beim naechsten Mal wie eine Regel.
+ * einer Karte, die ueber das Vorhaekeln entscheidet, liest sich beim naechsten Mal wie eine Regel.
  *
- * ⚠️ NUR `'manual'` zaehlt. `'wiki'` heisst „zuletzt vom Abgleich gefuellt" und ist das Gegenteil;
- * ein fehlender Eintrag heisst „nie angefasst". Beide sind frei.
+ * 🔴 SEIT 17.08.2026 REISEN BEIDE HERKUENFTE MIT, nicht nur `'manual'`. Hier stand eine LISTE der
+ * handgesetzten Felder; `'wiki'` fiel dabei heraus, weil es damals folgenlos war. Es ist es nicht
+ * mehr: `'wiki'` heisst „zuletzt vom Abgleich gefuellt" und ist seither der Fall, der WIEDER
+ * vorangehakt wird (wiki-assign-diff.js, Fall 4). Ein fehlender Eintrag heisst weiterhin „nie
+ * angefasst" und bleibt beim heutigen Verhalten.
+ *
+ * ⚠️ Alles ausser `'manual'`/`'wiki'` faellt heraus -- eine unbekannte dritte Herkunft darf weder
+ * sperren noch vorhaken, sondern muss auf „nicht bekannt" zurueckfallen.
  */
-function avesmapsWikiAssignLiteraturHandgesetzt(herkunft) {
+function avesmapsWikiAssignLiteraturHerkunft(herkunft) {
 	const h = (herkunft && typeof herkunft === "object" && !Array.isArray(herkunft)) ? herkunft : {};
-	return AVESMAPS_WIKI_ASSIGN_LITERATUR_KARTENFELDER
-		.filter((feld) => avesmapsWikiAssignLiteraturText(h[feld]) === "manual");
+	const karte = {};
+	AVESMAPS_WIKI_ASSIGN_LITERATUR_KARTENFELDER.forEach((feld) => {
+		const wert = avesmapsWikiAssignLiteraturText(h[feld]);
+		if (wert === "manual" || wert === "wiki") {
+			karte[feld] = wert;
+		}
+	});
+	return karte;
 }
 
 /**
@@ -247,7 +259,7 @@ function avesmapsWikiAssignLiteraturZustand(quelle) {
 		keinArtikel: false,
 		kartenwerte: avesmapsWikiAssignLiteraturKartenwerte(quelle, AVESMAPS_WIKI_ASSIGN_LITERATUR_KARTENFELDER),
 		// ⭐ DIE EINZIGE OBJEKTART MIT ECHTER FELDHERKUNFT (siehe Kopf, Punkt 4).
-		handgesetzt: avesmapsWikiAssignLiteraturHandgesetzt(quelle.field_origins),
+		herkunft: avesmapsWikiAssignLiteraturHerkunft(quelle.field_origins),
 	};
 }
 
@@ -289,7 +301,7 @@ if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		AVESMAPS_WIKI_ASSIGN_LITERATUR_KARTENFELDER: AVESMAPS_WIKI_ASSIGN_LITERATUR_KARTENFELDER,
 		avesmapsWikiAssignLiteraturWerte: avesmapsWikiAssignLiteraturWerte,
-		avesmapsWikiAssignLiteraturHandgesetzt: avesmapsWikiAssignLiteraturHandgesetzt,
+		avesmapsWikiAssignLiteraturHerkunft: avesmapsWikiAssignLiteraturHerkunft,
 		avesmapsWikiAssignLiteraturTreffer: avesmapsWikiAssignLiteraturTreffer,
 		avesmapsWikiAssignLiteraturArtikel: avesmapsWikiAssignLiteraturArtikel,
 		avesmapsWikiAssignLiteraturZustand: avesmapsWikiAssignLiteraturZustand,
