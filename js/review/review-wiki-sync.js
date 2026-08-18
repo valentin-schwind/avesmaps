@@ -2745,6 +2745,16 @@ function avesmapsLoreListRowHtml(item, showKind, form) {
 	// Alles, was die Zeile SAGT, steht hier -- und zwar einmal für beide Formen.
 	var name = avesmapsLoreListEscape(item.name);
 	var metaHtml = avesmapsLoreListEscape(meta);
+	// Der Statuskreis: liegt dieses Vorkommen irgendwo auf der Karte? Die REGEL steht in
+	// js/ui/listen-statuskreis.js (dort auch, warum sie der von Literatur und Karte
+	// entgegengesetzt ist), die ZAHLEN kommen fertig aus api/app/lore.php.
+	// 💣 `place_mapped_count` ist über ALLE Ortszeilen gerechnet, `places` ist auf 6 gekappt --
+	//    deshalb wird hier nie aus `places` gezählt.
+	// 🔴 KEIN `typeof …=== "function"`-Vorbehalt. Ein Rückfall auf „kein Kreis" macht aus einer
+	//    fehlenden Verdrahtung eine lautlos unvollständige Liste -- genau der Fehler, den der
+	//    Kraftlinien-Ring am 18.08.2026 hatte. Fehlt das Skript, soll es krachen; dass index.html
+	//    es lädt, nagelt js/ui/__tests__/listen-statuskreis.test.js fest.
+	var kreis = avesmapsStatuskreisVorkommen(item.place_count, item.place_mapped_count);
 	var gemeinsam = ' data-lore-entry="' + avesmapsLoreListEscape(item.wiki_key) + '"'
 		+ (safe ? ' data-lore-url="' + avesmapsLoreListEscape(safe) + '"' : "")
 		+ ' title="' + avesmapsLoreListEscape(item.name + " – klicken zum Bearbeiten") + '"';
@@ -2767,19 +2777,29 @@ function avesmapsLoreListRowHtml(item, showKind, form) {
 		// 🔴 KEINE neue CSS-Regel. Die fünf Nachbarlisten (Karten, Literatur, Kraftlinien, Wege,
 		//    Landschaften) bauen ihre Zeile längst so; hier war der Kommentar „Bauteil für Bauteil
 		//    aus dem Karteneditor" wahr bis auf genau dieses Bauteil.
-		return '<button type="button" class="avm-row'
+		// ⭐ Und genau diese Hülle nimmt den Statuskreis auf: `.avm-row__name` ellipsiert, ein
+		//    Marker DARIN verschwände mit den Auslassungspunkten (map-status-circle.css).
+		return '<button type="button" class="avm-row has-map-status'
 			+ (item.wiki_key && item.wiki_key === avesmapsLoreDetailKey ? " is-selected" : "") + '"'
 			+ gemeinsam + ">"
 			+ '<span class="avm-row__text">'
-			+ '<span class="avm-row__l1"><span class="avm-row__name">' + name + "</span></span>"
+			+ '<span class="avm-row__l1"><span class="avm-row__name">' + name + "</span>" + kreis + "</span>"
 			+ '<span class="avm-row__l2">' + metaHtml + "</span>"
 			+ "</span></button>";
 	}
-	// Dieselbe Zeile wie die sieben Nachbarlisten im Reiter. KEIN has-map-status: Vorkommen hat
-	// kein "liegt auf der Karte".
-	return '<button type="button" class="tree-item"' + gemeinsam + ">"
+	// Dieselbe Zeile wie die sieben Nachbarlisten im Reiter.
+	// 💣 Der Marker steht IM Knopf, gezeichnet wird der Kreis aber als `::after` von
+	//    `.tree-item-name` -- die Regel greift über `:has(.tree-map-status--…)` an der Zeile
+	//    (map-status-circle.css). Ohne `has-map-status` an der Zeile passiert gar nichts, und ohne
+	//    Marker im Knopf bliebe der Ring für jede Zeile leer: ein unmöglicher Zustand, genau der
+	//    Fehler, den die Kraftlinienliste am 18.08.2026 hatte.
+	// ⚠️ Der Marker steht ans ENDE, wie in den sieben Nachbarlisten -- und er ist im Panel
+	//    unsichtbar (`.wikisync-itemlist .tree-map-status { display: none }`), also auch keine
+	//    dritte Rasterzelle in diesem zweizeiligen Grid.
+	return '<button type="button" class="tree-item has-map-status"' + gemeinsam + ">"
 		+ '<span class="tree-item-name">' + name + "</span>"
 		+ '<span class="tree-item-meta">' + metaHtml + "</span>"
+		+ kreis
 		+ "</button>";
 }
 

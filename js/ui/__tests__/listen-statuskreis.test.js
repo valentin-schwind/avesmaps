@@ -349,6 +349,70 @@ assert.strictEqual((regionsLib.match(/\$label\['assigned'\] = /g) || []).length,
 	+ "eine, liest der Browser dort `undefined` und der Kreis raet.");
 checks++;
 
+// ── VORKOMMEN: die vierte Regel, und sie ist der von Literatur/Karte ENTGEGENGESETZT ────────────
+// Owner 18.08.2026: „halbgefuellt, wenn sie vorkommen aber nicht mit einem ort oder einer region
+// auf der karte zugewiesen sind (z.b. schiff), voll wenn sie auf der karte irgendwo vorkommen“.
+assert.ok(/--all/.test(kreis.avesmapsStatuskreisVorkommen(3, 1)),
+	"EIN verorteter Fundort genuegt fuer den vollen Kreis -- eine Ware, die es in Belhanka gibt, "
+	+ "kommt auf der Karte vor, auch wenn zwei weitere Nennungen ins Leere zeigen.");
+checks++;
+assert.ok(/--own-only/.test(kreis.avesmapsStatuskreisVorkommen(2, 0)),
+	'Genannte Orte, aber keiner auf der Karte („Schiff“, „Myranor“) muss HALB sein.');
+checks++;
+assert.ok(!/--/.test(kreis.avesmapsStatuskreisVorkommen(0, 0)),
+	"Ohne jede Ortsangabe („ohne Ortsangabe“) bleibt der Ring leer.");
+checks++;
+// 🔴 DIE PROBE AUF DIE GEGENLAEUFIGKEIT. Dieselben zwei Zahlen, zwei Objektarten, zwei
+// entgegengesetzte Antworten -- und genau das ist beabsichtigt: bei einem WERK ist jeder
+// unaufgeloeste Ort offene Arbeit (halb schlaegt voll), bei einer WARE genuegt ein Fundort.
+// Wer die beiden Bauer je zusammenlegt, bricht diese Zusicherung, und das ist ihr einziger Zweck.
+assert.ok(/--all/.test(kreis.avesmapsStatuskreisVorkommen(3, 1))
+	&& /--own-only/.test(kreis.avesmapsStatuskreisOrtsbezugZahlen(3, 2)),
+	"Vorkommen und Literatur/Karte muessen bei „3 Orte, 1 davon aufgeloest“ VERSCHIEDEN antworten: "
+	+ "die Ware voll, das Werk halb. Kommt hier dasselbe heraus, wurden die zwei Regeln "
+	+ "vereinheitlicht -- und mindestens eine Aussage ist damit umgedreht.");
+checks++;
+// ⚠️ Strikt: ein fehlendes Feld darf nicht als „verortet“ durchgehen (sichere Richtung).
+assert.ok(/--own-only/.test(kreis.avesmapsStatuskreisVorkommen(2, undefined)),
+	"Ohne Angabe zur Verortung darf nicht „voll“ herauskommen.");
+checks++;
+
+// ── VERDRAHTUNG: Vorkommen-Liste (Reiter UND Fenster, beide in index.html) ──────────────────────
+// 🔴 EIN Zeilenbauer fuer beide Oberflaechen (avesmapsLoreListRowHtml, `form` = "tree"|"avm") --
+// deshalb steht die Verdrahtung hier nur einmal, anders als bei den fuenf Nachbarn.
+// ⚠️ Dass index.html das Skript laedt, steht schon oben bei der Panel-Ortsliste; eine zweite
+// Zusicherung dafuer waere tot (sie loeste nie als erste aus). Beide Vorkommen-Listen leben in
+// index.html, also gilt sie hier mit.
+const vorkommenListe = lies("js", "review", "review-wiki-sync.js");
+assert.ok(/avesmapsStatuskreisVorkommen\(item\.place_count, item\.place_mapped_count\)/.test(vorkommenListe),
+	"Die Vorkommen-Zeile ruft den geteilten Bauer nicht mit BEIDEN Zahlen auf.");
+checks++;
+// ⚠️ Dass die Zahl NICHT aus der auf 6 gekappten `places`-Liste gezaehlt werden darf, prueft
+// js/review/__tests__/lore-dialog-layout.test.js am VERHALTEN (Eintrag mit sieben Orten, der
+// einzige verortete ist der siebte) -- hier waere es nur eine Aussage ueber die Schreibweise.
+assert.ok(/class="tree-item has-map-status"/.test(vorkommenListe),
+	'Die Vorkommen-Zeile im REITER setzt "has-map-status" nicht -- ohne die Klasse greift keine '
+	+ "Regel in map-status-circle.css und der Kreis fehlt lautlos.");
+checks++;
+assert.ok(/class="avm-row has-map-status'/.test(vorkommenListe),
+	'Die Vorkommen-Zeile im FENSTER setzt "has-map-status" nicht.');
+checks++;
+// ⚠️ Im Fenster gehoert der Marker NEBEN den Namen in `.avm-row__l1` -- `.avm-row__name`
+// ellipsiert (editor-row.css), und was darin liegt, verschwindet mit den Auslassungspunkten.
+assert.ok(/avm-row__l1"><span class="avm-row__name">' \+ name \+ "<\/span>" \+ kreis/.test(vorkommenListe),
+	"Im Vorkommen-Fenster steht der Kreis nicht neben dem Namen in `.avm-row__l1`.");
+checks++;
+// 💣 Und der Server muss die Zahl ueberhaupt liefern -- sonst prueft der Bauer fuer immer
+// `undefined` und faerbt jede Zeile mit Orten halb (gruener Test, wirkungslose Liste).
+const loreLib = lies("api", "_internal", "app", "lore.php");
+assert.ok(/'place_mapped_count' => \$mappedPlaces,/.test(loreLib),
+	"api/_internal/app/lore.php liefert `place_mapped_count` nicht mehr im Katalog-Eintrag.");
+checks++;
+assert.ok(/avesmapsLoreReadPlaceKeysOnMap\(\$pdo, array_keys\(\$allPlaceKeys\)\)/.test(loreLib),
+	"Der Katalog fragt die Kartenschluessel nicht mehr ab -- ohne sie ist `place_mapped_count` "
+	+ "ueberall 0 und jede Zeile mit Orten waere halb.");
+checks++;
+
 // ── Die Panel-Wegeliste: zwei alte Fehlbefunde ──────────────────────────────────────────────────
 const pathPanel = lies("js", "review", "review-path-sync.js");
 // 🪤 Eine map-only-Zeile ist ein Weg AUF der Karte OHNE Wiki-Zeile -- der halbe Zustand. Sie trug

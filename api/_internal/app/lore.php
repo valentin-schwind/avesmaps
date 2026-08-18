@@ -297,20 +297,33 @@ function avesmapsLoreReadCatalog(
 
         $keys = array_column($rows, 'wiki_key');
         $placesByEntry = [];
+        $placeKeysByEntry = [];
+        $allPlaceKeys = [];
         $sourceCounts = [];
         if ($keys !== []) {
             $in = implode(',', array_fill(0, count($keys), '?'));
 
             // Die Orte SELBST, nicht nur ihre Zahl: „Weiden, Kosch, Nordmarken" sagt
             // etwas, „3 Orte" nichts.
+            // 💣 `place_wiki_key` reist seit 18.08.2026 mit, und zwar UNGEKAPPT -- die Titel
+            //    daneben sind auf 6 gedeckelt (Zeile darunter), der Statuskreis darf das nicht
+            //    sein: sein „voll" braucht EINEN verorteten Ort, und der kann der siebte sein.
+            //    Deshalb wird der Kreis aus dieser vollständigen Schlüsselliste gerechnet und
+            //    nicht aus `places`.
             $placeStatement = $pdo->prepare(
-                'SELECT entry_wiki_key, place_title FROM lore_place
+                'SELECT entry_wiki_key, place_title, place_wiki_key FROM lore_place
                  WHERE status = \'active\' AND entry_wiki_key IN (' . $in . ')
                  ORDER BY entry_wiki_key, sort_order'
             );
             $placeStatement->execute($keys);
             foreach ($placeStatement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
-                $placesByEntry[(string) $row['entry_wiki_key']][] = (string) $row['place_title'];
+                $entry = (string) $row['entry_wiki_key'];
+                $placesByEntry[$entry][] = (string) $row['place_title'];
+                $placeKey = avesmapsLoreStripKeyPrefix((string) $row['place_wiki_key']);
+                $placeKeysByEntry[$entry][] = $placeKey;
+                if ($placeKey !== '') {
+                    $allPlaceKeys[$placeKey] = true;
+                }
             }
 
             // Quellen aus dem GETEILTEN System (seit 2026-07-22, AGENTS.md §5): ein
@@ -367,8 +380,23 @@ function avesmapsLoreReadCatalog(
         return ['items' => [], 'total' => 0, 'failed' => true];
     }
 
+    // Welche der genannten Orte liegen wirklich auf der Karte? Der Statuskreis der Vorkommen-Liste
+    // hängt daran (siehe avesmapsLoreReadPlaceKeysOnMap). EINE Abfragegruppe für die ganze Seite,
+    // nie eine je Zeile.
+    // ⚠️ Ausserhalb des try/catch oben: der Leser fängt selbst und liefert im Zweifel weniger
+    //    Schlüssel, und das ist die sichere Richtung -- ein Eintrag wird dann als „nicht verortet"
+    //    gezeigt statt fälschlich als erledigt. Ein Fehler hier darf die Liste nicht kosten.
+    $placeKeysOnMap = avesmapsLoreReadPlaceKeysOnMap($pdo, array_keys($allPlaceKeys));
+
     $items = [];
     foreach ($rows as $row) {
+        $entryKey = (string) $row['wiki_key'];
+        $mappedPlaces = 0;
+        foreach ($placeKeysByEntry[$entryKey] ?? [] as $placeKey) {
+            if ($placeKey !== '' && isset($placeKeysOnMap[$placeKey])) {
+                $mappedPlaces++;
+            }
+        }
         $items[] = [
             'wiki_key' => (string) $row['wiki_key'],
             'kind' => (string) $row['kind'],
@@ -383,6 +411,9 @@ function avesmapsLoreReadCatalog(
             // Auf 6 gekappt: eine Zeile soll die Gegend andeuten, nicht 40 Orte
             // ausbreiten. Der Rest steht als Zahl dahinter.
             'places' => array_slice($placesByEntry[(string) $row['wiki_key']] ?? [], 0, 6),
+            // Wieviele der genannten Orte auf der Karte liegen. 🔴 Gerechnet über ALLE Ortszeilen,
+            // nicht über die auf 6 gekappte Titelliste darüber.
+            'place_mapped_count' => $mappedPlaces,
             'source_count' => $sourceCounts[(string) $row['wiki_key']] ?? 0,
         ];
     }
@@ -394,6 +425,136 @@ function avesmapsLoreReadCatalog(
         'continents' => $continentOptions,
         'origins' => $originOptions,
     ];
+}
+
+/**
+ * WELCHE ORTSSCHLÜSSEL LIEGEN AUF DER KARTE? Die Datengrundlage des Statuskreises der
+ * Vorkommen-Liste (Owner 18.08.2026: „halbgefüllt, wenn sie vorkommen aber nicht mit einem ort
+ * oder einer region auf der karte zugewiesen sind (z.b. schiff), voll wenn sie auf der karte
+ * irgendwo vorkommen").
+ *
+ * 💣 EINE Ortszeile hat KEIN aufgelöstes Ziel. `lore_place` speichert nur `place_wiki_key` +
+ *    `place_title`; die Verbindung zu einem Kartenobjekt entsteht erst beim Lesen, über den
+ *    Wiki-Schlüssel des Objekts (siehe avesmapsLoreReadForPlaces und der Kopf von
+ *    api/_internal/app/lore-search.php). Diese Funktion dreht genau diese Frage um.
+ *
+ * 🔴 VIER Familien, und genau die vier, die die Lore-Anfrage auch bedienen kann:
+ *      Ort               `map_features.properties.wiki_settlement.wiki_key`   (blanker Slug)
+ *      Landschaftslabel  `map_features.properties.wiki_region.wiki_key`       (blanker Slug)
+ *      Landschaftsfläche `ecosystem_region.wiki_region_key`                   (blanker Slug)
+ *      Herrschaftsgebiet `political_territory.wiki_key`                       (mit `wiki:`/`name:`)
+ *    Alle vier stehen im SELBEN Schlüsselraum wie `lore_place.place_wiki_key`
+ *    (avesmapsPoliticalSlug über avesmapsFoldToAscii, AGENTS.md §5) -- deshalb genügt ein
+ *    Gleichheitsvergleich und es wird nirgends geraten.
+ * 💣 GEMESSEN WIRD DAS ZUWEISUNGSFELD, nie das danebenstehende `properties.wiki_url`: der
+ *    öffentliche Lesepfad füllt jenes bei Leere per Namensraten nach (99 Phantome bei den Orten,
+ *    AGENTS.md §11). Der Nest-Schlüssel entsteht dagegen nur beim Zuweisen.
+ * ⚠️ KEIN Namensvergleich und kein Abschneiden von Klammerzusätzen. Der Spotlight-Löser
+ *    (`resolveSpotlightLorePlace`) kennt beides, weil er einen ANFLUGPUNKT sucht und ein
+ *    Beinahe-Treffer dort besser ist als keiner. Hier steht die Frage „ist das zugewiesen?", und
+ *    eine Vermutung wäre die falsche Antwort. Der Preis ist gemessen und klein: 8 Ortstitel im
+ *    Livebestand tragen einen Klammerzusatz, den die Karte ohne führt („Aventurien (Kontinent)",
+ *    „Nostria (Siedlung)"), und sie färben 3 von 5104 Einträgen halb statt voll (18.08.2026).
+ * ⚠️ Wege sind NICHT dabei, und das ist kein Versehen: „Der Große Fluss" und „Szinto" liegen als
+ *    `Flussweg` auf der Karte, sind aber weder Ort noch Region -- der Owner-Satz nennt genau die
+ *    zwei. Ein Weg hat auch keine Vorkommen-Sektion in seiner Infobox.
+ * ⚠️ PERF: die dritte Abfrage liest `properties_json` aller Orte und Labels (rund 6,7 MB
+ *    Payload-Äquivalent, 18.08.2026 gemessen). Das ist der Preis dafür, dass die Zuweisung im JSON
+ *    liegt und nicht in einer Spalte; `avesmapsWikiSettlementCollectConnectTargets`
+ *    (api/_internal/wiki/settlements.php) zahlt ihn längst und dekodiert sogar in PHP. Sie läuft
+ *    EINMAL je Katalogseite, nie je Zeile. 🔧 Bräuchte es je einen Cache, wäre `map_revision` sein
+ *    Schlüssel.
+ * 💣 MySQL-Form: `JSON_UNQUOTE(JSON_EXTRACT(...))` kennt SQLite nicht (dort liefert `json_extract`
+ *    schon unquotiert). Verbogen wird nichts -- gilt MySQL (AGENTS.md §9); geprüft wird stattdessen
+ *    die REGEL, die die Zahlen zu einem Zustand macht, und die ist rein.
+ *
+ * @param list<string> $placeKeys blanke Ortsschlüssel (ohne `wiki:`/`name:`)
+ * @return array<string,true> die Teilmenge, die auf der Karte liegt
+ */
+function avesmapsLoreReadPlaceKeysOnMap(PDO $pdo, array $placeKeys): array
+{
+    $keys = [];
+    foreach ($placeKeys as $key) {
+        $key = avesmapsLoreStripKeyPrefix((string) $key);
+        if ($key !== '' && mb_strlen($key, 'UTF-8') <= 190) {
+            $keys[$key] = true;
+        }
+    }
+    if ($keys === []) {
+        return [];
+    }
+    $keys = array_keys($keys);
+    $in = implode(',', array_fill(0, count($keys), '?'));
+    $found = [];
+
+    // (1) Herrschaftsgebiet. `political_territory.wiki_key` trägt ein Präfix
+    // (avesmapsPoliticalBuildWikiKey: `wiki:` mit Artikel, `name:` ohne). BEIDE werden gefragt,
+    // weil der Lesepfad des Panels sie ebenfalls beide strippt (avesmapsLoreStripKeyPrefix) -- ein
+    // Gebiet ohne Wiki-Artikel zeigt seine Vorkommen genauso.
+    $prefixed = [];
+    foreach ($keys as $key) {
+        $prefixed[] = 'wiki:' . $key;
+        $prefixed[] = 'name:' . $key;
+    }
+    try {
+        $statement = $pdo->prepare(
+            'SELECT wiki_key FROM political_territory
+             WHERE is_active = 1 AND wiki_key IN (' . implode(',', array_fill(0, count($prefixed), '?')) . ')'
+        );
+        $statement->execute($prefixed);
+        foreach ($statement->fetchAll(PDO::FETCH_COLUMN) ?: [] as $value) {
+            $found[avesmapsLoreStripKeyPrefix((string) $value)] = true;
+        }
+    } catch (Throwable) {
+        // Tabelle fehlt (frische Installation) -> diese Familie trägt nichts bei.
+    }
+
+    // (2) Landschaftsfläche.
+    try {
+        $statement = $pdo->prepare(
+            'SELECT DISTINCT wiki_region_key FROM ecosystem_region
+             WHERE is_active = 1 AND wiki_region_key IN (' . $in . ')'
+        );
+        $statement->execute($keys);
+        foreach ($statement->fetchAll(PDO::FETCH_COLUMN) ?: [] as $value) {
+            $found[(string) $value] = true;
+        }
+    } catch (Throwable) {
+    }
+
+    // (3) Ort und (4) Landschaftslabel -- beide im `properties_json` von `map_features`, aber in
+    // verschiedenen Nestern und auf verschiedenen `feature_type` (gemessen 18.08.2026: 1914 Orte
+    // tragen `wiki_settlement`, 629 Labels `wiki_region`, und keins der beiden Nester steht je auf
+    // dem anderen Typ).
+    // 💣 Die Schreibweise ist die des Hauses, nicht erfunden: `place-kinds.php:58` und
+    //    `features.php:2429` fragen `JSON_UNQUOTE(JSON_EXTRACT(properties_json, '$.…'))` genauso.
+    //    Der Pfad ist ein Literal, keine Eingabe -- interpoliert wird hier nichts.
+    // ⚠️ Und der Fehlschlag wird PROTOKOLLIERT, nicht bloss geschluckt: ein stiller `catch` macht
+    //    aus einem SQL-Fehler eine Liste, in der jede Zeile „nicht verortet" sagt -- von einem
+    //    echten Befund nicht zu unterscheiden. Genau diese Falle kostete am 15.08.2026 sechs
+    //    grüne Prüfläufe („Was ist hier?", HY093).
+    foreach ([
+        ['location', "JSON_UNQUOTE(JSON_EXTRACT(properties_json, '$.wiki_settlement.wiki_key'))"],
+        ['label', "JSON_UNQUOTE(JSON_EXTRACT(properties_json, '$.wiki_region.wiki_key'))"],
+    ] as [$featureType, $expression]) {
+        try {
+            $statement = $pdo->prepare(
+                'SELECT DISTINCT ' . $expression . ' AS wiki_key FROM map_features
+                 WHERE is_active = 1 AND feature_type = ?
+                   AND ' . $expression . ' IN (' . $in . ')'
+            );
+            $statement->execute(array_merge([$featureType], $keys));
+            foreach ($statement->fetchAll(PDO::FETCH_COLUMN) ?: [] as $value) {
+                $found[avesmapsLoreStripKeyPrefix((string) $value)] = true;
+            }
+        } catch (Throwable $error) {
+            error_log('lore place-on-map lookup (' . $featureType . ') failed: ' . $error->getMessage());
+        }
+    }
+
+    unset($found['']);
+
+    return $found;
 }
 
 /**

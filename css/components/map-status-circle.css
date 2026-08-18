@@ -20,9 +20,10 @@
  * überall dasselbe heißen): voll = fertig · halb = da, aber nicht verbunden · leer = nicht auf der
  * Karte.
  * ⚠️ WORAN „fertig" gemessen wird, entscheidet die Objektart, nicht diese Datei — und es sind seit
- * 18.08.2026 DREI Regeln: die Wiki-Zuweisung (Ort, Landschaft), `every` über eine Namensgruppe aus
- * Segmenten (Weg, Kraftlinie) und `some` über zugeordnete ORTE (Literatur, Karte). Die Begründung
- * steht je an ihrer Codestelle; hier steht nur, wie der Kreis aussieht.
+ * 18.08.2026 VIER Regeln: die Wiki-Zuweisung (Ort, Landschaft), `every` über eine Namensgruppe aus
+ * Segmenten (Weg, Kraftlinie), `some` über zugeordnete ORTE mit halb-schlägt-voll (Literatur,
+ * Karte) und — dazu GEGENLÄUFIG — der Fundort der Vorkommen: dort genügt EIN verorteter Ort für
+ * voll. Die Begründung steht je an ihrer Codestelle; hier steht nur, wie der Kreis aussieht.
  */
 
 /* 🔴 Er hängt an .has-map-status, NICHT an der Zeile. Eine Liste bekommt ihn erst, wenn sie die
@@ -31,7 +32,9 @@
    Owner, nicht das Werkzeug.
    🪤 Hier stand bis 18.08.2026, Literatur und Karten hätten „kein liegt auf der Karte" und ihr
    fehlender Kreis sei Information. Der Owner hat das an diesem Tag entschieden: sie bekommen
-   einen, und er misst dort etwas anderes (siehe Bedeutung oben). Nur die Vorkommen bleiben ohne.
+   einen, und er misst dort etwas anderes (siehe Bedeutung oben). 🔴 Und einen Tag später auch die
+   VORKOMMEN, wo bis dahin „nur die Vorkommen bleiben ohne" stand — mit einer vierten Regel, die
+   der von Literatur/Karte entgegengesetzt ist (js/ui/listen-statuskreis.js).
    ⚠️ Ausdrücklich gesetzt statt aus den Daten abgeleitet: ein `:has(.tree-map-status)` würde den
    Kreis dort lautlos entfernen, wo eine Liste ihn (noch) ungefüllt tragen soll. */
 .wikisync-itemlist .tree-item.has-map-status .tree-item-name::after,

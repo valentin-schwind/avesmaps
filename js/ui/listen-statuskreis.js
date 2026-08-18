@@ -30,12 +30,15 @@
 //   halb (`--own-only`)  = da, aber nicht verbunden
 //   leer (kein Modifier) = nicht auf der Karte
 //
-// 💣 WORAN „fertig" gemessen wird, entscheidet die OBJEKTART -- und es sind DREI Regeln, jede
+// 💣 WORAN „fertig" gemessen wird, entscheidet die OBJEKTART -- und es sind VIER Regeln, jede
 //    begründet, keine davon ein Versehen:
 //      · Wiki-Zuweisung  -- Ort, Landschaft   (hängt das Ding an einem Artikel?)
 //      · `every`         -- Weg, Kraftlinie   (eine Namensgruppe aus Segmenten; teilweise ist HALB)
-//      · Ortsbezug       -- Literatur, Karte  (liegt das Werk überhaupt irgendwo?)
+//      · Ortsbezug       -- Literatur, Karte  (liegt das Werk überhaupt irgendwo? halb schlägt voll)
+//      · Fundort         -- Vorkommen         (liegt es irgendwo? EIN Fundort genügt für voll)
 //    Wer sie „vereinheitlicht", dreht mindestens eine Aussage um.
+//    🔴 Die letzten beiden sehen gleich aus und sind GEGENLÄUFIG. Der Unterschied steht bei den
+//    Vorkommen ausgeschrieben; er ist die Stelle, an der ein aufräumender Leser am ehesten irrt.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 
 // Die Klassenliste der Markierung -- die EINZIGE Stelle, an der die drei Modifier stehen.
@@ -213,6 +216,43 @@ function avesmapsStatuskreisOrtsbezug(orte) {
 	);
 }
 
+// ── VORKOMMEN (Flora, Fauna, Spezies, Waren) ────────────────────────────────────────────────────
+// Owner 18.08.2026, wörtlich: „vorkommen sollen kreisförmig sein, halbgefüllt, wenn sie vorkommen
+// aber nicht mit einem ort oder einer region auf der [karte] zugewiesen sind (z.b. schiff), voll
+// wenn sie auf der karte irgendwo vorkommen".
+//
+//   voll (`--all`)      = MINDESTENS EIN genannter Ort liegt auf der Karte
+//   halb (`--own-only`) = Orte genannt, aber KEINER davon auf der Karte („Schiff", „Myranor")
+//   leer (kein Marker)  = gar keine Ortsangabe
+//
+// 🔴 DAS IST NICHT DIE REGEL VON LITERATUR UND KARTE, SONDERN IHR GEGENTEIL -- und das ist so
+//    gewollt: bei einem Werk ist jeder unaufgelöste Ort offene Arbeit, deshalb schlägt dort HALB
+//    das VOLL („mindestens einer offen" gewinnt). Bei einer Ware genügt EIN Fundort, damit sie auf
+//    der Karte vorkommt; die übrigen Nennungen dürfen ruhig ins Leere zeigen, „Aventurien" und
+//    „Schiff" stehen im selben Wiki-Feld nebeneinander. Wer die beiden Bauer zusammenlegt, dreht
+//    eine der zwei Aussagen um.
+// 💣 Gemessen wird der SCHLÜSSEL der Ortszeile (`lore_place.place_wiki_key`) gegen die
+//    Wiki-Zuweisung eines Kartenobjekts, nicht der angezeigte Titel -- die Rechnung steht in
+//    avesmapsLoreReadPlaceKeysOnMap (api/_internal/app/lore.php) und kommt als
+//    `place_mapped_count` fertig aus dem Server. 🔴 Sie gehört dorthin und nicht in den Browser:
+//    was der Client geladen hat, hängt an Zoom und Ansicht (die politische Ebene liefert bei
+//    Zoom 3 gerade 174 von rund 800 Gebieten), der Kreis würde also mit dem Kartenausschnitt
+//    flackern -- dieselbe Begründung wie bei `derived_source_geometry_public_ids` (AGENTS.md §10).
+// ⚠️ Am Livebestand 18.08.2026 (5104 Einträge): 2612 voll, 793 halb, 1699 leer.
+function avesmapsStatuskreisVorkommenZustand(anzahlOrte, anzahlVerortet) {
+	const gesamt = Number(anzahlOrte) || 0;
+	const verortet = Number(anzahlVerortet) || 0;
+	if (gesamt <= 0) { return "leer"; }
+	// 💣 Hier steht `> 0`, bei Literatur/Karte steht an derselben Stelle „offen > 0 ⇒ halb".
+	//    Zwei Zeilen, entgegengesetzte Vorzeichen, beide richtig.
+	return verortet > 0 ? "voll" : "halb";
+}
+
+function avesmapsStatuskreisVorkommen(anzahlOrte, anzahlVerortet) {
+	return avesmapsStatuskreisMarkup(
+		avesmapsStatuskreisVorkommenZustand(anzahlOrte, anzahlVerortet));
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		avesmapsStatuskreisKlasse,
@@ -225,5 +265,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsStatuskreisOrtsbezug,
 		avesmapsStatuskreisOrtsbezugZahlen,
 		avesmapsStatuskreisOrtIstOffen,
+		avesmapsStatuskreisVorkommenZustand,
+		avesmapsStatuskreisVorkommen,
 	};
 }

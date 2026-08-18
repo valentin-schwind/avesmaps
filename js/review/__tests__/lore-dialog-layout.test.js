@@ -126,6 +126,10 @@ const leeresDom = {
 const context = { window: {}, document: leeresDom, console, setTimeout, clearTimeout };
 context.globalThis = context;
 vm.createContext(context);
+// 🔴 Der Statuskreis-Bauer ZUERST, aus seiner echten Datei -- genau wie index.html ihn laedt.
+// Kein Stub: die Zeile ruft ihn ohne Vorbehalt auf, und ein Fake wuerde verstecken, ob die
+// Verdrahtung ueberhaupt haelt (das war der Kraftlinien-Fehler vom 18.08.2026).
+vm.runInContext(fs.readFileSync("js/ui/listen-statuskreis.js", "utf8"), context);
 vm.runInContext(js, context);
 
 const eintrag = {
@@ -166,7 +170,7 @@ assert.strictEqual(context.AVESMAPS_LORE_VIEWS.dialog.rowForm, "avm",
 	"das Fenster zeigt die Editor-Zeile wie die uebrigen Editorfenster");
 
 const alsEditorzeile = context.avesmapsLoreListRowHtml(eintrag, true, "avm");
-assert.ok(/class="avm-row"/.test(alsEditorzeile), "die Fensterzeile ist eine .avm-row");
+assert.ok(/class="avm-row has-map-status"/.test(alsEditorzeile), "die Fensterzeile ist eine .avm-row");
 assert.ok(/avm-row__name">Bräubier</.test(alsEditorzeile), "Name in .avm-row__name");
 assert.ok(/avm-row__l2">Ware · Bier · Weiden, Kosch</.test(alsEditorzeile),
 	"Meta-Zeile in .avm-row__l2, mit derselben Angabe wie im Reiter. Ist: " + alsEditorzeile);
@@ -189,7 +193,7 @@ for (const merkmal of ['data-lore-entry="wiki:braeubier"', 'title="Bräubier –
 // ⭐ Der offene Eintrag ist im Fenster MARKIERT. Das leistet der transparente 1px-Rahmen der
 // Klasse, der beim Auswaehlen nur die Farbe wechselt (deshalb springt die Zeile nicht).
 context.avesmapsLoreDetailKey = "wiki:braeubier";
-assert.ok(/class="avm-row is-selected"/.test(context.avesmapsLoreListRowHtml(eintrag, true, "avm")),
+assert.ok(/class="avm-row has-map-status is-selected"/.test(context.avesmapsLoreListRowHtml(eintrag, true, "avm")),
 	"der offene Eintrag traegt is-selected");
 assert.ok(!/is-selected/.test(context.avesmapsLoreListRowHtml(
 	Object.assign({}, eintrag, { wiki_key: "wiki:anderes" }), true, "avm")),
@@ -211,9 +215,22 @@ assert.ok(!/is-selected/.test(context.avesmapsLoreListRowHtml(
 // jemand `.avm-row__l1` auf `display:inline` stellt -- die Zusicherung waere dann gruen und die
 // Liste wieder einzeilig.
 const fensterzeile = context.avesmapsLoreListRowHtml(eintrag, true, "avm");
-assert.ok(/<span class="avm-row__l1"><span class="avm-row__name">Bräubier<\/span><\/span>/.test(fensterzeile),
+assert.ok(/<span class="avm-row__l1"><span class="avm-row__name">Bräubier<\/span>/.test(fensterzeile),
 	"der Name steht in `.avm-row__l1` wie in den fuenf Nachbarlisten -- ohne diese Huelle laufen "
 	+ "Name und Meta-Zeile in EINE Zeile zusammen. Ist: " + fensterzeile);
+// ⚠️ Und `__l1` und `__l2` sind GESCHWISTER, nicht ineinander verschachtelt: der Umbruch entsteht
+// daraus, dass ein Block-Kasten neben einem Inline-Kasten steht. Steckt `__l2` in `__l1`, sieht das
+// Markup fast gleich aus und die Zeile ist wieder einzeilig -- deshalb wird die ganze Form des
+// Textblocks verglichen und nicht bloss die Anwesenheit einer Klasse.
+const erwarteterTextblock = '<span class="avm-row__text">'
+	+ '<span class="avm-row__l1"><span class="avm-row__name">Bräubier</span>'
+	+ '<span class="tree-map-status tree-map-status--own-only" aria-hidden="true"></span></span>'
+	+ '<span class="avm-row__l2">Ware · Bier · Weiden, Kosch</span>'
+	+ "</span>";
+assert.ok(fensterzeile.includes(erwarteterTextblock),
+	"Der Textblock der Fensterzeile hat nicht mehr die Form der fuenf Nachbarlisten "
+	+ "(`__l1` mit Name und Statuskreis, daneben `__l2`).\n  Erwartet: " + erwarteterTextblock
+	+ "\n  Ist:      " + fensterzeile);
 const editorRowCss = fs.readFileSync("css/components/editor-row.css", "utf8");
 const l1Regel = editorRowCss.match(/\.avm-row__l1\s*\{[^}]*\}/);
 assert.ok(l1Regel && /display:\s*flex/.test(l1Regel[0]),
@@ -223,6 +240,29 @@ assert.ok(l1Regel && /display:\s*flex/.test(l1Regel[0]),
 // („keine Panel-Klassen in der Fensterzeile" und die Gegenprobe darunter) -- eine zweite
 // Zusicherung dafuer waere tot: sie wuerde nie als erste ausloesen. Ihr Umbruch kommt ohnehin
 // aus dem Raster (`.wikisync-itemlist .tree-item` ist `display:grid` mit zwei Reihen).
+
+// ---- 5d. Der Statuskreis, und warum er NICHT aus `places` gezaehlt werden darf -----------------
+// Die Regel selbst (voll = mindestens ein Fundort auf der Karte) steht in
+// js/ui/__tests__/listen-statuskreis.test.js. Hier steht die FALLE dieser Liste: `places` traegt
+// hoechstens 6 Titel (api/_internal/app/lore.php kappt sie), `place_count` und
+// `place_mapped_count` zaehlen dagegen ALLE Ortszeilen.
+// 💣 Ein Eintrag mit sieben Orten, dessen einziger verorteter der siebte ist, faerbte sich
+// deshalb faelschlich halb, sobald jemand die Verortung aus der Titelliste rechnet.
+const vieleOrte = Object.assign({}, eintrag, {
+	places: ["Schiff", "Myranor", "Nordaventurien", "Mittelaventurien", "Schattenlande", "Uthuria"],
+	place_count: 7,
+	place_mapped_count: 1,
+});
+assert.ok(/tree-map-status--all/.test(context.avesmapsLoreListRowHtml(vieleOrte, true, "avm")),
+	"Ein Eintrag mit sieben Orten, von denen genau EINER auf der Karte liegt, muss den VOLLEN "
+	+ "Kreis tragen -- auch wenn keiner der sechs angezeigten Titel der verortete ist.");
+assert.ok(/tree-map-status--own-only/.test(context.avesmapsLoreListRowHtml(
+	Object.assign({}, vieleOrte, { place_mapped_count: 0 }), true, "avm")),
+	"Und ohne einen einzigen verorteten Ort bleibt er halb.");
+// ⚠️ Die Meta-Zeile zeigt weiterhin die gekappte Titelliste samt „+1" -- der Kreis rechnet
+// anders als der Text, und genau das ist beabsichtigt.
+assert.ok(/Uthuria \+1</.test(context.avesmapsLoreListRowHtml(vieleOrte, true, "avm")),
+	"Die Meta-Zeile nennt weiter die sechs Titel und den Rest als Zahl.");
 
 // ---- 6. Die Leichen sind wirklich weg ---------------------------------------------------------
 // Ein zurueckgebliebener Verweis auf die alte Struktur faellt nicht auf: er wirft nicht, er tut
