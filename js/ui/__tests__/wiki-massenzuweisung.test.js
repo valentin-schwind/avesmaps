@@ -294,6 +294,111 @@ const KACHEL_ZEICHEN = 34;
 		"die Kachel beschriftet sich über eine andere Art als die, die sie ausführt");
 }
 
+// ── 9d) DIE KRAFTLINIE: DIE VIERTE ART, UND SIE SCHREIBT AUF EINE NAMENSGRUPPE ───────────────
+//
+// 🔴 Eine Kraftlinie ist keine Zeile, sondern viele Segmente unter einem gemeinsamen Namen.
+// Gezaehlt wird in LINIEN (die Einheit, in der ein Editor denkt), geschrieben wird auf SEGMENTE --
+// und beide Zahlen muessen dastehen, sonst liest sich „16" wie 16 Datensaetze.
+//
+// 💣 Und sie ueberspringt jeden Artikel, den schon eine Linie haelt. Live gemessen 18.08.2026:
+// „Hexenband" traegt bereits /wiki/Hexenband, daneben steht „Hexenband(-schleife)". Ohne den
+// Riegel legte der Lauf zwei Kartenobjekte auf EINEN Artikel -- also genau den Fall, den das
+// Konfliktzentrum meldet.
+{
+	// Die Antwortform von avesmapsWikiPowerlineAssignAll, mit der gemessenen Lage.
+	const KRAFT_VORSCHAU = {
+		ok: true, dry_run: true, staged: 19, total_lines: 62,
+		lines_affected: 16, segments_affected: 69, articles_linked: 16,
+		applied: 0, applied_segments: 0,
+		skipped: { no_match: 43, no_article_flag: 0, already_assigned: 2, article_taken: 1 },
+		taken: [{ line: "Hexenband(-schleife)", article: "Hexenband(-schleife)", held_by: "Hexenband" }],
+	};
+
+	assert.strictEqual(AVESMAPS_WIKI_MASSENLAUF.kraftlinie.zahl(KRAFT_VORSCHAU), 16);
+	assert.strictEqual(AVESMAPS_WIKI_MASSENLAUF.kraftlinie.wikiZahl(KRAFT_VORSCHAU), 16);
+	// ⚠️ Ein leerer Lauf faellt auf 0, nicht auf NaN.
+	assert.strictEqual(AVESMAPS_WIKI_MASSENLAUF.kraftlinie.zahl({ ok: true }), 0);
+	assert.strictEqual(avesmapsWikiMassenlaufKurztext("kraftlinie", { ok: true }), "nichts offen");
+	assert.strictEqual(avesmapsWikiMassenlaufKurztext("kraftlinie", KRAFT_VORSCHAU), "16 Kraftlinien · 16 Artikel");
+
+	// 🔴 DIE ADRESSE IST DER KRAFTLINIEN-ENDPUNKT, nicht der allgemeine Karten-Schreibendpunkt:
+	// jener verpackt jedes Ergebnis in `feature: {…}`, und der Rueckleser des scharfen Laufs
+	// (`dry_run === false`) griffe dort ins Leere und meldete Erfolg, ohne dass etwas steht.
+	assert.strictEqual(AVESMAPS_WIKI_MASSENLAUF.kraftlinie.url, "/api/edit/map/powerlines.php");
+	assert.notStrictEqual(AVESMAPS_WIKI_MASSENLAUF.kraftlinie.url, "/api/edit/map/features.php");
+
+	const kraftVorschauKoerper = avesmapsWikiMassenlaufVorschauKoerper("kraftlinie");
+	assert.strictEqual(kraftVorschauKoerper.action, "assign_all");
+	assert.ok(!("dry_run" in kraftVorschauKoerper), "die Kraftlinien-Vorschau schickt dry_run mit");
+	assert.ok(!("confirm" in kraftVorschauKoerper), "die Kraftlinien-Vorschau schickt confirm mit");
+	const kraftSchreibKoerper = avesmapsWikiMassenlaufSchreibKoerper("kraftlinie");
+	assert.strictEqual(kraftSchreibKoerper.dry_run, false);
+	assert.strictEqual(kraftSchreibKoerper.confirm, "apply");
+
+	const kraftFrage = avesmapsWikiMassenlaufFrage("kraftlinie", KRAFT_VORSCHAU);
+	// 💣 BEIDE ZAHLEN. „16 Kraftlinien" allein verschweigt, dass 69 Zeilen geschrieben werden.
+	assert.ok(/69 Segmente/.test(kraftFrage),
+		"die Kraftlinien-Rueckfrage verschweigt, auf wie viele Segmente geschrieben wird: " + kraftFrage);
+	assert.ok(/Namensgruppe/.test(kraftFrage),
+		"die Kraftlinien-Rueckfrage erklaert nicht, warum es mehr Segmente als Linien sind: " + kraftFrage);
+	// 🔴 Sie ERGAENZT nur -- wie die Karte, anders als Weg und Landschaft.
+	assert.ok(/ERGÄNZT/.test(kraftFrage), "die Kraftlinien-Rueckfrage sagt nicht, dass sie nur ergaenzt: " + kraftFrage);
+	assert.ok(!/abweichende Zuordnung wird überschrieben/.test(kraftFrage),
+		"die Kraftlinien-Rueckfrage hat den Ueberschreib-Satz der Wege geerbt: " + kraftFrage);
+	assert.ok(/nichts überschrieben/.test(kraftFrage),
+		"die Kraftlinien-Rueckfrage schliesst das Ueberschreiben nicht aus: " + kraftFrage);
+	assert.ok(/Kein Wiki-Artikel vorhanden/.test(kraftFrage),
+		"die Kraftlinien-Rueckfrage nennt den Merker nicht: " + kraftFrage);
+	assert.ok(!/verliert ihn/.test(kraftFrage),
+		"die Kraftlinien-Rueckfrage behauptet, den Merker zu loeschen: " + kraftFrage);
+	// 💣 DER ABNAHMEFALL DER RUECKFRAGE: der uebersprungene Fall steht NAMENTLICH da. Eine blosse
+	// Zahl („1 übersprungen") liesse den Editor raten, welche Linie gemeint ist und warum.
+	assert.ok(/Übersprungen, weil der Artikel schon vergeben ist \(1\)/.test(kraftFrage),
+		"die Kraftlinien-Rueckfrage nennt die uebersprungenen Faelle nicht als eigenen Grund: " + kraftFrage);
+	assert.ok(/Hexenband\(-schleife\)/.test(kraftFrage) && /hängt an „Hexenband“/.test(kraftFrage),
+		"die Kraftlinien-Rueckfrage nennt weder die uebersprungene Linie noch ihren Halter: " + kraftFrage);
+	// 🔴 NUR WORTGLEICH -- ein aehnlicher Treffer wird hier nie zugewiesen, und das muss dastehen.
+	assert.ok(/wortgleich/.test(kraftFrage), "die Kraftlinien-Rueckfrage sagt nicht, dass nur wortgleich zaehlt: " + kraftFrage);
+	assert.ok(/ÄHNLICHER/.test(kraftFrage),
+		"die Kraftlinien-Rueckfrage grenzt den aehnlichen Treffer nicht ab: " + kraftFrage);
+
+	// ⚠️ Ohne uebersprungenen Fall faellt der Block ersatzlos weg -- keine „(0)"-Zeile, die wie ein
+	// Befund aussieht.
+	const ohneKollision = avesmapsWikiMassenlaufFrage("kraftlinie", Object.assign({}, KRAFT_VORSCHAU, { taken: [] }));
+	assert.ok(!/Übersprungen, weil der Artikel schon vergeben/.test(ohneKollision),
+		"ohne vergebenen Artikel bleibt die Zeile trotzdem stehen: " + ohneKollision);
+}
+
+// ── 9e) DIE VERDRAHTUNG DER KRAFTLINIE — DIESELBE PROBE WIE BEI DER KARTE ────────────────────
+{
+	const fs = require("fs");
+	const path = require("path");
+	const editor = fs.readFileSync(
+		path.resolve(__dirname, "..", "..", "..", "html", "wiki-sync-powerline-editor.html"), "utf8"
+	);
+	assert.ok(/<script src="\/js\/ui\/wiki-massenzuweisung\.js"/.test(editor),
+		"der Kraftlinien-Editor lädt js/ui/wiki-massenzuweisung.js nicht — das Rezept ist unerreichbar");
+	assert.ok(/id="plAssignAll"/.test(editor), "die Kachel „Wiki zuweisen“ fehlt im Menüband");
+	assert.ok(/id="plAssignAllInfo"/.test(editor), "der Kachel fehlt die Zeile für ihre Zahl");
+	assert.ok(/\$\("plAssignAll"\)\.addEventListener\("click", runAssignAll\)/.test(editor),
+		"die Kachel hat keinen Zuhörer — sie sähe aus wie ein Knopf und täte nichts");
+	assert.ok(/avesmapsWikiMassenlauf\("kraftlinie",/.test(editor),
+		"der Kraftlinien-Editor ruft den Massenlauf nicht mit der Art „kraftlinie“");
+	assert.ok(/avesmapsWikiMassenlaufKurztext\("kraftlinie",/.test(editor),
+		"die Kachel beschriftet sich über eine andere Art als die, die sie ausführt");
+	// 💣 UND SIE DARF NICHT AM ÖFFNEN HÄNGEN. Der Kraftlinien-Zeichner läuft für JEDEN Besucher;
+	// eine Vorschau, die beim Aufbau der Liste losläuft, liest die ganze Dump-Staging-Tabelle je
+	// Fensteröffnung (AGENTS.md §9, STRATO). Deshalb steht in der Kachel bis zum Klick ein Wort,
+	// keine Zahl.
+	// 🪤 Geprüft wird die ZELLE, nicht das Wort irgendwo im Dokument: dieselbe Wendung steht in der
+	// Begründung über `runAssignAll`, und ein bloßes /noch nicht geprüft/ blieb deshalb grün, als
+	// die Kachel probehalber eine Zahl trug (Mutation M22 beim Bau).
+	assert.ok(/id="plAssignAllInfo">noch nicht geprüft</.test(editor),
+		"die Kachel zeigt ohne Klick eine Zahl — dann wird die Vorschau beim Öffnen gefahren");
+	assert.ok(!/runAssignAll\(\);/.test(editor.replace(/\$\("plAssignAll"\)\.addEventListener[^\n]*\n/, "")),
+		"runAssignAll wird irgendwo direkt aufgerufen — der Lauf gehört an den Klick, nicht ans Öffnen");
+}
+
 // ── 10) EINE UNBEKANNTE ART SCHEITERT GESCHLOSSEN ─────────────────────────────────────────────
 assert.throws(() => avesmapsWikiMassenlaufVorschauKoerper("ort"), /Unbekannte Massenlauf-Art/);
 await assert.rejects(

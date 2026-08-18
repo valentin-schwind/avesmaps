@@ -138,6 +138,7 @@
 <header>
   <div class="controls">
     <button class="btn2 primary" id="plSync" title="Übernimmt die Kraftlinien-Angaben aus dem Wiki (Stärke, Affinität, Länge, Regionen, Verlauf) auf die Kraftlinien der Karte. Von Hand gesetzte Wiki-Links und Beschreibungen bleiben unangetastet."><span class="t1">⚡ Kraftlinien syncen</span><span class="t2" id="plSyncInfo">Stärke, Affinität, Länge, Regionen aus dem Wiki</span></button>
+    <button class="btn2" id="plAssignAll" title="Verknüpft jede Kraftlinie, deren Name wortgleich zu einem Wiki-Artikel passt, mit diesem Artikel — auf allen Segmenten ihrer Namensgruppe. Zeigt erst, wie viele es wären, und schreibt erst nach Ihrer Bestätigung. Der Lauf ergänzt nur: vorhandene Zuweisungen, der Merker „Kein Wiki-Artikel vorhanden“ und bereits vergebene Artikel bleiben unberührt."><span class="t1">Wiki zuweisen</span><span class="t2" id="plAssignAllInfo">noch nicht geprüft</span></button>
     <button class="btn2" id="plDupes" title="Zeigt nur Kraftlinien mit einem Warnhinweis (Beinahe-Dublette, Tippfehler, URL im Namen)"><span class="t1">Dubletten zeigen</span><span class="t2" id="plDupesInfo">Beinahe-gleiche Namen zusammenführen</span></button>
     <button class="btn2" id="plMapFilter" title="Zeigt auf der Live-Karte nur die gewählte Kraftlinie"><span class="t1">Nur Auswahl auf Karte</span><span class="t2">Karte folgt der Auswahl</span></button>
   </div>
@@ -176,6 +177,11 @@
 <script src="/js/ui/wiki-assign-registry.js"></script>
 <script src="/js/ui/wiki-assign-diff.js"></script>
 <script src="/js/ui/wiki-assign.js"></script>
+<!-- Der Massenlauf der Wiki-Zuweisung -- dieselbe Abfolge wie im Wege-, Landschaften- und
+     Karten-Editor. Reine Rechen- und Ablauflogik, ohne DOM und ohne fetch: der Aufrufer unten
+     bringt sein `post` mit. ⚠️ Sie laeuft ERST BEIM KLICK, nie beim Oeffnen -- die Vorschau liest
+     die ganze Dump-Staging-Tabelle und alle 165 Segmente. -->
+<script src="/js/ui/wiki-massenzuweisung.js"></script>
 <script>
 "use strict";
 (function () {
@@ -192,6 +198,26 @@ function arraysEqual(a, b) {
 }
 async function mapFeaturesEditPost(body) {
 	const response = await fetch(MAP_FEATURES_EDIT_API, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+	let data = null;
+	try { data = await response.json(); } catch (e) { /* non-JSON error body */ }
+	if (!response.ok || (data && data.ok === false)) {
+		const msg = (data && data.error && data.error.message) || (data && data.error) || ("HTTP " + response.status);
+		throw new Error(msg);
+	}
+	return data || {};
+}
+
+// Der Schreibweg des Kraftlinien-Endpunkts. 💣 ER WIRFT bei `ok !== true` -- genau richtig fuer den
+// Massenlauf: der darf einen Fehlschlag nie als leeren Bestand lesen (js/ui/wiki-massenzuweisung.js,
+// Kopf). Dieselbe Bauform wie mapFeaturesEditPost darueber; getrennt, weil es ein anderer Endpunkt
+// mit einer FLACHEN Antwort ist (dort `feature: {…}`, hier die Zahlen unmittelbar).
+async function powerlinesPost(body) {
+	const response = await fetch(READ_API, {
 		method: "POST",
 		credentials: "same-origin",
 		headers: { "Content-Type": "application/json" },
@@ -818,8 +844,68 @@ function flyToNode(pid) {
 	} catch (e) { /* cross-frame or not available: silent */ }
 }
 
+// ---- „Wiki zuweisen" (Massenlauf) ------------------------------------------------------------
+//
+// 🔴 GEPRUEFT WIRD ERST BEIM KLICK, nicht beim Oeffnen des Fensters. Die Vorschau liest die ganze
+// Dump-Staging-Tabelle und alle Segmente -- das je Fensteroeffnung zu zahlen waere die Last, vor der
+// AGENTS.md §9 warnt, fuer eine Zahl, die niemand bestellt hat. Deshalb steht in `t2` bis dahin
+// „noch nicht geprüft" und nicht etwa eine 0, die wie „nichts zu tun" aussaehe.
+//
+// Die Abfolge selbst steht in js/ui/wiki-massenzuweisung.js -- dieselbe wie im Wege-, Landschaften-
+// und Karten-Editor. Hier haengen nur Kachel, Statuszeile und das Neuladen daran.
+let plAssignAllBusy = false;
+
+async function runAssignAll() {
+	if (plAssignAllBusy) { return; }
+	const tile = $("plAssignAll");
+	const info = $("plAssignAllInfo");
+	if (typeof avesmapsWikiMassenlauf !== "function") {
+		flashStatus("Massenlauf nicht geladen (js/ui/wiki-massenzuweisung.js).");
+		return;
+	}
+	plAssignAllBusy = true;
+	if (tile) { tile.disabled = true; }
+	try {
+		const lauf = await avesmapsWikiMassenlauf("kraftlinie", {
+			post: (url, koerper) => powerlinesPost(koerper),
+			frage: (text) => window.confirm(text),
+			melde: (schritt, antwort) => {
+				if (schritt === "pruefen") {
+					if (info) { info.textContent = "wird geprüft …"; }
+					setStatus("Wiki-Zuweisung: wird geprüft …");
+				} else if (schritt === "leer") {
+					if (info) { info.textContent = "nichts offen"; }
+					flashStatus("Wiki-Zuweisung: keine Kraftlinie ohne Zuweisung passt wortgleich zu einem Wiki-Artikel.");
+				} else if (schritt === "vorschau" || schritt === "geschrieben") {
+					if (info) { info.textContent = avesmapsWikiMassenlaufKurztext("kraftlinie", antwort); }
+				} else if (schritt === "schreiben") {
+					setStatus("Wiki-Zuweisung wird geschrieben …");
+				}
+			},
+		});
+		if (lauf.zustand === "abgebrochen") {
+			flashStatus("Wiki-Zuweisung abgebrochen — nichts geschrieben.");
+			return;
+		}
+		if (lauf.zustand !== "geschrieben") { return; }
+		const segmente = Number((lauf.ergebnis && lauf.ergebnis.applied_segments) || 0);
+		// 💣 Die Liste MUSS neu geladen werden: der Lauf hat `properties.wiki_url` genau der Zeilen
+		// gefuellt, die hier stehen, und der Zuweisungs-Kasten daneben zeigte sonst weiter „keine
+		// Zuweisung". `reload` haelt die Auswahl.
+		await reload(selectedName);
+		flashStatus("Wiki-Zuweisung: " + lauf.geschrieben + " Kraftlinien verknüpft (" + segmente + " Segmente).");
+	} catch (e) {
+		if (info) { info.textContent = "fehlgeschlagen"; }
+		flashStatus("Wiki-Zuweisung: " + (e && e.message ? e.message : String(e)));
+	} finally {
+		plAssignAllBusy = false;
+		if (tile) { tile.disabled = false; }
+	}
+}
+
 // ---- Ribbon ----------------------------------------------------------------------------------
 function wireRibbon() {
+	$("plAssignAll").addEventListener("click", runAssignAll);
 	$("plSync").addEventListener("click", async () => {
 		const sync = (window.parent && typeof window.parent.startWikiSyncPowerlines === "function") ? window.parent.startWikiSyncPowerlines : null;
 		if (!sync) { return; }

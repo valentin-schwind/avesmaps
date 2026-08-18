@@ -8,18 +8,19 @@
 //
 // 🔴 ZWEI ANFRAGEN, NIE MEHR. Erst die Vorschau (`dry_run` ist die Vorgabe des Servers), dann --
 // und nur nach Zustimmung -- der scharfe Lauf. Kein Nachfassen je Objekt, kein Fortschrittspolling:
-// beide Endpunkte lesen die ganze Staging-Tabelle UND alle passenden map_features, und STRATO ist
+// jeder dieser Endpunkte liest die ganze Staging-Tabelle UND alle passenden map_features, und STRATO ist
 // geteiltes Hosting (AGENTS.md §9: ein teurer Endpunkt in Wiederholung saettigt die PHP-Worker und
 // sieht aus wie ein Datenbankausfall).
 //
 // 🔴 DER SCHARFE LAUF BRAUCHT BEIDE HAELFTEN -- `dry_run:false` UND `confirm:"apply"`. Der Server
-// prueft genau diese Kombination (api/edit/wiki/paths.php, api/edit/wiki/regions.php); eine Haelfte
-// allein ist stillschweigend wieder nur eine Vorschau. Deshalb wird die Antwort des scharfen Laufs
+// prueft genau diese Kombination (api/edit/wiki/{paths,regions}.php, api/edit/map/citymaps.php,
+// api/edit/map/powerlines.php); eine Haelfte allein ist stillschweigend wieder nur eine Vorschau.
+// Deshalb wird die Antwort des scharfen Laufs
 // ZURUECKGELESEN (`dry_run === false`), statt ihr zu glauben: ein Knopf, der „geschrieben" meldet,
 // waehrend nichts steht, ist der teuerste Fehler dieser Bauform.
 //
 // Kein DOM, kein fetch, keine Globalen ausser dem Export unten: dieselbe Abfolge laeuft im
-// Wege-Editor und im Landschaften-Editor, und sie bleibt in node pruefbar
+// Wege-, Landschaften-, Karten- und Kraftlinien-Editor, und sie bleibt in node pruefbar
 // (js/ui/__tests__/wiki-massenzuweisung.test.js).
 
 "use strict";
@@ -127,6 +128,61 @@ const AVESMAPS_WIKI_MASSENLAUF = {
 				+ " den Merker „Kein Wiki-Artikel vorhanden“ und bleiben unberührt. Es wird nichts überschrieben."
 				+ "\n\nWeitere " + Number(uebersprungen.no_publication || 0) + " Karten stecken in keiner"
 				+ " Publikation mit Wikiseite (eigene und Fankarten) — sie kommen gar nicht in Frage.";
+		},
+	},
+	// 🔴 DIE VIERTE ART SCHREIBT NICHT AUF EIN OBJEKT, SONDERN AUF EINE NAMENSGRUPPE.
+	//
+	// Eine Kraftlinie ist keine Zeile, sondern viele `map_features`-Segmente, die nur ein gemeinsamer
+	// Name zusammenhaelt (dieselbe 1-zu-N-Form wie beim Weg). Die Zuweisung gehoert deshalb ALLEN
+	// Segmenten der Gruppe -- so macht es auch der Editor (avesmapsUpdatePowerlineLine). Gezaehlt wird
+	// trotzdem in LINIEN: das ist die Einheit, in der ein Editor denkt. Die Segmentzahl steht in der
+	// Rueckfrage, weil dort geschrieben wird.
+	//
+	// 💣 UND ER UEBERSPRINGT JEDEN ARTIKEL, DEN SCHON EINE LINIE HAELT -- der Grund fuer diesen
+	// Absatz. Live gemessen 18.08.2026: „Hexenband" traegt bereits /wiki/Hexenband, daneben steht
+	// eine Linie „Hexenband(-schleife)". Ohne den Riegel legte der Lauf zwei Kartenobjekte auf EINEN
+	// Artikel -- und genau das meldet das Konfliktzentrum als Fall. Der Lauf erzeugte die Arbeit, die
+	// er abnehmen soll. Die uebersprungenen Faelle stehen deshalb NAMENTLICH in der Rueckfrage; eine
+	// stille Auslassung waere von „gab es nicht" nicht zu unterscheiden.
+	//
+	// ⚠️ Er ERGAENZT nur, wie der Kartennachbar darueber und anders als der Wege-Nachbar ganz oben:
+	// Linien mit vorhandener Zuweisung und Linien mit dem Merker „kein Wiki-Artikel" bleiben
+	// unberuehrt (Owner-Regel 16.08.2026: vorangehakt ist nur das Fuellen einer LUECKE).
+	kraftlinie: {
+		// ⚠️ Der Leseweg des Editors, der seit 18.08.2026 ein POST annimmt -- kein neuer Endpunkt.
+		// Die Begruendung, warum nicht api/edit/map/features.php, steht in dessen Kopf.
+		url: "/api/edit/map/powerlines.php",
+		koerper: { action: "assign_all" },
+		// Gemessen an avesmapsWikiPowerlineAssignAll: ok, dry_run, staged, total_lines,
+		// lines_affected, segments_affected, articles_linked, applied, applied_segments,
+		// skipped{no_match,no_article_flag,already_assigned,article_taken}, taken[].
+		zahl: function (antwort) { return Number((antwort && antwort.lines_affected) || 0); },
+		wikiZahl: function (antwort) { return Number((antwort && antwort.articles_linked) || 0); },
+		// Kurz aus demselben Grund wie bei den drei Nachbarn (rund 34 Zeichen in der `t2`-Zeile);
+		// „16 Kraftlinien · 16 Artikel" sind 25.
+		objekt: ["Kraftlinie", "Kraftlinien"],
+		wikiObjekt: ["Artikel", "Artikel"],
+		frage: function (zahl, wikiZahl, antwort) {
+			var uebersprungen = (antwort && antwort.skipped) || {};
+			var vergeben = (antwort && antwort.taken) || [];
+			var namen = vergeben.map(function (fall) {
+				return "„" + fall.line + "“ → " + fall.article + " (hängt an „" + fall.held_by + "“)";
+			}).join("\n· ");
+			return "Alle " + zahl + " Kraftlinien mit ihrem wortgleichen Wiki-Artikel verknüpfen?"
+				+ " (" + wikiZahl + " verschiedene Artikel)"
+				+ "\n\nGeschrieben wird auf alle " + Number((antwort && antwort.segments_affected) || 0)
+				+ " Segmente dieser Linien — eine Kraftlinie ist eine Namensgruppe, und die Zuweisung"
+				+ " gehört der ganzen Gruppe."
+				+ "\n\nDer Lauf ERGÄNZT nur: " + Number(uebersprungen.already_assigned || 0)
+				+ " Linien tragen bereits eine Zuweisung, " + Number(uebersprungen.no_article_flag || 0)
+				+ " den Merker „Kein Wiki-Artikel vorhanden“ — beide bleiben unberührt. Es wird nichts"
+				+ " überschrieben."
+				+ (vergeben.length > 0
+					? "\n\nÜbersprungen, weil der Artikel schon vergeben ist (" + vergeben.length + "):\n· " + namen
+					: "")
+				+ "\n\nWeitere " + Number(uebersprungen.no_match || 0) + " Linien haben keinen wortgleichen"
+				+ " Artikel im Katalog — ein nur ÄHNLICHER Treffer wird hier nie zugewiesen, der bleibt"
+				+ " dem Zuweisungskasten im Editor.";
 		},
 	},
 };

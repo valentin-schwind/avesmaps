@@ -11,8 +11,20 @@ require_once __DIR__ . '/../../_internal/map/features.php';
 // segments, a lookup for every node they touch, and the pool of add-a-node candidates. Grouping and
 // topology are computed client-side with the shared pure helpers
 // (js/map-features/powerline-topology.js) so there is exactly ONE topology truth. Same bootstrap /
-// auth / envelope pattern as api/edit/map/feature-sources.php. GET, capability `edit`.
+// auth / envelope pattern as api/edit/map/feature-sources.php. Capability `edit`.
 // Design: docs/superpowers/specs/2026-07-23-kraftlinien-editor-design.md §9.
+//
+// 🔴 SEIT 18.08.2026 NIMMT ER AUCH EIN POST -- genau EINES: `assign_all`, den Massenlauf der
+// Wiki-Zuweisung (api/_internal/wiki/powerline-assign.php). Er steht HIER und nicht im allgemeinen
+// Karten-Schreibendpunkt, und dafuer gibt es zwei gemessene Gruende: (1) dieser Endpunkt laedt die
+// acht Wiki-Bibliotheken ohnehin schon, die der Lauf braucht -- in api/edit/map/features.php waeren
+// sie neu und laegen im heissesten Schreibpfad der Karte; (2) seine Antwort ist FLACH
+// (`{ok:true, …}`), und genau die erwartet das gemeinsame Bedienteil js/ui/wiki-massenzuweisung.js.
+// features.php verpackt jedes Ergebnis in `feature: {…}` -- der Rueckleser des scharfen Laufs
+// (`dry_run === false`) griffe dort ins Leere, und den Vertrag fuer einen Aufrufer zu verbiegen ist
+// die Divergenz, gegen die das gemeinsame Bauteil gebaut wurde.
+// ⚠️ Der Lauf ist damit die EINZIGE erlaubte Schreibaktion hier; alles andere am Kraftlinien-Objekt
+// bleibt bei `update_powerline_line` & Co. in api/edit/map/features.php.
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
@@ -24,12 +36,58 @@ try {
     if ($requestMethod === 'OPTIONS') {
         avesmapsJsonResponse(204);
     }
-    if ($requestMethod !== 'GET') {
-        avesmapsErrorResponse(405, 'method_not_allowed', 'Only GET is allowed for this endpoint.');
+    if ($requestMethod !== 'GET' && $requestMethod !== 'POST') {
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Only GET and POST are allowed for this endpoint.');
     }
 
-    avesmapsRequireUserWithCapability('edit');
+    $user = avesmapsRequireUserWithCapability('edit');
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
+
+    // Die Wiki-Kette. Sie stand bis zum 18.08.2026 weiter unten bei Abschnitt 4; seit der Massenlauf
+    // dazugekommen ist, brauchen BEIDE Wege sie -- und zweimal dieselben acht Zeilen sind die
+    // Bauform, in der eine davon irgendwann fehlt.
+    //
+    // require-Kette (gemessen, nicht aus dem Gedaechtnis): avesmapsWikiPowerlineDesiredNestsByMatchKey
+    // ruft intern avesmapsWikiPowerlineParsePage auf, und dessen eigener Kopfkommentar verlangt vom
+    // aufrufenden Endpunkt bereits geladen: sync.php, sync-monitor.php (zieht sync-monitor-parsing.php
+    // automatisch mit), territories-parsing.php und political/territory.php -- exakt die Kette, die
+    // auch api/edit/wiki/dump.php vor avesmapsWikiPowerlineReconcile laedt. Dazu die drei Bausteine
+    // des Dump-Zustands: dump-reader.php (Konstante AVESMAPS_WIKI_DUMP_SYNC_TYPE), dump-entity-scan.php
+    // (Konstante AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE) und dump-sync-kind.php selbst. Alle acht Dateien
+    // sind laut eigenem Kopfkommentar reine Funktions-/Konstantendefinitionen ohne Seiteneffekt beim
+    // Einbinden -- unbedenklich fuer einen Leseweg, der pro Editor-Oeffnung einmal laeuft.
+    require_once __DIR__ . '/../../_internal/political/territory.php';
+    require_once __DIR__ . '/../../_internal/wiki/sync.php';
+    require_once __DIR__ . '/../../_internal/wiki/sync-monitor.php';
+    require_once __DIR__ . '/../../_internal/wiki/territories-parsing.php';
+    require_once __DIR__ . '/../../_internal/wiki/powerlines.php';
+    require_once __DIR__ . '/../../_internal/wiki/dump-reader.php';
+    require_once __DIR__ . '/../../_internal/wiki/dump-entity-scan.php';
+    require_once __DIR__ . '/../../_internal/wiki/dump-sync-kind.php';
+
+    if ($requestMethod === 'POST') {
+        // avesmapsConflictArticleKey misst „ist das derselbe Artikel?" -- dieselbe Rechnung, mit der
+        // das Konfliktzentrum seine Gruppen bildet. Nur fuer den Schreibweg geladen: der Leseweg
+        // oben braucht sie nicht, und core.php ist zwar rein, aber nicht umsonst.
+        require_once __DIR__ . '/../../_internal/conflicts/core.php';
+        require_once __DIR__ . '/../../_internal/wiki/powerline-assign.php';
+
+        $payload = avesmapsReadJsonRequest();
+        $action = trim((string) ($payload['action'] ?? ''));
+        if ($action !== 'assign_all') {
+            avesmapsErrorResponse(400, 'invalid_action', 'Unbekannte Kraftlinien-Aktion: ' . $action);
+        }
+
+        // 🔴 BEIDE HAELFTEN DES RIEGELS -- `dry_run:false` UND `confirm:"apply"`. Dieselbe Form wie
+        // avesmapsWikiPathAssignAll/…RegionAssignAll (api/edit/wiki/{paths,regions}.php) und wie der
+        // Kartenlauf, damit js/ui/wiki-massenzuweisung.js sie unveraendert bedienen kann. Die Vorgabe
+        // ist der TROCKENLAUF: eine halbe Angabe bleibt stillschweigend eine Vorschau, nie ein
+        // Schreiblauf.
+        $dryRun = !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply');
+        $ergebnis = avesmapsWikiPowerlineAssignAll($pdo, $dryRun, (int) ($user['id'] ?? 0));
+
+        avesmapsJsonResponse(200, ['ok' => true] + $ergebnis);
+    }
 
     // 1) Every powerline segment. The manual fields live inside properties_json; `revision` is the DB
     //    column the editor needs later for optimistic locking.
@@ -132,25 +190,9 @@ try {
 
     // 4) Vorschlagsliste fuer die Wiki-Artikel-Zuweisung + Zustand des letzten Dump-Laufs. Kein
     //    eigener Endpunkt -- der Editor holt diese Antwort ohnehin einmal beim Oeffnen.
+    //    Die dafuer noetige require-Kette steht seit dem 18.08.2026 weiter oben, weil der Massenlauf
+    //    im POST-Zweig dieselben acht Dateien braucht.
     //
-    //    require-Kette (gemessen, nicht aus dem Gedaechtnis): avesmapsWikiPowerlineDesiredNestsByMatchKey
-    //    ruft intern avesmapsWikiPowerlineParsePage auf, und dessen eigener Kopfkommentar verlangt vom
-    //    aufrufenden Endpunkt bereits geladen: sync.php, sync-monitor.php (zieht sync-monitor-parsing.php
-    //    automatisch mit), territories-parsing.php und political/territory.php -- exakt die Kette, die
-    //    auch api/edit/wiki/dump.php vor avesmapsWikiPowerlineReconcile laedt. Dazu die drei Bausteine
-    //    des Dump-Zustands: dump-reader.php (Konstante AVESMAPS_WIKI_DUMP_SYNC_TYPE), dump-entity-scan.php
-    //    (Konstante AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE) und dump-sync-kind.php selbst. Alle acht Dateien
-    //    sind laut eigenem Kopfkommentar reine Funktions-/Konstantendefinitionen ohne Seiteneffekt beim
-    //    Einbinden -- unbedenklich fuer einen Leseweg, der pro Editor-Oeffnung einmal laeuft.
-    require_once __DIR__ . '/../../_internal/political/territory.php';
-    require_once __DIR__ . '/../../_internal/wiki/sync.php';
-    require_once __DIR__ . '/../../_internal/wiki/sync-monitor.php';
-    require_once __DIR__ . '/../../_internal/wiki/territories-parsing.php';
-    require_once __DIR__ . '/../../_internal/wiki/powerlines.php';
-    require_once __DIR__ . '/../../_internal/wiki/dump-reader.php';
-    require_once __DIR__ . '/../../_internal/wiki/dump-entity-scan.php';
-    require_once __DIR__ . '/../../_internal/wiki/dump-sync-kind.php';
-
     // Die Vorschlagsliste des Editors. AUS DERSELBEN QUELLE wie der Abgleich -- sonst koennten
     // Vorschlag und Ergebnis verschiedener Meinung sein. 23 Zeilen, kein Blaettern noetig.
     $wikiArticles = [];
@@ -226,8 +268,21 @@ try {
         'wiki_articles' => $wikiArticles,
         'dump_state' => $dumpState,
     ]);
+} catch (InvalidArgumentException $exception) {
+    // 💣 DIE REIHENFOLGE DIESER VIER BLOECKE IST TRAGEND, und sie ist nicht die alphabetische:
+    // PHP nimmt den ERSTEN passenden, und PDOException ERBT von RuntimeException. Stuende der
+    // RuntimeException-Block oben, meldete ein Datenbankfehler „es gibt keinen abgeschlossenen
+    // Dump-Lauf" -- also wieder eine plausible falsche Auskunft, genau die Sorte, gegen die der
+    // dump_state-Block weiter oben schon einmal gebaut werden musste.
+    avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (PDOException) {
     avesmapsErrorResponse(500, 'server_error', 'The powerlines could not be loaded.');
+} catch (RuntimeException $exception) {
+    // Der erwartete Fall des Massenlaufs: avesmapsWikiDumpSyncKindResolveDumpRunId wirft, wenn nie
+    // ein dump_read-Lauf abgeschlossen wurde. Der Satz reist MIT -- dieser Endpunkt ist auf 'edit'
+    // gesperrt, sein Publikum sind Editoren, und ohne den Grund schickt ein „fehlgeschlagen" sie
+    // zum falschen Knopf (dieselbe Begruendung wie bei dump_state.problem_detail).
+    avesmapsErrorResponse(503, 'service_unavailable', $exception->getMessage());
 } catch (Throwable) {
     avesmapsErrorResponse(500, 'server_error', 'The powerlines could not be processed.');
 }
