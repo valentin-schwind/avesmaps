@@ -115,7 +115,14 @@ function avesmapsStatuskreisLandschaft(flaechen, hatKartenLabel) {
 //    und NULL echt gemischt. Das ist kein Fehler der Regel, sondern eine Folge der Gruppierung
 //    (wpGroupWays, js/pages/wege-editor-model.js schlüsselt zugewiesene Segmente über ihren
 //    `wiki_key` und unzugewiesene über Art+Name, mischen kann eine Gruppe also nicht). `every`
-//    steht trotzdem hier: es ist die Regel, und sie überlebt eine geänderte Gruppierung.
+//    steht trotzdem hier: es ist die Regel, und sie überlebt eine geänderte Gruppierung. Aber
+//    NIEMAND darf behaupten, sie mache den Halb-Zustand sichtbar -- das tut sie hier nicht.
+// ⚠️ UND 61 % DER ZEILEN TRAGEN DENSELBEN HALBEN KREIS: 2552 der 4157 Editorzeilen sind
+//    maschinell benannt (`Pfad-1`, `Pfad-2`, …) und alle unzugewiesen. Das ist wahr und in Kauf
+//    genommen, kein Fehler zum „Reparieren": sie auszuschließen bräuchte einen JS-Zwilling von
+//    `avesmapsConflictPathNameIsAuto` (api/_internal/conflicts/core.php) -- eine zweite Wahrheit
+//    darüber, was „maschinell benannt" heißt, und die kann auseinanderlaufen. Die Reiter
+//    „Platziert"/„Fehlt" trennen die Menge ohnehin schon.
 function avesmapsStatuskreisWeg(segmente) {
 	const liste = Array.isArray(segmente) ? segmente : [];
 	const alle = liste.length > 0 && liste.every(

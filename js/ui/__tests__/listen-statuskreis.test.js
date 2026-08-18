@@ -121,4 +121,52 @@ assert.ok(/<script src="js\/ui\/listen-statuskreis\.js"><\/script>/.test(lies("i
 	+ "Zeichnen einen ReferenceError.");
 checks++;
 
+// ── WEG ───────────────────────────────────────────────────────────────────────────────
+const wegSeg = (key) => ({ wiki_path: key ? { wiki_key: key } : null });
+assert.ok(/--all/.test(kreis.avesmapsStatuskreisWeg([wegSeg("wiki:reichsstrasse"), wegSeg("wiki:reichsstrasse")])),
+	"Ein Weg, dessen Segmente ALLE zugewiesen sind, muss voll sein.");
+assert.ok(/--own-only/.test(kreis.avesmapsStatuskreisWeg([wegSeg(""), wegSeg("")])),
+	"Ein Weg ohne jede Zuweisung ist halb -- er liegt auf der Karte, haengt aber an keinem Artikel.");
+checks += 2;
+// 💣 `every`, nicht `some`. Am Livebestand kann diese Zeile nicht ausloesen (die Gruppierung
+// laesst keine gemischte Gruppe zu), aber sie ist die Regel und ueberlebt eine andere Gruppierung.
+assert.ok(/--own-only/.test(kreis.avesmapsStatuskreisWeg([wegSeg("wiki:a"), wegSeg("")])),
+	"Ein NUR TEILWEISE zugewiesener Weg muss halb sein. Ein `some` meldete ihn als fertig.");
+checks++;
+// 💣 Gelesen wird `wiki_path`, nie `wiki_url` -- und dort irrt es in BEIDE Richtungen
+// (12 Phantome, 79 Gegenfaelle, live gemessen).
+assert.ok(/--own-only/.test(kreis.avesmapsStatuskreisWeg([{ wiki_url: "https://de.wiki-aventurica.de/wiki/X" }])),
+	"Ein gesetztes `wiki_url` faerbt den Kreis voll. Die Zuweisung ist `properties.wiki_path`.");
+checks++;
+// ⚠️ Ein Weg IST eine gezeichnete Geometrie -- ohne Segmente gaebe es die Zeile nicht.
+assert.ok(/--own-only/.test(kreis.avesmapsStatuskreisWeg([])),
+	"Ohne Segmente darf nicht 'zugewiesen' herauskommen.");
+checks++;
+
+// ── VERDRAHTUNG: Wegeliste im WEGEEDITOR ───────────────────────────────────────────
+assert.ok(/<script src="\/js\/ui\/listen-statuskreis\.js"><\/script>/.test(lies("html", "wege-editor.html")),
+	"html/wege-editor.html laedt js/ui/listen-statuskreis.js nicht -- js/pages/wege-editor.js ruft "
+	+ "den Bauer beim ersten Zeichnen und faellt mit einem ReferenceError aus.");
+checks++;
+const wegeEditor = lies("js", "pages", "wege-editor.js");
+assert.strictEqual((wegeEditor.match(/avesmapsStatuskreisWeg\(group\.segments\)/g) || []).length, 2,
+	"Der Wegeeditor ruft den geteilten Bauer nicht an BEIDEN Zeilen, die einen Weg darstellen: "
+	+ "dem Gruppenkopf und der einteiligen Zeile (segmentRow mit index === null).");
+checks++;
+assert.ok(/'<div class="avm-row has-map-status wp-group"/.test(wegeEditor),
+	'Die Gruppenzeile des Wegeeditors setzt "has-map-status" nicht -- ohne die Klasse greift keine '
+	+ "Regel in map-status-circle.css und der Kreis fehlt, lautlos.");
+checks++;
+assert.ok(/\(index === null \? " has-map-status" : " wp-segment"\)/.test(wegeEditor),
+	"Die einteilige Wegzeile setzt \"has-map-status\" nicht mehr -- oder ein Abschnitt bekommt sie "
+	+ "jetzt auch.");
+checks++;
+// 🔴 Und der ABSCHNITT bekommt keinen. Der Kreis gehoert dem Weg; die Gruppierung erzwingt,
+// dass jeder Abschnitt denselben Zustand haette wie sein Kopf -- N Wiederholungen derselben
+// Aussage in einer schmalen Spalte (AGENTS.md §12).
+assert.ok(!/'<span class="avm-row__name">Abschnitt ' \+ index \+ "<\/span>"\s*\+ avesmapsStatuskreis/.test(wegeEditor),
+	"Die Abschnittszeile bekommt jetzt auch einen Statuskreis. Sie traegt zwingend denselben "
+	+ "Zustand wie ihr Gruppenkopf -- das ist Wiederholung, keine Information.");
+checks++;
+
 console.log(`OK -- ${checks} Zusicherungen (geteilter Statuskreis-Bauer).`);

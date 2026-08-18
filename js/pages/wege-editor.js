@@ -250,12 +250,13 @@
 					? "alle mit Profil"
 					: withProfile + " mit Profil")
 				+ "</div>";
-			var head = '<div class="avm-row wp-group" data-group="' + escapeHtml(group.key) + '"'
+			var head = '<div class="avm-row has-map-status wp-group" data-group="' + escapeHtml(group.key) + '"'
 				+ ' role="button" tabindex="0" aria-expanded="' + (isOpen ? "true" : "false") + '">'
 				+ '<span class="wp-group__twist">' + (isOpen ? "▾" : "▸") + "</span>"
 				+ '<div class="avm-row__text">'
 				+ '<div class="avm-row__l1"><span class="avm-row__name">' + escapeHtml(group.name)
 				+ "</span>"
+				+ avesmapsStatuskreisWeg(group.segments)
 				+ '<span class="avm-row__kind' + subtypeClass(group.feature_subtype) + '">'
 				+ escapeHtml(subtypeLabel(group.feature_subtype)) + "</span></div>"
 				+ second + "</div></div>";
@@ -294,8 +295,18 @@
 		else if (way.wiki_path && way.wiki_path.wiki_key) { tone = " ok"; }
 
 		// Ein Abschnitt trägt den Namen NICHT noch einmal -- er steht in der Gruppenzeile darüber.
+		//
+		// 🔴 UND EIN ABSCHNITT TRÄGT AUCH KEINEN STATUSKREIS. Der Kreis gehört dem WEG, und ein
+		// Weg ist die Namensgruppe; `wpGroupWays` schlüsselt zugewiesene Segmente über ihren
+		// `wiki_key` und unzugewiesene über Art+Name -- eine Gruppe kann also gar nicht mischen.
+		// Jeder Abschnitt hätte damit zwingend denselben Kreis wie sein Gruppenkopf: N
+		// Wiederholungen derselben Aussage in einer schmalen Spalte, und das ist die
+		// Vervielfachung, vor der AGENTS.md §12 warnt.
+		// ⚠️ Ist `index === null`, IST diese Zeile der Weg (einteilige Gruppe, kein Kopf darüber)
+		// -- dann bekommt sie ihn.
 		var title = index === null
 			? '<span class="avm-row__name">' + escapeHtml(way.name) + "</span>"
+				+ avesmapsStatuskreisWeg(group.segments)
 				+ '<span class="avm-row__kind' + subtypeClass(way.feature_subtype) + '">'
 				+ escapeHtml(subtypeLabel(way.feature_subtype)) + "</span>"
 			: '<span class="avm-row__name">Abschnitt ' + index + "</span>";
@@ -309,7 +320,9 @@
 		// sein Elternteil. Die Einrueckung von .wp-segment (Rand + Linie) kommt OBENDRAUF, nicht
 		// anstelle der Spalte.
 		var platzhalter = '<span class="wp-group__twist" aria-hidden="true"></span>';
-		return '<div class="avm-row' + (index === null ? "" : " wp-segment")
+		// 🔴 `has-map-status` nur an der Zeile, die den Weg IST -- die geteilte Kreisregel hängt
+		// genau daran, und ein Abschnitt soll keinen Ring tragen (Begründung oben bei `title`).
+		return '<div class="avm-row' + (index === null ? " has-map-status" : " wp-segment")
 			+ (way.public_id === state.selected ? " is-selected" : "")
 			+ '" data-id="' + escapeHtml(way.public_id) + '" role="button" tabindex="0">'
 			+ platzhalter

@@ -167,6 +167,9 @@
      teilt -- es sind zwei Dokumente, keine Funktion ist von beiden aus sichtbar.
      ⚠️ Ein iframe bindet seine Dateien selbst; die Regeln der Huelle „dt" stehen in dem oben schon
      geladenen css/components/editor-page.css. -->
+<!-- Der geteilte Statuskreis-Bauer der Listenzeilen; dieselbe Datei laedt index.html.
+     MUSS vor js/pages/wege-editor.js stehen -- die ruft ihn beim ersten Zeichnen. -->
+<script src="/js/ui/listen-statuskreis.js"></script>
 <script src="/js/ui/wiki-assign-registry.js"></script>
 <script src="/js/ui/wiki-assign-diff.js"></script>
 <script src="/js/ui/wiki-assign.js"></script>
