@@ -257,9 +257,28 @@ function nodeLookup(publicId) {
 	if (!n) { return null; }
 	return { name: n.name, isCrossing: n.type === "crossing" };
 }
+// Der Anzeigetext EINES Knotens. Rein -- Knoten rein, Text raus, kein DOM, kein Modulzustand:
+// nur so laesst sie sich ohne die Seite pruefen (js/pages/__tests__/kraftlinien-knoten-name.test.js).
+//
+// 🔴 DREI Faelle, nicht zwei. Bis zum 18.08.2026 gab es zwei, und der mittlere fehlte:
+//   1. Knoten da und aktiv        -> sein Name.
+//   2. Knoten da, aber deaktiviert -> Name + " (deaktiviert)". Der Endpunkt liefert ihn seit dem
+//      18.08.2026 mit (Abschnitt 2 dort); vorher fiel er durch dessen `is_active = 1`-Filter und
+//      landete in Fall 3 -- der Editor zeigte fuer sechs Knoten eine nackte UUID, einer davon auf
+//      fuenf Linien. Reaktiviert wird nichts; der Editor SAGT nur, was los ist.
+//   3. Knoten gar nicht da        -> die rohe Kennung. Sie bleibt als letzte Bremse: ein Knoten
+//      kann wirklich geloescht sein, und dann ist die Kennung das Einzige, was wir haben.
+// ⚠️ Der Zusatz haengt an `is_active === false`, nicht an `!is_active`: eine aeltere Antwort ohne
+//    das Feld (undefined) darf keinen Knoten faelschlich als deaktiviert ausweisen.
+function nodeAnzeigeName(node, publicId) {
+	if (!node || !node.name) { return publicId || "?"; }
+	return node.is_active === false ? node.name + " (deaktiviert)" : node.name;
+}
+// 🔴 Die EINZIGE Anzeigequelle fuer einen Knotennamen -- Ortsliste, Nodices-Spalte, Kantenliste,
+// Auswahlfeld und Rueckfrage beim Entfernen gehen alle hier durch. Eine zweite Stelle waere die
+// Bauform, in der die Kennzeichnung an vier von fuenf Oberflaechen steht.
 function nodeName(publicId) {
-	const n = nodesMap[publicId];
-	return (n && n.name) ? n.name : (publicId || "?");
+	return nodeAnzeigeName(nodesMap[publicId], publicId);
 }
 function nodeIsCrossing(publicId) {
 	const n = nodesMap[publicId];

@@ -130,14 +130,29 @@ try {
     }
 
     // 2) Resolve every node the segments touch, in ONE query (no N+1 -- STRATO shared hosting).
+    //
+    // 🔴 OHNE `is_active`-FILTER, und das ist der Sinn dieser Abfrage. Sie loest KEINE Menge auf,
+    // die jemand auswaehlen darf -- sie beschriftet die Knoten, auf die die Segmente ohnehin schon
+    // zeigen. Am 18.08.2026 fielen sechs davon durch den alten Filter `is_active = 1` (zwei Doerfer,
+    // vier Kreuzungen; alle vorhanden, alle nur deaktiviert), und der Editor zeigte dafuer den
+    // Rueckfall von nodeName(): die nackte UUID. Einer davon, Glaail'Mhuoarr, traegt fuenf Linien.
+    // Der Owner soll SEHEN, was los ist (dieselbe Linie wie bei den verwaisten Aussenhuellen,
+    // AGENTS.md §11) -- reaktiviert wird hier nichts, das ist eine Datenentscheidung.
+    //
+    // 💣 Die Auflockerung gilt NUR DIESER Abfrage. Die Vorschlagsliste in Abschnitt 3 bleibt auf
+    // aktive Knoten gesperrt, sonst legt ein Editor eine Kante auf einen deaktivierten Knoten --
+    // und sie speist sich unten aus GENAU DIESER Liste hier (die Kreuzungen). Deshalb reist
+    // `is_active` je Knoten mit, statt nur als Anzeigetext im Browser zu enden.
+    // ⚠️ `public_id` ist UNIQUE (uq_map_feature_public_id) -- kein Streit zwischen einer aktiven
+    // und einer inaktiven Zeile desselben Schluessels moeglich.
     $nodes = [];
     if ($nodeIds !== []) {
         $ids = array_keys($nodeIds);
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $stmt = $pdo->prepare(
-            "SELECT public_id, name, feature_subtype, properties_json
+            "SELECT public_id, name, feature_subtype, is_active, properties_json
              FROM map_features
-             WHERE is_active = 1 AND public_id IN ($placeholders)"
+             WHERE public_id IN ($placeholders)"
         );
         $stmt->execute($ids);
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -146,6 +161,7 @@ try {
                 'name' => (string) ($row['name'] ?? ''),
                 'type' => (string) ($row['feature_subtype'] ?? ''),
                 'is_nodix' => (bool) ($properties['is_nodix'] ?? false),
+                'is_active' => (bool) ($row['is_active'] ?? 0),
             ];
         }
     }
@@ -181,8 +197,12 @@ try {
             'type' => (string) ($row['feature_subtype'] ?? ''),
         ];
     }
+    // 💣 `$node['is_active']` IST DER RIEGEL. Seit Abschnitt 2 ohne `is_active`-Filter laeuft, traegt
+    // `$nodes` auch deaktivierte Knoten -- und vier der sechs vom 18.08.2026 sind Kreuzungen. Ohne
+    // diese Bedingung staenden sie hier zur Auswahl, und der naechste "Nodix anfuegen" legte eine
+    // Kante auf einen deaktivierten Knoten. Die Nodix-Abfrage darueber filtert selbst in SQL.
     foreach ($nodes as $pid => $node) {
-        if ($node['type'] === 'crossing' && !isset($seenCandidate[$pid])) {
+        if ($node['type'] === 'crossing' && $node['is_active'] && !isset($seenCandidate[$pid])) {
             $seenCandidate[$pid] = true;
             $candidates[] = ['public_id' => (string) $pid, 'name' => $node['name'], 'type' => 'crossing'];
         }
