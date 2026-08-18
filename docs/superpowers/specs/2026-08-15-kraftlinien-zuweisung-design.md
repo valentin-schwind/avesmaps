@@ -253,7 +253,13 @@ Namen geändert hat.
 
 ## 9. Nicht in dieser Fassung
 
-- 🪤 **Kein Massen-Zuweisen — GILT NICHT MEHR, revidiert am 18.08.2026.** Der Satz lautete:
+- 🔴 **Kein Massen-Zuweisen — die urspruengliche Regel GILT WIEDER (Owner 18.08.2026: „button
+  kann wieder raus“).** Der Lauf war fuer wenige Stunden da (`ce9fee27`) und ist zurueckgebaut.
+  Der Abschnitt darunter bleibt als Protokoll stehen, weil die MESSUNGEN darin richtig sind und
+  die Begruendung der alten Regel praezisieren — nicht, weil die Ausnahme noch gilt.
+  ⚠️ Wer sie erneut aufmachen will, braucht einen neuen Owner-Entscheid, keinen Verweis hierauf.
+
+- 🪤 **Protokoll der kurzzeitigen Ausnahme, 18.08.2026.** Der Satz lautete:
   *„Es gibt kein `assign_all` wie bei den Wegen. Bei 23 Artikeln und einer Arbeitsliste von etwa vier
   Fällen wäre die Maschinerie größer als die Arbeit — und Sammelaktionen mit Entscheidungsgehalt sind
   ohnehin ausgeschlossen (Owner 2026-07-20)."*
