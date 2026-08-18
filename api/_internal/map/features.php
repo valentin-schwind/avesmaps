@@ -19,6 +19,7 @@ require_once __DIR__ . '/../routing/transport-season.php';
 // braucht und diese hier nicht mitnehmen kann -- die Begruendung steht im Kopf jener Datei.
 require_once __DIR__ . '/wiki-claim.php';
 require_once __DIR__ . '/field-origins.php';
+require_once __DIR__ . '/../audit-prune.php';
 
 function avesmapsReadMapFeaturePublicId(mixed $value): string {
     $publicId = avesmapsNormalizeSingleLine((string) $value, 36);
@@ -3521,6 +3522,11 @@ function avesmapsNextMapRevision(PDO $pdo): int {
     return (int) $revision;
 }
 
+// Wie viele Protokollzeilen die Karte behaelt. 200 ist die Anzeigehoehe von api/edit/map/audit-log.php
+// und zugleich die Untergrenze, die avesmapsPruneAuditLog erzwingt: mehr zeigt das Fenster nie, und
+// weniger naehme dem Rueckgaengigmachen Zeilen, die es noch anbietet.
+const AVESMAPS_MAP_AUDIT_KEEP_ROWS = 200;
+
 // feature_id is nullable because not every logged action is about a map object: a community-report
 // moderation decision (api/_internal/map/report-audit.php) has no feature, and the read path already
 // LEFT JOINs, so such a row simply shows no target. NULL and not 0 -- 0 would claim a feature id that
@@ -3537,8 +3543,13 @@ function avesmapsWriteMapAuditLog(PDO $pdo, ?int $featureId, string $action, int
         'before_json' => $beforeJson,
         'after_json' => $afterJson,
     ]);
+    $auditId = (int) $pdo->lastInsertId();
 
-    return (int) $pdo->lastInsertId();
+    // 🔴 HIER und nicht bei den Aufrufern: diese Funktion hat 30 davon. Eine Grenze, die einen
+    // von dreissig Erzeugern bindet, ist keine Grenze -- dieselbe Lehre wie bei der Verkehrsmittel-Sperre.
+    avesmapsPruneAuditLog($pdo, 'map_audit_log', AVESMAPS_MAP_AUDIT_KEEP_ROWS);
+
+    return $auditId;
 }
 
 function avesmapsBuildPointFeatureResponse(string $publicId, string $name, string $subtype, float $lat, float $lng, array $properties, int $revision): array {

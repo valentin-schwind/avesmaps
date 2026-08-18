@@ -26,6 +26,7 @@ declare(strict_types=1);
 // (the lore-sync.php trap). Both ecosystem app_setting keys are gone since 2026-08-01; the include
 // stays because avesmapsAppSetting* is reached through this file's other readers.
 require_once __DIR__ . '/app-setting.php';
+require_once __DIR__ . '/../audit-prune.php';
 
 // Which label belongs to which region, resolved from BOTH stored directions. Its own file because
 // api/app/map-features.php needs the same answer and two copies of this rule would be the second truth
@@ -1658,6 +1659,11 @@ function avesmapsEcosystemWriteAuditLog(
         'operation_id' => avesmapsEcosystemOperationId(),
         'operation_label' => avesmapsEcosystemOperationLabel(),
     ]);
+
+    // 🔴 Dieselbe Grenze und dieselbe Begruendung wie bei der Karte -- nur ist eine Zeile hier
+    // rund 40 KB schwer (Geometrie vorher UND nachher), 200 Zeilen sind also ~8 MB statt ~0,4 MB.
+    // Ohne diese Zeile waren es am 18.08.2026 716 MB und eine schreibgesperrte Datenbank.
+    avesmapsPruneAuditLog($pdo, 'ecosystem_geometry_audit_log', AVESMAPS_ECOSYSTEM_AUDIT_KEEP_ROWS);
 }
 
 function avesmapsEcosystemRegionRow(PDO $pdo, string $publicId, bool $activeOnly = true): array
@@ -3198,6 +3204,9 @@ function avesmapsEcosystemAreaSnapshot(array $row): array
 // sortiert.
 
 const AVESMAPS_ECOSYSTEM_CHANGE_LOG_LIMIT = 200;
+// Was die Ablage davon behaelt. Bewusst dieselbe Zahl wie die Anzeigehoehe darueber: was das Fenster
+// nie zeigt, muss die Datenbank nicht tragen (Owner 18.08.2026).
+const AVESMAPS_ECOSYSTEM_AUDIT_KEEP_ROWS = 200;
 
 // Welche Aktionen lassen sich überhaupt zurücknehmen? Alles, was einen Zustand VORHER hatte oder
 // erzeugt hat. Nicht dabei: `undo_*` (siehe unten) und alles, was gar keine Fläche anfasst.

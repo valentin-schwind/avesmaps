@@ -92,6 +92,24 @@ final class FakeGeomStmt extends PDOStatement
     {
     }
 
+    // Der Protokoll-Aufraeumer (avesmapsPruneAuditLog) bindet einzeln statt per execute()-Array:
+    // `LIMIT :offset` verlangt PDO::PARAM_INT, sonst weist MySQL es bei nativen Prepared Statements
+    // ab. Ohne diese zwei Methoden wirft das Double „object is uninitialized", weil PDOStatement
+    // hier nie konstruiert wurde.
+    #[\ReturnTypeWillChange]
+    public function bindValue($param, $value, $type = PDO::PARAM_STR): bool
+    {
+        $this->bound[$param] = $value;
+
+        return true;
+    }
+
+    #[\ReturnTypeWillChange]
+    public function rowCount(): int
+    {
+        return 0;
+    }
+
     #[\ReturnTypeWillChange]
     public function execute($params = null): bool
     {
