@@ -626,6 +626,9 @@
      (js/review/review-settlement-wiki.js) teilt; er haengt von keiner der drei ab.
      ⚠️ Absolute Pfade wie bei den Geschwistern oben: dieses iframe-Dokument wird mit
      ?v=Date.now() geholt und laeuft nicht durch die Asset-Stempelung von index.html. -->
+<!-- Der geteilte Statuskreis-Bauer. Dieselbe Datei laedt index.html: Panel und Editorfenster
+     derselben Objektart duerfen nicht zwei Fassungen derselben Regel bekommen. -->
+<script src="/js/ui/listen-statuskreis.js"></script>
 <script src="/js/ui/wiki-assign-registry.js"></script>
 <script src="/js/ui/wiki-assign-diff.js"></script>
 <!-- Der Wiki-Override an der Feldzeile: was weicht ab, und wer hat es gesetzt. Rein, kein DOM.
@@ -1323,7 +1326,10 @@ function rowSelectionKey(item) {
 function renderSettlementRowElement(item) {
 	const row = document.createElement("div");
 	const rowKey = rowSelectionKey(item);
-	row.className = "avm-row" + (rowKey === selectedRowKey ? " is-selected" : "");
+	// 🔴 `has-map-status` wird AUSDRUECKLICH gesetzt, nicht aus den Daten abgeleitet: die geteilte
+	// Kreisregel (css/components/map-status-circle.css) haengt genau daran, und eine Liste ohne die
+	// Klasse soll den Kreis auch dann nicht bekommen, wenn sie dieselbe Zeile traegt.
+	row.className = "avm-row has-map-status" + (rowKey === selectedRowKey ? " is-selected" : "");
 	row.dataset.rowKey = rowKey;
 	row.dataset.publicId = item.public_id;
 
@@ -1355,6 +1361,17 @@ function renderSettlementRowElement(item) {
 	name.textContent = item.name;
 	name.title = item.name;
 	line1.appendChild(name);
+	// Der Statuskreis, als zweites Kind von `.avm-row__l1` und damit NEBEN dem Namen, nicht darin:
+	// `.avm-row__name` ellipsiert, ein `::after` verschwaende mit den Auslassungspunkten.
+	// Drei Zustaende, und alle drei kommen hier vor -- die Liste fuehrt Kartenorte UND reine
+	// Wiki-Zeilen (Reiter „Fehlt"), genau wie die Panel-Liste daneben. Deshalb DERSELBE Bauer.
+	// 💣 `wiki_assigned` kommt vom Server und liest `properties.wiki_settlement`; das
+	// `item.wiki_url` in derselben Antwort ist NICHT die Zuweisung.
+	const kreis = document.createElement("span");
+	kreis.className = avesmapsStatuskreisKlasse(
+		avesmapsStatuskreisOrtZustand(item.on_map === true, item.wiki_assigned === true));
+	kreis.setAttribute("aria-hidden", "true");
+	line1.appendChild(kreis);
 	if (item.settlement_label) {
 		const type = document.createElement("span");
 		type.className = "avm-row__kind";

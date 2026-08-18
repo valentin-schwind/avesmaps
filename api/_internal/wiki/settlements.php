@@ -1561,6 +1561,20 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
             'territory_public_id' => $territoryPublicId,
             'territory_source' => $territorySource,
             'source_category' => $sourceCategory,
+            // 💣 Die EINE Antwort auf „haengt dieser Ort an einem Wiki-Artikel", und sie liest
+            // ausschliesslich das NEST `properties.wiki_settlement` -- das, was `assign_to` als
+            // Ganzes schreibt und `clear_assign` als Ganzes loescht.
+            // 🪤 Nicht `wiki_url` und nicht `source_category`: das flache `wiki_url` daneben
+            // schickt jedes Speichern des Ortes mit, und der oeffentliche Leseweg fuellt es bei
+            // Leere per Namensraten wieder auf (avesmapsEnrichMapFeatureWikiUrl,
+            // api/app/map-features.php). Am oeffentlichen Kartenpayload 18.08.2026 gemessen:
+            // 1914 Orte mit Nest, 1991 mit `wiki_url`, davon 99 MIT `wiki_url` und OHNE Nest --
+            // die Phantome. (99, nicht 77: 22 Orte tragen das Nest ohne flaches `wiki_url`, die
+            // Differenz zweier Summen ist also nicht die Schnittmenge.) Hier in der Editor-Antwort
+            // ist `wiki_url` zudem `ws.wiki_url ?? props.wiki_url` und damit noch eine andere
+            // Menge. `source_category` erbt denselben Fehler, es faellt eine Zeile weiter oben
+            // auf `$wikiUrl` zurueck.
+            'wiki_assigned' => is_array($ws) && trim((string) ($ws['title'] ?? '')) !== '',
             'has_coat' => $hasCoat,
             'coat_url' => $coatUrl !== '' ? $coatUrl : null,
             'image_count' => $imageCount,
@@ -1621,6 +1635,11 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
             'territory_public_id' => null,
             'territory_source' => null,
             'source_category' => 'wiki',
+            // ⚠️ Eine reine Registry-Zeile liegt gar nicht auf der Karte; ihr Statuskreis ist
+            // deshalb leer, und dieses Feld entscheidet dort nichts. Es steht trotzdem da, damit
+            // beide Haelften der Liste dieselbe Form haben -- ein fehlendes Feld liest sich im
+            // Browser wie ein `false`, und das waere hier zufaellig richtig statt begruendet.
+            'wiki_assigned' => false,
             'has_coat' => (string) ($r['coat_url'] ?? '') !== '',
             'coat_url' => (string) ($r['coat_url'] ?? '') !== '' ? (string) $r['coat_url'] : null,
             'image_count' => 0,

@@ -117,7 +117,11 @@ vm.createContext(kasten);
 // ⚠️ Diese Dateien stehen hier nicht wegen der Auswahl, sondern weil der inline-Block beim
 // Auswerten ihre Funktionen ruft (Zeitfilter des Baums, Wiki-Zuweisung). Ohne sie bricht der
 // Sandkasten, bevor die erste Zusicherung laeuft.
-["js/ui/filter-menu.js",
+// 🔴 js/ui/listen-statuskreis.js steht mit in der Liste, und zwar als ECHTE Datei, nicht als
+// Attrappe: die Zeile ruft seit 18.08.2026 `avesmapsStatuskreisOrt` beim Bauen. Eine freundliche
+// Attrappe wuerde genau die Delegation verstecken, die dort geprueft werden soll
+// (js/ui/__tests__/listen-statuskreis.test.js) -- dieselbe Entscheidung wie beim Kraftlinien-Test.
+["js/ui/filter-menu.js", "js/ui/listen-statuskreis.js",
 	"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-feld-herkunft.js",
 	"js/ui/wiki-assign.js", "js/ui/wiki-assign-ort.js"].forEach((datei) => {
 	vm.runInContext(fs.readFileSync(path.join(wurzel, datei), "utf8"), kasten, { filename: datei });

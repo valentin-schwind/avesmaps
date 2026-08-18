@@ -397,17 +397,18 @@ async function loadSettlementList() {
 }
 
 // (Settlement bulk operations moved to review-settlement-list-bulk-ops.js - M5 split.)
-// Unsichtbarer Status-Marker wie im Herrschaftsgebiet-Tree; steuert per :has() die Kreis-Füllung:
-// voll = auf Karte + verbunden (--all), halb = auf Karte ohne Wiki (--own-only),
-// leer = fehlt auf der Karte (nur im Wiki).
+// Unsichtbarer Status-Marker; steuert per :has() die Kreis-Füllung:
+// voll = auf Karte + verbunden, halb = auf Karte ohne Wiki, leer = fehlt auf der Karte (nur im Wiki).
+//
+// 🔴 Die REGEL steht seit 18.08.2026 nicht mehr hier, sondern in js/ui/listen-statuskreis.js --
+// dieselbe Objektart hat eine zweite Liste im Ortseditor (html/wiki-sync-settlement-editor.html,
+// eigenes Dokument), und zwei Fassungen derselben Regel laufen auseinander, ohne dass es jemandem
+// auffaellt. Hier bleibt nur die ABBILDUNG: dieser Endpunkt fasst „liegt auf der Karte" und
+// „haengt an einem Artikel" zu EINEM Feld `state` zusammen (avesmapsWikiSettlementListLocations:
+// full = verbunden, empty = auf der Karte ohne Wiki, half = nur im Wiki), der Editor-Endpunkt
+// liefert die beiden getrennt. Beide meinen dasselbe.
 function settlementStatusMarker(item) {
-	let modifier = "";
-	if (item.state === "full") {
-		modifier = " tree-map-status--all";
-	} else if (item.state === "empty") {
-		modifier = " tree-map-status--own-only";
-	}
-	return `<span class="tree-map-status${modifier}" aria-hidden="true"></span>`;
+	return avesmapsStatuskreisOrt(item.state !== "half", item.state === "full");
 }
 
 // Struktur 1:1 wie die Territorien-Items (tree-item-Grid): (1) Drag-Handle in Spalte 1 (⠿ wenn
