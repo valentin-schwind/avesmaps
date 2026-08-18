@@ -39,9 +39,11 @@
 .avm-row.has-map-status .tree-map-status {
 	display: inline-block;
 	/* 11px statt 13px: neben einem 13px-Namen war der alte Kreis höher als dessen Versalhöhe und
-	   zog die Zeile auf. 🔧 Abgeleitet, nicht vom Owner beschlossen. */
-	width: 11px;
-	height: 11px;
+	   zog die Zeile auf. 🔧 Abgeleitet, nicht vom Owner beschlossen.
+	   ⚠️ Als Token, weil `.cov` (der Territorienbaum) denselben Kreis in eigenem Markup zeichnet
+	   und im Ortseditor direkt daneben steht. */
+	width: var(--map-status-circle-size);
+	height: var(--map-status-circle-size);
 	border: 2px solid var(--color-map-presence);
 	border-radius: 50%;
 	background: var(--color-panel);

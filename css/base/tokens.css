@@ -443,6 +443,16 @@
 	   data highlight (not chrome), deliberately identical in both themes. */
 	--color-map-presence: #6a7f3a;
 
+	/* Der Außendurchmesser des grünen Statuskreises. 💣 Er steht als Token da, weil es DREI
+	   Zeichner gibt und zwei davon nebeneinander im selben Fenster sichtbar sind: die geteilte
+	   Listenregel (css/components/map-status-circle.css) und das Abzeichen `.cov` des
+	   Territorienbaums (html/wiki-sync-settlement-editor.html, html/wiki-sync-monitor.html).
+	   Am 18.08.2026 zeigte der Ortseditor 12px links und 11px in der Mitte -- dieselbe Aussage in
+	   zwei Größen, in einem Blick. `.cov` bringt sein eigenes Markup mit (`.all`/`.own-only`/
+	   `.children-only` statt der `tree-map-status--*`), deshalb bleibt es eine eigene Regel; die
+	   GRÖSSE darf nicht zweimal geraten werden. */
+	--map-status-circle-size: 11px;
+
 	/* Wegarten — die Farbe, in der die KARTE diese Wegart zeichnet (map-features.js, centerColors).
 	   Sie machen die Art-Beschriftung in der Wegeliste zu einer Legende: man sieht dort, wie die
 	   Linie draußen aussieht.

@@ -106,7 +106,12 @@
   /* Angereicherte Zeile (Muster html/wiki-sync-monitor.html buildTreeNode/covCircle/wappenThumb):
      Abdeckungs-Kreis (Geometrie auf der Karte) + Wappen-Thumb + Name + BF-Zeitraum. Klassen 1:1
      aus dem Territoriumseditor uebernommen, damit die Optik zwischen beiden Editoren konsistent bleibt. */
-  .cov { position:relative; width:12px; height:12px; flex:0 0 12px; border:2px solid var(--color-map-presence); border-radius:50%; background:var(--soft); box-sizing:border-box; color:var(--color-map-presence); overflow:hidden; display:inline-block; vertical-align:middle; }
+  /* ⚠️ Dasselbe Zeichen wie die geteilte Listenregel (css/components/map-status-circle.css),
+     aber mit EIGENEM Markup (.all/.own-only/.children-only statt tree-map-status--*), das der
+     Territorienbaum schreibt. Deshalb bleibt es eine eigene Regel -- die GRÖSSE aber kommt seit
+     18.08.2026 aus demselben Token: die zwei Kreise stehen in diesem Fenster nebeneinander und
+     standen auf 12px gegen 11px. */
+  .cov { position:relative; width:var(--map-status-circle-size); height:var(--map-status-circle-size); flex:0 0 var(--map-status-circle-size); border:2px solid var(--color-map-presence); border-radius:50%; background:var(--soft); box-sizing:border-box; color:var(--color-map-presence); overflow:hidden; display:inline-block; vertical-align:middle; }
   .cov.all { background:currentColor; }
   .cov.own-only::before, .cov.children-only::before { content:""; position:absolute; top:1px; bottom:1px; background:currentColor; }
   .cov.children-only::before { left:1px; right:50%; border-radius:999px 0 0 999px; }

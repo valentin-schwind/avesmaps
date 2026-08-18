@@ -373,4 +373,24 @@ assert.ok(!/'<span class="tree-map-status" aria-hidden="true"><\/span>'/.test(pa
 	+ "'nicht auf der Karte' -- fuer diese Listen unmoeglich.");
 checks++;
 
+// ── Die DRITTE Kreisfassung: `.cov` im Territorienbaum ──────────────────────────────────────────
+// 🪤 Sie ist aelter als die geteilte Regel und bleibt eigen, weil sie eigenes Markup schreibt
+// (.all/.own-only/.children-only). Aber sie steht im Ortseditor in der LINKEN Spalte, direkt neben
+// der Liste in der Mitte -- und stand auf 12px gegen 11px. Dieselbe Aussage in zwei Groessen, in
+// einem Blick. Die Groesse ist seither EIN Token.
+assert.ok(/--map-status-circle-size:\s*\d+px;/.test(lies("css", "base", "tokens.css")),
+	"Das Token --map-status-circle-size fehlt. Ohne es steht die Kreisgroesse an drei Stellen "
+	+ "einzeln da (AGENTS.md §12: nie hartkodieren).");
+checks++;
+for (const [name, pfad] of [
+	["css/components/map-status-circle.css", ["css", "components", "map-status-circle.css"]],
+	["html/wiki-sync-settlement-editor.html", ["html", "wiki-sync-settlement-editor.html"]],
+	["html/wiki-sync-monitor.html", ["html", "wiki-sync-monitor.html"]],
+]) {
+	assert.ok(/var\(--map-status-circle-size\)/.test(lies(...pfad)),
+		`${name} setzt die Kreisgroesse wieder als Zahl statt ueber --map-status-circle-size. `
+		+ "Im Ortseditor stehen zwei dieser Kreise nebeneinander -- ein Unterschied faellt sofort auf.");
+	checks++;
+}
+
 console.log(`OK -- ${checks} Zusicherungen (geteilter Statuskreis-Bauer).`);
