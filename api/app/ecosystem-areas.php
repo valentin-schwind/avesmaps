@@ -147,10 +147,49 @@ try {
     ]);
 } catch (InvalidArgumentException $exception) {
     avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
-} catch (PDOException) {
-    avesmapsErrorResponse(500, 'server_error', 'Ecosystem areas could not be loaded from the database.');
-} catch (Throwable) {
-    avesmapsErrorResponse(500, 'server_error', 'Ecosystem areas could not be loaded.');
+} catch (PDOException $exception) {
+    avesmapsErrorResponse(
+        500,
+        'server_error',
+        'Ecosystem areas could not be loaded from the database.' . avesmapsEcosystemAdminFehlertext($exception)
+    );
+} catch (Throwable $exception) {
+    avesmapsErrorResponse(
+        500,
+        'server_error',
+        'Ecosystem areas could not be loaded.' . avesmapsEcosystemAdminFehlertext($exception)
+    );
+}
+
+// Der Fehlertext -- NUR fuer eine angemeldete Admin-Sitzung, sonst der leere String.
+//
+// 💣 Am 18.08.2026 fiel die ganze Landschaften-Ebene mit HTTP 500 aus, und die Meldung „could not be
+// loaded from the database" sagte nicht, WAS die Datenbank verweigert hat. Der Fehler steckt irgendwo
+// in den ~700 Zeilen selbstheilender DDL, die avesmapsEcosystemEnsureTables bei JEDEM Aufruf faehrt --
+// per Fernprobe liess sich nur eingrenzen, DASS es dort passiert (ein absichtlich kaputtes bbox kam mit
+// 500 statt 400 zurueck, also vor dem Parsen), nicht welche Anweisung. Ohne diesen Text bleibt nur
+// Raten, und Raten an einem Ausfall ist die teuerste Art zu suchen.
+//
+// ⚠️ Er darf NICHT oeffentlich werden: AGENTS.md §10 fuehrt die Endpunkte, die getMessage()
+// durchreichen, als offene Schwachstelle (Meilenstein M1). Hier kommt keine neue dazu -- fuer jeden
+// ohne Admin-Recht ist die Antwort wortgleich die von vorher.
+//
+// ⚠️ Die Sitzung wird ERST IM FEHLERFALL angefasst, nie im Normalbetrieb: PHP haelt die Sitzungsdatei
+// gesperrt, und das hier ist ein oeffentlicher Lesepfad, den jeder Besucher trifft.
+// (avesmapsCurrentUser gibt den Lock sofort wieder frei -- siehe den Kommentar dort.)
+function avesmapsEcosystemAdminFehlertext(Throwable $exception): string
+{
+    try {
+        require_once __DIR__ . '/../_internal/auth.php';
+        $user = avesmapsCurrentUser();
+        if ($user === null || !avesmapsUserCan($user, 'admin')) {
+            return '';
+        }
+    } catch (Throwable) {
+        return ''; // Eine Diagnose darf den Fehler, den sie erklaeren soll, niemals verdecken.
+    }
+
+    return ' [admin] ' . $exception->getMessage();
 }
 
 // Weak ETag from the revision plus every query parameter that shapes the payload -- today bbox, labels,
