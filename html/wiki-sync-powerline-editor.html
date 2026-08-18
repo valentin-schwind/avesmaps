@@ -375,13 +375,13 @@ function spanText(line) {
 // 💣 Eine Kraftlinie ist eine NAMENSGRUPPE. Sind manche Segmente zugewiesen und andere nicht, ist
 // das der Halb-Zustand -- genau wofuer er da ist; `every` statt `some`.
 function lineStatusMarker(line) {
-	const segmente = (line && line.segments) || [];
-	const zugewiesen = segmente.length > 0
-		&& segmente.every((s) => String((s && s.wiki_url) || "").trim() !== "");
-	// Dieselben zwei Modifikatoren wie settlementStatusMarker (js/review/review-settlement-list.js):
-	// --all = voll, --own-only = halb. Ein eigenes Vokabular hier waere ein zweites Zeichen.
-	return '<span class="tree-map-status tree-map-status--' + (zugewiesen ? "all" : "own-only")
-		+ '" aria-hidden="true"></span>';
+	// 🔴 EIN Bauer, zwei Oberflaechen: derselbe Aufruf steht in js/review/review-powerline-list.js
+	// (WikiSync-Panel). Beide Dokumente laden js/map-features/powerline-topology.js -- es ist das
+	// einzige Modul, das sie sich teilen koennen. Eine zweite Fassung hier waere die Divergenz,
+	// die AGENTS.md §11 fuer Listenzeilen bereits einmal gekostet hat.
+	return (typeof avesmapsPowerlineStatusMarker === "function")
+		? avesmapsPowerlineStatusMarker((line && line.segments) || [])
+		: "";
 }
 function renderList() {
 	const host = $("plList");

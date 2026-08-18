@@ -30,7 +30,12 @@ const html = fs.readFileSync(path.join(wurzel, "html", "wiki-sync-powerline-edit
 
 const treffer = html.match(/\nfunction lineStatusMarker\([\s\S]*?\n\}/);
 assert.ok(treffer, "lineStatusMarker() steht nicht mehr in html/wiki-sync-powerline-editor.html.");
-const lineStatusMarker = vm.runInNewContext("(" + treffer[0].trim() + ")");
+// 🔴 Der ECHTE geteilte Bauer wandert in die Sandbox, keine Attrappe: lineStatusMarker delegiert
+// seit 18.08.2026 an ihn, und eine freundliche Attrappe wuerde genau die Delegation verstecken,
+// die hier geprueft werden soll.
+const topo = require("../../map-features/powerline-topology.js");
+const lineStatusMarker = vm.runInNewContext("(" + treffer[0].trim() + ")",
+	{ avesmapsPowerlineStatusMarker: topo.avesmapsPowerlineStatusMarker });
 
 const seg = (wikiUrl) => ({ wiki_url: wikiUrl });
 let checks = 0;
@@ -103,5 +108,34 @@ assert.ok(/<link rel="stylesheet" href="\/css\/components\/editor-page\.css">/.t
 	"Die Seite bindet css/components/editor-page.css nicht mehr — damit faellt der ganze "
 	+ "@import-Weg zu map-status-circle.css weg.");
 checks++;
+
+// ── EIN Bauer fuer BEIDE Oberflaechen ────────────────────────────────────────────────────────
+// 🪤 Die Panel-Liste trug `has-map-status` seit jeher und emittierte NIE einen Marker: ihr Ring
+// war fuer jede Kraftlinie leer -- ein unmoeglicher Zustand, denn eine Kraftlinie liegt per
+// Definition auf der Karte. Gesehen hat es niemand, bis der Editor daneben einen richtigen zeigte.
+assert.strictEqual(typeof topo.avesmapsPowerlineStatusMarker, "function",
+	"powerline-topology.js muss den geteilten Markierungsbauer ausfuehren -- er ist das EINZIGE"
+	+ " Modul, das Panel (index.html) und Editor (eigenes Dokument) beide laden.");
+checks++;
+
+// 💣 `every`, nicht `some`: teilweise zugewiesen ist HALB, nicht voll.
+assert.ok(/tree-map-status--all/.test(topo.avesmapsPowerlineStatusMarker([{ wiki_url: "a" }, { wiki_url: "b" }])),
+	"Alle Segmente zugewiesen muss den vollen Kreis liefern.");
+assert.ok(/tree-map-status--own-only/.test(topo.avesmapsPowerlineStatusMarker([{ wiki_url: "a" }, { wiki_url: "" }])),
+	"Nur ein Teil zugewiesen muss den HALBEN Kreis liefern -- sonst meldet eine halb gepflegte"
+	+ " Linie sich als fertig.");
+assert.ok(/tree-map-status--own-only/.test(topo.avesmapsPowerlineStatusMarker([])),
+	"Ohne Segmente darf nicht 'zugewiesen' herauskommen.");
+checks += 3;
+
+// 🔴 DIE VERDRAHTUNG. Eine getestete Funktion, die niemand aufruft, ist der Fehler, den dieses
+// Projekt schon einmal sechs Code-Reviews lang uebersehen hat.
+const panel = fs.readFileSync(path.join(wurzel, "js/review/review-powerline-list.js"), "utf8");
+assert.ok(/avesmapsPowerlineStatusMarker\(/.test(panel),
+	"Die Panel-Liste ruft den geteilten Bauer nicht auf -- ihr Statuskreis bleibt leer, waehrend"
+	+ " der Editor daneben einen richtigen zeigt.");
+assert.ok(/avesmapsPowerlineStatusMarker\(/.test(html),
+	"Der Kraftlinien-Editor ruft den geteilten Bauer nicht auf (zweite Fassung eingeschlichen?).");
+checks += 2;
 
 console.log(`OK -- ${checks} Zusicherungen (Statuskreis der Kraftlinienliste).`);

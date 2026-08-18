@@ -152,6 +152,13 @@ function renderPowerlineSyncList() {
 		return '<div class="tree-item has-map-status region-sync__item powerline-sync__item" data-powerline-name="' + esc(g.name) + '"'
 			+ ' title="Doppelklick: im Kraftlinienmodus auf diese Linie zoomen" style="cursor:pointer;">'
 			+ '<span class="tree-item-name">' + esc(g.name) + '</span>'
+			// Der Statuskreis. 🪤 Die Zeile trug `has-map-status` seit jeher, emittierte aber NIE
+			// diesen Marker -- der Ring war damit fuer JEDE Kraftlinie leer, ein unmoeglicher
+			// Zustand (eine Kraftlinie liegt per Definition auf der Karte). Aufgefallen erst,
+			// als der Editor daneben einen richtigen zeigte. EIN Bauer fuer beide Oberflaechen:
+			// avesmapsPowerlineStatusMarker (js/map-features/powerline-topology.js), das einzige
+			// Modul, das BEIDE Dokumente laden.
+			+ ((typeof avesmapsPowerlineStatusMarker === "function") ? avesmapsPowerlineStatusMarker(g.segments) : "")
 			+ '<span class="tree-item-meta">' + esc(meta) + '</span>'
 			+ '</div>';
 	}).join("");
