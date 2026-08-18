@@ -393,4 +393,105 @@ for (const [name, pfad] of [
 	checks++;
 }
 
-console.log(`OK -- ${checks} Zusicherungen (geteilter Statuskreis-Bauer).`);
+// ── Der Territorien-Editor: Wappen fuehrt die Zeile an, der Kreis schliesst sie ─────────────────
+// Owner 18.08.2026: „den kreis (so wie im editorpanel) auch ans ende der 1. zeile und deren platz
+// mit den wappen tauschen. achte dass der text auch ohne wappen dann immer untereinandersteht".
+// 🪤 Der Auftrag verortete die Zeile in js/territory/territory-wiki-tree.js -- dort gibt es gar kein
+// Wappen. Sie steht in html/wiki-sync-monitor.html („Territorien bearbeiten"), einem eigenstaendigen
+// iframe-Dokument mit eigenem <style> und eigenem Markup (.cov/.wp statt .tree-map-status).
+const monitor = lies("html", "wiki-sync-monitor.html");
+
+// (1) Beide Erzeuger: Wappen VOR dem Namen, Abdeckungs-Kreis HINTER ihm.
+for (const [erzeuger, zeile] of [
+	["renderList (linke Liste)", (monitor.match(/^.*out\.push\(`<div class="row.*$/m) || [""])[0]],
+	["buildTreeNode (rechter Baum)", (monitor.match(/^.*let html = `<li data-li=.*$/m) || [""])[0]],
+]) {
+	assert.ok(zeile !== "", `${erzeuger}: die Zeile wurde nicht gefunden -- der Test misst nichts mehr.`);
+	const wappenPos = zeile.indexOf("${wappenThumb(n)}");
+	const kreisPos = zeile.indexOf("${covCircle(n)}");
+	const namePos = zeile.indexOf("${esc(dispName(n))}");
+	assert.ok(wappenPos >= 0 && kreisPos >= 0 && namePos >= 0,
+		`${erzeuger}: Wappen, Kreis oder Name fehlt in der Zeile.`);
+	assert.ok(wappenPos < namePos,
+		`${erzeuger}: das Wappen steht nicht mehr VOR dem Namen. Es fuehrt die Zeile an -- das war `
+		+ "der Tausch, den der Owner am 18.08.2026 verlangt hat.");
+	assert.ok(kreisPos > namePos,
+		`${erzeuger}: der Abdeckungs-Kreis steht nicht mehr HINTER dem Namen. Genau dort sitzt er `
+		+ "im WikiSync-Panel (::after an .tree-item-name) und in den Editorfenstern (.avm-row__l1); "
+		+ "weil .nm waechst, ist das das Ende der ersten Zeile.");
+	checks += 4;
+}
+
+// (2) Der reservierte Platz. 1.386 von 1.581 Gebieten (87,7 %) haben KEIN Wappen -- ohne
+// Platzhalter fehlte in sieben von acht Zeilen das ERSTE Element, und der Name spraenge.
+const thumb = (monitor.match(/^function wappenThumb\(n\)\{.*$/m) || [""])[0];
+assert.ok(/wp-slot/.test(thumb),
+	"wappenThumb() gibt bei fehlendem Wappen keinen Platzhalter mehr zurueck. Eine leere "
+	+ "Zeichenkette laesst die erste Zelle ersatzlos wegfallen -- 87,7 % der Zeilen ruecken dann "
+	+ "gegen die 12,3 % mit Wappen ein. Dieselbe Regel wie bei der Ziehgriff-Spalte (AGENTS.md §11).");
+checks++;
+assert.ok(!/return '';/.test(thumb),
+	"wappenThumb() faellt wieder auf die leere Zeichenkette zurueck.");
+checks++;
+// 🔴 Der Platzhalter darf keinen Lizenzstatus behaupten: .pd/.gray gehoeren dem BILD.
+// 🪤 Hier stand zuerst ein Reihenfolgevergleich ("wp-slot" vor "licClass") -- der blieb bei der
+// Mutationsprobe GRUEN, obwohl die Lizenzklasse im Platzhalter stand: sie steht dann eben HINTER
+// ihm. Gemessen wird deshalb die Eigenschaft selbst: der Platzhalter ist eine KONSTANTE.
+const platzhalter = (thumb.match(/return\s+('[^']*wp-slot[^']*')/) || ["", ""])[1];
+assert.ok(platzhalter !== "", "Der Platzhalter-Rueckgabewert von wappenThumb() ist keine Zeichenkette mehr.");
+checks++;
+assert.ok(!/licClass|\$\{/.test(platzhalter),
+	`Der leere Platzhalter setzt etwas aus den Daten ein (${platzhalter}). Ein gruener Lizenzring `
+	+ "oder ein Ausgrauen an einer LEEREN Zelle behauptet einen Status, den es dort nicht gibt -- "
+	+ "der Platzhalter haelt nur Platz und ist deshalb eine Konstante.");
+checks++;
+
+// (3) 💣 Bild und Platzhalter teilen EINE Groessenangabe. Wer sie an einer der beiden aendert,
+// bricht die Ausrichtung genau so, wie sie vor dem 18.08.2026 gebrochen war (Name bei 17 px ODER
+// 38 px). Gemessen wird deshalb die WIRKUNG, nicht die Schreibweise: beide Breiten gleich.
+// ⚠️ Nur der <style>-Block, und OHNE Kommentare: der Kommentar ueber der Regel nennt ".wp" selbst,
+// und im JS-Teil derselben Datei stehen tausende geschweifte Klammern. Beides macht aus einer
+// naiven Regelsuche Rauschen -- und ein Test, der nichts findet, ist gruen aus dem falschen Grund.
+const stilblock = (monitor.match(/<style>([\s\S]*?)<\/style>/) || ["", ""])[1]
+	.replace(/\/\*[\s\S]*?\*\//g, "");
+assert.ok(/\.wp-slot/.test(stilblock), "Im <style>-Block gibt es keine Regel fuer .wp-slot.");
+checks++;
+const breiteVon = (selektor) => {
+	let wert = "";
+	for (const treffer of stilblock.matchAll(/([^{}@]+)\{([^{}]*)\}/g)) {
+		if (!treffer[1].split(",").map((teil) => teil.trim()).includes(selektor)) continue;
+		for (const deklaration of treffer[2].matchAll(/([a-z-]+)\s*:\s*([^;]+)/g)) {
+			if (deklaration[1] === "width") wert = deklaration[2].trim();
+		}
+	}
+	return wert;
+};
+const breiteBild = breiteVon(".wp");
+const breitePlatz = breiteVon(".wp-slot");
+assert.ok(breiteBild !== "", "Die Regel fuer .wp setzt keine Breite mehr.");
+assert.strictEqual(breitePlatz, breiteBild,
+	`Wappen (${breiteBild || "—"}) und Platzhalter (${breitePlatz || "—"}) sind verschieden breit. `
+	+ "Genau dann steht der Name je nach Wappen woanders -- der Zustand, den der Umbau vom "
+	+ "18.08.2026 beseitigt hat. Die Breite gehoert in EINE Regel fuer beide Selektoren.");
+checks += 2;
+
+// (4) 🔴 Der PANEL-Baum bleibt unberuehrt. Ihn baut ein anderer Zeichner
+// (js/territory/territory-wiki-tree.js, derselbe auch fuer den eingebetteten Karten-Editor) -- dort
+// haengt der Marker als LETZTES Kind und es gibt kein Wappen. Ohne diese Zusicherung wandert der
+// Umbau irgendwann lautlos dorthin, und der Panel-Baum sieht ploetzlich anders aus als gestern.
+const panelZeichner = lies("js", "territory", "territory-wiki-tree.js");
+const panelBauer = (panelZeichner.match(/function renderTreeItem\(node, options\) \{[\s\S]*?\n\t\}/) || [""])[0];
+assert.ok(panelBauer !== "", "renderTreeItem() in territory-wiki-tree.js nicht gefunden.");
+checks++;
+const anhaengungen = [...panelBauer.matchAll(/itemElement\.appendChild\((\w+)\)/g)].map((t) => t[1]);
+assert.strictEqual(anhaengungen[anhaengungen.length - 1], "mapStatusElement",
+	"Im Panel-Baum ist der Statusmarker nicht mehr das LETZTE Kind der Zeile. Diese Oberflaeche "
+	+ "stand ausdruecklich NICHT im Auftrag vom 18.08.2026 -- der Tausch gehoert allein dem "
+	+ "Territorien-Editor (html/wiki-sync-monitor.html).");
+checks++;
+assert.ok(!/coat_of_arms|wappen|wp-slot/i.test(panelBauer),
+	"Der Panel-Baum zeichnet neuerdings ein Wappen in seine Zeile. Er hatte nie eines -- genau "
+	+ "daran war zu erkennen, dass der Auftrag vom 18.08.2026 eine andere Datei meinte.");
+checks++;
+
+console.log(`OK -- ${checks} Zusicherungen (Statuskreis-Bauer + Territorien-Editor-Zeile).`);

@@ -190,8 +190,28 @@
   .cov.own-only::before, .cov.children-only::before { content:""; position:absolute; top:1px; bottom:1px; background:currentColor; }
   .cov.children-only::before { left:1px; right:50%; border-radius:999px 0 0 999px; }
   .cov.own-only::before { left:50%; right:1px; border-radius:0 999px 999px 0; }
-  /* kleines Wappen */
-  .wp { width:15px; height:15px; flex:0 0 15px; object-fit:contain; vertical-align:middle; border-radius:2px; background:var(--color-panel); }
+  /* Kleines Wappen -- und der leere Platz, den es freihaelt.
+     🔴 Die Zeile beginnt seit 18.08.2026 mit dem WAPPEN; der Abdeckungs-Kreis, der vorher hier
+     stand, sitzt jetzt hinter dem Namen (Owner 18.08.2026: „den kreis ... ans ende der 1. zeile
+     und deren platz mit den wappen tauschen").
+     💣 Ein Wappen hat aber kaum ein Gebiet: 1.386 von 1.581 (87,7 %) haben keines -- live gemessen
+     an /api/app/political-territory-wiki.php. Ohne reservierten Platz fehlte in sieben von acht
+     Zeilen das ERSTE Element. Die Nebenbedingung ist hier der NORMALFALL, nicht der Randfall.
+     ⚠️ Und der Umbau STELLT die Ausrichtung erstmals HER, er erhaelt sie nicht: bisher begann der
+     Name je nach Wappen bei 17 px oder 38 px, seither einheitlich bei 21 px. Wer „wie vorher"
+     wiederherstellt, stellt den Sprung wieder her.
+     💣 Breite, Hoehe und Flex-Basis stehen deshalb in EINER Regel fuer Bild und Platzhalter. Wer sie
+     an einer der beiden aendert, bricht die Ausrichtung genau so, wie sie vorher gebrochen war.
+     🔴 .pd/.gray (Lizenzring bzw. Ausgrauen) haengen an .wp, NIE am Platzhalter: eine leere Zelle
+     darf keinen Lizenzstatus behaupten.
+     Gewacht von js/ui/__tests__/listen-statuskreis.test.js. */
+  .wp, .wp-slot { width:15px; height:15px; flex:0 0 15px; vertical-align:middle; }
+  .wp { object-fit:contain; border-radius:2px; background:var(--color-panel); }
+  /* ⚠️ `display` ist hier ein Sicherheitsnetz, kein tragender Wert: beide Wirte (.row, .node)
+     sind Flex-Container und blockifizieren den <span> ohnehin -- eine Mutationsprobe, die diese
+     Zeile loescht, bleibt darum zu Recht gruen. Sie steht fuer den Tag, an dem jemand `.wp-slot`
+     ausserhalb einer Flex-Zeile benutzt. */
+  .wp-slot { display:inline-block; }
   .wp.pd { box-shadow:0 0 0 1.5px var(--color-map-presence); }
   .wp.gray { filter:grayscale(1); opacity:.45; }
   .row.sel, .node.sel { background:var(--color-active-wash) !important; outline:1px solid var(--line2); }
@@ -635,7 +655,12 @@ function coverage(n){
 const COV_LABEL = {all:'Gebiet + alle Untergebiete auf der Karte', 'own-only':'Gebiet auf der Karte, Untergebiete unvollständig', 'children-only':'nur über Untergebiete (unvollständig)', none:'nicht auf der Karte'};
 function covCircle(n){ const c=coverage(n); return `<span class="cov ${c.kind}" title="${COV_LABEL[c.kind]}"></span>`; }
 function licClass(n){ const s=n.license_status; if(s==='public_domain') return 'pd'; if(!s||s==='unknown') return 'gray'; return ''; }
-function wappenThumb(n){ if(!n.coat_of_arms_url) return ''; return `<img class="wp ${licClass(n)}" src="${esc(n.coat_of_arms_url)}" alt="" loading="lazy" draggable="false" title="${esc(n.coat_of_arms_author||n.license_status||'Wappen')}">`; }
+// Wappen ODER sein leerer Platz -- nie nichts. Begruendung samt Zahlen an der Regel `.wp, .wp-slot`
+// im <style>: 1.386 von 1.581 Gebieten (87,7 %) haben kein Wappen, und seit das Wappen die Zeile
+// ANFUEHRT, fiele ohne Platzhalter in sieben von acht Zeilen das erste Element ersatzlos weg.
+// 🔴 Der Platzhalter traegt KEINE Lizenzklasse (licClass): eine leere Zelle darf keinen
+// Lizenzstatus behaupten.
+function wappenThumb(n){ if(!n.coat_of_arms_url) return '<span class="wp-slot" aria-hidden="true"></span>'; return `<img class="wp ${licClass(n)}" src="${esc(n.coat_of_arms_url)}" alt="" loading="lazy" draggable="false" title="${esc(n.coat_of_arms_author||n.license_status||'Wappen')}">`; }
 async function lockNode(k, lock){
   const n = BYKEY.get(k); if(!n) return;
   busy(true);
@@ -1041,7 +1066,13 @@ function renderList() {
     const lock = n.parent_locked ? ` <span class="tag lock" title="${lockTitle(n)}">🔒</span>` : '';
     const exclTag = n.excluded ? ` <span class="tag excl" title="im Papierkorb / aussortiert – aus der Hierarchie genommen, aber noch gesynct">🗑 Papierkorb</span> <button class="edbtn dt-restore" data-restore="${esc(n.wiki_key)}" title="Wiederherstellen – zurück in die Hierarchie holen">↩ wiederherstellen</button>` : '';
     const meta = n.excluded ? '' : `${parentLabel(n)}${conflictLabel(n)}${editorEditButton(n)}`;
-    out.push(`<div class="row${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}">${covCircle(n)}${wappenThumb(n)}<span class="nm">${esc(dispName(n))}${periodLabel(n)}</span>${wikiLink(n)}${meta}${lock}${exclTag}</div>`);
+    // Reihenfolge seit 18.08.2026: Wappen · Name · Abdeckungs-Kreis · Wiki · Tags.
+    // Der Kreis steht unmittelbar HINTER dem Namen -- dieselbe Stelle wie im WikiSync-Panel (dort ein
+    // ::after an .tree-item-name) und in den Editorfenstern (.avm-row__l1). Weil .nm waechst
+    // (flex:1 1 9.5em), sitzt er damit am Ende der ersten Zeile, auch wenn die Tags umbrechen.
+    // 🔴 NICHT als ::after in .nm: die Zelle traegt text-overflow:ellipsis, der Kreis verschwaende
+    //    mit den Auslassungspunkten -- die Messung dazu steht in css/components/map-status-circle.css.
+    out.push(`<div class="row${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}">${wappenThumb(n)}<span class="nm">${esc(dispName(n))}${periodLabel(n)}</span>${covCircle(n)}${wikiLink(n)}${meta}${lock}${exclTag}</div>`);
   }
   $('list').innerHTML = out.join('') || '<div class="muted">— keine —</div>';
 }
@@ -1055,7 +1086,9 @@ function buildTreeNode(n, depth) {
   const hasKids = kids.length>0;
   const open = (treeForceOpen && treeForceOpen.has(n.wiki_key)) || expanded.has(n.wiki_key);
   const tw = hasKids ? `<span class="twist" data-tw="${n.wiki_key}">${open?'▾':'▸'}</span>` : '<span class="twist"></span>';
-  let html = `<li data-li="${n.wiki_key}"><span class="node${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${covCircle(n)}${wappenThumb(n)}<span>${esc(dispName(n))}${periodLabel(n)}</span>${wikiLink(n)}${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
+  // Dieselbe Reihenfolge wie in renderList() -- die Begruendung steht dort.
+  // ⚠️ ${tw} bleibt erstes Kind: toggleTwist() greift per :scope > .node > .twist.
+  let html = `<li data-li="${n.wiki_key}"><span class="node${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${wappenThumb(n)}<span>${esc(dispName(n))}${periodLabel(n)}</span>${covCircle(n)}${wikiLink(n)}${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
   if (hasKids && open) html += `<ul class="tree">${kids.map(k=>buildTreeNode(k,depth+1)).join('')}</ul>`;
   return html + '</li>';
 }
