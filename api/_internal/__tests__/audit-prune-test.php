@@ -107,6 +107,31 @@ assert($geworfen, 'eine unbekannte Tabelle wird abgewiesen, nicht geraeumt');
 echo "Tabellen-Whitelist gehalten\n";
 echo "OK\n";
 
+// ---- 🔴 DIE ZUSICHERUNG DES OWNERS: sie waechst NIE ueber die Grenze ------------------------
+// „ich will dass die nicht über 200 einträge wächst" (18.08.2026). Die Tabelle wird hier so
+// betrieben, wie die Schreibfunktion sie betreibt -- eine Zeile schreiben, aufraeumen -- und nach
+// JEDEM Schritt geprueft. 💣 Der Deckel je Lauf (500) darf das nicht aushebeln: solange je Schritt
+// nur eine Zeile dazukommt, muss auch nur eine weg.
+$lauf = avesmapsAuditPruneTestPdo(0);
+$schreiben = $lauf->prepare('INSERT INTO map_audit_log (action) VALUES (:a)');
+$hoechststand = 0;
+for ($i = 1; $i <= 400; $i++) {
+    $schreiben->execute(['a' => 'schritt-' . $i]);
+    avesmapsPruneAuditLog($lauf, 'map_audit_log', 200);
+    $stand = avesmapsAuditPruneTestCount($lauf);
+    $hoechststand = max($hoechststand, $stand);
+    assert($stand <= 200, "nach Schritt $i stehen $stand Zeilen -- die Grenze ist 200");
+}
+assert($hoechststand === 200, "die Grenze wird erreicht, nicht unterschritten (hoechster Stand: $hoechststand)");
+assert(avesmapsAuditPruneTestCount($lauf) === 200, 'am Ende stehen genau 200');
+
+// Und die juengste Zeile ist die zuletzt geschriebene -- geraeumt wird von unten, nie von oben.
+$juengste = (int) $lauf->query('SELECT MAX(id) FROM map_audit_log')->fetchColumn();
+assert($juengste === 400, "die zuletzt geschriebene Zeile steht noch (hoechste id: $juengste)");
+
+echo "Obergrenze im Dauerbetrieb gehalten
+";
+
 // ---- VERDRAHTUNG: ein gruener Aufraeumer, den niemand ruft, raeumt nichts --------------------
 // 🔴 Gelesen wird die QUELLE, nicht die Funktion: die beiden Schreibwege haengen an MySQL-DDL und
 // lassen sich hier nicht fahren. Diese Zusicherung ist der Ersatz -- und der Grund, aus dem es sie
