@@ -235,7 +235,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
          or either script changes, or admins keep the cached files. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260816-svgexport-12" />
+    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260816-svgexport-13" />
 </head>
 
 <body class="edit-page">
@@ -317,6 +317,19 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                     <p class="svgx-hint">Steht in <code>width</code>/<code>height</code>, der Zeichenraum bleibt 1024 &ndash; alles skaliert mit. Ohne Einfluss auf die Dateigröße.</p>
                     <div class="svgx-size" style="margin-top:12px">
                         <label class="svgx-choice">
+                            <input type="checkbox" id="svgx-semantics" checked />
+                            <span>Semantische Metadaten (f&uuml;r Bildgenerierung)</span>
+                        </label>
+                    </div>
+                    <p class="svgx-hint" style="margin-top:8px">
+                        Jedes Element tr&auml;gt <code>avm:kind</code>, <code>avm:type</code> sowie
+                        <code>avm:klima</code> und <code>avm:relief</code> &ndash; also auch, <em>worin</em>
+                        es liegt. Damit unterscheidet ein Prompt Wald in tropischer von Wald in borealer
+                        Zone. Nur Fakten, keine Deutung; das Vokabular steht im Kopf der Datei.
+                    </p>
+
+                    <div class="svgx-size" style="margin-top:12px">
+                        <label class="svgx-choice">
                             <input type="checkbox" id="svgx-regmarks" />
                             <span>Passmarken in jede Ebene legen</span>
                         </label>
@@ -385,8 +398,8 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                 </table>
             </section>
         </main>
-        <script src="../js/pages/svg-export-build.js?v=20260816-svgexport-12"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260816-svgexport-12"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260816-svgexport-13"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260816-svgexport-13"></script>
     <?php endif; ?>
 </body>
 

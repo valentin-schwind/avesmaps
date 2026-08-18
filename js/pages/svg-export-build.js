@@ -203,6 +203,211 @@ function svgxGroupClose() {
 	return "</g>\n";
 }
 
+
+// ---------------------------------------------------------------------------------------
+// 🔴 SEMANTIK -- die Datei soll als QUELLE für eine Bildgenerierung taugen (Owner 16.08.2026),
+// also muss ein Leser Wüste von Wald von Gebirge unterscheiden können, OHNE die Karte zu
+// kennen und ohne Slugs aus ids zu parsen.
+//
+// Drei Dinge tut der Export dafür:
+//   1. jedes Element trägt `avm:kind` und `avm:type` -- am ELEMENT, nicht nur an der Gruppe.
+//      Wer die Datei flach ausliest (und das tut eine Bild-Pipeline), hätte sonst nichts.
+//   2. der Kopf führt ein VOKABULAR der tatsächlich vorkommenden Typen, mit deutschem und
+//      englischem Begriff -- damit die Datei sich selbst erklärt.
+//   3. beides in beiden Dialekten; `inkscape:label` gibt es im Illustrator-Zweig nicht.
+//
+// ⚠️ Die englischen Begriffe sind ABGESCHRIEBEN aus den Kommentaren in css/base/tokens.css
+// ("dense forest", "swamp and moor", "wadi, sand with an olive cast" …) -- eine echte Quelle,
+// keine Erfindung. Sie müssen hier stehen, weil CSS-KOMMENTARE zur Laufzeit nicht lesbar
+// sind: getComputedStyle liefert den Wert, nie den Kommentar daneben. Ändert dort jemand
+// einen Begriff, folgt diese Tabelle NICHT von selbst.
+const SVGX_NS_AVM = "https://avesmaps.de/ns/export/1";
+
+const SVGX_TYPE_VOCAB = {
+	// Vegetation
+	wald: { de: "Wald", en: "dense forest" },
+	suempfe_moore: { de: "Sümpfe & Moore", en: "swamp and moor" },
+	steppe: { de: "Steppe", en: "steppe" },
+	tundra: { de: "Tundra", en: "tundra" },
+	auenlandschaft: { de: "Auenlandschaft", en: "floodplain" },
+	wueste: { de: "Wüste", en: "desert" },
+	graslandschaft: { de: "Graslandschaft", en: "grassland" },
+	flussland_flusstal: { de: "Flussland & Flusstal", en: "river land and valley" },
+	dschungel: { de: "Dschungel", en: "jungle" },
+	wuestenoase: { de: "Wüstenoase", en: "desert oasis" },
+	kulturlandschaft: { de: "Kulturlandschaft", en: "cultivated land" },
+	// Topographie
+	gebirge: { de: "Gebirge", en: "mountains" },
+	huegelland: { de: "Hügelland", en: "hills" },
+	see: { de: "See", en: "lake" },
+	meer: { de: "Meer", en: "sea" },
+	kueste: { de: "Küste", en: "coast" },
+	wadi: { de: "Wadi", en: "wadi, dry river bed" },
+	schlucht: { de: "Schlucht", en: "gorge" },
+	hochebene: { de: "Hochebene", en: "plateau" },
+	tiefebene: { de: "Tiefebene", en: "lowland" },
+	tal: { de: "Tal", en: "valley" },
+	flussdelta: { de: "Flussdelta", en: "river delta" },
+	insel: { de: "Insel", en: "island" },
+	// Klima
+	polar: { de: "Polar", en: "polar" },
+	subpolar: { de: "Subpolar", en: "subpolar" },
+	boreal: { de: "Boreal", en: "boreal" },
+	gemaessigt: { de: "Gemäßigt", en: "temperate" },
+	subtropen_winterfeucht: { de: "Subtropen, winterfeucht", en: "winter-wet subtropics" },
+	trockene_subtropen: { de: "Trockene Subtropen", en: "dry subtropics" },
+	subtropisch: { de: "Subtropisch", en: "subtropical" },
+	tropisch: { de: "Tropisch", en: "tropical" },
+	// Derographische Behälter
+	kontinent: { de: "Kontinent", en: "continent" },
+	inselgruppe: { de: "Inselgruppe", en: "archipelago" },
+	region: { de: "Region", en: "region" },
+	ohne_typ: { de: "ohne Typ", en: "untyped area" },
+	// Wegarten
+	Reichsstrasse: { de: "Reichsstraße", en: "imperial road" },
+	Strasse: { de: "Straße", en: "road" },
+	Weg: { de: "Weg", en: "track" },
+	Pfad: { de: "Pfad", en: "footpath" },
+	Gebirgspass: { de: "Gebirgspass", en: "mountain pass" },
+	Wuestenpfad: { de: "Wüstenpfad", en: "desert trail" },
+	Flussweg: { de: "Flussweg", en: "river" },
+	Seeweg: { de: "Seeweg", en: "sea route" },
+	// Ortsarten
+	metropole: { de: "Metropole", en: "metropolis" },
+	grossstadt: { de: "Großstadt", en: "large city" },
+	stadt: { de: "Stadt", en: "city" },
+	kleinstadt: { de: "Kleinstadt", en: "small town" },
+	dorf: { de: "Dorf", en: "village" },
+	gebaeude: { de: "Gebäude", en: "building" },
+};
+
+// Die Semantik-Attribute eines Elements. Leer, wenn niemand sie bestellt hat -- niemand
+// bekommt 20.000-mal drei Attribute ungefragt in die Datei.
+function svgxSem(an, felder) {
+	if (!an) { return ""; }
+	return Object.entries(felder || {})
+		.filter(([, v]) => v !== undefined && v !== null && v !== "")
+		.map(([k, v]) => ` avm:${k}="${svgxEscapeText(v)}"`)
+		.join("");
+}
+
+
+// ---------------------------------------------------------------------------------------
+// 🔴 DER KONTEXT -- das eigentliche Ziel der Semantik (Owner 16.08.2026).
+//
+// Ein Waldpolygon allein sagt nur "Wald". Was daraus im Bild wird, entscheidet die
+// ÜBERLAGERUNG: Wald x tropisch ist Dschungel und Palmen, Wald x boreal ist Nadelwald,
+// Gebirge x polar ist schneebedeckt. Also trägt jedes Element neben seinem Typ auch, in
+// welcher Klimazone und über welchem Relief es liegt.
+//
+// 🔴 NUR FAKTEN, keine Deutung (Owner-Entscheid). Was "Wald x tropisch" BEDEUTET, steht
+// nicht in der Datei -- das entscheidet der Prompt-Bauer. Sonst wäre die SVG ein
+// Art-Direction-Dokument, und jede Änderung an der Bildsprache verlangte einen Neuexport.
+//
+// ⚠️ Gerechnet wird in KARTENkoordinaten (y wächst nach Norden), nicht in SVG-Koordinaten.
+// Die Landschaftsgeometrien kommen so herein; einmal spiegeln reicht, und das passiert
+// erst beim Zeichnen. Wer hier spiegelte, bekäme die Klimazonen von Nord nach Süd vertauscht.
+const SVGX_RELIEF_TYPES = ["gebirge", "huegelland", "hochebene", "tiefebene", "tal", "schlucht", "wadi"];
+
+// Strahlensatz-Test, die Standardform. Punkte sind [x, y] in Kartenkoordinaten.
+function svgxPointInRing(x, y, ring) {
+	let drin = false;
+	for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+		const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+		if (((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)) {
+			drin = !drin;
+		}
+	}
+	return drin;
+}
+
+// 💣 Löcher zählen. Ein Punkt im Binnensee eines Kontinents liegt NICHT im Kontinent --
+// wer nur den Außenring prüft, ordnet jede Insel im See der Landmasse zu.
+function svgxPointInPolygon(x, y, geometry) {
+	const typ = geometry && geometry.type;
+	const coords = (geometry && geometry.coordinates) || [];
+	const teile = typ === "MultiPolygon" ? coords : (typ === "Polygon" ? [coords] : []);
+	for (const teil of teile) {
+		if (!teil || !teil.length || !svgxPointInRing(x, y, teil[0])) { continue; }
+		let imLoch = false;
+		for (let r = 1; r < teil.length; r += 1) {
+			if (svgxPointInRing(x, y, teil[r])) { imLoch = true; break; }
+		}
+		if (!imLoch) { return true; }
+	}
+	return false;
+}
+
+// Ein Punkt, der das Element vertritt. Für eine Fläche die Mitte ihrer Hüllbox -- nicht der
+// echte Schwerpunkt, aber für "in welchem Band liegt das" genau genug und in einem Durchgang.
+// ⚠️ Für eine Linie die MITTE, nicht der Anfang: ein Fluss beginnt im Gebirge und endet im
+// Meer, und sein Anfang beantwortet die Frage nach seiner Umgebung falsch.
+function svgxRepPoint(geometry) {
+	const typ = geometry && geometry.type;
+	const c = (geometry && geometry.coordinates) || [];
+	if (typ === "Point") { return [Number(c[0]), Number(c[1])]; }
+	if (typ === "LineString") {
+		if (!c.length) { return null; }
+		const m = c[Math.floor(c.length / 2)];
+		return [Number(m[0]), Number(m[1])];
+	}
+	const teile = typ === "MultiPolygon" ? c : (typ === "Polygon" ? [c] : []);
+	let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, gesehen = false;
+	teile.forEach((teil) => (teil && teil[0] ? teil[0] : []).forEach(([x, y]) => {
+		gesehen = true;
+		if (x < minX) { minX = x; } if (x > maxX) { maxX = x; }
+		if (y < minY) { minY = y; } if (y > maxY) { maxY = y; }
+	}));
+	return gesehen ? [(minX + maxX) / 2, (minY + maxY) / 2] : null;
+}
+
+// Die Nachschlagewerke: Klimabänder und Reliefflächen, je mit Hüllbox als Vorfilter.
+// ⚠️ Die Hüllbox ist ein VORfilter, kein Treffer -- danach entscheidet der Punkttest.
+// (Am Seepunkt lagen 9 Gebiete in der Box und 0 bestanden den Test; dieselbe Falle wie
+// bei "Was ist hier?".)
+function svgxBuildContextIndex(ecosystems) {
+	const bauen = (pruef) => svgxAsFeatures(ecosystems)
+		.filter((f) => f && f.geometry && pruef(svgxProps(f)))
+		.map((f) => {
+			const g = f.geometry;
+			const c = g.coordinates || [];
+			const teile = g.type === "MultiPolygon" ? c : [c];
+			let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+			teile.forEach((teil) => (teil && teil[0] ? teil[0] : []).forEach(([x, y]) => {
+				if (x < minX) { minX = x; } if (x > maxX) { maxX = x; }
+				if (y < minY) { minY = y; } if (y > maxY) { maxY = y; }
+			}));
+			return { typ: svgxProps(f).region_type || "", geometry: g, minX, minY, maxX, maxY };
+		});
+
+	return {
+		klima: bauen((pr) => pr.kind === "klima"),
+		relief: bauen((pr) => SVGX_RELIEF_TYPES.includes(pr.region_type)),
+	};
+}
+
+function svgxLookup(liste, punkt) {
+	if (!punkt) { return ""; }
+	const [x, y] = punkt;
+	for (const e of liste) {
+		if (x < e.minX || x > e.maxX || y < e.minY || y > e.maxY) { continue; }
+		if (svgxPointInPolygon(x, y, e.geometry)) { return e.typ; }
+	}
+	return "";
+}
+
+// Klimazone und Relief eines Elements. Leer, wenn nichts zutrifft -- eine leere Angabe ist
+// ehrlicher als eine geratene.
+function svgxContextFor(geometry, index) {
+	if (!index) { return {}; }
+	const punkt = svgxRepPoint(geometry);
+	if (!punkt) { return {}; }
+	return {
+		klima: svgxLookup(index.klima || [], punkt),
+		relief: svgxLookup(index.relief || [], punkt),
+	};
+}
+
 // 🔴 PASSMARKEN -- gegen das Photoshop-Problem, und es ist ein echtes.
 //
 // Photoshop beschneidet eine rasterisierte Ebene auf ihren INHALT. Sobald man die Ebenen
@@ -251,15 +456,17 @@ const SVGX_DEFAULT_SIZE_PX = 32768;
 // Nur so skaliert alles mit: Koordinaten, Strichstärken, Schriftgrößen. Wer stattdessen die
 // Koordinaten multiplizierte, müsste jede Strichstärke und jede Schrift einzeln mitrechnen --
 // und ein Vergessener fiele erst im Druck auf.
-function svgxDocumentOpen(dialect, sizePx) {
+function svgxDocumentOpen(dialect, sizePx, vokabular) {
 	const groesse = Math.max(1, Math.round(Number(sizePx) || SVGX_DEFAULT_SIZE_PX));
 	const inkscapeNs = dialect === SVGX_DIALECTS.INKSCAPE
 		? ' xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"'
 		: "";
+	const avmNs = vokabular ? ` xmlns:avm="${SVGX_NS_AVM}"` : "";
 	return '<?xml version="1.0" encoding="UTF-8"?>\n'
 		+ '<svg xmlns="http://www.w3.org/2000/svg"'
 		+ ' xmlns:xlink="http://www.w3.org/1999/xlink"'
 		+ inkscapeNs
+		+ avmNs
 		+ ` viewBox="0 0 ${SVGX_VIEWBOX_SIZE} ${SVGX_VIEWBOX_SIZE}"`
 		+ ` width="${groesse}" height="${groesse}">\n`
 		// Die Lizenz reist mit: eine SVG geht nach draußen und muss ohne die Website
@@ -268,6 +475,10 @@ function svgxDocumentOpen(dialect, sizePx) {
 		+ "  Avesmaps — https://avesmaps.de\n"
 		+ "  Nicht-kommerzielles Fanprojekt zu Das Schwarze Auge / Aventurien.\n"
 		+ "  Lizenz und Hinweise: https://avesmaps.de/NOTICE.md\n"
+		// Das Vokabular macht die Datei SELBSTERKLÄREND: wer sie als semantische Quelle liest,
+		// muss weder Avesmaps kennen noch Slugs aus ids parsen. JSON in einem <desc>, weil das
+		// überall durchkommt und nichts zeichnet.
+		+ (vokabular ? `  <desc id="avm-vokabular">${svgxEscapeText(JSON.stringify(vokabular))}</desc>\n` : "")
 		+ "</metadata>\n";
 }
 
@@ -484,7 +695,9 @@ function svgxWayLayer(options) {
 				// 🔴 Die Kontur bekommt eine EIGENE id mit Endung -- sonst gäbe es jede id
 				// zweimal, und der <textPath href> der Beschriftung träfe die falsche.
 				const id = svgxIdFor(`${name}-Kontur`, f.properties && f.properties.public_id, o.dialect, o.seen);
-				stuecke.push(`<path id="${svgxEscapeText(id)}" d="${svgxPathData(f.geometry.coordinates, zeichnen)}"/>\n`);
+				stuecke.push(`<path id="${svgxEscapeText(id)}"`
+					+ svgxSem(o.semantics, { kind: "weg", type: art, rolle: "kontur" })
+					+ ` d="${svgxPathData(f.geometry.coordinates, zeichnen)}"/>\n`);
 			});
 			stuecke.push(svgxGroupClose());
 		}
@@ -503,6 +716,8 @@ function svgxWayLayer(options) {
 				o.wayIds.set(f.properties.public_id, id);
 			}
 			stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)}`
+				+ svgxSem(o.semantics, Object.assign({ kind: "weg", type: art, name: name },
+					svgxContextFor(f.geometry, o.context)))
 				+ ` d="${svgxPathData(f.geometry.coordinates, zeichnen)}">`
 				+ `<title>${svgxEscapeText(name)}</title></path>\n`);
 			anzahl += 1;
@@ -532,6 +747,8 @@ function svgxPowerlineLayer(options) {
 		const name = f.properties.name || "Kraftlinie";
 		const id = svgxIdFor(name, f.properties.public_id, o.dialect, o.seen);
 		stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)}`
+			+ svgxSem(o.semantics, Object.assign({ kind: "kraftlinie", name: name },
+			svgxContextFor(f.geometry, o.context)))
 			+ ` d="${svgxPathData(f.geometry.coordinates)}">`
 			+ `<title>${svgxEscapeText(name)}</title></path>\n`);
 	});
@@ -600,7 +817,10 @@ function svgxAreaLayer(options) {
 			if (!d) { return; }
 			const name = svgxNameOf(f) || schluessel || o.layerName;
 			const id = svgxIdFor(name, svgxProps(f).public_id, o.dialect, o.seen);
-			stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)} d="${d}">`
+			stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)}`
+				+ svgxSem(o.semantics, Object.assign({ kind: o.semKind || "flaeche", type: schluessel,
+					ebene: svgxProps(f).kind, name: name }, svgxContextFor(f.geometry, o.context)))
+				+ ` d="${d}">`
 				+ `<title>${svgxEscapeText(name)}</title></path>\n`);
 			anzahl += 1;
 			// ⚠️ `zaehler`, NICHT `gruppen` -- letzteres ist die Map der Flächen. Eine Zahl
@@ -652,6 +872,8 @@ function svgxPlaceLayer(options) {
 			const name = f.properties.name || kind.label || slug;
 			const id = svgxIdFor(name, f.properties.public_id, o.dialect, o.seen);
 			stuecke.push(`<circle id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)}`
+				+ svgxSem(o.semantics, Object.assign({ kind: "ort", type: slug, name: name },
+				svgxContextFor(f.geometry, o.context)))
 				+ ` cx="${p.x}" cy="${p.y}" r="${kind.r || 0.8}">`
 				+ `<title>${svgxEscapeText(name)}</title></circle>\n`);
 			anzahl += 1;
@@ -744,10 +966,14 @@ function svgxBuildDocument(options) {
 	const an = o.layers || {};
 	const seen = new Set();
 	const wayIds = new Map();
-	const parts = [svgxDocumentOpen(dialect, o.sizePx)];
+	// 🔴 Der Kopf wird ZULETZT gesetzt: das Vokabular kennt erst, wer die Ebenen gebaut hat.
+	const koerper = [];
+	const kontext = o.semantics ? svgxBuildContextIndex(o.ecosystems) : null;
+	const semAn = o.semantics === true;
 	const stats = {};
 
 	const detail = [];
+	const parts = koerper;
 	const nimm = (name, ergebnis) => {
 		stats[name] = ergebnis.count;
 		// Die Passmarken kommen INNEN, kurz vor dem Schließen der Ebene -- außen läge
@@ -779,7 +1005,7 @@ function svgxBuildDocument(options) {
 			features: o.mapFeatures, dialect: dialect, seen: seen, wayIds: wayIds,
 			enabled: (o.subgroups || {}).wege, strokeScale: o.strokeScale,
 			colors: o.wayColors, outlines: o.wayOutlines, smooth: o.smooth, tension: o.tension,
-			only: ["Flussweg"], bare: true,
+			only: ["Flussweg"], bare: true, semantics: semAn, context: kontext,
 		});
 		flussTeile = fl.parts;
 		if (fl.count) { detail.push({ layer: "Landschaften", group: "Flusswege", count: fl.count }); }
@@ -790,7 +1016,7 @@ function svgxBuildDocument(options) {
 	// (gemessen 14.08.2026 an 11.810 Features -- location, crossing, path, junction, label,
 	// powerline). Die Flächen, die man dafür hielte, sind die Landschaften-Ebene.
 	if (an.landschaften !== false) {
-		nimm("Landschaften", svgxAreaLayer({
+		nimm("Landschaften", svgxAreaLayer({ semantics: semAn, context: kontext, semKind: "landschaft",
 			features: o.ecosystems, layerName: "Landschaften", layerId: "layer-landschaften",
 			// 💣 Der Rückfall heißt `ohne_typ` und NICHT etwa der Name der Art. 49 Flächen
 			// tragen keinen region_type; fielen sie auf "topographie"/"derographisch"
@@ -827,7 +1053,7 @@ function svgxBuildDocument(options) {
 		}));
 	}
 	if (an.gebiete !== false) {
-		nimm("Herrschaftsgebiete", svgxAreaLayer({
+		nimm("Herrschaftsgebiete", svgxAreaLayer({ semantics: semAn, context: kontext, semKind: "herrschaftsgebiet",
 			features: o.territories, layerName: "Herrschaftsgebiete", layerId: "layer-gebiete",
 			groupBy: (f) => svgxProps(f).rank || svgxProps(f).type || "Gebiet",
 			defaultFill: "none", stroke: o.boundaryColor || "#8a6a3f", strokeScale: o.strokeScale,
@@ -847,16 +1073,16 @@ function svgxBuildDocument(options) {
 		const wegeAus = fluesseUnten
 			? Object.assign({}, (o.subgroups || {}).wege, { Flussweg: false })
 			: (o.subgroups || {}).wege;
-		nimm("Wege", svgxWayLayer({ features: o.mapFeatures, dialect: dialect, seen: seen,
+		nimm("Wege", svgxWayLayer({ semantics: semAn, context: kontext, features: o.mapFeatures, dialect: dialect, seen: seen,
 			wayIds: wayIds, enabled: wegeAus, strokeScale: o.strokeScale,
 			colors: o.wayColors, outlines: o.wayOutlines, smooth: o.smooth, tension: o.tension }));
 	}
 	if (an.kraftlinien !== false) {
-		nimm("Kraftlinien", svgxPowerlineLayer({ features: o.mapFeatures, dialect: dialect, seen: seen,
+		nimm("Kraftlinien", svgxPowerlineLayer({ semantics: semAn, context: kontext, features: o.mapFeatures, dialect: dialect, seen: seen,
 			strokeScale: o.strokeScale, color: o.powerlineColor, smooth: o.smooth, tension: o.tension }));
 	}
 	if (an.orte !== false) {
-		nimm("Orte", svgxPlaceLayer({ features: o.mapFeatures, kinds: o.placeKinds, dialect: dialect,
+		nimm("Orte", svgxPlaceLayer({ semantics: semAn, context: kontext, features: o.mapFeatures, kinds: o.placeKinds, dialect: dialect,
 			seen: seen, enabled: (o.subgroups || {}).orte, colors: o.placeColors }));
 	}
 	if (an.beschriftungen !== false) {
@@ -865,8 +1091,29 @@ function svgxBuildDocument(options) {
 		}));
 	}
 
-	parts.push(svgxDocumentClose());
-	return { parts: parts, stats: stats, detail: detail };
+	koerper.push(svgxDocumentClose());
+
+	// Das Vokabular führt NUR, was wirklich in der Datei steht -- eine Liste aller
+	// denkbaren Typen wäre eine Behauptung über eine Datei, die es nicht gibt.
+	let vokabular = null;
+	if (semAn) {
+		const typen = {};
+		detail.forEach((d) => {
+			const v = SVGX_TYPE_VOCAB[d.group];
+			if (!v) { return; }
+			typen[d.group] = { de: v.de, en: v.en, ebene: d.layer, anzahl: d.count };
+		});
+		vokabular = {
+			hinweis: "avm:kind/type/klima/relief an jedem Element. Nur Fakten, keine Deutung.",
+			quelle: "https://avesmaps.de",
+			felder: { kind: "Objektart", type: "Gelaende- bzw. Wegart", klima: "Klimazone am Ort",
+				relief: "Relief am Ort", ebene: "Landschaftsebene", name: "Eigenname" },
+			typen: typen,
+		};
+	}
+
+	return { parts: [svgxDocumentOpen(dialect, o.sizePx, vokabular)].concat(koerper),
+		stats: stats, detail: detail };
 }
 
 // Browserseite: EIN benannter Zugang für den Kitt. Die flachen Funktionen bleiben
@@ -909,6 +1156,12 @@ if (typeof module !== "undefined" && module.exports) {
 		svgxPolygonData: svgxPolygonData,
 		svgxSmoothRingData: svgxSmoothRingData,
 		svgxRegistrationMarks: svgxRegistrationMarks,
+		svgxBuildContextIndex: svgxBuildContextIndex,
+		svgxContextFor: svgxContextFor,
+		svgxPointInPolygon: svgxPointInPolygon,
+		svgxRepPoint: svgxRepPoint,
+		SVGX_TYPE_VOCAB: SVGX_TYPE_VOCAB,
+		SVGX_RELIEF_TYPES: SVGX_RELIEF_TYPES,
 		SVGX_REGMARK_COLOR: SVGX_REGMARK_COLOR,
 		svgxAsFeatures: svgxAsFeatures,
 		svgxProps: svgxProps,

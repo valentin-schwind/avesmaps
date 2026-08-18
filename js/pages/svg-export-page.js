@@ -338,6 +338,7 @@
 				smooth: kurve.smooth,
 				smoothAreas: kurve.smoothAreas,
 				registrationMarks: Boolean((el("svgx-regmarks") || {}).checked),
+				semantics: Boolean((el("svgx-semantics") || {}).checked),
 				tension: kurve.tension,
 				wayColors: farben.wayColors,
 				wayOutlines: farben.wayOutlines,
