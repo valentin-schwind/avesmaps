@@ -680,21 +680,23 @@ function computeRaycast(areas) {
 // political; it asks api/app/political-territories.php?action=layer through the helper the
 // settlement editor already uses.
 //
-// ⚠️ That helper dedups by territory_public_id and keeps the FIRST geometry a zoom surfaces. A
-// territory therefore appears ONCE -- with the geometry the layer actually shows for it, aggregate
-// or raw. Each hit says which it was rather than pretending both are available.
+// ⚠️ That helper dedups by territory_public_id: a territory appears ONCE, carrying ALL of its own
+// drawn geometries (aggregate fragments of its children and the derived outer hull are dropped --
+// see selectOwnTerritoryFeatures). They are merged into one MultiPolygon here, because a territory
+// split across several geometry rows -- the Alanfanisches Imperium has four -- must be clipped and
+// measured as a whole; testing only the first shrank it to that one part.
 //
 // 💣 It fans out over zoom 0..6 because territories are zoom-banded (a single call misses most of
 // them). That is seven requests at the political layer, which CLAUDE.md warns never to loop -- so
 // it stays behind the explicit „Zugehörigkeit rechnen" click and runs at most once per session.
 async function loadTerritories() {
-	if (typeof loadAllTerritoryGeometry !== "function") {
+	if (typeof loadAllTerritoryGeometry !== "function" || typeof mergeTerritoryFeatureGeometry !== "function") {
 		throw new Error("Das Territorien-Modul ist nicht geladen.");
 	}
 	const entries = await loadAllTerritoryGeometry();
 	return entries.map((entry) => {
-		const properties = (entry.feature && entry.feature.properties) || {};
-		const geometry = entry.feature && entry.feature.geometry;
+		const properties = (entry.features[0] && entry.features[0].properties) || {};
+		const geometry = mergeTerritoryFeatureGeometry(entry.features);
 		const bounds = geometry ? ecosystemGeometryBounds(geometry) : null;
 		return {
 			publicId: String(properties.territory_public_id || ""),

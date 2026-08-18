@@ -249,32 +249,100 @@ async function loadAllTerritoryLayerFeatures() {
 }
 
 /**
- * The ray-cast engine's view of the same fan-out: ONE geometry per territory,
- * "first feature the layer served wins".
+ * A territory's OWN drawn geometries -- the ray-cast engine's view of one layer group.
+ * Pure function: filters by PROVENANCE, never by position (see the 💣 note on
+ * loadAllTerritoryLayerFeatures -- one territory is many features, and their order in the layer
+ * response is `ORDER BY sort_order, name, geometry.id`, which carries no meaning for this
+ * question).
  *
- * 🔴 Deliberately NOT the derived outer boundary, even where one exists. The
- * assignment engine asks "which territory is this settlement inside", and a
- * derived hull spans the gaps BETWEEN its children -- a settlement sitting in
- * such a gap would be assigned to the empire instead of staying unassigned.
- * The import dialog wants the opposite and therefore picks for itself.
+ * Two kinds of foreign matter travel under a territory's own territory_public_id:
  *
- * Also computes each feature's `area` (shoelace, outer minus holes) once here,
- * since buildTerritoryMeta needs it for the tiebreak and re-deriving it later
- * would mean walking the geometry twice.
+ * 1. AGGREGATE FRAGMENTS (`aggregate_source_territory_public_id` set) -- a CHILD's geometry,
+ *    rendered under the parent's name at low zoom. Not the parent's own area, and it may sit
+ *    anywhere: for the Alanfanisches Imperium the layer's first feature is a 3.8 x 5.7 unit patch
+ *    of Grosskoenigreich Selem in Uthuria, while the empire's own mainland polygon -- the one
+ *    holding its capital Al'Anfa -- comes third. Taking features[0] therefore tested the empire
+ *    against Selem's patch and left Al'Anfa unassigned (measured live 2026-08-18).
+ * 2. The DERIVED OUTER BOUNDARY (`is_derived_geometry`). 🔴 Deliberately dropped, even where it
+ *    is the ONLY feature a territory has: the assignment engine asks "which territory is this
+ *    settlement inside", and a derived hull spans the gaps BETWEEN its children -- a settlement
+ *    sitting in such a gap would be assigned to the empire instead of staying unassigned. The
+ *    import dialog wants the opposite and therefore picks for itself.
  *
- * @returns {Promise<Array<{feature: Object, territory_public_id: string, area: number}>>}
- *   one entry per distinct territory, each carrying its GeoJSON feature and area.
+ * @param {Object[]} features - every feature the layer served under one territory_public_id.
+ * @returns {Object[]} the subset drawn for THIS territory, in layer order.
+ */
+function selectOwnTerritoryFeatures(features) {
+  return (features || []).filter((feature) => {
+    const properties = feature?.properties || {};
+    if (properties.is_derived_geometry) return false;
+    return String(properties.aggregate_source_territory_public_id || "").trim() === "";
+  });
+}
+
+/**
+ * The ray-cast engine's view of the whole fan-out: one entry per territory carrying EVERY one of
+ * its own geometries. Pure (no fetch) so the selection rule is unit-testable; loadAllTerritoryGeometry
+ * is the async wrapper around it.
+ *
+ * 💣 ALL of them, not one. A territory's area is regularly split across several geometry rows
+ * (the empire has four), and testing only one silently shrinks it to that fragment.
+ *
+ * `area` is the SUM of the own geometries (shoelace, outer minus holes), computed once here since
+ * buildTerritoryMeta needs it for the same-depth tiebreak and re-deriving it later would mean
+ * walking the geometry twice. The tiebreak compares whole territories, so a territory made of four
+ * parts must weigh all four.
+ *
+ * A territory with no own geometry at all (only a derived hull) yields NO entry -- it is not a
+ * ray-cast candidate, per rule 2 in selectOwnTerritoryFeatures.
+ *
+ * @param {Array<{territory_public_id: string, features: Object[]}>} groups - from loadAllTerritoryLayerFeatures().
+ * @returns {Array<{features: Object[], territory_public_id: string, area: number}>}
+ */
+function buildTerritoryGeometryEntries(groups) {
+  return (groups || [])
+    .map((group) => {
+      const features = selectOwnTerritoryFeatures(group?.features);
+      return {
+        features,
+        territory_public_id: group?.territory_public_id,
+        area: features.reduce((sum, feature) => sum + geometryArea(feature.geometry), 0),
+      };
+    })
+    .filter((entry) => entry.features.length > 0);
+}
+
+/**
+ * Folds a territory's own features into ONE geometry, for callers that clip/measure a territory as
+ * a whole instead of ray-casting against a list (the Landschaften editor's „Liegt in").
+ *
+ * Plain concatenation of the polygon parts, no boolean union: the rows are separate PARTS of one
+ * territory, not overlapping claims, and a real union would pull polygon-clipping into a path that
+ * only needs a shape to intersect against.
+ *
+ * @param {Object[]} features - own features (from selectOwnTerritoryFeatures).
+ * @returns {{type: 'MultiPolygon', coordinates: any[]} | null} null when there is nothing to merge --
+ *   never an empty shape, which downstream would read as "a territory with zero area".
+ */
+function mergeTerritoryFeatureGeometry(features) {
+  const parts = [];
+  (features || []).forEach((feature) => {
+    const geometry = feature?.geometry;
+    if (!geometry) return;
+    if (geometry.type === "Polygon") parts.push(geometry.coordinates);
+    else if (geometry.type === "MultiPolygon") geometry.coordinates.forEach((polygon) => parts.push(polygon));
+  });
+  return parts.length > 0 ? { type: "MultiPolygon", coordinates: parts } : null;
+}
+
+/**
+ * Async wrapper: fetches the full layer fan-out and applies the selection rule above.
+ *
+ * @returns {Promise<Array<{features: Object[], territory_public_id: string, area: number}>>}
+ *   one entry per distinct territory, each carrying its own GeoJSON features and their total area.
  */
 async function loadAllTerritoryGeometry() {
-  const groups = await loadAllTerritoryLayerFeatures();
-
-  return groups
-    .filter((group) => Boolean(group.features[0]))
-    .map((group) => ({
-      feature: group.features[0],
-      territory_public_id: group.territory_public_id,
-      area: geometryArea(group.features[0].geometry),
-    }));
+  return buildTerritoryGeometryEntries(await loadAllTerritoryLayerFeatures());
 }
 
 /**
@@ -378,7 +446,7 @@ async function computeDryRun({ scope } = {}) {
     settlementAssignFetchJson(SETTLEMENT_ASSIGN_SETTLEMENTS_API_URL, { action: "settlement_editor_list" }),
   ]);
   const meta = await buildTerritoryMeta(geometryEntries);
-  const features = geometryEntries.map((entry) => entry.feature);
+  const features = geometryEntries.flatMap((entry) => entry.features);
 
   let scopedFeatures = features;
   if (scope && typeof scope === "object" && scope.territoryPublicId) {
@@ -388,7 +456,7 @@ async function computeDryRun({ scope } = {}) {
     // still want the deepest-level tiebreak to apply, not just the one clicked
     // territory).
     const scopeEntry = geometryEntries.find((entry) => entry.territory_public_id === scope.territoryPublicId);
-    scopedFeatures = scopeEntry ? [scopeEntry.feature] : [];
+    scopedFeatures = scopeEntry ? scopeEntry.features : [];
   }
 
   const items = Array.isArray(listResponse?.items) ? listResponse.items : [];
@@ -416,7 +484,7 @@ async function computeDryRun({ scope } = {}) {
       // settlement clearly outside the clicked territory never pays for the
       // full ray-cast at all.
       const insideScope = scopedFeatures.length > 0 && pip
-        && pip.pointInGeometry(point, scopedFeatures[0].geometry);
+        && scopedFeatures.some((feature) => pip.pointInGeometry(point, feature.geometry));
       if (!insideScope) return; // not inside the scoped territory at all
     }
 
@@ -625,12 +693,23 @@ function clearMapFilter() {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { descendantWikiKeys, pickDeepestTerritory, geometryArea, polygonArea };
+  module.exports = {
+    descendantWikiKeys,
+    pickDeepestTerritory,
+    geometryArea,
+    polygonArea,
+    selectOwnTerritoryFeatures,
+    buildTerritoryGeometryEntries,
+    mergeTerritoryFeatureGeometry,
+  };
 }
 if (typeof window !== "undefined") {
   window.AvesmapsSettlementAssign = Object.assign(window.AvesmapsSettlementAssign || {}, {
     descendantWikiKeys,
     pickDeepestTerritory,
+    selectOwnTerritoryFeatures,
+    buildTerritoryGeometryEntries,
+    mergeTerritoryFeatureGeometry,
     loadAllTerritoryGeometry,
     loadAllTerritoryLayerFeatures,
     buildTerritoryMeta,
