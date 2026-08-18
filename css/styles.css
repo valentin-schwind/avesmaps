@@ -32,6 +32,11 @@
    Editorfenster aussehen (Owner 2026-08-15). Dieselbe Datei laedt editor-page.css fuer die sechs
    Editorseiten; die Regel steht also weiterhin genau einmal. */
 @import url("components/editor-row.css");
+/* Der Statuskreis neben einem Listennamen. Dieselbe Reise wie die Zeile darueber und aus
+   demselben Grund: er gehoert der App (Panel-Listen, Territorien-Baum) UND den Editorfenstern,
+   seit die Kraftlinienliste im Editor einen traegt (Owner 18.08.2026). editor-page.css bindet
+   dieselbe Datei fuer die sechs Editorseiten -- die Regel steht also genau einmal. */
+@import url("components/map-status-circle.css");
 @import url("components/region-wiki-dialogs.css");
 @import url("components/political-territory-tree.css");
 @import url("components/political-territory-controls.css");

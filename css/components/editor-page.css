@@ -35,6 +35,11 @@
    Die sechs Editorseiten merken nichts: sie binden editor-page.css und bekommen die Zeile mit. */
 @import url("editor-row.css");
 
+/* 💣 Und der Statuskreis daneben -- dieselbe Bauform, derselbe Grund. Er stand bis 2026-08-18 in
+   css/components/region-sync.css, und die laedt nur index.html; eine Editorliste konnte deshalb
+   gar keinen Kreis haben. Auch dieser @import muss VOR jeder Regel stehen. */
+@import url("map-status-circle.css");
+
 /* Bildlaufleisten. Stand bis 2026-07-22 dreimal kopiert in den Editorseiten (zwei davon auf 7px,
    eine auf 10px). Bewusst NICHT der 7px-Wert aus css/base/base.css: die Editoren sind
    Arbeitsflächen mit vielen Scrollbereichen, die App ringsum ist es nicht. Die WebKit-

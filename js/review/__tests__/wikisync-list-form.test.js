@@ -155,13 +155,52 @@ checks++;
 // 💣 Die Regel darf deshalb nicht an ".tree-item" haengen: sobald die drei Listen dieselbe Zeile
 // tragen, bekaemen sie den Kreis automatisch mit. Beim ersten Entwurf des Mockups ist genau das
 // passiert, und gesehen hat es der Owner, nicht das Werkzeug.
-assert.ok(/\.tree-item\.has-map-status \.tree-item-name::after/.test(regionSync),
+// 🔴 Er steht seit 2026-08-18 in css/components/map-status-circle.css, NICHT mehr hier. Grund: die
+// Editorfenster tragen die andere Zeilenform (.avm-row) und laden region-sync.css nie -- solange
+// die Regel dort stand, konnte eine Editorliste gar keinen Kreis haben. Die Kraftlinienliste im
+// Editor hat seither einen (Owner 18.08.2026). Dieselbe Reise wie die Zeile selbst am 15.08.2026.
+const kreis = lies("css", "components", "map-status-circle.css");
+assert.ok(/\.tree-item\.has-map-status \.tree-item-name::after/.test(kreis),
 	'Die Statuskreis-Regel haengt nicht an ".tree-item.has-map-status". An ".tree-item" allein '
 	+ "bekommen Literatur, Karten und Vorkommen einen Kreis, den ihre Daten nicht hergeben.");
 checks++;
-assert.ok(!/(^|[^-\w.])\.tree-item \.tree-item-name::after/m.test(regionSync),
+assert.ok(!/(^|[^-\w.])\.tree-item \.tree-item-name::after/m.test(kreis),
 	"Es gibt noch eine Kreis-Regel ohne .has-map-status.");
 checks++;
+
+// 💣 Und sie steht GENAU EINMAL. region-sync.css darf keine eigene Fassung zurueckbekommen -- zwei
+// Kreise in zwei Dateien sind exakt der Zustand, den dieser Test fuer die ZEILE schon einmal
+// beendet hat.
+assert.ok(!/has-map-status/.test(regionSync),
+	"region-sync.css definiert wieder eine eigene Statuskreis-Regel. Sie gehoert NUR nach "
+	+ "css/components/map-status-circle.css -- sonst driften App und Editorfenster auseinander, "
+	+ "und zwar unbemerkt, weil jede Liste fuer sich richtig aussieht.");
+checks++;
+
+// 💣 Die EINE Regel nennt ALLE DREI Wirte. Getrennte Regeln reichen nicht: die ID-Fassung hat
+// Spezifitaet (1,1,0) gegen (0,2,0) und gewinnt unabhaengig von der Ladereihenfolge -- dieselbe
+// Begruendung wie bei Punkt 3 oben.
+const kreisRegel = kreis.match(
+	/\.wikisync-itemlist \.tree-item\.has-map-status \.tree-item-name::after,\s*\r?\n#wiki-sync-territory-tree \.tree-item\.has-map-status \.tree-item-name::after,\s*\r?\n\.avm-row\.has-map-status \.avm-row__name::after\s*\{/);
+assert.ok(kreisRegel,
+	"In map-status-circle.css fehlt einer der drei Wirte an der GEMEINSAMEN Regel. Erwartet:\n"
+	+ "  .wikisync-itemlist .tree-item.has-map-status .tree-item-name::after,\n"
+	+ "  #wiki-sync-territory-tree .tree-item.has-map-status .tree-item-name::after,\n"
+	+ "  .avm-row.has-map-status .avm-row__name::after { ... }");
+checks++;
+
+// ⚠️ Und beide Welten muessen die Datei auch laden: index.html sieht nur css/styles.css, die sechs
+// Editorseiten nur css/components/editor-page.css. Fehlt ein @import, steht der Kreis dort
+// lautlos gar nicht -- kein Fehler, keine Meldung, nur ein fehlendes Zeichen.
+for (const [datei, pfad] of [
+	["css/styles.css", ["css", "styles.css"]],
+	["css/components/editor-page.css", ["css", "components", "editor-page.css"]],
+]) {
+	assert.ok(/@import url\("(?:components\/)?map-status-circle\.css"\);/.test(lies(...pfad)),
+		`${datei} bindet css/components/map-status-circle.css nicht ein. Dann fehlt der Statuskreis `
+		+ "in dieser ganzen Welt, ohne dass irgendetwas wirft.");
+	checks++;
+}
 
 // ⚠️ Kraftlinien setzt als einziges Karten-Subjekt gar keinen .tree-map-status-Marker (0 Treffer in
 // review-powerline-list.js) und traegt trotzdem einen -- immer leeren -- Kreis. Deshalb ist die

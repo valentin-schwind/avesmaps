@@ -1,0 +1,81 @@
+/* Der Statuskreis — der grüne Ring rechts neben einem Listennamen. EINE Datei, weil er an ZWEI
+ * Orten gebraucht wird, genau wie die Listenzeile nebenan (css/components/editor-row.css).
+ *
+ * 💣 Er stand bis 2026-08-18 in css/components/region-sync.css, und die lädt nur index.html. Damit
+ *    war er an die PANEL-Zeile gefesselt (`.wikisync-itemlist .tree-item`), während die
+ *    Editorfenster ihre eigene Zeile tragen (`.avm-row`) und deshalb gar keinen Kreis haben
+ *    konnten. Owner 18.08.2026, zur Kraftlinienliste im Editor: „kannst du die grünen kreise bzw.
+ *    die kraftliniendarstellung auf die liste im kraftlinieneditor übertragen?"
+ *
+ * 🔴 Abgeschrieben wurde NICHTS. Es gibt weiterhin genau EINE Rezeptur; sie nennt jetzt drei
+ *    Wirte statt zwei. Eine zweite Fassung im Editor-Stylesheet wäre exakt die Divergenz, die die
+ *    Vereinheitlichung vom 14.08.2026 beseitigt hat (sieben Zeilenformen, vier davon Abschriften).
+ *    Eingebunden von css/styles.css (die App) und css/components/editor-page.css (die sechs
+ *    Editorseiten) — dieselbe Verdrahtung wie editor-row.css.
+ *
+ * ⚠️ Hier stehen die ECHTEN Tokens, nie die Kurznamen `--mut`/`--ok`/`--warn`: die sind lokale
+ *    Aliase der Editorseiten und existieren in index.html nicht.
+ *
+ * Bedeutung (aus settlementStatusMarker, js/review/review-settlement-list.js — der Kreis muss
+ * überall dasselbe heißen): voll = auf der Karte UND verbunden · halb = auf der Karte ohne Wiki ·
+ * leer = nicht auf der Karte.
+ */
+
+/* 🔴 Er hängt an .has-map-status, NICHT an der Zeile. Nur die Karten-Subjekte setzen die Klasse;
+   Literatur, Karten und Vorkommen haben kein „liegt auf der Karte", und ihr fehlender Kreis ist
+   Information, kein Mangel. Ohne diese Klasse bekämen sie ihn automatisch mit, sobald sie dieselbe
+   Zeile tragen — im ersten Entwurf des Mockups ist genau das passiert, und gesehen hat es der
+   Owner, nicht das Werkzeug.
+   ⚠️ Ausdrücklich gesetzt statt aus den Daten abgeleitet: ein `:has(.tree-map-status)` würde den
+   Kreis dort lautlos entfernen, wo eine Liste ihn (noch) ungefüllt tragen soll. */
+.wikisync-itemlist .tree-item.has-map-status .tree-item-name::after,
+#wiki-sync-territory-tree .tree-item.has-map-status .tree-item-name::after,
+.avm-row.has-map-status .avm-row__name::after {
+	content: "";
+	display: inline-block;
+	/* 11px statt 13px: neben einem 13px-Namen war der alte Kreis höher als dessen Versalhöhe und
+	   zog die Zeile auf. 🔧 Abgeleitet, nicht vom Owner beschlossen. */
+	width: 11px;
+	height: 11px;
+	margin-left: 6px;
+	vertical-align: -2px;
+	border: 2px solid var(--color-map-presence);
+	border-radius: 50%;
+	background: var(--color-panel);
+	box-sizing: border-box;
+}
+/* ⚠️ EINE bekannte Grenze des dritten Wirts, hier notiert statt verschwiegen: `.avm-row__name`
+   trägt `overflow: hidden` + `text-overflow: ellipsis` (editor-row.css), die Panel-Zeile
+   `.tree-item-name` nicht. Wird ein Name so lang, dass die Auslassungspunkte greifen, wird der
+   Kreis mit abgeschnitten — er ist die letzte Inline-Box in derselben Zelle. Für die
+   Kraftlinienliste ist das unerreichbar (längster Name rund 205px in einer rund 420px breiten
+   Spalte); 🔧 im Browser gemessen ist es NICHT. Wer eine Liste mit langen Namen anschließt, prüft
+   genau das zuerst. */
+
+/* Nur Territorien kennt diesen Zustand: die Kinder liegen auf der Karte, das Gebiet selbst nicht.
+   Die Füllung läuft deshalb andersherum als bei --own-only. */
+.wikisync-itemlist .tree-item.has-map-status:has(.tree-map-status--children-only) .tree-item-name::after,
+#wiki-sync-territory-tree .tree-item.has-map-status:has(.tree-map-status--children-only) .tree-item-name::after,
+.avm-row.has-map-status:has(.tree-map-status--children-only) .avm-row__name::after {
+	background: linear-gradient(to right, var(--color-map-presence) 0 50%, var(--color-panel) 50% 100%);
+}
+.wikisync-itemlist .tree-item.has-map-status:has(.tree-map-status--own-only) .tree-item-name::after,
+#wiki-sync-territory-tree .tree-item.has-map-status:has(.tree-map-status--own-only) .tree-item-name::after,
+.avm-row.has-map-status:has(.tree-map-status--own-only) .avm-row__name::after {
+	background: linear-gradient(to right, var(--color-panel) 0 50%, var(--color-map-presence) 50% 100%);
+}
+.wikisync-itemlist .tree-item.has-map-status:has(.tree-map-status--all) .tree-item-name::after,
+#wiki-sync-territory-tree .tree-item.has-map-status:has(.tree-map-status--all) .tree-item-name::after,
+.avm-row.has-map-status:has(.tree-map-status--all) .avm-row__name::after {
+	background: var(--color-map-presence);
+}
+
+/* Der Status-Marker selbst ist unsichtbar; er steuert nur die Kreis-Füllung.
+   ⚠️ Gebunden an die drei Wirte, nicht global: im Territorien-EDITOR ist `.tree-map-status` ein
+   SICHTBARES Abzeichen (css/pages/political-territory-wiki-tree.css) — ein `display: none` ohne
+   Wirt löschte es dort. */
+.wikisync-itemlist .tree-map-status,
+#wiki-sync-territory-tree .tree-map-status,
+.avm-row .tree-map-status {
+	display: none;
+}

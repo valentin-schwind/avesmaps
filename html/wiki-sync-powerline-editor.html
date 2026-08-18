@@ -356,6 +356,33 @@ function spanText(line) {
 	if (t.endpointIds.length > 0) { return t.endpointIds.length + " Enden"; }
 	return "";
 }
+// Der Statuskreis der Kraftlinie -- dieselbe Rezeptur wie in den acht WikiSync-Listen und im
+// Territorien-Baum (css/components/map-status-circle.css, ueber editor-page.css gebunden). Rein:
+// Linie rein, Markup raus.
+//
+// 🔴 ZWEI Zustaende, nicht drei -- und die Abwesenheit des dritten ist BEGRUENDET, nicht vergessen.
+// Die geteilte Bedeutung lautet: voll = auf der Karte UND verbunden · halb = auf der Karte ohne
+// Wiki · leer = nicht auf der Karte. Eine Kraftlinie IST eine Menge gezeichneter Kartensegmente --
+// ohne Segment gaebe es die Zeile ueberhaupt nicht (groupLines() baut sie AUS den Segmenten). Der
+// leere Kreis waere hier eine Behauptung ueber einen Zustand, den diese Liste nicht annehmen kann.
+// Also: voll = zugewiesen, halb = nicht zugewiesen.
+//
+// ⚠️ Gemessen wird `wiki_url` (aus properties.wiki_url), NIE `wiki_powerline`. Letzteres ist der
+// Katalogabzug des Wiki-Abgleichs -- Staerke, Affinitaet, Laenge, Regionen -- und sagt nichts
+// darueber, ob dieser Linie ein Artikel ZUGEWIESEN ist. Dieselbe Verwechslung hat hier schon eine
+// Messung um den Faktor 17 danebenliegen lassen.
+//
+// 💣 Eine Kraftlinie ist eine NAMENSGRUPPE. Sind manche Segmente zugewiesen und andere nicht, ist
+// das der Halb-Zustand -- genau wofuer er da ist; `every` statt `some`.
+function lineStatusMarker(line) {
+	const segmente = (line && line.segments) || [];
+	const zugewiesen = segmente.length > 0
+		&& segmente.every((s) => String((s && s.wiki_url) || "").trim() !== "");
+	// Dieselben zwei Modifikatoren wie settlementStatusMarker (js/review/review-settlement-list.js):
+	// --all = voll, --own-only = halb. Ein eigenes Vokabular hier waere ein zweites Zeichen.
+	return '<span class="tree-map-status tree-map-status--' + (zugewiesen ? "all" : "own-only")
+		+ '" aria-hidden="true"></span>';
+}
 function renderList() {
 	const host = $("plList");
 	const term = searchTerm.trim().toLowerCase();
@@ -373,8 +400,12 @@ function renderList() {
 		const l2 = l.warnings.length > 0
 			? '<div class="avm-row__l2 warn">⚠ ' + esc(l.warnings[0]) + "</div>"
 			: '<div class="avm-row__l2 ok">' + nodeCount + " Nodices · " + l.segments.length + " Segmente · " + esc(spanText(l)) + "</div>";
-		return '<div class="avm-row' + (l.name === selectedName ? " is-selected" : "") + '" data-name="' + esc(l.name) + '">'
+		// 🔴 `has-map-status` ist AUSDRUECKLICH, nicht aus den Daten abgeleitet: die geteilte Regel
+		// haengt genau daran, und Listen ohne „liegt auf der Karte" (Literatur, Karten, Vorkommen)
+		// duerfen den Kreis nicht automatisch mitbekommen, sobald sie dieselbe Zeile tragen.
+		return '<div class="avm-row has-map-status' + (l.name === selectedName ? " is-selected" : "") + '" data-name="' + esc(l.name) + '">'
 			+ '<div class="avm-row__text"><div class="avm-row__l1"><span class="avm-row__name">' + esc(l.name) + '</span>'
+			+ lineStatusMarker(l)
 			+ '<span class="avm-row__kind">' + (l.topology ? shapeLabel(l.topology.shape) : "") + "</span></div>"
 			+ l2 + "</div></div>";
 	}).join("");
