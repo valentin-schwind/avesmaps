@@ -15,6 +15,13 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lore.php';
 require_once __DIR__ . '/../lore-rule-match.php';
+require_once __DIR__ . '/../lore-edit.php';
+
+// Der Detailleser (Abschnitt 9) fragt auch die Kartentabellen ab, die es in dieser Fixture nicht
+// gibt -- er protokolliert das und macht weiter. Die Meldung ist DORT eine Zusicherung
+// (lore-orte-auf-der-karte-test.php); hier waere sie nur Laerm im Testlauf.
+ini_set('log_errors', '1');
+ini_set('error_log', tempnam(sys_get_temp_dir(), 'lore-regel-log'));
 
 $pruefungen = 0;
 
@@ -35,6 +42,11 @@ function avesmapsRegelTestPdo(): PDO
     $pdo->exec('CREATE TABLE ecosystem_region (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT,
         name TEXT, kind TEXT, region_type TEXT NULL, wiki_region_key TEXT NULL, is_active INT)');
     $pdo->exec('CREATE TABLE ecosystem_region_overlap (region_id INT, other_region_id INT, share REAL)');
+    $pdo->exec("CREATE TABLE lore_entry (wiki_key TEXT PRIMARY KEY, kind TEXT, name TEXT, wiki_url TEXT,
+        gruppe TEXT, typ TEXT, lebensraum TEXT, synonyme TEXT, origin TEXT, status TEXT,
+        field_origins_json TEXT, merkmale_json TEXT)");
+    $pdo->exec("CREATE TABLE lore_place (entry_wiki_key TEXT, place_wiki_key TEXT, place_title TEXT,
+        relation TEXT, origin TEXT, status TEXT, sort_order INT)");
     $pdo->exec('INSERT INTO ecosystem_assignment_stamp (id, completed) VALUES (1, 1)');
     // Zwei Waelder und ein Gebirge. 💣 Der ZWEITE Wald traegt KEINEN wiki_region_key -- live sind
     // 561 der 929 Flaechen so, und sie liegen trotzdem auf der Karte. Ein Regeltreffer wird
@@ -152,5 +164,36 @@ avesmapsRegelTestAnlegen($pdo, 'zonenkraut', 'klima', 'boreal');
 $zahlen = avesmapsLoreReadRuleCountsByEntry($pdo, ['zonenkraut']);
 assert(($zahlen['zonenkraut']['matched'] ?? -1) === 0, 'Ein Klimaband ist selbst kein Regeltreffer.');
 $pruefungen++;
+
+// ── (9) DER DETAILLESER LIEFERT DIESELBEN VIER ZAHLEN ──────────────────────────────
+// 🔴 Daran haengt, dass der Kreis einer Zeile nach „+ Ort" / „+ Regel" mitgeht, OHNE dass die
+// ganze Liste neu geholt wird: jede Schreibaktion des Editors antwortet ohnehin mit diesem
+// Eintrag. Fehlt eine der vier Zahlen, liest der Browser `undefined` -- und faerbt die Zeile
+// still anders als beim Laden.
+// ⚠️ Gezaehlt werden nur AKTIVE Ortszeilen: ein Grabstein steht im Editor weiter in der Liste,
+// ist aber kein Vorkommen mehr.
+$pdo = avesmapsRegelTestPdo();
+$pdo->exec("INSERT INTO lore_entry (wiki_key, kind, name, status, origin) VALUES ('alprute','flora','Alprute','active','wiki')");
+$pdo->exec("INSERT INTO lore_place (entry_wiki_key, place_wiki_key, place_title, relation, origin, status, sort_order)
+            VALUES ('alprute','alkrawald','Alkrawald','verbreitung','wiki','active',0),
+                   ('alprute','schiff','Schiff','verbreitung','wiki','suppressed',1)");
+avesmapsRegelTestAnlegen($pdo, 'alprute', 'vegetation', 'wald');
+$detail = avesmapsLoreReadEntryDetail($pdo, 'alprute');
+assert(is_array($detail), 'Der Detailleser liefert den Eintrag.');
+$pruefungen++;
+foreach (['place_count', 'place_mapped_count', 'rule_count', 'rule_mapped_count'] as $feld) {
+    assert(array_key_exists($feld, $detail),
+        "Der Detailleser liefert `{$feld}` nicht -- der Statuskreis der Zeile bliebe nach dem "
+        . 'Schreiben auf dem Stand des letzten Ladens.');
+    $pruefungen++;
+}
+assert($detail['place_count'] === 1,
+    'Nur die AKTIVE Ortszeile zaehlt; der Grabstein ist kein Vorkommen mehr.');
+assert($detail['rule_count'] === 1 && $detail['rule_mapped_count'] === 1,
+    'Die Regel des Eintrags zaehlt hier genauso wie in der Katalogliste.');
+assert(count($detail['places']) === 2,
+    'Die Ortsliste selbst enthaelt weiter BEIDE Zeilen -- der Editor muss seine eigenen '
+    . 'Grabsteine sehen koennen. Nur die ZAHL laesst sie aus.');
+$pruefungen += 3;
 
 echo "lore-regel-als-vorkommen: {$pruefungen} Zusicherungen bestanden.\n";

@@ -3383,6 +3383,84 @@ function avesmapsLoreMarkSelectedRow() {
 	});
 }
 
+/**
+ * DER STATUSKREIS EINER ZEILE GEHT MIT, wenn im Kasten „Vorkommen" ein Ort oder eine Regel
+ * dazukommt oder verschwindet (Owner 18.08.2026: „der grüne punkt soll sich aktualisieren, wenn
+ * was dazu kommt").
+ *
+ * 🔴 HIER WIRD NICHTS NACHGERECHNET. Die vier Zahlen kommen fertig aus derselben Antwort, die
+ *    ohnehin zurückkommt (`avesmapsLoreReadEntryDetail`) -- und zwar aus denselben Rechnern wie
+ *    in der Katalogliste. Im Browser nachzuzählen wäre bei einer Zoomstufe richtig und bei der
+ *    nächsten falsch: welche Fläche und welches Gebiet gerade geladen sind, hängt am
+ *    Kartenausschnitt (die politische Ebene liefert bei Zoom 3 rund 174 von 800 Gebieten).
+ *    Genau deshalb steht die Zahl überhaupt im Payload.
+ * ⭐ Und KEIN zweiter Abruf: die Liste hat 5.104 Einträge, eine Katalogseite kostet den
+ *    `properties_json`-Durchlauf über alle Orte und Labels. Ein Klick, der die ganze Liste
+ *    nachlädt, ist auf STRATO nicht bezahlbar (AGENTS.md §9). Der Schreibvorgang bringt die
+ *    neuen Zahlen selbst mit.
+ *
+ * 💣 Neu gebaut wird die GANZE Zeile, nicht nur die Kreis-Klasse. Ein Ort ändert auch die
+ *    Meta-Zeile („ohne Ortsangabe" -> „Weiden"), und ein voller Kreis neben „ohne Ortsangabe"
+ *    liest sich wie ein Fehler. Gebaut wird sie mit avesmapsLoreListRowHtml -- demselben Bauer
+ *    wie beim Laden, sonst hätte die Liste nach dem ersten Klick eine zweite Zeilenform.
+ * ⚠️ BEIDE Oberflächen: der Reiter im Panel und das Fenster. Man sieht sie nie gleichzeitig,
+ *    und genau deshalb liefe eine von beiden sonst still veraltet weiter.
+ * ⚠️ Der Knopf ist ausdrücklich austauschbar -- alle Klicks hängen an einem delegierten
+ *    Zuhörer (`target.closest("[data-lore-entry]")`), nicht am Knoten.
+ *
+ * @param {Object} entry der Eintrag aus detail/add_place/remove_place/set_field
+ */
+/**
+ * REIN: aus der Detail-Antwort die Zeilenform des Katalogs. Ausgelagert, weil hier das Wissen
+ * steckt, das schiefgehen kann -- der Rest ist ein Knotentausch.
+ *
+ * 💣 Der Detail-Leser liefert AUCH die Grabsteine (`status: "suppressed"`), der Katalog nie.
+ *    Ein Grabstein steht im Editor weiter in der Liste, ist aber kein Vorkommen mehr; zählte er
+ *    hier mit, sagte die Zeile „Weiden" über einen Ort, den jemand gerade entfernt hat.
+ * 💣 Und dieselbe Kappung auf 6 wie im Server (avesmapsLoreReadCatalog): `place_count` kommt von
+ *    dort und zählt ALLE aktiven -- die Zeile rechnet daraus ihr „+N". Kappte sie hier anders,
+ *    stimmte der Rest-Zähler nach dem ersten Klick nicht mehr.
+ */
+function avesmapsLoreRowItemFromDetail(entry) {
+	var titel = (entry && Array.isArray(entry.places) ? entry.places : [])
+		.filter(function (p) { return p && p.status !== "suppressed"; })
+		.map(function (p) { return String(p.place_title || ""); })
+		.filter(Boolean)
+		.slice(0, 6);
+	return {
+		wiki_key: entry && entry.wiki_key ? String(entry.wiki_key) : "",
+		kind: entry && entry.kind,
+		name: entry && entry.name,
+		wiki_url: entry && entry.wiki_url,
+		gruppe: entry && entry.gruppe,
+		typ: entry && entry.typ,
+		origin: entry && entry.origin,
+		places: titel,
+		place_count: Number(entry && entry.place_count) || 0,
+		place_mapped_count: Number(entry && entry.place_mapped_count) || 0,
+		rule_count: Number(entry && entry.rule_count) || 0,
+		rule_mapped_count: Number(entry && entry.rule_mapped_count) || 0,
+	};
+}
+
+function avesmapsLoreRefreshRowStatus(entry) {
+	var key = entry && entry.wiki_key ? String(entry.wiki_key) : "";
+	if (!key) { return; }
+	var item = avesmapsLoreRowItemFromDetail(entry);
+	Object.keys(AVESMAPS_LORE_VIEWS).forEach(function (view) {
+		var ids = AVESMAPS_LORE_VIEWS[view];
+		var scroll = document.getElementById(ids.scroll);
+		if (!scroll) { return; }
+		// 💣 Kein aus dem Schlüssel gebauter Selektor: ein wiki_key darf Anführungszeichen und
+		// Klammern tragen („1001-rausch-parfum" ist harmlos, aber die Regel darf nicht daran
+		// hängen). Verglichen wird das Attribut selbst.
+		scroll.querySelectorAll("[data-lore-entry]").forEach(function (row) {
+			if (row.getAttribute("data-lore-entry") !== key) { return; }
+			row.outerHTML = avesmapsLoreListRowHtml(item, avesmapsLoreListKind[view] === "all", ids.rowForm);
+		});
+	});
+}
+
 function closeLoreDetail() {
 	avesmapsLoreDetailKey = "";
 	avesmapsLoreMarkSelectedRow();
@@ -3414,6 +3492,13 @@ function renderLoreDetail(entry) {
 	var placesHost = document.getElementById("lore-dlg-places");
 	var placesTitle = document.getElementById("lore-dlg-places-title");
 	if (!stammHost || !placesHost || !entry) { return; }
+
+	// 🔴 DER EINE TRICHTER fuer den Statuskreis der Liste. Alle vier Schreibwege des Kastens
+	// „Vorkommen" muenden hier: add_place / remove_place / set_field reichen ihren `entry`
+	// direkt herein, save_rule und delete_rule ueber openLoreDetail(). Haengte die
+	// Aktualisierung an den Aufrufstellen, waere sie beim naechsten neuen Knopf vergessen --
+	// und ein Kreis, der einmal nicht mitgeht, faellt niemandem auf.
+	avesmapsLoreRefreshRowStatus(entry);
 
 	// Diese Funktion baut die Maske bei JEDEM gespeicherten Feld neu auf -- ohne das Lösen wäre
 	// die Vorschlagsliste des Quellen-Editors nach fünf Bearbeitungen fünf tote Listen tief.

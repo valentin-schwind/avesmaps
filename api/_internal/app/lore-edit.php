@@ -77,6 +77,27 @@ function avesmapsLoreReadEntryDetail(PDO $pdo, string $wikiKey): ?array
          FROM lore_place WHERE entry_wiki_key = :wk ORDER BY status, sort_order, place_title'
     );
     $placeStatement->execute(['wk' => $wikiKey]);
+    $places = $placeStatement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    // Die zwei Zahlen der ORTSZEILEN. avesmapsLoreReadPlaceKeysOnMap ist derselbe Leser, den die
+    // Katalogliste benutzt -- eine zweite Fassung von „liegt auf der Karte" waere die Divergenz,
+    // gegen die die Funktion ueberhaupt gebaut wurde.
+    $activePlaceKeys = [];
+    foreach ($places as $place) {
+        if ((string) ($place['status'] ?? 'active') === 'suppressed') {
+            continue;
+        }
+        $activePlaceKeys[] = avesmapsLoreStripKeyPrefix((string) ($place['place_wiki_key'] ?? ''));
+    }
+    $keysOnMap = avesmapsLoreReadPlaceKeysOnMap($pdo, $activePlaceKeys);
+    $mappedPlaces = 0;
+    foreach ($activePlaceKeys as $placeKey) {
+        if ($placeKey !== '' && isset($keysOnMap[$placeKey])) {
+            $mappedPlaces++;
+        }
+    }
+    // Und die Regeln -- fuer EINEN Eintrag; hat er keine, ist es eine indizierte Abfrage.
+    $ruleCounts = avesmapsLoreReadRuleCountsByEntry($pdo, [$wikiKey]);
 
     // Quellen holt der Editor NICHT hier ab. Seit 2026-07-22 haengen Lore-Quellen im
     // geteilten System, und die Oberflaeche dafuer ist das gemeinsame Bauteil
@@ -106,7 +127,21 @@ function avesmapsLoreReadEntryDetail(PDO $pdo, string $wikiKey): ?array
         'status' => (string) ($entry['status'] ?? 'active'),
         'field_origins' => $fieldOrigins,
         'merkmale' => $merkmale,
-        'places' => $placeStatement->fetchAll(PDO::FETCH_ASSOC) ?: [],
+        'places' => $places,
+        // DIE VIER ZAHLEN DES STATUSKREISES -- dieselben Felder und dieselben Rechner wie in der
+        // Katalogliste (avesmapsLoreReadCatalog). Sie reisen hier mit, damit der Kreis einer Zeile
+        // nach „+ Ort" / „+ Regel" mitgeht, OHNE dass die ganze Liste neu geholt wird: jede
+        // Schreibaktion des Editors antwortet ohnehin mit diesem Eintrag.
+        // 🔴 Gerechnet wird auf dem SERVER, nicht im Browser -- was dort geladen ist, haengt an
+        // Zoom und Ansicht (die politische Ebene liefert bei Zoom 3 rund 174 von 800 Gebieten).
+        // Eine Neuberechnung im Client waere bei einer Zoomstufe richtig und bei der naechsten
+        // falsch; genau deshalb steht die Zahl ueberhaupt im Payload.
+        // ⚠️ Gezaehlt werden nur AKTIVE Ortszeilen -- ein Grabstein (status='suppressed') ist
+        // kein Vorkommen mehr, steht im Editor aber weiter in der Liste.
+        'place_count' => count($activePlaceKeys),
+        'place_mapped_count' => $mappedPlaces,
+        'rule_count' => (int) ($ruleCounts[$wikiKey]['rules'] ?? 0),
+        'rule_mapped_count' => (int) ($ruleCounts[$wikiKey]['matched'] ?? 0),
     ];
 }
 

@@ -13,6 +13,19 @@ declare(strict_types=1);
 //
 // Side-effect-free on include (nur const + function). Jede Funktion bekommt ihr PDO.
 
+// 💣 AUSDRUECKLICH, nicht implizit. avesmapsLoreReadRuleCountsByEntry unten ruft
+// avesmapsLoreRuleReadAllActive / -ChainMatchesSubject (lore-rule-match.php) und
+// avesmapsLoreRuleReadAreas / -OrderedZoneKeys (lore-rule-store.php). Auf dem Katalogweg lud
+// api/app/lore.php diese Kette ohnehin schon -- und genau das ist die Falle: der Editor-Endpunkt
+// (api/edit/map/lore.php) laedt lore-rule-match.php NICHT, und der Aufruf waere dort ein Fatal
+// gewesen, sobald der Detailleser dieselbe Zahl braucht.
+// ⚠️ Kostet beim Einbinden nichts: die drei Dateien tragen kein Code auf oberster Ebene, nur
+// declare/require/const/function -- gemessen und begruendet im Kopf von lore-search.php, die
+// aus demselben Grund den umgekehrten Weg (lore.php NICHT einbinden) geht: dort waere es die
+// DDL von avesmapsLoreEnsureContinentColumn, hier ist es nichts.
+
+require_once __DIR__ . '/lore-rule-match.php';
+
 /**
  * Kontinente und Sammelbegriffe, die ueberall gelten und deshalb ZULETZT gereiht
  * werden. Sie werden NICHT verworfen: Wirselkraut steht als „ganz [[Aventurien]]"

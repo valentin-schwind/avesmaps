@@ -297,6 +297,63 @@ const ortUndRegel = Object.assign({}, eintrag, { rule_count: 2, rule_mapped_coun
 assert.ok(/Weiden, Kosch · 2 Regeln</.test(context.avesmapsLoreListRowHtml(ortUndRegel, true, "avm")),
 	"Orte und Regeln stehen nebeneinander in der Meta-Zeile, mit demselben Trenner.");
 
+// ---- 5f. Der Kreis geht mit, wenn etwas dazukommt ---------------------------------------------
+// Owner 18.08.2026: „der gruene punkt soll sich aktualisieren, wenn was dazu kommt".
+// 🔴 Geprueft wird HIER die reine Haelfte (welche Zeilenform baut der Auffrischer aus der
+// Detail-Antwort) und die VERDRAHTUNG. Der Knotentausch selbst braucht ein echtes DOM; er ist im
+// Browser gegen die echten Stylesheets gemessen (leer -> voll -> halb, in BEIDEN Listen) und wird
+// hier NICHT behauptet -- eine Zusicherung gegen ein selbstgebautes document pruefte die Attrappe.
+const ausDetail = context.avesmapsLoreRowItemFromDetail({
+	wiki_key: "wiki:braeubier", kind: "ware", name: "Bräubier", typ: "[[Bier]]", origin: "wiki",
+	places: [
+		{ place_title: "Weiden", status: "active" },
+		{ place_title: "Schiff", status: "suppressed" },
+		{ place_title: "Kosch", status: "active" },
+	],
+	place_count: 2, place_mapped_count: 1, rule_count: 3, rule_mapped_count: 2,
+});
+// 💣 Ein GRABSTEIN ist kein Vorkommen mehr. Der Detail-Leser liefert ihn mit (der Editor muss
+// seine eigenen Grabsteine sehen), der Katalog nie -- zaehlte er hier mit, nennte die Zeile einen
+// Ort, den jemand gerade entfernt hat.
+assert.deepStrictEqual(ausDetail.places, ["Weiden", "Kosch"],
+	"Der Auffrischer nimmt nur AKTIVE Ortszeilen in die Meta-Zeile. Ist: " + JSON.stringify(ausDetail.places));
+// ⚠️ Und alle vier Zahlen reisen durch -- faellt eine, faerbt die Zeile nach dem ersten Klick
+// still anders als beim Laden.
+assert.deepStrictEqual(
+	[ausDetail.place_count, ausDetail.place_mapped_count, ausDetail.rule_count, ausDetail.rule_mapped_count],
+	[2, 1, 3, 2],
+	"Alle vier Zahlen des Statuskreises muessen aus der Detail-Antwort in die Zeile durchreichen.");
+// 💣 Dieselbe Kappung auf 6 wie im Server: `place_count` zaehlt ALLE aktiven, die Zeile rechnet
+// daraus ihr „+N". Kappte der Auffrischer anders, stimmte der Rest-Zaehler nach dem ersten Klick nicht.
+const vieleTitel = context.avesmapsLoreRowItemFromDetail({
+	wiki_key: "x", places: Array.from({ length: 9 }, (_, i) => ({ place_title: "Ort" + i, status: "active" })),
+	place_count: 9,
+});
+assert.strictEqual(vieleTitel.places.length, 6,
+	"Der Auffrischer kappt die Titelliste bei 6 -- genau wie avesmapsLoreReadCatalog.");
+
+// ── VERDRAHTUNG ────────────────────────────────────────────────────────────────────────────────
+// 🔴 EIN Trichter: alle vier Schreibwege des Kastens „Vorkommen" muenden in renderLoreDetail
+// (add_place / remove_place / set_field direkt, save_rule / delete_rule ueber openLoreDetail).
+// Haengte die Aktualisierung an den Aufrufstellen, waere sie beim naechsten Knopf vergessen.
+const renderKoerper = js.slice(js.indexOf("function renderLoreDetail(entry) {"),
+	js.indexOf("function avesmapsLoreListRowHtml") > js.indexOf("function renderLoreDetail(entry) {")
+		? js.indexOf("function avesmapsLoreListRowHtml") : js.length);
+assert.ok(/avesmapsLoreRefreshRowStatus\(entry\)/.test(renderKoerper.slice(0, 2000)),
+	"renderLoreDetail frischt den Statuskreis der Listenzeile nicht auf. Dann steht der Kreis nach "
+	+ "„+ Ort“ / „+ Regel“ auf dem Stand des letzten Ladens.");
+// ⚠️ BEIDE Oberflaechen. Man sieht Reiter und Fenster nie gleichzeitig -- eine von beiden liefe
+// sonst still veraltet weiter, und niemandem fiele es auf.
+const auffrischer = js.slice(js.indexOf("function avesmapsLoreRefreshRowStatus(entry) {"));
+assert.ok(/Object\.keys\(AVESMAPS_LORE_VIEWS\)\.forEach/.test(auffrischer.slice(0, 1200)),
+	"Der Auffrischer laeuft nicht ueber BEIDE Ansichten (AVESMAPS_LORE_VIEWS) -- eine der zwei "
+	+ "Listen behielte ihren alten Kreis.");
+// 💣 Und er baut die Zeile mit DEMSELBEN Bauer wie beim Laden -- sonst haette die Liste nach dem
+// ersten Klick eine zweite Zeilenform, und genau das ist die Divergenz, gegen die es nur zwei
+// Rezepturen im Haus gibt.
+assert.ok(/avesmapsLoreListRowHtml\(item, avesmapsLoreListKind\[view\] === "all", ids\.rowForm\)/.test(auffrischer.slice(0, 1600)),
+	"Der Auffrischer baut die Zeile nicht mit avesmapsLoreListRowHtml und der Form der jeweiligen Ansicht.");
+
 // ---- 6. Die Leichen sind wirklich weg ---------------------------------------------------------
 // Ein zurueckgebliebener Verweis auf die alte Struktur faellt nicht auf: er wirft nicht, er tut
 // nur nichts. Genau so bliebe eine Spalte leer, ohne dass irgendwo ein Fehler stuende.
