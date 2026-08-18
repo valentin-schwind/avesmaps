@@ -253,9 +253,30 @@ Namen geändert hat.
 
 ## 9. Nicht in dieser Fassung
 
-- 🔧 **Kein Massen-Zuweisen.** Es gibt kein `assign_all` wie bei den Wegen. Bei 23 Artikeln und einer
-  Arbeitsliste von etwa vier Fällen wäre die Maschinerie größer als die Arbeit — und Sammelaktionen
-  mit Entscheidungsgehalt sind ohnehin ausgeschlossen (Owner 2026-07-20).
+- 🪤 **Kein Massen-Zuweisen — GILT NICHT MEHR, revidiert am 18.08.2026.** Der Satz lautete:
+  *„Es gibt kein `assign_all` wie bei den Wegen. Bei 23 Artikeln und einer Arbeitsliste von etwa vier
+  Fällen wäre die Maschinerie größer als die Arbeit — und Sammelaktionen mit Entscheidungsgehalt sind
+  ohnehin ausgeschlossen (Owner 2026-07-20)."*
+
+  Gebaut wurde er trotzdem (`ce9fee27`), und das ist eine Owner-Entscheidung, keine Nachlässigkeit —
+  aber die Begründung gehört hierher, weil der Satz oben sonst weiter das Gegenteil behauptet:
+
+  1. **Die Arbeitsliste war nicht vier, sondern 16.** Am 18.08.2026 live gemessen: 62 Namensgruppen,
+     2 zugewiesen, **16 mit wortgleichem Katalogtreffer** über 69 Segmente. Die „etwa vier" waren die
+     Ähnlichkeitsfälle, nicht die Treffer.
+  2. **Der Lauf hat keinen Entscheidungsgehalt** — und genau daran hängt die Vereinbarkeit mit
+     „jeder Fall wird einzeln entschieden" (Owner 2026-07-20, `docs/konfliktmanagement-design.md`).
+     Er fasst **ausschliesslich** an, was `avesmapsWikiSyncCreateMatchKey` wortgleich trifft. Jeder
+     Ermessensfall bleibt liegen: „Brücke nach/von Akrabaal", „Satinavs Kette I/II", die
+     Klirrfrostsaite. ⚠️ **Wer den Lauf je auf ähnliche Treffer ausweitet, bricht die Regel** — dann
+     gilt der ursprüngliche Satz wieder, und zwar sofort.
+  3. Vorschau vor jedem Schreiben, übersprungene Fälle namentlich, der Owner drückt.
+
+  💣 **Und die Zahl, an der sich zwei Systeme widersprechen:** „Hexenband(-schleife)" sieht wie ein
+  17. Treffer aus, ist aber keiner — `avesmapsWikiSyncStripParentheticalSuffix` faltet einen
+  Klammerzusatz nur mit **Leerzeichen** davor weg. Gemessen: `Hexenband(-schleife)` →
+  `hexenbandschleife`, `Hexenband (-schleife)` → `hexenband`. Ein Zeichen entscheidet, ob die Linie
+  den Artikel von „Hexenband" beansprucht.
 - 🔧 **Keine Übernahme-Vorschau.** Der Kraftlinien-Abgleich hat keine
   `sync_plan_item`-Anbindung; sie nachzurüsten ist ein eigener Auftrag (Sitzung 5 der
   Übernahme-Vorschau), kein Anhängsel hier.

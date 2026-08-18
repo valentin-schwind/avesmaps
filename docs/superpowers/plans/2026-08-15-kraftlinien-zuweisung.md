@@ -963,7 +963,11 @@ Beide SHAs müssen gleich sein. Danach ~1–2 Minuten Deploy, PHP durch den Opca
 
 Aus dem Entwurf §9, hier zur Erinnerung, damit niemand es „nebenbei" mitnimmt:
 
-- kein Massen-Zuweisen (`assign_all`) — die Arbeitsliste sind vier Fälle
+- 🪤 ~~kein Massen-Zuweisen (`assign_all`) — die Arbeitsliste sind vier Fälle~~ **— revidiert
+  18.08.2026.** Die Arbeitsliste waren nicht vier, sondern **16** wortgleiche Treffer (live
+  gemessen); die vier waren die Ähnlichkeitsfälle. Gebaut in `ce9fee27`, Begründung im Entwurf §9.
+  ⚠️ Der Lauf fasst **nur** wortgleiche Treffer an — würde er je auf ähnliche ausgeweitet, gälte
+  die ursprüngliche Regel sofort wieder.
 - keine Übernahme-Vorschau (`sync_plan_item`) für den Kraftlinien-Abgleich
 - kein Zusammenführen zweier Linien über die Zuweisung — das kann der Editor bereits übers
   Umbenennen, und es getrennt zu halten **ist** Owner-Entscheidung §2.1
