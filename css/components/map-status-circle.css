@@ -16,66 +16,89 @@
  * ⚠️ Hier stehen die ECHTEN Tokens, nie die Kurznamen `--mut`/`--ok`/`--warn`: die sind lokale
  *    Aliase der Editorseiten und existieren in index.html nicht.
  *
- * Bedeutung (aus settlementStatusMarker, js/review/review-settlement-list.js — der Kreis muss
- * überall dasselbe heißen): voll = auf der Karte UND verbunden · halb = auf der Karte ohne Wiki ·
- * leer = nicht auf der Karte.
+ * Bedeutung (aus settlementStatusMarker, js/review/review-settlement-list.js — die FORM muss
+ * überall dasselbe heißen): voll = fertig · halb = da, aber nicht verbunden · leer = nicht auf der
+ * Karte.
+ * ⚠️ WORAN „fertig" gemessen wird, entscheidet die Objektart, nicht diese Datei — und es sind seit
+ * 18.08.2026 DREI Regeln: die Wiki-Zuweisung (Ort, Landschaft), `every` über eine Namensgruppe aus
+ * Segmenten (Weg, Kraftlinie) und `some` über zugeordnete ORTE (Literatur, Karte). Die Begründung
+ * steht je an ihrer Codestelle; hier steht nur, wie der Kreis aussieht.
  */
 
-/* 🔴 Er hängt an .has-map-status, NICHT an der Zeile. Nur die Karten-Subjekte setzen die Klasse;
-   Literatur, Karten und Vorkommen haben kein „liegt auf der Karte", und ihr fehlender Kreis ist
-   Information, kein Mangel. Ohne diese Klasse bekämen sie ihn automatisch mit, sobald sie dieselbe
-   Zeile tragen — im ersten Entwurf des Mockups ist genau das passiert, und gesehen hat es der
+/* 🔴 Er hängt an .has-map-status, NICHT an der Zeile. Eine Liste bekommt ihn erst, wenn sie die
+   Klasse ausdrücklich setzt — sonst erbte jede neue Liste ihn in dem Moment, in dem sie dieselbe
+   Zeile trägt. Im ersten Entwurf des Mockups ist genau das passiert, und gesehen hat es der
    Owner, nicht das Werkzeug.
+   🪤 Hier stand bis 18.08.2026, Literatur und Karten hätten „kein liegt auf der Karte" und ihr
+   fehlender Kreis sei Information. Der Owner hat das an diesem Tag entschieden: sie bekommen
+   einen, und er misst dort etwas anderes (siehe Bedeutung oben). Nur die Vorkommen bleiben ohne.
    ⚠️ Ausdrücklich gesetzt statt aus den Daten abgeleitet: ein `:has(.tree-map-status)` würde den
    Kreis dort lautlos entfernen, wo eine Liste ihn (noch) ungefüllt tragen soll. */
 .wikisync-itemlist .tree-item.has-map-status .tree-item-name::after,
 #wiki-sync-territory-tree .tree-item.has-map-status .tree-item-name::after,
-.avm-row.has-map-status .avm-row__name::after {
-	content: "";
+.avm-row.has-map-status .tree-map-status {
 	display: inline-block;
 	/* 11px statt 13px: neben einem 13px-Namen war der alte Kreis höher als dessen Versalhöhe und
 	   zog die Zeile auf. 🔧 Abgeleitet, nicht vom Owner beschlossen. */
 	width: 11px;
 	height: 11px;
-	margin-left: 6px;
-	vertical-align: -2px;
 	border: 2px solid var(--color-map-presence);
 	border-radius: 50%;
 	background: var(--color-panel);
 	box-sizing: border-box;
 }
-/* ⚠️ EINE bekannte Grenze des dritten Wirts, hier notiert statt verschwiegen: `.avm-row__name`
-   trägt `overflow: hidden` + `text-overflow: ellipsis` (editor-row.css), die Panel-Zeile
-   `.tree-item-name` nicht. Wird ein Name so lang, dass die Auslassungspunkte greifen, wird der
-   Kreis mit abgeschnitten — er ist die letzte Inline-Box in derselben Zelle. Für die
-   Kraftlinienliste ist das unerreichbar (längster Name rund 205px in einer rund 420px breiten
-   Spalte); 🔧 im Browser gemessen ist es NICHT. Wer eine Liste mit langen Namen anschließt, prüft
-   genau das zuerst. */
+/* 💣 DER DRITTE WIRT ZEICHNET AUF DEM MARKER-ELEMENT, die beiden anderen auf `::after` des Namens
+   — und das ist keine Geschmacksfrage, sondern die Reparatur einer gemessenen Grenze.
+   `.avm-row__name` trägt `overflow: hidden` + `text-overflow: ellipsis` (editor-row.css), die
+   Panel-Zeile `.tree-item-name` nicht. Als `::after` war der Kreis die letzte Inline-Box IN dieser
+   Zelle und verschwand mit den Auslassungspunkten. Bis zum 18.08.2026 stand hier nur die Warnung,
+   das sei „für die Kraftlinienliste unerreichbar" — bei den fünf Listen, die am selben Tag
+   dazukamen, ist es erreicht: die Titel der Kartensammlung sind im Median 42 Zeichen lang, im p90
+   60 (529 Karten, live gemessen), die Spalte ist rund ein Drittel des Fensters. Über die Hälfte
+   der Karten hätte ihren Kreis nie gezeigt.
+   🔴 Es bleibt EINE Rezeptur: Fläche, Rahmen und alle drei Füllungen stehen genau einmal und
+   nennen nur einen Wirt mehr. Der Marker ist im `.avm-row__l1`-Flex ein eigenes Kind, also
+   unbeschnitten — und der `gap: var(--space-4)` dieser Zeile liefert bereits genau die 6px, die
+   die beiden anderen Wirte sich als `margin-left` nehmen müssen. */
+.wikisync-itemlist .tree-item.has-map-status .tree-item-name::after,
+#wiki-sync-territory-tree .tree-item.has-map-status .tree-item-name::after {
+	/* Nur die Pseudo-Elemente brauchen `content`; ein echtes Element wird davon zum Replaced
+	   Element und das ist hier nirgends gewollt. */
+	content: "";
+	margin-left: 6px;
+	vertical-align: -2px;
+}
+/* ⚠️ Im Flex bleibt er stehen, auch wenn der Name daneben schrumpft — sonst wäre die Ellipse nur
+   an eine andere Stelle gewandert. */
+.avm-row.has-map-status .tree-map-status { flex: 0 0 auto; }
 
 /* Nur Territorien kennt diesen Zustand: die Kinder liegen auf der Karte, das Gebiet selbst nicht.
    Die Füllung läuft deshalb andersherum als bei --own-only. */
 .wikisync-itemlist .tree-item.has-map-status:has(.tree-map-status--children-only) .tree-item-name::after,
 #wiki-sync-territory-tree .tree-item.has-map-status:has(.tree-map-status--children-only) .tree-item-name::after,
-.avm-row.has-map-status:has(.tree-map-status--children-only) .avm-row__name::after {
+.avm-row.has-map-status .tree-map-status--children-only {
 	background: linear-gradient(to right, var(--color-map-presence) 0 50%, var(--color-panel) 50% 100%);
 }
 .wikisync-itemlist .tree-item.has-map-status:has(.tree-map-status--own-only) .tree-item-name::after,
 #wiki-sync-territory-tree .tree-item.has-map-status:has(.tree-map-status--own-only) .tree-item-name::after,
-.avm-row.has-map-status:has(.tree-map-status--own-only) .avm-row__name::after {
+.avm-row.has-map-status .tree-map-status--own-only {
 	background: linear-gradient(to right, var(--color-panel) 0 50%, var(--color-map-presence) 50% 100%);
 }
 .wikisync-itemlist .tree-item.has-map-status:has(.tree-map-status--all) .tree-item-name::after,
 #wiki-sync-territory-tree .tree-item.has-map-status:has(.tree-map-status--all) .tree-item-name::after,
-.avm-row.has-map-status:has(.tree-map-status--all) .avm-row__name::after {
+.avm-row.has-map-status .tree-map-status--all {
 	background: var(--color-map-presence);
 }
 
 /* Der Status-Marker selbst ist unsichtbar; er steuert nur die Kreis-Füllung.
    ⚠️ Gebunden an die drei Wirte, nicht global: im Territorien-EDITOR ist `.tree-map-status` ein
    SICHTBARES Abzeichen (css/pages/political-territory-wiki-tree.css) — ein `display: none` ohne
-   Wirt löschte es dort. */
+   Wirt löschte es dort.
+   🔴 In `.avm-row` gilt es nur OHNE `has-map-status`: dort IST der Marker seit 18.08.2026 der
+   Kreis (siehe oben). Eine Zeile ohne die Klasse hält ihn weiterhin unsichtbar, damit eine Liste
+   ihn mitführen kann, bevor sie den Kreis zeigen soll. */
 .wikisync-itemlist .tree-map-status,
 #wiki-sync-territory-tree .tree-map-status,
-.avm-row .tree-map-status {
+.avm-row:not(.has-map-status) .tree-map-status {
 	display: none;
 }

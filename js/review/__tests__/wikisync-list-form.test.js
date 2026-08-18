@@ -149,12 +149,14 @@ assert.ok(/background:\s*var\(--color-hover-wash\)/.test(hoverRumpf),
 	+ 'als "row / option hover". Vorher --color-panel-soft, eine Flaechenfarbe.');
 checks++;
 
-// ---- 9. Der Statuskreis gehoert NUR den fuenf Karten-Subjekten ---------------------------------
-// 🔴 Literatur, Karten und Vorkommen haben kein "liegt auf der Karte". Ein Kreis dort waere eine
-// Behauptung ueber Daten, die es nicht gibt -- sein FEHLEN ist die Information.
-// 💣 Die Regel darf deshalb nicht an ".tree-item" haengen: sobald die drei Listen dieselbe Zeile
-// tragen, bekaemen sie den Kreis automatisch mit. Beim ersten Entwurf des Mockups ist genau das
+// ---- 9. Der Statuskreis kommt nur, wo eine Liste ihn ausdruecklich setzt -----------------------
+// 💣 Die Regel darf nicht an ".tree-item" haengen: sonst bekaeme jede Liste den Kreis in dem
+// Moment, in dem sie dieselbe Zeile traegt. Beim ersten Entwurf des Mockups ist genau das
 // passiert, und gesehen hat es der Owner, nicht das Werkzeug.
+// 🪤 Hier stand bis 18.08.2026 "gehoert NUR den fuenf Karten-Subjekten; Literatur, Karten und
+// Vorkommen haben kein 'liegt auf der Karte'". Der Owner hat an diesem Tag entschieden, dass
+// Literatur und Karten einen bekommen -- er misst dort ihren ORTSBEZUG (avesmapsStatuskreisOrtsbezug,
+// js/ui/listen-statuskreis.js). Ohne Kreis bleiben nur die Vorkommen.
 // 🔴 Er steht seit 2026-08-18 in css/components/map-status-circle.css, NICHT mehr hier. Grund: die
 // Editorfenster tragen die andere Zeilenform (.avm-row) und laden region-sync.css nie -- solange
 // die Regel dort stand, konnte eine Editorliste gar keinen Kreis haben. Die Kraftlinienliste im
@@ -180,13 +182,33 @@ checks++;
 // 💣 Die EINE Regel nennt ALLE DREI Wirte. Getrennte Regeln reichen nicht: die ID-Fassung hat
 // Spezifitaet (1,1,0) gegen (0,2,0) und gewinnt unabhaengig von der Ladereihenfolge -- dieselbe
 // Begruendung wie bei Punkt 3 oben.
+// 🔴 Der dritte Wirt heisst seit 18.08.2026 `.tree-map-status` statt `.avm-row__name::after`: die
+// Zelle des Namens traegt `overflow:hidden` + `text-overflow:ellipsis` (editor-row.css), und ein
+// `::after` DARIN verschwand mit den Auslassungspunkten. Gemessen an der Kartensammlung: Titel im
+// Median 42 Zeichen, p90 60 -- ueber die Haelfte der 529 Karten haette ihren Kreis nie gezeigt.
 const kreisRegel = kreis.match(
-	/\.wikisync-itemlist \.tree-item\.has-map-status \.tree-item-name::after,\s*\r?\n#wiki-sync-territory-tree \.tree-item\.has-map-status \.tree-item-name::after,\s*\r?\n\.avm-row\.has-map-status \.avm-row__name::after\s*\{/);
+	/\.wikisync-itemlist \.tree-item\.has-map-status \.tree-item-name::after,\s*\r?\n#wiki-sync-territory-tree \.tree-item\.has-map-status \.tree-item-name::after,\s*\r?\n\.avm-row\.has-map-status \.tree-map-status\s*\{/);
 assert.ok(kreisRegel,
 	"In map-status-circle.css fehlt einer der drei Wirte an der GEMEINSAMEN Regel. Erwartet:\n"
 	+ "  .wikisync-itemlist .tree-item.has-map-status .tree-item-name::after,\n"
 	+ "  #wiki-sync-territory-tree .tree-item.has-map-status .tree-item-name::after,\n"
-	+ "  .avm-row.has-map-status .avm-row__name::after { ... }");
+	+ "  .avm-row.has-map-status .tree-map-status { ... }");
+checks++;
+
+// 💣 Und der dritte Wirt darf NICHT mehr im Namen stecken. Ohne diese Zusicherung „vereinheitlicht"
+// die naechste Sitzung ihn zurueck auf `::after` -- es sieht aufgeraeumter aus und schneidet in
+// zwei der sieben Listen den Kreis wieder weg, ohne dass ein Test rot wird.
+assert.ok(!/\.avm-row[^,{]*\.avm-row__name::after/.test(kreis),
+	"Der Statuskreis haengt wieder am `::after` von .avm-row__name. Diese Zelle ellipsiert; bei "
+	+ "langen Titeln (Kartensammlung: Median 42 Zeichen) verschwindet der Kreis mit dem Text.");
+checks++;
+
+// ⚠️ Und `display:none` fuer den Marker darf `.avm-row` nur OHNE `has-map-status` treffen -- dort
+// IST der Marker der Kreis. Ein pauschales `.avm-row .tree-map-status { display:none }` loeschte
+// alle sechs Editorlisten auf einmal, lautlos.
+assert.ok(!/\.avm-row \.tree-map-status\s*[,{]/.test(kreis),
+	"map-status-circle.css blendet den Marker in JEDER .avm-row aus. Dann bleibt der Kreis in "
+	+ "allen Editorfenstern weg. Erwartet: `.avm-row:not(.has-map-status) .tree-map-status`.");
 checks++;
 
 // ⚠️ Und beide Welten muessen die Datei auch laden: index.html sieht nur css/styles.css, die sechs
