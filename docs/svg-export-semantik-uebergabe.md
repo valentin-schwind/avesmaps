@@ -19,7 +19,7 @@ nichts davon nötig. Ergebnis: 7–10 MB, rund 20.000 Elemente.
 
 ## Der Vertrag
 
-Namensraum `xmlns:avm="https://avesmaps.de/ns/export/1"`. An **jedem** Element:
+Namensraum `xmlns:avm="https://avesmaps.de/ns/export/1"`. An jedem Element (⚠️ `avm:ebene` nur an Flächen, 904 von 10.084):
 
 | Attribut | Bedeutung | Beispiele |
 |---|---|---|
@@ -167,3 +167,68 @@ Sie entschärft sich von selbst: **die Topographie-Polygone werden mitexportiert
 - **Keine Flussbreite aus dem PNG-Renderer.** `avm:breite` ist die Breite des SVG-Abzugs.
   Ob der Raster-Renderer dieselbe zieht, ist ungeprüft — das gehört gemessen, bevor
   jemand Label und Bild zur Deckung bringt.
+
+---
+
+## Nachtrag 2 — nach der Messung der Bild-Pipeline (18.08.2026)
+
+Sie hat den Abzug gegen den 32k-Render gehalten. Was dabei herauskam, steht hier, weil
+es nirgends sonst nachlesbar wäre.
+
+### Bestätigt
+
+Die Geometrie ist deckungsgleich: **IoU 96,3 %** unter der Meermaske, 99,95 % aller
+meerfarbenen Rasterpixel liegen in den Polygonen, die 32-px-Kette stimmt **ohne**
+Korrekturfaktor. Die Zählungen im Kopf-JSON: 0 von 47 Typen weichen ab.
+
+### 🔴 Malreihenfolge ist fürs BILD — für die Auswertung Ebenen getrennt halten
+
+Gemessen: **29,4 % der Waldfläche wird von Topographie überdeckt**, 18,3 Punkte davon
+von Gebirge; Sümpfe 30,1 %, Steppe 40,4 %. Wer die Ebenen zur Malreihenfolge flachrechnet,
+verliert ein Drittel des Waldes — ausgerechnet den **Bergwald**, also genau die
+Kombination, für die dieser Export gemacht ist.
+
+Die Dokumentordnung sagt, was oben liegt. Sie sagt **nicht**, was da ist. Für eine
+Label-Karte gehören die Ebenen getrennt ausgewertet, nicht übereinandergestempelt.
+
+### Flussbreite: der Kern ist ein Drittel
+
+`avm:breite` ist die **Kernbreite** (Flussweg 0,094 = 3 px). Der Kachel-Renderer zieht
+4 px Kern und mit dem hellen Mantel **8 px** — Faktor 2,7. Neu ist deshalb
+`avm:mantel_breite`, immer angegeben, auch wenn keine Kontur gezeichnet wird.
+💣 **Sie ist die Mantelbreite der LEAFLET-Karte (5 px), nicht die des Kachel-Renderers
+(8 px).** Zwei Renderer, zwei Breiten. Wer sie gleichsetzt, irrt um 60 %.
+
+### Klimabänder: die Korrektur war zu streng
+
+Die *Hüllboxen* überlappen — das bleibt richtig. Die **Polygone** sind aber praktisch
+eine Partition: 96,49 % der Karte in genau einer Zone, 3,46 % in zweien, 0,05 % in
+dreien; 2.832 von 2.847 Orten tragen das Klima ihrer Zone. **Als exakte Einordnung
+taugen sie.** Der Vorfilter über `klimabaender` bleibt trotzdem sinnvoll.
+
+### Der Export kennt mehr Orte als die Karte zeigt
+
+Der Renderer zeichnet **63 % der Ortspunkte nicht** — gestaffelt nach Größe: Metropole
+0 %, Großstadt 3 %, Stadt 30 %, Kleinstadt 35 %, Dorf 70 %, Gebäude 82 %. Das ist eine
+Darstellungsschwelle (Zoombänder), kein Fassungsversatz. ⚠️ **Export und Renderer haben
+verschiedene Auswahlregeln** — der Export liefert *alle* Orte, ungefiltert.
+
+### Behoben
+
+- 💣 **Doppelte ids bei den Passmarken.** Sie standen sechsmal mit denselben vier ids in
+  der Datei. Jetzt trägt jede die Kennung ihrer Ebene (`layer-orte-passmarke-1`).
+  Der Eindeutigkeitstest lief an einem Dokument *ohne* Passmarken — ein Test, der den
+  Schalter nicht setzt, prüft ihn nicht.
+- `avm:ebene` sitzt an **904 von 10.084** Elementen, nicht an jedem: nur Flächen haben
+  eine Landschaftsebene. Die Beschreibung sagt das jetzt.
+
+### Offen, und nicht auf dieser Seite lösbar
+
+- **Der PNG-Renderer trägt keinen Fassungsstempel.** Ein Stempel, den nur eine Seite
+  trägt, beantwortet die Frage halb. Die Revisionen liegen im SVG-Kopf; sie müssten
+  dort ebenso ins Bild oder daneben.
+- **Markerfarbe:** SVG `#e33b35`, Renderer `[241,75,83]` = `#f14b53`. Zwei Töne für
+  dieselbe Sache; welcher gilt, ist eine Frage an den Renderer.
+- **Nur 72,1 % der gezeichneten Markerfläche** liegt in einem SVG-Ortskreis, bei
+  vierfachem Radius sättigt es bei 79,9 %. Ohne Stempel auf beiden Seiten nicht
+  entscheidbar, ob das Versatz ist oder der Renderer noch etwas anderes in Markerrot malt.

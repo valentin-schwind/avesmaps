@@ -235,7 +235,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
          or either script changes, or admins keep the cached files. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260818-svgexport-15" />
+    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260818-svgexport-16" />
 </head>
 
 <body class="edit-page">
@@ -398,8 +398,8 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                 </table>
             </section>
         </main>
-        <script src="../js/pages/svg-export-build.js?v=20260818-svgexport-15"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260818-svgexport-15"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260818-svgexport-16"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260818-svgexport-16"></script>
     <?php endif; ?>
 </body>
 

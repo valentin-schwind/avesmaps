@@ -507,18 +507,25 @@ function svgxContextFor(geometry, index, zaehler, typ) {
 // vorkommt und sich damit per „Ähnliche auswählen" in einem Griff erwischen lässt.
 const SVGX_REGMARK_COLOR = "#ff00ff";
 
-function svgxRegistrationMarks(dialect, sizePx) {
+// 💣 Die ids MÜSSEN je Ebene verschieden sein. Der erste Bau vergab in jeder Ebene
+// dieselben vier -- bei sechs Ebenen also 24 <rect> mit vier ids. Doppelte ids sind gegen
+// die SVG-Spec, und Inkscape schreibt sie beim Speichern stillschweigend um; wer danach
+// über die id sucht, findet die Marke nicht mehr. Gefunden hat es die Bild-Pipeline
+// (18.08.2026), nicht der Test: der prüfte die Eindeutigkeit an einem Dokument OHNE
+// Passmarken. Ein Test, der den Schalter nicht setzt, prüft den Schalter nicht.
+function svgxRegistrationMarks(dialect, sizePx, ebeneId) {
 	// Kantenlänge = 1 Bildpunkt bei der gewählten Ausgabegröße. Kleiner wäre nicht mehr
 	// zuverlässig, größer unnötig auffällig.
 	const groesse = SVGX_VIEWBOX_SIZE / Math.max(1, Number(sizePx) || SVGX_DEFAULT_SIZE_PX);
 	const k = SVGX_VIEWBOX_SIZE - groesse;
 	const ecken = [[0, 0], [k, 0], [0, k], [k, k]];
 	const stuecke = [svgxGroupOpen({
-		name: "Passmarken", id: "passmarken", dialect: dialect,
+		name: "Passmarken", id: ebeneId ? `${ebeneId}-passmarken` : "passmarken", dialect: dialect,
 		attrs: { fill: SVGX_REGMARK_COLOR, stroke: "none" },
 	})];
 	ecken.forEach(([x, y], i) => {
-		stuecke.push(`<rect id="passmarke-${i + 1}" x="${svgxRund(x)}" y="${svgxRund(y)}"`
+		const kennung = ebeneId ? `${ebeneId}-passmarke-${i + 1}` : `passmarke-${i + 1}`;
+		stuecke.push(`<rect id="${svgxEscapeText(kennung)}" x="${svgxRund(x)}" y="${svgxRund(y)}"`
 			+ ` width="${groesse}" height="${groesse}"/>\n`);
 	});
 	stuecke.push(svgxGroupClose());
@@ -811,6 +818,14 @@ function svgxWayLayer(options) {
 					// und Bild zur Deckung bringen will, braucht die Breite als Zahl und nicht
 					// nur die Achse.
 					breite: String((SVGX_WAY_WIDTHS[art] || 0.078) * skala),
+					// Die Mantelbreite der KARTE (PATH_OUTLINE_WEIGHTS), immer angegeben -- auch
+					// wenn hier keine Kontur gezeichnet wird. Ein Verbraucher, der Label und
+					// Rasterbild zur Deckung bringen will, braucht sie, denn der Kern allein ist
+					// nur ein Drittel des Flusses.
+					// 💣 Es ist die Breite der LEAFLET-Karte, NICHT die des Kachel-Renderers. Die
+					// Bild-Pipeline hat am 18.08.2026 an zwoelf Flussstellen 8 px gemessen, diese
+					// Zahl ergibt 5 px. Zwei Renderer, zwei Breiten -- wer sie gleichsetzt, irrt.
+					mantel_breite: String((SVGX_WAY_OUTLINE_WIDTHS[art] || 0.125) * skala),
 					kontur_breite: konturFarbe
 						? String((SVGX_WAY_OUTLINE_WIDTHS[art] || 0.125) * skala) : "" },
 					svgxContextFor(f.geometry, o.context)))
@@ -824,7 +839,7 @@ function svgxWayLayer(options) {
 		stuecke.push(svgxGroupClose());
 	});
 	if (!o.bare) { stuecke.push(svgxGroupClose()); }
-	return { parts: stuecke, count: anzahl, groups: gruppen };
+	return { parts: stuecke, count: anzahl, layerId: "layer-wege", groups: gruppen };
 }
 
 function svgxPowerlineLayer(options) {
@@ -850,7 +865,7 @@ function svgxPowerlineLayer(options) {
 			+ `<title>${svgxEscapeText(name)}</title></path>\n`);
 	});
 	stuecke.push(svgxGroupClose());
-	return { parts: stuecke, count: linien.length, groups: {} };
+	return { parts: stuecke, count: linien.length, layerId: "layer-kraftlinien", groups: {} };
 }
 
 function svgxAreaLayer(options) {
@@ -930,7 +945,7 @@ function svgxAreaLayer(options) {
 	// Gab es gar kein Wasser, kommen die Flüsse trotzdem in die Datei -- am Ende der Ebene.
 	if (!eingehaengt) { (o.injectBeforeWater || []).forEach((teil) => stuecke.push(teil)); }
 	stuecke.push(svgxGroupClose());
-	return { parts: stuecke, count: anzahl, groups: zaehler };
+	return { parts: stuecke, count: anzahl, layerId: o.layerId, groups: zaehler };
 }
 
 function svgxPlaceLayer(options) {
@@ -984,7 +999,7 @@ function svgxPlaceLayer(options) {
 		stuecke.push(svgxGroupClose());
 	});
 	stuecke.push(svgxGroupClose());
-	return { parts: stuecke, count: anzahl, groups: gruppen };
+	return { parts: stuecke, count: anzahl, layerId: "layer-orte", groups: gruppen };
 }
 
 function svgxLabelLayer(options) {
@@ -1053,7 +1068,7 @@ function svgxLabelLayer(options) {
 	stuecke.push(svgxGroupClose());
 
 	stuecke.push(svgxGroupClose());   // <- schließt die EBENE, nicht eine Untergruppe
-	return { parts: stuecke, count: anzahl, groups: {} };
+	return { parts: stuecke, count: anzahl, layerId: "layer-beschriftungen", groups: {} };
 }
 
 // ---------------------------------------------------------------------------------------
@@ -1091,7 +1106,7 @@ function svgxBuildDocument(options) {
 		// ⚠️ Setzt voraus, dass das letzte Stück jeder Ebene ihr eigenes </g> ist. Das gilt
 		// für alle Ebenenbauer hier; ein neuer, der anders endet, bräche es lautlos.
 		if (o.registrationMarks) {
-			const marken = svgxRegistrationMarks(dialect, o.sizePx);
+			const marken = svgxRegistrationMarks(dialect, o.sizePx, ergebnis.layerId);
 			ergebnis.parts.splice(Math.max(0, ergebnis.parts.length - 1), 0, ...marken);
 		}
 		// Die Untergruppen mit ihren Zahlen -- die Seite zeigt sie eingerueckt an, damit

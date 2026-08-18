@@ -511,31 +511,30 @@ console.log("svg-export-build (Flächen glätten): ok");
 	// In JEDER Ebene, nicht bloß einmal im Dokument -- sonst nützt es genau einer Ebene.
 	const ebenen = ["layer-landschaften", "layer-gebiete", "layer-wege", "layer-kraftlinien",
 		"layer-orte", "layer-beschriftungen"];
-	const marken = (svg.match(/id="passmarken"/g) || []).length;
+	const marken = (svg.match(/id="[a-z-]*passmarken"/g) || []).length;
 	assert.strictEqual(marken, ebenen.length,
 		`jede der ${ebenen.length} Ebenen braucht ihre eigenen Passmarken, gefunden: ${marken}`);
-	assert.strictEqual((svg.match(/id="passmarke-\d"/g) || []).length, ebenen.length * 4,
+	assert.strictEqual((svg.match(/id="[a-z-]*passmarke-\d"/g) || []).length, ebenen.length * 4,
 		"vier Ecken je Ebene");
 
 	// 💣 Sie liegen INNEN. Steht eine Marke hinter dem </g> ihrer Ebene, ist sie eine
 	// eigene Ebene und kommt beim Rastern nicht mit -- der Fehler sähe im Editor gleich aus.
-	ebenen.forEach((id) => {
+	// ⚠️ Die nächste Ebene NICHT über id="layer- suchen: Untergruppen und die
+	// Passmarkengruppe tragen denselben Präfix. Stattdessen die bekannte Liste benutzen.
+	ebenen.forEach((id, i) => {
 		const ab = svg.indexOf(`id="${id}"`);
-		const marke = svg.indexOf('id="passmarken"', ab);
-		// ⚠️ Die nächste EBENE über ihre id suchen, nicht über groupmode: das steht im
-		// selben Tag hinter der id, also fände man die eigene Ebene wieder.
-		const naechste = svg.indexOf('id="layer-', ab + 1);
+		const marke = svg.indexOf(`id="${id}-passmarken"`, ab);
+		const naechste = i + 1 < ebenen.length ? svg.indexOf(`id="${ebenen[i + 1]}"`) : -1;
 		assert.ok(marke > ab && (naechste === -1 || marke < naechste),
 			`die Passmarken von ${id} müssen INNERHALB dieser Ebene liegen`);
 	});
-
 	// Die Ecken sitzen exakt auf der Leinwandkante, und die Marke ist 1 px groß.
 	assert.ok(svg.includes('x="0" y="0" width="0.03125"'), "die erste Ecke sitzt auf 0,0");
 	assert.ok(svg.includes('x="1023.97" y="1023.97"'), "die letzte Ecke sitzt am Gegenende");
 
 	// 💣 DECKEND. Ein Alpha von 1/255 kann beim Rastern auf 0 gerundet werden -- eine Marke,
 	// die manchmal verschwindet, ist schlimmer als keine.
-	const markenBlock = svg.slice(svg.indexOf('id="passmarken"'), svg.indexOf('id="passmarke-1"') + 400);
+	const markenBlock = svg.slice(svg.indexOf('passmarken"'), svg.indexOf('passmarke-1"') + 400);
 	assert.ok(!/opacity/.test(markenBlock), "eine Passmarke darf keine Deckkraft tragen");
 	assert.ok(markenBlock.includes(B.SVGX_REGMARK_COLOR), "Passmarken sind magenta zum Auswählen");
 
@@ -620,3 +619,32 @@ console.log("svg-export-build (Ortsfarbe + Flächenkontur): ok");
 }
 
 console.log("svg-export-build (Semantik): ok");
+
+// ---- 21. Passmarken: eindeutige ids je Ebene ------------------------------------------
+// 💣 DER FEHLER, DEN DIESER TEST NICHT GEFUNDEN HAT. Der erste Bau vergab in JEDER Ebene
+// dieselben vier ids -- 24 <rect> mit vier ids. Doppelte ids sind gegen die SVG-Spec, und
+// Inkscape schreibt sie beim Speichern stillschweigend um. Der Eindeutigkeitstest lief an
+// einem Dokument OHNE Passmarken; ein Test, der den Schalter nicht setzt, prüft ihn nicht.
+// Gefunden hat es die Bild-Pipeline am 18.08.2026 an einer echten Datei.
+{
+	const svg = B.svgxBuildDocument({ mapFeatures: payload, dialect: D.INKSCAPE,
+		registrationMarks: true, semantics: true, sizePx: 32768 }).parts.join("");
+	const ids = [...svg.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
+	const doppelt = [...new Set(ids.filter((x, i) => ids.indexOf(x) !== i))];
+	assert.strictEqual(doppelt.length, 0,
+		`mit Passmarken UND Semantik muss jede id eindeutig bleiben, doppelt: ${doppelt.join(", ")}`);
+	assert.ok(svg.includes('id="layer-orte-passmarke-1"'),
+		"eine Passmarke trägt die Kennung ihrer Ebene");
+}
+
+// ---- 22. Mantelbreite: immer angegeben, und sie ist die der KARTE ----------------------
+{
+	const svg = B.svgxBuildDocument({ mapFeatures: payload, dialect: D.INKSCAPE,
+		semantics: true }).parts.join("");
+	// Flussweg: Kern 3 px, Mantel 5 px bei 32 px/Einheit.
+	assert.ok(/avm:type="Flussweg"[^>]*avm:breite="0\.094"/.test(svg), "der Kern fehlt");
+	assert.ok(/avm:type="Flussweg"[^>]*avm:mantel_breite="0\.156"/.test(svg),
+		"die Mantelbreite muss AUCH ohne gezeichnete Kontur angegeben sein");
+}
+
+console.log("svg-export-build (Passmarken-ids + Mantel): ok");
