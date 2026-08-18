@@ -10,10 +10,18 @@
 -- Deshalb reicht ein REPLACE auf dem Segment und es braucht keine Zuordnungstabelle. Das Muster
 -- `liste-baronien` faengt zugleich http:// wie https:// und mit wie ohne www.
 --
--- ⚠️ ICH KONNTE NICHT ZAEHLEN. Von der Entwicklungsmaschine gibt es keine Verbindung zur Live-Datenbank
--- (api/config.local.php liegt nur auf dem Server). Anders als die Schwesterdateien in diesem Ordner
--- nennt diese hier deshalb KEINE erwarteten Zeilenzahlen -- Abschnitt 1 misst sie. Bitte das Ergebnis
--- von Abschnitt 1 ansehen, BEVOR Abschnitt 3 laeuft.
+-- GEFAHREN AM 18.08.2026, gemessen statt geschaetzt (die Datei entstand ohne DB-Zugang und behauptete
+-- an dieser Stelle, sie koenne nicht zaehlen):
+--   * sources: 26 Zeilen umbenannt, dazu EINE Kollision -- und die war eine Waise (0 Verknuepfungen,
+--     0 adventure_place-Zeilen), waehrend die 16 echten Verknuepfungen laengst an der neuen Zeile
+--     hingen. Die alte wurde geloescht. Zusammengefuehrt werden musste NICHTS.
+--   * political_territory / map_features: siehe Abschnitte 4 und 5, dort gemeldete Zeilenzahl.
+--
+-- ⭐ DIE LEHRE FUER DEN NAECHSTEN, DER SO ETWAS BAUT: die Bestandsaufnahme in Abschnitt 1 war NICHT
+-- noetig. Jede Schreibanweisung hier ist durch `WHERE ... LIKE '%liste-baronien%'` begrenzt und fasst
+-- nichts an, wo nichts passt -- sie AUSZUFUEHREN ist die Messung, phpMyAdmin meldet die Zeilenzahl.
+-- Abschnitt 1 lohnt nur, wenn hinterher noch tote Links auftauchen und man wissen muss, in welcher
+-- unerwarteten Spalte sie stecken. Owner am 18.08.2026, zu Recht: "warum brauch ich das?"
 --
 -- Laufen lassen in phpMyAdmin (admin/phpMyAdmin), Anweisung fuer Anweisung, und jedes Mal die
 -- gemeldete Zeilenzahl lesen.
@@ -118,7 +126,9 @@ ORDER BY s.id;
 --     Identitaet einer Quelle. Hat jemand die NEUE Adresse laengst von Hand angelegt, waehrend die
 --     alte noch danebensteht, dann bricht das UPDATE aus Abschnitt 3a mit "Duplicate entry" ab --
 --     und zwar erst mittendrin.
---     ⚠️ MUSS 0 ZEILEN liefern. Kommt hier etwas zurueck, gilt Abschnitt 3b statt 3a.
+--     ⚠️ Kommt hier etwas zurueck, laesst 3a genau diese Zeilen aus und 3b sagt, was mit ihnen
+--     geschieht. Die Abfrage ist damit KEIN Riegel mehr, sondern nur noch die Vorschau darauf --
+--     3a scheitert seit dem 18.08.2026 nicht mehr an ihnen.
 SELECT alt.id AS alte_id, alt.url AS alte_url,
        neu.id AS neue_id, neu.url AS neue_url
 FROM sources alt
@@ -145,41 +155,72 @@ WHERE properties_json LIKE '%liste-baronien%';
 
 -- =====================================================================================
 -- 3) SCHREIBEN: der Quellenkatalog sources.
---    Nur EINEN der beiden Wege fahren -- 3a wenn 2b leer war, sonst 3b.
+--    3a laeuft immer und zuerst; 3b sagt, was mit dem Rest geschieht, den 3a stehen laesst.
+--    (Frueher stand hier "nur EINEN der beiden Wege fahren" -- das war falsch, sie bauen aufeinander auf.)
 -- =====================================================================================
 
--- 3a) Der Normalfall (2b lieferte 0 Zeilen).
---     💣 REPLACE steht ABSICHTLICH zweimal da. MySQL wertet eine SET-Liste von links nach rechts aus,
+-- 3a) Die Anweisung, die IMMER laeuft. Die ungeschuetzte Fassung (ohne die letzten drei Zeilen) ist
+--     am 18.08.2026 mit `#1062 - Duplicate entry` abgebrochen -- InnoDB rollt eine gescheiterte
+--     Anweisung ganz zurueck, es ging nichts verloren, aber es ging eben auch nichts. Diese hier
+--     laesst die kollidierenden Zeilen stehen und repariert alle uebrigen (gemessen: 26).
+--
+--     💣 REPLACE steht ABSICHTLICH mehrfach da. MySQL wertet eine SET-Liste von links nach rechts aus,
 --     url traegt in der zweiten Zeile also schon den neuen Wert -- ein blosses SHA2(url, 256) waere
 --     hier zwar zufaellig richtig, aber nur solange niemand die Reihenfolge umstellt. Die doppelte
 --     Schreibweise stimmt unter beiden Lesarten (REPLACE auf einer bereits ersetzten Adresse findet
 --     nichts mehr) und macht die Anweisung zugleich wiederholbar.
+--
+--     💣 Die doppelte Verschachtelung im NOT IN ist Pflicht, nicht Geschmack: eine Unterabfrage auf
+--     die Tabelle, die gerade geschrieben wird, lehnt MySQL mit Fehler 1093 ab. Die Ableitungstabelle
+--     x erzwingt die Materialisierung -- dasselbe Haus-Idiom wie in
+--     avesmapsPoliticalPruneGeometryAuditLog (AGENTS.md §9).
 UPDATE sources
 SET url      = REPLACE(url, 'liste-baronien', 'liste-bn'),
     url_hash = SHA2(REPLACE(url, 'liste-baronien', 'liste-bn'), 256)
-WHERE url LIKE '%liste-baronien%';
+WHERE url LIKE '%liste-baronien%'
+  AND SHA2(REPLACE(url, 'liste-baronien', 'liste-bn'), 256) NOT IN (
+        SELECT h FROM (SELECT url_hash AS h FROM sources) x
+      );
 
--- 3b) Der Kollisionsfall (2b lieferte Zeilen) -- NUR dann, und dann STATT 3a. Zum Ausfuehren die
---     drei Anweisungen entkommentieren, in dieser Reihenfolge.
---     Die neue Adresse existiert bereits als eigene Katalogzeile. Die alte kann nicht umbenannt
---     werden, sie muss VERSCHMOLZEN werden: erst alle Verknuepfungen auf die neue Zeile umhaengen,
---     dann die alte Zeile samt ihrer uebrig gebliebenen Verknuepfungen entfernen.
---     💣 UPDATE IGNORE ist tragend: uq_feature_source (entity_type, entity_public_id, source_id)
---     verbietet, dass ein Objekt zweimal auf dieselbe Quelle zeigt. Haengt eine Baronie bereits an
---     BEIDEN Zeilen, laeuft das Umhaengen genau dort in den Doppelschluessel; IGNORE laesst diese
---     eine Verknuepfung stehen, und der zweite Schritt raeumt sie weg.
+-- 3b) Was mit den kollidierenden Zeilen geschieht, die 3a stehen laesst.
 --
--- UPDATE IGNORE feature_sources fs
---   JOIN sources alt ON alt.id = fs.source_id
---   JOIN sources neu ON neu.url_hash = SHA2(REPLACE(alt.url, 'liste-baronien', 'liste-bn'), 256)
---    SET fs.source_id = neu.id
---  WHERE alt.url LIKE '%liste-baronien%';
+--     Erst ansehen, WAS da kollidiert -- die Zahl der Verknuepfungen entscheidet alles:
 --
--- DELETE fs FROM feature_sources fs
---   JOIN sources alt ON alt.id = fs.source_id
---  WHERE alt.url LIKE '%liste-baronien%';
+--       SELECT alt.id AS alte_id, alt.url AS alte_url,
+--              (SELECT COUNT(*) FROM feature_sources fs WHERE fs.source_id = alt.id) AS alt_links,
+--              neu.id AS neue_id, neu.url AS neue_url,
+--              (SELECT COUNT(*) FROM feature_sources fs WHERE fs.source_id = neu.id) AS neu_links
+--         FROM sources alt
+--         LEFT JOIN sources neu
+--           ON neu.url_hash = SHA2(REPLACE(alt.url, 'liste-baronien', 'liste-bn'), 256)
+--        WHERE alt.url LIKE '%liste-baronien%'
+--        ORDER BY alt.id;
 --
--- DELETE FROM sources WHERE url LIKE '%liste-baronien%';
+--     FALL A -- alt_links = 0: eine Waise. Nichts zu verschieben. Sie darf weg, aber erst nach der
+--     Gegenprobe auf die ZWEITE Referenz (siehe unten). Genau dieser Fall trat am 18.08.2026 ein:
+--     eine einzige Kollision, 0 Verknuepfungen, die 16 echten hingen laengst an der neuen Zeile.
+--
+--       SELECT (SELECT COUNT(*) FROM feature_sources WHERE source_id = <alte_id>) AS verknuepfungen,
+--              (SELECT COUNT(*) FROM adventure_place WHERE created_from_source_id = <alte_id>) AS literatur_orte;
+--       -- beide 0 -> DELETE FROM sources WHERE id = <alte_id>;
+--
+--     FALL B -- alt_links > 0: NICHT von Hand loesen. Dafuer gibt es das gebaute Werkzeug
+--     POST /api/edit/map/source-merge.php {action:"report"|"apply", from_source_id, into_source_id}
+--     (from = die ALTE, into = die NEUE; report ist lesend und braucht 'edit', apply braucht 'admin').
+--     Es kennt die Alt-"Andere Quelle", behaelt bei doppelter Verknuepfung die staerkere Herkunft,
+--     schreibt das Umkehrprotokoll source_merge_log und setzt die Kartenrevision selbst.
+--
+--     💣 ZWEI BEFUNDE, DIE DIE ERSTE FASSUNG DIESER DATEI FALSCH MACHTEN -- sie stand hier als
+--     handgeschriebener UPDATE-IGNORE/DELETE-Dreisatz und ist am 18.08.2026 ersatzlos gestrichen:
+--       1. Ihr DELETE auf feature_sources hatte den JOIN auf die NEUE Zeile nicht -- es haette die
+--          Verknuepfungen JEDER alten Zeile geloescht, auch der nicht kollidierenden, die 3a
+--          voellig gefahrlos umbenennt. Ein Loeschweg, der breiter greift als sein Anlass.
+--       2. sources.id haengt nicht nur an feature_sources, sondern auch an
+--          adventure_place.created_from_source_id. Ein rohes DELETE FROM sources laesst die
+--          Literatur-Ortszuordnungen ins Leere zeigen. Deshalb die Gegenprobe in Fall A und das
+--          Werkzeug in Fall B.
+--     ⚠️ Und avesmapsMergeSourceInto LOESCHT die alte Zeile NICHT -- sie bleibt leer stehen, damit
+--     der Merge umkehrbar ist. Nach einem Merge ist der Fall also ein Fall A und wird so beendet.
 
 
 -- =====================================================================================
