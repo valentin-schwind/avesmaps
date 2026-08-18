@@ -1211,8 +1211,16 @@ function avesmapsListCitymapsForEdit(PDO $pdo): array
     // Still ONE query for all maps (same shape as the count it replaces, which the count is now derived
     // from) -- turning this into a per-row lookup would be 450 queries for one keystroke's worth of data.
     $placeNames = [];
+    // ⭐ `target_kind` reist in DERSELBEN Abfrage mit -- der Statuskreis der Liste braucht nicht
+    // nur „wie viele Orte", sondern „wie viele davon zeigen ins Leere" (Owner 18.08.2026: halb, wenn
+    // mindestens einer unaufgelöst ist). Eine zweite Abfrage dafür wäre auf STRATO genau die Last,
+    // vor der der Kommentar oben warnt; eine Spalte mehr in dieser einen kostet nichts.
+    // 💣 Die Regel steht NICHT hier, sondern in js/ui/listen-statuskreis.js -- hier wird nur
+    // gezählt. `'unresolved'` ist der Vorgabewert der Spalte (siehe DDL oben), ein Rohname ohne
+    // Ziel bleibt darauf stehen.
+    $placeOpenCounts = [];
     $nameStatement = $pdo->prepare(
-        "SELECT citymap_id, raw_name FROM citymap_place
+        "SELECT citymap_id, raw_name, target_kind FROM citymap_place
           WHERE status = 'approved' AND citymap_id IN ($placeholders)
           ORDER BY citymap_id ASC, sort_order ASC, id ASC"
     );
@@ -1221,6 +1229,10 @@ function avesmapsListCitymapsForEdit(PDO $pdo): array
         $citymapId = (int) $row['citymap_id'];
         $name = trim((string) $row['raw_name']);
         $placeCounts[$citymapId] = ($placeCounts[$citymapId] ?? 0) + 1;
+        $kind = trim((string) ($row['target_kind'] ?? ''));
+        if ($kind === '' || $kind === 'unresolved') {
+            $placeOpenCounts[$citymapId] = ($placeOpenCounts[$citymapId] ?? 0) + 1;
+        }
         // An unresolved place still HAS a raw_name -- that is exactly the row a human searches for.
         // Only a genuinely empty one is dropped, and it must not shrink the count.
         if ($name !== '') {
@@ -1269,6 +1281,10 @@ function avesmapsListCitymapsForEdit(PDO $pdo): array
                 : '',
             'thumb_auto_state' => (string) ($row['thumb_auto_state'] ?? ''),
             'place_count' => $placeCounts[$id] ?? 0,
+            // ⚠️ Neben der Gesamtzahl, nicht statt ihr: der Statuskreis unterscheidet DREI
+            // Zustände (keine Orte / mindestens einer offen / alle aufgelöst), und mit nur einer
+            // der zwei Zahlen sind die ersten beiden nicht auseinanderzuhalten.
+            'place_open_count' => $placeOpenCounts[$id] ?? 0,
             // Names only, no ids: the list uses them for SEARCH and for the "Ort: X" hint, nothing else.
             // (The rule for this SELECT is "list-row fields only" -- this earns its place because the
             // list itself reads it. Everything about a place beyond its name stays in 'detail'.)

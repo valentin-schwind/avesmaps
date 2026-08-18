@@ -1200,10 +1200,15 @@ function avesmapsRenderCitymapPicker() {
 		var origin = c.origin && c.origin !== "wiki" ? " · " + (c.origin === "community" ? "Community" : "eigen") : "";
 		var draft = c.status && c.status !== "approved" ? " · verborgen" : "";
 		var meta = [place, (c.types || []).join("/")].filter(Boolean).join(" · ");
-		// Dieselbe Zeile wie die fuenf Karten-Listen. KEIN has-map-status -- siehe Literatur oben.
-		return '<button type="button" class="tree-item" data-cm-id="' + esc(c.public_id) + '" title="Doppelklick: im Karteneditor öffnen">'
+		// Dieselbe Zeile wie die fuenf Karten-Listen. 🔴 MIT has-map-status seit 18.08.2026 -- siehe
+		// Literatur oben, dieselbe Regel und derselbe Bauer: der Kreis misst den ORTSBEZUG der Karte.
+		// 💣 Zwei Zahlen, nicht eine: `place_count` allein kann „keine Orte" nicht von „alle offen"
+		// unterscheiden. `c.places` traegt hier nur NAMEN, die Art steht in `place_open_count`
+		// (api/_internal/app/citymaps.php, dieselbe Abfrage -- keine zweite).
+		return '<button type="button" class="tree-item has-map-status" data-cm-id="' + esc(c.public_id) + '" title="Doppelklick: im Karteneditor öffnen">'
 			+ '<span class="tree-item-name">' + esc(c.title || "(ohne Titel)") + '</span>'
 			+ '<span class="tree-item-meta">' + esc(meta + origin + draft) + '</span>'
+			+ avesmapsStatuskreisOrtsbezugZahlen(c.place_count, c.place_open_count)
 			+ '</button>';
 	}).join("");
 }

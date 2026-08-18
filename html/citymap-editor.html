@@ -637,6 +637,9 @@
      Blindgänger. Diese Seite ist ein eigenes Dokument (iframe im Editor-Rahmen) und bindet sie
      deshalb selbst; css/components/editor-page.css — die Regeln der `.dt-*`-Hülle — lädt sie
      bereits oben. -->
+<!-- Der geteilte Statuskreis-Bauer der Listenzeilen; dieselbe Datei laedt index.html
+     fuer die Panel-Liste derselben Objektart. -->
+<script src="/js/ui/listen-statuskreis.js"></script>
 <script src="/js/ui/wiki-assign-registry.js"></script>
 <script src="/js/ui/wiki-assign-diff.js"></script>
 <script src="/js/ui/wiki-assign.js"></script>
@@ -815,10 +818,18 @@
         ? `<img src="${ceEscape(c.thumb)}" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode(''))">`
         : CE_THUMB_PH_SVG;
       const types = (c.types || []).length ? `<span class="pill pill--kind">${ceEscape((c.types || []).length)} Typ(en)</span> ` : "";
-      return `<button class="avm-row${c.public_id === state.selectedId ? " is-selected" : ""}${draft ? " is-draft" : ""}" data-id="${ceEscape(c.public_id)}">
+      // 🔴 Der Statuskreis misst den ORTSBEZUG der Karte, nicht ihre Wiki-Zuweisung (Owner
+      // 18.08.2026): leer = keine Orte · halb = mindestens einer unaufgelöst · voll = alle
+      // aufgelöst. Dieselbe Regel und derselbe Bauer wie in der Panel-Liste.
+      // 💣 Zwei Zahlen, nicht eine: `place_count` allein kann „keine Orte" nicht von „alle offen"
+      // unterscheiden. `places` traegt hier nur NAMEN („Names only, no ids"), deshalb der
+      // Zahlen-Eingang des Bauers und nicht der Listen-Eingang wie bei der Literatur.
+      // ⚠️ Der Name steckt seit 18.08.2026 in `.avm-row__l1` wie in den fuenf Nachbarlisten -- der
+      // Kreis braucht daneben Platz, und `.avm-row__name` ellipsiert (Titel im Median 42 Zeichen).
+      return `<button class="avm-row has-map-status${c.public_id === state.selectedId ? " is-selected" : ""}${draft ? " is-draft" : ""}" data-id="${ceEscape(c.public_id)}">
         <span class="ce-item__thumb">${thumb}</span>
         <span class="avm-row__text">
-          <span class="avm-row__name">${ceEscape(c.title)}</span>
+          <span class="avm-row__l1"><span class="avm-row__name">${ceEscape(c.title)}</span>${avesmapsStatuskreisOrtsbezugZahlen(c.place_count, c.place_open_count)}</span>
           <span class="avm-row__l2">${types}${c.place_count || 0} Orte${placeHitPill}${community}${draft ? ` <span class="pill pill--hidden">verborgen</span>` : ""}</span>
         </span></button>`;
     }).join("") : `<p class="ce-empty">Keine Karten.</p>`;

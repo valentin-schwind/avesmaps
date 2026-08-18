@@ -239,4 +239,46 @@ assert.ok(/class="tree-item has-map-status" data-adv-id=/.test(panelListe),
 	'Die Panel-Literaturzeile setzt "has-map-status" nicht -- ohne die Klasse bleibt der Kreis aus.');
 checks++;
 
+// ── VERDRAHTUNG: Kartenliste im KARTENEDITOR ────────────────────────────────────────────────────
+const kartenEditor = lies("html", "citymap-editor.html");
+assert.ok(/<script src="\/js\/ui\/listen-statuskreis\.js"><\/script>/.test(kartenEditor),
+	"Der Karteneditor laedt js/ui/listen-statuskreis.js nicht.");
+checks++;
+assert.ok(/avesmapsStatuskreisOrtsbezugZahlen\(c\.place_count, c\.place_open_count\)/.test(kartenEditor),
+	"Der Karteneditor ruft den geteilten Bauer nicht mit BEIDEN Zahlen auf. 💣 `place_count` allein "
+	+ "kann 'keine Orte' nicht von 'alle offen' unterscheiden -- die Liste zeigt hier nur NAMEN.");
+checks++;
+assert.ok(/class="avm-row has-map-status\$\{/.test(kartenEditor),
+	'Die Zeile des Karteneditors setzt "has-map-status" nicht.');
+checks++;
+// ⚠️ Diese Liste hatte als einzige der sechs kein `.avm-row__l1`; ohne die Huelle sitzt der Marker
+// im falschen Fluss und ohne Abstand. Titel im Median 42 Zeichen, p90 60 -- ohne den Flex-Kasten
+// waere der Kreis genau bei der Haelfte des Bestands unsichtbar.
+assert.ok(/<span class="avm-row__l1"><span class="avm-row__name">\$\{ceEscape\(c\.title\)\}<\/span>\$\{avesmapsStatuskreis/.test(kartenEditor),
+	"Die Kartenzeile fuehrt Name und Kreis nicht in `.avm-row__l1`. Ohne den Flex-Kasten fehlt dem "
+	+ "Marker der Abstand, und der Name ellipsiert ueber ihn hinweg.");
+checks++;
+
+// ── VERDRAHTUNG: Kartenliste im WIKISYNC-PANEL ──────────────────────────────────────────────────
+assert.ok(/avesmapsStatuskreisOrtsbezugZahlen\(c\.place_count, c\.place_open_count\)/.test(panelListe),
+	"Die Panel-Kartenliste ruft den geteilten Bauer nicht auf.");
+checks++;
+assert.ok(/class="tree-item has-map-status" data-cm-id=/.test(panelListe),
+	'Die Panel-Kartenzeile setzt "has-map-status" nicht.');
+checks++;
+
+// 🔴 UND DER SERVER MUSS DIE ZWEITE ZAHL LIEFERN. Sie ist der Grund, aus dem die Kartenliste den
+// Kreis ueberhaupt rechnen kann: bis 18.08.2026 selektierte diese Abfrage nur `citymap_id,
+// raw_name` und gab `places` als reine Namensliste heraus -- `target_kind` reiste gar nicht mit.
+// 💣 In DERSELBEN Abfrage, nicht in einer zweiten: eine Abfrage je Zeile waeren ~450 fuer einen
+// Tastendruck, und genau davor warnt der Kommentar an dieser Stelle seit jeher (STRATO).
+const citymapsLib = lies("api", "_internal", "app", "citymaps.php");
+assert.ok(/SELECT citymap_id, raw_name, target_kind FROM citymap_place/.test(citymapsLib),
+	"avesmapsListCitymapsForEdit holt `target_kind` nicht mehr mit. Ohne die Spalte kann die Liste "
+	+ "'aufgeloest' von 'offen' nicht unterscheiden und der Kreis waere geraten.");
+checks++;
+assert.ok(/'place_open_count' => \$placeOpenCounts\[\$id\] \?\? 0,/.test(citymapsLib),
+	"avesmapsListCitymapsForEdit gibt `place_open_count` nicht mehr heraus.");
+checks++;
+
 console.log(`OK -- ${checks} Zusicherungen (geteilter Statuskreis-Bauer).`);
