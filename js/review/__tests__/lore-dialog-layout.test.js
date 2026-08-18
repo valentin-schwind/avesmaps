@@ -201,6 +201,29 @@ assert.ok(!/is-selected/.test(context.avesmapsLoreListRowHtml(
 	Object.assign({}, eintrag, { wiki_key: "" }), true, "avm")),
 	"ohne offenen Eintrag ist keine Zeile markiert, auch keine ohne Schluessel");
 
+// ---- 5c. ZWEI Zeilen, nicht eine ---------------------------------------------------------------
+// 💣 Name und Meta klebten in JEDER Zeile des Fensters aneinander -- gerendert stand dort
+// „1001 RauschWare · Parfüm · Belhanka" (Owner 18.08.2026). Grund: `.avm-row__text` ist als
+// Flex-Kind ein Block, seine beiden `<span>`-Kinder sind aber inline und teilen sich damit EINE
+// Zeilenbox. Den Umbruch macht allein `.avm-row__l1` -- `display:flex`, also ein Block-Kasten.
+// 🔴 Deshalb wird hier BEIDES geprueft: dass das Markup die Huelle setzt UND dass sie im
+// Stylesheet ein Block ist. Nur das Markup zu pruefen liesse den Fehler zurueckkommen, sobald
+// jemand `.avm-row__l1` auf `display:inline` stellt -- die Zusicherung waere dann gruen und die
+// Liste wieder einzeilig.
+const fensterzeile = context.avesmapsLoreListRowHtml(eintrag, true, "avm");
+assert.ok(/<span class="avm-row__l1"><span class="avm-row__name">Bräubier<\/span><\/span>/.test(fensterzeile),
+	"der Name steht in `.avm-row__l1` wie in den fuenf Nachbarlisten -- ohne diese Huelle laufen "
+	+ "Name und Meta-Zeile in EINE Zeile zusammen. Ist: " + fensterzeile);
+const editorRowCss = fs.readFileSync("css/components/editor-row.css", "utf8");
+const l1Regel = editorRowCss.match(/\.avm-row__l1\s*\{[^}]*\}/);
+assert.ok(l1Regel && /display:\s*flex/.test(l1Regel[0]),
+	"`.avm-row__l1` muss ein BLOCK-Kasten sein (display:flex) -- daran haengt der Zeilenumbruch "
+	+ "zwischen Name und Meta-Zeile, nicht an einem Rand oder einem <br>.");
+// ⚠️ Dass die Panel-Zeile sich die Huelle NICHT abschaut, steht schon in Abschnitt 5b
+// („keine Panel-Klassen in der Fensterzeile" und die Gegenprobe darunter) -- eine zweite
+// Zusicherung dafuer waere tot: sie wuerde nie als erste ausloesen. Ihr Umbruch kommt ohnehin
+// aus dem Raster (`.wikisync-itemlist .tree-item` ist `display:grid` mit zwei Reihen).
+
 // ---- 6. Die Leichen sind wirklich weg ---------------------------------------------------------
 // Ein zurueckgebliebener Verweis auf die alte Struktur faellt nicht auf: er wirft nicht, er tut
 // nur nichts. Genau so bliebe eine Spalte leer, ohne dass irgendwo ein Fehler stuende.

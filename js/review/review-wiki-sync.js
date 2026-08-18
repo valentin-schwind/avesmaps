@@ -2754,11 +2754,24 @@ function avesmapsLoreListRowHtml(item, showKind, form) {
 		// (html/citymap-editor.html, renderList). ⭐ Der gewählte Eintrag ist hier MARKIERT --
 		// das leistet der transparente 1px-Rahmen der Klasse, der beim Auswählen nur die Farbe
 		// wechselt. Im Reiter gibt es das nicht, dort öffnet ein Klick ja das Fenster.
+		//
+		// 💣 DER NAME MUSS IN `.avm-row__l1` STEHEN, und das ist keine Verzierung: `.avm-row__text`
+		//    ist ein Flex-KIND und damit ein Block, seine Kinder sind aber `<span>`, also inline.
+		//    Zwei inline-Spans nebeneinander teilen sich EINE Zeile -- gerendert stand hier
+		//    „1001 RauschWare · Parfüm · Belhanka", ohne jede Lücke, in JEDER Zeile (Owner
+		//    18.08.2026: „hier ist auch was mit der itemdarstellung kaputt"). Erst `.avm-row__l1`
+		//    (`display:flex`, also ein Block) bricht die Zeile; `margin-top`, `overflow:hidden` und
+		//    `text-overflow:ellipsis` an `.avm-row__l2` sind an einem inline-Element ohnehin wirkungslos.
+		//    Gemessen im Browser gegen das echte Stylesheet: ohne Hülle 27 px Zeilenhöhe und EINE
+		//    Textzeile, mit Hülle 44 px und zwei -- wie die Panel-Zeile daneben (42 px).
+		// 🔴 KEINE neue CSS-Regel. Die fünf Nachbarlisten (Karten, Literatur, Kraftlinien, Wege,
+		//    Landschaften) bauen ihre Zeile längst so; hier war der Kommentar „Bauteil für Bauteil
+		//    aus dem Karteneditor" wahr bis auf genau dieses Bauteil.
 		return '<button type="button" class="avm-row'
 			+ (item.wiki_key && item.wiki_key === avesmapsLoreDetailKey ? " is-selected" : "") + '"'
 			+ gemeinsam + ">"
 			+ '<span class="avm-row__text">'
-			+ '<span class="avm-row__name">' + name + "</span>"
+			+ '<span class="avm-row__l1"><span class="avm-row__name">' + name + "</span></span>"
 			+ '<span class="avm-row__l2">' + metaHtml + "</span>"
 			+ "</span></button>";
 	}
