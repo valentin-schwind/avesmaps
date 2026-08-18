@@ -364,7 +364,11 @@ function renderPathSyncList() {
 					'<span class="drag-handle" aria-hidden="true"></span>' +
 					`<span class="tree-item-name">${pathSyncEscapeText(row.name)}</span>` +
 					`<span class="tree-item-meta">${metaInner}</span>` +
-					'<span class="tree-map-status tree-map-status--all" aria-hidden="true"></span>' +
+					// 🩤 Hier stand ein festes `--all`. Eine map-only-Zeile ist ein Weg AUF der Karte
+					// OHNE Wiki-Zeile -- also genau der halbe Zustand, und 3744 Zeilen meldeten sich als
+					// fertig (Tommelweg, Waldstraße, Thuranstieg). Die FORM kommt aus dem geteilten
+					// Bauer, damit die drei Modifier nicht ein zweites Mal von Hand dastehen.
+					avesmapsStatuskreisMarkup("halb") +
 					'</div>'
 				);
 			}
@@ -395,7 +399,11 @@ function renderPathSyncList() {
 			const assignChip = `<button type="button" class="region-sync__cand path-sync__assign" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}" title="${onMap ? "Neu zuordnen" : "Zuordnen"}">${onMap ? "+" : "Zuordnen"}</button>`;
 			const segChips = segs.length ? `${segs.length} Segment${segs.length === 1 ? "" : "e"}: ${segs.map(candidate).join(" ")} ` : "";
 			metaHtml += `<span class="region-sync__map">${segChips}${assignChip}</span>`;
-			const marker = `<span class="tree-map-status${onMap ? " tree-map-status--all" : ""}" aria-hidden="true"></span>`;
+			// ⚠️ Diese Liste führt WIKI-Wege, nicht Kartensegmente: die Frage ist „liegt der
+			// Artikel auf der Karte“, und es gibt nur zwei Antworten. Die Namensgruppen-Regel des
+			// Editors (avesmapsStatuskreisWeg) passt hier NICHT -- andere Grundmenge, andere Frage.
+			// Geteilt ist die FORM, nicht die Regel.
+			const marker = avesmapsStatuskreisMarkup(onMap ? "voll" : "leer");
 			// Wege haben keinen Drag-Handle — leere Spalte 1 für gleiche Ausrichtung.
 			return (
 				'<div class="tree-item has-map-status region-sync__item">' +
@@ -529,6 +537,13 @@ async function reopenOutlier(fingerprint) {
 	void loadOutliers();
 }
 
+// 🩤 DIE VIER DIAGNOSELISTEN DIESER DATEI TRAGEN KEINEN STATUSKREIS -- Ausreißer, ihre
+// Fußzeile, „Flussrichtung unbekannt“ und die Verlauf-Konflikte. Bis 18.08.2026 setzten alle vier
+// `has-map-status` und einen Marker OHNE Modifier: einen Ring, der IMMER leer blieb und damit
+// „nicht auf der Karte“ behauptete. Gemessen an „Flussrichtung unbekannt“: 86 Zeilen, alle leer,
+// und jede einzelne liegt auf der Karte -- ein unmöglicher Zustand. Gefüllt wäre er dort ohne
+// Aussage, denn diese Listen führen ausschließlich Wege, die es auf der Karte gibt. Lieber kein
+// Zeichen als eines, das lügt.
 function renderOutlierList(list) {
 	if (!list) {
 		return;
@@ -578,7 +593,7 @@ function renderOutlierList(list) {
 			`<button type="button" class="region-sync__cand" data-outlier-approve="${pathSyncEscapeAttr(way.wiki_key)}" data-fingerprint="${pathSyncEscapeAttr(cluster.fingerprint || "")}" data-way-name="${pathSyncEscapeAttr(way.name || way.wiki_key)}" title="Bestätigen, dass dieser Klumpen zum Weg gehört — verschwindet aus der Liste, öffnet sich wieder, wenn der Weg neu gezeichnet wird">gehört zum Weg</button>` +
 			"</div>").join("");
 		return (
-			`<div class="tree-item has-map-status region-sync__item" data-focus-way="${pathSyncEscapeAttr(way.wiki_key)}"` +
+			`<div class="tree-item region-sync__item" data-focus-way="${pathSyncEscapeAttr(way.wiki_key)}"` +
 			` data-wiki-url="${pathSyncEscapeAttr(way.wiki_url || "")}" data-way-kind="${pathSyncEscapeAttr(way.kind || "")}"` +
 			' title="Klick: Weg auf der Karte zeigen">' +
 			`<span class="tree-item-name">${pathSyncEscapeText(way.name || way.wiki_key)}</span>` +
@@ -589,8 +604,7 @@ function renderOutlierList(list) {
 				: "") +
 			clusters +
 			"</span>" +
-			'<span class="tree-map-status" aria-hidden="true"></span>' +
-			"</div>"
+						"</div>"
 		);
 	}).join("");
 
@@ -599,7 +613,7 @@ function renderOutlierList(list) {
 		? '<details class="review-panel__resolved-outliers"><summary>' +
 			`${resolvedWays.length} Weg${resolvedWays.length === 1 ? "" : "e"} als „gehört zum Weg" bestätigt · anzeigen</summary>` +
 			resolvedWays.map((way) =>
-				'<div class="tree-item has-map-status region-sync__item">' +
+				'<div class="tree-item region-sync__item">' +
 				`<span class="tree-item-name">${pathSyncEscapeText(way.name || way.wiki_key)}</span> ` +
 				(way.clusters || []).map((cluster) =>
 					`<button type="button" class="region-sync__cand" data-outlier-reopen="${pathSyncEscapeAttr(cluster.fingerprint || "")}"` +
@@ -627,12 +641,11 @@ function renderFlowUnknownList(list) {
 			const segChips = `<span class="region-sync__map">${row.segments.map(chip).join(" ")}</span>`;
 			const meta = `${row.segments.length} Segment${row.segments.length === 1 ? "" : "e"} ohne Richtung · ${hint} ${segChips}`;
 			return (
-				'<div class="tree-item has-map-status region-sync__item">' +
+				'<div class="tree-item region-sync__item">' +
 				'<span class="drag-handle" aria-hidden="true"></span>' +
 				`<span class="tree-item-name">${pathSyncEscapeText(row.name)}</span>` +
 				`<span class="tree-item-meta">${meta}</span>` +
-				'<span class="tree-map-status" aria-hidden="true"></span>' +
-				"</div>"
+								"</div>"
 			);
 		})
 		.join("");
@@ -809,7 +822,7 @@ function renderVerlaufCase(caseEntry) {
 	}
 
 	return (
-		`<div class="tree-item has-map-status region-sync__item" data-focus-way="${pathSyncEscapeAttr(caseEntry.wiki_key)}"` +
+		`<div class="tree-item region-sync__item" data-focus-way="${pathSyncEscapeAttr(caseEntry.wiki_key)}"` +
 		` data-wiki-url="${pathSyncEscapeAttr(caseEntry.wiki_url || "")}" data-way-kind="${pathSyncEscapeAttr(caseEntry.kind || "")}"` +
 		' title="Klick: Weg auf der Karte zeigen">' +
 		'<span class="drag-handle" aria-hidden="true"></span>' +
@@ -822,8 +835,7 @@ function renderVerlaufCase(caseEntry) {
 		(hashOnlyHtml ? ` ${hashOnlyHtml}` : "") +
 		`<div class="wiki-sync-case__actions">${actions.join("")}</div>` +
 		"</span>" +
-		'<span class="tree-map-status" aria-hidden="true"></span>' +
-		"</div>"
+				"</div>"
 	);
 }
 

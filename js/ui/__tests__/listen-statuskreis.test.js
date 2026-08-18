@@ -349,4 +349,28 @@ assert.strictEqual((regionsLib.match(/\$label\['assigned'\] = /g) || []).length,
 	+ "eine, liest der Browser dort `undefined` und der Kreis raet.");
 checks++;
 
+// ── Die Panel-Wegeliste: zwei alte Fehlbefunde ──────────────────────────────────────────────────
+const pathPanel = lies("js", "review", "review-path-sync.js");
+// 🪤 Eine map-only-Zeile ist ein Weg AUF der Karte OHNE Wiki-Zeile -- der halbe Zustand. Sie trug
+// ein fest verdrahtetes `--all`; 3744 Zeilen meldeten sich als fertig.
+assert.ok(!/tree-map-status--all/.test(pathPanel),
+	"review-path-sync.js schreibt wieder ein festes `tree-map-status--all`. Die map-only-Zeilen "
+	+ "sind auf der Karte OHNE Wiki -- halb, nicht voll.");
+checks++;
+assert.ok(/avesmapsStatuskreisMarkup\("halb"\)/.test(pathPanel),
+	"Die map-only-Zeile nimmt nicht mehr den halben Kreis aus dem geteilten Bauer.");
+checks++;
+// 🪤 Und die vier Diagnoselisten (Ausreisser, Fusszeile, Flussrichtung, Verlauf-Konflikte) trugen
+// `has-map-status` samt Marker OHNE Modifier -- ein Ring, der IMMER leer blieb. Gemessen an
+// „Flussrichtung unbekannt": 86 Zeilen, alle leer, und jede liegt auf der Karte.
+assert.strictEqual((pathPanel.match(/class="tree-item has-map-status/g) || []).length, 2,
+	"review-path-sync.js setzt `has-map-status` nicht mehr an genau ZWEI Stellen (map-only und "
+	+ "Wiki-Weg). Die vier Diagnoselisten duerfen keinen tragen -- ihr Ring kann nur leer sein, "
+	+ "und das ist fuer einen gezeichneten Weg ein unmoeglicher Zustand.");
+checks++;
+assert.ok(!/'<span class="tree-map-status" aria-hidden="true"><\/span>'/.test(pathPanel),
+	"review-path-sync.js emittiert wieder einen Marker ohne Modifier. Der faerbt nichts und sagt "
+	+ "'nicht auf der Karte' -- fuer diese Listen unmoeglich.");
+checks++;
+
 console.log(`OK -- ${checks} Zusicherungen (geteilter Statuskreis-Bauer).`);
