@@ -17,6 +17,11 @@
 --
 -- Laufen lassen in phpMyAdmin (admin/phpMyAdmin), Anweisung fuer Anweisung, und jedes Mal die
 -- gemeldete Zeilenzahl lesen.
+--
+-- 💣 VORHER links in der Seitenleiste die Avesmaps-Datenbank anklicken, und nach Abschnitt 1 NOCH
+-- EINMAL. Abschnitt 1 fragt information_schema ab, und phpMyAdmin bleibt danach dort stehen; jede
+-- folgende Anweisung nennt ihre Tabellen unqualifiziert und liefe sonst in
+-- "#1109 - Unknown table 'sources' in information_schema".
 
 
 -- =====================================================================================
@@ -40,32 +45,52 @@ SELECT SHA2('https://www.herzogtum-weiden.net/politik/liste-bn/baronien/gfl-salt
 --    💣 SET SESSION group_concat_max_len ist NICHT schmueckendes Beiwerk: die Voreinstellung ist
 --    1024 Zeichen. Ohne die Zeile wird das erzeugte SQL stumm mitten im Wort abgeschnitten und man
 --    haelt die halbe Suche fuer die ganze.
+--
+--    💣 UND: dieser Abschnitt fragt information_schema ab -- phpMyAdmin SPRINGT daraufhin in genau
+--    diese Datenbank. Die erste Fassung filterte mit `TABLE_SCHEMA = DATABASE()`; wer den Abschnitt
+--    ein zweites Mal laufen liess (oder ihn als erstes ueberhaupt), suchte damit IN information_schema
+--    und bekam ein leeres Feld -- ununterscheidbar von "es gibt keine Treffer". Am 18.08.2026 sofort
+--    passiert. Deshalb steht hier kein DATABASE() mehr, sondern der Ausschluss der System-Schemata,
+--    und das erzeugte SQL nennt die Datenbank VOLL QUALIFIZIERT (`schema`.`tabelle`) -- es laeuft
+--    dann aus jedem Kontext heraus richtig.
+--
+--    ⚠️ Fuer alle UEBRIGEN Abschnitte gilt das nicht: die schreiben `sources`, `map_features` usw.
+--    unqualifiziert. Vor Abschnitt 2 also links in der Seitenleiste die Avesmaps-Datenbank
+--    anklicken, sonst antwortet MySQL mit "#1109 - Unknown table 'sources' in information_schema".
 -- =====================================================================================
+--    ⭐ Die Datenbank fuehrt die erzeugte Abfrage GLEICH SELBST aus (PREPARE/EXECUTE), statt sie zum
+--    Kopieren hinzulegen. Die erste Fassung gab sie als Zelle zurueck -- und phpMyAdmin schneidet eine
+--    lange Zelle im Raster ab ("SELECT 'dbs…adventure.cover_source' AS ste..."), man haette sie also
+--    erst muehsam wieder herausklauben muessen. PREPARE/EXECUTE braucht kein besonderes Recht.
 SET SESSION group_concat_max_len = 1000000;
 
-SELECT GROUP_CONCAT(
-           CONCAT('SELECT ''', TABLE_NAME, '.', COLUMN_NAME, ''' AS stelle, COUNT(*) AS treffer FROM `',
-                  TABLE_NAME, '` WHERE CAST(`', COLUMN_NAME, '` AS CHAR) LIKE ''%liste-baronien%''')
-           ORDER BY TABLE_NAME, COLUMN_NAME
-           -- Der Zeilenumbruch steht ECHT in diesem Text-Literal, nicht als \n. SEPARATOR nimmt nur
-           -- ein Literal (kein CONCAT), und ein \n waere unter NO_BACKSLASH_ESCAPES zwei Zeichen --
-           -- das erzeugte SQL waere dann kaputt, und zwar auf eine schwer lesbare Art.
-           SEPARATOR '
-UNION ALL
-'
-       ) AS bitte_dieses_sql_ausfuehren
-FROM information_schema.COLUMNS
-WHERE TABLE_SCHEMA = DATABASE()
-  AND DATA_TYPE IN ('char', 'varchar', 'text', 'mediumtext', 'longtext', 'json')
-  AND (COLUMN_NAME LIKE '%url%' OR COLUMN_NAME LIKE '%link%'
-       OR COLUMN_NAME LIKE '%source%' OR COLUMN_NAME LIKE '%json%');
+SET @sql = CONCAT('SELECT * FROM (', (
+    SELECT GROUP_CONCAT(
+               CONCAT('SELECT ''', TABLE_SCHEMA, '.', TABLE_NAME, '.', COLUMN_NAME,
+                      ''' AS stelle, COUNT(*) AS treffer FROM `', TABLE_SCHEMA, '`.`', TABLE_NAME,
+                      '` WHERE CAST(`', COLUMN_NAME, '` AS CHAR) LIKE ''%liste-baronien%''')
+               ORDER BY TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME
+               SEPARATOR ' UNION ALL '
+           )
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
+      AND DATA_TYPE IN ('char', 'varchar', 'text', 'mediumtext', 'longtext', 'json')
+      AND (COLUMN_NAME LIKE '%url%' OR COLUMN_NAME LIKE '%link%'
+           OR COLUMN_NAME LIKE '%source%' OR COLUMN_NAME LIKE '%json%')
+), ') x WHERE treffer > 0 ORDER BY treffer DESC');
 
--- Das Ergebnis ist EIN langer SELECT. Ihn kopieren, ausfuehren, und die Zeilen mit treffer > 0
--- notieren -- sie sagen, welche der Abschnitte 3-5 ueberhaupt gebraucht werden.
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Das Ergebnis IST die Antwort: welche Spalten tragen die toten Links, und wie viele. Es sagt zugleich,
+-- welche der Abschnitte 3-5 ueberhaupt gebraucht werden.
 --
--- Findet er nichts, obwohl auf der Karte tote Weiden-Links stehen, dann steckt die Adresse in einer
--- Spalte mit unauffaelligem Namen. Dann dieselbe Abfrage noch einmal OHNE die letzte AND-Zeile --
--- sie durchsucht dann jede Textspalte der Datenbank und laeuft entsprechend laenger.
+-- Kommt keine Zeile zurueck, obwohl auf der Karte tote Weiden-Links stehen, dann steckt die Adresse in
+-- einer Spalte mit unauffaelligem Namen. Dann dasselbe noch einmal OHNE die letzte AND-Zeile -- es
+-- durchsucht dann jede Textspalte der Datenbank und laeuft entsprechend laenger.
+-- ⚠️ Der Lauf scannt einige grosse Tabellen. Das ist harmlos: es belastet MySQL, nicht die
+-- PHP-Worker, um die sich AGENTS.md §9 sorgt.
 
 
 -- =====================================================================================
