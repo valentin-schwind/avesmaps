@@ -169,4 +169,74 @@ assert.ok(!/'<span class="avm-row__name">Abschnitt ' \+ index \+ "<\/span>"\s*\+
 	+ "Zustand wie ihr Gruppenkopf -- das ist Wiederholung, keine Information.");
 checks++;
 
+// ── ORTSBEZUG (Literatur und Karte teilen die Regel) ────────────────────────────────────────────
+// 🔴 Owner 18.08.2026: „literatur (voll wenn mindestens ein ort zugewiesen wurde, halb wenn
+// mindestens ein ort nicht aufgeloest ist)" \u00b7 „karten genauso".
+assert.ok(!/--/.test(kreis.avesmapsStatuskreisOrtsbezug([])),
+	"Ein Werk ohne jeden zugeordneten Ort liegt nirgends -- leerer Ring.");
+assert.ok(/--all/.test(kreis.avesmapsStatuskreisOrtsbezug([{ kind: "settlement" }, { kind: "region" }])),
+	"Sind alle Orte aufgeloest, muss der Kreis voll sein.");
+assert.ok(/--own-only/.test(kreis.avesmapsStatuskreisOrtsbezug([{ kind: "unresolved" }])),
+	"Ein unaufgeloester Ort macht den Kreis halb.");
+checks += 3;
+
+// 💣 DER VORRANG: halb schlaegt voll. Die zwei Bedingungen des Owners ueberschneiden sich, und
+// diese Fixture ist der einzige Ort, an dem das geprueft wird -- am Livebestand sind nur 5 der 89
+// halben Karten echt gemischt, der Bestand pruefte die Regel also fast nicht.
+assert.ok(/--own-only/.test(kreis.avesmapsStatuskreisOrtsbezug([
+	{ kind: "settlement" }, { kind: "territory" }, { kind: "unresolved" },
+])), "Zwei aufgeloeste Orte PLUS ein offener muessen halb ergeben, nicht voll. Solange etwas "
+	+ "unaufgeloest ist, ist die Arbeit nicht fertig -- genau das soll der Kreis zeigen.");
+checks++;
+
+// 💣 DIESELBE SPALTE HEISST IM EINEN PAYLOAD `target_kind` UND IM ANDEREN `kind`. Beide
+// Literatur-Oberflaechen lesen die LISTENantwort (`kind`); Detailansicht und oeffentlicher
+// Katalog liefern `target_kind`. Wer nur einen der zwei Namen prueft, bekommt lauter `undefined`,
+// faerbt jede Zeile gleich -- und sein Test bleibt gruen, weil `undefined` auch „offen" heisst.
+assert.strictEqual(
+	kreis.avesmapsStatuskreisOrtsbezug([{ target_kind: "settlement" }]),
+	kreis.avesmapsStatuskreisOrtsbezug([{ kind: "settlement" }]),
+	"`target_kind` und `kind` muessen dasselbe Urteil ergeben -- es ist dieselbe Spalte unter zwei "
+	+ "Namen (Listen- gegen Detailantwort).");
+checks++;
+// ⚠️ Ein leerer/unbekannter Wert zaehlt als OFFEN -- die sichere Richtung.
+assert.ok(/--own-only/.test(kreis.avesmapsStatuskreisOrtsbezug([{ raw_name: "Gareth" }])),
+	"Ein Ort ohne jede Art-Angabe muss als offen gelten, nicht als aufgeloest.");
+checks++;
+// Und die Zahlenfassung entscheidet identisch -- sie ist der Eingang der Karten.
+for (const [gesamt, offen, erwartet] of [[0, 0, "leer"], [3, 0, "voll"], [3, 1, "halb"], [3, 3, "halb"]]) {
+	assert.strictEqual(
+		kreis.avesmapsStatuskreisOrtsbezugZahlen(gesamt, offen),
+		kreis.avesmapsStatuskreisMarkup(erwartet),
+		`avesmapsStatuskreisOrtsbezugZahlen(${gesamt}, ${offen}) muss "${erwartet}" ergeben.`);
+	checks++;
+}
+
+// ── VERDRAHTUNG: Literaturliste im LITERATUREDITOR ──────────────────────────────────────────────
+const litEditor = lies("html", "game-literature-editor.html");
+assert.ok(/<script src="\/js\/ui\/listen-statuskreis\.js"><\/script>/.test(litEditor),
+	"Der Literatureditor laedt js/ui/listen-statuskreis.js nicht.");
+checks++;
+assert.ok(/avesmapsStatuskreisOrtsbezug\(a\.places\)/.test(litEditor),
+	"Der Literatureditor ruft den geteilten Bauer nicht mit `a.places` auf. 💣 `a.place_count` "
+	+ "reicht NICHT -- die Zahl kennt nur 'wie viele', nicht 'wie viele davon zeigen ins Leere'.");
+checks++;
+assert.ok(/class="avm-row has-map-status\$\{/.test(litEditor),
+	'Die Zeile des Literatureditors setzt "has-map-status" nicht.');
+checks++;
+// ⚠️ Der Marker muss IN `.avm-row__l1` stehen (Flex, gap), nicht in `.avm-row__name` (ellipsiert).
+assert.ok(/<span class="avm-row__name">\$\{aeEscape\(a\.title\)\}<\/span>\$\{avesmapsStatuskreisOrtsbezug/.test(litEditor),
+	"Der Kreis steht nicht direkt hinter `.avm-row__name` in `.avm-row__l1`. Innerhalb des Namens "
+	+ "schneidet die Ellipse ihn bei langen Titeln weg (bis 67 Zeichen im Bestand).");
+checks++;
+
+// ── VERDRAHTUNG: Literaturliste im WIKISYNC-PANEL ───────────────────────────────────────────────
+assert.ok(/avesmapsStatuskreisOrtsbezug\(a\.places\)/.test(panelListe),
+	"Die Panel-Literaturliste ruft den geteilten Bauer nicht auf. 🪤 Genau hier stand bis "
+	+ "18.08.2026 'KEIN has-map-status' -- der Owner hat es an diesem Tag umgedreht.");
+checks++;
+assert.ok(/class="tree-item has-map-status" data-adv-id=/.test(panelListe),
+	'Die Panel-Literaturzeile setzt "has-map-status" nicht -- ohne die Klasse bleibt der Kreis aus.');
+checks++;
+
 console.log(`OK -- ${checks} Zusicherungen (geteilter Statuskreis-Bauer).`);

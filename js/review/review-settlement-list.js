@@ -1064,11 +1064,16 @@ function avesmapsRenderGameLiteraturePicker() {
 		var meta = [a.edition, a.product_type].filter(Boolean).join(" · ");
 		var draft = a.status && a.status !== "approved" ? " · Entwurf" : "";
 		// Dieselbe Zeile wie die fuenf Karten-Listen (.tree-item, css/components/region-sync.css).
-		// KEIN has-map-status: Literatur hat kein "liegt auf der Karte", der fehlende Statuskreis
-		// ist hier die Information.
-		return '<button type="button" class="tree-item" data-adv-id="' + esc(a.public_id) + '" title="Doppelklick: im Literatur-Editor öffnen">'
+		// 🔴 SEIT 18.08.2026 MIT Statuskreis (Owner). Hier stand „KEIN has-map-status: Literatur hat
+		// kein 'liegt auf der Karte'" -- und das stimmt fuer das WERK auch weiterhin. Was es auf die
+		// Karte bringt, sind seine zugeordneten ORTE, und genau die misst der Kreis:
+		// leer = liegt nirgends · halb = mindestens ein Ort unaufgeloest · voll = alle aufgeloest.
+		// 💣 `a.places` (Objekte mit `kind`), NICHT `a.place_count`: die Zahl kennt nur „wie viele",
+		// nicht „wie viele davon zeigen ins Leere". Beide Felder stehen in derselben Antwort.
+		return '<button type="button" class="tree-item has-map-status" data-adv-id="' + esc(a.public_id) + '" title="Doppelklick: im Literatur-Editor öffnen">'
 			+ '<span class="tree-item-name">' + esc(a.title || "(ohne Titel)") + '</span>'
 			+ '<span class="tree-item-meta">' + esc(meta + draft) + '</span>'
+			+ avesmapsStatuskreisOrtsbezug(a.places)
 			+ '</button>';
 	}).join("");
 }
