@@ -194,6 +194,38 @@ assert(($aiPicture['fields']['url'] ?? '') === 'https://avesmaps.de/uploads/soci
 // hier etwas hinzuzufuegen waere die stillste Art, eine Sichtbarkeit zu aendern.
 assert(!isset($aiPicture['fields']['privacy']), 'kein privacy -- der Beitrag erbt die Seite');
 
+// ---- die Kopplung Register <-> Absendeweg (18.08.2026) ------------------------------------------
+//
+// 💣 DIESE SIEBEN ZEILEN SIND DER EIGENTLICHE REGRESSIONSSCHUTZ. Die Aufrufe oben pruefen die reine
+// Bauform -- „WENN erklaert werden soll, dann so" -- und bleiben absichtlich stehen: sie sind der
+// Zeuge fuer den Tag, an dem Meta die Berechtigung erteilt. Sie sagen aber NICHTS darueber, ob heute
+// ueberhaupt erklaert werden darf. Genau diese Luecke ist die Falle vom 14.08.2026 (eine Regel, die
+// nur einen von mehreren Erzeugern bindet): ohne den Test hier stuende `ai_label => false` im
+// Register, der Hub sagte „kennzeichnet nicht selbst", und der Adapter schickte das Feld trotzdem.
+//
+// Deshalb faehrt der Test gegen den ECHTEN Registereintrag, nicht gegen eine Fixture.
+$facebookChannel = avesmapsSocialChannel('facebook');
+assert(avesmapsSocialFacebookAiDeclared(['ai_declared' => 1], $facebookChannel) === false,
+    'angehakt, aber Facebook darf nicht -- also geht die Erklaerung NICHT hinaus');
+assert(avesmapsSocialFacebookAiDeclared(['ai_declared' => 0], $facebookChannel) === false,
+    'ohne Haekchen erst recht nicht');
+// Und die Gegenprobe: an einem Kanal, der es darf, laesst dieselbe Funktion sie durch. Ohne sie
+// wuerde ein Test, der nur `false` erwartet, auch von einer Funktion bestanden, die IMMER `false`
+// sagt -- und die Kennzeichnung waere fuer immer tot, ohne dass es auffaellt.
+assert(avesmapsSocialFacebookAiDeclared(['ai_declared' => 1], ['ai_label' => true]) === true,
+    'darf der Kanal, reicht das Haekchen sie durch');
+
+// ⚠️ Und die Bruecke zurueck zur Bauform: was die Kopplung entscheidet, landet wirklich im Feld.
+$gesperrt = avesmapsSocialFacebookRequest(
+    '9876',
+    'Mit KI',
+    'https://avesmaps.de/uploads/social/x.jpg',
+    AVESMAPS_SOCIAL_FACEBOOK_GRAPH_VERSION,
+    avesmapsSocialFacebookAiDeclared(['ai_declared' => 1], $facebookChannel)
+);
+assert(!isset($gesperrt['fields']['provenance_info']),
+    'der volle Weg mit echtem Register schickt provenance_info NICHT mehr mit');
+
 // 🔴 NEVER /me. With a user token /me/feed publishes on the owner's PRIVATE profile, publicly, under
 // their own name -- the one failure this adapter must make structurally impossible.
 assert(mb_strpos($withPicture['url'], '/me/') === false && mb_strpos($textOnly['url'], '/me/') === false,

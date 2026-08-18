@@ -704,38 +704,81 @@
 		// daraufhin …") wäre ein Satz ohne Subjekt -- und die Liste ist leer, solange sie lädt.
 		if (!nimmt.length) { return "Zurzeit nimmt kein Kanal eine KI-Erklärung entgegen."; }
 
-		const rest = alle.filter(function (channel) { return channel.ai_label !== true; });
-		const satz = joinNames(nimmt.map(function (channel) { return channel.label; }))
-			+ (nimmt.length === 1 ? " zeigt" : " zeigen") + " daraufhin einen KI-Hinweis am Bild.";
-		if (!rest.length) { return satz; }
+		// 💣 DREI GRUPPEN, NICHT ZWEI -- seit dem 18.08.2026. „Facebook kennt keinen" wäre schlicht
+		// falsch (es kennt eins, wir dürfen es nur nicht setzen) und stünde im offenen Widerspruch
+		// zum Warnsatz darunter, der „bei Facebook von Hand nachtragen" sagt. Genau diesen
+		// Widerspruch hat der Test gefunden, bevor ihn jemand im Hub lesen musste.
+		const vonHand = alle.filter(function (channel) {
+			return channel.ai_label !== true && channel.ai_label_manual === true;
+		});
+		const rest = alle.filter(function (channel) {
+			return channel.ai_label !== true && channel.ai_label_manual !== true;
+		});
 
-		// Der zweite Halbsatz nur, wenn es einen Rest GIBT: „die übrigen kennen keinen" wäre sonst
-		// eine Aussage über die leere Menge.
-		return satz + " " + joinNames(rest.map(function (channel) { return channel.label; }))
-			+ (rest.length === 1 ? " kennt" : " kennen") + " keinen.";
+		let satz = joinNames(nimmt.map(function (channel) { return channel.label; }))
+			+ (nimmt.length === 1 ? " zeigt" : " zeigen") + " daraufhin einen KI-Hinweis am Bild.";
+		// Jeder Halbsatz nur, wenn seine Gruppe BESETZT ist -- sonst stünde eine Aussage über die
+		// leere Menge da („die übrigen kennen keinen", wo es keine übrigen gibt).
+		if (vonHand.length) {
+			satz += " Bei " + joinNames(vonHand.map(function (channel) { return channel.label; }))
+				+ " " + (vonHand.length === 1 ? "ist er" : "sind sie")
+				+ " von Hand nachzutragen.";
+		}
+		if (rest.length) {
+			satz += " " + joinNames(rest.map(function (channel) { return channel.label; }))
+				+ (rest.length === 1 ? " kennt" : " kennen") + " keinen.";
+		}
+		return satz;
 	}
 
-	// 💣 DER EINE STILLE FEHLSCHLAG DIESES SCHALTERS. Facebook nimmt die Erklärung nur an /photos
-	// entgegen; ohne Bild geht der Beitrag über /feed, und dort kennt Meta das Feld überhaupt nicht.
-	// Angehakt + Facebook gewählt + kein Bild = ein Beitrag, der wortlos unbeschriftet rausgeht,
-	// während das Häkchen daneben das Gegenteil behauptet.
+	// 💣 DIE STILLEN FEHLSCHLÄGE DIESES SCHALTERS -- es sind ZWEI, und sie haben verschiedene
+	// Ursachen und verschiedene Antworten. Beide enden gleich: ein Beitrag geht wortlos
+	// unbeschriftet raus, während das Häkchen daneben das Gegenteil behauptet.
 	//
-	// 🔴 HINWEIS, NICHT RIEGEL -- dieselbe Regel wie beim Link-Hinweis darüber: ein unbebilderter
-	// Beitrag ist völlig zulässig, er ist nur nicht kennzeichenbar. Gesperrt wird nichts.
+	// (1) Das Netz HAT ein Label, wir dürfen es nur nicht setzen -- Facebook seit 18.08.2026
+	//     (`(#100) Missing Permission`, Begründung im Register). Antwort: von Hand nachtragen, und
+	//     genau das muss dastehen. „Facebook kennzeichnet nicht" allein liesse offen, ob dort etwas
+	//     zu tun ist oder ob das Netz es einfach nicht kann.
+	// (2) Das Netz nimmt die Erklärung nur an einem BILD. Heute trifft das keinen Kanal mehr -- seit
+	//     (1) ist Facebook ganz draussen --, aber die Lage kommt am Tag der Meta-Freigabe zurück.
+	//     Der Zweig bleibt deshalb stehen; er beschreibt `/feed` weiterhin richtig.
 	//
-	// ⚠️ Wen es betrifft, sagt das REGISTER (`ai_label_needs_media`). Hier steht kein „facebook".
+	// 🔴 HINWEIS, NICHT RIEGEL -- dieselbe Regel wie beim Link-Hinweis darüber: so ein Beitrag ist
+	// völlig zulässig, er ist nur nicht selbsttätig kennzeichenbar. Gesperrt wird nichts.
+	//
+	// ⚠️ Wen es betrifft, sagt das REGISTER (`ai_label_manual`, `ai_label_needs_media`). Hier steht
+	// kein „facebook" -- sonst kennt der Browser eine Zuordnung, die der Server nicht kennt.
 	function aiWarningText(declared, keys, hasMedia, list) {
-		if (declared !== true || hasMedia === true) { return ""; }
+		if (declared !== true) { return ""; }
 
-		const betroffen = (list || []).filter(function (channel) {
-			return keys.indexOf(channel.key) !== -1 && channel.ai_label_needs_media === true;
+		const gewaehlt = (list || []).filter(function (channel) {
+			return keys.indexOf(channel.key) !== -1;
 		});
-		if (!betroffen.length) { return ""; }
+		const saetze = [];
 
-		return joinNames(betroffen.map(function (channel) { return channel.label; }))
-			+ (betroffen.length === 1 ? " kann" : " können")
-			+ " den Hinweis nur an einem Bild anbringen — ohne Bild geht der Beitrag dort ohne"
-			+ " KI-Kennzeichnung raus.";
+		// (1) Zuerst, weil hier etwas ZU TUN ist -- der zweite Satz beschreibt nur einen Verlust.
+		const vonHand = gewaehlt.filter(function (channel) { return channel.ai_label_manual === true; });
+		if (vonHand.length) {
+			saetze.push(joinNames(vonHand.map(function (channel) { return channel.label; }))
+				+ (vonHand.length === 1 ? " kennzeichnet" : " kennzeichnen")
+				+ " den Beitrag nicht selbst — die Kennzeichnung dort nach dem Veröffentlichen von"
+				+ " Hand am Beitrag nachtragen.");
+		}
+
+		// (2) Nur ohne Bild -- mit Bild kommt die Erklärung ja an.
+		if (hasMedia !== true) {
+			const brauchtBild = gewaehlt.filter(function (channel) {
+				return channel.ai_label_needs_media === true;
+			});
+			if (brauchtBild.length) {
+				saetze.push(joinNames(brauchtBild.map(function (channel) { return channel.label; }))
+					+ (brauchtBild.length === 1 ? " kann" : " können")
+					+ " den Hinweis nur an einem Bild anbringen — ohne Bild geht der Beitrag dort ohne"
+					+ " KI-Kennzeichnung raus.");
+			}
+		}
+
+		return saetze.join(" ");
 	}
 
 	function updateAiNote() {

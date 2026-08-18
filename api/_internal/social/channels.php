@@ -23,20 +23,27 @@ declare(strict_types=1);
 // 💣 max_hashtags === null means ALL, not "many". Instagram takes every tag; writing 30 here would be
 // a limit nobody imposed, and the composer would silently truncate the editor's tags.
 //
-// 💣 `ai_label` HEISST „das Netz nimmt eine KI-Erklärung entgegen", nicht „der Beitrag wird
-// gekennzeichnet". Bei Facebook hängt das zusätzlich am BILD: `/photos` nimmt sie, `/feed` kennt das
-// Feld nicht (Entwurf §2). Der Kanal kann es also, dieser eine Beitrag womöglich nicht.
+// 💣 `ai_label` HEISST „UNSER System bringt dort eine KI-Erklärung an", nicht „das Netz kennt so ein
+// Feld". Der Unterschied war bis zum 18.08.2026 rein akademisch und ist es seither nicht mehr: Meta
+// KENNT `provenance_info` an `/photos` und lehnt es für unsere App trotzdem ab. Wer hier „aber laut
+// Doku kann Facebook das doch" liest und den Wert zurückdreht, baut den Fehlschlag wieder ein --
+// die Begründung steht am Facebook-Eintrag.
 //
-// 💣 Deshalb ZWEI Felder und keine Herleitung. „nimmt eine Erklärung an, verlangt aber kein Bild,
-// ALSO braucht die Erklärung eins" wäre für Facebook heute zufällig richtig und für den nächsten
-// Kanal geraten -- `ai_label_needs_media` sagt es stattdessen aus. Bei Instagram steht `false`, weil
-// dort ohnehin nie ein Beitrag ohne Bild entsteht (`requires_media`), die Erklärung also immer
-// ankommt; `true` hiesse dort „kann fehlschlagen" und wäre schlicht falsch.
-
+// 💣 Deshalb DREI Felder und keine Herleitung. „nimmt eine Erklärung an, verlangt aber kein Bild,
+// ALSO braucht die Erklärung eins" wäre für Facebook zufällig richtig und für den nächsten Kanal
+// geraten -- `ai_label_needs_media` sagt es stattdessen aus. Bei Instagram steht `false`, weil dort
+// ohnehin nie ein Beitrag ohne Bild entsteht (`requires_media`), die Erklärung also immer ankommt;
+// `true` hiesse dort „kann fehlschlagen" und wäre schlicht falsch.
+//
+// 💣 Und das dritte, seit 18.08.2026: `ai_label_manual` heisst „das NETZ hat ein Label, wir setzen es
+// nur nicht -- trag es dort von Hand nach". Es ist NICHT die Verneinung von `ai_label`: Mastodon hat
+// überhaupt kein solches Feld, dort gibt es nichts nachzutragen, und ein aus `!ai_label` abgeleiteter
+// Hinweis schickte den Editor auf eine Suche nach einem Schalter, den es nicht gibt. Zwei
+// verschiedene Aussagen, zwei Felder -- dieselbe Regel wie eine Zeile höher.
 /**
  * @var array<string, array{label: string, account: string, max_chars: int|null,
  *      max_hashtags: int|null, requires_media: bool, clickable_links: bool, ai_label: bool,
- *      ai_label_needs_media: bool}>
+ *      ai_label_needs_media: bool, ai_label_manual: bool}>
  */
 const AVESMAPS_SOCIAL_CHANNELS = [
     // The rehearsal channel (Entwurf §10). It runs the ENTIRE chain -- licence gate, JPEG conversion,
@@ -61,6 +68,8 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         // aber IN ihren Merkzettel (adapters/probe.php) -- das ist der Sinn der Generalprobe.
         'ai_label' => false,
         'ai_label_needs_media' => false,
+        // Nichts nachzutragen: es gibt keinen Beitrag, an dem man etwas nachtragen könnte.
+        'ai_label_manual' => false,
     ],
     // Der einzige Kanal, der auf avesmaps SELBST veröffentlicht: das Fenster „Neuigkeiten"
     // (Tabelle `changelog_entry`). Er braucht kein fremdes Konto und ist deshalb -- wie die Probe --
@@ -92,6 +101,9 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         // niemanden, dem etwas zu erklären wäre.
         'ai_label' => false,
         'ai_label_needs_media' => false,
+        // Und nichts nachzutragen: das Fenster kennt keine Kennzeichnung, es gibt drüben keinen
+        // Schalter. Dieselbe Lage wie bei Mastodon, aus demselben Grund.
+        'ai_label_manual' => false,
     ],
     // 🔴 Instagram wird über die FACEBOOK-SEITE eingerichtet und bedient (Entwurf §12.4). @avesmaps
     // hängt als `instagram_business_account` an der Seite, also ist es derselbe Wirt, dieselbe App und
@@ -124,9 +136,13 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'shows_media' => true,
         'clickable_links' => false,
         // `is_ai_generated` am Behälter. ⭐ Der einzige Kanal, bei dem die Erklärung IMMER ankommt --
-        // er verlangt ohnehin ein Bild, und genau daran hängt sie.
+        // er verlangt ohnehin ein Bild, und genau daran hängt sie. Seit dem 18.08.2026 auch der
+        // EINZIGE überhaupt: gemessen an Beitrag 30, der auf Instagram gekennzeichnet durchging und
+        // auf Facebook am selben Häkchen scheiterte.
         'ai_label' => true,
         'ai_label_needs_media' => false,
+        // Nichts nachzutragen -- wir setzen es selbst.
+        'ai_label_manual' => false,
     ],
     // 💣 `connect` ist der EINRICHTUNGSweg, nicht der Sendeweg. Steht hier ein Wert, kann der Server
     // den Zugang selbst herstellen (api/_internal/social/connect.php) und der Hub zeigt „einrichten".
@@ -160,11 +176,31 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         'requires_media' => false,
         'shows_media' => true,
         'clickable_links' => true,
-        // 💣 `true`, aber NUR MIT BILD: `provenance_info` steht an `/photos`, `/feed` kennt es nicht.
-        // Der Kanal kann es -- ein unbebilderter Beitrag nicht. Der Hub warnt in genau dieser Lage
-        // (Entwurf §4.2), weil sonst niemand merkt, dass die Erklärung nirgends ankam.
-        'ai_label' => true,
-        'ai_label_needs_media' => true,
+        // 🔴 `false` SEIT DEM 18.08.2026, UND ZWAR GEMESSEN: Meta lehnt `provenance_info` für unsere
+        // App mit `(#100) Missing Permission` ab. Nicht „Invalid parameter" -- das Feld ist echt und
+        // wird erkannt, wir dürfen es nur nicht setzen. Metas `/photos`-Doku nennt dafür KEINE eigene
+        // Berechtigung (nur CREATE_CONTENT, pages_manage_posts, pages_read_engagement,
+        // pages_show_list -- die haben wir alle nachweislich); die Hürde ist undokumentiert und
+        // hängt mutmasslich am fehlenden App-Review bzw. der fehlenden Unternehmensverifizierung.
+        //
+        // ⭐ Der Beweis ist ein kontrollierter Vergleich, kein Verdacht: Beitrag 30 (mit Häkchen)
+        // scheiterte, Beitrag 28 vom Vortag ging mit demselben Bild, demselben Token und derselben
+        // Seite durch -- einziger Unterschied `ai_declared`. Häkchen zurückgenommen, „Erneut"
+        // gedrückt, sofort veröffentlicht. Über die ganze Historie ist Facebook GENAU EINMAL
+        // gescheitert, und zwar beim einzigen Beitrag mit Erklärung.
+        //
+        // 💣 Diese Zeile ist mit dem Adapter GEKOPPELT: `avesmapsSocialFacebookRequest` schickt das
+        // Feld nur, wenn hier `true` steht. Sie zurückzudrehen, ohne dass Meta die Berechtigung
+        // erteilt hat, macht jeden bebilderten Facebook-Beitrag wieder unsendbar.
+        'ai_label' => false,
+        // 🪤 `false` FOLGT aus der Zeile darüber, es ist keine eigene Aussage: dass `/feed` das Feld
+        // nicht kennt, stimmt weiterhin -- nur kommt man dort gar nicht mehr hin. Stünde hier noch
+        // `true`, widerspräche der Hub sich selbst („nur an einem Bild" neben „gar nicht").
+        'ai_label_needs_media' => false,
+        // 🔴 Und HIER steht die Handarbeit: Facebook HAT ein KI-Label („KI-Info" am Beitrag, neben
+        // dem Zeitstempel), wir können es nur nicht setzen. Der einzige Kanal mit dieser Lage --
+        // deshalb ein eigenes Feld und keine Ableitung aus `!ai_label` (siehe Kopf der Datei).
+        'ai_label_manual' => true,
     ],
     // 💣 DIE ZEICHENZAHL IST INSTANZABHÄNGIG, NICHT 500 PER GESETZ. Jede Mastodon-Instanz stellt sie
     // selbst ein; es gibt Instanzen mit 1 500 und mit 5 000. Die 500 hier sind deshalb GEMESSEN, nicht
@@ -202,6 +238,11 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         // setzen. Sollte Mastodon je eins bekommen, ist DIESE Zeile die Stelle.
         'ai_label' => false,
         'ai_label_needs_media' => false,
+        // 🔴 Und nichts nachzutragen -- eben WEIL es drüben kein Feld gibt. Das ist der Unterschied
+        // zu Facebook, das eins hat und es uns nur verwehrt, und genau dafür gibt es dieses dritte
+        // Feld: ein aus `!ai_label` abgeleiteter Hinweis schickte den Editor hier auf die Suche nach
+        // einem Schalter, den Mastodon nicht kennt.
+        'ai_label_manual' => false,
     ],
 ];
 
@@ -368,8 +409,12 @@ function avesmapsSocialChannelList(array $socialConfig, array $tokenKeys, array 
             // und keine Schlüsselliste im Client -- sonst kennt der Browser eine Zuordnung, die der
             // Server nicht kennt, und der nächste Kanal bekommt seine an einer zweiten Stelle.
             'ai_label' => $channel['ai_label'],
-            // Und ob sie dort ein Bild braucht (Facebook: ja, `/feed` kennt das Feld nicht).
+            // Und ob sie dort ein Bild bräuchte -- heute nirgends `true`, seit Facebook ganz
+            // ausgefallen ist. Die Struktur bleibt: sie beschreibt `/feed` weiterhin richtig und ist
+            // am Tag der Meta-Freigabe sofort wieder die Wahrheit.
             'ai_label_needs_media' => $channel['ai_label_needs_media'],
+            // Und ob der Editor sie dort von Hand nachtragen muss (Facebook: ja).
+            'ai_label_manual' => $channel['ai_label_manual'],
             'clickable_links' => $channel['clickable_links'],
             'configured' => avesmapsSocialChannelIsConfigured($key, $socialConfig, $tokenKeys),
             // Kann der Server den Zugang selbst herstellen? Nur DASS es geht reist mit, nie WIE --

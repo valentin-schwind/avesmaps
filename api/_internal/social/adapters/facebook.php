@@ -104,6 +104,29 @@ function avesmapsSocialFacebookRequest(
 }
 
 /**
+ * Darf an DIESEN Beitrag über DIESEN Kanal eine KI-Erklärung? Zwei Bedingungen, und beide müssen
+ * stimmen: der Editor hat angehakt, UND das Register erlaubt es diesem Kanal.
+ *
+ * 💣 SIE IST DER GRUND, WARUM `ai_label` IM REGISTER ETWAS BEWIRKT. Ohne sie liest der Adapter nur
+ * `$post['ai_declared']`, und `ai_label => false` wäre eine Behauptung im Hub, der der Absendeweg
+ * widerspricht -- der Hinweis stünde da, das Feld ginge trotzdem raus, und Meta lehnte weiter mit
+ * `(#100) Missing Permission` ab. Genau diese Sorte halb gebundener Regel hat das Projekt am
+ * 14.08.2026 schon einmal einen Tag gekostet (vier Erzeuger, Sperre in zweien).
+ *
+ * Eigene Funktion und nicht ein `&&` an der Aufrufstelle, damit die Kopplung PRÜFBAR ist: der Test
+ * fährt sie gegen den echten Registereintrag: `avesmapsSocialChannel('facebook')`. Ein `&&` mitten im
+ * Adapter liesse sich nur mit einem echten Graph-Aufruf prüfen, also gar nicht.
+ *
+ * @param array<string, mixed> $post
+ * @param array<string, mixed> $channel
+ */
+function avesmapsSocialFacebookAiDeclared(array $post, array $channel): bool
+{
+    return (int) ($post['ai_declared'] ?? 0) === 1
+        && ($channel['ai_label'] ?? false) === true;
+}
+
+/**
  * Turn Graph's answer into our outcome. Pure, so every failure shape can be pinned by a test.
  *
  * Fails CLOSED in every ambiguous case: an unknown state becomes 'fehler', never 'gesendet'
@@ -203,14 +226,14 @@ function avesmapsSocialAdapterFacebook(
     $version = trim((string) ($settings['graph_version'] ?? '')) !== ''
         ? trim((string) $settings['graph_version'])
         : AVESMAPS_SOCIAL_FACEBOOK_GRAPH_VERSION;
-    // Die Erklärung steht am BEITRAG (`social_post.ai_declared`) und reist deshalb ohne eigenes
-    // Argument durch die Kette -- $post liegt jedem Adapter ohnehin vollständig vor.
+    // Die Erklärung steht am BEITRAG (`social_post.ai_declared`), ob sie hinausgeht entscheidet das
+    // REGISTER -- beides zusammen in avesmapsSocialFacebookAiDeclared, siehe dort.
     $request = avesmapsSocialFacebookRequest(
         $pageId,
         $caption,
         $mediaUrl,
         $version,
-        (int) ($post['ai_declared'] ?? 0) === 1
+        avesmapsSocialFacebookAiDeclared($post, $channel)
     );
 
     $handle = curl_init($request['url']);

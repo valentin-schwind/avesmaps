@@ -45,15 +45,29 @@ assert($mastodon['max_hashtags'] === 4, 'mastodon: four');
 //
 // Gemessen an Metas bzw. Mastodons Doku am 16.08.2026, nicht geraten. Die Luecken stehen hier
 // ausdruecklich, weil ein spaeterer Leser sie sonst fuer Nachlaessigkeit haelt und „nachruestet".
-assert($facebook['ai_label'] === true, 'Facebook nimmt provenance_info entgegen');
-// 💣 ... aber NUR an /photos. `/feed` kennt das Feld nicht, ein unbebilderter Beitrag geht dort also
-// unweigerlich ohne Kennzeichnung raus -- daran haengt der Warnsatz im Hub.
-assert($facebook['ai_label_needs_media'] === true, 'und zwar nur an einem BILD');
+// 🔴 GEMESSEN 18.08.2026: Meta lehnt `provenance_info` fuer unsere App mit `(#100) Missing
+// Permission` ab -- das Feld ist echt und wird erkannt, wir duerfen es nur nicht setzen. Beleg ist
+// ein kontrollierter Vergleich: Beitrag 30 (mit Haekchen) scheiterte, Beitrag 28 vom Vortag ging mit
+// demselben Bild, Token und derselben Seite durch. Diese Zeile ist die Sperre; wer sie zurueckdreht,
+// ohne dass Meta die Berechtigung erteilt hat, macht jeden bebilderten Facebook-Beitrag unsendbar.
+assert($facebook['ai_label'] === false, 'Facebook darf provenance_info NICHT setzen (Missing Permission)');
+// 🪤 Folgt aus der Zeile darueber, ist keine eigene Aussage: dass `/feed` das Feld nicht kennt,
+// stimmt weiterhin -- nur kommt man dort gar nicht mehr hin. Stuende hier noch `true`, widerspraeche
+// der Hub sich selbst („nur an einem Bild" neben „gar nicht").
+assert($facebook['ai_label_needs_media'] === false, 'und damit auch keine Bild-Bedingung mehr');
+// 🔴 Aber Facebook HAT ein Label („KI-Info" am Beitrag) -- es ist von Hand nachzutragen. Das ist der
+// Unterschied zu Mastodon, und der Grund fuer das dritte Feld.
+assert($facebook['ai_label_manual'] === true, 'Facebook kennzeichnet nicht selbst -- von Hand nachtragen');
 assert($instagram['ai_label'] === true, 'Instagram nimmt is_ai_generated entgegen');
 assert($instagram['ai_label_needs_media'] === false,
     'dort kann sie nie mangels Bild verlorengehen -- Instagram verlangt ohnehin eins');
 // 🔴 Mastodon hat kein solches Feld: POST /api/v1/statuses kennt keins. Bewusste Luecke.
 assert($mastodon['ai_label'] === false, 'Mastodon kennt keine KI-Erklaerung');
+// 🔴 UND NICHTS NACHZUTRAGEN -- eben WEIL es drueben kein Feld gibt. Genau hier trennen sich die
+// beiden Aussagen: Facebook hat eins und verwehrt es uns, Mastodon hat ueberhaupt keins. Waere der
+// Hinweis aus `!ai_label` abgeleitet, schickte er den Editor zu Mastodon auf die Suche nach einem
+// Schalter, den es dort nicht gibt.
+assert($mastodon['ai_label_manual'] === false, 'bei Mastodon ist nichts nachzutragen -- es gibt kein Feld');
 assert(avesmapsSocialChannel('changelog')['ai_label'] === false,
     'Neuigkeiten schreibt in unsere eigene Tabelle -- da ist niemandem etwas zu erklaeren');
 assert(avesmapsSocialChannel('probe')['ai_label'] === false,
@@ -65,7 +79,7 @@ foreach (avesmapsSocialChannelKeys() as $key) {
     $channel = avesmapsSocialChannel($key);
     foreach (['label', 'account', 'note', 'max_chars', 'max_hashtags',
               'requires_media', 'shows_media', 'clickable_links',
-              'ai_label', 'ai_label_needs_media'] as $field) {
+              'ai_label', 'ai_label_needs_media', 'ai_label_manual'] as $field) {
         assert(array_key_exists($field, $channel), $key . ' carries the field ' . $field);
     }
     assert(is_bool($channel['requires_media']), $key . ': requires_media is a real bool');
@@ -73,6 +87,12 @@ foreach (avesmapsSocialChannelKeys() as $key) {
     assert(is_bool($channel['clickable_links']), $key . ': clickable_links is a real bool');
     assert(is_bool($channel['ai_label']), $key . ': ai_label is a real bool');
     assert(is_bool($channel['ai_label_needs_media']), $key . ': ai_label_needs_media is a real bool');
+    assert(is_bool($channel['ai_label_manual']), $key . ': ai_label_manual is a real bool');
+    // 💣 Die beiden schliessen einander AUS: entweder wir setzen die Erklaerung selbst, oder sie ist
+    // von Hand nachzutragen. Beides zugleich hiesse, der Hub verspraeche eine Kennzeichnung UND
+    // verlangte dieselbe noch einmal per Hand.
+    assert(!($channel['ai_label'] && $channel['ai_label_manual']),
+        $key . ': ai_label und ai_label_manual zugleich ist ein Widerspruch');
     // 💣 Ein Kanal, der gar keine KI-Erklaerung annimmt, kann dafuer auch kein Bild brauchen. Die
     // Umkehrung liesse den Hub warnen, wo es nichts zu warnen gibt.
     assert(!($channel['ai_label_needs_media'] && !$channel['ai_label']),
@@ -157,8 +177,9 @@ foreach ($list as $row) {
     assert(!isset($row['app_secret']), 'no app secret either');
     assert(array_keys($row) === ['key', 'label', 'icon', 'account', 'note', 'max_chars',
         'max_hashtags', 'requires_media', 'shows_media', 'ai_label', 'ai_label_needs_media',
-        'clickable_links', 'configured', 'connectable', 'links', 'facts', 'access_expires'],
-        'the row carries exactly these seventeen keys -- a field added here reaches the browser');
+        'ai_label_manual', 'clickable_links', 'configured', 'connectable', 'links', 'facts',
+        'access_expires'],
+        'the row carries exactly these eighteen keys -- a field added here reaches the browser');
     // 🔴 `connect_scopes` steht im Register, darf aber NICHT mitreisen: was ein Token vorweisen muss,
     // ist eine Serverentscheidung. Im Browser waere es eine Liste, die jemand fuer eine Einstellung
     // haelt.
