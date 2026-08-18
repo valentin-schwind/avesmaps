@@ -15,7 +15,10 @@
 --   * sources: 26 Zeilen umbenannt, dazu EINE Kollision -- und die war eine Waise (0 Verknuepfungen,
 --     0 adventure_place-Zeilen), waehrend die 16 echten Verknuepfungen laengst an der neuen Zeile
 --     hingen. Die alte wurde geloescht. Zusammengefuehrt werden musste NICHTS.
---   * political_territory / map_features: siehe Abschnitte 4 und 5, dort gemeldete Zeilenzahl.
+--   * political_territory: 0 Zeilen. map_features: 0 Zeilen. Die Links sassen AUSSCHLIESSLICH im
+--     Quellenkatalog -- weder im wiki_url eines Gebiets noch in der Alt-"Andere Quelle" eines
+--     Kartenobjekts lag eine einzige. Die Abschnitte 4 und 5 bleiben trotzdem stehen: sie kosten
+--     nichts, wenn sie nichts finden, und bei der naechsten fremden Seite kann es anders aussehen.
 --
 -- ⭐ DIE LEHRE FUER DEN NAECHSTEN, DER SO ETWAS BAUT: die Bestandsaufnahme in Abschnitt 1 war NICHT
 -- noetig. Jede Schreibanweisung hier ist durch `WHERE ... LIKE '%liste-baronien%'` begrenzt und fasst
