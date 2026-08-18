@@ -167,3 +167,8 @@ hell UND dunkel), dann Commit + Push, dann der Blick des Owners.
 - [ ] Zwei Hüllen, nicht drei (A6)
 - [ ] Jede neue Zusicherung EINZELN mutiert (alle)
 - [ ] Ganzes Testfeld grün, alle drei Läufe (A7)
+
+> ⚠️ **Ueberholt fuer die verbleibenden Stufen (18.08.2026).** Der Ort ist abgearbeitet und live;
+> was danach kommt, steht in `docs/superpowers/plans/2026-08-18-wiki-override-rest.md`. Aufgabe 5
+> hier beschreibt eine LAYOUT-Fassung, die der Owner am 17.08. verworfen hat (drei Rasterspalten
+> statt 50/50) -- sie steht nur noch als Vorgeschichte da.
