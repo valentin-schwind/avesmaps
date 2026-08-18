@@ -755,6 +755,10 @@ function sandkastenBauen(fetchAntwort) {
 	vm.createContext(kasten);
 	[
 		"js/ui/filter-menu.js", "js/routing/travel-calendar.js", "js/pages/wege-editor-model.js",
+		// ⚠️ Der geteilte Statuskreis-Bauer, seit 18.08.2026: `segmentRow` ruft ihn an jeder Zeile,
+		// die einen Weg darstellt. Ohne ihn wirft `renderList` -- und zwar erst beim KLICK weiter
+		// unten, also weit weg von der Ursache. ECHT geladen, keine Attrappe.
+		"js/ui/listen-statuskreis.js",
 		"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-assign.js",
 		"js/ui/wiki-assign-weg.js",
 	].forEach((datei) => {
