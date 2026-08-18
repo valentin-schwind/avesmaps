@@ -283,8 +283,21 @@ const SVGX_TYPE_VOCAB = {
 
 // Die Semantik-Attribute eines Elements. Leer, wenn niemand sie bestellt hat -- niemand
 // bekommt 20.000-mal drei Attribute ungefragt in die Datei.
-function svgxSem(an, felder) {
+// Bequemere Reihenfolge für die Aufrufstellen: (an, zaehler, felder).
+function svgxSem2(an, gesehen, felder) {
+	return svgxSem(an, felder, gesehen);
+}
+
+function svgxSem(an, felder, gesehen) {
 	if (!an) { return ""; }
+	// 💣 Das Vokabular MUSS aus den wirklich geschriebenen Werten entstehen, nicht aus dem
+	// Zählwerk: dort stehen Anzeige-Labels ("Metropole", "Flusswege"), an den Elementen aber
+	// Schlüssel ("metropole", "Flussweg"). Der erste Anlauf baute es aus dem Zählwerk -- die
+	// Datei erklärte 39 Typen und benutzte 47, darunter alle sechs Ortsgrößen. Eine Datei,
+	// die sich selbst erklären soll, darf keine Vokabel benutzen, die sie nicht führt.
+	if (gesehen && felder && felder.type) {
+		gesehen.set(felder.type, (gesehen.get(felder.type) || 0) + 1);
+	}
 	return Object.entries(felder || {})
 		.filter(([, v]) => v !== undefined && v !== null && v !== "")
 		.map(([k, v]) => ` avm:${k}="${svgxEscapeText(v)}"`)
@@ -740,7 +753,7 @@ function svgxWayLayer(options) {
 				// zweimal, und der <textPath href> der Beschriftung träfe die falsche.
 				const id = svgxIdFor(`${name}-Kontur`, f.properties && f.properties.public_id, o.dialect, o.seen);
 				stuecke.push(`<path id="${svgxEscapeText(id)}"`
-					+ svgxSem(o.semantics, { kind: "weg", type: art, rolle: "kontur" })
+					+ svgxSem2(o.semantics, o.typen, { kind: "weg", type: art, rolle: "kontur" })
 					+ ` d="${svgxPathData(f.geometry.coordinates, zeichnen)}"/>\n`);
 			});
 			stuecke.push(svgxGroupClose());
@@ -760,7 +773,7 @@ function svgxWayLayer(options) {
 				o.wayIds.set(f.properties.public_id, id);
 			}
 			stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)}`
-				+ svgxSem(o.semantics, Object.assign({ kind: "weg", type: art, name: name },
+				+ svgxSem2(o.semantics, o.typen, Object.assign({ kind: "weg", type: art, name: name },
 					svgxContextFor(f.geometry, o.context)))
 				+ ` d="${svgxPathData(f.geometry.coordinates, zeichnen)}">`
 				+ `<title>${svgxEscapeText(name)}</title></path>\n`);
@@ -791,7 +804,7 @@ function svgxPowerlineLayer(options) {
 		const name = f.properties.name || "Kraftlinie";
 		const id = svgxIdFor(name, f.properties.public_id, o.dialect, o.seen);
 		stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)}`
-			+ svgxSem(o.semantics, Object.assign({ kind: "kraftlinie", name: name },
+			+ svgxSem2(o.semantics, o.typen, Object.assign({ kind: "kraftlinie", name: name },
 			svgxContextFor(f.geometry, o.context)))
 			+ ` d="${svgxPathData(f.geometry.coordinates)}">`
 			+ `<title>${svgxEscapeText(name)}</title></path>\n`);
@@ -862,7 +875,7 @@ function svgxAreaLayer(options) {
 			const name = svgxNameOf(f) || schluessel || o.layerName;
 			const id = svgxIdFor(name, svgxProps(f).public_id, o.dialect, o.seen);
 			stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)}`
-				+ svgxSem(o.semantics, Object.assign({ kind: o.semKind || "flaeche", type: schluessel,
+				+ svgxSem2(o.semantics, o.typen, Object.assign({ kind: o.semKind || "flaeche", type: schluessel,
 					ebene: svgxProps(f).kind, name: name }, svgxContextFor(f.geometry, o.context, o.kombi, schluessel)))
 				+ ` d="${d}">`
 				+ `<title>${svgxEscapeText(name)}</title></path>\n`);
@@ -916,7 +929,7 @@ function svgxPlaceLayer(options) {
 			const name = f.properties.name || kind.label || slug;
 			const id = svgxIdFor(name, f.properties.public_id, o.dialect, o.seen);
 			stuecke.push(`<circle id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)}`
-				+ svgxSem(o.semantics, Object.assign({ kind: "ort", type: slug, name: name },
+				+ svgxSem2(o.semantics, o.typen, Object.assign({ kind: "ort", type: slug, name: name },
 				svgxContextFor(f.geometry, o.context)))
 				+ ` cx="${p.x}" cy="${p.y}" r="${kind.r || 0.8}">`
 				+ `<title>${svgxEscapeText(name)}</title></circle>\n`);
@@ -1021,6 +1034,7 @@ function svgxBuildDocument(options) {
 	// Also zählt der Bauer die Kombinationen mit, während er sie ohnehin ausrechnet -- Kosten:
 	// eine Zeile je Element, kein zweiter Durchgang, keine zweite Wahrheit.
 	const kombi = new Map();
+	const typenGesehen = new Map();
 	const stats = {};
 
 	const detail = [];
@@ -1056,7 +1070,7 @@ function svgxBuildDocument(options) {
 			features: o.mapFeatures, dialect: dialect, seen: seen, wayIds: wayIds,
 			enabled: (o.subgroups || {}).wege, strokeScale: o.strokeScale,
 			colors: o.wayColors, outlines: o.wayOutlines, smooth: o.smooth, tension: o.tension,
-			only: ["Flussweg"], bare: true, semantics: semAn, context: kontext,
+			only: ["Flussweg"], bare: true, semantics: semAn, context: kontext, typen: typenGesehen,
 		});
 		flussTeile = fl.parts;
 		if (fl.count) { detail.push({ layer: "Landschaften", group: "Flusswege", count: fl.count }); }
@@ -1067,7 +1081,7 @@ function svgxBuildDocument(options) {
 	// (gemessen 14.08.2026 an 11.810 Features -- location, crossing, path, junction, label,
 	// powerline). Die Flächen, die man dafür hielte, sind die Landschaften-Ebene.
 	if (an.landschaften !== false) {
-		nimm("Landschaften", svgxAreaLayer({ semantics: semAn, context: kontext, semKind: "landschaft", kombi: kombi,
+		nimm("Landschaften", svgxAreaLayer({ semantics: semAn, context: kontext, semKind: "landschaft", kombi: kombi, typen: typenGesehen,
 			features: o.ecosystems, layerName: "Landschaften", layerId: "layer-landschaften",
 			// 💣 Der Rückfall heißt `ohne_typ` und NICHT etwa der Name der Art. 49 Flächen
 			// tragen keinen region_type; fielen sie auf "topographie"/"derographisch"
@@ -1104,7 +1118,7 @@ function svgxBuildDocument(options) {
 		}));
 	}
 	if (an.gebiete !== false) {
-		nimm("Herrschaftsgebiete", svgxAreaLayer({ semantics: semAn, context: kontext, semKind: "herrschaftsgebiet",
+		nimm("Herrschaftsgebiete", svgxAreaLayer({ semantics: semAn, context: kontext, semKind: "herrschaftsgebiet", typen: typenGesehen,
 			features: o.territories, layerName: "Herrschaftsgebiete", layerId: "layer-gebiete",
 			groupBy: (f) => svgxProps(f).rank || svgxProps(f).type || "Gebiet",
 			defaultFill: "none", stroke: o.boundaryColor || "#8a6a3f", strokeScale: o.strokeScale,
@@ -1124,16 +1138,16 @@ function svgxBuildDocument(options) {
 		const wegeAus = fluesseUnten
 			? Object.assign({}, (o.subgroups || {}).wege, { Flussweg: false })
 			: (o.subgroups || {}).wege;
-		nimm("Wege", svgxWayLayer({ semantics: semAn, context: kontext, features: o.mapFeatures, dialect: dialect, seen: seen,
+		nimm("Wege", svgxWayLayer({ semantics: semAn, context: kontext, typen: typenGesehen, features: o.mapFeatures, dialect: dialect, seen: seen,
 			wayIds: wayIds, enabled: wegeAus, strokeScale: o.strokeScale,
 			colors: o.wayColors, outlines: o.wayOutlines, smooth: o.smooth, tension: o.tension }));
 	}
 	if (an.kraftlinien !== false) {
-		nimm("Kraftlinien", svgxPowerlineLayer({ semantics: semAn, context: kontext, features: o.mapFeatures, dialect: dialect, seen: seen,
+		nimm("Kraftlinien", svgxPowerlineLayer({ semantics: semAn, context: kontext, typen: typenGesehen, features: o.mapFeatures, dialect: dialect, seen: seen,
 			strokeScale: o.strokeScale, color: o.powerlineColor, smooth: o.smooth, tension: o.tension }));
 	}
 	if (an.orte !== false) {
-		nimm("Orte", svgxPlaceLayer({ semantics: semAn, context: kontext, features: o.mapFeatures, kinds: o.placeKinds, dialect: dialect,
+		nimm("Orte", svgxPlaceLayer({ semantics: semAn, context: kontext, typen: typenGesehen, features: o.mapFeatures, kinds: o.placeKinds, dialect: dialect,
 			seen: seen, enabled: (o.subgroups || {}).orte, colors: o.placeColors }));
 	}
 	if (an.beschriftungen !== false) {
@@ -1149,10 +1163,14 @@ function svgxBuildDocument(options) {
 	let vokabular = null;
 	if (semAn) {
 		const typen = {};
-		detail.forEach((d) => {
-			const v = SVGX_TYPE_VOCAB[d.group];
-			if (!v) { return; }
-			typen[d.group] = { de: v.de, en: v.en, ebene: d.layer, anzahl: d.count };
+		typenGesehen.forEach((anzahl, schluessel) => {
+			const v = SVGX_TYPE_VOCAB[schluessel];
+			// ⚠️ Ein Typ ohne Eintrag wird TROTZDEM geführt -- mit dem rohen Schlüssel und dem
+			// Vermerk, dass er unbeschrieben ist. Ihn wegzulassen hieße, eine Vokabel zu benutzen
+			// und zu verschweigen; live betrifft das die Datenleiche `crossing`.
+			typen[schluessel] = v
+				? { de: v.de, en: v.en, anzahl: anzahl }
+				: { de: schluessel, en: "", anzahl: anzahl, unbeschrieben: true };
 		});
 		vokabular = {
 			hinweis: "avm:kind/type/klima/relief an jedem Element. Nur Fakten, keine Deutung.",

@@ -575,3 +575,48 @@ console.log("svg-export-build (Passmarken): ok");
 }
 
 console.log("svg-export-build (Ortsfarbe + Flächenkontur): ok");
+
+// ---- 20. Semantik: die Datei erklärt JEDE Vokabel, die sie benutzt ---------------------
+{
+	const eco = [{ public_id: "e1", region_name: "Ein Wald", region_type: "wald", kind: "vegetation",
+		geometry: { type: "Polygon", coordinates: [[[0, 1024], [8, 1024], [8, 1016], [0, 1024]]] } }];
+	const { parts } = B.svgxBuildDocument({ mapFeatures: payload, ecosystems: eco,
+		dialect: D.INKSCAPE, semantics: true });
+	const svg = parts.join("");
+
+	assert.ok(svg.includes('xmlns:avm="https://avesmaps.de/ns/export/1"'), "der Namensraum fehlt");
+	assert.ok(svg.includes('avm:kind="ort"') && svg.includes('avm:type="metropole"'),
+		"Orte tragen Art und Größe");
+	assert.ok(svg.includes('avm:kind="weg"') && svg.includes('avm:type="Reichsstrasse"'),
+		"Wege tragen ihre Wegart");
+	assert.ok(svg.includes('avm:type="wald"'), "Flächen tragen ihren Geländetyp");
+
+	const roh = (svg.match(/<desc id="avm-vokabular">([\s\S]*?)<\/desc>/) || [])[1];
+	assert.ok(roh, "das Vokabular fehlt im Kopf");
+	const v = JSON.parse(roh.replace(/&quot;/g, '"').replace(/&lt;/g, "<")
+		.replace(/&gt;/g, ">").replace(/&amp;/g, "&"));
+
+	// 💣 DIE PROBE, die den Fehler gefunden hätte: das Vokabular wurde erst aus dem Zählwerk
+	// gebaut, und dort stehen Anzeige-Labels ("Metropole"), an den Elementen aber Schlüssel
+	// ("metropole"). Live erklärte die Datei 39 Typen und benutzte 47 -- eine Datei, die sich
+	// selbst erklären soll, darf keine Vokabel benutzen, die sie nicht führt.
+	const benutzt = [...new Set([...svg.matchAll(/avm:type="([^"]+)"/g)].map((m) => m[1]))];
+	benutzt.forEach((typ) => {
+		assert.ok(v.typen[typ], `der Typ "${typ}" steht an Elementen, fehlt aber im Vokabular`);
+	});
+
+	// Ein unbekannter Typ wird geführt UND als unbeschrieben markiert, nicht verschwiegen.
+	const fremd = { features: [{ properties: { feature_type: "location", feature_subtype: "crossing",
+		name: "Seltsam", public_id: "x1" }, geometry: { type: "Point", coordinates: [10, 10] } }] };
+	const w = JSON.parse((B.svgxBuildDocument({ mapFeatures: fremd, dialect: D.INKSCAPE, semantics: true })
+		.parts.join("").match(/<desc id="avm-vokabular">([\s\S]*?)<\/desc>/) || [])[1]
+		.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&"));
+	assert.ok(w.typen.crossing && w.typen.crossing.unbeschrieben === true,
+		"ein Typ ohne Eintrag muss geführt und als unbeschrieben markiert werden");
+
+	// Ohne Schalter kein avm: -- niemand bekommt 20.000-mal Attribute ungefragt.
+	const ohne = B.svgxBuildDocument({ mapFeatures: payload, dialect: D.INKSCAPE }).parts.join("");
+	assert.ok(!/avm:/.test(ohne), "ohne Schalter keine Semantik");
+}
+
+console.log("svg-export-build (Semantik): ok");
