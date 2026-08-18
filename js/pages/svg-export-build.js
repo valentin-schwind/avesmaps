@@ -288,6 +288,12 @@ function svgxSem2(an, gesehen, felder) {
 	return svgxSem(an, felder, gesehen);
 }
 
+// Die avm:-Attribute eines Elements.
+// 🔴 avm:id ist die DAUERHAFTE Kennung (public_id der Datenbank), NICHT die XML-id.
+// Die XML-id traegt den Namen, damit Illustrator und Inkscape etwas Lesbares zeigen --
+// sie aendert sich also, sobald jemand umbenennt. Wer zwei Abzuege vergleichen will (etwa
+// um nur die geaenderten Kacheln neu zu rechnen), muss avm:id nehmen. Die Bild-Pipeline
+// hat am 18.08.2026 genau danach gefragt; es ist ihr groesster Rechenzeit-Hebel.
 function svgxSem(an, felder, gesehen) {
 	if (!an) { return ""; }
 	// 💣 Das Vokabular MUSS aus den wirklich geschriebenen Werten entstehen, nicht aus dem
